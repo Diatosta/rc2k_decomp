@@ -501,14 +501,16 @@ pub fn surface_shares(race: &Race) -> Result<(), Refused> {
             ]
             .map(|b| b as u8);
             let second = face_byte(0x21)?;
-            // `surface_kinds`: indexed by a byte of the texture info (not bounded by the
-            // field's 4 dwords), so read by address.
-            let kind: u32 = crate::session::read_on_in(
-                &shared.view,
-                &shared.view.surface_kinds,
-                byte(second, 0x2C)? as usize,
-                "the surface kinds table",
-            )?;
+            // `surface_kinds`: indexed by the texture info's kind byte, the course info
+            // record's +0x24 (`build_texture_infos`): 0 .. 3 in every record of the texture
+            // info files the game ships (with the marks' file over them), so inside the
+            // four; a byte past them is refused.
+            let kind: u32 = shared
+                .view
+                .surface_kinds
+                .get(byte(second, 0x2C)? as usize)
+                .ok_or(BadInput("a texture's surface kind past the four kinds"))?
+                .get();
             let weight = rc2k_core::race::best_line::second_weight(blend, second as u8, kind);
             shared
                 .vars

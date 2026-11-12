@@ -31,12 +31,10 @@ pub fn turned_vertex(
     vertex
         .v
         .set(disc::turned_texture(y, hud.block.uv_shift[1].get(), scale));
-    let [tx, _, tz, _] =
-        rotate_float_point_about_y_plain(engine_tables, x.to_bits(), 0, y.to_bits(), angle);
-    hud.block.point[1].set(tz);
-    hud.block.point[0].set(tx);
+    let ([tx, _, tz], _) = rotate_float_point_about_y_plain(engine_tables, x, 0.0, y, angle);
+    hud.block.point[1].set(tz.to_bits());
+    hud.block.point[0].set(tx.to_bits());
     let size = hud.block.needle_size.get();
-    let [tx, tz] = [tx, tz].map(f32::from_bits);
     vertex.x.set(disc::turned_place(
         tx,
         size,

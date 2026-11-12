@@ -18,8 +18,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::screens::draw_stage_records::selection_in;
 use crate::screens::stage_panel::{
-    TITLE_FONT, build_second_heading, draw_records_for_group, draw_stage_body, label,
-    table_dword_at,
+    TITLE_FONT, build_second_heading, draw_records_for_group, draw_stage_body, group_title, label,
 };
 use crate::text::draw_text::{Canvas, draw_text_at};
 
@@ -47,11 +46,7 @@ pub fn draw_time_trial_stage_info(
     label(
         crate::strings::append_string_by_id::StringOwners::of(o),
         canvas,
-        table_dword_at(
-            &menus.play.results,
-            &menus.play.results.group_titles,
-            sel.group,
-        )?,
+        group_title(&menus.play.results, sel.group)?,
         TITLE_FONT,
         TITLE_X,
         GROUP_TITLE_Y,

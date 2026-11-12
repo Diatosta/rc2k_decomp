@@ -176,21 +176,30 @@ pub fn tbyte_to_int(a: [u8; 10]) -> u32 {
     to_int(from_f80(a)) as u32
 }
 
-/// A point of whole numbers onto the screen as in `race::draw_sky`: `v` = x, y, z, the flat
-/// depth, the scale, the centre's y and x. Flat: z dropped (into `scratch`, as a float)
-/// and the scale over the flat depth + 1; else the scale over z. Gives x as a float and
-/// rounded, y as a float and rounded (each `x r + cx` and `cy - y r`, r the ratio).
-pub fn sun_on_screen(v: &[u32; 7], flat: bool, scratch: &impl crate::session::Cell32) -> [u32; 4] {
-    let (x, y, z) = (int(v[0] as i32), int(v[1] as i32), int(v[2] as i32));
+/// A point of whole numbers onto the screen as in `race::draw_sky`: `point` = x, y, z and
+/// the flat depth; `centre` = the centre's y and x. Flat: z dropped (into `scratch`, as a
+/// float) and the scale over the flat depth + 1; else the scale over z. Gives x and y as
+/// floats (the first) and rounded to whole numbers (the second), each `x r + cx` and
+/// `cy - y r`, r the ratio.
+pub fn sun_on_screen(
+    point: [i32; 4],
+    scale: impl Flt,
+    centre: [impl Flt; 2],
+    flat: bool,
+    scratch: &impl crate::session::Cell32,
+) -> ([f32; 2], [i32; 2]) {
+    let scale = scale.bits();
+    let [cy, cx] = centre.map(|c| c.bits());
+    let (x, y, z) = (int(point[0]), int(point[1]), int(point[2]));
     let ratio = if flat {
         scratch.set_bits(st(z));
-        ld(v[4]) / (int(v[3] as i32) + X(1.0))
+        ld(scale) / (int(point[3]) + X(1.0))
     } else {
-        ld(v[4]) / z
+        ld(scale) / z
     };
-    let sx = x * ratio + ld(v[6]);
-    let sy = -(y * ratio) + ld(v[5]);
-    [st(sx), to_int(sx) as u32, st(sy), to_int(sy) as u32]
+    let sx = x * ratio + ld(cx);
+    let sy = -(y * ratio) + ld(cy);
+    ([out(sx), out(sy)], [to_int(sx), to_int(sy)])
 }
 
 /// `k` less half the distance from the centre, rounded, as a whole number: `-(sqrt((x -

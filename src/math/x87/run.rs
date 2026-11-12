@@ -437,7 +437,7 @@ pub fn lever_share(
     b: impl Flt,
     c: impl Flt,
     zero: impl Flt,
-) -> (u32, bool) {
+) -> (f32, bool) {
     let a = a.bits();
     let d = d.bits();
     let b = b.bits();
@@ -447,9 +447,9 @@ pub fn lever_share(
     let big_b = ld(b).abs() + ld(c).abs();
     let sum = big_b + big_a;
     if compare(sum, ld(zero)) & 0x4000 != 0 {
-        (st(big_a), true)
+        (out(big_a), true)
     } else {
-        (st(big_a / sum), false)
+        (out(big_a / sum), false)
     }
 }
 

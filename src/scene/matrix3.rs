@@ -12,8 +12,8 @@ use crate::math::x87_float::{self as bh, ONE, X, f80, from_f80, ld, st, stf};
 /// `scene::identity_matrix3` (0x46574E): the matrix `m` the identity (1.0 from `fld1`).
 /// Every register kept.
 pub fn identity_matrix3(m: &(impl Cells + ?Sized)) {
-    for (n, v) in rc2k_core::math::vector::IDENTITY.iter().enumerate() {
-        m.set_bits(n, v.to_bits());
+    for (n, &v) in rc2k_core::math::vector::IDENTITY.iter().enumerate() {
+        m.set_float(n, v);
     }
 }
 
@@ -27,19 +27,39 @@ pub fn multiply_matrices3(
 ) {
     for column in 0..3 {
         for row in 0..3 {
-            let v = row_times_column_3(&Off(a, 3 * row), &Off(b, column));
-            out.set_bits(3 * row + column, v);
+            let v = row_times_column(&Off(a, 3 * row), &Off(b, column));
+            out.set_float(3 * row + column, stf(v));
         }
     }
 }
 
 /// `math::x87::row_times_column` for 3 x 3 matrices: `a`'s first three cells times `b`'s
-/// cells 0, 3 and 6, p1 + (p2 + p3).
-pub(crate) fn row_times_column_3(a: &(impl Cells + ?Sized), b: &(impl Cells + ?Sized)) -> u32 {
+/// cells 0, 3 and 6, p1 + (p2 + p3), before it is stored.
+fn row_times_column(a: &(impl Cells + ?Sized), b: &(impl Cells + ?Sized)) -> X {
     let p = |k: usize| ld(a.float(k)) * ld(b.float(3 * k));
     let (p1, p2, p3) = (p(0), p(1), p(2));
-    st(p1 + (p2 + p3))
+    p1 + (p2 + p3)
 }
+
+/// `row_times_column` stored, as its bits (the assembly comparison's).
+#[cfg(all(test, target_arch = "x86"))]
+pub(crate) fn row_times_column_3(a: &(impl Cells + ?Sized), b: &(impl Cells + ?Sized)) -> u32 {
+    st(row_times_column(a, b))
+}
+
+/// Cells holding whole numbers (a point's three dwords).
+trait WholeCells: Cells {
+    /// Cell `n` as the whole number it holds.
+    fn whole(&self, n: usize) -> i32 {
+        self.bits(n) as i32
+    }
+    /// Cell `n` set to the whole number `value`.
+    fn set_whole(&self, n: usize, value: i32) {
+        self.set_bits(n, value as u32);
+    }
+}
+
+impl<C: Cells + ?Sized> WholeCells for C {}
 
 /// A point of three whole numbers at cells `from + 3 n` turned by the matrix `m` into cells
 /// `to + 3 n`: x m0 + (y m1 + z m2), x m3 + (y m4 + z m5), y m7 + (x m6 + z m8), each
@@ -50,15 +70,15 @@ pub(crate) fn turn_int_point(
     to: &(impl Cells + ?Sized),
     n: usize,
 ) {
-    let int = |k: usize| bh::int(from.bits(3 * n + k) as i32);
+    let int = |k: usize| bh::int(from.whole(3 * n + k));
     let (x, y, z) = (int(0), int(1), int(2));
     let c = |k: usize| ld(m.float(k));
     let first = x * c(0) + (y * c(1) + z * c(2));
-    to.set_bits(3 * n, bh::to_int(first) as u32);
+    to.set_whole(3 * n, bh::to_int(first));
     let second = x * c(3) + (y * c(4) + z * c(5));
-    to.set_bits(3 * n + 1, bh::to_int(second) as u32);
+    to.set_whole(3 * n + 1, bh::to_int(second));
     let third = y * c(7) + (x * c(6) + z * c(8));
-    to.set_bits(3 * n + 2, bh::to_int(third) as u32);
+    to.set_whole(3 * n + 2, bh::to_int(third));
 }
 
 /// `scene::transform_int_points` (0x465829): `count` points of three whole numbers from

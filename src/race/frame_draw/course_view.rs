@@ -369,7 +369,11 @@ pub fn mark_far_cells(
     }
     let half: u32 = view.half.get();
     // Nothing in the loop writes the matrix: its floats read once.
-    let matrix = crate::session::read_bits(&scratch.matrices.view_turn_matrix);
+    let matrix = scratch
+        .matrices
+        .view_turn_matrix
+        .each_ref()
+        .map(crate::session::Float::get);
     let two = race.course.numbers.two.get();
     let zero = race.course.numbers.zero.get();
     let point_five = race.course.numbers.half.get();

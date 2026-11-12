@@ -11,35 +11,31 @@
 //! Plain Rust (the x87's arithmetic in `X`, `math/x87_float.rs`); the
 //! original's instructions' results are recorded vectors in the tests (`data/vectors`).
 
-use crate::scene::x87_mem::{Base, cells, fistp, fld};
+use crate::math::x87_float::{ld, to_int};
 
 // ---- Rust version ----
 
 pub fn light_dot(light: &crate::scene::object_light::ObjectLight) -> i32 {
-    let [p0, p1, p2] = crate::session::read_bits(&light.light_dot_point);
-    let [l0, l1, l2] = crate::session::read_bits(&light.light_dot_light);
-    let v = [p0, p1, p2, l0, l1, l2, light.light_dot_factor.bits()];
-    let mut out = [0u32];
-    dot(&v[..], cells(&mut out));
-    out[0] as i32
+    let [p0, p1, p2] = light
+        .light_dot_point
+        .each_ref()
+        .map(crate::session::Float::get);
+    let [l0, l1, l2] = light
+        .light_dot_light
+        .each_ref()
+        .map(crate::session::Float::get);
+    dot([p0, p1, p2], [l0, l1, l2], light.light_dot_factor.get())
 }
 
-/// `fld; fmul; fld; fmul; fld; fmul; faddp; faddp; fmul; fistp` over the seven floats at `v`.
-fn dot(v: impl Base, o: impl Base) {
-    let t0 = fld(v, 0x0);
-    let t1 = fld(v, 0xC);
-    let t2 = t0 * t1;
-    let t3 = fld(v, 0x4);
-    let t4 = fld(v, 0x10);
-    let t5 = t3 * t4;
-    let t6 = fld(v, 0x8);
-    let t7 = fld(v, 0x14);
-    let t8 = t6 * t7;
+/// `fld; fmul; fld; fmul; fld; fmul; faddp; faddp; fmul; fistp`: the point times the light,
+/// the second and third products added first, times the factor.
+fn dot(point: [f32; 3], light: [f32; 3], factor: f32) -> i32 {
+    let t2 = ld(point[0]) * ld(light[0]);
+    let t5 = ld(point[1]) * ld(light[1]);
+    let t8 = ld(point[2]) * ld(light[2]);
     let t9 = t5 + t8;
     let t10 = t2 + t9;
-    let t11 = fld(v, 0x18);
-    let t12 = t10 * t11;
-    fistp(o, 0x0, t12);
+    to_int(t10 * ld(factor))
 }
 
 #[cfg(test)]
@@ -62,7 +58,10 @@ mod reference_vectors {
                 }
                 m[7] = 0xAAAA_AAAA;
             },
-            plain: &|c| dot(c, &c[7..]),
+            plain: &|c| {
+                let f = |k: usize| f32::from_bits(c[k].get());
+                c[7].set(dot([f(0), f(1), f(2)], [f(3), f(4), f(5)], f(6)) as u32);
+            },
         };
         differential(test);
     }

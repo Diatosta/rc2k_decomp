@@ -60,7 +60,7 @@ pub fn place(
         crate::race::heard_turn::turn(matrices),
         [part(0), part(1), part(2)],
     );
-    let k = numbers.one_over_65536.bits();
+    let k = numbers.one_over_65536.get();
     for (cell, e) in into.iter().zip(&out) {
         cell.set(rounded_value(ext_times(*e, k)));
     }

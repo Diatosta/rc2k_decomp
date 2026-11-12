@@ -311,6 +311,7 @@ impl<'a> CellRun<'a> {
         }
         if let CellRun::PlainBytes(r) = self {
             for (c, &b) in r[offset..].iter().zip(from) {
+                crate::session::plain_written(c);
                 c.set(b);
             }
             return;
@@ -408,11 +409,13 @@ unsafe impl Cells for crate::session::Flag {
 // SAFETY: one `Cell<u32>`.
 unsafe impl Cells for crate::session::PlainDword {
     fn copy_from(&self, other: &Self) {
+        crate::session::plain_written(self.cell());
         self.cell().set(other.cell().get());
     }
 
     fn merge_changes(&self, now: &Self, start: &Self) {
         if let Some(v) = merged!(u32, now.cell().get(), start.cell().get()) {
+            crate::session::plain_written(self.cell());
             self.cell().set(v);
         }
     }
@@ -428,11 +431,13 @@ unsafe impl Cells for crate::session::PlainDword {
 // SAFETY: one `Cell<u32>`.
 unsafe impl Cells for crate::session::PlainFloat {
     fn copy_from(&self, other: &Self) {
+        crate::session::plain_written(self.cell());
         self.cell().set(other.cell().get());
     }
 
     fn merge_changes(&self, now: &Self, start: &Self) {
         if let Some(v) = merged!(u32, now.cell().get(), start.cell().get()) {
+            crate::session::plain_written(self.cell());
             self.cell().set(v);
         }
     }
@@ -448,11 +453,13 @@ unsafe impl Cells for crate::session::PlainFloat {
 // SAFETY: one `Cell<u32>`.
 unsafe impl Cells for crate::session::PlainFlag {
     fn copy_from(&self, other: &Self) {
+        crate::session::plain_written(self.cell());
         self.cell().set(other.cell().get());
     }
 
     fn merge_changes(&self, now: &Self, start: &Self) {
         if let Some(v) = merged!(u32, now.cell().get(), start.cell().get()) {
+            crate::session::plain_written(self.cell());
             self.cell().set(v);
         }
     }
@@ -555,11 +562,13 @@ unsafe impl Cells for crate::session::Loose {
 // SAFETY: one `Cell<u16>`.
 unsafe impl Cells for crate::session::PlainWord {
     fn copy_from(&self, other: &Self) {
+        crate::session::plain_written(self.cell());
         self.cell().set(other.cell().get());
     }
 
     fn merge_changes(&self, now: &Self, start: &Self) {
         if let Some(v) = merged!(u16, now.cell().get(), start.cell().get()) {
+            crate::session::plain_written(self.cell());
             self.cell().set(v);
         }
     }
@@ -575,11 +584,13 @@ unsafe impl Cells for crate::session::PlainWord {
 // SAFETY: one `Cell<u8>`.
 unsafe impl Cells for crate::session::PlainByte {
     fn copy_from(&self, other: &Self) {
+        crate::session::plain_written(self.cell());
         self.cell().set(other.cell().get());
     }
 
     fn merge_changes(&self, now: &Self, start: &Self) {
         if let Some(v) = merged!(u8, now.cell().get(), start.cell().get()) {
+            crate::session::plain_written(self.cell());
             self.cell().set(v);
         }
     }
@@ -596,6 +607,7 @@ unsafe impl Cells for crate::session::PlainByte {
 unsafe impl<const N: usize> Cells for crate::session::PlainBytes<N> {
     fn copy_from(&self, other: &Self) {
         for (to, from) in self.cells().iter().zip(other.cells()) {
+            crate::session::plain_written(to);
             to.set(from.get());
         }
     }
@@ -604,6 +616,7 @@ unsafe impl<const N: usize> Cells for crate::session::PlainBytes<N> {
         for ((to, now), start) in self.cells().iter().zip(now.cells()).zip(start.cells()) {
             let v = now.get();
             if v != start.get() {
+                crate::session::plain_written(to);
                 to.set(v);
             }
         }
@@ -813,9 +826,16 @@ fn set_cell_bytes(cell: CellRef, from: usize, new: &[u8]) {
                 Some(u16::from_ne_bytes([a, b]))
             });
         }
-        CellRef::Plain32(c) => c.set(u32::from_ne_bytes(merge(c.get().to_ne_bytes()))),
-        CellRef::Plain8(c) => c.set(new[0]),
+        CellRef::Plain32(c) => {
+            crate::session::plain_written(c);
+            c.set(u32::from_ne_bytes(merge(c.get().to_ne_bytes())));
+        }
+        CellRef::Plain8(c) => {
+            crate::session::plain_written(c);
+            c.set(new[0]);
+        }
         CellRef::Plain16(c) => {
+            crate::session::plain_written(c);
             let [a, b, ..] = c.get().to_ne_bytes();
             let [a, b, ..] = merge([a, b, 0, 0]);
             c.set(u16::from_ne_bytes([a, b]));

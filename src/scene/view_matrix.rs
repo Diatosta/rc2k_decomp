@@ -28,7 +28,8 @@ pub fn set_fine_turn(course: &Course, matrices: &ViewMatrices, axis: Axis, angle
         course.numbers.k65536.get(),
         course.numbers.one_over_two_pi.get(),
     );
-    let negated = sine ^ 0x8000_0000;
+    let [sine, cosine] = [sine, cosine].map(f32::from_bits);
+    let negated = -sine;
     // The work pair, then where the cosine, the sine, the sine negated and the
     // cosine go in the matrix.
     let (work, rows, places): (&[Float; 2], &[Float; 16], [usize; 4]) = match axis {
@@ -44,9 +45,10 @@ pub fn set_fine_turn(course: &Course, matrices: &ViewMatrices, axis: Axis, angle
         ),
         Axis::Z => (&matrices.turn_z_work, &matrices.turn_z_matrix, [0, 1, 4, 5]),
     };
-    crate::session::write_bits(work, [sine, cosine]);
+    work[0].set(sine);
+    work[1].set(cosine);
     for (place, value) in places.into_iter().zip([cosine, sine, negated, cosine]) {
-        rows[place].set_bits(value);
+        rows[place].set(value);
     }
 }
 
@@ -76,7 +78,8 @@ pub fn unit_vector(
         out.set_float(n, x87::div(from.float(n), length));
     }
     for n in 0..3 {
-        if out.bits(n) == 0x8000_0000 {
+        let v = out.float(n);
+        if v == 0.0 && v.is_sign_negative() {
             out.set_float(n, 0.0);
         }
     }
@@ -110,9 +113,7 @@ pub fn square_matrix(course: &Course, at: &(impl Cells + ?Sized)) -> u32 {
     cross_product(&Off(at, 4), &third, &first);
     let length = unit_vector(course, &first, &first);
     cross_product(&third, &first, &second);
-    for n in 0..0x10 {
-        at.set_bits(n, squared.bits(n));
-    }
+    crate::math::cells::copy_cells(&squared, at, 0x10);
     length
 }
 

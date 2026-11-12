@@ -20,7 +20,7 @@ use crate::menu::owner::Menus;
 use crate::menu::owner::Play;
 use crate::screens::draw_stage_records::selection_in;
 use crate::screens::stage_panel::{
-    build_second_heading, draw_records_for_group, draw_stage_body, menu_item_id, table_dword_at,
+    build_second_heading, draw_records_for_group, draw_stage_body, group_title, menu_item_id,
 };
 use crate::text::draw_text::Canvas;
 
@@ -34,7 +34,7 @@ pub fn menu_titles(
         return Ok(None);
     };
     Ok(Some((
-        table_dword_at(&play.results, &play.results.group_titles, sel.group)?,
+        group_title(&play.results, sel.group)?,
         sel.table.title()?,
     )))
 }

@@ -162,12 +162,7 @@ pub fn stage_choice_texts(o: Owners<'static>) -> Result<(), Refused> {
     set_item(
         items,
         0,
-        crate::session::read_on_in(
-            &menus.play.results,
-            &menus.play.results.group_titles,
-            a as usize,
-            "a group title",
-        )?,
+        crate::screens::stage_panel::group_title(&menus.play.results, a)?,
     )?;
     let (base, record) = stage_record(stages, a, b, menus.screens.event.stage_number.get())?;
     crate::cells::store_value::<u32>(&menus.tables.menus.labels, item_1, base.title()?)?;

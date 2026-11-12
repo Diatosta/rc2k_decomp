@@ -21,7 +21,7 @@ use crate::errors::Refused;
 use crate::math::x87;
 use crate::math::x87_float as bh;
 use crate::race::effects_settings_store::{CarEffects, MarkRecord};
-use crate::scene::matrix3::{extended, rounded, rounded_value};
+use crate::scene::matrix3::{extended, rounded_value};
 
 const LIFE: u32 = 0x12C;
 const ONE: u32 = 0x3F80_0000; // fld1
@@ -91,10 +91,7 @@ pub fn emit_body_contact_particles(
                 effects,
             );
             slot.put(|en| &mut en.motion[2], rounded_value(moved[0]))?;
-            slot.put(
-                |en| &mut en.motion[1],
-                f32::from_bits(rounded(moved[1]) & 0x7FFF_FFFF),
-            )?;
+            slot.put(|en| &mut en.motion[1], rounded_value(moved[1]).abs())?;
             slot.put(|en| &mut en.motion[0], rounded_value(moved[2]))?;
             slot.put(|en| &mut en.place[0], x87::loaded(&record.place[0]))?;
             slot.put(|en| &mut en.place[1], x87::loaded(&record.place[1]))?;

@@ -120,7 +120,7 @@ pub fn draw_object_face(
                 race,
                 ctx.part,
                 fw(vertex + 0xC),
-                scene,
+                ctx.reads.light_tables,
                 light,
                 object,
                 system,

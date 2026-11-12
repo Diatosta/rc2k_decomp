@@ -11,7 +11,7 @@
 
 use crate::math::cells::Cells;
 use crate::physics::car_store::Car;
-use crate::scene::matrix3::{extended, rounded};
+use crate::scene::matrix3::{extended, rounded_value};
 use crate::scene::rotate_point::rotate_point;
 
 // g_crashMatrix
@@ -19,10 +19,10 @@ use crate::scene::rotate_point::rotate_point;
 /// The point `v` turned by the matrix `m`, as the two functions do it: `fld z; fld y; fld
 /// x`, `rotate_point`, `fstp x; fstp y; fstp z`.
 pub fn turn_cells(m: &(impl Cells + ?Sized), v: &(impl Cells + ?Sized)) {
-    let point = std::array::from_fn(|k| extended(v.bits(k)));
+    let point = std::array::from_fn(|k| extended(v.float(k)));
     let out = rotate_point(m, point);
     for (k, e) in out.iter().enumerate() {
-        v.set_bits(k, rounded(*e));
+        v.set_float(k, rounded_value(*e));
     }
 }
 

@@ -17,54 +17,95 @@
 use crate::cells::Store;
 use crate::errors::BadInput;
 
-const HEX8: u32 = 1;
+/// A value as the dump shows it.
+#[derive(Clone, Copy)]
+enum Shown {
+    /// Eight hex digits.
+    Hex8(u32),
+    /// A float with two decimals.
+    Float(f32),
+    /// A whole number.
+    Int(i32),
+    /// A whole number, then a line's end.
+    IntNewline(i32),
+    /// A line's end.
+    Newline,
+}
+
 /// The value column: what the line shows.
-type Value = fn(&crate::scene::polygon_work::PolygonWork, &crate::session::Screen) -> u32;
-const FLOAT: u32 = 2;
-const INT: u32 = 3;
-const INT_NL: u32 = 4;
-const NEWLINE: u32 = 5;
+type Value = fn(&crate::scene::polygon_work::PolygonWork, &crate::session::Screen) -> Shown;
 const MOST: u32 = 64;
 
-/// (label, kind, value): the head's lines before the mask's clearing, and after.
-const HEAD: [(&std::ffi::CStr, u32, Value); 10] = [
-    (c"videox", HEX8, |_, screen| screen.width.get()), // "videox" g_screenWidth
-    (c"videoy", HEX8, |_, screen| screen.height.get()), // "videoy" g_screenHeight
-    (c"videoy", HEX8, |_, screen| screen.height.get()), // "videoy" g_screenHeight
-    (c"r", FLOAT, |poly, _| poly.window.clip_screen[3].bits()), // "r" g_clipScreenRight
-    (c"l", FLOAT, |poly, _| poly.window.clip_screen[2].bits()), // "l" g_clipScreenLeft
-    (c"b", FLOAT, |poly, _| poly.window.clip_screen[1].bits()), // "b" g_clipScreenBottom
-    (c"t", FLOAT, |poly, _| poly.window.clip_screen[0].bits()), // "t" g_clipScreenTop
-    (c"donezcut", INT, |poly, _| poly.depth_clipped.get()), // "donezcut"
-    (c"donesuth", INT, |poly, _| poly.screen_clipped.get()), // "donesuth"
-    (c"cuttest", INT_NL, |poly, _| poly.polygon_clip_mask.get()), // "cuttest" g_polygonClipMask
+/// (label, value): the head's lines before the mask's clearing, and after.
+const HEAD: [(&std::ffi::CStr, Value); 10] = [
+    (c"videox", |_, screen| Shown::Hex8(screen.width.get())), // "videox" g_screenWidth
+    (c"videoy", |_, screen| Shown::Hex8(screen.height.get())), // "videoy" g_screenHeight
+    (c"videoy", |_, screen| Shown::Hex8(screen.height.get())), // "videoy" g_screenHeight
+    (c"r", |poly, _| {
+        Shown::Float(poly.window.clip_screen[3].get())
+    }), // "r" g_clipScreenRight
+    (c"l", |poly, _| {
+        Shown::Float(poly.window.clip_screen[2].get())
+    }), // "l" g_clipScreenLeft
+    (c"b", |poly, _| {
+        Shown::Float(poly.window.clip_screen[1].get())
+    }), // "b" g_clipScreenBottom
+    (c"t", |poly, _| {
+        Shown::Float(poly.window.clip_screen[0].get())
+    }), // "t" g_clipScreenTop
+    (c"donezcut", |poly, _| {
+        Shown::Int(poly.depth_clipped.get() as i32)
+    }), // "donezcut"
+    (c"donesuth", |poly, _| {
+        Shown::Int(poly.screen_clipped.get() as i32)
+    }), // "donesuth"
+    (c"cuttest", |poly, _| {
+        Shown::IntNewline(poly.polygon_clip_mask.get() as i32)
+    }), // "cuttest" g_polygonClipMask
 ];
-const AFTER: [(&std::ffi::CStr, u32, Value); 2] = [
-    (c"tpage", HEX8, |poly, _| poly.texture_page.get()), // "tpage"
-    (c"points", INT, |poly, _| poly.polygon_vertex_count.get()), // "points" g_polygonVertexCount
+const AFTER: [(&std::ffi::CStr, Value); 2] = [
+    (c"tpage", |poly, _| Shown::Hex8(poly.texture_page.get())), // "tpage"
+    (c"points", |poly, _| {
+        Shown::Int(poly.polygon_vertex_count.get() as i32)
+    }), // "points" g_polygonVertexCount
 ];
-const POLYGON_NUMBER: [(&std::ffi::CStr, u32, Value); 1] = [(c"polynum", INT, |poly, _| {
-    crate::race::view_scratch::of_polygon(poly).map_or(0, |v| v.face.course_face.get())
+const POLYGON_NUMBER: [(&std::ffi::CStr, Value); 1] = [(c"polynum", |poly, _| {
+    Shown::Int(
+        crate::race::view_scratch::of_polygon(poly).map_or(0, |v| v.face.course_face.get()) as i32,
+    )
 })]; // "polynum"
-const OBJECT: [(&std::ffi::CStr, u32, Value); 2] = [
+const OBJECT: [(&std::ffi::CStr, Value); 2] = [
     // The view's whose polygon this is (every polygon work is a view slot's).
-    (c"objdraw", INT, |poly, _| {
-        crate::race::view_scratch::of_polygon(poly).map_or(0, |v| v.cars.object_number.get())
+    (c"objdraw", |poly, _| {
+        Shown::Int(
+            crate::race::view_scratch::of_polygon(poly).map_or(0, |v| v.cars.object_number.get())
+                as i32,
+        )
     }), // "objdraw" g_objectNumber
-    (c"objfaced", INT, |poly, _| {
-        crate::race::view_scratch::of_polygon(poly).map_or(0, |v| v.face.face_number.get())
+    (c"objfaced", |poly, _| {
+        Shown::Int(
+            crate::race::view_scratch::of_polygon(poly).map_or(0, |v| v.face.face_number.get())
+                as i32,
+        )
     }), // "objfaced" g_faceNumber
 ];
-/// A vertex's: (label, kind, offset).
-const VERTEX: [(&std::ffi::CStr, u32, u32); 8] = [
-    (c"x", FLOAT, 0),    // "x"
-    (c"y", FLOAT, 4),    // "yzuwv"
-    (c"z", FLOAT, 8),    // "zuwv"
-    (c"u", FLOAT, 0x18), // "uwv"
-    (c"w", FLOAT, 0xC),  // "wv"
-    (c"v", FLOAT, 0x1C), // "v"
-    (c"co", HEX8, 0x10), // "co"
-    (c"sp", HEX8, 0x14), // "sp"
+/// How a vertex's dword is shown.
+#[derive(Clone, Copy)]
+enum Part {
+    Float,
+    Hex8,
+}
+
+/// A vertex's: (label, how shown, offset).
+const VERTEX: [(&std::ffi::CStr, Part, u32); 8] = [
+    (c"x", Part::Float, 0),    // "x"
+    (c"y", Part::Float, 4),    // "yzuwv"
+    (c"z", Part::Float, 8),    // "zuwv"
+    (c"u", Part::Float, 0x18), // "uwv"
+    (c"w", Part::Float, 0xC),  // "wv"
+    (c"v", Part::Float, 0x1C), // "v"
+    (c"co", Part::Hex8, 0x10), // "co"
+    (c"sp", Part::Hex8, 0x14), // "sp"
 ];
 const PT: &std::ffi::CStr = c"pt"; // "pt"
 
@@ -79,19 +120,19 @@ pub fn log_bad_polygon(
     if count > MOST {
         return Err(BadInput("more than 64 vertices"));
     }
-    for (label, kind, at) in HEAD {
+    for (label, at) in HEAD {
         write(label);
-        log(kind, at(poly, screen));
+        log(at(poly, screen));
     }
     poly.polygon_clip_mask.set(0u32);
     let object = crate::race::view_scratch::of_polygon(poly)
         .is_some_and(|v| v.object.drawing_object.get() == 1);
-    let tail: &[(&std::ffi::CStr, u32, Value)] = if object { &OBJECT } else { &POLYGON_NUMBER };
-    for &(label, kind, at) in AFTER.iter().chain(tail) {
+    let tail: &[(&std::ffi::CStr, Value)] = if object { &OBJECT } else { &POLYGON_NUMBER };
+    for &(label, at) in AFTER.iter().chain(tail) {
         write(label);
-        log(kind, at(poly, screen));
+        log(at(poly, screen));
     }
-    log(NEWLINE, 0);
+    log(Shown::Newline);
     if count == 0 {
         return Ok(());
     }
@@ -99,21 +140,22 @@ pub fn log_bad_polygon(
         let mut words = [0u8; 0x20];
         vertices.load(0x20 * n as usize, &mut words)?;
         write(PT);
-        log(INT, n);
-        for (label, kind, offset) in VERTEX {
+        log(Shown::Int(n as i32));
+        for (label, part, offset) in VERTEX {
             write(label);
-            log(
-                kind,
-                u32::from_le_bytes(
-                    words[offset as usize..offset as usize + 4]
-                        .try_into()
-                        .unwrap(),
-                ),
+            let dword = u32::from_le_bytes(
+                words[offset as usize..offset as usize + 4]
+                    .try_into()
+                    .unwrap(),
             );
+            log(match part {
+                Part::Float => Shown::Float(f32::from_bits(dword)),
+                Part::Hex8 => Shown::Hex8(dword),
+            });
         }
-        log(NEWLINE, 0);
+        log(Shown::Newline);
     }
-    log(NEWLINE, 0);
+    log(Shown::Newline);
     Ok(())
 }
 
@@ -123,13 +165,13 @@ fn write(label: &std::ffi::CStr) {
 }
 
 /// One log call at level 1: a number (a float with two decimals) or a line's end.
-fn log(kind: u32, value: u32) {
+fn log(value: Shown) {
     use crate::logfile::{log_float::log_float, log_hex8::log_hex8, log_int::log_int};
-    match kind {
-        HEX8 => log_hex8(value, false, 1),
-        FLOAT => log_float(f32::from_bits(value), 2, false, 1),
-        INT => log_int(value as i32, false, 1),
-        INT_NL => log_int(value as i32, true, 1),
-        _ => crate::logfile::log_write::log_nul(&c"", true, 1),
+    match value {
+        Shown::Hex8(v) => log_hex8(v, false, 1),
+        Shown::Float(v) => log_float(v, 2, false, 1),
+        Shown::Int(v) => log_int(v, false, 1),
+        Shown::IntNewline(v) => log_int(v, true, 1),
+        Shown::Newline => crate::logfile::log_write::log_nul(&c"", true, 1),
     }
 }

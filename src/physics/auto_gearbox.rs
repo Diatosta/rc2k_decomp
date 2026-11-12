@@ -70,7 +70,7 @@ fn tests(
     let gear = car.gear.get();
     let kept = car.engine_speed.get();
     revs_speed(car, tables)?;
-    drawing.scene.scratch.set(over_top(car));
+    drawing.scene.scratch.set(over_top(car).to_bits());
     car.engine_speed.set(kept);
     shifts::auto_tests(
         gear,
@@ -89,7 +89,7 @@ fn tests(
             )
         },
         || {
-            drawing.scene.scratch.set(over_top(car));
+            drawing.scene.scratch.set(over_top(car).to_bits());
             if !shifts::above_first(gear) {
                 return Ok(false);
             }

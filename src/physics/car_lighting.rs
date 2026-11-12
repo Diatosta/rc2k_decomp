@@ -97,7 +97,7 @@ pub fn car_lighting(
     if light >= lighting::TABLE {
         return Err(BadInput("a light index past 0xFF").into());
     }
-    let colour = scene.light_tables.light_table[light as usize].get();
+    let colour = scene.light_tables.get().light_table[light as usize].get();
     scene.lights.work.car_light_colour.set(colour);
     c.car.light_colour.set(colour);
     if face_byte(2)? & 4 == 0 {
@@ -106,12 +106,12 @@ pub fn car_lighting(
     for (first, table, to) in [
         (
             0x28u32,
-            &scene.light_tables.lamp_table_a,
+            &scene.light_tables.get().lamp_table_a,
             &scene.lights.work.lamp_a_colour,
         ),
         (
             0x2C,
-            &scene.light_tables.lamp_table_b,
+            &scene.light_tables.get().lamp_table_b,
             &scene.lights.work.lamp_b_colour,
         ),
     ] {

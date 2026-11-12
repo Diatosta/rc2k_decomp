@@ -274,13 +274,8 @@ fn scale_row_bits() {
         let row = [rng.float(), rng.float(), rng.float()];
         let c = rng.float();
         let old = old::scale_row_bits(row, c);
-        assert_eq!(triple(x87::scale_row_bits(row, c)), old, "{:x?}", (row, c));
-        assert_eq!(
-            triple(x87::scale_row_bits(row, f(c))),
-            old,
-            "{:x?}",
-            (row, c)
-        );
+        assert_eq!(triple(x87::scale_row(row, c)), old, "{:x?}", (row, c));
+        assert_eq!(triple(x87::scale_row(row, f(c))), old, "{:x?}", (row, c));
     });
 }
 

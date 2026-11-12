@@ -11,6 +11,7 @@
 //! (`menu::table_calls`).
 
 use crate::errors::Refused;
+use crate::session::PlainDword;
 use crate::text::draw_text::Canvas;
 
 /// (id, x, y, font) of the page's lines.
@@ -21,19 +22,14 @@ pub fn draw_options_checklist(
     let menus = o.menus;
     // The logic is in `rc2k_core::screens::settings_pages::options_checklist`.
     {
-        let mut ticks = Vec::new();
-        loop {
-            let tick = crate::session::read_on_in(
-                &menus.tables.lists,
-                &menus.tables.lists.inspection_faults,
-                ticks.len(),
-                "a checklist tick",
-            )?;
-            if tick == u32::MAX {
-                break;
-            }
-            ticks.push(tick);
-        }
+        // The fault flags end with their field's -1: `menu::inspection_faults` writes only
+        // the thirteen before it, each 0 or 1.
+        let faults = &menus.tables.lists.inspection_faults;
+        let end = faults
+            .iter()
+            .position(|f| f.get() == u32::MAX)
+            .ok_or(crate::errors::BadInput("the fault flags without their end"))?;
+        let ticks: Vec<u32> = faults[..end].iter().map(PlainDword::get).collect();
         rc2k_core::screens::settings_pages::options_checklist(
             &mut crate::screens::game_screen::SettingsScreen::new(canvas, o),
             menus.screens.event.current_player.get(),

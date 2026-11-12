@@ -18,13 +18,15 @@ use crate::scene::object_store::ObjectWork;
 use crate::scene::object_tables_store::ObjectTables;
 use crate::scene::texture_places_store::TexturePlaces;
 use crate::scene::upload_car_icon::IconUploadCell;
-use crate::session::GameThread;
+use crate::session::{DrawShared, GameThread};
 
 /// The scene's state.
 pub struct Scene {
     /// One copy: the drawing only reads it (frame plan F4).
     pub draw_switches: DrawSwitches,
-    pub light_tables: LightTables,
+    /// Written between frames, read by the drawing parts through their reads
+    /// (`workers::DrawReads`).
+    pub light_tables: DrawShared<LightTables>,
     pub drawing: Drawing,
     pub lights: Lights,
     pub objects: Objects,
@@ -94,7 +96,7 @@ pub struct Textures {
 /// The one instance. Reached through `scene()`; `moved` registers its stores' places.
 pub static SCENE: Scene = Scene {
     draw_switches: DrawSwitches::new(),
-    light_tables: LightTables::new(),
+    light_tables: DrawShared::new(LightTables::new()),
     drawing: Drawing {
         scene: SceneDraw::new(),
     },

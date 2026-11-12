@@ -681,10 +681,10 @@ pub fn cosine_step(c: i32, m: i32, t: impl Flt, a: impl Flt) -> f32 {
 
 /// Three floats at `row` each times `c` over their length: the root of
 /// `x x + (y y + z z)`, `c / root`, then each times that, rounded once and stored in turn.
-/// (On a copy of the three floats' bits.)
-pub fn scale_row_bits(row: [u32; 3], c: impl Flt) -> [f32; 3] {
+/// (On a copy of the three floats.)
+pub fn scale_row(row: [impl Flt; 3], c: impl Flt) -> [f32; 3] {
     let c = c.bits();
-    let [x, y, z] = row.map(bh::ld);
+    let [x, y, z] = row.map(|v| bh::ld(v.bits()));
     let k = bh::ld(c) / (x * x + (y * y + z * z)).sqrt();
     [out(k * x), out(k * y), out(k * z)]
 }
@@ -858,7 +858,8 @@ pub fn sub_compare(a: impl Flt, b: impl Flt, negate: bool, c: impl Flt) -> u16 {
 }
 
 /// (r m + c) ((a - b) s + e) k with `v` [m, c, a, b, s, e, k], the factors unrounded.
-pub fn random_step(r: i32, v: [u32; 7]) -> f32 {
+pub fn random_step(r: i32, v: [impl Flt; 7]) -> f32 {
+    let v = v.map(|f| f.bits());
     let first = bh::int(r) * bh::ld(v[0]) + bh::ld(v[1]);
     let second = ((bh::ld(v[2]) - bh::ld(v[3])) * bh::ld(v[4]) + bh::ld(v[5])) * bh::ld(v[6]);
     out(first * second)
@@ -1035,13 +1036,13 @@ pub fn ext_less(e: [u8; 10], f: impl Flt) -> f32 {
 }
 
 /// Three products of three, each multiplied in order, summed in order: (p0 + p1) + p2.
-fn three_sum(p: [[u32; 3]; 3]) -> bh::X {
-    let prod = |q: [u32; 3]| bh::ld(q[0]) * bh::ld(q[1]) * bh::ld(q[2]);
-    prod(p[0]) + prod(p[1]) + prod(p[2])
+fn three_sum<F: Flt>(p: [[F; 3]; 3]) -> bh::X {
+    let prod = |q: &[F; 3]| bh::ld(q[0].bits()) * bh::ld(q[1].bits()) * bh::ld(q[2].bits());
+    prod(&p[0]) + prod(&p[1]) + prod(&p[2])
 }
 
 /// Three products of three, summed in order: (p0 + p1) + p2.
-pub fn three_products(p: [[u32; 3]; 3]) -> f32 {
+pub fn three_products(p: [[impl Flt; 3]; 3]) -> f32 {
     out(three_sum(p))
 }
 
@@ -1199,7 +1200,7 @@ pub fn plus_int_times_80(d: impl Flt, f: impl Flt, i: i32) -> [u8; 10] {
 }
 
 /// `three_products` kept as 80 bits.
-pub fn three_products_80(p: [[u32; 3]; 3]) -> [u8; 10] {
+pub fn three_products_80(p: [[impl Flt; 3]; 3]) -> [u8; 10] {
     bh::f80(three_sum(p))
 }
 
@@ -1373,15 +1374,19 @@ pub fn sum4_times(a: impl Flt, b: impl Flt, c: impl Flt, d: impl Flt, k: impl Fl
 }
 
 /// The length of (p0, p1, p2): sqrt(p0 p0 + (p1 p1 + p2 p2)), unrounded.
-fn length3(p: [u32; 3]) -> bh::X {
-    let (x, y, z) = (bh::ld(p[0]), bh::ld(p[1]), bh::ld(p[2]));
+fn length3(p: [impl Flt; 3]) -> bh::X {
+    let (x, y, z) = (
+        bh::ld(p[0].bits()),
+        bh::ld(p[1].bits()),
+        bh::ld(p[2].bits()),
+    );
     (x * x + (y * y + z * z)).sqrt()
 }
 
 /// The length of (a, b, c) as a whole number (the first); then `k3 (one - one / (length
 /// k1 + k2))` as a whole number (the second).
 pub fn length_and_rate(
-    p: [u32; 3],
+    p: [impl Flt; 3],
     k1: impl Flt,
     k2: impl Flt,
     one: impl Flt,
@@ -1616,9 +1621,16 @@ pub fn int_times_int_plus_int(k: i32, t: i32, c: i32) -> i32 {
 }
 
 /// `sin` (or `cos`) of `r k1 k2 k3`, times m, plus a.
-pub fn int_times3_wave_plus(r: i32, k: [u32; 3], m: impl Flt, a: impl Flt, cosine: bool) -> f32 {
+pub fn int_times3_wave_plus(
+    r: i32,
+    k: [impl Flt; 3],
+    m: impl Flt,
+    a: impl Flt,
+    cosine: bool,
+) -> f32 {
     let m = m.bits();
     let a = a.bits();
+    let k = k.map(|f| f.bits());
     let x = bh::int(r) * bh::ld(k[0]) * bh::ld(k[1]) * bh::ld(k[2]);
     let wave = if cosine { x.cos() } else { x.sin() };
     out(wave * bh::ld(m) + bh::ld(a))

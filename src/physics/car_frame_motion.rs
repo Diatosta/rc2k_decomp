@@ -6,7 +6,7 @@
 //! Caller: `physics::put_back_motion_vectors` (its tail).
 
 use crate::math::cells::Cells;
-use crate::scene::matrix3::{extended, rounded};
+use crate::scene::matrix3::{extended, rounded_value};
 use crate::scene::rotate_point::rotate_point;
 
 /// The motion `from` turned by the matrix `m` into `to`.
@@ -15,9 +15,9 @@ pub fn car_frame_motion(
     m: &(impl Cells + ?Sized),
     to: &(impl Cells + ?Sized),
 ) {
-    let point = std::array::from_fn(|k| extended(from.bits(k)));
+    let point = std::array::from_fn(|k| extended(from.float(k)));
     let out = rotate_point(m, point);
     for (k, e) in out.iter().enumerate() {
-        to.set_bits(k, rounded(*e));
+        to.set_float(k, rounded_value(*e));
     }
 }

@@ -11,47 +11,52 @@
 use crate::math::rotate_scratch_about_y::{
     Scratch, rotate_scratch_about_y, rotate_scratch_about_y_plain,
 };
+use crate::math::x87::Flt;
 
-/// The Rust version: x', y, z' and the entry left in edx.
+/// The Rust version: x', y, z' (the first) and the entry left in edx (the second).
 pub fn rotate_float_point_about_y(
     tables: &crate::scene::engine_tables_store::EngineTables,
-    x: u32,
-    y: u32,
-    z: u32,
+    x: impl Flt,
+    y: impl Flt,
+    z: impl Flt,
     angle: u32,
-) -> [u32; 4] {
-    turn_float_with(tables, x, y, z, angle, rotate_scratch_about_y)
+) -> ([f32; 3], u32) {
+    turn_float_with(
+        tables,
+        [x.bits(), y.bits(), z.bits()],
+        angle,
+        rotate_scratch_about_y,
+    )
 }
 
 /// The converted version (`rotate_scratch_about_y_plain`).
 pub fn rotate_float_point_about_y_plain(
     tables: &crate::scene::engine_tables_store::EngineTables,
-    x: u32,
-    y: u32,
-    z: u32,
+    x: impl Flt,
+    y: impl Flt,
+    z: impl Flt,
     angle: u32,
-) -> [u32; 4] {
-    turn_float_with(tables, x, y, z, angle, rotate_scratch_about_y_plain)
+) -> ([f32; 3], u32) {
+    turn_float_with(
+        tables,
+        [x.bits(), y.bits(), z.bits()],
+        angle,
+        rotate_scratch_about_y_plain,
+    )
 }
 
+/// The point (x, y, z, as they are held) through the scratch point.
 fn turn_float_with(
     tables: &crate::scene::engine_tables_store::EngineTables,
-    x: u32,
-    y: u32,
-    z: u32,
+    [x, y, z]: [u32; 3],
     angle: u32,
     turn: fn(&crate::scene::engine_tables_store::EngineTables, &mut Scratch, u32) -> u32,
-) -> [u32; 4] {
+) -> ([f32; 3], u32) {
     let mut point = Scratch {
         x: f32::from_bits(x),
         y: f32::from_bits(y),
         z: f32::from_bits(z),
     };
     let entry = { turn(tables, &mut point, angle) };
-    [
-        point.x.to_bits(),
-        point.y.to_bits(),
-        point.z.to_bits(),
-        entry,
-    ]
+    ([point.x, point.y, point.z], entry)
 }

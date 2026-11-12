@@ -30,7 +30,7 @@ use crate::math::x87::loaded;
 use crate::math::x87_float::int;
 use crate::physics::scale_vector::scale_vector;
 use crate::physics::vector_length::vector_length;
-use crate::scene::matrix3::{extended, rounded};
+use crate::scene::matrix3::{extended, rounded, rounded_value};
 use crate::scene::rotate_point::rotate_point;
 
 /// The block's speed (+0x198 ..) turned by its matrix (+0x9CC) into +0x1A4 ...
@@ -40,7 +40,7 @@ fn turn_speed(block: &Car) {
         [0, 1, 2].map(|k| extended(block.velocity[k].get())),
     );
     for (cell, e) in block.local_velocity.iter().zip(turned) {
-        cell.set_bits(rounded(e));
+        cell.set(rounded_value(e));
     }
 }
 
@@ -74,7 +74,7 @@ fn steps(
     relative_speed(c.car, c.contact, &other_car.velocity);
     c.contact
         .bump_speed_length
-        .set_bits(rounded(vector_length(&c.contact.bump_relative_speed)));
+        .set(rounded_value(vector_length(&c.contact.bump_relative_speed)));
     // The car `other_car_block` names is `other_car`.
     share_out_speeds(c.car, c.contact, &other_car.velocity);
     // 0x45F98C: pushed apart by the places' difference.

@@ -14,18 +14,18 @@
 use crate::cells::copy_cells;
 use crate::errors::{BadInput, Refused};
 use crate::physics::flow::g;
-use crate::race::blocks_store::REPLAY_STATE_OFFSET;
+use crate::race::blocks_store::{REPLAY_STATE_DWORDS, REPLAY_STATE_OFFSET};
 use crate::race::owner::Race;
 
 /// The frame's block copied to the replay's (`drive::load_replay_cars` reads it).
 fn load_frame(race: &Race) {
     let replay = &race.replay;
-    // CarsAndReplay.car_blocks.cars[8].frame_head[0]: car block 8's start (the copy runs on past the block, over the next
-    // blocks' tail and the replay's tape).
+    // The replay's starting state, from car block 8's start: blocks 8 and 9, the blocks'
+    // tail and the replay's tape (`REPLAY_STATE_DWORDS`).
     copy_cells(
         (&race.viewer_buffers().block, 0),
         (&replay.cars_and_replay, REPLAY_STATE_OFFSET),
-        4 * 0xA04,
+        4 * REPLAY_STATE_DWORDS,
     );
 }
 

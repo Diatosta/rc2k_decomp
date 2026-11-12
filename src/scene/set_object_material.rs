@@ -57,7 +57,7 @@ fn step_shape(
     clock: u32,
     face: u32,
     scene: &crate::scene::owner::Scene,
-    fraction_out: &crate::session::Dword,
+    fraction_out: &crate::session::Float,
 ) -> Result<(), BadInput> {
     use crate::race::course_places::{face_field, write_face_field};
     let read = || -> Result<[u32; 4], BadInput> {
@@ -84,10 +84,10 @@ fn step_shape(
         length = part.wrapping_add(LENGTHS[phase as usize]);
     }
     let fraction = match phase {
-        1 => x87::int_ratio(time as i32, length as i32).to_bits(),
-        2 => 1f32.to_bits(),
-        3 => bh::st(bh::ONE - bh::int(time as i32) / bh::int(length as i32)),
-        _ => 0f32.to_bits(),
+        1 => x87::int_ratio(time as i32, length as i32),
+        2 => 1.0,
+        3 => bh::stf(bh::ONE - bh::int(time as i32) / bh::int(length as i32)),
+        _ => 0.0,
     };
     fraction_out.set(fraction);
     crate::session::write_first(&scene.objects.slots.phase_work, &[length, time, phase]);

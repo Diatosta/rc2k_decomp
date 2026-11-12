@@ -11,7 +11,7 @@ pub fn full_view_window(
     scene: &crate::scene::owner::Scene,
     system: &crate::system::owner::System,
 ) {
-    let light_tables = &scene.light_tables;
+    let light_tables = scene.light_tables.get();
     light_tables.view_mode.set(2);
     choose_view_window(race, scene, system);
     light_tables.view_mode.set(0);

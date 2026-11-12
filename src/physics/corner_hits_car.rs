@@ -23,7 +23,7 @@ use crate::session::Cell32;
 
 /// Whether the corner is inside (`corner_turned` .. written either way).
 pub fn corner_inside(contact: &ContactWork, numbers: &Numbers) -> bool {
-    let k = numbers.k65536.bits();
+    let k = numbers.k65536.get();
     let corner = contact
         .corner_in
         .each_ref()

@@ -421,16 +421,10 @@ pub fn run_particles(
             s & 0xFFFF
         };
         let r = seed();
-        let view = |o: usize| frame.matrices.view_place[o / 4].bits();
-        let uv_k: u32 = effects.frame.draw_work.uv_k.bits();
-        let wave = |k: &[crate::session::PlainFloat; 3], add: u32, cosine: bool| {
-            x87::int_times3_wave_plus(
-                r as i32,
-                [uv_k, k[0].bits(), k[1].bits()],
-                &k[2],
-                add,
-                cosine,
-            )
+        let view = |o: usize| frame.matrices.view_place[o / 4].get();
+        let uv_k: f32 = effects.frame.draw_work.uv_k.get();
+        let wave = |k: &[crate::session::PlainFloat; 3], add: f32, cosine: bool| {
+            x87::int_times3_wave_plus(r as i32, [uv_k, k[0].get(), k[1].get()], &k[2], add, cosine)
         };
         let x = wave(&effects.kinds.particle_tuning.puff_x, view(0x30), false);
         let y = x87::loaded(view(0x34));

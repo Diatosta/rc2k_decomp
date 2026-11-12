@@ -11,7 +11,6 @@
 
 use crate::errors::BadInput;
 use crate::race::level_grid_store::LevelGrid;
-use crate::race::owner_course::Course;
 use crate::session::Dword;
 
 #[repr(C)]
@@ -55,20 +54,6 @@ impl ViewGrid {
         self.cells
             .get(n as usize)
             .ok_or(BadInput("a course grid cell past the 32 x 32"))
-    }
-
-    /// Cell `n` as the original reads it: past the grid (up to 33 dwords) on into the level
-    /// grid's variables after `g_courseGrid` (a slip kept: `race::find_sound_spots`).
-    pub fn read_on(&self, course: &Course, n: u32) -> Result<u32, BadInput> {
-        match self.cells.get(n as usize) {
-            Some(cell) => Ok(cell.get()),
-            None => crate::session::read_on_in(
-                &course.level_grid,
-                &course.level_grid.course_grid,
-                n as usize,
-                "the variables after the course grid",
-            ),
-        }
     }
 }
 

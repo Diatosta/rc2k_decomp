@@ -196,7 +196,7 @@ fn every_store_s_cells_tile_it_and_copy_as_raw_copies_do() {
         *scene.file_numbers(),
         scene.textures.kinds,
         scene.lights.state,
-        crate::scene::owner::SCENE.light_tables,
+        *crate::scene::owner::SCENE.light_tables.get(),
         scene.lights.work,
         scene.objects.slots,
         *scene.object_work(),

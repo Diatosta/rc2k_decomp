@@ -29,7 +29,7 @@ use crate::effects::run_particles::Particles;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::race::effects_settings_store::{CarEffects, MarkRecord};
-use crate::scene::matrix3::{extended, rounded, rounded_value};
+use crate::scene::matrix3::{extended, rounded_value};
 use crate::session::{PlainDword, PlainFloat};
 
 /// The strength's two factors and its least.
@@ -171,17 +171,17 @@ pub fn emit_particle_1(
         let motion: [[u8; 10]; 3] = crate::effects::try_from_fn(|k| {
             Ok({
                 let k4 = 4 * k as u32;
-                let f = [0, 1, 2].map(|i| particles.kind1_set.motion_k[3 * k + i].bits());
+                let f = [0, 1, 2].map(|i| particles.kind1_set.motion_k[3 * k + i].get());
                 x87::three_products_80([
-                    [matrix_cell(m, k4)?, wheel.local_velocity_x.bits(), f[0]],
+                    [matrix_float(m, k4)?, wheel.local_velocity_x.get(), f[0]],
                     [
-                        matrix_cell(m, 0x20 + k4)?,
-                        wheel.local_velocity_z.bits(),
+                        matrix_float(m, 0x20 + k4)?,
+                        wheel.local_velocity_z.get(),
                         f[1],
                     ],
                     [
-                        effects.kinds.emitter.side_b[k].bits(),
-                        wheel.driven_speed.bits(),
+                        effects.kinds.emitter.side_b[k].get(),
+                        wheel.driven_speed.get(),
                         f[2],
                     ],
                 ])
@@ -199,7 +199,7 @@ pub fn emit_particle_1(
         slot.put(|en| &mut en.motion[2], rounded_value(moved[0]))?;
         slot.put(
             |en| &mut en.motion[1],
-            x87::add(rounded(moved[1]), &particles.kind1_set.lift),
+            x87::add(rounded_value(moved[1]), &particles.kind1_set.lift),
         )?;
         slot.put(|en| &mut en.motion[0], rounded_value(moved[2]))?;
         let r = next_c5(&particles.kind1_set.spin_random);

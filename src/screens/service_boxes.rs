@@ -40,6 +40,7 @@ pub fn quad(
         o.input,
         scratch,
         crate::workers::game_scratch(),
+        crate::workers::DrawReads::on_game_thread(o.scene),
     ))
 }
 

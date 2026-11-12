@@ -34,7 +34,7 @@ use crate::menu::owner::Tables;
 use crate::records::find_record::find_record_in;
 use crate::saves::gather_savegame::CAR_LEN;
 use crate::saves::owner::Saves;
-use crate::screens::stage_panel::table_dword_at;
+use crate::screens::stage_panel::section_title;
 use crate::system::owner::System;
 use crate::text::draw_text::Canvas;
 
@@ -72,7 +72,7 @@ pub fn draw_savegame_details(
         let title = Title {
             a8_mode,
             section: if a8_mode {
-                table_dword_at(&tables.lists, &tables.lists.section_titles, section)?
+                section_title(&tables.lists, section)?
             } else {
                 find_record_in(table, 0, section)?.record()?.name()
             },

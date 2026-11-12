@@ -106,7 +106,7 @@ fn table_place(
 fn lit(
     course: &crate::race::owner_course::Course,
     part: &crate::workers::PartScratch,
-    scene: &crate::scene::owner::Scene,
+    light_tables: &crate::scene::light_tables_store::LightTables,
     number: u32,
     mmx: bool,
     light: &crate::scene::object_light::ObjectLight,
@@ -116,7 +116,7 @@ fn lit(
     let place = set_normal(course, part, number, light).and_then(|()| table_place(light, object));
     let place = place?;
     let colour = plus(
-        scene.light_tables.light_table[place].get(),
+        light_tables.light_table[place].get(),
         light.light_colour.get(),
         mmx,
     );
@@ -152,7 +152,7 @@ pub fn vertex_light(
     race: &crate::race::owner::Race,
     part: &crate::workers::PartScratch,
     number: u32,
-    scene: &crate::scene::owner::Scene,
+    light_tables: &crate::scene::light_tables_store::LightTables,
     light: &crate::scene::object_light::ObjectLight,
     object: &crate::scene::object_place::ObjectPlace,
     system: &crate::system::owner::System,
@@ -164,7 +164,7 @@ pub fn vertex_light(
         // The lit colour added to nothing: it only makes the bytes the right ones.
         return Ok(plus(
             0,
-            lit(course, part, scene, number, mmx, light, object)?,
+            lit(course, part, light_tables, number, mmx, light, object)?,
             mmx,
         ));
     }
@@ -178,7 +178,7 @@ pub fn vertex_light(
         2 | 5 => Ok(plus(
             plus(
                 0,
-                lit(course, part, scene, number, mmx, light, object)?,
+                lit(course, part, light_tables, number, mmx, light, object)?,
                 mmx,
             ),
             added,
@@ -190,7 +190,7 @@ pub fn vertex_light(
                 return Err(BadInput("a place outside the light table"));
             }
             Ok(plus(
-                scene.light_tables.light_table[level as usize].get(),
+                light_tables.light_table[level as usize].get(),
                 added,
                 mmx,
             ))

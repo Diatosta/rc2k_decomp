@@ -162,10 +162,13 @@ pub struct InstallerNames {
     pub script_count: PlainBytes<200>,
     /// 0x51BE10: `byte_51BE10`: the uninstall script.
     pub script: PlainBytes<17>,
-    /// 0x51BE21: `byte_51BE21`: a byte of the script (`install::finish_page`).
+    /// 0x51BE21: `byte_51BE21`: a byte of the script (`install::finish_page`): 1 goes on into
+    /// `script_rest` (the save and settings folders removed too), 5 ends the script here.
     pub script_mark: PlainByte,
-    /// 0x51BE22: Not named: 30 bytes (a gap, or data nothing reads here).
-    pub _gap_51be22: PlainBytes<30>,
+    /// 0x51BE22: the rest of the uninstall script after `script_mark`: the save and settings
+    /// folders, up to its end (5) at +0x1B; `install::run_script` reads on into it from
+    /// `script` when the mark is 1.
+    pub script_rest: PlainBytes<30>,
     /// 0x51BE40: `path`: "ral.exe" (in ".\ral.exe").
     pub program: PlainBytes<8>,
     /// 0x51BE48: `aRalExe_0`: "ral.exe".
@@ -214,7 +217,7 @@ impl InstallerNames {
     script_count: PlainBytes::new(with_runs::<200>(&[(0, b"\x03ral.exe\x03*.txt\x03*.pdf\x08\x02\x01files\x04a\x04b\x04d\x08\x03\x04fmv\t\x01g\x04frnt\x04graphics\x08\x03\x04slides\t\x02\x04levels\x04%locale\x04m\x04maps\x08\x03\x04music\t\x04replay\x04s\x01%speech\x04m\x04f\x08\x03\x04cars\x04rally\t\x02\x02\t\x01savedata\x01carsetup\x02\x01replay\x02\x01savegame\x02\x01snapshot\x02\x02\x01var\x03ral.cfg\x02\x06\x05")])),
     script: PlainBytes::new(with_runs::<17>(&[(0, b"\x03*.*\x01files\x02\x04files")])),
     script_mark: PlainByte::new(0x1),
-    _gap_51be22: PlainBytes::new(with_runs::<30>(&[(0, b"savedata\x02\x04savedata\x01var\x02\x04var\x05.\\")])),
+    script_rest: PlainBytes::new(with_runs::<30>(&[(0, b"savedata\x02\x04savedata\x01var\x02\x04var\x05.\\")])),
     program: PlainBytes::new(with_runs::<8>(&[(0, b"ral.exe")])),
     ral_exe: PlainBytes::new(with_runs::<8>(&[(0, b"ral.exe")])),
     _gap_51be50: PlainBytes::new(with_runs::<4>(&[(0, b" -u")])),

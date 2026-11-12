@@ -87,7 +87,9 @@ pub struct Held<'a> {
     part: &'a crate::workers::PartScratch,
 }
 
-/// The fourth columns of the turned, lit and made-object matrices, in that order.
+/// The fourth columns of the turned, lit and made-object matrices, in that order, as their
+/// bits: a part's are compared with the start's for change and put back as they were (a NaN
+/// or a negative zero kept).
 #[derive(Clone, Copy, PartialEq)]
 pub struct Columns([u32; 12]);
 

@@ -10,7 +10,7 @@ use crate::effects::turns::{scale_rows3, set_line_turn, turn_pair};
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
-use crate::scene::matrix3::{extended, rounded};
+use crate::scene::matrix3::{extended, rounded_value};
 use crate::session::{PlainBytes, PlainDword, read_bits, write_bits};
 
 /// The pixel table `n` (0 or 1, the shape's: `PICKS.pixel_table_a`, `_b`).
@@ -77,7 +77,7 @@ pub fn map_pixel(
     let f = |o: usize| -> Result<_, Refused> { Ok(masks.vars.lines[o].get()) };
     masks.vars.pixel[0].set(x);
     let pixel: [u32; 2] = read_bits(&masks.vars.pixel);
-    let shake: u32 = setup.work.shake.get();
+    let shake = setup.work.shake.get();
     for half in HALVES {
         write_bits(&masks.vars.work_pixel, pixel);
         crate::scene::matrix3::identity_matrix3(&masks.vars.turn);
@@ -98,16 +98,17 @@ pub fn map_pixel(
             x87::int_sub_80(pixel[1] as i32, ly),
         );
         // 0x82E40A, _40E, then _416, _41A (0x82E412 is left).
-        let ends = [rounded(a[1]), rounded(a[0]), rounded(b[1]), rounded(b[0])];
-        masks.vars.ends[0].set_bits(ends[0]);
-        masks.vars.ends[1].set_bits(ends[1]);
-        masks.vars.ends[3].set_bits(ends[2]);
-        masks.vars.ends[4].set_bits(ends[3]);
-        let (px, py) = (rounded(p[1]), rounded(p[0]));
-        write_bits(&masks.vars.work_pixel, [px, py]);
+        let ends = [a[1], a[0], b[1], b[0]].map(rounded_value);
+        masks.vars.ends[0].set(ends[0]);
+        masks.vars.ends[1].set(ends[1]);
+        masks.vars.ends[3].set(ends[2]);
+        masks.vars.ends[4].set(ends[3]);
+        let (px, py) = (rounded_value(p[1]), rounded_value(p[0]));
+        write_bits(&masks.vars.work_pixel, [px.to_bits(), py.to_bits()]);
         let mut span = x87::sub(ends[2], ends[0]);
         let rise = x87::div(x87::sub(ends[3], ends[1]), span);
-        write_bits(&masks.vars.slope, [span.to_bits(), rise.to_bits()]);
+        masks.vars.slope[0].set(span);
+        masks.vars.slope[1].set(rise);
         let negative = span.is_sign_negative();
         if negative {
             span = -span;
@@ -118,28 +119,23 @@ pub fn map_pixel(
         let mut seed = next_seed(setup.work.seed.get());
         let (mut r, mut c) = (
             seed & 0x3FFF,
-            setup.mask_constants.pixel_constants[half.constants].bits(),
+            setup.mask_constants.pixel_constants[half.constants].get(),
         );
         if status != 0x100 {
             seed = next_seed(seed);
             (r, c) = (
                 seed & 0xFFFF,
-                setup.mask_constants.pixel_constants[half.constants + 1].bits(),
+                setup.mask_constants.pixel_constants[half.constants + 1].get(),
             );
         }
         setup.work.seed.set(seed);
-        let k = setup.mask_constants.pixel_constants[half.constants + 2]
-            .get()
-            .to_bits();
-        let y = x87::random_step(
-            r as i32,
-            [shake, c, px, ends[0], rise.to_bits(), ends[1], k],
-        );
+        let k = setup.mask_constants.pixel_constants[half.constants + 2].get();
+        let y = x87::random_step(r as i32, [shake, c, px, ends[0], rise, ends[1], k]);
         masks.vars.work_pixel[1].set(y.to_bits());
         set_line_turn(masks, line(masks, half.line), true);
         scale_rows3(&masks.vars.turn, effects);
         let q = turn_pair(masks, [extended(y), extended(px)]);
-        let (qx, qy) = (rounded(q[1]), rounded(q[0]));
+        let (qx, qy) = (rounded_value(q[1]), rounded_value(q[0]));
         let out = [x87::add_to_int(qx, lx), x87::add_to_int(qy, ly)];
         write_bits(&masks.vars.work_pixel, out.map(|v| v as u32));
         let at = row.wrapping_add(x.wrapping_mul(4)).wrapping_add(half.bytes);

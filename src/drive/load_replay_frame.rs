@@ -6,11 +6,9 @@
 
 use crate::cells::copy_cells;
 use crate::errors::Refused;
-use crate::race::blocks_store::REPLAY_STATE_OFFSET;
+use crate::race::blocks_store::{REPLAY_STATE_DWORDS, REPLAY_STATE_OFFSET};
 use crate::race::owner::Race;
 use crate::system::owner::System;
-
-const DWORDS: usize = 0xA04;
 
 pub fn load_replay_frame(race: &Race, system: &System) -> Result<(), Refused> {
     let replay = &race.replay;
@@ -20,7 +18,7 @@ pub fn load_replay_frame(race: &Race, system: &System) -> Result<(), Refused> {
     copy_cells(
         (&race.viewer_buffers().block, 0),
         (&replay.cars_and_replay, REPLAY_STATE_OFFSET),
-        DWORDS * 4,
+        REPLAY_STATE_DWORDS * 4,
     );
     Ok(())
 }

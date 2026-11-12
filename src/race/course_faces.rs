@@ -232,7 +232,7 @@ pub fn face_switches(poly: &crate::scene::polygon_work::PolygonWork, work: &Face
 /// 0x453786: the light at scene point `n` (`race::light_colour_at`; the original's store of
 /// it to `scratch` is not kept), 0 for -1.
 fn point_light(ctx: &DrawCtx<'_>, n: u32) -> Result<u32, Refused> {
-    let (race, scene) = (ctx.race, ctx.scene);
+    let race = ctx.race;
     if n == u32::MAX {
         return Ok(0);
     }
@@ -242,7 +242,7 @@ fn point_light(ctx: &DrawCtx<'_>, n: u32) -> Result<u32, Refused> {
     ctx.view.light.lit_place[2].set(z);
     crate::race::frame_draw::light_colour_at(
         race,
-        scene,
+        ctx.reads.light_tables,
         &ctx.part.points,
         &ctx.view.lamps,
         &ctx.view.light,
@@ -932,7 +932,7 @@ pub fn draw_lit_triangle(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
         );
         crate::race::frame_draw::light_colour_at(
             race,
-            scene,
+            ctx.reads.light_tables,
             &ctx.part.points,
             &ctx.view.lamps,
             &ctx.view.light,
@@ -969,8 +969,7 @@ pub fn draw_lit_triangle(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
 /// (`add_colours`, MMX or not as the original); the fog bytes +0x22 .. +0x25 into `corner_alphas`
 /// ..; then the face drawn (`race::draw_face`).
 pub fn face_colours(ctx: &DrawCtx<'_>, face: &Face) -> Result<(), Refused> {
-    let scene = ctx.scene;
-    let light_tables = &scene.light_tables;
+    let light_tables = ctx.reads.light_tables;
     // Converted: `rc2k_core::race::lights::{corner_colour, EXTRA_LIGHTS}`.
     use rc2k_core::race::lights::{EXTRA_LIGHTS, corner_colour};
     let lit = face.switches() & EXTRA_LIGHTS != 0;
@@ -1029,7 +1028,6 @@ fn turn_over(ctx: &DrawCtx<'_>) -> Result<(), BadInput> {
 /// kind's bit 3): the corners turned over, the colours from `g_lightTable` by +0x28 .. +0x2B and
 /// the fog bytes +0x2C .. +0x2F, drawn (`race::draw_face`), the corners turned back.
 pub fn draw_back_face(ctx: &DrawCtx<'_>, face: &Face) -> Result<(), Refused> {
-    let scene = ctx.scene;
     // Converted: `rc2k_core::race::face_drawing::{has_back, turns_last_pair,
     // turned_order}`.
     if !rc2k_core::race::face_drawing::has_back(ctx.view.face.back_a.get()) {
@@ -1038,7 +1036,7 @@ pub fn draw_back_face(ctx: &DrawCtx<'_>, face: &Face) -> Result<(), Refused> {
     turn_over(ctx)?;
     for k in 0..4 {
         ctx.view.face.corner_colours[k]
-            .set(scene.light_tables.light_table[face.back_light(k) as usize].get());
+            .set(ctx.reads.light_tables.light_table[face.back_light(k) as usize].get());
     }
     for k in 0..4 {
         ctx.view.face.corner_alphas[k].set(face.back_fog(k) as u32);

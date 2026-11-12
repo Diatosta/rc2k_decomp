@@ -139,6 +139,17 @@ impl RaceView {
     pub fn view_number(&self, n: usize) -> Result<usize, crate::errors::BadInput> {
         crate::race::blocks_store::number_of(self.view_blocks[n].get())
     }
+
+    /// The car of drawn view `drawn` (`view_cars`[drawn]`). The original does not bound the
+    /// index, but every drawn view is 0 or 1: a part's own view number modulo 2, or for the
+    /// players' scenes `drawn_view`, which only `race::draw_race_scene` writes (0, or the
+    /// player 0 .. 1). One past the two is refused.
+    pub fn drawn_view_car(&self, drawn: u32) -> Result<u32, crate::errors::BadInput> {
+        self.view_cars
+            .get(drawn as usize)
+            .map(Dword::get)
+            .ok_or(crate::errors::BadInput("a drawn view past the two"))
+    }
 }
 
 /// IDA 0x63D9B8, the first byte of the piece.

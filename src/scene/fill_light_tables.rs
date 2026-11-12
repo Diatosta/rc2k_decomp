@@ -27,7 +27,7 @@ pub fn fill_light_tables(
 ) -> Result<(), crate::errors::BadInput> {
     use crate::race::prefs_store::StagePrefs;
     let course = &race.course;
-    let t = &scene.light_tables;
+    let t = scene.light_tables.get();
     use core::mem::offset_of;
     let plain =
         rc2k_core::scene::lamps::plain_light(race.shared.switches.scene_set_up.get(), || {

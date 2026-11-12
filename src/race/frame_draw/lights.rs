@@ -172,7 +172,7 @@ pub(super) fn car_light_on_point(
     course: &Course,
     car: &crate::race::frame_view::CarView,
     marks_count: u32,
-    scene: &crate::scene::owner::Scene,
+    light_tables: &crate::scene::light_tables_store::LightTables,
     object_light: &crate::scene::object_light::ObjectLight,
     mmx: bool,
 ) -> Result<(), BadInput> {
@@ -201,7 +201,7 @@ pub(super) fn car_light_on_point(
     );
     // The original worked out a second spread and stored it in `g_scratch`; nothing read it, so it is not kept.
     let index = headlight_index(s1, t[1], marks_count);
-    let colour = scene.light_tables.car_light_table[index as usize].get();
+    let colour = light_tables.car_light_table[index as usize].get();
     object_light
         .light_colour
         .set(add_colours(colour, object_light.light_colour.get(), mmx));
@@ -214,7 +214,7 @@ pub(super) fn car_light_on_point(
 /// `crate::race::owner::race().shared.vars.settings_words[4]` 1), only the drawn view's car outside one player and modes 0 and 2.
 pub(super) fn car_lights_on_point(
     race: &Race,
-    scene: &crate::scene::owner::Scene,
+    light_tables: &crate::scene::light_tables_store::LightTables,
     object_light: &crate::scene::object_light::ObjectLight,
     drawn_view: u32,
     mmx: bool,
@@ -235,12 +235,10 @@ pub(super) fn car_lights_on_point(
             || shared.view.players.get(),
             || shared.vars.run_kind.get(),
             || {
-                let n = drawn_view as usize;
-                crate::session::read_on_in(&shared.view, &shared.view.view_cars, n, "the view cars")
-                    .unwrap_or_else(|e| {
-                        trap.keep(e);
-                        0
-                    })
+                shared.view.drawn_view_car(drawn_view).unwrap_or_else(|e| {
+                    trap.keep(e);
+                    0
+                })
             },
         );
         trap.finish()?;
@@ -250,7 +248,7 @@ pub(super) fn car_lights_on_point(
                 course,
                 crate::race::frame_view::car(n as usize)?,
                 shared.race_car(n as usize)?.marks_count.get(),
-                scene,
+                light_tables,
                 object_light,
                 mmx,
             )?;
@@ -318,7 +316,7 @@ pub fn check_light_colour(
 /// `LIGHT_STATE.lit_place[2]`), added up. Refuses as `check_light_colour`.
 pub fn light_colour_at(
     race: &Race,
-    scene: &crate::scene::owner::Scene,
+    light_tables: &crate::scene::light_tables_store::LightTables,
     points: &crate::race::scene_points::OwnPoints,
     lamps: &crate::race::lamp_work::LampWork,
     object_light: &crate::scene::object_light::ObjectLight,
@@ -330,7 +328,7 @@ pub fn light_colour_at(
     // spreads and the lamps' distances the x87's and the scene's).
     check_light_colour(&race.shared, lamps)?;
     object_light.light_colour.set(0u32);
-    car_lights_on_point(race, scene, object_light, drawn_view, mmx)?;
+    car_lights_on_point(race, light_tables, object_light, drawn_view, mmx)?;
     lamp_lights_on_point(&race.course, points, lamps, object_light, mmx)?;
     Ok(())
 }
@@ -341,7 +339,7 @@ pub fn light_colour_at(
 /// `LIGHT_WORK.view_light_base`, the light colour of the last car the previous view drew (a slip
 /// fixed: the views' order showed in the snowflakes' tint; `wiki/Fixed-bugs.md`).
 pub fn view_light(ctx: &DrawCtx<'_>, mmx: bool) -> Result<(), Refused> {
-    let (race, scene, view) = (ctx.race, ctx.scene, ctx.view);
+    let (race, view) = (ctx.race, ctx.view);
     let (lamps, object_light, car) = (&view.lamps, &view.light, &view.car);
     let drawn_view = view.drawn_view(race);
     // Converted: `rc2k_core::race::lights::add_colours` (through `light_colour_at`'s).
@@ -352,7 +350,7 @@ pub fn view_light(ctx: &DrawCtx<'_>, mmx: bool) -> Result<(), Refused> {
     );
     light_colour_at(
         race,
-        scene,
+        ctx.reads.light_tables,
         &ctx.part.points,
         lamps,
         object_light,

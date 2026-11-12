@@ -508,11 +508,13 @@ impl<T: Copy> Plain<T> {
     }
 
     pub fn set(&self, value: T) {
+        plain_written(&self.0);
         self.0.set(value);
     }
 
     /// The value changed by `change`.
     pub fn update(&self, change: impl FnOnce(T) -> T) {
+        plain_written(&self.0);
         self.0.set(change(self.0.get()));
     }
 }
@@ -533,6 +535,7 @@ impl PlainDword {
     }
 
     pub fn set(&self, value: u32) {
+        plain_written(&self.0);
         self.0.set(value);
     }
 
@@ -554,6 +557,7 @@ impl PlainDword {
 
     /// Stores the 32 bits (as `PlainFloat::set_bits`).
     pub fn set_bits(&self, bits: u32) {
+        plain_written(&self.0);
         self.0.set(bits);
     }
 
@@ -584,6 +588,7 @@ impl PlainFloat {
     }
 
     pub fn set(&self, value: f32) {
+        plain_written(&self.0);
         self.0.set(value.to_bits());
     }
 
@@ -594,6 +599,7 @@ impl PlainFloat {
 
     /// Stores the 32 bits (written by `x87_float::st`).
     pub fn set_bits(&self, bits: u32) {
+        plain_written(&self.0);
         self.0.set(bits);
     }
 
@@ -618,6 +624,7 @@ impl PlainFlag {
     }
 
     pub fn set(&self, value: bool) {
+        plain_written(&self.0);
         self.0.set(value as u32);
     }
 
@@ -632,6 +639,7 @@ impl Cell32 for PlainDword {
         self.0.get()
     }
     fn set_bits(&self, bits: u32) {
+        plain_written(&self.0);
         self.0.set(bits);
     }
 }
@@ -641,6 +649,7 @@ impl Cell32 for PlainFloat {
         self.0.get()
     }
     fn set_bits(&self, bits: u32) {
+        plain_written(&self.0);
         self.0.set(bits);
     }
 }
@@ -659,6 +668,7 @@ impl PlainWord {
     }
 
     pub fn set(&self, value: u16) {
+        plain_written(&self.0);
         self.0.set(value);
     }
 
@@ -682,6 +692,7 @@ impl PlainByte {
     }
 
     pub fn set(&self, value: u8) {
+        plain_written(&self.0);
         self.0.set(value);
     }
 
@@ -715,6 +726,7 @@ impl<const N: usize> PlainBytes<N> {
     }
 
     pub fn set(&self, index: usize, value: u8) {
+        plain_written(&self.0[index]);
         self.0[index].set(value);
     }
 
@@ -801,6 +813,7 @@ impl PlainLoose {
 
     pub fn set(&self, value: u32) {
         for (cell, b) in self.0.iter().zip(value.to_le_bytes()) {
+            plain_written(cell);
             cell.set(b);
         }
     }
@@ -910,6 +923,8 @@ pub(crate) fn assert_game_thread() {
 /// install, ..) are read and written by the game's main thread alone; the audio, key,
 /// network and drawing threads reach none of them. `get` checks it in debug builds
 /// (`set_game_thread`). Anything a second thread must see stays in atomic cells, outside.
+/// One exception, argued where it is made: a `DrawShared` store is held in a `GameThread`
+/// and lent, read only, to the drawing threads for one drawing scope (`PhaseRead`).
 pub struct GameThread<T>(T);
 
 // SAFETY: reached only from the game's thread (above); `get` asserts it in debug builds.
@@ -935,6 +950,165 @@ impl<T> GameThread<T> {
     pub(crate) fn on_any_thread(&self) -> &T {
         &self.0
     }
+}
+
+// ---- the drawing phase's stores (class D of `notes/m3_census.md`, section 2b) ----
+
+/// A store of plain cells the game's thread writes between frames and every drawing part
+/// reads while a frame's parts are drawn beside each other (`workers::draw_parts`): the
+/// census' class D (the light tables, the course's and the frame's read groups, ..).
+///
+/// Outside a drawing scope it is a `GameThread` store: `get`, on the game's thread, is where
+/// every write starts from. Inside one the parts (part 0 on the game's thread among them)
+/// read it through the scope's `PhaseRead` only, handed to them by `workers::draw_parts`;
+/// `get` there is a slip, and a debug build stops at it.
+pub struct DrawShared<T>(GameThread<T>);
+
+impl<T> DrawShared<T> {
+    pub const fn new(value: T) -> Self {
+        Self(GameThread::new(value))
+    }
+
+    /// The store, on the game's thread outside a drawing scope (debug builds check both).
+    pub fn get(&self) -> &T {
+        debug_assert!(
+            !crate::workers::in_scope(),
+            "a drawing store reached by its owner while the parts read it (take the part's reads)"
+        );
+        self.0.get()
+    }
+
+    /// The store's bytes, as the debug builds' lent ranges hold them.
+    #[cfg(debug_assertions)]
+    fn place(&self) -> (*const u8, usize) {
+        (std::ptr::from_ref(&self.0.0).cast(), size_of::<T>())
+    }
+}
+
+/// A `DrawShared` store lent, read only, to the parts of one drawing scope (`'s`): made only
+/// by `workers::draw_parts` (`lend` takes the scope, which only it opens), it is shared by
+/// reference with every part (`workers::Lent`) and reads the store as `&T`.
+pub struct PhaseRead<'s, T>(&'s T);
+
+impl<'s, T: crate::cells::Cells> PhaseRead<'s, T> {
+    /// `store` lent to the parts while `scope` is open; debug builds note its bytes as lent
+    /// (`plain_written` then stops at a write into them) until the scope ends.
+    pub(crate) fn lend(store: &'s DrawShared<T>, scope: &'s crate::workers::DrawScope) -> Self {
+        let _ = scope;
+        #[cfg(debug_assertions)]
+        {
+            let (start, len) = store.place();
+            lent::add(start, len);
+        }
+        // Not `get`: the scope is open (the store is read here, not written).
+        Self(&store.0.0)
+    }
+}
+
+impl<T> std::ops::Deref for PhaseRead<'_, T> {
+    type Target = T;
+
+    fn deref(&self) -> &T {
+        self.0
+    }
+}
+
+// SAFETY: sharing a `PhaseRead` between threads shares `&T` of a store of non-atomic cells
+// (`T: !Sync`), which is sound when no thread writes the store while any thread may read
+// it through the token. That holds for these reasons:
+//
+// 1. No writer inside the scope. A token exists only between `workers::DrawScope::open` and
+//    the scope's end, both in `workers::draw_parts`: the parts' runs are spawned and joined
+//    (rayon's `in_place_scope`, or one after another on the game's thread) within it, and
+//    nothing else runs on the game's thread meanwhile, which is drawing part 0, a part like
+//    the others. The parts write only their own state (`PartScratch`, their view's
+//    `ViewScratch`, their own render cache) and never a class D store: the write census of
+//    frame plan F7 and W10 M0b (`write_watch`, held races with one and two players and the
+//    mirror beside its view), whose shared writes were removed or moved before the parts
+//    (the scene clock per frame, the fog values, the dead stores). Every write to a class D
+//    store happens on the game's thread through `DrawShared::get`, outside a scope. The
+//    scope's start and end order them: the parts are started after the game's thread's last
+//    write and joined before its next (rayon's spawn and join, or the same thread), so every
+//    read sees the writes before it and none overlaps a later one.
+// 2. The token cannot outlive the scope. It borrows the `DrawScope` (`'s`), which
+//    `draw_parts` drops before anything runs after the parts (`after(0)`); and the parts are
+//    handed only `&`-references made from it for the length of their call
+//    (`workers::DrawReads`, a higher-ranked lifetime in `draw_parts`' part type), so a part
+//    can keep none past its run. `PhaseRead` is neither `Clone` nor `Send`: it stays in the
+//    `Lent` `draw_parts` holds.
+// 3. `T: Cells` (records of the crate's cells): reading one is a plain load of each cell
+//    read, never a write (no borrow counts, no lazy set-up), so the parts' reads at once do
+//    not race each other.
+//
+// Checked in debug builds: `DrawShared::get` panics inside a scope or off the game's
+// thread (a part reaching the store by its owner, or the game's thread writing it while
+// drawing part 0); every plain cell's write (`plain_written`: `set`, `set_bits`, `update`,
+// the byte cells, the cells' copies and merges) panics when the cell is in a lent store's
+// bytes, whichever thread writes it. Release builds keep neither check and cost nothing.
+//
+// What would break it: a part (or code reached from one) writing a lent store, which the
+// debug check catches at the write (the debug-build two-player race at each merge is the
+// check); a store with a field another thread reads outside the scope (class S) made
+// `DrawShared`; a part spawning work that outlives its run; a `get` taken before the scope
+// and held into it (it is a plain `&T`: the scope's code takes none).
+unsafe impl<T: crate::cells::Cells> Sync for PhaseRead<'_, T> {}
+
+/// Debug builds: the byte ranges lent to the open drawing scope (`PhaseRead::lend`). One
+/// writer (the game's thread, before the parts start and after they have all ended), many
+/// readers: each part's writes look them up.
+#[cfg(debug_assertions)]
+mod lent {
+    use std::sync::atomic::{AtomicPtr, AtomicUsize, Ordering};
+
+    /// The most stores one scope lends.
+    const MAX: usize = 64;
+    static STARTS: [AtomicPtr<u8>; MAX] = [const { AtomicPtr::new(std::ptr::null_mut()) }; MAX];
+    static ENDS: [AtomicPtr<u8>; MAX] = [const { AtomicPtr::new(std::ptr::null_mut()) }; MAX];
+    static COUNT: AtomicUsize = AtomicUsize::new(0);
+
+    /// The `len` bytes from `start` lent.
+    pub fn add(start: *const u8, len: usize) {
+        let n = COUNT.load(Ordering::Relaxed);
+        assert!(n < MAX, "more stores lent to a drawing scope than noted");
+        STARTS[n].store(start.cast_mut(), Ordering::Relaxed);
+        ENDS[n].store(start.wrapping_add(len).cast_mut(), Ordering::Relaxed);
+        COUNT.store(n + 1, Ordering::Release);
+    }
+
+    pub fn clear() {
+        COUNT.store(0, Ordering::Release);
+    }
+
+    /// Panics when the byte at `at` is lent.
+    pub fn check(at: *const u8) {
+        let n = COUNT.load(Ordering::Acquire);
+        for k in 0..n {
+            let (start, end) = (
+                STARTS[k].load(Ordering::Relaxed).cast_const(),
+                ENDS[k].load(Ordering::Relaxed).cast_const(),
+            );
+            assert!(
+                !(start <= at && at < end),
+                "a store lent to the drawing parts written while they read it"
+            );
+        }
+    }
+}
+
+/// The drawing scope's end (`workers::DrawScope`): no store is lent any more.
+pub(crate) fn end_lending() {
+    #[cfg(debug_assertions)]
+    lent::clear();
+}
+
+/// Debug builds: stops at a write into a store lent to the open drawing scope (`PhaseRead`).
+/// Every plain cell's write calls it; release builds compile it to nothing.
+#[inline(always)]
+pub(crate) fn plain_written<T>(cell: &Cell<T>) {
+    #[cfg(debug_assertions)]
+    lent::check(cell.as_ptr().cast_const().cast());
+    #[cfg(not(debug_assertions))]
+    let _ = cell;
 }
 
 /// A record the game keeps as a plain struct (a voice, a mixer channel, a stream player, a
@@ -1426,5 +1600,25 @@ mod tests {
         assert_eq!(offset_of!(Machine, exception_resume), 0xF4);
         assert_eq!(offset_of!(Machine, window), 0xFC);
         assert_eq!(CLOCKS_LEN, 12);
+    }
+
+    /// A debug build stops at a plain cell's write into a store lent to the drawing parts,
+    /// and only there: the cell next to it is written, the lent one keeps its value.
+    #[test]
+    #[cfg(debug_assertions)]
+    fn a_write_into_a_lent_store_stops_a_debug_build() {
+        let _g = crate::test_support::test_lock();
+        let cells = [PlainDword::new(1), PlainDword::new(2)];
+        lent::add(std::ptr::from_ref(&cells[1]).cast(), 4);
+        cells[0].set(3);
+        let hit = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| cells[1].set(4)));
+        let copied = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            crate::cells::Cells::copy_from(&cells[1], &cells[0]);
+        }));
+        end_lending();
+        assert!(hit.is_err() && copied.is_err());
+        assert_eq!([cells[0].get(), cells[1].get()], [3, 2]);
+        cells[1].set(5);
+        assert_eq!(cells[1].get(), 5);
     }
 }

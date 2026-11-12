@@ -1846,7 +1846,14 @@ mod tests {
             },
             |&(v, flat)| {
                 let scratch = crate::session::Dword::new(0xAAAA_AAAA);
-                let o = x87::sun_on_screen(&v, flat, &scratch);
+                let point = [v[0] as i32, v[1] as i32, v[2] as i32, v[3] as i32];
+                let (place, hit) = x87::sun_on_screen(point, v[4], [v[5], v[6]], flat, &scratch);
+                let o = [
+                    place[0].to_bits(),
+                    hit[0] as u32,
+                    place[1].to_bits(),
+                    hit[1] as u32,
+                ];
                 (o, scratch.get())
             },
             |a, b| {
@@ -2241,7 +2248,10 @@ mod tests {
             &ROUNDING,
             |g| (g.f(), g.f(), g.f(), g.f(), g.fw()),
             |&(a, d, b, c, z)| run::lever_share(a, d, b, c, z),
-            |&(a, d, b, c, z)| x87::lever_share(a, d, b, c, z),
+            |&(a, d, b, c, z)| {
+                let (share, zero) = x87::lever_share(a, d, b, c, z);
+                (share.to_bits(), zero)
+            },
             |a, b| eqf(&a.0, &b.0) && a.1 == b.1,
         );
         // Zero sums: the equal-to-zero branch needs them.
@@ -2258,7 +2268,10 @@ mod tests {
                 )
             },
             |&(a, d, b, c, z)| run::lever_share(a, d, b, c, z),
-            |&(a, d, b, c, z)| x87::lever_share(a, d, b, c, z),
+            |&(a, d, b, c, z)| {
+                let (share, zero) = x87::lever_share(a, d, b, c, z);
+                (share.to_bits(), zero)
+            },
             |a, b| eqf(&a.0, &b.0) && a.1 == b.1,
         );
         // The sums over the divisors: a list each.

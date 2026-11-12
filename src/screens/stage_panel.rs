@@ -13,7 +13,7 @@ use crate::records::trakpak_entry::record_entry;
 use crate::screens::draw_stage_heading::heading_text;
 use crate::screens::draw_stage_records::draw_stage_records;
 use crate::screens::game_screen::GameScreen;
-use crate::session::DwordLike;
+use crate::session::{DwordLike, PlainDword};
 use crate::strings::units::units;
 use crate::text::draw_string_by_id::draw_string_by_id_at;
 use crate::text::draw_text::Canvas;
@@ -27,13 +27,35 @@ const SECOND_HEADING_STRING: u32 = 0x482;
 
 pub const TITLE_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::STAGE_TITLE;
 const HEADING_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::HEADING;
-/// The dword `index` of `table`, reading on only inside `holder`, the store holding it.
-pub fn table_dword_at<H: crate::cells::Cells>(
-    holder: &H,
-    table: &[impl crate::session::Cell32],
-    index: u32,
-) -> Result<u32, crate::errors::BadInput> {
-    crate::session::read_on_in(holder, table, index as usize, "a table's dword")
+/// The title string of stage group `group` (`Results.group_titles`). The group is 0 or 1:
+/// only `menu::switch_stage_group` (0 <-> 1) and `menu::view_courses_loop` (0) write it,
+/// and no saved file holds it. Refused past the field.
+pub fn group_title(
+    results: &crate::menu::results_store::Results,
+    group: u32,
+) -> Result<u32, BadInput> {
+    results
+        .group_titles
+        .get(group as usize)
+        .map(PlainDword::get)
+        .ok_or(BadInput("a stage group past its title"))
+}
+
+/// The title string of section `section` of the A8 championship (`MenuLists.section_titles`,
+/// six titles and a -1). The section is one the championship's record table has (five section
+/// records, so 0 .. 5): the championships start it at 0 or at their start setting less one and
+/// add one only after a section's last record, `menu::view_stage_loop` puts back what it
+/// took, and a savegame holds what the game saved; a section the table has not is refused by
+/// the record look-ups before any title is drawn. Refused past the field.
+pub fn section_title(
+    lists: &crate::menu::lists_store::MenuLists,
+    section: u32,
+) -> Result<u32, BadInput> {
+    lists
+        .section_titles
+        .get(section as usize)
+        .map(PlainDword::get)
+        .ok_or(BadInput("a section past its title"))
 }
 
 // ---- the shared parts ----

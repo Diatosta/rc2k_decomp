@@ -33,8 +33,11 @@ fn check(course: &Course, grid: &ViewGrid) -> Result<(), Refused> {
             return Err(BadInput("a sound spot cell past the course grid").into());
         }
         // The grid is 32 x 32 cells (1024 dwords); the check above lets 1057 through, and
-        // the original reads on into the variables after the grid (a slip kept).
-        let record: u32 = grid.read_on(course, c)?;
+        // the original would read on into the variables after the grid. The last cell is
+        // (reach - 2) x 0x21 + 0x84, past the grid only for a reach of 30 or more; the
+        // reach is the stage's `localdat` value for the draw distance's level (4 .. 12 in
+        // the files the game ships, 0 made 1 for the other levels): inside the grid.
+        let record: u32 = grid.cell(c)?.get();
         if record >= 0x0FFF_FFFF {
             continue;
         }
@@ -78,14 +81,16 @@ pub fn face_sound_spot(race: &Race, view: &ViewMatrices, face_number: u32) -> Re
         if !takes_spot(count, sound) {
             return Ok(());
         }
-        let put = |o: u32, v: u32| {
-            crate::session::write_on_in(
-                race.frame.sound_spots(),
-                &race.frame.sound_spots().sound_spots,
-                spot + (o / 4) as usize,
-                v,
-                "a sound spot",
-            )
+        // The count only steps by one from 0 and stops at 0x24, so the spot (five dwords
+        // from count x 5, count at most 0x23) ends inside the 180 dwords.
+        let put = |o: u32, v: u32| -> Result<(), BadInput> {
+            race.frame
+                .sound_spots()
+                .sound_spots
+                .get(spot + (o / 4) as usize)
+                .ok_or(BadInput("a sound spot past the 0x24"))?
+                .set(v);
+            Ok(())
         };
         put(0x10, sound)?;
         let point = f.point(0);
@@ -119,7 +124,8 @@ pub fn cell_sound_spots(
 ) -> Result<(), BadInput> {
     {
         // Converted: `rc2k_core::race::view::record_faces`.
-        let record: u32 = grid.read_on(&race.course, cell)?;
+        // The cells `check` passed (inside the grid).
+        let record: u32 = grid.cell(cell)?.get();
         if record >= rc2k_core::race::view::NO_RECORD {
             return Ok(());
         }

@@ -25,7 +25,7 @@
 //! drawing found other than the same view's last write; `ObjectWork.angles` stays the
 //! physics' own (`physics::face_contact`, `race::get_mat_crash`, `physics::object_turn_matrix`).
 
-use crate::session::Dword;
+use crate::session::{Dword, Float};
 
 /// The kept reflections' room: four caches of 1024 by point number.
 pub const KEPT_REFLECTIONS: usize = 4096;
@@ -87,7 +87,7 @@ pub struct ObjectPlace {
     /// (bytes; 0 when it does not move), set by `scene::set_object_material`.
     pub move_by: Dword,
     /// `RaceVars.move_fraction` (0x623DD4): how far the moving object has gone (a float).
-    pub move_fraction: Dword,
+    pub move_fraction: Float,
     /// `GroundWork.object_texture_set` (`g_objectTextureSet`, 0x639954): added to the
     /// object's face texture numbers (`scene::draw_scene_object`, `scene::draw_object_faces`).
     pub texture_set: Dword,
@@ -127,7 +127,7 @@ impl ObjectPlace {
             kept_reflections: [const { Dword::new(0) }; KEPT_REFLECTIONS],
             drawing_object: Dword::new(0),
             move_by: Dword::new(0),
-            move_fraction: Dword::new(0),
+            move_fraction: Float::new(0.0),
             texture_set: Dword::new(0),
             view_cleared: [const { Dword::new(0) }; 2],
             described_turns: [const { Dword::new(0) }; 3],

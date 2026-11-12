@@ -25,6 +25,10 @@ pub fn always() -> bool {
     *ON.get_or_init(|| std::env::var_os("RC2K_MIRROR_ALWAYS").is_some())
 }
 
+#[allow(
+    clippy::too_many_arguments,
+    reason = "the drawing's owners, its view, scratch and reads, as `DrawCtx::new` takes them"
+)]
 pub fn draw_mirror_view(
     race: &Race,
     scene: &crate::scene::owner::Scene,
@@ -33,6 +37,7 @@ pub fn draw_mirror_view(
     input: &crate::input::owner::Input,
     view: &crate::race::view_scratch::ViewScratch,
     part: &crate::workers::PartScratch,
+    reads: crate::workers::DrawReads<'_>,
 ) -> Result<Option<crate::race::draw_view_scene::ViewOutput>, Refused> {
     view.take_vars(race);
     if race.replay.finish.no_place.get() != 0
@@ -53,7 +58,9 @@ pub fn draw_mirror_view(
         crate::race::frame_views::mirror_view_window(race, scene, system, view, part)?;
         view.polygon.window.view_depth[1].set(view.course.view_value_kept.get());
         crate::race::frame_flush::draw_view_backdrop(race, scene, view, part);
-        crate::race::draw_view_scene::draw_view_scene(race, scene, system, net, input, view, part)
+        crate::race::draw_view_scene::draw_view_scene(
+            race, scene, system, net, input, view, part, reads,
+        )
     })();
     view.vars.view_scale.set(saved);
     // (The original's full window again after the mirror is the front end's: `race::draw_race_scene`.)

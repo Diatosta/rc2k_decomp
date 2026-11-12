@@ -17,8 +17,8 @@ pub fn turn_by_heading(
     ebx: u32,
 ) {
     let angle = car.car_heading.get().wrapping_neg();
-    let [x, _, z, _] =
-        rotate_float_point_about_y(engine_tables, point[0].bits(), ebx, point[2].bits(), angle);
-    point[0].set_bits(x);
-    point[2].set_bits(z);
+    let ([x, _, z], _) =
+        rotate_float_point_about_y(engine_tables, point[0].get(), ebx, point[2].get(), angle);
+    point[0].set(x);
+    point[2].set(z);
 }

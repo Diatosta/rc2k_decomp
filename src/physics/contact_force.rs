@@ -41,7 +41,7 @@ use crate::physics::turn_by_car_matrix::turn_by_car_matrix;
 use crate::physics::turn_by_inverse::turn_by_inverse;
 use crate::physics::vector_length::vector_length;
 use crate::race::numbers_store::Numbers;
-use crate::scene::matrix3::{extended, rounded};
+use crate::scene::matrix3::{extended, rounded, rounded_value};
 use crate::scene::view_matrix::cross_product;
 use crate::session::Float;
 
@@ -130,10 +130,10 @@ pub fn contact_force(
     x87_4(contact);
     contact
         .contact_speed_length
-        .set_bits(rounded(vector_length(&contact.contact_normal_speed)));
+        .set(rounded_value(vector_length(&contact.contact_normal_speed)));
     contact
         .contact_value
-        .set_bits(rounded(vector_length(&contact.contact_side_speed)));
+        .set(rounded_value(vector_length(&contact.contact_side_speed)));
     fill3(&contact.contact_extra, 0);
     if physics_tables.contact_step.get() != 0 {
         fill3(&contact.contact_normal_push, 0);

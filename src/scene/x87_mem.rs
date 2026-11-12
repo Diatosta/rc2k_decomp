@@ -126,47 +126,6 @@ impl Base for &crate::session::Dword {
     }
 }
 
-/// A polygon vertex (`TLVertex`): its eight dwords by their offsets, 0 .. 0x1C.
-impl Base for &crate::d3d::vertices_store::Vertex {
-    #[inline(always)]
-    fn dword(self, off: usize) -> u32 {
-        match off {
-            0x0 => self.x.bits(),
-            0x4 => self.y.bits(),
-            0x8 => self.z.bits(),
-            0xC => self.rhw.bits(),
-            0x10 => self.colour.get(),
-            0x14 => self.specular.get(),
-            0x18 => self.u.bits(),
-            0x1C => self.v.bits(),
-            _ => panic!("a vertex has no dword at {off:#x}"),
-        }
-    }
-    #[inline(always)]
-    fn set_dword(self, off: usize, value: u32) {
-        match off {
-            0x0 => self.x.set_bits(value),
-            0x4 => self.y.set_bits(value),
-            0x8 => self.z.set_bits(value),
-            0xC => self.rhw.set_bits(value),
-            0x10 => self.colour.set(value),
-            0x14 => self.specular.set(value),
-            0x18 => self.u.set_bits(value),
-            0x1C => self.v.set_bits(value),
-            _ => panic!("a vertex has no dword at {off:#x}"),
-        }
-    }
-    fn set_word(self, off: usize, value: u16) {
-        set_word_of_dword(self, off, value);
-    }
-    fn tbyte(self, off: usize) -> [u8; 10] {
-        tbyte_of_dwords(self, off)
-    }
-    fn set_tbyte(self, off: usize, value: [u8; 10]) {
-        set_tbyte_of_dwords(self, off, value);
-    }
-}
-
 /// Ten-byte values only read, the operands of `fld tbyte`.
 impl Base for &[[u8; 10]] {
     fn dword(self, _off: usize) -> u32 {

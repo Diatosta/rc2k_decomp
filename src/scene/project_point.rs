@@ -25,10 +25,10 @@
 
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::math::x87;
-use crate::math::x87_float::ONE;
+use crate::math::x87_float::{ONE, int, ld, st, stf};
 use crate::race::owner::Race;
 use crate::scene::point_records;
-use crate::scene::x87_mem::{Base, cells, fild, fld, fstp};
+use crate::scene::x87_mem::{Base, fstp};
 
 // ---- game data ----
 
@@ -51,52 +51,38 @@ const TOO_HIGH: FatalError = FatalError {
 
 /// `scene::rotate_point` as `project_point` uses it: the point's three whole numbers through the
 /// matrix, into the record's +0x10, +0x14, +0x18.
-pub(crate) fn rotate(point: &[u32], matrix: &[u32], record: &mut [u32]) {
-    rotate_at(point, matrix, cells(record));
+pub(crate) fn rotate(point: &[u32], matrix: &[f32; 16], record: &mut [u32]) {
+    let place = rotate_at([0, 1, 2].map(|k| point[k] as i32), matrix);
+    record[4..7].copy_from_slice(&place.map(f32::to_bits));
 }
 
 /// `fild` x3, the three rows' sums of products plus the place, `fstp dword` x3.
-fn rotate_at(p: impl Base, m: impl Base, o: impl Base) {
-    let t0 = fild(p, 0x8);
-    let t1 = fild(p, 0x4);
-    let t2 = fild(p, 0x0);
-    let t3 = fld(m, 0x0);
-    let t4 = t3 * t2;
-    let t5 = fld(m, 0x10);
-    let t6 = t5 * t1;
-    let t7 = fld(m, 0x20);
-    let t8 = t7 * t0;
-    let t9 = t6 + t8;
-    let t10 = t4 + t9;
-    let t11 = fld(m, 0x30);
-    let t12 = t10 + t11;
-    let t13 = fld(m, 0x4);
-    let t14 = t13 * t2;
-    let t15 = fld(m, 0x14);
-    let t16 = t15 * t1;
-    let t17 = fld(m, 0x24);
-    let t18 = t17 * t0;
-    let t19 = t16 + t18;
-    let t20 = t14 + t19;
-    let t21 = fld(m, 0x34);
-    let t22 = t20 + t21;
-    let t23 = fld(m, 0x8);
-    let t24 = t2 * t23;
-    let t25 = fld(m, 0x18);
-    let t26 = t1 * t25;
-    let t27 = fld(m, 0x28);
-    let t28 = t0 * t27;
-    let t29 = t28 + t26;
-    let t30 = t24 + t29;
-    let t31 = fld(m, 0x38);
-    let t32 = t30 + t31;
-    fstp(o, 0x10, t12);
-    fstp(o, 0x14, t22);
-    fstp(o, 0x18, t32);
+pub(crate) fn rotate_at(p: [i32; 3], m: &[f32; 16]) -> [f32; 3] {
+    let t0 = int(p[2]);
+    let t1 = int(p[1]);
+    let t2 = int(p[0]);
+    let t10 = ld(m[0]) * t2 + (ld(m[4]) * t1 + ld(m[8]) * t0);
+    let t12 = t10 + ld(m[12]);
+    let t20 = ld(m[1]) * t2 + (ld(m[5]) * t1 + ld(m[9]) * t0);
+    let t22 = t20 + ld(m[13]);
+    let t30 = t2 * ld(m[2]) + (t0 * ld(m[10]) + t1 * ld(m[6]));
+    let t32 = t30 + ld(m[14]);
+    [stf(t12), stf(t22), stf(t32)]
 }
 
-/// The record's place on the screen from its place in the view. `v`: the scale, the
-/// centre's x and y, and the whole number the flat depth is made from.
+/// The view window's values the screen's place is made with.
+#[derive(Clone, Copy)]
+struct Screen {
+    /// The view's scale.
+    scale: f32,
+    /// The window's middle, x and y.
+    centre: [f32; 2],
+    /// The whole number the flat depth is made from.
+    flat_depth: i32,
+}
+
+/// The record's place on the screen from its place in the view (`checked` gets the depth
+/// on the flat way, a work value).
 pub(crate) fn to_screen(
     record: &mut [u32],
     window: &crate::scene::view_window::ViewWindow,
@@ -104,58 +90,45 @@ pub(crate) fn to_screen(
     flat: bool,
     checked: impl Base,
 ) {
-    let v = [
-        window.view_scale.bits(),
-        window.view_centre[0].bits(),
-        window.view_centre[1].bits(),
-        flat_depth,
-    ];
-    if flat {
-        screen_flat(cells(record), &v[..], checked);
+    let screen = Screen {
+        scale: window.view_scale.get(),
+        centre: [window.view_centre[0].get(), window.view_centre[1].get()],
+        flat_depth: flat_depth as i32,
+    };
+    let view = [4, 5, 6].map(|k| f32::from_bits(record[k]));
+    let [x, y] = if flat {
+        screen_flat(view, screen, checked)
     } else {
-        screen_plain(cells(record), &v[..]);
-    }
+        screen_plain(view, screen)
+    };
+    (record[3], record[7]) = (x, y);
 }
 
 /// With the flat depth: the depth goes to `checked`, and the one divided by is the whole
-/// number plus one.
-fn screen_flat(o: impl Base, v: impl Base, w: impl Base) {
-    let t0 = fld(o, 0x10);
-    let t1 = fld(o, 0x14);
-    let t2 = fld(o, 0x18);
-    fstp(w, 0x0, t2);
-    let t3 = fild(v, 0xC);
-    let t4 = ONE;
-    let t5 = t3 + t4;
-    let t6 = fld(v, 0x0);
-    let t7 = t6 / t5;
+/// number plus one. The screen's x and y, as bits.
+fn screen_flat(view: [f32; 3], s: Screen, checked: impl Base) -> [u32; 2] {
+    let t0 = ld(view[0]);
+    let t1 = ld(view[1]);
+    fstp(checked, 0x0, ld(view[2]));
+    let t5 = int(s.flat_depth) + ONE;
+    let t7 = ld(s.scale) / t5;
     let t8 = t1 * t7;
     let t9 = t0 * t7;
-    let t10 = -t8;
-    let t11 = fld(v, 0x8);
-    let t12 = t10 + t11;
-    let t13 = fld(v, 0x4);
-    let t14 = t9 + t13;
-    fstp(o, 0xC, t14);
-    fstp(o, 0x1C, t12);
+    let t12 = -t8 + ld(s.centre[1]);
+    let t14 = t9 + ld(s.centre[0]);
+    [st(t14), st(t12)]
 }
 
 /// The usual way: x = x' * (scale / depth) + centre x, y = centre y - y' * (the same).
-fn screen_plain(o: impl Base, v: impl Base) {
-    let t0 = fld(o, 0x10);
-    let t1 = fld(o, 0x14);
-    let t2 = fld(o, 0x18);
-    let t3 = fld(v, 0x0);
-    let t4 = t3 / t2;
+fn screen_plain(view: [f32; 3], s: Screen) -> [u32; 2] {
+    let t0 = ld(view[0]);
+    let t1 = ld(view[1]);
+    let t4 = ld(s.scale) / ld(view[2]);
     let t5 = t1 * t4;
     let t6 = t0 * t4;
-    let t7 = -t5;
-    let t8 = fld(v, 0x8);
-    let t9 = t7 + t8;
-    let t10 = fld(v, 0x4);
-    let t11 = t6 + t10;
-    fstp(o, 0xC, t11);
-    fstp(o, 0x1C, t9);
+    let t9 = -t5 + ld(s.centre[1]);
+    let t11 = t6 + ld(s.centre[0]);
+    [st(t11), st(t9)]
 }
 
 /// The offset of a point's record, or the fatal error for a number too high.
@@ -207,7 +180,7 @@ pub(crate) fn make_scene_record(
             .matrices
             .view_matrix
             .each_ref()
-            .map(super::super::session::Float::bits),
+            .map(crate::session::Float::get),
         &mut r,
     );
     r[3] = 0;
@@ -272,9 +245,32 @@ mod reference_vectors {
                     *d = if moderate { rng.moderate() } else { rng.fl() };
                 }
             },
-            plain: &|c| rotate_at(c, &c[4..], &c[20..]),
+            plain: &|c| {
+                let m: [f32; 16] = std::array::from_fn(|k| f32::from_bits(c[4 + k].get()));
+                let place = rotate_at([0, 1, 2].map(|k| c[k].get() as i32), &m);
+                for (k, v) in place.into_iter().enumerate() {
+                    c[24 + k].set(v.to_bits());
+                }
+            },
         };
         differential(test);
+    }
+
+    /// The window's values and the place in the view of a test's block.
+    fn screen_of(c: &[std::cell::Cell<u32>]) -> (Screen, [f32; 3]) {
+        let f = |k: usize| f32::from_bits(c[k].get());
+        let screen = Screen {
+            scale: f(0),
+            centre: [f(1), f(2)],
+            flat_depth: c[3].get() as i32,
+        };
+        (screen, [f(12), f(13), f(14)])
+    }
+
+    /// The screen's x and y into the test's record (+0xC, +0x1C).
+    fn put_screen(c: &[std::cell::Cell<u32>], [x, y]: [u32; 2]) {
+        c[11].set(x);
+        c[15].set(y);
     }
 
     /// dwords 0 .. 4 the scale, centre x, centre y and whole number, 4 the checked word, 8 ..
@@ -299,7 +295,10 @@ mod reference_vectors {
             seed: 14,
             kinds: [Kind::Float; 16],
             fill: &screen_fill,
-            plain: &|c| screen_flat(&c[8..], c, &c[4..]),
+            plain: &|c| {
+                let (screen, view) = screen_of(c);
+                put_screen(c, screen_flat(view, screen, &c[4..]));
+            },
         };
         differential(test);
     }
@@ -312,7 +311,10 @@ mod reference_vectors {
             seed: 15,
             kinds: [Kind::Float; 16],
             fill: &screen_fill,
-            plain: &|c| screen_plain(&c[8..], c),
+            plain: &|c| {
+                let (screen, view) = screen_of(c);
+                put_screen(c, screen_plain(view, screen));
+            },
         };
         differential(test);
     }

@@ -78,7 +78,7 @@ pub fn set_object_light_in_game(
     ctx: &crate::race::view_scratch::DrawCtx<'_>,
     system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
-    let (race, scene) = (ctx.race, ctx.scene);
+    let race = ctx.race;
     set_object_light(
         &mut || {
             add_car_lights(
@@ -87,7 +87,14 @@ pub fn set_object_light_in_game(
                 ctx.view.light.drawn_car_light.get(),
                 ctx.view.drawn_view(race),
                 &mut |car, marks| {
-                    add_car_light(&race.course, car, marks, scene, &ctx.view.light, system);
+                    add_car_light(
+                        &race.course,
+                        car,
+                        marks,
+                        ctx.reads.light_tables,
+                        &ctx.view.light,
+                        system,
+                    );
                     Ok(())
                 },
             )?;

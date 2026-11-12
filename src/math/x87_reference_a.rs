@@ -1626,7 +1626,7 @@ fn pointer_functions() {
         let k = g.f();
         let (mut r, mut p) = (row, row);
         scale_row(r.as_mut_ptr(), k);
-        p = plain::scale_row_bits(p, k).map(f32::to_bits);
+        p = plain::scale_row(p, k).map(f32::to_bits);
         compare(
             "scale_row",
             EXACT,

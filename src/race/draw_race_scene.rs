@@ -86,12 +86,13 @@ fn view_scene(
     o: Owners<'_>,
     car: usize,
     part: &crate::workers::PartScratch,
+    reads: crate::workers::DrawReads<'_>,
 ) -> Result<(), Refused> {
     let _step = crate::write_watch::step(["view0_scene", "view1_scene"][car]);
     let view = crate::race::view_scratch::main_view(car);
     view.take_vars(o.race);
     let output = crate::race::draw_view_scene::draw_view_scene(
-        o.race, o.scene, o.system, o.net, o.input, view, part,
+        o.race, o.scene, o.system, o.net, o.input, view, part, reads,
     )?;
     view.hand_off.keep_output(output);
     view.hand_off.keep(o.race, part);
@@ -134,6 +135,7 @@ fn view_rest(
         o.input,
         view,
         crate::workers::game_scratch(),
+        crate::workers::DrawReads::on_game_thread(o.scene),
     );
     crate::race::draw_view_overlays::draw_view_overlays(&ctx, o.system, o.sound, gfx, effects)?;
     if car == 0 {
@@ -148,13 +150,14 @@ fn view_mirror(
     o: Owners<'_>,
     car: usize,
     part: &crate::workers::PartScratch,
+    reads: crate::workers::DrawReads<'_>,
 ) -> Result<(), Refused> {
     let _step = crate::write_watch::step(["mirror0", "mirror1"][car]);
     let mirror = crate::race::view_scratch::mirror(car);
     crate::race::frame::load_view_car(&o.race.shared, car, mirror)?;
     let begun = crate::debug::timing::start();
     let output = crate::race::draw_mirror_view::draw_mirror_view(
-        o.race, o.scene, o.system, o.net, o.input, mirror, part,
+        o.race, o.scene, o.system, o.net, o.input, mirror, part, reads,
     )?;
     mirror.hand_off.keep_mirror_drawn(output.is_some());
     mirror.hand_off.keep_output(output.unwrap_or_default());
@@ -209,14 +212,16 @@ fn draw_view(
     load_car(o, car)?;
     fetch_value(o, car, false)?;
     fetch_value(o, car, true)?;
-    // One after another on the game's thread: on its part's scratch.
+    // One after another on the game's thread: on its part's scratch, the stores read from
+    // their owners.
     let part = crate::workers::game_scratch();
+    let reads = || crate::workers::DrawReads::on_game_thread(o.scene);
     let view = || -> Result<(), Refused> {
-        view_scene(o, car, part)?;
+        view_scene(o, car, part, reads())?;
         view_drawn(o, car, false)?;
         view_rest(o, gfx, effects, car, blit)
     };
-    let mirror = || view_mirror(o, car, part);
+    let mirror = || view_mirror(o, car, part, reads());
     if !mirrored(o.race, flags) {
         return view();
     }
@@ -227,8 +232,9 @@ fn draw_view(
     if crate::workers::mirror_beside() {
         return crate::workers::draw_beside(
             &o.race.frame.matrices,
-            |part| view_scene(o, car, part),
-            |part| view_mirror(o, car, part),
+            o.scene,
+            |part, reads| view_scene(o, car, part, reads),
+            |part, reads| view_mirror(o, car, part, reads),
             || {
                 view_drawn(o, car, false)?;
                 view_rest(o, gfx, effects, car, blit)
@@ -280,29 +286,32 @@ fn draw_players_beside(
             pieces.push(Piece::Mirror(p));
         }
     }
-    let part = |n: usize, part: &crate::workers::PartScratch| -> Result<(), Refused> {
+    let part = |n: usize,
+                part: &crate::workers::PartScratch,
+                reads: crate::workers::DrawReads<'_>|
+     -> Result<(), Refused> {
         match pieces[n] {
             Piece::Scene(p) => {
                 own(p, false, true)?;
-                view_scene(o, p, part)
+                view_scene(o, p, part, reads)
             }
             Piece::Mirror(p) => {
                 own(p, true, false)?;
-                view_mirror(o, p, part)
+                view_mirror(o, p, part, reads)
             }
         }
     };
-    crate::workers::draw_side_by_side(&o.race.frame.matrices, pieces.len(), part, |n| match pieces
-        [n]
-    {
-        Piece::Scene(p) => {
-            o.race.shared.view.drawn_view.set(p as u32);
-            own(p, false, false)?;
-            crate::race::view_scratch::main_view(p).hand_off.put(o.race);
-            view_drawn(o, p, false)?;
-            view_rest(o, gfx, effects, p, false)
+    crate::workers::draw_side_by_side(&o.race.frame.matrices, o.scene, pieces.len(), part, |n| {
+        match pieces[n] {
+            Piece::Scene(p) => {
+                o.race.shared.view.drawn_view.set(p as u32);
+                own(p, false, false)?;
+                crate::race::view_scratch::main_view(p).hand_off.put(o.race);
+                view_drawn(o, p, false)?;
+                view_rest(o, gfx, effects, p, false)
+            }
+            Piece::Mirror(p) => view_drawn(o, p, true),
         }
-        Piece::Mirror(p) => view_drawn(o, p, true),
     })
 }
 

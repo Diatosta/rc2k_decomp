@@ -22,6 +22,16 @@ fn scores_page(menus: &Menus) -> &PlainDword {
     &menus.tables.pages.scores_page
 }
 
+/// The page's entry of one of the page title lists (`page_titles_a`, 12 entries, or
+/// `page_titles_b`, 11). The page is 0 .. 10: only `menu::next_scores_page` (past 10 to 0) and
+/// `menu::previous_scores_page` (below 0 to 10) write it, from 0. Refused past the list.
+fn page_title(titles: &[PlainDword], menus: &Menus) -> Result<u32, BadInput> {
+    titles
+        .get(scores_page(menus).get() as usize)
+        .map(PlainDword::get)
+        .ok_or(BadInput("a best scores page past its title"))
+}
+
 fn arcade_level(menus: &Menus) -> &dyn DwordLike {
     &menus.play.arcade.level
 }
@@ -129,12 +139,7 @@ pub fn draw_scores(
         let group = match (t.group_fixed, t.group_at) {
             (Some(g), _) => g,
             (None, Some(a)) => a(menus).get(),
-            (None, None) => crate::session::read_on_in(
-                &tables.lists,
-                &tables.lists.page_titles_b,
-                scores_page(menus).get() as usize,
-                "best scores: a game value",
-            )?,
+            (None, None) => page_title(&tables.lists.page_titles_b, menus)?,
         };
         let ten = match t.at {
             Source::Scores => crate::saves::best_times::SCORES
@@ -239,12 +244,7 @@ pub fn best_scores_caption(
     let tables = &menus.tables;
     // The logic is in `rc2k_core::screens::captions::fit` (through `car_caption::put_string`); refused
     // where the original writes past the caption's 0x100 bytes.
-    let id = crate::session::read_on_in(
-        &tables.lists,
-        &tables.lists.page_titles_a,
-        scores_page(menus).get() as usize,
-        "best scores: a game value",
-    )?;
+    let id = page_title(&tables.lists.page_titles_a, menus)?;
     crate::screens::car_caption::put_string(so, id, &text.caption, 0x100)
 }
 
@@ -476,11 +476,9 @@ pub fn draw_record_heading(
         }
         let first = record_at(menus, system, 0)?;
         let id = if menus.play.champ_view.event_mode.get() == 0x13 {
-            crate::session::read_on_in(
+            crate::screens::stage_panel::section_title(
                 &menus.tables.lists,
-                &menus.tables.lists.section_titles,
-                menus.screens.event.section.get() as usize,
-                "best scores: a game value",
+                menus.screens.event.section.get(),
             )?
         } else {
             first.record()?.name()
@@ -573,11 +571,9 @@ pub fn draw_scores_with_heading(
     // The logic is in `rc2k_core::screens::best_scores::scores_heading`, `heading`.
     let section = (menus.play.champ_view.event_mode.get() == 0x13)
         .then(|| {
-            crate::session::read_on_in(
+            crate::screens::stage_panel::section_title(
                 &menus.tables.lists,
-                &menus.tables.lists.section_titles,
-                menus.screens.event.section.get() as usize,
-                "a section title",
+                menus.screens.event.section.get(),
             )
         })
         .transpose()?;

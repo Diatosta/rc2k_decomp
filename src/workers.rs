@@ -133,6 +133,82 @@ pub fn game_scratch() -> &'static PartScratch {
     &PARTS[0]
 }
 
+// ---- the stores the parts read ----
+
+/// Whether a drawing scope is open (`DrawScope`): the parts are being drawn.
+static IN_SCOPE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// Whether the parts of a drawing are being drawn: between `draw_parts`' start of the parts
+/// and the end of the last (`session::DrawShared::get` is not taken then).
+pub fn in_scope() -> bool {
+    IN_SCOPE.load(std::sync::atomic::Ordering::Relaxed)
+}
+
+/// The parts of one drawing being drawn (`draw_parts`): opened on the game's thread before
+/// the first part starts, ended once every part has ended. The stores lent to the parts
+/// (`session::PhaseRead`) borrow it, so none outlives it. Only `draw_parts` opens one.
+pub struct DrawScope {
+    _only_here: (),
+}
+
+impl DrawScope {
+    fn open() -> Self {
+        crate::session::assert_game_thread();
+        let was = IN_SCOPE.swap(true, std::sync::atomic::Ordering::Relaxed);
+        debug_assert!(!was, "a drawing scope opened inside another");
+        Self { _only_here: () }
+    }
+}
+
+impl Drop for DrawScope {
+    fn drop(&mut self) {
+        crate::session::end_lending();
+        IN_SCOPE.store(false, std::sync::atomic::Ordering::Relaxed);
+    }
+}
+
+/// The class D stores (`notes/m3_census.md`, section 2b) lent to the parts of one drawing
+/// scope: what every part reads and none writes. Shared by reference with every part's run;
+/// a part reads them through `reads`.
+pub struct Lent<'s> {
+    light_tables: crate::session::PhaseRead<'s, crate::scene::light_tables_store::LightTables>,
+}
+
+impl<'s> Lent<'s> {
+    fn new(scope: &'s DrawScope, scene: &'s crate::scene::owner::Scene) -> Self {
+        use crate::session::PhaseRead;
+        Self {
+            light_tables: PhaseRead::lend(&scene.light_tables, scope),
+        }
+    }
+
+    /// The stores as the part on the calling thread reads them.
+    fn reads(&self) -> DrawReads<'_> {
+        DrawReads {
+            light_tables: &self.light_tables,
+        }
+    }
+}
+
+/// The class D stores as a drawing reads them: a part's from the scope's `Lent` (handed to
+/// it by `draw_parts`), or the game's thread's from their owners outside a drawing scope
+/// (`on_game_thread`). Read only: no drawing writes them.
+#[derive(Clone, Copy)]
+pub struct DrawReads<'a> {
+    /// The lighting's colour tables (`scene::owner::Scene::light_tables`).
+    pub light_tables: &'a crate::scene::light_tables_store::LightTables,
+}
+
+impl<'a> DrawReads<'a> {
+    /// The stores from their owners: on the game's thread, outside a drawing scope (the
+    /// views drawn one after another, the overlays, the menus' objects).
+    pub fn on_game_thread(scene: &'a crate::scene::owner::Scene) -> Self {
+        Self {
+            light_tables: scene.light_tables.get(),
+        }
+    }
+}
+
 // ---- the runs ----
 
 /// The rear-view mirror drawn beside its view (`draw_beside`, `race::draw_race_scene`): on a
@@ -223,26 +299,29 @@ pub fn wait_for_earlier_runs() {
 /// however many threads draw.
 pub fn draw_beside(
     matrices: &crate::race::matrices_store::SceneMatrices,
-    first: impl Fn(&PartScratch) -> Result<(), Refused> + Sync,
-    second: impl Fn(&PartScratch) -> Result<(), Refused> + Sync,
+    scene: &crate::scene::owner::Scene,
+    first: impl Fn(&PartScratch, DrawReads<'_>) -> Result<(), Refused> + Sync,
+    second: impl Fn(&PartScratch, DrawReads<'_>) -> Result<(), Refused> + Sync,
     mut then: impl FnMut() -> Result<(), Refused>,
     mut then_second: impl FnMut() -> Result<(), Refused>,
 ) -> Result<(), Refused> {
     draw_side_by_side(
         matrices,
+        scene,
         2,
-        |n, scratch| {
+        |n, scratch, reads| {
             if n == 0 {
-                first(scratch)
+                first(scratch, reads)
             } else {
-                second(scratch)
+                second(scratch, reads)
             }
         },
         |n| if n == 0 { then() } else { then_second() },
     )
 }
 
-/// Parts 0 .. `k` (`part(n, scratch)`, at most `COUNT`, each on its own scratch) drawn beside
+/// Parts 0 .. `k` (`part(n, scratch, reads)`, at most `COUNT`, each on its own scratch, reading
+/// the class D stores of `scene` through `reads`) drawn beside
 /// each other as `draw_beside` draws two: the first on the game's thread, each other on a drawing thread, each from the working
 /// state as it is now; their drawing put together and their changes put back in their order.
 /// `after(n)` runs on the game's thread once part `n` is put back (part 0: once every part
@@ -251,8 +330,9 @@ pub fn draw_beside(
 /// has no copy per part, the cars' crumpled points, no part reads while it changes).
 pub fn draw_side_by_side(
     matrices: &crate::race::matrices_store::SceneMatrices,
+    scene: &crate::scene::owner::Scene,
     k: usize,
-    part: impl Fn(usize, &PartScratch) -> Result<(), Refused> + Sync,
+    part: impl Fn(usize, &PartScratch, DrawReads<'_>) -> Result<(), Refused> + Sync,
     after: impl FnMut(usize) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
     if k > COUNT {
@@ -260,7 +340,7 @@ pub fn draw_side_by_side(
     }
     let pool = pool();
     BESIDE.store(true, std::sync::atomic::Ordering::Relaxed);
-    let drawn = draw_parts(matrices, pool, k, part, after);
+    let drawn = draw_parts(matrices, scene, pool, k, part, after);
     BESIDE.store(false, std::sync::atomic::Ordering::Relaxed);
     drawn
 }
@@ -280,12 +360,15 @@ pub fn players_beside() -> bool {
 /// drawing thread with its own copy of the working state, all set from the game's own at the
 /// start; the other parts' noted drawing put after part 0's in their order, and each copy's
 /// changes put into the game's own in that order, `after(n)` run after part `n`'s (part 0's
-/// once all have ended).
+/// once all have ended). While the parts are drawn (a `DrawScope`) the class D stores are lent
+/// to them (`Lent`): each part reads them through the `DrawReads` it is handed, which lives
+/// only for its call.
 fn draw_parts(
     matrices: &crate::race::matrices_store::SceneMatrices,
+    scene: &crate::scene::owner::Scene,
     pool: Option<&rayon::ThreadPool>,
     k: usize,
-    part: impl Fn(usize, &PartScratch) -> Result<(), Refused> + Sync,
+    part: impl Fn(usize, &PartScratch, DrawReads<'_>) -> Result<(), Refused> + Sync,
     mut after: impl FnMut(usize) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
     // One after another on the game's thread without a pool or with `RC2K_DRAW_SERIAL`.
@@ -305,6 +388,10 @@ fn draw_parts(
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner) = [false; COUNT];
     let control = crate::math::x87::control_word();
+    // The parts are drawn from here until every one has ended: the class D stores lent.
+    let scope = DrawScope::open();
+    let lent = Lent::new(&scope, scene);
+    let lent = &lent;
     // Run `n` of the others, on the thread it is called on, with its own noted drawing.
     let other = |n: usize| {
         INDEX.set(n);
@@ -315,7 +402,7 @@ fn draw_parts(
         crate::write_watch::begin();
         crate::d3d::run_states::begin_run(scratch, &cache_start);
         crate::scene::view_matrices::begin_part(scratch, columns_start);
-        let result = part(n, scratch);
+        let result = part(n, scratch, lent.reads());
         let states = crate::d3d::run_states::end_run(scratch);
         let columns = crate::scene::view_matrices::end_part(scratch).unwrap_or(columns_start);
         #[cfg(feature = "write_watch")]
@@ -340,7 +427,7 @@ fn draw_parts(
     let first_run = || {
         let scratch = part_scratch(0);
         scratch.points.begin_run(point_count);
-        let result = part(0, scratch);
+        let result = part(0, scratch, lent.reads());
         scratch.points.end_run();
         ended(0);
         result
@@ -381,6 +468,8 @@ fn draw_parts(
         let others: Vec<OtherRun> = (1..k).map(other).collect();
         (first, others)
     };
+    // Every part has ended: the stores are the game's thread's again.
+    drop(scope);
     #[cfg(feature = "write_watch")]
     {
         // Run 0's watch ends here (one after another it ended before the others').

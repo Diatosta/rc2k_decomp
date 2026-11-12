@@ -20,7 +20,7 @@ use crate::physics::car_store::Car;
 use crate::physics::scale_vector::scale_vector;
 use crate::physics::tables_store::PhysicsTables;
 use crate::physics::vector_length::vector_length;
-use crate::scene::matrix3::rounded;
+use crate::scene::matrix3::{rounded, rounded_value};
 use crate::session::Cell32;
 use std::cmp::Ordering;
 
@@ -69,14 +69,11 @@ pub fn limit_motion(car: &Car, tables: &PhysicsTables, scene: &crate::scene::own
     for k in [0usize, 2, 1] {
         hold(&car.velocity[k], &tables.velocity_limit);
     }
-    let length = rounded(vector_length(&car.velocity));
-    drawing.scene.motion_length.set_bits(length);
-    let top = tables.top_speed.bits();
-    let past = matches!(
-        f32::from_bits(top).partial_cmp(&f32::from_bits(length)),
-        Some(Ordering::Less)
-    ) || f32::from_bits(top).is_nan()
-        || f32::from_bits(length).is_nan();
+    let length = rounded_value(vector_length(&car.velocity));
+    drawing.scene.motion_length.set(length);
+    let top = tables.top_speed.get();
+    let past =
+        matches!(top.partial_cmp(&length), Some(Ordering::Less)) || top.is_nan() || length.is_nan();
     if past {
         let factor = crate::math::x87::div_80(top, length);
         scale_vector(&car.velocity, factor);

@@ -580,19 +580,23 @@ fn place_sun(
         return Ok(());
     }
     let flat = race.course.stage_prefs.flat_depth.get() != 0;
-    let v = [
-        place[0],
-        place[1],
-        place[2],
-        race.course.course.flat_depth.get(),
-        ctx.view.polygon.window.view_scale.bits(),
-        ctx.view.polygon.window.view_centre[1].bits(),
-        ctx.view.polygon.window.view_centre[0].bits(),
-    ];
-    let [fx, ix, fy, iy] = sun_on_screen(&v, flat, &crate::session::Dword::new(0));
-    sun.place[0].set(fx);
+    let window = &ctx.view.polygon.window;
+    let ([fx, fy], [ix, iy]) = sun_on_screen(
+        [
+            place[0] as i32,
+            place[1] as i32,
+            place[2] as i32,
+            race.course.course.flat_depth.get() as i32,
+        ],
+        window.view_scale.get(),
+        [window.view_centre[1].get(), window.view_centre[0].get()],
+        flat,
+        &crate::session::Dword::new(0),
+    );
+    let (ix, iy) = (ix as u32, iy as u32);
+    sun.place[0].set(fx.to_bits());
     sun.hit[0].set(ix);
-    sun.place[1].set(fy);
+    sun.place[1].set(fy.to_bits());
     sun.hit[1].set(iy);
     let on = ix < session.screen.width.get() && iy < session.screen.height.get();
     sun.on_screen.set(u32::from(on));

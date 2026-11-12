@@ -118,14 +118,14 @@ pub fn emit_rolling_particles_rated(
         slot.put(|en| &mut en.place[0], rounded_value(place[0]))?;
         let motion: [f32; 3] = crate::effects::try_from_fn(|k| {
             let (first, third) = (
-                matrix_cell(m, 4 * k as u32)?,
-                matrix_cell(m, 0x20 + 4 * k as u32)?,
+                matrix_float(m, 4 * k as u32)?,
+                matrix_float(m, 0x20 + 4 * k as u32)?,
             );
-            let f = [0, 1, 2].map(|i| particles.kind21_set.motion_k[3 * k + i].bits());
+            let f = [0, 1, 2].map(|i| particles.kind21_set.motion_k[3 * k + i].get());
             Ok(x87::three_products([
-                [first, wheel.local_velocity_x.bits(), f[0]],
-                [third, wheel.local_velocity_z.bits(), f[1]],
-                [third, wheel.driven_speed.bits(), f[2]],
+                [first, wheel.local_velocity_x.get(), f[0]],
+                [third, wheel.local_velocity_z.get(), f[1]],
+                [third, wheel.driven_speed.get(), f[2]],
             ]))
         })?;
         slot.put(|en| &mut en.motion[2], motion[2])?;

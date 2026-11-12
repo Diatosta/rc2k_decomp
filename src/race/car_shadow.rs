@@ -428,15 +428,19 @@ fn clip_to_edge(
     work.edge[3].set(tz);
     work.edge[0].set(fx);
     work.edge[1].set(fz);
+    // The list and the old list (0x40 entries each, back to back in the part's polygon
+    // work) are not held to their length: a cut that adds crossings past 0x40 runs on
+    // from the list into the old list, and from the old list into the work after it, as
+    // the original; refused past the part's polygon work.
     let (list, old) = (&ctx.part.polygon.list, &ctx.part.polygon.old_list);
     copy_on_in(
-        (&race.shared.buffers, list),
-        (&race.shared.buffers, old),
+        (ctx.part.polygon, list),
+        (ctx.part.polygon, old),
         count as usize,
         "the polygon list",
     )?;
     write_on_in(
-        &race.shared.buffers,
+        ctx.part.polygon,
         old,
         count as usize,
         list[0].get(),
@@ -448,16 +452,12 @@ fn clip_to_edge(
     rc2k_core::race::shadow::clip_by_edge(
         count,
         |k| {
-            read_on_in(
-                &race.shared.buffers,
-                old,
-                k as usize,
-                "the old polygon list",
+            read_on_in(ctx.part.polygon, old, k as usize, "the old polygon list").unwrap_or_else(
+                |err| {
+                    trap.keep(err);
+                    0
+                },
             )
-            .unwrap_or_else(|err| {
-                trap.keep(err);
-                0
-            })
         },
         |e| {
             let entry = match work_entry(ctx.part.polygon, e) {
@@ -494,7 +494,7 @@ fn clip_to_edge(
         },
         |e| {
             if let Err(err) = write_on_in(
-                &race.shared.buffers,
+                ctx.part.polygon,
                 list,
                 added as usize,
                 e,
@@ -602,13 +602,13 @@ pub fn shadow_on_face(
     let list = &ctx.part.polygon.list;
     copy_on_in(
         (work, &work.list),
-        (&race.shared.buffers, list),
+        (ctx.part.polygon, list),
         count as usize,
         "the shadow list",
     )?;
     ctx.view.polygon.polygon_vertex_count.set(count);
     write_on_in(
-        &race.shared.buffers,
+        ctx.part.polygon,
         list,
         count as usize,
         work.list[0].get(),
@@ -640,7 +640,7 @@ pub fn shadow_on_face(
             &ctx.part.points,
             race,
             work,
-            read_on_in(&race.shared.buffers, list, k as usize, "the polygon list")?,
+            read_on_in(ctx.part.polygon, list, k as usize, "the polygon list")?,
         )?;
     }
     crate::scene::project_polygon::project_polygon(
@@ -900,8 +900,12 @@ pub fn cast_car_shadow(
     shadow_polygon(ctx.part.polygon, &ctx.part.points, race, work)?;
     let n: u32 = work.hull_count.get();
     work.list_count.set(n);
+    // The hull has at most 0x40 points (`shadow_hull`), the list's length.
     for k in hull_list(n) {
-        crate::session::write_on_in(work, &work.list, k as usize, k, "the shadow list")?;
+        work.list
+            .get(k as usize)
+            .ok_or(BadInput("a shadow hull past the shadow list"))?
+            .set(k);
     }
     work.texture.set(SHADOW_TEXTURE);
     shadow_faces(ctx, work, car)

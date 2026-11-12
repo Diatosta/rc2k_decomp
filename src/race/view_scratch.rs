@@ -300,10 +300,18 @@ pub struct DrawCtx<'a> {
     /// The drawing part's scratch (`workers::PartScratch`): the vertex buffer, the polygon
     /// work and the point records it draws with.
     pub part: &'a crate::workers::PartScratch,
+    /// The stores every drawing part reads (`workers::DrawReads`): the part's own inside a
+    /// drawing scope, the owners' on the game's thread outside one.
+    pub reads: crate::workers::DrawReads<'a>,
 }
 
 impl<'a> DrawCtx<'a> {
-    /// A view's drawing on its drawing part's scratch (`part`), cut at the far depth, with no car's marks.
+    /// A view's drawing on its drawing part's scratch (`part`) and reads (`reads`), cut at the
+    /// far depth, with no car's marks.
+    #[allow(
+        clippy::too_many_arguments,
+        reason = "the drawing's owners, its view, scratch and reads: what the context holds"
+    )]
     pub fn new(
         race: &'a crate::race::owner::Race,
         scene: &'a crate::scene::owner::Scene,
@@ -312,6 +320,7 @@ impl<'a> DrawCtx<'a> {
         input: &'a crate::input::owner::Input,
         view: &'a ViewScratch,
         part: &'a crate::workers::PartScratch,
+        reads: crate::workers::DrawReads<'a>,
     ) -> Self {
         Self {
             race,
@@ -324,6 +333,7 @@ impl<'a> DrawCtx<'a> {
             far_clip: true,
             marks: &crate::scene::car_marks::NONE,
             part,
+            reads,
         }
     }
 }

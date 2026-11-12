@@ -121,17 +121,7 @@ pub fn cars_particles(effects: &Effects) -> Result<(), Refused> {
         }
         let [k1, k2, k3] = read_bits(&effects.kinds.emitter.rate_k);
         let one = effects.setup.floats.one.get();
-        let (length, rate) = x87::length_and_rate(
-            [
-                car.motion[0].bits(),
-                car.motion[1].bits(),
-                car.motion[2].bits(),
-            ],
-            k1,
-            k2,
-            one,
-            k3,
-        );
+        let (length, rate) = x87::length_and_rate(car.motion.each_ref(), k1, k2, one, k3);
         car.pace.set(length as u32);
         car.rate.set(rate as u32);
         if car.reset_wait.get() != 0 {

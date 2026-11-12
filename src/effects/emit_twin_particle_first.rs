@@ -24,7 +24,7 @@ use crate::effects::owner::Effects;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::race::effects_settings_store::CarEffects;
-use crate::scene::matrix3::{extended, rounded};
+use crate::scene::matrix3::{extended, rounded_value};
 use crate::session::{PlainBytes, PlainDword, PlainFloat};
 
 const LEVELS: u32 = 9;
@@ -148,7 +148,12 @@ pub fn emit_twin(
     for n in 0..3 {
         slot.put(
             |en| &mut en.motion[n],
-            x87::product_plus(motion[n], step, &set.tuning.motion_k[n], rounded(moved[n])),
+            x87::product_plus(
+                motion[n],
+                step,
+                &set.tuning.motion_k[n],
+                rounded_value(moved[n]),
+            ),
         )?;
     }
     let r = next_c5(&set.tuning.spin_random);

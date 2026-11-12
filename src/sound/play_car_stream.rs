@@ -6,13 +6,32 @@
 //! Five call sites, next to `load_car_background`'s.
 //! Refuses what the record's lookup refuses.
 
-use crate::errors::Refused;
+use crate::errors::{BadInput, Refused};
 use crate::menu::load_car_background::shown_car;
 use crate::menu::owner::Menus;
+use crate::session::PlainDword;
 
 // ---- game data ----
 
 // Event.shown_car
+
+/// The stream dword of car `car`. `car_streams` holds cars 0 .. 0x17; the original indexes
+/// it with any car's number, so the cars past them read on into the next field,
+/// `stage_speeches`. The numbers come from the 34 car descriptions, which nothing writes
+/// during play: 0 .. 0x20 (the Clio's 0x21 counts as 0x17), so cars 0x18 .. 0x20 read
+/// `stage_speeches[0 .. 8]`; anything further is refused.
+fn car_stream(lists: &crate::menu::lists_store::MenuLists, car: u32) -> Result<u32, BadInput> {
+    let car = car as usize;
+    let streams = &lists.car_streams;
+    match streams.get(car) {
+        Some(stream) => Ok(stream.get()),
+        None => lists
+            .stage_speeches
+            .get(car - streams.len())
+            .map(PlainDword::get)
+            .ok_or(BadInput("a car's stream past the stage speeches")),
+    }
+}
 
 /// `start` is `sound::start_stream` (the file, the volume).
 pub fn play_car_stream(
@@ -25,14 +44,7 @@ pub fn play_car_stream(
     let car = shown_car(menus)?;
     let failed = std::cell::Cell::new(None);
     let s = rc2k_core::sound::set_up::car_stream(
-        // `MENU_LISTS.car_streams` (MenuLists.car_streams[0]) has 24 entries; the original reads any
-        // car's, past them what the image has after (`read_on` goes on past them too).
-        crate::session::read_on_in(
-            &menus.tables.lists,
-            &menus.tables.lists.car_streams,
-            car as usize,
-            "a car's stream",
-        )?,
+        car_stream(&menus.tables.lists, car)?,
         |list| {
             crate::menu::texts_store::speech_entry(names, list, 0).unwrap_or_else(|e| {
                 failed.set(Some(e));

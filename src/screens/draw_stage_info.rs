@@ -22,7 +22,7 @@ use crate::records::find_record::find_record_in;
 use crate::records::stages_store::RecordRef;
 use crate::screens::draw_stage_heading::draw_stage_heading;
 use crate::screens::stage_panel::{
-    TITLE_FONT, draw_records_from, draw_stage_body, label, table_dword_at,
+    TITLE_FONT, draw_records_from, draw_stage_body, label, section_title,
 };
 use crate::system::owner::System;
 use crate::text::draw_text::Canvas;
@@ -50,11 +50,7 @@ pub fn event_title(menus: &Menus, system: &System) -> Result<u32, crate::errors:
     let section: u32 = menus.screens.event.section.get();
     let first = find_record_in(table, 0, section)?;
     if menus.play.champ_view.event_mode.get() == 0x13 {
-        table_dword_at(
-            &menus.tables.lists,
-            &menus.tables.lists.section_titles,
-            section,
-        )
+        section_title(&menus.tables.lists, section)
     } else {
         Ok(first.record()?.name())
     }

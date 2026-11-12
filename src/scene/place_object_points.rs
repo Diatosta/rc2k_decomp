@@ -23,9 +23,9 @@
 //! over `X` (`math/x87_float.rs`), rounding as the control word says.
 
 use crate::errors::{BadInput, Refused};
+use crate::math::x87_float::{int, ld, st, to_int};
 use crate::scene::point_records;
 use crate::scene::project_point::{NEAR, rotate, to_screen};
-use crate::scene::x87_mem::{Base, cells, fild, fistp, fld, fstp};
 
 // ---- game data ----
 const OBJECTS: u32 = 0x100;
@@ -38,85 +38,49 @@ fn moved(
     race: &crate::race::owner::Race,
     from: usize,
     by: u32,
-    fraction: u32,
+    fraction: f32,
 ) -> Result<(), BadInput> {
     let course = &race.course;
     let other = from.wrapping_add(by as usize);
     let read = |at: usize| crate::scene::object_points::point(at as u32);
     let (a, b) = (read(from)?, read(other)?);
-    // The fraction, the two points, the result, the fraction as it is stored.
-    let mut w = [fraction, a[0], a[1], a[2], b[0], b[1], b[2], 0, 0, 0, 0];
-    moved_at(cells(&mut w));
+    let whole = |p: [u32; 3]| p.map(|v| v as i32);
+    let ([x, y, z], _) = moved_at(fraction, whole(a), whole(b));
     // The original stores the three from `point_moved` on: y and z land over the first two
     // group masks (`notes/bugs.md`).
-    course.course.point_moved.set(w[7]);
-    course.course.group_masks[0].set(w[8]);
-    course.course.group_masks[1].set(w[9]);
+    course.course.point_moved.set(x as u32);
+    course.course.group_masks[0].set(y as u32);
+    course.course.group_masks[1].set(z as u32);
     Ok(())
 }
 
-/// The block of `moved`: the fraction, the two points, the result (three whole numbers) and the
-/// fraction as it is stored.
-fn moved_at(w: impl Base) {
-    let t0 = fld(w, 0x0);
-    let t1 = fild(w, 0xC);
-    let t2 = fild(w, 0x18);
-    let t3 = t2 - t1;
-    let t4 = t3 * t0;
-    let t5 = t1 + t4;
-    let t6 = fild(w, 0x8);
-    let t7 = fild(w, 0x14);
-    let t8 = t7 - t6;
-    let t9 = t8 * t0;
-    let t10 = t6 + t9;
-    let t11 = fild(w, 0x4);
-    let t12 = fild(w, 0x10);
-    let t13 = t12 - t11;
-    let t14 = t13 * t0;
-    let t15 = t11 + t14;
-    fistp(w, 0x1C, t15);
-    fistp(w, 0x20, t10);
-    fistp(w, 0x24, t5);
-    fstp(w, 0x28, t0);
+/// The block of `moved`: the two points' whole numbers, each `a + (b - a) fraction` rounded
+/// to a whole number (z worked out first, then y, then x), and the fraction as it is
+/// stored (the original's work dword's, which nothing reads).
+fn moved_at(fraction: f32, a: [i32; 3], b: [i32; 3]) -> ([i32; 3], u32) {
+    let t0 = ld(fraction);
+    let along = |k: usize| {
+        let from = int(a[k]);
+        from + (int(b[k]) - from) * t0
+    };
+    let (z, y, x) = (along(2), along(1), along(0));
+    ([to_int(x), to_int(y), to_int(z)], st(t0))
 }
 
 /// A normal's three floats through the matrix's first three rows, into
 /// the record's +0x10, +0x14, +0x18.
-fn turn(normal: &[u32], matrix: &[u32], record: &mut [u32]) {
-    turn_normal(normal, matrix, cells(record));
+fn turn(normal: &[u32; 3], matrix: &[f32; 16], record: &mut [u32]) {
+    record[4..7].copy_from_slice(&turn_normal(normal.map(f32::from_bits), matrix));
 }
 
-fn turn_normal(p: impl Base, m: impl Base, o: impl Base) {
-    let t0 = fld(p, 0x8);
-    let t1 = fld(p, 0x4);
-    let t2 = fld(p, 0x0);
-    let t3 = fld(m, 0x0);
-    let t4 = t3 * t2;
-    let t5 = fld(m, 0x10);
-    let t6 = t5 * t1;
-    let t7 = fld(m, 0x20);
-    let t8 = t7 * t0;
-    let t9 = t6 + t8;
-    let t10 = t4 + t9;
-    let t11 = fld(m, 0x4);
-    let t12 = t11 * t2;
-    let t13 = fld(m, 0x14);
-    let t14 = t13 * t1;
-    let t15 = fld(m, 0x24);
-    let t16 = t15 * t0;
-    let t17 = t14 + t16;
-    let t18 = t12 + t17;
-    let t19 = fld(m, 0x8);
-    let t20 = t2 * t19;
-    let t21 = fld(m, 0x18);
-    let t22 = t1 * t21;
-    let t23 = fld(m, 0x28);
-    let t24 = t0 * t23;
-    let t25 = t24 + t22;
-    let t26 = t20 + t25;
-    fstp(o, 0x10, t10);
-    fstp(o, 0x14, t18);
-    fstp(o, 0x18, t26);
+/// `fld` x3, the three rows' sums of products, `fstp dword` x3 (the floats' bits, as the
+/// record holds them).
+fn turn_normal(p: [f32; 3], m: &[f32; 16]) -> [u32; 3] {
+    let (t0, t1, t2) = (ld(p[2]), ld(p[1]), ld(p[0]));
+    let t10 = ld(m[0]) * t2 + (ld(m[4]) * t1 + ld(m[8]) * t0);
+    let t18 = ld(m[1]) * t2 + (ld(m[5]) * t1 + ld(m[9]) * t0);
+    let t26 = t2 * ld(m[2]) + (t0 * ld(m[10]) + t1 * ld(m[6]));
+    [st(t10), st(t18), st(t26)]
 }
 
 /// What the object is made of, read and checked.
@@ -162,9 +126,9 @@ pub fn place_object_points(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Resu
     }
     // A copy: nothing the loop writes is the matrix (it is always the object's own,
     // `made_object_matrix`, which is never written here).
-    let matrix: [u32; 16] = std::array::from_fn(|n| ctx.view.matrices.made_object_matrix[n].bits());
+    let matrix: [f32; 16] = std::array::from_fn(|n| ctx.view.matrices.made_object_matrix[n].get());
     let move_by: u32 = ctx.view.object.move_by.get();
-    let fraction: u32 = ctx.view.object.move_fraction.get();
+    let fraction = ctx.view.object.move_fraction.get();
     let mut number = object.first;
     let mut from = object.table.wrapping_add(object.first.wrapping_mul(12));
     for _ in 0..object.points {
@@ -340,7 +304,14 @@ mod reference_vectors {
                     };
                 }
             },
-            plain: &|c| moved_at(c),
+            plain: &|c| {
+                let whole = |k: usize| [k, k + 1, k + 2].map(|n| c[n].get() as i32);
+                let (out, stored) = moved_at(f32::from_bits(c[0].get()), whole(1), whole(4));
+                for (k, v) in out.into_iter().enumerate() {
+                    c[7 + k].set(v as u32);
+                }
+                c[10].set(stored);
+            },
         };
         differential(test);
     }
@@ -363,7 +334,14 @@ mod reference_vectors {
                     *d = if moderate { rng.moderate() } else { rng.fl() };
                 }
             },
-            plain: &|c| turn_normal(c, &c[4..], &c[20..]),
+            plain: &|c| {
+                let f = |k: usize| f32::from_bits(c[k].get());
+                let m: [f32; 16] = std::array::from_fn(|k| f(4 + k));
+                let out = turn_normal([f(0), f(1), f(2)], &m);
+                for (k, v) in out.into_iter().enumerate() {
+                    c[24 + k].set(v);
+                }
+            },
         };
         differential(test);
     }

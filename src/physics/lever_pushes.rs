@@ -12,7 +12,6 @@
 use crate::math::x87;
 use crate::math::x87::{lever_share, one_less};
 use crate::physics::car_store::Car;
-use crate::physics::flow::ZERO_BITS as ZERO;
 use crate::physics::lever_push::lever_push;
 use crate::physics::tables_store::PhysicsTables;
 use crate::race::numbers_store::Numbers;
@@ -47,14 +46,14 @@ pub fn lever_pushes(
         &car.grip_forces[3],
         &car.grip_forces[1],
         &car.grip_forces[2],
-        ZERO,
+        0.0,
     );
-    physics_tables.lever_share_start.set(f32::from_bits(share));
+    physics_tables.lever_share_start.set(share);
     if zero {
         return;
     }
-    if below(physics_tables.lever_share_start.get(), f32::from_bits(ZERO)) {
-        physics_tables.lever_share_start.set(x87::loaded(ZERO));
+    if below(physics_tables.lever_share_start.get(), 0.0) {
+        physics_tables.lever_share_start.set(x87::loaded(0.0f32));
     }
     if !below(physics_tables.lever_share_start.get(), numbers.one.get()) {
         physics_tables

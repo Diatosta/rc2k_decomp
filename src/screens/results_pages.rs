@@ -147,9 +147,8 @@ pub fn draw_results_page(
                     normal
                 },
                 name: if menus.play.champ_view.event_mode.get() == 0x13 {
-                    crate::screens::stage_panel::table_dword_at(
+                    crate::screens::stage_panel::section_title(
                         &menus.tables.lists,
-                        &menus.tables.lists.section_titles,
                         menus.screens.event.section.get(),
                     )?
                 } else {

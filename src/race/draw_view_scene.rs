@@ -44,6 +44,10 @@ impl ViewOutput {
 }
 
 /// On `view`'s own working state.
+#[allow(
+    clippy::too_many_arguments,
+    reason = "the drawing's owners, its view, scratch and reads, as `DrawCtx::new` takes them"
+)]
 pub fn draw_view_scene(
     race: &Race,
     scene: &crate::scene::owner::Scene,
@@ -52,10 +56,11 @@ pub fn draw_view_scene(
     input: &crate::input::owner::Input,
     view: &ViewScratch,
     part: &crate::workers::PartScratch,
+    reads: crate::workers::DrawReads<'_>,
 ) -> Result<ViewOutput, Refused> {
     use crate::race::frame_draw::*;
     view.begin();
-    let ctx = DrawCtx::new(race, scene, system, net, input, view, part);
+    let ctx = DrawCtx::new(race, scene, system, net, input, view, part, reads);
     let _held = view.matrices.hold(&race.frame.matrices, part);
     // The shine from the stage's, as the frame's first view has it: the original left each
     // later view the previous one's last car's (a slip fixed: `wiki/Fixed-bugs.md`).

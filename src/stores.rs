@@ -975,7 +975,7 @@ fn listed_stores() -> Vec<Listed> {
         ),
         listed!(
             "scene.owner.SCENE.light_tables",
-            &crate::scene::owner::SCENE.light_tables,
+            on_game(crate::scene::owner::SCENE.light_tables.get()),
         ),
         listed!(
             "race.owner.RACE.frame.error_list",

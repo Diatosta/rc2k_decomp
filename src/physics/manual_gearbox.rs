@@ -118,11 +118,11 @@ fn start_line(
     if shifts::forward(gear) {
         let kept = car.engine_speed.get();
         revs_speed(car, tables)?;
-        drawing.scene.scratch.set(over_top(car));
+        drawing.scene.scratch.set(over_top(car).to_bits());
         car.engine_speed.set(kept);
         if !below(
             drawing.scene.scratch.get(),
-            gear_figures.shift_up_point.bits(),
+            gear_figures.shift_up_point.get(),
         ) {
             return Ok(Shift::Up);
         }
@@ -130,7 +130,7 @@ fn start_line(
     if !shifts::above_first(gear) {
         return Ok(Shift::Done);
     }
-    drawing.scene.scratch.set(over_top(car));
+    drawing.scene.scratch.set(over_top(car).to_bits());
     let Some(lower) = { lower_free_gear(car, gear) }? else {
         return Ok(Shift::Done);
     };
@@ -146,9 +146,9 @@ fn start_line(
         return Ok(Shift::Done);
     }
     let point = if shifts::down_point_clutch(car.brake.get()) {
-        gear_figures.shift_down_clutch_point.bits()
+        gear_figures.shift_down_clutch_point.get()
     } else {
-        gear_figures.shift_down_point.bits()
+        gear_figures.shift_down_point.get()
     };
     if !below(drawing.scene.scratch.get(), point) {
         return Ok(Shift::Done);

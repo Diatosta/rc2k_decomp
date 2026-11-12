@@ -357,13 +357,7 @@ pub fn draw_car(ctx: &crate::race::view_scratch::DrawCtx<'_>, car: usize) -> Res
     ctx.view.face.fade_alpha.set(ecx);
     // The original stored the group mask into the car's block +0xF04 here (0x461CD8),
     // which nothing ever reads: dropped (`notes/bugs.md`).
-    // `view_cars[drawn_view]`: past the two, read on by address as the original does.
-    let view_car = crate::session::read_on_in(
-        &race.shared.view,
-        &race.shared.view.view_cars,
-        ctx.view.drawn_view(race) as usize,
-        "the view cars",
-    )?;
+    let view_car = race.shared.view.drawn_view_car(ctx.view.drawn_view(race))?;
     if view_car == ctx.view.state.drawn_car.get() && ctx.view.state.view_car_flag_a.get() != 0 {
         ctx.view.cars.group_mask.set(u32::MAX);
     }

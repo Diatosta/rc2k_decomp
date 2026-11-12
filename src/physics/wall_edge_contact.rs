@@ -20,7 +20,7 @@ use crate::math::x87_float::int;
 use crate::math::x87_float::to_int;
 use crate::physics::contact_force::contact_force;
 use crate::physics::contact_store::ContactWork;
-use crate::physics::flow::{ZERO_BITS as ZERO, copy_cells};
+use crate::physics::flow::copy_cells;
 use crate::physics::step_families::ContactInputs;
 use crate::physics::tables_store::PhysicsTables;
 use crate::race::numbers_store::Numbers;
@@ -37,7 +37,7 @@ fn corners(course: &Course, face: u32) -> Result<[u32; 4], Refused> {
 /// `crossed_edge_contact`): their x, z go into `edge_points`; the heading (the arctangent of the
 /// differences, x `one_over_two_pi` x 65536, & 0xFFFF) << 16 + 0x40000000 goes into
 /// `wall_heading`; (0, 0, 1) turned by it (`math::rotate_float_point_about_y`) goes into
-/// `contact_normal`. Returns the leftover register values of the original's code.
+/// `contact_normal`.
 pub fn edge_normal(
     engine_tables: &crate::scene::engine_tables_store::EngineTables,
     contact: &ContactWork,
@@ -46,7 +46,7 @@ pub fn edge_normal(
     first: u32,
     second: u32,
     scene: &crate::scene::owner::Scene,
-) -> Result<[u32; 4], Refused> {
+) -> Result<(), Refused> {
     let drawing = &scene.drawing;
     let rd = |n: u32, k: u32| {
         crate::race::scene_points::point_word(course, &crate::race::scene_points::NO_OWN, n, k)
@@ -69,19 +69,12 @@ pub fn edge_normal(
         .set(drawing.scene.scratch.get() & 0xFFFF);
     let heading = (drawing.scene.scratch.get() << 16).wrapping_add(0x4000_0000);
     physics_tables.wall_heading.set(heading);
-    let out = {
-        rotate_float_point_about_y(
-            engine_tables,
-            ZERO,
-            ZERO,
-            course.numbers.one.bits(),
-            heading,
-        )
-    };
-    contact.contact_normal[0].set_bits(out[0]);
-    contact.contact_normal[1].set_bits(out[1]);
-    contact.contact_normal[2].set_bits(out[2]);
-    Ok(out)
+    let (out, _) =
+        rotate_float_point_about_y(engine_tables, 0.0, 0.0, course.numbers.one.get(), heading);
+    contact.contact_normal[0].set(out[0]);
+    contact.contact_normal[1].set(out[1]);
+    contact.contact_normal[2].set(out[2]);
+    Ok(())
 }
 
 /// The steps, not guarded.

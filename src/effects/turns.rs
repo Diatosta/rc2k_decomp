@@ -26,9 +26,9 @@ pub fn set_line_turn(masks: &Masks, line: &[PlainDword; 6], back: bool) {
 /// length the effects' row lengths say (`x87::scale_row`).
 pub fn scale_rows3(rows: &[PlainFloat; 9], effects: &crate::effects::owner::Effects) {
     for (n, row) in rows.as_chunks::<3>().0.iter().enumerate() {
-        let bits = [row[0].bits(), row[1].bits(), row[2].bits()];
-        let length = effects.setup.mask_constants.row_lengths[n].bits();
-        for (cell, v) in row.iter().zip(x87::scale_row_bits(bits, length)) {
+        let values = [row[0].get(), row[1].get(), row[2].get()];
+        let length = effects.setup.mask_constants.row_lengths[n].get();
+        for (cell, v) in row.iter().zip(x87::scale_row(values, length)) {
             cell.set(v);
         }
     }

@@ -14,7 +14,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::menu::owner::Tables;
 use crate::screens::draw_stage_records::selection_in;
-use crate::screens::stage_panel::{build_second_heading, table_dword_at};
+use crate::screens::stage_panel::{build_second_heading, group_title};
 use rc2k_core::menu::items::{ITEM_LEN, MENU_HEAD_LEN};
 
 /// Where the original puts "item 1"'s string: worked out from the menu's labels' address, as
@@ -45,11 +45,7 @@ pub fn set_stage_choice_titles(
         race,
         s.record,
     )?;
-    let group_title = table_dword_at(
-        &menus.play.results,
-        &menus.play.results.group_titles,
-        s.group,
-    )?;
+    let group_title = group_title(&menus.play.results, s.group)?;
     tables.menus.select_stage.id().items()[0]
         .string
         .set(group_title);

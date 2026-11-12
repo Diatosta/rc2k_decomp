@@ -283,12 +283,14 @@ pub fn init_checkpoints(race: &Race) -> Result<(), Refused> {
         let table = &race.checkpoints().checkpoint_faces;
         let trap = Trap::new();
         let listed = rc2k_core::race::checkpoints::listed_checkpoints(end, |n| {
-            let face = trap.keep_read(crate::session::read_on_in(
-                &shared.buffers,
-                table,
-                n as usize,
-                "the checkpoint table",
-            ));
+            // n < `last_checkpoint`, which `race::best_line` sets to the chain's length - 1
+            // after writing the chain into the table's 5146 entries: inside the table.
+            let face = trap.keep_read(
+                table
+                    .get(n as usize)
+                    .map(crate::session::Dword::get)
+                    .ok_or(BadInput("a checkpoint past the checkpoint table")),
+            );
             trap.keep_read(crate::race::course_places::face_field::<u8>(
                 &race.course,
                 face,
@@ -297,10 +299,21 @@ pub fn init_checkpoints(race: &Race) -> Result<(), Refused> {
         })?;
         trap.finish()?;
         physics.split_tables().split_colour_count.set(0);
-        // By address: the list runs on past its 0x101 entries as the original's does.
-        let list = &physics.split_tables().checkpoints;
+        // The list holds 0x101 entries; the original lets it run on for up to 0x201
+        // (`MOST_LISTED`), over the stage's numbers that follow it (0x100 entries: the
+        // two fields end together at 0x201). Such a stage is refused later by
+        // `race::init_overlay` (more than 0x40 parts).
+        let tables = physics.split_tables();
         for (k, &n) in listed.iter().enumerate() {
-            crate::session::write_on_in(physics.split_tables(), list, k, n, "a course variable")?;
+            let entry = tables
+                .checkpoints
+                .get(k)
+                .or_else(|| tables.stage_numbers.get(k - tables.checkpoints.len()));
+            entry
+                .ok_or(BadInput(
+                    "a split past the split list and the stage's numbers",
+                ))?
+                .set(n);
         }
         physics
             .split_tables()

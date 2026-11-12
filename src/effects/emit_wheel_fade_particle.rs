@@ -156,9 +156,9 @@ pub fn emit_wheel_fade_particle(
                     Ok({
                         let (f, s) = factors[a][n];
                         [
-                            f.bits(),
-                            s(wheel).bits(),
-                            particles.kind6_set.motion_k[3 * a + n].bits(),
+                            f.get(),
+                            s(wheel).get(),
+                            particles.kind6_set.motion_k[3 * a + n].get(),
                         ]
                     })
                 })?)

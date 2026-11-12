@@ -38,11 +38,9 @@ pub fn draw_itinerary(
         }
         let first = record_at(menus, system, 0)?;
         let heading = if menus.play.champ_view.event_mode.get() == 0x13 {
-            crate::session::read_on_in(
+            crate::screens::stage_panel::section_title(
                 &menus.tables.lists,
-                &menus.tables.lists.section_titles,
-                menus.screens.event.section.get() as usize,
-                "a section title",
+                menus.screens.event.section.get(),
             )?
         } else {
             first.record()?.name()

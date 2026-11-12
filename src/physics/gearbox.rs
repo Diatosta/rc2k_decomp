@@ -66,14 +66,14 @@ pub fn revs_speed(car: &Car, tables: &PhysicsTables) -> Result<(), Refused> {
 }
 
 /// The engine speed over its top (`fld; fdiv; fstp`).
-pub fn over_top(car: &Car) -> u32 {
-    x87::div(&car.engine_speed, &car.engine_speed_limit).to_bits()
+pub fn over_top(car: &Car) -> f32 {
+    x87::div(&car.engine_speed, &car.engine_speed_limit)
 }
 
 /// A gear's ratio; refused outside -1 ..= 7.
-pub fn ratio(tables: &PhysicsTables, gear: u32) -> Result<u32, Refused> {
+pub fn ratio(tables: &PhysicsTables, gear: u32) -> Result<f32, Refused> {
     if !(-1..=7).contains(&(gear as i32)) {
         return Err(BadInput("a gear outside g_gearRatios (-1 ..= 7)").into());
     }
-    Ok(tables.gear_ratios[(gear as i32 + 1) as usize].bits())
+    Ok(tables.gear_ratios[(gear as i32 + 1) as usize].get())
 }

@@ -16,7 +16,7 @@ use crate::session::Dword;
 pub struct CarBlocks {
     /// +0x0 (0x70F3EC): the blocks, 0xFE0 apart.
     pub cars: [Car; 10],
-    /// +0x9ec0 (0x7192AC): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
+    /// +0x9ec0 (0x7192AC): no code reads or writes it by name (no IDA xref to any of its bytes, 2026-11-10); it is carried in the replay's starting state (`REPLAY_STATE_DWORDS`), which runs over it.
     pub unused_tail: [Dword; 0x84],
 }
 
@@ -121,12 +121,17 @@ pub fn number_of(handle: u32) -> Result<usize, crate::errors::BadInput> {
 }
 
 /// The replay's starting state (`CarsAndReplay.car_blocks.cars[8].frame_head[0]`): its dwords, from car block 8 on.
+/// The original copies it as one run of 0xA04 dwords; the run is whole fields: car blocks 8
+/// and 9, the blocks' unused tail, and the replay work's `replay_tape` (it ends there, as
+/// the assertion below checks).
 pub const REPLAY_STATE_DWORDS: usize = 0xA04;
 /// Where the replay's starting state begins in `CARS_AND_REPLAY`: car block 8.
 pub const REPLAY_STATE_OFFSET: usize = 8 * BLOCK_LEN;
 const _: () = assert!(
-    8 * BLOCK_LEN + 4 * REPLAY_STATE_DWORDS
-        <= core::mem::size_of::<crate::race::groups_store::CarsAndReplay>()
+    REPLAY_STATE_OFFSET + 4 * REPLAY_STATE_DWORDS
+        == core::mem::offset_of!(crate::race::groups_store::CarsAndReplay, replay_work)
+            + core::mem::offset_of!(crate::race::replay_work_store::ReplayWork, replay_tape)
+            + core::mem::size_of::<[Dword; 400]>()
 );
 
 impl CarBlocks {

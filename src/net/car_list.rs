@@ -4,16 +4,20 @@
 //! Returns the list.
 //! Each won car is compared with the secret list's first entry before its end is looked
 //! for (so the -1 of an empty secret list's end can match a -1 entry, as in the original).
-//! Lists without their end in 0x100 entries are refused. Caller: `net::choose_car`.
+//! Lists without their end in their fields are refused (none are: `any_won`). Caller: `net::choose_car`.
 
 use crate::errors::Refused;
 use crate::menu::lists_store::CarList;
 use crate::menu::owner::Tables;
 
-/// Whether one of the cars in `won` is in the list `secret` (read on past their ends, as
-/// the original reads to their ends' marks).
+/// Whether one of the cars in `won` is in the list `secret`, each read to its end mark.
+/// Both lists end inside their fields: the won cars (`secret_cars`, 12 entries) are the
+/// image's, with the -1 at entry 11, and nothing writes them; the second car list (59
+/// entries) is written only by `menu::remove_secret_cars`, `menu::apply_cheats`,
+/// `menu::arcade_steps` and `saves::rebuild_car_lists`, each within its first 0x28 entries
+/// with a -1 inside them, and the entries from 0x28 on keep their -1. An entry past the
+/// field is refused.
 pub fn any_won(
-    tables: &Tables,
     secret: &[impl crate::session::Cell32],
     won: &[impl crate::session::Cell32],
 ) -> Result<bool, Refused> {
@@ -21,22 +25,20 @@ pub fn any_won(
     // The core asks infallibly: the first refusal is kept and raised after.
     let refused = std::cell::Cell::new(None);
     fn reader<'a>(
-        tables: &'a Tables,
         list: &'a [impl crate::session::Cell32],
         refused: &'a std::cell::Cell<Option<crate::errors::BadInput>>,
     ) -> impl Fn(u32) -> u32 + 'a {
-        move |n: u32| {
-            crate::session::read_on_in(&tables.lists, list, n as usize, "a car list's entry")
-                .unwrap_or_else(|e| {
-                    refused.set(Some(e));
-                    0
-                })
+        move |n: u32| match list.get(n as usize) {
+            Some(entry) => entry.bits(),
+            None => {
+                refused.set(Some(crate::errors::BadInput(
+                    "a car list's entry past its field",
+                )));
+                0
+            }
         }
     }
-    let answer = rc2k_core::net::cars::any_won(
-        reader(tables, secret, &refused),
-        reader(tables, won, &refused),
-    );
+    let answer = rc2k_core::net::cars::any_won(reader(secret, &refused), reader(won, &refused));
     if let Some(e) = refused.take() {
         return Err(e.into());
     }
@@ -44,7 +46,7 @@ pub fn any_won(
 }
 pub fn car_list(tables: &Tables) -> Result<CarList, Refused> {
     Ok(
-        if any_won(tables, &tables.lists.cars_second, &tables.lists.secret_cars)? {
+        if any_won(&tables.lists.cars_second, &tables.lists.secret_cars)? {
             CarList::WithClio
         } else {
             CarList::First

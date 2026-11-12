@@ -39,10 +39,10 @@ pub fn pick_start_gear(
         }
         car.gear.set(gear);
         revs_speed(car, tables)?;
-        car.engine_speed.set_bits(over_top(car));
+        car.engine_speed.set(over_top(car));
         Ok(below(
-            car.engine_speed.bits(),
-            gear_figures.shift_up_point.bits(),
+            car.engine_speed.get(),
+            gear_figures.shift_up_point.get(),
         ))
     })?;
     let Some(gear) = taken else {

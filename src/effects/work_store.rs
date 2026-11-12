@@ -4,7 +4,7 @@
 #[cfg(test)]
 use crate::effects::owner::effects;
 use crate::race::panel_store::Loose32;
-use crate::session::{PlainBytes, PlainDword};
+use crate::session::{PlainBytes, PlainDword, PlainFloat};
 
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
@@ -14,7 +14,7 @@ pub struct MarksWork {
     /// +0x4 (0x71C818): an unreferenced gap (0x58 bytes).
     pub unused_4: PlainBytes<88>,
     /// +0x5c (0x71C870): `flt_71C870`: 1 / 65536, the pixel shake (`effects::pixels`).
-    pub shake: PlainDword,
+    pub shake: PlainFloat,
     /// +0x60 (0x71C874): an unreferenced gap (0xc bytes).
     pub unused_60: PlainBytes<12>,
     /// +0x6c (0x71C880): `dword_71C880`: the scratch of the edge pair (`effects::spans`), the rows' lengths (`effects::turns`) and the windscreen drop cell's x (`effects::windscreen_drops_frame`).

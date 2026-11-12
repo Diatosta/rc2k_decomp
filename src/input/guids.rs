@@ -91,40 +91,33 @@ pub const fn guid_ref(ida: u32) -> u32 {
     GUID_TAG | (at - InputGuids::START) as u32
 }
 
-/// The GUID a handle names, read from the field that holds it (the effects' GUIDs and every
-/// one the devices' records name are fields of their own, 16 bytes at a multiple of 16).
-/// Refused: what is no handle (the original reads the GUID at what it holds as an address)
-/// and an offset that is no GUID's start.
+/// The effect GUID a handle names, read from the field that holds it. The handles are the
+/// device records' `wanted` dwords, which nothing writes: the image's name `GUID_Spring`,
+/// `GUID_Sine`, `GUID_ConstantForce` and `GUID_Damper`, so every read is one of the eleven
+/// effect GUIDs, a field of its own. Refused: what is no handle (the original reads the GUID
+/// at what it holds as an address) and a handle that names no effect GUID.
 pub fn guid_of(guids: &InputGuids, handle: u32) -> Result<[u8; 16], crate::errors::BadInput> {
     let at = (handle ^ GUID_TAG) as usize;
     let none = crate::errors::BadInput("an effect's GUID handle that names none");
     if at + 16 > InputGuids::LEN || !at.is_multiple_of(16) {
         return Err(none);
     }
-    // The 16-byte places from IDA's `START`: the device's interface, a GUID not named, the six
-    // axes, eight not named, the eleven effects, one not named.
-    fn unit<const N: usize>(field: &Bytes<N>, from: usize) -> [u8; 16] {
-        std::array::from_fn(|i| field.get(from + i))
-    }
-    Ok(match at / 16 {
-        0 => unit(&guids.device2, 0),
-        1 => unit(&guids._gap_4f7e28, 0),
-        n @ 2..=7 => unit(&guids.axes, (n - 2) * 16),
-        n @ 8..=15 => unit(&guids._gap_4f7e98, (n - 8) * 16),
-        16 => unit(&guids.constant_force, 0),
-        17 => unit(&guids.ramp_force, 0),
-        18 => unit(&guids.square, 0),
-        19 => unit(&guids.sine, 0),
-        20 => unit(&guids.triangle, 0),
-        21 => unit(&guids.sawtooth_up, 0),
-        22 => unit(&guids.sawtooth_down, 0),
-        23 => unit(&guids.spring, 0),
-        24 => unit(&guids.damper, 0),
-        25 => unit(&guids.inertia, 0),
-        26 => unit(&guids.friction, 0),
-        27 => unit(&guids._gap_4f7fc8, 0),
+    // The effects' GUIDs are the 16-byte places 16 .. 26 from IDA's `START`.
+    let field = match at / 16 {
+        16 => &guids.constant_force,
+        17 => &guids.ramp_force,
+        18 => &guids.square,
+        19 => &guids.sine,
+        20 => &guids.triangle,
+        21 => &guids.sawtooth_up,
+        22 => &guids.sawtooth_down,
+        23 => &guids.spring,
+        24 => &guids.damper,
+        25 => &guids.inertia,
+        26 => &guids.friction,
         _ => return Err(none),
-    })
+    };
+    Ok(std::array::from_fn(|i| field.get(i)))
 }
 
 #[cfg(test)]

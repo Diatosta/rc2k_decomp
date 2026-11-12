@@ -84,7 +84,7 @@ pub fn car_sound_state(
     ];
     let m = crate::race::heard_turn::turn(matrices);
     let out = rotate_point(m, place);
-    let k = numbers.one_over_65536.bits();
+    let k = numbers.one_over_65536.get();
     for (i, e) in out.iter().enumerate() {
         so.place[i].set(rounded_value(ext_times(*e, k)));
     }

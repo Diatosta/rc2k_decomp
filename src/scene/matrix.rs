@@ -9,7 +9,7 @@ use crate::math::cells::Cells;
 use crate::math::x87;
 use crate::math::x87_float as bh;
 use crate::scene::engine_tables_store::EngineTables;
-use crate::scene::project_point::rotate;
+use crate::scene::project_point::rotate_at;
 use crate::scene::view_matrices::ViewMatrices;
 use crate::session::Float;
 
@@ -95,9 +95,7 @@ pub fn copy_matrix_with_place(
     other: &(impl Cells + ?Sized),
     out: &(impl Cells + ?Sized),
 ) {
-    for n in 0..0x10 {
-        out.set_bits(n, from.bits(n));
-    }
+    crate::math::cells::copy_cells(from, out, 0x10);
     for n in 12..15 {
         let sum = bh::ld(other.float(n)) + bh::ld(out.float(n));
         out.set_float(n, bh::stf(sum));
@@ -128,15 +126,9 @@ pub fn set_light_direction(
     multiply_matrices(&v.turn_x_matrix, &v.turn_y_matrix, &v.turned_matrix);
     multiply_matrices(&v.turned_matrix, view_turn, &v.lit_matrix);
     // `fld1; fldz; fldz; call scene::rotate_point`, the results popped in turn.
-    let ahead = [0, 0, 1];
-    let mut record = [0u32; 7];
-    rotate(
-        &ahead,
-        &v.lit_matrix.each_ref().map(Float::bits),
-        &mut record,
-    );
-    for (cell, &bits) in direction.iter().zip(&record[4..7]) {
-        cell.set_bits(bits);
+    let ahead = rotate_at([0, 0, 1], &v.lit_matrix.each_ref().map(Float::get));
+    for (cell, value) in direction.iter().zip(ahead) {
+        cell.set(value);
     }
 }
 

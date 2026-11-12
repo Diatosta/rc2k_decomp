@@ -24,7 +24,7 @@ use crate::effects::owner::Effects;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::race::effects_settings_store::{CarEffects, MarkRecord};
-use crate::scene::matrix3::{extended, rounded};
+use crate::scene::matrix3::{extended, rounded_value};
 use crate::session::{PlainDword, PlainFloat};
 
 /// One emitter's variables (kind 5's and kind 0xB's code is the same but for these).
@@ -176,7 +176,7 @@ pub fn emit_slip_spray_with(
             let row = matrix_cell(m, 0x28 - 4 * n as u32)?;
             slot.put(
                 |en| &mut en.motion[2 - n],
-                x87::product_plus(row, set.roll_k[n], speed, rounded(moved)),
+                x87::product_plus(row, set.roll_k[n], speed, rounded_value(moved)),
             )?;
         }
         slot.put(

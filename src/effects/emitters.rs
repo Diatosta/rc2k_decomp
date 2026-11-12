@@ -78,6 +78,11 @@ pub fn matrix_cell<C: crate::session::Cell32>(matrix: &[C], offset: u32) -> Resu
         .ok_or_else(|| BadInput("a car matrix's cell past its end").into())
 }
 
+/// As `matrix_cell`, the cell read as the float it holds.
+pub fn matrix_float<C: crate::session::Cell32>(matrix: &[C], offset: u32) -> Result<f32, Refused> {
+    matrix_cell(matrix, offset).map(f32::from_bits)
+}
+
 /// The car the emitters are on (`EMITTER.car`, a handle); refused when none is set.
 pub fn emitting_car(
     effects: &crate::effects::owner::Effects,

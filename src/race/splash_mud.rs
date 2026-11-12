@@ -11,7 +11,7 @@
 //! `muddy_texel` refuses before anything, and `put_mud_texel`'s later refusals (the counts, the
 //! counters and the random state put back).
 
-use crate::errors::Refused;
+use crate::errors::{BadInput, Refused};
 use crate::gfx::fade_colour::fade_colour;
 use crate::math::next_random::next_drawing_random;
 use crate::race::mud_texel::mud_texel;
@@ -50,12 +50,14 @@ pub fn splash_mud(
         for column in 0..SPLASH_SIDE {
             eax = mud_texel(eax, x, y, scene, gfx, system)?;
             if muddy(eax) {
-                let colour = crate::session::read_on_in(
-                    &shared.vars,
-                    &shared.vars.mud_colours,
-                    colours,
-                    "the mud colours",
-                )?;
+                // The pattern's place is 16 x (0 .. 15) and the splash steps it 16 times:
+                // at most 0xFF, inside the 256 colours.
+                let colour = shared
+                    .vars
+                    .mud_colours
+                    .get(colours)
+                    .ok_or(BadInput("a mud colour past the 256"))?
+                    .get();
                 let faded = fade_colour(eax, colour, colour >> 24);
                 eax = put_mud_texel(faded | MUD_TOP, x, y, scene, gfx, system)?;
             }
