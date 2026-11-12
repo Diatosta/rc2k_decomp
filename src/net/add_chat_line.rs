@@ -95,7 +95,7 @@ pub fn add_chat_line(net: &Net, player: u32, message: &[u8]) -> Result<(), Refus
             shown.extend_from_slice(left.get(shown.len()..).unwrap_or(&[]));
             // On the receiving thread too (a chat message received): the graphics owner as
             // that thread's other reads reach it.
-            let mut canvas = GameCanvas::new(crate::gfx::owner::GFX.unchecked());
+            let mut canvas = GameCanvas::new(crate::gfx::owner::GFX.on_any_thread());
             let width = { measure_text_at(CHAT_FONT, &shown, 0, &mut canvas) }?.width;
             if width > LINE_WIDTH {
                 built.pop();

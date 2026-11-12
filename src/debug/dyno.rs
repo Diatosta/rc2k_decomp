@@ -350,7 +350,7 @@ mod tests {
     #[test]
     fn measuring_puts_back_all_it_writes() {
         let shared = &race().shared;
-        let _lock = crate::store::test_lock();
+        let _lock = crate::test_support::test_lock();
         let was_limit = shared.car.engine_speed_limit.bits();
         let was_count = shared.physics_tables.gear_count.get();
         let was_ratio = shared.physics_tables.gear_ratios[2].bits();
@@ -373,7 +373,7 @@ mod tests {
     #[test]
     fn no_limit_no_measuring() {
         let shared = &race().shared;
-        let _lock = crate::store::test_lock();
+        let _lock = crate::test_support::test_lock();
         let was = shared.car.engine_speed_limit.bits();
         shared.car.engine_speed_limit.set_bits(0);
         assert!(measure(race(), scene()).is_none());

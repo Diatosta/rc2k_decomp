@@ -53,14 +53,6 @@ impl TwinTuning {
     }
 }
 
-/// Marker for `moved::MOVED`: TWENTY_SECOND_TUNING's place in the image.
-pub struct TwinSecondTuning;
-
-impl TwinSecondTuning {
-    pub const START: usize = 0x93A4B2;
-    pub const LEN: usize = TwinTuning::LEN;
-}
-
 #[cfg(test)]
 mod twenty_second_tuning_tests {
     use super::*;

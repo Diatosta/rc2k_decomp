@@ -4,7 +4,7 @@
 //!
 //! Out-parameters are local to each call and returned as plain Rust values. The raw-pointer
 //! items are `map_pages` and `discard_pages`, the page pool's memory primitives (the pool in
-//! `pointers/pool.rs` holds the mapping for the program's life). Nothing allocates in
+//! `pool.rs` holds the mapping for the program's life). Nothing allocates in
 //! `exit_now` (it may run in the fault reporter).
 
 #![allow(unsafe_code)]
@@ -91,70 +91,6 @@ pub unsafe fn discard_pages(at: *mut u8, len: usize) -> bool {
 pub fn exit_now(code: u32) -> ! {
     // SAFETY: ends the process.
     unsafe { libc::_exit(code as i32) }
-}
-
-/// The running thread's stack: its lowest byte and the byte past its top.
-#[cfg(not(miri))]
-pub fn thread_stack() -> (usize, usize) {
-    // SAFETY: the running thread's attributes, read and destroyed here.
-    unsafe {
-        let mut attr: libc::pthread_attr_t = std::mem::zeroed();
-        if libc::pthread_getattr_np(libc::pthread_self(), &raw mut attr) != 0 {
-            return (0, 0);
-        }
-        let (mut low, mut size) = (std::ptr::null_mut(), 0usize);
-        let read = libc::pthread_attr_getstack(&raw const attr, &raw mut low, &raw mut size);
-        libc::pthread_attr_destroy(&raw mut attr);
-        if read != 0 {
-            return (0, 0);
-        }
-        let low = low.expose_provenance();
-        (low, low + size)
-    }
-}
-
-/// Miri cannot ask for the stack; its tests have none to register.
-#[cfg(miri)]
-pub fn thread_stack() -> (usize, usize) {
-    (0, 0)
-}
-
-/// Miri cannot ask the loader; its tests have no image to find.
-#[cfg(miri)]
-pub fn image() -> (usize, Vec<(usize, usize)>) {
-    (0, Vec::new())
-}
-
-/// The program's own image: its load address, and its loaded segments (first byte, byte
-/// past the end), from the program's headers.
-#[cfg(not(any(miri, target_os = "emscripten")))]
-pub fn image() -> (usize, Vec<(usize, usize)>) {
-    unsafe extern "C" fn each(
-        info: *mut libc::dl_phdr_info,
-        _size: usize,
-        found: *mut libc::c_void,
-    ) -> libc::c_int {
-        // SAFETY: the loader's record of the program (the first one listed) and its
-        // program headers, live during the call; `found` is `image`'s.
-        unsafe {
-            let info = &*info;
-            let found = &mut *found.cast::<(usize, Vec<(usize, usize)>)>();
-            let base = info.dlpi_addr as usize;
-            found.0 = base;
-            for n in 0..info.dlpi_phnum as usize {
-                let h = &*info.dlpi_phdr.add(n);
-                if h.p_type == libc::PT_LOAD {
-                    let start = base + h.p_vaddr as usize;
-                    found.1.push((start, start + h.p_memsz as usize));
-                }
-            }
-        }
-        1 // the program is listed first: stop there
-    }
-    let mut found: (usize, Vec<(usize, usize)>) = (0, Vec::new());
-    // SAFETY: `each` reads the loader's records as documented; `found` outlives the call.
-    unsafe { libc::dl_iterate_phdr(Some(each), (&raw mut found).cast()) };
-    found
 }
 
 // ---- the fault reporter (`standalone`) ----
@@ -247,25 +183,6 @@ pub fn install_fault_reporter() {
 #[cfg(target_os = "emscripten")]
 pub fn memory_stats() -> Option<MemoryStats> {
     None
-}
-
-/// The program's statics and constants: WebAssembly's code is not in the memory, its data is
-/// the memory's first part, from the linker's `__global_base` to `__heap_base` (the main
-/// stack's room with it).
-#[cfg(target_os = "emscripten")]
-pub fn image() -> (usize, Vec<(usize, usize)>) {
-    unsafe extern "C" {
-        static __global_base: u8;
-        static __heap_base: u8;
-    }
-    // SAFETY: the linker's own symbols; only their addresses are taken.
-    let (start, end) = unsafe {
-        (
-            (&raw const __global_base).expose_provenance(),
-            (&raw const __heap_base).expose_provenance(),
-        )
-    };
-    (start, vec![(start, end)])
 }
 
 /// No signals for a fault: a trap ends the module, and the browser's console shows it.

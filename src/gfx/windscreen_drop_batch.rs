@@ -6,11 +6,6 @@
 
 use crate::session::{PlainBytes, PlainDword};
 
-/// IDA's address of the block's first byte.
-pub const START: usize = 0x62423C;
-/// The block's length.
-pub const LEN: usize = 0x628A44 - START;
-
 /// The fans' room: 0x40 fans of 4 triangles of 3 indices (words).
 pub const FANS_LEN: usize = 0x1800;
 /// The records' room: 0x40 records of 0xC0 bytes (six 0x20-byte vertices each).

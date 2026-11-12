@@ -1,6 +1,6 @@
 //! The menu items' sprite lists, out of RAL.EXE's image (IDA 0x747998 .. 0x747AD8): 16 lists of five sprite numbers (the item's look in each state), which a menu
 //! item names (`menus_store::MenuItem::sprites`, a `SpriteCell`: the original kept the
-//! list's address, `moved::point_into_homes` passes those places over). The first eight are the menus' (sprites 0xA ..), the last
+//! list's address). The first eight are the menus' (sprites 0xA ..), the last
 //! eight the in-race menus' (0x11 ..). Nothing changes them.
 
 use crate::session::PlainDword;

@@ -6,9 +6,9 @@
 use std::sync::MutexGuard;
 
 /// Holds the lock of the tests that share statics or the control word
-/// (`crate::store::test_lock`, shared with every test of the statics).
+/// (`crate::test_support::test_lock`, shared with every test of the statics).
 pub(crate) fn lock() -> MutexGuard<'static, ()> {
-    crate::store::test_lock()
+    crate::test_support::test_lock()
 }
 
 /// A seeded generator of the inputs.

@@ -1,9 +1,6 @@
 //! Readers of the game's memory for the converted cores, whose closures cannot fail: the
 //! first bad address is kept, the reader answers 0 from then on, and `finish` refuses
 //! afterwards (so the core's own answer on those zeros is never used).
-//!
-//! Local to the callers of `pointers::GamePtr` in `scene` and `drive` (phase 8); not a
-//! change of `pointers.rs`.
 
 use crate::errors::BadInput;
 use std::cell::Cell;

@@ -23,7 +23,7 @@ fn globals() -> Result<Globals, BadInput> {
         a: crate::files::state::directory_text(0, "the base directory")?, // g_baseDirectory
         b: crate::files::cstring(
             // The one install store the audio thread's file calls read (atomic, never written).
-            &crate::install::owner::INSTALL.unchecked().texts.base_b,
+            &crate::install::owner::INSTALL.on_any_thread().texts.base_b,
             "the second base directory",
         )?,
         // g_localeDirectory: replaces each '%'

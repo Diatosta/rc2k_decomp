@@ -43,10 +43,10 @@ pub const END: usize = 0x5CC198;
 
 const _: () = assert!(END - START == core::mem::size_of::<GearFigures>());
 
-/// Where IDA 0x5CB958 is now (its group's static).
+/// The piece's host address (the alignment checks).
 #[cfg(test)]
-pub fn piece_addr() -> u32 {
-    crate::pointers::game_address(core::ptr::from_ref(&race().frame.lights_and_gear.gear))
+pub fn piece_addr() -> usize {
+    core::ptr::from_ref(&race().frame.lights_and_gear.gear).addr()
 }
 
 #[cfg(test)]

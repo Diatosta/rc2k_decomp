@@ -28,9 +28,6 @@ use rc2k_core::gfx::picture_size as sizes;
 
 // ---- game data ----
 
-/// IDA's address of the showing switch.
-pub const SHOWING_START: usize = 0x51B9C4;
-
 const LOADING_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::LOADING;
 
 /// Shows the picture at `path`.
@@ -80,7 +77,7 @@ pub fn show_picture_file(
                 }
                 crate::gfx::rescale_to_surface::rescale_to_surface(
                     &gfx.rescale,
-                    &gfx.drawing.draw_surface,
+                    gfx.drawing.draw_surface,
                     gfx,
                 )?;
                 unlock_surface(gfx);

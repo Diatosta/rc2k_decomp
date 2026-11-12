@@ -30,8 +30,7 @@ pub struct ReplayFrames {
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
 // them): any bit pattern is a valid value.
 
-/// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
-/// `race::store::LEFT`), with the image's first values.
+/// The piece, with the image's first values.
 impl ReplayFrames {
     pub const fn new() -> Self {
         crate::cells::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
@@ -45,10 +44,10 @@ pub const END: usize = 0x70F3EC;
 
 const _: () = assert!(END - START == core::mem::size_of::<ReplayFrames>());
 
-/// Where IDA 0x6EF7CC is now (its own static).
+/// The piece's host address (the alignment checks).
 #[cfg(test)]
-pub fn piece_addr() -> u32 {
-    crate::pointers::game_address(core::ptr::from_ref(&race().replay.replay_frames))
+pub fn piece_addr() -> usize {
+    core::ptr::from_ref(&race().replay.replay_frames).addr()
 }
 
 #[cfg(test)]
@@ -65,10 +64,7 @@ mod tests {
 
     #[test]
     fn fields_are_at_the_games_offsets() {
-        assert_eq!(
-            piece_addr() % (core::mem::align_of::<ReplayFrames>()) as u32,
-            0
-        );
+        assert_eq!(piece_addr() % core::mem::align_of::<ReplayFrames>(), 0);
 
         assert_eq!(offset_of!(ReplayFrames, step_first), 0x0);
         assert_eq!(offset_of!(ReplayFrames, frame), 0xc);

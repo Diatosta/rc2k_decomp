@@ -51,8 +51,7 @@ fn set_word_of_dword(base: impl Base, off: usize, value: u16) {
 }
 
 /// A block of dwords the caller holds: each operand a bounds check on the block, nothing more.
-/// What the arithmetic of the hot paths works on (a game address costs a look through the
-/// tables, a pointer a look at the thread's stack, for every operand).
+/// What the arithmetic of the hot paths works on.
 impl Base for &[std::cell::Cell<u32>] {
     #[inline(always)]
     fn dword(self, off: usize) -> u32 {
@@ -216,37 +215,30 @@ pub(crate) fn cells(block: &mut [u32]) -> &[std::cell::Cell<u32>] {
     std::cell::Cell::from_mut(block).as_slice_of_cells()
 }
 
-/// A test's operand buffer by game address (the assembly references' operands), read and
-/// written through the checked region lookup.
+/// A test's operand buffer by host address (the assembly references' operands, the tests'
+/// own buffers).
 #[cfg(test)]
 mod by_address {
     use super::Base;
 
-    /// The `T` at the operand, read through the checked place layer (the program ends outside
-    /// one live region, `pointers::read_or_end`).
+    /// The `T` at the operand.
     #[track_caller]
     pub(super) fn load<T: crate::cells::Plain>(address: usize, off: usize) -> T {
         let at = address.wrapping_add(off);
-        if crate::test_support::vectors::leased(at, size_of::<T>()) {
-            // SAFETY: inside a buffer the test leased (the byte copy needs no alignment).
-            return unsafe { (at as *const T).read_unaligned() };
-        }
-        crate::pointers::read_or_end(at as u32, "an x87 operand")
+        // SAFETY: the tests hand the host address of a buffer of their own that holds the
+        // operand (the byte copy needs no alignment).
+        unsafe { (at as *const T).read_unaligned() }
     }
 
     /// `value` written at the operand (as `load`).
     #[track_caller]
     pub(super) fn store<T: crate::cells::Plain>(address: usize, off: usize, value: T) {
         let at = address.wrapping_add(off);
-        if crate::test_support::vectors::leased(at, size_of::<T>()) {
-            // SAFETY: inside a buffer the test leased.
-            unsafe { (at as *mut T).write_unaligned(value) };
-            return;
-        }
-        crate::pointers::write_or_end(at as u32, value, "an x87 operand");
+        // SAFETY: as `load`'s.
+        unsafe { (at as *mut T).write_unaligned(value) };
     }
 
-    /// A base that is a game address.
+    /// A base that is a host address.
     macro_rules! base_at {
         ($t:ty, $address:expr) => {
             impl Base for $t {
@@ -276,43 +268,9 @@ mod by_address {
 
     base_at!(usize, |a: usize| a);
     #[cfg(target_arch = "x86")]
-    base_at!(*mut u8, |p: *mut u8| crate::pointers::game_address(p)
-        as usize);
+    base_at!(*mut u8, |p: *mut u8| p.addr());
     #[cfg(target_arch = "x86")]
-    base_at!(*const u8, |p: *const u8| crate::pointers::game_address(p)
-        as usize);
-}
-
-/// A place in the game's memory, read and written within its own bounds.
-#[cfg(test)]
-impl Base for crate::pointers::GamePtr {
-    #[track_caller]
-    fn dword(self, off: usize) -> u32 {
-        bounded(self.offset(off as u32).read("an x87 operand"))
-    }
-    #[track_caller]
-    fn set_dword(self, off: usize, value: u32) {
-        bounded(self.offset(off as u32).write(value, "an x87 operand"));
-    }
-    #[track_caller]
-    fn set_word(self, off: usize, value: u16) {
-        bounded(self.offset(off as u32).write(value, "an x87 operand"));
-    }
-    #[track_caller]
-    fn tbyte(self, off: usize) -> [u8; 10] {
-        bounded(self.offset(off as u32).read("an x87 operand"))
-    }
-    #[track_caller]
-    fn set_tbyte(self, off: usize, value: [u8; 10]) {
-        bounded(self.offset(off as u32).write(value, "an x87 operand"));
-    }
-}
-
-/// A checked access's value, or the program ended naming it.
-#[cfg(test)]
-#[track_caller]
-fn bounded<T>(done: Result<T, crate::errors::BadInput>) -> T {
-    done.unwrap_or_else(|e| crate::fatal::raise::end("an x87 operand", e))
+    base_at!(*const u8, |p: *const u8| p.addr());
 }
 
 /// `fld dword ptr [base + off]`.
@@ -321,7 +279,7 @@ pub(crate) fn fld(base: impl Base, off: usize) -> X {
     ld(base.dword(off))
 }
 
-/// A test buffer's dword as a cell (checked in one live region, as `fld`).
+/// A test buffer's dword as a cell, by its host address (as `fld`'s `usize` base).
 #[cfg(test)]
 pub(crate) struct HostCell(pub usize);
 
@@ -338,7 +296,7 @@ impl crate::session::Cell32 for HostCell {
 /// The `T` at `off` bytes into a test buffer at `base` (the plain versions' typed operands).
 #[cfg(test)]
 pub(crate) fn view<T>(base: usize, off: usize) -> &'static T {
-    // SAFETY: the buffer is leased for the run (`block_vectors`), aligned for its cells.
+    // SAFETY: the buffer is a test's own for the run (`block_vectors`), aligned for its cells.
     unsafe { &*(crate::test_support::vectors::block_vectors::at(base + off) as *const T) }
 }
 
@@ -389,13 +347,13 @@ pub(crate) fn mov(base: impl Base, off: usize, value: u32) {
 mod block_tests {
     use super::*;
 
-    /// Each store and load on a block of cells does what it does through a game address.
+    /// Each store and load on a block of cells does what it does through a host address.
     #[test]
     fn a_block_of_cells_behaves_as_memory() {
         let mut by_pointer = [0x4040_0000u32, 7, 0xAAAA_BBBB, 0];
         let mut by_cells = by_pointer;
-        // The test's own block on its stack, by game address (`usize`, checked).
-        let p = crate::pointers::game_address(by_pointer.as_mut_ptr()) as usize;
+        // The test's own block on its stack, by host address (`usize`).
+        let p = by_pointer.as_mut_ptr().addr();
         let c = cells(&mut by_cells);
         assert_eq!(fld(p, 0).0, fld(c, 0).0);
         assert_eq!(fild(p, 4).0, fild(c, 4).0);

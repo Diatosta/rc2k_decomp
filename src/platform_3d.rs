@@ -118,7 +118,7 @@ struct Level {
     id: TextureId,
     /// The pixels, named by the surface's handle while the level lives (locked, the game's
     /// code writes them through it: `gfx::locked_pixels`).
-    pixels: std::sync::Arc<crate::pointers::PoolBytes>,
+    pixels: std::sync::Arc<crate::pool::PoolBytes>,
     pitch: u32,
 }
 
@@ -126,7 +126,7 @@ impl Level {
     /// The level made at `surface` of `bytes`, `pitch` bytes a row; its pixels named by the
     /// surface's handle (`gfx::locked_pixels`).
     fn new(id: TextureId, surface: usize, pitch: u32, bytes: Vec<u8>) -> Self {
-        let pixels = std::sync::Arc::new(crate::pointers::PoolBytes::from_vec(bytes));
+        let pixels = std::sync::Arc::new(crate::pool::PoolBytes::from_vec(bytes));
         crate::gfx::locked_pixels::register(crate::gfx::locked_pixels::level(surface), &pixels);
         Self { id, pixels, pitch }
     }
@@ -284,7 +284,11 @@ fn draw_noted(part: &crate::workers::PartScratch, pending: &mut Pending) {
     }
     crate::render::dump::dump_if_asked(&commands, &target);
     crate::render::dump::hash_if_asked(&commands);
-    crate::render::draw(&target, commands);
+    let screen = (
+        part.screen.width.get() as usize,
+        part.screen.height.get() as usize,
+    );
+    crate::render::draw(part.in_race.is_set(), screen, &target, commands);
 }
 
 /// A drawing part's drawing noted since the last flush (`workers::PartScratch`): the
@@ -322,12 +326,12 @@ fn reads_texture(pixels: TextureId) -> bool {
 }
 
 /// The screen as the game has it now.
-pub fn screen() -> Option<Target> {
+pub fn screen(part: &crate::workers::PartScratch) -> Option<Target> {
     let surface = crate::gfx::owner::draw_surface();
     // The renderers draw on the bytes where they lie.
     let pixels = surface.present_pixels.get();
     crate::gfx::locked_pixels::bytes_of(pixels)?;
-    let screen = &crate::system::owner::system().session.screen;
+    let screen = part.screen;
     Some(Target {
         pixels,
         pitch: surface.present_pitch.get() as usize,
@@ -340,7 +344,7 @@ pub fn screen() -> Option<Target> {
 /// Notes `what` in part `part`'s drawing for the screen as it is now (the noted so far
 /// drawn first when that is another).
 fn note(part: &crate::workers::PartScratch, what: impl FnOnce(&mut Pending) -> Command) {
-    let Some(into) = screen() else {
+    let Some(into) = screen(part) else {
         return;
     };
     {
@@ -540,13 +544,13 @@ fn format_at(format: u32) -> TextureFormat {
 /// `d3d::copy_screen_to_texture` (the mirror's picture).
 pub fn copy_screen_to_system_texture(number: u32) {
     flush();
-    if let Some(screen) = screen() {
+    if let Some(screen) = screen(game_part()) {
         crate::render::bring_back(&screen);
     }
     if number >= MOST {
         return;
     }
-    let Some(screen) = screen() else {
+    let Some(screen) = screen(game_part()) else {
         return;
     };
     let record = record_at(0, number).get();

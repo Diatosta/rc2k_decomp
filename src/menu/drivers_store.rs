@@ -1,7 +1,7 @@
 //! The championship's drivers, out of RAL.EXE's image (IDA 0x73B674 .. 0x742C98): `g_drivers`, the 180 computer drivers' records (0x94 bytes, IDA's `Driver`), the
 //! -1 that ends them for the walks (`menu::standings::drivers`), and `g_driverNames`, the
 //! 180 name entries (0x14 bytes, IDA's `DriverName`) a driver's first dword picks.
-//! `#[repr(C)]`, the image's layout; `moved::MOVED` points the range at it. The event code
+//! `#[repr(C)]`, the image's layout. The event code
 //! works on the records by field (`menu::standings::drivers` walks them).
 //! The fields' meanings are readings (IDA's `Driver` names +8, +0x14 and +0x18
 //! `nationality`, `car` and `flag`: the time entries and the section screen say class,
@@ -580,8 +580,10 @@ pub fn name_string(menus: &Menus, entry: u32) -> Result<u32, crate::errors::BadI
 }
 
 /// IDA 0x73B674, the first byte of the piece.
+#[cfg(test)]
 pub const START: usize = 0x73B674;
 /// IDA 0x742C98, the end of the piece.
+#[cfg(test)]
 pub const END: usize = 0x742C98;
 
 #[cfg(test)]

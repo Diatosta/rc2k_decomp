@@ -120,12 +120,6 @@ impl FontObject {
         change(&mut font);
         self.set(font);
     }
-
-    /// Where the object is.
-    #[cfg(test)]
-    pub fn addr(&self) -> u32 {
-        crate::pointers::game_address(std::ptr::from_ref::<Self>(self))
-    }
 }
 
 /// The font objects.

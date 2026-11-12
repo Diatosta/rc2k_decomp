@@ -52,11 +52,6 @@ impl ListCells {
             remaining: 0,
         })
     }
-
-    #[cfg(test)]
-    pub fn addr(&self) -> u32 {
-        crate::pointers::game_address(std::ptr::from_ref(self))
-    }
 }
 
 /// Before each block's memory: +0 the block taken before it on the same list, +4 the bytes
@@ -65,8 +60,7 @@ pub const HEADER_LEN: u32 = rc2k_core::memory::HEADER_LEN;
 
 /// The allocator's variables, out of the image since 2026-10-24 (they were
 /// `dword_4E0578` .. `dword_4E0588`, 5 dwords). Atomics: any thread allocates. `OWN_HEAP` and
-/// `OWN_HEAP_KB` are `var\ral.cfg` settings (`altmemenable`, `altmemsize`, through
-/// `crate::moved::place`). Each has its own entry in `moved::MOVED`.
+/// `OWN_HEAP_KB` are `var\ral.cfg` settings (`altmemenable`, `altmemsize`).
 pub mod state {
 
     /// dword_4E0578: the most bytes held at once.
@@ -133,7 +127,7 @@ mod tests {
 
     #[test]
     fn variables_start_as_the_games() {
-        let _lock = crate::store::test_lock();
+        let _lock = crate::test_support::test_lock();
         for name in ["MOST_HELD", "HELD", "TURNOVER", "OWN_HEAP", "OWN_HEAP_KB"] {
             assert_store_starts_as_the_games(&format!("store:memory.state.{name}"));
         }

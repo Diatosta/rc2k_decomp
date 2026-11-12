@@ -21,9 +21,6 @@ use std::mem::offset_of;
 
 // ---- game data ----
 
-/// IDA's address of the options file's name.
-pub const PATH_START: usize = 0x5295D8;
-
 #[cfg(test)]
 mod path_tests {
 

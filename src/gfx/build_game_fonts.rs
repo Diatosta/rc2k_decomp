@@ -28,11 +28,6 @@ use crate::memory::take_from_list::rewind_list;
 
 // ---- game data ----
 
-/// IDA's address of the game fonts' memory variables.
-pub const START: usize = 0x5BE894;
-/// Their length.
-pub const LEN: usize = 0x5BE8D8 - START;
-
 /// The game fonts' memory.
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]

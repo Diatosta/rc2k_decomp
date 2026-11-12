@@ -223,11 +223,6 @@ impl FormatCell {
     }
 }
 
-/// IDA's address of the 3D card's tables.
-pub const START: usize = 0x5ABA8C;
-/// Their length.
-pub const LEN: usize = 0x5BE81C - START;
-
 /// A pool of texture records (the system's or the video's) and how many are made.
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]

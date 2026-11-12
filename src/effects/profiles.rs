@@ -163,7 +163,7 @@ impl ProfileRings {
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct ProfileLists {
-    /// 0x9152F6: `off_9152F6` (`g_marksRampTables`): the three ramp tables' addresses (IDA addresses in the image; `moved::RAW_KEPT` keeps them so).
+    /// 0x9152F6: `off_9152F6` (`g_marksRampTables`): the three ramp tables' addresses (IDA addresses in the image, kept as they are).
     pub ramps: [PlainDword; 3],
     /// 0x915302: `off_915302` (`g_marksSineTables`): the eight sine tables' addresses.
     pub sines: [PlainDword; 8],

@@ -50,10 +50,10 @@ pub const END: usize = 0x6D1870;
 
 const _: () = assert!(END - START == core::mem::size_of::<OverlayBlock>());
 
-/// Where IDA 0x6D150C is now (its own static).
+/// The piece's host address (the alignment checks).
 #[cfg(test)]
-pub fn piece_addr() -> u32 {
-    crate::pointers::game_address(core::ptr::from_ref(&race().frame.panel_and_overlay.overlay))
+pub fn piece_addr() -> usize {
+    core::ptr::from_ref(&race().frame.panel_and_overlay.overlay).addr()
 }
 
 #[cfg(test)]

@@ -22,10 +22,6 @@ use crate::system::packed_local_time::packed_local_time;
 pub const FILE_LEN: usize = 0x8000;
 pub const SLOTS: u32 = 100;
 
-/// IDA's address of the saved games' variables.
-pub const START: usize = 0x51EBB0;
-/// Their length.
-pub const LEN: usize = 0x527838 - START;
 /// A saved game's name: 0x20 bytes.
 pub const NAME_BYTES: usize = 0x20;
 
@@ -54,9 +50,6 @@ impl SaveGames {
         }
     }
 }
-
-/// IDA's address of the file name's template.
-pub const TEMPLATE_START: usize = 0x5296FB;
 
 // "R5SG"
 pub fn slot_name(saves: &'static Saves, slot: u32) -> crate::place::BytePlace {

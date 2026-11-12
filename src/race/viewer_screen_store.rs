@@ -67,10 +67,10 @@ pub struct ViewerPanelBlock {
     pub kept_patch_switches: [Dword; 13],
     /// +0x3b0 (0x5C2CCC): `g_replayRecording`: the frames are saved as pictures (`race::viewer`, `race::replay_screenshot`).
     pub replay_recording: Dword,
-    /// +0x3b4 (0x5C2CD0): `ViewerAndKinds.viewer_panel.picture_clock`: the picture clock (ms), also read by `system::tick_count` (`race::replay_screenshot`).
-    pub picture_clock: Dword,
-    /// +0x3b8 (0x5C2CD4): `ViewerAndKinds.viewer_panel.pictures_started`: pictures started; `system::tick_count` overrides its clock when 1 (`race::replay_screenshot`).
-    pub pictures_started: Dword,
+    /// +0x3b4 (0x5C2CD0): `ViewerAndKinds.viewer_panel.picture_clock`: moved to `system::tick_count::PICTURE_CLOCK.clock`; the bytes stay, unused.
+    pub picture_clock_unused: Dword,
+    /// +0x3b8 (0x5C2CD4): `ViewerAndKinds.viewer_panel.pictures_started`: moved to `system::tick_count::PICTURE_CLOCK.started`; the bytes stay, unused.
+    pub pictures_started_unused: Dword,
     /// +0x3bc (0x5C2CD8): `ViewerAndKinds.viewer_panel.picture_folder`: the text rpl and a NUL, the pictures' folder (`race::start_frame_pictures`).
     pub picture_folder: Dword,
     /// +0x3c0 (0x5C2CDC): `aRpl000000Pcx`: the 15-byte name rpl\000000.pcx, taken in place; the last 3 bytes (0x5C2CE8 .. 0x5C2CEB) are not a whole dword (`race::replay_screenshot`).
@@ -153,13 +153,6 @@ impl ViewerPanelBlock {
             .map(|k| (self.untyped_tail[k / 4].get() >> (8 * (k % 4))) as u8)
             .take_while(|&byte| byte != 0)
             .collect()
-    }
-
-    /// Where the byte at IDA `ida` is, inside the untyped tail `untyped_tail` (the tests).
-    #[cfg(test)]
-    pub fn text_ptr(&self, ida: usize) -> crate::pointers::GamePtr {
-        assert!((TAIL..TAIL + 4 * 167).contains(&ida));
-        crate::pointers::GamePtr::to(&self.untyped_tail).offset((ida - TAIL) as u32)
     }
 
     /// `ViewerAndKinds.viewer_panel.untyped_tail[0]` (unaligned, in the tail): 1 when the developer's keys work in the viewer.
@@ -277,12 +270,10 @@ pub const END: usize = 0x5C2F84;
 
 const _: () = assert!(END - START == core::mem::size_of::<ViewerPanelBlock>());
 
-/// Where IDA 0x5C291C is now (its group's static).
+/// The piece's host address (the alignment checks).
 #[cfg(test)]
-pub fn piece_addr() -> u32 {
-    crate::pointers::game_address(core::ptr::from_ref(
-        &race().replay.viewer_and_kinds.viewer_panel,
-    ))
+pub fn piece_addr() -> usize {
+    core::ptr::from_ref(&race().replay.viewer_and_kinds.viewer_panel).addr()
 }
 
 #[cfg(test)]
@@ -292,7 +283,7 @@ mod tests {
 
     #[test]
     fn tail_dwords_read_and_write_unaligned() {
-        let _g = crate::store::test_lock();
+        let _g = crate::test_support::test_lock();
         let v = &*VIEWER_PANEL;
         let kept: Vec<u32> = v
             .untyped_tail
@@ -306,10 +297,15 @@ mod tests {
             for (n, c) in v.untyped_tail.iter().enumerate() {
                 c.set(0xA5A5_0000 | n as u32);
             }
-            let before: Vec<u8> = v.text_ptr(TAIL).read_bytes(24, "the tail").unwrap();
+            let tail_bytes = || {
+                let mut bytes = vec![0; 24];
+                crate::cells::load_cells(&v.untyped_tail, 0, &mut bytes).unwrap();
+                bytes
+            };
+            let before = tail_bytes();
             let value = 0x1122_3344 + k as u32;
             v.tail_write(ida, value);
-            let after: Vec<u8> = v.text_ptr(TAIL).read_bytes(24, "the tail").unwrap();
+            let after = tail_bytes();
             let mut want = before.clone();
             want[ida - TAIL..ida - TAIL + 4].copy_from_slice(&value.to_le_bytes());
             assert_eq!(after, want, "{ida:#x}");

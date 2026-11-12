@@ -29,13 +29,6 @@ const POOL_ROOM: usize = 0x960000 - 0x95EFC8;
 /// `NAMES`' length.
 pub const NAMES_SIZE: usize = NAMES_LEN + POOL_ROOM;
 
-/// The text of a driver's name from its pointer slot: the slot keeps the name's byte offset
-/// in `NAMES` (the original kept its address), 0 for none. Bounded to `NAMES`.
-#[cfg(test)]
-pub fn name_at(slot: u32) -> crate::pointers::GamePtr {
-    crate::pointers::GamePtr::to(&crate::strings::owner::strings().drivers.names).offset(slot)
-}
-
 /// The path of `var\name.cfg` (without its NUL).
 pub fn path() -> &'static [u8] {
     &PATH[..PATH.len() - 1]
@@ -112,7 +105,8 @@ mod tests {
         // bounded by the block (the longest read, 31 bytes, fits the pool's room).
         let first = super::NAMES_LEN as u32;
         assert!(first as usize + 31 <= super::NAMES_LEN + super::POOL_ROOM);
-        assert!(super::name_at(first).bytes("a name").is_ok());
+        let names: &dyn crate::cells::Store = &crate::strings::owner::strings().drivers.names;
+        assert!((first as usize) < names.size());
     }
 
     #[test]

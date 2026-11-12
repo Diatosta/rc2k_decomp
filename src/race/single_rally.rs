@@ -49,41 +49,29 @@ type Record<'a> = crate::menu::standings::PlayerCell<'a>;
 // - settings.cars[0].view: the second set's word that mode 2 takes from the record's
 //   `second_view`.
 #[cfg(test)]
-const SUMMARY: &PlainDword = &crate::menu::owner::MENUS
-    .unchecked()
-    .play
-    .champ_view
-    .summary;
+fn summary() -> &'static PlainDword {
+    &crate::menu::owner::MENUS.get().play.champ_view.summary
+}
 #[cfg(test)]
-const AFTER_LOADING: &PlainDword = &crate::menu::owner::MENUS
-    .unchecked()
-    .screens
-    .event
-    .sparks_mode;
+fn after_loading() -> &'static PlainDword {
+    &crate::menu::owner::MENUS.get().screens.event.sparks_mode
+}
 #[cfg(test)]
-const PLAYER_COUNT: &PlainDword = &crate::menu::owner::MENUS
-    .unchecked()
-    .screens
-    .event
-    .player_count;
+fn player_count() -> &'static PlainDword {
+    &crate::menu::owner::MENUS.get().screens.event.player_count
+}
 #[cfg(test)]
-const EVENT_MODE: &PlainDword = &crate::menu::owner::MENUS
-    .unchecked()
-    .screens
-    .event
-    .event_kind;
+fn event_mode() -> &'static PlainDword {
+    &crate::menu::owner::MENUS.get().screens.event.event_kind
+}
 #[cfg(test)]
-const CURRENT: &PlainDword = &crate::menu::owner::MENUS
-    .unchecked()
-    .screens
-    .event
-    .current_player;
+fn current() -> &'static PlainDword {
+    &crate::menu::owner::MENUS.get().screens.event.current_player
+}
 #[cfg(test)]
-const SWITCH: &PlainDword = &crate::menu::owner::MENUS
-    .unchecked()
-    .play
-    .arcade
-    .scene_let_go;
+fn switch() -> &'static PlainDword {
+    &crate::menu::owner::MENUS.get().play.arcade.scene_let_go
+}
 #[cfg(test)]
 const STAGE: &Dword = &crate::race::owner::RACE.shared.state.settings.stage;
 #[cfg(test)]
@@ -840,10 +828,6 @@ mod vector_tests {
         ("race.owner.RACE.shared.state", 0x410, 0x20),
     ];
 
-    /// Where `g_players` is in its store.
-    const POINTERS_AT: usize =
-        core::mem::offset_of!(crate::menu::players_store::PlayerTable, pointers);
-
     /// The stores the test writes.
     const STORES: [&str; 9] = [
         "menu.owner.MENUS.play.arcade",
@@ -888,7 +872,7 @@ mod vector_tests {
         result_2: Option<u32>,
         secs: u32,
         secs_2: u32,
-        /// What the call at place 9 leaves in `SWITCH`.
+        /// What the call at place 9 leaves in `switch()`.
         switch_after: Option<u32>,
         /// How the race leaves the sums of times: 0 random, 1 zero, 2 wrapping to zero, 3 small.
         sums: u32,
@@ -912,22 +896,13 @@ mod vector_tests {
         crate::test_support::first_values::hash(&ranges_bytes())
     }
 
-    /// The ranges' bytes; `g_players` (read by nothing) holds the records' addresses, which
-    /// differ from run to run: each such dword as the record's number.
+    /// The ranges' bytes (`g_players`, read by nothing, holds the records' numbers: the
+    /// cases set them so).
     fn ranges_bytes() -> Vec<u8> {
-        let players = &menus().play.players;
         let mut out = Vec::new();
         for (name, at, len) in RANGES {
             let mut bytes = vec![0; len];
             store(name).load(at, &mut bytes).unwrap();
-            if name == "menu.owner.MENUS.play.players" && at == POINTERS_AT {
-                for word in bytes.as_chunks_mut::<4>().0 {
-                    let v = u32::from_le_bytes(*word);
-                    if let Some(k) = players.players.iter().position(|r| r.addr() == v) {
-                        word.copy_from_slice(&(k as u32).to_le_bytes());
-                    }
-                }
-            }
             out.extend_from_slice(&bytes);
         }
         out
@@ -941,9 +916,9 @@ mod vector_tests {
                 return Err(BadInput("injected").into());
             }
             match place {
-                1 => SUMMARY.set(self.rng.next()),
+                1 => summary().set(self.rng.next()),
                 3 => STAGE.set(c.stage),
-                4 => AFTER_LOADING.set(self.rng.next()),
+                4 => after_loading().set(self.rng.next()),
                 7 => {
                     // The race changes everything the results are copied from.
                     let (kept, kept_2) = (RESULT.get(), RESULT_2.get());
@@ -973,7 +948,7 @@ mod vector_tests {
                 }
                 9 => {
                     if let Some(s) = c.switch_after {
-                        SWITCH.set(s);
+                        switch().set(s);
                     }
                 }
                 13 => RACE_KEPT.set(self.rng.next()),
@@ -992,12 +967,12 @@ mod vector_tests {
             store(name).store(at, &bytes).unwrap();
         }
         for (k, r) in play.players.players.iter().enumerate() {
-            play.players.pointers[k].set(r.addr());
+            play.players.pointers[k].set(k as u32);
             set_field(r, 0xD0, c.d0[k]).expect("the record is there");
         }
-        EVENT_MODE.set(c.mode);
-        PLAYER_COUNT.set(c.count);
-        CURRENT.set(c.current);
+        event_mode().set(c.mode);
+        player_count().set(c.count);
+        current().set(c.current);
         // The track list: the stage's number in its entry; -1 at the start of the entry the
         // list ends at.
         let tracks = &system().records.stage_tables.trak_pak.tracks;
@@ -1148,7 +1123,7 @@ mod vector_tests {
     /// memory left, case by case.
     #[test]
     fn single_rally_is_the_originals() {
-        let _g = crate::store::test_lock();
+        let _g = crate::test_support::test_lock();
         let kept = Snapshot::of(&STORES);
         let mut vectors = Vectors::open("race.single_rally.cases", Kind::Bits, 8);
         let (mut done, mut fatal, mut failed, mut engine, mut early, mut results) =

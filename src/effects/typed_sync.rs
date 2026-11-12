@@ -2,7 +2,7 @@
 //! (`asm_test`) run the original assembly over a test buffer standing for the marks' block at
 //! the test buffer `mk` and the plain Rust version over the typed statics; around the Rust
 //! version the statics hold the buffer's bytes, and the bytes it leaves go back to the buffer
-//! (`store::test_lock` is held by `differential`).
+//! (`test_support::test_lock` is held by `differential`).
 
 use crate::effects::asm_test::Operand;
 use crate::effects::store::START;

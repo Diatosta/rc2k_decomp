@@ -35,16 +35,6 @@ pub struct LightRecords {
 }
 
 impl LightRecords {
-    /// Where record `index` is, by wrapping arithmetic on the first record's address (the
-    /// game's code does not bound the index: callers that read an offset of the record, or
-    /// pass it to x87 runs, use this).
-    #[cfg(test)]
-    pub fn record_addr(&self, index: u32) -> u32 {
-        (self.records[0].head[0].addr()).wrapping_add(index.wrapping_mul(0x134))
-    }
-}
-
-impl LightRecords {
     /// The group number at byte `offset` (of the groups, a multiple of 4) of the record of
     /// model `index`. The original does not bound the index: the place after the 34 records
     /// (the one a kind none of the known ones gets) reads on into the gear figures, where the
@@ -102,12 +92,10 @@ pub const END: usize = 0x5CB954;
 
 const _: () = assert!(END - START == core::mem::size_of::<LightRecords>());
 
-/// Where IDA 0x5C906C is now (its group's static).
+/// The piece's host address (the alignment checks).
 #[cfg(test)]
-pub fn piece_addr() -> u32 {
-    crate::pointers::game_address(core::ptr::from_ref(
-        &race().frame.lights_and_gear.light_records,
-    ))
+pub fn piece_addr() -> usize {
+    core::ptr::from_ref(&race().frame.lights_and_gear.light_records).addr()
 }
 
 #[cfg(test)]
@@ -121,7 +109,10 @@ mod tests {
         assert_eq!(offset_of!(LightRecord, axles), 0x2c);
         assert_eq!(offset_of!(LightRecord, groups), 0x58);
         assert_eq!(offset_of!(LightRecord, lights), 0xA4);
-        assert_eq!(LIGHT_RECORDS.record_addr(1), (piece_addr() + 0x134));
+        assert_eq!(
+            core::ptr::from_ref(&LIGHT_RECORDS.records[1]).addr(),
+            piece_addr() + 0x134
+        );
     }
 
     #[test]

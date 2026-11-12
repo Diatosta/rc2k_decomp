@@ -1,8 +1,7 @@
 //! A run of 32-bit cells a helper reads and writes, in place of an address (phase 13, the
 //! `Game` context: helpers that took a matrix's or a vector's address take its cells):
 //! a typed store's array (`&MATRICES.turned_matrix`, `&CAR.velocity`, a slice of one from
-//! a cell on), `Off` (a run from its cell `n` on), or, until each caller is typed, `At` (a
-//! game address, dword `n` at `+4 n`: greppable, to be typed next).
+//! a cell on), or `Off` (a run from its cell `n` on).
 
 use crate::session::Cell32;
 
@@ -88,44 +87,6 @@ pub fn load<const N: usize>(cells: &(impl Cells + ?Sized)) -> [u32; N] {
 pub fn copy_cells(from: &(impl Cells + ?Sized), to: &(impl Cells + ?Sized), n: usize) {
     for k in 0..n {
         to.set_bits(k, from.bits(k));
-    }
-}
-
-/// The cells at a game address (not typed yet): dword `n` at `+4 n`, checked as game
-/// memory (`pointers::read_or_end`).
-#[cfg(all(test, target_arch = "x86"))]
-#[derive(Clone, Copy)]
-pub struct At(pub u32);
-
-#[cfg(all(test, target_arch = "x86"))]
-impl Cells for At {
-    fn bits(&self, n: usize) -> u32 {
-        crate::pointers::read_or_end::<u32>(self.0.wrapping_add(4 * n as u32), "a helper's cell")
-    }
-    fn set_bits(&self, n: usize, bits: u32) {
-        crate::pointers::write_or_end::<u32>(
-            self.0.wrapping_add(4 * n as u32),
-            bits,
-            "a helper's cell",
-        );
-    }
-}
-
-/// The cells at a checked game pointer: dword `n` at `+4 n`, inside the pointer's own field
-/// when it has one (tests only).
-#[cfg(test)]
-impl Cells for crate::pointers::GamePtr {
-    fn bits(&self, n: usize) -> u32 {
-        let what = "a helper's cell";
-        self.offset(4 * n as u32)
-            .read::<u32>(what)
-            .unwrap_or_else(|e| crate::fatal::raise::end(what, e))
-    }
-    fn set_bits(&self, n: usize, bits: u32) {
-        let what = "a helper's cell";
-        if let Err(e) = self.offset(4 * n as u32).write::<u32>(bits, what) {
-            crate::fatal::raise::end(what, e)
-        }
     }
 }
 

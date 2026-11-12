@@ -6,7 +6,7 @@ use super::first_values::{assert_matches, golden, store_keys};
 /// As `assert_block_starts_as_the_games`, with the block's bytes first put back to the
 /// game's by `restore` (it writes the game's addresses over the places that hold handles).
 pub fn assert_block_starts_as_the_games_but<T>(block: &'static T, restore: impl Fn(&mut [u8])) {
-    let _g = crate::store::test_lock();
+    let _g = crate::test_support::test_lock();
     let first = std::ptr::from_ref(block).addr();
     let (key, entry) = store_keys()
         .into_iter()

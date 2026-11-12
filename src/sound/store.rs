@@ -1,7 +1,6 @@
 //! The sound module's variables, out of RAL.EXE's image,
 //! typed: each is a `#[repr(C)]` struct of atomic cells with the image's layout
-//! (the first values the image's, `tests::*_start_as_the_games`), one static a piece, and
-//! `moved::MOVED` points the image's addresses at it:
+//! (the first values the image's, `tests::*_start_as_the_games`), one static a piece:
 //! - `WHEEL_SURFACES` (IDA 0x4F66F1 .. 0x4F66F9): the two wheel surfaces the sound reads;
 //! - `RaceClock` (0x5124E4 .. 0x512508): the race sounds' clock and constants;
 //! - `RaceSounds` (0x512A10 .. 0x514F90): the eight sound objects (`SoundObject`, 0x4A8 bytes
@@ -1075,8 +1074,6 @@ impl CarStream {
         }
     }
 }
-
-pub const CAR_STREAM_IDA: usize = 0xA8C180;
 
 #[cfg(test)]
 mod tests {

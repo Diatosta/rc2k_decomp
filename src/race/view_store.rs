@@ -124,8 +124,7 @@ pub struct RaceView {
 // them): any bit pattern is a valid value.
 
 impl RaceView {
-    /// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
-    /// `race::store::LEFT`), with the image's first values.
+    /// The piece, with the image's first values.
     pub const fn new() -> Self {
         crate::cells::cells_of_bytes(crate::race::blocks_store::with_block_refs(
             crate::race::store::first_values::<{ END - START }>(START),
@@ -164,10 +163,10 @@ pub const END: usize = 0x63DC5C;
 
 const _: () = assert!(END - START == core::mem::size_of::<RaceView>());
 
-/// Where IDA 0x63D9B8 is now (its own static).
+/// The piece's host address (the alignment checks).
 #[cfg(test)]
-pub fn piece_addr() -> u32 {
-    crate::pointers::game_address(core::ptr::from_ref(&race().shared.view))
+pub fn piece_addr() -> usize {
+    core::ptr::from_ref(&race().shared.view).addr()
 }
 
 #[cfg(test)]
@@ -177,7 +176,7 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        let _g = crate::store::test_lock();
+        let _g = crate::test_support::test_lock();
         crate::test_support::first_values::assert_store_starts_as_the_games_but(
             "store:race.owner.RACE.shared.view",
             &[(

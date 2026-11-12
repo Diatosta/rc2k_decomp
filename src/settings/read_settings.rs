@@ -17,8 +17,8 @@ use crate::strings::same_text::case_table;
 // ---- game data ----
 
 /// Where a setting's variable lives now: its store's cell. The table keeps the variable's
-/// IDA address too (the table's bytes are the image's; `tests::targets_are_the_addresses`
-/// proves each cell is what `crate::moved::place` answers for that address).
+/// IDA address too (the table's bytes are the image's;
+/// `tests::targets_are_the_variables_the_games_table_names` checks each cell).
 #[derive(Clone, Copy)]
 enum Target {
     /// A whole aligned dword of a store (`dword!`).
@@ -597,7 +597,7 @@ mod tests {
     #[test]
     fn unaligned_targets_write_their_bytes() {
         use crate::test_support::state::{Snapshot, store};
-        let _lock = crate::store::test_lock();
+        let _lock = crate::test_support::test_lock();
         for (key, _, target) in ENTRIES {
             if !matches!(target, Target::Unaligned(_)) {
                 continue;

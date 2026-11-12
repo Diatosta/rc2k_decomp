@@ -38,9 +38,6 @@ use crate::gfx::owner::Gfx;
 use crate::system::owner::System;
 use std::ffi::CStr;
 
-/// IDA's address of the `nofmv` switch.
-pub const NO_FMV_START: usize = 0x5BE870;
-
 /// `g_noFmv` (`dword_5BE870`, `nofmv`, a `var\ral.cfg` setting): 1 = no films.
 pub static NO_FMV: crate::session::Dword = crate::session::Dword::new(0);
 

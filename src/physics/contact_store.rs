@@ -277,8 +277,7 @@ pub struct ContactWork {
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
 // them): any bit pattern is a valid value.
 
-/// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
-/// `race::store::LEFT`), with the image's first values.
+/// The piece, with the image's first values.
 impl ContactWork {
     pub const fn new() -> Self {
         crate::cells::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
@@ -292,10 +291,10 @@ pub const END: usize = 0x6D3CF4;
 
 const _: () = assert!(END - START == core::mem::size_of::<ContactWork>());
 
-/// Where IDA 0x6D1DD8 is now (its own static).
+/// The piece's host address (the alignment checks).
 #[cfg(test)]
-pub fn piece_addr() -> u32 {
-    crate::pointers::game_address(core::ptr::from_ref(&race().physics.contact))
+pub fn piece_addr() -> usize {
+    core::ptr::from_ref(&race().physics.contact).addr()
 }
 
 #[cfg(test)]

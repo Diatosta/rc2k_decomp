@@ -1,12 +1,9 @@
-//! A place in the game's texts and data: a typed buffer and an offset into it,
-//! or, for what the game's data still hands around as pointers (the installer's script
-//! and pages, the name tables), a game address. Helpers take `impl Into<BytePlace>`, so a
-//! typed buffer goes in as itself (`&INSTALLER_PATHS.installed`, `&TEXT_BUFFER.text`) and
-//! a pointer read from the game's data as its number.
+//! A place in the game's texts and data: a typed buffer and an offset into it, or a record's
+//! bytes in a store. Helpers take `impl Into<BytePlace>`, so a typed buffer goes in as itself
+//! (`&INSTALLER_PATHS.installed`, `&TEXT_BUFFER.text`).
 
 use crate::cells::Store;
 use crate::errors::BadInput;
-use crate::pointers::GamePtr;
 use crate::session::{Bytes, PlainBytes};
 
 /// A run of bytes read and written in place.
@@ -44,24 +41,9 @@ impl<const N: usize> Run for PlainBytes<N> {
 pub enum BytePlace {
     /// Byte `.1` of a typed buffer.
     In(&'static dyn Run, usize),
-    /// A game address (a pointer from the game's data), or a bounded place in a store.
-    At(GamePtr),
     /// Byte `.1` of a record's bytes (a store): reads and writes run on inside the record, as
     /// far as its end.
     Store(&'static dyn Store, usize),
-}
-
-impl From<u32> for BytePlace {
-    fn from(at: u32) -> Self {
-        BytePlace::At(GamePtr::new(at))
-    }
-}
-
-#[cfg(test)]
-impl From<GamePtr> for BytePlace {
-    fn from(at: GamePtr) -> Self {
-        BytePlace::At(at)
-    }
 }
 
 impl<const N: usize> From<&'static Bytes<N>> for BytePlace {
@@ -80,7 +62,6 @@ impl core::fmt::Debug for BytePlace {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             BytePlace::In(_, at) => write!(f, "BytePlace::In(+{at:#x})"),
-            BytePlace::At(a) => write!(f, "BytePlace::At({a:?})"),
             BytePlace::Store(_, at) => write!(f, "BytePlace::Store(+{at:#x})"),
         }
     }
@@ -105,26 +86,20 @@ impl BytePlace {
     }
 
     /// Whether both places start at the same byte: the same byte of the same memory (a
-    /// buffer's byte is its record's at the buffer's offset); a game address is the same
-    /// place only as the same address.
+    /// buffer's byte is its record's at the buffer's offset);
     pub fn same_place(self, other: BytePlace) -> bool {
-        match (self, other) {
-            (BytePlace::At(a), BytePlace::At(b)) => a == b,
-            (BytePlace::At(_), _) | (_, BytePlace::At(_)) => false,
-            (a, b) => a.first_byte() == b.first_byte(),
-        }
+        self.first_byte() == other.first_byte()
     }
 
     /// The byte of memory a buffer's or a record's place starts at (a buffer must hold at
-    /// least its first byte); none for a game address.
-    fn first_byte(self) -> Option<*const u8> {
+    /// least its first byte).
+    fn first_byte(self) -> *const u8 {
         match self {
             BytePlace::In(b, at) => {
                 Self::inside(b, at, 1).unwrap_or_else(|e| crate::fatal::raise::end("place", e));
-                Some(core::ptr::from_ref(b).cast::<u8>().wrapping_add(at))
+                core::ptr::from_ref(b).cast::<u8>().wrapping_add(at)
             }
-            BytePlace::Store(s, at) => Some(s.first().wrapping_add(at)),
-            BytePlace::At(_) => None,
+            BytePlace::Store(s, at) => s.first().wrapping_add(at),
         }
     }
 
@@ -139,7 +114,6 @@ impl BytePlace {
         match self {
             BytePlace::Store(s, at) => BytePlace::Store(s, (at as u32).wrapping_add(n) as usize),
             BytePlace::In(b, at) => BytePlace::In(b, at.wrapping_add(n as usize)),
-            BytePlace::At(a) => BytePlace::At(a.offset(n)),
         }
     }
 
@@ -162,13 +136,12 @@ impl BytePlace {
 
     /// `len` bytes from here.
     #[track_caller]
-    pub fn read(self, len: usize, what: &str) -> Result<Vec<u8>, BadInput> {
+    pub fn read(self, len: usize, _what: &str) -> Result<Vec<u8>, BadInput> {
         match self {
             BytePlace::In(b, at) => {
                 Self::inside(b, at, len)?;
                 Ok((0..len).map(|k| b.get(at + k)).collect())
             }
-            BytePlace::At(a) => a.read_bytes(len, what),
             BytePlace::Store(s, at) => {
                 let mut bytes = vec![0; len];
                 s.load(at, &mut bytes)?;
@@ -186,7 +159,7 @@ impl BytePlace {
 
     /// `data` written from here.
     #[track_caller]
-    pub fn write(self, data: &[u8], what: &str) -> Result<(), BadInput> {
+    pub fn write(self, data: &[u8], _what: &str) -> Result<(), BadInput> {
         match self {
             BytePlace::In(b, at) => {
                 Self::inside(b, at, data.len())?;
@@ -195,14 +168,13 @@ impl BytePlace {
                 }
                 Ok(())
             }
-            BytePlace::At(a) => a.write_bytes(data, what),
             BytePlace::Store(s, at) => s.store(at, data),
         }
     }
 
     /// The string from here, without its NUL (to the buffer's end at most for `In`).
     #[track_caller]
-    pub fn text(self, what: &str) -> Result<Vec<u8>, BadInput> {
+    pub fn text(self, _what: &str) -> Result<Vec<u8>, BadInput> {
         match self {
             BytePlace::In(b, at) => {
                 Self::inside(b, at, 0)?;
@@ -210,18 +182,6 @@ impl BytePlace {
                     .find(|&k| b.get(k) == 0)
                     .ok_or(BadInput("a text without its end in its buffer"))?;
                 Ok((at..end).map(|k| b.get(k)).collect())
-            }
-            BytePlace::At(a) => {
-                use rc2k_core::strings::bytes::Bytes as _;
-                let bytes = a.bytes(what)?;
-                let mut text = Vec::new();
-                loop {
-                    match bytes.byte(text.len()) {
-                        Some(0) => return Ok(text),
-                        Some(b) => text.push(b),
-                        None => return Err(BadInput("a text with no end in its allocation")),
-                    }
-                }
             }
             BytePlace::Store(s, at) => {
                 let mut text = Vec::new();
@@ -238,16 +198,15 @@ impl BytePlace {
         }
     }
 
-    /// The bytes from here to the end of the buffer, the record or the game address's
-    /// region, for the readers that walk them (`rc2k_core`'s `Bytes`).
+    /// The bytes from here to the end of the buffer or the record, for the readers that walk
+    /// them (`rc2k_core`'s `Bytes`).
     #[track_caller]
-    pub fn bytes(self, what: &str) -> Result<PlaceBytes, BadInput> {
+    pub fn bytes(self, _what: &str) -> Result<PlaceBytes, BadInput> {
         Ok(match self {
             BytePlace::In(b, at) => {
                 Self::inside(b, at, 0)?;
                 PlaceBytes::In(b, at)
             }
-            BytePlace::At(a) => PlaceBytes::At(a.bytes(what)?),
             BytePlace::Store(s, at) => PlaceBytes::Store(s, at),
         })
     }
@@ -258,8 +217,6 @@ impl BytePlace {
 pub enum PlaceBytes {
     /// From byte `.1` of a typed buffer.
     In(&'static dyn Run, usize),
-    /// From a game address.
-    At(crate::pointers::GameBytes),
     /// From byte `.1` of a record's bytes.
     Store(&'static dyn Store, usize),
 }
@@ -271,7 +228,6 @@ impl rc2k_core::strings::bytes::Bytes for PlaceBytes {
                 let k = from.checked_add(at)?;
                 (k < b.len()).then(|| b.get(k))
             }
-            PlaceBytes::At(a) => a.byte(at),
             PlaceBytes::Store(s, from) => {
                 let k = from.checked_add(at)?;
                 let mut byte = [0];

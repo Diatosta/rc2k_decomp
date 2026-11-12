@@ -1139,7 +1139,21 @@ pub(super) fn sum3_times(a: u32, b: u32, c: u32, k: u32) -> u32 {
 
 #[cfg(test)]
 mod diff {
-    use crate::math::cells::At;
+    use crate::math::cells::Cells;
+
+    /// The cells at a host address (a 32-bit build's, which fits a dword): dword `n`
+    /// at `+4 n`.
+    #[derive(Clone, Copy)]
+    struct At(u32);
+
+    impl Cells for At {
+        fn bits(&self, n: usize) -> u32 {
+            unsafe { (self.0 as usize as *const u32).add(n).read_unaligned() }
+        }
+        fn set_bits(&self, n: usize, bits: u32) {
+            unsafe { (self.0 as usize as *mut u32).add(n).write_unaligned(bits) }
+        }
+    }
     use crate::math::x87 as plain;
     use crate::math::x87::{control_word, set_control_word};
     use std::collections::BTreeMap;
@@ -1540,7 +1554,7 @@ mod diff {
             });
 
             let m = matrix(&mut t.rng);
-            let mp = crate::pointers::game_address(m.as_ptr());
+            let mp = m.as_ptr() as usize as u32;
             let (p, k, d, lift) = (t.rng.a3(), t.rng.fl(), t.rng.fl(), t.rng.fl());
             let want = super::turned_place_less(p, k, d, lift, mp);
             let got = plain::turned_place_less(p, k, d, lift, &At(mp));
@@ -1557,7 +1571,7 @@ mod diff {
             });
 
             let w = t.rng.a3();
-            let wp = crate::pointers::game_address(w.as_ptr());
+            let wp = w.as_ptr() as usize as u32;
             let want = super::crossed_turned(p, wp, mp);
             let got = plain::crossed_turned(p, &At(wp), &At(mp));
             let ok = want.same(&got, 0);

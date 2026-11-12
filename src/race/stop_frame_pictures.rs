@@ -8,5 +8,5 @@ use crate::race::owner::Race;
 pub fn stop_frame_pictures(race: &Race) {
     let panel = race.viewer_panel();
     panel.replay_recording.set(0);
-    panel.pictures_started.set(0);
+    crate::system::tick_count::PICTURE_CLOCK.started.set(0);
 }

@@ -1,7 +1,7 @@
 //! The DirectInput identifiers the input module names (the joystick device's interface, the
 //! axes and the force-feedback effects), out of RAL.EXE's image, typed.
 //! `#[repr(C)]` struct of byte buffers with the image's layout, first values the image's
-//! (`tests`); `moved::MOVED` points the image's addresses at it. The effect templates
+//! (`tests`). The effect templates
 //! (`input::store::Devices`) name the effects' GUIDs by handle (`guid_ref`; the original kept
 //! their addresses).
 

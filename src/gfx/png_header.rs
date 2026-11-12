@@ -3,11 +3,6 @@
 
 use crate::session::{PlainByte, PlainBytes, PlainDword};
 
-/// IDA's address of the block's first byte.
-pub const START: usize = 0xA8C190;
-/// The block's length.
-pub const LEN: usize = 0xA8C1A4 - START;
-
 /// The header of the PNG being decoded.
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
@@ -48,7 +43,7 @@ mod tests {
     #[test]
     fn first_values_are_the_games() {
         crate::test_support::first_values::assert_block_starts_as_the_games(
-            &crate::gfx::owner::GFX.unchecked().png.header,
+            &crate::gfx::owner::GFX.get().png.header,
         );
     }
 

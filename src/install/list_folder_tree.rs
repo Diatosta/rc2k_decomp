@@ -146,7 +146,7 @@ mod tests {
 
     #[test]
     fn a_tree_is_listed_into_the_tables() {
-        let _lock = crate::store::test_lock();
+        let _lock = crate::test_support::test_lock();
         let figures = crate::memory::figures();
         let kept: Vec<u32> = [
             &crate::install::owner::install().run.dir_count,
@@ -179,9 +179,12 @@ mod tests {
         ] {
             d.set(0);
         }
-        let path_region = crate::pointers::Lent::new(&path);
-        super::list_folder_tree(crate::install::owner::install(), path_region.addr()).unwrap();
-        drop(path_region);
+        let path_buffer: &'static crate::session::Bytes<1024> =
+            Box::leak(Box::new(crate::session::Bytes::new([0; 1024])));
+        for (n, &b) in path.iter().enumerate() {
+            path_buffer.set(n, b);
+        }
+        super::list_folder_tree(crate::install::owner::install(), path_buffer).unwrap();
         let joined = |parts: &[&str]| {
             let mut p = root.clone();
             for part in parts {

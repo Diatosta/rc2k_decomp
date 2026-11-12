@@ -54,7 +54,8 @@ pub struct RaceWork {
     pub unused_444: Dword,
     /// +0x448 (0x71B400): `g_stageDirection`: the stage run forwards or backwards ("dir").
     pub stage_direction: Dword,
-    /// +0x44c (0x71B404): the current car's block (`drive::race_cars_step`, the replay).
+    /// +0x44c (0x71B404): the current car's block by handle (`drive::race_cars_step`, the
+    /// replay; `blocks_store::block_ref`).
     pub work_block: Dword,
     /// +0x450 (0x71B408): 32 names of 0x30 bytes by car kind: the cars' number textures (`race::car_draw`).
     pub number_texture_names: [Dword; 384],
@@ -203,22 +204,24 @@ pub struct RaceWork {
 }
 
 impl RaceWork {
-    /// Car `n`'s block (`g_carBlocks[n]`, kept by handle: `blocks_store::block_of`), read as
-    /// the original reads it: past the eight without a check (into `car_records`).
+    /// Car `n`'s block by handle (`g_carBlocks[n]`: `blocks_store::block_ref`, 0 for none),
+    /// read as the original reads it: past the eight without a check, on through the work's
+    /// own fields (`car_records`, `current_car`, .., `work_block`, which keeps a handle too)
+    /// as far as their end. A handle among the eight that names no block ends the program.
     pub fn car_block(&self, n: usize) -> u32 {
         if let Some(cell) = self.car_blocks.get(n) {
-            return crate::race::blocks_store::block_of(cell.get());
+            let handle = cell.get();
+            crate::race::blocks_store::block_number(handle);
+            return handle;
         }
-        // On through the work's own bytes, as far as their end.
         let what = "a car block's pointer";
         let at = core::mem::offset_of!(RaceWork, car_blocks).wrapping_add(n.wrapping_mul(4));
-        crate::place::BytePlace::in_store(&crate::race::owner::RACE.shared.work, at)
-            .read_dword(what)
+        crate::cells::load_value::<u32>(self, at)
             .unwrap_or_else(|e| crate::fatal::raise::end(what, e))
     }
 
-    /// Car `n`'s block as a car: `trap::car_at(self.car_block(n))` without the round trip
-    /// through an address (the drawing asks for it per face).
+    /// Car `n`'s block as a car: `blocks_store::car_named(self.car_block(n))`, refused for a
+    /// value that names no block.
     pub fn car(&self, n: usize) -> Result<&'static crate::physics::car_store::Car, BadInput> {
         use crate::race::blocks_store::{BLOCK_COUNT, BLOCK_TAG};
         if let Some(cell) = self.car_blocks.get(n) {
@@ -227,7 +230,7 @@ impl RaceWork {
                 return Ok(&crate::race::owner::race().car_blocks().cars[k]);
             }
         }
-        crate::race::trap::car_at(self.car_block(n))
+        crate::race::blocks_store::car_named(self.car_block(n))
     }
 
     /// Car `n`'s block as `g_carBlocks[n]` keeps it: its handle (0 for none), the value other
@@ -252,13 +255,12 @@ impl RaceWork {
         }
     }
 
-    /// Car `n`'s block as a car; a null block or one that is none of the ten ends the program
-    /// (as `Car::at(self.car_block(n))`).
+    /// Car `n`'s block as a car; a null block or one that is none of the ten ends the program.
     pub fn car_or_end(&self, n: usize) -> &'static crate::physics::car_store::Car {
         let block = self.car_block(n);
         match self.car_blocks.get(n) {
             Some(_) if block != 0 => self.car(n),
-            _ => crate::race::trap::car_at(block),
+            _ => crate::race::blocks_store::car_named(block),
         }
         .unwrap_or_else(|e| crate::fatal::raise::end("physics::Car::at", e))
     }
@@ -273,12 +275,12 @@ impl RaceWork {
                 return Ok(k);
             }
         }
-        crate::physics::car_store::Car::block_number(self.car_block(n))
+        crate::race::blocks_store::known_block(self.car_block(n))
             .ok_or(BadInput("no car block's place for a snapshot"))
     }
 
     /// Whether car `n` has a block (`car_block(n) != 0`, ending the program on a handle that
-    /// names none as it does), without working out its address.
+    /// names none as it does).
     pub fn has_car_block(&self, n: usize) -> bool {
         use crate::race::blocks_store::{BLOCK_COUNT, BLOCK_TAG};
         match self.car_blocks.get(n).map(Dword::get) {
@@ -332,8 +334,7 @@ pub const CAR_RECORDS_LEN: usize = 8 * 0x4C8;
 // them): any bit pattern is a valid value.
 
 impl RaceWork {
-    /// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
-    /// `race::store::LEFT`), with the image's first values.
+    /// The piece, with the image's first values.
     pub const fn new() -> Self {
         crate::cells::cells_of_bytes(crate::race::blocks_store::with_block_refs(
             crate::race::store::first_values::<{ END - START }>(START),
@@ -350,12 +351,6 @@ pub const END: usize = 0x71C814;
 
 const _: () = assert!(END - START == core::mem::size_of::<RaceWork>());
 
-/// Where IDA 0x71AFB8 is now (its own static).
-#[cfg(test)]
-pub fn piece_addr() -> u32 {
-    crate::pointers::game_address(core::ptr::from_ref(&race().shared.work))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -363,7 +358,7 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        let _g = crate::store::test_lock();
+        let _g = crate::test_support::test_lock();
         crate::test_support::first_values::assert_store_starts_as_the_games_but(
             "store:race.owner.RACE.shared.work",
             &[(
@@ -392,7 +387,7 @@ mod tests {
 
     #[test]
     fn fields_are_at_the_games_offsets() {
-        assert_eq!(piece_addr() % 4, 0);
+        assert_eq!(core::ptr::from_ref(&race().shared.work).addr() % 4, 0);
         assert_eq!(offset_of!(RaceWork, car_blocks), 0x400);
         assert_eq!(offset_of!(RaceWork, car_nearness), 0xa50);
         assert_eq!(offset_of!(RaceWork, race_slots), 0xb10);

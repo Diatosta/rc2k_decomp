@@ -26,7 +26,7 @@ pub fn start_frame_pictures(race: &Race, eax: u32) -> Result<(), Refused> {
         "the pictures folder",
     )?);
     panel.replay_recording.set(1);
-    panel.pictures_started.set(0);
-    panel.picture_clock.set(0);
+    crate::system::tick_count::PICTURE_CLOCK.started.set(0);
+    crate::system::tick_count::PICTURE_CLOCK.clock.set(0);
     Ok(())
 }

@@ -1,6 +1,6 @@
 //! The program's own texts (version, copyright, window and class names), out of RAL.EXE's
 //! image . `#[repr(C)]` struct of cells with the image's layout,
-//! first values the image's (`tests`); `moved::MOVED` points the image's addresses at it.
+//! first values the image's (`tests`).
 
 use crate::session::{Byte, Bytes, with_runs};
 

@@ -26,11 +26,6 @@ use rc2k_core::menu::films::{self, Film, Step, StepAnswer};
 
 // ---- game data ----
 
-/// IDA's address of the films' names.
-pub const FILMS_START: usize = 0x5297F5;
-/// Their length.
-pub const FILMS_LEN: usize = 0x52983C - FILMS_START;
-
 /// The films' file names.
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]

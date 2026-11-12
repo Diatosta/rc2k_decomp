@@ -48,6 +48,7 @@ pub const NET: usize = 2;
 pub const SHUTDOWN: usize = 3;
 /// The slots, in the order they are started (`start_threads` starts the first three).
 pub const SLOT_COUNT: usize = 4;
+#[cfg(test)]
 pub const SLOT_LEN: usize = size_of::<ThreadSlot>();
 
 pub static SLOTS: [ThreadSlot; SLOT_COUNT] = [

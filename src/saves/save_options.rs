@@ -48,7 +48,7 @@ mod tests {
     /// before the pieces became typed fields.
     #[test]
     fn options_file_bytes_are_unchanged() {
-        let _lock = crate::store::test_lock();
+        let _lock = crate::test_support::test_lock();
         let mut owned = Vec::new();
         for piece in pieces() {
             owned.push(piece.read().unwrap());

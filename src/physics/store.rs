@@ -1,7 +1,7 @@
 //! The damage model's figures, out of RAL.EXE's image (IDA 0x75B340 .. 0x75B940; phase 7,
 //! typed): shares, thresholds, the work floats, the tables of four (x0, y0, x1, y1)
 //! `physics::flow::table_lerp` reads, and the rates. `#[repr(C)]` struct of atomic cells
-//! with the image's layout, one static; `moved::MOVED` points the range at it. What each
+//! with the image's layout, one static. What each
 //! figure is, is a reading from how `physics::damage_factors`, `damage_wear`, `damage_gauges`
 //! and `rate_damage` use it (`physics/damage_model.rs`); the doc of each says what.
 
@@ -644,9 +644,8 @@ impl DamageModel {
 }
 
 /// IDA 0X75B340, the first byte of the piece.
+#[cfg(any(test, debug_ui))]
 pub const START: usize = 0x75B340;
-/// IDA 0X75B940, the end of the piece.
-pub const END: usize = 0x75B940;
 
 #[cfg(test)]
 mod tests {

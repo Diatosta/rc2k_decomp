@@ -1,7 +1,6 @@
 //! The screens' string-id tables and a few flags, out of RAL.EXE's image (IDA 0x758806 .. 0x758B72): the "screen left" flag, the stage shown, the nationalities, the duel's labels, the
 //! places' points and the pointers to the results' arrays, the player views, and the lists of
-//! captions' string ids. A `#[repr(C)]` struct with the image's layout, one static; `moved::MOVED`
-//! points the range at it. Its dwords lie two bytes past a multiple of four in IDA's addresses.
+//! captions' string ids. A `#[repr(C)]` struct with the image's layout, one static. Its dwords lie two bytes past a multiple of four in IDA's addresses.
 //!
 
 use crate::errors::BadInput;
@@ -357,11 +356,6 @@ impl CaptionTables {
         }
     }
 }
-
-/// IDA 0x758806, the first byte of the piece.
-pub const START: usize = 0x758806;
-/// IDA 0x758B72, the end of the piece.
-pub const END: usize = 0x758B72;
 
 #[cfg(test)]
 mod tests {

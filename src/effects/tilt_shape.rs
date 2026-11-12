@@ -77,7 +77,7 @@ mod shape_tilt_tests {
         use core::mem::offset_of;
         assert_eq!(size_of::<ShapeTilt>(), ShapeTilt::LEN);
         // The x87 tests put their buffer's bytes here for a while (`typed_sync::with_overlays`).
-        let _lock = crate::store::test_lock();
+        let _lock = crate::test_support::test_lock();
         let p = (&raw const crate::effects::owner::effects().windscreen_drops.tilt).cast::<u8>();
         let ours: Vec<u8> = (0..size_of::<ShapeTilt>())
             .map(|i| unsafe { p.add(i).read() })

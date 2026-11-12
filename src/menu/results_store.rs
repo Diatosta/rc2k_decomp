@@ -1,7 +1,7 @@
 //! The players' results figures, out of RAL.EXE's image (IDA 0x758714 .. 0x7587E8): the
 //! rounds of a multi-player event, the duel's order, and the four players' places, points and totals
 //! (`menu::results_setups`, `menu::arcade_steps`). A `#[repr(C)]` struct with the image's layout, one
-//! static; `moved::MOVED` points the range at it. The captions' tables hold pointers to its arrays
+//! static. The captions' tables hold pointers to its arrays
 //! (`CaptionTables::place_pointers`).
 
 use crate::session::{PlainBytes, PlainDword, with_runs};
@@ -58,8 +58,6 @@ impl Results {
 
 /// IDA 0x758714, the first byte of the piece.
 pub const START: usize = 0x758714;
-/// IDA 0x7587E8, the end of the piece.
-pub const END: usize = 0x7587E8;
 
 #[cfg(test)]
 mod tests {

@@ -327,14 +327,6 @@ impl BurstTuning {
     pub const LEN: usize = 0x24;
 }
 
-/// Marker for `moved::MOVED`: FIRST_TUNING's place in the image.
-pub struct FirstTuning;
-
-impl FirstTuning {
-    pub const START: usize = 0x93A3D2;
-    pub const LEN: usize = BurstTuning::LEN;
-}
-
 #[cfg(test)]
 mod first_tuning_tests {
     use super::*;

@@ -15,8 +15,6 @@ use crate::files::state::{SKIPPED_ATTRIBUTES, set_last_file_path};
 use crate::race::owner::race;
 use crate::race::owner_replay::Replay;
 
-/// IDA's address of the snapshot picture's name.
-pub const SNAPSHOT_START: usize = 0x529731;
 /// The three digits' place in the name.
 pub const DIGITS_AT: usize = 0x12;
 

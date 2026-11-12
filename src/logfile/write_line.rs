@@ -13,8 +13,8 @@ use std::sync::atomic::{AtomicU32, Ordering};
 
 /// The log's state (`g_logEnabled`,
 /// `g_logLevel`, `g_logLock`, `g_logIndent`, `g_logAtLineStart`, 0x4E0094 .. 0x4E00A7).
-/// Atomics: any thread logs. `LEVEL` is set from `var\ral.cfg` (`logfile=`, through
-/// `crate::moved::place`); the race's steps change `INDENT` and `ENABLED` directly.
+/// Atomics: any thread logs. `LEVEL` is set from `var\ral.cfg` (`logfile=`); the race's
+/// steps change `INDENT` and `ENABLED` directly.
 pub mod state {
     use crate::session::Dword;
     /// On while above 0 (signed). 1 in the image.

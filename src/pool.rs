@@ -109,7 +109,7 @@ pub fn take(len: usize) -> &'static PoolBlock {
         return block;
     }
     let first = crate::os::map_pages(need).unwrap_or_else(|| {
-        crate::fatal::raise::end("pointers::pool", BadInput("no memory for a lent block"))
+        crate::fatal::raise::end("pool", BadInput("no memory for a lent block"))
     });
     // SAFETY: `need` zeroed bytes mapped at `first`, never unmapped (the block lives for the
     // program); `UnsafeCell<u8>` has `u8`'s layout.
@@ -149,7 +149,7 @@ impl PoolBytes {
     pub fn from_vec(bytes: Vec<u8>) -> Self {
         let block = take(bytes.len());
         crate::cells::Store::store(block, 0, &bytes)
-            .unwrap_or_else(|e| crate::fatal::raise::end("pointers::PoolBytes", e));
+            .unwrap_or_else(|e| crate::fatal::raise::end("pool::PoolBytes", e));
         Self {
             block,
             len: bytes.len(),
@@ -196,15 +196,19 @@ impl PoolBytes {
     /// The `T` at byte `offset`; a read past the bytes' end is refused.
     pub fn read_value<T: Plain>(&self, offset: u32, what: &str) -> Result<T, BadInput> {
         self.within(offset, size_of::<T>(), what)?;
-        let mut value = super::zeroed::<T>();
-        crate::cells::Store::load(self.block, offset as usize, super::bytes_mut(&mut value))?;
+        let mut value = crate::cells::zeroed::<T>();
+        crate::cells::Store::load(
+            self.block,
+            offset as usize,
+            crate::cells::bytes_mut(&mut value),
+        )?;
         Ok(value)
     }
 
     /// `value` written at byte `offset`; a write past the bytes' end is refused.
     pub fn write_value<T: Plain>(&self, offset: u32, value: T, what: &str) -> Result<(), BadInput> {
         self.within(offset, size_of::<T>(), what)?;
-        crate::cells::Store::store(self.block, offset as usize, super::bytes_of(&value))
+        crate::cells::Store::store(self.block, offset as usize, crate::cells::bytes_of(&value))
     }
 
     /// Whether `len` bytes from `offset` lie inside the bytes.
@@ -226,7 +230,7 @@ impl PoolBytes {
     pub fn to_vec(&self) -> Vec<u8> {
         let mut bytes = vec![0; self.len];
         crate::cells::Store::load(self.block, 0, &mut bytes)
-            .unwrap_or_else(|e| crate::fatal::raise::end("pointers::PoolBytes", e));
+            .unwrap_or_else(|e| crate::fatal::raise::end("pool::PoolBytes", e));
         bytes
     }
 

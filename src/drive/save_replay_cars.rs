@@ -78,17 +78,12 @@ pub fn save_replay_cars(race: &Race) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rc2k_core::strings::bytes::Bytes;
 
     #[test]
     fn every_piece_fits_its_place() {
         for (piece, _, n) in start_layout() {
             let (store, at) = piece_place(crate::race::owner::race(), piece);
-            let room = crate::pointers::GamePtr::of_store(store)
-                .offset(at as u32)
-                .bytes("a piece")
-                .unwrap();
-            assert!(room.byte(n * 4 - 1).is_some(), "{piece:?}: {n:#x} dwords");
+            assert!(at + n * 4 <= store.size(), "{piece:?}: {n:#x} dwords");
         }
     }
 

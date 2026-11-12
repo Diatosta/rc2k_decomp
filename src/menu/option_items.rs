@@ -84,8 +84,7 @@ pub struct Item {
     pub kind: Kind,
 }
 
-/// The items name their variables by a `StepOperand`: a typed cell, or an IDA address
-/// (`moved::place` answers where each lives now) for what is not typed yet.
+/// The items name their variables by a `StepOperand`: a typed cell of an owner.
 fn get(o: &Owners<'static>, x: StepOperand) -> i32 {
     x.get_with(o) as i32
 }

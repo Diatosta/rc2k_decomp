@@ -1256,10 +1256,7 @@ mod reference_vectors {
     ) -> CarEffects {
         let car = CarEffects::zeroed();
         for &o in offsets {
-            crate::pointers::GamePtr::to(&car)
-                .offset(o as u32)
-                .write(word(at + o - base), "a test car record")
-                .unwrap();
+            crate::cells::store_value(&car, o, word(at + o - base)).unwrap();
         }
         car
     }

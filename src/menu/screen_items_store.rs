@@ -2,7 +2,7 @@
 //! last left (`current`, the screen loop's `saved_item`) and the item some screens start
 //! on (`first`, read into `measure_x` or the action's argument on entry). The screens name
 //! their slot by `slot::*`; the 20 slots no ported screen names keep the image's values.
-//! `#[repr(C)]`, the image's layout; `moved::MOVED` points the range at it.
+//! `#[repr(C)]`, the image's layout.
 
 use crate::session::PlainDword;
 
@@ -323,8 +323,10 @@ impl ScreenItems {
 }
 
 /// IDA 0x747660, the first byte of the piece.
+#[cfg(test)]
 pub const START: usize = 0x747660;
 /// IDA 0x747998, the end of the piece.
+#[cfg(test)]
 pub const END: usize = 0x747998;
 
 #[cfg(test)]

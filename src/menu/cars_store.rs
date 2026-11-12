@@ -1,7 +1,7 @@
 //! The car table, out of RAL.EXE's image (IDA 0x75648C .. 0x7585D8): the places of
 //! the players' names, the carousel's last index, the table of the 34 car descriptions' addresses, the
 //! descriptions (`CarDescription`, 0x78 bytes each) and the texts they point at. A `#[repr(C)]` struct
-//! with the image's layout, one static; `moved::MOVED` points the range at it.
+//! with the image's layout, one static.
 
 use crate::errors::BadInput;
 use crate::menu::owner::Menus;
@@ -14,8 +14,7 @@ use rc2k_core::screens::car_pages::CarDescription;
 #[derive(rc2k_derive::Cells)]
 pub struct CarTable {
     /// `| The four players' names' addresses in `g_playerNames` (`Player::name` is one of them).`:
-    /// kept as IDA's addresses, as names (nothing reads them, and
-    /// `moved::point_into_homes` passes them over).
+    /// kept as IDA's addresses, as names (nothing reads them).
     pub name_places: [PlainDword; 4],
     /// `dword_75649C`: The carousel entries' last index (0xE at start; `menu::start_event` sets 0xF for the repair set).
     pub last_car: PlainDword,
@@ -1263,8 +1262,10 @@ pub fn car_entry(menus: &Menus, number: u32) -> Result<u32, BadInput> {
 }
 
 /// IDA 0x75648C, the first byte of the piece.
+#[cfg(test)]
 pub const START: usize = 0x75648C;
 /// IDA 0x7585D8, the end of the piece.
+#[cfg(test)]
 pub const END: usize = 0x7585D8;
 
 /// Where the figures of the description `entry` names are now: its +0x74 keeps their IDA

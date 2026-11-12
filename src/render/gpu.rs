@@ -724,7 +724,7 @@ mod comparison {
         system.session.screen.width.set(width as u32);
         system.session.screen.height.set(height as u32);
         let soft_held =
-            std::sync::Arc::new(crate::pointers::PoolBytes::from_vec(vec![
+            std::sync::Arc::new(crate::pool::PoolBytes::from_vec(vec![
                 0u8;
                 width * height * 4
             ]));
@@ -738,7 +738,9 @@ mod comparison {
             bits,
         };
         crate::render::Backend::draw(
-            &mut crate::render::software::Software,
+            &mut crate::render::software::Software {
+                screen: (width, height),
+            },
             &target,
             read_commands(&mut Reader(r.0)),
         );

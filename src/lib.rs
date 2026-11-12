@@ -2,7 +2,6 @@
 // and the few primitives the game logic stands on. `tools/count_unsafe.py` counts them.
 #![cfg_attr(not(test), deny(unsafe_code))]
 
-mod address_map;
 mod arch;
 mod audio;
 mod cells;
@@ -26,7 +25,6 @@ mod logfile;
 mod math;
 mod memory;
 mod menu;
-mod moved;
 mod net;
 mod os;
 mod owners;
@@ -38,7 +36,7 @@ mod platform_events;
 mod platform_input;
 mod platform_sound;
 mod platform_timing;
-mod pointers;
+mod pool;
 mod race;
 mod rasteriser;
 #[cfg(target_arch = "aarch64")]
@@ -56,7 +54,6 @@ mod settings;
 mod shared_memory;
 mod sound;
 pub mod standalone;
-mod store;
 #[cfg(any(test, feature = "write_watch"))]
 mod stores;
 mod strings;

@@ -231,27 +231,32 @@ impl QuadWork {
 }
 
 /// `QUAD_1`'s place in the image (IDA 0x9331B4).
+#[cfg(test)]
 pub struct Quad1;
 
+#[cfg(test)]
 impl Quad1 {
     pub const START: usize = 0x9331B4;
     pub const LEN: usize = 0xF8;
 }
 
 /// `QUAD_2`'s place in the image (IDA 0x933ED0).
+#[cfg(test)]
 pub struct Quad2;
 
+#[cfg(test)]
 impl Quad2 {
     pub const START: usize = 0x933ED0;
     pub const LEN: usize = 0xF8;
 }
 
 /// `QUAD_3`'s place in the image (IDA 0x934BD0).
+#[cfg(test)]
 pub struct Quad3;
 
+#[cfg(test)]
 impl Quad3 {
     pub const START: usize = 0x934BD0;
-    pub const LEN: usize = 0xF8;
 }
 
 /// The per-kind tables of one set (IDA after a leading gap of `GAP` bytes: 3 tables of 0x22 triples, then 10 of 0x22 values). The offsets are from its start.

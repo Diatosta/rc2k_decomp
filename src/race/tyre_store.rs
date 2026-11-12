@@ -3,7 +3,7 @@
 //! timing's constants, the screen's layouts and the work the screen leaves for the next frame.
 //!
 //! A `#[repr(C)]` struct of atomic cells with the image's layout, first values the image's
-//! (`tests`); `moved::MOVED` points the image's addresses at it (`home`).
+//! (`tests`).
 
 #[cfg(test)]
 use crate::race::owner::race;

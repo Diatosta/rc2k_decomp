@@ -3,7 +3,7 @@
 //! `build_glyphs`, `build_menu_sprites`, the installer's bar glyphs) and held their
 //! addresses in the font objects (+0x14 palette, +0x18 glyph table), the sprite tables'
 //! variables and the screens' palettes. Here each is bytes of its own, named by a place
-//! below 0x10000, where no game address lies (`address_map`):
+//! below 0x10000, where no game address lies:
 //! - a palette (0x400 bytes, 256 pixels): `id << 10 | offset`, ids 1 .. 15, so a place in
 //!   it (the fonts' `palettes + 0x180`) is the palette's number plus the offset, as the
 //!   address was;
@@ -326,7 +326,7 @@ mod tests {
     #[test]
     fn the_jade_font_is_read_through_its_places() {
         let fonts = &gfx().fonts;
-        let _lock = crate::store::test_lock();
+        let _lock = crate::test_support::test_lock();
         // The glyph table and the palette (the colour), as the menu fonts name them.
         let table = bytes(JADE, "the jade glyphs").unwrap();
         let colour = read_bytes(JADE_COLOUR, 0, 4, "the jade colour").unwrap();
@@ -339,7 +339,7 @@ mod tests {
 
     #[test]
     fn the_stores_own_palettes_start_zeroed() {
-        let _lock = crate::store::test_lock();
+        let _lock = crate::test_support::test_lock();
         for place in [BLENDED_PLACE, VIEWER_PALETTE] {
             assert_eq!(read_bytes(place, 0x3FC, 4, "a palette").unwrap(), [0; 4]);
             write_bytes(place, 8, &[3, 0, 0, 0], "a palette").unwrap();
@@ -350,7 +350,7 @@ mod tests {
 
     #[test]
     fn places_are_kept_apart_and_given_back_by_list() {
-        let _lock = crate::store::test_lock();
+        let _lock = crate::test_support::test_lock();
         let list = crate::memory::ListCells::new(crate::memory::MemoryList {
             head: 0,
             total: 0,

@@ -82,7 +82,6 @@ fn copy_player_settings(p: &Player, state: &RaceState) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::pointers::GamePtr;
     use crate::race::state_store::RaceSettings;
     use std::mem::{offset_of, size_of};
 
@@ -190,17 +189,16 @@ mod tests {
     #[test]
     fn field_copy_matches_the_offset_copy() {
         let shared = &crate::race::owner::race().shared;
-        let _g = crate::store::test_lock();
+        let _g = crate::test_support::test_lock();
         // A record whose every dword is different.
         let mut bytes = [0u8; 0x28C];
         for (n, chunk) in bytes.chunks_mut(4).enumerate() {
             chunk.copy_from_slice(&(0x0101_0101 * (n as u32 + 1)).to_le_bytes());
         }
         let record = Player::from_le_bytes(bytes);
-        let whole = GamePtr::to(&shared.state);
-        let before = whole
-            .read_bytes(size_of::<RaceState>(), "the race state")
-            .unwrap();
+        let whole: &dyn crate::cells::Store = &shared.state;
+        let mut before = vec![0; size_of::<RaceState>()];
+        whole.load(0, &mut before).unwrap();
         let first = offset_of!(RaceState, settings) + offset_of!(RaceSettings, car_kind_current);
         // The offset copy, on the bytes as they were.
         let mut expected = before.clone();
@@ -213,10 +211,9 @@ mod tests {
             expected[at..at + len].copy_from_slice(&bytes[from..from + len]);
         }
         copy_player_settings(&record, &shared.state);
-        let after = whole
-            .read_bytes(size_of::<RaceState>(), "the race state")
-            .unwrap();
-        whole.write_bytes(&before, "the race state").unwrap();
+        let mut after = vec![0; size_of::<RaceState>()];
+        whole.load(0, &mut after).unwrap();
+        whole.store(0, &before).unwrap();
         assert_eq!(after, expected);
     }
 }

@@ -116,7 +116,7 @@ pub fn assert_matches(key: &str, mine: &[u8]) {
 /// when a name repeats), in the registry's order.
 pub fn store_keys() -> Vec<(String, &'static crate::stores::Entry)> {
     let mut seen: HashMap<&str, usize> = HashMap::new();
-    crate::stores::all()
+    crate::stores::listed()
         .iter()
         .map(|e| {
             let n = seen.entry(e.name).or_default();
@@ -141,14 +141,14 @@ pub fn store_bytes(key: &str) -> Vec<u8> {
     mine
 }
 
-/// The store `key` (`store:<name>`) holds the game's first values. Hold `store::test_lock`.
+/// The store `key` (`store:<name>`) holds the game's first values. Hold `test_support::test_lock`.
 pub fn assert_store_starts_as_the_games(key: &str) {
     assert_matches(key, &store_bytes(key));
 }
 
 /// The store `key` holds the game's first values but for the places that hold a handle
 /// where the game has an address: each `(offset in the store, golden key)` is put back from
-/// the bytes frozen under the key before the comparison. Hold `store::test_lock`.
+/// the bytes frozen under the key before the comparison. Hold `test_support::test_lock`.
 pub fn assert_store_starts_as_the_games_but(key: &str, handles: &[(usize, &str)]) {
     let mut mine = store_bytes(key);
     for &(at, from) in handles {
@@ -176,15 +176,15 @@ fn key_of_block<T>(block: &'static T) -> String {
 
 /// The typed block `block` (a registry store's record) holds the game's first values: the
 /// store that starts at its first byte, compared with the golden file. Takes
-/// `store::test_lock`.
+/// `test_support::test_lock`.
 pub fn assert_block_starts_as_the_games<T>(block: &'static T) {
-    let _g = crate::store::test_lock();
+    let _g = crate::test_support::test_lock();
     assert_store_starts_as_the_games(&key_of_block(block));
 }
 
 /// `assert_store_starts_as_the_games_but` for the store that starts at the typed block.
 pub fn assert_block_starts_as_the_games_but<T>(block: &'static T, handles: &[(usize, &str)]) {
-    let _g = crate::store::test_lock();
+    let _g = crate::test_support::test_lock();
     assert_store_starts_as_the_games_but(&key_of_block(block), handles);
 }
 
@@ -234,7 +234,7 @@ mod tests {
     /// Every other store starts as the game's: the one test of the stores' first values.
     #[test]
     fn every_store_starts_as_the_games() {
-        let _g = crate::store::test_lock();
+        let _g = crate::test_support::test_lock();
         let unlike: Vec<String> = store_keys()
             .into_iter()
             .map(|(key, _)| key)
@@ -255,7 +255,7 @@ mod tests {
         let Ok(out) = std::env::var("RC2K_FIRST_VALUE_DIFFERENCES") else {
             return;
         };
-        let _g = crate::store::test_lock();
+        let _g = crate::test_support::test_lock();
         let mut text = String::new();
         for (key, _) in store_keys() {
             let mine = store_bytes(&key);

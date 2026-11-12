@@ -1,8 +1,7 @@
 //! The screens' flow variables, out of RAL.EXE's image (IDA 0x7554C0 .. 0x755525): the
 //! sections an event starts at, the yes / no screens' switches, the lists a screen puts in place
 //! (`g_unreadList`, `g_drawList`, `g_overlayList`, `g_sceneList`) and a few switches of the item
-//! keys. A `#[repr(C)]` struct with the image's layout, one static; `moved::MOVED` points the range
-//! at it. The list pointers hold the lists by handle (`menu::fn_list`).
+//! keys. A `#[repr(C)]` struct with the image's layout, one static. The list pointers hold the lists by handle (`menu::fn_list`).
 
 use crate::menu::fn_list::ListCell;
 use crate::session::{PlainBytes, PlainDword, PlainFlag, with_runs};
@@ -74,11 +73,6 @@ impl ScreenFlow {
         }
     }
 }
-
-/// IDA 0x7554C0, the first byte of the piece.
-pub const START: usize = 0x7554C0;
-/// IDA 0x755525, the end of the piece.
-pub const END: usize = 0x755525;
 
 #[cfg(test)]
 mod tests {

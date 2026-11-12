@@ -2,11 +2,11 @@
 //! (the settings page's menu sounds, the race's sets of sounds and the commands that name
 //! them, the cues' lists, the car sound kinds' records, the surface sound sets and the spot
 //! voices), out of RAL.EXE's image, typed. The sets are lists of sound
-//! numbers ending in -1 that the audio thread reads by address; the tables of pointers name
-//! them by the image's addresses, pointed at their homes at start (`moved::point_into_homes`).
+//! numbers ending in -1 that the audio thread reads; the tables of pointers name them by
+//! handle (`RACE_LIST_TAG`, `CUE_TAG`, ..: an offset in the table they lie in).
 //!
 //! `#[repr(C)]` structs of atomic cells with the image's layout, first values the image's
-//! (`tests`); `moved::MOVED` points the image's addresses at them (`home`).
+//! (`tests`).
 
 use crate::session::{Bytes, Cell32, Dword, Float, PlainBytes, PlainDword, PlainFloat, with_runs};
 

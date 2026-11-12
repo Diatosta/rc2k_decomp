@@ -472,7 +472,10 @@ mod tests {
         crate::test_support::first_values::assert_block_starts_as_the_games(&weather.snow);
         crate::test_support::first_values::assert_block_starts_as_the_games(&weather.snow_vars);
         crate::test_support::first_values::assert_block_starts_as_the_games(&weather.snow_light);
-        assert_eq!(weather.snow.wide_turn[0][0].addr() % 16, 0);
+        assert_eq!(
+            core::ptr::from_ref(&weather.snow.wide_turn[0][0]).addr() % 16,
+            0
+        );
         assert_eq!(offset_of!(SnowState, last_clock), 0x150);
         assert_eq!(offset_of!(SnowState, fall), 0x194);
         assert_eq!(offset_of!(SnowState, flakes), 0x1a4);

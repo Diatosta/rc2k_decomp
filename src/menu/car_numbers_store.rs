@@ -2,7 +2,7 @@
 //! 0x7554C0): the numbers of the cars that can be chosen in two lists
 //! (`saves::rebuild_car_lists` makes the car pointers of `menu::lists_store` from them) and the two
 //! scratch tables `menu::shuffle_drivers` works in. A `#[repr(C)]` struct with the image's layout, one
-//! static; `moved::MOVED` points the range at it.
+//! static.
 
 use crate::session::{PlainBytes, PlainDword, with_runs};
 
@@ -57,11 +57,6 @@ impl CarNumbers {
         }
     }
 }
-
-/// IDA 0x755258, the first byte of the piece.
-pub const START: usize = 0x755258;
-/// IDA 0x7554C0, the end of the piece.
-pub const END: usize = 0x7554C0;
 
 #[cfg(test)]
 mod tests {

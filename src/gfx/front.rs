@@ -4,11 +4,6 @@
 
 use crate::session::PlainDword;
 
-/// IDA's address of the block's first byte.
-pub const START: usize = 0x4F32B4;
-/// The block's length.
-pub const LEN: usize = 8;
-
 /// The surface handles.
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]

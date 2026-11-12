@@ -5,9 +5,6 @@
 //! six characters are "andrew" in any case, `DEVELOPER` = 1. (`race::tyre_change_gauge` reads
 //! it.) One caller, `start`, which calls it directly.
 
-/// IDA's address of the switch.
-pub const DEVELOPER_START: usize = 0x529D94;
-
 /// `g_developerMachine` (`dword_529D94` in IDA): 1 on a computer called "andrew".
 pub static DEVELOPER: crate::session::Dword = crate::session::Dword::new(0);
 

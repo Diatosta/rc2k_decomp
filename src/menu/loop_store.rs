@@ -2,7 +2,7 @@
 //! item highlighted, the leaving flags, the text entry's counters, the sprite table and the menu
 //! shown. The game keeps these dwords at addresses one past a multiple of four (IDA 0x755525 ..);
 //! here they lie at the same distances from the start. A `#[repr(C)]` struct with the image's
-//! layout, one static; `moved::MOVED` points the range at it.
+//! layout, one static.
 
 use crate::session::{PlainBytes, PlainDword, PlainFlag};
 
@@ -77,11 +77,6 @@ impl LoopFlags {
         }
     }
 }
-
-/// IDA 0x755525, the first byte of the piece.
-pub const START: usize = 0x755525;
-/// IDA 0x755595, the end of the piece.
-pub const END: usize = 0x755595;
 
 #[cfg(test)]
 mod tests {

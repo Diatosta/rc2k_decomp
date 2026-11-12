@@ -1,8 +1,8 @@
 //! The 3D cards' and the Direct3D device's state (`gfx::find_3d_cards`, `platform_3d`,
 //! `d3d::set_render_state`, `d3d::set_texture`, the 3D switches of `var\ral.cfg`).
 //! `#[repr(C)]` struct of atomic cells with
-//! the image's layout, first values the image's (`tests`); `moved::MOVED` points the image's
-//! addresses at it (`home`): the settings table names the switches by IDA address.
+//! the image's layout, first values the image's (`tests`); the settings table names the
+//! switches by IDA address.
 
 use crate::session::{Bytes, Dword, with_runs};
 
@@ -116,7 +116,7 @@ mod tests {
 
     #[test]
     fn cards3d_starts_as_the_games() {
-        let _g = crate::store::test_lock();
+        let _g = crate::test_support::test_lock();
         crate::test_support::first_values::assert_store_starts_as_the_games(
             "store:d3d.owner.D3D.cards",
         );

@@ -28,11 +28,6 @@ use crate::session::{PlainBytes, PlainDword};
 
 // ---- game data ----
 
-/// IDA's address of the rescaler's variables.
-pub const START: usize = 0x4F505C;
-/// Their length.
-pub const LEN: usize = 0x4F50C0 - START;
-
 /// The rescaler's variables (`gfx::rescale_picture`, `gfx::rescale_to_surface`).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
@@ -166,7 +161,7 @@ mod tests {
     #[test]
     fn first_values_are_the_games() {
         crate::test_support::first_values::assert_block_starts_as_the_games(
-            &crate::gfx::owner::GFX.unchecked().rescale,
+            &crate::gfx::owner::GFX.get().rescale,
         );
     }
 

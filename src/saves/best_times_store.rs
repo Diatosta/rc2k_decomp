@@ -4,7 +4,7 @@
 //! `saves::allocate_best_times`, `load_best_times`, `free_best_times`). The
 //! nine tables are typed and Rust's own (`saves::best_times`): each pair keeps only the
 //! size.
-//! `#[repr(C)]`, the image's layout (all zero in it); `moved::MOVED` points the range at it.
+//! `#[repr(C)]`, the image's layout (all zero in it).
 //! `allocate_best_times` walks the switches and the pairs as one run of dwords from
 //! `allocated` (`vars()`).
 
@@ -132,8 +132,7 @@ const _: () = assert!(core::mem::size_of::<TimeEntry>() == 0x9C);
 
 /// The six rallies' best times (IDA 0x742C98 .. 0x7475D0): `RallyTimes.tables[0]`, the six tables'
 /// addresses, kept as IDA's, as names (`RallyTimes::table_of` makes one real, for
-/// `screens::draw_section_best_times` and `saves::default_championship_times`;
-/// `moved::point_into_homes` passes them over), then the tables, twenty entries each.
+/// `screens::draw_section_best_times` and `saves::default_championship_times`), then the tables, twenty entries each.
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct RallyTimes {
@@ -1287,8 +1286,10 @@ impl RallyTimes {
 }
 
 /// IDA 0x7475D0, the first byte of the piece.
+#[cfg(test)]
 pub const START: usize = 0x7475D0;
 /// IDA 0x747660, the end of the piece.
+#[cfg(test)]
 pub const END: usize = 0x747660;
 
 #[cfg(test)]
@@ -1334,7 +1335,7 @@ mod table_of_tests {
 
     #[test]
     fn table_of_resolves_the_six_names_and_no_more() {
-        let _g = crate::store::test_lock();
+        let _g = crate::test_support::test_lock();
         let times = &crate::saves::owner::saves().rally_times;
         for n in 0..8 {
             assert_eq!(times.table_of(n).is_ok(), n < 6, "rally {n}");

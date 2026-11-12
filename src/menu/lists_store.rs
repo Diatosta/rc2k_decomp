@@ -1,6 +1,6 @@
 //! The menus' lists and tables, out of RAL.EXE's image (IDA 0x7594AA .. 0x75A658): the last draw list, the carousel kinds' own places, the paths and sounds the menus
 //! name, the car lists the menus walk, the best scores' titles. `#[repr(C)]` struct of atomic
-//! cells with the image's layout, one static; `moved::MOVED` points the range at it. Its
+//! cells with the image's layout, one static. Its
 //! last field is a 22-byte string: the struct is padded to a multiple of 4.
 
 use crate::menu::cars_store::car_cell;
@@ -1502,8 +1502,10 @@ impl MenuLists {
 }
 
 /// IDA 0X7594AA, the first byte of the piece.
+#[cfg(test)]
 pub const START: usize = 0x7594AA;
 /// IDA 0X75A658, the end of the piece.
+#[cfg(test)]
 pub const END: usize = 0x75A658;
 
 /// The tables of text handles (IDA start, entries).

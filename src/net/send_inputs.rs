@@ -133,18 +133,17 @@ pub fn send_inputs(race: &Race, net: &Net) -> Result<(), Refused> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::pointers::GamePtr;
     use crate::race::owner::race;
 
     /// Each field sits where the core's table had its offset in the car's block.
     #[test]
     fn the_fields_sit_where_the_offsets_were() {
         let car = &race().shared.car;
-        let base = GamePtr::to(car).addr();
+        let base = core::ptr::from_ref(car).addr();
         let offsets = |kind| -> Vec<u32> {
             fields(kind)
                 .iter()
-                .map(|(field, _)| GamePtr::to(field(car)).addr() - base)
+                .map(|(field, _)| (core::ptr::from_ref(field(car)).addr() - base) as u32)
                 .collect()
         };
         assert_eq!(offsets(Kind::Inputs), [0xFD0, 0xFD4, 0xFD8, 0xFDC]);
@@ -167,10 +166,10 @@ mod tests {
     #[test]
     fn the_limits_are_the_old_ranges() {
         let car = &race().shared.car;
-        let base = GamePtr::to(car).addr();
+        let base = core::ptr::from_ref(car).addr();
         for kind in [Kind::Inputs, Kind::Position, Kind::Extra] {
             for (field, limit) in fields(kind) {
-                let at = GamePtr::to(field(car)).addr() - base;
+                let at = (core::ptr::from_ref(field(car)).addr() - base) as u32;
                 let old = match at {
                     0x1D4 => Limit::Gear,
                     0x64..=0x80 | 0xB4..=0xE0 | 0x600..=0x60C => Limit::Gauge,

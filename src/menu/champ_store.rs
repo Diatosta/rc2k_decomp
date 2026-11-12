@@ -1,7 +1,7 @@
 //! The championship pages' rows and the event's tables, out of RAL.EXE's image (IDA 0x7556B4 ..
 //! 0x755784): the rows shown, the key clock, the event's mode and the addresses of
 //! the best-times and standings tables. A `#[repr(C)]` struct with the image's layout, one static;
-//! `moved::MOVED` points the range at it. The tables' addresses are the game's allocations
+//! The tables' addresses are the game's allocations
 //! (`saves::allocate_best_times`).
 
 use crate::session::{PlainBytes, PlainDword, with_runs};

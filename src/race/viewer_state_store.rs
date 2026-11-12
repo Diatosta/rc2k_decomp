@@ -44,13 +44,18 @@ pub struct ReplayViewBlock {
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
 // them): any bit pattern is a valid value.
 
-/// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
-/// `race::store::LEFT`), with the image's first values.
+/// The piece, with the image's first values.
 impl ReplayViewBlock {
     pub const fn new() -> Self {
         crate::cells::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
     }
 }
+
+/// The viewer list's key table and place rectangles (IDA 0x5C2714 .. 0x5C291C, untyped), with
+/// the image's first values: the list's names point into them, and nothing writes them.
+pub static RECTANGLES: crate::session::Bytes<0x208> = crate::session::Bytes::new(
+    crate::race::store::first_values::<0x208>(ReplayViewBlock::RECTANGLES.start),
+);
 
 /// What a viewer item shows: a texture rectangle, or the picture a camera byte picks from one
 /// of the three switch tables (0 `ViewerAndKinds.viewer_panel.switch_pictures_a[0]`, 1 `ViewerAndKinds.viewer_panel.switch_pictures_b[0]`, 2 `ViewerAndKinds.viewer_panel.switch_pictures_c[0]`; the original
@@ -66,21 +71,19 @@ impl ReplayViewBlock {
     /// The count of the viewer's list's items (from 24 bytes in).
     const ITEMS: u32 = 26;
     /// IDA's ranges the list's names point into: the key table and place rectangles
-    /// (untyped, the race block's bytes: `OWN_RANGES[1]`), and the panel with the pictures'
-    /// rectangles.
+    /// (`RECTANGLES`), and the panel with the pictures' rectangles.
     const RECTANGLES: core::ops::Range<usize> = 0x5C2714..0x5C291C;
     const PANEL: core::ops::Range<usize> =
         crate::race::viewer_screen_store::START..crate::race::viewer_screen_store::END;
 
-    /// Where IDA's name `ida` is now, if it lies in the rectangles: a place in the race
-    /// block's range of them, running on to that range's end (phase 13: the list keeps IDA's
-    /// addresses as names).
+    /// The place IDA's name `ida` names, if it lies in the rectangles: a place in
+    /// `RECTANGLES`, running on to its end (the list keeps IDA's addresses as names).
     fn named(ida: u32, what: &'static str) -> Result<BytePlace, crate::errors::BadInput> {
         if !Self::RECTANGLES.contains(&(ida as usize)) {
             return Err(crate::errors::BadInput(what));
         }
         Ok(BytePlace::Store(
-            &crate::race::store::OWN_RANGES[1],
+            &RECTANGLES,
             ida as usize - Self::RECTANGLES.start,
         ))
     }
@@ -150,10 +153,10 @@ pub const END: usize = 0x5C2714;
 
 const _: () = assert!(END - START == core::mem::size_of::<ReplayViewBlock>());
 
-/// Where IDA 0x5C2518 is now (its own static).
+/// The piece's host address (the alignment checks).
 #[cfg(test)]
-pub fn piece_addr() -> u32 {
-    crate::pointers::game_address(core::ptr::from_ref(&race().replay.replay_view))
+pub fn piece_addr() -> usize {
+    core::ptr::from_ref(&race().replay.replay_view).addr()
 }
 
 #[cfg(test)]

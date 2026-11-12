@@ -143,7 +143,7 @@ pub fn set_error_mode(_mode: u32) -> u32 {
 /// No priority classes on Unix: the process runs as it was started.
 pub fn set_priority_class(_class: u32) {}
 
-pub use crate::ffi::unix::{discard_pages, image, map_pages, thread_stack};
+pub use crate::ffi::unix::{discard_pages, map_pages};
 
 /// The process ended at once with `code` (no library's leave-taking).
 pub fn terminate(code: u32) -> ! {

@@ -20,11 +20,6 @@ pub const SETUP_FILE_LEN: usize = 0x48;
 pub const SLOT_COUNT: u32 = 100;
 pub const NAME_LEN: usize = 0x20;
 
-/// IDA's address of the set-ups' variables.
-pub const START: usize = 0x527838;
-/// Their length.
-pub const LEN: usize = 0x528504 - START;
-
 /// The car set-ups' buffers.
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
@@ -47,9 +42,6 @@ impl SetUps {
         }
     }
 }
-
-/// IDA's address of the file name's template.
-pub const TEMPLATE_START: usize = 0x529716;
 
 /// `aSavedataCarset`: the set-up file's name, the number's two digits last.
 pub const fn template() -> Bytes<27> {

@@ -7,8 +7,6 @@ use crate::gfx::owner::gfx;
 
 // ---- game data ----
 
-/// IDA's address of the table.
-pub const START: usize = 0x4F4B30;
 pub const TABLE_LEN: usize = 0x300;
 
 pub fn fill_thirds_table(gfx: &crate::gfx::owner::Gfx) {

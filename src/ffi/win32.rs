@@ -5,7 +5,7 @@
 //!
 //! Every function is plain: values and slices in and out, the out-parameters local to the
 //! call. The two raw-pointer items are `map_pages` and `discard_pages`, the page pool's
-//! memory primitives (the pool in `pointers/pool.rs` holds the mapping for the program's
+//! memory primitives (the pool in `pool.rs` holds the mapping for the program's
 //! life). Nothing allocates in `terminate` (it may run in the fault handler).
 
 #![allow(unsafe_code)]
@@ -22,7 +22,7 @@ use windows_sys::Win32::System::SystemInformation::{
     GetVersionExA, GlobalMemoryStatus, MEMORYSTATUS, OSVERSIONINFOA,
 };
 use windows_sys::Win32::System::Threading::{
-    ExitProcess, GetCurrentProcess, GetCurrentThreadStackLimits, SetPriorityClass, TerminateProcess,
+    ExitProcess, GetCurrentProcess, SetPriorityClass, TerminateProcess,
 };
 use windows_sys::Win32::System::WindowsProgramming::{GetComputerNameA, GetUserNameA};
 use windows_sys::Win32::UI::Input::KeyboardAndMouse::GetKeyboardType;
@@ -205,45 +205,6 @@ pub fn terminate(code: u32) -> ! {
     unsafe {
         TerminateProcess(GetCurrentProcess(), code);
         ExitProcess(code)
-    }
-}
-
-/// The running thread's stack: its lowest byte and the byte past its top (host addresses).
-pub fn thread_stack() -> (usize, usize) {
-    let (mut low, mut high) = (0usize, 0usize);
-    // SAFETY: two out-parameters of the documented call.
-    unsafe { GetCurrentThreadStackLimits(&raw mut low, &raw mut high) };
-    (low, high)
-}
-
-/// The program's own image: its base, and its sections (first byte, byte past the end),
-/// host addresses, from its PE headers.
-pub fn image() -> (usize, Vec<(usize, usize)>) {
-    use windows_sys::Win32::System::LibraryLoader::GetModuleHandleW;
-    // SAFETY: the running module's PE headers are mapped and read-only; the offsets are
-    // the PE format's (e_lfanew at 0x3C; the file header after the 4-byte signature; the
-    // 40-byte section headers after the optional header).
-    unsafe {
-        let base = GetModuleHandleW(std::ptr::null()).expose_provenance();
-        if base == 0 {
-            return (0, Vec::new());
-        }
-        let read16 =
-            |at: usize| (std::ptr::with_exposed_provenance::<u16>(at)).read_unaligned() as usize;
-        let read32 =
-            |at: usize| (std::ptr::with_exposed_provenance::<u32>(at)).read_unaligned() as usize;
-        let nt = base + read32(base + 0x3C);
-        let count = read16(nt + 4 + 2);
-        let optional = read16(nt + 4 + 16);
-        let first = nt + 4 + 20 + optional;
-        let sections = (0..count)
-            .map(|n| {
-                let header = first + 40 * n;
-                let start = base + read32(header + 12);
-                (start, start + read32(header + 8))
-            })
-            .collect();
-        (base, sections)
     }
 }
 

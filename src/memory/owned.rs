@@ -139,7 +139,7 @@ mod tests {
 
     #[test]
     fn taken_counted_lent_and_given_back() {
-        let _lock = crate::store::test_lock();
+        let _lock = crate::test_support::test_lock();
         let figures = crate::memory::figures();
         let l = crate::memory::ListCells::new(MemoryList {
             head: 0,

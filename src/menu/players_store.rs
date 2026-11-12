@@ -1,8 +1,7 @@
 //! The players' records, out of RAL.EXE's image (IDA 0x755A4C .. 0x75648C): the four
 //! `Player` records of 0x28C bytes (`g_player1` .. `g_player4`) and `g_players`, the table of their
-//! addresses. A `#[repr(C)]` struct with the image's layout, one static; `moved::MOVED` points the range
-//! at it. The code that hands a player on by address (`player_at`) reads the table's entries, which
-//! hold the records' real addresses once `moved::point_into_homes` has run. (The cars follow in `CarTable`.)
+//! addresses (IDA's, as the image has them; nothing reads them). A `#[repr(C)]` struct with the
+//! image's layout, one static. (The cars follow in `CarTable`.)
 
 use crate::session::{PlainDword, Shared, with_runs};
 use rc2k_core::menu::player::Player;
@@ -255,8 +254,10 @@ impl PlayerTable {
 }
 
 /// IDA 0x755A4C, the first byte of the piece.
+#[cfg(test)]
 pub const START: usize = 0x755A4C;
 /// IDA 0x75648C, the end of the piece.
+#[cfg(test)]
 pub const END: usize = 0x75648C;
 
 /// Links each player's name to its player (the image's records held the old links). The

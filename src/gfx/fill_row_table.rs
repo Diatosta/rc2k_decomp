@@ -15,11 +15,7 @@ use crate::gfx::owner::gfx;
 
 // ---- game data ----
 
-/// IDA's address of the row table.
-pub const START: usize = 0x4F3FC4;
 pub const ROW_TABLE_ROOM: u32 = 602;
-/// The table's length.
-pub const LEN: usize = 4 * ROW_TABLE_ROOM as usize;
 
 /// The address the table holds for a row.
 pub fn row_address(row: u32, gfx: &crate::gfx::owner::Gfx) -> u32 {

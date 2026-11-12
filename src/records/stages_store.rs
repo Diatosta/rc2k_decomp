@@ -7,9 +7,9 @@
 //!
 //! Every address of the range is 2 past a multiple of 4: the cells are `Loose` (unaligned
 //! dwords) and a two-byte lead keeps each image address's alignment. `#[repr(C)]`, the
-//! image's layout; `moved::MOVED` points the range at it. The code walks the records by
+//! image's layout. The code walks the records by
 //! address (`championship()`, `event_table(k)`); the lists keep IDA's addresses as names
-//! (`moved::point_into_homes` passes them over) that `group_event_table`,
+//! that `group_event_table`,
 //! `level_table` and `result_table` make real. A list read past its end reads on into the
 //! lists after it, as the original; past the last, or onto a -1, it is refused.
 
@@ -1504,12 +1504,6 @@ impl StageTables {
         Ok(2 + (name - START))
     }
 
-    #[cfg(test)]
-    fn place_of(&self, name: u32, what: &'static str) -> Result<u32, BadInput> {
-        let offset = self.offset_of_name(name, what)?;
-        Ok(crate::pointers::GamePtr::to(self).addr() + offset as u32)
-    }
-
     /// The championship's records (`g_recordTable`).
     pub fn championship(&self) -> RecordTable {
         RecordTable::Championship
@@ -1556,10 +1550,10 @@ impl RecordTable {
         }
     }
 
-    /// Its first row's game address.
+    /// Its first row's byte offset in the stage tables.
     #[cfg(test)]
-    pub fn addr(self) -> u32 {
-        crate::pointers::game_address(self.rows().as_ptr())
+    pub fn table_offset(self) -> usize {
+        self.rows().as_ptr().addr() - core::ptr::from_ref(&system().records.stage_tables).addr()
     }
 
     /// Its title string: its first record's name (+0x38).
@@ -1651,13 +1645,6 @@ impl RecordRef {
             .ok_or(BadInput("an address that is no record of a table"))
     }
 
-    /// The row (or end mark) at game address `at`.
-    #[cfg(test)]
-    pub fn at(at: u32) -> Result<Self, BadInput> {
-        let start = crate::pointers::game_address(&raw const system().records.stage_tables);
-        Self::at_offset(at.wrapping_sub(start) as usize)
-    }
-
     /// The record `n` rows on (wrapping as the original's sum); refused past the table's end
     /// mark or before its first row.
     pub fn offset(self, n: u32) -> Result<Self, BadInput> {
@@ -1683,7 +1670,7 @@ mod tests {
     #[test]
     fn stage_tables_start_as_the_games() {
         // Other tests write the tables (and put them back) under the lock.
-        let _g = crate::store::test_lock();
+        let _g = crate::test_support::test_lock();
         assert_eq!(size_of::<StageTables>(), END - START + 2);
         assert_eq!(offset_of!(StageTables, result_tables), 0x938 + 2);
         assert_eq!(offset_of!(StageTables, group_lists), 0x94c + 2);
@@ -1701,9 +1688,9 @@ mod tests {
     /// the results' variables.
     #[test]
     fn the_lists_resolve_to_what_they_name() {
-        let _g = crate::store::test_lock();
+        let _g = crate::test_support::test_lock();
         let t = &system().records.stage_tables;
-        let table = |name: u32| t.place_of(name, "x").unwrap();
+        let table = |name: u32| t.offset_of_name(name, "x").unwrap();
         let entries: Vec<u32> = t
             .group_list_a
             .iter()
@@ -1716,7 +1703,7 @@ mod tests {
             for sub in 0..6 {
                 assert_eq!(
                     t.group_event_table(group as u32, sub as u32)
-                        .map(RecordTable::addr),
+                        .map(RecordTable::table_offset),
                     Ok(table(entries[at + sub])),
                     "group {group} sub {sub}"
                 );
@@ -1727,13 +1714,13 @@ mod tests {
         // The groups' lists, one after the other: a read past the first runs into the next.
         let at = (t.group_lists[1].get() - first) as usize / 4;
         assert_eq!(
-            t.group_event_table(1, 7).map(RecordTable::addr),
+            t.group_event_table(1, 7).map(RecordTable::table_offset),
             Ok(table(entries[at + 7]))
         );
         assert!(t.group_event_table(4, 0).is_err());
         for level in 0..6 {
             assert_eq!(
-                t.level_table(level as u32).map(RecordTable::addr),
+                t.level_table(level as u32).map(RecordTable::table_offset),
                 Ok(table(t.level_tables[level].get()))
             );
         }
@@ -1774,11 +1761,11 @@ mod tests {
         assert_eq!(champ.row(66).map(|r| r.index), Ok(66), "the end mark");
         assert!(champ.row(67).is_err());
         assert!(RecordTable::Event(0).row(8).is_err());
-        let third = RecordRef::at(champ.addr() + 3 * RECORD_LEN).unwrap();
+        let third = RecordRef::at_offset(champ.table_offset() + 3 * RECORD_LEN as usize).unwrap();
         assert_eq!((third.table, third.index), (champ, 3));
         assert_eq!(third.offset(u32::MAX).map(|r| r.index), Ok(2));
-        assert!(RecordRef::at(champ.addr() + 2).is_err());
-        let next = RecordRef::at(RecordTable::Event(0).addr()).unwrap();
+        assert!(RecordRef::at_offset(champ.table_offset() + 2).is_err());
+        let next = RecordRef::at_offset(RecordTable::Event(0).table_offset()).unwrap();
         assert_eq!((next.table, next.index), (RecordTable::Event(0), 0));
         assert_eq!(row(RecordTable::Event(1), 7).map(|r| r.index), Ok(7));
         assert!(row(RecordTable::Event(1), 8).is_err());
@@ -1796,13 +1783,13 @@ mod place_tests {
 
     #[test]
     fn the_names_resolve_to_places_in_the_tables() {
-        let _g = crate::store::test_lock();
+        let _g = crate::test_support::test_lock();
         let tables = &system().records.stage_tables;
         let mut names: Vec<u32> = tables.lists().map(Loose::get).collect();
         names.extend(tables.group_lists.iter().map(Loose::get));
         let valid = names
             .iter()
-            .filter(|&&name| tables.place_of(name, "x").is_ok())
+            .filter(|&&name| tables.offset_of_name(name, "x").is_ok())
             .count();
         assert!(valid > 20);
         for n in 0..8 {

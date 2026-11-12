@@ -15,7 +15,6 @@ pub use gles as gpu;
 pub mod gpu;
 pub mod software;
 
-use crate::race::owner::race;
 use crate::race::owner_course::Course;
 use std::collections::HashSet;
 use std::sync::Mutex;
@@ -82,9 +81,9 @@ pub trait Backend: Send {
 /// they draw little 3D, and read the screen's memory).
 static GPU_HOLDS_FRAME: AtomicBool = AtomicBool::new(false);
 
-/// Draws the commands on the backend that holds the frame.
-pub fn draw(target: &Target, commands: Vec<Command>) {
-    let in_race = race().course.numbers.in_race.is_set();
+/// Draws the commands on the backend that holds the frame; `screen` is the screen's size (the
+/// rasteriser's depth buffer is kept at it).
+pub fn draw(in_race: bool, screen: (usize, usize), target: &Target, commands: Vec<Command>) {
     if target.bits == 32 && in_race {
         let mut gpu = gpu::GPU.lock().unwrap();
         if let Some(gpu) = gpu.as_mut() {
@@ -96,7 +95,7 @@ pub fn draw(target: &Target, commands: Vec<Command>) {
         }
     }
     give_frame_back(target);
-    software::Software.draw(target, commands);
+    software::Software { screen }.draw(target, commands);
 }
 
 /// The GPU's picture back in the canvas, if it holds the frame and something wants the true one.

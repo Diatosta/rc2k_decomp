@@ -106,7 +106,7 @@ mod tests {
 
     #[test]
     fn rows_are_reached_by_pitch_and_bounded_to_their_extent() {
-        let memory = Arc::new(crate::pointers::PoolBytes::from_vec(vec![0xAAu8; 4 * 8]));
+        let memory = Arc::new(crate::pool::PoolBytes::from_vec(vec![0xAAu8; 4 * 8]));
         let handle = 0x7FFF_0001;
         locked::register(handle, &memory);
         // Three rows of 8 bytes, the last 8 of the memory not theirs.

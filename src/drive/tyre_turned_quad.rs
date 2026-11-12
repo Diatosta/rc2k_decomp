@@ -119,7 +119,7 @@ mod reference_vectors {
     /// buffer per version, only its window refilled each case.
     #[test]
     fn turn_matches_the_assembly() {
-        let _g = crate::store::test_lock();
+        let _g = crate::test_support::test_lock();
         let saved = control_word();
         let mut rng = Rng::new(206);
         let (ty_a, ty_b) = (zeroed(), zeroed());
@@ -127,25 +127,6 @@ mod reference_vectors {
         let (mut d_a, mut d_b) = (vec![0u8; 32], vec![0u8; 32]);
         let (mut v_a, mut v_b) = (vec![0u8; 0x90], vec![0u8; 0x90]);
         let (mut t_a, mut t_b) = (vec![0u8; 16], vec![0u8; 16]);
-        // Lent while the runs read them as game memory.
-        let as_bytes = |ty: &TyreChange| unsafe {
-            std::slice::from_raw_parts(
-                std::ptr::from_ref::<TyreChange>(ty).cast::<u8>(),
-                size_of::<TyreChange>(),
-            )
-        };
-        let _lent = [
-            crate::pointers::Lent::new(as_bytes(&ty_a)),
-            crate::pointers::Lent::new(as_bytes(&ty_b)),
-            crate::pointers::Lent::new(&e_a),
-            crate::pointers::Lent::new(&e_b),
-            crate::pointers::Lent::new(&d_a),
-            crate::pointers::Lent::new(&d_b),
-            crate::pointers::Lent::new(&v_a),
-            crate::pointers::Lent::new(&v_b),
-            crate::pointers::Lent::new(&t_a),
-            crate::pointers::Lent::new(&t_b),
-        ];
         let mut checked = 0u64;
         let name = "drive.tyre_turned_quad.turn";
         let mut file = Recorder::replay(name);
@@ -183,7 +164,7 @@ mod reference_vectors {
                 file.input(&t_a[..4]);
                 let expected = file.results(&before, || unreachable!("replayed"));
                 // SAFETY: the buffers are the operands' (the device's record, four floats,
-                // four vertices, a dword), lent and aligned; the device's record is
+                // four vertices, a dword), aligned; the device's record is
                 // `0x4F0 + 16` bytes, its `gauge` at 0x4EC.
                 unsafe {
                     turn(

@@ -10,11 +10,6 @@ use crate::gfx::plain_dwords;
 use crate::session::PlainDword;
 use core::mem::offset_of;
 
-/// IDA's address of the block's first byte.
-pub const START: usize = 0x4F4E30;
-/// The block's length.
-pub const LEN: usize = 0x4F503C - START;
-
 /// The modes the table holds (32 of 8 bytes).
 pub const TABLE_ROOM: usize = 0x20;
 
@@ -106,7 +101,7 @@ mod tests {
     #[test]
     fn first_values_are_the_games() {
         crate::test_support::first_values::assert_block_starts_as_the_games(
-            &crate::gfx::owner::GFX.unchecked().display.modes,
+            &crate::gfx::owner::GFX.get().display.modes,
         );
     }
 

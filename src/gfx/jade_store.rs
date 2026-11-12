@@ -1,7 +1,6 @@
 //! The "jade" font's glyph table and colour (`gfx::load_jade`), out of RAL.EXE's image,
 //! typed. Placed in a file of its own beside the graphics module's stores (converted in
-//! parallel). `#[repr(C)]` struct with the image's layout, first values the image's (`tests`);
-//! `moved::MOVED` points the image's addresses at it: the fonts' glyph-table pointers name it.
+//! parallel). `#[repr(C)]` struct with the image's layout, first values the image's (`tests`).
 
 use crate::session::{PlainBytes, PlainDword, with_runs};
 
@@ -44,7 +43,7 @@ mod tests {
 
     #[test]
     fn jadefont_starts_as_the_games() {
-        let _g = crate::store::test_lock();
+        let _g = crate::test_support::test_lock();
         crate::test_support::first_values::assert_store_starts_as_the_games(
             "store:gfx.owner.GFX.fonts.jade",
         );

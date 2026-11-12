@@ -4,15 +4,16 @@
 #![allow(unsafe_code)]
 
 use super::*;
-use crate::system::owner::system;
 use std::sync::Mutex;
 
-/// The rasteriser as a backend.
-pub struct Software;
+/// The rasteriser as a backend, with the screen's size (the depth buffer's).
+pub struct Software {
+    pub screen: (usize, usize),
+}
 
 impl Backend for Software {
     fn draw(&mut self, target: &Target, commands: Vec<Command>) {
-        draw(target, commands);
+        draw(target, commands, self.screen);
     }
 }
 
@@ -32,12 +33,7 @@ pub struct Depth {
 pub static DEPTH: Mutex<Option<Depth>> = Mutex::new(None);
 
 /// The depth buffer at the screen's size, made or made again.
-pub fn with_depth<R>(f: impl FnOnce(&mut Depth) -> R) -> R {
-    let system = system();
-    let (width, height) = (
-        system.session.screen.width.get() as usize,
-        system.session.screen.height.get() as usize,
-    );
+pub fn with_depth<R>(width: usize, height: usize, f: impl FnOnce(&mut Depth) -> R) -> R {
     let mut depth = DEPTH.lock().unwrap();
     if depth
         .as_ref()
@@ -90,7 +86,7 @@ fn scale_noted(noted: &mut [Command]) {
     }
 }
 
-fn draw(into: &Target, noted: Vec<Command>) {
+fn draw(into: &Target, noted: Vec<Command>, screen: (usize, usize)) {
     use crate::rasteriser::{Frame, Pixels, States, Texture};
     use rayon::prelude::*;
     #[cfg_attr(
@@ -119,7 +115,7 @@ fn draw(into: &Target, noted: Vec<Command>) {
     });
     #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
     let mut small: Option<Small> = None;
-    with_depth(|depth| {
+    with_depth(screen.0, screen.1, |depth| {
         if small.is_none() && (depth.width != into.width || depth.height != into.height) {
             return;
         }

@@ -122,7 +122,7 @@ pub fn step_start_pick(tables: &Tables, c: StartPick<'_>, up: bool) {
     let n = rc2k_core::menu::steps::colour(c.number.get() as i32, up);
     c.number.set(n as u32);
     // `CAPTIONS.caption_lists` from `table_at`: the original does not check `n` (a kept
-    // number past 6 steps on from it); the address is resolved by `MOVED`.
+    // number past 6 steps on from it): read on through the captions' record.
     let pick = crate::session::read_on_in(
         &tables.captions,
         &tables.captions.caption_lists,

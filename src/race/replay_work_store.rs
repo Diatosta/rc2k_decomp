@@ -68,12 +68,10 @@ pub const END: usize = 0x719FD8;
 
 const _: () = assert!(END - START == core::mem::size_of::<ReplayWork>());
 
-/// Where IDA 0x7194BC is now (its group's static).
+/// The piece's host address (the alignment checks).
 #[cfg(test)]
-pub fn piece_addr() -> u32 {
-    crate::pointers::game_address(core::ptr::from_ref(
-        &race().replay.cars_and_replay.replay_work,
-    ))
+pub fn piece_addr() -> usize {
+    core::ptr::from_ref(&race().replay.cars_and_replay.replay_work).addr()
 }
 
 #[cfg(test)]

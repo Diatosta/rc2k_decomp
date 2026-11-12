@@ -7,7 +7,7 @@
 //!   registration writes (`install::register_lobby`).
 //!
 //! `#[repr(C)]` structs of atomic cells with the image's layout, first values the image's
-//! (`tests`); `moved::MOVED` points the image's addresses at them (`home`): the credits'
+//! (`tests`): the credits'
 //! pointers name these texts. `InstallVars` starts on an odd address in the image
 //! (0x529DAD): a one-byte lead keeps every image address's alignment.
 

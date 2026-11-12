@@ -94,7 +94,7 @@ mod tests {
     #[test]
     fn the_saved_cars_carry_the_names_addresses() {
         let play = &menus().play;
-        let _guard = crate::store::test_lock();
+        let _guard = crate::test_support::test_lock();
         let buffer = &saves().save_games.file;
         let file_before = buffer.read_at(0, LEN, "the file").unwrap();
         let players_before = play

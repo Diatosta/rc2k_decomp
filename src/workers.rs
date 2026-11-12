@@ -54,6 +54,10 @@ pub struct PartScratch {
     /// The drawing it has noted (`platform_3d::Noted`): the first part's what the game's
     /// thread flushes, the others' put after it at their runs' ends.
     pub noted: crate::platform_3d::Noted,
+    /// The screen's figures (`system::owner::Session::screen`), what a noted fan is drawn into.
+    pub screen: &'static crate::session::Screen,
+    /// Whether a race is on (`race::numbers_store::Numbers::in_race`): the GPU draws only then.
+    pub in_race: &'static crate::session::Flag,
 }
 
 /// The parts' scratch, part 0's in the stores' places in the race's buffers (the image's
@@ -75,6 +79,8 @@ static PARTS: [PartScratch; COUNT] = {
             cache: crate::d3d::render_cache::OwnCache::new(cards),
             run: crate::d3d::run_states::OwnRun::new(),
             noted: crate::platform_3d::Noted::new(),
+            screen: &crate::system::owner::SYSTEM.session.screen,
+            in_race: &crate::race::owner::RACE.course.numbers.in_race,
         },
         PartScratch {
             vertices: &V[0],
@@ -85,6 +91,8 @@ static PARTS: [PartScratch; COUNT] = {
             cache: crate::d3d::render_cache::OwnCache::new(cards),
             run: crate::d3d::run_states::OwnRun::new(),
             noted: crate::platform_3d::Noted::new(),
+            screen: &crate::system::owner::SYSTEM.session.screen,
+            in_race: &crate::race::owner::RACE.course.numbers.in_race,
         },
         PartScratch {
             vertices: &V[1],
@@ -95,6 +103,8 @@ static PARTS: [PartScratch; COUNT] = {
             cache: crate::d3d::render_cache::OwnCache::new(cards),
             run: crate::d3d::run_states::OwnRun::new(),
             noted: crate::platform_3d::Noted::new(),
+            screen: &crate::system::owner::SYSTEM.session.screen,
+            in_race: &crate::race::owner::RACE.course.numbers.in_race,
         },
         PartScratch {
             vertices: &V[2],
@@ -105,6 +115,8 @@ static PARTS: [PartScratch; COUNT] = {
             cache: crate::d3d::render_cache::OwnCache::new(cards),
             run: crate::d3d::run_states::OwnRun::new(),
             noted: crate::platform_3d::Noted::new(),
+            screen: &crate::system::owner::SYSTEM.session.screen,
+            in_race: &crate::race::owner::RACE.course.numbers.in_race,
         },
     ]
 };
@@ -119,15 +131,6 @@ pub fn part_scratch(n: usize) -> &'static PartScratch {
 pub fn game_scratch() -> &'static PartScratch {
     debug_assert_eq!(index(), 0, "the game's scratch on a drawing part");
     &PARTS[0]
-}
-
-// ---- the copies ----
-
-/// The scratch stores' copies by part (0 the game's own), as stores.
-#[cfg(test)]
-fn scratch_stores(n: usize) -> [&'static (dyn crate::cells::Store + Sync); 3] {
-    let p = &PARTS[n];
-    [p.records, p.vertices, p.polygon]
 }
 
 // ---- the runs ----
@@ -158,21 +161,6 @@ pub fn beside() -> bool {
 fn serial() -> bool {
     static ON: OnceLock<bool> = OnceLock::new();
     *ON.get_or_init(|| std::env::var_os("RC2K_DRAW_SERIAL").is_some())
-}
-
-/// The copies made regions as copy 0 (the store's home) is, once: a place in them named by
-/// its game address is read through their cells (the tests' by-address reads; the program
-/// names no place in them by address).
-#[cfg(test)]
-fn register_copies() {
-    static DONE: OnceLock<()> = OnceLock::new();
-    DONE.get_or_init(|| {
-        for n in 1..COUNT {
-            for s in scratch_stores(n) {
-                crate::pointers::register_store(s);
-            }
-        }
-    });
 }
 
 /// The other drawing threads: with `mirror_beside`, one fewer than the cores, up to the
@@ -300,8 +288,6 @@ fn draw_parts(
     part: impl Fn(usize, &PartScratch) -> Result<(), Refused> + Sync,
     mut after: impl FnMut(usize) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
-    #[cfg(test)]
-    register_copies();
     // One after another on the game's thread without a pool or with `RC2K_DRAW_SERIAL`.
     let pool = pool.filter(|_| !serial());
     // The render states' cache as the list began, what each other part starts from.

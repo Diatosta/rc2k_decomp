@@ -124,7 +124,7 @@ mod tests {
 
     #[test]
     fn bytes_go_in_the_block_in_place() {
-        let _lock = crate::store::test_lock();
+        let _lock = crate::test_support::test_lock();
         let kept = VIEWER_BUFFERS.block_bytes();
         let after = VIEWER_BUFFERS.block_cameras.get(0);
         VIEWER_BUFFERS.block[1].set(0xAAAA_AAAA);

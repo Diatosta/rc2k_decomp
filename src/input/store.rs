@@ -13,9 +13,9 @@
 //! The effects' GUIDs and the DirectInput identifiers (0x4F7E18 .. 0x4F7FA8) stay in the
 //! image: the device records' effect slots point at them, and they are constants.
 //!
-//! The pointers in the data that name these blocks (IDA's addresses: the layouts' pointers
-//! to their tables) keep working through `moved::MOVED`; `input_devices` names the records
-//! by handle (`DEVICE_TAG`, `Devices::device`).
+//! The pointers in the data that name these blocks keep IDA's addresses (the layouts'
+//! pointers to their tables); `input_devices` names the records by handle (`DEVICE_TAG`,
+//! `Devices::device`).
 //!
 //! `ForceFeedback` (IDA 0x518084 .. 0x5180F0): the force-feedback effects' clock, the race
 //! switch, the surfaces' effect kinds and the effects' constants (split from sound's block
@@ -266,7 +266,9 @@ impl Devices {
     }
 }
 
+#[cfg(test)]
 pub const DEVICES_IDA: usize = 0x4F68D8;
+#[cfg(test)]
 pub const DEVICES_LEN: usize = core::mem::size_of::<Devices>();
 
 impl Devices {
@@ -385,7 +387,9 @@ impl Keyboard {
     }
 }
 
+#[cfg(test)]
 pub const KEYBOARD_IDA: usize = 0x4F7FD8;
+#[cfg(test)]
 pub const KEYBOARD_LEN: usize = core::mem::size_of::<Keyboard>();
 
 // ---- the mouse: 0x5C6924 .. 0x5C6948 ----
@@ -425,7 +429,7 @@ impl Mouse {
     }
 }
 
-pub const MOUSE_IDA: usize = 0x5C6924;
+#[cfg(test)]
 pub const MOUSE_LEN: usize = core::mem::size_of::<Mouse>();
 
 /// The force-feedback effects' clock, surface kinds and constants (IDA 0x518084 .. 0x5180f0, the image's layout).
@@ -510,7 +514,7 @@ mod tests {
     fn the_devices_start_as_the_games() {
         // The two records' places and the effects' wanted GUIDs are handles where the game
         // holds addresses: the golden bytes are made handles first.
-        let _g = crate::store::test_lock();
+        let _g = crate::test_support::test_lock();
         let mut image = first_values::bytes(DEVICES_IMAGE).to_vec();
         let devices = offset_of!(Devices, input_devices);
         for r in 0..2 {

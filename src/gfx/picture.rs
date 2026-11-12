@@ -111,7 +111,7 @@ mod tests {
 
     #[test]
     fn a_buffer_is_taken_read_and_given_back() {
-        let _lock = crate::store::test_lock();
+        let _lock = crate::test_support::test_lock();
         let figures = crate::memory::figures();
         let memory = crate::memory::ListCells::empty();
         let list = &memory;
@@ -131,7 +131,7 @@ mod tests {
     #[test]
     fn a_pcx_file_is_decoded_into_the_picture_buffer() {
         let pictures = &gfx().pictures;
-        let _lock = crate::store::test_lock();
+        let _lock = crate::test_support::test_lock();
         let figures = crate::memory::figures();
         let kept = crate::test_support::state::Snapshot::of(&[
             "gfx.owner.GFX.pictures.decoder",
@@ -247,7 +247,7 @@ mod tests {
     #[test]
     fn a_png_file_is_decoded_its_first_row_against_zeros() {
         let pictures = &gfx().pictures;
-        let _lock = crate::store::test_lock();
+        let _lock = crate::test_support::test_lock();
         let figures = crate::memory::figures();
         let kept = crate::test_support::state::Snapshot::of(&[
             "gfx.owner.GFX.pictures.decoder",

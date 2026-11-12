@@ -9,7 +9,7 @@
 //! `install::store`'s.
 //!
 //! `#[repr(C)]` structs of atomic cells with the image's layout, first values the image's
-//! (`tests`); `moved::MOVED` points the image's addresses at them (`home`), for the tables
+//! (`tests`), for the tables
 //! that name variables by address (`settings::read_settings`, `saves::load_options`) and
 //! the pointers in the data.
 //!

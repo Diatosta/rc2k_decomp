@@ -1,7 +1,7 @@
 //! Race-block pieces that left the block together (2026-10-29, phase 13): the census of
 //! accesses by address saw the original reach across them, so each group keeps its
 //! pieces and the bytes between them in the image's layout, one static with the image's
-//! first values. Each piece's store is a field here (`race::store::LEFT` lists the groups).
+//! first values. Each piece's store is a field here.
 //!
 //! - `CARS_AND_REPLAY` (IDA 0x70F3EC .. 0x719FD8): the cars' blocks and the replay's work.
 //!   The replay's state is 0xA04 dwords from car block 8 (0x7172EC), running into the
@@ -197,33 +197,6 @@ impl ViewAndRecords {
     }
 }
 
-/// The panel and the overlay without the two lead bytes: the group's home in `moved::MOVED`.
-pub static PANEL_TAIL: crate::race::store::RecordTail<PanelAndOverlay> =
-    crate::race::store::RecordTail::new(&crate::race::owner::RACE.frame.panel_and_overlay, 2);
-
-/// Where each group is (`moved::MOVED`'s homes).
-#[cfg(test)]
-pub fn cars_and_replay_home() -> usize {
-    crate::pointers::game_address(core::ptr::from_ref(&race().replay.cars_and_replay)) as usize
-}
-#[cfg(test)]
-pub fn viewer_and_kinds_home() -> usize {
-    crate::pointers::game_address(core::ptr::from_ref(&race().replay.viewer_and_kinds)) as usize
-}
-#[cfg(test)]
-pub fn lights_and_gear_home() -> usize {
-    crate::pointers::game_address(core::ptr::from_ref(&race().frame.lights_and_gear)) as usize
-}
-#[cfg(test)]
-pub fn view_and_records_home() -> usize {
-    crate::pointers::game_address(core::ptr::from_ref(&race().frame.view_and_records)) as usize
-}
-#[cfg(test)]
-pub fn panel_and_overlay_home() -> usize {
-    crate::pointers::game_address(core::ptr::from_ref(&race().frame.panel_and_overlay.panel))
-        as usize
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -250,12 +223,13 @@ mod tests {
 
     #[test]
     fn groups_have_their_homes() {
+        let race = race();
         for home in [
-            cars_and_replay_home(),
-            viewer_and_kinds_home(),
-            lights_and_gear_home(),
-            panel_and_overlay_home() + 2,
-            view_and_records_home(),
+            core::ptr::from_ref(&race.replay.cars_and_replay).addr(),
+            core::ptr::from_ref(&race.replay.viewer_and_kinds).addr(),
+            core::ptr::from_ref(&race.frame.lights_and_gear).addr(),
+            core::ptr::from_ref(&race.frame.panel_and_overlay.panel).addr() + 2,
+            core::ptr::from_ref(&race.frame.view_and_records).addr(),
         ] {
             assert_eq!(home % 4, 0);
         }

@@ -1,6 +1,5 @@
-//! The menus, out of RAL.EXE's image: the 98 lists of labels (IDA 0x747AD8 .. 0x74826C) as `#[repr(C)]` cells in the image's layout (`moved::MOVED` points the range at them:
-//! the screens that draw a menu's labels, and the original's slip that writes into them,
-//! walk them by address), and the 96 menus as handles into `rc2k_core::menu::tables::MENUS`,
+//! The menus, out of RAL.EXE's image: the 98 lists of labels (IDA 0x747AD8 .. 0x74826C) as `#[repr(C)]` cells in the image's layout (the screens that
+//! draw a menu's labels, and the original's slip that writes into them, walk them by offset), and the 96 menus as handles into `rc2k_core::menu::tables::MENUS`,
 //! the one source of the menus' items (their places, links, functions and starting values).
 //!
 //! What the game changes in play is kept here, per item (`MenuItem`, 567 of them in one
@@ -23,8 +22,7 @@ use rc2k_core::menu::tables::{MENUS, MenuItem as Fixed};
 pub struct MenuLabel {
     pub x: PlainDword,
     pub y: PlainDword,
-    /// The font (the original kept the object's address; `moved::point_into_homes` passes
-    /// it over).
+    /// The font (the original kept the object's address).
     pub font: FontCell,
     pub string: PlainDword,
 }
@@ -482,8 +480,6 @@ const _: () = assert!(core::mem::size_of::<LabelTables>() == 98 * LABEL_LIST_LEN
 
 /// IDA 0x747AD8, the first byte of the label lists.
 pub const START: usize = 0x747AD8;
-/// The end of the label lists (IDA 0x748280, where the first menu was).
-pub const END: usize = START + 98 * LABEL_LIST_LEN;
 
 /// The byte `offset` bytes on from the labels of `menu`, as an offset in the label lists
 /// (`MenuTables::labels`, whose bytes the readers and writers are bounded to); None for a menu

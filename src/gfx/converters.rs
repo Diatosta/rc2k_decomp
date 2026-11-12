@@ -3,11 +3,6 @@
 
 use crate::session::PlainDword;
 
-/// IDA's address of the block's first byte.
-pub const START: usize = 0x4F51F0;
-/// The block's length.
-pub const LEN: usize = 0x4F52A4 - START;
-
 /// How many masks (qwords) there are.
 pub const MASKS: usize = 19;
 
@@ -57,7 +52,7 @@ mod tests {
     #[test]
     fn first_values_are_the_games() {
         crate::test_support::first_values::assert_block_starts_as_the_games(
-            &crate::gfx::owner::GFX.unchecked().pixel.converters,
+            &crate::gfx::owner::GFX.get().pixel.converters,
         );
     }
 
@@ -65,7 +60,7 @@ mod tests {
     fn moved_knows_the_block() {
         assert_eq!(offset_of!(Converters, table), 0x98);
         assert_eq!(
-            crate::gfx::owner::GFX.unchecked().pixel.converters.mask(1),
+            crate::gfx::owner::GFX.get().pixel.converters.mask(1),
             0x00ff_00ff_00ff_00ff
         );
     }

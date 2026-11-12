@@ -37,17 +37,6 @@ mod run;
 pub use load::*;
 pub use run::*;
 
-/// `bytes` bytes at `p` checked to lie in one region (the program ends otherwise): what a
-/// helper below reads and writes, checked before it starts.
-#[cfg(all(test, target_arch = "x86"))]
-fn span<T>(p: *const T, bytes: usize) {
-    crate::pointers::check_or_end(
-        crate::pointers::game_address(p),
-        bytes,
-        "a math helper's operand",
-    );
-}
-
 /// A float read from game memory (possibly unaligned), as the x87 holds it once loaded.
 #[cfg(all(test, target_arch = "x86"))] // the pointer forms' tests only
 unsafe fn load(p: *const u32, index: usize) -> bh::X {
@@ -177,10 +166,6 @@ pub fn rcpss_times(a: u32, b: u32) -> u32 {
 /// the last two products added first, stored to `out`.
 #[cfg(all(test, target_arch = "x86"))] // checked against the assembly; the helpers work on cells now
 pub fn row_times_column(a: *const u32, b: *const u32, out: *mut u32) {
-    span(a, 12);
-    span(b, 36);
-    span(out, 4);
-
     let p1 = unsafe { load(a, 0) * load(b, 0) };
     let p2 = unsafe { load(a, 1) * load(b, 4) };
     let p3 = unsafe { load(a, 2) * load(b, 8) };
@@ -190,9 +175,6 @@ pub fn row_times_column(a: *const u32, b: *const u32, out: *mut u32) {
 /// `out = a + out`.
 #[cfg(all(test, target_arch = "x86"))] // checked against the assembly; the helpers work on cells now
 pub fn add_into(a: *const u32, out: *mut u32) {
-    span(a, 4);
-    span(out, 4);
-
     let sum = unsafe { load(a, 0) + load(out, 0) };
     unsafe { out.write_unaligned(bh::st(sum)) };
 }
@@ -234,8 +216,6 @@ pub fn negated_product_difference(a: u32, b: u32, c: u32, d: u32) -> u32 {
 /// The length of three floats: `sqrt(v0 v0 + (v1 v1 + v2 v2))`.
 #[cfg(all(test, target_arch = "x86"))] // checked against the assembly; the helpers work on cells now
 pub fn length(v: *const u32) -> u32 {
-    span(v, 12);
-
     let (x, y, z) = unsafe { (load(v, 0), load(v, 1), load(v, 2)) };
     bh::st((x * x + (y * y + z * z)).sqrt())
 }

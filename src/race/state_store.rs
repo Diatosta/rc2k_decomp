@@ -1,8 +1,7 @@
 //! The race's settings and results as the front end keeps them, out of RAL.EXE's image (IDA
 //! 0x75ACCC .. 0x75B340; phase 7, typed): the mode, the stage, the direction, the two
 //! players' settings (`RaceCar`) and the two cars' results (`RaceResult`). `#[repr(C)]`
-//! structs of atomic cells with the image's layout, one static; `moved::MOVED` points the
-//! range at it. Ends in unreferenced bytes up to the damage model.
+//! structs of atomic cells with the image's layout, one static. Ends in unreferenced bytes up to the damage model.
 
 #[cfg(test)]
 use crate::race::owner::race;
@@ -428,9 +427,8 @@ impl RaceState {
 }
 
 /// IDA 0X75ACCC, the first byte of the piece.
+#[cfg(any(test, debug_ui))]
 pub const START: usize = 0x75ACCC;
-/// IDA 0X75B340, the end of the piece.
-pub const END: usize = 0x75B340;
 
 #[cfg(test)]
 mod tests {

@@ -502,7 +502,7 @@ mod lines_work_tests {
 
     #[test]
     fn a_blocks_points_are_named_by_number() {
-        let _lock = crate::store::test_lock();
+        let _lock = crate::test_support::test_lock();
         let paths = &effects().paths;
         let figures = crate::memory::figures();
         let memory = crate::memory::ListCells::empty();

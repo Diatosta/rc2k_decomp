@@ -87,31 +87,6 @@ pub fn cstring(
     cstring_from(at, 0, at.size())
 }
 
-/// The text at `at` up to its NUL (not included), read inside one allocation: a text with
-/// no NUL before its allocation's end is refused.
-#[cfg(test)]
-#[track_caller]
-pub fn cstring_at(
-    at: crate::pointers::GamePtr,
-    what: &str,
-) -> Result<Vec<u8>, crate::errors::BadInput> {
-    use rc2k_core::strings::bytes::Bytes;
-    let bytes = at.bytes(what)?;
-    let mut text = Vec::new();
-    for n in 0.. {
-        match bytes.byte(n) {
-            Some(0) => return Ok(text),
-            Some(b) => text.push(b),
-            None => {
-                return Err(crate::errors::BadInput(
-                    "a text with no end in its allocation",
-                ));
-            }
-        }
-    }
-    unreachable!()
-}
-
 /// A path in the game's bytes (no NUL) as a `PathBuf`: the one place a game path becomes
 /// the system's.
 #[cfg(windows)]
@@ -205,7 +180,7 @@ mod ansi_tests {
     }
 }
 
-/// The file code's variables (their own entry in `moved::MOVED`).
+/// The file code's variables.
 pub mod state {
 
     /// g_lastFilePath (0x4F52B0): the path of the last file opened or searched for, or

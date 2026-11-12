@@ -97,46 +97,23 @@ mod tests {
         assert_eq!(LISTS.iter().filter(|l| !l.referenced).count(), 10);
     }
 
-    /// RAL.EXE's image as the standalone builds it (`data/ral_image.bin`), unmoved (its
-    /// addresses as IDA shows them), indexed by RVA.
-    fn image() -> Vec<u8> {
-        // `RC2K_IMAGE` for a test binary run away from the source tree.
-        let path = std::env::var("RC2K_IMAGE").unwrap_or_else(|_| {
-            concat!(env!("CARGO_MANIFEST_DIR"), "/../data/ral_image.bin").to_string()
+    /// The bytes of RAL.EXE the tables were taken from (`data/menu_tables.bin`, frozen from
+    /// the image: runs of `(IDA address, length, bytes)`, little-endian), by IDA address.
+    fn image() -> std::collections::BTreeMap<u32, Vec<u8>> {
+        // `RC2K_MENU_TABLES` for a test binary run away from the source tree.
+        let path = std::env::var("RC2K_MENU_TABLES").unwrap_or_else(|_| {
+            concat!(env!("CARGO_MANIFEST_DIR"), "/../data/menu_tables.bin").to_string()
         });
-        let d = std::fs::read(path).expect("data/ral_image.bin");
-        let u = |at: usize| u32::from_le_bytes(d[at..at + 4].try_into().unwrap()) as usize;
-        assert_eq!(&d[..8], b"RC2KIMG1");
-        let (size, sections) = (u(8), u(16));
-        let mut image = vec![0u8; size];
-        let mut at = 20;
-        for _ in 0..sections {
-            let (rva, flags) = (u(at), u(at + 8));
-            at += 12;
-            if flags & 4 != 0 {
-                let count = u(at);
-                at += 4;
-                for _ in 0..count {
-                    let (place, n) = (u(at), u(at + 4));
-                    image[place..place + n].copy_from_slice(&d[at + 8..at + 8 + n]);
-                    at += 8 + n;
-                }
-            }
-            if flags & 2 == 0 {
-                continue;
-            }
-            let raw = u(at);
-            at += 4;
-            let mut done = 0;
-            while done < raw {
-                let (zeros, literal) = (u(at), u(at + 4));
-                let to = rva + done + zeros;
-                image[to..to + literal].copy_from_slice(&d[at + 8..at + 8 + literal]);
-                at += 8 + literal;
-                done += zeros + literal;
-            }
+        let d = std::fs::read(path).expect("data/menu_tables.bin");
+        let u = |at: usize| u32::from_le_bytes(d[at..at + 4].try_into().unwrap());
+        let mut runs = std::collections::BTreeMap::new();
+        let mut at = 0;
+        while at < d.len() {
+            let (start, len) = (u(at), u(at + 4) as usize);
+            runs.insert(start, d[at + 8..at + 8 + len].to_vec());
+            at += 8 + len;
         }
-        image
+        runs
     }
 
     /// Every dword of every menu, label, item and list as RAL.EXE has it: the tables are
@@ -145,8 +122,9 @@ mod tests {
     fn tables_are_the_games() {
         let image = image();
         let dword = |at: u32| {
-            let at = (at - 0x40_0000) as usize;
-            u32::from_le_bytes(image[at..at + 4].try_into().unwrap())
+            let (start, run) = image.range(..=at).next_back().expect("a frozen run");
+            let at = (at - start) as usize;
+            u32::from_le_bytes(run[at..at + 4].try_into().unwrap())
         };
         let font = |at: u32| MenuFont::from_ral(dword(at));
         let item_fn = |at: u32| ItemFn::from_ral(dword(at));

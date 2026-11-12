@@ -45,11 +45,6 @@ const INDEX_SIZE: usize = 0xC3C;
 const TOTAL_SIZE: usize = 0xC40;
 const WORK_FLAGS: u32 = 0x1100_0000;
 
-/// IDA's address of the lexicon's memory variables.
-pub const MEMORY_START: usize = 0x519554;
-/// Their length.
-pub const MEMORY_LEN: usize = 0x519598 - MEMORY_START;
-
 /// The lexicon compiler's memory (the glyph builder takes the same work memory).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]

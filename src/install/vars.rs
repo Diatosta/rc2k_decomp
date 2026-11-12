@@ -5,7 +5,7 @@
 //! in their own modules.
 //!
 //! `#[repr(C)]` structs of atomic cells with the image's layout, first values the image's
-//! (`tests`); `moved::MOVED` points the image's addresses at them (`home`): the pages'
+//! (`tests`): the pages'
 //! tables hold pointers into each other and into the installer's texts, as IDA addresses
 //! resolved where they are read. The pages' lists, handler records, edit record and boxes
 //! are typed records (`menu::list_handle`) with the image's bytes; a list is read by place
@@ -691,13 +691,11 @@ mod tests {
     #[test]
     fn page_links_are_the_images_data_pointers() {
         for &p in &PAGE_LINKS {
-            let off = (p as usize - InstallerPages::START) as u32;
+            let off = p as usize - InstallerPages::START;
             let ida = pages_dword(p as usize);
             assert!(ida != 0, "{p:#X}");
             let link = PageLink::from_raw(
-                crate::pointers::GamePtr::to(&crate::install::owner::install().pages)
-                    .offset(off + 7)
-                    .read::<u32>("a page link")
+                crate::cells::load_value::<u32>(&crate::install::owner::install().pages, off + 7)
                     .unwrap(),
             );
             assert_eq!(link, PageLink::of_ida(ida), "{p:#X}");
@@ -742,7 +740,7 @@ mod tests {
     #[test]
     fn installerrun_starts_as_the_games() {
         // `list_folder_tree`'s test writes these (under the lock).
-        let _lock = crate::store::test_lock();
+        let _lock = crate::test_support::test_lock();
         let size = size_of::<InstallerRun>();
         assert!(
             8 + InstallerRun::LEN <= size && size <= (8 + InstallerRun::LEN).next_multiple_of(16)
@@ -752,7 +750,7 @@ mod tests {
     #[test]
     fn installernames_starts_as_the_games() {
         // `list_folder_tree`'s test writes these (under the lock).
-        let _lock = crate::store::test_lock();
+        let _lock = crate::test_support::test_lock();
         let size = size_of::<InstallerNames>();
         assert!(InstallerNames::LEN <= size && size <= (InstallerNames::LEN).next_multiple_of(16));
     }

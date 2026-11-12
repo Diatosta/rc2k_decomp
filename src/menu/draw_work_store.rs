@@ -1,7 +1,7 @@
 //! The drawing code's work variables, out of RAL.EXE's image (IDA 0x7559A4 .. 0x755A4C): the blink, the scratch dwords the screens' routines pass values in (the original kept them
 //! in globals: a button's width, x and y, the sorts' counters, the sliders' ends), the marker's
 //! place, and the item action's value and the Escape flag. A `#[repr(C)]` struct with the image's
-//! layout, one static; `moved::MOVED` points the range at it.
+//! layout, one static.
 
 use crate::session::{PlainBytes, PlainDword, PlainFlag, with_runs};
 
@@ -135,11 +135,6 @@ impl DrawWork {
         }
     }
 }
-
-/// IDA 0x7559A4, the first byte of the piece.
-pub const START: usize = 0x7559A4;
-/// IDA 0x755A4C, the end of the piece.
-pub const END: usize = 0x755A4C;
 
 #[cfg(test)]
 mod tests {

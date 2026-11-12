@@ -505,7 +505,7 @@ mod same_as_old {
 
     #[test]
     fn the_ribbon_blocks_match_the_previous_versions() {
-        let _lock = crate::store::test_lock();
+        let _lock = crate::test_support::test_lock();
         let ring = &effects().ring;
         let view_matrix = &crate::race::owner::race().frame.matrices.view_matrix;
         let clock = &MarksClock::new();

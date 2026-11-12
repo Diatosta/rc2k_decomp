@@ -1,9 +1,7 @@
 //! The graphics settings page's choices (the screen mode chosen and the modes to choose from, and
-//! the switches the page's items copy), out of RAL.EXE's image .
-//! Placed in a file of its own beside the graphics module's stores (converted in parallel). The
-//! options' item tables (`menu::option_items`) name these variables by IDA address, through
-//! `moved::MOVED`. `#[repr(C)]` struct of atomic cells with the image's layout, first values the
-//! image's (`tests`).
+//! the switches the page's items copy), out of RAL.EXE's image.
+//! Placed in a file of its own beside the graphics module's stores. `#[repr(C)]` struct of
+//! atomic cells with the image's layout, first values the image's (`tests`).
 
 use crate::errors::BadInput;
 use crate::session::{PlainBytes, PlainDword};
@@ -117,7 +115,7 @@ mod tests {
     #[test]
     fn screenchoices_starts_as_the_games() {
         crate::test_support::first_values::assert_block_starts_as_the_games(
-            &crate::gfx::owner::GFX.unchecked().display.choices,
+            &crate::gfx::owner::GFX.get().display.choices,
         );
     }
 }

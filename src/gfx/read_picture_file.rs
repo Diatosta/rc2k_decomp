@@ -18,9 +18,6 @@ use crate::gfx::read_png::read_png;
 
 // ---- game data ----
 
-/// IDA's address of the PNG setting.
-pub const PNG_SETTING_START: usize = 0x51B97C;
-
 /// Returns whether a picture was read. Converted: `rc2k_core::gfx::loading::{ending,
 /// reader}`.
 pub fn read_picture_file(
@@ -52,7 +49,7 @@ mod block_tests {
     #[test]
     fn first_value_is_the_games() {
         crate::test_support::first_values::assert_block_starts_as_the_games(
-            &crate::gfx::owner::GFX.unchecked().png.setting,
+            &crate::gfx::owner::GFX.get().png.setting,
         );
     }
 }

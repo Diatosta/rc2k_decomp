@@ -11,7 +11,7 @@
 
 use crate::cells::Plain;
 use crate::errors::BadInput;
-use crate::pointers::PoolBytes;
+use crate::pool::PoolBytes;
 use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex, Weak};
 
@@ -125,7 +125,7 @@ impl Place {
     }
 
     /// `bytes` written `n` bytes on, ending the program on a refusal.
-    pub fn write_bytes_or_end_at(&self, n: u32, bytes: &[u8], what: &str) {
+    pub fn must_write_bytes_at(&self, n: u32, bytes: &[u8], what: &str) {
         let at = self.at.wrapping_add(n);
         if let Err(e) = self
             .check(at, bytes.len(), what)
@@ -136,7 +136,7 @@ impl Place {
     }
 
     /// The `T` `n` bytes on, ending the program on a refusal (a pixel of a copy's loop).
-    pub fn read_or_end_at<T: Plain>(&self, n: u32, what: &str) -> T {
+    pub fn must_read_at<T: Plain>(&self, n: u32, what: &str) -> T {
         let at = self.at.wrapping_add(n);
         self.check(at, size_of::<T>(), what)
             .and_then(|bytes| bytes.read_value(at, what))
@@ -144,7 +144,7 @@ impl Place {
     }
 
     /// `value` written `n` bytes on, ending the program on a refusal.
-    pub fn write_or_end_at<T: Plain>(&self, n: u32, value: T, what: &str) {
+    pub fn must_write_at<T: Plain>(&self, n: u32, value: T, what: &str) {
         let at = self.at.wrapping_add(n);
         if let Err(e) = self
             .check(at, size_of::<T>(), what)
@@ -155,7 +155,7 @@ impl Place {
     }
 
     /// `write`, ending the program on a refusal.
-    pub fn write_or_end<T: Plain>(&self, value: T, what: &str) {
+    pub fn must_write<T: Plain>(&self, value: T, what: &str) {
         if let Err(e) = self.write(value, what) {
             crate::fatal::raise::end(what, e)
         }

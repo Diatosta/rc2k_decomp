@@ -1,12 +1,12 @@
-//! One-off tools of the move off addresses, run while `data/ral_image.bin` and
-//! `moved::MOVED` exist (both go with this file):
+//! Writes `data/first_values.golden` from the stores' bytes as the program starts (the values
+//! the game starts with), run by hand (`tools/m7_tests/freeze.sh`):
+//! `RC2K_FREEZE_FIRST_VALUES=<golden> RC2K_FIRST_VALUES_MANIFEST=<manifest>`.
 //!
-//! - `RC2K_FREEZE_FIRST_VALUES=<golden> RC2K_FIRST_VALUES_MANIFEST=<manifest>`: writes the
-//!   golden file: every registry store's size and hash from the image, and each manifest
-//!   line (`<key> <IDA address> <length>`, hex) as a named read with its bytes.
-//! - `RC2K_NAME_ADDRESSES=<in> RC2K_ADDRESS_NAMES=<out>`: each IDA address of `<in>` (one
-//!   hex number first on each line) named by store key, offset and field path, or `image`
-//!   where no store holds it (`tools/m7_tests/codemod.py` reads the result).
+//! Every registry store gets its size and hash; each manifest line its named read, the bytes
+//! of its pieces one after another (`<key> <store key>@<offset>+<length> ...`, hex). A line
+//! `<key> held` (a store or a read whose bytes no store holds as the game has them: a Rust
+//! item, a handle where the game has an address) keeps what the golden file already holds
+//! under the key.
 
 use super::first_values::{hash, store_keys};
 
@@ -18,12 +18,38 @@ fn hex(n: &str) -> usize {
         .unwrap_or_else(|_| panic!("a hex number: {n}"))
 }
 
-/// The golden key of each registry store, by the host address of its first byte.
-fn keys_by_first() -> std::collections::HashMap<usize, String> {
-    store_keys()
-        .into_iter()
-        .map(|(k, e)| (e.store.first().addr(), k))
-        .collect()
+/// The golden line for `key`: its size, hash and, for a named read short enough, its bytes.
+fn line_of(key: &str, bytes: &[u8], named: bool) -> String {
+    let line = format!("{key} {} {:016x}", bytes.len(), hash(bytes));
+    if !named || bytes.len() > LONGEST_HELD {
+        return line;
+    }
+    let hex: String = bytes.iter().map(|b| format!("{b:02x}")).collect();
+    format!("{line} {hex}")
+}
+
+/// The bytes of a manifest line's pieces (`<store key>@<offset>+<length>`), one after another.
+fn read_pieces(pieces: &[&str]) -> Vec<u8> {
+    let stores = store_keys();
+    let mut bytes = Vec::new();
+    for piece in pieces {
+        let (key, place) = piece
+            .split_once('@')
+            .unwrap_or_else(|| panic!("a piece is `store@offset+length`: {piece}"));
+        let (offset, len) = place
+            .split_once('+')
+            .unwrap_or_else(|| panic!("a piece is `store@offset+length`: {piece}"));
+        let (_, e) = stores
+            .iter()
+            .find(|(k, _)| k == key)
+            .unwrap_or_else(|| panic!("no store {key} in the registry"));
+        let mut part = vec![0; hex(len)];
+        e.store
+            .load(hex(offset), &mut part)
+            .unwrap_or_else(|_| panic!("{piece}: past the store's end"));
+        bytes.extend(part);
+    }
+    bytes
 }
 
 #[test]
@@ -34,43 +60,46 @@ fn freeze_first_values() {
     ) else {
         return;
     };
-    let keys = keys_by_first();
-    let mut lines = Vec::new();
-    for m in crate::moved::MOVED.iter() {
-        let first = m.store().first().addr();
-        let key = keys
-            .get(&first)
-            .expect("every moved range is a registry store");
-        let image = crate::moved::image_bytes(m.ida, m.len);
-        lines.push(format!("{key} {} {:016x}", m.len, hash(&image)));
-    }
+    // The lines frozen before, for the keys held.
+    let before = std::fs::read_to_string(&out).unwrap_or_default();
+    let kept = |key: &str| {
+        before
+            .lines()
+            .find(|l| l.split(' ').next() == Some(key))
+            .unwrap_or_else(|| panic!("{key} is held but the golden file has no line for it"))
+            .to_string()
+    };
     let manifest = std::fs::read_to_string(manifest).expect("the manifest");
+    let mut held = std::collections::HashSet::new();
+    let mut lines = Vec::new();
     for line in manifest.lines() {
-        let line = line.split('#').next().unwrap_or("").trim();
-        if line.is_empty() {
+        // Only whole lines are comments: a repeated store's key holds a `#`.
+        let line = line.trim();
+        if line.is_empty() || line.starts_with('#') {
             continue;
         }
         let w: Vec<&str> = line.split_whitespace().collect();
-        let [key, ida, len] = w[..] else {
-            panic!("a manifest line is `key ida len`: {line}");
-        };
-        let image = crate::moved::image_bytes(hex(ida), hex(len));
-        // A long read is held as size and hash only (`first_values::holds`).
-        let bytes: String = if image.len() > LONGEST_HELD {
-            String::new()
+        match w[..] {
+            [key, "held"] => {
+                held.insert(key.to_string());
+                if !key.starts_with("store:") {
+                    lines.push(kept(key));
+                }
+            }
+            [key, ref pieces @ ..] if !pieces.is_empty() => {
+                lines.push(line_of(key, &read_pieces(pieces), true));
+            }
+            _ => panic!("a manifest line is `key held` or `key piece ...`: {line}"),
+        }
+    }
+    for (key, e) in store_keys() {
+        if held.contains(&key) {
+            lines.push(kept(&key));
         } else {
-            image
-                .iter()
-                .map(|b| format!(" {b:02x}"))
-                .collect::<String>()
-                .replace(' ', "")
-        };
-        let line = format!("{key} {} {:016x}", image.len(), hash(&image));
-        lines.push(if bytes.is_empty() {
-            line
-        } else {
-            format!("{line} {bytes}")
-        });
+            let mut bytes = vec![0; e.len];
+            e.store.load(0, &mut bytes).expect("a store's own bytes");
+            lines.push(line_of(&key, &bytes, false));
+        }
     }
     lines.sort();
     let n = lines.len();
@@ -85,46 +114,4 @@ fn freeze_first_values() {
         text.push('\n');
     }
     std::fs::write(out, text).expect("the golden file");
-}
-
-#[test]
-fn name_addresses() {
-    let (Ok(input), Ok(out)) = (
-        std::env::var("RC2K_NAME_ADDRESSES"),
-        std::env::var("RC2K_ADDRESS_NAMES"),
-    ) else {
-        return;
-    };
-    let keys = keys_by_first();
-    let mut text = String::new();
-    for line in std::fs::read_to_string(input)
-        .expect("the addresses")
-        .lines()
-    {
-        let Some(word) = line.split_whitespace().next() else {
-            continue;
-        };
-        let ida = hex(word);
-        let named = ida
-            .checked_sub(crate::framework::IMAGE_BASE)
-            .and_then(crate::moved::home_of_rva)
-            .and_then(|home| crate::stores::find(crate::pointers::host_at(home).addr()));
-        match named {
-            Some(f) => {
-                let start = f.store.first().addr();
-                let key = keys.get(&start).cloned().unwrap_or_default();
-                text.push_str(&format!(
-                    "{ida:#x} {key} {:#x} {}\n",
-                    f.offset,
-                    if f.field().is_empty() {
-                        "-".into()
-                    } else {
-                        f.field()
-                    }
-                ));
-            }
-            None => text.push_str(&format!("{ida:#x} image\n")),
-        }
-    }
-    std::fs::write(out, text).expect("the names");
 }

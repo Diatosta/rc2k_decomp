@@ -9,11 +9,11 @@ use crate::framework::log;
 use std::sync::atomic::{AtomicU8, AtomicU16, AtomicU32, Ordering::Relaxed};
 
 /// A type made of atomics and cells only (`session::{Dword, Float, Word, Byte, Bytes<N>}`, their
-/// arrays, `#[repr(C)]` records of them), which `GamePtr::record` may hand out shared.
+/// arrays, `#[repr(C)]` records of them), which may be handed out shared.
 ///
 /// # Safety
 /// Every byte of the type is inside an `UnsafeCell` or an atomic, and any bit pattern is a
-/// valid value (`GamePtr::record` and `cells_of_bytes` rely on both). `cell_run` is safe to
+/// valid value (`cells_of_bytes` relies on both). `cell_run` is safe to
 /// get wrong (it hands out references): a wrong run is a wrong read, which the tests of every
 /// store look for (`cells_tests`).
 pub unsafe trait Cells {
@@ -88,9 +88,8 @@ macro_rules! merged {
 }
 
 /// `len` bytes copied from byte `from.1` of one record of cells to byte `to.1` of another
-/// (two different records, forwards as a `rep movsd`): the typed form of
-/// `GamePtr::copy_to`, for two places known by their records, so no store is searched and
-/// no address checked. Runs of like cells at aligned offsets are copied cell by cell (a
+/// (two different records, forwards as a `rep movsd`), for two places known by their
+/// records, so no store is searched. Runs of like cells at aligned offsets are copied cell by cell (a
 /// float by its bits); any other pair of runs through bytes.
 ///
 /// # Panics
@@ -467,50 +466,6 @@ unsafe impl Cells for crate::session::PlainFlag {
     }
 }
 
-// SAFETY: `first` is the record's byte at the window's offset and `size` what is left of it;
-// the data is reached only after the game-thread check.
-unsafe impl<S: Cells> Store for crate::session::OnGameThread<'_, S> {
-    fn size(&self) -> usize {
-        size_of::<S>() - self.offset
-    }
-
-    fn cell_run_at(&self, offset: usize) -> Option<(usize, CellRun<'_>)> {
-        crate::session::assert_game_thread();
-        // A run that begins before the window is taken from the window's first byte, when a
-        // cell begins there.
-        let (start, run) = Cells::cell_run(self.whole, self.offset + offset);
-        match start.checked_sub(self.offset) {
-            Some(start) => Some((start, run)),
-            None => Some((0, run.skip(self.offset - start)?)),
-        }
-    }
-
-    #[cfg(any(test, feature = "write_watch"))]
-    fn field_path_at(&self, offset: usize, path: &mut String) -> Option<&'static str> {
-        Some(Cells::field_path(self.whole, self.offset + offset, path))
-    }
-
-    #[cfg(any(test, feature = "write_watch"))]
-    fn type_name(&self) -> &'static str {
-        std::any::type_name::<S>()
-    }
-
-    fn first(&self) -> *const u8 {
-        std::ptr::from_ref(self.whole)
-            .cast::<u8>()
-            .wrapping_add(self.offset)
-    }
-
-    fn load(&self, offset: usize, to: &mut [u8]) -> Result<(), BadInput> {
-        crate::session::assert_game_thread();
-        load_cells(self.whole, self.offset + offset, to)
-    }
-
-    fn store(&self, offset: usize, from: &[u8]) -> Result<(), BadInput> {
-        crate::session::assert_game_thread();
-        store_cells(self.whole, self.offset + offset, from)
-    }
-}
 // SAFETY: one `AtomicU16`.
 unsafe impl Cells for crate::session::Word {
     fn copy_from(&self, other: &Self) {
@@ -758,12 +713,11 @@ plain_record!(
 );
 
 /// One of the game's stores: a static whose every byte is a cell, read and written by
-/// offset through its own cells (`load_cells`, `store_cells`). What a game address in a moved
-/// range resolves to (`moved::Home`).
+/// offset through its own cells (`load_cells`, `store_cells`).
 ///
 /// # Safety
 /// `first()` is the store's first byte and `size()` bytes behind it are the store's own, laid
-/// out as it says (`GamePtr::record` and `slice` reach them from `first()`).
+/// out as it says (`slice` reaches them from `first()`).
 pub unsafe trait Store {
     /// Its length in bytes.
     fn size(&self) -> usize;

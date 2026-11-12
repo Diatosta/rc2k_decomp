@@ -1,6 +1,6 @@
 //! The main menu's notice flag, the car specification screen's kept car and the cheats, out of
 //! RAL.EXE's image (IDA 0x7585D8 .. 0x758714). A `#[repr(C)]` struct with the image's
-//! layout, one static; `moved::MOVED` points the range at it.
+//! layout, one static.
 
 use crate::session::{PlainBytes, PlainDword, with_runs};
 
@@ -59,11 +59,6 @@ impl Cheats {
         }
     }
 }
-
-/// IDA 0x7585D8, the first byte of the piece.
-pub const START: usize = 0x7585D8;
-/// IDA 0x758714, the end of the piece.
-pub const END: usize = 0x758714;
 
 #[cfg(test)]
 mod tests {

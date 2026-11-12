@@ -1,11 +1,9 @@
 //! The screen mode's choice and the draw surface's description (what `gfx::try_screen_mode` leaves
 //! of the mode chosen, `platform` presents, the race's drawing code writes pixels through), out
-//! of RAL.EXE's image . Placed in a file of its own beside the
-//! graphics module's stores (the graphics module is converted in parallel; its users keep
-//! naming these by IDA address through `moved::MOVED` until they are rewritten).
+//! of RAL.EXE's image. Placed in a file of its own beside the graphics module's stores.
 //!
 //! `#[repr(C)]` structs of atomic cells with the image's layout, first values the image's
-//! (`tests`); `moved::MOVED` points the image's addresses at them (`home`).
+//! (`tests`).
 
 use crate::session::{Bytes, Dword, PlainBytes, PlainDword};
 
@@ -136,7 +134,7 @@ mod tests {
 
     #[test]
     fn screenmode_starts_as_the_games() {
-        let _g = crate::store::test_lock();
+        let _g = crate::test_support::test_lock();
         crate::test_support::first_values::assert_store_starts_as_the_games(
             "store:gfx.owner.GFX.display.mode",
         );
@@ -144,7 +142,7 @@ mod tests {
 
     #[test]
     fn drawsurface_starts_as_the_games() {
-        let _g = crate::store::test_lock();
+        let _g = crate::test_support::test_lock();
         crate::test_support::first_values::assert_store_starts_as_the_games(
             "store:gfx.owner.GFX.drawing.draw_surface",
         );

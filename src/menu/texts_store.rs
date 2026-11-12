@@ -4,7 +4,7 @@
 //! others by their file), the stage maps', car specifications' and slides' paths (which
 //! `menu::lists_store`'s tables name by handle, `text_key`), and two tables of speech samples' names
 //! (`car_speech`, `stage_speech`: handles of `audio::names_store`'s names, `speech_entry`). Nothing writes
-//! the texts. `moved::MOVED` points the range at it.
+//! the texts.
 //!
 //! Every address of the texts is 2 past a multiple of 4: a two-byte lead and `align(4)` keep
 //! each image address's alignment; the keys menu's dword is `Loose`. The speech tables
@@ -2191,6 +2191,7 @@ const SPEECH_PAD: usize = 2;
 /// IDA 0x734866, the first speech table.
 pub const CAR_SPEECH: usize = 0x734866;
 /// Where the first speech table is in `MenuTexts`.
+#[cfg(any(test, feature = "write_watch"))]
 pub const CAR_SPEECH_OFFSET: usize = CAR_SPEECH - START + LEAD + SPEECH_PAD;
 
 /// A speech table's entry: a sample name's handle (`audio::store::name_key`; the

@@ -15,11 +15,6 @@ use crate::memory::free_list::free_list;
 use crate::memory::take_from_list::take_from_list;
 use crate::session::PlainDword;
 
-/// IDA's address of the glyph tables' variables.
-pub const START: usize = 0x51B980;
-/// Their length.
-pub const LEN: usize = 0x51B9C4 - START;
-
 /// The fonts' and the sprites' tables.
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]

@@ -18,18 +18,14 @@ use crate::system::owner::System;
 /// The race record's seal key (the replay header's checksum, `race::seal_replay_header`;
 /// `race::seal_stage_time` turns the first car's time by it). It is what makes a stage time
 /// in the saved results depend on the replay it came from, so a time cannot be edited alone.
-/// Kept apart from the sound dwords around it; `moved::MOVED` names IDA 0x4F66F9 here
-/// (`race::owner_replay::Replay::seal_key`).
+/// Kept apart from the sound dwords around it (IDA 0x4F66F9,
+/// `race::owner_replay::Replay::seal_key`).
 // The index (`crate::race::owner::race().shared.replay_file.index()`) is 0x3850 bytes.
 const _: () = assert!(crate::race::replay_file_store::INDEX_DWORDS * 4 == 0x3850);
 pub const MOST_BLOCKS: u32 = rc2k_core::race::replay::MOST_BLOCKS;
 pub const BLOCK_LEN: u32 = 0x2810;
 pub const HEADER_LEN: u32 = 0x430;
 
-/// IDA's address of the replays' buffers.
-pub const START: usize = 0x528504;
-/// Their length.
-pub const LEN: usize = 0x5295B4 - START;
 /// A replay's name: 0x20 bytes.
 pub const NAME_BYTES: usize = 0x20;
 /// The replays that can be saved.
@@ -592,7 +588,7 @@ mod header_tests {
 
     #[test]
     fn the_typed_copy_makes_the_header_the_old_loop_made() {
-        let _g = crate::store::test_lock();
+        let _g = crate::test_support::test_lock();
         let shared = &race().shared;
         let settings = &shared.state.settings;
         let car = &settings.cars[0];

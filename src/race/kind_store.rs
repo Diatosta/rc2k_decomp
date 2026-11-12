@@ -38,15 +38,16 @@ pub const END: usize = 0x5C5CE0;
 
 const _: () = assert!(END - START == core::mem::size_of::<KindTables>());
 
-/// Where IDA 0x5C5624 is now (its group's static).
+/// The piece's host address (the alignment checks).
 #[cfg(test)]
-pub fn piece_addr() -> u32 {
-    crate::pointers::game_address(core::ptr::from_ref(
+pub fn piece_addr() -> usize {
+    core::ptr::from_ref(
         &crate::race::owner::race()
             .replay
             .viewer_and_kinds
             .kind_tables,
-    ))
+    )
+    .addr()
 }
 
 #[cfg(test)]

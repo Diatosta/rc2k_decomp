@@ -1,7 +1,7 @@
 //! The keyboard pages' tables, out of RAL.EXE's image (IDA 0x755595 .. 0x755640): the
 //! keys the redefine page works on, the copy of a player's controls the controller pages keep, and
 //! the reserved keys. Bytes only, at addresses one past a multiple of four. A `#[repr(C)]` struct with
-//! the image's layout, one static; `moved::MOVED` points the range at it.
+//! the image's layout, one static.
 
 use crate::session::{PlainBytes, with_runs};
 
@@ -51,11 +51,6 @@ impl KeyTables {
         }
     }
 }
-
-/// IDA 0x755595, the first byte of the piece.
-pub const START: usize = 0x755595;
-/// IDA 0x755640, the end of the piece.
-pub const END: usize = 0x755640;
 
 #[cfg(test)]
 mod tests {

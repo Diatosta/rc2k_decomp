@@ -56,7 +56,7 @@ mod tests {
     /// ends or refuses.
     #[test]
     fn a_championship_leaves_the_players_own_settings() {
-        let _g = crate::store::test_lock();
+        let _g = crate::test_support::test_lock();
         let menus = crate::menu::owner::menus();
         let before = keep(menus);
         let change = || {

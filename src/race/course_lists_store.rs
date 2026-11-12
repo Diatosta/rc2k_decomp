@@ -134,8 +134,7 @@ pub struct CourseLists {
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
 // them): any bit pattern is a valid value.
 
-/// The piece: a field of `race::owner::Race::course`, formerly a static of its own since 2026-10-29 (it left the race block, phase 13:
-/// `race::store::LEFT`), with the image's first values.
+/// The piece (a field of `race::owner::Race::course`), with the image's first values.
 impl CourseLists {
     pub const fn new() -> Self {
         crate::cells::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
@@ -149,10 +148,10 @@ pub const END: usize = 0x5C7908;
 
 const _: () = assert!(END - START == core::mem::size_of::<CourseLists>());
 
-/// Where IDA 0x5C694C is now (its own static).
+/// The piece's host address (the alignment checks).
 #[cfg(test)]
-pub fn piece_addr() -> u32 {
-    crate::pointers::game_address(core::ptr::from_ref(&crate::race::owner::RACE.course.lists))
+pub fn piece_addr() -> usize {
+    core::ptr::from_ref(&crate::race::owner::RACE.course.lists).addr()
 }
 
 #[cfg(test)]

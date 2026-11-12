@@ -1,41 +1,10 @@
-#![allow(unsafe_code)]
 use std::fs::OpenOptions;
 use std::io::Write;
 use std::path::PathBuf;
 use std::sync::OnceLock;
-#[cfg(test)]
-use std::sync::atomic::{AtomicUsize, Ordering};
 
-/// Where a test's memory stands for addresses with no home (`game_addr`).
-#[cfg(test)]
-pub static BASE: AtomicUsize = AtomicUsize::new(0);
 /// The program's log (`rc2k.log`), set by `standalone::run`. Nothing is written before that.
 pub static LOG_PATH: OnceLock<PathBuf> = OnceLock::new();
-
-#[cfg(test)]
-pub const IMAGE_BASE: usize = 0x400000;
-
-/// RVA of an address as IDA shows it (the tests).
-#[cfg(test)]
-pub const fn rva(addr: usize) -> usize {
-    addr - IMAGE_BASE
-}
-
-#[cfg(test)]
-/// The address of the game's variable at `rva`: in the image, or for a variable that has
-/// left it (`crate::moved`) its new home, so an address the code still names by its
-/// RVA reaches the variable wherever it lives (owner, 2026-10-24: the resolver).
-pub fn game_addr(rva: usize) -> u32 {
-    match crate::moved::home_of_rva(rva) {
-        Some(home) => home as u32,
-        // No home: the number as IDA shows it, which no allocation holds, so a read of it ends
-        // the program naming it.
-        #[cfg(not(test))]
-        None => (IMAGE_BASE + rva) as u32,
-        #[cfg(test)]
-        None => (BASE.load(Ordering::Relaxed) + rva) as u32,
-    }
-}
 
 pub fn log(msg: &str) {
     if let Some(path) = LOG_PATH.get()

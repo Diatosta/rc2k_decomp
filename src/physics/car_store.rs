@@ -5,7 +5,6 @@
 //! places no ported code names. `#[repr(C)]` with the image's layout, over the race
 //! block's bytes (`CAR`) until the code reaching the car by RVA is typed.
 
-use crate::race::owner::race;
 use crate::session::{Bytes, Dword, Float};
 
 #[repr(C)]
@@ -575,42 +574,7 @@ pub struct Car {
 const _: () = assert!(core::mem::size_of::<Car>() == 0xFE0);
 
 impl Car {
-    /// The car block at `address` (a `g_carBlocks` entry, a view's block, `g_car`); any other
-    /// address ends the program (`trap::car_at`).
-    pub fn at(address: u32) -> &'static Car {
-        crate::race::trap::car_at(address)
-            .unwrap_or_else(|e| crate::fatal::raise::end("physics::Car::at", e))
-    }
-
-    /// The work car (`CAR`) or a car block when `address` is its first byte, found by
-    /// arithmetic on their game addresses (statics: found once); none for any other
-    /// address, which the callers then look up among the regions.
-    pub fn known(address: u32) -> Option<&'static Car> {
-        let shared_store = &crate::race::owner::race().shared;
-
-        static HOME: std::sync::OnceLock<u32> = std::sync::OnceLock::new();
-        let &car = HOME
-            .get_or_init(|| crate::pointers::game_address(core::ptr::from_ref(&shared_store.car)));
-        if address == car {
-            return Some(&shared_store.car);
-        }
-        Self::block_number(address).map(|n| &crate::race::owner::race().car_blocks().cars[n])
-    }
-
-    /// The number of the car block whose first byte is at `address` (none for the work car or
-    /// any other address).
-    pub fn block_number(address: u32) -> Option<usize> {
-        use crate::race::blocks_store::{BLOCK_COUNT, BLOCK_LEN, blocks_addr};
-        static BLOCKS: std::sync::OnceLock<u32> = std::sync::OnceLock::new();
-        let blocks = *BLOCKS.get_or_init(|| blocks_addr(&race().replay));
-        let off = address.wrapping_sub(blocks) as usize;
-        (off.is_multiple_of(BLOCK_LEN) && off / BLOCK_LEN < BLOCK_COUNT).then_some(off / BLOCK_LEN)
-    }
-}
-
-impl Car {
-    /// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
-    /// `race::store::LEFT`), with the image's first values.
+    /// The piece, with the image's first values.
     pub const fn new() -> Self {
         crate::cells::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
     }
@@ -629,29 +593,11 @@ mod tests {
     use core::mem::offset_of;
 
     #[test]
-    fn known_cars_are_the_records_their_addresses_name() {
-        use crate::race::blocks_store::{BLOCK_COUNT, CAR_BLOCKS, block_addr};
-        let work = &crate::race::owner::race().shared.car;
-        let at = crate::pointers::game_address(core::ptr::from_ref(work));
-        assert!(Car::known(at).is_some_and(|car| core::ptr::eq(car, work)));
-        for n in 0..BLOCK_COUNT {
-            let at = block_addr(n);
-            assert!(
-                Car::known(at).is_some_and(|car| core::ptr::eq(car, &raw const CAR_BLOCKS.cars[n])),
-                "block {n}"
-            );
-            assert!(Car::known(at + 4).is_none(), "inside block {n}");
-        }
-        assert!(Car::known(block_addr(BLOCK_COUNT)).is_none());
-        assert!(Car::known(0).is_none());
-    }
-
-    #[test]
     fn car_starts_as_the_games() {
         let shared_store = &crate::race::owner::race().shared;
 
         // other tests write the work car while they run
-        let _lock = crate::store::test_lock();
+        let _lock = crate::test_support::test_lock();
         assert_eq!(offset_of!(Car, crash_matrix), 0xB4);
         assert_eq!(offset_of!(Car, state_bits), 0x6FC);
         assert_eq!(offset_of!(Car, part_wake_counts), 0x700);
@@ -664,12 +610,7 @@ mod tests {
         assert_eq!(offset_of!(Car, skid_slots), 0xF48);
         assert_eq!(offset_of!(Car, gear), 0x1D4);
         assert_eq!(offset_of!(Car, probe_point_face), 0xDF0);
-        let car_addr = || crate::pointers::game_address(core::ptr::from_ref(&shared_store.car));
-        assert_eq!(car_addr() % 4, 0);
-        assert_eq!(
-            crate::pointers::game_address(&raw const shared_store.car.gear),
-            car_addr() + 0x1D4
-        );
+        assert_eq!(core::ptr::from_ref(&shared_store.car).addr() % 4, 0);
         drop(_lock);
         crate::test_support::first_values::assert_block_starts_as_the_games(&shared_store.car);
     }

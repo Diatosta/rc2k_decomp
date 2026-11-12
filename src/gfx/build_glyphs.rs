@@ -46,11 +46,6 @@ use crate::session::PlainDword;
 
 // ---- game data ----
 
-/// IDA's address of the sheet builder's variables.
-pub const START: usize = 0x519598;
-/// Their length.
-pub const LEN: usize = 0x5195D4 - START;
-
 /// The sheet and table being built.
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
@@ -458,7 +453,7 @@ mod block_tests {
     #[test]
     fn first_values_are_the_games() {
         crate::test_support::first_values::assert_block_starts_as_the_games(
-            &crate::gfx::owner::GFX.unchecked().sheet,
+            &crate::gfx::owner::GFX.get().sheet,
         );
     }
 

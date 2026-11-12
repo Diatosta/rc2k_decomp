@@ -379,7 +379,7 @@ fn run_recorded<R: std::fmt::Debug>(
             .any(|op| matches!(op, Op::RaceBlock { .. })),
         "a recorded block reads only its test buffers"
     );
-    let _guard = crate::store::test_lock();
+    let _guard = crate::test_support::test_lock();
     let mut rng = Rng(0x9E37_79B9_7F4A_7C15);
     let mut failures = 0;
     for cw in [0x027F, 0x0E7F] {
@@ -411,7 +411,7 @@ fn run_recorded<R: std::fmt::Debug>(
             for v in &values {
                 file.input(&(*v as u64).to_le_bytes());
             }
-            // The operands' values: each buffer by game address, less its first offset.
+            // The operands' values: each buffer by host address, less its first offset.
             let run = |bufs: &mut [Buf]| -> Vec<Operand> {
                 spec.operands
                     .iter()
@@ -553,7 +553,7 @@ fn run_writes<R: std::fmt::Debug>(
     spec: &Spec,
     plain: &dyn Fn(&[Operand]) -> R,
 ) {
-    let _guard = crate::store::test_lock();
+    let _guard = crate::test_support::test_lock();
     let mut rng = Rng(0x9E37_79B9_7F4A_7C15);
     let mut failures = 0;
     // The race block places any operand lists: put back when the test ends.

@@ -145,7 +145,9 @@ impl FontStores {
 pub struct Drawing {
     pub blit: Blitter,
     pub bar: BarVars,
-    pub draw_surface: DrawSurface,
+    /// The surface the screen is drawn on: a static of its own (`DRAW_SURFACE`), as the drawing
+    /// threads read it.
+    pub draw_surface: &'static DrawSurface,
     pub surfaces: Surfaces,
     /// `dword_4F3FC4`: each row of a picture (602 of them), zero at the start: its offset in
     /// the decoded buffer now (the original's addresses).
@@ -159,7 +161,7 @@ impl Drawing {
         Drawing {
             blit: Blitter::new(),
             bar: BarVars::new(),
-            draw_surface: DrawSurface::new(),
+            draw_surface: &DRAW_SURFACE,
             surfaces: Surfaces::new(),
             row_table: [const { PlainDword::new(0) }; ROW_TABLE_ROOM as usize],
             thirds: PlainBytes::new([0; TABLE_LEN]),
@@ -171,7 +173,9 @@ impl Drawing {
 /// drops' batch.
 pub struct Card3d {
     pub upload: Upload,
-    pub texture_tables: Textures,
+    /// The card's tables: a static of their own (`TEXTURE_TABLES`), as the drawing threads read
+    /// them.
+    pub texture_tables: &'static Textures,
     pub windscreen_drop_batch: WindscreenDrops,
 }
 
@@ -179,7 +183,7 @@ impl Card3d {
     pub const fn new() -> Self {
         Card3d {
             upload: Upload::new(),
-            texture_tables: Textures::new(),
+            texture_tables: &TEXTURE_TABLES,
             windscreen_drop_batch: WindscreenDrops::new(),
         }
     }
@@ -233,14 +237,20 @@ pub fn gfx() -> &'static Gfx {
     GFX.get()
 }
 
-/// The surface the screen is drawn on, from any thread: its cells are atomic (the drawing
-/// threads read where the screen is while the game's thread waits).
+/// The surface the screen is drawn on: atomic cells, which the drawing threads read where the
+/// screen is while the game's thread waits.
+pub static DRAW_SURFACE: DrawSurface = DrawSurface::new();
+
+/// The 3D card's texture tables: atomic cells, which the drawing threads read while the game's
+/// thread waits.
+pub static TEXTURE_TABLES: Textures = Textures::new();
+
+/// The surface the screen is drawn on, from any thread.
 pub fn draw_surface() -> &'static DrawSurface {
-    &GFX.unchecked().drawing.draw_surface
+    &DRAW_SURFACE
 }
 
-/// The 3D card's texture tables, from any thread: they are atomic cells, which the drawing
-/// threads read while the game's thread waits.
+/// The 3D card's texture tables, from any thread.
 pub fn textures() -> &'static Textures {
-    &GFX.unchecked().card.texture_tables
+    &TEXTURE_TABLES
 }

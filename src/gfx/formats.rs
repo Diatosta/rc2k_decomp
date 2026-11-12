@@ -4,11 +4,6 @@
 
 use crate::session::{PlainBytes, PlainDword};
 
-/// IDA's address of the block's first byte.
-pub const START: usize = 0x4F3F78;
-/// The block's length.
-pub const LEN: usize = 0x4F3FC4 - START;
-
 /// A pixel layout's number and its masks' summary (`describe_format` picks the number of
 /// the layout whose bits the masks match).
 #[repr(C)]
@@ -67,7 +62,7 @@ mod tests {
     #[test]
     fn first_values_are_the_games() {
         crate::test_support::first_values::assert_block_starts_as_the_games(
-            &crate::gfx::owner::GFX.unchecked().pixel.formats,
+            &crate::gfx::owner::GFX.get().pixel.formats,
         );
     }
 

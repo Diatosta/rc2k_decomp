@@ -277,16 +277,16 @@ struct GameSurfaces<'a> {
 
 impl rc2k_core::race::view_steps::Surfaces for GameSurfaces<'_> {
     fn read16(&mut self, at: u32) -> u16 {
-        self.from.read_or_end_at(at, "a surface's pixel")
+        self.from.must_read_at(at, "a surface's pixel")
     }
     fn read32(&mut self, at: u32) -> u32 {
-        self.from.read_or_end_at(at, "a surface's pixel")
+        self.from.must_read_at(at, "a surface's pixel")
     }
     fn write16(&mut self, at: u32, v: u16) {
-        self.to.write_or_end_at(at, v, "a surface's pixel");
+        self.to.must_write_at(at, v, "a surface's pixel");
     }
     fn write32(&mut self, at: u32, v: u32) {
-        self.to.write_or_end_at(at, v, "a surface's pixel");
+        self.to.must_write_at(at, v, "a surface's pixel");
     }
     fn components(&mut self, pixel: u32) -> u32 {
         crate::gfx::pixel_to_components::pixel_to_components(self.screen, pixel)

@@ -638,7 +638,7 @@ mod tests {
 
     #[test]
     fn a_session_is_hosted_found_joined_and_talked_to() {
-        let _lock = crate::store::test_lock();
+        let _lock = crate::test_support::test_lock();
         let port = 47_700 + (std::process::id() % 200) as u16;
         let host = play_object(port);
         assert_eq!(open(host, &desc([0; 16]), DPOPEN_CREATE), DP_OK);

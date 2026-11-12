@@ -2,7 +2,7 @@
 //! the switches and settings the options pages change, the sound options and volumes, the menu sound
 //! and the key being redefined. The first 0x2C and the next 0x18 bytes are the options file's
 //! (`saves::load_options`). A `#[repr(C)]` struct with the image's layout, one static;
-//! `moved::MOVED` points the range at it.
+//!
 
 use crate::session::{PlainBytes, PlainDword, PlainFlag};
 
@@ -117,11 +117,6 @@ impl OptionWork {
         }
     }
 }
-
-/// IDA 0x755640, the first byte of the piece.
-pub const START: usize = 0x755640;
-/// IDA 0x7556B4, the end of the piece.
-pub const END: usize = 0x7556B4;
 
 impl OptionWork {
     /// Stores the six values of the sound page, in memory order: the audio quality, DS3D, EAX, A3D,

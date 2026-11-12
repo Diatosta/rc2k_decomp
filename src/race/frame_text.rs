@@ -56,10 +56,6 @@ fn credit_line(
     Ok(())
 }
 
-/// IDA's address of the credits' variables.
-pub const CREDITS_START: usize = 0x52984C;
-/// Their length.
-pub const CREDITS_LEN: usize = 0x529D94 - CREDITS_START;
 /// The script's words.
 pub const SCRIPT_WORDS: usize = 670;
 

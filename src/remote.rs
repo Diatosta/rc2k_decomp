@@ -449,9 +449,10 @@ pub fn shots_loading(race: &Race, effects: &crate::effects::owner::Effects) {
     if !shots_on() {
         return;
     }
-    let panel = race.viewer_panel();
-    panel.pictures_started.set_bits(1u32);
-    panel.picture_clock.set(0x10000);
+    crate::system::tick_count::PICTURE_CLOCK
+        .started
+        .set_bits(1u32);
+    crate::system::tick_count::PICTURE_CLOCK.clock.set(0x10000);
     reseed(effects);
     // The scene's clock as the menus left it (their time on screen) is the snow's first
     // step's start: the held clock's from here.
@@ -519,10 +520,15 @@ pub fn shot_frame_drawn(race: &Race) {
         return;
     }
     let panel = race.viewer_panel();
-    if panel.pictures_started.bits() == 1 && panel.replay_recording.bits() != 1 {
-        panel
-            .picture_clock
-            .set(panel.picture_clock.bits().wrapping_add(10));
+    if crate::system::tick_count::PICTURE_CLOCK.started.bits() == 1
+        && panel.replay_recording.bits() != 1
+    {
+        crate::system::tick_count::PICTURE_CLOCK.clock.set(
+            crate::system::tick_count::PICTURE_CLOCK
+                .clock
+                .bits()
+                .wrapping_add(10),
+        );
     }
 }
 

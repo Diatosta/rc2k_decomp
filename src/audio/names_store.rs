@@ -5,7 +5,7 @@
 //! the original kept the names' addresses); the co-driver's speech lists are two runs of 95 names.
 //!
 //! `#[repr(C)]` struct of byte buffers with the image's layout, first values the image's
-//! (`tests`); `moved::MOVED` points the image's addresses at it (`home`).
+//! (`tests`).
 
 use crate::session::{Bytes, with_runs};
 

@@ -69,10 +69,10 @@ pub fn rescale_to_surface(
                 }
                 let pixel = components_to_pixel(&format, rescaler.components.get_u32(0), gfx);
                 if words {
-                    out.write_or_end(pixel as u16, "the surface");
+                    out.must_write(pixel as u16, "the surface");
                     out.advance(2);
                 } else {
-                    out.write_or_end(pixel, "the surface");
+                    out.must_write(pixel, "the surface");
                     out.advance(4);
                 }
                 column += 1;

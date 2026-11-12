@@ -4,7 +4,7 @@ pub mod raise;
 pub mod report;
 pub mod show_report_at_exit;
 
-/// The reporter's variables (their own entry in `moved::MOVED`).
+/// The reporter's variables.
 pub mod state {
     use crate::session::{Byte, Bytes, Dword};
 
@@ -57,7 +57,7 @@ mod tests {
 
     #[test]
     fn state_starts_as_the_games() {
-        let _lock = crate::store::test_lock();
+        let _lock = crate::test_support::test_lock();
         for name in [
             "CODE", "W32", "REPORTED", "EXTRA", "TEMPLATE", "TEXT", "CAPTION",
         ] {

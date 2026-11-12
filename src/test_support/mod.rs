@@ -9,3 +9,11 @@ pub mod race_places;
 pub mod race_vectors;
 pub mod state;
 pub mod vectors;
+
+/// The lock every test holds that writes the game's statics (and restores them), or reads
+/// their first values: tests run in parallel threads.
+pub fn test_lock() -> std::sync::MutexGuard<'static, ()> {
+    static LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+    LOCK.lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+}

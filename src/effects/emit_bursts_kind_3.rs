@@ -51,14 +51,6 @@ impl BurstTuning {
     }
 }
 
-/// Marker for `moved::MOVED`: SECOND_TUNING's place in the image.
-pub struct BurstKind3Tuning;
-
-impl BurstKind3Tuning {
-    pub const START: usize = 0x93A3F6;
-    pub const LEN: usize = BurstTuning::LEN;
-}
-
 #[cfg(test)]
 mod second_tuning_tests {
     use super::*;

@@ -45,12 +45,6 @@ impl Dword {
         &self.0
     }
 
-    /// Its place, for the tests that are handed an address.
-    #[cfg(test)]
-    pub fn addr(&self) -> u32 {
-        crate::pointers::game_address(self.0.as_ptr())
-    }
-
     /// The cell's 32 bits (as `Float::bits`).
     pub fn bits(&self) -> u32 {
         self.get()
@@ -133,7 +127,7 @@ impl Float {
         self.0.store(value.to_bits(), Relaxed);
     }
 
-    /// The atomic holding its bits (the cells' copies, `pointers::CellRef`).
+    /// The atomic holding its bits (the cells' copies, `cells::CellRef`).
     pub fn atomic(&self) -> &AtomicU32 {
         &self.0
     }
@@ -148,12 +142,6 @@ impl Float {
     pub fn set_bits(&self, bits: u32) {
         crate::write_watch::wrote(self.0.as_ptr().cast::<u8>(), 4);
         self.0.store(bits, Relaxed);
-    }
-
-    /// Its place (the tests).
-    #[cfg(test)]
-    pub fn addr(&self) -> u32 {
-        crate::pointers::game_address(self.0.as_ptr())
     }
 }
 
@@ -322,7 +310,7 @@ impl Word {
         self.0.store(value, Relaxed);
     }
 
-    /// The atomic itself (the cells' copies, `pointers::CellRef`).
+    /// The atomic itself (the cells' copies, `cells::CellRef`).
     pub fn atomic(&self) -> &AtomicU16 {
         &self.0
     }
@@ -369,14 +357,9 @@ impl<const N: usize> Bytes<N> {
         self.0.as_ptr().cast::<u8>().cast_mut()
     }
 
-    /// Its atomics (the cells' copies, `pointers::CellRef`).
+    /// Its atomics (the cells' copies, `cells::CellRef`).
     pub fn atomics(&self) -> &[AtomicU8] {
         &self.0
-    }
-
-    #[cfg(test)]
-    pub fn addr(&self) -> u32 {
-        crate::pointers::game_address(self.as_ptr())
     }
 
     pub fn get(&self, index: usize) -> u8 {
@@ -484,7 +467,7 @@ impl Loose {
         }
     }
 
-    /// Its atomics (the cells' copies, `pointers::CellRef`).
+    /// Its atomics (the cells' copies, `cells::CellRef`).
     pub fn atomics(&self) -> &[AtomicU8] {
         &self.0
     }
@@ -564,11 +547,6 @@ impl PlainDword {
         self.0.as_ptr()
     }
 
-    #[cfg(test)]
-    pub fn addr(&self) -> u32 {
-        crate::pointers::game_address(self.as_ptr())
-    }
-
     /// The cell's 32 bits (as `PlainFloat::bits`).
     pub fn bits(&self) -> u32 {
         self.0.get()
@@ -579,7 +557,7 @@ impl PlainDword {
         self.0.set(bits);
     }
 
-    /// The cell itself (`pointers`' copies of a run).
+    /// The cell itself (the cells' copies of a run).
     pub(crate) fn cell(&self) -> &Cell<u32> {
         &self.0
     }
@@ -619,13 +597,7 @@ impl PlainFloat {
         self.0.set(bits);
     }
 
-    /// Its place (the tests).
-    #[cfg(test)]
-    pub fn addr(&self) -> u32 {
-        crate::pointers::game_address(self.0.as_ptr())
-    }
-
-    /// The cell itself (`pointers`' copies of a run).
+    /// The cell itself (the cells' copies of a run).
     pub(crate) fn cell(&self) -> &Cell<u32> {
         &self.0
     }
@@ -649,7 +621,7 @@ impl PlainFlag {
         self.0.set(value as u32);
     }
 
-    /// The cell itself (`pointers`' copies of a run).
+    /// The cell itself (the cells' copies of a run).
     pub(crate) fn cell(&self) -> &Cell<u32> {
         &self.0
     }
@@ -690,7 +662,7 @@ impl PlainWord {
         self.0.set(value);
     }
 
-    /// The cell itself (`pointers`' copies of a run).
+    /// The cell itself (the cells' copies of a run).
     pub(crate) fn cell(&self) -> &Cell<u16> {
         &self.0
     }
@@ -713,7 +685,7 @@ impl PlainByte {
         self.0.set(value);
     }
 
-    /// The cell itself (`pointers`' copies of a run).
+    /// The cell itself (the cells' copies of a run).
     pub(crate) fn cell(&self) -> &Cell<u8> {
         &self.0
     }
@@ -733,7 +705,7 @@ impl<const N: usize> PlainBytes<N> {
         self.0.as_ptr().cast::<u8>().cast_mut()
     }
 
-    /// Its cells (the cells' copies, `pointers::CellRef`).
+    /// Its cells (the cells' copies, `cells::CellRef`).
     pub(crate) fn cells(&self) -> &[Cell<u8>] {
         &self.0
     }
@@ -833,7 +805,7 @@ impl PlainLoose {
         }
     }
 
-    /// Its cells (the cells' copies, `pointers::CellRef`).
+    /// Its cells (the cells' copies, `cells::CellRef`).
     pub(crate) fn cells(&self) -> &[Cell<u8>] {
         &self.0
     }
@@ -954,34 +926,16 @@ impl<T> GameThread<T> {
         &self.0
     }
 
-    /// The state without the thread check, for the tables that name a part of it by place
-    /// (`moved::MOVED`, through `OnGameThread`, which checks at each access).
-    pub(crate) const fn unchecked(&self) -> &T {
+    /// The state from a thread other than the game's, for the two readers the original had
+    /// there: the audio thread's file calls read the install texts' second base directory
+    /// (`files::resolve_path`: atomic bytes, written only by the installer on the game's
+    /// thread), and the network's receiving thread measures a chat line with the
+    /// graphics owner's fonts (`net::add_chat_line`: read only, as the original's thread
+    /// read them). Nothing else may use it: no other thread reaches a `GameThread`.
+    pub(crate) fn on_any_thread(&self) -> &T {
         &self.0
     }
 }
-
-/// A part of a `GameThread` state registered as a store of cells: each access checks the
-/// thread (debug builds), as `GameThread::get`.
-pub struct OnGameThread<'a, S> {
-    pub(crate) whole: &'a S,
-    pub(crate) offset: usize,
-}
-
-impl<'a, S> OnGameThread<'a, S> {
-    /// The whole record.
-    pub const fn new(whole: &'a S) -> Self {
-        Self { whole, offset: 0 }
-    }
-
-    /// The record from its byte `offset` on (a moved range that starts inside a record).
-    pub const fn tail(whole: &'a S, offset: usize) -> Self {
-        Self { whole, offset }
-    }
-}
-
-// SAFETY: as `GameThread`: every access goes through the check.
-unsafe impl<S> Sync for OnGameThread<'_, S> {}
 
 /// A record the game keeps as a plain struct (a voice, a mixer channel, a stream player, a
 /// list of memory blocks, a caps record): copied out and in whole, or borrowed for the
@@ -1007,7 +961,7 @@ impl<T: Copy> Shared<T> {
     pub fn get(&self) -> T {
         let mut value = std::mem::MaybeUninit::<T>::uninit();
         // SAFETY: the record's own bytes, reached only at the widths `WORDS` picks (here and
-        // in its cells, `pointers`); every byte of `value` is written before it is taken.
+        // in its cells, `cells`); every byte of `value` is written before it is taken.
         unsafe {
             let to =
                 std::slice::from_raw_parts_mut(value.as_mut_ptr().cast::<u8>(), size_of::<T>());
@@ -1073,10 +1027,6 @@ impl<T> Shared<T> {
     pub fn as_ptr(&self) -> *mut T {
         self.0.get()
     }
-
-    pub fn addr(&self) -> u32 {
-        crate::pointers::game_address(self.as_ptr())
-    }
 }
 
 const fn zeros<const N: usize>() -> [Dword; N] {
@@ -1114,7 +1064,7 @@ impl Screen {
     }
 }
 
-pub const SCREEN_IDA: usize = 0x4F494C;
+#[cfg(test)]
 pub const SCREEN_LEN: usize = core::mem::size_of::<Screen>();
 
 /// The window's state and the main loop's: 0x518370 .. 0x51839C.
@@ -1151,7 +1101,9 @@ impl WindowLoopState {
     }
 }
 
+#[cfg(debug_ui)]
 pub const FLAGS_IDA: usize = 0x518370;
+#[cfg(test)]
 pub const FLAGS_LEN: usize = core::mem::size_of::<WindowLoopState>();
 
 /// What the machine is and has, and the window handles: 0x5183A8 .. 0x5184A8.
@@ -1219,7 +1171,7 @@ impl Machine {
     }
 }
 
-pub const MACHINE_IDA: usize = 0x5183A8;
+#[cfg(test)]
 pub const MACHINE_LEN: usize = core::mem::size_of::<Machine>();
 
 /// The key thread's count and the clocks the menus keep: 0x518998 .. 0x5189A4.
@@ -1241,7 +1193,7 @@ impl Clocks {
     }
 }
 
-pub const CLOCKS_IDA: usize = 0x518998;
+#[cfg(test)]
 pub const CLOCKS_LEN: usize = core::mem::size_of::<Clocks>();
 
 /// `N` bytes holding `runs` ((offset, bytes)) and zeros elsewhere.
@@ -1261,8 +1213,7 @@ pub const fn with_runs<const N: usize>(runs: &[(usize, &[u8])]) -> [u8; N] {
 }
 
 /// A text the game keeps in place and may write into (a path whose ending the picture
-/// loader swaps): a typed buffer (`Bytes<N>`), or one known only by its game address
-/// (`GamePtr`, checked as game memory).
+/// loader swaps): a typed buffer (`Bytes<N>`) or a place in one.
 pub trait TextPlace {
     /// The bytes up to the NUL; refused when none comes before the place's end.
     fn text(&self, what: &str) -> Result<Vec<u8>, crate::errors::BadInput>;
@@ -1441,81 +1392,6 @@ impl<B: ByteBuffer> TextPlace for TextFrom<'_, B> {
     ) -> Result<(), crate::errors::BadInput> {
         self.buffer
             .write_bytes_at(self.from.saturating_add(at), bytes, what)
-    }
-}
-
-#[cfg(test)]
-impl TextPlace for crate::pointers::GamePtr {
-    fn text(&self, what: &str) -> Result<Vec<u8>, crate::errors::BadInput> {
-        crate::files::cstring_at(*self, what)
-    }
-
-    fn write_text_at(
-        &self,
-        at: usize,
-        bytes: &[u8],
-        what: &str,
-    ) -> Result<(), crate::errors::BadInput> {
-        self.offset(at as u32).write_bytes(bytes, what)
-    }
-}
-
-/// A stretch of a record of atomic cells, registered as a moved range (a record whose other
-/// stretches are another store's).
-pub struct Window<'a, S> {
-    whole: &'a S,
-    offset: usize,
-    len: usize,
-}
-
-impl<'a, S> Window<'a, S> {
-    /// The `len` bytes of the record from byte `offset`.
-    pub const fn new(whole: &'a S, offset: usize, len: usize) -> Self {
-        Self { whole, offset, len }
-    }
-}
-
-// SAFETY: as `OnGameThread`'s, without the thread check: `first` is the record's byte at the
-// window's offset and `size` the window's length.
-unsafe impl<S: crate::cells::Cells> crate::cells::Store for Window<'_, S> {
-    fn size(&self) -> usize {
-        self.len
-    }
-
-    fn cell_run_at(&self, offset: usize) -> Option<(usize, crate::cells::CellRun<'_>)> {
-        let (start, run) = crate::cells::Cells::cell_run(self.whole, self.offset + offset);
-        match start.checked_sub(self.offset) {
-            Some(start) => Some((start, run)),
-            None => Some((0, run.skip(self.offset - start)?)),
-        }
-    }
-
-    #[cfg(any(test, feature = "write_watch"))]
-    fn field_path_at(&self, offset: usize, path: &mut String) -> Option<&'static str> {
-        Some(crate::cells::Cells::field_path(
-            self.whole,
-            self.offset + offset,
-            path,
-        ))
-    }
-
-    #[cfg(any(test, feature = "write_watch"))]
-    fn type_name(&self) -> &'static str {
-        std::any::type_name::<S>()
-    }
-
-    fn first(&self) -> *const u8 {
-        std::ptr::from_ref(self.whole)
-            .cast::<u8>()
-            .wrapping_add(self.offset)
-    }
-
-    fn load(&self, offset: usize, to: &mut [u8]) -> Result<(), crate::errors::BadInput> {
-        crate::cells::load_cells(self.whole, self.offset + offset, to)
-    }
-
-    fn store(&self, offset: usize, from: &[u8]) -> Result<(), crate::errors::BadInput> {
-        crate::cells::store_cells(self.whole, self.offset + offset, from)
     }
 }
 

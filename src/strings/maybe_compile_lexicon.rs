@@ -12,7 +12,7 @@ use crate::errors::Refused;
 use crate::strings::compile_lexicon::compile_lexicon;
 
 /// 1 or more (signed) to recompile on the key: a `var\\ral.cfg` setting
-/// (`dword_4E0758` in IDA, 0 unless set; set through `crate::moved::place`).
+/// (`dword_4E0758` in IDA, 0 unless set).
 pub static RECOMPILE_LEVEL: crate::session::Dword = crate::session::Dword::new(0);
 
 pub fn maybe_compile_lexicon(

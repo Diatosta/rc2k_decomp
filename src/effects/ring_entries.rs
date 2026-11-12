@@ -258,7 +258,7 @@ mod tests {
 
     #[test]
     fn the_ring_is_linked_and_read_by_number() {
-        let _lock = crate::store::test_lock();
+        let _lock = crate::test_support::test_lock();
         let figures = crate::memory::figures();
         let memory = crate::memory::ListCells::empty();
         let ring = &effects().ring;

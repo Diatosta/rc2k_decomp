@@ -7,8 +7,7 @@
 //! (`face_number`, `face_field`, `record_field`, ..; a field past its entry reads on into
 //! the next, as the original's arithmetic did) and the course info by offset
 //! (`info_bytes`, `info_field`). `COURSE.course_faces` and `COURSE.course_records` hold the
-//! tables' bases, handles (`PLACES_TAG`): nothing reads through them, and a reader
-//! that still took one for an address is ended by `pointers::host` with the number named.
+//! tables' bases, handles (`PLACES_TAG`): nothing reads through them.
 
 use crate::errors::BadInput;
 use crate::race::owner_course::Course;
@@ -17,8 +16,6 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 /// Each part's room: the course memory's first part (`level_init::FIRST_PART`) holds both.
 const ROOM: u32 = 0x100_0000;
-/// Faces, records, scene points, course info.
-const PARTS: u32 = 4;
 
 /// The handle of face 0 (`COURSE.course_faces` while held); the records' come `ROOM` on, the
 /// scene points' `2 ROOM` on (`race::scene_points`), the course info's `3 ROOM` on. A number
@@ -163,12 +160,6 @@ pub fn with_faces_and_points<R>(
     Ok(f(&|at| dword(&FACES, at), &|at| {
         dword(&crate::race::scene_points::POINTS, at)
     }))
-}
-
-/// Whether `at` is one of the course's places (faces, records, scene points).
-#[inline]
-pub fn is_place(at: u32) -> bool {
-    at.wrapping_sub(PLACES_TAG) < PARTS * ROOM
 }
 
 /// What the by-number readers and writers take: values of any bits, at most 64 bytes.

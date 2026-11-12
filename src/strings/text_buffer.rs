@@ -1,6 +1,5 @@
 //! The strings' text buffer (`strings::text_from_ids` and the screens that build a line
-//! there), out of RAL.EXE's image, typed. `#[repr(C)]` struct of a byte
-//! buffer; `moved::MOVED` points the image's address at it.
+//! there), out of RAL.EXE's image, typed. `#[repr(C)]` struct of a byte buffer.
 
 use crate::session::{Bytes, PlainBytes};
 

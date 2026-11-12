@@ -698,7 +698,7 @@ mod tests {
     /// routine calls, in the same order, and return the same result.
     #[test]
     fn new_copies_match_the_machine() {
-        let _lock = crate::store::test_lock();
+        let _lock = crate::test_support::test_lock();
         let race = race();
         let mut rng = Rng(0x9E37_79B9_7F4A_7C15);
         let scale = &race.course.numbers.brake_scale;

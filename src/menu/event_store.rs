@@ -1,7 +1,7 @@
 //! The event's state, out of RAL.EXE's image (IDA 0x7558C4 .. 0x7559A4): the stage
 //! chosen, the classes, the times and flags of the event's players, the service, the event's
 //! type, kind and sections, the current player and the car shown. A `#[repr(C)]` struct with the
-//! image's layout, one static; `moved::MOVED` points the range at it.
+//! image's layout, one static.
 
 use crate::session::{PlainBytes, PlainDword, PlainFlag, with_runs};
 
@@ -183,11 +183,6 @@ impl Event {
         }
     }
 }
-
-/// IDA 0x7558C4, the first byte of the piece.
-pub const START: usize = 0x7558C4;
-/// IDA 0x7559A4, the end of the piece.
-pub const END: usize = 0x7559A4;
 
 #[cfg(test)]
 mod tests {

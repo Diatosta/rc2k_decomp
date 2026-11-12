@@ -20,11 +20,6 @@ use crate::session::{Bytes, Loose};
 const MAGIC: u32 = 0x4D53_5153; // "SQSM"
 const VERSION: u32 = 0x5_0000;
 
-/// IDA's address of the map's variables.
-pub const START: usize = 0x5BE90D;
-/// Their length.
-pub const LEN: usize = 0x5BE9BD - START;
-
 /// The in-race map's variables. The dwords are at addresses that are not multiples of 4
 /// (`Loose`), as are the lists (16 bytes each, a `MemoryList`).
 #[repr(C)]

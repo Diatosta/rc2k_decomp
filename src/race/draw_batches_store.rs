@@ -37,8 +37,7 @@ pub struct DrawBatches {
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
 // them): any bit pattern is a valid value.
 
-/// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
-/// `race::store::LEFT`), with the image's first values.
+/// The piece, with the image's first values.
 impl DrawBatches {
     pub const fn new() -> Self {
         crate::cells::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
@@ -52,10 +51,10 @@ pub const END: usize = 0x6EF7CC;
 
 const _: () = assert!(END - START == core::mem::size_of::<DrawBatches>());
 
-/// Where IDA 0x6D3CF4 is now (the piece's static).
+/// The piece's host address (the alignment checks).
 #[cfg(test)]
-pub fn piece_addr() -> u32 {
-    crate::pointers::game_address(std::ptr::from_ref(&race().frame.draw_batches))
+pub fn piece_addr() -> usize {
+    std::ptr::from_ref(&race().frame.draw_batches).addr()
 }
 
 #[cfg(test)]
@@ -72,10 +71,7 @@ mod tests {
 
     #[test]
     fn fields_are_at_the_games_offsets() {
-        assert_eq!(
-            piece_addr() % (core::mem::align_of::<DrawBatches>()) as u32,
-            0
-        );
+        assert_eq!(piece_addr() % core::mem::align_of::<DrawBatches>(), 0);
 
         assert_eq!(offset_of!(DrawBatches, scene_vertices), 0x0);
         assert_eq!(offset_of!(DrawBatches, scene_indices), 0x4000);

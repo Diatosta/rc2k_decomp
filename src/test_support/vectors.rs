@@ -418,7 +418,7 @@ fn run_differential<const N: usize>(
     mut file: Recorder,
     reference: Option<&dyn Fn(*mut u8)>,
 ) {
-    let _g = crate::store::test_lock();
+    let _g = crate::test_support::test_lock();
     let _restore = Restore(control_word());
     let name = test.name;
     let mut rng = Rng::new(test.seed);
@@ -649,7 +649,7 @@ fn run_sparse(
     words: &[u16],
     references: Option<&[Reference]>,
 ) {
-    let _g = crate::store::test_lock();
+    let _g = crate::test_support::test_lock();
     let _restore = Restore(control_word());
     let mut rng = Rng::new(seed);
     const SIMPLE: [f32; 5] = [0.0, -0.0, 1.0, -1.0, 0.5];
@@ -951,7 +951,7 @@ pub mod block_vectors {
     }
 
     fn run(mut file: Recorder, blocks: &[Block], cases: u32, seed: u64, words: &[u16]) {
-        let _g = crate::store::test_lock();
+        let _g = crate::test_support::test_lock();
         let _restore = Restore(control_word());
         let mut rng = Rng::new(seed);
         const SIMPLE: [f32; 5] = [0.0, -0.0, 1.0, -1.0, 0.5];
@@ -960,7 +960,6 @@ pub mod block_vectors {
             for block in blocks {
                 let mut buffers: Vec<Mem> = Vec::new();
                 let mut args: Vec<usize> = Vec::new();
-                let mut leases: Vec<super::Lease> = Vec::new();
                 // the race block's places as they were, put back after the cases
                 let mut saved: Vec<(usize, Vec<u8>)> = Vec::new();
                 for o in &block.operands {
@@ -974,7 +973,6 @@ pub mod block_vectors {
                                 .unwrap_or(0);
                             let v = vec![0u8; end + 16];
                             args.push(v.as_ptr() as usize);
-                            leases.push(super::lease(&v));
                             buffers.push(Mem::Buffer(v));
                         }
                         Operand::RaceBlock { reads, writes }
@@ -1110,44 +1108,6 @@ pub mod block_vectors {
         }
         file.finish();
     }
-}
-
-// ---- test buffers read by the x87 operands' host addresses ----
-
-thread_local! {
-    static LEASED: std::cell::RefCell<Vec<(usize, usize)>> = const { std::cell::RefCell::new(Vec::new()) };
-}
-
-/// A test's byte buffer whose host address the plain versions take as an operand base
-/// (`scene::x87_mem`'s `Base for usize`): the operand accesses inside it are plain reads and
-/// writes of it, any other address is a game address. Ends when dropped.
-pub struct Lease(usize, usize);
-
-/// The buffer `bytes` leased to this thread.
-pub fn lease(bytes: &[u8]) -> Lease {
-    let range = (bytes.as_ptr() as usize, bytes.len());
-    LEASED.with(|l| l.borrow_mut().push(range));
-    Lease(range.0, range.1)
-}
-
-impl Drop for Lease {
-    fn drop(&mut self) {
-        LEASED.with(|l| {
-            let mut l = l.borrow_mut();
-            if let Some(i) = l.iter().rposition(|&r| r == (self.0, self.1)) {
-                l.remove(i);
-            }
-        });
-    }
-}
-
-/// Whether the `len` bytes at the host address `address` lie in a buffer leased to this thread.
-pub fn leased(address: usize, len: usize) -> bool {
-    LEASED.with(|l| {
-        l.borrow().iter().any(|&(start, n)| {
-            address >= start && address.checked_add(len).is_some_and(|e| e <= start + n)
-        })
-    })
 }
 
 // ---- single words (lane t5rest) ----

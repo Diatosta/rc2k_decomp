@@ -19,8 +19,7 @@ pub struct KindRecords {
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
 // them): any bit pattern is a valid value.
 
-/// The piece: a field of `race::owner::Race::course`, formerly a static of its own since 2026-10-29 (it left the race block, phase 13:
-/// `race::store::LEFT`), with the image's first values.
+/// The piece (a field of `race::owner::Race::course`), with the image's first values.
 impl KindRecords {
     pub const fn new() -> Self {
         crate::cells::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
@@ -34,12 +33,10 @@ pub const END: usize = 0x5CCBF0;
 
 const _: () = assert!(END - START == core::mem::size_of::<KindRecords>());
 
-/// Where IDA 0x5CC3C0 is now (the piece's static).
+/// The piece's host address (the alignment checks).
 #[cfg(test)]
-pub fn piece_addr() -> u32 {
-    crate::pointers::game_address(std::ptr::from_ref(
-        &crate::race::owner::RACE.course.kind_records,
-    ))
+pub fn piece_addr() -> usize {
+    std::ptr::from_ref(&crate::race::owner::RACE.course.kind_records).addr()
 }
 
 #[cfg(test)]

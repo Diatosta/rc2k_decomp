@@ -9,11 +9,6 @@ use crate::files::stream::Stream;
 use crate::gfx::owner::gfx;
 use crate::session::{PlainBytes, PlainDword, with_runs};
 
-/// IDA's address of the PCX decoding's variables.
-pub const START: usize = 0x5195D4;
-/// Their length.
-pub const LEN: usize = 0x51B97C - START;
-
 pub const HEADER_LEN: usize = 0x80;
 pub const HEADER_PLANES: usize = 0x41;
 pub const FILE_PALETTE_LEN: usize = 0x300;

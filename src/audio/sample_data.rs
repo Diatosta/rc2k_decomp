@@ -194,7 +194,7 @@ mod tests {
 
     #[test]
     fn data_is_found_by_id_kept_and_read_past_its_end() {
-        let _lock = crate::store::test_lock();
+        let _lock = crate::test_support::test_lock();
         let was = std::mem::take(&mut *WORK.lock().unwrap());
         let figures = crate::memory::figures();
         take(Buffer::Work, 0x20);

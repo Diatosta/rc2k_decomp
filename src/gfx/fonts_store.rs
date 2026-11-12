@@ -3,14 +3,12 @@
 //! typed: the menus' four fonts and their palette and glyph-table pointers, the
 //! palette sheet, and the race's six fonts. A font is the 0x20-byte object `rc2k_core::text::Font`
 //! describes, held in a `Shared` cell. Placed in a file of its own beside the graphics
-//! module's stores (converted in parallel); its users keep naming the fonts by IDA address
-//! through `moved::MOVED` until they are rewritten.
+//! module's stores.
 //!
 //! `#[repr(C)]` structs with the image's layout, first values the image's (`tests`), but for
 //! the four menu fonts' palette and glyph table: the image holds the addresses of the jade
 //! font's block there, and here they are its places in `gfx::glyph_store` (`JADE_COLOUR`,
-//! `JADE`), converted once when the block is built;
-//! `moved::MOVED` points the image's addresses at them (`home`).
+//! `JADE`), converted once when the block is built.
 
 use crate::gfx::typefaces::FontObject;
 use crate::session::{PlainBytes, PlainDword};

@@ -533,8 +533,7 @@ const _: () = assert!(core::mem::size_of::<ForceRecord>() == 0x20);
 // them): any bit pattern is a valid value.
 
 impl PhysicsTables {
-    /// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
-    /// `race::store::LEFT`), with the image's first values.
+    /// The piece, with the image's first values.
     pub const fn new() -> Self {
         crate::cells::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
     }
@@ -545,9 +544,8 @@ impl PhysicsTables {
     const TABLES: usize = 0x613C78;
     const TABLES_LEN: usize = 104 * 4;
 
-    /// Where ground kind `n`'s table starts in `surface_tables`, as a dword's number (phase
-    /// 13: the records keep IDA's addresses as names, and `moved::point_into_homes` passes
-    /// them over). A kind past the 16, or a name off the tables (or between two dwords), is
+    /// Where ground kind `n`'s table starts in `surface_tables`, as a dword's number (the
+    /// records keep IDA's addresses as names). A kind past the 16, or a name off the tables (or between two dwords), is
     /// refused.
     pub fn surface_table_index(&self, n: u32) -> Result<usize, crate::errors::BadInput> {
         let record = self
@@ -571,10 +569,10 @@ pub const END: usize = 0x614D38;
 
 const _: () = assert!(END - START == core::mem::size_of::<PhysicsTables>());
 
-/// Where IDA 0x613828 is now (its own static).
+/// The piece's host address (the alignment checks).
 #[cfg(test)]
-pub fn tables_addr() -> u32 {
-    crate::pointers::game_address(core::ptr::from_ref(&race().shared.physics_tables))
+pub fn tables_addr() -> usize {
+    core::ptr::from_ref(&race().shared.physics_tables).addr()
 }
 
 #[cfg(test)]

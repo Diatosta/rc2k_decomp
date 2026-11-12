@@ -9,7 +9,6 @@
 use crate::net::owner::net;
 use crate::physics::car_store::Car;
 use crate::race::owner::race;
-use crate::race::owner_replay::Replay;
 use crate::session::Dword;
 
 #[repr(C)]
@@ -51,11 +50,6 @@ pub const BLOCK_LEN: usize = core::mem::size_of::<Car>();
 
 const _: () = assert!(END - START == core::mem::size_of::<CarBlocks>());
 
-/// Where IDA 0x70F3EC is now (its group's static).
-pub fn blocks_addr(replay: &Replay) -> u32 {
-    crate::pointers::game_address(core::ptr::from_ref(&replay.cars_and_replay.car_blocks))
-}
-
 /// A car block by handle (phase 13): what `g_carBlocks` and `g_viewBlocks` hold where the
 /// original kept the block's address. `BLOCK_TAG | n` for block `n`; 0 stays 0.
 pub const BLOCK_TAG: u32 = 0xCB00_0000;
@@ -94,20 +88,37 @@ pub const fn with_block_refs<const N: usize>(
     bytes
 }
 
-/// Where the block a handle names is (0 for 0). A value that is no handle ends the program
-/// (as `Car::at` does an address off the blocks).
-pub fn block_of(handle: u32) -> u32 {
+/// The number of the block a handle names, none for 0. A value that is no handle ends the
+/// program.
+pub fn block_number(handle: u32) -> Option<usize> {
     if handle == 0 {
-        return 0;
+        return None;
     }
-    let n = (handle ^ BLOCK_TAG) as usize;
-    if n >= BLOCK_COUNT {
-        crate::fatal::raise::end(
+    match known_block(handle) {
+        Some(n) => Some(n),
+        None => crate::fatal::raise::end(
             "race::blocks_store::block_of",
             crate::errors::BadInput("a car block's handle that names none"),
-        );
+        ),
     }
-    block_addr(n)
+}
+
+/// The number of the block a handle names; none for 0 or any value that is no handle.
+pub fn known_block(handle: u32) -> Option<usize> {
+    let n = (handle ^ BLOCK_TAG) as usize;
+    (n < BLOCK_COUNT).then_some(n)
+}
+
+/// The block a handle names (a `g_carBlocks` entry, a view's block, or a dword the original
+/// reads on to past the eight); any other value is refused.
+pub fn car_named(handle: u32) -> Result<&'static Car, crate::errors::BadInput> {
+    match known_block(handle) {
+        Some(n) => Ok(&race().car_blocks().cars[n]),
+        None => {
+            crate::framework::log(&format!("trap: {handle:#x} is no car block's place"));
+            Err(crate::errors::BadInput("a car block at no car's place"))
+        }
+    }
 }
 
 /// The handle of the block `car`; a car that is none of the blocks ends the program.
@@ -126,8 +137,7 @@ pub fn handle_of_car(car: &Car) -> u32 {
     }
 }
 
-/// IDA's `g_viewBlocks` (two) and `g_carBlocks` (eight): their places hold handles
-/// (`moved::point_into_homes` passes them over).
+/// IDA's `g_viewBlocks` (two) and `g_carBlocks` (eight): their places hold handles.
 pub const VIEW_BLOCKS_IDA: usize = 0x63DBB0;
 pub const CAR_BLOCKS_IDA: usize = 0x71B3B8;
 
@@ -144,27 +154,26 @@ pub fn own_car_number() -> usize {
 }
 
 /// The block a handle names, none for 0; a value naming no block ends the program (as
-/// `block_of`).
+/// `block_number`).
 pub fn car_of(handle: u32) -> Option<&'static Car> {
-    (block_of(handle) != 0).then(|| &race().car_blocks().cars[(handle ^ BLOCK_TAG) as usize])
+    block_number(handle).map(|n| &race().car_blocks().cars[n])
 }
 
 /// The number of the block a handle names; refused for 0 (the address version found no car
-/// block's place there) and the end of the program for a value naming none (as `block_of`).
+/// block's place there) and the end of the program for a value naming none (as
+/// `block_number`).
 pub fn number_of(handle: u32) -> Result<usize, crate::errors::BadInput> {
-    if block_of(handle) == 0 {
-        return Err(crate::errors::BadInput("a car block at no car's place"));
-    }
-    Ok((handle ^ BLOCK_TAG) as usize)
+    block_number(handle).ok_or(crate::errors::BadInput("a car block at no car's place"))
 }
 
-/// The block at `address` (what `block_of` or `RACE_WORK.car_block` gave), or the refusal
-/// `what` for 0 (the original's read at a small offset from 0 fails).
-pub fn block_at(address: u32, what: &'static str) -> Result<&'static Car, crate::errors::BadInput> {
-    if address == 0 {
+/// The block a handle names (what `RaceWork::car_block` gave), or the refusal `what` for 0
+/// (the original's read at a small offset from 0 fails); a value naming no block ends the
+/// program.
+pub fn block_at(handle: u32, what: &'static str) -> Result<&'static Car, crate::errors::BadInput> {
+    if handle == 0 {
         return Err(crate::errors::BadInput(what));
     }
-    Ok(Car::at(address))
+    Ok(car_named(handle).unwrap_or_else(|e| crate::fatal::raise::end("physics::Car::at", e)))
 }
 
 /// The replay's starting state (`CarsAndReplay.car_blocks.cars[8].frame_head[0]`): its dwords, from car block 8 on.
@@ -181,13 +190,6 @@ pub fn own_car() -> &'static Car {
     &race().car_blocks().cars[own_car_number()]
 }
 
-/// Where block `n` is now; `n` unchecked, as the game's `0x70F3EC + 0xFE0 n` (an address
-/// only: reading it is the caller's business).
-pub fn block_addr(n: usize) -> u32 {
-    let replay = &race().replay;
-    blocks_addr(replay) + (BLOCK_LEN * n) as u32
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -195,13 +197,19 @@ mod tests {
 
     #[test]
     fn blocks_start_as_the_games() {
-        let replay = &race().replay;
         assert_eq!(offset_of!(CarBlocks, unused_tail), 0x9EC0);
-        assert_eq!(blocks_addr(replay) % 4, 0);
-        assert_eq!(
-            crate::pointers::game_address(&raw const CAR_BLOCKS.cars[1].gear),
-            blocks_addr(replay) + 0xFE0 + 0x1D4
-        );
+        assert_eq!(BLOCK_LEN, 0xFE0);
+        assert_eq!(offset_of!(Car, gear), 0x1D4);
+        for n in 0..BLOCK_COUNT {
+            assert_eq!(known_block(BLOCK_TAG | n as u32), Some(n));
+            assert!(core::ptr::eq(
+                car_named(BLOCK_TAG | n as u32).unwrap(),
+                &raw const race().car_blocks().cars[n]
+            ));
+        }
+        assert_eq!(known_block(BLOCK_TAG | BLOCK_COUNT as u32), None);
+        assert_eq!(known_block(0), None);
+        assert_eq!(block_number(0), None);
         // The first values: the store `race.owner.RACE.replay.cars_and_replay` they begin
         // (`every_store_starts_as_the_games`).
     }

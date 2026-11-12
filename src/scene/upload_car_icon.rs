@@ -30,8 +30,6 @@ use crate::gfx::texture_upload::{Record, halvings_apart, keep_second_picture, re
 
 // ---- game data ----
 
-/// IDA's address of the upload's record.
-pub const START: usize = 0x5BE8F1;
 const STORED_LEN: usize = std::mem::size_of::<IconUpload>();
 
 #[repr(C, packed)]

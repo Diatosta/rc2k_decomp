@@ -2,11 +2,6 @@
 
 use crate::session::PlainDword;
 
-/// IDA's address of the block's first byte.
-pub const START: usize = 0x5AB4AC;
-/// The block's length.
-pub const LEN: usize = 8;
-
 /// Whether a 3D card was found.
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
@@ -33,7 +28,7 @@ mod tests {
     #[test]
     fn first_values_are_the_games() {
         crate::test_support::first_values::assert_block_starts_as_the_games(
-            &crate::gfx::owner::GFX.unchecked().display.cards,
+            &crate::gfx::owner::GFX.get().display.cards,
         );
     }
 }

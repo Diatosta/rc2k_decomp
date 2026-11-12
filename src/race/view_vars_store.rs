@@ -210,12 +210,10 @@ pub const END: usize = 0x606500;
 
 const _: () = assert!(END - START == core::mem::size_of::<ViewVars>());
 
-/// Where IDA 0x60626C is now (its own static).
+/// The piece's host address (the alignment checks).
 #[cfg(test)]
-pub fn piece_addr() -> u32 {
-    crate::pointers::game_address(core::ptr::from_ref(
-        &race().frame.view_and_records.view_vars,
-    ))
+pub fn piece_addr() -> usize {
+    core::ptr::from_ref(&race().frame.view_and_records.view_vars).addr()
 }
 
 #[cfg(test)]

@@ -117,8 +117,7 @@ pub struct Panel {
     pub overlay_parts: Loose32,
     /// +0x78 (0x6D1476): not named or used (a gap of 0xc bytes): the three arrays' places of the
     /// overlay (`g_overlayPartMiles`, `g_overlayPartKindsA`, `g_overlayPartKindsB`), kept as
-    /// IDA's addresses, as names (phase 13; nothing reads them, and `moved::point_into_homes`
-    /// passes them over).
+    /// IDA's addresses, as names (nothing reads them).
     pub unused_78: Bytes<12>,
     /// +0x84 (0x6D1482): `unk_6D1482`, `unk_6D1492`: the two views' start lights.
     pub lights: [Lights; 2],
@@ -149,10 +148,10 @@ pub const END: usize = 0x6D150C;
 
 const _: () = assert!(END - START == core::mem::size_of::<Panel>());
 
-/// Where IDA 0x6D13FE is now (its own static).
+/// The piece's host address (the alignment checks).
 #[cfg(test)]
-pub fn piece_addr() -> u32 {
-    crate::pointers::game_address(core::ptr::from_ref(&race().frame.panel_and_overlay.panel))
+pub fn piece_addr() -> usize {
+    core::ptr::from_ref(&race().frame.panel_and_overlay.panel).addr()
 }
 
 #[cfg(test)]
@@ -162,7 +161,7 @@ mod tests {
 
     #[test]
     fn fields_are_at_the_games_offsets() {
-        assert_eq!(piece_addr() % (core::mem::align_of::<Panel>()) as u32, 0);
+        assert_eq!(piece_addr() % core::mem::align_of::<Panel>(), 0);
 
         assert_eq!(offset_of!(Panel, split_6), 0x0);
         assert_eq!(offset_of!(Panel, view_a), 0x10);

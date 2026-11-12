@@ -149,7 +149,7 @@ mod tests {
     #[test]
     fn a_connection_is_found_kept_and_found_again() {
         let net = net();
-        let _lock = crate::store::test_lock();
+        let _lock = crate::test_support::test_lock();
         let figures = crate::memory::figures();
         let kept_list: Vec<u32> = net
             .vars

@@ -20,8 +20,7 @@ pub(crate) fn st_cell(cell: &impl crate::session::Cell32, x: X) {
     cell.set_bits(bh::st(x));
 }
 
-/// `len` bytes at byte `offset` of a buffer; past its end the program ends naming it, as
-/// the operands by address did (`pointers::read_or_end`).
+/// `len` bytes at byte `offset` of a buffer; past its end the program ends naming it.
 fn bytes_at(bytes: &impl crate::session::ByteBuffer, offset: usize, len: usize) -> Vec<u8> {
     bytes
         .read_bytes_at(offset, len, "effects::plain's operand")

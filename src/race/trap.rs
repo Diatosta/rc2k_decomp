@@ -50,20 +50,3 @@ impl Trap {
         }
     }
 }
-
-/// The car block at `addr` (a `g_carBlocks` entry, a view's block, `g_car`: the work car or
-/// one of the ten blocks); any other address is refused (the tests' own cars are found among
-/// their regions).
-pub fn car_at(addr: u32) -> Result<&'static crate::physics::car_store::Car, BadInput> {
-    match crate::physics::car_store::Car::known(addr) {
-        Some(car) => Ok(car),
-        #[cfg(test)]
-        None => crate::pointers::GamePtr::new(addr)
-            .record::<crate::physics::car_store::Car>("a car block"),
-        #[cfg(not(test))]
-        None => {
-            crate::framework::log(&format!("trap: {addr:#x} is no car block's place"));
-            Err(BadInput("a car block at no car's place"))
-        }
-    }
-}

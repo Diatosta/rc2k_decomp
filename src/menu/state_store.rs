@@ -1,6 +1,6 @@
 //! The menus' working variables, out of RAL.EXE's image (IDA 0x75A658 .. 0x75ACCC): the carousel, the service area's boxes, the standings' and class figures, the
 //! fade, the inspection's figures and the four setup items. `#[repr(C)]` structs of atomic
-//! cells with the image's layout, one static; `moved::MOVED` points the range at it.
+//! cells with the image's layout, one static.
 
 use crate::menu::lists_store::CarList;
 use crate::session::{PlainBytes, PlainDword, PlainFlag, PlainFloat};
@@ -310,11 +310,6 @@ impl MenuState {
         }
     }
 }
-
-/// IDA 0X75A658, the first byte of the piece.
-pub const START: usize = 0x75A658;
-/// IDA 0X75ACCC, the end of the piece.
-pub const END: usize = 0x75ACCC;
 
 #[cfg(test)]
 mod tests {

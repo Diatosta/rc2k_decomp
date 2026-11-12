@@ -1,6 +1,6 @@
 //! The game's state as the registry's stores hold it: a test that writes the game's
 //! variables takes a snapshot of the stores it writes first and puts it back after. Hold
-//! `store::test_lock` around both. Name only the stores the test writes: putting back a
+//! `test_support::test_lock` around both. Name only the stores the test writes: putting back a
 //! store another test is writing undoes that test's work.
 
 /// The bytes of some stores of the registry.
@@ -33,7 +33,7 @@ impl Snapshot {
 /// The registry's store named `name` (the first of that name): what a test reads or
 /// writes by offset (`Store::load`, `Store::store`) where it named an address.
 pub fn store(name: &str) -> &'static (dyn crate::cells::Store + Sync) {
-    crate::stores::all()
+    crate::stores::listed()
         .iter()
         .find(|e| e.name == name)
         .unwrap_or_else(|| panic!("no store {name} in the registry"))
@@ -46,7 +46,7 @@ mod tests {
 
     #[test]
     fn a_snapshot_puts_a_store_back() {
-        let _g = crate::store::test_lock();
+        let _g = crate::test_support::test_lock();
         let snap = Snapshot::of(&["math.next_random.STATE"]);
         let s = store("math.next_random.STATE");
         let mut before = [0; 4];

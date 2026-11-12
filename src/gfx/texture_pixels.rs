@@ -24,11 +24,6 @@ use crate::errors::BadInput;
 use crate::gfx::picture::{read_bytes, write_bytes};
 use crate::session::{PlainBytes, PlainDword};
 
-/// IDA's address of the grading variables.
-pub const START: usize = 0x4F4A24;
-/// Their length.
-pub const LEN: usize = 0x4F4B30 - START;
-
 /// The texture pictures' grading (`gfx::texture_upload` grades a texture's colours when the
 /// settings ask for it).
 #[repr(C)]
@@ -130,7 +125,7 @@ mod block_tests {
     #[test]
     fn first_values_are_the_games() {
         crate::test_support::first_values::assert_block_starts_as_the_games(
-            &crate::gfx::owner::GFX.unchecked().grading,
+            &crate::gfx::owner::GFX.get().grading,
         );
     }
 }

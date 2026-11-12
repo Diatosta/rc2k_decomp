@@ -137,7 +137,7 @@ pub fn found_attributes() -> u32 {
 mod tests {
     #[test]
     fn a_folder_is_searched_in_order_with_folders_passed_over() {
-        let _lock = crate::store::test_lock();
+        let _lock = crate::test_support::test_lock();
         // The record's place, put back at the end.
         let kept: [u8; 0x140] = std::array::from_fn(|n| super::FIND_DATA.get(n));
         let dir = std::env::temp_dir().join(format!("rc2k_search_{}", std::process::id()));

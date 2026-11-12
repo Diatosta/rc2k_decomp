@@ -1,14 +1,13 @@
 //! The audio module's variables, out of RAL.EXE's image,
 //! typed: each block is a `#[repr(C)]` struct of cells with the image's layout
-//! (the first values the image's, `tests::*_start_as_the_games`), one static a piece, and
-//! `moved::MOVED` points the image's addresses at it:
+//! (the first values the image's, `tests::*_start_as_the_games`), one static a piece:
 //! - `AudioState` (`AUDIO`, IDA 0x4F8294 .. 0x506E6C): the sound mode and volumes, the
 //!   voices (0x200 records of 0x70 bytes), the mixer's channels and cursors, the sample file
 //!   and buffer, the two stream players, the command counters, DirectSound / A3D / EAX's
 //!   objects and ids, the quality modes and the audio options the advanced page edits;
 //! - `SampleRecords` (`SAMPLE_RECORDS`, 0x50A7A4 .. 0x511AE4): the 0x1CD sample records of
-//!   0x40 bytes; their pointers (to the sample names and the volume factors) are IDA
-//!   addresses at first, pointed at their homes at start (`moved::point_into_homes`);
+//!   0x40 bytes; their pointers (to the sample names and the volume factors) are handles
+//!   (`name_key`, `level_code`);
 //!
 //! The records the core works on (`Voice`, `SampleRecord`, `MixerChannel`, `AudioStream`,
 //! `MemoryList`, `AudioOptions`, `SampleFile`) are its plain structs held in `Shared`, copied
@@ -31,7 +30,9 @@ use crate::audio::describe_wave_format::WaveFormat;
 use crate::audio::make_buffer::BufferDescription;
 use crate::audio::samples::SampleFile;
 
+#[cfg(test)]
 pub const STATE_IDA: usize = 0x4F8294;
+#[cfg(test)]
 pub const STATE_END: usize = 0x506E6C;
 
 /// One of `g_eaxRooms`' ten reverb settings (EAX's `EAX_REVERBPROPERTIES`, 16 bytes).
@@ -766,7 +767,9 @@ const LAYOUT: &[(usize, usize)] = &[
     (core::mem::offset_of!(AudioState, eax_rooms), 0xEB38),
 ];
 
+#[cfg(test)]
 pub const SAMPLES_IDA: usize = 0x50A7A4;
+#[cfg(test)]
 pub const SAMPLES_END: usize = 0x511AE4;
 const SAMPLE_COUNT: usize = 0x1CD;
 

@@ -12,7 +12,7 @@ use crate::strings::text_buffer::TextBuffer;
 /// The text buffer and the font blend mode.
 pub struct Text {
     pub buffer: TextBuffer,
-    /// `g_fontBlendMode` (0x4F3F74, the setting `textflashmode`, through `crate::moved::place`):
+    /// `g_fontBlendMode` (0x4F3F74, the setting `textflashmode`):
     /// 0 = no palette is made, 2 = eased. 3 in the image.
     pub blend_mode: PlainDword,
 }

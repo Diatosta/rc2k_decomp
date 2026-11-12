@@ -4,7 +4,7 @@
 //! Rust constants (`race::seal_tables`).
 //!
 //! A `#[repr(C)]` struct of atomic cells with the image's layout, first values the image's
-//! (`tests`); `moved::MOVED` points the image's addresses at it (`home`): the settings
+//! (`tests`): the settings
 //! table names the key (`key` in `var\ral.cfg`) by its IDA address.
 
 use crate::session::{Bytes, Dword};

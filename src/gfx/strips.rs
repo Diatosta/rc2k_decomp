@@ -4,11 +4,6 @@
 use crate::gfx::plain_dwords;
 use crate::session::PlainDword;
 
-/// IDA's address of the block's first byte.
-pub const START: usize = 0x6D1870;
-/// The block's length.
-pub const LEN: usize = 0x6D18C8 - START;
-
 /// The view strips' places.
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
@@ -42,7 +37,7 @@ mod tests {
     #[test]
     fn first_values_are_the_games() {
         crate::test_support::first_values::assert_block_starts_as_the_games(
-            &crate::gfx::owner::GFX.unchecked().strips,
+            &crate::gfx::owner::GFX.get().strips,
         );
     }
 

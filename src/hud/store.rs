@@ -8,14 +8,15 @@
 //! original's batch drawer followed; nothing reads them now.
 //!
 //! One `#[repr(C)]` struct with the image's layout (`HudBlock`, the static `HUD`); the first
-//! values are the image's (`tests::first_values_are_the_games`), and `moved::MOVED` points
-//! IDA's addresses of the range at it.
+//! values are the image's (`tests::first_values_are_the_games`).
 
 use crate::session::{PlainDword, PlainFloat, PlainWord};
 
 /// IDA's address of the block's first byte.
+#[cfg(test)]
 pub const START: usize = 0x75B940;
 /// The block's length.
+#[cfg(test)]
 pub const LEN: usize = 0x764F2C - START;
 
 /// The HUD's quad record (`g_hudQuad`, 14 dwords): what `add_quad` makes four vertices of.
@@ -610,7 +611,7 @@ mod tests {
     fn first_values_are_the_games() {
         assert_eq!(size_of::<HudBlock>(), LEN);
         crate::test_support::first_values::assert_block_starts_as_the_games(
-            &crate::hud::owner::HUD.unchecked().block,
+            &crate::hud::owner::HUD.get().block,
         );
     }
 

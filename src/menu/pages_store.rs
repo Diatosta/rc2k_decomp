@@ -1,7 +1,7 @@
 //! The front end's list pages and its yes / no answer, out of RAL.EXE's image (IDA 0x75523C ..
 //! 0x755258): the pages the save, scores, set-up and replay lists are on, the answer
 //! the yes / no screens leave, and the two championship switches the event sets. A `#[repr(C)]` struct
-//! with the image's layout, one static; `moved::MOVED` points the range at it.
+//! with the image's layout, one static.
 
 use crate::session::PlainDword;
 
@@ -39,11 +39,6 @@ impl MenuPages {
         }
     }
 }
-
-/// IDA 0x75523C, the first byte of the piece.
-pub const START: usize = 0x75523C;
-/// IDA 0x755258, the end of the piece.
-pub const END: usize = 0x755258;
 
 #[cfg(test)]
 mod tests {

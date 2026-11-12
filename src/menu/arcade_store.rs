@@ -1,6 +1,6 @@
 //! The arcade game's variables, out of RAL.EXE's image (IDA 0x7587E8 .. 0x758806): the
 //! scene switch, the level, stage and retry being played and the levels won. A `#[repr(C)]` struct
-//! with the image's layout, one static; `moved::MOVED` points the range at it.
+//! with the image's layout, one static.
 
 use crate::session::{PlainBytes, PlainDword};
 
@@ -74,11 +74,6 @@ impl Arcade {
         }
     }
 }
-
-/// IDA 0x7587E8, the first byte of the piece.
-pub const START: usize = 0x7587E8;
-/// IDA 0x758806, the end of the piece.
-pub const END: usize = 0x758806;
 
 #[cfg(test)]
 mod tests {

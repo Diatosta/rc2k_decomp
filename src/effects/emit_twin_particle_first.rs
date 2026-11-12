@@ -283,14 +283,6 @@ impl TwinTuning {
     pub const LEN: usize = 0x28;
 }
 
-/// Marker for `moved::MOVED`: NINETEENTH_TUNING's place in the image.
-pub struct TwinFirstTuning;
-
-impl TwinFirstTuning {
-    pub const START: usize = 0x93A48A;
-    pub const LEN: usize = TwinTuning::LEN;
-}
-
 #[cfg(test)]
 mod nineteenth_tuning_tests {
     use super::*;

@@ -1,7 +1,7 @@
 //! The players' names and the text being typed, out of RAL.EXE's image (IDA 0x755784 .. 0x7558C4; phase
 //! 7, typed): the four players' names (0x20 bytes each) and what follows them, the name `menu::standings`
 //! keeps, and the text as it was before an entry started. A `#[repr(C)]` struct with the image's
-//! layout, one static; `moved::MOVED` points the range at it.
+//! layout, one static.
 
 use crate::session::PlainBytes;
 
@@ -57,8 +57,6 @@ impl Names {
 
 /// IDA 0x755784, the first byte of the piece.
 pub const START: usize = 0x755784;
-/// IDA 0x7558C4, the end of the piece.
-pub const END: usize = 0x7558C4;
 
 #[cfg(test)]
 mod tests {

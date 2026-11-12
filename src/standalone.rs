@@ -2,8 +2,8 @@
 //! Rust, without RAL.EXE.
 //!
 //! What happens (`run`):
-//! 1. Every variable and constant of the game's has a home in Rust (`crate::moved`); the
-//!    game's own pointers stay IDA's addresses, resolved where they are read.
+//! 1. Every variable and constant of the game's is a Rust static (the owners' fields); the
+//!    game's own pointers in its data are handles or IDA's addresses kept as names.
 //! 2. No code of RAL.EXE runs. Every call the game's data makes by address (menus, draw
 //!    lists, frames, thread routines) and every one Rust still makes goes to its Rust
 //!    version (`menu::table_calls`, `crate::routes`); an address

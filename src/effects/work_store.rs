@@ -58,10 +58,10 @@ pub const END: usize = 0x71CA60;
 
 const _: () = assert!(END - START == core::mem::size_of::<MarksWork>());
 
-/// Where IDA 0x71C814 is now (the piece's static).
+/// The piece's host address (the alignment checks).
 #[cfg(test)]
-pub fn piece_addr() -> u32 {
-    crate::pointers::game_address(std::ptr::from_ref(&effects().setup.work))
+pub fn piece_addr() -> usize {
+    std::ptr::from_ref(&effects().setup.work).addr()
 }
 
 #[cfg(test)]
@@ -76,10 +76,7 @@ mod tests {
 
     #[test]
     fn piece_has_its_home() {
-        assert_eq!(
-            piece_addr() % (core::mem::align_of::<MarksWork>()) as u32,
-            0
-        );
+        assert_eq!(piece_addr() % core::mem::align_of::<MarksWork>(), 0);
 
         assert_eq!(offset_of!(MarksWork, fpu_status), 0x0);
         assert_eq!(offset_of!(MarksWork, shake), 0x5c);

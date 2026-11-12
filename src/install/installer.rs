@@ -21,11 +21,6 @@ use crate::place::BytePlace;
 
 // ---- the variables (IDA addresses) ----
 
-/// IDA's address of the installer's texts.
-pub const TEXTS_START: usize = 0x5295B4;
-/// Their length.
-pub const TEXTS_LEN: usize = 0x18;
-
 /// The texts the installer (and `files::resolve_path`) use. Atomic cells: the audio
 /// thread's file calls resolve paths against `base_b`.
 #[repr(C)]
@@ -73,11 +68,10 @@ pub fn set_media_mode(mode: u32) {
 // flag, the room by installation, the list variables, the third page's action, the file
 // search record and its skip mask) are in `install::vars`.
 
-// ---- memory by address ----
+// ---- refusals ----
 
-/// A game address the installer's code reads or writes lies outside every allocation: the
-/// program ends naming it (the script and its pages have no way to carry the refusal back;
-/// `GamePtr` logged the address).
+/// A read or write of the installer's code is refused: the program ends naming it (the
+/// script and its pages have no way to carry the refusal back).
 pub fn refuse(e: crate::errors::BadInput) -> ! {
     crate::fatal::raise::end("install", e)
 }

@@ -158,8 +158,6 @@ pub fn lay_out_course(course: &Course) {
         } else {
             0
         });
-        // The census of accesses to the old homes (`pointers::watch` on the records, faces, info
-        // and the points) is in `notes/course_census.md`; it is off.
         c.course_tail[0].set(after);
         c.course_tail[1].set(after_offset);
     }

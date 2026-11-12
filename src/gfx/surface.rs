@@ -114,7 +114,7 @@ mod target_tests {
     fn the_picture_is_a_target_by_number() {
         let gfx = crate::gfx::owner::gfx();
         let drawing = &gfx.drawing;
-        let _lock = crate::store::test_lock();
+        let _lock = crate::test_support::test_lock();
         let figures = crate::memory::figures();
         let kept = (ON_PICTURE.load(Relaxed), drawing.draw_surface.pixels.get());
         let memory = crate::memory::ListCells::empty();

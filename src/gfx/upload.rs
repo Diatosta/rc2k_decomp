@@ -5,11 +5,6 @@
 
 use crate::session::PlainDword;
 
-/// IDA's address of the block's first byte.
-pub const START: usize = 0x5ABA18;
-/// The block's length.
-pub const LEN: usize = 0x5ABA8C - START;
-
 /// A DirectDraw surface description (DDSURFACEDESC, 0x6C bytes), filled by a surface's
 /// `Lock`; the game's code reads its fields by their DirectDraw offsets.
 #[repr(C)]

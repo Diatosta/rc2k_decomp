@@ -48,7 +48,7 @@ pub(crate) struct Screen {
     height: usize,
     bits: u32,
     /// The pixels the game draws on, named by `locked_pixels::SCREEN` while the screen lives.
-    pixels: std::sync::Arc<crate::pointers::PoolBytes>,
+    pixels: std::sync::Arc<crate::pool::PoolBytes>,
 }
 
 pub(crate) static SCREEN: Mutex<Option<Screen>> = Mutex::new(None);
@@ -232,7 +232,7 @@ fn set_screen_mode(
         // The texture made above is dropped (destroyed) with `texture`.
         return Err(why);
     }
-    let pixels = std::sync::Arc::new(crate::pointers::PoolBytes::from_vec(vec![
+    let pixels = std::sync::Arc::new(crate::pool::PoolBytes::from_vec(vec![
         0u8;
         (bytes * width * height)
             as usize
@@ -401,7 +401,7 @@ fn show_frame(o: &crate::owners::Owners<'static>, screen: &Screen) -> Result<(),
     {
         // The framebuffer's mode first, its memory then the GPU's or ours.
         crate::handheld::open_screen()?;
-        if let Some(target) = crate::platform_3d::screen()
+        if let Some(target) = crate::platform_3d::screen(crate::workers::game_scratch())
             && crate::render::show_on_panel(
                 &race.course,
                 &target,
@@ -418,7 +418,7 @@ fn show_frame(o: &crate::owners::Owners<'static>, screen: &Screen) -> Result<(),
     {
         let renderer = screen.renderer;
         // A race on the GPU: its picture, the canvas's written pixels over it.
-        let gpu_view = crate::platform_3d::screen()
+        let gpu_view = crate::platform_3d::screen(crate::workers::game_scratch())
             .and_then(|target| crate::render::finish_frame(&race.course, &target))
             .map(|colour| make_view(renderer, colour, screen.width, screen.height))
             .is_some();
@@ -486,7 +486,7 @@ pub fn show_frame_now() -> bool {
         }
         #[cfg(feature = "remote")]
         if crate::remote::shot_wanted()
-            && let Some(target) = crate::platform_3d::screen()
+            && let Some(target) = crate::platform_3d::screen(crate::workers::game_scratch())
         {
             crate::render::bring_back(&target);
         }
@@ -521,7 +521,7 @@ pub fn show_frame_now() -> bool {
             let shown = SHOWN.fetch_add(1, Ordering::SeqCst) + 1;
             let wanted = FRAMES_TO_SHOW.load(Ordering::SeqCst);
             if wanted != 0 && shown == wanted {
-                if let Some(target) = crate::platform_3d::screen() {
+                if let Some(target) = crate::platform_3d::screen(crate::workers::game_scratch()) {
                     crate::render::bring_back(&target);
                 }
                 let _ = std::fs::write("rc2k_frame.raw", screen.pixels.to_vec());

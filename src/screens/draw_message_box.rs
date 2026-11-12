@@ -15,9 +15,6 @@ use crate::errors::{BadInput, Refused};
 use crate::text::draw_text::Canvas;
 use rc2k_core::screens::message_box::{FILL, FRAME, STRING, layout};
 
-/// IDA's address of the box's rectangle.
-pub const BOX_START: usize = 0x52983C;
-
 /// `dword_52983C` .. `dword_529848`: the box's rectangle (left, top, width, height).
 pub static BOX: [crate::session::Dword; 4] = [const { crate::session::Dword::new(0) }; 4];
 

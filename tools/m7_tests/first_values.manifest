@@ -1,194 +1,216 @@
-# The named reads frozen in data/first_values.golden: `<key> <IDA address> <length>` (hex).
-# A key is the store's registry name, the field path and `/<length>` where a store holds the
-# address (`freeze.sh names`), else the Rust item the tests compare (module path, dots).
-# Stores of the registry are frozen whole without being listed here.
+# The named reads frozen in data/first_values.golden (test_support::freeze): `<key>` and where
+# its bytes are as the program starts, `<store key>@<offset>+<length>` pieces (hex) read one
+# after another; or `held` where no store holds the game's bytes (a Rust item, a handle where
+# the game has an address): the golden file keeps its line. A key is the store's registry
+# name, the field path and `/<length>`, else the Rust item the tests compare (module path,
+# dots). Stores of the registry are frozen whole without being listed here, but for the
+# `held` ones at the end.
 
 # math
-math.next_random.STATE/4                                0x4E0140 4
-race.owner.RACE.shared.work.segment_work_unused[17]/4   0x71C3C8 4
-race.owner.RACE.course.numbers.zero/4                   0x5C5D90 4
-race.owner.RACE.course.numbers.one/4                    0x5C5D38 4
+math.next_random.STATE/4 store:math.next_random.STATE@0+4
+race.owner.RACE.shared.work.segment_work_unused[17]/4 store:race.owner.RACE.shared.work@1410+4
+race.owner.RACE.course.numbers.zero/4 store:race.owner.RACE.course.numbers@b0+4
+race.owner.RACE.course.numbers.one/4 store:race.owner.RACE.course.numbers@58+4
 
 # logfile
-system.owner.SYSTEM.start.texts.version/28              0x4E0000 0x1C
-system.owner.SYSTEM.start.texts.second_text/1           0x4E0077 1
-logfile.write_line.LOG_MODE                             0x4E072A 0xC
-logfile.write_line.LOG_PATH                             0x4E00A8 0x10
-logfile.write_line.state.ENABLED/20                     0x4E0094 0x14
+system.owner.SYSTEM.start.texts.version/28 store:system.owner.SYSTEM.start.texts@0+1c
+system.owner.SYSTEM.start.texts.second_text/1 store:system.owner.SYSTEM.start.texts@77+1
+logfile.write_line.LOG_MODE held
+logfile.write_line.LOG_PATH held
+logfile.write_line.state.ENABLED/20 store:logfile.write_line.state.ENABLED@0+4 store:logfile.write_line.state.LEVEL@0+4 store:logfile.write_line.state.LOCK@0+4 store:logfile.write_line.state.INDENT@0+4 store:logfile.write_line.state.LINE_START@0+4
 
 # platform_3d
-platform_3d.GUIDS_A/84 0x5BE81C 0x54
-platform_3d.GUIDS_B/32 0x5BE874 0x20
+platform_3d.GUIDS_A/84 held
+platform_3d.GUIDS_B/32 held
 # effects
-effects.draw_turned_sprite.SPRITE_UV 0x93a21a 0x20
-effects.kind_store.CONSTS_1 0x933e7c 0x54
-effects.kind_store.CONSTS_2 0x934b7c 0x54
-effects.kind_store.TABLES_1 0x9332ac 0xbc4
-effects.kind_store.TABLES_2 0x933fc8 0xbb0
-effects.mask_store.KIND_PICTURES 0x934ea8 0x88
-effects.owner.EFFECTS.blocks.corner_slopes/9216 0x920734 0x2400
-effects.owner.EFFECTS.blocks.corners/32768 0x8eb971 0x8000
-effects.owner.EFFECTS.blocks.links/68 0x9206f0 0x44
-effects.owner.EFFECTS.blocks.places/80 0x8db570 0x50
-effects.owner.EFFECTS.blocks.slot_tuning/108 0x9353a6 0x6c
-effects.owner.EFFECTS.blocks.slots/900 0x934f7c 0x384
-effects.owner.EFFECTS.clipping.blend_work/4 0x93c6c8 0x4
-effects.owner.EFFECTS.clipping.clip/208 0x7687e4 0xd0
-effects.owner.EFFECTS.clipping.glow/64 0x93cc70 0x40
-effects.owner.EFFECTS.frame.draw_frame/164 0x91ff3e 0xa4
-effects.owner.EFFECTS.frame.draw_work/256 0x8eb871 0x100
-effects.owner.EFFECTS.frame.flare_parts/216 0x92051e 0xd8
-effects.owner.EFFECTS.frame.flare_scales/20 0x9206d2 0x14
-effects.owner.EFFECTS.frame.kept_view/220 0x769236 0xdc
-effects.owner.EFFECTS.frame.view_sources/56 0x764f90 0x38
-effects.owner.EFFECTS.frame.view_vars/88 0x8f3975 0x58
-effects.owner.EFFECTS.kinds.burst_colours/8192 0x93a618 0x2000
-effects.owner.EFFECTS.kinds.emitter/332 0x935416 0x14c
-effects.owner.EFFECTS.kinds.marks_kind/4 0x769232 0x4
-effects.owner.EFFECTS.kinds.overlay_extras/12 0x933e70 0xc
-effects.owner.EFFECTS.kinds.overlay_quad/248 0x9331b4 0xf8
-effects.owner.EFFECTS.kinds.particle_tuning/176 0x93c618 0xb0
-effects.owner.EFFECTS.kinds.plane_quad/248 0x934bd0 0xf8
-effects.owner.EFFECTS.kinds.shadow_extra/4 0x934b78 0x4
-effects.owner.EFFECTS.kinds.shadow_quad/248 0x933ed0 0xf8
-effects.owner.EFFECTS.masks.blocks/187 0x934d6e 0xbb
-effects.owner.EFFECTS.masks.edge_mask/32768 0x809bc3 0x8000
-effects.owner.EFFECTS.masks.edge_settings/95 0x8bc39e 0x5f
-effects.owner.EFFECTS.masks.ground_names/166 0x934cc8 0xa6
-effects.owner.EFFECTS.masks.kind_boxes/1768 0x811beb 0x6e8
-effects.owner.EFFECTS.masks.list/64 0x93a1da 0x40
-effects.owner.EFFECTS.masks.picture_copy/127 0x934e29 0x7f
-effects.owner.EFFECTS.masks.surface/17996 0x935766 0x464c
-effects.owner.EFFECTS.masks.vars/90816 0x82e342 0x162c0
-effects.owner.EFFECTS.particles.first_tuning/36 0x93a3d2 0x24
-effects.owner.EFFECTS.particles.kind11_set/176 0x93a262 0xb0
-effects.owner.EFFECTS.particles.kind13_set/40 0x93a462 0x28
-effects.owner.EFFECTS.particles.kind1_choice/4 0x93a1d6 0x4
-effects.owner.EFFECTS.particles.kind1_set/56 0x93a39a 0x38
-effects.owner.EFFECTS.particles.kind21_set/136 0x93a312 0x88
-effects.owner.EFFECTS.particles.kind5_set/40 0x93a23a 0x28
-effects.owner.EFFECTS.particles.kind6_set/72 0x93a41a 0x48
-effects.owner.EFFECTS.particles.nineteenth_tuning/40 0x93a48a 0x28
-effects.owner.EFFECTS.particles.puff_work/40 0x93a5f0 0x28
-effects.owner.EFFECTS.particles.second_tuning/36 0x93a3f6 0x24
-effects.owner.EFFECTS.particles.twenty_second_tuning/40 0x93a4b2 0x28
-effects.owner.EFFECTS.particles.twin_state/32 0x93a1b6 0x20
-effects.owner.EFFECTS.paths.lines_work/392 0x93c738 0x188
-effects.owner.EFFECTS.paths.morph_work/40 0x93c6cc 0x28
-effects.owner.EFFECTS.paths.profile_lists/52 0x9152f6 0x34
-effects.owner.EFFECTS.paths.profile_rings/2052 0x8dd061 0x804
-effects.owner.EFFECTS.paths.profile_tables/26624 0x8e506d 0x6800
-effects.owner.EFFECTS.paths.sines/1280 0x92001e 0x500
-effects.owner.EFFECTS.paths.spline_constants/92 0x788f0d 0x5c
-effects.owner.EFFECTS.paths.spline_head/3776 0x769312 0xec0
-effects.owner.EFFECTS.paths.spline_kinds/840 0x788bb2 0x348
-effects.owner.EFFECTS.paths.spline_path/19 0x788efa 0x13
-effects.owner.EFFECTS.paths.spline_tables/119296 0x76b9b2 0x1d200
-effects.owner.EFFECTS.paths.spline_work/6112 0x76a1d2 0x17e0
-effects.owner.EFFECTS.paths.spread_random/4 0x923004 0x4
-effects.owner.EFFECTS.paths.wave/16 0x9206c2 0x10
-effects.owner.EFFECTS.paths.wave_levels/68 0x9205f6 0x44
-effects.owner.EFFECTS.ring.names/42 0x93573c 0x2a
-effects.owner.EFFECTS.ring.pool/112 0x93a580 0x70
-effects.owner.EFFECTS.ring.work/284 0x935620 0x11c
-effects.owner.EFFECTS.setup.clock/52 0x764fc8 0x34
-effects.owner.EFFECTS.setup.clock_k/8 0x93cc10 0x8
-effects.owner.EFFECTS.setup.floats/248 0x765140 0xf8
-effects.owner.EFFECTS.setup.frame/48 0x765110 0x30
-effects.owner.EFFECTS.setup.kind_floats/108 0x765238 0x6c
-effects.owner.EFFECTS.setup.mask_constants/156 0x89c994 0x9c
-effects.owner.EFFECTS.weather.rain/6736 0x8bc405 0x1a50
-effects.owner.EFFECTS.windscreen_drops.hex/98736 0x816192 0x181b0
-effects.owner.EFFECTS.windscreen_drops.inputs/60 0x764f40 0x3c
-effects.owner.EFFECTS.windscreen_drops.picks/264280 0x844604 0x40858
-effects.owner.EFFECTS.windscreen_drops.shape_work/93768 0x884e5c 0x16e48
-effects.owner.EFFECTS.windscreen_drops.state/96 0x814710 0x60
-effects.owner.EFFECTS.windscreen_drops.tilt/40 0x811bc3 0x28
-effects.owner.EFFECTS.windscreen_drops.tuning/624 0x89c724 0x270
-effects.owner.EFFECTS.windscreen_drops.work/2584 0x814772 0xa18
-effects.owner.EFFECTS.windscreen_flakes.items/122880 0x89e18a 0x1e000
-effects.owner.EFFECTS.windscreen_flakes.state/220 0x8bc18a 0xdc
-effects.owner.EFFECTS.windscreen_flakes.tables/1696 0x89caca 0x6a0
-effects.owner.EFFECTS.windscreen_flakes.timing/12 0x89ca30 0xc
-effects.run_frame.FRAME_K 0x93c8c0 0x10
-effects.owner.EFFECTS.pong.state/388 0x768658 0x184
-effects.owner.EFFECTS.pong.rules/176 0x769182 0xb0
-effects.rain.RAIN_RULES 0x8c5f91 0x6c
-effects.run_ring.RING_KINDS 0x93a4da 0x9c
-effects.run_particles.TRAIL_PALETTE 0x922b38 0x4a8
-effects.run_ribbons.COLOURS_257 0x939db2 0x404
-sound.owner.SOUND.menu.next_sound_time/4 0x511b0c 0x4
-sound.owner.SOUND.race.sounds_on/4 0x6218f0 0x4
-sound.store.WHEEL_SURFACES/8 0x4f66f1 0x8
-audio.store.ENVIRONMENT/4 0x6d1dd4 0x4
-strings.append_time.SHOW_HOURS/4 0x4e0148 0x4
-strings.copy_printable.KEEP_CASE/4 0x4e0144 0x4
-strings.owner.STRINGS.language.plain_letters/256 0x4f0cc8 0x100
-strings.maybe_compile_lexicon.RECOMPILE_LEVEL/4 0x4e0758 0x4
-strings.same_text.LOWER/256 0x4f0bc8 0x100
-strings.units.UNITS/4 0x51de2c 0x4
-settings.read_driver_names.PATH 0x529d98 0xd
-strings.owner.STRINGS.drivers.key/8 0x529da5 0x8
-settings.read_settings.PATH 0x5295cc 0xc
-text.blend_font.BLENDED_FONT/32 0x51e384 0x20
-text.blend_font.BLENDED_PALETTE/1024 0x4f3b74 0x400
-strings.owner.STRINGS.text.blend_mode/4 0x4f3f74 0x4
+effects.draw_turned_sprite.SPRITE_UV held
+effects.kind_store.CONSTS_1 held
+effects.kind_store.CONSTS_2 held
+effects.kind_store.TABLES_1 held
+effects.kind_store.TABLES_2 held
+effects.mask_store.KIND_PICTURES held
+effects.owner.EFFECTS.blocks.corner_slopes/9216 store:effects.owner.EFFECTS.blocks.corner_slopes@0+2400
+effects.owner.EFFECTS.blocks.corners/32768 store:effects.owner.EFFECTS.blocks.corners@0+8000
+effects.owner.EFFECTS.blocks.links/68 store:effects.owner.EFFECTS.blocks.links@0+44
+effects.owner.EFFECTS.blocks.places/80 store:effects.owner.EFFECTS.blocks.places@0+50
+effects.owner.EFFECTS.blocks.slot_tuning/108 store:effects.owner.EFFECTS.blocks.slot_tuning@0+6c
+effects.owner.EFFECTS.blocks.slots/900 store:effects.owner.EFFECTS.blocks.slots@0+384
+effects.owner.EFFECTS.clipping.blend_work/4 store:effects.owner.EFFECTS.clipping.blend_work@0+4
+effects.owner.EFFECTS.clipping.clip/208 store:effects.owner.EFFECTS.clipping.clip@0+d0
+effects.owner.EFFECTS.clipping.glow/64 store:effects.owner.EFFECTS.clipping.glow@0+40
+effects.owner.EFFECTS.frame.draw_frame/164 store:effects.owner.EFFECTS.frame.draw_frame@0+a4
+effects.owner.EFFECTS.frame.draw_work/256 store:effects.owner.EFFECTS.frame.draw_work@0+100
+effects.owner.EFFECTS.frame.flare_parts/216 store:effects.owner.EFFECTS.frame.flare_parts@0+d8
+effects.owner.EFFECTS.frame.flare_scales/20 store:effects.owner.EFFECTS.frame.flare_scales@0+14
+effects.owner.EFFECTS.frame.kept_view/220 store:effects.owner.EFFECTS.frame.kept_view@0+dc
+effects.owner.EFFECTS.frame.view_sources/56 store:effects.owner.EFFECTS.frame.view_sources@0+38
+effects.owner.EFFECTS.frame.view_vars/88 store:effects.owner.EFFECTS.frame.view_vars@0+58
+effects.owner.EFFECTS.kinds.burst_colours/8192 store:effects.owner.EFFECTS.kinds.burst_colours@0+2000
+effects.owner.EFFECTS.kinds.emitter/332 store:effects.owner.EFFECTS.kinds.emitter@0+14c
+effects.owner.EFFECTS.kinds.marks_kind/4 store:effects.owner.EFFECTS.kinds.marks_kind@0+4
+effects.owner.EFFECTS.kinds.overlay_extras/12 store:effects.owner.EFFECTS.kinds.overlay_extras@0+c
+effects.owner.EFFECTS.kinds.overlay_quad/248 store:effects.owner.EFFECTS.kinds.overlay_quad@0+f8
+effects.owner.EFFECTS.kinds.particle_tuning/176 store:effects.owner.EFFECTS.kinds.particle_tuning@0+b0
+effects.owner.EFFECTS.kinds.plane_quad/248 store:effects.owner.EFFECTS.kinds.plane_quad@0+f8
+effects.owner.EFFECTS.kinds.shadow_extra/4 store:effects.owner.EFFECTS.kinds.shadow_extra@0+4
+effects.owner.EFFECTS.kinds.shadow_quad/248 store:effects.owner.EFFECTS.kinds.shadow_quad@0+f8
+effects.owner.EFFECTS.masks.blocks/187 store:effects.owner.EFFECTS.masks.blocks@0+bb
+effects.owner.EFFECTS.masks.edge_mask/32768 store:effects.owner.EFFECTS.masks.edge_mask@0+8000
+effects.owner.EFFECTS.masks.edge_settings/95 store:effects.owner.EFFECTS.masks.edge_settings@0+5f
+effects.owner.EFFECTS.masks.ground_names/166 store:effects.owner.EFFECTS.masks.ground_names@0+a6
+effects.owner.EFFECTS.masks.kind_boxes/1768 store:effects.owner.EFFECTS.masks.kind_boxes@0+6e8
+effects.owner.EFFECTS.masks.list/64 store:effects.owner.EFFECTS.masks.list@0+40
+effects.owner.EFFECTS.masks.picture_copy/127 store:effects.owner.EFFECTS.masks.picture_copy@0+7f
+effects.owner.EFFECTS.masks.surface/17996 store:effects.owner.EFFECTS.masks.surface@0+464c
+effects.owner.EFFECTS.masks.vars/90816 store:effects.owner.EFFECTS.masks.vars@0+162c0
+effects.owner.EFFECTS.particles.first_tuning/36 store:effects.owner.EFFECTS.particles.first_tuning@0+24
+effects.owner.EFFECTS.particles.kind11_set/176 store:effects.owner.EFFECTS.particles.kind11_set@0+b0
+effects.owner.EFFECTS.particles.kind13_set/40 store:effects.owner.EFFECTS.particles.kind13_set@0+28
+effects.owner.EFFECTS.particles.kind1_choice/4 store:effects.owner.EFFECTS.particles.kind1_choice@0+4
+effects.owner.EFFECTS.particles.kind1_set/56 store:effects.owner.EFFECTS.particles.kind1_set@0+38
+effects.owner.EFFECTS.particles.kind21_set/136 store:effects.owner.EFFECTS.particles.kind21_set@0+88
+effects.owner.EFFECTS.particles.kind5_set/40 store:effects.owner.EFFECTS.particles.kind5_set@0+28
+effects.owner.EFFECTS.particles.kind6_set/72 store:effects.owner.EFFECTS.particles.kind6_set@0+48
+effects.owner.EFFECTS.particles.nineteenth_tuning/40 store:effects.owner.EFFECTS.particles.nineteenth_tuning@0+28
+effects.owner.EFFECTS.particles.puff_work/40 store:effects.owner.EFFECTS.particles.puff_work@0+28
+effects.owner.EFFECTS.particles.second_tuning/36 store:effects.owner.EFFECTS.particles.second_tuning@0+24
+effects.owner.EFFECTS.particles.twenty_second_tuning/40 store:effects.owner.EFFECTS.particles.twenty_second_tuning@0+28
+effects.owner.EFFECTS.particles.twin_state/32 store:effects.owner.EFFECTS.particles.twin_state@0+20
+effects.owner.EFFECTS.paths.lines_work/392 store:effects.owner.EFFECTS.paths.lines_work@0+188
+effects.owner.EFFECTS.paths.morph_work/40 store:effects.owner.EFFECTS.paths.morph_work@0+28
+effects.owner.EFFECTS.paths.profile_lists/52 store:effects.owner.EFFECTS.paths.profile_lists@0+34
+effects.owner.EFFECTS.paths.profile_rings/2052 store:effects.owner.EFFECTS.paths.profile_rings@0+804
+effects.owner.EFFECTS.paths.profile_tables/26624 store:effects.owner.EFFECTS.paths.profile_tables@0+6800
+effects.owner.EFFECTS.paths.sines/1280 store:effects.owner.EFFECTS.paths.sines@0+500
+effects.owner.EFFECTS.paths.spline_constants/92 store:effects.owner.EFFECTS.paths.spline_constants@0+5c
+effects.owner.EFFECTS.paths.spline_head/3776 store:effects.owner.EFFECTS.paths.spline_head@0+ec0
+effects.owner.EFFECTS.paths.spline_kinds/840 store:effects.owner.EFFECTS.paths.spline_kinds@0+348
+effects.owner.EFFECTS.paths.spline_path/19 store:effects.owner.EFFECTS.paths.spline_path@0+13
+effects.owner.EFFECTS.paths.spline_tables/119296 store:effects.owner.EFFECTS.paths.spline_tables@0+1d200
+effects.owner.EFFECTS.paths.spline_work/6112 store:effects.owner.EFFECTS.paths.spline_work@0+17e0
+effects.owner.EFFECTS.paths.spread_random/4 store:effects.owner.EFFECTS.paths.spread_random@0+4
+effects.owner.EFFECTS.paths.wave/16 store:effects.owner.EFFECTS.paths.wave@0+10
+effects.owner.EFFECTS.paths.wave_levels/68 store:effects.owner.EFFECTS.paths.wave_levels@0+44
+effects.owner.EFFECTS.ring.names/42 store:effects.owner.EFFECTS.ring.names@0+2a
+effects.owner.EFFECTS.ring.pool/112 store:effects.owner.EFFECTS.ring.pool@0+70
+effects.owner.EFFECTS.ring.work/284 store:effects.owner.EFFECTS.ring.work@0+11c
+effects.owner.EFFECTS.setup.clock/52 store:effects.owner.EFFECTS.setup.clock@0+34
+effects.owner.EFFECTS.setup.clock_k/8 store:effects.owner.EFFECTS.setup.clock_k@0+8
+effects.owner.EFFECTS.setup.floats/248 store:effects.owner.EFFECTS.setup.floats@0+f8
+effects.owner.EFFECTS.setup.frame/48 store:effects.owner.EFFECTS.setup.frame@0+30
+effects.owner.EFFECTS.setup.kind_floats/108 store:effects.owner.EFFECTS.setup.kind_floats@0+6c
+effects.owner.EFFECTS.setup.mask_constants/156 store:effects.owner.EFFECTS.setup.mask_constants@0+9c
+effects.owner.EFFECTS.weather.rain/6736 store:effects.owner.EFFECTS.weather.rain@0+1a50
+effects.owner.EFFECTS.windscreen_drops.hex/98736 store:effects.owner.EFFECTS.windscreen_drops.hex@0+181b0
+effects.owner.EFFECTS.windscreen_drops.inputs/60 store:effects.owner.EFFECTS.windscreen_drops.inputs@0+3c
+effects.owner.EFFECTS.windscreen_drops.picks/264280 store:effects.owner.EFFECTS.windscreen_drops.picks@0+40858
+effects.owner.EFFECTS.windscreen_drops.shape_work/93768 store:effects.owner.EFFECTS.windscreen_drops.shape_work@0+16e48
+effects.owner.EFFECTS.windscreen_drops.state/96 store:effects.owner.EFFECTS.windscreen_drops.state@0+60
+effects.owner.EFFECTS.windscreen_drops.tilt/40 store:effects.owner.EFFECTS.windscreen_drops.tilt@0+28
+effects.owner.EFFECTS.windscreen_drops.tuning/624 store:effects.owner.EFFECTS.windscreen_drops.tuning@0+270
+effects.owner.EFFECTS.windscreen_drops.work/2584 store:effects.owner.EFFECTS.windscreen_drops.work@0+a18
+effects.owner.EFFECTS.windscreen_flakes.items/122880 store:effects.owner.EFFECTS.windscreen_flakes.items@0+1e000
+effects.owner.EFFECTS.windscreen_flakes.state/220 store:effects.owner.EFFECTS.windscreen_flakes.state@0+dc
+effects.owner.EFFECTS.windscreen_flakes.tables/1696 store:effects.owner.EFFECTS.windscreen_flakes.tables@0+6a0
+effects.owner.EFFECTS.windscreen_flakes.timing/12 store:effects.owner.EFFECTS.windscreen_flakes.timing@0+c
+effects.run_frame.FRAME_K held
+effects.owner.EFFECTS.pong.state/388 store:effects.owner.EFFECTS.pong.state@0+184
+effects.owner.EFFECTS.pong.rules/176 store:effects.owner.EFFECTS.pong.rules@0+b0
+effects.rain.RAIN_RULES held
+effects.run_ring.RING_KINDS held
+effects.run_particles.TRAIL_PALETTE held
+effects.run_ribbons.COLOURS_257 held
+sound.owner.SOUND.menu.next_sound_time/4 store:sound.owner.SOUND.menu.next_sound_time@0+4
+sound.owner.SOUND.race.sounds_on/4 store:sound.owner.SOUND.race.sounds_on@0+4
+sound.store.WHEEL_SURFACES/8 store:sound.store.WHEEL_SURFACES@0+8
+audio.store.ENVIRONMENT/4 store:audio.store.ENVIRONMENT@0+4
+strings.append_time.SHOW_HOURS/4 store:strings.append_time.SHOW_HOURS@0+4
+strings.copy_printable.KEEP_CASE/4 store:strings.copy_printable.KEEP_CASE@0+4
+strings.owner.STRINGS.language.plain_letters/256 store:strings.owner.STRINGS.language.plain_letters@0+100
+strings.maybe_compile_lexicon.RECOMPILE_LEVEL/4 store:strings.maybe_compile_lexicon.RECOMPILE_LEVEL@0+4
+strings.same_text.LOWER/256 store:strings.same_text.LOWER@0+100
+strings.units.UNITS/4 store:strings.units.UNITS@0+4
+settings.read_driver_names.PATH held
+strings.owner.STRINGS.drivers.key/8 store:strings.owner.STRINGS.drivers.key@0+8
+settings.read_settings.PATH held
+text.blend_font.BLENDED_FONT/32 store:text.blend_font.BLENDED_FONT@0+20
+text.blend_font.BLENDED_PALETTE/1024 store:text.blend_font.BLENDED_PALETTE@0+400
+strings.owner.STRINGS.text.blend_mode/4 store:strings.owner.STRINGS.text.blend_mode@0+4
 
 # sound sets (the stores that hold handles where the game holds addresses)
-sound.owner.SOUND.race.sets/2516       0x511B10 0x9D4
-sound.owner.SOUND.race.cue_lists/1288  0x512508 0x508
-sound.owner.SOUND.race.kinds/5064      0x514F90 0x13C8
-sound.owner.SOUND.race.surface_sets/448 0x51639C 0x1C0
-sound.owner.SOUND.race.car_stream/12        0xA8C180 0xC
-input.owner.INPUT.devices/5440              0x4F68D8 0x1540
-input.owner.INPUT.keyboard.table_pointers/20  0x4F7FDC 0x14
-strings.keyboard_tables.KEYBOARD_TABLES/8812  0x4F0DC8 0x226C
-strings.keyboard_tables.NEC_POINTERS/20       0x4F0E10 0x14
-install.store.VARS/1206         0x529DAD 0x4B6
-install.store.DRIVE_ROWS/417    0x52A30F 0x1A1
-install.store.LOBBY_KEYS/119    0x5AB419 0x77
-install.owner.INSTALL.pages/6693  0x51C407 0x1A25
-install.owner.INSTALL.names/2215  0x51BB60 0x8A7
-strings.unit_labels.LABEL_IDS/44      0x51EB84 0x2C
-strings.compile_lexicon.PATTERN/19          0x4E0770 0x13
-strings.compile_lexicon.WORK/3140     0x94EAB4 0xC44
-strings.compile_lexicon.EMPTY_MESSAGE/16 0x4F3034 0x10
-strings.compile_lexicon.COUNTER/4     0x4E07D4 4
-strings.load_language.LOCALE_FILES          0x4E075C 0x13
-strings.load_language.KEYBOARD_FILES        0x4E0784 0x13
-strings.load_language.LOCALE/48       0x4E0798 0x30
-settings.read_driver_names.NAMES/4872       0x95ECF8 0x1308
-files.handle.MODES                     0x4E06EA 0x50
-settings.read_settings.TABLE/1256           0x518C09 0x4E8
-settings.read_settings.TABLE_END/1     0x5190F1 1
+sound.owner.SOUND.race.sets/2516 held
+sound.owner.SOUND.race.cue_lists/1288 held
+sound.owner.SOUND.race.kinds/5064 held
+sound.owner.SOUND.race.surface_sets/448 held
+sound.owner.SOUND.race.car_stream/12 store:sound.owner.SOUND.race.car_stream@0+c
+input.owner.INPUT.devices/5440 held
+input.owner.INPUT.keyboard.table_pointers/20 store:input.owner.INPUT.keyboard@4+14
+strings.keyboard_tables.KEYBOARD_TABLES/8812 held
+strings.keyboard_tables.NEC_POINTERS/20 held
+install.store.VARS/1206 held
+install.store.DRIVE_ROWS/417 store:install.owner.INSTALL.drive_rows@0+1a1
+install.store.LOBBY_KEYS/119 held
+install.owner.INSTALL.pages/6693 held
+install.owner.INSTALL.names/2215 store:install.owner.INSTALL.names@0+8a7
+strings.unit_labels.LABEL_IDS/44 held
+strings.compile_lexicon.PATTERN/19 held
+strings.compile_lexicon.WORK/3140 store:strings.owner.STRINGS.lexicon.work@0+c44
+strings.compile_lexicon.EMPTY_MESSAGE/16 store:strings.owner.STRINGS.lexicon.empty_message@0+10
+strings.compile_lexicon.COUNTER/4 held
+strings.load_language.LOCALE_FILES held
+strings.load_language.KEYBOARD_FILES held
+strings.load_language.LOCALE/48 store:strings.owner.STRINGS.language.locale@0+30
+settings.read_driver_names.NAMES/4872 store:strings.owner.STRINGS.drivers.names@0+1308
+files.handle.MODES held
+settings.read_settings.TABLE/1256 held
+settings.read_settings.TABLE_END/1 held
 # front end
-gfx.owner.GFX.card.texture_tables.kinds/20 0x5ABAC0 0x14
-gfx.texts.CHATZONE 0x5ab400 0x19
-gfx.texts.FINDING_3D 0x5c2cf7 0x14
-gfx.texts.FNT13 0x52977a 0x19
-gfx.texts.FNT21 0x529793 0x19
-gfx.texts.FNT22 0x5be8d8 0x19
-gfx.texts.FNT23 0x5297ac 0x19
-gfx.texts.FNT27 0x5297c5 0x19
-gfx.texts.JADE 0x4f66c8 0x15
-gfx.texts.MBUTS 0x732c93 0x25
-gfx.texts.PAL_00 0x5297de 0x17
-saves.owner.SAVES.files.options_kept/20 0x4f66dd 0x14
-menu.owner.MENUS.cars.table/8524 0x75648C 0x214c
-menu.owner.MENUS.play.players/2624 0x755A4C 0xa40
-menu.owner.MENUS.tables.lists/4526 0x7594AA 0x11ae
-menu.owner.MENUS.tables.texts/12356 0x731B82 0x3044
-debug.kstar.VIEW_NAMES 0x5EE2D5 0x340
-saves.load_best_times.PATH 0x5295E4 0xC
+gfx.owner.GFX.card.texture_tables.kinds/20 held
+gfx.texts.CHATZONE store:net.owner.NET_OWNER.vars#5@8069c+19
+gfx.texts.FINDING_3D store:race.owner.RACE.replay.viewer_and_kinds@3db+14
+gfx.texts.FNT13 held
+gfx.texts.FNT21 held
+gfx.texts.FNT22 held
+gfx.texts.FNT23 held
+gfx.texts.FNT27 held
+gfx.texts.JADE store:gfx.owner.GFX.fonts.jade@1404+15
+gfx.texts.MBUTS store:menu.owner.MENUS.tables.texts@1111+25
+gfx.texts.PAL_00 held
+saves.owner.SAVES.files.options_kept/20 store:saves.owner.SAVES.files.options_kept@0+14
+menu.owner.MENUS.cars.table/8524 held
+menu.owner.MENUS.play.players/2624 held
+menu.owner.MENUS.tables.lists/4526 held
+menu.owner.MENUS.tables.texts/12356 held
+debug.kstar.VIEW_NAMES held
+saves.load_best_times.PATH held
 # race, physics
-race.owner.RACE.frame.view_and_records.view_vars.view_records[0]/208          0x606320 0xD0
-race.owner.RACE.replay.replay_view.viewer_list[0]/440                         0x5C255C 0x1B8
-race.owner.RACE.replay.seal_key/4                                             0x4F66F9 0x4
-race.owner.RACE.replay.viewer_and_kinds.viewer_panel.switch_pictures_a[0]/36  0x5C2C70 0x24
-race.owner.RACE.shared.physics_tables.surfaces[0].table/768                   0x613978 0x300
-race.owner.RACE.shared.view.view_blocks[0]/8                                  0x63DBB0 0x8
-race.owner.RACE.shared.work.car_blocks[0]/32                                  0x71B3B8 0x20
-race.owner.RACE.shared.work.car_records[0]/32                                 0x71B3D8 0x20
-race.replay_path.LAST_RACE                                                    0x5295F0 0x10B
-race.replay_path.TEMPLATES                                                    0x52974B 0x2F
-race.store.UNREAD.texture_kind_names                                          0x64CD0C 0x9C
+race.owner.RACE.frame.view_and_records.view_vars.view_records[0]/208 held
+race.owner.RACE.replay.replay_view.viewer_list[0]/440 store:race.owner.RACE.replay.replay_view@44+1b8
+race.owner.RACE.replay.seal_key/4 store:race.owner.RACE.replay.seal_key@0+4
+race.owner.RACE.replay.viewer_and_kinds.viewer_panel.switch_pictures_a[0]/36 store:race.owner.RACE.replay.viewer_and_kinds@354+24
+race.owner.RACE.shared.physics_tables.surfaces[0].table/768 store:race.owner.RACE.shared.physics_tables@150+300
+race.owner.RACE.shared.view.view_blocks[0]/8 held
+race.owner.RACE.shared.work.car_blocks[0]/32 held
+race.owner.RACE.shared.work.car_records[0]/32 store:race.owner.RACE.shared.work@420+20
+race.replay_path.LAST_RACE held
+race.replay_path.TEMPLATES held
+
+# The stores that hold a handle or a Rust value where the game has an address.
+store:install.owner.INSTALL.vars held
+store:gfx.owner.GFX.card.texture_tables held
+store:audio.owner.AUDIO_OWNER.sample_records held
+store:input.owner.INPUT.devices held
+store:menu.owner.MENUS.play.players held
+store:menu.owner.MENUS.cars.table held
+store:menu.owner.MENUS.tables.texts#2 held
+store:menu.owner.MENUS.tables.menus.labels held
+store:sound.owner.SOUND.race.sets held
+store:sound.owner.SOUND.race.cue_lists held
+store:sound.owner.SOUND.race.kinds held
+store:sound.owner.SOUND.race.surface_sets held
+store:install.owner.INSTALL.pages held
+store:gfx.owner.GFX.fonts.font_block held
+store:race.owner.RACE.frame.view_and_records held
+store:race.owner.RACE.shared.view held
+store:race.owner.RACE.shared.work held
+store:menu.owner.MENUS.tables.lists held

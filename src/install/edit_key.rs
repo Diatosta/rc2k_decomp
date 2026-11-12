@@ -52,10 +52,6 @@ fn past_nul(text: BytePlace) -> u32 {
 fn measure_limit(text: BytePlace) -> Result<u32, crate::errors::BadInput> {
     match text {
         BytePlace::Store(_, at) | BytePlace::In(_, at) => Ok(at as u32),
-        // An edit item's text is always in the installer's pages or paths.
-        BytePlace::At(_) => Err(crate::errors::BadInput(
-            "an edit item's text outside the installer's data",
-        )),
     }
 }
 

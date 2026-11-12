@@ -237,7 +237,7 @@ mod tests_hex {
         assert_eq!(offset_of!(WindscreenDropVars, angle), 0x181a0);
         assert_eq!(offset_of!(WindscreenDropVars, result_k), 0x181a4);
         // The x87 tests put their buffer's bytes in HEX for a while (`typed_sync::with_overlays`).
-        let _lock = crate::store::test_lock();
+        let _lock = crate::test_support::test_lock();
         let p =
             core::ptr::addr_of!(crate::effects::owner::effects().windscreen_drops.hex).cast::<u8>();
         let now: Vec<u8> = (0..WindscreenDropVars::LEN)

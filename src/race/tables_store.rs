@@ -92,8 +92,7 @@ pub struct RaceTables {
 // them): any bit pattern is a valid value.
 
 impl RaceTables {
-    /// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
-    /// `race::store::LEFT`), with the image's first values.
+    /// The piece, with the image's first values.
     pub const fn new() -> Self {
         crate::cells::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
     }
@@ -106,10 +105,10 @@ pub const END: usize = 0x60526C;
 
 const _: () = assert!(END - START == core::mem::size_of::<RaceTables>());
 
-/// Where IDA 0x60463C is now (its own static).
+/// The piece's host address (the alignment checks).
 #[cfg(test)]
-pub fn piece_addr() -> u32 {
-    crate::pointers::game_address(core::ptr::from_ref(&race().shared.tables))
+pub fn piece_addr() -> usize {
+    core::ptr::from_ref(&race().shared.tables).addr()
 }
 
 #[cfg(test)]
