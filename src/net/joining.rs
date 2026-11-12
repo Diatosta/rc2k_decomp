@@ -13,6 +13,6 @@ pub fn joining(
     session: u32,
     gfx: &crate::gfx::owner::Gfx,
 ) -> Result<bool, Refused> {
-    crate::net::connecting::status(0x153, gfx)?;
+    crate::net::connecting::status(0x153, gfx, system)?;
     crate::net::join_session::join_session(net, system, panel, session)
 }

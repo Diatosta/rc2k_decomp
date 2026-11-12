@@ -22,7 +22,11 @@ use crate::race::replay_path::replay_path;
 use rc2k_core::race::viewer_flow::{HEADER_LEN, INDEX_LEN};
 
 /// Whether it failed. `slot` the replay.
-pub fn open_viewed_replay(race: &Race, slot: u32) -> Result<bool, Refused> {
+pub fn open_viewed_replay(
+    race: &Race,
+    system: &crate::system::owner::System,
+    slot: u32,
+) -> Result<bool, Refused> {
     let replay = &race.replay;
     let shared = &race.shared;
     // Converted: `rc2k_core::race::viewer_flow::{last_race_missing, copied_first,
@@ -46,6 +50,7 @@ pub fn open_viewed_replay(race: &Race, slot: u32) -> Result<bool, Refused> {
     if copied_first(found.number) {
         // A saved replay is copied over the last race's first.
         let copied = crate::files::copy_file::copy_file(
+            system,
             &path,
             &crate::race::replay_path::last_race(replay),
         )?;
@@ -105,7 +110,7 @@ pub fn open_viewed_replay(race: &Race, slot: u32) -> Result<bool, Refused> {
     }
     let mut block = 0u32;
     loop {
-        if { crate::drive::read_replay_frame_0::read_replay_frame_0(race, block) }? {
+        if { crate::drive::read_replay_frame_0::read_replay_frame_0(race, system, block) }? {
             return failed();
         }
         crate::race::viewer::move_cells(
@@ -124,7 +129,7 @@ pub fn open_viewed_replay(race: &Race, slot: u32) -> Result<bool, Refused> {
     race.viewer_buffers().mark_in.set(mark_in);
     race.viewer_buffers().mark_out.set(mark_out);
     race.viewer_buffers().block_used.set(0);
-    if { crate::drive::read_replay_frame_0::read_replay_frame_0(race, 0) }? {
+    if { crate::drive::read_replay_frame_0::read_replay_frame_0(race, system, 0) }? {
         return failed();
     }
     // The file's header is bytes (a byte-level copy of its stage part).

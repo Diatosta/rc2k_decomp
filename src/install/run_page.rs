@@ -93,8 +93,8 @@ pub fn run_page(
             i::measure_pieces::measure_pieces(install, strings, o.gfx)?;
             i::place_pieces::place_pieces(install)?;
             run_frame(system, None)?;
-            if lock(o.gfx) {
-                copy_picture()?;
+            if lock(o.gfx, system) {
+                copy_picture(o.gfx, system)?;
                 i::draw_pieces::draw_pieces(install, strings, o.gfx)?;
                 unlock(o.gfx);
                 show();
@@ -113,7 +113,8 @@ pub fn run_page(
                 let mut again = 0;
                 loop {
                     let item = list.item(install.pages.choice.get());
-                    let (left, mut took) = i::page_key::page_key(install, gfx, key, item, list)?;
+                    let (left, mut took) =
+                        i::page_key::page_key(install, gfx, system, key, item, list)?;
                     key = left;
                     if !took {
                         let keys = list.key_action();

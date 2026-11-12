@@ -108,7 +108,7 @@ impl Game {
             Step::ObjectsTidy => crate::race::stage_free::objects_tidy(race)?,
             // `nullsub_6`.
             Step::Nothing => {}
-            Step::ReleaseTextures => crate::race::race_end::release_textures(scene),
+            Step::ReleaseTextures => crate::race::race_end::release_textures(scene, o.gfx),
             Step::FileExists(f) => {
                 let there = crate::files::file_exists::file_exists(
                     &film(panels, f).text("a film's path")?,

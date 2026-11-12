@@ -17,6 +17,7 @@ use crate::gfx::owner::Gfx;
 /// The parts: the game's memory, the platform's lock and unlock, the writer.
 struct Shot<'a> {
     gfx: &'a Gfx,
+    system: &'a crate::system::owner::System,
 }
 
 impl rc2k_core::gfx::screenshot::Shooting for Shot<'_> {
@@ -35,7 +36,7 @@ impl rc2k_core::gfx::screenshot::Shooting for Shot<'_> {
     }
     fn lock(&mut self) -> Result<bool, Refused> {
         // `cmp g_surfaceLocked, 1`'s carry: not locked.
-        Ok(crate::platform::lock_surface(self.gfx) < 1)
+        Ok(crate::platform::lock_surface(self.gfx, self.system) < 1)
     }
     fn write(&mut self) -> Result<(), Refused> {
         if let Some(screen) = crate::platform_3d::screen() {
@@ -49,7 +50,10 @@ impl rc2k_core::gfx::screenshot::Shooting for Shot<'_> {
         Ok(())
     }
 }
-pub fn take_screenshot(gfx: &crate::gfx::owner::Gfx) -> Result<(), Refused> {
+pub fn take_screenshot(
+    gfx: &crate::gfx::owner::Gfx,
+    system: &crate::system::owner::System,
+) -> Result<(), Refused> {
     // Converted: `rc2k_core::gfx::screenshot::take_screenshot`.
-    rc2k_core::gfx::screenshot::take_screenshot(&mut Shot { gfx })
+    rc2k_core::gfx::screenshot::take_screenshot(&mut Shot { gfx, system })
 }

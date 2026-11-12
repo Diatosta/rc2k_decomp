@@ -15,6 +15,7 @@ use rc2k_core::physics::camera_ground::SIDES;
 /// Whether the camera and both sides are over ground (CF clear).
 // Converted: `rc2k_core::physics::camera_ground::SIDES`.
 pub fn camera_over_ground(
+    engine_tables: &crate::scene::engine_tables_store::EngineTables,
     c: &CameraGroundInputs<'_>,
     scene: &crate::scene::owner::Scene,
 ) -> Result<bool, Refused> {
@@ -31,7 +32,8 @@ pub fn camera_over_ground(
         c.course.course.ground_face_last.set(slot.get());
         // The y (a leftover value in the original) only goes through the scratch point,
         // which nothing reads after: 0 here.
-        let [x, _, z, _] = rotate_point_about_y(side as i32, 0, 0, c.car.camera_heading.get());
+        let [x, _, z, _] =
+            rotate_point_about_y(engine_tables, side as i32, 0, 0, c.car.camera_heading.get());
         if !probe_at(
             c,
             x.wrapping_add(c.car.camera_position[0].get()),

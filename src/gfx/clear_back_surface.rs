@@ -20,7 +20,7 @@ pub fn clear_back_surface(
         return Err(BadInput("a screen of no rows: the original goes round 2^32 times").into());
     }
     // `cmp g_surfaceLocked, 1`'s carry: not locked.
-    if crate::platform::lock_surface(gfx) < 1 {
+    if crate::platform::lock_surface(gfx, system) < 1 {
         return Ok(());
     }
     // Each row's dwords, then the gap to the next (the original's step).

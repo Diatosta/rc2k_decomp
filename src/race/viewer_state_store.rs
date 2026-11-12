@@ -1,7 +1,9 @@
 //! The replay writer's and the viewer's state (IDA 0x5C2518 .. 0x5C2714; phase 7, typed): the padding frame, the file offset and frames in the block, the replay block and frame, the play end and the viewer's switches, then the viewer's list (header and 26 items of 16 bytes). `#[repr(C)]` with the image's layout, over the race block's bytes. The list's pointers are relocated addresses into the untyped rectangles and key table at 0x5C2714 .. 0x5C291C. Names are readings unless IDA's.
 
 use crate::place::BytePlace;
+#[cfg(test)]
 use crate::race::owner::race;
+use crate::race::owner_replay::Replay;
 use crate::session::{Dword, Flag};
 
 #[repr(C)]
@@ -84,25 +86,28 @@ impl ReplayViewBlock {
     }
 
     /// Where the list's key table (the header's +0x10) is.
-    pub fn key_table() -> Result<BytePlace, crate::errors::BadInput> {
+    pub fn key_table(replay: &Replay) -> Result<BytePlace, crate::errors::BadInput> {
         Self::named(
-            race().replay.replay_view.viewer_list[4].get(),
+            replay.replay_view.viewer_list[4].get(),
             "the viewer list's key table off its place",
         )
     }
 
     /// Where item `index`'s screen rectangle (its +4) is.
-    pub fn item_place(index: u32) -> Result<BytePlace, crate::errors::BadInput> {
+    pub fn item_place(replay: &Replay, index: u32) -> Result<BytePlace, crate::errors::BadInput> {
         Self::named(
-            Self::item_dword(index, 1)?,
+            Self::item_dword(replay, index, 1)?,
             "a viewer item's place off the rectangles",
         )
     }
 
     /// What item `index`'s picture (its +0xC: a rectangle, or one of the switch tables) is.
     /// The original compared the picture's address with the three tables' addresses.
-    pub fn item_picture(index: u32) -> Result<ViewerPicture, crate::errors::BadInput> {
-        let ida = Self::item_dword(index, 3)?;
+    pub fn item_picture(
+        replay: &Replay,
+        index: u32,
+    ) -> Result<ViewerPicture, crate::errors::BadInput> {
+        let ida = Self::item_dword(replay, index, 3)?;
         let table = |offset: usize| (crate::race::viewer_screen_store::START + offset) as u32;
         use crate::race::viewer_screen_store::ViewerPanelBlock;
         use core::mem::offset_of;
@@ -126,11 +131,15 @@ impl ReplayViewBlock {
         Ok(ViewerPicture::Rectangle(ida as usize))
     }
 
-    fn item_dword(index: u32, field: usize) -> Result<u32, crate::errors::BadInput> {
+    fn item_dword(
+        replay: &Replay,
+        index: u32,
+        field: usize,
+    ) -> Result<u32, crate::errors::BadInput> {
         if index >= Self::ITEMS {
             return Err(crate::errors::BadInput("a viewer item past the 26"));
         }
-        Ok(race().replay.replay_view.viewer_list[6 + 4 * index as usize + field].get())
+        Ok(replay.replay_view.viewer_list[6 + 4 * index as usize + field].get())
     }
 }
 
@@ -182,12 +191,12 @@ mod tests {
                 replay.replay_view.viewer_list[6 + 4 * k as usize + 3].get(),
                 name(item + 0xC)
             );
-            match ReplayViewBlock::item_picture(k).unwrap() {
+            match ReplayViewBlock::item_picture(replay, k).unwrap() {
                 ViewerPicture::Rectangle(ida) => assert_eq!(ida, name(item + 0xC) as usize),
                 ViewerPicture::Switch(table) => assert!(table < 3),
             }
         }
-        assert!(ReplayViewBlock::item_place(26).is_err());
+        assert!(ReplayViewBlock::item_place(replay, 26).is_err());
     }
 
     #[test]

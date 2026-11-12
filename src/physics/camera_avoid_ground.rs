@@ -27,6 +27,7 @@ use crate::physics::camera_view::record;
 use crate::physics::car_store::Car;
 use crate::physics::step_families::CameraInputs;
 use crate::race::frame_store::FrameWork;
+use crate::race::groups_store::ViewAndRecords;
 use crate::race::lights_store::LightsData;
 use crate::race::numbers_store::Numbers;
 use crate::race::owner_course::Course;
@@ -37,6 +38,7 @@ use rc2k_core::physics::camera_ground;
 fn place(
     camera: &CameraWork,
     lights_data: &LightsData,
+    view_records: &ViewAndRecords,
     numbers: &Numbers,
     frame_work: &FrameWork,
     shared: &RaceShared,
@@ -45,6 +47,7 @@ fn place(
     crate::physics::place_camera::place_camera(
         camera,
         lights_data,
+        view_records,
         numbers,
         frame_work,
         shared,
@@ -111,12 +114,13 @@ fn turn_back(c: &CameraInputs<'_>, scene: &crate::scene::owner::Scene) -> Result
             place(
                 c.camera,
                 c.lights_data,
+                c.view_records,
                 c.numbers,
                 c.frame_work,
                 c.shared,
                 scene,
             );
-            if camera_over_ground(&c.ground, scene)? {
+            if camera_over_ground(&c.shared.buffers.engine_tables, &c.ground, scene)? {
                 continue;
             }
             stepped_back = true;
@@ -152,15 +156,16 @@ pub fn steps(c: &CameraInputs<'_>, scene: &crate::scene::owner::Scene) -> Result
     place(
         c.camera,
         c.lights_data,
+        c.view_records,
         c.numbers,
         c.frame_work,
         c.shared,
         scene,
     );
-    if record(c.car)?.halve_tilt.get() == 0 {
+    if record(c.view_records, c.car)?.halve_tilt.get() == 0 {
         return Ok(());
     }
-    if !camera_over_ground(&c.ground, scene)? {
+    if !camera_over_ground(&c.shared.buffers.engine_tables, &c.ground, scene)? {
         let mut found = false;
         for back in [1, 2] {
             if !face_checkpoint(c.checkpoints, c.course, c.shared, back, scene) {
@@ -169,12 +174,13 @@ pub fn steps(c: &CameraInputs<'_>, scene: &crate::scene::owner::Scene) -> Result
             place(
                 c.camera,
                 c.lights_data,
+                c.view_records,
                 c.numbers,
                 c.frame_work,
                 c.shared,
                 scene,
             );
-            if camera_over_ground(&c.ground, scene)? {
+            if camera_over_ground(&c.shared.buffers.engine_tables, &c.ground, scene)? {
                 found = true;
                 break;
             }
@@ -192,6 +198,7 @@ pub fn steps(c: &CameraInputs<'_>, scene: &crate::scene::owner::Scene) -> Result
     place(
         c.camera,
         c.lights_data,
+        c.view_records,
         c.numbers,
         c.frame_work,
         c.shared,
@@ -216,6 +223,7 @@ pub fn steps(c: &CameraInputs<'_>, scene: &crate::scene::owner::Scene) -> Result
         place(
             c.camera,
             c.lights_data,
+            c.view_records,
             c.numbers,
             c.frame_work,
             c.shared,

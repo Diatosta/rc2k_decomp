@@ -10,7 +10,13 @@
 use crate::math::rotate_point_about_y::rotate_point_about_y;
 
 /// The Rust version: x', z' and the entry left in edx.
-pub fn rotate_point_about_y_ecx(x: i32, y: i32, z: i32, angle: u32) -> [u32; 3] {
-    let [x, _, z, entry] = rotate_point_about_y(x, y, z, angle);
+pub fn rotate_point_about_y_ecx(
+    tables: &crate::scene::engine_tables_store::EngineTables,
+    x: i32,
+    y: i32,
+    z: i32,
+    angle: u32,
+) -> [u32; 3] {
+    let [x, _, z, entry] = rotate_point_about_y(tables, x, y, z, angle);
     [x, z, entry]
 }

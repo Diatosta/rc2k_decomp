@@ -314,7 +314,7 @@ mod reference_vectors {
     use crate::effects::windscreen_drop_state::{WindscreenDropState, WindscreenDropWork};
 
     /// Runs `f` with the windscreen drops' statics holding the buffer's bytes (`typed_sync`).
-    fn windscreen_drops<R>(mk: usize, f: impl FnOnce() -> R) -> R {
+    fn windscreen_drops<R>(mk: crate::effects::asm_test::Operand, f: impl FnOnce() -> R) -> R {
         with_overlays(
             mk,
             &[
@@ -339,7 +339,7 @@ mod reference_vectors {
     use crate::effects::windscreen_drop_vars::WindscreenDropVars;
 
     /// Runs `f` with `HEX` holding the buffer's bytes (`typed_sync`).
-    fn hex<R>(mk: usize, f: impl FnOnce() -> R) -> R {
+    fn hex<R>(mk: crate::effects::asm_test::Operand, f: impl FnOnce() -> R) -> R {
         with_overlays(
             mk,
             &[overlay(
@@ -354,13 +354,13 @@ mod reference_vectors {
     /// item or record the original found by address): `bytes` holds them from offset 0 and
     /// what `f` leaves goes back to the buffer, the stand-in as it was.
     fn staged<R>(
-        at: usize,
+        at: crate::effects::asm_test::Operand,
         from: usize,
         len: usize,
         bytes: &impl crate::session::ByteBuffer,
         f: impl FnOnce() -> R,
     ) -> R {
-        let host = crate::pointers::host_at(at + from);
+        let host = (at + from).host();
         let saved: Vec<u8> = (from..from + len).map(|i| bytes.get_byte(i)).collect();
         for i in 0..len {
             let b = unsafe { host.add(i).read() };
@@ -403,7 +403,10 @@ mod reference_vectors {
             &SPEC,
             |b| {
                 windscreen_drops(b[0], || {
-                    super::drift_cell_x87(&crate::effects::owner::effects().windscreen_drops, b[1]);
+                    super::drift_cell_x87(
+                        &crate::effects::owner::effects().windscreen_drops,
+                        b[1].number(),
+                    );
                 });
             },
         );
@@ -453,7 +456,7 @@ mod reference_vectors {
                             || {
                                 super::drift_move_x87(
                                     &crate::effects::owner::effects().windscreen_drops,
-                                    b[1],
+                                    b[1].number(),
                                     0,
                                 );
                             },
@@ -629,7 +632,7 @@ mod reference_vectors {
                     windscreen_drops(b[1], || {
                         super::sprite_corners_x87(
                             &crate::effects::owner::effects().windscreen_drops,
-                            b[2],
+                            b[2].number(),
                         )
                     })
                     .0,
@@ -761,7 +764,7 @@ mod reference_vectors {
                                             crate::gfx::owner::gfx(),
                                             crate::effects::owner::effects(),
                                             0,
-                                            super::bh::ld(b[3] as u32),
+                                            super::bh::ld(b[3].number() as u32),
                                         );
                                     },
                                 );

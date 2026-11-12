@@ -47,57 +47,73 @@ pub fn pool_start() -> u32 {
 /// alone: `scene::set_object_material` is given kind -1 and reads the record before the
 /// first (the texture infos' tail), and a read can run on into the next record, as the
 /// original does. A read past the tables is refused.
-pub fn material_run(kind: u32, offset: u32, bytes: &mut [u8]) -> Result<(), BadInput> {
+pub fn material_run(
+    tables: &crate::scene::polygon_store::PolygonTables,
+    kind: u32,
+    offset: u32,
+    bytes: &mut [u8],
+) -> Result<(), BadInput> {
     use crate::scene::polygon_store::PolygonTables;
     let at = (core::mem::offset_of!(PolygonTables, object_materials) as u32)
         .wrapping_add(kind.wrapping_mul(0x80))
         .wrapping_add(offset);
-    crate::pointers::load_cells(
-        &*crate::scene::polygon_store::POLYGON_TABLES,
-        at as usize,
-        bytes,
-    )
+    crate::pointers::load_cells(tables, at as usize, bytes)
 }
 
 /// The byte at `offset` of object kind `kind`'s material record (as `material_run`).
-pub fn material_run_byte(kind: u32, offset: u32) -> Result<u8, BadInput> {
+pub fn material_run_byte(
+    tables: &crate::scene::polygon_store::PolygonTables,
+    kind: u32,
+    offset: u32,
+) -> Result<u8, BadInput> {
     let mut byte = [0u8];
-    material_run(kind, offset, &mut byte)?;
+    material_run(tables, kind, offset, &mut byte)?;
     Ok(byte[0])
 }
 
 /// The little-endian word at `offset` of object kind `kind`'s material record (as
 /// `material_run`).
-pub fn material_run_word(kind: u32, offset: u32) -> Result<u16, BadInput> {
+pub fn material_run_word(
+    tables: &crate::scene::polygon_store::PolygonTables,
+    kind: u32,
+    offset: u32,
+) -> Result<u16, BadInput> {
     let mut word = [0u8; 2];
-    material_run(kind, offset, &mut word)?;
+    material_run(tables, kind, offset, &mut word)?;
     Ok(u16::from_le_bytes(word))
 }
 
 /// The byte `offset` into the polygon tables' field of `len` bytes at `field`; the field's
 /// end is the limit, a read on into the next record inside it as the original's arithmetic
 /// does.
-fn field_byte(field: usize, len: usize, offset: u32, what: &'static str) -> Result<u8, BadInput> {
+fn field_byte(
+    tables: &crate::scene::polygon_store::PolygonTables,
+    field: usize,
+    len: usize,
+    offset: u32,
+    what: &'static str,
+) -> Result<u8, BadInput> {
     let offset = offset as usize;
     if offset >= len {
         return Err(BadInput(what));
     }
     let mut byte = [0u8];
-    crate::pointers::load_cells(
-        &*crate::scene::polygon_store::POLYGON_TABLES,
-        field + offset,
-        &mut byte,
-    )?;
+    crate::pointers::load_cells(tables, field + offset, &mut byte)?;
     Ok(byte[0])
 }
 
 /// Byte `offset` of texture info `n` (`g_textureInfos` + 0x40 n): an offset past the
 /// record reads on into the next, as the original's arithmetic does.
-pub fn texture_info_byte(n: u32, offset: u32) -> Result<u8, BadInput> {
+pub fn texture_info_byte(
+    tables: &crate::scene::polygon_store::PolygonTables,
+    n: u32,
+    offset: u32,
+) -> Result<u8, BadInput> {
     use crate::scene::polygon_store::PolygonTables;
     field_byte(
+        tables,
         core::mem::offset_of!(PolygonTables, texture_infos),
-        core::mem::size_of_val(&crate::scene::polygon_store::POLYGON_TABLES.texture_infos),
+        core::mem::size_of_val(&tables.texture_infos),
         n.wrapping_mul(0x40).wrapping_add(offset),
         "a texture info's byte past the table",
     )
@@ -105,11 +121,16 @@ pub fn texture_info_byte(n: u32, offset: u32) -> Result<u8, BadInput> {
 
 /// Byte `offset` of object kind `kind`'s material record (`g_objectMaterials` + 0x80 kind;
 /// kind -1 the record before the first, as the original reads it).
-pub fn material_byte(kind: u32, offset: u32) -> Result<u8, BadInput> {
+pub fn material_byte(
+    tables: &crate::scene::polygon_store::PolygonTables,
+    kind: u32,
+    offset: u32,
+) -> Result<u8, BadInput> {
     use crate::scene::polygon_store::PolygonTables;
     field_byte(
+        tables,
         core::mem::offset_of!(PolygonTables, object_materials),
-        core::mem::size_of_val(&crate::scene::polygon_store::POLYGON_TABLES.object_materials),
+        core::mem::size_of_val(&tables.object_materials),
         kind.wrapping_mul(0x80).wrapping_add(offset),
         "an object's material byte past the table",
     )

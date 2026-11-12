@@ -91,6 +91,7 @@ impl Steps<'_> {
             self.o.system,
             self.o.scene,
             self.o.gfx,
+            self.o.d3d,
         )
     }
 
@@ -154,7 +155,7 @@ pub fn loadlevel_init(
     s.indent(-3);
     s.step(
         &mut || {
-            crate::scene::set_up_object_memory::set_up_object_memory(&race.course, scene)?;
+            crate::scene::set_up_object_memory::set_up_object_memory(race, scene)?;
             Ok(())
         },
         None,
@@ -178,11 +179,11 @@ pub fn loadlevel_init(
     s.step(&mut || stage_prefs::load_prefs(race), Some(7))?;
     s.step(&mut || level::load_error_list(&race.frame, scene), Some(8))?;
     s.step(
-        &mut || crate::scene::texture_levels::init_texture_levels(race, scene),
+        &mut || crate::scene::texture_levels::init_texture_levels(race, o),
         Some(0xA),
     )?;
     s.step(
-        &mut || crate::scene::set_up_textures::set_up_textures(&race.shared, scene, o.gfx),
+        &mut || crate::scene::set_up_textures::set_up_textures(&race.shared, scene, o.gfx, o.d3d),
         Some(0xE),
     )?;
     s.step(&mut || level::build_texture_infos(race), Some(0xF))?;
@@ -206,7 +207,7 @@ pub fn loadlevel_init(
     race.shared.vars.bar_span[1].set(0x50); // RaceVars.bar_span[1]
     s.indent(-3);
     s.step(
-        &mut || crate::race::set_all_plates::set_all_plates(race, system, gfx, o.net, scene),
+        &mut || crate::race::set_all_plates::set_all_plates(race, system, gfx, o.d3d, o.net, scene),
         Some(0x50),
     )?;
     // loadgamemap.
@@ -283,7 +284,12 @@ pub fn loadlevel_init(
     s.indent(-3);
     s.step(
         &mut || {
-            stage_prefs::get_mat_crash(&race.frame.matrices, &race.shared.car, scene);
+            stage_prefs::get_mat_crash(
+                race.engine_tables(),
+                &race.frame.matrices,
+                &race.shared.car,
+                scene,
+            );
             Ok(())
         },
         None,

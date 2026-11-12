@@ -502,7 +502,7 @@ mod reference_vectors {
                     )],
                     || {
                         // The point's three floats, as the buffer holds them at b[1].
-                        let host = |n: usize| crate::pointers::host_at(b[1] + 4 * n).cast::<u32>();
+                        let host = |n: usize| (b[1] + 4 * n).host().cast::<u32>();
                         let p: [PlainFloat; 3] = std::array::from_fn(|n| {
                             PlainFloat::from_bits(unsafe { host(n).read_unaligned() })
                         });

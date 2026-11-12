@@ -101,8 +101,6 @@ const TAIL: usize = 0x5C2CE8;
 
 /// The texts in `untyped_tail`, by IDA's address (for `ViewerPanelBlock::text`).
 pub mod texts {
-    /// "SVM: Release all textures"
-    pub const SVM_RELEASE_TEXTURES: usize = 0x5C2DDF;
     /// "NET: Starting link"
     pub const NET_STARTING_LINK: usize = 0x5C2E04;
     /// "NET: Stopping link"

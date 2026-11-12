@@ -444,7 +444,14 @@ impl<F: GameFont, W: GameWork, T: GameText> Screen for GameScreen<'_, F, W, T> {
     }
 
     fn blend(&mut self, since_key: u32, a: F, b: F) -> Result<(), Refused> {
-        crate::text::blend_font::blend_font(since_key, 0x100, font_of(a), font_of(b))?;
+        crate::text::blend_font::blend_font(
+            self.owners.strings,
+            self.owners.gfx,
+            since_key,
+            0x100,
+            font_of(a),
+            font_of(b),
+        )?;
         Ok(())
     }
 
@@ -933,7 +940,14 @@ impl rc2k_core::screens::menus::MenuScreen for MenuScreen<'_> {
     }
     fn blended(&mut self, since_key: u32, a: MenuFont, b: MenuFont) -> Result<MenuFont, Refused> {
         use crate::text::blend_font::blend_font;
-        blend_font(since_key, 0x100, a.pointer(), b.pointer())?;
+        blend_font(
+            self.owners.strings,
+            self.owners.gfx,
+            since_key,
+            0x100,
+            a.pointer(),
+            b.pointer(),
+        )?;
         Ok(MenuFont::Blended)
     }
     fn list_sprite(&mut self, _list: usize, _x: i32, _y: i32) -> Result<(), Refused> {

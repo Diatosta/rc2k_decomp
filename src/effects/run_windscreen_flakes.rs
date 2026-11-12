@@ -143,14 +143,10 @@ mod reference_vectors {
             sincos: false,
         };
         recorded("effects.run_windscreen_flakes.less_x87", &SPEC, |b| {
-            let word = |off: usize| unsafe {
-                crate::pointers::host_at(b[0] + off)
-                    .cast::<u32>()
-                    .read_unaligned()
-            };
+            let word = |off: usize| unsafe { (b[0] + off).host().cast::<u32>().read_unaligned() };
             let out = super::less_x87(word(0), word(4));
             for (i, byte) in out.into_iter().enumerate() {
-                unsafe { crate::pointers::host_at(b[1] + i).write(byte) };
+                unsafe { (b[1] + i).host().write(byte) };
             }
         });
     }

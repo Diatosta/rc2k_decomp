@@ -18,7 +18,6 @@
 //! The kind's way is in `rc2k_core::scene::lamps::object_light`.
 
 use crate::errors::Refused;
-use crate::input::owner::input;
 use crate::scene::add_car_light::add_car_light;
 use crate::scene::add_car_lights::add_car_lights;
 use crate::scene::add_point_lights::add_point_lights;
@@ -32,6 +31,7 @@ use crate::scene::vertex_light::plus;
 // Converted: `rc2k_core::scene::lamps::object_light`
 pub fn set_object_light(
     gather: &mut dyn FnMut() -> Result<(), Refused>,
+    input: &crate::input::owner::Input,
     light: &crate::scene::object_light::ObjectLight,
     object: &crate::scene::object_place::ObjectPlace,
     system: &crate::system::owner::System,
@@ -40,7 +40,7 @@ pub fn set_object_light(
     use rc2k_core::scene::lamps::{ObjectLight, WHITE, object_light};
     light.light_added.set(0u32);
     let (clear_strength, own_car) = match object_light(light.light_kind.get(), || {
-        input().devices.keys_now.get(0x18) != 0 // Devices.keys_now
+        input.devices.keys_now.get(0x18) != 0 // Devices.keys_now
     }) {
         ObjectLight::White => {
             light.light_added.set(WHITE);
@@ -83,6 +83,7 @@ pub fn set_object_light_in_game(
         &mut || {
             add_car_lights(
                 race,
+                ctx.net,
                 ctx.view.light.drawn_car_light.get(),
                 ctx.view.drawn_view(race),
                 &mut |car, marks| {
@@ -93,6 +94,7 @@ pub fn set_object_light_in_game(
             add_point_lights(ctx, system)?;
             Ok(())
         },
+        ctx.input,
         &ctx.view.light,
         &ctx.view.object,
         system,

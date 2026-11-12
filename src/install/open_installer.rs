@@ -90,7 +90,7 @@ pub fn open_installer(
     draw_string(0x94, FONT_94, 0x316, 0x2F, gfx)?;
     draw_string(0x1000, FONT_1000, 0x320, 0x24B, gfx)?;
     draw_string(0x1002, FONT_1002, 0, 0x24B, gfx)?;
-    copy_picture()?;
+    copy_picture(gfx, system)?;
     show();
     Ok(())
 }

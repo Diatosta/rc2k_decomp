@@ -76,7 +76,7 @@ pub fn car_lighting(
     for k in 0..4u32 {
         c.course.course.face_light_bytes[k as usize].set(face_byte(0x14 + k)?);
     }
-    if crate::scene::polygon::texture_info_byte(face_byte(0x21)?, 0x2C)? == 1 {
+    if crate::scene::polygon::texture_info_byte(c.polygon_tables, face_byte(0x21)?, 0x2C)? == 1 {
         for k in 0..4u32 {
             let at = &c.course.course.face_light_bytes[k as usize];
             let (v, _) = lighting::shaded(at.get(), face_byte(0x22 + k)? as u8);

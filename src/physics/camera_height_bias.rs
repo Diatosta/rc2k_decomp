@@ -22,7 +22,7 @@ pub fn camera_height_bias(
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), crate::errors::BadInput> {
     let drawing = &scene.drawing;
-    let esi = record(car)?;
+    let esi = record(view_records, car)?;
     if esi.height_bias.get() == 0 {
         return Ok(());
     }

@@ -209,8 +209,12 @@ mod reference_vectors {
 
     /// Runs `f` with the vertex floats at `offsets` holding the test buffer's (at `at`)
     /// bytes; what `f` leaves goes back to the buffer, the vertices as they were.
-    fn staged<R>(at: usize, offsets: &[usize], f: impl FnOnce() -> R) -> R {
-        let host = |off: usize| crate::pointers::host_at(at + off).cast::<u32>();
+    fn staged<R>(
+        at: crate::effects::asm_test::Operand,
+        offsets: &[usize],
+        f: impl FnOnce() -> R,
+    ) -> R {
+        let host = |off: usize| (at + off).host().cast::<u32>();
         let saved: Vec<u32> = offsets.iter().map(|&o| vertex_cell(o).bits()).collect();
         for &o in offsets {
             vertex_cell(o).set_bits(unsafe { host(o).read_unaligned() });
@@ -268,9 +272,7 @@ mod reference_vectors {
             with_copy(b[1], RingWork::START, |w| {
                 with_copy::<DrawWork, _>(b[1], DrawWork::START, |dw| {
                     let place: [[u8; 10]; 3] = std::array::from_fn(|n| unsafe {
-                        crate::pointers::host_at(b[2] + 10 * n)
-                            .cast::<[u8; 10]>()
-                            .read_unaligned()
+                        (b[2] + 10 * n).host().cast::<[u8; 10]>().read_unaligned()
                     });
                     super::turn_x87(
                         &crate::race::owner::race().frame.matrices.view_matrix,
@@ -292,22 +294,22 @@ mod reference_vectors {
                     writes: &[],
                 },
                 Op::Base {
-                    lo: 0x5605A0,
-                    hi: 0x56060C,
+                    lo: 0x0,
+                    hi: 0x6C,
                     reads: &[],
                     writes: &[
-                        (0x5605A0, F32),
-                        (0x5605A4, F32),
-                        (0x5605A8, F32),
-                        (0x5605C0, F32),
-                        (0x5605C4, F32),
-                        (0x5605C8, F32),
-                        (0x5605E0, F32),
-                        (0x5605E4, F32),
-                        (0x5605E8, F32),
-                        (0x560600, F32),
-                        (0x560604, F32),
-                        (0x560608, F32),
+                        (0x0, F32),
+                        (0x4, F32),
+                        (0x8, F32),
+                        (0x20, F32),
+                        (0x24, F32),
+                        (0x28, F32),
+                        (0x40, F32),
+                        (0x44, F32),
+                        (0x48, F32),
+                        (0x60, F32),
+                        (0x64, F32),
+                        (0x68, F32),
                     ],
                 },
                 Op::Base {
@@ -329,7 +331,7 @@ mod reference_vectors {
         recorded_writes("effects.draw_subcell_sprite.square_x87", &SPEC, |b| {
             with_copy::<DrawWork, _>(b[2], DrawWork::START, |dw| {
                 staged(
-                    b[1].wrapping_add(0x5605A0),
+                    b[1],
                     &[
                         0x0, 0x4, 0x8, 0x20, 0x24, 0x28, 0x40, 0x44, 0x48, 0x60, 0x64, 0x68,
                     ],

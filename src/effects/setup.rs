@@ -69,14 +69,18 @@ const WAVE_DONE_TARGET: u32 = 0x4C4EA0; // nullsub_23
 pub const WAVE_LEVELS: u32 = 0x11;
 pub const SINES: u32 = 0x140;
 
-/// A test buffer standing for the marks' block at `mk` (IDA 0x764F40): the clock in it.
+/// The clock in the test buffer `mk` standing for the marks' block: a copy, zero where the
+/// buffer does not reach (the blocks read only the fields they use).
 #[cfg(test)]
-pub fn clock_at(mk: usize) -> &'static MarksClock {
+pub fn clock_at(mk: crate::effects::asm_test::Operand) -> &'static MarksClock {
+    let bytes = mk.bytes_or_zero(
+        MarksClock::START.wrapping_sub(crate::effects::store::START),
+        size_of::<MarksClock>(),
+    );
     unsafe {
-        &*(crate::pointers::host_at(
-            mk.wrapping_add(MarksClock::START)
-                .wrapping_sub(crate::effects::store::START),
-        ) as *const MarksClock)
+        let mut clock = Box::<MarksClock>::new_zeroed().assume_init();
+        std::ptr::copy_nonoverlapping(bytes.as_ptr(), (&raw mut *clock).cast::<u8>(), bytes.len());
+        Box::leak(clock)
     }
 }
 

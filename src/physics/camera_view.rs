@@ -10,13 +10,17 @@
 use crate::effects::cell_x87::CellX87;
 use crate::math::x87_float::int;
 use crate::physics::car_store::Car;
+use crate::race::groups_store::ViewAndRecords;
 use crate::race::owner_shared::RaceShared;
 use crate::race::view_vars_store::{ViewRecord, ViewVars};
 
 /// The record of the car's camera mode.
-pub fn record(car: &Car) -> Result<&ViewRecord, crate::errors::BadInput> {
+pub fn record<'a>(
+    view_records: &'a ViewAndRecords,
+    car: &Car,
+) -> Result<&'a ViewRecord, crate::errors::BadInput> {
     let mode = (car.camera_view.get() as i32).clamp(0, 0x33);
-    ViewVars::record_of(mode as usize)
+    ViewVars::record_of(view_records, mode as usize)
 }
 
 /// The share done (the time held).

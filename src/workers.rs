@@ -51,6 +51,9 @@ pub struct PartScratch {
     pub cache: crate::d3d::render_cache::OwnCache,
     /// Where such a part first set each state (`d3d::run_states::OwnRun`).
     pub run: crate::d3d::run_states::OwnRun,
+    /// The drawing it has noted (`platform_3d::Noted`): the first part's what the game's
+    /// thread flushes, the others' put after it at their runs' ends.
+    pub noted: crate::platform_3d::Noted,
 }
 
 /// The parts' scratch, part 0's in the stores' places in the race's buffers (the image's
@@ -71,6 +74,7 @@ static PARTS: [PartScratch; COUNT] = {
             points: crate::race::scene_points::OwnPoints::new(),
             cache: crate::d3d::render_cache::OwnCache::new(cards),
             run: crate::d3d::run_states::OwnRun::new(),
+            noted: crate::platform_3d::Noted::new(),
         },
         PartScratch {
             vertices: &V[0],
@@ -80,6 +84,7 @@ static PARTS: [PartScratch; COUNT] = {
             points: crate::race::scene_points::OwnPoints::new(),
             cache: crate::d3d::render_cache::OwnCache::new(cards),
             run: crate::d3d::run_states::OwnRun::new(),
+            noted: crate::platform_3d::Noted::new(),
         },
         PartScratch {
             vertices: &V[1],
@@ -89,6 +94,7 @@ static PARTS: [PartScratch; COUNT] = {
             points: crate::race::scene_points::OwnPoints::new(),
             cache: crate::d3d::render_cache::OwnCache::new(cards),
             run: crate::d3d::run_states::OwnRun::new(),
+            noted: crate::platform_3d::Noted::new(),
         },
         PartScratch {
             vertices: &V[2],
@@ -98,6 +104,7 @@ static PARTS: [PartScratch; COUNT] = {
             points: crate::race::scene_points::OwnPoints::new(),
             cache: crate::d3d::render_cache::OwnCache::new(cards),
             run: crate::d3d::run_states::OwnRun::new(),
+            noted: crate::platform_3d::Noted::new(),
         },
     ]
 };
@@ -227,12 +234,14 @@ pub fn wait_for_earlier_runs() {
 /// the other, each on its own copy as on its own thread, so that what is drawn is the same
 /// however many threads draw.
 pub fn draw_beside(
+    matrices: &crate::race::matrices_store::SceneMatrices,
     first: impl Fn(&PartScratch) -> Result<(), Refused> + Sync,
     second: impl Fn(&PartScratch) -> Result<(), Refused> + Sync,
     mut then: impl FnMut() -> Result<(), Refused>,
     mut then_second: impl FnMut() -> Result<(), Refused>,
 ) -> Result<(), Refused> {
     draw_side_by_side(
+        matrices,
         2,
         |n, scratch| {
             if n == 0 {
@@ -253,6 +262,7 @@ pub fn draw_beside(
 /// working state as the parts so far left it, and no part runs meanwhile (what it writes that
 /// has no copy per part, the cars' crumpled points, no part reads while it changes).
 pub fn draw_side_by_side(
+    matrices: &crate::race::matrices_store::SceneMatrices,
     k: usize,
     part: impl Fn(usize, &PartScratch) -> Result<(), Refused> + Sync,
     after: impl FnMut(usize) -> Result<(), Refused>,
@@ -262,7 +272,7 @@ pub fn draw_side_by_side(
     }
     let pool = pool();
     BESIDE.store(true, std::sync::atomic::Ordering::Relaxed);
-    let drawn = draw_parts(pool, k, part, after);
+    let drawn = draw_parts(matrices, pool, k, part, after);
     BESIDE.store(false, std::sync::atomic::Ordering::Relaxed);
     drawn
 }
@@ -284,6 +294,7 @@ pub fn players_beside() -> bool {
 /// changes put into the game's own in that order, `after(n)` run after part `n`'s (part 0's
 /// once all have ended).
 fn draw_parts(
+    matrices: &crate::race::matrices_store::SceneMatrices,
     pool: Option<&rayon::ThreadPool>,
     k: usize,
     part: impl Fn(usize, &PartScratch) -> Result<(), Refused> + Sync,
@@ -296,18 +307,23 @@ fn draw_parts(
     // The render states' cache as the list began, what each other part starts from.
     let cards = part_scratch(0).cache.store();
     let cache_start = crate::d3d::render_cache::current(cards);
-    // The held matrix columns likewise (`scene::view_matrices::Held`).
-    let matrices = &crate::race::owner::race().frame.matrices;
+    // The held matrix columns likewise (`scene::view_matrices::Held`), in the race's
+    // matrices `matrices`.
+    let point_count = crate::race::owner::race()
+        .course
+        .course
+        .scene_point_count
+        .get();
     let columns_start = crate::scene::view_matrices::columns(matrices);
     *ENDED
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner) = [false; COUNT];
     let control = crate::math::x87::control_word();
-    // Run `n` of the others, on the thread it is called on: its noted drawing from `from` on.
-    let other = |n: usize, from: usize| {
+    // Run `n` of the others, on the thread it is called on, with its own noted drawing.
+    let other = |n: usize| {
         INDEX.set(n);
         let scratch = part_scratch(n);
-        scratch.points.begin_run();
+        scratch.points.begin_run(point_count);
         crate::math::x87::set_control_word(control);
         #[cfg(feature = "write_watch")]
         crate::write_watch::begin();
@@ -323,7 +339,7 @@ fn draw_parts(
             .push(crate::write_watch::end());
         ended(n);
         scratch.points.end_run();
-        let noted = crate::platform_3d::take_noted_from(from);
+        let noted = crate::platform_3d::take_noted(scratch);
         INDEX.set(0);
         OtherRun {
             result,
@@ -337,7 +353,7 @@ fn draw_parts(
     // Run 0, on the game's thread.
     let first_run = || {
         let scratch = part_scratch(0);
-        scratch.points.begin_run();
+        scratch.points.begin_run(point_count);
         let result = part(0, scratch);
         scratch.points.end_run();
         ended(0);
@@ -351,7 +367,7 @@ fn draw_parts(
             for (n, slot) in slots.iter().enumerate() {
                 let other = &other;
                 s.spawn(move |_| {
-                    let run = other(n + 1, 0);
+                    let run = other(n + 1);
                     *slot
                         .lock()
                         .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(run);
@@ -376,9 +392,7 @@ fn draw_parts(
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .push(crate::write_watch::end());
-        let others: Vec<OtherRun> = (1..k)
-            .map(|n| other(n, crate::platform_3d::noted_len()))
-            .collect();
+        let others: Vec<OtherRun> = (1..k).map(other).collect();
         (first, others)
     };
     #[cfg(feature = "write_watch")]
@@ -408,12 +422,12 @@ fn draw_parts(
         crate::scene::view_matrices::merge_columns(matrices, &columns_start, &run.columns);
         if result.is_ok() {
             // What it draws takes the merged states.
-            crate::platform_3d::forget_states();
+            crate::platform_3d::forget_states(part_scratch(0));
             result = after(n + 1);
         }
     }
     // The game's thread drew run 0 with its own states: the next fan takes the merged ones.
-    crate::platform_3d::forget_states();
+    crate::platform_3d::forget_states(part_scratch(0));
     result
 }
 

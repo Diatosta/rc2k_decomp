@@ -22,10 +22,10 @@ use rc2k_core::net::screens;
 /// `screens::run_frame` by `net::settings_loop`.
 pub fn settings_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     let (net, install) = (o.net, o.install);
-    if !lock_surface(o.gfx) {
+    if !lock_surface(o.gfx, o.system) {
         return Ok(());
     }
-    copy_picture()?;
+    copy_picture(o.gfx, o.system)?;
     let mut y = 0x92;
     /// A setting's value: a text kept in the network's state, or a number.
     enum Value {

@@ -55,7 +55,7 @@ pub fn draw_needle(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
     {
         let vertex = &pen.vertices.vertices[n];
         let point = [extended(y), extended(x)].map(to_f64);
-        crate::hud::turned_vertex::turned_vertex(hud, vertex, angle, point);
+        crate::hud::turned_vertex::turned_vertex(pen.engine_tables, hud, vertex, angle, point);
     }
     pen.polygons.polygon_vertex_count.set(4u32);
     crate::hud::add_polygon::add_polygon(frame, hud, pen)

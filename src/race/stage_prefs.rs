@@ -140,7 +140,12 @@ pub fn load_lights_data(race: &Race) -> Result<(), Refused> {
 /// `race::get_mat_crash` (0x43D43E): the three angles (`car_pitch`, `car_heading`,
 /// `car_roll`, each >> 16) kept at `angles` .., the x, y and z turns made of them, Z x X
 /// into the lit matrix, that x Y into `crash_matrix`.
-pub fn get_mat_crash(matrices: &SceneMatrices, car: &Car, scene: &crate::scene::owner::Scene) {
+pub fn get_mat_crash(
+    engine_tables: &crate::scene::engine_tables_store::EngineTables,
+    matrices: &SceneMatrices,
+    car: &Car,
+    scene: &crate::scene::owner::Scene,
+) {
     use crate::scene::matrix;
     // Converted: `rc2k_core::race::stage_objects::crash_turns` (the matrices the
     // scene's).
@@ -151,16 +156,19 @@ pub fn get_mat_crash(matrices: &SceneMatrices, car: &Car, scene: &crate::scene::
     ]);
     crate::session::write_bits(&scene.drawing.object_work.angles, turns);
     matrix::set_turn_x(
+        engine_tables,
         &matrices.turn_x_matrix,
         &scene.drawing.scene.turn_x_work,
         turns[0],
     );
     matrix::set_turn_y(
+        engine_tables,
         &matrices.turn_y_matrix,
         &scene.drawing.scene.turn_y_work,
         turns[1],
     );
     matrix::set_turn_z_16(
+        engine_tables,
         &matrices.turn_z_matrix,
         &scene.drawing.scene.turn_z_work,
         turns[2],

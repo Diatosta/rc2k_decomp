@@ -276,13 +276,17 @@ pub fn front_end() -> &'static ViewScratch {
 }
 
 /// What a view's drawing works with: the race, the scene, the system's facts (the screen's
-/// size, the machine's processor), the view's own state, and whether polygons are cut at the
-/// far depth.
+/// size, the machine's processor), the network session and the keys (read only, by the
+/// lamps' choice), the view's own state, and whether polygons are cut at the far depth.
 #[derive(Clone, Copy)]
 pub struct DrawCtx<'a> {
     pub race: &'a crate::race::owner::Race,
     pub scene: &'a crate::scene::owner::Scene,
     pub system: &'a crate::system::owner::System,
+    /// Read only: the session and the network player (`scene::add_car_lights`).
+    pub net: &'a crate::net::owner::Net,
+    /// Read only: the keys held (`scene::set_object_light`).
+    pub input: &'a crate::input::owner::Input,
     pub view: &'a ViewScratch,
     /// The scene's clock as the frame took it (`restart_clock` in `race::draw_race_scene`,
     /// before any view is drawn), what the animated shapes step by.
@@ -304,6 +308,8 @@ impl<'a> DrawCtx<'a> {
         race: &'a crate::race::owner::Race,
         scene: &'a crate::scene::owner::Scene,
         system: &'a crate::system::owner::System,
+        net: &'a crate::net::owner::Net,
+        input: &'a crate::input::owner::Input,
         view: &'a ViewScratch,
         part: &'a crate::workers::PartScratch,
     ) -> Self {
@@ -311,6 +317,8 @@ impl<'a> DrawCtx<'a> {
             race,
             scene,
             system,
+            net,
+            input,
             view,
             clock: race.shared.physics_tables.scene_clock.get(),
             far_clip: true,

@@ -19,8 +19,13 @@ use crate::scene::matrix3::rounded;
 const ANGLES: u32 = 0x1000;
 
 /// `angle` turns the sprite, `colour` has its low three bytes made 0xFF, `size` is the
-/// side, `place` the place (st(0) .. st(2)).
+/// side, `place` the place (st(0) .. st(2)), `engine_tables` the sine tables it turns by.
+#[allow(
+    clippy::too_many_arguments,
+    reason = "the original's registers, the sine tables and the owners"
+)]
 pub fn draw_turned_sprite(
+    engine_tables: &crate::scene::engine_tables_store::EngineTables,
     buffer: &crate::d3d::vertices_store::PolygonVertices,
     angle: u32,
     colour: u32,
@@ -56,8 +61,8 @@ pub fn draw_turned_sprite(
             crate::scene::polygon_work::front_end().window.view_centre[1].bits(),
             effects.frame.draw_work.z_k.bits(),
         ];
-        let sin = crate::scene::engine_tables_store::sine(angle as usize).bits();
-        let cos = crate::scene::engine_tables_store::cosine(angle as usize).bits();
+        let sin = crate::scene::engine_tables_store::sine(engine_tables, angle as usize).bits();
+        let cos = crate::scene::engine_tables_store::cosine(engine_tables, angle as usize).bits();
         let sq = x87::turned_sprite(a, b, c, k, size as i32, sin, cos);
         for n in 0..4 {
             let v = &buffer.vertices[n];

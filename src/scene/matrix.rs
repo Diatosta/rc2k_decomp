@@ -8,23 +8,24 @@
 use crate::math::cells::Cells;
 use crate::math::x87;
 use crate::math::x87_float as bh;
+use crate::scene::engine_tables_store::EngineTables;
 use crate::scene::project_point::rotate;
 use crate::scene::view_matrices::ViewMatrices;
 use crate::session::Float;
 
-/// An angle's sine and cosine from the game's tables: sixteen bits a turn, the low
+/// An angle's sine and cosine from the game's tables `tables`: sixteen bits a turn, the low
 /// four dropped.
-fn sine_cosine(angle: u32) -> (f32, f32) {
+fn sine_cosine(tables: &EngineTables, angle: u32) -> (f32, f32) {
     let place = ((angle & 0xFFFF) >> 4) as usize;
     (
-        crate::scene::engine_tables_store::sine(place).get(),
-        crate::scene::engine_tables_store::cosine(place).get(),
+        crate::scene::engine_tables_store::sine(tables, place).get(),
+        crate::scene::engine_tables_store::cosine(tables, place).get(),
     )
 }
 
 /// `scene::set_turn_x` (0x426FE1): `turn_x` the matrix, `work` its sine and cosine.
-pub fn set_turn_x(turn_x: &[Float; 16], work: &[Float; 2], angle: u32) {
-    let (sine, cosine) = sine_cosine(angle);
+pub fn set_turn_x(tables: &EngineTables, turn_x: &[Float; 16], work: &[Float; 2], angle: u32) {
+    let (sine, cosine) = sine_cosine(tables, angle);
     work[0].set(sine);
     work[1].set(cosine);
     turn_x[5].set(cosine);
@@ -34,8 +35,8 @@ pub fn set_turn_x(turn_x: &[Float; 16], work: &[Float; 2], angle: u32) {
 }
 
 /// `scene::set_turn_y` (0x42702A).
-pub fn set_turn_y(turn_y: &[Float; 16], work: &[Float; 2], angle: u32) {
-    let (sine, cosine) = sine_cosine(angle);
+pub fn set_turn_y(tables: &EngineTables, turn_y: &[Float; 16], work: &[Float; 2], angle: u32) {
+    let (sine, cosine) = sine_cosine(tables, angle);
     work[0].set(sine);
     work[1].set(cosine);
     turn_y[0].set(cosine);
@@ -46,8 +47,8 @@ pub fn set_turn_y(turn_y: &[Float; 16], work: &[Float; 2], angle: u32) {
 
 /// `scene::set_turn_z_16` (0x427072): as `set_turn_x`, about the z axis (the matrix and
 /// the work of `scene::set_turn_z`, whose angle is 32 bits a turn).
-pub fn set_turn_z_16(turn_z: &[Float; 16], work: &[Float; 2], angle: u32) {
-    let (sine, cosine) = sine_cosine(angle);
+pub fn set_turn_z_16(tables: &EngineTables, turn_z: &[Float; 16], work: &[Float; 2], angle: u32) {
+    let (sine, cosine) = sine_cosine(tables, angle);
     work[0].set(sine);
     work[1].set(cosine);
     turn_z[0].set(cosine);
@@ -106,17 +107,20 @@ pub fn copy_matrix_with_place(
 /// `scene::set_light_direction` (0x427326): in the view's matrices `v`, turned by the view's
 /// turn `view_turn` (the view's parameter, kept in the shared pieces).
 pub fn set_light_direction(
+    tables: &EngineTables,
     v: &ViewMatrices,
     direction: &[Float; 3],
     view_turn: &[Float; 16],
     light: &crate::scene::object_light::ObjectLight,
 ) {
     set_turn_x(
+        tables,
         &v.turn_x_matrix,
         &v.turn_x_work,
         (light.light_turns[1].get() << 8).wrapping_neg(),
     );
     set_turn_y(
+        tables,
         &v.turn_y_matrix,
         &v.turn_y_work,
         (light.light_turns[0].get() << 8).wrapping_neg(),
@@ -138,18 +142,21 @@ pub fn set_light_direction(
 
 /// `scene::make_object_matrix` (0x427812).
 pub fn make_object_matrix(
+    tables: &EngineTables,
     v: &ViewMatrices,
     view_turn: &[Float; 16],
     light: &crate::scene::object_light::ObjectLight,
     object: &crate::scene::object_place::ObjectPlace,
 ) {
-    set_light_direction(v, &light.light_direction, view_turn, light);
+    set_light_direction(tables, v, &light.light_direction, view_turn, light);
     set_turn_y(
+        tables,
         &v.turn_y_matrix,
         &v.turn_y_work,
         object.angles[1].get().wrapping_neg(),
     );
     set_turn_x(
+        tables,
         &v.turn_x_matrix,
         &v.turn_x_work,
         object.angles[0].get().wrapping_neg(),

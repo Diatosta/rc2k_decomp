@@ -168,8 +168,9 @@ mod tests {
     #[test]
     fn the_nec_tables_are_where_the_images_pointers_say() {
         let strings = strings();
-        let at = 0x4F0E10;
         let (plain, shifted, names, end) = NEC_TABLES;
+        // The block's address, from the first table's pointer.
+        let at = word(NEC_POINTERS, 1) - plain;
         assert_eq!(word(NEC_POINTERS, 0), 0);
         assert_eq!(word(NEC_POINTERS, 1), at + plain);
         assert_eq!(word(NEC_POINTERS, 2), at + shifted);

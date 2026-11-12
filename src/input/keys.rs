@@ -7,10 +7,11 @@
 //! that went down this frame, or auto-repeat (`g_keyRepeat`, 0x4F6D5C: a key held 0x41
 //! frames is pressed again each frame).
 
-use crate::input::owner::{Input, input};
+use crate::input::owner::Input;
 use crate::input::store::Devices;
 use crate::input::store::KEYS as KEYS_LEN;
-use crate::race::owner::{Race, race};
+use crate::owners::Owners;
+use crate::race::owner::Race;
 
 const SCREENSHOT_KEY: u32 = rc2k_core::input::frame::SCREENSHOT_KEY as u32; // Devices.keys_now
 
@@ -112,9 +113,9 @@ pub fn screenshot_if_key(devices: &Devices, shot: Screenshot) {
 
 /// `input::end_frame` (0x43AA91): with `g_screenshotsOn`, `check` (`screenshot_if_key`);
 /// then `PhysicsTables.debug[0]` and `PhysicsTables.debug[1]` 0. Every register preserved.
-pub fn end_frame(race: &Race, check: Screenshot) {
+pub fn end_frame(race: &Race, shots_on: u32, check: Screenshot) {
     // Converted: `rc2k_core::input::frame::end_frame`.
-    let left = rc2k_core::input::frame::end_frame(crate::gfx::shots::on(), check);
+    let left = rc2k_core::input::frame::end_frame(shots_on, check);
     // Not the original's 0s once the debug overlay's keys are used (`debug::overlay`).
     let kept = crate::debug::overlay::words();
     for ((cell, value), kept) in race.shared.physics_tables.debug.iter().zip(left).zip(kept) {
@@ -127,12 +128,14 @@ pub fn end_frame(race: &Race, check: Screenshot) {
 /// and 0x36) made one (both the `or` of the two), `buttons_to_keys`,
 /// `find_pressed_keys`, `repeat_keys`, `take_mouse_clicks`, `end_frame`. The right click
 /// and the last key dword are returned.
-pub fn update_input(shot: Screenshot) -> (u32, u32) {
-    update_input_in(input(), race(), shot)
+pub fn update_input(o: Owners<'static>) -> (u32, u32) {
+    update_input_in(o.input, o.race, o.gfx.shots.on.get(), &mut || {
+        game_screenshot(o.gfx, o.system);
+    })
 }
 
 /// `update_input` with the owners it works on.
-pub fn update_input_in(input: &Input, race: &Race, shot: Screenshot) -> (u32, u32) {
+pub fn update_input_in(input: &Input, race: &Race, shots_on: u32, shot: Screenshot) -> (u32, u32) {
     input.mouse.last_x.set(input.mouse.x.get());
     input.mouse.last_y.set(input.mouse.y.get());
     input.mouse.left_click.set(0);
@@ -149,13 +152,15 @@ pub fn update_input_in(input: &Input, race: &Race, shot: Screenshot) -> (u32, u3
     let right = take_mouse_clicks(input);
     // Not the original's: the debug overlay's keys, taken from the game (`debug::overlay`).
     crate::debug::overlay::take_keys(&input.devices);
-    end_frame(race, &mut || screenshot_if_key(&input.devices, &mut *shot));
+    end_frame(race, shots_on, &mut || {
+        screenshot_if_key(&input.devices, &mut *shot);
+    });
     (right, edx)
 }
 
 /// In the game: `gfx::take_screenshot`'s Rust version.
-pub fn game_screenshot() {
-    if let Err(e) = crate::gfx::take_screenshot::take_screenshot(crate::gfx::owner::gfx()) {
+pub fn game_screenshot(gfx: &crate::gfx::owner::Gfx, system: &crate::system::owner::System) {
+    if let Err(e) = crate::gfx::take_screenshot::take_screenshot(gfx, system) {
         crate::fatal::raise::refused("gfx::take_screenshot", e);
     }
 }

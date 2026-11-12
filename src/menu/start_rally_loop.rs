@@ -19,7 +19,7 @@ fn set_up_first(entry: &Entry) -> Result<(), Refused> {
     let screens = &entry.menus.screens;
     screens.flow.turning.set(0x1u32);
     screens.state.carousel.menu.set(0x1u32);
-    carousel(None)?;
+    carousel(entry, None)?;
     let item = screens.items.current[slot::START_RALLY].get();
     screens.loop_flags.item.set(item);
     screens.state.carousel.front.set(item.wrapping_sub(1));

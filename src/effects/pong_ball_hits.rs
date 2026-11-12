@@ -159,8 +159,7 @@ mod reference_vectors {
             sincos: false,
         };
         recorded("effects.pong_ball_hits.new_way_x87", &SPEC, |b| {
-            let length =
-                unsafe { (crate::pointers::host_at(b[0] + 0x22C) as *const u32).read_unaligned() };
+            let length = unsafe { ((b[0] + 0x22C).host() as *const u32).read_unaligned() };
             super::new_way_x87(state_at(b[0]), &rules_at(b[0]), length);
         });
     }

@@ -115,7 +115,7 @@ pub fn option_item(o: Owners<'static>, item: Item) -> Result<(), Refused> {
             set(&o, v, steps::flip(get(&o, v) as u32) as i32);
             set(&o, other, steps::flip(get(&o, other) as u32) as i32);
             // `gfx::screen_mode_choices` with eax 0; its flags are read by no caller.
-            crate::gfx::screen_mode_choices::screen_mode_choices_in(o.gfx, o.d3d, false)?;
+            crate::gfx::screen_mode_choices::screen_mode_choices(o.gfx, o.d3d, o.system, false)?;
         }
         Kind::SwitchAudio => {
             set(&o, v, steps::flip(get(&o, v) as u32) as i32);

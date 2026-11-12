@@ -75,7 +75,7 @@ pub fn show_picture_file(
         if sizes::rescaled(gfx.pictures.decoder.width.get(), width) {
             for _ in 0..pages {
                 // `cmp g_surfaceLocked, 1`'s carry: not locked.
-                if lock_surface(gfx) < 1 {
+                if lock_surface(gfx, system) < 1 {
                     return Ok(());
                 }
                 crate::gfx::rescale_to_surface::rescale_to_surface(
@@ -91,7 +91,7 @@ pub fn show_picture_file(
     }
     crate::gfx::convert_picture::convert_picture_now_in(gfx, system)?;
     for _ in 0..pages {
-        copy_picture_to_surface(&mut GameSurface(gfx))?;
+        copy_picture_to_surface(&mut GameSurface(gfx, system))?;
         show_frame_now();
     }
     Ok(())

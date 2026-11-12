@@ -121,14 +121,14 @@ fn view(race: &'static Race, o: Owners<'static>, mode: Mode) -> Result<(), Refus
             }
             if saving {
                 race.shared.replay_file.viewer_slot.set(slot);
-                return save_last_replay::save_last_replay(race, slot);
+                return save_last_replay::save_last_replay(race, o.system, slot);
             }
             slot
         }
     };
     race.shared.replay_file.viewer_slot.set(slot);
     race.shared.replay_file.viewer_stopped.set(true);
-    let failed = open_viewed_replay::open_viewed_replay(race, slot)?;
+    let failed = open_viewed_replay::open_viewed_replay(race, o.system, slot)?;
     if failed {
         return Ok(());
     }
@@ -158,7 +158,9 @@ fn view(race: &'static Race, o: Owners<'static>, mode: Mode) -> Result<(), Refus
     }
     loop {
         // `screens::run_frame` with `race::viewer_frame` (0x41D5FB).
-        if let Some(lost) = crate::platform::run_frame_now(|| viewer_frame::viewer_frame(o)) {
+        if let Some(lost) =
+            crate::platform::run_frame_now(o.system, || viewer_frame::viewer_frame(o))
+        {
             lost?;
         }
         install
@@ -191,7 +193,7 @@ fn view(race: &'static Race, o: Owners<'static>, mode: Mode) -> Result<(), Refus
             replay.replay_view.escape_count.set(0);
         }
         if !race.shared.replay_file.viewer_stopped.is_set() {
-            let ended = step_viewed_replay::step_viewed_replay(race)?;
+            let ended = step_viewed_replay::step_viewed_replay(race, system)?;
             if ended || key != 0 {
                 race.shared.replay_file.viewer_stopped.set(true);
             }
@@ -239,7 +241,7 @@ fn stopped_key(
 ) -> Result<Next, Refused> {
     let install = o.install;
     if o.gfx.shots.on.get() != 0 && key == 0x52 {
-        crate::gfx::take_screenshot::take_screenshot(o.gfx)?;
+        crate::gfx::take_screenshot::take_screenshot(o.gfx, o.system)?;
     }
     if race.viewer_buffers().camera_edit.get() != 0 {
         return Ok(match key {
@@ -250,7 +252,12 @@ fn stopped_key(
             _ => Next::Sound,
         });
     }
-    if crate::menu::list_step::list_step(install, key, Some(ReplayViewBlock::key_table()?), list)? {
+    if crate::menu::list_step::list_step(
+        install,
+        key,
+        Some(ReplayViewBlock::key_table(&race.replay)?),
+        list,
+    )? {
         return Ok(Next::Mark);
     }
     if key == 0x1C {
@@ -302,7 +309,7 @@ fn mark(
                 if !crate::menu::list_step::list_step(
                     install,
                     key,
-                    Some(ReplayViewBlock::key_table()?),
+                    Some(ReplayViewBlock::key_table(&race.replay)?),
                     list,
                 )? {
                     break;

@@ -22,7 +22,7 @@ fn set_up_first(entry: &Entry) -> Result<(), Refused> {
     screens.flow.shown_gearing.set(player.get().gearing);
     screens.flow.turning.set(0x1u32);
     screens.state.carousel.menu.set(0xDu32);
-    carousel(entry.cars)?;
+    carousel(entry, entry.cars)?;
     let item = screens.items.current[slot::SELECT_CAR].get();
     screens.loop_flags.item.set(item);
     screens.state.carousel.front.set(item.wrapping_sub(1));

@@ -40,4 +40,6 @@ pub struct Pen<'a> {
     pub part: &'a crate::workers::PartScratch,
     pub system: &'a crate::system::owner::System,
     pub scene: &'a crate::scene::owner::Scene,
+    /// The sine tables the dials turn by (`scene::engine_tables_store`).
+    pub engine_tables: &'a crate::scene::engine_tables_store::EngineTables,
 }

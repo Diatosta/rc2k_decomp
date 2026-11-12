@@ -11,6 +11,7 @@ use crate::errors::{BadInput, Refused};
 use crate::files::handle::read_slice;
 use crate::race::owner::Race;
 use crate::race::viewer_buffers_store::BLOCK_BYTES;
+use crate::system::owner::System;
 
 /// Into the replay block:. A plain read of more than the block holds is refused before anything
 /// (the original reads on past it), as is a packed one past the scratch.
@@ -18,10 +19,10 @@ use crate::race::viewer_buffers_store::BLOCK_BYTES;
 // `rc2k_core::drive::rle`).
 pub fn read_packed(
     race: &Race,
+    system: &System,
     file: u32,
     count: u32,
 ) -> Result<(u32, bool, Option<bool>), Refused> {
-    let system = crate::system::owner::system();
     let work = &system.work;
     let Some(packed) = rc2k_core::drive::race_steps::packed_bytes(count) else {
         if count as usize > BLOCK_BYTES {

@@ -93,7 +93,15 @@ pub fn steps(c: &ContactInputs<'_>, scene: &crate::scene::owner::Scene) -> Resul
     let (from, to) = (corner_point(first)?, corner_point(second)?);
     c.tables.crossed_edge[0].set(from);
     c.tables.crossed_edge[1].set(to);
-    edge_normal(c.contact, c.course, c.tables, from, to, scene)?;
+    edge_normal(
+        &c.shared.buffers.engine_tables,
+        c.contact,
+        c.course,
+        c.tables,
+        from,
+        to,
+        scene,
+    )?;
     c.contact.crossed_heading.set(c.tables.wall_heading.get());
     copy3(&c.contact.contact_car_speed, &c.car.velocity);
     copy3(&c.contact.contact_turn_speed, &c.car.spin);

@@ -188,7 +188,7 @@ pub fn drive_grip_forces(
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[grip_forces] = ([bf + e * 4 + 0x623AE4] * [rc + 0x31A184]) / [spec_grip]`
+/// `[grip_forces] = ([bf + e * 4 + 0x223AE4] * [rc + 0x31A184]) / [spec_grip]`
 fn steer_sine_force(car: &Car, tables: &PhysicsTables, engine_tables: &EngineTables, e: usize) {
     let t0 = engine_tables.sines[e].ld();
     let t1 = car.local_velocity[2].ld();
@@ -490,7 +490,7 @@ mod reference_vectors {
                 name: "drive_grip_forces line 39 idx e=0",
                 operands: vec![
                     Operand::Buffers {
-                        reads: &[(0x623AE4, In::F)],
+                        reads: &[(0x223AE4, In::F)],
                         writes: &[],
                     },
                     Operand::Value(0),
@@ -513,7 +513,7 @@ mod reference_vectors {
                 name: "drive_grip_forces line 39 idx e=1",
                 operands: vec![
                     Operand::Buffers {
-                        reads: &[(0x623AE8, In::F)],
+                        reads: &[(0x223AE8, In::F)],
                         writes: &[],
                     },
                     Operand::Value(1),
@@ -536,7 +536,7 @@ mod reference_vectors {
                 name: "drive_grip_forces line 39 idx e=4",
                 operands: vec![
                     Operand::Buffers {
-                        reads: &[(0x623AF4, In::F)],
+                        reads: &[(0x223AF4, In::F)],
                         writes: &[],
                     },
                     Operand::Value(4),
@@ -648,7 +648,7 @@ mod reference_vectors {
                         writes: &[(0x31A1F4, Out::F)],
                     },
                     Operand::Buffers {
-                        reads: &[(0x623AE4, In::F)],
+                        reads: &[(0x223AE4, In::F)],
                         writes: &[],
                     },
                     Operand::Value(0),
@@ -681,7 +681,7 @@ mod reference_vectors {
                         writes: &[(0x31A1F4, Out::F)],
                     },
                     Operand::Buffers {
-                        reads: &[(0x623AE8, In::F)],
+                        reads: &[(0x223AE8, In::F)],
                         writes: &[],
                     },
                     Operand::Value(1),
@@ -714,7 +714,7 @@ mod reference_vectors {
                         writes: &[(0x31A1F4, Out::F)],
                     },
                     Operand::Buffers {
-                        reads: &[(0x623AF4, In::F)],
+                        reads: &[(0x223AF4, In::F)],
                         writes: &[],
                     },
                     Operand::Value(4),
@@ -828,7 +828,7 @@ mod reference_vectors {
                 name: "drive_grip_forces line 222 idx e=0",
                 operands: vec![
                     Operand::Buffers {
-                        reads: &[(0x623AE4, In::F)],
+                        reads: &[(0x223AE4, In::F)],
                         writes: &[],
                     },
                     Operand::Value(0),
@@ -860,7 +860,7 @@ mod reference_vectors {
                 name: "drive_grip_forces line 222 idx e=1",
                 operands: vec![
                     Operand::Buffers {
-                        reads: &[(0x623AE8, In::F)],
+                        reads: &[(0x223AE8, In::F)],
                         writes: &[],
                     },
                     Operand::Value(1),
@@ -892,7 +892,7 @@ mod reference_vectors {
                 name: "drive_grip_forces line 222 idx e=4",
                 operands: vec![
                     Operand::Buffers {
-                        reads: &[(0x623AF4, In::F)],
+                        reads: &[(0x223AF4, In::F)],
                         writes: &[],
                     },
                     Operand::Value(4),

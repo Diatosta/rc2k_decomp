@@ -143,7 +143,7 @@ pub fn face_depth(ctx: &crate::race::view_scratch::DrawCtx<'_>, face: u32) -> Re
     let by = depth_by(kind, || {
         let object = trap.keep_read(face_field::<u8>(&ctx.race.course, face, 1)) as u32;
         // +0x2E of the object's 0x40-byte info (`object` a byte: inside the 0x100).
-        crate::scene::polygon_store::POLYGON_TABLES.texture_infos[object as usize].words[11]
+        race.polygon_tables().texture_infos[object as usize].words[11]
             .get()
             .to_le_bytes()[2]
     });

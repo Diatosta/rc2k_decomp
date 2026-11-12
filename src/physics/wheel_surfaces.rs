@@ -35,7 +35,7 @@ use crate::physics::car_store::Car;
 use crate::physics::contact_store::ContactWork;
 use crate::physics::flip_cell_index::flip_cell_index;
 use crate::physics::step_families::WheelInputs;
-use crate::physics::tables_store::{PhysicsTables, Surface};
+use crate::physics::tables_store::Surface;
 use crate::race::numbers_store::Numbers;
 use crate::race::owner_course::Course;
 use crate::race::owner_shared::RaceShared;
@@ -43,9 +43,13 @@ use crate::session::{Dword, Float};
 use std::cmp::Ordering;
 
 /// Byte `offset` of texture info `n`.
-fn info_byte(n: u32, offset: u32) -> Result<u32, Refused> {
+fn info_byte(
+    tables: &crate::scene::polygon_store::PolygonTables,
+    n: u32,
+    offset: u32,
+) -> Result<u32, Refused> {
     Ok(u32::from(crate::scene::polygon::texture_info_byte(
-        n, offset,
+        tables, n, offset,
     )?))
 }
 
@@ -96,16 +100,40 @@ fn steps(c: &WheelInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(), 
         c.tables.surface_seconds[cc].set(d2);
         {
             let e = c.tables.surface_firsts[cc].get();
-            c.car.wheel_surface_a[cc].set(info_byte(t1, e.wrapping_add(0x10))?);
-            c.car.wheel_cell_a_byte18[cc].set(info_byte(t1, e.wrapping_add(0x18))?);
-            c.car.wheel_cell_a_byte14[cc].set(info_byte(t1, e.wrapping_add(0x14))?);
+            c.car.wheel_surface_a[cc].set(info_byte(
+                &c.shared.buffers.polygon_tables,
+                t1,
+                e.wrapping_add(0x10),
+            )?);
+            c.car.wheel_cell_a_byte18[cc].set(info_byte(
+                &c.shared.buffers.polygon_tables,
+                t1,
+                e.wrapping_add(0x18),
+            )?);
+            c.car.wheel_cell_a_byte14[cc].set(info_byte(
+                &c.shared.buffers.polygon_tables,
+                t1,
+                e.wrapping_add(0x14),
+            )?);
             let t2 = face_byte(0x21)?;
             let e2 = c.tables.surface_seconds[cc].get();
-            c.car.wheel_surface_b[cc].set(info_byte(t2, e2.wrapping_add(0x10))?);
-            c.car.wheel_cell_b_byte18[cc].set(info_byte(t2, e2.wrapping_add(0x18))?);
-            c.car.wheel_cell_b_byte14[cc].set(info_byte(t2, e2.wrapping_add(0x14))?);
+            c.car.wheel_surface_b[cc].set(info_byte(
+                &c.shared.buffers.polygon_tables,
+                t2,
+                e2.wrapping_add(0x10),
+            )?);
+            c.car.wheel_cell_b_byte18[cc].set(info_byte(
+                &c.shared.buffers.polygon_tables,
+                t2,
+                e2.wrapping_add(0x18),
+            )?);
+            c.car.wheel_cell_b_byte14[cc].set(info_byte(
+                &c.shared.buffers.polygon_tables,
+                t2,
+                e2.wrapping_add(0x14),
+            )?);
             c.car.wheel_surface_blend[cc].set(0.0);
-            let kind_index = info_byte(t2, 0x2C)?;
+            let kind_index = info_byte(&c.shared.buffers.polygon_tables, t2, 0x2C)?;
             // The index is a byte: past the four kinds the original reads on (a slip).
             let kind = crate::session::read_on_in(
                 c.view,
@@ -149,8 +177,8 @@ fn steps(c: &WheelInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(), 
             );
             x87_3(c.shared, esi, edi, cc);
             let (ps, pd) = (
-                PhysicsTables::surface_table_index(s1)?,
-                PhysicsTables::surface_table_index(s2)?,
+                c.tables.surface_table_index(s1)?,
+                c.tables.surface_table_index(s2)?,
             );
             let k = c.car.tyre_kind.get();
             x87_4(

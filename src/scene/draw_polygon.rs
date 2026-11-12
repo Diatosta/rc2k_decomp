@@ -334,6 +334,7 @@ fn choose_texture(
 
 /// Clears a switch by what the entries' bytes +0x21 hold.
 fn clear_a_switch(
+    tables: &crate::scene::polygon_store::PolygonTables,
     poly: &crate::scene::polygon_work::PolygonWork,
     face: &crate::race::face_work::FaceWork,
     entries: &[Listed],
@@ -344,7 +345,7 @@ fn clear_a_switch(
     let bytes = entries.iter().map(|&(_, entry)| entry.amount.get());
     let (all, any) = bytes.fold((0xFFu8, 0u8), |(all, any), b| (all & b, any | b));
     if all == 0xFF {
-        let info = crate::scene::polygon_store::POLYGON_TABLES
+        let info = tables
             .texture_infos
             .get(face.texture_b.get() as usize)
             .ok_or(BadInput("a texture past the records"))?;
@@ -479,7 +480,7 @@ pub fn draw_polygon(
     // The mode, with its fallbacks.
     let mut mode: u32 = face.polygon_mode.get();
     if mode == 3 && scene.draw_switches.clears_switch.get() != 0 {
-        clear_a_switch(poly, face, &entries)?;
+        clear_a_switch(race.polygon_tables(), poly, face, &entries)?;
     }
     if matches!(mode, 3..=5) {
         let fallback = if poly.polygon_sides[1].get() == 0 {

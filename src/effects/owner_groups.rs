@@ -116,6 +116,9 @@ pub struct Setup {
     pub clock: MarksClock,
     pub clock_k: ClockK,
     pub settings: SettingsPointer,
+    /// The race's settings record `init_marks` was handed, what `Effects::settings` gives.
+    pub marks:
+        core::cell::Cell<Option<&'static crate::race::effects_settings_store::EffectsSettings>>,
     pub frame: MarksFrame,
     pub floats: MarksFloats,
     pub kind_floats: MarksKindFloats,
@@ -129,6 +132,7 @@ impl Setup {
             clock: MarksClock::new(),
             clock_k: ClockK::new(),
             settings: SettingsPointer::new(),
+            marks: core::cell::Cell::new(None),
             frame: MarksFrame::new(),
             floats: MarksFloats::new(),
             kind_floats: MarksKindFloats::new(),

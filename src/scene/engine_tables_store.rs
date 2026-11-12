@@ -4,7 +4,6 @@
 //! bytes, the room the object files are read into and the shuffled words. Names are readings
 //! unless IDA's.
 
-use crate::race::owner::race;
 use crate::session::{Bytes, Float, Word};
 
 #[repr(C)]
@@ -22,27 +21,15 @@ pub struct EngineTables {
     pub shuffled_words: [Word; 0x10000],
 }
 
-/// The piece, a field of `crate::race::owner::race().shared.buffers`.
-pub struct InBuffers;
-
-impl core::ops::Deref for InBuffers {
-    type Target = EngineTables;
-    fn deref(&self) -> &EngineTables {
-        &race().shared.buffers.engine_tables
-    }
-}
-
-pub static ENGINE_TABLES: InBuffers = InBuffers;
-
-/// The sine table's cell `n`: the callers index with an angle's top bits (below 0x1000), and
-/// the cosine is the cell 0x400 on.
-pub fn sine(n: usize) -> &'static Float {
-    &ENGINE_TABLES.sines[n]
+/// The sine table's cell `n` of the tables `tables` (the race's buffers' piece): the callers
+/// index with an angle's top bits (below 0x1000), and the cosine is the cell 0x400 on.
+pub fn sine(tables: &EngineTables, n: usize) -> &Float {
+    &tables.sines[n]
 }
 
 /// The cosine of table place `n` (`g_cosines[n]`, the sine table's cell `n + 0x400`).
-pub fn cosine(n: usize) -> &'static Float {
-    sine(n.wrapping_add(0x400))
+pub fn cosine(tables: &EngineTables, n: usize) -> &Float {
+    sine(tables, n.wrapping_add(0x400))
 }
 
 /// IDA 0xA23AE4, the first byte of the piece.

@@ -14,6 +14,7 @@
 pub fn clear_depth_buffer(
     scene: &crate::scene::owner::Scene,
     system: &crate::system::owner::System,
+    part: &crate::workers::PartScratch,
     polygons: &crate::scene::polygon_work::PolygonWork,
 ) {
     let session = &system.session;
@@ -23,5 +24,5 @@ pub fn clear_depth_buffer(
     let (width, height): (u32, u32) = (session.screen.width.get(), session.screen.height.get());
     let own = &polygons.cleared_rectangle;
     crate::session::write_bits(own, [0, 0, width, height]);
-    crate::platform_3d::clear_viewport(own);
+    crate::platform_3d::clear_viewport(part, own);
 }

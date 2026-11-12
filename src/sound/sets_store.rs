@@ -853,7 +853,7 @@ impl RaceSoundSets {
 
     /// 0x512360: `off_512360`, 36 kinds of car, two sets each.
     #[cfg(test)]
-    const KINDS_AT: usize = 0x512360;
+    const KINDS_AT: usize = Self::START + 0x850;
     const KIND_ENTRIES: usize = 72;
     pub const START: usize = 0x511B10;
     pub const LEN: usize = 0x9D4;

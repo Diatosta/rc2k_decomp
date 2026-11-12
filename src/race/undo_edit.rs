@@ -7,9 +7,10 @@
 
 use crate::errors::Refused;
 use crate::race::owner::Race;
+use crate::system::owner::System;
 
 /// What the original leaves its one caller, `viewer_action`, does not read.
-pub fn undo_edit(race: &Race) -> Result<(), Refused> {
+pub fn undo_edit(race: &Race, system: &System) -> Result<(), Refused> {
     let shared = &race.shared;
     // Converted: `rc2k_core::race::viewer_flow::{undo_count, copy_tables}`.
     use rc2k_core::race::viewer_flow::undo_count;
@@ -32,5 +33,5 @@ pub fn undo_edit(race: &Race) -> Result<(), Refused> {
             .set_u32(4 * k, buffers.undo_cameras[k].get());
     }
     race.viewer_buffers().undo_blocks.set(0);
-    crate::race::reset_marks::reset_marks(race)
+    crate::race::reset_marks::reset_marks(race, system)
 }

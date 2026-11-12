@@ -15,11 +15,6 @@ use crate::errors::{BadInput, Refused};
 use crate::framework::CarryZeroFlags;
 use crate::gfx::texture_upload::RecordCell;
 
-/// `lock_texture_in` for a caller that holds no owners.
-pub fn lock_texture(texture: u32) -> Result<CarryZeroFlags, Refused> {
-    lock_texture_in(crate::gfx::owner::gfx(), texture)
-}
-
 /// Texture `texture` locked; the flags it leaves
 /// (every register is kept).
 pub fn lock_texture_in(

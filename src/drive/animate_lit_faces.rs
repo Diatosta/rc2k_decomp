@@ -161,6 +161,7 @@ fn animate_faces(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), 
                         break 'face true;
                     };
                     let [x, _, z, _] = crate::math::rotate_point_about_y::rotate_point_about_y(
+                        race.engine_tables(),
                         0,
                         point_number as i32,
                         distance as i32,

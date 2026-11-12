@@ -1,9 +1,10 @@
 //! Test support for the marks' x87 blocks that work on typed statics: the differential tests
 //! (`asm_test`) run the original assembly over a test buffer standing for the marks' block at
-//! `mk` (IDA 0x764F40) and the plain Rust version over the typed statics; around the Rust
+//! the test buffer `mk` and the plain Rust version over the typed statics; around the Rust
 //! version the statics hold the buffer's bytes, and the bytes it leaves go back to the buffer
 //! (`store::test_lock` is held by `differential`).
 
+use crate::effects::asm_test::Operand;
 use crate::effects::store::START;
 
 /// A typed static and where its first byte is in the marks' block (IDA).
@@ -24,11 +25,12 @@ pub fn overlay<T>(st: &'static T, start: usize) -> Overlay {
 
 /// Runs `f` with each overlay's static holding the bytes the buffer `mk` has there; what the
 /// statics hold afterwards goes into the buffer, and the statics are put back as they were.
-pub fn with_overlays<R>(mk: usize, overlays: &[Overlay], f: impl FnOnce() -> R) -> R {
+pub fn with_overlays<R>(mk: Operand, overlays: &[Overlay], f: impl FnOnce() -> R) -> R {
+    let at = |o: &Overlay| mk.at(o.start.wrapping_sub(START), o.len);
+    // Every overlay must fit the buffer before any is touched.
     for o in overlays {
-        fits_buffer(mk.wrapping_add(o.start).wrapping_sub(START), o.len);
+        at(o);
     }
-    let at = |o: &Overlay| crate::pointers::host_at(mk.wrapping_add(o.start).wrapping_sub(START));
     let saved: Vec<Vec<u8>> = overlays
         .iter()
         .map(|o| unsafe { std::slice::from_raw_parts(o.home, o.len) }.to_vec())
@@ -44,16 +46,4 @@ pub fn with_overlays<R>(mk: usize, overlays: &[Overlay], f: impl FnOnce() -> R) 
         }
     }
     out
-}
-
-/// Stops the test (naming it) unless `len` bytes from the game address `at` lie in one test
-/// buffer: a block copied into a buffer too small for it overwrote the heap past it.
-#[track_caller]
-pub fn fits_buffer(at: usize, len: usize) {
-    let room =
-        crate::pointers::region_of(at as u32).map(|(_, end)| (end as usize).wrapping_sub(at));
-    assert!(
-        room.is_some_and(|room| room >= len),
-        "a {len:#x}-byte block at {at:#x} does not fit its test buffer ({room:#x?} bytes there)"
-    );
 }

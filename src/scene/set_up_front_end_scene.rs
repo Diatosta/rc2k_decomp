@@ -100,8 +100,8 @@ pub fn set_up_front_end_scene_in(o: crate::owners::Owners<'static>) -> Result<()
             scene.objects.tables.texture_tags[texture].set(tag);
         }
     }
-    crate::scene::set_up_textures::set_up_textures(shared, scene, o.gfx)?;
-    set_up_object_memory(course, scene)?;
+    crate::scene::set_up_textures::set_up_textures(shared, scene, o.gfx, o.d3d)?;
+    set_up_object_memory(race, scene)?;
     clear_slot_kinds(scene);
     colours(course, 0);
     // The scene's settings stored before the fog is cleared, after the two colours.
@@ -146,7 +146,7 @@ pub fn set_up_front_end_scene_in(o: crate::owners::Owners<'static>) -> Result<()
     }
     shared.vars.bar_function.set(SHOW_BAR);
     crate::scene::reload_system_textures::reload_system_textures(
-        race, o.system, o.gfx, o.net, scene,
+        race, o.system, o.gfx, o.d3d, o.net, scene,
     )?;
     allocate_point_records_in_game(course)?;
     colours(course, 0);

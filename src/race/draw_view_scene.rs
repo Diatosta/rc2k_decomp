@@ -48,12 +48,14 @@ pub fn draw_view_scene(
     race: &Race,
     scene: &crate::scene::owner::Scene,
     system: &crate::system::owner::System,
+    net: &crate::net::owner::Net,
+    input: &crate::input::owner::Input,
     view: &ViewScratch,
     part: &crate::workers::PartScratch,
 ) -> Result<ViewOutput, Refused> {
     use crate::race::frame_draw::*;
     view.begin();
-    let ctx = DrawCtx::new(race, scene, system, view, part);
+    let ctx = DrawCtx::new(race, scene, system, net, input, view, part);
     let _held = view.matrices.hold(&race.frame.matrices, part);
     // The shine from the stage's, as the frame's first view has it: the original left each
     // later view the previous one's last car's (a slip fixed: `wiki/Fixed-bugs.md`).

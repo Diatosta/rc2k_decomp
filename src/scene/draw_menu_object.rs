@@ -47,6 +47,7 @@ pub fn draw_menu_object_in_game(
         &mut |step| match step {
             Step::Matrix => {
                 make_object_matrix(
+                    ctx.race.engine_tables(),
                     &ctx.view.matrices,
                     &race.frame.matrices.view_turn_matrix,
                     &ctx.view.light,

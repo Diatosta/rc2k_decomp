@@ -45,7 +45,7 @@ fn run(
     match step {
         TidyStep::TidyEverything => race_end::tidy_everything(race, o)?,
         TidyStep::MenuScreenMode => {
-            crate::platform::set_menu_mode_now(o.gfx);
+            crate::platform::set_menu_mode_now(o.gfx, o.system);
         }
         TidyStep::LoadingPicture => {
             crate::menu::show_loading_picture::show_loading_picture_in(o.menus, o.gfx, o.system)?;

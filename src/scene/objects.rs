@@ -19,7 +19,7 @@ pub fn face_cell(faces: &crate::scene::faces_store::Faces, n: usize) -> &crate::
 }
 pub const FACES: u32 = 0xC000;
 /// The file as read: +4 points, +8 faces, +0xC normals, +0x2C the points.
-pub fn file() -> &'static crate::session::Bytes<FILE_ROOM> {
-    &crate::scene::engine_tables_store::ENGINE_TABLES.object_file
+pub fn file(race: &crate::race::owner::Race) -> &crate::session::Bytes<FILE_ROOM> {
+    &race.engine_tables().object_file
 }
 pub const FILE_ROOM: usize = 0x40000;

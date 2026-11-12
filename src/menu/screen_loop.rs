@@ -428,8 +428,8 @@ pub fn prepare_scene(entry: &Entry) {
 
 /// `scene::set_up_carousel` (0x4904DD), with the list of cars menus 0xD and 0xE show.
 /// (`_scene`: the loops pass it; the carousel's set-up writes the front end's slot.)
-pub fn carousel(cars: Option<CarList>) -> Result<(), Refused> {
-    crate::scene::set_up_carousel::set_up_carousel(cars)
+pub fn carousel(entry: &Entry, cars: Option<CarList>) -> Result<(), Refused> {
+    crate::scene::set_up_carousel::set_up_carousel(entry.menus, cars)
 }
 
 /// A line for the game's log at level 1 with its line break (`logfile::log_write_l1_nl`,
@@ -739,7 +739,7 @@ fn run_frame(o: Owners<'static>, callback: FrameRoutine, menu: MenuId) -> Result
         FrameRoutine::Menu => crate::menu::frame_callback::frame_callback(o, menu),
         FrameRoutine::Inspection => crate::menu::inspection_frame::inspection_frame(o, menu),
     };
-    match crate::platform::run_frame_now(frame) {
+    match crate::platform::run_frame_now(o.system, frame) {
         Some(made) => made.map(|_| ()),
         None => Ok(()),
     }

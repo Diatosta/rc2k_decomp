@@ -14,6 +14,7 @@
 //! points it reads through; outside the parts that is `NO_OWN`, the shared points throughout.
 
 use crate::errors::BadInput;
+#[cfg(test)]
 use crate::race::owner::race;
 use crate::race::owner_course::Course;
 
@@ -33,8 +34,9 @@ pub static POINTS: crate::memory::shared_table::SharedTable =
 /// the count on while the part is drawn in a run of a list drawn by several parts (the game's
 /// thread's first part too), none otherwise (see the header).
 pub struct OwnPoints {
-    /// Whether the part is being drawn in a run.
-    in_run: std::sync::atomic::AtomicBool,
+    /// The byte from which the points are these own ones while the part is being drawn in a
+    /// run (the count's), `usize::MAX` outside one.
+    from: std::sync::atomic::AtomicUsize,
     /// Its points from the count on, as far as it has reached them in the run.
     tail: std::sync::Mutex<Vec<u8>>,
 }
@@ -42,35 +44,34 @@ pub struct OwnPoints {
 impl OwnPoints {
     pub const fn new() -> Self {
         Self {
-            in_run: std::sync::atomic::AtomicBool::new(false),
+            from: std::sync::atomic::AtomicUsize::new(usize::MAX),
             tail: std::sync::Mutex::new(Vec::new()),
         }
     }
 
-    /// A run begins: the part's own points forgotten, its first reach takes them from the
-    /// shared ones.
-    pub fn begin_run(&self) {
+    /// A run begins over `point_count` points: the part's own points forgotten, its first
+    /// reach takes them from the shared ones.
+    pub fn begin_run(&self, point_count: u32) {
         self.tail
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .clear();
-        self.in_run
-            .store(true, std::sync::atomic::Ordering::Relaxed);
+        self.from.store(
+            (point_count as usize).saturating_mul(12),
+            std::sync::atomic::Ordering::Relaxed,
+        );
     }
 
     /// The run is over: the shared points read again.
     pub fn end_run(&self) {
-        self.in_run
-            .store(false, std::sync::atomic::Ordering::Relaxed);
+        self.from
+            .store(usize::MAX, std::sync::atomic::Ordering::Relaxed);
     }
 
     /// The byte from which the points are these own ones: the count's in a run, none
     /// otherwise.
     fn own_from(&self) -> usize {
-        if !self.in_run.load(std::sync::atomic::Ordering::Relaxed) {
-            return usize::MAX;
-        }
-        (race().course.course.scene_point_count.get() as usize).saturating_mul(12)
+        self.from.load(std::sync::atomic::Ordering::Relaxed)
     }
 }
 

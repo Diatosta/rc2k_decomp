@@ -20,7 +20,7 @@ fn set_up_first(entry: &Entry) -> Result<(), Refused> {
     screens.loop_flags.ask_leave.set(false);
     screens.flow.turning.set(0x1u32);
     screens.state.carousel.menu.set(0x13u32);
-    carousel(None)?;
+    carousel(entry, None)?;
     let item = screens.items.current[slot::CHAMPIONSHIP_RACES_REVIEW].get();
     screens.loop_flags.item.set(item);
     screens.state.carousel.front.set(item.wrapping_sub(1));

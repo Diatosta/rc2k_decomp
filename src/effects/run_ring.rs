@@ -1244,12 +1244,16 @@ mod reference_vectors {
     use crate::effects::tuning::MarksFloats;
     use crate::race::effects_settings_store::CarEffects;
 
-    fn word(at: usize) -> u32 {
-        unsafe { crate::pointers::host_at(at).cast::<u32>().read_unaligned() }
+    fn word(at: crate::effects::asm_test::Operand) -> u32 {
+        unsafe { (at).host().cast::<u32>().read_unaligned() }
     }
 
     /// A car record whose words at the record `offsets` hold the test buffer's dwords at `at + offset - base`.
-    fn car_with(at: usize, base: usize, offsets: &[usize]) -> CarEffects {
+    fn car_with(
+        at: crate::effects::asm_test::Operand,
+        base: usize,
+        offsets: &[usize],
+    ) -> CarEffects {
         let car = CarEffects::zeroed();
         for &o in offsets {
             crate::pointers::GamePtr::to(&car)
@@ -1261,7 +1265,7 @@ mod reference_vectors {
     }
 
     /// The car's 3 x 3 matrix (the record's +0x94) from the buffer at `at`.
-    fn car_matrix(at: usize) -> CarEffects {
+    fn car_matrix(at: crate::effects::asm_test::Operand) -> CarEffects {
         let offsets: Vec<usize> = [0x0, 0x4, 0x8, 0x10, 0x14, 0x18, 0x20, 0x24, 0x28]
             .iter()
             .map(|o| 0x94 + o)
@@ -1271,7 +1275,7 @@ mod reference_vectors {
 
     /// A whole matrix whose translation (+0x30 ..) is the buffer's at `at` + 0x30 (`at` the
     /// matrix's place, as the original reads it).
-    fn whole_at(at: usize) -> [crate::session::Float; 16] {
+    fn whole_at(at: crate::effects::asm_test::Operand) -> [crate::session::Float; 16] {
         std::array::from_fn(|i| {
             crate::session::Float::from_bits(if (12..15).contains(&i) {
                 word(at + 4 * i)
@@ -1430,8 +1434,7 @@ mod reference_vectors {
                     };
                     super::pull_length_x87(ring, e, &whole_at(b[2]), &mut length, w, &kinds);
                     unsafe {
-                        crate::pointers::host_at(b[3])
-                            .copy_from_nonoverlapping(length.as_ptr(), 10);
+                        (b[3]).host().copy_from_nonoverlapping(length.as_ptr(), 10);
                     }
                 });
             });
@@ -1483,9 +1486,8 @@ mod reference_vectors {
             with_copy(b[0], MarksFloats::START, |f| {
                 with_copy(b[0], RingWork::START, |w| {
                     let car = car_with(b[1], 0, &[0x4C, 0x50, 0x54, 0x88]);
-                    let length: [u8; 10] = std::array::from_fn(|i| unsafe {
-                        crate::pointers::host_at(b[2] + i).read()
-                    });
+                    let length: [u8; 10] =
+                        std::array::from_fn(|i| unsafe { (b[2] + i).host().read() });
                     super::pull_facing_x87(&car, &length, f, w);
                 });
             });

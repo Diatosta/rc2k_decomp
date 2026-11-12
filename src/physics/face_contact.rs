@@ -99,9 +99,9 @@ pub fn steps(
         return Err(e.into());
     }
     // An unset kind wraps to the record before the first, as the original reads it.
-    c.contact
-        .contact_kind
-        .set(crate::scene::polygon::material_byte(kind, 0x1C)?.into());
+    c.contact.contact_kind.set(
+        crate::scene::polygon::material_byte(&c.shared.buffers.polygon_tables, kind, 0x1C)?.into(),
+    );
     if contacts::object_tried(face_byte(0x25)?, c.work.stage_direction.get(), object).is_err() {
         return Ok(());
     }

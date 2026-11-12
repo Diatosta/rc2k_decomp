@@ -20,6 +20,7 @@ pub fn set_all_plates(
     race: &'static Race,
     system: &crate::system::owner::System,
     gfx: &crate::gfx::owner::Gfx,
+    d3d: &crate::d3d::owner::D3d,
     net: &crate::net::owner::Net,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
@@ -60,7 +61,9 @@ pub fn set_all_plates(
             at += 1;
         }
     }
-    crate::scene::reload_system_textures::reload_system_textures(race, system, gfx, net, scene)?;
+    crate::scene::reload_system_textures::reload_system_textures(
+        race, system, gfx, d3d, net, scene,
+    )?;
     crate::scene::reload_slot_textures::reload_slot_textures(&race.frame, scene)?;
     Ok(())
 }

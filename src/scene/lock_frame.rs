@@ -11,9 +11,9 @@ use crate::race::owner::Race;
 
 /// The back surface locked; its pixels and a second value kept for the drawing. Returns the
 /// locked flag after the lock (1 when locked; otherwise the frame is lost) and that value.
-pub fn lock_frame(race: &Race, gfx: &Gfx) -> (u32, u32) {
+pub fn lock_frame(race: &Race, gfx: &Gfx, system: &crate::system::owner::System) -> (u32, u32) {
     let drawing = &gfx.drawing;
-    let locked = crate::platform::lock_surface(gfx);
+    let locked = crate::platform::lock_surface(gfx, system);
     {
         race.frame
             .scratch

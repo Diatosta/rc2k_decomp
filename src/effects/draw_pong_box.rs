@@ -246,11 +246,10 @@ mod reference_vectors {
     use crate::effects::asm_test::{Op, Spec, recorded_writes};
     use crate::effects::windscreen_flakes_store::WindscreenFlakeTables;
 
-    /// The four ten-byte values at `at` of the test buffer.
-    fn values(at: usize) -> [[u8; 10]; 4] {
-        std::array::from_fn(|n| {
-            std::array::from_fn(|i| unsafe { crate::pointers::host_at(at + 10 * n + i).read() })
-        })
+    /// The four ten-byte values at `at` of the test buffer (0 where the buffer does not
+    /// reach: a block reads only the last two).
+    fn values(at: crate::effects::asm_test::Operand) -> [[u8; 10]; 4] {
+        std::array::from_fn(|n| at.bytes_or_zero(10 * n, 10).try_into().unwrap())
     }
 
     /// The vertex float at byte `off` of the vertices (x, y or z of a vertex).
@@ -266,8 +265,12 @@ mod reference_vectors {
 
     /// Runs `f` with the vertex floats at `offsets` holding the test buffer's (at `at`)
     /// bytes; what `f` leaves goes back to the buffer, the vertices as they were.
-    fn staged<R>(at: usize, offsets: &[usize], f: impl FnOnce() -> R) -> R {
-        let host = |off: usize| crate::pointers::host_at(at + off).cast::<u32>();
+    fn staged<R>(
+        at: crate::effects::asm_test::Operand,
+        offsets: &[usize],
+        f: impl FnOnce() -> R,
+    ) -> R {
+        let host = |off: usize| (at + off).host().cast::<u32>();
         let saved: Vec<u32> = offsets.iter().map(|&o| vertex_cell(o).bits()).collect();
         for &o in offsets {
             vertex_cell(o).set_bits(unsafe { host(o).read_unaligned() });

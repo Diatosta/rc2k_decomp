@@ -59,7 +59,7 @@ fn link(o: Owners<'static>) -> Result<Way, Refused> {
         }
     };
     keep_connection::keep_connection(net, connection)?;
-    if !connecting::connecting(net, panel, connection, o.gfx)? {
+    if !connecting::connecting(net, panel, connection, o.gfx, o.system)? {
         return Ok(Way::Message(NO_CONNECTION));
     }
     if vars.mode.get() == 1 {
@@ -100,7 +100,7 @@ pub fn start_link(o: crate::owners::Owners<'static>, mode: u32) -> Result<(), Re
     fill_own_player::fill_own_player(race, net, menus, &menus.play.names.player_names.read())?;
     show_background::show_background(o.gfx, o.system, &net.vars)?;
     match link(o)? {
-        Way::Message(n) => show_message::show_message(n, o.gfx)?,
+        Way::Message(n) => show_message::show_message(n, o.gfx, o.system)?,
         Way::End => {}
         Way::On => {
             vars.session.set(1);

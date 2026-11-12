@@ -14,7 +14,7 @@ pub fn show_backdrop(
     for _ in 0..3 {
         run_frame(
             system,
-            Some(&|| crate::install::backdrop_frame::backdrop_frame(gfx)),
+            Some(&|| crate::install::backdrop_frame::backdrop_frame(gfx, system)),
         )?;
     }
     Ok(())

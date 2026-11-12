@@ -10,7 +10,7 @@
 use crate::errors::Refused;
 use crate::files::read_whole_file::read_whole_file_store;
 use crate::scene::file_numbers_store::texts;
-use crate::scene::polygon_store::{POLYGON_TABLES, PolygonTables};
+use crate::scene::polygon_store::PolygonTables;
 use crate::scene::set_object_material::MATERIAL_LEN;
 use crate::session::TextPlace;
 
@@ -57,7 +57,10 @@ fn records(file: &KindFile) -> (usize, usize) {
 
 // ---- Rust version ----
 
-pub fn read_kind_records(scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+pub fn read_kind_records(
+    race: &crate::race::owner::Race,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
     for file in &FILES {
         let (at, room) = records(file);
         read_whole_file_store(
@@ -65,7 +68,7 @@ pub fn read_kind_records(scene: &crate::scene::owner::Scene) -> Result<(), Refus
                 .file_numbers
                 .text_at(file.path)
                 .text("a kinds file's path")?,
-            &*POLYGON_TABLES,
+            race.polygon_tables(),
             at,
             room,
         )?;

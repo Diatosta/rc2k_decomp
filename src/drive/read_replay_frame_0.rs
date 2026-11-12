@@ -6,8 +6,9 @@
 
 use crate::errors::Refused;
 use crate::race::owner::Race;
+use crate::system::owner::System;
 
 /// CF.
-pub fn read_replay_frame_0(race: &Race, frame: u32) -> Result<bool, Refused> {
-    crate::drive::read_replay_frame::read_replay_frame(race, frame, 0)
+pub fn read_replay_frame_0(race: &Race, system: &System, frame: u32) -> Result<bool, Refused> {
+    crate::drive::read_replay_frame::read_replay_frame(race, system, frame, 0)
 }

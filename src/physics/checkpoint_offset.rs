@@ -18,6 +18,7 @@ use rc2k_core::physics::progress::checkpoint_ahead;
 // Converted: `rc2k_core::physics::progress::checkpoint_ahead` (the turn stays
 // `math::rotate_point_about_y`'s).
 pub fn checkpoint_offset(
+    engine_tables: &crate::scene::engine_tables_store::EngineTables,
     course: &Course,
     vars: &RaceVars,
     checkpoints: &crate::race::checkpoints_store::Checkpoints,
@@ -52,8 +53,13 @@ pub fn checkpoint_offset(
             point,
             2,
         )?);
-    let [x2, _, z2, _] =
-        rotate_point_about_y(x as i32, point as i32, z as i32, angle.wrapping_neg());
+    let [x2, _, z2, _] = rotate_point_about_y(
+        engine_tables,
+        x as i32,
+        point as i32,
+        z as i32,
+        angle.wrapping_neg(),
+    );
     car.checkpoint_offset[0].set(x2);
     car.checkpoint_offset[1].set(z2);
     Ok(())

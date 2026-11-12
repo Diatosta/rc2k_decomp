@@ -15,12 +15,16 @@ pub const STATUS_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fo
 
 /// An empty frame, then string `id` shown on the background and a second's sleep (not
 /// when the lock fails). Shared with `net::hosting`, `net::joining`, `net::stopping`.
-pub fn status(id: u32, gfx: &crate::gfx::owner::Gfx) -> Result<(), Refused> {
-    run_frame(|| Ok::<(), Refused>(()))?;
-    if !lock_surface(gfx) {
+pub fn status(
+    id: u32,
+    gfx: &crate::gfx::owner::Gfx,
+    system: &crate::system::owner::System,
+) -> Result<(), Refused> {
+    run_frame(system, || Ok::<(), Refused>(()))?;
+    if !lock_surface(gfx, system) {
         return Ok(());
     }
-    crate::net::message_frame::string_frame_locked(id, STATUS_FONT, 0x316, 0x6F, gfx)?;
+    crate::net::message_frame::string_frame_locked(id, STATUS_FONT, 0x316, 0x6F, gfx, system)?;
     crate::system::sleep::sleep(1000);
     Ok(())
 }
@@ -29,7 +33,8 @@ pub fn connecting(
     panel: &ViewerPanelBlock,
     connection: u32,
     gfx: &crate::gfx::owner::Gfx,
+    system: &crate::system::owner::System,
 ) -> Result<bool, Refused> {
-    status(0x14F, gfx)?;
+    status(0x14F, gfx, system)?;
     crate::net::init_connection::init_connection(net, panel, connection)
 }

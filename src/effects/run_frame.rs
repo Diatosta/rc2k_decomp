@@ -47,21 +47,23 @@ fn share(at: usize, start: u32, effects: &crate::effects::owner::Effects) {
 
 /// The view the effects are drawn for (a player's main view, from its overlays): its fog, its
 /// matrix (the original's `g_viewMatrix`) and its light (`g_viewLight`), which the original
-/// read from what the last view drawn left.
+/// read from what the last view drawn left; and the race's sine tables the sprites turn by.
 #[derive(Clone, Copy)]
 pub struct EffectsView<'a> {
     pub fog: &'a crate::scene::fog::Fog,
     pub view_matrix: &'a [crate::session::Float; 16],
     pub light: u32,
+    pub engine_tables: &'a crate::scene::engine_tables_store::EngineTables,
 }
 
 impl<'a> EffectsView<'a> {
-    /// `view`'s own.
-    pub fn of(view: &'a crate::race::view_scratch::ViewScratch) -> Self {
+    /// `view`'s own, in race `race`.
+    pub fn of(race: &'a Race, view: &'a crate::race::view_scratch::ViewScratch) -> Self {
         Self {
             fog: &view.fog,
             view_matrix: &view.matrices.view_matrix,
             light: view.light.view_light.bits(),
+            engine_tables: race.engine_tables(),
         }
     }
 
@@ -75,6 +77,7 @@ impl<'a> EffectsView<'a> {
             fog: &front_end.fog,
             view_matrix: &race.frame.matrices.view_matrix,
             light: front_end.light.view_light.bits(),
+            engine_tables: race.engine_tables(),
         }
     }
 }
@@ -119,7 +122,7 @@ pub fn run_frame(
         )?;
         share(1, start, effects);
         set_render_state(part, 2, 0x14);
-        flare_frame::flare_frame(buffer, paths, scene, effects)?;
+        flare_frame::flare_frame(view.engine_tables, buffer, paths, scene, effects)?;
         set_render_state(part, 1, 3);
         draw_mark_slots::draw_mark_slots(buffer, race, paths, scene, effects, view)?;
         run_particles::run_particles(
@@ -134,7 +137,7 @@ pub fn run_frame(
         )?;
         share(2, whole, effects);
         stage_record::stage_record(&race.frame)?;
-        draw_glow::draw_glow(buffer, scene, effects)?;
+        draw_glow::draw_glow(view.engine_tables, buffer, scene, effects)?;
         crate::scene::depth_buffer_on::depth_buffer(part, true);
         crate::scene::depth_test_on::depth_test_on(part);
     }

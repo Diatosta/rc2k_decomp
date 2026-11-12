@@ -32,16 +32,16 @@ pub fn race_frame(
         use crate::debug::timing::{Stage, start, stop};
         let begun = start();
         // `scene::begin_scene` never loses the frame here.
-        crate::scene::begin_scene::begin_scene(race, crate::workers::game_scratch());
+        crate::scene::begin_scene::begin_scene(race, o.d3d, crate::workers::game_scratch());
         {
             let _step = crate::write_watch::step("draw");
             crate::race::draw_race_scene::draw_race_scene(race, o)
         }?;
-        crate::scene::end_scene::end_scene();
+        crate::scene::end_scene::end_scene(o.d3d);
         stop(Stage::Scene, begun);
         // The original's sound tick here (tick 0x12) never found a turn due: the frame's one
         // is in `draw_race_scene`.
-        { crate::race::replay_screenshot::replay_screenshot(race, o.gfx) }?;
+        { crate::race::replay_screenshot::replay_screenshot(race, o.gfx, o.system) }?;
         #[cfg(feature = "remote")]
         crate::remote::shot_frame_drawn(race);
         let shown = {

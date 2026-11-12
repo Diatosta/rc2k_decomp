@@ -74,7 +74,8 @@ const COUNT_TEXT_RVA: &std::ffi::CStr = c"NUM DIFFERENT CARS/OBJECTS/TEXTURE SET
 /// tag 0x28 + the car); each kind's slots (its prefs entry not 0 or -1: tag, level, and
 /// `TexturePlaces.kind_slot_bytes` + 4, or + 1 for slots 0x40 .. 0x6F); the fixed runs, two loops at slot 0xDC (the system level of six,
 /// the video level of two), and with `FrameSwitches.editor_mode` three more.
-pub fn init_texture_levels(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+pub fn init_texture_levels(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), Refused> {
+    let scene = o.scene;
     let shared = &race.shared;
     // Converted: `rc2k_core::scene::texture_levels::{held_cars, set_levels}`.
     use crate::logfile::log_int::log_int;
@@ -86,7 +87,7 @@ pub fn init_texture_levels(race: &Race, scene: &crate::scene::owner::Scene) -> R
     crate::logfile::log_write::log_nul(&COUNT_TEXT_RVA, false, 1);
     log_int(cars as i32, true, 1);
     scene.objects.tables.other_levels.set(0);
-    crate::input::keys::update_input(&mut crate::input::keys::game_screenshot);
+    crate::input::keys::update_input(o);
     let kinds: Vec<(KindSlots, Vec<u32>)> = BLOCKS
         .iter()
         .map(

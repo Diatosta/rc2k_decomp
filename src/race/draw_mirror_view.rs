@@ -29,6 +29,8 @@ pub fn draw_mirror_view(
     race: &Race,
     scene: &crate::scene::owner::Scene,
     system: &crate::system::owner::System,
+    net: &crate::net::owner::Net,
+    input: &crate::input::owner::Input,
     view: &crate::race::view_scratch::ViewScratch,
     part: &crate::workers::PartScratch,
 ) -> Result<Option<crate::race::draw_view_scene::ViewOutput>, Refused> {
@@ -51,7 +53,7 @@ pub fn draw_mirror_view(
         crate::race::frame_views::mirror_view_window(race, scene, system, view, part)?;
         view.polygon.window.view_depth[1].set(view.course.view_value_kept.get());
         crate::race::frame_flush::draw_view_backdrop(race, scene, view, part);
-        crate::race::draw_view_scene::draw_view_scene(race, scene, system, view, part)
+        crate::race::draw_view_scene::draw_view_scene(race, scene, system, net, input, view, part)
     })();
     view.vars.view_scale.set(saved);
     // (The original's full window again after the mirror is the front end's: `race::draw_race_scene`.)

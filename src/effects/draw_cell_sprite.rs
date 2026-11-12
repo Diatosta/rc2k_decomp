@@ -37,12 +37,14 @@ fn turn(
 /// The square, turned, about the projected place. Gives a value the original keeps in a
 /// register: the draw work's `DrawWork.sprite_half[1]` cell between its two stores.
 fn square(
+    engine_tables: &crate::scene::engine_tables_store::EngineTables,
     buffer: &crate::d3d::vertices_store::PolygonVertices,
     k: u32,
     angle: u32,
     effects: &crate::effects::owner::Effects,
 ) -> u32 {
     square_x87(
+        engine_tables,
         buffer,
         k as usize,
         angle as usize,
@@ -107,7 +109,7 @@ pub fn draw_cell_sprite(
         buffer.vertices[n].u.set_bits(u);
         buffer.vertices[n].v.set_bits(v);
     }
-    square(buffer, at, angle, effects);
+    square(view.engine_tables, buffer, at, angle, effects);
     if clip_quad(buffer, effects)? {
         return Ok(());
     }
@@ -183,6 +185,7 @@ fn slope_at(cs: &CornerSlopes, k: usize) -> &PlainFloat {
 /// field it falls on: section 16), so that read goes through `slope_at`. `angle` is the
 /// sine table's cell (the original's `s` is four times it; the cosine is the cell 0x400 on).
 fn square_x87(
+    engine_tables: &crate::scene::engine_tables_store::EngineTables,
     buffer: &crate::d3d::vertices_store::PolygonVertices,
     k: usize,
     angle: usize,
@@ -214,24 +217,24 @@ fn square_x87(
     dw.sprite_half[2].set_bits(t9);
     let t10 = dw.sprite_half[0].ld();
     let t11 = dw.sprite_half[1].ld();
-    let t12 = t11 * ld_cell(cosine(angle));
-    let t13 = t10 * ld_cell(sine(angle));
+    let t12 = t11 * ld_cell(cosine(engine_tables, angle));
+    let t13 = t10 * ld_cell(sine(engine_tables, angle));
     let t14 = t12 + t13;
     dw.sprite_half[0].st(t14);
     let t15 = -t11;
-    let t16 = t15 * ld_cell(sine(angle));
-    let t17 = t10 * ld_cell(cosine(angle));
+    let t16 = t15 * ld_cell(sine(engine_tables, angle));
+    let t17 = t10 * ld_cell(cosine(engine_tables, angle));
     let t18 = t16 + t17;
     dw.sprite_half[1].st(t18);
     let t19 = dw.sprite_half[2].ld();
     let t20 = dw.sprite_half[3].ld();
-    let t21 = t20 * ld_cell(cosine(angle));
-    let t22 = t19 * ld_cell(sine(angle));
+    let t21 = t20 * ld_cell(cosine(engine_tables, angle));
+    let t22 = t19 * ld_cell(sine(engine_tables, angle));
     let t23 = t21 + t22;
     dw.sprite_half[2].st(t23);
     let t24 = -t20;
-    let t25 = t24 * ld_cell(sine(angle));
-    let t26 = t19 * ld_cell(cosine(angle));
+    let t25 = t24 * ld_cell(sine(engine_tables, angle));
+    let t26 = t19 * ld_cell(cosine(engine_tables, angle));
     let t27 = t25 + t26;
     dw.sprite_half[3].st(t27);
     let t28 = t1 * dw.turned[0].ld();
@@ -286,8 +289,14 @@ mod reference_vectors {
 
     /// Runs `f` with each cell holding the test buffer's dword at its address; what `f`
     /// leaves goes back to the buffer, the cells as they were.
-    fn staged<R>(cells: &[(&dyn crate::session::Cell32, usize)], f: impl FnOnce() -> R) -> R {
-        let host = |a: usize| crate::pointers::host_at(a).cast::<u32>();
+    fn staged<R>(
+        cells: &[(
+            &dyn crate::session::Cell32,
+            crate::effects::asm_test::Operand,
+        )],
+        f: impl FnOnce() -> R,
+    ) -> R {
+        let host = |a: crate::effects::asm_test::Operand| a.host().cast::<u32>();
         let saved: Vec<u32> = cells.iter().map(|(c, _)| c.bits()).collect();
         for &(c, a) in cells {
             c.set_bits(unsafe { host(a).read_unaligned() });
@@ -301,10 +310,8 @@ mod reference_vectors {
     }
 
     /// The three ten-byte values at `at` of the test buffer.
-    fn values(at: usize) -> [[u8; 10]; 3] {
-        std::array::from_fn(|n| {
-            std::array::from_fn(|i| unsafe { crate::pointers::host_at(at + 10 * n + i).read() })
-        })
+    fn values(at: crate::effects::asm_test::Operand) -> [[u8; 10]; 3] {
+        std::array::from_fn(|n| std::array::from_fn(|i| unsafe { (at + 10 * n + i).host().read() }))
     }
 
     #[test]
@@ -371,31 +378,31 @@ mod reference_vectors {
                     writes: &[],
                 },
                 Op::Base {
-                    lo: 0x5605A0,
-                    hi: 0x628AE4,
+                    lo: 0x0,
+                    hi: 0xC8544,
                     reads: &[
-                        (0x623AE4, F32),
-                        (0x623AE8, F32),
-                        (0x623B48, F32),
-                        (0x624AE4, F32),
-                        (0x624AE8, F32),
-                        (0x624B48, F32),
-                        (0x627AE0, F32),
-                        (0x628AE0, F32),
+                        (0xC3544, F32),
+                        (0xC3548, F32),
+                        (0xC35A8, F32),
+                        (0xC4544, F32),
+                        (0xC4548, F32),
+                        (0xC45A8, F32),
+                        (0xC7540, F32),
+                        (0xC8540, F32),
                     ],
                     writes: &[
-                        (0x5605A0, F32),
-                        (0x5605A4, F32),
-                        (0x5605A8, F32),
-                        (0x5605C0, F32),
-                        (0x5605C4, F32),
-                        (0x5605C8, F32),
-                        (0x5605E0, F32),
-                        (0x5605E4, F32),
-                        (0x5605E8, F32),
-                        (0x560600, F32),
-                        (0x560604, F32),
-                        (0x560608, F32),
+                        (0x0, F32),
+                        (0x4, F32),
+                        (0x8, F32),
+                        (0x20, F32),
+                        (0x24, F32),
+                        (0x28, F32),
+                        (0x40, F32),
+                        (0x44, F32),
+                        (0x48, F32),
+                        (0x60, F32),
+                        (0x64, F32),
+                        (0x68, F32),
                     ],
                 },
                 Op::Base {
@@ -436,26 +443,42 @@ mod reference_vectors {
         recorded_writes("effects.draw_cell_sprite.square_x87", &SPEC, |b| {
             with_copy::<DrawWork, _>(b[2], DrawWork::START, |dw| {
                 with_copy::<CornerSlopes, _>(b[2], CornerSlopes::START, |cs| {
-                    let vertices: Vec<(&dyn crate::session::Cell32, usize)> = [
+                    let vertices: Vec<(
+                        &dyn crate::session::Cell32,
+                        crate::effects::asm_test::Operand,
+                    )> = [
                         0x0, 0x4, 0x8, 0x20, 0x24, 0x28, 0x40, 0x44, 0x48, 0x60, 0x64, 0x68,
                     ]
                     .into_iter()
                     .map(|o| {
                         (
                             vertex_cell(o) as &dyn crate::session::Cell32,
-                            b[1].wrapping_add(0x5605A0 + o),
+                            b[1].wrapping_add(o),
                         )
                     })
                     .collect();
-                    let tables = b[1].wrapping_add(0x623AE4);
+                    let tables = b[1].wrapping_add(0xC3544);
                     let mut cells = vertices;
-                    cells.push((sine(b[4] / 4), tables.wrapping_add(b[4])));
-                    cells.push((cosine(b[4] / 4), tables.wrapping_add(b[4] + 0x1000)));
+                    cells.push((
+                        sine(
+                            &crate::race::owner::race().shared.buffers.engine_tables,
+                            b[4].number() / 4,
+                        ),
+                        tables.wrapping_add(b[4].number()),
+                    ));
+                    cells.push((
+                        cosine(
+                            &crate::race::owner::race().shared.buffers.engine_tables,
+                            b[4].number() / 4,
+                        ),
+                        tables.wrapping_add(b[4].number() + 0x1000),
+                    ));
                     staged(&cells, || {
                         super::square_x87(
+                            &crate::race::owner::race().shared.buffers.engine_tables,
                             &crate::d3d::vertices_store::VERTICES,
-                            b[3],
-                            b[4] / 4,
+                            b[3].number(),
+                            b[4].number() / 4,
                             dw,
                             cs,
                         )

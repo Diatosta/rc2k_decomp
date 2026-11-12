@@ -16,7 +16,7 @@ use crate::errors::Refused;
 use crate::race::owner::Race;
 // Converted: `rc2k_core::effects::race::{check_cars, kind_row, car_fields}`
 pub fn init_mark_step(
-    race: &Race,
+    race: &'static Race,
     effects: &Effects,
     scene: &crate::scene::owner::Scene,
     gfx: &crate::gfx::owner::Gfx,

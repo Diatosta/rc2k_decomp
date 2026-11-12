@@ -20,7 +20,7 @@ fn set_up_first(entry: &Entry) -> Result<(), Refused> {
     let screens = &entry.menus.screens;
     screens.flow.turning.set(0x1u32);
     screens.state.carousel.menu.set(0xCu32);
-    carousel(None)?;
+    carousel(entry, None)?;
     screens
         .loop_flags
         .item

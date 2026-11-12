@@ -237,17 +237,13 @@ mod tests {
         assert_block_starts_as_the_games(&race.replay.cars_and_replay);
         assert_block_starts_as_the_games(&race.replay.viewer_and_kinds);
         assert_block_starts_as_the_games(&race.frame.lights_and_gear);
-        let (a, b) = VIEW_AND_RECORDS_RANGE;
-        crate::gfx::first_values_are_the_games_but(&race.frame.view_and_records, a, b, |image| {
-            for k in 0..52 {
-                let o = offset_of!(ViewAndRecords, view_vars)
-                    + offset_of!(ViewVars, view_records)
-                    + 4 * k;
-                let v = u32::from_le_bytes(image[o..o + 4].try_into().unwrap());
-                image[o..o + 4]
-                    .copy_from_slice(&crate::race::view_vars_store::view_ref(v).to_le_bytes());
-            }
-        });
+        crate::test_support::first_values::assert_block_starts_as_the_games_but(
+            &race.frame.view_and_records,
+            &[(
+                offset_of!(ViewAndRecords, view_vars) + offset_of!(ViewVars, view_records),
+                "race.owner.RACE.frame.view_and_records.view_vars.view_records[0]/208",
+            )],
+        );
         // The panel and the overlay after it: one store from the panel's first byte.
         assert_store_starts_as_the_games("store:race.groups_store.PANEL_TAIL");
     }

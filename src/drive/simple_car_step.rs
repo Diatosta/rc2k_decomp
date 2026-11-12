@@ -34,6 +34,7 @@ pub fn simple_car_step(
     );
     let [x, _, z, _] = {
         crate::math::rotate_point_about_y::rotate_point_about_y(
+            race.engine_tables(),
             0,
             keys as i32,
             distance as i32,
@@ -84,6 +85,11 @@ pub fn simple_car_step(
     }
     race.car_blocks().cars[0].car_pitch.set(0);
     race.car_blocks().cars[0].car_roll.set(0);
-    crate::race::stage_prefs::get_mat_crash(&race.frame.matrices, &race.shared.car, scene);
+    crate::race::stage_prefs::get_mat_crash(
+        race.engine_tables(),
+        &race.frame.matrices,
+        &race.shared.car,
+        scene,
+    );
     Ok(())
 }

@@ -19,12 +19,12 @@ use crate::scene::objects::FILE_ROOM;
 // ---- Rust version ----
 
 /// The file's bytes at an offset, if they lie in its room.
-pub fn file_dword(offset: usize) -> Result<u32, BadInput> {
+pub fn file_dword(race: &crate::race::owner::Race, offset: usize) -> Result<u32, BadInput> {
     if offset + 4 > FILE_ROOM {
         return Err(BadInput("the object's file runs past its room"));
     }
     Ok(u32::from_le_bytes(
-        crate::scene::objects::file()
+        crate::scene::objects::file(race)
             .read_at(offset, 4, "a word of an object's file")?
             .try_into()
             .unwrap(),
@@ -32,10 +32,14 @@ pub fn file_dword(offset: usize) -> Result<u32, BadInput> {
 }
 
 // Converted: `rc2k_core::scene::objects::{texture_list, texture_record}`
-pub fn list_object_textures(scene: &crate::scene::owner::Scene) -> Result<(), BadInput> {
+pub fn list_object_textures(
+    race: &crate::race::owner::Race,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), BadInput> {
     use rc2k_core::scene::objects::{texture_list, texture_record};
 
-    let textures = texture_list(|offset| file_dword(offset).map_err(|e| rc2k_core::Invalid(e.0)))?;
+    let textures =
+        texture_list(|offset| file_dword(race, offset).map_err(|e| rc2k_core::Invalid(e.0)))?;
     let slot: u32 = scene.drawing.object_work.loading_slot.get();
     let record = texture_record(slot, textures.len())?;
     scene.objects.slots.texture_count.set(textures.len() as u32);

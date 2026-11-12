@@ -574,8 +574,8 @@ mod reference_vectors {
     use crate::effects::frame_state::DrawWork;
     use crate::effects::owner::effects;
 
-    fn word(at: usize) -> u32 {
-        unsafe { crate::pointers::host_at(at).cast::<u32>().read_unaligned() }
+    fn word(at: crate::effects::asm_test::Operand) -> u32 {
+        unsafe { (at).host().cast::<u32>().read_unaligned() }
     }
 
     #[test]

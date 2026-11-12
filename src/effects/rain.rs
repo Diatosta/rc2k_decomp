@@ -324,33 +324,19 @@ pub mod tests {
             .collect()
     }
 
-    /// Runs `f` on the rain's variables in a test buffer standing for the marks' block at
-    /// `mk` (IDA 0x764F40); the buffer's bytes are copied out for `f` (the image's address
-    /// of the state is not aligned) and put back.
-    pub fn with_state_at<R>(mk: usize, f: impl FnOnce(&RainState, &RainRules) -> R) -> R {
-        let state = crate::pointers::host_at(
-            mk.wrapping_add(RainState::START)
-                .wrapping_sub(crate::effects::store::START),
-        )
-        .cast::<RainState>();
-        let rules = crate::pointers::host_at(
-            mk.wrapping_add(RainRules::START)
-                .wrapping_sub(crate::effects::store::START),
-        )
-        .cast::<RainRules>();
+    /// Runs `f` on the rain's variables in the test buffer `mk` standing for the marks'
+    /// block; the buffer's bytes are copied out for `f` (their place in it is not aligned)
+    /// and put back.
+    pub fn with_state_at<R>(
+        mk: crate::effects::asm_test::Operand,
+        f: impl FnOnce(&RainState, &RainRules) -> R,
+    ) -> R {
+        let from_start =
+            |start: usize, len: usize| mk.at(start.wrapping_sub(crate::effects::store::START), len);
+        let state = from_start(RainState::START, size_of::<RainState>()).cast::<RainState>();
+        let rules = from_start(RainRules::START, size_of::<RainRules>()).cast::<RainRules>();
         // On the heap: the two are near 2 MB together, a test thread's whole stack (copied
         // by value there they overflowed it, and Wine hung on the fault).
-        for start in [RainState::START, RainRules::START] {
-            crate::effects::typed_sync::fits_buffer(
-                mk.wrapping_add(start)
-                    .wrapping_sub(crate::effects::store::START),
-                if start == RainState::START {
-                    size_of::<RainState>()
-                } else {
-                    size_of::<RainRules>()
-                },
-            );
-        }
         unsafe {
             let (s, r) = (boxed_copy(state), boxed_copy(rules));
             let out = f(&s, &r);

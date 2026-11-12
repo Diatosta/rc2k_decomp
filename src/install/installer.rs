@@ -209,7 +209,7 @@ pub fn copy_file(
     from: impl Into<BytePlace>,
     to: impl Into<BytePlace>,
 ) -> Result<bool, Refused> {
-    Ok(crate::files::copy_file::copy_file_in(
+    Ok(crate::files::copy_file::copy_file(
         system,
         &from.into().text("a file to copy")?,
         &to.into().text("a copy's path")?,
@@ -250,8 +250,8 @@ pub fn take_key() -> u8 {
 
 /// `gfx::lock_surface` (0x4058AD): whether the surface is locked (the original's carry
 /// clear).
-pub fn lock(gfx: &crate::gfx::owner::Gfx) -> bool {
-    crate::platform::lock_surface(gfx) >= 1
+pub fn lock(gfx: &crate::gfx::owner::Gfx, system: &crate::system::owner::System) -> bool {
+    crate::platform::lock_surface(gfx, system) >= 1
 }
 
 /// `gfx::unlock_surface` (0x405949).
@@ -279,7 +279,7 @@ pub fn run_frame(
     frame: Option<Frame<'_>>,
 ) -> Result<bool, Refused> {
     // The platform's run_frame with no frame of its own: the window's messages only.
-    crate::platform::run_frame_now(|| ());
+    crate::platform::run_frame_now(system, || ());
     match frame {
         Some(frame) if !system.session.flags.quitting.is_set() => frame(),
         _ => Ok(false),
@@ -287,10 +287,13 @@ pub fn run_frame(
 }
 
 /// `gfx::copy_picture_to_surface` (0x4060E3).
-pub fn copy_picture() -> Result<(), Refused> {
+pub fn copy_picture(
+    gfx: &crate::gfx::owner::Gfx,
+    system: &crate::system::owner::System,
+) -> Result<(), Refused> {
     {
         crate::gfx::copy_picture_to_surface::copy_picture_to_surface(
-            &mut crate::gfx::copy_picture_to_surface::GameSurface(crate::gfx::owner::gfx()),
+            &mut crate::gfx::copy_picture_to_surface::GameSurface(gfx, system),
         )
     }?;
     Ok(())

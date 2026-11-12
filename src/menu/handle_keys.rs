@@ -83,7 +83,7 @@ pub fn handle_keys(o: Owners<'static>, eax: u32) -> Result<Pressed, Refused> {
         Action::Move(Move::Right) => Direction::Right,
         Action::Move(Move::Left) => Direction::Left,
         Action::Screenshot => {
-            crate::gfx::take_screenshot::take_screenshot(o.gfx)?;
+            crate::gfx::take_screenshot::take_screenshot(o.gfx, o.system)?;
             return Ok(nothing);
         }
         Action::Toggle => {

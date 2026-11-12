@@ -53,12 +53,16 @@ impl Description<'_> {
         bytes.get(..len).map(<[u8]>::to_vec).ok_or(BadInput(past))
     }
 
-    /// The description's first `len` bytes.
-    pub fn read_bytes(&self, len: usize) -> Result<Vec<u8>, BadInput> {
+    /// The description's first `len` bytes (a material's from the polygon tables `tables`).
+    pub fn read_bytes(
+        &self,
+        tables: &crate::scene::polygon_store::PolygonTables,
+        len: usize,
+    ) -> Result<Vec<u8>, BadInput> {
         match self {
             Description::Material(kind) => {
                 let mut bytes = vec![0; len];
-                crate::scene::polygon::material_run(*kind, 0, &mut bytes)?;
+                crate::scene::polygon::material_run(tables, *kind, 0, &mut bytes)?;
                 Ok(bytes)
             }
             Description::Cells(cells) => Self::from_words(
@@ -82,7 +86,7 @@ pub fn draw_described_object(
     d: Option<Description<'_>>,
 ) -> Result<(), Refused> {
     let d = d.ok_or(BadInput("a described object without its description"))?;
-    draw_description(ctx, &|len| d.read_bytes(len))
+    draw_description(ctx, &|len| d.read_bytes(ctx.race.polygon_tables(), len))
 }
 
 /// The same for course face `face` (kind 0xFF), its own description.
@@ -200,7 +204,7 @@ fn draw_description(
     ctx.view.light.light_kind.set(2u32);
     let object: u32 = ctx.view.cars.object_number.get();
     let kind: u32 = scene.objects.tables.object_kind(object);
-    if crate::scene::polygon::material_run_byte(kind, 0x1F)? != 0 {
+    if crate::scene::polygon::material_run_byte(race.polygon_tables(), kind, 0x1F)? != 0 {
         ctx.view.light.light_kind.set(1u32);
     }
     crate::scene::draw_scene_object::draw_scene_object_in_game(

@@ -4,6 +4,8 @@
 //! unknown bytes. Names are readings unless IDA's; the records' are the developers' own (the
 //! kstar camera page's labels: `xoff`, `xfoc`, `xang`, `mspx`, `fish`).
 
+use crate::race::groups_store::ViewAndRecords;
+#[cfg(test)]
 use crate::race::owner::race;
 use crate::session::{Dword, Float};
 
@@ -138,8 +140,8 @@ impl ViewVars {
 
     /// View record `n` by its place among the 52 (the records the code names by IDA
     /// address: 1 .. 3 refilled from the car, 4 .. 6 placed).
-    pub fn record(n: usize) -> &'static ViewRecord {
-        &race().frame.view_and_records.records[n]
+    pub fn record(view_records: &ViewAndRecords, n: usize) -> &ViewRecord {
+        &view_records.records[n]
     }
 
     /// The bytes of a view record.
@@ -147,10 +149,11 @@ impl ViewVars {
 
     /// View record `n` (phase 13: the table holds handles, `VIEW_TAG | k` for the k-th
     /// record). A view past the 52, or a value that is no handle, is refused.
-    pub fn record_of(n: usize) -> Result<&'static ViewRecord, crate::errors::BadInput> {
-        let cell = race()
-            .frame
-            .view_and_records
+    pub fn record_of(
+        view_records: &ViewAndRecords,
+        n: usize,
+    ) -> Result<&ViewRecord, crate::errors::BadInput> {
+        let cell = view_records
             .view_vars
             .view_records
             .get(n)
@@ -161,9 +164,7 @@ impl ViewVars {
             .ok_or(crate::errors::BadInput(
                 "a view record's name that is no handle",
             ))?;
-        race()
-            .frame
-            .view_and_records
+        view_records
             .records
             .get(k as usize)
             .ok_or(crate::errors::BadInput(
@@ -223,22 +224,6 @@ mod tests {
     use core::mem::offset_of;
 
     #[test]
-    fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games_but(
-            &race().frame.view_and_records.view_vars,
-            START,
-            END,
-            |image| {
-                for k in 0..52 {
-                    let o = offset_of!(ViewVars, view_records) + 4 * k;
-                    let v = u32::from_le_bytes(image[o..o + 4].try_into().unwrap());
-                    image[o..o + 4].copy_from_slice(&view_ref(v).to_le_bytes());
-                }
-            },
-        );
-    }
-
-    #[test]
     fn the_view_table_names_its_records_as_the_image_does() {
         for n in 0..52usize {
             let image = crate::test_support::first_values::dword(
@@ -252,11 +237,11 @@ mod tests {
             );
             assert_eq!(image as usize, ViewVars::RECORDS + 0x5C * n);
             assert!(core::ptr::eq(
-                ViewVars::record_of(n).unwrap(),
-                ViewVars::record(n)
+                ViewVars::record_of(&race().frame.view_and_records, n).unwrap(),
+                ViewVars::record(&race().frame.view_and_records, n)
             ));
         }
-        assert!(ViewVars::record_of(52).is_err());
+        assert!(ViewVars::record_of(&race().frame.view_and_records, 52).is_err());
     }
 
     #[test]

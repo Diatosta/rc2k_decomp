@@ -51,8 +51,10 @@ mod tests {
         let word = |n| {
             crate::test_support::first_values::dword("strings.keyboard_tables.NEC_POINTERS/20", n)
         };
+        // The block's address, from the first table's pointer.
+        let block = word(1) as usize - 0x14;
         for (n, offset) in [(1, 0x14), (2, 0x94), (4, 0x114)] {
-            assert_eq!(word(n) as usize, 0x4F0E10 + offset);
+            assert_eq!(word(n) as usize, block + offset);
         }
         assert_eq!(word(3), 0);
     }

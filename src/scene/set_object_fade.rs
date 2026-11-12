@@ -32,6 +32,7 @@ fn record_at(course: &crate::race::owner_course::Course, place: u32) -> Option<u
 /// The two words of the object's kind, and whether the object's place is looked at;
 /// None for an object's number past the tables.
 fn words(
+    tables: &crate::scene::polygon_store::PolygonTables,
     scene: &crate::scene::owner::Scene,
     cars: &crate::race::car_draw_state::CarDrawState,
     place: u32,
@@ -42,7 +43,8 @@ fn words(
             return Ok(None);
         }
         let kind: u32 = scene.objects.tables.object_kind(object);
-        let word = |at: u32| crate::scene::polygon::material_run_word(kind, at).map(u32::from);
+        let word =
+            |at: u32| crate::scene::polygon::material_run_word(tables, kind, at).map(u32::from);
         let (other_kind, distance) = (word(0x1D)?, word(0x22)?);
         let looked_at = (other_kind | distance) != 0 && place != u32::MAX;
         Ok(Some((other_kind, distance, looked_at)))
@@ -52,7 +54,9 @@ fn words(
 pub fn set_object_fade(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), BadInput> {
     let (race, scene) = (ctx.race, ctx.scene);
     let place: u32 = ctx.view.object.object_place.get();
-    let Some((other_kind, distance, needs_record)) = words(scene, &ctx.view.cars, place)? else {
+    let Some((other_kind, distance, needs_record)) =
+        words(race.polygon_tables(), scene, &ctx.view.cars, place)?
+    else {
         return Err(BadInput("an object's number past the tables"));
     };
     // What can refuse is asked before anything is written.

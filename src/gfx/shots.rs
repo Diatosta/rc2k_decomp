@@ -1,7 +1,6 @@
 //! The screenshot switch, its lock and the file name's template, out of RAL.EXE's image: IDA
 //! 0x4F52B4 .. 0x4F52C4.
 
-use crate::gfx::owner::gfx;
 use crate::session::{PlainBytes, PlainDword};
 
 /// IDA's address of the block's first byte.
@@ -31,11 +30,6 @@ impl Shots {
             name: PlainBytes::new(*b"000.pcx\0"),
         }
     }
-}
-
-/// Whether screenshots are on.
-pub fn on() -> u32 {
-    gfx().shots.on.get()
 }
 
 /// The switch's first byte.

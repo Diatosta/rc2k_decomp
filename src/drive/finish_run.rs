@@ -50,7 +50,7 @@ pub fn finish_run(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), 
         .set(race.shared.physics_tables.scene_clock.get());
     loop {
         sound.race.sounds.objects[0].revs.set(0);
-        input_update();
+        input_update(o);
         crate::drive::finish_timing::finish_timing(race, scene);
         let n = race.shared.state.results.finished.get();
         if n > 1 {
@@ -68,7 +68,7 @@ pub fn finish_run(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), 
         }
         race.car_blocks().cars[0].camera_view.set(6);
         crate::race::frame_views::load_first_car(&race.shared)?;
-        crate::drive::finish_camera::finish_camera(&race.replay);
+        crate::drive::finish_camera::finish_camera(&race.frame.view_and_records, &race.replay);
         crate::physics::camera_frame::camera_frame(
             &crate::physics::step_inputs::StepInputs::of(race).camera(),
             scene,

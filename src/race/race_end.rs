@@ -262,7 +262,7 @@ pub fn tidy_stage(
         crate::race::game_map::free_game_map(race)
     })?;
     s.step(STAGE_WORDS[5], || {
-        crate::race::race_shell::release_stage_textures();
+        crate::race::race_shell::release_stage_textures(gfx);
         Ok(())
     })?;
     s.step(STAGE_WORDS[6], || free(race, &COURSE_2))?;
@@ -342,7 +342,7 @@ pub fn run_race(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     crate::race::replay::open_replay(race, o)?;
     race.shared.view.after_credits.set(0u32);
     crate::drive::play_race::play_race(race, o)?;
-    crate::race::replay::close_replay(race)?;
+    crate::race::replay::close_replay(race, o.system)?;
     tidy_everything(race, o)?;
     crate::race::settings_copy::copy_settings_out(race)?;
     Ok(())
@@ -352,8 +352,8 @@ pub fn run_race(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
 
 /// `race::release_textures` (0x443396): `race::release_stage_textures`,
 /// `scene::reset_texture_tables`.
-pub fn release_textures(scene: &crate::scene::owner::Scene) {
-    crate::race::race_shell::release_stage_textures();
+pub fn release_textures(scene: &crate::scene::owner::Scene, gfx: &crate::gfx::owner::Gfx) {
+    crate::race::race_shell::release_stage_textures(gfx);
     crate::scene::reset_texture_tables::reset_texture_tables(scene);
 }
 
@@ -368,6 +368,6 @@ pub fn start_race(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
 pub fn race_from_menu(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     crate::race::stage_free::render3d_tidy(o.race)?;
     crate::race::stage_free::objects_tidy(o.race)?;
-    release_textures(o.scene);
+    release_textures(o.scene, o.gfx);
     start_race(o)
 }

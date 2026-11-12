@@ -317,7 +317,7 @@ pub fn draw_car(ctx: &crate::race::view_scratch::DrawCtx<'_>, car: usize) -> Res
     if !below(stage, 0x33) {
         stage = 0x33;
     }
-    let record = ViewVars::record_of(stage as usize)?;
+    let record = ViewVars::record_of(&race.frame.view_and_records, stage as usize)?;
     if record.fixed_zoom.get() != 0 {
         ctx.view.cars.car_depth.set(0x5_0000);
     }
@@ -390,6 +390,7 @@ pub fn draw_car(ctx: &crate::race::view_scratch::DrawCtx<'_>, car: usize) -> Res
     place();
     ctx.view.object.size.set(0x10);
     crate::scene::matrix::set_light_direction(
+        ctx.race.engine_tables(),
         &ctx.view.matrices,
         &ctx.view.light.light_direction,
         &ctx.view.matrices.view_turn_matrix,

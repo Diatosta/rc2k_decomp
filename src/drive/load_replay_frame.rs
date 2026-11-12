@@ -8,13 +8,14 @@ use crate::errors::Refused;
 use crate::pointers::copy_cells;
 use crate::race::blocks_store::REPLAY_STATE_OFFSET;
 use crate::race::owner::Race;
+use crate::system::owner::System;
 
 const DWORDS: usize = 0xA04;
 
-pub fn load_replay_frame(race: &Race) -> Result<(), Refused> {
+pub fn load_replay_frame(race: &Race, system: &System) -> Result<(), Refused> {
     let replay = &race.replay;
     let frame = replay.replay_frames.step_block.get();
-    { crate::drive::read_replay_frame_0::read_replay_frame_0(race, frame) }?;
+    { crate::drive::read_replay_frame_0::read_replay_frame_0(race, system, frame) }?;
     crate::drive::replay_frame_marks::replay_frame_marks(race)?;
     copy_cells(
         (&race.viewer_buffers().block, 0),

@@ -172,7 +172,7 @@ pub fn load_object(
             .file_numbers
             .text_at(scene.file_numbers.object_ro3_path.get() as usize)
             .text("an object's file path")?,
-        crate::scene::objects::file(),
+        crate::scene::objects::file(race),
     )?;
     if BYTES_READ.get() == 0 {
         return Ok(());
@@ -182,7 +182,7 @@ pub fn load_object(
         .text_at(name as usize + 7)
         .write_text_at(0, b"3", "an object's file name")?;
     if slot <= 0x40 {
-        list_object_textures(scene)?;
+        list_object_textures(race, scene)?;
     }
     if slot < 0x50 {
         shape(scene, race, u32::MAX)?;
@@ -194,7 +194,11 @@ pub fn load_object(
     // The kind's light record, from its groups; a kind none of the known ones takes the place
     // after the 34 records, which reads on into the gear figures (`group_at`).
     for part in &PARTS {
-        let group = race.light_records().group_at(known, part.group as u32)?;
+        let group = race.light_records().group_at(
+            &race.frame.lights_and_gear.gear,
+            known,
+            part.group as u32,
+        )?;
         let mut bits = 0;
         if group != u32::MAX {
             bits = 1u32 << (group & 31);

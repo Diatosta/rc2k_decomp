@@ -4,7 +4,6 @@
 //! parts' middles and half extents, the radii). `#[repr(C)]` with the image's layout, over
 //! the race block's bytes (`OBJECT_SLOTS`). Names are readings unless IDA's.
 
-use crate::scene::owner::scene;
 use crate::session::Dword;
 
 #[repr(C)]
@@ -41,10 +40,10 @@ pub struct ObjectTables {
 impl ObjectTables {
     /// A slot's entry of one of the 256-entry tables, read by address as the original does:
     /// a slot past the table reads on into the next one (for slots nothing has checked).
-    pub fn slot_value(table: &[Dword; 256], slot: usize) -> u32 {
+    pub fn slot_value(&self, table: &[Dword; 256], slot: usize) -> u32 {
         // The tables are contiguous; a slot far past them is the caller's slip, as it was the
         // original's (a checked read: outside the allocation ends the program).
-        crate::session::read_on_in(&scene().objects.slots, table, slot, "an object slot")
+        crate::session::read_on_in(self, table, slot, "an object slot")
             .unwrap_or_else(|e| crate::fatal::raise::end("an object slot", e))
     }
 }
@@ -73,7 +72,9 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::test_support::first_values::assert_block_starts_as_the_games(&scene().objects.slots);
+        crate::test_support::first_values::assert_block_starts_as_the_games(
+            &crate::scene::owner::scene().objects.slots,
+        );
     }
 
     #[test]

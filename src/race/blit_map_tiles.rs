@@ -23,13 +23,13 @@ pub fn blit_map_tiles(
     gfx: &crate::gfx::owner::Gfx,
 ) -> Result<(), Refused> {
     let drawing = &gfx.drawing;
-    use crate::d3d::{lock_texture::lock_texture, unlock_texture::unlock_texture};
+    use crate::d3d::{lock_texture::lock_texture_in, unlock_texture::unlock_texture};
     // Converted: `rc2k_core::race::map::{any_inside, check_tiles, row_gap, tile_row,
     // tile_index, pixel_width}`.
     use rc2k_core::race::map::{
         BLITTED, any_inside, check_tiles, pixel_width, row_gap, tile_index, tile_row,
     };
-    if { lock_texture(texture) }?.carry {
+    if { lock_texture_in(gfx, texture) }?.carry {
         return Ok(());
     }
     let (bytes, pitch, pixels) = (

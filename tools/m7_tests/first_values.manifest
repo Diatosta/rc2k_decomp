@@ -186,6 +186,8 @@ race.owner.RACE.replay.replay_view.viewer_list[0]/440                         0x
 race.owner.RACE.replay.seal_key/4                                             0x4F66F9 0x4
 race.owner.RACE.replay.viewer_and_kinds.viewer_panel.switch_pictures_a[0]/36  0x5C2C70 0x24
 race.owner.RACE.shared.physics_tables.surfaces[0].table/768                   0x613978 0x300
+race.owner.RACE.shared.view.view_blocks[0]/8                                  0x63DBB0 0x8
+race.owner.RACE.shared.work.car_blocks[0]/32                                  0x71B3B8 0x20
 race.owner.RACE.shared.work.car_records[0]/32                                 0x71B3D8 0x20
 race.replay_path.LAST_RACE                                                    0x5295F0 0x10B
 race.replay_path.TEMPLATES                                                    0x52974B 0x2F

@@ -170,9 +170,9 @@ fn shadow_refuses(
 /// `effects::draw_shadow`. Refuses (before anything) the second shadow's refusals.
 pub fn draw_marks_overlays(
     ctx: &crate::race::view_scratch::DrawCtx<'_>,
+    gfx: &crate::gfx::owner::Gfx,
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
-    let gfx = crate::gfx::owner::gfx();
     shadow_refuses(&crate::effects::draw_shadow::first(effects), effects)?;
     // Neither reads a register, and the race reads none they leave (only DF, ST).
     {
@@ -216,20 +216,20 @@ pub fn copy_mirror_picture(
     let gfx_drawing = &gfx.drawing;
     // Converted: `rc2k_core::race::view_steps::copy_picture` (the last pixel's bits carried
     // from pixel to pixel as the original's; the formats' conversions the gfx module's).
-    use crate::d3d::{lock_texture::lock_texture, unlock_texture::unlock_texture};
+    use crate::d3d::{lock_texture::lock_texture_in, unlock_texture::unlock_texture};
     use rc2k_core::race::view_steps::{PictureCopy, copy_picture};
     let (from, to) = (
         scene.drawing.scene.mirror_picture.get(),
         scene.textures.kinds.kind_first_textures[200].get(),
     );
-    if lock_texture(from)?.carry {
+    if lock_texture_in(gfx, from)?.carry {
         return Ok(());
     }
     // The surfaces' pixels by handle (kept, never read back).
     let from_pixels = crate::gfx::surface::handle(gfx)?;
     frame.frame_work.view_kept[0].set(from_pixels);
     let ebp = gfx_drawing.draw_surface.pitch.get();
-    if !lock_texture(to)?.carry {
+    if !lock_texture_in(gfx, to)?.carry {
         let to_pixels = crate::gfx::surface::handle(gfx)?;
         frame.frame_work.view_kept[1].set(to_pixels);
         let format = gfx_drawing.draw_surface.format.get();
@@ -465,6 +465,7 @@ pub fn draw_screen_tint(
 pub fn clear_view_depth(
     scene: &crate::scene::owner::Scene,
     system: &crate::system::owner::System,
+    part: &crate::workers::PartScratch,
     poly: &crate::scene::polygon_work::PolygonWork,
 ) {
     let session = &system.session;
@@ -475,7 +476,7 @@ pub fn clear_view_depth(
     poly.cleared_rectangle[1].set(0);
     poly.cleared_rectangle[2].set(session.screen.width.get());
     poly.cleared_rectangle[3].set(session.screen.height.get());
-    clear_viewport_unless_held(scene, &poly.cleared_rectangle);
+    clear_viewport_unless_held(scene, part, &poly.cleared_rectangle);
 }
 
 /// `race::draw_own_car` (0x455AD3): in a race, when the drawn view's car (`g_drawnCar`) is
@@ -488,6 +489,7 @@ pub fn clear_view_depth(
 pub fn draw_own_car(
     ctx: &crate::race::view_scratch::DrawCtx<'_>,
     system: &crate::system::owner::System,
+    gfx: &crate::gfx::owner::Gfx,
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
     let (race, scene) = (ctx.race, ctx.scene);
@@ -515,7 +517,7 @@ pub fn draw_own_car(
         || ctx.view.object.view_cleared[0].get(),
     );
     if clears {
-        clear_view_depth(scene, system, &ctx.view.polygon);
+        clear_view_depth(scene, system, ctx.part, &ctx.view.polygon);
         crate::scene::depth_buffer_on::depth_buffer(ctx.part, true);
     }
     // `race::draw_car_shined` reads only the car's block.
@@ -530,7 +532,7 @@ pub fn draw_own_car(
     crate::scene::polygon_work::front_end()
         .polygon_vertex_count
         .set(4);
-    draw_marks_overlays(ctx, effects)
+    draw_marks_overlays(ctx, gfx, effects)
 }
 
 /// `fild i; fdiv a; fmul b; fstp`.
@@ -633,7 +635,7 @@ pub fn run_view_marks(
                 scene,
                 effects,
                 sound,
-                crate::effects::run_frame::EffectsView::of(ctx.view),
+                crate::effects::run_frame::EffectsView::of(ctx.race, ctx.view),
             )
         } else {
             Ok(())
@@ -648,10 +650,11 @@ pub fn run_view_marks(
 /// `cleared_rectangle` with flag 2) unless `v3_driver_fix` is not 0.
 pub fn clear_viewport_unless_held(
     scene: &crate::scene::owner::Scene,
+    part: &crate::workers::PartScratch,
     own: &[crate::session::Dword; 4],
 ) {
     if scene.drawing.scene.v3_driver_fix.get() == 0 {
-        crate::platform_3d::clear_viewport(own);
+        crate::platform_3d::clear_viewport(part, own);
     }
 }
 

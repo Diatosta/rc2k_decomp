@@ -7,14 +7,15 @@ use crate::errors::Refused;
 use crate::pointers::copy_cells;
 use crate::race::blocks_store::REPLAY_STATE_OFFSET;
 use crate::race::owner::Race;
+use crate::system::owner::System;
 
 const DWORDS: usize = 0xA04;
 
-pub fn flush_replay(race: &Race) -> Result<(), Refused> {
+pub fn flush_replay(race: &Race, system: &System) -> Result<(), Refused> {
     copy_cells(
         (&race.replay.cars_and_replay, REPLAY_STATE_OFFSET),
         (&race.viewer_buffers().block, 0),
         DWORDS * 4,
     );
-    crate::drive::write_replay_frames::write_replay_frames(race)
+    crate::drive::write_replay_frames::write_replay_frames(race, system)
 }

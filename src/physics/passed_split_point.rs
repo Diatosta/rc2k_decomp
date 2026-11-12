@@ -148,7 +148,12 @@ mod reference_vectors {
 
     /// The point in a test's operand buffer.
     fn point_at(s: usize) -> [u32; 3] {
-        crate::pointers::read_or_end(s as u32, "a split point")
+        // SAFETY: the operand buffer is leased for the run and holds the three dwords.
+        unsafe {
+            crate::test_support::vectors::block_vectors::at(s)
+                .cast::<[u32; 3]>()
+                .read_unaligned()
+        }
     }
     use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
 

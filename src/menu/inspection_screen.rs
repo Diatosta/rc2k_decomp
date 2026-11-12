@@ -27,7 +27,7 @@ pub fn inspection_screen(o: crate::owners::Owners<'static>) -> Result<(), Refuse
     front_end.window.clip_screen[3].set_bits(800.0f32.to_bits());
     crate::service::load_background::load_background_in(o.menus, o.gfx, o.system)?;
     crate::gfx::copy_picture_to_surface::copy_picture_to_surface(
-        &mut crate::gfx::copy_picture_to_surface::GameSurface(o.gfx),
+        &mut crate::gfx::copy_picture_to_surface::GameSurface(o.gfx, o.system),
     )?;
     crate::platform::show_frame_now();
     Ok(())

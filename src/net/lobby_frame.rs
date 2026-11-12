@@ -44,13 +44,13 @@ pub fn lobby_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     let vars = &net.vars;
     // Converted: `rc2k_core::net::screens` (`shown_time`, `flag_sprite`, `car_sprite`,
     // `NO_TIME`, `lobby_buttons`), the ready bit and no time of `rc2k_core::net::players`.
-    if !lock_surface(o.gfx) {
+    if !lock_surface(o.gfx, o.system) {
         return Ok(());
     }
     if vars.players.get() > 8 {
         return Err(BadInput("more than eight players").into());
     }
-    copy_picture()?;
+    copy_picture(o.gfx, o.system)?;
     let mut canvas = GameCanvas::new(o.gfx);
     let mut y = 0x6F;
     for (id, x) in [(0x15F, 0x21A), (0x160, 0x2C0)] {

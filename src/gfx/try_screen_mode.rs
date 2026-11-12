@@ -17,7 +17,12 @@ use crate::framework::CarryZeroFlags;
 use crate::gfx::owner::Gfx;
 
 /// Tries `mode`: the flags it leaves (carry: it does not work).
-pub fn try_screen_mode(gfx: &Gfx, mode: u32) -> Result<CarryZeroFlags, Refused> {
+pub fn try_screen_mode(
+    gfx: &Gfx,
+    system: &crate::system::owner::System,
+    d3d: &crate::d3d::owner::D3d,
+    mode: u32,
+) -> Result<CarryZeroFlags, Refused> {
     let display = &gfx.display;
     let reports: u32 = gfx.reports.on.get();
     gfx.reports.on.set(0);
@@ -37,13 +42,13 @@ pub fn try_screen_mode(gfx: &Gfx, mode: u32) -> Result<CarryZeroFlags, Refused> 
         }
         // The flags at the call: the search's match (zero); `gfx::set_screen_mode` sets
         // only the carry.
-        if !crate::platform::set_mode_now(mode, gfx) {
+        if !crate::platform::set_mode_now(mode, gfx, system) {
             return Ok(Err(true));
         }
         if display.mode.mode_flags.get() & 0x10_0000 == 0 {
             return Ok(Ok(mode));
         }
-        let (video, _) = crate::platform_3d::allocate_textures_now(0x40, 0x40, 1, 2, 0, gfx)?;
+        let (video, _) = crate::platform_3d::allocate_textures_now(0x40, 0x40, 1, 2, 0, gfx, d3d)?;
         crate::platform_3d::release_all_textures(gfx);
         Ok(Ok(video))
     })()?;

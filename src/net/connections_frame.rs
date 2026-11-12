@@ -26,11 +26,12 @@ pub fn list_frame(
     count: &crate::session::Dword,
     name: impl Fn(u32) -> Result<[u8; 0x40], Refused>,
     gfx: &crate::gfx::owner::Gfx,
+    system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
-    if !lock_surface(gfx) {
+    if !lock_surface(gfx, system) {
         return Ok(());
     }
-    copy_picture()?;
+    copy_picture(gfx, system)?;
     draw_string(title, STATUS_FONT, 0x316, 0x6F, gfx)?;
     let mut y: u32 = 0x6F + 0x2C;
     // Converted: `rc2k_core::net::screens` (`LIST_ROWS`, `listed`, `blink_lit`).
@@ -66,6 +67,7 @@ pub fn connections_frame(
     net: &Net,
     install: &Install,
     gfx: &crate::gfx::owner::Gfx,
+    system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
     list_frame(
         install,
@@ -73,5 +75,6 @@ pub fn connections_frame(
         &net.vars.connections,
         |n| crate::net::tables::with_connection(&net.vars, n, |c| c.name),
         gfx,
+        system,
     )
 }

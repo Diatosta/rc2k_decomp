@@ -26,7 +26,7 @@ pub enum Op {
         reads: &'static [(usize, Kind)],
         writes: &'static [(usize, Kind)],
     },
-    /// The race block itself (`race::store::asm_base()`, the offsets RVAs): the plain
+    /// The race block itself (its places named by offset): the plain
     /// versions read it through the typed stores. Only the listed places are filled,
     /// compared and put back.
     RaceBlock {
@@ -43,6 +43,143 @@ pub struct Spec {
     pub operands: &'static [Op],
     /// The block has `fsin` / `fcos` (libm's, one float ulp off at most).
     pub sincos: bool,
+}
+
+/// One operand of a recorded block, as the plain version gets it: a test buffer addressed by
+/// the coordinates the original's instructions used (the buffer's first byte stands for
+/// coordinate `lo`), or a value (an index, a float's bits). Adding to a buffer operand moves
+/// its coordinate, as adding to the address did; every access is checked against the buffer.
+#[derive(Clone, Copy, Debug)]
+pub struct Operand {
+    /// The host address of coordinate 0 (wrapping).
+    base: usize,
+    start: usize,
+    end: usize,
+    value: usize,
+}
+
+impl Operand {
+    fn buffer(bytes: *mut u8, len: usize, lo: usize) -> Operand {
+        let start = bytes as usize;
+        Operand {
+            base: start.wrapping_sub(lo),
+            start,
+            end: start + len,
+            value: 0,
+        }
+    }
+
+    fn value(value: usize) -> Operand {
+        Operand {
+            base: 0,
+            start: 0,
+            end: 0,
+            value,
+        }
+    }
+
+    /// The operand as a number (an index or a float's bits).
+    #[track_caller]
+    pub fn number(self) -> usize {
+        assert!(self.end == 0, "a buffer operand used as a number");
+        self.value
+    }
+
+    /// The operand moved on by `k` bytes.
+    pub fn wrapping_add(self, k: usize) -> Operand {
+        Operand {
+            base: self.base.wrapping_add(k),
+            ..self
+        }
+    }
+
+    /// The `len` bytes at coordinate `off` of the operand, which must lie in its buffer.
+    #[track_caller]
+    pub fn at(self, off: usize, len: usize) -> *mut u8 {
+        let p = self.base.wrapping_add(off);
+        assert!(
+            p >= self.start && p.checked_add(len).is_some_and(|e| e <= self.end),
+            "{len:#x} bytes at +{off:#x} do not lie in the operand's test buffer"
+        );
+        p as *mut u8
+    }
+
+    /// The host pointer to this coordinate, which must lie in the buffer.
+    #[track_caller]
+    pub fn host(self) -> *mut u8 {
+        self.at(0, 1)
+    }
+
+    /// Whether the `len` bytes at `off` lie in the buffer.
+    pub fn contains(self, off: usize, len: usize) -> bool {
+        let p = self.base.wrapping_add(off);
+        p >= self.start && p.checked_add(len).is_some_and(|e| e <= self.end)
+    }
+
+    /// The `len` bytes at `off`, the ones outside the buffer 0 (a block the original
+    /// reads only part of).
+    pub fn bytes_or_zero(self, off: usize, len: usize) -> Vec<u8> {
+        (0..len)
+            .map(|i| {
+                if self.contains(off + i, 1) {
+                    unsafe { self.at(off + i, 1).read() }
+                } else {
+                    0
+                }
+            })
+            .collect()
+    }
+
+    /// `bytes` at `off`.
+    #[track_caller]
+    pub fn put(self, off: usize, bytes: &[u8]) {
+        unsafe {
+            std::ptr::copy_nonoverlapping(bytes.as_ptr(), self.at(off, bytes.len()), bytes.len());
+        }
+    }
+
+    /// The `N` bytes at `off`.
+    #[track_caller]
+    pub fn bytes<const N: usize>(self, off: usize) -> [u8; N] {
+        unsafe { self.at(off, N).cast::<[u8; N]>().read_unaligned() }
+    }
+}
+
+impl std::ops::Add<usize> for Operand {
+    type Output = Operand;
+    fn add(self, k: usize) -> Operand {
+        self.wrapping_add(k)
+    }
+}
+
+impl std::ops::Sub<usize> for Operand {
+    type Output = Operand;
+    fn sub(self, k: usize) -> Operand {
+        self.wrapping_add(k.wrapping_neg())
+    }
+}
+
+impl crate::scene::x87_mem::Base for Operand {
+    #[track_caller]
+    fn dword(self, off: usize) -> u32 {
+        u32::from_le_bytes(self.bytes(off))
+    }
+    #[track_caller]
+    fn set_dword(self, off: usize, value: u32) {
+        self.put(off, &value.to_le_bytes());
+    }
+    #[track_caller]
+    fn set_word(self, off: usize, value: u16) {
+        self.put(off, &value.to_le_bytes());
+    }
+    #[track_caller]
+    fn tbyte(self, off: usize) -> [u8; 10] {
+        self.bytes(off)
+    }
+    #[track_caller]
+    fn set_tbyte(self, off: usize, value: [u8; 10]) {
+        self.put(off, &value);
+    }
 }
 
 /// A test buffer of bytes whose first byte is 16-aligned (a typed struct is laid over a
@@ -75,16 +212,12 @@ impl PartialEq for Buf {
     }
 }
 
-/// Runs `f` on a typed variable block that lives at IDA address `start` in a test buffer
-/// standing for the marks' block at `mk` (IDA 0x764F40): the block is copied out (its image
-/// address need not be aligned for its cells) and put back afterwards. The buffer must
-/// hold the whole block.
-pub fn with_copy<T, R>(mk: usize, start: usize, f: impl FnOnce(&T) -> R) -> R {
-    crate::effects::typed_sync::fits_buffer(
-        mk.wrapping_add(start).wrapping_sub(START),
-        size_of::<T>(),
-    );
-    let p = crate::pointers::host_at(mk.wrapping_add(start).wrapping_sub(START)).cast::<T>();
+/// Runs `f` on a typed variable block that lives at offset `start` of the marks' block in
+/// the test buffer `mk` (the buffer stands for the marks' block): the block is copied out
+/// (its place in the buffer need not be aligned for its cells) and put back afterwards. The
+/// buffer must hold the whole block.
+pub fn with_copy<T, R>(mk: Operand, start: usize, f: impl FnOnce(&T) -> R) -> R {
+    let p = mk.at(start.wrapping_sub(START), size_of::<T>()).cast::<T>();
     // The copy on the heap: some blocks are near 2 MB, a test thread's whole stack (copied
     // by value there they overflowed it, and Wine hung on the fault).
     unsafe {
@@ -108,7 +241,7 @@ pub fn with_copy<T, R>(mk: usize, start: usize, f: impl FnOnce(&T) -> R) -> R {
 /// Runs `f` on the marks' settings record at the test address `base` (an operand with
 /// `lo: 0, hi: 0x2768`), as `with_copy`.
 pub fn with_settings<R>(
-    base: usize,
+    base: Operand,
     f: impl FnOnce(&crate::race::effects_settings_store::EffectsSettings) -> R,
 ) -> R {
     with_copy(base, START, f)
@@ -229,7 +362,7 @@ const SIZE: fn(Kind) -> usize = |k| match k {
 /// A block over test buffers only (no race block operand): `plain` compared with the results
 /// the original's instructions made, recorded under `name` (see `test_support::vectors`):
 /// every listed write, the buffers' other bytes, the returned value's printed form.
-pub fn recorded<R: std::fmt::Debug>(name: &str, spec: &Spec, plain: impl Fn(&[usize]) -> R) {
+pub fn recorded<R: std::fmt::Debug>(name: &str, spec: &Spec, plain: impl Fn(&[Operand]) -> R) {
     use crate::test_support::vectors::Recorder;
     run_recorded(Recorder::replay(name), spec, &plain);
 }
@@ -237,7 +370,7 @@ pub fn recorded<R: std::fmt::Debug>(name: &str, spec: &Spec, plain: impl Fn(&[us
 fn run_recorded<R: std::fmt::Debug>(
     mut file: crate::test_support::vectors::Recorder,
     spec: &Spec,
-    plain: &dyn Fn(&[usize]) -> R,
+    plain: &dyn Fn(&[Operand]) -> R,
 ) {
     assert!(
         !spec
@@ -279,30 +412,26 @@ fn run_recorded<R: std::fmt::Debug>(
                 file.input(&(*v as u64).to_le_bytes());
             }
             // The operands' values: each buffer by game address, less its first offset.
-            let run = |bufs: &[Buf]| -> Vec<usize> {
+            let run = |bufs: &mut [Buf]| -> Vec<Operand> {
                 spec.operands
                     .iter()
+                    .zip(bufs.iter_mut())
                     .enumerate()
-                    .map(|(j, op)| match op {
+                    .map(|(j, (op, buf))| match op {
                         Op::Base { lo, .. } => {
-                            (crate::pointers::game_address(bufs[j].as_ptr())
-                                .wrapping_sub(*lo as u32)) as usize
+                            Operand::buffer(buf.0.as_mut_ptr().cast(), buf.1, *lo)
                         }
-                        _ => values[j],
+                        _ => Operand::value(values[j]),
                     })
                     .collect()
             };
             // Replaying: the results are the file's.
             let expected = file.results(&before, || unreachable!("vectors are replayed"));
             let returned = file.result_bytes(|| unreachable!("vectors are replayed"));
-            let pls = start.clone();
+            let mut pls = start.clone();
             let got = {
-                let _lent: Vec<crate::pointers::Lent> = pls
-                    .iter()
-                    .filter(|b| !b.is_empty())
-                    .map(|b| crate::pointers::Lent::new(b))
-                    .collect();
-                format!("{:?}", plain(&run(&pls)))
+                let operands = run(&mut pls);
+                format!("{:?}", plain(&operands))
             };
             if got.as_bytes() != returned {
                 failures += 1;
@@ -410,7 +539,11 @@ impl Drop for CellsBack {
 /// listed write (the buffers' and the race block's) and the returned value's printed form.
 /// The inputs are laid into the typed cells of the places (`race_cell`); the bytes outside
 /// the listed writes must be left as they were.
-pub fn recorded_writes<R: std::fmt::Debug>(name: &str, spec: &Spec, plain: impl Fn(&[usize]) -> R) {
+pub fn recorded_writes<R: std::fmt::Debug>(
+    name: &str,
+    spec: &Spec,
+    plain: impl Fn(&[Operand]) -> R,
+) {
     use crate::test_support::vectors::Recorder;
     run_writes(Recorder::replay(name), spec, &plain);
 }
@@ -418,7 +551,7 @@ pub fn recorded_writes<R: std::fmt::Debug>(name: &str, spec: &Spec, plain: impl 
 fn run_writes<R: std::fmt::Debug>(
     mut file: crate::test_support::vectors::Recorder,
     spec: &Spec,
-    plain: &dyn Fn(&[usize]) -> R,
+    plain: &dyn Fn(&[Operand]) -> R,
 ) {
     let _guard = crate::store::test_lock();
     let mut rng = Rng(0x9E37_79B9_7F4A_7C15);
@@ -506,16 +639,16 @@ fn run_writes<R: std::fmt::Debug>(
                     _ => start[j][o..o + SIZE(k)].to_vec(),
                 })
                 .collect();
-            let run = |bufs: &[Buf]| -> Vec<usize> {
+            let run = |bufs: &mut [Buf]| -> Vec<Operand> {
                 spec.operands
                     .iter()
+                    .zip(bufs.iter_mut())
                     .enumerate()
-                    .map(|(j, op)| match op {
+                    .map(|(j, (op, buf))| match op {
                         Op::Base { lo, .. } => {
-                            (crate::pointers::game_address(bufs[j].as_ptr())
-                                .wrapping_sub(*lo as u32)) as usize
+                            Operand::buffer(buf.0.as_mut_ptr().cast(), buf.1, *lo)
                         }
-                        _ => values[j],
+                        _ => Operand::value(values[j]),
                     })
                     .collect()
             };
@@ -526,14 +659,10 @@ fn run_writes<R: std::fmt::Debug>(
             for (off, b) in &block_in {
                 lay_race_place(*off, b);
             }
-            let pls = start.clone();
+            let mut pls = start.clone();
             let got = {
-                let _lent: Vec<crate::pointers::Lent> = pls
-                    .iter()
-                    .filter(|b| !b.is_empty())
-                    .map(|b| crate::pointers::Lent::new(b))
-                    .collect();
-                format!("{:?}", plain(&run(&pls)))
+                let operands = run(&mut pls);
+                format!("{:?}", plain(&operands))
             };
             if got.as_bytes() != returned {
                 failures += 1;

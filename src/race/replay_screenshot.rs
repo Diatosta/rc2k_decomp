@@ -16,6 +16,7 @@ use crate::pointers::Store;
 pub fn replay_screenshot(
     race: &crate::race::owner::Race,
     gfx: &crate::gfx::owner::Gfx,
+    system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
     let panel = race.viewer_panel();
     if panel.replay_recording.get() != 1 {
@@ -35,7 +36,7 @@ pub fn replay_screenshot(
     let name = crate::files::cstring(name, "the picture name")?;
     // The surface locked (the carry says it was not), the picture written, the surface
     // unlocked.
-    if crate::platform::lock_surface(gfx) >= 1 {
+    if crate::platform::lock_surface(gfx, system) >= 1 {
         crate::gfx::write_screen_pcx::write_screen_pcx(&gfx.shots, Some(&name), gfx)?;
         crate::platform::unlock_surface(gfx);
     }

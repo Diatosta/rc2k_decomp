@@ -20,7 +20,6 @@ use crate::effects::paths::Paths;
 use crate::errors::{BadInput, Refused};
 use crate::race::effects_settings_store::CarEffects;
 use crate::race::owner_course::Course;
-use crate::scene::object_slots_store::ObjectTables;
 use crate::scene::objects::SLOTS;
 use crate::scene::owner::Scene;
 use crate::session::{PlainBytes, PlainDword};
@@ -53,14 +52,20 @@ fn points(course: &Course, scene: &Scene, b: &CarEffects) -> Result<(u32, u32, i
         let base: u32 = course.lists.object_points.get();
         let first = |id: u32| {
             base.wrapping_add(
-                12 * ObjectTables::slot_value(&scene.objects.slots.first_point, id as usize),
+                12 * scene
+                    .objects
+                    .slots
+                    .slot_value(&scene.objects.slots.first_point, id as usize),
             )
         };
         let (a, c) = (b.object.get(), b.second_object.get());
         (
             first(a),
             first(c),
-            ObjectTables::slot_value(&scene.objects.slots.point_counts, a as usize) as i32,
+            scene
+                .objects
+                .slots
+                .slot_value(&scene.objects.slots.point_counts, a as usize) as i32,
         )
     })
 }

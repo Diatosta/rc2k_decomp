@@ -469,7 +469,7 @@ fn start_workers(o: Owners<'static>, r: &Context) {
 fn choose_screen_modes(o: Owners<'static>, r: &Context) {
     let gfx = o.gfx;
     rust("gfx::choose_screen_modes");
-    if let Err(e) = crate::platform::choose_screen_modes(gfx) {
+    if let Err(e) = crate::platform::choose_screen_modes(o) {
         refused("gfx::choose_screen_modes", e.into(), r);
     }
     rust("gfx::allocate_picture_buffer");

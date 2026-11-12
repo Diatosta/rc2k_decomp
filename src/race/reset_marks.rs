@@ -8,8 +8,9 @@
 
 use crate::errors::Refused;
 use crate::race::owner::Race;
+use crate::system::owner::System;
 
-pub fn reset_marks(race: &Race) -> Result<(), Refused> {
+pub fn reset_marks(race: &Race, system: &System) -> Result<(), Refused> {
     let replay = &race.replay;
     {
         // Converted: `rc2k_core::race::viewer::reset_marks`.
@@ -23,6 +24,7 @@ pub fn reset_marks(race: &Race) -> Result<(), Refused> {
         {
             crate::drive::read_replay_frame_0::read_replay_frame_0(
                 race,
+                system,
                 replay.replay_view.replay_block.get(),
             )
         }?;

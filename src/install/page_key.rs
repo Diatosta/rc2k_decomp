@@ -19,6 +19,7 @@ use rc2k_core::install::items::{self, ItemKey, PageKey};
 pub fn page_key(
     install: &'static crate::install::owner::Install,
     gfx: &crate::gfx::owner::Gfx,
+    system: &crate::system::owner::System,
     key: u32,
     item: ListItem,
     list: ListMenu,
@@ -61,7 +62,7 @@ pub fn page_key(
         (key, false)
     };
     if crate::gfx::shots::on_byte(gfx) != 0 && key as u8 == items::SCREENSHOT_KEY {
-        crate::gfx::take_screenshot::take_screenshot(gfx)?;
+        crate::gfx::take_screenshot::take_screenshot(gfx, system)?;
     }
     Ok((key, took(install, plain_edit)))
 }

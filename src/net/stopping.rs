@@ -14,7 +14,7 @@ pub fn stopping(
 ) -> Result<(), Refused> {
     if vars.session.get() == 1 {
         crate::net::show_background::show_background(gfx, system, vars)?;
-        crate::net::connecting::status(0x157, gfx)?;
+        crate::net::connecting::status(0x157, gfx, system)?;
     }
     crate::net::stop::stop(vars, system, panel)
 }

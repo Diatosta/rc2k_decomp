@@ -37,7 +37,10 @@ pub trait PictureSurface {
 }
 
 /// The game's own.
-pub struct GameSurface<'a>(pub &'a crate::gfx::owner::Gfx);
+pub struct GameSurface<'a>(
+    pub &'a crate::gfx::owner::Gfx,
+    pub &'a crate::system::owner::System,
+);
 
 impl PictureSurface for GameSurface<'_> {
     fn locked(&self) -> bool {
@@ -45,7 +48,7 @@ impl PictureSurface for GameSurface<'_> {
     }
     fn lock(&mut self) -> bool {
         // `cmp g_surfaceLocked, 1`'s carry clear: locked.
-        crate::platform::lock_surface(self.0) >= 1
+        crate::platform::lock_surface(self.0, self.1) >= 1
     }
     fn unlock(&mut self) {
         crate::platform::unlock_surface(self.0);

@@ -149,6 +149,7 @@ pub fn car_part_matrices(
             ],
         );
         set_turn_x(
+            race.engine_tables(),
             &race.frame.matrices.turn_x_matrix,
             &scene.drawing.scene.turn_x_work,
             spin.get(),
@@ -158,6 +159,7 @@ pub fn car_part_matrices(
         let lit = &race.frame.matrices.lit_matrix;
         multiply_matrices(placed, &race.frame.matrices.turn_x_matrix, turned);
         set_turn_y(
+            race.engine_tables(),
             &race.frame.matrices.turn_y_matrix,
             &scene.drawing.scene.turn_y_work,
             scene.drawing.object_work.part_values[2].get(),

@@ -18,11 +18,12 @@ pub fn string_frame(
     x: u32,
     y: u32,
     gfx: &crate::gfx::owner::Gfx,
+    system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
-    if !lock_surface(gfx) {
+    if !lock_surface(gfx, system) {
         return Ok(());
     }
-    string_frame_locked(id, font, x, y, gfx)
+    string_frame_locked(id, font, x, y, gfx, system)
 }
 
 /// `string_frame` after the lock.
@@ -32,13 +33,18 @@ pub fn string_frame_locked(
     x: u32,
     y: u32,
     gfx: &crate::gfx::owner::Gfx,
+    system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
-    copy_picture()?;
+    copy_picture(gfx, system)?;
     draw_string(id, font, x, y, gfx)?;
     crate::platform::unlock_surface(gfx);
     crate::platform::show_frame_now();
     Ok(())
 }
-pub fn message_frame(message: u32, gfx: &crate::gfx::owner::Gfx) -> Result<(), Refused> {
-    string_frame(message, FONT_B, 0x190, 0x12C, gfx)
+pub fn message_frame(
+    message: u32,
+    gfx: &crate::gfx::owner::Gfx,
+    system: &crate::system::owner::System,
+) -> Result<(), Refused> {
+    string_frame(message, FONT_B, 0x190, 0x12C, gfx, system)
 }

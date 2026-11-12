@@ -223,23 +223,27 @@ pub fn st<T: bh::Stored>(ring: &Ring, e: u32, x: X, field: impl FnOnce(&mut Entr
     }
 }
 
-/// `f` on entry 1 of a test ring holding the bytes `lo .. hi` of the game's memory at
-/// `base` (the differential tests' operand), the bytes copied back after it.
+/// `f` on entry 1 of a test ring holding the bytes `lo .. hi` of the test buffer `base`
+/// (the differential tests' operand), the bytes copied back after it.
 #[cfg(test)]
-pub fn with_entry_at<R>(ring: &Ring, base: usize, lo: u32, hi: u32, f: impl FnOnce(u32) -> R) -> R {
-    use crate::pointers::GamePtr;
+pub fn with_entry_at<R>(
+    ring: &Ring,
+    base: crate::effects::asm_test::Operand,
+    lo: u32,
+    hi: u32,
+    f: impl FnOnce(u32) -> R,
+) -> R {
+    use crate::scene::x87_mem::Base;
     let kept = ring.entries.with(std::mem::take).ok();
     let mut w = [0u32; (ENTRY_LEN / 4) as usize];
     for o in (lo..hi).step_by(4) {
-        w[o as usize / 4] = GamePtr::new(base as u32 + o).read("a test entry").unwrap();
+        w[o as usize / 4] = base.dword(o as usize);
     }
     ring.entries.set(vec![Entry::from_words(w)]);
     let out = f(1);
     let w = ring.entries.with(|r| r[0].words()).unwrap();
     for o in (lo..hi).step_by(4) {
-        GamePtr::new(base as u32 + o)
-            .write(w[o as usize / 4], "a test entry")
-            .unwrap();
+        base.set_dword(o as usize, w[o as usize / 4]);
     }
     match kept {
         Some(r) => ring.entries.set(r),

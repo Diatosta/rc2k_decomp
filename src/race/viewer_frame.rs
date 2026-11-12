@@ -25,7 +25,7 @@ pub fn viewer_frame(o: Owners<'static>) -> Result<bool, Refused> {
         crate::gfx::clear_back_surface::clear_back_surface(gfx, system)?;
     }
     // `d3d::begin_scene` cannot fail (its carry is clear).
-    crate::platform_3d::begin_layer(crate::workers::game_scratch());
+    crate::platform_3d::begin_layer(o.d3d, crate::workers::game_scratch());
     if !race.shared.replay_file.replay_at_end.is_set() {
         crate::drive::replay_frame_marks::replay_frame_marks(race)?;
         crate::race::show_replay_still::show_replay_still(race, o)?;
@@ -33,13 +33,13 @@ pub fn viewer_frame(o: Owners<'static>) -> Result<bool, Refused> {
     if replay.replay_view.snapshot_asked.get() == 1 {
         replay.replay_view.snapshot_asked.set(0);
         // `d3d::end_scene` cannot fail either.
-        crate::platform_3d::end_layer();
-        crate::race::viewer_snapshot::viewer_snapshot(replay, gfx)?;
+        crate::platform_3d::end_layer(o.d3d);
+        crate::race::viewer_snapshot::viewer_snapshot(replay, gfx, o.system)?;
     } else {
         if race.shared.replay_file.viewer_stopped.is_set() {
             stopped(race, o)?;
         }
-        crate::platform_3d::end_layer();
+        crate::platform_3d::end_layer(o.d3d);
     }
     // `gfx::show_frame`'s carry says nothing was shown.
     Ok(!crate::platform::show_frame_now())

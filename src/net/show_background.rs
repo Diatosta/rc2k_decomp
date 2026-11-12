@@ -37,7 +37,7 @@ pub fn show_background(
         }
     };
     draw_string(title, TITLE_FONT, 0x316, 0x2F, gfx)?;
-    copy_picture()?;
+    copy_picture(gfx, system)?;
     crate::platform::show_frame_now();
     Ok(())
 }

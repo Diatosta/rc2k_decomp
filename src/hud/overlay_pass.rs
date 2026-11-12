@@ -66,6 +66,7 @@ pub fn overlay_pass(
         part,
         system,
         scene,
+        engine_tables: race.engine_tables(),
     };
     let done = crate::hud::draw_hud::draw_hud(&race.frame, hud, pen);
     race.frame.panel_and_overlay.panel.hud_flags[1].set(kept[1]);

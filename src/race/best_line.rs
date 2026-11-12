@@ -472,7 +472,10 @@ pub fn surface_shares(race: &Race) -> Result<(), Refused> {
         }
         let faces: u32 = course.course.course_face_count.get();
         let byte = |info: u32, offset: u32| -> Result<u32, BadInput> {
-            Ok(crate::scene::polygon::texture_info_byte(info, offset)?.into())
+            Ok(
+                crate::scene::polygon::texture_info_byte(race.polygon_tables(), info, offset)?
+                    .into(),
+            )
         };
         let four = |info: u32| -> Result<(), BadInput> {
             for k in 0..4 {
@@ -621,6 +624,7 @@ pub fn map_segment(race: &Race, scene: &crate::scene::owner::Scene) -> Result<()
             work(shared, 0xD0).set(p[1]);
             let [x, _, z, _] = {
                 rotate_point_about_y(
+                    race.engine_tables(),
                     p[0].wrapping_sub(point_a[0]) as i32,
                     number as i32,
                     p[1].wrapping_sub(point_a[1]) as i32,
@@ -630,7 +634,8 @@ pub fn map_segment(race: &Race, scene: &crate::scene::owner::Scene) -> Result<()
             let x = x87::int_times_to_int(x as i32, scale);
             let z = x87::int_times_to_int(z as i32, scale);
             scene.drawing.scene.scratch.set(z as u32);
-            let [x, _, z, _] = rotate_point_about_y(x, number as i32, z, map_angle);
+            let [x, _, z, _] =
+                rotate_point_about_y(race.engine_tables(), x, number as i32, z, map_angle);
             write_n(&race.checkpoints().map_x, e, x.wrapping_add(place_a[0]))?;
             write_n(
                 &race.checkpoints().map_y,

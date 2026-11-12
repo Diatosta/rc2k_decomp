@@ -160,7 +160,9 @@ impl finish::Finish for Game<'_> {
             Step::ObjectsTidy => crate::race::stage_free::objects_tidy(race)?,
             // `nullsub_6`.
             Step::Nothing => {}
-            Step::ReleaseTextures => crate::race::race_end::release_textures(self.owners.scene),
+            Step::ReleaseTextures => {
+                crate::race::race_end::release_textures(self.owners.scene, self.owners.gfx);
+            }
             Step::FinishRace => {
                 crate::drive::finish_race_0::finish_race_0(race, self.owners)?;
             }
@@ -168,7 +170,7 @@ impl finish::Finish for Game<'_> {
                 crate::sound::stop_music::stop_music(self.owners.audio, self.owners.system);
             }
             Step::MenuScreenMode => {
-                crate::platform::set_menu_mode_now(self.owners.gfx);
+                crate::platform::set_menu_mode_now(self.owners.gfx, self.owners.system);
             }
             Step::SetUpEngine => {
                 crate::scene::set_up_engine::set_up_engine_in(race, self.owners.scene)?;

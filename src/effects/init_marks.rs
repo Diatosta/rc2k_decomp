@@ -22,7 +22,7 @@ const KIND_FLOAT_PAST: u32 = 0x468E_8000;
 /// address in esi; the race hands its one record (`race::effects_settings_store`), so none is
 /// passed. The steps (`nullsub_1` before each, `nullsub_26` for step 7: nothing).
 pub fn init_marks(
-    race: &Race,
+    race: &'static Race,
     effects: &Effects,
     seed: u32,
     scene: &crate::scene::owner::Scene,
@@ -40,6 +40,7 @@ pub fn init_marks(
         if marks.mark_car_file_number.get() >= KINDS {
             return Err(BadInput("a marks kind of 0x22 or more").into());
         }
+        effects.setup.marks.set(Some(marks));
         effects.setup.settings.is_set.set(1);
         effects.setup.work.seed.set(seed);
         effects.setup.clock.started.set(0);

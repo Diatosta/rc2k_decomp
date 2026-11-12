@@ -30,7 +30,13 @@ pub fn track_checkpoints(
     c.car.checkpoint.set(checkpoint);
     scene.lights.state.line_place.set(checkpoint);
     {
-        crate::physics::checkpoint_offset::checkpoint_offset(c.course, c.vars, c.checkpoints, c.car)
+        crate::physics::checkpoint_offset::checkpoint_offset(
+            &c.shared.buffers.engine_tables,
+            c.course,
+            c.vars,
+            c.checkpoints,
+            c.car,
+        )
     }?;
     crate::physics::off_line_warnings::off_line_warnings(
         c.frame_work,

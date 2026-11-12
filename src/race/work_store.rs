@@ -363,15 +363,14 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        let at = crate::race::blocks_store::CAR_BLOCKS_IDA - START;
-        crate::gfx::first_values_are_the_games_but(&race().shared.work, START, END, |image| {
-            for k in 0..8 {
-                let o = at + 4 * k;
-                let v = u32::from_le_bytes(image[o..o + 4].try_into().unwrap());
-                image[o..o + 4]
-                    .copy_from_slice(&crate::race::blocks_store::block_ref(v).to_le_bytes());
-            }
-        });
+        let _g = crate::store::test_lock();
+        crate::test_support::first_values::assert_store_starts_as_the_games_but(
+            "store:race.owner.RACE.shared.work",
+            &[(
+                crate::race::blocks_store::CAR_BLOCKS_IDA - START,
+                "race.owner.RACE.shared.work.car_blocks[0]/32",
+            )],
+        );
     }
 
     #[test]

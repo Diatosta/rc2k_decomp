@@ -448,8 +448,12 @@ pub fn second_set<'a>(ctx: &DrawCtx<'a>) -> TextureSet<'a> {
 /// byte (the face's object or its animation's place), the offsets are the record's own (the
 /// size word, the mapping byte, the corner table's 0 .. 12 and two more), so the bytes lie in
 /// one record; a place past the records is refused.
-fn info_bytes<const N: usize>(texture: u32, offset: u32) -> Result<[u8; N], BadInput> {
-    let infos = &crate::scene::polygon_store::POLYGON_TABLES.texture_infos;
+fn info_bytes<const N: usize>(
+    tables: &crate::scene::polygon_store::PolygonTables,
+    texture: u32,
+    offset: u32,
+) -> Result<[u8; N], BadInput> {
+    let infos = &tables.texture_infos;
     let at = (texture << 6).wrapping_add(offset) as usize;
     let (dword, byte) = (at / 4, at % 4);
     if let Some(info) = infos.get(dword / 16)
@@ -481,16 +485,20 @@ pub fn face_texture_coordinates(
     {
         let texture: u32 = set.texture.get();
         let texture_info = TextureInfo {
-            size: u32::from_le_bytes(info_bytes(texture, 0x20)?),
-            mapping: i8::from_le_bytes(info_bytes(texture, 0x2D)?),
+            size: u32::from_le_bytes(info_bytes(&shared.buffers.polygon_tables, texture, 0x20)?),
+            mapping: i8::from_le_bytes(info_bytes(&shared.buffers.polygon_tables, texture, 0x2D)?),
         };
         let order: u32 = set.order.get();
         let mut pairs = [(0u16, 0u16); 4];
         for (k, pair_out) in pairs.iter_mut().enumerate() {
             let table = shared.view.corner_uv_offsets[(order << 2) as usize + k].get();
             *pair_out = (
-                u16::from_le_bytes(info_bytes(texture, table)?),
-                u16::from_le_bytes(info_bytes(texture, table.wrapping_add(2))?),
+                u16::from_le_bytes(info_bytes(&shared.buffers.polygon_tables, texture, table)?),
+                u16::from_le_bytes(info_bytes(
+                    &shared.buffers.polygon_tables,
+                    texture,
+                    table.wrapping_add(2),
+                )?),
             );
         }
         let trap = Trap::new();
@@ -717,7 +725,7 @@ pub fn draw_face(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
     let picked = || {
         // The record's kind byte picks one of the four surface kinds: 0 .. 3 in every
         // texture info file the game ships; a byte past them is refused.
-        let pick = trap.keep_read(info_bytes::<1>(second, 0x2C))[0] as usize;
+        let pick = trap.keep_read(info_bytes::<1>(race.polygon_tables(), second, 0x2C))[0] as usize;
         match race.shared.view.surface_kinds.get(pick) {
             Some(kind) => kind.get(),
             None => {

@@ -545,7 +545,7 @@ pub fn step(o: crate::owners::Owners<'static>, call: Call) -> Result<(), Refused
     match call {
         Call::CopyRallyTimes => crate::race::rally::copy_rally_times(o.system, o.menus)?,
         Call::StopMusic => crate::sound::stop_music::stop_music(o.audio, o.system),
-        Call::SetRaceScreenMode => crate::race::race_shell::set_race_screen_mode(o.gfx),
+        Call::SetRaceScreenMode => crate::race::race_shell::set_race_screen_mode(o.gfx, o.system),
         Call::ShowLoadingPicture => {
             crate::menu::show_loading_picture::show_loading_picture_in(o.menus, o.gfx, o.system)?;
         }
@@ -560,7 +560,7 @@ pub fn step(o: crate::owners::Owners<'static>, call: Call) -> Result<(), Refused
         Call::SetUpRaceSounds => crate::sound::set_up_race_sounds::set_up_race_sounds(o)?,
         Call::RaceFromMenu => crate::race::race_end::race_from_menu(o)?,
         Call::SetMenuScreenMode => {
-            crate::platform::set_menu_mode_now(o.gfx);
+            crate::platform::set_menu_mode_now(o.gfx, o.system);
         }
         Call::ClearRaceSoundObjects => {
             crate::race::sound_tables::clear_race_sound_objects(sound, o.audio, o.system)?;

@@ -12,6 +12,7 @@ use crate::errors::{BadInput, Refused};
 /// `scene::set_texture`, `scene::depth_test_off`, and
 /// with the settings' +0x2754 `draw_lens_flare`.
 pub fn flare_frame(
+    engine_tables: &crate::scene::engine_tables_store::EngineTables,
     buffer: &crate::d3d::vertices_store::PolygonVertices,
     paths: &Paths,
     scene: &crate::scene::owner::Scene,
@@ -30,7 +31,13 @@ pub fn flare_frame(
         crate::scene::depth_test_off::depth_test_off(part);
         let marks = effects.settings()?;
         if marks.listener_figures[0].get() != 0 {
-            crate::effects::draw_lens_flare::draw_lens_flare(buffer, paths, scene, effects)?;
+            crate::effects::draw_lens_flare::draw_lens_flare(
+                engine_tables,
+                buffer,
+                paths,
+                scene,
+                effects,
+            )?;
         }
     }
     Ok(())

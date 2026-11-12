@@ -39,6 +39,7 @@ pub fn loading_bar_frame(
     system: &crate::system::owner::System,
     scene: &crate::scene::owner::Scene,
     gfx: &crate::gfx::owner::Gfx,
+    d3d: &crate::d3d::owner::D3d,
 ) -> Result<(), Refused> {
     use std::sync::atomic::Ordering::Relaxed;
     // Not the original's: some 30 frames a second at most, and the last. Every step's frame
@@ -56,7 +57,7 @@ pub fn loading_bar_frame(
         }
         *last = Some(begun);
     }
-    let result = frame(race, system, scene, gfx);
+    let result = frame(race, system, scene, gfx, d3d);
     FRAMES[0].fetch_add(1, Relaxed);
     FRAMES[1].fetch_add(begun.elapsed().as_micros() as u64, Relaxed);
     result
@@ -67,6 +68,7 @@ fn frame(
     system: &crate::system::owner::System,
     scene: &crate::scene::owner::Scene,
     gfx: &crate::gfx::owner::Gfx,
+    d3d: &crate::d3d::owner::D3d,
 ) -> Result<(), Refused> {
     let session = &system.session;
     let shared = &race.shared;
@@ -86,14 +88,14 @@ fn frame(
         if active == 0 || !frame_tried(active, session.flags.lost.get()) {
             break 'frame false;
         }
-        begin_scene::begin_scene(race, crate::workers::game_scratch());
+        begin_scene::begin_scene(race, d3d, crate::workers::game_scratch());
         let framed: u32 = shared.switches.editor_mode.get();
         shared.switches.editor_mode.set(0u32);
         choose_view_window::choose_view_window(race, scene, system);
         shared.switches.editor_mode.set(framed);
         crate::race::loading_bar_quad::loading_bar_quad(race, system, scene)?;
-        end_scene::end_scene();
-        if lock_frame::lock_frame(race, gfx).0 < 1 {
+        end_scene::end_scene(d3d);
+        if lock_frame::lock_frame(race, gfx, system).0 < 1 {
             break 'frame false;
         }
         unlock_frame::unlock_frame(&race.frame, gfx);

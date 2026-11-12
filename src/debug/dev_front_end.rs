@@ -133,7 +133,7 @@ fn round_a_race(
     step(o, Call::SetUpRaceSounds)?;
     stage_free::render3d_tidy(race)?;
     stage_free::objects_tidy(race)?;
-    race_end::release_textures(o.scene);
+    race_end::release_textures(o.scene, o.gfx);
     shared.switches.mask_kind.set(0);
     race_shell::clear_player_absences(race);
     f()?;
@@ -177,7 +177,7 @@ fn test_course(o: Owners<'static>) -> Result<(), Refused> {
         replay::open_replay(race, o)?;
         race.shared.view.after_credits.set(0);
         crate::drive::play_race::play_race(race, o)?;
-        replay::close_replay(race)?;
+        replay::close_replay(race, o.system)?;
         race_end::tidy_everything(race, o)
     })
 }

@@ -75,12 +75,6 @@ impl Buffers {
     }
 }
 
-/// Where IDA 0x960000 is now (the static): the scene's x87 tests' buffer operands.
-#[cfg(test)]
-pub fn home() -> usize {
-    crate::pointers::game_address(core::ptr::from_ref(&race().shared.buffers)) as usize
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

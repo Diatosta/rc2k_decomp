@@ -232,7 +232,7 @@ mod reference_vectors {
     use crate::session::{PlainBytes, PlainFloat};
 
     /// Runs `f` with `HEX` holding the buffer's bytes (`typed_sync`).
-    fn hex<R>(mk: usize, f: impl FnOnce() -> R) -> R {
+    fn hex<R>(mk: crate::effects::asm_test::Operand, f: impl FnOnce() -> R) -> R {
         with_overlays(
             mk,
             &[overlay(
@@ -244,38 +244,30 @@ mod reference_vectors {
     }
 
     /// The `N` floats at the test address `at`.
-    fn floats<const N: usize>(at: usize) -> [PlainFloat; N] {
+    fn floats<const N: usize>(at: crate::effects::asm_test::Operand) -> [PlainFloat; N] {
         std::array::from_fn(|i| {
-            let word = unsafe {
-                crate::pointers::host_at(at + 4 * i)
-                    .cast::<u32>()
-                    .read_unaligned()
-            };
+            let word = unsafe { (at + 4 * i).host().cast::<u32>().read_unaligned() };
             PlainFloat::from_bits(word)
         })
     }
 
     /// The floats written back to the test address `at`.
-    fn put_floats(at: usize, cells: &[PlainFloat]) {
+    fn put_floats(at: crate::effects::asm_test::Operand, cells: &[PlainFloat]) {
         for (i, c) in cells.iter().enumerate() {
             unsafe {
-                crate::pointers::host_at(at + 4 * i)
-                    .cast::<u32>()
-                    .write_unaligned(c.bits());
+                (at + 4 * i).host().cast::<u32>().write_unaligned(c.bits());
             }
         }
     }
 
     /// The 30 bytes at the test address `at` as a buffer.
-    fn kept(at: usize) -> PlainBytes<30> {
-        PlainBytes::new(std::array::from_fn(|i| unsafe {
-            crate::pointers::host_at(at + i).read()
-        }))
+    fn kept(at: crate::effects::asm_test::Operand) -> PlainBytes<30> {
+        PlainBytes::new(std::array::from_fn(|i| unsafe { (at + i).host().read() }))
     }
 
-    fn put_kept(at: usize, kept: &PlainBytes<30>) {
+    fn put_kept(at: crate::effects::asm_test::Operand, kept: &PlainBytes<30>) {
         for i in 0..30 {
-            unsafe { crate::pointers::host_at(at + i).write(kept.get(i)) };
+            unsafe { (at + i).host().write(kept.get(i)) };
         }
     }
 

@@ -46,7 +46,7 @@ pub fn lets_rally(o: Owners<'static>) -> Result<bool, Refused> {
     };
     net.vars.first_host.set(first);
     crate::sound::stop_music::stop_music(o.audio, o.system);
-    crate::race::race_shell::set_race_screen_mode(o.gfx);
+    crate::race::race_shell::set_race_screen_mode(o.gfx, o.system);
     crate::menu::show_loading_picture::show_loading_picture_in(o.menus, o.gfx, o.system)?;
     sound_tables::set_up_race_sound_objects(
         race,
@@ -66,7 +66,7 @@ pub fn lets_rally(o: Owners<'static>) -> Result<bool, Refused> {
     // The race's time and whether the car did not finish (the original's result registers);
     // Escape leaves the second 1.
     let (time, not_finished) = loop {
-        run_frame(|| Ok::<(), Refused>(()))?;
+        run_frame(o.system, || Ok::<(), Refused>(()))?;
         if crate::input::take_key::take_key() == 1 {
             break (1, 1);
         }
@@ -78,7 +78,7 @@ pub fn lets_rally(o: Owners<'static>) -> Result<bool, Refused> {
     };
     crate::race::race_end::tidy_everything(race, o)?;
     crate::sound::stop_music::stop_music(o.audio, o.system);
-    crate::platform::set_menu_mode_now(o.gfx);
+    crate::platform::set_menu_mode_now(o.gfx, o.system);
     crate::menu::show_loading_picture::show_loading_picture_in(o.menus, o.gfx, o.system)?;
     sound_tables::clear_race_sound_objects(sound, o.audio, o.system)?;
     crate::sound::apply_settings::apply_settings(o)?;

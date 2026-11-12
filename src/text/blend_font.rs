@@ -13,11 +13,11 @@
 
 use crate::errors::BadInput;
 use crate::gfx::blend_palette::blend_palette;
-use crate::gfx::owner::{Gfx, gfx};
+use crate::gfx::owner::Gfx;
 use crate::gfx::pixel_format::surface_format;
 use crate::gfx::typefaces::{FontObject, FontRef};
 use crate::session::{GameThread, PlainDword};
-use crate::strings::owner::{Strings, strings};
+use crate::strings::owner::Strings;
 use crate::text::font::Font;
 
 // ---- game data ----
@@ -43,16 +43,6 @@ pub static BLENDED_PALETTE: GameThread<[PlainDword; 256]> =
 const PALETTE_ENTRIES: u32 = 15;
 
 pub fn blend_font(
-    time: u32,
-    half_pulse: u32,
-    a: impl Into<FontRef>,
-    b: impl Into<FontRef>,
-) -> Result<(), BadInput> {
-    blend_font_in(strings(), gfx(), time, half_pulse, a, b)
-}
-
-/// `blend_font` with the owners it works on.
-pub fn blend_font_in(
     strings: &Strings,
     gfx: &Gfx,
     time: u32,

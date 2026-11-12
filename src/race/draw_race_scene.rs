@@ -48,6 +48,8 @@ struct Owners<'a> {
     scene: &'a crate::scene::owner::Scene,
     system: &'a crate::system::owner::System,
     sound: &'static crate::sound::owner::Sound,
+    net: &'static crate::net::owner::Net,
+    input: &'static crate::input::owner::Input,
 }
 
 /// Whether the view with `flags` has its mirror (the flags' bit 3).
@@ -88,8 +90,9 @@ fn view_scene(
     let _step = crate::write_watch::step(["view0_scene", "view1_scene"][car]);
     let view = crate::race::view_scratch::main_view(car);
     view.take_vars(o.race);
-    let output =
-        crate::race::draw_view_scene::draw_view_scene(o.race, o.scene, o.system, view, part)?;
+    let output = crate::race::draw_view_scene::draw_view_scene(
+        o.race, o.scene, o.system, o.net, o.input, view, part,
+    )?;
     view.hand_off.keep_output(output);
     view.hand_off.keep(o.race, part);
     Ok(())
@@ -100,7 +103,13 @@ fn view_scene(
 /// for the race's placed sounds (not the original's: both came from what the last view drawn
 /// left, the mirror's when there was one; `notes/bugs.md`; the race's sounds are heard around
 /// the first car).
-fn view_rest(o: Owners<'_>, car: usize, blit: bool) -> Result<(), Refused> {
+fn view_rest(
+    o: Owners<'_>,
+    gfx: &crate::gfx::owner::Gfx,
+    effects: &crate::effects::owner::Effects,
+    car: usize,
+    blit: bool,
+) -> Result<(), Refused> {
     let _step = crate::write_watch::step(["view0_rest", "view1_rest"][car]);
     let view = crate::race::view_scratch::main_view(car);
     // The overlays (the effects, the HUD's quads) draw in the front end's window: the view's.
@@ -121,15 +130,12 @@ fn view_rest(o: Owners<'_>, car: usize, blit: bool) -> Result<(), Refused> {
         o.race,
         o.scene,
         o.system,
+        o.net,
+        o.input,
         view,
         crate::workers::game_scratch(),
     );
-    crate::race::draw_view_overlays::draw_view_overlays(
-        &ctx,
-        o.system,
-        o.sound,
-        crate::effects::owner::effects(),
-    )?;
+    crate::race::draw_view_overlays::draw_view_overlays(&ctx, o.system, o.sound, gfx, effects)?;
     if car == 0 {
         crate::race::sound_spots::find_sound_spots(o.race, view)?;
         crate::race::heard_turn::keep(&view.matrices);
@@ -147,8 +153,9 @@ fn view_mirror(
     let mirror = crate::race::view_scratch::mirror(car);
     crate::race::frame::load_view_car(&o.race.shared, car, mirror)?;
     let begun = crate::debug::timing::start();
-    let output =
-        crate::race::draw_mirror_view::draw_mirror_view(o.race, o.scene, o.system, mirror, part)?;
+    let output = crate::race::draw_mirror_view::draw_mirror_view(
+        o.race, o.scene, o.system, o.net, o.input, mirror, part,
+    )?;
     mirror.hand_off.keep_mirror_drawn(output.is_some());
     mirror.hand_off.keep_output(output.unwrap_or_default());
     crate::debug::timing::stop(crate::debug::timing::Stage::Mirror, begun);
@@ -191,7 +198,14 @@ fn view_drawn(o: Owners<'_>, car: usize, mirror: bool) -> Result<(), Refused> {
 /// One view drawn: `car` (0 or 1: `race::load_car_a` / `_b`), its value fetched, its scene,
 /// the sound tick (0xD), the platform's blit (the full view only), the tick (0xE, the full
 /// view only), the overlays, the tick (0xF), and with the view's flags' bit 3 its mirror.
-fn draw_view(o: Owners<'_>, car: usize, flags: usize, blit: bool) -> Result<(), Refused> {
+fn draw_view(
+    o: Owners<'_>,
+    gfx: &crate::gfx::owner::Gfx,
+    effects: &crate::effects::owner::Effects,
+    car: usize,
+    flags: usize,
+    blit: bool,
+) -> Result<(), Refused> {
     load_car(o, car)?;
     fetch_value(o, car, false)?;
     fetch_value(o, car, true)?;
@@ -200,7 +214,7 @@ fn draw_view(o: Owners<'_>, car: usize, flags: usize, blit: bool) -> Result<(), 
     let view = || -> Result<(), Refused> {
         view_scene(o, car, part)?;
         view_drawn(o, car, false)?;
-        view_rest(o, car, blit)
+        view_rest(o, gfx, effects, car, blit)
     };
     let mirror = || view_mirror(o, car, part);
     if !mirrored(o.race, flags) {
@@ -212,11 +226,12 @@ fn draw_view(o: Owners<'_>, car: usize, flags: usize, blit: bool) -> Result<(), 
     // the mirror's changes to the stores they share put over theirs as when drawn after them.
     if crate::workers::mirror_beside() {
         return crate::workers::draw_beside(
+            &o.race.frame.matrices,
             |part| view_scene(o, car, part),
             |part| view_mirror(o, car, part),
             || {
                 view_drawn(o, car, false)?;
-                view_rest(o, car, blit)
+                view_rest(o, gfx, effects, car, blit)
             },
             || view_drawn(o, car, true),
         );
@@ -246,6 +261,8 @@ enum Piece {
 /// however many threads draw.
 fn draw_players_beside(
     o: Owners<'_>,
+    gfx: &crate::gfx::owner::Gfx,
+    effects: &crate::effects::owner::Effects,
     players: usize,
     player: &(dyn Fn(u32, bool) + Sync),
 ) -> Result<(), Refused> {
@@ -275,13 +292,15 @@ fn draw_players_beside(
             }
         }
     };
-    crate::workers::draw_side_by_side(pieces.len(), part, |n| match pieces[n] {
+    crate::workers::draw_side_by_side(&o.race.frame.matrices, pieces.len(), part, |n| match pieces
+        [n]
+    {
         Piece::Scene(p) => {
             o.race.shared.view.drawn_view.set(p as u32);
             own(p, false, false)?;
             crate::race::view_scratch::main_view(p).hand_off.put(o.race);
             view_drawn(o, p, false)?;
-            view_rest(o, p, false)
+            view_rest(o, gfx, effects, p, false)
         }
         Piece::Mirror(p) => view_drawn(o, p, true),
     })
@@ -296,6 +315,8 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
         scene,
         system,
         sound: o.sound,
+        net: o.net,
+        input,
     };
     let frame = &race.frame;
     // Drawn outside the views' parts: on the game's thread's part.
@@ -471,7 +492,7 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
     drop(before_views);
     if race.shared.view.views.get() == 1 {
         race.shared.view.drawn_view.set(0);
-        draw_view(owners, 0, 0, true)?;
+        draw_view(owners, o.gfx, o.effects, 0, 0, true)?;
     } else {
         let side_by_side = race.shared.vars.split.get() == 1;
         // A player's half of the screen.
@@ -509,12 +530,19 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
             );
         };
         if crate::workers::players_beside() {
-            draw_players_beside(owners, 2, &player)?;
+            draw_players_beside(owners, o.gfx, o.effects, 2, &player)?;
         } else {
             for view in 0..2u32 {
                 race.shared.view.drawn_view.set(view);
                 player(view, true);
-                draw_view(owners, view as usize, view as usize, false)?;
+                draw_view(
+                    owners,
+                    o.gfx,
+                    o.effects,
+                    view as usize,
+                    view as usize,
+                    false,
+                )?;
             }
         }
     }

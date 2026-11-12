@@ -66,9 +66,9 @@ pub fn put_pixel(
 
 /// `d3d::lock_texture` (`lock`) or `d3d::unlock_texture` of the texture slot `slot` (their
 /// flags unread).
-pub fn lock(slot: u32, lock: bool) -> Result<(), Refused> {
+pub fn lock(gfx: &crate::gfx::owner::Gfx, slot: u32, lock: bool) -> Result<(), Refused> {
     if lock {
-        crate::d3d::lock_texture::lock_texture(slot)?;
+        crate::d3d::lock_texture::lock_texture_in(gfx, slot)?;
     } else {
         crate::d3d::unlock_texture::unlock_texture(slot)?;
     }
@@ -158,10 +158,18 @@ pub fn load_mask_pictures(
             .take(list, MASK_BYTES, vec![0; MASK_PIXELS])?;
     }
     let mut copy = crate::memory::owned::counted(&masks.picture_copy.list, COPY_BYTES)?;
-    lock(scene.textures.kinds.kind_first_textures[202].get(), true)?;
+    lock(
+        gfx,
+        scene.textures.kinds.kind_first_textures[202].get(),
+        true,
+    )?;
     let width: u32 = gfx.drawing.draw_surface.width.get();
     if width > MOST_WIDTH {
-        lock(scene.textures.kinds.kind_first_textures[202].get(), false)?;
+        lock(
+            gfx,
+            scene.textures.kinds.kind_first_textures[202].get(),
+            false,
+        )?;
         return Err(BadInput("a mask surface wider than 256").into());
     }
     let kind = (effects.kinds.marks_kind.kind.bits() as i32).clamp(0, MOST_KIND) as u32;
@@ -192,7 +200,11 @@ pub fn load_mask_pictures(
         gfx,
         system,
     )?;
-    lock(scene.textures.kinds.kind_first_textures[202].get(), false)?;
+    lock(
+        gfx,
+        scene.textures.kinds.kind_first_textures[202].get(),
+        false,
+    )?;
     crate::scene::forget_slot_texture::forget_slot_texture(
         scene.textures.kinds.kind_first_slots[202].get(),
         scene,

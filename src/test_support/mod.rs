@@ -5,6 +5,7 @@
 pub mod first_values;
 mod freeze;
 pub mod front;
+pub mod race_places;
 pub mod race_vectors;
 pub mod state;
 pub mod vectors;

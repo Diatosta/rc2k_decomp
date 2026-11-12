@@ -99,8 +99,8 @@ pub fn uninstall(
     i::write_registry::write_registry(install, &mut crate::install::portable::Portable)?;
     // the "removing" frame
     run_frame(system, None)?;
-    if lock(gfx) {
-        copy_picture()?;
+    if lock(gfx, system) {
+        copy_picture(gfx, system)?;
         i::draw_string_list::draw_string_list(&install.pages.remove_strings.each_ref(), 0, 0, gfx)?;
         unlock(gfx);
         show();

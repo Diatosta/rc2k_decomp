@@ -66,9 +66,9 @@ fn message(
     y: u32,
     gfx: &crate::gfx::owner::Gfx,
 ) -> Result<(), Refused> {
-    crate::platform_events::hold_quit(false);
+    crate::platform_events::hold_quit(system, false);
     run_frame(system, None)?;
-    if lock(gfx) {
+    if lock(gfx, system) {
         crate::install::draw_string_list::draw_string_list(table, 0, y, gfx)?;
         unlock(gfx);
         show();
@@ -92,16 +92,18 @@ fn message(
 fn copying_frame(
     install: &'static crate::install::owner::Install,
     gfx: &crate::gfx::owner::Gfx,
+    system: &crate::system::owner::System,
 ) -> Result<bool, Refused> {
-    crate::install::install_frames::copying_frame(install, gfx)
+    crate::install::install_frames::copying_frame(install, gfx, system)
 }
 
 fn progress_frame(
     install: &'static crate::install::owner::Install,
     strings: &crate::strings::owner::Strings,
     gfx: &crate::gfx::owner::Gfx,
+    system: &crate::system::owner::System,
 ) -> Result<bool, Refused> {
-    crate::install::install_frames::progress_frame(install, strings, gfx)
+    crate::install::install_frames::progress_frame(install, strings, gfx, system)
 }
 
 pub fn install_files(
@@ -160,8 +162,8 @@ pub fn install_files(
     // (owner).
     crate::files::is_cd_drive::is_cd_drive(rb(&install.paths.game_dir));
     // A close during the copy waits for its end (the progress still shown).
-    crate::platform_events::hold_quit(true);
-    run_frame(o.system, Some(&|| copying_frame(install, o.gfx)))?;
+    crate::platform_events::hold_quit(o.system, true);
+    run_frame(o.system, Some(&|| copying_frame(install, o.gfx, o.system)))?;
     // the folders
     if install.run.dir_count.get() != 0 {
         for n in 0..install.run.dir_count.get() {
@@ -189,9 +191,9 @@ pub fn install_files(
             }
             if run_frame(
                 o.system,
-                Some(&|| progress_frame(o.install, o.strings, o.gfx)),
+                Some(&|| progress_frame(o.install, o.strings, o.gfx, o.system)),
             )? {
-                run_frame(o.system, Some(&|| copying_frame(install, o.gfx)))?;
+                run_frame(o.system, Some(&|| copying_frame(install, o.gfx, o.system)))?;
             }
             if take_key() == 1 {
                 return message(
@@ -233,7 +235,7 @@ pub fn install_files(
             i::copy_counted::copy_counted(install, o.system, &install.paths.path_a, base)?;
         }
     }
-    crate::platform_events::hold_quit(false);
+    crate::platform_events::hold_quit(o.system, false);
     install.pages.list_answer.set(2);
     sleep(1000);
     install.names.status.set(1);

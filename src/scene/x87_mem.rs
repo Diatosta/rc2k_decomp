@@ -226,13 +226,24 @@ mod by_address {
     /// one live region, `pointers::read_or_end`).
     #[track_caller]
     pub(super) fn load<T: crate::pointers::Plain>(address: usize, off: usize) -> T {
-        crate::pointers::read_or_end(address.wrapping_add(off) as u32, "an x87 operand")
+        let at = address.wrapping_add(off);
+        if crate::test_support::vectors::leased(at, size_of::<T>()) {
+            // SAFETY: inside a buffer the test leased (the byte copy needs no alignment).
+            return unsafe { (at as *const T).read_unaligned() };
+        }
+        crate::pointers::read_or_end(at as u32, "an x87 operand")
     }
 
     /// `value` written at the operand (as `load`).
     #[track_caller]
     pub(super) fn store<T: crate::pointers::Plain>(address: usize, off: usize, value: T) {
-        crate::pointers::write_or_end(address.wrapping_add(off) as u32, value, "an x87 operand");
+        let at = address.wrapping_add(off);
+        if crate::test_support::vectors::leased(at, size_of::<T>()) {
+            // SAFETY: inside a buffer the test leased.
+            unsafe { (at as *mut T).write_unaligned(value) };
+            return;
+        }
+        crate::pointers::write_or_end(at as u32, value, "an x87 operand");
     }
 
     /// A base that is a game address.
@@ -327,8 +338,8 @@ impl crate::session::Cell32 for HostCell {
 /// The `T` at `off` bytes into a test buffer at `base` (the plain versions' typed operands).
 #[cfg(test)]
 pub(crate) fn view<T>(base: usize, off: usize) -> &'static T {
-    // SAFETY: the buffer is lent for the run (`block_vectors`), aligned for its cells.
-    unsafe { &*(crate::pointers::host_at(base + off) as *const T) }
+    // SAFETY: the buffer is leased for the run (`block_vectors`), aligned for its cells.
+    unsafe { &*(crate::test_support::vectors::block_vectors::at(base + off) as *const T) }
 }
 
 /// `fild dword ptr [base + off]`.

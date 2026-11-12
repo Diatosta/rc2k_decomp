@@ -69,12 +69,12 @@ struct Shape {
 
 const PAST: BadInput = BadInput("the object's file runs past its room");
 
-fn dword(offset: usize) -> Result<u32, BadInput> {
+fn dword(race: &crate::race::owner::Race, offset: usize) -> Result<u32, BadInput> {
     if offset.checked_add(4).is_none_or(|end| end > FILE_ROOM) {
         return Err(PAST);
     }
     Ok(u32::from_le_bytes(
-        crate::scene::objects::file()
+        crate::scene::objects::file(race)
             .read_at(offset, 4, "a word of an object's file")?
             .try_into()
             .unwrap(),
@@ -94,16 +94,19 @@ fn numbered(marks: &mut [u32]) {
 }
 
 /// None: a file of no points or no faces (the second with the points' number).
-fn shape(scene: &Scene) -> Result<Result<Shape, Option<u32>>, BadInput> {
-    let points = dword(4)? as usize;
+fn shape(
+    race: &crate::race::owner::Race,
+    scene: &Scene,
+) -> Result<Result<Shape, Option<u32>>, BadInput> {
+    let points = dword(race, 4)? as usize;
     if points == 0 {
         return Ok(Err(None));
     }
-    let face_count = dword(8)? as usize;
+    let face_count = dword(race, 8)? as usize;
     if face_count == 0 {
         return Ok(Err(Some(points as u32)));
     }
-    let normals = dword(0xC)? as usize;
+    let normals = dword(race, 0xC)? as usize;
     if points > MARKS || face_count > MARKS || normals > MARKS {
         return Err(BadInput("more points, faces or normals than can be marked"));
     }
@@ -122,23 +125,23 @@ fn shape(scene: &Scene) -> Result<Result<Shape, Option<u32>>, BadInput> {
         Ok::<(), BadInput>(())
     };
     for _ in 0..face_count {
-        let vertices = dword(at)? as usize;
+        let vertices = dword(race, at)? as usize;
         let end = vertices
             .checked_mul(0x10)
             .and_then(|bytes| bytes.checked_add(at + 0x10))
             .filter(|&end| end <= FILE_ROOM)
             .ok_or(PAST)?;
-        let taken = mask & (1 << ((dword(at + 4)? >> 24) & 0x1F)) != 0;
+        let taken = mask & (1 << ((dword(race, at + 4)? >> 24) & 0x1F)) != 0;
         if taken {
             if vertices == 0 {
                 return Err(BadInput("a face taken that has no vertices"));
             }
-            marked(&mut normal_marks, dword(at + 0xC)?)?;
+            marked(&mut normal_marks, dword(race, at + 0xC)?)?;
             for vertex in 0..vertices {
                 let v = at + 0x10 + vertex * 0x10;
-                marked(&mut normal_marks, dword(v + 0xC)?)?;
+                marked(&mut normal_marks, dword(race, v + 0xC)?)?;
                 // Marked by its low word, looked up by the whole dword.
-                marked(&mut point_marks, dword(v)?)?;
+                marked(&mut point_marks, dword(race, v)?)?;
             }
             added[2] += 1;
             added[3] += end - at;
@@ -221,7 +224,7 @@ pub fn add_object_shape(
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), BadInput> {
     let course = &race.course;
-    let shape = match shape(scene)? {
+    let shape = match shape(race, scene)? {
         Ok(shape) => shape,
         Err(points) => {
             crate::session::write_first(
@@ -238,7 +241,7 @@ pub fn add_object_shape(
     let slot = room.slot as usize;
     let read = |offset: usize| -> Result<u32, BadInput> {
         Ok(u32::from_le_bytes(
-            crate::scene::objects::file()
+            crate::scene::objects::file(race)
                 .read_at(offset, 4, "a word of an object's file")?
                 .try_into()
                 .unwrap(),
@@ -318,8 +321,11 @@ pub fn add_object_shape(
     for face in shape.faces.iter().filter(|face| face.taken) {
         crate::scene::objects::face_cell(race.faces(), face_number as usize).set(out as u32);
         let len = 0x10 + face.vertices * 0x10;
-        let source =
-            crate::scene::objects::file().read_at(face.at, len, "a face of an object's file")?;
+        let source = crate::scene::objects::file(race).read_at(
+            face.at,
+            len,
+            "a face of an object's file",
+        )?;
         let word = |at: usize| u32::from_le_bytes(source[at..at + 4].try_into().unwrap());
         let mut made = Vec::with_capacity(len);
         let mut push = |value: u32| made.extend_from_slice(&value.to_le_bytes());

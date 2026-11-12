@@ -345,8 +345,8 @@ impl flow::Game for Game<'_> {
             C::RunFrame => {
                 // `screens::run_frame` with `menu::picture_frame` (whether the frame was
                 // made is not looked at).
-                if let Some(made) = crate::platform::run_frame_now(|| {
-                    m::picture_frame::picture_frame(self.owners.gfx)
+                if let Some(made) = crate::platform::run_frame_now(self.owners.system, || {
+                    m::picture_frame::picture_frame(self.owners.gfx, self.owners.system)
                 }) {
                     made?;
                 }
@@ -388,7 +388,10 @@ impl flow::Game for Game<'_> {
 
     fn wait_or_key(&mut self, ms: u32) -> Result<Option<u8>, Refused> {
         self.fault.check()?;
-        Ok(key(crate::system::wait_or_key::wait_or_key(ms)))
+        Ok(key(crate::system::wait_or_key::wait_or_key(
+            self.owners.system,
+            ms,
+        )))
     }
 
     fn stream_playing(&mut self) -> Result<bool, Refused> {

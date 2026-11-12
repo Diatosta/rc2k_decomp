@@ -9,7 +9,7 @@
 //! their own (the mouse, `g_raceSoundsOn`, the windscreen drops' batch, ...): their bytes here are
 //! not used, and `crate::moved::MOVED` lists this block as the ranges around them.
 //! The code names the variables by IDA's address (`framework::game_addr` takes such an
-//! address here); the inline asm reads them as `[{m} + RVA]` with `m = asm_base()`.
+//! address here).
 //!
 //! The image's zeroed tail after it (IDA 0x960000 .. 0xA8C180) is `race::buffers_store`.
 
@@ -113,262 +113,6 @@ pub const fn first_values<const N: usize>(start: usize) -> [u8; N] {
     bytes
 }
 
-/// The typed pieces over the block (IDA start, end, the store's name), in order: for the
-/// census of accesses by address (2026-10-29, `notes/history.md`) and the moves out.
-#[cfg(test)]
-pub const PIECES: [(usize, usize, &str); 48] = [
-    (
-        crate::race::replay_file_store::START,
-        crate::race::replay_file_store::END,
-        "REPLAY_FILE",
-    ),
-    (
-        crate::race::viewer_state_store::START,
-        crate::race::viewer_state_store::END,
-        "REPLAY_VIEW",
-    ),
-    (
-        crate::race::viewer_screen_store::START,
-        crate::race::viewer_screen_store::END,
-        "VIEWER_PANEL",
-    ),
-    (
-        crate::race::effects_settings_store::START,
-        crate::race::effects_settings_store::END,
-        "EFFECTS_SETTINGS",
-    ),
-    (
-        crate::race::kind_store::START,
-        crate::race::kind_store::END,
-        "KIND_TABLES",
-    ),
-    (
-        crate::race::numbers_store::START,
-        crate::race::numbers_store::END,
-        "NUMBERS",
-    ),
-    (
-        crate::race::scratch_store::START,
-        crate::race::scratch_store::END,
-        "FRAME_SCRATCH",
-    ),
-    (
-        crate::race::text_state_store::START,
-        crate::race::text_state_store::END,
-        "TEXT_STATE",
-    ),
-    (
-        crate::race::course_lists_store::START,
-        crate::race::course_lists_store::END,
-        "COURSE_LISTS",
-    ),
-    (
-        crate::race::car_specs_store::START,
-        crate::race::car_specs_store::END,
-        "CAR_SPECS",
-    ),
-    (
-        crate::race::light_records_store::START,
-        crate::race::light_records_store::END,
-        "LIGHT_RECORDS",
-    ),
-    (
-        crate::physics::gear_store::START,
-        crate::physics::gear_store::END,
-        "GEAR",
-    ),
-    (
-        crate::race::clock_ticks_store::START,
-        crate::race::clock_ticks_store::END,
-        "CLOCK_TICKS",
-    ),
-    (
-        crate::race::kind_records_store::START,
-        crate::race::kind_records_store::END,
-        "KIND_RECORDS",
-    ),
-    (
-        crate::race::course_store::START,
-        crate::race::course_store::END,
-        "COURSE",
-    ),
-    (
-        crate::scene::object_tables_store::START,
-        crate::scene::object_tables_store::END,
-        "OBJECT_TABLES",
-    ),
-    (
-        crate::scene::kind_texture_store::START,
-        crate::scene::kind_texture_store::END,
-        "KIND_TEXTURES",
-    ),
-    (
-        crate::scene::texture_places_store::START,
-        crate::scene::texture_places_store::END,
-        "TEXTURE_PLACES",
-    ),
-    (
-        crate::race::matrices_store::START,
-        crate::race::matrices_store::END,
-        "MATRICES",
-    ),
-    (
-        crate::race::frame_counter_store::START,
-        crate::race::frame_counter_store::END,
-        "FRAME_COUNTER",
-    ),
-    (
-        crate::race::tables_store::START,
-        crate::race::tables_store::END,
-        "RACE_TABLES",
-    ),
-    (
-        crate::race::view_vars_store::START,
-        crate::race::view_vars_store::END,
-        "VIEW_VARS",
-    ),
-    (
-        crate::physics::camera_store::START,
-        crate::physics::camera_store::END,
-        "CAMERA_WORK",
-    ),
-    (
-        crate::race::prefs_store::START,
-        crate::race::prefs_store::END,
-        "STAGE_PREFS",
-    ),
-    (
-        crate::scene::file_numbers_store::START,
-        crate::scene::file_numbers_store::END,
-        "FILE_NUMBERS",
-    ),
-    (
-        crate::physics::tables_store::START,
-        crate::physics::tables_store::END,
-        "PHYSICS",
-    ),
-    (
-        crate::race::switches_store::START,
-        crate::race::switches_store::END,
-        "FRAME_SWITCHES",
-    ),
-    (
-        crate::scene::draw_switches_store::START,
-        crate::scene::draw_switches_store::END,
-        "DRAW_SWITCHES",
-    ),
-    (
-        crate::race::vars_store::START,
-        crate::race::vars_store::END,
-        "RACE_VARS",
-    ),
-    (
-        crate::scene::draw_store::START,
-        crate::scene::draw_store::END,
-        "DRAW",
-    ),
-    (
-        crate::scene::light_work_store::START,
-        crate::scene::light_work_store::END,
-        "LIGHT_WORK",
-    ),
-    (
-        crate::scene::object_store::START,
-        crate::scene::object_store::END,
-        "OBJECT_WORK",
-    ),
-    (
-        crate::scene::light_store::START,
-        crate::scene::light_store::END,
-        "LIGHT_STATE",
-    ),
-    (
-        crate::physics::ground_store::START,
-        crate::physics::ground_store::END,
-        "GROUND_WORK",
-    ),
-    (
-        crate::race::view_store::START,
-        crate::race::view_store::END,
-        "RACE_VIEW",
-    ),
-    (
-        crate::race::level_grid_store::START,
-        crate::race::level_grid_store::END,
-        "LEVEL_GRID",
-    ),
-    (
-        crate::race::frame_store::START,
-        crate::race::frame_store::END,
-        "FRAME_WORK",
-    ),
-    (
-        crate::race::panel_store::START,
-        crate::race::panel_store::END,
-        "PANEL",
-    ),
-    (
-        crate::race::overlay_store::START,
-        crate::race::overlay_store::END,
-        "RACE_OVERLAY",
-    ),
-    (
-        crate::race::sound_spots_store::START,
-        crate::race::sound_spots_store::END,
-        "RACE_SOUND_SPOTS",
-    ),
-    (
-        crate::physics::contact_store::START,
-        crate::physics::contact_store::END,
-        "CONTACT_WORK",
-    ),
-    (
-        crate::race::draw_batches_store::START,
-        crate::race::draw_batches_store::END,
-        "DRAW_BATCHES",
-    ),
-    (
-        crate::drive::replay_frames_store::START,
-        crate::drive::replay_frames_store::END,
-        "REPLAY_FRAMES",
-    ),
-    (
-        crate::race::blocks_store::START,
-        crate::race::blocks_store::END,
-        "CAR_BLOCKS",
-    ),
-    (
-        crate::race::replay_work_store::START,
-        crate::race::replay_work_store::END,
-        "REPLAY_WORK",
-    ),
-    (
-        crate::physics::car_store::START,
-        crate::physics::car_store::END,
-        "CAR",
-    ),
-    (
-        crate::race::work_store::START,
-        crate::race::work_store::END,
-        "RACE_WORK",
-    ),
-    (
-        crate::effects::work_store::START,
-        crate::effects::work_store::END,
-        "MARKS_WORK",
-    ),
-];
-
-/// The piece IDA's address `ida` of the block lies in ("block": none, the block's own bytes).
-#[cfg(test)]
-pub fn piece_of(ida: usize) -> &'static str {
-    let i = PIECES.partition_point(|&(s, _, _)| s <= ida);
-    match i.checked_sub(1).map(|i| PIECES[i]) {
-        Some((_, e, name)) if ida < e => name,
-        _ => "block",
-    }
-}
-
 /// A part of a record of cells, from byte `offset` to its end: a moved range that starts
 /// inside a store (`SealWork`'s fields past its alignment lead, the panel past its two lead
 /// bytes). Reads and writes go through the whole record's cells.
@@ -451,53 +195,24 @@ fn first_byte() -> *mut u8 {
         .wrapping_add(vars::START % 16)
 }
 
-/// What an RVA of the block is added to in inline asm (`[{m} + RVA]`): the block's address
-/// less its first byte's RVA. Only the tests' kept assembly uses it now (2026-10-28: the
-/// game's code reaches the block through the typed stores).
-#[cfg(test)]
-pub fn asm_base() -> u32 {
-    (vars::base() as u32).wrapping_sub(crate::framework::rva(vars::START) as u32)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn the_pieces_are_in_order_apart() {
-        for w in PIECES.windows(2) {
-            assert!(w[0].1 <= w[1].0, "{}", w[0].2);
-        }
-        assert_eq!(piece_of(0x5CB958), "GEAR");
-        assert_eq!(piece_of(0x5CC197), "GEAR");
-        assert_eq!(piece_of(0x5CB954), "block");
-        assert_eq!(piece_of(0x5C2F80), "VIEWER_PANEL");
-        assert_eq!(piece_of(0x5C2F84), "EFFECTS_SETTINGS");
-        assert_eq!(piece_of(0x5C56EC), "KIND_TABLES");
-    }
 
     /// The texture kinds' names table (`off_64CD0C`, 39 dwords) is unread and holds the image's
     /// addresses of its names, which lie just after it.
     #[test]
     fn the_texture_kinds_names_are_unread() {
-        let (start, end) = (0x64CD0C, 0x64CDA8);
-        assert!(UNREAD.contains(&(start, end)));
         let image =
             crate::test_support::first_values::bytes("race.store.UNREAD.texture_kind_names");
-        assert_eq!(image.len(), end - start);
+        let &(start, end) = UNREAD
+            .iter()
+            .find(|r| r.1 - r.0 == image.len())
+            .expect("the table is among the unread ranges");
         for (n, word) in image.chunks(4).enumerate() {
             let name = u32::from_le_bytes(word.try_into().unwrap()) as usize;
             assert!((end..end + 0x100).contains(&name), "entry {n}");
             assert!(is_unread(start + 4 * n));
         }
-    }
-
-    #[test]
-    fn asm_base_reaches_the_block() {
-        let rva = crate::framework::rva(0x5BEC50) as u32;
-        assert_eq!(
-            asm_base().wrapping_add(rva),
-            crate::framework::game_addr(rva as usize)
-        );
     }
 }

@@ -26,7 +26,7 @@ pub fn settings_loop(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     net.edit().edited.set(u32::MAX);
     install.pages.choice.set(0);
     loop {
-        run_frame(|| crate::net::settings_frame::settings_frame(o))?;
+        run_frame(o.system, || crate::net::settings_frame::settings_frame(o))?;
         install
             .pages
             .frame_clock

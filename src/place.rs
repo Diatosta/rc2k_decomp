@@ -250,26 +250,6 @@ impl BytePlace {
             BytePlace::Store(s, at) => PlaceBytes::Store(s, at),
         })
     }
-
-    /// The place as a checked game pointer: bounded by its buffer (`In`, which must hold
-    /// at least its first byte), or a game address's region (`At`).
-    #[cfg(test)]
-    pub fn game_ptr(self) -> GamePtr {
-        match self {
-            BytePlace::In(b, at) => {
-                Self::inside(b, at, 1).unwrap_or_else(|e| crate::fatal::raise::end("place", e));
-                GamePtr::to(b).offset(at as u32)
-            }
-            BytePlace::At(a) => a,
-            BytePlace::Store(s, at) => GamePtr::of_store(s).offset(at as u32),
-        }
-    }
-
-    /// The game address, for the script's and the game's data (pointers they keep).
-    #[cfg(test)]
-    pub fn game(self) -> u32 {
-        self.game_ptr().addr()
-    }
 }
 
 /// The bytes from a place on, as far as its buffer, record or region goes

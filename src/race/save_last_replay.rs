@@ -11,10 +11,14 @@ use crate::race::owner::Race;
 use crate::race::viewer::LAST_RACE;
 
 /// `slot` the slot to save the last race's replay into.
-pub fn save_last_replay(race: &Race, slot: u32) -> Result<(), Refused> {
-    if crate::race::open_viewed_replay::open_viewed_replay(race, LAST_RACE)? {
+pub fn save_last_replay(
+    race: &Race,
+    system: &crate::system::owner::System,
+    slot: u32,
+) -> Result<(), Refused> {
+    if crate::race::open_viewed_replay::open_viewed_replay(race, system, LAST_RACE)? {
         return Ok(());
     }
-    crate::race::save_viewed_replay::save_viewed_replay(race, slot)?;
+    crate::race::save_viewed_replay::save_viewed_replay(race, system, slot)?;
     crate::race::close_viewed_replay::close_viewed_replay(race)
 }

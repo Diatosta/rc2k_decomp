@@ -47,8 +47,8 @@ pub fn index_of_kind(shared: &RaceShared, kind: u32) -> Result<u32, BadInput> {
 
 /// `race::set_race_screen_mode` (0x404830): `gfx::set_screen_mode` (the platform's) with
 /// `g_raceScreenMode`.
-pub fn set_race_screen_mode(gfx: &crate::gfx::owner::Gfx) {
-    crate::platform::set_mode_now(gfx.display.mode.race_mode.get(), gfx);
+pub fn set_race_screen_mode(gfx: &crate::gfx::owner::Gfx, system: &crate::system::owner::System) {
+    crate::platform::set_mode_now(gfx.display.mode.race_mode.get(), gfx, system);
 }
 
 // ---- batch 12 ----
@@ -57,8 +57,8 @@ use crate::errors::{BadInput, Refused};
 
 /// `race::release_stage_textures` (0x44E79F): `gfx::release_all_textures` (the platform's; a `call`
 /// and a `retn`).
-pub fn release_stage_textures() {
-    crate::platform_3d::release_textures();
+pub fn release_stage_textures(gfx: &crate::gfx::owner::Gfx) {
+    crate::platform_3d::release_all_textures(gfx);
 }
 
 /// `race::seal_stage_time` (0x41F29D): the first block's time (+0x88, held to 0x22550FF unsigned;

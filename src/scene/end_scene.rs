@@ -7,6 +7,6 @@
 
 /// The 3D part of a frame ended: true when a scene was open (the original then leaves
 /// nothing a caller reads).
-pub fn end_scene() -> bool {
-    crate::platform_3d::end_layer()
+pub fn end_scene(d3d: &crate::d3d::owner::D3d) -> bool {
+    crate::platform_3d::end_layer(d3d)
 }

@@ -39,6 +39,7 @@ pub fn step_loading_bar(
     race: &Race,
     system: &crate::system::owner::System,
     gfx: &crate::gfx::owner::Gfx,
+    d3d: &crate::d3d::owner::D3d,
     scene: &Scene,
     done: u32,
 ) -> Result<(), Refused> {
@@ -51,7 +52,7 @@ pub fn step_loading_bar(
         shared.vars.bar_share.set(progress);
     }
     if show == BAR {
-        crate::race::loading_bar_frame::loading_bar_frame(race, system, scene, gfx)
+        crate::race::loading_bar_frame::loading_bar_frame(race, system, scene, gfx, d3d)
     } else if show == NOTHING {
         Ok(())
     } else {

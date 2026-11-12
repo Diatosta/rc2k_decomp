@@ -161,37 +161,92 @@ pub fn table() -> Option<StringTable<'static>> {
 mod tests {
     use super::*;
 
-    /// IDA's addresses of the made texts, ids 0x1000 .. 0x103F: where the original's pointer
-    /// table sent each.
-    const IMAGE_ADDRESSES: [usize; 64] = [
-        0x52A263, 0x52A2B1, 0x52A2E7, 0xA8BD54, 0xA8BE54, 0xA8BF54, 0xA8C054, 0xA8C158, 0xA8C15C,
-        0xA8C160, 0xA8C164, 0xA8C168, 0xA8C16C, 0xA8C170, 0xA8C174, 0xA8C178, 0xA8C17C, 0x52A30F,
-        0x52A31F, 0x52A32F, 0x52A33F, 0x52A34F, 0x52A35F, 0x52A36F, 0x52A37F, 0x52A38F, 0x52A39F,
-        0x52A3AF, 0x52A3BF, 0x52A3CF, 0x52A3DF, 0x52A3EF, 0x52A3FF, 0x52A40F, 0x52A41F, 0x52A42F,
-        0x52A43F, 0x52A44F, 0x52A45F, 0x52A46F, 0x52A47F, 0x52A48F, 0x52A49F, 0x51BEEE, 0x51BF6E,
-        0x51BFEE, 0x51C06E, 0x51C0EE, 0x51C16E, 0x51C1EE, 0x51C26E, 0x51C2EE, 0x529EE8, 0x529EEA,
-        0x529EF1, 0x529EF3, 0x529F03, 0x529F25, 0x52A0B7, 0x529F1E, 0x529F46, 0x52A0E3, 0x529F51,
-        0x52A0F4,
+    /// Where the original's pointer table sent each made text, ids 0x1000 .. 0x103F: the
+    /// holder (N the notice text, B the screens' text buffers, D the drive rows, M the
+    /// installer's names, V its variables) and the text's offset in the holder.
+    const IMAGE_PLACES: [(char, usize); 64] = [
+        ('N', 0x0),
+        ('N', 0x4e),
+        ('N', 0x84),
+        ('B', 0x200),
+        ('B', 0x300),
+        ('B', 0x400),
+        ('B', 0x500),
+        ('B', 0x604),
+        ('B', 0x608),
+        ('B', 0x60c),
+        ('B', 0x610),
+        ('B', 0x614),
+        ('B', 0x618),
+        ('B', 0x61c),
+        ('B', 0x620),
+        ('B', 0x624),
+        ('B', 0x628),
+        ('D', 0x0),
+        ('D', 0x10),
+        ('D', 0x20),
+        ('D', 0x30),
+        ('D', 0x40),
+        ('D', 0x50),
+        ('D', 0x60),
+        ('D', 0x70),
+        ('D', 0x80),
+        ('D', 0x90),
+        ('D', 0xa0),
+        ('D', 0xb0),
+        ('D', 0xc0),
+        ('D', 0xd0),
+        ('D', 0xe0),
+        ('D', 0xf0),
+        ('D', 0x100),
+        ('D', 0x110),
+        ('D', 0x120),
+        ('D', 0x130),
+        ('D', 0x140),
+        ('D', 0x150),
+        ('D', 0x160),
+        ('D', 0x170),
+        ('D', 0x180),
+        ('D', 0x190),
+        ('M', 0x38e),
+        ('M', 0x40e),
+        ('M', 0x48e),
+        ('M', 0x50e),
+        ('M', 0x58e),
+        ('M', 0x60e),
+        ('M', 0x68e),
+        ('M', 0x70e),
+        ('M', 0x78e),
+        ('V', 0x13c),
+        ('V', 0x13e),
+        ('V', 0x145),
+        ('V', 0x147),
+        ('V', 0x157),
+        ('V', 0x179),
+        ('V', 0x30b),
+        ('V', 0x172),
+        ('V', 0x19a),
+        ('V', 0x337),
+        ('V', 0x1a5),
+        ('V', 0x348),
     ];
 
-    /// IDA's address of the made text `id`: its holder's first byte in the image (the notice
-    /// text, the screens' text buffers, the drive rows, the installer's names and its
-    /// variables, the last starting a byte before its range) and the text's offset in it.
-    fn image_address(id: u32) -> usize {
+    /// The holder and offset `made_place` gives the made text `id`, in the table's terms.
+    fn place_of(id: u32) -> (char, usize) {
         match made_place(id).unwrap() {
-            MadeText::Notice(at) => 0x52A263 + at,
-            MadeText::Buffers(at) => crate::screens::text_buffers_store::START + at,
-            MadeText::DriveRows(at) => crate::install::store::DriveRows::START + at,
-            MadeText::Names(at) => crate::install::vars::InstallerNames::START + at,
-            MadeText::Vars(at) => crate::install::store::InstallVars::START - 1 + at,
+            MadeText::Notice(at) => ('N', at),
+            MadeText::Buffers(at) => ('B', at),
+            MadeText::DriveRows(at) => ('D', at),
+            MadeText::Names(at) => ('M', at),
+            MadeText::Vars(at) => ('V', at),
         }
     }
 
     #[test]
     fn made_texts_are_where_the_images_pointers_named() {
-        for (n, &ida) in IMAGE_ADDRESSES.iter().enumerate() {
+        for (n, &place) in IMAGE_PLACES.iter().enumerate() {
             let id = MADE_TEXT_IDS.start + n as u32;
-            assert_eq!(image_address(id), ida, "{id:#X}");
+            assert_eq!(place_of(id), place, "{id:#X}");
         }
         let o = crate::owners::boundary();
         let (race, menus, install) = (o.race, o.menus, o.install);

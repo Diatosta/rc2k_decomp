@@ -4,7 +4,6 @@
 use crate::ffi::sdl;
 use crate::framework::log;
 use crate::race::owner_course::Course;
-use crate::system::owner::system;
 use sdl3_sys::everything::*;
 
 /// An SDL event the program looks at.
@@ -99,12 +98,12 @@ static QUIT_ASKED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool
 
 /// The installer's copy begins (`true`) or ends: a close during it sets the quit switch at
 /// its end.
-pub fn hold_quit(on: bool) {
+pub fn hold_quit(system: &crate::system::owner::System, on: bool) {
     use std::sync::atomic::Ordering::Relaxed;
     HOLD_QUIT.store(on, Relaxed);
     if !on && QUIT_ASKED.swap(false, Relaxed) {
         log("platform: the copy has ended: the quit switch is set");
-        system().session.flags.quitting.set(true);
+        system.session.flags.quitting.set(true);
         end_if_not_left();
     }
 }

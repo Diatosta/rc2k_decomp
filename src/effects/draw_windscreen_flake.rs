@@ -286,8 +286,12 @@ mod reference_vectors {
 
     /// Runs `f` with the vertex floats at `offsets` holding the test buffer's (at `at`)
     /// bytes; what `f` leaves goes back to the buffer, the vertices as they were.
-    fn staged<R>(at: usize, offsets: &[usize], f: impl FnOnce() -> R) -> R {
-        let host = |off: usize| crate::pointers::host_at(at + off).cast::<u32>();
+    fn staged<R>(
+        at: crate::effects::asm_test::Operand,
+        offsets: &[usize],
+        f: impl FnOnce() -> R,
+    ) -> R {
+        let host = |off: usize| (at + off).host().cast::<u32>();
         let saved: Vec<u32> = offsets.iter().map(|&o| vertex_cell(o).bits()).collect();
         for &o in offsets {
             vertex_cell(o).set_bits(unsafe { host(o).read_unaligned() });
@@ -341,11 +345,8 @@ mod reference_vectors {
             "effects.draw_windscreen_flake.shifted_places_x87",
             &SPEC,
             |b| {
-                let word = |off: usize| unsafe {
-                    crate::pointers::host_at(b[0] + off)
-                        .cast::<u32>()
-                        .read_unaligned()
-                };
+                let word =
+                    |off: usize| unsafe { (b[0] + off).host().cast::<u32>().read_unaligned() };
                 let item = WindscreenFlakeItem::new();
                 item.texture_u.set_bits(word(0xC));
                 item.texture_v.set_bits(word(0x10));
@@ -420,9 +421,7 @@ mod reference_vectors {
         recorded_writes("effects.draw_windscreen_flake.corners_x87", &SPEC, |b| {
             with_copy::<WindscreenFlakeTables, _>(b[0], WindscreenFlakeTables::START, |sq| {
                 let v: [[u8; 10]; 2] = std::array::from_fn(|n| {
-                    std::array::from_fn(|i| unsafe {
-                        crate::pointers::host_at(b[1] + 10 * n + i).read()
-                    })
+                    std::array::from_fn(|i| unsafe { (b[1] + 10 * n + i).host().read() })
                 });
                 super::corners_x87(&v, sq);
             });

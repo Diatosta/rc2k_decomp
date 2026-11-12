@@ -12,24 +12,31 @@
 use crate::math::x87_float::{f80, int, ld};
 use crate::physics::camera_store::CameraWork;
 use crate::race::frame_store::FrameWork;
+use crate::race::groups_store::ViewAndRecords;
 use crate::race::lights_store::LightsData;
 use crate::race::numbers_store::Numbers;
 use crate::race::owner_shared::RaceShared;
 use crate::race::view_vars_store::ViewVars;
+use crate::scene::engine_tables_store::EngineTables;
 use crate::session::Cell32;
 use rc2k_core::physics::camera_place::{SECOND_RECORD_MODE, add_offset};
 
 /// The turns: `math::rotate_point_about_y_ebx`, `_ecx` and `rotate_point_about_y`, exact or plain.
 type Turns = (
-    fn(i32, i32, i32, u32) -> [u32; 3],
-    fn(i32, i32, i32, u32) -> [u32; 3],
-    fn(i32, i32, i32, u32) -> [u32; 4],
+    fn(&EngineTables, i32, i32, i32, u32) -> [u32; 3],
+    fn(&EngineTables, i32, i32, i32, u32) -> [u32; 3],
+    fn(&EngineTables, i32, i32, i32, u32) -> [u32; 4],
 );
 
 /// The steps both versions share; `second` the second offset turned with the car.
+#[allow(
+    clippy::too_many_arguments,
+    reason = "the camera's variables, tables and records the placing reads, each its own owner part"
+)]
 fn place_with(
     camera: &CameraWork,
     lights_data: &LightsData,
+    view_records: &ViewAndRecords,
     frame_work: &FrameWork,
     shared: &RaceShared,
     turns: Turns,
@@ -42,7 +49,7 @@ fn place_with(
         &lights_data.place_usual
     };
     // Records 4, 5 and 6: the offset's y and z, then the first angle.
-    let [r4, r5, r6] = [4, 5, 6].map(ViewVars::record);
+    let [r4, r5, r6] = [4, 5, 6].map(|n| ViewVars::record(view_records, n));
     let places = [
         &r4.offset[1],
         &r4.offset[2],
@@ -78,13 +85,37 @@ fn place_with(
         ),
     ] {
         let i = |v: u32| v as i32;
-        let [new_y, new_x, _] = { turns.0(i(y), i(z), i(x), y_turn.get()) };
+        let [new_y, new_x, _] = {
+            turns.0(
+                &shared.buffers.engine_tables,
+                i(y),
+                i(z),
+                i(x),
+                y_turn.get(),
+            )
+        };
         y = new_y;
         x = new_x;
-        let [new_z, new_y, _] = { turns.1(i(z), i(x), i(y), z_turn.get()) };
+        let [new_z, new_y, _] = {
+            turns.1(
+                &shared.buffers.engine_tables,
+                i(z),
+                i(x),
+                i(y),
+                z_turn.get(),
+            )
+        };
         z = new_z;
         y = new_y;
-        let [new_x, _, new_z, _] = { turns.2(i(x), i(y), i(z), x_turn.get()) };
+        let [new_x, _, new_z, _] = {
+            turns.2(
+                &shared.buffers.engine_tables,
+                i(x),
+                i(y),
+                i(z),
+                x_turn.get(),
+            )
+        };
         x = new_x;
         z = new_z;
     }
@@ -114,6 +145,7 @@ fn place_with(
 pub fn place_camera(
     camera: &CameraWork,
     lights_data: &LightsData,
+    view_records: &ViewAndRecords,
     numbers: &Numbers,
     frame_work: &FrameWork,
     shared: &RaceShared,
@@ -134,6 +166,7 @@ pub fn place_camera(
     place_with(
         camera,
         lights_data,
+        view_records,
         frame_work,
         shared,
         (

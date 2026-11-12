@@ -89,7 +89,12 @@ pub fn run(o: crate::owners::Owners<'static>) -> Result<(), crate::errors::Refus
         return Ok(());
     }
     let scratch = crate::race::view_scratch::front_end();
-    clear_depth_buffer(scene, system, &scratch.polygon);
+    clear_depth_buffer(
+        scene,
+        system,
+        crate::workers::game_scratch(),
+        &scratch.polygon,
+    );
     assign_kind_textures(scene)?;
     pick_pictures(menus, scene)?;
     map_texture_places(scene);
@@ -100,6 +105,8 @@ pub fn run(o: crate::owners::Owners<'static>) -> Result<(), crate::errors::Refus
         race,
         scene,
         system,
+        o.net,
+        o.input,
         scratch,
         crate::workers::game_scratch(),
     );

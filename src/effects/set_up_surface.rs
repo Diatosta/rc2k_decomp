@@ -44,8 +44,16 @@ fn read(
 }
 
 /// Unlocks the surface and refuses with `why`.
-fn unlock_refusing(why: &'static str, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
-    lock(scene.textures.kinds.kind_first_textures[211].get(), false)?;
+fn unlock_refusing(
+    why: &'static str,
+    scene: &crate::scene::owner::Scene,
+    gfx: &crate::gfx::owner::Gfx,
+) -> Result<(), Refused> {
+    lock(
+        gfx,
+        scene.textures.kinds.kind_first_textures[211].get(),
+        false,
+    )?;
     Err(BadInput(why).into())
 }
 
@@ -64,12 +72,16 @@ pub fn set_up_surface(
     // The mask's copy is Rust's memory (phase 12), counted on the list as the game's
     // block was.
     let mut mask = crate::memory::owned::counted(&masks.list.list, MASK_BYTES)?;
-    lock(scene.textures.kinds.kind_first_textures[211].get(), true)?;
+    lock(
+        gfx,
+        scene.textures.kinds.kind_first_textures[211].get(),
+        true,
+    )?;
     if gfx.drawing.draw_surface.width.get() < SIDE || gfx.drawing.draw_surface.height.get() < SIDE {
-        return unlock_refusing("a surface under 256 x 256", scene);
+        return unlock_refusing("a surface under 256 x 256", scene, gfx);
     }
     if !read(&ring.names.surfmask, gfx, system)? {
-        return unlock_refusing("surfmask.pcx was not read", scene);
+        return unlock_refusing("surfmask.pcx was not read", scene, gfx);
     }
     mask[..4 * PIXELS as usize].copy_from_slice(&crate::gfx::picture::read_bytes(
         gfx.pictures.picture.buffer.get(),
@@ -77,7 +89,7 @@ pub fn set_up_surface(
         4 * PIXELS as usize,
     )?);
     if !read(&ring.names.surfdata, gfx, system)? {
-        return unlock_refusing("surfdata.pcx was not read", scene);
+        return unlock_refusing("surfdata.pcx was not read", scene, gfx);
     }
     let picture =
         crate::gfx::picture::read_bytes(gfx.pictures.picture.buffer.get(), 0, 4 * PIXELS as usize)?;
@@ -88,7 +100,11 @@ pub fn set_up_surface(
         let alpha = ((mask << 8) & 0xFF00_0000) ^ 0xFF00_0000;
         put_pixel((data & 0xFF_FFFF) | alpha, n & 0xFF, n >> 8, gfx)?;
     }
-    lock(scene.textures.kinds.kind_first_textures[211].get(), false)?;
+    lock(
+        gfx,
+        scene.textures.kinds.kind_first_textures[211].get(),
+        false,
+    )?;
     crate::scene::forget_slot_texture::forget_slot_texture(
         scene.textures.kinds.kind_first_slots[211].get(),
         scene,

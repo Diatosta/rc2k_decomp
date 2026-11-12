@@ -20,8 +20,8 @@ pub fn draw_frame(
     if crate::menu::screen_loop::quitting(o.system) {
         return Ok(());
     }
-    copy_picture()?;
-    if lock_failed(o.gfx) {
+    copy_picture(o.gfx, o.system)?;
+    if lock_failed(o.gfx, o.system) {
         return Ok(());
     }
     draw_menu(o, menu)?;

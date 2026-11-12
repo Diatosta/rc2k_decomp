@@ -63,7 +63,7 @@ pub fn replay_step(o: crate::owners::Owners<'static>, race: &Race) -> Result<(),
     race_steps::check_cars(shared.view.race_cars.get())?;
     crate::drive::choose_shown_cars::choose_shown_cars_in(race, net)?;
     crate::drive::keep_replay_frame::keep_replay_frame(race)?;
-    crate::drive::play_replay_frame::play_replay_frame(race)?;
+    crate::drive::play_replay_frame::play_replay_frame(race, o.system)?;
     if race_steps::skids_restart(
         race.car_blocks().cars[0].step_clock.bits(),
         race.car_blocks().cars[0].previous_step_clock.bits(),
@@ -86,7 +86,7 @@ pub fn replay_step(o: crate::owners::Owners<'static>, race: &Race) -> Result<(),
     crate::drive::countdown_beeps::countdown_beeps(race, o.audio)?;
     crate::drive::two_car_order::two_car_order(race)?;
     crate::drive::hold_count_tick::hold_count_tick(&race.shared);
-    crate::drive::flush_replay_if::flush_replay_if(race)?;
+    crate::drive::flush_replay_if::flush_replay_if(race, o.system)?;
     crate::drive::replay_clock_tick::replay_clock_tick(&race.replay);
     Ok(())
 }

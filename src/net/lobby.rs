@@ -124,8 +124,11 @@ pub fn co_create(class: &Bytes<16>, interface: &Bytes<16>, out: &Dword) -> u32 {
 
 /// `screens::run_frame` with the frame `frame` (`platform::run_frame_now`: the window's
 /// messages, then the frame unless the game is quitting).
-pub fn run_frame<T>(frame: impl FnOnce() -> Result<T, Refused>) -> Result<(), Refused> {
-    match crate::platform::run_frame_now(frame) {
+pub fn run_frame<T>(
+    system: &crate::system::owner::System,
+    frame: impl FnOnce() -> Result<T, Refused>,
+) -> Result<(), Refused> {
+    match crate::platform::run_frame_now(system, frame) {
         Some(done) => done.map(|_| ()),
         None => Ok(()),
     }
@@ -139,21 +142,24 @@ pub fn list_key(install: &crate::install::owner::Install) -> Result<u8, Refused>
 /// A list screen's other keys: a screenshot (R, when they are on), the lexicon.
 pub fn other_key(o: crate::owners::Owners<'static>, key: u8) -> Result<(), Refused> {
     if o.gfx.shots.on.get() != 0 && key == 0x52 {
-        crate::gfx::take_screenshot::take_screenshot(o.gfx)?;
+        crate::gfx::take_screenshot::take_screenshot(o.gfx, o.system)?;
     }
     crate::strings::maybe_compile_lexicon::maybe_compile_lexicon(o.input, o.strings, o.system)
 }
 
 /// `gfx::lock_surface`: whether it is locked (the original's carry clear).
-pub fn lock_surface(gfx: &crate::gfx::owner::Gfx) -> bool {
-    crate::platform::lock_surface(gfx) >= 1
+pub fn lock_surface(gfx: &crate::gfx::owner::Gfx, system: &crate::system::owner::System) -> bool {
+    crate::platform::lock_surface(gfx, system) >= 1
 }
 
 /// `gfx::copy_picture_to_surface`.
-pub fn copy_picture() -> Result<(), Refused> {
+pub fn copy_picture(
+    gfx: &crate::gfx::owner::Gfx,
+    system: &crate::system::owner::System,
+) -> Result<(), Refused> {
     {
         crate::gfx::copy_picture_to_surface::copy_picture_to_surface(
-            &mut crate::gfx::copy_picture_to_surface::GameSurface(crate::gfx::owner::gfx()),
+            &mut crate::gfx::copy_picture_to_surface::GameSurface(gfx, system),
         )
     }?;
     Ok(())

@@ -866,31 +866,33 @@ pub mod block_vectors {
         pub plain: fn(&[usize]),
     }
 
-    /// The memory at an operand's value (a buffer's or the race block's address) as the
-    /// Rust versions' test closures reach it: the one place the tests turn such a value
-    /// into a pointer.
+    /// The memory at a buffer operand's value (the buffer's address) as the Rust versions'
+    /// test closures reach it: the one place the tests turn such a value into a pointer.
     pub fn at(address: usize) -> *mut u8 {
-        crate::pointers::host_at(address)
+        assert!(address >= 0x1000, "no test buffer is at {address:#x}");
+        address as *mut u8
     }
 
-    /// An operand's memory: a buffer of the test's, or the race block at its offsets.
+    /// An operand's memory: a buffer of the test's, or the race block at its offsets (the
+    /// places live in the registry's stores, `test_support::race_places`).
     enum Mem {
         Buffer(Vec<u8>),
         Block,
         None,
     }
 
-    fn block_at(off: usize) -> u32 {
-        crate::framework::game_addr(off)
-    }
-
     impl Mem {
         fn get(&self, off: usize, len: usize) -> Vec<u8> {
             match self {
                 Mem::Buffer(v) => v[off..off + len].to_vec(),
-                Mem::Block => crate::pointers::GamePtr::new(block_at(off))
-                    .read_bytes(len, "a race block place")
-                    .unwrap(),
+                Mem::Block => {
+                    let (name, at) = crate::test_support::race_places::place(off);
+                    let mut bytes = vec![0; len];
+                    crate::test_support::state::store(name)
+                        .load(at, &mut bytes)
+                        .expect("a race block place");
+                    bytes
+                }
                 Mem::None => Vec::new(),
             }
         }
@@ -898,9 +900,12 @@ pub mod block_vectors {
         fn put(&mut self, off: usize, bytes: &[u8]) {
             match self {
                 Mem::Buffer(v) => v[off..off + bytes.len()].copy_from_slice(bytes),
-                Mem::Block => crate::pointers::GamePtr::new(block_at(off))
-                    .write_bytes(bytes, "a race block place")
-                    .unwrap(),
+                Mem::Block => {
+                    let (name, at) = crate::test_support::race_places::place(off);
+                    crate::test_support::state::store(name)
+                        .store(at, bytes)
+                        .expect("a race block place");
+                }
                 Mem::None => {}
             }
         }
@@ -955,7 +960,7 @@ pub mod block_vectors {
             for block in blocks {
                 let mut buffers: Vec<Mem> = Vec::new();
                 let mut args: Vec<usize> = Vec::new();
-                let mut lents: Vec<crate::pointers::Lent> = Vec::new();
+                let mut leases: Vec<super::Lease> = Vec::new();
                 // the race block's places as they were, put back after the cases
                 let mut saved: Vec<(usize, Vec<u8>)> = Vec::new();
                 for o in &block.operands {
@@ -968,21 +973,14 @@ pub mod block_vectors {
                                 .max()
                                 .unwrap_or(0);
                             let v = vec![0u8; end + 16];
-                            // Lent while the block runs: its operands are checked as game memory.
-                            let lent = crate::pointers::Lent::new(&v);
-                            args.push(lent.addr() as usize);
-                            lents.push(lent);
+                            args.push(v.as_ptr() as usize);
+                            leases.push(super::lease(&v));
                             buffers.push(Mem::Buffer(v));
                         }
                         Operand::RaceBlock { reads, writes }
                         | Operand::Buffers { reads, writes } => {
-                            args.push(match o {
-                                Operand::Buffers { .. } => crate::race::buffers_store::home()
-                                    .wrapping_sub(crate::framework::rva(
-                                        crate::race::buffers_store::START,
-                                    )),
-                                _ => crate::race::store::asm_base() as usize,
-                            });
+                            // The block's places are reached by offset, not by an address.
+                            args.push(0);
                             let places = reads
                                 .iter()
                                 .map(|&(off, k)| (off, width_in(k)))
@@ -1112,6 +1110,44 @@ pub mod block_vectors {
         }
         file.finish();
     }
+}
+
+// ---- test buffers read by the x87 operands' host addresses ----
+
+thread_local! {
+    static LEASED: std::cell::RefCell<Vec<(usize, usize)>> = const { std::cell::RefCell::new(Vec::new()) };
+}
+
+/// A test's byte buffer whose host address the plain versions take as an operand base
+/// (`scene::x87_mem`'s `Base for usize`): the operand accesses inside it are plain reads and
+/// writes of it, any other address is a game address. Ends when dropped.
+pub struct Lease(usize, usize);
+
+/// The buffer `bytes` leased to this thread.
+pub fn lease(bytes: &[u8]) -> Lease {
+    let range = (bytes.as_ptr() as usize, bytes.len());
+    LEASED.with(|l| l.borrow_mut().push(range));
+    Lease(range.0, range.1)
+}
+
+impl Drop for Lease {
+    fn drop(&mut self) {
+        LEASED.with(|l| {
+            let mut l = l.borrow_mut();
+            if let Some(i) = l.iter().rposition(|&r| r == (self.0, self.1)) {
+                l.remove(i);
+            }
+        });
+    }
+}
+
+/// Whether the `len` bytes at the host address `address` lie in a buffer leased to this thread.
+pub fn leased(address: usize, len: usize) -> bool {
+    LEASED.with(|l| {
+        l.borrow().iter().any(|&(start, n)| {
+            address >= start && address.checked_add(len).is_some_and(|e| e <= start + n)
+        })
+    })
 }
 
 // ---- single words (lane t5rest) ----

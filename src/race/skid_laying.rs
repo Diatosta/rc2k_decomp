@@ -10,8 +10,13 @@ use crate::race::owner_shared::RaceShared;
 use crate::session::Dword;
 
 /// The edges' offset for an angle (`math::rotate_point_about_y` of (0x1555, y, 0) by angle << 16).
-fn offsets(angle: u32, y: u32) -> (u32, u32) {
+fn offsets(
+    engine_tables: &crate::scene::engine_tables_store::EngineTables,
+    angle: u32,
+    y: u32,
+) -> (u32, u32) {
     let [x, _, z, _] = crate::math::rotate_point_about_y::rotate_point_about_y(
+        engine_tables,
         rc2k_core::race::skids::HALF_WIDTH,
         y as i32,
         0,
@@ -69,7 +74,7 @@ pub fn add_skid_point(race: &Race, slot: &Dword) -> Result<(), Refused> {
         place,
         frame.shadow_skids.skid_cars.get() as u16,
         |first, second| crate::scene::angle_between::angle_of(&race.course, first, second),
-        offsets,
+        |angle, y| offsets(race.engine_tables(), angle, y),
     )?;
     for (k, (now, was)) in points.iter().zip(&points_before).enumerate() {
         if now != was {

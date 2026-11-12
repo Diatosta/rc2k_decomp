@@ -9,6 +9,7 @@ use crate::effects::cell_x87::CellX87;
 use crate::math::x87_float::ld;
 use crate::math::x87_float::to_int;
 use crate::physics::camera_view::{record, share_done};
+use crate::race::groups_store::ViewAndRecords;
 use crate::race::numbers_store::Numbers;
 use crate::race::owner_shared::RaceShared;
 use crate::race::tables_store::RaceTables;
@@ -17,9 +18,10 @@ use crate::race::tables_store::RaceTables;
 pub fn ease_view_angles(
     numbers: &Numbers,
     shared: &RaceShared,
+    view_records: &ViewAndRecords,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), crate::errors::BadInput> {
-    let esi = record(&shared.car)?;
+    let esi = record(view_records, &shared.car)?;
     if esi.change_time.get() == 0 {
         return Ok(());
     }

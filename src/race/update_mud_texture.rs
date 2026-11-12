@@ -82,7 +82,7 @@ pub fn update_mud_texture(
     if texture == 0 {
         return Ok(());
     }
-    if crate::d3d::lock_texture::lock_texture(texture)?.carry {
+    if crate::d3d::lock_texture::lock_texture_in(gfx, texture)?.carry {
         return Ok(());
     }
     // The throws.

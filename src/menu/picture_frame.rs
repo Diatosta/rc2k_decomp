@@ -8,13 +8,16 @@ use crate::errors::Refused;
 
 /// Whether the frame was made (the original's carry clear): the surface
 /// locked (else no frame), the picture copied onto it, unlocked, shown.
-pub fn picture_frame(gfx: &crate::gfx::owner::Gfx) -> Result<bool, Refused> {
-    if crate::platform::lock_surface(gfx) < 1 {
+pub fn picture_frame(
+    gfx: &crate::gfx::owner::Gfx,
+    system: &crate::system::owner::System,
+) -> Result<bool, Refused> {
+    if crate::platform::lock_surface(gfx, system) < 1 {
         return Ok(false);
     }
     {
         crate::gfx::copy_picture_to_surface::copy_picture_to_surface(
-            &mut crate::gfx::copy_picture_to_surface::GameSurface(gfx),
+            &mut crate::gfx::copy_picture_to_surface::GameSurface(gfx, system),
         )
     }?;
     crate::platform::unlock_surface(gfx);

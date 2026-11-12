@@ -21,6 +21,7 @@ use crate::math::x87_float as bh;
 const PARTS: u32 = 0x11;
 
 pub fn draw_lens_flare(
+    engine_tables: &crate::scene::engine_tables_store::EngineTables,
     buffer: &crate::d3d::vertices_store::PolygonVertices,
     paths: &Paths,
     scene: &crate::scene::owner::Scene,
@@ -67,6 +68,7 @@ pub fn draw_lens_flare(
         let y = x87::times_plus_80(dy, level, cy, false);
         let x = x87::times_plus_80(dx, level, cx, true);
         draw_flare_part(
+            engine_tables,
             buffer,
             effects.frame.flare_parts.corner[k].get(),
             0,

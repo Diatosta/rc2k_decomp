@@ -29,11 +29,9 @@
 
 #![allow(unsafe_code)]
 
-use crate::d3d::owner::d3d;
 use crate::errors::FatalError;
 use crate::framework::log;
 use crate::gfx::texture_upload::TextureFormat;
-use crate::race::viewer_screen_store::texts;
 use crate::render::{Command, STATES, Target, TextureId, TextureNote};
 use rc2k_core::fatal::Context;
 use std::sync::Mutex;
@@ -267,13 +265,8 @@ struct NotedLevel {
     level: Option<(TextureId, usize, u32)>,
 }
 
-/// The noted drawing's way to the backend: nothing noted is left behind.
-fn draw_noted(pending: &mut Pending) {
-    if crate::workers::index() != 0 {
-        // The parts' drawing is put together on the game's thread: a flush here would draw
-        // this part ahead of the earlier parts.
-        crate::framework::log("platform: a flush on a drawing thread (its drawing out of order)");
-    }
+/// Part `part`'s noted drawing's way to the backend: nothing noted is left behind.
+fn draw_noted(part: &crate::workers::PartScratch, pending: &mut Pending) {
     // Room for as many as there has been: growing to them shows in a profile.
     let room = pending.noted.capacity();
     let commands = std::mem::replace(&mut pending.noted, Vec::with_capacity(room));
@@ -284,28 +277,48 @@ fn draw_noted(pending: &mut Pending) {
     if commands.is_empty() {
         return;
     }
+    if !std::ptr::eq(part, crate::workers::part_scratch(0)) {
+        // The parts' drawing is put together on the game's thread, after the first part's:
+        // drawn here, this part's would go ahead of the earlier parts'.
+        crate::framework::log("platform: a drawing part's noted drawing drawn (out of order)");
+    }
     crate::render::dump::dump_if_asked(&commands, &target);
     crate::render::dump::hash_if_asked(&commands);
     crate::render::draw(&target, commands);
 }
 
-thread_local! {
-    /// The drawing noted since the last flush. Only the game's thread notes and flushes
-    /// (fans, mode changes, the frame shown), so it is that thread's own: no lock per fan.
-    static PENDING: std::cell::RefCell<Pending> = const {
-        std::cell::RefCell::new(Pending {
+/// A drawing part's drawing noted since the last flush (`workers::PartScratch`): the
+/// first part's is the game's thread's, what is flushed (fans, mode changes, the frame
+/// shown); each other part's holds what it notes in a run until the run's end puts it
+/// after the first's (`take_noted`, `put_noted`). Only its part's thread locks it.
+pub struct Noted(std::sync::Mutex<Pending>);
+
+impl Noted {
+    pub const fn new() -> Self {
+        Self(std::sync::Mutex::new(Pending {
             into: None,
             noted: Vec::new(),
             textures: Vec::new(),
             states: None,
             level: None,
-        })
-    };
+        }))
+    }
+
+    fn lock(&self) -> std::sync::MutexGuard<'_, Pending> {
+        self.0
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+    }
+}
+
+/// The game's thread's noted drawing: the first part's.
+fn game_part() -> &'static crate::workers::PartScratch {
+    crate::workers::part_scratch(0)
 }
 
 /// Whether a noted fan reads the texture `pixels`.
 fn reads_texture(pixels: TextureId) -> bool {
-    PENDING.with_borrow(|p| p.textures.contains(&pixels))
+    game_part().noted.lock().textures.contains(&pixels)
 }
 
 /// The screen as the game has it now.
@@ -324,15 +337,16 @@ pub fn screen() -> Option<Target> {
     })
 }
 
-/// Notes `what` for the screen as it is now (the noted so far drawn first when that is
-/// another).
-fn note(what: impl FnOnce(&mut Pending) -> Command) {
+/// Notes `what` in part `part`'s drawing for the screen as it is now (the noted so far
+/// drawn first when that is another).
+fn note(part: &crate::workers::PartScratch, what: impl FnOnce(&mut Pending) -> Command) {
     let Some(into) = screen() else {
         return;
     };
-    PENDING.with_borrow_mut(|pending| {
+    {
+        let pending = &mut *part.noted.lock();
         if pending.into.is_some_and(|i| i != into) {
-            draw_noted(pending);
+            draw_noted(part, pending);
         }
         pending.into = Some(into);
         let what = what(pending);
@@ -346,27 +360,30 @@ fn note(what: impl FnOnce(&mut Pending) -> Command) {
             pending.textures.push(t.pixels);
         }
         pending.noted.push(what);
-    });
+    }
 }
 
-/// The commands noted since the last flush (a part's mark, `workers`).
-pub fn noted_len() -> usize {
-    PENDING.with_borrow(|p| p.noted.len())
+/// The commands part `part` has noted since the last flush or take (`d3d::run_states`).
+pub fn noted_len(part: &crate::workers::PartScratch) -> usize {
+    part.noted.lock().noted.len()
 }
 
-/// The commands noted from `mark` on, taken out, the states and level as the last fan had them
-/// forgotten (`workers`: each part notes as from nothing).
-pub fn take_noted_from(mark: usize) -> Vec<Command> {
-    PENDING.with_borrow_mut(|p| {
-        p.states = None;
-        p.level = None;
-        p.noted.split_off(mark.min(p.noted.len()))
-    })
+/// The commands part `part` has noted, taken out, the screen, the textures, the states and the
+/// level as the last fan had them forgotten (`workers`: each part notes as from nothing).
+pub fn take_noted(part: &crate::workers::PartScratch) -> Vec<Command> {
+    let p = &mut *part.noted.lock();
+    p.into = None;
+    p.textures.clear();
+    p.states = None;
+    p.level = None;
+    std::mem::take(&mut p.noted)
 }
 
-/// `commands` noted after those so far (`workers`), their textures with them.
+/// `commands` noted after those the game's thread has so far (`workers`), their textures
+/// with them.
 pub fn put_noted(commands: Vec<Command>) {
-    PENDING.with_borrow_mut(|p| {
+    {
+        let p = &mut *game_part().noted.lock();
         for c in &commands {
             if let Command::Fan {
                 texture: Some(t), ..
@@ -379,12 +396,13 @@ pub fn put_noted(commands: Vec<Command>) {
         p.states = None;
         p.level = None;
         p.noted.extend(commands);
-    });
+    }
 }
 
-/// Draws everything noted, the screen in tiles over the threads.
+/// Draws everything the game's thread has noted, the screen in tiles over the threads.
 pub fn flush() {
-    PENDING.with_borrow_mut(draw_noted);
+    let part = game_part();
+    draw_noted(part, &mut part.noted.lock());
 }
 
 /// A fan into the screen, with the states and the current texture
@@ -421,9 +439,9 @@ pub fn draw_fan(part: &crate::workers::PartScratch, vertices: &[crate::rasterise
     }
 }
 
-/// A render state has changed: the next fan's are read again.
-pub fn forget_states() {
-    PENDING.with_borrow_mut(|p| p.states = None);
+/// A render state of part `part` has changed: its next fan's are read again.
+pub fn forget_states(part: &crate::workers::PartScratch) {
+    part.noted.lock().states = None;
 }
 
 fn note_fan(part: &crate::workers::PartScratch, vertices: &[crate::rasteriser::Vertex]) {
@@ -452,7 +470,7 @@ fn note_fan(part: &crate::workers::PartScratch, vertices: &[crate::rasteriser::V
     {
         bounds = (f32::MIN, f32::MIN, f32::MAX, f32::MAX);
     }
-    note(|pending| Command::Fan {
+    note(part, |pending| Command::Fan {
         texture: record.and_then(|record| {
             let level = level_of(pending, surface_number(1, current, 0))?;
             let format = format_at(record.format);
@@ -744,6 +762,7 @@ fn allocate_textures(
     kind: u32,
     mips: u32,
     gfx: &crate::gfx::owner::Gfx,
+    d3d: &crate::d3d::owner::D3d,
 ) -> Result<(), FatalError> {
     let card = &gfx.card;
     let width = size_of(sizes & 0xFF).ok_or(fatal(0x80A1_8641))?;
@@ -754,7 +773,7 @@ fn allocate_textures(
     };
     let description: u32 = card.texture_tables.kind_entry(kind as usize & 0xFF);
     card.texture_tables.alpha_kind.set((kind == 3) as u32);
-    let levels = if d3d().cards.mips.get() == 1 { mips } else { 0 }.wrapping_add(1);
+    let levels = if d3d.cards.mips.get() == 1 { mips } else { 0 }.wrapping_add(1);
     if levels > LEVELS {
         return Err(fatal(0x80A1_8643));
     }
@@ -785,8 +804,9 @@ pub fn allocate_textures_for(
     kind: u32,
     mips: u32,
     gfx: &crate::gfx::owner::Gfx,
+    d3d: &crate::d3d::owner::D3d,
 ) -> (u32, u32) {
-    match allocate_textures_now(video, system, sizes, kind, mips, gfx) {
+    match allocate_textures_now(video, system, sizes, kind, mips, gfx, d3d) {
         Ok(first) => first,
         Err(e) => {
             // The registers the report shows: the original's at the call.
@@ -815,11 +835,12 @@ pub fn allocate_textures_now(
     kind: u32,
     mips: u32,
     gfx: &crate::gfx::owner::Gfx,
+    d3d: &crate::d3d::owner::D3d,
 ) -> Result<(u32, u32), FatalError> {
     flush();
     let reports: u32 = gfx.reports.on.get();
     gfx.reports.on.set(0);
-    let done = allocate_textures(video, system, sizes, kind, mips, gfx);
+    let done = allocate_textures(video, system, sizes, kind, mips, gfx, d3d);
     gfx.reports.on.set(reports);
     done?;
     Ok((
@@ -858,20 +879,11 @@ fn release_pool(pool: usize, gfx: &crate::gfx::owner::Gfx) {
     pool_vars.count.set(0);
 }
 
-/// `gfx::release_all_textures` for Rust callers, as a call by its address.
-pub fn release_textures() {
-    let gfx = crate::gfx::owner::gfx();
-    release_all_textures(gfx);
-}
-
 /// `gfx::release_all_textures`: the drawing noted flushed, both pools emptied (also what
 /// `gfx::set_screen_mode` does first).
 pub fn release_all_textures(gfx: &crate::gfx::owner::Gfx) {
     flush();
-    let text = crate::race::owner::race()
-        .viewer_panel()
-        .text(texts::SVM_RELEASE_TEXTURES);
-    crate::logfile::write_line::log_text(&text, true, 2);
+    crate::logfile::write_line::log_text(b"SVM: Release all textures", true, 2);
     release_pool(1, gfx);
     release_pool(0, gfx);
 }
@@ -935,8 +947,7 @@ const BEGIN_STATES: [(u32, u32); 12] = [
 
 /// `d3d::begin_scene` for Rust callers: the layer's states at a scene's beginning, no
 /// texture set (in drawing part `part`'s cache). It cannot fail.
-pub fn begin_layer(part: &crate::workers::PartScratch) {
-    let d3d = d3d();
+pub fn begin_layer(d3d: &crate::d3d::owner::D3d, part: &crate::workers::PartScratch) {
     d3d.cards.in_scene.set(1u32);
     for (value, state) in BEGIN_STATES
         .into_iter()
@@ -950,8 +961,7 @@ pub fn begin_layer(part: &crate::workers::PartScratch) {
 }
 
 /// `d3d::end_scene` for Rust callers: true when a scene was open and is ended.
-pub fn end_layer() -> bool {
-    let d3d = d3d();
+pub fn end_layer(d3d: &crate::d3d::owner::D3d) -> bool {
     flush();
     {
         if d3d.cards.in_scene.get() == 1 {
@@ -965,11 +975,13 @@ pub fn end_layer() -> bool {
 // ---- d3d::clear_viewport (0x44E9D9) ----
 
 /// `d3d::clear_viewport` for Rust callers: the depth buffer cleared over the rectangle
-/// `DRAW.cleared_rectangle` holds.
-pub fn clear_viewport(own: &[crate::session::Dword; 4]) {
+/// `DRAW.cleared_rectangle` holds, noted in drawing part `part`'s drawing.
+pub fn clear_viewport(part: &crate::workers::PartScratch, own: &[crate::session::Dword; 4]) {
     let [left, top, right, bottom] = crate::session::read_bits(own).map(|v| v as i32);
     let c = |v: i32| v.max(0) as usize;
-    note(|_| Command::Clear([c(left), c(top), c(right), c(bottom)]));
+    note(part, |_| {
+        Command::Clear([c(left), c(top), c(right), c(bottom)])
+    });
 }
 
 #[cfg(test)]

@@ -254,7 +254,7 @@ fn camera(race: &Race, ui: &Ui) {
     let view = (first_car(race).camera_view.get() as i32).clamp(0, 0x33) as usize;
     ui.text(format!("View {view}: {}", VIEW_NAMES[view]));
     ui.text_disabled("Changes the view's record until the stage is loaded again");
-    let Ok(record) = ViewVars::record_of(view) else {
+    let Ok(record) = ViewVars::record_of(&race.frame.view_and_records, view) else {
         ui.text("This view's record is not readable");
         return;
     };

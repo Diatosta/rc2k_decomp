@@ -19,9 +19,13 @@ pub fn apply_screen_mode(o: Owners<'static>) -> Result<(), Refused> {
     // The logic is in `rc2k_core::menu::steps::applied_mode`.
     use rc2k_core::menu::steps::{BACK_TO_MODE, TRY_CHOSEN_MODE, applied_mode};
     // `gfx::screen_mode_choices` (0x4045D6): the carry says the chosen mode was not taken.
-    let taken =
-        !crate::gfx::screen_mode_choices::screen_mode_choices_in(gfx, o.d3d, TRY_CHOSEN_MODE != 0)?
-            .carry;
+    let taken = !crate::gfx::screen_mode_choices::screen_mode_choices(
+        gfx,
+        o.d3d,
+        o.system,
+        TRY_CHOSEN_MODE != 0,
+    )?
+    .carry;
     if taken {
         crate::gfx::free_fonts::free_fonts_in_game(gfx)?;
         crate::gfx::free_glyph_tables::free_glyph_tables(gfx)?;
@@ -30,12 +34,17 @@ pub fn apply_screen_mode(o: Owners<'static>) -> Result<(), Refused> {
             gfx, system, o.menus, o.strings,
         )?;
     } else {
-        crate::gfx::screen_mode_choices::screen_mode_choices_in(gfx, o.d3d, BACK_TO_MODE != 0)?;
+        crate::gfx::screen_mode_choices::screen_mode_choices(
+            gfx,
+            o.d3d,
+            o.system,
+            BACK_TO_MODE != 0,
+        )?;
     }
     crate::race::stage_free::render3d_tidy(o.race)?;
     crate::race::stage_free::objects_tidy(o.race)?;
     // `nullsub_6`.
-    crate::race::race_end::release_textures(o.scene);
+    crate::race::race_end::release_textures(o.scene, o.gfx);
     crate::scene::set_up_front_end_scene::set_up_front_end_scene_in(o)?;
     crate::sound::play_tune_4::play_tune_4(o.sound, o.audio, o.system);
     let applied = applied_mode(taken);

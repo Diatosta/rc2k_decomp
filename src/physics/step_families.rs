@@ -168,6 +168,7 @@ pub struct LightingInputs<'a> {
     pub ground: &'a GroundWork,
     pub probe: &'a GroundProbe,
     pub vars: &'a RaceVars,
+    pub polygon_tables: &'a crate::scene::polygon_store::PolygonTables,
 }
 
 /// What the wheels' surfaces read: the car and the surface tables, the probe points' shares,
@@ -327,6 +328,7 @@ impl<'a> StepInputs<'a> {
             ground: &self.physics.ground,
             probe: &self.physics.ground_probe,
             vars: self.vars,
+            polygon_tables: &self.shared.buffers.polygon_tables,
         }
     }
 

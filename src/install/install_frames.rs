@@ -40,12 +40,13 @@ pub fn progress_frame(
     install: &'static crate::install::owner::Install,
     strings: &crate::strings::owner::Strings,
     gfx: &crate::gfx::owner::Gfx,
+    system: &crate::system::owner::System,
 ) -> Result<bool, Refused> {
     let drawing = &gfx.drawing;
     let width = bar_width(install)?;
     let mut carry = false;
     for _ in 0..2 {
-        if !lock(gfx) {
+        if !lock(gfx, system) {
             carry = true;
             continue;
         }
@@ -95,14 +96,15 @@ pub fn progress_frame(
 pub fn copying_frame(
     install: &'static crate::install::owner::Install,
     gfx: &crate::gfx::owner::Gfx,
+    system: &crate::system::owner::System,
 ) -> Result<bool, Refused> {
     let mut carry = false;
     for _ in 0..2 {
-        if !lock(gfx) {
+        if !lock(gfx, system) {
             carry = true;
             continue;
         }
-        copy_picture()?;
+        copy_picture(gfx, system)?;
         crate::install::draw_string_list::draw_string_list(
             &install.pages.texts.each_ref(),
             0,

@@ -49,8 +49,8 @@ pub fn viewer_load_stage(race: &'static Race, o: Owners<'static>) -> Result<(), 
         stage_free::render3d_tidy(race)?;
         stage_free::objects_tidy(race)?;
         // nullsub_6
-        race_end::release_textures(o.scene);
-        race_shell::set_race_screen_mode(gfx);
+        race_end::release_textures(o.scene, o.gfx);
+        race_shell::set_race_screen_mode(gfx, o.system);
 
         crate::menu::show_loading_picture::show_loading_picture_in(o.menus, o.gfx, o.system)?;
         for (to, from) in settings(race) {

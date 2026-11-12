@@ -6,7 +6,6 @@ use crate::race::owner::Race;
 use crate::race::owner_course::Course;
 use crate::race::view_state::ViewState;
 use crate::scene::draw_described_object::Description;
-use crate::scene::engine_tables_store::ENGINE_TABLES;
 use crate::scene::view_matrices::ViewMatrices;
 
 /// `race::draw_distance_settings` (0x43932A): the draw distance's level (`race().course.stage_prefs.draw_distance_level`,
@@ -49,11 +48,15 @@ pub fn draw_distance_settings(course: &Course) {
 /// the four corners blended along x and then along z, each step `imul` and `shrd` by 16;
 /// the result shifted left 8 is returned (the original kept its steps in
 /// `LIGHT_STATE.noise_samples`, read by nothing else).
-pub fn sample_noise(car: &crate::physics::car_store::Car, map: usize) -> Result<u32, BadInput> {
+pub fn sample_noise(
+    tables: &crate::scene::engine_tables_store::EngineTables,
+    car: &crate::physics::car_store::Car,
+    map: usize,
+) -> Result<u32, BadInput> {
     // Converted: `rc2k_core::race::view::sample_noise`.
     let (px, pz) = (car.camera_position[0].get(), car.camera_position[2].get());
     let refused = std::cell::Cell::new(None);
-    let noise = &ENGINE_TABLES.noise_bytes;
+    let noise = &tables.noise_bytes;
     let s = rc2k_core::race::view::sample_noise(
         |n| match noise.read_at(map + n as usize, 1, "a noise map") {
             Ok(b) => b[0],
@@ -93,7 +96,7 @@ pub fn fog_table(
         return Err(BadInput("a fog table length of 0 or past 0x1000").into());
     }
     // Converted: `rc2k_core::race::view::fog_table`.
-    let noise = sample_noise(car, 0)?;
+    let noise = sample_noise(race.engine_tables(), car, 0)?;
     let set = rc2k_core::race::view::fog_table(
         noise,
         &rc2k_core::race::view::FogSettings {
@@ -190,10 +193,20 @@ pub fn place_view(
     let first: u32 = race.course.course.camera_first.get();
     let second: u32 = race.course.course.place_heading.get();
     let back = (race.course.course.flat_depth.get()).wrapping_neg();
-    let [x1, z1, _] =
-        crate::math::rotate_point_about_y_ecx::rotate_point_about_y_ecx(back as i32, 0, 0, first);
-    let [x2, _, z2, _] =
-        crate::math::rotate_point_about_y::rotate_point_about_y(0, z1 as i32, x1 as i32, second);
+    let [x1, z1, _] = crate::math::rotate_point_about_y_ecx::rotate_point_about_y_ecx(
+        race.engine_tables(),
+        back as i32,
+        0,
+        0,
+        first,
+    );
+    let [x2, _, z2, _] = crate::math::rotate_point_about_y::rotate_point_about_y(
+        race.engine_tables(),
+        0,
+        z1 as i32,
+        x1 as i32,
+        second,
+    );
     place[0].set(place[0].get().wrapping_add(x2));
     place[1].set(place[1].get().wrapping_add(z1));
     place[2].set(place[2].get().wrapping_add(z2));
@@ -222,7 +235,12 @@ pub fn sky_matrix(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Ba
     use crate::scene::matrix;
     let angle = (race.course.stage_prefs.sky_turn.get() << 8).wrapping_neg();
     let m = &ctx.view.matrices;
-    matrix::set_turn_y(&m.turn_y_matrix, &m.turn_y_work, angle);
+    matrix::set_turn_y(
+        ctx.race.engine_tables(),
+        &m.turn_y_matrix,
+        &m.turn_y_work,
+        angle,
+    );
     let height = race.course.stage_prefs.sky_height.get() << 8;
     ctx.view.object.place[0].set(0u32);
     ctx.view.object.place[2].set(0u32);

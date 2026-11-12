@@ -149,7 +149,7 @@ pub fn upload_car_icon(
     upload.set(stored);
     // The texture locked (making it the surface): if it locked, the icon's piece
     // blitted and the texture unlocked.
-    if !crate::d3d::lock_texture::lock_texture(texture)?.carry {
+    if !crate::d3d::lock_texture::lock_texture_in(gfx, texture)?.carry {
         let piece = Piece {
             rectangle: stored.piece,
             x: stored.target_x,

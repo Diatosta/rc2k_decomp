@@ -11,7 +11,11 @@ use crate::errors::Refused;
 use crate::race::find_snapshot_number::DIGITS_AT;
 use crate::race::owner_replay::Replay;
 
-pub fn viewer_snapshot(replay: &Replay, gfx: &crate::gfx::owner::Gfx) -> Result<(), Refused> {
+pub fn viewer_snapshot(
+    replay: &Replay,
+    gfx: &crate::gfx::owner::Gfx,
+    system: &crate::system::owner::System,
+) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::viewer::next_snapshot`.
     let what = "the snapshot's digits";
     let digits: [u8; 3] = replay
@@ -26,7 +30,7 @@ pub fn viewer_snapshot(replay: &Replay, gfx: &crate::gfx::owner::Gfx) -> Result<
         .write_at(DIGITS_AT, &next, what)
         .unwrap_or_else(|e| crate::fatal::raise::end(what, e));
     // `cmp g_surfaceLocked, 1`'s carry: not locked.
-    if crate::platform::lock_surface(gfx) >= 1 {
+    if crate::platform::lock_surface(gfx, system) >= 1 {
         crate::gfx::write_screen_pcx::write_screen_pcx(
             &gfx.shots,
             Some(&replay.snapshot.text()),

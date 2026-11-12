@@ -116,6 +116,7 @@ fn refusal(
     reason = "the effects' groups and the owners"
 )]
 fn step(
+    engine_tables: &crate::scene::engine_tables_store::EngineTables,
     buffer: &crate::d3d::vertices_store::PolygonVertices,
     frame: &Frame,
     view_matrix: &[crate::session::Float; 16],
@@ -214,7 +215,14 @@ fn step(
                 );
                 effects.setup.work.fpu_status.set(s as u32);
                 if s != 0x100 {
-                    burst_particles::burst_particles(particles, ring, e, effects, sound)?;
+                    burst_particles::burst_particles(
+                        engine_tables,
+                        particles,
+                        ring,
+                        e,
+                        effects,
+                        sound,
+                    )?;
                     return Ok(true);
                 }
                 if particle(particles, e, 0x2C)? & 0x8000_0000 == 0 {
@@ -366,6 +374,7 @@ pub fn run_particles(
                 dies = s == 0x100;
                 if !dies {
                     dies = step(
+                        view.engine_tables,
                         buffer,
                         frame,
                         view.view_matrix,

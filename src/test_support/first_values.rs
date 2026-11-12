@@ -146,11 +146,20 @@ pub fn assert_store_starts_as_the_games(key: &str) {
     assert_matches(key, &store_bytes(key));
 }
 
-/// The typed block `block` (a registry store's record) holds the game's first values: the
-/// store that starts at its first byte, compared with the golden file. Takes
-/// `store::test_lock`.
-pub fn assert_block_starts_as_the_games<T>(block: &'static T) {
-    let _g = crate::store::test_lock();
+/// The store `key` holds the game's first values but for the places that hold a handle
+/// where the game has an address: each `(offset in the store, golden key)` is put back from
+/// the bytes frozen under the key before the comparison. Hold `store::test_lock`.
+pub fn assert_store_starts_as_the_games_but(key: &str, handles: &[(usize, &str)]) {
+    let mut mine = store_bytes(key);
+    for &(at, from) in handles {
+        let games = bytes(from);
+        mine[at..at + games.len()].copy_from_slice(games);
+    }
+    assert_matches(key, &mine);
+}
+
+/// The key of the registry store that starts at the typed block `block`.
+fn key_of_block<T>(block: &'static T) -> String {
     let first = std::ptr::from_ref(block).addr();
     let (key, _) = store_keys()
         .into_iter()
@@ -162,7 +171,21 @@ pub fn assert_block_starts_as_the_games<T>(block: &'static T) {
         len <= size && size <= len.next_multiple_of(4),
         "{key}: the struct's size"
     );
-    assert_store_starts_as_the_games(&key);
+    key
+}
+
+/// The typed block `block` (a registry store's record) holds the game's first values: the
+/// store that starts at its first byte, compared with the golden file. Takes
+/// `store::test_lock`.
+pub fn assert_block_starts_as_the_games<T>(block: &'static T) {
+    let _g = crate::store::test_lock();
+    assert_store_starts_as_the_games(&key_of_block(block));
+}
+
+/// `assert_store_starts_as_the_games_but` for the store that starts at the typed block.
+pub fn assert_block_starts_as_the_games_but<T>(block: &'static T, handles: &[(usize, &str)]) {
+    let _g = crate::store::test_lock();
+    assert_store_starts_as_the_games_but(&key_of_block(block), handles);
 }
 
 #[cfg(test)]

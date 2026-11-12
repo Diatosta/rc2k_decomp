@@ -7,10 +7,11 @@
 
 use crate::errors::Refused;
 use crate::race::owner::Race;
+use crate::system::owner::System;
 use rc2k_core::drive::replay_frames::written_view;
 
 // Converted: `rc2k_core::drive::replay_frames::written_view`.
-pub fn write_replay_frames(race: &Race) -> Result<(), Refused> {
+pub fn write_replay_frames(race: &Race, system: &System) -> Result<(), Refused> {
     let replay = &race.replay;
     if !race.shared.replay_file.replay_open.is_set() {
         return Ok(());
@@ -31,7 +32,7 @@ pub fn write_replay_frames(race: &Race) -> Result<(), Refused> {
         let v = written_view((cell.get() >> 8) as u8 as i8);
         cell.set(cell.get() & !0xFF00 | u32::from(v as u8) << 8);
     }
-    { crate::race::replay::write_replay_block(race, replay) }?;
+    { crate::race::replay::write_replay_block(race, system, replay) }?;
     race.viewer_buffers().block_used.set(0);
     replay.replay_view.frames_in_block.set(0);
     Ok(())

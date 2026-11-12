@@ -4,7 +4,6 @@
 //! clip), the pool of point records the clip makes, the textures' records and the objects'
 //! materials. Names are readings unless IDA's.
 
-use crate::race::owner::race;
 use crate::session::{Byte, Bytes, Dword};
 
 /// A polygon work entry (IDA's `PolygonEntry`, 0x44 bytes).
@@ -157,18 +156,6 @@ pub struct PolygonTables {
 /// The other drawing parts' copies of the work (`workers::PartScratch`).
 pub(crate) static OTHER_COPIES: [PolygonWork; crate::workers::COUNT - 1] =
     [const { crate::pointers::cells_of_bytes([0u8; WORK_LEN]) }; crate::workers::COUNT - 1];
-
-/// The tables, a field of `crate::race::owner::race().shared.buffers`.
-pub struct TablesInBuffers;
-
-impl core::ops::Deref for TablesInBuffers {
-    type Target = PolygonTables;
-    fn deref(&self) -> &PolygonTables {
-        &race().shared.buffers.polygon_tables
-    }
-}
-
-pub static POLYGON_TABLES: TablesInBuffers = TablesInBuffers;
 
 /// The work's bytes.
 const WORK_LEN: usize = core::mem::size_of::<PolygonWork>();

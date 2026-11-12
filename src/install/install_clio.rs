@@ -115,8 +115,8 @@ pub fn install_clio(
     system: &crate::system::owner::System,
     gfx: &crate::gfx::owner::Gfx,
 ) -> Result<(), Refused> {
-    if lock(gfx) {
-        copy_picture()?;
+    if lock(gfx, system) {
+        copy_picture(gfx, system)?;
         draw_string(0xBE, FONT_BE, 0x1A9, 0x113, gfx)?;
         unlock(gfx);
         show();

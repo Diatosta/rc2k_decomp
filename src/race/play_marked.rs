@@ -25,7 +25,7 @@ pub fn play_tail(
     let replay = &race.replay;
     replay.replay_view.play_end.set(play.end);
     race.shared.replay_file.viewer_stopped.set(false);
-    { crate::drive::read_replay_frame::read_replay_frame(race, play.from, play.frame) }?;
+    { crate::drive::read_replay_frame::read_replay_frame(race, o.system, play.from, play.frame) }?;
     crate::race::play_replay_range::play_replay_range(race, o)?;
     replay.replay_view.play_from_here.set(0);
     Ok(())

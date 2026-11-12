@@ -56,7 +56,7 @@ pub fn pause_until_key(race: &Race, o: crate::owners::Owners<'static>) -> Result
             continue;
         }
         hold = false;
-        input_update();
+        input_update(o);
         if shared.vars.pause_wait.get() != 0 {
             shared.vars.pause_wait.set(shared.vars.pause_wait.get() - 1);
             continue;

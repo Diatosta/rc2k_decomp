@@ -225,7 +225,7 @@ pub fn object_bytes(
             .ok_or(BadInput("an object kind past the kinds' table"))
     };
     for n in 0..0x100usize {
-        let record = &crate::scene::polygon_store::POLYGON_TABLES.texture_infos[n].words[8..];
+        let record = &race.polygon_tables().texture_infos[n].words[8..];
         let flags = record[3].get().to_le_bytes()[2];
         let record_kind = kind(record[0].get())?;
         let face_kind = if scene.objects.slots.face_counts[n].get() != 0 {

@@ -26,7 +26,7 @@
 //! the record's room (16 modes: the original would write over the constants after the record) and a size's
 //! place of 0x1000 or more when made (the original reads that far past the list).
 
-use crate::d3d::owner::{D3d, d3d};
+use crate::d3d::owner::D3d;
 use crate::errors::{BadInput, Refused};
 use crate::framework::CarryZeroFlags;
 use crate::gfx::modes::Modes;
@@ -105,14 +105,10 @@ fn modes_of(display: &Display, kind: u32) -> Option<Vec<usize>> {
 
 /// With `try_choice` (true) the choice tried, else the list made
 /// again; the flags it leaves (see the header).
-pub fn screen_mode_choices(gfx: &Gfx, try_choice: bool) -> Result<CarryZeroFlags, Refused> {
-    screen_mode_choices_in(gfx, d3d(), try_choice)
-}
-
-/// `screen_mode_choices` for a caller that holds the owners.
-pub fn screen_mode_choices_in(
+pub fn screen_mode_choices(
     gfx: &Gfx,
     d3d: &D3d,
+    system: &crate::system::owner::System,
     try_choice: bool,
 ) -> Result<CarryZeroFlags, Refused> {
     let display = &gfx.display;
@@ -164,13 +160,13 @@ pub fn screen_mode_choices_in(
                 list_mode(display, place)?,
                 display.modes.third_bits[third as usize].get(),
             );
-            let tried = crate::gfx::try_screen_mode::try_screen_mode(gfx, mode)?;
+            let tried = crate::gfx::try_screen_mode::try_screen_mode(gfx, system, d3d, mode)?;
             let worked =
                 !tried.carry && mc::kept(display.choices.mipmapping.get(), d3d.cards.mips.get());
             if worked {
-                crate::gfx::keep_race_screen_mode::keep_race_screen_mode(gfx, mode)?;
+                crate::gfx::keep_race_screen_mode::keep_race_screen_mode(gfx, system, d3d, mode)?;
             }
-            crate::platform::set_menu_mode_now(gfx);
+            crate::platform::set_menu_mode_now(gfx, system);
             if !worked {
                 return failed();
             }

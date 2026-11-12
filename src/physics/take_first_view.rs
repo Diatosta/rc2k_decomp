@@ -14,12 +14,14 @@ use crate::math::x87_float::ld;
 use crate::physics::camera_store::CameraWork;
 use crate::physics::camera_view::record;
 use crate::physics::car_store::Car;
+use crate::race::groups_store::ViewAndRecords;
 use crate::race::view_vars_store::ViewRecord;
 
 /// The exact version, for `physics::update_camera`: `s` the view's record.
 pub fn take_first_view(
     camera: &CameraWork,
     car: &Car,
+    view_records: &ViewAndRecords,
     s: &ViewRecord,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), crate::errors::BadInput> {
@@ -29,7 +31,7 @@ pub fn take_first_view(
     }
     camera.view_a_heading.set(car.car_heading.get());
     let (mut eax, mut ebx) = (car.car_pitch.get(), car.car_roll.get());
-    if record(car)?.halve_tilt.get() != 0 {
+    if record(view_records, car)?.halve_tilt.get() != 0 {
         eax = ((eax as i32) >> 1) as u32;
         ebx = ((ebx as i32) >> 1) as u32;
     }

@@ -15,7 +15,7 @@ const DIVIDE_BY_ZERO: FatalError = FatalError {
 /// `screens::run_frame` with `menu::fade_frame` (0x4A1E60): the messages, then (unless
 /// quitting) the frame.
 fn frame(o: Owners<'static>) -> Result<(), Refused> {
-    match crate::platform::run_frame_now(|| crate::menu::fade_frame::fade_frame(o)) {
+    match crate::platform::run_frame_now(o.system, || crate::menu::fade_frame::fade_frame(o)) {
         Some(made) => made.map(|_| ()),
         None => Ok(()),
     }

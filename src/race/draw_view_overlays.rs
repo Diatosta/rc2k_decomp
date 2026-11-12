@@ -11,6 +11,7 @@ pub fn draw_view_overlays(
     ctx: &crate::race::view_scratch::DrawCtx<'_>,
     system: &crate::system::owner::System,
     sound: &'static crate::sound::owner::Sound,
+    gfx: &crate::gfx::owner::Gfx,
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
     let race = ctx.race;
@@ -38,6 +39,7 @@ pub fn draw_view_overlays(
                 ..*ctx
             },
             system,
+            gfx,
             effects,
         )?;
     }

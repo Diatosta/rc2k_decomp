@@ -55,7 +55,12 @@ pub fn point_hits_car(c: &ContactInputs<'_>, point: [u32; 3], face: u32) -> Resu
     for k in 0..3 {
         contact.object_point_turned[k].set(contact.object_point_scaled[k].get());
     }
-    turn_by_heading(c.car, &contact.object_point_turned, y);
+    turn_by_heading(
+        &c.shared.buffers.engine_tables,
+        c.car,
+        &contact.object_point_turned,
+        y,
+    );
     x87_2(c.contact, c.numbers);
     let (x, z) = (
         contact.contact_point[0].bits(),

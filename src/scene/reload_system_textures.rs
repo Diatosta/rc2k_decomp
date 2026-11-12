@@ -43,6 +43,7 @@ pub fn reload_system_textures(
     race: &'static crate::race::owner::Race,
     system: &crate::system::owner::System,
     gfx: &crate::gfx::owner::Gfx,
+    d3d: &crate::d3d::owner::D3d,
     net: &crate::net::owner::Net,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
@@ -78,7 +79,7 @@ pub fn reload_system_textures(
         grading.scale.set(scale);
         grading.saturation.set(saturation);
         load_changed_texture_picture_in_game(race, gfx, texture, scene, system)?;
-        step_loading_bar(race, system, gfx, scene, texture)?;
+        step_loading_bar(race, system, gfx, d3d, scene, texture)?;
     }
     let grading = &gfx_grading;
     grading.reading.set(0u32);

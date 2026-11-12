@@ -25,7 +25,7 @@ impl CarMarks {
 
     /// The menus' (`rc2k_core::scene::shown::kind_bytes`, `scene::clear_kind_bytes`): 0 but
     /// the seventh, eighth and tenth, 999.
-    const fn menus() -> Self {
+    const fn of_menus() -> Self {
         let mut cells = [const { Dword::new(0) }; MARKS];
         cells[6] = Dword::new(999);
         cells[7] = Dword::new(999);
@@ -48,4 +48,4 @@ impl CarMarks {
 pub static NONE: CarMarks = CarMarks::new();
 
 /// Outside a race.
-pub static MENUS: CarMarks = CarMarks::menus();
+pub static MENUS: CarMarks = CarMarks::of_menus();

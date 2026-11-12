@@ -311,43 +311,57 @@ impl PageLink {
 mod tests {
     use super::*;
 
+    /// The original's address of the list `list`.
+    fn list_ida(list: ListId) -> u32 {
+        ListId::ALL.iter().find(|e| e.0 == list).unwrap().1
+    }
+
     #[test]
     fn the_original_addresses_become_the_handles_of_their_kind() {
-        let title_box = PageLink::of_ida(0x51DD98);
+        let title_box = PageLink::of_ida(BOX_IDA + 16);
         assert_eq!(title_box, PageLink::box_at(1));
         assert_eq!(
             title_box.box_offset().unwrap(),
             core::mem::offset_of!(InstallerPages, boxes) + 16
         );
         assert_eq!(
-            PageLink::of_ida(0x51D5F8),
+            PageLink::of_ida(TABLE_IDA + 4 * 25),
             PageLink::table(25),
             "the drive page's entry"
         );
         assert_eq!(
-            PageLink::of_ida(0x51D9E8),
+            PageLink::of_ida(list_ida(ListId::DrivesMore)),
             PageLink::list(ListId::DrivesMore)
         );
         assert_eq!(
-            PageLink::of_ida(0x51E8A4).font().unwrap(),
-            FontId::at(0x51E8A4)
+            PageLink::of_ida(crate::gfx::typefaces::fonts::TITLE.ida() as u32)
+                .font()
+                .unwrap(),
+            crate::gfx::typefaces::fonts::TITLE
         );
         assert!(PageLink::of_ida(PALETTE_IDA).is_blended_palette());
-        let typed = PageLink::of_ida(TYPED_IDA + 2).place().unwrap();
-        assert_eq!(
-            typed.game(),
-            crate::pointers::GamePtr::to(&crate::install::owner::install().paths.typed)
-                .addr()
-                .wrapping_add(2)
-        );
+        match PageLink::of_ida(TYPED_IDA + 2).place().unwrap() {
+            crate::place::BytePlace::Store(record, at) => {
+                assert!(std::ptr::addr_eq(
+                    record,
+                    &raw const crate::install::owner::install().paths
+                ));
+                assert_eq!(at, core::mem::offset_of!(InstallerPaths, typed) + 2);
+            }
+            _ => panic!("the typed folder is a place in the paths record"),
+        }
     }
 
     #[test]
     fn a_link_is_resolved_only_as_its_own_kind() {
         assert!(PageLink::from_raw(0).in_pages().is_err());
-        assert!(PageLink::of_ida(0x51E8A4).in_pages().is_err());
-        assert!(PageLink::of_ida(0x51DD70).font().is_err());
-        assert!(PageLink::of_ida(0x51D5C0).box_offset().is_err());
+        assert!(
+            PageLink::of_ida(crate::gfx::typefaces::fonts::TITLE.ida() as u32)
+                .in_pages()
+                .is_err()
+        );
+        assert!(PageLink::of_ida(EDIT_IDA).font().is_err());
+        assert!(PageLink::of_ida(TABLE_IDA + 4 * 11).box_offset().is_err());
         assert!(
             PageLink::from_raw(TABLE << KIND_SHIFT | TABLE_LEN)
                 .in_pages()
@@ -363,7 +377,11 @@ mod tests {
                 .in_pages()
                 .is_err()
         );
-        assert!(PageLink::of_ida(0x51DD70).edit_record().is_ok());
-        assert!(PageLink::of_ida(0x51DD40).in_pages().is_ok());
+        assert!(PageLink::of_ida(EDIT_IDA).edit_record().is_ok());
+        assert!(
+            PageLink::of_ida(list_ida(ListId::OpenInstalled))
+                .in_pages()
+                .is_ok()
+        );
     }
 }

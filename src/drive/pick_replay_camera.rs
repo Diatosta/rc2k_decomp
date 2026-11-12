@@ -14,9 +14,12 @@ use crate::race::owner::Race;
 use crate::race::view_vars_store::ViewVars;
 use rc2k_core::drive::replay_views::{MODES as MODE_COUNT, draw, fits, kept_mode, wish_kind};
 
-fn kind_of(reading: &crate::scene::reading::Reading, mode: u32) -> u32 {
+fn kind_of(race: &Race, reading: &crate::scene::reading::Reading, mode: u32) -> u32 {
     // `view_records`
-    reading.keep(ViewVars::record_of(mode as usize).map(|record| record.kind.get()))
+    reading.keep(
+        ViewVars::record_of(&race.frame.view_and_records, mode as usize)
+            .map(|record| record.kind.get()),
+    )
 }
 
 // Converted: `rc2k_core::drive::replay_views::{wish_kind, fits, draw, kept_mode}`.
@@ -28,7 +31,7 @@ pub fn pick_replay_camera(race: &Race, wish: u32) -> Result<Option<u32>, Refused
         return Ok(None);
     };
     let reading = crate::scene::reading::Reading::new();
-    let fits = |mode: u32| fits(kind, kind_of(&reading, mode));
+    let fits = |mode: u32| fits(kind, kind_of(race, &reading, mode));
     let any = (0..MODE_COUNT).any(fits);
     reading.finish()?;
     if !any {

@@ -37,13 +37,21 @@ pub fn draw_disc(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
         let table = |cell: &crate::session::Float| x87::loaded(cell);
         for (k, [a, b]) in ring_angles(t).into_iter().enumerate() {
             let n = k + 1;
-            hud.block.ring_sines[n].set(table(crate::scene::engine_tables_store::sine(a as usize)));
-            hud.block.ring_cosines[n]
-                .set(table(crate::scene::engine_tables_store::cosine(a as usize)));
-            hud.block.texture_ring_sines[n]
-                .set(table(crate::scene::engine_tables_store::sine(b as usize)));
-            hud.block.texture_ring_cosines[n]
-                .set(table(crate::scene::engine_tables_store::cosine(b as usize)));
+            hud.block.ring_sines[n].set(table(crate::scene::engine_tables_store::sine(
+                pen.engine_tables,
+                a as usize,
+            )));
+            hud.block.ring_cosines[n].set(table(crate::scene::engine_tables_store::cosine(
+                pen.engine_tables,
+                a as usize,
+            )));
+            hud.block.texture_ring_sines[n].set(table(crate::scene::engine_tables_store::sine(
+                pen.engine_tables,
+                b as usize,
+            )));
+            hud.block.texture_ring_cosines[n].set(table(
+                crate::scene::engine_tables_store::cosine(pen.engine_tables, b as usize),
+            ));
         }
         hud.block.fistp_scratch.set(t);
         for k in 0..SEGMENTS {

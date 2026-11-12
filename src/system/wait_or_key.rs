@@ -10,7 +10,7 @@ use rc2k_core::system::time::{time_up, wait_end};
 
 /// The key, 0 when the time ran out. Its one caller
 /// (`menu::championship_welcome`) reads only the key and whether there was one.
-pub fn wait_or_key(milliseconds: u32) -> u8 {
+pub fn wait_or_key(system: &crate::system::owner::System, milliseconds: u32) -> u8 {
     use crate::system::tick_count::tick_count;
     // Converted: `rc2k_core::system::time::{wait_end, time_up}`.
     let end = wait_end(tick_count(), milliseconds);
@@ -22,7 +22,7 @@ pub fn wait_or_key(milliseconds: u32) -> u8 {
         if key != 0 {
             return key;
         }
-        if crate::platform::quitting() || time_up(tick_count(), end) {
+        if system.session.flags.quitting.is_set() || time_up(tick_count(), end) {
             return 0;
         }
     }

@@ -4,8 +4,9 @@
 //! Named from the code's uses (2026-10-25); most names are readings, `unknown_*` runs are
 //! places no ported code names. `#[repr(C)]` with the image's layout, over the race block's
 //! bytes (`PHYSICS`, as `crate::race::owner::race().shared.car`) until the code reaching them by RVA from
-//! `race::store::asm_base()` is typed.
+//! the race block is typed.
 
+#[cfg(test)]
 use crate::race::owner::race;
 use crate::session::{Dword, Float};
 
@@ -548,10 +549,8 @@ impl PhysicsTables {
     /// 13: the records keep IDA's addresses as names, and `moved::point_into_homes` passes
     /// them over). A kind past the 16, or a name off the tables (or between two dwords), is
     /// refused.
-    pub fn surface_table_index(n: u32) -> Result<usize, crate::errors::BadInput> {
-        let record = race()
-            .shared
-            .physics_tables
+    pub fn surface_table_index(&self, n: u32) -> Result<usize, crate::errors::BadInput> {
+        let record = self
             .surfaces
             .get(n as usize)
             .ok_or(crate::errors::BadInput("a ground kind past the 16"))?;
@@ -613,9 +612,9 @@ mod tests {
                 image
             );
             let slot = (image as usize - PhysicsTables::TABLES) / 4;
-            assert_eq!(PhysicsTables::surface_table_index(n).unwrap(), slot);
+            assert_eq!(shared.physics_tables.surface_table_index(n).unwrap(), slot);
             assert!(slot.is_multiple_of(13) && slot < 104);
         }
-        assert!(PhysicsTables::surface_table_index(16).is_err());
+        assert!(shared.physics_tables.surface_table_index(16).is_err());
     }
 }

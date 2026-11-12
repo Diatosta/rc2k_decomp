@@ -13,6 +13,7 @@ pub fn sessions_frame(
     net: &Net,
     install: &Install,
     gfx: &crate::gfx::owner::Gfx,
+    system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
     let vars = &net.vars;
     // Converted: `rc2k_core::net::screens::sessions_title`.
@@ -23,5 +24,6 @@ pub fn sessions_frame(
         &vars.sessions,
         |n| crate::net::tables::with_session(vars, n, |s| s.name),
         gfx,
+        system,
     )
 }

@@ -13,6 +13,7 @@ use crate::menu::owner::menus;
 use crate::race::owner::Race;
 use crate::race::owner_replay::Replay;
 use crate::session::{Bytes, Dword};
+use crate::system::owner::System;
 
 /// The race record's seal key (the replay header's checksum, `race::seal_replay_header`;
 /// `race::seal_stage_time` turns the first car's time by it). It is what makes a stage time
@@ -245,9 +246,12 @@ fn write(handle: u32, bytes: &[u8]) -> (u32, bool) {
 /// `chunks_plain` is 1 they are packed (`race::pack_runs` into `g_pngInfo`, rounded up to a dword)
 /// and the packing written when smaller. Both callers write the whole replay block (`block`,
 /// 0x2810 bytes): here it is that block.
-pub fn write_replay_chunk(race: &Race, handle: u32) -> Result<(u32, bool), Refused> {
+pub fn write_replay_chunk(
+    race: &Race,
+    system: &System,
+    handle: u32,
+) -> Result<(u32, bool), Refused> {
     let shared = &race.shared;
-    let system = crate::system::owner::system();
     let block = race.viewer_buffers().block_bytes();
     if shared.replay_file.chunks_plain.get() == 1 {
         return Ok(write(handle, &block));
@@ -281,14 +285,15 @@ pub fn block_place(race: &Race, k: usize) -> Result<u32, BadInput> {
 /// `race::write_replay_block` (0x41E9A3): the block (`block`, 0x2810 bytes) written as a
 /// chunk; its offset and size (negative when packed) into the index; the file's length on; the
 /// block count on. A failed write or the index full (0x708 blocks) closes the replay.
-pub fn write_replay_block(race: &Race, replay: &Replay) -> Result<(), Refused> {
+pub fn write_replay_block(race: &Race, system: &System, replay: &Replay) -> Result<(), Refused> {
     let shared = &race.shared;
     let n = shared.replay_file.index_block_count.get();
     if n >= MOST_BLOCKS {
         return Err(BadInput("the replay's index is full already").into());
     }
     shared.replay_file.block_places[2 * n as usize].set(replay.replay_view.file_offset.get());
-    let (written, failed) = write_replay_chunk(race, shared.replay_file.replay_handle.get())?;
+    let (written, failed) =
+        write_replay_chunk(race, system, shared.replay_file.replay_handle.get())?;
     let failed = failed || {
         shared.replay_file.block_places[2 * n as usize + 1].set(written);
         // Converted: `rc2k_core::race::replay::block_written`.
@@ -301,7 +306,7 @@ pub fn write_replay_block(race: &Race, replay: &Replay) -> Result<(), Refused> {
         full
     };
     if failed {
-        close_replay(race)?;
+        close_replay(race, system)?;
     }
     Ok(())
 }
@@ -311,7 +316,7 @@ pub fn write_replay_block(race: &Race, replay: &Replay) -> Result<(), Refused> {
 /// the block written (`race::write_replay_block`) and the cursor and count back. Refuses frames
 /// past the block's room (before anything). Its one caller adds the padding frame
 /// (`REPLAY_VIEW.pad_frame`): here the frame's cells, `bytes` their size.
-pub fn add_replay_frame(race: &Race, frame: &[Dword]) -> Result<(), Refused> {
+pub fn add_replay_frame(race: &Race, system: &System, frame: &[Dword]) -> Result<(), Refused> {
     let replay = &race.replay;
     let shared = &race.shared;
     if !shared.replay_file.replay_open.is_set() {
@@ -339,7 +344,7 @@ pub fn add_replay_frame(race: &Race, frame: &[Dword]) -> Result<(), Refused> {
     }
     race.viewer_buffers().block_used.set(used + bytes);
     if full {
-        write_replay_block(race, replay)?;
+        write_replay_block(race, system, replay)?;
         race.viewer_buffers().block_used.set(0);
         replay.replay_view.frames_in_block.set(0);
     }
@@ -350,14 +355,14 @@ pub fn add_replay_frame(race: &Race, frame: &[Dword]) -> Result<(), Refused> {
 /// frame (`race::add_replay_frame`, which writes it at 100); the last block's frame count
 /// (`frames_in_block`: 100, or for the last block the frames modulo 100 plus one); the time sealed;
 /// the index ("RCIB", 0x3850 bytes) written; the file closed; `replay_open` 0, `replay_closed` 1.
-pub fn close_replay(race: &Race) -> Result<(), Refused> {
+pub fn close_replay(race: &Race, system: &System) -> Result<(), Refused> {
     let shared = &race.shared;
     let replay = &race.replay;
     if !shared.replay_file.replay_open.is_set() {
         return Ok(());
     }
     while replay.replay_view.frames_in_block.get() != 0 {
-        add_replay_frame(race, &replay.replay_view.pad_frame)?;
+        add_replay_frame(race, system, &replay.replay_view.pad_frame)?;
     }
     // Converted: `rc2k_core::race::replay::closing_frames`.
     let (frames, _, _) = rc2k_core::race::replay::closing_frames(
@@ -492,7 +497,7 @@ pub fn open_replay(race: &Race, o: crate::owners::Owners<'static>) -> Result<(),
         }
     };
     if failed {
-        close_replay(race)?;
+        close_replay(race, o.system)?;
     }
     Ok(())
 }

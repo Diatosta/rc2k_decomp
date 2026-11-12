@@ -21,16 +21,17 @@ use crate::race::owner::Race;
 use crate::race::replay_path::{last_race, replay_path};
 use crate::race::viewer::{TABLE_LEN, move_cells};
 use crate::race::viewer_buffers_store::ViewerBuffers;
+use crate::system::owner::System;
 
 /// Whether it was saved. `slot` the slot to save into.
-pub fn save_viewed_replay(race: &Race, slot: u32) -> Result<bool, Refused> {
-    let done = save(race, slot)?;
+pub fn save_viewed_replay(race: &Race, system: &System, slot: u32) -> Result<bool, Refused> {
+    let done = save(race, system, slot)?;
     race.viewer_buffers().undo_blocks.set(0);
     Ok(done)
 }
 
 /// Whether it was saved.
-fn save(race: &Race, slot: u32) -> Result<bool, Refused> {
+fn save(race: &Race, system: &System, slot: u32) -> Result<bool, Refused> {
     let replay = &race.replay;
     let shared = &race.shared;
     // Converted: `rc2k_core::race::viewer_flow::{has_blocks, SAVED_HEADER, name_offset,
@@ -92,6 +93,7 @@ fn save(race: &Race, slot: u32) -> Result<bool, Refused> {
         );
         crate::drive::read_packed::read_packed(
             race,
+            system,
             race.viewer_buffers().from_file.get(),
             crate::race::replay::block_place(race, 2 * block as usize + 1)?,
         )?;
@@ -104,8 +106,11 @@ fn save(race: &Race, slot: u32) -> Result<bool, Refused> {
         )?;
         undo_place(race.viewer_buffers(), 2 * block as usize)
             .set(replay.replay_view.file_offset.get());
-        let (written, failed) =
-            crate::race::replay::write_replay_chunk(race, race.viewer_buffers().to_file.get())?;
+        let (written, failed) = crate::race::replay::write_replay_chunk(
+            race,
+            system,
+            race.viewer_buffers().to_file.get(),
+        )?;
         if failed {
             close();
             return Ok(false);

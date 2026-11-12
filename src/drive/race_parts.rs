@@ -15,10 +15,10 @@ pub fn restart_clock(race: &Race) {
 }
 
 /// `input::update`.
-pub fn input_update() {
+pub fn input_update(o: crate::owners::Owners<'static>) {
     crate::write_watch::frame_begun();
     let _step = crate::write_watch::step("input");
-    crate::input::keys::update_input(&mut crate::input::keys::game_screenshot);
+    crate::input::keys::update_input(o);
 }
 
 /// `input::take_key` (the key taken and dropped).

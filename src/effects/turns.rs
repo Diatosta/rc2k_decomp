@@ -140,24 +140,24 @@ mod reference_vectors {
     use crate::session::PlainFloat;
 
     /// The `N` bytes of the test buffer at `at`.
-    fn bytes<const N: usize>(at: usize) -> [u8; N] {
-        std::array::from_fn(|n| unsafe { crate::pointers::host_at(at + n).read() })
+    fn bytes<const N: usize>(at: crate::effects::asm_test::Operand) -> [u8; N] {
+        std::array::from_fn(|n| unsafe { (at + n).host().read() })
     }
 
     /// The test buffer's dword at `at` as a float cell.
-    fn cell(at: usize) -> PlainFloat {
+    fn cell(at: crate::effects::asm_test::Operand) -> PlainFloat {
         PlainFloat::from_bits(u32::from_le_bytes(bytes::<4>(at)))
     }
 
     /// `data` into the test buffer at `at`.
-    fn put(at: usize, data: &[u8]) {
+    fn put(at: crate::effects::asm_test::Operand, data: &[u8]) {
         for (n, &b) in data.iter().enumerate() {
-            unsafe { crate::pointers::host_at(at + n).write(b) };
+            unsafe { (at + n).host().write(b) };
         }
     }
 
     /// The two ten-byte inputs at the test buffer's `at` (0 and 0xA).
-    fn pair(at: usize) -> [[u8; 10]; 2] {
+    fn pair(at: crate::effects::asm_test::Operand) -> [[u8; 10]; 2] {
         [bytes::<10>(at), bytes::<10>(at + 0xA)]
     }
 

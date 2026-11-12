@@ -54,7 +54,7 @@ impl Default for OwnRun {
 pub fn begin_run(part: &PartScratch, start: &crate::d3d::render_cache::Cache) {
     crate::d3d::render_cache::begin(part, start);
     let run = &part.run;
-    run.base.store(crate::platform_3d::noted_len(), Relaxed);
+    run.base.store(crate::platform_3d::noted_len(part), Relaxed);
     for f in &run.first_set {
         f.store(usize::MAX, Relaxed);
     }
@@ -81,7 +81,7 @@ pub fn note_set(part: &PartScratch, state: usize) {
     let run = &part.run;
     if run.on.load(Relaxed) && state < STATES && run.first_set[state].load(Relaxed) == usize::MAX {
         run.first_set[state].store(
-            crate::platform_3d::noted_len().saturating_sub(run.base.load(Relaxed)),
+            crate::platform_3d::noted_len(part).saturating_sub(run.base.load(Relaxed)),
             Relaxed,
         );
     }

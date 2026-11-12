@@ -125,6 +125,7 @@ pub fn try_allocate_textures_in_game(
     shared: &RaceShared,
     scene: &Scene,
     gfx: &crate::gfx::owner::Gfx,
+    d3d: &crate::d3d::owner::D3d,
 ) -> Result<bool, BadInput> {
     try_allocate_textures(shared, scene, &mut |call| {
         match call {
@@ -140,6 +141,7 @@ pub fn try_allocate_textures_in_game(
                     ask.pixel_kind,
                     ask.mips,
                     gfx,
+                    d3d,
                 );
                 return Some(if ask.video { video } else { system });
             }

@@ -9,9 +9,10 @@
 
 use crate::errors::Refused;
 use crate::race::owner::Race;
+use crate::system::owner::System;
 
 /// Whether it stopped.
-pub fn step_viewed_replay(race: &Race) -> Result<bool, Refused> {
+pub fn step_viewed_replay(race: &Race, system: &System) -> Result<bool, Refused> {
     let replay = &race.replay;
     let shared = &race.shared;
     let stop = |at_end: bool| {
@@ -38,7 +39,8 @@ pub fn step_viewed_replay(race: &Race) -> Result<bool, Refused> {
         Step::PlayEnd { .. } => return Ok(stop(false)),
         Step::On { block, frame, read } => {
             if read {
-                let failed = crate::drive::read_replay_frame::read_replay_frame(race, block, 0)?;
+                let failed =
+                    crate::drive::read_replay_frame::read_replay_frame(race, system, block, 0)?;
                 if failed {
                     return Ok(stop(true));
                 }

@@ -3,6 +3,7 @@
 //! numbers and the lights' data (`race::copy_lights_data` lays the last in from `ldata`).
 //! Names are readings unless IDA's.
 
+#[cfg(test)]
 use crate::race::owner::race;
 use crate::session::Dword;
 
@@ -48,7 +49,12 @@ impl LightRecords {
     /// model `index`. The original does not bound the index: the place after the 34 records
     /// (the one a kind none of the known ones gets) reads on into the gear figures, where the
     /// record's groups fall on the test drive's speed samples; anything further is refused.
-    pub fn group_at(&self, index: u32, offset: u32) -> Result<u32, crate::errors::BadInput> {
+    pub fn group_at(
+        &self,
+        gear: &crate::physics::gear_store::GearFigures,
+        index: u32,
+        offset: u32,
+    ) -> Result<u32, crate::errors::BadInput> {
         const PAST: &str = "a model's record past the light records";
         let group = (offset / 4) as usize;
         match index.checked_sub(self.records.len() as u32) {
@@ -63,11 +69,7 @@ impl LightRecords {
                 let sample = (0x58 + offset - 4)
                     .checked_sub(0x38)
                     .ok_or(crate::errors::BadInput(PAST))?;
-                race()
-                    .frame
-                    .lights_and_gear
-                    .gear
-                    .test_speeds
+                gear.test_speeds
                     .get((sample / 4) as usize)
                     .map(crate::session::Float::bits)
                     .ok_or(crate::errors::BadInput(PAST))
@@ -125,12 +127,13 @@ mod tests {
     #[test]
     fn a_record_past_the_last_reads_on_into_the_gear_figures_and_no_further() {
         // The longest read: a group number of the kind past the 34 (load_object).
-        assert!(LIGHT_RECORDS.group_at(34, 0x3C).is_ok());
+        let gear = &race().frame.lights_and_gear.gear;
+        assert!(LIGHT_RECORDS.group_at(gear, 34, 0x3C).is_ok());
         assert_eq!(
-            LIGHT_RECORDS.group_at(34, 0).ok(),
+            LIGHT_RECORDS.group_at(gear, 34, 0).ok(),
             Some(race().frame.lights_and_gear.gear.test_speeds[7].bits())
         );
-        assert!(LIGHT_RECORDS.group_at(35, 0).is_err());
-        assert!(LIGHT_RECORDS.group_at(1, 0x1000).is_err());
+        assert!(LIGHT_RECORDS.group_at(gear, 35, 0).is_err());
+        assert!(LIGHT_RECORDS.group_at(gear, 1, 0x1000).is_err());
     }
 }

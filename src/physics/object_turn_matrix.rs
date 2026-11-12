@@ -16,6 +16,7 @@ use crate::race::matrices_store::SceneMatrices;
 use crate::scene::matrix::{multiply_matrices, set_turn_x, set_turn_y};
 
 pub fn object_turn_matrix(
+    engine_tables: &crate::scene::engine_tables_store::EngineTables,
     contact: &ContactWork,
     matrices: &SceneMatrices,
     scene: &crate::scene::owner::Scene,
@@ -26,6 +27,7 @@ pub fn object_turn_matrix(
         return Err(BadInput("an object past 0xFF").into());
     }
     set_turn_y(
+        engine_tables,
         &matrices.turn_y_matrix,
         &scene.drawing.scene.turn_y_work,
         drawing.object_work.angles[0].get().wrapping_neg(),
@@ -41,18 +43,21 @@ pub fn object_turn_matrix(
     }
     if drawing.object_work.angles[1].get() != 0 {
         set_turn_y(
+            engine_tables,
             &matrices.turn_y_matrix,
             &scene.drawing.scene.turn_y_work,
             drawing.object_work.angles[2].get().wrapping_neg(),
         );
         multiply_matrices(&out, &turn_y, &lit);
         set_turn_x(
+            engine_tables,
             &matrices.turn_x_matrix,
             &scene.drawing.scene.turn_x_work,
             drawing.object_work.angles[1].get().wrapping_neg(),
         );
         multiply_matrices(&lit, &turn_x, &turned);
         set_turn_y(
+            engine_tables,
             &matrices.turn_y_matrix,
             &scene.drawing.scene.turn_y_work,
             drawing.object_work.angles[2].get(),

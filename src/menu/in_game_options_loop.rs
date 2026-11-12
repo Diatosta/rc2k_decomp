@@ -21,7 +21,7 @@ fn set_up_first(entry: &Entry) -> Result<(), Refused> {
     prepare_scene(entry);
     screens.flow.turning.set(0x1u32);
     screens.state.carousel.menu.set(0x11u32);
-    carousel(None)?;
+    carousel(entry, None)?;
     let item = screens.items.current[slot::IN_GAME_OPTIONS].get();
     screens.loop_flags.item.set(item);
     screens.state.carousel.front.set(item.wrapping_sub(1));

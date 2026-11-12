@@ -129,7 +129,7 @@ pub fn lobby_loop(o: Owners<'static>) -> Result<u32, Refused> {
         net.vars.stage_item.set(0);
     }
     loop {
-        run_frame(|| crate::net::lobby_frame::lobby_frame(o))?;
+        run_frame(o.system, || crate::net::lobby_frame::lobby_frame(o))?;
         let tick = crate::system::tick_count::tick_count();
         if (tick
             .wrapping_sub(net.edit().clock_a.get())

@@ -39,6 +39,7 @@ fn corners(course: &Course, face: u32) -> Result<[u32; 4], Refused> {
 /// `wall_heading`; (0, 0, 1) turned by it (`math::rotate_float_point_about_y`) goes into
 /// `contact_normal`. Returns the leftover register values of the original's code.
 pub fn edge_normal(
+    engine_tables: &crate::scene::engine_tables_store::EngineTables,
     contact: &ContactWork,
     course: &Course,
     physics_tables: &PhysicsTables,
@@ -68,7 +69,15 @@ pub fn edge_normal(
         .set(drawing.scene.scratch.get() & 0xFFFF);
     let heading = (drawing.scene.scratch.get() << 16).wrapping_add(0x4000_0000);
     physics_tables.wall_heading.set(heading);
-    let out = { rotate_float_point_about_y(ZERO, ZERO, course.numbers.one.bits(), heading) };
+    let out = {
+        rotate_float_point_about_y(
+            engine_tables,
+            ZERO,
+            ZERO,
+            course.numbers.one.bits(),
+            heading,
+        )
+    };
     contact.contact_normal[0].set_bits(out[0]);
     contact.contact_normal[1].set_bits(out[1]);
     contact.contact_normal[2].set_bits(out[2]);
@@ -89,7 +98,15 @@ pub fn steps(c: &ContactInputs<'_>, scene: &crate::scene::owner::Scene) -> Resul
     walls::check_probe(n)?;
     c.contact.wall_edge_from.set(from);
     c.contact.wall_edge_to.set(to);
-    edge_normal(c.contact, c.course, c.tables, to, from, scene)?;
+    edge_normal(
+        &c.shared.buffers.engine_tables,
+        c.contact,
+        c.course,
+        c.tables,
+        to,
+        from,
+        scene,
+    )?;
     copy_cells(&c.contact.contact_car_speed, &c.car.velocity);
     copy_cells(&c.contact.contact_turn_speed, &c.car.spin);
     let n = n as usize;

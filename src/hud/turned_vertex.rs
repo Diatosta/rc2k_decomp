@@ -14,7 +14,13 @@ use rc2k_core::hud::disc;
 /// turned by `angle`. that goes to `g_scratchY` alone, which is written before it is read
 /// everywhere: 0 here.
 // Converted: `rc2k_core::hud::disc::{turned_texture, turned_place, white_under}`
-pub fn turned_vertex(hud: &Hud, vertex: &Vertex, angle: u32, point: [f64; 2]) {
+pub fn turned_vertex(
+    engine_tables: &crate::scene::engine_tables_store::EngineTables,
+    hud: &Hud,
+    vertex: &Vertex,
+    angle: u32,
+    point: [f64; 2],
+) {
     let [y, x] = point.map(|v| v as f32);
     hud.block.point[1].set(y.to_bits());
     hud.block.point[0].set(x.to_bits());
@@ -25,7 +31,8 @@ pub fn turned_vertex(hud: &Hud, vertex: &Vertex, angle: u32, point: [f64; 2]) {
     vertex
         .v
         .set(disc::turned_texture(y, hud.block.uv_shift[1].get(), scale));
-    let [tx, _, tz, _] = rotate_float_point_about_y_plain(x.to_bits(), 0, y.to_bits(), angle);
+    let [tx, _, tz, _] =
+        rotate_float_point_about_y_plain(engine_tables, x.to_bits(), 0, y.to_bits(), angle);
     hud.block.point[1].set(tz);
     hud.block.point[0].set(tx);
     let size = hud.block.needle_size.get();

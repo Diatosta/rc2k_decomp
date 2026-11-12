@@ -27,15 +27,18 @@ pub fn run_listed(o: Owners<'static>, list: &ListCell) -> Result<(), Refused> {
 }
 
 /// `gfx::lock_surface`'s carry: the surface could not be locked.
-pub fn lock_failed(gfx: &crate::gfx::owner::Gfx) -> bool {
-    lock_surface(gfx) < 1
+pub fn lock_failed(gfx: &crate::gfx::owner::Gfx, system: &crate::system::owner::System) -> bool {
+    lock_surface(gfx, system) < 1
 }
 
 /// `gfx::copy_picture_to_surface` (0x4060E3): the background.
-pub fn copy_picture() -> Result<(), Refused> {
+pub fn copy_picture(
+    gfx: &crate::gfx::owner::Gfx,
+    system: &crate::system::owner::System,
+) -> Result<(), Refused> {
     {
         crate::gfx::copy_picture_to_surface::copy_picture_to_surface(
-            &mut crate::gfx::copy_picture_to_surface::GameSurface(crate::gfx::owner::gfx()),
+            &mut crate::gfx::copy_picture_to_surface::GameSurface(gfx, system),
         )
     }?;
     Ok(())
@@ -57,18 +60,18 @@ pub fn frame_callback(
 ) -> Result<bool, Refused> {
     let menus = o.menus;
     let play = &menus.play;
-    if lock_failed(o.gfx) {
+    if lock_failed(o.gfx, o.system) {
         return Ok(false);
     }
-    copy_picture()?;
+    copy_picture(o.gfx, o.system)?;
     draw_menu(o, menu)?;
     run_listed(o, &o.menus.screens.flow.draw_list)?;
     unlock_surface(o.gfx);
     o.scene.lights.state.scene_state.set_bits(4u32);
-    crate::scene::begin_scene::begin_scene(o.race, crate::workers::game_scratch());
+    crate::scene::begin_scene::begin_scene(o.race, o.d3d, crate::workers::game_scratch());
     run_listed(o, &o.menus.screens.flow.scene_list)?;
-    crate::scene::end_scene::end_scene();
-    if lock_failed(o.gfx) {
+    crate::scene::end_scene::end_scene(o.d3d);
+    if lock_failed(o.gfx, o.system) {
         return Ok(false);
     }
     run_listed(o, &o.menus.screens.flow.overlay_list)?;

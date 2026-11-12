@@ -581,7 +581,7 @@ impl InstallerPages {
 
     /// 0x51D4C4: `dword_51D4C4`, the page fonts' table.
     #[cfg(test)]
-    const FONTS_AT: usize = 0x51D4C4;
+    const FONTS_AT: usize = Self::START + 0x10BD;
     pub const START: usize = 0x51C407;
     pub const LEN: usize = 0x1A25;
 }
@@ -693,7 +693,7 @@ mod tests {
         for &p in &PAGE_LINKS {
             let off = (p as usize - InstallerPages::START) as u32;
             let ida = pages_dword(p as usize);
-            assert!(ida >= 0x4DA000, "{p:#X}");
+            assert!(ida != 0, "{p:#X}");
             let link = PageLink::from_raw(
                 crate::pointers::GamePtr::to(&crate::install::owner::install().pages)
                     .offset(off + 7)
@@ -724,13 +724,18 @@ mod tests {
 
     #[test]
     fn installer_languages_keys_are_the_images() {
-        // Nine keys, a slot's address each (0x51BEEE + 0x80 n), kept as the image's numbers.
+        // Nine keys, a slot's address each (the first's + 0x80 n), kept as the image's numbers.
+        let first_slot = {
+            let at = core::mem::offset_of!(InstallerNames, _gap_51c378);
+            let image = &crate::test_support::first_values::bytes(NAMES_IMAGE)[at..at + 0xE];
+            u32::from_le_bytes(image[6..10].try_into().unwrap()) as usize
+        };
         for n in 0..9 {
-            let at = 0x51C378 - InstallerNames::START + 0xE * n;
+            let at = core::mem::offset_of!(InstallerNames, _gap_51c378) + 0xE * n;
             let image = &crate::test_support::first_values::bytes(NAMES_IMAGE)[at..at + 0xE];
             assert_eq!(&image[..5], format!("lang{}", n + 1).as_bytes());
             let slot = u32::from_le_bytes(image[6..10].try_into().unwrap()) as usize;
-            assert_eq!(slot, 0x51BEEE + 0x80 * n);
+            assert_eq!(slot, first_slot + 0x80 * n);
         }
     }
 

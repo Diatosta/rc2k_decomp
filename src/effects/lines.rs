@@ -11,7 +11,6 @@ use crate::math::x87;
 use crate::memory::owned::Owned;
 use crate::race::effects_settings_store::{CarEffects, EffectsSettings};
 use crate::race::owner_course::Course;
-use crate::scene::object_slots_store::ObjectTables;
 use crate::scene::objects::FACES;
 use crate::scene::owner::Scene;
 use crate::session::{Dword, PlainBytes, PlainDword, PlainFloat};
@@ -158,10 +157,16 @@ impl core::Blocks for GameBlocks<'_> {
         ]
     }
     fn face_count(&self, object: u32) -> u32 {
-        ObjectTables::slot_value(&self.2.objects.slots.face_counts, object as usize)
+        self.2
+            .objects
+            .slots
+            .slot_value(&self.2.objects.slots.face_counts, object as usize)
     }
     fn first_face(&self, object: u32) -> u32 {
-        ObjectTables::slot_value(&self.2.objects.slots.first_face, object as usize)
+        self.2
+            .objects
+            .slots
+            .slot_value(&self.2.objects.slots.first_face, object as usize)
     }
 }
 
@@ -382,7 +387,7 @@ pub fn set_up_blocks(
         for cell in block.factors.iter().chain(&block.kept_factors) {
             cell.set_bits(u32::MAX);
         }
-        let points: u32 = ObjectTables::slot_value(
+        let points: u32 = scene.objects.slots.slot_value(
             &scene.objects.slots.point_counts,
             block.object.get() as usize,
         );

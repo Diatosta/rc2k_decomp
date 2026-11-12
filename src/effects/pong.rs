@@ -429,28 +429,31 @@ impl Pong {
     }
 }
 
-/// A test buffer standing for the marks' block at `mk` (IDA 0x764F40): the court's state
-/// in it, as the x87 blocks' differential tests give it to the typed versions.
+/// The court's state in the test buffer `mk` standing for the marks' block, as the x87
+/// blocks' differential tests give it to the typed versions.
 #[cfg(test)]
-pub fn state_at(mk: usize) -> &'static PongState {
+pub fn state_at(mk: crate::effects::asm_test::Operand) -> &'static PongState {
     unsafe {
-        &*(crate::pointers::host_at(
-            mk.wrapping_add(PongState::START)
-                .wrapping_sub(crate::effects::store::START),
-        ) as *const PongState)
+        &*(mk
+            .at(
+                PongState::START.wrapping_sub(crate::effects::store::START),
+                size_of::<PongState>(),
+            )
+            .cast::<PongState>())
     }
 }
 
 /// The court's constants in the same buffer, copied out (they sit 2 bytes off a four in the
-/// image's addresses, so the buffer's copy of them is not aligned for the cells).
+/// block's layout, so the buffer's copy of them is not aligned for the cells).
 #[cfg(test)]
-pub fn rules_at(mk: usize) -> PongRules {
+pub fn rules_at(mk: crate::effects::asm_test::Operand) -> PongRules {
     unsafe {
-        (crate::pointers::host_at(
-            mk.wrapping_add(PongRules::START)
-                .wrapping_sub(crate::effects::store::START),
-        ) as *const PongRules)
-            .read_unaligned()
+        mk.at(
+            PongRules::START.wrapping_sub(crate::effects::store::START),
+            size_of::<PongRules>(),
+        )
+        .cast::<PongRules>()
+        .read_unaligned()
     }
 }
 
@@ -589,17 +592,17 @@ use crate::math::x87_float as bh;
 #[cfg(test)]
 mod reference_vectors {
     use crate::effects::asm_test::Kind::*;
-    use crate::effects::asm_test::{Op, Spec, recorded_writes};
-    use crate::pointers::{read_or_end, write_or_end};
+    use crate::effects::asm_test::{Op, Operand, Spec, recorded_writes};
+    use crate::scene::x87_mem::Base;
 
     /// The float at `base + off` of a test buffer.
-    fn at(base: usize, off: usize) -> u32 {
-        read_or_end(base.wrapping_add(off) as u32, "a test operand")
+    fn at(base: Operand, off: usize) -> u32 {
+        base.dword(off)
     }
 
     /// The status word written as `fnstsw` does.
-    fn put(base: usize, status: u16) {
-        write_or_end(base as u32, status, "a test status");
+    fn put(base: Operand, status: u16) {
+        base.set_word(0, status);
     }
 
     #[test]

@@ -289,7 +289,7 @@ mod reference_vectors {
             sincos: false,
         };
         recorded_writes("effects.run_rain.box_moved_x87", &SPEC, |b| {
-            with_state_at(b[0], |r, k| super::box_moved_x87(b[1] / 12, r, k));
+            with_state_at(b[0], |r, k| super::box_moved_x87(b[1].number() / 12, r, k));
         });
     }
 
@@ -368,7 +368,7 @@ mod reference_vectors {
             sincos: false,
         };
         recorded_writes("effects.run_rain.keep_y_x87", &SPEC, |b| {
-            with_state_at(b[0], |r, _| super::keep_y_x87(b[1] / 12, r));
+            with_state_at(b[0], |r, _| super::keep_y_x87(b[1].number() / 12, r));
         });
     }
 }

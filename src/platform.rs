@@ -28,7 +28,6 @@ use crate::ffi::sdl;
 use crate::framework::log;
 use crate::gfx::describe_format::describe_format;
 use crate::gfx::set_clip::set_clip;
-use crate::system::owner::system;
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
 
@@ -59,15 +58,14 @@ pub(crate) static SHOWN: AtomicU32 = AtomicU32::new(0);
 pub static FRAMES_TO_SHOW: AtomicU32 = AtomicU32::new(0);
 static LAST_SHOWN: AtomicUsize = AtomicUsize::new(0);
 
-pub fn quitting() -> bool {
-    system().session.flags.quitting.is_set()
-}
-
 // ---- gfx::choose_screen_modes (0x404481) ----
 
 /// `gfx::choose_screen_modes`: the menus' and the race's modes (the kept ones, else the
 /// original's choices in order) and the graphics options' choices. Fails (the error the caller makes fatal error 0x90201101) when no mode works.
-pub fn choose_screen_modes(gfx: &crate::gfx::owner::Gfx) -> Result<(), crate::errors::FatalError> {
+pub fn choose_screen_modes(
+    o: crate::owners::Owners<'static>,
+) -> Result<(), crate::errors::FatalError> {
+    let gfx = o.gfx;
     let gfx_display = &gfx.display;
     {
         // Converted: `rc2k_core::gfx::screen_modes::choose`. A mode works here when the
@@ -104,7 +102,7 @@ pub fn choose_screen_modes(gfx: &crate::gfx::owner::Gfx) -> Result<(), crate::er
     // The graphics options' choices made, as the original ends (`loc_4045CA`): the list
     // the options page shows its resolution from (not made yet at the start, so made
     // whatever the caller holds).
-    let made = crate::gfx::screen_mode_choices::screen_mode_choices(gfx, false);
+    let made = crate::gfx::screen_mode_choices::screen_mode_choices(gfx, o.d3d, o.system, false);
     if let Err(e) = made {
         log(&format!(
             "platform: the screen mode choices are not made: {e:?}"
@@ -115,8 +113,11 @@ pub fn choose_screen_modes(gfx: &crate::gfx::owner::Gfx) -> Result<(), crate::er
 
 // ---- gfx::set_screen_mode (0x404B63) ----
 
-fn set_screen_mode(mode: u32, gfx: &crate::gfx::owner::Gfx) -> Result<(), String> {
-    let system = system();
+fn set_screen_mode(
+    mode: u32,
+    gfx: &crate::gfx::owner::Gfx,
+    system: &crate::system::owner::System,
+) -> Result<(), String> {
     gfx.display.mode.mode_flags.set(mode);
     use crate::gfx::modes::Modes;
     use core::mem::offset_of;
@@ -264,10 +265,14 @@ fn set_screen_mode(mode: u32, gfx: &crate::gfx::owner::Gfx) -> Result<(), String
 }
 
 /// `gfx::set_screen_mode`: the screen in `mode`; false (and logged) if it cannot be.
-pub fn set_mode_now(mode: u32, gfx: &crate::gfx::owner::Gfx) -> bool {
+pub fn set_mode_now(
+    mode: u32,
+    gfx: &crate::gfx::owner::Gfx,
+    system: &crate::system::owner::System,
+) -> bool {
     // The 3D drawing noted so far, before the screen is shown, written or changed.
     crate::platform_3d::flush();
-    let done = set_screen_mode(mode, gfx);
+    let done = set_screen_mode(mode, gfx, system);
     if let Err(why) = &done {
         log(&format!("platform: screen mode {mode:#x}: {why}"));
     }
@@ -278,11 +283,14 @@ pub fn set_mode_now(mode: u32, gfx: &crate::gfx::owner::Gfx) -> bool {
 
 /// `gfx::set_menu_screen_mode`: `gfx::set_screen_mode` with the menus' mode; false (and
 /// logged) if it cannot be.
-pub fn set_menu_mode_now(gfx: &crate::gfx::owner::Gfx) -> bool {
+pub fn set_menu_mode_now(
+    gfx: &crate::gfx::owner::Gfx,
+    system: &crate::system::owner::System,
+) -> bool {
     // The 3D drawing noted so far, before the screen is shown, written or changed.
     crate::platform_3d::flush();
     let mode = gfx.display.mode.menu_mode.get();
-    let done = set_screen_mode(mode, gfx);
+    let done = set_screen_mode(mode, gfx, system);
     if let Err(why) = &done {
         log(&format!("platform: screen mode {mode:#x}: {why}"));
     }
@@ -293,12 +301,11 @@ pub fn set_menu_mode_now(gfx: &crate::gfx::owner::Gfx) -> bool {
 
 /// `gfx::lock_surface`: the surface locked for drawing (unless quitting or there is no
 /// screen); the locked flag is 1 after it.
-pub fn lock_surface(gfx: &crate::gfx::owner::Gfx) -> u32 {
-    let system = system();
+pub fn lock_surface(gfx: &crate::gfx::owner::Gfx, system: &crate::system::owner::System) -> u32 {
     // The 3D drawing noted so far, before the screen is shown, written or changed.
     crate::platform_3d::flush();
     let have = SCREEN.lock().is_ok_and(|screen| screen.is_some());
-    if !quitting() && have {
+    if !system.session.flags.quitting.is_set() && have {
         gfx.locked.surface.set(1);
         // The surface the blitters draw on, and the clip rectangle.
         let s = &gfx.drawing.draw_surface;
@@ -452,7 +459,7 @@ pub fn frame_counters() -> [u64; 5] {
 /// The screen's width and height.
 #[cfg(debug_ui)]
 pub fn screen_size() -> (u32, u32) {
-    let system = system();
+    let system = crate::system::owner::system();
     (
         system.session.screen.width.get(),
         system.session.screen.height.get(),
@@ -462,7 +469,7 @@ pub fn screen_size() -> (u32, u32) {
 /// The screen's pixels (its width times its height).
 #[cfg(debug_ui)]
 pub fn screen_pixels() -> u64 {
-    let system = system();
+    let system = crate::system::owner::system();
     u64::from(system.session.screen.width.get()) * u64::from(system.session.screen.height.get())
 }
 
@@ -548,9 +555,16 @@ pub fn pump_messages_now() {
 }
 
 /// `screens::run_frame` for Rust callers with a frame of their own (the screen loops): the messages, then the frame unless quitting (None then).
-pub fn run_frame_now<T>(frame: impl FnOnce() -> T) -> Option<T> {
+pub fn run_frame_now<T>(
+    system: &crate::system::owner::System,
+    frame: impl FnOnce() -> T,
+) -> Option<T> {
     crate::platform_events::pump();
-    if quitting() { None } else { Some(frame()) }
+    if system.session.flags.quitting.is_set() {
+        None
+    } else {
+        Some(frame())
+    }
 }
 
 /// A file of ours next to the log (the current folder can change: the installer).

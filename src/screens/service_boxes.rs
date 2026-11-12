@@ -36,6 +36,8 @@ pub fn quad(
         o.race,
         o.scene,
         o.system,
+        o.net,
+        o.input,
         scratch,
         crate::workers::game_scratch(),
     ))

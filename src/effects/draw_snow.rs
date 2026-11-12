@@ -384,26 +384,26 @@ mod reference_vectors {
                     writes: &[],
                 },
                 Op::Base {
-                    lo: 0x5605A0,
-                    hi: 0x56061C,
-                    reads: &[(0x5605A0, F32), (0x5605A4, F32)],
+                    lo: 0x0,
+                    hi: 0x7C,
+                    reads: &[(0x0, F32), (0x4, F32)],
                     writes: &[
-                        (0x5605A0, F32),
-                        (0x5605A4, F32),
-                        (0x5605A8, F32),
-                        (0x5605B8, F32),
-                        (0x5605C0, F32),
-                        (0x5605C4, F32),
-                        (0x5605C8, F32),
-                        (0x5605D8, F32),
-                        (0x5605E0, F32),
-                        (0x5605E4, F32),
-                        (0x5605E8, F32),
-                        (0x5605F8, F32),
-                        (0x560600, F32),
-                        (0x560604, F32),
-                        (0x560608, F32),
-                        (0x560618, F32),
+                        (0x0, F32),
+                        (0x4, F32),
+                        (0x8, F32),
+                        (0x18, F32),
+                        (0x20, F32),
+                        (0x24, F32),
+                        (0x28, F32),
+                        (0x38, F32),
+                        (0x40, F32),
+                        (0x44, F32),
+                        (0x48, F32),
+                        (0x58, F32),
+                        (0x60, F32),
+                        (0x64, F32),
+                        (0x68, F32),
+                        (0x78, F32),
                     ],
                 },
                 Op::Base {
@@ -433,7 +433,7 @@ mod reference_vectors {
             with_copy(b[2], SnowTables::START, |t| {
                 with_copy(b[2], SnowState::START, |s| {
                     with_copy(b[2], SnowLight::START, |l| {
-                        super::square_x87(b[1].wrapping_add(0x5605A0), b[3], t, s, l);
+                        super::square_x87(b[1], b[3].number(), t, s, l);
                     });
                 });
             });

@@ -31,7 +31,7 @@ use crate::session::{write_all, write_prefix};
 
 // ---- game data ----
 const MENUS: u32 = 0x15;
-use crate::menu::owner::{Menus, Tables, menus};
+use crate::menu::owner::{Menus, Tables};
 use rc2k_core::scene::carousel;
 
 /// A dword of the menus' carousel or of its list of textures.
@@ -199,8 +199,7 @@ fn cars(menus: &Menus, list: CarList, size: u32) -> Result<(), BadInput> {
 
 /// `list` is the list of cars for menus 0xD and 0xE (the other menus use their own).
 // Converted: `rc2k_core::scene::carousel::{check_cars, list_end}`
-pub fn set_up_carousel(list: Option<CarList>) -> Result<(), Refused> {
-    let menus = menus();
+pub fn set_up_carousel(menus: &Menus, list: Option<CarList>) -> Result<(), Refused> {
     let given = || list.ok_or(BadInput("no list of cars"));
     {
         let menu: u32 = menus.screens.state.carousel.menu.get();

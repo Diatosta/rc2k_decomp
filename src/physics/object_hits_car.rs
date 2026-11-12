@@ -29,7 +29,14 @@ pub fn object_hits_car(
     let objects = &scene.objects;
     let number = c.contact.face_object.get();
     contacts::check_object(number)?;
-    { object_turn_matrix(c.contact, c.sound.matrices, scene) }?;
+    {
+        object_turn_matrix(
+            &c.shared.buffers.engine_tables,
+            c.contact,
+            c.sound.matrices,
+            scene,
+        )
+    }?;
     c.tables
         .object_hits
         .set(c.tables.object_hits.get().wrapping_add(1));

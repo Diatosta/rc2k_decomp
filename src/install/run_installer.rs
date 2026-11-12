@@ -90,8 +90,11 @@ pub fn run_installer(
         };
         i::run_pages::run_pages(install, o, pages)?;
     }
-    if install.run.installing.get() == 1 && install.vars.running_from_cd.get() == 1 && lock(o.gfx) {
-        copy_picture()?;
+    if install.run.installing.get() == 1
+        && install.vars.running_from_cd.get() == 1
+        && lock(o.gfx, o.system)
+    {
+        copy_picture(o.gfx, o.system)?;
         draw_string(0xBE, FONT_BE, 0x1A9, 0x113, o.gfx)?;
         unlock(o.gfx);
         show();

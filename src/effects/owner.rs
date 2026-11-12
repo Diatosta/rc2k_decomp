@@ -39,10 +39,10 @@ impl Effects {
     pub fn settings(
         &self,
     ) -> Result<&'static crate::race::effects_settings_store::EffectsSettings, BadInput> {
-        if self.setup.settings.is_set.get() == 0 {
-            return Err(BadInput("no marks settings"));
+        match self.setup.marks.get() {
+            Some(marks) if self.setup.settings.is_set.get() != 0 => Ok(marks),
+            _ => Err(BadInput("no marks settings")),
         }
-        Ok(crate::race::owner::race().effects_settings())
     }
 }
 

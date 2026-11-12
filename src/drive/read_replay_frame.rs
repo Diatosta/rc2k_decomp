@@ -13,10 +13,16 @@
 
 use crate::errors::{FatalError, Refused};
 use crate::race::owner::Race;
+use crate::system::owner::System;
 use rc2k_core::drive::replay_frames::{frame_fault, past_end};
 
 /// CF.
-pub fn read_replay_frame(race: &Race, frame: u32, tenth: u32) -> Result<bool, Refused> {
+pub fn read_replay_frame(
+    race: &Race,
+    system: &System,
+    frame: u32,
+    tenth: u32,
+) -> Result<bool, Refused> {
     let race_owner = race;
     let replay = &race.replay;
     if !race_owner.shared.replay_file.replay_open.is_set() {
@@ -53,6 +59,7 @@ pub fn read_replay_frame(race: &Race, frame: u32, tenth: u32) -> Result<bool, Re
     let (_, carry, _) = {
         crate::drive::read_packed::read_packed(
             race_owner,
+            system,
             race_owner.shared.replay_file.replay_handle.get(),
             count,
         )

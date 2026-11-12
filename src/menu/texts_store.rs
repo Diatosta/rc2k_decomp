@@ -2249,7 +2249,7 @@ pub fn text_at(key: u32) -> Result<crate::place::BytePlace, crate::errors::BadIn
 pub const END: usize = 0x734BC6;
 
 #[cfg(test)]
-const SPEECH_TABLES_END: usize = 0x734986 + 36 * 4 * 4;
+const SPEECH_TABLES_END: usize = CAR_SPEECH + 0x120 + 36 * 4 * 4;
 
 #[cfg(test)]
 mod tests {

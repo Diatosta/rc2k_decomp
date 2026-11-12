@@ -103,28 +103,6 @@ pub mod typefaces;
 pub mod upload;
 pub mod windscreen_drop_batch;
 
-/// The test of a typed block of this module whose static's bytes are the image's first
-/// changed by `patch` (places that hold a handle where the image has an address). To be
-/// removed once no module calls it (`test_support::front` replaces it).
-#[cfg(test)]
-pub(crate) fn first_values_are_the_games_but<T>(
-    block: &'static T,
-    start: usize,
-    end: usize,
-    patch: impl Fn(&mut [u8]),
-) {
-    let _g = crate::store::test_lock();
-    let len = end - start;
-    let mine =
-        unsafe { core::slice::from_raw_parts(std::ptr::from_ref::<T>(block).cast::<u8>(), len) };
-    let mut image = crate::moved::image_bytes(start, len);
-    patch(&mut image);
-    assert!(
-        mine == &image[..],
-        "the block's bytes differ from the image's"
-    );
-}
-
 /// An array of dwords with these first values (the blocks' tables).
 pub(crate) const fn dwords<const N: usize>(values: [u32; N]) -> [crate::session::Dword; N] {
     let mut out = [const { crate::session::Dword::new(0) }; N];
