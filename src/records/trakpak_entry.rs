@@ -11,12 +11,11 @@
 use crate::errors::BadInput;
 use crate::errors::{FatalError, Refused};
 use crate::records::stages_store::{RecordRef, TrackEntry};
-use crate::system::owner::system;
 
 // ---- game data ----
 
-pub fn loaded_pack_id() -> u32 {
-    system().records().stage_tables.trak_pak.pack_id.get()
+pub fn loaded_pack_id(stages: &crate::records::stages_store::StageTables) -> u32 {
+    stages.trak_pak.pack_id.get()
 }
 
 /// What the original reports when a record belongs to another track pack.
@@ -45,67 +44,83 @@ pub fn trakpak_entry(
 ///
 /// The offset is bounded to the stage tables as a whole (the original's index has no bound
 /// and reads on past the pack into what follows).
-pub fn record_entry(record: RecordRef) -> Result<usize, Refused> {
+pub fn record_entry(
+    stages: &crate::records::stages_store::StageTables,
+    record: RecordRef,
+) -> Result<usize, Refused> {
     let record = record.record()?;
     Ok(trakpak_entry(
         core::mem::offset_of!(crate::records::stages_store::StageTables, trak_pak),
         record.track(),
         record.pack_id(),
-        loaded_pack_id(),
+        loaded_pack_id(stages),
     )?)
 }
 
 /// A record's track entry: typed when it lies in the pack's 36 entries; past them the
 /// original's index runs on into what follows the pack (`record_entry`), read as the words
 /// they are.
-pub enum Track {
-    InPack(&'static TrackEntry),
+pub enum Track<'a> {
+    InPack(&'a TrackEntry),
     /// A run-on past the pack, as the original.
     /// The entry's byte offset in the stage tables.
     RunOn(usize),
 }
 
 /// The dword at byte `at` of the stage tables, past the pack.
-pub fn run_on(at: usize) -> Result<u32, BadInput> {
+pub fn run_on(
+    stages: &crate::records::stages_store::StageTables,
+    at: usize,
+) -> Result<u32, BadInput> {
     let mut bytes = [0; 4];
-    crate::cells::load_cells(&system().records().stage_tables, at, &mut bytes)?;
+    crate::cells::load_cells(stages, at, &mut bytes)?;
     Ok(u32::from_le_bytes(bytes))
 }
 
-impl Track {
+impl Track<'_> {
     /// +0x00: the track's name (a string id).
-    pub fn name(&self) -> Result<u32, BadInput> {
+    pub fn name(
+        &self,
+        stages: &crate::records::stages_store::StageTables,
+    ) -> Result<u32, BadInput> {
         match self {
             Track::InPack(entry) => Ok(entry.name.get()),
-            Track::RunOn(at) => run_on(*at + core::mem::offset_of!(TrackEntry, name)),
+            Track::RunOn(at) => run_on(stages, *at + core::mem::offset_of!(TrackEntry, name)),
         }
     }
 
     /// +0x0C: the stage's length.
-    pub fn length(&self) -> Result<u32, BadInput> {
+    pub fn length(
+        &self,
+        stages: &crate::records::stages_store::StageTables,
+    ) -> Result<u32, BadInput> {
         match self {
             Track::InPack(entry) => Ok(entry.length.get()),
-            Track::RunOn(at) => run_on(*at + core::mem::offset_of!(TrackEntry, length)),
+            Track::RunOn(at) => run_on(stages, *at + core::mem::offset_of!(TrackEntry, length)),
         }
     }
 
     /// +0x34: the stage number.
-    pub fn stage(&self) -> Result<u32, BadInput> {
+    pub fn stage(
+        &self,
+        stages: &crate::records::stages_store::StageTables,
+    ) -> Result<u32, BadInput> {
         match self {
             Track::InPack(entry) => Ok(entry.stage.get()),
-            Track::RunOn(at) => run_on(*at + core::mem::offset_of!(TrackEntry, stage)),
+            Track::RunOn(at) => run_on(stages, *at + core::mem::offset_of!(TrackEntry, stage)),
         }
     }
 }
 
 /// The track entry for `record`, with the refusals of `record_entry`.
-pub fn track_of(record: RecordRef) -> Result<Track, Refused> {
-    let at = record_entry(record)?;
+pub fn track_of(
+    stages: &crate::records::stages_store::StageTables,
+    record: RecordRef,
+) -> Result<Track<'_>, Refused> {
+    let at = record_entry(stages, record)?;
     let index = record.record()?.track() as usize;
-    Ok(
-        match system().records().stage_tables.trak_pak.tracks.get(index) {
-            Some(entry) => Track::InPack(entry),
-            None => Track::RunOn(at),
-        },
-    )
+    Ok(match stages.trak_pak.tracks.get(index) {
+        Some(entry) => Track::InPack(entry),
+        None => Track::RunOn(at),
+    })
 }

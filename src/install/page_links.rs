@@ -75,6 +75,13 @@ pub enum ListId {
     AskRegistration,
 }
 
+/// The installer's state, for the place a `PageLink` or a list handle names. A link and a
+/// handle are copied numbers with no owner, so this is a seam: the install pages' functions
+/// that hold a `ListItem`, `ListMenu` or `PageLink` would pass `&Install` to them.
+pub fn installer() -> &'static crate::install::owner::Install {
+    crate::owners::boundary().install
+}
+
 impl ListId {
     /// The lists with IDA's address of each, in the order of the enum.
     pub(crate) const ALL: [(ListId, u32); 14] = [
@@ -235,7 +242,7 @@ impl PageLink {
     /// handler or the edit record), bounded by the pages (a table or text may run on inside
     /// them as the original's does).
     pub fn in_pages(self) -> Result<BytePlace, BadInput> {
-        let install = crate::install::owner::install();
+        let install = installer();
         Ok(BytePlace::in_store(&install.pages, self.pages_start()?))
     }
 
@@ -258,7 +265,7 @@ impl PageLink {
     /// original's does, but not out of them).
     pub fn pages_dword(at: usize) -> Result<u32, BadInput> {
         let mut bytes = [0; 4];
-        crate::cells::load_cells(&crate::install::owner::install().pages, at, &mut bytes)?;
+        crate::cells::load_cells(&installer().pages, at, &mut bytes)?;
         Ok(u32::from_le_bytes(bytes))
     }
 
@@ -273,7 +280,7 @@ impl PageLink {
     /// The edit record a link names (the folder item's).
     pub fn edit_record(self) -> Result<&'static EditRecord, BadInput> {
         match self.kind() {
-            EDIT if self.number() == 0 => Ok(&crate::install::owner::install().pages.folder_edit),
+            EDIT if self.number() == 0 => Ok(&installer().pages.folder_edit),
             _ => Err(BadInput("a page link that is no edit record")),
         }
     }
@@ -281,7 +288,7 @@ impl PageLink {
     /// The place a text or a byte link names: in the pages, or the folder typed (bounded by
     /// the installer's path buffers).
     pub fn place(self) -> Result<BytePlace, BadInput> {
-        let install = crate::install::owner::install();
+        let install = installer();
         if self.kind() == TYPED_PATH && self.number() < 0x100 {
             let typed = core::mem::offset_of!(InstallerPaths, typed);
             return Ok(BytePlace::in_store(

@@ -41,7 +41,10 @@ pub fn list_car_numbers_in(menus: &Menus) -> Result<(), BadInput> {
             let list: Vec<u32> = (0..FILLED).map(|n| pointers[n].get()).collect();
             let reads = CheckedReads::new();
             let answer = rc2k_core::saves::cars::numbers(&list, |car| {
-                reads.value(crate::menu::cars_store::description(car).map(|d| d.get().car))
+                reads.value(
+                    crate::menu::cars_store::description(&menus.cars.table, car)
+                        .map(|d| d.get().car),
+                )
             });
             found.push(reads.finish(answer)??);
         }

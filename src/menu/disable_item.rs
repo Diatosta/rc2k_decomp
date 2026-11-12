@@ -7,7 +7,7 @@
 
 use crate::errors::Refused;
 use crate::menu::item_at::item_at;
-use crate::menu::owner::Screens;
+use crate::menu::owner::Menus;
 
 use rc2k_core::menu::items::{Font, choosable};
 
@@ -16,8 +16,8 @@ use crate::gfx::typefaces::fonts::{ITEM_GREY as GREY_FONT, ITEM_PLAIN as PLAIN_F
 // The logic is in `rc2k_core::menu::items::choosable`.
 
 /// The item's +0x48 and font set: what both twins do.
-pub fn set_item(screens: &Screens, number: u32, on: bool) -> Result<(), Refused> {
-    let item = item_at(screens, number)?;
+pub fn set_item(menus: &Menus, number: u32, on: bool) -> Result<(), Refused> {
+    let item = item_at(menus, number)?;
     let (state, font) = choosable(on);
     let font = match font {
         Font::Plain => PLAIN_FONT,
@@ -28,6 +28,6 @@ pub fn set_item(screens: &Screens, number: u32, on: bool) -> Result<(), Refused>
     Ok(())
 }
 
-pub fn disable_item(screens: &Screens, number: u32) -> Result<(), Refused> {
-    set_item(screens, number, false)
+pub fn disable_item(menus: &Menus, number: u32) -> Result<(), Refused> {
+    set_item(menus, number, false)
 }

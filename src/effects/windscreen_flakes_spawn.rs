@@ -23,7 +23,13 @@ const MOST: i32 = 0x80;
 
 /// The rate, compared (its status word goes to the shared FPU status cell).
 fn rate(drops: &WindscreenDrops, fl: &WindscreenFlakes, effects: &crate::effects::owner::Effects) {
-    rate_x87(drops, &effects.frame.kept_view, &fl.timing, &fl.state);
+    rate_x87(
+        drops,
+        &effects.frame.kept_view,
+        &fl.timing,
+        &fl.state,
+        &effects.setup.work,
+    );
 }
 
 pub fn windscreen_flakes_spawn(
@@ -72,6 +78,7 @@ fn rate_x87(
     kv: &KeptView,
     sti: &WindscreenFlakeTiming,
     ss: &WindscreenFlakeState,
+    work: &crate::effects::work_store::MarksWork,
 ) {
     let t0 = kv.first_angle.ld();
     let t1 = t0 + drops.tilt.tilt.ld();
@@ -89,7 +96,7 @@ fn rate_x87(
     let t12 = t11 + sti.spawn_rate.ld();
     sti.spawn_rate.st(t12);
     let t13 = sti.spawn_rate.ld();
-    crate::effects::plain::set_status(bh::compare(t13, ss.rate_constants[1].ld()));
+    crate::effects::plain::set_status(work, bh::compare(t13, ss.rate_constants[1].ld()));
 }
 
 #[cfg(test)]
@@ -144,6 +151,7 @@ mod reference_vectors {
                                     kv,
                                     sti,
                                     ss,
+                                    &crate::effects::owner::effects().setup.work,
                                 );
                             },
                         );

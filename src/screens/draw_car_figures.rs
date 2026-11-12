@@ -63,7 +63,7 @@ pub fn draw_car_page(
     use crate::screens::game_screen::GameScreen;
     use rc2k_core::screens::car_pages::{Font, Work};
     {
-        let before = read(record)?;
+        let before = read(o.menus, record)?;
         let mut d = before;
         let notice = crate::strings::load_language::notice_kind(o.strings); // g_noticeKind
         let carry = rc2k_core::screens::car_pages::page(
@@ -74,7 +74,7 @@ pub fn draw_car_page(
             crate::strings::units::units(),
         );
         if d != before {
-            crate::menu::cars_store::description(record)?.set(d);
+            crate::menu::cars_store::description(&o.menus.cars.table, record)?.set(d);
         }
         carry
     }

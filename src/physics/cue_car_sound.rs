@@ -38,5 +38,11 @@ pub fn cue_car_sound(
     let Some(car) = found else {
         return Ok(());
     };
-    crate::physics::queue_sound_cue::queue_sound_cue(true, cue, SoundObject::of(sound, car)?, audio)
+    crate::physics::queue_sound_cue::queue_sound_cue(
+        true,
+        cue,
+        SoundObject::of(sound, car)?,
+        audio,
+        sound.race.cue_lists.get(),
+    )
 }

@@ -27,6 +27,7 @@ const WAIT: u32 = 1000;
 /// Runs to the `ExitThread`, which does not come back.
 pub fn receive_thread() -> Result<(), Refused> {
     let net = net();
+    let panel = crate::race::owner::race().viewer_panel();
     let vars = &net.vars;
     let running =
         &crate::threading::thread_slot::slot_ref(crate::threading::thread_slot::NET)?.flag;
@@ -41,17 +42,14 @@ pub fn receive_thread() -> Result<(), Refused> {
                 if !zero {
                     vars.receiving.set(1);
                     if vars.session.get() == 1 {
-                        crate::net::take_messages::take_messages(
-                            net,
-                            crate::race::owner::race().viewer_panel(),
-                        )?;
+                        crate::net::take_messages::take_messages(net, panel)?;
                     }
                 }
                 vars.receiving.set(0);
                 if vars.posting.get() == 1
                     && let Some(call) = crate::net::post_call::take_posted(&net.vars)
                 {
-                    vars.posted_result.set(call());
+                    vars.posted_result.set(call(net, panel));
                     vars.posted_answered.set(1);
                 }
                 if system().session.flags.quitting.is_set() {

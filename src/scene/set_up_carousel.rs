@@ -144,11 +144,12 @@ fn list_entry(tables: &Tables, list: CarList, n: usize) -> Result<u32, BadInput>
 
 /// The checks of a list of cars, before anything is written (see
 /// `rc2k_core::scene::carousel::check_cars`).
-fn check_cars(tables: &Tables, list: CarList, from_second: bool) -> Result<(), Refused> {
-    reading(tables, list, |read| {
+fn check_cars(menus: &Menus, list: CarList, from_second: bool) -> Result<(), Refused> {
+    reading(&menus.tables, list, |read| {
         let failed = std::cell::Cell::new(None);
         // A car's number: the first dword of the description its handle names.
-        let number = |car: u32| match crate::menu::cars_store::description(car).map(|d| d.get().car)
+        let number = |car: u32| match crate::menu::cars_store::description(&menus.cars.table, car)
+            .map(|d| d.get().car)
         {
             Ok(n) => n,
             Err(e) => {
@@ -173,7 +174,9 @@ fn cars(menus: &Menus, list: CarList, size: u32) -> Result<(), BadInput> {
             if car == u32::MAX {
                 break;
             }
-            let first = crate::menu::cars_store::description(car)?.get().car;
+            let first = crate::menu::cars_store::description(&menus.cars.table, car)?
+                .get()
+                .car;
             // `car_kinds` has 35 entries; the original allows numbers up to 0x400 and reads
             // on past the table (fixed: refused).
             let kind = menus
@@ -208,7 +211,7 @@ pub fn set_up_carousel(menus: &Menus, list: Option<CarList>) -> Result<(), Refus
         }
         match menu {
             0xB => {
-                check_cars(&menus.tables, CarList::First, false)?;
+                check_cars(menus, CarList::First, false)?;
                 cars(menus, CarList::First, 0xF)?;
             }
             0xC => {
@@ -227,12 +230,12 @@ pub fn set_up_carousel(menus: &Menus, list: Option<CarList>) -> Result<(), Refus
             }
             0xD => {
                 let list = given()?;
-                check_cars(&menus.tables, list, false)?;
+                check_cars(menus, list, false)?;
                 cars(menus, list, 0xC)?;
             }
             0xE => {
                 let list = given()?;
-                check_cars(&menus.tables, list, true)?;
+                check_cars(menus, list, true)?;
                 menus.screens.state.carousel.set_up.set(1);
                 let count = reading(&menus.tables, list, |read| {
                     carousel::list_end(read, 1).unwrap_or(0)

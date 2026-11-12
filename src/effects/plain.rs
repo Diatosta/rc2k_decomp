@@ -2,7 +2,6 @@
 //! buffers, read and written where the blocks' instructions did. Floats go through
 //! `x87_float`'s `X` (what the x87 holds).
 
-use crate::effects::owner::effects;
 use crate::math::x87_float::{self as bh, X};
 
 // The three cell helpers go by bits: the x87 loads and stores the exact image, `ldi_cell`
@@ -63,7 +62,7 @@ pub(crate) fn st80_at(bytes: &impl crate::session::ByteBuffer, offset: usize, x:
 /// status word are the stack's top and the sticky exceptions, which no reader looks at).
 /// `fstsw word ptr [g_fpuStatus]`: the status's compare bits into the low half of
 /// `MARKS_WORK.fpu_status` (its high half kept).
-pub(crate) fn set_status(status: u16) {
-    let s = &effects().setup.work.fpu_status;
+pub(crate) fn set_status(work: &crate::effects::work_store::MarksWork, status: u16) {
+    let s = &work.fpu_status;
     s.set((s.get() & 0xFFFF_0000) | u32::from(status));
 }

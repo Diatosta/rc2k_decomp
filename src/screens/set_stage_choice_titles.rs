@@ -46,7 +46,7 @@ pub fn set_stage_choice_titles(
         s.record,
     )?;
     let group_title = group_title(&menus.play.results, s.group)?;
-    tables.menus.select_stage.id().items()[0]
+    tables.menus.select_stage.id().items(&tables.menus)[0]
         .string
         .set(group_title);
     crate::cells::store_value::<u32>(&tables.menus.labels, item_1, s.table.title()?)?;

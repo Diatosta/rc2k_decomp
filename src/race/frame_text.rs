@@ -145,7 +145,7 @@ impl Credits {
 }
 
 /// `race::roll_credits` (0x415FC2): mode 0 starts them (the clock, the top
-/// the screen's height + 0x15E, the line count 0, tune 2 by `sound`); else draws the
+/// the screen's height + 0x15E, the line count 0, tune 2 by `start_tune`); else draws the
 /// script at 0x529858 (words: 1, 2, 7, 8 a string in fonts 0x51E8A4, 0x51E6A4, 0x51E564 (centred)
 /// and 0x51E584 (at a sixteenth), each moving down a line; 3 / 4 a string left / right of the
 /// middle (only 4 moves down); 5 three strings in columns; 6 a signed move; 9 nothing; any other
@@ -156,7 +156,7 @@ pub fn roll_credits(
     frame: &Frame,
     eax: u32,
     canvas: &mut dyn Canvas,
-    sound: &mut dyn FnMut(),
+    start_tune: &mut dyn FnMut(),
     system: &crate::system::owner::System,
     audio: &crate::audio::owner::Audio,
 ) -> Result<(), Refused> {
@@ -171,7 +171,7 @@ pub fn roll_credits(
         let top = start_top(height);
         frame.credits().top.set(top);
         frame.credits().done.set(0);
-        sound();
+        start_tune();
         return Ok(());
     }
     let font_of = |f: Font| {

@@ -15,13 +15,18 @@
 
 use crate::net::owner::Net;
 use crate::net::store::NetVars;
+use crate::race::viewer_screen_store::ViewerPanelBlock;
 use crate::system::owner::System;
 use std::sync::Mutex;
 use std::sync::atomic::Ordering;
 
+/// A piece of code posted to the receiving thread: it gets the network's state and the
+/// panel's texts.
+pub type PostedCall = fn(&Net, &ViewerPanelBlock) -> u32;
+
 /// The call posted, while `g_netPostedCall` is 1.
-static POSTED: Mutex<Option<fn() -> u32>> = Mutex::new(None);
-pub fn post_call(net: &Net, system: &System, code: fn() -> u32) -> u32 {
+static POSTED: Mutex<Option<PostedCall>> = Mutex::new(None);
+pub fn post_call(net: &Net, system: &System, code: PostedCall) -> u32 {
     if net.vars.posting.get() == 1 {
         *POSTED
             .lock()
@@ -43,7 +48,7 @@ pub fn post_call(net: &Net, system: &System, code: fn() -> u32) -> u32 {
 }
 
 /// The call posted, taken by the receiving thread (none waiting: `None`).
-pub fn take_posted(vars: &NetVars) -> Option<fn() -> u32> {
+pub fn take_posted(vars: &NetVars) -> Option<PostedCall> {
     if vars.posted_call.atomic().swap(0, Ordering::SeqCst) == 0 {
         return None;
     }

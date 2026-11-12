@@ -23,7 +23,7 @@
 use crate::errors::Refused;
 use crate::input::devices::records;
 use crate::input::owner::Input;
-use crate::system::owner::system;
+use crate::system::owner::System;
 
 const START_TEXT_RVA: &std::ffi::CStr = c"INPUTTDB:START"; // "INPUTTDB:START"
 const QUIT_TEXT_RVA: &std::ffi::CStr = c"INPUTTDB:QUIT"; // "INPUTTDB:QUIT"
@@ -35,8 +35,12 @@ fn log(text: &std::ffi::CStr) {
 }
 
 /// The thread's work up to its `ExitThread` (see the header).
-pub fn input_thread(input: &Input, sound: &crate::sound::owner::Sound) -> Result<(), Refused> {
-    let system = system();
+pub fn input_thread(
+    input: &Input,
+    sound: &crate::sound::owner::Sound,
+    system: &System,
+    race: &crate::race::owner::Race,
+) -> Result<(), Refused> {
     use crate::threading::set_priority::set_priority;
     let flag = &crate::threading::thread_slot::slot_ref(crate::threading::thread_slot::INPUT)?.flag;
     'work: {
@@ -52,7 +56,7 @@ pub fn input_thread(input: &Input, sound: &crate::sound::owner::Sound) -> Result
         if direct_input == 0 {
             break 'work;
         }
-        crate::input::list_joysticks::list_joysticks(input);
+        crate::input::list_joysticks::list_joysticks(input, system);
         set_priority(2);
         let mut last = crate::system::tick_count::tick_count();
         input.devices.last_tick.set(last);
@@ -79,7 +83,7 @@ pub fn input_thread(input: &Input, sound: &crate::sound::owner::Sound) -> Result
                 }
             }
             input.devices.last_tick.set(last);
-            crate::input::input_tick::input_tick_in_game(input, sound)?;
+            crate::input::input_tick::input_tick_in_game(input, sound, system, race)?;
             if system.session.flags.window_focused.get() != 1 {
                 crate::system::sleep::sleep(1000);
             }
@@ -106,5 +110,7 @@ pub fn input_thread(input: &Input, sound: &crate::sound::owner::Sound) -> Result
 /// ends the thread (the original's `ExitThread`).
 pub fn thread_routine(input: &crate::input::owner::Input) -> Result<(), Refused> {
     let sound = crate::sound::owner::sound();
-    input_thread(input, sound)
+    let system = crate::system::owner::system();
+    let race = crate::race::owner::race();
+    input_thread(input, sound, system, race)
 }

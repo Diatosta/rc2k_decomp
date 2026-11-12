@@ -466,8 +466,7 @@ pub fn frame_counters() -> [u64; 5] {
 
 /// The screen's width and height.
 #[cfg(debug_ui)]
-pub fn screen_size() -> (u32, u32) {
-    let system = crate::system::owner::system();
+pub fn screen_size(system: &crate::system::owner::System) -> (u32, u32) {
     (
         system.session.screen.get().width.get(),
         system.session.screen.get().height.get(),
@@ -476,8 +475,7 @@ pub fn screen_size() -> (u32, u32) {
 
 /// The screen's pixels (its width times its height).
 #[cfg(debug_ui)]
-pub fn screen_pixels() -> u64 {
-    let system = crate::system::owner::system();
+pub fn screen_pixels(system: &crate::system::owner::System) -> u64 {
     u64::from(system.session.screen.get().width.get())
         * u64::from(system.session.screen.get().height.get())
 }

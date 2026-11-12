@@ -129,9 +129,15 @@ pub fn draw_stage_body_in(
     let entry = || -> Result<Entry, Refused> {
         // By offset: past the pack's 36 entries the original's index reads on into what
         // follows it (`trakpak_entry::Track`), and every field here may be reached so.
-        let entry = record_entry(record)?;
+        let stages = &o.system.records().stage_tables;
+        let entry = record_entry(stages, record)?;
         let fault = crate::menu::event_flow::Fault::default();
-        let f = |o: u32| fault.ok(crate::records::trakpak_entry::run_on(entry + o as usize));
+        let f = |o: u32| {
+            fault.ok(crate::records::trakpak_entry::run_on(
+                stages,
+                entry + o as usize,
+            ))
+        };
         let made = Entry {
             // `MENU_LISTS.durations` (the stage durations) has 37 entries; the original's index
             // has no bound (fixed: refused).
@@ -236,9 +242,13 @@ pub fn draw_records_for_group(
 
 /// The string id (+0x14) of item `n` (from 0) of the current menu, or None without a menu
 /// (or past its end).
-pub fn menu_item_id(screens: &Screens, n: u32) -> Option<&'_ dyn DwordLike> {
+pub fn menu_item_id<'a>(
+    screens: &'a Screens,
+    tables: &'a crate::menu::menus_store::MenuTables,
+    n: u32,
+) -> Option<&'a dyn DwordLike> {
     let menu = screens.loop_flags.menu.get().ok()?;
-    menu.items()
+    menu.items(tables)
         .get(n as usize)
         .map(|i| &i.string as &dyn DwordLike)
 }

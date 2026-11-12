@@ -48,12 +48,15 @@ pub fn draw_stage_map(o: Owners<'static>) -> Result<(), Refused> {
             crate::records::stages_store::row(s.table, menus.screens.event.stage_number.get())?
         }
     };
-    let overlay = crate::menu::texts_store::text_at(crate::session::read_on_in(
-        &menus.tables.lists,
-        &menus.tables.lists.map_overlays,
-        record.record()?.event_slot() as usize,
-        "a map overlay",
-    )?)?;
+    let overlay = crate::menu::texts_store::text_at(
+        &menus.tables.texts,
+        crate::session::read_on_in(
+            &menus.tables.lists,
+            &menus.tables.lists.map_overlays,
+            record.record()?.event_slot() as usize,
+            "a map overlay",
+        )?,
+    )?;
     if load_picture_with_overlay_in(
         &menus.tables.texts.ukmap_png,
         &overlay,

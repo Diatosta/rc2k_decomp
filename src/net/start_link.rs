@@ -45,7 +45,7 @@ fn link(o: Owners<'static>) -> Result<Way, Refused> {
     let panel = o.race.viewer_panel();
     let vars = &net.vars;
     use crate::net::*;
-    if !find_connections::find_connections(&net.vars, panel)? {
+    if !find_connections::find_connections(&net.vars, o.strings, panel)? {
         return Ok(Way::Message(NO_CONNECTION));
     }
     let connection = match find_saved_connection::find_saved_connection(net)? {

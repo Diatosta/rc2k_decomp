@@ -233,7 +233,7 @@ pub fn item_fn(o: Owners<'static>, f: ItemFn, c: &table_calls::ItemCall) -> Resu
             o.input,
             c.menu
                 .ok_or(BadInput("no menu (the original reads +0x2C of edi)"))?
-                .items()[0]
+                .items(&menus.tables.menus)[0]
                 .fixed()
                 .links[1],
         ),

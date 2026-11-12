@@ -8,9 +8,14 @@
 
 use crate::errors::BadInput;
 use crate::menu::menus_store::MenuItem;
-use crate::menu::owner::Screens;
+use crate::menu::owner::Menus;
 
 /// Item `number` (from 1) of the current menu.
-pub fn item_at(screens: &Screens, number: u32) -> Result<&'_ MenuItem, BadInput> {
-    screens.loop_flags.menu.get()?.item(number)
+pub fn item_at(menus: &Menus, number: u32) -> Result<&'_ MenuItem, BadInput> {
+    menus
+        .screens
+        .loop_flags
+        .menu
+        .get()?
+        .item(&menus.tables.menus, number)
 }

@@ -31,6 +31,7 @@ const _: () = assert!(offset_of!(RaceCar, keys) - offset_of!(RaceCar, controller
 /// header).
 pub fn set_up_device(
     input: &crate::input::owner::Input,
+    system: &crate::system::owner::System,
     record: &InputDevice,
     car: &RaceCar,
 ) -> Result<(), Refused> {
@@ -86,7 +87,7 @@ pub fn set_up_device(
         record
             .kind
             .set(rc2k_core::input::devices::device_kind(kind));
-        crate::input::acquire_device::acquire_device(input, record)?;
+        crate::input::acquire_device::acquire_device(input, system, record)?;
     }
     // Converted: `rc2k_core::input::devices::binding` over `DEVICE_BINDINGS`.
     for (binding, (key, controls_word, _)) in record

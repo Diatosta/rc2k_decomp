@@ -38,9 +38,9 @@ pub fn draw_sound_settings(
     let [a, b, c] = [options.has_3d, options.has_eax, options.has_a3d2].map(|switch| switch == 1);
     for (item, on) in rc2k_core::screens::settings_pages::sound_items(a, b, c) {
         if on {
-            enable_item(&menus.screens, item)?;
+            enable_item(menus, item)?;
         } else {
-            disable_item(&menus.screens, item)?;
+            disable_item(menus, item)?;
         }
     }
     let ids = names(menus).map(|(setting, first)| setting.get().wrapping_add(first));

@@ -170,6 +170,7 @@ fn shadow_refuses(
 pub fn draw_marks_overlays(
     ctx: &crate::race::view_scratch::DrawCtx<'_>,
     gfx: &crate::gfx::owner::Gfx,
+    cheats: &crate::menu::cheats_store::Cheats,
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
     shadow_refuses(&crate::effects::draw_shadow::first(effects), effects)?;
@@ -180,6 +181,7 @@ pub fn draw_marks_overlays(
             &effects.masks,
             &effects.windscreen_drops,
             gfx,
+            cheats,
             effects,
         )?;
         crate::effects::draw_shadow::draw_shadow(ctx, &effects.masks, effects)?;
@@ -496,6 +498,7 @@ pub fn draw_own_car(
     ctx: &crate::race::view_scratch::DrawCtx<'_>,
     system: &crate::system::owner::System,
     gfx: &crate::gfx::owner::Gfx,
+    cheats: &crate::menu::cheats_store::Cheats,
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
     let (race, scene) = (ctx.race, ctx.scene);
@@ -538,7 +541,7 @@ pub fn draw_own_car(
     crate::scene::polygon_work::front_end()
         .polygon_vertex_count
         .set(4);
-    draw_marks_overlays(ctx, gfx, effects)
+    draw_marks_overlays(ctx, gfx, cheats, effects)
 }
 
 /// `fild i; fdiv a; fmul b; fstp`.
@@ -564,6 +567,7 @@ pub fn run_view_marks(
     ctx: &crate::race::view_scratch::DrawCtx<'_>,
     system: &crate::system::owner::System,
     sound: &'static crate::sound::owner::Sound,
+    gfx: &crate::gfx::owner::Gfx,
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
     let (race, scene) = (ctx.race, ctx.scene);
@@ -635,6 +639,7 @@ pub fn run_view_marks(
                 scene,
                 effects,
                 system,
+                gfx,
                 sound,
                 crate::effects::run_frame::EffectsView::of(ctx.race, ctx.view),
             )

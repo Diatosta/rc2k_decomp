@@ -19,7 +19,7 @@ const MOST: i32 = 0x80;
 
 /// The rate, compared (its status word goes to the shared FPU status cell).
 fn rate(drops: &WindscreenDrops, effects: &crate::effects::owner::Effects) {
-    rate_x87(drops, &effects.frame.kept_view);
+    rate_x87(drops, &effects.frame.kept_view, &effects.setup.work);
 }
 
 pub fn windscreen_drops_spawn(
@@ -59,7 +59,7 @@ use crate::effects::view_vectors::KeptView;
 use crate::math::x87_float as bh;
 
 /// `rate`'s x87 block as plain Rust on the x87 model (18 instructions), same order and memory places.
-fn rate_x87(drops: &WindscreenDrops, kv: &KeptView) {
+fn rate_x87(drops: &WindscreenDrops, kv: &KeptView, work: &crate::effects::work_store::MarksWork) {
     let t0 = kv.first_angle.ld();
     let t1 = t0 + drops.tilt.tilt.ld();
     let t2 = t1.sin();
@@ -76,7 +76,7 @@ fn rate_x87(drops: &WindscreenDrops, kv: &KeptView) {
     let t12 = t11 + drops.state.spawn_rate.ld();
     drops.state.spawn_rate.st(t12);
     let t13 = drops.state.spawn_rate.ld();
-    crate::effects::plain::set_status(bh::compare(t13, ld_cell(&drops.hex.spawn_k[1])));
+    crate::effects::plain::set_status(work, bh::compare(t13, ld_cell(&drops.hex.spawn_k[1])));
 }
 
 #[cfg(test)]
@@ -133,7 +133,13 @@ mod reference_vectors {
                             WindscreenDropVars::START,
                         ),
                     ],
-                    || super::rate_x87(&crate::effects::owner::effects().windscreen_drops, kv),
+                    || {
+                        super::rate_x87(
+                            &crate::effects::owner::effects().windscreen_drops,
+                            kv,
+                            &crate::effects::owner::effects().setup.work,
+                        );
+                    },
                 );
             });
         });

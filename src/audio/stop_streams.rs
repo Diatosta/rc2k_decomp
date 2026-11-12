@@ -8,7 +8,7 @@ use crate::audio::stream_commands::{music_command, stream_command};
 use crate::errors::Refused;
 
 /// Both streams stopped.
-pub fn stop_streams(audio: &Audio) -> Result<(), Refused> {
+pub fn stop_streams(audio: &Audio, tune_turn: &crate::session::Dword) -> Result<(), Refused> {
     stream_command(audio, 0, 0, 0)?;
-    music_command(&audio.state, 0, 0, 0, 0)
+    music_command(&audio.state, tune_turn, 0, 0, 0, 0)
 }

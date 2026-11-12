@@ -51,7 +51,10 @@ pub fn draw_menu_labels(
         list.push(rc2k_core::screens::menus::Label {
             x: dword(label)? as i32,
             y: dword(label + 4)? as i32,
-            font: MenuFont::Object(crate::menu::menus_store::label_font(labels + label + 8)?),
+            font: MenuFont::Object(crate::menu::menus_store::label_font(
+                &menus.tables.menus.labels,
+                labels + label + 8,
+            )?),
             id: dword(label + 0xC)?,
         });
         label += LABEL_LEN;

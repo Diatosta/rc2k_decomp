@@ -842,8 +842,12 @@ impl RaceSoundSets {
     /// Entry `n` of the list that starts `offset` bytes into the sets. A list is read on
     /// until its -1, through the next fields of the sets in their order where it runs past
     /// its own (as the original's list did); a read past the sets is none.
-    pub fn list_entry(offset: u32, n: usize) -> Result<Option<u32>, crate::errors::BadInput> {
-        let sets = &crate::sound::owner::sound().race.sets;
+    pub fn list_entry(
+        &self,
+        offset: u32,
+        n: usize,
+    ) -> Result<Option<u32>, crate::errors::BadInput> {
+        let sets = self;
         if offset as usize >= core::mem::size_of::<Self>() {
             return Err(crate::errors::BadInput("a sound list off the race's sets"));
         }
@@ -907,8 +911,8 @@ impl<const N: usize> ListIn<'_, N> {
 
 impl CueLists {
     /// Cue `cue`'s list of sounds, in the lists after the table (each ends in -1 inside them).
-    pub fn list(cue: u32) -> Result<ListIn<'static, 836>, crate::errors::BadInput> {
-        let lists = crate::sound::owner::sound().race.cue_lists.get();
+    pub fn list(&self, cue: u32) -> Result<ListIn<'_, 836>, crate::errors::BadInput> {
+        let lists = self;
         let cell = lists
             .table
             .get(cue as usize)
@@ -3281,11 +3285,23 @@ mod tests {
     fn cuelists_starts_as_the_games() {
         // Every cue's list is one of the lists, and ends.
         for cue in 0..113 {
-            let list = CueLists::list(cue).unwrap();
+            let list = crate::sound::owner::sound()
+                .race
+                .cue_lists
+                .get()
+                .list(cue)
+                .unwrap();
             // The list ends in -1 inside the lists.
             assert!((0..6).any(|k| list.get(k) == Ok(u32::MAX)), "{cue}");
         }
-        assert!(CueLists::list(113).is_err());
+        assert!(
+            crate::sound::owner::sound()
+                .race
+                .cue_lists
+                .get()
+                .list(113)
+                .is_err()
+        );
         let size = size_of::<CueLists>();
         assert!(8 + CueLists::LEN <= size && size <= (8 + CueLists::LEN).next_multiple_of(16));
         let mut image = first_values::bytes(CUES_IMAGE).to_vec();

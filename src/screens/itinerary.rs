@@ -45,6 +45,7 @@ pub fn draw_itinerary(
         } else {
             first.record()?.name()
         };
+        let stages = &system.records().stage_tables;
         let base = record_at(menus, system, 1)?;
         let record = move |n: u32| base.offset(n.wrapping_sub(1));
         let row = |n: u32| -> Result<Row, Refused> {
@@ -55,10 +56,10 @@ pub fn draw_itinerary(
                 }),
                 3 | 4 => Ok(Row::End),
                 0 => {
-                    let entry = crate::records::trakpak_entry::track_of(r)?;
+                    let entry = crate::records::trakpak_entry::track_of(stages, r)?;
                     Ok(Row::Stage {
-                        name: entry.name()?,
-                        length: entry.length()?,
+                        name: entry.name(stages)?,
+                        length: entry.length(stages)?,
                         hhmm: r.record()?.hhmm(),
                     })
                 }

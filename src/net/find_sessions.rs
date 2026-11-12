@@ -13,7 +13,6 @@
 use crate::errors::Refused;
 use crate::net::lobby::log_bytes;
 use crate::net::owner::Net;
-use crate::net::owner::net;
 use crate::net::store::NetVars;
 use crate::net::store::put_bytes;
 use crate::race::viewer_screen_store::{ViewerPanelBlock, texts};
@@ -29,21 +28,21 @@ pub fn zeroed_description(vars: &NetVars) -> Result<(), Refused> {
 }
 
 /// `EnumSessions` as the code at 0x418A43 calls it.
-pub fn enum_sessions() -> u32 {
-    let vars = &net().vars;
+pub fn enum_sessions(net: &Net, panel: &ViewerPanelBlock) -> u32 {
+    let vars = &net.vars;
     let application = crate::net::dp_objects::desc(&vars.session_desc, b"").application;
     crate::net::dp_objects::enum_sessions(
         vars.dplay.get(),
         &application,
-        crate::net::session_found::callback,
+        &|desc, flags, _context| crate::net::session_found::callback(vars, panel, desc, flags),
         0,
         ENUM_FLAGS,
     )
 }
 
 /// The code at 0x418A43 as the receiving thread calls it when it is posted.
-pub fn posted_enum_sessions() -> u32 {
-    enum_sessions()
+pub fn posted_enum_sessions(net: &Net, panel: &ViewerPanelBlock) -> u32 {
+    enum_sessions(net, panel)
 }
 
 /// The piece `code` made: posted to the receiving thread (`net::post_call`) while
@@ -51,12 +50,13 @@ pub fn posted_enum_sessions() -> u32 {
 pub fn posted_or_called(
     net: &Net,
     system: &crate::system::owner::System,
-    code: fn() -> u32,
+    panel: &ViewerPanelBlock,
+    code: crate::net::post_call::PostedCall,
 ) -> u32 {
     if net.vars.posting.get() == 1 {
         crate::net::post_call::post_call(net, system, code)
     } else {
-        code()
+        code(net, panel)
     }
 }
 pub fn find_sessions(
@@ -72,7 +72,7 @@ pub fn find_sessions(
     vars.sessions.set(0);
     zeroed_description(&net.vars)?;
     put_bytes(&vars.session_desc.application, &vars.app_guid.read());
-    let result = posted_or_called(net, system, posted_enum_sessions);
+    let result = posted_or_called(net, system, panel, posted_enum_sessions);
     crate::system::restore_window::restore_window();
     Ok(result == 0 || result == CONNECTING)
 }

@@ -2,7 +2,6 @@
 
 use super::*;
 use crate::errors::{BadInput, Refused};
-use crate::net::owner::net;
 use crate::race::owner_course::CourseReads;
 use crate::race::trap::Trap;
 use crate::race::view_scratch::DrawCtx;
@@ -212,6 +211,7 @@ pub(super) fn car_light_on_point(
 )]
 pub(super) fn car_lights_on_point(
     reads: crate::workers::DrawReads<'_>,
+    net: &crate::net::owner::Net,
     object_light: &crate::scene::object_light::ObjectLight,
     drawn_view: u32,
     mmx: bool,
@@ -219,7 +219,7 @@ pub(super) fn car_lights_on_point(
     let light_tables = reads.light_tables;
     let blocks = &reads.cars_and_replay.car_blocks;
     let (race_work, race_vars, race_view) = (reads.work, reads.vars, reads.view);
-    let vars = &net().vars;
+    let vars = &net.vars;
     let cars: u32 = race_view.race_cars.get();
     let all = race_vars.settings_words[4].get() == 1;
     let one = vars.session.get() != 0;
@@ -318,6 +318,7 @@ pub fn check_light_colour(
 /// `reads`: the drawing's light tables and cars' blocks.
 pub fn light_colour_at(
     reads: crate::workers::DrawReads<'_>,
+    net: &crate::net::owner::Net,
     points: &crate::race::scene_points::OwnPoints,
     lamps: &crate::race::lamp_work::LampWork,
     object_light: &crate::scene::object_light::ObjectLight,
@@ -329,7 +330,7 @@ pub fn light_colour_at(
     // spreads and the lamps' distances the x87's and the scene's).
     check_light_colour(reads.work, reads.view, lamps)?;
     object_light.light_colour.set(0u32);
-    car_lights_on_point(reads, object_light, drawn_view, mmx)?;
+    car_lights_on_point(reads, net, object_light, drawn_view, mmx)?;
     lamp_lights_on_point(reads.course(), points, lamps, object_light, mmx)?;
     Ok(())
 }
@@ -351,6 +352,7 @@ pub fn view_light(ctx: &DrawCtx<'_>, mmx: bool) -> Result<(), Refused> {
     );
     light_colour_at(
         ctx.reads,
+        ctx.net,
         &ctx.part.points,
         lamps,
         object_light,

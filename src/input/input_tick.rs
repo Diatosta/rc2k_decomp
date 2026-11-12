@@ -16,14 +16,19 @@ use crate::input::types::InputDevice;
 use crate::session::Dword;
 
 /// A tick of the devices (see the header).
-pub fn input_tick(input: &Input, sound: &crate::sound::owner::Sound) -> Result<(), Refused> {
+pub fn input_tick(
+    input: &Input,
+    sound: &crate::sound::owner::Sound,
+    system: &crate::system::owner::System,
+    race: &crate::race::owner::Race,
+) -> Result<(), Refused> {
     let command = input
         .devices
         .input_command
         .atomic()
         .swap(0, std::sync::atomic::Ordering::SeqCst);
     if command != 0 {
-        return crate::input::device_command::device_command(input, command, sound);
+        return crate::input::device_command::device_command(input, command, sound, system, race);
     }
     let records = records(&input.devices);
     for record in records {
@@ -51,6 +56,8 @@ pub fn input_tick(input: &Input, sound: &crate::sound::owner::Sound) -> Result<(
 pub fn input_tick_in_game(
     input: &Input,
     sound: &crate::sound::owner::Sound,
+    system: &crate::system::owner::System,
+    race: &crate::race::owner::Race,
 ) -> Result<(), Refused> {
-    input_tick(input, sound)
+    input_tick(input, sound, system, race)
 }

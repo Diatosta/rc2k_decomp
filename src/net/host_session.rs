@@ -17,23 +17,21 @@ use crate::errors::Refused;
 use crate::net::find_sessions::{posted_or_called, zeroed_description};
 use crate::net::lobby::{log_bytes, log_hex};
 use crate::net::owner::Net;
-use crate::net::owner::net;
-use crate::net::store::put_bytes;
+use crate::net::store::{NetVars, put_bytes};
 use crate::race::viewer_screen_store::{ViewerPanelBlock, texts};
 
 const OPEN_CREATE: u32 = 2; // DPOPEN_CREATE
 pub const OPEN_JOIN: u32 = 1; // DPOPEN_JOIN
 
 /// `Open(description, flags)`.
-pub fn open(flags: u32, name: &[u8]) -> u32 {
-    let vars = &net().vars;
+pub fn open(vars: &NetVars, flags: u32, name: &[u8]) -> u32 {
     let d = crate::net::dp_objects::desc(&vars.session_desc, name);
     crate::net::dp_objects::open(vars.dplay.get(), &d, flags)
 }
 
 /// The code at 0x418C5A as the receiving thread calls it when it is posted.
-pub fn posted_open_host() -> u32 {
-    open(OPEN_CREATE, &net().setup().machine_name.read())
+pub fn posted_open_host(net: &Net, _panel: &ViewerPanelBlock) -> u32 {
+    open(&net.vars, OPEN_CREATE, &net.setup().machine_name.read())
 }
 pub fn host_session(
     net: &Net,
@@ -77,11 +75,11 @@ pub fn finish(
     net: &Net,
     system: &crate::system::owner::System,
     panel: &ViewerPanelBlock,
-    posted: fn() -> u32,
+    posted: crate::net::post_call::PostedCall,
     then: fn(&crate::net::store::NetVars) -> Result<bool, Refused>,
     done: usize,
 ) -> Result<bool, Refused> {
-    let result = posted_or_called(net, system, posted);
+    let result = posted_or_called(net, system, panel, posted);
     log_bytes(&panel.text(texts::NET_OPEN), false, 2);
     log_hex(result, true);
     crate::system::restore_window::restore_window();

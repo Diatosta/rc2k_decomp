@@ -11,6 +11,7 @@
 //! after the texts sit on dword boundaries (`SPEECH_PAD` bytes before them, which the
 //! handles of `text_key` count).
 
+#[cfg(test)]
 use crate::menu::owner::menus;
 use crate::session::{PlainBytes, PlainDword, PlainLoose, with_runs};
 
@@ -2209,13 +2210,14 @@ pub const SPEECH_END: u32 = 0xFFFF_FFFF;
 /// The entry at `place` of the speech row `row` (its `text_key`): the sample name's key
 /// (`audio::store::name_key`), or `SPEECH_END`.
 pub fn speech_entry(
+    texts: &MenuTexts,
     names: &crate::audio::names_store::SampleNames,
     row: u32,
     place: u32,
 ) -> Result<u32, crate::errors::BadInput> {
-    let entry = text_at(row)?
-        .add(place.wrapping_mul(4))
-        .read_dword("a speech row")?;
+    check_key(row)?;
+    let at = row.wrapping_add(place.wrapping_mul(4)) as usize;
+    let entry = crate::cells::load_value::<u32>(texts, at)?;
     // 0: none, as the original's null.
     if entry == SPEECH_END || entry == 0 {
         return Ok(entry);
@@ -2236,18 +2238,23 @@ pub const fn text_key(ida: u32) -> u32 {
     (at - START + LEAD + pad) as u32
 }
 
-/// Where the text of `key` is (`text_key`).
-pub fn text_at(key: u32) -> Result<crate::place::BytePlace, crate::errors::BadInput> {
-    let at = key as usize;
-    if !(LEAD..LEAD + SPEECH_PAD + END - START).contains(&at) {
+/// Refused: a handle that is no text's (`text_key`).
+fn check_key(key: u32) -> Result<(), crate::errors::BadInput> {
+    if !(LEAD..LEAD + SPEECH_PAD + END - START).contains(&(key as usize)) {
         return Err(crate::errors::BadInput(
             "a text's handle off the menus' texts",
         ));
     }
-    Ok(crate::place::BytePlace::in_store(
-        &menus().tables.texts,
-        key as usize,
-    ))
+    Ok(())
+}
+
+/// Where the text of `key` is (`text_key`).
+pub fn text_at(
+    texts: &'static MenuTexts,
+    key: u32,
+) -> Result<crate::place::BytePlace, crate::errors::BadInput> {
+    check_key(key)?;
+    Ok(crate::place::BytePlace::in_store(texts, key as usize))
 }
 
 /// IDA 0x734BC6, the end of the piece.
@@ -2269,6 +2276,7 @@ mod tests {
             let o = at - START;
             let wanted = u32::from_le_bytes(image[o..o + 4].try_into().unwrap());
             let found = speech_entry(
+                &crate::menu::owner::menus().tables.texts,
                 &crate::audio::owner::audio().sample_names,
                 text_key(at as u32),
                 0,

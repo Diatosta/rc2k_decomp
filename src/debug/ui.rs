@@ -175,7 +175,7 @@ pub fn note_view(frame: &Frame) {
 /// noted, each with a line down to the ground found under it. Green the first four (the
 /// wheels, a reading), red a point at or under the ground, white the rest; yellow the
 /// ground. Above the window, and behind the eye skipped.
-fn draw_probes(race: &Race, ui: &Ui) {
+fn draw_probes(race: &Race, system: &crate::system::owner::System, ui: &Ui) {
     let physics = &race.physics;
     let wk = &physics.contact;
     let Some((m, scale, centre)) = *VIEW
@@ -185,7 +185,7 @@ fn draw_probes(race: &Race, ui: &Ui) {
         return;
     };
     let [w, h] = ui.io().display_size();
-    let (width, height) = crate::platform::screen_size();
+    let (width, height) = crate::platform::screen_size(system);
     let (sx, sy) = (w / width.max(1) as f32, h / height.max(1) as f32);
     let place = |[x, y, z]: [i32; 3]| {
         let [x, y, z] = [f64::from(x), f64::from(y), f64::from(z)];
@@ -254,9 +254,9 @@ fn body(ui: &Ui, f: impl FnOnce()) {
 pub fn build(o: &Owners<'static>, ui: &Ui) {
     let race = o.race;
     if PROBES.load(Relaxed) {
-        draw_probes(race, ui);
+        draw_probes(race, o.system, ui);
     }
-    crate::debug::kstar::over_picture(ui);
+    crate::debug::kstar::over_picture(o.system, ui);
     // The window keeps its share of the screen when the mode changes (the menus' 640 x 480,
     // the race's own).
     let screen = ui.io().display_size();
@@ -551,7 +551,7 @@ const HISTORY: usize = 240;
 
 /// The readings taken, once a UI frame while the tab is shown (a gap, from another tab, is
 /// not a frame's time).
-fn take_readings(t: &mut Timings) {
+fn take_readings(system: &crate::system::owner::System, t: &mut Timings) {
     let now = Counts {
         at: std::time::Instant::now(),
         frame: crate::platform::frame_counters(),
@@ -565,7 +565,7 @@ fn take_readings(t: &mut Timings) {
         let ms = now.at.duration_since(then.at).as_secs_f32() * 1000.0;
         push(&mut t.frames, ms);
         let ease = |shown: &mut f32, new: f32| *shown += (new - *shown) * SMOOTHING;
-        let screen = crate::platform::screen_pixels().max(1) as f32;
+        let screen = crate::platform::screen_pixels(system).max(1) as f32;
         for (n, shown) in t.frame.iter_mut().enumerate() {
             let d = now.frame[n].wrapping_sub(then.frame[n]) as f32;
             ease(
@@ -625,7 +625,7 @@ fn profiler(o: &Owners<'static>, ui: &Ui) {
     let mut t = TIMINGS
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
-    take_readings(&mut t);
+    take_readings(o.system, &mut t);
     let fps = shared.switches.get().frame_rate.get();
     ui.text(format!("Frame rate (the game's, over 16 frames): {fps:.1}"));
     ui.same_line();

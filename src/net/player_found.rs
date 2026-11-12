@@ -8,11 +8,10 @@
 //! Caller: DirectPlay, from `net::list_players` (`callback`, a `stdcall` Rust function).
 
 use crate::errors::Refused;
-use crate::net::owner::net;
+use crate::net::store::NetVars;
 
 /// The player's id and short name.
-pub fn player_found(id: u32, short: &[u8]) -> Result<u32, Refused> {
-    let vars = &net().vars;
+pub fn player_found(vars: &NetVars, id: u32, short: &[u8]) -> Result<u32, Refused> {
     let Some(count) = rc2k_core::net::lists::player_found(vars.players.get()) else {
         return Ok(0);
     };
@@ -24,6 +23,8 @@ pub fn player_found(id: u32, short: &[u8]) -> Result<u32, Refused> {
     Ok(1)
 }
 
-pub fn callback(id: u32, _kind: u32, short: &[u8], _flags: u32, _context: u32) -> u32 {
-    crate::net::lobby::callback_entry("net::player_found", 0x41929E, || player_found(id, short))
+pub fn callback(vars: &NetVars, id: u32, short: &[u8]) -> u32 {
+    crate::net::lobby::callback_entry("net::player_found", 0x41929E, || {
+        player_found(vars, id, short)
+    })
 }

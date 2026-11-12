@@ -8,14 +8,14 @@
 
 use crate::input::owner::Input;
 
-pub fn list_joysticks(input: &Input) {
+pub fn list_joysticks(input: &Input, system: &crate::system::owner::System) {
     if input.devices.no_joysticks.is_set() {
         return;
     }
     crate::input::di_objects::enum_devices(
         input.devices.direct_input.get(),
         4,
-        |instance| crate::input::joystick_found::callback(input, instance),
+        |instance| crate::input::joystick_found::callback(input, system, instance),
         1,
     );
 }

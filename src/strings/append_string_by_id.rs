@@ -23,6 +23,7 @@ pub struct StringOwners<'a> {
     pub race: &'a crate::race::owner::Race,
     pub menus: &'a crate::menu::owner::Menus,
     pub install: &'a crate::install::owner::Install,
+    pub system: &'a crate::system::owner::System,
 }
 
 impl<'a> StringOwners<'a> {
@@ -32,6 +33,7 @@ impl<'a> StringOwners<'a> {
             race: o.race,
             menus: o.menus,
             install: o.install,
+            system: o.system,
         }
     }
 }

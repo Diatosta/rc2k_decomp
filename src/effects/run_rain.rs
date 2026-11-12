@@ -41,8 +41,8 @@ fn box_moved(weather: &Weather, i: usize) {
 
 /// The move's length into `depth`, compared with `move_limit` (the compare's status word
 /// goes to the shared FPU status variable).
-fn move_length(weather: &Weather) {
-    move_length_x87(&weather.rain, &weather.rain_rules);
+fn move_length(weather: &Weather, work: &crate::effects::work_store::MarksWork) {
+    move_length_x87(&weather.rain, &weather.rain_rules, work);
 }
 
 /// The move scaled to `move_held` over its length, times its three factors.
@@ -119,7 +119,7 @@ pub fn run_rain(
         for n in 0..3 {
             r.motion[n].set(r.moves[e][n].get());
         }
-        move_length(weather);
+        move_length(weather, &setup.work);
         let status = setup.work.fpu_status.get() & 0x700;
         setup.work.fpu_status.set(status);
         if status != 0x100 {
@@ -184,7 +184,7 @@ fn box_moved_x87(i: usize, r: &RainState, k: &RainRules) {
 }
 
 /// `move_length`'s x87 block as plain Rust on the x87 model (12 instructions), same order and memory places.
-fn move_length_x87(r: &RainState, k: &RainRules) {
+fn move_length_x87(r: &RainState, k: &RainRules, work: &crate::effects::work_store::MarksWork) {
     let t0 = r.motion[0].ld();
     let t1 = t0 * t0;
     let t2 = r.motion[1].ld();
@@ -195,7 +195,7 @@ fn move_length_x87(r: &RainState, k: &RainRules) {
     let t7 = t1 + t6;
     let t8 = t7.sqrt();
     r.depth.st(t8);
-    crate::effects::plain::set_status(bh::compare(t8, bh::ld(k.move_limit)));
+    crate::effects::plain::set_status(work, bh::compare(t8, bh::ld(k.move_limit)));
 }
 
 /// `move_held`'s x87 block as plain Rust on the x87 model (13 instructions), same order and memory places.
@@ -316,7 +316,9 @@ mod reference_vectors {
             sincos: false,
         };
         recorded_writes("effects.run_rain.move_length_x87", &SPEC, |b| {
-            with_state_at(b[1], super::move_length_x87);
+            with_state_at(b[1], |r, k| {
+                super::move_length_x87(r, k, &crate::effects::owner::effects().setup.work);
+            });
         });
     }
 

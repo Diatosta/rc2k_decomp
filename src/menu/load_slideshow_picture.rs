@@ -36,7 +36,7 @@ pub enum Step<'a> {
 }
 
 pub fn load_slideshow_picture(
-    menus: &Menus,
+    menus: &'static Menus,
     way: u32,
     step: &mut dyn FnMut(Step<'_>) -> Result<bool, Refused>,
 ) -> Result<(), Refused> {
@@ -44,6 +44,7 @@ pub fn load_slideshow_picture(
     use rc2k_core::menu::slides;
     let car = slides::slideshow_car(shown_car(menus)?)?;
     let template = crate::menu::texts_store::text_at(
+        &menus.tables.texts,
         menus.tables.lists.slideshow_templates[car as usize].get(),
     )?
     .text("a path template")?;

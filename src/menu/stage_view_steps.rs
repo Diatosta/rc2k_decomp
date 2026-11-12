@@ -103,7 +103,12 @@ pub fn play_stage_speech(
         crate::sound::start_stream::start_stream(
             audio,
             system,
-            crate::menu::texts_store::speech_entry(&audio.sample_names, at, 0)?,
+            crate::menu::texts_store::speech_entry(
+                &menus.tables.texts,
+                &audio.sample_names,
+                at,
+                0,
+            )?,
             menus.screens.option_work.speech_level.get(),
         );
     }
@@ -149,12 +154,15 @@ pub fn load_welcome_picture(o: Owners<'static>) -> Result<(), Refused> {
             stage_screens::Welcome::Championship => &menus.tables.lists.welcome_championship,
             stage_screens::Welcome::Other => &menus.tables.lists.welcome_other,
         };
-    let path = crate::menu::texts_store::text_at(crate::session::read_on_in(
-        &menus.tables.lists,
-        table,
-        section as usize,
-        "a welcome picture",
-    )?)?;
+    let path = crate::menu::texts_store::text_at(
+        &menus.tables.texts,
+        crate::session::read_on_in(
+            &menus.tables.lists,
+            table,
+            section as usize,
+            "a welcome picture",
+        )?,
+    )?;
     if crate::gfx::load_picture_with_overlay::load_picture_with_overlay_in(
         &path,
         &menus.tables.texts.titlebar_png,
@@ -193,9 +201,9 @@ pub fn step_stage_page(o: Owners<'static>, up: bool) -> Result<(), Refused> {
 }
 
 /// The stage item's two looks: (+0x1C, +0x20, +0x50).
-pub fn style_stage_item(screens: &Screens, b: bool) -> Result<(), Refused> {
+pub fn style_stage_item(menus: &Menus, b: bool) -> Result<(), Refused> {
     use crate::menu::item_sprites_store::ItemSprite;
-    let item = crate::menu::item_at::item_at(screens, 1)?;
+    let item = crate::menu::item_at::item_at(menus, 1)?;
     let (a, c, font) = if b {
         (
             0xFFFF_FFA7,

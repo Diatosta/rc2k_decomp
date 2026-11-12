@@ -41,7 +41,7 @@ fn walk(menus: &Menus, system: &System, race: &Race) -> Result<Vec<(u32, Step)>,
         index,
         |i| fault.ok(record_at(menus, system, i).map(RecordRef::tag)),
         |i| {
-            crate::menu::calc_cpu_times::check(menus, race, record_at(menus, system, i)?)
+            crate::menu::calc_cpu_times::check(menus, system, race, record_at(menus, system, i)?)
                 .map(|_| ())
         },
     );

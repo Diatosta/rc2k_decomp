@@ -36,6 +36,6 @@ pub fn car_caption(
     menus: &Menus,
     text: &crate::screens::text_buffers_store::TextBuffers,
 ) -> Result<(), Refused> {
-    let id = read(shown_description(menus)?)?.name;
+    let id = read(menus, shown_description(menus)?)?.name;
     put_string(o, id, &text.caption, CAPTION_LEN)
 }

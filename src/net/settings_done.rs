@@ -14,10 +14,11 @@ use crate::system::owner::System;
 pub fn settings_done(
     net: &'static Net,
     system: &System,
+    strings: &crate::strings::owner::Strings,
     panel: &ViewerPanelBlock,
 ) -> Result<(), Refused> {
     let vars = &net.vars;
-    let saved = if crate::net::find_connections::find_connections(vars, panel)? {
+    let saved = if crate::net::find_connections::find_connections(vars, strings, panel)? {
         crate::net::find_saved_connection::find_saved_connection(net)?
     } else {
         None

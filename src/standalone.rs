@@ -159,7 +159,7 @@ pub fn leave_on_close(o: Owners<'static>) -> ! {
             "standalone: the game's data was not saved on closing: {e:?}"
         ));
     }
-    if let Err(e) = crate::threading::request_quit::request_quit() {
+    if let Err(e) = crate::threading::request_quit::request_quit_in(o.system) {
         log(&format!(
             "standalone: the shutdown thread did not start ({:#x})",
             e.code

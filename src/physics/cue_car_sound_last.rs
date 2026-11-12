@@ -43,5 +43,6 @@ pub fn cue_car_sound_last(
         cue,
         SoundObject::of(sound, car)?,
         audio,
+        sound.race.cue_lists.get(),
     )
 }

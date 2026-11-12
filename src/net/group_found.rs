@@ -7,11 +7,10 @@
 //! Caller: DirectPlay, from `net::join_group` (`callback`, a `stdcall` Rust function).
 
 use crate::errors::Refused;
-use crate::net::owner::net;
+use crate::net::store::NetVars;
 
 /// The group's id, type and short name.
-pub fn group_found(id: u32, kind: u32, short: &[u8]) -> Result<u32, Refused> {
-    let vars = &net().vars;
+pub fn group_found(vars: &NetVars, id: u32, kind: u32, short: &[u8]) -> Result<u32, Refused> {
     if kind != 0 {
         return Ok(1);
     }
@@ -23,8 +22,8 @@ pub fn group_found(id: u32, kind: u32, short: &[u8]) -> Result<u32, Refused> {
     Ok(0)
 }
 
-pub fn callback(id: u32, kind: u32, short: &[u8], _flags: u32, _context: u32) -> u32 {
+pub fn callback(vars: &NetVars, id: u32, kind: u32, short: &[u8]) -> u32 {
     crate::net::lobby::callback_entry("net::group_found", 0x419391, || {
-        group_found(id, kind, short)
+        group_found(vars, id, kind, short)
     })
 }

@@ -211,7 +211,7 @@ const CRACK_SETS: [fn(&EffectsSettings, usize) -> u32; 3] = [
 fn read(o: &Owners<'static>, at: At) -> Option<u32> {
     match at {
         Cell(read) => Some(read(o)),
-        Through(read) => effects_settings().ok().map(read),
+        Through(read) => effects_settings(o.effects).ok().map(read),
     }
 }
 
@@ -285,7 +285,12 @@ fn cracks(ui: &Ui, o: &Owners<'static>) {
         ));
         for (set, figure) in CRACK_SETS.iter().enumerate() {
             let figures: Vec<String> = (0..6)
-                .map(|n| shown(effects_settings().ok().map(|s| figure(s, n)), false))
+                .map(|n| {
+                    shown(
+                        effects_settings(o.effects).ok().map(|s| figure(s, n)),
+                        false,
+                    )
+                })
                 .collect();
             ui.text(format!("Set {}: {}", set + 1, figures.join("  ")));
         }

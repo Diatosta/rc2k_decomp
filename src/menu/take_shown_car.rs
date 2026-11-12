@@ -24,7 +24,7 @@ pub fn take_shown_car(menus: &Menus, list: Option<CarList>) -> Result<(), Refuse
     {
         let entry = menus.tables.lists.car_entry(list, shown)?;
         // The entry is a description's handle (`cars_store::car_ref`).
-        let description = crate::menu::cars_store::description(entry)?.get();
+        let description = crate::menu::cars_store::description(&menus.cars.table, entry)?.get();
         let (number, class) = (description.car, description.class);
         player(menus, current)
             .ok_or(crate::errors::BadInput("a current player past the four"))?

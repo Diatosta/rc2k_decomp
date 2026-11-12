@@ -33,7 +33,7 @@ use crate::input::owner::Input;
 use crate::input::store::Devices;
 use crate::input::types::{DiPropDword as W, DiPropHeader, DiPropRange as R, InputDevice as D};
 use crate::session::Dword;
-use crate::system::owner::system;
+use crate::system::owner::System;
 use rc2k_core::input::acquire::{
     Acquire, HAS_DEVICE, acquire, axis_offset, dead_zone_value, saturation, two_axes,
 };
@@ -178,7 +178,7 @@ fn properties(record: &D) {
 }
 
 /// See the header.
-pub fn acquire_device(input: &Input, record: &D) -> Result<(), Refused> {
+pub fn acquire_device(input: &Input, system: &System, record: &D) -> Result<(), Refused> {
     // Converted: `rc2k_core::input::acquire::acquire`.
     let late = Deferred::default();
     let step = acquire(
@@ -213,7 +213,7 @@ pub fn acquire_device(input: &Input, record: &D) -> Result<(), Refused> {
     }
     if crate::input::di_objects::set_cooperative_level(
         device,
-        system().session.machine.window.get(),
+        system.session.machine.window.get(),
         5,
     ) != 0
     {

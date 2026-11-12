@@ -54,7 +54,7 @@ pub fn move_highlight(o: Owners<'static>, direction: Direction) -> Result<(), Re
     let sideways = matches!(direction, Direction::Left | Direction::Right);
     {
         let highlighted: u32 = screens.loop_flags.item.get();
-        let item = item_at(&menus.screens, highlighted)?;
+        let item = item_at(menus, highlighted)?;
         let turned = (sideways && screens.flow.turning.get() == 1).then(|| {
             let t = Turn {
                 count: screens.state.carousel.count.get() as i32,
@@ -67,7 +67,7 @@ pub fn move_highlight(o: Owners<'static>, direction: Direction) -> Result<(), Re
         let next = item.fixed().links[way];
         let to = match link(next) {
             Link::To(n) if !sideways => Some(walk(n, |n| {
-                let it = item_at(&menus.screens, n).map_err(|e| rc2k_core::Invalid(e.0))?;
+                let it = item_at(menus, n).map_err(|e| rc2k_core::Invalid(e.0))?;
                 Ok((it.fixed().links[way], it.skip_mark.get()))
             })?),
             Link::To(n) => Some(n),

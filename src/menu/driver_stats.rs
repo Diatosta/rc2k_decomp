@@ -69,7 +69,10 @@ pub fn car_table(
         c => c,
     };
     // The original reads entries up to 0xFF, on past the table's 34: refused there.
-    crate::menu::cars_store::description_table(crate::menu::cars_store::car_entry(menus, car)?)
+    crate::menu::cars_store::description_table(
+        &menus.cars.table,
+        crate::menu::cars_store::car_entry(menus, car)?,
+    )
 }
 
 pub fn driver_stats(menus: &Menus, screens: &Screens) -> Result<(), Refused> {
@@ -78,7 +81,7 @@ pub fn driver_stats(menus: &Menus, screens: &Screens) -> Result<(), Refused> {
     use rc2k_core::menu::driver_figures::{Car, Constants, Table, figures};
     let (p, t) = player_and_table(menus, screens)?;
     let fault = Fault::default();
-    let table = Table::read(|o| fault.ok(t.dword(o)));
+    let table = Table::read(|o| fault.ok(t.dword(&menus.cars.table, o)));
     let car = Car {
         wear: std::array::from_fn(|k| p.get().damage[k]),
         fitted: p.get().state_flags,

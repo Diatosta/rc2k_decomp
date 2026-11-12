@@ -493,9 +493,9 @@ impl<F: GameFont, W: GameWork, T: GameText> Screen for GameScreen<'_, F, W, T> {
 
     fn item(&mut self, n: u32, on: bool) -> Result<(), Refused> {
         if on {
-            crate::menu::enable_item::enable_item(&self.menus.screens, n)
+            crate::menu::enable_item::enable_item(self.menus, n)
         } else {
-            crate::menu::disable_item::disable_item(&self.menus.screens, n)
+            crate::menu::disable_item::disable_item(self.menus, n)
         }
     }
 

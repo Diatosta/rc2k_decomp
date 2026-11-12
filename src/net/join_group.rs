@@ -10,7 +10,13 @@ use crate::net::create_group::join;
 use crate::net::store::NetVars;
 pub fn join_group(vars: &NetVars) -> bool {
     let result = {
-        crate::net::dp_objects::enum_groups(vars.dplay.get(), crate::net::group_found::callback, 0)
+        crate::net::dp_objects::enum_groups(
+            vars.dplay.get(),
+            &|id, kind, short, _flags, _context| {
+                crate::net::group_found::callback(vars, id, kind, short)
+            },
+            0,
+        )
     };
     result == 0 && join(vars)
 }

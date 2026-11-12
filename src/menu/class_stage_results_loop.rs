@@ -23,7 +23,12 @@ fn set_first_item(entry: &Entry) -> Result<(), Refused> {
     } else {
         0x139
     };
-    menus.tables.menus.class_stage_results.id().items()[0]
+    menus
+        .tables
+        .menus
+        .class_stage_results
+        .id()
+        .items(&menus.tables.menus)[0]
         .string
         .set(title);
 

@@ -59,7 +59,10 @@ pub fn draw_selected_stage_menu(
             BadInput("no record table is selected: the original reads through null").into(),
         );
     };
-    let (Some(item_0), Some(item_1)) = (menu_item_id(screens, 0), menu_item_id(screens, 1)) else {
+    let (Some(item_0), Some(item_1)) = (
+        menu_item_id(screens, &menus.tables.menus, 0),
+        menu_item_id(screens, &menus.tables.menus, 1),
+    ) else {
         return Err(BadInput("there is no current menu: the original writes through null").into());
     };
     item_0.set(group_title);

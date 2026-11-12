@@ -20,11 +20,12 @@ use crate::errors::BadInput;
 use crate::input::di_harness::{CAPS_LEN, CONTROLLERS};
 use crate::input::owner::Input;
 use crate::input::types::{Controller, DiDeviceInstance};
-use crate::system::owner::system;
+use crate::system::owner::System;
 
 /// Looks the joystick over and fills the entry: false at the first failure.
 fn look_over(
     input: &Input,
+    system: &System,
     instance: &DiDeviceInstance,
     entry: &Controller,
 ) -> Result<bool, BadInput> {
@@ -43,7 +44,7 @@ fn look_over(
     if di::set_data_format(device2) != 0 {
         return Ok(false);
     }
-    if di::set_cooperative_level(device2, system().session.machine.window.get(), 5) != 0 {
+    if di::set_cooperative_level(device2, system.session.machine.window.get(), 5) != 0 {
         return Ok(false);
     }
     let Ok(caps) = di::get_capabilities(device2, CAPS_LEN as u32) else {
@@ -95,8 +96,8 @@ fn look_over(
 }
 
 /// `joystick_found` as DirectInput calls it: what Rust callers hand `EnumDevices`.
-pub fn callback(input: &Input, instance: &DiDeviceInstance) -> u32 {
-    match joystick_found(input, instance) {
+pub fn callback(input: &Input, system: &System, instance: &DiDeviceInstance) -> u32 {
+    match joystick_found(input, system, instance) {
         Ok(eax) => eax,
         Err(e) => {
             crate::input::devices::refused_here("input::joystick_found", e);
@@ -105,13 +106,17 @@ pub fn callback(input: &Input, instance: &DiDeviceInstance) -> u32 {
     }
 }
 
-pub fn joystick_found(input: &Input, instance: &DiDeviceInstance) -> Result<u32, BadInput> {
+pub fn joystick_found(
+    input: &Input,
+    system: &System,
+    instance: &DiDeviceInstance,
+) -> Result<u32, BadInput> {
     let count = input.devices.controller_count.get();
     if count >= CONTROLLERS {
         return Ok(0);
     }
     let entry = &input.devices.controllers[count as usize];
-    look_over(input, instance, entry)?;
+    look_over(input, system, instance, entry)?;
     for cell in [&input.devices.new_joystick2, &input.devices.new_joystick] {
         let object = cell.get();
         if object != 0 {

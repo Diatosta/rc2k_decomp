@@ -21,6 +21,7 @@ const FAIL_TEXT: &std::ffi::CStr = c"SAM: FAIL"; // "SAM: FAIL"
 pub fn set_mode(
     audio: &Audio,
     system: &crate::system::owner::System,
+    tune_turn: &crate::session::Dword,
     mode: u32,
 ) -> Result<bool, Refused> {
     use crate::audio::mixer_set_up::{close_way, open_way};
@@ -31,7 +32,7 @@ pub fn set_mode(
     // Fixed (section 16): the streams stopped with action 0; the original
     // hands on whatever action value is left over (normally a feed), so the music
     // outlived the DirectSound it played on.
-    crate::audio::stop_streams::stop_streams(audio)?;
+    crate::audio::stop_streams::stop_streams(audio, tune_turn)?;
     crate::audio::free_voices::free_voices(audio)?;
     close_way(audio, system, audio.state.sound_mode.get())?;
     sd::release_primary(&audio.state);

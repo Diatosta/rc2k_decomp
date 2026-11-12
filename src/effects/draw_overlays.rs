@@ -36,6 +36,7 @@ pub fn draw_overlays(
     masks: &Masks,
     drops: &WindscreenDrops,
     gfx: &crate::gfx::owner::Gfx,
+    cheats: &crate::menu::cheats_store::Cheats,
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
     let buffer = ctx.part.vertices;
@@ -58,6 +59,7 @@ pub fn draw_overlays(
             drops,
             &effects.pong,
             fl,
+            cheats,
             effects,
         )?;
         crate::effects::windscreen_drops_top::windscreen_drops_top(

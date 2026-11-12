@@ -14,7 +14,11 @@ use crate::net::lobby::log_bytes;
 use crate::net::store::NetVars;
 use crate::net::{allocate_lists, create_dplay, open_lobby};
 use crate::race::viewer_screen_store::{ViewerPanelBlock, texts};
-pub fn find_connections(vars: &NetVars, panel: &ViewerPanelBlock) -> Result<bool, Refused> {
+pub fn find_connections(
+    vars: &NetVars,
+    strings: &crate::strings::owner::Strings,
+    panel: &ViewerPanelBlock,
+) -> Result<bool, Refused> {
     log_bytes(&panel.text(texts::NET_FIND_CONNECTIONS), true, 2);
     if vars.receive_done.get() == 1 || !open_lobby::open_lobby(vars, panel)? {
         return Ok(false);
@@ -24,8 +28,12 @@ pub fn find_connections(vars: &NetVars, panel: &ViewerPanelBlock) -> Result<bool
     }
     allocate_lists::allocate_lists(vars)?;
     vars.connections.set(0);
-    let result =
-        { crate::net::dp_objects::enum_connections(crate::net::connection_found::callback, 0) };
+    let result = crate::net::dp_objects::enum_connections(
+        &|guid, data, short, _flags, _context| {
+            crate::net::connection_found::callback(vars, strings, panel, guid, data, short)
+        },
+        0,
+    );
     // The carry is set when none was listed.
     Ok(result == 0 && vars.connections.get() >= 1)
 }

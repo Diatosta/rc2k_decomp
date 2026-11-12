@@ -30,6 +30,7 @@ pub fn request_quit_with(
     start(crate::threading::thread_slot::SHUTDOWN)
 }
 
+/// `request_quit_in` for the fatal reporter, which runs on any thread with no owners in hand.
 pub fn request_quit() -> Result<(), FatalError> {
     request_quit_in(system())
 }

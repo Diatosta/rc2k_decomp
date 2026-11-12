@@ -83,17 +83,21 @@ impl<'a> EffectsView<'a> {
 }
 
 /// For `view`.
+#[allow(
+    clippy::too_many_arguments,
+    reason = "the owners one frame of the effects reads, as they are lent"
+)]
 pub fn run_frame(
     buffer: &crate::d3d::vertices_store::PolygonVertices,
     race: &Race,
     scene: &crate::scene::owner::Scene,
     effects: &crate::effects::owner::Effects,
     system: &crate::system::owner::System,
+    gfx: &crate::gfx::owner::Gfx,
     sound: &crate::sound::owner::Sound,
     view: EffectsView<'_>,
 ) -> Result<(), Refused> {
     let part = crate::workers::game_scratch();
-    let gfx = crate::gfx::owner::gfx();
     use crate::effects::*;
     use crate::scene::set_render_state::set_render_state;
     let (weather, particles, ring) = (&effects.weather, &effects.particles, &effects.ring);

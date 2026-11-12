@@ -303,10 +303,10 @@ pub fn destroy_player(this: u32, player: u32) -> u32 {
 
 /// `EnumPlayers` / `EnumGroups`' callback: (the id, the kind, its short name, flags, the
 /// context) -> 0 to stop.
-pub type EnumPlayersCallback = fn(u32, u32, &[u8], u32, u32) -> u32;
+type EnumPlayersCallback<'a> = &'a dyn Fn(u32, u32, &[u8], u32, u32) -> u32;
 
 /// The players (kind 1) or the groups (kind 0) to `callback`, each with its name.
-fn enumerate(this: u32, callback: EnumPlayersCallback, context: u32, kind: u32) -> u32 {
+fn enumerate(this: u32, callback: EnumPlayersCallback<'_>, context: u32, kind: u32) -> u32 {
     let Some(s) = session(this) else {
         return DPERR_UNINITIALIZED;
     };
@@ -333,11 +333,11 @@ fn enumerate(this: u32, callback: EnumPlayersCallback, context: u32, kind: u32) 
     DP_OK
 }
 
-pub fn enum_groups(this: u32, callback: EnumPlayersCallback, context: u32) -> u32 {
+pub fn enum_groups(this: u32, callback: EnumPlayersCallback<'_>, context: u32) -> u32 {
     enumerate(this, callback, context, 0)
 }
 
-pub fn enum_players(this: u32, callback: EnumPlayersCallback, context: u32) -> u32 {
+pub fn enum_players(this: u32, callback: EnumPlayersCallback<'_>, context: u32) -> u32 {
     enumerate(this, callback, context, 1)
 }
 
@@ -363,13 +363,13 @@ pub fn desc(d: &crate::net::store::SessionDesc, name: &[u8]) -> Desc {
 
 /// `EnumSessions`' callback: (the session, or none at the end, flags, the context) -> 0
 /// to stop.
-pub type EnumSessionsCallback = fn(Option<&Desc>, u32, u32) -> u32;
+type EnumSessionsCallback<'a> = &'a dyn Fn(Option<&Desc>, u32, u32) -> u32;
 
 /// `EnumSessions` for `application`'s sessions.
 pub fn enum_sessions(
     this: u32,
     application: &Guid,
-    callback: EnumSessionsCallback,
+    callback: EnumSessionsCallback<'_>,
     context: u32,
     flags: u32,
 ) -> u32 {
@@ -491,10 +491,10 @@ pub fn set_session_desc(this: u32, desc: &Desc) -> u32 {
 
 /// `EnumConnections`' callback: (the service provider's GUID, the connection's address,
 /// its name, flags, the context) -> 0 to stop.
-pub type EnumConnectionsCallback = fn(&Guid, &[u8], &[u8], u32, u32) -> u32;
+type EnumConnectionsCallback<'a> = &'a dyn Fn(&Guid, &[u8], &[u8], u32, u32) -> u32;
 
 /// `EnumConnections`: TCP/IP alone.
-pub fn enum_connections(callback: EnumConnectionsCallback, context: u32) -> u32 {
+pub fn enum_connections(callback: EnumConnectionsCallback<'_>, context: u32) -> u32 {
     let address = compound(&[(DPAID_SERVICEPROVIDER, DPSPGUID_TCPIP.to_vec())]);
     let name = c"Internet TCP/IP Connection For DirectPlay";
     callback(
@@ -658,7 +658,7 @@ mod tests {
         // Up to 10 s (it stops when found): a full parallel test run under Wine is slow.
         for _ in 0..500 {
             assert_eq!(
-                enum_sessions(guest, &APPLICATION, session_found, 0, 0),
+                enum_sessions(guest, &APPLICATION, &session_found, 0, 0),
                 DP_OK
             );
             found = FOUND.lock().unwrap().first().copied();

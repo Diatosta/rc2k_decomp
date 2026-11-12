@@ -150,7 +150,7 @@ pub fn draw_stage_results(o: Owners<'static>, canvas: &mut dyn Canvas) -> Result
         .into());
     }
     let set_item = |n: u32, v: u32| -> Result<(), BadInput> {
-        menu.items()
+        menu.items(&menus.tables.menus)
             .get(n as usize)
             .ok_or(BadInput("an item past its menu's end"))?
             .string

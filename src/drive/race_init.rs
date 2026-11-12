@@ -106,6 +106,7 @@ pub fn race_init(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), R
             scene,
             effects,
             o.system,
+            o.gfx,
             sound,
             view,
         )?;

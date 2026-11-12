@@ -12,6 +12,7 @@
 
 use crate::gfx::typefaces::FontCell;
 use crate::menu::item_sprites_store::SpriteCell;
+#[cfg(test)]
 use crate::menu::owner::menus;
 use crate::session::PlainDword;
 use rc2k_core::menu::tables::{MENUS, MenuItem as Fixed};
@@ -496,9 +497,12 @@ pub fn labels_slot(menu: MenuId, offset: u32) -> Result<Option<usize>, crate::er
 /// draw_menu_labels` walks them by offset). Refused: a place that is no label's font (the
 /// walk gone off the lists' grid: the original would take what is there for a font object's
 /// address).
-pub fn label_font(at: u32) -> Result<crate::gfx::typefaces::FontId, crate::errors::BadInput> {
+pub fn label_font(
+    labels: &LabelTables,
+    at: u32,
+) -> Result<crate::gfx::typefaces::FontId, crate::errors::BadInput> {
     let off = at as usize;
-    let lists = label_lists(&menus().tables.menus.labels);
+    let lists = label_lists(labels);
     if off >= lists.len() * LABEL_LIST_LEN || off % LABEL_LIST_LEN != 8 {
         return Err(crate::errors::BadInput("a label's font read off a label"));
     }
@@ -818,21 +822,25 @@ impl MenuId {
     }
 
     /// The menu's items (the -1 after them is `MenuItem::END`'s place: not among them).
-    pub fn items(self) -> &'static [MenuItem] {
+    pub fn items(self, tables: &MenuTables) -> &[MenuItem] {
         let from = FIRST_ITEM[self.0 as usize] as usize;
         let to = FIRST_ITEM[self.0 as usize + 1] as usize;
-        &menus().tables.menus.items[from..to]
+        &tables.items[from..to]
     }
 
     /// Item `number` (from 1). Refused: item 0, for which the original counts through all
     /// 32 bits, and one past the menu's end (the original reads on into what follows).
-    pub fn item(self, number: u32) -> Result<&'static MenuItem, crate::errors::BadInput> {
+    pub fn item(
+        self,
+        tables: &MenuTables,
+        number: u32,
+    ) -> Result<&MenuItem, crate::errors::BadInput> {
         if number == 0 {
             return Err(crate::errors::BadInput(
                 "item number 0: the original counts through all 32 bits",
             ));
         }
-        self.items()
+        self.items(tables)
             .get(number as usize - 1)
             .ok_or(crate::errors::BadInput("an item past its menu's end"))
     }
@@ -901,8 +909,8 @@ mod tests {
         for n in 0..MENU_COUNT {
             let m = MenuId(n);
             assert_eq!(MenuId::from_code(m.code()).unwrap(), m);
-            assert_eq!(m.items().len(), m.table().items.len());
-            for (state, fixed) in m.items().iter().zip(m.table().items) {
+            assert_eq!(m.items(tables).len(), m.table().items.len());
+            for (state, fixed) in m.items(tables).iter().zip(m.table().items) {
                 assert!(std::ptr::eq(state.fixed(), fixed));
                 assert_eq!(state.string.get(), fixed.string);
                 assert_eq!(state.behind.get(), fixed.behind);
@@ -913,16 +921,16 @@ mod tests {
                     fixed.highlight_font.ral()
                 );
             }
-            total += m.items().len();
+            total += m.items(tables).len();
         }
         assert_eq!(total, ITEM_COUNT);
         assert_eq!(
-            tables.stage_result.id().items().len(),
+            tables.stage_result.id().items(tables).len(),
             MENUS[tables.stage_result.id().0 as usize].items.len()
         );
         assert!(MenuId::from_code(0).is_err());
-        assert!(tables.select_stage.id().item(0).is_err());
-        assert!(tables.select_stage.id().item(1).is_ok());
+        assert!(tables.select_stage.id().item(tables, 0).is_err());
+        assert!(tables.select_stage.id().item(tables, 1).is_ok());
         let c = MenuCell::new();
         assert!(c.get().is_err());
         c.set(tables.service_area.id());

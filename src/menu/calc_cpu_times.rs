@@ -65,6 +65,7 @@ pub fn record(screens: &Screens, system: &System) -> Result<RecordRef, BadInput>
 /// anything: the class count, the drivers and the pack entry's length.
 pub fn check<'a>(
     menus: &'a Menus,
+    system: &System,
     race: &Race,
     rec: RecordRef,
 ) -> Result<(u32, &'a [Driver], u32), Refused> {
@@ -76,7 +77,8 @@ pub fn check<'a>(
     let drivers = drivers(menus)?;
     let times = rec.record()?.class_times();
     let (times, _) = scaled(race, times, held_section(screens));
-    let length = crate::records::trakpak_entry::track_of(rec)?.length()?;
+    let length = crate::records::trakpak_entry::track_of(&system.records().stage_tables, rec)?
+        .length(&system.records().stage_tables)?;
     if length.wrapping_mul(100) == 0 {
         return Err(DIVIDE_BY_ZERO.into());
     }
@@ -103,7 +105,7 @@ pub fn check<'a>(
 pub fn calc_cpu_times(menus: &Menus, system: &System, race: &Race) -> Result<(), Refused> {
     let screens = &menus.screens;
     let rec = record(screens, system)?;
-    let (classes, drivers, length) = check(menus, race, rec)?;
+    let (classes, drivers, length) = check(menus, system, race, rec)?;
     crate::logfile::log_write::log_nul(&TEXTS_RVA[0], true, 1);
     for (k, t) in rec.record()?.class_times().into_iter().enumerate() {
         screens.state.menus.class_times[k].set(t);

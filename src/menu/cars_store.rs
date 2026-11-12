@@ -5,6 +5,7 @@
 
 use crate::errors::BadInput;
 use crate::menu::owner::Menus;
+#[cfg(test)]
 use crate::menu::owner::menus;
 use crate::session::{PlainBytes, PlainDword, Shared, with_runs};
 use rc2k_core::screens::car_pages::CarDescription;
@@ -1245,8 +1246,8 @@ pub fn car_of(handle: u32) -> Result<usize, BadInput> {
 }
 
 /// The description a handle names (`car_of`).
-pub fn description(handle: u32) -> Result<&'static Shared<CarDescription>, BadInput> {
-    Ok(&menus().cars.table.descriptions[car_of(handle)?])
+pub fn description(table: &CarTable, handle: u32) -> Result<&Shared<CarDescription>, BadInput> {
+    Ok(&table.descriptions[car_of(handle)?])
 }
 
 /// The table's entry for car `number` (refused past the 34: the original reads on into
@@ -1270,9 +1271,12 @@ pub const END: usize = 0x7585D8;
 
 /// Where the figures of the description `entry` names are now: its +0x74 keeps their IDA
 /// address, a name in `CarTable::description_texts` (read by `menu::driver_stats`).
-pub fn description_table(entry: u32) -> Result<DescriptionTable, crate::errors::BadInput> {
+pub fn description_table(
+    table: &CarTable,
+    entry: u32,
+) -> Result<DescriptionTable, crate::errors::BadInput> {
     const TEXTS: usize = 0x757558;
-    let table = description(entry)?.get().figures;
+    let table = description(table, entry)?.get().figures;
     if table == 0 {
         return Err(crate::errors::BadInput("a car without its table"));
     }
@@ -1291,8 +1295,8 @@ pub struct DescriptionTable(usize);
 impl DescriptionTable {
     /// The dword `offset` bytes into the figures; refused past the texts' end (the original
     /// reads on into whatever follows).
-    pub fn dword(self, offset: usize) -> Result<u32, crate::errors::BadInput> {
-        let texts = &menus().cars.table.description_texts;
+    pub fn dword(self, table: &CarTable, offset: usize) -> Result<u32, crate::errors::BadInput> {
+        let texts = &table.description_texts;
         let at = self.0 + offset;
         if at + 4 > 4224 {
             return Err(crate::errors::BadInput("a car's figures past the texts"));
@@ -1328,9 +1332,17 @@ mod tests {
         }
         assert_eq!(mine, &image[..]);
         for car in 0..34 {
-            let found =
-                description_table(car_entry(crate::menu::owner::menus(), car).unwrap()).unwrap();
-            assert!(found.dword(0).is_ok(), "{car}");
+            let found = description_table(
+                &crate::menu::owner::menus().cars.table,
+                car_entry(crate::menu::owner::menus(), car).unwrap(),
+            )
+            .unwrap();
+            assert!(
+                found
+                    .dword(&crate::menu::owner::menus().cars.table, 0)
+                    .is_ok(),
+                "{car}"
+            );
         }
         assert_eq!(car_of(menu_cars.table.cars[33].get()), Ok(33));
         assert!(car_of(0x756568).is_err() && car_of(u32::MAX).is_err());

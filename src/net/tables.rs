@@ -170,6 +170,8 @@ mod tests {
         let guid: [u8; 16] = std::array::from_fn(|k| k as u8 + 1);
         let data = vec![7u8; 5];
         let found = crate::net::connection_found::connection_found(
+            &net.vars,
+            crate::strings::owner::strings(),
             crate::race::owner::race().viewer_panel(),
             &guid,
             &data,

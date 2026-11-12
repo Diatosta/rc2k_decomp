@@ -229,9 +229,10 @@ enum Raw {
 impl Raw {
     fn place(self) -> BytePlace {
         match self {
-            Raw::Pages(offset) => {
-                BytePlace::in_store(&crate::install::owner::install().pages, offset as usize)
-            }
+            Raw::Pages(offset) => BytePlace::in_store(
+                &crate::install::page_links::installer().pages,
+                offset as usize,
+            ),
             Raw::Place(at) => at,
         }
     }
@@ -297,14 +298,14 @@ impl Eq for ListMenu {}
 
 /// Where `thing`, a field of the installer's pages, starts in them.
 fn pages_offset_of<T>(thing: &T) -> usize {
-    let pages = &crate::install::owner::install().pages;
+    let pages = &crate::install::page_links::installer().pages;
     (std::ptr::from_ref(thing) as usize).wrapping_sub(std::ptr::from_ref(pages) as usize)
 }
 
 /// The header and items of one of the installer's lists. The pages that are only an action
 /// have no items.
 fn list_parts(list: ListId) -> (&'static ListHeader, &'static [Item]) {
-    let pages = &crate::install::owner::install().pages;
+    let pages = &crate::install::page_links::installer().pages;
     match list {
         ListId::Language => (&pages.language_menu.header, &pages.language_menu.items),
         ListId::Main => (&pages.main_menu.header, &pages.main_menu.items),
@@ -521,7 +522,9 @@ impl ListItem {
 
     /// The title's item (the pages' `title` record).
     pub fn of_title() -> Self {
-        Self(Spot::Typed(&crate::install::owner::install().pages.title))
+        Self(Spot::Typed(
+            &crate::install::page_links::installer().pages.title,
+        ))
     }
 
     /// Where this item is in the installer's pages (see `in_pages`); an item outside them is

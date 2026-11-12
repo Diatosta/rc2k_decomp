@@ -48,7 +48,7 @@ pub fn draw_menu_items(
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
     let menus = o.menus;
-    let all = menu.items();
+    let all = menu.items(&menus.tables.menus);
     if all.len() > ITEM_LIMIT as usize {
         return Err(BadInput("a menu without an end").into());
     }

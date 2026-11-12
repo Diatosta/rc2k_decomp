@@ -51,6 +51,7 @@ pub fn queue_sound_cue(
     cue: u32,
     object: &SoundObject,
     audio: &crate::audio::owner::Audio,
+    cue_lists: &crate::sound::sets_store::CueLists,
 ) -> Result<(), Refused> {
     check_cue(cue)?;
     let q = &object.cue_queue;
@@ -75,7 +76,7 @@ pub fn queue_sound_cue(
     }
     q.count.set(q.count.get().wrapping_add(1));
     dword(q, entry)?.set(cue);
-    let list = crate::sound::sets_store::CueLists::list(cue)?;
+    let list = cue_lists.list(cue)?;
     let failed = std::cell::Cell::new(None);
     let (written, n) = sounds(
         |k| {

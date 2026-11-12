@@ -75,7 +75,7 @@ pub fn learn_axis(
             .loop_flags
             .menu
             .get()?
-            .item(screens.loop_flags.item.get())?;
+            .item(&menus.tables.menus, screens.loop_flags.item.get())?;
         crate::text::draw_string_by_id::draw_string_by_id_at(
             crate::strings::append_string_by_id::StringOwners::of(o),
             0x3BE,

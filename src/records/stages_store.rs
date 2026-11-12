@@ -16,6 +16,7 @@
 use crate::errors::BadInput;
 use crate::screens::game_screen::Held;
 use crate::session::{PlainBytes, PlainLoose};
+#[cfg(test)]
 use crate::system::owner::system;
 
 /// A record (0xA4 bytes, IDA's `Record`): +0 the tag (0 a stage, 3 or 4 a rally's end, -1
@@ -1533,27 +1534,34 @@ pub struct RecordRef {
     pub index: usize,
 }
 
+/// The stage tables a record handle (`RecordRef`) names its rows in. A handle is a copied
+/// number with no owner, so this is a seam: the callers of `RecordRef::record`, `tag`,
+/// `row` and `word_at` (menus, screens, race, saves) would pass `&StageTables` to it.
+fn stage_tables() -> &'static StageTables {
+    &crate::owners::boundary().system.records().stage_tables
+}
+
 impl RecordTable {
     pub fn rows(self) -> &'static [Record] {
-        let system = system();
+        let stages = stage_tables();
         match self {
-            RecordTable::Championship => &system.records().stage_tables.championship,
-            RecordTable::Event(k) => &system.records().stage_tables.events[k].records,
+            RecordTable::Championship => &stages.championship,
+            RecordTable::Event(k) => &stages.events[k].records,
         }
     }
 
     fn end(self) -> &'static PlainLoose {
-        let system = system();
+        let stages = stage_tables();
         match self {
-            RecordTable::Championship => &system.records().stage_tables.championship_end,
-            RecordTable::Event(k) => &system.records().stage_tables.events[k].end,
+            RecordTable::Championship => &stages.championship_end,
+            RecordTable::Event(k) => &stages.events[k].end,
         }
     }
 
     /// Its first row's byte offset in the stage tables.
     #[cfg(test)]
     pub fn table_offset(self) -> usize {
-        self.rows().as_ptr().addr() - core::ptr::from_ref(&system().records().stage_tables).addr()
+        self.rows().as_ptr().addr() - core::ptr::from_ref(stage_tables()).addr()
     }
 
     /// Its title string: its first record's name (+0x38).
@@ -1629,7 +1637,7 @@ impl RecordRef {
             RecordTable::Championship,
             offset_of!(StageTables, championship),
         ))
-        .chain((0..system().records().stage_tables.events.len()).map(|k| {
+        .chain((0..stage_tables().events.len()).map(|k| {
             (
                 RecordTable::Event(k),
                 offset_of!(StageTables, events) + k * size_of::<EventRecords>(),

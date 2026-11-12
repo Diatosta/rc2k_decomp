@@ -36,7 +36,9 @@ pub fn update(
         if record == 0 {
             return Err(BadInput("a carousel entry without its record"));
         }
-        wanted[n] = crate::menu::cars_store::description(record)?.get().car;
+        wanted[n] = crate::menu::cars_store::description(&menus.cars.table, record)?
+            .get()
+            .car;
     }
     let first_slot: u32 = scene_textures.kinds.get().kind_first_slots[KIND].get();
     if first_slot.checked_add(32).is_none_or(|end| end > SLOTS) {

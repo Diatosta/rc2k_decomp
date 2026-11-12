@@ -12,6 +12,7 @@ pub fn draw_view_overlays(
     system: &crate::system::owner::System,
     sound: &'static crate::sound::owner::Sound,
     gfx: &crate::gfx::owner::Gfx,
+    cheats: &crate::menu::cheats_store::Cheats,
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
     let race = ctx.race;
@@ -24,7 +25,7 @@ pub fn draw_view_overlays(
     overlay_states(ctx.part);
     crate::scene::set_render_state::set_render_state(ctx.part, 3, 3);
     let begun = crate::debug::timing::start();
-    crate::race::frame_views::run_view_marks(ctx, system, sound, effects)?;
+    crate::race::frame_views::run_view_marks(ctx, system, sound, gfx, effects)?;
     crate::debug::timing::stop(crate::debug::timing::Stage::Effects, begun);
     overlay_states(ctx.part);
     draw_flat_triangle(ctx.part, ctx.scene);
@@ -40,6 +41,7 @@ pub fn draw_view_overlays(
             },
             system,
             gfx,
+            cheats,
             effects,
         )?;
     }

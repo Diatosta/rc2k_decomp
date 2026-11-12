@@ -42,7 +42,7 @@ struct Game<'a> {
     /// The walked drivers.
     drivers: &'a [Driver],
     /// The stage's track pack entry.
-    pack: crate::records::trakpak_entry::Track,
+    pack: crate::records::trakpak_entry::Track<'a>,
     /// The driver `running` last asked about (the one `drop_out` drops).
     asked: Option<&'a Driver>,
     /// A refused read or write of the core's variables (checked at each step and at the end).
@@ -121,7 +121,10 @@ impl races::EventRaces for Game<'_> {
                     .settings
                     .rivals
                     .set(menus.play.champ_view.summary.get());
-                race.shared.state.settings.stage.set(self.pack.stage()?);
+                race.shared.state.settings.stage.set(
+                    self.pack
+                        .stage(&self.owners.system.records().stage_tables)?,
+                );
             }
             Step::Race { next } => {
                 crate::race::single_rally_race::single_rally_race(self.owners, u32::from(next), 1)?;
@@ -193,8 +196,8 @@ pub fn run_event_races(o: Owners<'static>) -> Result<(), Refused> {
     }
     let reset_only = { menus.tables.pages.reset_times.get() } == 1;
     let rec = crate::menu::calc_cpu_times::record(screens, o.system)?;
-    crate::menu::calc_cpu_times::check(menus, o.race, rec)?;
-    let pack = crate::records::trakpak_entry::track_of(rec)?;
+    crate::menu::calc_cpu_times::check(menus, o.system, o.race, rec)?;
+    let pack = crate::records::trakpak_entry::track_of(&o.system.records().stage_tables, rec)?;
     let mut game = Game {
         menus,
         owners: o,

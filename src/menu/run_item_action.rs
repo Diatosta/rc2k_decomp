@@ -23,7 +23,7 @@ pub fn run_item_action(
 ) -> Result<ActionResult, crate::errors::Refused> {
     let menus = o.menus;
     let screens = &menus.screens;
-    let items = menu.items();
+    let items = menu.items(&menus.tables.menus);
     let highlighted: u32 = screens.loop_flags.item.get();
     // The logic is in `rc2k_core::menu::items::highlighted_item`. It asks for item n's type only
     // while item n is there, and for the x of one past the last: the end mark after it.

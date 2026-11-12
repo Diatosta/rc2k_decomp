@@ -29,7 +29,9 @@ pub fn list_players(vars: &NetVars) -> Result<bool, Refused> {
         vars.players.set(0);
         let result = crate::net::dp_objects::enum_players(
             vars.dplay.get(),
-            crate::net::player_found::callback,
+            &|id, _kind, short, _flags, _context| {
+                crate::net::player_found::callback(vars, id, short)
+            },
             0,
         );
         if result != 0 {

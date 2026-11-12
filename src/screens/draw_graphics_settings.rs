@@ -61,9 +61,9 @@ pub fn draw_graphics_settings(
             display.choices.has_primary.get(),
             display.choices.has_secondary.get(),
         ) {
-            enable_item(&menus.screens, 2)?;
+            enable_item(menus, 2)?;
         } else {
-            disable_item(&menus.screens, 2)?;
+            disable_item(menus, 2)?;
         }
         let place = display.choices.resolution.get();
         let v = |i: usize| display.choices.list.dword(place, i, "a screen mode");

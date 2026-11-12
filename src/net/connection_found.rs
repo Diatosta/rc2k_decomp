@@ -13,24 +13,25 @@
 
 use crate::errors::Refused;
 use crate::net::lobby::log_bytes;
-use crate::net::owner::net;
+use crate::net::store::NetVars;
 use crate::net::tables::{copy_printable_into, with_connection};
 use crate::race::viewer_screen_store::{ViewerPanelBlock, texts};
+use crate::strings::owner::Strings;
 use rc2k_core::net::lists;
 
 /// The provider's GUID, the connection's address, its
 /// short name.
 pub fn connection_found(
+    vars: &NetVars,
+    strings: &Strings,
     panel: &ViewerPanelBlock,
     guid: &[u8; 16],
     data: &[u8],
     short: &[u8],
 ) -> Result<u32, Refused> {
-    let vars = &net().vars;
     log_bytes(&panel.text(texts::NET_FOUND), false, 2);
     log_bytes(short, true, 2);
-    if crate::strings::load_language::notice_kind(crate::strings::owner::strings())
-        == lists::LEAVES_OUT_PROVIDERS
+    if crate::strings::load_language::notice_kind(strings) == lists::LEAVES_OUT_PROVIDERS
         && [&vars.sp_serial, &vars.sp_modem]
             .into_iter()
             .any(|left_out| left_out.read() == *guid)
@@ -52,8 +53,15 @@ pub fn connection_found(
     Ok(1)
 }
 
-pub fn callback(guid: &[u8; 16], data: &[u8], short: &[u8], _flags: u32, _context: u32) -> u32 {
+pub fn callback(
+    vars: &NetVars,
+    strings: &Strings,
+    panel: &ViewerPanelBlock,
+    guid: &[u8; 16],
+    data: &[u8],
+    short: &[u8],
+) -> u32 {
     crate::net::lobby::callback_entry("net::connection_found", 0x4186E5, || {
-        connection_found(crate::race::owner::race().viewer_panel(), guid, data, short)
+        connection_found(vars, strings, panel, guid, data, short)
     })
 }

@@ -17,8 +17,8 @@ use crate::net::store::put_bytes;
 use crate::race::viewer_screen_store::{ViewerPanelBlock, texts};
 
 /// The code at 0x418D77 as the receiving thread calls it when it is posted.
-pub fn posted_open_join() -> u32 {
-    open(OPEN_JOIN, b"")
+pub fn posted_open_join(net: &Net, _panel: &ViewerPanelBlock) -> u32 {
+    open(&net.vars, OPEN_JOIN, b"")
 }
 
 fn join_group(vars: &crate::net::store::NetVars) -> Result<bool, Refused> {

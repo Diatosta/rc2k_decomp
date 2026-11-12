@@ -46,10 +46,11 @@ pub fn play_car_stream(
     let s = rc2k_core::sound::set_up::car_stream(
         car_stream(&menus.tables.lists, car)?,
         |list| {
-            crate::menu::texts_store::speech_entry(names, list, 0).unwrap_or_else(|e| {
-                failed.set(Some(e));
-                0
-            })
+            crate::menu::texts_store::speech_entry(&menus.tables.texts, names, list, 0)
+                .unwrap_or_else(|e| {
+                    failed.set(Some(e));
+                    0
+                })
         },
         menus.screens.option_work.speech_level.get(),
     );

@@ -11,7 +11,7 @@ pub fn settings_link(
     panel: &ViewerPanelBlock,
 ) -> Result<(), Refused> {
     let (net, system) = (o.net, o.system);
-    if crate::net::find_connections::find_connections(&net.vars, panel)? {
+    if crate::net::find_connections::find_connections(&net.vars, o.strings, panel)? {
         let chosen = crate::net::choose_connection::choose_connection(o)?;
         if (chosen as i32) >= 0 {
             crate::net::keep_connection::keep_connection(net, chosen)?;

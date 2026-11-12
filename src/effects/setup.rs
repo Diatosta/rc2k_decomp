@@ -2,6 +2,7 @@
 //! wave tables (made once), the slots cleared, and the marks' clock (also run each frame by
 //! `effects::run_frame`, 0x4D1549).
 
+#[cfg(test)]
 use crate::effects::owner::effects;
 use crate::effects::paths::Paths;
 use crate::effects::rain::Weather;
@@ -170,7 +171,7 @@ pub fn tick_clock(
         let last = c.last.get();
         c.before.set(last);
         c.last.set(clock);
-        let marks = crate::effects::setup::effects_settings()?;
+        let marks = crate::effects::setup::effects_settings(effects)?;
         let ticks = if marks.other_marks_shown.get() == 1 {
             clock.wrapping_sub(last)
         } else {
@@ -349,9 +350,10 @@ impl SettingsPointer {
 /// The marks' settings the race handed `effects::init_marks` (`race::effects_settings_store`,
 /// the one record `g_marksSettings` points at); refused while it points at none, where the
 /// original's reads through it would fault.
-pub fn effects_settings()
--> Result<&'static crate::race::effects_settings_store::EffectsSettings, BadInput> {
-    effects().settings()
+pub fn effects_settings(
+    effects: &crate::effects::owner::Effects,
+) -> Result<&'static crate::race::effects_settings_store::EffectsSettings, BadInput> {
+    effects.settings()
 }
 
 impl SettingsPointer {

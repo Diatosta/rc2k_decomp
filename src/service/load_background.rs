@@ -14,7 +14,7 @@ use crate::menu::owner::Menus;
 /// The Rust version (see the header). The conversion's carry (fatal error 0x80712435) is
 /// never set by `gfx::convert_picture`'s Rust version, which refuses instead.
 pub fn load_background_in(
-    menus: &Menus,
+    menus: &'static Menus,
     gfx: &crate::gfx::owner::Gfx,
     system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
@@ -25,8 +25,10 @@ pub fn load_background_in(
     // Converted: `rc2k_core::service::car::background`.
     let car =
         rc2k_core::service::car::background(player.get().car_number).map_err(BadInput::from)?;
-    let path =
-        crate::menu::texts_store::text_at(menus.tables.lists.service_pictures[car as usize].get())?;
+    let path = crate::menu::texts_store::text_at(
+        &menus.tables.texts,
+        menus.tables.lists.service_pictures[car as usize].get(),
+    )?;
     crate::gfx::load_picture::load_picture_with(&path, gfx, system)?;
     crate::gfx::convert_picture::convert_picture_now_in(gfx, system)?;
     Ok(())

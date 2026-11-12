@@ -24,7 +24,7 @@ pub fn settings_loop(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
         o.system,
         &net.vars,
     )?;
-    crate::net::settings_done::settings_done(net, system, o.race.viewer_panel())?;
+    crate::net::settings_done::settings_done(net, system, o.strings, o.race.viewer_panel())?;
     let now = system.session.clocks.key_ticks.get();
     install.pages.move_clock.set(now);
     install.pages.key_clock.set(now);

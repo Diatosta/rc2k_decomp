@@ -129,12 +129,12 @@ pub fn stream_command(audio: &Audio, name: u32, volume: i32, action: u32) -> Res
 /// which are stored once it is done).
 pub fn music_command(
     state: &AudioState,
+    turn: &crate::session::Dword,
     tune: u32,
     next: u32,
     volume: i32,
     action: u32,
 ) -> Result<(), Refused> {
-    let turn = &crate::sound::owner::sound().menu.options.tune_turn;
     let mut m = rc2k_core::audio::streams::Music {
         next_tune: state.next_tune.get(),
         no_music: state.no_music.get(),

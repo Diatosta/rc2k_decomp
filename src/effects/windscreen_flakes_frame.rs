@@ -53,6 +53,7 @@ pub fn windscreen_flakes_frame(
     drops: &WindscreenDrops,
     pong: &crate::effects::pong::Pong,
     fl: &WindscreenFlakes,
+    cheats: &crate::menu::cheats_store::Cheats,
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
     let buffer = ctx.part.vertices;
@@ -73,7 +74,7 @@ pub fn windscreen_flakes_frame(
     if !drops.state.facing.get().is_sign_negative() {
         return Ok(());
     }
-    crate::effects::run_pong::run_pong(buffer, frame, pong, fl, scene, effects)?;
+    crate::effects::run_pong::run_pong(buffer, frame, pong, fl, scene, cheats, effects)?;
     if x87::mul_to_int(&fl.timing.rate, &fl.state.share) == 0 {
         return Ok(());
     }

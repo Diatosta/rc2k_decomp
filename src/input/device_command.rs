@@ -17,7 +17,8 @@
 use crate::errors::Refused;
 use crate::input::owner::Input;
 use crate::input::store::Devices;
-use crate::race::owner::race;
+use crate::race::owner::Race;
+use crate::system::owner::System;
 
 /// Device `n`'s record: a command names a device the table holds.
 fn device(
@@ -34,8 +35,9 @@ pub fn device_command(
     input: &Input,
     command: u32,
     sound: &crate::sound::owner::Sound,
+    system: &System,
+    race: &Race,
 ) -> Result<(), Refused> {
-    let race = race();
     // Converted: `rc2k_core::input::devices::command_steps`.
     use rc2k_core::input::devices::{CommandStep::*, command_steps};
     {
@@ -54,12 +56,13 @@ pub fn device_command(
                 )?,
                 Acquire(n) => {
                     let record = device(&input.devices, n)?;
-                    crate::input::acquire_device::acquire_device(input, record)?;
+                    crate::input::acquire_device::acquire_device(input, system, record)?;
                 }
                 EndEffects => crate::input::end_effects::end_effects(input)?,
-                Tick => crate::input::input_tick::input_tick(input, sound)?,
+                Tick => crate::input::input_tick::input_tick(input, sound, system, race)?,
                 SetUp(n) => crate::input::set_up_device::set_up_device(
                     input,
+                    system,
                     device(&input.devices, n)?,
                     &race.shared.state.settings.cars[n],
                 )?,
