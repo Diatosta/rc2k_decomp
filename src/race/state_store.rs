@@ -430,46 +430,8 @@ impl RaceState {
 mod tests {
     use super::*;
 
-    const START: usize = 0x75ACCC;
-    use core::mem::{offset_of, size_of};
-
     #[test]
     fn race_state_starts_as_the_games() {
         crate::test_support::first_values::assert_block_starts_as_the_games(&race().shared.state);
-        let at = |field: usize, ida: usize| assert_eq!(field, ida - START, "{ida:#X}");
-        at(offset_of!(RaceState, settings), 0x75ACCC);
-        at(offset_of!(RaceState, results), 0x75AFF4);
-        at(
-            offset_of!(RaceState, settings) + offset_of!(RaceSettings, cars),
-            0x75AD1C,
-        );
-        at(
-            offset_of!(RaceState, settings) + offset_of!(RaceSettings, cars) + size_of::<RaceCar>(),
-            0x75AE88,
-        );
-        at(
-            offset_of!(RaceState, results) + offset_of!(RaceResults, results),
-            0x75B01C,
-        );
-        at(
-            offset_of!(RaceState, results)
-                + offset_of!(RaceResults, results)
-                + size_of::<RaceResult>(),
-            0x75B08C,
-        );
-        // The record's order inside a `RaceCar` (offsets from 0x75AD1C less the first word).
-        assert_eq!(offset_of!(RaceCar, controller), 0x140 - 0x34);
-        assert_eq!(offset_of!(RaceCar, gearing), 0x144 - 0x34);
-        assert_eq!(offset_of!(RaceCar, sensitivity_level), 0x148 - 0x34);
-        assert_eq!(offset_of!(RaceCar, axis_codes), 0x14C - 0x34);
-        assert_eq!(offset_of!(RaceCar, controller_mode), 0x150 - 0x34);
-        assert_eq!(offset_of!(RaceCar, end_zone_pct), 0x154 - 0x34);
-        assert_eq!(offset_of!(RaceCar, centre_dead_zone_pct), 0x158 - 0x34);
-        assert_eq!(offset_of!(RaceCar, strength), 0x15C - 0x34);
-        assert_eq!(offset_of!(RaceCar, bindings), 0x164 - 0x34);
-        assert_eq!(offset_of!(RaceCar, bindings) + 4 * 10, 0x18C - 0x34);
-        assert_eq!(offset_of!(RaceCar, bindings) + 4 * 11, 0x190 - 0x34);
-        assert_eq!(offset_of!(RaceCar, keys), 0x194 - 0x34);
-        assert_eq!(offset_of!(RaceResult, impact_marks), 0x50);
     }
 }

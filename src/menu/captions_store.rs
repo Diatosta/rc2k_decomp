@@ -361,7 +361,6 @@ impl CaptionTables {
 mod tests {
     use super::*;
     use crate::menu::owner::menus;
-    use core::mem::offset_of;
 
     #[test]
     fn captions_starts_as_the_games() {
@@ -369,19 +368,6 @@ mod tests {
         crate::test_support::first_values::assert_block_starts_as_the_games(
             &crate::menu::owner::menus().tables.captions,
         );
-        assert_eq!(offset_of!(CaptionTables, left_by_key), 0x0);
-        assert_eq!(offset_of!(CaptionTables, dword_75880a), 0x4);
-        assert_eq!(offset_of!(CaptionTables, shown_group), 0x8);
-        assert_eq!(offset_of!(CaptionTables, shown_stage), 0xc);
-        assert_eq!(offset_of!(CaptionTables, nationalities), 0x10);
-        assert_eq!(offset_of!(CaptionTables, duel_labels), 0xcc);
-        assert_eq!(offset_of!(CaptionTables, place_points), 0x124);
-        assert_eq!(offset_of!(CaptionTables, place_pointers), 0x17c);
-        assert_eq!(offset_of!(CaptionTables, sum_pointers), 0x18c);
-        assert_eq!(offset_of!(CaptionTables, total_pointers), 0x1a0);
-        assert_eq!(offset_of!(CaptionTables, views), 0x1b4);
-        assert_eq!(offset_of!(CaptionTables, second_views), 0x1d4);
-        assert_eq!(offset_of!(CaptionTables, caption_lists), 0x20c);
         // The three pointer tables' entries name the results' arrays.
         for from in 0..3 {
             for k in 0..4 {

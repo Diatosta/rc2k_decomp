@@ -317,14 +317,14 @@ fn list_parts(list: ListId) -> (&'static ListHeader, &'static [Item]) {
 }
 
 impl ListMenu {
-    /// The list a link of the installer's pages names. Any thing of the pages is taken: the
-    /// page walk reads the words after an entry's answers as links and looks at the list they
-    /// name, as the original does (`install::run_pages::pass_over`); what is no list is read
-    /// as the bytes of a header.
+    /// The list a link of the installer's pages names; a link to anything else is refused (the
+    /// page walk takes lists only from the first word of a page entry).
     pub fn at(link: PageLink) -> Result<Self, crate::errors::BadInput> {
         match link.list_id() {
             Some(list) => Ok(Self::installer(list)),
-            None => Ok(Self(Head::Bytes(Raw::Pages(link.pages_start()?)))),
+            None => Err(crate::errors::BadInput(
+                "a page link that is no list of the installer's pages",
+            )),
         }
     }
 
@@ -425,7 +425,8 @@ impl ListMenu {
 
     /// Item `n`, from +0x18, 0x10 bytes each (wrapping as the original's sum). The item count
     /// is not checked: an item past the list's items is the bytes that follow the list in the
-    /// installer's pages (the next list, table or record), read as an item.
+    /// installer's pages, read as an item (the next list's header; `pages_map` tests name each
+    /// neighbour). The installer's counts stay within their items, so no page reaches it.
     pub fn item(self, n: u32) -> ListItem {
         let start = match self.0 {
             Head::Pages(_, items) if (n as usize) < items.len() => {

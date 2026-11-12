@@ -56,19 +56,11 @@ impl Formats {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use core::mem::offset_of;
 
     #[test]
     fn first_values_are_the_games() {
         crate::test_support::first_values::assert_block_starts_as_the_games(
             &crate::gfx::owner::GFX.get().pixel.formats,
         );
-    }
-
-    #[test]
-    fn moved_knows_the_block() {
-        assert_eq!(offset_of!(Formats, scratch), 0x30);
-        assert_eq!(offset_of!(Formats, component_format), 0x34);
     }
 }

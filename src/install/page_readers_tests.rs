@@ -199,9 +199,16 @@ fn characterise() -> Vec<String> {
             probe(|| crate::install::pages_map::PagesAt::at_offset(at).dword())
         ));
     }
-    for at in [usize::MAX, usize::MAX - 3, size, size - 3, size - 4] {
+    // The far probes by name, so that 32- and 64-bit builds write the same line.
+    for (at, name) in [
+        (usize::MAX, "usize::MAX".to_string()),
+        (usize::MAX - 3, "usize::MAX - 3".to_string()),
+        (size, size.to_string()),
+        (size - 3, (size - 3).to_string()),
+        (size - 4, (size - 4).to_string()),
+    ] {
         out.push(format!(
-            "pages_dword({at}) = {}",
+            "pages_dword({name}) = {}",
             probe(|| crate::install::pages_map::PagesAt::at_offset(at).dword())
         ));
     }
@@ -216,7 +223,13 @@ fn characterise() -> Vec<String> {
     starts.extend((0..9).map(|i| (format!("box {i}"), PageLink::box_at(i))));
     starts.push(("edit".into(), PageLink::folder_edit()));
     for (name, link) in &starts {
-        let entry = PageEntry::at(*link);
+        // Only a table entry is a page entry; a thing of another kind is refused.
+        let Ok(entry) = catch_unwind(|| PageEntry::at(*link)) else {
+            let head = format!("{name}: entry refused");
+            out.push(head.clone());
+            entries.add(&head);
+            continue;
+        };
         let head = format!("{name}: {} entry={entry:?}", entry_line(entry));
         out.push(head.clone());
         entries.add(&head);
@@ -331,7 +344,13 @@ fn characterise() -> Vec<String> {
     // A list read from any thing of the pages (the page walk does so for a link it was given).
     let mut walk = Sweep::new("lists at links");
     for (name, link) in &starts {
-        let list = ListMenu::at(*link).unwrap();
+        // Only a link to a list names one.
+        let Ok(list) = ListMenu::at(*link) else {
+            let line = format!("{name}: no list");
+            out.push(line.clone());
+            walk.add(&line);
+            continue;
+        };
         let line = format!("{name}: {:?} {}", list, header_line(list));
         out.push(line.clone());
         walk.add(&line);

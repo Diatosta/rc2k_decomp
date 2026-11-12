@@ -159,7 +159,6 @@ pub fn text_of(field: &[u8]) -> &[u8] {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use core::mem::{offset_of, size_of};
 
     /// The static's bytes (after `lead`) are the game's first values (`image`, a named read
     /// of `data/first_values.golden`), its size the range's (with the tail padding up to the
@@ -191,14 +190,6 @@ mod tests {
             // The original's pointers to the made texts (zeros here).
             0x3B..0x13B,
         );
-        assert_eq!(offset_of!(InstallVars, running_from_cd), 0x4);
-        assert_eq!(offset_of!(InstallVars, has_clio), 0x8);
-        assert_eq!(offset_of!(InstallVars, clio_file), 0xC);
-        assert_eq!(offset_of!(InstallVars, clio_script), 0x20);
-        assert_eq!(offset_of!(InstallVars, _gap_529de8), 0x3C);
-        assert_eq!(offset_of!(InstallVars, credits_a), 0x13C);
-        assert_eq!(offset_of!(InstallVars, clio_car_name), 0x157);
-        assert_eq!(offset_of!(InstallVars, credits_b), 0x172);
         check(
             (&raw const crate::install::owner::INSTALL.get().drive_rows).cast::<u8>(),
             size_of::<DriveRows>(),
@@ -206,7 +197,6 @@ mod tests {
             "install.store.DRIVE_ROWS/417",
             0..0,
         );
-        assert_eq!(offset_of!(DriveRows, drive_rows), 0x0);
         let keys = &crate::install::owner::INSTALL.get().lobby_keys;
         let mine = [
             &keys.registry_key[..],

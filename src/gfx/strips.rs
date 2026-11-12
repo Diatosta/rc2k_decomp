@@ -31,19 +31,11 @@ impl Strips {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use core::mem::offset_of;
 
     #[test]
     fn first_values_are_the_games() {
         crate::test_support::first_values::assert_block_starts_as_the_games(
             &crate::gfx::owner::GFX.get().strips,
         );
-    }
-
-    #[test]
-    fn moved_knows_the_block() {
-        assert_eq!(offset_of!(Strips, tops), 0x10);
-        assert_eq!(offset_of!(Strips, lefts), 0x40);
     }
 }

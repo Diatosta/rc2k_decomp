@@ -476,19 +476,10 @@ pub fn load_game_map(
 
 #[cfg(test)]
 mod block_tests {
-    use super::*;
     use crate::race::owner::race;
-    use core::mem::offset_of;
 
     #[test]
     fn first_values_are_the_games() {
         crate::test_support::first_values::assert_block_starts_as_the_games(race().frame.map());
-    }
-
-    #[test]
-    fn fields_are_at_the_games_offsets() {
-        assert_eq!(offset_of!(MapVars, key_list), 0x40);
-        assert_eq!(offset_of!(MapVars, key_pixels), 0x80);
-        assert_eq!(offset_of!(MapVars, use_packed), 0xa8);
     }
 }

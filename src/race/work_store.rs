@@ -105,8 +105,6 @@ pub struct RaceWork {
     pub driver_turn: PlainDword,
     /// +0x1048 (0x71C000): the bend's index.
     pub driver_bend_index: PlainDword,
-    /// +0x104c (0x71C004): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
-    pub unused_104c: PlainDword,
     /// +0x1050 (0x71C008): the speed wanted.
     pub driver_wanted_speed: PlainDword,
     /// +0x1054 (0x71C00C): the speed.
@@ -119,8 +117,6 @@ pub struct RaceWork {
     pub driver_reverse_tries: [PlainDword; 10],
     /// +0x10d0 (0x71C088): the noted bend's turn by car.
     pub driver_bend_turn: [PlainDword; 10],
-    /// +0x10f8 (0x71C0B0): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
-    pub unused_10f8: [PlainDword; 3],
     /// +0x1104 (0x71C0BC): (`drive::drive_computer_car`).
     pub driver_flag_bc: PlainDword,
     /// +0x1108 (0x71C0C0): the step along x.
@@ -151,16 +147,12 @@ pub struct RaceWork {
     pub driver_from: [PlainDword; 4],
     /// +0x1280 (0x71C238): (x, 0, z).
     pub driver_to: [PlainDword; 4],
-    /// +0x1290 (0x71C248): only pointed to by a data offset at 0x5EDB0A (a pointer table nothing ported reads).
-    pub unknown_1290: [PlainDword; 4],
     /// +0x12a0 (0x71C258): the way from here to `driver_to` on the flat.
     pub driver_way: [PlainFloat; 4],
     /// +0x12b0 (0x71C268): it normalised.
     pub driver_way_unit: [PlainFloat; 4],
     /// +0x12c0 (0x71C278): the way ahead normalised.
     pub driver_ahead: [PlainFloat; 4],
-    /// +0x12d0 (0x71C288): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
-    pub unused_12d0: [PlainDword; 4],
     /// +0x12e0 (0x71C298): `driver_from` to `driver_to` on the flat.
     pub driver_flat: [PlainFloat; 4],
     /// +0x12f0 (0x71C2A8): it normalised.
@@ -305,23 +297,32 @@ pub const CAR_RECORDS_LEN: usize = 8 * 0x4C8;
 
 impl RaceWork {
     /// The piece, with the image's first values of each run of fields (the image's unused
-    /// words before the car blocks, after `current_car`, behind the driver's work and at the
+    /// words before the car blocks, after `current_car`, between the driver's fields and at the
     /// end are not kept).
     pub const fn new() -> Self {
         use crate::race::store::first_values;
         const SIZE: usize = core::mem::size_of::<RaceWork>();
         const FIRST: usize = crate::race::blocks_store::CAR_BLOCKS_IDA;
-        // Up to `current_car`, then from `stage_direction` to the end of the driver's work, then
-        // from the stage times' scales to the end of the fields.
+        // Up to `current_car`, then from `stage_direction` to the end of the driver's work (in
+        // five runs, round the driver's unused words), then from the stage times' scales to the
+        // end of the fields.
         const A: usize = 0x71B3FC - FIRST;
-        const B: usize = 0x71C384 - 0x71B400;
+        const B1: usize = 0x71C004 - 0x71B400;
+        const B2: usize = 0x71C0B0 - 0x71C008;
+        const B3: usize = 0x71C248 - 0x71C0BC;
+        const B4: usize = 0x71C288 - 0x71C258;
+        const B5: usize = 0x71C384 - 0x71C298;
         const C: usize = 0x71C804 - 0x71C3D8;
-        const _: () = assert!(A + B + C == SIZE);
+        const _: () = assert!(A + B1 + B2 + B3 + B4 + B5 + C == SIZE);
         let mut bytes = [0u8; SIZE];
-        let parts: [(usize, &[u8]); 3] = [
+        let parts: [(usize, &[u8]); 7] = [
             (0, &first_values::<A>(FIRST)),
-            (A, &first_values::<B>(0x71B400)),
-            (A + B, &first_values::<C>(0x71C3D8)),
+            (A, &first_values::<B1>(0x71B400)),
+            (A + B1, &first_values::<B2>(0x71C008)),
+            (A + B1 + B2, &first_values::<B3>(0x71C0BC)),
+            (A + B1 + B2 + B3, &first_values::<B4>(0x71C258)),
+            (A + B1 + B2 + B3 + B4, &first_values::<B5>(0x71C298)),
+            (A + B1 + B2 + B3 + B4 + B5, &first_values::<C>(0x71C3D8)),
         ];
         let mut p = 0;
         while p < parts.len() {
@@ -335,6 +336,25 @@ impl RaceWork {
         }
         crate::cells::cells_of_bytes(crate::race::blocks_store::with_block_refs(bytes, 0, 8))
     }
+}
+
+/// A byte offset in the 1999 layout of the race work (from `g_carBlocks`) as it is in `RaceWork`
+/// now: the driver's unused words were taken out. For the tests whose recorded vectors name the
+/// 1999 offsets.
+#[cfg(test)]
+pub fn from_1999(old: usize) -> usize {
+    const TAKEN_OUT: [(usize, usize); 4] = [(0xC4C, 4), (0xCF8, 12), (0xE90, 16), (0xED0, 16)];
+    let mut shift = 0;
+    for (at, len) in TAKEN_OUT {
+        assert!(
+            !(at..at + len).contains(&old),
+            "{old:#x} was an unused place"
+        );
+        if old >= at + len {
+            shift += len;
+        }
+    }
+    old - shift
 }
 
 #[cfg(test)]

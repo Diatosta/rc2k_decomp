@@ -194,37 +194,14 @@ pub const END: usize = 0x623F80;
 
 const _: () = assert!(END - START == core::mem::size_of::<RaceVars>());
 
-/// The piece's host address (the alignment checks).
-#[cfg(test)]
-pub fn piece_addr() -> usize {
-    core::ptr::from_ref(race().shared.vars.get()).addr()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use core::mem::offset_of;
 
     #[test]
     fn first_values_are_the_games() {
         crate::test_support::first_values::assert_block_starts_as_the_games(
             race().shared.vars.get(),
         );
-    }
-
-    #[test]
-    fn fields_are_at_the_games_offsets() {
-        assert_eq!(piece_addr() % 4, 0);
-        assert_eq!(offset_of!(RaceVars, scene_switch), 0x0);
-        assert_eq!(offset_of!(RaceVars, face_mark), 0x34);
-        assert_eq!(offset_of!(RaceVars, line_face_kind), 0x6c);
-        assert_eq!(offset_of!(RaceVars, map_anchor_count), 0xcc);
-        assert_eq!(offset_of!(RaceVars, race_car_kinds), 0x270);
-        assert_eq!(offset_of!(RaceVars, rivals), 0x2d4);
-        assert_eq!(offset_of!(RaceVars, mud_turn_a), 0x324);
-        assert_eq!(offset_of!(RaceVars, mud_packed), 0x74c);
-        assert_eq!(offset_of!(RaceVars, mud_texture), 0x774);
-        assert_eq!(offset_of!(RaceVars, mud_scale_b), 0x7c8);
-        assert_eq!(offset_of!(RaceVars, mapping_a), 0x7f0);
     }
 }

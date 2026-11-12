@@ -186,29 +186,13 @@ pub const END: usize = 0x60463C;
 
 const _: () = assert!(END - START == core::mem::size_of::<League>());
 
-/// The piece's host address (the alignment checks).
-#[cfg(test)]
-pub fn piece_addr() -> usize {
-    core::ptr::from_ref(crate::race::owner::RACE.course.league()).addr()
-}
-
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use core::mem::offset_of;
 
     #[test]
     fn first_values_are_the_games() {
         crate::test_support::first_values::assert_block_starts_as_the_games(
             crate::race::owner::RACE.course.league(),
         );
-    }
-
-    #[test]
-    fn fields_are_at_the_games_offsets() {
-        assert_eq!(piece_addr() % 4, 0);
-        assert_eq!(offset_of!(League, rows), 0x28);
-        assert_eq!(offset_of!(League, car_time), 0x2ec);
-        assert_eq!(offset_of!(League, auto_setups), 0x2f0);
     }
 }

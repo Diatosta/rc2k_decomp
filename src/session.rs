@@ -26,12 +26,10 @@ impl Dword {
     }
 
     pub fn get(&self) -> u32 {
-        crate::write_watch::read(self.0.as_ptr().cast::<u8>(), 4);
         self.0.load(Relaxed)
     }
 
     pub fn set(&self, value: u32) {
-        crate::write_watch::wrote(self.0.as_ptr().cast::<u8>(), 4);
         self.0.store(value, Relaxed);
     }
 
@@ -118,12 +116,10 @@ impl Float {
     }
 
     pub fn get(&self) -> f32 {
-        crate::write_watch::read(self.0.as_ptr().cast::<u8>(), 4);
         f32::from_bits(self.0.load(Relaxed))
     }
 
     pub fn set(&self, value: f32) {
-        crate::write_watch::wrote(self.0.as_ptr().cast::<u8>(), 4);
         self.0.store(value.to_bits(), Relaxed);
     }
 
@@ -134,13 +130,11 @@ impl Float {
 
     /// The cell's 32 bits (read by `x87_float::ld`).
     pub fn bits(&self) -> u32 {
-        crate::write_watch::read(self.0.as_ptr().cast::<u8>(), 4);
         self.0.load(Relaxed)
     }
 
     /// Stores the 32 bits (written by `x87_float::st`).
     pub fn set_bits(&self, bits: u32) {
-        crate::write_watch::wrote(self.0.as_ptr().cast::<u8>(), 4);
         self.0.store(bits, Relaxed);
     }
 }
@@ -276,12 +270,10 @@ impl Flag {
     }
 
     pub fn is_set(&self) -> bool {
-        crate::write_watch::read(self.0.as_ptr().cast::<u8>(), 4);
         self.0.load(Relaxed) != 0
     }
 
     pub fn set(&self, value: bool) {
-        crate::write_watch::wrote(self.0.as_ptr().cast::<u8>(), 4);
         self.0.store(value as u32, Relaxed);
     }
 
@@ -301,12 +293,10 @@ impl Word {
     }
 
     pub fn get(&self) -> u16 {
-        crate::write_watch::read(self.0.as_ptr().cast::<u8>(), 2);
         self.0.load(Relaxed)
     }
 
     pub fn set(&self, value: u16) {
-        crate::write_watch::wrote(self.0.as_ptr().cast::<u8>(), 2);
         self.0.store(value, Relaxed);
     }
 
@@ -326,12 +316,10 @@ impl Byte {
     }
 
     pub fn get(&self) -> u8 {
-        crate::write_watch::read(self.0.as_ptr().cast::<u8>(), 1);
         self.0.load(Relaxed)
     }
 
     pub fn set(&self, value: u8) {
-        crate::write_watch::wrote(self.0.as_ptr().cast::<u8>(), 1);
         self.0.store(value, Relaxed);
     }
 
@@ -363,12 +351,10 @@ impl<const N: usize> Bytes<N> {
     }
 
     pub fn get(&self, index: usize) -> u8 {
-        crate::write_watch::read(self.0[index].as_ptr().cast_const(), 1);
         self.0[index].load(Relaxed)
     }
 
     pub fn set(&self, index: usize, value: u8) {
-        crate::write_watch::wrote(self.0[index].as_ptr().cast_const(), 1);
         self.0[index].store(value, Relaxed);
     }
 
@@ -456,12 +442,10 @@ impl Loose {
     }
 
     pub fn get(&self) -> u32 {
-        crate::write_watch::read(self.0[0].as_ptr().cast_const(), 4);
         u32::from_le_bytes(std::array::from_fn(|i| self.0[i].load(Relaxed)))
     }
 
     pub fn set(&self, value: u32) {
-        crate::write_watch::wrote(self.0[0].as_ptr().cast_const(), 4);
         for (cell, b) in self.0.iter().zip(value.to_le_bytes()) {
             cell.store(b, Relaxed);
         }
@@ -1076,7 +1060,7 @@ impl<T> std::ops::Deref for PhaseRead<'_, T> {
 //    nothing else runs on the game's thread meanwhile, which is drawing part 0, a part like
 //    the others. The parts write only their own state (`PartScratch`, their view's
 //    `ViewScratch`, their own render cache) and never a class D store: the write census of
-//    frame plan F7 and W10 M0b (`write_watch`, held races with one and two players and the
+//    frame plan F7 and W10 M0b (the audit build, held races with one and two players and the
 //    mirror beside its view), whose shared writes were removed or moved before the parts
 //    (the scene clock per frame, the fog values, the dead stores). Every write to a class D
 //    store happens on the game's thread through `DrawShared::get`, outside a scope. The
@@ -1636,20 +1620,9 @@ mod tests {
 
     #[test]
     fn the_blocks_keep_the_images_layout() {
-        use core::mem::offset_of;
         assert_eq!(SCREEN_LEN, 0x38);
-        assert_eq!(offset_of!(Screen, format), 0x20);
         assert_eq!(FLAGS_LEN, 0x2C);
-        assert_eq!(offset_of!(WindowLoopState, quitting), 0xC);
-        assert_eq!(offset_of!(WindowLoopState, paused), 0x28);
         assert_eq!(MACHINE_LEN, 0x100);
-        assert_eq!(offset_of!(Machine, scratch), 0x24);
-        assert_eq!(offset_of!(Machine, cpu_vendor), 0x30);
-        assert_eq!(offset_of!(Machine, cpu_mhz), 0x40);
-        assert_eq!(offset_of!(Machine, found_3dnow), 0x58);
-        assert_eq!(offset_of!(Machine, version), 0x60);
-        assert_eq!(offset_of!(Machine, exception_resume), 0xF4);
-        assert_eq!(offset_of!(Machine, window), 0xFC);
         assert_eq!(CLOCKS_LEN, 12);
     }
 

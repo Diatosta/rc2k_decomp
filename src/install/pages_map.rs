@@ -76,6 +76,15 @@ impl PagesAt {
         Self(offset_of!(InstallerPages, title))
     }
 
+    /// The page table index of the entry that starts here, if a table entry does.
+    pub fn table_index(self) -> Option<u32> {
+        let first = offset_of!(InstallerPages, page_table);
+        let past = first + 4 * crate::install::page_links::TABLE_LEN as usize;
+        (first..past)
+            .contains(&self.0)
+            .then(|| ((self.0 - first) / 4) as u32)
+    }
+
     /// The byte offset (tests compare it with the layout).
     #[cfg(test)]
     pub fn offset(self) -> usize {
@@ -141,4 +150,74 @@ pub fn typed_folder(offset: u32) -> BytePlace {
         &installer().paths,
         offset_of!(InstallerPaths, typed) + offset as usize,
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::menu::list_handle::ListMenu;
+
+    /// What an item read past a list's items is: the header of the list that follows in the
+    /// pages (the last action page's is the folder item's edit record). A read that runs on
+    /// reaches that neighbour, as the original's (`ListMenu::item`).
+    #[test]
+    fn an_item_past_a_list_is_the_field_after_it() {
+        let _lock = crate::test_support::test_lock();
+        let follows = [
+            (ListId::Language, PagesAt::list(ListId::Main)),
+            (ListId::Main, PagesAt::list(ListId::Mode)),
+            (ListId::Mode, PagesAt::list(ListId::Drives8)),
+            (ListId::Drives8, PagesAt::list(ListId::Drives16)),
+            (ListId::Drives16, PagesAt::list(ListId::DrivesMore)),
+            (ListId::DrivesMore, PagesAt::list(ListId::Folder)),
+            (ListId::Folder, PagesAt::list(ListId::Room)),
+            (ListId::Room, PagesAt::list(ListId::Dxsetup)),
+            (ListId::Dxsetup, PagesAt::list(ListId::Finish)),
+            (ListId::Finish, PagesAt::list(ListId::InstallFiles)),
+            (ListId::InstallFiles, PagesAt::list(ListId::Uninstall)),
+            (ListId::Uninstall, PagesAt::list(ListId::OpenInstalled)),
+            (
+                ListId::OpenInstalled,
+                PagesAt::list(ListId::AskRegistration),
+            ),
+            (ListId::AskRegistration, PagesAt::edit()),
+        ];
+        for (list, after) in follows {
+            let menu = ListMenu::installer(list);
+            let items = match list {
+                ListId::Language | ListId::Drives8 => 10,
+                ListId::Main | ListId::Mode => 5,
+                ListId::Drives16 => 18,
+                ListId::DrivesMore => 26,
+                ListId::Folder => 6,
+                ListId::Room => 3,
+                ListId::Dxsetup | ListId::Finish => 4,
+                _ => 0,
+            };
+            assert_eq!(
+                menu.item(items).pages_offset().unwrap(),
+                after.item_word(),
+                "{list:?}"
+            );
+        }
+    }
+
+    /// M4 for the choice items: no item of the installer's lists is a choice item (kind 2),
+    /// and the only run-time write of an item's kind is the main page's first item, made
+    /// kind 5 (`check_at_start::set_script_entry`). A choice table and a choice past it are
+    /// therefore never read from the pages' data; the readers stay for the generic item keys.
+    /// The lists' counts hold in their items (the drive lists' two more than the drives, up
+    /// to 26, and the languages up to 9 of the language list's 10).
+    #[test]
+    fn the_installer_has_no_choice_items() {
+        let _lock = crate::test_support::test_lock();
+        let mut kinds = std::collections::BTreeSet::new();
+        for list in ListId::ALL {
+            let menu = ListMenu::installer(list);
+            for n in 0..u32::from(menu.count()) {
+                kinds.insert(menu.item(n).kind());
+            }
+        }
+        assert!(!kinds.contains(&2), "kinds {kinds:?}");
+    }
 }

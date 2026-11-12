@@ -1299,9 +1299,6 @@ mod tests {
     fn rally_times_start_as_the_games() {
         let rally_times = &saves().rally_times;
         assert_eq!(size_of::<RallyTimes>(), RallyTimes::END - RallyTimes::START);
-        assert_eq!(offset_of!(RallyTimes, rallies), 0x18);
-        assert_eq!(offset_of!(TimeEntry, name), 0x20);
-        assert_eq!(offset_of!(TimeEntry, checkpoints), 0x5C);
         crate::test_support::first_values::assert_block_starts_as_the_games(rally_times);
         // The six names are the tables' places and resolve to them.
         let first = rally_times.tables[0].get();

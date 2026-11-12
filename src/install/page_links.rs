@@ -171,6 +171,11 @@ impl PageLink {
         self.0 & NUMBER
     }
 
+    /// The page table entry a link names.
+    pub fn table_index(self) -> Option<u32> {
+        (self.kind() == TABLE && self.number() < TABLE_LEN).then_some(self.number())
+    }
+
     /// Where the thing of the installer pages the link names starts.
     pub fn pages_at(self) -> Option<PagesAt> {
         let number = self.number();

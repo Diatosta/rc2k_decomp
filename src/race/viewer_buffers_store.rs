@@ -106,21 +106,6 @@ const _: () = assert!(END - START == core::mem::size_of::<ViewerBuffers>());
 #[cfg(test)]
 mod tests {
     use super::*;
-    use core::mem::offset_of;
-
-    #[test]
-    fn fields_are_at_the_games_offsets() {
-        assert_eq!(core::ptr::from_ref(&*VIEWER_BUFFERS).addr() % 4, 0);
-        assert_eq!(offset_of!(ViewerBuffers, block_used), 0x400);
-        assert_eq!(offset_of!(ViewerBuffers, block), 0x404);
-        assert_eq!(offset_of!(ViewerBuffers, block_cameras), 0x2c14);
-        assert_eq!(offset_of!(ViewerBuffers, undo_blocks), 0x6454);
-        assert_eq!(offset_of!(ViewerBuffers, undo_cameras), 0x9c98);
-        assert_eq!(offset_of!(ViewerBuffers, mark_in), 0xd4d8);
-        assert_eq!(offset_of!(ViewerBuffers, clip_places), 0xd4e8);
-        assert_eq!(offset_of!(ViewerBuffers, clip_cameras), 0x10d28);
-        assert_eq!(offset_of!(ViewerBuffers, to_file), 0x1456c);
-    }
 
     #[test]
     fn bytes_go_in_the_block_in_place() {

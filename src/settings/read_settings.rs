@@ -672,6 +672,7 @@ mod tests {
                 .find(|(k, _, _)| k.as_bytes() == key)
                 .unwrap_or_else(|| panic!("no place for {name}"));
             let first = crate::test_support::state::store(store).first().addr();
+            let offset = crate::test_support::race_places::in_current_layout(store, *offset);
             assert_eq!(cell.addr(), first + offset, "{name}");
         }
     }

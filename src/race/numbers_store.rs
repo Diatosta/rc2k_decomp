@@ -286,40 +286,13 @@ pub const END: usize = 0x5C5E50;
 
 const _: () = assert!(END - START == core::mem::size_of::<Numbers>());
 
-/// The piece's host address (the alignment checks).
-#[cfg(test)]
-pub fn piece_addr() -> usize {
-    core::ptr::from_ref(crate::race::owner::RACE.course.numbers.get()).addr()
-}
-
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use core::mem::offset_of;
 
     #[test]
     fn first_values_are_the_games() {
         crate::test_support::first_values::assert_block_starts_as_the_games(
             crate::race::owner::RACE.course.numbers.get(),
         );
-    }
-
-    #[test]
-    fn fields_are_at_the_games_offsets() {
-        assert_eq!(piece_addr() % 4, 0);
-        assert_eq!(offset_of!(Numbers, replay_mode), 0x0);
-        assert_eq!(offset_of!(Numbers, two_and_a_quarter), 0x20);
-        assert_eq!(offset_of!(Numbers, thousand), 0x38);
-        assert_eq!(offset_of!(Numbers, thirty_two), 0x50);
-        assert_eq!(offset_of!(Numbers, five), 0x68);
-        assert_eq!(offset_of!(Numbers, sixty_four), 0x80);
-        assert_eq!(offset_of!(Numbers, fifth), 0x98);
-        assert_eq!(offset_of!(Numbers, zero), 0xb0);
-        assert_eq!(offset_of!(Numbers, three_quarters), 0xc8);
-        assert_eq!(offset_of!(Numbers, half_pi), 0xe0);
-        assert_eq!(offset_of!(Numbers, nine_tenths), 0xf8);
-        assert_eq!(offset_of!(Numbers, k262144), 0x13c);
-        assert_eq!(offset_of!(Numbers, k10000), 0x154);
-        assert_eq!(offset_of!(Numbers, k98304), 0x16c);
     }
 }

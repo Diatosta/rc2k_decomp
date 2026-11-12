@@ -1144,11 +1144,13 @@ struct Tol {
 const EXACT: Tol = Tol { ulps: 0, abs: 0.0 };
 
 impl Tol {
-    /// A sine or cosine of `arg`: one float ulp, or the 66-bit pi error of an angle that size.
+    /// A sine or cosine of `arg`: one float ulp, or the 66-bit pi error of an angle that size,
+    /// plus one double ulp of 1 (the size of a sine or cosine): processors' `fcos` differ there
+    /// (an i5-1335U gives 1 - h cos(1.3e-30) = 0 rounding toward zero, the others 2^-53).
     fn trig(arg: f64) -> Tol {
         Tol {
             ulps: 1,
-            abs: 1e-20 * (1.0 + arg.abs()),
+            abs: 1e-20 * (1.0 + arg.abs()) + f64::EPSILON,
         }
     }
 

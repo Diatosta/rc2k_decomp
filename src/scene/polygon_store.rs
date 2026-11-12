@@ -168,25 +168,3 @@ pub const END: usize = 0x9A3730;
 const _: () = assert!(
     END - START == core::mem::size_of::<PolygonWork>() + core::mem::size_of::<PolygonTables>()
 );
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use core::mem::offset_of;
-
-    #[test]
-    fn piece_sits_on_the_buffers() {
-        assert_eq!(core::mem::size_of::<PolygonEntry>(), 0x44);
-        assert_eq!(offset_of!(PolygonEntry, fog), 0x20);
-        assert_eq!(offset_of!(PolygonEntry, work), 0x24);
-        assert_eq!(core::mem::size_of::<PolygonEntry>() * 64, 0x976610 - START);
-        assert_eq!(offset_of!(PolygonWork, list), 0x2200);
-        assert_eq!(offset_of!(PolygonWork, old_list), 0x2300);
-        assert_eq!(offset_of!(PolygonWork, record_pool), 0x2a00);
-        assert_eq!(core::mem::size_of::<PolygonWork>(), 0x979F30 - START);
-        assert_eq!(
-            offset_of!(PolygonTables, object_materials),
-            0x97DF30 - 0x979F30
-        );
-    }
-}

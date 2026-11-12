@@ -386,20 +386,11 @@ pub mod fonts {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use core::mem::offset_of;
 
     #[test]
     fn first_values_are_the_games() {
         crate::test_support::first_values::assert_block_starts_as_the_games(
             &crate::gfx::owner::gfx().fonts.typefaces,
         );
-    }
-
-    #[test]
-    fn moved_knows_the_block() {
-        assert_eq!(offset_of!(FontObject, palette), 0x14);
-        assert_eq!(offset_of!(FontObject, glyph_table), 0x18);
-        assert_eq!(size_of::<FontObject>(), 0x20);
     }
 }

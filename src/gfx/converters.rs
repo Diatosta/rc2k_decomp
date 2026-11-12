@@ -46,22 +46,11 @@ impl Converters {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use core::mem::offset_of;
 
     #[test]
     fn first_values_are_the_games() {
         crate::test_support::first_values::assert_block_starts_as_the_games(
             &crate::gfx::owner::GFX.get().pixel.converters,
-        );
-    }
-
-    #[test]
-    fn moved_knows_the_block() {
-        assert_eq!(offset_of!(Converters, table), 0x98);
-        assert_eq!(
-            crate::gfx::owner::GFX.get().pixel.converters.mask(1),
-            0x00ff_00ff_00ff_00ff
         );
     }
 }

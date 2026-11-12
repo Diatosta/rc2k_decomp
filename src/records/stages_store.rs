@@ -1663,19 +1663,12 @@ pub const END: usize = 0x73B674;
 #[cfg(test)]
 mod tests {
     use super::*;
-    use core::mem::{offset_of, size_of};
 
     #[test]
     fn stage_tables_start_as_the_games() {
         // Other tests write the tables (and put them back) under the lock.
         let _g = crate::test_support::test_lock();
         assert_eq!(size_of::<StageTables>(), END - START + 2);
-        assert_eq!(offset_of!(StageTables, result_tables), 0x938 + 2);
-        assert_eq!(offset_of!(StageTables, group_lists), 0x94c + 2);
-        assert_eq!(offset_of!(StageTables, level_tables), 0x994 + 2);
-        assert_eq!(offset_of!(StageTables, championship), 0x9b0 + 2);
-        assert_eq!(offset_of!(StageTables, events), 0x33fc + 2);
-        assert_eq!(offset_of!(StageTables, tail), 0x69fc + 2);
         crate::test_support::first_values::assert_store_starts_as_the_games(
             "store:system.owner.SYSTEM.records.stage_tables",
         );

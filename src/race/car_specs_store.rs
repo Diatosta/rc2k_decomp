@@ -81,16 +81,9 @@ pub const END: usize = 0x5C906C;
 
 const _: () = assert!(END - START == core::mem::size_of::<CarSpecs>());
 
-/// The piece's host address (the alignment checks).
-#[cfg(test)]
-pub fn piece_addr() -> usize {
-    core::ptr::from_ref(&race().physics.car_specs()).addr()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use core::mem::offset_of;
 
     #[test]
     fn first_values_are_the_games() {
@@ -100,15 +93,8 @@ mod tests {
     }
 
     #[test]
-    fn fields_are_at_the_games_offsets() {
+    fn the_cars_start_as_the_games() {
         let physics = &race().physics;
-        assert_eq!(piece_addr() % 4, 0);
-        assert_eq!(offset_of!(CarSpec, drive_kind), 0x18);
-        assert_eq!(offset_of!(CarSpec, weights), 0x38);
-        assert_eq!(offset_of!(CarSpec, scratch_value), 0x5C);
-        assert_eq!(offset_of!(CarSpec, engine_top), 0x74);
-        assert_eq!(offset_of!(CarSpec, torque_curve), 0x7C);
-        assert_eq!(offset_of!(CarSpec, shift_points), 0xA4);
         let title = |k: usize| {
             (0..9)
                 .map(|i| physics.car_specs().cars[k].name.get(i))

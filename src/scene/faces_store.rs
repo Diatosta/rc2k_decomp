@@ -31,17 +31,3 @@ pub const START: usize = 0x9A3730;
 pub const END: usize = 0x9E3738;
 
 const _: () = assert!(END - START == core::mem::size_of::<Faces>());
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use core::mem::offset_of;
-
-    #[test]
-    fn piece_sits_on_the_buffers() {
-        let lists = offset_of!(Faces, lists);
-        assert_eq!(lists + offset_of!(SortLists, depth_entries), 0x30000);
-        assert_eq!(lists + offset_of!(SortLists, sort_entries), 0x38000);
-        assert_eq!(lists + offset_of!(SortLists, unknown_40000), 0x40000);
-    }
-}

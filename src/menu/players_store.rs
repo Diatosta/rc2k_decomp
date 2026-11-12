@@ -272,7 +272,6 @@ pub fn point_players(menus: &crate::menu::owner::Menus) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use core::mem::{offset_of, size_of};
 
     #[test]
     fn player_table_starts_as_the_games() {
@@ -300,8 +299,6 @@ mod tests {
             mine[at..at + 4].copy_from_slice(&image[at..at + 4]);
         }
         assert_eq!(mine, image);
-        assert_eq!(offset_of!(PlayerTable, players), 0);
         assert_eq!(size_of::<Player>(), 0x28c);
-        assert_eq!(offset_of!(PlayerTable, pointers), 0xa30);
     }
 }

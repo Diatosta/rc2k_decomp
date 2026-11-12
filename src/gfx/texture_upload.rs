@@ -522,8 +522,6 @@ pub fn keep_second_picture(
 
 #[cfg(test)]
 mod block_tests {
-    use super::*;
-    use core::mem::offset_of;
 
     #[test]
     fn first_values_are_the_games() {
@@ -532,15 +530,5 @@ mod block_tests {
         crate::test_support::first_values::assert_block_starts_as_the_games(
             crate::gfx::owner::textures(),
         );
-    }
-
-    #[test]
-    fn moved_knows_the_block() {
-        assert_eq!(offset_of!(Textures, sizes), 0xc);
-        assert_eq!(offset_of!(Textures, kinds), 0x34);
-        assert_eq!(offset_of!(Textures, descriptions), 0x48);
-        assert_eq!(offset_of!(Textures, video), 0x188);
-        assert_eq!(offset_of!(Textures, system), 0x978c);
-        assert_eq!(offset_of!(Pool, records), 4);
     }
 }

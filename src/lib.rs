@@ -54,7 +54,7 @@ mod settings;
 mod shared_memory;
 mod sound;
 pub mod standalone;
-#[cfg(any(test, feature = "write_watch"))]
+#[cfg(test)]
 mod stores;
 mod strings;
 mod sync;
@@ -66,4 +66,3 @@ mod threading;
 #[cfg(target_os = "emscripten")]
 pub mod web;
 mod workers;
-mod write_watch;

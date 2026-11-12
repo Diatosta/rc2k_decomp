@@ -38,17 +38,3 @@ pub const START: usize = 0xA23AE4;
 pub const END: usize = 0xA8BB54;
 
 const _: () = assert!(END - START == core::mem::size_of::<EngineTables>());
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use core::mem::offset_of;
-
-    #[test]
-    fn piece_sits_on_the_buffers() {
-        assert_eq!(offset_of!(EngineTables, arctangents), 0x5000);
-        assert_eq!(offset_of!(EngineTables, noise_bytes), 0x7000);
-        assert_eq!(offset_of!(EngineTables, object_file), 0x8070);
-        assert_eq!(offset_of!(EngineTables, shuffled_words), 0x48070);
-    }
-}

@@ -233,17 +233,10 @@ pub fn credits_tune(o: crate::owners::Owners<'static>) {
 
 #[cfg(test)]
 mod block_tests {
-    use super::*;
     use crate::race::owner::race;
-    use core::mem::offset_of;
 
     #[test]
     fn first_values_are_the_games() {
         crate::test_support::first_values::assert_block_starts_as_the_games(race().frame.credits());
-    }
-
-    #[test]
-    fn fields_are_at_the_games_offsets() {
-        assert_eq!(offset_of!(Credits, script), 0xc);
     }
 }

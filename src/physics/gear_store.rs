@@ -3,8 +3,6 @@
 //! marks and samples (`physics::test_drive_run`, `physics::test_drive`).
 //! Names are readings unless IDA's.
 
-#[cfg(test)]
-use crate::race::owner::race;
 use crate::session::{Dword, Float};
 
 #[repr(C)]
@@ -42,23 +40,3 @@ pub const START: usize = 0x5CB958;
 pub const END: usize = 0x5CC198;
 
 const _: () = assert!(END - START == core::mem::size_of::<GearFigures>());
-
-/// The piece's host address (the alignment checks).
-#[cfg(test)]
-pub fn piece_addr() -> usize {
-    core::ptr::from_ref(&race().frame.lights_and_gear.get().gear).addr()
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use core::mem::offset_of;
-
-    #[test]
-    fn fields_are_at_the_games_offsets() {
-        assert_eq!(piece_addr() % 4, 0);
-        assert_eq!(offset_of!(GearFigures, shift_up_point), 0x0);
-        assert_eq!(offset_of!(GearFigures, figures), 0x14);
-        assert_eq!(offset_of!(GearFigures, test_power_factor), 0x838);
-    }
-}

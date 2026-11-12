@@ -172,7 +172,6 @@ const _: () = assert!(END - START == core::mem::size_of::<Checkpoints>());
 #[cfg(test)]
 mod tests {
     use super::*;
-    use core::mem::offset_of;
 
     #[test]
     fn a_cell_past_a_table_is_the_next_fields_first() {
@@ -193,20 +192,5 @@ mod tests {
             distance_run_on(&CHECKPOINTS, 3),
             &raw const table[3]
         ));
-    }
-
-    #[test]
-    fn fields_are_at_the_games_offsets() {
-        assert_eq!(core::ptr::from_ref(&*CHECKPOINTS).addr() % 4, 0);
-        assert_eq!(offset_of!(Checkpoints, check_counts), 0x5068);
-        assert_eq!(offset_of!(Checkpoints, angles), 0xa0c8);
-        assert_eq!(offset_of!(Checkpoints, distances), 0x141a0);
-        assert_eq!(offset_of!(Checkpoints, map_x), 0x19208);
-        assert_eq!(offset_of!(Checkpoints, map_y), 0x1e270);
-        assert_eq!(offset_of!(Checkpoints, nearest_camera_1), 0x232d8);
-        assert_eq!(offset_of!(Checkpoints, nearest_camera_2), 0x28340);
-        assert_eq!(offset_of!(Checkpoints, line_length), 0x2d3a8);
-        assert_eq!(offset_of!(Checkpoints, replay_cameras_1), 0x2d3ac);
-        assert_eq!(offset_of!(Checkpoints, replay_cameras_2), 0x2e3ac);
     }
 }

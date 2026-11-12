@@ -62,17 +62,3 @@ pub const START: usize = 0x9605A0;
 pub const END: usize = 0x960DA0;
 
 const _: () = assert!(END - START == core::mem::size_of::<PolygonVertices>());
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use core::mem::offset_of;
-
-    #[test]
-    fn piece_sits_on_the_buffers() {
-        assert_eq!(offset_of!(PolygonVertices, vertices), 0);
-        assert_eq!(offset_of!(Vertex, colour), 0x10);
-        assert_eq!(offset_of!(Vertex, v), 0x1C);
-        assert_eq!(core::mem::size_of::<Vertex>(), 0x20);
-    }
-}

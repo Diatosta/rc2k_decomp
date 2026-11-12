@@ -31,27 +31,14 @@ pub const END: usize = 0x622910;
 
 const _: () = assert!(END - START == core::mem::size_of::<PanelClock>());
 
-/// The piece's host address (the alignment checks).
-#[cfg(test)]
-pub fn piece_addr() -> usize {
-    core::ptr::from_ref(race().frame.panel_clock()).addr()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use core::mem::offset_of;
 
     #[test]
     fn first_values_are_the_games() {
         crate::test_support::first_values::assert_block_starts_as_the_games(
             race().frame.panel_clock(),
         );
-    }
-
-    #[test]
-    fn fields_are_at_the_games_offsets() {
-        assert_eq!(piece_addr() % 4, 0);
-        assert_eq!(offset_of!(PanelClock, shown_since), 0);
     }
 }

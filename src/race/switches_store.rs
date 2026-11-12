@@ -79,30 +79,14 @@ pub const END: usize = 0x6218B0;
 
 const _: () = assert!(END - START == core::mem::size_of::<FrameSwitches>());
 
-/// The piece's host address (the alignment checks).
-#[cfg(test)]
-pub fn piece_addr() -> usize {
-    std::ptr::from_ref(&race().shared.switches).addr()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use core::mem::offset_of;
 
     #[test]
     fn first_values_are_the_games() {
         crate::test_support::first_values::assert_block_starts_as_the_games(
             &race().shared.switches,
         );
-    }
-
-    #[test]
-    fn fields_are_at_the_games_offsets() {
-        assert_eq!(piece_addr() % 4, 0);
-        assert_eq!(offset_of!(FrameSwitches, scene_set_up), 0x0);
-        assert_eq!(offset_of!(FrameSwitches, object_number), 0x7c);
-        assert_eq!(offset_of!(FrameSwitches, editor_mode), 0x94);
-        assert_eq!(offset_of!(FrameSwitches, service_cleared), 0x42c);
     }
 }

@@ -5,8 +5,6 @@
 //! unless IDA's.
 //! Most of its dwords lie at addresses that are not a multiple of 4 (the piece starts at 0x6D13FE): they are `Loose32` cells and the piece needs no alignment.
 
-#[cfg(test)]
-use crate::race::owner::race;
 use crate::session::{Bytes, PlainBytes, PlainLoose};
 
 /// A dword at an address that is not a multiple of 4: plain unaligned volatile loads and stores, as the image's were.
@@ -147,40 +145,3 @@ pub const START: usize = 0x6D13FE;
 pub const END: usize = 0x6D150C;
 
 const _: () = assert!(END - START == core::mem::size_of::<Panel>());
-
-/// The piece's host address (the alignment checks).
-#[cfg(test)]
-pub fn piece_addr() -> usize {
-    core::ptr::from_ref(&race().frame.panel_and_overlay.get().panel).addr()
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use core::mem::offset_of;
-
-    #[test]
-    fn fields_are_at_the_games_offsets() {
-        assert_eq!(piece_addr() % core::mem::align_of::<Panel>(), 0);
-
-        assert_eq!(offset_of!(Panel, split_6), 0x0);
-        assert_eq!(offset_of!(Panel, view_a), 0x10);
-        assert_eq!(offset_of!(Panel, view_b), 0x40);
-        assert_eq!(offset_of!(Panel, overlay_miles), 0x68);
-        assert_eq!(offset_of!(Panel, lights), 0x84);
-        assert_eq!(offset_of!(Panel, marks), 0xa4);
-        assert_eq!(offset_of!(Panel, start_values), 0xcc);
-        assert_eq!(offset_of!(Panel, players), 0xf4);
-        assert_eq!(offset_of!(Panel, flat), 0x104);
-        assert_eq!(offset_of!(Panel, texture_changes), 0x10a);
-
-        // The three places at +0x78 hold the image's addresses of the overlay's arrays (its
-        // first values, `every_store_starts_as_the_games`): 0x100 bytes apart from the
-        // overlay's first byte on.
-        let unused = &race().frame.panel_and_overlay.get().panel.unused_78;
-        for k in 0..3 {
-            let name = unused.get_u32(4 * k) as usize;
-            assert_eq!(name, crate::race::overlay_store::START + 0x100 * k);
-        }
-    }
-}

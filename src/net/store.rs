@@ -491,8 +491,6 @@ pub struct NetVars {
     pub players: Dword,
     /// 0x52AD9C: `g_netReceived`: the players' blocks.
     pub received: [PlayerBlock; 8],
-    /// 0x56AFFC: `unk_56AFFC`: the players' blocks sorted by time for the lobby's table; nothing reads or writes them.
-    pub sorted: [PlayerBlock; 8],
     /// 0x5AB25C: `aSusanivanovafa`: "susanivanovafanclub", the group's name.
     pub group_name: Bytes<20>,
     /// 0x5AB270: `g_netPlayerId`: this player's DirectPlay id.
@@ -588,7 +586,6 @@ impl NetVars {
             synced: Bytes::new([0; 8]),
             players: Dword::new(0),
             received: [const { PlayerBlock::zero() }; 8],
-            sorted: [const { PlayerBlock::zero() }; 8],
             group_name: Bytes::new(with_runs::<20>(&[(0, b"susanivanovafanclub")])),
             player_id: Dword::new(0),
             send_to: Dword::new(0),

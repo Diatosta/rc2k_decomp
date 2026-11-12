@@ -65,14 +65,14 @@ pub fn lobby_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     }
     y += 0x1D;
     if vars.players.get() != 0 {
-        crate::net::sort_players::sort_players(&net.vars)?;
+        let sorted = crate::net::sort_players::sort_players(&net.vars)?;
         let gaps = vars.show_gaps.get() == 1;
         let (first_time, first_total) = (
-            vars.sorted[0].record.race_time.get(),
-            vars.sorted[0].record.total.get(),
+            sorted[0].record.race_time.get(),
+            sorted[0].record.total.get(),
         );
         for n in 0..vars.players.get() {
-            let block = &vars.sorted[n as usize];
+            let block = &sorted[n as usize];
             let mut x = 0x18;
             blit(
                 screens::flag_sprite(block.record.head.get(3)),
@@ -82,10 +82,11 @@ pub fn lobby_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
                 o.menus,
             )?;
             x += 0x28;
-            let name = store_text(
-                strings,
-                crate::place::BytePlace::from(&block.name).text("a text")?,
-            )?;
+            let name = block.name.text();
+            if name.len() == block.name.read().len() {
+                return Err(BadInput("a text without its end in its buffer").into());
+            }
+            let name = store_text(strings, name)?;
             let font = if block.record.state() & READY != 0 {
                 READY_FONT
             } else {

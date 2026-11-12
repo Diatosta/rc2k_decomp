@@ -74,7 +74,6 @@ fn mirrored(race: &Race, flags: usize) -> bool {
 
 /// View `car`'s car loaded into its own state (`race::load_car_a` / `_b`).
 fn load_car(o: Owners<'_>, car: usize) -> Result<(), Refused> {
-    let _setup = crate::write_watch::step(["view0_setup", "view1_setup"][car]);
     crate::race::frame::load_view_car(
         o.race.shared.work.get(),
         o.race.shared.car_blocks(),
@@ -93,7 +92,6 @@ fn fetch_value(
     mirror: bool,
 ) -> Result<(), Refused> {
     use crate::race::view_scratch::{main_view, mirror as mirror_view};
-    let _setup = crate::write_watch::step(["view0_setup", "view1_setup"][car]);
     let slot = if mirror {
         mirror_view(car)
     } else {
@@ -109,7 +107,6 @@ fn view_scene(
     part: &crate::workers::PartScratch,
     reads: crate::workers::DrawReads<'_>,
 ) -> Result<(), Refused> {
-    let _step = crate::write_watch::step(["view0_scene", "view1_scene"][car]);
     let view = crate::race::view_scratch::main_view(car);
     view.take_vars(reads);
     let output = crate::race::draw_view_scene::draw_view_scene(
@@ -133,7 +130,6 @@ fn view_rest(
     car: usize,
     blit: bool,
 ) -> Result<(), Refused> {
-    let _step = crate::write_watch::step(["view0_rest", "view1_rest"][car]);
     let view = crate::race::view_scratch::main_view(car);
     // The overlays (the effects, the HUD's quads) draw in the front end's window: the view's.
     {
@@ -175,7 +171,6 @@ fn view_mirror(
     part: &crate::workers::PartScratch,
     reads: crate::workers::DrawReads<'_>,
 ) -> Result<(), Refused> {
-    let _step = crate::write_watch::step(["mirror0", "mirror1"][car]);
     let mirror = crate::race::view_scratch::mirror(car);
     crate::race::frame::load_view_car(reads.work, reads.car_blocks, reads.view, car, mirror)?;
     let begun = crate::debug::timing::start();
@@ -359,7 +354,6 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
     let part = crate::workers::game_scratch();
     use crate::scene::set_render_state::set_render_state;
     use crate::sound::race_sound_tick::race_sound_tick;
-    let before_views = crate::write_watch::step("before_views");
     let _cars = crate::race::frame_view::Held::take(race);
     let blocks = view_blocks(&race.shared)?;
     for (k, extra) in race
@@ -539,7 +533,6 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
     if race.replay.finish.get().no_place.get() == 0 {
         crate::race::frame_draw::set_up_panel(race)?;
     }
-    drop(before_views);
     if race.shared.view.get().views.get() == 1 {
         race.shared.view.get().drawn_view.set(0);
         draw_view(owners, o.gfx, o.effects, &o.menus.play.cheats, 0, 0, true)?;
@@ -603,7 +596,6 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
             }
         }
     }
-    let _step = crate::write_watch::step("after_views");
     crate::race::frame_views::load_first_car(&race.shared)?;
     use crate::race::frame_flush::{flush_batch, plain, textured};
     flush_batch(o.scene, part, &race.frame, &plain(&race.frame), false)?;

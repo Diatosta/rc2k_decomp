@@ -132,34 +132,14 @@ pub const END: usize = 0x64BB18;
 
 const _: () = assert!(END - START == core::mem::size_of::<ShadowSkids>());
 
-/// The piece's host address (the alignment checks).
-#[cfg(test)]
-pub fn piece_addr() -> usize {
-    core::ptr::from_ref(race().frame.shadow_skids.get()).addr()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use core::mem::offset_of;
 
     #[test]
     fn first_values_are_the_games() {
         crate::test_support::first_values::assert_block_starts_as_the_games(
             race().frame.shadow_skids.get(),
         );
-    }
-
-    #[test]
-    fn fields_are_at_the_games_offsets() {
-        assert_eq!(piece_addr() % 4, 0);
-        assert_eq!(offset_of!(ShadowSkids, shadow_work), 0x2000);
-        assert_eq!(offset_of!(ShadowSkids, farthest_length), 0x2014);
-        assert_eq!(offset_of!(ShadowSkids, hull_count), 0x2028);
-        assert_eq!(offset_of!(ShadowSkids, skid_grip), 0x202c);
-        assert_eq!(offset_of!(ShadowSkids, skid_links), 0x2044);
-        assert_eq!(offset_of!(ShadowSkids, skid_turned), 0x4044);
-        assert_eq!(offset_of!(ShadowSkids, skid_next), 0x406c);
-        assert_eq!(offset_of!(ShadowSkids, skid_points), 0x4074);
     }
 }

@@ -133,32 +133,13 @@ pub const END: usize = 0x5CCE7C;
 
 const _: () = assert!(END - START == core::mem::size_of::<CourseWork>());
 
-/// The piece's host address (the alignment checks).
-#[cfg(test)]
-pub fn piece_addr() -> usize {
-    core::ptr::from_ref(crate::race::owner::RACE.course.course.get()).addr()
-}
-
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use core::mem::offset_of;
 
     #[test]
     fn first_values_are_the_games() {
         crate::test_support::first_values::assert_block_starts_as_the_games(
             crate::race::owner::RACE.course.course.get(),
         );
-    }
-
-    #[test]
-    fn fields_are_at_the_games_offsets() {
-        assert_eq!(piece_addr() % 4, 0);
-        assert_eq!(offset_of!(CourseWork, record_place), 0x0);
-        assert_eq!(offset_of!(CourseWork, face_light_bytes), 0xa0);
-        assert_eq!(offset_of!(CourseWork, scene_points), 0xd0);
-        assert_eq!(offset_of!(CourseWork, course_face_count), 0x12c);
-        assert_eq!(offset_of!(CourseWork, place_x), 0x1b0);
-        assert_eq!(offset_of!(CourseWork, shine), 0x284);
     }
 }

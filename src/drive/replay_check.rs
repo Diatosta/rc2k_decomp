@@ -15,6 +15,9 @@
 //! differing dwords (at most `DETAILS` lines a run) and every
 //! `SUMMARY_EVERY` frames compared a count.
 
+use crate::drive::replay_state::{
+    FRAME_HEAD_AT, GEAR_CHANGE_PENDING_AT, LAST_PACE_CALL_AT, OPTION_BITS_AT,
+};
 use crate::errors::BadInput;
 use crate::race::owner::Race;
 use rc2k_core::drive::replay_frames::{CAR_DWORDS, PLAYING, RECORDING};
@@ -24,7 +27,7 @@ use std::sync::atomic::{AtomicU32, Ordering::Relaxed};
 const EVERY: u32 = 1000;
 const DETAILS: u32 = 40;
 const SUMMARY_EVERY: u32 = 20;
-/// A car's fields the viewer or the sound sets, not the physics, left out: +0x0 and +0x4
+/// A car's fields the viewer or the sound sets, not the physics, left out (file offsets): +0x0 and +0x4
 /// (every car's; the first car's are the frame's head (the camera bytes `drive::replay_cameras`
 /// reads; a camera edited in the viewer rewrites them: seen)), +0x9C the last
 /// pace checkpoint called (`race::replay_viewer` sets `g_holdCarRevs`, which keeps
@@ -32,7 +35,13 @@ const SUMMARY_EVERY: u32 = 20;
 /// bits (`drive::replay_cameras` writes the viewer's) and +0x23C the gear-change flag the
 /// sound listener clears (`drive::set_listener`, run by the frame, not the step: seen
 /// recorded 1, played 0).
-const VIEWERS: [usize; 5] = [0x0, 0x4, 0x9C, 0x220, 0x23C];
+const VIEWERS: [usize; 5] = [
+    FRAME_HEAD_AT,
+    FRAME_HEAD_AT + 4,
+    LAST_PACE_CALL_AT,
+    OPTION_BITS_AT,
+    GEAR_CHANGE_PENDING_AT,
+];
 
 static COMPARED: AtomicU32 = AtomicU32::new(0);
 static EQUAL: AtomicU32 = AtomicU32::new(0);

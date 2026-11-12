@@ -11,13 +11,10 @@
 //! - `KindTables` (the per-kind tables of 0x22 entries), `KindExtras1` / `KindExtra2` (the
 //!   `extra` out and, for set 1, the `divisor` copy) and `KindConsts` (the constants and the
 //!   light), once for each set. Set 1 is `kind_values::FIRST`, set 2 `kind_values::SECOND`.
-//!
-//! The code between them in the image (0x9332AC .. 0x933458 and 0x933FC8 .. 0x934160: a
-//! string and unreferenced data) is the tables' leading gap.
 
 #[cfg(test)]
 use crate::effects::owner::effects;
-use crate::session::{PlainBytes, PlainDword, PlainFloat};
+use crate::session::{PlainDword, PlainFloat};
 
 /// A quad's work area, the image's layout (IDA 0xF8 bytes, three copies: `QUAD_1`, `QUAD_2`, `QUAD_3`). The offsets are from its start.
 #[repr(C)]
@@ -25,18 +22,12 @@ use crate::session::{PlainBytes, PlainDword, PlainFloat};
 pub struct QuadWork {
     /// +0x0: the quad's place (z, y, x as `kind_values` writes it, a reading): the kind's two triples blended (set 1 `flt_9331B4`, `flt_9331B8` ..; set 2 `flt_9331B4`, `flt_9331B8` ..; plane `flt_9331B4`, `flt_9331B8` ..)
     pub place: [PlainFloat; 3],
-    /// +0xC: Not named: 4 bytes (a gap, or unreferenced data).
-    pub _gap_c: PlainBytes<4>,
     /// +0x10: the light's way turned by the matrix (`draw_shadow`), a reading (set 1 `flt_9331C4`, `flt_9331C8` ..; set 2 `flt_9331C4`, `flt_9331C8` ..; plane `flt_9331C4`, `flt_9331C8` ..)
     pub light_turned: [PlainFloat; 3],
     /// +0x1C: the matrix turned about z by the angle (`turn_matrix3`); its rows are made the frame's (set 1 `dword_9331D0`, `dword_9331D4` ..; set 2 `dword_9331D0`, `dword_9331D4` ..; plane `dword_9331D0`, `dword_9331D4` ..)
     pub matrix: [PlainFloat; 9],
-    /// +0x40: Not named: 12 bytes (a gap, or unreferenced data).
-    pub _gap_40: PlainBytes<12>,
     /// +0x4C: the quad's two sides: the kind's triple (`copied`), then (0, difference y, minus difference x) (set 1 `dword_933200`, `dword_933204` ..; set 2 `dword_933200`, `dword_933204` ..; plane `dword_933200`, `dword_933204` ..)
     pub sides: [[PlainFloat; 3]; 2],
-    /// +0x64: Not named: 12 bytes (a gap, or unreferenced data).
-    pub _gap_64: PlainBytes<12>,
     /// +0x70: the sides made one long and square (`normalise_vector3`, `cross_product3`); the light turned is stored in the third (set 1 `dword_933224`, `dword_933228` ..; set 2 `dword_933224`, `dword_933228` ..; plane `dword_933224`, `dword_933228` ..)
     pub frame: [[PlainFloat; 3]; 3],
     /// +0x94: the corner of `g_marksCorners` (-1: none), the kind's `count` (set 1 `dword_933248`; set 2 `dword_933248`; plane `dword_933248`)
@@ -74,10 +65,8 @@ impl QuadWork {
                 PlainFloat::new(125536.0),
                 PlainFloat::new(0.0),
             ],
-            _gap_c: PlainBytes::new([0; 4]),
             light_turned: [const { PlainFloat::new(0.0) }; 3],
             matrix: [const { PlainFloat::new(0.0) }; 9],
-            _gap_40: PlainBytes::new([0; 12]),
             sides: [
                 [
                     PlainFloat::new(1.0),
@@ -90,7 +79,6 @@ impl QuadWork {
                     PlainFloat::new(-1.0),
                 ],
             ],
-            _gap_64: PlainBytes::new([0; 12]),
             frame: [
                 [
                     PlainFloat::new(1.0),
@@ -129,10 +117,8 @@ impl QuadWork {
                 PlainFloat::new(125536.0),
                 PlainFloat::new(0.0),
             ],
-            _gap_c: PlainBytes::new([0; 4]),
             light_turned: [const { PlainFloat::new(0.0) }; 3],
             matrix: [const { PlainFloat::new(0.0) }; 9],
-            _gap_40: PlainBytes::new([0; 12]),
             sides: [
                 [
                     PlainFloat::new(1.0),
@@ -145,7 +131,6 @@ impl QuadWork {
                     PlainFloat::new(-1.0),
                 ],
             ],
-            _gap_64: PlainBytes::new([0; 12]),
             frame: [
                 [
                     PlainFloat::new(1.0),
@@ -184,10 +169,8 @@ impl QuadWork {
                 PlainFloat::new(125536.0),
                 PlainFloat::new(0.0),
             ],
-            _gap_c: PlainBytes::new([0; 4]),
             light_turned: [const { PlainFloat::new(0.0) }; 3],
             matrix: [const { PlainFloat::new(0.0) }; 9],
-            _gap_40: PlainBytes::new([0; 12]),
             sides: [
                 [
                     PlainFloat::new(1.0),
@@ -200,7 +183,6 @@ impl QuadWork {
                     PlainFloat::new(-1.0),
                 ],
             ],
-            _gap_64: PlainBytes::new([0; 12]),
             frame: [
                 [
                     PlainFloat::new(1.0),
@@ -230,101 +212,39 @@ impl QuadWork {
     }
 }
 
-/// `QUAD_1`'s place in the image (IDA 0x9331B4).
-#[cfg(test)]
-pub struct Quad1;
-
-#[cfg(test)]
-impl Quad1 {
-    pub const START: usize = 0x9331B4;
-    pub const LEN: usize = 0xF8;
-}
-
-/// `QUAD_2`'s place in the image (IDA 0x933ED0).
-#[cfg(test)]
-pub struct Quad2;
-
-#[cfg(test)]
-impl Quad2 {
-    pub const START: usize = 0x933ED0;
-    pub const LEN: usize = 0xF8;
-}
-
-/// `QUAD_3`'s place in the image (IDA 0x934BD0).
-#[cfg(test)]
-pub struct Quad3;
-
-#[cfg(test)]
-impl Quad3 {
-    pub const START: usize = 0x934BD0;
-}
-
-/// The per-kind tables of one set (IDA after a leading gap of `GAP` bytes: 3 tables of 0x22 triples, then 10 of 0x22 values). The offsets are from its start.
+/// The per-kind tables of one set: 3 tables of 0x22 triples, then 10 of 0x22 values.
 #[repr(C)]
-pub struct KindTables<const GAP: usize> {
-    /// +0x0: Not named: `GAP` bytes (the image's code between the quad and the tables: a string and unreferenced data).
-    pub _gap_0: [u8; GAP],
-    /// +0x1AC: `copied`: per kind, the triple copied into the quad's first side (`dword_933458`, `dword_93345C` ..)
+pub struct KindTables {
+    /// `copied`: per kind, the triple copied into the quad's first side (`dword_933458`, `dword_93345C` ..)
     pub copied: [[f32; 3]; 34],
-    /// +0x344: `from`: per kind, the triple the place and the second side start from (`flt_9335F0`, `flt_9335F4` ..)
+    /// `from`: per kind, the triple the place and the second side start from (`flt_9335F0`, `flt_9335F4` ..)
     pub from: [[f32; 3]; 34],
-    /// +0x4DC: `to`: per kind, the triple they end at (`flt_933788`, `flt_93378C` ..)
+    /// `to`: per kind, the triple they end at (`flt_933788`, `flt_93378C` ..)
     pub to: [[f32; 3]; 34],
-    /// +0x674: `extra`: per kind (times `extra_k` into the lift along the up) (`flt_933920`, `flt_933924` ..)
+    /// `extra`: per kind (times `extra_k` into the lift along the up) (`flt_933920`, `flt_933924` ..)
     pub extra: [f32; 34],
-    /// +0x6FC: `size`: per kind (`flt_9339A8`, `flt_9339AC` ..)
+    /// `size`: per kind (`flt_9339A8`, `flt_9339AC` ..)
     pub size: [f32; 34],
-    /// +0x784: `divisor`: per kind (`flt_933A30`, `flt_933A34` ..)
+    /// `divisor`: per kind (`flt_933A30`, `flt_933A34` ..)
     pub divisor: [f32; 34],
-    /// +0x80C: `spread`: per kind (`flt_933AB8`, `flt_933ABC` ..)
+    /// `spread`: per kind (`flt_933AB8`, `flt_933ABC` ..)
     pub spread: [f32; 34],
-    /// +0x894: `count`: per kind, the corner of `g_marksCorners` (-1: none) (`dword_933B40`, `dword_933B44` ..)
+    /// `count`: per kind, the corner of `g_marksCorners` (-1: none) (`dword_933B40`, `dword_933B44` ..)
     pub count: [u32; 34],
-    /// +0x91C: `start`: per kind (`flt_933BC8`, `flt_933BCC` ..)
+    /// `start`: per kind (`flt_933BC8`, `flt_933BCC` ..)
     pub start: [f32; 34],
-    /// +0x9A4: `middle`: per kind (`flt_933C50`, `flt_933C54` ..)
+    /// `middle`: per kind (`flt_933C50`, `flt_933C54` ..)
     pub middle: [f32; 34],
-    /// +0xA2C: `end`: per kind (`flt_933CD8`, `flt_933CDC` ..)
+    /// `end`: per kind (`flt_933CD8`, `flt_933CDC` ..)
     pub end: [f32; 34],
-    /// +0xAB4: `high`: per kind (`dword_933D60`, `flt_933D64` ..)
+    /// `high`: per kind (`dword_933D60`, `flt_933D64` ..)
     pub high: [f32; 34],
-    /// +0xB3C: `low`: per kind (`dword_933DE8`, `flt_933DEC` ..)
+    /// `low`: per kind (`dword_933DE8`, `flt_933DEC` ..)
     pub low: [f32; 34],
 }
 
 /// Set 1's tables (IDA 0x9332AC .. 0x933E70); the first values are the image's.
-pub static TABLES_1: KindTables<0x1AC> = KindTables {
-    _gap_0: [
-        0x53, 0x70, 0x61, 0x6E, 0x6E, 0x65, 0x72, 0x20, 0x69, 0x73, 0x20, 0x61, 0x20, 0x3F, 0x3F,
-        0x3F, 0x3F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFA, 0x44, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFA, 0x44, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0xFA, 0x44, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0xFA, 0x44, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFA,
-        0x44, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFA, 0x44, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFA, 0x44, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0xFA, 0x44, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0xFA, 0x44, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFA,
-        0x44, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFA, 0x44, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFA, 0x44, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0xFA, 0x44, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0xFA, 0x44, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFA,
-        0x44, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFA, 0x44, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFA, 0x44, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0xFA, 0x44, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0xFA, 0x44, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFA,
-        0x44, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFA, 0x44, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFA, 0x44, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0xFA, 0x44, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0xFA, 0x44, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFA,
-        0x44, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFA, 0x44, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFA, 0x44, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0xFA, 0x44, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0xFA, 0x44, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFA,
-        0x44, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFA, 0x44, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFA, 0x44, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0xFA, 0x44, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0xFA, 0x44, 0x00, 0x00, 0x00, 0x00,
-    ],
+pub static TABLES_1: KindTables = KindTables {
     copied: [const { [1.0, 0.0, 0.0] }; 34],
     from: [
         [0.0, -1.0, -1.0],
@@ -453,37 +373,7 @@ pub static TABLES_1: KindTables<0x1AC> = KindTables {
 };
 
 /// Set 2's tables (IDA 0x933FC8 .. 0x934B78); the first values are the image's.
-pub static TABLES_2: KindTables<0x198> = KindTables {
-    _gap_0: [
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFA, 0x44, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0xFA, 0x44, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0xFA, 0x44, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFA, 0x44, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFA, 0x44, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFA, 0x44, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0xFA, 0x44, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0xFA, 0x44, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFA, 0x44, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFA, 0x44, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFA, 0x44, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0xFA, 0x44, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0xFA, 0x44, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFA, 0x44, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFA, 0x44, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFA, 0x44, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0xFA, 0x44, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0xFA, 0x44, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFA, 0x44, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFA, 0x44, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFA, 0x44, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0xFA, 0x44, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0xFA, 0x44, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFA, 0x44, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFA, 0x44, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFA, 0x44, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0xFA, 0x44, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0xFA, 0x44, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFA, 0x44, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFA, 0x44, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFA, 0x44, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0xFA, 0x44, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0xFA, 0x44, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFA, 0x44, 0x00,
-        0x00, 0x00, 0x00,
-    ],
+pub static TABLES_2: KindTables = KindTables {
     copied: [const { [1.0, 0.0, 0.0] }; 34],
     from: [
         [0.0, -1.0, -1.0],
@@ -610,26 +500,6 @@ pub static TABLES_2: KindTables<0x198> = KindTables {
     ],
 };
 
-/// `TABLES_1`'s place in the image (IDA 0x9332AC).
-#[cfg(test)]
-pub struct Tables1;
-
-#[cfg(test)]
-impl Tables1 {
-    pub const START: usize = 0x9332AC;
-    pub const LEN: usize = 0xBC4;
-}
-
-/// `TABLES_2`'s place in the image (IDA 0x933FC8).
-#[cfg(test)]
-pub struct Tables2;
-
-#[cfg(test)]
-impl Tables2 {
-    pub const START: usize = 0x933FC8;
-    pub const LEN: usize = 0xBB0;
-}
-
 /// Set 1's two outs after its quad (IDA 0x933E70 .. 0x933E7C).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
@@ -638,8 +508,6 @@ pub struct KindExtras1 {
     pub extra: PlainFloat,
     /// +0x4: `divisor` copied (`dword_933E74`; the first set only)
     pub divisor_copy: PlainFloat,
-    /// +0x8: Not named: 4 bytes (a gap, or unreferenced data).
-    pub _gap_8: PlainBytes<4>,
 }
 
 impl KindExtras1 {
@@ -648,14 +516,8 @@ impl KindExtras1 {
         Self {
             extra: PlainFloat::new(0.0),
             divisor_copy: PlainFloat::new(0.0),
-            _gap_8: PlainBytes::new([0x00, 0x00, 0x80, 0x47]),
         }
     }
-}
-
-impl KindExtras1 {
-    pub const START: usize = 0x933E70;
-    pub const LEN: usize = 0xC;
 }
 
 /// Set 2's out after its quad (IDA 0x934B78 .. 0x934B7C).
@@ -673,11 +535,6 @@ impl KindExtra2 {
             extra: PlainFloat::new(0.0),
         }
     }
-}
-
-impl KindExtra2 {
-    pub const START: usize = 0x934B78;
-    pub const LEN: usize = 0x4;
 }
 
 /// A set's constants and light (IDA 0x54 bytes). The offsets are from its start.
@@ -737,30 +594,10 @@ pub static CONSTS_2: KindConsts = KindConsts {
     lifts: [2655.36_f32; 4],
 };
 
-/// `CONSTS_1`'s place in the image (IDA 0x933E7C).
-#[cfg(test)]
-pub struct Consts1;
-
-#[cfg(test)]
-impl Consts1 {
-    pub const START: usize = 0x933E7C;
-    pub const LEN: usize = 0x54;
-}
-
-/// `CONSTS_2`'s place in the image (IDA 0x934B7C).
-#[cfg(test)]
-pub struct Consts2;
-
-#[cfg(test)]
-impl Consts2 {
-    pub const START: usize = 0x934B7C;
-    pub const LEN: usize = 0x54;
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use core::mem::{offset_of, size_of};
+    use core::mem::size_of;
 
     fn bytes<T>(v: &T) -> Vec<u8> {
         let p = std::ptr::from_ref::<T>(v).cast::<u8>();
@@ -769,60 +606,25 @@ mod tests {
             .collect()
     }
 
+    /// The game's tables follow `lead` bytes of its code and strings, which are not kept.
+    fn tables_start_as_the_games(tables: &KindTables, key: &str, lead: usize) {
+        let held = crate::test_support::first_values::bytes(key);
+        assert_eq!(held.len(), lead + size_of::<KindTables>(), "{key}");
+        assert!(bytes(tables) == held[lead..], "{key}");
+    }
+
     #[test]
     fn the_statics_start_as_the_games() {
         let kinds = &effects().kinds;
-        assert_eq!(size_of::<QuadWork>(), 0xF8);
-        assert!(
-            bytes(&kinds.overlay_quad)
-                == crate::test_support::first_values::bytes(
-                    "effects.owner.EFFECTS.kinds.overlay_quad/248"
-                ),
-            "QUAD_1"
-        );
-        assert!(
-            bytes(&kinds.shadow_quad)
-                == crate::test_support::first_values::bytes(
-                    "effects.owner.EFFECTS.kinds.shadow_quad/248"
-                ),
-            "QUAD_2"
-        );
-        assert!(
-            bytes(&kinds.plane_quad)
-                == crate::test_support::first_values::bytes(
-                    "effects.owner.EFFECTS.kinds.plane_quad/248"
-                ),
-            "QUAD_3"
-        );
-        assert_eq!(size_of::<KindTables<0x1AC>>(), Tables1::LEN);
-        assert_eq!(size_of::<KindTables<0x198>>(), Tables2::LEN);
-        assert!(
-            bytes(&TABLES_1)
-                == crate::test_support::first_values::bytes("effects.kind_store.TABLES_1"),
-            "TABLES_1"
-        );
-        assert!(
-            bytes(&TABLES_2)
-                == crate::test_support::first_values::bytes("effects.kind_store.TABLES_2"),
-            "TABLES_2"
-        );
-        assert_eq!(size_of::<KindExtras1>(), KindExtras1::LEN);
-        assert_eq!(size_of::<KindExtra2>(), KindExtra2::LEN);
-        assert!(
-            bytes(&kinds.overlay_extras)
-                == crate::test_support::first_values::bytes(
-                    "effects.owner.EFFECTS.kinds.overlay_extras/12"
-                ),
-            "EXTRAS_1"
-        );
-        assert!(
-            bytes(&kinds.shadow_extra)
-                == crate::test_support::first_values::bytes(
-                    "effects.owner.EFFECTS.kinds.shadow_extra/4"
-                ),
-            "EXTRA_2"
-        );
-        assert_eq!(size_of::<KindConsts>(), Consts1::LEN);
+        use crate::test_support::first_values::assert_block_starts_as_the_games as games;
+        games(&kinds.overlay_quad);
+        games(&kinds.shadow_quad);
+        games(&kinds.plane_quad);
+        games(&kinds.overlay_extras);
+        games(&kinds.shadow_extra);
+        tables_start_as_the_games(&TABLES_1, "effects.kind_store.TABLES_1", 0x1AC);
+        tables_start_as_the_games(&TABLES_2, "effects.kind_store.TABLES_2", 0x198);
+        assert_eq!(size_of::<KindConsts>(), 0x54);
         assert!(
             bytes(&CONSTS_1)
                 == crate::test_support::first_values::bytes("effects.kind_store.CONSTS_1"),
@@ -833,32 +635,5 @@ mod tests {
                 == crate::test_support::first_values::bytes("effects.kind_store.CONSTS_2"),
             "CONSTS_2"
         );
-    }
-
-    #[test]
-    fn the_sets_are_contiguous_in_the_image() {
-        assert_eq!(Quad1::START + Quad1::LEN, Tables1::START);
-        assert_eq!(Tables1::START + Tables1::LEN, KindExtras1::START);
-        assert_eq!(KindExtras1::START + KindExtras1::LEN, Consts1::START);
-        assert_eq!(Consts1::START + Consts1::LEN, Quad2::START);
-        assert_eq!(Quad2::START + Quad2::LEN, Tables2::START);
-        assert_eq!(Tables2::START + Tables2::LEN, KindExtra2::START);
-        assert_eq!(KindExtra2::START + KindExtra2::LEN, Consts2::START);
-        assert_eq!(Consts2::START + Consts2::LEN, Quad3::START);
-    }
-
-    #[test]
-    fn the_fields_are_where_the_game_has_them() {
-        let q = |base: usize, rel: usize| base + rel;
-        assert_eq!(offset_of!(QuadWork, corner), 0x94);
-        assert_eq!(offset_of!(QuadWork, frame), 0x70);
-        assert_eq!(offset_of!(QuadWork, corners), 0xc8);
-        assert_eq!(q(Quad2::START, offset_of!(QuadWork, spread)), 0x933F88);
-        assert_eq!(q(Quad3::START, offset_of!(QuadWork, corners)), 0x934C98);
-        assert_eq!(offset_of!(KindTables<0x1AC>, to), 0x1AC + 0x330);
-        assert_eq!(offset_of!(KindTables<0x1AC>, low), 0xb3c);
-        assert_eq!(offset_of!(KindTables<0x198>, count), 0x880);
-        assert_eq!(offset_of!(KindConsts, lifts), 0x44);
-        assert_eq!(offset_of!(KindConsts, light), 0x38);
     }
 }

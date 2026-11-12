@@ -61,11 +61,30 @@ pub fn car_blocks_groups(blocks: &CarBlocks) -> Vec<(String, u64)> {
     groups
 }
 
-/// The replay staging's group: its bytes (the frame's file image) as one run named `.staging`.
+/// The replay staging's group: its bytes (the frame's file image) as one run named `.staging`,
+/// but for the hat fields of the tape's input words (`HAT_FIELDS`): a device reading the input
+/// thread makes on its own clock, 0 until its first poll and the centred hat (0xE00) after, so
+/// the same tick recorded 0 in one run and 0xE00 in another. The cars never see those bits (the
+/// computer drives them), only the replay file keeps them, and the file is not changed.
 pub fn staging_group(bytes: &[u8]) -> (String, u64) {
+    use rc2k_core::drive::replay_frames::START_DWORDS;
+    /// The hat's angle (the top byte) and direction (the second byte's low nibble) in the
+    /// device's bits word, which the tape keeps as a car's first input word.
+    const HAT_FIELDS: u32 = 0xFF00_0F00;
+    let mut masked = bytes.to_vec();
+    // The tape's entries are two dwords each (the input word, the packed rest).
+    for entry in masked
+        .get_mut(4 * START_DWORDS..)
+        .unwrap_or_default()
+        .as_chunks_mut::<8>()
+        .0
+    {
+        let input = u32::from_le_bytes([entry[0], entry[1], entry[2], entry[3]]) & !HAT_FIELDS;
+        entry[..4].copy_from_slice(&input.to_le_bytes());
+    }
     let mut entry = b".staging\0".to_vec();
-    entry.extend((bytes.len() as u64).to_le_bytes());
-    entry.extend(bytes);
+    entry.extend((masked.len() as u64).to_le_bytes());
+    entry.extend(masked);
     (".staging".to_string(), fnv1a(&entry))
 }
 
@@ -90,7 +109,8 @@ mod tests {
         let first = total(&car_blocks_groups(blocks));
         assert_eq!(first, total(&car_blocks_groups(blocks)));
         let car = 2 * size_of::<crate::physics::car_store::Car>();
-        let gap = car + core::mem::offset_of!(crate::physics::car_store::Car, _gap_f4) + 3;
+        let gap =
+            car + core::mem::offset_of!(crate::physics::car_store::Car, _pad_part_switches) + 1;
         crate::cells::store_cells(blocks, gap, &[0x55]).unwrap();
         assert_eq!(first, total(&car_blocks_groups(blocks)));
         let gear = car + core::mem::offset_of!(crate::physics::car_store::Car, gear);

@@ -62,18 +62,11 @@ impl Cheats {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use core::mem::offset_of;
 
     #[test]
     fn cheat_vars_starts_as_the_games() {
         crate::test_support::first_values::assert_block_starts_as_the_games(
             &crate::menu::owner::menus().play.cheats,
         );
-        assert_eq!(offset_of!(Cheats, notice_due), 0x0);
-        assert_eq!(offset_of!(Cheats, kept_car), 0x4);
-        assert_eq!(offset_of!(Cheats, cheat_names), 0x8);
-        assert_eq!(offset_of!(Cheats, cheats), 0x134);
-        assert_eq!(offset_of!(Cheats, all_secret_cars), 0x138);
     }
 }

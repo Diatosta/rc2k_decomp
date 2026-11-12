@@ -60,17 +60,11 @@ pub const START: usize = 0x755784;
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use core::mem::offset_of;
 
     #[test]
     fn name_buffers_starts_as_the_games() {
         crate::test_support::first_values::assert_block_starts_as_the_games(
             &crate::menu::owner::menus().play.names,
         );
-        assert_eq!(offset_of!(Names, player_names), 0x0);
-        assert_eq!(offset_of!(Names, more_names), 0x80);
-        assert_eq!(offset_of!(Names, kept_name), 0x100);
-        assert_eq!(offset_of!(Names, text_backup), 0x120);
     }
 }

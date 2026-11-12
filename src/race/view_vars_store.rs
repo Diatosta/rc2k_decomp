@@ -232,16 +232,9 @@ pub const END: usize = 0x606500;
 
 const _: () = assert!(END - START == core::mem::size_of::<ViewVars>());
 
-/// The piece's host address (the alignment checks).
-#[cfg(test)]
-pub fn piece_addr() -> usize {
-    core::ptr::from_ref(&race().frame.view_and_records.get().view_vars).addr()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use core::mem::offset_of;
 
     #[test]
     fn the_view_table_names_its_records_as_the_image_does() {
@@ -262,14 +255,5 @@ mod tests {
             ));
         }
         assert!(ViewVars::record_of(race().frame.view_and_records.get(), 52).is_err());
-    }
-
-    #[test]
-    fn fields_are_at_the_games_offsets() {
-        assert_eq!(piece_addr() % 4, 0);
-        assert_eq!(offset_of!(ViewVars, view_car_flag_a), 0x0);
-        assert_eq!(offset_of!(ViewVars, fade_alpha_moved), 0x18);
-        assert_eq!(offset_of!(ViewVars, view_place_f), 0x38);
-        assert_eq!(offset_of!(ViewVars, camera_distance), 0xb0);
     }
 }

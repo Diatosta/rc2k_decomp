@@ -50,9 +50,6 @@ fn listener(shared: &RaceShared) -> Option<&crate::physics::car_store::Car> {
     }
 }
 
-const _: () =
-    assert!(core::mem::offset_of!(crate::physics::car_store::Car, camera_position) == 0x6A4);
-
 /// The exact x87 version (for `physics::engine_sound`).
 pub fn car_sound_state(
     numbers: &Numbers,

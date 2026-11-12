@@ -94,7 +94,6 @@ pub static SPRITE_UV: SpriteUv = SpriteUv {
 #[cfg(test)]
 mod sprite_uv_tests {
     use super::*;
-    use core::mem::offset_of;
 
     fn bytes<T>(v: &T) -> Vec<u8> {
         let p = std::ptr::from_ref::<T>(v).cast::<u8>();
@@ -110,6 +109,5 @@ mod sprite_uv_tests {
                 == crate::test_support::first_values::bytes("effects.draw_turned_sprite.SPRITE_UV"),
             "SPRITE_UV starts differently from the image"
         );
-        assert_eq!(offset_of!(SpriteUv, uv), 0x0);
     }
 }

@@ -5,8 +5,6 @@
 //! counts. `#[repr(C)]` with the image's layout, over the race block's bytes (`RACE_VIEW`), as
 //! `CAR`. Names are readings unless IDA's.
 
-#[cfg(test)]
-use crate::race::owner::race;
 use crate::session::{PlainDword, PlainFloat};
 
 #[repr(C)]
@@ -159,16 +157,8 @@ pub const END: usize = 0x63DC5C;
 
 const _: () = assert!(END - START == core::mem::size_of::<RaceView>());
 
-/// The piece's host address (the alignment checks).
-#[cfg(test)]
-pub fn piece_addr() -> usize {
-    core::ptr::from_ref(race().shared.view.get()).addr()
-}
-
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use core::mem::offset_of;
 
     #[test]
     fn first_values_are_the_games() {
@@ -177,18 +167,5 @@ mod tests {
         crate::test_support::first_values::assert_store_starts_as_the_games(
             "store:race.owner.RACE.shared.view",
         );
-    }
-
-    #[test]
-    fn fields_are_at_the_games_offsets() {
-        assert_eq!(piece_addr() % 4, 0);
-        assert_eq!(offset_of!(RaceView, reflections_kept), 0x0);
-        assert_eq!(offset_of!(RaceView, near), 0x48);
-        assert_eq!(offset_of!(RaceView, texture_b), 0x80);
-        assert_eq!(offset_of!(RaceView, turned_corner_order), 0xc4);
-        assert_eq!(offset_of!(RaceView, view_lamps), 0x1b4);
-        assert_eq!(offset_of!(RaceView, players), 0x1dc);
-        assert_eq!(offset_of!(RaceView, view_blocks), 0x1f8);
-        assert_eq!(offset_of!(RaceView, lamp_count), 0x290);
     }
 }

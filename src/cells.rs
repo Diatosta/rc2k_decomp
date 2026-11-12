@@ -24,8 +24,8 @@ pub unsafe trait Cells {
 
     /// The path of the field holding byte `offset` (`.a.b[2]`) added to `path`, and the type of
     /// the primitive cell it ends in: the debug pages' rows are named by it.
-    #[cfg(any(test, feature = "write_watch", feature = "remote"))]
-    #[cfg_attr(not(debug_ui), allow(dead_code))] // only the debug pages' tests and the audit use it
+    #[cfg(any(test, feature = "remote"))]
+    #[cfg_attr(not(debug_ui), allow(dead_code))] // only the debug pages' tests use it
     fn field_path(&self, _offset: usize, _path: &mut String) -> &'static str
     where
         Self: Sized,
@@ -182,24 +182,6 @@ enum CellRef<'a> {
     Plain8(&'a std::cell::Cell<u8>),
     /// A non-atomic word (`PlainWord`).
     Plain16(&'a std::cell::Cell<u16>),
-}
-
-impl CellRef<'_> {
-    /// The cell noted for the write watch (`write_watch`).
-    #[inline(always)]
-    fn watched(self, write: bool) {
-        let (at, len) = match self {
-            CellRef::U8(a) => (a.as_ptr().cast_const(), 1),
-            CellRef::U16(a) => (a.as_ptr().cast::<u8>().cast_const(), 2),
-            CellRef::U32(a) => (a.as_ptr().cast::<u8>().cast_const(), 4),
-            CellRef::Plain32(_) | CellRef::Plain8(_) | CellRef::Plain16(_) => return,
-        };
-        if write {
-            crate::write_watch::wrote(at, len);
-        } else {
-            crate::write_watch::read(at, len);
-        }
-    }
 }
 
 /// A run of like primitive cells of a record, as references (`Cells::cell_run`): an array of
@@ -688,7 +670,7 @@ unsafe impl<T: Cells, const N: usize> Cells for [T; N] {
         }
     }
 
-    #[cfg(any(test, feature = "write_watch", feature = "remote"))]
+    #[cfg(any(test, feature = "remote"))]
     fn field_path(&self, offset: usize, path: &mut String) -> &'static str {
         let size = size_of::<T>();
         path.push_str(&format!("[{}]", offset / size));
@@ -826,15 +808,10 @@ pub unsafe trait Store {
         None
     }
     /// `Cells::field_path` of the record behind the store, and the record's type.
-    #[cfg(any(test, feature = "write_watch", feature = "remote"))]
-    #[cfg_attr(not(debug_ui), allow(dead_code))] // only the debug pages' tests and the audit use it
+    #[cfg(any(test, feature = "remote"))]
+    #[cfg_attr(not(debug_ui), allow(dead_code))] // only the debug pages' tests use it
     fn field_path_at(&self, _offset: usize, _path: &mut String) -> Option<&'static str> {
         None
-    }
-    #[cfg(any(test, feature = "write_watch"))]
-    #[cfg_attr(not(feature = "write_watch"), allow(dead_code))] // only the audit uses it
-    fn type_name(&self) -> &'static str {
-        ""
     }
     fn load(&self, offset: usize, to: &mut [u8]) -> Result<(), BadInput>;
     fn store(&self, offset: usize, from: &[u8]) -> Result<(), BadInput>;
@@ -850,14 +827,9 @@ unsafe impl<T: Cells> Store for T {
         Some(Cells::cell_run(self, offset))
     }
 
-    #[cfg(any(test, feature = "write_watch", feature = "remote"))]
+    #[cfg(any(test, feature = "remote"))]
     fn field_path_at(&self, offset: usize, path: &mut String) -> Option<&'static str> {
         Some(Cells::field_path(self, offset, path))
-    }
-
-    #[cfg(any(test, feature = "write_watch"))]
-    fn type_name(&self) -> &'static str {
-        std::any::type_name::<T>()
     }
 
     fn first(&self) -> *const u8 {
@@ -876,7 +848,6 @@ unsafe impl<T: Cells> Store for T {
 /// The bytes of a cell's value, as many as it is wide.
 fn cell_bytes(cell: CellRef) -> [u8; 4] {
     use std::sync::atomic::Ordering::Relaxed;
-    cell.watched(false);
     let mut bytes = [0; 4];
     match cell {
         CellRef::U8(a) => bytes[0] = a.load(Relaxed),
@@ -895,7 +866,6 @@ fn cell_bytes(cell: CellRef) -> [u8; 4] {
 /// by one compare-and-swap (the other bytes kept as another thread left them).
 fn set_cell_bytes(cell: CellRef, from: usize, new: &[u8]) {
     use std::sync::atomic::Ordering::Relaxed;
-    cell.watched(true);
     let merge = |old: [u8; 4]| {
         let mut bytes = old;
         bytes[from..from + new.len()].copy_from_slice(new);
@@ -974,9 +944,6 @@ fn record_end<T>(offset: usize, len: usize) -> Result<usize, BadInput> {
 
 /// A run of byte atomics copied out.
 fn load_bytes(run: &[AtomicU8], to: &mut [u8]) {
-    if let Some(a) = run.first() {
-        crate::write_watch::read(a.as_ptr().cast_const(), run.len().min(to.len()));
-    }
     for (b, a) in to.iter_mut().zip(run) {
         *b = a.load(std::sync::atomic::Ordering::Relaxed);
     }
@@ -984,9 +951,6 @@ fn load_bytes(run: &[AtomicU8], to: &mut [u8]) {
 
 /// A run of byte atomics written.
 fn store_bytes(run: &[AtomicU8], from: &[u8]) {
-    if let Some(a) = run.first() {
-        crate::write_watch::wrote(a.as_ptr().cast_const(), run.len().min(from.len()));
-    }
     for (a, &b) in run.iter().zip(from) {
         a.store(b, std::sync::atomic::Ordering::Relaxed);
     }

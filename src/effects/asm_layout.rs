@@ -33,7 +33,12 @@ pub trait Laid: Sized {
 /// for the marks' block) holds at the 1999 places of its fields, and puts the copy's fields
 /// back into the buffer afterwards. Bytes of the copy no run covers are 0.
 pub fn with_laid<T: Laid, R>(mk: Operand, f: impl FnOnce(&T) -> R) -> R {
-    let place = |r: &Run| mk.at((T::START + r.at).wrapping_sub(BLOCK), r.len);
+    with_laid_at(mk, T::START, f)
+}
+
+/// `with_laid` for a store that has several copies in the 1999 layout, the one at `start`.
+pub fn with_laid_at<T: Laid, R>(mk: Operand, start: usize, f: impl FnOnce(&T) -> R) -> R {
+    let place = |r: &Run| mk.at((start + r.at).wrapping_sub(BLOCK), r.len);
     // Every run must lie in the buffer before any is read.
     for r in T::RUNS {
         place(r);
@@ -56,6 +61,7 @@ pub fn with_laid<T: Laid, R>(mk: Operand, f: impl FnOnce(&T) -> R) -> R {
 
 use crate::effects::blocks::CornerSlopes;
 use crate::effects::frame_state::{DrawWork, ViewVars};
+use crate::effects::kind_store::QuadWork;
 use crate::effects::mask_store::{KindPictures, MaskBlocks, PictureCopy};
 use crate::effects::pong::{PongRules, PongState};
 use crate::effects::rain::{RainRules, RainState};
@@ -92,6 +98,33 @@ impl Laid for CornerSlopes {
         to: offset_of!(CornerSlopes, slopes),
         len: 0x2400,
     }];
+}
+
+/// The first of the three quads; the others are at 0x933ED0 and 0x934BD0 (`with_laid_at`).
+impl Laid for QuadWork {
+    const START: usize = 0x9331B4;
+    const RUNS: &'static [Run] = &[
+        Run {
+            at: 0x0,
+            to: offset_of!(QuadWork, place),
+            len: 0xC,
+        },
+        Run {
+            at: 0x10,
+            to: offset_of!(QuadWork, light_turned),
+            len: 0x30,
+        },
+        Run {
+            at: 0x4C,
+            to: offset_of!(QuadWork, sides),
+            len: 0x18,
+        },
+        Run {
+            at: 0x70,
+            to: offset_of!(QuadWork, frame),
+            len: 0x88,
+        },
+    ];
 }
 
 impl Laid for DrawWork {
@@ -769,6 +802,7 @@ mod tests {
     #[test]
     fn runs_cover_the_stores() {
         covered::<CornerSlopes>();
+        covered::<QuadWork>();
         covered::<DrawWork>();
         covered::<ViewVars>();
         covered::<MaskBlocks>();

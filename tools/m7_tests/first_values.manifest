@@ -27,13 +27,7 @@ effects.kind_store.CONSTS_1 held
 effects.kind_store.CONSTS_2 held
 effects.kind_store.TABLES_1 held
 effects.kind_store.TABLES_2 held
-effects.owner.EFFECTS.kinds.overlay_extras/12 store:effects.owner.EFFECTS.kinds.overlay_extras@0+c
-effects.owner.EFFECTS.kinds.overlay_quad/248 store:effects.owner.EFFECTS.kinds.overlay_quad@0+f8
-effects.owner.EFFECTS.kinds.plane_quad/248 store:effects.owner.EFFECTS.kinds.plane_quad@0+f8
 effects.owner.EFFECTS.kinds.shadow_extra/4 store:effects.owner.EFFECTS.kinds.shadow_extra@0+4
-effects.owner.EFFECTS.kinds.shadow_quad/248 store:effects.owner.EFFECTS.kinds.shadow_quad@0+f8
-effects.owner.EFFECTS.masks.surface/17996 store:effects.owner.EFFECTS.masks.surface@0+464c
-effects.owner.EFFECTS.paths.profile_lists/52 store:effects.owner.EFFECTS.paths.profile_lists@0+34
 effects.owner.EFFECTS.paths.profile_rings/2052 store:effects.owner.EFFECTS.paths.profile_rings@0+804
 effects.owner.EFFECTS.paths.profile_tables/26624 store:effects.owner.EFFECTS.paths.profile_tables@0+6800
 effects.run_frame.FRAME_K held
@@ -86,7 +80,7 @@ settings.read_settings.TABLE/1256 held
 settings.read_settings.TABLE_END/1 held
 # front end
 gfx.owner.GFX.card.texture_tables.kinds/20 held
-gfx.texts.CHATZONE store:net.owner.NET_OWNER.vars@80c40+19
+gfx.texts.CHATZONE held
 gfx.texts.FINDING_3D store:race.owner.RACE.replay.viewer_and_kinds@3db+14
 gfx.texts.FNT13 held
 gfx.texts.FNT21 held

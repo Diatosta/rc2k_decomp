@@ -21,10 +21,29 @@ const SLOTS_AT: usize = 4 * CAR_BYTES;
 /// Where the driver's state begins in the starting state.
 const EXTRA_AT: usize = SLOTS_AT + 4 * SLOT_DWORDS;
 
+/// The car fields at their file offsets that the replay viewer or the sound listener sets
+/// itself: `drive::replay_check` leaves them out when it compares a played frame with the
+/// recorded one.
+pub const FRAME_HEAD_AT: usize = 0x0;
+pub const LAST_PACE_CALL_AT: usize = 0x9c;
+pub const OPTION_BITS_AT: usize = 0x220;
+pub const GEAR_CHANGE_PENDING_AT: usize = 0x23c;
+
+/// The bytes of a car the file carries that no code reads (file offset, length). The 1999
+/// game wrote zeros there; so does every frame saved from here.
+const CAR_UNUSED: [(usize, usize); 3] = [(0xf4, 64), (0x190, 4), (0x1b0, 8)];
+/// The same in the driver's state (offset from the state's start).
+const EXTRA_UNUSED: [(usize, usize); 4] = [(0x80, 4), (0x12c, 12), (0x2c4, 16), (0x304, 16)];
+/// The byte the unused places of a frame hold.
+const UNUSED_BYTE: u8 = 0;
+
 /// Moves one field between a record and the file's bytes.
 trait Move {
     /// The field at byte `at` of the piece being moved.
     fn field<T: Cells>(&mut self, at: usize, field: &T);
+
+    /// `len` bytes at `at` that no record holds: written as `UNUSED_BYTE`, ignored when read.
+    fn unused(&mut self, at: usize, len: usize);
 }
 
 /// Reads the fields into the starting state's bytes, from `base`.
@@ -38,6 +57,11 @@ impl Move for Gather<'_> {
         let from = self.base + at;
         load_cells(field, 0, &mut self.bytes[from..from + size_of::<T>()])
             .expect("a field inside the file's bytes");
+    }
+
+    fn unused(&mut self, at: usize, len: usize) {
+        let from = self.base + at;
+        self.bytes[from..from + len].fill(UNUSED_BYTE);
     }
 }
 
@@ -53,11 +77,13 @@ impl Move for Scatter<'_> {
         store_cells(field, 0, &self.bytes[from..from + size_of::<T>()])
             .expect("a field inside the file's bytes");
     }
+
+    fn unused(&mut self, _at: usize, _len: usize) {}
 }
 
 /// A car's first 0x684 bytes (everything before its camera mode), in the car's order.
 fn car_fields(car: &Car, m: &mut impl Move) {
-    m.field(0x0, &car.frame_head);
+    m.field(FRAME_HEAD_AT, &car.frame_head);
     m.field(0x8, &car.step_clock);
     m.field(0xc, &car.noise_word);
     m.field(0x10, &car.car_flags);
@@ -83,23 +109,20 @@ fn car_fields(car: &Car, m: &mut impl Move) {
     m.field(0x90, &car.splits_passed);
     m.field(0x94, &car.reset_checkpoint);
     m.field(0x98, &car.checkpoint);
-    m.field(0x9c, &car.last_pace_call);
+    m.field(LAST_PACE_CALL_AT, &car.last_pace_call);
     m.field(0xa0, &car.started_stand_timer);
     m.field(0xa4, &car.go_stand_timer);
     m.field(0xa8, &car.finish_flag);
     m.field(0xac, &car.splits_recorded);
     m.field(0xb0, &car.stop_state);
     m.field(0xb4, &car.crash_matrix);
-    m.field(0xf4, &car._gap_f4);
     m.field(0x134, &car.position);
     m.field(0x140, &car.split_times);
     m.field(0x180, &car.drive_slip_speed);
     m.field(0x184, &car.spin);
-    m.field(0x190, &car._gap_190);
     m.field(0x194, &car.spin_length);
     m.field(0x198, &car.velocity);
     m.field(0x1a4, &car.local_velocity);
-    m.field(0x1b0, &car._gap_1b0);
     m.field(0x1b8, &car.drive_speed_a);
     m.field(0x1bc, &car.drive_speed_b);
     m.field(0x1c0, &car.mean_drive_speed);
@@ -122,12 +145,12 @@ fn car_fields(car: &Car, m: &mut impl Move) {
     m.field(0x208, &car.steer_trim);
     m.field(0x20c, &car.unused_20c);
     m.field(0x210, &car.grip_forces);
-    m.field(0x220, &car.option_bits);
+    m.field(OPTION_BITS_AT, &car.option_bits);
     m.field(0x224, &car.contact_point);
     m.field(0x230, &car.contact_depth);
     m.field(0x234, &car.contact_flag);
     m.field(0x238, &car.gear_changed);
-    m.field(0x23c, &car.gear_change_pending);
+    m.field(GEAR_CHANGE_PENDING_AT, &car.gear_change_pending);
     m.field(0x240, &car.light_colour);
     m.field(0x244, &car.light_level);
     m.field(0x248, &car.front_wheels_off);
@@ -225,6 +248,9 @@ fn car_fields(car: &Car, m: &mut impl Move) {
     m.field(0x678, &car.start_share);
     m.field(0x67c, &car.start_blend_share);
     m.field(0x680, &car.start_blend);
+    for (at, len) in CAR_UNUSED {
+        m.unused(at, len);
+    }
 }
 
 /// A loose part (0x78 bytes).
@@ -253,14 +279,12 @@ fn extra_fields(work: &RaceWork, m: &mut impl Move) {
     m.field(0x74, &work.driver_moved);
     m.field(0x78, &work.driver_turn);
     m.field(0x7c, &work.driver_bend_index);
-    m.field(0x80, &work.unused_104c);
     m.field(0x84, &work.driver_wanted_speed);
     m.field(0x88, &work.driver_speed);
     m.field(0x8c, &work.driver_bend_to);
     m.field(0xb4, &work.driver_bend_noted);
     m.field(0xdc, &work.driver_reverse_tries);
     m.field(0x104, &work.driver_bend_turn);
-    m.field(0x12c, &work.unused_10f8);
     m.field(0x138, &work.driver_flag_bc);
     m.field(0x13c, &work.driver_step_x);
     m.field(0x140, &work.driver_step_z);
@@ -276,15 +300,16 @@ fn extra_fields(work: &RaceWork, m: &mut impl Move) {
     m.field(0x204, &work.driver_points_then);
     m.field(0x2a4, &work.driver_from);
     m.field(0x2b4, &work.driver_to);
-    m.field(0x2c4, &work.unknown_1290);
     m.field(0x2d4, &work.driver_way);
     m.field(0x2e4, &work.driver_way_unit);
     m.field(0x2f4, &work.driver_ahead);
-    m.field(0x304, &work.unused_12d0);
     m.field(0x314, &work.driver_flat);
     m.field(0x324, &work.driver_flat_unit);
     m.field(0x334, &work.driver_side);
     m.field(0x344, &work.driver_work);
+    for (at, len) in EXTRA_UNUSED {
+        m.unused(at, len);
+    }
 }
 
 fn pieces(cars: &[Car], work: &RaceWork, m: &mut dyn FnMut(usize, Piece)) {
@@ -370,10 +395,56 @@ mod tests {
         core::array::from_fn(|_| car_of(fill))
     }
 
+    /// The file's starting state with the places no record holds set to `UNUSED_BYTE`.
+    fn with_unused_places(mut bytes: Vec<u8>) -> Vec<u8> {
+        for k in 0..4 {
+            for (at, len) in CAR_UNUSED {
+                let from = k * CAR_BYTES + at;
+                bytes[from..from + len].fill(UNUSED_BYTE);
+            }
+        }
+        for (at, len) in EXTRA_UNUSED {
+            let from = super::EXTRA_AT + at;
+            bytes[from..from + len].fill(UNUSED_BYTE);
+        }
+        bytes
+    }
+
     fn bytes_of<T: Cells>(record: &T, from: usize, len: usize) -> Vec<u8> {
         let mut bytes = vec![0; len];
         load_cells(record, from, &mut bytes).unwrap();
         bytes
+    }
+
+    /// Where the file's byte `at` of a piece lies in the record, when the record keeps it:
+    /// `unused` lists the file's places no record holds (the records closed up over them).
+    fn in_record(at: usize, unused: &[(usize, usize)]) -> Option<usize> {
+        let mut gone = 0;
+        for &(from, len) in unused {
+            if (from..from + len).contains(&at) {
+                return None;
+            }
+            if at >= from + len {
+                gone += len;
+            }
+        }
+        Some(at - gone)
+    }
+
+    /// `len` bytes of the file's piece `from` the record at `base`, as the game's raw copy had
+    /// them: the places no record holds are `UNUSED_BYTE`.
+    fn raw_bytes<T: Cells>(
+        record: &T,
+        base: usize,
+        len: usize,
+        unused: &[(usize, usize)],
+    ) -> Vec<u8> {
+        (0..len)
+            .map(|at| match in_record(at, unused) {
+                Some(n) => bytes_of(record, base + n, 1)[0],
+                None => UNUSED_BYTE,
+            })
+            .collect()
     }
 
     /// The frame a gather makes puts every field at the offset the game's raw copy had:
@@ -385,10 +456,10 @@ mod tests {
         let frame = gather(&cars, &work);
         let mut expected = Vec::new();
         for car in &cars {
-            expected.extend(bytes_of(car, 0, CAR_BYTES));
+            expected.extend(raw_bytes(car, 0, CAR_BYTES, &CAR_UNUSED));
         }
         expected.extend(bytes_of(&*work, SLOTS_AT, 8 * SLOT_BYTES));
-        expected.extend(bytes_of(&*work, EXTRA_AT, 0x400));
+        expected.extend(raw_bytes(&*work, EXTRA_AT, 0x400, &EXTRA_UNUSED));
         assert_eq!(frame.start_bytes(), expected);
         assert_eq!(frame.tape, [0; 400]);
     }
@@ -417,7 +488,7 @@ mod tests {
     /// A synthetic file frame goes through the cars and back byte for byte.
     #[test]
     fn a_synthetic_frame_round_trips() {
-        let bytes: Vec<u8> = (0..FRAME_BYTES).map(|n| pattern(n + 7)).collect();
+        let bytes = with_unused_places((0..FRAME_BYTES).map(|n| pattern(n + 7)).collect());
         let frame = ReplayFrame::from_bytes(&bytes).unwrap();
         let (cars, work) = (cars_of(|_| 0), work_of(|_| 0));
         scatter(&frame, &cars, &work);

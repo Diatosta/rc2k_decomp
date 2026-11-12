@@ -427,40 +427,23 @@ mod tests {
 
     #[test]
     fn the_object_list_runs_through_the_fields_after_it() {
-        assert_eq!(offset_of!(EffectsSettings, first_object), 0x26BC);
-        assert_eq!(offset_of!(EffectsSettings, unused_20), 0x26C0);
-        assert_eq!(offset_of!(EffectsSettings, listener_scale), 0x26BC + 4 * 8);
-        assert_eq!(offset_of!(EffectsSettings, unused_40), 0x26BC + 4 * 9);
+        let first = offset_of!(EffectsSettings, first_object);
+        assert_eq!(offset_of!(EffectsSettings, unused_20), first + 4);
+        assert_eq!(offset_of!(EffectsSettings, listener_scale), first + 4 * 8);
+        assert_eq!(offset_of!(EffectsSettings, unused_40), first + 4 * 9);
         assert_eq!(
             offset_of!(EffectsSettings, spline_gear_changed),
-            0x26BC + 4 * 16
+            first + 4 * 16
         );
         assert_eq!(
             offset_of!(EffectsSettings, spline_handbrake),
-            0x26BC + 4 * 17
+            first + 4 * 17
         );
         assert_eq!(
             offset_of!(EffectsSettings, sound_objects_shown),
-            0x26BC + 4 * 18
+            first + 4 * 18
         );
         assert!(EFFECTS_SETTINGS.object(18).is_ok());
         assert!(EFFECTS_SETTINGS.object(19).is_err());
-    }
-
-    #[test]
-    fn fields_sit_where_the_effects_read_them() {
-        assert_eq!(offset_of!(EffectsSettings, fresh_marks_flags), 0x14);
-        assert_eq!(offset_of!(EffectsSettings, listener_place), 0x1C);
-        assert_eq!(offset_of!(EffectsSettings, listener_turn), 0x28);
-        assert_eq!(offset_of!(EffectsSettings, cars_copy), 0x5C);
-        assert_eq!(offset_of!(EffectsSettings, cars), 0x60);
-        assert_eq!(offset_of!(EffectsSettings, mark_car_file_number), 0x26A8);
-        assert_eq!(offset_of!(EffectsSettings, listener_scale), 0x26DC);
-        assert_eq!(
-            offset_of!(EffectsSettings, windscreen_drops_rate_factor),
-            0x2738
-        );
-        assert_eq!(offset_of!(EffectsSettings, listener_figures), 0x2754);
-        assert_eq!(offset_of!(EffectsSettings, rain_drops), 0x2764);
     }
 }

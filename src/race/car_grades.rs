@@ -183,8 +183,9 @@ mod tests {
         let car = &CAR_BLOCKS.cars[0];
         let base = core::ptr::from_ref(car) as usize;
         for ((value, grade, _), (from, to)) in GRADES.iter().zip(old) {
-            assert_eq!(core::ptr::from_ref(value(car)) as usize - base, from);
-            assert_eq!(core::ptr::from_ref(grade(car)) as usize - base, to);
+            let now = |p: usize| crate::physics::car_store::to_1999(p - base);
+            assert_eq!(now(core::ptr::from_ref(value(car)) as usize), from);
+            assert_eq!(now(core::ptr::from_ref(grade(car)) as usize), to);
         }
     }
 }

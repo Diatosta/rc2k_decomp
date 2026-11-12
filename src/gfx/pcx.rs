@@ -102,18 +102,9 @@ pub fn on_stream(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use core::mem::offset_of;
 
     #[test]
     fn first_values_are_the_games() {
         crate::test_support::first_values::assert_block_starts_as_the_games(&gfx().pictures.pcx);
-    }
-
-    #[test]
-    fn moved_knows_the_block() {
-        assert_eq!(offset_of!(Pcx, stream), 0x10);
-        assert_eq!(offset_of!(Pcx, header), 0x2020);
-        assert_eq!(offset_of!(Pcx, file_palette), 0x20a0);
-        assert_eq!(offset_of!(Pcx, width_limit), 0x23a0);
     }
 }

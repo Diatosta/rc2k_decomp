@@ -591,6 +591,11 @@ mod header_tests {
         use crate::test_support::state::store;
         for &(size, to, from, from_at) in &HEADER_MOVES {
             let mut bytes = vec![0; size];
+            let from_at = if from == WORK {
+                crate::race::work_store::from_1999(from_at)
+            } else {
+                from_at
+            };
             store(from).load(from_at, &mut bytes)?;
             let work = race().replay_work();
             match to {

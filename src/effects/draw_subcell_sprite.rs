@@ -9,7 +9,7 @@
 //!
 //! Callers: the ring's kinds 0x10, 0x11 (`effects::run_ring`) and the effects' lines.
 //! The x87 blocks are plain Rust on the x87 model (`math::x87_float`), in the original's order, over the game's variables. Refuses,
-//! before anything, a subcell past the table's 0x410, a null entry, and the fog's and the
+//! before anything, a subcell past the table's 0x400, a null entry, and the fog's and the
 //! clip's refusals.
 
 use crate::effects::cell_x87::CellX87;
@@ -20,7 +20,9 @@ use crate::effects::ring_store::RingWork;
 use crate::errors::{BadInput, Refused};
 use crate::scene::fog_at::fog_at;
 
-const SUBCELLS: u32 = 0x410;
+/// The sub-cell places in the surface's table. The bursts, the only entries drawn this way,
+/// number theirs below 0x3F7.
+const SUBCELLS: u32 = 0x400;
 
 /// The place turned by the view.
 fn turn(
@@ -82,7 +84,8 @@ pub fn draw_subcell_sprite(
     }
     effects.frame.draw_work.half[0].set(f32::from_bits(size));
     let at = subcell << 4;
-    let place = |n: usize| f32::from_bits(masks.surface.word(0x400 + at as usize + 4 * n));
+    let place =
+        |n: usize| f32::from_bits(masks.surface.places.get_u32(0x400 + at as usize + 4 * n));
     let [u0, v0, u1, v1] = [place(0), place(1), place(2), place(3)];
     for (n, (u, v)) in [(u0, v0), (u1, v0), (u1, v1), (u0, v1)]
         .into_iter()

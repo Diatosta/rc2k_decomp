@@ -4,7 +4,7 @@
 
 use crate::effects::lines::LinesWork;
 use crate::effects::morph_object_points::MorphWork;
-use crate::effects::profiles::{ProfileLists, ProfileRings, ProfileTables};
+use crate::effects::profiles::{ProfileRings, ProfileTables};
 use crate::effects::splines::{
     SplineConstants, SplineHead, SplineKinds, SplinePath, SplineTables, SplineWork,
 };
@@ -23,7 +23,6 @@ pub struct Paths {
     pub wave: WaveState,
     pub wave_levels: WaveLevels,
     pub sines: MarksSines,
-    pub profile_lists: ProfileLists,
     pub profile_rings: ProfileRings,
     pub profile_tables: ProfileTables,
     pub morph_work: MorphWork,
@@ -45,7 +44,6 @@ impl Paths {
             wave: WaveState::new(),
             wave_levels: WaveLevels::new(),
             sines: MarksSines::new(),
-            profile_lists: ProfileLists::new(),
             profile_rings: ProfileRings::new(),
             profile_tables: ProfileTables::new(),
             morph_work: MorphWork::new(),

@@ -691,18 +691,11 @@ fn draw_parts(
         let scratch = part_scratch(n);
         scratch.points.begin_run(point_count);
         crate::math::x87::set_control_word(control);
-        #[cfg(feature = "write_watch")]
-        crate::write_watch::begin();
         crate::d3d::run_states::begin_run(scratch, &cache_start);
         crate::scene::view_matrices::begin_part(scratch, columns_start);
         let result = part(n, scratch, lent.reads());
         let states = crate::d3d::run_states::end_run(scratch);
         let columns = crate::scene::view_matrices::end_part(scratch).unwrap_or(columns_start);
-        #[cfg(feature = "write_watch")]
-        WATCHED
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .push(crate::write_watch::end());
         ended(n);
         scratch.points.end_run();
         let noted = crate::platform_3d::take_noted(scratch);
@@ -714,8 +707,6 @@ fn draw_parts(
             columns,
         }
     };
-    #[cfg(feature = "write_watch")]
-    crate::write_watch::begin();
     // Run 0, on the game's thread.
     let first_run = || {
         let scratch = part_scratch(0);
@@ -752,29 +743,11 @@ fn draw_parts(
         (first, others)
     } else {
         let first = first_run();
-        // Run 0's watch ends before the others' begin on this thread.
-        #[cfg(feature = "write_watch")]
-        WATCHED
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .push(crate::write_watch::end());
         let others: Vec<OtherRun> = (1..k).map(other).collect();
         (first, others)
     };
     // Every part has ended: the stores are the game's thread's again.
     drop(scope);
-    #[cfg(feature = "write_watch")]
-    {
-        // Run 0's watch ends here (one after another it ended before the others').
-        let mut watched = WATCHED
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
-        if pool.is_some() {
-            watched.push(crate::write_watch::end());
-        }
-        crate::write_watch::shared::add(&watched);
-        watched.clear();
-    }
     let mut result = first;
     // Part 0 is put back: what follows it draws on the game's thread, every part ended.
     if result.is_ok() {
@@ -808,7 +781,3 @@ struct OtherRun {
     /// The held matrix columns it left.
     columns: crate::scene::view_matrices::Columns,
 }
-
-/// With the feature `write_watch`: what each run of the list being drawn reached.
-#[cfg(feature = "write_watch")]
-static WATCHED: Mutex<Vec<crate::write_watch::Seen>> = Mutex::new(Vec::new());

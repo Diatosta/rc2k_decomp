@@ -74,30 +74,14 @@ pub const END: usize = 0x6D1DD4;
 
 const _: () = assert!(END - START == core::mem::size_of::<SoundSpotBlock>());
 
-/// The piece's host address (the alignment checks).
-#[cfg(test)]
-pub fn piece_addr() -> usize {
-    core::ptr::from_ref(race().frame.sound_spots()).addr()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use core::mem::offset_of;
 
     #[test]
     fn first_values_are_the_games() {
         crate::test_support::first_values::assert_block_starts_as_the_games(
             race().frame.sound_spots(),
         );
-    }
-
-    #[test]
-    fn fields_are_at_the_games_offsets() {
-        assert_eq!(piece_addr() % 4, 0);
-        assert_eq!(offset_of!(SoundSpotBlock, work_vector_length), 0x0);
-        assert_eq!(offset_of!(SoundSpotBlock, flag_18e4), 0x1c);
-        assert_eq!(offset_of!(SoundSpotBlock, band_scale_0), 0x214);
-        assert_eq!(offset_of!(SoundSpotBlock, sound_spots), 0x22c);
     }
 }

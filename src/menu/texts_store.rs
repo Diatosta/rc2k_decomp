@@ -2190,10 +2190,10 @@ const LEAD: usize = 2;
 /// The bytes `MenuTexts` has before the speech tables that the image does not.
 const SPEECH_PAD: usize = 2;
 /// IDA 0x734866, the first speech table.
-#[cfg(any(test, feature = "write_watch"))]
+#[cfg(test)]
 pub const CAR_SPEECH: usize = 0x734866;
 /// Where the first speech table is in `MenuTexts`.
-#[cfg(any(test, feature = "write_watch"))]
+#[cfg(test)]
 pub const CAR_SPEECH_OFFSET: usize = CAR_SPEECH - START + LEAD + SPEECH_PAD;
 
 /// A speech table's entry: a sample name's handle (`audio::store::name_key`; the
@@ -2302,9 +2302,6 @@ mod tests {
     #[test]
     fn menu_texts_start_as_the_games() {
         assert_eq!(size_of::<MenuTexts>(), END - START + LEAD + SPEECH_PAD);
-        assert_eq!(offset_of!(MenuTexts, keys_menu), 0x39 + 2);
-        assert_eq!(offset_of!(MenuTexts, car_speech), 0x2ce4 + 4);
-        assert_eq!(offset_of!(MenuTexts, stage_speech), 0x2e04 + 4);
         assert_eq!(offset_of!(MenuTexts, car_speech) % 4, 0);
         let mine = unsafe {
             std::slice::from_raw_parts(

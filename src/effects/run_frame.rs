@@ -167,7 +167,6 @@ pub static FRAME_K: FrameK = FrameK {
 #[cfg(test)]
 mod frame_k_tests {
     use super::*;
-    use core::mem::offset_of;
 
     fn bytes<T>(v: &T) -> Vec<u8> {
         let p = std::ptr::from_ref::<T>(v).cast::<u8>();
@@ -183,7 +182,5 @@ mod frame_k_tests {
                 == crate::test_support::first_values::bytes("effects.run_frame.FRAME_K"),
             "FRAME_K starts differently from the image"
         );
-        assert_eq!(offset_of!(FrameK, share_k), 0x0);
-        assert_eq!(offset_of!(FrameK, times), 0x4);
     }
 }

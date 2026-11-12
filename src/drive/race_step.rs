@@ -11,7 +11,6 @@ use crate::race::owner::Race;
 // Converted: `rc2k_core::drive::race_ticks::run_ticks`.
 pub fn race_step(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refused> {
     let net = o.net;
-    let _step = crate::write_watch::step("physics");
     crate::drive::race_clock_tick::race_clock_tick(&race.shared);
     if race.shared.physics_tables.get().debug[1].get() == 0 {
         rc2k_core::drive::race_ticks::run_ticks(
@@ -33,7 +32,7 @@ pub fn race_step(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), R
 /// so that two runs of a replay can be compared tick by tick (the simulation must stay
 /// bit-identical). The blocks are hashed by field path and value (`drive::sim_hash`), so the
 /// records' layout does not matter.
-#[cfg(any(test, feature = "remote", feature = "write_watch"))]
+#[cfg(any(test, feature = "remote"))]
 fn hash_if_asked(race: &Race) {
     use std::sync::OnceLock;
     use std::sync::atomic::{AtomicU32, Ordering::Relaxed};
@@ -66,5 +65,5 @@ fn hash_if_asked(race: &Race) {
     }
 }
 
-#[cfg(not(any(test, feature = "remote", feature = "write_watch")))]
+#[cfg(not(any(test, feature = "remote")))]
 fn hash_if_asked(_race: &Race) {}

@@ -42,20 +42,11 @@ impl MenuPages {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use core::mem::offset_of;
 
     #[test]
     fn menu_pages_starts_as_the_games() {
         crate::test_support::first_values::assert_block_starts_as_the_games(
             &crate::menu::owner::menus().tables.pages,
         );
-        assert_eq!(offset_of!(MenuPages, save_page), 0x0);
-        assert_eq!(offset_of!(MenuPages, scores_page), 0x4);
-        assert_eq!(offset_of!(MenuPages, setup_slot_page), 0x8);
-        assert_eq!(offset_of!(MenuPages, replay_page), 0xc);
-        assert_eq!(offset_of!(MenuPages, yes_no_answer), 0x10);
-        assert_eq!(offset_of!(MenuPages, reset_times), 0x14);
-        assert_eq!(offset_of!(MenuPages, services), 0x18);
     }
 }

@@ -81,7 +81,7 @@ fn pass_over(
             ))
         })
     } else if !<Native as Folders>::DRIVES && is_page(entry, DRIVE_PAGE) {
-        (0..8)
+        (0..entry.answers())
             .filter_map(|answer| entry.next(pages::next_entry_at(answer)))
             .find(|&next| is_page(next, FOLDER_PAGE))?
     } else {

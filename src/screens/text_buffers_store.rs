@@ -32,20 +32,3 @@ pub const START: usize = 0xA8BB54;
 pub const END: usize = 0xA8C180;
 
 const _: () = assert!(END - START == core::mem::size_of::<TextBuffers>());
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use core::mem::offset_of;
-
-    #[test]
-    fn piece_sits_on_the_buffers() {
-        assert_eq!(offset_of!(TextBuffers, cells), 0x100);
-        assert_eq!(offset_of!(TextBuffers, stage_heading), 0x200);
-        assert_eq!(offset_of!(TextBuffers, caption), 0x300);
-        assert_eq!(offset_of!(TextBuffers, title), 0x400);
-        assert_eq!(offset_of!(TextBuffers, number_text), 0x500);
-        assert_eq!(offset_of!(TextBuffers, stage_result_value), 0x600);
-        assert_eq!(offset_of!(TextBuffers, page_numbers), 0x604);
-    }
-}

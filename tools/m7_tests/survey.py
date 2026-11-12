@@ -5,7 +5,7 @@ Run from the repository root: `python3 tools/m7_tests/survey.py [--files] [--pro
 Test text is a file's text minus `count_unsafe.strip_tests` (plus test-only files whole);
 comments are left out. The old-address layer is deleted (round 30: moved.rs, address_map.rs,
 pointers.rs, ral_image.bin): the kinds named after it stay as tripwires and must read 0. The files that
-remain of the memory plumbing (framework.rs, stores.rs, write_watch.rs, shared_memory.rs,
+remain of the memory plumbing (framework.rs, stores.rs, shared_memory.rs,
 cells, pool.rs) are listed apart as LAYER."""
 import collections
 import os
@@ -35,7 +35,7 @@ KINDS = collections.OrderedDict([
     ('ida literal', r'\b0x0*(?:4[0-9A-Fa-f]|5[0-9A-Fa-f]|6[0-9A-Fa-f]|7[0-4])[0-9A-Fa-f_]{4}\b'),
 ])
 PATS = {k: re.compile(v) for k, v in KINDS.items()}
-LAYER = ('src/framework.rs', 'src/stores.rs', 'src/write_watch.rs', 'src/shared_memory.rs',
+LAYER = ('src/framework.rs', 'src/stores.rs', 'src/shared_memory.rs',
          'src/cells.rs', 'src/cells/', 'src/pool.rs')
 
 

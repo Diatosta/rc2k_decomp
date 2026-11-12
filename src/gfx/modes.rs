@@ -96,21 +96,11 @@ impl Modes {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
 
     #[test]
     fn first_values_are_the_games() {
         crate::test_support::first_values::assert_block_starts_as_the_games(
             &crate::gfx::owner::GFX.get().display.modes,
         );
-    }
-
-    #[test]
-    fn moved_knows_the_block() {
-        assert_eq!(offset_of!(Modes, pixel_kinds), 0x10);
-        assert_eq!(offset_of!(Modes, sizes), 0x20);
-        assert_eq!(offset_of!(Modes, kinds), 0x60);
-        assert_eq!(offset_of!(Modes, count), 0x108);
-        assert_eq!(offset_of!(Modes, table), 0x10c);
     }
 }

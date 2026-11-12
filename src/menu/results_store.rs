@@ -61,24 +61,11 @@ pub const START: usize = 0x758714;
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use core::mem::offset_of;
 
     #[test]
     fn result_figures_starts_as_the_games() {
         crate::test_support::first_values::assert_block_starts_as_the_games(
             &crate::menu::owner::menus().play.results,
         );
-        assert_eq!(offset_of!(Results, round), 0x0);
-        assert_eq!(offset_of!(Results, group_titles), 0x4);
-        assert_eq!(offset_of!(Results, order), 0xc);
-        assert_eq!(offset_of!(Results, time_bonus), 0x44);
-        assert_eq!(offset_of!(Results, positions), 0x54);
-        assert_eq!(offset_of!(Results, points), 0x64);
-        assert_eq!(offset_of!(Results, extra), 0x74);
-        assert_eq!(offset_of!(Results, sums), 0x84);
-        assert_eq!(offset_of!(Results, before), 0x94);
-        assert_eq!(offset_of!(Results, totals), 0xa4);
-        assert_eq!(offset_of!(Results, pairs), 0xb4);
     }
 }

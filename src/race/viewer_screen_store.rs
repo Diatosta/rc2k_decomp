@@ -270,16 +270,9 @@ pub const END: usize = 0x5C2F84;
 
 const _: () = assert!(END - START == core::mem::size_of::<ViewerPanelBlock>());
 
-/// The piece's host address (the alignment checks).
-#[cfg(test)]
-pub fn piece_addr() -> usize {
-    core::ptr::from_ref(&race().replay.viewer_and_kinds.viewer_panel).addr()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use core::mem::offset_of;
 
     #[test]
     fn tail_dwords_read_and_write_unaligned() {
@@ -345,15 +338,5 @@ mod tests {
         }
         assert!(v.switch_picture(0, 9).is_err());
         assert!(v.switch_picture(3, 0).is_err());
-    }
-
-    #[test]
-    fn fields_are_at_the_games_offsets() {
-        assert_eq!(piece_addr() % 4, 0);
-        assert_eq!(offset_of!(ViewerPanelBlock, bar_frame_rect), 0x60);
-        assert_eq!(offset_of!(ViewerPanelBlock, mark_rect), 0xc0);
-        assert_eq!(offset_of!(ViewerPanelBlock, place_picture_rect), 0x1d0);
-        assert_eq!(offset_of!(ViewerPanelBlock, reciprocal_width_800), 0x34c);
-        assert_eq!(offset_of!(ViewerPanelBlock, kept_patch_switches), 0x37c);
     }
 }

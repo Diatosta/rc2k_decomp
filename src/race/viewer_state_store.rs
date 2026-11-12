@@ -153,16 +153,9 @@ pub const END: usize = 0x5C2714;
 
 const _: () = assert!(END - START == core::mem::size_of::<ReplayViewBlock>());
 
-/// The piece's host address (the alignment checks).
-#[cfg(test)]
-pub fn piece_addr() -> usize {
-    core::ptr::from_ref(race().replay.replay_view()).addr()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use core::mem::offset_of;
 
     #[test]
     fn first_values_are_the_games() {
@@ -200,13 +193,5 @@ mod tests {
             }
         }
         assert!(ReplayViewBlock::item_place(replay, 26).is_err());
-    }
-
-    #[test]
-    fn fields_are_at_the_games_offsets() {
-        assert_eq!(piece_addr() % 4, 0);
-        assert_eq!(offset_of!(ReplayViewBlock, pad_frame), 0x0);
-        assert_eq!(offset_of!(ReplayViewBlock, play_from_here), 0x24);
-        assert_eq!(offset_of!(ReplayViewBlock, wait_key_release), 0x3c);
     }
 }

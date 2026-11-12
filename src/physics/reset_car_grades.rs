@@ -118,14 +118,19 @@ mod tests {
         let writes = reset_writes(1.0, 50.0, 25.0);
         let named: Car = Car::new();
         let by_offset: Car = Car::new();
-        let pattern: Vec<u8> = (0..0xFE0usize).map(|i| (i * 13 + 5) as u8).collect();
+        let pattern: Vec<u8> = (0..size_of::<Car>()).map(|i| (i * 13 + 5) as u8).collect();
         crate::cells::Store::store(&named, 0, &pattern).unwrap();
         crate::cells::Store::store(&by_offset, 0, &pattern).unwrap();
         for &(field, v) in &writes {
-            crate::cells::store_value::<u32>(&by_offset, old_offsets(field), v).unwrap();
+            crate::cells::store_value::<u32>(
+                &by_offset,
+                crate::physics::car_store::from_1999(old_offsets(field)),
+                v,
+            )
+            .unwrap();
         }
         write_all(&named, writes);
-        let (mut a, mut b) = (vec![0u8; 0xFE0], vec![0u8; 0xFE0]);
+        let (mut a, mut b) = (vec![0u8; size_of::<Car>()], vec![0u8; size_of::<Car>()]);
         crate::cells::Store::load(&named, 0, &mut a).unwrap();
         crate::cells::Store::load(&by_offset, 0, &mut b).unwrap();
         assert!(

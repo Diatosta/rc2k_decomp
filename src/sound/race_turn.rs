@@ -25,7 +25,6 @@ pub fn race_turn(
     if sound.race.clock.get().started.get() != 1 {
         return Ok(());
     }
-    let _step = crate::write_watch::step("sound_turn");
     if crate::sound::turn_parts::step_clock(sound) {
         crate::platform_timing::note_sound_turn();
         use crate::sound::*;

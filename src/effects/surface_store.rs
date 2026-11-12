@@ -6,10 +6,8 @@ use crate::session::{PlainBytes, PlainDword};
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct SurfaceTables {
-    /// 0x935766: `g_marksCellPlaces` (0x40 cells of four floats, 16 bytes each) then `g_marksSubcellPlaces` at 0x935B66 (0x40 x 0x100 bytes: 4 x 4 sub-cells of 16 bytes per cell); the original reads one cell and 0x10 sub-cells past them (see `SurfaceTables::word`).
+    /// 0x935766: `g_marksCellPlaces` (0x40 cells of four floats, 16 bytes each, then `g_marksSubcellPlaces` at 0x935B66: 0x40 x 0x100 bytes, 4 x 4 sub-cells of 16 bytes per cell). The cell draw reads cell 0x40, the first sub-cell's place, as the original does.
     pub places: PlainBytes<17408>,
-    /// 0x939B66: Not named: 16 bytes (a gap, or unreferenced data).
-    pub _gap_939b66: PlainBytes<16>,
     /// 0x939B76: `g_marksParticleLives`: the life by a wheel's flags' bits 6, 7 (`effects::emit_wheel_fade_particle`).
     pub lives_by_flags: [PlainDword; 4],
     /// 0x939B86: `dword_939B86`: the life by the level (`effects::emit_twin`; 9 entries are allowed, the last is `dword_939BA6`, the tint).
@@ -26,10 +24,6 @@ impl SurfaceTables {
     pub const fn new() -> Self {
         SurfaceTables {
             places: PlainBytes::new([0; 17408]),
-            _gap_939b66: PlainBytes::new([
-                0x00, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00,
-                0x00, 0x00,
-            ]),
             lives_by_flags: [
                 PlainDword::new(0x0),
                 PlainDword::new(0xFA),
@@ -183,49 +177,12 @@ impl SurfaceTables {
     }
 }
 
-impl SurfaceTables {
-    pub const START: usize = 0x935766;
-    pub const LEN: usize = 0x464C;
-}
-
-impl SurfaceTables {
-    /// The dword at byte `at` of the places (any alignment). The original reads one cell
-    /// (`effects::draw_cell_sprite`: cell 0x40) and 0x10 sub-cells (`effects::draw_subcell_sprite`:
-    /// sub-cells 0x400 .. 0x40F) past their tables, into the bytes that follow: the read
-    /// goes on into the struct's next fields, as the image's neighbours were read.
-    pub fn word(&self, at: usize) -> u32 {
-        assert!(at + 4 <= Self::LEN);
-        let mut word = [0u8; 4];
-        crate::cells::load_cells(self, at, &mut word)
-            .unwrap_or_else(|e| crate::fatal::raise::end("a surface word", e));
-        u32::from_le_bytes(word)
-    }
-}
-
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use core::mem::offset_of;
-
     #[test]
-    fn the_surface_tables_starts_as_the_games() {
-        assert_eq!(size_of::<SurfaceTables>(), SurfaceTables::LEN);
-        let p = (&raw const crate::effects::owner::effects().masks.surface).cast::<u8>();
-        let bytes: Vec<u8> = (0..size_of::<SurfaceTables>())
-            .map(|i| unsafe { p.add(i).read() })
-            .collect();
-        assert!(
-            crate::test_support::first_values::holds(
-                "effects.owner.EFFECTS.masks.surface/17996",
-                &bytes
-            ),
-            "SURFACE starts differently from the image"
+    fn the_surface_tables_start_as_the_games() {
+        crate::test_support::first_values::assert_block_starts_as_the_games(
+            &crate::effects::owner::effects().masks.surface,
         );
-        assert_eq!(offset_of!(SurfaceTables, places), 0x0);
-        assert_eq!(offset_of!(SurfaceTables, lives_by_flags), 0x4410);
-        assert_eq!(offset_of!(SurfaceTables, lives_by_level), 0x4420);
-        assert_eq!(offset_of!(SurfaceTables, wheel_flags2), 0x4444);
-        assert_eq!(offset_of!(SurfaceTables, wheel_flags), 0x4448);
-        assert_eq!(offset_of!(SurfaceTables, colours), 0x444c);
     }
 }

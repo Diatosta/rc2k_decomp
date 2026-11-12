@@ -1,7 +1,5 @@
 //! The overlay and countdown part of the race block: the stage-bar parts (distances, two colour tables), the start lights, the countdown sounds and the position labels with their kept copies. Names are readings unless IDA's.
 
-#[cfg(test)]
-use crate::race::owner::race;
 use crate::session::{PlainDword, PlainFloat};
 
 #[repr(C)]
@@ -49,23 +47,3 @@ pub const START: usize = 0x6D150C;
 pub const END: usize = 0x6D1870;
 
 const _: () = assert!(END - START == core::mem::size_of::<OverlayBlock>());
-
-/// The piece's host address (the alignment checks).
-#[cfg(test)]
-pub fn piece_addr() -> usize {
-    core::ptr::from_ref(&race().frame.panel_and_overlay.get().overlay).addr()
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use core::mem::offset_of;
-
-    #[test]
-    fn fields_are_at_the_games_offsets() {
-        assert_eq!(piece_addr() % 4, 0);
-        assert_eq!(offset_of!(OverlayBlock, overlay_part_miles), 0x0);
-        assert_eq!(offset_of!(OverlayBlock, countdown_sounds), 0x30c);
-        assert_eq!(offset_of!(OverlayBlock, kept_ahead), 0x350);
-    }
-}

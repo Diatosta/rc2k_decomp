@@ -138,42 +138,11 @@ impl OptionWork {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use core::mem::offset_of;
 
     #[test]
     fn option_work_starts_as_the_games() {
         crate::test_support::first_values::assert_block_starts_as_the_games(
             &crate::menu::owner::menus().screens.option_work,
         );
-        assert_eq!(offset_of!(OptionWork, switch_0), 0x0);
-        assert_eq!(offset_of!(OptionWork, switch_1), 0x4);
-        assert_eq!(offset_of!(OptionWork, mode_changed), 0x8);
-        assert_eq!(offset_of!(OptionWork, modes_switch), 0xc);
-        assert_eq!(offset_of!(OptionWork, lens_flare), 0x10);
-        assert_eq!(offset_of!(OptionWork, unused_percent_a), 0x14);
-        assert_eq!(offset_of!(OptionWork, unused_percent_b), 0x18);
-        assert_eq!(offset_of!(OptionWork, reflections), 0x1c);
-        assert_eq!(offset_of!(OptionWork, car_shadows), 0x20);
-        assert_eq!(offset_of!(OptionWork, car_detail), 0x24);
-        assert_eq!(offset_of!(OptionWork, headlights), 0x28);
-        assert_eq!(offset_of!(OptionWork, audio_quality), 0x2c);
-        assert_eq!(offset_of!(OptionWork, ds3d), 0x30);
-        assert_eq!(offset_of!(OptionWork, eax), 0x34);
-        assert_eq!(offset_of!(OptionWork, a3d), 0x38);
-        assert_eq!(offset_of!(OptionWork, dolby), 0x3c);
-        assert_eq!(offset_of!(OptionWork, channels), 0x40);
-        assert_eq!(offset_of!(OptionWork, _gap_755684), 0x44);
-        assert_eq!(offset_of!(OptionWork, music_level), 0x48);
-        assert_eq!(offset_of!(OptionWork, other_volume), 0x4c);
-        assert_eq!(offset_of!(OptionWork, menu_sounds_c), 0x50);
-        assert_eq!(offset_of!(OptionWork, _gap_755694), 0x54);
-        assert_eq!(offset_of!(OptionWork, speech_level), 0x58);
-        assert_eq!(offset_of!(OptionWork, _gap_75569c), 0x5c);
-        assert_eq!(offset_of!(OptionWork, _gap_7556a0), 0x60);
-        assert_eq!(offset_of!(OptionWork, menu_sound), 0x64);
-        assert_eq!(offset_of!(OptionWork, typing), 0x68);
-        assert_eq!(offset_of!(OptionWork, redefining_key), 0x6c);
-        assert_eq!(offset_of!(OptionWork, redefined_key_place), 0x70);
     }
 }

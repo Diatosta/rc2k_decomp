@@ -14,17 +14,12 @@ pub const RESUME: u32 = 0x4C3EA6; // loc_4C3EA6
 pub const COURSE_CORNERS: u32 = 0x1C_2000;
 pub const CORNERS_LEN: usize = 0x8000;
 
-/// A table the image holds by IDA's address (the pointer lists at 0x9152F6): the table in
-/// `PROFILE_TABLES` it names. Stops the program for an address that is not a table's start.
-fn ida_table(paths: &Paths, ida: u32) -> &ProfileTable {
-    let (start, len) = (ProfileTables::START, ProfileTables::LEN);
-    assert!(
-        (start..start + len).contains(&(ida as usize))
-            && (ida as usize - start).is_multiple_of(0x800),
-        "a pointer of the marks' data names {ida:#x}, outside the profile tables"
-    );
-    &paths.profile_tables.tables[(ida as usize - start) / 0x800]
-}
+/// The tables of the three ramps, in `ProfileTables::tables`.
+const RAMPS: [usize; 3] = [0, 3, 4];
+/// The tables of the eight sines.
+const SINES: [usize; 8] = [5, 6, 7, 8, 9, 10, 11, 12];
+/// The tables of the two curves.
+const CURVES: [usize; 2] = [1, 2];
 
 /// The profiles' work, `DrawWork.profile_work[0]` .. `DrawWork.profile_work[10]`.
 fn work(n: usize, v: f32, effects: &crate::effects::owner::Effects) {
@@ -46,8 +41,8 @@ fn differences(table: &ProfileTable) {
 fn make_tables(paths: &Paths, effects: &crate::effects::owner::Effects) -> Result<(), Refused> {
     let frame = &effects.frame;
     {
-        for k in 0..3 {
-            let t = ida_table(paths, paths.profile_lists.ramps[k].get());
+        for &table in &RAMPS {
+            let t = &paths.profile_tables.tables[table];
             let step = bh::stf(
                 (bh::int(t[1].get() as i32) - bh::int(t[0].get() as i32))
                     / bh::ld(frame.draw_frame.profile_steps[0].get()),
@@ -62,8 +57,8 @@ fn make_tables(paths: &Paths, effects: &crate::effects::owner::Effects) -> Resul
             }
             differences(t);
         }
-        for k in 0..8 {
-            let t = ida_table(paths, paths.profile_lists.sines[k].get());
+        for &table in &SINES {
+            let t = &paths.profile_tables.tables[table];
             let p: [f32; 4] = std::array::from_fn(|i| x87::loaded(t[i].get()));
             for (i, &v) in p.iter().enumerate() {
                 work(3 + i, v, effects);
@@ -76,8 +71,8 @@ fn make_tables(paths: &Paths, effects: &crate::effects::owner::Effects) -> Resul
             }
             differences(t);
         }
-        for k in 0..2 {
-            let t = ida_table(paths, paths.profile_lists.curves[k].get());
+        for &table in &CURVES {
+            let t = &paths.profile_tables.tables[table];
             let mut x = x87::loaded(t[0].get());
             work(7, x, effects);
             let step = x87::sub_div(t[1].get(), t[0].get(), &frame.draw_frame.profile_steps[1]);
@@ -159,44 +154,6 @@ impl ProfileRings {
     pub const LEN: usize = 0x804;
 }
 
-/// The profile tables' address lists (IDA 0x9152F6 .. 0x91532A).
-#[repr(C)]
-#[derive(rc2k_derive::Cells)]
-pub struct ProfileLists {
-    /// 0x9152F6: `off_9152F6` (`g_marksRampTables`): the three ramp tables' addresses (IDA addresses in the image, kept as they are).
-    pub ramps: [PlainDword; 3],
-    /// 0x915302: `off_915302` (`g_marksSineTables`): the eight sine tables' addresses.
-    pub sines: [PlainDword; 8],
-    /// 0x915322: `off_915322` (`g_marksCurveTables`): the two curve tables' addresses.
-    pub curves: [PlainDword; 2],
-}
-
-impl ProfileLists {
-    /// The values the game starts with (the image's bytes).
-    pub const fn new() -> Self {
-        ProfileLists {
-            ramps: [
-                PlainDword::new(0x8E506D),
-                PlainDword::new(0x8E686D),
-                PlainDword::new(0x8E706D),
-            ],
-            sines: [
-                PlainDword::new(0x8E786D),
-                PlainDword::new(0x8E806D),
-                PlainDword::new(0x8E886D),
-                PlainDword::new(0x8E906D),
-                PlainDword::new(0x8E986D),
-                PlainDword::new(0x8EA06D),
-                PlainDword::new(0x8EA86D),
-                PlainDword::new(0x8EB06D),
-            ],
-            curves: [PlainDword::new(0x8E586D), PlainDword::new(0x8E606D)],
-        }
-    }
-    pub const START: usize = 0x9152F6;
-    pub const LEN: usize = 0x34;
-}
-
 /// One profile table: 0x100 whole numbers and then their 0x100 differences (the first
 /// dwords hold the table's inputs until `effects::make_profiles` makes it).
 pub type ProfileTable = [PlainDword; 0x200];
@@ -212,11 +169,11 @@ const fn table(first: &[(usize, u32)]) -> ProfileTable {
     t
 }
 
-/// The profile tables (13 of 0x800 bytes: three ramps, two curves, eight sines, in this order of memory) (IDA 0x8E506D .. 0x8EB86D).
+/// The profile tables (13 of 0x800 bytes, in this order of memory: ramp 0, curves 0 and 1, ramps 1 and 2, sines 0 .. 7) (IDA 0x8E506D .. 0x8EB86D).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct ProfileTables {
-    /// 0x8E506D: ramp 0, curve 0, curve 1, ramp 1, ramp 2, then sines 0 .. 7: the tables `ProfileLists` names.
+    /// 0x8E506D: ramp 0, curve 0, curve 1, ramp 1, ramp 2, then sines 0 .. 7 (`RAMPS`, `CURVES`, `SINES`).
     pub tables: [ProfileTable; 13],
 }
 
@@ -248,7 +205,6 @@ impl ProfileTables {
 #[cfg(test)]
 mod typed_tests {
     use super::*;
-    use core::mem::{offset_of, size_of};
 
     #[test]
     fn profile_rings_starts_as_the_games() {
@@ -266,28 +222,21 @@ mod typed_tests {
             mine == image,
             "PROFILE_RINGS starts differently from the image"
         );
-        assert_eq!(offset_of!(ProfileRings, after), 0x400);
-        assert_eq!(offset_of!(ProfileRings, zero), 0x800);
     }
 
+    /// The tables the image's pointer lists (0x9152F6) named, by address.
     #[test]
-    fn profile_lists_starts_as_the_games() {
-        assert_eq!(size_of::<ProfileLists>(), ProfileLists::LEN);
-        let image = crate::test_support::first_values::bytes(
-            "effects.owner.EFFECTS.paths.profile_lists/52",
+    fn table_numbers_name_the_tables_the_addresses_did() {
+        let named = |ida: usize| (ida - ProfileTables::START) / 0x800;
+        assert_eq!([0x8E506D, 0x8E686D, 0x8E706D].map(named), RAMPS);
+        assert_eq!(
+            [
+                0x8E786D, 0x8E806D, 0x8E886D, 0x8E906D, 0x8E986D, 0x8EA06D, 0x8EA86D, 0x8EB06D
+            ]
+            .map(named),
+            SINES
         );
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                (&raw const crate::effects::owner::effects().paths.profile_lists).cast::<u8>(),
-                ProfileLists::LEN,
-            )
-        };
-        assert!(
-            mine == image,
-            "PROFILE_LISTS starts differently from the image"
-        );
-        assert_eq!(offset_of!(ProfileLists, sines), 0xc);
-        assert_eq!(offset_of!(ProfileLists, curves), 0x2c);
+        assert_eq!([0x8E586D, 0x8E606D].map(named), CURVES);
     }
 
     #[test]

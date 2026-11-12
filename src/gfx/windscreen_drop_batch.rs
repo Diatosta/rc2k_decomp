@@ -41,21 +41,12 @@ impl WindscreenDrops {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use crate::gfx::owner::gfx;
-    use core::mem::offset_of;
 
     #[test]
     fn first_values_are_the_games() {
         crate::test_support::first_values::assert_block_starts_as_the_games(
             &gfx().card.windscreen_drop_batch,
         );
-    }
-
-    #[test]
-    fn moved_knows_the_block() {
-        assert_eq!(offset_of!(WindscreenDrops, fans), 0x4);
-        assert_eq!(offset_of!(WindscreenDrops, vertex_count), 0x1804);
-        assert_eq!(offset_of!(WindscreenDrops, records), 0x1808);
     }
 }

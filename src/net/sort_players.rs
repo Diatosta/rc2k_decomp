@@ -1,5 +1,5 @@
-//! `net::sort_players` (0x418108): the eight players' blocks of `g_netReceived` copied to
-//! `sorted` and bubble-sorted there for the lobby's table: by the total (+0x30), then
+//! `net::sort_players` (0x418108): the eight players' blocks of `g_netReceived` copied and
+//! bubble-sorted for the lobby's table: by the total (+0x30), then
 //! the race's time (+0x2C), then the DirectPlay id (+0x20), unsigned, the smaller first; a
 //! player whose time is -1 (no time) goes after one who has a time.
 //!
@@ -54,17 +54,18 @@ pub fn bubble_blocks(
     refused.take().map_or(Ok(()), Err)
 }
 
-pub fn sort_players(vars: &NetVars) -> Result<(), Refused> {
+/// The players' blocks sorted for the lobby's table (the first `players` of them).
+pub fn sort_players(vars: &NetVars) -> Result<[PlayerBlock; 8], Refused> {
     let players = vars.players.get();
     if players > players::MOST {
         return Err(BadInput("more than eight players").into());
     }
     let mut all = vec![0u8; ALL as usize];
     Store::load(&vars.received, 0, &mut all)?;
-    Store::store(&vars.sorted, 0, &all)?;
+    let sorted = [const { PlayerBlock::zero() }; 8];
+    Store::store(&sorted, 0, &all)?;
     // Converted: `rc2k_core::net::players` (`bubble`, `goes_after`).
     // `k + 1` is at most 7: `players` is at most eight.
-    let sorted = &vars.sorted;
     bubble_blocks(
         players,
         |k| {
@@ -75,5 +76,28 @@ pub fn sort_players(vars: &NetVars) -> Result<(), Refused> {
         },
         |k| swap_blocks(&sorted[k as usize], &sorted[k as usize + 1]),
     )?;
-    Ok(())
+    Ok(sorted)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The sorted copy holds the blocks in the table's order and the received blocks stay as
+    /// they were.
+    #[test]
+    fn sorts_a_copy_and_leaves_the_received_blocks() {
+        let vars = Box::new(NetVars::new());
+        vars.players.set(3);
+        for (n, (total, id)) in [(30u32, 7u32), (10, 9), (20, 8)].into_iter().enumerate() {
+            vars.received[n].record.total.set(total);
+            vars.received[n].record.race_time.set(5);
+            vars.received[n].id.set(id);
+        }
+        let sorted = sort_players(&vars).unwrap();
+        let ids: Vec<u32> = sorted.iter().take(3).map(|b| b.id.get()).collect();
+        assert_eq!(ids, [9, 8, 7]);
+        let received: Vec<u32> = vars.received.iter().take(3).map(|b| b.id.get()).collect();
+        assert_eq!(received, [7, 9, 8]);
+    }
 }

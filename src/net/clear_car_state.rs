@@ -90,7 +90,9 @@ mod tests {
         let base = core::ptr::from_ref(car) as usize;
         for ((field, v), old) in CLEARED.iter().zip(old) {
             assert_eq!(
-                core::ptr::from_ref(field(car)).cast::<u8>() as usize - base,
+                crate::physics::car_store::to_1999(
+                    core::ptr::from_ref(field(car)).cast::<u8>() as usize - base
+                ),
                 old
             );
             assert_eq!(*v, if old == 0x298 { u32::MAX } else { 0 });

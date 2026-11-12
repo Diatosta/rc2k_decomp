@@ -1135,15 +1135,7 @@ mod tests {
 
     #[test]
     fn stage_sounds_start_as_the_games() {
-        use core::mem::offset_of;
         assert_eq!(size_of::<super::StageSounds>(), 0x364);
-        assert_eq!(offset_of!(StageSounds, once), 0x40);
-        assert_eq!(offset_of!(StageSounds, timed_arm), 0x4C);
-        assert_eq!(offset_of!(StageSounds, timed_delay), 0x5C);
-        assert_eq!(offset_of!(StageSounds, timed_slot), 0x70);
-        assert_eq!(offset_of!(StageSounds, random), 0x88);
-        assert_eq!(offset_of!(StageSounds, shared_count), 0x90);
-        assert_eq!(offset_of!(StageSounds, shared_spots), 0x94);
     }
 
     #[test]

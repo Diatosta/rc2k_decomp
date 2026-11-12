@@ -94,28 +94,9 @@ pub const END: usize = 0x5CB954;
 
 const _: () = assert!(END - START == core::mem::size_of::<LightRecords>());
 
-/// The piece's host address (the alignment checks).
-#[cfg(test)]
-pub fn piece_addr() -> usize {
-    core::ptr::from_ref(&race().frame.lights_and_gear.get().light_records).addr()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use core::mem::offset_of;
-
-    #[test]
-    fn fields_are_at_the_games_offsets() {
-        assert_eq!(piece_addr() % 4, 0);
-        assert_eq!(offset_of!(LightRecord, axles), 0x2c);
-        assert_eq!(offset_of!(LightRecord, groups), 0x58);
-        assert_eq!(offset_of!(LightRecord, lights), 0xA4);
-        assert_eq!(
-            core::ptr::from_ref(&LIGHT_RECORDS.records[1]).addr(),
-            piece_addr() + 0x134
-        );
-    }
 
     #[test]
     fn a_record_past_the_last_reads_on_into_the_gear_figures_and_no_further() {

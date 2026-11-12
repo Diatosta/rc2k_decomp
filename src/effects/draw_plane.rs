@@ -409,7 +409,7 @@ fn plane_projected_x87(q: &QuadWork) {
 #[cfg(test)]
 mod reference_vectors {
     use super::{PlaneTuning, QuadWork};
-    use crate::effects::asm_layout::with_laid;
+    use crate::effects::asm_layout::{with_laid, with_laid_at};
     use crate::effects::asm_test::Kind::*;
     use crate::effects::asm_test::with_copy;
     use crate::effects::asm_test::with_settings;
@@ -637,7 +637,7 @@ mod reference_vectors {
         };
         recorded_writes("effects.draw_plane.plane_corners_x87", &SPEC, |b| {
             with_laid::<WindscreenFlakeTables, _>(b[0], |sq| {
-                with_copy::<QuadWork, _>(b[0], 0x934BD0, |q| super::plane_corners_x87(sq, q));
+                with_laid_at::<QuadWork, _>(b[0], 0x934BD0, |q| super::plane_corners_x87(sq, q));
             });
         });
     }
@@ -682,7 +682,7 @@ mod reference_vectors {
             sincos: false,
         };
         recorded_writes("effects.draw_plane.plane_projected_x87", &SPEC, |b| {
-            with_copy::<QuadWork, _>(b[1], 0x934BD0, |q| {
+            with_laid_at::<QuadWork, _>(b[1], 0x934BD0, |q| {
                 super::plane_projected_x87(q);
             });
         });

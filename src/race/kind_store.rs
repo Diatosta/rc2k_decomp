@@ -37,29 +37,3 @@ pub const START: usize = 0x5C56EC;
 pub const END: usize = 0x5C5CE0;
 
 const _: () = assert!(END - START == core::mem::size_of::<KindTables>());
-
-/// The piece's host address (the alignment checks).
-#[cfg(test)]
-pub fn piece_addr() -> usize {
-    core::ptr::from_ref(
-        &crate::race::owner::race()
-            .replay
-            .viewer_and_kinds
-            .kind_tables,
-    )
-    .addr()
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use core::mem::offset_of;
-
-    #[test]
-    fn fields_are_at_the_games_offsets() {
-        assert_eq!(piece_addr() % 4, 0);
-        assert_eq!(offset_of!(KindTables, unused_c8), 0x0);
-        assert_eq!(offset_of!(KindTables, known_object_kinds), 0xa4);
-        assert_eq!(offset_of!(KindTables, kind_has_views), 0x3d4);
-    }
-}

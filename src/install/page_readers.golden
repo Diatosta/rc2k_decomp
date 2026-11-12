@@ -49,14 +49,14 @@ link 0x9000002: offset=None place_byte=Err(BadInput("a page link that is no plac
 link 0x9000037: offset=None place_byte=Err(BadInput("a page link that is no place in the installer's pages")) font=Err(BadInput("a page link that is no font")) edit=false list=None box=Err(BadInput("a page link that is no box")) blended=false
 link 0x9000038: offset=None place_byte=Err(BadInput("a page link that is no place in the installer's pages")) font=Err(BadInput("a page link that is no font")) edit=false list=None box=Err(BadInput("a page link that is no box")) blended=false
 sweep links: 720 probes, 0 with a refusal, hash 74e38feda0cd1cf1
-pages_dword(18446744073709551615) = Err(BadInput("past the end of a record"))
-pages_dword(18446744073709551612) = Err(BadInput("past the end of a record"))
+pages_dword(usize::MAX) = Err(BadInput("past the end of a record"))
+pages_dword(usize::MAX - 3) = Err(BadInput("past the end of a record"))
 pages_dword(6704) = Err(BadInput("past the end of a record"))
 pages_dword(6701) = Err(BadInput("past the end of a record"))
 pages_dword(6700) = Ok(0)
 sweep pages_dword: 6712 probes, 0 with a refusal, hash 64e8d29de0e17e4c
 table 0: has_list=true list=ListMenu(pages +0x1270) entry=PageEntry(4500)
-  table 0 next(0x0) = Some(PageEntry(4720))
+  table 0 next(0x0) = !
   table 0 next(0x4) = None
   table 0 next(0x8) = Some(PageEntry(4544))
   table 0 next(0xc) = Some(PageEntry(4544))
@@ -71,7 +71,7 @@ table 0: has_list=true list=ListMenu(pages +0x1270) entry=PageEntry(4500)
   table 0 next(0xffffffff) = !
   table 0 next(0x80000000) = !
 table 1: has_list=false list=! entry=PageEntry(4504)
-  table 1 next(0x0) = None
+  table 1 next(0x0) = !
   table 1 next(0x4) = Some(PageEntry(4544))
   table 1 next(0x8) = Some(PageEntry(4544))
   table 1 next(0xc) = Some(PageEntry(4544))
@@ -85,8 +85,8 @@ table 1: has_list=false list=! entry=PageEntry(4504)
   table 1 next(0xfffffffc) = !
   table 1 next(0xffffffff) = !
   table 1 next(0x80000000) = !
-table 2: has_list=true list=ListMenu(pages +0x11c0) entry=PageEntry(4508)
-  table 2 next(0x0) = Some(PageEntry(4544))
+table 2: has_list=true list=! entry=PageEntry(4508)
+  table 2 next(0x0) = !
   table 2 next(0x4) = Some(PageEntry(4544))
   table 2 next(0x8) = Some(PageEntry(4544))
   table 2 next(0xc) = Some(PageEntry(4544))
@@ -100,8 +100,8 @@ table 2: has_list=true list=ListMenu(pages +0x11c0) entry=PageEntry(4508)
   table 2 next(0xfffffffc) = !
   table 2 next(0xffffffff) = !
   table 2 next(0x80000000) = !
-table 3: has_list=true list=ListMenu(pages +0x11c0) entry=PageEntry(4512)
-  table 3 next(0x0) = Some(PageEntry(4544))
+table 3: has_list=true list=! entry=PageEntry(4512)
+  table 3 next(0x0) = !
   table 3 next(0x4) = Some(PageEntry(4544))
   table 3 next(0x8) = Some(PageEntry(4544))
   table 3 next(0xc) = Some(PageEntry(4544))
@@ -115,105 +115,105 @@ table 3: has_list=true list=ListMenu(pages +0x11c0) entry=PageEntry(4512)
   table 3 next(0xfffffffc) = !
   table 3 next(0xffffffff) = !
   table 3 next(0x80000000) = !
-table 4: has_list=true list=ListMenu(pages +0x11c0) entry=PageEntry(4516)
-  table 4 next(0x0) = Some(PageEntry(4544))
+table 4: has_list=true list=! entry=PageEntry(4516)
+  table 4 next(0x0) = !
   table 4 next(0x4) = Some(PageEntry(4544))
   table 4 next(0x8) = Some(PageEntry(4544))
   table 4 next(0xc) = Some(PageEntry(4544))
   table 4 next(0x10) = Some(PageEntry(4544))
   table 4 next(0x14) = Some(PageEntry(4544))
   table 4 next(0x18) = Some(PageEntry(4544))
-  table 4 next(0x1c) = Some(PageEntry(4904))
+  table 4 next(0x1c) = !
   table 4 next(0x1000) = !
   table 4 next(0x1b00) = !
   table 4 next(0x1c00) = !
   table 4 next(0xfffffffc) = !
   table 4 next(0xffffffff) = !
   table 4 next(0x80000000) = !
-table 5: has_list=true list=ListMenu(pages +0x11c0) entry=PageEntry(4520)
-  table 5 next(0x0) = Some(PageEntry(4544))
+table 5: has_list=true list=! entry=PageEntry(4520)
+  table 5 next(0x0) = !
   table 5 next(0x4) = Some(PageEntry(4544))
   table 5 next(0x8) = Some(PageEntry(4544))
   table 5 next(0xc) = Some(PageEntry(4544))
   table 5 next(0x10) = Some(PageEntry(4544))
   table 5 next(0x14) = Some(PageEntry(4544))
-  table 5 next(0x18) = Some(PageEntry(4904))
-  table 5 next(0x1c) = None
+  table 5 next(0x18) = !
+  table 5 next(0x1c) = !
   table 5 next(0x1000) = !
   table 5 next(0x1b00) = !
   table 5 next(0x1c00) = !
   table 5 next(0xfffffffc) = !
   table 5 next(0xffffffff) = !
   table 5 next(0x80000000) = !
-table 6: has_list=true list=ListMenu(pages +0x11c0) entry=PageEntry(4524)
-  table 6 next(0x0) = Some(PageEntry(4544))
+table 6: has_list=true list=! entry=PageEntry(4524)
+  table 6 next(0x0) = !
   table 6 next(0x4) = Some(PageEntry(4544))
   table 6 next(0x8) = Some(PageEntry(4544))
   table 6 next(0xc) = Some(PageEntry(4544))
   table 6 next(0x10) = Some(PageEntry(4544))
-  table 6 next(0x14) = Some(PageEntry(4904))
-  table 6 next(0x18) = None
-  table 6 next(0x1c) = Some(PageEntry(4580))
+  table 6 next(0x14) = !
+  table 6 next(0x18) = !
+  table 6 next(0x1c) = !
   table 6 next(0x1000) = !
   table 6 next(0x1b00) = !
   table 6 next(0x1c00) = !
   table 6 next(0xfffffffc) = !
   table 6 next(0xffffffff) = !
   table 6 next(0x80000000) = !
-table 7: has_list=true list=ListMenu(pages +0x11c0) entry=PageEntry(4528)
-  table 7 next(0x0) = Some(PageEntry(4544))
+table 7: has_list=true list=! entry=PageEntry(4528)
+  table 7 next(0x0) = !
   table 7 next(0x4) = Some(PageEntry(4544))
   table 7 next(0x8) = Some(PageEntry(4544))
   table 7 next(0xc) = Some(PageEntry(4544))
-  table 7 next(0x10) = Some(PageEntry(4904))
-  table 7 next(0x14) = None
-  table 7 next(0x18) = Some(PageEntry(4580))
-  table 7 next(0x1c) = Some(PageEntry(4692))
+  table 7 next(0x10) = !
+  table 7 next(0x14) = !
+  table 7 next(0x18) = !
+  table 7 next(0x1c) = !
   table 7 next(0x1000) = !
   table 7 next(0x1b00) = !
   table 7 next(0x1c00) = !
   table 7 next(0xfffffffc) = !
   table 7 next(0xffffffff) = !
   table 7 next(0x80000000) = !
-table 8: has_list=true list=ListMenu(pages +0x11c0) entry=PageEntry(4532)
-  table 8 next(0x0) = Some(PageEntry(4544))
+table 8: has_list=true list=! entry=PageEntry(4532)
+  table 8 next(0x0) = !
   table 8 next(0x4) = Some(PageEntry(4544))
   table 8 next(0x8) = Some(PageEntry(4544))
-  table 8 next(0xc) = Some(PageEntry(4904))
-  table 8 next(0x10) = None
-  table 8 next(0x14) = Some(PageEntry(4580))
-  table 8 next(0x18) = Some(PageEntry(4692))
-  table 8 next(0x1c) = Some(PageEntry(4624))
+  table 8 next(0xc) = !
+  table 8 next(0x10) = !
+  table 8 next(0x14) = !
+  table 8 next(0x18) = !
+  table 8 next(0x1c) = !
   table 8 next(0x1000) = !
   table 8 next(0x1b00) = !
   table 8 next(0x1c00) = !
   table 8 next(0xfffffffc) = !
   table 8 next(0xffffffff) = !
   table 8 next(0x80000000) = !
-table 9: has_list=true list=ListMenu(pages +0x11c0) entry=PageEntry(4536)
-  table 9 next(0x0) = Some(PageEntry(4544))
+table 9: has_list=true list=! entry=PageEntry(4536)
+  table 9 next(0x0) = !
   table 9 next(0x4) = Some(PageEntry(4544))
-  table 9 next(0x8) = Some(PageEntry(4904))
-  table 9 next(0xc) = None
-  table 9 next(0x10) = Some(PageEntry(4580))
-  table 9 next(0x14) = Some(PageEntry(4692))
-  table 9 next(0x18) = Some(PageEntry(4624))
-  table 9 next(0x1c) = Some(PageEntry(4704))
+  table 9 next(0x8) = !
+  table 9 next(0xc) = !
+  table 9 next(0x10) = !
+  table 9 next(0x14) = !
+  table 9 next(0x18) = !
+  table 9 next(0x1c) = !
   table 9 next(0x1000) = !
   table 9 next(0x1b00) = !
   table 9 next(0x1c00) = !
   table 9 next(0xfffffffc) = !
   table 9 next(0xffffffff) = !
   table 9 next(0x80000000) = !
-table 10: has_list=true list=ListMenu(pages +0x11c0) entry=PageEntry(4540)
-  table 10 next(0x0) = Some(PageEntry(4544))
-  table 10 next(0x4) = Some(PageEntry(4904))
-  table 10 next(0x8) = None
-  table 10 next(0xc) = Some(PageEntry(4580))
-  table 10 next(0x10) = Some(PageEntry(4692))
-  table 10 next(0x14) = Some(PageEntry(4624))
-  table 10 next(0x18) = Some(PageEntry(4704))
-  table 10 next(0x1c) = Some(PageEntry(6328))
+table 10: has_list=true list=! entry=PageEntry(4540)
+  table 10 next(0x0) = !
+  table 10 next(0x4) = !
+  table 10 next(0x8) = !
+  table 10 next(0xc) = !
+  table 10 next(0x10) = !
+  table 10 next(0x14) = !
+  table 10 next(0x18) = !
+  table 10 next(0x1c) = !
   table 10 next(0x1000) = !
   table 10 next(0x1b00) = !
   table 10 next(0x1c00) = !
@@ -221,14 +221,14 @@ table 10: has_list=true list=ListMenu(pages +0x11c0) entry=PageEntry(4540)
   table 10 next(0xffffffff) = !
   table 10 next(0x80000000) = !
 table 11: has_list=true list=ListMenu(pages +0x1328) entry=PageEntry(4544)
-  table 11 next(0x0) = Some(PageEntry(4904))
+  table 11 next(0x0) = !
   table 11 next(0x4) = None
   table 11 next(0x8) = Some(PageEntry(4580))
   table 11 next(0xc) = Some(PageEntry(4692))
   table 11 next(0x10) = Some(PageEntry(4624))
   table 11 next(0x14) = Some(PageEntry(4704))
-  table 11 next(0x18) = Some(PageEntry(6328))
-  table 11 next(0x1c) = None
+  table 11 next(0x18) = !
+  table 11 next(0x1c) = !
   table 11 next(0x1000) = !
   table 11 next(0x1b00) = !
   table 11 next(0x1c00) = !
@@ -236,74 +236,74 @@ table 11: has_list=true list=ListMenu(pages +0x1328) entry=PageEntry(4544)
   table 11 next(0xffffffff) = !
   table 11 next(0x80000000) = !
 table 12: has_list=false list=! entry=PageEntry(4548)
-  table 12 next(0x0) = None
+  table 12 next(0x0) = !
   table 12 next(0x4) = Some(PageEntry(4580))
   table 12 next(0x8) = Some(PageEntry(4692))
   table 12 next(0xc) = Some(PageEntry(4624))
   table 12 next(0x10) = Some(PageEntry(4704))
-  table 12 next(0x14) = Some(PageEntry(6328))
-  table 12 next(0x18) = None
-  table 12 next(0x1c) = Some(PageEntry(4680))
+  table 12 next(0x14) = !
+  table 12 next(0x18) = !
+  table 12 next(0x1c) = !
   table 12 next(0x1000) = !
   table 12 next(0x1b00) = !
   table 12 next(0x1c00) = !
   table 12 next(0xfffffffc) = !
   table 12 next(0xffffffff) = !
   table 12 next(0x80000000) = !
-table 13: has_list=true list=ListMenu(pages +0x11e4) entry=PageEntry(4552)
-  table 13 next(0x0) = Some(PageEntry(4580))
+table 13: has_list=true list=! entry=PageEntry(4552)
+  table 13 next(0x0) = !
   table 13 next(0x4) = Some(PageEntry(4692))
   table 13 next(0x8) = Some(PageEntry(4624))
   table 13 next(0xc) = Some(PageEntry(4704))
-  table 13 next(0x10) = Some(PageEntry(6328))
-  table 13 next(0x14) = None
-  table 13 next(0x18) = Some(PageEntry(4680))
-  table 13 next(0x1c) = Some(PageEntry(5008))
+  table 13 next(0x10) = !
+  table 13 next(0x14) = !
+  table 13 next(0x18) = !
+  table 13 next(0x1c) = !
   table 13 next(0x1000) = !
   table 13 next(0x1b00) = !
   table 13 next(0x1c00) = !
   table 13 next(0xfffffffc) = !
   table 13 next(0xffffffff) = !
   table 13 next(0x80000000) = !
-table 14: has_list=true list=ListMenu(pages +0x1254) entry=PageEntry(4556)
-  table 14 next(0x0) = Some(PageEntry(4692))
+table 14: has_list=true list=! entry=PageEntry(4556)
+  table 14 next(0x0) = !
   table 14 next(0x4) = Some(PageEntry(4624))
   table 14 next(0x8) = Some(PageEntry(4704))
-  table 14 next(0xc) = Some(PageEntry(6328))
-  table 14 next(0x10) = None
-  table 14 next(0x14) = Some(PageEntry(4680))
-  table 14 next(0x18) = Some(PageEntry(5008))
-  table 14 next(0x1c) = Some(PageEntry(4544))
+  table 14 next(0xc) = !
+  table 14 next(0x10) = !
+  table 14 next(0x14) = !
+  table 14 next(0x18) = !
+  table 14 next(0x1c) = !
   table 14 next(0x1000) = !
   table 14 next(0x1b00) = !
   table 14 next(0x1c00) = !
   table 14 next(0xfffffffc) = !
   table 14 next(0xffffffff) = !
   table 14 next(0x80000000) = !
-table 15: has_list=true list=ListMenu(pages +0x1210) entry=PageEntry(4560)
-  table 15 next(0x0) = Some(PageEntry(4624))
+table 15: has_list=true list=! entry=PageEntry(4560)
+  table 15 next(0x0) = !
   table 15 next(0x4) = Some(PageEntry(4704))
-  table 15 next(0x8) = Some(PageEntry(6328))
-  table 15 next(0xc) = None
-  table 15 next(0x10) = Some(PageEntry(4680))
-  table 15 next(0x14) = Some(PageEntry(5008))
-  table 15 next(0x18) = Some(PageEntry(4544))
-  table 15 next(0x1c) = Some(PageEntry(4600))
+  table 15 next(0x8) = !
+  table 15 next(0xc) = !
+  table 15 next(0x10) = !
+  table 15 next(0x14) = !
+  table 15 next(0x18) = !
+  table 15 next(0x1c) = !
   table 15 next(0x1000) = !
   table 15 next(0x1b00) = !
   table 15 next(0x1c00) = !
   table 15 next(0xfffffffc) = !
   table 15 next(0xffffffff) = !
   table 15 next(0x80000000) = !
-table 16: has_list=true list=ListMenu(pages +0x1260) entry=PageEntry(4564)
-  table 16 next(0x0) = Some(PageEntry(4704))
-  table 16 next(0x4) = Some(PageEntry(6328))
-  table 16 next(0x8) = None
-  table 16 next(0xc) = Some(PageEntry(4680))
-  table 16 next(0x10) = Some(PageEntry(5008))
-  table 16 next(0x14) = Some(PageEntry(4544))
-  table 16 next(0x18) = Some(PageEntry(4600))
-  table 16 next(0x1c) = Some(PageEntry(4600))
+table 16: has_list=true list=! entry=PageEntry(4564)
+  table 16 next(0x0) = !
+  table 16 next(0x4) = !
+  table 16 next(0x8) = !
+  table 16 next(0xc) = !
+  table 16 next(0x10) = !
+  table 16 next(0x14) = !
+  table 16 next(0x18) = !
+  table 16 next(0x1c) = !
   table 16 next(0x1000) = !
   table 16 next(0x1b00) = !
   table 16 next(0x1c00) = !
@@ -311,14 +311,14 @@ table 16: has_list=true list=ListMenu(pages +0x1260) entry=PageEntry(4564)
   table 16 next(0xffffffff) = !
   table 16 next(0x80000000) = !
 table 17: has_list=true list=ListMenu(pages +0x18b8) entry=PageEntry(4568)
-  table 17 next(0x0) = Some(PageEntry(6328))
+  table 17 next(0x0) = !
   table 17 next(0x4) = None
   table 17 next(0x8) = Some(PageEntry(4680))
-  table 17 next(0xc) = Some(PageEntry(5008))
-  table 17 next(0x10) = Some(PageEntry(4544))
-  table 17 next(0x14) = Some(PageEntry(4600))
-  table 17 next(0x18) = Some(PageEntry(4600))
-  table 17 next(0x1c) = Some(PageEntry(4600))
+  table 17 next(0xc) = !
+  table 17 next(0x10) = !
+  table 17 next(0x14) = !
+  table 17 next(0x18) = !
+  table 17 next(0x1c) = !
   table 17 next(0x1000) = !
   table 17 next(0x1b00) = !
   table 17 next(0x1c00) = !
@@ -326,29 +326,29 @@ table 17: has_list=true list=ListMenu(pages +0x18b8) entry=PageEntry(4568)
   table 17 next(0xffffffff) = !
   table 17 next(0x80000000) = !
 table 18: has_list=false list=! entry=PageEntry(4572)
-  table 18 next(0x0) = None
+  table 18 next(0x0) = !
   table 18 next(0x4) = Some(PageEntry(4680))
-  table 18 next(0x8) = Some(PageEntry(5008))
-  table 18 next(0xc) = Some(PageEntry(4544))
-  table 18 next(0x10) = Some(PageEntry(4600))
-  table 18 next(0x14) = Some(PageEntry(4600))
-  table 18 next(0x18) = Some(PageEntry(4600))
-  table 18 next(0x1c) = Some(PageEntry(5112))
+  table 18 next(0x8) = !
+  table 18 next(0xc) = !
+  table 18 next(0x10) = !
+  table 18 next(0x14) = !
+  table 18 next(0x18) = !
+  table 18 next(0x1c) = !
   table 18 next(0x1000) = !
   table 18 next(0x1b00) = !
   table 18 next(0x1c00) = !
   table 18 next(0xfffffffc) = !
   table 18 next(0xffffffff) = !
   table 18 next(0x80000000) = !
-table 19: has_list=true list=ListMenu(pages +0x1248) entry=PageEntry(4576)
-  table 19 next(0x0) = Some(PageEntry(4680))
-  table 19 next(0x4) = Some(PageEntry(5008))
-  table 19 next(0x8) = Some(PageEntry(4544))
-  table 19 next(0xc) = Some(PageEntry(4600))
-  table 19 next(0x10) = Some(PageEntry(4600))
-  table 19 next(0x14) = Some(PageEntry(4600))
-  table 19 next(0x18) = Some(PageEntry(5112))
-  table 19 next(0x1c) = Some(PageEntry(4580))
+table 19: has_list=true list=! entry=PageEntry(4576)
+  table 19 next(0x0) = !
+  table 19 next(0x4) = !
+  table 19 next(0x8) = !
+  table 19 next(0xc) = !
+  table 19 next(0x10) = !
+  table 19 next(0x14) = !
+  table 19 next(0x18) = !
+  table 19 next(0x1c) = !
   table 19 next(0x1000) = !
   table 19 next(0x1b00) = !
   table 19 next(0x1c00) = !
@@ -356,74 +356,74 @@ table 19: has_list=true list=ListMenu(pages +0x1248) entry=PageEntry(4576)
   table 19 next(0xffffffff) = !
   table 19 next(0x80000000) = !
 table 20: has_list=true list=ListMenu(pages +0x1390) entry=PageEntry(4580)
-  table 20 next(0x0) = Some(PageEntry(5008))
+  table 20 next(0x0) = !
   table 20 next(0x4) = Some(PageEntry(4544))
   table 20 next(0x8) = Some(PageEntry(4600))
   table 20 next(0xc) = Some(PageEntry(4600))
   table 20 next(0x10) = Some(PageEntry(4600))
-  table 20 next(0x14) = Some(PageEntry(5112))
-  table 20 next(0x18) = Some(PageEntry(4580))
-  table 20 next(0x1c) = Some(PageEntry(4612))
+  table 20 next(0x14) = !
+  table 20 next(0x18) = !
+  table 20 next(0x1c) = !
   table 20 next(0x1000) = !
   table 20 next(0x1b00) = !
   table 20 next(0x1c00) = !
   table 20 next(0xfffffffc) = !
   table 20 next(0xffffffff) = !
   table 20 next(0x80000000) = !
-table 21: has_list=true list=ListMenu(pages +0x11c0) entry=PageEntry(4584)
-  table 21 next(0x0) = Some(PageEntry(4544))
+table 21: has_list=true list=! entry=PageEntry(4584)
+  table 21 next(0x0) = !
   table 21 next(0x4) = Some(PageEntry(4600))
   table 21 next(0x8) = Some(PageEntry(4600))
   table 21 next(0xc) = Some(PageEntry(4600))
-  table 21 next(0x10) = Some(PageEntry(5112))
-  table 21 next(0x14) = Some(PageEntry(4580))
-  table 21 next(0x18) = Some(PageEntry(4612))
-  table 21 next(0x1c) = Some(PageEntry(6048))
+  table 21 next(0x10) = !
+  table 21 next(0x14) = !
+  table 21 next(0x18) = !
+  table 21 next(0x1c) = !
   table 21 next(0x1000) = !
   table 21 next(0x1b00) = !
   table 21 next(0x1c00) = !
   table 21 next(0xfffffffc) = !
   table 21 next(0xffffffff) = !
   table 21 next(0x80000000) = !
-table 22: has_list=true list=ListMenu(pages +0x11f8) entry=PageEntry(4588)
-  table 22 next(0x0) = Some(PageEntry(4600))
+table 22: has_list=true list=! entry=PageEntry(4588)
+  table 22 next(0x0) = !
   table 22 next(0x4) = Some(PageEntry(4600))
   table 22 next(0x8) = Some(PageEntry(4600))
-  table 22 next(0xc) = Some(PageEntry(5112))
-  table 22 next(0x10) = Some(PageEntry(4580))
-  table 22 next(0x14) = Some(PageEntry(4612))
-  table 22 next(0x18) = Some(PageEntry(6048))
-  table 22 next(0x1c) = Some(PageEntry(4600))
+  table 22 next(0xc) = !
+  table 22 next(0x10) = !
+  table 22 next(0x14) = !
+  table 22 next(0x18) = !
+  table 22 next(0x1c) = !
   table 22 next(0x1000) = !
   table 22 next(0x1b00) = !
   table 22 next(0x1c00) = !
   table 22 next(0xfffffffc) = !
   table 22 next(0xffffffff) = !
   table 22 next(0x80000000) = !
-table 23: has_list=true list=ListMenu(pages +0x11f8) entry=PageEntry(4592)
-  table 23 next(0x0) = Some(PageEntry(4600))
+table 23: has_list=true list=! entry=PageEntry(4592)
+  table 23 next(0x0) = !
   table 23 next(0x4) = Some(PageEntry(4600))
-  table 23 next(0x8) = Some(PageEntry(5112))
-  table 23 next(0xc) = Some(PageEntry(4580))
-  table 23 next(0x10) = Some(PageEntry(4612))
-  table 23 next(0x14) = Some(PageEntry(6048))
-  table 23 next(0x18) = Some(PageEntry(4600))
-  table 23 next(0x1c) = Some(PageEntry(4636))
+  table 23 next(0x8) = !
+  table 23 next(0xc) = !
+  table 23 next(0x10) = !
+  table 23 next(0x14) = !
+  table 23 next(0x18) = !
+  table 23 next(0x1c) = !
   table 23 next(0x1000) = !
   table 23 next(0x1b00) = !
   table 23 next(0x1c00) = !
   table 23 next(0xfffffffc) = !
   table 23 next(0xffffffff) = !
   table 23 next(0x80000000) = !
-table 24: has_list=true list=ListMenu(pages +0x11f8) entry=PageEntry(4596)
-  table 24 next(0x0) = Some(PageEntry(4600))
-  table 24 next(0x4) = Some(PageEntry(5112))
-  table 24 next(0x8) = Some(PageEntry(4580))
-  table 24 next(0xc) = Some(PageEntry(4612))
-  table 24 next(0x10) = Some(PageEntry(6048))
-  table 24 next(0x14) = Some(PageEntry(4600))
-  table 24 next(0x18) = Some(PageEntry(4636))
-  table 24 next(0x1c) = Some(PageEntry(6328))
+table 24: has_list=true list=! entry=PageEntry(4596)
+  table 24 next(0x0) = !
+  table 24 next(0x4) = !
+  table 24 next(0x8) = !
+  table 24 next(0xc) = !
+  table 24 next(0x10) = !
+  table 24 next(0x14) = !
+  table 24 next(0x18) = !
+  table 24 next(0x1c) = !
   table 24 next(0x1000) = !
   table 24 next(0x1b00) = !
   table 24 next(0x1c00) = !
@@ -431,44 +431,44 @@ table 24: has_list=true list=ListMenu(pages +0x11f8) entry=PageEntry(4596)
   table 24 next(0xffffffff) = !
   table 24 next(0x80000000) = !
 table 25: has_list=true list=ListMenu(pages +0x13f8) entry=PageEntry(4600)
-  table 25 next(0x0) = Some(PageEntry(5112))
+  table 25 next(0x0) = !
   table 25 next(0x4) = Some(PageEntry(4580))
   table 25 next(0x8) = Some(PageEntry(4612))
-  table 25 next(0xc) = Some(PageEntry(6048))
-  table 25 next(0x10) = Some(PageEntry(4600))
-  table 25 next(0x14) = Some(PageEntry(4636))
-  table 25 next(0x18) = Some(PageEntry(6328))
-  table 25 next(0x1c) = Some(PageEntry(4544))
+  table 25 next(0xc) = !
+  table 25 next(0x10) = !
+  table 25 next(0x14) = !
+  table 25 next(0x18) = !
+  table 25 next(0x1c) = !
   table 25 next(0x1000) = !
   table 25 next(0x1b00) = !
   table 25 next(0x1c00) = !
   table 25 next(0xfffffffc) = !
   table 25 next(0xffffffff) = !
   table 25 next(0x80000000) = !
-table 26: has_list=true list=ListMenu(pages +0x11e4) entry=PageEntry(4604)
-  table 26 next(0x0) = Some(PageEntry(4580))
+table 26: has_list=true list=! entry=PageEntry(4604)
+  table 26 next(0x0) = !
   table 26 next(0x4) = Some(PageEntry(4612))
-  table 26 next(0x8) = Some(PageEntry(6048))
-  table 26 next(0xc) = Some(PageEntry(4600))
-  table 26 next(0x10) = Some(PageEntry(4636))
-  table 26 next(0x14) = Some(PageEntry(6328))
-  table 26 next(0x18) = Some(PageEntry(4544))
-  table 26 next(0x1c) = Some(PageEntry(4680))
+  table 26 next(0x8) = !
+  table 26 next(0xc) = !
+  table 26 next(0x10) = !
+  table 26 next(0x14) = !
+  table 26 next(0x18) = !
+  table 26 next(0x1c) = !
   table 26 next(0x1000) = !
   table 26 next(0x1b00) = !
   table 26 next(0x1c00) = !
   table 26 next(0xfffffffc) = !
   table 26 next(0xffffffff) = !
   table 26 next(0x80000000) = !
-table 27: has_list=true list=ListMenu(pages +0x1204) entry=PageEntry(4608)
-  table 27 next(0x0) = Some(PageEntry(4612))
-  table 27 next(0x4) = Some(PageEntry(6048))
-  table 27 next(0x8) = Some(PageEntry(4600))
-  table 27 next(0xc) = Some(PageEntry(4636))
-  table 27 next(0x10) = Some(PageEntry(6328))
-  table 27 next(0x14) = Some(PageEntry(4544))
-  table 27 next(0x18) = Some(PageEntry(4680))
-  table 27 next(0x1c) = Some(PageEntry(6416))
+table 27: has_list=true list=! entry=PageEntry(4608)
+  table 27 next(0x0) = !
+  table 27 next(0x4) = !
+  table 27 next(0x8) = !
+  table 27 next(0xc) = !
+  table 27 next(0x10) = !
+  table 27 next(0x14) = !
+  table 27 next(0x18) = !
+  table 27 next(0x1c) = !
   table 27 next(0x1000) = !
   table 27 next(0x1b00) = !
   table 27 next(0x1c00) = !
@@ -476,44 +476,44 @@ table 27: has_list=true list=ListMenu(pages +0x1204) entry=PageEntry(4608)
   table 27 next(0xffffffff) = !
   table 27 next(0x80000000) = !
 table 28: has_list=true list=ListMenu(pages +0x17a0) entry=PageEntry(4612)
-  table 28 next(0x0) = Some(PageEntry(6048))
+  table 28 next(0x0) = !
   table 28 next(0x4) = Some(PageEntry(4600))
   table 28 next(0x8) = Some(PageEntry(4636))
-  table 28 next(0xc) = Some(PageEntry(6328))
-  table 28 next(0x10) = Some(PageEntry(4544))
-  table 28 next(0x14) = Some(PageEntry(4680))
-  table 28 next(0x18) = Some(PageEntry(6416))
-  table 28 next(0x1c) = Some(PageEntry(4612))
+  table 28 next(0xc) = !
+  table 28 next(0x10) = !
+  table 28 next(0x14) = !
+  table 28 next(0x18) = !
+  table 28 next(0x1c) = !
   table 28 next(0x1000) = !
   table 28 next(0x1b00) = !
   table 28 next(0x1c00) = !
   table 28 next(0xfffffffc) = !
   table 28 next(0xffffffff) = !
   table 28 next(0x80000000) = !
-table 29: has_list=true list=ListMenu(pages +0x11f8) entry=PageEntry(4616)
-  table 29 next(0x0) = Some(PageEntry(4600))
+table 29: has_list=true list=! entry=PageEntry(4616)
+  table 29 next(0x0) = !
   table 29 next(0x4) = Some(PageEntry(4636))
-  table 29 next(0x8) = Some(PageEntry(6328))
-  table 29 next(0xc) = Some(PageEntry(4544))
-  table 29 next(0x10) = Some(PageEntry(4680))
-  table 29 next(0x14) = Some(PageEntry(6416))
-  table 29 next(0x18) = Some(PageEntry(4612))
-  table 29 next(0x1c) = None
+  table 29 next(0x8) = !
+  table 29 next(0xc) = !
+  table 29 next(0x10) = !
+  table 29 next(0x14) = !
+  table 29 next(0x18) = !
+  table 29 next(0x1c) = !
   table 29 next(0x1000) = !
   table 29 next(0x1b00) = !
   table 29 next(0x1c00) = !
   table 29 next(0xfffffffc) = !
   table 29 next(0xffffffff) = !
   table 29 next(0x80000000) = !
-table 30: has_list=true list=ListMenu(pages +0x121c) entry=PageEntry(4620)
-  table 30 next(0x0) = Some(PageEntry(4636))
-  table 30 next(0x4) = Some(PageEntry(6328))
-  table 30 next(0x8) = Some(PageEntry(4544))
-  table 30 next(0xc) = Some(PageEntry(4680))
-  table 30 next(0x10) = Some(PageEntry(6416))
-  table 30 next(0x14) = Some(PageEntry(4612))
-  table 30 next(0x18) = None
-  table 30 next(0x1c) = None
+table 30: has_list=true list=! entry=PageEntry(4620)
+  table 30 next(0x0) = !
+  table 30 next(0x4) = !
+  table 30 next(0x8) = !
+  table 30 next(0xc) = !
+  table 30 next(0x10) = !
+  table 30 next(0x14) = !
+  table 30 next(0x18) = !
+  table 30 next(0x1c) = !
   table 30 next(0x1000) = !
   table 30 next(0x1b00) = !
   table 30 next(0x1c00) = !
@@ -521,44 +521,44 @@ table 30: has_list=true list=ListMenu(pages +0x121c) entry=PageEntry(4620)
   table 30 next(0xffffffff) = !
   table 30 next(0x80000000) = !
 table 31: has_list=true list=ListMenu(pages +0x18b8) entry=PageEntry(4624)
-  table 31 next(0x0) = Some(PageEntry(6328))
+  table 31 next(0x0) = !
   table 31 next(0x4) = Some(PageEntry(4544))
   table 31 next(0x8) = Some(PageEntry(4680))
-  table 31 next(0xc) = Some(PageEntry(6416))
-  table 31 next(0x10) = Some(PageEntry(4612))
-  table 31 next(0x14) = None
-  table 31 next(0x18) = None
-  table 31 next(0x1c) = Some(PageEntry(4656))
+  table 31 next(0xc) = !
+  table 31 next(0x10) = !
+  table 31 next(0x14) = !
+  table 31 next(0x18) = !
+  table 31 next(0x1c) = !
   table 31 next(0x1000) = !
   table 31 next(0x1b00) = !
   table 31 next(0x1c00) = !
   table 31 next(0xfffffffc) = !
   table 31 next(0xffffffff) = !
   table 31 next(0x80000000) = !
-table 32: has_list=true list=ListMenu(pages +0x11c0) entry=PageEntry(4628)
-  table 32 next(0x0) = Some(PageEntry(4544))
+table 32: has_list=true list=! entry=PageEntry(4628)
+  table 32 next(0x0) = !
   table 32 next(0x4) = Some(PageEntry(4680))
-  table 32 next(0x8) = Some(PageEntry(6416))
-  table 32 next(0xc) = Some(PageEntry(4612))
-  table 32 next(0x10) = None
-  table 32 next(0x14) = None
-  table 32 next(0x18) = Some(PageEntry(4656))
-  table 32 next(0x1c) = Some(PageEntry(6168))
+  table 32 next(0x8) = !
+  table 32 next(0xc) = !
+  table 32 next(0x10) = !
+  table 32 next(0x14) = !
+  table 32 next(0x18) = !
+  table 32 next(0x1c) = !
   table 32 next(0x1000) = !
   table 32 next(0x1b00) = !
   table 32 next(0x1c00) = !
   table 32 next(0xfffffffc) = !
   table 32 next(0xffffffff) = !
   table 32 next(0x80000000) = !
-table 33: has_list=true list=ListMenu(pages +0x1248) entry=PageEntry(4632)
-  table 33 next(0x0) = Some(PageEntry(4680))
-  table 33 next(0x4) = Some(PageEntry(6416))
-  table 33 next(0x8) = Some(PageEntry(4612))
-  table 33 next(0xc) = None
-  table 33 next(0x10) = None
-  table 33 next(0x14) = Some(PageEntry(4656))
-  table 33 next(0x18) = Some(PageEntry(6168))
-  table 33 next(0x1c) = Some(PageEntry(4600))
+table 33: has_list=true list=! entry=PageEntry(4632)
+  table 33 next(0x0) = !
+  table 33 next(0x4) = !
+  table 33 next(0x8) = !
+  table 33 next(0xc) = !
+  table 33 next(0x10) = !
+  table 33 next(0x14) = !
+  table 33 next(0x18) = !
+  table 33 next(0x1c) = !
   table 33 next(0x1000) = !
   table 33 next(0x1b00) = !
   table 33 next(0x1c00) = !
@@ -566,29 +566,29 @@ table 33: has_list=true list=ListMenu(pages +0x1248) entry=PageEntry(4632)
   table 33 next(0xffffffff) = !
   table 33 next(0x80000000) = !
 table 34: has_list=true list=ListMenu(pages +0x1910) entry=PageEntry(4636)
-  table 34 next(0x0) = Some(PageEntry(6416))
+  table 34 next(0x0) = !
   table 34 next(0x4) = Some(PageEntry(4612))
   table 34 next(0x8) = None
   table 34 next(0xc) = None
   table 34 next(0x10) = Some(PageEntry(4656))
-  table 34 next(0x14) = Some(PageEntry(6168))
-  table 34 next(0x18) = Some(PageEntry(4600))
-  table 34 next(0x1c) = Some(PageEntry(4636))
+  table 34 next(0x14) = !
+  table 34 next(0x18) = !
+  table 34 next(0x1c) = !
   table 34 next(0x1000) = !
   table 34 next(0x1b00) = !
   table 34 next(0x1c00) = !
   table 34 next(0xfffffffc) = !
   table 34 next(0xffffffff) = !
   table 34 next(0x80000000) = !
-table 35: has_list=true list=ListMenu(pages +0x1204) entry=PageEntry(4640)
-  table 35 next(0x0) = Some(PageEntry(4612))
+table 35: has_list=true list=! entry=PageEntry(4640)
+  table 35 next(0x0) = !
   table 35 next(0x4) = None
   table 35 next(0x8) = None
   table 35 next(0xc) = Some(PageEntry(4656))
-  table 35 next(0x10) = Some(PageEntry(6168))
-  table 35 next(0x14) = Some(PageEntry(4600))
-  table 35 next(0x18) = Some(PageEntry(4636))
-  table 35 next(0x1c) = Some(PageEntry(6240))
+  table 35 next(0x10) = !
+  table 35 next(0x14) = !
+  table 35 next(0x18) = !
+  table 35 next(0x1c) = !
   table 35 next(0x1000) = !
   table 35 next(0x1b00) = !
   table 35 next(0x1c00) = !
@@ -596,14 +596,14 @@ table 35: has_list=true list=ListMenu(pages +0x1204) entry=PageEntry(4640)
   table 35 next(0xffffffff) = !
   table 35 next(0x80000000) = !
 table 36: has_list=false list=! entry=PageEntry(4644)
-  table 36 next(0x0) = None
+  table 36 next(0x0) = !
   table 36 next(0x4) = None
   table 36 next(0x8) = Some(PageEntry(4656))
-  table 36 next(0xc) = Some(PageEntry(6168))
-  table 36 next(0x10) = Some(PageEntry(4600))
-  table 36 next(0x14) = Some(PageEntry(4636))
-  table 36 next(0x18) = Some(PageEntry(6240))
-  table 36 next(0x1c) = None
+  table 36 next(0xc) = !
+  table 36 next(0x10) = !
+  table 36 next(0x14) = !
+  table 36 next(0x18) = !
+  table 36 next(0x1c) = !
   table 36 next(0x1000) = !
   table 36 next(0x1b00) = !
   table 36 next(0x1c00) = !
@@ -611,29 +611,29 @@ table 36: has_list=false list=! entry=PageEntry(4644)
   table 36 next(0xffffffff) = !
   table 36 next(0x80000000) = !
 table 37: has_list=false list=! entry=PageEntry(4648)
-  table 37 next(0x0) = None
+  table 37 next(0x0) = !
   table 37 next(0x4) = Some(PageEntry(4656))
-  table 37 next(0x8) = Some(PageEntry(6168))
-  table 37 next(0xc) = Some(PageEntry(4600))
-  table 37 next(0x10) = Some(PageEntry(4636))
-  table 37 next(0x14) = Some(PageEntry(6240))
-  table 37 next(0x18) = None
-  table 37 next(0x1c) = None
+  table 37 next(0x8) = !
+  table 37 next(0xc) = !
+  table 37 next(0x10) = !
+  table 37 next(0x14) = !
+  table 37 next(0x18) = !
+  table 37 next(0x1c) = !
   table 37 next(0x1000) = !
   table 37 next(0x1b00) = !
   table 37 next(0x1c00) = !
   table 37 next(0xfffffffc) = !
   table 37 next(0xffffffff) = !
   table 37 next(0x80000000) = !
-table 38: has_list=true list=ListMenu(pages +0x1230) entry=PageEntry(4652)
-  table 38 next(0x0) = Some(PageEntry(4656))
-  table 38 next(0x4) = Some(PageEntry(6168))
-  table 38 next(0x8) = Some(PageEntry(4600))
-  table 38 next(0xc) = Some(PageEntry(4636))
-  table 38 next(0x10) = Some(PageEntry(6240))
-  table 38 next(0x14) = None
-  table 38 next(0x18) = None
-  table 38 next(0x1c) = Some(PageEntry(6440))
+table 38: has_list=true list=! entry=PageEntry(4652)
+  table 38 next(0x0) = !
+  table 38 next(0x4) = !
+  table 38 next(0x8) = !
+  table 38 next(0xc) = !
+  table 38 next(0x10) = !
+  table 38 next(0x14) = !
+  table 38 next(0x18) = !
+  table 38 next(0x1c) = !
   table 38 next(0x1000) = !
   table 38 next(0x1b00) = !
   table 38 next(0x1c00) = !
@@ -641,44 +641,44 @@ table 38: has_list=true list=ListMenu(pages +0x1230) entry=PageEntry(4652)
   table 38 next(0xffffffff) = !
   table 38 next(0x80000000) = !
 table 39: has_list=true list=ListMenu(pages +0x1818) entry=PageEntry(4656)
-  table 39 next(0x0) = Some(PageEntry(6168))
+  table 39 next(0x0) = !
   table 39 next(0x4) = Some(PageEntry(4600))
   table 39 next(0x8) = Some(PageEntry(4636))
-  table 39 next(0xc) = Some(PageEntry(6240))
-  table 39 next(0x10) = None
-  table 39 next(0x14) = None
-  table 39 next(0x18) = Some(PageEntry(6440))
-  table 39 next(0x1c) = None
+  table 39 next(0xc) = !
+  table 39 next(0x10) = !
+  table 39 next(0x14) = !
+  table 39 next(0x18) = !
+  table 39 next(0x1c) = !
   table 39 next(0x1000) = !
   table 39 next(0x1b00) = !
   table 39 next(0x1c00) = !
   table 39 next(0xfffffffc) = !
   table 39 next(0xffffffff) = !
   table 39 next(0x80000000) = !
-table 40: has_list=true list=ListMenu(pages +0x11f8) entry=PageEntry(4660)
-  table 40 next(0x0) = Some(PageEntry(4600))
+table 40: has_list=true list=! entry=PageEntry(4660)
+  table 40 next(0x0) = !
   table 40 next(0x4) = Some(PageEntry(4636))
-  table 40 next(0x8) = Some(PageEntry(6240))
-  table 40 next(0xc) = None
-  table 40 next(0x10) = None
-  table 40 next(0x14) = Some(PageEntry(6440))
-  table 40 next(0x18) = None
-  table 40 next(0x1c) = None
+  table 40 next(0x8) = !
+  table 40 next(0xc) = !
+  table 40 next(0x10) = !
+  table 40 next(0x14) = !
+  table 40 next(0x18) = !
+  table 40 next(0x1c) = !
   table 40 next(0x1000) = !
   table 40 next(0x1b00) = !
   table 40 next(0x1c00) = !
   table 40 next(0xfffffffc) = !
   table 40 next(0xffffffff) = !
   table 40 next(0x80000000) = !
-table 41: has_list=true list=ListMenu(pages +0x121c) entry=PageEntry(4664)
-  table 41 next(0x0) = Some(PageEntry(4636))
-  table 41 next(0x4) = Some(PageEntry(6240))
-  table 41 next(0x8) = None
-  table 41 next(0xc) = None
-  table 41 next(0x10) = Some(PageEntry(6440))
-  table 41 next(0x14) = None
-  table 41 next(0x18) = None
-  table 41 next(0x1c) = Some(PageEntry(6464))
+table 41: has_list=true list=! entry=PageEntry(4664)
+  table 41 next(0x0) = !
+  table 41 next(0x4) = !
+  table 41 next(0x8) = !
+  table 41 next(0xc) = !
+  table 41 next(0x10) = !
+  table 41 next(0x14) = !
+  table 41 next(0x18) = !
+  table 41 next(0x1c) = !
   table 41 next(0x1000) = !
   table 41 next(0x1b00) = !
   table 41 next(0x1c00) = !
@@ -686,14 +686,14 @@ table 41: has_list=true list=ListMenu(pages +0x121c) entry=PageEntry(4664)
   table 41 next(0xffffffff) = !
   table 41 next(0x80000000) = !
 table 42: has_list=true list=ListMenu(pages +0x1860) entry=PageEntry(4668)
-  table 42 next(0x0) = Some(PageEntry(6240))
+  table 42 next(0x0) = !
   table 42 next(0x4) = None
   table 42 next(0x8) = None
-  table 42 next(0xc) = Some(PageEntry(6440))
-  table 42 next(0x10) = None
-  table 42 next(0x14) = None
-  table 42 next(0x18) = Some(PageEntry(6464))
-  table 42 next(0x1c) = None
+  table 42 next(0xc) = !
+  table 42 next(0x10) = !
+  table 42 next(0x14) = !
+  table 42 next(0x18) = !
+  table 42 next(0x1c) = !
   table 42 next(0x1000) = !
   table 42 next(0x1b00) = !
   table 42 next(0x1c00) = !
@@ -701,14 +701,14 @@ table 42: has_list=true list=ListMenu(pages +0x1860) entry=PageEntry(4668)
   table 42 next(0xffffffff) = !
   table 42 next(0x80000000) = !
 table 43: has_list=false list=! entry=PageEntry(4672)
-  table 43 next(0x0) = None
+  table 43 next(0x0) = !
   table 43 next(0x4) = None
-  table 43 next(0x8) = Some(PageEntry(6440))
-  table 43 next(0xc) = None
-  table 43 next(0x10) = None
-  table 43 next(0x14) = Some(PageEntry(6464))
-  table 43 next(0x18) = None
-  table 43 next(0x1c) = None
+  table 43 next(0x8) = !
+  table 43 next(0xc) = !
+  table 43 next(0x10) = !
+  table 43 next(0x14) = !
+  table 43 next(0x18) = !
+  table 43 next(0x1c) = !
   table 43 next(0x1000) = !
   table 43 next(0x1b00) = !
   table 43 next(0x1c00) = !
@@ -716,14 +716,14 @@ table 43: has_list=false list=! entry=PageEntry(4672)
   table 43 next(0xffffffff) = !
   table 43 next(0x80000000) = !
 table 44: has_list=false list=! entry=PageEntry(4676)
-  table 44 next(0x0) = None
-  table 44 next(0x4) = Some(PageEntry(6440))
-  table 44 next(0x8) = None
-  table 44 next(0xc) = None
-  table 44 next(0x10) = Some(PageEntry(6464))
-  table 44 next(0x14) = None
-  table 44 next(0x18) = None
-  table 44 next(0x1c) = Some(PageEntry(6488))
+  table 44 next(0x0) = !
+  table 44 next(0x4) = !
+  table 44 next(0x8) = !
+  table 44 next(0xc) = !
+  table 44 next(0x10) = !
+  table 44 next(0x14) = !
+  table 44 next(0x18) = !
+  table 44 next(0x1c) = !
   table 44 next(0x1000) = !
   table 44 next(0x1b00) = !
   table 44 next(0x1c00) = !
@@ -731,14 +731,14 @@ table 44: has_list=false list=! entry=PageEntry(4676)
   table 44 next(0xffffffff) = !
   table 44 next(0x80000000) = !
 table 45: has_list=true list=ListMenu(pages +0x1928) entry=PageEntry(4680)
-  table 45 next(0x0) = Some(PageEntry(6440))
+  table 45 next(0x0) = !
   table 45 next(0x4) = None
   table 45 next(0x8) = None
-  table 45 next(0xc) = Some(PageEntry(6464))
-  table 45 next(0x10) = None
-  table 45 next(0x14) = None
-  table 45 next(0x18) = Some(PageEntry(6488))
-  table 45 next(0x1c) = None
+  table 45 next(0xc) = !
+  table 45 next(0x10) = !
+  table 45 next(0x14) = !
+  table 45 next(0x18) = !
+  table 45 next(0x1c) = !
   table 45 next(0x1000) = !
   table 45 next(0x1b00) = !
   table 45 next(0x1c00) = !
@@ -746,14 +746,14 @@ table 45: has_list=true list=ListMenu(pages +0x1928) entry=PageEntry(4680)
   table 45 next(0xffffffff) = !
   table 45 next(0x80000000) = !
 table 46: has_list=false list=! entry=PageEntry(4684)
-  table 46 next(0x0) = None
+  table 46 next(0x0) = !
   table 46 next(0x4) = None
-  table 46 next(0x8) = Some(PageEntry(6464))
-  table 46 next(0xc) = None
-  table 46 next(0x10) = None
-  table 46 next(0x14) = Some(PageEntry(6488))
-  table 46 next(0x18) = None
-  table 46 next(0x1c) = None
+  table 46 next(0x8) = !
+  table 46 next(0xc) = !
+  table 46 next(0x10) = !
+  table 46 next(0x14) = !
+  table 46 next(0x18) = !
+  table 46 next(0x1c) = !
   table 46 next(0x1000) = !
   table 46 next(0x1b00) = !
   table 46 next(0x1c00) = !
@@ -761,13 +761,13 @@ table 46: has_list=false list=! entry=PageEntry(4684)
   table 46 next(0xffffffff) = !
   table 46 next(0x80000000) = !
 table 47: has_list=false list=! entry=PageEntry(4688)
-  table 47 next(0x0) = None
-  table 47 next(0x4) = Some(PageEntry(6464))
-  table 47 next(0x8) = None
-  table 47 next(0xc) = None
-  table 47 next(0x10) = Some(PageEntry(6488))
-  table 47 next(0x14) = None
-  table 47 next(0x18) = None
+  table 47 next(0x0) = !
+  table 47 next(0x4) = !
+  table 47 next(0x8) = !
+  table 47 next(0xc) = !
+  table 47 next(0x10) = !
+  table 47 next(0x14) = !
+  table 47 next(0x18) = !
   table 47 next(0x1c) = !
   table 47 next(0x1000) = !
   table 47 next(0x1b00) = !
@@ -776,12 +776,12 @@ table 47: has_list=false list=! entry=PageEntry(4688)
   table 47 next(0xffffffff) = !
   table 47 next(0x80000000) = !
 table 48: has_list=true list=ListMenu(pages +0x1940) entry=PageEntry(4692)
-  table 48 next(0x0) = Some(PageEntry(6464))
+  table 48 next(0x0) = !
   table 48 next(0x4) = None
   table 48 next(0x8) = None
-  table 48 next(0xc) = Some(PageEntry(6488))
-  table 48 next(0x10) = None
-  table 48 next(0x14) = None
+  table 48 next(0xc) = !
+  table 48 next(0x10) = !
+  table 48 next(0x14) = !
   table 48 next(0x18) = !
   table 48 next(0x1c) = !
   table 48 next(0x1000) = !
@@ -791,14 +791,14 @@ table 48: has_list=true list=ListMenu(pages +0x1940) entry=PageEntry(4692)
   table 48 next(0xffffffff) = !
   table 48 next(0x80000000) = !
 table 49: has_list=false list=! entry=PageEntry(4696)
-  table 49 next(0x0) = None
+  table 49 next(0x0) = !
   table 49 next(0x4) = None
-  table 49 next(0x8) = Some(PageEntry(6488))
-  table 49 next(0xc) = None
-  table 49 next(0x10) = None
+  table 49 next(0x8) = !
+  table 49 next(0xc) = !
+  table 49 next(0x10) = !
   table 49 next(0x14) = !
   table 49 next(0x18) = !
-  table 49 next(0x1c) = None
+  table 49 next(0x1c) = !
   table 49 next(0x1000) = !
   table 49 next(0x1b00) = !
   table 49 next(0x1c00) = !
@@ -806,13 +806,13 @@ table 49: has_list=false list=! entry=PageEntry(4696)
   table 49 next(0xffffffff) = !
   table 49 next(0x80000000) = !
 table 50: has_list=false list=! entry=PageEntry(4700)
-  table 50 next(0x0) = None
-  table 50 next(0x4) = Some(PageEntry(6488))
-  table 50 next(0x8) = None
-  table 50 next(0xc) = None
+  table 50 next(0x0) = !
+  table 50 next(0x4) = !
+  table 50 next(0x8) = !
+  table 50 next(0xc) = !
   table 50 next(0x10) = !
   table 50 next(0x14) = !
-  table 50 next(0x18) = None
+  table 50 next(0x18) = !
   table 50 next(0x1c) = !
   table 50 next(0x1000) = !
   table 50 next(0x1b00) = !
@@ -821,14 +821,14 @@ table 50: has_list=false list=! entry=PageEntry(4700)
   table 50 next(0xffffffff) = !
   table 50 next(0x80000000) = !
 table 51: has_list=true list=ListMenu(pages +0x1958) entry=PageEntry(4704)
-  table 51 next(0x0) = Some(PageEntry(6488))
+  table 51 next(0x0) = !
   table 51 next(0x4) = None
   table 51 next(0x8) = None
   table 51 next(0xc) = !
   table 51 next(0x10) = !
-  table 51 next(0x14) = None
+  table 51 next(0x14) = !
   table 51 next(0x18) = !
-  table 51 next(0x1c) = None
+  table 51 next(0x1c) = !
   table 51 next(0x1000) = !
   table 51 next(0x1b00) = !
   table 51 next(0x1c00) = !
@@ -836,14 +836,14 @@ table 51: has_list=true list=ListMenu(pages +0x1958) entry=PageEntry(4704)
   table 51 next(0xffffffff) = !
   table 51 next(0x80000000) = !
 table 52: has_list=false list=! entry=PageEntry(4708)
-  table 52 next(0x0) = None
+  table 52 next(0x0) = !
   table 52 next(0x4) = None
   table 52 next(0x8) = !
   table 52 next(0xc) = !
-  table 52 next(0x10) = None
+  table 52 next(0x10) = !
   table 52 next(0x14) = !
-  table 52 next(0x18) = None
-  table 52 next(0x1c) = None
+  table 52 next(0x18) = !
+  table 52 next(0x1c) = !
   table 52 next(0x1000) = !
   table 52 next(0x1b00) = !
   table 52 next(0x1c00) = !
@@ -851,14 +851,14 @@ table 52: has_list=false list=! entry=PageEntry(4708)
   table 52 next(0xffffffff) = !
   table 52 next(0x80000000) = !
 table 53: has_list=false list=! entry=PageEntry(4712)
-  table 53 next(0x0) = None
+  table 53 next(0x0) = !
   table 53 next(0x4) = !
   table 53 next(0x8) = !
-  table 53 next(0xc) = None
+  table 53 next(0xc) = !
   table 53 next(0x10) = !
-  table 53 next(0x14) = None
-  table 53 next(0x18) = None
-  table 53 next(0x1c) = None
+  table 53 next(0x14) = !
+  table 53 next(0x18) = !
+  table 53 next(0x1c) = !
   table 53 next(0x1000) = !
   table 53 next(0x1b00) = !
   table 53 next(0x1c00) = !
@@ -868,11 +868,11 @@ table 53: has_list=false list=! entry=PageEntry(4712)
 table 54: has_list=true list=! entry=PageEntry(4716)
   table 54 next(0x0) = !
   table 54 next(0x4) = !
-  table 54 next(0x8) = None
+  table 54 next(0x8) = !
   table 54 next(0xc) = !
-  table 54 next(0x10) = None
-  table 54 next(0x14) = None
-  table 54 next(0x18) = None
+  table 54 next(0x10) = !
+  table 54 next(0x14) = !
+  table 54 next(0x18) = !
   table 54 next(0x1c) = !
   table 54 next(0x1000) = !
   table 54 next(0x1b00) = !
@@ -880,369 +880,33 @@ table 54: has_list=true list=! entry=PageEntry(4716)
   table 54 next(0xfffffffc) = !
   table 54 next(0xffffffff) = !
   table 54 next(0x80000000) = !
-list Language: has_list=true list=! entry=PageEntry(4720)
-  list Language next(0x0) = !
-  list Language next(0x4) = None
-  list Language next(0x8) = !
-  list Language next(0xc) = None
-  list Language next(0x10) = None
-  list Language next(0x14) = None
-  list Language next(0x18) = !
-  list Language next(0x1c) = None
-  list Language next(0x1000) = !
-  list Language next(0x1b00) = !
-  list Language next(0x1c00) = !
-  list Language next(0xfffffffc) = !
-  list Language next(0xffffffff) = !
-  list Language next(0x80000000) = !
-list Main: has_list=true list=! entry=PageEntry(4904)
-  list Main next(0x0) = !
-  list Main next(0x4) = None
-  list Main next(0x8) = !
-  list Main next(0xc) = None
-  list Main next(0x10) = None
-  list Main next(0x14) = None
-  list Main next(0x18) = !
-  list Main next(0x1c) = None
-  list Main next(0x1000) = !
-  list Main next(0x1b00) = !
-  list Main next(0x1c00) = !
-  list Main next(0xfffffffc) = !
-  list Main next(0xffffffff) = !
-  list Main next(0x80000000) = !
-list Mode: has_list=true list=! entry=PageEntry(5008)
-  list Mode next(0x0) = !
-  list Mode next(0x4) = !
-  list Mode next(0x8) = !
-  list Mode next(0xc) = None
-  list Mode next(0x10) = None
-  list Mode next(0x14) = None
-  list Mode next(0x18) = !
-  list Mode next(0x1c) = None
-  list Mode next(0x1000) = !
-  list Mode next(0x1b00) = !
-  list Mode next(0x1c00) = !
-  list Mode next(0xfffffffc) = !
-  list Mode next(0xffffffff) = !
-  list Mode next(0x80000000) = !
-list Drives8: has_list=true list=! entry=PageEntry(5112)
-  list Drives8 next(0x0) = !
-  list Drives8 next(0x4) = !
-  list Drives8 next(0x8) = !
-  list Drives8 next(0xc) = None
-  list Drives8 next(0x10) = None
-  list Drives8 next(0x14) = None
-  list Drives8 next(0x18) = !
-  list Drives8 next(0x1c) = Some(PageEntry(6648))
-  list Drives8 next(0x1000) = !
-  list Drives8 next(0x1b00) = !
-  list Drives8 next(0x1c00) = !
-  list Drives8 next(0xfffffffc) = !
-  list Drives8 next(0xffffffff) = !
-  list Drives8 next(0x80000000) = !
-list Drives16: has_list=true list=! entry=PageEntry(5296)
-  list Drives16 next(0x0) = !
-  list Drives16 next(0x4) = !
-  list Drives16 next(0x8) = !
-  list Drives16 next(0xc) = None
-  list Drives16 next(0x10) = None
-  list Drives16 next(0x14) = None
-  list Drives16 next(0x18) = !
-  list Drives16 next(0x1c) = Some(PageEntry(6648))
-  list Drives16 next(0x1000) = !
-  list Drives16 next(0x1b00) = !
-  list Drives16 next(0x1c00) = !
-  list Drives16 next(0xfffffffc) = !
-  list Drives16 next(0xffffffff) = !
-  list Drives16 next(0x80000000) = !
-list DrivesMore: has_list=true list=! entry=PageEntry(5608)
-  list DrivesMore next(0x0) = !
-  list DrivesMore next(0x4) = !
-  list DrivesMore next(0x8) = !
-  list DrivesMore next(0xc) = None
-  list DrivesMore next(0x10) = None
-  list DrivesMore next(0x14) = None
-  list DrivesMore next(0x18) = !
-  list DrivesMore next(0x1c) = Some(PageEntry(6648))
-  list DrivesMore next(0x1000) = !
-  list DrivesMore next(0x1b00) = !
-  list DrivesMore next(0x1c00) = !
-  list DrivesMore next(0xfffffffc) = !
-  list DrivesMore next(0xffffffff) = !
-  list DrivesMore next(0x80000000) = !
-list Folder: has_list=true list=! entry=PageEntry(6048)
-  list Folder next(0x0) = !
-  list Folder next(0x4) = None
-  list Folder next(0x8) = !
-  list Folder next(0xc) = None
-  list Folder next(0x10) = None
-  list Folder next(0x14) = !
-  list Folder next(0x18) = !
-  list Folder next(0x1c) = None
-  list Folder next(0x1000) = !
-  list Folder next(0x1b00) = !
-  list Folder next(0x1c00) = !
-  list Folder next(0xfffffffc) = !
-  list Folder next(0xffffffff) = !
-  list Folder next(0x80000000) = !
-list Room: has_list=true list=! entry=PageEntry(6168)
-  list Room next(0x0) = !
-  list Room next(0x4) = None
-  list Room next(0x8) = !
-  list Room next(0xc) = None
-  list Room next(0x10) = None
-  list Room next(0x14) = None
-  list Room next(0x18) = !
-  list Room next(0x1c) = None
-  list Room next(0x1000) = !
-  list Room next(0x1b00) = !
-  list Room next(0x1c00) = !
-  list Room next(0xfffffffc) = !
-  list Room next(0xffffffff) = !
-  list Room next(0x80000000) = !
-list Dxsetup: has_list=true list=! entry=PageEntry(6240)
-  list Dxsetup next(0x0) = !
-  list Dxsetup next(0x4) = None
-  list Dxsetup next(0x8) = !
-  list Dxsetup next(0xc) = None
-  list Dxsetup next(0x10) = None
-  list Dxsetup next(0x14) = None
-  list Dxsetup next(0x18) = !
-  list Dxsetup next(0x1c) = None
-  list Dxsetup next(0x1000) = !
-  list Dxsetup next(0x1b00) = !
-  list Dxsetup next(0x1c00) = !
-  list Dxsetup next(0xfffffffc) = !
-  list Dxsetup next(0xffffffff) = !
-  list Dxsetup next(0x80000000) = !
-list Finish: has_list=true list=! entry=PageEntry(6328)
-  list Finish next(0x0) = !
-  list Finish next(0x4) = !
-  list Finish next(0x8) = !
-  list Finish next(0xc) = None
-  list Finish next(0x10) = None
-  list Finish next(0x14) = None
-  list Finish next(0x18) = !
-  list Finish next(0x1c) = None
-  list Finish next(0x1000) = !
-  list Finish next(0x1b00) = !
-  list Finish next(0x1c00) = !
-  list Finish next(0xfffffffc) = !
-  list Finish next(0xffffffff) = !
-  list Finish next(0x80000000) = !
-list InstallFiles: has_list=true list=! entry=PageEntry(6416)
-  list InstallFiles next(0x0) = !
-  list InstallFiles next(0x4) = None
-  list InstallFiles next(0x8) = !
-  list InstallFiles next(0xc) = None
-  list InstallFiles next(0x10) = None
-  list InstallFiles next(0x14) = None
-  list InstallFiles next(0x18) = !
-  list InstallFiles next(0x1c) = None
-  list InstallFiles next(0x1000) = !
-  list InstallFiles next(0x1b00) = !
-  list InstallFiles next(0x1c00) = !
-  list InstallFiles next(0xfffffffc) = !
-  list InstallFiles next(0xffffffff) = !
-  list InstallFiles next(0x80000000) = !
-list Uninstall: has_list=true list=! entry=PageEntry(6440)
-  list Uninstall next(0x0) = !
-  list Uninstall next(0x4) = None
-  list Uninstall next(0x8) = !
-  list Uninstall next(0xc) = None
-  list Uninstall next(0x10) = None
-  list Uninstall next(0x14) = None
-  list Uninstall next(0x18) = !
-  list Uninstall next(0x1c) = None
-  list Uninstall next(0x1000) = !
-  list Uninstall next(0x1b00) = !
-  list Uninstall next(0x1c00) = !
-  list Uninstall next(0xfffffffc) = !
-  list Uninstall next(0xffffffff) = !
-  list Uninstall next(0x80000000) = !
-list OpenInstalled: has_list=true list=! entry=PageEntry(6464)
-  list OpenInstalled next(0x0) = !
-  list OpenInstalled next(0x4) = None
-  list OpenInstalled next(0x8) = !
-  list OpenInstalled next(0xc) = None
-  list OpenInstalled next(0x10) = None
-  list OpenInstalled next(0x14) = None
-  list OpenInstalled next(0x18) = !
-  list OpenInstalled next(0x1c) = None
-  list OpenInstalled next(0x1000) = !
-  list OpenInstalled next(0x1b00) = !
-  list OpenInstalled next(0x1c00) = !
-  list OpenInstalled next(0xfffffffc) = !
-  list OpenInstalled next(0xffffffff) = !
-  list OpenInstalled next(0x80000000) = !
-list AskRegistration: has_list=true list=! entry=PageEntry(6488)
-  list AskRegistration next(0x0) = !
-  list AskRegistration next(0x4) = None
-  list AskRegistration next(0x8) = !
-  list AskRegistration next(0xc) = None
-  list AskRegistration next(0x10) = None
-  list AskRegistration next(0x14) = None
-  list AskRegistration next(0x18) = !
-  list AskRegistration next(0x1c) = !
-  list AskRegistration next(0x1000) = !
-  list AskRegistration next(0x1b00) = !
-  list AskRegistration next(0x1c00) = !
-  list AskRegistration next(0xfffffffc) = !
-  list AskRegistration next(0xffffffff) = !
-  list AskRegistration next(0x80000000) = !
-box 0: has_list=true list=! entry=PageEntry(6536)
-  box 0 next(0x0) = !
-  box 0 next(0x4) = !
-  box 0 next(0x8) = !
-  box 0 next(0xc) = !
-  box 0 next(0x10) = !
-  box 0 next(0x14) = !
-  box 0 next(0x18) = !
-  box 0 next(0x1c) = !
-  box 0 next(0x1000) = !
-  box 0 next(0x1b00) = !
-  box 0 next(0x1c00) = !
-  box 0 next(0xfffffffc) = !
-  box 0 next(0xffffffff) = !
-  box 0 next(0x80000000) = !
-box 1: has_list=true list=! entry=PageEntry(6552)
-  box 1 next(0x0) = !
-  box 1 next(0x4) = !
-  box 1 next(0x8) = !
-  box 1 next(0xc) = !
-  box 1 next(0x10) = !
-  box 1 next(0x14) = !
-  box 1 next(0x18) = !
-  box 1 next(0x1c) = !
-  box 1 next(0x1000) = !
-  box 1 next(0x1b00) = !
-  box 1 next(0x1c00) = !
-  box 1 next(0xfffffffc) = !
-  box 1 next(0xffffffff) = !
-  box 1 next(0x80000000) = !
-box 2: has_list=true list=! entry=PageEntry(6568)
-  box 2 next(0x0) = !
-  box 2 next(0x4) = !
-  box 2 next(0x8) = !
-  box 2 next(0xc) = !
-  box 2 next(0x10) = !
-  box 2 next(0x14) = !
-  box 2 next(0x18) = !
-  box 2 next(0x1c) = !
-  box 2 next(0x1000) = !
-  box 2 next(0x1b00) = !
-  box 2 next(0x1c00) = !
-  box 2 next(0xfffffffc) = !
-  box 2 next(0xffffffff) = !
-  box 2 next(0x80000000) = !
-box 3: has_list=true list=! entry=PageEntry(6584)
-  box 3 next(0x0) = !
-  box 3 next(0x4) = !
-  box 3 next(0x8) = !
-  box 3 next(0xc) = !
-  box 3 next(0x10) = !
-  box 3 next(0x14) = !
-  box 3 next(0x18) = !
-  box 3 next(0x1c) = !
-  box 3 next(0x1000) = !
-  box 3 next(0x1b00) = !
-  box 3 next(0x1c00) = !
-  box 3 next(0xfffffffc) = !
-  box 3 next(0xffffffff) = !
-  box 3 next(0x80000000) = !
-box 4: has_list=true list=! entry=PageEntry(6600)
-  box 4 next(0x0) = !
-  box 4 next(0x4) = !
-  box 4 next(0x8) = !
-  box 4 next(0xc) = !
-  box 4 next(0x10) = !
-  box 4 next(0x14) = !
-  box 4 next(0x18) = !
-  box 4 next(0x1c) = !
-  box 4 next(0x1000) = !
-  box 4 next(0x1b00) = !
-  box 4 next(0x1c00) = !
-  box 4 next(0xfffffffc) = !
-  box 4 next(0xffffffff) = !
-  box 4 next(0x80000000) = !
-box 5: has_list=true list=! entry=PageEntry(6616)
-  box 5 next(0x0) = !
-  box 5 next(0x4) = !
-  box 5 next(0x8) = !
-  box 5 next(0xc) = !
-  box 5 next(0x10) = !
-  box 5 next(0x14) = !
-  box 5 next(0x18) = !
-  box 5 next(0x1c) = !
-  box 5 next(0x1000) = !
-  box 5 next(0x1b00) = !
-  box 5 next(0x1c00) = !
-  box 5 next(0xfffffffc) = !
-  box 5 next(0xffffffff) = !
-  box 5 next(0x80000000) = !
-box 6: has_list=true list=! entry=PageEntry(6632)
-  box 6 next(0x0) = !
-  box 6 next(0x4) = !
-  box 6 next(0x8) = !
-  box 6 next(0xc) = !
-  box 6 next(0x10) = !
-  box 6 next(0x14) = !
-  box 6 next(0x18) = !
-  box 6 next(0x1c) = !
-  box 6 next(0x1000) = !
-  box 6 next(0x1b00) = !
-  box 6 next(0x1c00) = !
-  box 6 next(0xfffffffc) = !
-  box 6 next(0xffffffff) = !
-  box 6 next(0x80000000) = !
-box 7: has_list=true list=! entry=PageEntry(6648)
-  box 7 next(0x0) = !
-  box 7 next(0x4) = !
-  box 7 next(0x8) = !
-  box 7 next(0xc) = !
-  box 7 next(0x10) = !
-  box 7 next(0x14) = !
-  box 7 next(0x18) = !
-  box 7 next(0x1c) = !
-  box 7 next(0x1000) = !
-  box 7 next(0x1b00) = !
-  box 7 next(0x1c00) = !
-  box 7 next(0xfffffffc) = !
-  box 7 next(0xffffffff) = !
-  box 7 next(0x80000000) = !
-box 8: has_list=true list=! entry=PageEntry(6664)
-  box 8 next(0x0) = !
-  box 8 next(0x4) = !
-  box 8 next(0x8) = !
-  box 8 next(0xc) = !
-  box 8 next(0x10) = !
-  box 8 next(0x14) = !
-  box 8 next(0x18) = !
-  box 8 next(0x1c) = !
-  box 8 next(0x1000) = !
-  box 8 next(0x1b00) = !
-  box 8 next(0x1c00) = !
-  box 8 next(0xfffffffc) = !
-  box 8 next(0xffffffff) = !
-  box 8 next(0x80000000) = !
-edit: has_list=true list=! entry=PageEntry(6512)
-  edit next(0x0) = !
-  edit next(0x4) = !
-  edit next(0x8) = !
-  edit next(0xc) = Some(PageEntry(6536))
-  edit next(0x10) = None
-  edit next(0x14) = None
-  edit next(0x18) = !
-  edit next(0x1c) = !
-  edit next(0x1000) = !
-  edit next(0x1b00) = !
-  edit next(0x1c00) = !
-  edit next(0xfffffffc) = !
-  edit next(0xffffffff) = !
-  edit next(0x80000000) = !
+list Language: entry refused
+list Main: entry refused
+list Mode: entry refused
+list Drives8: entry refused
+list Drives16: entry refused
+list DrivesMore: entry refused
+list Folder: entry refused
+list Room: entry refused
+list Dxsetup: entry refused
+list Finish: entry refused
+list InstallFiles: entry refused
+list Uninstall: entry refused
+list OpenInstalled: entry refused
+list AskRegistration: entry refused
+box 0: entry refused
+box 1: entry refused
+box 2: entry refused
+box 3: entry refused
+box 4: entry refused
+box 5: entry refused
+box 6: entry refused
+box 7: entry refused
+box 8: entry refused
+edit: entry refused
 normal run: PageEntry(4500) has_list=true list=ListMenu(pages +0x1270)
 update run: PageEntry(4568) has_list=true list=ListMenu(pages +0x18b8)
-sweep entries: 15721 probes, 9603 with a refusal, hash d0ec70557506d9bc
+sweep entries: 10969 probes, 10815 with a refusal, hash dcb38d3823021a08
 list Language: ListMenu(pages +0x1270) flags=0 count=10 title=155 highlight=0 action=4276633 key=0 neighbours=None
   Language item 0: ListItem(pages +0x1288) first=1 count=1 text=4139 box=0 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(4744)
   Language item 1: ListItem(pages +0x1298) first=1 count=2 text=4140 box=0 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(4760)
@@ -1614,61 +1278,61 @@ list AskRegistration: ListMenu(pages +0x1958) flags=64 count=0 title=0 highlight
   AskRegistration item_at_offset(0x29) = !
 sweep items of AskRegistration: 470 probes, 470 with a refusal, hash 0a972bbaeb17d35a
 sweep choices of AskRegistration: 0 probes, 0 with a refusal, hash cbf29ce484222325
-table 0: ListMenu(pages +0x1194) flags=0 count=0 title=1280 highlight=0 action=16777227 key=16777227 neighbours=Some([1, 0, 0, 5])
-table 1: ListMenu(pages +0x1198) flags=0 count=0 title=0 highlight=16777227 action=16777227 key=16777227 neighbours=Some([1, 0, 0, 5])
-table 2: ListMenu(pages +0x119c) flags=11 count=0 title=256 highlight=16777227 action=16777227 key=16777227 neighbours=Some([1, 0, 0, 5])
-table 3: ListMenu(pages +0x11a0) flags=11 count=0 title=256 highlight=16777227 action=16777227 key=16777227 neighbours=Some([1, 0, 0, 5])
-table 4: ListMenu(pages +0x11a4) flags=11 count=0 title=256 highlight=16777227 action=16777227 key=16777227 neighbours=Some([1, 0, 0, 5])
-table 5: ListMenu(pages +0x11a8) flags=11 count=0 title=256 highlight=16777227 action=16777227 key=16777227 neighbours=Some([1, 0, 0, 5])
-table 6: ListMenu(pages +0x11ac) flags=11 count=0 title=256 highlight=16777227 action=16777227 key=83886081 neighbours=Some([1, 0, 0, 5])
-table 7: ListMenu(pages +0x11b0) flags=11 count=0 title=256 highlight=16777227 action=16777227 key=0 neighbours=Some([0, 5, 149, 0])
-table 8: ListMenu(pages +0x11b4) flags=11 count=0 title=256 highlight=16777227 action=16777227 key=16777236 neighbours=None
-table 9: ListMenu(pages +0x11b8) flags=11 count=0 title=256 highlight=16777227 action=83886081 key=16777264 neighbours=Some([2, 0, 0, 5])
-table 10: ListMenu(pages +0x11bc) flags=11 count=0 title=256 highlight=83886081 action=0 key=16777247 neighbours=Some([12, 0, 0, 5])
-table 11: ListMenu(pages +0x11c0) flags=1 count=0 title=1280 highlight=0 action=16777236 key=16777267 neighbours=Some([9, 0, 0, 5])
-table 12: ListMenu(pages +0x11c4) flags=0 count=0 title=0 highlight=16777236 action=16777264 key=83886089 neighbours=Some([13, 0, 0, 5])
-table 13: ListMenu(pages +0x11c8) flags=20 count=0 title=256 highlight=16777264 action=16777247 key=0 neighbours=Some([0, 4, 182, 0])
-table 14: ListMenu(pages +0x11cc) flags=48 count=0 title=256 highlight=16777247 action=16777267 key=16777261 neighbours=None
-table 15: ListMenu(pages +0x11d0) flags=31 count=0 title=256 highlight=16777267 action=83886089 key=83886082 neighbours=Some([11, 0, 0, 5])
-table 16: ListMenu(pages +0x11d4) flags=51 count=0 title=256 highlight=83886089 action=0 key=16777227 neighbours=Some([0, 5, 154, 0])
-table 17: ListMenu(pages +0x11d8) flags=9 count=0 title=1280 highlight=0 action=16777261 key=16777241 neighbours=Some([1, 0, 0, 5])
-table 18: ListMenu(pages +0x11dc) flags=0 count=0 title=0 highlight=16777261 action=83886082 key=16777241 neighbours=Some([3, 0, 0, 5])
-table 19: ListMenu(pages +0x11e0) flags=45 count=0 title=256 highlight=83886082 action=16777227 key=16777241 neighbours=Some([3, 0, 0, 5])
-table 20: ListMenu(pages +0x11e4) flags=2 count=0 title=1280 highlight=16777227 action=16777241 key=83886083 neighbours=Some([3, 0, 0, 5])
-table 21: ListMenu(pages +0x11e8) flags=11 count=0 title=256 highlight=16777241 action=16777241 key=16777236 neighbours=Some([0, 10, 154, 0])
-table 22: ListMenu(pages +0x11ec) flags=25 count=0 title=256 highlight=16777241 action=16777241 key=16777244 neighbours=Some([2, 0, 0, 5])
-table 23: ListMenu(pages +0x11f0) flags=25 count=0 title=256 highlight=16777241 action=83886083 key=83886086 neighbours=Some([6, 0, 0, 5])
-table 24: ListMenu(pages +0x11f4) flags=25 count=0 title=256 highlight=83886083 action=16777236 key=16777241 neighbours=Some([0, 6, 154, 0])
-table 25: ListMenu(pages +0x11f8) flags=3 count=0 title=1280 highlight=16777236 action=16777244 key=16777250 neighbours=Some([3, 0, 0, 5])
-table 26: ListMenu(pages +0x11fc) flags=20 count=0 title=256 highlight=16777244 action=83886086 key=83886089 neighbours=Some([10, 0, 0, 5])
-table 27: ListMenu(pages +0x1200) flags=28 count=0 title=256 highlight=83886086 action=16777241 key=16777227 neighbours=Some([0, 4, 182, 0])
-table 28: ListMenu(pages +0x1204) flags=6 count=0 title=1280 highlight=16777241 action=16777250 key=16777261 neighbours=Some([1, 0, 0, 5])
-table 29: ListMenu(pages +0x1208) flags=25 count=0 title=256 highlight=16777250 action=83886089 key=83886090 neighbours=Some([11, 0, 0, 5])
-table 30: ListMenu(pages +0x120c) flags=34 count=0 title=256 highlight=83886089 action=16777227 key=16777244 neighbours=Some([64, 0, 0, 0])
-table 31: ListMenu(pages +0x1210) flags=9 count=0 title=1280 highlight=16777227 action=16777261 key=0 neighbours=Some([6, 0, 0, 5])
-table 32: ListMenu(pages +0x1214) flags=11 count=0 title=256 highlight=16777261 action=83886090 key=0 neighbours=None
-table 33: ListMenu(pages +0x1218) flags=45 count=0 title=256 highlight=83886090 action=16777244 key=16777255 neighbours=None
-table 34: ListMenu(pages +0x121c) flags=10 count=0 title=1280 highlight=16777244 action=0 key=83886087 neighbours=Some([7, 0, 0, 5])
-table 35: ListMenu(pages +0x1220) flags=28 count=0 title=256 highlight=0 action=0 key=16777241 neighbours=Some([0, 3, 154, 0])
-table 36: ListMenu(pages +0x1224) flags=0 count=0 title=0 highlight=0 action=16777255 key=16777250 neighbours=Some([3, 0, 0, 5])
-table 37: ListMenu(pages +0x1228) flags=0 count=0 title=0 highlight=16777255 action=83886087 key=83886088 neighbours=Some([10, 0, 0, 5])
-table 38: ListMenu(pages +0x122c) flags=39 count=0 title=256 highlight=83886087 action=16777241 key=0 neighbours=Some([0, 4, 154, 0])
-table 39: ListMenu(pages +0x1230) flags=7 count=0 title=1280 highlight=16777241 action=16777250 key=0 neighbours=None
-table 40: ListMenu(pages +0x1234) flags=25 count=0 title=256 highlight=16777250 action=83886088 key=83886091 neighbours=None
-table 41: ListMenu(pages +0x1238) flags=34 count=0 title=256 highlight=83886088 action=0 key=0 neighbours=Some([64, 0, 0, 0])
-table 42: ListMenu(pages +0x123c) flags=8 count=0 title=1280 highlight=0 action=0 key=0 neighbours=None
-table 43: ListMenu(pages +0x1240) flags=0 count=0 title=0 highlight=0 action=83886091 key=83886092 neighbours=None
-table 44: ListMenu(pages +0x1244) flags=0 count=0 title=0 highlight=83886091 action=0 key=0 neighbours=Some([64, 0, 0, 0])
-table 45: ListMenu(pages +0x1248) flags=11 count=0 title=1280 highlight=0 action=0 key=0 neighbours=None
-table 46: ListMenu(pages +0x124c) flags=0 count=0 title=0 highlight=0 action=83886092 key=83886093 neighbours=None
-table 47: ListMenu(pages +0x1250) flags=0 count=0 title=0 highlight=83886092 action=0 key=0 neighbours=Some([64, 0, 0, 0])
-table 48: ListMenu(pages +0x1254) flags=12 count=0 title=1280 highlight=0 action=0 key=0 neighbours=None
-table 49: ListMenu(pages +0x1258) flags=0 count=0 title=0 highlight=0 action=83886093 key=9 neighbours=None
-table 50: ListMenu(pages +0x125c) flags=0 count=0 title=0 highlight=83886093 action=0 key=10160640 neighbours=!
-table 51: ListMenu(pages +0x1260) flags=13 count=0 title=1280 highlight=0 action=0 key=0 neighbours=!
-table 52: ListMenu(pages +0x1264) flags=0 count=0 title=0 highlight=0 action=9 key=4276633 neighbours=None
-table 53: ListMenu(pages +0x1268) flags=0 count=0 title=0 highlight=9 action=10160640 key=0 neighbours=!
-table 54: ListMenu(pages +0x126c) flags=9 count=0 title=0 highlight=10160640 action=0 key=0 neighbours=None
+table 0: no list
+table 1: no list
+table 2: no list
+table 3: no list
+table 4: no list
+table 5: no list
+table 6: no list
+table 7: no list
+table 8: no list
+table 9: no list
+table 10: no list
+table 11: no list
+table 12: no list
+table 13: no list
+table 14: no list
+table 15: no list
+table 16: no list
+table 17: no list
+table 18: no list
+table 19: no list
+table 20: no list
+table 21: no list
+table 22: no list
+table 23: no list
+table 24: no list
+table 25: no list
+table 26: no list
+table 27: no list
+table 28: no list
+table 29: no list
+table 30: no list
+table 31: no list
+table 32: no list
+table 33: no list
+table 34: no list
+table 35: no list
+table 36: no list
+table 37: no list
+table 38: no list
+table 39: no list
+table 40: no list
+table 41: no list
+table 42: no list
+table 43: no list
+table 44: no list
+table 45: no list
+table 46: no list
+table 47: no list
+table 48: no list
+table 49: no list
+table 50: no list
+table 51: no list
+table 52: no list
+table 53: no list
+table 54: no list
 list Language: ListMenu(pages +0x1270) flags=0 count=10 title=155 highlight=0 action=4276633 key=0 neighbours=None
 list Main: ListMenu(pages +0x1328) flags=0 count=5 title=149 highlight=0 action=4276719 key=0 neighbours=None
 list Mode: ListMenu(pages +0x1390) flags=0 count=5 title=154 highlight=2 action=4276779 key=0 neighbours=None
@@ -1683,17 +1347,17 @@ list InstallFiles: ListMenu(pages +0x1910) flags=64 count=0 title=0 highlight=0 
 list Uninstall: ListMenu(pages +0x1928) flags=64 count=0 title=0 highlight=0 action=4273375 key=0 neighbours=None
 list OpenInstalled: ListMenu(pages +0x1940) flags=64 count=0 title=0 highlight=0 action=4273705 key=0 neighbours=None
 list AskRegistration: ListMenu(pages +0x1958) flags=64 count=0 title=0 highlight=0 action=4273744 key=0 neighbours=None
-box 0: ListMenu(pages +0x1988) flags=50 count=0 title=0 highlight=150 action=750 key=150 neighbours=!
-box 1: ListMenu(pages +0x1998) flags=50 count=0 title=0 highlight=150 action=750 key=150 neighbours=!
-box 2: ListMenu(pages +0x19a8) flags=125 count=0 title=0 highlight=150 action=200 key=150 neighbours=!
-box 3: ListMenu(pages +0x19b8) flags=69 count=1 title=0 highlight=150 action=200 key=150 neighbours=!
-box 4: ListMenu(pages +0x19c8) flags=13 count=2 title=0 highlight=150 action=200 key=150 neighbours=!
-box 5: ListMenu(pages +0x19d8) flags=225 count=0 title=0 highlight=150 action=200 key=150 neighbours=!
-box 6: ListMenu(pages +0x19e8) flags=169 count=1 title=0 highlight=150 action=200 key=200 neighbours=!
-box 7: ListMenu(pages +0x19f8) flags=50 count=0 title=0 highlight=200 action=750 key=495 neighbours=!
-box 8: ListMenu(pages +0x1a08) flags=50 count=0 title=0 highlight=495 action=750 key=976174395 neighbours=!
-edit: ListMenu(pages +0x1970) flags=2 count=124 title=160 highlight=48824331 action=2309 key=0 neighbours=None
-sweep lists at links: 553 probes, 485 with a refusal, hash 2ff4fe274babc75c
+box 0: no list
+box 1: no list
+box 2: no list
+box 3: no list
+box 4: no list
+box 5: no list
+box 6: no list
+box 7: no list
+box 8: no list
+edit: no list
+sweep lists at links: 163 probes, 83 with a refusal, hash 826653d7f85dead4
 in_pages(0x0) = ListItem(pages +0x0) first=0 count=0 text=0 box=0 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(0)
 in_pages(0x10) = ListItem(pages +0x10) first=0 count=0 text=0 box=0 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(16)
 in_pages(0x18) = ListItem(pages +0x18) first=0 count=0 text=0 box=0 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(24)

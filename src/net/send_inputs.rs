@@ -143,7 +143,11 @@ mod tests {
         let offsets = |kind| -> Vec<u32> {
             fields(kind)
                 .iter()
-                .map(|(field, _)| (core::ptr::from_ref(field(car)).addr() - base) as u32)
+                .map(|(field, _)| {
+                    crate::physics::car_store::to_1999(
+                        core::ptr::from_ref(field(car)).addr() - base,
+                    ) as u32
+                })
                 .collect()
         };
         assert_eq!(offsets(Kind::Inputs), [0xFD0, 0xFD4, 0xFD8, 0xFDC]);
@@ -169,7 +173,9 @@ mod tests {
         let base = core::ptr::from_ref(car).addr();
         for kind in [Kind::Inputs, Kind::Position, Kind::Extra] {
             for (field, limit) in fields(kind) {
-                let at = (core::ptr::from_ref(field(car)).addr() - base) as u32;
+                let at = crate::physics::car_store::to_1999(
+                    core::ptr::from_ref(field(car)).addr() - base,
+                ) as u32;
                 let old = match at {
                     0x1D4 => Limit::Gear,
                     0x64..=0x80 | 0xB4..=0xE0 | 0x600..=0x60C => Limit::Gauge,

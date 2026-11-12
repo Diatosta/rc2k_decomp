@@ -80,21 +80,12 @@ impl Decoder {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use crate::gfx::owner::gfx;
-    use core::mem::offset_of;
 
     #[test]
     fn first_values_are_the_games() {
         crate::test_support::first_values::assert_block_starts_as_the_games(
             &gfx().pictures.decoder,
         );
-    }
-
-    #[test]
-    fn moved_knows_the_block() {
-        assert_eq!(offset_of!(Decoder, width), 0xc);
-        assert_eq!(offset_of!(Decoder, format), 0x30);
-        assert_eq!(offset_of!(Decoder, palette), 0x3c);
     }
 }

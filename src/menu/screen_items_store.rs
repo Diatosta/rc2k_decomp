@@ -332,12 +332,10 @@ pub const END: usize = 0x747998;
 #[cfg(test)]
 mod tests {
     use super::*;
-    use core::mem::{offset_of, size_of};
 
     #[test]
     fn screen_items_start_as_the_games() {
         assert_eq!(size_of::<ScreenItems>(), END - START);
-        assert_eq!(offset_of!(ScreenItems, first), 0x19c);
         crate::test_support::first_values::assert_block_starts_as_the_games(
             &crate::menu::owner::menus().screens.items,
         );

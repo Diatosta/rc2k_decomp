@@ -1,7 +1,6 @@
 //! The registry of the game state's stores: each store the game's data lives in, with a name
 //! and the host range it holds, so a host address can be named by store and field path
-//! (the audit build's logs: `write_watch`) and the tests can read and put back the game's
-//! state by store name (`test_support`).
+//! and the tests can read and put back the game's state by store name (`test_support`).
 //!
 //! The list is the stores' own (`listed_stores`), in the order the golden file's keys number
 //! repeated names in.
@@ -118,10 +117,6 @@ unsafe impl<S: Cells> Store for OnGame<S> {
 
     fn field_path_at(&self, offset: usize, path: &mut String) -> Option<&'static str> {
         Some(Cells::field_path(self.whole, self.offset + offset, path))
-    }
-
-    fn type_name(&self) -> &'static str {
-        std::any::type_name::<S>()
     }
 
     fn first(&self) -> *const u8 {
@@ -1294,10 +1289,6 @@ fn listed_stores() -> Vec<Listed> {
         listed!(
             "effects.owner.EFFECTS.frame.view_vars",
             on_game(&crate::effects::owner::EFFECTS.get().frame.view_vars),
-        ),
-        listed!(
-            "effects.owner.EFFECTS.paths.profile_lists",
-            on_game(&crate::effects::owner::EFFECTS.get().paths.profile_lists),
         ),
         listed!(
             "effects.owner.EFFECTS.frame.draw_frame",

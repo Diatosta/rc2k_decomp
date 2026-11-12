@@ -60,17 +60,11 @@ impl CarNumbers {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use core::mem::offset_of;
 
     #[test]
     fn car_numbers_starts_as_the_games() {
         crate::test_support::first_values::assert_block_starts_as_the_games(
             &crate::menu::owner::menus().cars.numbers,
         );
-        assert_eq!(offset_of!(CarNumbers, first_numbers), 0x0);
-        assert_eq!(offset_of!(CarNumbers, second_numbers), 0xa0);
-        assert_eq!(offset_of!(CarNumbers, shuffle_a), 0x140);
-        assert_eq!(offset_of!(CarNumbers, shuffle_b), 0x1d4);
     }
 }

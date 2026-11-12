@@ -227,27 +227,6 @@ static FRESH: ViewScratch = ViewScratch::new();
 /// How many slots there are.
 pub const SLOT_COUNT: usize = 5;
 
-/// The slot and offset a host address falls in (the write watch's names).
-#[cfg(feature = "write_watch")]
-pub fn place_of(host: usize) -> Option<(usize, usize)> {
-    let size = core::mem::size_of::<ViewScratch>();
-    SLOTS.iter().enumerate().find_map(|(n, s)| {
-        let start = core::ptr::from_ref(s) as usize;
-        (start..start + size)
-            .contains(&host)
-            .then(|| (n, host - start))
-    })
-}
-
-/// The offsets in a slot that the view's window (`scene::view_window`) takes (the write
-/// watch's names).
-#[cfg(feature = "write_watch")]
-pub fn window_range() -> std::ops::Range<usize> {
-    let start = core::mem::offset_of!(ViewScratch, polygon)
-        + core::mem::offset_of!(crate::scene::polygon_work::PolygonWork, window);
-    start..start + core::mem::size_of::<crate::scene::view_window::ViewWindow>()
-}
-
 /// Slot `n` (below `SLOT_COUNT`).
 pub fn slot(n: usize) -> &'static ViewScratch {
     &SLOTS[n]

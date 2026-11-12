@@ -1,5 +1,5 @@
-//! What a race view's scene leaves its overlays in the shared stores (the frame census,
-//! `RC2K_FRAME_CENSUS`: `viewN_scene` -> `viewN_rest`): the
+//! What a race view's scene leaves its overlays in the shared stores (the frame census of the
+//! audit build: `viewN_scene` -> `viewN_rest`): the
 //! scratch matrices' rows that `scene::multiply_matrices` never writes. Kept from the
 //! scene's own copies at its end, and set again before its overlays when they run after
 //! other views' parts (the players' views beside each other, `race::draw_race_scene`): the

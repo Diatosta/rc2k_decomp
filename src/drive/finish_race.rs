@@ -163,16 +163,21 @@ mod tests {
     fn the_lead_fields_are_the_offsets_they_replace() {
         let named: Car = Car::new();
         let by_offset: Car = Car::new();
-        let pattern: Vec<u8> = (0..0xFE0usize).map(|i| (i * 11 + 1) as u8).collect();
+        let pattern: Vec<u8> = (0..size_of::<Car>()).map(|i| (i * 11 + 1) as u8).collect();
         crate::cells::Store::store(&named, 0, &pattern).unwrap();
         crate::cells::Store::store(&by_offset, 0, &pattern).unwrap();
         for (at, v) in finish_routine::set_up() {
             if let Set::Lead(field) = at {
                 lead_cell(&named, field).set_bits(v);
-                crate::cells::store_value::<u32>(&by_offset, old_offset(field), v).unwrap();
+                crate::cells::store_value::<u32>(
+                    &by_offset,
+                    crate::physics::car_store::from_1999(old_offset(field)),
+                    v,
+                )
+                .unwrap();
             }
         }
-        let (mut a, mut b) = (vec![0u8; 0xFE0], vec![0u8; 0xFE0]);
+        let (mut a, mut b) = (vec![0u8; size_of::<Car>()], vec![0u8; size_of::<Car>()]);
         crate::cells::Store::load(&named, 0, &mut a).unwrap();
         crate::cells::Store::load(&by_offset, 0, &mut b).unwrap();
         assert!(

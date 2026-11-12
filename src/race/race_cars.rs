@@ -786,7 +786,7 @@ mod tests {
             Field::Word(field) => core::ptr::from_ref(field(car)).cast::<u8>(),
             Field::Float(field) => core::ptr::from_ref(field(car)).cast::<u8>(),
         };
-        at as usize - core::ptr::from_ref(car) as usize
+        crate::physics::car_store::to_1999(at as usize - core::ptr::from_ref(car) as usize)
     }
 
     /// Every selector sits where the core's old table of byte offsets had it.

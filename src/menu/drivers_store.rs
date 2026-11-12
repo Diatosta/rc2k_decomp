@@ -589,15 +589,10 @@ pub const END: usize = 0x742C98;
 #[cfg(test)]
 mod tests {
     use super::*;
-    use core::mem::{offset_of, size_of};
 
     #[test]
     fn drivers_start_as_the_games() {
         assert_eq!(size_of::<DriverTable>(), END - START);
-        assert_eq!(offset_of!(DriverTable, end), 0x6810);
-        assert_eq!(offset_of!(DriverTable, names), 0x6814);
-        assert_eq!(offset_of!(Driver, condition), 0x2C);
-        assert_eq!(offset_of!(Driver, results), 0x5C);
         crate::test_support::first_values::assert_block_starts_as_the_games(
             &crate::menu::owner::menus().cars.drivers,
         );

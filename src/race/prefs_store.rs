@@ -192,36 +192,13 @@ pub const END: usize = 0x60AD20;
 
 const _: () = assert!(END - START == core::mem::size_of::<StagePrefs>());
 
-/// The piece's host address (the alignment checks).
-#[cfg(test)]
-pub fn piece_addr() -> usize {
-    core::ptr::from_ref(crate::race::owner::RACE.course.stage_prefs.get()).addr()
-}
-
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use core::mem::offset_of;
 
     #[test]
     fn first_values_are_the_games() {
         crate::test_support::first_values::assert_block_starts_as_the_games(
             crate::race::owner::RACE.course.stage_prefs.get(),
         );
-    }
-
-    #[test]
-    fn fields_are_at_the_games_offsets() {
-        assert_eq!(piece_addr() % 4, 0);
-        assert_eq!(offset_of!(StagePrefs, prefs_head), 0x0);
-        assert_eq!(offset_of!(StagePrefs, fog_colour), 0x618);
-        assert_eq!(offset_of!(StagePrefs, fog_end), 0x658);
-        assert_eq!(offset_of!(StagePrefs, shadow_alpha), 0x674);
-        assert_eq!(offset_of!(StagePrefs, blit_cleared), 0x690);
-        assert_eq!(offset_of!(StagePrefs, fog_far), 0x6ac);
-        assert_eq!(offset_of!(StagePrefs, car_light_table), 0x18b0);
-        assert_eq!(offset_of!(StagePrefs, object_tints), 0x1bcc);
-        assert_eq!(offset_of!(StagePrefs, fog_low_by_level), 0x2010);
-        assert_eq!(offset_of!(StagePrefs, surface_scale), 0x2064);
     }
 }

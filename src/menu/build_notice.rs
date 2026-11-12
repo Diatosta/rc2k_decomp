@@ -68,7 +68,6 @@ impl BuildNotice {
 #[cfg(test)]
 mod notice_tests {
     use super::*;
-    use core::mem::{offset_of, size_of};
 
     #[test]
     fn notice_starts_as_the_games_image() {
@@ -76,6 +75,5 @@ mod notice_tests {
         crate::test_support::first_values::assert_block_starts_as_the_games(
             &crate::menu::owner::menus().panels.notice,
         );
-        assert_eq!(offset_of!(BuildNotice, notice_second), 0x4e);
     }
 }

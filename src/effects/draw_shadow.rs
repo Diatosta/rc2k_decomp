@@ -519,18 +519,17 @@ fn projected_x87(s: &Shadow) {
 #[cfg(test)]
 mod reference_vectors {
     use super::Shadow;
+    use crate::effects::asm_layout::with_laid_at;
     use crate::effects::asm_test::with_copy;
-    use crate::effects::kind_store::{
-        Consts1, Consts2, KindConsts, KindExtra2, KindExtras1, Quad1, Quad2, QuadWork,
-    };
+    use crate::effects::kind_store::{KindConsts, QuadWork};
     use crate::effects::store::START;
     use crate::session::PlainFloat;
 
     /// A shadow's variables: where the quad, the constants and the up start in the marks' block.
     #[derive(Clone, Copy)]
     struct Layout(usize, usize, usize, u32);
-    const SET_1: Layout = Layout(Quad1::START, Consts1::START, KindExtras1::START, 0x26A0);
-    const SET_2: Layout = Layout(Quad2::START, Consts2::START, KindExtra2::START, 0x26A4);
+    const SET_1: Layout = Layout(0x9331B4, 0x933E7C, 0x933E70, 0x26A0);
+    const SET_2: Layout = Layout(0x933ED0, 0x934B7C, 0x934B78, 0x26A4);
 
     /// `f` on copies of a shadow's variables in the test buffer standing for the marks'
     /// block at `mk`, put back afterwards.
@@ -539,7 +538,7 @@ mod reference_vectors {
         l: Layout,
         f: impl FnOnce(&Shadow) -> R,
     ) -> R {
-        with_copy::<QuadWork, R>(mk, l.0, |quad| {
+        with_laid_at::<QuadWork, R>(mk, l.0, |quad| {
             with_copy::<KindConsts, R>(mk, l.1, |consts| {
                 with_copy::<PlainFloat, R>(mk, l.2, |up| {
                     f(&Shadow {

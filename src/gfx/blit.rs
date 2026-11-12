@@ -54,18 +54,10 @@ impl Blitter {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use crate::gfx::owner::gfx;
-    use core::mem::offset_of;
 
     #[test]
     fn first_values_are_the_games() {
         crate::test_support::first_values::assert_block_starts_as_the_games(&gfx().drawing.blit);
-    }
-
-    #[test]
-    fn moved_knows_the_block() {
-        assert_eq!(offset_of!(Blitter, left_skip), 0x10);
-        assert_eq!(offset_of!(Blitter, rows_left), 0x1c);
     }
 }

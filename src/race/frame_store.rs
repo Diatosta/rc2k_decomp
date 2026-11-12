@@ -220,35 +220,14 @@ pub const END: usize = 0x641AA4;
 
 const _: () = assert!(END - START == core::mem::size_of::<FrameWork>());
 
-/// The piece's host address (the alignment checks).
-#[cfg(test)]
-pub fn piece_addr() -> usize {
-    core::ptr::from_ref(&race().frame.frame_work).addr()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use core::mem::offset_of;
 
     #[test]
     fn first_values_are_the_games() {
         crate::test_support::first_values::assert_block_starts_as_the_games(
             &race().frame.frame_work,
         );
-    }
-
-    #[test]
-    fn fields_are_at_the_games_offsets() {
-        assert_eq!(piece_addr() % 4, 0);
-        assert_eq!(offset_of!(FrameWork, flare_count), 0x0);
-        assert_eq!(offset_of!(FrameWork, sun_depth), 0x1c);
-        assert_eq!(offset_of!(FrameWork, view_out), 0x4c);
-        assert_eq!(offset_of!(FrameWork, view_textures_forgotten), 0x68);
-        assert_eq!(offset_of!(FrameWork, view_layouts), 0x114);
-        assert_eq!(offset_of!(FrameWork, car_decal_places), 0x16c);
-        assert_eq!(offset_of!(FrameWork, light_right), 0x1d0);
-        assert_eq!(offset_of!(FrameWork, shadow_light), 0x3ac);
-        assert_eq!(offset_of!(FrameWork, shadow_list_count), 0x510);
     }
 }

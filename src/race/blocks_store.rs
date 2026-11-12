@@ -1,5 +1,5 @@
 //! The cars' blocks (`g_carBlockStore`, IDA 0x70F3EC .. 0x7172EC; phase 7, typed): the
-//! eight race cars' blocks of 0xFE0 with the work car's layout (`physics::car_store::Car`,
+//! eight race cars' blocks with the work car's layout (`physics::car_store::Car`,
 //! IDA's `CarBlock`). `g_carBlocks[n]` point at them; `drive::load_car` copies the current
 //! car's block into `g_car` and `drive::store_car` back.
 
@@ -10,16 +10,16 @@ use crate::race::owner::race;
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct CarBlocks {
-    /// +0x0 (0x70F3EC): the blocks, 0xFE0 apart.
+    /// +0x0 (0x70F3EC): the blocks.
     pub cars: [Car; BLOCK_COUNT],
 }
 
-const _: () = assert!(core::mem::size_of::<CarBlocks>() == 0x7F00);
-
 impl CarBlocks {
-    /// The blocks with the image's first values.
+    /// The blocks as a race starts.
     pub const fn new() -> Self {
-        crate::cells::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
+        CarBlocks {
+            cars: [const { Car::new() }; BLOCK_COUNT],
+        }
     }
 }
 
@@ -42,14 +42,10 @@ impl core::ops::Deref for InGroup {
 #[cfg(test)]
 pub static CAR_BLOCKS: InGroup = InGroup;
 
-/// IDA 0x70F3EC, the first byte of the piece.
-pub const START: usize = 0x70F3EC;
-/// IDA 0x7172EC, the end of the piece.
-pub const END: usize = 0x7172EC;
-/// A block's length.
-pub const BLOCK_LEN: usize = core::mem::size_of::<Car>();
-
-const _: () = assert!(END - START == core::mem::size_of::<CarBlocks>());
+/// IDA 0x70F3EC, where the blocks began in the game's memory.
+const IDA_START: usize = 0x70F3EC;
+/// The distance between two blocks' addresses in the game's memory.
+const IDA_BLOCK_LEN: usize = 0xFE0;
 
 /// A car block by handle (phase 13): what `g_carBlocks` and `g_viewBlocks` hold where the
 /// original kept the block's address. `BLOCK_TAG | n` for block `n`; 0 stays 0.
@@ -62,11 +58,13 @@ pub const fn block_ref(ida: u32) -> u32 {
     if ida == 0 {
         return 0;
     }
-    let off = ida as usize - START;
+    let off = ida as usize - IDA_START;
     assert!(
-        ida as usize >= START && off.is_multiple_of(BLOCK_LEN) && off / BLOCK_LEN < BLOCK_COUNT
+        ida as usize >= IDA_START
+            && off.is_multiple_of(IDA_BLOCK_LEN)
+            && off / IDA_BLOCK_LEN < BLOCK_COUNT
     );
-    BLOCK_TAG | (off / BLOCK_LEN) as u32
+    BLOCK_TAG | (off / IDA_BLOCK_LEN) as u32
 }
 
 /// `bytes` (a store's first values) with the dwords at `at` .. made `block_ref`s.
@@ -167,13 +165,12 @@ impl CarBlocks {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use core::mem::{offset_of, size_of};
+    use core::mem::size_of;
 
     #[test]
     fn blocks_start_as_the_games() {
-        assert_eq!(size_of::<CarBlocks>(), 0x7F00);
-        assert_eq!(BLOCK_LEN, 0xFE0);
-        assert_eq!(offset_of!(Car, gear), 0x1D4);
+        assert_eq!(size_of::<CarBlocks>(), BLOCK_COUNT * size_of::<Car>());
+        assert_eq!(block_ref(0x70F3EC + 0xFE0), BLOCK_TAG | 1);
         for n in 0..BLOCK_COUNT {
             assert_eq!(known_block(BLOCK_TAG | n as u32), Some(n));
             assert!(core::ptr::eq(

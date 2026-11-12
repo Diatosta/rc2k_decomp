@@ -51,36 +51,14 @@ pub const END: usize = 0x6EF7CC;
 
 const _: () = assert!(END - START == core::mem::size_of::<DrawBatches>());
 
-/// The piece's host address (the alignment checks).
-#[cfg(test)]
-pub fn piece_addr() -> usize {
-    std::ptr::from_ref(race().frame.draw_batches()).addr()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use core::mem::offset_of;
 
     #[test]
     fn first_values_are_the_games() {
         crate::test_support::first_values::assert_block_starts_as_the_games(
             race().frame.draw_batches(),
         );
-    }
-
-    #[test]
-    fn fields_are_at_the_games_offsets() {
-        assert_eq!(piece_addr() % core::mem::align_of::<DrawBatches>(), 0);
-
-        assert_eq!(offset_of!(DrawBatches, scene_vertices), 0x0);
-        assert_eq!(offset_of!(DrawBatches, scene_indices), 0x4000);
-        assert_eq!(offset_of!(DrawBatches, plain_vertices), 0x5800);
-        assert_eq!(offset_of!(DrawBatches, plain_indices), 0xd800);
-        assert_eq!(offset_of!(DrawBatches, plain_count), 0x10800);
-        assert_eq!(offset_of!(DrawBatches, textured_vertices), 0x10808);
-        assert_eq!(offset_of!(DrawBatches, textured_indices), 0x18a08);
-        assert_eq!(offset_of!(DrawBatches, textured_count), 0x1bac8);
-        assert_eq!(offset_of!(DrawBatches, textured_kept), 0x1bad4);
     }
 }

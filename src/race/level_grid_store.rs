@@ -82,30 +82,13 @@ pub const END: usize = 0x63F58C;
 
 const _: () = assert!(END - START == core::mem::size_of::<LevelGrid>());
 
-/// The piece's host address (the alignment checks).
-#[cfg(test)]
-pub fn piece_addr() -> usize {
-    core::ptr::from_ref(crate::race::owner::RACE.course.level_grid.get()).addr()
-}
-
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use core::mem::offset_of;
 
     #[test]
     fn first_values_are_the_games() {
         crate::test_support::first_values::assert_block_starts_as_the_games(
             crate::race::owner::RACE.course.level_grid.get(),
         );
-    }
-
-    #[test]
-    fn fields_are_at_the_games_offsets() {
-        assert_eq!(piece_addr() % 4, 0);
-        assert_eq!(offset_of!(LevelGrid, face_table_a), 0x0);
-        assert_eq!(offset_of!(LevelGrid, grid_span), 0x504);
-        assert_eq!(offset_of!(LevelGrid, grid_z), 0x51c);
-        assert_eq!(offset_of!(LevelGrid, flare_place_x), 0x1530);
     }
 }

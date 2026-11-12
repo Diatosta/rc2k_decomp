@@ -31,27 +31,12 @@ pub const END: usize = 0x5EB104;
 
 const _: () = assert!(END - START == core::mem::size_of::<FrameCounter>());
 
-/// The piece's host address (the alignment checks).
-#[cfg(test)]
-pub fn piece_addr() -> usize {
-    std::ptr::from_ref(race().frame.counter()).addr()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use core::mem::offset_of;
 
     #[test]
     fn first_values_are_the_games() {
         crate::test_support::first_values::assert_block_starts_as_the_games(race().frame.counter());
-    }
-
-    #[test]
-    fn fields_are_at_the_games_offsets() {
-        assert_eq!(piece_addr() % 4, 0);
-        assert_eq!(offset_of!(FrameCounter, show), 0x0);
-        assert_eq!(offset_of!(FrameCounter, show), 0x0);
-        assert_eq!(offset_of!(FrameCounter, show), 0x0);
     }
 }

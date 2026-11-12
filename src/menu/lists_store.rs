@@ -172,23 +172,11 @@ const fn name_ref(n: usize) -> PlainDword {
     PlainDword::new(NameList::MenuSpeech.first_key() + 0xB4 + 33 * n as u32)
 }
 
-/// A repair time's number + 1 in `MENU_STATE`'s repair times (the original kept its address;
-/// 0: none; -1 the end mark).
-const fn repair_key(ida: u32) -> u32 {
-    match ida {
-        0 | 0xFFFF_FFFF => ida,
-        _ => {
-            assert!(REPAIR_TIMES_IDA <= ida && ida < REPAIR_TIMES_IDA + 16 * 4);
-            (ida - REPAIR_TIMES_IDA) / 4 + 1
-        }
-    }
-}
-
-/// IDA's address of `MENU_STATE`'s repair times.
-const REPAIR_TIMES_IDA: u32 = 0x75AB60;
-
-const fn repair_ref(ida: u32) -> PlainDword {
-    PlainDword::new(repair_key(ida))
+/// The handle of repair time `n` among `MENU_STATE`'s repair times: its number + 1 (0 means
+/// none, -1 ends the list).
+const fn repair_time(n: u32) -> PlainDword {
+    assert!(n < 16);
+    PlainDword::new(n + 1)
 }
 
 /// The car pages' pictures by page (the original's `page_picture_lists`, in its order; a car
@@ -889,30 +877,30 @@ impl MenuLists {
                 PlainDword::new(0xffffffff),
             ],
             repair_time_ptrs: [
-                repair_ref(0),
-                repair_ref(0),
-                repair_ref(0x75ab60),
-                repair_ref(0x75ab64),
-                repair_ref(0x75ab68),
-                repair_ref(0x75ab6c),
-                repair_ref(0x75ab70),
-                repair_ref(0x75ab74),
-                repair_ref(0x75ab78),
-                repair_ref(0x75ab7c),
-                repair_ref(0x75ab80),
-                repair_ref(0x75ab84),
-                repair_ref(0x75ab88),
-                repair_ref(0x75ab8c),
-                repair_ref(0x75ab90),
-                repair_ref(0x75ab94),
-                repair_ref(0),
-                repair_ref(0),
-                repair_ref(0x75ab98),
-                repair_ref(0x75ab9c),
-                repair_ref(0),
-                repair_ref(0),
-                repair_ref(0),
-                repair_ref(0xffffffff),
+                PlainDword::new(0),
+                PlainDword::new(0),
+                repair_time(0),
+                repair_time(1),
+                repair_time(2),
+                repair_time(3),
+                repair_time(4),
+                repair_time(5),
+                repair_time(6),
+                repair_time(7),
+                repair_time(8),
+                repair_time(9),
+                repair_time(10),
+                repair_time(11),
+                repair_time(12),
+                repair_time(13),
+                PlainDword::new(0),
+                PlainDword::new(0),
+                repair_time(14),
+                repair_time(15),
+                PlainDword::new(0),
+                PlainDword::new(0),
+                PlainDword::new(0),
+                PlainDword::new(0xffffffff),
             ],
             inspection_faults: [
                 PlainDword::new(0),
@@ -1564,7 +1552,21 @@ const CAR_LISTS: [(usize, usize); 9] = {
 mod tests {
     use super::*;
     use crate::menu::owner::menus;
-    use core::mem::{offset_of, size_of};
+
+    /// IDA's address of `MENU_STATE`'s repair times.
+    const REPAIR_TIMES_IDA: u32 = 0x75AB60;
+
+    /// The handle the image's address names: its repair time's number + 1 (0 none, -1 the end).
+    fn repair_key(ida: u32) -> u32 {
+        match ida {
+            0 | 0xFFFF_FFFF => ida,
+            _ => {
+                assert!((REPAIR_TIMES_IDA..REPAIR_TIMES_IDA + 16 * 4).contains(&ida));
+                (ida - REPAIR_TIMES_IDA) / 4 + 1
+            }
+        }
+    }
+    use core::mem::size_of;
 
     #[test]
     fn menu_lists_starts_as_the_games() {
@@ -1597,7 +1599,5 @@ mod tests {
         made(NAME_TABLE, &crate::audio::store::name_key);
         made(REPAIR_TABLE, &repair_key);
         assert_eq!(mine, &image[..]);
-        assert_eq!(offset_of!(MenuLists, secret_cars), 0xaa0);
-        assert_eq!(offset_of!(MenuLists, carousel_textures), 0x1178);
     }
 }

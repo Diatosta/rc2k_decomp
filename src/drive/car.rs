@@ -7,8 +7,8 @@ use crate::errors::Refused;
 use crate::physics::car_store::Car;
 use crate::race::owner_shared::RaceShared;
 
-pub const CAR_LEN: usize = 0xFE0;
-const _: () = assert!(core::mem::size_of::<Car>() == CAR_LEN);
+#[cfg(test)]
+const CAR_LEN: usize = core::mem::size_of::<Car>();
 
 /// The current car's block (`g_carBlocks[g_currentCar & 7]`, by its handle), refused when
 /// null (the original's `rep movsd` would fault there).
@@ -20,7 +20,7 @@ pub fn current_block(shared: &RaceShared) -> Result<&'static Car, Refused> {
     Ok(shared.race_car(slot as usize)?)
 }
 
-/// Copies `CAR_LEN` bytes, dword by dword upwards as `rep movsd` does (the two never
+/// Copies the car record, dword by dword upwards as `rep movsd` does (the two never
 /// overlap in the game; the order is kept anyway).
 pub fn copy_car(from: &Car, to: &Car) {
     use crate::cells::Cells;

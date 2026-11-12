@@ -79,8 +79,6 @@ pub struct Car<K: CellKind = PlainCells> {
     pub stop_state: K::Dword,
     /// +0xb4 (0x71A08C): g_crashMatrix: the 4 x 4 orientation, translation row at +0x30.
     pub crash_matrix: [K::Float; 16],
-    /// +0xf4 (0x71A0CC): unreferenced bytes (0x40 of them).
-    pub _gap_f4: K::Bytes<64>,
     /// +0x134 (0x71A10C): world position x, y, z (x 65536).
     pub position: [K::Dword; 3],
     /// +0x140 (0x71A118): one figure per split taken.
@@ -89,16 +87,12 @@ pub struct Car<K: CellKind = PlainCells> {
     pub drive_slip_speed: K::Float,
     /// +0x184 (0x71A15C): angular velocity x, y, z.
     pub spin: [K::Float; 3],
-    /// +0x190 (0x71A168): unreferenced bytes (0x4 of them).
-    pub _gap_190: K::Bytes<4>,
     /// +0x194 (0x71A16C): length of the spin.
     pub spin_length: K::Float,
     /// +0x198 (0x71A170): world-frame velocity.
     pub velocity: [K::Float; 3],
     /// +0x1a4 (0x71A17C): velocity in the car's frame (z forward: g_carSpeed).
     pub local_velocity: [K::Float; 3],
-    /// +0x1b0 (0x71A188): unreferenced bytes (0x8 of them).
-    pub _gap_1b0: K::Bytes<8>,
     /// +0x1b8 (0x71A190): driven wheels' speed (g_carDriveSpeed).
     pub drive_speed_a: K::Float,
     /// +0x1bc (0x71A194): second driven speed (g_carDriveSpeed2).
@@ -386,8 +380,6 @@ pub struct Car<K: CellKind = PlainCells> {
     pub kept_focus_point: [K::Dword; 9],
     /// +0x6f0 (0x71A6C8): 1 when the camera mode is 2 or 3.
     pub camera_mode_is_2_or_3: K::Dword,
-    /// +0x6f4 (0x71A6CC): unreferenced bytes (0x8 of them).
-    pub _gap_6f4: K::Bytes<8>,
     /// +0x6fc (0x71A6D4): the car's state bits (lights, seen from inside 0x10, casts a
     /// shadow; `race::car_draw`, `race::car_shadow`, `race::frame_views`); now each view's
     /// (`race::car_draw_state::CarDrawState::car_states`); unused.
@@ -493,8 +485,8 @@ pub struct Car<K: CellKind = PlainCells> {
     /// +0xac0 (0x71AA98): the parts' switch bytes (`rc2k_core::race::car_parts::
     /// mark_switches`).
     pub part_switches: K::Bytes<0x11>,
-    /// +0xad1 (0x71AAA9): unreferenced bytes (0x3 of them).
-    pub _gap_ad1: K::Bytes<3>,
+    /// +0xad1 (0x71AAA9): pads the switch bytes to a whole dword.
+    pub _pad_part_switches: K::Bytes<3>,
     /// +0xad4 (0x71AAAC): the course map picture's corner x, y (16-pixel steps;
     /// `race::map_scroll`).
     pub map_corner: [K::Dword; 2],
@@ -574,35 +566,73 @@ pub struct Car<K: CellKind = PlainCells> {
     pub kept_brake_word: K::Dword,
 }
 
-const _: () = assert!(core::mem::size_of::<Car>() == 0xFE0);
-
 /// A view's copy of its car (`race::view_scratch::ViewScratch::car`): the same record on
 /// atomics, which the view's drawing part writes.
 pub type ViewCar = Car<SharedCells>;
-
-const _: () = assert!(core::mem::size_of::<ViewCar>() == 0xFE0);
 
 impl<K: CellKind> Car<K>
 where
     Self: crate::cells::Cells,
 {
-    /// The piece, with the image's first values.
+    /// The piece at the start of a race: zero but for the set-up (ride height 0x80,
+    /// suspension stiffness 0x40) and the parts present (all bits).
     pub const fn new() -> Self {
-        crate::cells::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
+        use core::mem::offset_of;
+        const SIZE: usize = core::mem::size_of::<Car>();
+        let mut bytes = [0u8; SIZE];
+        let values = [
+            (offset_of!(Self, ride_height), 0x80),
+            (offset_of!(Self, suspension_stiffness), 0x40),
+            (offset_of!(Self, parts_present), u32::MAX),
+        ];
+        let mut k = 0;
+        while k < values.len() {
+            let (at, value) = values[k];
+            let le = value.to_le_bytes();
+            let mut b = 0;
+            while b < 4 {
+                bytes[at + b] = le[b];
+                b += 1;
+            }
+            k += 1;
+        }
+        crate::cells::cells_of_bytes(bytes)
     }
 }
 
-/// IDA 0x719FD8, the first byte of the piece.
-pub const START: usize = 0x719FD8;
-/// IDA 0x71AFB8, the end of the piece.
-pub const END: usize = 0x71AFB8;
+/// A byte offset in the 1999 record of a car (0xFE0 bytes) as it is in `Car` now: the places no
+/// code read were taken out. For the tests whose recorded vectors name the 1999 offsets.
+#[cfg(test)]
+pub fn from_1999(old: usize) -> usize {
+    const TAKEN_OUT: [(usize, usize); 4] = [(0xf4, 64), (0x190, 4), (0x1b0, 8), (0x6f4, 8)];
+    let mut shift = 0;
+    for (at, len) in TAKEN_OUT {
+        assert!(
+            !(at..at + len).contains(&old),
+            "{old:#x} was an unused place"
+        );
+        if old >= at + len {
+            shift += len;
+        }
+    }
+    old - shift
+}
 
-const _: () = assert!(END - START == core::mem::size_of::<Car>());
+/// The inverse of `from_1999`: the 1999 offset of the byte at `now` in `Car`.
+#[cfg(test)]
+pub fn to_1999(now: usize) -> usize {
+    const TAKEN_OUT: [(usize, usize); 4] = [(0xf4, 64), (0x190, 4), (0x1b0, 8), (0x6f4, 8)];
+    let mut old = now;
+    for (at, len) in TAKEN_OUT {
+        if old >= at {
+            old += len;
+        }
+    }
+    old
+}
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use core::mem::offset_of;
 
     #[test]
     fn car_starts_as_the_games() {
@@ -610,18 +640,6 @@ mod tests {
 
         // other tests write the work car while they run
         let _lock = crate::test_support::test_lock();
-        assert_eq!(offset_of!(Car, crash_matrix), 0xB4);
-        assert_eq!(offset_of!(Car, state_bits), 0x6FC);
-        assert_eq!(offset_of!(Car, part_wake_counts), 0x700);
-        assert_eq!(offset_of!(Car, part_matrices), 0x740);
-        assert_eq!(offset_of!(Car, body_matrix), 0x840);
-        assert_eq!(offset_of!(Car, whole_matrix), 0x8C0);
-        assert_eq!(offset_of!(Car, shown_engine_speed), 0x718);
-        assert_eq!(offset_of!(Car, part_switches), 0xAC0);
-        assert_eq!(offset_of!(Car, map_corner), 0xAD4);
-        assert_eq!(offset_of!(Car, skid_slots), 0xF48);
-        assert_eq!(offset_of!(Car, gear), 0x1D4);
-        assert_eq!(offset_of!(Car, probe_point_face), 0xDF0);
         assert_eq!(core::ptr::from_ref(shared_store.car()).addr() % 4, 0);
         drop(_lock);
         crate::test_support::first_values::assert_block_starts_as_the_games(shared_store.car());
