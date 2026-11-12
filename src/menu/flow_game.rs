@@ -141,7 +141,7 @@ impl flow::Game for Game<'_> {
             Place::Record(offset) => self.fault.ok(self
                 .record
                 .ok_or(BadInput("a record field read before a record was found"))
-                .and_then(|r| r.word_at(offset))),
+                .and_then(|r| r.word_at(&self.owners.system.records().stage_tables, offset))),
         }
     }
 
@@ -189,13 +189,14 @@ impl flow::Game for Game<'_> {
             C::A8Welcome => m::a8_welcome::a8_welcome(self.owners)?,
             C::FindRecord { section, index } => {
                 use crate::records::find_record::{find_record_in, has_section};
-                let table = self.owners.system.records().stage_tables.championship();
+                let stages = &self.owners.system.records().stage_tables;
+                let table = stages.championship();
                 // The original has no end-of-table check: a section past the table's
                 // is refused.
-                if !has_section(table, section, 600)? {
+                if !has_section(stages, table, section, 600)? {
                     return Err(BadInput("a record section past the table").into());
                 }
-                self.record = Some(find_record_in(table, index as i32, section)?);
+                self.record = Some(find_record_in(stages, table, index as i32, section)?);
             }
             C::WelcomeLoop => self.screen(&m::welcome_loop::SCREEN)?,
             C::RallyStagesLoop => self.screen(&m::rally_stages_loop::SCREEN)?,
@@ -389,13 +390,14 @@ impl flow::Game for Game<'_> {
 
     fn take_key(&mut self) -> Result<Option<u8>, Refused> {
         self.fault.check()?;
-        Ok(key(crate::input::take_key::take_key()))
+        Ok(key(crate::input::take_key::take_key(self.owners.input)))
     }
 
     fn wait_or_key(&mut self, ms: u32) -> Result<Option<u8>, Refused> {
         self.fault.check()?;
         Ok(key(crate::system::wait_or_key::wait_or_key(
             self.owners.system,
+            self.owners.input,
             ms,
         )))
     }

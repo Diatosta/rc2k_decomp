@@ -19,7 +19,11 @@ pub fn stage_record_in(
         .records()
         .stage_tables
         .level_table(play.arcade.level.get())?;
-    crate::records::stages_store::row(base, play.arcade.stage.get())
+    crate::records::stages_store::row(
+        &system.records().stage_tables,
+        base,
+        play.arcade.stage.get(),
+    )
 }
 
 /// `screens::draw_stage_best_and_fastest` (0x4744A9): the "best" and "fastest" lines
@@ -40,7 +44,10 @@ pub fn draw_stage_best_and_fastest(
         let units = crate::strings::units::units();
         crate::strings::append_speed::append_speed(
             crate::strings::append_string_by_id::StringOwners::of(o),
-            record.record()?.holder(RecordHolder::Fastest).speed,
+            record
+                .record(&system.records().stage_tables)?
+                .holder(RecordHolder::Fastest)
+                .speed,
             true,
             units,
         )?;
@@ -54,10 +61,14 @@ pub fn draw_stage_best_and_fastest(
             car: times.head.car,
             figure: times.head.key,
         };
-        let held = record.record()?.holder(RecordHolder::Fastest);
+        let held = record
+            .record(&system.records().stage_tables)?
+            .holder(RecordHolder::Fastest);
         let top = Holder {
             nation: held.nation,
-            name: HeldText::Held(record.holder_text(RecordHolder::Fastest)?),
+            name: HeldText::Held(
+                record.holder_text(&system.records().stage_tables, RecordHolder::Fastest)?,
+            ),
             car: held.car,
             figure: held.speed,
         };
@@ -104,6 +115,9 @@ pub fn draw_rally_stage_info(
         crate::gfx::typefaces::fonts::TIME,
         canvas,
     )?;
-    let times = crate::screens::stage_panel::best_of(course_times, record.record()?.event_slot())?;
+    let times = crate::screens::stage_panel::best_of(
+        course_times,
+        record.record(&system.records().stage_tables)?.event_slot(),
+    )?;
     draw_stage_best_and_fastest(o, play, system, &times, canvas)
 }

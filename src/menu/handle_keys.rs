@@ -47,7 +47,7 @@ pub fn handle_keys(o: Owners<'static>, eax: u32) -> Result<Pressed, Refused> {
     }
     menus.screens.option_work.set_sound(keys::MenuSound::None);
     menus.screens.loop_flags.leave_screen.set(false);
-    let key = take_key();
+    let key = take_key(o.input);
     if key == 0 {
         return Ok(nothing);
     }

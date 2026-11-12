@@ -78,11 +78,13 @@ fn stage_time(screens: &Screens, system: &System) -> Result<u32, Refused> {
         screens.event.stage_group.get(),
         screens.event.stage_sub.get(),
     )?;
-    Ok(
-        crate::records::stages_store::row(records, screens.event.stage_number.get())?
-            .record()?
-            .race_stage(),
-    )
+    Ok(crate::records::stages_store::row(
+        &system.records().stage_tables,
+        records,
+        screens.event.stage_number.get(),
+    )?
+    .record(&system.records().stage_tables)?
+    .race_stage())
 }
 
 fn points(tables: &Tables, position: u32) -> Result<u32, Refused> {

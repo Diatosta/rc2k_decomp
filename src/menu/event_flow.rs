@@ -114,7 +114,11 @@ pub fn stage_record(menus: &Menus, system: &System) -> Result<RecordRef, BadInpu
         .records()
         .stage_tables
         .group_event_table(kind, event.stage_sub.get())?;
-    crate::records::stages_store::row(stages, event.stage_number.get())
+    crate::records::stages_store::row(
+        &system.records().stage_tables,
+        stages,
+        event.stage_number.get(),
+    )
 }
 
 /// The chosen stage's best times: its table and its place there; refused as
@@ -129,7 +133,7 @@ pub fn stage_times(
     } else {
         TIMES_OTHER
     };
-    let stage = record.record()?.event_slot() as usize;
+    let stage = record.record(&system.records().stage_tables)?.event_slot() as usize;
     if !table.with(|t| stage < t.stages.len())? {
         return Err(BadInput("a stage past its best times table"));
     }

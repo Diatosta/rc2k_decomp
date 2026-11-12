@@ -165,7 +165,7 @@ pub fn pump() {
                 // repeats, is the pending key, as the key thread makes it.
                 if down {
                     input.devices.set_key_state(key, 0xFF);
-                    crate::input::take_key::pending_key()
+                    crate::input::take_key::pending_key(input)
                         .store(key, std::sync::atomic::Ordering::SeqCst);
                 } else {
                     input.devices.set_key_state(key, 0);
@@ -269,7 +269,7 @@ fn menu_action(input: &crate::input::owner::Input, action: crate::input::menu_pa
         }
     };
     let key = game_key(scancode.0);
-    crate::input::take_key::pending_key().store(key, std::sync::atomic::Ordering::SeqCst);
+    crate::input::take_key::pending_key(input).store(key, std::sync::atomic::Ordering::SeqCst);
 }
 
 /// SDL's scan code (USB's numbering) as the game's key code: DirectInput's for

@@ -33,8 +33,8 @@ pub fn listed(frame_work: &FrameWork, car: u32) -> Result<bool, Refused> {
 }
 
 /// The current car's sound object.
-pub fn object() -> &'static SoundObject {
-    crate::sound::store::current_object()
+pub fn object<'a>(c: &SoundInputs<'a>) -> &'a SoundObject {
+    crate::sound::store::current_object(c.owner, c.work)
 }
 
 /// The place (with `offset` added to the car's, when given), turned and scaled, into

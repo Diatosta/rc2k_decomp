@@ -272,3 +272,27 @@ fn timing_of_a_deep_read() {
         typed / n
     );
 }
+
+#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
+#[repr(C)]
+struct ZeroRecord {
+    count: crate::session::Dword,
+    scale: crate::session::PlainFloat,
+    flags: [crate::session::Word; 2],
+    gap: crate::session::Bytes<4>,
+}
+
+#[test]
+fn a_zero_record_is_all_zero_and_can_be_built_on() {
+    let zero = ZeroRecord::ZERO;
+    let mut bytes = [0xAA; size_of::<ZeroRecord>()];
+    load_cells(&zero, 0, &mut bytes).unwrap();
+    assert_eq!(bytes, [0; size_of::<ZeroRecord>()]);
+    let built = ZeroRecord {
+        count: crate::session::Dword::new(3),
+        ..ZeroCells::ZERO
+    };
+    load_cells(&built, 0, &mut bytes).unwrap();
+    assert_eq!(&bytes[..4], &[3, 0, 0, 0]);
+    assert!(bytes[4..].iter().all(|&b| b == 0));
+}

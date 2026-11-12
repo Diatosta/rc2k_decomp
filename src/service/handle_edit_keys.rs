@@ -19,19 +19,25 @@ use crate::system::owner::System;
 
 // ---- Rust version ----
 
-pub fn handle_edit_keys(menus: &Menus, system: &System) -> Result<(), Refused> {
+pub fn handle_edit_keys(
+    menus: &Menus,
+    system: &System,
+    input: &crate::input::owner::Input,
+) -> Result<(), Refused> {
     if !edit_mode(menus) {
         return Ok(());
     }
     // Converted: `rc2k_core::service::setups::EditPage`.
     use rc2k_core::service::setups::EditPage;
     match EditPage::from_number(menus.screens.state.service_ui.box_page.get()) {
-        Some(EditPage::GearRatio) => edit_gear_ratio(menus, system, false),
-        Some(EditPage::Tyre) => edit_tyre(menus, system, false),
-        Some(EditPage::SteeringSensitivity) => edit_steering_sensitivity(menus, system),
-        Some(EditPage::BrakeBalance) => edit_brake_balance(menus, system),
-        Some(EditPage::RideHeight) => edit_ride_height(menus, system, false),
-        Some(EditPage::SuspensionStiffness) => edit_suspension_stiffness(menus, system, false),
+        Some(EditPage::GearRatio) => edit_gear_ratio(menus, system, input, false),
+        Some(EditPage::Tyre) => edit_tyre(menus, system, input, false),
+        Some(EditPage::SteeringSensitivity) => edit_steering_sensitivity(menus, system, input),
+        Some(EditPage::BrakeBalance) => edit_brake_balance(menus, system, input),
+        Some(EditPage::RideHeight) => edit_ride_height(menus, system, input, false),
+        Some(EditPage::SuspensionStiffness) => {
+            edit_suspension_stiffness(menus, system, input, false)
+        }
         None => Err(FatalError {
             code: 0x8070_9A9A,
             message: "Incorrect Locked Box",

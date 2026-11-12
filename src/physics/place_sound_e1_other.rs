@@ -27,6 +27,6 @@ pub fn place_sound_e1_other(c: &SoundInputs<'_>) -> Result<(), Refused> {
         return Ok(());
     }
     c.spots.sound_scratch_b.set(b);
-    cue_plain(c, object(), FIRST, SOUND_E1, b, None)?;
+    cue_plain(c, object(c), FIRST, SOUND_E1, b, None)?;
     Ok(())
 }

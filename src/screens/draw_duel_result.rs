@@ -33,7 +33,7 @@ fn records(
     )?;
     Ok((
         base,
-        crate::records::stages_store::row(base, screens.event.stage_number.get())?,
+        crate::records::stages_store::row(stages, base, screens.event.stage_number.get())?,
     ))
 }
 
@@ -108,7 +108,7 @@ pub fn draw_duel_result(
     rc2k_core::screens::duel_result::duel_result(
         &mut crate::screens::game_screen::GameScreen::<_, _, crate::screens::game_screen::HeldText>::new(canvas, o),
         &players,
-        base.title()?,
+        base.title(&system.records().stage_tables)?,
         &stage,
         &figures,
         crate::strings::append_time::show_hours(),

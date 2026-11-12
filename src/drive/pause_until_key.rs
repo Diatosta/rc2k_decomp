@@ -30,7 +30,7 @@ pub fn pause_until_key(race: &Race, o: crate::owners::Owners<'static>) -> Result
     let shared = &race.shared;
     shared.vars.get().hold_count.set(0x19);
     for _ in 0..5 {
-        take_key();
+        take_key(input);
     }
     stop_race_sounds(o.sound, o.audio, o.system)?;
     shared.vars.get().scene_switch.set(1);
@@ -53,7 +53,7 @@ pub fn pause_until_key(race: &Race, o: crate::owners::Owners<'static>) -> Result
                     .set(race_ticks::held_wait(wait));
             }
         }
-        take_key();
+        take_key(input);
         race_frame(race, o)?;
         if system.session.flags.window_active.get() == 0 {
             hold = true;
@@ -81,7 +81,7 @@ pub fn pause_until_key(race: &Race, o: crate::owners::Owners<'static>) -> Result
     }
     shared.vars.get().scene_switch.set(0);
     wake_car_sounds(race, o.sound, o.audio)?;
-    take_key();
+    take_key(input);
     race.car_blocks().cars[0].input_keys.set(0);
     Ok(())
 }

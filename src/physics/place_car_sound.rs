@@ -21,8 +21,9 @@ pub fn place_car_sound(
     numbers: &Numbers,
     matrices: &SceneMatrices,
     shared: &RaceShared,
+    sound: &crate::sound::owner::Sound,
 ) -> Result<(), Refused> {
-    let so = crate::sound::store::current_object();
+    let so = crate::sound::store::current_object(sound, shared.work.get());
     so.slot_b.start.set(1);
     let d = |a: &PlainDword, b: &PlainDword| ints_diff_80(a.get() as i32, b.get() as i32);
     let p = [

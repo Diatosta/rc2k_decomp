@@ -212,13 +212,8 @@ mod tests {
         assert_block_starts_as_the_games(race.replay.cars_and_replay.get());
         assert_block_starts_as_the_games(&race.replay.viewer_and_kinds);
         assert_block_starts_as_the_games(race.frame.lights_and_gear.get());
-        crate::test_support::first_values::assert_block_starts_as_the_games_but(
-            race.frame.view_and_records.get(),
-            &[(
-                offset_of!(ViewAndRecords, view_vars) + offset_of!(ViewVars, view_records),
-                "race.owner.RACE.frame.view_and_records.view_vars.view_records[0]/208",
-            )],
-        );
+        // The view records hold handles where the game has addresses.
+        assert_block_starts_as_the_games(race.frame.view_and_records.get());
         // The panel and the overlay after it: one store from the panel's first byte.
         assert_store_starts_as_the_games("store:race.groups_store.PANEL_TAIL");
     }

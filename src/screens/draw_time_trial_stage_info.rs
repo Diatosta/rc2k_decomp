@@ -55,7 +55,7 @@ pub fn draw_time_trial_stage_info(
     label(
         crate::strings::append_string_by_id::StringOwners::of(o),
         canvas,
-        sel.table.title()?,
+        sel.table.title(&system.records().stage_tables)?,
         TITLE_FONT,
         TITLE_X,
         TABLE_TITLE_Y,

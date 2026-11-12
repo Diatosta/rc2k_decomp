@@ -139,8 +139,11 @@ pub fn run_frame<T>(
 }
 
 /// `menu::list_take_key`: the key.
-pub fn list_key(install: &crate::install::owner::Install) -> Result<u8, Refused> {
-    Ok(crate::menu::list_take_key::list_take_key(install))
+pub fn list_key(
+    install: &crate::install::owner::Install,
+    input: &crate::input::owner::Input,
+) -> Result<u8, Refused> {
+    Ok(crate::menu::list_take_key::list_take_key(install, input))
 }
 
 /// A list screen's other keys: a screenshot (R, when they are on), the lexicon.

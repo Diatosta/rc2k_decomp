@@ -72,7 +72,12 @@ pub fn draw_time_trial_stage_select(
         sel.record,
     )?;
     draw_stage_body(o, gfx, sel.record, true, canvas)?;
-    let best = crate::screens::stage_panel::best_of(table, sel.record.record()?.event_slot())?;
+    let best = crate::screens::stage_panel::best_of(
+        table,
+        sel.record
+            .record(&system.records().stage_tables)?
+            .event_slot(),
+    )?;
     draw_records_rows(o, system, &best, &TIME_TRIAL_ROWS, canvas)
 }
 

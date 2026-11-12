@@ -15,17 +15,18 @@ pub fn show_message(
     message: u32,
     gfx: &'static crate::gfx::owner::Gfx,
     system: &crate::system::owner::System,
+    input: &crate::input::owner::Input,
 ) -> Result<(), Refused> {
     run_frame(system, || {
         crate::net::message_frame::message_frame(so, message, gfx, system)
     })?;
     crate::system::sleep::sleep(250);
-    crate::input::take_key::take_key();
+    crate::input::take_key::take_key(input);
     loop {
         run_frame(system, || {
             crate::net::message_frame::message_frame(so, message, gfx, system)
         })?;
-        if crate::input::take_key::take_key() != 0 {
+        if crate::input::take_key::take_key(input) != 0 {
             break;
         }
     }

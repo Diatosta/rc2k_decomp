@@ -48,7 +48,7 @@ pub fn record_entry(
     stages: &crate::records::stages_store::StageTables,
     record: RecordRef,
 ) -> Result<usize, Refused> {
-    let record = record.record()?;
+    let record = record.record(stages)?;
     Ok(trakpak_entry(
         core::mem::offset_of!(crate::records::stages_store::StageTables, trak_pak),
         record.track(),
@@ -118,7 +118,7 @@ pub fn track_of(
     record: RecordRef,
 ) -> Result<Track<'_>, Refused> {
     let at = record_entry(stages, record)?;
-    let index = record.record()?.track() as usize;
+    let index = record.record(stages)?.track() as usize;
     Ok(match stages.trak_pak.tracks.get(index) {
         Some(entry) => Track::InPack(entry),
         None => Track::RunOn(at),

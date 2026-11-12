@@ -39,8 +39,10 @@ pub fn rally_times_places(
             .records()
             .stage_tables
             .group_event_table(kind, screens.event.stage_sub.get())?;
-        let stage = crate::records::stages_store::row(stages, screens.event.stage_number.get())?;
-        let n = stage.record()?.event_slot() as usize;
+        let tables = &system.records().stage_tables;
+        let stage =
+            crate::records::stages_store::row(tables, stages, screens.event.stage_number.get())?;
+        let n = stage.record(tables)?.event_slot() as usize;
         let table = if kind == 1 {
             &crate::saves::best_times::STAGE_TIMES_ALT
         } else {

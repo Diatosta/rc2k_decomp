@@ -559,7 +559,7 @@ pub fn step(o: crate::owners::Owners<'static>, call: Call) -> Result<(), Refused
             crate::scene::set_up_front_end_scene::set_up_front_end_scene_in(o)?;
         }
         Call::TakeKey => {
-            crate::input::take_key::take_key();
+            crate::input::take_key::take_key(o.input);
         }
         Call::PlayTune3 => crate::sound::play_tune_3::play_tune_3(o.sound, o.audio, o.system),
     }

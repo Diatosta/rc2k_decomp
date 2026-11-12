@@ -10,6 +10,11 @@ use crate::system::owner::System;
 
 // ---- Rust version ----
 
-pub fn edit_ride_height(menus: &Menus, system: &System, confirm: bool) -> Result<(), Refused> {
-    change_page(menus, system, RIDE_HEIGHT, confirm)
+pub fn edit_ride_height(
+    menus: &Menus,
+    system: &System,
+    input: &crate::input::owner::Input,
+    confirm: bool,
+) -> Result<(), Refused> {
+    change_page(menus, system, input, RIDE_HEIGHT, confirm)
 }

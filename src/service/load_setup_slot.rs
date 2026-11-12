@@ -34,7 +34,7 @@ use crate::system::owner::System;
 
 /// The slot the highlighted menu item stands for.
 /// A change page's editor (`confirm` its argument).
-type Editor = fn(&Menus, &System, bool) -> Result<(), Refused>;
+type Editor = fn(&Menus, &System, &crate::input::owner::Input, bool) -> Result<(), Refused>;
 
 pub fn highlighted_slot(menus: &Menus) -> u32 {
     // Converted: `rc2k_core::service::setups::highlighted_slot`.
@@ -46,7 +46,12 @@ pub fn highlighted_slot(menus: &Menus) -> u32 {
 
 // ---- Rust version ----
 
-pub fn load_setup_slot(menus: &Menus, service: &Service, system: &System) -> Result<(), Refused> {
+pub fn load_setup_slot(
+    menus: &Menus,
+    service: &Service,
+    system: &System,
+    input: &crate::input::owner::Input,
+) -> Result<(), Refused> {
     let (screens, tables) = (&menus.screens, &menus.tables);
     let slot = highlighted_slot(menus);
     let Some(player) = current_player(menus) else {
@@ -95,7 +100,7 @@ pub fn load_setup_slot(menus: &Menus, service: &Service, system: &System) -> Res
         };
         if change.change.chosen(menus).get() != change.change.installed(menus).get() {
             screens.loop_flags.item.set(change.item);
-            edit(menus, system, true)?;
+            edit(menus, system, input, true)?;
         }
     }
     screens.loop_flags.item.set(highlighted);

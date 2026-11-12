@@ -247,7 +247,7 @@ mod tests {
     #[test]
     fn the_engine_words_sit_where_the_offsets_were() {
         use crate::session::Dword;
-        let o = crate::sound::store::SoundObject::number(0).unwrap();
+        let o = crate::sound::store::SoundObject::of(crate::sound::owner::sound(), 0).unwrap();
         let base = core::ptr::from_ref(o).addr();
         let at = |cell: &Dword| (core::ptr::from_ref(cell).addr() - base) as u32;
         let found = [

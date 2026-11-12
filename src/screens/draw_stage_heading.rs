@@ -30,7 +30,7 @@ pub fn heading_text(
     let fault = crate::menu::event_flow::Fault::default();
     let stages = &o.system.records().stage_tables;
     let name = || -> Result<u32, Refused> { Ok(track_of(stages, record)?.name(stages)?) };
-    let number = record.record()?.number();
+    let number = record.record(&o.system.records().stage_tables)?.number();
     let line = stage_line(
         &mut |id| fault.ok(string_bytes(o, id)),
         label,
@@ -61,7 +61,7 @@ pub fn draw_stage_heading(
     let name = || -> Result<u32, Refused> { Ok(track_of(stages, record)?.name(stages)?) };
     rc2k_core::screens::stage_panel::heading(
         &mut PanelScreen::new(canvas, o),
-        record.record()?.number(),
+        record.record(&o.system.records().stage_tables)?.number(),
         &name,
     )
 }

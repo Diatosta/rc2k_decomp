@@ -95,6 +95,6 @@ pub fn viewer_load_stage(race: &'static Race, o: Owners<'static>) -> Result<(), 
         crate::race::viewer_palettes::viewer_palettes(shared, scene, gfx, o.system)?;
         shared.replay_file().viewer_stage_loaded.set(1);
     }
-    crate::input::take_key::take_key();
+    crate::input::take_key::take_key(o.input);
     Ok(())
 }

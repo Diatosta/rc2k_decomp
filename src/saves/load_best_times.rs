@@ -45,6 +45,7 @@ pub fn load_game_best_times(saves: &Saves, system: &System) -> Result<bool, Refu
     let best_times = &saves.best_times;
     allocate_best_times(
         best_times,
+        &system.records().stage_tables,
         system.records().stage_tables.championship(), // g_recordTable
     )?;
     let Some(file) = open_by_mode(&PATH[..PATH_LEN], 0)? else {

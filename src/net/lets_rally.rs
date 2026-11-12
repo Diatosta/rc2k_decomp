@@ -67,7 +67,7 @@ pub fn lets_rally(o: Owners<'static>) -> Result<bool, Refused> {
     // Escape leaves the second 1.
     let (time, not_finished) = loop {
         run_frame(o.system, || Ok::<(), Refused>(()))?;
-        if crate::input::take_key::take_key() == 1 {
+        if crate::input::take_key::take_key(o.input) == 1 {
             break (1, 1);
         }
         if crate::net::race_wait::race_wait(net)? != 0 {

@@ -533,7 +533,7 @@ impl Callee {
         use crate::text::draw_text::GameCanvas;
         match self {
             Self::TakeKey => {
-                take_key();
+                take_key(input);
             }
             Self::NoOp => {}
             // Its carry is never set.
@@ -585,7 +585,7 @@ impl Callee {
             Self::StyleChosenStageItem => v::style_stage_item(menus, true)?,
             Self::CountStagePages => v::count_stage_pages(screens, entry.system)?,
             Self::PlayStageSpeech => v::play_stage_speech(menus, sound, audio, entry.system)?,
-            Self::PlayRallySpeech => v::play_rally_speech(menus, audio, entry.system)?,
+            Self::PlayRallySpeech => v::play_rally_speech(menus, audio, entry.system, input)?,
             Self::LoadWelcomePicture => v::load_welcome_picture(entry.owners)?,
             Self::LoadServiceBackground => crate::service::load_background::load_background_in(
                 menus,

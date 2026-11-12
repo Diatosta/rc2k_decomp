@@ -2,13 +2,14 @@
 //! the game starts with), run by hand (`tools/m7_tests/freeze.sh`):
 //! `RC2K_FREEZE_FIRST_VALUES=<golden> RC2K_FIRST_VALUES_MANIFEST=<manifest>`.
 //!
-//! Every registry store gets its size and hash; each manifest line its named read, the bytes
-//! of its pieces one after another (`<key> <store key>@<offset>+<length> ...`, hex). A line
-//! `<key> held` (a store or a read whose bytes no store holds as the game has them: a Rust
-//! item, a handle where the game has an address) keeps what the golden file already holds
-//! under the key.
+//! Every registry store gets its line (`first_values::summary`: the bytes in its fields and
+//! the hash over their paths and values) and a line for each gap that starts non-zero; each
+//! manifest line its named read, the bytes of its pieces one after another
+//! (`<key> <store key>@<offset>+<length> ...`, hex). A line `<key> held` (a read whose bytes
+//! no store holds as the game has them: a Rust item, a handle where the game has an address)
+//! keeps what the golden file already holds under the key.
 
-use super::first_values::{hash, store_keys};
+use super::first_values::{gap_key, hash, store_keys, summary};
 
 /// A named read longer than this many bytes is frozen as size and hash only.
 const LONGEST_HELD: usize = 0x4000;
@@ -70,7 +71,6 @@ fn freeze_first_values() {
             .to_string()
     };
     let manifest = std::fs::read_to_string(manifest).expect("the manifest");
-    let mut held = std::collections::HashSet::new();
     let mut lines = Vec::new();
     for line in manifest.lines() {
         // Only whole lines are comments: a repeated store's key holds a `#`.
@@ -81,10 +81,8 @@ fn freeze_first_values() {
         let w: Vec<&str> = line.split_whitespace().collect();
         match w[..] {
             [key, "held"] => {
-                held.insert(key.to_string());
-                if !key.starts_with("store:") {
-                    lines.push(kept(key));
-                }
+                assert!(!key.starts_with("store:"), "{key}: a store is never held");
+                lines.push(kept(key));
             }
             [key, ref pieces @ ..] if !pieces.is_empty() => {
                 lines.push(line_of(key, &read_pieces(pieces), true));
@@ -93,12 +91,10 @@ fn freeze_first_values() {
         }
     }
     for (key, e) in store_keys() {
-        if held.contains(&key) {
-            lines.push(kept(&key));
-        } else {
-            let mut bytes = vec![0; e.len];
-            e.store.load(0, &mut bytes).expect("a store's own bytes");
-            lines.push(line_of(&key, &bytes, false));
+        let s = summary(e.store);
+        lines.push(format!("{key} {} {:016x}", s.size, s.hash));
+        for (path, bytes) in &s.gaps {
+            lines.push(line_of(&gap_key(&key, path), bytes, true));
         }
     }
     lines.sort();
@@ -107,7 +103,7 @@ fn freeze_first_values() {
     assert_eq!(n, lines.len(), "a key twice");
     let mut text = String::from(
         "# The game's first values (test_support::first_values). Made by\n\
-         # tools/m7_tests/freeze.sh; a layout change updates it in the same commit.\n",
+         # tools/m7_tests/freeze.sh; a change of a first value or of a gap that starts non-zero updates it in the same commit.\n",
     );
     for l in lines {
         text.push_str(&l);

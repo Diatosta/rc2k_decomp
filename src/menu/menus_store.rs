@@ -947,15 +947,8 @@ mod tests {
 
     #[test]
     fn labels_start_as_the_games() {
-        // The labels' fonts are kept as `FontCell`s: the game's address of the font object
-        // goes back in for the comparison.
+        // The labels' fonts are kept as `FontCell`s: the golden file holds the cells.
         let labels = &menus().tables.menus.labels;
-        crate::test_support::front::assert_block_starts_as_the_games_but(labels, |bytes| {
-            for (n, list) in label_lists(labels).iter().enumerate() {
-                let at = n * LABEL_LIST_LEN + 8;
-                bytes[at..at + 4]
-                    .copy_from_slice(&(list.label.font.get().ida() as u32).to_le_bytes());
-            }
-        });
+        crate::test_support::first_values::assert_block_starts_as_the_games(labels);
     }
 }

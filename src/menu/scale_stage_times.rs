@@ -36,6 +36,7 @@ pub fn scaled(race: &Race, times: [u32; 4], section: u32) -> ([u32; 4], [f32; 2]
 /// leaves eax the section, which its one caller (`calc_cpu_times`) does not read.
 pub fn scale_stage_times(
     screens: &Screens,
+    stages: &crate::records::stages_store::StageTables,
     record: RecordRef,
     race: &crate::race::owner::Race,
 ) -> Result<(), Refused> {
@@ -49,7 +50,7 @@ pub fn scale_stage_times(
     let text = |n: usize| &TEXTS_RVA[n];
     crate::logfile::log_write::log_nul(text(0), false, 1);
     log_int(section as i32, false, 1);
-    log_int(record.record()?.number() as i32, false, 1);
+    log_int(record.record(stages)?.number() as i32, false, 1);
     crate::logfile::log_write::log_nul(text(1), false, 1);
     log_float(f[0], 2, false, 1);
     crate::logfile::log_write::log_nul(text(2), false, 1);

@@ -56,7 +56,7 @@ pub fn selection_in(menus: &Menus, system: &System) -> Result<Option<Selection>,
         group,
         sub,
         table,
-        record: crate::records::stages_store::row(table, index)?,
+        record: crate::records::stages_store::row(&system.records().stage_tables, table, index)?,
     }))
 }
 
@@ -123,10 +123,12 @@ pub fn draw_records_rows(
             figure: entry.head.key,
         };
         // The stage record is the game's.
-        let held = record.record()?.holder(rows.holder);
+        let held = record
+            .record(&system.records().stage_tables)?
+            .holder(rows.holder);
         let top = Holder {
             nation: held.nation,
-            name: HeldText::Held(record.holder_text(rows.holder)?),
+            name: HeldText::Held(record.holder_text(&system.records().stage_tables, rows.holder)?),
             car: held.car,
             figure: held.speed,
         };

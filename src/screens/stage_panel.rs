@@ -122,7 +122,7 @@ pub fn draw_stage_body_in(
     // The logic is in `rc2k_core::screens::stage_panel::body`.
     use rc2k_core::screens::stage_panel::{Entry, Font};
     // The two markers on the map.
-    for call in marker_calls(gfx, menus, record.record()?) {
+    for call in marker_calls(gfx, menus, record.record(&o.system.records().stage_tables)?) {
         set_marker_position(menus, &call);
         canvas.blit_glyph(call)?;
     }
@@ -169,7 +169,7 @@ pub fn draw_stage_body_in(
     let mut screen = PanelScreen::new(canvas, o);
     rc2k_core::screens::stage_panel::body(
         &mut screen,
-        record.record()?.hhmm(),
+        record.record(&o.system.records().stage_tables)?.hhmm(),
         &entry,
         units(),
         heading,
@@ -209,7 +209,10 @@ pub fn draw_records_from(
     record: RecordRef,
     canvas: &mut dyn Canvas,
 ) -> Result<bool, Refused> {
-    let best = best_of(table, record.record()?.event_slot())?;
+    let best = best_of(
+        table,
+        record.record(&system.records().stage_tables)?.event_slot(),
+    )?;
     draw_stage_records(o, system, &best, canvas)
 }
 

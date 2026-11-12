@@ -706,6 +706,48 @@ unsafe impl<T: Cells, const N: usize> Cells for [T; N] {
     }
 }
 
+/// A cell or record of cells whose every byte is zero, as a constant: `#[derive(ZeroCells)]`
+/// makes it for a record whose fields all have one, so a store's `new()` can name only the
+/// fields that start non-zero (`Record { count: Dword::new(3), ..ZeroCells::ZERO }`).
+#[allow(
+    dead_code,
+    reason = "no store builds on it yet: the lanes that drop gap fields will"
+)]
+pub trait ZeroCells: Sized {
+    const ZERO: Self;
+}
+
+macro_rules! zero_cells {
+    ($($t:ty = $zero:expr),* $(,)?) => { $(
+        impl ZeroCells for $t {
+            const ZERO: Self = $zero;
+        }
+    )* };
+}
+zero_cells!(
+    crate::session::Dword = crate::session::Dword::new(0),
+    crate::session::Float = crate::session::Float::new(0.0),
+    crate::session::Flag = crate::session::Flag::new(false),
+    crate::session::Word = crate::session::Word::new(0),
+    crate::session::Byte = crate::session::Byte::new(0),
+    crate::session::Loose = crate::session::Loose::new(0),
+    crate::session::PlainDword = crate::session::PlainDword::new(0),
+    crate::session::PlainFloat = crate::session::PlainFloat::new(0.0),
+    crate::session::PlainFlag = crate::session::PlainFlag::new(false),
+    crate::session::PlainWord = crate::session::PlainWord::new(0),
+    crate::session::PlainByte = crate::session::PlainByte::new(0),
+    crate::session::PlainLoose = crate::session::PlainLoose::new(0),
+);
+impl<const N: usize> ZeroCells for crate::session::Bytes<N> {
+    const ZERO: Self = crate::session::Bytes::new([0; N]);
+}
+impl<const N: usize> ZeroCells for crate::session::PlainBytes<N> {
+    const ZERO: Self = crate::session::PlainBytes::new([0; N]);
+}
+impl<T: ZeroCells, const N: usize> ZeroCells for [T; N] {
+    const ZERO: Self = [const { T::ZERO }; N];
+}
+
 /// A value any bytes make (integers, floats, arrays of them): what a game place's bytes are
 /// read as.
 ///

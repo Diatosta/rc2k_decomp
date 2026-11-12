@@ -36,9 +36,10 @@ pub fn default_stage_times(
         }
         let mut tables = Vec::new();
         for n in 0..TABLES {
-            let records = system.records().stage_tables.level_table(n as u32)?;
+            let stage_tables = &system.records().stage_tables;
+            let records = stage_tables.level_table(n as u32)?;
             let six = (0..6u32)
-                .map(|stage| read_record(records.row(stage + 1)?))
+                .map(|stage| read_record(stage_tables, records.row(stage_tables, stage + 1)?))
                 .collect::<Result<Vec<_>, _>>()?;
             tables.push(
                 six.try_into()

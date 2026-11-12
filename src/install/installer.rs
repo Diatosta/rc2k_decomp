@@ -242,8 +242,8 @@ pub fn sleep(milliseconds: u32) {
 }
 
 /// `input::take_key` (0x407F95): the pending key (0: none).
-pub fn take_key() -> u8 {
-    crate::input::take_key::take_key()
+pub fn take_key(input: &crate::input::owner::Input) -> u8 {
+    crate::input::take_key::take_key(input)
 }
 
 /// `gfx::lock_surface` (0x4058AD): whether the surface is locked (the original's carry
@@ -404,8 +404,11 @@ pub fn load_language(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
 }
 
 /// `menu::list_take_key` (0x41469A): the key (0: none).
-pub fn list_take_key(install: &crate::install::owner::Install) -> Result<u8, Refused> {
-    Ok(crate::menu::list_take_key::list_take_key(install))
+pub fn list_take_key(
+    install: &crate::install::owner::Install,
+    input: &crate::input::owner::Input,
+) -> Result<u8, Refused> {
+    Ok(crate::menu::list_take_key::list_take_key(install, input))
 }
 
 /// `menu::list_step` (0x414A55): `key` moving the highlight of `list` by the neighbours
@@ -478,6 +481,7 @@ pub fn page_action(
             install,
             o.system,
             o.gfx,
+            o.input,
         )?,
         _ => return Err(BadInput("a list action that is not one of the installer's").into()),
     }

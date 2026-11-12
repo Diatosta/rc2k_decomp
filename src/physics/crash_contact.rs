@@ -92,7 +92,7 @@ fn steps(c: &ContactInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<()
         c.tables.crash_depth.get(),
         c.car.all_wheels_off.get() != 0,
     ) {
-        { sound_cue_e5(c.sound.frame_work, c.work) }?;
+        { sound_cue_e5(c.sound.frame_work, c.work, c.sound.owner) }?;
         return Ok(());
     }
     let n = point_number(c.contact)?;

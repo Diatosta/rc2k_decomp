@@ -104,10 +104,16 @@ fn player(menus: &Menus) -> Result<crate::menu::standings::PlayerCell<'_>, BadIn
 }
 
 /// The key, with the clock noted and the value stepped if it was an arrow. 0 = no key.
-fn key_and_step(menus: &Menus, system: &System, down: Stepper, up: Stepper) -> Result<u8, Refused> {
+fn key_and_step(
+    menus: &Menus,
+    system: &System,
+    input: &crate::input::owner::Input,
+    down: Stepper,
+    up: Stepper,
+) -> Result<u8, Refused> {
     // Converted: `rc2k_core::service::setups::page_key`.
     use rc2k_core::service::setups::{PageKey, page_key};
-    let key = take_key();
+    let key = take_key(input);
     let action = page_key(key);
     if action == PageKey::None {
         return Ok(0);
@@ -129,10 +135,15 @@ fn key_and_step(menus: &Menus, system: &System, down: Stepper, up: Stepper) -> R
     Ok(key)
 }
 
-pub fn simple_page(menus: &Menus, system: &System, page: SimplePage) -> Result<(), Refused> {
+pub fn simple_page(
+    menus: &Menus,
+    system: &System,
+    input: &crate::input::owner::Input,
+    page: SimplePage,
+) -> Result<(), Refused> {
     // Nothing may be written before it is known that nothing will be refused.
     player(menus)?;
-    if { key_and_step(menus, system, page.down, page.up) }? == KEY_CONFIRM {
+    if { key_and_step(menus, system, input, page.down, page.up) }? == KEY_CONFIRM {
         leave_edit_mode(&menus.screens);
     }
     Ok(())
@@ -143,6 +154,7 @@ pub fn simple_page(menus: &Menus, system: &System, page: SimplePage) -> Result<(
 pub fn change_page(
     menus: &Menus,
     system: &System,
+    input: &crate::input::owner::Input,
     page: ChangePage,
     confirm: bool,
 ) -> Result<(), Refused> {
@@ -162,7 +174,7 @@ pub fn change_page(
         None => None,
     };
 
-    if !confirm && key_and_step(menus, system, page.down, page.up)? != KEY_CONFIRM {
+    if !confirm && key_and_step(menus, system, input, page.down, page.up)? != KEY_CONFIRM {
         return update_repair_total(menus);
     }
 

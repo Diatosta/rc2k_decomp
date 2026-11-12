@@ -208,7 +208,7 @@ pub fn steps(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refus
         &race.shared,
         scene,
     );
-    ph::crash_contact::crash_contact(&inputs.contact(), scene)?;
+    ph::crash_contact::crash_contact(&inputs.contact(sound), scene)?;
     ph::apply_wheel_forces::apply_wheel_forces(
         race.shared.car(),
         race.shared.physics_tables.get(),
@@ -240,11 +240,11 @@ pub fn steps(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refus
         ph::clear_contacts::clear_contacts(race.shared.physics_tables.get())?;
         ph::feel_ground::feel_ground(&inputs.ground(), scene)?;
 
-        ph::crossed_edge::crossed_edge(&inputs.contact(), scene)?;
-        ph::wall_contacts::wall_contacts(&inputs.contact(), scene)?;
-        ph::ground_contact::ground_contact(&inputs.contact(), scene)?;
-        { ph::car_collisions::car_collisions(&inputs.collisions(), scene) }?;
-        ph::face_contacts::face_contacts(&inputs.contact(), scene)?;
+        ph::crossed_edge::crossed_edge(&inputs.contact(sound), scene)?;
+        ph::wall_contacts::wall_contacts(&inputs.contact(sound), scene)?;
+        ph::ground_contact::ground_contact(&inputs.contact(sound), scene)?;
+        { ph::car_collisions::car_collisions(&inputs.collisions(sound), scene) }?;
+        ph::face_contacts::face_contacts(&inputs.contact(sound), scene)?;
         ph::keep_motion::keep_motion(race.shared.car(), race.shared.physics_tables.get());
         ph::apply_contact_forces::apply_contact_forces(
             race.shared.car(),
@@ -295,7 +295,7 @@ pub fn steps(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refus
                 race.shared.physics_tables.get(),
                 scene,
             );
-            ph::find_clear_place::find_clear_place(&inputs.clear_place(), scene)?;
+            ph::find_clear_place::find_clear_place(&inputs.clear_place(sound), scene)?;
 
             race.shared.physics_tables.get().step_count.set(
                 race.shared
@@ -322,6 +322,7 @@ pub fn steps(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refus
         &race.frame.matrices,
         &race.shared,
         scene,
+        sound,
     )?;
     ph::spin_wheels::spin_wheels(
         race.shared.car(),
@@ -351,6 +352,7 @@ pub fn steps(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refus
         &race.shared,
         race.kind_tables(),
         scene,
+        sound,
     )?;
     ph::damage_notices::damage_notices(race.shared.car(), race.physics.damage())?;
     ph::take_notice::take_notice(race.shared.car());
@@ -385,7 +387,7 @@ pub fn steps(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refus
         race.course.numbers.get(),
         scene,
     );
-    ph::share_engine_sound::share_engine_sound(race.shared.car())?;
+    ph::share_engine_sound::share_engine_sound(race.shared.car(), sound, race.shared.work.get())?;
     ph::false_start::false_start(&inputs.reset(), scene, net)?;
     ph::value_notice::value_notice(race.shared.car());
     Ok(())

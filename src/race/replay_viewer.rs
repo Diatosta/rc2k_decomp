@@ -148,7 +148,7 @@ fn view(race: &'static Race, o: Owners<'static>, mode: Mode) -> Result<(), Refus
     install.pages.key_clock.set(now);
     install.pages.choice.set(6);
     // The pending key dropped.
-    crate::input::take_key::take_key();
+    crate::input::take_key::take_key(o.input);
     mark_viewer_items::mark_viewer_items(race, list)?;
     // A test run's picture check: the item chosen (play) at once, as Return would.
     #[cfg(feature = "remote")]
@@ -168,7 +168,7 @@ fn view(race: &'static Race, o: Owners<'static>, mode: Mode) -> Result<(), Refus
             .frame_clock
             .set(session.clocks.key_ticks.get());
         install.pages.choice_before.set(install.pages.choice.get());
-        let mut key = crate::menu::list_take_key::list_take_key(install);
+        let mut key = crate::menu::list_take_key::list_take_key(install, o.input);
         if session.flags.quitting.is_set() {
             return Ok(());
         }

@@ -460,7 +460,7 @@ pub fn play_film(o: crate::owners::Owners<'static>, path: &dyn crate::session::T
     let reports: u32 = gfx_reports.on.get();
     gfx_reports.on.set(0);
     // A key pending before the film is dropped (`input::take_key`).
-    crate::input::take_key::take_key();
+    crate::input::take_key::take_key(o.input);
     // the open: the path resolved (`files::resolve_path`), there (`files::file_exists`)
     let found = path.text("a film's path").and_then(|given| {
         let resolved = crate::files::resolve_path::resolve(&given)?;
@@ -490,7 +490,7 @@ pub fn play_film(o: crate::owners::Owners<'static>, path: &dyn crate::session::T
             Err(why) => log(&format!("gfx::play_film: {name} not played: {why}")),
             Ok(mut film) => {
                 log(&format!("gfx::play_film: {name}: {}", film.what));
-                ended = run(&mut film, o.gfx, o.system) == 0;
+                ended = run(&mut film, o.gfx, o.system, o.input) == 0;
             }
         }
     }
@@ -499,7 +499,7 @@ pub fn play_film(o: crate::owners::Owners<'static>, path: &dyn crate::session::T
 }
 
 /// The frames until the end or a key: the key, or 0 at the end.
-fn run(film: &mut Film, gfx: &Gfx, system: &System) -> u8 {
+fn run(film: &mut Film, gfx: &Gfx, system: &System, input: &crate::input::owner::Input) -> u8 {
     let sound = film
         .sound
         .as_ref()
@@ -562,7 +562,7 @@ fn run(film: &mut Film, gfx: &Gfx, system: &System) -> u8 {
         }
         last = Some(next);
         crate::platform::show_frame_now();
-        let key = crate::input::take_key::take_key();
+        let key = crate::input::take_key::take_key(input);
         if key != 0 {
             drop(sound);
             return key;

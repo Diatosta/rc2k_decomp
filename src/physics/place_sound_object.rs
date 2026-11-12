@@ -51,6 +51,6 @@ pub fn place_sound_object(
             .each_ref()
             .map(super::super::session::Dword::bits),
     );
-    cue_plain(c, object(), FIRST, sound, b, offset)?;
+    cue_plain(c, object(c), FIRST, sound, b, offset)?;
     Ok(())
 }

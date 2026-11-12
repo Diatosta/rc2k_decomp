@@ -330,8 +330,8 @@ pub fn draw_times_heading(
     // The logic is in `rc2k_core::screens::best_scores::heading`.
     {
         let base = (p.records)(menus, system)?;
-        let id = base.title()?;
-        let record = base.row((p.record)(menus).get())?;
+        let id = base.title(&system.records().stage_tables)?;
+        let record = base.row(&system.records().stage_tables, (p.record)(menus).get())?;
         let line = || -> Result<Vec<u8>, Refused> {
             stage_line_without_nul(
                 crate::strings::append_string_by_id::StringOwners::of(o),
@@ -377,7 +377,10 @@ pub fn draw_stage_times(
         return Err(BadInput("no times table").into());
     }
     draw_times_heading(o, system, p, canvas)?;
-    let group = base.row((p.record)(menus).get())?.record()?.event_slot();
+    let group = base
+        .row(&system.records().stage_tables, (p.record)(menus).get())?
+        .record(&system.records().stage_tables)?
+        .event_slot();
     let keep = if p.rally { Keep::Below4 } else { Keep::Nothing };
     draw_time_rows(o, table, group as usize, keep, canvas)?;
     Ok(())
@@ -443,6 +446,7 @@ pub fn record_at(
     index: u32,
 ) -> Result<RecordRef, crate::errors::BadInput> {
     crate::records::find_record::find_record_in(
+        &system.records().stage_tables,
         system.records().stage_tables.championship(),
         index as i32,
         menus.screens.event.section.get(),
@@ -452,6 +456,7 @@ pub fn record_at(
 /// Whether the record table has the section (the look-up has no end): for the refusals.
 pub fn section_there(menus: &Menus, system: &System) -> Result<bool, crate::errors::BadInput> {
     crate::records::find_record::has_section(
+        &system.records().stage_tables,
         system.records().stage_tables.championship(),
         menus.screens.event.section.get(),
         0x400,
@@ -481,7 +486,7 @@ pub fn draw_record_heading(
                 menus.screens.event.section.get(),
             )?
         } else {
-            first.record()?.name()
+            first.record(&system.records().stage_tables)?.name()
         };
         let record = record_at(menus, system, menus.screens.event.index.get())?;
         let line = || -> Result<Vec<u8>, Refused> {
@@ -513,10 +518,12 @@ pub fn draw_record_times(
     };
     let record = record_at(menus, system, menus.screens.event.index.get())?;
     // The record's fields are read at once (nothing drawn in between writes them).
-    let fastest = record.record()?.holder(Holder::Fastest);
+    let fastest = record
+        .record(&system.records().stage_tables)?
+        .holder(Holder::Fastest);
     let (top_speed, times_at, nation, car) = (
         fastest.speed,
-        record.record()?.event_slot(),
+        record.record(&system.records().stage_tables)?.event_slot(),
         fastest.nation,
         fastest.car,
     );
@@ -533,7 +540,7 @@ pub fn draw_record_times(
     rc2k_core::screens::best_scores::fastest(
         &mut ScoresScreen::new(canvas, o),
         nation,
-        HeldText::Held(record.holder_text(Holder::Fastest)?),
+        HeldText::Held(record.holder_text(&system.records().stage_tables, Holder::Fastest)?),
         car,
         &speed,
     )

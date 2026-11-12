@@ -19,6 +19,7 @@ pub fn sound_hit_parts(
     matrices: &SceneMatrices,
     shared: &RaceShared,
     kind_tables: &KindTables,
+    sound: &crate::sound::owner::Sound,
 ) -> Result<(), Refused> {
     if !has_hit_sounds(shared.car().car_kind.get(), |kind| {
         kind_tables.kind_hit_sounds[kind as usize].get()
@@ -31,7 +32,7 @@ pub fn sound_hit_parts(
         &SOUND_TESTS,
         &shared.car().tyre_wears,
         &mut |bit| {
-            { sound_on_bit(numbers, matrices, shared, bit & 0xFF) }?;
+            { sound_on_bit(numbers, matrices, shared, bit & 0xFF, sound) }?;
             Ok(())
         },
     )

@@ -40,6 +40,8 @@ pub struct SoundInputs<'a> {
     pub spots: &'a SoundSpotBlock,
     pub polygon_tables: &'a crate::scene::polygon_store::PolygonTables,
     pub contact: &'a ContactWork,
+    /// The sound owner, whose objects the cues are placed on.
+    pub owner: &'a crate::sound::owner::Sound,
 }
 
 /// What the ground search and the probe points read.
@@ -230,7 +232,7 @@ impl<'a> StepInputs<'a> {
         }
     }
 
-    pub fn sound(&self) -> SoundInputs<'a> {
+    pub fn sound(&self, owner: &'a crate::sound::owner::Sound) -> SoundInputs<'a> {
         SoundInputs {
             car: self.car,
             numbers: self.numbers,
@@ -240,6 +242,7 @@ impl<'a> StepInputs<'a> {
             spots: self.frame.sound_spots(),
             polygon_tables: &self.shared.buffers.polygon_tables,
             contact: &self.physics.contact,
+            owner,
         }
     }
 
@@ -256,7 +259,7 @@ impl<'a> StepInputs<'a> {
         }
     }
 
-    pub fn contact(&self) -> ContactInputs<'a> {
+    pub fn contact(&self, sound: &'a crate::sound::owner::Sound) -> ContactInputs<'a> {
         ContactInputs {
             car: self.car,
             numbers: self.numbers,
@@ -267,7 +270,7 @@ impl<'a> StepInputs<'a> {
             scratch: self.frame.scratch(),
             shared: self.shared,
             ground: self.ground(),
-            sound: self.sound(),
+            sound: self.sound(sound),
         }
     }
 
@@ -289,19 +292,19 @@ impl<'a> StepInputs<'a> {
         }
     }
 
-    pub fn collisions(&self) -> CollisionInputs<'a> {
+    pub fn collisions(&self, sound: &'a crate::sound::owner::Sound) -> CollisionInputs<'a> {
         CollisionInputs {
-            contact: self.contact(),
+            contact: self.contact(sound),
             matrices: &self.frame.matrices,
             vars: self.vars,
             view: self.view,
         }
     }
 
-    pub fn clear_place(&self) -> ClearPlaceInputs<'a> {
+    pub fn clear_place(&self, sound: &'a crate::sound::owner::Sound) -> ClearPlaceInputs<'a> {
         ClearPlaceInputs {
             reset: self.reset(),
-            collisions: self.collisions(),
+            collisions: self.collisions(sound),
         }
     }
 

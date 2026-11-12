@@ -66,6 +66,7 @@ fn message(
     table: &[&StringRecord],
     y: u32,
     gfx: &'static crate::gfx::owner::Gfx,
+    input: &crate::input::owner::Input,
 ) -> Result<(), Refused> {
     crate::platform_events::hold_quit(system, false);
     run_frame(system, None)?;
@@ -75,9 +76,9 @@ fn message(
         show();
     }
     sleep(500);
-    take_key();
+    take_key(input);
     loop {
-        if take_key() != 0 {
+        if take_key(input) != 0 {
             break;
         }
         sleep(1);
@@ -175,7 +176,7 @@ pub fn install_files(
         for n in 0..install.run.dir_count.get() {
             build(installed(install), path_b(install), &FOLDERS, n)?;
             if !i::make_folders::make_folders(&install.paths.path_b)? {
-                return message(so, o.system, &error_messages(install), 0, o.gfx);
+                return message(so, o.system, &error_messages(install), 0, o.gfx, o.input);
             }
         }
         set_cd(&install.paths.game_dir);
@@ -193,7 +194,7 @@ pub fn install_files(
                 &install.paths.path_a,
                 &install.paths.path_b,
             )? {
-                return message(so, o.system, &error_messages(install), 0, o.gfx);
+                return message(so, o.system, &error_messages(install), 0, o.gfx, o.input);
             }
             if run_frame(
                 o.system,
@@ -204,13 +205,14 @@ pub fn install_files(
                     Some(&|| copying_frame(so, install, o.gfx, o.system)),
                 )?;
             }
-            if take_key() == 1 {
+            if take_key(o.input) == 1 {
                 return message(
                     so,
                     o.system,
                     &install.pages.msg_cancel.each_ref(),
                     0xFFFF_FFCE,
                     o.gfx,
+                    o.input,
                 );
             }
             n = n.wrapping_add(1);
@@ -223,7 +225,7 @@ pub fn install_files(
     // record write is the error message.
     set_cd(&install.paths.installed);
     if !i::write_record::write_record(install, o.strings)? {
-        return message(so, o.system, &error_messages(install), 0, o.gfx);
+        return message(so, o.system, &error_messages(install), 0, o.gfx, o.input);
     }
     if crate::files::state::directory_byte(1) != 0 {
         // readme.txt then manual.pdf

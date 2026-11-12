@@ -19,11 +19,21 @@ fn current_record(menus: &Menus, system: &System) -> Result<RecordRef, BadInput>
     let index: u32 = menus.screens.event.index.get();
     if section >= 64
         || index >= 64
-        || !crate::records::find_record::has_section(table, section, 600)?
+        || !crate::records::find_record::has_section(
+            &system.records().stage_tables,
+            table,
+            section,
+            600,
+        )?
     {
         return Err(BadInput("a record past the table"));
     }
-    crate::records::find_record::find_record_in(table, index as i32, section)
+    crate::records::find_record::find_record_in(
+        &system.records().stage_tables,
+        table,
+        index as i32,
+        section,
+    )
 }
 
 pub fn keep_record_best(menus: &Menus, system: &System) -> Result<(), Refused> {
@@ -34,7 +44,7 @@ pub fn keep_record_best(menus: &Menus, system: &System) -> Result<(), Refused> {
     let record = current_record(menus, system)?;
     // The logic is in `rc2k_core::menu::bests::takes_record`.
     use rc2k_core::menu::bests;
-    let record = record.record()?;
+    let record = record.record(&system.records().stage_tables)?;
     for (n, &p) in players.iter().enumerate() {
         menus.screens.event.current_player.set(n as u32);
         let p = p.get();

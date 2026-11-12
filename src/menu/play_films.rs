@@ -86,7 +86,7 @@ impl Game {
                 crate::gfx::clear_front_surface::clear_front_surface(o.gfx, o.system)?;
             }
             Step::TakeKey => {
-                flags.zero = crate::input::take_key::take_key() == 0;
+                flags.zero = crate::input::take_key::take_key(o.input) == 0;
             }
             Step::SwapMissingExtension(f) => {
                 crate::files::swap_missing_extension::swap_missing_extension(film(panels, f))?;

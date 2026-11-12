@@ -10,6 +10,10 @@ use crate::system::owner::System;
 
 // ---- Rust version ----
 
-pub fn edit_brake_balance(menus: &Menus, system: &System) -> Result<(), Refused> {
-    simple_page(menus, system, BRAKE_BALANCE)
+pub fn edit_brake_balance(
+    menus: &Menus,
+    system: &System,
+    input: &crate::input::owner::Input,
+) -> Result<(), Refused> {
+    simple_page(menus, system, input, BRAKE_BALANCE)
 }

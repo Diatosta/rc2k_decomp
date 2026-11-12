@@ -61,7 +61,7 @@ fn records(
     )?;
     Ok((
         base,
-        crate::records::stages_store::row(base, screens.event.stage_number.get())?,
+        crate::records::stages_store::row(stages, base, screens.event.stage_number.get())?,
     ))
 }
 
@@ -156,7 +156,7 @@ pub fn draw_players_results(
             });
         }
         let page = Page {
-            section: base.title()?,
+            section: base.title(&system.records().stage_tables)?,
             stage,
             units_set: crate::strings::units::units() != 0,
             show_hours: crate::strings::append_time::show_hours(),

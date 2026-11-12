@@ -13,7 +13,8 @@ use crate::system::owner::System;
 pub fn edit_suspension_stiffness(
     menus: &Menus,
     system: &System,
+    input: &crate::input::owner::Input,
     confirm: bool,
 ) -> Result<(), Refused> {
-    change_page(menus, system, SUSPENSION_STIFFNESS, confirm)
+    change_page(menus, system, input, SUSPENSION_STIFFNESS, confirm)
 }

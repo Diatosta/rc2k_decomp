@@ -173,12 +173,9 @@ mod tests {
     #[test]
     fn first_values_are_the_games() {
         let _g = crate::test_support::test_lock();
-        crate::test_support::first_values::assert_store_starts_as_the_games_but(
+        // The view blocks are handles where the game has addresses.
+        crate::test_support::first_values::assert_store_starts_as_the_games(
             "store:race.owner.RACE.shared.view",
-            &[(
-                crate::race::blocks_store::VIEW_BLOCKS_IDA - START,
-                "race.owner.RACE.shared.view.view_blocks[0]/8",
-            )],
         );
     }
 

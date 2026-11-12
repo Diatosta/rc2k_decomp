@@ -150,6 +150,7 @@ pub fn loadlevel_init(
     }
     race.shared.work.get().stage_direction.set(direction);
     race.course.numbers.get().in_race.set(true);
+    o.audio.racing.set(true);
     race.shared.vars.get().bar_function.set(v.bar);
     s.progress(0)?;
     s.indent(-3);

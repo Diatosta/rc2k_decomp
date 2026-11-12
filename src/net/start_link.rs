@@ -134,6 +134,7 @@ pub fn start_link(o: crate::owners::Owners<'static>, mode: u32) -> Result<(), Re
             n,
             o.gfx,
             o.system,
+            o.input,
         )?,
         Way::End => {}
         Way::On => {

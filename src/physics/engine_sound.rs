@@ -68,6 +68,7 @@ pub fn engine_sound(
     matrices: &SceneMatrices,
     shared: &RaceShared,
     scene: &crate::scene::owner::Scene,
+    sound: &crate::sound::owner::Sound,
 ) -> Result<(), Refused> {
     let drawing = &scene.drawing;
     if shared.view.get().players.get() == 1 && shared.view_car(0).is_none() {
@@ -92,8 +93,8 @@ pub fn engine_sound(
         drawing.scene.get().scratch.get(),
     );
     shared.car().engine_sound_revs.set(revs);
-    { car_sound_state(numbers, matrices, shared) }?;
-    gear_change_sound(shared.car())
+    { car_sound_state(numbers, matrices, shared, sound) }?;
+    gear_change_sound(shared.car(), sound, shared.work.get())
 }
 
 #[cfg(test)]

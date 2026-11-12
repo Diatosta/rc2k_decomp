@@ -74,9 +74,13 @@ pub fn draw_savegame_details(
             section: if a8_mode {
                 section_title(&tables.lists, section)?
             } else {
-                find_record_in(table, 0, section)?.record()?.name()
+                find_record_in(&system.records().stage_tables, table, 0, section)?
+                    .record(&system.records().stage_tables)?
+                    .name()
             },
-            stage: find_record_in(table, index, section)?.record()?.number(),
+            stage: find_record_in(&system.records().stage_tables, table, index, section)?
+                .record(&system.records().stage_tables)?
+                .number(),
         };
         let car = |row: usize| -> Result<Car<_>, crate::errors::BadInput> {
             let at = cars_at + row * CAR_LEN;

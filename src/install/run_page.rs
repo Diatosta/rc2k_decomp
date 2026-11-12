@@ -115,7 +115,7 @@ pub fn run_page(
                 .set(system.session.clocks.key_ticks.get());
             install.pages.choice_before.set(install.pages.choice.get());
             // The key, as the callees leave it (`install::edit_key` changes it).
-            let mut key = list_take_key(install)? as u32;
+            let mut key = list_take_key(install, o.input)? as u32;
             if system.session.flags.quitting.is_set() {
                 break 'page;
             }

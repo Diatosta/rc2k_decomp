@@ -17,8 +17,12 @@ use rc2k_core::physics::engine::shares_figures;
 
 /// A compare of floats only: the same at any precision.
 // Converted: `rc2k_core::physics::engine::shares_figures`.
-pub fn share_engine_sound(car: &Car) -> Result<(), Refused> {
-    let so = crate::sound::store::current_object();
+pub fn share_engine_sound(
+    car: &Car,
+    sound: &crate::sound::owner::Sound,
+    work: &crate::race::work_store::RaceWork,
+) -> Result<(), Refused> {
+    let so = crate::sound::store::current_object(sound, work);
     if shares_figures(
         car.contact_depth.get(),
         f32::from_bits(so.knock_in[3].get()),

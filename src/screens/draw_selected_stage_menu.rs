@@ -35,7 +35,7 @@ pub fn menu_titles(
     };
     Ok(Some((
         group_title(&play.results, sel.group)?,
-        sel.table.title()?,
+        sel.table.title(&system.records().stage_tables)?,
     )))
 }
 

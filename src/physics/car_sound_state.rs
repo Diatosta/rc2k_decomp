@@ -58,11 +58,12 @@ pub fn car_sound_state(
     numbers: &Numbers,
     matrices: &SceneMatrices,
     shared: &RaceShared,
+    sound: &crate::sound::owner::Sound,
 ) -> Result<(), Refused> {
     let Some(l) = listener(shared) else {
         return Err(BadInput("a null view block").into());
     };
-    let so = crate::sound::store::current_object();
+    let so = crate::sound::store::current_object(sound, shared.work.get());
     so.new_revs.set(1);
     so.revs.set(shared.car().engine_sound_revs.get());
     let w = shared.car().wheel_surface_a[4].get();

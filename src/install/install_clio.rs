@@ -42,6 +42,7 @@ enum Stop {
 fn work(
     install: &'static crate::install::owner::Install,
     system: &crate::system::owner::System,
+    input: &crate::input::owner::Input,
 ) -> Result<Stop, Refused> {
     use crate::install as i;
     if !normalise(&install.paths.path_a, &install.paths.game_dir)?
@@ -97,7 +98,7 @@ fn work(
                 system,
                 &install.paths.path_a,
                 &install.paths.path_b,
-            )? || take_key() == 1
+            )? || take_key(input) == 1
             {
                 return Ok(Stop::SetBack);
             }
@@ -115,6 +116,7 @@ pub fn install_clio(
     install: &'static crate::install::owner::Install,
     system: &crate::system::owner::System,
     gfx: &'static crate::gfx::owner::Gfx,
+    input: &crate::input::owner::Input,
 ) -> Result<(), Refused> {
     if lock(gfx, system) {
         copy_picture(gfx, system)?;
@@ -123,7 +125,7 @@ pub fn install_clio(
         show();
         sleep(1000);
     }
-    if let Stop::SetBack = work(install, system)? {
+    if let Stop::SetBack = work(install, system, input)? {
         set_cd(&install.paths.installed);
     }
     install.run.installing.set(0);

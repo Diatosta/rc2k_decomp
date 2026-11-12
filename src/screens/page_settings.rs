@@ -87,7 +87,7 @@ fn stage_record(
     c: u32,
 ) -> Result<(RecordTable, RecordRef), BadInput> {
     let base = stages.group_event_table(a, b)?;
-    Ok((base, crate::records::stages_store::row(base, c)?))
+    Ok((base, crate::records::stages_store::row(stages, base, c)?))
 }
 
 /// What both stage pages read through: refused before anything.
@@ -125,7 +125,7 @@ pub fn stage_options_texts(o: Owners<'static>) -> Result<(), Refused> {
     set_item(items, 1, first)?;
     set_item(items, 2, second)?;
     let (base, record) = stage_record(stages, a, b, menus.tables.captions.shown_stage.get())?;
-    set_item(items, 3, base.title()?)?;
+    set_item(items, 3, base.title(&o.system.records().stage_tables)?)?;
     stage_line(
         crate::strings::append_string_by_id::StringOwners::of(o),
         text,
@@ -175,7 +175,11 @@ pub fn stage_choice_texts(o: Owners<'static>) -> Result<(), Refused> {
         crate::screens::stage_panel::group_title(&menus.play.results, a)?,
     )?;
     let (base, record) = stage_record(stages, a, b, menus.screens.event.stage_number.get())?;
-    crate::cells::store_value::<u32>(&menus.tables.menus.labels, item_1, base.title()?)?;
+    crate::cells::store_value::<u32>(
+        &menus.tables.menus.labels,
+        item_1,
+        base.title(&o.system.records().stage_tables)?,
+    )?;
     stage_line(
         crate::strings::append_string_by_id::StringOwners::of(o),
         text,

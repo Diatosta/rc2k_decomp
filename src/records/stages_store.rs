@@ -1426,7 +1426,7 @@ impl StageTables {
 /// a name that starts no table.
 fn event_table_named(tables: &StageTables, name: u32) -> Result<RecordTable, BadInput> {
     let at = tables.offset_of_name(name, "a stage list's entry off the stage tables")?;
-    match RecordRef::at_offset(at)? {
+    match RecordRef::at_offset(tables, at)? {
         RecordRef { table, index: 0 } => Ok(table),
         _ => Err(BadInput("a stage list's entry that starts no table")),
     }
@@ -1534,24 +1534,15 @@ pub struct RecordRef {
     pub index: usize,
 }
 
-/// The stage tables a record handle (`RecordRef`) names its rows in. A handle is a copied
-/// number with no owner, so this is a seam: the callers of `RecordRef::record`, `tag`,
-/// `row` and `word_at` (menus, screens, race, saves) would pass `&StageTables` to it.
-fn stage_tables() -> &'static StageTables {
-    &crate::owners::boundary().system.records().stage_tables
-}
-
 impl RecordTable {
-    pub fn rows(self) -> &'static [Record] {
-        let stages = stage_tables();
+    pub fn rows(self, stages: &StageTables) -> &[Record] {
         match self {
             RecordTable::Championship => &stages.championship,
             RecordTable::Event(k) => &stages.events[k].records,
         }
     }
 
-    fn end(self) -> &'static PlainLoose {
-        let stages = stage_tables();
+    fn end(self, stages: &StageTables) -> &PlainLoose {
         match self {
             RecordTable::Championship => &stages.championship_end,
             RecordTable::Event(k) => &stages.events[k].end,
@@ -1560,30 +1551,30 @@ impl RecordTable {
 
     /// Its first row's byte offset in the stage tables.
     #[cfg(test)]
-    pub fn table_offset(self) -> usize {
-        self.rows().as_ptr().addr() - core::ptr::from_ref(stage_tables()).addr()
+    pub fn table_offset(self, stages: &StageTables) -> usize {
+        self.rows(stages).as_ptr().addr() - core::ptr::from_ref(stages).addr()
     }
 
     /// Its title string: its first record's name (+0x38).
-    pub fn title(self) -> Result<u32, BadInput> {
-        Ok(self.row(0)?.record()?.name())
+    pub fn title(self, stages: &StageTables) -> Result<u32, BadInput> {
+        Ok(self.row(stages, 0)?.record(stages)?.name())
     }
 
     /// Its rows and end mark as the original's bytes, for the walks.
-    pub fn bytes(self) -> Vec<u8> {
-        self.rows()
+    pub fn bytes(self, stages: &StageTables) -> Vec<u8> {
+        self.rows(stages)
             .iter()
             .flat_map(|r| r.words.iter())
-            .chain(std::iter::once(self.end()))
+            .chain(std::iter::once(self.end(stages)))
             .flat_map(|w| w.get().to_le_bytes())
             .collect()
     }
 
     /// Row `n` (or the end mark). Refused past the end mark: the original's sum runs on into
     /// the next table.
-    pub fn row(self, n: u32) -> Result<RecordRef, BadInput> {
+    pub fn row(self, stages: &StageTables, n: u32) -> Result<RecordRef, BadInput> {
         let index = n as usize;
-        if index > self.rows().len() {
+        if index > self.rows(stages).len() {
             return Err(BadInput("a record index past its table's end"));
         }
         Ok(RecordRef { table: self, index })
@@ -1592,9 +1583,9 @@ impl RecordTable {
 
 impl RecordRef {
     /// The record; refused for the end mark.
-    pub fn record(self) -> Result<&'static Record, BadInput> {
+    pub fn record(self, stages: &StageTables) -> Result<&Record, BadInput> {
         self.table
-            .rows()
+            .rows(stages)
             .get(self.index)
             .ok_or(BadInput("a table's end mark read as a record"))
     }
@@ -1602,8 +1593,8 @@ impl RecordRef {
     /// Holder `h`'s name up to its NUL. A name that fills its bytes runs on into the words
     /// after it, then into the next rows; refused without a NUL before the table's end mark
     /// (or in more than a `Held` has room for).
-    pub fn holder_text(self, h: Holder) -> Result<Held, BadInput> {
-        let bytes = self.table.bytes();
+    pub fn holder_text(self, stages: &StageTables, h: Holder) -> Result<Held, BadInput> {
+        let bytes = self.table.bytes(stages);
         let from = self.index * RECORD_LEN as usize + h.name_at() as usize;
         let text = bytes
             .get(from..)
@@ -1617,27 +1608,28 @@ impl RecordRef {
     }
 
     /// Its tag (the end mark's: -1).
-    pub fn tag(self) -> u32 {
-        self.record().map_or(self.table.end().get(), Record::tag)
+    pub fn tag(self, stages: &StageTables) -> u32 {
+        self.record(stages)
+            .map_or(self.table.end(stages).get(), Record::tag)
     }
 
     /// Its dword at byte `at` (the end mark's tag only).
-    pub fn word_at(self, at: u32) -> Result<u32, BadInput> {
+    pub fn word_at(self, stages: &StageTables, at: u32) -> Result<u32, BadInput> {
         match at {
-            0 => Ok(self.tag()),
-            _ => self.record()?.word_at(at),
+            0 => Ok(self.tag(stages)),
+            _ => self.record(stages)?.word_at(at),
         }
     }
 
     /// The row (or end mark) at byte `offset` of the stage tables; refused for an offset that
     /// is neither.
-    fn at_offset(offset: usize) -> Result<Self, BadInput> {
+    fn at_offset(stages: &StageTables, offset: usize) -> Result<Self, BadInput> {
         use core::mem::offset_of;
         let mut tables = std::iter::once((
             RecordTable::Championship,
             offset_of!(StageTables, championship),
         ))
-        .chain((0..stage_tables().events.len()).map(|k| {
+        .chain((0..stages.events.len()).map(|k| {
             (
                 RecordTable::Event(k),
                 offset_of!(StageTables, events) + k * size_of::<EventRecords>(),
@@ -1647,7 +1639,7 @@ impl RecordRef {
             .find_map(|(table, first)| {
                 let d = offset.checked_sub(first)?;
                 let n = d / RECORD_LEN as usize;
-                (d.is_multiple_of(RECORD_LEN as usize) && n <= table.rows().len())
+                (d.is_multiple_of(RECORD_LEN as usize) && n <= table.rows(stages).len())
                     .then_some(RecordRef { table, index: n })
             })
             .ok_or(BadInput("an address that is no record of a table"))
@@ -1655,14 +1647,14 @@ impl RecordRef {
 
     /// The record `n` rows on (wrapping as the original's sum); refused past the table's end
     /// mark or before its first row.
-    pub fn offset(self, n: u32) -> Result<Self, BadInput> {
-        self.table.row((self.index as u32).wrapping_add(n))
+    pub fn offset(self, stages: &StageTables, n: u32) -> Result<Self, BadInput> {
+        self.table.row(stages, (self.index as u32).wrapping_add(n))
     }
 }
 
 /// Row `n` of `table` (or its end mark); refused past it.
-pub fn row(table: RecordTable, n: u32) -> Result<RecordRef, BadInput> {
-    table.row(n)
+pub fn row(stages: &StageTables, table: RecordTable, n: u32) -> Result<RecordRef, BadInput> {
+    table.row(stages, n)
 }
 
 /// IDA 0x734BC6, the first byte of the piece.
@@ -1711,7 +1703,7 @@ mod tests {
             for sub in 0..6 {
                 assert_eq!(
                     t.group_event_table(group as u32, sub as u32)
-                        .map(RecordTable::table_offset),
+                        .map(|table| table.table_offset(t)),
                     Ok(table(entries[at + sub])),
                     "group {group} sub {sub}"
                 );
@@ -1722,13 +1714,14 @@ mod tests {
         // The groups' lists, one after the other: a read past the first runs into the next.
         let at = (t.group_lists[1].get() - first) as usize / 4;
         assert_eq!(
-            t.group_event_table(1, 7).map(RecordTable::table_offset),
+            t.group_event_table(1, 7).map(|table| table.table_offset(t)),
             Ok(table(entries[at + 7]))
         );
         assert!(t.group_event_table(4, 0).is_err());
         for level in 0..6 {
             assert_eq!(
-                t.level_table(level as u32).map(RecordTable::table_offset),
+                t.level_table(level as u32)
+                    .map(|table| table.table_offset(t)),
                 Ok(table(t.level_tables[level].get()))
             );
         }
@@ -1765,23 +1758,26 @@ mod tests {
 
     #[test]
     fn records_stay_in_their_table() {
+        let _g = crate::test_support::test_lock();
+        let t = &system().records().stage_tables;
         let champ = RecordTable::Championship;
-        assert_eq!(champ.row(66).map(|r| r.index), Ok(66), "the end mark");
-        assert!(champ.row(67).is_err());
-        assert!(RecordTable::Event(0).row(8).is_err());
-        let third = RecordRef::at_offset(champ.table_offset() + 3 * RECORD_LEN as usize).unwrap();
+        assert_eq!(champ.row(t, 66).map(|r| r.index), Ok(66), "the end mark");
+        assert!(champ.row(t, 67).is_err());
+        assert!(RecordTable::Event(0).row(t, 8).is_err());
+        let third =
+            RecordRef::at_offset(t, champ.table_offset(t) + 3 * RECORD_LEN as usize).unwrap();
         assert_eq!((third.table, third.index), (champ, 3));
-        assert_eq!(third.offset(u32::MAX).map(|r| r.index), Ok(2));
-        assert!(RecordRef::at_offset(champ.table_offset() + 2).is_err());
-        let next = RecordRef::at_offset(RecordTable::Event(0).table_offset()).unwrap();
+        assert_eq!(third.offset(t, u32::MAX).map(|r| r.index), Ok(2));
+        assert!(RecordRef::at_offset(t, champ.table_offset(t) + 2).is_err());
+        let next = RecordRef::at_offset(t, RecordTable::Event(0).table_offset(t)).unwrap();
         assert_eq!((next.table, next.index), (RecordTable::Event(0), 0));
-        assert_eq!(row(RecordTable::Event(1), 7).map(|r| r.index), Ok(7));
-        assert!(row(RecordTable::Event(1), 8).is_err());
+        assert_eq!(row(t, RecordTable::Event(1), 7).map(|r| r.index), Ok(7));
+        assert!(row(t, RecordTable::Event(1), 8).is_err());
         assert_eq!(
-            RecordTable::Event(1).row(7).map(RecordRef::tag),
+            RecordTable::Event(1).row(t, 7).map(|r| r.tag(t)),
             Ok(u32::MAX)
         );
-        assert!(RecordTable::Event(1).row(7).unwrap().record().is_err());
+        assert!(RecordTable::Event(1).row(t, 7).unwrap().record(t).is_err());
     }
 }
 

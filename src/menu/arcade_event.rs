@@ -115,13 +115,13 @@ impl arcade::Arcade for Game<'_> {
             Step::ResultsLoop => self.screen(&m::arcade_results_loop::SCREEN)?,
             Step::KeepStageBest => {
                 // The stage's record in the level's table.
-                let level = self
-                    .owners
-                    .system
-                    .records()
-                    .stage_tables
-                    .level_table(play.arcade.level.get())?;
-                a::keep_arcade_stage_best(menus, level.row(play.arcade.stage.get())?)?;
+                let stages = &self.owners.system.records().stage_tables;
+                let level = stages.level_table(play.arcade.level.get())?;
+                a::keep_arcade_stage_best(
+                    menus,
+                    stages,
+                    level.row(stages, play.arcade.stage.get())?,
+                )?;
             }
             Step::CheckStageTime => a::check_arcade_stage_time(menus, self.owners.system)?,
             Step::ClearTimeMarks => a::clear_arcade_time_marks(play, self.owners.system)?,

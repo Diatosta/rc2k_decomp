@@ -25,7 +25,12 @@ fn record_at(
 ) -> Result<RecordRef, crate::errors::BadInput> {
     let table = system.records().stage_tables.championship();
     let section: u32 = menus.screens.event.section.get();
-    crate::records::find_record::find_record_in(table, index as i32, section)
+    crate::records::find_record::find_record_in(
+        &system.records().stage_tables,
+        table,
+        index as i32,
+        section,
+    )
 }
 
 /// The records the walk visits from `index`, with their steps, checked.
@@ -39,7 +44,7 @@ fn walk(menus: &Menus, system: &System, race: &Race) -> Result<Vec<(u32, Step)>,
     let fault = Fault::default();
     let walked = rc2k_core::menu::section_walk::walk(
         index,
-        |i| fault.ok(record_at(menus, system, i).map(RecordRef::tag)),
+        |i| fault.ok(record_at(menus, system, i).map(|r| r.tag(&system.records().stage_tables))),
         |i| {
             crate::menu::calc_cpu_times::check(menus, system, race, record_at(menus, system, i)?)
                 .map(|_| ())

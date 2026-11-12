@@ -13,7 +13,7 @@
 //! without its end, and what the allocator refuses.
 
 use crate::errors::{BadInput, Refused};
-use crate::records::stages_store::{RecordRef, RecordTable};
+use crate::records::stages_store::{RecordTable, StageTables};
 use crate::saves::best_times_store::BestTimes;
 use rc2k_core::saves::tables::TABLES;
 
@@ -22,10 +22,11 @@ use rc2k_core::saves::tables::TABLES;
 // g_recordTable
 
 /// Where table `n`'s address is among the variables; its size follows.
-pub fn count_stages(table: RecordTable) -> Result<u32, BadInput> {
+pub fn count_stages(stages: &StageTables, table: RecordTable) -> Result<u32, BadInput> {
     let fault = crate::menu::event_flow::Fault::default();
-    let answer =
-        rc2k_core::saves::tables::count_stages(|n| fault.ok(table.row(n).map(RecordRef::tag)));
+    let answer = rc2k_core::saves::tables::count_stages(|n| {
+        fault.ok(table.row(stages, n).map(|r| r.tag(stages)))
+    });
     fault.check()?;
     answer.map_err(BadInput::from)
 }
@@ -37,12 +38,16 @@ pub fn sizes(stages: u32) -> [u32; TABLES] {
 /// `saves::allocate_best_times` (0x47C4D8): once, the nine tables taken from `list`
 /// (typed, `saves::best_times`, counted on it; `crate::saves::owner::saves().best_times.tables` keeps each one's size),
 /// the marked ones ending in -1 (each typed table's own end).
-pub fn allocate_best_times(best_times: &BestTimes, records: RecordTable) -> Result<(), Refused> {
+pub fn allocate_best_times(
+    best_times: &BestTimes,
+    stages: &StageTables,
+    records: RecordTable,
+) -> Result<(), Refused> {
     let list = best_times.list();
     if best_times.allocated.get() == 1 {
         return Ok(());
     }
-    let sizes = sizes(count_stages(records)?);
+    let sizes = sizes(count_stages(stages, records)?);
     best_times.allocated.set(1);
     for (n, size) in sizes.into_iter().enumerate() {
         let place = &best_times.tables[n];

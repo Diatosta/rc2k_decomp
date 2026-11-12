@@ -40,7 +40,10 @@ pub fn event_stage(
     let table = system.records().stage_tables.championship();
     let section: u32 = screens.event.section.get();
     let index: u32 = screens.event.index.get();
-    Ok((find_record_in(table, index as i32, section)?, section))
+    Ok((
+        find_record_in(&system.records().stage_tables, table, index as i32, section)?,
+        section,
+    ))
 }
 
 /// The title string of the event's section: from a table in mode 0x13, otherwise from the
@@ -48,11 +51,11 @@ pub fn event_stage(
 pub fn event_title(menus: &Menus, system: &System) -> Result<u32, crate::errors::BadInput> {
     let table = system.records().stage_tables.championship();
     let section: u32 = menus.screens.event.section.get();
-    let first = find_record_in(table, 0, section)?;
+    let first = find_record_in(&system.records().stage_tables, table, 0, section)?;
     if menus.play.champ_view.event_mode.get() == 0x13 {
         section_title(&menus.tables.lists, section)
     } else {
-        Ok(first.record()?.name())
+        Ok(first.record(&system.records().stage_tables)?.name())
     }
 }
 

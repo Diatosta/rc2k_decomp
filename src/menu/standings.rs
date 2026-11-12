@@ -215,12 +215,22 @@ pub fn current_event(screens: &Screens, system: &System) -> Result<usize, BadInp
     let index: u32 = screens.event.index.get();
     if section >= 64
         || index >= 64
-        || !crate::records::find_record::has_section(table, section, 600)?
+        || !crate::records::find_record::has_section(
+            &system.records().stage_tables,
+            table,
+            section,
+            600,
+        )?
     {
         return Err(BadInput("a record past the table"));
     }
-    let record = crate::records::find_record::find_record_in(table, index as i32, section)?;
-    let event = record.record()?.event_slot() as usize;
+    let record = crate::records::find_record::find_record_in(
+        &system.records().stage_tables,
+        table,
+        index as i32,
+        section,
+    )?;
+    let event = record.record(&system.records().stage_tables)?.event_slot() as usize;
     if !crate::saves::best_times::STAGE_TIMES.with(|t| event < t.stages.len())? {
         return Err(BadInput("an event past the stages' best times"));
     }

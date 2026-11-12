@@ -30,7 +30,7 @@ pub fn send_with_eax_in(audio: &Audio, command: Command, first_word: Option<u32>
     if let Some(word) = first_word {
         registers[0] = word;
     }
-    hash_if_asked(number, registers);
+    hash_if_asked(audio, number, registers);
     if audio.state.no_audio.is_set() {
         locked(audio).clear();
     } else {
@@ -41,20 +41,14 @@ pub fn send_with_eax_in(audio: &Audio, command: Command, first_word: Option<u32>
 /// With `RC2K_SOUND_HASH` (a check, as `RC2K_FAN_HASH` for the drawing): the commands of each
 /// turn in the race hashed and logged at its end (`END_OF_TURN`), so that two runs of a
 /// replay can be compared turn by turn.
-fn hash_if_asked(command: u32, registers: [u32; 7]) {
+fn hash_if_asked(audio: &Audio, command: u32, registers: [u32; 7]) {
     use std::hash::{Hash, Hasher};
     use std::sync::OnceLock;
     static ON: OnceLock<bool> = OnceLock::new();
     /// The turn's hash so far, its commands and the turns logged.
     static TURN: Mutex<Option<(std::collections::hash_map::DefaultHasher, u32, u32)>> =
         Mutex::new(None);
-    if !*ON.get_or_init(|| std::env::var_os("RC2K_SOUND_HASH").is_some())
-        || !crate::race::owner::race()
-            .course
-            .numbers
-            .get()
-            .in_race
-            .is_set()
+    if !*ON.get_or_init(|| std::env::var_os("RC2K_SOUND_HASH").is_some()) || !audio.racing.is_set()
     {
         return;
     }

@@ -62,6 +62,6 @@ pub fn arcade_finale(o: Owners<'static>) -> Result<(), Refused> {
     crate::sound::stop_music::stop_music(o.audio, o.system);
     crate::sound::play_tune_3::play_tune_3(o.sound, o.audio, o.system);
     // The pending key taken (eax 0).
-    crate::input::take_key::take_key();
+    crate::input::take_key::take_key(o.input);
     Ok(())
 }

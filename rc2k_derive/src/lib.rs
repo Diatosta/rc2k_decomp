@@ -145,3 +145,40 @@ pub fn derive_cells(input: TokenStream) -> TokenStream {
     }
     .into()
 }
+
+/// `#[derive(ZeroCells)]` for `crate::cells::ZeroCells`: the record whose every field is
+/// zero, as a constant, so a store's `new()` can name only the fields that start non-zero
+/// (`Record { count: Dword::new(3), ..ZeroCells::ZERO }`). Every field's type is `ZeroCells`.
+#[proc_macro_derive(ZeroCells)]
+pub fn derive_zero_cells(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as DeriveInput);
+    let name = &input.ident;
+    if !input.generics.params.is_empty() {
+        return syn::Error::new_spanned(name, "ZeroCells: no generics")
+            .to_compile_error()
+            .into();
+    }
+    let Data::Struct(s) = &input.data else {
+        return syn::Error::new_spanned(name, "ZeroCells: only a struct")
+            .to_compile_error()
+            .into();
+    };
+    let init = match &s.fields {
+        Fields::Named(f) => {
+            let names = f.named.iter().map(|f| &f.ident);
+            let types = f.named.iter().map(|f| &f.ty);
+            quote! { #name { #( #names: <#types as crate::cells::ZeroCells>::ZERO ),* } }
+        }
+        Fields::Unnamed(f) => {
+            let types = f.unnamed.iter().map(|f| &f.ty);
+            quote! { #name( #( <#types as crate::cells::ZeroCells>::ZERO ),* ) }
+        }
+        Fields::Unit => quote! { #name },
+    };
+    quote! {
+        impl crate::cells::ZeroCells for #name {
+            const ZERO: Self = #init;
+        }
+    }
+    .into()
+}

@@ -180,7 +180,7 @@ impl finish::Finish for Game<'_> {
                 self.owners.system,
             ),
             Step::TakeKey => {
-                crate::input::take_key::take_key();
+                crate::input::take_key::take_key(self.owners.input);
             }
         }
         Ok(())

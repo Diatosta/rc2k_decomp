@@ -9,15 +9,17 @@
 //! within 0x1000 records.
 
 use crate::errors::Refused;
-use crate::records::stages_store::{RECORD_LEN, RecordRef, RecordTable};
+use crate::records::stages_store::{RECORD_LEN, RecordRef, RecordTable, StageTables};
 
 /// The record, as the original finds it (refused where it would run away). Converted:
 /// `rc2k_core::files::records::find_stage_record`.
 pub fn find_stage_record(
+    stages: &StageTables,
     table: RecordTable,
     section: u32,
     number: u32,
 ) -> Result<RecordRef, Refused> {
-    let place = rc2k_core::files::records::find_stage_record(&table.bytes(), section, number)?;
-    Ok(table.row((place / RECORD_LEN as usize) as u32)?)
+    let place =
+        rc2k_core::files::records::find_stage_record(&table.bytes(stages), section, number)?;
+    Ok(table.row(stages, (place / RECORD_LEN as usize) as u32)?)
 }

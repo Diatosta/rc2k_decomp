@@ -10,6 +10,11 @@ use crate::system::owner::System;
 
 // ---- Rust version ----
 
-pub fn edit_tyre(menus: &Menus, system: &System, confirm: bool) -> Result<(), Refused> {
-    change_page(menus, system, TYRE, confirm)
+pub fn edit_tyre(
+    menus: &Menus,
+    system: &System,
+    input: &crate::input::owner::Input,
+    confirm: bool,
+) -> Result<(), Refused> {
+    change_page(menus, system, input, TYRE, confirm)
 }

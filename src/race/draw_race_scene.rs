@@ -615,7 +615,7 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
     flush_batch(o.scene, part, &race.frame, &plain(&race.frame), false)?;
     flush_batch(o.scene, part, &race.frame, &textured(&race.frame), true)?;
     crate::race::frame_draw::share_sound_spots(race, o.sound)?;
-    crate::race::frame_draw::wake_part_sounds(race)?;
+    crate::race::frame_draw::wake_part_sounds(race, o.sound)?;
     for state in [0x11, 0x12] {
         set_render_state(part, 2, state);
     }

@@ -29,6 +29,13 @@ pub fn gear_change_sound_at(
     Ok(())
 }
 
-pub fn gear_change_sound(car: &Car) -> Result<(), Refused> {
-    gear_change_sound_at(crate::sound::store::current_object(), &car.gear_changed)
+pub fn gear_change_sound(
+    car: &Car,
+    sound: &crate::sound::owner::Sound,
+    work: &crate::race::work_store::RaceWork,
+) -> Result<(), Refused> {
+    gear_change_sound_at(
+        crate::sound::store::current_object(sound, work),
+        &car.gear_changed,
+    )
 }

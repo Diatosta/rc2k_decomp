@@ -150,7 +150,7 @@ pub fn lobby_loop(o: Owners<'static>) -> Result<u32, Refused> {
             .pages
             .frame_clock
             .set(system.session.clocks.key_ticks.get());
-        let key = list_key(install)?;
+        let key = list_key(install, o.input)?;
         let mut moved = false;
         if net.edit().edited.get() != u32::MAX {
             crate::net::chat_key::chat_key(o.input, net, install, key, o.gfx)?;

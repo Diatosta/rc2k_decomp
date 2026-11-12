@@ -18,7 +18,6 @@
 //! The sound commands go to the audio thread through `audio::store`'s queue; these are the
 //! game thread's.
 
-use crate::race::owner::race;
 use crate::session::{Dword, Float, GameThread, PlainDword, PlainFloat, PlainWord};
 
 /// `g_wheelSurfaceA`, `g_wheelSurfaceB` (IDA 0x4F66F1, 0x4F66F5): the surfaces of the wheels
@@ -221,19 +220,16 @@ pub struct SoundObject {
 }
 
 /// The current car's sound object (`g_raceSoundObjects[g_currentCar & 7]`).
-pub fn current_object() -> &'static SoundObject {
-    &crate::sound::owner::sound().race.sounds.objects
-        [(race().shared.work.get().current_car.get() & 7) as usize]
+pub fn current_object<'a>(
+    sound: &'a crate::sound::owner::Sound,
+    work: &crate::race::work_store::RaceWork,
+) -> &'a SoundObject {
+    &sound.race.sounds.objects[(work.current_car.get() & 7) as usize]
 }
 
 impl SoundObject {
     /// Race sound object `n` (the original kept its address in `g_raceSoundObjects`),
     /// refused past the eight.
-    pub fn number(n: u32) -> Result<&'static SoundObject, crate::errors::BadInput> {
-        Self::of(crate::sound::owner::sound(), n)
-    }
-
-    /// `number` for a caller that holds the sound owner.
     pub fn of(
         sound: &crate::sound::owner::Sound,
         n: u32,
@@ -1178,8 +1174,8 @@ mod tests {
 
     #[test]
     fn objects_are_by_number_within_the_eight() {
-        assert!(SoundObject::number(7).is_ok());
-        assert!(SoundObject::number(8).is_err());
+        assert!(SoundObject::of(crate::sound::owner::sound(), 7).is_ok());
+        assert!(SoundObject::of(crate::sound::owner::sound(), 8).is_err());
     }
 
     #[test]

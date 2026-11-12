@@ -8,8 +8,11 @@
 //! Callers: `race::replay_viewer`.
 
 /// The key, 0 for none.
-pub fn list_take_key(install: &crate::install::owner::Install) -> u8 {
-    let key = crate::input::take_key::take_key();
+pub fn list_take_key(
+    install: &crate::install::owner::Install,
+    input: &crate::input::owner::Input,
+) -> u8 {
+    let key = crate::input::take_key::take_key(input);
     if key == 0 {
         crate::system::sleep::sleep(1);
     } else {

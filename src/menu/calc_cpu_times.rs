@@ -58,7 +58,12 @@ pub fn record(screens: &Screens, system: &System) -> Result<RecordRef, BadInput>
     current_event(screens, system)?;
     let table = system.records().stage_tables.championship();
     let (section, index): (u32, u32) = (screens.event.section.get(), screens.event.index.get());
-    crate::records::find_record::find_record_in(table, index as i32, section)
+    crate::records::find_record::find_record_in(
+        &system.records().stage_tables,
+        table,
+        index as i32,
+        section,
+    )
 }
 
 /// What is refused for the record `rec` (or its fatal error), before
@@ -75,7 +80,7 @@ pub fn check<'a>(
         return Err(BadInput("a class count of 0 or past the four").into());
     }
     let drivers = drivers(menus)?;
-    let times = rec.record()?.class_times();
+    let times = rec.record(&system.records().stage_tables)?.class_times();
     let (times, _) = scaled(race, times, held_section(screens));
     let length = crate::records::trakpak_entry::track_of(&system.records().stage_tables, rec)?
         .length(&system.records().stage_tables)?;
@@ -107,10 +112,20 @@ pub fn calc_cpu_times(menus: &Menus, system: &System, race: &Race) -> Result<(),
     let rec = record(screens, system)?;
     let (classes, drivers, length) = check(menus, system, race, rec)?;
     crate::logfile::log_write::log_nul(&TEXTS_RVA[0], true, 1);
-    for (k, t) in rec.record()?.class_times().into_iter().enumerate() {
+    for (k, t) in rec
+        .record(&system.records().stage_tables)?
+        .class_times()
+        .into_iter()
+        .enumerate()
+    {
         screens.state.menus.class_times[k].set(t);
     }
-    crate::menu::scale_stage_times::scale_stage_times(screens, rec, race)?;
+    crate::menu::scale_stage_times::scale_stage_times(
+        screens,
+        &system.records().stage_tables,
+        rec,
+        race,
+    )?;
     screens.state.menus.track_length[0].set(length);
     screens.state.menus.track_length[1].set(length.wrapping_mul(100) / 0x96A);
     // The logic is in `rc2k_core::menu::event::{Spread, cpu_gap, cpu_time}`.

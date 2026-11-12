@@ -23,11 +23,19 @@ pub fn keep_stage_best(
     let p = current_player(menus)?;
     // The logic is in `rc2k_core::menu::bests::takes_record`.
     let figure = p.get().figure;
-    if !bests::takes_record(figure, record.record()?.holder(Holder::Second).speed) {
+    if !bests::takes_record(
+        figure,
+        record
+            .record(&system.records().stage_tables)?
+            .holder(Holder::Second)
+            .speed,
+    ) {
         return Ok(());
     }
     name_player(&p.get())?;
     let (row, name) = crate::menu::standings::as_holder(menus, &p.get())?;
-    record.record()?.set_holder(Holder::Second, &row, &name);
+    record
+        .record(&system.records().stage_tables)?
+        .set_holder(Holder::Second, &row, &name);
     Ok(())
 }

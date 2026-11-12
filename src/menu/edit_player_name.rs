@@ -44,7 +44,7 @@ pub fn edit_player_name(
         return Err(BadInput("no keyboard layout").into());
     }
 
-    let key = take_key();
+    let key = take_key(input);
     // The logic is in `rc2k_core::menu::text_entry` (`key`, `appends`, `too_wide`).
     use rc2k_core::menu::text_entry::{self as entry, Key};
     match entry::key(key) {

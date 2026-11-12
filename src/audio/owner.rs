@@ -20,6 +20,9 @@ pub struct Audio {
     pub sample_names: SampleNames,
     /// The volume levels shared with the menus.
     pub levels: Levels,
+    /// Whether a race is loaded, as the course's in-race flag has it (set with it at the
+    /// load and the tidy): the sound hash (`RC2K_SOUND_HASH`) logs only commands of a race.
+    pub racing: crate::session::Flag,
 }
 
 /// The one instance (not `AUDIO`: that is `store::AUDIO`'s old name). Reached through
@@ -30,6 +33,7 @@ pub static AUDIO_OWNER: Audio = Audio {
     commands: Mutex::new(Queue::new()),
     sample_names: SampleNames::new(),
     levels: Levels::new(),
+    racing: crate::session::Flag::new(false),
 };
 
 /// The audio's state, for a caller that does not take it as a parameter yet.

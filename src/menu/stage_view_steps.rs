@@ -39,10 +39,11 @@ use rc2k_core::menu::stage_screens;
 fn stage_record(screens: &Screens, system: &System) -> Result<RecordRef, Refused> {
     let table = system.records().stage_tables.championship();
     let section = screens.event.section.get();
-    if !has_section(table, section, 600)? {
+    if !has_section(&system.records().stage_tables, table, section, 600)? {
         return Err(BadInput("a section past the record table").into());
     }
     Ok(find_record_in(
+        &system.records().stage_tables,
         table,
         screens.event.index.get() as i32,
         section,
@@ -60,10 +61,13 @@ fn small_section(menus: &Menus) -> Result<u32, Refused> {
 }
 
 pub fn count_stage_pages(screens: &Screens, system: &System) -> Result<(), Refused> {
+    let stages = &system.records().stage_tables;
     let record = stage_record(screens, system)?;
     // The logic is in `rc2k_core::menu::event::stage_pages`.
     let fault = Fault::default();
-    let n = rc2k_core::menu::event::stage_pages(|k| fault.ok(record.offset(k).map(RecordRef::tag)));
+    let n = rc2k_core::menu::event::stage_pages(|k| {
+        fault.ok(record.offset(stages, k).map(|r| r.tag(stages)))
+    });
     fault.check()?;
     let n = n.ok_or(BadInput("more than 256 stage pages"))?;
     screens.event.stage_pages.set(n);
@@ -81,18 +85,21 @@ pub fn play_stage_speech(
     if championship(menus) {
         // The logic is in `rc2k_core::menu::stage_screens::stage_speech`.
         let fault = std::cell::Cell::new(None);
-        let at = stage_screens::stage_speech(record.record()?.track(), |n| {
-            crate::session::read_on_in(
-                &menus.tables.lists,
-                &menus.tables.lists.stage_speeches,
-                n as usize,
-                "a stage speech",
-            )
-            .unwrap_or_else(|e| {
-                fault.set(Some(e));
-                0
-            })
-        });
+        let at = stage_screens::stage_speech(
+            record.record(&system.records().stage_tables)?.track(),
+            |n| {
+                crate::session::read_on_in(
+                    &menus.tables.lists,
+                    &menus.tables.lists.stage_speeches,
+                    n as usize,
+                    "a stage speech",
+                )
+                .unwrap_or_else(|e| {
+                    fault.set(Some(e));
+                    0
+                })
+            },
+        );
         if let Some(e) = fault.take() {
             return Err(e.into());
         }
@@ -120,13 +127,14 @@ pub fn play_rally_speech(
     menus: &Menus,
     audio: &crate::audio::owner::Audio,
     system: &crate::system::owner::System,
+    input: &crate::input::owner::Input,
 ) -> Result<(), Refused> {
     // The logic is in `rc2k_core::menu::stage_screens::rally_speech`.
     let section = stage_screens::rally_speech(menus.play.champ_view.event_mode.get(), || {
         menus.screens.event.section.get()
     })?
     .unwrap_or(0);
-    crate::input::take_key::take_key();
+    crate::input::take_key::take_key(input);
     if championship(menus) {
         crate::sound::start_stream::start_stream(
             audio,

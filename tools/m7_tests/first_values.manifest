@@ -3,8 +3,8 @@
 # after another; or `held` where no store holds the game's bytes (a Rust item, a handle where
 # the game has an address): the golden file keeps its line. A key is the store's registry
 # name, the field path and `/<length>`, else the Rust item the tests compare (module path,
-# dots). Stores of the registry are frozen whole without being listed here, but for the
-# `held` ones at the end.
+# dots). Stores of the registry are frozen without being listed here (test_support::first_values:
+# their fields' names and values, and the gaps that start non-zero).
 
 # math
 math.next_random.STATE/4 store:math.next_random.STATE@0+4
@@ -195,22 +195,7 @@ race.owner.RACE.shared.work.car_records[0]/32 store:race.owner.RACE.shared.work@
 race.replay_path.LAST_RACE held
 race.replay_path.TEMPLATES held
 
-# The stores that hold a handle or a Rust value where the game has an address.
-store:install.owner.INSTALL.vars held
-store:gfx.owner.GFX.card.texture_tables held
-store:audio.owner.AUDIO_OWNER.sample_records held
-store:input.owner.INPUT.devices held
-store:menu.owner.MENUS.play.players held
-store:menu.owner.MENUS.cars.table held
-store:menu.owner.MENUS.tables.texts#2 held
-store:menu.owner.MENUS.tables.menus.labels held
-store:sound.owner.SOUND.race.sets held
-store:sound.owner.SOUND.race.cue_lists held
-store:sound.owner.SOUND.race.kinds held
-store:sound.owner.SOUND.race.surface_sets held
-store:install.owner.INSTALL.pages held
-store:gfx.owner.GFX.fonts.font_block held
-store:race.owner.RACE.frame.view_and_records held
-store:race.owner.RACE.shared.view held
-store:race.owner.RACE.shared.work held
-store:menu.owner.MENUS.tables.lists held
+# The sample records as the game has them: the name keys and volume levels are handles in the
+# store, so only the hash of the game's 29504 bytes is held (the store's own test puts the
+# addresses back).
+audio.store.SAMPLE_RECORDS_GAMES/29504 held

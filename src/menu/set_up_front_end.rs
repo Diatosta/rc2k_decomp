@@ -72,6 +72,7 @@ pub fn set_up_front_end(o: crate::owners::Owners<'static>) -> Result<(), Refused
         .set(menus.screens.option_work.other_volume.get());
     allocate_best_times::allocate_best_times(
         best_times,
+        &system.records().stage_tables,
         system.records().stage_tables.championship(),
     )?;
     // Every table is typed now (`saves::best_times`): none is copied; the summary's
@@ -138,6 +139,7 @@ pub fn set_up_front_end(o: crate::owners::Owners<'static>) -> Result<(), Refused
             crate::records::default_stage_records::default_stage_records(
                 crate::strings::append_string_by_id::StringOwners::of(o),
                 menus,
+                &system.records().stage_tables,
                 table,
             )?;
         }

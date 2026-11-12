@@ -27,17 +27,20 @@ pub fn draw_stage_map(o: Owners<'static>) -> Result<(), Refused> {
     use crate::gfx::convert_picture::convert_picture_now_in;
     use crate::gfx::load_picture_with_overlay::load_picture_with_overlay_in;
     use crate::gfx::picture_as_surface::picture_as_surface;
+    let stages = &system.records().stage_tables;
     let mode: u32 = menus.play.champ_view.stage_mode.get();
     let record = match mode {
         2 => {
             let table: u32 = menus.play.arcade.level.get();
             crate::records::stages_store::row(
-                system.records().stage_tables.level_table(table)?,
+                stages,
+                stages.level_table(table)?,
                 menus.play.arcade.stage.get(),
             )?
         }
         3 => crate::records::find_record::find_record_in(
-            system.records().stage_tables.championship(),
+            stages,
+            stages.championship(),
             menus.screens.event.index.get() as i32,
             menus.screens.event.section.get(),
         )?,
@@ -45,7 +48,11 @@ pub fn draw_stage_map(o: Owners<'static>) -> Result<(), Refused> {
             let s = selection_in(menus, system)?.ok_or(crate::errors::BadInput(
                 "no stage tables for the choice: the original reads through null",
             ))?;
-            crate::records::stages_store::row(s.table, menus.screens.event.stage_number.get())?
+            crate::records::stages_store::row(
+                stages,
+                s.table,
+                menus.screens.event.stage_number.get(),
+            )?
         }
     };
     let overlay = crate::menu::texts_store::text_at(
@@ -53,7 +60,7 @@ pub fn draw_stage_map(o: Owners<'static>) -> Result<(), Refused> {
         crate::session::read_on_in(
             &menus.tables.lists,
             &menus.tables.lists.map_overlays,
-            record.record()?.event_slot() as usize,
+            record.record(stages)?.event_slot() as usize,
             "a map overlay",
         )?,
     )?;

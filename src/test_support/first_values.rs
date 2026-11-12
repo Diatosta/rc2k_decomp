@@ -1,10 +1,19 @@
 //! The game's first values, frozen in `data/first_values.golden`: for every store of the
-//! `stores` registry its size and a hash of the bytes it starts with, and for the constants
-//! and fields the tests read, the bytes themselves under a name.
+//! `stores` registry a hash over its fields' names and values, and for the constants and
+//! fields the tests read, the bytes themselves under a name.
 //!
 //! Each line is `<key> <size> <hash>` with, for a named read, the bytes in hex after it.
 //! A store's key is `store:` and its registry name (`#2`, `#3` ... after the name when the
 //! registry holds it more than once, in the registry's order). The hash is FNV-1a, 64 bits.
+//!
+//! A store's line does not depend on the layout. The store is cut into its runs of like
+//! cells (`Cells::cell_run`), each named by its field path (`Cells::field_path`: `.a.b[2]`);
+//! the line's hash is the sum of one hash per run over its path, length and bytes, so the
+//! order of the fields and the bytes between them do not count, and its size is the bytes
+//! the runs hold. Gap fields (`_gap_*`, `_lead*`, `_pad*`, `_tail*`: bytes no code names) are
+//! left out, but for a gap that starts non-zero: it has a line of its own,
+//! `gap:<store key>:<field path>` with its bytes, so dropping one changes the file in plain
+//! sight. A rename of a gap that starts at zero changes nothing.
 
 use std::collections::HashMap;
 
@@ -130,32 +139,165 @@ pub fn store_keys() -> Vec<(String, &'static crate::stores::Entry)> {
         .collect()
 }
 
-/// The bytes the registry's store `key` holds now, as many as the golden file names.
+/// The prefixes of the names of gap fields: bytes the game has and no code names.
+const GAP_PREFIXES: [&str; 4] = ["_gap_", "_lead", "_pad", "_tail"];
+
+/// The field path holds a gap field (`.a._gap_935630`, `.a[3]._tail`).
+fn is_gap(path: &str) -> bool {
+    path.split('.').skip(1).any(|part| {
+        let name = part.split('[').next().unwrap_or(part);
+        GAP_PREFIXES.iter().any(|p| name.starts_with(p))
+    })
+}
+
+/// One run of like cells of a store: where it starts, how long it is, and the field path of
+/// its first byte (`@<offset>` where the store names no fields).
+pub struct Run {
+    pub offset: usize,
+    pub len: usize,
+    pub path: String,
+}
+
+/// The runs a store is cut into, in order.
+pub fn runs(store: &dyn crate::cells::Store) -> Vec<Run> {
+    let size = store.size();
+    let mut runs = Vec::new();
+    let mut at = 0;
+    while at < size {
+        let end = match store.cell_run_at(at) {
+            Some((start, run)) => (start + run.len()).min(size),
+            None => size,
+        };
+        assert!(end > at, "a run that does not advance, at byte {at}");
+        let mut path = String::new();
+        store.field_path_at(at, &mut path);
+        if path.is_empty() {
+            path = format!("@{at}");
+        }
+        runs.push(Run {
+            offset: at,
+            len: end - at,
+            path,
+        });
+        at = end;
+    }
+    runs
+}
+
+/// What a store holds as the golden file keeps it: the bytes of its fields that are not
+/// gaps, the hash over their paths and values, and the gaps that hold a non-zero byte, each
+/// with its path and bytes.
+pub struct Summary {
+    pub size: usize,
+    pub hash: u64,
+    pub gaps: Vec<(String, Vec<u8>)>,
+}
+
+/// The `Summary` of a store as it is now.
+pub fn summary(store: &dyn crate::cells::Store) -> Summary {
+    let mut summary = Summary {
+        size: 0,
+        hash: 0,
+        gaps: Vec::new(),
+    };
+    for run in runs(store) {
+        let mut bytes = vec![0; run.len];
+        store
+            .load(run.offset, &mut bytes)
+            .expect("a store's own bytes");
+        if is_gap(&run.path) {
+            if bytes.iter().any(|&b| b != 0) {
+                summary.gaps.push((run.path, bytes));
+            }
+            continue;
+        }
+        let mut entry = run.path.into_bytes();
+        entry.push(0);
+        entry.extend((run.len as u64).to_le_bytes());
+        entry.extend(&bytes);
+        summary.size += run.len;
+        summary.hash = summary.hash.wrapping_add(hash(&entry));
+    }
+    summary
+}
+
+/// The golden key of the gap `path` of the store `key`.
+pub fn gap_key(key: &str, path: &str) -> String {
+    format!("gap:{key}:{path}")
+}
+
+/// The bytes of the game's range of the registry's store `key`, as they are laid out now: for
+/// the tests that compare a store with a named read of the game's image by offset.
 pub fn store_bytes(key: &str) -> Vec<u8> {
     let (_, e) = store_keys()
         .into_iter()
         .find(|(k, _)| k == key)
         .unwrap_or_else(|| panic!("no store {key} in the registry"));
-    let mut mine = vec![0; golden(key).size];
+    let mut mine = vec![0; e.len];
     e.store.load(0, &mut mine).expect("a store's own bytes");
     mine
 }
 
-/// The store `key` (`store:<name>`) holds the game's first values. Hold `test_support::test_lock`.
-pub fn assert_store_starts_as_the_games(key: &str) {
-    assert_matches(key, &store_bytes(key));
+/// The `Summary` of the registry's store `key` now.
+pub fn store_summary(key: &str) -> Summary {
+    let (_, e) = store_keys()
+        .into_iter()
+        .find(|(k, _)| k == key)
+        .unwrap_or_else(|| panic!("no store {key} in the registry"));
+    summary(e.store)
 }
 
-/// The store `key` holds the game's first values but for the places that hold a handle
-/// where the game has an address: each `(offset in the store, golden key)` is put back from
-/// the bytes frozen under the key before the comparison. Hold `test_support::test_lock`.
-pub fn assert_store_starts_as_the_games_but(key: &str, handles: &[(usize, &str)]) {
-    let mut mine = store_bytes(key);
-    for &(at, from) in handles {
-        let games = bytes(from);
-        mine[at..at + games.len()].copy_from_slice(games);
+/// Why the store `key` does not hold the game's first values, or none.
+pub fn store_unlike_the_games(key: &str) -> Option<String> {
+    let g = golden(key);
+    let mine = store_summary(key);
+    if mine.size != g.size {
+        return Some(format!(
+            "{key}: {} bytes in the fields, the game's {}",
+            mine.size, g.size
+        ));
     }
-    assert_matches(key, &mine);
+    if mine.hash != g.hash {
+        return Some(format!(
+            "{key}: the fields' names or values differ from the game's"
+        ));
+    }
+    let prefix = gap_key(key, "");
+    let mut frozen: Vec<&str> = table()
+        .keys()
+        .copied()
+        .filter(|k| k.starts_with(&prefix))
+        .collect();
+    frozen.sort_unstable();
+    let mut now: Vec<String> = mine.gaps.iter().map(|(p, _)| gap_key(key, p)).collect();
+    now.sort_unstable();
+    if now != frozen {
+        return Some(format!(
+            "{key}: the gaps that start non-zero are {now:?}, the golden file's {frozen:?}"
+        ));
+    }
+    for (path, bytes) in &mine.gaps {
+        let gap = gap_key(key, path);
+        if !holds(&gap, bytes) {
+            return Some(format!("{gap}: the gap's bytes differ"));
+        }
+    }
+    None
+}
+
+/// The store `key` (`store:<name>`) holds the game's first values. Hold `test_support::test_lock`.
+pub fn assert_store_starts_as_the_games(key: &str) {
+    if let Some(why) = store_unlike_the_games(key) {
+        panic!("{why}");
+    }
+}
+
+/// The bytes the registry's store `key` has.
+fn store_len(key: &str) -> usize {
+    store_keys()
+        .into_iter()
+        .find(|(k, _)| k == key)
+        .map_or(0, |(_, e)| e.store.size())
 }
 
 /// The key of the registry store that starts at the typed block `block`.
@@ -166,7 +308,7 @@ fn key_of_block<T>(block: &'static T) -> String {
         .find(|(_, e)| e.store.first().addr() == first)
         .unwrap_or_else(|| panic!("no registry store starts at the block"));
     let size = size_of::<T>();
-    let len = golden(&key).size;
+    let len = store_len(&key);
     assert!(
         len <= size && size <= len.next_multiple_of(4),
         "{key}: the struct's size"
@@ -182,12 +324,6 @@ pub fn assert_block_starts_as_the_games<T>(block: &'static T) {
     assert_store_starts_as_the_games(&key_of_block(block));
 }
 
-/// `assert_store_starts_as_the_games_but` for the store that starts at the typed block.
-pub fn assert_block_starts_as_the_games_but<T>(block: &'static T, handles: &[(usize, &str)]) {
-    let _g = crate::test_support::test_lock();
-    assert_store_starts_as_the_games_but(&key_of_block(block), handles);
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -197,29 +333,6 @@ mod tests {
         assert_eq!(hash(b""), 0xCBF2_9CE4_8422_2325);
         assert_eq!(hash(b"a"), 0xAF63_DC4C_8601_EC8C);
     }
-
-    /// The stores whose first values differ from the game's on purpose (a handle or a Rust
-    /// value where the game has an address): their own tests patch the game's bytes first.
-    const NOT_THE_GAMES: [&str; 18] = [
-        "store:audio.owner.AUDIO_OWNER.sample_records",
-        "store:gfx.owner.GFX.card.texture_tables",
-        "store:gfx.owner.GFX.fonts.font_block",
-        "store:input.owner.INPUT.devices",
-        "store:install.owner.INSTALL.pages",
-        "store:install.owner.INSTALL.vars",
-        "store:menu.owner.MENUS.cars.table",
-        "store:menu.owner.MENUS.play.players",
-        "store:menu.owner.MENUS.tables.lists",
-        "store:menu.owner.MENUS.tables.menus.labels",
-        "store:menu.owner.MENUS.tables.texts#2",
-        "store:race.owner.RACE.frame.view_and_records",
-        "store:race.owner.RACE.shared.view",
-        "store:race.owner.RACE.shared.work",
-        "store:sound.owner.SOUND.race.cue_lists",
-        "store:sound.owner.SOUND.race.kinds",
-        "store:sound.owner.SOUND.race.sets",
-        "store:sound.owner.SOUND.race.surface_sets",
-    ];
 
     /// The stores other tests change while they run without the lock (the allocator's
     /// counts, the file search, the files the game-file tests open, the picture being
@@ -231,39 +344,22 @@ mod tests {
         "store:gfx.owner.GFX.pictures.picture",
     ];
 
-    /// Every other store starts as the game's: the one test of the stores' first values.
+    /// Every store starts as the game's: the one test of the stores' first values. (The
+    /// stores that keep a handle where the game has an address are frozen with the handle:
+    /// their own tests name the address.)
     #[test]
     fn every_store_starts_as_the_games() {
         let _g = crate::test_support::test_lock();
         let unlike: Vec<String> = store_keys()
             .into_iter()
             .map(|(key, _)| key)
-            .filter(|key| !NOT_THE_GAMES.contains(&key.as_str()))
             .filter(|key| !CHANGED_BY_TESTS.iter().any(|p| key.starts_with(p)))
-            .filter(|key| hash(&store_bytes(key)) != golden(key).hash)
+            .filter_map(|key| store_unlike_the_games(&key))
             .collect();
         assert!(
             unlike.is_empty(),
             "unlike the game's first values: {unlike:?}"
         );
-    }
-
-    /// With `RC2K_FIRST_VALUE_DIFFERENCES` set, lists the stores whose bytes differ from the
-    /// game's first values (a survey: some hold handles where the game holds addresses).
-    #[test]
-    fn list_stores_unlike_the_game() {
-        let Ok(out) = std::env::var("RC2K_FIRST_VALUE_DIFFERENCES") else {
-            return;
-        };
-        let _g = crate::test_support::test_lock();
-        let mut text = String::new();
-        for (key, _) in store_keys() {
-            let mine = store_bytes(&key);
-            if hash(&mine) != golden(&key).hash {
-                text.push_str(&format!("{key} {}\n", mine.len()));
-            }
-        }
-        std::fs::write(out, text).unwrap();
     }
 
     #[test]
@@ -276,6 +372,7 @@ mod tests {
         for (key, e) in store_keys() {
             let g = golden(&key);
             assert!(g.size <= e.store.size(), "{key}: the store is shorter");
+            assert!(e.len <= e.store.size(), "{key}: the game's range is longer");
         }
     }
 }

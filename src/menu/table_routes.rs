@@ -286,7 +286,7 @@ pub fn item_fn(o: Owners<'static>, f: ItemFn, c: &table_calls::ItemCall) -> Resu
         ItemFn::SaveSetupLoop => save_setup_loop::run(o),
         ItemFn::BeginSetupName => Ok(begin_setup_name::begin_setup_name(menus, o.service)?),
         ItemFn::LoadSetupSlot => {
-            load_setup_slot::load_setup_slot(menus, o.service, o.system).map(|_| ())
+            load_setup_slot::load_setup_slot(menus, o.service, o.system, o.input).map(|_| ())
         }
         ItemFn::NextSetupPage => {
             next_setup_page::next_setup_page(menus);
@@ -513,7 +513,9 @@ pub fn screen_fn(o: Owners<'static>, f: ScreenFn) -> Result<(), Refused> {
         ScreenFn::PickPlayer3 => page_settings::pick_player(menus, 2).map(|_| ()),
         ScreenFn::PickPlayer4 => page_settings::pick_player(menus, 3).map(|_| ()),
         ScreenFn::LearnAxis => controller::learn_axis(o, o.input, o.gfx),
-        ScreenFn::HandleEditKeys => handle_edit_keys::handle_edit_keys(menus, o.system).map(|_| ()),
+        ScreenFn::HandleEditKeys => {
+            handle_edit_keys::handle_edit_keys(menus, o.system, o.input).map(|_| ())
+        }
         ScreenFn::BestScoresCaption => best_scores::best_scores_caption(
             crate::strings::append_string_by_id::StringOwners::of(o),
             menus,
@@ -599,10 +601,10 @@ pub fn screen_fn(o: Owners<'static>, f: ScreenFn) -> Result<(), Refused> {
             draw_redefined_keys::draw_redefined_keys(o, &mut GameCanvas::new(o.gfx)).map(|_| ())
         }
         ScreenFn::RedefinePlayer1Key => {
-            redefine_keys::redefine_key(menus, player::player(menus, 0))
+            redefine_keys::redefine_key(menus, o.input, player::player(menus, 0))
         }
         ScreenFn::RedefineKey => {
-            redefine_keys::redefine_key(menus, player_settings::current(menus).ok())
+            redefine_keys::redefine_key(menus, o.input, player_settings::current(menus).ok())
         }
         ScreenFn::DrawOptionsChecklist => {
             draw_options_checklist::draw_options_checklist(o, &mut GameCanvas::new(o.gfx))

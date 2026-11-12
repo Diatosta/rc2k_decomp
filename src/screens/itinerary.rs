@@ -5,7 +5,6 @@
 //! services in `draw_work.scratch_0c`.
 
 use crate::errors::{FatalError, Refused};
-use crate::records::stages_store::RecordRef;
 use crate::screens::best_scores::{record_at, section_there};
 use crate::screens::game_screen::GameScreen;
 use crate::text::draw_text::Canvas;
@@ -36,6 +35,7 @@ pub fn draw_itinerary(
         if !section_there(menus, system)? {
             return Err(crate::errors::BadInput("a section past the record table").into());
         }
+        let stages = &system.records().stage_tables;
         let first = record_at(menus, system, 0)?;
         let heading = if menus.play.champ_view.event_mode.get() == 0x13 {
             crate::screens::stage_panel::section_title(
@@ -43,16 +43,15 @@ pub fn draw_itinerary(
                 menus.screens.event.section.get(),
             )?
         } else {
-            first.record()?.name()
+            first.record(stages)?.name()
         };
-        let stages = &system.records().stage_tables;
         let base = record_at(menus, system, 1)?;
-        let record = move |n: u32| base.offset(n.wrapping_sub(1));
+        let record = move |n: u32| base.offset(stages, n.wrapping_sub(1));
         let row = |n: u32| -> Result<Row, Refused> {
             let r = record(n)?;
-            match r.tag() {
+            match r.tag(stages) {
                 1 => Ok(Row::Service {
-                    hhmm: r.record()?.hhmm(),
+                    hhmm: r.record(stages)?.hhmm(),
                 }),
                 3 | 4 => Ok(Row::End),
                 0 => {
@@ -60,14 +59,14 @@ pub fn draw_itinerary(
                     Ok(Row::Stage {
                         name: entry.name(stages)?,
                         length: entry.length(stages)?,
-                        hhmm: r.record()?.hhmm(),
+                        hhmm: r.record(stages)?.hhmm(),
                     })
                 }
                 _ => Err(INVALID_STAGE.into()),
             }
         };
         let fault = crate::menu::event_flow::Fault::default();
-        let ends_at = |n: u32| fault.ok(record(n).map(RecordRef::tag)) == u32::MAX;
+        let ends_at = |n: u32| fault.ok(record(n).map(|r| r.tag(stages))) == u32::MAX;
         let drawn = rc2k_core::screens::itinerary::itinerary(
             &mut GameScreen::<
                 rc2k_core::screens::itinerary::Font,

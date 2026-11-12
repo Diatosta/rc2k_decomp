@@ -63,7 +63,7 @@ fn run(
             crate::scene::set_up_front_end_scene::set_up_front_end_scene_in(o)?;
         }
         TidyStep::TakeKey => {
-            crate::input::take_key::take_key();
+            crate::input::take_key::take_key(o.input);
         }
     }
     Ok(())

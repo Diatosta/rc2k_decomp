@@ -104,7 +104,7 @@ pub fn learn_axis(
         classify_controller(controls, screens, eax, ebx, ecx, edx);
     }
     if take {
-        if crate::input::take_key::take_key() == l::CANCEL_KEY {
+        if crate::input::take_key::take_key(input) == l::CANCEL_KEY {
             screens.draw_work.figure.set(0);
             controls.learning.set(0);
         } else if screens.draw_work.figure.get() == 0 {

@@ -2397,7 +2397,7 @@ mod tests {
             mine[at + LEVEL_AT..at + LEVEL_AT + 4]
                 .copy_from_slice(&levels[r.volume_factor as usize].to_le_bytes());
         }
-        first_values::assert_matches("store:audio.owner.AUDIO_OWNER.sample_records", &mine);
+        first_values::assert_matches("audio.store.SAMPLE_RECORDS_GAMES/29504", &mine);
     }
 
     #[test]

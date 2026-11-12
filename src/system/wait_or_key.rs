@@ -10,7 +10,11 @@ use rc2k_core::system::time::{time_up, wait_end};
 
 /// The key, 0 when the time ran out. Its one caller
 /// (`menu::championship_welcome`) reads only the key and whether there was one.
-pub fn wait_or_key(system: &crate::system::owner::System, milliseconds: u32) -> u8 {
+pub fn wait_or_key(
+    system: &crate::system::owner::System,
+    input: &crate::input::owner::Input,
+    milliseconds: u32,
+) -> u8 {
     use crate::system::tick_count::tick_count;
     // Converted: `rc2k_core::system::time::{wait_end, time_up}`.
     let end = wait_end(tick_count(), milliseconds);
@@ -18,7 +22,7 @@ pub fn wait_or_key(system: &crate::system::owner::System, milliseconds: u32) -> 
         crate::system::sleep::sleep(10);
         // The original's window thread saw to these; here the window waits on this thread.
         crate::platform::pump_messages_now();
-        let key = crate::input::take_key::take_key();
+        let key = crate::input::take_key::take_key(input);
         if key != 0 {
             return key;
         }

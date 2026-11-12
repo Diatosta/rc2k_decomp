@@ -65,8 +65,10 @@ fn stage_record(play: &Play, system: &System) -> Result<RecordRef, Refused> {
     if level > 5 || stage > 6 {
         return Err(BadInput("an arcade level past 5 or stage past 6").into());
     }
+    let stages = &system.records().stage_tables;
     Ok(crate::records::stages_store::row(
-        system.records().stage_tables.level_table(level)?,
+        stages,
+        stages.level_table(level)?,
         stage,
     )?)
 }
@@ -78,7 +80,9 @@ fn with_course_times<R>(
     system: &System,
     f: impl FnOnce(&mut rc2k_core::saves::entries::Times) -> R,
 ) -> Result<R, Refused> {
-    let course = stage_record(play, system)?.record()?.event_slot() as usize;
+    let course = stage_record(play, system)?
+        .record(&system.records().stage_tables)?
+        .event_slot() as usize;
     Ok(crate::saves::best_times::COURSE_TIMES
         .with(|t| t.stages.get_mut(course).map(f))?
         .ok_or(BadInput("a course past the best times"))?)
@@ -109,14 +113,20 @@ fn current(menus: &Menus) -> Result<(u32, crate::menu::standings::PlayerCell<'_>
 }
 
 /// `menu::keep_arcade_stage_best`, `record` the caller's edi.
-pub fn keep_arcade_stage_best(menus: &Menus, record: RecordRef) -> Result<(), Refused> {
+pub fn keep_arcade_stage_best(
+    menus: &Menus,
+    stages: &crate::records::stages_store::StageTables,
+    record: RecordRef,
+) -> Result<(), Refused> {
     let (_, player) = current(menus)?;
     // The logic is in `rc2k_core::menu::bests::takes_record`.
     let figure = player.get().figure;
-    if bests::takes_record(figure, record.record()?.holder(Holder::Fastest).speed) {
+    if bests::takes_record(figure, record.record(stages)?.holder(Holder::Fastest).speed) {
         name_player(&player.get())?;
         let (row, name) = crate::menu::standings::as_holder(menus, &player.get())?;
-        record.record()?.set_holder(Holder::Fastest, &row, &name);
+        record
+            .record(stages)?
+            .set_holder(Holder::Fastest, &row, &name);
     }
     Ok(())
 }
@@ -179,7 +189,7 @@ pub fn enter_arcade_stage_time(
     with_course_times(&menus.play, system, |_| ())?;
     let (_, player) = current(menus)?;
     name_player(&player.get())?;
-    let course = record.record()?.event_slot();
+    let course = record.record(&system.records().stage_tables)?.event_slot();
     menus.screens.draw_work.figure.set(course);
     let cheats = menus.play.cheats.cheats.get();
     let sealed = crate::menu::sealed_player_time::sealed_player_time(menus, race, course)?;

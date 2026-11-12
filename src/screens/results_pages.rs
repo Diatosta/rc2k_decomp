@@ -152,7 +152,9 @@ pub fn draw_results_page(
                         menus.screens.event.section.get(),
                     )?
                 } else {
-                    record_at(menus, system, 0)?.record()?.name()
+                    record_at(menus, system, 0)?
+                        .record(&system.records().stage_tables)?
+                        .name()
                 },
             },
             Heading::Record => {

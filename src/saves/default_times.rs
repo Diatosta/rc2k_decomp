@@ -95,8 +95,11 @@ impl rc2k_core::saves::defaults::Source for GameSource<'_> {
 
 /// What the made-up times read of `record`: the first and last classes' times, the event
 /// slot.
-pub fn read_record(record: RecordRef) -> Result<Record, BadInput> {
-    let r = record.record()?;
+pub fn read_record(
+    stages: &crate::records::stages_store::StageTables,
+    record: RecordRef,
+) -> Result<Record, BadInput> {
+    let r = record.record(stages)?;
     let times = r.class_times();
     Ok(Record {
         tag: r.tag(),
@@ -164,9 +167,12 @@ pub fn with_checkpoints(screens: &Screens) -> bool {
 }
 
 /// How many records a table has before its -1 (the first is not looked at for the end).
-pub fn records(table: RecordTable) -> Result<usize, BadInput> {
+pub fn records(
+    stages: &crate::records::stages_store::StageTables,
+    table: RecordTable,
+) -> Result<usize, BadInput> {
     for n in 1..=0x1000u32 {
-        if table.row(n)?.tag() == u32::MAX {
+        if table.row(stages, n)?.tag(stages) == u32::MAX {
             return Ok(n as usize);
         }
     }

@@ -67,7 +67,7 @@ pub fn yes_no_key(
     let eax = if input.keyboard().yes_no_key_given.get() == 1 {
         given
     } else {
-        take_key() as u32
+        take_key(input) as u32
     };
     answer_for_key(so, input, eax)
 }

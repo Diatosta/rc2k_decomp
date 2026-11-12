@@ -10,6 +10,10 @@ use crate::system::owner::System;
 
 // ---- Rust version ----
 
-pub fn edit_steering_sensitivity(menus: &Menus, system: &System) -> Result<(), Refused> {
-    simple_page(menus, system, STEERING_SENSITIVITY)
+pub fn edit_steering_sensitivity(
+    menus: &Menus,
+    system: &System,
+    input: &crate::input::owner::Input,
+) -> Result<(), Refused> {
+    simple_page(menus, system, input, STEERING_SENSITIVITY)
 }

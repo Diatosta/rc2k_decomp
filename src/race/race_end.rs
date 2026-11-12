@@ -248,6 +248,7 @@ pub fn tidy_stage(
     race: &Race,
     effects: &Effects,
     gfx: &crate::gfx::owner::Gfx,
+    audio: &crate::audio::owner::Audio,
 ) -> Result<(), Refused> {
     use crate::race::stage_free::{
         COURSE, COURSE_2, MUD, OBJECT_POINTS, POINT_RECORDS, free, free_game_fonts,
@@ -277,6 +278,7 @@ pub fn tidy_stage(
     s.indent(3);
     free(race, &OBJECT_POINTS)?;
     race.course.numbers.get().in_race.set(false);
+    audio.racing.set(false);
     race.frame
         .view_and_records
         .get()
@@ -305,7 +307,9 @@ pub fn tidy_everything(race: &Race, o: crate::owners::Owners<'static>) -> Result
         Ok(())
     })?;
     s.step(EVERYTHING_WORDS[3], || Ok(()))?;
-    s.step(EVERYTHING_WORDS[4], || tidy_stage(race, o.effects, o.gfx))?;
+    s.step(EVERYTHING_WORDS[4], || {
+        tidy_stage(race, o.effects, o.gfx, o.audio)
+    })?;
     s.log(EVERYTHING_WORDS[5]);
     s.indent(3);
     reset_race_sounds(&SoundVars::game(sound), sound, o.audio, o.system)?;

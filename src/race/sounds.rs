@@ -7,8 +7,8 @@ use crate::race::owner::Race;
 const OBJECTS: u32 = 8;
 const MOST_CARS: u32 = 0x1_0000;
 
-fn wake(n: u32) -> Result<(), BadInput> {
-    crate::sound::store::SoundObject::number(n & 7)?
+fn wake(sound: &crate::sound::owner::Sound, n: u32) -> Result<(), BadInput> {
+    crate::sound::store::SoundObject::of(sound, n & 7)?
         .in_use
         .set(1);
     Ok(())
@@ -27,7 +27,7 @@ pub fn start_race_sounds(
         let count = count.clamp(1, OBJECTS);
         sound.race.sounds.count.set(count);
         for n in 0..count {
-            wake(n)?;
+            wake(sound, n)?;
         }
     }
     crate::sound::let_sounds_play::let_sounds_play_in(audio);
@@ -52,7 +52,7 @@ pub fn wake_car_sounds(
         return Err(BadInput("0x10000 cars or more").into());
     }
     for n in 0..cars {
-        wake(n)?;
+        wake(sound, n)?;
     }
     start_race_sounds(sound, audio)
 }

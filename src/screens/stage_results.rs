@@ -21,7 +21,7 @@ fn records(
     )?;
     Ok((
         base,
-        crate::records::stages_store::row(base, menus.tables.captions.shown_stage.get())?,
+        crate::records::stages_store::row(stages, base, menus.tables.captions.shown_stage.get())?,
     ))
 }
 
@@ -107,6 +107,7 @@ pub fn draw_stage_results(o: Owners<'static>, canvas: &mut dyn Canvas) -> Result
         (menus.play.champ_view.switch_f8.get() ^ 1) & (menus.play.champ_view.switch_fc.get() ^ 1);
     let fastest = if both_off == 1 {
         crate::records::find_stage_record::find_stage_record(
+            &o.system.records().stage_tables,
             stages.championship(),
             menus.tables.captions.shown_group.get(),
             menus.tables.captions.shown_stage.get(),
@@ -121,7 +122,10 @@ pub fn draw_stage_results(o: Owners<'static>, canvas: &mut dyn Canvas) -> Result
     };
     let mut speed = crate::strings::append_speed::append_speed(
         crate::strings::append_string_by_id::StringOwners::of(o),
-        fastest.record()?.holder(holder).speed,
+        fastest
+            .record(&o.system.records().stage_tables)?
+            .holder(holder)
+            .speed,
         true,
         crate::strings::units::units(),
     )?;
@@ -134,7 +138,9 @@ pub fn draw_stage_results(o: Owners<'static>, canvas: &mut dyn Canvas) -> Result
     if stage.len() > 0x100 {
         return Err(BadInput("a stage line past its buffer").into());
     }
-    let slot = record.record()?.event_slot() as usize;
+    let slot = record
+        .record(&o.system.records().stage_tables)?
+        .event_slot() as usize;
     let ten = table
         .with(|t| t.stages.get(slot).copied())?
         .ok_or(BadInput("a stage past its best times table"))?;
@@ -173,11 +179,11 @@ pub fn draw_stage_results(o: Owners<'static>, canvas: &mut dyn Canvas) -> Result
             0x19D
         },
     )?;
-    set_item(3, base.title()?)?;
+    set_item(3, base.title(&o.system.records().stage_tables)?)?;
     o.race
         .text_buffers()
         .stage_result_value
-        .set(record.record()?.track());
+        .set(record.record(&o.system.records().stage_tables)?.track());
     o.race
         .text_buffers()
         .stage_heading
@@ -195,10 +201,12 @@ pub fn draw_stage_results(o: Owners<'static>, canvas: &mut dyn Canvas) -> Result
         }
     });
     speed.pop();
-    let held = fastest.record()?.holder(holder);
+    let held = fastest
+        .record(&o.system.records().stage_tables)?
+        .holder(holder);
     let fastest = Fastest {
         nation: held.nation,
-        name: HeldText::Held(fastest.holder_text(holder)?),
+        name: HeldText::Held(fastest.holder_text(&o.system.records().stage_tables, holder)?),
         car: held.car,
         speed,
     };

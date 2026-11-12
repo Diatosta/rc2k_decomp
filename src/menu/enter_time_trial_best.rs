@@ -27,7 +27,7 @@ pub fn enter_time_trial_best(
     stage_times(menus, system)?; // a stage the tables do not give: refused
     let p = current_player(menus)?;
     let name = name_address_of(&p.get())?;
-    let slot = record.record()?.event_slot();
+    let slot = record.record(&system.records().stage_tables)?.event_slot();
     set(&menus.screens.draw_work.figure, slot);
     let cheats = menus.play.cheats.cheats.get();
     let sealed = crate::menu::sealed_player_time::sealed_player_time(menus, race, slot)?;

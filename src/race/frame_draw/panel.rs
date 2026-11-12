@@ -364,7 +364,7 @@ pub fn panel_values_plain(race: &Race) -> Result<(), BadInput> {
 /// is not -1, the car's sound object (`g_raceSoundObjects[car & 7]`) +0x264 = 1 and +0x10 = 1.
 /// Refuses (before anything) more than eight cars, a null block or object it would write, and
 /// `g_currentCar` past 7 when it is read.
-pub fn wake_part_sounds(race: &Race) -> Result<(), Refused> {
+pub fn wake_part_sounds(race: &Race, sound: &crate::sound::owner::Sound) -> Result<(), Refused> {
     let shared = &race.shared;
     let cars = shared.view.get().race_cars.get().max(1);
     if cars > 8 {
@@ -374,7 +374,7 @@ pub fn wake_part_sounds(race: &Race) -> Result<(), Refused> {
     // The plan: (block slot to set, whether to wake the object) by car.
     let mut plan: Vec<&dyn crate::session::DwordLike> = Vec::new();
     for car in 0..cars {
-        let object = crate::sound::store::SoundObject::number(car & 7)?;
+        let object = crate::sound::store::SoundObject::of(sound, car & 7)?;
         let mut wake = false;
         let block = shared.race_car_or(car as usize, "a null car block")?;
         // Every flag set: each slot is `Left` whatever its count, nothing to plan (the flags only

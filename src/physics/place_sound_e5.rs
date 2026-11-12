@@ -18,6 +18,6 @@ pub fn place_sound_e5(c: &SoundInputs<'_>) -> Result<(), Refused> {
         return Ok(());
     }
     let b = band_value_plain(c, TWIN);
-    cue_plain(c, object(), SECOND, SOUND_E5, b, None)?;
+    cue_plain(c, object(c), SECOND, SOUND_E5, b, None)?;
     Ok(())
 }

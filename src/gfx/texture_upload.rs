@@ -534,12 +534,10 @@ mod block_tests {
 
     #[test]
     fn first_values_are_the_games() {
-        // The kinds are handles of the format records where the game has their addresses.
-        let kinds =
-            crate::test_support::first_values::bytes("gfx.owner.GFX.card.texture_tables.kinds/20");
-        crate::test_support::front::assert_block_starts_as_the_games_but(
+        // The kinds are handles of the format records where the game has their addresses:
+        // the golden file holds the handles.
+        crate::test_support::first_values::assert_block_starts_as_the_games(
             crate::gfx::owner::textures(),
-            |bytes| bytes[0x34..0x48].copy_from_slice(kinds),
         );
     }
 

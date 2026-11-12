@@ -22,8 +22,8 @@ pub fn input_update(o: crate::owners::Owners<'static>) {
 }
 
 /// `input::take_key` (the key taken and dropped).
-pub fn take_key() {
-    crate::input::take_key::take_key();
+pub fn take_key(input: &crate::input::owner::Input) {
+    crate::input::take_key::take_key(input);
 }
 
 /// `race::race_keys`.

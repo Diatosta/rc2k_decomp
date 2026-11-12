@@ -40,6 +40,7 @@ fn reserved(keys: &Keys) -> Result<Option<Vec<u8>>, BadInput> {
 /// One frame of redefining a key of `player` (0: refused).
 pub fn redefine_key(
     menus: &Menus,
+    input: &crate::input::owner::Input,
     player: Option<crate::menu::standings::PlayerCell>,
 ) -> Result<(), Refused> {
     if !menus.screens.option_work.redefining_key.is_set() {
@@ -59,7 +60,7 @@ pub fn redefine_key(
     // The logic is in `rc2k_core::menu::player::redefine`.
     let work: [u8; KEYS] = std::array::from_fn(|i| menus.keys.tables.redefined_keys.get(i));
     let Redefined::Done { keys, placed } =
-        rc2k_core::menu::player::redefine(work, place as usize, take_key(), &reserved)
+        rc2k_core::menu::player::redefine(work, place as usize, take_key(input), &reserved)
     else {
         return Ok(());
     };

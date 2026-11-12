@@ -21,7 +21,7 @@ pub fn place_sound_e1(c: &SoundInputs<'_>) -> Result<(), Refused> {
     if b == 0 {
         return Ok(());
     }
-    let o = object();
+    let o = object(c);
     o.hit_sound.set(0xE1);
     o.hit_volume.set(b);
     place(c.numbers, c.matrices, c.car, &o.hit_place, None);

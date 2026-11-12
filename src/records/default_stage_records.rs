@@ -12,7 +12,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::math::random_below::random_below;
 use crate::menu::owner::Menus;
-use crate::records::stages_store::{HOLDER_NAME_LEN, Holder, HolderRow, RecordTable};
+use crate::records::stages_store::{HOLDER_NAME_LEN, Holder, HolderRow, RecordTable, StageTables};
 use crate::saves::drivers::Driver;
 
 // ---- game data ----
@@ -22,10 +22,10 @@ const MOST_RECORDS: usize = 0x1000;
 
 /// How many records the table has before its -1 (the first is not looked at for the
 /// end, as in the original).
-fn records(table: RecordTable) -> Result<usize, BadInput> {
+fn records(stages: &StageTables, table: RecordTable) -> Result<usize, BadInput> {
     // Converted: `rc2k_core::files::records::record_count`.
     Ok(rc2k_core::files::records::record_count(
-        &table.bytes(),
+        &table.bytes(stages),
         MOST_RECORDS,
     )?)
 }
@@ -48,14 +48,20 @@ fn holder(
 pub fn default_stage_records(
     so: crate::strings::append_string_by_id::StringOwners<'_>,
     menus: &Menus,
+    stages: &StageTables,
     table: RecordTable,
 ) -> Result<(), Refused> {
-    if table.row(0)?.record()?.holder_name(Holder::Fastest)[0] != 0 {
+    if table
+        .row(stages, 0)?
+        .record(stages)?
+        .holder_name(Holder::Fastest)[0]
+        != 0
+    {
         return Ok(());
     }
     let mut made = Vec::new();
-    for n in 0..records(table)? {
-        let record = table.row(n as u32)?.record()?;
+    for n in 0..records(stages, table)? {
+        let record = table.row(stages, n as u32)?.record(stages)?;
         if record.tag() != 0 {
             continue;
         }
