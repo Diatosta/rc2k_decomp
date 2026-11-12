@@ -13,23 +13,46 @@ pub fn percentage(setting: i32, k256: f32, k100: f32) -> f32 {
     (setting as f64 / k256 as f64 * k100 as f64) as f32
 }
 
-/// `physics::reset_car_grades`' writes into the block (byte offset, dword), in the
-/// original's order: +0x29C .. +0x367 zeroed; +0x3F4 .. +0x404 `one`; +0x448 .. +0x458
-/// `a` (the setting at `suspension_stiffness` as a percentage), +0x438 .. +0x444 and +0x45C `c`
-/// (`ride_height`'s); +0x408 .. +0x434 and +0x64 .. +0x80 zeroed; +0x298 -1.
-pub fn reset_writes(one: f32, a: f32, c: f32) -> Vec<(u32, u32)> {
-    let mut w: Vec<(u32, u32)> = (0x29C..0x368).step_by(4).map(|o| (o, 0)).collect();
+/// A field of the car block that `physics::reset_car_grades` writes. The runs are the block's
+/// consecutive fields, counted from the first of each run.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Field {
+    /// The 51 damage gauges, `damage_failed` first and `tyre_wear` last.
+    Gauge(u32),
+    /// `engine_power_factor`, `brake_efficiency` (2), `drive_efficiency` (2).
+    Efficiency(u32),
+    /// `stiffness_mean`.
+    StiffnessMean,
+    /// `wheel_stiffness`, one per wheel.
+    WheelStiffness(u32),
+    /// `ride_height_mean`.
+    RideHeightMean,
+    /// `wheel_ride_height`, one per wheel.
+    WheelRideHeight(u32),
+    /// `steering_efficiency`, `electrical_failures` (7), `handbrake_failed`,
+    /// `gear_change_blocked`, `forced_neutral`, `lost_gear_bits`.
+    Failure(u32),
+    /// `impact_octant_marks`, one per octant.
+    ImpactMark(u32),
+    /// `parts_present`.
+    PartsPresent,
+}
+
+/// `physics::reset_car_grades`' writes into the block (field, dword), in the original's
+/// order: the gauges zeroed; the efficiencies `one`; the stiffness fields `a` (the setting
+/// at `suspension_stiffness` as a percentage), the ride heights `c` (`ride_height`'s); the
+/// failures and the impact marks zeroed; the parts present all set.
+pub fn reset_writes(one: f32, a: f32, c: f32) -> Vec<(Field, u32)> {
+    let mut w: Vec<(Field, u32)> = (0..51).map(|k| (Field::Gauge(k), 0)).collect();
     let one = loaded(one).to_bits();
-    w.extend([0x3F4, 0x3F8, 0x3FC, 0x400, 0x404].map(|o| (o, one)));
-    w.extend([0x458, 0x448, 0x44C, 0x450, 0x454].map(|o| (o, a.to_bits())));
-    w.extend([0x45C, 0x438, 0x43C, 0x440, 0x444].map(|o| (o, c.to_bits())));
-    w.extend(
-        (0x408..0x438)
-            .step_by(4)
-            .chain((0x64..0x84).step_by(4))
-            .map(|o| (o, 0)),
-    );
-    w.push((0x298, u32::MAX));
+    w.extend((0..5).map(|k| (Field::Efficiency(k), one)));
+    w.push((Field::StiffnessMean, a.to_bits()));
+    w.extend((0..4).map(|k| (Field::WheelStiffness(k), a.to_bits())));
+    w.push((Field::RideHeightMean, c.to_bits()));
+    w.extend((0..4).map(|k| (Field::WheelRideHeight(k), c.to_bits())));
+    w.extend((0..12).map(|k| (Field::Failure(k), 0)));
+    w.extend((0..8).map(|k| (Field::ImpactMark(k), 0)));
+    w.push((Field::PartsPresent, u32::MAX));
     w
 }
 
@@ -42,8 +65,19 @@ mod tests {
         assert_eq!(percentage(128, 256.0, 100.0), 50.0);
         assert_eq!(percentage(-20, 256.0, 100.0), -7.8125);
         let mut b = [0xAAAA_AAAAu32; 0x3F8];
-        for (o, v) in reset_writes(1.0, 50.0, 25.0) {
-            b[o as usize / 4] = v;
+        for (field, v) in reset_writes(1.0, 50.0, 25.0) {
+            let offset = match field {
+                Field::Gauge(k) => 0x29C + 4 * k,
+                Field::Efficiency(k) => 0x3F4 + 4 * k,
+                Field::StiffnessMean => 0x458,
+                Field::WheelStiffness(k) => 0x448 + 4 * k,
+                Field::RideHeightMean => 0x45C,
+                Field::WheelRideHeight(k) => 0x438 + 4 * k,
+                Field::Failure(k) => 0x408 + 4 * k,
+                Field::ImpactMark(k) => 0x64 + 4 * k,
+                Field::PartsPresent => 0x298,
+            };
+            b[offset as usize / 4] = v;
         }
         assert_eq!(b[0x29C / 4], 0);
         assert_eq!(b[0x364 / 4], 0);

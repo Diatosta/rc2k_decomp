@@ -196,10 +196,6 @@ mod tests {
     #[test]
     fn constants_are_the_games() {
         let word = |key: &str| dword(key, 0);
-        assert_eq!(
-            word("race.owner.RACE.shared.work.segment_work_unused[17]/4"),
-            super::SEGMENT_ZERO
-        );
         assert_eq!(word("race.owner.RACE.course.numbers.zero/4"), super::ZERO);
         assert_eq!(word("race.owner.RACE.course.numbers.one/4"), super::ONE);
     }

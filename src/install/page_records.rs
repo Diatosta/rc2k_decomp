@@ -15,7 +15,7 @@
 use crate::errors::BadInput;
 use crate::install::installer::{rb, rd, refuse, rw, wb, wd, ww};
 use crate::install::page_links::PageLink;
-use crate::install::vars::InstallerPages;
+use crate::install::pages_map::PagesAt;
 use crate::menu::list_handle::{ListItem, ListMenu};
 use crate::place::BytePlace;
 
@@ -24,7 +24,7 @@ const UPDATE_RUN: u32 = 17;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 /// A page entry: its byte offset in the installer pages.
-pub struct PageEntry(usize);
+pub struct PageEntry(PagesAt);
 
 impl PageEntry {
     /// The first entry of a normal run.
@@ -42,7 +42,7 @@ impl PageEntry {
     /// read as links (`run_pages::pass_over` asks the drive page's eight): any thing of the
     /// pages is taken, and read as the original reads it.
     pub fn at(link: PageLink) -> Self {
-        Self(link.pages_offset().unwrap_or_else(|| {
+        Self(link.pages_at().unwrap_or_else(|| {
             refuse(BadInput(
                 "a page link that is no place in the installer's pages",
             ))
@@ -66,13 +66,13 @@ impl PageEntry {
 
     /// The entry `offset` bytes on (`pages::next_entry_at`) read as a link; None for none.
     pub fn next(self, offset: u32) -> Option<PageEntry> {
-        let link = Self::word(self.0.wrapping_add(offset as usize));
+        let link = Self::word(self.0.plus_wide(offset));
         (!link.is_none()).then(|| PageEntry::at(link))
     }
 
     /// The link at byte `at` of the pages.
-    fn word(at: usize) -> PageLink {
-        PageLink::from_raw(PageLink::pages_dword(at).unwrap_or_else(|e| refuse(e)))
+    fn word(at: PagesAt) -> PageLink {
+        PageLink::from_raw(at.dword().unwrap_or_else(|e| refuse(e)))
     }
 }
 
@@ -92,6 +92,24 @@ pub struct Piece(BytePlace);
 /// A piece's bytes.
 pub const PIECE: u32 = rc2k_core::install::layout::PIECE;
 
+/// The fields of a piece, each at its byte in the piece's 0x30 bytes.
+#[derive(Clone, Copy)]
+enum Field {
+    /// The item's kind and marks.
+    Marks = 0,
+    /// The piece's kind.
+    Kind = 1,
+    /// The piece's text (a string id).
+    Text = 2,
+    /// The piece's item (the original kept its address; this is its offset in the
+    /// installer's pages, `ListItem::in_pages`).
+    Item = 4,
+    X = 8,
+    Y = 0xC,
+    Width = 0x10,
+    Height = 0x14,
+}
+
 impl Piece {
     /// Piece `n` (wrapping as the original's sum); a piece outside the layout is refused
     /// when it is read or written.
@@ -99,94 +117,93 @@ impl Piece {
         Self(BytePlace::from(&install.pages.layout).add(4 + PIECE.wrapping_mul(n)))
     }
 
-    /// +0: the item's kind and marks.
+    fn at(self, field: Field) -> BytePlace {
+        self.0.add(field as u32)
+    }
+
     pub fn marks(self) -> u8 {
-        rb(self.0)
+        rb(self.at(Field::Marks))
     }
 
     pub fn set_marks(self, marks: u8) {
-        wb(self.0, marks);
+        wb(self.at(Field::Marks), marks);
     }
 
-    /// +1: the piece's kind.
     pub fn kind(self) -> u8 {
-        rb(self.0.add(1))
+        rb(self.at(Field::Kind))
     }
 
     pub fn set_kind(self, kind: u8) {
-        wb(self.0.add(1), kind);
+        wb(self.at(Field::Kind), kind);
     }
 
-    /// +2: the piece's text (a string id).
     pub fn text_id(self) -> u16 {
-        rw(self.0.add(2))
+        rw(self.at(Field::Text))
     }
 
     pub fn set_text_id(self, text: u16) {
-        ww(self.0.add(2), text);
+        ww(self.at(Field::Text), text);
     }
 
-    /// +4: the piece's item (the original kept its address; this is its offset in the
-    /// installer's pages, `ListItem::in_pages`).
     pub fn item(self) -> ListItem {
-        ListItem::in_pages(rd(self.0.add(4))).unwrap_or_else(|e| refuse(e))
+        ListItem::in_pages(rd(self.at(Field::Item))).unwrap_or_else(|e| refuse(e))
     }
 
     pub fn set_item(self, item: ListItem) {
         wd(
-            self.0.add(4),
+            self.at(Field::Item),
             item.pages_offset().unwrap_or_else(|e| refuse(e)),
         );
     }
 
     pub fn x(self) -> u32 {
-        rd(self.0.add(8))
+        rd(self.at(Field::X))
     }
 
     pub fn set_x(self, x: u32) {
-        wd(self.0.add(8), x);
+        wd(self.at(Field::X), x);
     }
 
     pub fn y(self) -> u32 {
-        rd(self.0.add(0xC))
+        rd(self.at(Field::Y))
     }
 
     pub fn set_y(self, y: u32) {
-        wd(self.0.add(0xC), y);
+        wd(self.at(Field::Y), y);
     }
 
     pub fn width(self) -> u32 {
-        rd(self.0.add(0x10))
+        rd(self.at(Field::Width))
     }
 
     pub fn set_width(self, width: u32) {
-        wd(self.0.add(0x10), width);
+        wd(self.at(Field::Width), width);
     }
 
     pub fn height(self) -> u32 {
-        rd(self.0.add(0x14))
+        rd(self.at(Field::Height))
     }
 
     pub fn set_height(self, height: u32) {
-        wd(self.0.add(0x14), height);
+        wd(self.at(Field::Height), height);
     }
 }
 
 /// A box `{x, y, width, height}` of dwords.
 #[derive(Clone, Copy)]
-pub struct BoxRecord(usize);
+pub struct BoxRecord(PagesAt);
 
 impl BoxRecord {
     /// The box a link names; none is the title's box.
     pub fn linked(link: PageLink) -> Self {
         if link.is_none() {
-            return Self(core::mem::offset_of!(InstallerPages, boxes) + 16);
+            return Self(PagesAt::box_at(1));
         }
-        Self(link.box_offset().unwrap_or_else(|e| refuse(e)))
+        Self(link.box_position().unwrap_or_else(|e| refuse(e)))
     }
 
-    fn word(self, at: usize) -> u32 {
-        PageLink::pages_dword(self.0 + at).unwrap_or_else(|e| refuse(e))
+    fn word(self, at: u32) -> u32 {
+        self.0.plus_wide(at).dword().unwrap_or_else(|e| refuse(e))
     }
 
     pub fn x(self) -> u32 {
@@ -217,7 +234,7 @@ mod tests {
         for first in [PageEntry::normal_run(), PageEntry::update_run()] {
             let mut entries = vec![first];
             while let Some(entry) = entries.pop() {
-                if entry.list_link().pages_offset().is_none() || seen > 200 {
+                if entry.list_link().pages_at().is_none() || seen > 200 {
                     continue;
                 }
                 seen += 1;
@@ -241,8 +258,8 @@ mod tests {
                 // words are other data.)
                 entries.extend((0..8).filter_map(|answer| {
                     let at = rc2k_core::install::pages::next_entry_at(answer);
-                    let link = PageEntry::word(entry.0.wrapping_add(at as usize));
-                    link.pages_offset().map(|_| PageEntry::at(link))
+                    let link = PageEntry::word(entry.0.plus_wide(at));
+                    link.pages_at().map(|_| PageEntry::at(link))
                 }));
             }
         }

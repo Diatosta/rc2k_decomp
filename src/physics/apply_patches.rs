@@ -52,8 +52,8 @@ fn tens(tables: &PhysicsTables) -> [&PlainFloat; 2] {
 fn load(tables: &PhysicsTables, work: &RaceWork) -> Patches {
     let w = &work;
     Patches {
-        switch: w.patch_switch.get(),
-        settings: std::array::from_fn(|n| w.patch_settings[n].get()),
+        switch: w.patch_switch().get(),
+        settings: std::array::from_fn(|n| w.patch_settings()[n].get()),
         factors: std::array::from_fn(|n| w.patch_factors[n].bits()),
         applied: w.patches_applied.get(),
         gravity: tables.gravity.bits(),
@@ -71,7 +71,7 @@ fn store(tables: &PhysicsTables, work: &RaceWork, before: &Patches, after: &Patc
     }
     for n in 0..12 {
         if before.settings[n] != after.settings[n] {
-            w.patch_settings[n].set(after.settings[n]);
+            w.patch_settings()[n].set(after.settings[n]);
         }
     }
     let put = |f: &dyn crate::session::Cell32, old: u32, new: u32| {

@@ -70,12 +70,16 @@ impl crate::math::cells::Cells for SpinAxis {
     }
 }
 
-/// The dword `n` places on from byte `first` of the race work, whatever cells the bytes are
-/// (the next slot's fields, or `slot_count` and `part_fling` after the last slot).
-fn dword_past(work: &RaceWork, first: usize, n: usize) -> Result<u32, crate::errors::BadInput> {
-    let mut bytes = [0u8; 4];
-    crate::cells::load_cells(work, first + 4 * n, &mut bytes)?;
-    Ok(u32::from_le_bytes(bytes))
+/// The spin's axis for slot `number`: its spin's length and the two dwords the original reads
+/// on after it, which are the next slot's `part` and first place number, or after the last
+/// slot `slot_count` and `part_fling`.
+fn spin_axis(work: &RaceWork, number: usize) -> SpinAxis {
+    let slot = &work.race_slots[number];
+    let (second, third) = match work.race_slots.get(number + 1) {
+        Some(next) => (next.part.get(), next.place[0].get()),
+        None => (work.slot_count.get(), work.part_fling.get().to_bits()),
+    };
+    SpinAxis([slot.spin_length.get().to_bits(), second, third])
 }
 
 /// The slot `s`, number `number` of the table (the registers it leaves are dropped by its caller's `popa`).
@@ -95,16 +99,7 @@ pub fn move_slot(
         )));
     // Tested as a dword: any bit set (a NaN too) means a spin.
     if s.spin_length.get().to_bits() != 0 {
-        // From the spin's length on: two dwords past the slot, as the original has it (the
-        // next slot's first two, or what follows the table).
-        let first = core::mem::offset_of!(RaceWork, race_slots)
-            + number * core::mem::size_of::<RaceSlot>()
-            + core::mem::offset_of!(RaceSlot, spin_length);
-        let axis = SpinAxis([
-            s.spin_length.get().to_bits(),
-            dword_past(c.work, first, 1)?,
-            dword_past(c.work, first, 2)?,
-        ]);
+        let axis = spin_axis(c.work, number);
         unit_vector(c.course.reads(), &axis, &c.course.lists.get().spin_axis);
         c.course
             .lists
@@ -179,29 +174,37 @@ mod tests {
     fn the_axis_reads_on_into_the_next_fields() {
         let _g = crate::test_support::test_lock();
         let work = race().shared.work.get();
-        let first = |n: usize| {
-            core::mem::offset_of!(RaceWork, race_slots)
-                + n * core::mem::size_of::<RaceSlot>()
-                + core::mem::offset_of!(RaceSlot, spin_length)
-        };
         let saved = (
+            work.race_slots[2].spin_length.get(),
             work.race_slots[3].part.get(),
             work.race_slots[3].place[0].get(),
+            work.race_slots[7].spin_length.get(),
             work.slot_count.get(),
             work.part_fling.get(),
         );
+        work.race_slots[2]
+            .spin_length
+            .set(f32::from_bits(0x0BAD_F00D));
         work.race_slots[3].part.set(0x1234_5678);
         work.race_slots[3].place[0].set(0x9ABC_DEF0);
+        work.race_slots[7]
+            .spin_length
+            .set(f32::from_bits(0x0102_0304));
         work.slot_count.set(0x1357_9BDF);
         work.part_fling.set(f32::from_bits(0x4000_0001));
-        assert_eq!(dword_past(work, first(2), 1).unwrap(), 0x1234_5678);
-        assert_eq!(dword_past(work, first(2), 2).unwrap(), 0x9ABC_DEF0);
-        assert_eq!(dword_past(work, first(7), 1).unwrap(), 0x1357_9BDF);
-        assert_eq!(dword_past(work, first(7), 2).unwrap(), 0x4000_0001);
-        assert!(dword_past(work, core::mem::size_of::<RaceWork>(), 0).is_err());
-        work.race_slots[3].part.set(saved.0);
-        work.race_slots[3].place[0].set(saved.1);
-        work.slot_count.set(saved.2);
-        work.part_fling.set(saved.3);
+        assert_eq!(
+            spin_axis(work, 2).0,
+            [0x0BAD_F00D, 0x1234_5678, 0x9ABC_DEF0]
+        );
+        assert_eq!(
+            spin_axis(work, 7).0,
+            [0x0102_0304, 0x1357_9BDF, 0x4000_0001]
+        );
+        work.race_slots[2].spin_length.set(saved.0);
+        work.race_slots[3].part.set(saved.1);
+        work.race_slots[3].place[0].set(saved.2);
+        work.race_slots[7].spin_length.set(saved.3);
+        work.slot_count.set(saved.4);
+        work.part_fling.set(saved.5);
     }
 }

@@ -238,7 +238,7 @@ pub fn draw_car(ctx: &crate::race::view_scratch::DrawCtx<'_>, car: usize) -> Res
     // `race::clear_car_marks`: `scene::car_marks`).
     let marks = crate::scene::car_marks::CarMarks::new();
     car_number_textures(
-        &ctx.reads.cars_and_replay.car_blocks,
+        ctx.reads.car_blocks,
         car,
         &marks,
         ctx.reads.frame_work,
@@ -251,7 +251,7 @@ pub fn draw_car(ctx: &crate::race::view_scratch::DrawCtx<'_>, car: usize) -> Res
         ..*ctx
     };
     let [p0, p1, p2, p3] = part_matrices(&ctx.view.cars);
-    let c = &ctx.reads.cars_and_replay.car_blocks.cars[car];
+    let c = &ctx.reads.car_blocks.cars[car];
     let kept = &c.part_matrices;
     for (from, to) in [
         &kept[..16],
@@ -275,7 +275,7 @@ pub fn draw_car(ctx: &crate::race::view_scratch::DrawCtx<'_>, car: usize) -> Res
     ctx.view
         .cars
         .groups_which
-        .set(ctx.reads.cars_and_replay.car_blocks.cars[car].mode_on.get());
+        .set(ctx.reads.car_blocks.cars[car].mode_on.get());
     let model = car_view(car)?.car_kind.get();
     ctx.view.matrices.known_object.set(model);
     set_group_masks(

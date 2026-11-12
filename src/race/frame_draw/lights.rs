@@ -217,7 +217,7 @@ pub(super) fn car_lights_on_point(
     mmx: bool,
 ) -> Result<(), BadInput> {
     let light_tables = reads.light_tables;
-    let blocks = &reads.cars_and_replay.car_blocks;
+    let blocks = &reads.car_blocks;
     let (race_work, race_vars, race_view) = (reads.work, reads.vars, reads.view);
     let vars = &net.vars;
     let cars: u32 = race_view.race_cars.get();

@@ -3815,10 +3815,7 @@ pub static GROUPS: &[Group] = &[
                 "rplsizes",
                 Shown::Whole,
                 0x719AFC,
-                indexed_cell!(
-                    |o| o.race.replay.cars_and_replay.get(),
-                    replay_work.unknown_640[0]
-                ),
+                indexed_cell!(|o| o.race.replay.replay_work(), unknown_640[0]),
                 false,
                 (0, 0),
             ),
@@ -3827,10 +3824,7 @@ pub static GROUPS: &[Group] = &[
                 "rplsizes",
                 Shown::Whole,
                 0x719B00,
-                indexed_cell!(
-                    |o| o.race.replay.cars_and_replay.get(),
-                    replay_work.unknown_640[1]
-                ),
+                indexed_cell!(|o| o.race.replay.replay_work(), unknown_640[1]),
                 false,
                 (0, 0),
             ),
@@ -3839,10 +3833,7 @@ pub static GROUPS: &[Group] = &[
                 "rplsizes",
                 Shown::Whole,
                 0x719B04,
-                indexed_cell!(
-                    |o| o.race.replay.cars_and_replay.get(),
-                    replay_work.unknown_640[2]
-                ),
+                indexed_cell!(|o| o.race.replay.replay_work(), unknown_640[2]),
                 false,
                 (0, 0),
             ),
@@ -3851,10 +3842,7 @@ pub static GROUPS: &[Group] = &[
                 "rplsizes",
                 Shown::Whole,
                 0x719B08,
-                indexed_cell!(
-                    |o| o.race.replay.cars_and_replay.get(),
-                    replay_work.unknown_640[3]
-                ),
+                indexed_cell!(|o| o.race.replay.replay_work(), unknown_640[3]),
                 false,
                 (0, 0),
             ),
@@ -3863,10 +3851,7 @@ pub static GROUPS: &[Group] = &[
                 "rplsizes",
                 Shown::Whole,
                 0x719B0C,
-                indexed_cell!(
-                    |o| o.race.replay.cars_and_replay.get(),
-                    replay_work.unknown_640[4]
-                ),
+                indexed_cell!(|o| o.race.replay.replay_work(), unknown_640[4]),
                 false,
                 (0, 0),
             ),
@@ -3875,10 +3860,7 @@ pub static GROUPS: &[Group] = &[
                 "rplsizes",
                 Shown::Whole,
                 0x719B10,
-                indexed_cell!(
-                    |o| o.race.replay.cars_and_replay.get(),
-                    replay_work.unknown_640[5]
-                ),
+                indexed_cell!(|o| o.race.replay.replay_work(), unknown_640[5]),
                 false,
                 (0, 0),
             ),

@@ -4,22 +4,22 @@
 //! heat, damper, brake-fade and engine-heat gauges raised and lowered by their rates times
 //! the shares and `wear_step`, each held 0 ..= `gauge_top`; the hit figures `DamageModel.roughness_wear_base` ..
 //! `DamageModel.suspension_roughness_wear`; and `DamageModel.wear_figure` from the table `DamageModel.wear_table[0]` (row `DamageModel.tyre_kind`, two
-//! columns through `DamageModel.wear_first_columns` / `75B8C4`, as the original indexes them) blended by
+//! columns through `DamageModel.wear_columns`, as the original indexes them) blended by
 //! `DamageModel.surface_blend`, times `DamageModel.wear_figure_scale`.
 //!
 //! Caller: `physics::damage_step`.
 
+use crate::errors::BadInput;
 use crate::physics::car_store::Car;
 use crate::physics::damage_gauges::raise;
 use crate::physics::damage_model::{store, value};
 use crate::physics::flow::{hold_low, table_lerp};
 use crate::physics::store::DamageModel;
 use crate::session::PlainFloat;
-use core::mem::offset_of;
 
 /// The wear of this step: the gauges raised or lowered by their rates times the shares,
 /// the lerps of the speed shares, and the hit figures.
-pub fn steps(car: &Car, damage: &DamageModel) {
+pub fn steps(car: &Car, damage: &DamageModel) -> Result<(), BadInput> {
     damage.clock.set(car.noise_word.get());
     table_lerp(
         &damage.engine_speed_share,
@@ -117,25 +117,17 @@ pub fn steps(car: &Car, damage: &DamageModel) {
         &damage.rear_slip_wear_factor,
     );
     hit_figures(damage);
-    // 0x4AC7C9: two figures of the table `DamageModel.wear_table[0]` (row `DamageModel.tyre_kind`), blended by
-    // `DamageModel.surface_blend`, x `DamageModel.wear_figure_scale`. Their columns are the surface's pair (8 bytes a
-    // surface from `DamageModel.wear_first_columns`: the first column, then the second). The original reads
+    // 0x4AC7C9: two figures of the table `DamageModel.wear_table` (row `DamageModel.tyre_kind`), blended by
+    // `DamageModel.surface_blend`, x `DamageModel.wear_figure_scale`. Their columns are the surface's pair of
+    // `DamageModel.wear_columns`: the first column, then the second. The original reads
     // the second at the first column's pair instead of the surface's (fixed: see
     // wiki/Fixed-bugs.md); its weight, `surface_blend`, is 0 on every shipped stage.
-    let row = damage.tyre_kind.get() << 6;
-    // The original runs on through the store, whatever the columns hold.
-    let at = |field: usize, n: u32| (field as u32).wrapping_add(n);
-    let read = |at: u32| {
-        crate::cells::load_value::<u32>(damage, at as usize)
-            .unwrap_or_else(|e| crate::fatal::raise::end("a car block's field", e))
-    };
-    let wear = offset_of!(DamageModel, wear_table);
-    let pair = (damage.surface.get() & 0xF).wrapping_mul(8);
-    let column = read(at(offset_of!(DamageModel, wear_first_columns), pair));
-    let first = read(at(wear, row.wrapping_add(column.wrapping_mul(4))));
-    let column = read(at(offset_of!(DamageModel, wear_second_columns), pair));
-    let second = read(at(wear, row.wrapping_add(column.wrapping_mul(4))));
+    let tyre_kind = damage.tyre_kind.get();
+    let pair = &damage.wear_columns[(damage.surface.get() & 0xF) as usize];
+    let first = damage.wear_figure_entry(tyre_kind, pair[0].get())?;
+    let second = damage.wear_figure_entry(tyre_kind, pair[1].get())?;
     blend_wear_figures(first as i32, damage, second as i32);
+    Ok(())
 }
 
 // ---- the arithmetic ----
@@ -218,6 +210,7 @@ fn blend_wear_figures(first: i32, m: &DamageModel, second: i32) {
 #[cfg(test)]
 mod reference_vectors {
     use super::*;
+    use crate::physics::store::laid;
 
     /// The damage model as the test's buffer holds it (the buffer's base plus the RVA of
     /// 0x75B340).
@@ -236,7 +229,11 @@ mod reference_vectors {
                 name: "damage_wear line 36",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B390, In::F), (0x35B3B0, In::F), (0x35B584, In::F)],
+                        reads: &[
+                            (laid!(0x35B390), In::F),
+                            (laid!(0x35B3B0), In::F),
+                            (laid!(0x35B584), In::F),
+                        ],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -259,7 +256,11 @@ mod reference_vectors {
                 name: "damage_wear line 47",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B390, In::F), (0x35B3B0, In::F), (0x35B584, In::F)],
+                        reads: &[
+                            (laid!(0x35B390), In::F),
+                            (laid!(0x35B3B0), In::F),
+                            (laid!(0x35B584), In::F),
+                        ],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -282,7 +283,7 @@ mod reference_vectors {
                 name: "damage_wear line 58",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B390, In::F), (0x35B588, In::F)],
+                        reads: &[(laid!(0x35B390), In::F), (laid!(0x35B588), In::F)],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -304,7 +305,7 @@ mod reference_vectors {
                 name: "damage_wear line 69",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B390, In::F), (0x35B588, In::F)],
+                        reads: &[(laid!(0x35B390), In::F), (laid!(0x35B588), In::F)],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -326,7 +327,11 @@ mod reference_vectors {
                 name: "damage_wear line 80",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B390, In::F), (0x35B3A8, In::F), (0x35B58C, In::F)],
+                        reads: &[
+                            (laid!(0x35B390), In::F),
+                            (laid!(0x35B3A8), In::F),
+                            (laid!(0x35B58C), In::F),
+                        ],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -349,7 +354,11 @@ mod reference_vectors {
                 name: "damage_wear line 91",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B390, In::F), (0x35B3AC, In::F), (0x35B58C, In::F)],
+                        reads: &[
+                            (laid!(0x35B390), In::F),
+                            (laid!(0x35B3AC), In::F),
+                            (laid!(0x35B58C), In::F),
+                        ],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -372,7 +381,7 @@ mod reference_vectors {
                 name: "damage_wear line 102",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B390, In::F), (0x35B590, In::F)],
+                        reads: &[(laid!(0x35B390), In::F), (laid!(0x35B590), In::F)],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -394,7 +403,7 @@ mod reference_vectors {
                 name: "damage_wear line 113",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B390, In::F), (0x35B590, In::F)],
+                        reads: &[(laid!(0x35B390), In::F), (laid!(0x35B590), In::F)],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -416,7 +425,11 @@ mod reference_vectors {
                 name: "damage_wear line 124",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B390, In::F), (0x35B3B4, In::F), (0x35B594, In::F)],
+                        reads: &[
+                            (laid!(0x35B390), In::F),
+                            (laid!(0x35B3B4), In::F),
+                            (laid!(0x35B594), In::F),
+                        ],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -439,7 +452,7 @@ mod reference_vectors {
                 name: "damage_wear line 135",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B390, In::F), (0x35B598, In::F)],
+                        reads: &[(laid!(0x35B390), In::F), (laid!(0x35B598), In::F)],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -461,7 +474,11 @@ mod reference_vectors {
                 name: "damage_wear line 146",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B390, In::F), (0x35B3B0, In::F), (0x35B59C, In::F)],
+                        reads: &[
+                            (laid!(0x35B390), In::F),
+                            (laid!(0x35B3B0), In::F),
+                            (laid!(0x35B59C), In::F),
+                        ],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -483,8 +500,8 @@ mod reference_vectors {
             Block {
                 name: "damage_wear line 159",
                 operands: vec![Operand::Buffer {
-                    reads: &[(0x35B398, In::F), (0x35B460, In::F)],
-                    writes: &[(0x35B464, Out::F)],
+                    reads: &[(laid!(0x35B398), In::F), (laid!(0x35B460), In::F)],
+                    writes: &[(laid!(0x35B464), Out::F)],
                 }],
                 ulps: 0,
                 plain: |a| lerp_gap(dm(a[0])),
@@ -493,7 +510,11 @@ mod reference_vectors {
                 name: "damage_wear line 166",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B390, In::F), (0x35B464, In::F), (0x35B578, In::F)],
+                        reads: &[
+                            (laid!(0x35B390), In::F),
+                            (laid!(0x35B464), In::F),
+                            (laid!(0x35B578), In::F),
+                        ],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -516,7 +537,7 @@ mod reference_vectors {
                 name: "damage_wear line 177",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B390, In::F), (0x35B57C, In::F)],
+                        reads: &[(laid!(0x35B390), In::F), (laid!(0x35B57C), In::F)],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -538,7 +559,11 @@ mod reference_vectors {
                 name: "damage_wear line 188",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B390, In::F), (0x35B39C, In::F), (0x35B580, In::F)],
+                        reads: &[
+                            (laid!(0x35B390), In::F),
+                            (laid!(0x35B39C), In::F),
+                            (laid!(0x35B580), In::F),
+                        ],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -560,8 +585,8 @@ mod reference_vectors {
             Block {
                 name: "damage_wear line 201",
                 operands: vec![Operand::Buffer {
-                    reads: &[(0x35B44C, In::F)],
-                    writes: &[(0x35B44C, Out::F)],
+                    reads: &[(laid!(0x35B44C), In::F)],
+                    writes: &[(laid!(0x35B44C), Out::F)],
                 }],
                 ulps: 0,
                 plain: |a| {
@@ -574,8 +599,8 @@ mod reference_vectors {
             Block {
                 name: "damage_wear line 208",
                 operands: vec![Operand::Buffer {
-                    reads: &[(0x35B448, In::F)],
-                    writes: &[(0x35B448, Out::F)],
+                    reads: &[(laid!(0x35B448), In::F)],
+                    writes: &[(laid!(0x35B448), Out::F)],
                 }],
                 ulps: 0,
                 plain: |a| {
@@ -588,8 +613,8 @@ mod reference_vectors {
             Block {
                 name: "damage_wear line 215",
                 operands: vec![Operand::Buffer {
-                    reads: &[(0x35B468, In::F)],
-                    writes: &[(0x35B468, Out::F)],
+                    reads: &[(laid!(0x35B468), In::F)],
+                    writes: &[(laid!(0x35B468), Out::F)],
                 }],
                 ulps: 0,
                 plain: |a| {
@@ -603,15 +628,19 @@ mod reference_vectors {
                 name: "damage_wear line 223",
                 operands: vec![Operand::Buffer {
                     reads: &[
-                        (0x35B39C, In::F),
-                        (0x35B3E0, In::F),
-                        (0x35B3F4, In::F),
-                        (0x35B448, In::F),
-                        (0x35B44C, In::F),
-                        (0x35B468, In::F),
-                        (0x35B6F8, In::F),
+                        (laid!(0x35B39C), In::F),
+                        (laid!(0x35B3E0), In::F),
+                        (laid!(0x35B3F4), In::F),
+                        (laid!(0x35B448), In::F),
+                        (laid!(0x35B44C), In::F),
+                        (laid!(0x35B468), In::F),
+                        (laid!(0x35B6F8), In::F),
                     ],
-                    writes: &[(0x35B450, Out::F), (0x35B454, Out::F), (0x35B458, Out::F)],
+                    writes: &[
+                        (laid!(0x35B450), Out::F),
+                        (laid!(0x35B454), Out::F),
+                        (laid!(0x35B458), Out::F),
+                    ],
                 }],
                 ulps: 0,
                 plain: |a| hit_figures(dm(a[0])),
@@ -624,8 +653,8 @@ mod reference_vectors {
                         writes: &[],
                     },
                     Operand::Buffer {
-                        reads: &[(0x35B3F0, In::F), (0x35B8BC, In::F)],
-                        writes: &[(0x35B484, Out::F)],
+                        reads: &[(laid!(0x35B3F0), In::F), (laid!(0x35B8BC), In::F)],
+                        writes: &[(laid!(0x35B484), Out::F)],
                     },
                     Operand::Buffer {
                         reads: &[(0, In::I)],

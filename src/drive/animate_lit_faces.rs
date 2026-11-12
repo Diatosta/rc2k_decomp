@@ -2,7 +2,7 @@
 //! `g_litFaces` (0x6D3220, `g_litFaceCount` of them). For each (face record at
 //! `g_courseFaces` + 0x40 n):
 //! - object 0x3B (byte +1): a countdown at +0x11; at 0 the face leaves the list;
-//! - else its distance from car block 0 (+0x134 / +0x13C: `CarsAndReplay.car_blocks.cars[0].position[0]`, `CarsAndReplay.car_blocks.cars[0].position[2]`;
+//! - else its distance from car block 0 (+0x134 / +0x13C: `CarBlocks.cars[0].position[0]`, `CarBlocks.cars[0].position[2]`;
 //!   `fistp` of the root of the squares, through `scratch`) into `lit_face_distance`, and
 //!   a pace 1 .. 17 from it (closer is faster) into `lit_face_pace`; then by its object's
 //!   kind (`Buffers.polygon_tables.object_materials[0].words[7][g_objectKinds[object] * 0x80]`):
@@ -14,7 +14,7 @@
 //!   - 4: while +0x11 is not 0, the face's offset (+0x30, +0x38) moved by
 //!     `math::rotate_point_about_y` of (0, +0x11 << 8) by (+0x12 + 0x80) << 24, its height
 //!     (+0x34) set on the ground under it (`physics::find_ground`, last face
-//!     `CarsAndReplay.car_blocks.cars[0].probe_point_face[4]`; no ground puts the offset back), +0x11 less 1; at 0 it leaves;
+//!     `CarBlocks.cars[0].probe_point_face[4]`; no ground puts the offset back), +0x11 less 1; at 0 it leaves;
 //!   - others: nothing.
 //!
 //! A face leaves by the list's last taking its place (the count less 1), and the next

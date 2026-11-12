@@ -42,19 +42,13 @@ fn hash_if_asked(race: &Race) {
     if !*ON.get_or_init(|| std::env::var_os("RC2K_SIM_HASH").is_some()) {
         return;
     }
-    let state = race.replay.cars_and_replay.get();
-    let mut groups = crate::drive::sim_hash::car_blocks_groups(&state.car_blocks);
-    let mut staging = vec![0; 4 * crate::race::blocks_store::REPLAY_STATE_DWORDS];
-    if crate::cells::load_cells(
-        state,
-        crate::race::blocks_store::REPLAY_STATE_OFFSET,
-        &mut staging,
-    )
-    .is_err()
-    {
+    let mut groups = crate::drive::sim_hash::car_blocks_groups(race.replay.car_blocks.get());
+    let staging = race.replay.staging();
+    let mut bytes = vec![0; core::mem::size_of_val(staging)];
+    if crate::cells::load_cells(staging, 0, &mut bytes).is_err() {
         return;
     }
-    groups.push(crate::drive::sim_hash::staging_group(&staging));
+    groups.push(crate::drive::sim_hash::staging_group(&bytes));
     let tick = TICKS.fetch_add(1, Relaxed);
     crate::framework::log(&format!(
         "sim hash {tick}: {:016x}, random {:08x}",

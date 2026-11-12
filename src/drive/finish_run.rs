@@ -18,7 +18,7 @@ use crate::math::x87_float::to_int;
 use crate::physics::flow::c0;
 use crate::race::owner::Race;
 
-/// The car's lift: `CarsAndReplay.car_blocks.cars[0].position[1]` += `car_lift` x `k65536` (`fiadd`, `fistp`), over the
+/// The car's lift: `CarBlocks.cars[0].position[1]` += `car_lift` x `k65536` (`fiadd`, `fistp`), over the
 /// race block at `rc`.
 fn lift_car(race: &Race) {
     race.car_blocks().cars[0].position[1].set(to_int(

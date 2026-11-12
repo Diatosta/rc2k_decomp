@@ -22,7 +22,7 @@
 //! Caller: `drive::share_all_cars`, for each of the eight cars.
 //! Refuses (before anything) a car file number above 0x21 (past `g_lightRecords`).
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::math::x87;
 use crate::math::x87::compare_full;
 use crate::math::x87_float as bh;
@@ -134,14 +134,17 @@ const MOVES_B: [Move; 9] = [
     Move::Float(rec!(4, local_velocity_z), blk!(velocity[2])),
 ];
 
-/// The dword at `offset` of the block, for the offsets the core's tables give (bounded by the
-/// block).
-fn at(car: &Car, offset: u32) -> Result<u32, BadInput> {
-    crate::cells::load_value(car, offset as usize)
+/// The block's eight slot figures: the seven parts' damage figures and the first of the saved
+/// point figures after them.
+fn slot_cells(car: &Car) -> impl Iterator<Item = &PlainDword> {
+    car.part_damage_limits
+        .iter()
+        .chain(&car.saved_point_figures[..1])
 }
 
-fn put(car: &Car, offset: u32, v: u32) -> Result<(), BadInput> {
-    crate::cells::store_value(car, offset as usize, v)
+/// The block's seventeen kind figures: the saved point figures after the first.
+fn kind_cells(car: &Car) -> &[PlainDword] {
+    &car.saved_point_figures[1..18]
 }
 
 /// The light record's number for the block, or the refusal.
@@ -170,10 +173,10 @@ pub fn share_car_state_at(
     p.gear_notice.set(0);
     let from = race.shared.view.get().level_from.get();
     let step = race.course.numbers.get().four.get();
-    for (level, field) in o.levels.iter().zip([0x2B4, 0x2B8]) {
+    for (level, gauge) in o.levels.iter().zip([&car.engine_heat, &car.engine_damage]) {
         level.set(0);
-        if compare_full(at(car, field)?, from) & 0x100 == 0 {
-            let v = bh::to_int((bh::ld(at(car, field)?) - bh::ld(from)) / bh::ld(step));
+        if compare_full(gauge.bits(), from) & 0x100 == 0 {
+            let v = bh::to_int((bh::ld(gauge.bits()) - bh::ld(from)) / bh::ld(step));
             scratch.set(v as u32);
             level.set(sharing::level(v));
         }
@@ -246,13 +249,11 @@ pub fn share_car_state_at(
     for (cell, v) in car.part_wake_counts.iter().zip(kept) {
         cell.set(v);
     }
-    // +0xA3C .. (eight dwords, past `part_damage_limits`' seven) and +0xA5C .. (inside
-    // `saved_point_figures`): by offset in the block.
-    for (k, cell) in o.slot_sums.iter().enumerate() {
-        put(car, 0xA3C + 4 * k as u32, cell.get())?;
+    for (cell, to) in o.slot_sums.iter().zip(slot_cells(car)) {
+        to.set(cell.get());
     }
-    for (k, cell) in o.kind_sums.iter().enumerate() {
-        put(car, 0xA5C + 4 * k as u32, cell.get())?;
+    for (cell, to) in o.kind_sums.iter().zip(kind_cells(car)) {
+        to.set(cell.get());
     }
     Ok(())
 }
@@ -304,6 +305,41 @@ mod tests {
             r - core::ptr::from_ref(o).addr(),
             b - core::ptr::from_ref(c).addr(),
         )
+    }
+
+    /// The block's dword at `offset`, as the byte-offset version read it.
+    fn at(car: &Car, offset: usize) -> u32 {
+        crate::cells::load_value(car, offset).unwrap()
+    }
+
+    #[test]
+    fn the_gauges_and_figures_are_the_offsets_they_replace() {
+        let car: Car = Car::new();
+        let pattern: Vec<u8> = (0..0xFE0usize).map(|i| (i * 7 + 3) as u8).collect();
+        crate::cells::Store::store(&car, 0, &pattern).unwrap();
+        assert_eq!(car.engine_heat.bits(), at(&car, 0x2B4));
+        assert_eq!(car.engine_damage.bits(), at(&car, 0x2B8));
+        let slots: Vec<u32> = slot_cells(&car).map(PlainDword::get).collect();
+        assert_eq!(slots.len(), 8);
+        for (k, v) in slots.into_iter().enumerate() {
+            assert_eq!(v, at(&car, 0xA3C + 4 * k));
+        }
+        for (k, c) in kind_cells(&car).iter().enumerate() {
+            assert_eq!(c.get(), at(&car, 0xA5C + 4 * k));
+        }
+        // The writes land on the same bytes.
+        let mut expected = pattern.clone();
+        for (k, c) in slot_cells(&car).enumerate() {
+            c.set(0x1111_0000 + k as u32);
+            expected[0xA3C + 4 * k..][..4].copy_from_slice(&(0x1111_0000 + k as u32).to_le_bytes());
+        }
+        for (k, c) in kind_cells(&car).iter().enumerate() {
+            c.set(0x2222_0000 + k as u32);
+            expected[0xA5C + 4 * k..][..4].copy_from_slice(&(0x2222_0000 + k as u32).to_le_bytes());
+        }
+        let mut now = vec![0u8; 0xFE0];
+        crate::cells::Store::load(&car, 0, &mut now).unwrap();
+        assert_eq!(now, expected);
     }
 
     #[test]

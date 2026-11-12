@@ -4,12 +4,11 @@
 //!
 //! Caller: `drive::record_inputs_if`.
 
-use crate::cells::Store;
 use crate::errors::BadInput;
 use crate::race::owner::Race;
-use rc2k_core::drive::replay_frames::{on_tape, tape_offset};
+use rc2k_core::drive::replay_frames::on_tape;
 
-// Converted: `rc2k_core::drive::replay_frames::{on_tape, tape_offset}`.
+// Converted: `rc2k_core::drive::replay_frames::{on_tape}`.
 pub fn record_inputs(race: &Race) -> Result<(), BadInput> {
     let shared = &race.shared;
     let replay = &race.replay;
@@ -24,11 +23,11 @@ pub fn record_inputs(race: &Race) -> Result<(), BadInput> {
         shared.physics_tables.get().input_words[3].get(),
     );
     let packed = crate::drive::pack_inputs::pack_inputs(eax, ecx, edx);
-    let esi = tape_offset(replay.replay_frames().tenth.get(), car);
-    let mut words = [0u8; 8];
-    words[..4].copy_from_slice(&ebx.to_le_bytes());
-    words[4..].copy_from_slice(&packed.to_le_bytes());
-    race.replay_work().replay_tape.store(esi as usize, &words)?;
+    let entry = replay
+        .staging()
+        .entry(replay.replay_frames().tenth.get(), car)?;
+    entry.input.set(ebx);
+    entry.packed.set(packed);
     let [eax, ecx, edx] = crate::drive::unpack_inputs::unpack_inputs(packed);
     for (k, v) in [eax, ebx, ecx, edx].iter().enumerate() {
         shared.physics_tables.get().input_words[k].set(*v);

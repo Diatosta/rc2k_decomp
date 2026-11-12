@@ -2,8 +2,11 @@
 
 use crate::drive::finish_store::Finish;
 use crate::drive::replay_frames_store::ReplayFrames;
-use crate::race::groups_store::{CarsAndReplay, ViewerAndKinds};
+use crate::race::blocks_store::CarBlocks;
+use crate::race::groups_store::ViewerAndKinds;
 use crate::race::replay_path::LAST_RACE_LEN;
+use crate::race::replay_staging_store::ReplayStaging;
+use crate::race::replay_work_store::ReplayWork;
 use crate::race::seal_store::SealWork;
 use crate::race::viewer_state_store::ReplayViewBlock;
 use crate::session::{DrawShared, GameThread, PlainBytes, PlainDword, with_runs};
@@ -15,10 +18,10 @@ pub struct Replay {
     pub finish: DrawShared<Finish>,
     /// `aVarTmprpl`: the last race's replay file's name (`race::replay_path`).
     pub last_race: [u8; LAST_RACE_LEN],
-    /// The cars' blocks and the replay's work (`race::groups_store`); lent to the drawing
-    /// parts (`workers::DrawReads`): no part writes them (each view draws its own copy of its
-    /// car, `ViewScratch::car`).
-    pub cars_and_replay: DrawShared<CarsAndReplay>,
+    /// The cars' blocks (`race::blocks_store`); lent to the drawing parts
+    /// (`workers::DrawReads`): no part writes them (each view draws its own copy of its car,
+    /// `ViewScratch::car`).
+    pub car_blocks: DrawShared<CarBlocks>,
     /// The viewer's panel .. the kinds' tables (`race::groups_store`).
     pub viewer_and_kinds: ViewerAndKinds,
     main: GameThread<ReplayMain>,
@@ -27,6 +30,8 @@ pub struct Replay {
 /// What only the game's thread reaches (no drawing part and no other thread touches it).
 struct ReplayMain {
     replay_frames: ReplayFrames,
+    replay_work: ReplayWork,
+    staging: ReplayStaging,
     replay_view: ReplayViewBlock,
     snapshot: PlainBytes<26>,
     seal_key: PlainDword,
@@ -38,10 +43,12 @@ impl Replay {
         Replay {
             finish: DrawShared::new(Finish::new()),
             last_race: with_runs(&[(0, b"var\\tmprpl\0")]),
-            cars_and_replay: DrawShared::new(CarsAndReplay::new()),
+            car_blocks: DrawShared::new(CarBlocks::new()),
             viewer_and_kinds: ViewerAndKinds::new(),
             main: GameThread::new(ReplayMain {
                 replay_frames: ReplayFrames::new(),
+                replay_work: ReplayWork::new(),
+                staging: ReplayStaging::new(),
                 replay_view: ReplayViewBlock::new(),
                 snapshot: PlainBytes::new(*b"savedata\\snapshot\\000.pcx\0"),
                 seal_key: PlainDword::new(0),
@@ -52,6 +59,16 @@ impl Replay {
 
     pub fn replay_frames(&self) -> &ReplayFrames {
         &self.main.get().replay_frames
+    }
+
+    /// The replay's work (`race::replay_work_store`).
+    pub fn replay_work(&self) -> &ReplayWork {
+        &self.main.get().replay_work
+    }
+
+    /// The replay's frame as the race keeps it (`race::replay_staging_store`).
+    pub fn staging(&self) -> &ReplayStaging {
+        &self.main.get().staging
     }
 
     pub fn replay_view(&self) -> &ReplayViewBlock {

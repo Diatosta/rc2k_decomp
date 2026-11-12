@@ -68,7 +68,10 @@ pub mod open_installed;
 pub mod open_installer;
 pub mod page_key;
 pub mod page_links;
+#[cfg(test)]
+mod page_readers_tests;
 pub mod page_records;
+pub mod pages_map;
 pub mod place_pieces;
 pub mod place_row;
 pub mod register_lobby;

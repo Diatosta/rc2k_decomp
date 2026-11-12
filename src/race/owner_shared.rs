@@ -6,7 +6,6 @@ use crate::physics::tables_store::PhysicsTables;
 use crate::race::blocks_store::CarBlocks;
 use crate::race::buffers_store::Buffers;
 use crate::race::effects_settings_store::{CarEffects, EffectsSettings};
-use crate::race::groups_store::CarsAndReplay;
 use crate::race::replay::Replays;
 use crate::race::replay_file_store::ReplayFileBlock;
 use crate::race::replay_path::Templates;
@@ -43,9 +42,9 @@ pub struct RaceShared {
     /// `CAR` (`physics`): the work car. One copy: the drawing no longer reads it (frame plan
     /// F3), so the drawing threads need none of their own.
     car: GameThread<Car>,
-    /// The ten cars' blocks with the replay's work (`Race::replay`'s), for the code that
-    /// holds only this group (`car_blocks`).
-    cars_and_replay: &'static DrawShared<CarsAndReplay>,
+    /// The cars' blocks (`Race::replay`'s), for the code that holds only this group
+    /// (`car_blocks`).
+    car_blocks: &'static DrawShared<CarBlocks>,
     /// The effects' settings with the cars' records (`Race::replay`'s), as `car_blocks`.
     pub effects_settings: &'static EffectsSettings,
     /// `TEMPLATES` (`race`): the replay files' names.
@@ -63,10 +62,10 @@ struct SharedMain {
 }
 
 impl RaceShared {
-    /// The group, reaching the cars' blocks and the effects' settings at `cars_and_replay` and
+    /// The group, reaching the cars' blocks and the effects' settings at `car_blocks` and
     /// `effects_settings`.
     pub const fn new(
-        cars_and_replay: &'static DrawShared<CarsAndReplay>,
+        car_blocks: &'static DrawShared<CarBlocks>,
         effects_settings: &'static EffectsSettings,
     ) -> Self {
         RaceShared {
@@ -78,7 +77,7 @@ impl RaceShared {
             switches: DrawShared::new(FrameSwitches::new()),
             physics_tables: DrawShared::new(PhysicsTables::new()),
             car: GameThread::new(Car::new()),
-            cars_and_replay,
+            car_blocks,
             effects_settings,
             replay_templates: Templates::new(),
             main: GameThread::new(SharedMain {
@@ -95,10 +94,10 @@ impl RaceShared {
         self.car.get()
     }
 
-    /// The ten cars' blocks, on the game's thread outside a drawing scope (a drawing part
+    /// The cars' blocks, on the game's thread outside a drawing scope (a drawing part
     /// reads them through its `workers::DrawReads`).
     pub fn car_blocks(&self) -> &'static CarBlocks {
-        &self.cars_and_replay.get().car_blocks
+        self.car_blocks.get()
     }
 
     pub fn tables(&self) -> &RaceTables {
@@ -159,7 +158,7 @@ impl RaceShared {
         }
     }
 
-    /// Car `n`'s block; a null block or one that is none of the ten ends the program.
+    /// Car `n`'s block; a null block or one that is none of the eight ends the program.
     pub fn race_car_or_end(&self, n: usize) -> &'static Car {
         Self::race_car_or_end_in(self.work.get(), self.car_blocks(), n)
     }

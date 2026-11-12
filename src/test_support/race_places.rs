@@ -316,7 +316,7 @@ pub const PLACES: &[(usize, &str, usize)] = &[
     (0x2D3CD8, "race.owner.RACE.physics.contact", 0x1950),
     (0x2D3CDC, "race.owner.RACE.physics.contact", 0x1954),
     (0x2D3CE0, "race.owner.RACE.physics.contact", 0x1958),
-    (0x30F524, "race.owner.RACE.replay.cars_and_replay", 0x138),
+    (0x30F524, "race.owner.RACE.replay.car_blocks", 0x138),
     (0x319FE0, "race.owner.RACE.shared.car", 0x8),
     (0x319FF8, "race.owner.RACE.shared.car", 0x20),
     (0x31A008, "race.owner.RACE.shared.car", 0x30),
@@ -447,7 +447,7 @@ pub const PLACES: &[(usize, &str, usize)] = &[
     (0x31AEE0, "race.owner.RACE.shared.car", 0xF08),
     (0x31AF18, "race.owner.RACE.shared.car", 0xF40),
     (0x31AF1C, "race.owner.RACE.shared.car", 0xF44),
-    (0x31C708, "race.owner.RACE.shared.work", 0x1750),
+    (0x31C708, "race.owner.RACE.shared.work", 0x12F8),
 ];
 
 /// The store and the offset in it of the place at `off`.

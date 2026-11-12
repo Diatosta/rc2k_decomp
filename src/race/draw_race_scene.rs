@@ -177,13 +177,7 @@ fn view_mirror(
 ) -> Result<(), Refused> {
     let _step = crate::write_watch::step(["mirror0", "mirror1"][car]);
     let mirror = crate::race::view_scratch::mirror(car);
-    crate::race::frame::load_view_car(
-        reads.work,
-        &reads.cars_and_replay.car_blocks,
-        reads.view,
-        car,
-        mirror,
-    )?;
+    crate::race::frame::load_view_car(reads.work, reads.car_blocks, reads.view, car, mirror)?;
     let begun = crate::debug::timing::start();
     let output = crate::race::draw_mirror_view::draw_mirror_view(
         o.race, o.scene, o.net, o.input, mirror, part, reads,

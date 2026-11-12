@@ -905,7 +905,7 @@ pub fn cast_car_shadows(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<
         // `notes/bugs.md`).
         let car = crate::race::owner_shared::RaceShared::race_car_or_in(
             ctx.reads.work,
-            &ctx.reads.cars_and_replay.car_blocks,
+            ctx.reads.car_blocks,
             n as usize,
             "a car's block",
         )?;

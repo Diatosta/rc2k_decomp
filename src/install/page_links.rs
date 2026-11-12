@@ -24,7 +24,7 @@
 
 use crate::errors::BadInput;
 use crate::gfx::typefaces::FontId;
-use crate::install::vars::{InstallerPages, InstallerPaths};
+use crate::install::pages_map::PagesAt;
 use crate::menu::list_handle::EditRecord;
 use crate::place::BytePlace;
 
@@ -91,27 +91,6 @@ impl ListId {
         ListId::OpenInstalled,
         ListId::AskRegistration,
     ];
-
-    /// The list's byte offset in `InstallerPages`.
-    pub const fn offset(self) -> usize {
-        use core::mem::offset_of;
-        match self {
-            ListId::Language => offset_of!(InstallerPages, language_menu),
-            ListId::Main => offset_of!(InstallerPages, main_menu),
-            ListId::Mode => offset_of!(InstallerPages, mode_menu),
-            ListId::Drives8 => offset_of!(InstallerPages, drive_menu_8),
-            ListId::Drives16 => offset_of!(InstallerPages, drive_menu_16),
-            ListId::DrivesMore => offset_of!(InstallerPages, menu_more),
-            ListId::Folder => offset_of!(InstallerPages, folder_menu),
-            ListId::Room => offset_of!(InstallerPages, room_menu),
-            ListId::Dxsetup => offset_of!(InstallerPages, dxsetup_menu),
-            ListId::Finish => offset_of!(InstallerPages, finish_menu),
-            ListId::InstallFiles => offset_of!(InstallerPages, action_pages),
-            ListId::Uninstall => offset_of!(InstallerPages, action_pages) + 24,
-            ListId::OpenInstalled => offset_of!(InstallerPages, action_pages) + 48,
-            ListId::AskRegistration => offset_of!(InstallerPages, action_pages) + 72,
-        }
-    }
 
     const fn number(self) -> u32 {
         self as u32
@@ -192,18 +171,14 @@ impl PageLink {
         self.0 & NUMBER
     }
 
-    /// Where the thing of the installer pages the link names starts, as a byte offset in
-    /// `InstallerPages`.
-    pub fn pages_offset(self) -> Option<usize> {
-        use core::mem::offset_of;
+    /// Where the thing of the installer pages the link names starts.
+    pub fn pages_at(self) -> Option<PagesAt> {
         let number = self.number();
         match self.kind() {
-            TABLE if number < TABLE_LEN => {
-                Some(offset_of!(InstallerPages, page_table) + 4 * number as usize)
-            }
-            LIST => ListId::from_number(number).map(ListId::offset),
-            BOX if number < BOXES => Some(offset_of!(InstallerPages, boxes) + 16 * number as usize),
-            EDIT if number == 0 => Some(offset_of!(InstallerPages, folder_edit)),
+            TABLE if number < TABLE_LEN => Some(PagesAt::table(number)),
+            LIST => ListId::from_number(number).map(PagesAt::list),
+            BOX if number < BOXES => Some(PagesAt::box_at(number)),
+            EDIT if number == 0 => Some(PagesAt::edit()),
             _ => None,
         }
     }
@@ -212,31 +187,22 @@ impl PageLink {
     /// handler or the edit record), bounded by the pages (a table or text may run on inside
     /// them as the original's does).
     pub fn in_pages(self) -> Result<BytePlace, BadInput> {
-        let install = installer();
-        Ok(BytePlace::in_store(&install.pages, self.pages_start()?))
+        Ok(self.pages_start()?.place())
     }
 
-    /// The byte offset in the pages of the place the link names.
-    pub fn pages_start(self) -> Result<usize, BadInput> {
-        self.pages_offset().ok_or(BadInput(
+    /// The position in the pages of the place the link names.
+    pub fn pages_start(self) -> Result<PagesAt, BadInput> {
+        self.pages_at().ok_or(BadInput(
             "a page link that is no place in the installer's pages",
         ))
     }
 
-    /// The byte offset in the pages of the box a link names.
-    pub fn box_offset(self) -> Result<usize, BadInput> {
-        match self.pages_offset() {
-            Some(offset) if self.kind() == BOX => Ok(offset),
+    /// The position in the pages of the box a link names.
+    pub fn box_position(self) -> Result<PagesAt, BadInput> {
+        match self.pages_at() {
+            Some(at) if self.kind() == BOX => Ok(at),
             _ => Err(BadInput("a page link that is no box")),
         }
-    }
-
-    /// The pages' dword at the byte offset `at` (a table or text may run on inside them as the
-    /// original's does, but not out of them).
-    pub fn pages_dword(at: usize) -> Result<u32, BadInput> {
-        let mut bytes = [0; 4];
-        crate::cells::load_cells(&installer().pages, at, &mut bytes)?;
-        Ok(u32::from_le_bytes(bytes))
     }
 
     /// The list a link names, if it is a link to one of the pages' lists.
@@ -258,13 +224,8 @@ impl PageLink {
     /// The place a text or a byte link names: in the pages, or the folder typed (bounded by
     /// the installer's path buffers).
     pub fn place(self) -> Result<BytePlace, BadInput> {
-        let install = installer();
         if self.kind() == TYPED_PATH && self.number() < TYPED_LEN {
-            let typed = core::mem::offset_of!(InstallerPaths, typed);
-            return Ok(BytePlace::in_store(
-                &install.paths,
-                typed + self.number() as usize,
-            ));
+            return Ok(crate::install::pages_map::typed_folder(self.number()));
         }
         self.in_pages()
     }
@@ -358,10 +319,7 @@ mod tests {
     fn the_original_addresses_become_the_handles_of_their_kind() {
         let title_box = of_ida(BOX_IDA + 16);
         assert_eq!(title_box, PageLink::box_at(1));
-        assert_eq!(
-            title_box.box_offset().unwrap(),
-            core::mem::offset_of!(InstallerPages, boxes) + 16
-        );
+        assert_eq!(title_box.box_position().unwrap(), PagesAt::box_at(1));
         assert_eq!(
             of_ida(TABLE_IDA + 4 * 25),
             PageLink::table(25),
@@ -384,7 +342,10 @@ mod tests {
                     record,
                     &raw const crate::install::owner::install().paths
                 ));
-                assert_eq!(at, core::mem::offset_of!(InstallerPaths, typed) + 2);
+                assert_eq!(
+                    at,
+                    core::mem::offset_of!(crate::install::vars::InstallerPaths, typed) + 2
+                );
             }
             _ => panic!("the typed folder is a place in the paths record"),
         }
@@ -399,7 +360,7 @@ mod tests {
                 .is_err()
         );
         assert!(of_ida(EDIT_IDA).font().is_err());
-        assert!(of_ida(TABLE_IDA + 4 * 11).box_offset().is_err());
+        assert!(of_ida(TABLE_IDA + 4 * 11).box_position().is_err());
         assert!(
             PageLink::from_raw(TABLE << KIND_SHIFT | TABLE_LEN)
                 .in_pages()

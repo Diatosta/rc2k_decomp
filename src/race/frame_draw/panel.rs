@@ -725,5 +725,5 @@ pub fn reset_lamps(ctx: &crate::race::view_scratch::DrawCtx) -> Result<(), BadIn
 /// `race::hold_to_limit` (0x4650A9): `value` held to `RACE_WORK.patch_settings` (unsigned).
 pub fn hold_to_limit(work: &crate::race::work_store::RaceWork, value: u32) -> u32 {
     // Converted: `rc2k_core::race::frame::hold_to_limit`.
-    rc2k_core::race::frame::hold_to_limit(value, work.patch_settings[0].get())
+    rc2k_core::race::frame::hold_to_limit(value, work.patch_settings()[0].get())
 }

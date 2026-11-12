@@ -1,14 +1,14 @@
 //! `drive::load_replay_frame` (0x46020A): the replay's frame `step_block` read
 //! (`drive::read_replay_frame_0`), its marks (`drive::replay_frame_marks`), and the frame (0xA04
-//! dwords at `block`) copied to the replay's starting state `CarsAndReplay.car_blocks.cars[8].frame_head[0]`.
+//! dwords at `block`) copied to the replay's staging (`race::replay_staging_store`).
 //!
 //! Caller: `drive::play_replay_frame`. Refuses what `read_replay_frame` refuses.
 
 use crate::cells::copy_cells;
 use crate::errors::Refused;
-use crate::race::blocks_store::{REPLAY_STATE_DWORDS, REPLAY_STATE_OFFSET};
 use crate::race::owner::Race;
 use crate::system::owner::System;
+use rc2k_core::drive::replay_frames::FRAME_BYTES;
 
 pub fn load_replay_frame(race: &Race, system: &System) -> Result<(), Refused> {
     let replay = &race.replay;
@@ -17,8 +17,8 @@ pub fn load_replay_frame(race: &Race, system: &System) -> Result<(), Refused> {
     crate::drive::replay_frame_marks::replay_frame_marks(race)?;
     copy_cells(
         (&race.viewer_buffers().block, 0),
-        (replay.cars_and_replay.get(), REPLAY_STATE_OFFSET),
-        REPLAY_STATE_DWORDS * 4,
+        (replay.staging(), 0),
+        FRAME_BYTES,
     );
     Ok(())
 }

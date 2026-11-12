@@ -598,8 +598,7 @@ pub fn run_view_marks(
     let layout = race.frame.frame_work.get().view_layouts[layout_at as usize].get();
     race.effects_settings().marks_layout.set(layout);
     crate::math::cells::copy_cells(
-        &ctx.reads.cars_and_replay.car_blocks.cars[ctx.reads.view.view_number(view as usize)?]
-            .whole_matrix,
+        &ctx.reads.car_blocks.cars[ctx.reads.view.view_number(view as usize)?].whole_matrix,
         &race.frame.matrices.view_place,
         16,
     );

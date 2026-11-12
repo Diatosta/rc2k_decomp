@@ -45,7 +45,7 @@ pub fn passed(d: u32, pass: u32) -> bool {
 }
 
 /// Whether a kept car is ahead of the lead: its checkpoint past the lead's, or the same
-/// with the tie-break (+0x624, asked only then) past `CarsAndReplay.car_blocks.cars[0].checkpoint_offset[1]`.
+/// with the tie-break (+0x624, asked only then) past `CarBlocks.cars[0].checkpoint_offset[1]`.
 pub fn ahead_of_lead(lead: u32, checkpoint: u32, lead_tie: u32, tie: impl FnOnce() -> u32) -> bool {
     let d = lead.wrapping_sub(checkpoint);
     (d as i32) < 0 || (d == 0 && (lead_tie.wrapping_sub(tie()) as i32) < 0)

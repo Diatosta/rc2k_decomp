@@ -208,10 +208,18 @@ pub fn block_bytes(c: &[Cell<u32>]) -> *mut u8 {
 
 const MAGIC: &[u8; 8] = b"RC2KVEC1";
 
+/// The folder of the recorded vectors: `data/vectors` of the source tree, or `RC2K_VECTORS`
+/// for a test binary run away from it (the Windows suite on another machine).
+pub fn vectors_dir() -> std::path::PathBuf {
+    std::env::var_os("RC2K_VECTORS").map_or_else(
+        || std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("data/vectors"),
+        std::path::PathBuf::from,
+    )
+}
+
 /// Where the vectors named `name` are kept.
 pub fn path(name: &str) -> std::path::PathBuf {
-    let dir = concat!(env!("CARGO_MANIFEST_DIR"), "/data/vectors");
-    std::path::Path::new(dir).join(format!("{name}.bin"))
+    vectors_dir().join(format!("{name}.bin"))
 }
 
 /// Whether this run records (`RC2K_RECORD_VECTORS=1`).

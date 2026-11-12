@@ -348,6 +348,9 @@ mod tests {
     use crate::cells::cells_of_bytes;
     use rc2k_core::drive::replay_frames::FRAME_BYTES;
 
+    const SLOTS_AT: usize = core::mem::offset_of!(RaceWork, race_slots);
+    const EXTRA_AT: usize = core::mem::offset_of!(RaceWork, replay_extra);
+
     /// A car, the race work and their bytes in pieces: `pattern(n)` for byte n.
     fn pattern(n: usize) -> u8 {
         (n.wrapping_mul(2654435761) >> 11) as u8 | 1
@@ -374,7 +377,7 @@ mod tests {
     }
 
     /// The frame a gather makes puts every field at the offset the game's raw copy had:
-    /// the cars' first 0x684 bytes, the loose parts (0xB10 on), the driver's state (0xFCC on).
+    /// the cars' first 0x684 bytes, the loose parts (`race_slots` on), the driver's state (`replay_extra` on).
     #[test]
     fn gather_makes_the_files_bytes() {
         let cars = cars_of(pattern);
@@ -384,8 +387,8 @@ mod tests {
         for car in &cars {
             expected.extend(bytes_of(car, 0, CAR_BYTES));
         }
-        expected.extend(bytes_of(&*work, 0xB10, 8 * SLOT_BYTES));
-        expected.extend(bytes_of(&*work, 0xFCC, 0x400));
+        expected.extend(bytes_of(&*work, SLOTS_AT, 8 * SLOT_BYTES));
+        expected.extend(bytes_of(&*work, EXTRA_AT, 0x400));
         assert_eq!(frame.start_bytes(), expected);
         assert_eq!(frame.tape, [0; 400]);
     }
@@ -404,10 +407,10 @@ mod tests {
                 vec![0; size_of::<Car>() - CAR_BYTES]
             );
         }
-        assert_eq!(bytes_of(&*work, 0, 0xB10), vec![0; 0xB10]);
+        assert_eq!(bytes_of(&*work, 0, SLOTS_AT), vec![0; SLOTS_AT]);
         assert_eq!(
-            bytes_of(&*work, 0xB10 + 0x3C0, 0xFCC - 0xB10 - 0x3C0),
-            vec![0; 0xFCC - 0xB10 - 0x3C0]
+            bytes_of(&*work, SLOTS_AT + 0x3C0, EXTRA_AT - SLOTS_AT - 0x3C0),
+            vec![0; EXTRA_AT - SLOTS_AT - 0x3C0]
         );
     }
 

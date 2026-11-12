@@ -16,7 +16,6 @@
 //! `SUMMARY_EVERY` frames compared a count.
 
 use crate::errors::BadInput;
-use crate::race::blocks_store::{REPLAY_STATE_DWORDS, REPLAY_STATE_OFFSET};
 use crate::race::owner::Race;
 use rc2k_core::drive::replay_frames::{CAR_DWORDS, PLAYING, RECORDING};
 use rc2k_core::drive::replay_frames::{StartPiece, start_layout};
@@ -97,31 +96,23 @@ fn piece_name(piece: StartPiece) -> String {
 
 /// At a whole frame of a replay played, before its recorded state is loaded.
 pub fn compare_frame(race: &Race) -> Result<(), BadInput> {
-    let saved = |dword: usize| -> Result<u32, BadInput> {
-        if dword >= REPLAY_STATE_DWORDS {
-            return Err(BadInput("a dword past the replay's starting state"));
-        }
-        crate::cells::load_value::<u32>(
-            race.replay.cars_and_replay.get(),
-            REPLAY_STATE_OFFSET + 4 * dword,
-        )
-    };
+    let staging = race.replay.staging();
     let clock = race.car_blocks().cars[0].step_clock.get();
-    if saved(2)? != clock {
+    if staging.start_word(2)? != clock {
         SKIPPED.fetch_add(1, Relaxed);
         return Ok(());
     }
+    let live = crate::drive::replay_state::gather(&race.car_blocks().cars, race.shared.work.get());
     let mut differing = 0;
     for (piece, offset, n) in start_layout() {
-        let (ours, ours_at) = crate::drive::save_replay_cars::piece_place(race, piece);
-        for k in 0..n as u32 {
-            let (now, kept) = (
-                crate::cells::load_value::<u32>(ours, ours_at + 4 * k as usize)?,
-                saved(offset + k as usize)?,
-            );
-            if now == kept
-                || matches!(piece, StartPiece::Car(_)) && VIEWERS.contains(&(4 * k as usize))
-            {
+        let ours: &[u32] = match piece {
+            StartPiece::Car(k) => &live.cars[k as usize],
+            StartPiece::RaceSlots => &live.race_slots,
+            StartPiece::Extra => &live.extra,
+        };
+        for (k, &now) in ours.iter().enumerate().take(n) {
+            let kept = staging.start_word(offset + k)?;
+            if now == kept || matches!(piece, StartPiece::Car(_)) && VIEWERS.contains(&(4 * k)) {
                 continue;
             }
             differing += 1;

@@ -34,7 +34,7 @@ fn fnv1a(bytes: &[u8]) -> u64 {
 /// The hash of the eight cars' fields in groups, one for each car (`.cars[3]`): each is the sum of one hash per run of like cells over its path, length and
 /// bytes. The groups added up are the whole blocks' hash (`total`).
 pub fn car_blocks_groups(blocks: &CarBlocks) -> Vec<(String, u64)> {
-    let size = 8 * size_of::<crate::physics::car_store::Car>();
+    let size = size_of::<CarBlocks>();
     let mut groups: Vec<(String, u64)> = Vec::new();
     let mut at = 0;
     while at < size {
@@ -83,12 +83,10 @@ fn path_group(path: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::race::groups_store::CarsAndReplay;
 
     #[test]
     fn a_field_changes_the_hash_and_a_gap_does_not() {
-        let state = CarsAndReplay::new();
-        let blocks = &state.car_blocks;
+        let blocks = &CarBlocks::new();
         let first = total(&car_blocks_groups(blocks));
         assert_eq!(first, total(&car_blocks_groups(blocks)));
         let car = 2 * size_of::<crate::physics::car_store::Car>();

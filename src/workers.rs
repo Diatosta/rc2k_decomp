@@ -226,7 +226,7 @@ pub struct Lent<'s> {
     frame_work: crate::session::PhaseRead<'s, crate::race::frame_store::FrameWork>,
     panel_and_overlay: crate::session::PhaseRead<'s, crate::race::groups_store::PanelAndOverlay>,
     // The cars' blocks and the view variables.
-    cars_and_replay: crate::session::PhaseRead<'s, crate::race::groups_store::CarsAndReplay>,
+    car_blocks: crate::session::PhaseRead<'s, crate::race::blocks_store::CarBlocks>,
     view_and_records: crate::session::PhaseRead<'s, crate::race::groups_store::ViewAndRecords>,
     // The system's screen and the processor's MMX flag.
     screen: crate::session::PhaseRead<'s, crate::session::Screen>,
@@ -281,7 +281,7 @@ impl<'s> Lent<'s> {
             frame_work: PhaseRead::lend(&race.frame.frame_work, scope),
             panel_and_overlay: PhaseRead::lend(&race.frame.panel_and_overlay, scope),
             // The cars' blocks and the view variables.
-            cars_and_replay: PhaseRead::lend(&race.replay.cars_and_replay, scope),
+            car_blocks: PhaseRead::lend(&race.replay.car_blocks, scope),
             view_and_records: PhaseRead::lend(&race.frame.view_and_records, scope),
             // The system's screen and the processor's MMX flag.
             screen: PhaseRead::lend(&system.session.screen, scope),
@@ -325,7 +325,7 @@ impl<'s> Lent<'s> {
             frame_work: &self.frame_work,
             panel_and_overlay: &self.panel_and_overlay,
             // The cars' blocks and the view variables.
-            cars_and_replay: &self.cars_and_replay,
+            car_blocks: &self.car_blocks,
             view_and_records: &self.view_and_records,
             // The system's screen and the processor's MMX flag.
             screen: &self.screen,
@@ -390,8 +390,8 @@ pub struct DrawReads<'a> {
     /// The hud's panel and the race's overlay (`race::owner_frame::Frame::panel_and_overlay`).
     pub panel_and_overlay: &'a crate::race::groups_store::PanelAndOverlay,
     // The cars' blocks and the view variables.
-    /// The cars' blocks and the replay's work (`race::owner_replay::Replay::cars_and_replay`).
-    pub cars_and_replay: &'a crate::race::groups_store::CarsAndReplay,
+    /// The cars' blocks (`race::owner_replay::Replay::car_blocks`).
+    pub car_blocks: &'a crate::race::blocks_store::CarBlocks,
     /// The shared view variables and the view records
     /// (`race::owner_frame::Frame::view_and_records`).
     pub view_and_records: &'a crate::race::groups_store::ViewAndRecords,
@@ -478,7 +478,7 @@ impl<'a> DrawReads<'a> {
             frame_work: race.frame.frame_work.get(),
             panel_and_overlay: race.frame.panel_and_overlay.get(),
             // The cars' blocks and the view variables.
-            cars_and_replay: race.replay.cars_and_replay.get(),
+            car_blocks: race.replay.car_blocks.get(),
             view_and_records: race.frame.view_and_records.get(),
             // The system's screen and the processor's MMX flag.
             screen: system.session.screen.get(),

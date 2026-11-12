@@ -3,9 +3,6 @@
 //! pieces and the bytes between them in the image's layout, one static with the image's
 //! first values. Each piece's store is a field here.
 //!
-//! - `CARS_AND_REPLAY` (IDA 0x70F3EC .. 0x719FD8): the cars' blocks and the replay's work.
-//!   The replay's state is 0xA04 dwords from car block 8 (0x7172EC), running into the
-//!   replay's work (`drive::flush_replay`, `drive::load_replay_frame`).
 //! - `VIEWER_AND_KINDS` (IDA 0x5C291C .. 0x5C5CE0): the viewer's panel, the block's bytes
 //!   after it, the kinds' tables. The effects read the marks' settings as one record from
 //!   `ViewerAndKinds.marks_settings.settings_text` (in the panel) to +0x26A8 (in the kinds' tables: `effects::init_marks`).
@@ -23,7 +20,6 @@
 //!   wrong memory while the variables had moved alone); the records are now one array.
 
 use crate::physics::gear_store::GearFigures;
-use crate::race::blocks_store::CarBlocks;
 use crate::race::effects_settings_store::EffectsSettings;
 use crate::race::kind_store::KindTables;
 use crate::race::light_records_store::LightRecords;
@@ -31,21 +27,10 @@ use crate::race::overlay_store::OverlayBlock;
 #[cfg(test)]
 use crate::race::owner::race;
 use crate::race::panel_store::Panel;
-use crate::race::replay_work_store::ReplayWork;
 use crate::race::view_vars_store::{ViewRecord, ViewVars};
 use crate::race::viewer_screen_store::ViewerPanelBlock;
 use crate::session::{PlainBytes, PlainDword};
 use core::mem::{offset_of, size_of};
-
-/// IDA 0x70F3EC .. 0x719FD8.
-#[repr(C)]
-#[derive(rc2k_derive::Cells)]
-pub struct CarsAndReplay {
-    /// +0x0 (0x70F3EC): `race::blocks_store`.
-    pub car_blocks: CarBlocks,
-    /// +0xA0D0 (0x7194BC): `race::replay_work_store`.
-    pub replay_work: ReplayWork,
-}
 
 /// IDA 0x5C291C .. 0x5C5CE0.
 #[repr(C)]
@@ -96,7 +81,6 @@ pub struct ViewAndRecords {
 }
 
 /// The groups' IDA ranges, in order.
-pub const CARS_AND_REPLAY_RANGE: (usize, usize) = (0x70F3EC, 0x719FD8);
 pub const VIEWER_AND_KINDS_RANGE: (usize, usize) = (0x5C291C, 0x5C5CE0);
 pub const LIGHTS_AND_GEAR_RANGE: (usize, usize) = (0x5C906C, 0x5CC198);
 pub const PANEL_AND_OVERLAY_RANGE: (usize, usize) = (0x6D13FE, 0x6D1870);
@@ -104,13 +88,6 @@ pub const VIEW_AND_RECORDS_RANGE: (usize, usize) = (0x60626C, 0x6077B0);
 
 const _: () = {
     use crate::{physics, race};
-    assert!(size_of::<CarsAndReplay>() == CARS_AND_REPLAY_RANGE.1 - CARS_AND_REPLAY_RANGE.0);
-    assert!(
-        offset_of!(CarsAndReplay, replay_work)
-            == race::replay_work_store::START - race::blocks_store::START
-    );
-    assert!(race::blocks_store::START == CARS_AND_REPLAY_RANGE.0);
-    assert!(race::replay_work_store::END == CARS_AND_REPLAY_RANGE.1);
     assert!(size_of::<ViewerAndKinds>() == VIEWER_AND_KINDS_RANGE.1 - VIEWER_AND_KINDS_RANGE.0);
     assert!(
         offset_of!(ViewerAndKinds, marks_settings)
@@ -149,17 +126,9 @@ const _: () = {
     assert!(race::view_vars_store::START == VIEW_AND_RECORDS_RANGE.0);
 };
 
-// SAFETY (the three): every field is a cell over a plain integer (`session`'s cells and
+// SAFETY (the groups): every field is a cell over a plain integer (`session`'s cells and
 // records of them): any bit pattern is a valid value.
 
-/// The cars' blocks and the replay's work, with the image's first values.
-impl CarsAndReplay {
-    pub const fn new() -> Self {
-        crate::cells::cells_of_bytes(crate::race::store::first_values::<
-            { CARS_AND_REPLAY_RANGE.1 - CARS_AND_REPLAY_RANGE.0 },
-        >(CARS_AND_REPLAY_RANGE.0))
-    }
-}
 /// The viewer's panel .. the kinds' tables, with the image's first values.
 impl ViewerAndKinds {
     pub const fn new() -> Self {
@@ -209,7 +178,6 @@ mod tests {
             assert_block_starts_as_the_games, assert_store_starts_as_the_games,
         };
         let race = race();
-        assert_block_starts_as_the_games(race.replay.cars_and_replay.get());
         assert_block_starts_as_the_games(&race.replay.viewer_and_kinds);
         assert_block_starts_as_the_games(race.frame.lights_and_gear.get());
         // The view records hold handles where the game has addresses.
@@ -222,7 +190,6 @@ mod tests {
     fn groups_have_their_homes() {
         let race = race();
         for home in [
-            core::ptr::from_ref(race.replay.cars_and_replay.get()).addr(),
             core::ptr::from_ref(&race.replay.viewer_and_kinds).addr(),
             core::ptr::from_ref(race.frame.lights_and_gear.get()).addr(),
             core::ptr::from_ref(&race.frame.panel_and_overlay.get().panel).addr() + 2,

@@ -8,7 +8,6 @@
 
 # math
 math.next_random.STATE/4 store:math.next_random.STATE@0+4
-race.owner.RACE.shared.work.segment_work_unused[17]/4 store:race.owner.RACE.shared.work@1410+4
 race.owner.RACE.course.numbers.zero/4 store:race.owner.RACE.course.numbers@b0+4
 race.owner.RACE.course.numbers.one/4 store:race.owner.RACE.course.numbers@58+4
 
@@ -111,7 +110,7 @@ race.owner.RACE.replay.viewer_and_kinds.viewer_panel.switch_pictures_a[0]/36 sto
 race.owner.RACE.shared.physics_tables.surfaces[0].table/768 store:race.owner.RACE.shared.physics_tables@150+300
 race.owner.RACE.shared.view.view_blocks[0]/8 held
 race.owner.RACE.shared.work.car_blocks[0]/32 held
-race.owner.RACE.shared.work.car_records[0]/32 store:race.owner.RACE.shared.work@420+20
+race.owner.RACE.shared.work.car_records[0]/32 store:race.owner.RACE.shared.work@20+20
 race.replay_path.LAST_RACE held
 race.replay_path.TEMPLATES held
 

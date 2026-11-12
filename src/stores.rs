@@ -856,8 +856,12 @@ fn listed_stores() -> Vec<Listed> {
             on_game(crate::race::owner::RACE.frame.lights_and_gear.get()),
         ),
         listed!(
-            "race.owner.RACE.replay.cars_and_replay",
-            on_game(crate::race::owner::RACE.replay.cars_and_replay.get()),
+            "race.owner.RACE.replay.car_blocks",
+            on_game(crate::race::owner::RACE.replay.car_blocks.get()),
+        ),
+        listed!(
+            "race.owner.RACE.replay.replay_work",
+            on_game(crate::race::owner::RACE.replay.replay_work()),
         ),
         listed!(
             "race.groups_store.PANEL_TAIL",
@@ -1014,6 +1018,10 @@ fn listed_stores() -> Vec<Listed> {
         listed!(
             "race.owner.RACE.replay.replay_frames",
             on_game(crate::race::owner::RACE.replay.replay_frames()),
+        ),
+        listed!(
+            "race.owner.RACE.replay.staging",
+            on_game(crate::race::owner::RACE.replay.staging()),
         ),
         listed!(
             "race.owner.RACE.shared.car",

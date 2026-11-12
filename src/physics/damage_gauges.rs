@@ -560,6 +560,7 @@ fn gauge_totals(car: &Car, m: &DamageModel) {
 #[cfg(test)]
 mod reference_vectors {
     use super::*;
+    use crate::physics::store::laid;
     use crate::race::owner::race;
     use crate::scene::x87_mem::view;
 
@@ -579,7 +580,7 @@ mod reference_vectors {
                 name: "damage_gauges line 45",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B38C, In::F), (0x35B5D0, In::F)],
+                        reads: &[(laid!(0x35B38C), In::F), (laid!(0x35B5D0), In::F)],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -601,7 +602,7 @@ mod reference_vectors {
                 name: "damage_gauges line 55",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B38C, In::F), (0x35B5D4, In::F)],
+                        reads: &[(laid!(0x35B38C), In::F), (laid!(0x35B5D4), In::F)],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -623,7 +624,7 @@ mod reference_vectors {
                 name: "damage_gauges line 65",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B38C, In::F), (0x35B5D8, In::F)],
+                        reads: &[(laid!(0x35B38C), In::F), (laid!(0x35B5D8), In::F)],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -645,7 +646,7 @@ mod reference_vectors {
                 name: "damage_gauges line 75",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B38C, In::F), (0x35B5DC, In::F)],
+                        reads: &[(laid!(0x35B38C), In::F), (laid!(0x35B5DC), In::F)],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -667,7 +668,7 @@ mod reference_vectors {
                 name: "damage_gauges line 85",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B38C, In::F), (0x35B5E0, In::F)],
+                        reads: &[(laid!(0x35B38C), In::F), (laid!(0x35B5E0), In::F)],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -689,7 +690,7 @@ mod reference_vectors {
                 name: "damage_gauges line 95",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B38C, In::F), (0x35B5E4, In::F)],
+                        reads: &[(laid!(0x35B38C), In::F), (laid!(0x35B5E4), In::F)],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -711,7 +712,7 @@ mod reference_vectors {
                 name: "damage_gauges line 105",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B38C, In::F), (0x35B5E8, In::F)],
+                        reads: &[(laid!(0x35B38C), In::F), (laid!(0x35B5E8), In::F)],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -733,7 +734,7 @@ mod reference_vectors {
                 name: "damage_gauges line 115",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B38C, In::F), (0x35B5E8, In::F)],
+                        reads: &[(laid!(0x35B38C), In::F), (laid!(0x35B5E8), In::F)],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -755,7 +756,7 @@ mod reference_vectors {
                 name: "damage_gauges line 125",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B38C, In::F), (0x35B5E8, In::F)],
+                        reads: &[(laid!(0x35B38C), In::F), (laid!(0x35B5E8), In::F)],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -777,7 +778,7 @@ mod reference_vectors {
                 name: "damage_gauges line 135",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B38C, In::F), (0x35B5E8, In::F)],
+                        reads: &[(laid!(0x35B38C), In::F), (laid!(0x35B5E8), In::F)],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -799,7 +800,7 @@ mod reference_vectors {
                 name: "damage_gauges line 145",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B38C, In::F), (0x35B5E8, In::F)],
+                        reads: &[(laid!(0x35B38C), In::F), (laid!(0x35B5E8), In::F)],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -821,7 +822,7 @@ mod reference_vectors {
                 name: "damage_gauges line 155",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B38C, In::F), (0x35B5E8, In::F)],
+                        reads: &[(laid!(0x35B38C), In::F), (laid!(0x35B5E8), In::F)],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -843,7 +844,7 @@ mod reference_vectors {
                 name: "damage_gauges line 165",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B38C, In::F), (0x35B5EC, In::F)],
+                        reads: &[(laid!(0x35B38C), In::F), (laid!(0x35B5EC), In::F)],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -865,7 +866,7 @@ mod reference_vectors {
                 name: "damage_gauges line 175",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B38C, In::F), (0x35B5F0, In::F)],
+                        reads: &[(laid!(0x35B38C), In::F), (laid!(0x35B5F0), In::F)],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -887,7 +888,7 @@ mod reference_vectors {
                 name: "damage_gauges line 185",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B38C, In::F), (0x35B5F0, In::F)],
+                        reads: &[(laid!(0x35B38C), In::F), (laid!(0x35B5F0), In::F)],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -909,7 +910,7 @@ mod reference_vectors {
                 name: "damage_gauges line 195",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B38C, In::F), (0x35B5F0, In::F)],
+                        reads: &[(laid!(0x35B38C), In::F), (laid!(0x35B5F0), In::F)],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -931,7 +932,7 @@ mod reference_vectors {
                 name: "damage_gauges line 205",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B38C, In::F), (0x35B5F0, In::F)],
+                        reads: &[(laid!(0x35B38C), In::F), (laid!(0x35B5F0), In::F)],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -954,10 +955,10 @@ mod reference_vectors {
                 operands: vec![
                     Operand::Buffer {
                         reads: &[
-                            (0x35B38C, In::F),
-                            (0x35B398, In::F),
-                            (0x35B3C0, In::F),
-                            (0x35B5A4, In::F),
+                            (laid!(0x35B38C), In::F),
+                            (laid!(0x35B398), In::F),
+                            (laid!(0x35B3C0), In::F),
+                            (laid!(0x35B5A4), In::F),
                         ],
                         writes: &[],
                     },
@@ -982,7 +983,11 @@ mod reference_vectors {
                 name: "damage_gauges line 229",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B370, In::F), (0x35B398, In::F), (0x35B5A8, In::F)],
+                        reads: &[
+                            (laid!(0x35B370), In::F),
+                            (laid!(0x35B398), In::F),
+                            (laid!(0x35B5A8), In::F),
+                        ],
                         writes: &[],
                     },
                     Operand::Buffer {
@@ -1008,12 +1013,12 @@ mod reference_vectors {
                 operands: vec![
                     Operand::Buffer {
                         reads: &[
-                            (0x35B38C, In::F),
-                            (0x35B3B0, In::F),
-                            (0x35B400, In::F),
-                            (0x35B5F4, In::F),
+                            (laid!(0x35B38C), In::F),
+                            (laid!(0x35B3B0), In::F),
+                            (laid!(0x35B400), In::F),
+                            (laid!(0x35B5F4), In::F),
                         ],
-                        writes: &[(0x35B43C, Out::F)],
+                        writes: &[(laid!(0x35B43C), Out::F)],
                     },
                     Operand::RaceBlock {
                         reads: &[(0x31A320, In::F)],
@@ -1028,10 +1033,10 @@ mod reference_vectors {
                 operands: vec![
                     Operand::Buffer {
                         reads: &[
-                            (0x35B38C, In::F),
-                            (0x35B3B0, In::F),
-                            (0x35B43C, In::F),
-                            (0x35B5F4, In::F),
+                            (laid!(0x35B38C), In::F),
+                            (laid!(0x35B3B0), In::F),
+                            (laid!(0x35B43C), In::F),
+                            (laid!(0x35B5F4), In::F),
                         ],
                         writes: &[],
                     },
@@ -1056,7 +1061,11 @@ mod reference_vectors {
                 name: "damage_gauges line 266",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B38C, In::F), (0x35B3B4, In::F), (0x35B5F8, In::F)],
+                        reads: &[
+                            (laid!(0x35B38C), In::F),
+                            (laid!(0x35B3B4), In::F),
+                            (laid!(0x35B5F8), In::F),
+                        ],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -1079,7 +1088,11 @@ mod reference_vectors {
                 name: "damage_gauges line 277",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B38C, In::F), (0x35B3B4, In::F), (0x35B5FC, In::F)],
+                        reads: &[
+                            (laid!(0x35B38C), In::F),
+                            (laid!(0x35B3B4), In::F),
+                            (laid!(0x35B5FC), In::F),
+                        ],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -1102,7 +1115,11 @@ mod reference_vectors {
                 name: "damage_gauges line 288",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B38C, In::F), (0x35B3B4, In::F), (0x35B5FC, In::F)],
+                        reads: &[
+                            (laid!(0x35B38C), In::F),
+                            (laid!(0x35B3B4), In::F),
+                            (laid!(0x35B5FC), In::F),
+                        ],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -1125,7 +1142,11 @@ mod reference_vectors {
                 name: "damage_gauges line 299",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B38C, In::F), (0x35B3B4, In::F), (0x35B5FC, In::F)],
+                        reads: &[
+                            (laid!(0x35B38C), In::F),
+                            (laid!(0x35B3B4), In::F),
+                            (laid!(0x35B5FC), In::F),
+                        ],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -1148,7 +1169,11 @@ mod reference_vectors {
                 name: "damage_gauges line 310",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B38C, In::F), (0x35B3B4, In::F), (0x35B5FC, In::F)],
+                        reads: &[
+                            (laid!(0x35B38C), In::F),
+                            (laid!(0x35B3B4), In::F),
+                            (laid!(0x35B5FC), In::F),
+                        ],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -1171,7 +1196,11 @@ mod reference_vectors {
                 name: "damage_gauges line 321",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B38C, In::F), (0x35B3B4, In::F), (0x35B5FC, In::F)],
+                        reads: &[
+                            (laid!(0x35B38C), In::F),
+                            (laid!(0x35B3B4), In::F),
+                            (laid!(0x35B5FC), In::F),
+                        ],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -1194,7 +1223,11 @@ mod reference_vectors {
                 name: "damage_gauges line 332",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B38C, In::F), (0x35B3B4, In::F), (0x35B5FC, In::F)],
+                        reads: &[
+                            (laid!(0x35B38C), In::F),
+                            (laid!(0x35B3B4), In::F),
+                            (laid!(0x35B5FC), In::F),
+                        ],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -1217,13 +1250,13 @@ mod reference_vectors {
                 name: "damage_gauges line 343",
                 operands: vec![Operand::Buffer {
                     reads: &[
-                        (0x35B34C, In::F),
-                        (0x35B380, In::F),
-                        (0x35B39C, In::F),
-                        (0x35B3F4, In::F),
-                        (0x35B484, In::F),
+                        (laid!(0x35B34C), In::F),
+                        (laid!(0x35B380), In::F),
+                        (laid!(0x35B39C), In::F),
+                        (laid!(0x35B3F4), In::F),
+                        (laid!(0x35B484), In::F),
                     ],
-                    writes: &[(0x35B488, Out::F), (0x35B48C, Out::F)],
+                    writes: &[(laid!(0x35B488), Out::F), (laid!(0x35B48C), Out::F)],
                 }],
                 ulps: 0,
                 plain: |a| part_hit_figures(dm(a[0])),
@@ -1232,8 +1265,8 @@ mod reference_vectors {
                 name: "damage_gauges line 355",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B488, In::F), (0x35B48C, In::F)],
-                        writes: &[(0x35B488, Out::F), (0x35B48C, Out::F)],
+                        reads: &[(laid!(0x35B488), In::F), (laid!(0x35B48C), In::F)],
+                        writes: &[(laid!(0x35B488), Out::F), (laid!(0x35B48C), Out::F)],
                     },
                     Operand::Buffer {
                         reads: &[(0, In::F)],
@@ -1257,7 +1290,11 @@ mod reference_vectors {
                 name: "damage_gauges line 365",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B370, In::F), (0x35B46C, In::F), (0x35B488, In::F)],
+                        reads: &[
+                            (laid!(0x35B370), In::F),
+                            (laid!(0x35B46C), In::F),
+                            (laid!(0x35B488), In::F),
+                        ],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -1280,7 +1317,11 @@ mod reference_vectors {
                 name: "damage_gauges line 376",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B370, In::F), (0x35B46C, In::F), (0x35B488, In::F)],
+                        reads: &[
+                            (laid!(0x35B370), In::F),
+                            (laid!(0x35B46C), In::F),
+                            (laid!(0x35B488), In::F),
+                        ],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -1303,7 +1344,11 @@ mod reference_vectors {
                 name: "damage_gauges line 387",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B370, In::F), (0x35B470, In::F), (0x35B48C, In::F)],
+                        reads: &[
+                            (laid!(0x35B370), In::F),
+                            (laid!(0x35B470), In::F),
+                            (laid!(0x35B48C), In::F),
+                        ],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -1326,7 +1371,11 @@ mod reference_vectors {
                 name: "damage_gauges line 398",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B370, In::F), (0x35B470, In::F), (0x35B48C, In::F)],
+                        reads: &[
+                            (laid!(0x35B370), In::F),
+                            (laid!(0x35B470), In::F),
+                            (laid!(0x35B48C), In::F),
+                        ],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -1349,7 +1398,11 @@ mod reference_vectors {
                 name: "damage_gauges line 409",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B370, In::F), (0x35B45C, In::F), (0x35B604, In::F)],
+                        reads: &[
+                            (laid!(0x35B370), In::F),
+                            (laid!(0x35B45C), In::F),
+                            (laid!(0x35B604), In::F),
+                        ],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -1372,7 +1425,11 @@ mod reference_vectors {
                 name: "damage_gauges line 420",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B370, In::F), (0x35B45C, In::F), (0x35B600, In::F)],
+                        reads: &[
+                            (laid!(0x35B370), In::F),
+                            (laid!(0x35B45C), In::F),
+                            (laid!(0x35B600), In::F),
+                        ],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -1399,7 +1456,7 @@ mod reference_vectors {
                         writes: &[(0x31A290, Out::F)],
                     },
                     Operand::Buffer {
-                        reads: &[(0x35B370, In::F), (0x35B608, In::F)],
+                        reads: &[(laid!(0x35B370), In::F), (laid!(0x35B608), In::F)],
                         writes: &[],
                     },
                 ],
@@ -1410,7 +1467,11 @@ mod reference_vectors {
                 name: "damage_gauges line 443",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B370, In::F), (0x35B464, In::F), (0x35B60C, In::F)],
+                        reads: &[
+                            (laid!(0x35B370), In::F),
+                            (laid!(0x35B464), In::F),
+                            (laid!(0x35B60C), In::F),
+                        ],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -1437,7 +1498,7 @@ mod reference_vectors {
                         writes: &[(0x31A2A0, Out::F)],
                     },
                     Operand::Buffer {
-                        reads: &[(0x35B610, In::F)],
+                        reads: &[(laid!(0x35B610), In::F)],
                         writes: &[],
                     },
                 ],
@@ -1452,7 +1513,7 @@ mod reference_vectors {
                         writes: &[(0x31A2A0, Out::F)],
                     },
                     Operand::Buffer {
-                        reads: &[(0x35B614, In::F)],
+                        reads: &[(laid!(0x35B614), In::F)],
                         writes: &[],
                     },
                 ],
@@ -1467,7 +1528,7 @@ mod reference_vectors {
                         writes: &[(0, Out::F)],
                     },
                     Operand::Buffer {
-                        reads: &[(0x35B618, In::F)],
+                        reads: &[(laid!(0x35B618), In::F)],
                         writes: &[],
                     },
                 ],
@@ -1484,7 +1545,7 @@ mod reference_vectors {
                         writes: &[(0, Out::F)],
                     },
                     Operand::Buffer {
-                        reads: &[(0x35B61C, In::F)],
+                        reads: &[(laid!(0x35B61C), In::F)],
                         writes: &[],
                     },
                 ],
@@ -1497,7 +1558,11 @@ mod reference_vectors {
                 name: "damage_gauges line 493",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B370, In::F), (0x35B450, In::F), (0x35B670, In::F)],
+                        reads: &[
+                            (laid!(0x35B370), In::F),
+                            (laid!(0x35B450), In::F),
+                            (laid!(0x35B670), In::F),
+                        ],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -1520,7 +1585,11 @@ mod reference_vectors {
                 name: "damage_gauges line 504",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B370, In::F), (0x35B450, In::F), (0x35B670, In::F)],
+                        reads: &[
+                            (laid!(0x35B370), In::F),
+                            (laid!(0x35B450), In::F),
+                            (laid!(0x35B670), In::F),
+                        ],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -1543,7 +1612,11 @@ mod reference_vectors {
                 name: "damage_gauges line 515",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B370, In::F), (0x35B450, In::F), (0x35B670, In::F)],
+                        reads: &[
+                            (laid!(0x35B370), In::F),
+                            (laid!(0x35B450), In::F),
+                            (laid!(0x35B670), In::F),
+                        ],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -1566,7 +1639,11 @@ mod reference_vectors {
                 name: "damage_gauges line 526",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B370, In::F), (0x35B450, In::F), (0x35B670, In::F)],
+                        reads: &[
+                            (laid!(0x35B370), In::F),
+                            (laid!(0x35B450), In::F),
+                            (laid!(0x35B670), In::F),
+                        ],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -1589,7 +1666,11 @@ mod reference_vectors {
                 name: "damage_gauges line 537",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B370, In::F), (0x35B458, In::F), (0x35B678, In::F)],
+                        reads: &[
+                            (laid!(0x35B370), In::F),
+                            (laid!(0x35B458), In::F),
+                            (laid!(0x35B678), In::F),
+                        ],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -1612,7 +1693,11 @@ mod reference_vectors {
                 name: "damage_gauges line 548",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B370, In::F), (0x35B458, In::F), (0x35B678, In::F)],
+                        reads: &[
+                            (laid!(0x35B370), In::F),
+                            (laid!(0x35B458), In::F),
+                            (laid!(0x35B678), In::F),
+                        ],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -1635,7 +1720,11 @@ mod reference_vectors {
                 name: "damage_gauges line 559",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B370, In::F), (0x35B458, In::F), (0x35B678, In::F)],
+                        reads: &[
+                            (laid!(0x35B370), In::F),
+                            (laid!(0x35B458), In::F),
+                            (laid!(0x35B678), In::F),
+                        ],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -1658,7 +1747,11 @@ mod reference_vectors {
                 name: "damage_gauges line 570",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B370, In::F), (0x35B458, In::F), (0x35B678, In::F)],
+                        reads: &[
+                            (laid!(0x35B370), In::F),
+                            (laid!(0x35B458), In::F),
+                            (laid!(0x35B678), In::F),
+                        ],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -1681,7 +1774,11 @@ mod reference_vectors {
                 name: "damage_gauges line 581",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B370, In::F), (0x35B454, In::F), (0x35B67C, In::F)],
+                        reads: &[
+                            (laid!(0x35B370), In::F),
+                            (laid!(0x35B454), In::F),
+                            (laid!(0x35B67C), In::F),
+                        ],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -1704,7 +1801,11 @@ mod reference_vectors {
                 name: "damage_gauges line 592",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B370, In::F), (0x35B454, In::F), (0x35B680, In::F)],
+                        reads: &[
+                            (laid!(0x35B370), In::F),
+                            (laid!(0x35B454), In::F),
+                            (laid!(0x35B680), In::F),
+                        ],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -1727,7 +1828,11 @@ mod reference_vectors {
                 name: "damage_gauges line 603",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B370, In::F), (0x35B454, In::F), (0x35B684, In::F)],
+                        reads: &[
+                            (laid!(0x35B370), In::F),
+                            (laid!(0x35B454), In::F),
+                            (laid!(0x35B684), In::F),
+                        ],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -1750,7 +1855,11 @@ mod reference_vectors {
                 name: "damage_gauges line 614",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B370, In::F), (0x35B454, In::F), (0x35B688, In::F)],
+                        reads: &[
+                            (laid!(0x35B370), In::F),
+                            (laid!(0x35B454), In::F),
+                            (laid!(0x35B688), In::F),
+                        ],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -1773,7 +1882,11 @@ mod reference_vectors {
                 name: "damage_gauges line 625",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B370, In::F), (0x35B454, In::F), (0x35B68C, In::F)],
+                        reads: &[
+                            (laid!(0x35B370), In::F),
+                            (laid!(0x35B454), In::F),
+                            (laid!(0x35B68C), In::F),
+                        ],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -1796,7 +1909,11 @@ mod reference_vectors {
                 name: "damage_gauges line 636",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B370, In::F), (0x35B454, In::F), (0x35B68C, In::F)],
+                        reads: &[
+                            (laid!(0x35B370), In::F),
+                            (laid!(0x35B454), In::F),
+                            (laid!(0x35B68C), In::F),
+                        ],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -1819,7 +1936,11 @@ mod reference_vectors {
                 name: "damage_gauges line 647",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B370, In::F), (0x35B454, In::F), (0x35B68C, In::F)],
+                        reads: &[
+                            (laid!(0x35B370), In::F),
+                            (laid!(0x35B454), In::F),
+                            (laid!(0x35B68C), In::F),
+                        ],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -1842,7 +1963,11 @@ mod reference_vectors {
                 name: "damage_gauges line 658",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B370, In::F), (0x35B454, In::F), (0x35B68C, In::F)],
+                        reads: &[
+                            (laid!(0x35B370), In::F),
+                            (laid!(0x35B454), In::F),
+                            (laid!(0x35B68C), In::F),
+                        ],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -1865,7 +1990,11 @@ mod reference_vectors {
                 name: "damage_gauges line 669",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B370, In::F), (0x35B454, In::F), (0x35B68C, In::F)],
+                        reads: &[
+                            (laid!(0x35B370), In::F),
+                            (laid!(0x35B454), In::F),
+                            (laid!(0x35B68C), In::F),
+                        ],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -1888,7 +2017,11 @@ mod reference_vectors {
                 name: "damage_gauges line 680",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B370, In::F), (0x35B454, In::F), (0x35B68C, In::F)],
+                        reads: &[
+                            (laid!(0x35B370), In::F),
+                            (laid!(0x35B454), In::F),
+                            (laid!(0x35B68C), In::F),
+                        ],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -1911,7 +2044,11 @@ mod reference_vectors {
                 name: "damage_gauges line 691",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B370, In::F), (0x35B454, In::F), (0x35B68C, In::F)],
+                        reads: &[
+                            (laid!(0x35B370), In::F),
+                            (laid!(0x35B454), In::F),
+                            (laid!(0x35B68C), In::F),
+                        ],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -1934,7 +2071,11 @@ mod reference_vectors {
                 name: "damage_gauges line 702",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B370, In::F), (0x35B454, In::F), (0x35B68C, In::F)],
+                        reads: &[
+                            (laid!(0x35B370), In::F),
+                            (laid!(0x35B454), In::F),
+                            (laid!(0x35B68C), In::F),
+                        ],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -1957,7 +2098,11 @@ mod reference_vectors {
                 name: "damage_gauges line 713",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B370, In::F), (0x35B454, In::F), (0x35B690, In::F)],
+                        reads: &[
+                            (laid!(0x35B370), In::F),
+                            (laid!(0x35B454), In::F),
+                            (laid!(0x35B690), In::F),
+                        ],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -1980,7 +2125,7 @@ mod reference_vectors {
                 name: "damage_gauges line 725",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B3C8, In::F), (0x35B6AC, In::F)],
+                        reads: &[(laid!(0x35B3C8), In::F), (laid!(0x35B6AC), In::F)],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -2002,8 +2147,8 @@ mod reference_vectors {
                 name: "damage_gauges line 737",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B3C8, In::F)],
-                        writes: &[(0x35B3C8, Out::F)],
+                        reads: &[(laid!(0x35B3C8), In::F)],
+                        writes: &[(laid!(0x35B3C8), Out::F)],
                     },
                     Operand::RaceBlock {
                         reads: &[(0x31C708, In::F)],
@@ -2017,7 +2162,7 @@ mod reference_vectors {
                 name: "damage_gauges line 745",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B3C8, In::F), (0x35B6D8, In::F)],
+                        reads: &[(laid!(0x35B3C8), In::F), (laid!(0x35B6D8), In::F)],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -2039,7 +2184,7 @@ mod reference_vectors {
                 name: "damage_gauges line 757",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B3C8, In::F), (0x35B6D8, In::F)],
+                        reads: &[(laid!(0x35B3C8), In::F), (laid!(0x35B6D8), In::F)],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -2061,7 +2206,7 @@ mod reference_vectors {
                 name: "damage_gauges line 769",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B3C8, In::F), (0x35B6D8, In::F)],
+                        reads: &[(laid!(0x35B3C8), In::F), (laid!(0x35B6D8), In::F)],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -2083,7 +2228,7 @@ mod reference_vectors {
                 name: "damage_gauges line 781",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B3C8, In::F), (0x35B6D8, In::F)],
+                        reads: &[(laid!(0x35B3C8), In::F), (laid!(0x35B6D8), In::F)],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -2105,7 +2250,7 @@ mod reference_vectors {
                 name: "damage_gauges line 793",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B3C8, In::F), (0x35B6DC, In::F)],
+                        reads: &[(laid!(0x35B3C8), In::F), (laid!(0x35B6DC), In::F)],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -2127,7 +2272,7 @@ mod reference_vectors {
                 name: "damage_gauges line 805",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B3C8, In::F), (0x35B6DC, In::F)],
+                        reads: &[(laid!(0x35B3C8), In::F), (laid!(0x35B6DC), In::F)],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -2149,7 +2294,7 @@ mod reference_vectors {
                 name: "damage_gauges line 817",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B3C8, In::F), (0x35B6DC, In::F)],
+                        reads: &[(laid!(0x35B3C8), In::F), (laid!(0x35B6DC), In::F)],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -2171,7 +2316,7 @@ mod reference_vectors {
                 name: "damage_gauges line 829",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B3C8, In::F), (0x35B6DC, In::F)],
+                        reads: &[(laid!(0x35B3C8), In::F), (laid!(0x35B6DC), In::F)],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -2193,7 +2338,7 @@ mod reference_vectors {
                 name: "damage_gauges line 840",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B3C8, In::F), (0x35B6D4, In::F)],
+                        reads: &[(laid!(0x35B3C8), In::F), (laid!(0x35B6D4), In::F)],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -2215,7 +2360,7 @@ mod reference_vectors {
                 name: "damage_gauges line 850",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B3C8, In::F), (0x35B6D0, In::F)],
+                        reads: &[(laid!(0x35B3C8), In::F), (laid!(0x35B6D0), In::F)],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -2237,7 +2382,7 @@ mod reference_vectors {
                 name: "damage_gauges line 860",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B3C8, In::F), (0x35B6BC, In::F)],
+                        reads: &[(laid!(0x35B3C8), In::F), (laid!(0x35B6BC), In::F)],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -2259,7 +2404,7 @@ mod reference_vectors {
                 name: "damage_gauges line 870",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B3C8, In::F), (0x35B6C0, In::F)],
+                        reads: &[(laid!(0x35B3C8), In::F), (laid!(0x35B6C0), In::F)],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -2281,7 +2426,7 @@ mod reference_vectors {
                 name: "damage_gauges line 880",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B3C8, In::F), (0x35B6C4, In::F)],
+                        reads: &[(laid!(0x35B3C8), In::F), (laid!(0x35B6C4), In::F)],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -2303,7 +2448,7 @@ mod reference_vectors {
                 name: "damage_gauges line 890",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B3C8, In::F), (0x35B6C8, In::F)],
+                        reads: &[(laid!(0x35B3C8), In::F), (laid!(0x35B6C8), In::F)],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -2325,7 +2470,7 @@ mod reference_vectors {
                 name: "damage_gauges line 900",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B3C8, In::F), (0x35B6C8, In::F)],
+                        reads: &[(laid!(0x35B3C8), In::F), (laid!(0x35B6C8), In::F)],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -2347,7 +2492,7 @@ mod reference_vectors {
                 name: "damage_gauges line 910",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B3C8, In::F), (0x35B6C8, In::F)],
+                        reads: &[(laid!(0x35B3C8), In::F), (laid!(0x35B6C8), In::F)],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -2369,7 +2514,7 @@ mod reference_vectors {
                 name: "damage_gauges line 920",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B3C8, In::F), (0x35B6C8, In::F)],
+                        reads: &[(laid!(0x35B3C8), In::F), (laid!(0x35B6C8), In::F)],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -2391,7 +2536,7 @@ mod reference_vectors {
                 name: "damage_gauges line 930",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B3C8, In::F), (0x35B6C8, In::F)],
+                        reads: &[(laid!(0x35B3C8), In::F), (laid!(0x35B6C8), In::F)],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -2413,7 +2558,7 @@ mod reference_vectors {
                 name: "damage_gauges line 940",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B3C8, In::F), (0x35B6C8, In::F)],
+                        reads: &[(laid!(0x35B3C8), In::F), (laid!(0x35B6C8), In::F)],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -2435,7 +2580,7 @@ mod reference_vectors {
                 name: "damage_gauges line 950",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B3C8, In::F), (0x35B6C8, In::F)],
+                        reads: &[(laid!(0x35B3C8), In::F), (laid!(0x35B6C8), In::F)],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -2457,7 +2602,7 @@ mod reference_vectors {
                 name: "damage_gauges line 960",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B3C8, In::F), (0x35B6C8, In::F)],
+                        reads: &[(laid!(0x35B3C8), In::F), (laid!(0x35B6C8), In::F)],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -2479,7 +2624,7 @@ mod reference_vectors {
                 name: "damage_gauges line 970",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B3C8, In::F), (0x35B6C8, In::F)],
+                        reads: &[(laid!(0x35B3C8), In::F), (laid!(0x35B6C8), In::F)],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -2501,7 +2646,7 @@ mod reference_vectors {
                 name: "damage_gauges line 982",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B3C8, In::F), (0x35B6CC, In::F)],
+                        reads: &[(laid!(0x35B3C8), In::F), (laid!(0x35B6CC), In::F)],
                         writes: &[],
                     },
                     Operand::Buffer {
@@ -2516,7 +2661,7 @@ mod reference_vectors {
                 name: "damage_gauges line 991",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B3C8, In::F), (0x35B6E8, In::F)],
+                        reads: &[(laid!(0x35B3C8), In::F), (laid!(0x35B6E8), In::F)],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -2538,7 +2683,7 @@ mod reference_vectors {
                 name: "damage_gauges line 1003",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B3C8, In::F), (0x35B6E8, In::F)],
+                        reads: &[(laid!(0x35B3C8), In::F), (laid!(0x35B6E8), In::F)],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -2560,7 +2705,7 @@ mod reference_vectors {
                 name: "damage_gauges line 1015",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B3C8, In::F), (0x35B6E8, In::F)],
+                        reads: &[(laid!(0x35B3C8), In::F), (laid!(0x35B6E8), In::F)],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -2582,7 +2727,7 @@ mod reference_vectors {
                 name: "damage_gauges line 1027",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B3C8, In::F), (0x35B6E8, In::F)],
+                        reads: &[(laid!(0x35B3C8), In::F), (laid!(0x35B6E8), In::F)],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -2604,7 +2749,7 @@ mod reference_vectors {
                 name: "damage_gauges line 1039",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B3C8, In::F), (0x35B6F0, In::F)],
+                        reads: &[(laid!(0x35B3C8), In::F), (laid!(0x35B6F0), In::F)],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -2626,7 +2771,7 @@ mod reference_vectors {
                 name: "damage_gauges line 1051",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B3C8, In::F), (0x35B6F0, In::F)],
+                        reads: &[(laid!(0x35B3C8), In::F), (laid!(0x35B6F0), In::F)],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -2648,7 +2793,7 @@ mod reference_vectors {
                 name: "damage_gauges line 1063",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B3C8, In::F), (0x35B6F0, In::F)],
+                        reads: &[(laid!(0x35B3C8), In::F), (laid!(0x35B6F0), In::F)],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -2670,7 +2815,7 @@ mod reference_vectors {
                 name: "damage_gauges line 1075",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B3C8, In::F), (0x35B6F0, In::F)],
+                        reads: &[(laid!(0x35B3C8), In::F), (laid!(0x35B6F0), In::F)],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -2692,7 +2837,7 @@ mod reference_vectors {
                 name: "damage_gauges line 1087",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B3C8, In::F), (0x35B6E4, In::F)],
+                        reads: &[(laid!(0x35B3C8), In::F), (laid!(0x35B6E4), In::F)],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -2714,7 +2859,7 @@ mod reference_vectors {
                 name: "damage_gauges line 1099",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B3C8, In::F), (0x35B6E4, In::F)],
+                        reads: &[(laid!(0x35B3C8), In::F), (laid!(0x35B6E4), In::F)],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -2736,7 +2881,7 @@ mod reference_vectors {
                 name: "damage_gauges line 1111",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B3C8, In::F), (0x35B6E0, In::F)],
+                        reads: &[(laid!(0x35B3C8), In::F), (laid!(0x35B6E0), In::F)],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -2758,7 +2903,7 @@ mod reference_vectors {
                 name: "damage_gauges line 1123",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B3C8, In::F), (0x35B6E0, In::F)],
+                        reads: &[(laid!(0x35B3C8), In::F), (laid!(0x35B6E0), In::F)],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -2780,7 +2925,7 @@ mod reference_vectors {
                 name: "damage_gauges line 1135",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B3C8, In::F), (0x35B6EC, In::F)],
+                        reads: &[(laid!(0x35B3C8), In::F), (laid!(0x35B6EC), In::F)],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -2802,7 +2947,7 @@ mod reference_vectors {
                 name: "damage_gauges line 1147",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B3C8, In::F), (0x35B6EC, In::F)],
+                        reads: &[(laid!(0x35B3C8), In::F), (laid!(0x35B6EC), In::F)],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -2824,7 +2969,7 @@ mod reference_vectors {
                 name: "damage_gauges line 1159",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B3C8, In::F), (0x35B6EC, In::F)],
+                        reads: &[(laid!(0x35B3C8), In::F), (laid!(0x35B6EC), In::F)],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -2846,7 +2991,7 @@ mod reference_vectors {
                 name: "damage_gauges line 1171",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B3C8, In::F), (0x35B6EC, In::F)],
+                        reads: &[(laid!(0x35B3C8), In::F), (laid!(0x35B6EC), In::F)],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -2868,7 +3013,11 @@ mod reference_vectors {
                 name: "damage_gauges line 1183",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B370, In::F), (0x35B3CC, In::F), (0x35B6B0, In::F)],
+                        reads: &[
+                            (laid!(0x35B370), In::F),
+                            (laid!(0x35B3CC), In::F),
+                            (laid!(0x35B6B0), In::F),
+                        ],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -2891,7 +3040,11 @@ mod reference_vectors {
                 name: "damage_gauges line 1194",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B370, In::F), (0x35B3D0, In::F), (0x35B6B0, In::F)],
+                        reads: &[
+                            (laid!(0x35B370), In::F),
+                            (laid!(0x35B3D0), In::F),
+                            (laid!(0x35B6B0), In::F),
+                        ],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -2914,7 +3067,11 @@ mod reference_vectors {
                 name: "damage_gauges line 1205",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B370, In::F), (0x35B3D4, In::F), (0x35B6B0, In::F)],
+                        reads: &[
+                            (laid!(0x35B370), In::F),
+                            (laid!(0x35B3D4), In::F),
+                            (laid!(0x35B6B0), In::F),
+                        ],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -2937,7 +3094,11 @@ mod reference_vectors {
                 name: "damage_gauges line 1216",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B370, In::F), (0x35B3D8, In::F), (0x35B6B0, In::F)],
+                        reads: &[
+                            (laid!(0x35B370), In::F),
+                            (laid!(0x35B3D8), In::F),
+                            (laid!(0x35B6B0), In::F),
+                        ],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -2960,7 +3121,11 @@ mod reference_vectors {
                 name: "damage_gauges line 1227",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B370, In::F), (0x35B3DC, In::F), (0x35B6B4, In::F)],
+                        reads: &[
+                            (laid!(0x35B370), In::F),
+                            (laid!(0x35B3DC), In::F),
+                            (laid!(0x35B6B4), In::F),
+                        ],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -2983,7 +3148,11 @@ mod reference_vectors {
                 name: "damage_gauges line 1238",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B370, In::F), (0x35B3DC, In::F), (0x35B6B8, In::F)],
+                        reads: &[
+                            (laid!(0x35B370), In::F),
+                            (laid!(0x35B3DC), In::F),
+                            (laid!(0x35B6B8), In::F),
+                        ],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -3053,14 +3222,14 @@ mod reference_vectors {
                     },
                     Operand::Buffer {
                         reads: &[
-                            (0x35B344, In::F),
-                            (0x35B360, In::F),
-                            (0x35B364, In::F),
-                            (0x35B368, In::F),
-                            (0x35B440, In::F),
-                            (0x35B444, In::F),
+                            (laid!(0x35B344), In::F),
+                            (laid!(0x35B360), In::F),
+                            (laid!(0x35B364), In::F),
+                            (laid!(0x35B368), In::F),
+                            (laid!(0x35B440), In::F),
+                            (laid!(0x35B444), In::F),
                         ],
-                        writes: &[(0x35B440, Out::F), (0x35B444, Out::F)],
+                        writes: &[(laid!(0x35B440), Out::F), (laid!(0x35B444), Out::F)],
                     },
                 ],
                 ulps: 0,

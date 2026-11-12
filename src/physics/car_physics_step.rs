@@ -345,7 +345,7 @@ pub fn steps(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refus
         race.shared.car(),
         race.physics.damage(),
         race.shared.work.get(),
-    );
+    )?;
     ph::hit_part_checks::hit_part_checks(
         race.course.numbers.get(),
         &race.frame.matrices,

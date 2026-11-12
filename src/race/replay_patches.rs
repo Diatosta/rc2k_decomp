@@ -15,7 +15,7 @@ use crate::session::PlainDword;
 
 /// `g_patchSwitch` and the twelve settings after it (13 dwords from 0x71C6D0).
 pub fn switches(shared: &RaceShared) -> impl Iterator<Item = &PlainDword> {
-    std::iter::once(&shared.work.get().patch_switch).chain(shared.work.get().patch_settings.iter())
+    shared.work.get().patches.iter()
 }
 
 /// `rep movsd` of the dwords, forwards.
@@ -43,7 +43,7 @@ pub fn apply_replay_patches(race: &Race) -> Result<(), Refused> {
             race.viewer_panel().kept_patch_switches.iter(),
             switches(shared),
         ); // ViewerAndKinds.viewer_panel.kept_patch_switches[0]
-        move_dwords(switches(shared), race.replay_work().header_patches.iter()); // CarsAndReplay.replay_work.header_patches[0]
+        move_dwords(switches(shared), race.replay_work().header_patches.iter()); // ReplayWork.header_patches[0]
         shared.work.get().patches_applied.set(0);
         crate::physics::apply_patches::apply_patches(
             race.shared.physics_tables.get(),

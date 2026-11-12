@@ -1,27 +1,11 @@
 //! The damage model's figures, out of RAL.EXE's image (IDA 0x75B340 .. 0x75B940; phase 7,
 //! typed): shares, thresholds, the work floats, the tables of four (x0, y0, x1, y1)
-//! `physics::flow::table_lerp` reads, and the rates. `#[repr(C)]` struct of atomic cells
-//! with the image's layout, one static. What each
-//! figure is, is a reading from how `physics::damage_factors`, `damage_wear`, `damage_gauges`
+//! `physics::flow::table_lerp` reads, and the rates. `#[repr(C)]` struct of atomic cells, one
+//! static. What each figure is, is a reading from how `physics::damage_factors`, `damage_wear`, `damage_gauges`
 //! and `rate_damage` use it (`physics/damage_model.rs`); the doc of each says what.
 
-use crate::session::{PlainBytes, PlainDword, PlainFloat};
-
-/// A gap's first bytes: `runs` are (offset, bytes) of the non-zero ones.
-const fn sparse<const N: usize>(runs: &[(usize, &[u8])]) -> [u8; N] {
-    let mut out = [0u8; N];
-    let mut r = 0;
-    while r < runs.len() {
-        let (at, bytes) = runs[r];
-        let mut i = 0;
-        while i < bytes.len() {
-            out[at + i] = bytes[i];
-            i += 1;
-        }
-        r += 1;
-    }
-    out
-}
+use crate::errors::BadInput;
+use crate::session::{PlainDword, PlainFloat};
 
 /// The damage model's figures.
 #[repr(C)]
@@ -39,8 +23,6 @@ pub struct DamageModel {
     pub gauge_low: PlainFloat,
     /// `flt_75B354`: 8.0, the highest landing dive figure counted (`physics::damage_factors` holds the dive 0 ..= it before squaring).
     pub dive_top: PlainFloat,
-    /// Unreferenced bytes (IDA 0X75B358 .. 0X75B35C).
-    pub _gap_75b358: PlainBytes<4>,
     /// `flt_75B35C`: the divisor (256) that turns the car block's whole-number figures into shares.
     pub fixed_point_scale: PlainFloat,
     /// `flt_75B360`: 0.5: the average of two (brake wear, tyre wear, gearbox, the wheel loads' blend).
@@ -53,16 +35,12 @@ pub struct DamageModel {
     pub scratch: PlainFloat,
     /// `flt_75B370`: 0.01: the percent factor the wear and hit terms are multiplied by.
     pub hundredth: PlainFloat,
-    /// Unreferenced bytes (IDA 0X75B374 .. 0X75B378).
-    pub _gap_75b374: PlainBytes<4>,
     /// `flt_75B378`: 70.0: the forward speed (and speed gaps) are held to it and divided by it, then scaled to `gauge_top`, so a speed share runs 0 ..= 100.
     pub speed_range: PlainFloat,
     /// `flt_75B37C`: 0.5: the engine counts as over its limit when its speed is above `engine_speed_limit` times it.
     pub engine_limit_factor: PlainFloat,
     /// `flt_75B380`: 1609.34, the metres in a mile: the tyre durability (`wear_figure`) is turned to this unit before the speed share is divided by it (probably, the durability figures being miles).
     pub metres_per_mile: PlainFloat,
-    /// Unreferenced bytes (IDA 0X75B384 .. 0X75B388).
-    pub _gap_75b384: PlainBytes<4>,
     /// `flt_75B388`: the factor `physics::rate_damage` multiplies by (80 bits).
     pub grade_k: PlainFloat,
     /// `flt_75B38C`: About 1/6000 (0.000167): the gauge rates are multiplied by it, so a gauge rises by its rate times this per step.
@@ -194,8 +172,6 @@ pub struct DamageModel {
     pub handbrake_fail_chance: PlainFloat,
     /// `dword_75B4A0`: the clock / random figure the failures by chance compare against.
     pub clock: PlainDword,
-    /// Unreferenced bytes (IDA 0X75B4A4 .. 0X75B4A8).
-    pub _gap_75b4a4: PlainBytes<4>,
     /// The tables of four (x0, y0, x1, y1): 0x75B4A8 .. 0x75B578 (`physics::damage_wear`,
     /// `rate_damage`, `damage_factors`).
     pub lerp_tables: [[PlainFloat; 4]; 13],
@@ -214,26 +190,40 @@ pub struct DamageModel {
     pub lerp_tables_b: [[PlainFloat; 4]; 3],
     /// `flt_75B670`: 0.15: the rate of the wheel hit gauges' wear by rough ground (times `roughness_wear_base`).
     pub wheel_roughness_rate: PlainFloat,
-    /// Unreferenced bytes (IDA 0X75B674 .. 0X75B678).
-    pub _gap_75b674: PlainBytes<4>,
     /// `flt_75B678` ..: more hit figures and thresholds (`physics::damage_gauges`, `rate_damage`).
     pub figures: [PlainFloat; 33],
-    /// Unreferenced bytes (IDA 0X75B6FC .. 0X75B73C).
-    pub _gap_75b6fc: PlainBytes<64>,
-    /// `dword_75B73C`: the wear table (rows by `DamageModel.tyre_kind`, two columns, as the original
-    /// indexes them), 0x180 bytes.
-    pub wear_table: [PlainFloat; 96],
+    /// `dword_75B6FC` ..: the row of figures a car with no tyre kind set (`tyre_kind` -1) gets; one row
+    /// before `wear_table`, as the original's index runs.
+    pub wear_unset_row: [PlainDword; 16],
+    /// `dword_75B73C`: the wear table, a row of 16 whole numbers per `DamageModel.tyre_kind` 0 ..= 5.
+    pub wear_table: [[PlainDword; 16]; 6],
     /// `flt_75B8BC`: 2.5: `wear_figure` is the blended table figure times it.
     pub wear_figure_scale: PlainFloat,
-    /// `dword_75B8C0`: the wear table's columns by surface kind, a pair of dwords a surface
-    /// (first column, second column; the rest of the pairs sit in `_gap_75b8c8`): here the
-    /// first of surface 0's pair; `physics::damage_wear` reads past it.
-    pub wear_first_columns: PlainDword,
-    /// `dword_75B8C4`: the second of surface 0's column pair (the original read the second
-    /// column at the first column's pair, not the surface's: fixed in `physics::damage_wear`).
-    pub wear_second_columns: PlainDword,
-    /// Unreferenced bytes (IDA 0X75B8C8 .. 0X75B940).
-    pub _gap_75b8c8: PlainBytes<120>,
+    /// `dword_75B8C0` ..: the wear table's two columns by surface kind (its low four bits): the first
+    /// and the second column of the pair, whole numbers.
+    pub wear_columns: [[PlainDword; 2]; 16],
+}
+
+impl DamageModel {
+    /// The wear table's figure in `column` of the row for `tyre_kind` (-1 is the row of a car with
+    /// none set). The original indexes the table by dwords from the unset row on, so a column
+    /// past 15 reads the next row; past the last row it reads whatever follows the table, which
+    /// is refused.
+    pub fn wear_figure_entry(&self, tyre_kind: u32, column: u32) -> Result<u32, BadInput> {
+        let rows = (tyre_kind as i32).wrapping_add(1);
+        if !(0..=6).contains(&rows) {
+            return Err(BadInput("a tyre kind outside the wear table"));
+        }
+        let at = rows as u32 * 16 + column;
+        let figure = match at {
+            0..16 => self.wear_unset_row.get(at as usize),
+            16..112 => self.wear_table[(at as usize - 16) / 16].get(at as usize % 16),
+            _ => None,
+        };
+        figure
+            .map(PlainDword::get)
+            .ok_or(BadInput("a wear table column past the table"))
+    }
 }
 
 /// First values the image's.
@@ -246,18 +236,15 @@ impl DamageModel {
             gauge_top: PlainFloat::new(100.0),
             gauge_low: PlainFloat::new(0.0),
             dive_top: PlainFloat::new(8.0),
-            _gap_75b358: PlainBytes::new(sparse::<4>(&[(0x2, &[0x20, 0x41])])),
             fixed_point_scale: PlainFloat::new(256.0),
             half: PlainFloat::new(0.5),
             quarter: PlainFloat::new(0.25),
             tenth: PlainFloat::new(0.1),
             scratch: PlainFloat::new(0.0),
             hundredth: PlainFloat::new(0.01),
-            _gap_75b374: PlainBytes::new(sparse::<4>(&[(0x2, &[0x7a, 0x44])])),
             speed_range: PlainFloat::new(70.0),
             engine_limit_factor: PlainFloat::new(0.5),
             metres_per_mile: PlainFloat::new(1609.3457),
-            _gap_75b384: PlainBytes::new(sparse::<4>(&[(0x0, &[0x6f, 0x12, 0x83, 0x3a])])),
             grade_k: PlainFloat::new(0.01),
             gauge_step: PlainFloat::new(0.000167),
             wear_step: PlainFloat::new(0.01),
@@ -323,7 +310,6 @@ impl DamageModel {
             gearbox_neutral_chance: PlainFloat::new(0.0),
             handbrake_fail_chance: PlainFloat::new(0.0),
             clock: PlainDword::new(0),
-            _gap_75b4a4: PlainBytes::new(sparse::<4>(&[(0x0, &[0xcd, 0xcc, 0x4c, 0x3f])])),
             lerp_tables: [
                 [
                     PlainFloat::new(80.0),
@@ -479,7 +465,6 @@ impl DamageModel {
                 ],
             ],
             wheel_roughness_rate: PlainFloat::new(0.15),
-            _gap_75b674: PlainBytes::new(sparse::<4>(&[(0x0, &[0xcd, 0xcc, 0xcc, 0x3d])])),
             figures: [
                 PlainFloat::new(0.125),
                 PlainFloat::new(0.05),
@@ -515,150 +500,221 @@ impl DamageModel {
                 PlainFloat::new(5.0),
                 PlainFloat::new(0.015),
             ],
-            _gap_75b6fc: PlainBytes::new(sparse::<64>(&[(
-                0x0,
-                &[
-                    0x64, 0x00, 0x00, 0x00, 0x14, 0x00, 0x00, 0x00, 0x28, 0x00, 0x00, 0x00, 0x14,
-                    0x00, 0x00, 0x00, 0x23, 0x00, 0x00, 0x00, 0x0f, 0x00, 0x00, 0x00, 0x1e, 0x00,
-                    0x00, 0x00, 0x3c, 0x00, 0x00, 0x00, 0x05, 0x00, 0x00, 0x00, 0x64, 0x00, 0x00,
-                    0x00, 0x64, 0x00, 0x00, 0x00, 0x64, 0x00, 0x00, 0x00, 0x64, 0x00, 0x00, 0x00,
-                    0x64, 0x00, 0x00, 0x00, 0x64, 0x00, 0x00, 0x00, 0x64,
-                ],
-            )])),
+            wear_unset_row: [
+                PlainDword::new(100),
+                PlainDword::new(20),
+                PlainDword::new(40),
+                PlainDword::new(20),
+                PlainDword::new(35),
+                PlainDword::new(15),
+                PlainDword::new(30),
+                PlainDword::new(60),
+                PlainDword::new(5),
+                PlainDword::new(100),
+                PlainDword::new(100),
+                PlainDword::new(100),
+                PlainDword::new(100),
+                PlainDword::new(100),
+                PlainDword::new(100),
+                PlainDword::new(100),
+            ],
             wear_table: [
-                PlainFloat::from_bits(0x64),
-                PlainFloat::from_bits(0x14),
-                PlainFloat::from_bits(0x28),
-                PlainFloat::from_bits(0xa),
-                PlainFloat::from_bits(0xf),
-                PlainFloat::from_bits(0xf),
-                PlainFloat::from_bits(0x1e),
-                PlainFloat::from_bits(0x3c),
-                PlainFloat::from_bits(5),
-                PlainFloat::from_bits(0x64),
-                PlainFloat::from_bits(0x64),
-                PlainFloat::from_bits(0x64),
-                PlainFloat::from_bits(0x64),
-                PlainFloat::from_bits(0x64),
-                PlainFloat::from_bits(0x64),
-                PlainFloat::from_bits(0x64),
-                PlainFloat::from_bits(0x64),
-                PlainFloat::from_bits(0x14),
-                PlainFloat::from_bits(0x23),
-                PlainFloat::from_bits(8),
-                PlainFloat::from_bits(0xd),
-                PlainFloat::from_bits(0xc),
-                PlainFloat::from_bits(0x19),
-                PlainFloat::from_bits(0x32),
-                PlainFloat::from_bits(4),
-                PlainFloat::from_bits(0x64),
-                PlainFloat::from_bits(0x64),
-                PlainFloat::from_bits(0x64),
-                PlainFloat::from_bits(0x64),
-                PlainFloat::from_bits(0x64),
-                PlainFloat::from_bits(0x64),
-                PlainFloat::from_bits(0x64),
-                PlainFloat::from_bits(0x64),
-                PlainFloat::from_bits(0x12),
-                PlainFloat::from_bits(0x28),
-                PlainFloat::from_bits(6),
-                PlainFloat::from_bits(0xa),
-                PlainFloat::from_bits(0xa),
-                PlainFloat::from_bits(0x14),
-                PlainFloat::from_bits(0x28),
-                PlainFloat::from_bits(3),
-                PlainFloat::from_bits(0x64),
-                PlainFloat::from_bits(0x64),
-                PlainFloat::from_bits(0x64),
-                PlainFloat::from_bits(0x64),
-                PlainFloat::from_bits(0x64),
-                PlainFloat::from_bits(0x64),
-                PlainFloat::from_bits(0x64),
-                PlainFloat::from_bits(0x64),
-                PlainFloat::from_bits(0xf),
-                PlainFloat::from_bits(0x23),
-                PlainFloat::from_bits(0x1c),
-                PlainFloat::from_bits(0x23),
-                PlainFloat::from_bits(0xf),
-                PlainFloat::from_bits(0x1e),
-                PlainFloat::from_bits(0x3c),
-                PlainFloat::from_bits(8),
-                PlainFloat::from_bits(0x64),
-                PlainFloat::from_bits(0x64),
-                PlainFloat::from_bits(0x64),
-                PlainFloat::from_bits(0x64),
-                PlainFloat::from_bits(0x64),
-                PlainFloat::from_bits(0x64),
-                PlainFloat::from_bits(0x64),
-                PlainFloat::from_bits(0x64),
-                PlainFloat::from_bits(0xc),
-                PlainFloat::from_bits(0x1e),
-                PlainFloat::from_bits(0x16),
-                PlainFloat::from_bits(0x1c),
-                PlainFloat::from_bits(0xf),
-                PlainFloat::from_bits(0x19),
-                PlainFloat::from_bits(0x32),
-                PlainFloat::from_bits(7),
-                PlainFloat::from_bits(0x64),
-                PlainFloat::from_bits(0x64),
-                PlainFloat::from_bits(0x64),
-                PlainFloat::from_bits(0x64),
-                PlainFloat::from_bits(0x64),
-                PlainFloat::from_bits(0x64),
-                PlainFloat::from_bits(0x64),
-                PlainFloat::from_bits(0x64),
-                PlainFloat::from_bits(0xc),
-                PlainFloat::from_bits(0x12),
-                PlainFloat::from_bits(0xa),
-                PlainFloat::from_bits(0xc),
-                PlainFloat::from_bits(0xa),
-                PlainFloat::from_bits(0xf),
-                PlainFloat::from_bits(0x28),
-                PlainFloat::from_bits(3),
-                PlainFloat::from_bits(0x64),
-                PlainFloat::from_bits(0x64),
-                PlainFloat::from_bits(0x64),
-                PlainFloat::from_bits(0x64),
-                PlainFloat::from_bits(0x64),
-                PlainFloat::from_bits(0x64),
-                PlainFloat::from_bits(0x64),
+                [
+                    PlainDword::new(100),
+                    PlainDword::new(20),
+                    PlainDword::new(40),
+                    PlainDword::new(10),
+                    PlainDword::new(15),
+                    PlainDword::new(15),
+                    PlainDword::new(30),
+                    PlainDword::new(60),
+                    PlainDword::new(5),
+                    PlainDword::new(100),
+                    PlainDword::new(100),
+                    PlainDword::new(100),
+                    PlainDword::new(100),
+                    PlainDword::new(100),
+                    PlainDword::new(100),
+                    PlainDword::new(100),
+                ],
+                [
+                    PlainDword::new(100),
+                    PlainDword::new(20),
+                    PlainDword::new(35),
+                    PlainDword::new(8),
+                    PlainDword::new(13),
+                    PlainDword::new(12),
+                    PlainDword::new(25),
+                    PlainDword::new(50),
+                    PlainDword::new(4),
+                    PlainDword::new(100),
+                    PlainDword::new(100),
+                    PlainDword::new(100),
+                    PlainDword::new(100),
+                    PlainDword::new(100),
+                    PlainDword::new(100),
+                    PlainDword::new(100),
+                ],
+                [
+                    PlainDword::new(100),
+                    PlainDword::new(18),
+                    PlainDword::new(40),
+                    PlainDword::new(6),
+                    PlainDword::new(10),
+                    PlainDword::new(10),
+                    PlainDword::new(20),
+                    PlainDword::new(40),
+                    PlainDword::new(3),
+                    PlainDword::new(100),
+                    PlainDword::new(100),
+                    PlainDword::new(100),
+                    PlainDword::new(100),
+                    PlainDword::new(100),
+                    PlainDword::new(100),
+                    PlainDword::new(100),
+                ],
+                [
+                    PlainDword::new(100),
+                    PlainDword::new(15),
+                    PlainDword::new(35),
+                    PlainDword::new(28),
+                    PlainDword::new(35),
+                    PlainDword::new(15),
+                    PlainDword::new(30),
+                    PlainDword::new(60),
+                    PlainDword::new(8),
+                    PlainDword::new(100),
+                    PlainDword::new(100),
+                    PlainDword::new(100),
+                    PlainDword::new(100),
+                    PlainDword::new(100),
+                    PlainDword::new(100),
+                    PlainDword::new(100),
+                ],
+                [
+                    PlainDword::new(100),
+                    PlainDword::new(12),
+                    PlainDword::new(30),
+                    PlainDword::new(22),
+                    PlainDword::new(28),
+                    PlainDword::new(15),
+                    PlainDword::new(25),
+                    PlainDword::new(50),
+                    PlainDword::new(7),
+                    PlainDword::new(100),
+                    PlainDword::new(100),
+                    PlainDword::new(100),
+                    PlainDword::new(100),
+                    PlainDword::new(100),
+                    PlainDword::new(100),
+                    PlainDword::new(100),
+                ],
+                [
+                    PlainDword::new(100),
+                    PlainDword::new(12),
+                    PlainDword::new(18),
+                    PlainDword::new(10),
+                    PlainDword::new(12),
+                    PlainDword::new(10),
+                    PlainDword::new(15),
+                    PlainDword::new(40),
+                    PlainDword::new(3),
+                    PlainDword::new(100),
+                    PlainDword::new(100),
+                    PlainDword::new(100),
+                    PlainDword::new(100),
+                    PlainDword::new(100),
+                    PlainDword::new(100),
+                    PlainDword::new(100),
+                ],
             ],
             wear_figure_scale: PlainFloat::new(2.5),
-            wear_first_columns: PlainDword::new(0),
-            wear_second_columns: PlainDword::new(0),
-            _gap_75b8c8: PlainBytes::new(sparse::<120>(&[(
-                0x0,
-                &[
-                    0x01, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x04,
-                    0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x07, 0x00,
-                    0x00, 0x00, 0x07, 0x00, 0x00, 0x00, 0x07, 0x00, 0x00, 0x00, 0x07, 0x00, 0x00,
-                    0x00, 0x05, 0x00, 0x00, 0x00, 0x06, 0x00, 0x00, 0x00, 0x05, 0x00, 0x00, 0x00,
-                    0x06, 0x00, 0x00, 0x00, 0x08, 0x00, 0x00, 0x00, 0x08, 0x00, 0x00, 0x00, 0x07,
-                    0x00, 0x00, 0x00, 0x07, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x04, 0x00,
-                    0x00, 0x00, 0x07, 0x00, 0x00, 0x00, 0x07, 0x00, 0x00, 0x00, 0x07, 0x00, 0x00,
-                    0x00, 0x07,
-                ],
-            )])),
+            wear_columns: [
+                [PlainDword::new(0), PlainDword::new(0)],
+                [PlainDword::new(1), PlainDword::new(2)],
+                [PlainDword::new(3), PlainDword::new(4)],
+                [PlainDword::new(3), PlainDword::new(4)],
+                [PlainDword::new(7), PlainDword::new(7)],
+                [PlainDword::new(7), PlainDword::new(7)],
+                [PlainDword::new(5), PlainDword::new(6)],
+                [PlainDword::new(5), PlainDword::new(6)],
+                [PlainDword::new(8), PlainDword::new(8)],
+                [PlainDword::new(7), PlainDword::new(7)],
+                [PlainDword::new(3), PlainDword::new(4)],
+                [PlainDword::new(7), PlainDword::new(7)],
+                [PlainDword::new(7), PlainDword::new(7)],
+                [PlainDword::new(0), PlainDword::new(0)],
+                [PlainDword::new(0), PlainDword::new(0)],
+                [PlainDword::new(0), PlainDword::new(0)],
+            ],
         }
     }
 }
 
+/// The offset (from the image's start) at which the recorded vectors of the damage tests
+/// place a figure: the 1999 one, less the four unreferenced bytes the struct has dropped
+/// before it. The vectors' buffers hold the struct, so the places move with it.
+#[cfg(test)]
+pub const fn laid_offset(image_offset: usize) -> usize {
+    /// The image offsets of the dropped single-dword gaps.
+    const DROPPED: [usize; 5] = [0x35B358, 0x35B374, 0x35B384, 0x35B4A4, 0x35B674];
+    let mut dropped = 0;
+    let mut i = 0;
+    while i < DROPPED.len() {
+        assert!(image_offset != DROPPED[i], "a dropped gap has no place");
+        if image_offset > DROPPED[i] {
+            dropped += 4;
+        }
+        i += 1;
+    }
+    image_offset - dropped
+}
+
+/// `laid_offset(..)` as a constant, for the vectors' `&'static` place lists.
+#[cfg(test)]
+macro_rules! laid {
+    ($image_offset:expr) => {
+        const { $crate::physics::store::laid_offset($image_offset) }
+    };
+}
+#[cfg(test)]
+pub(crate) use laid;
+
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    const START: usize = 0x75B340;
     use crate::race::owner::race;
-    use core::mem::offset_of;
 
     #[test]
     fn damage_starts_as_the_games() {
         crate::test_support::first_values::assert_block_starts_as_the_games(
             race().physics.damage(),
         );
-        let at = |field: usize, ida: usize| assert_eq!(field, ida - START, "{ida:#X}");
-        at(offset_of!(DamageModel, lerp_tables), 0x75B4A8);
-        at(offset_of!(DamageModel, gear_factors), 0x75B5AC);
-        at(offset_of!(DamageModel, wear_table), 0x75B73C);
+    }
+
+    #[test]
+    fn the_wear_table_reads_on_as_the_original_indexed_it() {
+        let m = DamageModel::new();
+        // The unset row, then the six rows, as one run of 112 dwords.
+        let flat: Vec<u32> = m
+            .wear_unset_row
+            .iter()
+            .chain(m.wear_table.iter().flatten())
+            .map(PlainDword::get)
+            .collect();
+        assert_eq!(flat.len(), 112);
+        for kind in [u32::MAX, 0, 1, 2, 3, 4, 5] {
+            for column in 0..40u32 {
+                let at = (kind.wrapping_add(1) * 16 + column) as usize;
+                match flat.get(at) {
+                    Some(&figure) => assert_eq!(m.wear_figure_entry(kind, column), Ok(figure)),
+                    None => assert!(m.wear_figure_entry(kind, column).is_err()),
+                }
+            }
+        }
+        assert!(m.wear_figure_entry(6, 0).is_err());
+        assert!(m.wear_figure_entry(u32::MAX - 1, 0).is_err());
+        // The shipped columns all stay within the row.
+        assert!(m.wear_columns.iter().flatten().all(|c| c.get() < 16));
     }
 }

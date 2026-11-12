@@ -183,7 +183,7 @@ fn copy_header_settings_of(
     let shared = &race.shared;
     let settings = &shared.state.settings;
     let car = &settings.cars[0];
-    let patches = &shared.work.get().patch_settings;
+    let patches = shared.work.get().patch_settings();
     let cells: [(usize, usize, u32); 31] = [
         (
             1,
@@ -218,7 +218,7 @@ fn copy_header_settings_of(
         (1, 0x719B98, car.steering_sensitivity.get()),
         (1, 0x719B99, car.ride_height.get()),
         (1, 0x719B9A, car.suspension_stiffness.get()),
-        (1, 0x719B9B, shared.work.get().patch_switch.get()),
+        (1, 0x719B9B, shared.work.get().patch_switch().get()),
         (1, 0x719B9C, patches[0].get()),
         (1, 0x719B9D, patches[1].get()),
         (2, 0x719B9E, patches[2].get()),
@@ -526,7 +526,7 @@ mod seal_key_tests {
     #[test]
     fn sealed_header_sits_at_the_games_address() {
         use crate::race::replay_work_store::ReplayWork;
-        assert_eq!(core::mem::offset_of!(ReplayWork, sealed_header), 0x698);
+        assert_eq!(core::mem::offset_of!(ReplayWork, sealed_header), 0x58);
     }
 }
 
@@ -536,55 +536,67 @@ mod header_tests {
     use crate::race::owner::race;
     use crate::session::DwordLike;
 
-    /// The header's copies as the first by-address version did them: (bytes, the store and
-    /// offset written, the store and offset read).
-    const CARS: &str = "race.owner.RACE.replay.cars_and_replay";
     const LOCALE: &str = "strings.owner.STRINGS.language.locale";
     const REPLAYS: &str = "race.owner.RACE.shared.replays";
     const REPLAY_FILE: &str = "race.owner.RACE.shared.replay_file";
     const WORK: &str = "race.owner.RACE.shared.work";
     const STATE: &str = "race.owner.RACE.shared.state";
     const CHEATS: &str = "menu.owner.MENUS.play.cheats";
-    const HEADER_MOVES: [(usize, &str, usize, &str, usize); 31] = [
-        (1, CARS, 0xA795, LOCALE, 0x8),
-        (4, CARS, 0xA76D, REPLAYS, 0xC),
-        (1, CARS, 0xA79A, STATE, 0x1C),
-        (1, CARS, 0xA79B, STATE, 0x8),
-        (1, CARS, 0xA79C, STATE, 0x24),
-        (1, CARS, 0xA79D, STATE, 0xC),
-        (1, CARS, 0xA79E, STATE, 0x150),
-        (1, CARS, 0xA8A0, STATE, 0x150),
-        (1, CARS, 0xA79F, STATE, 0x158),
-        (4, CARS, 0xA771, REPLAY_FILE, 0x34),
-        (4, CARS, 0xA796, CHEATS, 0x134),
-        (1, CARS, 0xA7A8, STATE, 0x160),
-        (1, CARS, 0xA7A9, STATE, 0x64),
-        (1, CARS, 0xA7AA, STATE, 0x50),
-        (1, CARS, 0xA7AB, STATE, 0x54),
-        (1, CARS, 0xA7AC, STATE, 0x60),
-        (1, CARS, 0xA7AD, STATE, 0x58),
-        (1, CARS, 0xA7AE, STATE, 0x5C),
-        (1, CARS, 0xA7AF, WORK, 0x1718),
-        (1, CARS, 0xA7B0, WORK, 0x171C),
-        (1, CARS, 0xA7B1, WORK, 0x1720),
-        (2, CARS, 0xA7B2, WORK, 0x1724),
-        (4, CARS, 0xA7B4, WORK, 0x1728),
-        (2, CARS, 0xA7B8, WORK, 0x172C),
-        (2, CARS, 0xA7BA, WORK, 0x1730),
-        (2, CARS, 0xA7BC, WORK, 0x1734),
-        (2, CARS, 0xA7BE, WORK, 0x1738),
-        (2, CARS, 0xA7C0, WORK, 0x173C),
-        (2, CARS, 0xA7C2, WORK, 0x1740),
-        (2, CARS, 0xA7C4, WORK, 0x1744),
-        (2, CARS, 0xA7C6, WORK, 0x1748),
+    #[derive(Clone, Copy)]
+    enum Dest {
+        /// At a byte of the sealed header part.
+        Sealed(usize),
+        /// The first byte of the co-driver's door.
+        Door,
+    }
+    use Dest::{Door, Sealed};
+
+    /// The header's copies as the first by-address version did them: (bytes, where they are written,
+    /// the store and offset read).
+    const HEADER_MOVES: [(usize, Dest, &str, usize); 31] = [
+        (1, Sealed(0x2D), LOCALE, 0x8),
+        (4, Sealed(0x5), REPLAYS, 0xC),
+        (1, Sealed(0x32), STATE, 0x1C),
+        (1, Sealed(0x33), STATE, 0x8),
+        (1, Sealed(0x34), STATE, 0x24),
+        (1, Sealed(0x35), STATE, 0xC),
+        (1, Sealed(0x36), STATE, 0x150),
+        (1, Door, STATE, 0x150),
+        (1, Sealed(0x37), STATE, 0x158),
+        (4, Sealed(0x9), REPLAY_FILE, 0x34),
+        (4, Sealed(0x2E), CHEATS, 0x134),
+        (1, Sealed(0x40), STATE, 0x160),
+        (1, Sealed(0x41), STATE, 0x64),
+        (1, Sealed(0x42), STATE, 0x50),
+        (1, Sealed(0x43), STATE, 0x54),
+        (1, Sealed(0x44), STATE, 0x60),
+        (1, Sealed(0x45), STATE, 0x58),
+        (1, Sealed(0x46), STATE, 0x5C),
+        (1, Sealed(0x47), WORK, 0x12C0),
+        (1, Sealed(0x48), WORK, 0x12C4),
+        (1, Sealed(0x49), WORK, 0x12C8),
+        (2, Sealed(0x4A), WORK, 0x12CC),
+        (4, Sealed(0x4C), WORK, 0x12D0),
+        (2, Sealed(0x50), WORK, 0x12D4),
+        (2, Sealed(0x52), WORK, 0x12D8),
+        (2, Sealed(0x54), WORK, 0x12DC),
+        (2, Sealed(0x56), WORK, 0x12E0),
+        (2, Sealed(0x58), WORK, 0x12E4),
+        (2, Sealed(0x5A), WORK, 0x12E8),
+        (2, Sealed(0x5C), WORK, 0x12EC),
+        (2, Sealed(0x5E), WORK, 0x12F0),
     ];
 
     fn old_copy() -> Result<(), BadInput> {
         use crate::test_support::state::store;
-        for &(size, to, to_at, from, from_at) in &HEADER_MOVES {
+        for &(size, to, from, from_at) in &HEADER_MOVES {
             let mut bytes = vec![0; size];
             store(from).load(from_at, &mut bytes)?;
-            store(to).store(to_at, &bytes)?;
+            let work = race().replay_work();
+            match to {
+                Sealed(at) => crate::cells::Store::store(&work.sealed_header, at, &bytes)?,
+                Door => crate::cells::Store::store(&work.unknown_7d0[0], 0, &bytes)?,
+            }
         }
         Ok(())
     }
@@ -620,13 +632,12 @@ mod header_tests {
             &car.suspension_stiffness,
             &shared.replay_file().season_code,
             &menus().play.cheats.cheats,
-            &shared.work.get().patch_switch,
         ];
         cells.extend(
             shared
                 .work
                 .get()
-                .patch_settings
+                .patches
                 .iter()
                 .map(|c| c as &dyn DwordLike),
         );

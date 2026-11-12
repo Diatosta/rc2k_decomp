@@ -60,7 +60,7 @@ pub fn spring(height: u32, last: f32, f: &SpringFactors) -> Spring {
 }
 
 /// The wheel's place (`wheel_spring_force`[k]`): ((`a` - `b` + `c`) + (squeeze - `d`) x range)
-/// x scale, `fistp`ed (`a` .. `d`: `CarsAndReplay.car_blocks.cars[0].probe_point_y[6]`, `PhysicsTables.handling[2]`, `spring_share`,
+/// x scale, `fistp`ed (`a` .. `d`: `CarBlocks.cars[0].probe_point_y[6]`, `PhysicsTables.handling[2]`, `spring_share`,
 /// `probe_share`).
 pub fn wheel_place(abcd: [f32; 4], squeeze: f32, range: f32, scale: f32) -> i32 {
     let [a, b, c, d] = abcd.map(f64::from);

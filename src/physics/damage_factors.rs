@@ -314,6 +314,7 @@ mod reference_vectors {
     use super::*;
     use crate::effects::cell_x87::CellX87;
     use crate::math::x87_float::compare;
+    use crate::physics::store::laid;
     use crate::race::owner::race;
 
     /// The status word of the engine's speed against its limit times the factor.
@@ -345,8 +346,12 @@ mod reference_vectors {
                         writes: &[],
                     },
                     Operand::Buffer {
-                        reads: &[(0x35B35C, In::F)],
-                        writes: &[(0x35B3F8, Out::F), (0x35B3FC, Out::F), (0x35B400, Out::F)],
+                        reads: &[(laid!(0x35B35C), In::F)],
+                        writes: &[
+                            (laid!(0x35B3F8), Out::F),
+                            (laid!(0x35B3FC), Out::F),
+                            (laid!(0x35B400), Out::F),
+                        ],
                     },
                 ],
                 ulps: 0,
@@ -356,7 +361,11 @@ mod reference_vectors {
                 name: "damage_factors line 53",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B34C, In::F), (0x35B3FC, In::F), (0x35B474, In::F)],
+                        reads: &[
+                            (laid!(0x35B34C), In::F),
+                            (laid!(0x35B3FC), In::F),
+                            (laid!(0x35B474), In::F),
+                        ],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -377,7 +386,7 @@ mod reference_vectors {
                 name: "damage_factors line 63",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B34C, In::F), (0x35B3F8, In::F)],
+                        reads: &[(laid!(0x35B34C), In::F), (laid!(0x35B3F8), In::F)],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -397,7 +406,7 @@ mod reference_vectors {
                 name: "damage_factors line 71",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B34C, In::F), (0x35B350, In::F)],
+                        reads: &[(laid!(0x35B34C), In::F), (laid!(0x35B350), In::F)],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -418,7 +427,11 @@ mod reference_vectors {
                 name: "damage_factors line 81",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B34C, In::F), (0x35B3FC, In::F), (0x35B478, In::F)],
+                        reads: &[
+                            (laid!(0x35B34C), In::F),
+                            (laid!(0x35B3FC), In::F),
+                            (laid!(0x35B478), In::F),
+                        ],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -439,7 +452,7 @@ mod reference_vectors {
                 name: "damage_factors line 91",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B34C, In::F), (0x35B3F8, In::F)],
+                        reads: &[(laid!(0x35B34C), In::F), (laid!(0x35B3F8), In::F)],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -459,7 +472,7 @@ mod reference_vectors {
                 name: "damage_factors line 99",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B34C, In::F), (0x35B350, In::F)],
+                        reads: &[(laid!(0x35B34C), In::F), (laid!(0x35B350), In::F)],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -480,7 +493,11 @@ mod reference_vectors {
                 name: "damage_factors line 109",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B34C, In::F), (0x35B3FC, In::F), (0x35B47C, In::F)],
+                        reads: &[
+                            (laid!(0x35B34C), In::F),
+                            (laid!(0x35B3FC), In::F),
+                            (laid!(0x35B47C), In::F),
+                        ],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -501,7 +518,7 @@ mod reference_vectors {
                 name: "damage_factors line 119",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B34C, In::F), (0x35B3F8, In::F)],
+                        reads: &[(laid!(0x35B34C), In::F), (laid!(0x35B3F8), In::F)],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -521,7 +538,7 @@ mod reference_vectors {
                 name: "damage_factors line 127",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B34C, In::F), (0x35B350, In::F)],
+                        reads: &[(laid!(0x35B34C), In::F), (laid!(0x35B350), In::F)],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -542,7 +559,11 @@ mod reference_vectors {
                 name: "damage_factors line 137",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B34C, In::F), (0x35B3FC, In::F), (0x35B480, In::F)],
+                        reads: &[
+                            (laid!(0x35B34C), In::F),
+                            (laid!(0x35B3FC), In::F),
+                            (laid!(0x35B480), In::F),
+                        ],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -563,7 +584,7 @@ mod reference_vectors {
                 name: "damage_factors line 147",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B34C, In::F), (0x35B3F8, In::F)],
+                        reads: &[(laid!(0x35B34C), In::F), (laid!(0x35B3F8), In::F)],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -583,7 +604,7 @@ mod reference_vectors {
                 name: "damage_factors line 155",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B34C, In::F), (0x35B350, In::F)],
+                        reads: &[(laid!(0x35B34C), In::F), (laid!(0x35B350), In::F)],
                         writes: &[],
                     },
                     Operand::RaceBlock {
@@ -619,8 +640,8 @@ mod reference_vectors {
                         writes: &[(0x31A430, Out::F), (0x31A434, Out::F)],
                     },
                     Operand::Buffer {
-                        reads: &[(0x35B364, In::F)],
-                        writes: &[(0x35B36C, Out::F), (0x35B3E4, Out::F)],
+                        reads: &[(laid!(0x35B364), In::F)],
+                        writes: &[(laid!(0x35B36C), Out::F), (laid!(0x35B3E4), Out::F)],
                     },
                 ],
                 ulps: 0,
@@ -630,8 +651,8 @@ mod reference_vectors {
                 name: "damage_factors line 186",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B34C, In::F), (0x35B36C, In::F)],
-                        writes: &[(0x35B36C, Out::F), (0x35B398, Out::F)],
+                        reads: &[(laid!(0x35B34C), In::F), (laid!(0x35B36C), In::F)],
+                        writes: &[(laid!(0x35B36C), Out::F), (laid!(0x35B398), Out::F)],
                     },
                     Operand::RaceBlock {
                         reads: &[(0x31A184, In::F), (0x31A1B4, In::F)],
@@ -645,8 +666,16 @@ mod reference_vectors {
                 name: "damage_factors line 198",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B34C, In::F), (0x35B36C, In::F), (0x35B378, In::F)],
-                        writes: &[(0x35B36C, Out::F), (0x35B39C, Out::F), (0x35B3E0, Out::F)],
+                        reads: &[
+                            (laid!(0x35B34C), In::F),
+                            (laid!(0x35B36C), In::F),
+                            (laid!(0x35B378), In::F),
+                        ],
+                        writes: &[
+                            (laid!(0x35B36C), Out::F),
+                            (laid!(0x35B39C), Out::F),
+                            (laid!(0x35B3E0), Out::F),
+                        ],
                     },
                     Operand::RaceBlock {
                         reads: &[(0x31A184, In::F), (0x31A190, In::F), (0x31A930, In::F)],
@@ -660,8 +689,8 @@ mod reference_vectors {
                 name: "damage_factors line 213",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B36C, In::F), (0x35B378, In::F)],
-                        writes: &[(0x35B36C, Out::F), (0x35B3A0, Out::F)],
+                        reads: &[(laid!(0x35B36C), In::F), (laid!(0x35B378), In::F)],
+                        writes: &[(laid!(0x35B36C), Out::F), (laid!(0x35B3A0), Out::F)],
                     },
                     Operand::RaceBlock {
                         reads: &[(0x31A184, In::F), (0x31A194, In::F)],
@@ -675,8 +704,12 @@ mod reference_vectors {
                 name: "damage_factors line 225",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B36C, In::F), (0x35B378, In::F), (0x35B6F4, In::F)],
-                        writes: &[(0x35B36C, Out::F), (0x35B3A4, Out::F)],
+                        reads: &[
+                            (laid!(0x35B36C), In::F),
+                            (laid!(0x35B378), In::F),
+                            (laid!(0x35B6F4), In::F),
+                        ],
+                        writes: &[(laid!(0x35B36C), Out::F), (laid!(0x35B3A4), Out::F)],
                     },
                     Operand::RaceBlock {
                         reads: &[(0x31A184, In::F), (0x31A190, In::F)],
@@ -698,8 +731,12 @@ mod reference_vectors {
                 name: "damage_factors line 239",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x35B36C, In::F), (0x35B378, In::F), (0x35B6F4, In::F)],
-                        writes: &[(0x35B36C, Out::F), (0x35B3A8, Out::F)],
+                        reads: &[
+                            (laid!(0x35B36C), In::F),
+                            (laid!(0x35B378), In::F),
+                            (laid!(0x35B6F4), In::F),
+                        ],
+                        writes: &[(laid!(0x35B36C), Out::F), (laid!(0x35B3A8), Out::F)],
                     },
                     Operand::RaceBlock {
                         reads: &[(0x31A184, In::F), (0x31A194, In::F)],
@@ -720,8 +757,8 @@ mod reference_vectors {
             Block {
                 name: "damage_factors line 253",
                 operands: vec![Operand::Buffer {
-                    reads: &[(0x35B36C, In::F), (0x35B378, In::F)],
-                    writes: &[(0x35B3AC, Out::F), (0x35B3F4, Out::F)],
+                    reads: &[(laid!(0x35B36C), In::F), (laid!(0x35B378), In::F)],
+                    writes: &[(laid!(0x35B3AC), Out::F), (laid!(0x35B3F4), Out::F)],
                 }],
                 ulps: 0,
                 plain: |a| finish_shares(dm(a[0])),
@@ -730,7 +767,7 @@ mod reference_vectors {
                 name: "damage_factors line 262",
                 operands: vec![Operand::Buffer {
                     reads: &[],
-                    writes: &[(0x35B3F4, Out::F)],
+                    writes: &[(laid!(0x35B3F4), Out::F)],
                 }],
                 ulps: 0,
                 plain: |a| dm(a[0]).wheels_down.set(1.0),
@@ -739,7 +776,7 @@ mod reference_vectors {
                 name: "damage_factors line 268",
                 operands: vec![Operand::Buffer {
                     reads: &[],
-                    writes: &[(0x35B3B0, Out::F)],
+                    writes: &[(laid!(0x35B3B0), Out::F)],
                 }],
                 ulps: 0,
                 plain: |a| dm(a[0]).brake_share.set(0.0),
@@ -752,8 +789,8 @@ mod reference_vectors {
                         writes: &[],
                     },
                     Operand::Buffer {
-                        reads: &[(0x35B35C, In::F)],
-                        writes: &[(0x35B3B0, Out::F)],
+                        reads: &[(laid!(0x35B35C), In::F)],
+                        writes: &[(laid!(0x35B3B0), Out::F)],
                     },
                 ],
                 ulps: 0,
@@ -767,7 +804,7 @@ mod reference_vectors {
                         writes: &[],
                     },
                     Operand::Buffer {
-                        reads: &[(0x35B37C, In::F)],
+                        reads: &[(laid!(0x35B37C), In::F)],
                         writes: &[],
                     },
                     Operand::Buffer {
@@ -782,7 +819,7 @@ mod reference_vectors {
                 name: "damage_factors line 302",
                 operands: vec![Operand::Buffer {
                     reads: &[],
-                    writes: &[(0x35B3B4, Out::F)],
+                    writes: &[(laid!(0x35B3B4), Out::F)],
                 }],
                 ulps: 0,
                 plain: |a| dm(a[0]).on_surface_5.set(0.0),
@@ -795,8 +832,12 @@ mod reference_vectors {
                         writes: &[],
                     },
                     Operand::Buffer {
-                        reads: &[(0x35B378, In::F), (0x35B394, In::F), (0x35B624, In::F)],
-                        writes: &[(0x35B36C, Out::F), (0x35B3C8, Out::F)],
+                        reads: &[
+                            (laid!(0x35B378), In::F),
+                            (laid!(0x35B394), In::F),
+                            (laid!(0x35B624), In::F),
+                        ],
+                        writes: &[(laid!(0x35B36C), Out::F), (laid!(0x35B3C8), Out::F)],
                     },
                 ],
                 ulps: 0,
@@ -805,8 +846,8 @@ mod reference_vectors {
             Block {
                 name: "damage_factors line 337",
                 operands: vec![Operand::Buffer {
-                    reads: &[(0x35B36C, In::F), (0x35B620, In::F)],
-                    writes: &[(0x35B36C, Out::F)],
+                    reads: &[(laid!(0x35B36C), In::F), (laid!(0x35B620), In::F)],
+                    writes: &[(laid!(0x35B36C), Out::F)],
                 }],
                 ulps: 0,
                 plain: |a| square_dive(dm(a[0])),
@@ -815,22 +856,22 @@ mod reference_vectors {
                 name: "damage_factors line 350",
                 operands: vec![Operand::Buffer {
                     reads: &[
-                        (0x35B360, In::F),
-                        (0x35B364, In::F),
-                        (0x35B36C, In::F),
-                        (0x35B3CC, In::F),
-                        (0x35B3D0, In::F),
-                        (0x35B3D4, In::F),
-                        (0x35B3D8, In::F),
-                        (0x35B3DC, In::F),
+                        (laid!(0x35B360), In::F),
+                        (laid!(0x35B364), In::F),
+                        (laid!(0x35B36C), In::F),
+                        (laid!(0x35B3CC), In::F),
+                        (laid!(0x35B3D0), In::F),
+                        (laid!(0x35B3D4), In::F),
+                        (laid!(0x35B3D8), In::F),
+                        (laid!(0x35B3DC), In::F),
                     ],
                     writes: &[
-                        (0x35B36C, Out::F),
-                        (0x35B3CC, Out::F),
-                        (0x35B3D0, Out::F),
-                        (0x35B3D4, Out::F),
-                        (0x35B3D8, Out::F),
-                        (0x35B3DC, Out::F),
+                        (laid!(0x35B36C), Out::F),
+                        (laid!(0x35B3CC), Out::F),
+                        (laid!(0x35B3D0), Out::F),
+                        (laid!(0x35B3D4), Out::F),
+                        (laid!(0x35B3D8), Out::F),
+                        (laid!(0x35B3DC), Out::F),
                     ],
                 }],
                 ulps: 0,

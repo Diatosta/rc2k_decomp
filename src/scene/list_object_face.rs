@@ -142,7 +142,7 @@ impl FaceWorld for GameFace<'_> {
             // The core asks for 1 ..= 6: the six parts' wake counts, after `state_bits`.
             crate::race::owner_shared::RaceShared::race_car_or_end_in(
                 self.7.work,
-                &self.7.cars_and_replay.car_blocks,
+                self.7.car_blocks,
                 which as usize,
             )
             .part_wake_counts

@@ -286,7 +286,7 @@ impl<'a> StepInputs<'a> {
             vars: self.vars,
             view: self.view,
             finish: self.replay.finish.get(),
-            car_blocks: &self.replay.cars_and_replay.get().car_blocks,
+            car_blocks: self.replay.car_blocks.get(),
             matrices: &self.frame.matrices,
             ground: self.ground(),
         }

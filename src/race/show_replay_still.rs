@@ -1,6 +1,6 @@
 //! `race::show_replay_still` (0x46062E): the viewer's still frame, the block read and the frame
 //! shown (`replay_frame`) drawn: `still` and `replay_still_on` 1 (a still); the block
-//! (`block`, 0x2810 bytes) into the replay's frame (`CarsAndReplay.car_blocks.cars[8].frame_head[0]`), its state loaded
+//! (`block`, 0x2810 bytes) into the replay's frame (`race::replay_staging_store`), its state loaded
 //! (`drive::load_replay_cars`) and its cameras (`drive::replay_cameras`); the cars stepped to the
 //! frame (`race::step_replay_cars` per frame, `step_frame` the frame, `step_block` the block);
 //! at frame 0 one step with `ReplayFrames.step_first` 1 and the block's state loaded again; then each car
@@ -14,18 +14,16 @@
 use crate::cells::copy_cells;
 use crate::errors::{BadInput, Refused};
 use crate::physics::flow::g;
-use crate::race::blocks_store::{REPLAY_STATE_DWORDS, REPLAY_STATE_OFFSET};
 use crate::race::owner::Race;
+use rc2k_core::drive::replay_frames::FRAME_BYTES;
 
 /// The frame's block copied to the replay's (`drive::load_replay_cars` reads it).
 fn load_frame(race: &Race) {
     let replay = &race.replay;
-    // The replay's starting state, from car block 8's start: blocks 8 and 9, the blocks'
-    // tail and the replay's tape (`REPLAY_STATE_DWORDS`).
     copy_cells(
         (&race.viewer_buffers().block, 0),
-        (replay.cars_and_replay.get(), REPLAY_STATE_OFFSET),
-        4 * REPLAY_STATE_DWORDS,
+        (replay.staging(), 0),
+        FRAME_BYTES,
     );
 }
 

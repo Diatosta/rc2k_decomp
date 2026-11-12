@@ -184,8 +184,8 @@ pub fn race_keys(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), R
 
 /// `race::tyre_change` (0x444F7A): the textures copied (`TyreChange::texture` / `device_texture`
 /// from `KindTextureTables.kind_first_textures[599]` / `KindTextureTables.kind_first_slots[599]`); for car 0 (block at 0x70F3EC: +0x268 "c1 tyrec" count
-/// `CarsAndReplay.car_blocks.cars[0].stopped_steps`, +0x26C the change's state `CarsAndReplay.car_blocks.cars[0].tyre_change_state`, +0x298 the tyre bits `CarsAndReplay.car_blocks.cars[0].parts_present`,
-/// +0x88 the time `CarsAndReplay.car_blocks.cars[0].stage_time`, +0x354 .. +0x360 `CarsAndReplay.car_blocks.cars[0].tyre_wears[0]` .. `CarsAndReplay.car_blocks.cars[0].tyre_wears[3]`, one per bit 1
+/// `CarBlocks.cars[0].stopped_steps`, +0x26C the change's state `CarBlocks.cars[0].tyre_change_state`, +0x298 the tyre bits `CarBlocks.cars[0].parts_present`,
+/// +0x88 the time `CarBlocks.cars[0].stage_time`, +0x354 .. +0x360 `CarBlocks.cars[0].tyre_wears[0]` .. `CarBlocks.cars[0].tyre_wears[3]`, one per bit 1
 /// .. 4) `race::tyre_change_gauge` started, then run, its time when done added.
 pub fn tyre_change(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     let (race, scene) = (o.race, o.scene);

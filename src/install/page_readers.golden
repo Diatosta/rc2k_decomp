@@ -1,0 +1,1873 @@
+link 0x0: offset=None place_byte=Err(BadInput("a page link that is no place in the installer's pages")) font=Err(BadInput("a page link that is no font")) edit=false list=None box=Err(BadInput("a page link that is no box")) blended=false
+link 0x1: offset=None place_byte=Err(BadInput("a page link that is no place in the installer's pages")) font=Err(BadInput("a page link that is no font")) edit=false list=None box=Err(BadInput("a page link that is no box")) blended=false
+link 0x2: offset=None place_byte=Err(BadInput("a page link that is no place in the installer's pages")) font=Err(BadInput("a page link that is no font")) edit=false list=None box=Err(BadInput("a page link that is no box")) blended=false
+link 0x37: offset=None place_byte=Err(BadInput("a page link that is no place in the installer's pages")) font=Err(BadInput("a page link that is no font")) edit=false list=None box=Err(BadInput("a page link that is no box")) blended=false
+link 0x38: offset=None place_byte=Err(BadInput("a page link that is no place in the installer's pages")) font=Err(BadInput("a page link that is no font")) edit=false list=None box=Err(BadInput("a page link that is no box")) blended=false
+link 0x1000000: offset=Some(4500) place_byte=Ok([0]) font=Err(BadInput("a page link that is no font")) edit=false list=None box=Err(BadInput("a page link that is no box")) blended=false
+link 0x1000001: offset=Some(4504) place_byte=Ok([0]) font=Err(BadInput("a page link that is no font")) edit=false list=None box=Err(BadInput("a page link that is no box")) blended=false
+link 0x1000002: offset=Some(4508) place_byte=Ok([11]) font=Err(BadInput("a page link that is no font")) edit=false list=None box=Err(BadInput("a page link that is no box")) blended=false
+link 0x1000037: offset=None place_byte=Err(BadInput("a page link that is no place in the installer's pages")) font=Err(BadInput("a page link that is no font")) edit=false list=None box=Err(BadInput("a page link that is no box")) blended=false
+link 0x1000038: offset=None place_byte=Err(BadInput("a page link that is no place in the installer's pages")) font=Err(BadInput("a page link that is no font")) edit=false list=None box=Err(BadInput("a page link that is no box")) blended=false
+link 0x2000000: offset=None place_byte=Err(BadInput("a page link that is no place in the installer's pages")) font=Ok(FontId(0)) edit=false list=None box=Err(BadInput("a page link that is no box")) blended=false
+link 0x2000001: offset=None place_byte=Err(BadInput("a page link that is no place in the installer's pages")) font=Ok(FontId(1)) edit=false list=None box=Err(BadInput("a page link that is no box")) blended=false
+link 0x2000002: offset=None place_byte=Err(BadInput("a page link that is no place in the installer's pages")) font=Ok(FontId(2)) edit=false list=None box=Err(BadInput("a page link that is no box")) blended=false
+link 0x2000037: offset=None place_byte=Err(BadInput("a page link that is no place in the installer's pages")) font=Ok(FontId(55)) edit=false list=None box=Err(BadInput("a page link that is no box")) blended=false
+link 0x2000038: offset=None place_byte=Err(BadInput("a page link that is no place in the installer's pages")) font=Ok(FontId(56)) edit=false list=None box=Err(BadInput("a page link that is no box")) blended=false
+link 0x3000000: offset=None place_byte=Err(BadInput("a page link that is no place in the installer's pages")) font=Err(BadInput("a page link that is no font")) edit=false list=None box=Err(BadInput("a page link that is no box")) blended=true
+link 0x3000001: offset=None place_byte=Err(BadInput("a page link that is no place in the installer's pages")) font=Err(BadInput("a page link that is no font")) edit=false list=None box=Err(BadInput("a page link that is no box")) blended=false
+link 0x3000002: offset=None place_byte=Err(BadInput("a page link that is no place in the installer's pages")) font=Err(BadInput("a page link that is no font")) edit=false list=None box=Err(BadInput("a page link that is no box")) blended=false
+link 0x3000037: offset=None place_byte=Err(BadInput("a page link that is no place in the installer's pages")) font=Err(BadInput("a page link that is no font")) edit=false list=None box=Err(BadInput("a page link that is no box")) blended=false
+link 0x3000038: offset=None place_byte=Err(BadInput("a page link that is no place in the installer's pages")) font=Err(BadInput("a page link that is no font")) edit=false list=None box=Err(BadInput("a page link that is no box")) blended=false
+link 0x4000000: offset=None place_byte=Ok([0]) font=Err(BadInput("a page link that is no font")) edit=false list=None box=Err(BadInput("a page link that is no box")) blended=false
+link 0x4000001: offset=None place_byte=Ok([0]) font=Err(BadInput("a page link that is no font")) edit=false list=None box=Err(BadInput("a page link that is no box")) blended=false
+link 0x4000002: offset=None place_byte=Ok([0]) font=Err(BadInput("a page link that is no font")) edit=false list=None box=Err(BadInput("a page link that is no box")) blended=false
+link 0x4000037: offset=None place_byte=Ok([0]) font=Err(BadInput("a page link that is no font")) edit=false list=None box=Err(BadInput("a page link that is no box")) blended=false
+link 0x4000038: offset=None place_byte=Ok([0]) font=Err(BadInput("a page link that is no font")) edit=false list=None box=Err(BadInput("a page link that is no box")) blended=false
+link 0x5000000: offset=Some(4720) place_byte=Ok([0]) font=Err(BadInput("a page link that is no font")) edit=false list=Some(Language) box=Err(BadInput("a page link that is no box")) blended=false
+link 0x5000001: offset=Some(4904) place_byte=Ok([0]) font=Err(BadInput("a page link that is no font")) edit=false list=Some(Main) box=Err(BadInput("a page link that is no box")) blended=false
+link 0x5000002: offset=Some(5008) place_byte=Ok([0]) font=Err(BadInput("a page link that is no font")) edit=false list=Some(Mode) box=Err(BadInput("a page link that is no box")) blended=false
+link 0x5000037: offset=None place_byte=Err(BadInput("a page link that is no place in the installer's pages")) font=Err(BadInput("a page link that is no font")) edit=false list=None box=Err(BadInput("a page link that is no box")) blended=false
+link 0x5000038: offset=None place_byte=Err(BadInput("a page link that is no place in the installer's pages")) font=Err(BadInput("a page link that is no font")) edit=false list=None box=Err(BadInput("a page link that is no box")) blended=false
+link 0x6000000: offset=Some(6536) place_byte=Ok([50]) font=Err(BadInput("a page link that is no font")) edit=false list=None box=Ok(6536) blended=false
+link 0x6000001: offset=Some(6552) place_byte=Ok([50]) font=Err(BadInput("a page link that is no font")) edit=false list=None box=Ok(6552) blended=false
+link 0x6000002: offset=Some(6568) place_byte=Ok([125]) font=Err(BadInput("a page link that is no font")) edit=false list=None box=Ok(6568) blended=false
+link 0x6000037: offset=None place_byte=Err(BadInput("a page link that is no place in the installer's pages")) font=Err(BadInput("a page link that is no font")) edit=false list=None box=Err(BadInput("a page link that is no box")) blended=false
+link 0x6000038: offset=None place_byte=Err(BadInput("a page link that is no place in the installer's pages")) font=Err(BadInput("a page link that is no font")) edit=false list=None box=Err(BadInput("a page link that is no box")) blended=false
+link 0x7000000: offset=None place_byte=Err(BadInput("a page link that is no place in the installer's pages")) font=Err(BadInput("a page link that is no font")) edit=false list=None box=Err(BadInput("a page link that is no box")) blended=false
+link 0x7000001: offset=None place_byte=Err(BadInput("a page link that is no place in the installer's pages")) font=Err(BadInput("a page link that is no font")) edit=false list=None box=Err(BadInput("a page link that is no box")) blended=false
+link 0x7000002: offset=None place_byte=Err(BadInput("a page link that is no place in the installer's pages")) font=Err(BadInput("a page link that is no font")) edit=false list=None box=Err(BadInput("a page link that is no box")) blended=false
+link 0x7000037: offset=None place_byte=Err(BadInput("a page link that is no place in the installer's pages")) font=Err(BadInput("a page link that is no font")) edit=false list=None box=Err(BadInput("a page link that is no box")) blended=false
+link 0x7000038: offset=None place_byte=Err(BadInput("a page link that is no place in the installer's pages")) font=Err(BadInput("a page link that is no font")) edit=false list=None box=Err(BadInput("a page link that is no box")) blended=false
+link 0x8000000: offset=Some(6512) place_byte=Ok([2]) font=Err(BadInput("a page link that is no font")) edit=true list=None box=Err(BadInput("a page link that is no box")) blended=false
+link 0x8000001: offset=None place_byte=Err(BadInput("a page link that is no place in the installer's pages")) font=Err(BadInput("a page link that is no font")) edit=false list=None box=Err(BadInput("a page link that is no box")) blended=false
+link 0x8000002: offset=None place_byte=Err(BadInput("a page link that is no place in the installer's pages")) font=Err(BadInput("a page link that is no font")) edit=false list=None box=Err(BadInput("a page link that is no box")) blended=false
+link 0x8000037: offset=None place_byte=Err(BadInput("a page link that is no place in the installer's pages")) font=Err(BadInput("a page link that is no font")) edit=false list=None box=Err(BadInput("a page link that is no box")) blended=false
+link 0x8000038: offset=None place_byte=Err(BadInput("a page link that is no place in the installer's pages")) font=Err(BadInput("a page link that is no font")) edit=false list=None box=Err(BadInput("a page link that is no box")) blended=false
+link 0x9000000: offset=None place_byte=Err(BadInput("a page link that is no place in the installer's pages")) font=Err(BadInput("a page link that is no font")) edit=false list=None box=Err(BadInput("a page link that is no box")) blended=false
+link 0x9000001: offset=None place_byte=Err(BadInput("a page link that is no place in the installer's pages")) font=Err(BadInput("a page link that is no font")) edit=false list=None box=Err(BadInput("a page link that is no box")) blended=false
+link 0x9000002: offset=None place_byte=Err(BadInput("a page link that is no place in the installer's pages")) font=Err(BadInput("a page link that is no font")) edit=false list=None box=Err(BadInput("a page link that is no box")) blended=false
+link 0x9000037: offset=None place_byte=Err(BadInput("a page link that is no place in the installer's pages")) font=Err(BadInput("a page link that is no font")) edit=false list=None box=Err(BadInput("a page link that is no box")) blended=false
+link 0x9000038: offset=None place_byte=Err(BadInput("a page link that is no place in the installer's pages")) font=Err(BadInput("a page link that is no font")) edit=false list=None box=Err(BadInput("a page link that is no box")) blended=false
+sweep links: 720 probes, 0 with a refusal, hash 74e38feda0cd1cf1
+pages_dword(18446744073709551615) = Err(BadInput("past the end of a record"))
+pages_dword(18446744073709551612) = Err(BadInput("past the end of a record"))
+pages_dword(6704) = Err(BadInput("past the end of a record"))
+pages_dword(6701) = Err(BadInput("past the end of a record"))
+pages_dword(6700) = Ok(0)
+sweep pages_dword: 6712 probes, 0 with a refusal, hash 64e8d29de0e17e4c
+table 0: has_list=true list=ListMenu(pages +0x1270) entry=PageEntry(4500)
+  table 0 next(0x0) = Some(PageEntry(4720))
+  table 0 next(0x4) = None
+  table 0 next(0x8) = Some(PageEntry(4544))
+  table 0 next(0xc) = Some(PageEntry(4544))
+  table 0 next(0x10) = Some(PageEntry(4544))
+  table 0 next(0x14) = Some(PageEntry(4544))
+  table 0 next(0x18) = Some(PageEntry(4544))
+  table 0 next(0x1c) = Some(PageEntry(4544))
+  table 0 next(0x1000) = !
+  table 0 next(0x1b00) = !
+  table 0 next(0x1c00) = !
+  table 0 next(0xfffffffc) = !
+  table 0 next(0xffffffff) = !
+  table 0 next(0x80000000) = !
+table 1: has_list=false list=! entry=PageEntry(4504)
+  table 1 next(0x0) = None
+  table 1 next(0x4) = Some(PageEntry(4544))
+  table 1 next(0x8) = Some(PageEntry(4544))
+  table 1 next(0xc) = Some(PageEntry(4544))
+  table 1 next(0x10) = Some(PageEntry(4544))
+  table 1 next(0x14) = Some(PageEntry(4544))
+  table 1 next(0x18) = Some(PageEntry(4544))
+  table 1 next(0x1c) = Some(PageEntry(4544))
+  table 1 next(0x1000) = !
+  table 1 next(0x1b00) = !
+  table 1 next(0x1c00) = !
+  table 1 next(0xfffffffc) = !
+  table 1 next(0xffffffff) = !
+  table 1 next(0x80000000) = !
+table 2: has_list=true list=ListMenu(pages +0x11c0) entry=PageEntry(4508)
+  table 2 next(0x0) = Some(PageEntry(4544))
+  table 2 next(0x4) = Some(PageEntry(4544))
+  table 2 next(0x8) = Some(PageEntry(4544))
+  table 2 next(0xc) = Some(PageEntry(4544))
+  table 2 next(0x10) = Some(PageEntry(4544))
+  table 2 next(0x14) = Some(PageEntry(4544))
+  table 2 next(0x18) = Some(PageEntry(4544))
+  table 2 next(0x1c) = Some(PageEntry(4544))
+  table 2 next(0x1000) = !
+  table 2 next(0x1b00) = !
+  table 2 next(0x1c00) = !
+  table 2 next(0xfffffffc) = !
+  table 2 next(0xffffffff) = !
+  table 2 next(0x80000000) = !
+table 3: has_list=true list=ListMenu(pages +0x11c0) entry=PageEntry(4512)
+  table 3 next(0x0) = Some(PageEntry(4544))
+  table 3 next(0x4) = Some(PageEntry(4544))
+  table 3 next(0x8) = Some(PageEntry(4544))
+  table 3 next(0xc) = Some(PageEntry(4544))
+  table 3 next(0x10) = Some(PageEntry(4544))
+  table 3 next(0x14) = Some(PageEntry(4544))
+  table 3 next(0x18) = Some(PageEntry(4544))
+  table 3 next(0x1c) = Some(PageEntry(4544))
+  table 3 next(0x1000) = !
+  table 3 next(0x1b00) = !
+  table 3 next(0x1c00) = !
+  table 3 next(0xfffffffc) = !
+  table 3 next(0xffffffff) = !
+  table 3 next(0x80000000) = !
+table 4: has_list=true list=ListMenu(pages +0x11c0) entry=PageEntry(4516)
+  table 4 next(0x0) = Some(PageEntry(4544))
+  table 4 next(0x4) = Some(PageEntry(4544))
+  table 4 next(0x8) = Some(PageEntry(4544))
+  table 4 next(0xc) = Some(PageEntry(4544))
+  table 4 next(0x10) = Some(PageEntry(4544))
+  table 4 next(0x14) = Some(PageEntry(4544))
+  table 4 next(0x18) = Some(PageEntry(4544))
+  table 4 next(0x1c) = Some(PageEntry(4904))
+  table 4 next(0x1000) = !
+  table 4 next(0x1b00) = !
+  table 4 next(0x1c00) = !
+  table 4 next(0xfffffffc) = !
+  table 4 next(0xffffffff) = !
+  table 4 next(0x80000000) = !
+table 5: has_list=true list=ListMenu(pages +0x11c0) entry=PageEntry(4520)
+  table 5 next(0x0) = Some(PageEntry(4544))
+  table 5 next(0x4) = Some(PageEntry(4544))
+  table 5 next(0x8) = Some(PageEntry(4544))
+  table 5 next(0xc) = Some(PageEntry(4544))
+  table 5 next(0x10) = Some(PageEntry(4544))
+  table 5 next(0x14) = Some(PageEntry(4544))
+  table 5 next(0x18) = Some(PageEntry(4904))
+  table 5 next(0x1c) = None
+  table 5 next(0x1000) = !
+  table 5 next(0x1b00) = !
+  table 5 next(0x1c00) = !
+  table 5 next(0xfffffffc) = !
+  table 5 next(0xffffffff) = !
+  table 5 next(0x80000000) = !
+table 6: has_list=true list=ListMenu(pages +0x11c0) entry=PageEntry(4524)
+  table 6 next(0x0) = Some(PageEntry(4544))
+  table 6 next(0x4) = Some(PageEntry(4544))
+  table 6 next(0x8) = Some(PageEntry(4544))
+  table 6 next(0xc) = Some(PageEntry(4544))
+  table 6 next(0x10) = Some(PageEntry(4544))
+  table 6 next(0x14) = Some(PageEntry(4904))
+  table 6 next(0x18) = None
+  table 6 next(0x1c) = Some(PageEntry(4580))
+  table 6 next(0x1000) = !
+  table 6 next(0x1b00) = !
+  table 6 next(0x1c00) = !
+  table 6 next(0xfffffffc) = !
+  table 6 next(0xffffffff) = !
+  table 6 next(0x80000000) = !
+table 7: has_list=true list=ListMenu(pages +0x11c0) entry=PageEntry(4528)
+  table 7 next(0x0) = Some(PageEntry(4544))
+  table 7 next(0x4) = Some(PageEntry(4544))
+  table 7 next(0x8) = Some(PageEntry(4544))
+  table 7 next(0xc) = Some(PageEntry(4544))
+  table 7 next(0x10) = Some(PageEntry(4904))
+  table 7 next(0x14) = None
+  table 7 next(0x18) = Some(PageEntry(4580))
+  table 7 next(0x1c) = Some(PageEntry(4692))
+  table 7 next(0x1000) = !
+  table 7 next(0x1b00) = !
+  table 7 next(0x1c00) = !
+  table 7 next(0xfffffffc) = !
+  table 7 next(0xffffffff) = !
+  table 7 next(0x80000000) = !
+table 8: has_list=true list=ListMenu(pages +0x11c0) entry=PageEntry(4532)
+  table 8 next(0x0) = Some(PageEntry(4544))
+  table 8 next(0x4) = Some(PageEntry(4544))
+  table 8 next(0x8) = Some(PageEntry(4544))
+  table 8 next(0xc) = Some(PageEntry(4904))
+  table 8 next(0x10) = None
+  table 8 next(0x14) = Some(PageEntry(4580))
+  table 8 next(0x18) = Some(PageEntry(4692))
+  table 8 next(0x1c) = Some(PageEntry(4624))
+  table 8 next(0x1000) = !
+  table 8 next(0x1b00) = !
+  table 8 next(0x1c00) = !
+  table 8 next(0xfffffffc) = !
+  table 8 next(0xffffffff) = !
+  table 8 next(0x80000000) = !
+table 9: has_list=true list=ListMenu(pages +0x11c0) entry=PageEntry(4536)
+  table 9 next(0x0) = Some(PageEntry(4544))
+  table 9 next(0x4) = Some(PageEntry(4544))
+  table 9 next(0x8) = Some(PageEntry(4904))
+  table 9 next(0xc) = None
+  table 9 next(0x10) = Some(PageEntry(4580))
+  table 9 next(0x14) = Some(PageEntry(4692))
+  table 9 next(0x18) = Some(PageEntry(4624))
+  table 9 next(0x1c) = Some(PageEntry(4704))
+  table 9 next(0x1000) = !
+  table 9 next(0x1b00) = !
+  table 9 next(0x1c00) = !
+  table 9 next(0xfffffffc) = !
+  table 9 next(0xffffffff) = !
+  table 9 next(0x80000000) = !
+table 10: has_list=true list=ListMenu(pages +0x11c0) entry=PageEntry(4540)
+  table 10 next(0x0) = Some(PageEntry(4544))
+  table 10 next(0x4) = Some(PageEntry(4904))
+  table 10 next(0x8) = None
+  table 10 next(0xc) = Some(PageEntry(4580))
+  table 10 next(0x10) = Some(PageEntry(4692))
+  table 10 next(0x14) = Some(PageEntry(4624))
+  table 10 next(0x18) = Some(PageEntry(4704))
+  table 10 next(0x1c) = Some(PageEntry(6328))
+  table 10 next(0x1000) = !
+  table 10 next(0x1b00) = !
+  table 10 next(0x1c00) = !
+  table 10 next(0xfffffffc) = !
+  table 10 next(0xffffffff) = !
+  table 10 next(0x80000000) = !
+table 11: has_list=true list=ListMenu(pages +0x1328) entry=PageEntry(4544)
+  table 11 next(0x0) = Some(PageEntry(4904))
+  table 11 next(0x4) = None
+  table 11 next(0x8) = Some(PageEntry(4580))
+  table 11 next(0xc) = Some(PageEntry(4692))
+  table 11 next(0x10) = Some(PageEntry(4624))
+  table 11 next(0x14) = Some(PageEntry(4704))
+  table 11 next(0x18) = Some(PageEntry(6328))
+  table 11 next(0x1c) = None
+  table 11 next(0x1000) = !
+  table 11 next(0x1b00) = !
+  table 11 next(0x1c00) = !
+  table 11 next(0xfffffffc) = !
+  table 11 next(0xffffffff) = !
+  table 11 next(0x80000000) = !
+table 12: has_list=false list=! entry=PageEntry(4548)
+  table 12 next(0x0) = None
+  table 12 next(0x4) = Some(PageEntry(4580))
+  table 12 next(0x8) = Some(PageEntry(4692))
+  table 12 next(0xc) = Some(PageEntry(4624))
+  table 12 next(0x10) = Some(PageEntry(4704))
+  table 12 next(0x14) = Some(PageEntry(6328))
+  table 12 next(0x18) = None
+  table 12 next(0x1c) = Some(PageEntry(4680))
+  table 12 next(0x1000) = !
+  table 12 next(0x1b00) = !
+  table 12 next(0x1c00) = !
+  table 12 next(0xfffffffc) = !
+  table 12 next(0xffffffff) = !
+  table 12 next(0x80000000) = !
+table 13: has_list=true list=ListMenu(pages +0x11e4) entry=PageEntry(4552)
+  table 13 next(0x0) = Some(PageEntry(4580))
+  table 13 next(0x4) = Some(PageEntry(4692))
+  table 13 next(0x8) = Some(PageEntry(4624))
+  table 13 next(0xc) = Some(PageEntry(4704))
+  table 13 next(0x10) = Some(PageEntry(6328))
+  table 13 next(0x14) = None
+  table 13 next(0x18) = Some(PageEntry(4680))
+  table 13 next(0x1c) = Some(PageEntry(5008))
+  table 13 next(0x1000) = !
+  table 13 next(0x1b00) = !
+  table 13 next(0x1c00) = !
+  table 13 next(0xfffffffc) = !
+  table 13 next(0xffffffff) = !
+  table 13 next(0x80000000) = !
+table 14: has_list=true list=ListMenu(pages +0x1254) entry=PageEntry(4556)
+  table 14 next(0x0) = Some(PageEntry(4692))
+  table 14 next(0x4) = Some(PageEntry(4624))
+  table 14 next(0x8) = Some(PageEntry(4704))
+  table 14 next(0xc) = Some(PageEntry(6328))
+  table 14 next(0x10) = None
+  table 14 next(0x14) = Some(PageEntry(4680))
+  table 14 next(0x18) = Some(PageEntry(5008))
+  table 14 next(0x1c) = Some(PageEntry(4544))
+  table 14 next(0x1000) = !
+  table 14 next(0x1b00) = !
+  table 14 next(0x1c00) = !
+  table 14 next(0xfffffffc) = !
+  table 14 next(0xffffffff) = !
+  table 14 next(0x80000000) = !
+table 15: has_list=true list=ListMenu(pages +0x1210) entry=PageEntry(4560)
+  table 15 next(0x0) = Some(PageEntry(4624))
+  table 15 next(0x4) = Some(PageEntry(4704))
+  table 15 next(0x8) = Some(PageEntry(6328))
+  table 15 next(0xc) = None
+  table 15 next(0x10) = Some(PageEntry(4680))
+  table 15 next(0x14) = Some(PageEntry(5008))
+  table 15 next(0x18) = Some(PageEntry(4544))
+  table 15 next(0x1c) = Some(PageEntry(4600))
+  table 15 next(0x1000) = !
+  table 15 next(0x1b00) = !
+  table 15 next(0x1c00) = !
+  table 15 next(0xfffffffc) = !
+  table 15 next(0xffffffff) = !
+  table 15 next(0x80000000) = !
+table 16: has_list=true list=ListMenu(pages +0x1260) entry=PageEntry(4564)
+  table 16 next(0x0) = Some(PageEntry(4704))
+  table 16 next(0x4) = Some(PageEntry(6328))
+  table 16 next(0x8) = None
+  table 16 next(0xc) = Some(PageEntry(4680))
+  table 16 next(0x10) = Some(PageEntry(5008))
+  table 16 next(0x14) = Some(PageEntry(4544))
+  table 16 next(0x18) = Some(PageEntry(4600))
+  table 16 next(0x1c) = Some(PageEntry(4600))
+  table 16 next(0x1000) = !
+  table 16 next(0x1b00) = !
+  table 16 next(0x1c00) = !
+  table 16 next(0xfffffffc) = !
+  table 16 next(0xffffffff) = !
+  table 16 next(0x80000000) = !
+table 17: has_list=true list=ListMenu(pages +0x18b8) entry=PageEntry(4568)
+  table 17 next(0x0) = Some(PageEntry(6328))
+  table 17 next(0x4) = None
+  table 17 next(0x8) = Some(PageEntry(4680))
+  table 17 next(0xc) = Some(PageEntry(5008))
+  table 17 next(0x10) = Some(PageEntry(4544))
+  table 17 next(0x14) = Some(PageEntry(4600))
+  table 17 next(0x18) = Some(PageEntry(4600))
+  table 17 next(0x1c) = Some(PageEntry(4600))
+  table 17 next(0x1000) = !
+  table 17 next(0x1b00) = !
+  table 17 next(0x1c00) = !
+  table 17 next(0xfffffffc) = !
+  table 17 next(0xffffffff) = !
+  table 17 next(0x80000000) = !
+table 18: has_list=false list=! entry=PageEntry(4572)
+  table 18 next(0x0) = None
+  table 18 next(0x4) = Some(PageEntry(4680))
+  table 18 next(0x8) = Some(PageEntry(5008))
+  table 18 next(0xc) = Some(PageEntry(4544))
+  table 18 next(0x10) = Some(PageEntry(4600))
+  table 18 next(0x14) = Some(PageEntry(4600))
+  table 18 next(0x18) = Some(PageEntry(4600))
+  table 18 next(0x1c) = Some(PageEntry(5112))
+  table 18 next(0x1000) = !
+  table 18 next(0x1b00) = !
+  table 18 next(0x1c00) = !
+  table 18 next(0xfffffffc) = !
+  table 18 next(0xffffffff) = !
+  table 18 next(0x80000000) = !
+table 19: has_list=true list=ListMenu(pages +0x1248) entry=PageEntry(4576)
+  table 19 next(0x0) = Some(PageEntry(4680))
+  table 19 next(0x4) = Some(PageEntry(5008))
+  table 19 next(0x8) = Some(PageEntry(4544))
+  table 19 next(0xc) = Some(PageEntry(4600))
+  table 19 next(0x10) = Some(PageEntry(4600))
+  table 19 next(0x14) = Some(PageEntry(4600))
+  table 19 next(0x18) = Some(PageEntry(5112))
+  table 19 next(0x1c) = Some(PageEntry(4580))
+  table 19 next(0x1000) = !
+  table 19 next(0x1b00) = !
+  table 19 next(0x1c00) = !
+  table 19 next(0xfffffffc) = !
+  table 19 next(0xffffffff) = !
+  table 19 next(0x80000000) = !
+table 20: has_list=true list=ListMenu(pages +0x1390) entry=PageEntry(4580)
+  table 20 next(0x0) = Some(PageEntry(5008))
+  table 20 next(0x4) = Some(PageEntry(4544))
+  table 20 next(0x8) = Some(PageEntry(4600))
+  table 20 next(0xc) = Some(PageEntry(4600))
+  table 20 next(0x10) = Some(PageEntry(4600))
+  table 20 next(0x14) = Some(PageEntry(5112))
+  table 20 next(0x18) = Some(PageEntry(4580))
+  table 20 next(0x1c) = Some(PageEntry(4612))
+  table 20 next(0x1000) = !
+  table 20 next(0x1b00) = !
+  table 20 next(0x1c00) = !
+  table 20 next(0xfffffffc) = !
+  table 20 next(0xffffffff) = !
+  table 20 next(0x80000000) = !
+table 21: has_list=true list=ListMenu(pages +0x11c0) entry=PageEntry(4584)
+  table 21 next(0x0) = Some(PageEntry(4544))
+  table 21 next(0x4) = Some(PageEntry(4600))
+  table 21 next(0x8) = Some(PageEntry(4600))
+  table 21 next(0xc) = Some(PageEntry(4600))
+  table 21 next(0x10) = Some(PageEntry(5112))
+  table 21 next(0x14) = Some(PageEntry(4580))
+  table 21 next(0x18) = Some(PageEntry(4612))
+  table 21 next(0x1c) = Some(PageEntry(6048))
+  table 21 next(0x1000) = !
+  table 21 next(0x1b00) = !
+  table 21 next(0x1c00) = !
+  table 21 next(0xfffffffc) = !
+  table 21 next(0xffffffff) = !
+  table 21 next(0x80000000) = !
+table 22: has_list=true list=ListMenu(pages +0x11f8) entry=PageEntry(4588)
+  table 22 next(0x0) = Some(PageEntry(4600))
+  table 22 next(0x4) = Some(PageEntry(4600))
+  table 22 next(0x8) = Some(PageEntry(4600))
+  table 22 next(0xc) = Some(PageEntry(5112))
+  table 22 next(0x10) = Some(PageEntry(4580))
+  table 22 next(0x14) = Some(PageEntry(4612))
+  table 22 next(0x18) = Some(PageEntry(6048))
+  table 22 next(0x1c) = Some(PageEntry(4600))
+  table 22 next(0x1000) = !
+  table 22 next(0x1b00) = !
+  table 22 next(0x1c00) = !
+  table 22 next(0xfffffffc) = !
+  table 22 next(0xffffffff) = !
+  table 22 next(0x80000000) = !
+table 23: has_list=true list=ListMenu(pages +0x11f8) entry=PageEntry(4592)
+  table 23 next(0x0) = Some(PageEntry(4600))
+  table 23 next(0x4) = Some(PageEntry(4600))
+  table 23 next(0x8) = Some(PageEntry(5112))
+  table 23 next(0xc) = Some(PageEntry(4580))
+  table 23 next(0x10) = Some(PageEntry(4612))
+  table 23 next(0x14) = Some(PageEntry(6048))
+  table 23 next(0x18) = Some(PageEntry(4600))
+  table 23 next(0x1c) = Some(PageEntry(4636))
+  table 23 next(0x1000) = !
+  table 23 next(0x1b00) = !
+  table 23 next(0x1c00) = !
+  table 23 next(0xfffffffc) = !
+  table 23 next(0xffffffff) = !
+  table 23 next(0x80000000) = !
+table 24: has_list=true list=ListMenu(pages +0x11f8) entry=PageEntry(4596)
+  table 24 next(0x0) = Some(PageEntry(4600))
+  table 24 next(0x4) = Some(PageEntry(5112))
+  table 24 next(0x8) = Some(PageEntry(4580))
+  table 24 next(0xc) = Some(PageEntry(4612))
+  table 24 next(0x10) = Some(PageEntry(6048))
+  table 24 next(0x14) = Some(PageEntry(4600))
+  table 24 next(0x18) = Some(PageEntry(4636))
+  table 24 next(0x1c) = Some(PageEntry(6328))
+  table 24 next(0x1000) = !
+  table 24 next(0x1b00) = !
+  table 24 next(0x1c00) = !
+  table 24 next(0xfffffffc) = !
+  table 24 next(0xffffffff) = !
+  table 24 next(0x80000000) = !
+table 25: has_list=true list=ListMenu(pages +0x13f8) entry=PageEntry(4600)
+  table 25 next(0x0) = Some(PageEntry(5112))
+  table 25 next(0x4) = Some(PageEntry(4580))
+  table 25 next(0x8) = Some(PageEntry(4612))
+  table 25 next(0xc) = Some(PageEntry(6048))
+  table 25 next(0x10) = Some(PageEntry(4600))
+  table 25 next(0x14) = Some(PageEntry(4636))
+  table 25 next(0x18) = Some(PageEntry(6328))
+  table 25 next(0x1c) = Some(PageEntry(4544))
+  table 25 next(0x1000) = !
+  table 25 next(0x1b00) = !
+  table 25 next(0x1c00) = !
+  table 25 next(0xfffffffc) = !
+  table 25 next(0xffffffff) = !
+  table 25 next(0x80000000) = !
+table 26: has_list=true list=ListMenu(pages +0x11e4) entry=PageEntry(4604)
+  table 26 next(0x0) = Some(PageEntry(4580))
+  table 26 next(0x4) = Some(PageEntry(4612))
+  table 26 next(0x8) = Some(PageEntry(6048))
+  table 26 next(0xc) = Some(PageEntry(4600))
+  table 26 next(0x10) = Some(PageEntry(4636))
+  table 26 next(0x14) = Some(PageEntry(6328))
+  table 26 next(0x18) = Some(PageEntry(4544))
+  table 26 next(0x1c) = Some(PageEntry(4680))
+  table 26 next(0x1000) = !
+  table 26 next(0x1b00) = !
+  table 26 next(0x1c00) = !
+  table 26 next(0xfffffffc) = !
+  table 26 next(0xffffffff) = !
+  table 26 next(0x80000000) = !
+table 27: has_list=true list=ListMenu(pages +0x1204) entry=PageEntry(4608)
+  table 27 next(0x0) = Some(PageEntry(4612))
+  table 27 next(0x4) = Some(PageEntry(6048))
+  table 27 next(0x8) = Some(PageEntry(4600))
+  table 27 next(0xc) = Some(PageEntry(4636))
+  table 27 next(0x10) = Some(PageEntry(6328))
+  table 27 next(0x14) = Some(PageEntry(4544))
+  table 27 next(0x18) = Some(PageEntry(4680))
+  table 27 next(0x1c) = Some(PageEntry(6416))
+  table 27 next(0x1000) = !
+  table 27 next(0x1b00) = !
+  table 27 next(0x1c00) = !
+  table 27 next(0xfffffffc) = !
+  table 27 next(0xffffffff) = !
+  table 27 next(0x80000000) = !
+table 28: has_list=true list=ListMenu(pages +0x17a0) entry=PageEntry(4612)
+  table 28 next(0x0) = Some(PageEntry(6048))
+  table 28 next(0x4) = Some(PageEntry(4600))
+  table 28 next(0x8) = Some(PageEntry(4636))
+  table 28 next(0xc) = Some(PageEntry(6328))
+  table 28 next(0x10) = Some(PageEntry(4544))
+  table 28 next(0x14) = Some(PageEntry(4680))
+  table 28 next(0x18) = Some(PageEntry(6416))
+  table 28 next(0x1c) = Some(PageEntry(4612))
+  table 28 next(0x1000) = !
+  table 28 next(0x1b00) = !
+  table 28 next(0x1c00) = !
+  table 28 next(0xfffffffc) = !
+  table 28 next(0xffffffff) = !
+  table 28 next(0x80000000) = !
+table 29: has_list=true list=ListMenu(pages +0x11f8) entry=PageEntry(4616)
+  table 29 next(0x0) = Some(PageEntry(4600))
+  table 29 next(0x4) = Some(PageEntry(4636))
+  table 29 next(0x8) = Some(PageEntry(6328))
+  table 29 next(0xc) = Some(PageEntry(4544))
+  table 29 next(0x10) = Some(PageEntry(4680))
+  table 29 next(0x14) = Some(PageEntry(6416))
+  table 29 next(0x18) = Some(PageEntry(4612))
+  table 29 next(0x1c) = None
+  table 29 next(0x1000) = !
+  table 29 next(0x1b00) = !
+  table 29 next(0x1c00) = !
+  table 29 next(0xfffffffc) = !
+  table 29 next(0xffffffff) = !
+  table 29 next(0x80000000) = !
+table 30: has_list=true list=ListMenu(pages +0x121c) entry=PageEntry(4620)
+  table 30 next(0x0) = Some(PageEntry(4636))
+  table 30 next(0x4) = Some(PageEntry(6328))
+  table 30 next(0x8) = Some(PageEntry(4544))
+  table 30 next(0xc) = Some(PageEntry(4680))
+  table 30 next(0x10) = Some(PageEntry(6416))
+  table 30 next(0x14) = Some(PageEntry(4612))
+  table 30 next(0x18) = None
+  table 30 next(0x1c) = None
+  table 30 next(0x1000) = !
+  table 30 next(0x1b00) = !
+  table 30 next(0x1c00) = !
+  table 30 next(0xfffffffc) = !
+  table 30 next(0xffffffff) = !
+  table 30 next(0x80000000) = !
+table 31: has_list=true list=ListMenu(pages +0x18b8) entry=PageEntry(4624)
+  table 31 next(0x0) = Some(PageEntry(6328))
+  table 31 next(0x4) = Some(PageEntry(4544))
+  table 31 next(0x8) = Some(PageEntry(4680))
+  table 31 next(0xc) = Some(PageEntry(6416))
+  table 31 next(0x10) = Some(PageEntry(4612))
+  table 31 next(0x14) = None
+  table 31 next(0x18) = None
+  table 31 next(0x1c) = Some(PageEntry(4656))
+  table 31 next(0x1000) = !
+  table 31 next(0x1b00) = !
+  table 31 next(0x1c00) = !
+  table 31 next(0xfffffffc) = !
+  table 31 next(0xffffffff) = !
+  table 31 next(0x80000000) = !
+table 32: has_list=true list=ListMenu(pages +0x11c0) entry=PageEntry(4628)
+  table 32 next(0x0) = Some(PageEntry(4544))
+  table 32 next(0x4) = Some(PageEntry(4680))
+  table 32 next(0x8) = Some(PageEntry(6416))
+  table 32 next(0xc) = Some(PageEntry(4612))
+  table 32 next(0x10) = None
+  table 32 next(0x14) = None
+  table 32 next(0x18) = Some(PageEntry(4656))
+  table 32 next(0x1c) = Some(PageEntry(6168))
+  table 32 next(0x1000) = !
+  table 32 next(0x1b00) = !
+  table 32 next(0x1c00) = !
+  table 32 next(0xfffffffc) = !
+  table 32 next(0xffffffff) = !
+  table 32 next(0x80000000) = !
+table 33: has_list=true list=ListMenu(pages +0x1248) entry=PageEntry(4632)
+  table 33 next(0x0) = Some(PageEntry(4680))
+  table 33 next(0x4) = Some(PageEntry(6416))
+  table 33 next(0x8) = Some(PageEntry(4612))
+  table 33 next(0xc) = None
+  table 33 next(0x10) = None
+  table 33 next(0x14) = Some(PageEntry(4656))
+  table 33 next(0x18) = Some(PageEntry(6168))
+  table 33 next(0x1c) = Some(PageEntry(4600))
+  table 33 next(0x1000) = !
+  table 33 next(0x1b00) = !
+  table 33 next(0x1c00) = !
+  table 33 next(0xfffffffc) = !
+  table 33 next(0xffffffff) = !
+  table 33 next(0x80000000) = !
+table 34: has_list=true list=ListMenu(pages +0x1910) entry=PageEntry(4636)
+  table 34 next(0x0) = Some(PageEntry(6416))
+  table 34 next(0x4) = Some(PageEntry(4612))
+  table 34 next(0x8) = None
+  table 34 next(0xc) = None
+  table 34 next(0x10) = Some(PageEntry(4656))
+  table 34 next(0x14) = Some(PageEntry(6168))
+  table 34 next(0x18) = Some(PageEntry(4600))
+  table 34 next(0x1c) = Some(PageEntry(4636))
+  table 34 next(0x1000) = !
+  table 34 next(0x1b00) = !
+  table 34 next(0x1c00) = !
+  table 34 next(0xfffffffc) = !
+  table 34 next(0xffffffff) = !
+  table 34 next(0x80000000) = !
+table 35: has_list=true list=ListMenu(pages +0x1204) entry=PageEntry(4640)
+  table 35 next(0x0) = Some(PageEntry(4612))
+  table 35 next(0x4) = None
+  table 35 next(0x8) = None
+  table 35 next(0xc) = Some(PageEntry(4656))
+  table 35 next(0x10) = Some(PageEntry(6168))
+  table 35 next(0x14) = Some(PageEntry(4600))
+  table 35 next(0x18) = Some(PageEntry(4636))
+  table 35 next(0x1c) = Some(PageEntry(6240))
+  table 35 next(0x1000) = !
+  table 35 next(0x1b00) = !
+  table 35 next(0x1c00) = !
+  table 35 next(0xfffffffc) = !
+  table 35 next(0xffffffff) = !
+  table 35 next(0x80000000) = !
+table 36: has_list=false list=! entry=PageEntry(4644)
+  table 36 next(0x0) = None
+  table 36 next(0x4) = None
+  table 36 next(0x8) = Some(PageEntry(4656))
+  table 36 next(0xc) = Some(PageEntry(6168))
+  table 36 next(0x10) = Some(PageEntry(4600))
+  table 36 next(0x14) = Some(PageEntry(4636))
+  table 36 next(0x18) = Some(PageEntry(6240))
+  table 36 next(0x1c) = None
+  table 36 next(0x1000) = !
+  table 36 next(0x1b00) = !
+  table 36 next(0x1c00) = !
+  table 36 next(0xfffffffc) = !
+  table 36 next(0xffffffff) = !
+  table 36 next(0x80000000) = !
+table 37: has_list=false list=! entry=PageEntry(4648)
+  table 37 next(0x0) = None
+  table 37 next(0x4) = Some(PageEntry(4656))
+  table 37 next(0x8) = Some(PageEntry(6168))
+  table 37 next(0xc) = Some(PageEntry(4600))
+  table 37 next(0x10) = Some(PageEntry(4636))
+  table 37 next(0x14) = Some(PageEntry(6240))
+  table 37 next(0x18) = None
+  table 37 next(0x1c) = None
+  table 37 next(0x1000) = !
+  table 37 next(0x1b00) = !
+  table 37 next(0x1c00) = !
+  table 37 next(0xfffffffc) = !
+  table 37 next(0xffffffff) = !
+  table 37 next(0x80000000) = !
+table 38: has_list=true list=ListMenu(pages +0x1230) entry=PageEntry(4652)
+  table 38 next(0x0) = Some(PageEntry(4656))
+  table 38 next(0x4) = Some(PageEntry(6168))
+  table 38 next(0x8) = Some(PageEntry(4600))
+  table 38 next(0xc) = Some(PageEntry(4636))
+  table 38 next(0x10) = Some(PageEntry(6240))
+  table 38 next(0x14) = None
+  table 38 next(0x18) = None
+  table 38 next(0x1c) = Some(PageEntry(6440))
+  table 38 next(0x1000) = !
+  table 38 next(0x1b00) = !
+  table 38 next(0x1c00) = !
+  table 38 next(0xfffffffc) = !
+  table 38 next(0xffffffff) = !
+  table 38 next(0x80000000) = !
+table 39: has_list=true list=ListMenu(pages +0x1818) entry=PageEntry(4656)
+  table 39 next(0x0) = Some(PageEntry(6168))
+  table 39 next(0x4) = Some(PageEntry(4600))
+  table 39 next(0x8) = Some(PageEntry(4636))
+  table 39 next(0xc) = Some(PageEntry(6240))
+  table 39 next(0x10) = None
+  table 39 next(0x14) = None
+  table 39 next(0x18) = Some(PageEntry(6440))
+  table 39 next(0x1c) = None
+  table 39 next(0x1000) = !
+  table 39 next(0x1b00) = !
+  table 39 next(0x1c00) = !
+  table 39 next(0xfffffffc) = !
+  table 39 next(0xffffffff) = !
+  table 39 next(0x80000000) = !
+table 40: has_list=true list=ListMenu(pages +0x11f8) entry=PageEntry(4660)
+  table 40 next(0x0) = Some(PageEntry(4600))
+  table 40 next(0x4) = Some(PageEntry(4636))
+  table 40 next(0x8) = Some(PageEntry(6240))
+  table 40 next(0xc) = None
+  table 40 next(0x10) = None
+  table 40 next(0x14) = Some(PageEntry(6440))
+  table 40 next(0x18) = None
+  table 40 next(0x1c) = None
+  table 40 next(0x1000) = !
+  table 40 next(0x1b00) = !
+  table 40 next(0x1c00) = !
+  table 40 next(0xfffffffc) = !
+  table 40 next(0xffffffff) = !
+  table 40 next(0x80000000) = !
+table 41: has_list=true list=ListMenu(pages +0x121c) entry=PageEntry(4664)
+  table 41 next(0x0) = Some(PageEntry(4636))
+  table 41 next(0x4) = Some(PageEntry(6240))
+  table 41 next(0x8) = None
+  table 41 next(0xc) = None
+  table 41 next(0x10) = Some(PageEntry(6440))
+  table 41 next(0x14) = None
+  table 41 next(0x18) = None
+  table 41 next(0x1c) = Some(PageEntry(6464))
+  table 41 next(0x1000) = !
+  table 41 next(0x1b00) = !
+  table 41 next(0x1c00) = !
+  table 41 next(0xfffffffc) = !
+  table 41 next(0xffffffff) = !
+  table 41 next(0x80000000) = !
+table 42: has_list=true list=ListMenu(pages +0x1860) entry=PageEntry(4668)
+  table 42 next(0x0) = Some(PageEntry(6240))
+  table 42 next(0x4) = None
+  table 42 next(0x8) = None
+  table 42 next(0xc) = Some(PageEntry(6440))
+  table 42 next(0x10) = None
+  table 42 next(0x14) = None
+  table 42 next(0x18) = Some(PageEntry(6464))
+  table 42 next(0x1c) = None
+  table 42 next(0x1000) = !
+  table 42 next(0x1b00) = !
+  table 42 next(0x1c00) = !
+  table 42 next(0xfffffffc) = !
+  table 42 next(0xffffffff) = !
+  table 42 next(0x80000000) = !
+table 43: has_list=false list=! entry=PageEntry(4672)
+  table 43 next(0x0) = None
+  table 43 next(0x4) = None
+  table 43 next(0x8) = Some(PageEntry(6440))
+  table 43 next(0xc) = None
+  table 43 next(0x10) = None
+  table 43 next(0x14) = Some(PageEntry(6464))
+  table 43 next(0x18) = None
+  table 43 next(0x1c) = None
+  table 43 next(0x1000) = !
+  table 43 next(0x1b00) = !
+  table 43 next(0x1c00) = !
+  table 43 next(0xfffffffc) = !
+  table 43 next(0xffffffff) = !
+  table 43 next(0x80000000) = !
+table 44: has_list=false list=! entry=PageEntry(4676)
+  table 44 next(0x0) = None
+  table 44 next(0x4) = Some(PageEntry(6440))
+  table 44 next(0x8) = None
+  table 44 next(0xc) = None
+  table 44 next(0x10) = Some(PageEntry(6464))
+  table 44 next(0x14) = None
+  table 44 next(0x18) = None
+  table 44 next(0x1c) = Some(PageEntry(6488))
+  table 44 next(0x1000) = !
+  table 44 next(0x1b00) = !
+  table 44 next(0x1c00) = !
+  table 44 next(0xfffffffc) = !
+  table 44 next(0xffffffff) = !
+  table 44 next(0x80000000) = !
+table 45: has_list=true list=ListMenu(pages +0x1928) entry=PageEntry(4680)
+  table 45 next(0x0) = Some(PageEntry(6440))
+  table 45 next(0x4) = None
+  table 45 next(0x8) = None
+  table 45 next(0xc) = Some(PageEntry(6464))
+  table 45 next(0x10) = None
+  table 45 next(0x14) = None
+  table 45 next(0x18) = Some(PageEntry(6488))
+  table 45 next(0x1c) = None
+  table 45 next(0x1000) = !
+  table 45 next(0x1b00) = !
+  table 45 next(0x1c00) = !
+  table 45 next(0xfffffffc) = !
+  table 45 next(0xffffffff) = !
+  table 45 next(0x80000000) = !
+table 46: has_list=false list=! entry=PageEntry(4684)
+  table 46 next(0x0) = None
+  table 46 next(0x4) = None
+  table 46 next(0x8) = Some(PageEntry(6464))
+  table 46 next(0xc) = None
+  table 46 next(0x10) = None
+  table 46 next(0x14) = Some(PageEntry(6488))
+  table 46 next(0x18) = None
+  table 46 next(0x1c) = None
+  table 46 next(0x1000) = !
+  table 46 next(0x1b00) = !
+  table 46 next(0x1c00) = !
+  table 46 next(0xfffffffc) = !
+  table 46 next(0xffffffff) = !
+  table 46 next(0x80000000) = !
+table 47: has_list=false list=! entry=PageEntry(4688)
+  table 47 next(0x0) = None
+  table 47 next(0x4) = Some(PageEntry(6464))
+  table 47 next(0x8) = None
+  table 47 next(0xc) = None
+  table 47 next(0x10) = Some(PageEntry(6488))
+  table 47 next(0x14) = None
+  table 47 next(0x18) = None
+  table 47 next(0x1c) = !
+  table 47 next(0x1000) = !
+  table 47 next(0x1b00) = !
+  table 47 next(0x1c00) = !
+  table 47 next(0xfffffffc) = !
+  table 47 next(0xffffffff) = !
+  table 47 next(0x80000000) = !
+table 48: has_list=true list=ListMenu(pages +0x1940) entry=PageEntry(4692)
+  table 48 next(0x0) = Some(PageEntry(6464))
+  table 48 next(0x4) = None
+  table 48 next(0x8) = None
+  table 48 next(0xc) = Some(PageEntry(6488))
+  table 48 next(0x10) = None
+  table 48 next(0x14) = None
+  table 48 next(0x18) = !
+  table 48 next(0x1c) = !
+  table 48 next(0x1000) = !
+  table 48 next(0x1b00) = !
+  table 48 next(0x1c00) = !
+  table 48 next(0xfffffffc) = !
+  table 48 next(0xffffffff) = !
+  table 48 next(0x80000000) = !
+table 49: has_list=false list=! entry=PageEntry(4696)
+  table 49 next(0x0) = None
+  table 49 next(0x4) = None
+  table 49 next(0x8) = Some(PageEntry(6488))
+  table 49 next(0xc) = None
+  table 49 next(0x10) = None
+  table 49 next(0x14) = !
+  table 49 next(0x18) = !
+  table 49 next(0x1c) = None
+  table 49 next(0x1000) = !
+  table 49 next(0x1b00) = !
+  table 49 next(0x1c00) = !
+  table 49 next(0xfffffffc) = !
+  table 49 next(0xffffffff) = !
+  table 49 next(0x80000000) = !
+table 50: has_list=false list=! entry=PageEntry(4700)
+  table 50 next(0x0) = None
+  table 50 next(0x4) = Some(PageEntry(6488))
+  table 50 next(0x8) = None
+  table 50 next(0xc) = None
+  table 50 next(0x10) = !
+  table 50 next(0x14) = !
+  table 50 next(0x18) = None
+  table 50 next(0x1c) = !
+  table 50 next(0x1000) = !
+  table 50 next(0x1b00) = !
+  table 50 next(0x1c00) = !
+  table 50 next(0xfffffffc) = !
+  table 50 next(0xffffffff) = !
+  table 50 next(0x80000000) = !
+table 51: has_list=true list=ListMenu(pages +0x1958) entry=PageEntry(4704)
+  table 51 next(0x0) = Some(PageEntry(6488))
+  table 51 next(0x4) = None
+  table 51 next(0x8) = None
+  table 51 next(0xc) = !
+  table 51 next(0x10) = !
+  table 51 next(0x14) = None
+  table 51 next(0x18) = !
+  table 51 next(0x1c) = None
+  table 51 next(0x1000) = !
+  table 51 next(0x1b00) = !
+  table 51 next(0x1c00) = !
+  table 51 next(0xfffffffc) = !
+  table 51 next(0xffffffff) = !
+  table 51 next(0x80000000) = !
+table 52: has_list=false list=! entry=PageEntry(4708)
+  table 52 next(0x0) = None
+  table 52 next(0x4) = None
+  table 52 next(0x8) = !
+  table 52 next(0xc) = !
+  table 52 next(0x10) = None
+  table 52 next(0x14) = !
+  table 52 next(0x18) = None
+  table 52 next(0x1c) = None
+  table 52 next(0x1000) = !
+  table 52 next(0x1b00) = !
+  table 52 next(0x1c00) = !
+  table 52 next(0xfffffffc) = !
+  table 52 next(0xffffffff) = !
+  table 52 next(0x80000000) = !
+table 53: has_list=false list=! entry=PageEntry(4712)
+  table 53 next(0x0) = None
+  table 53 next(0x4) = !
+  table 53 next(0x8) = !
+  table 53 next(0xc) = None
+  table 53 next(0x10) = !
+  table 53 next(0x14) = None
+  table 53 next(0x18) = None
+  table 53 next(0x1c) = None
+  table 53 next(0x1000) = !
+  table 53 next(0x1b00) = !
+  table 53 next(0x1c00) = !
+  table 53 next(0xfffffffc) = !
+  table 53 next(0xffffffff) = !
+  table 53 next(0x80000000) = !
+table 54: has_list=true list=! entry=PageEntry(4716)
+  table 54 next(0x0) = !
+  table 54 next(0x4) = !
+  table 54 next(0x8) = None
+  table 54 next(0xc) = !
+  table 54 next(0x10) = None
+  table 54 next(0x14) = None
+  table 54 next(0x18) = None
+  table 54 next(0x1c) = !
+  table 54 next(0x1000) = !
+  table 54 next(0x1b00) = !
+  table 54 next(0x1c00) = !
+  table 54 next(0xfffffffc) = !
+  table 54 next(0xffffffff) = !
+  table 54 next(0x80000000) = !
+list Language: has_list=true list=! entry=PageEntry(4720)
+  list Language next(0x0) = !
+  list Language next(0x4) = None
+  list Language next(0x8) = !
+  list Language next(0xc) = None
+  list Language next(0x10) = None
+  list Language next(0x14) = None
+  list Language next(0x18) = !
+  list Language next(0x1c) = None
+  list Language next(0x1000) = !
+  list Language next(0x1b00) = !
+  list Language next(0x1c00) = !
+  list Language next(0xfffffffc) = !
+  list Language next(0xffffffff) = !
+  list Language next(0x80000000) = !
+list Main: has_list=true list=! entry=PageEntry(4904)
+  list Main next(0x0) = !
+  list Main next(0x4) = None
+  list Main next(0x8) = !
+  list Main next(0xc) = None
+  list Main next(0x10) = None
+  list Main next(0x14) = None
+  list Main next(0x18) = !
+  list Main next(0x1c) = None
+  list Main next(0x1000) = !
+  list Main next(0x1b00) = !
+  list Main next(0x1c00) = !
+  list Main next(0xfffffffc) = !
+  list Main next(0xffffffff) = !
+  list Main next(0x80000000) = !
+list Mode: has_list=true list=! entry=PageEntry(5008)
+  list Mode next(0x0) = !
+  list Mode next(0x4) = !
+  list Mode next(0x8) = !
+  list Mode next(0xc) = None
+  list Mode next(0x10) = None
+  list Mode next(0x14) = None
+  list Mode next(0x18) = !
+  list Mode next(0x1c) = None
+  list Mode next(0x1000) = !
+  list Mode next(0x1b00) = !
+  list Mode next(0x1c00) = !
+  list Mode next(0xfffffffc) = !
+  list Mode next(0xffffffff) = !
+  list Mode next(0x80000000) = !
+list Drives8: has_list=true list=! entry=PageEntry(5112)
+  list Drives8 next(0x0) = !
+  list Drives8 next(0x4) = !
+  list Drives8 next(0x8) = !
+  list Drives8 next(0xc) = None
+  list Drives8 next(0x10) = None
+  list Drives8 next(0x14) = None
+  list Drives8 next(0x18) = !
+  list Drives8 next(0x1c) = Some(PageEntry(6648))
+  list Drives8 next(0x1000) = !
+  list Drives8 next(0x1b00) = !
+  list Drives8 next(0x1c00) = !
+  list Drives8 next(0xfffffffc) = !
+  list Drives8 next(0xffffffff) = !
+  list Drives8 next(0x80000000) = !
+list Drives16: has_list=true list=! entry=PageEntry(5296)
+  list Drives16 next(0x0) = !
+  list Drives16 next(0x4) = !
+  list Drives16 next(0x8) = !
+  list Drives16 next(0xc) = None
+  list Drives16 next(0x10) = None
+  list Drives16 next(0x14) = None
+  list Drives16 next(0x18) = !
+  list Drives16 next(0x1c) = Some(PageEntry(6648))
+  list Drives16 next(0x1000) = !
+  list Drives16 next(0x1b00) = !
+  list Drives16 next(0x1c00) = !
+  list Drives16 next(0xfffffffc) = !
+  list Drives16 next(0xffffffff) = !
+  list Drives16 next(0x80000000) = !
+list DrivesMore: has_list=true list=! entry=PageEntry(5608)
+  list DrivesMore next(0x0) = !
+  list DrivesMore next(0x4) = !
+  list DrivesMore next(0x8) = !
+  list DrivesMore next(0xc) = None
+  list DrivesMore next(0x10) = None
+  list DrivesMore next(0x14) = None
+  list DrivesMore next(0x18) = !
+  list DrivesMore next(0x1c) = Some(PageEntry(6648))
+  list DrivesMore next(0x1000) = !
+  list DrivesMore next(0x1b00) = !
+  list DrivesMore next(0x1c00) = !
+  list DrivesMore next(0xfffffffc) = !
+  list DrivesMore next(0xffffffff) = !
+  list DrivesMore next(0x80000000) = !
+list Folder: has_list=true list=! entry=PageEntry(6048)
+  list Folder next(0x0) = !
+  list Folder next(0x4) = None
+  list Folder next(0x8) = !
+  list Folder next(0xc) = None
+  list Folder next(0x10) = None
+  list Folder next(0x14) = !
+  list Folder next(0x18) = !
+  list Folder next(0x1c) = None
+  list Folder next(0x1000) = !
+  list Folder next(0x1b00) = !
+  list Folder next(0x1c00) = !
+  list Folder next(0xfffffffc) = !
+  list Folder next(0xffffffff) = !
+  list Folder next(0x80000000) = !
+list Room: has_list=true list=! entry=PageEntry(6168)
+  list Room next(0x0) = !
+  list Room next(0x4) = None
+  list Room next(0x8) = !
+  list Room next(0xc) = None
+  list Room next(0x10) = None
+  list Room next(0x14) = None
+  list Room next(0x18) = !
+  list Room next(0x1c) = None
+  list Room next(0x1000) = !
+  list Room next(0x1b00) = !
+  list Room next(0x1c00) = !
+  list Room next(0xfffffffc) = !
+  list Room next(0xffffffff) = !
+  list Room next(0x80000000) = !
+list Dxsetup: has_list=true list=! entry=PageEntry(6240)
+  list Dxsetup next(0x0) = !
+  list Dxsetup next(0x4) = None
+  list Dxsetup next(0x8) = !
+  list Dxsetup next(0xc) = None
+  list Dxsetup next(0x10) = None
+  list Dxsetup next(0x14) = None
+  list Dxsetup next(0x18) = !
+  list Dxsetup next(0x1c) = None
+  list Dxsetup next(0x1000) = !
+  list Dxsetup next(0x1b00) = !
+  list Dxsetup next(0x1c00) = !
+  list Dxsetup next(0xfffffffc) = !
+  list Dxsetup next(0xffffffff) = !
+  list Dxsetup next(0x80000000) = !
+list Finish: has_list=true list=! entry=PageEntry(6328)
+  list Finish next(0x0) = !
+  list Finish next(0x4) = !
+  list Finish next(0x8) = !
+  list Finish next(0xc) = None
+  list Finish next(0x10) = None
+  list Finish next(0x14) = None
+  list Finish next(0x18) = !
+  list Finish next(0x1c) = None
+  list Finish next(0x1000) = !
+  list Finish next(0x1b00) = !
+  list Finish next(0x1c00) = !
+  list Finish next(0xfffffffc) = !
+  list Finish next(0xffffffff) = !
+  list Finish next(0x80000000) = !
+list InstallFiles: has_list=true list=! entry=PageEntry(6416)
+  list InstallFiles next(0x0) = !
+  list InstallFiles next(0x4) = None
+  list InstallFiles next(0x8) = !
+  list InstallFiles next(0xc) = None
+  list InstallFiles next(0x10) = None
+  list InstallFiles next(0x14) = None
+  list InstallFiles next(0x18) = !
+  list InstallFiles next(0x1c) = None
+  list InstallFiles next(0x1000) = !
+  list InstallFiles next(0x1b00) = !
+  list InstallFiles next(0x1c00) = !
+  list InstallFiles next(0xfffffffc) = !
+  list InstallFiles next(0xffffffff) = !
+  list InstallFiles next(0x80000000) = !
+list Uninstall: has_list=true list=! entry=PageEntry(6440)
+  list Uninstall next(0x0) = !
+  list Uninstall next(0x4) = None
+  list Uninstall next(0x8) = !
+  list Uninstall next(0xc) = None
+  list Uninstall next(0x10) = None
+  list Uninstall next(0x14) = None
+  list Uninstall next(0x18) = !
+  list Uninstall next(0x1c) = None
+  list Uninstall next(0x1000) = !
+  list Uninstall next(0x1b00) = !
+  list Uninstall next(0x1c00) = !
+  list Uninstall next(0xfffffffc) = !
+  list Uninstall next(0xffffffff) = !
+  list Uninstall next(0x80000000) = !
+list OpenInstalled: has_list=true list=! entry=PageEntry(6464)
+  list OpenInstalled next(0x0) = !
+  list OpenInstalled next(0x4) = None
+  list OpenInstalled next(0x8) = !
+  list OpenInstalled next(0xc) = None
+  list OpenInstalled next(0x10) = None
+  list OpenInstalled next(0x14) = None
+  list OpenInstalled next(0x18) = !
+  list OpenInstalled next(0x1c) = None
+  list OpenInstalled next(0x1000) = !
+  list OpenInstalled next(0x1b00) = !
+  list OpenInstalled next(0x1c00) = !
+  list OpenInstalled next(0xfffffffc) = !
+  list OpenInstalled next(0xffffffff) = !
+  list OpenInstalled next(0x80000000) = !
+list AskRegistration: has_list=true list=! entry=PageEntry(6488)
+  list AskRegistration next(0x0) = !
+  list AskRegistration next(0x4) = None
+  list AskRegistration next(0x8) = !
+  list AskRegistration next(0xc) = None
+  list AskRegistration next(0x10) = None
+  list AskRegistration next(0x14) = None
+  list AskRegistration next(0x18) = !
+  list AskRegistration next(0x1c) = !
+  list AskRegistration next(0x1000) = !
+  list AskRegistration next(0x1b00) = !
+  list AskRegistration next(0x1c00) = !
+  list AskRegistration next(0xfffffffc) = !
+  list AskRegistration next(0xffffffff) = !
+  list AskRegistration next(0x80000000) = !
+box 0: has_list=true list=! entry=PageEntry(6536)
+  box 0 next(0x0) = !
+  box 0 next(0x4) = !
+  box 0 next(0x8) = !
+  box 0 next(0xc) = !
+  box 0 next(0x10) = !
+  box 0 next(0x14) = !
+  box 0 next(0x18) = !
+  box 0 next(0x1c) = !
+  box 0 next(0x1000) = !
+  box 0 next(0x1b00) = !
+  box 0 next(0x1c00) = !
+  box 0 next(0xfffffffc) = !
+  box 0 next(0xffffffff) = !
+  box 0 next(0x80000000) = !
+box 1: has_list=true list=! entry=PageEntry(6552)
+  box 1 next(0x0) = !
+  box 1 next(0x4) = !
+  box 1 next(0x8) = !
+  box 1 next(0xc) = !
+  box 1 next(0x10) = !
+  box 1 next(0x14) = !
+  box 1 next(0x18) = !
+  box 1 next(0x1c) = !
+  box 1 next(0x1000) = !
+  box 1 next(0x1b00) = !
+  box 1 next(0x1c00) = !
+  box 1 next(0xfffffffc) = !
+  box 1 next(0xffffffff) = !
+  box 1 next(0x80000000) = !
+box 2: has_list=true list=! entry=PageEntry(6568)
+  box 2 next(0x0) = !
+  box 2 next(0x4) = !
+  box 2 next(0x8) = !
+  box 2 next(0xc) = !
+  box 2 next(0x10) = !
+  box 2 next(0x14) = !
+  box 2 next(0x18) = !
+  box 2 next(0x1c) = !
+  box 2 next(0x1000) = !
+  box 2 next(0x1b00) = !
+  box 2 next(0x1c00) = !
+  box 2 next(0xfffffffc) = !
+  box 2 next(0xffffffff) = !
+  box 2 next(0x80000000) = !
+box 3: has_list=true list=! entry=PageEntry(6584)
+  box 3 next(0x0) = !
+  box 3 next(0x4) = !
+  box 3 next(0x8) = !
+  box 3 next(0xc) = !
+  box 3 next(0x10) = !
+  box 3 next(0x14) = !
+  box 3 next(0x18) = !
+  box 3 next(0x1c) = !
+  box 3 next(0x1000) = !
+  box 3 next(0x1b00) = !
+  box 3 next(0x1c00) = !
+  box 3 next(0xfffffffc) = !
+  box 3 next(0xffffffff) = !
+  box 3 next(0x80000000) = !
+box 4: has_list=true list=! entry=PageEntry(6600)
+  box 4 next(0x0) = !
+  box 4 next(0x4) = !
+  box 4 next(0x8) = !
+  box 4 next(0xc) = !
+  box 4 next(0x10) = !
+  box 4 next(0x14) = !
+  box 4 next(0x18) = !
+  box 4 next(0x1c) = !
+  box 4 next(0x1000) = !
+  box 4 next(0x1b00) = !
+  box 4 next(0x1c00) = !
+  box 4 next(0xfffffffc) = !
+  box 4 next(0xffffffff) = !
+  box 4 next(0x80000000) = !
+box 5: has_list=true list=! entry=PageEntry(6616)
+  box 5 next(0x0) = !
+  box 5 next(0x4) = !
+  box 5 next(0x8) = !
+  box 5 next(0xc) = !
+  box 5 next(0x10) = !
+  box 5 next(0x14) = !
+  box 5 next(0x18) = !
+  box 5 next(0x1c) = !
+  box 5 next(0x1000) = !
+  box 5 next(0x1b00) = !
+  box 5 next(0x1c00) = !
+  box 5 next(0xfffffffc) = !
+  box 5 next(0xffffffff) = !
+  box 5 next(0x80000000) = !
+box 6: has_list=true list=! entry=PageEntry(6632)
+  box 6 next(0x0) = !
+  box 6 next(0x4) = !
+  box 6 next(0x8) = !
+  box 6 next(0xc) = !
+  box 6 next(0x10) = !
+  box 6 next(0x14) = !
+  box 6 next(0x18) = !
+  box 6 next(0x1c) = !
+  box 6 next(0x1000) = !
+  box 6 next(0x1b00) = !
+  box 6 next(0x1c00) = !
+  box 6 next(0xfffffffc) = !
+  box 6 next(0xffffffff) = !
+  box 6 next(0x80000000) = !
+box 7: has_list=true list=! entry=PageEntry(6648)
+  box 7 next(0x0) = !
+  box 7 next(0x4) = !
+  box 7 next(0x8) = !
+  box 7 next(0xc) = !
+  box 7 next(0x10) = !
+  box 7 next(0x14) = !
+  box 7 next(0x18) = !
+  box 7 next(0x1c) = !
+  box 7 next(0x1000) = !
+  box 7 next(0x1b00) = !
+  box 7 next(0x1c00) = !
+  box 7 next(0xfffffffc) = !
+  box 7 next(0xffffffff) = !
+  box 7 next(0x80000000) = !
+box 8: has_list=true list=! entry=PageEntry(6664)
+  box 8 next(0x0) = !
+  box 8 next(0x4) = !
+  box 8 next(0x8) = !
+  box 8 next(0xc) = !
+  box 8 next(0x10) = !
+  box 8 next(0x14) = !
+  box 8 next(0x18) = !
+  box 8 next(0x1c) = !
+  box 8 next(0x1000) = !
+  box 8 next(0x1b00) = !
+  box 8 next(0x1c00) = !
+  box 8 next(0xfffffffc) = !
+  box 8 next(0xffffffff) = !
+  box 8 next(0x80000000) = !
+edit: has_list=true list=! entry=PageEntry(6512)
+  edit next(0x0) = !
+  edit next(0x4) = !
+  edit next(0x8) = !
+  edit next(0xc) = Some(PageEntry(6536))
+  edit next(0x10) = None
+  edit next(0x14) = None
+  edit next(0x18) = !
+  edit next(0x1c) = !
+  edit next(0x1000) = !
+  edit next(0x1b00) = !
+  edit next(0x1c00) = !
+  edit next(0xfffffffc) = !
+  edit next(0xffffffff) = !
+  edit next(0x80000000) = !
+normal run: PageEntry(4500) has_list=true list=ListMenu(pages +0x1270)
+update run: PageEntry(4568) has_list=true list=ListMenu(pages +0x18b8)
+sweep entries: 15721 probes, 9603 with a refusal, hash d0ec70557506d9bc
+list Language: ListMenu(pages +0x1270) flags=0 count=10 title=155 highlight=0 action=4276633 key=0 neighbours=None
+  Language item 0: ListItem(pages +0x1288) first=1 count=1 text=4139 box=0 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(4744)
+  Language item 1: ListItem(pages +0x1298) first=1 count=2 text=4140 box=0 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(4760)
+  Language item 2: ListItem(pages +0x12a8) first=1 count=3 text=4141 box=0 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(4776)
+  Language item 3: ListItem(pages +0x12b8) first=1 count=4 text=4142 box=0 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(4792)
+  Language item 4: ListItem(pages +0x12c8) first=1 count=5 text=4143 box=0 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(4808)
+  Language item 5: ListItem(pages +0x12d8) first=1 count=6 text=4144 box=0 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(4824)
+  Language item 6: ListItem(pages +0x12e8) first=1 count=7 text=4145 box=0 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(4840)
+  Language item 7: ListItem(pages +0x12f8) first=1 count=8 text=4146 box=0 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(4856)
+  Language item 8: ListItem(pages +0x1308) first=1 count=9 text=4147 box=0 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(4872)
+  Language item 9: ListItem(pages +0x1318) first=1 count=0 text=153 box=0 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(4888)
+  Language item 10: ListItem(pages +0x1328) first=0 count=5 text=149 box=0 target=4276719 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(4904)
+  Language item 11: ListItem(pages +0x1338) first=0 count=0 text=0 box=0 target=9830657 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(4920)
+  Language item 12: ListItem(pages +0x1348) first=0 count=0 text=0 box=0 target=9896449 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(4936)
+  Language item 422: ListItem(pages +0x2ce8) first=! count=! text=! box=! target=! data=! least=! most=! text_byte=! value=! choices=! edit=! pages_offset=Err(BadInput("an item outside the installer's pages"))
+  Language item 0xffffffff: "ListItem(pages +0x1278)" "first=153 count=65 text=65 box=0 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(4728)"
+  Language item 0xfffffffe: "ListItem(pages +0x1268)" "first=0 count=0 text=0 box=9 target=10160640 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(4712)"
+  Language item 0x10000000: "ListItem(pages +0x1288)" "first=1 count=1 text=4139 box=0 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(4744)"
+  Language item 0x10000001: "ListItem(pages +0x1298)" "first=1 count=2 text=4140 box=0 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(4760)"
+  Language item 0x20000000: "ListItem(pages +0x1288)" "first=1 count=1 text=4139 box=0 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(4744)"
+  Language item 0xfffffff: "ListItem(pages +0x1278)" "first=153 count=65 text=65 box=0 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(4728)"
+  Language item 0x8000000: "ListItem(pages +0x80001288)" "first=! count=! text=! box=! target=! data=! least=! most=! text_byte=! value=! choices=! edit=! pages_offset=Err(BadInput(\"an item outside the installer's pages\"))"
+  Language first item with a refusing field past the count: Some(10)
+  Language item_at_offset(0x19) = !
+  Language item_at_offset(0x10) = !
+  Language item_at_offset(0x0) = !
+  Language item_at_offset(0x17) = !
+  Language item_at_offset(0x29) = !
+sweep items of Language: 470 probes, 469 with a refusal, hash b3f98d68e5233b79
+sweep choices of Language: 0 probes, 0 with a refusal, hash cbf29ce484222325
+list Main: ListMenu(pages +0x1328) flags=0 count=5 title=149 highlight=0 action=4276719 key=0 neighbours=None
+  Main item 0: ListItem(pages +0x1340) first=1 count=1 text=150 box=0 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(4928)
+  Main item 1: ListItem(pages +0x1350) first=1 count=2 text=151 box=0 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(4944)
+  Main item 2: ListItem(pages +0x1360) first=1 count=3 text=152 box=0 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(4960)
+  Main item 3: ListItem(pages +0x1370) first=1 count=4 text=1404 box=0 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(4976)
+  Main item 4: ListItem(pages +0x1380) first=1 count=0 text=153 box=0 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(4992)
+  Main item 5: ListItem(pages +0x1390) first=0 count=5 text=154 box=2 target=4276779 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(5008)
+  Main item 6: ListItem(pages +0x13a0) first=0 count=0 text=0 box=0 target=10554373 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(5024)
+  Main item 7: ListItem(pages +0x13b0) first=0 count=0 text=0 box=4281092 target=10617089 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(5040)
+  Main item 422: ListItem(pages +0x2da0) first=! count=! text=! box=! target=! data=! least=! most=! text_byte=! value=! choices=! edit=! pages_offset=Err(BadInput("an item outside the installer's pages"))
+  Main item 0xffffffff: "ListItem(pages +0x1330)" "first=239 count=65 text=65 box=0 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(4912)"
+  Main item 0xfffffffe: "ListItem(pages +0x1320)" "first=0 count=0 text=0 box=0 target=9766144 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(4896)"
+  Main item 0x10000000: "ListItem(pages +0x1340)" "first=1 count=1 text=150 box=0 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(4928)"
+  Main item 0x10000001: "ListItem(pages +0x1350)" "first=1 count=2 text=151 box=0 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(4944)"
+  Main item 0x20000000: "ListItem(pages +0x1340)" "first=1 count=1 text=150 box=0 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(4928)"
+  Main item 0xfffffff: "ListItem(pages +0x1330)" "first=239 count=65 text=65 box=0 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(4912)"
+  Main item 0x8000000: "ListItem(pages +0x80001340)" "first=! count=! text=! box=! target=! data=! least=! most=! text_byte=! value=! choices=! edit=! pages_offset=Err(BadInput(\"an item outside the installer's pages\"))"
+  Main first item with a refusing field past the count: Some(5)
+  Main item_at_offset(0x19) = !
+  Main item_at_offset(0x10) = !
+  Main item_at_offset(0x0) = !
+  Main item_at_offset(0x17) = !
+  Main item_at_offset(0x29) = !
+sweep items of Main: 470 probes, 470 with a refusal, hash 33f258feb7639574
+sweep choices of Main: 0 probes, 0 with a refusal, hash cbf29ce484222325
+list Mode: ListMenu(pages +0x1390) flags=0 count=5 title=154 highlight=2 action=4276779 key=0 neighbours=None
+  Mode item 0: ListItem(pages +0x13a8) first=5 count=12 text=161 box=0 target=0 data=4281092 least=4 most=83 text_byte=! value=! choices=! edit=! pages_offset=Ok(5032)
+  Mode item 1: ListItem(pages +0x13b8) first=1 count=1 text=162 box=0 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(5048)
+  Mode item 2: ListItem(pages +0x13c8) first=1 count=2 text=163 box=0 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(5064)
+  Mode item 3: ListItem(pages +0x13d8) first=1 count=3 text=164 box=0 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(5080)
+  Mode item 4: ListItem(pages +0x13e8) first=1 count=0 text=191 box=0 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(5096)
+  Mode item 5: ListItem(pages +0x13f8) first=0 count=10 text=154 box=2 target=4276830 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(5112)
+  Mode item 6: ListItem(pages +0x1408) first=0 count=0 text=0 box=0 target=10292229 data=100663303 least=7 most=0 text_byte=! value=! choices=[(50, 0), (0, 0), (200, 0)] edit=! pages_offset=Ok(5128)
+  Mode item 7: ListItem(pages +0x1418) first=0 count=0 text=0 box=0 target=12517377 data=100663304 least=8 most=0 text_byte=! value=! choices=[(50, 0), (0, 0), (495, 1)] edit=! pages_offset=Ok(5144)
+  Mode item 422: ListItem(pages +0x2e08) first=! count=! text=! box=! target=! data=! least=! most=! text_byte=! value=! choices=! edit=! pages_offset=Err(BadInput("an item outside the installer's pages"))
+  Mode item 0xffffffff: "ListItem(pages +0x1398)" "first=43 count=66 text=65 box=0 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(5016)"
+  Mode item 0xfffffffe: "ListItem(pages +0x1388)" "first=0 count=0 text=0 box=0 target=10093824 data=2 least=2 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(5000)"
+  Mode item 0x10000000: "ListItem(pages +0x13a8)" "first=5 count=12 text=161 box=0 target=0 data=4281092 least=4 most=83 text_byte=! value=! choices=! edit=! pages_offset=Ok(5032)"
+  Mode item 0x10000001: "ListItem(pages +0x13b8)" "first=1 count=1 text=162 box=0 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(5048)"
+  Mode item 0x20000000: "ListItem(pages +0x13a8)" "first=5 count=12 text=161 box=0 target=0 data=4281092 least=4 most=83 text_byte=! value=! choices=! edit=! pages_offset=Ok(5032)"
+  Mode item 0xfffffff: "ListItem(pages +0x1398)" "first=43 count=66 text=65 box=0 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(5016)"
+  Mode item 0x8000000: "ListItem(pages +0x800013a8)" "first=! count=! text=! box=! target=! data=! least=! most=! text_byte=! value=! choices=! edit=! pages_offset=Err(BadInput(\"an item outside the installer's pages\"))"
+  Mode first item with a refusing field past the count: Some(5)
+  Mode item_at_offset(0x19) = !
+  Mode item_at_offset(0x10) = !
+  Mode item_at_offset(0x0) = !
+  Mode item_at_offset(0x17) = !
+  Mode item_at_offset(0x29) = !
+sweep items of Mode: 470 probes, 469 with a refusal, hash 6185d837bf0b7f47
+sweep choices of Mode: 0 probes, 0 with a refusal, hash cbf29ce484222325
+list Drives8: ListMenu(pages +0x13f8) flags=0 count=10 title=154 highlight=2 action=4276830 key=0 neighbours=None
+  Drives8 item 0: ListItem(pages +0x1410) first=5 count=12 text=157 box=100663303 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(5136)
+  Drives8 item 1: ListItem(pages +0x1420) first=1 count=0 text=191 box=100663304 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(5152)
+  Drives8 item 2: ListItem(pages +0x1430) first=1 count=1 text=4113 box=100663299 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(5168)
+  Drives8 item 3: ListItem(pages +0x1440) first=1 count=1 text=4114 box=100663299 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(5184)
+  Drives8 item 4: ListItem(pages +0x1450) first=1 count=1 text=4115 box=100663299 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(5200)
+  Drives8 item 5: ListItem(pages +0x1460) first=1 count=1 text=4116 box=100663299 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(5216)
+  Drives8 item 6: ListItem(pages +0x1470) first=1 count=1 text=4117 box=100663299 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(5232)
+  Drives8 item 7: ListItem(pages +0x1480) first=1 count=1 text=4118 box=100663299 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(5248)
+  Drives8 item 8: ListItem(pages +0x1490) first=1 count=1 text=4119 box=100663299 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(5264)
+  Drives8 item 9: ListItem(pages +0x14a0) first=1 count=1 text=4120 box=100663299 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(5280)
+  Drives8 item 10: ListItem(pages +0x14b0) first=0 count=18 text=154 box=2 target=4276830 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(5296)
+  Drives8 item 11: ListItem(pages +0x14c0) first=0 count=0 text=0 box=0 target=10292229 data=100663303 least=7 most=0 text_byte=! value=! choices=[(50, 0), (0, 0), (200, 0)] edit=! pages_offset=Ok(5312)
+  Drives8 item 12: ListItem(pages +0x14d0) first=0 count=0 text=0 box=0 target=12517377 data=100663304 least=8 most=0 text_byte=! value=! choices=[(50, 0), (0, 0), (495, 1)] edit=! pages_offset=Ok(5328)
+  Drives8 item 422: ListItem(pages +0x2e70) first=! count=! text=! box=! target=! data=! least=! most=! text_byte=! value=! choices=! edit=! pages_offset=Err(BadInput("an item outside the installer's pages"))
+  Drives8 item 0xffffffff: "ListItem(pages +0x1400)" "first=94 count=66 text=65 box=0 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(5120)"
+  Drives8 item 0xfffffffe: "ListItem(pages +0x13f0)" "first=0 count=0 text=0 box=0 target=10095104 data=2 least=2 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(5104)"
+  Drives8 item 0x10000000: "ListItem(pages +0x1410)" "first=5 count=12 text=157 box=100663303 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(5136)"
+  Drives8 item 0x10000001: "ListItem(pages +0x1420)" "first=1 count=0 text=191 box=100663304 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(5152)"
+  Drives8 item 0x20000000: "ListItem(pages +0x1410)" "first=5 count=12 text=157 box=100663303 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(5136)"
+  Drives8 item 0xfffffff: "ListItem(pages +0x1400)" "first=94 count=66 text=65 box=0 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(5120)"
+  Drives8 item 0x8000000: "ListItem(pages +0x80001410)" "first=! count=! text=! box=! target=! data=! least=! most=! text_byte=! value=! choices=! edit=! pages_offset=Err(BadInput(\"an item outside the installer's pages\"))"
+  Drives8 first item with a refusing field past the count: Some(10)
+  Drives8 item_at_offset(0x19) = !
+  Drives8 item_at_offset(0x10) = !
+  Drives8 item_at_offset(0x0) = !
+  Drives8 item_at_offset(0x17) = !
+  Drives8 item_at_offset(0x29) = !
+sweep items of Drives8: 470 probes, 470 with a refusal, hash 9f7d4c5d34f0d1ae
+sweep choices of Drives8: 0 probes, 0 with a refusal, hash cbf29ce484222325
+list Drives16: ListMenu(pages +0x14b0) flags=0 count=18 title=154 highlight=2 action=4276830 key=0 neighbours=None
+  Drives16 item 0: ListItem(pages +0x14c8) first=5 count=12 text=157 box=100663303 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(5320)
+  Drives16 item 1: ListItem(pages +0x14d8) first=1 count=0 text=191 box=100663304 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(5336)
+  Drives16 item 2: ListItem(pages +0x14e8) first=1 count=1 text=4113 box=100663301 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(5352)
+  Drives16 item 3: ListItem(pages +0x14f8) first=1 count=1 text=4114 box=100663301 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(5368)
+  Drives16 item 4: ListItem(pages +0x1508) first=1 count=1 text=4115 box=100663301 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(5384)
+  Drives16 item 5: ListItem(pages +0x1518) first=1 count=1 text=4116 box=100663301 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(5400)
+  Drives16 item 6: ListItem(pages +0x1528) first=1 count=1 text=4117 box=100663301 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(5416)
+  Drives16 item 7: ListItem(pages +0x1538) first=1 count=1 text=4118 box=100663301 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(5432)
+  Drives16 item 8: ListItem(pages +0x1548) first=1 count=1 text=4119 box=100663301 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(5448)
+  Drives16 item 9: ListItem(pages +0x1558) first=1 count=1 text=4120 box=100663301 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(5464)
+  Drives16 item 10: ListItem(pages +0x1568) first=1 count=1 text=4121 box=100663302 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(5480)
+  Drives16 item 11: ListItem(pages +0x1578) first=1 count=1 text=4122 box=100663302 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(5496)
+  Drives16 item 12: ListItem(pages +0x1588) first=1 count=1 text=4123 box=100663302 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(5512)
+  Drives16 item 13: ListItem(pages +0x1598) first=1 count=1 text=4124 box=100663302 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(5528)
+  Drives16 item 14: ListItem(pages +0x15a8) first=1 count=1 text=4125 box=100663302 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(5544)
+  Drives16 item 15: ListItem(pages +0x15b8) first=1 count=1 text=4126 box=100663302 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(5560)
+  Drives16 item 16: ListItem(pages +0x15c8) first=1 count=1 text=4127 box=100663302 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(5576)
+  Drives16 item 17: ListItem(pages +0x15d8) first=1 count=1 text=4128 box=100663302 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(5592)
+  Drives16 item 18: ListItem(pages +0x15e8) first=0 count=26 text=154 box=2 target=4276830 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(5608)
+  Drives16 item 19: ListItem(pages +0x15f8) first=0 count=0 text=0 box=0 target=10292229 data=100663303 least=7 most=0 text_byte=! value=! choices=[(50, 0), (0, 0), (200, 0)] edit=! pages_offset=Ok(5624)
+  Drives16 item 20: ListItem(pages +0x1608) first=0 count=0 text=0 box=0 target=12517377 data=100663304 least=8 most=0 text_byte=! value=! choices=[(50, 0), (0, 0), (495, 1)] edit=! pages_offset=Ok(5640)
+  Drives16 item 422: ListItem(pages +0x2f28) first=! count=! text=! box=! target=! data=! least=! most=! text_byte=! value=! choices=! edit=! pages_offset=Err(BadInput("an item outside the installer's pages"))
+  Drives16 item 0xffffffff: "ListItem(pages +0x14b8)" "first=94 count=66 text=65 box=0 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(5304)"
+  Drives16 item 0xfffffffe: "ListItem(pages +0x14a8)" "first=0 count=0 text=0 box=0 target=10097152 data=2 least=2 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(5288)"
+  Drives16 item 0x10000000: "ListItem(pages +0x14c8)" "first=5 count=12 text=157 box=100663303 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(5320)"
+  Drives16 item 0x10000001: "ListItem(pages +0x14d8)" "first=1 count=0 text=191 box=100663304 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(5336)"
+  Drives16 item 0x20000000: "ListItem(pages +0x14c8)" "first=5 count=12 text=157 box=100663303 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(5320)"
+  Drives16 item 0xfffffff: "ListItem(pages +0x14b8)" "first=94 count=66 text=65 box=0 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(5304)"
+  Drives16 item 0x8000000: "ListItem(pages +0x800014c8)" "first=! count=! text=! box=! target=! data=! least=! most=! text_byte=! value=! choices=! edit=! pages_offset=Err(BadInput(\"an item outside the installer's pages\"))"
+  Drives16 first item with a refusing field past the count: Some(18)
+  Drives16 item_at_offset(0x19) = !
+  Drives16 item_at_offset(0x10) = !
+  Drives16 item_at_offset(0x0) = !
+  Drives16 item_at_offset(0x17) = !
+  Drives16 item_at_offset(0x29) = !
+sweep items of Drives16: 470 probes, 469 with a refusal, hash 69bc2f6c88ebee6c
+sweep choices of Drives16: 0 probes, 0 with a refusal, hash cbf29ce484222325
+list DrivesMore: ListMenu(pages +0x15e8) flags=0 count=26 title=154 highlight=2 action=4276830 key=0 neighbours=None
+  DrivesMore item 0: ListItem(pages +0x1600) first=5 count=12 text=157 box=100663303 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(5632)
+  DrivesMore item 1: ListItem(pages +0x1610) first=1 count=0 text=191 box=100663304 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(5648)
+  DrivesMore item 2: ListItem(pages +0x1620) first=1 count=1 text=4113 box=100663298 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(5664)
+  DrivesMore item 3: ListItem(pages +0x1630) first=1 count=1 text=4114 box=100663298 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(5680)
+  DrivesMore item 4: ListItem(pages +0x1640) first=1 count=1 text=4115 box=100663298 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(5696)
+  DrivesMore item 5: ListItem(pages +0x1650) first=1 count=1 text=4116 box=100663298 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(5712)
+  DrivesMore item 6: ListItem(pages +0x1660) first=1 count=1 text=4117 box=100663298 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(5728)
+  DrivesMore item 7: ListItem(pages +0x1670) first=1 count=1 text=4118 box=100663298 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(5744)
+  DrivesMore item 8: ListItem(pages +0x1680) first=1 count=1 text=4119 box=100663298 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(5760)
+  DrivesMore item 9: ListItem(pages +0x1690) first=1 count=1 text=4120 box=100663298 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(5776)
+  DrivesMore item 10: ListItem(pages +0x16a0) first=1 count=1 text=4121 box=100663299 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(5792)
+  DrivesMore item 11: ListItem(pages +0x16b0) first=1 count=1 text=4122 box=100663299 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(5808)
+  DrivesMore item 12: ListItem(pages +0x16c0) first=1 count=1 text=4123 box=100663299 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(5824)
+  DrivesMore item 13: ListItem(pages +0x16d0) first=1 count=1 text=4124 box=100663299 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(5840)
+  DrivesMore item 14: ListItem(pages +0x16e0) first=1 count=1 text=4125 box=100663299 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(5856)
+  DrivesMore item 15: ListItem(pages +0x16f0) first=1 count=1 text=4126 box=100663299 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(5872)
+  DrivesMore item 16: ListItem(pages +0x1700) first=1 count=1 text=4127 box=100663299 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(5888)
+  DrivesMore item 17: ListItem(pages +0x1710) first=1 count=1 text=4128 box=100663299 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(5904)
+  DrivesMore item 18: ListItem(pages +0x1720) first=1 count=1 text=4129 box=100663300 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(5920)
+  DrivesMore item 19: ListItem(pages +0x1730) first=1 count=1 text=4130 box=100663300 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(5936)
+  DrivesMore item 20: ListItem(pages +0x1740) first=1 count=1 text=4131 box=100663300 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(5952)
+  DrivesMore item 21: ListItem(pages +0x1750) first=1 count=1 text=4132 box=100663300 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(5968)
+  DrivesMore item 22: ListItem(pages +0x1760) first=1 count=1 text=4133 box=100663300 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(5984)
+  DrivesMore item 23: ListItem(pages +0x1770) first=1 count=1 text=4134 box=100663300 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(6000)
+  DrivesMore item 24: ListItem(pages +0x1780) first=1 count=1 text=4135 box=100663300 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(6016)
+  DrivesMore item 25: ListItem(pages +0x1790) first=1 count=1 text=4136 box=100663300 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(6032)
+  DrivesMore item 26: ListItem(pages +0x17a0) first=0 count=6 text=154 box=0 target=4276981 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(6048)
+  DrivesMore item 27: ListItem(pages +0x17b0) first=0 count=0 text=0 box=4281166 target=10357765 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(6064)
+  DrivesMore item 28: ListItem(pages +0x17c0) first=0 count=0 text=0 box=0 target=292 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(6080)
+  DrivesMore item 422: ListItem(pages +0x3060) first=! count=! text=! box=! target=! data=! least=! most=! text_byte=! value=! choices=! edit=! pages_offset=Err(BadInput("an item outside the installer's pages"))
+  DrivesMore item 0xffffffff: "ListItem(pages +0x15f0)" "first=94 count=66 text=65 box=0 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(5616)"
+  DrivesMore item 0xfffffffe: "ListItem(pages +0x15e0)" "first=0 count=0 text=0 box=0 target=10099200 data=2 least=2 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(5600)"
+  DrivesMore item 0x10000000: "ListItem(pages +0x1600)" "first=5 count=12 text=157 box=100663303 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(5632)"
+  DrivesMore item 0x10000001: "ListItem(pages +0x1610)" "first=1 count=0 text=191 box=100663304 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(5648)"
+  DrivesMore item 0x20000000: "ListItem(pages +0x1600)" "first=5 count=12 text=157 box=100663303 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(5632)"
+  DrivesMore item 0xfffffff: "ListItem(pages +0x15f0)" "first=94 count=66 text=65 box=0 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(5616)"
+  DrivesMore item 0x8000000: "ListItem(pages +0x80001600)" "first=! count=! text=! box=! target=! data=! least=! most=! text_byte=! value=! choices=! edit=! pages_offset=Err(BadInput(\"an item outside the installer's pages\"))"
+  DrivesMore first item with a refusing field past the count: Some(26)
+  DrivesMore item_at_offset(0x19) = !
+  DrivesMore item_at_offset(0x10) = !
+  DrivesMore item_at_offset(0x0) = !
+  DrivesMore item_at_offset(0x17) = !
+  DrivesMore item_at_offset(0x29) = !
+sweep items of DrivesMore: 470 probes, 470 with a refusal, hash c0402db4f69f0246
+sweep choices of DrivesMore: 0 probes, 0 with a refusal, hash cbf29ce484222325
+list Folder: ListMenu(pages +0x17a0) flags=0 count=6 title=154 highlight=0 action=4276981 key=4281166 neighbours=None
+  Folder item 0: ListItem(pages +0x17b8) first=5 count=12 text=158 box=0 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(6072)
+  Folder item 1: ListItem(pages +0x17c8) first=36 count=1 text=0 box=0 target=67108866 data=134217728 least=0 most=0 text_byte=0 value=0 choices=[(31746, 124), (160, 0), (11, 0)] edit=(2, 124, 160, 11, 745) pages_offset=Ok(6088)
+  Folder item 2: ListItem(pages +0x17d8) first=5 count=10 text=170 box=0 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(6104)
+  Folder item 3: ListItem(pages +0x17e8) first=5 count=10 text=172 box=0 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(6120)
+  Folder item 4: ListItem(pages +0x17f8) first=5 count=10 text=173 box=0 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(6136)
+  Folder item 5: ListItem(pages +0x1808) first=5 count=10 text=171 box=0 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(6152)
+  Folder item 6: ListItem(pages +0x1818) first=0 count=3 text=154 box=0 target=4276935 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(6168)
+  Folder item 7: ListItem(pages +0x1828) first=0 count=0 text=0 box=0 target=11340293 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(6184)
+  Folder item 8: ListItem(pages +0x1838) first=0 count=0 text=0 box=4281092 target=11403521 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(6200)
+  Folder item 422: ListItem(pages +0x3218) first=! count=! text=! box=! target=! data=! least=! most=! text_byte=! value=! choices=! edit=! pages_offset=Err(BadInput("an item outside the installer's pages"))
+  Folder item 0xffffffff: "ListItem(pages +0x17a8)" "first=245 count=66 text=65 box=0 target=0 data=4281166 least=78 most=83 text_byte=! value=! choices=! edit=! pages_offset=Ok(6056)"
+  Folder item 0xfffffffe: "ListItem(pages +0x1798)" "first=0 count=0 text=0 box=0 target=10094080 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(6040)"
+  Folder item 0x10000000: "ListItem(pages +0x17b8)" "first=5 count=12 text=158 box=0 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(6072)"
+  Folder item 0x10000001: "ListItem(pages +0x17c8)" "first=36 count=1 text=0 box=0 target=67108866 data=134217728 least=0 most=0 text_byte=0 value=0 choices=[(31746, 124), (160, 0), (11, 0)] edit=(2, 124, 160, 11, 745) pages_offset=Ok(6088)"
+  Folder item 0x20000000: "ListItem(pages +0x17b8)" "first=5 count=12 text=158 box=0 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(6072)"
+  Folder item 0xfffffff: "ListItem(pages +0x17a8)" "first=245 count=66 text=65 box=0 target=0 data=4281166 least=78 most=83 text_byte=! value=! choices=! edit=! pages_offset=Ok(6056)"
+  Folder item 0x8000000: "ListItem(pages +0x800017b8)" "first=! count=! text=! box=! target=! data=! least=! most=! text_byte=! value=! choices=! edit=! pages_offset=Err(BadInput(\"an item outside the installer's pages\"))"
+  Folder first item with a refusing field past the count: Some(6)
+  Folder item_at_offset(0x19) = !
+  Folder item_at_offset(0x10) = !
+  Folder item_at_offset(0x0) = !
+  Folder item_at_offset(0x17) = !
+  Folder item_at_offset(0x29) = !
+sweep items of Folder: 470 probes, 467 with a refusal, hash 3d8f1822d0a34d2b
+sweep choices of Folder: 0 probes, 0 with a refusal, hash cbf29ce484222325
+list Room: ListMenu(pages +0x1818) flags=0 count=3 title=154 highlight=0 action=4276935 key=0 neighbours=None
+  Room item 0: ListItem(pages +0x1830) first=5 count=10 text=173 box=0 target=0 data=4281092 least=4 most=83 text_byte=! value=! choices=! edit=! pages_offset=Ok(6192)
+  Room item 1: ListItem(pages +0x1840) first=1 count=1 text=174 box=0 target=4276954 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(6208)
+  Room item 2: ListItem(pages +0x1850) first=1 count=0 text=191 box=0 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(6224)
+  Room item 3: ListItem(pages +0x1860) first=0 count=4 text=154 box=0 target=4277039 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(6240)
+  Room item 4: ListItem(pages +0x1870) first=0 count=0 text=0 box=0 target=11668229 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(6256)
+  Room item 5: ListItem(pages +0x1880) first=0 count=0 text=0 box=4281092 target=11799557 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(6272)
+  Room item 422: ListItem(pages +0x3290) first=! count=! text=! box=! target=! data=! least=! most=! text_byte=! value=! choices=! edit=! pages_offset=Err(BadInput("an item outside the installer's pages"))
+  Room item 0xffffffff: "ListItem(pages +0x1820)" "first=199 count=66 text=65 box=0 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(6176)"
+  Room item 0xfffffffe: "ListItem(pages +0x1810)" "first=0 count=0 text=0 box=0 target=10093312 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(6160)"
+  Room item 0x10000000: "ListItem(pages +0x1830)" "first=5 count=10 text=173 box=0 target=0 data=4281092 least=4 most=83 text_byte=! value=! choices=! edit=! pages_offset=Ok(6192)"
+  Room item 0x10000001: "ListItem(pages +0x1840)" "first=1 count=1 text=174 box=0 target=4276954 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(6208)"
+  Room item 0x20000000: "ListItem(pages +0x1830)" "first=5 count=10 text=173 box=0 target=0 data=4281092 least=4 most=83 text_byte=! value=! choices=! edit=! pages_offset=Ok(6192)"
+  Room item 0xfffffff: "ListItem(pages +0x1820)" "first=199 count=66 text=65 box=0 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(6176)"
+  Room item 0x8000000: "ListItem(pages +0x80001830)" "first=! count=! text=! box=! target=! data=! least=! most=! text_byte=! value=! choices=! edit=! pages_offset=Err(BadInput(\"an item outside the installer's pages\"))"
+  Room first item with a refusing field past the count: Some(3)
+  Room item_at_offset(0x19) = !
+  Room item_at_offset(0x10) = !
+  Room item_at_offset(0x0) = !
+  Room item_at_offset(0x17) = !
+  Room item_at_offset(0x29) = !
+sweep items of Room: 470 probes, 470 with a refusal, hash ece4abbf414fc2a5
+sweep choices of Room: 0 probes, 0 with a refusal, hash cbf29ce484222325
+list Dxsetup: ListMenu(pages +0x1860) flags=0 count=4 title=154 highlight=0 action=4277039 key=0 neighbours=None
+  Dxsetup item 0: ListItem(pages +0x1878) first=5 count=11 text=178 box=0 target=0 data=4281092 least=4 most=83 text_byte=! value=! choices=! edit=! pages_offset=Ok(6264)
+  Dxsetup item 1: ListItem(pages +0x1888) first=5 count=12 text=180 box=0 target=0 data=4281092 least=4 most=83 text_byte=! value=! choices=! edit=! pages_offset=Ok(6280)
+  Dxsetup item 2: ListItem(pages +0x1898) first=1 count=1 text=1388 box=0 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(6296)
+  Dxsetup item 3: ListItem(pages +0x18a8) first=1 count=0 text=1387 box=0 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(6312)
+  Dxsetup item 4: ListItem(pages +0x18b8) first=0 count=4 text=182 box=2 target=4277063 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(6328)
+  Dxsetup item 5: ListItem(pages +0x18c8) first=0 count=0 text=0 box=0 target=11995653 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(6344)
+  Dxsetup item 6: ListItem(pages +0x18d8) first=0 count=0 text=0 box=4281092 target=12058881 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(6360)
+  Dxsetup item 422: ListItem(pages +0x32d8) first=! count=! text=! box=! target=! data=! least=! most=! text_byte=! value=! choices=! edit=! pages_offset=Err(BadInput("an item outside the installer's pages"))
+  Dxsetup item 0xffffffff: "ListItem(pages +0x1868)" "first=47 count=67 text=65 box=0 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(6248)"
+  Dxsetup item 0xfffffffe: "ListItem(pages +0x1858)" "first=0 count=0 text=0 box=0 target=10093568 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(6232)"
+  Dxsetup item 0x10000000: "ListItem(pages +0x1878)" "first=5 count=11 text=178 box=0 target=0 data=4281092 least=4 most=83 text_byte=! value=! choices=! edit=! pages_offset=Ok(6264)"
+  Dxsetup item 0x10000001: "ListItem(pages +0x1888)" "first=5 count=12 text=180 box=0 target=0 data=4281092 least=4 most=83 text_byte=! value=! choices=! edit=! pages_offset=Ok(6280)"
+  Dxsetup item 0x20000000: "ListItem(pages +0x1878)" "first=5 count=11 text=178 box=0 target=0 data=4281092 least=4 most=83 text_byte=! value=! choices=! edit=! pages_offset=Ok(6264)"
+  Dxsetup item 0xfffffff: "ListItem(pages +0x1868)" "first=47 count=67 text=65 box=0 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(6248)"
+  Dxsetup item 0x8000000: "ListItem(pages +0x80001878)" "first=! count=! text=! box=! target=! data=! least=! most=! text_byte=! value=! choices=! edit=! pages_offset=Err(BadInput(\"an item outside the installer's pages\"))"
+  Dxsetup first item with a refusing field past the count: Some(4)
+  Dxsetup item_at_offset(0x19) = !
+  Dxsetup item_at_offset(0x10) = !
+  Dxsetup item_at_offset(0x0) = !
+  Dxsetup item_at_offset(0x17) = !
+  Dxsetup item_at_offset(0x29) = !
+sweep items of Dxsetup: 470 probes, 470 with a refusal, hash fedc3ed5164b35ad
+sweep choices of Dxsetup: 0 probes, 0 with a refusal, hash cbf29ce484222325
+list Finish: ListMenu(pages +0x18b8) flags=0 count=4 title=182 highlight=2 action=4277063 key=0 neighbours=None
+  Finish item 0: ListItem(pages +0x18d0) first=5 count=10 text=183 box=0 target=0 data=4281092 least=4 most=83 text_byte=! value=! choices=! edit=! pages_offset=Ok(6352)
+  Finish item 1: ListItem(pages +0x18e0) first=1 count=1 text=184 box=0 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(6368)
+  Finish item 2: ListItem(pages +0x18f0) first=1 count=2 text=185 box=0 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(6384)
+  Finish item 3: ListItem(pages +0x1900) first=1 count=0 text=191 box=0 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(6400)
+  Finish item 4: ListItem(pages +0x1910) first=64 count=0 text=0 box=0 target=4272333 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(6416)
+  Finish item 5: ListItem(pages +0x1920) first=0 count=0 text=0 box=0 target=64 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(6432)
+  Finish item 6: ListItem(pages +0x1930) first=223 count=52 text=65 box=0 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(6448)
+  Finish item 422: ListItem(pages +0x3330) first=! count=! text=! box=! target=! data=! least=! most=! text_byte=! value=! choices=! edit=! pages_offset=Err(BadInput("an item outside the installer's pages"))
+  Finish item 0xffffffff: "ListItem(pages +0x18c0)" "first=71 count=67 text=65 box=0 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(6336)"
+  Finish item 0xfffffffe: "ListItem(pages +0x18b0)" "first=0 count=0 text=0 box=0 target=11928576 data=2 least=2 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(6320)"
+  Finish item 0x10000000: "ListItem(pages +0x18d0)" "first=5 count=10 text=183 box=0 target=0 data=4281092 least=4 most=83 text_byte=! value=! choices=! edit=! pages_offset=Ok(6352)"
+  Finish item 0x10000001: "ListItem(pages +0x18e0)" "first=1 count=1 text=184 box=0 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(6368)"
+  Finish item 0x20000000: "ListItem(pages +0x18d0)" "first=5 count=10 text=183 box=0 target=0 data=4281092 least=4 most=83 text_byte=! value=! choices=! edit=! pages_offset=Ok(6352)"
+  Finish item 0xfffffff: "ListItem(pages +0x18c0)" "first=71 count=67 text=65 box=0 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(6336)"
+  Finish item 0x8000000: "ListItem(pages +0x800018d0)" "first=! count=! text=! box=! target=! data=! least=! most=! text_byte=! value=! choices=! edit=! pages_offset=Err(BadInput(\"an item outside the installer's pages\"))"
+  Finish first item with a refusing field past the count: Some(4)
+  Finish item_at_offset(0x19) = !
+  Finish item_at_offset(0x10) = !
+  Finish item_at_offset(0x0) = !
+  Finish item_at_offset(0x17) = !
+  Finish item_at_offset(0x29) = !
+sweep items of Finish: 470 probes, 470 with a refusal, hash ecaa938c35873d02
+sweep choices of Finish: 0 probes, 0 with a refusal, hash cbf29ce484222325
+list InstallFiles: ListMenu(pages +0x1910) flags=64 count=0 title=0 highlight=0 action=4272333 key=0 neighbours=None
+  InstallFiles item 0: ListItem(pages +0x1928) first=64 count=0 text=0 box=0 target=4273375 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(6440)
+  InstallFiles item 1: ListItem(pages +0x1938) first=0 count=0 text=0 box=0 target=64 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(6456)
+  InstallFiles item 2: ListItem(pages +0x1948) first=41 count=54 text=65 box=0 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(6472)
+  InstallFiles item 422: ListItem(pages +0x3388) first=! count=! text=! box=! target=! data=! least=! most=! text_byte=! value=! choices=! edit=! pages_offset=Err(BadInput("an item outside the installer's pages"))
+  InstallFiles item 0xffffffff: "ListItem(pages +0x1918)" "first=205 count=48 text=65 box=0 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(6424)"
+  InstallFiles item 0xfffffffe: "ListItem(pages +0x1908)" "first=0 count=0 text=0 box=0 target=64 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(6408)"
+  InstallFiles item 0x10000000: "ListItem(pages +0x1928)" "first=64 count=0 text=0 box=0 target=4273375 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(6440)"
+  InstallFiles item 0x10000001: "ListItem(pages +0x1938)" "first=0 count=0 text=0 box=0 target=64 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(6456)"
+  InstallFiles item 0x20000000: "ListItem(pages +0x1928)" "first=64 count=0 text=0 box=0 target=4273375 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(6440)"
+  InstallFiles item 0xfffffff: "ListItem(pages +0x1918)" "first=205 count=48 text=65 box=0 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(6424)"
+  InstallFiles item 0x8000000: "ListItem(pages +0x80001928)" "first=! count=! text=! box=! target=! data=! least=! most=! text_byte=! value=! choices=! edit=! pages_offset=Err(BadInput(\"an item outside the installer's pages\"))"
+  InstallFiles first item with a refusing field past the count: Some(0)
+  InstallFiles item_at_offset(0x19) = !
+  InstallFiles item_at_offset(0x10) = !
+  InstallFiles item_at_offset(0x0) = !
+  InstallFiles item_at_offset(0x17) = !
+  InstallFiles item_at_offset(0x29) = !
+sweep items of InstallFiles: 470 probes, 470 with a refusal, hash 2aad4e405ec61175
+sweep choices of InstallFiles: 0 probes, 0 with a refusal, hash cbf29ce484222325
+list Uninstall: ListMenu(pages +0x1928) flags=64 count=0 title=0 highlight=0 action=4273375 key=0 neighbours=None
+  Uninstall item 0: ListItem(pages +0x1940) first=64 count=0 text=0 box=0 target=4273705 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(6464)
+  Uninstall item 1: ListItem(pages +0x1950) first=0 count=0 text=0 box=0 target=64 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(6480)
+  Uninstall item 2: ListItem(pages +0x1960) first=80 count=54 text=65 box=0 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(6496)
+  Uninstall item 422: ListItem(pages +0x33a0) first=! count=! text=! box=! target=! data=! least=! most=! text_byte=! value=! choices=! edit=! pages_offset=Err(BadInput("an item outside the installer's pages"))
+  Uninstall item 0xffffffff: "ListItem(pages +0x1930)" "first=223 count=52 text=65 box=0 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(6448)"
+  Uninstall item 0xfffffffe: "ListItem(pages +0x1920)" "first=0 count=0 text=0 box=0 target=64 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(6432)"
+  Uninstall item 0x10000000: "ListItem(pages +0x1940)" "first=64 count=0 text=0 box=0 target=4273705 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(6464)"
+  Uninstall item 0x10000001: "ListItem(pages +0x1950)" "first=0 count=0 text=0 box=0 target=64 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(6480)"
+  Uninstall item 0x20000000: "ListItem(pages +0x1940)" "first=64 count=0 text=0 box=0 target=4273705 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(6464)"
+  Uninstall item 0xfffffff: "ListItem(pages +0x1930)" "first=223 count=52 text=65 box=0 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(6448)"
+  Uninstall item 0x8000000: "ListItem(pages +0x80001940)" "first=! count=! text=! box=! target=! data=! least=! most=! text_byte=! value=! choices=! edit=! pages_offset=Err(BadInput(\"an item outside the installer's pages\"))"
+  Uninstall first item with a refusing field past the count: Some(0)
+  Uninstall item_at_offset(0x19) = !
+  Uninstall item_at_offset(0x10) = !
+  Uninstall item_at_offset(0x0) = !
+  Uninstall item_at_offset(0x17) = !
+  Uninstall item_at_offset(0x29) = !
+sweep items of Uninstall: 470 probes, 470 with a refusal, hash 50c6a708e406bc4a
+sweep choices of Uninstall: 0 probes, 0 with a refusal, hash cbf29ce484222325
+list OpenInstalled: ListMenu(pages +0x1940) flags=64 count=0 title=0 highlight=0 action=4273705 key=0 neighbours=None
+  OpenInstalled item 0: ListItem(pages +0x1958) first=64 count=0 text=0 box=0 target=4273744 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(6488)
+  OpenInstalled item 1: ListItem(pages +0x1968) first=0 count=0 text=0 box=0 target=10517506 data=48824331 least=11 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(6504)
+  OpenInstalled item 2: ListItem(pages +0x1978) first=5 count=9 text=0 box=100663296 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(6520)
+  OpenInstalled item 422: ListItem(pages +0x33b8) first=! count=! text=! box=! target=! data=! least=! most=! text_byte=! value=! choices=! edit=! pages_offset=Err(BadInput("an item outside the installer's pages"))
+  OpenInstalled item 0xffffffff: "ListItem(pages +0x1948)" "first=41 count=54 text=65 box=0 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(6472)"
+  OpenInstalled item 0xfffffffe: "ListItem(pages +0x1938)" "first=0 count=0 text=0 box=0 target=64 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(6456)"
+  OpenInstalled item 0x10000000: "ListItem(pages +0x1958)" "first=64 count=0 text=0 box=0 target=4273744 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(6488)"
+  OpenInstalled item 0x10000001: "ListItem(pages +0x1968)" "first=0 count=0 text=0 box=0 target=10517506 data=48824331 least=11 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(6504)"
+  OpenInstalled item 0x20000000: "ListItem(pages +0x1958)" "first=64 count=0 text=0 box=0 target=4273744 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(6488)"
+  OpenInstalled item 0xfffffff: "ListItem(pages +0x1948)" "first=41 count=54 text=65 box=0 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(6472)"
+  OpenInstalled item 0x8000000: "ListItem(pages +0x80001958)" "first=! count=! text=! box=! target=! data=! least=! most=! text_byte=! value=! choices=! edit=! pages_offset=Err(BadInput(\"an item outside the installer's pages\"))"
+  OpenInstalled first item with a refusing field past the count: Some(0)
+  OpenInstalled item_at_offset(0x19) = !
+  OpenInstalled item_at_offset(0x10) = !
+  OpenInstalled item_at_offset(0x0) = !
+  OpenInstalled item_at_offset(0x17) = !
+  OpenInstalled item_at_offset(0x29) = !
+sweep items of OpenInstalled: 470 probes, 470 with a refusal, hash 30227a0269e239b2
+sweep choices of OpenInstalled: 0 probes, 0 with a refusal, hash cbf29ce484222325
+list AskRegistration: ListMenu(pages +0x1958) flags=64 count=0 title=0 highlight=0 action=4273744 key=0 neighbours=None
+  AskRegistration item 0: ListItem(pages +0x1970) first=2 count=124 text=160 box=48824331 target=2309 data=100663296 least=0 most=0 text_byte=! value=! choices=[(50, 0), (0, 0), (150, 0)] edit=! pages_offset=Ok(6512)
+  AskRegistration item 1: ListItem(pages +0x1980) first=0 count=0 text=0 box=0 target=50 data=150 least=150 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(6528)
+  AskRegistration item 2: ListItem(pages +0x1990) first=238 count=2 text=0 box=44 target=50 data=150 least=150 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(6544)
+  AskRegistration item 422: ListItem(pages +0x33d0) first=! count=! text=! box=! target=! data=! least=! most=! text_byte=! value=! choices=! edit=! pages_offset=Err(BadInput("an item outside the installer's pages"))
+  AskRegistration item 0xffffffff: "ListItem(pages +0x1960)" "first=80 count=54 text=65 box=0 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(6496)"
+  AskRegistration item 0xfffffffe: "ListItem(pages +0x1950)" "first=0 count=0 text=0 box=0 target=64 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(6480)"
+  AskRegistration item 0x10000000: "ListItem(pages +0x1970)" "first=2 count=124 text=160 box=48824331 target=2309 data=100663296 least=0 most=0 text_byte=! value=! choices=[(50, 0), (0, 0), (150, 0)] edit=! pages_offset=Ok(6512)"
+  AskRegistration item 0x10000001: "ListItem(pages +0x1980)" "first=0 count=0 text=0 box=0 target=50 data=150 least=150 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(6528)"
+  AskRegistration item 0x20000000: "ListItem(pages +0x1970)" "first=2 count=124 text=160 box=48824331 target=2309 data=100663296 least=0 most=0 text_byte=! value=! choices=[(50, 0), (0, 0), (150, 0)] edit=! pages_offset=Ok(6512)"
+  AskRegistration item 0xfffffff: "ListItem(pages +0x1960)" "first=80 count=54 text=65 box=0 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(6496)"
+  AskRegistration item 0x8000000: "ListItem(pages +0x80001970)" "first=! count=! text=! box=! target=! data=! least=! most=! text_byte=! value=! choices=! edit=! pages_offset=Err(BadInput(\"an item outside the installer's pages\"))"
+  AskRegistration first item with a refusing field past the count: Some(0)
+  AskRegistration item_at_offset(0x19) = !
+  AskRegistration item_at_offset(0x10) = !
+  AskRegistration item_at_offset(0x0) = !
+  AskRegistration item_at_offset(0x17) = !
+  AskRegistration item_at_offset(0x29) = !
+sweep items of AskRegistration: 470 probes, 470 with a refusal, hash 0a972bbaeb17d35a
+sweep choices of AskRegistration: 0 probes, 0 with a refusal, hash cbf29ce484222325
+table 0: ListMenu(pages +0x1194) flags=0 count=0 title=1280 highlight=0 action=16777227 key=16777227 neighbours=Some([1, 0, 0, 5])
+table 1: ListMenu(pages +0x1198) flags=0 count=0 title=0 highlight=16777227 action=16777227 key=16777227 neighbours=Some([1, 0, 0, 5])
+table 2: ListMenu(pages +0x119c) flags=11 count=0 title=256 highlight=16777227 action=16777227 key=16777227 neighbours=Some([1, 0, 0, 5])
+table 3: ListMenu(pages +0x11a0) flags=11 count=0 title=256 highlight=16777227 action=16777227 key=16777227 neighbours=Some([1, 0, 0, 5])
+table 4: ListMenu(pages +0x11a4) flags=11 count=0 title=256 highlight=16777227 action=16777227 key=16777227 neighbours=Some([1, 0, 0, 5])
+table 5: ListMenu(pages +0x11a8) flags=11 count=0 title=256 highlight=16777227 action=16777227 key=16777227 neighbours=Some([1, 0, 0, 5])
+table 6: ListMenu(pages +0x11ac) flags=11 count=0 title=256 highlight=16777227 action=16777227 key=83886081 neighbours=Some([1, 0, 0, 5])
+table 7: ListMenu(pages +0x11b0) flags=11 count=0 title=256 highlight=16777227 action=16777227 key=0 neighbours=Some([0, 5, 149, 0])
+table 8: ListMenu(pages +0x11b4) flags=11 count=0 title=256 highlight=16777227 action=16777227 key=16777236 neighbours=None
+table 9: ListMenu(pages +0x11b8) flags=11 count=0 title=256 highlight=16777227 action=83886081 key=16777264 neighbours=Some([2, 0, 0, 5])
+table 10: ListMenu(pages +0x11bc) flags=11 count=0 title=256 highlight=83886081 action=0 key=16777247 neighbours=Some([12, 0, 0, 5])
+table 11: ListMenu(pages +0x11c0) flags=1 count=0 title=1280 highlight=0 action=16777236 key=16777267 neighbours=Some([9, 0, 0, 5])
+table 12: ListMenu(pages +0x11c4) flags=0 count=0 title=0 highlight=16777236 action=16777264 key=83886089 neighbours=Some([13, 0, 0, 5])
+table 13: ListMenu(pages +0x11c8) flags=20 count=0 title=256 highlight=16777264 action=16777247 key=0 neighbours=Some([0, 4, 182, 0])
+table 14: ListMenu(pages +0x11cc) flags=48 count=0 title=256 highlight=16777247 action=16777267 key=16777261 neighbours=None
+table 15: ListMenu(pages +0x11d0) flags=31 count=0 title=256 highlight=16777267 action=83886089 key=83886082 neighbours=Some([11, 0, 0, 5])
+table 16: ListMenu(pages +0x11d4) flags=51 count=0 title=256 highlight=83886089 action=0 key=16777227 neighbours=Some([0, 5, 154, 0])
+table 17: ListMenu(pages +0x11d8) flags=9 count=0 title=1280 highlight=0 action=16777261 key=16777241 neighbours=Some([1, 0, 0, 5])
+table 18: ListMenu(pages +0x11dc) flags=0 count=0 title=0 highlight=16777261 action=83886082 key=16777241 neighbours=Some([3, 0, 0, 5])
+table 19: ListMenu(pages +0x11e0) flags=45 count=0 title=256 highlight=83886082 action=16777227 key=16777241 neighbours=Some([3, 0, 0, 5])
+table 20: ListMenu(pages +0x11e4) flags=2 count=0 title=1280 highlight=16777227 action=16777241 key=83886083 neighbours=Some([3, 0, 0, 5])
+table 21: ListMenu(pages +0x11e8) flags=11 count=0 title=256 highlight=16777241 action=16777241 key=16777236 neighbours=Some([0, 10, 154, 0])
+table 22: ListMenu(pages +0x11ec) flags=25 count=0 title=256 highlight=16777241 action=16777241 key=16777244 neighbours=Some([2, 0, 0, 5])
+table 23: ListMenu(pages +0x11f0) flags=25 count=0 title=256 highlight=16777241 action=83886083 key=83886086 neighbours=Some([6, 0, 0, 5])
+table 24: ListMenu(pages +0x11f4) flags=25 count=0 title=256 highlight=83886083 action=16777236 key=16777241 neighbours=Some([0, 6, 154, 0])
+table 25: ListMenu(pages +0x11f8) flags=3 count=0 title=1280 highlight=16777236 action=16777244 key=16777250 neighbours=Some([3, 0, 0, 5])
+table 26: ListMenu(pages +0x11fc) flags=20 count=0 title=256 highlight=16777244 action=83886086 key=83886089 neighbours=Some([10, 0, 0, 5])
+table 27: ListMenu(pages +0x1200) flags=28 count=0 title=256 highlight=83886086 action=16777241 key=16777227 neighbours=Some([0, 4, 182, 0])
+table 28: ListMenu(pages +0x1204) flags=6 count=0 title=1280 highlight=16777241 action=16777250 key=16777261 neighbours=Some([1, 0, 0, 5])
+table 29: ListMenu(pages +0x1208) flags=25 count=0 title=256 highlight=16777250 action=83886089 key=83886090 neighbours=Some([11, 0, 0, 5])
+table 30: ListMenu(pages +0x120c) flags=34 count=0 title=256 highlight=83886089 action=16777227 key=16777244 neighbours=Some([64, 0, 0, 0])
+table 31: ListMenu(pages +0x1210) flags=9 count=0 title=1280 highlight=16777227 action=16777261 key=0 neighbours=Some([6, 0, 0, 5])
+table 32: ListMenu(pages +0x1214) flags=11 count=0 title=256 highlight=16777261 action=83886090 key=0 neighbours=None
+table 33: ListMenu(pages +0x1218) flags=45 count=0 title=256 highlight=83886090 action=16777244 key=16777255 neighbours=None
+table 34: ListMenu(pages +0x121c) flags=10 count=0 title=1280 highlight=16777244 action=0 key=83886087 neighbours=Some([7, 0, 0, 5])
+table 35: ListMenu(pages +0x1220) flags=28 count=0 title=256 highlight=0 action=0 key=16777241 neighbours=Some([0, 3, 154, 0])
+table 36: ListMenu(pages +0x1224) flags=0 count=0 title=0 highlight=0 action=16777255 key=16777250 neighbours=Some([3, 0, 0, 5])
+table 37: ListMenu(pages +0x1228) flags=0 count=0 title=0 highlight=16777255 action=83886087 key=83886088 neighbours=Some([10, 0, 0, 5])
+table 38: ListMenu(pages +0x122c) flags=39 count=0 title=256 highlight=83886087 action=16777241 key=0 neighbours=Some([0, 4, 154, 0])
+table 39: ListMenu(pages +0x1230) flags=7 count=0 title=1280 highlight=16777241 action=16777250 key=0 neighbours=None
+table 40: ListMenu(pages +0x1234) flags=25 count=0 title=256 highlight=16777250 action=83886088 key=83886091 neighbours=None
+table 41: ListMenu(pages +0x1238) flags=34 count=0 title=256 highlight=83886088 action=0 key=0 neighbours=Some([64, 0, 0, 0])
+table 42: ListMenu(pages +0x123c) flags=8 count=0 title=1280 highlight=0 action=0 key=0 neighbours=None
+table 43: ListMenu(pages +0x1240) flags=0 count=0 title=0 highlight=0 action=83886091 key=83886092 neighbours=None
+table 44: ListMenu(pages +0x1244) flags=0 count=0 title=0 highlight=83886091 action=0 key=0 neighbours=Some([64, 0, 0, 0])
+table 45: ListMenu(pages +0x1248) flags=11 count=0 title=1280 highlight=0 action=0 key=0 neighbours=None
+table 46: ListMenu(pages +0x124c) flags=0 count=0 title=0 highlight=0 action=83886092 key=83886093 neighbours=None
+table 47: ListMenu(pages +0x1250) flags=0 count=0 title=0 highlight=83886092 action=0 key=0 neighbours=Some([64, 0, 0, 0])
+table 48: ListMenu(pages +0x1254) flags=12 count=0 title=1280 highlight=0 action=0 key=0 neighbours=None
+table 49: ListMenu(pages +0x1258) flags=0 count=0 title=0 highlight=0 action=83886093 key=9 neighbours=None
+table 50: ListMenu(pages +0x125c) flags=0 count=0 title=0 highlight=83886093 action=0 key=10160640 neighbours=!
+table 51: ListMenu(pages +0x1260) flags=13 count=0 title=1280 highlight=0 action=0 key=0 neighbours=!
+table 52: ListMenu(pages +0x1264) flags=0 count=0 title=0 highlight=0 action=9 key=4276633 neighbours=None
+table 53: ListMenu(pages +0x1268) flags=0 count=0 title=0 highlight=9 action=10160640 key=0 neighbours=!
+table 54: ListMenu(pages +0x126c) flags=9 count=0 title=0 highlight=10160640 action=0 key=0 neighbours=None
+list Language: ListMenu(pages +0x1270) flags=0 count=10 title=155 highlight=0 action=4276633 key=0 neighbours=None
+list Main: ListMenu(pages +0x1328) flags=0 count=5 title=149 highlight=0 action=4276719 key=0 neighbours=None
+list Mode: ListMenu(pages +0x1390) flags=0 count=5 title=154 highlight=2 action=4276779 key=0 neighbours=None
+list Drives8: ListMenu(pages +0x13f8) flags=0 count=10 title=154 highlight=2 action=4276830 key=0 neighbours=None
+list Drives16: ListMenu(pages +0x14b0) flags=0 count=18 title=154 highlight=2 action=4276830 key=0 neighbours=None
+list DrivesMore: ListMenu(pages +0x15e8) flags=0 count=26 title=154 highlight=2 action=4276830 key=0 neighbours=None
+list Folder: ListMenu(pages +0x17a0) flags=0 count=6 title=154 highlight=0 action=4276981 key=4281166 neighbours=None
+list Room: ListMenu(pages +0x1818) flags=0 count=3 title=154 highlight=0 action=4276935 key=0 neighbours=None
+list Dxsetup: ListMenu(pages +0x1860) flags=0 count=4 title=154 highlight=0 action=4277039 key=0 neighbours=None
+list Finish: ListMenu(pages +0x18b8) flags=0 count=4 title=182 highlight=2 action=4277063 key=0 neighbours=None
+list InstallFiles: ListMenu(pages +0x1910) flags=64 count=0 title=0 highlight=0 action=4272333 key=0 neighbours=None
+list Uninstall: ListMenu(pages +0x1928) flags=64 count=0 title=0 highlight=0 action=4273375 key=0 neighbours=None
+list OpenInstalled: ListMenu(pages +0x1940) flags=64 count=0 title=0 highlight=0 action=4273705 key=0 neighbours=None
+list AskRegistration: ListMenu(pages +0x1958) flags=64 count=0 title=0 highlight=0 action=4273744 key=0 neighbours=None
+box 0: ListMenu(pages +0x1988) flags=50 count=0 title=0 highlight=150 action=750 key=150 neighbours=!
+box 1: ListMenu(pages +0x1998) flags=50 count=0 title=0 highlight=150 action=750 key=150 neighbours=!
+box 2: ListMenu(pages +0x19a8) flags=125 count=0 title=0 highlight=150 action=200 key=150 neighbours=!
+box 3: ListMenu(pages +0x19b8) flags=69 count=1 title=0 highlight=150 action=200 key=150 neighbours=!
+box 4: ListMenu(pages +0x19c8) flags=13 count=2 title=0 highlight=150 action=200 key=150 neighbours=!
+box 5: ListMenu(pages +0x19d8) flags=225 count=0 title=0 highlight=150 action=200 key=150 neighbours=!
+box 6: ListMenu(pages +0x19e8) flags=169 count=1 title=0 highlight=150 action=200 key=200 neighbours=!
+box 7: ListMenu(pages +0x19f8) flags=50 count=0 title=0 highlight=200 action=750 key=495 neighbours=!
+box 8: ListMenu(pages +0x1a08) flags=50 count=0 title=0 highlight=495 action=750 key=976174395 neighbours=!
+edit: ListMenu(pages +0x1970) flags=2 count=124 title=160 highlight=48824331 action=2309 key=0 neighbours=None
+sweep lists at links: 553 probes, 485 with a refusal, hash 2ff4fe274babc75c
+in_pages(0x0) = ListItem(pages +0x0) first=0 count=0 text=0 box=0 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(0)
+in_pages(0x10) = ListItem(pages +0x10) first=0 count=0 text=0 box=0 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(16)
+in_pages(0x18) = ListItem(pages +0x18) first=0 count=0 text=0 box=0 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(24)
+in_pages(0x1a20) = ListItem(pages +0x1a20) first=60 count=62 text=23615 box=1566276987 target=32636 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(6688)
+in_pages(0x1a21) = err
+in_pages(0xffffffff) = err
+sweep items in pages: 6721 probes, 6688 with a refusal, hash 7fa18cbfb3f20d57
+box 0x0 = (50, 150, 750, 400)
+box 0x6000000 = (50, 150, 750, 44)
+box 0x6000001 = (50, 150, 750, 400)
+box 0x6000002 = (125, 150, 200, 400)
+box 0x6000003 = (325, 150, 200, 400)
+box 0x6000004 = (525, 150, 200, 400)
+box 0x6000005 = (225, 150, 200, 400)
+box 0x6000006 = (425, 150, 200, 400)
+box 0x6000007 = (50, 200, 750, 30)
+box 0x6000008 = (50, 495, 750, 30)
+box 0x6000009 = !
+box 0x1000003 = !
+box 0x8000000 = !
+piece count = 0
+piece 0: marks=0 kind=0 text=0 item=ListItem(pages +0x0) x=0 y=0 width=0 height=0
+piece 1: marks=0 kind=0 text=0 item=ListItem(pages +0x0) x=0 y=0 width=0 height=0
+piece 80: marks=0 kind=0 text=0 item=ListItem(pages +0x0) x=0 y=0 width=0 height=0
+piece 81: marks=0 kind=0 text=0 item=ListItem(pages +0x0) x=0 y=0 width=0 height=0
+piece 82: marks=0 kind=0 text=0 item=ListItem(pages +0x0) x=0 y=0 width=0 height=0
+piece 83: marks=0 kind=0 text=0 item=ListItem(pages +0x0) x=0 y=0 width=0 height=0
+piece 84: marks=0 kind=0 text=0 item=ListItem(pages +0x0) x=0 y=0 width=0 height=0
+piece 85: marks=0 kind=0 text=0 item=ListItem(pages +0x0) x=0 y=! width=! height=!
+piece 86: marks=! kind=! text=! item=! x=! y=! width=! height=!
+piece 87: marks=! kind=! text=! item=! x=! y=! width=! height=!
+piece 88: marks=! kind=! text=! item=! x=! y=! width=! height=!
+piece 89: marks=! kind=! text=! item=! x=! y=! width=! height=!
+piece 4294967295: marks=! kind=! text=! item=! x=! y=! width=! height=!
+piece 268435456: marks=0 kind=0 text=0 item=ListItem(pages +0x0) x=0 y=0 width=0 height=0
+piece 89478485: marks=! kind=! text=! item=! x=! y=! width=! height=!
+sweep pieces: 103 probes, 17 with a refusal, hash 02fb32d0ebae9dca
+choice item 0x1000000: first=2 count=10 text=173 box=0 target=0 data=16777216 least=0 most=0 text_byte=! value=! choices=[(0, 0), (1280, 5), (0, 0)] edit=! pages_offset=Ok(6192)
+  choice 0x0 = (0, 0)
+  choice 0x1 = (1280, 5)
+  choice 0x2 = (0, 0)
+  choice 0x3 = (0, 0)
+  choice 0x1fff = !
+  choice 0x7fffffff = (0, 0)
+  choice 0x80000000 = (0, 0)
+  choice 0x80000001 = (1280, 5)
+  choice 0xffffffff = (0, 0)
+  choice 0xfffffffe = (9, 0)
+  choice 0x40000000 = !
+  choice 0x10000000 = !
+sweep choices at 0x1000000: 8205 probes, 7092 with a refusal, hash eafd213f5d0cdcd5
+choice item 0x1000036: first=2 count=10 text=173 box=0 target=0 data=16777270 least=54 most=0 text_byte=! value=! choices=[(9, 0), (0, 0), (2560, 10)] edit=! pages_offset=Ok(6192)
+  choice 0x0 = (9, 0)
+  choice 0x1 = (0, 0)
+  choice 0x2 = (2560, 10)
+  choice 0x3 = (155, 0)
+  choice 0x1fff = !
+  choice 0x7fffffff = (0, 0)
+  choice 0x80000000 = (9, 0)
+  choice 0x80000001 = (0, 0)
+  choice 0xffffffff = (0, 0)
+  choice 0xfffffffe = (0, 0)
+  choice 0x40000000 = !
+  choice 0x10000000 = !
+sweep choices at 0x1000036: 8205 probes, 7200 with a refusal, hash 4abd0dd9e419e08e
+choice item 0x5000001: first=2 count=10 text=173 box=0 target=0 data=83886081 least=1 most=0 text_byte=! value=! choices=[(1280, 5), (149, 0), (0, 0)] edit=! pages_offset=Ok(6192)
+  choice 0x0 = (1280, 5)
+  choice 0x1 = (149, 0)
+  choice 0x2 = (0, 0)
+  choice 0x3 = (0, 0)
+  choice 0x1fff = !
+  choice 0x7fffffff = (0, 0)
+  choice 0x80000000 = (1280, 5)
+  choice 0x80000001 = (149, 0)
+  choice 0xffffffff = (0, 0)
+  choice 0xfffffffe = (0, 0)
+  choice 0x40000000 = !
+  choice 0x10000000 = !
+sweep choices at 0x5000001: 8205 probes, 7294 with a refusal, hash cf99b41746c1ec35
+choice item 0x5000009: first=2 count=10 text=173 box=0 target=0 data=83886089 least=9 most=0 text_byte=! value=! choices=[(1024, 4), (182, 0), (2, 0)] edit=! pages_offset=Ok(6192)
+  choice 0x0 = (1024, 4)
+  choice 0x1 = (182, 0)
+  choice 0x2 = (2, 0)
+  choice 0x3 = (0, 0)
+  choice 0x1fff = !
+  choice 0x7fffffff = (0, 0)
+  choice 0x80000000 = (1024, 4)
+  choice 0x80000001 = (182, 0)
+  choice 0xffffffff = (0, 0)
+  choice 0xfffffffe = (0, 0)
+  choice 0x40000000 = !
+  choice 0x10000000 = !
+sweep choices at 0x5000009: 8205 probes, 8006 with a refusal, hash 54aa8a7a34bd37ff
+choice item 0x500000d: first=2 count=10 text=173 box=0 target=0 data=83886093 least=13 most=0 text_byte=! value=! choices=[(64, 0), (0, 0), (0, 0)] edit=! pages_offset=Ok(6192)
+  choice 0x0 = (64, 0)
+  choice 0x1 = (0, 0)
+  choice 0x2 = (0, 0)
+  choice 0x3 = (0, 0)
+  choice 0x1fff = !
+  choice 0x7fffffff = (0, 0)
+  choice 0x80000000 = (64, 0)
+  choice 0x80000001 = (0, 0)
+  choice 0xffffffff = (0, 0)
+  choice 0xfffffffe = (0, 0)
+  choice 0x40000000 = !
+  choice 0x10000000 = !
+sweep choices at 0x500000d: 8205 probes, 8086 with a refusal, hash 9dc58107dde84913
+choice item 0x6000008: first=2 count=10 text=173 box=0 target=0 data=100663304 least=8 most=0 text_byte=! value=! choices=[(50, 0), (0, 0), (495, 1)] edit=! pages_offset=Ok(6192)
+  choice 0x0 = (50, 0)
+  choice 0x1 = (0, 0)
+  choice 0x2 = (495, 1)
+  choice 0x3 = (0, 0)
+  choice 0x1fff = !
+  choice 0x7fffffff = (0, 0)
+  choice 0x80000000 = (50, 0)
+  choice 0x80000001 = (0, 0)
+  choice 0xffffffff = (0, 0)
+  choice 0xfffffffe = (30, 0)
+  choice 0x40000000 = !
+  choice 0x10000000 = !
+sweep choices at 0x6000008: 8205 probes, 8174 with a refusal, hash ac8613213a3d9d6b
+choice item 0x8000000: first=2 count=10 text=173 box=0 target=0 data=134217728 least=0 most=0 text_byte=! value=! choices=[(31746, 124), (160, 0), (11, 0)] edit=(2, 124, 160, 11, 745) pages_offset=Ok(6192)
+  choice 0x0 = (31746, 124)
+  choice 0x1 = (160, 0)
+  choice 0x2 = (11, 0)
+  choice 0x3 = (745, 2)
+  choice 0x1fff = !
+  choice 0x7fffffff = (0, 0)
+  choice 0x80000000 = (31746, 124)
+  choice 0x80000001 = (160, 0)
+  choice 0xffffffff = (0, 0)
+  choice 0xfffffffe = (0, 0)
+  choice 0x40000000 = !
+  choice 0x10000000 = !
+sweep choices at 0x8000000: 8205 probes, 8098 with a refusal, hash cbda174f7e203cab
+choice item 0x2000028: first=2 count=10 text=173 box=0 target=0 data=33554472 least=40 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(6192)
+  choice 0x0 = !
+  choice 0x1 = !
+  choice 0x2 = !
+  choice 0x3 = !
+  choice 0x1fff = !
+  choice 0x7fffffff = !
+  choice 0x80000000 = !
+  choice 0x80000001 = !
+  choice 0xffffffff = !
+  choice 0xfffffffe = !
+  choice 0x40000000 = !
+  choice 0x10000000 = !
+sweep choices at 0x2000028: 8205 probes, 8205 with a refusal, hash 361dea0a90d01c43
+choice item 0x0: first=2 count=10 text=173 box=0 target=0 data=0 least=0 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(6192)
+  choice 0x0 = !
+  choice 0x1 = !
+  choice 0x2 = !
+  choice 0x3 = !
+  choice 0x1fff = !
+  choice 0x7fffffff = !
+  choice 0x80000000 = !
+  choice 0x80000001 = !
+  choice 0xffffffff = !
+  choice 0xfffffffe = !
+  choice 0x40000000 = !
+  choice 0x10000000 = !
+sweep choices at 0x0: 8205 probes, 8205 with a refusal, hash 361dea0a90d01c43
+choice item 0x5000063: first=2 count=10 text=173 box=0 target=0 data=83886179 least=99 most=0 text_byte=! value=! choices=! edit=! pages_offset=Ok(6192)
+  choice 0x0 = !
+  choice 0x1 = !
+  choice 0x2 = !
+  choice 0x3 = !
+  choice 0x1fff = !
+  choice 0x7fffffff = !
+  choice 0x80000000 = !
+  choice 0x80000001 = !
+  choice 0xffffffff = !
+  choice 0xfffffffe = !
+  choice 0x40000000 = !
+  choice 0x10000000 = !
+sweep choices at 0x5000063: 8205 probes, 8205 with a refusal, hash 361dea0a90d01c43

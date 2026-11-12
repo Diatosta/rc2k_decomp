@@ -49,9 +49,7 @@ pub struct Vectors {
 }
 
 fn path(name: &str) -> std::path::PathBuf {
-    std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("data/vectors")
-        .join(format!("{name}.bin"))
+    crate::test_support::vectors::vectors_dir().join(format!("{name}.bin"))
 }
 
 /// A NaN's bits as one NaN's: the original's NaNs and the plain versions' may differ in

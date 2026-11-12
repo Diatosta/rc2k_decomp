@@ -12,42 +12,75 @@ use rc2k_core::strings::table::StringTable;
 /// installer's languages and the credits.
 pub const MADE_TEXT_IDS: core::ops::Range<u32> = 0x1000..0x1040;
 
-/// Where a made text is: the variable holding it and the byte offset in it. The text runs
-/// on to its NUL inside that variable, which may be past the field it starts in.
+/// Which made text it is: the variable holding it and the text's number in that variable.
+/// The text runs on to its NUL inside the variable, which may be past the field it starts in.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum MadeText {
-    Notice(usize),
-    Buffers(usize),
-    DriveRows(usize),
-    Names(usize),
-    Vars(usize),
+    /// The build notice's first text, its second, and the second's second line.
+    Notice(NoticeLine),
+    /// The stage headings, by number.
+    StageHeading(usize),
+    /// The page numbers, by number.
+    PageNumber(usize),
+    /// The drive rows, by number.
+    DriveRow(usize),
+    /// The installer's languages found, by number.
+    Language(usize),
+    /// The installer's credits, by number.
+    Credit(usize),
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum NoticeLine {
+    First,
+    Second,
+    SecondTail,
 }
 
 /// Where the made text of `id` is. An id off `MADE_TEXT_IDS` has no text.
 fn made_place(id: u32) -> Result<MadeText, BadInput> {
-    use crate::install::store::{DriveRows, InstallVars};
-    use crate::install::vars::InstallerNames;
-    use crate::menu::build_notice::BuildNotice;
-    use crate::screens::text_buffers_store::TextBuffers;
-    use core::mem::offset_of;
-
-    /// Byte offsets from `credits_a` of the twelve texts in the installer's variables.
-    const CREDITS: [u32; 12] = [
-        0x0, 0x2, 0x9, 0xB, 0x1B, 0x3D, 0x1CF, 0x36, 0x5E, 0x1FB, 0x69, 0x20C,
-    ];
     if !MADE_TEXT_IDS.contains(&id) {
         return Err(BadInput("a string id's text at no place"));
     }
     let n = (id - MADE_TEXT_IDS.start) as usize;
     Ok(match n {
-        0 => MadeText::Notice(0),
-        1 => MadeText::Notice(offset_of!(BuildNotice, notice_second)),
-        2 => MadeText::Notice(offset_of!(BuildNotice, notice_second) + 0x36),
-        3..=6 => MadeText::Buffers(offset_of!(TextBuffers, stage_heading) + 0x100 * (n - 3)),
-        7..=16 => MadeText::Buffers(offset_of!(TextBuffers, page_numbers) + 4 * (n - 7)),
-        17..=42 => MadeText::DriveRows(offset_of!(DriveRows, drive_rows) + 0x10 * (n - 17)),
-        43..=51 => MadeText::Names(offset_of!(InstallerNames, languages) + 0x80 * (n - 43)),
-        _ => MadeText::Vars(offset_of!(InstallVars, credits_a) + CREDITS[n - 52] as usize),
+        0 => MadeText::Notice(NoticeLine::First),
+        1 => MadeText::Notice(NoticeLine::Second),
+        2 => MadeText::Notice(NoticeLine::SecondTail),
+        3..=6 => MadeText::StageHeading(n - 3),
+        7..=16 => MadeText::PageNumber(n - 7),
+        17..=42 => MadeText::DriveRow(n - 17),
+        43..=51 => MadeText::Language(n - 43),
+        _ => MadeText::Credit(n - 52),
     })
+}
+
+impl MadeText {
+    /// The byte offset of the text in its variable.
+    fn offset(self) -> usize {
+        use crate::install::store::{DriveRows, InstallVars};
+        use crate::install::vars::InstallerNames;
+        use crate::menu::build_notice::BuildNotice;
+        use crate::screens::text_buffers_store::TextBuffers;
+        use core::mem::offset_of;
+
+        /// Byte offsets from `credits_a` of the twelve texts in the installer's variables.
+        const CREDITS: [usize; 12] = [
+            0x0, 0x2, 0x9, 0xB, 0x1B, 0x3D, 0x1CF, 0x36, 0x5E, 0x1FB, 0x69, 0x20C,
+        ];
+        match self {
+            MadeText::Notice(NoticeLine::First) => 0,
+            MadeText::Notice(NoticeLine::Second) => offset_of!(BuildNotice, notice_second),
+            MadeText::Notice(NoticeLine::SecondTail) => {
+                offset_of!(BuildNotice, notice_second) + 0x36
+            }
+            MadeText::StageHeading(i) => offset_of!(TextBuffers, stage_heading) + 0x100 * i,
+            MadeText::PageNumber(i) => offset_of!(TextBuffers, page_numbers) + 4 * i,
+            MadeText::DriveRow(i) => offset_of!(DriveRows, drive_rows) + 0x10 * i,
+            MadeText::Language(i) => offset_of!(InstallerNames, languages) + 0x80 * i,
+            MadeText::Credit(i) => offset_of!(InstallVars, credits_a) + CREDITS[i],
+        }
+    }
 }
 
 /// The text of the made text `id`, up to its NUL (left out).
@@ -57,12 +90,14 @@ pub fn made_text(
     install: &crate::install::owner::Install,
     id: u32,
 ) -> Result<Vec<u8>, BadInput> {
-    match made_place(id)? {
-        MadeText::Notice(at) => text_in(&menus.panels.notice, at),
-        MadeText::Buffers(at) => text_in(race.text_buffers(), at),
-        MadeText::DriveRows(at) => text_in(&install.drive_rows, at),
-        MadeText::Names(at) => text_in(&install.names, at),
-        MadeText::Vars(at) => text_in(&install.vars, at),
+    let place = made_place(id)?;
+    let at = place.offset();
+    match place {
+        MadeText::Notice(_) => text_in(&menus.panels.notice, at),
+        MadeText::StageHeading(_) | MadeText::PageNumber(_) => text_in(race.text_buffers(), at),
+        MadeText::DriveRow(_) => text_in(&install.drive_rows, at),
+        MadeText::Language(_) => text_in(&install.names, at),
+        MadeText::Credit(_) => text_in(&install.vars, at),
     }
 }
 
@@ -233,13 +268,15 @@ mod tests {
 
     /// The holder and offset `made_place` gives the made text `id`, in the table's terms.
     fn place_of(id: u32) -> (char, usize) {
-        match made_place(id).unwrap() {
-            MadeText::Notice(at) => ('N', at),
-            MadeText::Buffers(at) => ('B', at),
-            MadeText::DriveRows(at) => ('D', at),
-            MadeText::Names(at) => ('M', at),
-            MadeText::Vars(at) => ('V', at),
-        }
+        let place = made_place(id).unwrap();
+        let holder = match place {
+            MadeText::Notice(_) => 'N',
+            MadeText::StageHeading(_) | MadeText::PageNumber(_) => 'B',
+            MadeText::DriveRow(_) => 'D',
+            MadeText::Language(_) => 'M',
+            MadeText::Credit(_) => 'V',
+        };
+        (holder, place.offset())
     }
 
     #[test]
@@ -256,10 +293,11 @@ mod tests {
 
     #[test]
     fn caption_is_id_0x1004() {
-        assert!(matches!(
-            made_place(0x1004).unwrap(),
-            MadeText::Buffers(at)
-                if at == core::mem::offset_of!(crate::screens::text_buffers_store::TextBuffers, caption)
-        ));
+        let place = made_place(0x1004).unwrap();
+        assert_eq!(place, MadeText::StageHeading(1));
+        assert_eq!(
+            place.offset(),
+            core::mem::offset_of!(crate::screens::text_buffers_store::TextBuffers, caption)
+        );
     }
 }

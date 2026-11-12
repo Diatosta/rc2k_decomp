@@ -96,6 +96,7 @@ pub mod replay_file_store;
 pub mod replay_mode;
 pub mod replay_mode_2;
 pub mod replay_screenshot;
+pub mod replay_staging_store;
 pub mod replay_work_store;
 pub mod save_seal;
 pub mod scene_hand_off;

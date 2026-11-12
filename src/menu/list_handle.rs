@@ -26,6 +26,7 @@
 use crate::install::installer::refuse;
 use crate::install::installer::{rb, rd, rl, rw, wb, wd};
 use crate::install::page_links::{ListId, PageLink};
+use crate::install::pages_map::PagesAt;
 use crate::place::BytePlace;
 use crate::session::{PlainByte, PlainDword, PlainWord};
 
@@ -221,18 +222,15 @@ enum Head {
 /// Bytes read as a header or an item: at an offset of the installer's pages, or at a place.
 #[derive(Clone, Copy)]
 enum Raw {
-    /// The byte offset in the installer's pages (wrapping as the original's address sum).
-    Pages(u32),
+    /// A position in the installer's pages (wrapping as the original's address sum).
+    Pages(PagesAt),
     Place(BytePlace),
 }
 
 impl Raw {
     fn place(self) -> BytePlace {
         match self {
-            Raw::Pages(offset) => BytePlace::in_store(
-                &crate::install::page_links::installer().pages,
-                offset as usize,
-            ),
+            Raw::Pages(at) => at.place(),
             Raw::Place(at) => at,
         }
     }
@@ -240,7 +238,7 @@ impl Raw {
     /// `n` bytes on.
     fn add(self, n: u32) -> Raw {
         match self {
-            Raw::Pages(offset) => Raw::Pages(offset.wrapping_add(n)),
+            Raw::Pages(at) => Raw::Pages(at.plus(n)),
             Raw::Place(at) => Raw::Place(at.add(n)),
         }
     }
@@ -255,7 +253,7 @@ impl Raw {
 impl core::fmt::Debug for Raw {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
-            Raw::Pages(offset) => write!(f, "pages +{offset:#x}"),
+            Raw::Pages(at) => write!(f, "pages +{at:#x}"),
             Raw::Place(at) => write!(f, "{at:?}"),
         }
     }
@@ -278,7 +276,7 @@ pub struct ListMenu(Head);
 impl core::fmt::Debug for ListMenu {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self.0 {
-            Head::Pages(header, _) => write!(f, "ListMenu(pages +{:#x})", pages_offset_of(header)),
+            Head::Pages(header, _) => write!(f, "ListMenu(pages +{:#x})", PagesAt::of(header)),
             Head::Bytes(at) => write!(f, "ListMenu({at:?})"),
         }
     }
@@ -295,12 +293,6 @@ impl PartialEq for ListMenu {
 }
 
 impl Eq for ListMenu {}
-
-/// Where `thing`, a field of the installer's pages, starts in them.
-fn pages_offset_of<T>(thing: &T) -> usize {
-    let pages = &crate::install::page_links::installer().pages;
-    (std::ptr::from_ref(thing) as usize).wrapping_sub(std::ptr::from_ref(pages) as usize)
-}
 
 /// The header and items of one of the installer's lists. The pages that are only an action
 /// have no items.
@@ -332,7 +324,7 @@ impl ListMenu {
     pub fn at(link: PageLink) -> Result<Self, crate::errors::BadInput> {
         match link.list_id() {
             Some(list) => Ok(Self::installer(list)),
-            None => Ok(Self(Head::Bytes(Raw::Pages(link.pages_start()? as u32)))),
+            None => Ok(Self(Head::Bytes(Raw::Pages(link.pages_start()?)))),
         }
     }
 
@@ -439,7 +431,7 @@ impl ListMenu {
             Head::Pages(_, items) if (n as usize) < items.len() => {
                 return ListItem(Spot::Typed(&items[n as usize]));
             }
-            Head::Pages(header, _) => Raw::Pages(pages_offset_of(header) as u32),
+            Head::Pages(header, _) => Raw::Pages(PagesAt::of(header)),
             Head::Bytes(at) => at,
         };
         ListItem(Spot::Bytes(
@@ -476,7 +468,7 @@ pub struct ListItem(Spot);
 impl core::fmt::Debug for ListItem {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self.0 {
-            Spot::Typed(item) => write!(f, "ListItem(pages +{:#x})", pages_offset_of(item)),
+            Spot::Typed(item) => write!(f, "ListItem(pages +{:#x})", PagesAt::of(item)),
             Spot::Bytes(at) => write!(f, "ListItem({at:?})"),
         }
     }
@@ -499,25 +491,22 @@ impl ListItem {
     /// InstallerPages`), where every list of the installer lives: what a piece keeps of its
     /// item. An offset with no item's room before the pages' end is refused.
     pub fn in_pages(offset: u32) -> Result<Self, crate::errors::BadInput> {
-        use crate::install::vars::InstallerPages;
-        if (offset as usize).saturating_add(ITEM as usize) > size_of::<InstallerPages>() {
+        let Some(at) = PagesAt::of_item_word(offset) else {
             return Err(crate::errors::BadInput(
                 "an item outside the installer's pages",
             ));
-        }
-        if offset as usize == core::mem::offset_of!(InstallerPages, title) {
+        };
+        if at == PagesAt::title() {
             return Ok(Self::of_title());
         }
-        for (list, list_at) in ListId::ALL.map(|list| (list, list.offset())) {
+        for list in ListId::ALL {
             let (_, items) = list_parts(list);
-            let first = list_at + HEADER as usize;
-            let past = (offset as usize).wrapping_sub(first);
-            if past < items.len() * ITEM as usize && past.is_multiple_of(ITEM as usize) {
-                return Ok(Self(Spot::Typed(&items[past / ITEM as usize])));
+            if let Some(item) = items.iter().find(|item| PagesAt::of(*item) == at) {
+                return Ok(Self(Spot::Typed(item)));
             }
         }
         // The bytes of the pages that are no typed item (a table, a record, a list's header).
-        Ok(Self(Spot::Bytes(Raw::Pages(offset))))
+        Ok(Self(Spot::Bytes(Raw::Pages(at))))
     }
 
     /// The title's item (the pages' `title` record).
@@ -530,22 +519,21 @@ impl ListItem {
     /// Where this item is in the installer's pages (see `in_pages`); an item outside them is
     /// refused.
     pub fn pages_offset(self) -> Result<u32, crate::errors::BadInput> {
-        use crate::install::vars::InstallerPages;
-        let offset = match self.0 {
-            Spot::Typed(item) => pages_offset_of(item) as u32,
-            Spot::Bytes(Raw::Pages(offset)) => offset,
+        let at = match self.0 {
+            Spot::Typed(item) => PagesAt::of(item),
+            Spot::Bytes(Raw::Pages(at)) => at,
             Spot::Bytes(Raw::Place(_)) => {
                 return Err(crate::errors::BadInput(
                     "an item outside the installer's pages",
                 ));
             }
         };
-        if (offset as usize).saturating_add(ITEM as usize) > size_of::<InstallerPages>() {
+        if !at.item_fits() {
             return Err(crate::errors::BadInput(
                 "an item outside the installer's pages",
             ));
         }
-        Ok(offset)
+        Ok(at.item_word())
     }
 
     fn field(at: Raw, offset: u32, len: u32) -> BytePlace {
@@ -664,7 +652,7 @@ impl ListItem {
     pub fn choices(self) -> Choices {
         Choices(
             PageLink::from_raw(self.data())
-                .in_pages()
+                .pages_start()
                 .unwrap_or_else(|e| refuse(e)),
         )
     }
@@ -696,17 +684,17 @@ impl ItemByte {
 /// A choice item's table: two bytes a choice, the second (at +1, +3, ...) its marks. Its
 /// length is the item's own count, which the original does not check an index against.
 #[derive(Clone, Copy, Debug)]
-pub struct Choices(BytePlace);
+pub struct Choices(PagesAt);
 
 impl Choices {
     /// Where choice `n`'s marks byte is.
     fn marks_at(self, n: u32) -> BytePlace {
-        self.0.add(n.wrapping_mul(2).wrapping_add(1))
+        self.0.plus(n.wrapping_mul(2).wrapping_add(1)).place()
     }
 
     /// Choice `n`'s word: its string, its high bits marks.
     pub fn word(self, n: u32) -> u16 {
-        rw(self.0.add(n.wrapping_mul(2)))
+        rw(self.0.plus(n.wrapping_mul(2)).place())
     }
 
     /// Choice `n`'s byte at +1.
@@ -720,11 +708,11 @@ impl Choices {
 
     /// The table's first `len` bytes (a `len` the item's count gives).
     pub fn bytes(self, len: usize, what: &str) -> Result<Vec<u8>, crate::errors::BadInput> {
-        self.0.read(len, what)
+        self.0.place().read(len, what)
     }
 
     pub fn write_bytes(self, bytes: &[u8], what: &str) -> Result<(), crate::errors::BadInput> {
-        self.0.write(bytes, what)
+        self.0.place().write(bytes, what)
     }
 }
 
@@ -735,7 +723,7 @@ pub struct EditField(&'static EditRecord);
 
 impl core::fmt::Debug for EditField {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(f, "EditField(pages +{:#x})", pages_offset_of(self.0))
+        write!(f, "EditField(pages +{:#x})", PagesAt::of(self.0))
     }
 }
 
@@ -775,10 +763,7 @@ mod tests {
         let offset = title.pages_offset().unwrap();
         assert_eq!(ListItem::in_pages(offset).unwrap(), title);
         // The title's record is where IDA has it (0x51DD78), from the pages' first byte.
-        assert_eq!(
-            offset as usize,
-            core::mem::offset_of!(crate::install::vars::InstallerPages, title)
-        );
+        assert_eq!(PagesAt::of_item_word(offset), Some(PagesAt::title()));
     }
 
     #[test]

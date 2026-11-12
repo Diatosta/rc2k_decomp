@@ -72,9 +72,10 @@ pub fn on_tape(car: u32) -> bool {
     car < TAPE_CARS
 }
 
-/// A car's place on the tape at a tenth (16 bytes a tenth, 8 a car).
-pub fn tape_offset(tenth: u32, car: u32) -> u32 {
-    tenth.wrapping_mul(16).wrapping_add(car * 8)
+/// A car's entry on the tape at a tenth (16 bytes a tenth, 8 a car): the indices of the
+/// tenth and the car, none past the frame's tenths or the cars on the tape.
+pub fn tape_slot(tenth: u32, car: u32) -> Option<(usize, usize)> {
+    (tenth < TENTHS && on_tape(car)).then_some((tenth as usize, car as usize))
 }
 
 /// `drive::play_inputs_if`: the inputs played while playing a replay.
@@ -241,7 +242,9 @@ mod tests {
         assert_eq!(written_view(9), 3);
         assert!(flush_due(1, 99));
         assert!(!flush_due(2, 99));
-        assert_eq!(tape_offset(3, 1), 56);
+        assert_eq!(tape_slot(3, 1), Some((3, 1)));
+        assert_eq!(tape_slot(TENTHS, 0), None);
+        assert_eq!(tape_slot(0, TAPE_CARS), None);
         assert!(on_tape(1));
         assert!(!on_tape(2));
     }

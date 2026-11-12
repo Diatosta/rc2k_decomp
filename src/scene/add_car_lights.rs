@@ -85,7 +85,7 @@ pub fn add_car_lights(
                 // the block: `race::car_parts`).
                 let marks = crate::race::owner_shared::RaceShared::race_car_or_in(
                     reads.work,
-                    &reads.cars_and_replay.car_blocks,
+                    reads.car_blocks,
                     car as usize,
                     "no car",
                 )?

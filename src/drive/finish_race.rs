@@ -8,9 +8,11 @@
 //! Callers: `drive::finish_race_0`, 0x442FEF. Refuses what its calls refuse.
 
 use crate::drive::race_parts::log_line;
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
+use crate::physics::car_store::Car;
 use crate::race::owner::Race;
-use rc2k_core::drive::finish_routine::{self, Set, Var};
+use crate::session::Cell32;
+use rc2k_core::drive::finish_routine::{self, Lead, Set, Var};
 
 fn log_text(text: &std::ffi::CStr) {
     crate::logfile::log_write::log_nul(&text, false, 1);
@@ -68,22 +70,28 @@ fn var(race: &Race, v: Var) -> Place<'_> {
     })
 }
 
+/// The first car block's cell for `field`.
+fn lead_cell(car: &Car, field: Lead) -> &dyn Cell32 {
+    match field {
+        Lead::CameraView => &car.camera_view,
+        Lead::GearRatioSetting => &car.gear_ratio_setting,
+        Lead::SuspensionStiffness => &car.suspension_stiffness,
+        Lead::RideHeight => &car.ride_height,
+        Lead::BrakeBalance => &car.brake_balance,
+        Lead::SteeringSensitivity => &car.steering_sensitivity,
+        Lead::PartsPresent => &car.parts_present,
+        Lead::ImpactMark(k) => &car.impact_octant_marks[k as usize],
+    }
+}
+
 /// The settings for the routine (0x4591B0 .. 0x4592FA).
-fn set_up(race: &Race) -> Result<(), BadInput> {
+fn set_up(race: &Race) {
     for (at, v) in finish_routine::set_up() {
         match at {
             Set::Var(x) => var(race, x).set(v),
-            // Car block 0 (0x70F3EC) + o.
-            Set::Lead(o) => {
-                crate::cells::Store::store(
-                    &race.car_blocks().cars[0],
-                    o as usize,
-                    &v.to_le_bytes(),
-                )?;
-            }
+            Set::Lead(field) => lead_cell(&race.car_blocks().cars[0], field).set_bits(v),
         }
     }
-    Ok(())
 }
 
 // Converted: `rc2k_core::drive::finish_routine`.
@@ -118,7 +126,7 @@ pub fn finish_race(race: &'static Race, o: crate::owners::Owners<'static>) -> Re
     log_number(race_owner.shared.vars.get().race_car_kinds[0].get());
     log_text(c"[car1.ctd_carnum]");
     log_number(race.car_blocks().cars[0].start_slot_value.get());
-    set_up(race)?;
+    set_up(race);
     crate::race::stage_loading::load_stage(race, o)?;
     var(race, finish_routine::BEFORE_RUN).set(0);
     crate::drive::finish_run::finish_run(race, o)?;
@@ -131,4 +139,46 @@ pub fn finish_race(race: &'static Race, o: crate::owners::Owners<'static>) -> Re
     log_line(c"EXITING FINISH ROUTINE");
     log_line(c"----------------------");
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The byte offset the set-up stored to before the fields were named.
+    fn old_offset(field: Lead) -> usize {
+        match field {
+            Lead::CameraView => 0x684,
+            Lead::GearRatioSetting => 0x28,
+            Lead::SuspensionStiffness => 0x34,
+            Lead::RideHeight => 0x30,
+            Lead::BrakeBalance => 0x20,
+            Lead::SteeringSensitivity => 0x3C,
+            Lead::PartsPresent => 0x298,
+            Lead::ImpactMark(k) => 0x64 + 4 * k as usize,
+        }
+    }
+
+    #[test]
+    fn the_lead_fields_are_the_offsets_they_replace() {
+        let named: Car = Car::new();
+        let by_offset: Car = Car::new();
+        let pattern: Vec<u8> = (0..0xFE0usize).map(|i| (i * 11 + 1) as u8).collect();
+        crate::cells::Store::store(&named, 0, &pattern).unwrap();
+        crate::cells::Store::store(&by_offset, 0, &pattern).unwrap();
+        for (at, v) in finish_routine::set_up() {
+            if let Set::Lead(field) = at {
+                lead_cell(&named, field).set_bits(v);
+                crate::cells::store_value::<u32>(&by_offset, old_offset(field), v).unwrap();
+            }
+        }
+        let (mut a, mut b) = (vec![0u8; 0xFE0], vec![0u8; 0xFE0]);
+        crate::cells::Store::load(&named, 0, &mut a).unwrap();
+        crate::cells::Store::load(&by_offset, 0, &mut b).unwrap();
+        assert!(
+            a == b,
+            "the named fields wrote other bytes than the offsets"
+        );
+        assert_ne!(a, pattern);
+    }
 }

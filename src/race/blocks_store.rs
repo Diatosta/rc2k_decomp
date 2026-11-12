@@ -1,29 +1,30 @@
-//! The cars' blocks (`g_carBlockStore`, IDA 0x70F3EC .. 0x7194BC; phase 7, typed): ten car
-//! blocks of 0xFE0 with the work car's layout (`physics::car_store::Car`, IDA's
-//! `CarBlock`), then 0x210 bytes no ported code names. `g_carBlocks[n]` point at them
-//! (blocks 0 .. 7 the race's cars; block 8 the replay's, `drive::load_replay_cars`);
-//! `drive::load_car` copies the current car's block into `g_car` and `drive::store_car`
-//! back. `#[repr(C)]` with the image's layout, over the race block's bytes (`CAR_BLOCKS`),
-//! as `CAR`.
+//! The cars' blocks (`g_carBlockStore`, IDA 0x70F3EC .. 0x7172EC; phase 7, typed): the
+//! eight race cars' blocks of 0xFE0 with the work car's layout (`physics::car_store::Car`,
+//! IDA's `CarBlock`). `g_carBlocks[n]` point at them; `drive::load_car` copies the current
+//! car's block into `g_car` and `drive::store_car` back.
 
 use crate::physics::car_store::Car;
 #[cfg(test)]
 use crate::race::owner::race;
-use crate::session::PlainDword;
 
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct CarBlocks {
     /// +0x0 (0x70F3EC): the blocks, 0xFE0 apart.
-    pub cars: [Car; 10],
-    /// +0x9ec0 (0x7192AC): no code reads or writes it by name (no IDA xref to any of its bytes, 2026-11-10); it is carried in the replay's starting state (`REPLAY_STATE_DWORDS`), which runs over it.
-    pub unused_tail: [PlainDword; 0x84],
+    pub cars: [Car; BLOCK_COUNT],
 }
 
-const _: () = assert!(core::mem::size_of::<CarBlocks>() == 0xA0D0);
+const _: () = assert!(core::mem::size_of::<CarBlocks>() == 0x7F00);
 
-/// The piece: a field of `CARS_AND_REPLAY` since 2026-10-29 (it left the race block with
-/// its group, phase 13). One copy: no drawing part writes it (each view draws its own car,
+impl CarBlocks {
+    /// The blocks with the image's first values.
+    pub const fn new() -> Self {
+        crate::cells::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
+    }
+}
+
+/// The piece: a field of the race's replay group (`race::owner_replay::Replay::car_blocks`).
+/// One copy: no drawing part writes it (each view draws its own car,
 /// `ViewScratch::car`; the view's value for its block is stored by the game's thread,
 /// `ViewOutput::store_view_value`; the write watch's carried census, frame plan F7).
 #[cfg(test)]
@@ -34,7 +35,7 @@ impl core::ops::Deref for InGroup {
     type Target = CarBlocks;
     #[inline]
     fn deref(&self) -> &CarBlocks {
-        &race().replay.cars_and_replay.get().car_blocks
+        race().replay.car_blocks.get()
     }
 }
 
@@ -43,8 +44,8 @@ pub static CAR_BLOCKS: InGroup = InGroup;
 
 /// IDA 0x70F3EC, the first byte of the piece.
 pub const START: usize = 0x70F3EC;
-/// IDA 0x7194BC, the end of the piece.
-pub const END: usize = 0x7194BC;
+/// IDA 0x7172EC, the end of the piece.
+pub const END: usize = 0x7172EC;
 /// A block's length.
 pub const BLOCK_LEN: usize = core::mem::size_of::<Car>();
 
@@ -54,7 +55,7 @@ const _: () = assert!(END - START == core::mem::size_of::<CarBlocks>());
 /// original kept the block's address. `BLOCK_TAG | n` for block `n`; 0 stays 0.
 pub const BLOCK_TAG: u32 = 0xCB00_0000;
 /// The blocks.
-pub const BLOCK_COUNT: usize = 10;
+pub const BLOCK_COUNT: usize = 8;
 
 /// The handle for IDA's `ida` (a block's address, or 0; anything else fails to compile).
 pub const fn block_ref(ida: u32) -> u32 {
@@ -120,20 +121,6 @@ pub fn number_of(handle: u32) -> Result<usize, crate::errors::BadInput> {
     block_number(handle).ok_or(crate::errors::BadInput("a car block at no car's place"))
 }
 
-/// The replay's starting state (`CarsAndReplay.car_blocks.cars[8].frame_head[0]`): its dwords, from car block 8 on.
-/// The original copies it as one run of 0xA04 dwords; the run is whole fields: car blocks 8
-/// and 9, the blocks' unused tail, and the replay work's `replay_tape` (it ends there, as
-/// the assertion below checks).
-pub const REPLAY_STATE_DWORDS: usize = 0xA04;
-/// Where the replay's starting state begins in `CARS_AND_REPLAY`: car block 8.
-pub const REPLAY_STATE_OFFSET: usize = 8 * BLOCK_LEN;
-const _: () = assert!(
-    REPLAY_STATE_OFFSET + 4 * REPLAY_STATE_DWORDS
-        == core::mem::offset_of!(crate::race::groups_store::CarsAndReplay, replay_work)
-            + core::mem::offset_of!(crate::race::replay_work_store::ReplayWork, replay_tape)
-            + core::mem::size_of::<[PlainDword; 400]>()
-);
-
 impl CarBlocks {
     /// The block a handle names (a `g_carBlocks` entry, a view's block, or a dword the
     /// original reads on to past the eight); any other value is refused.
@@ -180,11 +167,11 @@ impl CarBlocks {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use core::mem::offset_of;
+    use core::mem::{offset_of, size_of};
 
     #[test]
     fn blocks_start_as_the_games() {
-        assert_eq!(offset_of!(CarBlocks, unused_tail), 0x9EC0);
+        assert_eq!(size_of::<CarBlocks>(), 0x7F00);
         assert_eq!(BLOCK_LEN, 0xFE0);
         assert_eq!(offset_of!(Car, gear), 0x1D4);
         for n in 0..BLOCK_COUNT {
@@ -197,7 +184,7 @@ mod tests {
         assert_eq!(known_block(BLOCK_TAG | BLOCK_COUNT as u32), None);
         assert_eq!(known_block(0), None);
         assert_eq!(block_number(0), None);
-        // The first values: the store `race.owner.RACE.replay.cars_and_replay` they begin
+        // The first values: the store `race.owner.RACE.replay.car_blocks`
         // (`every_store_starts_as_the_games`).
     }
 }

@@ -3,8 +3,8 @@
 //! the loose parts' slots, the computer driver's state, the credits' race, the network's
 //! message, the `patch*` settings, the stages' checkpoint counts. Named from the code's uses
 //! (2026-10-25); most names are readings, `unknown_*` runs are places no ported code names.
-//! `#[repr(C)]` with the image's layout, over the race block's bytes (`RACE_WORK`, as
-//! `crate::race::owner::race().shared.car()`) until the code reaching them by RVA is typed.
+//! `#[repr(C)]` with the image's order of fields (the unused runs at either end and in the
+//! middle left out).
 
 use crate::errors::BadInput;
 #[cfg(test)]
@@ -40,8 +40,6 @@ const _: () = assert!(core::mem::size_of::<RaceSlot>() == 0x78);
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct RaceWork {
-    /// +0x0 (0x71AFB8): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
-    pub unused_0: [PlainDword; 256],
     /// +0x400 (0x71B3B8): `g_carBlocks`: the eight cars' blocks (`CarBlock`, by handle:
     /// `blocks_store::block_ref`).
     pub car_blocks: [PlainDword; 8],
@@ -50,8 +48,6 @@ pub struct RaceWork {
     pub car_records: [PlainDword; 8],
     /// +0x440 (0x71B3F8): `g_currentCar`: the car being stepped.
     pub current_car: PlainDword,
-    /// +0x444 (0x71B3FC): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
-    pub unused_444: PlainDword,
     /// +0x448 (0x71B400): `g_stageDirection`: the stage run forwards or backwards ("dir").
     pub stage_direction: PlainDword,
     /// +0x44c (0x71B404): the current car's block by handle (`drive::race_cars_step`, the
@@ -173,8 +169,6 @@ pub struct RaceWork {
     pub driver_side: [PlainFloat; 4],
     /// +0x1310 (0x71C2C8): (`drive::drive_computer_car`).
     pub driver_work: [PlainDword; 47],
-    /// +0x13cc (0x71C384): `math::nearest_on_segment`'s work block until 2026-10-24 (its own since): nothing reads it.
-    pub segment_work_unused: [PlainDword; 21],
     /// +0x1420 (0x71C3D8): kept by `menu::scale_stage_times`.
     pub stage_time_scales: [PlainFloat; 2],
     /// +0x1428 (0x71C3E0): `g_inCredits`: the credits' race on.
@@ -185,10 +179,11 @@ pub struct RaceWork {
     pub credit_car_kinds: [PlainDword; 23],
     /// +0x1518 (0x71C4D0): the network's message built (`net::send_inputs`).
     pub net_message: [PlainDword; 128],
-    /// +0x1718 (0x71C6D0): `g_patchSwitch`: `fizpatch`.
-    pub patch_switch: PlainDword,
-    /// +0x171c (0x71C6D4): `patchmaxdrawdistance`, `patchstickygrass`, `patchgravity`, `patchdamages`, `patchbrakegrip`, `patchaccelgrip`, `patchslidegrip`, `patchgripgrass`, `patchgriptarmac`, `patchgripsnow`, `patchgripmud`, `patchgripgravel`.
-    pub patch_settings: [PlainDword; 12],
+    /// +0x1718 (0x71C6D0): the physics patches as the settings file gives them: `g_patchSwitch`
+    /// (`fizpatch`), then `patchmaxdrawdistance`, `patchstickygrass`, `patchgravity`,
+    /// `patchdamages`, `patchbrakegrip`, `patchaccelgrip`, `patchslidegrip`, `patchgripgrass`,
+    /// `patchgriptarmac`, `patchgripsnow`, `patchgripmud`, `patchgripgravel`.
+    pub patches: [PlainDword; 13],
     /// +0x174c (0x71C704): the last ten settings / 100 (`physics::apply_patches`).
     pub patch_factors: [PlainFloat; 10],
     /// +0x1774 (0x71C72C): `g_patchesApplied`.
@@ -199,25 +194,52 @@ pub struct RaceWork {
     pub guessed_checkpoints: [PlainDword; 16],
     /// +0x1848 (0x71C800): the `noprecipitation` setting.
     pub no_precipitation: PlainDword,
-    /// +0x184c (0x71C804): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
-    pub unused_184c: [PlainDword; 4],
 }
 
 impl RaceWork {
+    /// `g_patchSwitch`: the first of the patches.
+    pub fn patch_switch(&self) -> &PlainDword {
+        &self.patches[0]
+    }
+
+    /// The twelve patch settings after the switch.
+    pub fn patch_settings(&self) -> &[PlainDword] {
+        &self.patches[1..]
+    }
+
     /// Car `n`'s block by handle (`g_carBlocks[n]`: `blocks_store::block_ref`, 0 for none),
-    /// read as the original reads it: past the eight without a check, on through the work's
-    /// own fields (`car_records`, `current_car`, .., `work_block`, which keeps a handle too)
-    /// as far as their end. A handle among the eight that names no block ends the program.
+    /// read as the original reads it: past the eight without a check, on through the variables
+    /// that follow the table (`past_the_eight`). A handle among the eight that names no block
+    /// ends the program.
     pub fn car_block(&self, n: usize) -> u32 {
         if let Some(cell) = self.car_blocks.get(n) {
             let handle = cell.get();
             crate::race::blocks_store::block_number(handle);
             return handle;
         }
-        let what = "a car block's pointer";
-        let at = core::mem::offset_of!(RaceWork, car_blocks).wrapping_add(n.wrapping_mul(4));
-        crate::cells::load_value::<u32>(self, at)
-            .unwrap_or_else(|e| crate::fatal::raise::end(what, e))
+        self.past_the_eight(n - self.car_blocks.len())
+            .unwrap_or_else(|e| crate::fatal::raise::end("a car block's pointer", e))
+    }
+
+    /// The dword `k` places after the table of car blocks, which is what `g_carBlocks[8 + k]`
+    /// reads: the eight car records' names, `current_car`, a dword nothing uses (0), the stage's
+    /// direction, the current car's block (a handle too), then the number texture names. A
+    /// number past those would be a car number of nearly 400.
+    fn past_the_eight(&self, k: usize) -> Result<u32, BadInput> {
+        let records = self.car_records.len();
+        let value = match k {
+            _ if k < records => self.car_records[k].get(),
+            _ if k == records => self.current_car.get(),
+            _ if k == records + 1 => 0,
+            _ if k == records + 2 => self.stage_direction.get(),
+            _ if k == records + 3 => self.work_block.get(),
+            _ => self
+                .number_texture_names
+                .get(k - (records + 4))
+                .ok_or(BadInput("a car block's number past the work's variables"))?
+                .get(),
+        };
+        Ok(value)
     }
 
     /// Car `n`'s block as `g_carBlocks[n]` keeps it: its handle (0 for none), the value other
@@ -282,27 +304,42 @@ pub const CAR_RECORDS_LEN: usize = 8 * 0x4C8;
 // them): any bit pattern is a valid value.
 
 impl RaceWork {
-    /// The piece, with the image's first values.
+    /// The piece, with the image's first values of each run of fields (the image's unused
+    /// words before the car blocks, after `current_car`, behind the driver's work and at the
+    /// end are not kept).
     pub const fn new() -> Self {
-        crate::cells::cells_of_bytes(crate::race::blocks_store::with_block_refs(
-            crate::race::store::first_values::<{ END - START }>(START),
-            crate::race::blocks_store::CAR_BLOCKS_IDA - START,
-            8,
-        ))
+        use crate::race::store::first_values;
+        const SIZE: usize = core::mem::size_of::<RaceWork>();
+        const FIRST: usize = crate::race::blocks_store::CAR_BLOCKS_IDA;
+        // Up to `current_car`, then from `stage_direction` to the end of the driver's work, then
+        // from the stage times' scales to the end of the fields.
+        const A: usize = 0x71B3FC - FIRST;
+        const B: usize = 0x71C384 - 0x71B400;
+        const C: usize = 0x71C804 - 0x71C3D8;
+        const _: () = assert!(A + B + C == SIZE);
+        let mut bytes = [0u8; SIZE];
+        let parts: [(usize, &[u8]); 3] = [
+            (0, &first_values::<A>(FIRST)),
+            (A, &first_values::<B>(0x71B400)),
+            (A + B, &first_values::<C>(0x71C3D8)),
+        ];
+        let mut p = 0;
+        while p < parts.len() {
+            let (at, part) = parts[p];
+            let mut k = 0;
+            while k < part.len() {
+                bytes[at + k] = part[k];
+                k += 1;
+            }
+            p += 1;
+        }
+        crate::cells::cells_of_bytes(crate::race::blocks_store::with_block_refs(bytes, 0, 8))
     }
 }
-
-/// IDA 0x71AFB8, the first byte of the piece.
-pub const START: usize = 0x71AFB8;
-/// IDA 0x71C814, the end of the piece.
-pub const END: usize = 0x71C814;
-
-const _: () = assert!(END - START == core::mem::size_of::<RaceWork>());
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use core::mem::offset_of;
 
     #[test]
     fn first_values_are_the_games() {
@@ -330,20 +367,34 @@ mod tests {
         assert!(shared.car_record(8).is_err());
     }
 
+    /// `car_block` past the eight reads the variables that follow the table, in their order.
     #[test]
-    fn fields_are_at_the_games_offsets() {
-        assert_eq!(core::ptr::from_ref(race().shared.work.get()).addr() % 4, 0);
-        assert_eq!(offset_of!(RaceWork, car_blocks), 0x400);
-        assert_eq!(offset_of!(RaceWork, car_nearness), 0xa50);
-        assert_eq!(offset_of!(RaceWork, race_slots), 0xb10);
-        assert_eq!(offset_of!(RaceWork, driver_tilt_limit), 0xfb8);
-        assert_eq!(offset_of!(RaceWork, driver_flags), 0xfdc);
-        assert_eq!(offset_of!(RaceWork, driver_bend_index), 0x1048);
-        assert_eq!(offset_of!(RaceWork, driver_bend_turn), 0x10d0);
-        assert_eq!(offset_of!(RaceWork, driver_lookahead), 0x1118);
-        assert_eq!(offset_of!(RaceWork, driver_points_now), 0x1130);
-        assert_eq!(offset_of!(RaceWork, driver_ahead), 0x12c0);
-        assert_eq!(offset_of!(RaceWork, stage_time_scales), 0x1420);
-        assert_eq!(offset_of!(RaceWork, patch_settings), 0x171c);
+    fn the_car_block_past_the_eight_reads_on_by_name() {
+        let _g = crate::test_support::test_lock();
+        let work = race().shared.work.get();
+        let saved = (
+            work.car_records[3].get(),
+            work.current_car.get(),
+            work.stage_direction.get(),
+            work.work_block.get(),
+            work.number_texture_names[5].get(),
+        );
+        work.car_records[3].set(0x11);
+        work.current_car.set(0x22);
+        work.stage_direction.set(0x33);
+        work.work_block.set(0x44);
+        work.number_texture_names[5].set(0x55);
+        assert_eq!(work.past_the_eight(3).unwrap(), 0x11);
+        assert_eq!(work.past_the_eight(8).unwrap(), 0x22);
+        assert_eq!(work.past_the_eight(9).unwrap(), 0);
+        assert_eq!(work.past_the_eight(10).unwrap(), 0x33);
+        assert_eq!(work.past_the_eight(11).unwrap(), 0x44);
+        assert_eq!(work.past_the_eight(12 + 5).unwrap(), 0x55);
+        assert!(work.past_the_eight(12 + 384).is_err());
+        work.car_records[3].set(saved.0);
+        work.current_car.set(saved.1);
+        work.stage_direction.set(saved.2);
+        work.work_block.set(saved.3);
+        work.number_texture_names[5].set(saved.4);
     }
 }

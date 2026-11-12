@@ -1,6 +1,6 @@
 //! `hud::overlay_pass` (0x45A893): the race frame's 2D pass: `players` the players
 //! (`split`); `scene::depth_buffer_off`; `hud::overlay_states`; with `views` 2, a
-//! player whose car block's +0xFA8 is set (`CarsAndReplay.car_blocks.cars[0].view_covered` / `CarsAndReplay.car_blocks.cars[1].view_covered`) keeps only bit 0x40 of
+//! player whose car block's +0xFA8 is set (`CarBlocks.cars[0].view_covered` / `CarBlocks.cars[1].view_covered`) keeps only bit 0x40 of
 //! its HUD flags (`hud_flags` / `dword_6D14FA`, put back after) and its `unk_6D1486` /
 //! `unk_6D1496` is 0; `hud::draw_hud`; `scene::depth_buffer_on`; `scene::full_view_window`; render
 //! state 3 = 3; `plain_first` and `plain_second` 1; `hud::draw_view_strips`; an empty function

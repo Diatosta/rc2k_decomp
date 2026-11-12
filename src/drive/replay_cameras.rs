@@ -13,6 +13,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::race::owner::Race;
 use crate::race::replay_work_store::ReplayWork;
+use crate::session::PlainDword;
 use rc2k_core::drive::replay_views::{WishStep, wish_step};
 
 /// Byte `k` of the frame's head (the first car block's start, `g_carBlockStore`).
@@ -20,16 +21,18 @@ fn head_byte(race: &Race, k: usize) -> Result<u32, BadInput> {
     crate::cells::load_value::<u8>(&race.car_blocks().cars[0].frame_head, k).map(u32::from)
 }
 
-/// `replay_camera_wishes`[head byte]`: the table holds 47; a larger byte reads on into the
-/// variables after it, as the original does, and is refused past the replay's work (a
-/// damaged replay file gives any byte).
+/// `replay_camera_wishes`[head byte]: the table holds 47; the two dwords that follow it in
+/// the replay's work, the last draw frames (`camera_last_frame`), answer for the bytes 47
+/// and 48, as the original reads on; any larger byte is refused (a damaged replay file gives
+/// any byte).
 fn wish_of(replay_work: &ReplayWork, byte: usize) -> Result<u32, BadInput> {
-    crate::session::read_on_in(
-        replay_work,
-        &replay_work.replay_camera_wishes,
-        byte,
-        "the replay camera wishes",
-    )
+    replay_work
+        .replay_camera_wishes
+        .iter()
+        .chain(&replay_work.camera_last_frame)
+        .nth(byte)
+        .map(PlainDword::get)
+        .ok_or(BadInput("a replay camera wish past the replay work"))
 }
 
 // Converted: `rc2k_core::drive::replay_views::wish_step`.
