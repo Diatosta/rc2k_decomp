@@ -517,10 +517,7 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
             let slot = scene.textures.kinds.get().kind_first_slots[220 + k].get();
             crate::scene::texture_places_store::cell_at(
                 scene.textures.places.get(),
-                core::mem::offset_of!(
-                    crate::scene::texture_places_store::TexturePlaces,
-                    slot_wanted
-                ),
+                crate::scene::texture_places_store::PlacesTable::SlotWanted,
                 slot,
             )?
             .set(texture.wrapping_add(scene.textures.kinds.get().kind_first_textures[220].get()));

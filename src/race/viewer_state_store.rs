@@ -207,6 +207,11 @@ pub enum ViewerPicture {
 }
 
 impl ReplayViewBlock {
+    /// The viewer's list as a place of bytes (its header, then its items).
+    pub fn viewer_list_place(&'static self) -> BytePlace {
+        BytePlace::in_store(self, core::mem::offset_of!(ReplayViewBlock, viewer_list))
+    }
+
     /// The count of the viewer's list's items (from 24 bytes in).
     const ITEMS: u32 = 26;
     /// IDA's ranges the list's names point into: the key table and place rectangles

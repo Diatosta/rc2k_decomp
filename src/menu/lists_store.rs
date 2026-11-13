@@ -223,6 +223,15 @@ impl MenuLists {
         crate::session::read_runs(&lists[first..], car, "a car page's picture")
     }
 
+    /// The map overlay of event slot `slot` (0 ..= 35 in the image's tables; the records can
+    /// be loaded from a file, so a slot past the list reads on into the fields after it).
+    pub fn map_overlay(&self, slot: usize) -> Result<u32, crate::errors::BadInput> {
+        crate::cells::load_value(
+            self,
+            core::mem::offset_of!(MenuLists, map_overlays).wrapping_add(slot.wrapping_mul(4)),
+        )
+    }
+
     /// The rally speech of section `section` (0 ..= 0x20, held by `small_section`), past the six
     /// on into the fields after them.
     pub fn rally_speech(&self, section: usize) -> Result<u32, crate::errors::BadInput> {
@@ -1607,6 +1616,8 @@ mod run_on_tests {
         let old = |table: &[PlainDword], n: usize| {
             crate::session::read_on_in(&*l, table, n, "t").unwrap()
         };
+        let old_result =
+            |table: &[PlainDword], n: usize| crate::session::read_on_in(&*l, table, n, "t").ok();
         for n in 0..0x21 {
             assert_eq!(
                 l.rally_speech(n).unwrap(),
@@ -1646,5 +1657,15 @@ mod run_on_tests {
             }
         }
         assert!(l.page_picture(4, 0).is_err());
+        let room = (core::mem::size_of::<MenuLists>()
+            - core::mem::offset_of!(MenuLists, map_overlays))
+            / 4;
+        for n in 0..room + 4 {
+            assert_eq!(
+                l.map_overlay(n).ok(),
+                old_result(&l.map_overlays, n),
+                "map overlay {n}"
+            );
+        }
     }
 }

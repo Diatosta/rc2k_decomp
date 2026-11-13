@@ -47,18 +47,114 @@ pub struct TexturePlaces {
     pub unknown_173d4: [PlainDword; 3],
 }
 
-/// The cell `index` entries on from the table `table_offset` bytes into the places. The
+/// A table of the places, by name: the field a slot or counter number indexes.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PlacesTable {
+    TextureOf,
+    PlaceSlot,
+    KindPictures,
+    WantedPictures,
+    LoadedPictures,
+    SlotWanted,
+    SlotLoaded,
+    Totals,
+    KindSlotBytes,
+    Counters,
+    StepFlags,
+    CarIconSheetX,
+    CarIconSheetY,
+    ObjectTextureRecords,
+    FaceMarks,
+    PointMarks,
+    NormalMarks,
+    Unknown173d4,
+}
+
+impl PlacesTable {
+    /// Every table, in the order of the places.
+    pub const ALL: [PlacesTable; 18] = [
+        PlacesTable::TextureOf,
+        PlacesTable::PlaceSlot,
+        PlacesTable::KindPictures,
+        PlacesTable::WantedPictures,
+        PlacesTable::LoadedPictures,
+        PlacesTable::SlotWanted,
+        PlacesTable::SlotLoaded,
+        PlacesTable::Totals,
+        PlacesTable::KindSlotBytes,
+        PlacesTable::Counters,
+        PlacesTable::StepFlags,
+        PlacesTable::CarIconSheetX,
+        PlacesTable::CarIconSheetY,
+        PlacesTable::ObjectTextureRecords,
+        PlacesTable::FaceMarks,
+        PlacesTable::PointMarks,
+        PlacesTable::NormalMarks,
+        PlacesTable::Unknown173d4,
+    ];
+
+    /// The table's dwords.
+    fn cells(self, places: &TexturePlaces) -> &[PlainDword] {
+        match self {
+            PlacesTable::TextureOf => &places.texture_of,
+            PlacesTable::PlaceSlot => &places.place_slot,
+            PlacesTable::KindPictures => &places.kind_pictures,
+            PlacesTable::WantedPictures => &places.wanted_pictures,
+            PlacesTable::LoadedPictures => &places.loaded_pictures,
+            PlacesTable::SlotWanted => &places.slot_wanted,
+            PlacesTable::SlotLoaded => &places.slot_loaded,
+            PlacesTable::Totals => &places.totals,
+            PlacesTable::KindSlotBytes => core::slice::from_ref(&places.kind_slot_bytes),
+            PlacesTable::Counters => &places.counters,
+            PlacesTable::StepFlags => &places.step_flags,
+            PlacesTable::CarIconSheetX => &places.car_icon_sheet_x,
+            PlacesTable::CarIconSheetY => &places.car_icon_sheet_y,
+            PlacesTable::ObjectTextureRecords => &places.object_texture_records,
+            PlacesTable::FaceMarks => &places.face_marks,
+            PlacesTable::PointMarks => &places.point_marks,
+            PlacesTable::NormalMarks => &places.normal_marks,
+            PlacesTable::Unknown173d4 => &places.unknown_173d4,
+        }
+    }
+
+    /// The table's offset in the places.
+    fn offset(self) -> usize {
+        use core::mem::offset_of;
+        match self {
+            PlacesTable::TextureOf => offset_of!(TexturePlaces, texture_of),
+            PlacesTable::PlaceSlot => offset_of!(TexturePlaces, place_slot),
+            PlacesTable::KindPictures => offset_of!(TexturePlaces, kind_pictures),
+            PlacesTable::WantedPictures => offset_of!(TexturePlaces, wanted_pictures),
+            PlacesTable::LoadedPictures => offset_of!(TexturePlaces, loaded_pictures),
+            PlacesTable::SlotWanted => offset_of!(TexturePlaces, slot_wanted),
+            PlacesTable::SlotLoaded => offset_of!(TexturePlaces, slot_loaded),
+            PlacesTable::Totals => offset_of!(TexturePlaces, totals),
+            PlacesTable::KindSlotBytes => offset_of!(TexturePlaces, kind_slot_bytes),
+            PlacesTable::Counters => offset_of!(TexturePlaces, counters),
+            PlacesTable::StepFlags => offset_of!(TexturePlaces, step_flags),
+            PlacesTable::CarIconSheetX => offset_of!(TexturePlaces, car_icon_sheet_x),
+            PlacesTable::CarIconSheetY => offset_of!(TexturePlaces, car_icon_sheet_y),
+            PlacesTable::ObjectTextureRecords => offset_of!(TexturePlaces, object_texture_records),
+            PlacesTable::FaceMarks => offset_of!(TexturePlaces, face_marks),
+            PlacesTable::PointMarks => offset_of!(TexturePlaces, point_marks),
+            PlacesTable::NormalMarks => offset_of!(TexturePlaces, normal_marks),
+            PlacesTable::Unknown173d4 => offset_of!(TexturePlaces, unknown_173d4),
+        }
+    }
+}
+
+/// The cell `index` entries on from the table `table`. The
 /// game does not bound these indices (slot and counter numbers from its data): a number past
 /// the table reads on into the next fields of the places in their order, as the original's
 /// by-address read did; past the places it is refused.
 pub fn cell_at(
     places: &TexturePlaces,
-    table_offset: usize,
+    table: PlacesTable,
     index: u32,
 ) -> Result<&PlainDword, crate::errors::BadInput> {
     let at = (index as usize)
         .checked_mul(4)
-        .and_then(|bytes| table_offset.checked_add(bytes));
+        .and_then(|bytes| table.offset().checked_add(bytes));
     at.and_then(|at| places.cell(at))
         .ok_or(crate::errors::BadInput("a cell past the texture places"))
 }
@@ -66,39 +162,12 @@ pub fn cell_at(
 impl TexturePlaces {
     /// The dword `at` bytes into the places (every field is a run of dwords, in order).
     fn cell(&self, at: usize) -> Option<&PlainDword> {
-        use core::mem::offset_of;
-        let fields: [(usize, &[PlainDword]); 18] = [
-            (offset_of!(Self, texture_of), &self.texture_of),
-            (offset_of!(Self, place_slot), &self.place_slot),
-            (offset_of!(Self, kind_pictures), &self.kind_pictures),
-            (offset_of!(Self, wanted_pictures), &self.wanted_pictures),
-            (offset_of!(Self, loaded_pictures), &self.loaded_pictures),
-            (offset_of!(Self, slot_wanted), &self.slot_wanted),
-            (offset_of!(Self, slot_loaded), &self.slot_loaded),
-            (offset_of!(Self, totals), &self.totals),
-            (
-                offset_of!(Self, kind_slot_bytes),
-                core::slice::from_ref(&self.kind_slot_bytes),
-            ),
-            (offset_of!(Self, counters), &self.counters),
-            (offset_of!(Self, step_flags), &self.step_flags),
-            (offset_of!(Self, car_icon_sheet_x), &self.car_icon_sheet_x),
-            (offset_of!(Self, car_icon_sheet_y), &self.car_icon_sheet_y),
-            (
-                offset_of!(Self, object_texture_records),
-                &self.object_texture_records,
-            ),
-            (offset_of!(Self, face_marks), &self.face_marks),
-            (offset_of!(Self, point_marks), &self.point_marks),
-            (offset_of!(Self, normal_marks), &self.normal_marks),
-            (offset_of!(Self, unknown_173d4), &self.unknown_173d4),
-        ];
         if !at.is_multiple_of(4) {
             return None;
         }
-        fields.into_iter().find_map(|(start, field)| {
-            let inside = at.checked_sub(start)?;
-            field.get(inside / 4)
+        PlacesTable::ALL.into_iter().find_map(|table| {
+            let inside = at.checked_sub(table.offset())?;
+            table.cells(self).get(inside / 4)
         })
     }
 }
@@ -173,6 +242,24 @@ impl TexturePlaces {
                 a
             },
             ..ZeroCells::ZERO
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Every table resolves, entry by entry, to the dwords it names.
+    #[test]
+    fn tables_resolve_to_their_fields() {
+        let places = TexturePlaces::new();
+        for table in PlacesTable::ALL {
+            let cells = table.cells(&places);
+            for n in [0, cells.len() - 1] {
+                let found = cell_at(&places, table, n as u32).unwrap();
+                assert!(core::ptr::eq(found, &raw const cells[n]), "{table:?} {n}");
+            }
         }
     }
 }

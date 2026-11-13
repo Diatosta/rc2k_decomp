@@ -65,3 +65,57 @@ mod tests {
         assert_eq!(sizes(2)[8], 0xC30);
     }
 }
+
+/// The six tables `var\hst.dat` holds, each made from varied bytes and written out again,
+/// are the bytes they were when the file was first kept (a checksum of each).
+#[cfg(test)]
+mod golden {
+    use super::*;
+    use crate::saves::entries::{LevelScores, StageTimes};
+    use crate::saves::scores::BestScores;
+
+    fn checksum(bytes: &[u8]) -> u64 {
+        bytes.iter().fold(0xcbf2_9ce4_8422_2325_u64, |h, &b| {
+            (h ^ u64::from(b)).wrapping_mul(0x100_0000_01b3)
+        })
+    }
+
+    fn written<T: FileTable>(len: u32, salt: u32) -> Vec<u8> {
+        let bytes: Vec<u8> = (0..len)
+            .map(|i| (i.wrapping_mul(2_654_435_761).wrapping_add(salt) >> 11) as u8)
+            .collect();
+        T::read(&bytes).write()
+    }
+
+    #[test]
+    fn the_best_times_files_tables_are_unchanged() {
+        let [
+            scores,
+            stage_times,
+            level_scores,
+            course_times,
+            alt_times,
+            trial_times,
+        ] = [1, 2, 3, 4, 7, 8].map(|n| sizes(36)[n]);
+        let got = [
+            written::<BestScores>(scores, 1),
+            written::<StageTimes>(stage_times, 2),
+            written::<LevelScores>(level_scores, 3),
+            written::<StageTimes>(course_times, 4),
+            written::<StageTimes>(alt_times, 5),
+            written::<StageTimes>(trial_times, 6),
+        ]
+        .map(|b| (b.len(), checksum(&b)));
+        assert_eq!(
+            got,
+            [
+                (3000, 9_221_644_140_235_737_666),
+                (56160, 8_646_818_073_954_991_328),
+                (5600, 16_956_960_363_726_488_463),
+                (56160, 15_306_710_384_873_672_808),
+                (56160, 3_208_713_596_129_006_195),
+                (56160, 2_538_053_369_155_243_878),
+            ]
+        );
+    }
+}

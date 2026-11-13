@@ -163,9 +163,7 @@ mod tests {
     use core::mem::{offset_of, size_of};
 
     fn filled() -> Box<PolygonTables> {
-        let t: Box<PolygonTables> = Box::new(crate::cells::cells_of_bytes(
-            [0u8; size_of::<PolygonTables>()],
-        ));
+        let t: Box<PolygonTables> = Box::new(crate::cells::zeroed_cells());
         for k in 0..size_of::<PolygonTables>() / 4 {
             crate::cells::store_value::<u32>(&*t, 4 * k, (k as u32).wrapping_mul(0x9E37_79B1))
                 .unwrap();

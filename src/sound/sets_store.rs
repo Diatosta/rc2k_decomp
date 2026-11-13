@@ -799,6 +799,48 @@ impl RaceSoundSets {
     }
 }
 
+/// The sets the race loader names directly (the others come from the kind table).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum NamedSet {
+    Replay,
+    FirstA,
+    FirstB,
+    FirstC,
+    SecondA,
+    SecondB,
+    Last,
+}
+
+impl NamedSet {
+    #[cfg(test)]
+    pub const ALL: [NamedSet; 7] = [
+        NamedSet::Replay,
+        NamedSet::FirstA,
+        NamedSet::FirstB,
+        NamedSet::FirstC,
+        NamedSet::SecondA,
+        NamedSet::SecondB,
+        NamedSet::Last,
+    ];
+
+    /// The set as the handle a load command carries.
+    pub fn list(self) -> rc2k_core::audio::commands::SoundList {
+        use core::mem::offset_of;
+        let offset = match self {
+            NamedSet::Replay => offset_of!(RaceSoundSets, replay_set),
+            NamedSet::FirstA => offset_of!(RaceSoundSets, first_set_a),
+            NamedSet::FirstB => offset_of!(RaceSoundSets, first_set_b),
+            NamedSet::FirstC => offset_of!(RaceSoundSets, first_set_c),
+            NamedSet::SecondA => offset_of!(RaceSoundSets, second_set_a),
+            NamedSet::SecondB => offset_of!(RaceSoundSets, second_set_b),
+            NamedSet::Last => offset_of!(RaceSoundSets, last_set),
+        };
+        rc2k_core::audio::commands::SoundList::Race {
+            offset: offset as u32,
+        }
+    }
+}
+
 impl RaceSoundSets {
     /// The sets of the kind-table entry `n` (two a kind of car), as a handle.
     #[cfg(test)]

@@ -135,29 +135,6 @@ pub fn write_cells(file: u32, cells: &[impl crate::session::Cell32]) -> (u32, bo
     write_slice(file, &bytes)
 }
 
-/// `read_to` into a store's field from its first byte (no address between).
-pub fn read_into_store(
-    file: u32,
-    to: &dyn crate::cells::Store,
-    count: u32,
-) -> Result<(u32, bool), BadInput> {
-    let mut bytes = vec![0u8; count as usize];
-    let (got, ok) = read_slice(file, &mut bytes);
-    to.store(0, &bytes[..got as usize])?;
-    Ok((got, ok))
-}
-
-/// `write_from` the first `count` bytes of a store's field.
-pub fn write_from_store(
-    file: u32,
-    from: &dyn crate::cells::Store,
-    count: u32,
-) -> Result<(u32, bool), BadInput> {
-    let mut bytes = vec![0u8; count as usize];
-    from.load(0, &mut bytes)?;
-    Ok(write_slice(file, &bytes))
-}
-
 /// (the bytes written, whether all of them were): one `WriteFile`, from a Rust buffer.
 pub fn write_slice(file: u32, from: &[u8]) -> (u32, bool) {
     let count = from.len() as u32;

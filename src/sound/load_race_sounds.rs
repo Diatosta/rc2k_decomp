@@ -23,8 +23,7 @@ use crate::audio::names_store::{NameList, SampleNames};
 use crate::errors::BadInput;
 use crate::race::owner::Race;
 use crate::session::PlainDword;
-use crate::sound::sets_store::RaceSoundSets;
-use core::mem::offset_of;
+use crate::sound::sets_store::NamedSet;
 use rc2k_core::audio::commands::{Command, SoundList};
 
 // ---- game data ----
@@ -134,27 +133,13 @@ pub fn load_race_sounds(
         count,
         other_count,
     ) {
-        let list = |offset: usize| SoundList::Race {
-            offset: offset as u32,
-        };
         send(match set {
-            Set::Replay => list(offset_of!(RaceSoundSets, replay_set)),
+            Set::Replay => NamedSet::Replay.list(),
             Set::FirstKind(k) => sound.race.sets.kind_list(2 * k as usize)?,
-            Set::First(n) => list(
-                [
-                    offset_of!(RaceSoundSets, first_set_a),
-                    offset_of!(RaceSoundSets, first_set_b),
-                    offset_of!(RaceSoundSets, first_set_c),
-                ][n],
-            ),
+            Set::First(n) => [NamedSet::FirstA, NamedSet::FirstB, NamedSet::FirstC][n].list(),
             Set::SecondKind(k) => sound.race.sets.kind_list(2 * k as usize + 1)?,
-            Set::Second(n) => list(
-                [
-                    offset_of!(RaceSoundSets, second_set_a),
-                    offset_of!(RaceSoundSets, second_set_b),
-                ][n],
-            ),
-            Set::Last => list(offset_of!(RaceSoundSets, last_set)),
+            Set::Second(n) => [NamedSet::SecondA, NamedSet::SecondB][n].list(),
+            Set::Last => NamedSet::Last.list(),
         });
     }
     Ok(())

@@ -136,10 +136,7 @@ fn view(race: &'static Race, o: Owners<'static>, mode: Mode) -> Result<(), Refus
     replay.replay_view().last_race_viewed.set(slot == LAST_RACE);
     find_snapshot_number::find_snapshot_number(&race.replay)?;
     viewer_load_stage::viewer_load_stage(race, o)?;
-    let list = ListMenu::of(crate::place::BytePlace::in_store(
-        o.race.replay.replay_view(),
-        core::mem::offset_of!(ReplayViewBlock, viewer_list),
-    ));
+    let list = ListMenu::of(o.race.replay.replay_view().viewer_list_place());
     race.shared.replay_file().viewer_sound.set(0);
     install.pages.list_answer.set(1);
     install.pages.list_leave.set(0);

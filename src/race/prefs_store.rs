@@ -179,8 +179,34 @@ impl StagePrefs {
 }
 
 impl StagePrefs {
-    /// The piece as its dwords in order: the stage's `localdat` read in place.
-    pub fn dwords(&self) -> &[PlainDword; core::mem::size_of::<StagePrefs>() / 4] {
-        crate::cells::plain_dwords_in(self, 0)
+    /// The stage's `localdat` read over the piece: all its fields in order, as many bytes as
+    /// the file has (what it does not reach is kept).
+    pub fn read_file(&self, path: &[u8]) -> Result<(), crate::errors::BadInput> {
+        let mut bytes = crate::cells::flatten(self);
+        crate::files::read_whole_file::read_whole_file_into(path, &mut bytes)?;
+        crate::cells::store_cells(self, 0, &bytes)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The fields in order are the whole piece, dword for dword.
+    #[test]
+    fn fields_in_order_are_the_dwords() {
+        let prefs = StagePrefs::new();
+        for (k, cell) in
+            crate::cells::plain_dwords_in::<_, { size_of::<StagePrefs>() / 4 }>(&prefs, 0)
+                .iter()
+                .enumerate()
+        {
+            cell.set(0x1000 + k as u32);
+        }
+        let flat = crate::cells::flatten(&prefs);
+        assert_eq!(flat.len(), size_of::<StagePrefs>());
+        for (k, b) in flat.as_chunks::<4>().0.iter().enumerate() {
+            assert_eq!(u32::from_le_bytes(*b), 0x1000 + k as u32);
+        }
     }
 }

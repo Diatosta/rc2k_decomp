@@ -1298,7 +1298,7 @@ mod vector_tests {
                     f32::from_bits(r.float())
                 });
                 let entry = |r: &mut Rng| {
-                    let e = crate::cells::cells_of_bytes::<PolygonEntry, 0x44>([0; 0x44]);
+                    let e = crate::cells::zeroed_cells::<PolygonEntry>();
                     for k in 0..10 {
                         e.set_word(
                             4 * k,
@@ -1312,7 +1312,7 @@ mod vector_tests {
                     e
                 };
                 let (f, s) = (entry(&mut r), entry(&mut r));
-                let to = crate::cells::cells_of_bytes::<PolygonEntry, 0x44>([0; 0x44]);
+                let to = crate::cells::zeroed_cells::<PolygonEntry>();
                 for k in 0..10 {
                     to.set_word(4 * k, 0xAAAA_AAAA);
                 }

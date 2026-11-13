@@ -94,10 +94,7 @@ impl rc2k_core::scene::textures::TextureMemory for GameMemory<'_> {
         let textures = &self.scene.textures;
         cell_at(
             textures.places.get(),
-            core::mem::offset_of!(
-                crate::scene::texture_places_store::TexturePlaces,
-                texture_of
-            ),
+            crate::scene::texture_places_store::PlacesTable::TextureOf,
             first,
         )
         .map_err(|e| Invalid(e.0))?

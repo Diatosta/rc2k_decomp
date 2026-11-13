@@ -141,4 +141,33 @@ mod tests {
         let f = setup_file(1, &[b'n'; 0x20], [1, 2, 3, 4, 5, 6]);
         assert_eq!((setup_name(&f), f[0x44]), (Some([b'n'; 0x20]), 6));
     }
+
+    /// The heads and the car setup file of varied values, as they were when the files were
+    /// first kept (a checksum of each).
+    #[test]
+    fn heads_and_setup_file_are_unchanged() {
+        let checksum = |bytes: &[u8]| {
+            bytes.iter().fold(0xcbf2_9ce4_8422_2325_u64, |h, &b| {
+                (h ^ u64::from(b)).wrapping_mul(0x100_0000_01b3)
+            })
+        };
+        let name: [u8; SETUP_NAME_LEN] = std::array::from_fn(|i| (i * 7 + 3) as u8);
+        let values = [0x0102_0304, 0x8000_0000, 7, 0xFFFF_FFFF, 0, 0x55AA_55AA];
+        assert_eq!(
+            [
+                checksum(&head(OPTIONS, 0x1234_5678)),
+                checksum(&head(BEST_TIMES, 0x1234_5678)),
+                checksum(&setup_file(0x1234_5678, &name, values)),
+                checksum(&slot_head(SAVEGAME, SAVEGAME_VERSION, 0x1234_5678, &name)),
+                checksum(&slot_head(REPLAY, REPLAY_VERSION, 0x1234_5678, &name)),
+            ],
+            [
+                13_824_365_985_292_676_889,
+                17_151_801_396_817_505_696,
+                9_670_309_141_967_143_030,
+                12_529_019_643_460_802_094,
+                5_800_007_505_835_171_205,
+            ]
+        );
+    }
 }

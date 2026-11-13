@@ -2,7 +2,7 @@
 //!
 //! `g_optionsLoaded` (0x75557D) = 0. Up to 0x10000 bytes of the file into the scratch block at
 //! 0x93E8B0; it is taken if it starts "R5CI" and has 0x50004 at +8. From +0x10 on it is copied out
-//! piece by piece to the 69 places of `pieces` (0xB656 bytes: the screen modes, the sound's and
+//! piece by piece to the 69 fields of `pieces_of` (0xB656 bytes: the screen modes, the sound's and
 //! the network's settings, the four players, the record table, the players' names and much else).
 //! After the last piece the file must have "####", else fatal error 0x80ACFF01 "ral.dat out of
 //! date" (the pieces have been copied by then). Then `saves::rebuild_car_lists`, and
@@ -10,141 +10,192 @@
 //! held decides. One caller, `system::load_game_data`. `saves::save_options` writes the file, the
 //! same pieces the other way.
 
-use crate::cells::{Cells, Store, load_cells, store_cells};
+use crate::cells::Store;
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::files::read_file::read_file_to_store;
-use crate::menu::option_work_store::OptionWork;
+use crate::menu::player::Player;
 use crate::owners::Owners;
+use crate::records::stages_store::Record;
+use crate::saves::best_times_store::TimeEntry;
 use crate::saves::rebuild_car_lists::rebuild_car_lists;
+use crate::session::{DwordLike, PlainLoose, Shared};
 use crate::settings::TEXT_ROOM;
-use std::mem::offset_of;
 
 // ---- game data ----
 
 /// The 69 pieces' lengths together.
 pub const PIECES_LEN: usize = 0xB656;
 
-/// A field of cells that only the game's thread reaches, read and written whole by bytes.
-pub trait Held {
-    fn size(&self) -> usize;
-    fn load(&self, to: &mut [u8]) -> Result<(), BadInput>;
-    fn store(&self, from: &[u8]) -> Result<(), BadInput>;
-}
-
-impl<T: Cells> Held for T {
-    fn size(&self) -> usize {
-        size_of::<T>()
-    }
-
-    fn load(&self, to: &mut [u8]) -> Result<(), BadInput> {
-        load_cells(self, 0, to)
-    }
-
-    fn store(&self, from: &[u8]) -> Result<(), BadInput> {
-        store_cells(self, 0, from)
-    }
-}
-
-/// One piece of the options file: bytes of a field of the game's state, or (a slip kept) a run
-/// that goes on past its field.
-pub enum Piece<'a> {
-    /// `len` bytes of `store` from `offset`.
-    Field {
-        store: &'a dyn Store,
-        offset: usize,
+/// One entry of the options file: named fields of the game's state, in the file's order.
+pub enum Field<'a> {
+    /// One dword.
+    Dword(&'a dyn DwordLike),
+    /// Dwords one after the other, each a field of its own.
+    Dwords(Vec<&'a dyn DwordLike>),
+    /// `len` bytes of a text, name or GUID, from byte `from` of its cells.
+    Text {
+        cells: &'a dyn Store,
+        from: usize,
         len: usize,
     },
-    /// All of a field of the game's thread (a store of plain cells, which no other thread
-    /// may see: not a `Store`).
-    Held(&'a dyn Held),
-    /// `len` bytes of a field of the game's thread from `offset` (a run over several of its
-    /// fields).
-    HeldPart {
-        field: &'a dyn Held,
-        offset: usize,
-        len: usize,
-    },
+    /// A player's record.
+    Player(&'a Shared<Player>),
+    /// Records of the stage tables.
+    Records(&'a [Record]),
+    /// Best-time entries.
+    TimeEntries(&'a [TimeEntry]),
 }
 
-impl<'a> Piece<'a> {
-    /// All of a field: the piece's length is the field's size.
-    pub fn whole(store: &'a dyn Store) -> Self {
-        Self::Field {
-            store,
-            offset: 0,
-            len: store.size(),
-        }
+/// Where a field's values go to, or come from: the file's bytes, in order.
+trait Move {
+    fn dword(&mut self, field: &dyn DwordLike) -> Result<(), BadInput>;
+    fn loose(&mut self, field: &PlainLoose) -> Result<(), BadInput>;
+    fn text(&mut self, cells: &dyn Store, from: usize, len: usize) -> Result<(), BadInput>;
+    fn player(&mut self, field: &Shared<Player>) -> Result<(), BadInput>;
+}
+
+/// The file's bytes made from the fields.
+struct Put(Vec<u8>);
+
+impl Move for Put {
+    fn dword(&mut self, field: &dyn DwordLike) -> Result<(), BadInput> {
+        self.0.extend_from_slice(&field.get().to_le_bytes());
+        Ok(())
     }
 
-    /// All of a field of plain cells.
-    pub fn held(field: &'a dyn Held) -> Self {
-        Self::Held(field)
+    fn loose(&mut self, field: &PlainLoose) -> Result<(), BadInput> {
+        self.0.extend_from_slice(&field.get().to_le_bytes());
+        Ok(())
     }
 
-    /// `len` bytes of a field from `offset`.
-    pub fn part(store: &'a dyn Store, offset: usize, len: usize) -> Self {
-        Self::Field { store, offset, len }
+    fn text(&mut self, cells: &dyn Store, from: usize, len: usize) -> Result<(), BadInput> {
+        let at = self.0.len();
+        self.0.resize(at + len, 0);
+        cells.load(from, &mut self.0[at..])
     }
 
-    /// `len` bytes of a field of plain cells from `offset`: a run over several of its fields
-    /// (`option_work`'s switches and levels).
-    pub fn held_part(field: &'a dyn Held, offset: usize, len: usize) -> Self {
-        Self::HeldPart { field, offset, len }
+    fn player(&mut self, field: &Shared<Player>) -> Result<(), BadInput> {
+        self.0.extend_from_slice(&field.get().to_le_bytes());
+        Ok(())
+    }
+}
+
+/// The fields set from the file's bytes.
+struct Take<'b>(&'b [u8]);
+
+impl Take<'_> {
+    fn next(&mut self, len: usize) -> Result<&[u8], BadInput> {
+        let (now, rest) = self
+            .0
+            .split_at_checked(len)
+            .ok_or(BadInput("too few bytes for an option"))?;
+        self.0 = rest;
+        Ok(now)
     }
 
+    fn dword(&mut self) -> Result<u32, BadInput> {
+        let b = self.next(4)?;
+        Ok(u32::from_le_bytes([b[0], b[1], b[2], b[3]]))
+    }
+}
+
+impl Move for Take<'_> {
+    fn dword(&mut self, field: &dyn DwordLike) -> Result<(), BadInput> {
+        field.set(Take::dword(self)?);
+        Ok(())
+    }
+
+    fn loose(&mut self, field: &PlainLoose) -> Result<(), BadInput> {
+        field.set(Take::dword(self)?);
+        Ok(())
+    }
+
+    fn text(&mut self, cells: &dyn Store, from: usize, len: usize) -> Result<(), BadInput> {
+        cells.store(from, self.next(len)?)
+    }
+
+    fn player(&mut self, field: &Shared<Player>) -> Result<(), BadInput> {
+        let bytes = self
+            .next(size_of::<Player>())?
+            .try_into()
+            .map_err(|_| BadInput("too few bytes for a player"))?;
+        field.set(Player::from_le_bytes(bytes));
+        Ok(())
+    }
+}
+
+/// A best-time entry's fields, in the file's order.
+fn time_entry(entry: &TimeEntry, m: &mut impl Move) -> Result<(), BadInput> {
+    for field in [
+        &entry.unread_0,
+        &entry.player,
+        &entry.nation,
+        &entry.name_id,
+        &entry.car,
+        &entry.stage_time,
+        &entry.rally_time,
+        &entry.group,
+    ] {
+        m.dword(field)?;
+    }
+    m.text(&entry.name, 0, entry.name.size())?;
+    m.dword(&entry.is_player)?;
+    m.dword(&entry.figure)?;
+    for field in entry
+        .unread_48
+        .iter()
+        .chain([&entry.unread_50])
+        .chain(&entry.unread_54)
+        .chain(&entry.checkpoints)
+    {
+        m.dword(field)?;
+    }
+    Ok(())
+}
+
+impl Field<'_> {
+    /// How many bytes it takes in the file.
     pub fn len(&self) -> usize {
-        match *self {
-            Self::Field { len, .. } | Self::HeldPart { len, .. } => len,
-            Self::Held(field) => field.size(),
+        match self {
+            Self::Dword(_) => 4,
+            Self::Dwords(fields) => 4 * fields.len(),
+            Self::Text { len, .. } => *len,
+            Self::Player(_) => size_of::<Player>(),
+            Self::Records(records) => size_of_val(*records),
+            Self::TimeEntries(entries) => size_of_val(*entries),
         }
     }
 
+    fn walk(&self, m: &mut impl Move) -> Result<(), BadInput> {
+        match self {
+            Self::Dword(field) => m.dword(*field),
+            Self::Dwords(fields) => fields.iter().try_for_each(|field| m.dword(*field)),
+            Self::Text { cells, from, len } => m.text(*cells, *from, *len),
+            Self::Player(player) => m.player(player),
+            Self::Records(records) => records
+                .iter()
+                .flat_map(|record| &record.words)
+                .try_for_each(|word| m.loose(word)),
+            Self::TimeEntries(entries) => entries.iter().try_for_each(|entry| time_entry(entry, m)),
+        }
+    }
+
+    /// Its bytes as the file holds them.
     pub fn read(&self) -> Result<Vec<u8>, BadInput> {
-        match *self {
-            Self::Field { store, offset, len } => {
-                let mut bytes = vec![0; len];
-                store.load(offset, &mut bytes)?;
-                Ok(bytes)
-            }
-            Self::Held(field) => {
-                let mut bytes = vec![0; field.size()];
-                field.load(&mut bytes)?;
-                Ok(bytes)
-            }
-            Self::HeldPart { field, offset, len } => {
-                let mut bytes = vec![0; field.size()];
-                field.load(&mut bytes)?;
-                bytes
-                    .get(offset..offset + len)
-                    .map(<[u8]>::to_vec)
-                    .ok_or(BadInput("a saved option past its field"))
-            }
-        }
+        let mut put = Put(Vec::with_capacity(self.len()));
+        self.walk(&mut put)?;
+        Ok(put.0)
     }
 
+    /// Sets its fields from the file's bytes (the first `len()` of them).
     pub fn write(&self, bytes: &[u8]) -> Result<(), BadInput> {
-        match *self {
-            Self::Field { store, offset, .. } => store.store(offset, bytes),
-            Self::Held(field) => field.store(bytes),
-            Self::HeldPart { field, offset, len } => {
-                let mut all = vec![0; field.size()];
-                field.load(&mut all)?;
-                all.get_mut(offset..offset + len)
-                    .ok_or(BadInput("an option past its field"))?
-                    .copy_from_slice(
-                        bytes
-                            .get(..len)
-                            .ok_or(BadInput("too few bytes for an option"))?,
-                    );
-                field.store(&all)
-            }
-        }
+        self.walk(&mut Take(bytes))
     }
 }
 
-/// The file's pieces after its head, in order: (where each is, its length).
+/// The file's pieces after its head, in order, each a named field or a run of them.
 #[rustfmt::skip]
-pub fn pieces_of(o: Owners<'static>) -> [Piece<'static>; 69] {
+pub fn pieces_of(o: Owners<'static>) -> [Field<'static>; 69] {
     let race = o.race;
     let net = o.net;
     let audio = o.audio;
@@ -153,73 +204,87 @@ pub fn pieces_of(o: Owners<'static>) -> [Piece<'static>; 69] {
     let display = &o.gfx.display;
     let menus = o.menus;
 
-    let names = |n: usize| Piece::part(&menus.play.names.player_names, 0x20 * n, 0x20);
+    let text = |cells: &'static dyn Store, len: usize| Field::Text { cells, from: 0, len };
+    let work = &menus.screens.option_work;
+    let numbers = &menus.cars.numbers;
+    let tables = &system.records().stage_tables;
+    let names = |n: usize| Field::Text {
+        cells: &menus.play.names.player_names,
+        from: 0x20 * n,
+        len: 0x20,
+    };
     [
-        Piece::whole(&system.start().run_count.runs),                            // how many times the game was run
-        Piece::whole(&display.mode.menu_mode),                     // the menus' screen mode
-        Piece::whole(&display.mode.race_mode),                     // the race's screen mode
-        Piece::whole(&display.choices.mipmapping),                 // mipmapping, off or on
-        Piece::whole(&audio.state.menu_sound_mode),                     // the menus' sound mode
-        Piece::whole(&audio.state.race_sound_mode),                     // the race's sound mode
-        Piece::whole(&audio.state.master_volume),                       // the master volume
-        Piece::whole(&o.sound.menu.options.unread_option_f0),                     // a sound option kept in the file and read by no other code
-        Piece::whole(&o.sound.menu.options.race_music_on),                 // the race music switch
-        Piece::whole(&audio.state.tune_turn),                   // which tune comes next
-        Piece::whole(&o.sound.menu.options.music_volume),                // the music volume
-        Piece::whole(&o.sound.menu.options.race_music_volume),           // the race music's volume
-        Piece::whole(&net.setup().machine_name),                         // the machine's name
-        Piece::whole(&net.setup().most_players),                          // the most players a hosted session takes
-        Piece::whole(&net.setup().host_address),                         // the host's address (TCP/IP)
-        Piece::whole(&net.setup().port),                                  // the TCP/IP port
-        Piece::whole(&net.address().saved_connection),                     // the saved connection's GUID
-        Piece::held(&saves.save_games.kept_a),                         // a saved-games word kept in the file and read by no other code
-        Piece::held(&saves.save_games.kept_b),                         // a saved-games word kept in the file and read by no other code
-        Piece::held(&o.service.set_ups.kept),                              // a car set-ups word kept in the file and read by no other code
-        Piece::whole(&race.shared.tyre_change().record_name),                  // the tyre change record holder's name
-        Piece::whole(&race.shared.tyre_change().record),                        // the tyre change record time
-        Piece::held(&saves.files.options_kept[0]),                                   // four dwords nothing else reads
-        Piece::held(&saves.files.options_kept[1]),
-        Piece::held(&saves.files.options_kept[2]),
-        Piece::held(&saves.files.options_kept[3]),
-        Piece::whole(&menus.play.players.players[0]),                 // the four players' records
-        Piece::whole(&menus.play.players.players[1]),
-        Piece::whole(&menus.play.players.players[2]),
-        Piece::whole(&menus.play.players.players[3]),
-        Piece::whole(&audio.levels.master_volume_shown),           // the master volume shown
-        Piece::whole(&menus.screens.option_work.music_level),                   // the music level
-        Piece::whole(&menus.screens.option_work.other_volume),                  // read by the music "up" step
-        Piece::whole(&menus.screens.option_work.menu_sounds_c),                 // the menu sounds' third volume
-        Piece::whole(&audio.levels.menu_sounds_a),                 // the menu sounds' first volume
-        Piece::whole(&menus.screens.option_work.speech_level),                  // the speech level
-        Piece::whole(&audio.levels.sounds_a),                      // the sounds' first level
-        Piece::whole(&audio.levels.sounds_b),                      // the sounds' second level
-        Piece::held_part(&menus.screens.option_work, offset_of!(OptionWork, switch_0), 0x2C),      // the options pages' work copies, switch_0 .. headlights
-        Piece::held_part(&menus.screens.option_work, offset_of!(OptionWork, audio_quality), 0x18),    // the audio quality, the 3D switches and the channels
-        Piece::whole(&menus.tables.pages.services),                       // the services counted
-        Piece::whole(&menus.screens.flow.kept),                          // kept by the event races
-        Piece::whole(&race.shared.state.settings.a8_game),               // the race settings' first word
-        Piece::part(&menus.play.arcade.levels_won, 0, 0x6),                    // the arcade levels won, a byte each
-        Piece::whole(&menus.cars.numbers.first_numbers),                // the first list of car numbers
-        Piece::part(&menus.cars.numbers.second_numbers, 0, 0x50),         // the second list of car numbers, 20 entries
-        Piece::whole(&system.records().stage_tables.championship),              // the championship's records
-        Piece::whole(&system.records().stage_tables.events[5].records),          // the events' record tables, in the file's order
-        Piece::whole(&system.records().stage_tables.events[4].records),
-        Piece::whole(&system.records().stage_tables.events[3].records),
-        Piece::whole(&system.records().stage_tables.events[2].records),
-        Piece::whole(&system.records().stage_tables.events[1].records),
-        Piece::whole(&system.records().stage_tables.events[0].records),
-        Piece::whole(&system.records().stage_tables.events[6].records),
-        Piece::whole(&system.records().stage_tables.events[7].records),
-        Piece::whole(&system.records().stage_tables.events[8].records),
-        Piece::whole(&system.records().stage_tables.events[9].records),
-        Piece::whole(&system.records().stage_tables.events[10].records),
-        Piece::whole(&system.records().stage_tables.events[11].records),
-        Piece::held(&saves.rally_times.rallies[0]),                  // the six rallies' best times
-        Piece::held(&saves.rally_times.rallies[1]),
-        Piece::held(&saves.rally_times.rallies[2]),
-        Piece::held(&saves.rally_times.rallies[3]),
-        Piece::held(&saves.rally_times.rallies[4]),
-        Piece::held(&saves.rally_times.rallies[5]),
+        Field::Dword(&system.start().run_count.runs),                   // how many times the game was run
+        Field::Dword(&display.mode.menu_mode),                     // the menus' screen mode
+        Field::Dword(&display.mode.race_mode),                     // the race's screen mode
+        Field::Dword(&display.choices.mipmapping),                 // mipmapping, off or on
+        Field::Dword(&audio.state.menu_sound_mode),                     // the menus' sound mode
+        Field::Dword(&audio.state.race_sound_mode),                     // the race's sound mode
+        Field::Dword(&audio.state.master_volume),                       // the master volume
+        Field::Dword(&o.sound.menu.options.unread_option_f0),                     // a sound option kept in the file and read by no other code
+        Field::Dword(&o.sound.menu.options.race_music_on),                 // the race music switch
+        Field::Dword(&audio.state.tune_turn),                   // which tune comes next
+        Field::Dword(&o.sound.menu.options.music_volume),                // the music volume
+        Field::Dword(&o.sound.menu.options.race_music_volume),           // the race music's volume
+        text(&net.setup().machine_name, 0x40),                         // the machine's name
+        Field::Dword(&net.setup().most_players),                          // the most players a hosted session takes
+        text(&net.setup().host_address, 0x40),                         // the host's address (TCP/IP)
+        Field::Dword(&net.setup().port),                                  // the TCP/IP port
+        text(&net.address().saved_connection, 0x10),                     // the saved connection's GUID
+        Field::Dword(&saves.save_games.kept_a),                         // a saved-games word kept in the file and read by no other code
+        Field::Dword(&saves.save_games.kept_b),                         // a saved-games word kept in the file and read by no other code
+        Field::Dword(&o.service.set_ups.kept),                              // a car set-ups word kept in the file and read by no other code
+        text(&race.shared.tyre_change().record_name, 0x20),                  // the tyre change record holder's name
+        Field::Dword(&race.shared.tyre_change().record),                        // the tyre change record time
+        Field::Dword(&saves.files.options_kept[0]),                                   // four dwords nothing else reads
+        Field::Dword(&saves.files.options_kept[1]),
+        Field::Dword(&saves.files.options_kept[2]),
+        Field::Dword(&saves.files.options_kept[3]),
+        Field::Player(&menus.play.players.players[0]),                 // the four players' records
+        Field::Player(&menus.play.players.players[1]),
+        Field::Player(&menus.play.players.players[2]),
+        Field::Player(&menus.play.players.players[3]),
+        Field::Dword(&audio.levels.master_volume_shown),           // the master volume shown
+        Field::Dword(&work.music_level),                   // the music level
+        Field::Dword(&work.other_volume),                  // read by the music "up" step
+        Field::Dword(&work.menu_sounds_c),                 // the menu sounds' third volume
+        Field::Dword(&audio.levels.menu_sounds_a),                 // the menu sounds' first volume
+        Field::Dword(&work.speech_level),                  // the speech level
+        Field::Dword(&audio.levels.sounds_a),                      // the sounds' first level
+        Field::Dword(&audio.levels.sounds_b),                      // the sounds' second level
+        Field::Dwords(vec![                                        // the options pages' work copies, switch_0 .. headlights
+            &work.switch_0, &work.switch_1, &work.mode_changed, &work.modes_switch,
+            &work.lens_flare, &work.unused_percent_a, &work.unused_percent_b,
+            &work.reflections, &work.car_shadows, &work.car_detail, &work.headlights,
+        ]),
+        Field::Dwords(vec![                                        // the audio quality, the 3D switches and the channels
+            &work.audio_quality, &work.ds3d, &work.eax, &work.a3d, &work.dolby, &work.channels,
+        ]),
+        Field::Dword(&menus.tables.pages.services),                       // the services counted
+        Field::Dword(&menus.screens.flow.kept),                          // kept by the event races
+        Field::Dword(&race.shared.state.settings.a8_game),               // the race settings' first word
+        Field::Text { cells: &menus.play.arcade.levels_won, from: 0, len: 6 },                    // the arcade levels won, a byte each
+        Field::Dwords(numbers.first_numbers.iter().map(|n| n as &dyn DwordLike).collect()),                // the first list of car numbers
+        Field::Dwords(numbers.second_numbers[..20].iter().map(|n| n as &dyn DwordLike).collect()),         // the second list of car numbers, 20 entries
+        Field::Records(&tables.championship),              // the championship's records
+        Field::Records(&tables.events[5].records),          // the events' record tables, in the file's order
+        Field::Records(&tables.events[4].records),
+        Field::Records(&tables.events[3].records),
+        Field::Records(&tables.events[2].records),
+        Field::Records(&tables.events[1].records),
+        Field::Records(&tables.events[0].records),
+        Field::Records(&tables.events[6].records),
+        Field::Records(&tables.events[7].records),
+        Field::Records(&tables.events[8].records),
+        Field::Records(&tables.events[9].records),
+        Field::Records(&tables.events[10].records),
+        Field::Records(&tables.events[11].records),
+        Field::TimeEntries(&saves.rally_times.rallies[0]),                  // the six rallies' best times
+        Field::TimeEntries(&saves.rally_times.rallies[1]),
+        Field::TimeEntries(&saves.rally_times.rallies[2]),
+        Field::TimeEntries(&saves.rally_times.rallies[3]),
+        Field::TimeEntries(&saves.rally_times.rallies[4]),
+        Field::TimeEntries(&saves.rally_times.rallies[5]),
         names(0),                                               // the four players' names
         names(1),
         names(2),
@@ -227,9 +292,9 @@ pub fn pieces_of(o: Owners<'static>) -> [Piece<'static>; 69] {
     ]
 }
 
-/// The pieces on the game's own places.
+/// The fields on the game's own places.
 #[cfg(test)]
-pub fn pieces() -> [Piece<'static>; 69] {
+pub fn pieces() -> [Field<'static>; 69] {
     pieces_of(Owners::the())
 }
 
@@ -238,7 +303,7 @@ pub struct Places<'a> {
     /// The buffer the file is read into.
     pub file: &'a crate::session::PlainBytes<65536>,
     pub loaded: &'a dyn crate::session::FlagLike,
-    pub pieces: &'a [Piece<'a>],
+    pub pieces: &'a [Field<'a>],
     pub rebuild_car_lists: &'a mut dyn FnMut() -> Result<(), BadInput>,
 }
 
@@ -257,7 +322,7 @@ pub fn load_options(path: &dyn Store, places: &mut Places) -> Result<bool, Refus
     if !read.ok || !kept::head_ok(&block, kept::OPTIONS) {
         return Ok(false);
     }
-    let sizes: Vec<usize> = places.pieces.iter().map(Piece::len).collect();
+    let sizes: Vec<usize> = places.pieces.iter().map(Field::len).collect();
     let (pieces, ended) = kept::pieces(&block, &sizes)?;
     for (place, piece) in places.pieces.iter().zip(pieces) {
         place.write(piece)?;
@@ -302,15 +367,58 @@ mod tests {
         assert_eq!(OPTIONS.iter().sum::<usize>(), super::PIECES_LEN);
         for (n, (&len, piece)) in OPTIONS.iter().zip(pieces.iter()).enumerate() {
             assert_eq!(piece.len(), len, "piece {n} has another length");
-            match *piece {
-                super::Piece::Field { store, offset, len } => {
-                    assert!(offset + len <= store.size(), "piece {n} leaves its field");
-                }
-                super::Piece::Held(field) => assert_eq!(field.size(), len, "piece {n}"),
-                super::Piece::HeldPart { field, offset, len } => {
-                    assert!(offset + len <= field.size(), "piece {n} leaves its field");
-                }
-            }
         }
+    }
+
+    /// The varied value of byte `i` of piece `n`.
+    fn pattern(n: usize, i: usize, flip: u8) -> u8 {
+        ((n * 37 + i * 11 + (i >> 8) * 5 + 5) as u8) ^ flip
+    }
+
+    fn fill(flip: u8) {
+        for (n, piece) in super::pieces().iter().enumerate() {
+            let bytes: Vec<u8> = (0..piece.len()).map(|i| pattern(n, i, flip)).collect();
+            piece.write(&bytes).unwrap();
+        }
+    }
+
+    fn file_now() -> Vec<u8> {
+        let owned: Vec<Vec<u8>> = super::pieces().iter().map(|p| p.read().unwrap()).collect();
+        let refs: Vec<&[u8]> = owned.iter().map(Vec::as_slice).collect();
+        rc2k_core::saves::kept::options_file(0x1234_5678, &refs)
+    }
+
+    /// The options file of a state with a varied value in every byte of every piece is the
+    /// bytes kept in `golden/options.bin` (made by the code before the pieces became named
+    /// fields), and reading those bytes back gives the same state.
+    #[test]
+    fn options_file_of_a_varied_state_is_the_golden_file() {
+        let _lock = crate::test_support::test_lock();
+        let saved: Vec<Vec<u8>> = super::pieces().iter().map(|p| p.read().unwrap()).collect();
+        fill(0);
+        let file = file_now();
+        if std::env::var_os("RC2K_WRITE_GOLDEN").is_some() {
+            std::fs::write(
+                concat!(env!("CARGO_MANIFEST_DIR"), "/src/saves/golden/options.bin"),
+                &file,
+            )
+            .unwrap();
+        }
+        let golden: &[u8] = include_bytes!("golden/options.bin");
+        let same = file == golden;
+        // Another state, then the golden file's pieces put in.
+        fill(0xFF);
+        let sizes: Vec<usize> = super::pieces().iter().map(super::Field::len).collect();
+        let (pieces, ended) = rc2k_core::saves::kept::pieces(golden, &sizes).unwrap();
+        assert!(ended);
+        for (place, bytes) in super::pieces().iter().zip(&pieces) {
+            place.write(bytes).unwrap();
+        }
+        let loaded = file_now();
+        for (place, bytes) in super::pieces().iter().zip(&saved) {
+            place.write(bytes).unwrap();
+        }
+        assert!(same, "the options file changed (len {})", file.len());
+        assert!(loaded == golden, "the golden file does not load back");
     }
 }

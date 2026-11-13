@@ -67,7 +67,7 @@ pub const BLOCK_BYTES: usize = 4 * 0xA04;
 impl ViewerBuffers {
     /// The bytes, zero as in the image.
     pub const fn new() -> Self {
-        crate::cells::cells_of_bytes([0u8; core::mem::size_of::<ViewerBuffers>()])
+        crate::cells::zeroed_cells()
     }
 
     /// The replay block's bytes.

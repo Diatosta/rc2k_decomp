@@ -16,9 +16,14 @@ use crate::scene::light_tables::{fill_light_ramp, fill_light_scale};
 fn prefs_dwords<const N: usize>(
     course: &crate::race::owner_course::Course,
     offset: usize,
-) -> [u32; N] {
-    let d = course.stage_prefs.get().dwords();
-    std::array::from_fn(|k| d[offset / 4 + k].get())
+) -> Result<[u32; N], crate::errors::BadInput> {
+    let mut bytes = vec![0; 4 * N];
+    crate::cells::load_cells(course.stage_prefs.get(), offset, &mut bytes)?;
+    let mut d = [0; N];
+    for (v, b) in d.iter_mut().zip(bytes.as_chunks::<4>().0) {
+        *v = u32::from_le_bytes(*b);
+    }
+    Ok(d)
 }
 
 pub fn fill_light_tables(
@@ -39,7 +44,7 @@ pub fn fill_light_tables(
     let ramp: [u32; 6] = if plain {
         std::array::from_fn(|k| p[k].get())
     } else {
-        prefs_dwords(course, offset_of!(StagePrefs, dark_colour))
+        prefs_dwords(course, offset_of!(StagePrefs, dark_colour))?
     };
     fill_light_ramp(ramp, &t.light_table);
     // The four lamp tables and, the other way, their colours.
@@ -53,7 +58,7 @@ pub fn fill_light_tables(
         let colour = if plain {
             [p[0].get(), p[1].get(), p[2].get()]
         } else {
-            prefs_dwords(course, colour)
+            prefs_dwords(course, colour)?
         };
         fill_light_scale(colour, table);
     }

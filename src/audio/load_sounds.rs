@@ -179,18 +179,8 @@ mod tests {
         for n in 0..72 {
             lists.push(RaceSoundSets::kind_list_of(n).unwrap());
         }
-        for field in [
-            core::mem::offset_of!(RaceSoundSets, replay_set),
-            core::mem::offset_of!(RaceSoundSets, first_set_a),
-            core::mem::offset_of!(RaceSoundSets, first_set_b),
-            core::mem::offset_of!(RaceSoundSets, first_set_c),
-            core::mem::offset_of!(RaceSoundSets, second_set_a),
-            core::mem::offset_of!(RaceSoundSets, second_set_b),
-            core::mem::offset_of!(RaceSoundSets, last_set),
-        ] {
-            lists.push(SoundList::Race {
-                offset: field as u32,
-            });
+        for set in crate::sound::sets_store::NamedSet::ALL {
+            lists.push(set.list());
         }
         for list in lists {
             let entry = list_entries(crate::sound::owner::sound(), list).unwrap();
