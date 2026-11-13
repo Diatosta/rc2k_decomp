@@ -518,7 +518,7 @@ mod reference_vectors {
     use super::Shadow;
     use crate::effects::asm_layout::with_laid_at;
     use crate::effects::asm_test::START;
-    use crate::effects::asm_test::with_copy;
+    use crate::effects::asm_test::{Operand, floats_at, with_copy};
     use crate::effects::kind_store::{KindConsts, QuadWork};
     use crate::session::PlainFloat;
 
@@ -536,7 +536,7 @@ mod reference_vectors {
         f: impl FnOnce(&Shadow) -> R,
     ) -> R {
         with_laid_at::<QuadWork, R>(mk, l.0, |quad| {
-            with_copy::<KindConsts, R>(mk, l.1, |consts| {
+            with_consts(mk, l.1, |consts| {
                 with_copy::<PlainFloat, R>(mk, l.2, |up| {
                     f(&Shadow {
                         quad,
@@ -550,6 +550,23 @@ mod reference_vectors {
                     })
                 })
             })
+        })
+    }
+    /// `f` on a set's constants made from the floats the test buffer `mk` holds at `start`.
+    fn with_consts<R>(mk: Operand, start: usize, f: impl FnOnce(&KindConsts) -> R) -> R {
+        let v = floats_at::<21>(mk, start);
+        f(&KindConsts {
+            size_k: v[0],
+            start_k: v[1],
+            step_k: v[2],
+            middle_k: v[3],
+            slope_k: v[4],
+            spread_k: v[5],
+            extra_k: v[6],
+            place_k: [v[7], v[8], v[9], v[10], v[11], v[12]],
+            place_less: v[13],
+            light: [v[14], v[15], v[16]],
+            lifts: [v[17], v[18], v[19], v[20]],
         })
     }
     /// `f` on the matrix and the two temporaries in the test buffers `m` and `t`.

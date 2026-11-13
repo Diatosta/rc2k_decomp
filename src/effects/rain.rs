@@ -249,6 +249,7 @@ impl Weather {
 pub mod tests {
     use super::*;
     use crate::effects::asm_layout::with_laid;
+    use crate::effects::asm_test::floats_at;
 
     /// Runs `f` on the rain's variables made from the test buffer `mk` standing for the
     /// marks' block, and puts them back (`asm_layout`).
@@ -256,6 +257,22 @@ pub mod tests {
         mk: crate::effects::asm_test::Operand,
         f: impl FnOnce(&RainState, &RainRules) -> R,
     ) -> R {
-        with_laid::<RainState, _>(mk, |s| with_laid::<RainRules, _>(mk, |r| f(s, r)))
+        // The rules are plain floats in two runs of the 1999 layout.
+        let (a, b) = (0x8C5F91, 0x8C5FD1);
+        let (x, y) = (floats_at::<10>(mk, a), floats_at::<8>(mk, b));
+        let rules = RainRules {
+            rhw: x[0],
+            move_scale: [x[1], x[2], x[3]],
+            move_limit: x[4],
+            move_held: x[5],
+            move_factors: [x[6], x[7], x[8]],
+            drift_k: x[9],
+            target_scale: [y[0], y[1]],
+            ease: [y[2], y[3]],
+            height: y[4],
+            view_scale: [y[5], y[6]],
+            half_width: y[7],
+        };
+        with_laid::<RainState, _>(mk, |s| f(s, &rules))
     }
 }

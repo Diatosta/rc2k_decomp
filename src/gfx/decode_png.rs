@@ -1,6 +1,6 @@
 //! `gfx::decode_png` (0x4D3040): decodes a PNG file held in memory.
 //!
-//! In (on the stack, a C function): the file, where the pixels go, the `PngInfo` to fill
+//! In (on the stack, a C function): the file, where the pixels go, the info block to fill (`gfx::png`)
 //! The original walks the chunks to IEND, trusting every length. IHDR gives the width, the
 //! height and the colour type; an IDAT chunk is inflated (zlib 1.1.3) straight into the
 //! pixel area, `(bytes a pixel * width + 1) * height` bytes at most, and its rows are then
@@ -83,27 +83,23 @@ pub fn decode_png(
         crate::gfx::picture::write_bytes(pixels, 0, &buffer)?;
     }
     let what = "the PNG info block";
-    info.write_at(0, &[0u8], what)?;
+    info.write_at(crate::gfx::png::INFO_HAS_PALETTE, &[0u8], what)?;
     info.write_at(
-        core::mem::offset_of!(crate::gfx::png::PngInfo, width),
+        crate::gfx::png::INFO_WIDTH,
         &header.width.to_le_bytes(),
         what,
     )?;
     info.write_at(
-        core::mem::offset_of!(crate::gfx::png::PngInfo, height),
+        crate::gfx::png::INFO_HEIGHT,
         &header.height.to_le_bytes(),
         what,
     )?;
     if let Some(start) = found.palette {
-        info.write_at(0, &[1u8], what)?;
+        info.write_at(crate::gfx::png::INFO_HAS_PALETTE, &[1u8], what)?;
         let palette = file
             .get(start..start + 0x300)
             .ok_or(BadInput("a palette chunk that runs past the file"))?;
-        info.write_at(
-            core::mem::offset_of!(crate::gfx::png::PngInfo, palette),
-            palette,
-            what,
-        )?;
+        info.write_at(crate::gfx::png::INFO_PALETTE, palette, what)?;
     }
     Ok(0)
 }

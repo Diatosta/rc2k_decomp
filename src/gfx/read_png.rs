@@ -73,11 +73,7 @@ fn read_held(
         .picture
         .row_bytes
         .set(pictures.decoder.stride.get());
-    if crate::gfx::png::info_byte(
-        core::mem::offset_of!(crate::gfx::png::PngInfo, has_palette),
-        system,
-    ) == 1
-    {
+    if crate::gfx::png::info_byte(crate::gfx::png::INFO_HAS_PALETTE, system) == 1 {
         palette_pixels_to_dwords(gfx)?;
     } else {
         rgb_pixels_to_dwords(gfx)?;

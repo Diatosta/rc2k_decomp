@@ -901,14 +901,7 @@ pub mod block_vectors {
         fn get(&self, off: usize, len: usize) -> Vec<u8> {
             match self {
                 Mem::Buffer(v) => v[off..off + len].to_vec(),
-                Mem::Block => {
-                    let (name, at) = crate::test_support::race_places::place(off);
-                    let mut bytes = vec![0; len];
-                    crate::test_support::state::store(name)
-                        .load(at, &mut bytes)
-                        .expect("a race block place");
-                    bytes
-                }
+                Mem::Block => crate::test_support::race_places::read(off, len),
                 Mem::None => Vec::new(),
             }
         }
@@ -916,12 +909,7 @@ pub mod block_vectors {
         fn put(&mut self, off: usize, bytes: &[u8]) {
             match self {
                 Mem::Buffer(v) => v[off..off + bytes.len()].copy_from_slice(bytes),
-                Mem::Block => {
-                    let (name, at) = crate::test_support::race_places::place(off);
-                    crate::test_support::state::store(name)
-                        .store(at, bytes)
-                        .expect("a race block place");
-                }
+                Mem::Block => crate::test_support::race_places::write(off, bytes),
                 Mem::None => {}
             }
         }

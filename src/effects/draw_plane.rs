@@ -32,7 +32,6 @@ use crate::scene::vector3::normalise;
 const UV_WORDS: [(u32, u32); 4] = [(0xC, 0xE), (8, 0xA), (0, 2), (4, 6)];
 
 /// The plane's constants (IDA 0x934F30 .. 0x934F7C). The offsets are from its start.
-/// `repr(C)`: the recorded x87 vectors rebuild it from its bytes (`asm_test::with_copy`).
 #[repr(C)]
 pub struct PlaneTuning {
     /// +0x0: what the settings' rate is multiplied by into the first axis' scale
@@ -404,15 +403,26 @@ mod reference_vectors {
     use super::{PlaneTuning, QuadWork};
     use crate::effects::asm_layout::{with_laid, with_laid_at};
     use crate::effects::asm_test::Kind::*;
-    use crate::effects::asm_test::with_copy;
-    use crate::effects::asm_test::with_settings;
     use crate::effects::asm_test::{Op, Spec, recorded_writes};
+    use crate::effects::asm_test::{Operand, floats_at, with_settings};
     use crate::effects::typed_sync::{overlay_laid, with_overlays};
 
     /// Where the plane tuning sat in the 1999 layout.
     const PLANE_TUNING_START: usize = 0x934F30;
 
     use crate::effects::windscreen_flakes_store::{WindscreenFlakeTables, WindscreenFlakeTiming};
+
+    /// `f` on the plane tuning made from the floats the test buffer `mk` holds at its place.
+    fn with_plane_tuning<R>(mk: Operand, f: impl FnOnce(&PlaneTuning) -> R) -> R {
+        let v = floats_at::<19>(mk, PLANE_TUNING_START);
+        f(&PlaneTuning {
+            rate_k: v[0],
+            shares: [v[1], v[2]],
+            places: [[v[3], v[4]], [v[5], v[6]], [v[7], v[8]], [v[9], v[10]]],
+            lifts: [v[11], v[12], v[13], v[14]],
+            rhw_k: [v[15], v[16], v[17], v[18]],
+        })
+    }
 
     #[test]
     fn plane_axes_x87_matches() {
@@ -459,7 +469,7 @@ mod reference_vectors {
         recorded_writes("effects.draw_plane.plane_axes_x87", &SPEC, |b| {
             with_laid::<WindscreenFlakeTiming, _>(b[0], |sti| {
                 with_laid::<WindscreenFlakeTables, _>(b[0], |sq| {
-                    with_copy::<PlaneTuning, _>(b[0], PLANE_TUNING_START, |pt| {
+                    with_plane_tuning(b[0], |pt| {
                         with_settings(b[1], |m| super::plane_axes_x87(m, sti, sq, pt));
                     });
                 });
@@ -505,7 +515,7 @@ mod reference_vectors {
         };
         recorded_writes("effects.draw_plane.plane_up_x87", &SPEC, |b| {
             with_laid::<WindscreenFlakeTables, _>(b[0], |sq| {
-                with_copy::<PlaneTuning, _>(b[0], PLANE_TUNING_START, |pt| {
+                with_plane_tuning(b[0], |pt| {
                     with_settings(b[1], |m| super::plane_up_x87(m, sq, pt));
                 });
             });

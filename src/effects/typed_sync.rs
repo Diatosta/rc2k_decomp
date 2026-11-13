@@ -4,72 +4,70 @@
 //! version the statics hold the buffer's bytes, and the bytes it leaves go back to the buffer
 //! (`test_support::test_lock` is held by `differential`).
 
-use crate::effects::asm_layout::{Laid, Run};
+use crate::effects::asm_layout::Laid;
 use crate::effects::asm_test::Operand;
 use crate::effects::asm_test::START;
+use crate::test_support::paths::{field_bytes, field_range, set_field_range};
 
-/// A typed static and where its first byte is in the marks' block (IDA).
+type Reader = Box<dyn Fn(&str, usize) -> Vec<u8>>;
+type Writer = Box<dyn Fn(&str, &[u8]) -> bool>;
+
+/// A typed static with a 1999 layout (`Laid`) and where its first byte is in the marks' block
+/// (IDA). Its cells are read and written by field path, whatever the static's own layout.
 pub struct Overlay {
-    home: *mut u8,
-    len: usize,
     start: usize,
-    /// The runs of the static's fields that were in the 1999 layout (`Laid`); none for a
-    /// static whose bytes are the buffer's, one for one.
-    runs: &'static [Run],
-}
-
-/// The overlay of `st`, a typed static whose first byte is IDA's address `start`.
-pub fn overlay<T>(st: &'static T, start: usize) -> Overlay {
-    Overlay {
-        home: std::ptr::from_ref::<T>(st) as *mut u8,
-        len: size_of::<T>(),
-        start,
-        runs: &[],
-    }
+    /// The runs of the static's fields that were in the 1999 layout.
+    runs: &'static [crate::effects::asm_layout::Run],
+    /// The bytes of the static's cells from a field on, a given length.
+    get: Reader,
+    /// The cells from a field on set from bytes.
+    set: Writer,
 }
 
 /// The overlay of `st`, a typed static with a 1999 layout (`Laid`): its fields hold the
 /// bytes the buffer has at their 1999 places.
 pub fn overlay_laid<T: Laid>(st: &'static T) -> Overlay {
     Overlay {
+        start: T::START,
         runs: T::RUNS,
-        ..overlay(st, T::START)
+        get: Box::new(move |field, len| {
+            if field.is_empty() && len == usize::MAX {
+                field_bytes(st, "")
+            } else {
+                field_range(st, field, len)
+            }
+        }),
+        set: Box::new(move |field, bytes| set_field_range(st, field, bytes)),
     }
 }
 
 /// Runs `f` with each overlay's static holding the bytes the buffer `mk` has there; what the
 /// statics hold afterwards goes into the buffer, and the statics are put back as they were.
 pub fn with_overlays<R>(mk: Operand, overlays: &[Overlay], f: impl FnOnce() -> R) -> R {
-    // The places in the buffer and in the static of every piece the buffer and the static
-    // share: the whole static, or each run of a static with a 1999 layout.
-    let pieces = |o: &Overlay| -> Vec<(*mut u8, *mut u8, usize)> {
-        if o.runs.is_empty() {
-            vec![(mk.at(o.start.wrapping_sub(START), o.len), o.home, o.len)]
-        } else {
-            o.runs
-                .iter()
-                .map(|r| {
-                    let from = mk.at((o.start + r.at).wrapping_sub(START), r.len);
-                    (from, o.home.wrapping_add(r.to), r.len)
-                })
-                .collect()
-        }
-    };
+    let place =
+        |o: &Overlay, r: &crate::effects::asm_layout::Run| (o.start + r.at).wrapping_sub(START);
     // Every piece must fit the buffer before any is touched.
-    let all: Vec<_> = overlays.iter().map(pieces).collect();
-    let saved: Vec<Vec<u8>> = overlays
-        .iter()
-        .map(|o| unsafe { std::slice::from_raw_parts(o.home, o.len) }.to_vec())
-        .collect();
-    for (buffer, home, len) in all.iter().flatten() {
-        unsafe { std::ptr::copy_nonoverlapping(*buffer, *home, *len) };
+    for o in overlays {
+        for r in o.runs {
+            mk.at(place(o, r), r.len);
+        }
+    }
+    let saved: Vec<Vec<u8>> = overlays.iter().map(|o| (o.get)("", usize::MAX)).collect();
+    for o in overlays {
+        for r in o.runs {
+            assert!(
+                (o.set)(r.field, &mk.read(place(o, r), r.len)),
+                "{}",
+                r.field
+            );
+        }
     }
     let out = f();
-    for (o, (pieces, bytes)) in overlays.iter().zip(all.iter().zip(&saved)) {
-        for (buffer, home, len) in pieces {
-            unsafe { std::ptr::copy_nonoverlapping(*home, *buffer, *len) };
+    for (o, bytes) in overlays.iter().zip(&saved) {
+        for r in o.runs {
+            mk.put(place(o, r), &(o.get)(r.field, r.len));
         }
-        unsafe { std::ptr::copy_nonoverlapping(bytes.as_ptr(), o.home, o.len) };
+        assert!((o.set)("", bytes));
     }
     out
 }

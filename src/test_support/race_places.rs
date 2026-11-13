@@ -1,9 +1,9 @@
 //! Where the race block's places the recorded blocks read and write live in the registry's
 //! stores: the block's offset (the original instruction's displacement), the store's
 //! registry name and the field in the store, by its path (`ByteView::field_path`). The blocks'
-//! tests (`vectors::block_vectors`) reach the places through the stores by name.
+//! tests (`vectors::block_vectors`) reach the places through the stores by name, a field
+//! through `paths` and not by its byte in the record.
 
-use std::collections::HashMap;
 use std::sync::OnceLock;
 
 /// `(offset, store, field path)`, sorted by offset.
@@ -460,102 +460,87 @@ const BYTES: &[(usize, &str, usize)] = &[
     (0x31C708, "race.owner.RACE.shared.work", 0x12F8),
 ];
 
-/// The path of a field with its array indices taken out: `.forces[3].force[1]` is
-/// `.forces.force`. A run of like cells is named by its first cell, so a cell is looked for
-/// in the runs whose path matches in this form.
-fn without_indices(path: &str) -> String {
-    let mut out = String::new();
-    let mut inside = false;
-    for c in path.chars() {
-        match c {
-            '[' => inside = true,
-            ']' => inside = false,
-            _ if !inside => out.push(c),
-            _ => {}
-        }
-    }
-    out
+/// Where a place is in its store: a field by its path (whatever the record's layout), or a
+/// byte of a record that is still read by layout (the car, the race work).
+#[derive(Clone, Copy)]
+enum Located {
+    Path(&'static str),
+    Byte(usize),
 }
 
-/// A stretch of a store's bytes under one field path.
-struct Run {
-    offset: usize,
-    len: usize,
-    path: String,
-}
-
-/// The runs a store is cut into, in order.
-fn runs_of(store: &dyn super::registry::Walk) -> Vec<Run> {
-    let size = store.size();
-    let mut runs = Vec::new();
-    let mut at = 0;
-    while at < size {
-        let (start, run) = store.cell_run_at(at);
-        let end = (start + run.len()).min(size);
-        assert!(end > at, "a run that does not advance, at byte {at}");
-        let mut path = String::new();
-        store.field_path_at(at, &mut path);
-        if path.is_empty() {
-            path = format!("@{at}");
-        }
-        runs.push(Run {
-            offset: at,
-            len: end - at,
-            path,
-        });
-        at = end;
-    }
-    runs
-}
-
-/// The offset in `store` of the cell named `path`.
-fn offset_in_store(store: &dyn super::registry::Walk, runs: &[Run], path: &str) -> usize {
-    let wanted = without_indices(path);
-    for run in runs {
-        if without_indices(&run.path) != wanted {
-            continue;
-        }
-        for at in run.offset..run.offset + run.len {
-            let mut here = String::new();
-            store.field_path_at(at, &mut here);
-            if here == path {
-                return at;
-            }
-        }
-    }
-    panic!("no field {path} in a store of the registry");
-}
-
-/// Every place of the race block: its offset, the store and the offset in the store.
-fn table() -> &'static [(usize, &'static str, usize)] {
-    static TABLE: OnceLock<Vec<(usize, &'static str, usize)>> = OnceLock::new();
+/// Every place of the race block: its offset, the store and where it is in the store.
+fn table() -> &'static [(usize, &'static str, Located)] {
+    static TABLE: OnceLock<Vec<(usize, &'static str, Located)>> = OnceLock::new();
     TABLE.get_or_init(|| {
-        let mut runs: HashMap<&str, Vec<Run>> = HashMap::new();
-        let mut table: Vec<(usize, &'static str, usize)> = FIELDS
+        let mut table: Vec<(usize, &'static str, Located)> = FIELDS
             .iter()
-            .map(|&(block, name, path)| {
-                let store = super::state::walk(name);
-                let runs = runs.entry(name).or_insert_with(|| runs_of(store));
-                (block, name, offset_in_store(store, runs, path))
-            })
+            .map(|&(block, name, path)| (block, name, Located::Path(path)))
             .collect();
         // The byte rows were recorded in the 1999 layout of the car and of the race work.
         table.extend(
-            BYTES
-                .iter()
-                .map(|&(block, name, at)| (block, name, in_current_layout(name, at))),
+            BYTES.iter().map(|&(block, name, at)| {
+                (block, name, Located::Byte(in_current_layout(name, at)))
+            }),
         );
         table.sort_by_key(|p| p.0);
         table
     })
 }
 
-/// The store and the offset in it of the place at `off`.
-pub fn place(off: usize) -> (&'static str, usize) {
+/// The store and the place in it of the race block's byte `off`.
+fn place(off: usize) -> (&'static str, Located) {
     let table = table();
     match table.binary_search_by_key(&off, |p| p.0) {
         Ok(i) => (table[i].1, table[i].2),
         Err(_) => panic!("race block place {off:#X} is not in test_support::race_places"),
+    }
+}
+
+/// `len` bytes of the race block from `off`: the place's own cells, and where the read is
+/// wider than they are, the places that follow it.
+pub fn read(off: usize, len: usize) -> Vec<u8> {
+    let (name, located) = place(off);
+    match located {
+        Located::Byte(at) => {
+            let mut bytes = vec![0; len];
+            super::state::store(name)
+                .load(at, &mut bytes)
+                .expect("a race block place");
+            bytes
+        }
+        Located::Path(path) => {
+            let mut bytes = super::state::walk(name)
+                .path_bytes(path)
+                .unwrap_or_else(|| panic!("no field {path} in {name}"));
+            if bytes.len() < len {
+                let rest = read(off + bytes.len(), len - bytes.len());
+                bytes.extend(rest);
+            }
+            bytes.truncate(len);
+            bytes
+        }
+    }
+}
+
+/// `bytes` put at the race block's `off`, as `read` finds the places.
+pub fn write(off: usize, bytes: &[u8]) {
+    let (name, located) = place(off);
+    match located {
+        Located::Byte(at) => super::state::store(name)
+            .store(at, bytes)
+            .expect("a race block place"),
+        Located::Path(path) => {
+            let store = super::state::walk(name);
+            let mut cells = store
+                .path_bytes(path)
+                .unwrap_or_else(|| panic!("no field {path} in {name}"));
+            let here = cells.len().min(bytes.len());
+            cells[..here].copy_from_slice(&bytes[..here]);
+            assert!(store.set_path_bytes(path, &cells), "{path} in {name}");
+            if bytes.len() > here {
+                write(off + here, &bytes[here..]);
+            }
+        }
     }
 }
 
@@ -575,6 +560,8 @@ pub fn in_current_layout(store: &str, at: usize) -> usize {
 
 #[cfg(test)]
 mod tests {
+    use super::Located;
+
     #[test]
     fn the_places_are_found_once_each() {
         let _g = crate::test_support::test_lock();
@@ -587,8 +574,19 @@ mod tests {
                 pair[1].0
             );
         }
-        for &(_, name, at) in table {
-            assert!(at < crate::test_support::state::store(name).size());
+        for &(block, name, located) in table {
+            match located {
+                Located::Byte(at) => {
+                    assert!(at < crate::test_support::state::store(name).size());
+                }
+                Located::Path(path) => {
+                    let cells = crate::test_support::state::walk(name).path_bytes(path);
+                    assert!(
+                        cells.is_some_and(|c| !c.is_empty()),
+                        "place {block:#X}: no field {path} in {name}"
+                    );
+                }
+            }
         }
     }
 }

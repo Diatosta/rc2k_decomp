@@ -535,7 +535,6 @@ impl KindExtra2 {
 }
 
 /// A set's constants and light (IDA 0x54 bytes). The offsets are from its start.
-/// `repr(C)`: the recorded x87 vectors rebuild it from its bytes (`asm_test::with_copy`).
 #[repr(C)]
 pub struct KindConsts {
     /// +0x0: the kind's size is multiplied by it (`kind_values` c0) (`flt_933E7C`)

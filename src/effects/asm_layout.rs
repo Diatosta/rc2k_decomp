@@ -7,64 +7,36 @@
 //! runs stay as the buffer had them: nothing typed reads them. Test code only; it goes with the
 //! recorded vectors.
 
+use crate::cells::Cells;
 use crate::effects::asm_test::Operand;
 use crate::effects::asm_test::START as BLOCK;
-use core::mem::offset_of;
+use crate::test_support::paths::{field_range, field_start, set_field_range};
 
 /// A run of fields that were next to each other in the 1999 layout.
 pub struct Run {
     /// Its offset from the store's first byte in the 1999 layout.
     pub at: usize,
-    /// Its offset in the typed store.
-    pub to: usize,
-    /// Its length.
+    /// The path of the field it begins with in the typed store; the run takes this field's
+    /// cells and the next fields' until `len` bytes of cells are covered.
+    pub field: &'static str,
+    /// Its length in bytes of cells.
     pub len: usize,
 }
 
 /// A store with a 1999 layout.
-pub trait Laid: Sized {
+pub trait Laid: Cells + Sized {
     /// RAL.EXE's address of the store's first byte.
     const START: usize;
     /// The runs of fields, in order.
     const RUNS: &'static [Run];
 }
 
-/// Runs `f` on a copy of the store `T` made from the bytes the test buffer `mk` (standing
-/// for the marks' block) holds at the 1999 places of its fields, and puts the copy's fields
-/// back into the buffer afterwards. Bytes of the copy no run covers are 0.
-pub fn with_laid<T: Laid, R>(mk: Operand, f: impl FnOnce(&T) -> R) -> R {
-    with_laid_at(mk, T::START, f)
-}
-
-/// `with_laid` for a store that has several copies in the 1999 layout, the one at `start`.
-pub fn with_laid_at<T: Laid, R>(mk: Operand, start: usize, f: impl FnOnce(&T) -> R) -> R {
-    let place = |r: &Run| mk.at((start + r.at).wrapping_sub(BLOCK), r.len);
-    // Every run must lie in the buffer before any is read.
-    for r in T::RUNS {
-        place(r);
-    }
-    // On the heap: some stores are near 100 KB, and a test thread's stack is small.
-    // SAFETY: a store is cells of integers and floats, for which zero bytes are a value.
-    let mut local = unsafe { Box::<T>::new_zeroed().assume_init() };
-    let base = (&raw mut *local).cast::<u8>();
-    for r in T::RUNS {
-        // SAFETY: the run lies in the buffer (checked) and in the store (`runs_cover_the_stores`).
-        unsafe { core::ptr::copy_nonoverlapping(place(r), base.add(r.to), r.len) };
-    }
-    let out = f(&local);
-    for r in T::RUNS {
-        // SAFETY: as above.
-        unsafe { core::ptr::copy_nonoverlapping(base.add(r.to).cast_const(), place(r), r.len) };
-    }
-    out
-}
-
 use crate::effects::blocks::CornerSlopes;
 use crate::effects::frame_state::{DrawWork, ViewVars};
 use crate::effects::kind_store::QuadWork;
-use crate::effects::mask_store::{KindPictures, MaskBlocks, PictureCopy};
+use crate::effects::mask_store::{MaskBlocks, PictureCopy};
 use crate::effects::pong::{PongRules, PongState};
-use crate::effects::rain::{RainRules, RainState};
+use crate::effects::rain::RainState;
 use crate::effects::ring_store::RingWork;
 use crate::effects::setup::MarksClock;
 use crate::effects::snow::{SnowCurveVars, SnowLight, SnowState, SnowTables};
@@ -77,16 +49,42 @@ use crate::effects::windscreen_flakes_store::{
     WindscreenFlakeState, WindscreenFlakeTables, WindscreenFlakeTiming,
 };
 
+/// A store with every cell 0.
+fn zeroed<T: Cells>() -> Box<T> {
+    // On the heap: some stores are near 100 KB, and a test thread's stack is small.
+    crate::cells::boxed_zeroed_cells()
+}
+
+/// Runs `f` on a copy of the store `T` made from the bytes the test buffer `mk` (standing
+/// for the marks' block) holds at the 1999 places of its fields, and puts the copy's fields
+/// back into the buffer afterwards. Cells no run covers are 0.
+pub fn with_laid<T: Laid, R>(mk: Operand, f: impl FnOnce(&T) -> R) -> R {
+    with_laid_at(mk, T::START, f)
+}
+
+/// `with_laid` for a store that has several copies in the 1999 layout, the one at `start`.
+pub fn with_laid_at<T: Laid, R>(mk: Operand, start: usize, f: impl FnOnce(&T) -> R) -> R {
+    let place = |r: &Run| (start + r.at).wrapping_sub(BLOCK);
+    let local = zeroed::<T>();
+    for r in T::RUNS {
+        // `read` checks that the run lies in the buffer.
+        let bytes = mk.read(place(r), r.len);
+        assert!(set_field_range(&*local, r.field, &bytes), "{}", r.field);
+    }
+    let out = f(&local);
+    for r in T::RUNS {
+        mk.put(place(r), &field_range(&*local, r.field, r.len));
+    }
+    out
+}
+
 /// A copy of the store `T` made from the buffer as `with_laid` does, but zero where the buffer
 /// does not reach (a block reads only the fields it uses), and never put back.
 pub fn copy_of<T: Laid>(mk: Operand) -> &'static T {
-    // SAFETY: a store is cells of integers and floats, for which zero bytes are a value.
-    let mut local = unsafe { Box::<T>::new_zeroed().assume_init() };
-    let base = (&raw mut *local).cast::<u8>();
+    let local = zeroed::<T>();
     for r in T::RUNS {
         let bytes = mk.bytes_or_zero((T::START + r.at).wrapping_sub(BLOCK), r.len);
-        // SAFETY: the run lies in the store (`runs_cover_the_stores`).
-        unsafe { core::ptr::copy_nonoverlapping(bytes.as_ptr(), base.add(r.to), r.len) };
+        assert!(set_field_range(&*local, r.field, &bytes), "{}", r.field);
     }
     Box::leak(local)
 }
@@ -95,7 +93,7 @@ impl Laid for CornerSlopes {
     const START: usize = 0x920734;
     const RUNS: &'static [Run] = &[Run {
         at: 0x0,
-        to: offset_of!(CornerSlopes, slopes),
+        field: ".slopes",
         len: 0x2400,
     }];
 }
@@ -106,22 +104,22 @@ impl Laid for QuadWork {
     const RUNS: &'static [Run] = &[
         Run {
             at: 0x0,
-            to: offset_of!(QuadWork, place),
+            field: ".place",
             len: 0xC,
         },
         Run {
             at: 0x10,
-            to: offset_of!(QuadWork, light_turned),
+            field: ".light_turned",
             len: 0x30,
         },
         Run {
             at: 0x4C,
-            to: offset_of!(QuadWork, sides),
+            field: ".sides",
             len: 0x18,
         },
         Run {
             at: 0x70,
-            to: offset_of!(QuadWork, frame),
+            field: ".frame",
             len: 0x88,
         },
     ];
@@ -132,32 +130,32 @@ impl Laid for DrawWork {
     const RUNS: &'static [Run] = &[
         Run {
             at: 0x0,
-            to: offset_of!(DrawWork, profile_work),
+            field: ".profile_work",
             len: 0x2C,
         },
         Run {
             at: 0x44,
-            to: offset_of!(DrawWork, half),
+            field: ".half",
             len: 0x38,
         },
         Run {
             at: 0xD0,
-            to: offset_of!(DrawWork, sides),
+            field: ".sides",
             len: 0x8,
         },
         Run {
             at: 0xE0,
-            to: offset_of!(DrawWork, step),
+            field: ".step",
             len: 0xC,
         },
         Run {
             at: 0xF0,
-            to: offset_of!(DrawWork, near),
+            field: ".near",
             len: 0x4,
         },
         Run {
             at: 0xF8,
-            to: offset_of!(DrawWork, uv_k),
+            field: ".uv_k",
             len: 0x8,
         },
     ];
@@ -168,22 +166,22 @@ impl Laid for ViewVars {
     const RUNS: &'static [Run] = &[
         Run {
             at: 0x0,
-            to: offset_of!(ViewVars, heading),
+            field: ".heading",
             len: 0x18,
         },
         Run {
             at: 0x1C,
-            to: offset_of!(ViewVars, first_end_half_width),
+            field: ".first_end_half_width",
             len: 0x8,
         },
         Run {
             at: 0x28,
-            to: offset_of!(ViewVars, second_end_half_width),
+            field: ".second_end_half_width",
             len: 0x8,
         },
         Run {
             at: 0x34,
-            to: offset_of!(ViewVars, turned_points),
+            field: ".turned_points",
             len: 0x24,
         },
     ];
@@ -194,17 +192,17 @@ impl Laid for MaskBlocks {
     const RUNS: &'static [Run] = &[
         Run {
             at: 0x0,
-            to: offset_of!(MaskBlocks, seen),
+            field: ".seen",
             len: 0x18,
         },
         Run {
             at: 0x48,
-            to: offset_of!(MaskBlocks, mask),
+            field: ".mask",
             len: 0x14,
         },
         Run {
             at: 0x8C,
-            to: offset_of!(MaskBlocks, bmask),
+            field: ".bmask",
             len: 0x30,
         },
     ];
@@ -215,24 +213,15 @@ impl Laid for PictureCopy {
     const RUNS: &'static [Run] = &[
         Run {
             at: 0x0,
-            to: offset_of!(PictureCopy, list),
+            field: ".list",
             len: 0x10,
         },
         Run {
             at: 0x40,
-            to: offset_of!(PictureCopy, copy),
+            field: ".copy",
             len: 0x40,
         },
     ];
-}
-
-impl Laid for KindPictures {
-    const START: usize = 0x934EA8;
-    const RUNS: &'static [Run] = &[Run {
-        at: 0x0,
-        to: offset_of!(KindPictures, numbers),
-        len: 0x88,
-    }];
 }
 
 impl Laid for PongState {
@@ -240,52 +229,52 @@ impl Laid for PongState {
     const RUNS: &'static [Run] = &[
         Run {
             at: 0x0,
-            to: offset_of!(PongState, box_sides),
+            field: ".box_sides",
             len: 0x38,
         },
         Run {
             at: 0x3C,
-            to: offset_of!(PongState, ball_way),
+            field: ".ball_way",
             len: 0x8,
         },
         Run {
             at: 0x48,
-            to: offset_of!(PongState, ball_size),
+            field: ".ball_size",
             len: 0x8,
         },
         Run {
             at: 0x54,
-            to: offset_of!(PongState, saved_bat),
+            field: ".saved_bat",
             len: 0x8,
         },
         Run {
             at: 0x60,
-            to: offset_of!(PongState, bat),
+            field: ".bat",
             len: 0x8,
         },
         Run {
             at: 0x78,
-            to: offset_of!(PongState, bat_size),
+            field: ".bat_size",
             len: 0x8,
         },
         Run {
             at: 0x84,
-            to: offset_of!(PongState, ball_centre),
+            field: ".ball_centre",
             len: 0x8,
         },
         Run {
             at: 0x90,
-            to: offset_of!(PongState, bat_centre),
+            field: ".bat_centre",
             len: 0x8,
         },
         Run {
             at: 0x9C,
-            to: offset_of!(PongState, difference),
+            field: ".difference",
             len: 0x8,
         },
         Run {
             at: 0xA8,
-            to: offset_of!(PongState, steps),
+            field: ".steps",
             len: 0xDC,
         },
     ];
@@ -296,22 +285,22 @@ impl Laid for PongRules {
     const RUNS: &'static [Run] = &[
         Run {
             at: 0x0,
-            to: offset_of!(PongRules, start),
+            field: ".start",
             len: 0x20,
         },
         Run {
             at: 0x24,
-            to: offset_of!(PongRules, walls),
+            field: ".walls",
             len: 0x3C,
         },
         Run {
             at: 0x78,
-            to: offset_of!(PongRules, cell_step),
+            field: ".cell_step",
             len: 0x24,
         },
         Run {
             at: 0xA0,
-            to: offset_of!(PongRules, setup_places),
+            field: ".setup_places",
             len: 0x10,
         },
     ];
@@ -322,64 +311,48 @@ impl Laid for RainState {
     const RUNS: &'static [Run] = &[
         Run {
             at: 0x0,
-            to: offset_of!(RainState, drawn),
+            field: ".drawn",
             len: 0x60,
         },
         Run {
             at: 0x78,
-            to: offset_of!(RainState, motion),
+            field: ".motion",
             len: 0x84,
         },
         Run {
             at: 0x100,
-            to: offset_of!(RainState, drift),
+            field: ".drift",
             len: 0x4,
         },
         Run {
             at: 0x108,
-            to: offset_of!(RainState, drops),
+            field: ".drops",
             len: 0x1804,
         },
         Run {
             at: 0x1924,
-            to: offset_of!(RainState, edge_a),
+            field: ".edge_a",
             len: 0x8,
         },
         Run {
             at: 0x1930,
-            to: offset_of!(RainState, edge_b),
+            field: ".edge_b",
             len: 0x8,
         },
         Run {
             at: 0x193C,
-            to: offset_of!(RainState, ends),
+            field: ".ends",
             len: 0x18,
         },
         Run {
             at: 0x1958,
-            to: offset_of!(RainState, depth),
+            field: ".depth",
             len: 0x50,
         },
         Run {
             at: 0x1A38,
-            to: offset_of!(RainState, turned),
+            field: ".turned",
             len: 0x18,
-        },
-    ];
-}
-
-impl Laid for RainRules {
-    const START: usize = 0x8C5F91;
-    const RUNS: &'static [Run] = &[
-        Run {
-            at: 0x0,
-            to: offset_of!(RainRules, rhw),
-            len: 0x28,
-        },
-        Run {
-            at: 0x40,
-            to: offset_of!(RainRules, target_scale),
-            len: 0x20,
         },
     ];
 }
@@ -389,47 +362,47 @@ impl Laid for RingWork {
     const RUNS: &'static [Run] = &[
         Run {
             at: 0x0,
-            to: offset_of!(RingWork, list),
+            field: ".list",
             len: 0x10,
         },
         Run {
             at: 0x40,
-            to: offset_of!(RingWork, cursor),
+            field: ".cursor",
             len: 0x4,
         },
         Run {
             at: 0x48,
-            to: offset_of!(RingWork, block),
+            field: ".block",
             len: 0x4,
         },
         Run {
             at: 0x50,
-            to: offset_of!(RingWork, top),
+            field: ".top",
             len: 0x4,
         },
         Run {
             at: 0x58,
-            to: offset_of!(RingWork, fade),
+            field: ".fade",
             len: 0x24,
         },
         Run {
             at: 0x90,
-            to: offset_of!(RingWork, rate),
+            field: ".rate",
             len: 0x8,
         },
         Run {
             at: 0x9C,
-            to: offset_of!(RingWork, near),
+            field: ".near",
             len: 0x8,
         },
         Run {
             at: 0xA8,
-            to: offset_of!(RingWork, count),
+            field: ".count",
             len: 0x4,
         },
         Run {
             at: 0xF8,
-            to: offset_of!(RingWork, away),
+            field: ".away",
             len: 0x18,
         },
     ];
@@ -439,7 +412,7 @@ impl Laid for MarksClock {
     const START: usize = 0x764FC8;
     const RUNS: &'static [Run] = &[Run {
         at: 0x0,
-        to: offset_of!(MarksClock, started),
+        field: ".started",
         len: 0x30,
     }];
 }
@@ -448,7 +421,7 @@ impl Laid for SnowTables {
     const START: usize = 0x8C6000;
     const RUNS: &'static [Run] = &[Run {
         at: 0x0,
-        to: offset_of!(SnowTables, randoms),
+        field: ".randoms",
         len: 0xC000,
     }];
 }
@@ -458,37 +431,37 @@ impl Laid for SnowState {
     const RUNS: &'static [Run] = &[
         Run {
             at: 0x30,
-            to: offset_of!(SnowState, wide_turn),
+            field: ".wide_turn",
             len: 0x124,
         },
         Run {
             at: 0x15C,
-            to: offset_of!(SnowState, flag),
+            field: ".flag",
             len: 0x34,
         },
         Run {
             at: 0x194,
-            to: offset_of!(SnowState, fall),
+            field: ".fall",
             len: 0x4,
         },
         Run {
             at: 0x19C,
-            to: offset_of!(SnowState, drawn),
+            field: ".drawn",
             len: 0xC,
         },
         Run {
             at: 0x1F4,
-            to: offset_of!(SnowState, depth),
+            field: ".depth",
             len: 0x8,
         },
         Run {
             at: 0x208,
-            to: offset_of!(SnowState, point),
+            field: ".point",
             len: 0x3C,
         },
         Run {
             at: 0x2D4,
-            to: offset_of!(SnowState, turned),
+            field: ".turned",
             len: 0xC,
         },
     ];
@@ -499,12 +472,12 @@ impl Laid for SnowCurveVars {
     const RUNS: &'static [Run] = &[
         Run {
             at: 0x0,
-            to: offset_of!(SnowCurveVars, curve_vars),
+            field: ".curve_vars",
             len: 0x1C,
         },
         Run {
             at: 0x20,
-            to: offset_of!(SnowCurveVars, records),
+            field: ".records",
             len: 0x1000,
         },
     ];
@@ -515,12 +488,12 @@ impl Laid for SnowLight {
     const RUNS: &'static [Run] = &[
         Run {
             at: 0x0,
-            to: offset_of!(SnowLight, light_place),
+            field: ".light_place",
             len: 0x110,
         },
         Run {
             at: 0x118,
-            to: offset_of!(SnowLight, side),
+            field: ".side",
             len: 0x10,
         },
     ];
@@ -530,7 +503,7 @@ impl Laid for ShapeTilt {
     const START: usize = 0x811BC3;
     const RUNS: &'static [Run] = &[Run {
         at: 0x0,
-        to: offset_of!(ShapeTilt, tilt),
+        field: ".tilt",
         len: 0x28,
     }];
 }
@@ -540,67 +513,67 @@ impl Laid for MarksFloats {
     const RUNS: &'static [Run] = &[
         Run {
             at: 0x0,
-            to: offset_of!(MarksFloats, pull_limit),
+            field: ".pull_limit",
             len: 0x4,
         },
         Run {
             at: 0xC,
-            to: offset_of!(MarksFloats, burst_direction_k),
+            field: ".burst_direction_k",
             len: 0x8,
         },
         Run {
             at: 0x18,
-            to: offset_of!(MarksFloats, half),
+            field: ".half",
             len: 0x8,
         },
         Run {
             at: 0x24,
-            to: offset_of!(MarksFloats, fifth),
+            field: ".fifth",
             len: 0xC,
         },
         Run {
             at: 0x34,
-            to: offset_of!(MarksFloats, three),
+            field: ".three",
             len: 0x4,
         },
         Run {
             at: 0x4C,
-            to: offset_of!(MarksFloats, sixteen),
+            field: ".sixteen",
             len: 0x8,
         },
         Run {
             at: 0x58,
-            to: offset_of!(MarksFloats, hundred_twenty_eight),
+            field: ".hundred_twenty_eight",
             len: 0x10,
         },
         Run {
             at: 0x7C,
-            to: offset_of!(MarksFloats, quarter),
+            field: ".quarter",
             len: 0x1C,
         },
         Run {
             at: 0x9C,
-            to: offset_of!(MarksFloats, fixed_16_scale),
+            field: ".fixed_16_scale",
             len: 0x4,
         },
         Run {
             at: 0xA4,
-            to: offset_of!(MarksFloats, seven_hundred),
+            field: ".seven_hundred",
             len: 0x8,
         },
         Run {
             at: 0xB0,
-            to: offset_of!(MarksFloats, two_thousand),
+            field: ".two_thousand",
             len: 0x4,
         },
         Run {
             at: 0xD4,
-            to: offset_of!(MarksFloats, over_65536),
+            field: ".over_65536",
             len: 0x4,
         },
         Run {
             at: 0xDC,
-            to: offset_of!(MarksFloats, spread_scale),
+            field: ".spread_scale",
             len: 0x8,
         },
     ];
@@ -610,7 +583,7 @@ impl Laid for MarksKindFloats {
     const START: usize = 0x765238;
     const RUNS: &'static [Run] = &[Run {
         at: 0x0,
-        to: offset_of!(MarksKindFloats, other),
+        field: ".other",
         len: 0x6C,
     }];
 }
@@ -620,22 +593,22 @@ impl Laid for KeptView {
     const RUNS: &'static [Run] = &[
         Run {
             at: 0x0,
-            to: offset_of!(KeptView, first_sine_cosine),
+            field: ".first_sine_cosine",
             len: 0x28,
         },
         Run {
             at: 0x34,
-            to: offset_of!(KeptView, kept_a),
+            field: ".kept_a",
             len: 0x1C,
         },
         Run {
             at: 0x60,
-            to: offset_of!(KeptView, last),
+            field: ".last",
             len: 0x44,
         },
         Run {
             at: 0xB4,
-            to: offset_of!(KeptView, step),
+            field: ".step",
             len: 0x28,
         },
     ];
@@ -646,12 +619,12 @@ impl Laid for WindscreenDropState {
     const RUNS: &'static [Run] = &[
         Run {
             at: 0x0,
-            to: offset_of!(WindscreenDropState, live),
+            field: ".live",
             len: 0x20,
         },
         Run {
             at: 0x24,
-            to: offset_of!(WindscreenDropState, depth),
+            field: ".depth",
             len: 0x4,
         },
     ];
@@ -662,22 +635,22 @@ impl Laid for WindscreenDropWork {
     const RUNS: &'static [Run] = &[
         Run {
             at: 0x0,
-            to: offset_of!(WindscreenDropWork, drift),
+            field: ".drift",
             len: 0x8,
         },
         Run {
             at: 0x50,
-            to: offset_of!(WindscreenDropWork, curve),
+            field: ".curve",
             len: 0x47C,
         },
         Run {
             at: 0x4FC,
-            to: offset_of!(WindscreenDropWork, setup_axes),
+            field: ".setup_axes",
             len: 0x38,
         },
         Run {
             at: 0x538,
-            to: offset_of!(WindscreenDropWork, cell),
+            field: ".cell",
             len: 0x4E0,
         },
     ];
@@ -688,47 +661,47 @@ impl Laid for WindscreenDropVars {
     const RUNS: &'static [Run] = &[
         Run {
             at: 0x0,
-            to: offset_of!(WindscreenDropVars, scale),
+            field: ".scale",
             len: 0x2C,
         },
         Run {
             at: 0x44,
-            to: offset_of!(WindscreenDropVars, kept_place),
+            field: ".kept_place",
             len: 0x30,
         },
         Run {
             at: 0x8C,
-            to: offset_of!(WindscreenDropVars, drift),
+            field: ".drift",
             len: 0x18,
         },
         Run {
             at: 0xA8,
-            to: offset_of!(WindscreenDropVars, windscreen_flakes_cleared),
+            field: ".windscreen_flakes_cleared",
             len: 0x18044,
         },
         Run {
             at: 0x180F4,
-            to: offset_of!(WindscreenDropVars, axes_k),
+            field: ".axes_k",
             len: 0x18,
         },
         Run {
             at: 0x18110,
-            to: offset_of!(WindscreenDropVars, side),
+            field: ".side",
             len: 0x18,
         },
         Run {
             at: 0x18134,
-            to: offset_of!(WindscreenDropVars, turn),
+            field: ".turn",
             len: 0x24,
         },
         Run {
             at: 0x18164,
-            to: offset_of!(WindscreenDropVars, adjugate),
+            field: ".adjugate",
             len: 0x24,
         },
         Run {
             at: 0x18194,
-            to: offset_of!(WindscreenDropVars, decay),
+            field: ".decay",
             len: 0x1C,
         },
     ];
@@ -738,7 +711,7 @@ impl Laid for WindscreenFlakeTiming {
     const START: usize = 0x89CA30;
     const RUNS: &'static [Run] = &[Run {
         at: 0x0,
-        to: offset_of!(WindscreenFlakeTiming, frames),
+        field: ".frames",
         len: 0xC,
     }];
 }
@@ -748,22 +721,22 @@ impl Laid for WindscreenFlakeTables {
     const RUNS: &'static [Run] = &[
         Run {
             at: 0x0,
-            to: offset_of!(WindscreenFlakeTables, curve),
+            field: ".curve",
             len: 0x438,
         },
         Run {
             at: 0x450,
-            to: offset_of!(WindscreenFlakeTables, axes),
+            field: ".axes",
             len: 0x6C,
         },
         Run {
             at: 0x4C8,
-            to: offset_of!(WindscreenFlakeTables, corners),
+            field: ".corners",
             len: 0x30,
         },
         Run {
             at: 0x51C,
-            to: offset_of!(WindscreenFlakeTables, points),
+            field: ".points",
             len: 0x184,
         },
     ];
@@ -774,12 +747,12 @@ impl Laid for WindscreenFlakeState {
     const RUNS: &'static [Run] = &[
         Run {
             at: 0x0,
-            to: offset_of!(WindscreenFlakeState, done),
+            field: ".done",
             len: 0xD0,
         },
         Run {
             at: 0xD4,
-            to: offset_of!(WindscreenFlakeState, scaled_setting),
+            field: ".scaled_setting",
             len: 0x8,
         },
     ];
@@ -789,14 +762,22 @@ impl Laid for WindscreenFlakeState {
 mod tests {
     use super::*;
 
-    /// The runs are the whole store, in order, with nothing between them.
+    /// The runs are the whole store, in order, with nothing between them: each begins where
+    /// the last ended, at its field, and the last ends where the cells do.
     fn covered<T: Laid>() {
+        let name = std::any::type_name::<T>();
+        let store = zeroed::<T>();
         let mut next = 0;
         for r in T::RUNS {
-            assert_eq!(r.to, next, "{}", std::any::type_name::<T>());
+            assert_eq!(
+                field_start(&*store, r.field),
+                Some(next),
+                "{name} {}",
+                r.field
+            );
             next += r.len;
         }
-        assert_eq!(next, size_of::<T>(), "{}", std::any::type_name::<T>());
+        assert_eq!(next, field_range(&*store, "", usize::MAX).len(), "{name}");
     }
 
     #[test]
@@ -807,11 +788,9 @@ mod tests {
         covered::<ViewVars>();
         covered::<MaskBlocks>();
         covered::<PictureCopy>();
-        covered::<KindPictures>();
         covered::<PongState>();
         covered::<PongRules>();
         covered::<RainState>();
-        covered::<RainRules>();
         covered::<RingWork>();
         covered::<MarksClock>();
         covered::<SnowTables>();

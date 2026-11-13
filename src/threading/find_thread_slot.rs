@@ -5,7 +5,6 @@
 use crate::threading::thread_slot::ThreadSlot;
 
 const _: () = assert!(size_of::<ThreadSlot>() == 0x110);
-const _: () = assert!(std::mem::offset_of!(ThreadSlot, thread_id) == 4);
 
 // ---- Rust version ----
 

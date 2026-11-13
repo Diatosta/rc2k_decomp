@@ -133,6 +133,13 @@ impl Operand {
             .collect()
     }
 
+    /// The `len` bytes at `off`, which must lie in the buffer.
+    #[track_caller]
+    pub fn read(self, off: usize, len: usize) -> Vec<u8> {
+        // SAFETY: `at` checked that the bytes lie in the test buffer.
+        unsafe { std::slice::from_raw_parts(self.at(off, len), len).to_vec() }
+    }
+
     /// `bytes` at `off`.
     #[track_caller]
     pub fn put(self, off: usize, bytes: &[u8]) {
@@ -215,30 +222,32 @@ impl PartialEq for Buf {
     }
 }
 
-/// Runs `f` on a typed variable block that lives at offset `start` of the marks' block in
-/// the test buffer `mk` (the buffer stands for the marks' block): the block is copied out
-/// (its place in the buffer need not be aligned for its cells) and put back afterwards. The
-/// buffer must hold the whole block.
-pub fn with_copy<T, R>(mk: Operand, start: usize, f: impl FnOnce(&T) -> R) -> R {
-    let p = mk.at(start.wrapping_sub(START), size_of::<T>()).cast::<T>();
+/// Runs `f` on a record of cells that lives at offset `start` of the marks' block in the test
+/// buffer `mk` (the buffer stands for the marks' block): the record's cells are made from the
+/// bytes there, one after another in field order (no gaps in the 1999 layout), and put back
+/// afterwards. The buffer must hold the whole record.
+pub fn with_copy<T: crate::cells::Cells, R>(
+    mk: Operand,
+    start: usize,
+    f: impl FnOnce(&T) -> R,
+) -> R {
+    use crate::test_support::paths::{field_bytes, set_field_range};
+    let at = start.wrapping_sub(START);
     // The copy on the heap: some blocks are near 2 MB, a test thread's whole stack (copied
     // by value there they overflowed it, and Wine hung on the fault).
-    unsafe {
-        let mut local = Box::<T>::new_uninit();
-        core::ptr::copy_nonoverlapping(
-            p.cast::<u8>(),
-            local.as_mut_ptr().cast::<u8>(),
-            size_of::<T>(),
-        );
-        let local = local.assume_init();
-        let out = f(&local);
-        core::ptr::copy_nonoverlapping(
-            (&raw const *local).cast::<u8>(),
-            p.cast::<u8>(),
-            size_of::<T>(),
-        );
-        out
-    }
+    let local = crate::cells::boxed_zeroed_cells::<T>();
+    let len = field_bytes(&*local, "").len();
+    assert!(set_field_range(&*local, "", &mk.read(at, len)));
+    let out = f(&local);
+    mk.put(at, &field_bytes(&*local, ""));
+    out
+}
+
+/// The `N` floats in a row at offset `start` of the marks' block in the test buffer `mk`, for
+/// the plain-float constant tables the vectors read.
+pub fn floats_at<const N: usize>(mk: Operand, start: usize) -> [f32; N] {
+    let bytes = mk.read(start.wrapping_sub(START), 4 * N);
+    std::array::from_fn(|i| f32::from_le_bytes(bytes[4 * i..4 * i + 4].try_into().unwrap()))
 }
 
 /// Runs `f` on the marks' settings record at the test address `base` (an operand with

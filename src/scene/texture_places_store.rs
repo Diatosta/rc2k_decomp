@@ -116,31 +116,6 @@ impl PlacesTable {
             PlacesTable::Unknown173d4 => &places.unknown_173d4,
         }
     }
-
-    /// The table's offset in the places.
-    fn offset(self) -> usize {
-        use core::mem::offset_of;
-        match self {
-            PlacesTable::TextureOf => offset_of!(TexturePlaces, texture_of),
-            PlacesTable::PlaceSlot => offset_of!(TexturePlaces, place_slot),
-            PlacesTable::KindPictures => offset_of!(TexturePlaces, kind_pictures),
-            PlacesTable::WantedPictures => offset_of!(TexturePlaces, wanted_pictures),
-            PlacesTable::LoadedPictures => offset_of!(TexturePlaces, loaded_pictures),
-            PlacesTable::SlotWanted => offset_of!(TexturePlaces, slot_wanted),
-            PlacesTable::SlotLoaded => offset_of!(TexturePlaces, slot_loaded),
-            PlacesTable::Totals => offset_of!(TexturePlaces, totals),
-            PlacesTable::KindSlotBytes => offset_of!(TexturePlaces, kind_slot_bytes),
-            PlacesTable::Counters => offset_of!(TexturePlaces, counters),
-            PlacesTable::StepFlags => offset_of!(TexturePlaces, step_flags),
-            PlacesTable::CarIconSheetX => offset_of!(TexturePlaces, car_icon_sheet_x),
-            PlacesTable::CarIconSheetY => offset_of!(TexturePlaces, car_icon_sheet_y),
-            PlacesTable::ObjectTextureRecords => offset_of!(TexturePlaces, object_texture_records),
-            PlacesTable::FaceMarks => offset_of!(TexturePlaces, face_marks),
-            PlacesTable::PointMarks => offset_of!(TexturePlaces, point_marks),
-            PlacesTable::NormalMarks => offset_of!(TexturePlaces, normal_marks),
-            PlacesTable::Unknown173d4 => offset_of!(TexturePlaces, unknown_173d4),
-        }
-    }
 }
 
 /// The cell `index` entries on from the table `table`. The
@@ -152,24 +127,20 @@ pub fn cell_at(
     table: PlacesTable,
     index: u32,
 ) -> Result<&PlainDword, crate::errors::BadInput> {
-    let at = (index as usize)
-        .checked_mul(4)
-        .and_then(|bytes| table.offset().checked_add(bytes));
-    at.and_then(|at| places.cell(at))
-        .ok_or(crate::errors::BadInput("a cell past the texture places"))
-}
-
-impl TexturePlaces {
-    /// The dword `at` bytes into the places (every field is a run of dwords, in order).
-    fn cell(&self, at: usize) -> Option<&PlainDword> {
-        if !at.is_multiple_of(4) {
-            return None;
+    // Every field is a run of dwords, in the order of `ALL`: a number past the table's end
+    // counts on into the next tables.
+    let mut left = index as usize;
+    for next in PlacesTable::ALL
+        .into_iter()
+        .skip_while(|&candidate| candidate != table)
+    {
+        let cells = next.cells(places);
+        if let Some(cell) = cells.get(left) {
+            return Ok(cell);
         }
-        PlacesTable::ALL.into_iter().find_map(|table| {
-            let inside = at.checked_sub(table.offset())?;
-            table.cells(self).get(inside / 4)
-        })
+        left -= cells.len();
     }
+    Err(crate::errors::BadInput("a cell past the texture places"))
 }
 
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
@@ -259,6 +230,29 @@ mod tests {
             for n in [0, cells.len() - 1] {
                 let found = cell_at(&places, table, n as u32).unwrap();
                 assert!(core::ptr::eq(found, &raw const cells[n]), "{table:?} {n}");
+            }
+        }
+    }
+
+    /// A number past a table's end reads on into the following tables, to the places' end.
+    #[test]
+    fn numbers_run_on_through_the_tables() {
+        let places = TexturePlaces::new();
+        let all: Vec<&PlainDword> = PlacesTable::ALL
+            .into_iter()
+            .flat_map(|table| table.cells(&places))
+            .collect();
+        for (start, table) in PlacesTable::ALL.into_iter().enumerate() {
+            let before: usize = PlacesTable::ALL[..start]
+                .iter()
+                .map(|t| t.cells(&places).len())
+                .sum();
+            for n in [0, 5000, 30_000, 40_000] {
+                let found = cell_at(&places, table, n);
+                match all.get(before + n as usize) {
+                    Some(cell) => assert!(core::ptr::eq(found.unwrap(), *cell)),
+                    None => assert!(found.is_err()),
+                }
             }
         }
     }

@@ -1,6 +1,7 @@
 //! `ByteView::cell_run` and the copies on it (`load_cells`, `store_cells`) against every store:
 //! the runs tile each record, each atomic on its own width's boundary, and the copies give
-//! the bytes `shared_memory`'s raw copies give.
+//! the bytes `shared_memory`'s raw copies give. A store with no byte view is checked on what
+//! `Cells` alone promises.
 
 use super::*;
 use crate::audio::owner::audio;
@@ -79,13 +80,7 @@ fn check_load<T: ByteView>(record: &T, name: &str) {
 /// pattern written first and the two compared whole after the writes.
 fn check_store<T: ByteView>(name: &str) {
     let size = size_of::<T>();
-    // SAFETY: any bits make a record of cells (`ByteView`).
-    let (mine, raw) = unsafe {
-        (
-            Box::<T>::new_zeroed().assume_init(),
-            Box::<T>::new_zeroed().assume_init(),
-        )
-    };
+    let (mine, raw) = (boxed_zeroed_cells::<T>(), boxed_zeroed_cells::<T>());
     let bytes = |r: &T| {
         let mut out = vec![0; size];
         // SAFETY: inside the record.
@@ -114,15 +109,130 @@ fn check_store<T: ByteView>(name: &str) {
     );
 }
 
+/// Fills every run of primitive cells with varied values (each byte a function of its place in
+/// the record and `seed`); with `flip`, changes every byte of the runs numbered `0 mod 3`
+/// instead and leaves the others.
+struct Filler {
+    seed: u32,
+    flip: bool,
+    place: u32,
+    runs: usize,
+}
+
+impl Filler {
+    fn new(seed: u32, flip: bool) -> Self {
+        Filler {
+            seed,
+            flip,
+            place: 0,
+            runs: 0,
+        }
+    }
+}
+
+impl CellVisitor for Filler {
+    fn enter(&mut self, _: &'static str) {}
+    fn index(&mut self, _: usize) {}
+    fn leave(&mut self) {}
+    fn leaf(&mut self, _: &[u8]) {}
+    fn run(&mut self, run: CellRun<'_>) {
+        let mut bytes = vec![0; run.len()];
+        if self.flip {
+            run.load(0, &mut bytes);
+            if self.runs.is_multiple_of(3) {
+                bytes.iter_mut().for_each(|b| *b ^= 0xFF);
+            }
+        } else {
+            for b in &mut bytes {
+                *b = self
+                    .place
+                    .wrapping_mul(2_654_435_761)
+                    .wrapping_add(self.seed)
+                    .rotate_left(self.seed % 7) as u8;
+                self.place += 1;
+            }
+        }
+        run.store(0, &bytes);
+        self.runs += 1;
+    }
+}
+
+/// The bytes of each run of primitive cells of `record`, one entry per run.
+fn runs_of<T: Cells>(record: &T) -> Vec<Vec<u8>> {
+    struct Runs(Vec<Vec<u8>>);
+    impl CellVisitor for Runs {
+        fn enter(&mut self, _: &'static str) {}
+        fn index(&mut self, _: usize) {}
+        fn leave(&mut self) {}
+        fn leaf(&mut self, bytes: &[u8]) {
+            self.0.push(bytes.to_vec());
+        }
+    }
+    let mut runs = Runs(Vec::new());
+    record.visit(&mut runs);
+    runs.0
+}
+
+/// What `Cells` promises of a record that has no byte view: `visit` reports non-empty runs
+/// that hold no more than the record does, `copy_from` gives equal cells, and `merge_changes`
+/// takes exactly the cells that changed (here whole runs, every byte of them) and leaves the
+/// others as they are.
+fn check_cells<T: Cells>(record: &T, name: &str) {
+    let runs = runs_of(record);
+    assert!(runs.iter().all(|run| !run.is_empty()), "{name}: empty run");
+    let total: usize = runs.iter().map(Vec::len).sum();
+    assert!(
+        total <= size_of::<T>(),
+        "{name}: the runs hold more than the record"
+    );
+    assert_eq!(flatten(record).len(), total, "{name}: flatten and the runs");
+    // A zeroed twin filled with varied values, and a copy of it.
+    let from = boxed_zeroed_cells::<T>();
+    let mut filler = Filler::new(1, false);
+    from.visit(&mut filler);
+    assert_eq!(filler.runs, runs.len(), "{name}: the runs when filled");
+    let copy = boxed_zeroed_cells::<T>();
+    copy.copy_from(&from);
+    assert_eq!(flatten(&*copy), flatten(&*from), "{name}: copy_from");
+    // `now` is `from` with every third run changed; merged onto another filled record it
+    // brings those runs and no other.
+    let (start, now) = (boxed_zeroed_cells::<T>(), boxed_zeroed_cells::<T>());
+    start.copy_from(&from);
+    now.copy_from(&from);
+    now.visit(&mut Filler::new(0, true));
+    let to = boxed_zeroed_cells::<T>();
+    to.visit(&mut Filler::new(2, false));
+    let (before, changed) = (runs_of(&*to), runs_of(&*now));
+    to.merge_changes(&now, &start);
+    let expected: Vec<u8> = before
+        .into_iter()
+        .zip(changed)
+        .enumerate()
+        .flat_map(|(n, (kept, new))| if n % 3 == 0 { new } else { kept })
+        .collect();
+    assert_eq!(flatten(&*to), expected, "{name}: merge_changes");
+}
+
 fn check<T: ByteView>(record: &T, name: &str) {
     check_tiling(record, name);
     check_load(record, name);
     check_store::<T>(name);
 }
 
-macro_rules! every_store {
+/// The stores that are an explicit `ByteView` opt-in (`#[derive(ByteView)]` or a hand-written
+/// impl, the ones that keep their `#[repr(C)]` layout): the byte runs are checked on them. Test
+/// builds give the byte view to every `#[repr(C)]` record, so the classification below was
+/// taken from the impls outside that path (the build with it off listed every other store as
+/// lacking `ByteView`). Every other store is `Cells` only.
+macro_rules! byte_view_stores {
     ($($store:expr,)*) => {
         $( check(&$store, stringify!($store)); )*
+    };
+}
+
+macro_rules! cells_stores {
+    ($($store:expr,)*) => {
+        $( check_cells(&$store, stringify!($store)); )*
     };
 }
 
@@ -134,7 +244,15 @@ fn every_store_s_cells_tile_it_and_copy_as_raw_copies_do() {
     let menus = menus();
     let race = race();
     let _lock = crate::test_support::test_lock();
-    every_store! {
+    byte_view_stores! {
+        menus.play.results,
+        menus.tables.lists,
+        *race.course.stage_prefs.get(),
+        *race.replay.replay_view(),
+        *race.shared.car(),
+        *race.shared.text_buffers(),
+    }
+    cells_stores! {
         audio.state,
         audio.sample_records,
         menus.play.players,
@@ -145,11 +263,8 @@ fn every_store_s_cells_tile_it_and_copy_as_raw_copies_do() {
         effects.paths.spline_head,
         effects.setup.work,
         menus.tables.captions,
-        menus.tables.lists,
-        menus.play.results,
         menus.screens.state,
         *race.physics.camera(),
-        *race.shared.car(),
         *race.physics.contact.get(),
         *race.physics.ground_probe.get(),
         *race.physics.ground(),
@@ -160,7 +275,6 @@ fn every_store_s_cells_tile_it_and_copy_as_raw_copies_do() {
         crate::workers::game_scratch().polygon,
         *race.shared.buffers.reads.get(),
         *race.shared.viewer_buffers(),
-        *race.shared.text_buffers(),
         *race.physics.car_specs(),
         *race.frame.clock_ticks(),
         *race.course.lists.get(),
@@ -184,7 +298,6 @@ fn every_store_s_cells_tile_it_and_copy_as_raw_copies_do() {
         *race.frame.matrices.get(),
         *race.course.numbers.get(),
         *race.frame.panel_clock(),
-        *race.course.stage_prefs.get(),
         *race.shared.replay_file(),
         *race.frame.scratch(),
         *race.frame.shadow_skids.get(),
@@ -194,7 +307,6 @@ fn every_store_s_cells_tile_it_and_copy_as_raw_copies_do() {
         *race.frame.text_state(),
         *race.shared.vars.get(),
         *race.shared.view.get(),
-        *race.replay.replay_view(),
         *race.shared.work.get(),
         *scene.drawing.scene.get(),
         *crate::scene::owner::SCENE.draw_switches.get(),
@@ -302,24 +414,13 @@ fn a_zero_record_is_all_zero_and_can_be_built_on() {
     assert!(bytes[4..].iter().all(|&b| b == 0));
 }
 
-/// Bytes of varied values for a record: each byte a function of its place and `seed`.
-fn varied<T: ByteView>(record: &T, seed: u32) {
-    let size = size_of::<T>();
-    let bytes: Vec<u8> = (0..size)
-        .map(|k| {
-            (k as u32)
-                .wrapping_mul(2_654_435_761)
-                .wrapping_add(seed)
-                .rotate_left(seed % 7) as u8
-        })
-        .collect();
-    store_cells(record, 0, &bytes).unwrap();
+/// Varied values in every cell of a record: each byte a function of its place and `seed`.
+fn varied<T: Cells>(record: &T, seed: u32) {
+    record.visit(&mut Filler::new(seed, false));
 }
 
-fn bytes_of<T: ByteView>(record: &T) -> Vec<u8> {
-    let mut out = vec![0; size_of::<T>()];
-    load_cells(record, 0, &mut out).unwrap();
-    out
+fn bytes_of<T: Cells>(record: &T) -> Vec<u8> {
+    flatten(record)
 }
 
 /// `SameShape` between plain and atomic arrays gives what the byte-run copies give.

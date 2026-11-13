@@ -4,7 +4,7 @@
 //!
 //! The list is the stores' own (`listed_stores`); a repeated name is found at its first entry.
 
-use crate::cells::{ByteView, CellRun, Store};
+use crate::cells::{ByteView, Store};
 use crate::errors::BadInput;
 
 /// One store of the list: its name, the store, and how many of its first bytes are the
@@ -110,62 +110,69 @@ unsafe impl<S: ByteView> Store for OnGame<S> {
     }
 }
 
-/// A listed store that tests walk by cell runs and field paths (`race_places`): the record's
-/// own `ByteView` methods, shifted by the window's first byte where the store is a part.
+/// A listed store that tests reach by field path (`race_places`) as well as by byte: the
+/// record's own `Cells`, whole where the store is a part of it.
 pub trait Walk: Store {
-    /// The run of like cells holding byte `offset` and the byte it starts at.
-    fn cell_run_at(&self, offset: usize) -> (usize, CellRun<'_>);
-    /// `ByteView::field_path` of the record behind the store at `offset`.
-    fn field_path_at(&self, offset: usize, path: &mut String);
+    /// The bytes of the cells the field `path` of the record behind the store names
+    /// (`paths::bytes`), whatever their place in the store.
+    fn path_bytes(&self, path: &str) -> Option<Vec<u8>>;
+    /// The cells `path` names set from `bytes`; says whether the path and the length fitted.
+    fn set_path_bytes(&self, path: &str, bytes: &[u8]) -> bool;
+    /// A copy of every cell of the record behind the store; the function returned puts the
+    /// copy back (a store that is a part of a record keeps the whole record).
+    fn keep(&self) -> Box<dyn Fn() + '_>;
+}
+
+/// A copy of every cell of `whole`, and the function that puts it back.
+fn kept<T: crate::cells::Cells>(whole: &T) -> Box<dyn Fn() + '_> {
+    // On the heap: a large record off the stack.
+    let copy: Box<T> = crate::cells::boxed_zeroed_cells();
+    copy.copy_from(whole);
+    Box::new(move || whole.copy_from(&copy))
 }
 
 impl<T: ByteView> Walk for T {
-    fn cell_run_at(&self, offset: usize) -> (usize, CellRun<'_>) {
-        ByteView::cell_run(self, offset)
+    fn path_bytes(&self, path: &str) -> Option<Vec<u8>> {
+        super::paths::bytes(self, path)
     }
 
-    fn field_path_at(&self, offset: usize, path: &mut String) {
-        ByteView::field_path(self, offset, path);
+    fn set_path_bytes(&self, path: &str, bytes: &[u8]) -> bool {
+        super::paths::set_bytes(self, path, bytes)
     }
-}
 
-/// A run found from byte `at` of a record that begins before byte `window` is taken from the
-/// window's first byte, when a cell begins there.
-fn in_window(window: usize, (start, run): (usize, CellRun<'_>)) -> (usize, CellRun<'_>) {
-    match start.checked_sub(window) {
-        Some(start) => (start, run),
-        None => (
-            0,
-            run.skip(window - start)
-                .expect("a cell begins at the window's first byte"),
-        ),
+    fn keep(&self) -> Box<dyn Fn() + '_> {
+        kept(self)
     }
 }
 
 impl<T: ByteView + Sync + 'static> Walk for RecordTail<T> {
-    fn cell_run_at(&self, offset: usize) -> (usize, CellRun<'_>) {
-        in_window(
-            self.offset,
-            ByteView::cell_run(self.whole, self.offset + offset),
-        )
+    fn path_bytes(&self, path: &str) -> Option<Vec<u8>> {
+        super::paths::bytes(self.whole, path)
     }
 
-    fn field_path_at(&self, offset: usize, path: &mut String) {
-        ByteView::field_path(self.whole, self.offset + offset, path);
+    fn set_path_bytes(&self, path: &str, bytes: &[u8]) -> bool {
+        super::paths::set_bytes(self.whole, path, bytes)
+    }
+
+    fn keep(&self) -> Box<dyn Fn() + '_> {
+        kept(self.whole)
     }
 }
 
 impl<S: ByteView> Walk for OnGame<S> {
-    fn cell_run_at(&self, offset: usize) -> (usize, CellRun<'_>) {
+    fn path_bytes(&self, path: &str) -> Option<Vec<u8>> {
         crate::session::assert_game_thread();
-        in_window(
-            self.offset,
-            ByteView::cell_run(self.whole, self.offset + offset),
-        )
+        super::paths::bytes(self.whole, path)
     }
 
-    fn field_path_at(&self, offset: usize, path: &mut String) {
-        ByteView::field_path(self.whole, self.offset + offset, path);
+    fn set_path_bytes(&self, path: &str, bytes: &[u8]) -> bool {
+        crate::session::assert_game_thread();
+        super::paths::set_bytes(self.whole, path, bytes)
+    }
+
+    fn keep(&self) -> Box<dyn Fn() + '_> {
+        crate::session::assert_game_thread();
+        kept(self.whole)
     }
 }
 

@@ -3,30 +3,43 @@
 //! `test_support::test_lock` around both. Name only the stores the test writes: putting back a
 //! store another test is writing undoes that test's work.
 
-/// The bytes of some stores of the registry.
-pub struct Snapshot(Vec<(&'static (dyn crate::cells::Store + Sync), Vec<u8>)>);
+/// A copy of some stores of the registry (of the records they are parts of), to be put back.
+pub struct Snapshot(Vec<Box<dyn Fn() + 'static>>);
 
 impl Snapshot {
     /// The stores named `names` (registry names, the first of each).
     pub fn of(names: &[&str]) -> Self {
-        Self(
-            names
-                .iter()
-                .map(|name| {
-                    let s = store(name);
-                    let mut bytes = vec![0; s.size()];
-                    s.load(0, &mut bytes).expect("a store's own bytes");
-                    (s, bytes)
-                })
-                .collect(),
-        )
+        Self(names.iter().map(|name| walk(name).keep()).collect())
     }
 
-    /// The bytes put back, store by store.
+    /// The copies put back, store by store.
     pub fn restore(&self) {
-        for (s, bytes) in &self.0 {
-            s.store(0, bytes).expect("a store's own bytes");
+        for put_back in &self.0 {
+            put_back();
         }
+    }
+}
+
+/// A record's cells copied out whole, to be copied back: the typed counterpart of `Snapshot`
+/// for a test that writes one record it holds.
+pub struct RecordSnapshot<'a, T: crate::cells::Cells> {
+    record: &'a T,
+    copy: T,
+}
+
+impl Snapshot {
+    /// A copy of every cell of `record` (a zeroed record filled by `copy_from`).
+    pub fn of_record<T: crate::cells::Cells>(record: &T) -> RecordSnapshot<'_, T> {
+        let copy = crate::cells::zeroed_cells::<T>();
+        copy.copy_from(record);
+        RecordSnapshot { record, copy }
+    }
+}
+
+impl<T: crate::cells::Cells> RecordSnapshot<'_, T> {
+    /// The cells put back into the record.
+    pub fn restore(&self) {
+        self.record.copy_from(&self.copy);
     }
 }
 
@@ -61,5 +74,26 @@ mod tests {
         let mut after = [0; 4];
         s.load(0, &mut after).unwrap();
         assert_eq!(before, after);
+    }
+
+    #[test]
+    fn a_record_snapshot_puts_a_record_back() {
+        use crate::session::{Byte, Dword};
+        #[derive(rc2k_derive::Cells)]
+        struct Free {
+            a: Byte,
+            b: [Dword; 2],
+        }
+        let record = Free {
+            a: Byte::new(1),
+            b: [Dword::new(2), Dword::new(3)],
+        };
+        let snap = Snapshot::of_record(&record);
+        record.a.set(9);
+        record.b[1].set(8);
+        snap.restore();
+        assert_eq!(record.a.get(), 1);
+        assert_eq!(record.b[0].get(), 2);
+        assert_eq!(record.b[1].get(), 3);
     }
 }

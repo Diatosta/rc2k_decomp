@@ -96,21 +96,23 @@ fn visit_by_runs<T: ByteView>(record: &T, visitor: &mut dyn CellVisitor) {
     while at < size {
         let (start, run) = record.cell_run(at);
         let end = (start + run.len()).min(size);
-        let mut bytes = vec![0; end - at];
-        run.load(at - start, &mut bytes);
-        visitor.leaf(&bytes);
+        if at == start && end == start + run.len() {
+            visitor.run(run);
+        } else {
+            let mut bytes = vec![0; end - at];
+            run.load(at - start, &mut bytes);
+            visitor.leaf(&bytes);
+        }
         at = end;
     }
 }
 
-/// One run reported as a leaf with its bytes.
+/// One run reported to the visitor.
 fn visit_run(run: CellRun, visitor: &mut dyn CellVisitor) {
     if run.len() == 0 {
         return;
     }
-    let mut bytes = vec![0; run.len()];
-    run.load(0, &mut bytes);
-    visitor.leaf(&bytes);
+    visitor.run(run);
 }
 
 /// A whole slice of primitive cells reported as element 0 of an array.
@@ -161,6 +163,14 @@ pub trait CellVisitor {
     fn leave(&mut self);
     /// A run of like primitive cells, its bytes.
     fn leaf(&mut self, bytes: &[u8]);
+    /// A run of like primitive cells, as the cells themselves: a visitor that reads or writes
+    /// them, or wants their addresses, overrides this. The default reports the run's bytes
+    /// through `leaf`.
+    fn run(&mut self, run: CellRun<'_>) {
+        let mut bytes = vec![0; run.len()];
+        run.load(0, &mut bytes);
+        self.leaf(&bytes);
+    }
 }
 
 /// A record, array or cell copied and merged into another of the same shape in other cells
@@ -357,7 +367,7 @@ pub enum CellRun<'a> {
 
 impl<'a> CellRun<'a> {
     /// Its cells' width in bytes.
-    fn width(self) -> usize {
+    pub fn width(self) -> usize {
         match self {
             CellRun::Bytes(_)
             | CellRun::Byte(_)
@@ -1369,6 +1379,15 @@ pub const fn zeroed_cells<T: Cells>() -> T {
     // SAFETY: `T` is made of cells over plain integers (`Cells`), so the all-zero value is
     // valid.
     unsafe { core::mem::MaybeUninit::<T>::zeroed().assume_init() }
+}
+
+/// `zeroed_cells` on the heap, for records too large for a thread's stack (stores of
+/// megabytes; the tests' copies).
+#[cfg(test)]
+pub fn boxed_zeroed_cells<T: Cells>() -> Box<T> {
+    // SAFETY: as `zeroed_cells`: `T` is made of cells over plain integers (`Cells`), so the
+    // all-zero value is valid.
+    unsafe { Box::<T>::new_zeroed().assume_init() }
 }
 
 /// A record of cells with these bytes as its first values (a static's, at compile time:

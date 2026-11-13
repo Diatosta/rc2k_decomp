@@ -7,22 +7,23 @@
 //! as the buffer had them: nothing typed reads them. Test code only; it goes with the
 //! recorded vectors.
 
-use crate::cells::{ByteView, load_cells, store_cells};
-use crate::sound::store::{EngineVoice, SoundObject, SurfaceSounds};
-use core::mem::{offset_of, size_of};
+use crate::cells::Cells;
+use crate::sound::store::{SoundObject, SurfaceSounds};
+use crate::test_support::paths::{field_range, field_start, set_field_range};
 
 /// A run of fields that were next to each other in the 1999 layout.
 pub struct Run {
     /// Its offset from the store's first byte in the 1999 layout.
     pub at: usize,
-    /// Its offset in the typed store.
-    pub to: usize,
-    /// Its length.
+    /// The path of the field it begins with in the typed store; the run takes this field's
+    /// cells and the next fields' until `len` bytes of cells are covered.
+    pub field: &'static str,
+    /// Its length in bytes of cells.
     pub len: usize,
 }
 
 /// A store with a 1999 layout.
-pub trait Laid: ByteView + Sized {
+pub trait Laid: Cells + Sized {
     /// The store's length in the 1999 layout, gaps included.
     const EXTENT: usize;
     /// The runs of fields, in order.
@@ -49,22 +50,30 @@ pub fn with_laid<T: Laid, R>(base: usize, f: impl FnOnce(&T) -> R) -> R {
     let bytes = unsafe { buffer::<T>(base) };
     let local = T::fresh();
     for r in T::RUNS {
-        store_cells(&*local, r.to, &bytes[r.at..r.at + r.len]).expect("a run inside the store");
+        assert!(
+            set_field_range(&*local, r.field, &bytes[r.at..r.at + r.len]),
+            "{}",
+            r.field
+        );
     }
     let out = f(&local);
     for r in T::RUNS {
-        load_cells(&*local, r.to, &mut bytes[r.at..r.at + r.len]).expect("a run inside the store");
+        bytes[r.at..r.at + r.len].copy_from_slice(&field_range(&*local, r.field, r.len));
     }
     out
 }
 
-/// The offset in the 1999 layout of the byte at `typed` in the store `T`.
-pub fn image_offset<T: Laid>(typed: usize) -> usize {
-    let r = T::RUNS
-        .iter()
-        .find(|r| (r.to..r.to + r.len).contains(&typed))
-        .expect("a byte of a field");
-    r.at + (typed - r.to)
+/// The offset in the 1999 layout of the cell `field` names in the store `T`.
+pub fn image_offset<T: Laid>(store: &T, field: &str) -> usize {
+    let typed = field_start(store, field).expect("a cell of the store");
+    let mut first = 0;
+    for r in T::RUNS {
+        if typed < first + r.len {
+            return r.at + (typed - first);
+        }
+        first += r.len;
+    }
+    panic!("{field} lies in no run");
 }
 
 impl Laid for SurfaceSounds {
@@ -72,13 +81,13 @@ impl Laid for SurfaceSounds {
     const RUNS: &'static [Run] = &[
         Run {
             at: 0x0,
-            to: 0,
+            field: ".tables_done",
             len: 0x38,
         },
         // 0x38: one dword nothing reads or writes.
         Run {
             at: 0x3C,
-            to: offset_of!(SurfaceSounds, along),
+            field: ".along",
             len: 0x8,
         },
     ];
@@ -90,12 +99,21 @@ impl Laid for SurfaceSounds {
 /// One wheel record's runs: its first dword, then (after a dword nothing reads) the other four.
 const fn voice(n: usize) -> [Run; 2] {
     let at = 0x44 + 0x14 * n;
-    let to = offset_of!(SoundObject, voices) + size_of::<EngineVoice>() * n;
+    let (first, rest) = match n {
+        0 => (".voices[0].share_a", ".voices[0].share_b"),
+        1 => (".voices[1].share_a", ".voices[1].share_b"),
+        2 => (".voices[2].share_a", ".voices[2].share_b"),
+        _ => (".voices[3].share_a", ".voices[3].share_b"),
+    };
     [
-        Run { at, to, len: 0x4 },
+        Run {
+            at,
+            field: first,
+            len: 0x4,
+        },
         Run {
             at: at + 0x8,
-            to: to + offset_of!(EngineVoice, share_b),
+            field: rest,
             len: 0xC,
         },
     ]
@@ -109,13 +127,13 @@ const fn object_runs() -> [Run; 15] {
     [
         Run {
             at: 0x0,
-            to: 0,
+            field: ".sound_offset",
             len: 0x28,
         },
         // 0x28: one dword nothing reads or writes.
         Run {
             at: 0x2C,
-            to: offset_of!(SoundObject, place),
+            field: ".place",
             len: 0x18,
         },
         v0a,
@@ -128,31 +146,31 @@ const fn object_runs() -> [Run; 15] {
         v3b,
         Run {
             at: 0x94,
-            to: offset_of!(SoundObject, reading_times),
+            field: ".reading_times",
             len: 0xE0 - 0x94,
         },
         // 0xE0: two dwords nothing reads or writes.
         Run {
             at: 0xE8,
-            to: offset_of!(SoundObject, gear),
+            field: ".gear",
             len: 0x114 - 0xE8,
         },
         // 0x114: one dword nothing reads or writes.
         Run {
             at: 0x118,
-            to: offset_of!(SoundObject, smooth_throttle),
+            field: ".smooth_throttle",
             len: 0x8,
         },
         // 0x120: two dwords nothing reads or writes.
         Run {
             at: 0x128,
-            to: offset_of!(SoundObject, turns_up),
+            field: ".turns_up",
             len: 0x288 - 0x128,
         },
         // 0x288: one dword nothing reads or writes.
         Run {
             at: 0x28C,
-            to: offset_of!(SoundObject, sum_b),
+            field: ".sum_b",
             len: 0x4A8 - 0x28C,
         },
     ]
@@ -172,66 +190,69 @@ mod tests {
 
     /// The runs are the whole store, in order, with nothing between them, and lie in the
     /// 1999 extent without overlap.
-    fn covered<T: Laid>() {
+    fn covered<T: Laid>(store: &T) {
+        let name = std::any::type_name::<T>();
         let mut next = 0;
         let mut image = 0;
         for r in T::RUNS.iter().filter(|r| r.len != 0) {
-            assert_eq!(r.to, next, "{}", std::any::type_name::<T>());
-            assert!(r.at >= image, "{}", std::any::type_name::<T>());
+            assert_eq!(
+                field_start(store, r.field),
+                Some(next),
+                "{name} {}",
+                r.field
+            );
+            assert!(r.at >= image, "{name}");
             next += r.len;
             image = r.at + r.len;
         }
-        assert_eq!(next, size_of::<T>(), "{}", std::any::type_name::<T>());
+        assert_eq!(next, field_range(store, "", usize::MAX).len(), "{name}");
         assert!(image <= T::EXTENT);
     }
 
     #[test]
     fn runs_cover_the_stores() {
-        covered::<SoundObject>();
-        covered::<SurfaceSounds>();
+        covered(&*SoundObject::fresh());
+        covered(&*SurfaceSounds::fresh());
     }
 
     /// The engine's dwords sit where the core's offsets had them in the sound object.
     #[test]
     fn the_engine_words_sit_where_the_offsets_were() {
-        let o = SoundObject::of(crate::sound::owner::sound(), 0).unwrap();
-        let base = core::ptr::from_ref(o).addr();
-        let at = |cell: &crate::session::PlainDword| {
-            image_offset::<SoundObject>(core::ptr::from_ref(cell).addr() - base)
-        };
+        let o = SoundObject::fresh();
+        let at = |field: &str| image_offset(&*o, field);
         assert_eq!(
             [
-                at(&o.new_revs),
-                at(&o.revs),
-                at(&o.throttle),
-                at(&o.gear_event),
-                at(&o.no_gear),
-                at(&o.reading_times[0]),
-                at(&o.reading_times[1]),
-                at(&o.reading_revs[0]),
-                at(&o.reading_revs[1]),
-                at(&o.gear),
-                at(&o.last_gear),
-                at(&o.gear_notice),
-                at(&o.countdown),
-                at(&o.drop_latched),
-                at(&o.last_direction),
-                at(&o.state),
-                at(&o.last_state),
-                at(&o.smooth_throttle),
-                at(&o.throttle_lead),
-                at(&o.turns_up),
-                at(&o.direction),
-                at(&o.turns_down),
-                at(&o.slots[5].sound),
-                at(&o.slots[5].start),
-                at(&o.slots[6].start),
-                at(&o.slots[6].playing),
-                at(&o.slots[6].volume),
-                at(&o.backfire_wait),
-                at(&o.gear_slot.start),
-                at(&o.voices[2].surface),
-                at(&o.surface),
+                at(".new_revs"),
+                at(".revs"),
+                at(".throttle"),
+                at(".gear_event"),
+                at(".no_gear"),
+                at(".reading_times[0]"),
+                at(".reading_times[1]"),
+                at(".reading_revs[0]"),
+                at(".reading_revs[1]"),
+                at(".gear"),
+                at(".last_gear"),
+                at(".gear_notice"),
+                at(".countdown"),
+                at(".drop_latched"),
+                at(".last_direction"),
+                at(".state"),
+                at(".last_state"),
+                at(".smooth_throttle"),
+                at(".throttle_lead"),
+                at(".turns_up"),
+                at(".direction"),
+                at(".turns_down"),
+                at(".slots[5].sound"),
+                at(".slots[5].start"),
+                at(".slots[6].start"),
+                at(".slots[6].playing"),
+                at(".slots[6].volume"),
+                at(".backfire_wait"),
+                at(".gear_slot.start"),
+                at(".voices[2].surface"),
+                at(".surface"),
             ],
             [
                 0x10,

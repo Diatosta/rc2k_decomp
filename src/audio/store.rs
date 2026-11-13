@@ -332,12 +332,6 @@ pub fn volume_level(
     })
 }
 
-/// A record's length, and its handles' places in it.
-const RECORD_LEN: usize = core::mem::size_of::<SampleRecord>();
-const KEY_AT: usize = core::mem::offset_of!(SampleRecord, data_key);
-const LEVEL_AT: usize = core::mem::offset_of!(SampleRecord, volume_factor);
-const _: () = assert!(RECORD_LEN == 0x40 && KEY_AT == 0xC && LEVEL_AT == 0x20);
-
 /// The records as the image holds them: per record its group, data key (the sample's name,
 /// IDA's address of it), priority, voice kind, copies, scale, volume factor (IDA's address
 /// of the level), minimum distance (bits of an f32), volume, pan and frequency; the number
