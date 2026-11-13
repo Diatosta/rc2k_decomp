@@ -137,7 +137,76 @@ pub fn black_divider(frame: &Frame, hud: &Hud, pen: Pen, rect: [u32; 4]) -> Resu
     crate::hud::add_solid_quad::add_solid_quad(frame, hud, pen)
 }
 
-/// The rectangle of the gear sprite for the gear value `gear`.
+/// The gears physics allows (reverse to seventh): only a damaged replay file brings one outside.
+const GEARS: std::ops::RangeInclusive<i32> = -1..=7;
+
+/// Whether the clamp of the gear has been logged in this race (`start_gear_log` clears it).
+static GEAR_CLAMP_LOGGED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// A new race: the next out-of-range gear is logged again.
+pub fn start_gear_log() {
+    GEAR_CLAMP_LOGGED.store(false, std::sync::atomic::Ordering::Relaxed);
+}
+
+/// The gear to show for the gear value `gear` (a signed dword), and the log line when it had to
+/// be clamped to `GEARS`.
+fn clamped_gear(gear: u32) -> (i32, Option<String>) {
+    let read = gear as i32;
+    let shown = read.clamp(*GEARS.start(), *GEARS.end());
+    let line = (read != shown).then(|| {
+        format!(
+            "hud: gear {read} outside {} ..= {} (a damaged replay?), shown as {shown}",
+            GEARS.start(),
+            GEARS.end()
+        )
+    });
+    (shown, line)
+}
+
+/// The rectangle of the gear sprite for the gear value `gear`: 0x41 over the gear, which is
+/// clamped to what physics allows (the first clamp of a race is logged).
 pub fn gear_rect(gear: u32) -> u32 {
-    gear.wrapping_add(0x41)
+    let (shown, line) = clamped_gear(gear);
+    if let Some(line) = line
+        && !GEAR_CLAMP_LOGGED.swap(true, std::sync::atomic::Ordering::Relaxed)
+    {
+        crate::framework::log(&line);
+    }
+    (shown + 0x41) as u32
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn gears_in_range_are_untouched() {
+        for g in -1..=7i32 {
+            assert_eq!(clamped_gear(g as u32), (g, None));
+            assert_eq!(gear_rect(g as u32), (g + 0x41) as u32);
+        }
+    }
+
+    #[test]
+    fn gears_outside_are_clamped_and_named() {
+        let (shown, line) = clamped_gear(40);
+        assert_eq!(shown, 7);
+        assert_eq!(
+            line.as_deref(),
+            Some("hud: gear 40 outside -1 ..= 7 (a damaged replay?), shown as 7")
+        );
+        let (shown, line) = clamped_gear(-9i32 as u32);
+        assert_eq!(shown, -1);
+        assert!(line.unwrap().contains("gear -9 outside"));
+        assert_eq!(gear_rect(0x8000_0000), 0x40);
+        assert_eq!(gear_rect(1000), 0x48);
+    }
+
+    #[test]
+    fn the_log_flag_is_set_by_a_clamp_and_cleared_by_a_new_race() {
+        gear_rect(99);
+        assert!(GEAR_CLAMP_LOGGED.load(std::sync::atomic::Ordering::Relaxed));
+        start_gear_log();
+        assert!(!GEAR_CLAMP_LOGGED.load(std::sync::atomic::Ordering::Relaxed));
+    }
 }

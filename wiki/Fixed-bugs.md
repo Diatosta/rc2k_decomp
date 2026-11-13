@@ -622,3 +622,13 @@ has the same fixed addresses, but its network mode could not be run here to see 
 **Seen or read:** found 2026-11-13 while drawing the player's car on a thread of its own: the car drawn alone differed from the car drawn after the scenery in one alpha step of one reflection fan, and the cause was narrowed to the work table's entry 0 fog byte (`scene::draw_object_face`, 0x450BDA, reading it before `scene::fog_polygon`). Read in the port; the disassembly was not checked in this step.
 
 **Fix:** the face's shine is scaled by its own fog, the fog `scene::fog_polygon` gives its first vertex once the face is projected (the same table and depth). Nothing else changes: held races keep every tick and sound turn; only the reflection pass's alpha on reflective faces differs.
+
+## A gear outside the gearbox read past the HUD's sprite table
+
+**What it is:** the HUD draws the gear from its sprite table at entry 0x41 plus the gear. The game did not check the gear, so a gear outside -1 to 7 read a rectangle from the fields after the table.
+
+**In game:** never in ordinary play: the physics keeps the gear between reverse and seventh, and every gear change refuses one outside. Only a replay file damaged or edited by hand can carry such a gear; the game then drew a sprite from whatever bytes followed the table. Before this fix the port ended with "a HUD sprite's rectangle past the rectangle table".
+
+**Seen or read:** read in the port (2026-11-12) while bounding the HUD's tables; not seen in the original.
+
+**Fix:** the gear is clamped to -1 ..= 7 where its rectangle is chosen (`hud::layout_common::gear_rect`), and the game log says once a race which gear was read and which one is shown ("hud: gear 40 outside -1 ..= 7 (a damaged replay?), shown as 7"). Gears in range draw exactly as before.

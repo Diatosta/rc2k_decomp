@@ -568,8 +568,8 @@ impl HudBlock {
 /// the layouts' fixed ones (at most 0x5F), the needle's sign (0x5E or 0x60), the stage panel's
 /// (0x29 .. 0x3F), the time digits (a digit at most 9 over the panel's base, 0xC, 0x18 or 2),
 /// the signs (0x4C .. 0x5B: the value is masked) and the gear (0x41 over the gear, which
-/// physics holds to -1 ..= 7: every gear change refuses one outside, and the table takes any
-/// from -0x41 to 0x1F). The original does not check, and reads on into the fields after the
+/// physics holds to -1 ..= 7; only a damaged replay file brings one outside, and the gear's
+/// drawer, `layout_common::gear_rect`, clamps it and logs it). The original does not check, and reads on into the fields after the
 /// table for a number past it; that is refused.
 #[derive(Clone, Copy)]
 pub struct RectAt(u32);

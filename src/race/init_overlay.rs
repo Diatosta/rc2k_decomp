@@ -21,6 +21,7 @@ const ONE: u32 = 0x3F80_0000;
 
 /// `race::init_overlay` (see the header).
 pub fn init_overlay(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+    crate::hud::layout_common::start_gear_log();
     {
         // Converted: `rc2k_core::race::panel::{overlay_parts, half_length, OVERLAY_SIZES,
         // OVERLAY_CLEARED}`; the miles the x87's.
