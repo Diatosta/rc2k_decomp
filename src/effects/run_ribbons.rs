@@ -58,7 +58,7 @@ impl Colours257 {
 
 /// The original's 0x4CF890 .. 0x4CF94D: a new streak's place turned into its last (+0x1C ..), and a first move.
 fn first_frame(
-    view_matrix: &[crate::session::Float; 16],
+    view_matrix: &[crate::session::PlainFloat; 16],
     ring: &Ring,
     e: u32,
     effects: &crate::effects::owner::Effects,
@@ -79,7 +79,7 @@ fn move_(ring: &Ring, e: u32, effects: &crate::effects::owner::Effects) {
 
 /// The original's 0x4CF9A6 .. 0x4CFA2D: the place turned by the view into `DrawWork.turned[0]` ...
 fn turn_place(
-    view_matrix: &[crate::session::Float; 16],
+    view_matrix: &[crate::session::PlainFloat; 16],
     ring: &Ring,
     e: u32,
     effects: &crate::effects::owner::Effects,
@@ -158,7 +158,7 @@ fn refusal(
 /// The streak step at e (see the header): whether the entry dies.
 fn streak(
     buffer: &crate::d3d::vertices_store::PolygonVertices,
-    view_matrix: &[crate::session::Float; 16],
+    view_matrix: &[crate::session::PlainFloat; 16],
     ring: &Ring,
     e: u32,
     scene: &crate::scene::owner::Scene,
@@ -269,7 +269,7 @@ use crate::math::x87_float::int;
 
 /// The entry's place turned by the view matrix (its rows' x, y, z columns plus the translation
 /// in cells 12 .. 14), in the x87's order: the three results unrounded to a stored float.
-fn view_turned(view_matrix: &[crate::session::Float; 16], ring: &Ring, e: u32) -> [bh::X; 3] {
+fn view_turned(view_matrix: &[crate::session::PlainFloat; 16], ring: &Ring, e: u32) -> [bh::X; 3] {
     let t0 = ld(ring, e, |en| en.place[2]);
     let t1 = ld(ring, e, |en| en.place[1]);
     let t2 = ld(ring, e, |en| en.place[0]);
@@ -305,7 +305,7 @@ fn view_turned(view_matrix: &[crate::session::Float; 16], ring: &Ring, e: u32) -
 
 /// `first_frame`'s x87 block as plain Rust on the x87 model (52 instructions), same order and memory places.
 fn first_frame_x87(
-    view_matrix: &[crate::session::Float; 16],
+    view_matrix: &[crate::session::PlainFloat; 16],
     ring: &Ring,
     e: u32,
     c: &MarksClock,
@@ -339,7 +339,12 @@ fn move_x87(ring: &Ring, e: u32, c: &MarksClock, y_gain: f32) {
 }
 
 /// `turn_place`'s x87 block as plain Rust on the x87 model (36 instructions), same order and memory places.
-fn turn_place_x87(view_matrix: &[crate::session::Float; 16], ring: &Ring, e: u32, dw: &DrawWork) {
+fn turn_place_x87(
+    view_matrix: &[crate::session::PlainFloat; 16],
+    ring: &Ring,
+    e: u32,
+    dw: &DrawWork,
+) {
     let [x, y, z] = view_turned(view_matrix, ring, e);
     dw.turned[0].st(x);
     dw.turned[1].st(y);
@@ -355,7 +360,7 @@ mod old {
     use crate::math::x87_float::int;
     /// The previous version of `first_frame`'s x87 block as plain Rust on the x87 model (52 instructions), same order and memory places.
     pub(super) fn first_frame_x87(
-        view_matrix: &[crate::session::Float; 16],
+        view_matrix: &[crate::session::PlainFloat; 16],
         ring: &Ring,
         e: u32,
         c: &MarksClock,
@@ -434,7 +439,7 @@ mod old {
 
     /// The previous version of `turn_place`'s x87 block as plain Rust on the x87 model (36 instructions), same order and memory places.
     pub(super) fn turn_place_x87(
-        view_matrix: &[crate::session::Float; 16],
+        view_matrix: &[crate::session::PlainFloat; 16],
         ring: &Ring,
         e: u32,
         dw: &DrawWork,

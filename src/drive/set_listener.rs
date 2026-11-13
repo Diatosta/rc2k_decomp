@@ -28,7 +28,7 @@ use crate::race::owner::Race;
 use crate::scene::matrix::multiply_matrices;
 use crate::scene::rotate_point::rotate_point;
 use crate::session::DwordLike;
-use crate::session::Float;
+use crate::session::PlainFloat;
 use rc2k_core::drive::listener;
 
 /// The car file's six figures times 65536 over 1000, or the refusal (before anything).
@@ -52,8 +52,8 @@ fn figures(race: &Race, session: u32, viewed: u32) -> Result<[i32; 6], Refused> 
 pub struct ListenerView<'a> {
     /// Which car's view (0 or 1).
     pub drawn_view: u32,
-    pub view_matrix: &'a [Float; 16],
-    pub view_turn_matrix: &'a [Float; 16],
+    pub view_matrix: &'a [PlainFloat; 16],
+    pub view_turn_matrix: &'a [PlainFloat; 16],
     pub view_place: [&'a dyn DwordLike; 3],
     /// The view's sun (its place and the view's value, `ViewSun`).
     pub sun: &'a crate::scene::polygon_work::ViewSun,

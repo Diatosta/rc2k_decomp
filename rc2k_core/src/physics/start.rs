@@ -123,7 +123,7 @@ impl CarStart {
     /// count down at 500 with the jump start's notice; each call the count goes down, and
     /// on reaching 0 the time takes the penalty, the timer and `held` go, the notice says
     /// the car is put back.
-    pub fn false_start(&mut self, gear: u32, notice: &mut Notice) -> FalseStart {
+    pub fn false_start(&mut self, gear: i32, notice: &mut Notice) -> FalseStart {
         let mut done = FalseStart::default();
         if self.held == 0 && gear != 0 {
             self.held = 1;

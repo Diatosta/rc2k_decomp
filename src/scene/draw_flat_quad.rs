@@ -18,7 +18,6 @@
 use crate::errors::Refused;
 use crate::math::x87;
 use crate::race::owner_course::CourseReads;
-use crate::session::Dword;
 
 #[allow(
     clippy::too_many_arguments,
@@ -41,7 +40,7 @@ pub fn draw_flat_quad(
         rec.u.set(view.quad.uv[n].get());
         rec.v.set(view.quad.uv[4 + n].get());
     }
-    let float = |cell: &Dword| x87::from_int(cell.get() as i32);
+    let float = |cell: &crate::session::PlainDword| x87::from_int(cell.get() as i32);
     let [left, right, top, bottom] = [
         &view.quad.corners[0],
         &view.quad.corners[1],

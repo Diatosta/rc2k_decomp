@@ -8,34 +8,34 @@
 
 use crate::race::draw_view_scene::ViewOutput;
 use crate::race::owner::Race;
-use crate::session::{Dword, Float};
+use crate::session::{PlainDword, PlainFloat};
 
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct SceneHandOff {
     /// 1 when the mirror was drawn this frame (its full window follows: `race::draw_race_scene`).
-    mirror_drawn: Dword,
+    mirror_drawn: PlainDword,
     /// `SceneMatrices.lit_matrix`.
-    lit: [Float; 16],
+    lit: [PlainFloat; 16],
     /// `SceneMatrices.made_object_matrix`.
-    made: [Float; 16],
+    made: [PlainFloat; 16],
     /// The view's output (`ViewOutput`), applied by the game's thread: the EAX weight and the
     /// block and value for `store_view_value`, each with a word saying it is there.
-    environment: [Dword; 2],
-    view_value: [Dword; 3],
+    environment: [PlainDword; 2],
+    view_value: [PlainDword; 3],
     /// Whether its camera set its view matrices.
-    view_matrices: Dword,
+    view_matrices: PlainDword,
 }
 
 impl SceneHandOff {
     pub const fn new() -> Self {
         Self {
-            mirror_drawn: Dword::new(0),
-            lit: [const { Float::new(0.0) }; 16],
-            made: [const { Float::new(0.0) }; 16],
-            environment: [const { Dword::new(0) }; 2],
-            view_value: [const { Dword::new(0) }; 3],
-            view_matrices: Dword::new(0),
+            mirror_drawn: PlainDword::new(0),
+            lit: [const { PlainFloat::new(0.0) }; 16],
+            made: [const { PlainFloat::new(0.0) }; 16],
+            environment: [const { PlainDword::new(0) }; 2],
+            view_value: [const { PlainDword::new(0) }; 3],
+            view_matrices: PlainDword::new(0),
         }
     }
 

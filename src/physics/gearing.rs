@@ -14,12 +14,12 @@ use crate::math::x87_float as bh;
 use crate::physics::car_store::Car;
 use crate::physics::tables_store::PhysicsTables;
 use crate::race::numbers_store::Numbers;
-use crate::session::{PlainDword, PlainFloat};
+use crate::session::{PlainDword, PlainFloat, PlainInt};
 
 /// The variables: the car's work copy's and the ratio table (gear -1 first).
 #[derive(Clone, Copy)]
 pub struct GearPlaces<'a> {
-    pub gear: &'a PlainDword,
+    pub gear: &'a PlainInt,
     pub engine_speed: &'a PlainFloat,
     pub drive_speed: &'a PlainFloat,
     pub drive_speed_b: &'a PlainFloat,
@@ -43,15 +43,15 @@ impl<'a> GearPlaces<'a> {
 }
 
 /// The gear (None for neutral) and its ratio; refused outside the ratio table (-1 ..= 7).
-fn gear_ratio(p: &GearPlaces<'_>) -> Result<Option<(u32, f32)>, Refused> {
+fn gear_ratio(p: &GearPlaces<'_>) -> Result<Option<(i32, f32)>, Refused> {
     let gear = p.gear.get();
     if gear == 0 {
         return Ok(None);
     }
-    if !(-1..=7).contains(&(gear as i32)) {
+    if !(-1..=7).contains(&gear) {
         return Err(BadInput("a gear outside g_gearRatios (-1 ..= 7)").into());
     }
-    Ok(Some((gear, p.ratios[(gear as i32 + 1) as usize].get())))
+    Ok(Some((gear, p.ratios[(gear + 1) as usize].get())))
 }
 
 /// `physics::revs_from_wheels` (0x43C0C9): in gear, engine speed = the driven speed (with

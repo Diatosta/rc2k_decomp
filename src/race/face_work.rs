@@ -11,109 +11,109 @@
 //! original, whichever view drew it; now the same view's last (none drawn: zeros). Nothing
 //! reads them on such a face: the fans' hashes are the same.
 
-use crate::session::Dword;
+use crate::session::PlainDword;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct FaceWork {
     /// The face's halves turned to the view (`race::course_faces`).
-    pub turned: [Dword; 2],
+    pub turned: [PlainDword; 2],
     /// The face's corners (the fourth -1 for a face of three points).
-    pub corners: [Dword; 4],
+    pub corners: [PlainDword; 4],
     /// The first texture, its corner order and its back.
-    pub texture_a: Dword,
-    pub order_a: Dword,
-    pub back_a: Dword,
+    pub texture_a: PlainDword,
+    pub order_a: PlainDword,
+    pub back_a: PlainDword,
     /// The second texture, its corner order and its back.
-    pub texture_b: Dword,
-    pub order_b: Dword,
-    pub back_b: Dword,
+    pub texture_b: PlainDword,
+    pub order_b: PlainDword,
+    pub back_b: PlainDword,
     /// The colour, the light and the see-through (a byte) by corner.
-    pub corner_colours: [Dword; 4],
-    pub corner_lights: [Dword; 4],
-    pub corner_alphas: [Dword; 4],
+    pub corner_colours: [PlainDword; 4],
+    pub corner_lights: [PlainDword; 4],
+    pub corner_alphas: [PlainDword; 4],
     /// `g_polygonMode`: how `scene::draw_polygon` draws.
-    pub polygon_mode: Dword,
+    pub polygon_mode: PlainDword,
     /// The two textures' mapping modes (+0 the mode; the original's pair, +4 not used).
-    pub mapping_a: [Dword; 2],
-    pub mapping_b: [Dword; 2],
+    pub mapping_a: [PlainDword; 2],
+    pub mapping_b: [PlainDword; 2],
     /// `g_faceNumber`: the object face being listed or drawn.
-    pub face_number: Dword,
+    pub face_number: PlainDword,
     /// The object face's kind (its head's byte 6) and unlit byte (byte 0xB), set by
     /// `scene::draw_object_faces` for `scene::draw_object_face` (the original's `g_faceKind`,
     /// `face_unlit` in the sound spot block).
-    pub face_kind: Dword,
-    pub face_unlit: Dword,
+    pub face_kind: PlainDword,
+    pub face_unlit: PlainDword,
     /// The fade of the car being drawn: its alpha (`race::car_draw`; `fade_alpha_moved`), the
     /// faded bits of its model (record +0x10, -1 outside a car's drawing: `faded_bits`) and
     /// whether the face being drawn is faded (`scene::draw_object_face` for
     /// `scene::draw_polygon`: `faded`).
-    pub fade_alpha: Dword,
-    pub faded_bits: Dword,
-    pub faded: Dword,
+    pub fade_alpha: PlainDword,
+    pub faded_bits: PlainDword,
+    pub faded: PlainDword,
     /// The course face being drawn or listed (`g_currentCourseFace`, 0x5CCCD0), named by the
     /// bad polygon's log; the objects of two shapes would keep their moving state in its
     /// +0x30 .. (`scene::set_object_material`), but no kind in the game's files has that
     /// material (way 4: none in objsinfo, carsinfo, frntinfo or extrinfo).
-    pub course_face: Dword,
+    pub course_face: PlainDword,
     /// The two textures' coordinates by corner, x then y (`RACE_VIEW.corner_uv`, 0x63DA0C,
     /// and `corner_uv_b`, 0x63DAB8): set for a face's textured sets
     /// (`race::face_texture_coordinates`), read into its polygon entries.
-    pub uv_a: [Dword; 8],
-    pub uv_b: [Dword; 8],
+    pub uv_a: [PlainDword; 8],
+    pub uv_b: [PlainDword; 8],
     /// `g_faceDepthKey` (`RACE_VIEW.face_depth_key`): the face's depth key, each view's own.
-    pub depth_key: Dword,
+    pub depth_key: PlainDword,
     /// `g_reflectionsKept` (`RACE_VIEW.reflections_kept`): each view's own.
-    pub reflections_kept: Dword,
+    pub reflections_kept: PlainDword,
     /// `g_faceReflects` (`FRAME_SWITCHES.face_reflects`): each view's own.
-    pub reflects: Dword,
+    pub reflects: PlainDword,
     /// `no_far_clip` (`FRAME_SWITCHES.no_far_clip`): the sky is drawn uncut, each view's own.
-    pub no_far_clip: Dword,
+    pub no_far_clip: PlainDword,
     /// The faces hidden from the shown view (`FRAME_WORK.face_hide_mask`, `g_faceHideMask`,
     /// 0x64167C): set from the face under the car (`race::face_hide_mask`), each view's own.
-    pub face_hide_mask: Dword,
+    pub face_hide_mask: PlainDword,
     /// `g_faceAnyShine` (`FRAME_SWITCHES.face_any_shine`, 0x621504): whether a vertex of the
     /// object face being drawn shines (`scene::draw_object_face`), each view's own.
-    pub face_any_shine: Dword,
+    pub face_any_shine: PlainDword,
     /// `g_depthTest` (`RaceView.depth_test`, 0x63D9E0): the face turned the depth test off
     /// (`race::face_depth_test_off`), each view's own.
-    pub depth_test: Dword,
+    pub depth_test: PlainDword,
 }
 
 impl FaceWork {
     pub const fn new() -> Self {
         Self {
-            turned: [const { Dword::new(0) }; 2],
-            corners: [const { Dword::new(0) }; 4],
-            texture_a: Dword::new(0),
-            order_a: Dword::new(0),
-            back_a: Dword::new(0),
-            texture_b: Dword::new(0),
-            order_b: Dword::new(0),
-            back_b: Dword::new(0),
-            corner_colours: [const { Dword::new(0) }; 4],
-            corner_lights: [const { Dword::new(0) }; 4],
-            corner_alphas: [const { Dword::new(0) }; 4],
-            polygon_mode: Dword::new(0),
-            mapping_a: [const { Dword::new(0) }; 2],
-            mapping_b: [const { Dword::new(0) }; 2],
-            face_number: Dword::new(0),
-            face_kind: Dword::new(0),
-            face_unlit: Dword::new(0),
-            fade_alpha: Dword::new(0),
-            faded_bits: Dword::new(u32::MAX),
-            faded: Dword::new(0),
-            course_face: Dword::new(0),
-            uv_a: [const { Dword::new(0) }; 8],
-            uv_b: [const { Dword::new(0) }; 8],
-            depth_key: Dword::new(0),
-            reflections_kept: Dword::new(0),
-            reflects: Dword::new(0),
-            no_far_clip: Dword::new(0),
-            face_hide_mask: Dword::new(0),
-            face_any_shine: Dword::new(0),
-            depth_test: Dword::new(0),
+            turned: [const { PlainDword::new(0) }; 2],
+            corners: [const { PlainDword::new(0) }; 4],
+            texture_a: PlainDword::new(0),
+            order_a: PlainDword::new(0),
+            back_a: PlainDword::new(0),
+            texture_b: PlainDword::new(0),
+            order_b: PlainDword::new(0),
+            back_b: PlainDword::new(0),
+            corner_colours: [const { PlainDword::new(0) }; 4],
+            corner_lights: [const { PlainDword::new(0) }; 4],
+            corner_alphas: [const { PlainDword::new(0) }; 4],
+            polygon_mode: PlainDword::new(0),
+            mapping_a: [const { PlainDword::new(0) }; 2],
+            mapping_b: [const { PlainDword::new(0) }; 2],
+            face_number: PlainDword::new(0),
+            face_kind: PlainDword::new(0),
+            face_unlit: PlainDword::new(0),
+            fade_alpha: PlainDword::new(0),
+            faded_bits: PlainDword::new(u32::MAX),
+            faded: PlainDword::new(0),
+            course_face: PlainDword::new(0),
+            uv_a: [const { PlainDword::new(0) }; 8],
+            uv_b: [const { PlainDword::new(0) }; 8],
+            depth_key: PlainDword::new(0),
+            reflections_kept: PlainDword::new(0),
+            reflects: PlainDword::new(0),
+            no_far_clip: PlainDword::new(0),
+            face_hide_mask: PlainDword::new(0),
+            face_any_shine: PlainDword::new(0),
+            depth_test: PlainDword::new(0),
         }
     }
 }

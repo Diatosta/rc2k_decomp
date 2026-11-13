@@ -663,7 +663,7 @@ pub fn run_view_marks(
 pub fn clear_viewport_unless_held(
     draw: &crate::scene::draw_store::SceneDraw,
     part: &crate::workers::PartScratch,
-    own: &[crate::session::Dword; 4],
+    own: &[crate::session::PlainDword; 4],
 ) {
     if draw.v3_driver_fix.get() == 0 {
         crate::platform_3d::clear_viewport(part, own);

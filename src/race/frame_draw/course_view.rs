@@ -371,7 +371,7 @@ pub fn mark_far_cells(
         .matrices
         .view_turn_matrix
         .each_ref()
-        .map(crate::session::Float::get);
+        .map(crate::session::PlainFloat::get);
     let two = numbers.two.get();
     let zero = numbers.zero.get();
     let point_five = numbers.half.get();
@@ -438,7 +438,7 @@ pub fn visible_records(
     // Converted: `rc2k_core::race::view::visible_records`.
     let grid = &view.cells;
     let list = rc2k_core::race::view::visible_records(
-        grid.iter().map(crate::session::Dword::get),
+        grid.iter().map(crate::session::PlainDword::get),
         course.course.course_record_count.get(),
     )
     .into_iter()
@@ -451,8 +451,8 @@ pub fn visible_records(
 /// first) from its first entry to its last. Refuses (before anything) a sort that would go past the
 /// list. `entries` the list's cells.
 pub fn sort_entries(
-    count: &crate::session::Dword,
-    entries: &[crate::session::Dword],
+    count: &crate::session::PlainDword,
+    entries: &[crate::session::PlainDword],
 ) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::quick_sort::quick_sort` (through `sort_cells`).
     use rc2k_core::race::quick_sort::Order;

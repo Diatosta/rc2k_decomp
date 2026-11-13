@@ -23,23 +23,23 @@ pub enum Shift {
 }
 
 /// The reverse gear.
-pub const REVERSE: u32 = u32::MAX;
+pub const REVERSE: i32 = -1;
 
 /// The manual box's change up from `gear`: from reverse to neutral, from neutral a start
 /// gear, at the top (`top()`, `g_gearCount`) nothing; None: the next free gear up is
 /// looked for.
-pub fn manual_up(gear: u32, top: impl FnOnce() -> u32) -> Option<Shift> {
+pub fn manual_up(gear: i32, top: impl FnOnce() -> u32) -> Option<Shift> {
     match gear {
         REVERSE => Some(Shift::Neutral),
         0 => Some(Shift::Start),
-        g if g == top() => Some(Shift::Done),
+        g if g as u32 == top() => Some(Shift::Done),
         _ => None,
     }
 }
 
 /// The manual box's change down from `gear`: from 1 to neutral, from neutral into
 /// reverse, in reverse nothing; None: the next free gear down is looked for.
-pub fn manual_down(gear: u32) -> Option<Shift> {
+pub fn manual_down(gear: i32) -> Option<Shift> {
     match gear {
         1 => Some(Shift::Neutral),
         0 => Some(Shift::Reverse),
@@ -51,12 +51,12 @@ pub fn manual_down(gear: u32) -> Option<Shift> {
 /// The start line's keys (down `input_gear_down` first, then up `input_gear_up`): down from
 /// neutral into reverse, from a forward gear (or neutral's other) to neutral; up from
 /// neutral a start gear, from reverse to neutral. None: neither applies.
-pub fn start_line_keys(gear: u32, down: bool, up: impl FnOnce() -> bool) -> Option<Shift> {
+pub fn start_line_keys(gear: i32, down: bool, up: impl FnOnce() -> bool) -> Option<Shift> {
     if down {
         if gear == 0 {
             return Some(Shift::Reverse);
         }
-        if (gear as i32) >= 0 {
+        if gear >= 0 {
             return Some(Shift::Neutral);
         }
     }
@@ -64,7 +64,7 @@ pub fn start_line_keys(gear: u32, down: bool, up: impl FnOnce() -> bool) -> Opti
         if gear == 0 {
             return Some(Shift::Start);
         }
-        if (gear as i32) < 0 {
+        if gear < 0 {
             return Some(Shift::Neutral);
         }
     }
@@ -84,13 +84,13 @@ pub fn manual_keys(up: bool, down: impl FnOnce() -> bool) -> Shift {
 
 /// A forward gear (1 or more, by the sign of gear - 1): the engine looked at for a
 /// change up.
-pub fn forward(gear: u32) -> bool {
-    (gear.wrapping_sub(1) as i32) >= 0
+pub fn forward(gear: i32) -> bool {
+    gear.wrapping_sub(1) >= 0
 }
 
 /// A gear with one below it to change down to (2 or more, by the sign of gear - 2).
-pub fn above_first(gear: u32) -> bool {
-    (gear.wrapping_sub(2) as i32) >= 0
+pub fn above_first(gear: i32) -> bool {
+    gear.wrapping_sub(2) >= 0
 }
 
 /// The engine's share for a change down: the clutch's (`shift_down_clutch_point`) with the clutch
@@ -101,8 +101,8 @@ pub fn down_point_clutch(clutch: u32) -> bool {
 
 /// The automatic's change up from `gear`: at the top nothing, from reverse a start gear;
 /// None: up one.
-pub fn auto_up(gear: u32, top: u32) -> Option<Shift> {
-    if gear == top {
+pub fn auto_up(gear: i32, top: u32) -> Option<Shift> {
+    if gear as u32 == top {
         Some(Shift::Done)
     } else if gear == REVERSE {
         Some(Shift::Start)
@@ -119,7 +119,7 @@ pub fn auto_up(gear: u32, top: u32) -> Option<Shift> {
 /// the clutch down and the speed under the reverse's (`slow()`).
 #[allow(clippy::too_many_arguments)] // reason: each compare is the original's, asked in turn
 pub fn auto_tests<E>(
-    gear: u32,
+    gear: i32,
     all_off: impl FnOnce() -> bool,
     clutch: impl Fn() -> bool,
     over_share: impl FnOnce() -> bool,
@@ -156,7 +156,7 @@ pub enum Change {
     Through,
 }
 
-pub fn change(gear: u32, wanted: u32) -> Change {
+pub fn change(gear: i32, wanted: i32) -> Change {
     if gear == wanted {
         Change::Same
     } else if gear == 0 {
@@ -171,7 +171,7 @@ pub fn change(gear: u32, wanted: u32) -> Change {
 /// `physics::pick_start_gear`: gears 1 .. 6 tried in turn (`try_gear(g)`: not refused
 /// and the engine's share under the change point); the first taken, or None (the last
 /// tried stays).
-pub fn pick_start<E>(mut try_gear: impl FnMut(u32) -> Result<bool, E>) -> Result<Option<u32>, E> {
+pub fn pick_start<E>(mut try_gear: impl FnMut(i32) -> Result<bool, E>) -> Result<Option<i32>, E> {
     for gear in 1..=6 {
         if try_gear(gear)? {
             return Ok(Some(gear));

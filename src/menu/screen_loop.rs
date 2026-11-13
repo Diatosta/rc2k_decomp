@@ -62,7 +62,7 @@ use crate::menu::update_blink::update_blink;
 use crate::owners::Owners;
 use crate::race::owner::Race;
 use crate::scene::owner::Scene;
-use crate::session::{DwordLike, FlagLike, Float};
+use crate::session::{DwordLike, FlagLike, PlainFloat};
 use crate::sound::owner::Sound;
 use crate::system::owner::System;
 pub use rc2k_core::menu::keys::MenuSound;
@@ -110,7 +110,7 @@ pub enum Step {
     Sound(MenuSound),
     /// Writes a scene variable.
     WriteScene(fn(&Scene) -> &dyn DwordLike, u32),
-    WriteSceneF32(fn(&Scene) -> &Float, f32),
+    WriteSceneF32(fn(&Scene) -> &PlainFloat, f32),
     /// Writes a variable of the front end's object lighting.
     WriteLight(
         fn(&crate::scene::object_light::ObjectLight) -> &dyn DwordLike,

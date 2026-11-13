@@ -17,14 +17,14 @@ pub const RATIOS: usize = 9;
 
 /// The gear's place in the ratio table (0 for reverse), or None in neutral; refused
 /// outside -1 ..= 7.
-pub fn ratio_index(gear: u32) -> Result<Option<usize>, Invalid> {
+pub fn ratio_index(gear: i32) -> Result<Option<usize>, Invalid> {
     if gear == 0 {
         return Ok(None);
     }
-    if !(-1..=7).contains(&(gear as i32)) {
+    if !(-1..=7).contains(&gear) {
         return Err(Invalid("a gear outside g_gearRatios (-1 ..= 7)"));
     }
-    Ok(Some((gear as i32 + 1) as usize))
+    Ok(Some((gear + 1) as usize))
 }
 
 /// `physics::revs_from_wheels` in gear: the driven speed (with drive kind 1 the two
@@ -71,7 +71,7 @@ pub fn settle_speed(speed: f32, step: f32) -> Option<f32> {
 /// 0: the engine stalls into neutral (the caller sets gear 0 and the change's fields).
 pub fn drops_to_neutral(
     switch: u32,
-    gear: u32,
+    gear: i32,
     engine: f32,
     limit: f32,
     block: impl FnOnce() -> u32,
@@ -146,7 +146,7 @@ mod tests {
     #[test]
     fn sums() {
         assert_eq!(ratio_index(0), Ok(None));
-        assert_eq!(ratio_index(u32::MAX), Ok(Some(0)));
+        assert_eq!(ratio_index(-1), Ok(Some(0)));
         assert_eq!(ratio_index(7), Ok(Some(8)));
         assert!(ratio_index(8).is_err());
         assert_eq!(revs_from_wheels(3.0, 5.0, true, 0.5, 2.0), 2.0);

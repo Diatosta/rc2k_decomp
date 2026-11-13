@@ -42,8 +42,8 @@ pub fn take_first_view(
         eax = ((eax as i32) >> 1) as u32;
         ebx = ((ebx as i32) >> 1) as u32;
     }
-    camera.view_a_pitch.set(eax);
-    camera.view_a_roll.set(ebx);
+    camera.view_a_pitch.set(eax as i32);
+    camera.view_a_roll.set(ebx as i32);
     Ok(())
 }
 

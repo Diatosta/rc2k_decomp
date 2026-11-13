@@ -6,38 +6,38 @@
 //! and the course work's `shine` (`g_shine`, 0x5CCE78), shared by every view in turn.
 
 use crate::cells::ZeroCells;
-use crate::session::{Bytes, Dword};
+use crate::session::{PlainBytes, PlainDword};
 
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct ViewCourse {
     /// The four face tables (`face_table_a` .. `face_table_d`), each view's own: the depth flag
     /// of an object (a, b) and its kind byte (c, d).
-    pub face_table_a: Bytes<256>,
-    pub face_table_b: Bytes<256>,
-    pub face_table_c: Bytes<256>,
-    pub face_table_d: Bytes<256>,
+    pub face_table_a: PlainBytes<256>,
+    pub face_table_b: PlainBytes<256>,
+    pub face_table_c: PlainBytes<256>,
+    pub face_table_d: PlainBytes<256>,
     /// The view value `race::draw_mirror_view` keeps (`view_value_kept`), each view's own.
-    pub view_value_kept: Dword,
+    pub view_value_kept: PlainDword,
     /// `g_shine` (0x5CCE78), each view's own.
-    pub shine: Dword,
+    pub shine: PlainDword,
 }
 
 impl ViewCourse {
     /// A view's course values as the game starts them: the face tables empty, the shine 0x100.
     pub const fn new() -> Self {
         Self {
-            face_table_a: Bytes::ZERO,
-            face_table_b: Bytes::ZERO,
-            face_table_c: Bytes::ZERO,
-            face_table_d: Bytes::ZERO,
-            view_value_kept: Dword::ZERO,
-            shine: Dword::new(0x100),
+            face_table_a: PlainBytes::ZERO,
+            face_table_b: PlainBytes::ZERO,
+            face_table_c: PlainBytes::ZERO,
+            face_table_d: PlainBytes::ZERO,
+            view_value_kept: PlainDword::ZERO,
+            shine: PlainDword::new(0x100),
         }
     }
 
     /// The four face tables, in order.
-    pub fn tables(&self) -> [&Bytes<256>; 4] {
+    pub fn tables(&self) -> [&PlainBytes<256>; 4] {
         [
             &self.face_table_a,
             &self.face_table_b,

@@ -5,11 +5,10 @@
 //! places no ported code names. `#[repr(C)]` with the image's layout, over the race
 //! block's bytes (`CAR`) until the code reaching the car by RVA is typed.
 
-use crate::session::{CellKind, PlainCells, SharedCells};
+use crate::session::{CellKind, PlainCells};
 
 /// The record, on the cells of kind `K`: plain for the work car and the cars' blocks (`Car`),
-/// which only the game's thread writes; atomic for a view's copy of its car (`ViewCar`), which
-/// the view's drawing part writes. Both kinds have the same layout and first values.
+/// which only the game's thread writes, and for a view's copy of its car (`ViewCar`).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct Car<K: CellKind = PlainCells> {
@@ -108,7 +107,7 @@ pub struct Car<K: CellKind = PlainCells> {
     /// +0x1d0 (0x71A1A8): drive cut after a shift (reading).
     pub drive_cut_steps: K::Dword,
     /// +0x1d4 (0x71A1AC): -1 reverse, 0 neutral, 1 .. 7 (g_carGear).
-    pub gear: K::Dword,
+    pub gear: K::Int,
     /// +0x1d8 (0x71A1B0): engine revs (g_carEngineSpeed).
     pub engine_speed: K::Float,
     /// +0x1dc (0x71A1B4): engine top revs.
@@ -147,7 +146,7 @@ pub struct Car<K: CellKind = PlainCells> {
     /// +0x234 (0x71A20C): 1 on any contact this step.
     pub contact_flag: K::Dword,
     /// +0x238 (0x71A210): 1 a gear change happened, -1 refused.
-    pub gear_changed: K::Dword,
+    pub gear_changed: K::Int,
     /// +0x23c (0x71A214): 1 from every gear change until `drive::set_listener` hands it to the effects' splines (`spline_gear_changed`) and clears it.
     pub gear_change_pending: K::Dword,
     /// +0x240 (0x71A218): the colour the face's light gives the car.
@@ -566,9 +565,9 @@ pub struct Car<K: CellKind = PlainCells> {
     pub kept_brake_word: K::Dword,
 }
 
-/// A view's copy of its car (`race::view_scratch::ViewScratch::car`): the same record on
-/// atomics, which the view's drawing part writes.
-pub type ViewCar = Car<SharedCells>;
+/// A view's copy of its car (`race::view_scratch::ViewScratch::car`): the same record, which
+/// the view's drawing part writes and no other thread reads.
+pub type ViewCar = Car;
 
 impl<K: CellKind> Car<K>
 where

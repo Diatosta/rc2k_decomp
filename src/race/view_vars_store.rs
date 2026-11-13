@@ -8,11 +8,11 @@ use crate::cells::ZeroCells;
 use crate::race::groups_store::ViewAndRecords;
 #[cfg(test)]
 use crate::race::owner::race;
-use crate::session::{CellKind, Dword, Float, PlainCells, PlainDword, PlainFloat, SharedCells};
+use crate::session::{CellKind, PlainCells, PlainDword, PlainFloat};
 
 /// The view variables, on the cells of kind `K`: plain for the shared ones
-/// (`ViewAndRecords::view_vars`, which only the game's thread writes), atomic for a view's copy
-/// (`ViewVarsCopy`), which the view's drawing part writes.
+/// (`ViewAndRecords::view_vars`, which only the game's thread writes) and for a view's copy
+/// (`ViewVarsCopy`), which only the view's drawing part reaches.
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct ViewVars<K: CellKind = PlainCells> {
@@ -176,8 +176,8 @@ impl ViewVars {
 /// A view record by handle (phase 13): `VIEW_TAG | k` for the record `k` of the 52, in
 /// place of the record's address in `ViewAndRecords.view_vars.view_records[0]` (0xC3 of the tags 0xC3 .. 0xC6 given).
 /// A view's copy of the view variables (`race::view_scratch::ViewScratch::vars`): the same
-/// record on atomics, which the view's drawing part writes.
-pub type ViewVarsCopy = ViewVars<SharedCells>;
+/// record, which only the view's drawing part reaches.
+pub type ViewVarsCopy = ViewVars;
 
 /// The view variables as the game starts them, on the cells `$dword` and `$float`: the view
 /// size scales, the camera's bias figures, the 52 names of the view records (as handles),
@@ -295,13 +295,6 @@ impl ViewVars<PlainCells> {
     /// The view variables' first values.
     pub const fn new() -> Self {
         first_view_vars!(PlainDword, PlainFloat)
-    }
-}
-
-impl ViewVars<SharedCells> {
-    /// A view's copy of the view variables, with the first values.
-    pub const fn new() -> Self {
-        first_view_vars!(Dword, Float)
     }
 }
 

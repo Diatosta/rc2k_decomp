@@ -57,7 +57,7 @@ fn step_shape(
     course: crate::race::owner_course::CourseReads<'_>,
     clock: u32,
     face: u32,
-    fraction_out: &crate::session::Float,
+    fraction_out: &crate::session::PlainFloat,
 ) -> Result<(), BadInput> {
     use crate::race::course_places::{face_field, write_face_field};
     let read = || -> Result<[u32; 4], BadInput> {

@@ -1,7 +1,7 @@
 //! The effects' frame timing, constants and kind floats: `MarksFrame` (IDA 0x765110 .. 0x765140), `MarksFloats` (0x765140 .. 0x765238) and
 //! `MarksKindFloats` (0x765238 .. 0x7652A4).
 
-use crate::session::{PlainDword, PlainFloat};
+use crate::session::{PlainDword, PlainFloat, PlainInt};
 
 /// The marks' frame timing and counters (`effects::frame_marks`, `effects::run_frame`, `effects::draw_frame`) (IDA 0x765110 .. 0x765140).
 #[repr(C)]
@@ -10,7 +10,7 @@ pub struct MarksFrame {
     /// 0x765110: `dword_765110`: the time stamp counter's low half at the last frame step.
     pub last_count: PlainDword,
     /// 0x765114: `dword_765114`: the cycles between the last two frame steps.
-    pub frame_cycles: PlainDword,
+    pub frame_cycles: PlainInt,
     /// 0x765118: `flt_765118`: the share of the frame an empty timed stretch took (`effects::draw_frame`).
     pub empty_share: PlainFloat,
     /// 0x76511C: `flt_76511C`: the share the ring's frame took (`effects::run_frame`).
@@ -37,7 +37,7 @@ impl MarksFrame {
     pub const fn new() -> Self {
         Self {
             last_count: PlainDword::new(0x0),
-            frame_cycles: PlainDword::new(0x0),
+            frame_cycles: PlainInt::new(0x0),
             empty_share: PlainFloat::new(0.0),
             ring_share: PlainFloat::new(0.0),
             whole_share: PlainFloat::new(0.0),
@@ -57,7 +57,7 @@ impl MarksFrame {
 #[derive(rc2k_derive::Cells)]
 pub struct MarksFloats {
     /// 0x765140: `dword_765140`: 0x10000, the ring's pull limit (`effects::run_ring`).
-    pub pull_limit: PlainDword,
+    pub pull_limit: PlainInt,
     /// 0x76514C: `flt_76514C`: -65.536, multiplied with a burst's strength and direction factors to make the burst's direction vector (`effects::emit_bursts`).
     pub burst_direction_k: PlainFloat,
     /// 0x765150: `flt_765150`: -0.125, the burst's turn scale (`effects::emit_bursts`).
@@ -117,7 +117,7 @@ pub struct MarksFloats {
 impl MarksFloats {
     pub const fn new() -> Self {
         Self {
-            pull_limit: PlainDword::new(0x10000),
+            pull_limit: PlainInt::new(0x10000),
             burst_direction_k: PlainFloat::new(-65.536),
             minus_eighth: PlainFloat::new(-0.125),
             half: PlainFloat::new(0.5),

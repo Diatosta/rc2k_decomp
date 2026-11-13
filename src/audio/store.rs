@@ -8,9 +8,17 @@
 //!   file, `tune_turn`. The rest of the old block (the mixer's channels and cursors, the
 //!   sample file and buffers, DirectSound / A3D / EAX's objects and ids, the voice lists) is
 //!   the audio thread's own, `audio::own::AudioOwn`, which has the thread table;
-//! - `SampleRecords` (`SAMPLE_RECORDS`, 0x50A7A4 .. 0x511AE4): the 0x1CD sample records of
-//!   0x40 bytes; their pointers (to the sample names and the volume factors) are handles
+//! - `SampleRecords` (the image's 0x50A7A4 .. 0x511AE4 held the 0x1CD sample records of
+//!   0x40 bytes; now `SAMPLE_CONSTANTS` for the twelve fields that never change and, shared,
+//!   only each record's `data_key` and `first_voice`); their pointers (to the sample names and the volume factors) are handles
 //!   (`name_key`, `level_code`);
+//!
+//! Thread table of the sample records: `data_key` is written by the game's thread when a race
+//! is set up (`sound::load_race_sounds`), before the Load command, and read by the audio
+//! thread when it loads (the command queue's lock orders them); `first_voice` is written by
+//! the audio thread (`audio::load_sounds`, `free_voices`) and read by the game's thread
+//! (`sound::sample_settings`) and the audio thread; the rest is read by both, written by none.
+//! No field is touched by one thread only, so none is a plain record of its own thread.
 //!
 //! The records the core works on (`Voice`, `SampleRecord`, `MixerChannel`, `AudioStream`,
 //! `MemoryList`, `AudioOptions`, `SampleFile`) are its plain structs held in `Shared`, copied
@@ -204,11 +212,33 @@ impl AudioShared {
 
 const SAMPLE_COUNT: usize = 0x1CD;
 
-/// The sample records (IDA 0x50A7A4 .. 0x511AE4): sound number -> its record.
+/// The sample records (the image's IDA 0x50A7A4 .. 0x511AE4): sound number -> its record.
+/// Of a record's 14 fields only two change after the start, and these are all that is shared
+/// here: `data_key` (the game's thread sets the race voices' file names, then sends the load
+/// command, which the locked queue orders before the audio thread's read) and `first_voice`
+/// (the audio thread's loads and `free_voices` set it, `sample_settings` of the game's
+/// thread reads it). The other twelve are constants (`SAMPLE_CONSTANTS`, read by both
+/// threads), so `record` gives a whole `SampleRecord` made of both.
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct SampleRecords {
-    pub records: [Shared<SampleRecord>; SAMPLE_COUNT],
+    data_keys: [Dword; SAMPLE_COUNT],
+    first_voices: [Dword; SAMPLE_COUNT],
+}
+
+/// The sample records' fields that never change (`data_key` and `first_voice` are 0 here:
+/// they are `SampleRecords`'), by sound number.
+pub static SAMPLE_CONSTANTS: [SampleRecord; SAMPLE_COUNT] = constants();
+
+/// The records as the image holds them, without the two fields that change.
+const fn constants() -> [SampleRecord; SAMPLE_COUNT] {
+    let mut out = first_records();
+    let mut n = 0;
+    while n < SAMPLE_COUNT {
+        out[n].data_key = 0;
+        n += 1;
+    }
+    out
 }
 
 /// A record's `data_key`: its file's name by position in the five lists of
@@ -313,7 +343,7 @@ const _: () = assert!(RECORD_LEN == 0x40 && KEY_AT == 0xC && LEVEL_AT == 0x20);
 /// of the level), minimum distance (bits of an f32), volume, pan and frequency; the number
 /// is the index and the first voice and place are 0. The two addresses become handles
 /// (`name_key`, `level_code`).
-const fn first_records() -> [Shared<SampleRecord>; SAMPLE_COUNT] {
+const fn first_records() -> [SampleRecord; SAMPLE_COUNT] {
     let rows: [[u32; 11]; SAMPLE_COUNT] = [
         [
             0x1, 0x5073f9, 0x11, 0x1, 0x1, 0x40, 0x7556a0, 0x40400000, 0x40, 0x0, 0xac44,
@@ -1699,28 +1729,26 @@ const fn first_records() -> [Shared<SampleRecord>; SAMPLE_COUNT] {
             0x0, 0x506ef8, 0x0, 0x3, 0x1, 0x20, 0x506958, 0x3f800000, 0x40, 0x0, 0xac44,
         ],
     ];
-    let mut out = [const {
-        Shared::new(SampleRecord {
-            number: 0,
-            group: 0,
-            first_voice: 0,
-            data_key: 0,
-            priority: 0,
-            voice_kind: 0,
-            copies: 0,
-            scale: 0,
-            volume_factor: 0,
-            min_distance: 0,
-            volume: 0,
-            pan: 0,
-            frequency: 0,
-            place: [0; 3],
-        })
+    let mut out = [SampleRecord {
+        number: 0,
+        group: 0,
+        first_voice: 0,
+        data_key: 0,
+        priority: 0,
+        voice_kind: 0,
+        copies: 0,
+        scale: 0,
+        volume_factor: 0,
+        min_distance: 0,
+        volume: 0,
+        pan: 0,
+        frequency: 0,
+        place: [0; 3],
     }; SAMPLE_COUNT];
     let mut n = 0;
     while n < SAMPLE_COUNT {
         let r = rows[n];
-        out[n] = Shared::new(SampleRecord {
+        out[n] = SampleRecord {
             number: n as u32,
             group: r[0],
             first_voice: 0,
@@ -1735,7 +1763,7 @@ const fn first_records() -> [Shared<SampleRecord>; SAMPLE_COUNT] {
             pan: r[9],
             frequency: r[10],
             place: [0; 3],
-        });
+        };
         n += 1;
     }
     out
@@ -1743,9 +1771,36 @@ const fn first_records() -> [Shared<SampleRecord>; SAMPLE_COUNT] {
 
 impl SampleRecords {
     pub const fn new() -> Self {
-        SampleRecords {
-            records: first_records(),
+        let first = first_records();
+        let mut data_keys = [const { Dword::new(0) }; SAMPLE_COUNT];
+        let mut n = 0;
+        while n < SAMPLE_COUNT {
+            data_keys[n] = Dword::new(first[n].data_key);
+            n += 1;
         }
+        SampleRecords {
+            data_keys,
+            first_voices: [const { Dword::new(0) }; SAMPLE_COUNT],
+        }
+    }
+
+    /// Sound `number`'s record as it is now, or `None` past the records.
+    pub fn record(&self, number: u32) -> Option<SampleRecord> {
+        let n = number as usize;
+        let mut record = *SAMPLE_CONSTANTS.get(n)?;
+        record.data_key = self.data_keys[n].get();
+        record.first_voice = self.first_voices[n].get();
+        Some(record)
+    }
+
+    /// Sound `number`'s file name key set (a race's voices, by the game's thread).
+    pub fn set_data_key(&self, number: usize, key: u32) {
+        self.data_keys[number].set(key);
+    }
+
+    /// Sound `number`'s first voice set (by the audio thread's loads and `free_voices`).
+    pub fn set_first_voice(&self, number: usize, voice: u32) {
+        self.first_voices[number].set(voice);
     }
 }
 

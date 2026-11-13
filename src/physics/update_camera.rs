@@ -424,12 +424,12 @@ fn x87_5(car: &Car) {
 /// `int [start_heading] = ((int [view_b_heading] - int [view_a_heading]) * [camera_switch_share]) + int [view_a_heading]`
 /// `int [start_roll] = ((int [view_b_roll] - int [view_a_roll]) * [camera_switch_share]) + int [view_a_roll]`
 fn x87_6(camera: &CameraWork, car: &Car) {
-    let t0 = int(camera.view_b_pitch.get() as i32);
-    let t1 = int(camera.view_a_pitch.get() as i32);
+    let t0 = int(camera.view_b_pitch.get());
+    let t1 = int(camera.view_a_pitch.get());
     let t2 = t0 - t1;
     let t3 = car.camera_switch_share.ld();
     let t4 = t2 * t3;
-    let t5 = int(camera.view_a_pitch.get() as i32);
+    let t5 = int(camera.view_a_pitch.get());
     let t6 = t4 + t5;
     camera.start_pitch.set(to_int(t6) as u32);
     let t7 = int(camera.view_b_heading.get() as i32);
@@ -440,12 +440,12 @@ fn x87_6(camera: &CameraWork, car: &Car) {
     let t12 = int(camera.view_a_heading.get() as i32);
     let t13 = t11 + t12;
     camera.start_heading.set(to_int(t13) as u32);
-    let t14 = int(camera.view_b_roll.get() as i32);
-    let t15 = int(camera.view_a_roll.get() as i32);
+    let t14 = int(camera.view_b_roll.get());
+    let t15 = int(camera.view_a_roll.get());
     let t16 = t14 - t15;
     let t17 = car.camera_switch_share.ld();
     let t18 = t16 * t17;
-    let t19 = int(camera.view_a_roll.get() as i32);
+    let t19 = int(camera.view_a_roll.get());
     let t20 = t18 + t19;
     camera.start_roll.set(to_int(t20) as u32);
 }

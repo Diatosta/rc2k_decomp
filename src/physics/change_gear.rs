@@ -12,16 +12,16 @@ use crate::physics::gear_bit::gear_bit_at;
 use crate::physics::gearing::{GearPlaces, revs_from_wheels_at, wheels_from_revs_at};
 use crate::race::numbers_store::Numbers;
 use crate::race::owner_shared::RaceShared;
-use crate::session::PlainDword;
+use crate::session::{PlainDword, PlainInt};
 use rc2k_core::physics::gear_shifts::Change;
 
 /// The other places: the asked gear, the gear bits, the two words set.
 #[derive(Clone, Copy)]
 pub struct ChangePlaces<'a> {
-    pub wanted: &'a PlainDword,
+    pub wanted: &'a PlainInt,
     /// By address: `bt` on memory, its bit number past the first dword.
     pub bits: &'a PlainDword,
-    pub changed: &'a PlainDword,
+    pub changed: &'a PlainInt,
     pub pending: &'a PlainDword,
 }
 
@@ -36,8 +36,8 @@ impl<'a> ChangePlaces<'a> {
     }
 }
 
-fn ratio_gear(g: u32) -> Result<(), Refused> {
-    if (-1..=7).contains(&(g as i32)) {
+fn ratio_gear(g: i32) -> Result<(), Refused> {
+    if (-1..=7).contains(&g) {
         Ok(())
     } else {
         Err(BadInput("a gear outside g_gearRatios (-1 ..= 7)").into())

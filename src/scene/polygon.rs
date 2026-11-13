@@ -5,7 +5,7 @@
 use crate::errors::BadInput;
 pub use crate::scene::draw_polygon::{ENTRIES, ENTRY_LEN, MOST};
 use crate::scene::polygon_store::{PolygonEntry, PolygonWork};
-use crate::session::Dword;
+use crate::session::PlainDword;
 
 /// The work table's entry `n` (the 64 of the polygon, then the 64 kept for the fan) in the
 /// drawing part's work. A number past the table is refused.
@@ -18,7 +18,7 @@ pub fn entry(work: &PolygonWork, n: usize) -> Result<&PolygonEntry, BadInput> {
 /// The list's cell `n`. The original keeps the list with room for 64 numbers, and a
 /// polygon of more vertices (up to `MOST`, or a clip's up to twice that) goes on into the
 /// old list's place and the gap after it, which the old list's cells share.
-pub fn list_cell(work: &PolygonWork, n: usize) -> &Dword {
+pub fn list_cell(work: &PolygonWork, n: usize) -> &PlainDword {
     let after_list = n.wrapping_sub(work.list.len());
     let after_old = after_list.wrapping_sub(work.old_list.len());
     work.list
@@ -34,7 +34,7 @@ pub fn list_cell(work: &PolygonWork, n: usize) -> &Dword {
 }
 
 /// The list kept before a clip, cell `n`: the list's cell 64 + `n` (as `list_cell`).
-pub fn old_list_cell(work: &PolygonWork, n: usize) -> &Dword {
+pub fn old_list_cell(work: &PolygonWork, n: usize) -> &PlainDword {
     list_cell(work, work.list.len() + n)
 }
 

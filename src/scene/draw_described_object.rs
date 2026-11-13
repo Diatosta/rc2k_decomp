@@ -35,9 +35,10 @@ fn check_object(
 pub enum Description<'a> {
     /// The material record of an object kind (and what follows it in the tables).
     Material(u32),
-    Cells(&'a [crate::session::Dword]),
+    /// The view's own cells (the object matrix slots, or a sort list from a flare's entry on).
+    PlainCells(&'a [crate::session::PlainDword]),
     /// A matrix's floats, read as the bytes they are.
-    Floats(&'a [crate::session::Float]),
+    Floats(&'a [crate::session::PlainFloat]),
 }
 
 impl Description<'_> {
@@ -66,13 +67,13 @@ impl Description<'_> {
                 crate::scene::polygon::material_run(tables, *kind, 0, &mut bytes)?;
                 Ok(bytes)
             }
-            Description::Cells(cells) => Self::from_words(
-                cells.iter().map(crate::session::Dword::get),
+            Description::PlainCells(cells) => Self::from_words(
+                cells.iter().map(crate::session::PlainDword::get),
                 len,
-                "a described object past the sort lists",
+                "a described object past its cells",
             ),
             Description::Floats(cells) => Self::from_words(
-                cells.iter().map(crate::session::Float::bits),
+                cells.iter().map(crate::session::PlainFloat::bits),
                 len,
                 "a described object past its matrix",
             ),

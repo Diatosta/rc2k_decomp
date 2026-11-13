@@ -15,11 +15,11 @@ use crate::session::PlainDword;
 
 /// On the bits at `bits`: the free lower gear (None when neutral is reached first: CF).
 // Converted: `rc2k_core::physics::gearbox::GearBits::lower_free`.
-pub fn lower_free_gear_at(bits: &PlainDword, gear: u32) -> Result<Option<u32>, Refused> {
+pub fn lower_free_gear_at(bits: &PlainDword, gear: i32) -> Result<Option<i32>, Refused> {
     let s = { bits_at(bits) }.lower_free(gear, 0)?;
     Ok(s.found.then_some(s.gear))
 }
 
-pub fn lower_free_gear(car: &Car, gear: u32) -> Result<Option<u32>, Refused> {
+pub fn lower_free_gear(car: &Car, gear: i32) -> Result<Option<i32>, Refused> {
     lower_free_gear_at(&car.lost_gear_bits, gear)
 }

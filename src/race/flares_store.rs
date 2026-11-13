@@ -6,9 +6,9 @@
 //!
 //! Names are readings unless IDA's.
 //! The race's own copy is unused (plain cells, the game's thread's): each view draws its flares
-//! in its own (`race::lamp_work::LampWork::flares`, `ViewFlares`, atomic cells).
+//! in its own (`race::lamp_work::LampWork::flares`, `ViewFlares`).
 
-use crate::session::{CellKind, PlainCells, SharedCells};
+use crate::session::{CellKind, PlainCells};
 
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
@@ -25,9 +25,9 @@ pub struct FlareTables<K: CellKind = PlainCells> {
     pub object_number: [K::Dword; 256],
 }
 
-/// A view's own flares (`race::lamp_work::LampWork::flares`), which its drawing part writes: on
-/// atomics.
-pub type ViewFlares = FlareTables<SharedCells>;
+/// A view's own flares (`race::lamp_work::LampWork::flares`), which only its drawing part
+/// reaches: on plain cells.
+pub type ViewFlares = FlareTables<PlainCells>;
 
 /// The piece (a field of `race::owner::Race::course`), with the image's first values.
 impl<K: CellKind> FlareTables<K>

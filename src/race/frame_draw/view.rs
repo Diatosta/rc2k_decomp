@@ -535,7 +535,9 @@ pub fn draw_sky(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refu
     // The matrix pointer is where the matrix's copy leaves it: past `g_madeObjectMatrix`.
     crate::scene::draw_scene_object::draw_scene_object_in_game(
         ctx,
-        Some(Description::Cells(&ctx.view.matrices.object_matrix_slots)),
+        Some(Description::PlainCells(
+            &ctx.view.matrices.object_matrix_slots,
+        )),
     )?;
     crate::scene::depth_buffer_on::depth_buffer(ctx.part, true);
     ctx.view.light.view_kind.set(0);

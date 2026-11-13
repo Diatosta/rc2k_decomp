@@ -192,11 +192,11 @@ pub fn steering(whole: u32, negative: bool, reverse: bool) -> u32 {
 
 /// The reverse count's step (kept per slot; gear -1 is the reverse): (the count left,
 /// reversing (and the brake 0x100), the handbrake (gear below 1 with no count)).
-pub fn reverse_step(count: u32, gear: u32) -> (Option<u32>, bool, bool) {
+pub fn reverse_step(count: u32, gear: i32) -> (Option<u32>, bool, bool) {
     if count != 0 {
-        (Some(count - 1), gear != u32::MAX, false)
+        (Some(count - 1), gear != -1, false)
     } else {
-        (None, false, (gear.wrapping_sub(1) as i32) < 0)
+        (None, false, gear.wrapping_sub(1) < 0)
     }
 }
 
@@ -285,7 +285,7 @@ mod tests {
     #[test]
     fn stuck_cars() {
         assert_eq!(reverse_step(3, 1), (Some(2), true, false));
-        assert_eq!(reverse_step(3, u32::MAX), (Some(2), false, false));
+        assert_eq!(reverse_step(3, -1), (Some(2), false, false));
         assert_eq!(reverse_step(0, 0), (None, false, true));
         assert_eq!(reverse_step(0, 1), (None, false, false));
         assert!(check_due(0xC8) && !check_due(0xC7));

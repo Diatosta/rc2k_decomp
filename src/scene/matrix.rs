@@ -145,7 +145,7 @@ pub fn set_light_direction(
         [0, 0, 1],
         &v.lit_matrix
             .each_ref()
-            .map(super::super::session::Float::get),
+            .map(super::super::session::PlainFloat::get),
     );
     for (cell, value) in direction.iter().zip(ahead) {
         cell.set(value);

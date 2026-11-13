@@ -71,7 +71,7 @@ fn skid_vertex(
 /// A point as `skid_vertex` turns it, put into the vertex record `v` again.
 fn put_turned(
     part: &crate::workers::PartScratch,
-    quad: &[crate::session::Dword; 32],
+    quad: &[crate::session::PlainDword; 32],
     v: u32,
     turned: Turned,
 ) -> Result<(), BadInput> {

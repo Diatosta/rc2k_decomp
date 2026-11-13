@@ -8,7 +8,7 @@
 //! which nothing in the game writes: 0 here. The near value and the noise step were stored
 //! but never read: not kept.
 
-use crate::session::{Bytes, Dword};
+use crate::session::{PlainBytes, PlainDword};
 
 /// The table's room in bytes.
 pub const TABLE_LEN: usize = 0x1000;
@@ -17,25 +17,25 @@ pub const TABLE_LEN: usize = 0x1000;
 #[derive(rc2k_derive::Cells)]
 pub struct Fog {
     /// The fog's far value (the glare's alpha).
-    pub far: Dword,
+    pub far: PlainDword,
     /// The fog's next step, what every point gets with the view kind 4.
-    pub next: Dword,
+    pub next: PlainDword,
     /// The table's length in bytes (`g_fogTableLength`).
-    pub length: Dword,
+    pub length: PlainDword,
     /// The fog levels by depth (`g_fogTable`).
-    table: Bytes<TABLE_LEN>,
+    table: PlainBytes<TABLE_LEN>,
     /// The fog's colour (`DRAW.fog_colour`), each view's own.
-    pub colour: Dword,
+    pub colour: PlainDword,
 }
 
 impl Fog {
     pub const fn new() -> Self {
         Self {
-            far: Dword::new(0),
-            next: Dword::new(0),
-            length: Dword::new(0),
-            table: Bytes::new([0; TABLE_LEN]),
-            colour: Dword::new(0),
+            far: PlainDword::new(0),
+            next: PlainDword::new(0),
+            length: PlainDword::new(0),
+            table: PlainBytes::new([0; TABLE_LEN]),
+            colour: PlainDword::new(0),
         }
     }
 

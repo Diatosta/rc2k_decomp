@@ -386,7 +386,7 @@ pub fn drive_computer_car(race: &Race, scene: &crate::scene::owner::Scene) -> Re
     let steer = driver::steering(
         i as u32,
         status & 0x100 != 0,
-        race.shared.car().gear.get() == u32::MAX,
+        race.shared.car().gear.get() == -1,
     );
     race.shared.work.get().driver_steer.set(steer);
     let s = race.shared.work.get().driver_slot.get();
@@ -425,7 +425,7 @@ pub fn drive_computer_car(race: &Race, scene: &crate::scene::owner::Scene) -> Re
     if !driver::stuck(moved) {
         return Ok(());
     }
-    if race.shared.car().gear.get() != u32::MAX {
+    if race.shared.car().gear.get() != -1 {
         race.shared.work.get().driver_reverse_left
             [race.shared.work.get().driver_slot.get() as usize]
             .set(driver::REVERSE_STEPS);

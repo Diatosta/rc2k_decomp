@@ -111,8 +111,7 @@ pub fn windscreen_drops_top(
         )?;
         let at_now: u32 = drops.hex.buffer.get();
         if at_now != 0 {
-            let quads =
-                x87::int_over_int_to_int(at_now as i32, drops.hex.per_vertex.get() as i32) as u32;
+            let quads = x87::int_over_int_to_int(at_now as i32, drops.hex.per_vertex.get()) as u32;
             drops.hex.buffer.set(0);
             gfx.card
                 .windscreen_drop_batch

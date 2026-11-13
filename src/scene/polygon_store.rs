@@ -4,37 +4,37 @@
 //! clip), the pool of point records the clip makes, the textures' records and the objects'
 //! materials. Names are readings unless IDA's.
 
-use crate::session::{Byte, Bytes, Dword, PlainDword};
+use crate::session::{PlainByte, PlainBytes, PlainDword};
 
 /// A polygon work entry (IDA's `PolygonEntry`, 0x44 bytes).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct PolygonEntry {
     /// +0x0: the scene point's number.
-    pub point: Dword,
+    pub point: PlainDword,
     /// +0x4: the point record (`PointRecord`) of its projection.
-    pub record: Dword,
+    pub record: PlainDword,
     /// +0x8: the texture u.
-    pub u: Dword,
+    pub u: PlainDword,
     /// +0xC: the texture v.
-    pub v: Dword,
+    pub v: PlainDword,
     /// +0x10: the second texture u.
-    pub u2: Dword,
+    pub u2: PlainDword,
     /// +0x14: the second texture v.
-    pub v2: Dword,
+    pub v2: PlainDword,
     /// +0x18: the light (colour).
-    pub light: Dword,
+    pub light: PlainDword,
     /// +0x1C: the lamp light, added to the light before drawing (`race::course_faces`: a
     /// corner's; 0 for skidmarks and tinted quads). A reading.
-    pub lamp_light: Dword,
+    pub lamp_light: PlainDword,
     /// +0x20: the fog byte.
-    pub fog: Byte,
+    pub fog: PlainByte,
     /// +0x21: the amount (alpha) byte.
-    pub amount: Byte,
+    pub amount: PlainByte,
     /// +0x22: the two top bytes of the dword holding `fog` and `amount`; copied along with the entry, never given a meaning (padding).
-    pub pad_22: Bytes<2>,
+    pub pad_22: PlainBytes<2>,
     /// +0x24: work space of the clip (`scene::clip`).
-    pub work: Bytes<32>,
+    pub work: PlainBytes<32>,
 }
 
 impl PolygonEntry {
@@ -133,13 +133,13 @@ pub struct PolygonWork {
     /// +0x0 (0x975510): `g_polygonEntries`: `PolygonEntry[64]`, and from entry 64 (0x976610, `g_polygonKeptEntries`) the 64 entries kept for the fan: the table `scene::draw_polygon` takes room for 0x80 (`scene::clip`, `scene::draw_object_polygon`, `race::car_shadow`, `race::skidmarks`).
     pub entries: [PolygonEntry; 0x80],
     /// +0x2200 (0x977710): `g_polygonList`: the entries' numbers in drawing order (`scene::draw_polygon`, `scene::clip`).
-    pub list: [Dword; 64],
+    pub list: [PlainDword; 64],
     /// +0x2300 (0x977810): `g_polygonOldList`: the list before a clip (`scene::clip`, `race::car_shadow`).
-    pub old_list: [Dword; 64],
+    pub old_list: [PlainDword; 64],
     /// +0x2400 (0x977910): 0x600 bytes between the old list and the record pool: a polygon of more than 128 vertices lists on into them (`scene::polygon::list_cell`).
-    pub unknown_2400: [Dword; 0x180],
+    pub unknown_2400: [PlainDword; 0x180],
     /// +0x2a00 (0x977F10): `g_polygonRecordPool`: the point records a clip makes, 0x2020 bytes (`scene::clip`, `scene::draw_flat_quad`).
-    pub record_pool: [Dword; 0x808],
+    pub record_pool: [PlainDword; 0x808],
 }
 
 /// The textures' records and the objects' materials, after the work (IDA 0x979F30 ..

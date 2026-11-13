@@ -69,7 +69,7 @@ fn down(car: &Car, tables: &PhysicsTables, numbers: &Numbers) -> Result<Shift, R
         car.gear.set(car.gear.get().wrapping_add(1));
         revs(car, tables, numbers)?;
         car.gear_change_hold.set(shifts::HOLD);
-        car.gear_changed.set(u32::MAX);
+        car.gear_changed.set(-1);
         car.gear_change_pending.set(1);
         return Ok(Shift::Done);
     }
@@ -85,10 +85,10 @@ pub fn reverse(
     numbers: &Numbers,
     quarter: bool,
 ) -> Result<(), Refused> {
-    if bit(car, u32::MAX)? {
+    if bit(car, -1)? {
         return Ok(());
     }
-    car.gear.set(u32::MAX);
+    car.gear.set(-1);
     if quarter {
         car.engine_speed
             .set(x87::mul(&car.engine_speed, &numbers.quarter));

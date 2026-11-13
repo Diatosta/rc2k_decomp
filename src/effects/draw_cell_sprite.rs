@@ -26,7 +26,7 @@ const ANGLES: u32 = 0x1000;
 
 /// The place turned by the view.
 fn turn(
-    view_matrix: &[crate::session::Float; 16],
+    view_matrix: &[crate::session::PlainFloat; 16],
     ring: &Ring,
     p: &[[u8; 10]; 3],
     effects: &crate::effects::owner::Effects,
@@ -131,7 +131,7 @@ use crate::session::PlainFloat;
 
 /// `turn`'s x87 block as plain Rust on the x87 model (37 instructions), same order and memory places.
 fn turn_x87(
-    view_matrix: &[crate::session::Float; 16],
+    view_matrix: &[crate::session::PlainFloat; 16],
     p: &[[u8; 10]; 3],
     w: &RingWork,
     dw: &DrawWork,

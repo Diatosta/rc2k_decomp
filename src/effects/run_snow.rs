@@ -30,7 +30,7 @@ const MOST: i32 = 0x800;
 const STATES: [(u32, u32); 5] = [(4, 0x15), (5, 0x13), (6, 0x14), (0, 0x1C), (1, 0x1B)];
 
 /// The light's place and way turned by the view.
-fn turn_light(frame: &Frame, view_matrix: &[crate::session::Float; 16], weather: &Weather) {
+fn turn_light(frame: &Frame, view_matrix: &[crate::session::PlainFloat; 16], weather: &Weather) {
     turn_light_x87(frame, view_matrix, &weather.snow_light);
 }
 
@@ -132,7 +132,7 @@ pub fn run_snow(
 }
 
 /// `turn_light`'s x87 block as plain Rust on the x87 model (126 instructions), same order and memory places.
-fn turn_light_x87(frame: &Frame, view_matrix: &[crate::session::Float; 16], l: &SnowLight) {
+fn turn_light_x87(frame: &Frame, view_matrix: &[crate::session::PlainFloat; 16], l: &SnowLight) {
     let t0 = l.light_source[0].ld();
     let t1 = l.light_source[1].ld();
     let t2 = l.light_source[2].ld();

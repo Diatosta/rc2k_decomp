@@ -12,7 +12,7 @@ use crate::race::blocks_store::CarBlocks;
 use crate::race::first_cells::plain_dwords;
 #[cfg(test)]
 use crate::race::owner::race;
-use crate::session::{PlainDword, PlainFloat};
+use crate::session::{PlainDword, PlainFloat, PlainInt};
 
 /// A car's record in the settings (0x4C8 bytes; `effects::blocks`, `effects::cars_particles`,
 /// `effects::morph_object_points`, `effects::tidy_marks` work on it). Names are readings from
@@ -222,7 +222,7 @@ pub struct EffectsSettings {
     /// +0x26ac (0x5C5630): `flt_5C5630` ..: the viewed car's three whole numbers +0x134 .. +0x13C as floats (`drive::set_listener`).
     pub listener_car_place: [PlainFloat; 3],
     /// +0x26b8 (0x5C563C): `dword_5C563C`: the count of the settings' objects (1 in the mark set-up, `effects::init_mark_step`; the effects' splines and shapes read that many from +0x26BC, on through the fields after it for a count past 1).
-    pub object_count: PlainDword,
+    pub object_count: PlainInt,
     /// +0x26bc (0x5C5640): `dword_5C5640`: the settings' first object (0x50 in the mark set-up, `effects::init_mark_step`).
     pub first_object: PlainDword,
     /// +0x26c0 (0x5C5644): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.

@@ -28,13 +28,13 @@ pub fn eased(forces: [f32; 2], factor: f32) -> [f32; 2] {
 /// (nor unordered), the two values held to at most `cap` (2.0; below it or unordered
 /// left). None when nothing is looked at.
 pub fn cap_reverse(
-    gear: u32,
+    gear: i32,
     speed: f32,
     zero: f32,
     values: [f32; 2],
     cap: f32,
 ) -> Option<[f32; 2]> {
-    if gear != u32::MAX || below(speed as f64, zero as f64) {
+    if gear != -1 || below(speed as f64, zero as f64) {
         return None;
     }
     Some(values.map(|v| {
@@ -173,11 +173,8 @@ mod tests {
             Some(true)
         );
         assert_eq!(eased([2.0, -3.0], 0.5), [1.0, -1.5]);
-        assert_eq!(
-            cap_reverse(u32::MAX, 1.0, 0.0, [3.0, 1.0], 2.0),
-            Some([2.0, 1.0])
-        );
-        assert_eq!(cap_reverse(u32::MAX, -1.0, 0.0, [3.0, 1.0], 2.0), None);
+        assert_eq!(cap_reverse(-1, 1.0, 0.0, [3.0, 1.0], 2.0), Some([2.0, 1.0]));
+        assert_eq!(cap_reverse(-1, -1.0, 0.0, [3.0, 1.0], 2.0), None);
         assert_eq!(cap_reverse(1, 1.0, 0.0, [3.0, 1.0], 2.0), None);
     }
 

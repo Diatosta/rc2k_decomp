@@ -120,9 +120,9 @@ pub fn load_race_sounds(
     );
     // Nothing has been written or sent up to here.
     for n in 0..NAMES {
-        let records = &audio.sample_records.records;
-        records[FIRST_SAMPLE + n * 2].update(|r| r.data_key = first_name);
-        records[FIRST_SAMPLE + n * 2 + 1].update(|r| r.data_key = second_name);
+        let records = &audio.sample_records;
+        records.set_data_key(FIRST_SAMPLE + n * 2, first_name);
+        records.set_data_key(FIRST_SAMPLE + n * 2 + 1, second_name);
         first_name += (of_first[n] as usize + 1) as u32;
         second_name += (of_second[n] as usize + 1) as u32;
     }

@@ -70,7 +70,7 @@ pub fn car_sound_state(
     shares(numbers, shared, so);
     let n = shared.car().throttle.get() as i32;
     so.throttle.set(n.clamp(0, 0x100) as u32);
-    so.gear.set(shared.car().gear.get());
+    so.gear.set(shared.car().gear.get() as u32);
     so.speed.set(shared.car().mean_drive_speed.get());
     so.flag_ac
         .set(shared.car().front_wheels_off.get() & shared.car().rear_wheels_off.get());

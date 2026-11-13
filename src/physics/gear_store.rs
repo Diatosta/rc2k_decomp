@@ -4,7 +4,7 @@
 //! Names are readings unless IDA's.
 
 use crate::cells::ZeroCells;
-use crate::session::{PlainDword, PlainFloat};
+use crate::session::{PlainDword, PlainFloat, PlainInt};
 
 #[repr(C)]
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
@@ -28,7 +28,7 @@ pub struct GearFigures {
     /// +0x38 (0x5CB990): `flt_5CB990`: the test drive's speed samples, one in twenty steps (`physics::test_drive_run`).
     pub test_speeds: [PlainFloat; 256],
     /// +0x438 (0x5CBD90): `dword_5CBD90`: the gear at each sample (`physics::test_drive_run`).
-    pub test_gears: [PlainDword; 256],
+    pub test_gears: [PlainInt; 256],
     /// +0x838 (0x5CC190): `dword_5CC190`: the engine power factor the test drive sets (`physics::test_drive`).
     pub test_power_factor: PlainFloat,
     /// +0x83c (0x5CC194): a busy flag the game sets around its copy of the "demof" file (guards the copy hook against re-entry); no port code names it.

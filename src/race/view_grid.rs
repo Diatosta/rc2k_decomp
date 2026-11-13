@@ -11,22 +11,22 @@
 
 use crate::cells::ZeroCells;
 use crate::errors::BadInput;
-use crate::session::Dword;
+use crate::session::PlainDword;
 
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct ViewGrid {
     /// The course records by cell (`g_courseGrid`), 0x0FFFFFFF where none; bit 31 a far
     /// cell's mark.
-    pub cells: [Dword; 1024],
+    pub cells: [PlainDword; 1024],
     /// The grid's half size (`grid_half`).
-    pub half: Dword,
+    pub half: PlainDword,
     /// Its span (`grid_span`).
-    pub span: Dword,
+    pub span: PlainDword,
     /// The corner cell it was made for (`grid_x`, `grid_z`): made again when the
     /// view's moves; 0x80000000 at a stage's start (`race::reset_refresh`).
-    pub x: Dword,
-    pub z: Dword,
+    pub x: PlainDword,
+    pub z: PlainDword,
 }
 
 impl ViewGrid {
@@ -34,15 +34,15 @@ impl ViewGrid {
     pub const fn new() -> Self {
         Self {
             cells: ZeroCells::ZERO,
-            half: Dword::ZERO,
-            span: Dword::ZERO,
-            x: Dword::ZERO,
-            z: Dword::ZERO,
+            half: PlainDword::ZERO,
+            span: PlainDword::ZERO,
+            x: PlainDword::ZERO,
+            z: PlainDword::ZERO,
         }
     }
 
     /// Cell `n`; one past the grid refused.
-    pub fn cell(&self, n: u32) -> Result<&Dword, BadInput> {
+    pub fn cell(&self, n: u32) -> Result<&PlainDword, BadInput> {
         self.cells
             .get(n as usize)
             .ok_or(BadInput("a course grid cell past the 32 x 32"))

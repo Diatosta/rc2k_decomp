@@ -19,7 +19,7 @@ use crate::race::shadow_skids_store::ShadowPoint;
 use crate::race::trap::Trap;
 use crate::scene::polygon::{list_cell, old_list_cell};
 use crate::scene::polygon_store::PolygonEntry;
-use crate::session::{Byte, PlainDword, PlainFloat};
+use crate::session::{PlainByte, PlainDword, PlainFloat};
 
 /// The shadow's working state: what `cast_car_shadows` writes and reads within itself, one
 /// for each call, given down to its parts. The original kept it in the race block
@@ -332,7 +332,7 @@ fn crossing_block(
     };
     poly.clip_work[10].set(float(&ea.u2, &eb.u2));
     poly.clip_work[11].set(float(&ea.v2, &eb.v2));
-    let byte = |a: &Byte, b: &Byte| {
+    let byte = |a: &PlainByte, b: &PlainByte| {
         let (a, b) = (int(a.get().into()), int(b.get().into()));
         to_int(a + (b - a) * share) as u32
     };

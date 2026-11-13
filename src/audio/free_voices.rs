@@ -30,7 +30,7 @@ pub fn free_voices(audio: &AudioThread) -> Result<(), Refused> {
         audio.state.voice_count.set(0);
     }
     for n in 0..SAMPLES as usize {
-        audio.sample_records.records[n].update(|r| r.first_voice = 0);
+        audio.sample_records.set_first_voice(n, 0);
     }
     crate::audio::clear_channels::clear_channels(audio);
     audio.state.sound_buffer_lost.set(0);

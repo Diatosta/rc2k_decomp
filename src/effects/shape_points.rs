@@ -207,7 +207,7 @@ pub fn turn_all_shapes(
     use crate::effects::turns::{smooth_pair, smooth_steps};
     {
         let marks = effects.settings()?;
-        let count = marks.object_count.get() as i32;
+        let count = marks.object_count.get();
         let all_steps = all_steps(masks, drops);
         let pick = |n: usize, (first, second): (u32, u32)| -> u32 {
             if all_steps[n].3.get() == 0 {
@@ -432,7 +432,7 @@ pub fn make_shape_sets(
             return Err(BadInput("a marks' kind of 0x22 or more").into());
         }
         let marks = effects.settings()?;
-        let count = marks.object_count.get() as i32;
+        let count = marks.object_count.get();
         if count > 19 {
             return Err(BadInput("more than 19 shape objects").into());
         }

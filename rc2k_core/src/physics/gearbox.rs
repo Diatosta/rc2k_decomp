@@ -23,7 +23,7 @@ pub struct GearTest {
 /// it came in when none was) and whether a free gear was found (CF clear).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Search {
-    pub gear: u32,
+    pub gear: i32,
     pub bit: u32,
     pub found: bool,
 }
@@ -31,8 +31,8 @@ pub struct Search {
 impl GearBits {
     /// `physics::gear_bit`: the gear's bit. A bit past the dword is refused (the original's
     /// `bt` on memory reads on along the work copy).
-    pub fn test(self, gear: u32) -> Result<GearTest, Invalid> {
-        let bit = gear.wrapping_add(1);
+    pub fn test(self, gear: i32) -> Result<GearTest, Invalid> {
+        let bit = gear.wrapping_add(1) as u32;
         if bit > 31 {
             return Err(Invalid(
                 "a bit past g_carGearBits' dword (gear + 1 past 31)",
@@ -46,7 +46,7 @@ impl GearBits {
 
     /// `physics::higher_free_gear`: from `gear` up, the first gear whose bit is clear,
     /// up to `count` (the forward gears, unsigned); not found with the gear one past it.
-    pub fn higher_free(self, gear: u32, count: u32) -> Result<Search, Invalid> {
+    pub fn higher_free(self, gear: i32, count: u32) -> Result<Search, Invalid> {
         let mut at = gear.wrapping_add(1);
         loop {
             let t = self.test(at)?;
@@ -58,7 +58,7 @@ impl GearBits {
                 });
             }
             at = at.wrapping_add(1);
-            if at > count {
+            if at as u32 > count {
                 return Ok(Search {
                     gear: at,
                     bit: t.bit,
@@ -70,7 +70,7 @@ impl GearBits {
 
     /// `physics::lower_free_gear`: from `gear` down, the first gear whose bit is clear;
     /// not found on reaching 0 (neutral). `bit` is the bit tested at entry.
-    pub fn lower_free(self, gear: u32, bit: u32) -> Result<Search, Invalid> {
+    pub fn lower_free(self, gear: i32, bit: u32) -> Result<Search, Invalid> {
         let (mut at, mut bit) = (gear, bit);
         loop {
             at = at.wrapping_sub(1);
@@ -100,14 +100,14 @@ impl GearBits {
 /// gear of 1 or more, `open` only past the first two tests, as the original reads them.
 pub fn allowed_gear(
     locked: bool,
-    gear: u32,
+    gear: i32,
     bits: impl FnOnce() -> GearBits,
     open: impl FnOnce() -> u32,
-) -> Result<u32, Invalid> {
+) -> Result<i32, Invalid> {
     if locked {
         return Ok(0);
     }
-    if (gear.wrapping_sub(1) as i32) >= 0 && bits().test(gear)?.barred {
+    if gear.wrapping_sub(1) >= 0 && bits().test(gear)?.barred {
         return Ok(0);
     }
     Ok(if open() != 0 { gear } else { 0 })
@@ -152,7 +152,7 @@ pub struct GearCar {
 }
 
 impl GearInputs {
-    fn clear(&mut self, gear: &mut u32) {
+    fn clear(&mut self, gear: &mut i32) {
         self.wa4 = 0;
         self.wa0 = 0;
         self.first = 0;
@@ -163,7 +163,7 @@ impl GearInputs {
 
     /// `physics::gear_input_rules`: the inputs by the car's state; `gear` is `g_carGear`.
     /// The joined input when the two were joined else `None`.
-    pub fn apply_rules(&mut self, gear: &mut u32, car: &GearCar) -> Option<u32> {
+    pub fn apply_rules(&mut self, gear: &mut i32, car: &GearCar) -> Option<u32> {
         if car.state != 0 && car.state != u32::MAX {
             self.clear(gear);
             return None;
@@ -180,7 +180,7 @@ impl GearInputs {
                 self.first = v;
                 self.second = 0;
                 joined = Some(v);
-            } else if (*gear as i32) < 0 {
+            } else if *gear < 0 {
                 std::mem::swap(&mut self.first, &mut self.second);
             }
         }
@@ -218,10 +218,10 @@ pub enum GearChange {
 
 /// `physics::gear_change_sound`'s rule: the work copy's +0x238 (`gear_changed`) 1 is a
 /// change up, -1 down, anything else none.
-pub fn gear_change(word: u32) -> Option<GearChange> {
+pub fn gear_change(word: i32) -> Option<GearChange> {
     match word {
         1 => Some(GearChange::Up),
-        u32::MAX => Some(GearChange::Down),
+        -1 => Some(GearChange::Down),
         _ => None,
     }
 }
@@ -270,8 +270,8 @@ pub fn gearbox_turn(
 
 /// `physics::take_asked_gear` (0x43C1E3): the gear asked for,
 /// bits 8 .. 11 of the inputs word as a signed nibble.
-pub fn asked_gear(inputs: u32) -> u32 {
-    (((inputs & ASKED_MASK) << 20) as i32 >> 28) as u32
+pub fn asked_gear(inputs: u32) -> i32 {
+    ((inputs & ASKED_MASK) << 20) as i32 >> 28
 }
 
 #[cfg(test)]
@@ -289,7 +289,7 @@ mod tests {
             })
         );
         assert_eq!(
-            b.test(u32::MAX),
+            b.test(-1),
             Ok(GearTest {
                 bit: 0,
                 barred: false
@@ -340,16 +340,13 @@ mod tests {
         assert_eq!(allowed_gear(false, 2, bits, || 1), Ok(2));
         assert_eq!(allowed_gear(false, 2, bits, || 0), Ok(0));
         assert_eq!(allowed_gear(false, 0, || unreachable!(), || 1), Ok(0));
-        assert_eq!(
-            allowed_gear(false, u32::MAX, || unreachable!(), || 1),
-            Ok(u32::MAX)
-        );
+        assert_eq!(allowed_gear(false, -1, || unreachable!(), || 1), Ok(-1));
     }
 
     #[test]
     fn changes() {
         assert_eq!(gear_change(1), Some(GearChange::Up));
-        assert_eq!(gear_change(u32::MAX), Some(GearChange::Down));
+        assert_eq!(gear_change(-1), Some(GearChange::Down));
         assert_eq!(gear_change(2), None);
     }
 
@@ -370,7 +367,7 @@ mod tests {
         };
         assert_eq!(i.apply_rules(&mut gear, &both), Some(7));
         assert_eq!((i.first, i.second, i.joined, i.hold), (7, 0, u32::MAX, 1));
-        let mut gear = u32::MAX;
+        let mut gear = -1;
         let mut j = GearInputs {
             first: 3,
             second: 7,
@@ -411,8 +408,8 @@ mod tests {
         assert_eq!(t(0, 0, 0x320, 0, 0x300, 0), GearboxTurn::Asked);
         assert_eq!(t(0, 0, 0x320, 0, 0xE00, 2), GearboxTurn::Auto);
         assert_eq!(t(0, 0, 0x320, 0, 0xE00, 1), GearboxTurn::Manual);
-        assert_eq!(asked_gear(0xF00), u32::MAX);
+        assert_eq!(asked_gear(0xF00), -1);
         assert_eq!(asked_gear(0x700), 7);
-        assert_eq!(asked_gear(0x800), (-8i32) as u32);
+        assert_eq!(asked_gear(0x800), -8);
     }
 }

@@ -23,7 +23,7 @@ pub fn bits_at(bits: &PlainDword) -> GearBits {
 
 /// On the dword at `bits`.
 // Converted: `rc2k_core::physics::gearbox::GearBits::test`.
-pub fn gear_bit_at(bits: &PlainDword, gear: u32) -> Result<FlagResult, Refused> {
+pub fn gear_bit_at(bits: &PlainDword, gear: i32) -> Result<FlagResult, Refused> {
     let t = { bits_at(bits) }.test(gear)?;
     Ok(FlagResult {
         eax: t.bit,
@@ -34,6 +34,6 @@ pub fn gear_bit_at(bits: &PlainDword, gear: u32) -> Result<FlagResult, Refused> 
     })
 }
 
-pub fn gear_bit(car: &Car, gear: u32) -> Result<FlagResult, Refused> {
+pub fn gear_bit(car: &Car, gear: i32) -> Result<FlagResult, Refused> {
     gear_bit_at(&car.lost_gear_bits, gear)
 }

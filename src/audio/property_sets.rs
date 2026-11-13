@@ -8,9 +8,8 @@
 //! the room's `Set`) is refused where it would be reached.
 
 use crate::audio::own::AudioOwn;
-use crate::audio::voices::SampleRecord;
 use crate::errors::{BadInput, Refused};
-use crate::session::{Dword, PlainDword, Shared};
+use crate::session::{Dword, PlainDword};
 
 /// What a property set the platform made would need (it makes none).
 const NO_SETS: &str = "a DirectSound property set (the platform offers none)";
@@ -47,9 +46,9 @@ impl<'a> Opening<'a> {
 /// other values are the game's bug (`notes/bugs.md`): a record's is read as the original reads
 /// it, a number refused.
 #[derive(Clone, Copy)]
-pub enum Holder<'a> {
+pub enum Holder {
     /// `audio::load_sounds`'s sample record: its first dword, the record's `number`, is read.
-    Record(&'a Shared<SampleRecord>),
+    Record(u32),
     /// The voice of this id's `buffer_3d` (stored before the openings).
     Buffer3d(u32),
     /// A number held as an address: the caller's sound mode (`audio::start`) or the voice's
@@ -58,12 +57,12 @@ pub enum Holder<'a> {
     Value,
 }
 
-impl Holder<'_> {
+impl Holder {
     /// The dword the original reads through the holder; refuses a number (`Value`): the
     /// original reads where it points, which is no place of the game's.
     fn read(self, state: &AudioOwn) -> Result<u32, Refused> {
         match self {
-            Holder::Record(record) => Ok(record.get().number),
+            Holder::Record(number) => Ok(number),
             Holder::Buffer3d(voice) => Ok(crate::audio::voices::voice_of(state, voice).buffer_3d),
             Holder::Value => {
                 Err(BadInput("the holder value is no 3D buffer (make_buffer's EAX bug)").into())

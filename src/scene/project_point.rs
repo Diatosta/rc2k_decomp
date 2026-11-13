@@ -174,7 +174,7 @@ pub(crate) fn make_scene_record(
             .matrices
             .view_matrix
             .each_ref()
-            .map(crate::session::Float::get),
+            .map(crate::session::PlainFloat::get),
         &mut r,
     );
     r[3] = 0;

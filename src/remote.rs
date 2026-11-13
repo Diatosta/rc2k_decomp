@@ -191,7 +191,7 @@ fn state(o: &Owners<'static>, course: &Course) -> String {
         o.audio.state.channels_used.get(),
         crate::platform_sound::LAST_PEAK.swap(0, std::sync::atomic::Ordering::Relaxed),
         CAR.car_heading.get() as i32,
-        CAR.gear.get() as i32,
+        CAR.gear.get(),
         CAR.gearbox_kind.get(),
         CAR.driver_kind.get(),
         race.shared.physics_tables.get().input_steer.get() as i32,

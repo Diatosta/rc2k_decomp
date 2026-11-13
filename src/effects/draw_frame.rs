@@ -85,7 +85,7 @@ pub fn draw_frame(
     let times = times(effects);
     let start = rdtsc();
     begin_quads::begin_quads(buffer, effects, scene);
-    let frame = effects.setup.frame.frame_cycles.get() as i32;
+    let frame = effects.setup.frame.frame_cycles.get();
     let took = rdtsc().wrapping_sub(start) as i32;
     times[0]
         .1

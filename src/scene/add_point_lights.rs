@@ -42,7 +42,7 @@ pub fn add_point_lights(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<
                     .lamps
                     .lamps
                     .get(4 * n + k)
-                    .map(crate::session::Dword::get)
+                    .map(crate::session::PlainDword::get)
                     .ok_or(BadInput("more lamps than the 16 of the level")),
             )
         });

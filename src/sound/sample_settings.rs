@@ -20,10 +20,10 @@ pub const RECORDS: u32 = 0x1CD;
 pub const OWN: u32 = 0xFFFF_FF91;
 /// A copy of the record of sample `n`, or a refusal past the records.
 pub fn record(audio: &Audio, n: u32) -> Result<SampleRecord, BadInput> {
-    if n >= RECORDS {
-        return Err(BadInput("a sample past the 0x1CD records"));
-    }
-    Ok(audio.sample_records.records[n as usize].get())
+    audio
+        .sample_records
+        .record(n)
+        .ok_or(BadInput("a sample past the 0x1CD records"))
 }
 
 /// The rate as both leaves take it: -0x6F the record's +0x30, then -0x70 the buffer's

@@ -117,7 +117,7 @@ fn step(
     engine_tables: &crate::scene::engine_tables_store::EngineTables,
     buffer: &crate::d3d::vertices_store::PolygonVertices,
     frame: &Frame,
-    view_matrix: &[crate::session::Float; 16],
+    view_matrix: &[crate::session::PlainFloat; 16],
     particles: &Particles,
     ring: &Ring,
     e: u32,

@@ -80,7 +80,7 @@ pub fn steps(car: &Car, damage: &DamageModel, work: &RaceWork) {
             g,
         );
     });
-    let gear = damage.gear.get() as i32;
+    let gear = damage.gear.get();
     let gauge = gear_gauge(car, gear);
     let factor = damage
         .gear_factors
@@ -187,19 +187,19 @@ pub fn steps(car: &Car, damage: &DamageModel, work: &RaceWork) {
             );
         });
     }
-    if damage.gear_changed.get() as i32 == 1 {
+    if damage.gear_changed.get() == 1 {
         add_rate_to_clutch(car, &damage.gauge_rates[16]);
     }
-    if damage.gear_changed.get() as i32 == -1 {
+    if damage.gear_changed.get() == -1 {
         add_rate_to_clutch(car, &damage.gauge_rates[17]);
     }
-    let gear = damage.gear.get() as i32;
-    if damage.gear_changed.get() as i32 == 1 {
+    let gear = damage.gear.get();
+    if damage.gear_changed.get() == 1 {
         let gauge = gear_gauge(car, gear);
         add_rate_to_gauge(gauge, &damage.gauge_rates[18]);
     }
-    let gear = damage.gear.get() as i32;
-    if damage.gear_changed.get() as i32 == -1 {
+    let gear = damage.gear.get();
+    if damage.gear_changed.get() == -1 {
         let gauge = gear_gauge(car, gear);
         add_rate_to_gauge(gauge, &damage.gauge_rates[19]);
     }
@@ -356,7 +356,7 @@ fn side_hit_wear(car: &Car, damage: &DamageModel, work: &RaceWork) {
     for gauge in &car.gear_wear {
         wear(gauge, 20);
     }
-    let gauge = gear_gauge(car, damage.gear.get() as i32);
+    let gauge = gear_gauge(car, damage.gear.get());
     add_hit_to_gear_gauge(damage, gauge);
     hold_at(damage, gauge);
     if let Some(side) = side {

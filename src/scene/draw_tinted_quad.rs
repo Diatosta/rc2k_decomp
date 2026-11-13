@@ -15,7 +15,6 @@
 
 use crate::errors::Refused;
 use crate::math::x87;
-use crate::session::Dword;
 
 pub fn draw_tinted_quad(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refused> {
     ctx.view.polygon.polygon_drawn.set(0);
@@ -26,7 +25,7 @@ pub fn draw_tinted_quad(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<
         rec.u.set(0);
         rec.v.set(0);
     }
-    let float = |cell: &Dword| x87::from_int(cell.get() as i32);
+    let float = |cell: &crate::session::PlainDword| x87::from_int(cell.get() as i32);
     let [left, right, top, bottom] = [
         &ctx.view.quad.corners[0],
         &ctx.view.quad.corners[1],

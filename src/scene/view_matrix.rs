@@ -10,7 +10,7 @@ use crate::math::x87_float as bh;
 use crate::race::owner_course::CourseReads;
 use crate::scene::matrix;
 use crate::scene::view_matrices::ViewMatrices;
-use crate::session::Float;
+use crate::session::PlainFloat;
 
 /// Which of the three turnings.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -32,7 +32,7 @@ pub fn set_fine_turn(course: CourseReads<'_>, matrices: &ViewMatrices, axis: Axi
     let negated = -sine;
     // The work pair, then where the cosine, the sine, the sine negated and the
     // cosine go in the matrix.
-    let (work, rows, places): (&[Float; 2], &[Float; 16], [usize; 4]) = match axis {
+    let (work, rows, places): (&[PlainFloat; 2], &[PlainFloat; 16], [usize; 4]) = match axis {
         Axis::X => (
             &matrices.turn_x_work,
             &matrices.turn_x_matrix,
@@ -107,7 +107,7 @@ pub fn cross_product(
 /// image has them, copied back); here a local, so that views drawn beside each other do not
 /// work in each other's rows.
 pub fn square_matrix(course: CourseReads<'_>, at: &(impl Cells + ?Sized)) -> u32 {
-    let squared = [const { Float::new(0.0) }; 0x10];
+    let squared = [const { PlainFloat::new(0.0) }; 0x10];
     let (first, second, third) = (Off(&squared, 0), Off(&squared, 4), Off(&squared, 8));
     unit_vector(course, &Off(at, 8), &third);
     cross_product(&Off(at, 4), &third, &first);

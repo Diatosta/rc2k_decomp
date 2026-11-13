@@ -7,6 +7,7 @@
 
 use crate::effects::cell_x87::CellX87;
 use crate::errors::{BadInput, Refused};
+use crate::math::cells::Cells;
 use crate::race::car_draw_state::CarDrawState;
 use crate::race::frame_view::car as car_view;
 use crate::race::light_records_store::LightRecords;
@@ -16,21 +17,21 @@ use crate::race::work_store::RaceWork;
 use crate::scene::draw_described_object::Description;
 use crate::scene::matrix::multiply_matrices;
 use crate::scene::view_matrices::ViewMatrices;
-use crate::session::Float;
+use crate::session::PlainFloat;
 
 /// The drawn car's turn (`placed_matrices`: its +0x880), the view's own.
-fn car_turn(cars: &CarDrawState) -> &'_ [Float] {
+fn car_turn(cars: &CarDrawState) -> &'_ [PlainFloat] {
     &cars.car_turn
 }
 /// The drawn car's four parts' matrices (`part_matrices` .., its +0x740 ..), the view's own.
-pub fn part_matrices(cars: &CarDrawState) -> [&'_ [Float]; 4] {
+pub fn part_matrices(cars: &CarDrawState) -> [&'_ [PlainFloat]; 4] {
     [0, 16, 32, 48].map(|k| &cars.part_matrices[k..k + 16])
 }
 
 /// `race::car_part_matrix_1` .. `_4` (0x461F12, 0x461F58, 0x461F9E, 0x461FE4): matrix `a` times the
 /// body's turn (`body_turn_matrix`) into `g_turnedMatrix`, times the car's turn (`placed_matrices`) into
 /// `g_litMatrix`, times `g_viewMatrix` into `g_madeObjectMatrix`.
-pub fn car_part_matrix(cars: &CarDrawState, m: &ViewMatrices, a: &[Float]) {
+pub fn car_part_matrix(cars: &CarDrawState, m: &ViewMatrices, a: &(impl Cells + ?Sized)) {
     multiply_matrices(a, &m.body_turn_matrix, &m.turned_matrix);
     multiply_matrices(&m.turned_matrix, car_turn(cars), &m.lit_matrix);
     multiply_matrices(
@@ -182,7 +183,7 @@ const PART_SWITCHES: [(u32, usize); 7] = [
 /// The course's group masks from the model's part groups (an unknown model is refused).
 fn set_group_masks(
     lights: &LightRecords,
-    masks: &[crate::session::Dword; 18],
+    masks: &[crate::session::PlainDword; 18],
     model: u32,
 ) -> Result<(), BadInput> {
     for (to, group) in BODY_GROUPS {
@@ -205,7 +206,7 @@ fn set_group_masks(
 }
 
 /// The groups of the parts still on the car: all but those of the parts whose switch is off.
-fn shown_groups(masks: &[crate::session::Dword; 18], switches: u32) -> u32 {
+fn shown_groups(masks: &[crate::session::PlainDword; 18], switches: u32) -> u32 {
     let mut shown = u32::MAX;
     for (bit, slot) in PART_SWITCHES {
         if switches & (1 << bit) == 0 {
@@ -253,25 +254,14 @@ pub fn draw_car(ctx: &crate::race::view_scratch::DrawCtx<'_>, car: usize) -> Res
     let [p0, p1, p2, p3] = part_matrices(&ctx.view.cars);
     let c = &ctx.reads.car_blocks.cars[car];
     let kept = &c.part_matrices;
-    for (from, to) in [
-        &kept[..16],
-        &kept[16..32],
-        &kept[32..48],
-        &kept[48..],
-        &c.body_matrix,
-        &c.place_matrix,
-    ]
-    .into_iter()
-    .zip([
-        p0,
-        p1,
-        p2,
-        p3,
-        &ctx.view.matrices.body_turn_matrix,
-        car_turn(&ctx.view.cars),
-    ]) {
+    for (from, to) in [&kept[..16], &kept[16..32], &kept[32..48], &kept[48..]]
+        .into_iter()
+        .zip([p0, p1, p2, p3])
+    {
         crate::math::cells::copy_cells(from, to, 16);
     }
+    crate::math::cells::copy_cells(&c.body_matrix, &ctx.view.matrices.body_turn_matrix, 16);
+    crate::math::cells::copy_cells(&c.place_matrix, car_turn(&ctx.view.cars), 16);
     ctx.view
         .cars
         .groups_which

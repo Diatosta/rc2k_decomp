@@ -10,7 +10,7 @@ use crate::errors::BadInput;
 use crate::errors::Refused;
 use crate::math::x87;
 use crate::race::effects_settings_store::{CarEffects, MarkRecord};
-use crate::session::{PlainDword, PlainFloat};
+use crate::session::{PlainDword, PlainFloat, PlainInt};
 
 pub use crate::effects::ring_store::Ring;
 
@@ -191,7 +191,7 @@ pub struct EmitterVars {
     /// 0x9354C6: `flt_9354C6` .. `flt_9354DA`: the six floats `effects::reset_settings_blocks` puts in each settings block's +0x4C ..
     pub settings_start: [PlainFloat; 6],
     /// 0x9354DE: `dword_9354DE`: what a car's number is multiplied by for `tag` (an integer).
-    pub tag_k: PlainDword,
+    pub tag_k: PlainInt,
     /// 0x9354E2: `flt_9354E2`, `flt_9354E6`, `flt_9354EA`: the car's rate: the mean's length times the first plus the second, one over it, times the third.
     pub rate_k: [PlainFloat; 3],
     /// 0x9354EE: `flt_9354EE` .. `flt_935506`: the wheel places' factors and bases (`effects::emit_car_particles`).
@@ -226,7 +226,7 @@ impl EmitterVars {
             looks: [const { PlainDword::new(0x0) }; 2],
             tag: PlainDword::new(0x0),
             settings_start: [const { PlainFloat::new(0.0) }; 6],
-            tag_k: PlainDword::new(0x4C8),
+            tag_k: PlainInt::new(0x4C8),
             rate_k: [
                 PlainFloat::new(0.00002),
                 PlainFloat::new(1.0),

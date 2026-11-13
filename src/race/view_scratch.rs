@@ -8,7 +8,13 @@
 //! The race's four slots (views 0 and 1, mirrors 0 and 1) are `PartCell`s: the parts of a
 //! drawing scope get theirs from `workers::draw_parts` (`workers::PartRun::view`), the game's
 //! thread reaches them by `main_view`, `mirror` and `slot` outside the parts. The front end's
-//! slot belongs to the game's thread alone (`front_end`).
+//! slot belongs to the game's thread alone (`front_end`, a `GameThread`).
+//!
+//! Every cell in a `ViewScratch` is a plain one (the sort lists, the view's car, the matrices
+//! the effects and the listener read included): the scratch is reached by one thread at a time
+//! and handed from one to the next, so it is `Send` (asserted below) and not `Sync`. What
+//! stays atomic beside it is statics (`face_work::LAST_FACE_VIEW`) and the mutex of a part's
+//! noted drawing (`workers::PartScratch::noted`).
 //!
 //! Holds so far the two sort lists the view's drawing fills, sorts and draws (the original's
 //! `g_depthEntries` / `g_sortEntries` at 0x9D3730 in the buffers block, one for every view)
@@ -20,7 +26,7 @@
 
 use crate::errors::BadInput;
 use crate::part_cell::{PartCell, PartTurn};
-use crate::session::{Dword, GameThread};
+use crate::session::{GameThread, PlainDword};
 
 /// The most entries in either list.
 pub const ENTRIES: usize = 0x1000;
@@ -35,32 +41,32 @@ const CELLS: usize = 4 * ENTRIES + 0x10;
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct SortLists {
-    cells: [Dword; CELLS],
-    pub depth_entry_count: Dword,
-    pub sort_entry_count: Dword,
+    cells: [PlainDword; CELLS],
+    pub depth_entry_count: PlainDword,
+    pub sort_entry_count: PlainDword,
 }
 
 impl SortLists {
     const fn new() -> Self {
         Self {
-            cells: [const { Dword::new(0) }; CELLS],
-            depth_entry_count: Dword::new(0),
-            sort_entry_count: Dword::new(0),
+            cells: [const { PlainDword::new(0) }; CELLS],
+            depth_entry_count: PlainDword::new(0),
+            sort_entry_count: PlainDword::new(0),
         }
     }
 
     /// The depth entries' cells.
-    pub fn depth_entries(&self) -> &[Dword] {
+    pub fn depth_entries(&self) -> &[PlainDword] {
         &self.cells[..2 * ENTRIES]
     }
 
     /// The sort entries' cells.
-    pub fn sort_entries(&self) -> &[Dword] {
+    pub fn sort_entries(&self) -> &[PlainDword] {
         &self.cells[2 * ENTRIES..4 * ENTRIES]
     }
 
     /// Depth entry `n` (the key, the second word). One past the 0x1000 refused.
-    pub fn depth_entry(&self, n: u32) -> Result<&[Dword], BadInput> {
+    pub fn depth_entry(&self, n: u32) -> Result<&[PlainDword], BadInput> {
         let n = n as usize;
         self.depth_entries()
             .get(2 * n..2 * n + 2)
@@ -68,7 +74,7 @@ impl SortLists {
     }
 
     /// Sort entry `n`. One past the 0x1000 refused.
-    pub fn sort_entry(&self, n: u32) -> Result<&[Dword], BadInput> {
+    pub fn sort_entry(&self, n: u32) -> Result<&[PlainDword], BadInput> {
         let n = n as usize;
         self.sort_entries()
             .get(2 * n..2 * n + 2)
@@ -77,12 +83,12 @@ impl SortLists {
 
     /// The cells from depth entry `n` on to the end (the sort entries and the overrun after
     /// them): what a flare drawn the described way reads as its description.
-    pub fn depth_from(&self, n: usize) -> &[Dword] {
+    pub fn depth_from(&self, n: usize) -> &[PlainDword] {
         self.cells.get(2 * n..).unwrap_or(&[])
     }
 
     /// The same from sort entry `n` on.
-    pub fn sort_from(&self, n: usize) -> &[Dword] {
+    pub fn sort_from(&self, n: usize) -> &[PlainDword] {
         self.cells.get(2 * ENTRIES + 2 * n..).unwrap_or(&[])
     }
 }
@@ -175,10 +181,12 @@ impl ViewScratch {
         );
     }
 
-    /// Every part but the sort lists (their counts are set at each view's start,
-    /// `race::reset_lamps`) set back to its first values: a race view's drawing starts from
-    /// nothing a frame or another view before it left (frame plan F7; with the parts reset at
-    /// every race view, held races draw and sound the same as when each kept its last).
+    /// Every part but the lamps and the sort lists set back to its first values: a race view's
+    /// drawing starts from nothing a frame or another view before it left (frame plan F7; with
+    /// the parts reset at every race view, held races draw and sound the same as when each kept
+    /// its last). The lamps are the view's own and keep what its last drawing left (its light and
+    /// sky read them before `race::reset_lamps`); the sort lists' counts are set at each view's
+    /// start (`race::reset_lamps`).
     pub fn begin(&self) {
         use crate::cells::Cells;
         self.fog.copy_from(&crate::scene::fog::Fog::new());
@@ -209,7 +217,6 @@ impl ViewScratch {
             .copy_from(&crate::race::quad_work::QuadWork::new());
         self.state
             .copy_from(&crate::race::view_state::ViewState::new());
-        crate::race::lamp_work::PUBLISHED.take_into(&self.lamps);
     }
 
     /// The slot's number (`slot`).
@@ -227,6 +234,13 @@ impl ViewScratch {
         }
     }
 }
+
+// A view's scratch is handed from one thread to the next (`PartCell`'s proof needs `Send`):
+// no atomic is left in it, and no cell of it may be shared by reference between threads.
+const _: () = {
+    const fn assert_send<T: Send>() {}
+    assert_send::<ViewScratch>();
+};
 
 /// The race's view slots: the two players' views, then their mirrors. Each is claimed by the
 /// run that draws it (`claim`), or reached by the game's thread (`slot`).

@@ -22,7 +22,7 @@ use rc2k_core::hud::strips;
 
 /// The quad's input at byte offset `o` from `quad_colour`: its colour and see-through,
 /// texture coordinates, then corners (three consecutive fields).
-fn quad_input(scratch: &ViewScratch, o: usize) -> &crate::session::Dword {
+fn quad_input(scratch: &ViewScratch, o: usize) -> &crate::session::PlainDword {
     match o {
         0..0x8 => &scratch.quad.colour[o / 4],
         0x8..0x28 => &scratch.quad.uv[(o - 8) / 4],

@@ -39,7 +39,7 @@ fn step(
     crate::physics::gearbox_step::gearbox_step(course.numbers.get(), shared, figures, scene)?;
     crate::physics::engine_torque::engine_torque(course, shared, scene);
     let gear = shared.car().gear.get();
-    if !(-1..=7).contains(&(gear as i32)) {
+    if !(-1..=7).contains(&gear) {
         return Err(BadInput("a gear outside g_gearRatios (-1 ..= 7)").into());
     }
     x87_1(

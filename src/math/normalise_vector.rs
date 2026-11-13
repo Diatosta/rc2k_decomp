@@ -22,7 +22,7 @@ use crate::errors::BadInput;
 use crate::math::x87_float::{ONE, compare, ld, st};
 use crate::race::course_lists_store::CourseLists;
 use crate::scene::draw_switches_store::DrawSwitches;
-use crate::session::Dword;
+use crate::session::PlainDword;
 
 // ---- game data ----
 
@@ -61,7 +61,7 @@ pub(crate) fn scaled_by_inverse(v: [u32; 3], root: u32, exponent_root: u32) -> (
 pub fn normalise_vector(
     lists: &CourseLists,
     switches: &DrawSwitches,
-    work: &[Dword; 4],
+    work: &[PlainDword; 4],
 ) -> Result<Option<u32>, BadInput> {
     normalise(lists, work, switches.use_sse.is_set())
 }
@@ -79,7 +79,7 @@ fn sse_normalise(v: [u32; 4]) -> [u32; 4] {
 /// Rust callers in modules not yet converted use.
 pub fn normalise(
     lists: &CourseLists,
-    work: &[Dword; 4],
+    work: &[PlainDword; 4],
     sse: bool,
 ) -> Result<Option<u32>, BadInput> {
     let v: [u32; 4] = crate::session::read_bits(work);

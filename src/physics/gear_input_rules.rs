@@ -46,7 +46,7 @@ pub fn gear_input_rules(car: &Car, tables: &PhysicsTables, vars: &RaceVars) {
     let gear_before = car.gear.get();
     let (mut inputs, mut gear) = (before, gear_before);
     inputs.apply_rules(&mut gear, &state);
-    let changes: [(&dyn DwordLike, u32, u32); 8] = [
+    let changes: [(&dyn DwordLike, u32, u32); 7] = [
         (&tables.input_steer, inputs.w90, before.w90),
         (&tables.input_throttle, inputs.first, before.first),
         (&tables.input_brake, inputs.second, before.second),
@@ -54,9 +54,11 @@ pub fn gear_input_rules(car: &Car, tables: &PhysicsTables, vars: &RaceVars) {
         (&tables.input_gear_up, inputs.wa0, before.wa0),
         (&tables.input_gear_down, inputs.wa4, before.wa4),
         (&tables.input_gear_wanted, inputs.joined, before.joined),
-        (&car.gear, gear, gear_before),
     ];
     for (cell, now, was) in changes {
         crate::physics::cells::set_changed(cell, was, now);
+    }
+    if gear != gear_before {
+        car.gear.set(gear);
     }
 }

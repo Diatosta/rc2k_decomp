@@ -40,7 +40,7 @@ fn share(at: usize, start: u32, effects: &crate::effects::owner::Effects) {
     let took = rdtsc().wrapping_sub(start) as i32;
     to.set(x87::int_over_int_times(
         took,
-        effects.setup.frame.frame_cycles.get() as i32,
+        effects.setup.frame.frame_cycles.get(),
         FRAME_K.times[at],
     ));
 }
@@ -51,7 +51,7 @@ fn share(at: usize, start: u32, effects: &crate::effects::owner::Effects) {
 #[derive(Clone, Copy)]
 pub struct EffectsView<'a> {
     pub fog: &'a crate::scene::fog::Fog,
-    pub view_matrix: &'a [crate::session::Float; 16],
+    pub view_matrix: &'a [crate::session::PlainFloat; 16],
     pub light: u32,
     pub engine_tables: &'a crate::scene::engine_tables_store::EngineTables,
 }

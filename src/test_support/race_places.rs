@@ -485,15 +485,13 @@ struct Run {
 }
 
 /// The runs a store is cut into, in order.
-fn runs_of(store: &dyn crate::cells::Store) -> Vec<Run> {
+fn runs_of(store: &dyn super::registry::Walk) -> Vec<Run> {
     let size = store.size();
     let mut runs = Vec::new();
     let mut at = 0;
     while at < size {
-        let end = match store.cell_run_at(at) {
-            Some((start, run)) => (start + run.len()).min(size),
-            None => size,
-        };
+        let (start, run) = store.cell_run_at(at);
+        let end = (start + run.len()).min(size);
         assert!(end > at, "a run that does not advance, at byte {at}");
         let mut path = String::new();
         store.field_path_at(at, &mut path);
@@ -511,7 +509,7 @@ fn runs_of(store: &dyn crate::cells::Store) -> Vec<Run> {
 }
 
 /// The offset in `store` of the cell named `path`.
-fn offset_in_store(store: &dyn crate::cells::Store, runs: &[Run], path: &str) -> usize {
+fn offset_in_store(store: &dyn super::registry::Walk, runs: &[Run], path: &str) -> usize {
     let wanted = without_indices(path);
     for run in runs {
         if without_indices(&run.path) != wanted {
@@ -536,7 +534,7 @@ fn table() -> &'static [(usize, &'static str, usize)] {
         let mut table: Vec<(usize, &'static str, usize)> = FIELDS
             .iter()
             .map(|&(block, name, path)| {
-                let store = super::state::store(name);
+                let store = super::state::walk(name);
                 let runs = runs.entry(name).or_insert_with(|| runs_of(store));
                 (block, name, offset_in_store(store, runs, path))
             })

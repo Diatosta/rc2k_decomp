@@ -2,14 +2,11 @@
 //! Most are 4x4 float matrices (64 bytes) that Rust reaches in place by address (`ga(..)`) and passes to matrix functions; the generated struct overlays the same bytes.
 //! 0x5EA484 is IDA's one 1092-byte item, taken whole; only its first 64 bytes are used.
 //! Plain cells: a drawing store (`session::DrawShared`), written on the game's thread between
-//! frames and read by the drawing parts through their `workers::DrawReads`. `view_matrix`,
-//! `view_turn_matrix` and `view_place` stay atomic: the effects' and the listener's views
-//! (`effects::run_frame::EffectsView`, `drive::set_listener::ListenerView`) hold them beside
-//! a view's own atomic matrices as one type.
+//! frames and read by the drawing parts through their `workers::DrawReads`.
 //! Names are readings unless IDA's.
 
 use crate::cells::ZeroCells;
-use crate::session::{Float, PlainDword, PlainFloat};
+use crate::session::{PlainDword, PlainFloat};
 
 #[repr(C)]
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
@@ -43,17 +40,17 @@ pub struct SceneMatrices {
     /// 0x5EA20C: `g_viewBackMatrix`: the view turned back (`scene::view_matrix`, `scene::reflect_vector`).
     pub view_back_matrix: [PlainFloat; 16],
     /// 0x5EA24C: `g_viewTurnMatrix`: the view's turn (`drive::set_listener`, `physics::car_sounds`, `race::frame_draw`).
-    pub view_turn_matrix: [Float; 16],
+    pub view_turn_matrix: [PlainFloat; 16],
     /// 0x5EA28C: no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
     pub unused_3c4: [PlainDword; 16],
     /// 0x5EA2CC: `g_viewMatrix` and its elements `flt_5EA2D0`..: the view matrix, used in place (`scene::project_point`, `effects::draw_particle`, `race::skidmarks`).
-    pub view_matrix: [Float; 16],
+    pub view_matrix: [PlainFloat; 16],
     /// 0x5EA30C: `g_madeObjectMatrix`: the matrix made for an object (`scene::matrix`, `race::frame_draw`).
     pub made_object_matrix: [PlainFloat; 16],
     /// 0x5EA34C: `dword_5EA34C`: a block whose first 0x40 bytes receive a copy of the made object matrix (`race::frame_draw`); now each view's (`scene::view_matrices`); unused.
     pub object_matrix_slots: [PlainDword; 32],
     /// 0x5EA3CC: `flt_5EA3CC`: the view's matrix, place at +0x30 (`effects::view_motion`, `race::frame_views`).
-    pub view_place: [Float; 16],
+    pub view_place: [PlainFloat; 16],
     /// 0x5EA40C: `g_objectMatrix`: pointer to the object matrix in use (`scene::place_object_points`).
     pub object_matrix_ptr: PlainDword,
     /// 0x5EA410: no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.

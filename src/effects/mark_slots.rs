@@ -32,7 +32,7 @@ pub const VIEW_PLACE_MATRIX: u32 = 0xCD00_0001;
 pub fn slot_matrix(
     frame: &Frame,
     handle: u32,
-) -> Result<&[crate::session::Float; 16], crate::errors::BadInput> {
+) -> Result<&[crate::session::PlainFloat; 16], crate::errors::BadInput> {
     match handle {
         VIEW_PLACE_MATRIX => Ok(&frame.matrices.get().view_place),
         _ => Err(crate::errors::BadInput(

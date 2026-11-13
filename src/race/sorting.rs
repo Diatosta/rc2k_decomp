@@ -60,7 +60,7 @@ pub fn sort_records<const N: usize>(
 /// on the cells themselves (the changed records written back). Refuses (before anything)
 /// more records than `cells` holds.
 pub fn sort_cells<const N: usize>(
-    cells: &[crate::session::Dword],
+    cells: &[crate::session::PlainDword],
     count: u32,
     key: usize,
     order: Order,

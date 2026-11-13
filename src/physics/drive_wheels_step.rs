@@ -309,7 +309,7 @@ pub fn drive_wheels_step(
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
     let gear = car.gear.get();
-    if gear != 0 && !(-1..=7).contains(&(gear as i32)) {
+    if gear != 0 && !(-1..=7).contains(&gear) {
         return Err(BadInput("a gear outside g_gearRatios (-1 ..= 7)").into());
     }
     steps(course, vars, physics_tables, car, scene)

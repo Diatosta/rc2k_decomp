@@ -12,7 +12,7 @@
 
 use crate::errors::BadInput;
 use crate::scene::clip::{Edge, below, clip_pass, listed_with_records, or_undone};
-use crate::session::Float;
+use crate::session::PlainFloat;
 
 // ---- game data ----
 
@@ -25,7 +25,7 @@ fn outside_mask<'p>(
 ) -> Result<(crate::scene::polygon::Listed<'p>, u32), BadInput> {
     let polygon_work = &part.polygon;
     let entries = listed_with_records(polygon_work, poly)?;
-    let edge = |cell: &Float| cell.get() as f64;
+    let edge = |cell: &PlainFloat| cell.get() as f64;
     let (left, right, top, bottom) = (
         edge(&poly.window.clip_screen[2]),
         edge(&poly.window.clip_screen[3]),

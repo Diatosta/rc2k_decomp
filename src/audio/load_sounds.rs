@@ -31,19 +31,29 @@ struct GameLoader<'a> {
 
 impl<'a> GameLoader<'a> {
     /// The record, which `make_buffer` takes as its holder value.
-    fn record_at(&self, sound: u32) -> crate::audio::property_sets::Holder<'a> {
-        let audio: &'a AudioThread = self.audio;
-        crate::audio::property_sets::Holder::Record(&audio.sample_records.records[sound as usize])
+    fn record_at(&self, sound: u32) -> crate::audio::property_sets::Holder {
+        crate::audio::property_sets::Holder::Record(
+            self.audio
+                .sample_records
+                .record(sound)
+                .expect("a sound inside the records")
+                .number,
+        )
     }
 }
 
 impl rc2k_core::audio::load::Loader for GameLoader<'_> {
     type Error = Refused;
     fn record(&mut self, sound: u32) -> SampleRecord {
-        self.audio.sample_records.records[sound as usize].get()
+        self.audio
+            .sample_records
+            .record(sound)
+            .expect("a sound inside the records")
     }
     fn set_first_voice(&mut self, sound: u32, voice: u32) {
-        self.audio.sample_records.records[sound as usize].update(|r| r.first_voice = voice);
+        self.audio
+            .sample_records
+            .set_first_voice(sound as usize, voice);
     }
     fn full(&mut self) -> bool {
         self.audio.state.voice_count.get() == VOICES
@@ -54,7 +64,10 @@ impl rc2k_core::audio::load::Loader for GameLoader<'_> {
         Ok({
             crate::audio::samples::find_shared_voice(
                 audio,
-                &audio.sample_records.records[at.sound as usize].get(),
+                &audio
+                    .sample_records
+                    .record(at.sound)
+                    .expect("a sound inside the records"),
                 count.min(VOICES),
             )
         })
@@ -62,7 +75,11 @@ impl rc2k_core::audio::load::Loader for GameLoader<'_> {
     fn read(&mut self, at: rc2k_core::audio::load::At) -> Result<bool, Refused> {
         use crate::audio::{read_sample_of, samples};
         read_sample_of::read_sample_of(
-            &self.audio.sample_records.records[at.sound as usize].get(),
+            &self
+                .audio
+                .sample_records
+                .record(at.sound)
+                .expect("a sound inside the records"),
             &mut |p| {
                 samples::read_sample_in_game(
                     &self.audio.state,

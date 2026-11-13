@@ -88,9 +88,11 @@ pub fn cars_particles(effects: &Effects) -> Result<(), Refused> {
     }
     let count = cars(effects)?.len() as u32;
     for n in (0..count).rev() {
-        effects.kinds.emitter.tag.set(bh::to_int(
-            bh::int(n as i32) * bh::int(effects.kinds.emitter.tag_k.get() as i32),
-        ) as u32);
+        effects
+            .kinds
+            .emitter
+            .tag
+            .set(bh::to_int(bh::int(n as i32) * bh::int(effects.kinds.emitter.tag_k.get())) as u32);
         let car = &effects.settings()?.cars[n as usize];
         effects.kinds.emitter.car.set(car_handle(n as usize));
         let whole = car.whole(effects.car_blocks()?)?;

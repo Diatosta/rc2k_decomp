@@ -47,10 +47,10 @@ fn channel_place(state: &AudioOwn, id: u32) -> &Plain<MixerChannel> {
     )]
 }
 
-/// The sample record's place (the original indexes the table unchecked; a number past it ends
-/// the program).
-fn sample_place(records: &SampleRecords, number: u32) -> &Shared<SampleRecord> {
-    let Some(r) = records.records.get(number as usize) else {
+/// The sample record of sound `number` (the original indexes the table unchecked; a number
+/// past it ends the program).
+fn sample_of(records: &SampleRecords, number: u32) -> SampleRecord {
+    let Some(r) = records.record(number) else {
         crate::fatal::raise::end(
             "audio::voices",
             crate::errors::BadInput("a sound number past the sample records"),
@@ -80,7 +80,7 @@ pub fn stored_buffer_3d(
     state: &AudioOwn,
     id: u32,
     v: &Voice,
-) -> crate::audio::property_sets::Holder<'static> {
+) -> crate::audio::property_sets::Holder {
     voice_place(state, id).set(*v);
     crate::audio::property_sets::Holder::Buffer3d(id)
 }
@@ -105,7 +105,7 @@ pub fn update_channel(state: &AudioOwn, id: u32, change: impl FnOnce(&mut MixerC
 
 /// The sample record of sound `number`, as it is now.
 pub fn sample(records: &SampleRecords, number: u32) -> SampleRecord {
-    sample_place(records, number).get()
+    sample_of(records, number)
 }
 
 /// The core's `Pool` over the stores: voices and channels by their ids (place + 1).
@@ -141,7 +141,7 @@ impl rc2k_core::audio::voices::Pool for GamePool<'_> {
         n + 1
     }
     fn record(&self, n: u32) -> SampleRecord {
-        sample_place(self.records, n).get()
+        sample_of(self.records, n)
     }
 }
 

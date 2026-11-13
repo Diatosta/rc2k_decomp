@@ -137,6 +137,30 @@ impl Float {
     }
 }
 
+/// A signed 32-bit value other threads reach: the same four bytes as a `Dword`, read and written
+/// as `i32` (an atomic cell).
+#[repr(transparent)]
+pub struct Int(AtomicU32);
+
+impl Int {
+    pub const fn new(value: i32) -> Self {
+        Self(AtomicU32::new(value as u32))
+    }
+
+    pub fn get(&self) -> i32 {
+        self.0.load(Relaxed) as i32
+    }
+
+    pub fn set(&self, value: i32) {
+        self.0.store(value as u32, Relaxed);
+    }
+
+    /// The atomic holding the bits (the cells' copies, `cells::CellRef`).
+    pub fn atomic(&self) -> &AtomicU32 {
+        &self.0
+    }
+}
+
 /// Cell `n` of `cells`, or the dword the original reads there: past the table's end it reads what
 /// follows only inside `holder`, the store or record holding the table. The original reads
 /// on anywhere; here the next thing in memory is another static, so that is refused.
@@ -614,7 +638,51 @@ impl PlainFlag {
     }
 }
 
+/// A signed 32-bit value only the game's thread reaches: the same four bytes as a dword,
+/// read and written as `i32`.
+#[repr(transparent)]
+pub struct PlainInt(Cell<u32>);
+
+impl PlainInt {
+    pub const fn new(value: i32) -> Self {
+        Self(Cell::new(value as u32))
+    }
+
+    pub fn get(&self) -> i32 {
+        self.0.get() as i32
+    }
+
+    pub fn set(&self, value: i32) {
+        plain_written(&self.0);
+        self.0.set(value as u32);
+    }
+
+    /// The cell itself (the cells' copies of a run).
+    pub(crate) fn cell(&self) -> &Cell<u32> {
+        &self.0
+    }
+}
+
 impl Cell32 for PlainDword {
+    fn bits(&self) -> u32 {
+        self.0.get()
+    }
+    fn set_bits(&self, bits: u32) {
+        plain_written(&self.0);
+        self.0.set(bits);
+    }
+}
+
+impl Cell32 for Int {
+    fn bits(&self) -> u32 {
+        self.0.load(Relaxed)
+    }
+    fn set_bits(&self, bits: u32) {
+        self.0.store(bits, Relaxed);
+    }
+}
+
+impl Cell32 for PlainInt {
     fn bits(&self) -> u32 {
         self.0.get()
     }
@@ -848,6 +916,31 @@ impl DwordLike for PlainDword {
     }
 }
 
+/// A signed cell read and written as a number, shared (`Int`) or the game thread's
+/// (`PlainInt`); its bits through `Cell32`.
+pub trait IntLike: Cell32 {
+    fn get(&self) -> i32;
+    fn set(&self, value: i32);
+}
+
+impl IntLike for Int {
+    fn get(&self) -> i32 {
+        Int::get(self)
+    }
+    fn set(&self, value: i32) {
+        Int::set(self, value);
+    }
+}
+
+impl IntLike for PlainInt {
+    fn get(&self) -> i32 {
+        PlainInt::get(self)
+    }
+    fn set(&self, value: i32) {
+        PlainInt::set(self, value);
+    }
+}
+
 /// A flag cell, shared (`Flag`) or the game thread's (`PlainFlag`).
 pub trait FlagLike {
     fn is_set(&self) -> bool;
@@ -897,13 +990,13 @@ impl FloatLike for PlainFloat {
     }
 }
 
-/// The kind of cells a record is made of, for a record kept in both kinds: the game thread's
-/// plain cells (`PlainCells`, the stores) or atomics (`SharedCells`, a copy other threads
-/// reach, such as a view's copy of its car). The two kinds of one record have the same
-/// layout and first values, and copy into each other cell by cell (`cells::copy_cells`).
+/// The kind of cells a record is made of. Only the plain cells (`PlainCells`) are used now;
+/// the records are written over a kind `K` (as `Car<K>`, `Vertex<K>`) from the time a view's
+/// copy of its car was atomic, and could be written over plain cells alone.
 pub trait CellKind {
     type Dword: crate::cells::Cells + DwordLike + Cell32;
     type Float: crate::cells::Cells + FloatLike;
+    type Int: crate::cells::Cells + IntLike;
     type Bytes<const N: usize>: crate::cells::Cells;
 }
 
@@ -913,16 +1006,8 @@ pub struct PlainCells;
 impl CellKind for PlainCells {
     type Dword = PlainDword;
     type Float = PlainFloat;
+    type Int = PlainInt;
     type Bytes<const N: usize> = PlainBytes<N>;
-}
-
-/// Atomic cells (`Dword`, `Float`, `Bytes`).
-pub struct SharedCells;
-
-impl CellKind for SharedCells {
-    type Dword = Dword;
-    type Float = Float;
-    type Bytes<const N: usize> = Bytes<N>;
 }
 
 static GAME_THREAD: std::sync::OnceLock<std::thread::ThreadId> = std::sync::OnceLock::new();

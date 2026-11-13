@@ -5,7 +5,6 @@ use crate::errors::{BadInput, Refused};
 use crate::race::owner_course::CourseReads;
 use crate::race::trap::Trap;
 use crate::race::view_scratch::DrawCtx;
-use crate::session::Dword;
 
 /// `race::car_light_modes` (0x455B70): the shown car (`g_shownCar` in the original) = the drawn
 /// view's car (`crate::race::owner::race().shared.view.view_cars[g_drawnView]`); every car block's
@@ -79,7 +78,7 @@ pub fn car_light_modes(
 pub(super) fn own_lamp(
     lamps: &crate::race::lamp_work::LampWork,
     n: u32,
-) -> Result<&[Dword], BadInput> {
+) -> Result<&[crate::session::PlainDword], BadInput> {
     let n = n as usize;
     lamps
         .lamps

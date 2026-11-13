@@ -27,6 +27,12 @@ impl Raw for PlainDword {
     }
 }
 
+impl Raw for crate::session::PlainInt {
+    fn raw(&self) -> u32 {
+        crate::session::Cell32::bits(self)
+    }
+}
+
 impl Raw for PlainFloat {
     fn raw(&self) -> u32 {
         self.bits()

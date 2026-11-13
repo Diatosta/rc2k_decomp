@@ -3,21 +3,21 @@
 //! (`race::view_scratch::ViewScratch::state`). The shared fields are still written beside
 //! them for what reads them outside the drawing (the effects, the front end).
 
-use crate::session::Dword;
+use crate::session::PlainDword;
 
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct ViewState {
     /// `g_drawnCar` (0x60627C): the car being drawn, each view's own.
-    pub drawn_car: Dword,
+    pub drawn_car: PlainDword,
     /// `view_car_flag_a` (0x60626C): the car's switch share, each view's own.
-    pub view_car_flag_a: Dword,
+    pub view_car_flag_a: PlainDword,
     /// `view_car_stage` (0x606270): the car's camera view, each view's own.
-    pub view_car_stage: Dword,
+    pub view_car_stage: PlainDword,
     /// `g_viewPlace` (0x606298) x, y, z, each view's own.
-    pub view_place: [Dword; 3],
+    pub view_place: [PlainDword; 3],
     /// `g_viewAngles` (0x6062B8): two triples, each view's own.
-    pub view_angles: [Dword; 6],
+    pub view_angles: [PlainDword; 6],
 }
 
 impl ViewState {

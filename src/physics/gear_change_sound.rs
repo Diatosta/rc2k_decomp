@@ -10,14 +10,14 @@
 
 use crate::errors::Refused;
 use crate::physics::car_store::Car;
-use crate::session::PlainDword;
+use crate::session::PlainInt;
 use rc2k_core::physics::gearbox::{GearChange, gear_change};
 
 /// On the current car's sound object and the word at this place.
 // Converted: `rc2k_core::physics::gearbox::gear_change`.
 pub fn gear_change_sound_at(
     o: &crate::sound::store::SoundObject,
-    word: &PlainDword,
+    word: &PlainInt,
 ) -> Result<(), Refused> {
     if let Some(change) = gear_change(word.get()) {
         match change {

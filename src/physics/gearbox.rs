@@ -43,7 +43,7 @@ pub fn neutral(car: &Car, tables: &PhysicsTables) {
 }
 
 /// `gear_bit`: true for CF (the gear cannot be taken).
-pub fn bit(car: &Car, gear: u32) -> Result<bool, Refused> {
+pub fn bit(car: &Car, gear: i32) -> Result<bool, Refused> {
     Ok({ gear_bit(car, gear) }?.carry)
 }
 
@@ -71,9 +71,9 @@ pub fn over_top(car: &Car) -> f32 {
 }
 
 /// A gear's ratio; refused outside -1 ..= 7.
-pub fn ratio(tables: &PhysicsTables, gear: u32) -> Result<f32, Refused> {
-    if !(-1..=7).contains(&(gear as i32)) {
+pub fn ratio(tables: &PhysicsTables, gear: i32) -> Result<f32, Refused> {
+    if !(-1..=7).contains(&gear) {
         return Err(BadInput("a gear outside g_gearRatios (-1 ..= 7)").into());
     }
-    Ok(tables.gear_ratios[(gear as i32 + 1) as usize].get())
+    Ok(tables.gear_ratios[(gear + 1) as usize].get())
 }

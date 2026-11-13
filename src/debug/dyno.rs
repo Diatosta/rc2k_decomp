@@ -122,7 +122,7 @@ fn torque(race: &Race, scene: &Scene) {
         )
         .to_bits(),
     );
-    let gear = shared.car().gear.get() as i32;
+    let gear = shared.car().gear.get();
     shared.physics_tables.get().drive_torque.set_bits(
         mul_div2(
             shared.physics_tables.get().drive_ratio.bits(),
@@ -186,7 +186,7 @@ fn measure(race: &Race, scene: &Scene) -> Option<Measured> {
         let mut gears = Vec::new();
         let mut best = [f32::MIN; POINTS];
         for gear in 1..=count {
-            shared.car().gear.set(gear as u32);
+            shared.car().gear.set(gear as i32);
             let mut curve = Vec::new();
             for (n, best) in best.iter_mut().enumerate() {
                 let speed = n as f32 / POINTS as f32 * TOP_SPEED;
@@ -231,7 +231,7 @@ fn measure(race: &Race, scene: &Scene) -> Option<Measured> {
 /// below the limit.
 fn cursor(race: &Race, scene: &Scene) -> Option<(f32, f32, f32, i32)> {
     let shared = &race.shared;
-    let gear = shared.car().gear.get() as i32;
+    let gear = shared.car().gear.get();
     let speed = shared.car().drive_speed_a.get();
     if !(1..=7).contains(&gear)
         || !speed.is_finite()

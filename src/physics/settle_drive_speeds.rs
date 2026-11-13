@@ -71,7 +71,7 @@ pub fn settle_drive_speeds_at(
     g: &GearPlaces<'_>,
     s: &SettlePlaces<'_>,
 ) -> Result<(), Refused> {
-    let gear = g.gear.get() as i32;
+    let gear = g.gear.get();
     if gear != 0 && !(-1..=7).contains(&gear) {
         return Err(BadInput("a gear outside g_gearRatios (-1 ..= 7)").into());
     }

@@ -699,27 +699,27 @@ pub fn draw_flare(
     flare: u32,
     entry: Description<'_>,
 ) -> Result<(), Refused> {
-    for (table, to) in [
-        (&ctx.view.lamps.flare_place_x, &ctx.view.object.place[0]),
-        (&ctx.view.lamps.flares.place_y, &ctx.view.object.place[1]),
-        (&ctx.view.lamps.flares.place_z, &ctx.view.object.place[2]),
-        (&ctx.view.lamps.flares.size, &ctx.view.object.size),
-        (
-            &ctx.view.lamps.flares.other_light,
-            &ctx.view.light.other_light,
-        ),
-        (
-            &ctx.view.lamps.flares.object_number,
-            &ctx.view.cars.object_number,
-        ),
-    ] {
+    /// Flare `flare`'s value of `table` into `to`.
+    fn copy_value(
+        table: &[impl crate::session::DwordLike],
+        flare: u32,
+        to: &dyn crate::session::DwordLike,
+    ) -> Result<(), BadInput> {
         to.set(
             table
                 .get(flare as usize)
                 .ok_or(BadInput("a flare past the tables"))?
                 .get(),
         );
+        Ok(())
     }
+    let (view, flares) = (ctx.view, &ctx.view.lamps.flares);
+    copy_value(&view.lamps.flare_place_x, flare, &view.object.place[0])?;
+    copy_value(&flares.place_y, flare, &view.object.place[1])?;
+    copy_value(&flares.place_z, flare, &view.object.place[2])?;
+    copy_value(&flares.size, flare, &view.object.size)?;
+    copy_value(&flares.other_light, flare, &view.light.other_light)?;
+    copy_value(&flares.object_number, flare, &view.cars.object_number)?;
     ctx.view.light.view_kind.set(2u32);
     place_object_matrix(ctx)?;
     ctx.view.light.light_kind.set(0u32);
@@ -811,8 +811,8 @@ pub fn draw_list_entry(
 /// flare's entry is read there as a description, past its own 8 bytes).
 pub fn draw_entries<'a>(
     ctx: &crate::race::view_scratch::DrawCtx<'_>,
-    count: &crate::session::Dword,
-    from: impl Fn(usize) -> &'a [crate::session::Dword] + Sync,
+    count: &crate::session::PlainDword,
+    from: impl Fn(usize) -> &'a [crate::session::PlainDword],
 ) -> Result<(), Refused> {
     let entries = from(0)
         .get(..2 * count.get() as usize)
@@ -825,7 +825,7 @@ pub fn draw_entries<'a>(
         return Err(BadInput("a list entry of 0x4000000 or more").into());
     }
     for (k, entry) in entries.iter().enumerate() {
-        draw_list_entry(ctx, Description::Cells(from(k)), entry[1].get())?;
+        draw_list_entry(ctx, Description::PlainCells(from(k)), entry[1].get())?;
     }
     Ok(())
 }

@@ -1,7 +1,7 @@
 //! The camera's work and the car parts' axle figures (IDA 0x608B08 .. 0x608CB4): the lights file's path text, the two views' figures (heading, roll, pitch, turns, offsets, points, shares) and the blended camera offset and turn, the pitch ease limits, the ground probe counts, the axle figures, the listener's points, and the car draw flags. `#[repr(C)]`: the derive reads the fields in order. The stage prefs buffer `g_stagePrefs` (0x608CB4 ..) is a separate piece.
 //! Names are readings unless IDA's.
 
-use crate::session::{PlainDword, PlainFloat};
+use crate::session::{PlainDword, PlainFloat, PlainInt};
 
 #[repr(C)]
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
@@ -35,15 +35,15 @@ pub struct CameraWork {
     /// (0x608B5C): the first view's heading, from the car (`physics::take_first_view`).
     pub view_a_heading: PlainDword,
     /// (0x608B60): the first view's roll, halved with the mode's flag (`physics::take_first_view`).
-    pub view_a_roll: PlainDword,
+    pub view_a_roll: PlainInt,
     /// (0x608B64): the first view's pitch, halved with the mode's flag (`physics::take_first_view`).
-    pub view_a_pitch: PlainDword,
+    pub view_a_pitch: PlainInt,
     /// (0x608B68): the second view's heading (`physics::take_second_view`).
     pub view_b_heading: PlainDword,
     /// (0x608B6C): the second view's roll (`physics::take_second_view`).
-    pub view_b_roll: PlainDword,
+    pub view_b_roll: PlainInt,
     /// (0x608B70): the second view's pitch (`physics::take_second_view`).
-    pub view_b_pitch: PlainDword,
+    pub view_b_pitch: PlainInt,
     /// (0x608B74): the blended view's turn, x (`physics::update_camera`, `physics::place_camera`).
     pub view_turn_x: PlainDword,
     /// (0x608B78): the blended view's turn, y (same).

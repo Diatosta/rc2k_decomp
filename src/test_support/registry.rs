@@ -11,7 +11,7 @@ use crate::errors::BadInput;
 /// game's (a store's record may be rounded up past the game's last byte).
 struct Listed {
     name: &'static str,
-    store: &'static (dyn Store + Sync),
+    store: &'static (dyn Walk + Sync),
     len: Option<usize>,
 }
 
@@ -58,16 +58,6 @@ unsafe impl<T: crate::cells::Cells + Sync + 'static> crate::cells::Store for Rec
             .wrapping_add(self.offset)
     }
 
-    fn cell_run_at(&self, offset: usize) -> Option<(usize, crate::cells::CellRun<'_>)> {
-        // A run that begins before the window is taken from the window's first byte, when a
-        // cell begins there.
-        let (start, run) = crate::cells::Cells::cell_run(self.whole, self.offset + offset);
-        match start.checked_sub(self.offset) {
-            Some(start) => Some((start, run)),
-            None => Some((0, run.skip(self.offset - start)?)),
-        }
-    }
-
     fn load(&self, offset: usize, to: &mut [u8]) -> Result<(), crate::errors::BadInput> {
         crate::cells::load_cells(self.whole, self.offset + offset, to)
     }
@@ -103,21 +93,6 @@ unsafe impl<S: Cells> Store for OnGame<S> {
         size_of::<S>() - self.offset
     }
 
-    fn cell_run_at(&self, offset: usize) -> Option<(usize, CellRun<'_>)> {
-        crate::session::assert_game_thread();
-        // A run that begins before the part is taken from the part's first byte, when a
-        // cell begins there.
-        let (start, run) = Cells::cell_run(self.whole, self.offset + offset);
-        match start.checked_sub(self.offset) {
-            Some(start) => Some((start, run)),
-            None => Some((0, run.skip(self.offset - start)?)),
-        }
-    }
-
-    fn field_path_at(&self, offset: usize, path: &mut String) -> Option<&'static str> {
-        Some(Cells::field_path(self.whole, self.offset + offset, path))
-    }
-
     fn first(&self) -> *const u8 {
         std::ptr::from_ref(self.whole)
             .cast::<u8>()
@@ -132,6 +107,65 @@ unsafe impl<S: Cells> Store for OnGame<S> {
     fn store(&self, offset: usize, from: &[u8]) -> Result<(), BadInput> {
         crate::session::assert_game_thread();
         crate::cells::store_cells(self.whole, self.offset + offset, from)
+    }
+}
+
+/// A listed store that tests walk by cell runs and field paths (`race_places`): the record's
+/// own `Cells` methods, shifted by the window's first byte where the store is a part.
+pub trait Walk: Store {
+    /// The run of like cells holding byte `offset` and the byte it starts at.
+    fn cell_run_at(&self, offset: usize) -> (usize, CellRun<'_>);
+    /// `Cells::field_path` of the record behind the store at `offset`.
+    fn field_path_at(&self, offset: usize, path: &mut String);
+}
+
+impl<T: Cells> Walk for T {
+    fn cell_run_at(&self, offset: usize) -> (usize, CellRun<'_>) {
+        Cells::cell_run(self, offset)
+    }
+
+    fn field_path_at(&self, offset: usize, path: &mut String) {
+        Cells::field_path(self, offset, path);
+    }
+}
+
+/// A run found from byte `at` of a record that begins before byte `window` is taken from the
+/// window's first byte, when a cell begins there.
+fn in_window(window: usize, (start, run): (usize, CellRun<'_>)) -> (usize, CellRun<'_>) {
+    match start.checked_sub(window) {
+        Some(start) => (start, run),
+        None => (
+            0,
+            run.skip(window - start)
+                .expect("a cell begins at the window's first byte"),
+        ),
+    }
+}
+
+impl<T: Cells + Sync + 'static> Walk for RecordTail<T> {
+    fn cell_run_at(&self, offset: usize) -> (usize, CellRun<'_>) {
+        in_window(
+            self.offset,
+            Cells::cell_run(self.whole, self.offset + offset),
+        )
+    }
+
+    fn field_path_at(&self, offset: usize, path: &mut String) {
+        Cells::field_path(self.whole, self.offset + offset, path);
+    }
+}
+
+impl<S: Cells> Walk for OnGame<S> {
+    fn cell_run_at(&self, offset: usize) -> (usize, CellRun<'_>) {
+        crate::session::assert_game_thread();
+        in_window(
+            self.offset,
+            Cells::cell_run(self.whole, self.offset + offset),
+        )
+    }
+
+    fn field_path_at(&self, offset: usize, path: &mut String) {
+        Cells::field_path(self.whole, self.offset + offset, path);
     }
 }
 
@@ -1530,7 +1564,7 @@ fn listed_stores() -> Vec<Listed> {
 /// range holds.
 pub struct Entry {
     pub name: &'static str,
-    pub store: &'static (dyn Store + Sync),
+    pub store: &'static (dyn Walk + Sync),
     pub len: usize,
 }
 

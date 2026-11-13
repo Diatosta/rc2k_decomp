@@ -19,8 +19,8 @@ use crate::session::PlainDword;
 pub fn higher_free_gear_at(
     bits: &PlainDword,
     count: u32,
-    gear: u32,
-) -> Result<Option<u32>, Refused> {
+    gear: i32,
+) -> Result<Option<i32>, Refused> {
     let s = { bits_at(bits) }.higher_free(gear, count)?;
     Ok(s.found.then_some(s.gear))
 }
@@ -28,7 +28,7 @@ pub fn higher_free_gear_at(
 pub fn higher_free_gear(
     car: &Car,
     tables: &PhysicsTables,
-    gear: u32,
-) -> Result<Option<u32>, Refused> {
+    gear: i32,
+) -> Result<Option<i32>, Refused> {
     higher_free_gear_at(&car.lost_gear_bits, tables.gear_count.get(), gear)
 }

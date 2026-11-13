@@ -10,6 +10,8 @@
 //! the polygon work, the point records) are a `PartScratch`: one per part (`part_scratch`),
 //! handed to the part's drawing and passed down to what reaches them. Part 0's is the game's
 //! own thread's, what everything drawn outside the parts works on too (`game_scratch`).
+//! A `PartScratch` is made of plain cells (and the mutex of its noted drawing, which the
+//! game's thread and the part's own both lock, one at a time): it is `Send`, asserted below.
 
 use crate::errors::{BadInput, Refused};
 use crate::part_cell::{PartCell, PartTurn};
@@ -84,6 +86,12 @@ impl PartScratch {
         }
     }
 }
+
+// A part's scratch is handed from one thread to the next (`PartCell`'s proof needs `Send`).
+const _: () = {
+    const fn assert_send<T: Send>() {}
+    assert_send::<PartScratch>();
+};
 
 /// The parts' scratch. Run `n` of a drawing scope claims element `n` (`draw_parts`); the
 /// game's thread reaches element 0 by `part_scratch` and `game_scratch`, the others (all

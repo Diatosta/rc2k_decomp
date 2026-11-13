@@ -10,82 +10,82 @@
 //! and leaves them set into the next frame's views until their first face resets them) and
 //! `polygon_alpha` (set by the HUD's strips only, read by every view's drawing).
 
-use crate::session::{Dword, Float};
+use crate::session::{PlainDword, PlainFloat};
 
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct PolygonWork {
     /// `g_polygonNextRecord`.
-    pub polygon_next_record: Dword,
+    pub polygon_next_record: PlainDword,
     /// The polygon's two texture words (`scene::draw_polygon`).
-    pub polygon_textures: [Dword; 2],
+    pub polygon_textures: [PlainDword; 2],
     /// The texture page ("tpage"; `scene::look_up_texture`; the loading bar's switch).
-    pub texture_page: Dword,
+    pub texture_page: PlainDword,
     /// `g_polygonColour`.
-    pub polygon_colour: Dword,
+    pub polygon_colour: PlainDword,
     /// `g_polygonTexture`.
-    pub polygon_texture: Dword,
+    pub polygon_texture: PlainDword,
     /// `g_faceShine` (`scene::draw_object_face`).
-    pub face_shine: Dword,
+    pub face_shine: PlainDword,
     /// A face's word (`scene::draw_object_face`).
-    pub face_word: Dword,
+    pub face_word: PlainDword,
     /// The polygon's two side switches (`scene::draw_polygon`, the quads).
-    pub polygon_sides: [Dword; 2],
+    pub polygon_sides: [PlainDword; 2],
     /// Kept by `scene::draw_polygon`.
-    pub polygon_kept: [Dword; 3],
+    pub polygon_kept: [PlainDword; 3],
     /// `g_polygonOutsideCount`.
-    pub polygon_outside_count: Dword,
+    pub polygon_outside_count: PlainDword,
     /// `g_polygonVertexCount`.
-    pub polygon_vertex_count: Dword,
+    pub polygon_vertex_count: PlainDword,
     /// `g_polygonNextEntry`.
-    pub polygon_next_entry: Dword,
+    pub polygon_next_entry: PlainDword,
     /// `g_polygonClipMask` ("cuttest").
-    pub polygon_clip_mask: Dword,
+    pub polygon_clip_mask: PlainDword,
     /// The clip's plane (`scene::clip`).
-    pub clip_plane: Dword,
+    pub clip_plane: PlainDword,
     /// Clipped by the screen ("donesuth").
-    pub screen_clipped: Dword,
+    pub screen_clipped: PlainDword,
     /// Clipped by depth ("donezcut").
-    pub depth_clipped: Dword,
+    pub depth_clipped: PlainDword,
     /// A list entry's third word (`scene::list_object_face`).
-    pub entry_third: Dword,
+    pub entry_third: PlainDword,
     /// `g_polygonDrawn`.
-    pub polygon_drawn: Dword,
+    pub polygon_drawn: PlainDword,
     /// `g_faceSortKey` (`scene::face_sort_key`).
-    pub face_sort_key: Dword,
+    pub face_sort_key: PlainDword,
     /// The clip's kept mask (`scene::clip`).
-    pub clip_kept_mask: Dword,
+    pub clip_kept_mask: PlainDword,
     /// `scene::clip`'s work (`SceneDraw.clip_work[0]` ..); `race::car_shadow` keeps a vertex's pieces in
     /// [2], [4], [10], [11].
-    pub clip_work: [Float; 12],
+    pub clip_work: [PlainFloat; 12],
     /// `scene::clip`'s second output run (five words written back from its work); `race::car_shadow` keeps the new crossing vertex's fog byte (+0x20) in [0].
-    pub clip_out_words: [Dword; 5],
+    pub clip_out_words: [PlainDword; 5],
     /// The four quad vertices (8 dwords each; `scene::point_records::of_quad`): the screen
     /// quads', the halfway vertices' and the skidmarks' own. In the original
     /// `RaceVars.quad_vertices`; every writer sets dwords 3, 6, 7 of the vertices it names
     /// just before the polygon is clipped and drawn.
-    pub quad_vertices: [Dword; 32],
+    pub quad_vertices: [PlainDword; 32],
     /// The texture filter's switches (`LEVEL_GRID.smooth`, `plain_first`, `plain_second`:
     /// `LevelGrid.smooth` .. `LevelGrid.plain_second`): `smooth` the pass being drawn's (render state 3:
     /// 3 smooth, 1 not), set from the pass's set's `plain`, 1 when its texture's mapping is 0.
     /// A view starts from `race::view_scratch::filter_input`; the HUD sets the front end's
     /// slot's `plain` 1, 1 (`hud::overlay_pass`).
-    pub smooth: Dword,
-    pub plain_first: Dword,
-    pub plain_second: Dword,
+    pub smooth: PlainDword,
+    pub plain_first: PlainDword,
+    pub plain_second: PlainDword,
     /// The clear's rectangle (`DRAW.cleared_rectangle`, 0x624138: left, top, right, bottom),
     /// each view's own.
-    pub cleared_rectangle: [Dword; 4],
+    pub cleared_rectangle: [PlainDword; 4],
     /// The amount (alpha) byte of the vertex a clip crossing makes, blended between its two ends, as a dword (`DRAW.crossing_amount`, `race::car_shadow`),
     /// each view's own.
-    pub crossing_amount: Dword,
+    pub crossing_amount: PlainDword,
     /// The colour the faded polygons fade from (`d3d().cards.fade_from`, the fog colour
     /// `scene::set_fog_colour` was given), each view's own.
-    pub fade_from: Dword,
+    pub fade_from: PlainDword,
     /// `GroundWork.view_mirrored` (0x63993C): 1 while the rear-view mirror is drawn (set by
     /// `race::mirror_view_window`; a main view's stays 0): its polygons' vertices turned
     /// round, its car lights and turn the mirror's.
-    pub view_mirrored: Dword,
+    pub view_mirrored: PlainDword,
     /// The view's sun (`race::place_sun`; the hit test covers it).
     pub sun: ViewSun,
     /// The view's window, scale and depths (`scene::view_window`): set before the view's
@@ -102,21 +102,21 @@ pub struct PolygonWork {
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct ViewSun {
-    pub on_screen: Dword,
-    pub size: Dword,
-    pub hit: [Dword; 2],
-    pub place: [Dword; 2],
-    pub view_out: Dword,
+    pub on_screen: PlainDword,
+    pub size: PlainDword,
+    pub hit: [PlainDword; 2],
+    pub place: [PlainDword; 2],
+    pub view_out: PlainDword,
 }
 
 impl ViewSun {
     pub const fn new() -> Self {
         Self {
-            on_screen: Dword::new(0),
-            size: Dword::new(0),
-            hit: [const { Dword::new(0) }; 2],
-            place: [const { Dword::new(0) }; 2],
-            view_out: Dword::new(0),
+            on_screen: PlainDword::new(0),
+            size: PlainDword::new(0),
+            hit: [const { PlainDword::new(0) }; 2],
+            place: [const { PlainDword::new(0) }; 2],
+            view_out: PlainDword::new(0),
         }
     }
 }
@@ -124,41 +124,41 @@ impl ViewSun {
 impl PolygonWork {
     pub const fn new() -> Self {
         Self {
-            polygon_next_record: Dword::new(0),
-            polygon_textures: [const { Dword::new(0) }; 2],
-            texture_page: Dword::new(0),
-            polygon_colour: Dword::new(0),
-            polygon_texture: Dword::new(0),
-            face_shine: Dword::new(0),
-            face_word: Dword::new(0),
-            polygon_sides: [const { Dword::new(0) }; 2],
-            polygon_kept: [const { Dword::new(0) }; 3],
-            polygon_outside_count: Dword::new(0),
-            polygon_vertex_count: Dword::new(0),
-            polygon_next_entry: Dword::new(0),
-            polygon_clip_mask: Dword::new(0),
-            clip_plane: Dword::new(0),
-            screen_clipped: Dword::new(0),
-            depth_clipped: Dword::new(0),
-            entry_third: Dword::new(0),
-            polygon_drawn: Dword::new(0),
-            face_sort_key: Dword::new(0),
-            clip_kept_mask: Dword::new(0),
-            clip_work: [const { Float::new(0.0) }; 12],
-            clip_out_words: [const { Dword::new(0) }; 5],
-            quad_vertices: [const { Dword::new(0) }; 32],
-            smooth: Dword::new(0),
-            plain_first: Dword::new(0),
-            plain_second: Dword::new(0),
+            polygon_next_record: PlainDword::new(0),
+            polygon_textures: [const { PlainDword::new(0) }; 2],
+            texture_page: PlainDword::new(0),
+            polygon_colour: PlainDword::new(0),
+            polygon_texture: PlainDword::new(0),
+            face_shine: PlainDword::new(0),
+            face_word: PlainDword::new(0),
+            polygon_sides: [const { PlainDword::new(0) }; 2],
+            polygon_kept: [const { PlainDword::new(0) }; 3],
+            polygon_outside_count: PlainDword::new(0),
+            polygon_vertex_count: PlainDword::new(0),
+            polygon_next_entry: PlainDword::new(0),
+            polygon_clip_mask: PlainDword::new(0),
+            clip_plane: PlainDword::new(0),
+            screen_clipped: PlainDword::new(0),
+            depth_clipped: PlainDword::new(0),
+            entry_third: PlainDword::new(0),
+            polygon_drawn: PlainDword::new(0),
+            face_sort_key: PlainDword::new(0),
+            clip_kept_mask: PlainDword::new(0),
+            clip_work: [const { PlainFloat::new(0.0) }; 12],
+            clip_out_words: [const { PlainDword::new(0) }; 5],
+            quad_vertices: [const { PlainDword::new(0) }; 32],
+            smooth: PlainDword::new(0),
+            plain_first: PlainDword::new(0),
+            plain_second: PlainDword::new(0),
             cleared_rectangle: [
-                Dword::new(0),
-                Dword::new(0),
-                Dword::new(0x31F),
-                Dword::new(0x257),
+                PlainDword::new(0),
+                PlainDword::new(0),
+                PlainDword::new(0x31F),
+                PlainDword::new(0x257),
             ],
-            crossing_amount: Dword::new(0),
-            fade_from: Dword::new(0),
-            view_mirrored: Dword::new(0),
+            crossing_amount: PlainDword::new(0),
+            fade_from: PlainDword::new(0),
+            view_mirrored: PlainDword::new(0),
             sun: ViewSun::new(),
             window: crate::scene::view_window::ViewWindow::new(),
         }

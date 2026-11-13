@@ -82,7 +82,7 @@ pub fn note(race: &Race) -> Result<(), BadInput> {
         let block = &race.car_blocks().cars[car];
         let h = hash(kept.cars[car].iter().copied());
         let speed = block.local_velocity[2].get(); // g_carSpeed's place in the block
-        let gear = block.gear.get() as i32; // g_carGear's
+        let gear = block.gear.get(); // g_carGear's
         line += &format!(" car {car} {h:08x} speed {speed:.3} gear {gear};");
     }
     crate::framework::log(&line);

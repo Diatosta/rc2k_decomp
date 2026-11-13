@@ -16,7 +16,7 @@ use rc2k_core::physics::drive_forces::cap_reverse;
 /// at any precision.
 pub fn cap_reverse_inputs(car: &Car, tables: &PhysicsTables, numbers: &Numbers) {
     let gear = car.gear.get();
-    if gear != u32::MAX {
+    if gear != -1 {
         return; // the speed and the values not read, as the original
     }
     let values = &tables.wheel_slips;

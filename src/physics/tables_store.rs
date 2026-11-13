@@ -8,7 +8,7 @@
 
 #[cfg(test)]
 use crate::race::owner::race;
-use crate::session::{PlainDword, PlainFlag, PlainFloat};
+use crate::session::{PlainDword, PlainFlag, PlainFloat, PlainInt};
 
 /// A kind of ground (0x30 bytes, `PhysicsTables.surfaces[0].table`): what `physics::wheel_surfaces` blends
 /// between for each point, and `physics::apply_patches` patches (readings).
@@ -195,7 +195,7 @@ pub struct PhysicsTables {
     /// +0x6c8 (0x613EF0): 0x20 (`physics::drive_torque_share`).
     pub torque_share_b: PlainDword,
     /// +0x6cc (0x613EF4): 32.0's bits, divided by as an integer (`physics::drive_torque_share`).
-    pub torque_share_c: PlainDword,
+    pub torque_share_c: PlainInt,
     /// +0x6d0 (0x613EF8): 0x1000 (`physics::crash_contact`).
     pub crash_depth: PlainDword,
     /// +0x6d4 (0x613EFC): 2.4, copied into 0x614BA0 (`physics::load_car_specs`).
@@ -331,7 +331,7 @@ pub struct PhysicsTables {
     /// +0x928 (0x614150): 1 for each point on hard ground (`physics::wheel_surfaces`).
     pub hard_ground: [PlainDword; 5],
     /// +0x93c (0x614164): `physics::drive_grip_forces`' integer.
-    pub grip_drive_word: PlainDword,
+    pub grip_drive_word: PlainInt,
     /// +0x940 (0x614168): (`physics::cap_drive_speed`).
     pub drive_speed_figure: PlainFloat,
     /// +0x944 (0x61416C): the `noautoneutral` setting.
@@ -485,7 +485,7 @@ pub struct PhysicsTables {
     /// +0x1404 (0x614C2C): `physics::sum_forces`' five sums.
     pub force_sums: [PlainFloat; 5],
     /// +0x1418 (0x614C40): the gear asked for (`physics::take_asked_gear`).
-    pub gear_asked: PlainDword,
+    pub gear_asked: PlainInt,
     /// +0x141c (0x614C44): (`physics::lever_pushes`).
     pub lever_share_start: PlainFloat,
     /// +0x1420 (0x614C48): (`physics::lever_pushes`).
@@ -897,7 +897,7 @@ impl PhysicsTables {
             },
             torque_share_a: PlainDword::new(8),
             torque_share_b: PlainDword::new(32),
-            torque_share_c: PlainDword::new(0x42000000),
+            torque_share_c: PlainInt::new(0x42000000),
             crash_depth: PlainDword::new(0x1000),
             spec_default_ba0: PlainFloat::new(2.4),
             spec_default_ba4: PlainFloat::new(0.5),

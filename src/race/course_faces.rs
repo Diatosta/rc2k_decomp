@@ -11,7 +11,7 @@ use crate::race::trap::Trap;
 use crate::race::view_scratch::DrawCtx;
 use crate::scene::polygon_store::PolygonEntry;
 use crate::session::byte_of;
-use crate::session::{Dword, Float};
+use crate::session::{PlainDword, PlainFloat};
 use rc2k_core::race::faces::Face;
 
 /// The byte `n` of a byte table held as dwords; past it refused.
@@ -88,7 +88,7 @@ fn face_turned_to_view(
             .view_vars
             .view_place_f
             .each_ref()
-            .map(|c| Float::from_bits(c.bits())),
+            .map(|c| PlainFloat::from_bits(c.bits())),
     )
 }
 
@@ -100,7 +100,7 @@ fn turned_to_view(
     points: &crate::race::scene_points::OwnPoints,
     f: &Face,
     triangle: usize,
-    place: &[Float; 3],
+    place: &[PlainFloat; 3],
 ) -> Result<u32, BadInput> {
     use crate::math::x87_float::{X, compare, int, ld};
     {
@@ -110,7 +110,7 @@ fn turned_to_view(
         let p = f.point(1 + triangle);
         let normal = f.normal(triangle);
         let at = crate::race::scene_points::point_number(course, points, p)?;
-        let along = |k: usize, view_at: &Float, normal: u32| -> Result<_, BadInput> {
+        let along = |k: usize, view_at: &PlainFloat, normal: u32| -> Result<_, BadInput> {
             Ok((int(at[k] as i32) - view_at.ld()) * ld(normal))
         };
         let (x, y, z) = (
@@ -411,17 +411,17 @@ fn face_off_screen(ctx: &DrawCtx<'_>) -> Result<bool, Refused> {
 /// variables).
 pub struct TextureSet<'a> {
     /// The texture (`texture_a` / `texture_b`).
-    pub texture: &'a Dword,
+    pub texture: &'a PlainDword,
     /// The kind's low bits, the corner order (`order_a` / `order_b`).
-    pub order: &'a Dword,
+    pub order: &'a PlainDword,
     /// The texture's size word with bit 31 (`polygon_textures` / `polygon_textures[1]`).
-    pub size: &'a Dword,
+    pub size: &'a PlainDword,
     /// The texture's mapping mode, its +0x2D signed (`mapping_a` / `mapping_b`).
-    pub mapping: &'a Dword,
+    pub mapping: &'a PlainDword,
     /// 1 when the mapping is 0 (`plain_first` / the next flag).
-    pub plain: &'a Dword,
+    pub plain: &'a PlainDword,
     /// The four corners' u, v (`corner_uv` .. / `corner_uv_b` ..).
-    pub uv: &'a [Dword; 8],
+    pub uv: &'a [PlainDword; 8],
 }
 
 /// The first triangle's set.
@@ -788,7 +788,7 @@ pub fn draw_face(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
 fn halfway_vertex(
     course: CourseReads<'_>,
     part: &crate::workers::PartScratch,
-    quad: &[crate::session::Dword; 32],
+    quad: &[crate::session::PlainDword; 32],
     a: u32,
     b: u32,
     v: u32,

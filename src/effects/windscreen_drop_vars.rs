@@ -1,6 +1,6 @@
 //! The windscreen drops' variables: the item table, the view's moves kept and the drift, the shape constants.
 
-use crate::session::{PlainBytes, PlainDword, PlainFloat};
+use crate::session::{PlainBytes, PlainDword, PlainFloat, PlainInt};
 
 /// The windscreen drops' variables (IDA 0x816192 .. 0x82E342).
 #[repr(C)]
@@ -45,13 +45,13 @@ pub struct WindscreenDropVars {
     /// 0x82E25E: `flt_82E25E`: its second
     pub curve_b: PlainFloat,
     /// 0x82E262: `dword_82E262`: the circles' step count
-    pub step_c: PlainDword,
+    pub step_c: PlainInt,
     /// 0x82E266: `flt_82E266`: the circles' step
     pub step_d: PlainFloat,
     /// 0x82E26A: `flt_82E26A` .. `flt_82E276`: constants of `windscreen_drops_top` (the last is the length it divides by)
     pub top_k: [PlainFloat; 4],
     /// 0x82E27A: `dword_82E27A`: a count per vertex (`windscreen_drops_top`)
-    pub per_vertex: PlainDword,
+    pub per_vertex: PlainInt,
     /// 0x82E286: `flt_82E286` ..: what `windscreen_drops_setup` scales the two axes by
     pub axes_k: [PlainFloat; 6],
     /// 0x82E2A2: `dword_82E2A2`: the texture square's side
@@ -110,7 +110,7 @@ impl WindscreenDropVars {
             ],
             curve_a: PlainFloat::new(1024.0),
             curve_b: PlainFloat::new(0.00054414064),
-            step_c: PlainDword::new(0x6),
+            step_c: PlainInt::new(0x6),
             step_d: PlainFloat::new(2.0),
             top_k: [
                 PlainFloat::new(0.003),
@@ -118,7 +118,7 @@ impl WindscreenDropVars {
                 PlainFloat::new(2048.0),
                 PlainFloat::new(1024.0),
             ],
-            per_vertex: PlainDword::new(0xC0),
+            per_vertex: PlainInt::new(0xC0),
             axes_k: [const { PlainFloat::new(0.5) }; 6],
             side: PlainFloat::new(0.5),
             frame_k: PlainFloat::new(1024.0),

@@ -207,7 +207,7 @@ pub struct StepFacts {
     /// `parts_present`.
     pub bits: u32,
     /// `gear`: the gear.
-    pub gear: u32,
+    pub gear: i32,
     /// `engine_speed_scaled`.
     pub figure: f32,
 }

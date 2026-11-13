@@ -120,8 +120,6 @@ pub fn draw_view_scene(
     draw_entries(&ctx, &lists.depth_entry_count, |n| lists.depth_from(n))?;
     crate::debug::timing::stop(crate::debug::timing::Stage::DepthEntries, begun);
     let view_value = view_value(reads.view, &view.polygon.sun, view.drawn_view(race))?;
-    // The lamps the next view starts from (`race::lamp_work::PUBLISHED`).
-    crate::race::lamp_work::PUBLISHED.publish(&view.lamps);
     Ok(ViewOutput {
         environment: Some(environment),
         view_value: Some(view_value),

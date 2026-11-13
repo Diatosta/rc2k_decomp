@@ -12,7 +12,7 @@
 //! `COURSE_LISTS.point_records` is `HELD` while the records are taken, 0 otherwise.
 
 use crate::errors::{BadInput, Refused};
-use crate::session::Dword;
+use crate::session::PlainDword;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 /// The records.
@@ -25,13 +25,13 @@ pub const HELD: u32 = 1;
 pub type Record = [u32; 8];
 
 /// The records of one part, as cells: read and written many times a polygon.
-pub type Records = [[Dword; 8]; COUNT as usize];
+pub type Records = [[PlainDword; 8]; COUNT as usize];
 
 /// A part's records, all zero (`workers::PartScratch::records`): a record is the part's own
 /// projection, made again by another part that needs it. Every reader below is handed the
 /// part's scratch.
 pub const fn new_records() -> Records {
-    [const { [const { Dword::new(0) }; 8] }; COUNT as usize]
+    [const { [const { PlainDword::new(0) }; 8] }; COUNT as usize]
 }
 
 /// Whether the records are taken.
@@ -63,7 +63,7 @@ pub fn give_back() {
 pub fn first_records_everywhere<'a>(
     part: &'a crate::workers::PartScratch,
     n: usize,
-) -> Result<impl Iterator<Item = &'a [Dword; 8]>, BadInput> {
+) -> Result<impl Iterator<Item = &'a [PlainDword; 8]>, BadInput> {
     if !TAKEN.load(Ordering::Relaxed) {
         return Err(BadInput("no point records"));
     }
@@ -131,8 +131,8 @@ pub fn of_pool(k: u32) -> u32 {
 fn cells<'a>(
     part: &'a crate::workers::PartScratch,
     r: u32,
-    quad: Option<&'a [Dword; 32]>,
-) -> Result<&'a [Dword; 8], BadInput> {
+    quad: Option<&'a [PlainDword; 32]>,
+) -> Result<&'a [PlainDword; 8], BadInput> {
     if r > COUNT {
         return far_cells(part, r, quad);
     }
@@ -149,9 +149,9 @@ fn cells<'a>(
 fn far_cells<'a>(
     part: &'a crate::workers::PartScratch,
     r: u32,
-    quad: Option<&'a [Dword; 32]>,
-) -> Result<&'a [Dword; 8], BadInput> {
-    let (all, k): (&'a [Dword], u32) = match r {
+    quad: Option<&'a [PlainDword; 32]>,
+) -> Result<&'a [PlainDword; 8], BadInput> {
+    let (all, k): (&'a [PlainDword], u32) = match r {
         _ if (QUAD_FIRST..POOL_FIRST).contains(&r) => (
             quad.ok_or(BadInput("a quad vertex outside a view's drawing"))?,
             r - QUAD_FIRST,
@@ -166,9 +166,9 @@ fn far_cells<'a>(
         .ok_or(BadInput("a point record past the records"))
 }
 
-/// Dword `offset` of a record's cells; refused for an offset past the record.
+/// PlainDword `offset` of a record's cells; refused for an offset past the record.
 #[inline]
-fn cell(cells: &[Dword; 8], offset: u32) -> Result<&Dword, BadInput> {
+fn cell(cells: &[PlainDword; 8], offset: u32) -> Result<&PlainDword, BadInput> {
     if offset.is_multiple_of(4)
         && let Some(cell) = cells.get(offset as usize / 4)
     {
@@ -187,7 +187,7 @@ pub fn get(part: &crate::workers::PartScratch, r: u32) -> Result<Record, BadInpu
 #[inline]
 pub fn get_in(
     part: &crate::workers::PartScratch,
-    quad: Option<&[Dword; 32]>,
+    quad: Option<&[PlainDword; 32]>,
     r: u32,
 ) -> Result<Record, BadInput> {
     let cells = cells(part, r, quad)?;
@@ -204,7 +204,7 @@ pub fn set(part: &crate::workers::PartScratch, r: u32, record: Record) -> Result
 #[inline]
 pub fn set_in(
     part: &crate::workers::PartScratch,
-    quad: Option<&[Dword; 32]>,
+    quad: Option<&[PlainDword; 32]>,
     r: u32,
     record: Record,
 ) -> Result<(), BadInput> {
@@ -224,7 +224,7 @@ pub fn field(part: &crate::workers::PartScratch, r: u32, offset: u32) -> Result<
 #[inline]
 pub fn field_in(
     part: &crate::workers::PartScratch,
-    quad: Option<&[Dword; 32]>,
+    quad: Option<&[PlainDword; 32]>,
     r: u32,
     offset: u32,
 ) -> Result<u32, BadInput> {
@@ -246,7 +246,7 @@ pub fn put_field(
 #[inline]
 pub fn put_field_in(
     part: &crate::workers::PartScratch,
-    quad: Option<&[Dword; 32]>,
+    quad: Option<&[PlainDword; 32]>,
     r: u32,
     offset: u32,
     v: u32,
@@ -259,7 +259,12 @@ pub fn put_field_in(
 /// original's read of a wrong address went wrong (the polygon code's reads cannot carry
 /// one).
 #[inline]
-pub fn vertex(part: &crate::workers::PartScratch, quad: &[Dword; 32], v: u32, offset: u32) -> u32 {
+pub fn vertex(
+    part: &crate::workers::PartScratch,
+    quad: &[PlainDword; 32],
+    v: u32,
+    offset: u32,
+) -> u32 {
     field_in(part, Some(quad), v, offset)
         .unwrap_or_else(|e| crate::fatal::raise::end("a point record", e))
 }
@@ -267,7 +272,7 @@ pub fn vertex(part: &crate::workers::PartScratch, quad: &[Dword; 32], v: u32, of
 /// A polygon vertex's whole record (as `vertex`), its bytes.
 pub fn vertex_bytes(
     part: &crate::workers::PartScratch,
-    quad: &[Dword; 32],
+    quad: &[PlainDword; 32],
     v: u32,
 ) -> Result<[u8; 32], BadInput> {
     let record = get_in(part, Some(quad), v)?;
@@ -289,7 +294,7 @@ mod tests {
         assert_eq!(memory.get().total, BYTES);
         assert_eq!(at_offset(0x20 * 5), of_scene_point(0x1005));
         assert_eq!(of_object_point(3), at_offset(0x20 * 0x1003));
-        let quad = [const { Dword::new(0) }; 32];
+        let quad = [const { PlainDword::new(0) }; 32];
         let part = crate::workers::game_scratch();
         put_field(part, of_scene_point(7), 0x18, 42).unwrap();
         assert_eq!(vertex(part, &quad, of_scene_point(7), 0x18), 42);

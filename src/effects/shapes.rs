@@ -7,7 +7,7 @@ use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::effects::windscreen_flakes_store::WindscreenFlakes;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
-use crate::session::{PlainBytes, PlainDword, PlainFloat};
+use crate::session::{PlainBytes, PlainDword, PlainFloat, PlainInt};
 
 /// One kind's tables.
 pub struct Shapes<'a> {
@@ -24,7 +24,7 @@ pub struct Shapes<'a> {
     pub points: &'a [PlainFloat],
     pub sides: u32,
     /// The circles' angle step is `pi / step_c * step_d`.
-    pub step_c: &'a PlainDword,
+    pub step_c: &'a PlainInt,
     pub step_d: &'a PlainFloat,
 }
 
@@ -171,7 +171,7 @@ impl<'a> Shapes<'a> {
         for (cell, v) in self.curve.iter().zip(curve) {
             cell.set(v);
         }
-        let (c, d): (i32, f32) = (self.step_c.get() as i32, self.step_d.get());
+        let (c, d): (i32, f32) = (self.step_c.get(), self.step_d.get());
         for n in 0..RADII as usize {
             let r = self.radii[n].get();
             let to = self.circle(n);
@@ -196,7 +196,7 @@ impl<'a> Shapes<'a> {
                 self.radii[n].get(),
                 self.circle(n),
                 self.sides,
-                self.step_c.get() as i32,
+                self.step_c.get(),
                 self.step_d.get(),
             );
         }

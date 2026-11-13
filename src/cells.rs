@@ -4,7 +4,7 @@
 //!
 //! `Cells::cell_run` and `CellRun` stay: the copies, `load_cells` and `checkpoints_store::run_on`
 //! walk runs. `Cells::field_path` stays for `drive::sim_hash` (the held races' hash, `remote`
-//! and tests); `Store::{cell_run_at, field_path_at}` are tests only (`test_support`).
+//! and tests).
 
 #![allow(unsafe_code)]
 
@@ -198,11 +198,13 @@ pub enum CellRun<'a> {
     Word(&'a [crate::session::Word]),
     Dword(&'a [crate::session::Dword]),
     Float(&'a [crate::session::Float]),
+    Int(&'a [crate::session::Int]),
     Flag(&'a [crate::session::Flag]),
     Words(&'a [AtomicU32]),
     PlainDword(&'a [crate::session::PlainDword]),
     PlainFloat(&'a [crate::session::PlainFloat]),
     PlainFlag(&'a [crate::session::PlainFlag]),
+    PlainInt(&'a [crate::session::PlainInt]),
     PlainBytes(&'a [std::cell::Cell<u8>]),
     PlainByte(&'a [crate::session::PlainByte]),
     PlainWord(&'a [crate::session::PlainWord]),
@@ -219,11 +221,13 @@ impl<'a> CellRun<'a> {
             CellRun::Word(_) | CellRun::PlainWord(_) => 2,
             CellRun::Dword(_)
             | CellRun::Float(_)
+            | CellRun::Int(_)
             | CellRun::Flag(_)
             | CellRun::Words(_)
             | CellRun::PlainDword(_)
             | CellRun::PlainFloat(_)
-            | CellRun::PlainFlag(_) => 4,
+            | CellRun::PlainFlag(_)
+            | CellRun::PlainInt(_) => 4,
         }
     }
 
@@ -235,11 +239,13 @@ impl<'a> CellRun<'a> {
             CellRun::Word(r) => r.len(),
             CellRun::Dword(r) => r.len(),
             CellRun::Float(r) => r.len(),
+            CellRun::Int(r) => r.len(),
             CellRun::Flag(r) => r.len(),
             CellRun::Words(r) => r.len(),
             CellRun::PlainDword(r) => r.len(),
             CellRun::PlainFloat(r) => r.len(),
             CellRun::PlainFlag(r) => r.len(),
+            CellRun::PlainInt(r) => r.len(),
             CellRun::PlainBytes(r) => r.len(),
             CellRun::PlainByte(r) => r.len(),
             CellRun::PlainWord(r) => r.len(),
@@ -256,11 +262,13 @@ impl<'a> CellRun<'a> {
             CellRun::Word(r) => r.as_ptr() as usize,
             CellRun::Dword(r) => r.as_ptr() as usize,
             CellRun::Float(r) => r.as_ptr() as usize,
+            CellRun::Int(r) => r.as_ptr() as usize,
             CellRun::Flag(r) => r.as_ptr() as usize,
             CellRun::Words(r) => r.as_ptr() as usize,
             CellRun::PlainDword(r) => r.as_ptr() as usize,
             CellRun::PlainFloat(r) => r.as_ptr() as usize,
             CellRun::PlainFlag(r) => r.as_ptr() as usize,
+            CellRun::PlainInt(r) => r.as_ptr() as usize,
             CellRun::PlainBytes(r) => r.as_ptr() as usize,
             CellRun::PlainByte(r) => r.as_ptr() as usize,
             CellRun::PlainWord(r) => r.as_ptr() as usize,
@@ -279,11 +287,13 @@ impl<'a> CellRun<'a> {
             CellRun::Word(r) => CellRun::Word(&r[i..]),
             CellRun::Dword(r) => CellRun::Dword(&r[i..]),
             CellRun::Float(r) => CellRun::Float(&r[i..]),
+            CellRun::Int(r) => CellRun::Int(&r[i..]),
             CellRun::Flag(r) => CellRun::Flag(&r[i..]),
             CellRun::Words(r) => CellRun::Words(&r[i..]),
             CellRun::PlainDword(r) => CellRun::PlainDword(&r[i..]),
             CellRun::PlainFloat(r) => CellRun::PlainFloat(&r[i..]),
             CellRun::PlainFlag(r) => CellRun::PlainFlag(&r[i..]),
+            CellRun::PlainInt(r) => CellRun::PlainInt(&r[i..]),
             CellRun::PlainBytes(r) => CellRun::PlainBytes(&r[i..]),
             CellRun::PlainByte(r) => CellRun::PlainByte(&r[i..]),
             CellRun::PlainWord(r) => CellRun::PlainWord(&r[i..]),
@@ -298,11 +308,13 @@ impl<'a> CellRun<'a> {
             CellRun::Word(r) => CellRef::U16(r[i].atomic()),
             CellRun::Dword(r) => CellRef::U32(r[i].atomic()),
             CellRun::Float(r) => CellRef::U32(r[i].atomic()),
+            CellRun::Int(r) => CellRef::U32(r[i].atomic()),
             CellRun::Flag(r) => CellRef::U32(r[i].atomic()),
             CellRun::Words(r) => CellRef::U32(&r[i]),
             CellRun::PlainDword(r) => CellRef::Plain32(r[i].cell()),
             CellRun::PlainFloat(r) => CellRef::Plain32(r[i].cell()),
             CellRun::PlainFlag(r) => CellRef::Plain32(r[i].cell()),
+            CellRun::PlainInt(r) => CellRef::Plain32(r[i].cell()),
             CellRun::PlainBytes(r) => CellRef::Plain8(&r[i]),
             CellRun::PlainByte(r) => CellRef::Plain8(r[i].cell()),
             CellRun::PlainWord(r) => CellRef::Plain16(r[i].cell()),
@@ -409,6 +421,31 @@ unsafe impl Cells for crate::session::Float {
     }
 }
 // SAFETY: one `AtomicU32`.
+unsafe impl Cells for crate::session::Int {
+    fn copy_from(&self, other: &Self) {
+        self.atomic().store(other.atomic().load(Relaxed), Relaxed);
+    }
+
+    fn merge_changes(&self, now: &Self, start: &Self) {
+        let a = self.atomic();
+        if let Some(v) = merged!(
+            u32,
+            now.atomic().load(Relaxed),
+            start.atomic().load(Relaxed)
+        ) {
+            a.store(v, Relaxed);
+        }
+    }
+
+    fn cell_run(&self, _: usize) -> (usize, CellRun<'_>) {
+        (0, CellRun::Int(std::slice::from_ref(self)))
+    }
+
+    fn slice_run(slice: &[Self]) -> Option<CellRun<'_>> {
+        Some(CellRun::Int(slice))
+    }
+}
+// SAFETY: one `AtomicU32`.
 unsafe impl Cells for crate::session::Flag {
     fn copy_from(&self, other: &Self) {
         self.atomic().store(other.atomic().load(Relaxed), Relaxed);
@@ -497,6 +534,29 @@ unsafe impl Cells for crate::session::PlainFlag {
 
     fn slice_run(slice: &[Self]) -> Option<CellRun<'_>> {
         Some(CellRun::PlainFlag(slice))
+    }
+}
+
+// SAFETY: one `Cell<u32>`.
+unsafe impl Cells for crate::session::PlainInt {
+    fn copy_from(&self, other: &Self) {
+        crate::session::plain_written(self.cell());
+        self.cell().set(other.cell().get());
+    }
+
+    fn merge_changes(&self, now: &Self, start: &Self) {
+        if let Some(v) = merged!(u32, now.cell().get(), start.cell().get()) {
+            crate::session::plain_written(self.cell());
+            self.cell().set(v);
+        }
+    }
+
+    fn cell_run(&self, _: usize) -> (usize, CellRun<'_>) {
+        (0, CellRun::PlainInt(std::slice::from_ref(self)))
+    }
+
+    fn slice_run(slice: &[Self]) -> Option<CellRun<'_>> {
+        Some(CellRun::PlainInt(slice))
     }
 }
 
@@ -737,6 +797,7 @@ macro_rules! zero_cells {
 zero_cells!(
     crate::session::Dword = crate::session::Dword::new(0),
     crate::session::Float = crate::session::Float::new(0.0),
+    crate::session::Int = crate::session::Int::new(0),
     crate::session::Flag = crate::session::Flag::new(false),
     crate::session::Word = crate::session::Word::new(0),
     crate::session::Byte = crate::session::Byte::new(0),
@@ -744,6 +805,7 @@ zero_cells!(
     crate::session::PlainDword = crate::session::PlainDword::new(0),
     crate::session::PlainFloat = crate::session::PlainFloat::new(0.0),
     crate::session::PlainFlag = crate::session::PlainFlag::new(false),
+    crate::session::PlainInt = crate::session::PlainInt::new(0),
     crate::session::PlainWord = crate::session::PlainWord::new(0),
     crate::session::PlainByte = crate::session::PlainByte::new(0),
     crate::session::PlainLoose = crate::session::PlainLoose::new(0),
@@ -830,17 +892,6 @@ pub unsafe trait Store {
     fn size(&self) -> usize;
     /// Its first byte: a checked place's bytes are found from it (`place_of`), inside `size()`.
     fn first(&self) -> *const u8;
-    /// The run of like cells holding byte `offset`, as references, and the byte it starts at
-    /// (`None`: the reads there take `load` and `store`). Tests only (`test_support`).
-    #[cfg(test)]
-    fn cell_run_at(&self, _offset: usize) -> Option<(usize, CellRun<'_>)> {
-        None
-    }
-    /// `Cells::field_path` of the record behind the store, and the record's type. Tests only.
-    #[cfg(test)]
-    fn field_path_at(&self, _offset: usize, _path: &mut String) -> Option<&'static str> {
-        None
-    }
     fn load(&self, offset: usize, to: &mut [u8]) -> Result<(), BadInput>;
     fn store(&self, offset: usize, from: &[u8]) -> Result<(), BadInput>;
 }
@@ -849,16 +900,6 @@ pub unsafe trait Store {
 unsafe impl<T: Cells> Store for T {
     fn size(&self) -> usize {
         size_of::<T>()
-    }
-
-    #[cfg(test)]
-    fn cell_run_at(&self, offset: usize) -> Option<(usize, CellRun<'_>)> {
-        Some(Cells::cell_run(self, offset))
-    }
-
-    #[cfg(test)]
-    fn field_path_at(&self, offset: usize, path: &mut String) -> Option<&'static str> {
-        Some(Cells::field_path(self, offset, path))
     }
 
     fn first(&self) -> *const u8 {

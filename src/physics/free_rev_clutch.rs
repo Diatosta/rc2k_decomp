@@ -21,7 +21,7 @@ pub fn free_rev_clutch(
     if gear == 0 || shared.car().driven_wheels_off.get() == 0 {
         return Ok(());
     }
-    if !(-1..=7).contains(&(gear as i32)) {
+    if !(-1..=7).contains(&gear) {
         return Err(BadInput("a gear outside g_gearRatios (-1 ..= 7)").into());
     }
     free_rev(course, shared, figures, scene);

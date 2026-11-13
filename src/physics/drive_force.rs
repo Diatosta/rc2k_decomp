@@ -22,7 +22,7 @@ pub fn drive_force(
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
     let gear = shared.car().gear.get();
-    if !(-1..=7).contains(&(gear as i32)) {
+    if !(-1..=7).contains(&gear) {
         return Err(BadInput("a gear outside g_gearRatios (-1 ..= 7)").into());
     }
     engine_torque_or_cut(course, shared, scene);
@@ -39,7 +39,7 @@ pub fn drive_force(
         mul_div2(
             &shared.physics_tables.get().drive_ratio,
             &gear_figures.drive_torque_figure,
-            &shared.physics_tables.get().gear_ratios[(gear as i32 + 1) as usize],
+            &shared.physics_tables.get().gear_ratios[(gear + 1) as usize],
             &course.numbers.get().k10000,
         )
         .to_bits(),

@@ -36,7 +36,7 @@ pub fn drive_torque_share(
     };
     count.set(n);
     speed_share.set(bh::stf(
-        car.local_velocity[2].ld().abs() / bh::int(tables.torque_share_c.get() as i32),
+        car.local_velocity[2].ld().abs() / bh::int(tables.torque_share_c.get()),
     ));
     let one = numbers.one.get();
     let below = !matches!(

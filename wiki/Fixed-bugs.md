@@ -585,3 +585,14 @@ has the same fixed addresses, but its network mode could not be run here to see 
 **Seen or read:** read in `physics::damage_wear` (0x4AC7C9: `dword_75B8C4[column * 8]`); checked 2026-11-10 with a build that worked out both figures on six rallies' stages (the blend was 0 everywhere) and by reading every stage's LOCALDAT.
 
 **Fix:** both columns are taken from the surface's own pair.
+
+## The lamps a view starts from taken from whichever view was drawn last
+
+**What it is:** while a view is drawn, the game gathers the lamps (car lights and lit objects) that light the scene. The view's light and the sky read the lamps left from before, which in the original were the previous view's, as the views were drawn one after another. With the views and mirrors drawn side by side in the port, the previous one was whichever had finished last, a matter of timing.
+
+**In game:** nothing seen: the old lamps matter only for a frame's tint on stages with lit objects of one kind (0x3B), and the held races came out identical.
+
+**Seen or read:** read, in `race::draw_view_scene` and `ViewScratch::begin`, 2026-11-12.
+
+**Fix:** each view and mirror keeps its own lamps from frame to frame and starts from them, so the result no longer depends on the order the views finish.
+

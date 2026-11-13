@@ -208,7 +208,7 @@ fn entries(
 /// The sun's hit test.
 fn hit_test(
     part: &crate::workers::PartScratch,
-    quad: &[crate::session::Dword; 32],
+    quad: &[crate::session::PlainDword; 32],
     sun: &crate::scene::polygon_work::ViewSun,
     entries: &[Listed],
 ) {
@@ -246,7 +246,7 @@ fn hit_test(
 /// The positions into the vertex buffer, mirrored for a mirrored view.
 fn place(
     part: &crate::workers::PartScratch,
-    quad: &[crate::session::Dword; 32],
+    quad: &[crate::session::PlainDword; 32],
     reads: crate::workers::DrawReads<'_>,
     entries: &[Listed],
     mirrored: bool,

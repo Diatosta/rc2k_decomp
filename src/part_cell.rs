@@ -9,6 +9,9 @@
 //! and for what is put together after them. Behind both doors a debug build checks that no
 //! element is claimed twice in a scope and that the game's thread does not reach an element a run
 //! on another thread holds.
+//!
+//! The elements hold plain cells only (`PartScratch`, `ViewScratch`: both asserted `Send`), so
+//! the access rules above are all that keeps two threads off a cell.
 
 #![allow(unsafe_code)]
 

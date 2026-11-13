@@ -79,8 +79,7 @@ pub fn play_placed_sound(
     let (volume_sent, pan, place_b, place_c);
     if mode & MODE_3D == 0 {
         let number = placed::sample_of(sound)?;
-        let record = &audio.sample_records.records[number as usize];
-        let factor = record.get().min_distance;
+        let factor = crate::audio::store::SAMPLE_CONSTANTS[number as usize].min_distance;
         let volume = placed::volume(product3_to_int(
             request.volume.get(),
             factor,

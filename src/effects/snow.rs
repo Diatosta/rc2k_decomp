@@ -5,7 +5,7 @@
 //! the walk's variables and the curve records) and `SnowLight` (0x8DB430 .. 0x8DB558: the
 //! light, the fade colours and the constants).
 
-use crate::session::{PlainDword, PlainFloat};
+use crate::session::{PlainDword, PlainFloat, PlainInt};
 
 /// The snow's random tables (0x800 flakes) (IDA 0x8C6000 .. 0x8D2000).
 #[repr(C)]
@@ -263,7 +263,7 @@ pub struct SnowLight {
     /// 0x8DB4D4: `flt_8DB4D4`, `flt_8DB4D8`, `flt_8DB4DC`: 0.3, 0.4, 0.3, the smoothing's weights.
     pub smooth_weights: [PlainFloat; 3],
     /// 0x8DB4E0: `dword_8DB4E0`: 0x1000, the ramp's length.
-    pub ramp_by: PlainDword,
+    pub ramp_by: PlainInt,
     /// 0x8DB4E4: `flt_8DB4E4`: 0.0625.
     pub spread_scale: PlainFloat,
     /// 0x8DB4E8: `flt_8DB4E8`: added to a spread.
@@ -339,7 +339,7 @@ impl SnowLight {
                 PlainFloat::new(0.4),
                 PlainFloat::new(0.3),
             ],
-            ramp_by: PlainDword::new(0x1000),
+            ramp_by: PlainInt::new(0x1000),
             spread_scale: PlainFloat::new(0.0625),
             spread_base: PlainFloat::new(0.001953125),
             divisors: [PlainDword::new(0xC00), PlainDword::new(0xC00)],

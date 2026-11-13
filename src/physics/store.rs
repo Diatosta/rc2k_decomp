@@ -5,7 +5,7 @@
 //! and `rate_damage` use it (`physics/damage_model.rs`); the doc of each says what.
 
 use crate::errors::BadInput;
-use crate::session::{PlainDword, PlainFloat};
+use crate::session::{PlainDword, PlainFloat, PlainInt};
 
 /// The damage model's figures.
 #[repr(C)]
@@ -66,9 +66,9 @@ pub struct DamageModel {
     /// `flt_75B3B4`: 1 while the car's centre point is on surface kind 5 (wet, as `wheel_surface_a` says), else 0: it wets the brakes (fade) and damages the electrics and the lights.
     pub on_surface_5: PlainFloat,
     /// `dword_75B3B8`: Copy of the car's `gear_changed`: 1 after a shift up, -1 after a shift down, else 0 (the gauges add the clutch and gear wear of a shift).
-    pub gear_changed: PlainDword,
+    pub gear_changed: PlainInt,
     /// `dword_75B3BC`: Copy of the car's `gear`: -1 (reverse), 0 (neutral), 1 ..= 7; picks the gear's wear gauge and factor.
-    pub gear: PlainDword,
+    pub gear: PlainInt,
     /// `flt_75B3C0`: 1.0 when the engine speed is above `engine_speed_limit` times `engine_limit_factor`, else 0: the turbo wear while over the limit.
     pub engine_over_limit: PlainFloat,
     /// `dword_75B3C4`: Where the car was hit: 0 none, else 1 ..= 4 by the side of the contact point (1 + 1 if the point's x is above 0 + 2 if its z is 0 or below).
@@ -257,8 +257,8 @@ impl DamageModel {
             drive_b_extrapolated_share: PlainFloat::new(0.0),
             brake_share: PlainFloat::new(0.0),
             on_surface_5: PlainFloat::new(0.0),
-            gear_changed: PlainDword::new(0),
-            gear: PlainDword::new(0),
+            gear_changed: PlainInt::new(0),
+            gear: PlainInt::new(0),
             engine_over_limit: PlainFloat::new(0.0),
             hit_side: PlainDword::new(0),
             hit_size: PlainFloat::new(0.0),

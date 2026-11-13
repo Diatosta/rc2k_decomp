@@ -161,7 +161,7 @@ pub fn set_view_window_plain(
     window.one_over_farthest.set(w.reciprocal);
     window.farthest_scaled.set(w.fade_depth as u32);
     window.clip_farthest.set(w.clip_farthest as u32);
-    let set = |cells: &[crate::session::Float], v: &[f32]| {
+    let set = |cells: &[crate::session::PlainFloat], v: &[f32]| {
         for (cell, &x) in cells.iter().zip(v) {
             cell.set(x);
         }

@@ -246,7 +246,7 @@ pub fn make_noise_curve(
         &mut copy[..0xFFE],
         last,
         first,
-        weather.snow_light.ramp_by.get() as i32,
+        weather.snow_light.ramp_by.get(),
     );
     for (cell, &v) in weather.snow_curve.copy.iter().zip(&copy) {
         cell.set(v as u32);

@@ -138,7 +138,7 @@ pub fn drive_grip_forces(
             .wrapping_add(drawing.scene.get().scratch.get())
             .wrapping_add(car.handbrake.get())
     };
-    tables.grip_drive_word.set(braking_word);
+    tables.grip_drive_word.set(braking_word as i32);
     engine_braking_force(car, tables, numbers);
     if product_below(car.grip_forces[1].bits(), car.grip_forces[0].bits(), ZERO) {
         car.grip_forces[1].set(x87::mul(&car.grip_forces[1], &tables.side_grip_share));
@@ -345,7 +345,7 @@ fn braking_count_neutral(car: &Car, tables: &PhysicsTables, scene: &crate::scene
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x31A1EC] = (-((int [grip_drive_word] / [k256]) * [side_speed_held]) * [side_force_scale]) * [side_grip_scale]`
 fn engine_braking_force(car: &Car, tables: &PhysicsTables, numbers: &Numbers) {
-    let t0 = int(tables.grip_drive_word.get() as i32);
+    let t0 = int(tables.grip_drive_word.get());
     let t1 = numbers.k256.ld();
     let t2 = t0 / t1;
     let t3 = car.side_speed_held.ld();

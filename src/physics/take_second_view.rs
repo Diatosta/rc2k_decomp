@@ -38,8 +38,8 @@ pub fn take_second_view(
         eax = ((eax as i32) >> 1) as u32;
         ebx = ((ebx as i32) >> 1) as u32;
     }
-    camera.view_b_pitch.set(eax);
-    camera.view_b_roll.set(ebx);
+    camera.view_b_pitch.set(eax as i32);
+    camera.view_b_roll.set(ebx as i32);
 }
 
 // ---- the arithmetic that was x87 assembly ----
