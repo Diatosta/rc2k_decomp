@@ -8,7 +8,7 @@ use crate::errors::BadInput;
 use crate::session::{PlainDword, PlainFloat, PlainInt};
 
 /// The damage model's figures.
-#[repr(C)]
+#[cfg_attr(test, repr(C))]
 #[derive(rc2k_derive::Cells)]
 pub struct DamageModel {
     /// `flt_75B340`: a figure times it gives the failure chance (`physics::rate_damage`).

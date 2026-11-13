@@ -28,7 +28,7 @@ pub struct Vertex<K: CellKind = PlainCells> {
 
 /// The vertices of the polygon being drawn: a drawing part's own (`workers::PartScratch`), on
 /// plain cells, reached by the one thread that draws the part.
-#[repr(C)]
+#[cfg_attr(test, repr(C))]
 #[derive(rc2k_derive::Cells)]
 pub struct PolygonVertices {
     /// +0x0 (0x9605A0): `g_polygonVertices`: `TLVertex[64]` (`d3d::draw_fan_unclipped`, `scene::draw_polygon`, `effects::`, `hud::`, `drive::tyre_parts`).

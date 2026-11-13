@@ -18,14 +18,17 @@ use crate::errors::Refused;
 use crate::input::types::InputDevice;
 use crate::race::state_store::PlayerControls;
 use crate::session::Dword;
+#[cfg(test)]
 use std::mem::offset_of;
 
 // The controls run from the car's `controller` (+0) to the key bytes (+0x54): the word 0x20
 // is a gap no binding reads, 0x48 (`UNSET_BINDING`) the word the copies from the player's
 // record pass over.
+#[cfg(test)]
 const _: () = assert!(
     offset_of!(PlayerControls, bindings) + 4 * 11 - offset_of!(PlayerControls, controller) == 0x50
 );
+#[cfg(test)]
 const _: () =
     assert!(offset_of!(PlayerControls, keys) - offset_of!(PlayerControls, controller) == 0x54);
 

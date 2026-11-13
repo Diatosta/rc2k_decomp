@@ -266,7 +266,6 @@ pub fn is_cd(kind: u32) -> (bool, bool) {
 pub const BUFFER_LEN: usize = 0x2000;
 
 /// A buffered file, as the game keeps one (the block the stream functions take).
-#[repr(C)]
 pub struct Stream<H> {
     /// The mode it was opened with (1: written to, closing writes the buffer out).
     pub mode: u32,

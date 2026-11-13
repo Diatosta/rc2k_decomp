@@ -99,7 +99,7 @@ impl<'a> GroundQuery<'a> {
 }
 
 /// A drawing's own search fields (see `GroundQuery`), all 0 to begin with.
-#[repr(C)]
+#[cfg_attr(test, repr(C))]
 #[derive(rc2k_derive::Cells)]
 pub struct GroundCells {
     x: PlainDword,

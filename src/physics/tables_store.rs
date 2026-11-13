@@ -10,7 +10,7 @@ use crate::session::{PlainDword, PlainFlag, PlainFloat, PlainInt};
 
 /// A kind of ground (0x30 bytes, `PhysicsTables.surfaces[0].table`): what `physics::wheel_surfaces` blends
 /// between for each point, and `physics::apply_patches` patches (readings).
-#[repr(C)]
+#[cfg_attr(test, repr(C))]
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct Surface {
     /// +0x0: its table in `surface_tables` (an address).
@@ -42,7 +42,7 @@ pub struct Surface {
 
 /// A force on the car (0x20 bytes): `physics::apply_force` takes it, the step clears its
 /// first six dwords (`physics::clear_records`).
-#[repr(C)]
+#[cfg_attr(test, repr(C))]
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct ForceRecord {
     /// +0x0: the force.
@@ -53,7 +53,7 @@ pub struct ForceRecord {
     pub unknown_18: [PlainDword; 2],
 }
 
-#[repr(C)]
+#[cfg_attr(test, repr(C))]
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct PhysicsTables {
     /// +0x0 (0x613828): 5.0: a reset is allowed below this speed (`drive::reset_request`).

@@ -10,7 +10,6 @@
 /// written and read back by each of the four that turn a point (their other users,
 /// 0x41FEA2 .. 0x41FEF0, are unreached), so now each one's local.
 #[derive(Clone, Copy, Default)]
-#[repr(C)]
 pub struct Scratch {
     pub z: f32,
     pub x: f32,

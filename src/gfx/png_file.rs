@@ -5,7 +5,7 @@ use crate::memory::MemoryList;
 use crate::session::PlainDword;
 
 /// The file being decoded.
-#[repr(C)]
+#[cfg_attr(test, repr(C))]
 #[derive(rc2k_derive::Cells)]
 pub struct PngFile {
     /// `dword_5BEC30`: the file's memory (the game's address; unused, as the file's

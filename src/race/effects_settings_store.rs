@@ -19,7 +19,7 @@ use crate::session::{PlainDword, PlainFloat, PlainInt};
 /// what writes the record (`drive::share_car_state`, from the car block) and what reads it.
 /// The five wheel and body records (0x48 bytes each) are `MarkRecord`s; the tail from +0x23C
 /// is the lines' and the point morphs' part (`CAR_BLOCK`).
-#[repr(C)]
+#[cfg_attr(test, repr(C))]
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct CarEffects {
     /// +0x0: whether the streaks are drawn (the first car's is the one `effects::run_ribbons` asks).
@@ -111,7 +111,7 @@ pub struct CarEffects {
 
 /// A wheel's or the body's record inside a car's (0x48 bytes): what the emitters keep per
 /// wheel. Names are readings.
-#[repr(C)]
+#[cfg_attr(test, repr(C))]
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct MarkRecord {
     /// +0x0: a flag the body's emitter flips each time (bit 0 the side).
@@ -149,12 +149,16 @@ pub struct MarkRecord {
 }
 
 /// Where the car's records begin.
-pub const RECORDS_AT: usize = 0xD4;
+#[cfg(test)]
+const RECORDS_AT: usize = 0xD4;
 /// The records a car has: four wheels, then the body.
 pub const RECORDS: usize = 5;
 
+#[cfg(test)]
 const _: () = assert!(std::mem::size_of::<MarkRecord>() == 0x48);
+#[cfg(test)]
 const _: () = assert!(std::mem::size_of::<CarEffects>() == CAR_LEN);
+#[cfg(test)]
 const _: () = assert!(std::mem::offset_of!(CarEffects, records) == RECORDS_AT);
 
 /// The floats' cells.

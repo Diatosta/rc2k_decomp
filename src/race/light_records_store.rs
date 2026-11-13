@@ -485,7 +485,7 @@ const FIRST_RECORDS: [([u32; 11], [u32; 11], [u32; 19]); 34] = [
 ];
 
 /// The models' records.
-#[repr(C)]
+#[cfg_attr(test, repr(C))]
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct LightRecords {
     pub records: [LightRecord; 34],

@@ -13,7 +13,7 @@ use crate::race::owner::race;
 use crate::session::{PlainDword, PlainFlag, PlainFloat};
 
 /// A loose part flying off a car (0x78 bytes, `physics::fill_race_slot`; readings).
-#[repr(C)]
+#[cfg_attr(test, repr(C))]
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct RaceSlot {
     /// +0x0: the part (0 the slot empty).
@@ -38,7 +38,7 @@ pub struct RaceSlot {
 
 const _: () = assert!(core::mem::size_of::<RaceSlot>() == 0x78);
 
-#[repr(C)]
+#[cfg_attr(test, repr(C))]
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct RaceWork {
     /// +0x400 (0x71B3B8): `g_carBlocks`: the eight cars' blocks (`CarBlock`, by handle:

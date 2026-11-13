@@ -11,7 +11,7 @@ use crate::race::owner::race;
 use crate::session::{PlainBytes, PlainDword, PlainFloat};
 
 /// One car kind's figures (IDA struct `CarSpec`).
-#[repr(C)]
+#[cfg_attr(test, repr(C))]
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct CarSpec {
     /// +0x0: the car's title, padded with spaces, e.g. "00 renault maxi megane"
@@ -57,6 +57,7 @@ pub struct CarSpec {
     pub shift_points: [PlainFloat; 3],
 }
 
+#[cfg(test)]
 const _: () = assert!(core::mem::size_of::<CarSpec>() == 0xB0);
 
 /// The car kinds' records.

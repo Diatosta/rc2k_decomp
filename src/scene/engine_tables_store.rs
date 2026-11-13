@@ -6,7 +6,7 @@
 
 use crate::session::{PlainBytes, PlainFloat, PlainWord};
 
-#[repr(C)]
+#[cfg_attr(test, repr(C))]
 #[derive(rc2k_derive::Cells)]
 pub struct EngineTables {
     /// +0x0 (0xA23AE4): `g_sines`: 0x1400 floats, the sine of n times pi over 0x800; `g_cosines` (0xA24AE4) is this table from entry 0x400 (`math::rotate_scratch_about_y`, `scene::matrix`, `effects::`, `hud::draw_disc`).

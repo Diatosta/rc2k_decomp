@@ -4,7 +4,7 @@
 use crate::session::{PlainByte, PlainBytes, PlainDword};
 
 /// The header of the PNG being decoded.
-#[repr(C)]
+#[cfg_attr(test, repr(C))]
 #[derive(rc2k_derive::Cells)]
 pub struct PngHeader {
     /// `dword_A8C190`: the picture's width.

@@ -14,7 +14,7 @@ pub const FILE_PALETTE_LEN: usize = 0x300;
 pub const STREAM_LEN: usize = core::mem::size_of::<Stream>();
 
 /// The PCX file being decoded.
-#[repr(C)]
+#[cfg_attr(test, repr(C))]
 #[derive(rc2k_derive::Cells)]
 pub struct Pcx {
     /// `dword_5195D4`: the picture's width, as the header says.

@@ -17,7 +17,6 @@ pub const HALF_WIDTH: i32 = 0x1555;
 pub type Point = [u32; 6];
 
 /// A point's links (`g_skidLinks`, 8 bytes, laid out as the game's).
-#[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub struct Link {
     pub next: u16,

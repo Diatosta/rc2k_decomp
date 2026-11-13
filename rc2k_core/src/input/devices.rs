@@ -414,7 +414,6 @@ pub fn command_steps(
 /// and what was found.
 /// The controller page's learning of a control: on,
 /// when it began (the 3 s start), which control (1 .. 11).
-#[repr(C)]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Learning {
     pub on: u32,

@@ -13,7 +13,7 @@
 
 use crate::session::{PlainBytes, PlainDword, with_runs};
 
-#[repr(C, align(4))]
+#[cfg_attr(test, repr(C, align(4)))]
 #[derive(rc2k_derive::Cells)]
 pub struct MenuTexts {
     /// Not in the image: two bytes so that each address keeps its alignment mod 4.

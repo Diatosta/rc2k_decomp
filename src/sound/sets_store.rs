@@ -95,7 +95,7 @@ pub struct RaceSoundSets {
 /// (`sound::play_placed_sound`, `sound::stop_sound`); a work area each turn fills again. The game
 /// thread's (`sound::owner::RaceSoundState::request`).
 /// Laid out as the image: the recorded assembly's tests lay it over raw bytes.
-#[repr(C)]
+#[cfg_attr(test, repr(C))]
 #[derive(rc2k_derive::Cells)]
 pub struct SoundRequest {
     /// +0: the sound (bit 0x8000: none).
@@ -982,7 +982,7 @@ impl CueLists {
 /// floats and the spans once). The sound at the object's pitch is `input * scale + low`.
 /// The values are kept as bits: a whole number in the image until the tables are made ready.
 /// Laid out as the image: the recorded assembly's tests lay it over raw bytes.
-#[repr(C)]
+#[cfg_attr(test, repr(C))]
 #[derive(rc2k_derive::Cells)]
 pub struct SoundSet {
     /// +0: the sound's number, added to the object's `sound_offset`.
@@ -1039,7 +1039,7 @@ impl SoundSet {
 /// A sound kind's record (0x88 bytes, `g_carSoundKinds`' entries): the revs' range and
 /// slope, then the engine's three sets.
 /// Laid out as the image: the recorded assembly's tests lay it over raw bytes.
-#[repr(C)]
+#[cfg_attr(test, repr(C))]
 #[derive(rc2k_derive::Cells)]
 pub struct KindRecord {
     /// +0: the kind's flags (`sound::car_engine_state`'s `state` reads them).

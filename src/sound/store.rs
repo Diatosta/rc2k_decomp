@@ -514,7 +514,7 @@ impl RaceSounds {
 /// The race sounds' clock and the constants of the placed and moving sounds (IDA 0x5124E4
 /// .. 0x512508).
 /// Laid out as the image: the recorded assembly's tests lay it over raw bytes.
-#[repr(C)]
+#[cfg_attr(test, repr(C))]
 #[derive(rc2k_derive::Cells)]
 pub struct RaceClock {
     /// `dword_5124E4`: 1 once the race's sounds are set up (`race::sounds`,

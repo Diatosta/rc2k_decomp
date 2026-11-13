@@ -3,7 +3,7 @@
 
 use crate::session::PlainDword;
 
-#[repr(C)]
+#[cfg_attr(test, repr(C))]
 #[derive(rc2k_derive::Cells)]
 pub struct Faces {
     /// +0x0 (0x9A3730): `g_faces`: the objects' faces, 0x30000 bytes (`scene::objects`, `scene::draw_object_faces`, `scene::list_object_faces`, `race::frame_draw`).
@@ -14,7 +14,7 @@ pub struct Faces {
 }
 
 /// The original's two sort lists (now `race::view_scratch::SortLists`, one per view).
-#[repr(C)]
+#[cfg_attr(test, repr(C))]
 #[derive(rc2k_derive::Cells)]
 pub struct SortLists {
     /// +0x0 (0x9D3730): `g_depthEntries`: 0x1000 entries of 8 bytes: +0 the key, +4 the second word (`race::frame_draw`, `race::draw_view_scene`).

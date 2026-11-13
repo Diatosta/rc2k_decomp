@@ -7,7 +7,7 @@
 use crate::session::{PlainByte, PlainBytes, PlainDword};
 
 /// A polygon work entry (IDA's `PolygonEntry`, 0x44 bytes).
-#[repr(C)]
+#[cfg_attr(test, repr(C))]
 #[derive(rc2k_derive::Cells)]
 pub struct PolygonEntry {
     /// +0x0: the scene point's number.

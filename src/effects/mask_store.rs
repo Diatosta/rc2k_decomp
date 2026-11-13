@@ -175,7 +175,6 @@ impl PictureCopy {
 }
 
 /// The picture number of each kind (IDA 0x934EA8 .. 0x934F30). The offsets are from its start.
-#[repr(C)]
 pub struct KindPictures {
     /// +0x0: `g_marksKindPictureNumbers`: per kind, the number in the mask and picture paths' two digits
     pub numbers: [u32; 34],

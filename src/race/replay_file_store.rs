@@ -8,7 +8,7 @@ use crate::cells::ZeroCells;
 
 use crate::session::{PlainDword, PlainFlag};
 
-#[repr(C)]
+#[cfg_attr(test, repr(C))]
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct ReplayFileBlock {
     /// +0x0 (0x5BEC78): `dword_5BEC78`: 1 = replays are recorded (`race::open_replay`, `race::replay`).

@@ -532,7 +532,6 @@ impl KindExtra2 {
 }
 
 /// A set's constants and light (IDA 0x54 bytes). The offsets are from its start.
-#[repr(C)]
 pub struct KindConsts {
     /// +0x0: the kind's size is multiplied by it (`kind_values` c0) (`flt_933E7C`)
     pub size_k: f32,

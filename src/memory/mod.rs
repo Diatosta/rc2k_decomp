@@ -12,7 +12,7 @@ pub type MemoryList = rc2k_core::memory::List;
 
 /// A `MemoryList` kept as four cells (a store's field): the list read and written whole as
 /// `Shared<MemoryList>` was, but through its dwords, so that the record is plain cells.
-#[repr(C)]
+#[cfg_attr(test, repr(C))]
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct ListCells {
     pub head: crate::session::PlainDword,

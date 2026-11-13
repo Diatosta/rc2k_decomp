@@ -175,7 +175,6 @@ impl RainState {
 }
 
 /// The rain's constants (IDA 0x8C5F91 .. 0x8C5FFD).
-#[repr(C)]
 pub struct RainRules {
     /// 0x8C5F91: `dword_8C5F91`: the quad vertices' rhw, 256.0 (copied as a dword: `run_rain`).
     pub rhw: f32,

@@ -79,7 +79,7 @@ pub struct RaceCarOwn {
 /// `Player.controller`): the input thread reads them to set a device up and makes the second
 /// player's controller none when it is the first's (`input::device_command`), so they are
 /// atomic cells beside the game thread's own part.
-#[repr(C)]
+#[cfg_attr(test, repr(C))]
 #[derive(rc2k_derive::Cells)]
 pub struct PlayerControls {
     /// `Player.controller` (+0x2C).

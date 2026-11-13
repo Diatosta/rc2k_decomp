@@ -243,7 +243,7 @@ impl FormatCell {
 }
 
 /// A pool of texture records (the system's or the video's) and how many are made.
-#[repr(C)]
+#[cfg_attr(test, repr(C))]
 #[derive(rc2k_derive::Cells)]
 pub struct Pool {
     /// The textures made (`Textures.system.count` / `Textures.video.count`), at most `TEXTURES`.
@@ -254,7 +254,7 @@ pub struct Pool {
 }
 
 /// The 3D card's tables and the textures' records.
-#[repr(C)]
+#[cfg_attr(test, repr(C))]
 #[derive(rc2k_derive::Cells)]
 pub struct Textures {
     /// `dword_5ABA8C`: 1 while the textures being made are of the alpha kind.
