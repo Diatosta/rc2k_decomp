@@ -225,5 +225,6 @@ pub fn ground_search_at(
         |x, z| search_cell_at(course, q, x, z, switches),
     )?;
     q.found.set(u32::from(found));
+    crate::debug::timing::note_ground_search(found);
     Ok(found)
 }

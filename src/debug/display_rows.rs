@@ -3254,17 +3254,60 @@ pub static GROUPS: &[Group] = &[
     },
     Group {
         name: "Scene and ground search",
-        rows: &[Row::typed(
-            "Texture changes",
-            "amtu",
-            Shown::Whole,
-            0x6D1508,
-            indexed_cell!(
-                |o| o.race.frame.panel_and_overlay.get().panel,
-                texture_changes
+        rows: &[
+            Row::typed(
+                "Texture changes",
+                "amtu",
+                Shown::Whole,
+                0x6D1508,
+                indexed_cell!(
+                    |o| o.race.frame.panel_and_overlay.get().panel,
+                    texture_changes
+                ),
+                false,
+                (468, 328),
             ),
-            false,
-            (468, 328),
-        )],
+            // The 1999 counters below were never written by the shipped game; these rows show
+            // the port's own figures (`debug::frame_figures`).
+            Row::typed(
+                "Polygons (triangle fans drawn, the whole frame)",
+                "pols",
+                Shown::Whole,
+                0x5EBA0C,
+                store_cell!(|_o| crate::debug::frame_figures::FIGURES, polygons),
+                false,
+                (468, 346),
+            ),
+            Row::typed(
+                "Objects (the first view's depth-sorted entries)",
+                "objs",
+                Shown::Whole,
+                0x5EBA54,
+                store_cell!(
+                    |_o| crate::race::view_scratch::main_view(0).lists,
+                    depth_entry_count
+                ),
+                false,
+                (468, 352),
+            ),
+            Row::typed(
+                "Ground searches (the last frame)",
+                "gety",
+                Shown::Whole,
+                0x5EB9A0,
+                store_cell!(|_o| crate::debug::frame_figures::FIGURES, ground_searches),
+                false,
+                (468, 382),
+            ),
+            Row::typed(
+                "Found (ground searches with a face under the point)",
+                "fndz",
+                Shown::Whole,
+                0x5EB9AC,
+                store_cell!(|_o| crate::debug::frame_figures::FIGURES, ground_found),
+                false,
+                (468, 400),
+            ),
+        ],
     },
 ];

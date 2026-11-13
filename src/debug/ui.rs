@@ -129,6 +129,7 @@ pub fn note_view(frame: &Frame) {
     *VIEW
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(view);
+    crate::debug::frame_figures::note_first_view();
 }
 
 /// In the spirit of 0x4295AD, the developers' mode 0xB, which drew the probe
@@ -215,6 +216,7 @@ fn body(ui: &Ui, f: impl FnOnce()) {
 /// The UI's frame.
 pub fn build(o: &Owners<'static>, ui: &Ui) {
     let race = o.race;
+    crate::debug::frame_figures::take();
     if PROBES.load(Relaxed) {
         draw_probes(race, o.system, ui);
     }

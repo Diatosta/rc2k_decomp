@@ -65,6 +65,32 @@ pub fn ticks() -> u32 {
     TICKS.load(Relaxed)
 }
 
+/// The ground searches run while the UI is open (`physics::ground_search_at`, on every thread
+/// that searches) and those that found a face under the point: the display page's "Ground searches" and "Found".
+static GROUND_SEARCHES: [AtomicU32; 2] = [const { AtomicU32::new(0) }; 2];
+
+/// A ground search is run (`found`: a face was under the point): counted only while the UI
+/// is open, so play pays one load of a read-mostly flag and writes nothing.
+#[inline]
+pub fn note_ground_search(found: bool) {
+    if !crate::debug::imgui_sdl::is_open() {
+        return;
+    }
+    GROUND_SEARCHES[0].fetch_add(1, Relaxed);
+    if found {
+        GROUND_SEARCHES[1].fetch_add(1, Relaxed);
+    }
+}
+
+/// The ground searches run and those that found a face, so far.
+#[cfg(debug_ui)]
+pub fn ground_searches() -> (u32, u32) {
+    (
+        GROUND_SEARCHES[0].load(Relaxed),
+        GROUND_SEARCHES[1].load(Relaxed),
+    )
+}
+
 /// A stage begins: the clock, only while the UI is open.
 #[inline]
 pub fn start() -> Option<Instant> {

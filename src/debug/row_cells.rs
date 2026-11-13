@@ -39,6 +39,13 @@ impl Raw for PlainFloat {
     }
 }
 
+/// A figure worked out for the pages (`debug::frame_figures`).
+impl Raw for std::sync::atomic::AtomicU32 {
+    fn raw(&self) -> u32 {
+        self.load(std::sync::atomic::Ordering::Relaxed)
+    }
+}
+
 /// The cell of field `$field` of car block `$block` (or of its element `$i`).
 macro_rules! car_cell {
     ($block:literal, $field:ident) => {{

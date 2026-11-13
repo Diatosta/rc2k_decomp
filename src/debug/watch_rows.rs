@@ -3234,7 +3234,10 @@ pub static GROUPS: &[Group] = &[
                 "lightxs1",
                 Shown::Whole,
                 0x63F18C,
-                indexed_cell!(|o| o.race.course.level_grid.get(), flare_place_x[0]),
+                indexed_cell!(
+                    |_o| crate::race::view_scratch::main_view(0).lamps,
+                    flare_place_x[0]
+                ),
                 false,
                 (0, 0),
             ),
@@ -3243,7 +3246,10 @@ pub static GROUPS: &[Group] = &[
                 "lightys1",
                 Shown::Whole,
                 0x63F58C,
-                indexed_cell!(|o| o.race.course.flare_tables(), place_y[0]),
+                indexed_cell!(
+                    |_o| crate::race::view_scratch::main_view(0).lamps.flares,
+                    place_y[0]
+                ),
                 false,
                 (0, 0),
             ),
@@ -3252,7 +3258,10 @@ pub static GROUPS: &[Group] = &[
                 "lightzs1",
                 Shown::Whole,
                 0x63F98C,
-                indexed_cell!(|o| o.race.course.flare_tables(), place_z[0]),
+                indexed_cell!(
+                    |_o| crate::race::view_scratch::main_view(0).lamps.flares,
+                    place_z[0]
+                ),
                 false,
                 (0, 0),
             ),
@@ -3261,7 +3270,10 @@ pub static GROUPS: &[Group] = &[
                 "lightss1",
                 Shown::Whole,
                 0x64018C,
-                indexed_cell!(|o| o.race.course.flare_tables(), size[0]),
+                indexed_cell!(
+                    |_o| crate::race::view_scratch::main_view(0).lamps.flares,
+                    size[0]
+                ),
                 false,
                 (0, 0),
             ),
@@ -3270,7 +3282,10 @@ pub static GROUPS: &[Group] = &[
                 "lightcs1",
                 Shown::Whole,
                 0x63FD8C,
-                indexed_cell!(|o| o.race.course.flare_tables(), other_light[0]),
+                indexed_cell!(
+                    |_o| crate::race::view_scratch::main_view(0).lamps.flares,
+                    other_light[0]
+                ),
                 false,
                 (0, 0),
             ),
@@ -3279,7 +3294,37 @@ pub static GROUPS: &[Group] = &[
                 "lightds1",
                 Shown::Whole,
                 0x64058C,
-                indexed_cell!(|o| o.race.course.flare_tables(), object_number[0]),
+                indexed_cell!(
+                    |_o| crate::race::view_scratch::main_view(0).lamps.flares,
+                    object_number[0]
+                ),
+                false,
+                (0, 0),
+            ),
+            Row::typed(
+                "Light 1: x, turned",
+                "lightxrs",
+                Shown::Float,
+                0x64098C,
+                store_cell!(|_o| crate::debug::frame_figures::FIGURES, light_turned[0]),
+                false,
+                (0, 0),
+            ),
+            Row::typed(
+                "Light 1: y, turned",
+                "lightyrs",
+                Shown::Float,
+                0x640D8C,
+                store_cell!(|_o| crate::debug::frame_figures::FIGURES, light_turned[1]),
+                false,
+                (0, 0),
+            ),
+            Row::typed(
+                "Light 1: z, turned",
+                "lightzrs",
+                Shown::Whole,
+                0x64118C,
+                store_cell!(|_o| crate::debug::frame_figures::FIGURES, light_turned[2]),
                 false,
                 (0, 0),
             ),
