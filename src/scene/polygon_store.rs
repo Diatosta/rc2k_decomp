@@ -115,7 +115,7 @@ impl PolygonEntry {
 
 /// A texture's record (0x40 bytes: `scene::draw_polygon`, `race::course_faces`, `race::level_init`).
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
 pub struct TextureInfo {
     pub words: [PlainDword; 16],
 }
@@ -135,7 +135,7 @@ impl crate::session::Run for TextureInfo {
 
 /// An object kind's material record (0x80 bytes: `scene::set_object_material`, `physics::face_contact`).
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
 pub struct ObjectMaterial {
     pub words: [PlainDword; 32],
 }
@@ -171,7 +171,7 @@ pub struct PolygonWork {
 /// The textures' records and the objects' materials, after the work (IDA 0x979F30 ..
 /// 0x9A3730): shared by every drawing thread, unlike the work.
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
 pub struct PolygonTables {
     /// +0x0 (0x979F30): `g_textureInfos`: 256 records of 0x40 bytes (`scene::draw_polygon`, `race::course_faces`, `physics::wheel_surfaces`, `race::level_init`; `dword_979F50` is the kind of the object whose record it is, +0x20).
     pub texture_infos: [TextureInfo; 256],

@@ -30,7 +30,7 @@ pub static WHEEL_SURFACES: GameThread<[PlainDword; 2]> =
 
 /// One cue of a car's queue: eight dwords.
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
 pub struct CueEntry {
     /// The cue's first sound.
     pub first: PlainDword,
@@ -42,7 +42,7 @@ pub struct CueEntry {
 
 /// A car's queue of spoken cues, 0x210 bytes.
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
 pub struct CueQueue {
     /// The first cue queued.
     pub first: PlainDword,

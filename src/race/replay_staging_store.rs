@@ -18,7 +18,7 @@ use rc2k_core::drive::replay_frames::{
 
 /// What the tape holds of one car at one tenth: 8 bytes.
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
 pub struct TapeEntry {
     /// The input word `input_words[1]` of the tenth (`drive::record_inputs`).
     pub input: PlainDword,
@@ -28,7 +28,7 @@ pub struct TapeEntry {
 
 /// The replay's frame as the race keeps it.
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
 pub struct ReplayStaging {
     /// The starting state, `START_DWORDS` dwords (`rc2k_core::drive::replay_frames`).
     pub start: [PlainDword; START_DWORDS],

@@ -6,7 +6,7 @@ use crate::session::{CellKind, PlainCells};
 
 /// One `TLVertex` of IDA: a Direct3D transformed and lit vertex.
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
 pub struct Vertex<K: CellKind = PlainCells> {
     /// +0x0: the screen x.
     pub x: K::Float,

@@ -37,7 +37,7 @@ const ITEM: u32 = 0x10;
 
 /// A list's header as the installer's pages hold it (see the module: 0x18 bytes).
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
 pub struct ListHeader {
     /// +0: the flags.
     pub flags: PlainByte,
@@ -85,7 +85,7 @@ impl ListHeader {
 
 /// A list's item as the installer's pages hold it (see the module: 0x10 bytes).
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
 pub struct Item {
     /// +0: the kind (low nibble) and marks (high bits).
     pub first: PlainByte,
@@ -127,6 +127,7 @@ macro_rules! list_data {
     ($($name:ident: $n:expr),* $(,)?) => {$(
         #[repr(C)]
         #[derive(rc2k_derive::Cells)]
+        #[derive(rc2k_derive::ByteView)]
         pub struct $name {
             pub header: ListHeader,
             pub items: [Item; $n],
@@ -152,7 +153,7 @@ list_data! {
 
 /// An edit item's record as the installer's pages hold it (8 bytes; `EditField` reads it).
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
 pub struct EditRecord {
     pub flags: PlainByte,
     /// +1: the most characters.
@@ -189,7 +190,7 @@ impl EditRecord {
 
 /// A box `{x, y, width, height}` of dwords as the installer's pages hold it.
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
 pub struct BoxRect {
     pub x: PlainDword,
     pub y: PlainDword,

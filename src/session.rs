@@ -165,7 +165,7 @@ impl Int {
 /// follows only inside `holder`, the store or record holding the table. The original reads
 /// on anywhere; here the next thing in memory is another static, so that is refused.
 #[cfg(test)]
-pub fn read_on_in<H: crate::cells::Cells, C: Cell32>(
+pub fn read_on_in<H: crate::cells::ByteView, C: Cell32>(
     holder: &H,
     cells: &[C],
     n: usize,
@@ -185,7 +185,7 @@ pub fn read_on_in<H: crate::cells::Cells, C: Cell32>(
 
 /// `read_on_in`'s write.
 #[cfg(test)]
-pub fn write_on_in<H: crate::cells::Cells, C: Cell32>(
+pub fn write_on_in<H: crate::cells::ByteView, C: Cell32>(
     holder: &H,
     cells: &[C],
     n: usize,
@@ -348,7 +348,7 @@ pub fn write_runs(
 /// `n` cells from `from` into `to`, one at a time forwards (a `rep movsd`: an overlap reads
 /// what it has just written), each past its table's end only inside its holder.
 #[cfg(test)]
-pub fn copy_on_in<F: crate::cells::Cells, T: crate::cells::Cells, A: Cell32, B: Cell32>(
+pub fn copy_on_in<F: crate::cells::ByteView, T: crate::cells::ByteView, A: Cell32, B: Cell32>(
     (from_holder, from): (&F, &[A]),
     (to_holder, to): (&T, &[B]),
     n: usize,
@@ -1560,7 +1560,7 @@ impl HostShared {
 /// What the machine is and has, and the window handles that only the game's thread reaches:
 /// 0x5183A8 .. 0x5184A8, less `HostShared`'s two.
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
 pub struct Machine {
     pub has_mmx: PlainDword,          // g_hasMmx
     pub ignore_mmx: PlainDword,       // Machine.ignore_mmx (`ignoremmx`)

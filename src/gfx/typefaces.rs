@@ -280,7 +280,7 @@ impl FontRef {
 /// A font a table of the game's keeps (a menu item's): the object by number, where the
 /// original kept its address.
 #[repr(transparent)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
 pub struct FontCell(crate::session::Dword);
 
 impl FontCell {

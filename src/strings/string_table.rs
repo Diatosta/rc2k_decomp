@@ -103,7 +103,7 @@ pub fn made_text(
 
 /// The bytes of `holder` from `offset` to the first NUL (left out); the original reads on
 /// past the field the text starts in, so the whole variable is the limit.
-fn text_in<T: crate::cells::Cells>(holder: &T, offset: usize) -> Result<Vec<u8>, BadInput> {
+fn text_in<T: crate::cells::ByteView>(holder: &T, offset: usize) -> Result<Vec<u8>, BadInput> {
     const CHUNK: usize = 16;
     let mut text = Vec::new();
     let mut at = offset;

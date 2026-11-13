@@ -7,7 +7,7 @@
 //! as the buffer had them: nothing typed reads them. Test code only; it goes with the
 //! recorded vectors.
 
-use crate::cells::{Cells, load_cells, store_cells};
+use crate::cells::{ByteView, load_cells, store_cells};
 use crate::sound::store::{EngineVoice, SoundObject, SurfaceSounds};
 use core::mem::{offset_of, size_of};
 
@@ -22,7 +22,7 @@ pub struct Run {
 }
 
 /// A store with a 1999 layout.
-pub trait Laid: Cells + Sized {
+pub trait Laid: ByteView + Sized {
     /// The store's length in the 1999 layout, gaps included.
     const EXTENT: usize;
     /// The runs of fields, in order.

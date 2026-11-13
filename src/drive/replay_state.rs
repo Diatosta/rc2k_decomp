@@ -6,7 +6,7 @@
 //!
 //! Callers: `drive::save_replay_cars`, `drive::load_replay_cars`.
 
-use crate::cells::{Cells, load_cells, store_cells};
+use crate::cells::{ByteView, load_cells, store_cells};
 use crate::physics::car_store::Car;
 use crate::race::work_store::{RaceSlot, RaceWork};
 use core::mem::size_of;
@@ -40,7 +40,7 @@ const UNUSED_BYTE: u8 = 0;
 /// Moves one field between a record and the file's bytes.
 trait Move {
     /// The field at byte `at` of the piece being moved.
-    fn field<T: Cells>(&mut self, at: usize, field: &T);
+    fn field<T: ByteView>(&mut self, at: usize, field: &T);
 
     /// `len` bytes at `at` that no record holds: written as `UNUSED_BYTE`, ignored when read.
     fn unused(&mut self, at: usize, len: usize);
@@ -53,7 +53,7 @@ struct Gather<'a> {
 }
 
 impl Move for Gather<'_> {
-    fn field<T: Cells>(&mut self, at: usize, field: &T) {
+    fn field<T: ByteView>(&mut self, at: usize, field: &T) {
         let from = self.base + at;
         load_cells(field, 0, &mut self.bytes[from..from + size_of::<T>()])
             .expect("a field inside the file's bytes");
@@ -72,7 +72,7 @@ struct Scatter<'a> {
 }
 
 impl Move for Scatter<'_> {
-    fn field<T: Cells>(&mut self, at: usize, field: &T) {
+    fn field<T: ByteView>(&mut self, at: usize, field: &T) {
         let from = self.base + at;
         store_cells(field, 0, &self.bytes[from..from + size_of::<T>()])
             .expect("a field inside the file's bytes");
@@ -410,7 +410,7 @@ mod tests {
         bytes
     }
 
-    fn bytes_of<T: Cells>(record: &T, from: usize, len: usize) -> Vec<u8> {
+    fn bytes_of<T: ByteView>(record: &T, from: usize, len: usize) -> Vec<u8> {
         let mut bytes = vec![0; len];
         load_cells(record, from, &mut bytes).unwrap();
         bytes
@@ -433,7 +433,7 @@ mod tests {
 
     /// `len` bytes of the file's piece `from` the record at `base`, as the game's raw copy had
     /// them: the places no record holds are `UNUSED_BYTE`.
-    fn raw_bytes<T: Cells>(
+    fn raw_bytes<T: ByteView>(
         record: &T,
         base: usize,
         len: usize,

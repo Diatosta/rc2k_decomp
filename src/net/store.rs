@@ -118,7 +118,7 @@ pub const GROUP_NAME: [u8; 20] = with_runs::<20>(&[(0, b"susanivanovafanclub")])
 /// A player's 16 bytes of DirectPlay player data (`NetPlayerRecord`; `g_netOwnRecord` for
 /// this machine).
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
 pub struct PlayerRecord {
     /// +0 the state bits (1 ready, 2 waiting, 4 racing, 0x10 the host), +1 the car, +2 its
     /// colours, +3 the nationality, +4 the stage, +5 its direction, +6 the race number, +7 a
@@ -176,7 +176,7 @@ impl PlayerRecord {
 
 /// A player's block of `g_netReceived` (`NetPlayerBlock`).
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
 pub struct PlayerBlock {
     /// The player's name.
     pub name: Bytes<32>,

@@ -13,7 +13,7 @@ use crate::session::PlainDword;
 
 /// One model's record (IDA struct `ModelRecord`, 0x134 bytes).
 #[repr(C)]
-#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells, rc2k_derive::ByteView)]
 pub struct LightRecord {
     /// +0x0: `field_0`: eleven dwords (read at +0xC, +0x10 .. +0x28 by `physics::update_camera`,
     /// `race::car_draw`, `drive::share_car_state`).

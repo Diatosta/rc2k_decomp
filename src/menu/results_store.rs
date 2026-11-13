@@ -6,7 +6,7 @@ use crate::session::PlainDword;
 
 /// The players' results figures (IDA 0x758714 .. 0x7587E8).
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
 pub struct Results {
     /// `g_round`: The rounds of a multi-player event.
     pub round: PlainDword,

@@ -9,7 +9,7 @@ use crate::race::owner_replay::Replay;
 use crate::session::{PlainDword, PlainFlag};
 
 #[repr(C)]
-#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells, rc2k_derive::ByteView)]
 pub struct ReplayViewBlock {
     /// +0x0 (0x5C2518): the 16-byte frame that pads a block's end, zeros (`race::replay`, `race::add_replay_frame`).
     pub pad_frame: [PlainDword; 4],

@@ -30,7 +30,7 @@ pub fn copy_car(from: &Car, to: &Car) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::cells::{Cells, cells_of_bytes};
+    use crate::cells::{ByteView, cells_of_bytes};
 
     /// A record's bytes, read through its runs.
     fn bytes(car: &Car) -> Vec<u8> {

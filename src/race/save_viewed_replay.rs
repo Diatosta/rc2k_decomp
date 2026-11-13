@@ -155,7 +155,7 @@ fn undo_place(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::cells::{CellRun, Cells};
+    use crate::cells::{ByteView, CellRun};
 
     /// The place the byte-offset lookup gave: past the table, the cells that follow it.
     fn undo_place_run_on(buffers: &ViewerBuffers, n: usize) -> Option<&crate::session::PlainDword> {

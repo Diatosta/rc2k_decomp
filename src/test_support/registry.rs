@@ -4,7 +4,7 @@
 //!
 //! The list is the stores' own (`listed_stores`); a repeated name is found at its first entry.
 
-use crate::cells::{CellRun, Cells, Store};
+use crate::cells::{ByteView, CellRun, Store};
 use crate::errors::BadInput;
 
 /// One store of the list: its name, the store, and how many of its first bytes are the
@@ -37,7 +37,7 @@ macro_rules! listed {
 /// A part of a record of cells, from byte `offset` to its end: a listed store that starts
 /// inside a record (`SealWork`'s fields past its alignment lead, the panel past its two lead
 /// bytes). Reads and writes go through the whole record's cells.
-struct RecordTail<T: crate::cells::Cells + Sync + 'static> {
+struct RecordTail<T: crate::cells::ByteView + Sync + 'static> {
     whole: &'static T,
     offset: usize,
 }
@@ -47,7 +47,7 @@ struct RecordTail<T: crate::cells::Cells + Sync + 'static> {
     unsafe_code,
     reason = "Store's promise: the window's bytes are the record's"
 )]
-unsafe impl<T: crate::cells::Cells + Sync + 'static> crate::cells::Store for RecordTail<T> {
+unsafe impl<T: crate::cells::ByteView + Sync + 'static> crate::cells::Store for RecordTail<T> {
     fn size(&self) -> usize {
         size_of::<T>() - self.offset
     }
@@ -88,7 +88,7 @@ unsafe impl<S> Sync for OnGame<S> {}
     unsafe_code,
     reason = "Store's promise: the part's bytes are the record's"
 )]
-unsafe impl<S: Cells> Store for OnGame<S> {
+unsafe impl<S: ByteView> Store for OnGame<S> {
     fn size(&self) -> usize {
         size_of::<S>() - self.offset
     }
@@ -111,21 +111,21 @@ unsafe impl<S: Cells> Store for OnGame<S> {
 }
 
 /// A listed store that tests walk by cell runs and field paths (`race_places`): the record's
-/// own `Cells` methods, shifted by the window's first byte where the store is a part.
+/// own `ByteView` methods, shifted by the window's first byte where the store is a part.
 pub trait Walk: Store {
     /// The run of like cells holding byte `offset` and the byte it starts at.
     fn cell_run_at(&self, offset: usize) -> (usize, CellRun<'_>);
-    /// `Cells::field_path` of the record behind the store at `offset`.
+    /// `ByteView::field_path` of the record behind the store at `offset`.
     fn field_path_at(&self, offset: usize, path: &mut String);
 }
 
-impl<T: Cells> Walk for T {
+impl<T: ByteView> Walk for T {
     fn cell_run_at(&self, offset: usize) -> (usize, CellRun<'_>) {
-        Cells::cell_run(self, offset)
+        ByteView::cell_run(self, offset)
     }
 
     fn field_path_at(&self, offset: usize, path: &mut String) {
-        Cells::field_path(self, offset, path);
+        ByteView::field_path(self, offset, path);
     }
 }
 
@@ -142,45 +142,45 @@ fn in_window(window: usize, (start, run): (usize, CellRun<'_>)) -> (usize, CellR
     }
 }
 
-impl<T: Cells + Sync + 'static> Walk for RecordTail<T> {
+impl<T: ByteView + Sync + 'static> Walk for RecordTail<T> {
     fn cell_run_at(&self, offset: usize) -> (usize, CellRun<'_>) {
         in_window(
             self.offset,
-            Cells::cell_run(self.whole, self.offset + offset),
+            ByteView::cell_run(self.whole, self.offset + offset),
         )
     }
 
     fn field_path_at(&self, offset: usize, path: &mut String) {
-        Cells::field_path(self.whole, self.offset + offset, path);
+        ByteView::field_path(self.whole, self.offset + offset, path);
     }
 }
 
-impl<S: Cells> Walk for OnGame<S> {
+impl<S: ByteView> Walk for OnGame<S> {
     fn cell_run_at(&self, offset: usize) -> (usize, CellRun<'_>) {
         crate::session::assert_game_thread();
         in_window(
             self.offset,
-            Cells::cell_run(self.whole, self.offset + offset),
+            ByteView::cell_run(self.whole, self.offset + offset),
         )
     }
 
     fn field_path_at(&self, offset: usize, path: &mut String) {
-        Cells::field_path(self.whole, self.offset + offset, path);
+        ByteView::field_path(self.whole, self.offset + offset, path);
     }
 }
 
 /// The whole of a game-thread owner's part as a listed store (lives for the program).
-fn on_game<S: Cells>(whole: &'static S) -> &'static OnGame<S> {
+fn on_game<S: ByteView>(whole: &'static S) -> &'static OnGame<S> {
     on_game_tail(whole, 0)
 }
 
 /// A game-thread owner's part from byte `offset` on as a listed store.
-fn on_game_tail<S: Cells>(whole: &'static S, offset: usize) -> &'static OnGame<S> {
+fn on_game_tail<S: ByteView>(whole: &'static S, offset: usize) -> &'static OnGame<S> {
     Box::leak(Box::new(OnGame { whole, offset }))
 }
 
 /// A record of atomic cells from byte `offset` on as a listed store.
-fn record_tail<T: Cells + Sync>(whole: &'static T, offset: usize) -> &'static RecordTail<T> {
+fn record_tail<T: ByteView + Sync>(whole: &'static T, offset: usize) -> &'static RecordTail<T> {
     Box::leak(Box::new(RecordTail { whole, offset }))
 }
 

@@ -28,7 +28,7 @@ const fn sparse<const N: usize>(runs: &[(usize, &[u8])]) -> [u8; N] {
 /// One kind's own place in a menu scene (`scene::draw_carousel_entry`: the
 /// kind's size, its y and its angle).
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
 pub struct OwnPlace {
     /// Its size.
     pub size: PlainDword,
@@ -40,7 +40,7 @@ pub struct OwnPlace {
 
 /// The menus' lists and tables.
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
 pub struct MenuLists {
     /// `dword_7594AA`: the menus' last draw list (25 entries, -1 at start;
     /// `menu::player4_buttons_loop`'s).

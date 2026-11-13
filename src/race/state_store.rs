@@ -140,7 +140,7 @@ impl core::ops::Deref for RaceCar {
 
 /// A car's result as the race leaves it (IDA 0x75B01C and 0x75B08C, 0x70 bytes each).
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
 pub struct RaceResult {
     /// The car's time (`RaceState.results.results[0].time` / `RaceState.results.results[1].time`).
     pub time: PlainDword,

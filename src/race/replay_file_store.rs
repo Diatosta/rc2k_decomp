@@ -58,7 +58,7 @@ pub struct ReplayFileBlock {
 /// The replay index: "RCIB", the seal, the counts, the places; the dwords of the file's first
 /// 0x3850 bytes in order.
 #[repr(C)]
-#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells, rc2k_derive::ByteView)]
 pub struct ReplayIndex {
     /// +0x50 (0x5BECC8): `aRcib`: "RCIB", the index's first dword.
     pub magic: PlainDword,

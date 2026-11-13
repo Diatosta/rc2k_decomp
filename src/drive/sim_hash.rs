@@ -86,6 +86,7 @@ impl CellVisitor for GroupHasher {
 /// `car_blocks_groups` must equal.
 #[cfg(test)]
 fn car_blocks_groups_by_bytes(blocks: &CarBlocks) -> Vec<(String, u64)> {
+    use crate::cells::ByteView;
     let size = size_of::<CarBlocks>();
     let mut groups: Vec<(String, u64)> = Vec::new();
     let mut at = 0;

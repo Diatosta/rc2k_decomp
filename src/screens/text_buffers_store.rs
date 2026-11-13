@@ -6,7 +6,7 @@
 use crate::session::{PlainBytes, PlainDword};
 
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
 pub struct TextBuffers {
     /// +0x0 (0xA8BB54): `g_lineBuffer`: the line the draw lists build (`screens::line_buffer`, `screens::draw_menu_items`).
     pub line: PlainBytes<0x100>,

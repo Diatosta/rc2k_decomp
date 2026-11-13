@@ -186,7 +186,7 @@ mod tests {
 
     /// The earlier way: the cell found by byte offset in the record's cell runs.
     fn oracle(table: &Checkpoints, field: usize, n: usize) -> Option<*const PlainDword> {
-        use crate::cells::Cells;
+        use crate::cells::ByteView;
         let offset = field.wrapping_add(((n as u32).wrapping_mul(4)) as usize);
         (offset < core::mem::size_of::<Checkpoints>())
             .then(|| table.cell_run(offset))

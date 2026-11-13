@@ -1,10 +1,11 @@
-//! The cells the game's data lives in: `Cells` (a record of atomics and cells whose runs are
-//! found by byte offset), its runs and references, `Plain` values, `Store` (what a byte offset
-//! resolves to), and the copies between them.
+//! The cells the game's data lives in: `Cells` (a record of atomics and cells, copied, merged
+//! and visited field by field in any layout), `ByteView` (a record of fixed layout whose runs
+//! are found by byte offset), its runs and references, `Plain` values, `Store` (what a byte
+//! offset resolves to), and the copies between them.
 //!
-//! `Cells::cell_run` and `CellRun` stay: the copies, `load_cells` and `checkpoints_store::run_on`
-//! walk runs. `Cells::field_path` stays for `drive::sim_hash` (the held races' hash, `remote`
-//! and tests).
+//! `ByteView::cell_run` and `CellRun`: the byte-wise copies, `load_cells` and
+//! `checkpoints_store::run_on` walk runs. `ByteView::field_path` stays for `drive::sim_hash`
+//! (the held races' hash, `remote` and tests).
 
 #![allow(unsafe_code)]
 
@@ -13,14 +14,56 @@ use crate::framework::log;
 use std::sync::atomic::{AtomicU8, AtomicU16, AtomicU32, Ordering::Relaxed};
 
 /// A type made of atomics and cells only (`session::{Dword, Float, Word, Byte, Bytes<N>}`, their
-/// arrays, `#[repr(C)]` records of them), which may be handed out shared.
+/// arrays, records of them in any layout), which may be handed out shared.
+///
+/// The record is copied, merged and visited field by field; it promises no byte layout. The
+/// byte view (`ByteView`) is the trait of the records whose layout is fixed.
 ///
 /// # Safety
-/// Every byte of the type is inside an `UnsafeCell` or an atomic, and any bit pattern is a
-/// valid value (`cells_of_bytes` and `zeroed_cells` rely on both). `cell_run` is safe to
-/// get wrong (it hands out references): a wrong run is a wrong read, which the tests of every
-/// store look for (`cells_tests`).
+/// Every byte of the type that holds a value is inside an `UnsafeCell` or an atomic, and the
+/// all-zero value is valid (`zeroed_cells` relies on both).
 pub unsafe trait Cells {
+    /// Every cell of this record set from the same cell of `other`, upwards (a float by its
+    /// bits): a copy between two records of one type with no run walked. Records derive it
+    /// field by field.
+    fn copy_from(&self, other: &Self)
+    where
+        Self: Sized;
+
+    /// The cells of `now` that differ from the same cells of `start` set into this record, the
+    /// others left as they are: what one copy changed since it was `start`, put into another.
+    /// Records derive it field by field.
+    fn merge_changes(&self, now: &Self, start: &Self)
+    where
+        Self: Sized;
+
+    /// Every primitive run of this record handed to `visitor`, with the field names and array
+    /// indices on the way, with no byte layout needed by the caller. Records derive it field
+    /// by field; the primitive cells report themselves as one run.
+    fn visit(&self, visitor: &mut dyn CellVisitor)
+    where
+        Self: Sized;
+
+    /// A whole slice of this type reported as one run, when it is a primitive cell (an array
+    /// of them is one run, element 0): `index(0)`, the leaf, `leave`. Says whether it did.
+    fn visit_slice(_slice: &[Self], _visitor: &mut dyn CellVisitor) -> bool
+    where
+        Self: Sized,
+    {
+        false
+    }
+}
+
+/// A record of fixed layout, whose bytes can be reached by offset: its runs of like primitive
+/// cells (`cell_run`), the path of a byte's field. Stores are made of these.
+///
+/// # Safety
+/// The type is `#[repr(C)]` (or transparent) over `ByteView` fields with no padding, so any bit
+/// pattern of `size_of::<Self>()` bytes is a valid value (`cells_of_bytes` relies on it). Every
+/// byte is inside an `UnsafeCell` or an atomic (`Cells`). `cell_run` is safe to get wrong (it
+/// hands out references): a wrong run is a wrong read, which the tests of every store look for
+/// (`cells_tests`).
+pub unsafe trait ByteView: Cells {
     /// The run of like primitive cells holding byte `offset` (below the type's size), as
     /// references, and the byte it starts at: each field's own, an array of one primitive cell
     /// whole (`slice_run`).
@@ -36,26 +79,6 @@ pub unsafe trait Cells {
         std::any::type_name::<Self>()
     }
 
-    /// Every primitive run of this record handed to `visitor`, with the field names and array
-    /// indices on the way: the same runs as `cell_run` finds from byte 0 on, with no byte layout
-    /// needed by the caller. Records derive it field by field; this default (primitive cells,
-    /// `Shared` records) walks the runs.
-    fn visit(&self, visitor: &mut dyn CellVisitor)
-    where
-        Self: Sized,
-    {
-        let size = size_of::<Self>();
-        let mut at = 0;
-        while at < size {
-            let (start, run) = self.cell_run(at);
-            let end = (start + run.len()).min(size);
-            let mut bytes = vec![0; end - at];
-            run.load(at - start, &mut bytes);
-            visitor.leaf(&bytes);
-            at = end;
-        }
-    }
-
     /// A slice of this type as one run, when it is a primitive cell (an array's run).
     fn slice_run(_slice: &[Self]) -> Option<CellRun<'_>>
     where
@@ -63,41 +86,66 @@ pub unsafe trait Cells {
     {
         None
     }
+}
 
-    /// Every cell of this record set from the same cell of `other`, upwards (a float by its
-    /// bits): a copy between two records of one type with no run walked. Records derive it
-    /// field by field; this default walks the runs (`copy_cells`).
-    fn copy_from(&self, other: &Self)
-    where
-        Self: Sized,
-    {
-        copy_cells((other, 0), (self, 0), size_of::<Self>());
+/// Every run of a record whose cells are found by byte (`Shared`, `Loose`) handed to `visitor`:
+/// its runs from byte 0 on, each as one leaf.
+fn visit_by_runs<T: ByteView>(record: &T, visitor: &mut dyn CellVisitor) {
+    let size = size_of::<T>();
+    let mut at = 0;
+    while at < size {
+        let (start, run) = record.cell_run(at);
+        let end = (start + run.len()).min(size);
+        let mut bytes = vec![0; end - at];
+        run.load(at - start, &mut bytes);
+        visitor.leaf(&bytes);
+        at = end;
     }
+}
 
-    /// The bytes of `now` that differ from the same bytes of `start` set into this record, the
-    /// others left as they are: what one copy changed since it was `start`, put into another.
-    /// Records derive it field by field; this default compares the bytes run by run.
-    fn merge_changes(&self, now: &Self, start: &Self)
-    where
-        Self: Sized,
-    {
-        let size = size_of::<Self>();
-        let (mut a, mut b) = (vec![0; size], vec![0; size]);
-        // The whole record: inside it.
-        let _ = load_cells(now, 0, &mut a);
-        let _ = load_cells(start, 0, &mut b);
-        let mut k = 0;
-        while k < size {
-            if a[k] == b[k] {
-                k += 1;
-                continue;
-            }
-            let first = k;
-            while k < size && a[k] != b[k] {
-                k += 1;
-            }
-            let _ = store_cells(self, first, &a[first..k]);
+/// One run reported as a leaf with its bytes.
+fn visit_run(run: CellRun, visitor: &mut dyn CellVisitor) {
+    if run.len() == 0 {
+        return;
+    }
+    let mut bytes = vec![0; run.len()];
+    run.load(0, &mut bytes);
+    visitor.leaf(&bytes);
+}
+
+/// A whole slice of primitive cells reported as element 0 of an array.
+fn visit_cells_slice(run: CellRun, visitor: &mut dyn CellVisitor) -> bool {
+    visitor.index(0);
+    visit_run(run, visitor);
+    visitor.leave();
+    true
+}
+
+/// Every byte of `record` set from the same byte of `other`, by runs: `Cells::copy_from` of a
+/// record that has no fields to copy (`Shared`, `Loose`).
+fn copy_by_runs<T: ByteView>(to: &T, from: &T) {
+    copy_cells((from, 0), (to, 0), size_of::<T>());
+}
+
+/// The bytes of `now` that differ from the same bytes of `start` set into `to`, the others left
+/// as they are, compared run by run: `Cells::merge_changes` of a record with no fields.
+fn merge_by_runs<T: ByteView>(to: &T, now: &T, start: &T) {
+    let size = size_of::<T>();
+    let (mut a, mut b) = (vec![0; size], vec![0; size]);
+    // The whole record: inside it.
+    let _ = load_cells(now, 0, &mut a);
+    let _ = load_cells(start, 0, &mut b);
+    let mut k = 0;
+    while k < size {
+        if a[k] == b[k] {
+            k += 1;
+            continue;
         }
+        let first = k;
+        while k < size && a[k] != b[k] {
+            k += 1;
+        }
+        let _ = store_cells(to, first, &a[first..k]);
     }
 }
 
@@ -192,7 +240,7 @@ macro_rules! merged {
 ///
 /// # Panics
 /// When a range lies outside its record.
-pub fn copy_cells<F: Cells, T: Cells>(from: (&F, usize), to: (&T, usize), len: usize) {
+pub fn copy_cells<F: ByteView, T: ByteView>(from: (&F, usize), to: (&T, usize), len: usize) {
     assert!(from.1 + len <= size_of::<F>() && to.1 + len <= size_of::<T>());
     let (mut a, mut b, mut left) = (from.1, to.1, len);
     while left > 0 {
@@ -212,7 +260,7 @@ pub fn copy_cells<F: Cells, T: Cells>(from: (&F, usize), to: (&T, usize), len: u
 /// # Panics
 /// When the two differ in size.
 #[cfg(test)]
-pub fn copy_whole<F: Cells, T: Cells>(from: &F, to: &T) {
+pub fn copy_whole<F: ByteView, T: ByteView>(from: &F, to: &T) {
     assert_eq!(size_of::<F>(), size_of::<T>(), "two records of one layout");
     copy_cells((from, 0), (to, 0), size_of::<F>());
 }
@@ -225,7 +273,7 @@ pub fn copy_whole<F: Cells, T: Cells>(from: &F, to: &T) {
 /// # Panics
 /// When the records differ in size, or their cells do not line up.
 #[cfg(test)]
-pub fn merge_cell_changes<T: Cells, F: Cells>(to: &T, now: &F, start: &F) {
+pub fn merge_cell_changes<T: ByteView, F: ByteView>(to: &T, now: &F, start: &F) {
     let size = size_of::<T>();
     assert_eq!(size, size_of::<F>(), "two records of one layout");
     let mut at = 0;
@@ -484,6 +532,16 @@ unsafe impl Cells for crate::session::Dword {
         }
     }
 
+    fn visit(&self, visitor: &mut dyn CellVisitor) {
+        visit_run(CellRun::Dword(std::slice::from_ref(self)), visitor);
+    }
+
+    fn visit_slice(slice: &[Self], visitor: &mut dyn CellVisitor) -> bool {
+        visit_cells_slice(CellRun::Dword(slice), visitor)
+    }
+}
+// SAFETY: one cell, all of it one run.
+unsafe impl ByteView for crate::session::Dword {
     fn cell_run(&self, _: usize) -> (usize, CellRun<'_>) {
         (0, CellRun::Dword(std::slice::from_ref(self)))
     }
@@ -509,6 +567,16 @@ unsafe impl Cells for crate::session::Float {
         }
     }
 
+    fn visit(&self, visitor: &mut dyn CellVisitor) {
+        visit_run(CellRun::Float(std::slice::from_ref(self)), visitor);
+    }
+
+    fn visit_slice(slice: &[Self], visitor: &mut dyn CellVisitor) -> bool {
+        visit_cells_slice(CellRun::Float(slice), visitor)
+    }
+}
+// SAFETY: one cell, all of it one run.
+unsafe impl ByteView for crate::session::Float {
     fn cell_run(&self, _: usize) -> (usize, CellRun<'_>) {
         (0, CellRun::Float(std::slice::from_ref(self)))
     }
@@ -534,6 +602,16 @@ unsafe impl Cells for crate::session::Int {
         }
     }
 
+    fn visit(&self, visitor: &mut dyn CellVisitor) {
+        visit_run(CellRun::Int(std::slice::from_ref(self)), visitor);
+    }
+
+    fn visit_slice(slice: &[Self], visitor: &mut dyn CellVisitor) -> bool {
+        visit_cells_slice(CellRun::Int(slice), visitor)
+    }
+}
+// SAFETY: one cell, all of it one run.
+unsafe impl ByteView for crate::session::Int {
     fn cell_run(&self, _: usize) -> (usize, CellRun<'_>) {
         (0, CellRun::Int(std::slice::from_ref(self)))
     }
@@ -559,6 +637,16 @@ unsafe impl Cells for crate::session::Flag {
         }
     }
 
+    fn visit(&self, visitor: &mut dyn CellVisitor) {
+        visit_run(CellRun::Flag(std::slice::from_ref(self)), visitor);
+    }
+
+    fn visit_slice(slice: &[Self], visitor: &mut dyn CellVisitor) -> bool {
+        visit_cells_slice(CellRun::Flag(slice), visitor)
+    }
+}
+// SAFETY: one cell, all of it one run.
+unsafe impl ByteView for crate::session::Flag {
     fn cell_run(&self, _: usize) -> (usize, CellRun<'_>) {
         (0, CellRun::Flag(std::slice::from_ref(self)))
     }
@@ -581,6 +669,16 @@ unsafe impl Cells for crate::session::PlainDword {
         }
     }
 
+    fn visit(&self, visitor: &mut dyn CellVisitor) {
+        visit_run(CellRun::PlainDword(std::slice::from_ref(self)), visitor);
+    }
+
+    fn visit_slice(slice: &[Self], visitor: &mut dyn CellVisitor) -> bool {
+        visit_cells_slice(CellRun::PlainDword(slice), visitor)
+    }
+}
+// SAFETY: one cell, all of it one run.
+unsafe impl ByteView for crate::session::PlainDword {
     fn cell_run(&self, _: usize) -> (usize, CellRun<'_>) {
         (0, CellRun::PlainDword(std::slice::from_ref(self)))
     }
@@ -603,6 +701,16 @@ unsafe impl Cells for crate::session::PlainFloat {
         }
     }
 
+    fn visit(&self, visitor: &mut dyn CellVisitor) {
+        visit_run(CellRun::PlainFloat(std::slice::from_ref(self)), visitor);
+    }
+
+    fn visit_slice(slice: &[Self], visitor: &mut dyn CellVisitor) -> bool {
+        visit_cells_slice(CellRun::PlainFloat(slice), visitor)
+    }
+}
+// SAFETY: one cell, all of it one run.
+unsafe impl ByteView for crate::session::PlainFloat {
     fn cell_run(&self, _: usize) -> (usize, CellRun<'_>) {
         (0, CellRun::PlainFloat(std::slice::from_ref(self)))
     }
@@ -625,6 +733,16 @@ unsafe impl Cells for crate::session::PlainFlag {
         }
     }
 
+    fn visit(&self, visitor: &mut dyn CellVisitor) {
+        visit_run(CellRun::PlainFlag(std::slice::from_ref(self)), visitor);
+    }
+
+    fn visit_slice(slice: &[Self], visitor: &mut dyn CellVisitor) -> bool {
+        visit_cells_slice(CellRun::PlainFlag(slice), visitor)
+    }
+}
+// SAFETY: one cell, all of it one run.
+unsafe impl ByteView for crate::session::PlainFlag {
     fn cell_run(&self, _: usize) -> (usize, CellRun<'_>) {
         (0, CellRun::PlainFlag(std::slice::from_ref(self)))
     }
@@ -648,6 +766,16 @@ unsafe impl Cells for crate::session::PlainInt {
         }
     }
 
+    fn visit(&self, visitor: &mut dyn CellVisitor) {
+        visit_run(CellRun::PlainInt(std::slice::from_ref(self)), visitor);
+    }
+
+    fn visit_slice(slice: &[Self], visitor: &mut dyn CellVisitor) -> bool {
+        visit_cells_slice(CellRun::PlainInt(slice), visitor)
+    }
+}
+// SAFETY: one cell, all of it one run.
+unsafe impl ByteView for crate::session::PlainInt {
     fn cell_run(&self, _: usize) -> (usize, CellRun<'_>) {
         (0, CellRun::PlainInt(std::slice::from_ref(self)))
     }
@@ -674,6 +802,16 @@ unsafe impl Cells for crate::session::Word {
         }
     }
 
+    fn visit(&self, visitor: &mut dyn CellVisitor) {
+        visit_run(CellRun::Word(std::slice::from_ref(self)), visitor);
+    }
+
+    fn visit_slice(slice: &[Self], visitor: &mut dyn CellVisitor) -> bool {
+        visit_cells_slice(CellRun::Word(slice), visitor)
+    }
+}
+// SAFETY: one cell, all of it one run.
+unsafe impl ByteView for crate::session::Word {
     fn cell_run(&self, _: usize) -> (usize, CellRun<'_>) {
         (0, CellRun::Word(std::slice::from_ref(self)))
     }
@@ -695,6 +833,16 @@ unsafe impl Cells for crate::session::Byte {
         }
     }
 
+    fn visit(&self, visitor: &mut dyn CellVisitor) {
+        visit_run(CellRun::Byte(std::slice::from_ref(self)), visitor);
+    }
+
+    fn visit_slice(slice: &[Self], visitor: &mut dyn CellVisitor) -> bool {
+        visit_cells_slice(CellRun::Byte(slice), visitor)
+    }
+}
+// SAFETY: one cell, all of it one run.
+unsafe impl ByteView for crate::session::Byte {
     fn cell_run(&self, _: usize) -> (usize, CellRun<'_>) {
         (0, CellRun::Byte(std::slice::from_ref(self)))
     }
@@ -725,6 +873,12 @@ unsafe impl<const N: usize> Cells for crate::session::Bytes<N> {
         }
     }
 
+    fn visit(&self, visitor: &mut dyn CellVisitor) {
+        visit_run(CellRun::Bytes(self.atomics()), visitor);
+    }
+}
+// SAFETY: an `UnsafeCell` over plain bytes, all of it one run.
+unsafe impl<const N: usize> ByteView for crate::session::Bytes<N> {
     fn cell_run(&self, _: usize) -> (usize, CellRun<'_>) {
         (0, CellRun::Bytes(self.atomics()))
     }
@@ -733,12 +887,40 @@ unsafe impl<const N: usize> Cells for crate::session::Bytes<N> {
 // its `get` / `set` take (`Shared::WORDS`): a 4-aligned record's whole dwords one run of
 // `AtomicU32`s, the bytes past them `AtomicU8`s; a packed record one run of shared bytes.
 unsafe impl<T: Plain> Cells for crate::session::Shared<T> {
+    fn copy_from(&self, other: &Self) {
+        copy_by_runs(self, other);
+    }
+
+    fn merge_changes(&self, now: &Self, start: &Self) {
+        merge_by_runs(self, now, start);
+    }
+
+    fn visit(&self, visitor: &mut dyn CellVisitor) {
+        visit_by_runs(self, visitor);
+    }
+}
+// SAFETY: as `Cells for Shared`: the runs are the ones `Shared::cell_run` hands out.
+unsafe impl<T: Plain> ByteView for crate::session::Shared<T> {
     fn cell_run(&self, offset: usize) -> (usize, CellRun<'_>) {
         crate::session::Shared::cell_run(self, offset)
     }
 }
 // SAFETY: an `UnsafeCell` over four plain bytes, all of it one run.
 unsafe impl Cells for crate::session::Loose {
+    fn copy_from(&self, other: &Self) {
+        copy_by_runs(self, other);
+    }
+
+    fn merge_changes(&self, now: &Self, start: &Self) {
+        merge_by_runs(self, now, start);
+    }
+
+    fn visit(&self, visitor: &mut dyn CellVisitor) {
+        visit_by_runs(self, visitor);
+    }
+}
+// SAFETY: four bytes of atomics, all of it one run.
+unsafe impl ByteView for crate::session::Loose {
     fn cell_run(&self, _: usize) -> (usize, CellRun<'_>) {
         (0, CellRun::Bytes(self.atomics()))
     }
@@ -757,6 +939,16 @@ unsafe impl Cells for crate::session::PlainWord {
         }
     }
 
+    fn visit(&self, visitor: &mut dyn CellVisitor) {
+        visit_run(CellRun::PlainWord(std::slice::from_ref(self)), visitor);
+    }
+
+    fn visit_slice(slice: &[Self], visitor: &mut dyn CellVisitor) -> bool {
+        visit_cells_slice(CellRun::PlainWord(slice), visitor)
+    }
+}
+// SAFETY: one cell, all of it one run.
+unsafe impl ByteView for crate::session::PlainWord {
     fn cell_run(&self, _: usize) -> (usize, CellRun<'_>) {
         (0, CellRun::PlainWord(std::slice::from_ref(self)))
     }
@@ -779,6 +971,16 @@ unsafe impl Cells for crate::session::PlainByte {
         }
     }
 
+    fn visit(&self, visitor: &mut dyn CellVisitor) {
+        visit_run(CellRun::PlainByte(std::slice::from_ref(self)), visitor);
+    }
+
+    fn visit_slice(slice: &[Self], visitor: &mut dyn CellVisitor) -> bool {
+        visit_cells_slice(CellRun::PlainByte(slice), visitor)
+    }
+}
+// SAFETY: one cell, all of it one run.
+unsafe impl ByteView for crate::session::PlainByte {
     fn cell_run(&self, _: usize) -> (usize, CellRun<'_>) {
         (0, CellRun::PlainByte(std::slice::from_ref(self)))
     }
@@ -806,12 +1008,32 @@ unsafe impl<const N: usize> Cells for crate::session::PlainBytes<N> {
         }
     }
 
+    fn visit(&self, visitor: &mut dyn CellVisitor) {
+        visit_run(CellRun::PlainBytes(self.cells()), visitor);
+    }
+}
+// SAFETY: `N` cells of plain bytes, all of it one run.
+unsafe impl<const N: usize> ByteView for crate::session::PlainBytes<N> {
     fn cell_run(&self, _: usize) -> (usize, CellRun<'_>) {
         (0, CellRun::PlainBytes(self.cells()))
     }
 }
 // SAFETY: four cells of plain bytes, all of it one run.
 unsafe impl Cells for crate::session::PlainLoose {
+    fn copy_from(&self, other: &Self) {
+        copy_by_runs(self, other);
+    }
+
+    fn merge_changes(&self, now: &Self, start: &Self) {
+        merge_by_runs(self, now, start);
+    }
+
+    fn visit(&self, visitor: &mut dyn CellVisitor) {
+        visit_by_runs(self, visitor);
+    }
+}
+// SAFETY: four cells of plain bytes, all of it one run.
+unsafe impl ByteView for crate::session::PlainLoose {
     fn cell_run(&self, _: usize) -> (usize, CellRun<'_>) {
         (0, CellRun::PlainBytes(self.cells()))
     }
@@ -830,23 +1052,8 @@ unsafe impl<T: Cells, const N: usize> Cells for [T; N] {
         }
     }
 
-    #[cfg(any(test, feature = "remote"))]
-    fn field_path(&self, offset: usize, path: &mut String) -> &'static str {
-        let size = size_of::<T>();
-        path.push_str(&format!("[{}]", offset / size));
-        self[offset / size].field_path(offset % size, path)
-    }
-
     fn visit(&self, visitor: &mut dyn CellVisitor) {
-        if N == 0 {
-            return;
-        }
-        if let Some(run) = T::slice_run(self.as_slice()) {
-            let mut bytes = vec![0; run.len()];
-            run.load(0, &mut bytes);
-            visitor.index(0);
-            visitor.leaf(&bytes);
-            visitor.leave();
+        if N == 0 || T::visit_slice(self.as_slice(), visitor) {
             return;
         }
         for (i, element) in self.iter().enumerate() {
@@ -854,6 +1061,15 @@ unsafe impl<T: Cells, const N: usize> Cells for [T; N] {
             element.visit(visitor);
             visitor.leave();
         }
+    }
+}
+// SAFETY: `N` of a type of cells, one after another.
+unsafe impl<T: ByteView, const N: usize> ByteView for [T; N] {
+    #[cfg(any(test, feature = "remote"))]
+    fn field_path(&self, offset: usize, path: &mut String) -> &'static str {
+        let size = size_of::<T>();
+        path.push_str(&format!("[{}]", offset / size));
+        self[offset / size].field_path(offset % size, path)
     }
 
     fn cell_run(&self, offset: usize) -> (usize, CellRun<'_>) {
@@ -878,13 +1094,15 @@ unsafe impl<T: Cells> Cells for crate::session::GameThread<T> {
         self.get().merge_changes(now.get(), start.get());
     }
 
+    fn visit(&self, visitor: &mut dyn CellVisitor) {
+        self.get().visit(visitor);
+    }
+}
+// SAFETY: one `T` (`repr(transparent)`), whose cells are handed out only on the game's thread.
+unsafe impl<T: ByteView> ByteView for crate::session::GameThread<T> {
     #[cfg(any(test, feature = "remote"))]
     fn field_path(&self, offset: usize, path: &mut String) -> &'static str {
         self.get().field_path(offset, path)
-    }
-
-    fn visit(&self, visitor: &mut dyn CellVisitor) {
-        self.get().visit(visitor);
     }
 
     fn cell_run(&self, offset: usize) -> (usize, CellRun<'_>) {
@@ -1017,7 +1235,7 @@ pub unsafe trait Store {
 }
 
 // SAFETY: `first` is the record's first byte and `size` its size.
-unsafe impl<T: Cells> Store for T {
+unsafe impl<T: ByteView> Store for T {
     fn size(&self) -> usize {
         size_of::<T>()
     }
@@ -1098,7 +1316,7 @@ fn set_cell_bytes(cell: CellRef, from: usize, new: &[u8]) {
 
 /// `to.len()` bytes of `record` from byte `offset` on, each cell read whole at its own
 /// width (a run of `Bytes` as `shared_memory` reads it).
-pub fn load_cells<T: Cells>(record: &T, offset: usize, to: &mut [u8]) -> Result<(), BadInput> {
+pub fn load_cells<T: ByteView>(record: &T, offset: usize, to: &mut [u8]) -> Result<(), BadInput> {
     let end = record_end::<T>(offset, to.len())?;
     let mut at = offset;
     while at < end {
@@ -1112,7 +1330,7 @@ pub fn load_cells<T: Cells>(record: &T, offset: usize, to: &mut [u8]) -> Result<
 
 /// `from` written into `record` from byte `offset` on, each cell at its own width (a part
 /// of one merged by compare-and-swap).
-pub fn store_cells<T: Cells>(record: &T, offset: usize, from: &[u8]) -> Result<(), BadInput> {
+pub fn store_cells<T: ByteView>(record: &T, offset: usize, from: &[u8]) -> Result<(), BadInput> {
     let end = record_end::<T>(offset, from.len())?;
     let mut at = offset;
     while at < end {
@@ -1148,14 +1366,14 @@ fn store_bytes(run: &[AtomicU8], from: &[u8]) {
 
 /// A record of cells with every byte zero, as a constant (a store's `new()`).
 pub const fn zeroed_cells<T: Cells>() -> T {
-    // SAFETY: `T` is made of cells over plain integers (`Cells`), so all-zero bytes are a valid
-    // value.
+    // SAFETY: `T` is made of cells over plain integers (`Cells`), so the all-zero value is
+    // valid.
     unsafe { core::mem::MaybeUninit::<T>::zeroed().assume_init() }
 }
 
 /// A record of cells with these bytes as its first values (a static's, at compile time:
 /// a race-block piece that left the block takes the image's bytes).
-pub const fn cells_of_bytes<T: Cells, const N: usize>(bytes: [u8; N]) -> T {
+pub const fn cells_of_bytes<T: ByteView, const N: usize>(bytes: [u8; N]) -> T {
     assert!(core::mem::size_of::<T>() == N, "the record's size");
     union Bits<T, const N: usize> {
         bytes: core::mem::ManuallyDrop<[u8; N]>,
@@ -1164,19 +1382,19 @@ pub const fn cells_of_bytes<T: Cells, const N: usize>(bytes: [u8; N]) -> T {
     let bits = Bits::<T, N> {
         bytes: core::mem::ManuallyDrop::new(bytes),
     };
-    // SAFETY: `T` is made of cells over plain integers (`Cells`), so any bytes are a valid
-    // value, and the sizes are equal (checked above).
+    // SAFETY: `T` is made of cells over plain integers with no padding (`ByteView`), so any
+    // bytes are a valid value, and the sizes are equal (checked above).
     core::mem::ManuallyDrop::into_inner(unsafe { bits.record })
 }
 
 /// `N` dwords of a record of cells from byte `at` on, for a record read as a run of dwords.
 #[cfg(test)]
-pub fn dwords_in<T: Cells, const N: usize>(cells: &T, at: usize) -> &[crate::session::Dword; N] {
+pub fn dwords_in<T: ByteView, const N: usize>(cells: &T, at: usize) -> &[crate::session::Dword; N] {
     dwords_as(cells, at)
 }
 
 /// `dwords_in` for a record of the game thread's cells.
-pub fn plain_dwords_in<T: Cells, const N: usize>(
+pub fn plain_dwords_in<T: ByteView, const N: usize>(
     cells: &T,
     at: usize,
 ) -> &[crate::session::PlainDword; N] {
@@ -1188,14 +1406,14 @@ trait DwordCell {}
 impl DwordCell for crate::session::Dword {}
 impl DwordCell for crate::session::PlainDword {}
 
-fn dwords_as<D: DwordCell, T: Cells, const N: usize>(cells: &T, at: usize) -> &[D; N] {
+fn dwords_as<D: DwordCell, T: ByteView, const N: usize>(cells: &T, at: usize) -> &[D; N] {
     assert!(
         at + N * size_of::<D>() <= size_of::<T>(),
         "dwords past the record"
     );
     let first = std::ptr::from_ref::<T>(cells).cast::<u8>().wrapping_add(at);
     assert!(first.cast::<D>().is_aligned(), "dwords on an odd place");
-    // SAFETY: inside `cells`, whose every byte is a cell (`Cells`) for as long as the borrow,
+    // SAFETY: inside `cells`, whose every byte is a cell (`ByteView`) for as long as the borrow,
     // aligned (checked above), and any bits make a `D` (`DwordCell`: a cell over a `u32`).
     unsafe { &*first.cast() }
 }

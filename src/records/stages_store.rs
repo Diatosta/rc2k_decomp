@@ -23,7 +23,7 @@ use crate::system::owner::system;
 /// the table's end), +0x18 the stage's time or length, +0x1C the temperature, +0x24, +0x3C
 /// which ten entries of a stage table (readings: `rc2k_core::saves::defaults`).
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
 pub struct Record {
     pub words: [PlainLoose; 41],
 }
@@ -182,7 +182,7 @@ const _: () = assert!(core::mem::size_of::<Record>() == 0xA4);
 
 /// An event's table: seven records and the -1 that ends them.
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
 pub struct EventRecords {
     pub records: [Record; 7],
     pub end: PlainLoose,
@@ -191,7 +191,7 @@ pub struct EventRecords {
 /// A track's entry in the track pack (0x40 bytes; fields read from `screens::stage_panel`,
 /// `menu::calc_cpu_times`, `menu::run_event_races` and `race::single_rally`).
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
 pub struct TrackEntry {
     /// +0x00: the track's name (a string id; also the first word `race::single_rally`
     /// checks for the pack's closing -1).
@@ -250,7 +250,7 @@ const fn track(v: [u32; 16]) -> TrackEntry {
 /// The track pack (`g_trakPakHeader`): +0 the link, +4 the pack's id, its name, the count,
 /// the entries from +0x34 (`records::trakpak_entry`, `race::single_rally`) and a -1.
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
 pub struct TrakPak {
     pub link: PlainLoose,
     pub pack_id: PlainLoose,
@@ -263,7 +263,7 @@ pub struct TrakPak {
 
 /// Aligned to 4 (its cells are bytes) so that the lead does its work.
 #[repr(C, align(4))]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
 pub struct StageTables {
     /// Not in the image: two bytes so that each address keeps its alignment mod 4.
     pub _lead: PlainBytes<2>,

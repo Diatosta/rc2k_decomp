@@ -16,7 +16,7 @@ use crate::session::{PlainBytes, PlainDword, PlainFloat};
 /// One shadow point (0x20 bytes): the corner of the car's shadow, first as floats, then
 /// as whole numbers (`race::car_shadow`).
 #[repr(C)]
-#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells, rc2k_derive::ByteView)]
 pub struct ShadowPoint {
     /// +0x0: x.
     pub x: PlainDword,

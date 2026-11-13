@@ -19,7 +19,7 @@ use rc2k_core::menu::tables::{MENUS, MenuFont, MenuItem as Fixed};
 
 /// A label: x, y, the font, the string id.
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
 pub struct MenuLabel {
     pub x: PlainDword,
     pub y: PlainDword,
@@ -41,7 +41,7 @@ impl MenuLabel {
 
 /// A list of labels: the label and the -1 that ends the list.
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
 pub struct LabelList {
     pub label: MenuLabel,
     pub end: PlainDword,
@@ -58,7 +58,7 @@ impl LabelList {
 
 /// The label lists in the image's layout.
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
 pub struct LabelTables {
     /// Label list at IDA 0x747AD8 (the labels of the single_rally_review menu).
     pub single_rally_review_labels: LabelList,

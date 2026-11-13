@@ -139,7 +139,7 @@ impl InstallerRun {
 
 /// The registry names, the installed record, the scripts and file names, the languages (IDA 0x51BB60 .. 0x51C407, the image's layout).
 #[repr(C, align(16))]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
 pub struct InstallerNames {
     /// 0x51BB60: `aSoftwareMagnet`: "SOFTWARE\Magnetic Fields\RC99".
     pub key_name: PlainBytes<30>,
@@ -240,7 +240,7 @@ impl InstallerNames {
 /// A record of a drawing list on the pages (`install::draw_string_list`): 16 bytes at any
 /// address, the offsets from the list's place, the font's link and the text's string id.
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
 pub struct StringRecord {
     pub dx: PlainLoose,
     pub dy: PlainLoose,
@@ -263,7 +263,7 @@ impl StringRecord {
 /// A record of a glyph list on the pages (`install::blit_glyph_list`): 16 bytes at any
 /// address, the offsets from the list's place, the glyph's number and the palette's link.
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
 pub struct GlyphRecord {
     pub dx: PlainLoose,
     pub dy: PlainLoose,
@@ -285,7 +285,7 @@ impl GlyphRecord {
 
 /// The page: its pieces, the list menu's state, the fonts and the pages' tables (IDA 0x51C407 .. 0x51DE2C, the image's layout).
 #[repr(C, align(16))]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
 pub struct InstallerPages {
     /// Not in the image: the bytes that keep every field the alignment its IDA address has (the struct is 16-byte aligned).
     pub _lead: PlainBytes<7>,
@@ -574,7 +574,7 @@ impl InstallerPages {
 
 /// The installer's path buffers (0x100 bytes each; the network's lobby edits two of them) (IDA 0x95E6F8 .. 0x95ECF8, the image's layout).
 #[repr(C, align(16))]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
 pub struct InstallerPaths {
     /// Not in the image: the bytes that keep every field the alignment its IDA address has (the struct is 16-byte aligned).
     pub _lead: PlainBytes<8>,

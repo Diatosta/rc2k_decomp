@@ -10,7 +10,7 @@ use crate::session::{CellKind, PlainCells};
 /// The record, on the cells of kind `K`: plain for the work car and the cars' blocks (`Car`),
 /// which only the game's thread writes, and for a view's copy of its car (`ViewCar`).
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
 pub struct Car<K: CellKind = PlainCells> {
     /// +0x0 (0x719FD8): the replay frame's head (camera words and bytes, `drive::replay_cameras`).
     pub frame_head: [K::Dword; 2],
@@ -571,7 +571,7 @@ pub type ViewCar = Car;
 
 impl<K: CellKind> Car<K>
 where
-    Self: crate::cells::Cells,
+    Self: crate::cells::ByteView,
 {
     /// The piece at the start of a race: zero but for the set-up (ride height 0x80,
     /// suspension stiffness 0x40) and the parts present (all bits).

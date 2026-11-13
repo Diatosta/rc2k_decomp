@@ -62,7 +62,7 @@ impl BestTimes {
 /// standings' table A, `menu::standings`). Fields by `rc2k_core::saves::defaults::TimeEntry`
 /// and the section screen (readings).
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
 pub struct TimeEntry {
     /// +0: read by no code.
     pub unread_0: PlainDword,

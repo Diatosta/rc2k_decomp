@@ -104,10 +104,7 @@ pub fn install_files(
     normalise(&install.paths.game_dir, &install.paths.game_dir)?;
     i::run_script::run_script(
         install,
-        crate::place::BytePlace::in_store(
-            &install.names,
-            core::mem::offset_of!(crate::install::vars::InstallerNames, script_count),
-        ),
+        crate::place::BytePlace::from(&install.names.script_count),
     )?;
     install.run.files_copied.set(0);
     install.run.copy_spare.set(0);

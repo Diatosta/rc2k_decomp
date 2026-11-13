@@ -15,7 +15,7 @@ use crate::session::{PlainByte, PlainBytes, PlainDword, with_runs};
 
 /// IDA 0x529DAD .. 0x52A263.
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
 pub struct InstallVars {
     /// Not in the image: one byte so that the dwords are aligned (the block starts on an odd address).
     pub _lead: PlainByte,
@@ -62,7 +62,7 @@ impl InstallVars {
 
 /// IDA 0x52A30F .. 0x52A4B0.
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
 pub struct DriveRows {
     /// 0x52A30F: `byte_52A30F`: the installer's drive rows, 0x10 bytes each (letter, a byte, the text).
     pub drive_rows: PlainBytes<400>,

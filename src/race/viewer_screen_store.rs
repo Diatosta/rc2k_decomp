@@ -7,7 +7,7 @@ use crate::race::owner::race;
 use crate::session::{PlainDword, PlainFloat};
 
 #[repr(C)]
-#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells, rc2k_derive::ByteView)]
 pub struct ViewerPanelBlock {
     /// +0x0 (0x5C291C): `ViewerAndKinds.viewer_panel.camera_name_ids[0]` / `g_cameraNameIds`: 16-bit text ids of the camera names, read and written by `race::draw_viewer_panel`, `next_camera`, `previous_camera`; the port reaches them through another path, not by this field.
     pub camera_name_ids: [PlainDword; 24],

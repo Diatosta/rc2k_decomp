@@ -12,7 +12,7 @@ use crate::session::PlainDword;
 
 /// A driver's record (0x94 bytes).
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
 pub struct Driver {
     /// +0: the name entry, also the computer team's number (`menu::find_cpu_team`).
     pub name_entry: PlainDword,
@@ -139,7 +139,7 @@ impl Driver {
 
 /// A driver's name entry (0x14 bytes): the string's id and four dwords.
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
 pub struct DriverName {
     pub string: PlainDword,
     pub field_4: [PlainDword; 4],
@@ -162,7 +162,7 @@ impl DriverName {
 }
 
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
 pub struct DriverTable {
     /// `g_drivers` (0x73B674).
     pub drivers: [Driver; 180],

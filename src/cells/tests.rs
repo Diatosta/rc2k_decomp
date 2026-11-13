@@ -1,4 +1,4 @@
-//! `Cells::cell_run` and the copies on it (`load_cells`, `store_cells`) against every store:
+//! `ByteView::cell_run` and the copies on it (`load_cells`, `store_cells`) against every store:
 //! the runs tile each record, each atomic on its own width's boundary, and the copies give
 //! the bytes `shared_memory`'s raw copies give.
 
@@ -13,7 +13,7 @@ use crate::shared_memory;
 /// The runs of `record`, checked to tile it: each starts where the last ended, lies inside,
 /// starts on a multiple of its width, and is the run every byte in it names (sampled in a
 /// store of megabytes, a debug build).
-fn check_tiling<T: Cells>(record: &T, name: &str) {
+fn check_tiling<T: ByteView>(record: &T, name: &str) {
     let base = std::ptr::from_ref(record) as usize;
     let size = size_of::<T>();
     let step = (size / 0x4000).max(1);
@@ -59,7 +59,7 @@ fn runs(size: usize) -> impl Iterator<Item = (usize, usize)> {
         })
 }
 
-fn check_load<T: Cells>(record: &T, name: &str) {
+fn check_load<T: ByteView>(record: &T, name: &str) {
     let base = std::ptr::from_ref(record).cast::<u8>();
     for (at, len) in runs(size_of::<T>()) {
         let (mut mine, mut raw) = (vec![0; len], vec![0; len]);
@@ -77,9 +77,9 @@ fn check_load<T: Cells>(record: &T, name: &str) {
 
 /// `store_cells` into a zeroed twin of `T` against `shared_memory::store` into another, a
 /// pattern written first and the two compared whole after the writes.
-fn check_store<T: Cells>(name: &str) {
+fn check_store<T: ByteView>(name: &str) {
     let size = size_of::<T>();
-    // SAFETY: any bits make a record of cells (`Cells`).
+    // SAFETY: any bits make a record of cells (`ByteView`).
     let (mine, raw) = unsafe {
         (
             Box::<T>::new_zeroed().assume_init(),
@@ -114,7 +114,7 @@ fn check_store<T: Cells>(name: &str) {
     );
 }
 
-fn check<T: Cells>(record: &T, name: &str) {
+fn check<T: ByteView>(record: &T, name: &str) {
     check_tiling(record, name);
     check_load(record, name);
     check_store::<T>(name);
@@ -303,7 +303,7 @@ fn a_zero_record_is_all_zero_and_can_be_built_on() {
 }
 
 /// Bytes of varied values for a record: each byte a function of its place and `seed`.
-fn varied<T: Cells>(record: &T, seed: u32) {
+fn varied<T: ByteView>(record: &T, seed: u32) {
     let size = size_of::<T>();
     let bytes: Vec<u8> = (0..size)
         .map(|k| {
@@ -316,7 +316,7 @@ fn varied<T: Cells>(record: &T, seed: u32) {
     store_cells(record, 0, &bytes).unwrap();
 }
 
-fn bytes_of<T: Cells>(record: &T) -> Vec<u8> {
+fn bytes_of<T: ByteView>(record: &T) -> Vec<u8> {
     let mut out = vec![0; size_of::<T>()];
     load_cells(record, 0, &mut out).unwrap();
     out
@@ -391,4 +391,70 @@ fn same_shape_records_match_the_run_copies() {
         from.copy_cells_to(&d);
         assert_eq!(bytes_of(&c), bytes_of(&d));
     }
+}
+
+#[test]
+fn a_record_without_a_fixed_layout_is_copied_merged_and_visited_by_field() {
+    use crate::session::{Byte, Dword, Word};
+    // No `repr(C)`: only `Cells`, no byte view.
+    #[derive(rc2k_derive::Cells)]
+    struct Free {
+        a: Byte,
+        b: Dword,
+        c: [Word; 2],
+        d: [Dword; 2],
+    }
+    let make = |seed: u32| Free {
+        a: Byte::new(seed as u8),
+        b: Dword::new(seed * 3),
+        c: [Word::new(seed as u16 + 1), Word::new(seed as u16 + 2)],
+        d: [Dword::new(seed + 7), Dword::new(seed + 8)],
+    };
+    struct Leaves(Vec<String>);
+    impl CellVisitor for Leaves {
+        fn enter(&mut self, name: &'static str) {
+            self.0.push(format!("enter {name}"));
+        }
+        fn index(&mut self, i: usize) {
+            self.0.push(format!("index {i}"));
+        }
+        fn leave(&mut self) {
+            self.0.push("leave".into());
+        }
+        fn leaf(&mut self, bytes: &[u8]) {
+            self.0.push(format!("{bytes:02x?}"));
+        }
+    }
+    let mut seen = Leaves(Vec::new());
+    make(1).visit(&mut seen);
+    // An array of one primitive cell is one leaf, element 0 whole.
+    assert_eq!(
+        seen.0,
+        [
+            "enter a",
+            "[01]",
+            "leave",
+            "enter b",
+            "[03, 00, 00, 00]",
+            "leave",
+            "enter c",
+            "index 0",
+            "[02, 00, 03, 00]",
+            "leave",
+            "leave",
+            "enter d",
+            "index 0",
+            "[08, 00, 00, 00, 09, 00, 00, 00]",
+            "leave",
+            "leave",
+        ]
+    );
+    let (to, from) = (make(10), make(20));
+    to.copy_from(&from);
+    assert_eq!(flatten(&to), flatten(&from));
+    let (now, start, to) = (make(20), make(20), make(40));
+    now.b.set(99);
+    to.merge_changes(&now, &start);
+    assert_eq!(to.b.get(), 99);
+    assert_eq!(to.a.get(), 40);
 }
