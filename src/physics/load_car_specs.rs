@@ -280,14 +280,17 @@ mod reference_vectors {
     /// the buffers hold only the offsets the run reads.
     fn spec_at(base: usize, from: usize, to: usize) -> Box<CarSpec> {
         // SAFETY: cells and byte arrays only, all-zero is valid; the buffer holds `to` bytes.
-        let spec: Box<CarSpec> = Box::new(unsafe { std::mem::zeroed() });
+        let mut spec: Box<CarSpec> = Box::new(unsafe { std::mem::zeroed() });
+        use crate::test_support::vectors::block_vectors::{LAID_ROOM, at};
+        assert!(from <= to && to <= size_of::<CarSpec>() && to <= LAID_ROOM);
+        // SAFETY: the buffer at `base` holds at least `LAID_ROOM` bytes (`block_vectors`), so
+        // `from .. to` (asserted inside it) lies in it; the record is this function's own box,
+        // written through its unique pointer inside its size (asserted), any bytes valid for its
+        // cells and byte arrays; the two do not overlap.
         unsafe {
             std::ptr::copy_nonoverlapping(
-                crate::test_support::vectors::block_vectors::at(base + from),
-                std::ptr::from_ref::<CarSpec>(&spec)
-                    .cast::<u8>()
-                    .cast_mut()
-                    .add(from),
+                at(base + from),
+                (&raw mut *spec).cast::<u8>().add(from),
                 to - from,
             );
         }

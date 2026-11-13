@@ -525,7 +525,8 @@ impl<'a> CellRun<'a> {
     }
 }
 
-// SAFETY: one `AtomicU32`.
+// SAFETY: `repr(transparent)` over one `AtomicU32`: every byte is inside it, and zero is a
+// valid value.
 unsafe impl Cells for crate::session::Dword {
     fn copy_from(&self, other: &Self) {
         self.atomic().store(other.atomic().load(Relaxed), Relaxed);
@@ -550,7 +551,8 @@ unsafe impl Cells for crate::session::Dword {
         visit_cells_slice(CellRun::Dword(slice), visitor)
     }
 }
-// SAFETY: one cell, all of it one run.
+// SAFETY: `repr(transparent)` over one cell of an integer: no padding, any bits a value; the
+// one run is the cell itself.
 unsafe impl ByteView for crate::session::Dword {
     fn cell_run(&self, _: usize) -> (usize, CellRun<'_>) {
         (0, CellRun::Dword(std::slice::from_ref(self)))
@@ -560,7 +562,8 @@ unsafe impl ByteView for crate::session::Dword {
         Some(CellRun::Dword(slice))
     }
 }
-// SAFETY: one `AtomicU32`.
+// SAFETY: `repr(transparent)` over one `AtomicU32`: every byte is inside it, and zero is a
+// valid value.
 unsafe impl Cells for crate::session::Float {
     fn copy_from(&self, other: &Self) {
         self.atomic().store(other.atomic().load(Relaxed), Relaxed);
@@ -585,7 +588,8 @@ unsafe impl Cells for crate::session::Float {
         visit_cells_slice(CellRun::Float(slice), visitor)
     }
 }
-// SAFETY: one cell, all of it one run.
+// SAFETY: `repr(transparent)` over one cell of an integer: no padding, any bits a value; the
+// one run is the cell itself.
 unsafe impl ByteView for crate::session::Float {
     fn cell_run(&self, _: usize) -> (usize, CellRun<'_>) {
         (0, CellRun::Float(std::slice::from_ref(self)))
@@ -595,7 +599,8 @@ unsafe impl ByteView for crate::session::Float {
         Some(CellRun::Float(slice))
     }
 }
-// SAFETY: one `AtomicU32`.
+// SAFETY: `repr(transparent)` over one `AtomicU32`: every byte is inside it, and zero is a
+// valid value.
 unsafe impl Cells for crate::session::Int {
     fn copy_from(&self, other: &Self) {
         self.atomic().store(other.atomic().load(Relaxed), Relaxed);
@@ -620,7 +625,8 @@ unsafe impl Cells for crate::session::Int {
         visit_cells_slice(CellRun::Int(slice), visitor)
     }
 }
-// SAFETY: one cell, all of it one run.
+// SAFETY: `repr(transparent)` over one cell of an integer: no padding, any bits a value; the
+// one run is the cell itself.
 unsafe impl ByteView for crate::session::Int {
     fn cell_run(&self, _: usize) -> (usize, CellRun<'_>) {
         (0, CellRun::Int(std::slice::from_ref(self)))
@@ -630,7 +636,8 @@ unsafe impl ByteView for crate::session::Int {
         Some(CellRun::Int(slice))
     }
 }
-// SAFETY: one `AtomicU32`.
+// SAFETY: `repr(transparent)` over one `AtomicU32`: every byte is inside it, and zero is a
+// valid value.
 unsafe impl Cells for crate::session::Flag {
     fn copy_from(&self, other: &Self) {
         self.atomic().store(other.atomic().load(Relaxed), Relaxed);
@@ -655,7 +662,8 @@ unsafe impl Cells for crate::session::Flag {
         visit_cells_slice(CellRun::Flag(slice), visitor)
     }
 }
-// SAFETY: one cell, all of it one run.
+// SAFETY: `repr(transparent)` over one cell of an integer: no padding, any bits a value; the
+// one run is the cell itself.
 unsafe impl ByteView for crate::session::Flag {
     fn cell_run(&self, _: usize) -> (usize, CellRun<'_>) {
         (0, CellRun::Flag(std::slice::from_ref(self)))
@@ -665,7 +673,8 @@ unsafe impl ByteView for crate::session::Flag {
         Some(CellRun::Flag(slice))
     }
 }
-// SAFETY: one `Cell<u32>`.
+// SAFETY: `repr(transparent)` over one `Cell<u32>`: every byte is inside it, and zero is a
+// valid value.
 unsafe impl Cells for crate::session::PlainDword {
     fn copy_from(&self, other: &Self) {
         crate::session::plain_written(self.cell());
@@ -687,7 +696,8 @@ unsafe impl Cells for crate::session::PlainDword {
         visit_cells_slice(CellRun::PlainDword(slice), visitor)
     }
 }
-// SAFETY: one cell, all of it one run.
+// SAFETY: `repr(transparent)` over one cell of an integer: no padding, any bits a value; the
+// one run is the cell itself.
 unsafe impl ByteView for crate::session::PlainDword {
     fn cell_run(&self, _: usize) -> (usize, CellRun<'_>) {
         (0, CellRun::PlainDword(std::slice::from_ref(self)))
@@ -697,7 +707,8 @@ unsafe impl ByteView for crate::session::PlainDword {
         Some(CellRun::PlainDword(slice))
     }
 }
-// SAFETY: one `Cell<u32>`.
+// SAFETY: `repr(transparent)` over one `Cell<u32>`: every byte is inside it, and zero is a
+// valid value.
 unsafe impl Cells for crate::session::PlainFloat {
     fn copy_from(&self, other: &Self) {
         crate::session::plain_written(self.cell());
@@ -719,7 +730,8 @@ unsafe impl Cells for crate::session::PlainFloat {
         visit_cells_slice(CellRun::PlainFloat(slice), visitor)
     }
 }
-// SAFETY: one cell, all of it one run.
+// SAFETY: `repr(transparent)` over one cell of an integer: no padding, any bits a value; the
+// one run is the cell itself.
 unsafe impl ByteView for crate::session::PlainFloat {
     fn cell_run(&self, _: usize) -> (usize, CellRun<'_>) {
         (0, CellRun::PlainFloat(std::slice::from_ref(self)))
@@ -729,7 +741,8 @@ unsafe impl ByteView for crate::session::PlainFloat {
         Some(CellRun::PlainFloat(slice))
     }
 }
-// SAFETY: one `Cell<u32>`.
+// SAFETY: `repr(transparent)` over one `Cell<u32>`: every byte is inside it, and zero is a
+// valid value.
 unsafe impl Cells for crate::session::PlainFlag {
     fn copy_from(&self, other: &Self) {
         crate::session::plain_written(self.cell());
@@ -751,7 +764,8 @@ unsafe impl Cells for crate::session::PlainFlag {
         visit_cells_slice(CellRun::PlainFlag(slice), visitor)
     }
 }
-// SAFETY: one cell, all of it one run.
+// SAFETY: `repr(transparent)` over one cell of an integer: no padding, any bits a value; the
+// one run is the cell itself.
 unsafe impl ByteView for crate::session::PlainFlag {
     fn cell_run(&self, _: usize) -> (usize, CellRun<'_>) {
         (0, CellRun::PlainFlag(std::slice::from_ref(self)))
@@ -762,7 +776,8 @@ unsafe impl ByteView for crate::session::PlainFlag {
     }
 }
 
-// SAFETY: one `Cell<u32>`.
+// SAFETY: `repr(transparent)` over one `Cell<u32>`: every byte is inside it, and zero is a
+// valid value.
 unsafe impl Cells for crate::session::PlainInt {
     fn copy_from(&self, other: &Self) {
         crate::session::plain_written(self.cell());
@@ -784,7 +799,8 @@ unsafe impl Cells for crate::session::PlainInt {
         visit_cells_slice(CellRun::PlainInt(slice), visitor)
     }
 }
-// SAFETY: one cell, all of it one run.
+// SAFETY: `repr(transparent)` over one cell of an integer: no padding, any bits a value; the
+// one run is the cell itself.
 unsafe impl ByteView for crate::session::PlainInt {
     fn cell_run(&self, _: usize) -> (usize, CellRun<'_>) {
         (0, CellRun::PlainInt(std::slice::from_ref(self)))
@@ -795,7 +811,8 @@ unsafe impl ByteView for crate::session::PlainInt {
     }
 }
 
-// SAFETY: one `AtomicU16`.
+// SAFETY: `repr(transparent)` over one `AtomicU16`: every byte is inside it, and zero is a
+// valid value.
 unsafe impl Cells for crate::session::Word {
     fn copy_from(&self, other: &Self) {
         self.atomic().store(other.atomic().load(Relaxed), Relaxed);
@@ -820,7 +837,8 @@ unsafe impl Cells for crate::session::Word {
         visit_cells_slice(CellRun::Word(slice), visitor)
     }
 }
-// SAFETY: one cell, all of it one run.
+// SAFETY: `repr(transparent)` over one cell of an integer: no padding, any bits a value; the
+// one run is the cell itself.
 unsafe impl ByteView for crate::session::Word {
     fn cell_run(&self, _: usize) -> (usize, CellRun<'_>) {
         (0, CellRun::Word(std::slice::from_ref(self)))
@@ -830,7 +848,8 @@ unsafe impl ByteView for crate::session::Word {
         Some(CellRun::Word(slice))
     }
 }
-// SAFETY: one `AtomicU8`.
+// SAFETY: `repr(transparent)` over one `AtomicU8`: every byte is inside it, and zero is a
+// valid value.
 unsafe impl Cells for crate::session::Byte {
     fn copy_from(&self, other: &Self) {
         self.atomic().store(other.atomic().load(Relaxed), Relaxed);
@@ -851,7 +870,8 @@ unsafe impl Cells for crate::session::Byte {
         visit_cells_slice(CellRun::Byte(slice), visitor)
     }
 }
-// SAFETY: one cell, all of it one run.
+// SAFETY: `repr(transparent)` over one cell of an integer: no padding, any bits a value; the
+// one run is the cell itself.
 unsafe impl ByteView for crate::session::Byte {
     fn cell_run(&self, _: usize) -> (usize, CellRun<'_>) {
         (0, CellRun::Byte(std::slice::from_ref(self)))
@@ -861,7 +881,8 @@ unsafe impl ByteView for crate::session::Byte {
         Some(CellRun::Byte(slice))
     }
 }
-// SAFETY: an `UnsafeCell` over plain bytes, all of it one run.
+// SAFETY: `repr(transparent)` over `[AtomicU8; N]`: every byte is an atomic, and zero is a
+// valid value.
 unsafe impl<const N: usize> Cells for crate::session::Bytes<N> {
     fn copy_from(&self, other: &Self) {
         for (to, from) in self.atomics().iter().zip(other.atomics()) {
@@ -887,14 +908,16 @@ unsafe impl<const N: usize> Cells for crate::session::Bytes<N> {
         visit_run(CellRun::Bytes(self.atomics()), visitor);
     }
 }
-// SAFETY: an `UnsafeCell` over plain bytes, all of it one run.
+// SAFETY: `repr(transparent)` over `[AtomicU8; N]`: no padding, any bits a value; all of it
+// one run of byte atomics.
 unsafe impl<const N: usize> ByteView for crate::session::Bytes<N> {
     fn cell_run(&self, _: usize) -> (usize, CellRun<'_>) {
         (0, CellRun::Bytes(self.atomics()))
     }
 }
-// SAFETY: an `UnsafeCell` over a plain record (any bytes make one, `Plain`), at the widths
-// its `get` / `set` take (`Shared::WORDS`): a 4-aligned record's whole dwords one run of
+// SAFETY: `repr(transparent)` over an `UnsafeCell` of a plain record: every byte is inside the
+// cell, and zero is a valid value (any bytes make a `Plain`). Its runs take the widths its
+// `get` / `set` take (`Shared::WORDS`): a 4-aligned record's whole dwords one run of
 // `AtomicU32`s, the bytes past them `AtomicU8`s; a packed record one run of shared bytes.
 unsafe impl<T: Plain> Cells for crate::session::Shared<T> {
     fn copy_from(&self, other: &Self) {
@@ -909,13 +932,15 @@ unsafe impl<T: Plain> Cells for crate::session::Shared<T> {
         visit_by_runs(self, visitor);
     }
 }
-// SAFETY: as `Cells for Shared`: the runs are the ones `Shared::cell_run` hands out.
+// SAFETY: `repr(transparent)` over an `UnsafeCell<T>`, `T: Plain`: no padding, any bits a value;
+// the runs are the ones `Shared::cell_run` hands out.
 unsafe impl<T: Plain> ByteView for crate::session::Shared<T> {
     fn cell_run(&self, offset: usize) -> (usize, CellRun<'_>) {
         crate::session::Shared::cell_run(self, offset)
     }
 }
-// SAFETY: an `UnsafeCell` over four plain bytes, all of it one run.
+// SAFETY: `repr(transparent)` over `[AtomicU8; 4]`: every byte is an atomic, and zero is a
+// valid value.
 unsafe impl Cells for crate::session::Loose {
     fn copy_from(&self, other: &Self) {
         copy_by_runs(self, other);
@@ -929,13 +954,15 @@ unsafe impl Cells for crate::session::Loose {
         visit_by_runs(self, visitor);
     }
 }
-// SAFETY: four bytes of atomics, all of it one run.
+// SAFETY: `repr(transparent)` over `[AtomicU8; 4]`: no padding, any bits a value; all of it
+// one run of byte atomics.
 unsafe impl ByteView for crate::session::Loose {
     fn cell_run(&self, _: usize) -> (usize, CellRun<'_>) {
         (0, CellRun::Bytes(self.atomics()))
     }
 }
-// SAFETY: one `Cell<u16>`.
+// SAFETY: `repr(transparent)` over one `Cell<u16>`: every byte is inside it, and zero is a
+// valid value.
 unsafe impl Cells for crate::session::PlainWord {
     fn copy_from(&self, other: &Self) {
         crate::session::plain_written(self.cell());
@@ -957,7 +984,8 @@ unsafe impl Cells for crate::session::PlainWord {
         visit_cells_slice(CellRun::PlainWord(slice), visitor)
     }
 }
-// SAFETY: one cell, all of it one run.
+// SAFETY: `repr(transparent)` over one cell of an integer: no padding, any bits a value; the
+// one run is the cell itself.
 unsafe impl ByteView for crate::session::PlainWord {
     fn cell_run(&self, _: usize) -> (usize, CellRun<'_>) {
         (0, CellRun::PlainWord(std::slice::from_ref(self)))
@@ -967,7 +995,8 @@ unsafe impl ByteView for crate::session::PlainWord {
         Some(CellRun::PlainWord(slice))
     }
 }
-// SAFETY: one `Cell<u8>`.
+// SAFETY: `repr(transparent)` over one `Cell<u8>`: every byte is inside it, and zero is a
+// valid value.
 unsafe impl Cells for crate::session::PlainByte {
     fn copy_from(&self, other: &Self) {
         crate::session::plain_written(self.cell());
@@ -989,7 +1018,8 @@ unsafe impl Cells for crate::session::PlainByte {
         visit_cells_slice(CellRun::PlainByte(slice), visitor)
     }
 }
-// SAFETY: one cell, all of it one run.
+// SAFETY: `repr(transparent)` over one cell of an integer: no padding, any bits a value; the
+// one run is the cell itself.
 unsafe impl ByteView for crate::session::PlainByte {
     fn cell_run(&self, _: usize) -> (usize, CellRun<'_>) {
         (0, CellRun::PlainByte(std::slice::from_ref(self)))
@@ -999,7 +1029,8 @@ unsafe impl ByteView for crate::session::PlainByte {
         Some(CellRun::PlainByte(slice))
     }
 }
-// SAFETY: `N` cells of plain bytes, all of it one run.
+// SAFETY: `repr(transparent)` over `[Cell<u8>; N]`: every byte is inside a cell, and zero is a
+// valid value.
 unsafe impl<const N: usize> Cells for crate::session::PlainBytes<N> {
     fn copy_from(&self, other: &Self) {
         for (to, from) in self.cells().iter().zip(other.cells()) {
@@ -1022,13 +1053,15 @@ unsafe impl<const N: usize> Cells for crate::session::PlainBytes<N> {
         visit_run(CellRun::PlainBytes(self.cells()), visitor);
     }
 }
-// SAFETY: `N` cells of plain bytes, all of it one run.
+// SAFETY: `repr(transparent)` over `[Cell<u8>; N]`: no padding, any bits a value; all of it
+// one run of byte cells.
 unsafe impl<const N: usize> ByteView for crate::session::PlainBytes<N> {
     fn cell_run(&self, _: usize) -> (usize, CellRun<'_>) {
         (0, CellRun::PlainBytes(self.cells()))
     }
 }
-// SAFETY: `N` of a type of cells, one after another.
+// SAFETY: `N` of a type of cells one after another (an array has no padding between
+// elements): every value byte is in a cell of an element, and the all-zero elements are valid.
 unsafe impl<T: Cells, const N: usize> Cells for [T; N] {
     fn copy_from(&self, other: &Self) {
         for (to, from) in self.iter().zip(other) {
@@ -1053,7 +1086,8 @@ unsafe impl<T: Cells, const N: usize> Cells for [T; N] {
         }
     }
 }
-// SAFETY: `N` of a type of cells, one after another.
+// SAFETY: `N` records of fixed layout one after another, an array's layout: no padding (the
+// elements have none, nor does an array between them), any bits a value.
 unsafe impl<T: ByteView, const N: usize> ByteView for [T; N] {
     #[cfg(any(test, feature = "remote"))]
     fn field_path(&self, offset: usize, path: &mut String) -> &'static str {
@@ -1186,7 +1220,8 @@ pub(crate) fn bytes_of<T: Plain>(value: &T) -> &[u8] {
 macro_rules! plain_record {
     ($($t:ty = $size:expr),* $(,)?) => { $(
         const _: () = assert!(size_of::<$t>() == $size, "padding in a plain record");
-        // SAFETY: `#[repr(C)]` over integers only, no padding (asserted above).
+        // SAFETY: integers and arrays of them only (each record's fields, read at the type), so
+        // any bits are a value; no padding (asserted above).
         unsafe impl Plain for $t {}
     )* };
 }
@@ -1393,12 +1428,27 @@ pub fn dwords_in<T: ByteView, const N: usize>(cells: &T, at: usize) -> &[crate::
 }
 
 /// `dwords_in` for a record of the game thread's cells.
-pub fn plain_dwords_in<T: ByteView, const N: usize>(
+pub fn plain_dwords_in<T: PlainCellsOnly, const N: usize>(
     cells: &T,
     at: usize,
 ) -> &[crate::session::PlainDword; N] {
     dwords_as(cells, at)
 }
+
+/// A record of fixed layout made of plain (non-atomic) cells only: its dwords may be reached
+/// as `PlainDword`s (`plain_dwords_in`).
+///
+/// # Safety
+/// Every byte of the record is inside a `Cell` (no atomic among them), so a `PlainDword` over
+/// four of its bytes reaches them as its own cells do: non-atomically, on the one thread a
+/// record of `Cell`s (`!Sync`) is reached from.
+pub unsafe trait PlainCellsOnly: ByteView {}
+
+// SAFETY: every field is a `PlainDword` (a `Cell<u32>`): no atomic among its bytes.
+unsafe impl PlainCellsOnly for crate::race::replay_file_store::ReplayIndex {}
+// SAFETY: every field is a `PlainDword` or an array of them: no atomic among its bytes.
+#[cfg(test)]
+unsafe impl PlainCellsOnly for crate::race::prefs_store::StagePrefs {}
 
 /// A cell over one dword, any bits valid: `Dword` and `PlainDword` (`dwords_as`'s kinds).
 trait DwordCell {}
@@ -1412,8 +1462,11 @@ fn dwords_as<D: DwordCell, T: ByteView, const N: usize>(cells: &T, at: usize) ->
     );
     let first = std::ptr::from_ref::<T>(cells).cast::<u8>().wrapping_add(at);
     assert!(first.cast::<D>().is_aligned(), "dwords on an odd place");
-    // SAFETY: inside `cells`, whose every byte is a cell (`ByteView`) for as long as the borrow,
-    // aligned (checked above), and any bits make a `D` (`DwordCell`: a cell over a `u32`).
+    // SAFETY: inside `cells` (checked above), whose every byte is a cell (`ByteView`) for as long
+    // as the borrow, aligned (checked above), and any bits make a `D` (`DwordCell`: a cell over a
+    // `u32`). The cells there are of `D`'s kind, so no byte is reached both atomically and not:
+    // `plain_dwords_in` takes records of plain cells only (`PlainCellsOnly`), `dwords_in` (the
+    // tests) records of `Dword`s.
     unsafe { &*first.cast() }
 }
 

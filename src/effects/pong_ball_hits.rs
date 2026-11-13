@@ -164,7 +164,9 @@ mod reference_vectors {
         };
         recorded("effects.pong_ball_hits.new_way_x87", &SPEC, |b| {
             let length =
-                f32::from_bits(unsafe { ((b[0] + 0x22C).host() as *const u32).read_unaligned() });
+                // SAFETY: `at` checks that the four bytes lie in the operand's test buffer, which the
+                // recorded run keeps alive and nothing else reaches meanwhile; unaligned, any bits a `u32`.
+                f32::from_bits(unsafe { ((b[0] + 0x22C).at(0, 4) as *const u32).read_unaligned() });
             with_laid::<PongState, _>(b[0], |state| {
                 with_laid::<PongRules, _>(b[0], |rules| super::new_way_x87(state, rules, length));
             });

@@ -478,8 +478,10 @@ mod reference_vectors {
                     )],
                     || {
                         // The point's three floats, as the buffer holds them at b[1].
-                        let host = |n: usize| (b[1] + 4 * n).host().cast::<u32>();
+                        let host = |n: usize| (b[1] + 4 * n).at(0, 4).cast::<u32>();
                         let p: [PlainFloat; 3] = std::array::from_fn(|n| {
+                            // SAFETY: `at` checks that the four bytes lie in the operand's test buffer, which the
+                            // recorded run keeps alive and nothing else reaches meanwhile; unaligned, any bits a `u32`.
                             PlainFloat::from_bits(unsafe { host(n).read_unaligned() })
                         });
                         super::point_turned_x87(
@@ -487,6 +489,8 @@ mod reference_vectors {
                             &p,
                         );
                         for (n, cell) in p.iter().enumerate() {
+                            // SAFETY: `at` checks that the four bytes lie in the operand's test buffer, which the
+                            // recorded run keeps alive and nothing else reaches meanwhile; unaligned, any bits a `u32`.
                             unsafe { host(n).write_unaligned(cell.bits()) };
                         }
                     },

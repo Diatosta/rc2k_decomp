@@ -22,7 +22,7 @@ use windows_sys::Win32::System::SystemInformation::{
     GetVersionExA, GlobalMemoryStatus, MEMORYSTATUS, OSVERSIONINFOA,
 };
 use windows_sys::Win32::System::Threading::{
-    ExitProcess, GetCurrentProcess, SetPriorityClass, TerminateProcess,
+    ExitProcess, GetCurrentProcess, GetCurrentThreadStackLimits, SetPriorityClass, TerminateProcess,
 };
 use windows_sys::Win32::System::WindowsProgramming::{GetComputerNameA, GetUserNameA};
 use windows_sys::Win32::UI::Input::KeyboardAndMouse::GetKeyboardType;
@@ -599,6 +599,29 @@ unsafe extern "system" fn on_exception(
             crate::arch::sp(context),
         )
     }
+}
+
+/// The word at `at` on this thread's stack, for the fault report (`standalone::stack_returns`):
+/// None outside the part of the stack from this call's frame up to the stack's base
+/// (`GetCurrentThreadStackLimits`' high limit), so a walk up the stack stops at its end. The
+/// filter runs on the faulting thread, on its stack below the faulting frame, so the walk's
+/// words, from the fault's stack pointer up, are all inside that part.
+pub fn own_stack_word(at: usize) -> Option<usize> {
+    let (mut low, mut high) = (0usize, 0usize);
+    // SAFETY: writes the two limits only; it reads the thread's own record (no lock, no
+    // allocation), so it is callable in the filter.
+    unsafe { GetCurrentThreadStackLimits(&raw mut low, &raw mut high) };
+    let here = (&raw const low) as usize;
+    let inside = low <= here
+        && at >= here
+        && at
+            .checked_add(size_of::<usize>())
+            .is_some_and(|end| end <= high);
+    // SAFETY: a word between this frame and the stack's base: a thread's stack is committed
+    // downwards from its base without gaps, and this frame is committed (it runs), so every
+    // byte up to the base is. The filter ends the process, so the frames read are never run
+    // again; the read needs no alignment.
+    inside.then(|| unsafe { std::ptr::with_exposed_provenance::<usize>(at).read_unaligned() })
 }
 
 /// Installs the access-violation reporter as the process's unhandled-exception filter (it

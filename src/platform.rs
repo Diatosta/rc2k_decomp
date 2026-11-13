@@ -375,12 +375,16 @@ fn make_view(
 #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
 static GPU_VIEW: Mutex<(u64, Option<sdl::Texture>)> = Mutex::new((0, None));
 
-fn show_frame(o: &crate::owners::Owners<'static>, screen: &Screen) -> Result<(), &'static str> {
-    let race = o.race;
-    // The frame as XRGB8888: itself at 32 bits, else its 16-bit pixels widened.
+/// `show` on the frame as XRGB8888: itself at 32 bits, else its 16-bit pixels widened.
+fn with_frame<R>(screen: &Screen, show: impl FnOnce(&[u8]) -> R) -> R {
     let bytes = (screen.bits / 8) as usize;
     let converted;
-    // SAFETY: the frame is drawn on this thread, which is here to show it.
+    // SAFETY: `PoolBytes::slice`'s promise: the screen's pixels are reached from the game's
+    // thread only (the backends' calls and the frame's showing run on it; the drawing threads
+    // they lend the rows to are joined before `Backend::draw` returns), and nothing on it writes
+    // them while `show` runs: the GPU's canvas writes (`render::finish_frame`, `bring_back`,
+    // `show_on_panel`) come before the frame is taken, and `show` only reads it. The slice
+    // borrows `screen`, which keeps the pixels.
     let pixels = unsafe { screen.pixels.slice() };
     let frame: &[u8] = if bytes == 4 {
         pixels
@@ -401,7 +405,18 @@ fn show_frame(o: &crate::owners::Owners<'static>, screen: &Screen) -> Result<(),
             .collect::<Vec<u8>>();
         &converted
     };
-    if frame.len() < screen.width * screen.height * 4 {
+    show(frame)
+}
+
+fn show_frame(o: &crate::owners::Owners<'static>, screen: &Screen) -> Result<(), &'static str> {
+    let race = o.race;
+    // The frame's length as XRGB8888 (`with_frame`), checked before anything is shown.
+    let frame_len = if screen.bits / 8 == 4 {
+        screen.pixels.len()
+    } else {
+        screen.pixels.len() / 2 * 4
+    };
+    if frame_len < screen.width * screen.height * 4 {
         return Err("the frame is smaller than the screen");
     }
     #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
@@ -412,14 +427,16 @@ fn show_frame(o: &crate::owners::Owners<'static>, screen: &Screen) -> Result<(),
             && crate::render::show_on_panel(
                 &race.course,
                 &target,
-                frame,
+                |show| with_frame(screen, show),
                 screen.width,
                 screen.height,
             )
         {
             return Ok(());
         }
-        crate::handheld::present(frame, screen.width, screen.height)
+        with_frame(screen, |frame| {
+            crate::handheld::present(frame, screen.width, screen.height)
+        })
     }
     #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
     {
@@ -429,7 +446,11 @@ fn show_frame(o: &crate::owners::Owners<'static>, screen: &Screen) -> Result<(),
             .and_then(|target| crate::render::finish_frame(&race.course, &target))
             .map(|colour| make_view(renderer, colour, screen.width, screen.height))
             .is_some();
-        if !gpu_view && !screen.texture.upload(frame, screen.width * 4) {
+        if !gpu_view
+            && !with_frame(screen, |frame| {
+                screen.texture.upload(frame, screen.width * 4)
+            })
+        {
             return Err("SDL cannot take the frame into its texture");
         }
         renderer.clear_black();

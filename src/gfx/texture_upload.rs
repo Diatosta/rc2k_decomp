@@ -16,6 +16,7 @@ pub const TEXTURES: u32 = 0x140;
 /// A pixel kind's description, 0x40 bytes (`TextureFormat` in IDA): five from
 /// `Textures.descriptions[0].0[0]` (555, 1555, 4444, 8888 and one more), pointed at by `Textures.kinds[0]`, filled
 /// by `d3d::find_texture_formats`.
+#[repr(C)]
 #[derive(Clone, Copy, Debug)]
 pub struct TextureFormat {
     /// 1 when the device has the format.
@@ -31,6 +32,7 @@ pub struct TextureFormat {
 
 /// A texture's record, 0x78 bytes (`TextureRecord` in IDA): the system textures from
 /// `Textures.system.records[0].0[0]`, the video textures from `Textures.video.records[0].0[0]`, 0x140 of each.
+#[repr(C)]
 #[derive(Clone, Copy, Debug)]
 pub struct TextureRecord {
     /// 1 system, 2 video, 0 free.

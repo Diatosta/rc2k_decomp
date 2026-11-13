@@ -21,10 +21,22 @@ mod x87_merged_tests;
 )]
 mod x87_old;
 #[cfg(all(test, target_arch = "x86"))]
+#[allow(
+    clippy::undocumented_unsafe_blocks,
+    reason = "the original's instructions as a test oracle"
+)]
 mod x87_reference_a;
 #[cfg(all(test, target_arch = "x86"))]
+#[allow(
+    clippy::undocumented_unsafe_blocks,
+    reason = "the original's instructions as a test oracle"
+)]
 mod x87_reference_b;
 #[cfg(all(test, target_arch = "x86"))]
+#[allow(
+    clippy::undocumented_unsafe_blocks,
+    reason = "the original's instructions as a test oracle"
+)]
 mod x87_reference_c;
 #[cfg(test)]
 mod x87_results_tests;

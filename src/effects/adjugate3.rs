@@ -83,16 +83,20 @@ mod reference_vectors {
     /// Nine floats holding the test buffer's (at `at`) dwords.
     fn staged(at: crate::effects::asm_test::Operand) -> [PlainFloat; 9] {
         std::array::from_fn(|n| {
-            PlainFloat::from_bits(unsafe { (at + 4 * n).host().cast::<u32>().read_unaligned() })
+            // SAFETY: `at` checks that the four bytes lie in the operand's test buffer, which the
+            // recorded run keeps alive and nothing else reaches meanwhile; unaligned, any bits a `u32`.
+            PlainFloat::from_bits(unsafe { (at + 4 * n).at(0, 4).cast::<u32>().read_unaligned() })
         })
     }
 
     /// The nine floats back into the test buffer at `at`.
     fn put_back(at: crate::effects::asm_test::Operand, cells: &[PlainFloat; 9]) {
         for (n, cell) in cells.iter().enumerate() {
+            // SAFETY: `at` checks that the four bytes lie in the operand's test buffer, which the
+            // recorded run keeps alive and nothing else reaches meanwhile; unaligned, any bits a `u32`.
             unsafe {
                 (at + 4 * n)
-                    .host()
+                    .at(0, 4)
                     .cast::<u32>()
                     .write_unaligned(cell.bits());
             }

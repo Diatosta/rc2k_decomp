@@ -141,6 +141,8 @@ mod reference_vectors {
 
     /// The `N` bytes of the test buffer at `at`.
     fn bytes<const N: usize>(at: crate::effects::asm_test::Operand) -> [u8; N] {
+        // SAFETY: `host` checks that the byte lies in the operand's test buffer, which the recorded
+        // run keeps alive and nothing else reaches meanwhile.
         std::array::from_fn(|n| unsafe { (at + n).host().read() })
     }
 
@@ -152,6 +154,8 @@ mod reference_vectors {
     /// `data` into the test buffer at `at`.
     fn put(at: crate::effects::asm_test::Operand, data: &[u8]) {
         for (n, &b) in data.iter().enumerate() {
+            // SAFETY: `host` checks that the byte lies in the operand's test buffer, which the recorded
+            // run keeps alive and nothing else reaches meanwhile.
             unsafe { (at + n).host().write(b) };
         }
     }

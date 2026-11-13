@@ -125,6 +125,8 @@ impl Operand {
         (0..len)
             .map(|i| {
                 if self.contains(off + i, 1) {
+                    // SAFETY: the byte lies in the test buffer (checked just above, and by
+                    // `at`), which the operand's run keeps alive.
                     unsafe { self.at(off + i, 1).read() }
                 } else {
                     0
@@ -143,6 +145,8 @@ impl Operand {
     /// `bytes` at `off`.
     #[track_caller]
     pub fn put(self, off: usize, bytes: &[u8]) {
+        // SAFETY: `at` checks that the `bytes.len()` bytes lie in the test buffer, which the
+        // operand's run keeps alive; `bytes` is the caller's, not the buffer.
         unsafe {
             std::ptr::copy_nonoverlapping(bytes.as_ptr(), self.at(off, bytes.len()), bytes.len());
         }
@@ -151,6 +155,8 @@ impl Operand {
     /// The `N` bytes at `off`.
     #[track_caller]
     pub fn bytes<const N: usize>(self, off: usize) -> [u8; N] {
+        // SAFETY: `at` checks that the `N` bytes lie in the test buffer, which the operand's run
+        // keeps alive; the read needs no alignment.
         unsafe { self.at(off, N).cast::<[u8; N]>().read_unaligned() }
     }
 }
@@ -206,12 +212,15 @@ impl Buf {
 impl std::ops::Deref for Buf {
     type Target = [u8];
     fn deref(&self) -> &[u8] {
+        // SAFETY: the vector's `len.div_ceil(16)` `u128`s hold at least `self.1` bytes (`new`),
+        // any bits make a byte, and the slice borrows `self`.
         unsafe { std::slice::from_raw_parts(self.0.as_ptr().cast::<u8>(), self.1) }
     }
 }
 
 impl std::ops::DerefMut for Buf {
     fn deref_mut(&mut self) -> &mut [u8] {
+        // SAFETY: as `deref`'s, the slice borrowing `self` mutably.
         unsafe { std::slice::from_raw_parts_mut(self.0.as_mut_ptr().cast::<u8>(), self.1) }
     }
 }
@@ -749,13 +758,16 @@ pub fn vertex_cell(off: usize) -> &'static crate::session::PlainFloat {
 /// (32-bit builds) would quiet a signalling NaN.
 #[cfg(test)]
 pub fn staged_vertices<R>(at: Operand, offsets: &[usize], f: impl FnOnce() -> R) -> R {
-    let host = |off: usize| (at + off).host().cast::<u32>();
+    let host = |off: usize| (at + off).at(0, 4).cast::<u32>();
     let saved: Vec<u32> = offsets.iter().map(|&o| vertex_cell(o).bits()).collect();
     for &o in offsets {
+        // SAFETY: `at` checks that the four bytes lie in the operand's test buffer, which the
+        // recorded run keeps alive; unaligned, and any bits make a `u32`.
         vertex_cell(o).set_bits(unsafe { host(o).read_unaligned() });
     }
     let out = f();
     for (&o, &old) in offsets.iter().zip(&saved) {
+        // SAFETY: as above.
         unsafe { host(o).write_unaligned(vertex_cell(o).bits()) };
         vertex_cell(o).set_bits(old);
     }

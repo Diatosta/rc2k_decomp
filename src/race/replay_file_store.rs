@@ -72,9 +72,6 @@ pub struct ReplayIndex {
     pub block_places: [PlainDword; 3600],
 }
 
-// SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
-// them): any bit pattern is a valid value.
-
 impl ReplayFileBlock {
     /// The piece, with the image's first values.
     pub const fn new() -> Self {

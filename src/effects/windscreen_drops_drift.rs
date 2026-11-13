@@ -245,7 +245,9 @@ mod reference_vectors {
     /// The `N` floats at the test address `at`.
     fn floats<const N: usize>(at: crate::effects::asm_test::Operand) -> [PlainFloat; N] {
         std::array::from_fn(|i| {
-            let word = unsafe { (at + 4 * i).host().cast::<u32>().read_unaligned() };
+            // SAFETY: `at` checks that the four bytes lie in the operand's test buffer, which the
+            // recorded run keeps alive and nothing else reaches meanwhile; unaligned, any bits a `u32`.
+            let word = unsafe { (at + 4 * i).at(0, 4).cast::<u32>().read_unaligned() };
             PlainFloat::from_bits(word)
         })
     }
@@ -253,19 +255,28 @@ mod reference_vectors {
     /// The floats written back to the test address `at`.
     fn put_floats(at: crate::effects::asm_test::Operand, cells: &[PlainFloat]) {
         for (i, c) in cells.iter().enumerate() {
+            // SAFETY: `at` checks that the four bytes lie in the operand's test buffer, which the
+            // recorded run keeps alive and nothing else reaches meanwhile; unaligned, any bits a `u32`.
             unsafe {
-                (at + 4 * i).host().cast::<u32>().write_unaligned(c.bits());
+                (at + 4 * i)
+                    .at(0, 4)
+                    .cast::<u32>()
+                    .write_unaligned(c.bits());
             }
         }
     }
 
     /// The 30 bytes at the test address `at` as a buffer.
     fn kept(at: crate::effects::asm_test::Operand) -> PlainBytes<30> {
+        // SAFETY: `host` checks that the byte lies in the operand's test buffer, which the recorded
+        // run keeps alive and nothing else reaches meanwhile.
         PlainBytes::new(std::array::from_fn(|i| unsafe { (at + i).host().read() }))
     }
 
     fn put_kept(at: crate::effects::asm_test::Operand, kept: &PlainBytes<30>) {
         for i in 0..30 {
+            // SAFETY: `host` checks that the byte lies in the operand's test buffer, which the recorded
+            // run keeps alive and nothing else reaches meanwhile.
             unsafe { (at + i).host().write(kept.get(i)) };
         }
     }

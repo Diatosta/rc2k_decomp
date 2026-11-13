@@ -122,7 +122,8 @@ pub fn hash_if_asked(list: &CommandList, in_race: bool) {
             return v;
         }
         let mut th = std::collections::hash_map::DefaultHasher::new();
-        // SAFETY: as the drawing's read: the noted texture is not written meanwhile.
+        // SAFETY: as `noted_bytes`': the dump is made inside the noted drawing, before any write
+        // to or letting go of a level it reads (each flushes it first).
         unsafe { crate::platform_3d::level_bytes(t.pixels) }
             .map(|b| &b[..t.len.min(b.len())])
             .hash(&mut th);

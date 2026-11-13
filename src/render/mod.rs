@@ -293,7 +293,9 @@ pub fn bring_back(target: &Target) {
     if GPU_HOLDS_FRAME.load(Relaxed)
         && let Some(gpu) = gpu::GPU.lock().unwrap().as_mut()
     {
-        // SAFETY: the game's code waits; nothing else writes the canvas meanwhile.
+        // SAFETY: `Target::bytes`' promise: on the game's thread, which waits for this call, so
+        // nothing else reaches the canvas; no other slice of it lives (the frame's showing takes
+        // its own after this returns, `platform::with_frame`); the screen keeps its pixels.
         let canvas = unsafe { target.bytes() };
         #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
         gpu.bring_back(canvas);
@@ -326,7 +328,9 @@ pub fn finish_frame(
     }
     let mut gpu = gpu::GPU.lock().unwrap();
     let gpu = gpu.as_mut()?;
-    // SAFETY: the game's code waits; nothing else writes the canvas meanwhile.
+    // SAFETY: `Target::bytes`' promise: on the game's thread, which waits for this call, so
+    // nothing else reaches the canvas; no other slice of it lives (the frame's showing takes
+    // its own after this returns, `platform::with_frame`); the screen keeps its pixels.
     if let Err(why) = gpu.finish_frame(unsafe { target.bytes() }) {
         crate::framework::log(&format!("render: the frame did not finish: {why}"));
     }
@@ -334,12 +338,13 @@ pub fn finish_frame(
 }
 
 /// The frame on the panel, by the GPU when it is running: the target during a race, else
-/// `frame`, the canvas's picture. False: it is not running.
+/// the canvas's picture, which `with_frame` hands over (taken only after the GPU's writes to the
+/// canvas here, so that no slice of it is held across them). False: it is not running.
 #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
 pub fn show_on_panel(
     course: &Course,
     target: &Target,
-    frame: &[u8],
+    with_frame: impl FnOnce(&mut dyn FnMut(&[u8])),
     width: usize,
     height: usize,
 ) -> bool {
@@ -352,10 +357,12 @@ pub fn show_on_panel(
         return false;
     };
     if GPU_HOLDS_FRAME.load(Relaxed) {
-        // SAFETY: the game's code waits; nothing else writes the canvas meanwhile.
+        // SAFETY: `Target::bytes`' promise: on the game's thread, which waits for this call, so
+        // nothing else reaches the canvas; no other slice of it lives (the frame's showing takes
+        // its own after this returns, `platform::with_frame`); the screen keeps its pixels.
         gpu.finish_and_show(unsafe { target.bytes() });
     } else {
-        gpu.show_picture(frame, width, height);
+        with_frame(&mut |frame| gpu.show_picture(frame, width, height));
     }
     true
 }
@@ -420,8 +427,14 @@ pub(crate) fn take_changed_textures() -> TextureChanges {
 /// A noted texture's bytes (`note.len` of them). A level that is gone while a fan still names it
 /// ends the program.
 pub(crate) fn noted_bytes<'a>(note: &TextureNote) -> &'a [u8] {
-    // SAFETY: as the rasteriser's read: a noted texture is not written while it is drawn from
-    // (locking it flushes the noted fans first).
+    // SAFETY: `level_bytes`' promise. The noted fans are drawn (the rasteriser's tiles, the
+    // GPU's uploads, the dumps) only inside `platform_3d::flush`'s drawing, on the game's thread
+    // with its drawing threads joined before it returns, and the slices are dropped with that
+    // drawing (`'a` does not bind them: the callers' discipline). Every write to a level's
+    // pixels and every letting go of one flushes the noted drawing that reads it first
+    // (`lock_surface`, `hold_texture`, `copy_screen_to_system_texture`, `allocate_textures_now`
+    // before `make_texture` replaces a level, `release_all_textures`), so neither meets a
+    // slice that is still drawn from.
     unsafe { crate::platform_3d::level_bytes(note.pixels) }.unwrap_or_else(|| {
         crate::fatal::raise::end(
             "a texture's pixels",
@@ -482,14 +495,18 @@ impl Target {
     /// `f` on the screen's rows: for the backends, which draw while the game's code waits for
     /// the call (nothing else writes the canvas meanwhile).
     pub fn with_canvas<R>(&self, f: impl FnOnce(&mut [u8]) -> R) -> R {
-        // SAFETY: the game's code waits for the backend's call; the slice lives through `f` only.
+        // SAFETY: `bytes`' promise: the backends call this on the game's thread, which waits for
+        // the call, and `f` (their drawing) takes no other slice of the canvas; the slice lives
+        // through `f` only, while the screen keeps its pixels.
         f(unsafe { self.bytes() })
     }
 
     /// The screen's rows as bytes.
     ///
     /// # Safety
-    /// Nothing else may touch them while the slice lives.
+    /// Nothing else may touch them while the slice lives: no other thread, no read or write
+    /// through the pixels' handle (`gfx::locked_pixels`), no second slice from `bytes` or
+    /// `pixels`; and the screen keeps its pixels meanwhile (the slice is not bound to them).
     pub unsafe fn bytes<'a>(&self) -> &'a mut [u8] {
         let len = self.pitch * self.height;
         let held = crate::gfx::locked_pixels::bytes_of(self.pixels).unwrap_or_else(|| {
@@ -504,8 +521,9 @@ impl Target {
                 crate::errors::BadInput("the screen's rows past its pixels"),
             );
         }
-        // SAFETY: the pixels' bytes (the platform keeps them as long as the screen), `len`
-        // of them checked above; the caller's promise.
+        // SAFETY: the pixels' bytes, `len` of them (checked above), alive as long as the screen
+        // keeps them (`held` is dropped here; the screen's own handle keeps the block, the
+        // caller's promise), and touched by nothing else while the slice lives (the same).
         unsafe { std::slice::from_raw_parts_mut(held.as_mut_ptr(), len) }
     }
 

@@ -141,7 +141,7 @@ pub fn set_error_mode(_mode: u32) -> u32 {
 /// No priority classes on Unix: the process runs as it was started.
 pub fn set_priority_class(_class: u32) {}
 
-pub use crate::ffi::unix::{discard_pages, map_pages};
+pub use crate::ffi::unix::{discard_pages, map_pages, own_stack_word};
 
 /// On macOS a program started from its `.app` bundle (from Finder, or `open`) runs in `/`:
 /// a program inside a bundle (`<folder>/<name>.app/Contents/MacOS/rc2k`) makes the folder

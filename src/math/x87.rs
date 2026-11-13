@@ -11,6 +11,9 @@
 #[cfg(all(test, target_arch = "x86"))]
 macro_rules! x87 {
     ($($line:literal),+; $($name:ident = $value:expr),+) => {
+        // SAFETY: the original's x87 instructions, on the reference versions' operands: each
+        // names memory the reference's caller hands it (its test buffers), and the eight x87
+        // registers are declared clobbered; no stack is used.
         unsafe {
             core::arch::asm!(
                 $($line),+,
@@ -39,7 +42,11 @@ pub use run::*;
 
 /// A float read from game memory (possibly unaligned), as the x87 holds it once loaded.
 #[cfg(all(test, target_arch = "x86"))] // the pointer forms' tests only
+///
+/// # Safety
+/// `p` is valid for reads of the dword `index` dwords on (any alignment).
 unsafe fn load(p: *const u32, index: usize) -> bh::X {
+    // SAFETY: the caller's promise.
     bh::ld(unsafe { p.add(index).read_unaligned() })
 }
 
@@ -174,17 +181,31 @@ pub fn rcpss_times(a: impl Flt, b: impl Flt) -> f32 {
 /// A row of one matrix times a column of another: `a[0] b[0] + (a[1] b[4] + a[2] b[8])`,
 /// the last two products added first, stored to `out`.
 #[cfg(all(test, target_arch = "x86"))] // checked against the assembly; the helpers work on cells now
-pub fn row_times_column(a: *const u32, b: *const u32, out: *mut u32) {
-    let p1 = unsafe { load(a, 0) * load(b, 0) };
-    let p2 = unsafe { load(a, 1) * load(b, 4) };
-    let p3 = unsafe { load(a, 2) * load(b, 8) };
+///
+/// # Safety
+/// `a` is valid for reads of three dwords, `b` of nine, `out` for writes of one (any alignment).
+pub unsafe fn row_times_column(a: *const u32, b: *const u32, out: *mut u32) {
+    // SAFETY: dwords 0 .. 2 of `a` and 0, 4, 8 of `b`, the caller's promise.
+    let (p1, p2, p3) = unsafe {
+        (
+            load(a, 0) * load(b, 0),
+            load(a, 1) * load(b, 4),
+            load(a, 2) * load(b, 8),
+        )
+    };
+    // SAFETY: the caller's promise.
     unsafe { out.write_unaligned(bh::st(p1 + (p2 + p3))) };
 }
 
 /// `out = a + out`.
 #[cfg(all(test, target_arch = "x86"))] // checked against the assembly; the helpers work on cells now
-pub fn add_into(a: *const u32, out: *mut u32) {
+///
+/// # Safety
+/// `a` is valid for reads of one dword, `out` for reads and writes of one (any alignment).
+pub unsafe fn add_into(a: *const u32, out: *mut u32) {
+    // SAFETY: the caller's promise.
     let sum = unsafe { load(a, 0) + load(out, 0) };
+    // SAFETY: the caller's promise.
     unsafe { out.write_unaligned(bh::st(sum)) };
 }
 
@@ -224,7 +245,11 @@ pub fn negated_product_difference(a: u32, b: u32, c: u32, d: u32) -> u32 {
 
 /// The length of three floats: `sqrt(v0 v0 + (v1 v1 + v2 v2))`.
 #[cfg(all(test, target_arch = "x86"))] // checked against the assembly; the helpers work on cells now
-pub fn length(v: *const u32) -> u32 {
+///
+/// # Safety
+/// `v` is valid for reads of three dwords (any alignment).
+pub unsafe fn length(v: *const u32) -> u32 {
+    // SAFETY: the caller's promise.
     let (x, y, z) = unsafe { (load(v, 0), load(v, 1), load(v, 2)) };
     bh::st((x * x + (y * y + z * z)).sqrt())
 }
@@ -607,6 +632,7 @@ pub fn finit() {
     CONTROL.with(|c| c.set(0x037F));
     // The real x87 only matters to the tests' reference assembly.
     #[cfg(all(test, target_arch = "x86"))]
+    // SAFETY: `finit` resets the x87 only, whose registers are declared clobbered; no memory.
     unsafe {
         core::arch::asm!(
             ".byte 0x9B, 0xDB, 0xE3",
@@ -627,6 +653,7 @@ pub fn set_control_word(w: u16) {
     CONTROL.with(|c| c.set(w));
     // The real control word only matters to the tests' reference assembly.
     #[cfg(all(test, target_arch = "x86"))]
+    // SAFETY: `fldcw` reads the two bytes of `w`, a local, and sets the x87's control word.
     unsafe {
         core::arch::asm!("fldcw word ptr [{w}]", w = in(reg) &raw const w, options(nostack));
     };

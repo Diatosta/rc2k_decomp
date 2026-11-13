@@ -348,14 +348,18 @@ mod reference_vectors {
         bytes: &impl crate::session::ByteBuffer,
         f: impl FnOnce() -> R,
     ) -> R {
-        let host = (at + from).host();
+        let host = (at + from).at(0, len);
         let saved: Vec<u8> = (from..from + len).map(|i| bytes.get_byte(i)).collect();
         for i in 0..len {
+            // SAFETY: byte `i < len` of the `len` that `at` checked lie in the operand's test buffer,
+            // which the recorded run keeps alive and nothing else reaches meanwhile.
             let b = unsafe { host.add(i).read() };
             bytes.write_bytes_at(from + i, &[b], "a test byte").unwrap();
         }
         let out = f();
         for (i, &b) in saved.iter().enumerate() {
+            // SAFETY: byte `i < len` of the `len` that `at` checked lie in the operand's test buffer,
+            // which the recorded run keeps alive and nothing else reaches meanwhile.
             unsafe { host.add(i).write(bytes.get_byte(from + i)) };
             bytes.write_bytes_at(from + i, &[b], "a test byte").unwrap();
         }

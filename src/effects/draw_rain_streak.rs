@@ -229,6 +229,8 @@ mod reference_vectors {
 
     /// The three ten-byte values at `at` of the test buffer.
     fn values(at: crate::effects::asm_test::Operand) -> [[u8; 10]; 3] {
+        // SAFETY: `host` checks that the byte lies in the operand's test buffer, which the recorded
+        // run keeps alive and nothing else reaches meanwhile.
         std::array::from_fn(|n| std::array::from_fn(|i| unsafe { (at + 10 * n + i).host().read() }))
     }
 

@@ -4,7 +4,8 @@
 
 pub use crate::ffi::win32::{
     computer_name, discard_pages, disk_free, drive_type, keyboard_subtype, language_id, map_pages,
-    memory, set_error_mode, set_priority_class, terminate, user_name, version_record, volume,
+    memory, own_stack_word, set_error_mode, set_priority_class, terminate, user_name,
+    version_record, volume,
 };
 
 /// The folder `dir` removed by a hidden `cmd.exe` once this program lets go of its files in

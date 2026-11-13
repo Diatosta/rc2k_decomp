@@ -305,6 +305,67 @@ unsafe fn fault_registers(context: *const libc::ucontext_t) -> (usize, bool, usi
     )
 }
 
+/// The word at `at` on this thread's stack, for the fault report (`standalone::stack_returns`):
+/// None where no memory is mapped, so a walk up the stack stops at the stack's end instead of
+/// faulting again in the handler.
+///
+/// The kernel reads it (`process_vm_readv` on the process itself), which answers `EFAULT`
+/// for an address with nothing mapped: one system call, safe in a signal handler. The
+/// thread's stack range cannot be asked there (`pthread_getattr_np` allocates, and for the
+/// main thread reads `/proc/self/maps`), and the threads SDL starts have no start of ours to
+/// note it at; the mapping's end is where the stack's end faulted.
+#[cfg(target_os = "linux")]
+pub fn own_stack_word(at: usize) -> Option<usize> {
+    let mut word = 0usize;
+    let local = libc::iovec {
+        iov_base: (&raw mut word).cast(),
+        iov_len: size_of::<usize>(),
+    };
+    let remote = libc::iovec {
+        iov_base: std::ptr::without_provenance_mut(at),
+        iov_len: size_of::<usize>(),
+    };
+    // SAFETY: the kernel writes at most `local`'s one word, `word`, a local of this frame; the
+    // remote address is only read by the kernel, which checks it (an unmapped one fails with
+    // `EFAULT`, no fault). `getpid` and `process_vm_readv` take no lock and allocate nothing.
+    let read = unsafe {
+        libc::process_vm_readv(libc::getpid(), &raw const local, 1, &raw const remote, 1, 0)
+    };
+    (read == size_of::<usize>() as isize).then_some(word)
+}
+
+/// The word at `at` on this thread's stack, for the fault report (`standalone::stack_returns`):
+/// None outside the thread's stack (`pthread_get_stackaddr_np`, its top, and
+/// `pthread_get_stacksize_np` below it), so a walk up the stack stops at its end.
+#[cfg(target_os = "macos")]
+pub fn own_stack_word(at: usize) -> Option<usize> {
+    // SAFETY: plain reads of the running thread's own record (no lock, no allocation in
+    // Apple's libpthread; they are not on POSIX's async-signal-safe list, being Apple's own).
+    let (top, size) = unsafe {
+        let thread = libc::pthread_self();
+        (
+            libc::pthread_get_stackaddr_np(thread) as usize,
+            libc::pthread_get_stacksize_np(thread),
+        )
+    };
+    let low = top.saturating_sub(size);
+    let inside = at >= low
+        && at
+            .checked_add(size_of::<usize>())
+            .is_some_and(|end| end <= top);
+    // SAFETY: a word inside the thread's stack, `low .. top`, which is mapped whole (a pthread's
+    // stack is one mapping, its guard below `low`; the main thread's stack region is reserved
+    // whole and reads as zeros where untouched). The handler ends the process, so the frames
+    // read are never run again; the read needs no alignment.
+    inside.then(|| unsafe { std::ptr::with_exposed_provenance::<usize>(at).read_unaligned() })
+}
+
+/// No fault report in the web build (`install_fault_reporter` installs nothing).
+#[cfg(target_os = "emscripten")]
+pub fn own_stack_word(_at: usize) -> Option<usize> {
+    None
+}
+
 /// The fault reporter installed for SIGSEGV and SIGBUS (on the thread's alternate stack,
 /// which std gives its threads, so a stack overflow is reported too).
 #[cfg(not(target_os = "emscripten"))]

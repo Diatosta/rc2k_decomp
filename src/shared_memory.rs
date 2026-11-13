@@ -27,7 +27,9 @@ macro_rules! walk {
 /// `len` shared bytes at `from` copied to the private `to`.
 ///
 /// # Safety
-/// `from` is valid for reads and `to` for writes of `len` bytes, and they do not overlap.
+/// `from` is valid for reads and `to` for writes of `len` bytes, and they do not overlap; any
+/// other thread reaching `from`'s bytes meanwhile does so by byte atomics too (as these); `to`
+/// is reached by no other thread.
 #[inline]
 // `walk`'s last step leaves its count unread.
 #[allow(unused_assignments)]
@@ -35,7 +37,9 @@ pub unsafe fn load(from: *const u8, to: *mut u8, len: usize) {
     let mut n = 0;
     macro_rules! step {
         ($atomic:ident, $int:ty) => {
-            // SAFETY: inside the run and aligned (`walk`); only atomics touch shared memory.
+            // SAFETY: byte `n` of the `len` the caller promises (`walk` stops at `len`); an
+            // `AtomicU8` needs no alignment, and every thread reaches these bytes by byte
+            // atomics (the caller's promise); `to` is private.
             unsafe {
                 let v = $atomic::from_ptr(from.add(n).cast_mut().cast()).load(Relaxed);
                 to.add(n).cast::<$int>().write_unaligned(v);
@@ -49,7 +53,7 @@ pub unsafe fn load(from: *const u8, to: *mut u8, len: usize) {
 /// `len` private bytes at `from` copied to the shared `to`.
 ///
 /// # Safety
-/// `from` is valid for reads and `to` for writes of `len` bytes, and they do not overlap.
+/// As `load`'s, the roles swapped: `to` is the shared side, `from` the private.
 #[inline]
 // `walk`'s last step leaves its count unread.
 #[allow(unused_assignments)]
@@ -114,10 +118,6 @@ pub unsafe fn copy(from: *const u8, to: *mut u8, len: usize) {
     }
 }
 
-/// The `T` at `from` (any alignment).
-///
-/// # Safety
-/// `from` is valid for reads of a `T`, and its bytes make a valid `T`.
 /// The bytes from `offset` of an object of `size` bytes at `base`, which is 4-aligned, copied
 /// into `to`: each whole dword of the object (`size` rounded down to 4) read as one
 /// `AtomicU32` (whole, as the processor read the original's dwords), the bytes past them as
@@ -135,7 +135,8 @@ pub unsafe fn load_words(base: *const u8, size: usize, offset: usize, to: &mut [
     while at < end {
         if at < words {
             let word = at & !3;
-            // SAFETY: a whole dword of the object, 4-aligned (the caller's promise).
+            // SAFETY: `word + 4 <= words <= size`: a whole dword of the object, 4-aligned (`base`
+            // is, the caller's promise), reached by every access as this one `AtomicU32`.
             let bytes = unsafe { AtomicU32::from_ptr(base.add(word).cast_mut().cast()) }
                 .load(Relaxed)
                 .to_ne_bytes();
@@ -143,7 +144,8 @@ pub unsafe fn load_words(base: *const u8, size: usize, offset: usize, to: &mut [
             to[at - offset..upto - offset].copy_from_slice(&bytes[at - word..upto - word]);
             at = upto;
         } else {
-            // SAFETY: a byte of the object past its whole dwords.
+            // SAFETY: `words <= at < size` (`end <= size`, promised): a byte of the object past its
+            // whole dwords, reached by every access as this `AtomicU8`.
             to[at - offset] = unsafe { AtomicU8::from_ptr(base.add(at).cast_mut()) }.load(Relaxed);
             at += 1;
         }
@@ -189,6 +191,10 @@ pub unsafe fn store_words(base: *mut u8, size: usize, offset: usize, from: &[u8]
     }
 }
 
+/// The `T` at `from` (any alignment).
+///
+/// # Safety
+/// `from` is valid for reads of a `T`, and its bytes make a valid `T`.
 #[cfg(test)]
 #[inline]
 pub unsafe fn read<T: Copy>(from: *const T) -> T {

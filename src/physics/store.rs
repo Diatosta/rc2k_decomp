@@ -670,6 +670,24 @@ pub const fn laid_offset(image_offset: usize) -> usize {
     image_offset - dropped
 }
 
+/// The damage model as a block vector's test buffer holds it: the buffer at `base` holds the
+/// image's bytes from its start, the model from 0x35B340 (the RVA of 0x75B340). Buffer operands
+/// only (a race block operand's `base` is 0).
+#[cfg(test)]
+pub(crate) fn model_in_test_buffer(base: usize) -> &'static DamageModel {
+    use crate::test_support::vectors::block_vectors::{LAID_ROOM, at};
+    const { assert!(size_of::<DamageModel>() <= LAID_ROOM) };
+    assert!(base != 0, "the damage model in a race block operand");
+    let model = at(base + 0x35B340).cast::<DamageModel>();
+    assert!(model.is_aligned(), "the damage model on an odd place");
+    // SAFETY: the buffer holds every place the block lists and `LAID_ROOM` bytes past the last
+    // (`block_vectors`), and the model starts at or below its first listed place, so all of its
+    // `size_of` bytes (at most `LAID_ROOM`, asserted above) lie in the buffer; aligned (checked);
+    // cells over integers only, so any bytes are a valid model. The buffer lives through the
+    // block's Rust version, the one user of the reference (it is not kept past it).
+    unsafe { &*model }
+}
+
 /// `laid_offset(..)` as a constant, for the vectors' `&'static` place lists.
 #[cfg(test)]
 macro_rules! laid {

@@ -567,10 +567,7 @@ mod reference_vectors {
     /// The damage model as the test's buffer holds it (the buffer's base plus the RVA of
     /// 0x75B340).
     fn dm(base: usize) -> &'static DamageModel {
-        unsafe {
-            &*(crate::test_support::vectors::block_vectors::at(base + 0x35B340)
-                as *const DamageModel)
-        }
+        crate::physics::store::model_in_test_buffer(base)
     }
     use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse_at};
 

@@ -49,11 +49,11 @@ struct OnGame<S: 'static> {
     first: &'static str,
 }
 
-// SAFETY: as `GameThread`: the data is reached only after the game-thread check.
 #[allow(
     unsafe_code,
     reason = "the registry's stores are shared as the owners are"
 )]
+// SAFETY: as `GameThread`: the data is reached only after the game-thread check.
 unsafe impl<S> Sync for OnGame<S> {}
 
 /// A listed store that tests reach by field path: the record's own `Cells`, whole where the

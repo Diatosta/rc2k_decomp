@@ -19,7 +19,10 @@ macro_rules! neon {
         $(
             #[inline(always)]
             pub fn $name($($a: $t),*) -> $r {
-                // SAFETY: NEON is part of every AArch64 processor; these only compute.
+                // SAFETY: NEON is part of every AArch64 processor (the intrinsics need nothing
+                // else), and these only compute on their arguments: no pointer is read or
+                // written. The `transmute`s are from 16-byte arrays to vectors of the same
+                // 16 bytes, which any bits make.
                 #[allow(unused_unsafe)]
                 unsafe { $body }
             }

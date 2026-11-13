@@ -102,6 +102,10 @@ mod reference_vectors {
     }
 
     fn bytes(ty: &TyreChange) -> &[u8] {
+        const { assert!(WINDOW_END <= size_of::<TyreChange>()) };
+        // SAFETY: the record's first `WINDOW_END` bytes (inside it, asserted above), all of them
+        // plain cells' (`PlainDword`s, `PlainFloat`s, `PlainBytes`: no padding, any bits a
+        // byte); read only while the slice lives, which borrows `ty`.
         unsafe {
             std::slice::from_raw_parts(
                 std::ptr::from_ref::<TyreChange>(ty).cast::<u8>(),
@@ -111,7 +115,17 @@ mod reference_vectors {
     }
 
     fn put_ty(ty: &TyreChange, off: usize, v: u32) {
-        unsafe { (std::ptr::from_ref::<TyreChange>(ty).cast::<u8>().add(off) as *mut u32).write(v) }
+        assert!(
+            off.is_multiple_of(4) && off + 4 <= size_of::<TyreChange>(),
+            "a dword of the record"
+        );
+        // SAFETY: a whole dword of the record (asserted above), 4-aligned as the record is, inside
+        // its plain cells (`UnsafeCell`s: writable through a shared reference), and no other
+        // reference to those bytes is read meanwhile.
+        unsafe {
+            (std::ptr::from_ref::<TyreChange>(ty).cast::<u8>().add(off) as *mut u32)
+                .write_unaligned(v);
+        }
     }
 
     /// The device's turn is a small whole number and the factor small, so the angle is

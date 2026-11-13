@@ -882,6 +882,11 @@ pub mod block_vectors {
         pub plain: fn(&[usize]),
     }
 
+    /// The bytes every buffer operand holds past its last listed place: room for a record the
+    /// Rust version lays over the buffer from a place at or below its first listed one
+    /// (`physics::store::model_in_test_buffer`, `physics::load_car_specs`' records).
+    pub const LAID_ROOM: usize = 0x600;
+
     /// The memory at a buffer operand's value (the buffer's address) as the Rust versions'
     /// test closures reach it: the one place the tests turn such a value into a pointer.
     pub fn at(address: usize) -> *mut u8 {
@@ -975,7 +980,7 @@ pub mod block_vectors {
                                 .chain(writes.iter().map(|&(off, k)| off + width_out(k)))
                                 .max()
                                 .unwrap_or(0);
-                            let v = vec![0u8; end + 16];
+                            let v = vec![0u8; end + 16 + LAID_ROOM];
                             args.push(v.as_ptr() as usize);
                             buffers.push(Mem::Buffer(v));
                         }
@@ -986,7 +991,7 @@ pub mod block_vectors {
                                 .chain(writes.iter().map(|&(off, k)| off + width_out(k)))
                                 .max()
                                 .unwrap_or(0);
-                            let v = vec![0u8; end.max(*len) + 16];
+                            let v = vec![0u8; end.max(*len) + 16 + LAID_ROOM];
                             args.push(v.as_ptr() as usize);
                             buffers.push(Mem::Buffer(v));
                         }

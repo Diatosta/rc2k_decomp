@@ -290,13 +290,17 @@ mod reference_vectors {
         )],
         f: impl FnOnce() -> R,
     ) -> R {
-        let host = |a: crate::effects::asm_test::Operand| a.host().cast::<u32>();
+        let host = |a: crate::effects::asm_test::Operand| a.at(0, 4).cast::<u32>();
         let saved: Vec<u32> = cells.iter().map(|(c, _)| c.bits()).collect();
         for &(c, a) in cells {
+            // SAFETY: `at` checks that the four bytes lie in the operand's test buffer, which the
+            // recorded run keeps alive and nothing else reaches meanwhile; unaligned, any bits a `u32`.
             c.set_bits(unsafe { host(a).read_unaligned() });
         }
         let out = f();
         for (&(c, a), &old) in cells.iter().zip(&saved) {
+            // SAFETY: `at` checks that the four bytes lie in the operand's test buffer, which the
+            // recorded run keeps alive and nothing else reaches meanwhile; unaligned, any bits a `u32`.
             unsafe { host(a).write_unaligned(c.bits()) };
             c.set_bits(old);
         }
@@ -305,6 +309,8 @@ mod reference_vectors {
 
     /// The three ten-byte values at `at` of the test buffer.
     fn values(at: crate::effects::asm_test::Operand) -> [[u8; 10]; 3] {
+        // SAFETY: `host` checks that the byte lies in the operand's test buffer, which the recorded
+        // run keeps alive and nothing else reaches meanwhile.
         std::array::from_fn(|n| std::array::from_fn(|i| unsafe { (at + 10 * n + i).host().read() }))
     }
 

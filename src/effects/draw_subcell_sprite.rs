@@ -246,8 +246,13 @@ mod reference_vectors {
         recorded_writes("effects.draw_subcell_sprite.turn_x87", &SPEC, |b| {
             with_laid::<RingWork, _>(b[1], |w| {
                 with_laid::<DrawWork, _>(b[1], |dw| {
+                    // SAFETY: `at` checks that the ten bytes lie in the operand's test buffer, which the
+                    // recorded run keeps alive and nothing else reaches meanwhile; unaligned.
                     let place: [[u8; 10]; 3] = std::array::from_fn(|n| unsafe {
-                        (b[2] + 10 * n).host().cast::<[u8; 10]>().read_unaligned()
+                        (b[2] + 10 * n)
+                            .at(0, 10)
+                            .cast::<[u8; 10]>()
+                            .read_unaligned()
                     });
                     super::turn_x87(
                         &crate::race::owner::race().frame.matrices.get().view_matrix,

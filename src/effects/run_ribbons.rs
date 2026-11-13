@@ -549,7 +549,9 @@ mod reference_vectors {
     use crate::effects::owner::effects;
 
     fn word(at: crate::effects::asm_test::Operand) -> u32 {
-        unsafe { (at).host().cast::<u32>().read_unaligned() }
+        // SAFETY: `at` checks that the four bytes lie in the operand's test buffer, which the
+        // recorded run keeps alive and nothing else reaches meanwhile; unaligned, any bits a `u32`.
+        unsafe { at.at(0, 4).cast::<u32>().read_unaligned() }
     }
 
     #[test]

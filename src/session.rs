@@ -1313,10 +1313,14 @@ pub(crate) fn plain_written<T>(cell: &Cell<T>) {
 #[repr(transparent)]
 pub struct Shared<T>(UnsafeCell<T>);
 
-// SAFETY: as the image's memory: raw access only, under the original's discipline.
+// SAFETY: the record's bytes are reached only by `get`, `set` and `cell_run` (`as_ptr` is the
+// tests'), each through relaxed atomics at the one width `WORDS` picks for each byte
+// (`shared_memory::load_words` / `store_words`, or byte by byte), so threads sharing it meet in
+// atomic accesses only, never a data race or a mixed-size one; `T: Plain` (their bound), so a
+// record read half written by another thread is still a valid `T`.
 unsafe impl<T> Sync for Shared<T> {}
 
-impl<T: Copy> Shared<T> {
+impl<T: crate::cells::Plain> Shared<T> {
     pub const fn new(value: T) -> Self {
         Self(UnsafeCell::new(value))
     }
@@ -1329,8 +1333,10 @@ impl<T: Copy> Shared<T> {
     /// a 4-aligned record's dwords are each read whole).
     pub fn get(&self) -> T {
         let mut value = std::mem::MaybeUninit::<T>::uninit();
-        // SAFETY: the record's own bytes, reached only at the widths `WORDS` picks (here and
-        // in its cells, `cells`); every byte of `value` is written before it is taken.
+        // SAFETY: the record's own `size_of::<T>()` bytes, 4-aligned when `WORDS` (its
+        // alignment), reached only at the widths `WORDS` picks (here, in `set` and in its cells,
+        // `cell_run`); `to` is `value`'s private bytes. Every byte of `value` is written before
+        // it is taken, and any bytes make a `T` (`Plain`), torn or not.
         unsafe {
             let to =
                 std::slice::from_raw_parts_mut(value.as_mut_ptr().cast::<u8>(), size_of::<T>());

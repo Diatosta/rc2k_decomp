@@ -1189,7 +1189,9 @@ mod reference_vectors {
     use crate::race::effects_settings_store::CarEffects;
 
     fn word(at: crate::effects::asm_test::Operand) -> u32 {
-        unsafe { (at).host().cast::<u32>().read_unaligned() }
+        // SAFETY: `at` checks that the four bytes lie in the operand's test buffer, which the
+        // recorded run keeps alive and nothing else reaches meanwhile; unaligned, any bits a `u32`.
+        unsafe { at.at(0, 4).cast::<u32>().read_unaligned() }
     }
 
     /// A car record whose words at the record `offsets` hold the test buffer's dwords at `at + offset - base`.
@@ -1374,8 +1376,10 @@ mod reference_vectors {
                         ..crate::effects::owner::effects().ring.kinds
                     };
                     super::pull_length_x87(ring, e, &whole_at(b[2]), &mut length, w, &kinds);
+                    // SAFETY: `at` checks that the ten bytes lie in the operand's test buffer, which
+                    // the recorded run keeps alive; `length` is this closure's own.
                     unsafe {
-                        (b[3]).host().copy_from_nonoverlapping(length.as_ptr(), 10);
+                        b[3].at(0, 10).copy_from_nonoverlapping(length.as_ptr(), 10);
                     }
                 });
             });
@@ -1428,6 +1432,8 @@ mod reference_vectors {
                 with_laid::<RingWork, _>(b[0], |w| {
                     let car = car_with(b[1], 0, &[0x4C, 0x50, 0x54, 0x88]);
                     let length: [u8; 10] =
+                        // SAFETY: `host` checks that the byte lies in the operand's test buffer, which the recorded
+                        // run keeps alive and nothing else reaches meanwhile.
                         std::array::from_fn(|i| unsafe { (b[2] + i).host().read() });
                     super::pull_facing_x87(&car, &length, f, w);
                 });

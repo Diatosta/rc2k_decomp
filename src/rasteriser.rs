@@ -928,7 +928,8 @@ impl Triangle<'_> {
             };
             // NEON's are safe calls; SSE2's `target_feature` asks for `unsafe`.
             #[cfg_attr(target_arch = "aarch64", allow(unused_unsafe))]
-            // SAFETY: SSE2 is in both x86 targets' baseline (i686 and x86_64).
+            // SAFETY: the call's one requirement is `row4`'s `target_feature`, SSE2, which every
+            // x86 build has (`SSE2_IN_THE_BUILD`, checked at compile time).
             return unsafe { self.row4(y, first, last, &lines) };
         }
         for x in first..=last {
@@ -1019,6 +1020,14 @@ struct Lines {
     u: (f32, f32),
     v: (f32, f32),
 }
+
+/// The proof the four-lane path's `unsafe` calls rest on: the build's processor has SSE2 (both
+/// x86 targets' baseline, i686 and x86_64), so a function that asks for it runs on any machine
+/// the build runs on.
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+const SSE2_IN_THE_BUILD: () = assert!(cfg!(target_feature = "sse2"), "an x86 build without SSE2");
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+const _: () = SSE2_IN_THE_BUILD;
 
 #[cfg(target_arch = "aarch64")]
 use crate::rasteriser_neon::*;

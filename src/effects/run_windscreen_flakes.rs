@@ -143,9 +143,13 @@ mod reference_vectors {
             sincos: false,
         };
         recorded("effects.run_windscreen_flakes.less_x87", &SPEC, |b| {
-            let word = |off: usize| unsafe { (b[0] + off).host().cast::<u32>().read_unaligned() };
+            // SAFETY: `at` checks that the four bytes lie in the operand's test buffer, which the
+            // recorded run keeps alive and nothing else reaches meanwhile; unaligned, any bits a `u32`.
+            let word = |off: usize| unsafe { (b[0] + off).at(0, 4).cast::<u32>().read_unaligned() };
             let out = super::less_x87(f32::from_bits(word(0)), f32::from_bits(word(4)));
             for (i, byte) in out.into_iter().enumerate() {
+                // SAFETY: `host` checks that the byte lies in the operand's test buffer, which the recorded
+                // run keeps alive and nothing else reaches meanwhile.
                 unsafe { (b[1] + i).host().write(byte) };
             }
         });

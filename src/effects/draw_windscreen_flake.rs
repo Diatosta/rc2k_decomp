@@ -314,7 +314,9 @@ mod reference_vectors {
             &SPEC,
             |b| {
                 let word =
-                    |off: usize| unsafe { (b[0] + off).host().cast::<u32>().read_unaligned() };
+                    // SAFETY: `at` checks that the four bytes lie in the operand's test buffer, which the
+                    // recorded run keeps alive and nothing else reaches meanwhile; unaligned, any bits a `u32`.
+                    |off: usize| unsafe { (b[0] + off).at(0, 4).cast::<u32>().read_unaligned() };
                 let item = WindscreenFlakeItem::new();
                 item.texture_u.set_bits(word(0xC));
                 item.texture_v.set_bits(word(0x10));
@@ -389,6 +391,8 @@ mod reference_vectors {
         recorded_writes("effects.draw_windscreen_flake.corners_x87", &SPEC, |b| {
             with_laid::<WindscreenFlakeTables, _>(b[0], |sq| {
                 let v: [[u8; 10]; 2] = std::array::from_fn(|n| {
+                    // SAFETY: `host` checks that the byte lies in the operand's test buffer, which the recorded
+                    // run keeps alive and nothing else reaches meanwhile.
                     std::array::from_fn(|i| unsafe { (b[1] + 10 * n + i).host().read() })
                 });
                 super::corners_x87(&v, sq);

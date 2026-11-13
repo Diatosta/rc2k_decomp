@@ -1590,7 +1590,8 @@ fn pointer_functions() {
         let b: Vec<u32> = (0..12).map(|_| g.f()).collect();
         let (mut r, mut p) = (vec![0xAAAA_AAAAu32], vec![0xAAAA_AAAAu32]);
         row_times_column(a.as_ptr(), b.as_ptr(), r.as_mut_ptr());
-        plain::row_times_column(a.as_ptr(), b.as_ptr(), p.as_mut_ptr());
+        // SAFETY: three dwords of `a`, twelve of `b`, one of `p`.
+        unsafe { plain::row_times_column(a.as_ptr(), b.as_ptr(), p.as_mut_ptr()) };
         compare("row_times_column", EXACT, r, p, format!("{a:x?} {b:x?}"));
         let (mut r, mut p) = (vec![0xAAAA_AAAAu32], vec![0xAAAA_AAAAu32]);
         row_times_column_3(a.as_ptr(), m.as_ptr(), r.as_mut_ptr());
@@ -1605,10 +1606,12 @@ fn pointer_functions() {
         let (x, start) = (g.f(), g.f());
         let (mut r, mut p) = (vec![start], vec![start]);
         add_into(&raw const x, r.as_mut_ptr());
-        plain::add_into(&raw const x, p.as_mut_ptr());
+        // SAFETY: the local `x` and one dword of `p`.
+        unsafe { plain::add_into(&raw const x, p.as_mut_ptr()) };
         compare("add_into", EXACT, r, p, format!("{x:x} {start:x}"));
 
-        let (r1, p1) = ({ length(a.as_ptr()) }, { plain::length(a.as_ptr()) });
+        // SAFETY: three dwords of `a`.
+        let (r1, p1) = ({ length(a.as_ptr()) }, unsafe { plain::length(a.as_ptr()) });
         compare("length", EXACT, r1, p1, format!("{a:x?}"));
 
         let zero = [0u32, 0x8000_0000, g.f(), 0x3F80_0000][g.below(4) as usize];

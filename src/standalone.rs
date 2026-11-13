@@ -103,7 +103,9 @@ fn start_watchdog() {
 // - the module lookups: `dladdr` (Unix), `GetModuleHandleExW` / `GetModuleFileNameW` into a
 //   stack buffer (Windows); they may take the loader's lock, not async-signal-safe: a fault
 //   that holds it hangs the report, and the time limit then ends the process without it;
-// - `stack_word`: plain reads of the faulting thread's stack;
+// - `os::own_stack_word`: reads of the faulting thread's stack inside its bounds (Unix: one
+//   `process_vm_readv` per word on Linux, the thread's record on macOS; Windows:
+//   `GetCurrentThreadStackLimits`);
 // - the text: `core::fmt` into `FaultLine`'s stack buffer (no allocation, no lock), written
 //   with `write(2)` / `WriteFile` on the log opened before any fault (`FAULT_LOG`);
 // - `end`: the PGO build's `__llvm_profile_write_file` (that build only: it allocates and
@@ -233,16 +235,6 @@ impl std::fmt::Write for FaultLine<'_> {
     }
 }
 
-/// The word at `at` on the faulting thread's stack.
-// An unchecked read of a host address, as the fault report needs (it cannot ask the stack's
-// bounds in a handler); the one `unsafe` left in this file.
-#[allow(unsafe_code)]
-fn stack_word(at: usize) -> usize {
-    // SAFETY: the faulting thread's stack, 2 KB from its stack pointer: committed (the
-    // game's code runs well inside it), and that thread is stopped in the handler.
-    unsafe { std::ptr::with_exposed_provenance::<usize>(at).read_unaligned() }
-}
-
 /// The return addresses into this program found on the stack from `esp` (at most 24), for
 /// `llvm-symbolizer` with the program's PDB (or its symbols on Unix), written to `line`
 /// space-separated: each a word whose module's file name begins with the program's own.
@@ -251,10 +243,16 @@ fn stack_returns(line: &mut FaultLine, own_module: Option<&[NameUnit]>, esp: usi
         return;
     };
     let mut found = 0;
-    // 2 KB of stack: well inside it at any fault the game code can reach.
+    // At most 2 KB of stack, less where the stack ends sooner.
     const WORD: usize = size_of::<usize>();
     for k in 0..2048 / WORD {
-        let value = stack_word(esp + WORD * k);
+        // The walk ends at the stack's end (`os::own_stack_word`).
+        let Some(value) = esp
+            .checked_add(WORD * k)
+            .and_then(crate::os::own_stack_word)
+        else {
+            break;
+        };
         let ours = with_module(value, |file, base| {
             if !file.starts_with(own) {
                 return false;

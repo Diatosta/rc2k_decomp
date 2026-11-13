@@ -1,6 +1,9 @@
 // `unsafe` only where a file says it may, each at the top of the file: the platform's edge
 // and the few primitives the game logic stands on. `tools/count_unsafe.py` counts them.
 #![cfg_attr(not(test), deny(unsafe_code))]
+// Every `unsafe` block and impl says why it is sound (`// SAFETY:`), every `unsafe fn` and
+// trait what its callers promise (`# Safety`), the tests' own too.
+#![deny(clippy::undocumented_unsafe_blocks, clippy::missing_safety_doc)]
 
 mod arch;
 mod audio;
