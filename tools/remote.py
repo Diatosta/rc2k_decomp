@@ -210,7 +210,7 @@ def start(gpu, fresh, profile=False):
         renderer += f"RC2K_SHOT_CLOCKS={','.join(str(int(c)) for c in os.environ['RC2K_SHOT_CLOCKS'].split(','))} "
     if os.environ.get('RC2K_DUMP'):  # the n-th big flush's commands to rc2k_frame_dump.bin
         renderer += f"RC2K_DUMP={int(os.environ['RC2K_DUMP'])} "
-    for switch in ('RC2K_MIRROR_BESIDE', 'RC2K_MIRROR_ALWAYS', 'RC2K_DRAW_SERIAL', 'RC2K_PLAYERS_BESIDE'):  # the mirror beside (0: after), shown, parts serial, the players' views beside
+    for switch in ('RC2K_MIRROR_BESIDE', 'RC2K_MIRROR_ALWAYS', 'RC2K_DRAW_SERIAL', 'RC2K_PLAYERS_BESIDE', 'RC2K_CAR_PART', 'RC2K_CANVAS_CHECK'):  # the mirror beside (0: after), shown, parts serial, the players' views beside, the car on a helper, the canvas rows' check
         if os.environ.get(switch):
             renderer += f'{switch}={int(os.environ[switch] != "0")} '
     if HOST:
