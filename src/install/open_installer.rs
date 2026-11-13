@@ -38,7 +38,7 @@ fn read<const N: usize>(
 }
 
 pub fn open_installer(
-    install: &'static crate::install::owner::Install,
+    install: &crate::install::owner::Install,
     o: crate::owners::Owners<'static>,
 ) -> Result<(), Refused> {
     let (so, gfx, system) = (

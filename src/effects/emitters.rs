@@ -115,7 +115,7 @@ pub struct Gate {
 pub fn gate(
     effects: &Effects,
     wheel: &MarkRecord,
-    object: &'static CarEffects,
+    object: &CarEffects,
     a: &impl crate::session::Cell32,
     b: &impl crate::session::Cell32,
     k: &[crate::session::PlainFloat; 4],
@@ -128,11 +128,7 @@ pub fn gate(
 }
 
 /// The gate after the rate (see `gate`).
-pub fn gate_with(
-    wheel: &MarkRecord,
-    object: &'static CarEffects,
-    rate: i32,
-) -> Result<Gate, Refused> {
+pub fn gate_with(wheel: &MarkRecord, object: &CarEffects, rate: i32) -> Result<Gate, Refused> {
     Ok({
         let sum = object.rate.get().wrapping_add(rate as u32);
         if (sum as i32) < 0x1000 {

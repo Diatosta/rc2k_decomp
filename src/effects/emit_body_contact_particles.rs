@@ -49,7 +49,7 @@ pub fn emit_body_contact_particles(
     masks: &Masks,
     ring: &Ring,
     record: &MarkRecord,
-    object: &'static CarEffects,
+    object: &CarEffects,
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
     {

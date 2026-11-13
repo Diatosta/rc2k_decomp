@@ -54,7 +54,7 @@ pub fn emit(
     table: Table,
     kind: u32,
     wheel: &MarkRecord,
-    object: &'static CarEffects,
+    object: &CarEffects,
 ) -> Result<(), Refused> {
     let (masks, particles, ring) = (&effects.masks, &effects.particles, &effects.ring);
     match kind {
@@ -87,7 +87,7 @@ pub fn emit(
 pub fn emit_wheel_particles(
     effects: &Effects,
     wheel: &MarkRecord,
-    object: &'static CarEffects,
+    object: &CarEffects,
 ) -> Result<(), Refused> {
     {
         let (chance, _) = chance(effects, wheel)?;

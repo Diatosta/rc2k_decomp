@@ -30,7 +30,7 @@ const PATH_ROOM: usize = 0x100;
 // ---- game data ----
 
 /// What both checks write into the script's entry, but for the string's id.
-pub fn set_script_entry(install: &'static crate::install::owner::Install, text_id: u16) {
+pub fn set_script_entry(install: &crate::install::owner::Install, text_id: u16) {
     // The entry of the installer's script: two bytes, a string's id, and
     // 0xBD (the second item's text) = the installer runs.
     install.pages.main_menu.items[0].first.set(5);
@@ -41,7 +41,7 @@ pub fn set_script_entry(install: &'static crate::install::owner::Install, text_i
 
 /// `no_audio` is the sound's switch.
 pub fn check_at_start(
-    install: &'static crate::install::owner::Install,
+    install: &crate::install::owner::Install,
     system: &System,
     race: &crate::race::owner::Race,
     outside: &mut dyn Outside,

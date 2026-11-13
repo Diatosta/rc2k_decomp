@@ -5,7 +5,7 @@
 //! Caller `install::run_page`.
 
 /// `state` which call of the list action this is (0 the start, negative the end).
-pub fn dxsetup_page(install: &'static crate::install::owner::Install, state: u32) {
+pub fn dxsetup_page(install: &crate::install::owner::Install, state: u32) {
     // Converted: `rc2k_core::install::pages::runs_dxsetup`.
     if (state as i32) < 0
         && rc2k_core::install::pages::runs_dxsetup(install.pages.list_answer.get())

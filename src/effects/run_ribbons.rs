@@ -8,7 +8,8 @@
 //! `scene::fog_at` of the last depth's bits; `effects::draw_ribbon` (cell 0x20, width 0x800,
 //! the alpha the colour's index, the colour from the streak colours by the life times +0x78,
 //! or from the second ramp when the effects' kind switch is set). A dead entry is moved to
-//! just before the cursor (or that moved on past it).//!
+//! just before the cursor (or that moved on past it).
+//!
 //! In:  nothing (the effects settings)
 //!
 //! Caller: `effects::run_frame` (after `effects::run_ring`). The x87 blocks are plain
@@ -18,7 +19,7 @@
 
 use crate::effects::cell_x87::CellX87;
 use crate::effects::mask_store::Masks;
-use crate::effects::ring_entries::{entry, ld, set, st};
+use crate::effects::ring_entries::{entry, ld, set, st, walk_ring};
 use crate::effects::ring_store::Ring;
 use crate::effects::setup::MarksClock;
 use crate::errors::{BadInput, Refused};
@@ -227,39 +228,12 @@ pub fn run_ribbons(
     if let Some(why) = refusal(ring, effects, fog)? {
         return Err(BadInput(why).into());
     }
-    {
-        let mut e: u32 = ring.work.cursor.get();
-        let mut counter = ring.work.count.get() as i32;
-        loop {
-            counter = counter.wrapping_sub(1);
-            if counter < 0 {
-                break;
-            }
-            let next = entry(ring, e)?.next;
-            // The settings' +0x60: the first car record's first word.
-            if effects.settings()?.cars[0].streaks_on.get() != 0
-                && entry(ring, e)?.kind == STREAK
-                && streak(buffer, view_matrix, ring, e, scene, effects, fog)?
-            {
-                ring.work.count.set(ring.work.count.get().wrapping_sub(1));
-                if e == ring.work.cursor.get() {
-                    ring.work.cursor.set(entry(ring, e)?.next);
-                } else {
-                    let (before, after) = (entry(ring, e)?.prev, entry(ring, e)?.next);
-                    set(ring, before, after, |en| &mut en.next)?;
-                    set(ring, after, before, |en| &mut en.prev)?;
-                    let cursor: u32 = ring.work.cursor.get();
-                    let last = entry(ring, cursor)?.prev;
-                    set(ring, cursor, e, |en| &mut en.prev)?;
-                    set(ring, last, e, |en| &mut en.next)?;
-                    set(ring, e, last, |en| &mut en.prev)?;
-                    set(ring, e, cursor, |en| &mut en.next)?;
-                }
-            }
-            e = next;
-        }
-    }
-    Ok(())
+    walk_ring(ring, |e| {
+        // The settings' +0x60: the first car record's first word.
+        Ok(effects.settings()?.cars[0].streaks_on.get() != 0
+            && entry(ring, e)?.kind == STREAK
+            && streak(buffer, view_matrix, ring, e, scene, effects, fog)?)
+    })
 }
 
 use crate::effects::frame_state::DrawWork;

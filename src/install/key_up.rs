@@ -12,7 +12,7 @@ use rc2k_core::install::items::{Helper, ItemKey};
 /// keys' helpers; the original's zero after it (the helpers' set, else that of the last
 /// compare of the kind).
 pub fn item_key(
-    install: &'static crate::install::owner::Install,
+    install: &crate::install::owner::Install,
     item: ListItem,
     key: ItemKey,
     number: u32,
@@ -33,9 +33,6 @@ pub fn item_key(
 }
 
 /// Whether the key was taken (the original's zero).
-pub fn key_up(
-    install: &'static crate::install::owner::Install,
-    item: ListItem,
-) -> Result<bool, Refused> {
+pub fn key_up(install: &crate::install::owner::Install, item: ListItem) -> Result<bool, Refused> {
     item_key(install, item, ItemKey::Up, 0)
 }

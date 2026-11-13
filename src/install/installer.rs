@@ -476,7 +476,7 @@ pub fn page_action(
 /// A list's key action (+0x14): `key`; whether it took the
 /// key (the original's zero). The game's lists hold only the folder page's.
 pub fn key_action(
-    install: &'static crate::install::owner::Install,
+    install: &crate::install::owner::Install,
     place: u32,
     key: u32,
     list: ListMenu,
@@ -490,7 +490,7 @@ pub fn key_action(
 /// A link's or an action item's action (+8); the original's zero after it. The game's items
 /// hold only the not-enough-room page's "go on anyway".
 pub fn item_action_at(
-    install: &'static crate::install::owner::Install,
+    install: &crate::install::owner::Install,
     place: u32,
 ) -> Result<bool, Refused> {
     match place {

@@ -38,7 +38,7 @@ fn run(command: &[u8]) {
     crate::install::shortcuts::run_program(&crate::files::host_path(command));
 }
 pub fn run_after_exit(
-    install: &'static crate::install::owner::Install,
+    install: &crate::install::owner::Install,
     system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
     let run_vars = &install.run;

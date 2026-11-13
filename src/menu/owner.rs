@@ -162,7 +162,7 @@ impl Keys {
 }
 
 /// The one instance. Reached through `menus()`; `moved` registers its stores' places.
-pub static MENUS: GameThread<Menus> = GameThread::new(Menus {
+pub static MENU_OWNER: GameThread<Menus> = GameThread::new(Menus {
     cars: Cars::new(),
     panels: Panels::new(),
     keys: Keys::new(),
@@ -173,5 +173,5 @@ pub static MENUS: GameThread<Menus> = GameThread::new(Menus {
 
 /// The menus' state, for a caller that does not take it as a parameter yet.
 pub fn menus() -> &'static Menus {
-    MENUS.get()
+    MENU_OWNER.get()
 }

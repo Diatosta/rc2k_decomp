@@ -39,7 +39,7 @@ pub fn scratch_text() -> Result<Vec<u8>, BadInput> {
 /// The registry's source (`InstallerNames.source`) against the current directory (written into the
 /// path buffer, as the original): None when there is no installed source or no directory.
 pub fn source_against_directory(
-    install: &'static crate::install::owner::Install,
+    install: &crate::install::owner::Install,
     outside: &mut dyn Outside,
 ) -> Result<Option<Ordering>, BadInput> {
     outside.read_registry();
@@ -57,7 +57,7 @@ pub fn source_against_directory(
 }
 
 pub fn runs_from_source(
-    install: &'static crate::install::owner::Install,
+    install: &crate::install::owner::Install,
     outside: &mut dyn Outside,
 ) -> Result<bool, BadInput> {
     Ok(source_against_directory(install, outside)? == Some(Ordering::Equal))

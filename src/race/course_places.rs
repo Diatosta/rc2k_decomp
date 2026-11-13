@@ -221,14 +221,14 @@ fn index(own_base: u32, base: u32, size: u32, n: u32, offset: u32) -> Result<usi
 }
 
 /// `len` bytes of `table` from `at`.
-fn table_bytes(table: &'static Table, at: usize, len: usize) -> Result<Vec<u8>, BadInput> {
+fn table_bytes(table: &Table, at: usize, len: usize) -> Result<Vec<u8>, BadInput> {
     table
         .bytes(at, len)?
         .ok_or(BadInput("a read outside the course faces or records"))
 }
 
 /// `data` written into `table` from `at` (a face's first point noted).
-fn write_table(table: &'static Table, at: usize, data: &[u8]) -> Result<(), BadInput> {
+fn write_table(table: &Table, at: usize, data: &[u8]) -> Result<(), BadInput> {
     let faces = std::ptr::eq(table, std::ptr::from_ref(&FACES));
     // A face's first point (+4 .. +8) changed is noted.
     let mut first_point = false;
@@ -245,7 +245,7 @@ fn write_table(table: &'static Table, at: usize, data: &[u8]) -> Result<(), BadI
 
 /// `T` at `at` of `table`.
 #[inline]
-fn whole_at<T: Whole>(table: &'static Table, at: usize) -> Result<T, BadInput> {
+fn whole_at<T: Whole>(table: &Table, at: usize) -> Result<T, BadInput> {
     let mut bytes = [0u8; 64];
     let len = size_of::<T>();
     table

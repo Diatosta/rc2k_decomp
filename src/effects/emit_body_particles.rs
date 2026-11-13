@@ -22,7 +22,7 @@ const PACE: u32 = 0x386A0;
 fn prepare(
     ring: &Ring,
     record: &MarkRecord,
-    object: &'static CarEffects,
+    object: &CarEffects,
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
     {
@@ -51,7 +51,7 @@ fn prepare(
 pub fn emit_body_particles(
     effects: &Effects,
     record: &MarkRecord,
-    object: &'static CarEffects,
+    object: &CarEffects,
 ) -> Result<(), Refused> {
     {
         prepare(&effects.ring, record, object, effects)?;

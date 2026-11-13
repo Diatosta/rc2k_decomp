@@ -53,10 +53,7 @@ fn take(install: &crate::install::owner::Install, q: &Query, put: impl FnOnce(&[
     }
 }
 
-pub fn read_registry(
-    install: &'static crate::install::owner::Install,
-    registry: &mut dyn Registry,
-) {
+pub fn read_registry(install: &crate::install::owner::Install, registry: &mut dyn Registry) {
     let Ok(key) = registry.open(&install.names.key_name.text()) else {
         return;
     };
@@ -94,6 +91,6 @@ pub fn read_registry(
 }
 
 /// The registry, or in the standalone the portable record (`install::portable`).
-pub fn read_registry_here(install: &'static crate::install::owner::Install) {
+pub fn read_registry_here(install: &crate::install::owner::Install) {
     read_registry(install, &mut crate::install::portable::Portable);
 }

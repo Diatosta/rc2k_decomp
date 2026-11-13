@@ -12,7 +12,7 @@ use rc2k_core::install::items::ItemKey;
 
 /// `key` the number key; whether it was taken.
 pub fn key_number(
-    install: &'static crate::install::owner::Install,
+    install: &crate::install::owner::Install,
     key: u32,
     item: ListItem,
 ) -> Result<bool, Refused> {

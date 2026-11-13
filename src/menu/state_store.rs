@@ -96,7 +96,7 @@ pub struct CarouselPictures {
 /// The menus' working variables (IDA 0x75AAD8 .. 0x75AB58): the review kind, the class
 /// times `menu::calc_cpu_times` makes, the fade, the standings' switches.
 #[derive(rc2k_derive::Cells)]
-pub struct Menus {
+pub struct MenuVariables {
     /// `MenuState.menus.review_kind`: the review option screens' kind (`sensiblesaving` in `ral.cfg`).
     pub review_kind: PlainDword,
     /// `MenuState.menus.which_title`: 1 for "voltar" in the results' first item, else "continuar".
@@ -188,7 +188,7 @@ pub struct MenuState {
     /// The carousel's pictures (IDA 0x75AAA8 .. 0x75AAD8): four wanted, four shown, four held.
     pub carousel_pictures: CarouselPictures,
     /// The menus' working variables (IDA 0x75AAD8 .. 0x75AB58): the review kind, the class
-    pub menus: Menus,
+    pub menus: MenuVariables,
     /// The driver figures and the service area's variables (IDA 0x75AB58 .. 0x75ACCC).
     pub driver_stats: DriverStats,
 }
@@ -226,7 +226,7 @@ impl MenuState {
                 shown: [const { PlainDword::new(0) }; 4],
                 held: [const { PlainDword::new(0) }; 4],
             },
-            menus: Menus {
+            menus: MenuVariables {
                 review_kind: PlainDword::new(0),
                 which_title: PlainFlag::new(false),
                 skip_edit_values: PlainFlag::new(false),

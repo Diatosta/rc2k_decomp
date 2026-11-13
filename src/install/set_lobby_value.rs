@@ -13,7 +13,7 @@ const REG_SZ: u32 = 1;
 
 /// The text `data` (its NUL added) as the value `name` of the lobby's key.
 pub fn set_lobby_value(
-    install: &'static crate::install::owner::Install,
+    install: &crate::install::owner::Install,
     name: &[u8],
     data: &[u8],
     registry: &mut dyn Registry,

@@ -14,7 +14,7 @@ use rc2k_core::net::screens::{self, ListKey};
 
 /// A list's up (0x66) or down (0x6B) on a list of `count` items: the highlight and the top
 /// moved; false for another key.
-pub fn list_move(install: &'static crate::install::owner::Install, key: u8, count: u32) -> bool {
+pub fn list_move(install: &crate::install::owner::Install, key: u8, count: u32) -> bool {
     // Converted: `rc2k_core::net::screens` (`ListKey`, `up`, `down`).
     let (choice, top) = match ListKey::of(key) {
         ListKey::Up => screens::up(

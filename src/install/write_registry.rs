@@ -18,7 +18,7 @@ const REG_SZ: u32 = 1;
 const REG_BINARY: u32 = 3;
 
 pub fn write_registry(
-    install: &'static crate::install::owner::Install,
+    install: &crate::install::owner::Install,
     registry: &mut dyn Registry,
 ) -> Result<(), Refused> {
     let names = &install.names;

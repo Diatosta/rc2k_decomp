@@ -13,7 +13,7 @@ use rc2k_core::install::items::{self, LinkWay};
 /// Enter on a link; the original's zero after it (the action's, else that of `test bl, bl`
 /// on the next list).
 pub fn item_link(
-    install: &'static crate::install::owner::Install,
+    install: &crate::install::owner::Install,
     item: ListItem,
 ) -> Result<bool, Refused> {
     let action = item.target();

@@ -207,6 +207,50 @@ pub fn set<T>(
         .ok_or(BadInput("a ring entry past the ring"))
 }
 
+/// An entry that died: the ring's count is one less; the entry at the cursor is passed over
+/// by moving the cursor on, any other is unlinked and linked in just before the cursor (the
+/// end of the walk's order), so the live ones stay together from the cursor on.
+pub fn retire_entry(ring: &Ring, e: u32) -> Result<(), BadInput> {
+    ring.work.count.set(ring.work.count.get().wrapping_sub(1));
+    if e == ring.work.cursor.get() {
+        ring.work.cursor.set(entry(ring, e)?.next);
+    } else {
+        let (before, after) = (entry(ring, e)?.prev, entry(ring, e)?.next);
+        set(ring, before, after, |en| &mut en.next)?;
+        set(ring, after, before, |en| &mut en.prev)?;
+        let cursor: u32 = ring.work.cursor.get();
+        let last = entry(ring, cursor)?.prev;
+        set(ring, cursor, e, |en| &mut en.prev)?;
+        set(ring, last, e, |en| &mut en.next)?;
+        set(ring, e, last, |en| &mut en.prev)?;
+        set(ring, e, cursor, |en| &mut en.next)?;
+    }
+    Ok(())
+}
+
+/// The ring walked once: `visit` is called with each entry, from the cursor along `next`, as
+/// many times as the count held at the start; an entry it says has died is retired
+/// (`retire_entry`). The next entry is read before the visit, as the original does.
+pub fn walk_ring(
+    ring: &Ring,
+    mut visit: impl FnMut(u32) -> Result<bool, crate::errors::Refused>,
+) -> Result<(), crate::errors::Refused> {
+    let mut e: u32 = ring.work.cursor.get();
+    let mut counter = ring.work.count.get() as i32;
+    loop {
+        counter = counter.wrapping_sub(1);
+        if counter < 0 {
+            break;
+        }
+        let next = entry(ring, e)?.next;
+        if visit(e)? {
+            retire_entry(ring, e)?;
+        }
+        e = next;
+    }
+    Ok(())
+}
+
 /// A field loaded on the x87 stack (a refusal ends the game, as the reads of the game's
 /// memory did).
 pub fn ld<T: bh::Loadable>(ring: &Ring, e: u32, field: impl FnOnce(&Entry) -> T) -> X {

@@ -168,7 +168,7 @@ pub fn refusal(
 pub fn emit_bursts(
     effects: &Effects,
     wheel: &MarkRecord,
-    object: &'static CarEffects,
+    object: &CarEffects,
 ) -> Result<(), Refused> {
     emit_bursts_with(effects, &first(effects), wheel, object)
 }
@@ -178,7 +178,7 @@ pub fn emit_bursts_with(
     effects: &Effects,
     set: &BurstSet<'_>,
     wheel: &MarkRecord,
-    object: &'static CarEffects,
+    object: &CarEffects,
 ) -> Result<(), Refused> {
     let (paths, masks, ring) = (&effects.paths, &effects.masks, &effects.ring);
     {

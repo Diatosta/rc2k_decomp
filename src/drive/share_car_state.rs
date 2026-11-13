@@ -157,7 +157,7 @@ fn light_record(race: &Race, car: &Car) -> Result<u32, Refused> {
 // Converted: `rc2k_core::drive::sharing` (the levels' x87 sums stay).
 pub fn share_car_state_at(
     race: &Race,
-    car: &'static Car,
+    car: &Car,
     o: &CarEffects,
     p: &SoundObject,
     scratch: &PlainDword,
@@ -259,7 +259,7 @@ pub fn share_car_state_at(
 /// The car block `block`, its record `record`, its sound object `sound`.
 pub fn share_car_state(
     race: &Race,
-    block: &'static Car,
+    block: &Car,
     record: &CarEffects,
     sound: &SoundObject,
 ) -> Result<(), Refused> {

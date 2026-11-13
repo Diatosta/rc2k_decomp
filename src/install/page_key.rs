@@ -75,7 +75,7 @@ pub fn page_key(
 }
 
 /// `jnz` out, else the key marked as taken (zero set).
-fn took(install: &'static crate::install::owner::Install, zero: bool) -> bool {
+fn took(install: &crate::install::owner::Install, zero: bool) -> bool {
     if zero {
         install.pages.key_taken.set(1);
     }

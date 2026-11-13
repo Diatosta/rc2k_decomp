@@ -3,7 +3,7 @@
 //!
 //! An item action (kind 6). Caller `install::item_action` through a page's item.
 
-pub fn ignore_room(install: &'static crate::install::owner::Install) {
+pub fn ignore_room(install: &crate::install::owner::Install) {
     install.run.ignore_room.set(1);
     install.pages.list_answer.set(1);
     install.pages.list_leave.set(1);

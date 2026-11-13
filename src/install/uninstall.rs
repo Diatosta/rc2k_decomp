@@ -39,7 +39,7 @@ fn build_path(
 }
 
 /// The installation's folder, when "remove all" was chosen and it is one that may go whole.
-fn whole_folder(install: &'static crate::install::owner::Install) -> Option<std::path::PathBuf> {
+fn whole_folder(install: &crate::install::owner::Install) -> Option<std::path::PathBuf> {
     if install.names.script.get(crate::install::vars::SCRIPT_MARK) == 5 {
         return None;
     }

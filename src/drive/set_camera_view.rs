@@ -7,8 +7,7 @@
 //!
 //! Takes: the block
 //!
-//! A `jmp` is its first instruction: `.private_copy` with `.manual_patch`. Callers:
-//! `drive::next_camera_view`, `race::race_keys`, and code at 0x43B62E.
+//! Callers: `drive::next_camera_view`, `race::race_keys`, and code at 0x43B62E.
 
 use crate::errors::BadInput;
 use crate::physics::car_store::Car;

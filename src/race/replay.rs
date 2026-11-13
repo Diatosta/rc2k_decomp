@@ -495,7 +495,7 @@ mod header_tests {
     const REPLAY_FILE: &str = "race.owner.RACE.shared.replay_file";
     const WORK: &str = "race.owner.RACE.shared.work";
     const STATE: &str = "race.owner.RACE.shared.state";
-    const CHEATS: &str = "menu.owner.MENUS.play.cheats";
+    const CHEATS: &str = "menu.owner.MENU_OWNER.play.cheats";
     #[derive(Clone, Copy)]
     enum Dest {
         /// At a byte of the sealed header part.

@@ -100,7 +100,7 @@ fn emits(set: &JitterSet<'_>, wheel: &MarkRecord) -> Result<bool, Refused> {
 pub fn emit_slip_spray(
     effects: &Effects,
     wheel: &MarkRecord,
-    object: &'static CarEffects,
+    object: &CarEffects,
 ) -> Result<(), Refused> {
     emit_slip_spray_with(effects, &fifth(effects), wheel, object)
 }
@@ -110,7 +110,7 @@ pub fn emit_slip_spray_with(
     effects: &Effects,
     set: &JitterSet<'_>,
     wheel: &MarkRecord,
-    object: &'static CarEffects,
+    object: &CarEffects,
 ) -> Result<(), Refused> {
     let (ring, kinds) = (&effects.ring, &effects.kinds);
     {

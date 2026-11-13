@@ -25,7 +25,7 @@ use crate::install::installer::{copy_picture, draw_text, lock, show, unlock};
 const FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::HEADING_23;
 
 /// The bar's width, or the refusal of a count the original's `div` faults on.
-fn bar_width(install: &'static crate::install::owner::Install) -> Result<u32, Refused> {
+fn bar_width(install: &crate::install::owner::Install) -> Result<u32, Refused> {
     let to_copy = install.run.files_to_copy.get();
     if to_copy == 0 {
         return Err(BadInput("no files to copy: the original divides by 0").into());

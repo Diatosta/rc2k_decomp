@@ -7,8 +7,6 @@
 //! `feel_word` the word at +0x26 of the face under probe point 4 (`Car.probe_point_face[4]`). A
 //! reading: the wheels in the air, the ground's kind.
 //!
-//! It begins with a call: `.private_copy` (its three calls relocated) with
-//! `.manual_patch`.
 //! Callers: `physics::car_physics_step` (0x43B6F6, 0x43B860, 0x43B8FB), `physics::crossed_edge`,
 //! `physics::wall_contacts`
 //! (twice), `physics::face_contact`, `physics::ground_contact`. Refuses (before anything) more than

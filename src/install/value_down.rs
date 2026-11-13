@@ -6,7 +6,7 @@
 
 use crate::menu::list_handle::ListItem;
 
-pub fn value_down(install: &'static crate::install::owner::Install, item: ListItem) {
+pub fn value_down(install: &crate::install::owner::Install, item: ListItem) {
     let value_at = item.value();
     // Converted: `rc2k_core::install::items::value_down`.
     let value = rc2k_core::install::items::value_down(

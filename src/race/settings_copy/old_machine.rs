@@ -76,7 +76,7 @@ pub trait Machine<A> {
     /// A brake value 0 .. 99 x 2.56, rounded (`fild` / `fmul` / `fistp`).
     fn scaled_brake(&mut self, value: i32) -> u32;
     /// The logs (inside `pusha` / `popa`: the registers kept).
-    fn text(&mut self, text: &'static core::ffi::CStr, newline: bool) -> Result<(), Self::Error>;
+    fn text(&mut self, text: &core::ffi::CStr, newline: bool) -> Result<(), Self::Error>;
     fn value(&mut self, value: u32, kind: Kind) -> Result<(), Self::Error>;
     fn float(&mut self, bits: u32) -> Result<(), Self::Error>;
     fn call(&mut self, at: A) -> Result<(), Self::Error>;
@@ -237,7 +237,7 @@ impl<E: Effects> Machine<StepOperand> for Game<'_, E> {
     fn scaled_brake(&mut self, v: i32) -> u32 {
         x87::int_times_to_int(v, &self.race.course.numbers.get().brake_scale) as u32
     }
-    fn text(&mut self, text: &'static std::ffi::CStr, nl: bool) -> Result<(), Refused> {
+    fn text(&mut self, text: &std::ffi::CStr, nl: bool) -> Result<(), Refused> {
         self.fx.text(text.to_str().expect("ASCII"), nl);
         Ok(())
     }

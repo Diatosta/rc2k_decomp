@@ -50,7 +50,7 @@ pub fn nineteenth(effects: &Effects) -> TwinSet<'_> {
 
 /// Whether an entry is to be made (the chance and a free entry), worked out without
 /// writing.
-fn makes(ring: &Ring, set: &TwinSet<'_>, object: &'static CarEffects) -> Result<bool, Refused> {
+fn makes(ring: &Ring, set: &TwinSet<'_>, object: &CarEffects) -> Result<bool, Refused> {
     Ok({
         let level = object.levels[set.level].get() as i32;
         let r = set
@@ -68,7 +68,7 @@ pub fn refusal(
     effects: &Effects,
     ring: &Ring,
     set: &TwinSet<'_>,
-    object: &'static CarEffects,
+    object: &CarEffects,
 ) -> Result<Option<&'static str>, Refused> {
     Ok({
         if !makes(ring, set, object)? {
@@ -84,19 +84,12 @@ pub fn refusal(
     })
 }
 
-pub fn emit_twin_particle_first(
-    effects: &Effects,
-    object: &'static CarEffects,
-) -> Result<(), Refused> {
+pub fn emit_twin_particle_first(effects: &Effects, object: &CarEffects) -> Result<(), Refused> {
     emit_twin(effects, &nineteenth(effects), object)
 }
 
 /// The shared body, on `set`'s variables.
-pub fn emit_twin(
-    effects: &Effects,
-    set: &TwinSet<'_>,
-    object: &'static CarEffects,
-) -> Result<(), Refused> {
+pub fn emit_twin(effects: &Effects, set: &TwinSet<'_>, object: &CarEffects) -> Result<(), Refused> {
     let (masks, particles, ring) = (&effects.masks, &effects.particles, &effects.ring);
     if let Some(why) = refusal(effects, ring, set, object)? {
         return Err(BadInput(why).into());

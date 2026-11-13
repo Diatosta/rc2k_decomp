@@ -3,6 +3,6 @@
 //!
 //! The action of a list item. Caller `install::run_page` through a page's item.
 
-pub fn ask_registration(install: &'static crate::install::owner::Install) {
+pub fn ask_registration(install: &crate::install::owner::Install) {
     install.run.run_registration.set(1);
 }

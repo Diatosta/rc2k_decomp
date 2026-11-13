@@ -47,5 +47,3 @@ pub fn log_number(body: &Body, eax: u32, ecx: u32, newline: bool, level: u8) {
     let end = text.nul_at.min(text.bytes.len());
     crate::logfile::write_line::log_text(&text.bytes[..end], newline, level);
 }
-
-// ---- self-test: appends lines to the real var\logfile.txt ----

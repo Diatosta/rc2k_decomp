@@ -441,8 +441,8 @@ fn listed_stores() -> Vec<Listed> {
             0x4b6,
         ),
         listed!(
-            "menu.owner.MENUS.panels.notice",
-            on_game(&crate::menu::owner::MENUS.get().panels.notice),
+            "menu.owner.MENU_OWNER.panels.notice",
+            on_game(&crate::menu::owner::MENU_OWNER.get().panels.notice),
         ),
         listed!(
             "install.owner.INSTALL.drive_rows",
@@ -513,8 +513,8 @@ fn listed_stores() -> Vec<Listed> {
             on_game(crate::race::owner::RACE.replay.snapshot()),
         ),
         listed!(
-            "menu.owner.MENUS.panels.films",
-            on_game(&crate::menu::owner::MENUS.get().panels.films),
+            "menu.owner.MENU_OWNER.panels.films",
+            on_game(&crate::menu::owner::MENU_OWNER.get().panels.films),
         ),
         listed!(
             "screens.draw_message_box.BOX",
@@ -679,81 +679,81 @@ fn listed_stores() -> Vec<Listed> {
             on_game(&crate::screens::owner::SCREENS_OWNER.get().controls),
         ),
         listed!(
-            "menu.owner.MENUS.play.players",
-            on_game(&crate::menu::owner::MENUS.get().play.players),
+            "menu.owner.MENU_OWNER.play.players",
+            on_game(&crate::menu::owner::MENU_OWNER.get().play.players),
         ),
         listed!(
-            "menu.owner.MENUS.cars.table",
-            on_game(&crate::menu::owner::MENUS.get().cars.table),
+            "menu.owner.MENU_OWNER.cars.table",
+            on_game(&crate::menu::owner::MENU_OWNER.get().cars.table),
         ),
         listed!(
-            "menu.owner.MENUS.play.cheats",
-            on_game(&crate::menu::owner::MENUS.get().play.cheats),
+            "menu.owner.MENU_OWNER.play.cheats",
+            on_game(&crate::menu::owner::MENU_OWNER.get().play.cheats),
         ),
         listed!(
-            "menu.owner.MENUS.play.results",
-            on_game(&crate::menu::owner::MENUS.get().play.results),
+            "menu.owner.MENU_OWNER.play.results",
+            on_game(&crate::menu::owner::MENU_OWNER.get().play.results),
         ),
         listed!(
-            "menu.owner.MENUS.play.arcade",
-            on_game(&crate::menu::owner::MENUS.get().play.arcade),
+            "menu.owner.MENU_OWNER.play.arcade",
+            on_game(&crate::menu::owner::MENU_OWNER.get().play.arcade),
         ),
         listed!(
-            "menu.owner.MENUS.tables.captions",
-            on_game(&crate::menu::owner::MENUS.get().tables.captions),
+            "menu.owner.MENU_OWNER.tables.captions",
+            on_game(&crate::menu::owner::MENU_OWNER.get().tables.captions),
         ),
         listed!(
-            "menu.owner.MENUS.tables.pages",
-            on_game(&crate::menu::owner::MENUS.get().tables.pages),
+            "menu.owner.MENU_OWNER.tables.pages",
+            on_game(&crate::menu::owner::MENU_OWNER.get().tables.pages),
         ),
         listed!(
-            "menu.owner.MENUS.cars.numbers",
-            on_game(&crate::menu::owner::MENUS.get().cars.numbers),
+            "menu.owner.MENU_OWNER.cars.numbers",
+            on_game(&crate::menu::owner::MENU_OWNER.get().cars.numbers),
         ),
         listed!(
-            "menu.owner.MENUS.screens.flow",
-            on_game(&crate::menu::owner::MENUS.get().screens.flow),
+            "menu.owner.MENU_OWNER.screens.flow",
+            on_game(&crate::menu::owner::MENU_OWNER.get().screens.flow),
         ),
         listed!(
-            "menu.owner.MENUS.screens.loop_flags",
-            on_game(&crate::menu::owner::MENUS.get().screens.loop_flags),
+            "menu.owner.MENU_OWNER.screens.loop_flags",
+            on_game(&crate::menu::owner::MENU_OWNER.get().screens.loop_flags),
         ),
         listed!(
-            "menu.owner.MENUS.keys.tables",
-            on_game(&crate::menu::owner::MENUS.get().keys.tables),
+            "menu.owner.MENU_OWNER.keys.tables",
+            on_game(&crate::menu::owner::MENU_OWNER.get().keys.tables),
         ),
         listed!(
-            "menu.owner.MENUS.screens.option_work",
-            on_game(&crate::menu::owner::MENUS.get().screens.option_work),
+            "menu.owner.MENU_OWNER.screens.option_work",
+            on_game(&crate::menu::owner::MENU_OWNER.get().screens.option_work),
         ),
         listed!(
-            "menu.owner.MENUS.play.champ_view",
-            on_game(&crate::menu::owner::MENUS.get().play.champ_view),
+            "menu.owner.MENU_OWNER.play.champ_view",
+            on_game(&crate::menu::owner::MENU_OWNER.get().play.champ_view),
         ),
         listed!(
-            "menu.owner.MENUS.play.names",
-            on_game(&crate::menu::owner::MENUS.get().play.names),
+            "menu.owner.MENU_OWNER.play.names",
+            on_game(&crate::menu::owner::MENU_OWNER.get().play.names),
         ),
         listed!(
-            "menu.owner.MENUS.screens.event",
-            on_game(&crate::menu::owner::MENUS.get().screens.event),
+            "menu.owner.MENU_OWNER.screens.event",
+            on_game(&crate::menu::owner::MENU_OWNER.get().screens.event),
         ),
         listed!(
-            "menu.owner.MENUS.screens.draw_work",
-            on_game(&crate::menu::owner::MENUS.get().screens.draw_work),
+            "menu.owner.MENU_OWNER.screens.draw_work",
+            on_game(&crate::menu::owner::MENU_OWNER.get().screens.draw_work),
         ),
         listed!(
-            "menu.owner.MENUS.tables.texts",
+            "menu.owner.MENU_OWNER.tables.texts",
             on_game_from(
-                &crate::menu::owner::MENUS.get().tables.texts,
+                &crate::menu::owner::MENU_OWNER.get().tables.texts,
                 ".no_point_text"
             ),
             0x2ce4,
         ),
         listed!(
-            "menu.owner.MENUS.tables.texts",
+            "menu.owner.MENU_OWNER.tables.texts",
             on_game_from(
-                &crate::menu::owner::MENUS.get().tables.texts,
+                &crate::menu::owner::MENU_OWNER.get().tables.texts,
                 ".car_speech[0][0]",
             ),
         ),
@@ -762,8 +762,8 @@ fn listed_stores() -> Vec<Listed> {
             on_game(&crate::system::owner::SYSTEM.records().stage_tables),
         ),
         listed!(
-            "menu.owner.MENUS.cars.drivers",
-            on_game(&crate::menu::owner::MENUS.get().cars.drivers),
+            "menu.owner.MENU_OWNER.cars.drivers",
+            on_game(&crate::menu::owner::MENU_OWNER.get().cars.drivers),
         ),
         listed!(
             "saves.owner.SAVES.rally_times",
@@ -774,16 +774,16 @@ fn listed_stores() -> Vec<Listed> {
             on_game(&crate::saves::owner::SAVES.get().best_times),
         ),
         listed!(
-            "menu.owner.MENUS.screens.items",
-            on_game(&crate::menu::owner::MENUS.get().screens.items),
+            "menu.owner.MENU_OWNER.screens.items",
+            on_game(&crate::menu::owner::MENU_OWNER.get().screens.items),
         ),
         listed!(
-            "menu.owner.MENUS.panels.item_sprites",
-            on_game(&crate::menu::owner::MENUS.get().panels.item_sprites),
+            "menu.owner.MENU_OWNER.panels.item_sprites",
+            on_game(&crate::menu::owner::MENU_OWNER.get().panels.item_sprites),
         ),
         listed!(
-            "menu.owner.MENUS.tables.menus.labels",
-            on_game(&crate::menu::owner::MENUS.get().tables.menus.labels),
+            "menu.owner.MENU_OWNER.tables.menus.labels",
+            on_game(&crate::menu::owner::MENU_OWNER.get().tables.menus.labels),
         ),
         listed!(
             "race.owner.RACE.shared.tyre_change",
@@ -1171,13 +1171,13 @@ fn listed_stores() -> Vec<Listed> {
             on_game(&crate::effects::owner::EFFECTS.get().setup.work),
         ),
         listed!(
-            "menu.owner.MENUS.tables.lists",
-            on_game(&crate::menu::owner::MENUS.get().tables.lists),
+            "menu.owner.MENU_OWNER.tables.lists",
+            on_game(&crate::menu::owner::MENU_OWNER.get().tables.lists),
             0x11ae,
         ),
         listed!(
-            "menu.owner.MENUS.screens.state",
-            on_game(&crate::menu::owner::MENUS.get().screens.state),
+            "menu.owner.MENU_OWNER.screens.state",
+            on_game(&crate::menu::owner::MENU_OWNER.get().screens.state),
         ),
         listed!(
             "race.owner.RACE.shared.state",

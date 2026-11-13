@@ -8,7 +8,7 @@
 use crate::install::installer::{media_mode, set_media_mode};
 
 /// `state` which call of the list action this is (0 the start, negative the end).
-pub fn mode_page(install: &'static crate::install::owner::Install, state: u32) {
+pub fn mode_page(install: &crate::install::owner::Install, state: u32) {
     if state == 0 {
         // Converted: `rc2k_core::install::pages::mode_highlight`.
         install

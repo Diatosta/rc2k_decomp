@@ -56,7 +56,7 @@ fn refusal(
     particles: &Particles,
     ring: &Ring,
     wheel: &MarkRecord,
-    object: &'static CarEffects,
+    object: &CarEffects,
     effects: &crate::effects::owner::Effects,
 ) -> Result<Option<&'static str>, Refused> {
     Ok({
@@ -76,7 +76,7 @@ pub fn emit_rolling_particles_rated(
     particles: &Particles,
     ring: &Ring,
     wheel: &MarkRecord,
-    object: &'static CarEffects,
+    object: &CarEffects,
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
     {

@@ -11,11 +11,7 @@ use crate::menu::list_handle::ListMenu;
 use rc2k_core::install::items::FolderKey;
 
 /// `key` (the key in its low byte, its bits in the next); whether it was taken.
-pub fn folder_key(
-    install: &'static crate::install::owner::Install,
-    key: u32,
-    list: ListMenu,
-) -> bool {
+pub fn folder_key(install: &crate::install::owner::Install, key: u32, list: ListMenu) -> bool {
     // Converted: `rc2k_core::install::items::FolderKey`.
     let way = FolderKey::of(key);
     let answer = way.answer(|| list.flags());

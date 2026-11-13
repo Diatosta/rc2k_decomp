@@ -122,7 +122,7 @@ pub fn run_installer(
 
 /// The folder page's text by the system's rules (`install::folders`): a recorded folder as
 /// shown, else the system's first folder (on Windows both the original's, unchanged).
-fn show_folder(install: &'static crate::install::owner::Install) {
+fn show_folder(install: &crate::install::owner::Install) {
     use crate::install::folders::{Folders, Native};
     let typed = &install.paths.typed;
     let len = (0..256).position(|k| typed.get(k) == 0).unwrap_or(0);
@@ -137,7 +137,7 @@ fn show_folder(install: &'static crate::install::owner::Install) {
 }
 
 /// `text` as the folder page's text (cut to its place, NUL-ended).
-pub fn put_typed(install: &'static crate::install::owner::Install, text: &[u8]) {
+pub fn put_typed(install: &crate::install::owner::Install, text: &[u8]) {
     let typed = &install.paths.typed;
     let n = text.len().min(255);
     for (k, &b) in text[..n].iter().enumerate() {

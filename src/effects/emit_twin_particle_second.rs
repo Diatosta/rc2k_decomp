@@ -24,10 +24,7 @@ pub fn twenty_second(effects: &Effects) -> TwinSet<'_> {
     }
 }
 
-pub fn emit_twin_particle_second(
-    effects: &Effects,
-    object: &'static CarEffects,
-) -> Result<(), Refused> {
+pub fn emit_twin_particle_second(effects: &Effects, object: &CarEffects) -> Result<(), Refused> {
     emit_twin(effects, &twenty_second(effects), object)
 }
 

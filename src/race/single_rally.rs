@@ -50,27 +50,47 @@ type Record<'a> = crate::menu::standings::PlayerCell<'a>;
 //   `second_view`.
 #[cfg(test)]
 fn summary() -> &'static PlainDword {
-    &crate::menu::owner::MENUS.get().play.champ_view.summary
+    &crate::menu::owner::MENU_OWNER.get().play.champ_view.summary
 }
 #[cfg(test)]
 fn after_loading() -> &'static PlainDword {
-    &crate::menu::owner::MENUS.get().screens.event.sparks_mode
+    &crate::menu::owner::MENU_OWNER
+        .get()
+        .screens
+        .event
+        .sparks_mode
 }
 #[cfg(test)]
 fn player_count() -> &'static PlainDword {
-    &crate::menu::owner::MENUS.get().screens.event.player_count
+    &crate::menu::owner::MENU_OWNER
+        .get()
+        .screens
+        .event
+        .player_count
 }
 #[cfg(test)]
 fn event_mode() -> &'static PlainDword {
-    &crate::menu::owner::MENUS.get().screens.event.event_kind
+    &crate::menu::owner::MENU_OWNER
+        .get()
+        .screens
+        .event
+        .event_kind
 }
 #[cfg(test)]
 fn current() -> &'static PlainDword {
-    &crate::menu::owner::MENUS.get().screens.event.current_player
+    &crate::menu::owner::MENU_OWNER
+        .get()
+        .screens
+        .event
+        .current_player
 }
 #[cfg(test)]
 fn switch() -> &'static PlainDword {
-    &crate::menu::owner::MENUS.get().play.arcade.scene_let_go
+    &crate::menu::owner::MENU_OWNER
+        .get()
+        .play
+        .arcade
+        .scene_let_go
 }
 #[cfg(test)]
 fn stage() -> &'static PlainDword {
@@ -578,23 +598,23 @@ mod vector_tests {
     /// the field's cells to start at, bytes), in the order of the original's addresses.
     #[rustfmt::skip]
     const RANGES: [(&str, &str, usize, usize); 247] = [
-        ("menu.owner.MENUS.screens.event", ".sparks_mode", 0, 0x4),
-        ("menu.owner.MENUS.screens.event", ".player_count", 0, 0x4),
-        ("menu.owner.MENUS.screens.event", ".event_kind", 0, 0x4),
-        ("menu.owner.MENUS.screens.event", ".current_player", 0, 0x4),
-        ("menu.owner.MENUS.screens.flow", ".kept", 0, 0x4),
-        ("menu.owner.MENUS.screens.option_work", ".lens_flare", 0, 0x4),
-        ("menu.owner.MENUS.screens.option_work", ".reflections", 0, 0x4),
-        ("menu.owner.MENUS.screens.option_work", ".car_shadows", 0, 0x4),
-        ("menu.owner.MENUS.screens.option_work", ".car_detail", 0, 0x4),
-        ("menu.owner.MENUS.screens.option_work", ".headlights", 0, 0x4),
-        ("menu.owner.MENUS.play.players", ".players[0]", 0, 0x28c),
-        ("menu.owner.MENUS.play.players", ".players[1]", 0, 0x28c),
-        ("menu.owner.MENUS.play.players", ".players[2]", 0, 0x28c),
-        ("menu.owner.MENUS.play.players", ".players[3]", 0, 0x28c),
-        ("menu.owner.MENUS.play.players", ".pointers[0]", 0, 0x10),
-        ("menu.owner.MENUS.play.arcade", ".scene_let_go", 0, 0x4),
-        ("menu.owner.MENUS.play.champ_view", ".summary", 0, 0x4),
+        ("menu.owner.MENU_OWNER.screens.event", ".sparks_mode", 0, 0x4),
+        ("menu.owner.MENU_OWNER.screens.event", ".player_count", 0, 0x4),
+        ("menu.owner.MENU_OWNER.screens.event", ".event_kind", 0, 0x4),
+        ("menu.owner.MENU_OWNER.screens.event", ".current_player", 0, 0x4),
+        ("menu.owner.MENU_OWNER.screens.flow", ".kept", 0, 0x4),
+        ("menu.owner.MENU_OWNER.screens.option_work", ".lens_flare", 0, 0x4),
+        ("menu.owner.MENU_OWNER.screens.option_work", ".reflections", 0, 0x4),
+        ("menu.owner.MENU_OWNER.screens.option_work", ".car_shadows", 0, 0x4),
+        ("menu.owner.MENU_OWNER.screens.option_work", ".car_detail", 0, 0x4),
+        ("menu.owner.MENU_OWNER.screens.option_work", ".headlights", 0, 0x4),
+        ("menu.owner.MENU_OWNER.play.players", ".players[0]", 0, 0x28c),
+        ("menu.owner.MENU_OWNER.play.players", ".players[1]", 0, 0x28c),
+        ("menu.owner.MENU_OWNER.play.players", ".players[2]", 0, 0x28c),
+        ("menu.owner.MENU_OWNER.play.players", ".players[3]", 0, 0x28c),
+        ("menu.owner.MENU_OWNER.play.players", ".pointers[0]", 0, 0x10),
+        ("menu.owner.MENU_OWNER.play.arcade", ".scene_let_go", 0, 0x4),
+        ("menu.owner.MENU_OWNER.play.champ_view", ".summary", 0, 0x4),
         ("race.owner.RACE.replay.viewer_and_kinds", ".marks_settings.after_loading_copy", 0, 0x4),
         ("race.owner.RACE.shared.state", ".settings.rivals", 0, 0x4),
         ("race.owner.RACE.shared.state", ".settings.stage", 0, 0x4),
@@ -829,12 +849,12 @@ mod vector_tests {
 
     /// The stores the test writes.
     const STORES: [&str; 9] = [
-        "menu.owner.MENUS.play.arcade",
-        "menu.owner.MENUS.play.champ_view",
-        "menu.owner.MENUS.play.players",
-        "menu.owner.MENUS.screens.event",
-        "menu.owner.MENUS.screens.flow",
-        "menu.owner.MENUS.screens.option_work",
+        "menu.owner.MENU_OWNER.play.arcade",
+        "menu.owner.MENU_OWNER.play.champ_view",
+        "menu.owner.MENU_OWNER.play.players",
+        "menu.owner.MENU_OWNER.screens.event",
+        "menu.owner.MENU_OWNER.screens.flow",
+        "menu.owner.MENU_OWNER.screens.option_work",
         "race.owner.RACE.replay.viewer_and_kinds",
         "race.owner.RACE.shared.state",
         "system.owner.SYSTEM.records.stage_tables",

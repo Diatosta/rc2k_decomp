@@ -26,7 +26,7 @@ fn second(effects: &Effects) -> BurstSet<'_> {
 pub fn emit_bursts_kind_3(
     effects: &Effects,
     wheel: &MarkRecord,
-    object: &'static CarEffects,
+    object: &CarEffects,
 ) -> Result<(), Refused> {
     emit_bursts_with(effects, &second(effects), wheel, object)
 }

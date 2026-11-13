@@ -11,7 +11,7 @@ use crate::install::installer::copy_file;
 /// `copy_file`'s carry on: the game's files' copies and the
 /// Clio's stop on it). A failed copy is seen by the callers.
 pub fn copy_counted(
-    install: &'static crate::install::owner::Install,
+    install: &crate::install::owner::Install,
     system: &crate::system::owner::System,
     from: impl Into<crate::place::BytePlace>,
     to: impl Into<crate::place::BytePlace>,

@@ -593,12 +593,12 @@ mod tests {
         ("key", "race.owner.RACE.replay.seal_work", ".key[0]"),
         (
             "allsecretcars",
-            "menu.owner.MENUS.play.cheats",
+            "menu.owner.MENU_OWNER.play.cheats",
             ".all_secret_cars",
         ),
         (
             "secretcar",
-            "menu.owner.MENUS.play.cheats",
+            "menu.owner.MENU_OWNER.play.cheats",
             ".all_secret_cars",
         ),
         (
@@ -608,7 +608,7 @@ mod tests {
         ),
         (
             "sensiblesaving",
-            "menu.owner.MENUS.screens.state",
+            "menu.owner.MENU_OWNER.screens.state",
             ".menus.review_kind",
         ),
         (
@@ -702,7 +702,7 @@ mod tests {
         ),
         (
             "sparksmode",
-            "menu.owner.MENUS.screens.event",
+            "menu.owner.MENU_OWNER.screens.event",
             ".sparks_mode",
         ),
     ];

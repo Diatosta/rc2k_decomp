@@ -40,7 +40,7 @@ pub fn eleventh(effects: &Effects) -> JitterSet<'_> {
 pub fn emit_slip_spray_long(
     effects: &Effects,
     wheel: &MarkRecord,
-    object: &'static CarEffects,
+    object: &CarEffects,
 ) -> Result<(), Refused> {
     emit_slip_spray_with(effects, &eleventh(effects), wheel, object)
 }

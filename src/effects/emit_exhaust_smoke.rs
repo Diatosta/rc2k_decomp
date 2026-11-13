@@ -35,7 +35,7 @@ const LIFE: u32 = 0xFA;
 fn refusal(
     effects: &Effects,
     ring: &Ring,
-    object: &'static CarEffects,
+    object: &CarEffects,
 ) -> Result<Option<&'static str>, Refused> {
     Ok({
         // The ring full: nothing more is read.
@@ -54,7 +54,7 @@ pub fn emit_exhaust_smoke(
     paths: &Paths,
     particles: &Particles,
     ring: &Ring,
-    object: &'static CarEffects,
+    object: &CarEffects,
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
     if let Some(why) = refusal(effects, ring, object)? {

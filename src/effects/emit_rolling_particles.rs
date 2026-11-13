@@ -114,7 +114,7 @@ pub fn emit_particle_1(
     particles: &Particles,
     ring: &Ring,
     wheel: &MarkRecord,
-    object: &'static CarEffects,
+    object: &CarEffects,
     effects: &Effects,
 ) -> Result<(), Refused> {
     {
@@ -226,7 +226,7 @@ pub fn emit_rolling_particles(
     particles: &Particles,
     ring: &Ring,
     wheel: &MarkRecord,
-    object: &'static CarEffects,
+    object: &CarEffects,
     effects: &Effects,
 ) -> Result<(), Refused> {
     if particles.kind1_choice.choice.get() != 0 {

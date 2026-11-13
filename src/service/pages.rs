@@ -206,5 +206,3 @@ pub fn change_page(
     leave_edit_mode(screens);
     Ok(())
 }
-
-// ---- self-tests ----

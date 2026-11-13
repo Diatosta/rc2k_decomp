@@ -58,7 +58,7 @@ fn refusal(
     particles: &Particles,
     ring: &Ring,
     wheel: &MarkRecord,
-    object: &'static CarEffects,
+    object: &CarEffects,
 ) -> Result<Option<&'static str>, Refused> {
     Ok({
         let flags = wheel.flags.get();
@@ -95,7 +95,7 @@ pub fn emit_wheel_fade_particle(
     particles: &Particles,
     ring: &Ring,
     wheel: &MarkRecord,
-    object: &'static CarEffects,
+    object: &CarEffects,
     effects: &Effects,
 ) -> Result<(), Refused> {
     {

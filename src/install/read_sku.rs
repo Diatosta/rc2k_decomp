@@ -15,7 +15,7 @@ use rc2k_core::install::config;
 // ---- game data ----
 
 pub fn read_sku(
-    install: &'static crate::install::owner::Install,
+    install: &crate::install::owner::Install,
     system: &crate::system::owner::System,
     path: &[u8],
 ) -> Result<(), BadInput> {

@@ -47,8 +47,8 @@ fn x87_turn(
     point.z = f32::from_bits(z);
 }
 
-/// The converted version (`rc2k_core::math::geometry`, plain floats): the hook's, and what
-/// converted callers use. The entry left in edx.
+/// The converted version (`rc2k_core::math::geometry`, plain floats): the one
+/// its callers use. The entry left in edx.
 pub fn rotate_scratch_about_y_plain(
     tables: &crate::scene::engine_tables_store::EngineTables,
     point: &mut Scratch,

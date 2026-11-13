@@ -27,7 +27,7 @@ use crate::scene::rotate_point::rotate_point;
 use crate::session::{read_bits, write_bits};
 
 /// `o` is the car's object.
-pub fn emit_car_particles(effects: &Effects, o: &'static CarEffects) -> Result<(), Refused> {
+pub fn emit_car_particles(effects: &Effects, o: &CarEffects) -> Result<(), Refused> {
     o.whole(effects.car_blocks()?)?;
     let k = read_bits(&effects.kinds.emitter.place_k);
     let place = |wheel: usize, axis: usize| &o.records[wheel].place[axis];

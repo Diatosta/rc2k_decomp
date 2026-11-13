@@ -23,7 +23,7 @@
 use crate::effects::cell_x87::CellX87;
 use crate::effects::emitters::matrix_float;
 use crate::effects::mask_store::Masks;
-use crate::effects::ring_entries::{entry, ld, set, st};
+use crate::effects::ring_entries::{entry, ld, set, st, walk_ring};
 use crate::effects::ring_store::Ring;
 use crate::effects::ring_store::RingWork;
 use crate::effects::setup::MarksClock;
@@ -744,156 +744,129 @@ pub fn run_ring(
     if let Some(why) = refusal(effects, ring, view.fog)? {
         return Err(BadInput(why).into());
     }
-    {
-        let mut e: u32 = ring.work.cursor.get();
-        let mut counter = ring.work.count.get() as i32;
-        loop {
-            counter = counter.wrapping_sub(1);
-            if counter < 0 {
-                break;
-            }
-            let next = entry(ring, e)?.next;
-            let dies = match entry(ring, e)?.kind {
-                5 => drift_kind(
-                    buffer,
-                    masks,
-                    ring,
-                    e,
-                    1,
-                    [
-                        &ring.kinds.drift5[0],
-                        &ring.kinds.drift5[1],
-                        &ring.kinds.drift5[2],
-                    ],
-                    scene,
-                    effects,
-                    view,
-                )?,
-                0xB => drift_kind(
-                    buffer,
-                    masks,
-                    ring,
-                    e,
-                    2,
-                    [
-                        &ring.kinds.drift_b[0],
-                        &ring.kinds.drift_b[1],
-                        &ring.kinds.drift_b[2],
-                    ],
-                    scene,
-                    effects,
-                    view,
-                )?,
-                6 => fading_kind(
-                    buffer,
-                    masks,
-                    ring,
-                    e,
-                    6,
-                    &k6(&ring.kinds),
-                    scene,
-                    effects,
-                    view,
-                )?,
-                0x15 => fading_kind(
-                    buffer,
-                    masks,
-                    ring,
-                    e,
-                    0x15,
-                    &k15(&ring.kinds),
-                    scene,
-                    effects,
-                    view,
-                )?,
-                1 => fading_kind(
-                    buffer,
-                    masks,
-                    ring,
-                    e,
-                    1,
-                    &k1(&ring.kinds),
-                    scene,
-                    effects,
-                    view,
-                )?,
-                0xD => fading_kind(
-                    buffer,
-                    masks,
-                    ring,
-                    e,
-                    0xD,
-                    &kd(&ring.kinds),
-                    scene,
-                    effects,
-                    view,
-                )?,
-                0x13 => fading_kind(
-                    buffer,
-                    masks,
-                    ring,
-                    e,
-                    0x13,
-                    &k13(&ring.kinds),
-                    scene,
-                    effects,
-                    view,
-                )?,
-                0x16 => fading_kind(
-                    buffer,
-                    masks,
-                    ring,
-                    e,
-                    0x16,
-                    &k16(&ring.kinds),
-                    scene,
-                    effects,
-                    view,
-                )?,
-                0x10 => boxed_kind(
-                    buffer,
-                    masks,
-                    ring,
-                    e,
-                    &ring.kinds.k10_gain,
-                    true,
-                    scene,
-                    effects,
-                    view,
-                )?,
-                0x11 => boxed_kind(
-                    buffer,
-                    masks,
-                    ring,
-                    e,
-                    &ring.kinds.k11_gain,
-                    false,
-                    scene,
-                    effects,
-                    view,
-                )?,
-                _ => false,
-            };
-            if dies {
-                ring.work.count.set(ring.work.count.get().wrapping_sub(1));
-                if e == ring.work.cursor.get() {
-                    ring.work.cursor.set(entry(ring, e)?.next);
-                } else {
-                    let (before, after) = (entry(ring, e)?.prev, entry(ring, e)?.next);
-                    set(ring, before, after, |en| &mut en.next)?;
-                    set(ring, after, before, |en| &mut en.prev)?;
-                    let cursor: u32 = ring.work.cursor.get();
-                    let last = entry(ring, cursor)?.prev;
-                    set(ring, cursor, e, |en| &mut en.prev)?;
-                    set(ring, last, e, |en| &mut en.next)?;
-                    set(ring, e, last, |en| &mut en.prev)?;
-                    set(ring, e, cursor, |en| &mut en.next)?;
-                }
-            }
-            e = next;
-        }
-    }
-    Ok(())
+    walk_ring(ring, |e| {
+        Ok(match entry(ring, e)?.kind {
+            5 => drift_kind(
+                buffer,
+                masks,
+                ring,
+                e,
+                1,
+                [
+                    &ring.kinds.drift5[0],
+                    &ring.kinds.drift5[1],
+                    &ring.kinds.drift5[2],
+                ],
+                scene,
+                effects,
+                view,
+            )?,
+            0xB => drift_kind(
+                buffer,
+                masks,
+                ring,
+                e,
+                2,
+                [
+                    &ring.kinds.drift_b[0],
+                    &ring.kinds.drift_b[1],
+                    &ring.kinds.drift_b[2],
+                ],
+                scene,
+                effects,
+                view,
+            )?,
+            6 => fading_kind(
+                buffer,
+                masks,
+                ring,
+                e,
+                6,
+                &k6(&ring.kinds),
+                scene,
+                effects,
+                view,
+            )?,
+            0x15 => fading_kind(
+                buffer,
+                masks,
+                ring,
+                e,
+                0x15,
+                &k15(&ring.kinds),
+                scene,
+                effects,
+                view,
+            )?,
+            1 => fading_kind(
+                buffer,
+                masks,
+                ring,
+                e,
+                1,
+                &k1(&ring.kinds),
+                scene,
+                effects,
+                view,
+            )?,
+            0xD => fading_kind(
+                buffer,
+                masks,
+                ring,
+                e,
+                0xD,
+                &kd(&ring.kinds),
+                scene,
+                effects,
+                view,
+            )?,
+            0x13 => fading_kind(
+                buffer,
+                masks,
+                ring,
+                e,
+                0x13,
+                &k13(&ring.kinds),
+                scene,
+                effects,
+                view,
+            )?,
+            0x16 => fading_kind(
+                buffer,
+                masks,
+                ring,
+                e,
+                0x16,
+                &k16(&ring.kinds),
+                scene,
+                effects,
+                view,
+            )?,
+            0x10 => boxed_kind(
+                buffer,
+                masks,
+                ring,
+                e,
+                &ring.kinds.k10_gain,
+                true,
+                scene,
+                effects,
+                view,
+            )?,
+            0x11 => boxed_kind(
+                buffer,
+                masks,
+                ring,
+                e,
+                &ring.kinds.k11_gain,
+                false,
+                scene,
+                effects,
+                view,
+            )?,
+            _ => false,
+        })
+    })
 }
 
 use crate::effects::plain::{ld_cell, ldi_cell};

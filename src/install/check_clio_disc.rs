@@ -26,7 +26,7 @@ const CAR_NAME_LEN: usize = 0x1B;
 const CLIO_STEP: u32 = 0x41675B; // `install::install_clio`
 
 pub fn check_clio_disc(
-    g: &'static crate::install::owner::Install,
+    g: &crate::install::owner::Install,
     outside: &mut dyn Outside,
 ) -> Result<(), Refused> {
     let install = &g.vars;
