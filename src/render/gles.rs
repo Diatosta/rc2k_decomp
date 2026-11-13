@@ -933,8 +933,9 @@ impl Front {
         }
     }
 
-    /// Hands over the commands and the canvas's written rows, which it marks again.
-    fn draw(&mut self, canvas: &mut [u8], commands: CommandList) {
+    /// Hands over the commands and the canvas's written rows (as `target` noted them), which it
+    /// marks again.
+    fn draw(&mut self, target: &Target, canvas: &mut [u8], commands: CommandList) {
         super::FANS.fetch_add(commands.len() as u64, std::sync::atomic::Ordering::Relaxed);
         super::FLUSHES.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         let changes = super::take_changed_textures();
@@ -963,7 +964,8 @@ impl Front {
             }
         }
         let stride = width as usize * 4;
-        let written = written_runs(canvas, width as usize)
+        let rows = written_rows(target, canvas, width as usize);
+        let written = written_runs(&rows)
             .into_iter()
             .map(|(first, last)| {
                 let rows = &mut canvas[first * stride..(last + 1) * stride];
@@ -981,8 +983,8 @@ impl Front {
     }
 
     /// The frame's end: what the canvas has written over the target, and the target shown.
-    pub fn finish_and_show(&mut self, canvas: &mut [u8]) {
-        self.draw(canvas, CommandList::new());
+    pub fn finish_and_show(&mut self, target: &Target, canvas: &mut [u8]) {
+        self.draw(target, canvas, CommandList::new());
         self.send(Job::ShowTarget);
     }
 
@@ -997,9 +999,9 @@ impl Front {
 
     /// The target's picture, with the canvas's written pixels, into the canvas (waits for the
     /// GL: the frame's whole work so far).
-    pub fn bring_back(&mut self, canvas: &mut [u8]) {
+    pub fn bring_back(&mut self, target: &Target, canvas: &mut [u8]) {
         super::READ_BACKS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-        self.draw(canvas, CommandList::new());
+        self.draw(target, canvas, CommandList::new());
         let (answer, picture) = channel();
         self.send(Job::ReadTarget(answer));
         let Ok(picture) = picture.recv() else {
@@ -1029,35 +1031,59 @@ impl Front {
 /// Unwritten rows that may lie inside a run: a run costs an upload and a quad.
 const RUN_GAP: usize = 16;
 
-/// The runs of the canvas's rows holding a written pixel, each its first and last row: the
-/// panels at the top and the bottom leave the rows between them to the 3D.
-fn written_runs(canvas: &[u8], width: usize) -> smallvec::SmallVec<[(usize, usize); 4]> {
+/// The canvas's rows written since the last flush, one flag a row: as the screen's pixels
+/// noted them (every write through their handle marks its rows; writes in place mark them
+/// all), a superset of the rows holding a written pixel. A row noted but holding none is
+/// uploaded unwritten, which the overlay discards: the same picture. Pixels that do not note
+/// rows at the canvas's pitch are looked at row by row. With `RC2K_CANVAS_CHECK` (a check) the
+/// rows are looked at as well, and a row holding a written pixel but not noted is logged.
+fn written_rows(target: &Target, canvas: &[u8], width: usize) -> Vec<bool> {
+    let stride = width * 4;
+    let noted = (target.pitch == stride)
+        .then(|| target.take_written_rows())
+        .flatten()
+        .filter(|rows| rows.len() == canvas.len() / stride.max(1));
+    let Some(noted) = noted else {
+        return rows_holding_written(canvas, stride);
+    };
+    static CHECK: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    if *CHECK.get_or_init(|| std::env::var_os("RC2K_CANVAS_CHECK").is_some()) {
+        static LOGGED: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+        let missed: Vec<usize> = rows_holding_written(canvas, stride)
+            .iter()
+            .zip(&noted)
+            .enumerate()
+            .filter(|(_, (held, noted))| **held && !**noted)
+            .map(|(y, _)| y)
+            .collect();
+        if !missed.is_empty() && LOGGED.fetch_add(1, std::sync::atomic::Ordering::Relaxed) < 50 {
+            log(&format!(
+                "render: canvas rows written but not noted: {missed:?}"
+            ));
+        }
+    }
+    noted
+}
+
+/// Each row of `stride` bytes: whether it holds a written pixel.
+fn rows_holding_written(canvas: &[u8], stride: usize) -> Vec<bool> {
     const BLOCK: usize = 256;
     let unwritten = UNWRITTEN.to_le_bytes();
     let blank: [u8; BLOCK] = std::array::from_fn(|n| unwritten[n % 4]);
-    // By blocks, as the library compares memory: this looks at the screen's pixels every frame.
+    // By blocks, as the library compares memory.
     let row_written = |row: &[u8]| {
         let (blocks, rest) = row.as_chunks::<BLOCK>();
         blocks.iter().any(|block| *block != blank) || *rest != blank[..rest.len()]
     };
-    // Each row looked at once, the screen in two bands side by side on rayon's threads (no
-    // thread made per flush): the scan is the most of what the game's thread spends here.
-    const BANDS: usize = 2;
-    let stride = width * 4;
-    let mut written = vec![false; canvas.len() / stride.max(1)];
-    let band = written.len().div_ceil(BANDS).max(1);
-    let look = |rows: &[u8], into: &mut [bool]| {
-        for (row, seen) in rows.chunks_exact(stride).zip(into) {
-            *seen = row_written(row);
-        }
-    };
-    let (first_rows, last_rows) = canvas.split_at((band * stride).min(canvas.len()));
-    let rows = written.len();
-    let (first_into, last_into) = written.split_at_mut(band.min(rows));
-    rayon::join(
-        || look(first_rows, first_into),
-        || look(last_rows, last_into),
-    );
+    canvas
+        .chunks_exact(stride.max(1))
+        .map(row_written)
+        .collect()
+}
+
+/// The runs of written rows, each its first and last row: the panels at the top and the
+/// bottom leave the rows between them to the 3D.
+fn written_runs(written: &[bool]) -> smallvec::SmallVec<[(usize, usize); 4]> {
     let mut runs = smallvec::SmallVec::<[(usize, usize); 4]>::new();
     for y in (0..written.len()).filter(|&y| written[y]) {
         match runs.last_mut() {
@@ -1143,6 +1169,6 @@ static TRIED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new
 impl super::Backend for Front {
     fn draw(&mut self, target: &Target, commands: CommandList) {
         self.size = (target.width as i32, target.height as i32);
-        target.with_canvas(|canvas| Front::draw(self, canvas, commands));
+        target.with_canvas(|canvas| Front::draw(self, target, canvas, commands));
     }
 }

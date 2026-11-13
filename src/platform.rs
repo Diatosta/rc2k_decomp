@@ -236,11 +236,11 @@ fn set_screen_mode(
         // The texture made above is dropped (destroyed) with `texture`.
         return Err(why);
     }
-    let pixels = std::sync::Arc::new(crate::pool::PoolBytes::from_vec(vec![
-        0u8;
-        (bytes * width * height)
-            as usize
-    ]));
+    // Its written rows noted: what the GPU's path uploads of the canvas (`render::gles`).
+    let pixels = std::sync::Arc::new(crate::pool::PoolBytes::noting_rows(
+        vec![0u8; (bytes * width * height) as usize],
+        (bytes * width) as usize,
+    ));
     crate::gfx::locked_pixels::register(crate::gfx::locked_pixels::SCREEN, &pixels);
     gfx.drawing
         .draw_surface

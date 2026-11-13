@@ -281,7 +281,10 @@ pub fn draw(in_race: bool, screen: (usize, usize), target: &Target, commands: Co
         if let Some(gpu) = gpu.as_mut() {
             // On the first one, the picture so far goes over as written pixels: the canvas is
             // whole.
-            GPU_HOLDS_FRAME.store(true, Relaxed);
+            if !GPU_HOLDS_FRAME.swap(true, Relaxed) {
+                // The rasteriser's picture, written in place, unnoted.
+                target.note_all_rows_written();
+            }
             Backend::draw(gpu, target, commands);
             return;
         }
@@ -300,11 +303,13 @@ pub fn bring_back(target: &Target) {
         // its own after this returns, `platform::with_frame`); the screen keeps its pixels.
         let canvas = unsafe { target.bytes() };
         #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
-        gpu.bring_back(canvas);
+        gpu.bring_back(target, canvas);
         #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
         if let Err(why) = gpu.bring_back(canvas) {
             crate::framework::log(&format!("render: the frame did not come back: {why}"));
         }
+        // The picture written in place, unnoted.
+        target.note_all_rows_written();
     }
 }
 
@@ -362,7 +367,7 @@ pub fn show_on_panel(
         // SAFETY: `Target::bytes`' promise: on the game's thread, which waits for this call, so
         // nothing else reaches the canvas; no other slice of it lives (the frame's showing takes
         // its own after this returns, `platform::with_frame`); the screen keeps its pixels.
-        gpu.finish_and_show(unsafe { target.bytes() });
+        gpu.finish_and_show(target, unsafe { target.bytes() });
     } else {
         with_frame(&mut |frame| gpu.show_picture(frame, width, height));
     }
@@ -501,6 +506,22 @@ impl Target {
         // the call, and `f` (their drawing) takes no other slice of the canvas; the slice lives
         // through `f` only, while the screen keeps its pixels.
         f(unsafe { self.bytes() })
+    }
+
+    /// The rows written through the pixels' handle since the last call (`PoolBytes::
+    /// take_written_rows`), one flag a row; `None` when the pixels do not note them at the
+    /// target's pitch.
+    // Read by the handheld's GPU path only (`render::gles`).
+    #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+    pub fn take_written_rows(&self) -> Option<Vec<bool>> {
+        crate::gfx::locked_pixels::bytes_of(self.pixels)?.take_written_rows(self.pitch)
+    }
+
+    /// Every row noted as written, after a write in place (`bytes`, `pixels`).
+    pub fn note_all_rows_written(&self) {
+        if let Some(held) = crate::gfx::locked_pixels::bytes_of(self.pixels) {
+            held.note_all_rows_written();
+        }
     }
 
     /// The screen's rows as bytes.

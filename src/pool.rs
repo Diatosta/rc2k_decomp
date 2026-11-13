@@ -16,7 +16,7 @@ use crate::errors::BadInput;
 use crate::framework::log;
 use std::cell::UnsafeCell;
 use std::sync::Mutex;
-use std::sync::atomic::{AtomicUsize, Ordering::Relaxed};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering::Relaxed};
 
 const PAGE: usize = 0x1000;
 
@@ -143,6 +143,28 @@ pub fn give_back(block: &'static PoolBlock) {
 pub struct PoolBytes {
     block: &'static PoolBlock,
     len: usize,
+    /// The rows written since they were last taken, for bytes made with `noting_rows` (the
+    /// screen's): what the GPU's path uploads of the canvas, in place of looking at every row.
+    rows: Option<WrittenRows>,
+}
+
+/// One flag per row of `pitch` bytes: set by every write through `write_at` / `write_value`
+/// that reaches the row.
+struct WrittenRows {
+    pitch: usize,
+    flags: Box<[AtomicBool]>,
+}
+
+impl WrittenRows {
+    fn note(&self, offset: usize, len: usize) {
+        let Some(last_byte) = len.checked_sub(1).map(|l| offset + l) else {
+            return;
+        };
+        let last = (last_byte / self.pitch).min(self.flags.len().saturating_sub(1));
+        for flag in self.flags.get(offset / self.pitch..=last).unwrap_or(&[]) {
+            flag.store(true, Relaxed);
+        }
+    }
 }
 
 impl PoolBytes {
@@ -153,6 +175,35 @@ impl PoolBytes {
         Self {
             block,
             len: bytes.len(),
+            rows: None,
+        }
+    }
+
+    /// As `from_vec`, the rows of `pitch` bytes written noted (`take_written_rows`), all of
+    /// them written to begin with.
+    pub fn noting_rows(bytes: Vec<u8>, pitch: usize) -> Self {
+        let rows = bytes.len() / pitch.max(1);
+        let mut noting = Self::from_vec(bytes);
+        noting.rows = Some(WrittenRows {
+            pitch: pitch.max(1),
+            flags: (0..rows).map(|_| AtomicBool::new(true)).collect(),
+        });
+        noting
+    }
+
+    /// The rows written since the last call (all of them after `note_all_rows_written`), one
+    /// flag a row, each cleared; `None` for bytes not noting rows, or rows of another pitch.
+    // Read by the handheld's GPU path only (`render::gles`).
+    #[cfg(any(test, all(target_os = "linux", target_arch = "aarch64")))]
+    pub fn take_written_rows(&self, pitch: usize) -> Option<Vec<bool>> {
+        let rows = self.rows.as_ref().filter(|r| r.pitch == pitch)?;
+        Some(rows.flags.iter().map(|f| f.swap(false, Relaxed)).collect())
+    }
+
+    /// Every row noted as written: for writes made in place (`as_mut_ptr`), which do not note.
+    pub fn note_all_rows_written(&self) {
+        if let Some(rows) = &self.rows {
+            rows.flags.iter().for_each(|f| f.store(true, Relaxed));
         }
     }
 
@@ -190,6 +241,9 @@ impl PoolBytes {
             ));
             return Err(BadInput("past the end of a field"));
         }
+        if let Some(rows) = &self.rows {
+            rows.note(offset as usize, data.len());
+        }
         crate::cells::Store::store(self.block, offset as usize, data)
     }
 
@@ -208,6 +262,9 @@ impl PoolBytes {
     /// `value` written at byte `offset`; a write past the bytes' end is refused.
     pub fn write_value<T: Plain>(&self, offset: u32, value: T, what: &str) -> Result<(), BadInput> {
         self.within(offset, size_of::<T>(), what)?;
+        if let Some(rows) = &self.rows {
+            rows.note(offset as usize, size_of::<T>());
+        }
         crate::cells::Store::store(self.block, offset as usize, crate::cells::bytes_of(&value))
     }
 
@@ -283,5 +340,30 @@ mod tests {
         assert!(c.len() <= 2 * PAGE);
         assert_ne!(c.as_ptr(), big_first);
         give_back(c);
+    }
+
+    #[test]
+    fn written_rows_are_noted_and_taken() {
+        let bytes = PoolBytes::noting_rows(vec![0; 40], 10);
+        assert_eq!(
+            bytes.take_written_rows(10),
+            Some(vec![true; 4]),
+            "all at first"
+        );
+        assert_eq!(bytes.take_written_rows(10), Some(vec![false; 4]), "cleared");
+        assert_eq!(bytes.take_written_rows(8), None, "another pitch");
+        bytes.write_value(9u32, 7, "test").unwrap();
+        bytes.write_at(35, &[1, 2, 3], "test").unwrap();
+        bytes.write_at(20, &[], "test").unwrap();
+        assert!(bytes.write_at(39, &[1, 2], "test").is_err());
+        assert_eq!(
+            bytes.take_written_rows(10),
+            Some(vec![true, true, false, true])
+        );
+        bytes.note_all_rows_written();
+        assert_eq!(bytes.take_written_rows(10), Some(vec![true; 4]));
+        let plain = PoolBytes::from_vec(vec![0; 40]);
+        plain.write_at(0, &[1], "test").unwrap();
+        assert_eq!(plain.take_written_rows(10), None);
     }
 }
