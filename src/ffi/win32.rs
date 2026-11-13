@@ -222,15 +222,6 @@ const CLSID_SHELL_LINK: GUID = GUID::from_u128(0x00021401_0000_0000_c000_0000000
 const IID_SHELL_LINK_W: GUID = GUID::from_u128(0x000214f9_0000_0000_c000_000000000046);
 const IID_PERSIST_FILE: GUID = GUID::from_u128(0x0000010b_0000_0000_c000_000000000046);
 
-// Vtable slots.
-const QUERY_INTERFACE: usize = 0;
-const RELEASE: usize = 2;
-const LINK_SET_DESCRIPTION: usize = 7;
-const LINK_SET_WORKING_DIRECTORY: usize = 9;
-const LINK_SET_ARGUMENTS: usize = 11;
-const LINK_SET_PATH: usize = 20;
-const PERSIST_SAVE: usize = 6;
-
 fn wide(s: &str) -> Vec<u16> {
     s.encode_utf16().chain(Some(0)).collect()
 }
@@ -239,38 +230,105 @@ fn wide_path(p: &Path) -> Vec<u16> {
     wide(&p.to_string_lossy())
 }
 
-/// Vtable slot `n` of a COM `object`.
-///
-/// # Safety
-/// `object` is a live COM object with at least `n + 1` slots.
-unsafe fn slot(object: *mut c_void, n: usize) -> usize {
-    // SAFETY: the caller's COM object: its first word points at its vtable.
-    unsafe { *(*(object as *const *const usize)).add(n) }
+// The interfaces' vtables, slot for slot in the Windows SDK's order (`unknwn.h`,
+// `objidl.h`, `shobjidl_core.h`): a method is called by its field, so a wrong slot is a
+// wrong name, and each table's size is checked against its count of methods below. The
+// methods not called here are `Uncalled`, kept for their places.
+
+/// A method slot this code does not call.
+type Uncalled = *const c_void;
+/// `HRESULT (this, LPCWSTR)`: the link's text setters.
+type SetText = unsafe extern "system" fn(*mut c_void, *const u16) -> i32;
+
+/// `IUnknown`: the first three slots of every COM interface.
+#[repr(C)]
+struct UnknownMethods {
+    query_interface: unsafe extern "system" fn(*mut c_void, *const GUID, *mut *mut c_void) -> i32,
+    add_ref: Uncalled,
+    release: unsafe extern "system" fn(*mut c_void) -> u32,
 }
 
-/// `IUnknown::Release`.
-///
-/// # Safety
-/// `object` is a live COM object the caller holds a reference to.
-unsafe fn release(object: *mut c_void) {
-    // SAFETY: slot `RELEASE` is `IUnknown::Release`, as the caller's object has.
-    unsafe {
-        let f: unsafe extern "system" fn(*mut c_void) -> u32 =
-            std::mem::transmute(slot(object, RELEASE));
-        f(object);
+/// `IShellLinkW`'s vtable.
+#[repr(C)]
+struct ShellLinkMethods {
+    unknown: UnknownMethods,
+    get_path: Uncalled,
+    get_id_list: Uncalled,
+    set_id_list: Uncalled,
+    get_description: Uncalled,
+    set_description: SetText,
+    get_working_directory: Uncalled,
+    set_working_directory: SetText,
+    get_arguments: Uncalled,
+    set_arguments: SetText,
+    get_hotkey: Uncalled,
+    set_hotkey: Uncalled,
+    get_show_cmd: Uncalled,
+    set_show_cmd: Uncalled,
+    get_icon_location: Uncalled,
+    set_icon_location: Uncalled,
+    set_relative_path: Uncalled,
+    resolve: Uncalled,
+    set_path: SetText,
+}
+
+/// `IPersistFile`'s vtable (`IUnknown`, `IPersist`, then its own).
+#[repr(C)]
+struct PersistFileMethods {
+    unknown: UnknownMethods,
+    get_class_id: Uncalled,
+    is_dirty: Uncalled,
+    load: Uncalled,
+    /// `HRESULT (this, LPCOLESTR file, BOOL remember)`.
+    save: unsafe extern "system" fn(*mut c_void, *const u16, i32) -> i32,
+    save_completed: Uncalled,
+    get_cur_file: Uncalled,
+}
+
+const SLOT: usize = size_of::<usize>();
+const _: () = assert!(size_of::<UnknownMethods>() == 3 * SLOT);
+const _: () = assert!(size_of::<ShellLinkMethods>() == 21 * SLOT);
+const _: () = assert!(size_of::<PersistFileMethods>() == 9 * SLOT);
+
+/// A COM object: its first word points at its interface's vtable `M`.
+#[repr(C)]
+struct ComObject<M> {
+    methods: *const M,
+}
+
+/// A held reference to a COM object of interface `M` (non-null), released once when dropped.
+struct Held<M>(*mut ComObject<M>);
+
+impl<M> Held<M> {
+    /// The object `object` names, or None for null.
+    ///
+    /// # Safety
+    /// `object` is null or a live COM object of interface `M` whose reference the caller
+    /// hands over (to be released once, here).
+    unsafe fn new(object: *mut c_void) -> Option<Self> {
+        (!object.is_null()).then(|| Held(object.cast()))
+    }
+
+    /// The object's vtable.
+    fn methods(&self) -> &M {
+        // SAFETY: a live COM object of interface `M` (`new`'s contract) while held: its
+        // first word points at that interface's vtable, which lives as long as the object.
+        unsafe { &*(*self.0).methods }
+    }
+
+    /// The object as the `this` its methods take.
+    fn this(&self) -> *mut c_void {
+        self.0.cast()
     }
 }
 
-/// A COM method of slot `n` taking one wide text (NUL-ended).
-///
-/// # Safety
-/// `object` is a live COM object whose slot `n` takes a `*const u16` and returns an HRESULT.
-unsafe fn call_text(object: *mut c_void, n: usize, text: &[u16]) -> i32 {
-    // SAFETY: the caller's slot `n`, a method of that shape.
-    unsafe {
-        let f: unsafe extern "system" fn(*mut c_void, *const u16) -> i32 =
-            std::mem::transmute(slot(object, n));
-        f(object, text.as_ptr())
+impl<M> Drop for Held<M> {
+    fn drop(&mut self) {
+        // Every interface's vtable starts with `IUnknown`'s: `M`'s first field.
+        let unknown = self.0.cast::<ComObject<UnknownMethods>>();
+        // SAFETY: the reference `new` was handed, released once; `Release` is slot 2 of every
+        // interface, as `UnknownMethods` lays it out.
+        unsafe { ((*(*unknown).methods).release)(self.this()) };
     }
 }
 
@@ -296,46 +354,55 @@ pub fn programs_folder() -> Option<PathBuf> {
 
 /// One shortcut written; false when COM or the shell refused.
 pub fn write_link(at: &Path, target: &Path, arguments: &str, name: &str) -> bool {
-    // SAFETY: COM started on this thread by the caller (`with_com`). The shell link object
-    // comes from `CoCreateInstance` (checked), is called only through its documented
-    // `IShellLink` / `IUnknown` / `IPersistFile` slots with NUL-ended wide texts that live
-    // over each call, and is released once (the file interface too).
-    unsafe {
-        let mut link: *mut c_void = std::ptr::null_mut();
-        if CoCreateInstance(
+    let mut object: *mut c_void = std::ptr::null_mut();
+    // SAFETY: COM started on this thread by the caller (`with_com`); the out-parameter is
+    // local.
+    let created = unsafe {
+        CoCreateInstance(
             &CLSID_SHELL_LINK,
             std::ptr::null_mut(),
             CLSCTX_INPROC_SERVER,
             &IID_SHELL_LINK_W,
-            &raw mut link,
-        ) < 0
-            || link.is_null()
-        {
-            return false;
-        }
-        let folder = target.parent().map(wide_path).unwrap_or_else(|| wide(""));
-        let mut ok = call_text(link, LINK_SET_PATH, &wide_path(target)) >= 0
-            && call_text(link, LINK_SET_WORKING_DIRECTORY, &folder) >= 0
-            && call_text(link, LINK_SET_ARGUMENTS, &wide(arguments)) >= 0
-            && call_text(link, LINK_SET_DESCRIPTION, &wide(name)) >= 0;
-        if ok {
-            let query: unsafe extern "system" fn(
-                *mut c_void,
-                *const GUID,
-                *mut *mut c_void,
-            ) -> i32 = std::mem::transmute(slot(link, QUERY_INTERFACE));
-            let mut file: *mut c_void = std::ptr::null_mut();
-            ok = query(link, &IID_PERSIST_FILE, &raw mut file) >= 0 && !file.is_null();
-            if ok {
-                let save: unsafe extern "system" fn(*mut c_void, *const u16, i32) -> i32 =
-                    std::mem::transmute(slot(file, PERSIST_SAVE));
-                ok = save(file, wide_path(at).as_ptr(), 1) >= 0;
-                release(file);
-            }
-        }
-        release(link);
-        ok
+            &raw mut object,
+        )
+    };
+    if created < 0 {
+        return false;
     }
+    // SAFETY: `CoCreateInstance` succeeded asking for `IID_IShellLinkW`: `object` is null or
+    // that interface, whose reference is ours.
+    let Some(link) = (unsafe { Held::<ShellLinkMethods>::new(object) }) else {
+        return false;
+    };
+    let methods = link.methods();
+    let folder = target.parent().map(wide_path).unwrap_or_else(|| wide(""));
+    // SAFETY: `IShellLinkW`'s setters on the live link, each with a NUL-ended wide text that
+    // lives over the call.
+    let set = unsafe {
+        (methods.set_path)(link.this(), wide_path(target).as_ptr()) >= 0
+            && (methods.set_working_directory)(link.this(), folder.as_ptr()) >= 0
+            && (methods.set_arguments)(link.this(), wide(arguments).as_ptr()) >= 0
+            && (methods.set_description)(link.this(), wide(name).as_ptr()) >= 0
+    };
+    if !set {
+        return false;
+    }
+    let mut object: *mut c_void = std::ptr::null_mut();
+    // SAFETY: `QueryInterface` on the live link, with a GUID and a local out-parameter.
+    let queried = unsafe {
+        (methods.unknown.query_interface)(link.this(), &IID_PERSIST_FILE, &raw mut object)
+    };
+    if queried < 0 {
+        return false;
+    }
+    // SAFETY: `QueryInterface` succeeded asking for `IID_IPersistFile`: `object` is null or
+    // that interface, whose (added) reference is ours.
+    let Some(file) = (unsafe { Held::<PersistFileMethods>::new(object) }) else {
+        return false;
+    };
+    // SAFETY: `IPersistFile::Save` on the live object with a NUL-ended wide path that lives
+    // over the call, remembering it (TRUE).
+    unsafe { (file.methods().save)(file.this(), wide_path(at).as_ptr(), 1) >= 0 }
 }
 
 /// COM for the calls in `f` (the thread may have it already).
@@ -392,9 +459,14 @@ pub fn create_event() -> Option<Event> {
     }
 }
 
-/// The module a host address is in: its full path (as `GetModuleFileNameW` gives it) and
-/// its base address; None when the address is in none.
-pub fn module_of_address_wide(address: usize) -> Option<(String, usize)> {
+/// `f` given the module a host address is in: its full path's UTF-16 units (as
+/// `GetModuleFileNameW` gives it, in a buffer on the stack) and its base address; None when
+/// the address is in none. Allocates nothing, for the fault reporter (the loader's lock it
+/// may take is covered by the reporter's time limit).
+pub fn with_module_of_address_wide<T>(
+    address: usize,
+    f: impl FnOnce(&[u16], usize) -> T,
+) -> Option<T> {
     use windows_sys::Win32::System::LibraryLoader::{
         GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS, GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
         GetModuleFileNameW, GetModuleHandleExW,
@@ -415,14 +487,11 @@ pub fn module_of_address_wide(address: usize) -> Option<(String, usize)> {
         }
         let mut name = [0u16; 260];
         let n = GetModuleFileNameW(module, name.as_mut_ptr(), name.len() as u32) as usize;
-        Some((
-            String::from_utf16_lossy(&name[..n]),
-            module.expose_provenance(),
-        ))
+        Some(f(&name[..n], module.expose_provenance()))
     }
 }
 
-/// The module a host address is in, as `module_of_address_wide`, with the ANSI calls (the
+/// The module a host address is in, as `with_module_of_address_wide`, with the ANSI calls (the
 /// profiler's): the path lossy from UTF-8.
 pub fn module_of_address_ansi(address: usize) -> Option<(String, usize)> {
     use windows_sys::Win32::System::LibraryLoader::{
@@ -506,7 +575,8 @@ impl SampledThread {
 }
 
 /// The unhandled-exception filter: reports an access violation (`standalone::report_fault`,
-/// which ends the program) and passes every other exception on.
+/// which ends the program) and passes every other exception on. Reads the system's records
+/// only; what the report calls is listed at `report_fault`.
 ///
 /// # Safety
 /// The system's filter: `info` and the records it points at are the system's, live during
@@ -541,4 +611,58 @@ pub fn install_fault_reporter() {
             on_exception,
         ));
     }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The UTF-16 units of `text`, as the link file holds its texts.
+    fn units(text: &str) -> Vec<u8> {
+        text.encode_utf16().flat_map(u16::to_le_bytes).collect()
+    }
+
+    /// Where `text` is in `file` as a `StringData` entry: its count of characters (Wine's
+    /// writer counts a NUL after them, Windows' does not), then its UTF-16 units.
+    fn string_data_at(file: &[u8], text: &str) -> Option<usize> {
+        let count = text.encode_utf16().count() as u16;
+        [count, count + 1].into_iter().find_map(|count| {
+            let entry: Vec<u8> = count.to_le_bytes().into_iter().chain(units(text)).collect();
+            file.windows(entry.len()).position(|w| w == entry)
+        })
+    }
+
+    /// A link written through the typed vtables: a shell link file (its header and class)
+    /// with a target, and the description, working folder and arguments given, in the
+    /// `StringData` order (`NAME_STRING`, `WORKING_DIR`, `COMMAND_LINE_ARGUMENTS`): each
+    /// setter reached its own slot.
+    #[test]
+    fn write_link_writes_a_shell_link() {
+        let folder = std::env::temp_dir().join(format!("rc2k_link_{}", std::process::id()));
+        std::fs::create_dir_all(&folder).unwrap();
+        let at = folder.join("Check.lnk");
+        let target = std::env::current_exe().unwrap();
+        let (arguments, name) = ("--rc2k-arguments-check", "rc2k description check");
+        assert!(with_com(|| write_link(&at, &target, arguments, name)));
+        let file = std::fs::read(&at).unwrap();
+        let _ = std::fs::remove_dir_all(&folder);
+        // `ShellLinkHeader`: its size, 0x4C, then CLSID_ShellLink, then the link's flags.
+        assert_eq!(file[..4], [0x4C, 0, 0, 0]);
+        assert_eq!(file[4..20], CLSID_SHELL_LINK_BYTES);
+        let flags = u32::from_le_bytes(file[0x14..0x18].try_into().unwrap());
+        // HasLinkTargetIDList or HasLinkInfo: `SetPath` gave it a target.
+        assert_ne!(flags & 0x3, 0, "no target in the link (flags {flags:#x})");
+        let working = target.parent().unwrap().to_string_lossy().into_owned();
+        let places = [name, &working, arguments].map(|text| string_data_at(&file, text));
+        assert!(
+            matches!(places, [Some(n), Some(w), Some(a)] if n < w && w < a),
+            "the link's texts are not description, working folder, arguments: {places:?}"
+        );
+    }
+
+    /// `CLSID_ShellLink` as the file holds it (the GUID's first three fields little-endian).
+    const CLSID_SHELL_LINK_BYTES: [u8; 16] = [
+        0x01, 0x14, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0xC0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x46,
+    ];
 }

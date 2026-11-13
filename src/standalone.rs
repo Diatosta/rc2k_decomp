@@ -95,21 +95,142 @@ fn start_watchdog() {
     }
 }
 
-#[cfg(windows)]
-/// The module a host address is in, and the address relative to its base
-/// ("rc2k.exe+0x1234").
-fn in_module(address: usize) -> Option<String> {
-    let (path, base) = crate::ffi::win32::module_of_address_wide(address)?;
-    let file = path.rsplit(['\\', '/']).next().unwrap_or(&path).to_string();
-    Some(format!("{file}+{:#x}", address - base))
+// ---- the fault report, in the handler: nothing allocated, no lock of ours taken ----
+//
+// Every call between a fault and the process's end (`report_fault` and below), as the
+// systems' handlers (`ffi::unix::on_signal`, `ffi::win32::on_exception`) make them:
+// - `arm_time_limit`: `alarm(2)` (Unix), or setting an event made before any fault (Windows);
+// - the module lookups: `dladdr` (Unix), `GetModuleHandleExW` / `GetModuleFileNameW` into a
+//   stack buffer (Windows); they may take the loader's lock, not async-signal-safe: a fault
+//   that holds it hangs the report, and the time limit then ends the process without it;
+// - `stack_word`: plain reads of the faulting thread's stack;
+// - the text: `core::fmt` into `FaultLine`'s stack buffer (no allocation, no lock), written
+//   with `write(2)` / `WriteFile` on the log opened before any fault (`FAULT_LOG`);
+// - `end`: the PGO build's `__llvm_profile_write_file` (that build only: it allocates and
+//   does stdio; the time limit covers it), then `_exit` / `TerminateProcess`.
+// The handler always ends the process, so nothing it leaves half done is seen again.
+
+/// What a fault's report is written with, made before any fault: the log opened for
+/// appending, and the file name of the program's own module (its units as the system gives
+/// them), or None when it has none.
+struct FaultLog {
+    file: std::fs::File,
+    own_module: Option<Box<[NameUnit]>>,
 }
 
+/// A unit of a module's path as the system gives it.
 #[cfg(unix)]
-/// The module a host address is in, and the address relative to its base ("rc2k+0x1234").
-fn in_module(address: usize) -> Option<String> {
-    let (path, base) = crate::ffi::unix::module_of_address(address)?;
-    let file = path.rsplit('/').next().unwrap_or(&path).to_string();
-    Some(format!("{file}+{:#x}", address - base))
+type NameUnit = u8;
+#[cfg(windows)]
+type NameUnit = u16;
+
+static FAULT_LOG: std::sync::OnceLock<FaultLog> = std::sync::OnceLock::new();
+
+/// `f` given the file name of the module a host address is in (its path's last part) and
+/// the module's base; None when it is in none.
+#[cfg(unix)]
+fn with_module<T>(address: usize, f: impl FnOnce(&[NameUnit], usize) -> T) -> Option<T> {
+    crate::ffi::unix::with_module_of_address(address, |path, base| {
+        f(path.rsplit(|&c| c == b'/').next().unwrap_or(path), base)
+    })
+}
+
+#[cfg(windows)]
+fn with_module<T>(address: usize, f: impl FnOnce(&[NameUnit], usize) -> T) -> Option<T> {
+    let separator = |&c: &u16| c == u16::from(b'\\') || c == u16::from(b'/');
+    crate::ffi::win32::with_module_of_address_wide(address, |path, base| {
+        f(path.rsplit(separator).next().unwrap_or(path), base)
+    })
+}
+
+/// The log opened for the fault report, and the program's own module named: before any
+/// fault, once `LOG_PATH` is set.
+fn open_fault_log() {
+    let Some(file) = LOG_PATH.get().and_then(|path| {
+        std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(path)
+            .ok()
+    }) else {
+        return;
+    };
+    let own_module = with_module(
+        (stack_returns as *const ()).expose_provenance(),
+        |name, _| Box::from(name),
+    );
+    let _ = FAULT_LOG.set(FaultLog { file, own_module });
+}
+
+/// One line of the fault report, gathered in a buffer on the stack and written to the log
+/// as it fills and at its end (no allocation, no lock: a handler's).
+struct FaultLine<'a> {
+    file: &'a std::fs::File,
+    buffer: [u8; 1024],
+    len: usize,
+}
+
+impl<'a> FaultLine<'a> {
+    fn new(file: &'a std::fs::File) -> Self {
+        FaultLine {
+            file,
+            buffer: [0; 1024],
+            len: 0,
+        }
+    }
+
+    fn flush(&mut self) {
+        use std::io::Write;
+        // A failed write loses the report's text only; the process ends either way.
+        let mut file = self.file;
+        let _ = file.write_all(&self.buffer[..self.len]);
+        self.len = 0;
+    }
+
+    /// The line ended ("\n") and written.
+    fn end(mut self) {
+        let _ = std::fmt::Write::write_char(&mut self, '\n');
+        self.flush();
+    }
+
+    /// A module's file name, as `String::from_utf8_lossy` / `from_utf16_lossy` show it.
+    fn name(&mut self, name: &[NameUnit]) {
+        use std::fmt::Write;
+        #[cfg(unix)]
+        for chunk in name.utf8_chunks() {
+            let _ = self.write_str(chunk.valid());
+            if !chunk.invalid().is_empty() {
+                let _ = self.write_char(char::REPLACEMENT_CHARACTER);
+            }
+        }
+        #[cfg(windows)]
+        for c in char::decode_utf16(name.iter().copied()) {
+            let _ = self.write_char(c.unwrap_or(char::REPLACEMENT_CHARACTER));
+        }
+    }
+
+    /// The module a host address is in, and the address relative to its base
+    /// ("rc2k.exe+0x1234"); false (nothing written) when it is in none.
+    fn in_module(&mut self, address: usize) -> bool {
+        with_module(address, |file, base| {
+            self.name(file);
+            let _ = std::fmt::Write::write_fmt(self, format_args!("+{:#x}", address - base));
+        })
+        .is_some()
+    }
+}
+
+impl std::fmt::Write for FaultLine<'_> {
+    fn write_str(&mut self, text: &str) -> std::fmt::Result {
+        for &byte in text.as_bytes() {
+            if self.len == self.buffer.len() {
+                self.flush();
+            }
+            self.buffer[self.len] = byte;
+            self.len += 1;
+        }
+        Ok(())
+    }
 }
 
 /// The word at `at` on the faulting thread's stack.
@@ -123,26 +244,35 @@ fn stack_word(at: usize) -> usize {
 }
 
 /// The return addresses into this program found on the stack from `esp` (at most 24), for
-/// `llvm-symbolizer` with the program's PDB (or its symbols on Unix).
-fn stack_returns(esp: usize) -> String {
-    let own = in_module((stack_returns as *const ()).expose_provenance())
-        .map(|m| m.split('+').next().unwrap_or("").to_string());
-    let mut out = Vec::new();
+/// `llvm-symbolizer` with the program's PDB (or its symbols on Unix), written to `line`
+/// space-separated: each a word whose module's file name begins with the program's own.
+fn stack_returns(line: &mut FaultLine, own_module: Option<&[NameUnit]>, esp: usize) {
+    let Some(own) = own_module else {
+        return;
+    };
+    let mut found = 0;
     // 2 KB of stack: well inside it at any fault the game code can reach.
     const WORD: usize = size_of::<usize>();
     for k in 0..2048 / WORD {
-        let at = esp + WORD * k;
-        let value = stack_word(at);
-        if let (Some(m), Some(own)) = (in_module(value), own.as_ref())
-            && m.starts_with(own.as_str())
-        {
-            out.push(m);
-            if out.len() == 24 {
+        let value = stack_word(esp + WORD * k);
+        let ours = with_module(value, |file, base| {
+            if !file.starts_with(own) {
+                return false;
+            }
+            if found > 0 {
+                let _ = std::fmt::Write::write_char(line, ' ');
+            }
+            line.name(file);
+            let _ = std::fmt::Write::write_fmt(line, format_args!("+{:#x}", value - base));
+            true
+        });
+        if ours == Some(true) {
+            found += 1;
+            if found == 24 {
                 break;
             }
         }
     }
-    out.join(" ")
 }
 
 /// The game closed (`g_quitting`), in a race or on a menu: what the original's way out does
@@ -177,6 +307,11 @@ pub fn not_ported(at: usize, from: &str) -> ! {
 
 pub fn finish(why: &str, code: u32) -> ! {
     log(&format!("standalone: ending: {why}"));
+    end(code)
+}
+
+/// The process ended with `code`, the PGO build's counters written first.
+fn end(code: u32) -> ! {
     #[cfg(rc2k_pgo)]
     {
         crate::ffi::pgo::write_profile();
@@ -205,19 +340,29 @@ pub fn answers(at: usize) -> bool {
 
 /// A fault reported and the program ended: `host` the faulting instruction, `data` the
 /// address it read or wrote (`write`), `sp` the thread's stack pointer (host addresses).
-/// Shared by the systems' handlers.
+/// Shared by the systems' handlers; allocates nothing and takes no lock of ours (the calls
+/// it makes are listed above `FaultLog`).
 pub(crate) fn report_fault(host: usize, data: usize, write: bool, sp: usize) -> ! {
+    use std::fmt::Write;
     arm_time_limit();
     let verb = if write { "writing" } else { "reading" };
-    log(&format!(
-        "standalone: the fault is in {}; return addresses on the stack: {}",
-        in_module(host).unwrap_or_else(|| "no module".into()),
-        stack_returns(sp)
-    ));
-    finish(
-        &format!("access violation at {host:#x}, {verb} address {data:#x}"),
-        1,
-    );
+    if let Some(log) = FAULT_LOG.get() {
+        let mut line = FaultLine::new(&log.file);
+        let _ = line.write_str("standalone: the fault is in ");
+        if !line.in_module(host) {
+            let _ = line.write_str("no module");
+        }
+        let _ = line.write_str("; return addresses on the stack: ");
+        stack_returns(&mut line, log.own_module.as_deref(), sp);
+        line.end();
+        let mut line = FaultLine::new(&log.file);
+        let _ = write!(
+            line,
+            "standalone: ending: access violation at {host:#x}, {verb} address {data:#x}"
+        );
+        line.end();
+    }
+    end(1)
 }
 
 // ---- `start` (0x401000) ----
@@ -576,6 +721,7 @@ pub fn run(log_file: &Path, frames: u32) -> ! {
             thread.id()
         ));
     }));
+    open_fault_log();
     #[cfg(unix)]
     crate::ffi::unix::install_fault_reporter();
     #[cfg(windows)]
@@ -588,4 +734,76 @@ pub fn run(log_file: &Path, frames: u32) -> ! {
     // SAFETY: once, here, on the main thread.
     start(Owners::the());
     finish("start came to its end", 0)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A module's file name as the report wrote it before it ran without allocating.
+    #[cfg(unix)]
+    fn lossy(name: &[NameUnit]) -> String {
+        String::from_utf8_lossy(name).into_owned()
+    }
+
+    #[cfg(windows)]
+    fn lossy(name: &[NameUnit]) -> String {
+        String::from_utf16_lossy(name)
+    }
+
+    /// The report's place texts as `format!` wrote them: "file+0x..", or None.
+    fn in_module_text(address: usize) -> Option<String> {
+        with_module(address, |file, base| {
+            format!("{}+{:#x}", lossy(file), address - base)
+        })
+    }
+
+    /// The fault line's module place and stack returns, written without allocating, are the
+    /// texts the report's former `format!` / `join` made of the same stack.
+    #[test]
+    fn fault_line_writes_the_report_as_before() {
+        let own_fn = (report_fault as *const ()).expose_provenance();
+        let other_fn = (stack_returns as *const ()).expose_provenance();
+        let mut stack = [0x10usize; 2048 / size_of::<usize>()];
+        for (k, word) in stack.iter_mut().enumerate() {
+            *word = match k % 7 {
+                0 => own_fn + k,
+                3 => other_fn + 2 * k,
+                _ => 0x10 + k,
+            };
+        }
+        let own =
+            with_module(other_fn, |name, _| Box::<[NameUnit]>::from(name)).expect("own module");
+        let path = std::env::temp_dir().join(format!("rc2k_fault_line_{}", std::process::id()));
+        let file = std::fs::File::create(&path).unwrap();
+        let mut line = FaultLine::new(&file);
+        let _ = std::fmt::Write::write_str(&mut line, "in ");
+        assert!(line.in_module(own_fn));
+        let _ = std::fmt::Write::write_str(&mut line, "; ");
+        stack_returns(&mut line, Some(&own), stack.as_ptr().expose_provenance());
+        line.end();
+        drop(file);
+        let written = std::fs::read_to_string(&path).unwrap();
+        let _ = std::fs::remove_file(&path);
+
+        let own_text = in_module_text(other_fn).map(|m| m.split('+').next().unwrap().to_string());
+        let mut returns = Vec::new();
+        for &value in &stack {
+            if let (Some(m), Some(own)) = (in_module_text(value), own_text.as_ref())
+                && m.starts_with(own.as_str())
+            {
+                returns.push(m);
+                if returns.len() == 24 {
+                    break;
+                }
+            }
+        }
+        let expected = format!(
+            "in {}; {}\n",
+            in_module_text(own_fn).unwrap(),
+            returns.join(" ")
+        );
+        assert_eq!(returns.len(), 24);
+        assert_eq!(written, expected);
+    }
 }

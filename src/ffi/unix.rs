@@ -199,11 +199,13 @@ pub fn alarm(seconds: u32) {
     }
 }
 
-/// The module a host address is in: its path and its load address; None when the loader
-/// knows none.
-pub fn module_of_address(address: usize) -> Option<(String, usize)> {
-    // SAFETY: `address` is only looked up; the record's name is the loader's, live while
-    // the module is loaded.
+/// `f` given the module a host address is in: its path's bytes (the loader's, lent for the
+/// call) and its load address; None when the loader knows none. Allocates nothing, for the
+/// fault reporter (`dladdr` itself may take the loader's lock: the reporter's time limit
+/// covers a fault that holds it).
+pub fn with_module_of_address<T>(address: usize, f: impl FnOnce(&[u8], usize) -> T) -> Option<T> {
+    // SAFETY: `address` is only looked up; the record's name is the loader's, NUL-ended and
+    // live while the module is loaded, which it is over the call.
     unsafe {
         let mut found: libc::Dl_info = std::mem::zeroed();
         if libc::dladdr(std::ptr::with_exposed_provenance(address), &raw mut found) == 0
@@ -211,15 +213,14 @@ pub fn module_of_address(address: usize) -> Option<(String, usize)> {
         {
             return None;
         }
-        let path = CStr::from_ptr(found.dli_fname)
-            .to_string_lossy()
-            .into_owned();
-        Some((path, found.dli_fbase.expose_provenance()))
+        let path = CStr::from_ptr(found.dli_fname).to_bytes();
+        Some(f(path, found.dli_fbase.expose_provenance()))
     }
 }
 
 /// The signal handler (SA_SIGINFO): hands the fault's places to `standalone::report_fault`,
-/// which ends the program.
+/// which ends the program. Reads the system's records only; what the report calls is listed
+/// at `report_fault`.
 ///
 /// # Safety
 /// The system's signal handler: `info` and `context` are the system's, live during the call.

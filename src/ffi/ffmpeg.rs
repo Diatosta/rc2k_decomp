@@ -12,6 +12,12 @@
 use std::ffi::{CStr, c_char, c_void};
 
 // FFmpeg's functions (cdecl; the frame's first fields, which are stable, are `Frame`).
+// Every function below is `unsafe` to call because FFmpeg checks no pointer: the safe wrappers
+// further down (`Decoder`, `Frame`) carry the proof for each call (live
+// objects they own, lengths from slices, each object freed once). The `none` module's stubs
+// below hold no state and never dereference their arguments: they are `unsafe` only to match
+// the declarations they stand in for.
+//
 // The declarations below are FFmpeg's (libavcodec 61 / libavutil 59), every pointer
 // argument a C pointer of the type named in its header.
 

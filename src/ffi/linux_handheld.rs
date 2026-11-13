@@ -3,7 +3,9 @@
 //! (a `SIGPROF` timer, the samples' registers, and reading a few words of this process).
 //!
 //! `Framebuffer` owns the open device and its mapping, which lives as long as the program
-//! (never unmapped); its pages are reached only through `pages`, under `&mut self`.
+//! (never unmapped): the mapping is held as the one `&'static mut [u8]` made of it, so it is
+//! `Send` by the compiler's own rules and its pages are reached only through `pages`, under
+//! `&mut self`.
 
 #![allow(unsafe_code)]
 
@@ -54,14 +56,10 @@ struct FixedInfo {
 pub struct Framebuffer {
     /// Open while the mapping lives.
     file: File,
-    pixels: *mut u8,
-    /// The pages' whole length in bytes.
-    len: usize,
+    /// The two pages: the mapping, never unmapped, and no other reference to it made.
+    pages: &'static mut [u8],
     info: VarInfo,
 }
-
-// SAFETY: the owner keeps it under one lock; the mapping is the program's for its life.
-unsafe impl Send for Framebuffer {}
 
 impl Framebuffer {
     /// `/dev/fb0` set to `width` x `height` at 32 bits (XRGB8888, B, G, R, X in memory) on two
@@ -75,7 +73,9 @@ impl Framebuffer {
         let fd = file.as_raw_fd();
         let len = stride * height * 2;
         // SAFETY: the ioctls fill and read a record of the kernel's size; the mapping's length
-        // is checked by the kernel against the framebuffer's memory.
+        // is checked by the kernel against the framebuffer's memory. The slice made of the
+        // mapping is its only reference: `mmap` gave memory no other object points into, it
+        // is never unmapped (so `'static`), and it is plain bytes, any value valid.
         unsafe {
             let mut info: VarInfo = std::mem::zeroed();
             if libc::ioctl(fd, FBIOGET_VSCREENINFO, &mut info) != 0 {
@@ -124,21 +124,15 @@ impl Framebuffer {
             if pixels == libc::MAP_FAILED {
                 return Err("the framebuffer cannot be mapped".into());
             }
-            std::ptr::write_bytes(pixels.cast::<u8>(), 0, len);
-            Ok(Framebuffer {
-                file,
-                pixels: pixels.cast(),
-                len,
-                info,
-            })
+            let pages = std::slice::from_raw_parts_mut(pixels.cast::<u8>(), len);
+            pages.fill(0);
+            Ok(Framebuffer { file, pages, info })
         }
     }
 
     /// The two pages.
     pub fn pages(&mut self) -> &mut [u8] {
-        // SAFETY: the mapping's whole length, the program's for its life; `&mut self` is the
-        // only way to it.
-        unsafe { std::slice::from_raw_parts_mut(self.pixels, self.len) }
+        self.pages
     }
 
     /// The screen panned to the page starting at row `y_offset`.
@@ -162,6 +156,10 @@ pub struct Sample {
 static ON_SAMPLE: OnceLock<fn(Sample)> = OnceLock::new();
 
 /// The timer's signal: only atomics and a system call, as a handler must.
+///
+/// # Safety
+/// Only the kernel calls it, as a `SA_SIGINFO` handler: `context` is the interrupted thread's
+/// `ucontext_t`, live during the call.
 unsafe extern "C" fn on_profile(
     _signal: libc::c_int,
     _info: *mut libc::siginfo_t,

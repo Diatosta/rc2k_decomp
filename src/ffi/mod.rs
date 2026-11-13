@@ -1,6 +1,8 @@
 //! The outside libraries' `unsafe`, behind thin safe wrappers: one module per library
 //! (owner, 2026-11-07). Outside these and the memory primitives no file allows `unsafe`.
 
+#![deny(clippy::undocumented_unsafe_blocks)]
+
 pub mod ffmpeg;
 #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
 pub mod gl;
