@@ -63,8 +63,8 @@ pub fn sample_noise(
     let refused = std::cell::Cell::new(None);
     let noise = &tables.noise_bytes;
     let s = rc2k_core::race::view::sample_noise(
-        |n| match noise.read_at(map + n as usize, 1, "a noise map") {
-            Ok(b) => b[0],
+        |n| match noise.byte_at(map + n as usize, "a noise map") {
+            Ok(b) => b,
             Err(e) => {
                 refused.set(refused.take().or(Some(e)));
                 0

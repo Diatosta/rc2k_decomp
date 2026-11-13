@@ -159,8 +159,8 @@ fn probe_points(
             trap.keep(
                 c.engine_tables
                     .noise_bytes
-                    .read_at(i as usize, 1, "the ground noise table")
-                    .map(|b| u32::from(b[0])),
+                    .byte_at(i as usize, "the ground noise table")
+                    .map(u32::from),
             )
         };
         let n = cell.corners.map(noise);

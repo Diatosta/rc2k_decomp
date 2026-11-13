@@ -530,6 +530,12 @@ impl<const N: usize> Bytes<N> {
         Ok((offset..offset + len).map(|i| self.get(i)).collect())
     }
 
+    /// The byte at `offset`, as `read_at(offset, 1, what)` gives it, without the allocation.
+    pub fn byte_at(&self, offset: usize, what: &str) -> Result<u8, crate::errors::BadInput> {
+        self.range(offset, 1, what)?;
+        Ok(self.get(offset))
+    }
+
     /// `data` written from `offset`.
     pub fn write_at(
         &self,
@@ -910,6 +916,12 @@ impl<const N: usize> PlainBytes<N> {
     ) -> Result<Vec<u8>, crate::errors::BadInput> {
         self.range(offset, len, what)?;
         Ok((offset..offset + len).map(|i| self.get(i)).collect())
+    }
+
+    /// The byte at `offset`, as `read_at(offset, 1, what)` gives it, without the allocation.
+    pub fn byte_at(&self, offset: usize, what: &str) -> Result<u8, crate::errors::BadInput> {
+        self.range(offset, 1, what)?;
+        Ok(self.get(offset))
     }
 
     /// `data` written from `offset`.
