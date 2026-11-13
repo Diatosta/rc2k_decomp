@@ -108,9 +108,9 @@ mod squares {
     pub fn make(fl: &WindscreenFlakes) {
         clear_items(fl);
         let (a, b) = (fl.state.curve_ends[0].get(), fl.state.curve_ends[1].get());
-        for n in 0..CURVE as usize {
+        for (n, cell) in fl.tables.curve.iter().enumerate().take(CURVE as usize) {
             let i = 8 * n as i32;
-            fl.tables.curve[n].set(x87::circle_curve(i, a, b, i < 0x400));
+            cell.set(x87::circle_curve(i, a, b, i < 0x400));
         }
         for n in 0..RADII as usize {
             super::circle_cells(
@@ -187,9 +187,9 @@ impl<'a> Shapes<'a> {
     fn make(&self) -> Result<(), Refused> {
         self.clear_items()?;
         let (a, b) = (self.curve_a.get(), self.curve_b.get());
-        for n in 0..CURVE as usize {
+        for (n, cell) in self.curve.iter().enumerate().take(CURVE as usize) {
             let i = 8 * n as i32;
-            self.curve[n].set(x87::circle_curve(i, a, b, i < 0x400));
+            cell.set(x87::circle_curve(i, a, b, i < 0x400));
         }
         for n in 0..RADII as usize {
             circle_cells(

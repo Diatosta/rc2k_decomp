@@ -345,9 +345,7 @@ fn copy_in(race: &Race, gfx: &Gfx, fx: &mut impl Effects) -> Result<(), Refused>
     // The car blocks' settings. The brake-like settings are percentages: below 0 is 0,
     // 100 or more is 0x100 (full), else the setting x 2.56 (the x87's product, rounded).
     let brake_scale = race.course.numbers.get().brake_scale.get();
-    for car in 0..2 {
-        let c = &race.car_blocks().cars[car];
-        let s = &settings.cars[car];
+    for (c, s) in race.car_blocks().cars.iter().zip(&settings.cars).take(2) {
         for (field, setting) in SETTING_BRAKES {
             let held = rc2k_core::race::cars::held_brake(setting(s).get() as i32, |v| {
                 x87::int_times_to_int(v, brake_scale) as u32
@@ -362,15 +360,12 @@ fn copy_in(race: &Race, gfx: &Gfx, fx: &mut impl Effects) -> Result<(), Refused>
     for car in 0..2 {
         vars.car_colours[car].set(settings.cars[car].controls.gearing.get());
     }
-    for car in 0..2 {
-        race.car_blocks().cars[car]
-            .start_slot_value
-            .set(settings.cars[car].race_number.get());
+    for (c, s) in race.car_blocks().cars.iter().zip(&settings.cars).take(2) {
+        c.start_slot_value.set(s.race_number.get());
     }
-    for car in 0..2 {
-        let c = &race.car_blocks().cars[car];
-        c.camera_view.set(settings.cars[car].view.get());
-        c.camera_blend_view.set(settings.cars[car].view.get());
+    for (c, s) in race.car_blocks().cars.iter().zip(&settings.cars).take(2) {
+        c.camera_view.set(s.view.get());
+        c.camera_blend_view.set(s.view.get());
     }
 
     let hud_bits = [&results.hud_bits_current, &results.hud_bits_first];
@@ -394,10 +389,16 @@ fn copy_in(race: &Race, gfx: &Gfx, fx: &mut impl Effects) -> Result<(), Refused>
 
     // The gauges: the front end keeps them as whole numbers, the cars as floats (`fild`,
     // `fstp`: the x87's exact conversion, so large numbers round as the original's do).
-    for car in 0..2 {
-        let c = &race.car_blocks().cars[car];
+    for (car, (c, s)) in race
+        .car_blocks()
+        .cars
+        .iter()
+        .zip(&settings.cars)
+        .take(2)
+        .enumerate()
+    {
         for (gauge, setting) in GAUGES {
-            gauge(c).set(x87::from_int(setting(&settings.cars[car]).get() as i32));
+            gauge(c).set(x87::from_int(setting(s).get() as i32));
         }
         for (mark, saved) in c.impact_octant_marks.iter().zip(result_marks(shared, car)) {
             mark.set(f32::from_bits(saved.get()));
@@ -418,10 +419,8 @@ fn copy_in(race: &Race, gfx: &Gfx, fx: &mut impl Effects) -> Result<(), Refused>
     log_cars(race, fx);
 
     fx.clear_player_absences(race);
-    for car in 0..2 {
-        race.car_blocks().cars[car]
-            .stop_state
-            .set(results.results[car].result.get());
+    for (c, r) in race.car_blocks().cars.iter().zip(&results.results).take(2) {
+        c.stop_state.set(r.result.get());
     }
     log_arcade_positions(race, fx);
     fx.copy_league_table(race)?;
@@ -448,25 +447,27 @@ fn copy_out(race: &Race, fx: &mut impl Effects) -> Result<(), Refused> {
             .set(race.car_blocks().cars[1].option_bits.get());
         // The gauges back to whole numbers (`fld`, `fistp`: rounded as the x87's control
         // word says, to the nearest by default), the impact marks' bits as they are.
-        for car in 0..2 {
-            let c = &race.car_blocks().cars[car];
+        for (car, (c, s)) in race
+            .car_blocks()
+            .cars
+            .iter()
+            .zip(&settings.cars)
+            .take(2)
+            .enumerate()
+        {
             for (gauge, setting) in GAUGES {
-                setting(&settings.cars[car]).set(x87::to_int(gauge(c)) as u32);
+                setting(s).set(x87::to_int(gauge(c)) as u32);
             }
             for (mark, saved) in c.impact_octant_marks.iter().zip(result_marks(shared, car)) {
                 saved.set(mark.get().to_bits());
             }
         }
         fx.store_results_by_mode(race);
-        for car in 0..2 {
-            results.results[car]
-                .result
-                .set(race.car_blocks().cars[car].stop_state.get());
+        for (r, c) in results.results.iter().zip(&race.car_blocks().cars).take(2) {
+            r.result.set(c.stop_state.get());
         }
-        for car in 0..2 {
-            results.results[car]
-                .secs
-                .set(x87::loaded(&race.car_blocks().cars[car].top_speed));
+        for (r, c) in results.results.iter().zip(&race.car_blocks().cars).take(2) {
+            r.secs.set(x87::loaded(&c.top_speed));
         }
         results
             .flags_current

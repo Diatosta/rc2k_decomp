@@ -40,8 +40,7 @@ pub fn add_polygon(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
             hud.block.virtual_screen[0].get(),
             hud.block.virtual_screen[1].get(),
         ];
-        for n in 0..count as usize {
-            let v = &pen.vertices.vertices[n];
+        for v in pen.vertices.vertices.iter().take(count as usize) {
             v.x.set(screen_scaled(v.x.get(), w, kx));
             v.y.set(screen_scaled(v.y.get(), h, ky));
         }

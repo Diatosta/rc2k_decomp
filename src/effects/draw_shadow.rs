@@ -157,11 +157,11 @@ pub fn draw_shadow_with(
     normalise(&q.way);
     corners_in_x87(sh);
     let view = &race.frame.matrices.get().listener_matrix;
-    for n in 0..4 {
-        let p: [f32; 3] = std::array::from_fn(|k| q.corners[n][k].get());
+    for item in q.corners.iter().take(4) {
+        let p: [f32; 3] = std::array::from_fn(|k| item[k].get());
         let turned = rotate_point(view, p.map(extended));
         for (k, v) in turned.into_iter().enumerate() {
-            q.corners[n][k].set(rounded_value(v));
+            item[k].set(rounded_value(v));
         }
     }
     let entry = &effects.blocks.corners.corners[corner as usize]; // under 0x100, checked before
@@ -176,14 +176,11 @@ pub fn draw_shadow_with(
     let half = |shift: u32| ((!(c >> shift) & 0xFF) >> 1) << shift;
     let (r, gr, bl) = (half(16), half(8), half(0));
     c = c.wrapping_add(r).wrapping_add(gr).wrapping_add(bl);
-    for n in 0..4 {
-        buffer.vertices[n].colour.set(c);
+    for item in buffer.vertices.iter().take(4) {
+        item.colour.set(c);
     }
-    for n in 0..4 {
-        if x87::bits_at_or_below(
-            q.corners[n][2].get(),
-            race.course.numbers.get().k4096_a.get(),
-        ) {
+    for item in q.corners.iter().take(4) {
+        if x87::bits_at_or_below(item[2].get(), race.course.numbers.get().k4096_a.get()) {
             return Ok(());
         }
     }

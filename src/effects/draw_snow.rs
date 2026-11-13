@@ -136,14 +136,14 @@ pub fn draw_snow(
                         return Err(BadInput("a snow fade index past the table").into());
                     }
                     let colour = snow_light.fade_colours[index as usize].get();
-                    for n in 0..4 {
-                        buffer.vertices[n].colour.set(colour);
+                    for item in buffer.vertices.iter().take(4) {
+                        item.colour.set(colour);
                     }
                 }
                 square(buffer, weather, 4 * k);
                 let [top, bottom] = snow_light.v.each_ref().map(crate::session::PlainFloat::get);
-                for n in 0..4 {
-                    buffer.vertices[n].v.set(if n < 2 { top } else { bottom });
+                for (n, vertex) in buffer.vertices.iter().enumerate().take(4) {
+                    vertex.v.set(if n < 2 { top } else { bottom });
                 }
                 if !clip_quad(buffer, effects)? {
                     draw_fan(buffer, scene);

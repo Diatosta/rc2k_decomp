@@ -60,8 +60,8 @@ pub fn draw_windscreen_flake(
         return;
     }
     projected(buffer, fl, effects);
-    for n in 0..4 {
-        buffer.vertices[n].colour.set(colour);
+    for item in buffer.vertices.iter().take(4) {
+        item.colour.set(colour);
     }
     crate::effects::clip_quad::draw_fan(buffer, scene);
 }

@@ -50,8 +50,8 @@ pub fn windscreen_drops_drift(
 ) -> Result<(), Refused> {
     let m = effects.settings()?;
     let marks = effects.settings()?;
-    for n in 0..3 {
-        drops.tilt.point[n].set(0.0);
+    for item in drops.tilt.point.iter().take(3) {
+        item.set(0.0);
     }
     let first: u32 = drops.hex.started.get();
     drops.hex.started.set(1);

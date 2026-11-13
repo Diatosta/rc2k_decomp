@@ -470,16 +470,21 @@ impl Backend for SdlBackend {
         if let Some(pad) = d.gamepad {
             return pad_reading(pad, &mut d.stick_moved);
         }
-        for n in 0..d.info.axes.count_ones() as usize {
-            r.axes[n] = joystick.axis(n as i32) as i32;
+        for (n, axis) in r
+            .axes
+            .iter_mut()
+            .enumerate()
+            .take(d.info.axes.count_ones() as usize)
+        {
+            *axis = joystick.axis(n as i32) as i32;
         }
         for n in 0..d.info.buttons {
             if joystick.button(n as i32) {
                 r.buttons |= 1 << n;
             }
         }
-        for n in 0..d.info.hats as usize {
-            r.hats[n] = hat_direction(joystick.hat(n as i32));
+        for (n, hat) in r.hats.iter_mut().enumerate().take(d.info.hats as usize) {
+            *hat = hat_direction(joystick.hat(n as i32));
         }
         r
     }

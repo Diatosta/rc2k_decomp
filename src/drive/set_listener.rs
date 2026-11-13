@@ -119,8 +119,13 @@ pub fn set_listener(
     race.effects_settings()
         .listener_near
         .set(u32::from(listener::car_ahead(strength)));
-    for k in 0..3 {
-        race.effects_settings().listener_place[k].set(view.view_place[k].get().wrapping_neg());
+    for (cell, place) in race
+        .effects_settings()
+        .listener_place
+        .iter()
+        .zip(&view.view_place)
+    {
+        cell.set(place.get().wrapping_neg());
     }
     for (k, o) in listener::TURN_OFFSETS.into_iter().enumerate() {
         race.effects_settings().listener_turn[k].set(view.view_turn_matrix[o as usize / 4].get());
@@ -136,8 +141,15 @@ pub fn set_listener(
         physics.camera().listener_points[k].set(v as u32);
     }
     // The car block 0's body matrix (0x70FC2C).
-    for k in 0..16 {
-        race.frame.matrices.get().turned_matrix[k].set(car.body_matrix[k].get());
+    for (cell, body) in race
+        .frame
+        .matrices
+        .get()
+        .turned_matrix
+        .iter()
+        .zip(&car.body_matrix)
+    {
+        cell.set(body.get());
     }
     multiply_matrices(
         &race.frame.matrices.get().turned_matrix,

@@ -558,10 +558,8 @@ fn spline_checks(
     if (faces as i32) < 0 || first.checked_add(faces).is_none_or(|end| end > FACES) {
         return Err(BadInput("an object's faces past g_faces").into());
     }
-    for n in 0..12 {
-        crate::scene::matrix3::turnable(&negated(
-            paths.spline_constants.angles[n].get().to_bits(),
-        ))?;
+    for item in paths.spline_constants.angles.iter().take(12) {
+        crate::scene::matrix3::turnable(&negated(item.get().to_bits()))?;
     }
     Ok(())
 }

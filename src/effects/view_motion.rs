@@ -46,8 +46,8 @@ pub fn view_motion(frame: &Frame, effects: &crate::effects::owner::Effects) -> R
         effects.frame.draw_frame.last[k].set(rounded_value(*p));
     }
     let ticks: i32 = effects.setup.clock.frame_ticks.get() as i32;
-    for k in 0..3 {
-        let a = &effects.frame.draw_work.step[k];
+    for item in effects.frame.draw_work.step.iter().take(3) {
+        let a = &item;
         a.set(x87::over_int(a, ticks));
     }
     Ok(())

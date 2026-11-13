@@ -78,9 +78,16 @@ pub fn note(race: &Race) -> Result<(), BadInput> {
     // The cars' state as the replay file keeps it, field by field at the file's offsets, so
     // the hash does not depend on how the live record lies in memory.
     let kept = crate::drive::replay_state::gather(&race.car_blocks().cars, race.shared.work.get());
-    for car in 0..race.shared.view.get().race_cars.get().min(4) as usize {
-        let block = &race.car_blocks().cars[car];
-        let h = hash(kept.cars[car].iter().copied());
+    let cars = race.shared.view.get().race_cars.get().min(4) as usize;
+    for (car, (block, kept_car)) in race
+        .car_blocks()
+        .cars
+        .iter()
+        .zip(&kept.cars)
+        .take(cars)
+        .enumerate()
+    {
+        let h = hash(kept_car.iter().copied());
         let speed = block.local_velocity[2].get(); // g_carSpeed's place in the block
         let gear = block.gear.get(); // g_carGear's
         line += &format!(" car {car} {h:08x} speed {speed:.3} gear {gear};");

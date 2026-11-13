@@ -271,8 +271,8 @@ pub fn add_object_shape(
     let mut radius = 0u32;
     let mut count = first_point;
     let mut to = room.points.wrapping_add(count.wrapping_mul(12));
-    for n in 0..shape.points {
-        if shape.point_marks[n] == u32::MAX {
+    for (n, &mark) in shape.point_marks.iter().enumerate().take(shape.points) {
+        if mark == u32::MAX {
             continue;
         }
         let at = 0x2C + n * 12;

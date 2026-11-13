@@ -93,13 +93,13 @@ pub fn fill_engine_tables(race: &crate::race::owner::Race, scene: &Scene) {
     }
     course.lists.get().face_key_factors[0].set(1.0f32);
     // The sines.
-    for n in 0..SINES {
-        tables.sines[n].set(bh::stf(
+    for (n, cell) in tables.sines.iter().enumerate().take(SINES) {
+        cell.set(bh::stf(
             (bh::int(n as i32).times_pi() / bh::int(0x800)).sin(),
         ));
     }
     // The arctangents.
-    for n in 0..0x1000usize {
+    for (n, cell) in tables.arctangents.iter().enumerate().take(0x1000) {
         let wanted = (n as u32) << 20;
         let (mut angle, mut step) = (0x1000u32, 0x800u32);
         while step != 0 {
@@ -110,7 +110,7 @@ pub fn fill_engine_tables(race: &crate::race::owner::Race, scene: &Scene) {
             }
             step >>= 1;
         }
-        tables.arctangents[n].set((angle & 0x1FF0) as u16);
+        cell.set((angle & 0x1FF0) as u16);
     }
     // The two loops whose results nothing keeps.
     for angle in (0..0x2000).step_by(0x40) {

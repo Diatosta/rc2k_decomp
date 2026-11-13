@@ -104,8 +104,8 @@ pub fn palette_to_pixels(
     }
     let format = crate::gfx::pixel_format::layout(system, gfx, format)?;
     let mut pixels = Vec::with_capacity(256 * 4);
-    for entry in 0..256 {
-        let components: u32 = pictures.decoder.palette[entry].get();
+    for item in pictures.decoder.palette.iter().take(256) {
+        let components: u32 = item.get();
         pixels.extend_from_slice(&components_to_pixel(&format, components, gfx).to_le_bytes());
     }
     crate::gfx::glyph_store::write_bytes(&gfx.fonts, to, 0, &pixels, "a palette's pixels")

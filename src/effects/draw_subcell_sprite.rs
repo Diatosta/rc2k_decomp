@@ -78,9 +78,9 @@ pub fn draw_subcell_sprite(
     }
     let fogged = fog_at(view.fog, ring.work.whole.get())?;
     let colour = crate::effects::ring_entries::entry(ring, entry)?.car_tag | 0xFF00_0000;
-    for n in 0..4 {
-        buffer.vertices[n].specular.set(fogged);
-        buffer.vertices[n].colour.set(colour);
+    for item in buffer.vertices.iter().take(4) {
+        item.specular.set(fogged);
+        item.colour.set(colour);
     }
     effects.frame.draw_work.half[0].set(f32::from_bits(size));
     let at = subcell << 4;

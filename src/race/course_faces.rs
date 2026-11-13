@@ -282,8 +282,8 @@ pub fn face_lights(ctx: &DrawCtx<'_>) -> Result<(), Refused> {
             &ctx.view.lamps,
         )?;
     }
-    for k in 0..4 {
-        ctx.view.face.corner_lights[k].set(0u32);
+    for item in ctx.view.face.corner_lights.iter().take(4) {
+        item.set(0u32);
     }
     if !lit {
         return Ok(());
@@ -1000,8 +1000,8 @@ pub fn face_colours(ctx: &DrawCtx<'_>, face: &Face) -> Result<(), Refused> {
             ctx.view.face.corner_colours[k].set(c);
         }
     }
-    for k in 0..4 {
-        ctx.view.face.corner_alphas[k].set(face.corner_fog(k) as u32);
+    for (k, cell) in ctx.view.face.corner_alphas.iter().enumerate().take(4) {
+        cell.set(face.corner_fog(k) as u32);
     }
     draw_face(ctx)
 }
@@ -1051,8 +1051,8 @@ pub fn draw_back_face(ctx: &DrawCtx<'_>, face: &Face) -> Result<(), Refused> {
         ctx.view.face.corner_colours[k]
             .set(ctx.reads.light_tables.light_table[face.back_light(k) as usize].get());
     }
-    for k in 0..4 {
-        ctx.view.face.corner_alphas[k].set(face.back_fog(k) as u32);
+    for (k, cell) in ctx.view.face.corner_alphas.iter().enumerate().take(4) {
+        cell.set(face.back_fog(k) as u32);
     }
     draw_face(ctx)?;
     turn_over(ctx)?;

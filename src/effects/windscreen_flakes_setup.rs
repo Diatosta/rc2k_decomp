@@ -51,12 +51,12 @@ pub fn setup_with(
         for (value, state) in STATES {
             set_render_state(crate::workers::game_scratch(), value, state);
         }
-        for n in 0..4 {
-            buffer.vertices[n].rhw.set(x87::from_int(0x100));
+        for item in buffer.vertices.iter().take(4) {
+            item.rhw.set(x87::from_int(0x100));
         }
-        for n in 0..4 {
-            buffer.vertices[n].colour.set(0xFFFF_FFFFu32);
-            buffer.vertices[n].specular.set(0xFF00_0000u32);
+        for item in buffer.vertices.iter().take(4) {
+            item.colour.set(0xFFFF_FFFFu32);
+            item.specular.set(0xFF00_0000u32);
         }
         let [a, b, c, d] = places;
         for (n, (u, v)) in [(a, b), (c, b), (c, d), (a, d)].into_iter().enumerate() {

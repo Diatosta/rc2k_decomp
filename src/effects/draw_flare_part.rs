@@ -54,8 +54,8 @@ pub fn draw_flare_part(
             effects.frame.draw_work.sides[n].set(x87::loaded(&effects.frame.flare_scales.scale[n]));
         }
         let colour = (alpha << 24) | colour;
-        for n in 0..4 {
-            buffer.vertices[n].colour.set(colour);
+        for item in buffer.vertices.iter().take(4) {
+            item.colour.set(colour);
         }
         let entry = &effects.blocks.corners.corners[corner as usize];
         let word = |off: u32| u32::from(entry.words[off as usize / 2].get());

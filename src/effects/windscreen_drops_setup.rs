@@ -47,12 +47,12 @@ pub fn windscreen_drops_setup(
         for (value, state) in STATES {
             set_render_state(part, value, state);
         }
-        for n in 0..6 {
-            buffer.vertices[n].rhw.set(x87::from_int(0x100));
+        for item in buffer.vertices.iter().take(6) {
+            item.rhw.set(x87::from_int(0x100));
         }
-        for n in 0..6 {
-            buffer.vertices[n].colour.set(0xFFFF_FFFFu32);
-            buffer.vertices[n].specular.set(0xFF00_0000u32);
+        for item in buffer.vertices.iter().take(6) {
+            item.colour.set(0xFFFF_FFFFu32);
+            item.specular.set(0xFF00_0000u32);
         }
         let side = drops.hex.side.get();
         for (n, (u, v)) in [(0.0, 0.0), (side, 0.0), (side, side), (0.0, side)]

@@ -128,8 +128,8 @@ pub fn draw_mark_slots(
             vertex.u.set(x87::int_times(word(u) as i32, uv_k));
             vertex.v.set(x87::int_times(word(v) as i32, uv_k));
         }
-        for n in 0..4 {
-            buffer.vertices[n].colour.set(0xFFFF_FFFFu32);
+        for item in buffer.vertices.iter().take(4) {
+            item.colour.set(0xFFFF_FFFFu32);
         }
         if x87::bits_at_or_below(x, race.course.numbers.get().k4096_a.get()) {
             continue;

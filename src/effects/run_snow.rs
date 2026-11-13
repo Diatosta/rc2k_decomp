@@ -114,16 +114,16 @@ pub fn run_snow(
         s.last_clock
             .set(race.shared.physics_tables.get().scene_clock.get());
         for (n, v) in s.matrix_copy.iter().enumerate() {
-            for m in 0..4 {
-                s.wide_turn[n][m].set(v.get());
+            for item in s.wide_turn[n].iter().take(4) {
+                item.set(v.get());
             }
         }
         let focal = crate::scene::polygon_work::front_end()
             .window
             .view_scale
             .get();
-        for m in 0..4 {
-            s.wide_focal[m].set(focal);
+        for item in s.wide_focal.iter().take(4) {
+            item.set(focal);
         }
         crate::effects::draw_snow::draw_snow(buffer, weather, scene, effects)?;
         crate::scene::depth_test_on::depth_test_on(part);

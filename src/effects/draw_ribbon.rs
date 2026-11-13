@@ -57,8 +57,8 @@ pub fn draw_ribbon(
         // A whole number in the float cell (`ribbon` loads it with `fild`).
         effects.frame.draw_work.half[0].set_bits(width >> 1);
         let colour = (alpha << 24) | colour;
-        for n in 0..4 {
-            buffer.vertices[n].colour.set(colour);
+        for item in buffer.vertices.iter().take(4) {
+            item.colour.set(colour);
         }
         let at = cell << 4;
         let place = |n: usize| f32::from_bits(masks.surface.places.get_u32(at as usize + 4 * n));

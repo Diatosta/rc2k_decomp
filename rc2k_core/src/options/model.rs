@@ -263,11 +263,11 @@ impl Options {
         f(&mut self.kept.set_ups);
         f(&mut self.records.tyre_change_holder);
         f(&mut self.records.tyre_change_time);
-        for n in 0..4 {
-            f(&mut self.kept.options[n]);
+        for item in self.kept.options.iter_mut().take(4) {
+            f(item);
         }
-        for n in 0..4 {
-            f(&mut self.players.records[n]);
+        for item in self.players.records.iter_mut().take(4) {
+            f(item);
         }
         f(&mut self.sound.master_volume_shown);
         f(&mut self.sound.music_level);
@@ -290,11 +290,11 @@ impl Options {
         for n in [5, 4, 3, 2, 1, 0, 6, 7, 8, 9, 10, 11] {
             f(&mut self.records.events[n]);
         }
-        for n in 0..6 {
-            f(&mut self.records.rallies[n]);
+        for item in self.records.rallies.iter_mut().take(6) {
+            f(item);
         }
-        for n in 0..4 {
-            f(&mut self.players.names[n]);
+        for item in self.players.names.iter_mut().take(4) {
+            f(item);
         }
     }
 

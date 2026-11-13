@@ -64,13 +64,13 @@ pub fn draw_flat_quad(
     for n in 0..4 {
         v(n, 0x18, depth);
     }
-    for n in 0..4 {
-        part.polygon.entries[n].point.set(0xFFFF_FFFF);
+    for item in part.polygon.entries.iter().take(4) {
+        item.point.set(0xFFFF_FFFF);
     }
     poly.polygon_colour
         .set(view.quad.colour[0].get() & 0xFF_FFFF);
-    for n in 0..4 {
-        part.polygon.entries[n].light.set(0);
+    for item in part.polygon.entries.iter().take(4) {
+        item.light.set(0);
     }
     poly.polygon_vertex_count.set(4);
     poly.polygon_next_record

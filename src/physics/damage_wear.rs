@@ -27,13 +27,13 @@ pub fn steps(car: &Car, damage: &DamageModel) -> Result<(), BadInput> {
         &damage.gauge_low,
         &damage.engine_speed_wear_factor,
     );
-    for k in 0..2 {
-        raise(damage, &car.brake_heat[k], |g| {
+    for item in car.brake_heat.iter().take(2) {
+        raise(damage, item, |g| {
             add_wear(damage, &damage.wear_rates[3], &damage.brake_share, g, g);
         });
     }
-    for k in 0..2 {
-        raise(damage, &car.brake_heat[k], |g| {
+    for item in car.brake_heat.iter().take(2) {
+        raise(damage, item, |g| {
             subtract_rate(damage, &damage.wear_rates[4], g, g);
         });
     }
@@ -46,8 +46,8 @@ pub fn steps(car: &Car, damage: &DamageModel) -> Result<(), BadInput> {
             add_wear(damage, &damage.wear_rates[5], share, g, g);
         });
     }
-    for k in 0..2 {
-        raise(damage, &car.damper_wear[k], |g| {
+    for item in car.damper_wear.iter().take(2) {
+        raise(damage, item, |g| {
             subtract_rate(damage, &damage.wear_rates[6], g, g);
         });
     }

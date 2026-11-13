@@ -43,9 +43,9 @@ fn hold(v: &impl Cell32, l: &impl Cell32) {
 pub fn limit_motion(car: &Car, tables: &PhysicsTables, scene: &crate::scene::owner::Scene) {
     let drawing = &scene.drawing;
     let mut bad = false;
-    for k in 0..3usize {
+    for item in car.velocity.iter().take(3usize) {
         // An integer test on the float's exponent bits (infinity or not a number).
-        let ecx = car.velocity[k].bits() & 0x7F80_0000;
+        let ecx = item.bits() & 0x7F80_0000;
         if ecx == 0x7F80_0000 {
             bad = true;
             break;
@@ -54,8 +54,8 @@ pub fn limit_motion(car: &Car, tables: &PhysicsTables, scene: &crate::scene::own
     if bad {
         crate::logfile::log_write::log_nul(&c"*** INFINITY", false, 1);
         crate::logfile::log_write::log_nul(&c"[car0.newxspd] =", false, 1);
-        for k in 0..3usize {
-            log_float(car.velocity[k].get(), 5, k == 2, 1);
+        for (k, cell) in car.velocity.iter().enumerate().take(3) {
+            log_float(cell.get(), 5, k == 2, 1);
         }
 
         for k in 0..3usize {
@@ -64,8 +64,8 @@ pub fn limit_motion(car: &Car, tables: &PhysicsTables, scene: &crate::scene::own
             car.spin[k].set(0.0);
         }
     }
-    for k in 0..3usize {
-        hold(&car.spin[k], &tables.spin_limit);
+    for item in car.spin.iter().take(3usize) {
+        hold(&item, &tables.spin_limit);
     }
     for k in [0usize, 2, 1] {
         hold(&car.velocity[k], &tables.velocity_limit);

@@ -118,8 +118,8 @@ pub fn cars_particles(effects: &Effects) -> Result<(), Refused> {
                 mean_k,
             ));
         }
-        for k in 0..3 {
-            car.last_place[k].set(matrix_float(whole, 0x30 + 4 * k as u32)?);
+        for (k, cell) in car.last_place.iter().enumerate().take(3) {
+            cell.set(matrix_float(whole, 0x30 + 4 * k as u32)?);
         }
         let [k1, k2, k3] = read_bits(&effects.kinds.emitter.rate_k);
         let one = effects.setup.floats.one.get();

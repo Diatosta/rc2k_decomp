@@ -280,9 +280,14 @@ pub fn make_noise_curve(
         .each_ref()
         .map(super::super::session::PlainFloat::bits);
     let layout = core::record_values(values);
-    for n in 0..CURVE_RECORDS as usize {
+    for record in weather
+        .snow_vars
+        .records
+        .iter()
+        .take(CURVE_RECORDS as usize)
+    {
         for &(o, v) in &layout {
-            weather.snow_vars.records[n][o as usize / 4].set(v);
+            record[o as usize / 4].set(v);
         }
     }
     let first = x87::loaded(&weather.snow_light.quad_first);

@@ -98,8 +98,13 @@ pub fn car_part_matrices(
         &race.frame.matrices.get().body_turn_matrix,
         16,
     );
-    for i in 0..4 {
-        scene.object_work().part_weights[i].set(p.wheel_spring_force[i].get());
+    for (weight, force) in scene
+        .object_work()
+        .part_weights
+        .iter()
+        .zip(&p.wheel_spring_force)
+    {
+        weight.set(force.get());
     }
     set_place(
         &race.frame.matrices.get().placed_matrix,

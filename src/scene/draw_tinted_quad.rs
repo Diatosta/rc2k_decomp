@@ -18,8 +18,7 @@ use crate::math::x87;
 
 pub fn draw_tinted_quad(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refused> {
     ctx.view.polygon.polygon_drawn.set(0);
-    for n in 0..4 {
-        let rec = &ctx.part.polygon.entries[n];
+    for (n, rec) in ctx.part.polygon.entries.iter().enumerate().take(4) {
         rec.record
             .set(crate::scene::point_records::of_quad(n as u32));
         rec.u.set(0);
@@ -54,8 +53,8 @@ pub fn draw_tinted_quad(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<
         .polygon
         .polygon_colour
         .set(ctx.view.quad.colour[0].get());
-    for n in 0..4 {
-        let rec = &ctx.part.polygon.entries[n];
+    for item in ctx.part.polygon.entries.iter().take(4) {
+        let rec = &item;
         rec.point.set(0xFFFF_FFFF);
         rec.amount.set(see);
         rec.light.set(0xFF_FFFF);

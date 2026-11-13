@@ -27,8 +27,8 @@ pub fn set_render_state(value: u32, state: u32) {
 /// The quads' fixed words (0x41DD68 .. / 0x41CA49 ..): z 0, rhw 1.0, the colour, the
 /// specular 0.
 pub fn quad_words(buffer: &PolygonVertices, colour: u32) {
-    for k in 0..4 {
-        let v = &buffer.vertices[k];
+    for item in buffer.vertices.iter().take(4) {
+        let v = &item;
         v.z.set(0.0);
         v.rhw.set(1.0);
         v.colour.set(colour);

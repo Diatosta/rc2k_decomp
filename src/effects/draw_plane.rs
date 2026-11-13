@@ -147,14 +147,11 @@ pub fn draw_plane(
         vertex.v.set(x87::loaded(PLANE_TUNING.places[n][1]));
     }
     let light: u32 = ctx.view.light.view_light.get();
-    for n in 0..4 {
-        buffer.vertices[n].colour.set(light);
+    for item in buffer.vertices.iter().take(4) {
+        item.colour.set(light);
     }
-    for n in 0..4 {
-        if x87::bits_at_or_below(
-            effects.kinds.plane_quad.corners[n][2].get(),
-            race.course.numbers.get().k4096_a.get(),
-        ) {
+    for item in effects.kinds.plane_quad.corners.iter().take(4) {
+        if x87::bits_at_or_below(item[2].get(), race.course.numbers.get().k4096_a.get()) {
             return Ok(());
         }
     }

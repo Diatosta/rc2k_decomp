@@ -113,8 +113,8 @@ pub fn build_game_fonts(
         gfx.fonts.font_block.game_fonts[0].get().glyph_table,
         gfx.fonts.font_block.game_fonts[0].get().palette,
     );
-    for font in 1..3 {
-        gfx.fonts.font_block.game_fonts[font].update(|f| {
+    for item in gfx.fonts.font_block.game_fonts.iter().skip(1).take(3 - 1) {
+        item.update(|f| {
             f.glyph_table = glyphs;
             f.palette = palette_a;
         });
@@ -144,8 +144,8 @@ pub fn build_game_fonts(
 
     let palette_b: u32 = gfx.fonts.font_block.game_fonts[3].get().palette;
     gfx.fonts.font_block.game_fonts[3].update(|f| f.glyph_table = glyphs);
-    for font in 4..6 {
-        gfx.fonts.font_block.game_fonts[font].update(|f| {
+    for item in gfx.fonts.font_block.game_fonts.iter().skip(4).take(6 - 4) {
+        item.update(|f| {
             f.glyph_table = glyphs;
             f.palette = palette_b;
         });

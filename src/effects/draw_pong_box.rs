@@ -61,8 +61,8 @@ pub fn draw_pong_box(
         return;
     }
     projected(buffer, fl);
-    for n in 0..4 {
-        buffer.vertices[n].colour.set(0xFFFF_FFFFu32);
+    for item in buffer.vertices.iter().take(4) {
+        item.colour.set(0xFFFF_FFFFu32);
     }
     crate::effects::clip_quad::draw_fan(buffer, scene);
 }

@@ -579,8 +579,8 @@ pub fn shadow_on_face(
     }
     ctx.view.polygon.polygon_drawn.set(0u32);
     let polygon = &ctx.part.polygon;
-    for k in 0..count as usize {
-        list_cell(polygon, k).set(work.list[k].get());
+    for (k, cell) in work.list.iter().enumerate().take(count as usize) {
+        list_cell(polygon, k).set(cell.get());
     }
     ctx.view.polygon.polygon_vertex_count.set(count);
     list_cell(polygon, count as usize).set(work.list[0].get());

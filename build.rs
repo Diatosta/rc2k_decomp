@@ -70,9 +70,15 @@ fn main() {
     };
     println!("cargo:rustc-link-search=native={dir}/{sdl}");
     println!("cargo:rustc-link-search=native={dir}/{ffmpeg}");
-    // OUT_DIR is <profile>/build/<crate>-<hash>/out.
+    // OUT_DIR is <profile>/build/<crate>-<hash>/out (cargo 1.99) or
+    // <profile>/build/<crate>/<hash>/out (cargo 1.100): the profile folder is the parent of
+    // the `build` folder.
     let out = std::path::PathBuf::from(std::env::var("OUT_DIR").unwrap());
-    let Some(profile) = out.ancestors().nth(3) else {
+    let Some(profile) = out
+        .ancestors()
+        .find(|a| a.file_name().is_some_and(|n| n == "build"))
+        .and_then(std::path::Path::parent)
+    else {
         return;
     };
     for dll in [

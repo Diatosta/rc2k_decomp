@@ -57,16 +57,16 @@ pub fn steps(car: &Car, damage: &DamageModel, work: &RaceWork) {
     raise(damage, &car.electrics_damage, |g| {
         add_product(&damage.gauge_rates[5], &damage.gauge_step, g, g);
     });
-    for k in 0..6 {
-        raise(damage, &car.light_damage[k], |g| {
+    for item in car.light_damage.iter().take(6) {
+        raise(damage, item, |g| {
             add_product(&damage.gauge_rates[6], &damage.gauge_step, g, g);
         });
     }
     raise(damage, &car.steering_damage, |g| {
         add_product(&damage.gauge_rates[7], &damage.gauge_step, g, g);
     });
-    for k in 0..4 {
-        raise(damage, &car.suspension_damage[k], |g| {
+    for item in car.suspension_damage.iter().take(4) {
+        raise(damage, item, |g| {
             add_product(&damage.gauge_rates[8], &damage.gauge_step, g, g);
         });
     }
@@ -111,8 +111,8 @@ pub fn steps(car: &Car, damage: &DamageModel, work: &RaceWork) {
             g,
         );
     });
-    for k in 0..6 {
-        raise(damage, &car.light_damage[k], |g| {
+    for item in car.light_damage.iter().take(6) {
+        raise(damage, item, |g| {
             add_triple_product(
                 &damage.gauge_rates[11],
                 &damage.on_surface_5,
@@ -134,8 +134,8 @@ pub fn steps(car: &Car, damage: &DamageModel, work: &RaceWork) {
         kind(&damage.kind_table_a, part),
         kind(&damage.kind_table_b, part),
     );
-    for k in 0..2 {
-        raise(damage, &car.tyre_wears[k], |g| {
+    for item in car.tyre_wears.iter().take(2) {
+        raise(damage, item, |g| {
             add_triple_product(
                 &damage.front_slip_wear_factor,
                 &damage.front_tyre_wear_rate,
@@ -145,8 +145,8 @@ pub fn steps(car: &Car, damage: &DamageModel, work: &RaceWork) {
             );
         });
     }
-    for k in 2..4 {
-        raise(damage, &car.tyre_wears[k], |g| {
+    for item in car.tyre_wears.iter().skip(2).take(4 - 2) {
+        raise(damage, item, |g| {
             add_triple_product(
                 &damage.rear_slip_wear_factor,
                 &damage.rear_tyre_wear_rate,
@@ -203,8 +203,8 @@ pub fn steps(car: &Car, damage: &DamageModel, work: &RaceWork) {
         let gauge = gear_gauge(car, gear);
         add_rate_to_gauge(gauge, &damage.gauge_rates[19]);
     }
-    for k in 0..4 {
-        raise(damage, &car.wheel_hit_damage[k], |g| {
+    for item in car.wheel_hit_damage.iter().take(4) {
+        raise(damage, item, |g| {
             add_triple_product(
                 &damage.roughness_wear_base,
                 &damage.wheel_roughness_rate,
@@ -214,8 +214,8 @@ pub fn steps(car: &Car, damage: &DamageModel, work: &RaceWork) {
             );
         });
     }
-    for k in 0..4 {
-        raise(damage, &car.suspension_damage[k], |g| {
+    for item in car.suspension_damage.iter().take(4) {
+        raise(damage, item, |g| {
             add_triple_product(
                 &damage.suspension_roughness_wear,
                 &damage.figures[0],
@@ -270,8 +270,8 @@ pub fn steps(car: &Car, damage: &DamageModel, work: &RaceWork) {
             g,
         );
     });
-    for k in 2..9 {
-        raise(damage, &car.gear_wear[k], |g| {
+    for item in car.gear_wear.iter().skip(2).take(9 - 2) {
+        raise(damage, item, |g| {
             add_triple_product(
                 &damage.body_roughness_wear,
                 &damage.figures[5],

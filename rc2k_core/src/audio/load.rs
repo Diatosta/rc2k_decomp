@@ -149,8 +149,8 @@ mod tests {
             unreadable: 3,
             ..Test::default()
         };
-        for n in 1..4 {
-            t.records[n] = SampleRecord {
+        for item in t.records.iter_mut().skip(1).take(4 - 1) {
+            *item = SampleRecord {
                 data_key: 7,
                 copies: 2,
                 ..SampleRecord::default()

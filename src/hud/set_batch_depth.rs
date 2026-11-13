@@ -12,8 +12,8 @@ pub fn set_batch_depth(hud: &Hud, buffer: &PolygonVertices) {
     {
         let rhw = x87::loaded(&hud.block.rhw);
         let depth = x87::loaded(&hud.block.depth);
-        for n in 0..4 {
-            let v = &buffer.vertices[n];
+        for item in buffer.vertices.iter().take(4) {
+            let v = &item;
             v.rhw.set(rhw);
             v.specular.set(0);
             v.z.set(depth);
