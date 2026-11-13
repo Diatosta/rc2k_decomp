@@ -492,14 +492,44 @@ pub fn read(off: usize, len: usize) -> Vec<u8> {
 pub fn write(off: usize, bytes: &[u8]) {
     let (name, path) = place(off);
     let store = super::state::walk(name);
+    // A write that covers the place's cells exactly needs no read of them first: one walk of
+    // the store instead of two (the vectors write places in every case).
+    if known_len(off) == Some(bytes.len()) {
+        assert!(store.set_path_bytes(path, bytes), "{path} in {name}");
+        return;
+    }
     let mut cells = store
         .path_bytes(path)
         .unwrap_or_else(|| panic!("no field {path} in {name}"));
+    note_len(off, cells.len());
     let here = cells.len().min(bytes.len());
     cells[..here].copy_from_slice(&bytes[..here]);
     assert!(store.set_path_bytes(path, &cells), "{path} in {name}");
     if bytes.len() > here {
         write(off + here, &bytes[here..]);
+    }
+}
+
+/// The byte lengths of the places' cells as `write` has found them (a field's length is its
+/// type's: it never changes).
+static LENGTHS: std::sync::Mutex<Vec<(usize, usize)>> = std::sync::Mutex::new(Vec::new());
+
+fn known_len(off: usize) -> Option<usize> {
+    let lengths = LENGTHS
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    lengths
+        .iter()
+        .find(|&&(o, _)| o == off)
+        .map(|&(_, len)| len)
+}
+
+fn note_len(off: usize, len: usize) {
+    let mut lengths = LENGTHS
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    if !lengths.iter().any(|&(o, _)| o == off) {
+        lengths.push((off, len));
     }
 }
 

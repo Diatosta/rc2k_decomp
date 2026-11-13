@@ -421,12 +421,29 @@ fn bytes_of<const N: usize>(m: &[u32; N]) -> Vec<u8> {
     m.iter().flat_map(|d| d.to_le_bytes()).collect()
 }
 
+// The lock (2026-11-13): a replay holds no `test_support::test_lock`: the lock is for the tests
+// that write the game's statics or read their first values, and a replay reaches none. The
+// control word it sets (`set_control_word`) is this thread's: the emulated one is a
+// `thread_local` (`math::x87`), and the x87's own (set beside it in the i686 tests, for the
+// reference assembly) is a thread's register state, saved and restored by the system with
+// the thread. The inputs, the Rust version's operands and the results are the test's own
+// buffers; the file is read only. And every caller's Rust version (`plain`) works on its
+// operands only: checked for every caller of `differential` (`input::update_car_effects`,
+// `scene::{add_car_light, clip_asm, cross_product3, face_faces_away, light_dot, matrix3,
+// place_object_points, project_point, reflection_coordinates, reflect_vector, rotate_point,
+// vector3}`) and of `sparse` (`hud::{disc_vertex, draw_disc, draw_needle}`): the blocks are
+// x87 arithmetic over the cells given, records laid over the test's buffers (`Arg::view`),
+// no owner, store or other static. A new caller whose Rust version reaches a static needs
+// a locked variant, as `block_vectors::sparse_locked`.
+
 fn run_differential<const N: usize>(
     test: Differential<N>,
     mut file: Recorder,
     reference: Option<&dyn Fn(*mut u8)>,
 ) {
-    let _g = crate::test_support::test_lock();
+    // No lock when replaying ("The lock" above); recording runs the reference's
+    // instructions, which are not looked at here: it keeps the lock.
+    let _g = reference.map(|_| crate::test_support::test_lock());
     let _restore = Restore(control_word());
     let name = test.name;
     let mut rng = Rng::new(test.seed);
@@ -657,7 +674,8 @@ fn run_sparse(
     words: &[u16],
     references: Option<&[Reference]>,
 ) {
-    let _g = crate::test_support::test_lock();
+    // As `run_differential`: no lock when replaying ("The lock" above).
+    let _g = references.map(|_| crate::test_support::test_lock());
     let _restore = Restore(control_word());
     let mut rng = Rng::new(seed);
     const SIMPLE: [f32; 5] = [0.0, -0.0, 1.0, -1.0, 0.5];
@@ -956,11 +974,52 @@ pub mod block_vectors {
 
     /// `sparse` at the control words `words` only.
     pub fn sparse_at(name: &str, blocks: &[Block], cases: u32, seed: u64, words: &[u16]) {
-        run(Recorder::replay(name), blocks, cases, seed, words);
+        run(Recorder::replay(name), blocks, cases, seed, words, false);
     }
 
-    fn run(mut file: Recorder, blocks: &[Block], cases: u32, seed: u64, words: &[u16]) {
-        let _g = crate::test_support::test_lock();
+    /// `sparse` for blocks whose Rust version reads a static beside its operands (an owner's
+    /// store, `sound::owner::sound()`): run under `test_support::test_lock`.
+    pub fn sparse_locked(name: &str, blocks: &[Block], cases: u32, seed: u64) {
+        run(
+            Recorder::replay(name),
+            blocks,
+            cases,
+            seed,
+            &CONTROL_WORDS,
+            true,
+        );
+    }
+
+    /// Whether a run takes `test_support::test_lock`: when the caller says its Rust versions
+    /// read a static (`sparse_locked`), and when a block has an operand in the race block or
+    /// the buffers' tail (`RaceBlock`, `Buffers`: their places are the stores' own, written
+    /// and put back). Otherwise every place is a buffer of the run's own, and the lock is not
+    /// needed, as for `super::sparse` ("The lock" in `super`, the control word included):
+    /// checked for every caller without such operands (`math::nearest_on_segment`,
+    /// `physics::{car_sounds, flow, limit_motion}`, `race::update_mud_texture`,
+    /// `sound::{car_engine_state, car_sounds_all, play_placed_sound, spot_voice_distances,
+    /// surface_sound, surface_sounds}`): x87 arithmetic over the operands and over records
+    /// laid over them (`sound::asm_layout::with_laid`, fresh boxes filled from the buffer),
+    /// no owner, store or other static. `sound::{revs_sound, speed_sound, throttle_sound}`
+    /// read the sound owner's surface: `sparse_locked`.
+    fn needs_lock(blocks: &[Block], reads_statics: bool) -> bool {
+        reads_statics
+            || blocks.iter().any(|b| {
+                b.operands
+                    .iter()
+                    .any(|o| matches!(o, Operand::RaceBlock { .. } | Operand::Buffers { .. }))
+            })
+    }
+
+    fn run(
+        mut file: Recorder,
+        blocks: &[Block],
+        cases: u32,
+        seed: u64,
+        words: &[u16],
+        reads_statics: bool,
+    ) {
+        let _g = needs_lock(blocks, reads_statics).then(crate::test_support::test_lock);
         let _restore = Restore(control_word());
         let mut rng = Rng::new(seed);
         const SIMPLE: [f32; 5] = [0.0, -0.0, 1.0, -1.0, 0.5];

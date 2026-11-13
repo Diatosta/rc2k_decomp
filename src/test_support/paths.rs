@@ -27,11 +27,61 @@ fn split_index(path: &str) -> Option<(&str, usize)> {
 
 struct Finder<'a> {
     want: &'a str,
+    /// The paths a run named by `want` can be at (`cells`): `want`, or `want[0]` (an array
+    /// reported as its element 0); for a `want` ending in an index, the array's own path and
+    /// its `[0]`.
+    targets: Vec<String>,
     path: String,
     /// The path's length before each part entered.
     marks: Vec<usize>,
+    /// How deep the walk is below the last part that could still lead to a target: no run
+    /// under it is one (2026-11-13: the walk skips building their paths, as the race-block
+    /// vectors walk whole stores per place and case).
+    away: usize,
     task: Task<'a>,
     done: bool,
+}
+
+impl<'a> Finder<'a> {
+    fn new(want: &'a str, task: Task<'a>) -> Self {
+        let mut targets = vec![want.to_string(), format!("{want}[0]")];
+        if let Some((base, _)) = split_index(want) {
+            targets.extend([base.to_string(), format!("{base}[0]")]);
+        }
+        Finder {
+            want,
+            targets,
+            path: String::new(),
+            marks: Vec::new(),
+            away: 0,
+            task,
+            done: false,
+        }
+    }
+
+    /// Whether some target starts with the current path: a run at it or under it can be one.
+    fn leads_to_a_target(&self) -> bool {
+        self.targets
+            .iter()
+            .any(|t| t.starts_with(self.path.as_str()))
+    }
+
+    /// The part `push` writes entered: kept on the path when it can lead to a target,
+    /// otherwise counted in `away`.
+    fn enter_part(&mut self, push: impl FnOnce(&mut String)) {
+        if self.away > 0 {
+            self.away += 1;
+            return;
+        }
+        let mark = self.path.len();
+        push(&mut self.path);
+        if self.leads_to_a_target() {
+            self.marks.push(mark);
+        } else {
+            self.path.truncate(mark);
+            self.away = 1;
+        }
+    }
 }
 
 impl Finder<'_> {
@@ -58,17 +108,24 @@ impl Finder<'_> {
 
 impl CellVisitor for Finder<'_> {
     fn enter(&mut self, name: &'static str) {
-        self.marks.push(self.path.len());
-        self.path.push('.');
-        self.path.push_str(name);
+        self.enter_part(|path| {
+            path.push('.');
+            path.push_str(name);
+        });
     }
 
     fn index(&mut self, i: usize) {
-        self.marks.push(self.path.len());
-        self.path.push_str(&format!("[{i}]"));
+        use std::fmt::Write;
+        self.enter_part(|path| {
+            write!(path, "[{i}]").expect("a write into a String");
+        });
     }
 
     fn leave(&mut self) {
+        if self.away > 0 {
+            self.away -= 1;
+            return;
+        }
         let mark = self.marks.pop().expect("a part entered");
         self.path.truncate(mark);
     }
@@ -76,7 +133,8 @@ impl CellVisitor for Finder<'_> {
     fn leaf(&mut self, _: &[u8]) {}
 
     fn run(&mut self, run: CellRun<'_>) {
-        if self.done || run.len() == 0 {
+        // A run away from every target is not one (`cells` would say none).
+        if self.done || self.away > 0 || run.len() == 0 {
             return;
         }
         let Some((first, count)) = self.cells(run) else {
@@ -102,13 +160,7 @@ impl CellVisitor for Finder<'_> {
 }
 
 fn walk<T: Cells>(record: &T, path: &str, task: Task<'_>) {
-    let mut finder = Finder {
-        want: path,
-        path: String::new(),
-        marks: Vec::new(),
-        task,
-        done: false,
-    };
+    let mut finder = Finder::new(path, task);
     record.visit(&mut finder);
 }
 
@@ -175,6 +227,16 @@ pub fn set_f32<T: Cells>(record: &T, path: &str, value: f32) -> bool {
     set_u32(record, path, value.to_bits())
 }
 
+/// Whether `head` followed by `tail` starts with `path`.
+fn starts(head: &str, tail: &str, path: &str) -> bool {
+    if path.len() <= head.len() {
+        head.starts_with(path)
+    } else {
+        path.strip_prefix(head)
+            .is_some_and(|rest| tail.starts_with(rest))
+    }
+}
+
 /// What the walk of `field_bytes` and its relatives does at each run it takes in.
 enum Span<'a> {
     /// The cells' bytes, appended in field order.
@@ -200,13 +262,42 @@ struct Under<'a> {
     /// The field is a cell of an array of like cells, which the walk reports as one run (no
     /// run lies at the field's own path).
     in_run: bool,
+    /// How deep the walk is below the last part that can matter (see `enter_part`).
+    away: usize,
     task: Span<'a>,
 }
 
 impl Under<'_> {
+    /// The part `push` writes entered: on the path when it can lead to a run `inside` the
+    /// field or to the run `cell_of_run` looks for, otherwise counted in `away`.
+    fn enter_part(&mut self, push: impl FnOnce(&mut String)) {
+        if self.prefix.is_empty() {
+            return;
+        }
+        if self.away > 0 {
+            self.away += 1;
+            return;
+        }
+        let mark = self.path.len();
+        push(&mut self.path);
+        let path = self.path.as_str();
+        let leads = self.prefix.starts_with(path)
+            || path.starts_with(self.prefix)
+            || split_index(self.prefix).is_some_and(|(base, _)| starts(base, "[0]", path));
+        if leads {
+            self.marks.push(mark);
+        } else {
+            self.path.truncate(mark);
+            self.away = 1;
+        }
+    }
+
     /// Whether the run at the current path is the field or lies in it (the empty path is the
     /// whole record).
     fn inside(&self) -> bool {
+        if self.away > 0 {
+            return false;
+        }
         let Some(rest) = self.path.strip_prefix(self.prefix) else {
             return false;
         };
@@ -217,7 +308,7 @@ impl Under<'_> {
     /// (`.damage[2]`; the walk reports the array as its element 0), and the byte of the run the
     /// field starts at.
     fn cell_of_run(&self, run: &CellRun<'_>) -> Option<usize> {
-        if !self.in_run {
+        if !self.in_run || self.away > 0 {
             return None;
         }
         let (base, index) = split_index(self.prefix)?;
@@ -226,19 +317,34 @@ impl Under<'_> {
     }
 }
 
+// The walk builds only the paths that can matter (2026-11-13: the vectors copy records of up to
+// 2 MB this way in every case). The whole record (an empty `prefix`) needs none: every run is
+// inside it (`inside`) and none is a cell of a run it names (`cell_of_run`). Otherwise a part
+// whose path is neither a start of `prefix` (or of the run `cell_of_run` looks for) nor under
+// `prefix` has no run under it that is either: it is counted in `away` and not written out.
 impl CellVisitor for Under<'_> {
     fn enter(&mut self, name: &'static str) {
-        self.marks.push(self.path.len());
-        self.path.push('.');
-        self.path.push_str(name);
+        self.enter_part(|path| {
+            path.push('.');
+            path.push_str(name);
+        });
     }
 
     fn index(&mut self, i: usize) {
-        self.marks.push(self.path.len());
-        self.path.push_str(&format!("[{i}]"));
+        use std::fmt::Write;
+        self.enter_part(|path| {
+            write!(path, "[{i}]").expect("a write into a String");
+        });
     }
 
     fn leave(&mut self) {
+        if self.prefix.is_empty() {
+            return;
+        }
+        if self.away > 0 {
+            self.away -= 1;
+            return;
+        }
         let mark = self.marks.pop().expect("a part entered");
         self.path.truncate(mark);
     }
@@ -295,6 +401,7 @@ impl<'a> Under<'a> {
             taken: 0,
             started: false,
             in_run,
+            away: 0,
             task,
         }
     }

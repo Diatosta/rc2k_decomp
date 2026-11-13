@@ -154,7 +154,7 @@ pub(super) mod proof {
     }
 
     /// `same_result` with 20,000 runs and a seed made of the name.
-    pub fn prove(name: &str, old: impl Fn(&State), new: impl Fn(&State)) {
+    pub fn prove(name: &str, old: impl Fn(&State) + Sync, new: impl Fn(&State) + Sync) {
         let seed = name.bytes().fold(0xCBF2_9CE4_8422_2325u64, |h, b| {
             (h ^ u64::from(b)).wrapping_mul(0x100_0000_01B3)
         });
@@ -163,17 +163,75 @@ pub(super) mod proof {
 
     /// Runs `old` and `new` on `runs` copies of one random state each, and fails when any
     /// byte of the car, the model or the work differs afterwards.
+    ///
+    /// The runs are split over threads, each with its own pair of states (2026-11-13: the
+    /// tests are bound by the processor). The cases are the ones a single thread made: every
+    /// run's state is drawn from where the last run's draws ended, so the generator is first
+    /// run through all the runs' draws (as many `random_bits` as the three records have
+    /// cells) to find where each part's first run begins. Each part runs at the caller's
+    /// x87 control word, the one thread-local state the arithmetic reads. A failure is the
+    /// first failing run's, as on one thread: the parts are joined in order and the first
+    /// panic carried on.
     pub fn same_result(
         name: &str,
         seed: u64,
         runs: u32,
-        old: impl Fn(&State),
-        new: impl Fn(&State),
+        old: impl Fn(&State) + Sync,
+        new: impl Fn(&State) + Sync,
     ) {
+        // `fill`'s draws: one a cell.
+        let draws_a_run =
+            size_of::<Car>() / 4 + size_of::<DamageModel>() / 4 + size_of::<RaceWork>() / 4;
+        let parts = std::thread::available_parallelism()
+            .map_or(1, std::num::NonZero::get)
+            .min(8) as u32;
+        let per_part = runs.div_ceil(parts).max(1);
+        let mut starts = Vec::new();
         let mut rng = Rng::new(seed);
+        for run in 0..runs {
+            if run % per_part == 0 {
+                starts.push((run, rng.0));
+            }
+            for _ in 0..draws_a_run {
+                random_bits(&mut rng);
+            }
+        }
+        let control = crate::math::x87::control_word();
+        let (old, new) = (&old, &new);
+        let outcomes: Vec<std::thread::Result<()>> = std::thread::scope(|scope| {
+            let parts: Vec<_> = starts
+                .into_iter()
+                .map(|(first, at)| {
+                    scope.spawn(move || {
+                        crate::math::x87::set_control_word(control);
+                        let end = (first + per_part).min(runs);
+                        same_result_part(name, Rng(at), first..end, old, new);
+                    })
+                })
+                .collect();
+            parts
+                .into_iter()
+                .map(std::thread::ScopedJoinHandle::join)
+                .collect()
+        });
+        for outcome in outcomes {
+            if let Err(panic) = outcome {
+                std::panic::resume_unwind(panic);
+            }
+        }
+    }
+
+    /// The runs `runs` of `same_result`, the first drawn from `rng`.
+    fn same_result_part(
+        name: &str,
+        mut rng: Rng,
+        runs: std::ops::Range<u32>,
+        old: &impl Fn(&State),
+        new: &impl Fn(&State),
+    ) {
         let a = State::new();
         let b = State::new();
-        for run in 0..runs {
+        for run in runs {
             fill(&*a.car, &mut rng);
             fill(&*a.damage, &mut rng);
             fill(&*a.work, &mut rng);

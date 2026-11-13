@@ -509,7 +509,7 @@ use crate::math::x87_float as bh;
 #[cfg(test)]
 mod reference_vectors {
     use crate::effects::asm_test::Kind::*;
-    use crate::effects::asm_test::{Op, Operand, Spec, recorded_writes};
+    use crate::effects::asm_test::{Op, Operand, Spec, recorded_buffer_writes};
     use crate::scene::x87_mem::Base;
 
     /// The float at `base + off` of a test buffer.
@@ -541,7 +541,7 @@ mod reference_vectors {
             ],
             sincos: false,
         };
-        recorded_writes("effects.pong.sum_compare_x87", &SPEC, |b| {
+        recorded_buffer_writes("effects.pong.sum_compare_x87", &SPEC, |b| {
             put(
                 b[1],
                 super::sum_status(at(b[0], 0), at(b[0], 4), at(b[0], 8)),
@@ -568,7 +568,7 @@ mod reference_vectors {
             ],
             sincos: false,
         };
-        recorded_writes("effects.pong.less_compare_x87_1", &SPEC, |b| {
+        recorded_buffer_writes("effects.pong.less_compare_x87_1", &SPEC, |b| {
             let m = Some(at(b[0], 0xC));
             put(
                 b[1],
@@ -596,7 +596,7 @@ mod reference_vectors {
             ],
             sincos: false,
         };
-        recorded_writes("effects.pong.less_compare_x87_2", &SPEC, |b| {
+        recorded_buffer_writes("effects.pong.less_compare_x87_2", &SPEC, |b| {
             put(
                 b[1],
                 super::less_status(at(b[0], 0), at(b[0], 4), at(b[0], 8), None),

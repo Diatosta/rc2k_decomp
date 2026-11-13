@@ -45,11 +45,21 @@ impl<T: crate::cells::Cells> RecordSnapshot<'_, T> {
 
 /// The store named `name`, walkable by field paths.
 pub fn walk(name: &str) -> &'static (dyn super::registry::Walk + Sync) {
-    super::registry::listed()
-        .iter()
-        .find(|e| e.name == name)
-        .unwrap_or_else(|| panic!("no store {name} in the registry"))
-        .store
+    // The first entry of each name, by name (the vectors look stores up in every case).
+    static FIRST: std::sync::OnceLock<std::collections::HashMap<&'static str, usize>> =
+        std::sync::OnceLock::new();
+    let listed = super::registry::listed();
+    let first = FIRST.get_or_init(|| {
+        let mut first = std::collections::HashMap::new();
+        for (n, e) in listed.iter().enumerate() {
+            first.entry(e.name).or_insert(n);
+        }
+        first
+    });
+    let n = *first
+        .get(name)
+        .unwrap_or_else(|| panic!("no store {name} in the registry"));
+    listed[n].store
 }
 
 #[cfg(test)]

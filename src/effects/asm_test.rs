@@ -400,7 +400,14 @@ fn run_recorded<R: std::fmt::Debug>(
             .any(|op| matches!(op, Op::RaceBlock { .. })),
         "a recorded block reads only its test buffers"
     );
-    let _guard = crate::test_support::test_lock();
+    // No `test_support::test_lock` (2026-11-13): the run reaches no static. The control word
+    // it sets is this thread's (`math::x87`'s thread-local one, and in the i686 tests the
+    // x87's own, a thread's register), the operands are the run's own buffers, the file is
+    // read only, and every caller's `plain` works on its operands only: checked for each
+    // (`effects::{adjugate3, pong_ball_hits, run_windscreen_flakes, turns}`): x87 arithmetic
+    // over the buffers' bytes and over records laid over them (`asm_layout::with_laid`, a
+    // fresh copy filled from the buffer). A new caller whose `plain` reaches a static takes
+    // the lock around its call.
     let mut rng = Rng(0x9E37_79B9_7F4A_7C15);
     let mut failures = 0;
     for cw in [0x027F, 0x0E7F] {
@@ -566,15 +573,38 @@ pub fn recorded_writes<R: std::fmt::Debug>(
     plain: impl Fn(&[Operand]) -> R,
 ) {
     use crate::test_support::vectors::Recorder;
-    run_writes(Recorder::replay(name), spec, &plain);
+    run_writes(Recorder::replay(name), spec, &plain, true);
 }
 
+/// `recorded_writes` for a block over test buffers only whose `plain` reaches no static: run
+/// without `test_support::test_lock`, as `recorded` (whose reasons hold here). Checked for
+/// each caller (`effects::{pong, scale_axes}`): x87 arithmetic over the buffers' bytes and
+/// over records laid over them (`asm_layout::with_laid`).
+pub fn recorded_buffer_writes<R: std::fmt::Debug>(
+    name: &str,
+    spec: &Spec,
+    plain: impl Fn(&[Operand]) -> R,
+) {
+    use crate::test_support::vectors::Recorder;
+    assert!(
+        !spec
+            .operands
+            .iter()
+            .any(|op| matches!(op, Op::RaceBlock { .. })),
+        "a block of buffer writes reads only its test buffers"
+    );
+    run_writes(Recorder::replay(name), spec, &plain, false);
+}
+
+/// The lock is taken unless the caller says `plain` reaches no static and no operand is in
+/// the race block (`recorded_buffer_writes`).
 fn run_writes<R: std::fmt::Debug>(
     mut file: crate::test_support::vectors::Recorder,
     spec: &Spec,
     plain: &dyn Fn(&[Operand]) -> R,
+    reaches_statics: bool,
 ) {
-    let _guard = crate::test_support::test_lock();
+    let _guard = reaches_statics.then(crate::test_support::test_lock);
     let mut rng = Rng(0x9E37_79B9_7F4A_7C15);
     let mut failures = 0;
     // The race block places any operand lists: put back when the test ends.
