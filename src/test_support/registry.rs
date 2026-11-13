@@ -1,12 +1,10 @@
 //! Test-only: the registry of the game state's stores, each with a name, so tests can read
 //! and put back the game's state by store name (`state::walk`, `state::Snapshot`) and field
-//! path rather than by address; the few stores that tests name places of by byte also have a
-//! byte view (`state::store`). Nothing in production uses it.
+//! path rather than by address. Nothing in production uses it.
 //!
 //! The list is the stores' own (`listed_stores`); a repeated name is found at its first entry.
 
-use crate::cells::{ByteView, Cells, Store};
-use crate::errors::BadInput;
+use crate::cells::Cells;
 
 /// One store of the list: its name, the store, and how many of its first bytes are the
 /// game's where that is known (a store's record may be rounded up past the game's last byte).
@@ -58,40 +56,8 @@ struct OnGame<S: 'static> {
 )]
 unsafe impl<S> Sync for OnGame<S> {}
 
-/// A whole game-thread owner's record that also has a byte view: the few stores a test names a
-/// place of by byte (`race_places`), which need the record's fixed layout.
-struct OnGameBytes<S: 'static> {
-    game: OnGame<S>,
-}
-
-// SAFETY: `first` is the record's first byte and `size` its size; the data is reached only
-// after the game-thread check.
-#[allow(
-    unsafe_code,
-    reason = "Store's promise: the record's bytes are the record's"
-)]
-unsafe impl<S: ByteView> Store for OnGameBytes<S> {
-    fn size(&self) -> usize {
-        size_of::<S>()
-    }
-
-    fn first(&self) -> *const u8 {
-        std::ptr::from_ref(self.game.whole).cast::<u8>()
-    }
-
-    fn load(&self, offset: usize, to: &mut [u8]) -> Result<(), BadInput> {
-        crate::session::assert_game_thread();
-        crate::cells::load_cells(self.game.whole, offset, to)
-    }
-
-    fn store(&self, offset: usize, from: &[u8]) -> Result<(), BadInput> {
-        crate::session::assert_game_thread();
-        crate::cells::store_cells(self.game.whole, offset, from)
-    }
-}
-
 /// A listed store that tests reach by field path: the record's own `Cells`, whole where the
-/// store is a part of it. A few also have a byte view (`bytes`).
+/// store is a part of it.
 pub trait Walk {
     /// The bytes of the cells the field `path` of the record behind the store names
     /// (`paths::bytes`), whatever their place in the store.
@@ -111,11 +77,6 @@ pub trait Walk {
     /// the store is the whole record).
     fn first_field(&self) -> &'static str {
         ""
-    }
-    /// The record by byte offset, for the places named by byte (`race_places`); none where the
-    /// record has no byte view.
-    fn bytes(&self) -> Option<&(dyn Store + Sync)> {
-        None
     }
 }
 
@@ -219,36 +180,6 @@ impl<S: Cells> Walk for OnGame<S> {
     }
 }
 
-impl<S: ByteView> Walk for OnGameBytes<S> {
-    fn path_bytes(&self, path: &str) -> Option<Vec<u8>> {
-        self.game.path_bytes(path)
-    }
-
-    fn set_path_bytes(&self, path: &str, bytes: &[u8]) -> bool {
-        self.game.set_path_bytes(path, bytes)
-    }
-
-    fn range_bytes(&self, path: &str, length: usize) -> Vec<u8> {
-        self.game.range_bytes(path, length)
-    }
-
-    fn set_range_bytes(&self, path: &str, bytes: &[u8]) -> bool {
-        self.game.set_range_bytes(path, bytes)
-    }
-
-    fn first_addr(&self, path: &str) -> Option<usize> {
-        self.game.first_addr(path)
-    }
-
-    fn keep(&self) -> Box<dyn Fn() + '_> {
-        self.game.keep()
-    }
-
-    fn bytes(&self) -> Option<&(dyn Store + Sync)> {
-        Some(self)
-    }
-}
-
 /// The whole of a game-thread owner's part as a listed store (lives for the program).
 fn on_game<S: Cells>(whole: &'static S) -> &'static OnGame<S> {
     on_game_from(whole, "")
@@ -257,13 +188,6 @@ fn on_game<S: Cells>(whole: &'static S) -> &'static OnGame<S> {
 /// A game-thread owner's part from the field `first` on as a listed store.
 fn on_game_from<S: Cells>(whole: &'static S, first: &'static str) -> &'static OnGame<S> {
     Box::leak(Box::new(OnGame { whole, first }))
-}
-
-/// A game-thread owner's whole part as a listed store that also has a byte view.
-fn on_game_bytes<S: ByteView>(whole: &'static S) -> &'static OnGameBytes<S> {
-    Box::leak(Box::new(OnGameBytes {
-        game: OnGame { whole, first: "" },
-    }))
 }
 
 /// A record of atomic cells from the field `first` on as a listed store.
@@ -1021,7 +945,7 @@ fn listed_stores() -> Vec<Listed> {
         ),
         listed!(
             "race.owner.RACE.replay.car_blocks",
-            on_game_bytes(crate::race::owner::RACE.replay.car_blocks.get()),
+            on_game(crate::race::owner::RACE.replay.car_blocks.get()),
         ),
         listed!(
             "race.owner.RACE.replay.replay_work",
@@ -1192,11 +1116,11 @@ fn listed_stores() -> Vec<Listed> {
         ),
         listed!(
             "race.owner.RACE.shared.car",
-            on_game_bytes(crate::race::owner::RACE.shared.car()),
+            on_game(crate::race::owner::RACE.shared.car()),
         ),
         listed!(
             "race.owner.RACE.shared.work",
-            on_game_bytes(crate::race::owner::RACE.shared.work.get()),
+            on_game(crate::race::owner::RACE.shared.work.get()),
         ),
         listed!(
             "race.owner.RACE.frame.text_state",
@@ -1656,7 +1580,7 @@ fn listed_stores() -> Vec<Listed> {
     ]
 }
 
-/// A store: its name, its cells (by field path, and by byte where it has a byte view), and
+/// A store: its name, its cells (by field path), and
 /// how many bytes the game's range holds where that is known.
 pub struct Entry {
     pub name: &'static str,
@@ -1683,16 +1607,13 @@ pub fn listed() -> &'static [Entry] {
 mod tests {
     use super::*;
 
-    /// A store's game range fits the store, where it has a byte view to measure; a store
-    /// that starts inside a record names a field the record has.
+    /// A store's game range is not empty; a store that starts inside a record names a field the
+    /// record has.
     #[test]
     fn every_store_holds_its_game_range() {
         let _g = crate::test_support::test_lock();
         for e in listed() {
             assert!(e.len.is_none_or(|len| len > 0), "{}", e.name);
-            if let (Some(len), Some(bytes)) = (e.len, e.store.bytes()) {
-                assert!(len <= bytes.size(), "{}", e.name);
-            }
             let first = e.store.first_field();
             if !first.is_empty() {
                 assert!(e.store.path_bytes(first).is_some(), "{}: {first}", e.name);

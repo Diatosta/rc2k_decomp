@@ -320,175 +320,152 @@ const FIELDS: &[(usize, &str, &str)] = &[
     (0x2D3CD8, "race.owner.RACE.physics.contact", ".bump_relative_speed[0]"),
     (0x2D3CDC, "race.owner.RACE.physics.contact", ".bump_relative_speed[1]"),
     (0x2D3CE0, "race.owner.RACE.physics.contact", ".bump_relative_speed[2]"),
+    (0x30F524, "race.owner.RACE.replay.car_blocks", ".cars[0].position[1]"),
+    (0x319FE0, "race.owner.RACE.shared.car", ".step_clock"),
+    (0x319FF8, "race.owner.RACE.shared.car", ".brake_balance"),
+    (0x31A008, "race.owner.RACE.shared.car", ".ride_height"),
+    (0x31A00C, "race.owner.RACE.shared.car", ".suspension_stiffness"),
+    (0x31A018, "race.owner.RACE.shared.car", ".drive_kind"),
+    (0x31A038, "race.owner.RACE.shared.car", ".ground_bump_scale"),
+    (0x31A0A0, "race.owner.RACE.shared.car", ".crash_matrix[5]"),
+    (0x31A10C, "race.owner.RACE.shared.car", ".position[0]"),
+    (0x31A110, "race.owner.RACE.shared.car", ".position[1]"),
+    (0x31A114, "race.owner.RACE.shared.car", ".position[2]"),
+    (0x31A158, "race.owner.RACE.shared.car", ".drive_slip_speed"),
+    (0x31A170, "race.owner.RACE.shared.car", ".velocity[0]"),
+    (0x31A174, "race.owner.RACE.shared.car", ".velocity[1]"),
+    (0x31A178, "race.owner.RACE.shared.car", ".velocity[2]"),
+    (0x31A17C, "race.owner.RACE.shared.car", ".local_velocity[0]"),
+    (0x31A180, "race.owner.RACE.shared.car", ".local_velocity[1]"),
+    (0x31A184, "race.owner.RACE.shared.car", ".local_velocity[2]"),
+    (0x31A190, "race.owner.RACE.shared.car", ".drive_speed_a"),
+    (0x31A194, "race.owner.RACE.shared.car", ".drive_speed_b"),
+    (0x31A198, "race.owner.RACE.shared.car", ".mean_drive_speed"),
+    (0x31A1A0, "race.owner.RACE.shared.car", ".side_speed_held"),
+    (0x31A1B0, "race.owner.RACE.shared.car", ".engine_speed"),
+    (0x31A1B4, "race.owner.RACE.shared.car", ".engine_speed_limit"),
+    (0x31A1B8, "race.owner.RACE.shared.car", ".spec_scale_copy"),
+    (0x31A1CC, "race.owner.RACE.shared.car", ".wall_hit_timer"),
+    (0x31A1D8, "race.owner.RACE.shared.car", ".eased_yaw_spin"),
+    (0x31A1DC, "race.owner.RACE.shared.car", ".grip_force_sum"),
+    (0x31A1E0, "race.owner.RACE.shared.car", ".steer_trim"),
+    (0x31A1E8, "race.owner.RACE.shared.car", ".grip_forces[0]"),
+    (0x31A1EC, "race.owner.RACE.shared.car", ".grip_forces[1]"),
+    (0x31A1F0, "race.owner.RACE.shared.car", ".grip_forces[2]"),
+    (0x31A1F4, "race.owner.RACE.shared.car", ".grip_forces[3]"),
+    (0x31A1F8, "race.owner.RACE.shared.car", ".option_bits"),
+    (0x31A1FC, "race.owner.RACE.shared.car", ".contact_point[0]"),
+    (0x31A200, "race.owner.RACE.shared.car", ".contact_point[1]"),
+    (0x31A204, "race.owner.RACE.shared.car", ".contact_point[2]"),
+    (0x31A208, "race.owner.RACE.shared.car", ".contact_depth"),
+    (0x31A258, "race.owner.RACE.shared.car", ".surface_blend"),
+    (0x31A260, "race.owner.RACE.shared.car", ".slip_speed"),
+    (0x31A264, "race.owner.RACE.shared.car", ".sound_slip_share"),
+    (0x31A268, "race.owner.RACE.shared.car", ".sound_level"),
+    (0x31A26C, "race.owner.RACE.shared.car", ".sound_speed"),
+    (0x31A278, "race.owner.RACE.shared.car", ".brake_fade"),
+    (0x31A27C, "race.owner.RACE.shared.car", ".damper_wear[0]"),
+    (0x31A280, "race.owner.RACE.shared.car", ".damper_wear[1]"),
+    (0x31A284, "race.owner.RACE.shared.car", ".brake_heat[0]"),
+    (0x31A288, "race.owner.RACE.shared.car", ".brake_heat[1]"),
+    (0x31A28C, "race.owner.RACE.shared.car", ".engine_heat"),
+    (0x31A290, "race.owner.RACE.shared.car", ".engine_damage"),
+    (0x31A294, "race.owner.RACE.shared.car", ".exhaust_damage"),
+    (0x31A298, "race.owner.RACE.shared.car", ".turbo_damage"),
+    (0x31A29C, "race.owner.RACE.shared.car", ".cooling_damage"),
+    (0x31A2A0, "race.owner.RACE.shared.car", ".clutch_damage"),
+    (0x31A2A4, "race.owner.RACE.shared.car", ".differential_damage"),
+    (0x31A2A8, "race.owner.RACE.shared.car", ".gear_wear[0]"),
+    (0x31A2AC, "race.owner.RACE.shared.car", ".gear_wear[1]"),
+    (0x31A2B0, "race.owner.RACE.shared.car", ".gear_wear[2]"),
+    (0x31A2B4, "race.owner.RACE.shared.car", ".gear_wear[3]"),
+    (0x31A2B8, "race.owner.RACE.shared.car", ".gear_wear[4]"),
+    (0x31A2BC, "race.owner.RACE.shared.car", ".gear_wear[5]"),
+    (0x31A2C0, "race.owner.RACE.shared.car", ".gear_wear[6]"),
+    (0x31A2C4, "race.owner.RACE.shared.car", ".gear_wear[7]"),
+    (0x31A2C8, "race.owner.RACE.shared.car", ".gear_wear[8]"),
+    (0x31A2CC, "race.owner.RACE.shared.car", ".gearbox_damage"),
+    (0x31A2D0, "race.owner.RACE.shared.car", ".wheel_hit_damage[0]"),
+    (0x31A2D4, "race.owner.RACE.shared.car", ".wheel_hit_damage[1]"),
+    (0x31A2D8, "race.owner.RACE.shared.car", ".wheel_hit_damage[2]"),
+    (0x31A2DC, "race.owner.RACE.shared.car", ".wheel_hit_damage[3]"),
+    (0x31A2E0, "race.owner.RACE.shared.car", ".body_hit_damage"),
+    (0x31A2E4, "race.owner.RACE.shared.car", ".body_damage"),
+    (0x31A2E8, "race.owner.RACE.shared.car", ".electrics_damage"),
+    (0x31A2EC, "race.owner.RACE.shared.car", ".light_damage[0]"),
+    (0x31A2F0, "race.owner.RACE.shared.car", ".light_damage[1]"),
+    (0x31A2F4, "race.owner.RACE.shared.car", ".light_damage[2]"),
+    (0x31A2F8, "race.owner.RACE.shared.car", ".light_damage[3]"),
+    (0x31A2FC, "race.owner.RACE.shared.car", ".light_damage[4]"),
+    (0x31A300, "race.owner.RACE.shared.car", ".light_damage[5]"),
+    (0x31A304, "race.owner.RACE.shared.car", ".lights_damage"),
+    (0x31A308, "race.owner.RACE.shared.car", ".steering_damage"),
+    (0x31A30C, "race.owner.RACE.shared.car", ".suspension_damage[0]"),
+    (0x31A310, "race.owner.RACE.shared.car", ".suspension_damage[1]"),
+    (0x31A314, "race.owner.RACE.shared.car", ".suspension_damage[2]"),
+    (0x31A318, "race.owner.RACE.shared.car", ".suspension_damage[3]"),
+    (0x31A31C, "race.owner.RACE.shared.car", ".overall_suspension_damage"),
+    (0x31A320, "race.owner.RACE.shared.car", ".brake_wear_a"),
+    (0x31A324, "race.owner.RACE.shared.car", ".brake_wear_b"),
+    (0x31A328, "race.owner.RACE.shared.car", ".brake_damage"),
+    (0x31A32C, "race.owner.RACE.shared.car", ".tyre_wears[0]"),
+    (0x31A330, "race.owner.RACE.shared.car", ".tyre_wears[1]"),
+    (0x31A334, "race.owner.RACE.shared.car", ".tyre_wears[2]"),
+    (0x31A338, "race.owner.RACE.shared.car", ".tyre_wears[3]"),
+    (0x31A33C, "race.owner.RACE.shared.car", ".tyre_wear"),
+    (0x31A3D0, "race.owner.RACE.shared.car", ".brake_efficiency[0]"),
+    (0x31A3D4, "race.owner.RACE.shared.car", ".brake_efficiency[1]"),
+    (0x31A3D8, "race.owner.RACE.shared.car", ".drive_efficiency[0]"),
+    (0x31A3DC, "race.owner.RACE.shared.car", ".drive_efficiency[1]"),
+    (0x31A3E0, "race.owner.RACE.shared.car", ".steering_efficiency"),
+    (0x31A410, "race.owner.RACE.shared.car", ".wheel_ride_height[0]"),
+    (0x31A414, "race.owner.RACE.shared.car", ".wheel_ride_height[1]"),
+    (0x31A418, "race.owner.RACE.shared.car", ".wheel_ride_height[2]"),
+    (0x31A41C, "race.owner.RACE.shared.car", ".wheel_ride_height[3]"),
+    (0x31A420, "race.owner.RACE.shared.car", ".wheel_stiffness[0]"),
+    (0x31A424, "race.owner.RACE.shared.car", ".wheel_stiffness[1]"),
+    (0x31A428, "race.owner.RACE.shared.car", ".wheel_stiffness[2]"),
+    (0x31A42C, "race.owner.RACE.shared.car", ".wheel_stiffness[3]"),
+    (0x31A430, "race.owner.RACE.shared.car", ".stiffness_mean"),
+    (0x31A434, "race.owner.RACE.shared.car", ".ride_height_mean"),
+    (0x31A610, "race.owner.RACE.shared.car", ".throttle"),
+    (0x31A614, "race.owner.RACE.shared.car", ".brake"),
+    (0x31A618, "race.owner.RACE.shared.car", ".handbrake"),
+    (0x31A61C, "race.owner.RACE.shared.car", ".steering"),
+    (0x31A668, "race.owner.RACE.shared.car", ".camera_switch_clock"),
+    (0x31A670, "race.owner.RACE.shared.car", ".camera_switch_length"),
+    (0x31A674, "race.owner.RACE.shared.car", ".camera_switch_share"),
+    (0x31A688, "race.owner.RACE.shared.car", ".camera_heading"),
+    (0x31A690, "race.owner.RACE.shared.car", ".camera_pitch"),
+    (0x31A6A0, "race.owner.RACE.shared.car", ".camera_zoom"),
+    (0x31A8E4, "race.owner.RACE.shared.car", ".vertical_speed_change"),
+    (0x31A920, "race.owner.RACE.shared.car", ".point_wear_factor[0]"),
+    (0x31A924, "race.owner.RACE.shared.car", ".point_wear_factor[1]"),
+    (0x31A930, "race.owner.RACE.shared.car", ".point_wear_factor[4]"),
+    (0x31A984, "race.owner.RACE.shared.car", ".wheel_surface_blend[0]"),
+    (0x31A988, "race.owner.RACE.shared.car", ".wheel_surface_blend[1]"),
+    (0x31A994, "race.owner.RACE.shared.car", ".wheel_surface_blend[4]"),
+    (0x31AA88, "race.owner.RACE.shared.car", ".engine_sound_speed_int"),
+    (0x31ACC8, "race.owner.RACE.shared.car", ".probe_point_z[0]"),
+    (0x31ACD4, "race.owner.RACE.shared.car", ".probe_point_z[3]"),
+    (0x31AEE0, "race.owner.RACE.shared.car", ".engine_speed_scaled"),
+    (0x31AF18, "race.owner.RACE.shared.car", ".skid_grip[0]"),
+    (0x31AF1C, "race.owner.RACE.shared.car", ".skid_grip[1]"),
+    (0x31C708, "race.owner.RACE.shared.work", ".patch_factors[1]"),
 ];
 
-/// The places in the work car, the race work and the replay's car blocks, by their byte in the
-/// store.
-#[rustfmt::skip]
-const BYTES: &[(usize, &str, usize)] = &[
-    (0x30F524, "race.owner.RACE.replay.car_blocks", 0x138),
-    (0x319FE0, "race.owner.RACE.shared.car", 0x8),
-    (0x319FF8, "race.owner.RACE.shared.car", 0x20),
-    (0x31A008, "race.owner.RACE.shared.car", 0x30),
-    (0x31A00C, "race.owner.RACE.shared.car", 0x34),
-    (0x31A018, "race.owner.RACE.shared.car", 0x40),
-    (0x31A038, "race.owner.RACE.shared.car", 0x60),
-    (0x31A0A0, "race.owner.RACE.shared.car", 0xC8),
-    (0x31A10C, "race.owner.RACE.shared.car", 0x134),
-    (0x31A110, "race.owner.RACE.shared.car", 0x138),
-    (0x31A114, "race.owner.RACE.shared.car", 0x13C),
-    (0x31A158, "race.owner.RACE.shared.car", 0x180),
-    (0x31A170, "race.owner.RACE.shared.car", 0x198),
-    (0x31A174, "race.owner.RACE.shared.car", 0x19C),
-    (0x31A178, "race.owner.RACE.shared.car", 0x1A0),
-    (0x31A17C, "race.owner.RACE.shared.car", 0x1A4),
-    (0x31A180, "race.owner.RACE.shared.car", 0x1A8),
-    (0x31A184, "race.owner.RACE.shared.car", 0x1AC),
-    (0x31A190, "race.owner.RACE.shared.car", 0x1B8),
-    (0x31A194, "race.owner.RACE.shared.car", 0x1BC),
-    (0x31A198, "race.owner.RACE.shared.car", 0x1C0),
-    (0x31A1A0, "race.owner.RACE.shared.car", 0x1C8),
-    (0x31A1B0, "race.owner.RACE.shared.car", 0x1D8),
-    (0x31A1B4, "race.owner.RACE.shared.car", 0x1DC),
-    (0x31A1B8, "race.owner.RACE.shared.car", 0x1E0),
-    (0x31A1CC, "race.owner.RACE.shared.car", 0x1F4),
-    (0x31A1D8, "race.owner.RACE.shared.car", 0x200),
-    (0x31A1DC, "race.owner.RACE.shared.car", 0x204),
-    (0x31A1E0, "race.owner.RACE.shared.car", 0x208),
-    (0x31A1E8, "race.owner.RACE.shared.car", 0x210),
-    (0x31A1EC, "race.owner.RACE.shared.car", 0x214),
-    (0x31A1F0, "race.owner.RACE.shared.car", 0x218),
-    (0x31A1F4, "race.owner.RACE.shared.car", 0x21C),
-    (0x31A1F8, "race.owner.RACE.shared.car", 0x220),
-    (0x31A1FC, "race.owner.RACE.shared.car", 0x224),
-    (0x31A200, "race.owner.RACE.shared.car", 0x228),
-    (0x31A204, "race.owner.RACE.shared.car", 0x22C),
-    (0x31A208, "race.owner.RACE.shared.car", 0x230),
-    (0x31A258, "race.owner.RACE.shared.car", 0x280),
-    (0x31A260, "race.owner.RACE.shared.car", 0x288),
-    (0x31A264, "race.owner.RACE.shared.car", 0x28C),
-    (0x31A268, "race.owner.RACE.shared.car", 0x290),
-    (0x31A26C, "race.owner.RACE.shared.car", 0x294),
-    (0x31A278, "race.owner.RACE.shared.car", 0x2A0),
-    (0x31A27C, "race.owner.RACE.shared.car", 0x2A4),
-    (0x31A280, "race.owner.RACE.shared.car", 0x2A8),
-    (0x31A284, "race.owner.RACE.shared.car", 0x2AC),
-    (0x31A288, "race.owner.RACE.shared.car", 0x2B0),
-    (0x31A28C, "race.owner.RACE.shared.car", 0x2B4),
-    (0x31A290, "race.owner.RACE.shared.car", 0x2B8),
-    (0x31A294, "race.owner.RACE.shared.car", 0x2BC),
-    (0x31A298, "race.owner.RACE.shared.car", 0x2C0),
-    (0x31A29C, "race.owner.RACE.shared.car", 0x2C4),
-    (0x31A2A0, "race.owner.RACE.shared.car", 0x2C8),
-    (0x31A2A4, "race.owner.RACE.shared.car", 0x2CC),
-    (0x31A2A8, "race.owner.RACE.shared.car", 0x2D0),
-    (0x31A2AC, "race.owner.RACE.shared.car", 0x2D4),
-    (0x31A2B0, "race.owner.RACE.shared.car", 0x2D8),
-    (0x31A2B4, "race.owner.RACE.shared.car", 0x2DC),
-    (0x31A2B8, "race.owner.RACE.shared.car", 0x2E0),
-    (0x31A2BC, "race.owner.RACE.shared.car", 0x2E4),
-    (0x31A2C0, "race.owner.RACE.shared.car", 0x2E8),
-    (0x31A2C4, "race.owner.RACE.shared.car", 0x2EC),
-    (0x31A2C8, "race.owner.RACE.shared.car", 0x2F0),
-    (0x31A2CC, "race.owner.RACE.shared.car", 0x2F4),
-    (0x31A2D0, "race.owner.RACE.shared.car", 0x2F8),
-    (0x31A2D4, "race.owner.RACE.shared.car", 0x2FC),
-    (0x31A2D8, "race.owner.RACE.shared.car", 0x300),
-    (0x31A2DC, "race.owner.RACE.shared.car", 0x304),
-    (0x31A2E0, "race.owner.RACE.shared.car", 0x308),
-    (0x31A2E4, "race.owner.RACE.shared.car", 0x30C),
-    (0x31A2E8, "race.owner.RACE.shared.car", 0x310),
-    (0x31A2EC, "race.owner.RACE.shared.car", 0x314),
-    (0x31A2F0, "race.owner.RACE.shared.car", 0x318),
-    (0x31A2F4, "race.owner.RACE.shared.car", 0x31C),
-    (0x31A2F8, "race.owner.RACE.shared.car", 0x320),
-    (0x31A2FC, "race.owner.RACE.shared.car", 0x324),
-    (0x31A300, "race.owner.RACE.shared.car", 0x328),
-    (0x31A304, "race.owner.RACE.shared.car", 0x32C),
-    (0x31A308, "race.owner.RACE.shared.car", 0x330),
-    (0x31A30C, "race.owner.RACE.shared.car", 0x334),
-    (0x31A310, "race.owner.RACE.shared.car", 0x338),
-    (0x31A314, "race.owner.RACE.shared.car", 0x33C),
-    (0x31A318, "race.owner.RACE.shared.car", 0x340),
-    (0x31A31C, "race.owner.RACE.shared.car", 0x344),
-    (0x31A320, "race.owner.RACE.shared.car", 0x348),
-    (0x31A324, "race.owner.RACE.shared.car", 0x34C),
-    (0x31A328, "race.owner.RACE.shared.car", 0x350),
-    (0x31A32C, "race.owner.RACE.shared.car", 0x354),
-    (0x31A330, "race.owner.RACE.shared.car", 0x358),
-    (0x31A334, "race.owner.RACE.shared.car", 0x35C),
-    (0x31A338, "race.owner.RACE.shared.car", 0x360),
-    (0x31A33C, "race.owner.RACE.shared.car", 0x364),
-    (0x31A3D0, "race.owner.RACE.shared.car", 0x3F8),
-    (0x31A3D4, "race.owner.RACE.shared.car", 0x3FC),
-    (0x31A3D8, "race.owner.RACE.shared.car", 0x400),
-    (0x31A3DC, "race.owner.RACE.shared.car", 0x404),
-    (0x31A3E0, "race.owner.RACE.shared.car", 0x408),
-    (0x31A410, "race.owner.RACE.shared.car", 0x438),
-    (0x31A414, "race.owner.RACE.shared.car", 0x43C),
-    (0x31A418, "race.owner.RACE.shared.car", 0x440),
-    (0x31A41C, "race.owner.RACE.shared.car", 0x444),
-    (0x31A420, "race.owner.RACE.shared.car", 0x448),
-    (0x31A424, "race.owner.RACE.shared.car", 0x44C),
-    (0x31A428, "race.owner.RACE.shared.car", 0x450),
-    (0x31A42C, "race.owner.RACE.shared.car", 0x454),
-    (0x31A430, "race.owner.RACE.shared.car", 0x458),
-    (0x31A434, "race.owner.RACE.shared.car", 0x45C),
-    (0x31A610, "race.owner.RACE.shared.car", 0x638),
-    (0x31A614, "race.owner.RACE.shared.car", 0x63C),
-    (0x31A618, "race.owner.RACE.shared.car", 0x640),
-    (0x31A61C, "race.owner.RACE.shared.car", 0x644),
-    (0x31A668, "race.owner.RACE.shared.car", 0x690),
-    (0x31A670, "race.owner.RACE.shared.car", 0x698),
-    (0x31A674, "race.owner.RACE.shared.car", 0x69C),
-    (0x31A688, "race.owner.RACE.shared.car", 0x6B0),
-    (0x31A690, "race.owner.RACE.shared.car", 0x6B8),
-    (0x31A6A0, "race.owner.RACE.shared.car", 0x6C8),
-    (0x31A8E4, "race.owner.RACE.shared.car", 0x90C),
-    (0x31A920, "race.owner.RACE.shared.car", 0x948),
-    (0x31A924, "race.owner.RACE.shared.car", 0x94C),
-    (0x31A930, "race.owner.RACE.shared.car", 0x958),
-    (0x31A984, "race.owner.RACE.shared.car", 0x9AC),
-    (0x31A988, "race.owner.RACE.shared.car", 0x9B0),
-    (0x31A994, "race.owner.RACE.shared.car", 0x9BC),
-    (0x31AA88, "race.owner.RACE.shared.car", 0xAB0),
-    (0x31ACC8, "race.owner.RACE.shared.car", 0xCF0),
-    (0x31ACD4, "race.owner.RACE.shared.car", 0xCFC),
-    (0x31AEE0, "race.owner.RACE.shared.car", 0xF08),
-    (0x31AF18, "race.owner.RACE.shared.car", 0xF40),
-    (0x31AF1C, "race.owner.RACE.shared.car", 0xF44),
-    (0x31C708, "race.owner.RACE.shared.work", 0x12F8),
-];
-
-/// Where a place is in its store: a field by its path (whatever the record's layout), or a
-/// byte of a record that is still read by layout (the car, the race work).
-#[derive(Clone, Copy)]
-enum Located {
-    Path(&'static str),
-    Byte(usize),
-}
-
-/// Every place of the race block: its offset, the store and where it is in the store.
-fn table() -> &'static [(usize, &'static str, Located)] {
-    static TABLE: OnceLock<Vec<(usize, &'static str, Located)>> = OnceLock::new();
+/// Every place of the race block: its offset, the store and the field in the store.
+fn table() -> &'static [(usize, &'static str, &'static str)] {
+    static TABLE: OnceLock<Vec<(usize, &'static str, &'static str)>> = OnceLock::new();
     TABLE.get_or_init(|| {
-        let mut table: Vec<(usize, &'static str, Located)> = FIELDS
-            .iter()
-            .map(|&(block, name, path)| (block, name, Located::Path(path)))
-            .collect();
-        // The byte rows were recorded in the 1999 layout of the car and of the race work.
-        table.extend(
-            BYTES.iter().map(|&(block, name, at)| {
-                (block, name, Located::Byte(in_current_layout(name, at)))
-            }),
-        );
+        let mut table = FIELDS.to_vec();
         table.sort_by_key(|p| p.0);
         table
     })
 }
 
-/// The store and the place in it of the race block's byte `off`.
-fn place(off: usize) -> (&'static str, Located) {
+/// The store and the field in it of the race block's byte `off`.
+fn place(off: usize) -> (&'static str, &'static str) {
     let table = table();
     match table.binary_search_by_key(&off, |p| p.0) {
         Ok(i) => (table[i].1, table[i].2),
@@ -499,74 +476,40 @@ fn place(off: usize) -> (&'static str, Located) {
 /// `len` bytes of the race block from `off`: the place's own cells, and where the read is
 /// wider than they are, the places that follow it.
 pub fn read(off: usize, len: usize) -> Vec<u8> {
-    let (name, located) = place(off);
-    match located {
-        Located::Byte(at) => {
-            let mut bytes = vec![0; len];
-            super::state::store(name)
-                .load(at, &mut bytes)
-                .expect("a race block place");
-            bytes
-        }
-        Located::Path(path) => {
-            let mut bytes = super::state::walk(name)
-                .path_bytes(path)
-                .unwrap_or_else(|| panic!("no field {path} in {name}"));
-            if bytes.len() < len {
-                let rest = read(off + bytes.len(), len - bytes.len());
-                bytes.extend(rest);
-            }
-            bytes.truncate(len);
-            bytes
-        }
+    let (name, path) = place(off);
+    let mut bytes = super::state::walk(name)
+        .path_bytes(path)
+        .unwrap_or_else(|| panic!("no field {path} in {name}"));
+    if bytes.len() < len {
+        let rest = read(off + bytes.len(), len - bytes.len());
+        bytes.extend(rest);
     }
+    bytes.truncate(len);
+    bytes
 }
 
 /// `bytes` put at the race block's `off`, as `read` finds the places.
 pub fn write(off: usize, bytes: &[u8]) {
-    let (name, located) = place(off);
-    match located {
-        Located::Byte(at) => super::state::store(name)
-            .store(at, bytes)
-            .expect("a race block place"),
-        Located::Path(path) => {
-            let store = super::state::walk(name);
-            let mut cells = store
-                .path_bytes(path)
-                .unwrap_or_else(|| panic!("no field {path} in {name}"));
-            let here = cells.len().min(bytes.len());
-            cells[..here].copy_from_slice(&bytes[..here]);
-            assert!(store.set_path_bytes(path, &cells), "{path} in {name}");
-            if bytes.len() > here {
-                write(off + here, &bytes[here..]);
-            }
-        }
-    }
-}
-
-/// The offset in the store as the records lie now: the places were recorded in the 1999
-/// layout of the car and of the race work.
-pub fn in_current_layout(store: &str, at: usize) -> usize {
-    use crate::physics::car_store::{Car, from_1999};
-    match store {
-        "race.owner.RACE.shared.car" => from_1999(at),
-        "race.owner.RACE.replay.car_blocks" => {
-            (at / 0xFE0) * size_of::<Car>() + from_1999(at % 0xFE0)
-        }
-        "race.owner.RACE.shared.work" => crate::race::work_store::from_1999(at),
-        _ => at,
+    let (name, path) = place(off);
+    let store = super::state::walk(name);
+    let mut cells = store
+        .path_bytes(path)
+        .unwrap_or_else(|| panic!("no field {path} in {name}"));
+    let here = cells.len().min(bytes.len());
+    cells[..here].copy_from_slice(&bytes[..here]);
+    assert!(store.set_path_bytes(path, &cells), "{path} in {name}");
+    if bytes.len() > here {
+        write(off + here, &bytes[here..]);
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::Located;
-
     #[test]
     fn the_places_are_found_once_each() {
         let _g = crate::test_support::test_lock();
         let table = super::table();
-        assert_eq!(table.len(), super::FIELDS.len() + super::BYTES.len());
+        assert_eq!(table.len(), super::FIELDS.len());
         for pair in table.windows(2) {
             assert!(
                 pair[0].0 < pair[1].0,
@@ -574,19 +517,12 @@ mod tests {
                 pair[1].0
             );
         }
-        for &(block, name, located) in table {
-            match located {
-                Located::Byte(at) => {
-                    assert!(at < crate::test_support::state::store(name).size());
-                }
-                Located::Path(path) => {
-                    let cells = crate::test_support::state::walk(name).path_bytes(path);
-                    assert!(
-                        cells.is_some_and(|c| !c.is_empty()),
-                        "place {block:#X}: no field {path} in {name}"
-                    );
-                }
-            }
+        for &(block, name, path) in table {
+            let cells = crate::test_support::state::walk(name).path_bytes(path);
+            assert!(
+                cells.is_some_and(|c| !c.is_empty()),
+                "place {block:#X}: no field {path} in {name}"
+            );
         }
     }
 }

@@ -43,17 +43,6 @@ impl<T: crate::cells::Cells> RecordSnapshot<'_, T> {
     }
 }
 
-/// The registry's store named `name` (the first of that name) by byte offset
-/// (`Store::load`, `Store::store`), for the places named by byte (`race_places`).
-///
-/// # Panics
-/// When the store has no byte view: name its fields by `walk` and a path.
-pub fn store(name: &str) -> &'static (dyn crate::cells::Store + Sync) {
-    walk(name)
-        .bytes()
-        .unwrap_or_else(|| panic!("the store {name} has no byte view: use a field path"))
-}
-
 /// The store named `name`, walkable by field paths.
 pub fn walk(name: &str) -> &'static (dyn super::registry::Walk + Sync) {
     super::registry::listed()

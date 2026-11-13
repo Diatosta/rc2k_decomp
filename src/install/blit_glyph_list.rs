@@ -7,7 +7,6 @@
 //! would blit 2^32 records).
 
 use crate::errors::Refused;
-use crate::install::page_links::PageLink;
 use crate::install::vars::GlyphRecord;
 use rc2k_core::install::layout;
 
@@ -29,7 +28,7 @@ pub fn blit_glyph_list(
             glyphs,
             x as i32,
             y as i32,
-            Some(palette(PageLink::from_raw(record.palette.get()))),
+            Some(palette(record.palette_link())),
             gfx,
         )?;
     }

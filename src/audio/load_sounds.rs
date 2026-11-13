@@ -130,10 +130,12 @@ fn list_entries<'a>(
 ) -> Result<Box<dyn Fn(usize) -> Option<u32> + 'a>, BadInput> {
     match list {
         SoundList::Menu => Ok(Box::new(|n| sound.menu.menu_sounds.sound(n))),
-        SoundList::Race { offset } => {
+        SoundList::Race { field, entry } => {
             let sets = &sound.race.sets;
-            sets.list_entry(offset, 0)?;
-            Ok(Box::new(move |n| sets.list_entry(offset, n).ok().flatten()))
+            sets.list_entry(field, entry, 0)?;
+            Ok(Box::new(move |n| {
+                sets.list_entry(field, entry, n).ok().flatten()
+            }))
         }
     }
 }
@@ -192,7 +194,10 @@ mod tests {
         assert!(
             list_entries(
                 crate::sound::owner::sound(),
-                SoundList::Race { offset: 0x10000 }
+                SoundList::Race {
+                    field: rc2k_core::audio::commands::RaceField::Tail,
+                    entry: 1
+                }
             )
             .is_err()
         );

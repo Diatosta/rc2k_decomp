@@ -479,25 +479,6 @@ const fn floats<const N: usize>(values: [f32; N]) -> [PlainFloat; N] {
 const F32_ONE: u32 = 1.0f32.to_bits();
 const F32_MINUS_ONE: u32 = (-1.0f32).to_bits();
 
-/// A byte offset in the 1999 layout of the race work (from `g_carBlocks`) as it is in `RaceWork`
-/// now: the driver's unused words were taken out. For the tests whose recorded vectors name the
-/// 1999 offsets.
-#[cfg(test)]
-pub fn from_1999(old: usize) -> usize {
-    const TAKEN_OUT: [(usize, usize); 4] = [(0xC4C, 4), (0xCF8, 12), (0xE90, 16), (0xED0, 16)];
-    let mut shift = 0;
-    for (at, len) in TAKEN_OUT {
-        assert!(
-            !(at..at + len).contains(&old),
-            "{old:#x} was an unused place"
-        );
-        if old >= at + len {
-            shift += len;
-        }
-    }
-    old - shift
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

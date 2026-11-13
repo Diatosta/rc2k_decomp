@@ -242,13 +242,20 @@ pub struct StringRecord {
 }
 
 impl StringRecord {
-    pub const fn new(dx: u32, dy: u32, font: u32, string: u32) -> Self {
+    /// A record drawing text `string` in `font` at (dx, dy) from the list's place; the font is
+    /// kept as its link, the word the pages' bytes hold.
+    pub const fn new(dx: u32, dy: u32, font: FontId, string: u32) -> Self {
         Self {
             dx: PlainLoose::new(dx),
             dy: PlainLoose::new(dy),
-            font: PlainLoose::new(font),
+            font: PlainLoose::new(PageLink::of_font(font).raw()),
             string: PlainLoose::new(string),
         }
+    }
+
+    /// The link the record keeps for its font.
+    pub fn font_link(&self) -> PageLink {
+        PageLink::from_raw(self.font.get())
     }
 }
 
@@ -265,13 +272,19 @@ pub struct GlyphRecord {
 }
 
 impl GlyphRecord {
-    pub const fn new(dx: u32, dy: u32, glyph: u32, palette: u32) -> Self {
+    /// A record blitting glyph `glyph` with `palette` at (dx, dy) from the list's place.
+    pub const fn new(dx: u32, dy: u32, glyph: u32, palette: PageLink) -> Self {
         Self {
             dx: PlainLoose::new(dx),
             dy: PlainLoose::new(dy),
             glyph: PlainLoose::new(glyph),
-            palette: PlainLoose::new(palette),
+            palette: PlainLoose::new(palette.raw()),
         }
+    }
+
+    /// The link the record keeps for its palette.
+    pub fn palette_link(&self) -> PageLink {
+        PageLink::from_raw(self.palette.get())
     }
 }
 
@@ -382,11 +395,11 @@ impl InstallerPages {
     frame_clock: PlainLoose::new(0x0),
     move_clock: PlainLoose::new(0x0),
     _gap_51d427: PlainBytes::new([0; 12]),
-    texts: [StringRecord::new(0x1A9, 0xAF, PageLink::of_font(fonts::TITLE).raw(), 0xAF), StringRecord::new(0x1A9, 0xFA, PageLink::of_font(fonts::CAPTION_A).raw(), 0xB0)],
-    msg_error: [StringRecord::new(0x1A9, 0x15E, PageLink::of_font(fonts::TITLE).raw(), 0xB1)],
-    msg_cancel: [StringRecord::new(0x1A9, 0x190, PageLink::of_font(fonts::TITLE).raw(), 0xB3)],
-    remove_strings: [StringRecord::new(0x1A9, 0x12C, PageLink::of_font(fonts::TITLE).raw(), 0xBA)],
-    bar_glyphs_list: [GlyphRecord::new(0xE1, 0x12C, 0, PageLink::blended_palette().raw()), GlyphRecord::new(0x1A9, 0x12C, 1, PageLink::blended_palette().raw())],
+    texts: [StringRecord::new(0x1A9, 0xAF, fonts::TITLE, 0xAF), StringRecord::new(0x1A9, 0xFA, fonts::CAPTION_A, 0xB0)],
+    msg_error: [StringRecord::new(0x1A9, 0x15E, fonts::TITLE, 0xB1)],
+    msg_cancel: [StringRecord::new(0x1A9, 0x190, fonts::TITLE, 0xB3)],
+    remove_strings: [StringRecord::new(0x1A9, 0x12C, fonts::TITLE, 0xBA)],
+    bar_glyphs_list: [GlyphRecord::new(0xE1, 0x12C, 0, PageLink::blended_palette()), GlyphRecord::new(0x1A9, 0x12C, 1, PageLink::blended_palette())],
     bar: PlainBytes::new(with_runs::<16>(&[(0, b"\xe0\x00\x00\x00+\x01\x00\x00\x92\x01\x00\x00\x1f")])),
     frame: PlainBytes::new(with_runs::<17>(&[(0, b"\xdf\x00\x00\x00*\x01\x00\x00\x94\x01\x00\x00!")])),
     fonts: [

@@ -11,23 +11,26 @@
 //! image's layout, as their lists' handles are offsets in it.
 
 use crate::session::{Bytes, Cell32, Dword, PlainBytes, PlainDword, PlainFloat, with_runs};
+use rc2k_core::audio::commands::RaceField;
 
 /// Handle of the race's sets: in place of a list's address the table holds
-/// `TAG | (address - the piece's start)`; 0 does not occur. The resolver keeps
-/// the original's reads: the list runs on in its piece as far as the sounds read.
-/// The race's sets (`RaceSoundSets`, by kind of car).
+/// `TAG | field << 16 | entry` (the field's number in `RaceField::ALL`, the entry in it);
+/// 0 does not occur. The list runs on through the fields after its own as far as the
+/// sounds read (`RaceSoundSets::list_entry`).
 pub const RACE_LIST_TAG: u32 = 0xC400_0000;
 
-/// The handle of the list `offset` bytes into the race's sets.
-const fn race_list(offset: u32) -> u32 {
-    assert!(offset < 0x9D4);
-    RACE_LIST_TAG | offset
+/// The handle of the list that starts at entry `entry` of `field`.
+const fn race_list(field: RaceField, entry: u32) -> u32 {
+    assert!((entry as usize) < field.dwords());
+    RACE_LIST_TAG | (field as u32) << 16 | entry
 }
 
-/// The offset in its piece a table's handle names (None: no handle of `tag`, or past `len`).
-fn offset_in(handle: u32, tag: u32, len: usize) -> Option<usize> {
-    let offset = handle.checked_sub(tag)? as usize;
-    (offset < len).then_some(offset)
+/// The field and entry a handle of the race's sets names (None: no handle of the sets).
+fn race_list_of(handle: u32) -> Option<(RaceField, u32)> {
+    let rest = handle.checked_sub(RACE_LIST_TAG)?;
+    let field = *RaceField::ALL.get((rest >> 16) as usize)?;
+    let entry = rest & 0xFFFF;
+    ((entry as usize) < field.dwords()).then_some((field, entry))
 }
 
 /// The settings page's menu sounds list (IDA 0x511AE4 .. 0x511B0C).
@@ -59,9 +62,8 @@ impl MenuSounds {
 }
 
 /// The sets of sounds a race loads (`sound::load_race_sounds`) and the request it sends (IDA 0x511B10 .. 0x5124E4).
-/// Laid out as the image: the lists' handles are byte offsets in this layout and a list runs on
-/// into the fields after it.
-#[repr(C, align(16))]
+/// The fields are in the image's order: a list runs on into the fields after it
+/// (`list_entry`, `RaceField`).
 #[derive(rc2k_derive::Cells)]
 pub struct RaceSoundSets {
     /// 0x511B10: `unk_511B10` ..: the first car's sets by kind of car, three dwords each (two sounds, -1).
@@ -706,78 +708,78 @@ impl RaceSoundSets {
                 Dword::new(0xffffffff),
             ],
             kinds: [
-                Dword::new(race_list(0x0)),
-                Dword::new(race_list(0x36c)),
-                Dword::new(race_list(0xc)),
-                Dword::new(race_list(0x378)),
-                Dword::new(race_list(0x18)),
-                Dword::new(race_list(0x384)),
-                Dword::new(race_list(0x24)),
-                Dword::new(race_list(0x390)),
-                Dword::new(race_list(0x30)),
-                Dword::new(race_list(0x39c)),
-                Dword::new(race_list(0x3c)),
-                Dword::new(race_list(0x3a8)),
-                Dword::new(race_list(0x48)),
-                Dword::new(race_list(0x3b4)),
-                Dword::new(race_list(0x54)),
-                Dword::new(race_list(0x3c0)),
-                Dword::new(race_list(0x60)),
-                Dword::new(race_list(0x3cc)),
-                Dword::new(race_list(0x6c)),
-                Dword::new(race_list(0x3d8)),
-                Dword::new(race_list(0x78)),
-                Dword::new(race_list(0x3e4)),
-                Dword::new(race_list(0x84)),
-                Dword::new(race_list(0x3f0)),
-                Dword::new(race_list(0x90)),
-                Dword::new(race_list(0x3fc)),
-                Dword::new(race_list(0x9c)),
-                Dword::new(race_list(0x408)),
-                Dword::new(race_list(0xa8)),
-                Dword::new(race_list(0x414)),
-                Dword::new(race_list(0xb4)),
-                Dword::new(race_list(0x420)),
-                Dword::new(race_list(0xc0)),
-                Dword::new(race_list(0x42c)),
-                Dword::new(race_list(0xcc)),
-                Dword::new(race_list(0x438)),
-                Dword::new(race_list(0xd8)),
-                Dword::new(race_list(0x444)),
-                Dword::new(race_list(0xe4)),
-                Dword::new(race_list(0x450)),
-                Dword::new(race_list(0xf0)),
-                Dword::new(race_list(0x45c)),
-                Dword::new(race_list(0xfc)),
-                Dword::new(race_list(0x468)),
-                Dword::new(race_list(0x108)),
-                Dword::new(race_list(0x474)),
-                Dword::new(race_list(0x114)),
-                Dword::new(race_list(0x480)),
-                Dword::new(race_list(0x120)),
-                Dword::new(race_list(0x48c)),
-                Dword::new(race_list(0x12c)),
-                Dword::new(race_list(0x498)),
-                Dword::new(race_list(0x138)),
-                Dword::new(race_list(0x4a4)),
-                Dword::new(race_list(0x144)),
-                Dword::new(race_list(0x4b0)),
-                Dword::new(race_list(0x150)),
-                Dword::new(race_list(0x4bc)),
-                Dword::new(race_list(0x15c)),
-                Dword::new(race_list(0x4c8)),
-                Dword::new(race_list(0x168)),
-                Dword::new(race_list(0x4d4)),
-                Dword::new(race_list(0x174)),
-                Dword::new(race_list(0x4e0)),
-                Dword::new(race_list(0x180)),
-                Dword::new(race_list(0x4ec)),
-                Dword::new(race_list(0x18c)),
-                Dword::new(race_list(0x4f8)),
-                Dword::new(race_list(0xcc)),
-                Dword::new(race_list(0x438)),
-                Dword::new(race_list(0xcc)),
-                Dword::new(race_list(0x438)),
+                Dword::new(race_list(RaceField::KindSetsFirst, 0)),
+                Dword::new(race_list(RaceField::KindSetsSecond, 0)),
+                Dword::new(race_list(RaceField::KindSetsFirst, 3)),
+                Dword::new(race_list(RaceField::KindSetsSecond, 3)),
+                Dword::new(race_list(RaceField::KindSetsFirst, 6)),
+                Dword::new(race_list(RaceField::KindSetsSecond, 6)),
+                Dword::new(race_list(RaceField::KindSetsFirst, 9)),
+                Dword::new(race_list(RaceField::KindSetsSecond, 9)),
+                Dword::new(race_list(RaceField::KindSetsFirst, 12)),
+                Dword::new(race_list(RaceField::KindSetsSecond, 12)),
+                Dword::new(race_list(RaceField::KindSetsFirst, 15)),
+                Dword::new(race_list(RaceField::KindSetsSecond, 15)),
+                Dword::new(race_list(RaceField::KindSetsFirst, 18)),
+                Dword::new(race_list(RaceField::KindSetsSecond, 18)),
+                Dword::new(race_list(RaceField::KindSetsFirst, 21)),
+                Dword::new(race_list(RaceField::KindSetsSecond, 21)),
+                Dword::new(race_list(RaceField::KindSetsFirst, 24)),
+                Dword::new(race_list(RaceField::KindSetsSecond, 24)),
+                Dword::new(race_list(RaceField::KindSetsFirst, 27)),
+                Dword::new(race_list(RaceField::KindSetsSecond, 27)),
+                Dword::new(race_list(RaceField::KindSetsFirst, 30)),
+                Dword::new(race_list(RaceField::KindSetsSecond, 30)),
+                Dword::new(race_list(RaceField::KindSetsFirst, 33)),
+                Dword::new(race_list(RaceField::KindSetsSecond, 33)),
+                Dword::new(race_list(RaceField::KindSetsFirst, 36)),
+                Dword::new(race_list(RaceField::KindSetsSecond, 36)),
+                Dword::new(race_list(RaceField::KindSetsFirst, 39)),
+                Dword::new(race_list(RaceField::KindSetsSecond, 39)),
+                Dword::new(race_list(RaceField::KindSetsFirst, 42)),
+                Dword::new(race_list(RaceField::KindSetsSecond, 42)),
+                Dword::new(race_list(RaceField::KindSetsFirst, 45)),
+                Dword::new(race_list(RaceField::KindSetsSecond, 45)),
+                Dword::new(race_list(RaceField::KindSetsFirst, 48)),
+                Dword::new(race_list(RaceField::KindSetsSecond, 48)),
+                Dword::new(race_list(RaceField::KindSetsFirst, 51)),
+                Dword::new(race_list(RaceField::KindSetsSecond, 51)),
+                Dword::new(race_list(RaceField::KindSetsFirst, 54)),
+                Dword::new(race_list(RaceField::KindSetsSecond, 54)),
+                Dword::new(race_list(RaceField::KindSetsFirst, 57)),
+                Dword::new(race_list(RaceField::KindSetsSecond, 57)),
+                Dword::new(race_list(RaceField::KindSetsFirst, 60)),
+                Dword::new(race_list(RaceField::KindSetsSecond, 60)),
+                Dword::new(race_list(RaceField::KindSetsFirst, 63)),
+                Dword::new(race_list(RaceField::KindSetsSecond, 63)),
+                Dword::new(race_list(RaceField::KindSetsFirst, 66)),
+                Dword::new(race_list(RaceField::KindSetsSecond, 66)),
+                Dword::new(race_list(RaceField::KindSetsFirst, 69)),
+                Dword::new(race_list(RaceField::KindSetsSecond, 69)),
+                Dword::new(race_list(RaceField::KindSetsFirst, 72)),
+                Dword::new(race_list(RaceField::KindSetsSecond, 72)),
+                Dword::new(race_list(RaceField::KindSetsFirst, 75)),
+                Dword::new(race_list(RaceField::KindSetsSecond, 75)),
+                Dword::new(race_list(RaceField::KindSetsFirst, 78)),
+                Dword::new(race_list(RaceField::KindSetsSecond, 78)),
+                Dword::new(race_list(RaceField::KindSetsFirst, 81)),
+                Dword::new(race_list(RaceField::KindSetsSecond, 81)),
+                Dword::new(race_list(RaceField::KindSetsFirst, 84)),
+                Dword::new(race_list(RaceField::KindSetsSecond, 84)),
+                Dword::new(race_list(RaceField::KindSetsFirst, 87)),
+                Dword::new(race_list(RaceField::KindSetsSecond, 87)),
+                Dword::new(race_list(RaceField::KindSetsFirst, 90)),
+                Dword::new(race_list(RaceField::KindSetsSecond, 90)),
+                Dword::new(race_list(RaceField::KindSetsFirst, 93)),
+                Dword::new(race_list(RaceField::KindSetsSecond, 93)),
+                Dword::new(race_list(RaceField::KindSetsFirst, 96)),
+                Dword::new(race_list(RaceField::KindSetsSecond, 96)),
+                Dword::new(race_list(RaceField::KindSetsFirst, 99)),
+                Dword::new(race_list(RaceField::KindSetsSecond, 99)),
+                Dword::new(race_list(RaceField::KindSetsFirst, 51)),
+                Dword::new(race_list(RaceField::KindSetsSecond, 51)),
+                Dword::new(race_list(RaceField::KindSetsFirst, 51)),
+                Dword::new(race_list(RaceField::KindSetsSecond, 51)),
                 Dword::new(0x0),
                 Dword::new(0x10),
                 Dword::new(0x0),
@@ -825,19 +827,16 @@ impl NamedSet {
 
     /// The set as the handle a load command carries.
     pub fn list(self) -> rc2k_core::audio::commands::SoundList {
-        use core::mem::offset_of;
-        let offset = match self {
-            NamedSet::Replay => offset_of!(RaceSoundSets, replay_set),
-            NamedSet::FirstA => offset_of!(RaceSoundSets, first_set_a),
-            NamedSet::FirstB => offset_of!(RaceSoundSets, first_set_b),
-            NamedSet::FirstC => offset_of!(RaceSoundSets, first_set_c),
-            NamedSet::SecondA => offset_of!(RaceSoundSets, second_set_a),
-            NamedSet::SecondB => offset_of!(RaceSoundSets, second_set_b),
-            NamedSet::Last => offset_of!(RaceSoundSets, last_set),
+        let field = match self {
+            NamedSet::Replay => RaceField::ReplaySet,
+            NamedSet::FirstA => RaceField::FirstSetA,
+            NamedSet::FirstB => RaceField::FirstSetB,
+            NamedSet::FirstC => RaceField::FirstSetC,
+            NamedSet::SecondA => RaceField::SecondSetA,
+            NamedSet::SecondB => RaceField::SecondSetB,
+            NamedSet::Last => RaceField::LastSet,
         };
-        rc2k_core::audio::commands::SoundList::Race {
-            offset: offset as u32,
-        }
+        rc2k_core::audio::commands::SoundList::Race { field, entry: 0 }
     }
 }
 
@@ -861,37 +860,45 @@ impl RaceSoundSets {
             .filter(|_| n < Self::KIND_ENTRIES)
             .ok_or(crate::errors::BadInput("a race sound kind past the table"))?
             .get();
-        match offset_in(handle, RACE_LIST_TAG, Self::LEN) {
-            Some(offset) => Ok(rc2k_core::audio::commands::SoundList::Race {
-                offset: offset as u32,
-            }),
+        match race_list_of(handle) {
+            Some((field, entry)) => {
+                Ok(rc2k_core::audio::commands::SoundList::Race { field, entry })
+            }
             None => Err(crate::errors::BadInput(
                 "a sound table's entry off its piece",
             )),
         }
     }
 
-    /// Entry `n` of the list that starts `offset` bytes into the sets. A list is read on
+    /// Entry `n` of the list that starts at entry `entry` of `field`. A list is read on
     /// until its -1, through the next fields of the sets in their order where it runs past
     /// its own (as the original's list did); a read past the sets is none. The list is named
     /// at run time (a handle the race sound loader is given), so any of the fields can follow.
     pub fn list_entry(
         &self,
-        offset: u32,
+        field: RaceField,
+        entry: u32,
         n: usize,
     ) -> Result<Option<u32>, crate::errors::BadInput> {
-        if offset as usize >= core::mem::size_of::<Self>() {
+        let runs = self.runs();
+        let mut left = (entry as usize).saturating_add(n);
+        for (run, own) in runs.iter().zip(RaceField::ALL).skip(field as usize) {
+            debug_assert_eq!(run.count(), own.dwords());
+            if left < run.count() {
+                return Ok(Some(run.bits(left)));
+            }
+            left -= run.count();
+        }
+        // Past the sets: a list that starts there is refused, a read that runs there is none.
+        if (entry as usize)
+            >= RaceField::ALL[field as usize..]
+                .iter()
+                .map(|f| f.dwords())
+                .sum()
+        {
             return Err(crate::errors::BadInput("a sound list off the race's sets"));
         }
-        let Some(at) = (offset as usize).checked_add(4 * n) else {
-            return Ok(None);
-        };
-        let mut word = [0u8; 4];
-        Ok(
-            crate::session::read_run_bytes(&self.runs(), at, &mut word, "a race sound list")
-                .ok()
-                .map(|()| u32::from_le_bytes(word)),
-        )
+        Ok(None)
     }
 
     /// The fields in the record's order, each a run of dwords.
@@ -912,7 +919,6 @@ impl RaceSoundSets {
     }
 
     const KIND_ENTRIES: usize = 72;
-    const LEN: usize = 0x9D4;
 }
 
 /// The cues' lists (IDA 0x512508 .. 0x512A10).
@@ -3216,32 +3222,111 @@ impl SpotVoices {
 mod tests {
     use super::*;
 
+    /// The original's offsets in the sets (IDA address less 0x511B10) of the fields, and of
+    /// the 72 lists the kinds table names, as the race_list literals gave them.
+    const OLD_FIELD_OFFSETS: [u32; 11] = [
+        0x0, 0x198, 0x1F4, 0x36C, 0x504, 0x560, 0x6DC, 0x758, 0x830, 0x850, 0x9AC,
+    ];
+    const OLD_KIND_OFFSETS: [u32; 72] = [
+        0, 876, 12, 888, 24, 900, 36, 912, 48, 924, 60, 936, 72, 948, 84, 960, 96, 972, 108, 984,
+        120, 996, 132, 1008, 144, 1020, 156, 1032, 168, 1044, 180, 1056, 192, 1068, 204, 1080, 216,
+        1092, 228, 1104, 240, 1116, 252, 1128, 264, 1140, 276, 1152, 288, 1164, 300, 1176, 312,
+        1188, 324, 1200, 336, 1212, 348, 1224, 360, 1236, 372, 1248, 384, 1260, 396, 1272, 204,
+        1080, 204, 1080,
+    ];
+
+    /// The old layout's flat dwords: every field in order.
+    fn flat(sets: &RaceSoundSets) -> Vec<u32> {
+        sets.runs()
+            .iter()
+            .flat_map(|run| (0..run.count()).map(|i| run.bits(i)))
+            .collect()
+    }
+
+    #[test]
+    fn field_offsets_are_the_old_layout() {
+        for (field, old) in RaceField::ALL.into_iter().zip(OLD_FIELD_OFFSETS) {
+            assert_eq!(field.original_offset(), old, "{field:?}");
+        }
+        assert_eq!(
+            RaceField::Tail.original_offset() + 4,
+            core::mem::size_of::<RaceSoundSets>() as u32
+        );
+    }
+
     /// Every entry of every list start, to the end of the sets and past it, reads as the
-    /// old byte read of the record did.
+    /// old byte read of the record did; the word (the hash's input) is the old offset + 2,
+    /// and names the same list back.
     #[test]
     fn list_entries_read_as_the_byte_read() {
-        use crate::test_support::paths;
         let sets = Box::new(RaceSoundSets::new());
-        let total = paths::field_bytes(&*sets, "").len();
-        let filled: Vec<u8> = (0..total as u32 / 4)
-            .flat_map(|k| (0x7000_0000 + k).to_le_bytes())
-            .collect();
-        assert!(paths::set_field_range(&*sets, "", &filled));
-        for offset in (0..total as u32 + 8).step_by(4).chain([1, 2, 3, 0x9D1]) {
-            for n in 0..3 {
-                let old = if offset as usize >= total {
-                    Err(crate::errors::BadInput("x"))
-                } else {
-                    Ok((offset as usize)
-                        .checked_add(4 * n)
-                        .and_then(|at| filled.get(at..at + 4))
-                        .map(|word| u32::from_le_bytes(word.try_into().unwrap())))
-                };
+        for (k, run) in sets.runs().iter().enumerate() {
+            for i in 0..run.count() {
+                run.set_bits(i, 0x7000_0000 + (OLD_FIELD_OFFSETS[k] / 4) + i as u32);
+            }
+        }
+        let filled = flat(&sets);
+        for field in RaceField::ALL {
+            for entry in 0..field.dwords() as u32 {
+                let offset = field.original_offset() + 4 * entry;
+                let list = rc2k_core::audio::commands::SoundList::Race { field, entry };
+                assert_eq!(list.word(), offset + 2);
                 assert_eq!(
-                    sets.list_entry(offset, n).ok(),
-                    old.ok(),
-                    "offset {offset} entry {n}"
+                    rc2k_core::audio::commands::SoundList::from_word(offset + 2),
+                    Some(list)
                 );
+                for n in 0..3 {
+                    let old = filled.get(offset as usize / 4 + n).copied();
+                    assert_eq!(
+                        sets.list_entry(field, entry, n).unwrap(),
+                        old,
+                        "{field:?} {entry} {n}"
+                    );
+                }
+            }
+        }
+        assert!(sets.list_entry(RaceField::Tail, 1, 0).is_err());
+        assert!(sets.list_entry(RaceField::Tail, 0, 0).is_ok());
+        assert_eq!(sets.list_entry(RaceField::Tail, 0, 1).unwrap(), None);
+    }
+
+    /// The lists the kinds table and the named sets start: same words as the old offsets, and
+    /// the lists read to their -1 without reaching the kinds table (whose values changed with
+    /// their encoding).
+    #[test]
+    fn started_lists_keep_their_hash_words_and_end_before_the_kinds() {
+        use rc2k_core::audio::commands::SoundList;
+        let sets = &crate::sound::owner::sound().race.sets;
+        let flat = flat(sets);
+        let kinds_start = RaceField::Kinds.original_offset() as usize / 4;
+        let mut lists: Vec<(SoundList, Option<u32>)> = (0..72)
+            .map(|n| (sets.kind_list(n).unwrap(), Some(OLD_KIND_OFFSETS[n])))
+            .collect();
+        let named_old = [
+            (NamedSet::Replay, 0x830),
+            (NamedSet::FirstA, 0x198),
+            (NamedSet::FirstB, 0x758),
+            (NamedSet::FirstC, 0x1F4),
+            (NamedSet::SecondA, 0x504),
+            (NamedSet::SecondB, 0x560),
+            (NamedSet::Last, 0x6DC),
+        ];
+        lists.extend(named_old.map(|(set, old)| (set.list(), Some(old))));
+        for (list, old) in lists {
+            assert_eq!(list.word(), old.unwrap() + 2, "{list:?}");
+            let SoundList::Race { field, entry } = list else {
+                panic!()
+            };
+            let start = old.unwrap() as usize / 4;
+            let mut n = 0;
+            loop {
+                let got = sets.list_entry(field, entry, n).unwrap();
+                assert_eq!(got, flat.get(start + n).copied());
+                assert!(start + n < kinds_start, "{list:?} reaches the kinds");
+                if got == Some(u32::MAX) {
+                    break;
+                }
+                n += 1;
             }
         }
     }
@@ -3251,11 +3336,10 @@ mod tests {
         for n in 0..72 {
             let handle = crate::sound::owner::sound().race.sets.kinds[n].get();
             let at = RaceSoundSets::kind_list_of(n).unwrap();
+            let (field, entry) = race_list_of(handle).unwrap();
             assert_eq!(
                 at,
-                rc2k_core::audio::commands::SoundList::Race {
-                    offset: handle ^ RACE_LIST_TAG
-                }
+                rc2k_core::audio::commands::SoundList::Race { field, entry }
             );
         }
         assert!(RaceSoundSets::kind_list_of(72).is_err());

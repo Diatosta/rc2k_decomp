@@ -7,30 +7,101 @@ use std::collections::VecDeque;
 /// How many commands the queue holds; one more is dropped.
 pub const CAPACITY: usize = 0x400;
 
+/// The fields of the race's sets of sounds, in the order a list that runs past its field reads
+/// on through them (the order the original's data lay in).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum RaceField {
+    KindSetsFirst,
+    FirstSetA,
+    FirstSetC,
+    KindSetsSecond,
+    SecondSetA,
+    SecondSetB,
+    LastSet,
+    FirstSetB,
+    ReplaySet,
+    Kinds,
+    /// The one dword that ends the sets.
+    Tail,
+}
+
+impl RaceField {
+    /// Every field, in the read-on order.
+    pub const ALL: [RaceField; 11] = [
+        RaceField::KindSetsFirst,
+        RaceField::FirstSetA,
+        RaceField::FirstSetC,
+        RaceField::KindSetsSecond,
+        RaceField::SecondSetA,
+        RaceField::SecondSetB,
+        RaceField::LastSet,
+        RaceField::FirstSetB,
+        RaceField::ReplaySet,
+        RaceField::Kinds,
+        RaceField::Tail,
+    ];
+
+    /// The dwords of the field.
+    pub const fn dwords(self) -> usize {
+        [102, 23, 94, 102, 23, 95, 31, 54, 8, 87, 1][self as usize]
+    }
+
+    /// The original's offset of the field's start in the sets: only for the sound hash and the
+    /// command word, which carry the numbers the original's data gave (see `SoundList::word`).
+    pub const fn original_offset(self) -> u32 {
+        let mut dwords = 0;
+        let mut i = 0;
+        while i < self as usize {
+            dwords += Self::ALL[i].dwords();
+            i += 1;
+        }
+        4 * dwords as u32
+    }
+}
+
 /// A list of sounds command 3 loads, by handle (the original sent its address). The menus'
-/// list, or a list in the race's sets at an offset from the sets' start.
+/// list, or a list of the race's sets: entry `entry` of a field (the list reads on into the
+/// fields after it until its -1).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum SoundList {
     Menu,
-    Race { offset: u32 },
+    Race { field: RaceField, entry: u32 },
 }
 
 impl SoundList {
     /// The word a command record carries: 0 is no list, 1 the menus', 2 and up the race's
-    /// list at that offset less 2.
+    /// list at the original's offset in the sets plus 2. The offset is "the original's offset,
+    /// for the hash": the words are hashed by the sound check (`RC2K_SOUND_HASH`), whose
+    /// numbers stay the same as before the lists had handles.
     pub fn word(self) -> u32 {
         match self {
             SoundList::Menu => 1,
-            SoundList::Race { offset } => offset.wrapping_add(2),
+            SoundList::Race { field, entry } => field
+                .original_offset()
+                .wrapping_add(entry.wrapping_mul(4))
+                .wrapping_add(2),
         }
     }
 
-    /// The list a record's word names; none for 0.
+    /// The list a record's word names; none for 0, and for a word that names no dword of the
+    /// sets (the game sends only words `word` made).
     pub fn from_word(word: u32) -> Option<SoundList> {
         match word {
             0 => None,
             1 => Some(SoundList::Menu),
-            n => Some(SoundList::Race { offset: n - 2 }),
+            n => {
+                let offset = n - 2;
+                RaceField::ALL.into_iter().rev().find_map(|field| {
+                    let start = field.original_offset();
+                    (offset >= start
+                        && offset % 4 == 0
+                        && offset - start < 4 * field.dwords() as u32)
+                        .then(|| SoundList::Race {
+                            field,
+                            entry: (offset - start) / 4,
+                        })
+                })
+            }
         }
     }
 }
