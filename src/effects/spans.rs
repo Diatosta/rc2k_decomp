@@ -68,7 +68,8 @@ fn room(cursor: u32, rows: Option<u32>) -> Result<(), Refused> {
 /// at `to` (a byte offset in the work; 8 bytes: x, length) for each whole row from y0 rounded up to y1: both x's at
 /// the row's middle by the slopes, the two put in order (swapped also when equal), the left
 /// rounded and the length the right less it. The x87's rounding as it is set (the triangle
-/// sets toward zero). Gives where the next row would go. Refuses
+/// sets toward zero); a half of no height has slopes 0 (the original's infinities or NaNs,
+/// section 16). Gives where the next row would go. Refuses
 /// rows past the work block or more than 0x1000, before writing.
 pub fn span_edges(
     masks: &Masks,
@@ -84,10 +85,19 @@ pub fn span_edges(
         let ones: [u32; 3] = read_bits(&setup.mask_constants.ones);
         let height = x87::sub(y1, y0);
         masks.vars.height.set(height);
-        let slopes = [
-            x87::sub_div(xa1, xa0, height),
-            x87::sub_div(xb1, xb0, height),
-        ];
+        // A half of no height (two corners at the same y) has no rows: the loop below ends
+        // at once. The original worked out its slopes all the same, over a height of 0
+        // (infinities, or NaNs for 0 / 0), and kept them and the x's at y0 they gave (a 1999
+        // slip; nothing reads them). Here such a half's slopes are 0, so its x's are those at
+        // y0.
+        let slopes = if height == 0.0 {
+            [0.0, 0.0]
+        } else {
+            [
+                x87::sub_div(xa1, xa0, height),
+                x87::sub_div(xb1, xb0, height),
+            ]
+        };
         write_bits(&masks.vars.slopes, slopes.map(f32::to_bits));
         let (n, mut xa) = x87::frac_step(y0, ones[0], slopes[0], xa0);
         masks.vars.row_int.set(n as u32);

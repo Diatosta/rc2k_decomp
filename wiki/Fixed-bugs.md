@@ -596,3 +596,19 @@ has the same fixed addresses, but its network mode could not be run here to see 
 
 **Fix:** each view and mirror keeps its own lamps from frame to frame and starts from them, so the result no longer depends on the order the views finish.
 
+
+## Divisions by zero in the effects that left NaNs ("not a number")
+
+**What it is:** several pieces of the effects' code divide by a length, a height or a count without looking at whether it is 0, and on the x87 a 0 / 0 gives a NaN (an infinity times 0 too). The places found:
+- `effects::view_motion` (0x4C4D40): the view's step since the last frame made length 1 even when the view has not moved (`scene::normalise_vector3` on a zero vector), its "facing" then a NaN; and that step divided by the frame's ticks when there are none (the stage's first frame).
+- `effects::view_heading` (0x4C4CEC): the view's forward direction's level part made length 1 when there is none (its matrix not set yet on the stage's first frame), so `scene::angle_between_vectors` compared NaNs sixteen times and the heading came out of that.
+- `effects::span_edges` (0x4BE315): an edge pair of no height (two corners of a mask's triangle at the same height) given slopes over a height of 0.
+- `effects::scale_corners` (0x4C6420): the slope of a corner record with both sides 0 (the stage's unused records).
+- `effects::set_kind_values_1` / `_2` (0x4C7322, 0x4C7FA4): the slope of the needle / shadow angle's line above its split for the cars whose line has no length (`high` equal to `low`).
+- `effects::measure_lines` (0x4D0EB4): a sum's share of a total of 0, whose NaN `fistp` stores as the integer 0x80000000.
+
+**In game:** nothing. The facing, the heading and the per-tick step are read by nothing in the game (only the port's debug overlay shows them); the spans' slopes are kept and never read, and their rows are none; the corner and needle slopes would only be read on paths none of the test races or replays reached. The 0x80000000 a share of nothing leaves as its sum stays. The NaNs mattered for the port: their exact bits depend on the processor (an x87, an x86-64 and an ARM processor each make a different NaN), so they made the results platform-dependent in principle and kept a costly NaN rule in the x87 emulation under discussion.
+
+**Seen or read:** found 2026-11-13 by counting the NaNs the x87 emulation met in held races (Langton, rain, snow) and the four replays: 3,800 to 14,000 a race, all from these places, at a stage's load and in a replay's first seconds (the camera still).
+
+**Fix:** each degenerate case is handled before the division, keeping what the game did: a view that has not moved faces no way (facing 0) and a frame of no ticks keeps its step whole; a view with no level direction keeps its heading; a half of no height has slopes 0; a corner record of no size has slope 0; a line of no length is flat (slope 0); a share of nothing is 0x80000000 without the division. The same races and replays now meet no NaN, and their results are the same as before to the byte.

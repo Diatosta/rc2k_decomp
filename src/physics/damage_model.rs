@@ -110,12 +110,14 @@ pub(super) mod proof {
         }
     }
 
-    /// Whether two results are the same, but for the sign of a no-number: the emulation of
-    /// the x87 subtracted by adding the negated operand, which flips the sign of a no-number
-    /// operand on its way through; the processor's own subtraction keeps it.
+    /// Whether two results are the same, any no-number (NaN) counting as any other: the
+    /// tests' random inputs include NaNs, and which NaN comes out of an operation is not
+    /// fixed in Rust (the optimiser may fold or reorder the operations, and from opt-level 1
+    /// the two versions' NaNs differ in sign and payload). The game itself makes no NaN
+    /// (the 2026-11-13 census, `notes/bugs.md`), so only that both are NaNs is compared.
     fn same_word(a: u32, b: u32) -> bool {
         let no_number = |w: u32| w & 0x7F80_0000 == 0x7F80_0000 && w & 0x007F_FFFF != 0;
-        a == b || (no_number(a) && a ^ b == 0x8000_0000)
+        a == b || (no_number(a) && no_number(b))
     }
 
     /// A car, the model and the race work, each with its own state.

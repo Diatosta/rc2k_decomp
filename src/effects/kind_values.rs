@@ -99,9 +99,17 @@ pub fn set_kind_values(k: &KindSet<'_>, effects: &Effects) -> Result<(), Refused
         (bh::ld(middle) - bh::ld(start)) / bh::ld(low) * bh::ld(c.step_k),
     ));
     q.middle.set(x87::mul(middle, c.middle_k));
-    q.slope.set(bh::stf(
-        (bh::ld(end) - bh::ld(middle)) / (bh::ld(high) - bh::ld(low)) * bh::ld(c.slope_k),
-    ));
+    // The angle's line above the split runs from `low` to `high`. In the kinds where the two
+    // are the same it has no length (and its two ends, `middle` and `end`, are the same in
+    // every such kind that is drawn): the original divided by 0 all the same (0 / 0 a NaN,
+    // a 1999 slip) and kept that as the slope, which `draw_shadow` reads only for a value
+    // at or above the split, which none of the runs reached. Here such a line is flat: 0.
+    let slope = if high == low {
+        0.0
+    } else {
+        bh::stf((bh::ld(end) - bh::ld(middle)) / (bh::ld(high) - bh::ld(low)) * bh::ld(c.slope_k))
+    };
+    q.slope.set(slope);
     q.spread.set(x87::mul(spread, c.spread_k));
     k.extra.set(x87::mul(extra, c.extra_k));
     if let Some(copy) = k.divisor_copy {

@@ -184,8 +184,14 @@ fn negated_steps_for_the_old_negated_helpers() {
     });
 }
 
-/// Two float results are the same bits (a NaN with the same payload counts).
+/// Two float results are the same bits, or both a NaN: the random operands include NaNs,
+/// and which NaN an operation gives is not fixed in Rust (from opt-level 1 the optimiser
+/// folds the two forms' operations differently, so their NaNs differ in payload). The game
+/// itself makes no NaN (the 2026-11-13 census, `notes/bugs.md`).
 fn same(a: f32, b: f32) {
+    if a.is_nan() && b.is_nan() {
+        return;
+    }
     assert_eq!(a.to_bits(), b.to_bits());
 }
 

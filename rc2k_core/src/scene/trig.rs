@@ -43,7 +43,9 @@ mod tests {
         assert_eq!(cosine(-1e19), -1e19);
         assert_eq!(sine(f64::INFINITY).to_bits(), INDEFINITE.to_bits());
         assert!(cosine(f64::NAN).is_nan());
-        assert_eq!((INDEFINITE as f32).to_bits(), 0xFFC0_0000);
+        // The payload of an f64 -> f32 cast of a NaN is left unspecified by Rust (LLVM folds
+        // it at opt-level 1), so only the NaN class is checked, not the bits 0xFFC00000.
+        assert!((INDEFINITE as f32).is_nan());
         assert!((sine(1.0) - 0.8414709848078965).abs() < 1e-15);
     }
 }

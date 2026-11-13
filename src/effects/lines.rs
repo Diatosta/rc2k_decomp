@@ -205,7 +205,8 @@ fn measured(
 /// (+4) same: a face of kind 0x1C (+6) with a line kind (+0xB) 1 .. 6 has its lines summed
 /// into +0x18 + 4 kind; then `measure_slot_lines`, `measure_kind_lines`. With
 /// `LinesWork.shares` 1 each sum then becomes 100 less its share of 100 of what it was
-/// (+0x34 .., +0x110 .., +0x1FC ..), with a `finit` after the first six (as the original).
+/// (+0x34 .., +0x110 .., +0x1FC ..), with a `finit` after the first six (as the original); a
+/// share of 0 gives 0x80000000, the integer indefinite of the original's division by 0.
 /// Refuses more than 8 blocks, an object past 0xFF, faces past `g_faces`.
 // Converted: `rc2k_core::effects::lines::{measured, block_at}` (the lengths and shares
 // stay x87: its `finit` between)
@@ -262,9 +263,16 @@ pub fn measure_lines(
             if paths.lines_work.shares.get() == 1 {
                 let hundred = effects.setup.floats.hundred.get();
                 let share = |at: &PlainDword, of: &PlainDword| {
-                    at.set(
-                        x87::share_left_to_int(at.get() as i32, of.get() as i32, hundred) as u32,
-                    );
+                    // A share of nothing (no line of that kind measured): the original
+                    // divided by 0 all the same (0 / 0 a NaN, the rest infinities) and
+                    // `fistp` stored the x87's integer indefinite, 0x80000000, which the
+                    // marks then read as the sum. Kept, without the division (section 16).
+                    let left = if of.get() == 0 {
+                        i32::MIN
+                    } else {
+                        x87::share_left_to_int(at.get() as i32, of.get() as i32, hundred)
+                    };
+                    at.set(left as u32);
                 };
                 for (sum, of) in block.face_sums.iter().zip(&block.face_shares) {
                     share(sum, of);

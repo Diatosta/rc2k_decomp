@@ -781,14 +781,17 @@ pub(super) fn sub_mul(b: u32, a: u32, k: u32) -> u32 {
 /// `fldpi; fidiv c; fimul m; fcos; fchs; fmul t; fadd a; fadd t; fstp`:
 /// a + t - t cos(pi m / c).
 pub(super) fn cosine_step(c: i32, m: i32, t: u32, a: u32) -> u32 {
-    let mut out = 0u32;
+    // One block behind one register operand: i686 at opt-level 1 has no more general
+    // registers to give a block of five or six operands.
+    // c, m, t, a, result.
+    let mut v = [c as u32, m as u32, t, a, 0u32];
     x87!(
-        "fldpi", "fidiv dword ptr [{c}]", "fimul dword ptr [{m}]", "fcos", "fchs",
-        "fmul dword ptr [{t}]", "fadd dword ptr [{a}]", "fadd dword ptr [{t}]",
-        "fstp dword ptr [{o}]";
-        c = &raw const c, m = &raw const m, t = &raw const t, a = &raw const a, o = &raw mut out
+        "fldpi", "fidiv dword ptr [{v}]", "fimul dword ptr [{v} + 4]", "fcos", "fchs",
+        "fmul dword ptr [{v} + 8]", "fadd dword ptr [{v} + 12]", "fadd dword ptr [{v} + 8]",
+        "fstp dword ptr [{v} + 16]";
+        v = v.as_mut_ptr()
     );
-    out
+    v[4]
 }
 
 /// Three floats at `row` each times `c` over their length (`fsqrt`, the last two squares
@@ -811,14 +814,17 @@ pub(super) fn scale_row(row: *mut u32, c: u32) {
 /// `fld y; fist n; fisub n; fsubr k; fmul s; fadd x; fstp`: x + (k - (y - n)) s, n the
 /// whole number y rounds to (as the x87 is set), which is given back too.
 pub(super) fn frac_step(y: u32, k: u32, s: u32, x: u32) -> (i32, u32) {
-    let (mut n, mut out) = (0i32, 0u32);
+    // One block behind one register operand: i686 at opt-level 1 has no more general
+    // registers to give a block of five or six operands.
+    // y, n, k, s, x, result.
+    let mut v = [y, 0u32, k, s, x, 0u32];
     x87!(
-        "fld dword ptr [{y}]", "fist dword ptr [{n}]", "fisub dword ptr [{n}]",
-        "fsubr dword ptr [{k}]", "fmul dword ptr [{s}]", "fadd dword ptr [{x}]",
-        "fstp dword ptr [{o}]";
-        y = &raw const y, n = &raw mut n, k = &raw const k, s = &raw const s, x = &raw const x, o = &raw mut out
+        "fld dword ptr [{v}]", "fist dword ptr [{v} + 4]", "fisub dword ptr [{v} + 4]",
+        "fsubr dword ptr [{v} + 8]", "fmul dword ptr [{v} + 12]", "fadd dword ptr [{v} + 16]",
+        "fstp dword ptr [{v} + 20]";
+        v = v.as_mut_ptr()
     );
-    (n, out)
+    (v[1] as i32, v[5])
 }
 
 /// `fld a; frndint; fstp`.
@@ -851,27 +857,33 @@ pub(super) fn float_less_int_to_int(a: u32, n: i32) -> i32 {
 /// `fld1; fld c; fsub a; fdivp st(1), st; fld b; fsub a; fmulp; fld x2; fsub x0; fmulp;
 /// fadd x0; fstp`: x0 + ((1 / (c - a)) (b - a)) (x2 - x0), where the long edge is at b.
 pub(super) fn split_x(a: u32, b: u32, c: u32, x0: u32, x2: u32) -> u32 {
-    let mut out = 0u32;
+    // One block behind one register operand: i686 at opt-level 1 has no more general
+    // registers to give a block of five or six operands.
+    // a, b, c, x0, x2, result.
+    let mut v = [a, b, c, x0, x2, 0u32];
     x87!(
-        "fld1", "fld dword ptr [{c}]", "fsub dword ptr [{a}]", ".byte 0xDE, 0xF9",
-        "fld dword ptr [{b}]", "fsub dword ptr [{a}]", ".byte 0xDE, 0xC9",
-        "fld dword ptr [{x2}]", "fsub dword ptr [{x0}]", ".byte 0xDE, 0xC9",
-        "fadd dword ptr [{x0}]", "fstp dword ptr [{o}]";
-        a = &raw const a, b = &raw const b, c = &raw const c, x0 = &raw const x0, x2 = &raw const x2, o = &raw mut out
+        "fld1", "fld dword ptr [{v} + 8]", "fsub dword ptr [{v}]", ".byte 0xDE, 0xF9",
+        "fld dword ptr [{v} + 4]", "fsub dword ptr [{v}]", ".byte 0xDE, 0xC9",
+        "fld dword ptr [{v} + 16]", "fsub dword ptr [{v} + 12]", ".byte 0xDE, 0xC9",
+        "fadd dword ptr [{v} + 12]", "fstp dword ptr [{v} + 20]";
+        v = v.as_mut_ptr()
     );
-    out
+    v[5]
 }
 
 /// `fld b; fsub a; fmul k; fst h; fadd a; fstp m`: the half (b - a) k as a float, and a plus
 /// it unrounded, then as a float.
 pub(super) fn half_and_middle(b: u32, a: u32, k: u32) -> (u32, u32) {
-    let (mut h, mut m) = (0u32, 0u32);
+    // One block behind one register operand: i686 at opt-level 1 has no more general
+    // registers to give a block of five or six operands.
+    // b, a, k, h, m.
+    let mut v = [b, a, k, 0u32, 0u32];
     x87!(
-        "fld dword ptr [{b}]", "fsub dword ptr [{a}]", "fmul dword ptr [{k}]",
-        "fst dword ptr [{h}]", "fadd dword ptr [{a}]", "fstp dword ptr [{m}]";
-        b = &raw const b, a = &raw const a, k = &raw const k, h = &raw mut h, m = &raw mut m
+        "fld dword ptr [{v}]", "fsub dword ptr [{v} + 4]", "fmul dword ptr [{v} + 8]",
+        "fst dword ptr [{v} + 12]", "fadd dword ptr [{v} + 4]", "fstp dword ptr [{v} + 16]";
+        v = v.as_mut_ptr()
     );
-    (h, m)
+    (v[3], v[4])
 }
 
 /// `fldpi; fidiv n; fstp`.
@@ -885,11 +897,16 @@ pub(super) fn pi_over(n: i32) -> u32 {
 pub(super) fn less_cosine(a: u32, s: Option<u32>, h: u32, m: u32) -> u32 {
     let mut out = 0u32;
     match s {
-        Some(s) => x87!(
-            "fld dword ptr [{a}]", "fadd dword ptr [{s}]", "fcos", "fchs",
-            "fmul dword ptr [{h}]", "fadd dword ptr [{m}]", "fstp dword ptr [{o}]";
-            a = &raw const a, s = &raw const s, h = &raw const h, m = &raw const m, o = &raw mut out
-        ),
+        Some(s) => {
+            // a, s, h, m, result behind one register (see `cosine_step`).
+            let mut v = [a, s, h, m, 0u32];
+            x87!(
+                "fld dword ptr [{v}]", "fadd dword ptr [{v} + 4]", "fcos", "fchs",
+                "fmul dword ptr [{v} + 8]", "fadd dword ptr [{v} + 12]", "fstp dword ptr [{v} + 16]";
+                v = v.as_mut_ptr()
+            );
+            out = v[4];
+        }
         None => x87!(
             "fld dword ptr [{a}]", "fcos", "fchs",
             "fmul dword ptr [{h}]", "fadd dword ptr [{m}]", "fstp dword ptr [{o}]";

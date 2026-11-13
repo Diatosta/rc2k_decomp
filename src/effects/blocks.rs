@@ -106,7 +106,8 @@ const CORNER_PAIRS: [u32; 4] = [0, 4, 0xC, 8];
 /// `effects::scale_corners` (0x4C6420): for the 0x100 corner records (0xFF first), the four
 /// word pairs (+0, +4, +0xC, +8) each times `DrawWork.uv_k` into the work and into +4 .. +0x20
 /// of the record's 0x24 at `g_marksCornerSlopes`; +0 there the slope: |+0xA - +2| over
-/// |+4 - +0| (sixteen-bit differences; `DrawWork.half[0]`, `DrawWork.half[1]`).
+/// |+4 - +0| (sixteen-bit differences; `DrawWork.half[0]`, `DrawWork.half[1]`); 0 for a record
+/// with both 0 (the original's NaN, section 16).
 pub fn scale_corners(
     buffer: &crate::d3d::vertices_store::PolygonVertices,
     effects: &crate::effects::owner::Effects,
@@ -136,7 +137,16 @@ pub fn scale_corners(
             let (across, along) = (side(4, 0), side(0xA, 2));
             write_bits(&effects.frame.draw_work.half, [across, along]);
             let slope = &effects.blocks.corner_slopes.slopes[n as usize];
-            slope.slope.set(x87::int_ratio(along as i32, across as i32));
+            // A record of no size (both sides 0: the stage's unused corners) has no slope.
+            // The original divided 0 by 0 all the same and kept a NaN (a 1999 slip; in play
+            // only `draw_cell_sprite`'s misplaced read could reach it, and none of the runs
+            // did). Here it is 0.
+            let ratio = if along == 0 && across == 0 {
+                0.0
+            } else {
+                x87::int_ratio(along as i32, across as i32)
+            };
+            slope.slope.set(ratio);
             write_bits(&slope.values, values);
         }
     }

@@ -77,3 +77,8 @@ windows-sys = { version = "0.61.2", features = ["Win32_Foundation", "Win32_Syste
 
 [lints]
 workspace = true
+
+# The tests at opt-level 1: about six times faster than unoptimised. Safe since play makes no NaN
+# and the tests compare NaN results by class, not payload (LLVM folds NaN payloads freely).
+[profile.test]
+opt-level = 1
