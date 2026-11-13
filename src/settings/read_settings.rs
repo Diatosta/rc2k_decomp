@@ -10,7 +10,7 @@
 
 use crate::errors::BadInput;
 use crate::owners::Owners;
-use crate::session::Cell32;
+use crate::session::DwordLike;
 use crate::settings::read_text::read_text;
 use crate::strings::same_text::case_table;
 
@@ -22,7 +22,7 @@ use crate::strings::same_text::case_table;
 #[derive(Clone, Copy)]
 enum Target {
     /// A whole aligned dword of a store (`dword!`).
-    Dword(fn(Owners<'static>) -> &'static dyn Cell32),
+    Dword(fn(Owners<'static>) -> &'static dyn DwordLike),
     /// A dword that straddles two cells of its store's untyped tail: the store's own
     /// setter writes the four bytes (`race::viewer_screen_store`'s).
     Unaligned(fn(Owners<'static>, u32)),
@@ -32,7 +32,7 @@ impl Target {
     /// The four bytes of the variable set.
     fn set(self, o: Owners<'static>, number: u32) {
         match self {
-            Target::Dword(cell) => cell(o).set_bits(number),
+            Target::Dword(cell) => cell(o).set(number),
             Target::Unaligned(set) => set(o, number),
         }
     }
@@ -43,7 +43,7 @@ impl Target {
 macro_rules! dword {
     ($o:ident => $($path:tt)+) => {
         Target::Dword({
-            fn cell($o: Owners<'static>) -> &'static dyn Cell32 {
+            fn cell($o: Owners<'static>) -> &'static dyn DwordLike {
                 &$($path)+
             }
             cell

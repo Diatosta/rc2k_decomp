@@ -248,9 +248,9 @@ fn every_store_s_cells_tile_it_and_copy_as_raw_copies_do() {
         menus.tables.lists,
         *race.course.stage_prefs.get(),
         *race.replay.replay_view(),
-        *race.shared.car(),
     }
     cells_stores! {
+        *race.shared.car(),
         *race.shared.text_buffers(),
         menus.play.results,
         audio.state,

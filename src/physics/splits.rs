@@ -74,10 +74,11 @@ mod tests {
         for n in 0..0x40 {
             let v = 0x3000_0000 + n as u32;
             put_split_time(&new, n, v).unwrap();
-            crate::session::write_on_in(&old, &old.split_times, n, v, "t").unwrap();
+            crate::physics::car_offsets_1999::write_on_1999(&old, &old.split_times, n, v);
         }
         for n in 0..0x40 + 8 {
-            let read = |c: &Car| crate::session::read_on_in(c, &c.split_times, n, "t").unwrap();
+            let read =
+                |c: &Car| crate::physics::car_offsets_1999::read_on_1999(c, &c.split_times, n);
             assert_eq!(read(&new), read(&old), "dword {n}");
         }
         assert!(put_split_time(&new, 0x40, 1).is_err());

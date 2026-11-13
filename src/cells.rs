@@ -1390,6 +1390,7 @@ pub fn boxed_zeroed_cells<T: Cells>() -> Box<T> {
     unsafe { Box::<T>::new_zeroed().assume_init() }
 }
 
+#[cfg(test)]
 /// A record of cells with these bytes as its first values (a static's, at compile time:
 /// a race-block piece that left the block takes the image's bytes).
 pub const fn cells_of_bytes<T: ByteView, const N: usize>(bytes: [u8; N]) -> T {

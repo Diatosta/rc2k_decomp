@@ -276,7 +276,9 @@ pub fn share_car_state(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::physics::car_store::from_1999;
+    use crate::physics::car_offsets_1999::{
+        bytes_1999, car_with_1999_bytes, load_1999, offset_1999,
+    };
     use crate::race::effects_settings_store::EFFECTS_SETTINGS;
     use crate::race::light_records_store::LIGHT_RECORDS;
 
@@ -285,9 +287,7 @@ mod tests {
     }
 
     fn blk_off(c: &Car, f: BlockFloat) -> usize {
-        crate::physics::car_store::to_1999(
-            core::ptr::from_ref(f(c)).addr() - core::ptr::from_ref(c).addr(),
-        )
+        offset_1999(c, core::ptr::from_ref(f(c)).addr())
     }
 
     /// A move's (record field, block field) offsets.
@@ -302,22 +302,18 @@ mod tests {
                 core::ptr::from_ref(b(c)).addr(),
             ),
         };
-        (
-            r - core::ptr::from_ref(o).addr(),
-            crate::physics::car_store::to_1999(b - core::ptr::from_ref(c).addr()),
-        )
+        (r - core::ptr::from_ref(o).addr(), offset_1999(c, b))
     }
 
     /// The block's dword at `offset`, as the byte-offset version read it.
     fn at(car: &Car, offset: usize) -> u32 {
-        crate::cells::load_value(car, crate::physics::car_store::from_1999(offset)).unwrap()
+        load_1999(car, offset)
     }
 
     #[test]
     fn the_gauges_and_figures_are_the_offsets_they_replace() {
-        let car: Car = Car::new();
-        let pattern: Vec<u8> = (0..size_of::<Car>()).map(|i| (i * 7 + 3) as u8).collect();
-        crate::cells::Store::store(&car, 0, &pattern).unwrap();
+        let pattern = |n: usize| (n * 7 + 3) as u8;
+        let car = car_with_1999_bytes(pattern);
         assert_eq!(car.engine_heat.bits(), at(&car, 0x2B4));
         assert_eq!(car.engine_damage.bits(), at(&car, 0x2B8));
         let slots: Vec<u32> = slot_cells(&car).map(PlainDword::get).collect();
@@ -329,20 +325,16 @@ mod tests {
             assert_eq!(c.get(), at(&car, 0xA5C + 4 * k));
         }
         // The writes land on the same bytes.
-        let mut expected = pattern.clone();
+        let mut expected = bytes_1999(&car);
         for (k, c) in slot_cells(&car).enumerate() {
             c.set(0x1111_0000 + k as u32);
-            expected[from_1999(0xA3C + 4 * k)..][..4]
-                .copy_from_slice(&(0x1111_0000 + k as u32).to_le_bytes());
+            expected[0xA3C + 4 * k..][..4].copy_from_slice(&(0x1111_0000 + k as u32).to_le_bytes());
         }
         for (k, c) in kind_cells(&car).iter().enumerate() {
             c.set(0x2222_0000 + k as u32);
-            expected[from_1999(0xA5C + 4 * k)..][..4]
-                .copy_from_slice(&(0x2222_0000 + k as u32).to_le_bytes());
+            expected[0xA5C + 4 * k..][..4].copy_from_slice(&(0x2222_0000 + k as u32).to_le_bytes());
         }
-        let mut now = vec![0u8; size_of::<Car>()];
-        crate::cells::Store::load(&car, 0, &mut now).unwrap();
-        assert_eq!(now, expected);
+        assert_eq!(bytes_1999(&car), expected);
     }
 
     #[test]

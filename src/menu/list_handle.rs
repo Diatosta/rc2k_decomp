@@ -277,7 +277,9 @@ pub struct ListMenu(Head);
 impl core::fmt::Debug for ListMenu {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self.0 {
-            Head::Pages(header, _) => write!(f, "ListMenu(pages +{:#x})", PagesAt::of(header)),
+            Head::Pages(header, _) => {
+                write!(f, "ListMenu(pages +{:#x})", PagesAt::of_header(header))
+            }
             Head::Bytes(at) => write!(f, "ListMenu({at:?})"),
         }
     }
@@ -315,6 +317,16 @@ fn list_parts(list: ListId) -> (&'static ListHeader, &'static [Item]) {
         ListId::OpenInstalled => (&pages.action_pages[2], &[]),
         ListId::AskRegistration => (&pages.action_pages[3], &[]),
     }
+}
+
+/// The header of one of the installer's lists.
+pub(crate) fn list_header(list: ListId) -> &'static ListHeader {
+    list_parts(list).0
+}
+
+/// The typed items of one of the installer's lists (none for the action pages).
+pub(crate) fn list_items(list: ListId) -> &'static [Item] {
+    list_parts(list).1
 }
 
 impl ListMenu {
@@ -433,7 +445,7 @@ impl ListMenu {
             Head::Pages(_, items) if (n as usize) < items.len() => {
                 return ListItem(Spot::Typed(&items[n as usize]));
             }
-            Head::Pages(header, _) => Raw::Pages(PagesAt::of(header)),
+            Head::Pages(header, _) => Raw::Pages(PagesAt::of_header(header)),
             Head::Bytes(at) => at,
         };
         ListItem(Spot::Bytes(
@@ -470,7 +482,7 @@ pub struct ListItem(Spot);
 impl core::fmt::Debug for ListItem {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self.0 {
-            Spot::Typed(item) => write!(f, "ListItem(pages +{:#x})", PagesAt::of(item)),
+            Spot::Typed(item) => write!(f, "ListItem(pages +{:#x})", PagesAt::of_item(item)),
             Spot::Bytes(at) => write!(f, "ListItem({at:?})"),
         }
     }
@@ -498,17 +510,13 @@ impl ListItem {
                 "an item outside the installer's pages",
             ));
         };
-        if at == PagesAt::title() {
-            return Ok(Self::of_title());
-        }
-        for list in ListId::ALL {
-            let (_, items) = list_parts(list);
-            if let Some(item) = items.iter().find(|item| PagesAt::of(*item) == at) {
-                return Ok(Self(Spot::Typed(item)));
-            }
-        }
-        // The bytes of the pages that are no typed item (a table, a record, a list's header).
-        Ok(Self(Spot::Bytes(Raw::Pages(at))))
+        Ok(match at {
+            PagesAt::Title => Self::of_title(),
+            PagesAt::Item(list, n) => Self(Spot::Typed(&list_items(list)[n as usize])),
+            // The bytes of the pages that are no typed item (a table, a record, a list's
+            // header).
+            _ => Self(Spot::Bytes(Raw::Pages(at))),
+        })
     }
 
     /// The title's item (the pages' `title` record).
@@ -522,7 +530,7 @@ impl ListItem {
     /// refused.
     pub fn pages_offset(self) -> Result<u32, crate::errors::BadInput> {
         let at = match self.0 {
-            Spot::Typed(item) => PagesAt::of(item),
+            Spot::Typed(item) => PagesAt::of_item(item),
             Spot::Bytes(Raw::Pages(at)) => at,
             Spot::Bytes(Raw::Place(_)) => {
                 return Err(crate::errors::BadInput(
@@ -725,7 +733,7 @@ pub struct EditField(&'static EditRecord);
 
 impl core::fmt::Debug for EditField {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(f, "EditField(pages +{:#x})", PagesAt::of(self.0))
+        write!(f, "EditField(pages +{:#x})", PagesAt::of_edit(self.0))
     }
 }
 

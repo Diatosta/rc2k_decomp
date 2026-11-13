@@ -82,38 +82,6 @@ impl CellVisitor for GroupHasher {
     }
 }
 
-/// The groups by walking the blocks' bytes and asking each byte's field path: what
-/// `car_blocks_groups` must equal.
-#[cfg(test)]
-fn car_blocks_groups_by_bytes(blocks: &CarBlocks) -> Vec<(String, u64)> {
-    use crate::cells::ByteView;
-    let size = size_of::<CarBlocks>();
-    let mut groups: Vec<(String, u64)> = Vec::new();
-    let mut at = 0;
-    while at < size {
-        let (start, run) = blocks.cell_run(at);
-        let end = (start + run.len()).min(size);
-        let mut path = String::new();
-        blocks.field_path(at, &mut path);
-        if !is_gap(&path) {
-            let mut bytes = vec![0; end - at];
-            run.load(at - start, &mut bytes);
-            let group = path_group(&path);
-            let mut entry = path.into_bytes();
-            entry.push(0);
-            entry.extend(((end - at) as u64).to_le_bytes());
-            entry.extend(&bytes);
-            let hash = fnv1a(&entry);
-            match groups.iter_mut().find(|g| g.0 == group) {
-                Some(g) => g.1 = g.1.wrapping_add(hash),
-                None => groups.push((group, hash)),
-            }
-        }
-        at = end;
-    }
-    groups
-}
-
 /// The replay staging's group: its bytes (the frame's file image) as one run named `.staging`,
 /// but for the hat fields of the tape's input words (`HAT_FIELDS`): a device reading the input
 /// thread makes on its own clock, 0 until its first poll and the centred hat (0xE00) after, so
@@ -156,28 +124,34 @@ fn path_group(path: &str) -> String {
 mod tests {
     use super::*;
 
-    /// Varied bytes through the whole blocks (the gap fields too).
+    /// Varied bytes through every run of the blocks (the gap fields too).
     fn filled(seed: u32) -> CarBlocks {
+        struct Fill(u32);
+        impl CellVisitor for Fill {
+            fn enter(&mut self, _: &'static str) {}
+            fn index(&mut self, _: usize) {}
+            fn leave(&mut self) {}
+            fn leaf(&mut self, _: &[u8]) {}
+            fn run(&mut self, run: crate::cells::CellRun<'_>) {
+                let bytes: Vec<u8> = (0..run.len())
+                    .map(|_| {
+                        self.0 = self.0.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
+                        (self.0 >> 24) as u8
+                    })
+                    .collect();
+                run.store(0, &bytes);
+            }
+        }
         let blocks = CarBlocks::new();
-        let mut state = seed;
-        let bytes: Vec<u8> = (0..size_of::<CarBlocks>())
-            .map(|_| {
-                state = state.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
-                (state >> 24) as u8
-            })
-            .collect();
-        crate::cells::store_cells(&blocks, 0, &bytes).unwrap();
+        blocks.visit(&mut Fill(seed));
         blocks
     }
 
     #[test]
-    fn the_visitor_hashes_as_the_byte_walk_did() {
+    fn the_groups_are_one_per_car() {
         for blocks in [CarBlocks::new(), filled(1), filled(0xDEAD_BEEF)] {
-            let by_visit = car_blocks_groups(&blocks);
-            let by_bytes = car_blocks_groups_by_bytes(&blocks);
-            assert_eq!(by_visit, by_bytes);
-            assert_eq!(total(&by_visit), total(&by_bytes));
-            assert_eq!(by_visit.len(), 8);
+            let groups = car_blocks_groups(&blocks);
+            assert_eq!(groups.len(), 8);
         }
     }
 
@@ -186,13 +160,10 @@ mod tests {
         let blocks = &CarBlocks::new();
         let first = total(&car_blocks_groups(blocks));
         assert_eq!(first, total(&car_blocks_groups(blocks)));
-        let car = 2 * size_of::<crate::physics::car_store::Car>();
-        let gap =
-            car + core::mem::offset_of!(crate::physics::car_store::Car, _pad_part_switches) + 1;
-        crate::cells::store_cells(blocks, gap, &[0x55]).unwrap();
+        use crate::test_support::paths::{set_bytes, set_u32};
+        assert!(set_bytes(blocks, ".cars[2]._pad_part_switches", &[0x55; 3]));
         assert_eq!(first, total(&car_blocks_groups(blocks)));
-        let gear = car + core::mem::offset_of!(crate::physics::car_store::Car, gear);
-        crate::cells::store_cells(blocks, gear, &[0x7B]).unwrap();
+        assert!(set_u32(blocks, ".cars[2].gear", 0x7B));
         assert_ne!(first, total(&car_blocks_groups(blocks)));
         let groups = car_blocks_groups(blocks);
         assert_eq!(groups.len(), 8);

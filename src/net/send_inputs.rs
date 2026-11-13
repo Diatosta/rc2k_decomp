@@ -139,13 +139,13 @@ mod tests {
     #[test]
     fn the_fields_sit_where_the_offsets_were() {
         let car = race().shared.car();
-        let base = core::ptr::from_ref(car).addr();
         let offsets = |kind| -> Vec<u32> {
             fields(kind)
                 .iter()
                 .map(|(field, _)| {
-                    crate::physics::car_store::to_1999(
-                        core::ptr::from_ref(field(car)).addr() - base,
+                    crate::physics::car_offsets_1999::offset_1999(
+                        car,
+                        core::ptr::from_ref(field(car)).addr(),
                     ) as u32
                 })
                 .collect()
@@ -170,11 +170,11 @@ mod tests {
     #[test]
     fn the_limits_are_the_old_ranges() {
         let car = race().shared.car();
-        let base = core::ptr::from_ref(car).addr();
         for kind in [Kind::Inputs, Kind::Position, Kind::Extra] {
             for (field, limit) in fields(kind) {
-                let at = crate::physics::car_store::to_1999(
-                    core::ptr::from_ref(field(car)).addr() - base,
+                let at = crate::physics::car_offsets_1999::offset_1999(
+                    car,
+                    core::ptr::from_ref(field(car)).addr(),
                 ) as u32;
                 let old = match at {
                     0x1D4 => Limit::Gear,

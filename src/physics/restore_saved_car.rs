@@ -101,7 +101,8 @@ mod tests {
                 write_runs(&to, k, read_runs(&from, k, "t").unwrap(), "t").unwrap();
             }
             for k in 0..0x7C {
-                let read = crate::session::read_on_in(&new, &new.probe_point_face, k, "t").unwrap();
+                let read =
+                    crate::physics::car_offsets_1999::read_on_1999(&new, &new.probe_point_face, k);
                 let wanted = if k < n {
                     read_runs(&from, k, "t").unwrap()
                 } else {

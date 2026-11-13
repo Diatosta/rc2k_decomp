@@ -86,10 +86,9 @@ mod gauge_tests {
     fn the_gauges_are_in_a_row() {
         let shared_store = &crate::race::owner::race().shared;
 
-        let first = (&raw const shared_store.car().brake_heat) as usize;
-        assert_eq!(
-            (&raw const shared_store.car().tyre_wear) as usize,
-            first + 46 * 4
-        );
+        let car = shared_store.car();
+        let at = |cell: *const u8| crate::physics::car_offsets_1999::offset_1999(car, cell.addr());
+        let first = at((&raw const car.brake_heat).cast());
+        assert_eq!(at((&raw const car.tyre_wear).cast()), first + 46 * 4);
     }
 }

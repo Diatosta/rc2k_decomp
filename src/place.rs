@@ -52,6 +52,21 @@ impl Run for PlainDword {
     }
 }
 
+/// Bytes reached by offset through a record's fields in their order (the installer's pages,
+/// `install::pages_map::PagesChain`): a read or write that runs on past one field goes on into
+/// the next, as the image's bytes did, with no memory layout of the record assumed.
+pub trait Chain {
+    /// The bytes of all the fields.
+    fn size(&self) -> usize;
+    /// `to.len()` bytes from byte `offset` on, across the fields' edges; past the end refused.
+    fn load(&self, offset: usize, to: &mut [u8]) -> Result<(), BadInput>;
+    /// `from` written from byte `offset` on, across the fields' edges; past the end refused.
+    fn store(&self, offset: usize, from: &[u8]) -> Result<(), BadInput>;
+    /// The byte of memory that holds byte `offset` (a place is compared by it, never read
+    /// through it).
+    fn byte_at(&self, offset: usize) -> *const u8;
+}
+
 #[derive(Clone, Copy)]
 pub enum BytePlace {
     /// Byte `.1` of a typed buffer.
@@ -59,6 +74,9 @@ pub enum BytePlace {
     /// Byte `.1` of a record's bytes (a store): reads and writes run on inside the record, as
     /// far as its end.
     Store(&'static dyn Store, usize),
+    /// Byte `.1` of a chain of fields: reads and writes run on from field to field, as far as
+    /// the last one's end.
+    Chain(&'static dyn Chain, usize),
 }
 
 impl<const N: usize> From<&'static Bytes<N>> for BytePlace {
@@ -78,6 +96,7 @@ impl core::fmt::Debug for BytePlace {
         match self {
             BytePlace::In(_, at) => write!(f, "BytePlace::In(+{at:#x})"),
             BytePlace::Store(_, at) => write!(f, "BytePlace::Store(+{at:#x})"),
+            BytePlace::Chain(_, at) => write!(f, "BytePlace::Chain(+{at:#x})"),
         }
     }
 }
@@ -115,6 +134,7 @@ impl BytePlace {
                 core::ptr::from_ref(b).cast::<u8>().wrapping_add(at)
             }
             BytePlace::Store(s, at) => s.first().wrapping_add(at),
+            BytePlace::Chain(c, at) => c.byte_at(at),
         }
     }
 
@@ -129,6 +149,7 @@ impl BytePlace {
     pub fn add(self, n: u32) -> BytePlace {
         match self {
             BytePlace::Store(s, at) => BytePlace::Store(s, (at as u32).wrapping_add(n) as usize),
+            BytePlace::Chain(c, at) => BytePlace::Chain(c, (at as u32).wrapping_add(n) as usize),
             BytePlace::In(b, at) => BytePlace::In(b, (at as u32).wrapping_add(n) as usize),
         }
     }
@@ -163,6 +184,11 @@ impl BytePlace {
                 s.load(at, &mut bytes)?;
                 Ok(bytes)
             }
+            BytePlace::Chain(c, at) => {
+                let mut bytes = vec![0; len];
+                c.load(at, &mut bytes)?;
+                Ok(bytes)
+            }
         }
     }
 
@@ -185,6 +211,7 @@ impl BytePlace {
                 Ok(())
             }
             BytePlace::Store(s, at) => s.store(at, data),
+            BytePlace::Chain(c, at) => c.store(at, data),
         }
     }
 
@@ -211,6 +238,18 @@ impl BytePlace {
                 }
                 Err(BadInput("a text without its end in its record"))
             }
+            BytePlace::Chain(c, at) => {
+                let mut text = Vec::new();
+                for k in at..c.size() {
+                    let mut byte = [0];
+                    c.load(k, &mut byte)?;
+                    if byte[0] == 0 {
+                        return Ok(text);
+                    }
+                    text.push(byte[0]);
+                }
+                Err(BadInput("a text without its end in its record"))
+            }
         }
     }
 
@@ -224,6 +263,7 @@ impl BytePlace {
                 PlaceBytes::In(b, at)
             }
             BytePlace::Store(s, at) => PlaceBytes::Store(s, at),
+            BytePlace::Chain(c, at) => PlaceBytes::Chain(c, at),
         })
     }
 }
@@ -235,6 +275,8 @@ pub enum PlaceBytes {
     In(&'static dyn Run, usize),
     /// From byte `.1` of a record's bytes.
     Store(&'static dyn Store, usize),
+    /// From byte `.1` of a chain of fields.
+    Chain(&'static dyn Chain, usize),
 }
 
 impl rc2k_core::strings::bytes::Bytes for PlaceBytes {
@@ -248,6 +290,11 @@ impl rc2k_core::strings::bytes::Bytes for PlaceBytes {
                 let k = from.checked_add(at)?;
                 let mut byte = [0];
                 (k < s.size() && s.load(k, &mut byte).is_ok()).then_some(byte[0])
+            }
+            PlaceBytes::Chain(c, from) => {
+                let k = from.checked_add(at)?;
+                let mut byte = [0];
+                (k < c.size() && c.load(k, &mut byte).is_ok()).then_some(byte[0])
             }
         }
     }

@@ -137,9 +137,9 @@ mod tests {
     #[test]
     fn the_places_sit_where_the_offsets_were() {
         let car = race().shared.car();
-        let base = core::ptr::from_ref(car).addr();
         let at = |cell: &PlainDword| {
-            crate::physics::car_store::to_1999(core::ptr::from_ref(cell).addr() - base) as u32
+            crate::physics::car_offsets_1999::offset_1999(car, core::ptr::from_ref(cell).addr())
+                as u32
         };
         assert_eq!(at(&place(car)[0]), 0x134);
         assert_eq!(at(&wanted(car)[0]), 0xFC0);

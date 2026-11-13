@@ -2,15 +2,14 @@
 //! `drive::load_car` copies the current car's block (`g_carBlocks[n]`, the same layout,
 //! IDA's `CarBlock`) into it and `drive::store_car` back; the physics step works on it.
 //! Named from the code's uses (2026-10-25); most names are readings, `unknown_*` runs are
-//! places no ported code names. `#[repr(C)]` with the 1999 layout on purpose: the recorded
-//! vectors and the car blocks address it by byte offset (`ByteView`).
+//! places no ported code names. Its layout is Rust's own: no code addresses it by byte
+//! (the replay file's layout is `drive::replay_state`'s, field by field).
 
 use crate::session::{CellKind, PlainCells};
 
 /// The record, on the cells of kind `K`: plain for the work car and the cars' blocks (`Car`),
 /// which only the game's thread writes, and for a view's copy of its car (`ViewCar`).
-#[repr(C)]
-#[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
+#[derive(rc2k_derive::Cells)]
 pub struct Car<K: CellKind = PlainCells> {
     /// +0x0 (0x719FD8): the replay frame's head (camera words and bytes, `drive::replay_cameras`).
     pub frame_head: [K::Dword; 2],
@@ -569,65 +568,17 @@ pub struct Car<K: CellKind = PlainCells> {
 /// the view's drawing part writes and no other thread reads.
 pub type ViewCar = Car;
 
-impl<K: CellKind> Car<K>
-where
-    Self: crate::cells::ByteView,
-{
+impl Car {
     /// The piece at the start of a race: zero but for the set-up (ride height 0x80,
     /// suspension stiffness 0x40) and the parts present (all bits).
     pub const fn new() -> Self {
-        use core::mem::offset_of;
-        const SIZE: usize = core::mem::size_of::<Car>();
-        let mut bytes = [0u8; SIZE];
-        let values = [
-            (offset_of!(Self, ride_height), 0x80),
-            (offset_of!(Self, suspension_stiffness), 0x40),
-            (offset_of!(Self, parts_present), u32::MAX),
-        ];
-        let mut k = 0;
-        while k < values.len() {
-            let (at, value) = values[k];
-            let le = value.to_le_bytes();
-            let mut b = 0;
-            while b < 4 {
-                bytes[at + b] = le[b];
-                b += 1;
-            }
-            k += 1;
-        }
-        crate::cells::cells_of_bytes(bytes)
+        use crate::session::PlainDword;
+        let mut car: Self = crate::cells::zeroed_cells();
+        car.ride_height = PlainDword::new(0x80);
+        car.suspension_stiffness = PlainDword::new(0x40);
+        car.parts_present = PlainDword::new(u32::MAX);
+        car
     }
-}
-
-/// A byte offset in the 1999 record of a car (0xFE0 bytes) as it is in `Car` now: the places no
-/// code read were taken out. For the tests whose recorded vectors name the 1999 offsets.
-#[cfg(test)]
-pub fn from_1999(old: usize) -> usize {
-    const TAKEN_OUT: [(usize, usize); 4] = [(0xf4, 64), (0x190, 4), (0x1b0, 8), (0x6f4, 8)];
-    let mut shift = 0;
-    for (at, len) in TAKEN_OUT {
-        assert!(
-            !(at..at + len).contains(&old),
-            "{old:#x} was an unused place"
-        );
-        if old >= at + len {
-            shift += len;
-        }
-    }
-    old - shift
-}
-
-/// The inverse of `from_1999`: the 1999 offset of the byte at `now` in `Car`.
-#[cfg(test)]
-pub fn to_1999(now: usize) -> usize {
-    const TAKEN_OUT: [(usize, usize); 4] = [(0xf4, 64), (0x190, 4), (0x1b0, 8), (0x6f4, 8)];
-    let mut old = now;
-    for (at, len) in TAKEN_OUT {
-        if old >= at {
-            old += len;
-        }
-    }
-    old
 }
 
 #[cfg(test)]

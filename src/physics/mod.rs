@@ -32,6 +32,8 @@ pub mod car_angles;
 pub mod car_collisions;
 pub mod car_frame_motion;
 pub mod car_lighting;
+#[cfg(test)]
+pub mod car_offsets_1999;
 pub mod car_physics_step;
 pub mod car_sound_state;
 pub mod car_sounds;

@@ -361,8 +361,36 @@ pub fn field_start<T: Cells>(record: &T, prefix: &str) -> Option<usize> {
 mod tests {
     use super::*;
     use crate::cells::ByteView;
-    use crate::race::blocks_store::CarBlocks;
     use crate::session::{Byte, Dword, Float, Word};
+
+    /// A record of fixed layout with arrays and a nested record, for the byte view's paths.
+    #[repr(C)]
+    #[derive(rc2k_derive::Cells)]
+    struct Pair {
+        speed: Float,
+        gear: Dword,
+    }
+
+    #[repr(C)]
+    #[derive(rc2k_derive::Cells)]
+    struct Fixed {
+        head: [Dword; 3],
+        pairs: [Pair; 3],
+        ratio: Float,
+        tail: [Float; 4],
+    }
+
+    fn fixed() -> Fixed {
+        Fixed {
+            head: [Dword::new(1), Dword::new(2), Dword::new(3)],
+            pairs: core::array::from_fn(|k| Pair {
+                speed: Float::new(k as f32),
+                gear: Dword::new(k as u32),
+            }),
+            ratio: Float::new(0.5),
+            tail: core::array::from_fn(|k| Float::new(k as f32 + 0.25)),
+        }
+    }
 
     /// Every path `field_path` names in a record of fixed layout reaches the cell `cell_run`
     /// finds at the same byte.
@@ -391,14 +419,14 @@ mod tests {
 
     #[test]
     fn the_paths_field_path_names_reach_the_cells_cell_run_finds() {
-        check_against_the_runs(&CarBlocks::new());
+        check_against_the_runs(&fixed());
     }
 
     #[test]
-    fn a_car_blocks_cells_round_trip_by_path() {
-        let blocks = CarBlocks::new();
+    fn a_fixed_records_cells_round_trip_by_path() {
+        let blocks = fixed();
         let mut paths = Vec::new();
-        for offset in (0..size_of::<CarBlocks>()).step_by(4) {
+        for offset in (0..size_of::<Fixed>()).step_by(4) {
             let mut path = String::new();
             blocks.field_path(offset, &mut path);
             paths.push(path);

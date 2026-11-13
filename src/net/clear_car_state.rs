@@ -87,11 +87,11 @@ mod tests {
             0x7C, 0x80, 0x298,
         ];
         let car = &crate::race::blocks_store::CAR_BLOCKS.cars[0];
-        let base = core::ptr::from_ref(car) as usize;
         for ((field, v), old) in CLEARED.iter().zip(old) {
             assert_eq!(
-                crate::physics::car_store::to_1999(
-                    core::ptr::from_ref(field(car)).cast::<u8>() as usize - base
+                crate::physics::car_offsets_1999::offset_1999(
+                    car,
+                    core::ptr::from_ref(field(car)).addr()
                 ),
                 old
             );

@@ -181,9 +181,8 @@ mod tests {
             (0x2F0, 0x3BC),
         ];
         let car = &CAR_BLOCKS.cars[0];
-        let base = core::ptr::from_ref(car) as usize;
         for ((value, grade, _), (from, to)) in GRADES.iter().zip(old) {
-            let now = |p: usize| crate::physics::car_store::to_1999(p - base);
+            let now = |p: usize| crate::physics::car_offsets_1999::offset_1999(car, p);
             assert_eq!(now(core::ptr::from_ref(value(car)) as usize), from);
             assert_eq!(now(core::ptr::from_ref(grade(car)) as usize), to);
         }

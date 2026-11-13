@@ -51,7 +51,7 @@ fn past_nul(text: BytePlace) -> u32 {
 /// measuring font finds does not depend on it).
 fn measure_limit(text: BytePlace) -> Result<u32, crate::errors::BadInput> {
     match text {
-        BytePlace::Store(_, at) | BytePlace::In(_, at) => Ok(at as u32),
+        BytePlace::Store(_, at) | BytePlace::In(_, at) | BytePlace::Chain(_, at) => Ok(at as u32),
     }
 }
 

@@ -7,7 +7,6 @@ use crate::physics::car_store::Car;
 #[cfg(test)]
 use crate::race::owner::race;
 
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct CarBlocks {
     /// +0x0 (0x70F3EC): the blocks.

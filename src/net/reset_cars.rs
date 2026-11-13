@@ -48,12 +48,13 @@ mod tests {
     #[test]
     fn the_fields_sit_where_the_offsets_were() {
         let car = race().shared.car();
-        let base = core::ptr::from_ref(car).addr();
         let offsets: Vec<u32> = reset_fields(3)
             .iter()
             .map(|(field, _)| {
-                crate::physics::car_store::to_1999(core::ptr::from_ref(field(car)).addr() - base)
-                    as u32
+                crate::physics::car_offsets_1999::offset_1999(
+                    car,
+                    core::ptr::from_ref(field(car)).addr(),
+                ) as u32
             })
             .collect();
         assert_eq!(offsets, [0xAA8, 0x684, 0x28, 0x34, 0x30, 0x20, 0x3C]);

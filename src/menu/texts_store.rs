@@ -6,11 +6,12 @@
 //! (`car_speech`, `stage_speech`: keys of `audio::names_store`'s names, `speech_entry`). Nothing writes
 //! the texts.
 //!
-//! Every address of the texts is 2 past a multiple of 4: a two-byte lead and `align(4)` keep
-//! each image address's alignment; the keys menu's dword is `Loose`. The speech tables
-//! after the texts sit on dword boundaries (two bytes of padding before them).
+//! The texts sit where the image's would, 2 past a multiple of 4 before the keys menu's
+//! dword (a two-byte lead and `align(4)`); the dword is aligned by a byte of padding, so the
+//! texts after it are one byte later. The speech tables after the texts sit on dword
+//! boundaries (a byte of padding before them).
 
-use crate::session::{PlainBytes, PlainDword, PlainLoose, with_runs};
+use crate::session::{PlainBytes, PlainDword, with_runs};
 
 #[repr(C, align(4))]
 #[derive(rc2k_derive::Cells)]
@@ -21,8 +22,12 @@ pub struct MenuTexts {
     pub no_point_text: PlainBytes<17>,
     /// 0x731B93: "While scanning right didnt find point 2".
     pub no_second_point_text: PlainBytes<40>,
-    /// 0x731BBB: `dword_731BBB`: the keys menu (`menu::handle_keys`, `screen_loop`).
-    pub keys_menu: PlainLoose,
+    /// Not in the image: one byte so that the keys menu's dword is aligned (the texts after
+    /// it sit one byte later than the image's).
+    pub _keys_menu_pad: PlainBytes<1>,
+    /// 0x731BBB: `dword_731BBB`: the code of the keys menu (`MenuId::code`; `menu::handle_keys`,
+    /// `screen_loop`). Written, never read.
+    pub keys_menu: PlainDword,
     /// 0x731BBF: "files\g\graphics\screens\loading.pcx".
     pub loading_pcx: PlainBytes<37>,
     /// 0x731BE4: "files\g\graphics\screens\mainscr.png".
@@ -622,7 +627,7 @@ pub struct MenuTexts {
     /// 0x734849: ";3files\g\slides\rclsl00.png".
     pub rclsl00_png: PlainBytes<29>,
     /// Not in the image: two bytes that put the speech tables on a dword boundary.
-    pub _speech_pad: PlainBytes<2>,
+    pub _speech_pad: PlainBytes<1>,
     /// 0x734866: per car, its two speech samples' names and a 0.
     pub car_speech: [[PlainDword; 3]; 24],
     /// 0x734986: per stage, three speech samples' names and a 0.
@@ -638,7 +643,8 @@ impl MenuTexts {
                 0,
                 b"While scanning right didnt find point 2",
             )])),
-            keys_menu: PlainLoose::new(0x0),
+            _keys_menu_pad: PlainBytes::new([0; 1]),
+            keys_menu: PlainDword::new(0),
             loading_pcx: PlainBytes::new(with_runs::<37>(&[(
                 0,
                 b"files\\g\\graphics\\screens\\loading.pcx",
@@ -1835,7 +1841,7 @@ impl MenuTexts {
                 0,
                 b";3files\\g\\slides\\rclsl00.png",
             )])),
-            _speech_pad: PlainBytes::new([0; 2]),
+            _speech_pad: PlainBytes::new([0; 1]),
             car_speech: [
                 [
                     PlainDword::new(speech_key(0x50a15d)),

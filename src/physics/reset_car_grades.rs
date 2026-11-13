@@ -115,28 +115,20 @@ mod tests {
 
     #[test]
     fn the_fields_are_the_offsets_they_replace() {
+        use crate::physics::car_offsets_1999::{bytes_1999, car_with_1999_bytes, store_1999};
         let writes = reset_writes(1.0, 50.0, 25.0);
-        let named: Car = Car::new();
-        let by_offset: Car = Car::new();
-        let pattern: Vec<u8> = (0..size_of::<Car>()).map(|i| (i * 13 + 5) as u8).collect();
-        crate::cells::Store::store(&named, 0, &pattern).unwrap();
-        crate::cells::Store::store(&by_offset, 0, &pattern).unwrap();
+        let pattern = |n: usize| (n * 13 + 5) as u8;
+        let named = car_with_1999_bytes(pattern);
+        let by_offset = car_with_1999_bytes(pattern);
+        let before = bytes_1999(&named);
         for &(field, v) in &writes {
-            crate::cells::store_value::<u32>(
-                &by_offset,
-                crate::physics::car_store::from_1999(old_offsets(field)),
-                v,
-            )
-            .unwrap();
+            store_1999(&by_offset, old_offsets(field), v);
         }
         write_all(&named, writes);
-        let (mut a, mut b) = (vec![0u8; size_of::<Car>()], vec![0u8; size_of::<Car>()]);
-        crate::cells::Store::load(&named, 0, &mut a).unwrap();
-        crate::cells::Store::load(&by_offset, 0, &mut b).unwrap();
         assert!(
-            a == b,
+            bytes_1999(&named) == bytes_1999(&by_offset),
             "the named fields wrote other bytes than the offsets"
         );
-        assert_ne!(a, pattern);
+        assert_ne!(bytes_1999(&named), before);
     }
 }

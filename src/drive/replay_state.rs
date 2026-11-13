@@ -381,8 +381,9 @@ mod tests {
         (n.wrapping_mul(2654435761) >> 11) as u8 | 1
     }
 
+    /// A car whose byte at the 1999 (file) offset `n` is `fill(n)`.
     fn car_of(fill: impl Fn(usize) -> u8) -> Car {
-        cells_of_bytes::<Car, { size_of::<Car>() }>(core::array::from_fn(fill))
+        crate::physics::car_offsets_1999::car_with_1999_bytes(fill)
     }
 
     fn work_of(fill: impl Fn(usize) -> u8) -> Box<RaceWork> {
@@ -456,7 +457,12 @@ mod tests {
         let frame = gather(&cars, &work);
         let mut expected = Vec::new();
         for car in &cars {
-            expected.extend(raw_bytes(car, 0, CAR_BYTES, &CAR_UNUSED));
+            let mut file = crate::physics::car_offsets_1999::bytes_1999(car);
+            file.truncate(CAR_BYTES);
+            for (at, len) in CAR_UNUSED {
+                file[at..at + len].fill(UNUSED_BYTE);
+            }
+            expected.extend(file);
         }
         expected.extend(bytes_of(&*work, SLOTS_AT, 8 * SLOT_BYTES));
         expected.extend(raw_bytes(&*work, EXTRA_AT, 0x400, &EXTRA_UNUSED));
@@ -473,10 +479,8 @@ mod tests {
         scatter(&frame, &cars, &work);
         assert_eq!(gather(&cars, &work), frame);
         for car in &cars {
-            assert_eq!(
-                bytes_of(car, CAR_BYTES, size_of::<Car>() - CAR_BYTES),
-                vec![0; size_of::<Car>() - CAR_BYTES]
-            );
+            let file = crate::physics::car_offsets_1999::bytes_1999(car);
+            assert_eq!(file[CAR_BYTES..], vec![0; file.len() - CAR_BYTES]);
         }
         assert_eq!(bytes_of(&*work, 0, SLOTS_AT), vec![0; SLOTS_AT]);
         assert_eq!(
