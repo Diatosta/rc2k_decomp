@@ -227,10 +227,7 @@ impl MenuLists {
     /// The map overlay of event slot `slot` (0 ..= 35 in the image's tables; the records can
     /// be loaded from a file, so a slot past the list reads on into the fields after it).
     pub fn map_overlay(&self, slot: usize) -> Result<u32, crate::errors::BadInput> {
-        crate::cells::load_value(
-            self,
-            core::mem::offset_of!(MenuLists, map_overlays).wrapping_add(slot.wrapping_mul(4)),
-        )
+        crate::session::read_runs(&self.runs_from_map_overlays(), slot, "a map overlay")
     }
 
     /// The rally speech of section `section` (0 ..= 0x20, held by `small_section`), past the six
@@ -295,11 +292,67 @@ impl MenuLists {
 }
 
 impl MenuLists {
+    /// The record's fields from `map_overlays` to its end, in order (the image's order, which
+    /// `run_on_tests` checks against the layout): a list read on past its field goes on into the
+    /// next, over the gaps, as the original's reads did.
+    fn runs_from_map_overlays(&self) -> [&dyn crate::session::Run; 41] {
+        [
+            &self.map_overlays,
+            &self._gap_75993e,
+            &self.page_pictures_a,
+            &self.page_pictures_b,
+            &self.page_pictures_c,
+            &self.page_pictures_d,
+            &self.page_picture_lists,
+            &self._gap_759ae2,
+            &self.page_functions,
+            &self._gap_759af6,
+            &self.car_page_titles,
+            &self.slideshow_templates,
+            &self.inspection_flags_a,
+            &self.inspection_flags_b,
+            &self.repair_time_ptrs,
+            &self.inspection_faults,
+            &self.cars_championship,
+            &self.a8_championship_cars,
+            &self.cars_first,
+            &self.cars_with_clio,
+            &self.secret_cars,
+            &self.cars_scratch,
+            &self.cars_second,
+            &self.shown_cars,
+            &self._gap_75a1ee,
+            &self.car_kinds,
+            &self.section_titles,
+            &self.page_titles_a,
+            &self.page_titles_b,
+            &self.rally_speeches,
+            &self._gap_75a31a,
+            &self.car_streams,
+            &self.stage_speeches,
+            &self._gap_75a40e,
+            &self.cheat_cars,
+            &self._gap_75a46a,
+            &self.durations,
+            &self.service_pictures,
+            &self._gap_75a61e,
+            &self.carousel_textures,
+            &self.front_back_path,
+        ]
+    }
+}
+
+impl MenuLists {
     /// A list of cars, from its first entry to the end of these lists: the original reads
     /// a list on to its end mark, and a list of one shown twice (menu 0xE) is read on past
     /// its field into the next.
     pub fn car_entry(&self, list: CarList, n: u32) -> Result<u32, crate::errors::BadInput> {
-        crate::cells::load_value(self, self.car_entry_offset(list, n))
+        let all = self.runs_from_map_overlays();
+        crate::session::read_runs(
+            &all[Self::car_list_start(list)..],
+            n as usize,
+            "an entry of a list of cars",
+        )
     }
 
     /// Entry `n` of a list of cars, written.
@@ -309,22 +362,26 @@ impl MenuLists {
         n: u32,
         value: u32,
     ) -> Result<(), crate::errors::BadInput> {
-        crate::cells::store_value(self, self.car_entry_offset(list, n), value)
+        let all = self.runs_from_map_overlays();
+        crate::session::write_runs(
+            &all[Self::car_list_start(list)..],
+            n as usize,
+            value,
+            "an entry of a list of cars",
+        )
     }
 
-    /// Where entry `n` of a list of cars is, in these lists.
-    fn car_entry_offset(&self, list: CarList, n: u32) -> usize {
-        use std::mem::offset_of;
-        let at = match list {
-            CarList::First => offset_of!(MenuLists, cars_first),
-            CarList::Second => offset_of!(MenuLists, cars_second),
-            CarList::WithClio => offset_of!(MenuLists, cars_with_clio),
-            CarList::Championship => offset_of!(MenuLists, cars_championship),
-            CarList::A8 => offset_of!(MenuLists, a8_championship_cars),
-            CarList::Cheat => offset_of!(MenuLists, cheat_cars),
-            CarList::Shown => offset_of!(MenuLists, shown_cars),
-        };
-        at.wrapping_add((n as usize).wrapping_mul(4))
+    /// Where a list of cars is among `runs_from_map_overlays`.
+    fn car_list_start(list: CarList) -> usize {
+        match list {
+            CarList::First => 18,
+            CarList::Second => 22,
+            CarList::WithClio => 19,
+            CarList::Championship => 16,
+            CarList::A8 => 17,
+            CarList::Cheat => 34,
+            CarList::Shown => 23,
+        }
     }
 }
 
@@ -1667,6 +1724,46 @@ mod run_on_tests {
                 old_result(&l.map_overlays, n),
                 "map overlay {n}"
             );
+        }
+    }
+
+    /// The fields' order in `runs_from_map_overlays`, and each car list's place in it, are the
+    /// layout's: every dword of the record from `map_overlays` on reads the same both ways,
+    /// and each list of cars runs on into what follows it, gaps included.
+    #[test]
+    fn runs_follow_the_layout() {
+        let l = numbered();
+        let room = (core::mem::size_of::<MenuLists>()
+            - core::mem::offset_of!(MenuLists, map_overlays))
+            / 4;
+        let all = l.runs_from_map_overlays();
+        assert_eq!(all.iter().map(|r| r.count()).sum::<usize>(), room);
+        for (list, table) in [
+            (CarList::First, &l.cars_first[..]),
+            (CarList::Second, &l.cars_second[..]),
+            (CarList::WithClio, &l.cars_with_clio[..]),
+            (CarList::Championship, &l.cars_championship[..]),
+            (CarList::A8, &l.a8_championship_cars[..]),
+            (CarList::Cheat, &l.cheat_cars[..]),
+            (CarList::Shown, &l.shown_cars[..]),
+        ] {
+            let left = (core::mem::size_of::<MenuLists>()
+                - (table.as_ptr() as usize - std::ptr::from_ref::<MenuLists>(&l) as usize))
+                / 4;
+            for n in 0..left + 2 {
+                assert_eq!(
+                    l.car_entry(list, n as u32).ok(),
+                    crate::session::read_on_in(&*l, table, n, "t").ok(),
+                    "{list:?} {n}"
+                );
+            }
+            let n = table.len() + 1;
+            l.set_car_entry(list, n as u32, 0x1234).unwrap();
+            assert_eq!(
+                crate::session::read_on_in(&*l, table, n, "t").unwrap(),
+                0x1234
+            );
+            assert!(l.set_car_entry(list, left as u32, 1).is_err());
         }
     }
 }

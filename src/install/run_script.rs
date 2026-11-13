@@ -25,10 +25,9 @@ pub fn run_script(
     script: BytePlace,
 ) -> Result<(), Refused> {
     use crate::install as i;
-    // Bounded by the record the script is in, not by its own field: the uninstall script
-    // (`names.script`) is three fields, `script`, `script_mark` and `script_rest`, read on
-    // one into the next as the original reads them (the end at the mark, 5, or at the end
-    // of `script_rest`); the other scripts end inside their own fields.
+    // Bounded by the buffer the script is in: the uninstall script (`names.script`) holds the
+    // mark and the rest of the script after its first 17 bytes (the end at the mark, 5, or at
+    // the end of the buffer); the other scripts end inside their own fields.
     let mut cursor = script;
     let mut end = BytePlace::from(&install.paths.script_path);
     wb(end, 0);

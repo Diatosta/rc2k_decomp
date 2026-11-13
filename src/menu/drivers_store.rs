@@ -1,9 +1,11 @@
 //! The championship's drivers, out of RAL.EXE's image (IDA 0x73B674 .. 0x742C98): `g_drivers`, the 180 computer drivers' records (0x94 bytes, IDA's `Driver`), the
 //! -1 that ends them for the walks (`menu::standings::drivers`), and `g_driverNames`, the
 //! 180 name entries (0x14 bytes, IDA's `DriverName`) a driver's first dword picks.
-//! `#[repr(C)]`: the savegame holds the table as bytes (`saves::gather_savegame`,
-//! `load_savegame`) and `shuffle_drivers` copies records as bytes. The event code
-//! works on the records by field (`menu::standings::drivers` walks them).
+//! No layout of their own: the savegame holds the records as bytes (`saves::gather_savegame`,
+//! `load_savegame`) and `shuffle_drivers` copies one as bytes, through `records_to_bytes` /
+//! `records_from_bytes` (the fields' dwords in declaration order, which the test pins to the
+//! file's offsets). The event code works on the records by field (`menu::standings::drivers`
+//! walks them).
 //! The fields' meanings are readings (IDA's `Driver` names +8, +0x14 and +0x18
 //! `nationality`, `car` and `flag`: the time entries and the section screen say class,
 //! nationality and car).
@@ -12,8 +14,7 @@ use crate::menu::owner::Menus;
 use crate::session::PlainDword;
 
 /// A driver's record (0x94 bytes).
-#[repr(C)]
-#[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
+#[derive(rc2k_derive::Cells)]
 pub struct Driver {
     /// +0: the name entry, also the computer team's number (`menu::find_cpu_team`).
     pub name_entry: PlainDword,
@@ -83,7 +84,43 @@ impl Driver {
     }
 }
 
-const _: () = assert!(core::mem::size_of::<Driver>() == 0x94);
+/// A driver's record in the savegame (and in the original's memory), in bytes.
+pub const DRIVER_LEN: usize = 0x94;
+
+const _: () = assert!(core::mem::size_of::<Driver>() == DRIVER_LEN);
+
+/// The bytes of `records` as the savegame holds them: each record's dwords in the file's order
+/// (the fields' declaration order; `the_records_are_the_files_bytes` holds it to the offsets).
+pub fn records_to_bytes(records: &[Driver]) -> Vec<u8> {
+    records.iter().flat_map(crate::cells::flatten).collect()
+}
+
+/// `records_to_bytes`' inverse: `bytes` (a whole number of records for `records`, else refused,
+/// writing nothing) set into `records`.
+pub fn records_from_bytes(records: &[Driver], bytes: &[u8]) -> Result<(), crate::errors::BadInput> {
+    if bytes.len() != records.len() * DRIVER_LEN {
+        return Err(crate::errors::BadInput(
+            "saved drivers of another length than the table",
+        ));
+    }
+    struct Writer<'a>(&'a [u8]);
+    impl crate::cells::CellVisitor for Writer<'_> {
+        fn enter(&mut self, _: &'static str) {}
+        fn index(&mut self, _: usize) {}
+        fn leave(&mut self) {}
+        fn leaf(&mut self, _: &[u8]) {}
+        fn run(&mut self, run: crate::cells::CellRun<'_>) {
+            let (now, rest) = self.0.split_at(run.len());
+            run.store(0, now);
+            self.0 = rest;
+        }
+    }
+    let (chunks, _) = bytes.as_chunks::<DRIVER_LEN>();
+    for (record, bytes) in records.iter().zip(chunks) {
+        crate::cells::Cells::visit(record, &mut Writer(&bytes[..]));
+    }
+    Ok(())
+}
 
 /// A driver's +0x24 while in the event.
 pub const IN_EVENT: u32 = 1;
@@ -139,8 +176,7 @@ impl Driver {
 }
 
 /// A driver's name entry (0x14 bytes): the string's id and four dwords.
-#[repr(C)]
-#[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
+#[derive(rc2k_derive::Cells)]
 pub struct DriverName {
     pub string: PlainDword,
     pub field_4: [PlainDword; 4],
@@ -162,8 +198,7 @@ impl DriverName {
     }
 }
 
-#[repr(C)]
-#[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
+#[derive(rc2k_derive::Cells)]
 pub struct DriverTable {
     /// `g_drivers` (0x73B674).
     pub drivers: [Driver; 180],
@@ -578,4 +613,50 @@ pub fn name_string(menus: &Menus, entry: u32) -> Result<u32, crate::errors::BadI
         ))?
         .string
         .get())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Record `index` as the savegame has it, written by the file's offsets (the layout the
+    /// 1999 game kept in memory), not through the fields.
+    fn file_record(index: u32) -> [u8; DRIVER_LEN] {
+        let [class, nation, car] = DRIVER_ROWS[index as usize];
+        let mut b = [0u8; DRIVER_LEN];
+        let mut put = |at: usize, v: u32| b[at..at + 4].copy_from_slice(&v.to_le_bytes());
+        put(0, index);
+        put(4, 1);
+        put(8, class);
+        put(0x14, nation);
+        put(0x18, car);
+        put(0x24, IN_EVENT);
+        for k in 0..12 {
+            put(0x2C + 4 * k, 100);
+        }
+        for k in 0..14 {
+            put(0x5C + 4 * k, if k % 7 == 6 { 0 } else { u32::MAX });
+        }
+        b
+    }
+
+    /// The records' bytes are the file's, record by record, and read back the same.
+    #[test]
+    fn the_records_are_the_files_bytes() {
+        let table = DriverTable::new();
+        let expected: Vec<u8> = (0..180).flat_map(file_record).collect();
+        let bytes = records_to_bytes(&table.drivers);
+        assert_eq!(bytes.len(), 180 * DRIVER_LEN);
+        assert!(
+            bytes == expected,
+            "the records' bytes differ from the file's"
+        );
+        // Another table takes them and gives them back; a wrong length writes nothing.
+        let other = DriverTable::new();
+        let changed: Vec<u8> = (0..bytes.len()).map(|n| (n * 7 + 3) as u8).collect();
+        records_from_bytes(&other.drivers, &changed).unwrap();
+        assert!(records_to_bytes(&other.drivers) == changed);
+        assert!(records_from_bytes(&other.drivers, &changed[1..]).is_err());
+        assert!(records_to_bytes(&other.drivers) == changed);
+    }
 }

@@ -42,8 +42,7 @@ use crate::menu::owner::Menus;
 use crate::session::{PlainBytes, with_runs};
 
 /// IDA 0x52A263 .. 0x52A30F.
-#[repr(C)]
-#[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
+#[derive(rc2k_derive::Cells)]
 pub struct BuildNotice {
     /// 0x52A263: `unk_52A263`: the build notice's first line, "Copyright ... Magnetic Fields ..." (`menu::build_notice`).
     pub notice_first: PlainBytes<78>,

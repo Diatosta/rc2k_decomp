@@ -136,9 +136,8 @@ impl InstallerRun {
     }
 }
 
-/// The registry names, the installed record, the scripts and file names, the languages (IDA 0x51BB60 .. 0x51C407, the image's layout).
-#[repr(C, align(16))]
-#[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
+/// The registry names, the installed record, the scripts and file names, the languages (IDA 0x51BB60 .. 0x51C407, the image's fields in its order).
+#[derive(rc2k_derive::Cells)]
 pub struct InstallerNames {
     /// 0x51BB60: `aSoftwareMagnet`: "SOFTWARE\Magnetic Fields\RC99".
     pub key_name: PlainBytes<30>,
@@ -158,15 +157,11 @@ pub struct InstallerNames {
     pub _gap_51bc98: PlainBytes<176>,
     /// 0x51BD48: `g_countScript`: the count script (`install::install_files`).
     pub script_count: PlainBytes<200>,
-    /// 0x51BE10: `byte_51BE10`: the uninstall script.
-    pub script: PlainBytes<17>,
-    /// 0x51BE21: `byte_51BE21`: a byte of the script (`install::finish_page`): 1 goes on into
-    /// `script_rest` (the save and settings folders removed too), 5 ends the script here.
-    pub script_mark: PlainByte,
-    /// 0x51BE22: the rest of the uninstall script after `script_mark`: the save and settings
-    /// folders, up to its end (5) at +0x1B; `install::run_script` reads on into it from
-    /// `script` when the mark is 1.
-    pub script_rest: PlainBytes<30>,
+    /// 0x51BE10: `byte_51BE10`: the uninstall script, 17 bytes, then the mark (0x51BE21,
+    /// `byte_51BE21`, `SCRIPT_MARK`), then the rest of the script (0x51BE22) to its end (5)
+    /// at +0x2F: the save and settings folders. `install::run_script` reads on into the rest
+    /// when the mark is 1; 5 in the mark ends the script there.
+    pub script: PlainBytes<{ SCRIPT_MARK + 1 + 30 }>,
     /// 0x51BE40: `path`: "ral.exe" (in ".\ral.exe").
     pub program: PlainBytes<8>,
     /// 0x51BE48: `aRalExe_0`: "ral.exe".
@@ -186,7 +181,7 @@ pub struct InstallerNames {
     /// 0x51BED1: `aFilesDGfxBackd`: "files\d\gfx\backdrop.pcx".
     pub backdrop: PlainBytes<25>,
     /// 0x51BEEA: `g_languageCount`: the languages found.
-    pub language_count: PlainLoose,
+    pub language_count: PlainDword,
     /// 0x51BEEE: `g_languages`: the languages found, 0x80 bytes each (eight).
     pub languages: PlainBytes<1024>,
     /// 0x51C2EE: Not named: 128 bytes (a gap, or data nothing reads here).
@@ -213,9 +208,7 @@ impl InstallerNames {
     reg_type: PlainDword::new(0x0),
     _gap_51bc98: PlainBytes::new(with_runs::<176>(&[(20, b"\x18"), (44, b"PROGMAN\x00[CreateGroup(Rally Championship)]\x00[DeleteGroup(Rally Championship)]\x00[AddItem(\x00,Rally)]\x00,Uninstall Rally)]\x00,View Readme)]")])),
     script_count: PlainBytes::new(with_runs::<200>(&[(0, b"\x03ral.exe\x03*.txt\x03*.pdf\x08\x02\x01files\x04a\x04b\x04d\x08\x03\x04fmv\t\x01g\x04frnt\x04graphics\x08\x03\x04slides\t\x02\x04levels\x04%locale\x04m\x04maps\x08\x03\x04music\t\x04replay\x04s\x01%speech\x04m\x04f\x08\x03\x04cars\x04rally\t\x02\x02\t\x01savedata\x01carsetup\x02\x01replay\x02\x01savegame\x02\x01snapshot\x02\x02\x01var\x03ral.cfg\x02\x06\x05")])),
-    script: PlainBytes::new(with_runs::<17>(&[(0, b"\x03*.*\x01files\x02\x04files")])),
-    script_mark: PlainByte::new(0x1),
-    script_rest: PlainBytes::new(with_runs::<30>(&[(0, b"savedata\x02\x04savedata\x01var\x02\x04var\x05.\\")])),
+    script: PlainBytes::new(with_runs::<{ SCRIPT_MARK + 1 + 30 }>(&[(0, b"\x03*.*\x01files\x02\x04files"), (SCRIPT_MARK, b"\x01"), (SCRIPT_MARK + 1, b"savedata\x02\x04savedata\x01var\x02\x04var\x05.\\")])),
     program: PlainBytes::new(with_runs::<8>(&[(0, b"ral.exe")])),
     ral_exe: PlainBytes::new(with_runs::<8>(&[(0, b"ral.exe")])),
     _gap_51be50: PlainBytes::new(with_runs::<4>(&[(0, b" -u")])),
@@ -225,7 +218,7 @@ impl InstallerNames {
     installer_data: PlainBytes::new(with_runs::<24>(&[(0, b"files\\d\\gfx\\install.bun")])),
     install_pal: PlainBytes::new(with_runs::<24>(&[(0, b"files\\d\\gfx\\install.pal")])),
     backdrop: PlainBytes::new(with_runs::<25>(&[(0, b"files\\d\\gfx\\backdrop.pcx")])),
-    language_count: PlainLoose::new(0x0),
+    language_count: PlainDword::new(0x0),
     languages: PlainBytes::new([0; 1024]),
     _gap_51c2ee: PlainBytes::new([0; 128]),
     lang_cfg: PlainBytes::new(with_runs::<10>(&[(0, b"lang.cfg")])),
@@ -281,6 +274,10 @@ impl GlyphRecord {
         }
     }
 }
+
+/// The byte of `InstallerNames::script` that is the mark: 1 goes on into the script's rest (the
+/// save and settings folders removed too), 5 ends the script there (`install::finish_page`).
+pub const SCRIPT_MARK: usize = 17;
 
 /// The page: its pieces, the list menu's state, the fonts and the pages' tables (IDA 0x51C407 .. 0x51DE2C, the image's layout).
 #[repr(C, align(16))]
@@ -571,9 +568,8 @@ impl InstallerPages {
     }
 }
 
-/// The installer's path buffers (0x100 bytes each; the network's lobby edits two of them) (IDA 0x95E6F8 .. 0x95ECF8, the image's layout).
-#[repr(C, align(16))]
-#[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
+/// The installer's path buffers (0x100 bytes each; the network's lobby edits two of them) (IDA 0x95E6F8 .. 0x95ECF8, the image's order).
+#[derive(rc2k_derive::Cells)]
 pub struct InstallerPaths {
     /// Not in the image: the bytes that keep every field the alignment its IDA address has (the struct is 16-byte aligned).
     pub _lead: PlainBytes<8>,

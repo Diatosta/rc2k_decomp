@@ -28,7 +28,6 @@
 //! a missing player or a car without its name pointer; later, what its Rust callees refuse
 //! (the event loops when their callees refuse).
 
-use crate::cells::Store;
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::menu::go_back;
 use crate::menu::owner::Menus;
@@ -109,7 +108,7 @@ fn load_and_run(o: Owners<'static>) -> Result<(), Refused> {
         cursor += CAR_LEN;
     }
     let records = file.read_at(cursor, RECORDS_LEN, "the saved drivers")?;
-    menus.cars.drivers.store(0, &records)?;
+    crate::menu::drivers_store::records_from_bytes(&menus.cars.drivers.drivers, &records)?;
     menus
         .screens
         .flow

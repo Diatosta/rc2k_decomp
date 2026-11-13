@@ -1,6 +1,7 @@
 //! The packed string table and the two string-pointer tables the string functions read.
 
 use crate::errors::BadInput;
+use crate::place::Run;
 use rc2k_core::strings::table::StringTable;
 
 // `g_stringTable` (0x4E07D4), the packed table's address, is not kept: the original sets it
@@ -56,29 +57,76 @@ fn made_place(id: u32) -> Result<MadeText, BadInput> {
 }
 
 impl MadeText {
-    /// The byte offset of the text in its variable.
-    fn offset(self) -> usize {
-        use crate::install::store::{DriveRows, InstallVars};
-        use crate::install::vars::InstallerNames;
-        use crate::menu::build_notice::BuildNotice;
-        use crate::screens::text_buffers_store::TextBuffers;
-        use core::mem::offset_of;
-
+    /// The text's byte in its variable, counted from the first of the buffers in `chain`.
+    fn offset(self, chain: &[&dyn Run]) -> usize {
         /// Byte offsets from `credits_a` of the twelve texts in the installer's variables.
         const CREDITS: [usize; 12] = [
             0x0, 0x2, 0x9, 0xB, 0x1B, 0x3D, 0x1CF, 0x36, 0x5E, 0x1FB, 0x69, 0x20C,
         ];
+        // The bytes before the chain's buffer `n`.
+        let before = |n: usize| chain[..n].iter().map(|buffer| buffer.len()).sum::<usize>();
         match self {
             MadeText::Notice(NoticeLine::First) => 0,
-            MadeText::Notice(NoticeLine::Second) => offset_of!(BuildNotice, notice_second),
-            MadeText::Notice(NoticeLine::SecondTail) => {
-                offset_of!(BuildNotice, notice_second) + 0x36
+            MadeText::Notice(NoticeLine::Second) => before(1),
+            MadeText::Notice(NoticeLine::SecondTail) => before(1) + 0x36,
+            MadeText::StageHeading(i) => before(1) * i,
+            MadeText::PageNumber(i) => before(5) + 4 * i,
+            MadeText::DriveRow(i) => 0x10 * i,
+            MadeText::Language(i) => 0x80 * i,
+            MadeText::Credit(i) => CREDITS[i],
+        }
+    }
+
+    /// The variable's buffers from the one the made texts are counted from, in the order
+    /// they follow one another: a text runs on past its field into the next.
+    fn chain<'a>(
+        self,
+        race: &'a crate::race::owner::Race,
+        menus: &'a crate::menu::owner::Menus,
+        install: &'a crate::install::owner::Install,
+    ) -> Vec<&'a dyn Run> {
+        match self {
+            MadeText::Notice(_) => {
+                let notice = &menus.panels.notice;
+                vec![&notice.notice_first, &notice.notice_second]
             }
-            MadeText::StageHeading(i) => offset_of!(TextBuffers, stage_heading) + 0x100 * i,
-            MadeText::PageNumber(i) => offset_of!(TextBuffers, page_numbers) + 4 * i,
-            MadeText::DriveRow(i) => offset_of!(DriveRows, drive_rows) + 0x10 * i,
-            MadeText::Language(i) => offset_of!(InstallerNames, languages) + 0x80 * i,
-            MadeText::Credit(i) => offset_of!(InstallVars, credits_a) + CREDITS[i],
+            MadeText::StageHeading(_) | MadeText::PageNumber(_) => {
+                let text = race.text_buffers();
+                vec![
+                    &text.stage_heading,
+                    &text.caption,
+                    &text.title,
+                    &text.number_text,
+                    &text.stage_result_value,
+                    &text.page_numbers,
+                ]
+            }
+            MadeText::DriveRow(_) => {
+                vec![
+                    &install.drive_rows.drive_rows,
+                    &install.drive_rows._gap_52a49f,
+                ]
+            }
+            MadeText::Language(_) => {
+                let names = &install.names;
+                vec![
+                    &names.languages,
+                    &names._gap_51c2ee,
+                    &names.lang_cfg,
+                    &names._gap_51c378,
+                    &names.room_by_mode,
+                    &names._tail,
+                ]
+            }
+            MadeText::Credit(_) => {
+                let vars = &install.vars;
+                vec![
+                    &vars.credits_a,
+                    &vars.clio_car_name,
+                    &vars.credits_b,
+                    &vars._tail,
+                ]
+            }
         }
     }
 }
@@ -91,32 +139,29 @@ pub fn made_text(
     id: u32,
 ) -> Result<Vec<u8>, BadInput> {
     let place = made_place(id)?;
-    let at = place.offset();
-    match place {
-        MadeText::Notice(_) => text_in(&menus.panels.notice, at),
-        MadeText::StageHeading(_) | MadeText::PageNumber(_) => text_in(race.text_buffers(), at),
-        MadeText::DriveRow(_) => text_in(&install.drive_rows, at),
-        MadeText::Language(_) => text_in(&install.names, at),
-        MadeText::Credit(_) => text_in(&install.vars, at),
-    }
+    let chain = place.chain(race, menus, install);
+    text_across(&chain, place.offset(&chain))
 }
 
-/// The bytes of `holder` from `offset` to the first NUL (left out); the original reads on
-/// past the field the text starts in, so the whole variable is the limit.
-fn text_in<T: crate::cells::ByteView>(holder: &T, offset: usize) -> Result<Vec<u8>, BadInput> {
-    const CHUNK: usize = 16;
+/// The bytes from `offset` into the first of `buffers` to the first NUL (left out); the
+/// original reads on past the field the text starts in, so the buffers that follow one another
+/// are the limit.
+fn text_across(buffers: &[&dyn Run], offset: usize) -> Result<Vec<u8>, BadInput> {
     let mut text = Vec::new();
-    let mut at = offset;
-    while at < size_of::<T>() {
-        let mut chunk = [0u8; CHUNK];
-        let len = CHUNK.min(size_of::<T>() - at);
-        crate::cells::load_cells(holder, at, &mut chunk[..len])?;
-        if let Some(end) = chunk[..len].iter().position(|&b| b == 0) {
-            text.extend_from_slice(&chunk[..end]);
-            return Ok(text);
+    let mut skip = offset;
+    for buffer in buffers {
+        let len = buffer.len();
+        if skip >= len {
+            skip -= len;
+            continue;
         }
-        text.extend_from_slice(&chunk[..len]);
-        at += len;
+        for at in skip..len {
+            match buffer.get(at) {
+                0 => return Ok(text),
+                byte => text.push(byte),
+            }
+        }
+        skip = 0;
     }
     Err(BadInput("a string without its end in its block"))
 }
@@ -266,17 +311,20 @@ mod tests {
         ('V', 0x348),
     ];
 
-    /// The holder and offset `made_place` gives the made text `id`, in the table's terms.
+    /// The holder and offset `made_place` gives the made text `id`, in the table's terms (the
+    /// offset in the variable: the chain counts from the buffer `first_byte` bytes into it).
     fn place_of(id: u32) -> (char, usize) {
+        let o = crate::owners::Owners::the();
         let place = made_place(id).unwrap();
-        let holder = match place {
-            MadeText::Notice(_) => 'N',
-            MadeText::StageHeading(_) | MadeText::PageNumber(_) => 'B',
-            MadeText::DriveRow(_) => 'D',
-            MadeText::Language(_) => 'M',
-            MadeText::Credit(_) => 'V',
+        let (holder, first_byte) = match place {
+            MadeText::Notice(_) => ('N', 0),
+            MadeText::StageHeading(_) | MadeText::PageNumber(_) => ('B', 0x200),
+            MadeText::DriveRow(_) => ('D', 0),
+            MadeText::Language(_) => ('M', 0x38e),
+            MadeText::Credit(_) => ('V', 0x13c),
         };
-        (holder, place.offset())
+        let chain = place.chain(o.race, o.menus, o.install);
+        (holder, first_byte + place.offset(&chain))
     }
 
     #[test]
@@ -293,11 +341,14 @@ mod tests {
 
     #[test]
     fn caption_is_id_0x1004() {
+        let o = crate::owners::Owners::the();
         let place = made_place(0x1004).unwrap();
         assert_eq!(place, MadeText::StageHeading(1));
-        assert_eq!(
-            place.offset(),
-            core::mem::offset_of!(crate::screens::text_buffers_store::TextBuffers, caption)
-        );
+        let chain = place.chain(o.race, o.menus, o.install);
+        assert_eq!(place.offset(&chain), chain[0].len());
+        assert!(std::ptr::addr_eq(
+            chain[1],
+            &raw const o.race.text_buffers().caption
+        ));
     }
 }

@@ -56,7 +56,7 @@ pub fn ask_cspecs() {
 /// Whether the section has its table (the draw refuses one without).
 #[cfg(debug_ui)]
 pub fn section_has_times(saves: &Saves, section: usize) -> bool {
-    saves.rally_times.table_of(section).is_ok()
+    saves.rally_times.table_named(section).is_ok()
 }
 
 /// A menu's frame: runs what was asked for; true if a screen was run (the menu sets

@@ -75,8 +75,8 @@ pub fn gather_savegame(menus: &Menus, file: &dyn Store, base: usize) -> Result<(
                 .to_file_bytes(crate::menu::player_names::name_address),
         )?;
     }
-    let mut records = vec![0; RECORDS_LEN];
-    menus.cars.drivers.load(0, &mut records)?;
+    let records = crate::menu::drivers_store::records_to_bytes(&menus.cars.drivers.drivers);
+    debug_assert_eq!(records.len(), RECORDS_LEN);
     file.store(base + RECORDS_AT, &records)?;
     Ok(())
 }

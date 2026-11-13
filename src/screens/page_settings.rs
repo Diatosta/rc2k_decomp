@@ -175,11 +175,11 @@ pub fn stage_choice_texts(o: Owners<'static>) -> Result<(), Refused> {
         crate::screens::stage_panel::group_title(&menus.play.results, a)?,
     )?;
     let (base, record) = stage_record(stages, a, b, menus.screens.event.stage_number.get())?;
-    crate::cells::store_value::<u32>(
-        &menus.tables.menus.labels,
-        item_1,
-        base.title(&o.system.records().stage_tables)?,
-    )?;
+    menus
+        .tables
+        .menus
+        .labels
+        .set_dword(item_1, base.title(&o.system.records().stage_tables)?)?;
     stage_line(
         crate::strings::append_string_by_id::StringOwners::of(o),
         text,

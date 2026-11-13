@@ -4,7 +4,7 @@
 
 use crate::cells::Store;
 use crate::errors::BadInput;
-use crate::session::{Bytes, PlainBytes};
+use crate::session::{Bytes, PlainBytes, PlainDword};
 
 /// A run of bytes read and written in place.
 pub trait Run {
@@ -34,6 +34,21 @@ impl<const N: usize> Run for PlainBytes<N> {
     }
     fn set(&self, n: usize, v: u8) {
         PlainBytes::set(self, n, v);
+    }
+}
+
+/// A dword as four bytes, little-endian (a record's dword read on into from the buffer before it).
+impl Run for PlainDword {
+    fn len(&self) -> usize {
+        4
+    }
+    fn get(&self, n: usize) -> u8 {
+        PlainDword::get(self).to_le_bytes()[n]
+    }
+    fn set(&self, n: usize, v: u8) {
+        let mut bytes = PlainDword::get(self).to_le_bytes();
+        bytes[n] = v;
+        PlainDword::set(self, u32::from_le_bytes(bytes));
     }
 }
 

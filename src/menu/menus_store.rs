@@ -1,5 +1,6 @@
-//! The menus, out of RAL.EXE's image: the 98 lists of labels (IDA 0x747AD8 .. 0x74826C) as `#[repr(C)]` cells in the image's layout (the screens that
-//! draw a menu's labels, and the original's slip that writes into them, walk them by offset), and the 96 menus as handles into `rc2k_core::menu::tables::MENUS`,
+//! The menus, out of RAL.EXE's image: the 98 lists of labels (IDA 0x747AD8 .. 0x74826C) as cells
+//! (the screens that draw a menu's labels, and the original's slip that writes into them, walk them
+//! as a run of dwords, five to a list: `LabelTables::dword`), and the 96 menus as handles into `rc2k_core::menu::tables::MENUS`,
 //! the one source of the menus' items (their places, links, functions and starting values).
 //!
 //! What the game changes in play is kept here, per item (`MenuItem`, 567 of them in one
@@ -18,8 +19,7 @@ use crate::session::PlainDword;
 use rc2k_core::menu::tables::{MENUS, MenuFont, MenuItem as Fixed};
 
 /// A label: x, y, the font, the string id.
-#[repr(C)]
-#[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
+#[derive(rc2k_derive::Cells)]
 pub struct MenuLabel {
     pub x: PlainDword,
     pub y: PlainDword,
@@ -40,8 +40,7 @@ impl MenuLabel {
 }
 
 /// A list of labels: the label and the -1 that ends the list.
-#[repr(C)]
-#[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
+#[derive(rc2k_derive::Cells)]
 pub struct LabelList {
     pub label: MenuLabel,
     pub end: PlainDword,
@@ -56,9 +55,8 @@ impl LabelList {
     }
 }
 
-/// The label lists in the image's layout.
-#[repr(C)]
-#[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
+/// The label lists in the image's order.
+#[derive(rc2k_derive::Cells)]
 pub struct LabelTables {
     /// Label list at IDA 0x747AD8 (the labels of the single_rally_review menu).
     pub single_rally_review_labels: LabelList,
@@ -468,15 +466,86 @@ pub fn label_lists(labels: &LabelTables) -> [&LabelList; 98] {
         &labels.visual_options_labels,
     ]
 }
+impl LabelList {
+    /// Dword `i` of the list (0 .. 5): x, y, the font's number, the string id, the end mark.
+    fn dword(&self, i: usize) -> u32 {
+        match i {
+            0 => self.label.x.get(),
+            1 => self.label.y.get(),
+            2 => self.label.font.get().number(),
+            3 => self.label.string.get(),
+            _ => self.end.get(),
+        }
+    }
+
+    /// Dword `i` set. The font cell holds a font's number: another value is refused (a write
+    /// of the original's reaches the end marks, never a font).
+    fn set_dword(&self, i: usize, v: u32) -> Result<(), crate::errors::BadInput> {
+        match i {
+            0 => self.label.x.set(v),
+            1 => self.label.y.set(v),
+            2 => self.label.font.set(FontId::try_numbered(v as usize).ok_or(
+                crate::errors::BadInput("a label's font set to a number that is no font"),
+            )?),
+            3 => self.label.string.set(v),
+            _ => self.end.set(v),
+        }
+        Ok(())
+    }
+}
+
+impl LabelTables {
+    /// The dword at byte `at` of the lists laid end to end (any alignment, over the lists'
+    /// borders, as the original reads them), refused past the 98th list's end.
+    pub fn dword(&self, at: usize) -> Result<u32, crate::errors::BadInput> {
+        let lists = label_lists(self);
+        let mut bytes = [0; 4];
+        for (k, b) in bytes.iter_mut().enumerate() {
+            *b = Self::byte_place(at, k)
+                .and_then(|(list, i, byte)| Some(lists.get(list)?.dword(i).to_le_bytes()[byte]))
+                .ok_or(crate::errors::BadInput("a label read past the label lists"))?;
+        }
+        Ok(u32::from_le_bytes(bytes))
+    }
+
+    /// `dword`'s write.
+    pub fn set_dword(&self, at: usize, value: u32) -> Result<(), crate::errors::BadInput> {
+        let lists = label_lists(self);
+        let places: [_; 4] = std::array::from_fn(|k| Self::byte_place(at, k));
+        if places
+            .iter()
+            .any(|p| p.is_none_or(|(list, ..)| list >= lists.len()))
+        {
+            return Err(crate::errors::BadInput(
+                "a label write past the label lists",
+            ));
+        }
+        for (k, place) in places.into_iter().enumerate() {
+            let (list, i, byte) = place.unwrap_or_default();
+            let mut word = lists[list].dword(i).to_le_bytes();
+            word[byte] = value.to_le_bytes()[k];
+            lists[list].set_dword(i, u32::from_le_bytes(word))?;
+        }
+        Ok(())
+    }
+
+    /// Byte `k` past `at`: its list, the dword of the list, and the byte of the dword.
+    fn byte_place(at: usize, k: usize) -> Option<(usize, usize, usize)> {
+        let byte = at.checked_add(k)?;
+        let (list, in_list) = (byte / LABEL_LIST_LEN, byte % LABEL_LIST_LEN);
+        Some((list, in_list / 4, in_list % 4))
+    }
+}
+
 /// The number of label lists.
 const LABEL_LIST_COUNT: usize = 98;
 /// A label list's length.
-const LABEL_LIST_LEN: usize = core::mem::size_of::<LabelList>();
+const LABEL_LIST_LEN: usize = 4 * LABEL_LIST_DWORDS;
 
-const _: () = assert!(LABEL_LIST_LEN == 0x14);
-const _: () = assert!(core::mem::offset_of!(MenuLabel, font) == 8);
-const _: () = assert!(core::mem::offset_of!(LabelTables, visual_options_labels) == 97 * 0x14);
-const _: () = assert!(core::mem::size_of::<LabelTables>() == 98 * LABEL_LIST_LEN);
+/// The dwords of a label list: x, y, the font, the string id, the end mark.
+const LABEL_LIST_DWORDS: usize = 5;
+
+const _: () = assert!(LABEL_LIST_DWORDS * 4 == 0x14);
 
 /// Where the original kept the label lists (IDA 0x747AD8 ..): core's menu table names a menu's
 /// labels by their address there.
@@ -911,6 +980,44 @@ mod tests {
         for &f in MenuFont::ALL {
             assert_eq!(font_of(f).ida() as u32, f.ral(), "{f:?}");
         }
+    }
+
+    /// The lists read and written as a run of dwords, five to a list: any alignment, over the
+    /// lists' borders, refused past the last list.
+    #[test]
+    fn label_lists_read_and_write_as_dwords() {
+        let _g = crate::test_support::test_lock();
+        let labels = LabelTables::new();
+        let lists = label_lists(&labels);
+        let end = LABEL_LIST_COUNT * LABEL_LIST_LEN;
+        let (x0, end0) = (lists[0].label.x.get(), lists[0].end.get());
+        assert_eq!(labels.dword(0).unwrap(), x0);
+        assert_eq!(labels.dword(0x10).unwrap(), end0);
+        assert_eq!(labels.dword(0x14).unwrap(), lists[1].label.x.get());
+        // Unaligned: the bytes of two dwords.
+        let (a, b) = (lists[0].end.get(), lists[1].label.x.get());
+        let want = u32::from_le_bytes([
+            a.to_le_bytes()[2],
+            a.to_le_bytes()[3],
+            b.to_le_bytes()[0],
+            b.to_le_bytes()[1],
+        ]);
+        assert_eq!(labels.dword(0x12).unwrap(), want);
+        assert_eq!(labels.dword(2).unwrap(), {
+            let (p, q) = (
+                lists[0].label.x.get().to_le_bytes(),
+                lists[0].label.y.get().to_le_bytes(),
+            );
+            u32::from_le_bytes([p[2], p[3], q[0], q[1]])
+        });
+        assert!(labels.dword(end - 4).is_ok() && labels.dword(end - 3).is_err());
+        // A write to an end mark and back, a write past the end refused whole.
+        labels.set_dword(0x10, 0x1234).unwrap();
+        assert_eq!(lists[0].end.get(), 0x1234);
+        labels.set_dword(0x10, end0).unwrap();
+        assert!(labels.set_dword(end - 3, 1).is_err());
+        assert_eq!(labels.dword(end - 4).unwrap(), lists[97].end.get());
+        assert!(labels.set_dword(8, 99_999).is_err());
     }
 
     #[test]

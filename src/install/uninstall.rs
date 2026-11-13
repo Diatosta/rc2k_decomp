@@ -40,7 +40,7 @@ fn build_path(
 
 /// The installation's folder, when "remove all" was chosen and it is one that may go whole.
 fn whole_folder(install: &'static crate::install::owner::Install) -> Option<std::path::PathBuf> {
-    if install.names.script_mark.get() == 5 {
+    if install.names.script.get(crate::install::vars::SCRIPT_MARK) == 5 {
         return None;
     }
     let text = install.paths.installed.read();
@@ -116,10 +116,7 @@ pub fn uninstall(
     set_cd(&install.paths.installed);
     i::run_script::run_script(
         install,
-        crate::place::BytePlace::in_store(
-            &install.names,
-            core::mem::offset_of!(crate::install::vars::InstallerNames, script),
-        ),
+        crate::place::BytePlace::from(&install.names.script),
     )?;
     if install.run.file_count.get() != 0 {
         let mut n = 0;

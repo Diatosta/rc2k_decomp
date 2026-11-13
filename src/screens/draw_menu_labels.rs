@@ -37,8 +37,7 @@ pub fn draw_menu_labels(
         return Err(BadInput("a menu without a label list").into());
     };
     // The dword `at` bytes into the list (bounded to the label lists).
-    let dword =
-        |at: u32| crate::cells::load_value::<u32>(&menus.tables.menus.labels, first + at as usize);
+    let dword = |at: u32| menus.tables.menus.labels.dword(first + at as usize);
     if !has_end(&dword)? {
         return Err(BadInput("a label list without an end").into());
     }

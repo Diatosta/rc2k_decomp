@@ -11,7 +11,7 @@
 
 use crate::errors::BadInput;
 use crate::install::page_links::{ListId, installer};
-use crate::install::vars::{InstallerPages, InstallerPaths};
+use crate::install::vars::InstallerPages;
 use crate::menu::list_handle::ListHeader;
 use crate::place::BytePlace;
 use core::mem::{offset_of, size_of};
@@ -144,12 +144,9 @@ impl PagesAt {
     }
 }
 
-/// The folder typed, `offset` bytes in: a place in the installer's path buffers.
+/// The folder typed, `offset` bytes in: a place in the installer's path buffer for it.
 pub fn typed_folder(offset: u32) -> BytePlace {
-    BytePlace::in_store(
-        &installer().paths,
-        offset_of!(InstallerPaths, typed) + offset as usize,
-    )
+    BytePlace::In(&installer().paths.typed, offset as usize)
 }
 
 #[cfg(test)]

@@ -9,10 +9,9 @@
 //! Refuses a count of 0 (the original's `div` traps, its loop runs on), before anything.
 use crate::cells::Store;
 use crate::errors::{BadInput, Refused};
+use crate::menu::drivers_store::{DRIVER_LEN, records_from_bytes, records_to_bytes};
 use crate::menu::owner::Menus;
 use crate::session::PlainDword;
-
-const DRIVER_LEN: usize = 0x94;
 
 /// The four classes' first drivers (`g_drivers` + 90, + 140, + 170, + 0) and counts.
 fn tables(menus: &Menus) -> [(usize, &PlainDword); 4] {
@@ -38,11 +37,11 @@ pub fn shuffle_drivers(menus: &Menus) -> Result<(), Refused> {
             menus.screens.draw_work.figure.set(random_below(n)?);
             menus.screens.draw_work.hhmm.set(random_below(n)?);
             // The first entry through both scratch records and back (both left holding it).
-            let mut driver = [0; DRIVER_LEN];
-            first.load(0, &mut driver)?;
+            let driver = records_to_bytes(std::slice::from_ref(first));
+            debug_assert_eq!(driver.len(), DRIVER_LEN);
             menus.cars.numbers.shuffle_a.store(0, &driver)?;
             menus.cars.numbers.shuffle_b.store(0, &driver)?;
-            first.store(0, &driver)?;
+            records_from_bytes(std::slice::from_ref(first), &driver)?;
         }
     }
     Ok(())

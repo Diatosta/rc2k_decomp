@@ -270,17 +270,14 @@ mod tests {
         );
         assert!(PageLink::blended_palette().is_blended_palette());
         match PageLink::typed(2).place().unwrap() {
-            crate::place::BytePlace::Store(record, at) => {
+            crate::place::BytePlace::In(buffer, at) => {
                 assert!(std::ptr::addr_eq(
-                    record,
-                    &raw const crate::install::owner::install().paths
+                    buffer,
+                    &raw const crate::install::owner::install().paths.typed
                 ));
-                assert_eq!(
-                    at,
-                    core::mem::offset_of!(crate::install::vars::InstallerPaths, typed) + 2
-                );
+                assert_eq!(at, 2);
             }
-            _ => panic!("the typed folder is a place in the paths record"),
+            _ => panic!("the typed folder is a place in the paths record's buffer"),
         }
     }
 

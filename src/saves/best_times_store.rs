@@ -4,8 +4,8 @@
 //! `saves::allocate_best_times`, `load_best_times`, `free_best_times`). The
 //! nine tables are typed and Rust's own (`saves::best_times`): each pair keeps only the
 //! size.
-//! `TimeEntry` keeps its `#[repr(C)]` (the file's entries are copied as bytes, `default_times`), and
-//! `RallyTimes` too (`table_of` answers byte offsets).
+//! `TimeEntry` keeps its `#[repr(C)]` (`ByteView`: the standings and the options file's entries are
+//! copied in runs); `RallyTimes` has no layout of its own (`table_named` answers the table's number).
 //! `allocate_best_times` walks the switches and the pairs as one run of dwords from
 //! `allocated` (`vars()`).
 
@@ -96,6 +96,46 @@ pub struct TimeEntry {
 }
 
 impl TimeEntry {
+    /// A made-up time (`saves::defaults`), field by field: the time at `time_at` (+0x14 the stage
+    /// time, +0x18 the rally time), the driver's first field as the group, the second as the
+    /// nationality, 0xB at +0x50, the guessed checkpoints when it has them, the car, the name's
+    /// string id and the name's bytes. Refuses a name longer than the field, writing nothing.
+    pub fn fill_made_up(
+        &self,
+        e: &rc2k_core::saves::defaults::TimeEntry,
+        time_at: usize,
+    ) -> Result<(), crate::errors::BadInput> {
+        let time = match time_at {
+            0x14 => &self.stage_time,
+            0x18 => &self.rally_time,
+            _ => {
+                return Err(crate::errors::BadInput(
+                    "a made-up time written at neither time field",
+                ));
+            }
+        };
+        if e.driver.name.len() > core::mem::size_of_val(&self.name) {
+            return Err(crate::errors::BadInput(
+                "a made-up name longer than the name field",
+            ));
+        }
+        time.set(e.time);
+        self.group.set(e.driver.fields[0]);
+        self.nation.set(e.driver.fields[1]);
+        self.unread_50.set(0xB);
+        if let Some(checkpoints) = e.checkpoints {
+            for (cell, c) in self.checkpoints.iter().zip(checkpoints) {
+                cell.set(c);
+            }
+        }
+        self.car.set(e.driver.fields[2]);
+        self.name_id.set(e.driver.name_id);
+        for (n, b) in e.driver.name.iter().enumerate() {
+            self.name.set(n, *b);
+        }
+        Ok(())
+    }
+
     /// From the dwords but the name's (31 of them, in order) and the name's bytes.
     const fn new(w: [u32; 31], name: [u8; 0x20]) -> Self {
         let mut checkpoints = [const { PlainDword::new(0) }; 16];
@@ -127,9 +167,8 @@ impl TimeEntry {
 const _: () = assert!(core::mem::size_of::<TimeEntry>() == 0x9C);
 
 /// The six rallies' best times (IDA 0x742C98 .. 0x7475D0): `RallyTimes.tables[0]`, the six tables'
-/// addresses, kept as IDA's, as names (`RallyTimes::table_of` makes one real, for
+/// addresses, kept as IDA's, as names (`RallyTimes::table_named` makes one real, for
 /// `screens::draw_section_best_times` and `saves::default_championship_times`), then the tables, twenty entries each.
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct RallyTimes {
     pub tables: [PlainDword; 6],
@@ -1247,27 +1286,35 @@ impl RallyTimes {
 }
 
 impl RallyTimes {
-    /// Where rally `n`'s table is, as a byte offset in the piece.
-    pub fn table_of(&self, n: usize) -> Result<usize, crate::errors::BadInput> {
+    /// The number of the table the name kept for rally `n` names (its own, when the game's
+    /// data is whole).
+    pub fn table_named(&self, n: usize) -> Result<usize, crate::errors::BadInput> {
         let name = self.tables.get(n).ok_or(crate::errors::BadInput(
             "a rally past the six best-times tables",
         ))?;
         let name = name.get() as usize;
-        if !(Self::START..Self::END).contains(&name) {
+        let table_len = size_of::<[TimeEntry; 20]>();
+        if !(Self::START..Self::END).contains(&name) || name < Self::FIRST_TABLE {
             return Err(crate::errors::BadInput(
                 "a best-times table off the rallies' tables",
             ));
         }
-        Ok(name - Self::START)
+        let at = name - Self::FIRST_TABLE;
+        if !at.is_multiple_of(table_len) || at / table_len >= self.rallies.len() {
+            return Err(crate::errors::BadInput(
+                "a best-times table off the rallies' tables",
+            ));
+        }
+        Ok(at / table_len)
     }
 
-    /// Rally `n`'s table, when the name the game keeps for it (`table_of`) is that table.
+    /// Rally `n`'s table, when the name the game keeps for it (`table_named`) is that table.
     pub fn table(&self, n: usize) -> Result<&[TimeEntry; 20], crate::errors::BadInput> {
-        let at = self.table_of(n)?;
+        let named = self.table_named(n)?;
         let table = self.rallies.get(n).ok_or(crate::errors::BadInput(
             "a rally past the six best-times tables",
         ))?;
-        if at != core::mem::offset_of!(RallyTimes, rallies) + n * size_of::<[TimeEntry; 20]>() {
+        if named != n {
             return Err(crate::errors::BadInput(
                 "a rally's best-times name not at its own table",
             ));
@@ -1275,6 +1322,8 @@ impl RallyTimes {
         Ok(table)
     }
 
+    /// IDA 0x742CB0, where the first rally's table is (the six names follow the piece's start).
+    const FIRST_TABLE: usize = 0x742CB0;
     /// IDA 0x742C98, the first byte of the piece.
     pub const START: usize = 0x742C98;
     /// IDA 0x7475D0, its end.
@@ -1283,9 +1332,7 @@ impl RallyTimes {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use crate::saves::owner::saves;
-    use core::mem::offset_of;
 
     #[test]
     fn rally_times_names_resolve() {
@@ -1295,27 +1342,63 @@ mod tests {
         for n in 0..6 {
             let table = 20 * 0x9C * n;
             assert_eq!(rally_times.tables[n].get() as usize, first as usize + table);
-            assert_eq!(
-                rally_times.table_of(n),
-                Ok(offset_of!(RallyTimes, rallies) + table)
-            );
+            assert_eq!(rally_times.table_named(n), Ok(n));
         }
-        assert!(rally_times.table_of(6).is_err());
+        assert!(rally_times.table_named(6).is_err());
     }
 }
 
 #[cfg(test)]
-mod table_of_tests {
+mod table_named_tests {
 
     #[test]
-    fn table_of_resolves_the_six_names_and_no_more() {
+    fn table_named_resolves_the_six_names_and_no_more() {
         let _g = crate::test_support::test_lock();
         let times = &crate::saves::owner::saves().rally_times;
         for n in 0..8 {
-            assert_eq!(times.table_of(n).is_ok(), n < 6, "rally {n}");
+            assert_eq!(times.table_named(n).is_ok(), n < 6, "rally {n}");
             if n < 6 {
                 assert!(times.table(n).is_ok(), "rally {n}");
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod fill_made_up_tests {
+    use super::*;
+    use crate::cells::load_cells;
+
+    /// A made-up time written by fields is the entry the core writes by offsets, in a stage's
+    /// table (+0x14) and a rally's (+0x18); a name longer than the field and another place for
+    /// the time are refused, writing nothing.
+    #[test]
+    fn a_made_up_time_is_the_cores_bytes() {
+        let _g = crate::test_support::test_lock();
+        let made = rc2k_core::saves::defaults::TimeEntry {
+            time: 0x1234,
+            driver: rc2k_core::saves::defaults::Driver {
+                fields: [7, 8, 9],
+                name_id: 0x5A6,
+                name: b"Somebody Else".to_vec(),
+            },
+            checkpoints: Some(std::array::from_fn(|n| 100 + n as u32)),
+        };
+        for time_at in [0x14, 0x18] {
+            let entry = TimeEntry::new([0; 31], [0; 0x20]);
+            let mut want = vec![0; 0x9C];
+            load_cells(&entry, 0, &mut want).unwrap();
+            made.write(&mut want, time_at);
+            entry.fill_made_up(&made, time_at).unwrap();
+            let mut got = vec![0; 0x9C];
+            load_cells(&entry, 0, &mut got).unwrap();
+            assert!(got == want, "time at {time_at:#x}");
+        }
+        let entry = TimeEntry::new([0; 31], [0; 0x20]);
+        assert!(entry.fill_made_up(&made, 0x1C).is_err());
+        let mut long = made.clone();
+        long.driver.name = vec![b'x'; 0x21];
+        assert!(entry.fill_made_up(&long, 0x14).is_err());
+        assert_eq!(entry.stage_time.get(), 0);
     }
 }

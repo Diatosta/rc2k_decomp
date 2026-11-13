@@ -1,4 +1,4 @@
-//! The installer's variables, kept with the image's layout, around
+//! The installer's variables, with the image's fields in the image's order, around
 //! the network's block (the build notice between them is `menu::build_notice`'s):
 //! - `InstallVars` (IDA 0x529DAD .. 0x52A263): run from the CD, the Clio's car (file, script,
 //!   name), and the credits' texts with their 64 pointers (nothing ported reads those);
@@ -6,16 +6,15 @@
 //! - `LobbyKeys` (0x5AB419 .. 0x5AB490): the registry key and value names a lobby
 //!   registration writes (`install::register_lobby`).
 //!
-//! Structs of atomic cells with the image's layout (`InstallVars` and `DriveRows` keep `#[repr(C)]`: their texts are read on past a field by offset), first values the image's
-//! (`tests`): the credits'
-//! pointers name these texts. `InstallVars` starts on an odd address in the image
+//! Structs of cells, first values the image's: the texts of `InstallVars` and `DriveRows` that
+//! the strings name are read on past a field into the next, in the order the fields are
+//! declared (`strings::string_table`). `InstallVars` starts on an odd address in the image
 //! (0x529DAD): a one-byte lead keeps every image address's alignment.
 
 use crate::session::{PlainByte, PlainBytes, PlainDword, with_runs};
 
 /// IDA 0x529DAD .. 0x52A263.
-#[repr(C)]
-#[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
+#[derive(rc2k_derive::Cells)]
 pub struct InstallVars {
     /// Not in the image: one byte so that the dwords are aligned (the block starts on an odd address).
     pub _lead: PlainByte,
@@ -61,8 +60,7 @@ impl InstallVars {
 }
 
 /// IDA 0x52A30F .. 0x52A4B0.
-#[repr(C)]
-#[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
+#[derive(rc2k_derive::Cells)]
 pub struct DriveRows {
     /// 0x52A30F: `byte_52A30F`: the installer's drive rows, 0x10 bytes each (letter, a byte, the text).
     pub drive_rows: PlainBytes<400>,

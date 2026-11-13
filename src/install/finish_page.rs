@@ -10,7 +10,10 @@ pub fn finish_page(install: &'static crate::install::owner::Install, state: u32)
     if (state as i32) < 0
         && rc2k_core::install::pages::shows_readme(install.pages.list_answer.get())
     {
-        install.names.script_mark.set(5);
+        install
+            .names
+            .script
+            .set(crate::install::vars::SCRIPT_MARK, 5);
         install.pages.list_answer.set(1);
     }
 }

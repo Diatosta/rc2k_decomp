@@ -49,11 +49,10 @@ pub fn set_stage_choice_titles(
     tables.menus.select_stage.id().items(&tables.menus)[0]
         .string
         .set(group_title);
-    crate::cells::store_value::<u32>(
-        &tables.menus.labels,
-        item_1,
-        s.table.title(&system.records().stage_tables)?,
-    )?;
+    tables
+        .menus
+        .labels
+        .set_dword(item_1, s.table.title(&system.records().stage_tables)?)?;
 
     Ok(())
 }

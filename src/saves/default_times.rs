@@ -140,11 +140,12 @@ pub fn apply(
                     Ok::<_, BadInput>(())
                 })??,
                 Target::Rally(table) => {
-                    use crate::cells::{load_cells, store_cells};
-                    let mut bytes = vec![0; size_of_val(table)];
-                    load_cells(table, 0, &mut bytes)?;
-                    block.write(&mut bytes);
-                    store_cells(table, 0, &bytes)?;
+                    for (n, e) in block.entries.iter().enumerate() {
+                        table
+                            .get(block.first + n)
+                            .ok_or(BadInput("a made-up time past its table"))?
+                            .fill_made_up(e, block.time_at)?;
+                    }
                 }
             }
         }
