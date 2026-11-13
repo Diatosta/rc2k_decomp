@@ -4,21 +4,21 @@
 //! Plain Rust since phase 6 (2026-10-24): what the x87 holds on its stack is an `X` (an
 //! `f64` that rounds as the control word says, `x87_float.rs`), what it stores as a dword
 //! float `st`, `fild` is `int`, `fistp` / `fist` `to_int`. The order of the operations is
-//! the original's. The assembly versions are the reference the tests compare with
-//! (`x87_reference_c.rs`).
+//! the original's. Their comparison with the original's instructions is frozen in
+//! `x87_frozen_c.rs`.
 
 use super::{Flt, out};
 use crate::math::x87_float::{Rounds, X, at_rounding, compare, f80, from_f80, int, ld, st, to_int};
 
 /// `(a * b) / c`, rounded once at the end as the x87 is set to round
 /// (`fild a; fimul b; fdiv c; fistp`): a whole number times a whole number over a float.
-#[cfg(all(test, target_arch = "x86"))] // inlined at its caller; the assembly comparison keeps it
+#[cfg(test)] // inlined at its caller; the frozen comparison keeps it
 pub fn int_times_int_over_to_int(a: i32, b: i32, c: u32) -> i32 {
     to_int(int(a) * int(b) / ld(c))
 }
 
 /// `|a|` as a whole number (`fld a; fabs; fistp`): the size of a float.
-#[cfg(all(test, target_arch = "x86"))] // inlined at its caller; the assembly comparison keeps it
+#[cfg(test)] // inlined at its caller; the frozen comparison keeps it
 pub fn abs_to_int(a: u32) -> i32 {
     to_int(ld(a).abs())
 }

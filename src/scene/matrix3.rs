@@ -47,8 +47,8 @@ fn row_times_column<R: Rounds>(
     p1 + (p2 + p3)
 }
 
-/// `row_times_column` stored, as its bits (the assembly comparison's).
-#[cfg(all(test, target_arch = "x86"))]
+/// `row_times_column` stored, as its bits (the frozen comparison's).
+#[cfg(test)]
 pub(crate) fn row_times_column_3(a: &(impl Cells + ?Sized), b: &(impl Cells + ?Sized)) -> u32 {
     bh::at_rounding!(|r| r.st(row_times_column(r, a, b)))
 }

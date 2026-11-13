@@ -1,6 +1,7 @@
 //! What the tests share to put the game's state back, by store name and field path rather
 //! than by address: `state` (a snapshot of every store).
 
+pub mod frozen;
 pub mod paths;
 pub mod race_places;
 pub mod race_vectors;

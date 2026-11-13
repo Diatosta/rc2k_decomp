@@ -7,27 +7,6 @@
 //! `f32` the original stored, or whole number, status word or bits where the original
 //! kept those.
 
-/// The original's instructions, for the reference versions the tests compare with.
-#[cfg(all(test, target_arch = "x86"))]
-macro_rules! x87 {
-    ($($line:literal),+; $($name:ident = $value:expr),+) => {
-        // SAFETY: the original's x87 instructions, on the reference versions' operands: each
-        // names memory the reference's caller hands it (its test buffers), and the eight x87
-        // registers are declared clobbered; no stack is used.
-        unsafe {
-            core::arch::asm!(
-                $($line),+,
-                $($name = in(reg) $value),+,
-                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-                options(nostack),
-            )
-        }
-    };
-}
-#[cfg(all(test, target_arch = "x86"))]
-pub(crate) use x87;
-
 use super::x87_float as bh;
 use bh::Rounds;
 
@@ -42,7 +21,7 @@ pub use load::*;
 pub use run::*;
 
 /// A float read from game memory (possibly unaligned), as the x87 holds it once loaded.
-#[cfg(all(test, target_arch = "x86"))] // the pointer forms' tests only
+#[cfg(test)] // the pointer forms' tests only
 ///
 /// # Safety
 /// `p` is valid for reads of the dword `index` dwords on (any alignment).
@@ -186,7 +165,7 @@ pub fn int_ratio(a: i32, b: i32) -> f32 {
 }
 
 /// `1 - a / b`.
-#[cfg(all(test, target_arch = "x86"))] // inlined at its caller; the assembly comparison keeps it
+#[cfg(test)] // inlined at its caller; the frozen comparison keeps it
 pub fn one_less_int_ratio(a: i32, b: i32) -> u32 {
     bh::st(bh::ONE - bh::int(a) / bh::int(b))
 }
@@ -199,7 +178,7 @@ pub fn rcpss_times(a: impl Flt, b: impl Flt) -> f32 {
 
 /// A row of one matrix times a column of another: `a[0] b[0] + (a[1] b[4] + a[2] b[8])`,
 /// the last two products added first, stored to `out`.
-#[cfg(all(test, target_arch = "x86"))] // checked against the assembly; the helpers work on cells now
+#[cfg(test)] // checked in the frozen comparison; the helpers work on cells now
 ///
 /// # Safety
 /// `a` is valid for reads of three dwords, `b` of nine, `out` for writes of one (any alignment).
@@ -217,7 +196,7 @@ pub unsafe fn row_times_column(a: *const u32, b: *const u32, out: *mut u32) {
 }
 
 /// `out = a + out`.
-#[cfg(all(test, target_arch = "x86"))] // checked against the assembly; the helpers work on cells now
+#[cfg(test)] // checked in the frozen comparison; the helpers work on cells now
 ///
 /// # Safety
 /// `a` is valid for reads of one dword, `out` for reads and writes of one (any alignment).
@@ -257,13 +236,13 @@ pub fn product_difference(a: impl Flt, b: impl Flt, c: impl Flt, d: impl Flt) ->
 }
 
 /// The same negated.
-#[cfg(all(test, target_arch = "x86"))] // replaced by `negated` of the plain step; the assembly comparison keeps it
+#[cfg(test)] // replaced by `negated` of the plain step; the frozen comparison keeps it
 pub fn negated_product_difference(a: u32, b: u32, c: u32, d: u32) -> u32 {
     bh::st(-(bh::ld(a) * bh::ld(b) - bh::ld(c) * bh::ld(d)))
 }
 
 /// The length of three floats: `sqrt(v0 v0 + (v1 v1 + v2 v2))`.
-#[cfg(all(test, target_arch = "x86"))] // checked against the assembly; the helpers work on cells now
+#[cfg(test)] // checked in the frozen comparison; the helpers work on cells now
 ///
 /// # Safety
 /// `v` is valid for reads of three dwords (any alignment).
@@ -291,7 +270,7 @@ pub fn sine_cosine(angle: i32, a: impl Flt, b: impl Flt) -> (u32, u32) {
 }
 
 /// The root of a whole number over a float.
-#[cfg(all(test, target_arch = "x86"))] // inlined at its caller; the assembly comparison keeps it
+#[cfg(test)] // inlined at its caller; the frozen comparison keeps it
 pub fn int_over_root(a: i32, d: u32) -> u32 {
     bh::st((bh::int(a) / bh::ld(d)).sqrt())
 }
@@ -303,13 +282,13 @@ pub fn sqrt(a: impl Flt) -> f32 {
 }
 
 /// The sine of n times pi over d: `sin(n * pi / d)`.
-#[cfg(all(test, target_arch = "x86"))] // inlined at its caller; the assembly comparison keeps it
+#[cfg(test)] // inlined at its caller; the frozen comparison keeps it
 pub fn sine_of_pi_fraction(n: i32, d: i32) -> u32 {
     bh::st((bh::int(n).times_pi() / bh::int(d)).sin())
 }
 
 /// `a / b * m * n`, as a whole number.
-#[cfg(all(test, target_arch = "x86"))] // inlined at its caller; the assembly comparison keeps it
+#[cfg(test)] // inlined at its caller; the frozen comparison keeps it
 pub fn ratio_scaled_to_int(a: u32, b: u32, m: i32, n: i32) -> i32 {
     bh::to_int(bh::ld(a) / bh::ld(b) * bh::int(m) * bh::int(n))
 }
@@ -348,7 +327,7 @@ pub fn reciprocal(a: impl Flt) -> f32 {
 }
 
 /// Two whole numbers and two floats multiplied: `a * b * c * d`.
-#[cfg(all(test, target_arch = "x86"))] // inlined at its caller; the assembly comparison keeps it
+#[cfg(test)] // inlined at its caller; the frozen comparison keeps it
 pub fn int_float_int_float(a: i32, b: u32, c: i32, d: u32) -> u32 {
     bh::st(bh::int(a) * bh::ld(b) * bh::int(c) * bh::ld(d))
 }
@@ -408,7 +387,7 @@ pub fn turn_in_place(sine: impl Flt, cosine: impl Flt, x: &mut u32, z: &mut u32)
 }
 
 /// `race::add_surface_share`'s sum: `a / b * c / d * e + f`.
-#[cfg(all(test, target_arch = "x86"))] // inlined at its caller; the assembly comparison keeps it
+#[cfg(test)] // inlined at its caller; the frozen comparison keeps it
 pub fn surface_share(a: i32, b: u32, c: u32, d: i32, e: u32, f: u32) -> u32 {
     bh::st(bh::int(a) / bh::ld(b) * bh::ld(c) / bh::int(d) * bh::ld(e) + bh::ld(f))
 }
@@ -445,7 +424,7 @@ pub fn int_times_to_int(a: i32, b: impl Flt) -> i32 {
 }
 
 /// A whole number over a float, less a float, rounded once.
-#[cfg(all(test, target_arch = "x86"))] // inlined at its caller; the assembly comparison keeps it
+#[cfg(test)] // inlined at its caller; the frozen comparison keeps it
 pub fn int_div_less(a: i32, b: u32, c: u32) -> u32 {
     bh::st(bh::int(a) / bh::ld(b) - bh::ld(c))
 }
@@ -479,13 +458,13 @@ pub fn mul_and_div(a: impl Flt, b: impl Flt, c: impl Flt) -> (f32, f32) {
 }
 
 /// `(a - b) / c * d`.
-#[cfg(all(test, target_arch = "x86"))] // inlined at its caller; the assembly comparison keeps it
+#[cfg(test)] // inlined at its caller; the frozen comparison keeps it
 pub fn sub_div_mul(a: u32, b: u32, c: u32, d: u32) -> u32 {
     bh::st((bh::ld(a) - bh::ld(b)) / bh::ld(c) * bh::ld(d))
 }
 
 /// `(a - b) / (c - d) * e`.
-#[cfg(all(test, target_arch = "x86"))] // inlined at its caller; the assembly comparison keeps it
+#[cfg(test)] // inlined at its caller; the frozen comparison keeps it
 pub fn diff_ratio_mul(a: u32, b: u32, c: u32, d: u32, e: u32) -> u32 {
     bh::st((bh::ld(a) - bh::ld(b)) / (bh::ld(c) - bh::ld(d)) * bh::ld(e))
 }
@@ -510,7 +489,7 @@ pub fn lerp_scaled_less(
 }
 
 /// `-(a - b)`.
-#[cfg(all(test, target_arch = "x86"))] // replaced by `negated` of the plain step; the assembly comparison keeps it
+#[cfg(test)] // replaced by `negated` of the plain step; the frozen comparison keeps it
 pub fn negated_sub(a: u32, b: u32) -> u32 {
     bh::st(-(bh::ld(a) - bh::ld(b)))
 }
@@ -546,13 +525,13 @@ pub fn ramp_down(values: &mut [i32], last: i32, first: i32, by: i32) {
 }
 
 /// The difference of two whole numbers, rounded once to a float.
-#[cfg(all(test, target_arch = "x86"))] // inlined at its caller; the assembly comparison keeps it
+#[cfg(test)] // inlined at its caller; the frozen comparison keeps it
 pub fn int_less_int(a: i32, b: i32) -> u32 {
     bh::st(bh::int(a) - bh::int(b))
 }
 
 /// `(a - b) / c`, a and b whole numbers.
-#[cfg(all(test, target_arch = "x86"))] // inlined at its caller; the assembly comparison keeps it
+#[cfg(test)] // inlined at its caller; the frozen comparison keeps it
 pub fn int_less_int_over(a: i32, b: i32, c: u32) -> u32 {
     bh::st((bh::int(a) - bh::int(b)) / bh::ld(c))
 }
@@ -566,7 +545,7 @@ pub fn sub_div(a: impl Flt, b: impl Flt, c: impl Flt) -> f32 {
 }
 
 /// `sin(a) b + c`, as a whole number.
-#[cfg(all(test, target_arch = "x86"))] // inlined at its caller; the assembly comparison keeps it
+#[cfg(test)] // inlined at its caller; the frozen comparison keeps it
 pub fn sine_times_plus_to_int(a: u32, b: u32, c: u32) -> i32 {
     bh::to_int(bh::ld(a).sin() * bh::ld(b) + bh::ld(c))
 }
@@ -597,8 +576,7 @@ pub fn share_left_to_int(a: i32, b: i32, c: impl Flt) -> i32 {
 // Rust helpers read its rounding (bits 10 .. 11) where the x87 would round to a whole
 // number. The precision bits are not modelled: plain `f64` steps are the x87's at
 // double precision (0x027F, a 32-bit Windows thread's start), within the last bit at
-// extended (0x037F, after the game's `finit`). In the tests the real control word is kept
-// equal to it, for the reference assembly (`set_control_word`, `finit`).
+// extended (0x037F, after the game's `finit`).
 thread_local! {
     static CONTROL: std::cell::Cell<u16> = const { std::cell::Cell::new(0x027F) };
 }
@@ -660,17 +638,6 @@ fn whole_to_int(r: f64) -> i32 {
 /// 64-bit precision, rounding to nearest), as the original does it.
 pub fn finit() {
     CONTROL.with(|c| c.set(0x037F));
-    // The real x87 only matters to the tests' reference assembly.
-    #[cfg(all(test, target_arch = "x86"))]
-    // SAFETY: `finit` resets the x87 only, whose registers are declared clobbered; no memory.
-    unsafe {
-        core::arch::asm!(
-            ".byte 0x9B, 0xDB, 0xE3",
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-        );
-    }
 }
 
 /// The control word (`fnstcw`): this thread's emulated one.
@@ -678,15 +645,9 @@ pub fn control_word() -> u16 {
     CONTROL.with(std::cell::Cell::get)
 }
 
-/// `fldcw`: the control word set (the emulated one; in the tests the real one too).
+/// `fldcw`: the control word set (this thread's emulated one).
 pub fn set_control_word(w: u16) {
     CONTROL.with(|c| c.set(w));
-    // The real control word only matters to the tests' reference assembly.
-    #[cfg(all(test, target_arch = "x86"))]
-    // SAFETY: `fldcw` reads the two bytes of `w`, a local, and sets the x87's control word.
-    unsafe {
-        core::arch::asm!("fldcw word ptr [{w}]", w = in(reg) &raw const w, options(nostack));
-    };
 }
 
 /// `a * b * c`.
@@ -785,7 +746,7 @@ pub fn compare_status(a: impl Flt, b: impl Flt) -> u16 {
 }
 
 /// `a - n`, as a whole number.
-#[cfg(all(test, target_arch = "x86"))] // inlined at its caller; the assembly comparison keeps it
+#[cfg(test)] // inlined at its caller; the frozen comparison keeps it
 pub fn float_less_int_to_int(a: u32, n: i32) -> i32 {
     bh::to_int(bh::ld(a) - bh::int(n))
 }
@@ -812,7 +773,7 @@ pub fn half_and_middle(b: impl Flt, a: impl Flt, k: impl Flt) -> (f32, f32) {
 }
 
 /// `pi / n`.
-#[cfg(all(test, target_arch = "x86"))] // inlined at its caller; the assembly comparison keeps it
+#[cfg(test)] // inlined at its caller; the frozen comparison keeps it
 pub fn pi_over(n: i32) -> u32 {
     bh::st(bh::int(n).pi_over())
 }
@@ -857,7 +818,7 @@ pub fn int_length3(a: i32, b: i32, c: i32) -> i32 {
 }
 
 /// The sum, or 0x80000000 when it does not fit.
-#[cfg(all(test, target_arch = "x86"))] // inlined at its caller; the assembly comparison keeps it
+#[cfg(test)] // inlined at its caller; the frozen comparison keeps it
 pub fn int_sum(a: i32, b: i32) -> i32 {
     bh::to_int(bh::int(a) + bh::int(b))
 }
@@ -908,8 +869,8 @@ pub fn round_f64(x: f64) -> f64 {
 // (`x87_float.rs`: an `f64` rounding as the control word says), a dword float stored is
 // `bh::st`, a whole number loaded is `bh::int`, stored `bh::to_int`, an 80-bit value kept
 // is converted at the boundary (`bh::f80`, `bh::from_f80`). The order of the operations is
-// the original's. The assembly versions are in `x87_reference_b.rs`, which the tests
-// compare these against.
+// the original's. Their comparison with the original's instructions is frozen in
+// `x87_frozen_b.rs`.
 
 /// `fld a; fsub b; [fchs;] fcomp c; fstsw`: the status word's C0 .. C2.
 pub fn sub_compare(a: impl Flt, b: impl Flt, negate: bool, c: impl Flt) -> u16 {
@@ -971,7 +932,7 @@ pub fn sub_thrice(a: impl Flt, b: impl Flt) -> f32 {
 }
 
 /// `a + b`, a whole number and a float.
-#[cfg(all(test, target_arch = "x86"))] // inlined at its caller; the assembly comparison keeps it
+#[cfg(test)] // inlined at its caller; the frozen comparison keeps it
 pub fn int_plus(a: i32, b: u32) -> u32 {
     bh::st(bh::int(a) + bh::ld(b))
 }
@@ -985,7 +946,7 @@ pub fn ease(t: impl Flt, c: impl Flt, k: impl Flt) -> f32 {
 }
 
 /// `a + b` as a whole number.
-#[cfg(all(test, target_arch = "x86"))] // inlined at its caller; the assembly comparison keeps it
+#[cfg(test)] // inlined at its caller; the frozen comparison keeps it
 pub fn int_plus_to_int(a: i32, b: u32) -> i32 {
     bh::to_int(bh::int(a) + bh::ld(b))
 }
@@ -996,7 +957,7 @@ pub fn zero_less_int_plus_int(a: i32, b: i32) -> i32 {
 }
 
 /// `f - a + b` as a whole number.
-#[cfg(all(test, target_arch = "x86"))] // inlined at its caller; the assembly comparison keeps it
+#[cfg(test)] // inlined at its caller; the frozen comparison keeps it
 pub fn less_int_plus_int(f: u32, a: i32, b: i32) -> i32 {
     bh::to_int(bh::ld(f) - bh::int(a) + bh::int(b))
 }
@@ -1020,7 +981,7 @@ pub fn two_pi_less(a: u32) -> f32 {
 }
 
 /// `((a m) + c) k`.
-#[cfg(all(test, target_arch = "x86"))] // inlined at its caller; the assembly comparison keeps it
+#[cfg(test)] // inlined at its caller; the frozen comparison keeps it
 pub fn int_times_plus_times(a: i32, m: u32, c: u32, k: u32) -> u32 {
     bh::st((bh::int(a) * bh::ld(m) + bh::ld(c)) * bh::ld(k))
 }
@@ -1279,7 +1240,7 @@ pub fn times_compare(a: impl Flt, k: impl Flt, c: impl Flt) -> u16 {
 }
 
 /// `a k n` as a whole number.
-#[cfg(all(test, target_arch = "x86"))] // inlined at its caller; the assembly comparison keeps it
+#[cfg(test)] // inlined at its caller; the frozen comparison keeps it
 pub fn times_int_to_int(a: u32, k: u32, n: i32) -> i32 {
     bh::to_int(bh::ld(a) * bh::ld(k) * bh::int(n))
 }
@@ -1293,13 +1254,13 @@ pub fn int_times_plus_and_negated(a: i32, b: impl Flt, c: impl Flt) -> (f32, f32
 }
 
 /// `a b - c - d`.
-#[cfg(all(test, target_arch = "x86"))] // inlined at its caller; the assembly comparison keeps it
+#[cfg(test)] // inlined at its caller; the frozen comparison keeps it
 pub fn int_times_less_less(a: i32, b: u32, c: u32, d: u32) -> u32 {
     bh::st(bh::int(a) * bh::ld(b) - bh::ld(c) - bh::ld(d))
 }
 
 /// `(|a| + |b|) k` as a whole number.
-#[cfg(all(test, target_arch = "x86"))] // inlined at its caller; the assembly comparison keeps it
+#[cfg(test)] // inlined at its caller; the frozen comparison keeps it
 pub fn abs_sum_times_to_int(a: u32, b: u32, k: u32) -> i32 {
     bh::to_int((bh::ld(a).abs() + bh::ld(b).abs()) * bh::ld(k))
 }
@@ -1353,8 +1314,8 @@ pub fn turned_place_less_f32(
     ]
 }
 
-/// `turned_place_less_f32` on bits, for the 32-bit tests' kept assembly.
-#[cfg(all(test, target_arch = "x86"))]
+/// `turned_place_less_f32` on bits, for the frozen comparison.
+#[cfg(test)]
 pub fn turned_place_less(
     t: [u32; 3],
     k: impl Flt,
@@ -1383,7 +1344,7 @@ pub fn one_less_inverse(a: impl Flt, k: impl Flt, one: impl Flt) -> f32 {
 }
 
 /// `a k / n`.
-#[cfg(all(test, target_arch = "x86"))] // inlined at its caller; the assembly comparison keeps it
+#[cfg(test)] // inlined at its caller; the frozen comparison keeps it
 pub fn times_over_int(a: u32, k: u32, n: i32) -> u32 {
     bh::st(bh::ld(a) * bh::ld(k) / bh::int(n))
 }
@@ -1413,8 +1374,8 @@ pub fn turned_place_f32(
     [out(x), out(y), out(y - bh::ld(lift)), out(z)]
 }
 
-/// `turned_place_f32` on bits, for the 32-bit tests' kept assembly.
-#[cfg(all(test, target_arch = "x86"))]
+/// `turned_place_f32` on bits, for the frozen comparison.
+#[cfg(test)]
 pub fn turned_place(
     p: [u32; 3],
     lift: impl Flt,
@@ -1424,7 +1385,7 @@ pub fn turned_place(
 }
 
 /// `a b` as a whole number.
-#[cfg(all(test, target_arch = "x86"))] // inlined at its caller; the assembly comparison keeps it
+#[cfg(test)] // inlined at its caller; the frozen comparison keeps it
 pub fn int_times_int_to_int(a: i32, b: i32) -> i32 {
     bh::to_int(bh::int(a) * bh::int(b))
 }
@@ -1504,7 +1465,7 @@ pub fn unit_and_length(p: [u32; 3]) -> ([f32; 3], f32) {
 }
 
 /// `-a - b + c + d`.
-#[cfg(all(test, target_arch = "x86"))] // inlined at its caller; the assembly comparison keeps it
+#[cfg(test)] // inlined at its caller; the frozen comparison keeps it
 pub fn negated_less_plus_plus(a: u32, b: u32, c: u32, d: u32) -> u32 {
     bh::st(-bh::ld(a) - bh::ld(b) + bh::ld(c) + bh::ld(d))
 }
@@ -1599,7 +1560,7 @@ pub fn slot_project(
 }
 
 /// `i a b`.
-#[cfg(all(test, target_arch = "x86"))] // inlined at its caller; the assembly comparison keeps it
+#[cfg(test)] // inlined at its caller; the frozen comparison keeps it
 pub fn int_times_times(i: i32, a: u32, b: u32) -> u32 {
     bh::st(bh::int(i) * bh::ld(a) * bh::ld(b))
 }
@@ -1613,7 +1574,7 @@ pub fn toward(a: impl Flt, b: impl Flt, r: impl Flt) -> f32 {
 }
 
 /// `(b - a) k + c m`.
-#[cfg(all(test, target_arch = "x86"))] // inlined at its caller; the assembly comparison keeps it
+#[cfg(test)] // inlined at its caller; the frozen comparison keeps it
 pub fn diff_times_plus_times(b: u32, a: u32, k: u32, c: u32, m: u32) -> u32 {
     bh::st((bh::ld(b) - bh::ld(a)) * bh::ld(k) + bh::ld(c) * bh::ld(m))
 }
@@ -1669,7 +1630,7 @@ pub fn plus_times_int(a: impl Flt, v: impl Flt, t: i32) -> f32 {
 }
 
 /// `a + (v + w) t`.
-#[cfg(all(test, target_arch = "x86"))] // inlined at its caller; the assembly comparison keeps it
+#[cfg(test)] // inlined at its caller; the frozen comparison keeps it
 pub fn plus_sum_times_int(a: u32, v: u32, w: u32, t: i32) -> u32 {
     bh::st((bh::ld(v) + bh::ld(w)) * bh::int(t) + bh::ld(a))
 }
@@ -1703,7 +1664,7 @@ pub fn int_times3_wave_plus(
 }
 
 /// `(r k1 + a) k2 + b`.
-#[cfg(all(test, target_arch = "x86"))] // inlined at its caller; the assembly comparison keeps it
+#[cfg(test)] // inlined at its caller; the frozen comparison keeps it
 pub fn int_times_plus_times_plus(r: i32, k1: u32, a: u32, k2: u32, b: u32) -> u32 {
     bh::st((bh::int(r) * bh::ld(k1) + bh::ld(a)) * bh::ld(k2) + bh::ld(b))
 }
@@ -1789,7 +1750,7 @@ pub fn turn_about(
 }
 
 /// `c - v k` as a whole number.
-#[cfg(all(test, target_arch = "x86"))] // inlined at its caller; the assembly comparison keeps it
+#[cfg(test)] // inlined at its caller; the frozen comparison keeps it
 pub fn times_subr_to_int(v: u32, k: u32, c: u32) -> i32 {
     bh::to_int(bh::ld(c) - bh::ld(v) * bh::ld(k))
 }
@@ -1807,13 +1768,13 @@ pub fn times_plus_80(a: impl Flt, b: impl Flt, c: impl Flt, negated: bool) -> [u
 }
 
 /// `k t + c` as a whole number.
-#[cfg(all(test, target_arch = "x86"))] // inlined at its caller; the assembly comparison keeps it
+#[cfg(test)] // inlined at its caller; the frozen comparison keeps it
 pub fn times_int_plus_int_to_int(k: u32, t: i32, c: i32) -> i32 {
     bh::to_int(bh::ld(k) * bh::int(t) + bh::int(c))
 }
 
 /// `v - v k t`.
-#[cfg(all(test, target_arch = "x86"))] // inlined at its caller; the assembly comparison keeps it
+#[cfg(test)] // inlined at its caller; the frozen comparison keeps it
 pub fn damp(v: u32, k: u32, t: i32) -> u32 {
     bh::st(bh::ld(v) - bh::ld(v) * bh::ld(k) * bh::int(t))
 }
@@ -1827,19 +1788,19 @@ pub fn approach(i: i32, v: impl Flt, k: impl Flt, t: i32) -> (i32, f32) {
 }
 
 /// `a - v t`.
-#[cfg(all(test, target_arch = "x86"))] // inlined at its caller; the assembly comparison keeps it
+#[cfg(test)] // inlined at its caller; the frozen comparison keeps it
 pub fn less_times_int(a: u32, v: u32, t: i32) -> u32 {
     bh::st(bh::ld(a) - bh::ld(v) * bh::int(t))
 }
 
 /// `a + b k` as a whole number.
-#[cfg(all(test, target_arch = "x86"))] // inlined at its caller; the assembly comparison keeps it
+#[cfg(test)] // inlined at its caller; the frozen comparison keeps it
 pub fn plus_product_to_int(a: u32, b: u32, k: u32) -> i32 {
     bh::to_int(bh::ld(a) + bh::ld(b) * bh::ld(k))
 }
 
 /// `i a b` as a whole number.
-#[cfg(all(test, target_arch = "x86"))] // inlined at its caller; the assembly comparison keeps it
+#[cfg(test)] // inlined at its caller; the frozen comparison keeps it
 pub fn int_times_times_to_int(i: i32, a: u32, b: u32) -> i32 {
     bh::to_int(bh::int(i) * bh::ld(a) * bh::ld(b))
 }
@@ -1888,7 +1849,7 @@ pub fn int_over_int_to_int(a: i32, b: i32) -> i32 {
 }
 
 /// `(a + b + c) k`.
-#[cfg(all(test, target_arch = "x86"))] // inlined at its caller; the assembly comparison keeps it
+#[cfg(test)] // inlined at its caller; the frozen comparison keeps it
 pub fn sum3_times(a: u32, b: u32, c: u32, k: u32) -> u32 {
     bh::st((bh::ld(a) + bh::ld(b) + bh::ld(c)) * bh::ld(k))
 }

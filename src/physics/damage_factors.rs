@@ -885,121 +885,56 @@ mod reference_vectors {
 #[cfg(test)]
 mod plain_matches_x87 {
     use super::*;
-    use crate::physics::damage_model::proof::{factors, prove};
+    use crate::physics::damage_model::proof::prove;
 
     #[test]
     fn shares_and_wheels() {
-        prove(
-            "scale_car_figures",
-            |s| factors::scale_car_figures(&s.car, &s.damage),
-            |s| scale_car_figures(&s.car, &s.damage),
-        );
-        prove(
-            "wheel_stiffness_from_share",
-            |s| {
-                let (d, c) = (&s.damage, &s.car);
-                factors::wheel_stiffness_from_share(
-                    d,
-                    &d.wheel_stiffness_lerp[1],
-                    &c.wheel_stiffness[1],
-                );
-            },
-            |s| {
-                let (d, c) = (&s.damage, &s.car);
-                wheel_stiffness_from_share(d, &d.wheel_stiffness_lerp[1], &c.wheel_stiffness[1]);
-            },
-        );
-        prove(
-            "wheel_ride_height_from_share",
-            |s| factors::wheel_ride_height_from_share(&s.damage, &s.car.wheel_ride_height[2]),
-            |s| wheel_ride_height_from_share(&s.damage, &s.car.wheel_ride_height[2]),
-        );
-        prove(
-            "fail_wheel",
-            |s| {
-                factors::fail_wheel(
-                    &s.damage,
-                    &s.car.wheel_stiffness[3],
-                    &s.car.wheel_ride_height[3],
-                );
-            },
-            |s| {
-                fail_wheel(
-                    &s.damage,
-                    &s.car.wheel_stiffness[3],
-                    &s.car.wheel_ride_height[3],
-                );
-            },
-        );
-        prove(
-            "means_and_engine_speed",
-            |s| {
-                // A drive kind is 0 .. 3 (`check_drive`); the reference's float pass would
-                // quiet the NaNs among the other words.
-                s.car.drive_kind.set(s.car.drive_kind.get() & 3);
-                factors::means_and_engine_speed(&s.car, &s.damage);
-            },
-            |s| {
-                s.car.drive_kind.set(s.car.drive_kind.get() & 3);
-                means_and_engine_speed(&s.car, &s.damage);
-            },
-        );
+        prove("scale_car_figures", |s| {
+            scale_car_figures(&s.car, &s.damage);
+        });
+        prove("wheel_stiffness_from_share", |s| {
+            let (d, c) = (&s.damage, &s.car);
+            wheel_stiffness_from_share(d, &d.wheel_stiffness_lerp[1], &c.wheel_stiffness[1]);
+        });
+        prove("wheel_ride_height_from_share", |s| {
+            wheel_ride_height_from_share(&s.damage, &s.car.wheel_ride_height[2]);
+        });
+        prove("fail_wheel", |s| {
+            fail_wheel(
+                &s.damage,
+                &s.car.wheel_stiffness[3],
+                &s.car.wheel_ride_height[3],
+            );
+        });
+        prove("means_and_engine_speed", |s| {
+            s.car.drive_kind.set(s.car.drive_kind.get() & 3);
+            means_and_engine_speed(&s.car, &s.damage);
+        });
     }
 
     #[test]
     fn speed_shares() {
-        prove(
-            "engine_speed_share_step",
-            |s| factors::engine_speed_share_step(&s.car, &s.damage),
-            |s| engine_speed_share_step(&s.car, &s.damage),
-        );
-        prove(
-            "speed_share_step",
-            |s| factors::speed_share_step(&s.car, &s.damage),
-            |s| speed_share_step(&s.car, &s.damage),
-        );
-        prove(
-            "drive_a_slip_step",
-            |s| factors::drive_a_slip_step(&s.car, &s.damage),
-            |s| drive_a_slip_step(&s.car, &s.damage),
-        );
-        prove(
-            "drive_extrapolation_step",
-            |s| {
-                let (c, d) = (&s.car, &s.damage);
-                factors::drive_extrapolation_step(
-                    c,
-                    d,
-                    &d.drive_b_slip_share,
-                    &c.drive_speed_a,
-                    &c.drive_speed_a,
-                );
-            },
-            |s| {
-                let (c, d) = (&s.car, &s.damage);
-                drive_extrapolation_step(
-                    c,
-                    d,
-                    &d.drive_b_slip_share,
-                    &c.drive_speed_a,
-                    &c.drive_speed_a,
-                );
-            },
-        );
+        prove("engine_speed_share_step", |s| {
+            engine_speed_share_step(&s.car, &s.damage);
+        });
+        prove("speed_share_step", |s| speed_share_step(&s.car, &s.damage));
+        prove("drive_a_slip_step", |s| {
+            drive_a_slip_step(&s.car, &s.damage);
+        });
+        prove("drive_extrapolation_step", |s| {
+            let (c, d) = (&s.car, &s.damage);
+            drive_extrapolation_step(
+                c,
+                d,
+                &d.drive_b_slip_share,
+                &c.drive_speed_a,
+                &c.drive_speed_a,
+            );
+        });
         prove(
             "drive_extrapolation_step with a separate carried figure",
             |s| {
                 let (c, d) = (&s.car, &s.damage);
-                factors::drive_extrapolation_step(
-                    c,
-                    d,
-                    &d.drive_a_extrapolated_share,
-                    &c.drive_speed_b,
-                    &c.drive_speed_a,
-                );
-            },
-            |s| {
-                let (c, d) = (&s.car, &s.damage);
                 drive_extrapolation_step(
                     c,
                     d,
@@ -1009,47 +944,22 @@ mod plain_matches_x87 {
                 );
             },
         );
-        prove(
-            "finish_shares",
-            |s| factors::finish_shares(&s.damage),
-            |s| finish_shares(&s.damage),
-        );
-        prove(
-            "brake_share_step",
-            |s| factors::brake_share_step(&s.car, &s.damage),
-            |s| brake_share_step(&s.car, &s.damage),
-        );
+        prove("finish_shares", |s| finish_shares(&s.damage));
+        prove("brake_share_step", |s| brake_share_step(&s.car, &s.damage));
     }
 
     #[test]
     fn engine_limit_hit_and_loads() {
-        prove(
-            "engine_over_limit",
-            |s| {
-                let over = factors::engine_over_limit_status(&s.car, &s.damage) & 0x100 != 0;
-                s.damage.scratch.set_bits(u32::from(over));
-            },
-            |s| {
-                s.damage
-                    .scratch
-                    .set_bits(u32::from(engine_over_limit(&s.car, &s.damage)));
-            },
-        );
-        prove(
-            "hit_size_and_dive",
-            |s| factors::hit_size_and_dive(&s.car, &s.damage),
-            |s| hit_size_and_dive(&s.car, &s.damage),
-        );
-        prove(
-            "square_dive",
-            |s| factors::square_dive(&s.damage),
-            |s| square_dive(&s.damage),
-        );
-        prove(
-            "blend_wheel_loads",
-            |s| factors::blend_wheel_loads(&s.damage),
-            |s| blend_wheel_loads(&s.damage),
-        );
+        prove("engine_over_limit", |s| {
+            s.damage
+                .scratch
+                .set_bits(u32::from(engine_over_limit(&s.car, &s.damage)));
+        });
+        prove("hit_size_and_dive", |s| {
+            hit_size_and_dive(&s.car, &s.damage);
+        });
+        prove("square_dive", |s| square_dive(&s.damage));
+        prove("blend_wheel_loads", |s| blend_wheel_loads(&s.damage));
         // No wheel just landed: the loads are zero, the constants are the model's own.
         let still = |s: &crate::physics::damage_model::proof::State| {
             for load in &s.damage.wheel_loads {
@@ -1058,30 +968,16 @@ mod plain_matches_x87 {
             s.damage.quarter.set(0.25);
             s.damage.half.set(0.5);
         };
-        prove(
-            "blend_wheel_loads at rest",
-            |s| {
-                still(s);
-                factors::blend_wheel_loads(&s.damage);
-            },
-            |s| {
-                still(s);
-                blend_wheel_loads(&s.damage);
-            },
-        );
-        prove(
-            "the touch-down load",
-            |s| {
-                let (c, d) = (&s.car, &s.damage);
-                d.wheel_loads[0].set(crate::math::x87::mul(&c.wheel_squeeze[0], &d.scratch));
-            },
-            |s| {
-                let (c, d) = (&s.car, &s.damage);
-                store(
-                    &d.wheel_loads[0],
-                    value(&c.wheel_squeeze[0]) * value(&d.scratch),
-                );
-            },
-        );
+        prove("blend_wheel_loads at rest", |s| {
+            still(s);
+            blend_wheel_loads(&s.damage);
+        });
+        prove("the touch-down load", |s| {
+            let (c, d) = (&s.car, &s.damage);
+            store(
+                &d.wheel_loads[0],
+                value(&c.wheel_squeeze[0]) * value(&d.scratch),
+            );
+        });
     }
 }

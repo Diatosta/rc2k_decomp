@@ -13,13 +13,12 @@
 //! endian.
 //!
 //! `differential` replays a test over blocks of dwords, `sparse` over a few places of
-//! operand buffers; `Recorder` is the general form. Recording (`record_differential`,
-//! `record_sparse`) needs the reference's instructions and so i686: run the test under Wine
-//! with `RC2K_RECORD_VECTORS=1` and the file is written; without it the recording test checks
-//! the reference against the Rust version and the file.
+//! operand buffers; `Recorder` is the general form. The original's instructions the files
+//! were recorded from are gone from the tests (2026-11-13): the files are replayed only.
+//! (`Recorder::record` still writes a file, with `RC2K_RECORD_VECTORS=1`, from whatever
+//! results its caller gives.)
 
-// reason: the recorders are kept for the blocks still to be recorded (on i686, the ones a
-// module's reference vectors were made with), and each target uses part of the rest.
+// reason: each target uses part of the helpers.
 #![allow(dead_code)]
 
 use crate::math::x87::{control_word, set_control_word};
@@ -397,17 +396,7 @@ pub struct Differential<'a, const N: usize> {
 /// Replays the test's vectors: each block through the Rust version, compared dword by dword
 /// with the reference's results as `kinds` say.
 pub fn differential<const N: usize>(test: Differential<N>) {
-    run_differential(test, Recorder::replay(test.name), None);
-}
-
-/// Records the test's vectors from `reference` (the original's instructions over the
-/// block) when `RC2K_RECORD_VECTORS=1`, then replays them as `differential`.
-#[cfg(target_arch = "x86")]
-pub fn record_differential<const N: usize>(test: Differential<N>, reference: &dyn Fn(*mut u8)) {
-    if recording() {
-        run_differential(test, Recorder::record(test.name), Some(reference));
-    }
-    differential(test);
+    run_differential(test, Recorder::replay(test.name));
 }
 
 impl<const N: usize> Clone for Differential<'_, N> {
@@ -424,9 +413,7 @@ fn bytes_of<const N: usize>(m: &[u32; N]) -> Vec<u8> {
 // The lock (2026-11-13): a replay holds no `test_support::test_lock`: the lock is for the tests
 // that write the game's statics or read their first values, and a replay reaches none. The
 // control word it sets (`set_control_word`) is this thread's: the emulated one is a
-// `thread_local` (`math::x87`), and the x87's own (set beside it in the i686 tests, for the
-// reference assembly) is a thread's register state, saved and restored by the system with
-// the thread. The inputs, the Rust version's operands and the results are the test's own
+// `thread_local` (`math::x87`). The inputs, the Rust version's operands and the results are the test's own
 // buffers; the file is read only. And every caller's Rust version (`plain`) works on its
 // operands only: checked for every caller of `differential` (`input::update_car_effects`,
 // `scene::{add_car_light, clip_asm, cross_product3, face_faces_away, light_dot, matrix3,
@@ -436,14 +423,8 @@ fn bytes_of<const N: usize>(m: &[u32; N]) -> Vec<u8> {
 // no owner, store or other static. A new caller whose Rust version reaches a static needs
 // a locked variant, as `block_vectors::sparse_locked`.
 
-fn run_differential<const N: usize>(
-    test: Differential<N>,
-    mut file: Recorder,
-    reference: Option<&dyn Fn(*mut u8)>,
-) {
-    // No lock when replaying ("The lock" above); recording runs the reference's
-    // instructions, which are not looked at here: it keeps the lock.
-    let _g = reference.map(|_| crate::test_support::test_lock());
+fn run_differential<const N: usize>(test: Differential<N>, mut file: Recorder) {
+    // No lock ("The lock" above).
     let _restore = Restore(control_word());
     let name = test.name;
     let mut rng = Rng::new(test.seed);
@@ -455,11 +436,7 @@ fn run_differential<const N: usize>(
             (test.fill)(&mut rng, &mut input);
             let before = bytes_of(&input);
             file.input(&before);
-            let made = file.results(&before, || {
-                let mut a = input;
-                (reference.expect("a reference to record"))(a.as_mut_ptr().cast());
-                bytes_of(&a)
-            });
+            let made = file.results(&before, || unreachable!("{name}: replayed only"));
             let a: [u32; N] = std::array::from_fn(|k| {
                 u32::from_le_bytes(made[4 * k..4 * k + 4].try_into().unwrap())
             });
@@ -571,9 +548,6 @@ impl<'a> Arg<'a> {
     }
 }
 
-/// A block's original instructions, given its operands (buffer addresses and values).
-pub type Reference = fn(&[usize]);
-
 /// A block of a sparse test: its operands, how many float ulps apart a result may be (a
 /// transcendental's: libm's, not the x87's) and the Rust version.
 pub struct Block {
@@ -638,50 +612,17 @@ pub fn sparse(name: &str, blocks: &[Block], cases: u32, seed: u64) {
 
 /// `sparse` at the control words `words` only.
 pub fn sparse_at(name: &str, blocks: &[Block], cases: u32, seed: u64, words: &[u16]) {
-    run_sparse(Recorder::replay(name), blocks, cases, seed, words, None);
+    run_sparse(Recorder::replay(name), blocks, cases, seed, words);
 }
 
-/// Records the sparse test `name` from `references` (the original's instructions of each
-/// block, given the operands: buffer addresses and values) when `RC2K_RECORD_VECTORS=1`,
-/// then replays it as `sparse_at`.
-#[cfg(target_arch = "x86")]
-pub fn record_sparse_at(
-    name: &str,
-    blocks: &[Block],
-    cases: u32,
-    seed: u64,
-    words: &[u16],
-    references: &[Reference],
-) {
-    if recording() {
-        run_sparse(
-            Recorder::record(name),
-            blocks,
-            cases,
-            seed,
-            words,
-            Some(references),
-        );
-    }
-    sparse_at(name, blocks, cases, seed, words);
-}
-
-fn run_sparse(
-    mut file: Recorder,
-    blocks: &[Block],
-    cases: u32,
-    seed: u64,
-    words: &[u16],
-    references: Option<&[Reference]>,
-) {
-    // As `run_differential`: no lock when replaying ("The lock" above).
-    let _g = references.map(|_| crate::test_support::test_lock());
+fn run_sparse(mut file: Recorder, blocks: &[Block], cases: u32, seed: u64, words: &[u16]) {
+    // As `run_differential`: no lock ("The lock" above).
     let _restore = Restore(control_word());
     let mut rng = Rng::new(seed);
     const SIMPLE: [f32; 5] = [0.0, -0.0, 1.0, -1.0, 0.5];
     for &cw in words {
         set_control_word(cw);
-        for (number, block) in blocks.iter().enumerate() {
+        for block in blocks.iter() {
             let mut buffers: Vec<Vec<u32>> = block
                 .operands
                 .iter()
@@ -767,21 +708,7 @@ fn run_sparse(
                     }
                 }
                 let before = read_out(&buffers);
-                let expected = file.results(&before, || {
-                    let reference = references.expect("references to record")[number];
-                    let mut run = start.clone();
-                    let args: Vec<usize> = block
-                        .operands
-                        .iter()
-                        .zip(run.iter_mut())
-                        .map(|(o, b)| match o {
-                            Operand::Value(v) => *v,
-                            _ => b.as_mut_ptr() as usize,
-                        })
-                        .collect();
-                    reference(&args);
-                    read_out(&run)
-                });
+                let expected = file.results(&before, || unreachable!("replayed only"));
                 let mut run = start;
                 let made = {
                     let args: Vec<Arg> = block

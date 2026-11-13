@@ -6,8 +6,8 @@
 //! float `st`, `fild` is `int`, `fistp` / `fist` `to_int`. The 80-bit values some
 //! functions carry between steps (`[u8; 10]`, the signatures stay) are `X` inside: at
 //! double precision every step's result has 53 bits, so the conversion at the boundary is
-//! exact. The order of the operations is the original's. The assembly versions are the
-//! reference the tests compare with (`x87_reference_c.rs`).
+//! exact. The order of the operations is the original's. Their comparison with the
+//! original's instructions is frozen in `x87_frozen_c.rs`.
 
 use super::{set_chop, set_control};
 use crate::math::x87_float::{ONE, compare, f80, from_f80, int, ld, st, to_int};
@@ -24,12 +24,6 @@ pub fn length_80(v: [u32; 3]) -> [u8; 10] {
 pub fn scale_by_80(v: [u32; 3], s: [u8; 10]) -> [u32; 3] {
     let s = from_f80(s);
     v.map(|part| st(ld(part) * s))
-}
-
-/// `((a + b) h) / d`.
-#[cfg(all(test, target_arch = "x86"))] // inlined at its caller; the assembly comparison keeps it
-pub fn sum_times_over(a: u32, b: u32, h: u32, d: u32) -> u32 {
-    st((ld(a) + ld(b)) * ld(h) / ld(d))
 }
 
 /// `c + (a - c) f + (b - c) g` as a whole number, summed as `(a - c) f + (c + (b - c) g)`.
@@ -87,12 +81,6 @@ pub fn less_plus_less_product_80(a: u32, b: u32, c: Option<u32>, d: u32, e: u32)
     f80(x - ld(d) * ld(e))
 }
 
-/// `((i a) b) / c` as a whole number.
-#[cfg(all(test, target_arch = "x86"))] // inlined at its caller; the assembly comparison keeps it
-pub fn int_times_times_over_to_int(i: i32, a: u32, b: u32, c: u32) -> i32 {
-    to_int(int(i) * ld(a) * ld(b) / ld(c))
-}
-
 /// `(a a k + c) g` and its negative, each rounded to a float.
 pub fn square_times_plus_times(a: u32, k: u32, c: u32, g: u32) -> (u32, u32) {
     let x = (ld(a) * ld(a) * ld(k) + ld(c)) * ld(g);
@@ -136,21 +124,9 @@ pub fn ramp(x: u32, t: [u32; 4], zero: u32) -> u32 {
     st((ld(x) - ld(t[0])) / span * (ld(t[3]) - ld(t[1])) + ld(t[1]))
 }
 
-/// `((a b) c) d`, rounded once.
-#[cfg(all(test, target_arch = "x86"))] // inlined at its caller; the assembly comparison keeps it
-pub fn mul3(a: u32, b: u32, c: u32, d: u32) -> u32 {
-    st(ld(a) * ld(b) * ld(c) * ld(d))
-}
-
 /// `lo + (i / d) (hi - lo)`, the products in that order.
 pub fn int_lerp(i: i32, d: u32, hi: u32, lo: u32) -> u32 {
     st(int(i) / ld(d) * (ld(hi) - ld(lo)) + ld(lo))
-}
-
-/// `(a - b) / c` as a whole number.
-#[cfg(all(test, target_arch = "x86"))] // inlined at its caller; the assembly comparison keeps it
-pub fn sub_div_to_int(a: u32, b: u32, c: u32) -> i32 {
-    to_int((ld(a) - ld(b)) / ld(c))
 }
 
 /// A whole number as an 80-bit value; with `negate`, its negative.
@@ -162,12 +138,6 @@ pub fn int_80(a: i32, negate: bool) -> [u8; 10] {
 /// The 80-bit `e` as a whole number.
 pub fn ext_to_int(e: [u8; 10]) -> i32 {
     to_int(from_f80(e))
-}
-
-/// `a / b + c`.
-#[cfg(all(test, target_arch = "x86"))] // inlined at its caller; the assembly comparison keeps it
-pub fn int_over_int_plus(a: i32, b: i32, c: u32) -> u32 {
-    st(int(a) / int(b) + ld(c))
 }
 
 /// (sine, cosine) of the float `a`, rounded to floats (`fsincos`: libm's `sin` / `cos`
@@ -187,27 +157,9 @@ pub fn abs_sqrt_times_plus(x: u32, t: u32, c: u32) -> u32 {
     st(ld(x).abs().sqrt() * ld(t) + ld(c))
 }
 
-/// `(a + b) + c`.
-#[cfg(all(test, target_arch = "x86"))] // inlined at its caller; the assembly comparison keeps it
-pub fn add3(a: u32, b: u32, c: u32) -> u32 {
-    st(ld(a) + ld(b) + ld(c))
-}
-
 /// `(a b) c` as a whole number.
 pub fn mul2_to_int(a: u32, b: u32, c: u32) -> i32 {
     to_int(ld(a) * ld(b) * ld(c))
-}
-
-/// `c` less `a b`.
-#[cfg(all(test, target_arch = "x86"))] // inlined at its caller; the assembly comparison keeps it
-pub fn neg_product_plus(a: u32, b: u32, c: u32) -> u32 {
-    st(-(ld(a) * ld(b)) + ld(c))
-}
-
-/// `-(a b)`.
-#[cfg(all(test, target_arch = "x86"))] // replaced by `negated` of the plain step; the assembly comparison keeps it
-pub fn neg_mul(a: u32, b: u32) -> u32 {
-    st(-(ld(a) * ld(b)))
 }
 
 /// The compare of `|a|` with `b`: C0 .. C3 (0x4700).
@@ -355,23 +307,11 @@ pub fn lever_share(a: u32, d: u32, b: u32, c: u32, zero: u32) -> (u32, bool) {
     }
 }
 
-/// `-((a b) c)`.
-#[cfg(all(test, target_arch = "x86"))] // replaced by `negated` of the plain step; the assembly comparison keeps it
-pub fn neg_mul2(a: u32, b: u32, c: u32) -> u32 {
-    st(-(ld(a) * ld(b) * ld(c)))
-}
-
 /// `(((a - b) + c) + (x - d) e) f` as a whole number (`v` = a, b, c, x, d, e, f).
 pub fn wheel_int(v: [u32; 7]) -> i32 {
     let p = ld(v[0]) - ld(v[1]) + ld(v[2]);
     let q = (ld(v[3]) - ld(v[4])) * ld(v[5]);
     to_int((p + q) * ld(v[6]))
-}
-
-/// `(((|x| / a) + b) c)`.
-#[cfg(all(test, target_arch = "x86"))] // inlined at its caller; the assembly comparison keeps it
-pub fn abs_div_add_mul(x: u32, a: u32, b: u32, c: u32) -> u32 {
-    st((ld(x).abs() / ld(a) + ld(b)) * ld(c))
 }
 
 /// `(a b) c + d`.
@@ -387,12 +327,6 @@ pub fn over_abs_plus_minus(a: u32, s: u32, b: u32, c: u32) -> u32 {
 /// `a - b` of two whole numbers as an 80-bit value: exact.
 pub fn ints_diff_80(a: i32, b: i32) -> [u8; 10] {
     f80(int(a) - int(b))
-}
-
-/// `|x| / n`, as a float.
-#[cfg(all(test, target_arch = "x86"))] // inlined at its caller; the assembly comparison keeps it
-pub fn abs_fidiv(x: u32, n: i32) -> u32 {
-    st(ld(x).abs() / int(n))
 }
 
 /// `(a - b) c + d`.
@@ -423,12 +357,6 @@ pub fn trunc_mul_to_int(a: u32, b: u32) -> i32 {
 /// c0`.
 pub fn lerp_table(s: u32, a0: u32, a1: u32, c0: u32, c1: u32) -> u32 {
     st((ld(s) - ld(a0)) / (ld(a1) - ld(a0)) * (ld(c1) - ld(c0)) + ld(c0))
-}
-
-/// `(a / b) c`.
-#[cfg(all(test, target_arch = "x86"))] // inlined at its caller; the assembly comparison keeps it
-pub fn div_then_mul(a: u32, b: u32, c: u32) -> u32 {
-    st(ld(a) / ld(b) * ld(c))
 }
 
 /// `((a + b) n) / k - b`.

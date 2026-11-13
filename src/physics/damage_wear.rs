@@ -676,7 +676,7 @@ mod reference_vectors {
 #[cfg(test)]
 mod plain_matches_x87 {
     use super::*;
-    use crate::physics::damage_model::proof::{State, prove, wear};
+    use crate::physics::damage_model::proof::{State, prove};
 
     fn d(s: &State) -> &DamageModel {
         &s.damage
@@ -684,86 +684,38 @@ mod plain_matches_x87 {
 
     #[test]
     fn wear_additions_and_subtractions() {
-        prove(
-            "add_wear",
-            |s| {
-                let (d, g) = (&s.damage, &s.car.brake_heat[0]);
-                wear::add_wear(d, &d.wear_rates[3], &d.brake_share, g, g);
-            },
-            |s| {
-                let (d, g) = (&s.damage, &s.car.brake_heat[0]);
-                add_wear(d, &d.wear_rates[3], &d.brake_share, g, g);
-            },
-        );
-        prove(
-            "add_wear into another cell",
-            |s| {
-                let d = &s.damage;
-                let from = &s.car.engine_heat;
-                wear::add_wear(d, &d.wear_rates[0], &d.overheat_excess, from, &d.scratch);
-            },
-            |s| {
-                let d = &s.damage;
-                let from = &s.car.engine_heat;
-                add_wear(d, &d.wear_rates[0], &d.overheat_excess, from, &d.scratch);
-            },
-        );
-        prove(
-            "subtract_rate",
-            |s| {
-                let (d, g) = (&s.damage, &s.car.engine_heat);
-                wear::subtract_rate(d, &d.wear_rates[1], g, g);
-            },
-            |s| {
-                let (d, g) = (&s.damage, &s.car.engine_heat);
-                subtract_rate(d, &d.wear_rates[1], g, g);
-            },
-        );
-        prove(
-            "subtract_wear",
-            |s| {
-                let (d, g) = (&s.damage, &s.car.brake_fade);
-                wear::subtract_wear(d, &d.wear_rates[9], &d.brake_share, g, g);
-            },
-            |s| {
-                let (d, g) = (&s.damage, &s.car.brake_fade);
-                subtract_wear(d, &d.wear_rates[9], &d.brake_share, g, g);
-            },
-        );
+        prove("add_wear", |s| {
+            let (d, g) = (&s.damage, &s.car.brake_heat[0]);
+            add_wear(d, &d.wear_rates[3], &d.brake_share, g, g);
+        });
+        prove("add_wear into another cell", |s| {
+            let d = &s.damage;
+            let from = &s.car.engine_heat;
+            add_wear(d, &d.wear_rates[0], &d.overheat_excess, from, &d.scratch);
+        });
+        prove("subtract_rate", |s| {
+            let (d, g) = (&s.damage, &s.car.engine_heat);
+            subtract_rate(d, &d.wear_rates[1], g, g);
+        });
+        prove("subtract_wear", |s| {
+            let (d, g) = (&s.damage, &s.car.brake_fade);
+            subtract_wear(d, &d.wear_rates[9], &d.brake_share, g, g);
+        });
     }
 
     #[test]
     fn gap_square_and_figures() {
-        prove(
-            "lerp_gap",
-            |s| wear::lerp_gap(&s.damage),
-            |s| lerp_gap(&s.damage),
-        );
-        prove(
-            "square_into",
-            |s| wear::square_into(&d(s).stiffness_body_factor, &d(s).stiffness_body_factor),
-            |s| square_into(&d(s).stiffness_body_factor, &d(s).stiffness_body_factor),
-        );
-        prove(
-            "square_into another cell",
-            |s| wear::square_into(&d(s).stiffness_body_factor, &d(s).scratch),
-            |s| square_into(&d(s).stiffness_body_factor, &d(s).scratch),
-        );
-        prove(
-            "hit_figures",
-            |s| wear::hit_figures(&s.damage),
-            |s| hit_figures(&s.damage),
-        );
-        prove(
-            "blend_wear_figures",
-            |s| {
-                let (f, g) = (s.damage.figures[1].bits(), s.damage.figures[2].bits());
-                wear::blend_wear_figures(f, &s.damage, g);
-            },
-            |s| {
-                let (f, g) = (s.damage.figures[1].bits(), s.damage.figures[2].bits());
-                blend_wear_figures(f as i32, &s.damage, g as i32);
-            },
-        );
+        prove("lerp_gap", |s| lerp_gap(&s.damage));
+        prove("square_into", |s| {
+            square_into(&d(s).stiffness_body_factor, &d(s).stiffness_body_factor);
+        });
+        prove("square_into another cell", |s| {
+            square_into(&d(s).stiffness_body_factor, &d(s).scratch);
+        });
+        prove("hit_figures", |s| hit_figures(&s.damage));
+        prove("blend_wear_figures", |s| {
+            let (f, g) = (s.damage.figures[1].bits(), s.damage.figures[2].bits());
+            blend_wear_figures(f as i32, &s.damage, g as i32);
+        });
     }
 }

@@ -6,8 +6,8 @@
 //! float `st`, `fild` is `int`, `fistp` / `fist` `to_int`. The 80-bit values some
 //! functions carry between steps (`[u8; 10]`, the signatures stay) are `X` inside: at
 //! double precision every step's result has 53 bits, so the conversion at the boundary is
-//! exact. The order of the operations is the original's. The assembly versions are the
-//! reference the tests compare with (`x87_reference_c.rs`).
+//! exact. The order of the operations is the original's. Their comparison with the
+//! original's instructions is frozen in `x87_frozen_c.rs`.
 
 use super::{Flt, out, set_chop, set_control};
 use crate::math::x87_float::{ONE, compare, f80, from_f80, int, ld, st, to_int};
@@ -27,7 +27,7 @@ pub fn scale_by_80(v: [u32; 3], s: [u8; 10]) -> [u32; 3] {
 }
 
 /// `((a + b) h) / d`.
-#[cfg(all(test, target_arch = "x86"))] // inlined at its caller; the assembly comparison keeps it
+#[cfg(test)] // inlined at its caller; the frozen comparison keeps it
 pub fn sum_times_over(a: u32, b: u32, h: u32, d: u32) -> u32 {
     st((ld(a) + ld(b)) * ld(h) / ld(d))
 }
@@ -146,7 +146,7 @@ pub fn less_plus_less_product_80(
 }
 
 /// `((i a) b) / c` as a whole number.
-#[cfg(all(test, target_arch = "x86"))] // inlined at its caller; the assembly comparison keeps it
+#[cfg(test)] // inlined at its caller; the frozen comparison keeps it
 pub fn int_times_times_over_to_int(i: i32, a: u32, b: u32, c: u32) -> i32 {
     to_int(int(i) * ld(a) * ld(b) / ld(c))
 }
@@ -205,7 +205,7 @@ pub fn ramp<T: Flt>(x: impl Flt, t: [T; 4], zero: impl Flt) -> f32 {
 }
 
 /// `((a b) c) d`, rounded once.
-#[cfg(all(test, target_arch = "x86"))] // inlined at its caller; the assembly comparison keeps it
+#[cfg(test)] // inlined at its caller; the frozen comparison keeps it
 pub fn mul3(a: u32, b: u32, c: u32, d: u32) -> u32 {
     st(ld(a) * ld(b) * ld(c) * ld(d))
 }
@@ -219,7 +219,7 @@ pub fn int_lerp(i: i32, d: impl Flt, hi: impl Flt, lo: impl Flt) -> f32 {
 }
 
 /// `(a - b) / c` as a whole number.
-#[cfg(all(test, target_arch = "x86"))] // inlined at its caller; the assembly comparison keeps it
+#[cfg(test)] // inlined at its caller; the frozen comparison keeps it
 pub fn sub_div_to_int(a: u32, b: u32, c: u32) -> i32 {
     to_int((ld(a) - ld(b)) / ld(c))
 }
@@ -236,7 +236,7 @@ pub fn ext_to_int(e: [u8; 10]) -> i32 {
 }
 
 /// `a / b + c`.
-#[cfg(all(test, target_arch = "x86"))] // inlined at its caller; the assembly comparison keeps it
+#[cfg(test)] // inlined at its caller; the frozen comparison keeps it
 pub fn int_over_int_plus(a: i32, b: i32, c: u32) -> u32 {
     st(int(a) / int(b) + ld(c))
 }
@@ -264,7 +264,7 @@ pub fn abs_sqrt_times_plus(x: impl Flt, t: impl Flt, c: impl Flt) -> f32 {
 }
 
 /// `(a + b) + c`.
-#[cfg(all(test, target_arch = "x86"))] // inlined at its caller; the assembly comparison keeps it
+#[cfg(test)] // inlined at its caller; the frozen comparison keeps it
 pub fn add3(a: u32, b: u32, c: u32) -> u32 {
     st(ld(a) + ld(b) + ld(c))
 }
@@ -278,13 +278,13 @@ pub fn mul2_to_int(a: impl Flt, b: impl Flt, c: impl Flt) -> i32 {
 }
 
 /// `c` less `a b`.
-#[cfg(all(test, target_arch = "x86"))] // inlined at its caller; the assembly comparison keeps it
+#[cfg(test)] // inlined at its caller; the frozen comparison keeps it
 pub fn neg_product_plus(a: u32, b: u32, c: u32) -> u32 {
     st(-(ld(a) * ld(b)) + ld(c))
 }
 
 /// `-(a b)`.
-#[cfg(all(test, target_arch = "x86"))] // replaced by `negated` of the plain step; the assembly comparison keeps it
+#[cfg(test)] // replaced by `negated` of the plain step; the frozen comparison keeps it
 pub fn neg_mul(a: u32, b: u32) -> u32 {
     st(-(ld(a) * ld(b)))
 }
@@ -500,7 +500,7 @@ pub fn lever_share(
 }
 
 /// `-((a b) c)`.
-#[cfg(all(test, target_arch = "x86"))] // replaced by `negated` of the plain step; the assembly comparison keeps it
+#[cfg(test)] // replaced by `negated` of the plain step; the frozen comparison keeps it
 pub fn neg_mul2(a: u32, b: u32, c: u32) -> u32 {
     st(-(ld(a) * ld(b) * ld(c)))
 }
@@ -514,7 +514,7 @@ pub fn wheel_int<T: Flt>(v: [T; 7]) -> i32 {
 }
 
 /// `(((|x| / a) + b) c)`.
-#[cfg(all(test, target_arch = "x86"))] // inlined at its caller; the assembly comparison keeps it
+#[cfg(test)] // inlined at its caller; the frozen comparison keeps it
 pub fn abs_div_add_mul(x: u32, a: u32, b: u32, c: u32) -> u32 {
     st((ld(x).abs() / ld(a) + ld(b)) * ld(c))
 }
@@ -543,7 +543,7 @@ pub fn ints_diff_80(a: i32, b: i32) -> [u8; 10] {
 }
 
 /// `|x| / n`, as a float.
-#[cfg(all(test, target_arch = "x86"))] // inlined at its caller; the assembly comparison keeps it
+#[cfg(test)] // inlined at its caller; the frozen comparison keeps it
 pub fn abs_fidiv(x: u32, n: i32) -> u32 {
     st(ld(x).abs() / int(n))
 }
@@ -597,7 +597,7 @@ pub fn lerp_table(s: impl Flt, a0: impl Flt, a1: impl Flt, c0: impl Flt, c1: imp
 }
 
 /// `(a / b) c`.
-#[cfg(all(test, target_arch = "x86"))] // inlined at its caller; the assembly comparison keeps it
+#[cfg(test)] // inlined at its caller; the frozen comparison keeps it
 pub fn div_then_mul(a: u32, b: u32, c: u32) -> u32 {
     st(ld(a) / ld(b) * ld(c))
 }

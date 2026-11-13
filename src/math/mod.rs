@@ -13,6 +13,12 @@ pub mod stir_random;
 pub mod x87;
 pub(crate) mod x87_float;
 #[cfg(test)]
+mod x87_frozen_a;
+#[cfg(test)]
+mod x87_frozen_b;
+#[cfg(test)]
+mod x87_frozen_c;
+#[cfg(test)]
 mod x87_merged_tests;
 #[cfg(test)]
 #[allow(
@@ -20,24 +26,6 @@ mod x87_merged_tests;
     reason = "the comparison test calls only the helpers that changed"
 )]
 mod x87_old;
-#[cfg(all(test, target_arch = "x86"))]
-#[allow(
-    clippy::undocumented_unsafe_blocks,
-    reason = "the original's instructions as a test oracle"
-)]
-mod x87_reference_a;
-#[cfg(all(test, target_arch = "x86"))]
-#[allow(
-    clippy::undocumented_unsafe_blocks,
-    reason = "the original's instructions as a test oracle"
-)]
-mod x87_reference_b;
-#[cfg(all(test, target_arch = "x86"))]
-#[allow(
-    clippy::undocumented_unsafe_blocks,
-    reason = "the original's instructions as a test oracle"
-)]
-mod x87_reference_c;
 #[cfg(test)]
 mod x87_results_tests;
 #[cfg(test)]

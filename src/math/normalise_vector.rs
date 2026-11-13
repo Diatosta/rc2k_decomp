@@ -108,37 +108,16 @@ pub fn normalise(
 
 #[cfg(test)]
 mod tests {
-    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    use crate::test_support::frozen::{Canon, Digest, check_one};
+
+    /// The SSE path (`sse_normalise`: `mulps`, `rsqrtss`, `rcpss` from the tables of
+    /// `arch`) over seeded vectors. Until 2026-11-13 it was compared with the original's
+    /// instructions run on the processor (where its estimates are the tables'); the last
+    /// run passed, and the results' hash is kept.
     #[test]
-    fn the_sse_path_equals_the_instructions() {
-        if !crate::arch::estimates_are_the_processors() {
-            eprintln!("SKIPPED: this processor's rsqrtss / rcpss are not the tables'");
-            return;
-        }
-        fn by_instructions(w: &mut [u32; 9]) {
-            // SAFETY: reads and writes only `w`'s 36 bytes and the three xmm registers named.
-            unsafe {
-                core::arch::asm!(
-                    "movups xmm0, [{w}]",
-                    "mulps xmm0, xmm0",
-                    "movups [{w} + 16], xmm0",
-                    "addss xmm0, dword ptr [{w} + 20]",
-                    "addss xmm0, dword ptr [{w} + 24]",
-                    "rsqrtss xmm0, xmm0",
-                    "movaps xmm1, xmm0",
-                    "rcpss xmm1, xmm1",
-                    "shufps xmm0, xmm0, 0",
-                    "movss dword ptr [{w} + 32], xmm1",
-                    "movups xmm2, [{w}]",
-                    "mulps xmm0, xmm2",
-                    "movups [{w}], xmm0",
-                    w = in(reg) w.as_mut_ptr(),
-                    out("xmm0") _, out("xmm1") _, out("xmm2") _,
-                    options(nostack),
-                );
-            }
-        }
+    fn the_sse_path_as_the_instructions_gave() {
         let mut x = 0x9E37_79B9u32;
+        let mut digest = Digest::default();
         for _ in 0..200_000 {
             let mut next = || {
                 x ^= x << 13;
@@ -148,9 +127,11 @@ mod tests {
             };
             let scale = |r: u32| (r as i32 as f32 / 2.0f32.powi(31) * 500.0).to_bits();
             let v = [scale(next()), scale(next()), scale(next()), next()];
-            let mut w = [v[0], v[1], v[2], v[3], 0, 0, 0, 0, 0];
-            by_instructions(&mut w);
-            assert_eq!(super::sse_normalise(v), [w[0], w[1], w[2], w[3]], "{v:x?}");
+            super::sse_normalise(v).feed(&mut digest);
         }
+        check_one("normalise_vector", "sse_normalise", digest, FROZEN);
     }
+
+    /// The results' hash, frozen on 2026-11-13 (`RC2K_FREEZE_OUT` to make it again).
+    const FROZEN: &[(&str, u64)] = &[("normalise_vector::sse_normalise", 0x9e32f6b98da9268e)];
 }
