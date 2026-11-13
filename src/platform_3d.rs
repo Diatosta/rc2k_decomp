@@ -268,7 +268,7 @@ fn draw_noted(part: &crate::workers::PartScratch, pending: &mut Pending) {
     }
     crate::render::dump::dump_if_asked(&commands, &target);
     crate::render::dump::hash_if_asked(&commands, crate::workers::in_race(part));
-    let (width, height, _) = target_size();
+    let (width, height, _) = screen_figures(part);
     let screen = (width as usize, height as usize);
     crate::render::draw(crate::workers::in_race(part), screen, &target, commands);
 }
@@ -309,40 +309,40 @@ fn reads_texture(pixels: TextureId) -> bool {
     game_part().noted.lock().textures.contains(&pixels)
 }
 
-/// The screen's width, height and bits per pixel as the noted drawing is made for it: set
-/// where the game sets the screen mode (`set_target_size`, game thread, outside a drawing
-/// scope), read by every drawing part. Atomic: the screen's own store is lent to the parts
-/// only as the game's figures (`workers::DrawReads::screen`), and a noted fan needs these
-/// from `PartScratch` alone.
-static TARGET_SIZE: [std::sync::atomic::AtomicU32; 3] =
-    [const { std::sync::atomic::AtomicU32::new(0) }; 3];
-
-/// The screen mode has been set: the noted drawing is for a screen of `width` x `height`
-/// pixels of `bits` bits.
-pub fn set_target_size(width: u32, height: u32, bits: u32) {
-    for (cell, v) in TARGET_SIZE.iter().zip([width, height, bits]) {
-        cell.store(v, std::sync::atomic::Ordering::Relaxed);
+/// The screen's width, height and bits per pixel as part `part`'s drawing reads them: inside a
+/// drawing scope the copy `workers::draw_parts` took when the scope opened (the screen's own
+/// store is lent to the parts only as the game's figures), outside one the store (on the
+/// game's thread; a screen mode is set between drawings).
+fn screen_figures(part: &crate::workers::PartScratch) -> (u32, u32, u32) {
+    if crate::workers::in_scope() {
+        let [width, height, bits] = part
+            .screen_size
+            .each_ref()
+            .map(crate::session::PlainDword::get);
+        (width, height, bits)
+    } else {
+        // m6-root: read by the drawing workers' platform callback.
+        figures_of(crate::system::owner::system().session.screen.get())
     }
 }
 
-fn target_size() -> (u32, u32, u32) {
-    let [w, h, b] =
-        std::array::from_fn(|n| TARGET_SIZE[n].load(std::sync::atomic::Ordering::Relaxed));
-    (w, h, b)
+/// `screen`'s width, height and bits per pixel.
+fn figures_of(screen: &crate::session::Screen) -> (u32, u32, u32) {
+    (screen.width.get(), screen.height.get(), screen.bits.get())
 }
 
-/// The screen as the game has it now.
-pub fn screen() -> Option<Target> {
+/// The screen as the game has it now, with the figures of `screen` (the game's thread, outside
+/// a drawing scope).
+pub fn screen(screen: &crate::session::Screen) -> Option<Target> {
     let pixels = crate::gfx::owner::draw_surface().present_pixels.get();
     crate::gfx::locked_pixels::bytes_of(pixels)?;
-    Some(screen_of(pixels))
+    Some(screen_of(pixels, figures_of(screen)))
 }
 
 /// The screen whose pixels are `pixels`, a handle that names bytes.
-fn screen_of(pixels: u32) -> Target {
+fn screen_of(pixels: u32, (width, height, bits): (u32, u32, u32)) -> Target {
     // The renderers draw on the bytes where they lie.
     let surface = crate::gfx::owner::draw_surface();
-    let (width, height, bits) = target_size();
     Target {
         pixels,
         pitch: surface.present_pitch.get() as usize,
@@ -362,7 +362,7 @@ fn note(part: &crate::workers::PartScratch, what: impl FnOnce(&mut Pending)) {
         if !pending.screen_pixels.has_bytes(pixels) {
             return;
         }
-        let into = screen_of(pixels);
+        let into = screen_of(pixels, screen_figures(part));
         if pending.into.is_some_and(|i| i != into) {
             draw_noted(part, pending);
         }
@@ -553,15 +553,15 @@ fn format_at(format: u32) -> TextureFormat {
 /// rectangles does it: stretched to the texture's size, each texel the screen's pixel at
 /// its place scaled (nearest), in the texture's format (its alpha full). For
 /// `d3d::copy_screen_to_texture` (the mirror's picture).
-pub fn copy_screen_to_system_texture(number: u32) {
+pub fn copy_screen_to_system_texture(number: u32, figures: &crate::session::Screen) {
     flush();
-    if let Some(screen) = screen() {
+    if let Some(screen) = screen(figures) {
         crate::render::bring_back(&screen);
     }
     if number >= MOST {
         return;
     }
-    let Some(screen) = screen() else {
+    let Some(screen) = screen(figures) else {
         return;
     };
     let record = record_at(0, number).get();

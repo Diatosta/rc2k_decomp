@@ -141,7 +141,11 @@ fn view_rest(
         crate::debug::imgui_sdl::view_drawn(&o.race.frame);
     }
     if blit {
-        crate::d3d::copy_screen_to_texture::copy_screen_to_texture(&o.race.frame, o.scene);
+        crate::d3d::copy_screen_to_texture::copy_screen_to_texture(
+            &o.race.frame,
+            o.scene,
+            o.system.session.screen.get(),
+        );
     }
     let ctx = crate::race::view_scratch::DrawCtx::new(
         o.race,

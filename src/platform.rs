@@ -147,7 +147,6 @@ fn set_screen_mode(
         .row_dwords
         .set((bytes * width) >> 2);
     system.session.screen.get().kind.set(kind);
-    crate::platform_3d::set_target_size(width, height, bits);
     // The z-buffer's depth, which the original picks by the 3D device: none here.
     system.session.screen.get().depth_bits.set(0x10u32);
 
@@ -423,7 +422,7 @@ fn show_frame(o: &crate::owners::Owners<'static>, screen: &Screen) -> Result<(),
     {
         // The framebuffer's mode first, its memory then the GPU's or ours.
         crate::handheld::open_screen()?;
-        if let Some(target) = crate::platform_3d::screen()
+        if let Some(target) = crate::platform_3d::screen(o.system.session.screen.get())
             && crate::render::show_on_panel(
                 &race.course,
                 &target,
@@ -442,7 +441,7 @@ fn show_frame(o: &crate::owners::Owners<'static>, screen: &Screen) -> Result<(),
     {
         let renderer = screen.renderer;
         // A race on the GPU: its picture, the canvas's written pixels over it.
-        let gpu_view = crate::platform_3d::screen()
+        let gpu_view = crate::platform_3d::screen(o.system.session.screen.get())
             .and_then(|target| crate::render::finish_frame(&race.course, &target))
             .map(|colour| make_view(renderer, colour, screen.width, screen.height))
             .is_some();
@@ -512,7 +511,7 @@ pub fn show_frame_now(o: crate::owners::Owners<'static>) -> bool {
         }
         #[cfg(feature = "remote")]
         if crate::remote::shot_wanted()
-            && let Some(target) = crate::platform_3d::screen()
+            && let Some(target) = crate::platform_3d::screen(o.system.session.screen.get())
         {
             crate::render::bring_back(&target);
         }
@@ -547,7 +546,7 @@ pub fn show_frame_now(o: crate::owners::Owners<'static>) -> bool {
             let shown = SHOWN.fetch_add(1, Ordering::SeqCst) + 1;
             let wanted = FRAMES_TO_SHOW.load(Ordering::SeqCst);
             if wanted != 0 && shown == wanted {
-                if let Some(target) = crate::platform_3d::screen() {
+                if let Some(target) = crate::platform_3d::screen(o.system.session.screen.get()) {
                     crate::render::bring_back(&target);
                 }
                 let _ = std::fs::write("rc2k_frame.raw", screen.pixels.to_vec());

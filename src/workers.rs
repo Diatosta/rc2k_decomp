@@ -71,6 +71,10 @@ pub struct PartScratch {
     /// drawing scope read it, set from the store before the scope opens (`draw_parts`): the
     /// GPU draws only then. Read through `in_race`.
     pub in_race: crate::session::PlainFlag,
+    /// The screen's width, height and bits per pixel (`session::Screen`) as the parts of a
+    /// drawing scope read them for the noted drawing, set from the store before the scope
+    /// opens (`draw_parts`), as `in_race` is. Read by `platform_3d`.
+    pub screen_size: [crate::session::PlainDword; 3],
 }
 
 impl PartScratch {
@@ -92,6 +96,7 @@ impl PartScratch {
             run: crate::d3d::run_states::OwnRun::new(),
             noted: crate::platform_3d::Noted::new(),
             in_race: crate::session::PlainFlag::new(false),
+            screen_size: [const { crate::session::PlainDword::new(0) }; 3],
         }
     }
 }
@@ -747,8 +752,14 @@ fn draw_parts(
     // r40course
     // Whether a race is on, as the parts' noted drawing reads it inside the scope (`in_race`).
     let racing = owners.race.course.numbers.get().in_race.is_set();
+    let screen = owners.system.session.screen.get();
+    let screen_size = [screen.width.get(), screen.height.get(), screen.bits.get()];
     for scratch in &PARTS {
-        scratch.on_game_thread().in_race.set(racing);
+        let scratch = scratch.on_game_thread();
+        scratch.in_race.set(racing);
+        for (cell, figure) in scratch.screen_size.iter().zip(screen_size) {
+            cell.set(figure);
+        }
     }
     // end r40course
     // The parts are drawn from here until every one has ended: the class D stores lent.
@@ -965,6 +976,7 @@ struct AsideStart {
     columns: Option<crate::scene::view_matrices::Columns>,
     control: u16,
     in_race: bool,
+    screen_size: [u32; 3],
 }
 
 /// What a piece drawn aside left: its result, its noted drawing (its fans before its own
@@ -985,6 +997,9 @@ fn run_aside(
 ) -> AsideRun {
     scratch.points.begin_run(start.point_count);
     scratch.in_race.set(start.in_race);
+    for (cell, figure) in scratch.screen_size.iter().zip(start.screen_size) {
+        cell.set(figure);
+    }
     crate::math::x87::set_control_word(start.control);
     crate::d3d::run_states::begin_run(scratch, &start.cache);
     crate::scene::view_matrices::set_part_columns(scratch, start.columns);
@@ -1125,6 +1140,10 @@ pub fn draw_aside<'a, R>(
         columns: crate::scene::view_matrices::part_columns(part),
         control: crate::math::x87::control_word(),
         in_race: part.in_race.is_set(),
+        screen_size: part
+            .screen_size
+            .each_ref()
+            .map(crate::session::PlainDword::get),
     };
     set_aside_turn(false);
     let Some(pool) = helper.pool else {
