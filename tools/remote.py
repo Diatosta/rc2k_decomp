@@ -11,6 +11,11 @@
     remote.py shot name                  the next frame to <folder>/shots/name.png
     remote.py time n                     the arcade's countdown set to n
     remote.py state                      frames, race flag, menu, item, speed, time, place, cars
+    remote.py wait COND.. [secs]         polls state until every COND holds (menu!=Some(MenuId(5)), item=3,
+                                         race=1, screen_frames>=20; ops = != >= <= > < ; default 10 s);
+                                         exit 0 when met, 1 with the last state on timeout
+    remote.py press KEY [secs]           a key press, then waits (default 5 s) for menu / item / race to change
+                                         and the new screen to draw SETTLE frames; exit 1 when nothing changed
     remote.py pilot seconds              the game's computer driver drives the player's car, with a trace
     remote.py drive on|off               the game's computer driver at the player's wheel, or not
     remote.py log [n]                    the game's log, last n lines
@@ -252,7 +257,9 @@ def stop():
                 'kill -CONT $(cat /tmp/rc2k_paused)')
     else:
         put_cmd('0 quit')
-        time.sleep(3)
+        end = time.time() + 3  # up to 3 s for it to quit by itself
+        while time.time() < end and running():
+            time.sleep(0.05)
         try:
             pid = int(open(HOME + '/pid').read())
             found = process(pid)
@@ -288,6 +295,66 @@ def pilot(seconds):
         ask('drive off')
 
 
+def fields_of(text):
+    return dict(f.split('=', 1) for f in text.split() if '=' in f)
+
+
+def holds(fields, cond):
+    for op in ('!=', '>=', '<=', '=', '>', '<'):
+        if op in cond:
+            name, want = cond.split(op, 1)
+            break
+    else:
+        sys.exit(f'wait: no operator in "{cond}"')
+    have = fields.get(name)
+    if have is None:
+        return False
+    if op in ('=', '!='):
+        return (have == want) == (op == '=')
+    try:
+        a, b = float(have), float(want)
+    except ValueError:
+        return False
+    return {'>=': a >= b, '<=': a <= b, '>': a > b, '<': a < b}[op]
+
+
+def wait(conds, seconds):
+    """Polls `state` (every 50 ms) until every condition holds; returns the state, or None on
+    timeout (the last state is printed to stderr)."""
+    end = time.time() + seconds
+    while True:
+        text = ask('state')
+        fields = fields_of(text)
+        if all(holds(fields, c) for c in conds):
+            return text
+        if time.time() >= end:
+            print('wait: timed out at', text[:120], file=sys.stderr)
+            return None
+        time.sleep(0.05)
+
+
+# Frames a screen has drawn before it takes keys (the menus may ignore keys during a fade).
+SETTLE = int(os.environ.get('RC2K_SETTLE', '8'))
+
+
+def press(name, seconds, ms='100'):
+    """A key, then until the screen reports another menu, item or race flag and has drawn SETTLE
+    frames; True when it changed (a key the game ignores waits the whole time)."""
+    before = fields_of(ask('state'))
+    ask(f'key {name} {ms}')
+    end = time.time() + seconds
+    changed = False
+    while time.time() < end:
+        now = fields_of(ask('state'))
+        if any(now.get(k) != before.get(k) for k in ('menu', 'item', 'race')):
+            changed = True
+            if int(now.get('screen_frames', 0)) >= SETTLE:
+                break
+        time.sleep(0.05)
+    print(ask('state')[:60])
+    return changed
+
+
 def log(lines):
     if HOST:
         text = ssh(f'tail -n {lines} {DEVICE_GAME}/rc2k.log').stdout.decode(errors='replace')
@@ -313,6 +380,13 @@ def main():
         pilot(float(rest[0]))
     elif command == 'drive' and rest in (['on'], ['off']):
         print(ask('drive ' + rest[0]))
+    elif command == 'wait':
+        seconds = float(rest.pop()) if rest and rest[-1].replace('.', '').isdigit() else 10.0
+        text = wait(rest, seconds)
+        print(text[:80] if text else '')
+        sys.exit(0 if text else 1)
+    elif command == 'press':
+        sys.exit(0 if press(rest[0], float(rest[1]) if len(rest) > 1 else 5.0) else 1)
     elif command == 'log':
         log(int(rest[0]) if rest else 30)
     elif command in ('key', 'down', 'up', 'pad', 'joy', 'state', 'time'):
