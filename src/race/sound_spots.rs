@@ -98,7 +98,7 @@ pub fn face_sound_spot(race: &Race, view: &ViewMatrices, face_number: u32) -> Re
         let place = spot_place(
             crate::race::scene_points::point_number(
                 race.course.reads(),
-                &crate::race::scene_points::NO_OWN,
+                &crate::race::scene_points::no_own(),
                 point,
             )?,
             [f.dword_at(0x30), f.dword_at(0x34), f.dword_at(0x38)],

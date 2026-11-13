@@ -5,10 +5,8 @@
 use crate::audio::names_store::NameList;
 use crate::menu::cars_store::car_cell;
 use crate::menu::owner::Menus;
-use crate::menu::owner::Tables;
-use crate::menu::texts_store::MenuTexts;
+use crate::menu::texts_store::{MenuText, SpeechRow};
 use crate::session::{PlainBytes, PlainDword};
-use core::mem::offset_of;
 pub use rc2k_core::menu::car_lists::CarList;
 
 /// A gap's first bytes: `runs` are (offset, bytes) of the non-zero ones.
@@ -145,22 +143,14 @@ pub struct MenuLists {
     pub front_back_path: PlainBytes<24>,
 }
 
-/// A text of `texts_store` by its place there (by handle; the original kept its
-/// address): the byte offset of the field that holds it.
-const fn text_ref(offset: usize) -> PlainDword {
-    PlainDword::new(offset as u32)
+/// A text of `texts_store` by its key (`MenuText::key`).
+const fn text_ref(text: MenuText) -> PlainDword {
+    PlainDword::new(text.key())
 }
 
-/// The place of car `n`'s row in the speech samples' names table (three dwords a car).
-const fn car_speech_row(n: usize) -> usize {
-    assert!(n < 24);
-    offset_of!(MenuTexts, car_speech) + 12 * n
-}
-
-/// The place of stage `n`'s row in the speech samples' names table (four dwords a stage).
-const fn stage_speech_row(n: usize) -> usize {
-    assert!(n < 36);
-    offset_of!(MenuTexts, stage_speech) + 16 * n
+/// A row of `texts_store`'s speech samples' names by its key.
+const fn speech_ref(row: SpeechRow) -> PlainDword {
+    PlainDword::new(row.key())
 }
 
 /// The `n`th rally speech name (33 bytes each) among the settings page's speech names, from
@@ -175,21 +165,6 @@ const fn name_ref(n: usize) -> PlainDword {
 const fn repair_time(n: u32) -> PlainDword {
     assert!(n < 16);
     PlainDword::new(n + 1)
-}
-
-/// The car pages' pictures by page (the original's `page_picture_lists`, in its order; a car
-/// past a list reads on into the next, as there).
-pub fn page_pictures(
-    tables: &Tables,
-    page: u32,
-) -> Result<&'_ [PlainDword], crate::errors::BadInput> {
-    Ok(match page {
-        0 => &tables.lists.page_pictures_a,
-        1 => &tables.lists.page_pictures_c,
-        2 => &tables.lists.page_pictures_d,
-        3 => &tables.lists.page_pictures_b,
-        _ => return Err(crate::errors::BadInput("a car page past the four")),
-    })
 }
 
 /// An item's repair time cell (`repair_time_ptrs`; None: none).
@@ -209,6 +184,103 @@ pub fn repair_time_at(
             .ok_or(crate::errors::BadInput(
                 "a repair time's handle off the times",
             )),
+    }
+}
+
+impl MenuLists {
+    /// The picture of car `car` on car page `page`, from the page's list (the original's
+    /// `page_picture_lists`, in its order). The cars of the 34 descriptions run to 0x20, past a
+    /// list's 25: a car past a list reads on into the lists and tables after it.
+    pub fn page_picture(&self, page: u32, car: usize) -> Result<u32, crate::errors::BadInput> {
+        let own = match page {
+            0 => &self.page_pictures_a,
+            1 => &self.page_pictures_c,
+            2 => &self.page_pictures_d,
+            3 => &self.page_pictures_b,
+            _ => return Err(crate::errors::BadInput("a car page past the four")),
+        };
+        if let Some(picture) = own.get(car) {
+            return Ok(picture.get());
+        }
+        let lists: [&dyn crate::session::Run; 10] = [
+            &self.page_pictures_a,
+            &self.page_pictures_b,
+            &self.page_pictures_c,
+            &self.page_pictures_d,
+            &self.page_picture_lists,
+            &self._gap_759ae2,
+            &self.page_functions,
+            &self._gap_759af6,
+            &self.car_page_titles,
+            &self.slideshow_templates,
+        ];
+        let first = match page {
+            0 => 0,
+            3 => 1,
+            1 => 2,
+            _ => 3,
+        };
+        crate::session::read_runs(&lists[first..], car, "a car page's picture")
+    }
+
+    /// The rally speech of section `section` (0 ..= 0x20, held by `small_section`), past the six
+    /// on into the fields after them.
+    pub fn rally_speech(&self, section: usize) -> Result<u32, crate::errors::BadInput> {
+        if let Some(speech) = self.rally_speeches.get(section) {
+            return Ok(speech.get());
+        }
+        crate::session::read_runs(
+            &[
+                &self.rally_speeches,
+                &self._gap_75a31a,
+                &self.car_streams,
+                &self.stage_speeches,
+            ],
+            section,
+            "a rally speech",
+        )
+    }
+
+    /// The stage speech `speech` (0 .. 0x40, held by `stage_speech`), past the 36 on into the
+    /// fields after them.
+    pub fn stage_speech(&self, speech: usize) -> Result<u32, crate::errors::BadInput> {
+        if let Some(entry) = self.stage_speeches.get(speech) {
+            return Ok(entry.get());
+        }
+        crate::session::read_runs(
+            &[
+                &self.stage_speeches,
+                &self._gap_75a40e,
+                &self.cheat_cars,
+                &self._gap_75a46a,
+            ],
+            speech,
+            "a stage speech",
+        )
+    }
+
+    /// The welcome picture of section `section` (0 ..= 0x20, held by `small_section`), in the
+    /// championship's list or the others', past the six on into the fields after them.
+    pub fn welcome_picture(
+        &self,
+        championship: bool,
+        section: usize,
+    ) -> Result<u32, crate::errors::BadInput> {
+        let own = if championship {
+            &self.welcome_championship
+        } else {
+            &self.welcome_other
+        };
+        if let Some(picture) = own.get(section) {
+            return Ok(picture.get());
+        }
+        let lists: [&dyn crate::session::Run; 3] = [
+            &self.welcome_championship,
+            &self.welcome_other,
+            &self.map_overlays,
+        ];
+        let first = if championship { 0 } else { 1 };
+        crate::session::read_runs(&lists[first..], section, "a welcome picture")
     }
 }
 
@@ -619,166 +691,166 @@ impl MenuLists {
             ],
             _gap_75987a: PlainBytes::new([0xff; 4]),
             welcome_championship: [
-                text_ref(offset_of!(MenuTexts, welvx_png)),
-                text_ref(offset_of!(MenuTexts, welpir_png)),
-                text_ref(offset_of!(MenuTexts, welsct_png)),
-                text_ref(offset_of!(MenuTexts, weljc_png)),
-                text_ref(offset_of!(MenuTexts, welul_png)),
-                text_ref(offset_of!(MenuTexts, welmnx_png)),
+                text_ref(MenuText::welvx_png),
+                text_ref(MenuText::welpir_png),
+                text_ref(MenuText::welsct_png),
+                text_ref(MenuText::weljc_png),
+                text_ref(MenuText::welul_png),
+                text_ref(MenuText::welmnx_png),
             ],
             welcome_other: [
-                text_ref(offset_of!(MenuTexts, a8_1_png)),
-                text_ref(offset_of!(MenuTexts, a8_2_png)),
-                text_ref(offset_of!(MenuTexts, a8_3_png)),
-                text_ref(offset_of!(MenuTexts, a8_4_png)),
-                text_ref(offset_of!(MenuTexts, a8_5_png)),
-                text_ref(offset_of!(MenuTexts, a8_6_png)),
+                text_ref(MenuText::a8_1_png),
+                text_ref(MenuText::a8_2_png),
+                text_ref(MenuText::a8_3_png),
+                text_ref(MenuText::a8_4_png),
+                text_ref(MenuText::a8_5_png),
+                text_ref(MenuText::a8_6_png),
             ],
             map_overlays: [
-                text_ref(offset_of!(MenuTexts, vrw_001_png)),
-                text_ref(offset_of!(MenuTexts, vrw_002_png)),
-                text_ref(offset_of!(MenuTexts, vrw_003_png)),
-                text_ref(offset_of!(MenuTexts, vrw_004_png)),
-                text_ref(offset_of!(MenuTexts, vrw_005_png)),
-                text_ref(offset_of!(MenuTexts, vrw_006_png)),
-                text_ref(offset_of!(MenuTexts, pir_001_png)),
-                text_ref(offset_of!(MenuTexts, pir_002_png)),
-                text_ref(offset_of!(MenuTexts, pir_003_png)),
-                text_ref(offset_of!(MenuTexts, pir_004_png)),
-                text_ref(offset_of!(MenuTexts, pir_005_png)),
-                text_ref(offset_of!(MenuTexts, pir_006_png)),
-                text_ref(offset_of!(MenuTexts, sc_001_png)),
-                text_ref(offset_of!(MenuTexts, sc_002_png)),
-                text_ref(offset_of!(MenuTexts, sc_003_png)),
-                text_ref(offset_of!(MenuTexts, sc_004_png)),
-                text_ref(offset_of!(MenuTexts, sc_005_png)),
-                text_ref(offset_of!(MenuTexts, sc_006_png)),
-                text_ref(offset_of!(MenuTexts, jc_001_png)),
-                text_ref(offset_of!(MenuTexts, jc_002_png)),
-                text_ref(offset_of!(MenuTexts, jc_003_png)),
-                text_ref(offset_of!(MenuTexts, jc_004_png)),
-                text_ref(offset_of!(MenuTexts, jc_005_png)),
-                text_ref(offset_of!(MenuTexts, jc_006_png)),
-                text_ref(offset_of!(MenuTexts, ul_001_png)),
-                text_ref(offset_of!(MenuTexts, ul_002_png)),
-                text_ref(offset_of!(MenuTexts, ul_003_png)),
-                text_ref(offset_of!(MenuTexts, ul_004_png)),
-                text_ref(offset_of!(MenuTexts, ul_005_png)),
-                text_ref(offset_of!(MenuTexts, ul_006_png)),
-                text_ref(offset_of!(MenuTexts, mnx_001_png)),
-                text_ref(offset_of!(MenuTexts, mnx_002_png)),
-                text_ref(offset_of!(MenuTexts, mnx_003_png)),
-                text_ref(offset_of!(MenuTexts, mnx_004_png)),
-                text_ref(offset_of!(MenuTexts, mnx_005_png)),
-                text_ref(offset_of!(MenuTexts, mnx_006_png)),
+                text_ref(MenuText::vrw_001_png),
+                text_ref(MenuText::vrw_002_png),
+                text_ref(MenuText::vrw_003_png),
+                text_ref(MenuText::vrw_004_png),
+                text_ref(MenuText::vrw_005_png),
+                text_ref(MenuText::vrw_006_png),
+                text_ref(MenuText::pir_001_png),
+                text_ref(MenuText::pir_002_png),
+                text_ref(MenuText::pir_003_png),
+                text_ref(MenuText::pir_004_png),
+                text_ref(MenuText::pir_005_png),
+                text_ref(MenuText::pir_006_png),
+                text_ref(MenuText::sc_001_png),
+                text_ref(MenuText::sc_002_png),
+                text_ref(MenuText::sc_003_png),
+                text_ref(MenuText::sc_004_png),
+                text_ref(MenuText::sc_005_png),
+                text_ref(MenuText::sc_006_png),
+                text_ref(MenuText::jc_001_png),
+                text_ref(MenuText::jc_002_png),
+                text_ref(MenuText::jc_003_png),
+                text_ref(MenuText::jc_004_png),
+                text_ref(MenuText::jc_005_png),
+                text_ref(MenuText::jc_006_png),
+                text_ref(MenuText::ul_001_png),
+                text_ref(MenuText::ul_002_png),
+                text_ref(MenuText::ul_003_png),
+                text_ref(MenuText::ul_004_png),
+                text_ref(MenuText::ul_005_png),
+                text_ref(MenuText::ul_006_png),
+                text_ref(MenuText::mnx_001_png),
+                text_ref(MenuText::mnx_002_png),
+                text_ref(MenuText::mnx_003_png),
+                text_ref(MenuText::mnx_004_png),
+                text_ref(MenuText::mnx_005_png),
+                text_ref(MenuText::mnx_006_png),
             ],
             _gap_75993e: PlainBytes::new([0xff; 4]),
             page_pictures_a: [
-                text_ref(offset_of!(MenuTexts, mgnvc_png)),
-                text_ref(offset_of!(MenuTexts, vxavc_png)),
-                text_ref(offset_of!(MenuTexts, stcvc_png)),
-                text_ref(offset_of!(MenuTexts, hycvc_png)),
-                text_ref(offset_of!(MenuTexts, sbivc_png)),
-                text_ref(offset_of!(MenuTexts, pgovc_png)),
-                text_ref(offset_of!(MenuTexts, mxpvc_png)),
-                text_ref(offset_of!(MenuTexts, mtlvc_png)),
-                text_ref(offset_of!(MenuTexts, vwgvc_png)),
-                text_ref(offset_of!(MenuTexts, nsavc_png)),
-                text_ref(offset_of!(MenuTexts, ptwvc_png)),
-                text_ref(offset_of!(MenuTexts, ctsvc_png)),
-                text_ref(offset_of!(MenuTexts, hncvc_png)),
-                text_ref(offset_of!(MenuTexts, nsmvc_png)),
-                text_ref(offset_of!(MenuTexts, pgtvc_png)),
-                text_ref(offset_of!(MenuTexts, frtvc_png)),
-                text_ref(offset_of!(MenuTexts, sdovc_png)),
-                text_ref(offset_of!(MenuTexts, stivc_png)),
-                text_ref(offset_of!(MenuTexts, sdfvc_png)),
-                text_ref(offset_of!(MenuTexts, ptcvc_png)),
-                text_ref(offset_of!(MenuTexts, fmxvc_png)),
-                text_ref(offset_of!(MenuTexts, fpmvc_png)),
-                text_ref(offset_of!(MenuTexts, oscvc_png)),
-                text_ref(offset_of!(MenuTexts, rclvc_png)),
+                text_ref(MenuText::mgnvc_png),
+                text_ref(MenuText::vxavc_png),
+                text_ref(MenuText::stcvc_png),
+                text_ref(MenuText::hycvc_png),
+                text_ref(MenuText::sbivc_png),
+                text_ref(MenuText::pgovc_png),
+                text_ref(MenuText::mxpvc_png),
+                text_ref(MenuText::mtlvc_png),
+                text_ref(MenuText::vwgvc_png),
+                text_ref(MenuText::nsavc_png),
+                text_ref(MenuText::ptwvc_png),
+                text_ref(MenuText::ctsvc_png),
+                text_ref(MenuText::hncvc_png),
+                text_ref(MenuText::nsmvc_png),
+                text_ref(MenuText::pgtvc_png),
+                text_ref(MenuText::frtvc_png),
+                text_ref(MenuText::sdovc_png),
+                text_ref(MenuText::stivc_png),
+                text_ref(MenuText::sdfvc_png),
+                text_ref(MenuText::ptcvc_png),
+                text_ref(MenuText::fmxvc_png),
+                text_ref(MenuText::fpmvc_png),
+                text_ref(MenuText::oscvc_png),
+                text_ref(MenuText::rclvc_png),
                 PlainDword::new(0xffffffff),
             ],
             page_pictures_b: [
-                text_ref(offset_of!(MenuTexts, mgndm_png)),
-                text_ref(offset_of!(MenuTexts, vxadm_png)),
-                text_ref(offset_of!(MenuTexts, stcdm_png)),
-                text_ref(offset_of!(MenuTexts, hycdm_png)),
-                text_ref(offset_of!(MenuTexts, sbidm_png)),
-                text_ref(offset_of!(MenuTexts, pgodm_png)),
-                text_ref(offset_of!(MenuTexts, mxpdm_png)),
-                text_ref(offset_of!(MenuTexts, mtldm_png)),
-                text_ref(offset_of!(MenuTexts, vwgdm_png)),
-                text_ref(offset_of!(MenuTexts, nsadm_png)),
-                text_ref(offset_of!(MenuTexts, ptwdm_png)),
-                text_ref(offset_of!(MenuTexts, ctsdm_png)),
-                text_ref(offset_of!(MenuTexts, hncdm_png)),
-                text_ref(offset_of!(MenuTexts, nsmdm_png)),
-                text_ref(offset_of!(MenuTexts, pgtdm_png)),
-                text_ref(offset_of!(MenuTexts, frtdm_png)),
-                text_ref(offset_of!(MenuTexts, sdodm_png)),
-                text_ref(offset_of!(MenuTexts, stidm_png)),
-                text_ref(offset_of!(MenuTexts, sdfdm_png)),
-                text_ref(offset_of!(MenuTexts, ptcdm_png)),
-                text_ref(offset_of!(MenuTexts, fmxdm_png)),
-                text_ref(offset_of!(MenuTexts, fpmdm_png)),
-                text_ref(offset_of!(MenuTexts, oscdm_png)),
-                text_ref(offset_of!(MenuTexts, rcldm_png)),
+                text_ref(MenuText::mgndm_png),
+                text_ref(MenuText::vxadm_png),
+                text_ref(MenuText::stcdm_png),
+                text_ref(MenuText::hycdm_png),
+                text_ref(MenuText::sbidm_png),
+                text_ref(MenuText::pgodm_png),
+                text_ref(MenuText::mxpdm_png),
+                text_ref(MenuText::mtldm_png),
+                text_ref(MenuText::vwgdm_png),
+                text_ref(MenuText::nsadm_png),
+                text_ref(MenuText::ptwdm_png),
+                text_ref(MenuText::ctsdm_png),
+                text_ref(MenuText::hncdm_png),
+                text_ref(MenuText::nsmdm_png),
+                text_ref(MenuText::pgtdm_png),
+                text_ref(MenuText::frtdm_png),
+                text_ref(MenuText::sdodm_png),
+                text_ref(MenuText::stidm_png),
+                text_ref(MenuText::sdfdm_png),
+                text_ref(MenuText::ptcdm_png),
+                text_ref(MenuText::fmxdm_png),
+                text_ref(MenuText::fpmdm_png),
+                text_ref(MenuText::oscdm_png),
+                text_ref(MenuText::rcldm_png),
                 PlainDword::new(0xffffffff),
             ],
             page_pictures_c: [
-                text_ref(offset_of!(MenuTexts, mgnen_png)),
-                text_ref(offset_of!(MenuTexts, vxaen_png)),
-                text_ref(offset_of!(MenuTexts, stcen_png)),
-                text_ref(offset_of!(MenuTexts, hycen_png)),
-                text_ref(offset_of!(MenuTexts, sbien_png)),
-                text_ref(offset_of!(MenuTexts, pgoen_png)),
-                text_ref(offset_of!(MenuTexts, mxpen_png)),
-                text_ref(offset_of!(MenuTexts, mtlen_png)),
-                text_ref(offset_of!(MenuTexts, vwgen_png)),
-                text_ref(offset_of!(MenuTexts, nsaen_png)),
-                text_ref(offset_of!(MenuTexts, ptwen_png)),
-                text_ref(offset_of!(MenuTexts, ctsen_png)),
-                text_ref(offset_of!(MenuTexts, hncen_png)),
-                text_ref(offset_of!(MenuTexts, nsmen_png)),
-                text_ref(offset_of!(MenuTexts, pgten_png)),
-                text_ref(offset_of!(MenuTexts, frten_png)),
-                text_ref(offset_of!(MenuTexts, sdoen_png)),
-                text_ref(offset_of!(MenuTexts, stien_png)),
-                text_ref(offset_of!(MenuTexts, sdfen_png)),
-                text_ref(offset_of!(MenuTexts, ptcen_png)),
-                text_ref(offset_of!(MenuTexts, fmxen_png)),
-                text_ref(offset_of!(MenuTexts, fpmen_png)),
-                text_ref(offset_of!(MenuTexts, oscen_png)),
-                text_ref(offset_of!(MenuTexts, rclen_png)),
+                text_ref(MenuText::mgnen_png),
+                text_ref(MenuText::vxaen_png),
+                text_ref(MenuText::stcen_png),
+                text_ref(MenuText::hycen_png),
+                text_ref(MenuText::sbien_png),
+                text_ref(MenuText::pgoen_png),
+                text_ref(MenuText::mxpen_png),
+                text_ref(MenuText::mtlen_png),
+                text_ref(MenuText::vwgen_png),
+                text_ref(MenuText::nsaen_png),
+                text_ref(MenuText::ptwen_png),
+                text_ref(MenuText::ctsen_png),
+                text_ref(MenuText::hncen_png),
+                text_ref(MenuText::nsmen_png),
+                text_ref(MenuText::pgten_png),
+                text_ref(MenuText::frten_png),
+                text_ref(MenuText::sdoen_png),
+                text_ref(MenuText::stien_png),
+                text_ref(MenuText::sdfen_png),
+                text_ref(MenuText::ptcen_png),
+                text_ref(MenuText::fmxen_png),
+                text_ref(MenuText::fpmen_png),
+                text_ref(MenuText::oscen_png),
+                text_ref(MenuText::rclen_png),
                 PlainDword::new(0xffffffff),
             ],
             page_pictures_d: [
-                text_ref(offset_of!(MenuTexts, mgntc_png)),
-                text_ref(offset_of!(MenuTexts, vxatc_png)),
-                text_ref(offset_of!(MenuTexts, stctc_png)),
-                text_ref(offset_of!(MenuTexts, hyctc_png)),
-                text_ref(offset_of!(MenuTexts, sbitc_png)),
-                text_ref(offset_of!(MenuTexts, pgotc_png)),
-                text_ref(offset_of!(MenuTexts, mxptc_png)),
-                text_ref(offset_of!(MenuTexts, mtltc_png)),
-                text_ref(offset_of!(MenuTexts, vwgtc_png)),
-                text_ref(offset_of!(MenuTexts, nsatc_png)),
-                text_ref(offset_of!(MenuTexts, ptwtc_png)),
-                text_ref(offset_of!(MenuTexts, ctstc_png)),
-                text_ref(offset_of!(MenuTexts, hnctc_png)),
-                text_ref(offset_of!(MenuTexts, nsmtc_png)),
-                text_ref(offset_of!(MenuTexts, pgttc_png)),
-                text_ref(offset_of!(MenuTexts, frttc_png)),
-                text_ref(offset_of!(MenuTexts, sdotc_png)),
-                text_ref(offset_of!(MenuTexts, stitc_png)),
-                text_ref(offset_of!(MenuTexts, sdftc_png)),
-                text_ref(offset_of!(MenuTexts, ptctc_png)),
-                text_ref(offset_of!(MenuTexts, fmxtc_png)),
-                text_ref(offset_of!(MenuTexts, fpmtc_png)),
-                text_ref(offset_of!(MenuTexts, osctc_png)),
-                text_ref(offset_of!(MenuTexts, rcltc_png)),
+                text_ref(MenuText::mgntc_png),
+                text_ref(MenuText::vxatc_png),
+                text_ref(MenuText::stctc_png),
+                text_ref(MenuText::hyctc_png),
+                text_ref(MenuText::sbitc_png),
+                text_ref(MenuText::pgotc_png),
+                text_ref(MenuText::mxptc_png),
+                text_ref(MenuText::mtltc_png),
+                text_ref(MenuText::vwgtc_png),
+                text_ref(MenuText::nsatc_png),
+                text_ref(MenuText::ptwtc_png),
+                text_ref(MenuText::ctstc_png),
+                text_ref(MenuText::hnctc_png),
+                text_ref(MenuText::nsmtc_png),
+                text_ref(MenuText::pgttc_png),
+                text_ref(MenuText::frttc_png),
+                text_ref(MenuText::sdotc_png),
+                text_ref(MenuText::stitc_png),
+                text_ref(MenuText::sdftc_png),
+                text_ref(MenuText::ptctc_png),
+                text_ref(MenuText::fmxtc_png),
+                text_ref(MenuText::fpmtc_png),
+                text_ref(MenuText::osctc_png),
+                text_ref(MenuText::rcltc_png),
                 PlainDword::new(0xffffffff),
             ],
             page_picture_lists: [
@@ -803,30 +875,30 @@ impl MenuLists {
                 PlainDword::new(0xffffffff),
             ],
             slideshow_templates: [
-                text_ref(offset_of!(MenuTexts, mgnsl00_png)),
-                text_ref(offset_of!(MenuTexts, vxasl00_png)),
-                text_ref(offset_of!(MenuTexts, stcsl00_png)),
-                text_ref(offset_of!(MenuTexts, hycsl00_png)),
-                text_ref(offset_of!(MenuTexts, sbisl00_png)),
-                text_ref(offset_of!(MenuTexts, pgosl00_png)),
-                text_ref(offset_of!(MenuTexts, mxpsl00_png)),
-                text_ref(offset_of!(MenuTexts, mtlsl00_png)),
-                text_ref(offset_of!(MenuTexts, vwgsl00_png)),
-                text_ref(offset_of!(MenuTexts, nsasl00_png)),
-                text_ref(offset_of!(MenuTexts, ptwsl00_png)),
-                text_ref(offset_of!(MenuTexts, ctssl00_png)),
-                text_ref(offset_of!(MenuTexts, hncsl00_png)),
-                text_ref(offset_of!(MenuTexts, nsmsl00_png)),
-                text_ref(offset_of!(MenuTexts, pgtsl00_png)),
-                text_ref(offset_of!(MenuTexts, frtsl00_png)),
-                text_ref(offset_of!(MenuTexts, sdosl00_png)),
-                text_ref(offset_of!(MenuTexts, stisl00_png)),
-                text_ref(offset_of!(MenuTexts, sdfsl00_png)),
-                text_ref(offset_of!(MenuTexts, ptcsl00_png)),
-                text_ref(offset_of!(MenuTexts, fmxsl00_png)),
-                text_ref(offset_of!(MenuTexts, fpmsl00_png)),
-                text_ref(offset_of!(MenuTexts, oscsl00_png)),
-                text_ref(offset_of!(MenuTexts, rclsl00_png)),
+                text_ref(MenuText::mgnsl00_png),
+                text_ref(MenuText::vxasl00_png),
+                text_ref(MenuText::stcsl00_png),
+                text_ref(MenuText::hycsl00_png),
+                text_ref(MenuText::sbisl00_png),
+                text_ref(MenuText::pgosl00_png),
+                text_ref(MenuText::mxpsl00_png),
+                text_ref(MenuText::mtlsl00_png),
+                text_ref(MenuText::vwgsl00_png),
+                text_ref(MenuText::nsasl00_png),
+                text_ref(MenuText::ptwsl00_png),
+                text_ref(MenuText::ctssl00_png),
+                text_ref(MenuText::hncsl00_png),
+                text_ref(MenuText::nsmsl00_png),
+                text_ref(MenuText::pgtsl00_png),
+                text_ref(MenuText::frtsl00_png),
+                text_ref(MenuText::sdosl00_png),
+                text_ref(MenuText::stisl00_png),
+                text_ref(MenuText::sdfsl00_png),
+                text_ref(MenuText::ptcsl00_png),
+                text_ref(MenuText::fmxsl00_png),
+                text_ref(MenuText::fpmsl00_png),
+                text_ref(MenuText::oscsl00_png),
+                text_ref(MenuText::rclsl00_png),
             ],
             inspection_flags_a: [
                 PlainDword::new(0),
@@ -1301,68 +1373,68 @@ impl MenuLists {
             ],
             _gap_75a31a: PlainBytes::new([0xff; 4]),
             car_streams: [
-                text_ref(offset_of!(MenuTexts, car_speech)),
-                text_ref(car_speech_row(1)),
-                text_ref(car_speech_row(2)),
-                text_ref(car_speech_row(3)),
-                text_ref(car_speech_row(4)),
-                text_ref(car_speech_row(5)),
-                text_ref(car_speech_row(6)),
-                text_ref(car_speech_row(7)),
-                text_ref(car_speech_row(8)),
-                text_ref(car_speech_row(9)),
-                text_ref(car_speech_row(10)),
-                text_ref(car_speech_row(11)),
-                text_ref(car_speech_row(12)),
-                text_ref(car_speech_row(13)),
-                text_ref(car_speech_row(14)),
-                text_ref(car_speech_row(15)),
-                text_ref(car_speech_row(16)),
-                text_ref(car_speech_row(17)),
-                text_ref(car_speech_row(18)),
-                text_ref(car_speech_row(19)),
-                text_ref(car_speech_row(20)),
-                text_ref(car_speech_row(21)),
-                text_ref(car_speech_row(22)),
-                text_ref(car_speech_row(23)),
+                speech_ref(SpeechRow::Car(0)),
+                speech_ref(SpeechRow::Car(1)),
+                speech_ref(SpeechRow::Car(2)),
+                speech_ref(SpeechRow::Car(3)),
+                speech_ref(SpeechRow::Car(4)),
+                speech_ref(SpeechRow::Car(5)),
+                speech_ref(SpeechRow::Car(6)),
+                speech_ref(SpeechRow::Car(7)),
+                speech_ref(SpeechRow::Car(8)),
+                speech_ref(SpeechRow::Car(9)),
+                speech_ref(SpeechRow::Car(10)),
+                speech_ref(SpeechRow::Car(11)),
+                speech_ref(SpeechRow::Car(12)),
+                speech_ref(SpeechRow::Car(13)),
+                speech_ref(SpeechRow::Car(14)),
+                speech_ref(SpeechRow::Car(15)),
+                speech_ref(SpeechRow::Car(16)),
+                speech_ref(SpeechRow::Car(17)),
+                speech_ref(SpeechRow::Car(18)),
+                speech_ref(SpeechRow::Car(19)),
+                speech_ref(SpeechRow::Car(20)),
+                speech_ref(SpeechRow::Car(21)),
+                speech_ref(SpeechRow::Car(22)),
+                speech_ref(SpeechRow::Car(23)),
             ],
             stage_speeches: [
-                text_ref(offset_of!(MenuTexts, stage_speech)),
-                text_ref(stage_speech_row(1)),
-                text_ref(stage_speech_row(2)),
-                text_ref(stage_speech_row(3)),
-                text_ref(stage_speech_row(4)),
-                text_ref(stage_speech_row(5)),
-                text_ref(stage_speech_row(6)),
-                text_ref(stage_speech_row(7)),
-                text_ref(stage_speech_row(8)),
-                text_ref(stage_speech_row(9)),
-                text_ref(stage_speech_row(10)),
-                text_ref(stage_speech_row(11)),
-                text_ref(stage_speech_row(12)),
-                text_ref(stage_speech_row(13)),
-                text_ref(stage_speech_row(14)),
-                text_ref(stage_speech_row(15)),
-                text_ref(stage_speech_row(16)),
-                text_ref(stage_speech_row(17)),
-                text_ref(stage_speech_row(18)),
-                text_ref(stage_speech_row(19)),
-                text_ref(stage_speech_row(20)),
-                text_ref(stage_speech_row(21)),
-                text_ref(stage_speech_row(22)),
-                text_ref(stage_speech_row(23)),
-                text_ref(stage_speech_row(24)),
-                text_ref(stage_speech_row(25)),
-                text_ref(stage_speech_row(26)),
-                text_ref(stage_speech_row(27)),
-                text_ref(stage_speech_row(28)),
-                text_ref(stage_speech_row(29)),
-                text_ref(stage_speech_row(30)),
-                text_ref(stage_speech_row(31)),
-                text_ref(stage_speech_row(32)),
-                text_ref(stage_speech_row(33)),
-                text_ref(stage_speech_row(34)),
-                text_ref(stage_speech_row(35)),
+                speech_ref(SpeechRow::Stage(0)),
+                speech_ref(SpeechRow::Stage(1)),
+                speech_ref(SpeechRow::Stage(2)),
+                speech_ref(SpeechRow::Stage(3)),
+                speech_ref(SpeechRow::Stage(4)),
+                speech_ref(SpeechRow::Stage(5)),
+                speech_ref(SpeechRow::Stage(6)),
+                speech_ref(SpeechRow::Stage(7)),
+                speech_ref(SpeechRow::Stage(8)),
+                speech_ref(SpeechRow::Stage(9)),
+                speech_ref(SpeechRow::Stage(10)),
+                speech_ref(SpeechRow::Stage(11)),
+                speech_ref(SpeechRow::Stage(12)),
+                speech_ref(SpeechRow::Stage(13)),
+                speech_ref(SpeechRow::Stage(14)),
+                speech_ref(SpeechRow::Stage(15)),
+                speech_ref(SpeechRow::Stage(16)),
+                speech_ref(SpeechRow::Stage(17)),
+                speech_ref(SpeechRow::Stage(18)),
+                speech_ref(SpeechRow::Stage(19)),
+                speech_ref(SpeechRow::Stage(20)),
+                speech_ref(SpeechRow::Stage(21)),
+                speech_ref(SpeechRow::Stage(22)),
+                speech_ref(SpeechRow::Stage(23)),
+                speech_ref(SpeechRow::Stage(24)),
+                speech_ref(SpeechRow::Stage(25)),
+                speech_ref(SpeechRow::Stage(26)),
+                speech_ref(SpeechRow::Stage(27)),
+                speech_ref(SpeechRow::Stage(28)),
+                speech_ref(SpeechRow::Stage(29)),
+                speech_ref(SpeechRow::Stage(30)),
+                speech_ref(SpeechRow::Stage(31)),
+                speech_ref(SpeechRow::Stage(32)),
+                speech_ref(SpeechRow::Stage(33)),
+                speech_ref(SpeechRow::Stage(34)),
+                speech_ref(SpeechRow::Stage(35)),
             ],
             _gap_75a40e: PlainBytes::new([0xff; 4]),
             cheat_cars: [
@@ -1430,66 +1502,66 @@ impl MenuLists {
                 PlainDword::new(0xffffffff),
             ],
             service_pictures: [
-                text_ref(offset_of!(MenuTexts, serv00_png_4)),
-                text_ref(offset_of!(MenuTexts, serv01_png)),
-                text_ref(offset_of!(MenuTexts, serv02_png)),
-                text_ref(offset_of!(MenuTexts, serv03_png)),
-                text_ref(offset_of!(MenuTexts, serv04_png)),
-                text_ref(offset_of!(MenuTexts, serv05_png)),
-                text_ref(offset_of!(MenuTexts, serv06_png)),
-                text_ref(offset_of!(MenuTexts, serv07_png)),
-                text_ref(offset_of!(MenuTexts, serv08_png)),
-                text_ref(offset_of!(MenuTexts, serv09_png)),
-                text_ref(offset_of!(MenuTexts, serv10_png)),
-                text_ref(offset_of!(MenuTexts, serv11_png)),
-                text_ref(offset_of!(MenuTexts, serv12_png)),
-                text_ref(offset_of!(MenuTexts, serv13_png)),
-                text_ref(offset_of!(MenuTexts, serv14_png)),
-                text_ref(offset_of!(MenuTexts, serv15_png)),
-                text_ref(offset_of!(MenuTexts, serv16_png)),
-                text_ref(offset_of!(MenuTexts, serv17_png)),
-                text_ref(offset_of!(MenuTexts, serv18_png)),
-                text_ref(offset_of!(MenuTexts, serv19_png)),
-                text_ref(offset_of!(MenuTexts, serv20_png)),
-                text_ref(offset_of!(MenuTexts, serv21_png)),
-                text_ref(offset_of!(MenuTexts, serv22_png)),
-                text_ref(offset_of!(MenuTexts, serv33_png)),
-                text_ref(offset_of!(MenuTexts, serv22_png)),
-                text_ref(offset_of!(MenuTexts, serv22_png)),
-                text_ref(offset_of!(MenuTexts, serv22_png)),
-                text_ref(offset_of!(MenuTexts, serv22_png)),
-                text_ref(offset_of!(MenuTexts, serv22_png)),
-                text_ref(offset_of!(MenuTexts, serv22_png)),
-                text_ref(offset_of!(MenuTexts, serv22_png)),
-                text_ref(offset_of!(MenuTexts, serv22_png)),
-                text_ref(offset_of!(MenuTexts, serv22_png)),
-                text_ref(offset_of!(MenuTexts, serv22_png)),
-                text_ref(offset_of!(MenuTexts, serv22_png)),
-                text_ref(offset_of!(MenuTexts, serv22_png)),
-                text_ref(offset_of!(MenuTexts, serv22_png)),
-                text_ref(offset_of!(MenuTexts, serv22_png)),
-                text_ref(offset_of!(MenuTexts, serv22_png)),
-                text_ref(offset_of!(MenuTexts, serv22_png)),
-                text_ref(offset_of!(MenuTexts, serv22_png)),
-                text_ref(offset_of!(MenuTexts, serv22_png)),
-                text_ref(offset_of!(MenuTexts, serv22_png)),
-                text_ref(offset_of!(MenuTexts, serv22_png)),
-                text_ref(offset_of!(MenuTexts, serv22_png)),
-                text_ref(offset_of!(MenuTexts, serv22_png)),
-                text_ref(offset_of!(MenuTexts, serv22_png)),
-                text_ref(offset_of!(MenuTexts, serv22_png)),
-                text_ref(offset_of!(MenuTexts, serv22_png)),
-                text_ref(offset_of!(MenuTexts, serv22_png)),
-                text_ref(offset_of!(MenuTexts, serv22_png)),
-                text_ref(offset_of!(MenuTexts, serv22_png)),
-                text_ref(offset_of!(MenuTexts, serv22_png)),
-                text_ref(offset_of!(MenuTexts, serv22_png)),
-                text_ref(offset_of!(MenuTexts, serv22_png)),
-                text_ref(offset_of!(MenuTexts, serv22_png)),
-                text_ref(offset_of!(MenuTexts, serv22_png)),
-                text_ref(offset_of!(MenuTexts, serv22_png)),
-                text_ref(offset_of!(MenuTexts, serv22_png)),
-                text_ref(offset_of!(MenuTexts, serv22_png)),
+                text_ref(MenuText::serv00_png_4),
+                text_ref(MenuText::serv01_png),
+                text_ref(MenuText::serv02_png),
+                text_ref(MenuText::serv03_png),
+                text_ref(MenuText::serv04_png),
+                text_ref(MenuText::serv05_png),
+                text_ref(MenuText::serv06_png),
+                text_ref(MenuText::serv07_png),
+                text_ref(MenuText::serv08_png),
+                text_ref(MenuText::serv09_png),
+                text_ref(MenuText::serv10_png),
+                text_ref(MenuText::serv11_png),
+                text_ref(MenuText::serv12_png),
+                text_ref(MenuText::serv13_png),
+                text_ref(MenuText::serv14_png),
+                text_ref(MenuText::serv15_png),
+                text_ref(MenuText::serv16_png),
+                text_ref(MenuText::serv17_png),
+                text_ref(MenuText::serv18_png),
+                text_ref(MenuText::serv19_png),
+                text_ref(MenuText::serv20_png),
+                text_ref(MenuText::serv21_png),
+                text_ref(MenuText::serv22_png),
+                text_ref(MenuText::serv33_png),
+                text_ref(MenuText::serv22_png),
+                text_ref(MenuText::serv22_png),
+                text_ref(MenuText::serv22_png),
+                text_ref(MenuText::serv22_png),
+                text_ref(MenuText::serv22_png),
+                text_ref(MenuText::serv22_png),
+                text_ref(MenuText::serv22_png),
+                text_ref(MenuText::serv22_png),
+                text_ref(MenuText::serv22_png),
+                text_ref(MenuText::serv22_png),
+                text_ref(MenuText::serv22_png),
+                text_ref(MenuText::serv22_png),
+                text_ref(MenuText::serv22_png),
+                text_ref(MenuText::serv22_png),
+                text_ref(MenuText::serv22_png),
+                text_ref(MenuText::serv22_png),
+                text_ref(MenuText::serv22_png),
+                text_ref(MenuText::serv22_png),
+                text_ref(MenuText::serv22_png),
+                text_ref(MenuText::serv22_png),
+                text_ref(MenuText::serv22_png),
+                text_ref(MenuText::serv22_png),
+                text_ref(MenuText::serv22_png),
+                text_ref(MenuText::serv22_png),
+                text_ref(MenuText::serv22_png),
+                text_ref(MenuText::serv22_png),
+                text_ref(MenuText::serv22_png),
+                text_ref(MenuText::serv22_png),
+                text_ref(MenuText::serv22_png),
+                text_ref(MenuText::serv22_png),
+                text_ref(MenuText::serv22_png),
+                text_ref(MenuText::serv22_png),
+                text_ref(MenuText::serv22_png),
+                text_ref(MenuText::serv22_png),
+                text_ref(MenuText::serv22_png),
+                text_ref(MenuText::serv22_png),
             ],
             _gap_75a61e: PlainBytes::new([0xff; 4]),
             carousel_textures: [const { PlainDword::new(0) }; 8],
@@ -1501,5 +1573,78 @@ impl MenuLists {
                 ],
             )])),
         }
+    }
+}
+
+#[cfg(test)]
+mod run_on_tests {
+    use super::*;
+
+    /// The lists, every dword from `welcome_championship` to the end of the record numbered.
+    fn numbered() -> Box<MenuLists> {
+        let lists = Box::new(MenuLists::new());
+        let room = (core::mem::size_of::<MenuLists>()
+            - core::mem::offset_of!(MenuLists, welcome_championship))
+            / 4;
+        for n in 0..room {
+            crate::session::write_on_in(
+                &*lists,
+                &lists.welcome_championship,
+                n,
+                0x7000 + n as u32,
+                "t",
+            )
+            .unwrap();
+        }
+        lists
+    }
+
+    /// Each reader gives what the byte-offset read gave, for every index the game's checks let
+    /// through.
+    #[test]
+    fn list_readers_run_on_as_the_old_read() {
+        let l = numbered();
+        let old = |table: &[PlainDword], n: usize| {
+            crate::session::read_on_in(&*l, table, n, "t").unwrap()
+        };
+        for n in 0..0x21 {
+            assert_eq!(
+                l.rally_speech(n).unwrap(),
+                old(&l.rally_speeches, n),
+                "rally {n}"
+            );
+            assert_eq!(
+                l.welcome_picture(true, n).unwrap(),
+                old(&l.welcome_championship, n),
+                "welcome {n}"
+            );
+            assert_eq!(
+                l.welcome_picture(false, n).unwrap(),
+                old(&l.welcome_other, n),
+                "other welcome {n}"
+            );
+        }
+        for n in 0..0x40 {
+            assert_eq!(
+                l.stage_speech(n).unwrap(),
+                old(&l.stage_speeches, n),
+                "speech {n}"
+            );
+        }
+        for (page, table) in [
+            (0, &l.page_pictures_a),
+            (1, &l.page_pictures_c),
+            (2, &l.page_pictures_d),
+            (3, &l.page_pictures_b),
+        ] {
+            for car in 0..64 {
+                assert_eq!(
+                    l.page_picture(page, car).unwrap(),
+                    old(table, car),
+                    "page {page} car {car}"
+                );
+            }
+        }
+        assert!(l.page_picture(4, 0).is_err());
     }
 }

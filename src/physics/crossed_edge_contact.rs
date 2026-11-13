@@ -68,13 +68,13 @@ pub fn steps(c: &ContactInputs<'_>, scene: &crate::scene::owner::Scene) -> Resul
             crate::race::course_places::face_field::<u32>(c.course.reads(), face, 4 + 4 * j)?;
         c.contact.crossed_corners[2 * j as usize].set(crate::race::scene_points::point_word(
             c.course.reads(),
-            &crate::race::scene_points::NO_OWN,
+            &crate::race::scene_points::no_own(),
             point,
             0,
         )?);
         c.contact.crossed_corners[2 * j as usize + 1].set(crate::race::scene_points::point_word(
             c.course.reads(),
-            &crate::race::scene_points::NO_OWN,
+            &crate::race::scene_points::no_own(),
             point,
             2,
         )?);

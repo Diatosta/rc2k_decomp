@@ -36,12 +36,7 @@ pub fn load_car_background(
     let car = shown_car(menus)?;
     let path = crate::menu::texts_store::text_at(
         &menus.tables.texts,
-        crate::session::read_on_in(
-            &menus.tables.lists,
-            crate::menu::lists_store::page_pictures(&menus.tables, page)?,
-            car as usize,
-            "load car background: a game value",
-        )?,
+        menus.tables.lists.page_picture(page, car as usize)?,
     )?;
     if load(path)? {
         return Err(FatalError {

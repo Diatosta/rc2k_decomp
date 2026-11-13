@@ -59,7 +59,12 @@ pub struct GroundQuery<'a> {
 
 impl<'a> GroundQuery<'a> {
     /// The physics' own fields.
-    pub fn of_physics(g: &'a GroundWork, p: &'a GroundProbe, c: &'a CourseWork) -> Self {
+    pub fn of_physics(
+        g: &'a GroundWork,
+        p: &'a GroundProbe,
+        c: &'a CourseWork,
+        points: &'a crate::race::scene_points::OwnPoints,
+    ) -> Self {
         GroundQuery {
             x: &g.ground_x,
             z: &g.ground_z,
@@ -88,7 +93,7 @@ impl<'a> GroundQuery<'a> {
             half: &c.ground_half,
             face_corners: &c.ground_corners,
             last: &c.ground_face_last,
-            points: &crate::race::scene_points::NO_OWN,
+            points,
         }
     }
 }

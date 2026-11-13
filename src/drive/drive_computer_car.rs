@@ -57,13 +57,13 @@ fn face_point(course: &Course, face: u32) -> Result<(u32, u32), BadInput> {
     Ok((
         crate::race::scene_points::point_word(
             course.reads(),
-            &crate::race::scene_points::NO_OWN,
+            &crate::race::scene_points::no_own(),
             point,
             0,
         )?,
         crate::race::scene_points::point_word(
             course.reads(),
-            &crate::race::scene_points::NO_OWN,
+            &crate::race::scene_points::no_own(),
             point,
             2,
         )?,

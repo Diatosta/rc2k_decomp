@@ -84,16 +84,14 @@ pub fn play_stage_speech(o: crate::owners::Owners<'static>) -> Result<(), Refuse
         let at = stage_screens::stage_speech(
             record.record(&system.records().stage_tables)?.track(),
             |n| {
-                crate::session::read_on_in(
-                    &menus.tables.lists,
-                    &menus.tables.lists.stage_speeches,
-                    n as usize,
-                    "a stage speech",
-                )
-                .unwrap_or_else(|e| {
-                    fault.set(Some(e));
-                    0
-                })
+                menus
+                    .tables
+                    .lists
+                    .stage_speech(n as usize)
+                    .unwrap_or_else(|e| {
+                        fault.set(Some(e));
+                        0
+                    })
             },
         );
         if let Some(e) = fault.take() {
@@ -129,12 +127,7 @@ pub fn play_rally_speech(o: crate::owners::Owners<'static>) -> Result<(), Refuse
     if championship(menus) {
         crate::sound::start_stream::start_stream(
             o,
-            crate::session::read_on_in(
-                &menus.tables.lists,
-                &menus.tables.lists.rally_speeches,
-                section as usize,
-                "a rally speech",
-            )?,
+            menus.tables.lists.rally_speech(section as usize)?,
             menus.screens.option_work.speech_level.get(),
         );
     }
@@ -147,19 +140,16 @@ pub fn load_welcome_picture(o: Owners<'static>) -> Result<(), Refused> {
     let menus = o.menus;
     let section = small_section(menus)?;
     // The logic is in `rc2k_core::menu::stage_screens::welcome`.
-    let table: &[crate::session::PlainDword] =
-        match stage_screens::welcome(menus.play.champ_view.event_mode.get()) {
-            stage_screens::Welcome::Championship => &menus.tables.lists.welcome_championship,
-            stage_screens::Welcome::Other => &menus.tables.lists.welcome_other,
-        };
+    let championship = matches!(
+        stage_screens::welcome(menus.play.champ_view.event_mode.get()),
+        stage_screens::Welcome::Championship
+    );
     let path = crate::menu::texts_store::text_at(
         &menus.tables.texts,
-        crate::session::read_on_in(
-            &menus.tables.lists,
-            table,
-            section as usize,
-            "a welcome picture",
-        )?,
+        menus
+            .tables
+            .lists
+            .welcome_picture(championship, section as usize)?,
     )?;
     if crate::gfx::load_picture_with_overlay::load_picture_with_overlay_in(
         &path,

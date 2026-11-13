@@ -7,8 +7,30 @@
 //! its own fields read as the record's (a part held in a `GameThread` among shared cells).
 
 use proc_macro::TokenStream;
+use proc_macro2::TokenTree;
 use quote::quote;
 use syn::{Data, DeriveInput, Fields, parse_macro_input};
+
+/// `tokens` with every identifier `from` replaced by `to` (a field's type in the other kind).
+fn rename(
+    tokens: proc_macro2::TokenStream,
+    from: &syn::Ident,
+    to: &syn::Ident,
+) -> proc_macro2::TokenStream {
+    tokens
+        .into_iter()
+        .map(|t| match t {
+            TokenTree::Ident(i) if i == *from => TokenTree::Ident(to.clone()),
+            TokenTree::Group(g) => {
+                let mut group =
+                    proc_macro2::Group::new(g.delimiter(), rename(g.stream(), from, to));
+                group.set_span(g.span());
+                TokenTree::Group(group)
+            }
+            other => other,
+        })
+        .collect()
+}
 
 #[proc_macro_derive(Cells)]
 pub fn derive_cells(input: TokenStream) -> TokenStream {
@@ -109,8 +131,56 @@ pub fn derive_cells(input: TokenStream) -> TokenStream {
         };
         (checks, clause.cloned(), quote! {})
     };
+    // `visit`: each field entered by its name, but for `inline`.
+    let visits: Vec<_> = names
+        .iter()
+        .map(|n| {
+            let text = n.to_string();
+            if text == "inline" {
+                quote! { crate::cells::Cells::visit(&self.#n, visitor); }
+            } else {
+                quote! {
+                    visitor.enter(#text);
+                    crate::cells::Cells::visit(&self.#n, visitor);
+                    visitor.leave();
+                }
+            }
+        })
+        .collect();
+    // `SameShape`: a record over a kind `K` (one type parameter) copied and merged field by
+    // field into the same record over another kind `K2`, with no byte layout.
+    let same_shape = match input.generics.params.first() {
+        Some(syn::GenericParam::Type(kind)) if input.generics.params.len() == 1 => {
+            let k = &kind.ident;
+            let k2 = syn::Ident::new("K2__", k.span());
+            let mut clause2 = clause.clone().unwrap_or_else(|| syn::parse_quote!(where));
+            let bounds = kind.bounds.clone();
+            for ty in &types {
+                let other = rename(quote!(#ty), k, &k2);
+                clause2
+                    .predicates
+                    .push(syn::parse_quote!(#ty: crate::cells::SameShape<#other>));
+            }
+            let mut params = input.generics.clone();
+            params.params.push(syn::parse_quote!(#k2: #bounds));
+            let (with2, _, _) = params.split_for_impl();
+            quote! {
+                impl #with2 crate::cells::SameShape<#name<#k2>> for #name<#k> #clause2 {
+                    fn copy_cells_to(&self, to: &#name<#k2>) {
+                        #( crate::cells::SameShape::copy_cells_to(&self.#names, &to.#names); )*
+                    }
+
+                    fn merge_cells_to(&self, start: &Self, to: &#name<#k2>) {
+                        #( crate::cells::SameShape::merge_cells_to(&self.#names, &start.#names, &to.#names); )*
+                    }
+                }
+            }
+        }
+        _ => quote! {},
+    };
     quote! {
         #checks
+        #same_shape
         // SAFETY: every field is `Cells` and no byte lies outside them (checked above).
         unsafe impl #with crate::cells::Cells for #name #of #clause {
             fn copy_from(&self, other: &Self) {
@@ -121,6 +191,11 @@ pub fn derive_cells(input: TokenStream) -> TokenStream {
             fn merge_changes(&self, now: &Self, start: &Self) {
                 #checked
                 #( crate::cells::Cells::merge_changes(&self.#names, &now.#names, &start.#names); )*
+            }
+
+            fn visit(&self, visitor: &mut dyn crate::cells::CellVisitor) {
+                #checked
+                #( #visits )*
             }
 
             #[cfg(any(test, feature = "remote"))]

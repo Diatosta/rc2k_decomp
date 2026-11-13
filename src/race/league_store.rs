@@ -26,6 +26,24 @@ pub struct League {
 
 /// The piece (a field of `race::owner::Race::course`), with the image's first values.
 impl League {
+    /// Kept time `n` of the rows. The original does not hold `n` to the sixteen rows (the
+    /// splits 16 .. 27 read past them): past the rows it reads the fields after them, in order.
+    pub fn kept_time(&self, n: usize) -> Result<u32, crate::errors::BadInput> {
+        if let Some(time) = self.rows.get(n) {
+            return Ok(time.get());
+        }
+        crate::session::read_runs(
+            &[
+                &self.rows,
+                &self.unused_2a8,
+                &self.car_time,
+                &self.auto_setups,
+            ],
+            n,
+            "a kept split time",
+        )
+    }
+
     pub const fn new() -> Self {
         Self {
             auto_setups: [
@@ -175,6 +193,27 @@ impl League {
                 PlainDword::new(3),
             ],
             ..ZeroCells::ZERO
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Every index to the end of the record gives what the byte-offset read gave, and the first
+    /// past it is refused as before.
+    #[test]
+    fn kept_time_runs_on_as_the_old_read() {
+        let league = League::new();
+        let room = 160 + 17 + 1 + 144;
+        for n in 0..room {
+            crate::session::write_on_in(&league, &league.rows, n, 0x1000 + n as u32, "t").unwrap();
+        }
+        for n in 0..room + 20 {
+            let old = crate::session::read_on_in(&league, &league.rows, n, "t");
+            assert_eq!(old.is_ok(), n < room, "index {n}");
+            assert_eq!(league.kept_time(n).ok(), old.ok(), "index {n}");
         }
     }
 }

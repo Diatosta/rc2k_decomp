@@ -34,7 +34,7 @@ macro_rules! car_view {
 
             /// Every field from `car`.
             fn take(&self, car: &Car) {
-                $(crate::cells::copy_whole(&car.$field, &self.$field);)*
+                $(crate::cells::SameShape::copy_cells_to(&car.$field, &self.$field);)*
             }
 
             /// The fields that differ from `car`'s.
@@ -104,14 +104,7 @@ car_view! {
 
 /// Two cells (or arrays of them, of either kind) with the same bits.
 fn same<A: Cells, B: Cells>(a: &A, b: &B) -> bool {
-    let n = core::mem::size_of::<A>();
-    if n != core::mem::size_of::<B>() {
-        return false;
-    }
-    let (mut x, mut y) = (vec![0; n], vec![0; n]);
-    crate::cells::load_cells(a, 0, &mut x).is_ok()
-        && crate::cells::load_cells(b, 0, &mut y).is_ok()
-        && x == y
+    crate::cells::flatten(a) == crate::cells::flatten(b)
 }
 
 static CARS: [CarView; BLOCK_COUNT] = [const { CarView::new() }; BLOCK_COUNT];

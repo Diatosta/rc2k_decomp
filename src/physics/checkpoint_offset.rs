@@ -43,7 +43,7 @@ pub fn checkpoint_offset(
         .get()
         .wrapping_sub(crate::race::scene_points::point_word(
             course.reads(),
-            &crate::race::scene_points::NO_OWN,
+            &crate::race::scene_points::no_own(),
             point,
             0,
         )?);
@@ -51,7 +51,7 @@ pub fn checkpoint_offset(
         .get()
         .wrapping_sub(crate::race::scene_points::point_word(
             course.reads(),
-            &crate::race::scene_points::NO_OWN,
+            &crate::race::scene_points::no_own(),
             point,
             2,
         )?);

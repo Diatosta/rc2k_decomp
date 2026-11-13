@@ -11,21 +11,21 @@ pub fn current_player(menus: &Menus) -> Option<crate::menu::standings::PlayerCel
     crate::menu::player::player(menus, menus.screens.event.current_player.get())
 }
 
-/// The flag of menu item `item` in the repair flag table (the item not checked against
-/// the table: a read past it reads on, as the original's).
+/// The flag of menu item `item` in the repair flag table. The items are the workshop's and the
+/// markers' constants and the highlighted item held below `ITEM_COUNT`: 0 ..= 20, the table's
+/// 20 flags and its end mark.
 pub fn repair_flag(menus: &Menus, item: u32) -> u32 {
     repair_flag_in(&menus.tables, item)
 }
 
 /// `repair_flag` for a caller that holds the tables group.
 pub fn repair_flag_in(tables: &Tables, item: u32) -> u32 {
-    crate::session::read_on_in(
-        &tables.lists,
-        &tables.lists.inspection_flags_a,
-        item as usize,
-        "a repair flag",
-    )
-    .unwrap_or_else(|e| refuse(e))
+    tables
+        .lists
+        .inspection_flags_a
+        .get(item as usize)
+        .unwrap_or_else(|| refuse(BadInput("a repair item past the flag table")))
+        .get()
 }
 
 pub fn edit_mode(menus: &Menus) -> bool {
@@ -55,14 +55,12 @@ pub fn flagged_item(screens: &Screens) -> Result<u32, BadInput> {
 }
 
 pub fn set_repair_flag(tables: &Tables, item: u32, value: u32) {
-    crate::session::write_on_in(
-        &tables.lists,
-        &tables.lists.inspection_flags_a,
-        item as usize,
-        value,
-        "a repair flag",
-    )
-    .unwrap_or_else(|e| refuse(e));
+    tables
+        .lists
+        .inspection_flags_a
+        .get(item as usize)
+        .unwrap_or_else(|| refuse(BadInput("a repair item past the flag table")))
+        .set(value);
 }
 
 /// The flag table, with its end mark.

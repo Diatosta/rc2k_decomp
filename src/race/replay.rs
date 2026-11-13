@@ -241,11 +241,15 @@ pub fn write_replay_chunk(
 }
 
 /// The replay index's dword `k` (`lDistanceToMove` ..: offset and size a block). A block
-/// count past the index's 1800 (a broken file) reads on past it, as the original does.
+/// count past the index's 1800 (a broken file) reads on past it, as the original does: the index
+/// ends the file block's record, so there is nothing to read and it is refused.
 pub fn block_place(race: &Race, k: usize) -> Result<u32, BadInput> {
-    let shared = &race.shared;
-    let places = &shared.replay_file().block_places;
-    crate::session::read_on_in(shared.replay_file(), places, k, "the replay index")
+    race.shared
+        .replay_file()
+        .block_places
+        .get(k)
+        .map(crate::session::PlainDword::get)
+        .ok_or(BadInput("the replay index: a block past the 1800"))
 }
 
 /// `race::write_replay_block` (0x41E9A3): the block (`block`, 0x2810 bytes) written as a

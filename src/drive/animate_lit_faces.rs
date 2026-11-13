@@ -118,7 +118,7 @@ fn animate_faces(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), 
             let point_number = at(&race.course, f, 4)?;
             let dx = crate::race::scene_points::point_word(
                 race.course.reads(),
-                &crate::race::scene_points::NO_OWN,
+                &crate::race::scene_points::no_own(),
                 point_number,
                 0,
             )?
@@ -126,7 +126,7 @@ fn animate_faces(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), 
             scene.drawing.scene.get().scratch.set(dx);
             let dz = crate::race::scene_points::point_word(
                 race.course.reads(),
-                &crate::race::scene_points::NO_OWN,
+                &crate::race::scene_points::no_own(),
                 point_number,
                 2,
             )?
@@ -193,7 +193,7 @@ fn animate_faces(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), 
                     race.physics.ground().ground_x.set(
                         crate::race::scene_points::point_word(
                             race.course.reads(),
-                            &crate::race::scene_points::NO_OWN,
+                            &crate::race::scene_points::no_own(),
                             p,
                             0,
                         )?
@@ -202,7 +202,7 @@ fn animate_faces(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), 
                     race.physics.ground().ground_z.set(
                         crate::race::scene_points::point_word(
                             race.course.reads(),
-                            &crate::race::scene_points::NO_OWN,
+                            &crate::race::scene_points::no_own(),
                             p,
                             2,
                         )?
@@ -226,7 +226,7 @@ fn animate_faces(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), 
                         race.physics.ground().ground_height.get().wrapping_sub(
                             crate::race::scene_points::point_word(
                                 race.course.reads(),
-                                &crate::race::scene_points::NO_OWN,
+                                &crate::race::scene_points::no_own(),
                                 p,
                                 1,
                             )?,

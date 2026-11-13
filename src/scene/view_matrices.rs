@@ -114,29 +114,21 @@ fn write_columns<C: Cell32>(c: &Columns, to: [&[C; 16]; 3]) {
 }
 
 /// A drawing part's own columns (`workers::PartScratch::columns`): set while a part other
-/// than the first is drawn, none otherwise.
-pub struct OwnColumns(std::sync::Mutex<Option<Columns>>);
+/// than the first is drawn, none otherwise. A plain cell: only the thread that draws the part
+/// reaches it (`part_cell::PartCell`).
+pub struct OwnColumns(std::cell::Cell<Option<Columns>>);
 
 impl OwnColumns {
     pub const fn new() -> Self {
-        Self(std::sync::Mutex::new(None))
+        Self(std::cell::Cell::new(None))
     }
 
     fn get(&self) -> Option<Columns> {
-        *self
-            .0
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
+        self.0.get()
     }
 
     fn set(&self, c: Option<Columns>) -> Option<Columns> {
-        std::mem::replace(
-            &mut *self
-                .0
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner),
-            c,
-        )
+        self.0.replace(c)
     }
 }
 

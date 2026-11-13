@@ -24,6 +24,7 @@ pub fn probe_and_keep_at(
             c.ground,
             c.probe,
             c.course.course.get(),
+            &crate::race::scene_points::no_own(),
         ),
         c.contact,
         &scene.drawing.scene.get().scratch,

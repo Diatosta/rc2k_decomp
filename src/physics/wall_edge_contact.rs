@@ -52,7 +52,7 @@ pub fn edge_normal(
     let rd = |n: u32, k: u32| {
         crate::race::scene_points::point_word(
             course.reads(),
-            &crate::race::scene_points::NO_OWN,
+            &crate::race::scene_points::no_own(),
             n,
             k,
         )

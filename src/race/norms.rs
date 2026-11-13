@@ -49,7 +49,7 @@ pub fn face_normal(
         let point = |n: u32| -> Result<[i32; 3], BadInput> {
             Ok(crate::race::scene_points::point_number(
                 race.course.reads(),
-                &crate::race::scene_points::NO_OWN,
+                &crate::race::scene_points::no_own(),
                 n,
             )?
             .map(|v| v as i32))

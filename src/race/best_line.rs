@@ -297,7 +297,7 @@ pub fn checkpoint_angles(race: &Race, scene: &crate::scene::owner::Scene) -> Res
                 };
                 let w = |n: u32, k: u32| match crate::race::scene_points::point_word(
                     race.course.reads(),
-                    &crate::race::scene_points::NO_OWN,
+                    &crate::race::scene_points::no_own(),
                     n,
                     k,
                 ) {
@@ -363,7 +363,7 @@ pub fn checkpoint_distances(
             };
             let w = |n: u32, k: u32| match crate::race::scene_points::point_word(
                 course.reads(),
-                &crate::race::scene_points::NO_OWN,
+                &crate::race::scene_points::no_own(),
                 n,
                 k,
             ) {
@@ -429,13 +429,13 @@ pub fn replay_cameras(
             let from = [
                 crate::race::scene_points::point_word(
                     race.course.reads(),
-                    &crate::race::scene_points::NO_OWN,
+                    &crate::race::scene_points::no_own(),
                     p,
                     0,
                 )?,
                 crate::race::scene_points::point_word(
                     race.course.reads(),
-                    &crate::race::scene_points::NO_OWN,
+                    &crate::race::scene_points::no_own(),
                     p,
                     2,
                 )?,
@@ -451,7 +451,7 @@ pub fn replay_cameras(
                 };
                 let w = |n: u32, k: u32| match crate::race::scene_points::point_word(
                     race.course.reads(),
-                    &crate::race::scene_points::NO_OWN,
+                    &crate::race::scene_points::no_own(),
                     n,
                     k,
                 ) {
@@ -581,13 +581,13 @@ pub fn map_segment(race: &Race, scene: &crate::scene::owner::Scene) -> Result<()
                 [
                     crate::race::scene_points::point_word(
                         race.course.reads(),
-                        &crate::race::scene_points::NO_OWN,
+                        &crate::race::scene_points::no_own(),
                         p,
                         0,
                     )?,
                     crate::race::scene_points::point_word(
                         race.course.reads(),
-                        &crate::race::scene_points::NO_OWN,
+                        &crate::race::scene_points::no_own(),
                         p,
                         2,
                     )?,
@@ -636,13 +636,13 @@ pub fn map_segment(race: &Race, scene: &crate::scene::owner::Scene) -> Result<()
             let p = [
                 crate::race::scene_points::point_word(
                     race.course.reads(),
-                    &crate::race::scene_points::NO_OWN,
+                    &crate::race::scene_points::no_own(),
                     number,
                     0,
                 )?,
                 crate::race::scene_points::point_word(
                     race.course.reads(),
-                    &crate::race::scene_points::NO_OWN,
+                    &crate::race::scene_points::no_own(),
                     number,
                     2,
                 )?,

@@ -126,7 +126,7 @@ pub fn steps(
         }
         let dx = crate::race::scene_points::point_word(
             c.course.reads(),
-            &crate::race::scene_points::NO_OWN,
+            &crate::race::scene_points::no_own(),
             point,
             0,
         )?
@@ -134,7 +134,7 @@ pub fn steps(
         .wrapping_sub(c.car.position[0].get());
         let dz = crate::race::scene_points::point_word(
             c.course.reads(),
-            &crate::race::scene_points::NO_OWN,
+            &crate::race::scene_points::no_own(),
             point,
             2,
         )?

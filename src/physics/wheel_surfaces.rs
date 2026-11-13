@@ -142,12 +142,7 @@ fn steps(c: &WheelInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(), 
             c.car.wheel_surface_blend[cc].set(0.0);
             let kind_index = info_byte(&c.shared.buffers.reads.get().polygon_tables, t2, 0x2C)?;
             // The index is a byte: past the four kinds the original reads on (a slip).
-            let kind = crate::session::read_on_in(
-                c.view,
-                &c.view.surface_kinds,
-                kind_index as usize,
-                "the surface kinds (a byte index past the table)",
-            )?;
+            let kind = c.view.surface_kind(kind_index as usize)?;
             if kind != 5
                 && kind != 4
                 && c.car.wheel_surface_b[cc].get() != 0

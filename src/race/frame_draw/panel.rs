@@ -5,6 +5,7 @@ use crate::race::frame_view::car as car_view;
 use crate::race::owner::Race;
 use crate::race::owner_frame::Frame;
 use crate::race::owner_shared::RaceShared;
+use crate::race::tables_store::Listed;
 use crate::session::PlainDword;
 
 /// `race::car_label` (0x45B1B7): the panel's seven-byte label " CAR nn" for the neighbouring car,
@@ -435,14 +436,7 @@ pub fn panel_neighbours(race: &Race) -> Result<(), Refused> {
     // The place indexes unchecked, as the original does: the cars by place start at
     // `computer_ease_speed` (slot 0, the float 30.0) and run on into `arcade_car_kinds`; the
     // numbers' `number_before_first` is the entry at place -1.
-    let on = |first: &PlainDword, n: u32| {
-        crate::session::read_on_in(
-            shared.tables(),
-            std::slice::from_ref(first),
-            n as usize,
-            "a place table",
-        )
-    };
+    let on = |first: Listed, n: u32| shared.tables().dword_from(first, n as usize);
     let block_of = |car: u32| -> Result<_, Refused> {
         if car > 7 {
             return Err(BadInput("a neighbour's car past the eight").into());
@@ -452,11 +446,8 @@ pub fn panel_neighbours(race: &Race) -> Result<(), Refused> {
         }
         Ok(car_view(shared.work.get().block_number(car as usize)?)?)
     };
-    let behind = block_of(on(
-        &shared.tables().computer_ease_speed,
-        place.wrapping_add(1),
-    )?)?;
-    let ahead = block_of(on(&shared.tables().computer_ease_speed, place)?)?;
+    let behind = block_of(on(Listed::ComputerEaseSpeed, place.wrapping_add(1))?)?;
+    let ahead = block_of(on(Listed::ComputerEaseSpeed, place)?)?;
     frame.panel_and_overlay.get().panel.view_a.place.set(place);
     frame
         .panel_and_overlay
@@ -473,7 +464,7 @@ pub fn panel_neighbours(race: &Race) -> Result<(), Refused> {
     frame.panel_and_overlay.get().panel.view_a.back.set(back);
     car_label(
         &frame.panel_and_overlay.get().overlay.label_behind,
-        on(&shared.tables().arcade_car_numbers[0], place)?,
+        on(Listed::ArcadeCarNumbers, place)?,
         back,
     );
     frame
@@ -487,7 +478,7 @@ pub fn panel_neighbours(race: &Race) -> Result<(), Refused> {
     frame.panel_and_overlay.get().panel.view_a.front.set(front);
     car_label(
         &frame.panel_and_overlay.get().overlay.label_ahead,
-        on(&shared.tables().number_before_first, place)?,
+        on(Listed::NumberBeforeFirst, place)?,
         front,
     );
     frame
@@ -683,9 +674,10 @@ pub(super) fn check_panel_neighbours(shared: &RaceShared) -> Result<(), Refused>
         .mode2_place
         .get();
     // The cars by place (from `computer_ease_speed`, see `panel_neighbours`) at the place and the one after.
-    let first = std::slice::from_ref(&shared.tables().computer_ease_speed);
     for n in [place, place.wrapping_add(1)] {
-        let car = crate::session::read_on_in(shared.tables(), first, n as usize, "a place table")?;
+        let car = shared
+            .tables()
+            .dword_from(Listed::ComputerEaseSpeed, n as usize)?;
         if car > 7 || !shared.work.get().has_car_block(car as usize) {
             return Err(BadInput("a neighbour's car past the eight or null").into());
         }

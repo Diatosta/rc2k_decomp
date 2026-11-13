@@ -3,29 +3,10 @@
 //! around it: the two views' values (place, times, split gaps, motion), the overlay's miles and
 //! parts, the start lights, the marks, the HUD flags and the texture counter. Names are readings
 //! unless IDA's.
-//! Most of its dwords lie at addresses that are not a multiple of 4 (the piece starts at 0x6D13FE): they are `Loose32` cells and the piece needs no alignment.
+//! Most of its dwords lie at addresses that are not a multiple of 4 (the piece starts at 0x6D13FE): they are `PlainLoose` cells and the piece needs no alignment.
 
 use crate::cells::ZeroCells;
-use crate::session::{Bytes, PlainBytes, PlainLoose};
-
-/// A dword at an address that is not a multiple of 4: plain unaligned volatile loads and stores, as the image's were.
-#[repr(transparent)]
-#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
-pub struct Loose32(Bytes<4>);
-
-impl Loose32 {
-    pub const fn new(value: u32) -> Self {
-        Self(Bytes::new(value.to_le_bytes()))
-    }
-
-    pub fn get(&self) -> u32 {
-        self.0.get_u32(0)
-    }
-
-    pub fn set(&self, value: u32) {
-        self.0.set_u32(0, value);
-    }
-}
+use crate::session::{PlainBytes, PlainLoose};
 
 /// The first view's values for the panel (0x30 bytes from 0x6D140E; `race::panel_values`, `race::panel_motion`).
 #[repr(C)]

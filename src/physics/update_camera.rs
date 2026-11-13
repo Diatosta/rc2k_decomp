@@ -79,7 +79,7 @@ fn fixed_camera(
         c.car.camera_position[k as usize].set(
             crate::race::scene_points::point_word(
                 c.course.reads(),
-                &crate::race::scene_points::NO_OWN,
+                &crate::race::scene_points::no_own(),
                 point,
                 k,
             )

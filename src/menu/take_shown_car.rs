@@ -8,10 +8,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::menu::lists_store::CarList;
 use crate::menu::owner::Menus;
-use crate::menu::player::{PLAYERS, Player, player};
-
-const _: () = assert!(std::mem::offset_of!(Player, car_number) == 8);
-const _: () = assert!(std::mem::offset_of!(Player, class) == 0x90);
+use crate::menu::player::{PLAYERS, player};
 
 pub fn take_shown_car(menus: &Menus, list: Option<CarList>) -> Result<(), Refused> {
     let list = list.ok_or(BadInput("no list of cars"))?;

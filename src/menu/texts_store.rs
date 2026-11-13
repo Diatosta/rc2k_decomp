@@ -2,8 +2,8 @@
 //! two log texts of the map's polygon code, the keys menu (`MenuTexts.keys_menu`), each menu
 //! screen's picture path (one copy per screen, named for the screen that loads it; the
 //! others by their file), the stage maps', car specifications' and slides' paths (which
-//! `menu::lists_store`'s tables name by handle, the offset of the field), and two tables of speech samples' names
-//! (`car_speech`, `stage_speech`: handles of `audio::names_store`'s names, `speech_entry`). Nothing writes
+//! `menu::lists_store`'s tables name by `MenuText::key`), and two tables of speech samples' names
+//! (`car_speech`, `stage_speech`: keys of `audio::names_store`'s names, `speech_entry`). Nothing writes
 //! the texts.
 //!
 //! Every address of the texts is 2 past a multiple of 4: a two-byte lead and `align(4)` keep
@@ -2180,8 +2180,236 @@ impl MenuTexts {
     }
 }
 
-/// The handle of the first text (`MenuTexts` has two bytes before it).
-const LEAD: usize = core::mem::offset_of!(MenuTexts, no_point_text);
+/// Declares `MenuText` over the text fields the menus' tables name, and how each is found.
+macro_rules! menu_texts {
+    ($($field:ident,)*) => {
+        /// A text of `MenuTexts` the menus' tables name, by its field. A table cell holds
+        /// `key()`, the text's number + 1 (0 names none).
+        #[allow(
+            non_camel_case_types,
+            reason = "each variant is its field's own name"
+        )]
+        #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+        pub enum MenuText {
+            $($field,)*
+        }
+
+        impl MenuText {
+            /// Every text, in the order of the keys.
+            const ALL: &[MenuText] = &[$(MenuText::$field,)*];
+
+            /// The text's bytes: its field.
+            fn place(self, texts: &'static MenuTexts) -> crate::place::BytePlace {
+                match self {
+                    $(MenuText::$field => crate::place::BytePlace::from(&texts.$field),)*
+                }
+            }
+        }
+    };
+}
+
+menu_texts! {
+    welvx_png,
+    welpir_png,
+    welsct_png,
+    weljc_png,
+    welul_png,
+    welmnx_png,
+    a8_1_png,
+    a8_2_png,
+    a8_3_png,
+    a8_4_png,
+    a8_5_png,
+    a8_6_png,
+    serv00_png_4,
+    serv01_png,
+    serv02_png,
+    serv03_png,
+    serv04_png,
+    serv05_png,
+    serv06_png,
+    serv07_png,
+    serv08_png,
+    serv09_png,
+    serv10_png,
+    serv11_png,
+    serv12_png,
+    serv13_png,
+    serv14_png,
+    serv15_png,
+    serv16_png,
+    serv17_png,
+    serv18_png,
+    serv19_png,
+    serv20_png,
+    serv21_png,
+    serv22_png,
+    serv33_png,
+    vrw_001_png,
+    vrw_002_png,
+    vrw_003_png,
+    vrw_004_png,
+    vrw_005_png,
+    vrw_006_png,
+    pir_001_png,
+    pir_002_png,
+    pir_003_png,
+    pir_004_png,
+    pir_005_png,
+    pir_006_png,
+    sc_001_png,
+    sc_002_png,
+    sc_003_png,
+    sc_004_png,
+    sc_005_png,
+    sc_006_png,
+    jc_001_png,
+    jc_002_png,
+    jc_003_png,
+    jc_004_png,
+    jc_005_png,
+    jc_006_png,
+    ul_001_png,
+    ul_002_png,
+    ul_003_png,
+    ul_004_png,
+    ul_005_png,
+    ul_006_png,
+    mnx_001_png,
+    mnx_002_png,
+    mnx_003_png,
+    mnx_004_png,
+    mnx_005_png,
+    mnx_006_png,
+    mgnvc_png,
+    vxavc_png,
+    stcvc_png,
+    hycvc_png,
+    sbivc_png,
+    pgovc_png,
+    mxpvc_png,
+    mtlvc_png,
+    vwgvc_png,
+    nsavc_png,
+    ptwvc_png,
+    ctsvc_png,
+    hncvc_png,
+    nsmvc_png,
+    pgtvc_png,
+    frtvc_png,
+    sdovc_png,
+    stivc_png,
+    sdfvc_png,
+    ptcvc_png,
+    fmxvc_png,
+    fpmvc_png,
+    oscvc_png,
+    rclvc_png,
+    mgndm_png,
+    vxadm_png,
+    stcdm_png,
+    hycdm_png,
+    sbidm_png,
+    pgodm_png,
+    mxpdm_png,
+    mtldm_png,
+    vwgdm_png,
+    nsadm_png,
+    ptwdm_png,
+    ctsdm_png,
+    hncdm_png,
+    nsmdm_png,
+    pgtdm_png,
+    frtdm_png,
+    sdodm_png,
+    stidm_png,
+    sdfdm_png,
+    ptcdm_png,
+    fmxdm_png,
+    fpmdm_png,
+    oscdm_png,
+    rcldm_png,
+    mgnen_png,
+    vxaen_png,
+    stcen_png,
+    hycen_png,
+    sbien_png,
+    pgoen_png,
+    mxpen_png,
+    mtlen_png,
+    vwgen_png,
+    nsaen_png,
+    ptwen_png,
+    ctsen_png,
+    hncen_png,
+    nsmen_png,
+    pgten_png,
+    frten_png,
+    sdoen_png,
+    stien_png,
+    sdfen_png,
+    ptcen_png,
+    fmxen_png,
+    fpmen_png,
+    oscen_png,
+    rclen_png,
+    mgntc_png,
+    vxatc_png,
+    stctc_png,
+    hyctc_png,
+    sbitc_png,
+    pgotc_png,
+    mxptc_png,
+    mtltc_png,
+    vwgtc_png,
+    nsatc_png,
+    ptwtc_png,
+    ctstc_png,
+    hnctc_png,
+    nsmtc_png,
+    pgttc_png,
+    frttc_png,
+    sdotc_png,
+    stitc_png,
+    sdftc_png,
+    ptctc_png,
+    fmxtc_png,
+    fpmtc_png,
+    osctc_png,
+    rcltc_png,
+    mgnsl00_png,
+    vxasl00_png,
+    stcsl00_png,
+    hycsl00_png,
+    sbisl00_png,
+    pgosl00_png,
+    mxpsl00_png,
+    mtlsl00_png,
+    vwgsl00_png,
+    nsasl00_png,
+    ptwsl00_png,
+    ctssl00_png,
+    hncsl00_png,
+    nsmsl00_png,
+    pgtsl00_png,
+    frtsl00_png,
+    sdosl00_png,
+    stisl00_png,
+    sdfsl00_png,
+    ptcsl00_png,
+    fmxsl00_png,
+    fpmsl00_png,
+    oscsl00_png,
+    rclsl00_png,
+}
+
+impl MenuText {
+    /// The key a table cell holds for this text.
+    pub const fn key(self) -> u32 {
+        self as u32 + 1
+    }
+}
+
 /// Where the first speech table is in `MenuTexts`.
 #[cfg(test)]
 pub const CAR_SPEECH_OFFSET: usize = core::mem::offset_of!(MenuTexts, car_speech);
@@ -2198,7 +2426,53 @@ const fn speech_key(ida: u32) -> u32 {
 /// A speech row's end mark.
 pub const SPEECH_END: u32 = 0xFFFF_FFFF;
 
-/// The entry at `place` of the speech row `row` (its handle): the sample name's key
+/// A row of the speech tables: a car's (three entries) or a stage's (four).
+#[derive(Clone, Copy, Debug)]
+pub enum SpeechRow {
+    Car(usize),
+    Stage(usize),
+}
+
+const CAR_ROWS: usize = 24;
+const CAR_ENTRIES: usize = CAR_ROWS * 3;
+const STAGE_ROWS: usize = 36;
+const STAGE_ENTRIES: usize = STAGE_ROWS * 4;
+/// The first speech row's key; the texts' keys are below it.
+const SPEECH_KEY_BASE: u32 = 0x1000;
+const _: () = assert!(MenuText::ALL.len() < SPEECH_KEY_BASE as usize);
+
+impl SpeechRow {
+    /// The key a table cell holds for this row: `SPEECH_KEY_BASE` + the number of its first
+    /// entry among all the entries (the car rows, then the stage rows that follow them).
+    pub const fn key(self) -> u32 {
+        let first = match self {
+            SpeechRow::Car(n) => {
+                assert!(n < CAR_ROWS);
+                3 * n
+            }
+            SpeechRow::Stage(n) => {
+                assert!(n < STAGE_ROWS);
+                CAR_ENTRIES + 4 * n
+            }
+        };
+        SPEECH_KEY_BASE + first as u32
+    }
+}
+
+/// Entry `n` of the speech tables read as one run (the car rows, then the stage rows), as
+/// a row's reading on past its end goes on into the next row.
+fn speech_dword(texts: &MenuTexts, n: usize) -> Option<u32> {
+    if n < CAR_ENTRIES {
+        Some(texts.car_speech[n / 3][n % 3].get())
+    } else if n < CAR_ENTRIES + STAGE_ENTRIES {
+        let n = n - CAR_ENTRIES;
+        Some(texts.stage_speech[n / 4][n % 4].get())
+    } else {
+        None
+    }
+}
+
+/// The entry at `place` of the speech row `row` (its key): the sample name's key
 /// (`audio::store::name_key`), or `SPEECH_END`.
 pub fn speech_entry(
     texts: &MenuTexts,
@@ -2206,9 +2480,14 @@ pub fn speech_entry(
     row: u32,
     place: u32,
 ) -> Result<u32, crate::errors::BadInput> {
-    check_key(row)?;
-    let at = row.wrapping_add(place.wrapping_mul(4)) as usize;
-    let entry = crate::cells::load_value::<u32>(texts, at)?;
+    let first = row
+        .checked_sub(SPEECH_KEY_BASE)
+        .ok_or(crate::errors::BadInput(
+            "a speech row's key off the speech rows",
+        ))?;
+    let entry = speech_dword(texts, first as usize + place as usize).ok_or(
+        crate::errors::BadInput("a speech entry off the speech rows"),
+    )?;
     // 0: none, as the original's null.
     if entry == SPEECH_END || entry == 0 {
         return Ok(entry);
@@ -2217,23 +2496,16 @@ pub fn speech_entry(
     Ok(entry)
 }
 
-/// Refused: a handle that is no text's (a handle: its field's offset in `MenuTexts`).
-fn check_key(key: u32) -> Result<(), crate::errors::BadInput> {
-    if !(LEAD..size_of::<MenuTexts>()).contains(&(key as usize)) {
-        return Err(crate::errors::BadInput(
-            "a text's handle off the menus' texts",
-        ));
-    }
-    Ok(())
-}
-
-/// Where the text of `key` is (a handle: its field's offset in `MenuTexts`).
+/// Where the text of `key` is (`MenuText::key`).
 pub fn text_at(
     texts: &'static MenuTexts,
     key: u32,
 ) -> Result<crate::place::BytePlace, crate::errors::BadInput> {
-    check_key(key)?;
-    Ok(crate::place::BytePlace::in_store(texts, key as usize))
+    let text = key
+        .checked_sub(1)
+        .and_then(|n| MenuText::ALL.get(n as usize))
+        .ok_or(crate::errors::BadInput("a text's key off the menus' texts"))?;
+    Ok(text.place(texts))
 }
 
 #[cfg(test)]
@@ -2244,5 +2516,20 @@ mod tests {
     fn the_speech_tables_sit_on_dword_boundaries() {
         assert_eq!(core::mem::offset_of!(MenuTexts, car_speech) % 4, 0);
         assert_eq!(size_of::<MenuTexts>() % 4, 0);
+    }
+
+    #[test]
+    fn every_key_names_its_text_and_every_speech_row_its_entries() {
+        let texts: &'static MenuTexts = Box::leak(Box::new(MenuTexts::new()));
+        for (n, text) in MenuText::ALL.iter().enumerate() {
+            assert_eq!(text.key() as usize, n + 1);
+            let at = text_at(texts, text.key()).unwrap();
+            assert!(!at.text("a test text").unwrap().is_empty());
+        }
+        assert!(text_at(texts, 0).is_err());
+        assert!(text_at(texts, MenuText::ALL.len() as u32 + 1).is_err());
+        assert_eq!(SpeechRow::Car(1).key(), SPEECH_KEY_BASE + 3);
+        assert_eq!(SpeechRow::Stage(0).key(), SPEECH_KEY_BASE + 72);
+        assert_eq!(speech_dword(texts, CAR_ENTRIES + STAGE_ENTRIES), None);
     }
 }

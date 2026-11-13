@@ -449,7 +449,6 @@ pub fn run_particles(
 }
 
 /// The trail particles' colours (IDA 0x922B38 .. 0x922FE0).
-#[repr(C)]
 pub struct TrailColours {
     /// 0x922B38: `dword_922B38`: the trail particles' 298 colours (`effects::run_particles`).
     pub colours: [u32; 298],

@@ -27,6 +27,7 @@ pub fn ground_search(
             ground,
             ground_probe,
             course.course.get(),
+            &crate::race::scene_points::no_own(),
         ),
         scene.draw_switches.get(),
     )

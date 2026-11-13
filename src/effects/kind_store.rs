@@ -211,7 +211,6 @@ impl QuadWork {
 }
 
 /// The per-kind tables of one set: 3 tables of 0x22 triples, then 10 of 0x22 values.
-#[repr(C)]
 pub struct KindTables {
     /// `copied`: per kind, the triple copied into the quad's first side (`dword_933458`, `dword_93345C` ..)
     pub copied: [[f32; 3]; 34],
@@ -536,6 +535,7 @@ impl KindExtra2 {
 }
 
 /// A set's constants and light (IDA 0x54 bytes). The offsets are from its start.
+/// `repr(C)`: the recorded x87 vectors rebuild it from its bytes (`asm_test::with_copy`).
 #[repr(C)]
 pub struct KindConsts {
     /// +0x0: the kind's size is multiplied by it (`kind_values` c0) (`flt_933E7C`)

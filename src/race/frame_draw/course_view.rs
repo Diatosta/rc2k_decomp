@@ -89,12 +89,16 @@ pub fn face_hidden(
     // depths' roundings the x87's.
     use rc2k_core::race::faces::{hidden_by_depth, hidden_by_switches};
     let view: u32 = ctx.view.car.camera_view.get();
-    // race().frame.view_and_records.view_vars.view_hides[]: by camera view. Its 34 entries cover views 0 .. 0x21; the views up
-    // to 0x33 (the viewer's cameras) read on into the variables after it, as the original
-    // (notes/bugs.md); 0x33 is still inside `race().frame.view_and_records.view_vars`.
-    let shared = &ctx.reads.view_and_records.view_vars;
-    let shows: u32 =
-        crate::session::read_on_in(shared, &shared.view_hides, view as usize, "the view hides")?;
+    // race().frame.view_and_records.view_vars.view_hides[]: by camera view. Its 34 entries cover
+    // views 0 .. 0x21 and end the record: a later view has nothing to read.
+    let shows: u32 = ctx
+        .reads
+        .view_and_records
+        .view_vars
+        .view_hides
+        .get(view as usize)
+        .ok_or(BadInput("the view hides: a view past the 34"))?
+        .get();
     let hiding = if shows == 0 {
         ctx.reads.switches.scene_set_up.get()
     } else {

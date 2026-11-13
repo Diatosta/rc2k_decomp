@@ -29,7 +29,6 @@ const STREAK: u32 = 0x12;
 
 /// The colour table used while `MARKS_KIND_FLOATS.other` is 0: 257 colours (past `SURFACE`'s
 /// 128: the table `SURFACE.colours` is the one in use while it is not).
-#[repr(C)]
 pub struct Colours257 {
     /// 0x939DB2 .. 0x93A1B6: the 257 colours
     pub colours: [u32; 257],

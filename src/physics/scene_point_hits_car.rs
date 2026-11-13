@@ -21,7 +21,7 @@ pub fn scene_point_hits_car(c: &ContactInputs<'_>, face: u32) -> Result<(bool, u
     fill_cells(&c.contact.object_offset, 0.0);
     let place = crate::race::scene_points::point_number(
         c.course.reads(),
-        &crate::race::scene_points::NO_OWN,
+        &crate::race::scene_points::no_own(),
         number,
     )?;
     Ok(({ point_hits_car(c, place, face) }?, number))

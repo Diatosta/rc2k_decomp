@@ -78,7 +78,7 @@ fn face_turned_to_view(
     turned_to_view(
         race.course.reads(),
         race.shared.switches.get(),
-        &crate::race::scene_points::NO_OWN,
+        &crate::race::scene_points::no_own(),
         &Face(bytes),
         (half / 4) as usize,
         &race

@@ -20,6 +20,7 @@ use crate::effects::paths::Paths;
 use crate::errors::{BadInput, Refused};
 use crate::race::effects_settings_store::CarEffects;
 use crate::race::owner_course::Course;
+use crate::scene::object_slots_store::SlotTable;
 use crate::scene::objects::SLOTS;
 use crate::scene::owner::Scene;
 use crate::session::{PlainDword, PlainFloat};
@@ -57,7 +58,7 @@ fn points(course: &Course, scene: &Scene, b: &CarEffects) -> Result<(u32, u32, i
                     .objects
                     .slots
                     .get()
-                    .slot_value(&scene.objects.slots.get().first_point, id as usize),
+                    .slot_value(SlotTable::FirstPoint, id as usize),
             )
         };
         let (a, c) = (b.object.get(), b.second_object.get());
@@ -68,7 +69,7 @@ fn points(course: &Course, scene: &Scene, b: &CarEffects) -> Result<(u32, u32, i
                 .objects
                 .slots
                 .get()
-                .slot_value(&scene.objects.slots.get().point_counts, a as usize) as i32,
+                .slot_value(SlotTable::PointCounts, a as usize) as i32,
         )
     })
 }

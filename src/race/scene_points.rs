@@ -11,7 +11,7 @@
 //! The points past the count are scratch: each drawing part (`workers::PartScratch`) has its
 //! own while it is drawn in a run of a list drawn by several parts, taken from the shared ones
 //! as they are when it first reaches them in the run (`OwnPoints`). A reader names the own
-//! points it reads through; outside the parts that is `NO_OWN`, the shared points throughout.
+//! points it reads through; outside the parts that is `no_own()`, the shared points throughout.
 
 use crate::errors::BadInput;
 #[cfg(test)]
@@ -76,25 +76,12 @@ impl Default for OwnPoints {
     }
 }
 
-thread_local! {
-    /// This thread's `NO_OWN`: an `OwnPoints` that never begins a run.
-    static NONE: &'static OwnPoints = Box::leak(Box::new(OwnPoints::new()));
-}
-
 /// No own points: the shared ones throughout, what everything outside the drawing parts
-/// reads (the physics, the map, the best line, the debug pages). Behind `&NO_OWN` is an
-/// `OwnPoints` of the reading thread's, which never begins a run (so reads only the shared
-/// points, and its plain cells are reached by that thread alone).
-pub static NO_OWN: NoOwn = NoOwn;
-
-/// The type of `NO_OWN`: derefs to the calling thread's empty `OwnPoints`.
-pub struct NoOwn;
-
-impl std::ops::Deref for NoOwn {
-    type Target = OwnPoints;
-    fn deref(&self) -> &OwnPoints {
-        NONE.with(|none| *none)
-    }
+/// reads (the physics, the map, the best line, the debug pages). An `OwnPoints` that never
+/// begins a run (so reads only the shared points); each reader makes its own, which holds no
+/// allocation until something is written through it.
+pub const fn no_own() -> OwnPoints {
+    OwnPoints::new()
 }
 
 /// `f` on `points`' own bytes `from .. from + len` (`own` being their `own_from`, `from` at

@@ -27,12 +27,9 @@ use rc2k_core::drive::start_places;
 /// check lets up to 0x400 through; the start is `put_car`'s, dynamic, or `gap_start`'s, held to the
 /// count) reads on into the variables after it, as the original (kept, the starts not proven).
 pub fn car_number(shared: &RaceShared, start: usize) -> Result<u32, BadInput> {
-    crate::session::read_on_in(
-        shared.tables(),
-        &shared.tables().arcade_car_numbers,
-        start,
-        "the start tables",
-    )
+    shared
+        .tables()
+        .dword_from(crate::race::tables_store::Listed::ArcadeCarNumbers, start)
 }
 
 /// `distance` checkpoints on from the lead car.

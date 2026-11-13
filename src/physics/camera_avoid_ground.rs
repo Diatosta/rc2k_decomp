@@ -73,7 +73,7 @@ fn face_checkpoint(
     let coordinate = |k| {
         crate::race::scene_points::point_word(
             course.reads(),
-            &crate::race::scene_points::NO_OWN,
+            &crate::race::scene_points::no_own(),
             point,
             k,
         )

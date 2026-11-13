@@ -301,3 +301,94 @@ fn a_zero_record_is_all_zero_and_can_be_built_on() {
     assert_eq!(&bytes[..4], &[3, 0, 0, 0]);
     assert!(bytes[4..].iter().all(|&b| b == 0));
 }
+
+/// Bytes of varied values for a record: each byte a function of its place and `seed`.
+fn varied<T: Cells>(record: &T, seed: u32) {
+    let size = size_of::<T>();
+    let bytes: Vec<u8> = (0..size)
+        .map(|k| {
+            (k as u32)
+                .wrapping_mul(2_654_435_761)
+                .wrapping_add(seed)
+                .rotate_left(seed % 7) as u8
+        })
+        .collect();
+    store_cells(record, 0, &bytes).unwrap();
+}
+
+fn bytes_of<T: Cells>(record: &T) -> Vec<u8> {
+    let mut out = vec![0; size_of::<T>()];
+    load_cells(record, 0, &mut out).unwrap();
+    out
+}
+
+/// `SameShape` between plain and atomic arrays gives what the byte-run copies give.
+#[test]
+fn same_shape_arrays_match_the_run_copies() {
+    use crate::session::{Dword, Float, PlainDword, PlainFloat};
+    for seed in 1..6 {
+        let from: [PlainDword; 9] = std::array::from_fn(|_| PlainDword::new(0));
+        let start: [PlainDword; 9] = std::array::from_fn(|_| PlainDword::new(0));
+        varied(&from, seed);
+        varied(&start, seed ^ (seed << 3)); // some cells equal, some not
+        let (old, new): ([Dword; 9], [Dword; 9]) = (
+            std::array::from_fn(|_| Dword::new(7)),
+            std::array::from_fn(|_| Dword::new(7)),
+        );
+        copy_whole(&from, &old);
+        from.copy_cells_to(&new);
+        assert_eq!(bytes_of(&old), bytes_of(&new));
+        // merge: onto a plain array
+        let (to_old, to_new): ([PlainDword; 9], [PlainDword; 9]) = (
+            std::array::from_fn(|_| PlainDword::new(0)),
+            std::array::from_fn(|_| PlainDword::new(0)),
+        );
+        varied(&to_old, seed + 50);
+        varied(&to_new, seed + 50);
+        let start_atomic = new_start(&start);
+        merge_cell_changes(&to_old, &old, &start_atomic);
+        old.merge_cells_to(&start_atomic, &to_new);
+        assert_eq!(bytes_of(&to_old), bytes_of(&to_new));
+        // floats, atomic to plain
+        let f: [Float; 4] = std::array::from_fn(|_| Float::new(0.0));
+        let pf: [PlainFloat; 4] = std::array::from_fn(|_| PlainFloat::new(0.0));
+        let pf2: [PlainFloat; 4] = std::array::from_fn(|_| PlainFloat::new(0.0));
+        varied(&f, seed);
+        copy_whole(&f, &pf);
+        f.copy_cells_to(&pf2);
+        assert_eq!(bytes_of(&pf), bytes_of(&pf2));
+    }
+}
+
+/// The atomic copy of a plain array's values (the merge's "now" and "start" are atomic in the
+/// frame views).
+fn new_start<const N: usize>(
+    plain: &[crate::session::PlainDword; N],
+) -> [crate::session::Dword; N] {
+    let out: [crate::session::Dword; N] = std::array::from_fn(|_| crate::session::Dword::new(0));
+    plain.copy_cells_to(&out);
+    out
+}
+
+/// The derived `SameShape` of a record over a kind (`ViewVars`) copies and merges as the byte
+/// runs do.
+#[test]
+fn same_shape_records_match_the_run_copies() {
+    use crate::race::view_vars_store::ViewVars;
+    use crate::session::PlainCells;
+    for seed in 1..6 {
+        let make = || ViewVars::<PlainCells>::new();
+        let (from, start, a, b) = (make(), make(), make(), make());
+        varied(&from, seed);
+        varied(&start, seed ^ 0x55);
+        varied(&a, seed + 9);
+        varied(&b, seed + 9);
+        merge_cell_changes(&a, &from, &start);
+        from.merge_cells_to(&start, &b);
+        assert_eq!(bytes_of(&a), bytes_of(&b));
+        let (c, d) = (make(), make());
+        copy_whole(&from, &c);
+        from.copy_cells_to(&d);
+        assert_eq!(bytes_of(&c), bytes_of(&d));
+    }
+}

@@ -167,18 +167,20 @@ impl ViewScratch {
     /// drawing begins.
     pub fn take_vars(&self, reads: crate::workers::DrawReads<'_>) {
         let shared = &reads.view_and_records.view_vars;
-        crate::cells::copy_whole(shared, &self.vars);
-        crate::cells::copy_whole(shared, &self.vars_taken);
+        use crate::cells::Cells;
+        self.vars.copy_from(shared);
+        self.vars_taken.copy_from(shared);
     }
 
     /// What the view's drawing changed in its view variables into the shared ones (the game's
     /// thread, once it is drawn).
     pub fn hand_on_vars(&self, race: &crate::race::owner::Race) {
-        crate::cells::merge_cell_changes(
-            &race.frame.view_and_records.get().view_vars,
-            &self.vars,
-            &self.vars_taken,
-        );
+        use crate::cells::Cells;
+        race.frame
+            .view_and_records
+            .get()
+            .view_vars
+            .merge_changes(&self.vars, &self.vars_taken);
     }
 
     /// Every part but the lamps and the sort lists set back to its first values: a race view's

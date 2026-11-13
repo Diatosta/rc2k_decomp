@@ -221,6 +221,96 @@ fn on_in<H, C>(
     })
 }
 
+/// A run of 32-bit values in a record: one cell, an array of runs, or the dwords of a buffer of
+/// bytes (a gap).
+pub trait Run {
+    fn count(&self) -> usize;
+    fn bits(&self, i: usize) -> u32;
+    fn set_bits(&self, i: usize, v: u32);
+}
+
+impl<T: Cell32> Run for T {
+    fn count(&self) -> usize {
+        1
+    }
+    fn bits(&self, _: usize) -> u32 {
+        Cell32::bits(self)
+    }
+    fn set_bits(&self, _: usize, v: u32) {
+        Cell32::set_bits(self, v);
+    }
+}
+
+/// An array of runs of one type, each the same size.
+impl<R: Run, const N: usize> Run for [R; N] {
+    fn count(&self) -> usize {
+        self.first().map_or(0, |each| N * each.count())
+    }
+    fn bits(&self, i: usize) -> u32 {
+        let each = self[0].count();
+        self[i / each].bits(i % each)
+    }
+    fn set_bits(&self, i: usize, v: u32) {
+        let each = self[0].count();
+        self[i / each].set_bits(i % each, v);
+    }
+}
+
+/// The whole dwords of a buffer (a gap between a record's fields).
+impl<const N: usize> Run for PlainBytes<N> {
+    fn count(&self) -> usize {
+        N / 4
+    }
+    fn bits(&self, i: usize) -> u32 {
+        self.get_u32(4 * i)
+    }
+    fn set_bits(&self, i: usize, v: u32) {
+        self.set_u32(4 * i, v);
+    }
+}
+
+/// Where dword `n` of `runs` laid end to end is: a table and the fields after it in the record,
+/// named in the record's order. The original reads a table by an index it does not hold to the
+/// table's end, so the dword is the next field's. Past the last run is refused, and logged.
+fn locate<'a>(
+    runs: &[&'a dyn Run],
+    n: usize,
+    what: &str,
+) -> Result<(&'a dyn Run, usize), crate::errors::BadInput> {
+    let mut rest = n;
+    for run in runs {
+        if rest < run.count() {
+            return Ok((*run, rest));
+        }
+        rest -= run.count();
+    }
+    crate::framework::log(&format!(
+        "pointers: {what}: dword {n}, past the {} dwords listed",
+        n - rest
+    ));
+    Err(crate::errors::BadInput(
+        "a dword past the fields of its record",
+    ))
+}
+
+/// Dword `n` of `runs` (see `locate`).
+pub fn read_runs(runs: &[&dyn Run], n: usize, what: &str) -> Result<u32, crate::errors::BadInput> {
+    let (run, i) = locate(runs, n, what)?;
+    Ok(run.bits(i))
+}
+
+/// `read_runs`' write.
+pub fn write_runs(
+    runs: &[&dyn Run],
+    n: usize,
+    v: u32,
+    what: &str,
+) -> Result<(), crate::errors::BadInput> {
+    let (run, i) = locate(runs, n, what)?;
+    run.set_bits(i, v);
+    Ok(())
+}
+
 /// `n` cells from `from` into `to`, one at a time forwards (a `rep movsd`: an overlap reads
 /// what it has just written), each past its table's end only inside its holder.
 pub fn copy_on_in<F: crate::cells::Cells, T: crate::cells::Cells, A: Cell32, B: Cell32>(

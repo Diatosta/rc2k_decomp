@@ -77,7 +77,7 @@ pub fn object_hits_car(
             // `point` is the scene point's number (from `face_contact`).
             let place = match crate::race::scene_points::point_number(
                 c.course.reads(),
-                &crate::race::scene_points::NO_OWN,
+                &crate::race::scene_points::no_own(),
                 point,
             ) {
                 Ok(p) => p,

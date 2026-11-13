@@ -1124,7 +1124,6 @@ fn box_place_x87(ring: &Ring, w: &RingWork, e: u32, car: &CarEffects) {
 }
 
 /// The ring kinds' constants (`run_ring`, and the ribbons' two) (IDA 0x93A4DA .. 0x93A576).
-#[repr(C)]
 #[derive(Clone, Copy)]
 pub struct RingKinds {
     /// 0x93A4DA: `flt_93A4DA`, `flt_93A4DE`, `dword_93A4E2`: kind 5's drift factors

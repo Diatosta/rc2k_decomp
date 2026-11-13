@@ -63,6 +63,39 @@ pub struct Finish {
 
 /// The piece, with the image's first values.
 impl Finish {
+    /// The stage number for finish stage `n`. The original does not check `n` against the seven
+    /// stages: past them it reads the fields after the table, in order.
+    pub fn finish_stage(&self, n: usize) -> Result<u32, crate::errors::BadInput> {
+        if let Some(stage) = self.finish_stages.get(n) {
+            return Ok(stage.get());
+        }
+        crate::session::read_runs(
+            &[
+                &self.finish_stages,
+                &self.car_lift,
+                &self.finish_lengths,
+                &self.limit_a,
+                &self.limit_b,
+                &self.camera_yaw_rate,
+                &self.camera_distance_start,
+                &self.camera_height_start,
+                &self.camera_distance_rate,
+                &self.camera_height_rate,
+                &self.start_clock,
+                &self.time,
+                &self.eased,
+                &self.share,
+                &self.limit_c,
+                &self.limit_d,
+                &self.camera_pitch_per_share,
+                &self.camera_height_per_share,
+                &self.unreached_loader_buffers,
+            ],
+            n,
+            "the finish stages",
+        )
+    }
+
     pub const fn new() -> Self {
         use crate::cells::ZeroCells;
         use crate::session::{PlainDword, PlainFloat};
@@ -96,6 +129,26 @@ impl Finish {
             camera_pitch_per_share: PlainFloat::new(-0.125),
             camera_height_per_share: PlainFloat::new(8.0),
             ..ZeroCells::ZERO
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Every index to the end of the record gives what the byte-offset read gave, and the first
+    /// past it is refused as before.
+    #[test]
+    fn finish_stage_runs_on_as_the_old_read() {
+        let f = Finish::new();
+        for n in 0..27 {
+            crate::session::write_on_in(&f, &f.finish_stages, n, 0x1000 + n as u32, "t").unwrap();
+        }
+        for n in 0..40 {
+            let old = crate::session::read_on_in(&f, &f.finish_stages, n, "t");
+            assert_eq!(old.is_ok(), n < 27, "index {n}");
+            assert_eq!(f.finish_stage(n).ok(), old.ok(), "index {n}");
         }
     }
 }

@@ -10,7 +10,7 @@
 //! the 1999 layout kept in car blocks 8 and 9, the tail and the replay tape) is hashed as one
 //! group of its bytes, `.staging`, so that it hashes the same wherever it is kept.
 
-use crate::cells::Cells;
+use crate::cells::{CellVisitor, Cells};
 use crate::race::blocks_store::CarBlocks;
 
 /// The prefixes of the names of gap fields.
@@ -34,6 +34,58 @@ fn fnv1a(bytes: &[u8]) -> u64 {
 /// The hash of the eight cars' fields in groups, one for each car (`.cars[3]`): each is the sum of one hash per run of like cells over its path, length and
 /// bytes. The groups added up are the whole blocks' hash (`total`).
 pub fn car_blocks_groups(blocks: &CarBlocks) -> Vec<(String, u64)> {
+    let mut hasher = GroupHasher::default();
+    blocks.visit(&mut hasher);
+    hasher.groups
+}
+
+/// The groups built from `Cells::visit`: the field path kept as the visit goes in and out.
+#[derive(Default)]
+struct GroupHasher {
+    path: String,
+    /// The path's length before each part entered.
+    marks: Vec<usize>,
+    groups: Vec<(String, u64)>,
+}
+
+impl CellVisitor for GroupHasher {
+    fn enter(&mut self, name: &'static str) {
+        self.marks.push(self.path.len());
+        self.path.push('.');
+        self.path.push_str(name);
+    }
+
+    fn index(&mut self, i: usize) {
+        self.marks.push(self.path.len());
+        self.path.push_str(&format!("[{i}]"));
+    }
+
+    fn leave(&mut self) {
+        let mark = self.marks.pop().expect("a part entered");
+        self.path.truncate(mark);
+    }
+
+    fn leaf(&mut self, bytes: &[u8]) {
+        if is_gap(&self.path) {
+            return;
+        }
+        let mut entry = self.path.clone().into_bytes();
+        entry.push(0);
+        entry.extend((bytes.len() as u64).to_le_bytes());
+        entry.extend(bytes);
+        let hash = fnv1a(&entry);
+        let group = path_group(&self.path);
+        match self.groups.iter_mut().find(|g| g.0 == group) {
+            Some(g) => g.1 = g.1.wrapping_add(hash),
+            None => self.groups.push((group, hash)),
+        }
+    }
+}
+
+/// The groups by walking the blocks' bytes and asking each byte's field path: what
+/// `car_blocks_groups` must equal.
+#[cfg(test)]
+fn car_blocks_groups_by_bytes(blocks: &CarBlocks) -> Vec<(String, u64)> {
     let size = size_of::<CarBlocks>();
     let mut groups: Vec<(String, u64)> = Vec::new();
     let mut at = 0;
@@ -102,6 +154,31 @@ fn path_group(path: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Varied bytes through the whole blocks (the gap fields too).
+    fn filled(seed: u32) -> CarBlocks {
+        let blocks = CarBlocks::new();
+        let mut state = seed;
+        let bytes: Vec<u8> = (0..size_of::<CarBlocks>())
+            .map(|_| {
+                state = state.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
+                (state >> 24) as u8
+            })
+            .collect();
+        crate::cells::store_cells(&blocks, 0, &bytes).unwrap();
+        blocks
+    }
+
+    #[test]
+    fn the_visitor_hashes_as_the_byte_walk_did() {
+        for blocks in [CarBlocks::new(), filled(1), filled(0xDEAD_BEEF)] {
+            let by_visit = car_blocks_groups(&blocks);
+            let by_bytes = car_blocks_groups_by_bytes(&blocks);
+            assert_eq!(by_visit, by_bytes);
+            assert_eq!(total(&by_visit), total(&by_bytes));
+            assert_eq!(by_visit.len(), 8);
+        }
+    }
 
     #[test]
     fn a_field_changes_the_hash_and_a_gap_does_not() {

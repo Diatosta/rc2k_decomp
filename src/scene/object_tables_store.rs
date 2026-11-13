@@ -44,12 +44,30 @@ pub struct ObjectTables {
 }
 
 impl ObjectTables {
-    /// `g_objectKinds[object]`, read by address: the object numbers the game's code passes
-    /// are not all bounded by the table.
+    /// `g_objectKinds[object]`: the object numbers the game's code passes are not all bounded by
+    /// the table, so a number past it reads on into the fields after it, in order, to the end of
+    /// the record (a number past that ends the program).
     pub fn object_kind(&self, object: u32) -> u32 {
-        crate::session::read_on_in(
-            self,
-            &self.object_kinds,
+        if let Some(kind) = self.object_kinds.get(object as usize) {
+            return kind.get();
+        }
+        crate::session::read_runs(
+            &[
+                &self.object_kinds,
+                &self.face_count,
+                &self.point_count,
+                &self.normals_at,
+                &self.car_mark_textures,
+                &self.car_letter_b,
+                &self.d3d_drawing_on,
+                &self.unknown_c14,
+                &self.level_sizes,
+                &self.level_mips,
+                &self.other_levels,
+                &self.texture_tags,
+                &self.system_levels,
+                &self.video_levels,
+            ],
             object as usize,
             "an object's kind",
         )
@@ -91,6 +109,28 @@ impl ObjectTables {
                 PlainDword::new(0),
             ],
             ..ZeroCells::ZERO
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Every object number from the table to the end of the record gives what the byte-offset
+    /// read gave.
+    #[test]
+    fn object_kind_runs_on_as_the_old_read() {
+        let t = Box::new(ObjectTables::new());
+        let room = (core::mem::size_of::<ObjectTables>()
+            - core::mem::offset_of!(ObjectTables, object_kinds))
+            / 4;
+        for n in 0..room {
+            crate::session::write_on_in(&*t, &t.object_kinds, n, 0x6000 + n as u32, "t").unwrap();
+        }
+        for n in 0..room {
+            let old = crate::session::read_on_in(&*t, &t.object_kinds, n, "t").unwrap();
+            assert_eq!(t.object_kind(n as u32), old, "object {n}");
         }
     }
 }

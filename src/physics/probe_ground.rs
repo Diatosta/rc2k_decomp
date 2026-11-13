@@ -216,7 +216,12 @@ pub fn probe_ground(
         &ProbeInputs::of_ground(c),
         car,
         scene.draw_switches.get(),
-        &GroundQuery::of_physics(c.ground, c.probe, c.course.course.get()),
+        &GroundQuery::of_physics(
+            c.ground,
+            c.probe,
+            c.course.course.get(),
+            &crate::race::scene_points::no_own(),
+        ),
         c.contact,
         &scene.drawing.scene.get().scratch,
     )

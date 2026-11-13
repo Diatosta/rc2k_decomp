@@ -150,7 +150,6 @@ pub fn run_frame(
 }
 
 /// The frame's time constants (IDA 0x93C8C0 .. 0x93C8D0).
-#[repr(C)]
 pub struct FrameK {
     /// 0x93C8C0: `flt_93C8C0`: the marks' share factor (`frame_marks`)
     pub share_k: f32,

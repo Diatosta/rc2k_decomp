@@ -90,6 +90,66 @@ pub struct RaceTables {
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
 // them): any bit pattern is a valid value.
 
+/// The tables the start set-up and the panel read by an index the original does not hold to the
+/// table (`RaceTables::dword_from`), numbered by their place among the fields from
+/// `arcade_cars_by_rally` on.
+#[derive(Clone, Copy)]
+pub enum Listed {
+    ArcadeCarsByRally = 0,
+    BestPlaceByStage = 1,
+    StartShareLastByRally = 2,
+    StartShareFirstByRally = 3,
+    ComputerEaseSpeed = 9,
+    ArcadeCarKinds = 10,
+    NumberBeforeFirst = 11,
+    ArcadeCarNumbers = 12,
+}
+
+impl RaceTables {
+    /// Dword `n` of the table `from`. The original does not hold `n` to the table's end: it
+    /// reads the fields after the table in order, to the end of the record (`n` past that
+    /// is refused).
+    pub fn dword_from(&self, from: Listed, n: usize) -> Result<u32, crate::errors::BadInput> {
+        let fields: [&dyn crate::session::Run; 34] = [
+            &self.arcade_cars_by_rally,
+            &self.arcade_best_place_by_stage,
+            &self.start_share_last_by_rally,
+            &self.start_share_first_by_rally,
+            &self.time_percentages,
+            &self.kind_time_factors,
+            &self.car_data_text,
+            &self.start_blend_step,
+            &self.pace_push_scale,
+            &self.computer_ease_speed,
+            &self.arcade_car_kinds,
+            &self.number_before_first,
+            &self.arcade_car_numbers,
+            &self.noise_seed,
+            &self.start_slot,
+            &self.start_share_last,
+            &self.start_share_first,
+            &self.start_share,
+            &self.start_speed,
+            &self.arcade_cars,
+            &self.unused_b7c,
+            &self.start_place,
+            &self.best_place,
+            &self.pace_start_a,
+            &self.pace_start_b,
+            &self.pace_distance_a,
+            &self.pace_distance_b,
+            &self.pace_pass_gap,
+            &self.pace_back_gap,
+            &self.pace_gap_sum,
+            &self.kind_order,
+            &self.view_share,
+            &self.camera_turn_step,
+            &self.camera_ground_flag,
+        ];
+        crate::session::read_runs(&fields[from as usize..], n, "the race tables")
+    }
+}
+
 impl RaceTables {
     /// The piece, with the image's first values.
     pub const fn new() -> Self {
@@ -695,6 +755,50 @@ impl RaceTables {
                 PlainDword::new(0xFFFFFFFF),
             ],
             ..ZeroCells::ZERO
+        }
+    }
+}
+
+#[cfg(test)]
+mod run_on_tests {
+    use super::*;
+
+    /// Every dword from each listed table to the end of the record gives what the byte-offset
+    /// read gave, and the first past it is refused as before.
+    #[test]
+    fn dword_from_runs_on_as_the_old_read() {
+        let t = Box::new(RaceTables::new());
+        let room = (core::mem::size_of::<RaceTables>()
+            - core::mem::offset_of!(RaceTables, arcade_cars_by_rally))
+            / 4;
+        for n in 0..room {
+            crate::session::write_on_in(&*t, &t.arcade_cars_by_rally, n, 0x8000 + n as u32, "t")
+                .unwrap();
+        }
+        let from: [(Listed, &[PlainDword]); 4] = [
+            (Listed::ArcadeCarsByRally, &t.arcade_cars_by_rally),
+            (Listed::BestPlaceByStage, &t.arcade_best_place_by_stage),
+            (Listed::StartShareLastByRally, &t.start_share_last_by_rally),
+            (
+                Listed::StartShareFirstByRally,
+                &t.start_share_first_by_rally,
+            ),
+        ];
+        let single: [(Listed, &PlainDword); 4] = [
+            (Listed::ComputerEaseSpeed, &t.computer_ease_speed),
+            (Listed::ArcadeCarKinds, &t.arcade_car_kinds[0]),
+            (Listed::NumberBeforeFirst, &t.number_before_first),
+            (Listed::ArcadeCarNumbers, &t.arcade_car_numbers[0]),
+        ];
+        for (listed, table) in from
+            .into_iter()
+            .chain(single.map(|(l, c)| (l, std::slice::from_ref(c))))
+        {
+            let left = room + 8;
+            for n in 0..left {
+                let old = crate::session::read_on_in(&*t, table, n, "t");
+                assert_eq!(t.dword_from(listed, n).ok(), old.ok(), "{n}");
+            }
         }
     }
 }

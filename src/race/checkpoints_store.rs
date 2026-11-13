@@ -51,49 +51,66 @@ impl core::ops::Deref for InBuffers {
 #[cfg(test)]
 pub static CHECKPOINTS: InBuffers = InBuffers;
 
-/// Cell `n` of the table `table` that is the field at byte `field` of `record`. The
-/// original indexes these tables by a number it holds to a count, not to the table's room,
-/// and a cell past a field's end is the next field's first (as in the image): the cell is
-/// found in `record` by its offset. A cell past the record ends the program.
-#[inline]
-pub fn cell_in<'a, T: crate::cells::Cells>(
-    table: &'a [PlainDword],
-    record: &'a T,
-    field: usize,
-    n: usize,
-) -> &'a PlainDword {
-    table.get(n).unwrap_or_else(|| run_on(record, field, n))
+/// The dword `index` places from the start of the record, as the neighbour fields name it:
+/// each field's cells in the order they are declared, the one after the last field's end
+/// being none. The original indexes these tables by a number it holds to a count, not to the
+/// table's room, and a cell past a field's end is the next field's first.
+fn record_cell(table: &Checkpoints, index: usize) -> Option<&PlainDword> {
+    let fields: [&[PlainDword]; 12] = [
+        &table.checkpoint_faces,
+        &table.check_counts,
+        &table.angles,
+        &table.unused_f130,
+        &table.distances,
+        &table.map_x,
+        &table.map_y,
+        &table.nearest_camera_1,
+        &table.nearest_camera_2,
+        core::slice::from_ref(&table.line_length),
+        &table.replay_cameras_1,
+        &table.replay_cameras_2,
+    ];
+    let mut left = index;
+    for cells in fields {
+        if let Some(cell) = cells.get(left) {
+            return Some(cell);
+        }
+        left -= cells.len();
+    }
+    None
 }
 
-/// The dword `n` places on from byte `field` of `record`, across the fields after it.
-pub fn run_on<T: crate::cells::Cells>(record: &T, field: usize, n: usize) -> &PlainDword {
-    use crate::cells::CellRun;
-    let offset = field.wrapping_add(((n as u32).wrapping_mul(4)) as usize);
-    let cell = (offset < core::mem::size_of::<T>())
-        .then(|| record.cell_run(offset))
-        .and_then(|(start, run)| match run {
-            CellRun::PlainDword(cells) if (offset - start).is_multiple_of(4) => {
-                cells.get((offset - start) / 4)
-            }
-            _ => None,
-        });
-    cell.unwrap_or_else(|| {
-        crate::fatal::raise::end(
-            "a cell past a table",
-            crate::errors::BadInput("a cell past the tables of its record"),
-        )
+/// Cell `n` of the table `field` (its cells from the first one the readers index, `skip`),
+/// run on through the fields after it. `first` is the field's first cell's place in the record
+/// in dwords. The byte offset is worked out in 32 bits as the original's address arithmetic does. A cell
+/// past the record ends the program.
+fn run_on_from<'a>(
+    table: &'a Checkpoints,
+    cells: &'a [PlainDword],
+    first: usize,
+    n: usize,
+) -> &'a PlainDword {
+    cells.get(n).unwrap_or_else(|| {
+        let offset = (first * 4).wrapping_add((n as u32).wrapping_mul(4) as usize);
+        let index = offset / 4;
+        record_cell(table, index).unwrap_or_else(|| {
+            crate::fatal::raise::end(
+                "a cell past a table",
+                crate::errors::BadInput("a cell past the tables of its record"),
+            )
+        })
     })
 }
 
-/// Cell `n` of the field `$field` of the checkpoint tables, run on through the fields
-/// after it (`cell_in`).
+/// Cell `n` of the field `$field` of the checkpoint tables, from its cell `$skip`, run on
+/// through the fields after it (`run_on_from`).
 macro_rules! checkpoint_cell {
     ($table:expr, $field:ident, $skip:expr, $n:expr) => {{
         use core::mem::offset_of;
-        cell_in(
-            &$table.$field[$skip..],
+        run_on_from(
             $table,
-            offset_of!(Checkpoints, $field) + 4 * $skip,
+            &$table.$field[$skip..],
+            offset_of!(Checkpoints, $field) / 4 + $skip,
             $n,
         )
     }};
@@ -165,6 +182,72 @@ pub fn check_count_run_on(table: &Checkpoints, n: usize) -> &PlainDword {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::cells::CellRun;
+
+    /// The earlier way: the cell found by byte offset in the record's cell runs.
+    fn oracle(table: &Checkpoints, field: usize, n: usize) -> Option<*const PlainDword> {
+        use crate::cells::Cells;
+        let offset = field.wrapping_add(((n as u32).wrapping_mul(4)) as usize);
+        (offset < core::mem::size_of::<Checkpoints>())
+            .then(|| table.cell_run(offset))
+            .and_then(|(start, run)| match run {
+                CellRun::PlainDword(cells) if (offset - start).is_multiple_of(4) => {
+                    cells.get((offset - start) / 4).map(std::ptr::from_ref)
+                }
+                _ => None,
+            })
+    }
+
+    /// The new reader's cell, or none past the record (where it ends the program).
+    fn reach(
+        table: &Checkpoints,
+        cells: &[PlainDword],
+        first: usize,
+        n: usize,
+    ) -> Option<*const PlainDword> {
+        match cells.get(n) {
+            Some(c) => Some(c),
+            None => {
+                let offset = (first * 4).wrapping_add((n as u32).wrapping_mul(4) as usize);
+                record_cell(table, offset / 4)
+            }
+        }
+        .map(std::ptr::from_ref)
+    }
+
+    #[test]
+    fn the_run_on_readers_reach_what_the_byte_offset_found() {
+        let t: &Checkpoints = &CHECKPOINTS;
+        let end = core::mem::size_of::<Checkpoints>() / 4 + 3;
+        macro_rules! check {
+            ($field:ident, $skip:expr, $reader:ident) => {
+                for n in 0..end {
+                    let field = core::mem::offset_of!(Checkpoints, $field) + 4 * $skip;
+                    let cells = &t.$field[$skip..];
+                    let new = reach(t, cells, field / 4, n);
+                    assert_eq!(new, oracle(t, field, n), "{} {n}", stringify!($field));
+                    if let Some(p) = new {
+                        assert!(core::ptr::eq($reader(t, n), p));
+                    }
+                }
+            };
+        }
+        check!(checkpoint_faces, 0, face_run_on);
+        check!(angles, 2, angle_run_on);
+        check!(distances, 0, distance_run_on);
+        check!(map_x, 0, map_x_run_on);
+        check!(map_y, 0, map_y_run_on);
+        check!(check_counts, 0, check_count_run_on);
+        // Counts that wrap in 32 bits.
+        let wide = usize::try_from(0x1_0000_0000u64).ok();
+        for n in [0x4000_0000usize, 0x4000_0001, 0xFFFF_FFFF]
+            .into_iter()
+            .chain(wide)
+        {
+            let field = core::mem::offset_of!(Checkpoints, map_x);
+            assert_eq!(reach(t, &t.map_x, field / 4, n), oracle(t, field, n));
+        }
+    }
 
     #[test]
     fn a_cell_past_a_table_is_the_next_fields_first() {

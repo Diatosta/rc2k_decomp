@@ -81,13 +81,13 @@ pub fn scroll_map(
     let point = crate::race::course_places::face_number(race.course.reads(), face)?.point(0);
     let px = crate::race::scene_points::point_word(
         race.course.reads(),
-        &crate::race::scene_points::NO_OWN,
+        &crate::race::scene_points::no_own(),
         point,
         0,
     )?;
     let pz = crate::race::scene_points::point_word(
         race.course.reads(),
-        &crate::race::scene_points::NO_OWN,
+        &crate::race::scene_points::no_own(),
         point,
         2,
     )?;

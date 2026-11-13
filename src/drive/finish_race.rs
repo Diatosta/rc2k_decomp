@@ -99,17 +99,12 @@ pub fn finish_race(race: &'static Race, o: crate::owners::Owners<'static>) -> Re
     let race_owner = race;
     let replay = &race.replay;
     // The stage index is not checked against the seven (a read past them is the original's).
-    race_owner
-        .shared
-        .vars
-        .get()
-        .stage_number
-        .set(crate::session::read_on_in(
-            replay.finish.get(),
-            &replay.finish.get().finish_stages,
-            race_owner.shared.state.results.stage_index.get() as usize,
-            "the finish stages",
-        )?);
+    race_owner.shared.vars.get().stage_number.set(
+        replay
+            .finish
+            .get()
+            .finish_stage(race_owner.shared.state.results.stage_index.get() as usize)?,
+    );
     race_owner.shared.vars.get().race_car_kinds[0]
         .set(race_owner.shared.state.results.finish_kind.get());
     race.car_blocks().cars[0]

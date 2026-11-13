@@ -1070,7 +1070,7 @@ mod vector_tests {
                 let inside = crate::race::scene_points::with_test_points(&points, || {
                     inside_edge(
                         race().course.reads(),
-                        &crate::race::scene_points::NO_OWN,
+                        &crate::race::scene_points::no_own(),
                         &work,
                         n,
                     )
@@ -1078,7 +1078,8 @@ mod vector_tests {
                 .expect("the test's memory is registered");
                 // The point the original left in the ground work, the shadow's own search in
                 // the shadow's own search fields.
-                let q = work.search.query(&crate::race::scene_points::NO_OWN);
+                let none = crate::race::scene_points::no_own();
+                let q = work.search.query(&none);
                 let got = [inside as u32, q.x.get(), q.z.get()];
                 vectors.check(&got, |a, b| a == b, || format!("{points:x?} {edge:x?} {n}"));
                 if got[0] != 0 { yes += 1 } else { no += 1 }
@@ -1136,7 +1137,7 @@ mod vector_tests {
                 crate::race::scene_points::with_test_points(&both, || {
                     crossing_block(
                         race().course.reads(),
-                        &crate::race::scene_points::NO_OWN,
+                        &crate::race::scene_points::no_own(),
                         &poly,
                         &work,
                         (0, 1),

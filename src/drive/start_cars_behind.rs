@@ -53,7 +53,7 @@ fn car_by_start(shared: &RaceShared, k: u32) -> Result<u32, BadInput> {
     match k as usize {
         n if n < tables.arcade_car_kinds.len() => Ok(tables.arcade_car_kinds[n].get()),
         n if n == tables.arcade_car_kinds.len() => Ok(tables.number_before_first.get()),
-        n => crate::session::read_on_in(tables, &tables.arcade_car_kinds, n, "the start tables"),
+        n => tables.dword_from(crate::race::tables_store::Listed::ArcadeCarKinds, n),
     }
 }
 

@@ -72,10 +72,13 @@ pub fn load_view_car(
     use rc2k_core::drive::work_car::{car_block, car_slot};
     let slot = car_slot(view_car(race_view, n).get());
     car_block(u32::from(work.has_car_block(slot as usize)))?;
-    crate::cells::copy_whole(
-        crate::race::owner_shared::RaceShared::race_car_in(work, blocks, slot as usize)?,
-        &view.car,
-    );
+    use crate::cells::Cells;
+    view.car
+        .copy_from(crate::race::owner_shared::RaceShared::race_car_in(
+            work,
+            blocks,
+            slot as usize,
+        )?);
     Ok(())
 }
 

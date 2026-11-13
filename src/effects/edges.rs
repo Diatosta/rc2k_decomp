@@ -7,7 +7,6 @@ use crate::effects::owner::Effects;
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
-use crate::race::panel_store::Loose32;
 use crate::session::{PlainBytes, PlainDword, PlainFloat, read_bits};
 
 pub const RESUME: u32 = 0x4C0FFD; // loc_4C0FFD
@@ -372,11 +371,9 @@ pub struct EdgeSettings {
     /// 0x8BC3DA: `flt_8BC3DA`, `flt_8BC3DE`, `flt_8BC3E2`: 65536.0, 1000.0, 90.0: the kinds' records are scaled by the first over the second, and their floats taken from the third.
     pub scale: [PlainFloat; 3],
     /// 0x8BC3E6: `files\m\edge00.pcx` and its NUL: the edge picture's path (the kind's two digits at +12, +13).
-    pub path: PlainBytes<19>,
-    /// 0x8BC3F9: `flt_8BC3F9`: 0.0175 (degrees to radians), the shape tilt's scale (a float at an address that is 1 more than a multiple of 4).
-    pub tilt_scale: Loose32,
-    /// Fills the record's alignment (a cell may not leave padding; zero).
-    pub _tail: PlainBytes<1>,
+    pub path: PlainBytes<20>,
+    /// 0x8BC3F9: `flt_8BC3F9`: 0.0175 (degrees to radians), the shape tilt's scale (a float's bits).
+    pub tilt_scale: PlainDword,
 }
 
 impl EdgeSettings {
@@ -391,10 +388,9 @@ impl EdgeSettings {
             ],
             path: PlainBytes::new([
                 0x66, 0x69, 0x6C, 0x65, 0x73, 0x5C, 0x6D, 0x5C, 0x65, 0x64, 0x67, 0x65, 0x30, 0x30,
-                0x2E, 0x70, 0x63, 0x78, 0x00,
+                0x2E, 0x70, 0x63, 0x78, 0x00, 0x00,
             ]),
-            tilt_scale: Loose32::new(0x3C8EFA35),
-            _tail: PlainBytes::new([0]),
+            tilt_scale: PlainDword::new(0x3C8EFA35),
         }
     }
 }

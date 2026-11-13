@@ -358,14 +358,16 @@ pub fn steps(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refus
     ph::take_notice::take_notice(race.shared.car());
     ph::drop_to_neutral::drop_to_neutral(race.shared.car(), race.shared.physics_tables.get());
     // 0x43B96B: `physics::test_car_word_234` set only flags nobody reads: left out.
-    // A car number past 7 (refused further down) reads past the field.
+    // The step's three callers run it for the cars from 0 up to the race's car count, at most 8.
     let car = race.shared.work.get().current_car.get() as usize;
-    let listed = crate::session::read_on_in(
-        race.frame.frame_work.get(),
-        &race.frame.frame_work.get().listed_car_sounds,
-        car,
-        "a listed car sound",
-    )?;
+    let listed = race
+        .frame
+        .frame_work
+        .get()
+        .listed_car_sounds
+        .get(car)
+        .ok_or(BadInput("a car number past the eight"))?
+        .get();
     if listed != u32::MAX {
         ph::camera_frame::camera_frame(&inputs.camera(), scene)?;
     }

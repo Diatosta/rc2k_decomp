@@ -38,13 +38,41 @@ pub struct ObjectTables {
     pub radii: [PlainDword; 256],
 }
 
+/// The per-slot tables the effects read by slot (`ObjectTables::slot_value`), numbered by their
+/// place among the tables from `first_point` on.
+#[derive(Clone, Copy)]
+pub enum SlotTable {
+    FirstPoint = 0,
+    PointCounts = 1,
+    FirstFace = 3,
+    FaceCounts = 4,
+}
+
 impl ObjectTables {
-    /// A slot's entry of one of the 256-entry tables, read by address as the original does:
-    /// a slot past the table reads on into the next one (for slots nothing has checked).
-    pub fn slot_value(&self, table: &[PlainDword; 256], slot: usize) -> u32 {
-        // The tables are contiguous; a slot far past them is the caller's slip, as it was the
-        // original's (a checked read: outside the allocation ends the program).
-        crate::session::read_on_in(self, table, slot, "an object slot")
+    /// A slot's entry of one of the 256-entry tables. The slots are not all checked against the
+    /// table: a slot past it reads on into the tables after it, in order, to the end of the
+    /// record (a slot past that ends the program).
+    pub fn slot_value(&self, table: SlotTable, slot: usize) -> u32 {
+        let own = match table {
+            SlotTable::FirstPoint => &self.first_point,
+            SlotTable::PointCounts => &self.point_counts,
+            SlotTable::FirstFace => &self.first_face,
+            SlotTable::FaceCounts => &self.face_counts,
+        };
+        if let Some(cell) = own.get(slot) {
+            return cell.get();
+        }
+        let tables: [&dyn crate::session::Run; 8] = [
+            &self.first_point,
+            &self.point_counts,
+            &self.normal_counts,
+            &self.first_face,
+            &self.face_counts,
+            &self.part_extents,
+            &self.measures,
+            &self.radii,
+        ];
+        crate::session::read_runs(&tables[table as usize..], slot, "an object slot")
             .unwrap_or_else(|e| crate::fatal::raise::end("an object slot", e))
     }
 }
@@ -56,5 +84,36 @@ impl ObjectTables {
     /// The store with its first values (every field not named here starts at zero).
     pub const fn new() -> Self {
         <Self as ZeroCells>::ZERO
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Every slot from each table to the end of the record gives what the byte-offset read gave.
+    #[test]
+    fn slot_value_runs_on_as_the_old_read() {
+        let t = Box::new(ObjectTables::new());
+        let room = (core::mem::size_of::<ObjectTables>()
+            - core::mem::offset_of!(ObjectTables, first_point))
+            / 4;
+        for n in 0..room {
+            crate::session::write_on_in(&*t, &t.first_point, n, 0x5000 + n as u32, "t").unwrap();
+        }
+        for (table, own) in [
+            (SlotTable::FirstPoint, &t.first_point),
+            (SlotTable::PointCounts, &t.point_counts),
+            (SlotTable::FirstFace, &t.first_face),
+            (SlotTable::FaceCounts, &t.face_counts),
+        ] {
+            let left = (core::mem::size_of::<ObjectTables>()
+                - (own.as_ptr() as usize - std::ptr::from_ref(&*t) as usize))
+                / 4;
+            for n in (0..left).step_by(7).chain(left - 3..left) {
+                let old = crate::session::read_on_in(&*t, own, n, "t").unwrap();
+                assert_eq!(t.slot_value(table, n), old, "slot {n}");
+            }
+        }
     }
 }

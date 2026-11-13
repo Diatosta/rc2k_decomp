@@ -11,6 +11,7 @@ use crate::math::x87;
 use crate::memory::owned::Owned;
 use crate::race::effects_settings_store::{CarEffects, EffectsSettings};
 use crate::race::owner_course::Course;
+use crate::scene::object_slots_store::SlotTable;
 use crate::scene::objects::FACES;
 use crate::scene::owner::Scene;
 use crate::session::{PlainDword, PlainFloat};
@@ -167,14 +168,14 @@ impl core::Blocks for GameBlocks<'_> {
             .objects
             .slots
             .get()
-            .slot_value(&self.2.objects.slots.get().face_counts, object as usize)
+            .slot_value(SlotTable::FaceCounts, object as usize)
     }
     fn first_face(&self, object: u32) -> u32 {
         self.2
             .objects
             .slots
             .get()
-            .slot_value(&self.2.objects.slots.get().first_face, object as usize)
+            .slot_value(SlotTable::FirstFace, object as usize)
     }
 }
 
@@ -396,10 +397,11 @@ pub fn set_up_blocks(
             // All ones: the stored image the original fills the factors with (a NaN).
             cell.set_bits(u32::MAX);
         }
-        let points: u32 = scene.objects.slots.get().slot_value(
-            &scene.objects.slots.get().point_counts,
-            block.object.get() as usize,
-        );
+        let points: u32 = scene
+            .objects
+            .slots
+            .get()
+            .slot_value(SlotTable::PointCounts, block.object.get() as usize);
         let bytes = points
             .checked_mul(12)
             .ok_or(BadInput("a block's point count that wraps"))?;

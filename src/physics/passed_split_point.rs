@@ -118,7 +118,7 @@ pub fn passed_split_point(
     // The point read from `race::scene_points`; the x87 runs read a copy.
     let pt = crate::race::scene_points::point_number(
         c.course.reads(),
-        &crate::race::scene_points::NO_OWN,
+        &crate::race::scene_points::no_own(),
         pt,
     )?;
     c.physics.ground().ground_x.set(c.car.position[0].get());

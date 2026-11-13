@@ -200,6 +200,70 @@ impl RaceView {
 }
 
 impl RaceView {
+    /// The face's surface kind `n`. The index is a byte of the stage's texture record, not held
+    /// to the four kinds: past them the original reads the fields after the table, in order.
+    pub fn surface_kind(&self, n: usize) -> Result<u32, crate::errors::BadInput> {
+        if let Some(kind) = self.surface_kinds.get(n) {
+            return Ok(kind.get());
+        }
+        crate::session::read_runs(
+            &[
+                &self.surface_kinds,
+                &self.depth_test,
+                &self.face_turned,
+                &self.corners,
+                &self.slope,
+                &self.near,
+                &self.unused_4c,
+                &self.face_frame,
+                &self.corner_uv,
+                &self.texture_a,
+                &self.order_a,
+                &self.back_a,
+                &self.texture_b,
+                &self.order_b,
+                &self.back_b,
+                &self.corner_colours,
+                &self.corner_lights,
+                &self.corner_alphas,
+                &self.unused_bc,
+                &self.turned_corner_order,
+                &self.polygon_mode,
+                &self.corner_uv_b,
+                &self.corner_uv_offsets,
+                &self.lamps_wanted,
+                &self.level_from,
+                &self.unused_1a8,
+                &self.view_lamps,
+                &self.unused_1b8,
+                &self.view_on,
+                &self.player_options,
+                &self.after_credits,
+                &self.view_switch,
+                &self.unused_1d4,
+                &self.race_cars,
+                &self.players,
+                &self.views,
+                &self.drawn_view,
+                &self.local_car,
+                &self.shown_car,
+                &self.view_cars,
+                &self.view_blocks,
+                &self.view_cleared,
+                &self.clock_base,
+                &self.frame_time,
+                &self.face_depth_key,
+                &self.face_side,
+                &self.lamp_count,
+                &self.depth_entry_count,
+                &self.sort_entry_count,
+                &self.view_depth,
+            ],
+            n,
+            "the surface kinds (a byte index past the table)",
+        )
+    }
+
     /// The number of view `n`'s car block, refused for none.
     pub fn view_number(&self, n: usize) -> Result<usize, crate::errors::BadInput> {
         crate::race::blocks_store::number_of(self.view_blocks[n].get())
@@ -214,5 +278,28 @@ impl RaceView {
             .get(drawn as usize)
             .map(PlainDword::get)
             .ok_or(crate::errors::BadInput("a drawn view past the two"))
+    }
+}
+
+#[cfg(test)]
+mod surface_kind_tests {
+    use super::*;
+
+    /// Every index to the end of the record gives what the byte-offset read gave (the first
+    /// past it is refused as before), as the stage's byte indexes run 0 ..= 255.
+    #[test]
+    fn surface_kind_runs_on_as_the_old_read() {
+        let view = RaceView::new();
+        let room =
+            (core::mem::size_of::<RaceView>() - core::mem::offset_of!(RaceView, surface_kinds)) / 4;
+        for n in 0..room {
+            crate::session::write_on_in(&view, &view.surface_kinds, n, 0x2000 + n as u32, "t")
+                .unwrap();
+        }
+        for n in 0..256 {
+            let old = crate::session::read_on_in(&view, &view.surface_kinds, n, "t");
+            assert_eq!(old.is_ok(), n < room, "index {n}");
+            assert_eq!(view.surface_kind(n).ok(), old.ok(), "index {n}");
+        }
     }
 }

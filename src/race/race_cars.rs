@@ -13,6 +13,7 @@ use crate::physics::car_store::Car;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::owner::Race;
 use crate::race::owner_shared::RaceShared;
+use crate::race::tables_store::Listed;
 use crate::session::{PlainDword, PlainFloat};
 
 /// The eight car blocks (fixed; `g_carBlocks` lists them), 0xFE0 apart.
@@ -504,11 +505,9 @@ pub fn set_up_mode_2_cars(race: &Race) -> Result<(), Refused> {
     let rally: u32 = race.shared.vars.get().race_level.get();
     // The arcade tables hold six by rally (`arcade_cars_by_rally` ..) or stage (`arcade_best_place_by_stage`),
     // back to back: an index past them reads on into the next, as the original does.
-    let pick = |table: &[crate::session::PlainDword; 6], n: u32| {
-        crate::session::read_on_in(race.shared.tables(), table, n as usize, "the arcade tables")
-    };
-    let by_rally = |table: &[crate::session::PlainDword; 6]| pick(table, rally);
-    let cars: u32 = by_rally(&race.shared.tables().arcade_cars_by_rally)?;
+    let pick = |table: Listed, n: u32| race.shared.tables().dword_from(table, n as usize);
+    let by_rally = |table: Listed| pick(table, rally);
+    let cars: u32 = by_rally(Listed::ArcadeCarsByRally)?;
     if cars == 0 || cars > MOST_ARCADE_CARS {
         return Err(BadInput("an arcade car count of 0 or past the tables").into());
     }
@@ -522,15 +521,11 @@ pub fn set_up_mode_2_cars(race: &Race) -> Result<(), Refused> {
     race.shared
         .tables()
         .start_share_last
-        .set(f32::from_bits(by_rally(
-            &race.shared.tables().start_share_last_by_rally,
-        )?));
+        .set(f32::from_bits(by_rally(Listed::StartShareLastByRally)?));
     race.shared
         .tables()
         .start_share_first
-        .set(f32::from_bits(by_rally(
-            &race.shared.tables().start_share_first_by_rally,
-        )?));
+        .set(f32::from_bits(by_rally(Listed::StartShareFirstByRally)?));
     // Converted: `rc2k_core::race::cars::{arcade_start_is_last, arcade_number,
     // arcade_type_draw, arcade_swap_draw}`.
     use crate::scene::next_noise::next_noise;
@@ -540,10 +535,10 @@ pub fn set_up_mode_2_cars(race: &Race) -> Result<(), Refused> {
     if arcade_start_is_last(race.physics.split_tables().arcade_kind.get(), stage_in) {
         race.shared.tables().start_place.set(cars);
     }
-    race.shared.tables().best_place.set(pick(
-        &race.shared.tables().arcade_best_place_by_stage,
-        stage_in,
-    )?);
+    race.shared
+        .tables()
+        .best_place
+        .set(pick(Listed::BestPlaceByStage, stage_in)?);
     text(w(3), false);
     number(cars, false);
     text(w(4), false);

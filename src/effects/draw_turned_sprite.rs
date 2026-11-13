@@ -80,7 +80,6 @@ pub fn draw_turned_sprite(
 }
 
 /// The turned sprite's texture places (IDA 0x93A21A .. 0x93A23A).
-#[repr(C)]
 pub struct SpriteUv {
     /// 0x93A21A: `flt_93A21A` .. `flt_93A236`: four (u, v) pairs, one per corner
     pub uv: [f32; 8],

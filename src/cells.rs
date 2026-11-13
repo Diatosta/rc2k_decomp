@@ -36,6 +36,26 @@ pub unsafe trait Cells {
         std::any::type_name::<Self>()
     }
 
+    /// Every primitive run of this record handed to `visitor`, with the field names and array
+    /// indices on the way: the same runs as `cell_run` finds from byte 0 on, with no byte layout
+    /// needed by the caller. Records derive it field by field; this default (primitive cells,
+    /// `Shared` records) walks the runs.
+    fn visit(&self, visitor: &mut dyn CellVisitor)
+    where
+        Self: Sized,
+    {
+        let size = size_of::<Self>();
+        let mut at = 0;
+        while at < size {
+            let (start, run) = self.cell_run(at);
+            let end = (start + run.len()).min(size);
+            let mut bytes = vec![0; end - at];
+            run.load(at - start, &mut bytes);
+            visitor.leaf(&bytes);
+            at = end;
+        }
+    }
+
     /// A slice of this type as one run, when it is a primitive cell (an array's run).
     fn slice_run(_slice: &[Self]) -> Option<CellRun<'_>>
     where
@@ -81,6 +101,81 @@ pub unsafe trait Cells {
     }
 }
 
+/// What `Cells::visit` reports: the fields it goes through (`enter` .. `leave`, an array's
+/// element as `index` .. `leave`; a field named `inline` is not entered) and each run of like
+/// primitive cells with its bytes (a cell's value in little-endian bytes, a float by its bits).
+pub trait CellVisitor {
+    /// A field called `name` begins.
+    fn enter(&mut self, name: &'static str);
+    /// Element `i` of an array begins (a run of primitive cells is element 0 as a whole).
+    fn index(&mut self, i: usize);
+    /// The field or element entered last ends.
+    fn leave(&mut self);
+    /// A run of like primitive cells, its bytes.
+    fn leaf(&mut self, bytes: &[u8]);
+}
+
+/// A record, array or cell copied and merged into another of the same shape in other cells
+/// (`session::CellKind`: the game thread's plain cells and shared atomics), field by field and
+/// cell by cell (a float by its bits), with no byte layout. Records over a kind derive it
+/// (`#[derive(Cells)]`); primitive 32-bit cells and arrays of them implement it here.
+pub trait SameShape<To: ?Sized> {
+    /// Every cell of `to` set from the same cell of `self`, in field order.
+    fn copy_cells_to(&self, to: &To);
+
+    /// The cells of `self` that differ from the same cells of `start` set into `to`, the
+    /// others left as they are; each cell is compared and taken whole.
+    #[allow(
+        dead_code,
+        reason = "the frame views' hand-offs merge between same-type records"
+    )]
+    fn merge_cells_to(&self, start: &Self, to: &To);
+}
+
+impl<A: crate::session::Cell32, B: crate::session::Cell32> SameShape<B> for A {
+    fn copy_cells_to(&self, to: &B) {
+        to.set_bits(self.bits());
+    }
+
+    fn merge_cells_to(&self, start: &Self, to: &B) {
+        let now = self.bits();
+        if now != start.bits() {
+            to.set_bits(now);
+        }
+    }
+}
+
+impl<A: SameShape<B>, B, const N: usize> SameShape<[B; N]> for [A; N] {
+    fn copy_cells_to(&self, to: &[B; N]) {
+        for (from, to) in self.iter().zip(to) {
+            from.copy_cells_to(to);
+        }
+    }
+
+    fn merge_cells_to(&self, start: &Self, to: &[B; N]) {
+        for ((now, start), to) in self.iter().zip(start).zip(to) {
+            now.merge_cells_to(start, to);
+        }
+    }
+}
+
+/// Every primitive run's bytes of `record` one after another, whatever kinds of cells hold
+/// them: two records of one shape in other cells give equal bytes when their values are equal.
+pub fn flatten<T: Cells>(record: &T) -> Vec<u8> {
+    struct Flat(Vec<u8>);
+    impl CellVisitor for Flat {
+        fn enter(&mut self, _: &'static str) {}
+        fn index(&mut self, _: usize) {}
+        fn leave(&mut self) {}
+        fn leaf(&mut self, bytes: &[u8]) {
+            self.0.extend_from_slice(bytes);
+        }
+    }
+    let mut flat = Flat(Vec::new());
+    record.visit(&mut flat);
+    flat.0
+}
+
 /// `now` when it differs from `start` (a cell's value changed, taken whole: two copies that
 /// both rewrote a float must not leave one made of both's bytes), else none.
 macro_rules! merged {
@@ -116,6 +211,7 @@ pub fn copy_cells<F: Cells, T: Cells>(from: (&F, usize), to: (&T, usize), len: u
 ///
 /// # Panics
 /// When the two differ in size.
+#[cfg(test)]
 pub fn copy_whole<F: Cells, T: Cells>(from: &F, to: &T) {
     assert_eq!(size_of::<F>(), size_of::<T>(), "two records of one layout");
     copy_cells((from, 0), (to, 0), size_of::<F>());
@@ -128,6 +224,7 @@ pub fn copy_whole<F: Cells, T: Cells>(from: &F, to: &T) {
 ///
 /// # Panics
 /// When the records differ in size, or their cells do not line up.
+#[cfg(test)]
 pub fn merge_cell_changes<T: Cells, F: Cells>(to: &T, now: &F, start: &F) {
     let size = size_of::<T>();
     assert_eq!(size, size_of::<F>(), "two records of one layout");
@@ -740,6 +837,25 @@ unsafe impl<T: Cells, const N: usize> Cells for [T; N] {
         self[offset / size].field_path(offset % size, path)
     }
 
+    fn visit(&self, visitor: &mut dyn CellVisitor) {
+        if N == 0 {
+            return;
+        }
+        if let Some(run) = T::slice_run(self.as_slice()) {
+            let mut bytes = vec![0; run.len()];
+            run.load(0, &mut bytes);
+            visitor.index(0);
+            visitor.leaf(&bytes);
+            visitor.leave();
+            return;
+        }
+        for (i, element) in self.iter().enumerate() {
+            visitor.index(i);
+            element.visit(visitor);
+            visitor.leave();
+        }
+    }
+
     fn cell_run(&self, offset: usize) -> (usize, CellRun<'_>) {
         if let Some(run) = T::slice_run(self.as_slice()) {
             return (0, run);
@@ -765,6 +881,10 @@ unsafe impl<T: Cells> Cells for crate::session::GameThread<T> {
     #[cfg(any(test, feature = "remote"))]
     fn field_path(&self, offset: usize, path: &mut String) -> &'static str {
         self.get().field_path(offset, path)
+    }
+
+    fn visit(&self, visitor: &mut dyn CellVisitor) {
+        self.get().visit(visitor);
     }
 
     fn cell_run(&self, offset: usize) -> (usize, CellRun<'_>) {

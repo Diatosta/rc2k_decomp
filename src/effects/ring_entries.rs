@@ -9,19 +9,18 @@ use crate::effects::owner::effects;
 use crate::effects::ring_store::Ring;
 use crate::errors::BadInput;
 use crate::math::x87_float::{self as bh, X};
-use std::mem::size_of;
 
 /// The entries.
 pub const ENTRIES: u32 = 0x400;
 /// An entry's bytes.
+#[cfg(test)]
 pub const ENTRY_LEN: u32 = 0x94;
 /// The block's bytes, as counted.
 pub const RING_BYTES: u32 = 0x2_5000;
 
-/// One ring entry: 37 dwords with the offsets of the original's record (the size, alpha and
+/// One ring entry: 37 dwords in the order of the original's record (the size, alpha and
 /// pull fields stay dwords: kinds differ in whether they hold a float or a whole number). The three-axis fields are arrays x, y, z.
 /// Fields no code reads or writes by name are `unknown_<offset>`.
-#[repr(C)]
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct Entry {
     /// 0x00: The link to the entry before it in the ring (an entry number + 1).
@@ -82,8 +81,6 @@ pub struct Entry {
     /// 0x90: The emitting car's tag (its object's +0x1C, 24 bits), for the draw lists.
     pub car_tag: u32,
 }
-
-const _: () = assert!(size_of::<Entry>() == ENTRY_LEN as usize);
 
 #[cfg(test)]
 impl Entry {
@@ -280,37 +277,7 @@ mod tests {
     }
 
     #[test]
-    fn fields_sit_at_the_originals_offsets() {
-        use std::mem::offset_of;
-        for (offset, at) in [
-            (0x00, offset_of!(Entry, prev)),
-            (0x04, offset_of!(Entry, next)),
-            (0x08, offset_of!(Entry, emitter_tag)),
-            (0x0C, offset_of!(Entry, kind)),
-            (0x10, offset_of!(Entry, place)),
-            (0x1C, offset_of!(Entry, last_place)),
-            (0x28, offset_of!(Entry, ground_y)),
-            (0x2C, offset_of!(Entry, motion)),
-            (0x38, offset_of!(Entry, push)),
-            (0x44, offset_of!(Entry, spare)),
-            (0x50, offset_of!(Entry, angle)),
-            (0x54, offset_of!(Entry, angle_rate)),
-            (0x58, offset_of!(Entry, cell)),
-            (0x5C, offset_of!(Entry, cell_rate)),
-            (0x60, offset_of!(Entry, size)),
-            (0x64, offset_of!(Entry, size_factor)),
-            (0x68, offset_of!(Entry, car)),
-            (0x6C, offset_of!(Entry, car_pace)),
-            (0x70, offset_of!(Entry, size_goal)),
-            (0x74, offset_of!(Entry, alpha)),
-            (0x78, offset_of!(Entry, alpha_fade)),
-            (0x7C, offset_of!(Entry, box_limit)),
-            (0x84, offset_of!(Entry, life)),
-            (0x90, offset_of!(Entry, car_tag)),
-        ] {
-            assert_eq!(at, offset);
-        }
-        assert_eq!(size_of::<Entry>(), 0x94);
+    fn words_round_trip_in_the_originals_order() {
         let words: [u32; 37] = std::array::from_fn(|n| n as u32 + 1);
         let e = Entry::from_words(words);
         assert_eq!(e.words(), words);

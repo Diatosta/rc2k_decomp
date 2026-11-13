@@ -28,7 +28,7 @@ use crate::math::x87;
 use crate::race::owner::Race;
 use crate::scene::matrix3::{extended, rounded_value};
 use crate::scene::rotate_point::rotate_point;
-use crate::session::read_on_in;
+use crate::session::PlainFloat;
 /// Each vertex's texture place: the corner entry's word offsets (u, v).
 const UV_WORDS: [(u32, u32); 4] = [(0xC, 0xE), (8, 0xA), (0, 2), (4, 6)];
 
@@ -84,15 +84,16 @@ pub fn draw_mark_slots(
                 .wrapping_sub(effects.setup.clock.frame_ticks.get()),
         );
         let p = s.point.get() as usize * 3;
+        // A slot's point is the first car's model, which `share_car_state` took from the 34 light
+        // records: the three floats are inside the 34 models' points.
         let at = |n: usize| {
-            read_on_in(
-                &paths.spline_head,
-                &paths.spline_head.points,
-                p + n,
-                "a spline point",
-            )
+            paths
+                .spline_head
+                .points
+                .get(p + n)
+                .map(PlainFloat::get)
+                .ok_or(BadInput("a mark slot's point past the car models'"))
         };
-        let at = |n: usize| at(n).map(f32::from_bits);
         let [a, b, c] = [-at(0)?, at(1)?, at(2)?];
         let k4 = effects
             .blocks

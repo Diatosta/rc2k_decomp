@@ -364,7 +364,7 @@ fn checkpoint_place(race: &Race, n: usize) -> Option<[i32; 3]> {
     let point = crate::race::course_places::face_field::<u32>(race.course.reads(), face, 4).ok()?;
     let place = crate::race::scene_points::point_number(
         race.course.reads(),
-        &crate::race::scene_points::NO_OWN,
+        &crate::race::scene_points::no_own(),
         point,
     )
     .ok()?;

@@ -119,15 +119,19 @@ pub fn step_start_pick(tables: &Tables, c: StartPick<'_>, up: bool) {
     // The logic is in `rc2k_core::menu::steps::colour`.
     let n = rc2k_core::menu::steps::colour(c.number.get() as i32, up);
     c.number.set(n as u32);
-    // `CAPTIONS.caption_lists` from `table_at`: the original does not check `n` (a kept
-    // number past 6 steps on from it): read on through the captions' record.
-    let pick = crate::session::read_on_in(
-        &tables.captions,
-        &tables.captions.caption_lists,
-        c.table_at.wrapping_add(n as usize),
-        "a caption list",
-    )
-    .unwrap_or_else(|e| crate::fatal::raise::end("a caption list", e));
+    // The original does not check `n` (a number kept in a savegame): the list is the last field
+    // of the captions' record, so a pick past it is read nowhere and ends the program.
+    let pick = tables
+        .captions
+        .caption_lists
+        .get(c.table_at.wrapping_add(n as usize))
+        .map(crate::session::PlainDword::get)
+        .unwrap_or_else(|| {
+            crate::fatal::raise::end(
+                "a caption list",
+                crate::errors::BadInput("a caption list past the captions' record"),
+            )
+        });
     c.pick.set(pick);
 }
 
