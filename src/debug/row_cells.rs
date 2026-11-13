@@ -39,12 +39,6 @@ impl Raw for PlainFloat {
     }
 }
 
-impl Raw for crate::session::PlainLoose {
-    fn raw(&self) -> u32 {
-        self.get()
-    }
-}
-
 /// The cell of field `$field` of car block `$block` (or of its element `$i`).
 macro_rules! car_cell {
     ($block:literal, $field:ident) => {{

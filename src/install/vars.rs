@@ -4,21 +4,20 @@
 //! image's scattered variables (`rest::low`); the network's and the strings' neighbours are
 //! in their own modules.
 //!
-//! Structs of atomic cells, first values the image's (`tests`); the ones read by byte offset
-//! (the names, the pages, the paths) keep `#[repr(C)]` and the image's layout: the pages'
-//! tables hold pointers into each other and into the installer's texts, as IDA addresses
-//! resolved where they are read. The pages' lists, handler records, edit record and boxes
-//! are typed records (`menu::list_handle`) with the image's bytes; a list is read by place
-//! (`install::installer`'s `rd`/`rb`), which runs on into the bytes after it as the
-//! original's reads do.
+//! Structs of cells, first values the image's, fields in the image's order with its gaps.
+//! The pages' tables hold handles (`install::page_links`) where the original held addresses
+//! into each other and into the installer's texts. The pages' lists, handler records, edit
+//! record and boxes are typed records (`menu::list_handle`) with the image's bytes; the pages
+//! are read by place through their fields in order (`install::pages_map`), which runs on into
+//! the bytes after a record as the original's reads do.
 
 use crate::gfx::typefaces::{FontId, fonts};
-use crate::install::page_links::{ListId, PageLink};
+use crate::install::page_links::{LinkCell, ListId, PageLink};
 use crate::menu::list_handle::{
     BoxRect, EditRecord, Item, ListData3, ListData4, ListData5, ListData6, ListData10, ListData18,
     ListData26, ListHeader,
 };
-use crate::session::{PlainByte, PlainBytes, PlainDword, PlainLoose, with_runs};
+use crate::session::{PlainByte, PlainBytes, PlainDword, with_runs};
 
 /// The installer's flags, counters and lists (IDA 0x51B9C8 .. 0x51BB60).
 #[derive(rc2k_derive::Cells)]
@@ -229,62 +228,62 @@ impl InstallerNames {
     }
 }
 
-/// A record of a drawing list on the pages (`install::draw_string_list`): 16 bytes at any
-/// address, the offsets from the list's place, the font's link and the text's string id.
+/// A record of a drawing list on the pages (`install::draw_string_list`): 16 bytes, the
+/// offsets from the list's place, the font's link and the text's string id (the dwords in this
+/// order are its bytes in the pages' run, `install::pages_map`).
 #[repr(C)]
 #[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
 pub struct StringRecord {
-    pub dx: PlainLoose,
-    pub dy: PlainLoose,
-    /// The link to the font (`page_links::PageLink`).
-    pub font: PlainLoose,
-    pub string: PlainLoose,
+    pub dx: PlainDword,
+    pub dy: PlainDword,
+    pub font: LinkCell,
+    pub string: PlainDword,
 }
 
 impl StringRecord {
     /// A record drawing text `string` in `font` at (dx, dy) from the list's place; the font is
-    /// kept as its link, the word the pages' bytes hold.
+    /// kept as its link.
     pub const fn new(dx: u32, dy: u32, font: FontId, string: u32) -> Self {
         Self {
-            dx: PlainLoose::new(dx),
-            dy: PlainLoose::new(dy),
-            font: PlainLoose::new(PageLink::of_font(font).raw()),
-            string: PlainLoose::new(string),
+            dx: PlainDword::new(dx),
+            dy: PlainDword::new(dy),
+            font: LinkCell::new(PageLink::of_font(font)),
+            string: PlainDword::new(string),
         }
     }
 
     /// The link the record keeps for its font.
     pub fn font_link(&self) -> PageLink {
-        PageLink::from_raw(self.font.get())
+        self.font.get()
     }
 }
 
-/// A record of a glyph list on the pages (`install::blit_glyph_list`): 16 bytes at any
-/// address, the offsets from the list's place, the glyph's number and the palette's link.
+/// A record of a glyph list on the pages (`install::blit_glyph_list`): 16 bytes, the offsets
+/// from the list's place, the glyph's number and the palette's link (the dwords in this order
+/// are its bytes in the pages' run, `install::pages_map`).
 #[repr(C)]
 #[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
 pub struct GlyphRecord {
-    pub dx: PlainLoose,
-    pub dy: PlainLoose,
-    pub glyph: PlainLoose,
-    /// The link to the palette (`page_links::PageLink`).
-    pub palette: PlainLoose,
+    pub dx: PlainDword,
+    pub dy: PlainDword,
+    pub glyph: PlainDword,
+    pub palette: LinkCell,
 }
 
 impl GlyphRecord {
     /// A record blitting glyph `glyph` with `palette` at (dx, dy) from the list's place.
     pub const fn new(dx: u32, dy: u32, glyph: u32, palette: PageLink) -> Self {
         Self {
-            dx: PlainLoose::new(dx),
-            dy: PlainLoose::new(dy),
-            glyph: PlainLoose::new(glyph),
-            palette: PlainLoose::new(palette.raw()),
+            dx: PlainDword::new(dx),
+            dy: PlainDword::new(dy),
+            glyph: PlainDword::new(glyph),
+            palette: LinkCell::new(palette),
         }
     }
 
     /// The link the record keeps for its palette.
     pub fn palette_link(&self) -> PageLink {
-        PageLink::from_raw(self.palette.get())
+        self.palette.get()
     }
 }
 
@@ -292,20 +291,23 @@ impl GlyphRecord {
 /// save and settings folders removed too), 5 ends the script there (`install::finish_page`).
 pub const SCRIPT_MARK: usize = 17;
 
-/// The page: its pieces, the list menu's state, the fonts and the pages' tables (IDA 0x51C407 .. 0x51DE2C, the image's layout).
-#[repr(C, align(16))]
-#[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
+/// The page: its pieces, the list menu's state, the fonts and the pages' tables (IDA 0x51C407 ..
+/// 0x51DE2C). The fields are in the image's order with its gaps: the pages' bytes are run on
+/// through them in that order (`install::pages_map::PagesChain`, its frozen table
+/// `NAMED_PLACES`), not through the record's memory layout, which is the compiler's.
+#[derive(rc2k_derive::Cells)]
 pub struct InstallerPages {
-    /// Not in the image: the bytes that keep every field the alignment its IDA address has (the struct is 16-byte aligned).
+    /// Not in the image: the bytes before 0x51C407 up to 0x51C400 (the pages' run starts there:
+    /// the offsets the pieces keep for items count from it).
     pub _lead: PlainBytes<7>,
     /// 0x51C407: `g_pageLayout`: the page's pieces: a count, then 0x30 bytes each.
     pub layout: PlainBytes<4096>,
     /// 0x51D407: `g_listChoice`: the list's choice.
-    pub choice: PlainLoose,
+    pub choice: PlainDword,
     /// 0x51D40B: `g_listChoiceBefore`: the choice before the key.
-    pub choice_before: PlainLoose,
+    pub choice_before: PlainDword,
     /// 0x51D40F: `g_listRepeats`: how many repeats of the key.
-    pub repeats: PlainLoose,
+    pub repeats: PlainDword,
     /// 0x51D413: `g_listLastKey`: the last key (`race::viewer` reads it too).
     pub last_key: PlainByte,
     /// 0x51D414: `byte_51D414`: a key was taken.
@@ -317,11 +319,11 @@ pub struct InstallerPages {
     /// 0x51D417: Not named: 4 bytes (a gap, or data nothing reads here).
     pub _gap_51d417: PlainBytes<4>,
     /// 0x51D41B: `dword_51D41B`: the key's clock.
-    pub key_clock: PlainLoose,
+    pub key_clock: PlainDword,
     /// 0x51D41F: `dword_51D41F`: the frame's clock.
-    pub frame_clock: PlainLoose,
+    pub frame_clock: PlainDword,
     /// 0x51D423: `dword_51D423`: the move's clock.
-    pub move_clock: PlainLoose,
+    pub move_clock: PlainDword,
     /// 0x51D427: Not named: 12 bytes (a gap, or data nothing reads here).
     pub _gap_51d427: PlainBytes<12>,
     /// 0x51D433: `unk_51D433`: the copying page's two texts.
@@ -374,7 +376,8 @@ pub struct InstallerPages {
     pub boxes: [BoxRect; 9],
     /// 0x51DE18: `g_badFolderChars`: the characters a folder name may not hold.
     pub bad_folder_chars: PlainBytes<20>,
-    /// Up to the record's alignment (no byte of a record of cells outside a field).
+    /// 0x51DE2C: the four bytes after the characters, up to 0x51DE30 (a read on past them
+    /// reaches these, as the image's).
     pub _tail: PlainBytes<4>,
 }
 
@@ -383,17 +386,17 @@ impl InstallerPages {
         InstallerPages {
     _lead: PlainBytes::new([0; 7]),
     layout: PlainBytes::new([0; 4096]),
-    choice: PlainLoose::new(0x0),
-    choice_before: PlainLoose::new(0x0),
-    repeats: PlainLoose::new(0x1),
+    choice: PlainDword::new(0x0),
+    choice_before: PlainDword::new(0x0),
+    repeats: PlainDword::new(0x1),
     last_key: PlainByte::new(0x0),
     key_taken: PlainByte::new(0x0),
     list_answer: PlainByte::new(0x0),
     list_leave: PlainByte::new(0x0),
     _gap_51d417: PlainBytes::new([0; 4]),
-    key_clock: PlainLoose::new(0x0),
-    frame_clock: PlainLoose::new(0x0),
-    move_clock: PlainLoose::new(0x0),
+    key_clock: PlainDword::new(0x0),
+    frame_clock: PlainDword::new(0x0),
+    move_clock: PlainDword::new(0x0),
     _gap_51d427: PlainBytes::new([0; 12]),
     texts: [StringRecord::new(0x1A9, 0xAF, fonts::TITLE, 0xAF), StringRecord::new(0x1A9, 0xFA, fonts::CAPTION_A, 0xB0)],
     msg_error: [StringRecord::new(0x1A9, 0x15E, fonts::TITLE, 0xB1)],

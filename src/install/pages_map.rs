@@ -272,13 +272,13 @@ pub enum PagesAt {
 
 impl core::fmt::Debug for PagesAt {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(f, "{}", self.offset())
+        write!(f, "{}", self.run_offset())
     }
 }
 
 impl core::fmt::LowerHex for PagesAt {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        core::fmt::LowerHex::fmt(&self.offset(), f)
+        core::fmt::LowerHex::fmt(&self.run_offset(), f)
     }
 }
 
@@ -343,8 +343,15 @@ impl PagesAt {
         named.unwrap_or(Self::Field(field, byte))
     }
 
-    /// The byte offset in the pages.
+    /// The byte offset in the pages' run (the tests and the golden name positions by it).
+    #[cfg(test)]
     pub fn offset(self) -> usize {
+        self.run_offset()
+    }
+
+    /// The byte offset in the pages' run: where the chain reads, and the dword a piece keeps
+    /// for an item (`item_word`).
+    fn run_offset(self) -> usize {
         let field_byte = |(field, byte): (PagesField, usize)| field.offset() + byte;
         match self {
             Self::Table(index) => field_byte((PagesField::PageTable, 4 * index as usize)),
@@ -410,34 +417,34 @@ impl PagesAt {
 
     /// The dword a piece keeps for an item here.
     pub fn item_word(self) -> u32 {
-        self.offset() as u32
+        self.run_offset() as u32
     }
 
     /// Whether an item's 0x10 bytes fit between here and the pages' end.
     pub fn item_fits(self) -> bool {
-        self.offset().saturating_add(ITEM) <= PagesField::total()
+        self.run_offset().saturating_add(ITEM) <= PagesField::total()
     }
 
     /// `n` bytes on, wrapping at 32 bits as the original's address sum does.
     pub fn plus(self, n: u32) -> Self {
-        Self::from_offset((self.offset() as u32).wrapping_add(n) as usize)
+        Self::from_offset((self.run_offset() as u32).wrapping_add(n) as usize)
     }
 
     /// `n` bytes on without the 32-bit wrap (a page entry's neighbour word: an offset
     /// past the pages' end is read as out of them).
     pub fn plus_wide(self, n: u32) -> Self {
-        Self::from_offset(self.offset().wrapping_add(n as usize))
+        Self::from_offset(self.run_offset().wrapping_add(n as usize))
     }
 
     /// The bytes from here, bounded by the pages as a whole (run on from field to field).
     pub fn place(self) -> BytePlace {
-        BytePlace::Chain(&PagesChain, self.offset())
+        BytePlace::Chain(&PagesChain, self.run_offset())
     }
 
     /// The pages' dword here (not out of the pages), across the fields' edges.
     pub fn dword(self) -> Result<u32, BadInput> {
         let mut bytes = [0; 4];
-        PagesChain.load(self.offset(), &mut bytes)?;
+        PagesChain.load(self.run_offset(), &mut bytes)?;
         Ok(u32::from_le_bytes(bytes))
     }
 }
@@ -494,11 +501,11 @@ impl crate::place::Chain for PagesChain {
         let pages = &installer().pages;
         match PagesField::holding(offset) {
             Some((field, byte)) => field.bytes(pages).first().wrapping_add(byte),
-            None => {
-                let last = PagesField::Tail;
-                let end = last.bytes(pages).first().wrapping_add(last.len());
-                end.wrapping_add(offset.wrapping_sub(PagesField::total()))
-            }
+            // Past the pages: the memory after the whole record, which no field holds.
+            None => core::ptr::from_ref(pages)
+                .cast::<u8>()
+                .wrapping_add(size_of::<InstallerPages>())
+                .wrapping_add(offset.wrapping_sub(PagesField::total())),
         }
     }
 }
@@ -560,24 +567,20 @@ pub(crate) const NAMED_PLACES: [(&str, usize, usize); 40] = [
 mod tests {
     use super::*;
     use crate::menu::list_handle::ListMenu;
-    use core::mem::offset_of;
 
-    /// The frozen table is today's layout: each field's offset and length as `offset_of!` and
-    /// `size_of_val` give them, the fields back to back from 0 to the pages' size.
+    /// The frozen table is the record's fields: each field's name and length (`size_of_val`)
+    /// in declaration order, the fields back to back from 0 to the image's 0x1A30 bytes
+    /// (0x51C400 .. 0x51DE30).
     #[test]
-    fn the_named_places_are_the_layout() {
+    fn the_named_places_are_the_fields() {
         let _lock = crate::test_support::test_lock();
         let pages = &installer().pages;
-        macro_rules! layout {
+        macro_rules! fields {
             ($($field:ident),* $(,)?) => {
-                [$((
-                    stringify!($field),
-                    offset_of!(InstallerPages, $field),
-                    core::mem::size_of_val(&pages.$field),
-                )),*]
+                [$((stringify!($field), core::mem::size_of_val(&pages.$field))),*]
             };
         }
-        let layout = layout!(
+        let fields = fields!(
             _lead,
             layout,
             choice,
@@ -619,13 +622,13 @@ mod tests {
             bad_folder_chars,
             _tail,
         );
-        assert_eq!(layout, NAMED_PLACES);
         let mut next = 0;
-        for (name, offset, len) in NAMED_PLACES {
+        for ((name, len), (named, offset, named_len)) in fields.into_iter().zip(NAMED_PLACES) {
+            assert_eq!((name, len), (named, named_len));
             assert_eq!(offset, next, "{name} follows the field before it");
             next = offset + len;
         }
-        assert_eq!(next, size_of::<InstallerPages>());
+        assert_eq!(next, 0x1A30);
     }
 
     /// The run-on chain lays the fields out as the frozen table does: each field where the
@@ -636,28 +639,39 @@ mod tests {
         for (field, (name, offset, len)) in PagesField::ALL.into_iter().zip(NAMED_PLACES) {
             assert_eq!((field.offset(), field.len()), (offset, len), "{name}");
         }
-        assert_eq!(PagesField::total(), size_of::<InstallerPages>());
+        assert_eq!(PagesField::total(), 0x1A30);
         // Every byte is named by the record or field that holds it, and back.
         for offset in 0..PagesField::total() + 0x20 {
             assert_eq!(PagesAt::at_offset(offset).offset(), offset);
         }
     }
 
-    /// A read through the chain is the read of the pages' bytes by their layout, at every
-    /// byte and length, refusals included; a write through it writes the same bytes.
+    /// A read through the chain is the read of the fields' own bytes laid back to back, at
+    /// every byte and length, refusals included; a write through it writes the fields' bytes.
     #[test]
-    fn the_chain_reads_the_bytes_the_layout_holds() {
+    fn the_chain_reads_the_fields_bytes() {
         let _lock = crate::test_support::test_lock();
         let pages = &installer().pages;
         let size = PagesField::total();
+        // The run as each field's own store gives its bytes.
+        let mut run = Vec::new();
+        for field in PagesField::ALL {
+            let mut bytes = vec![0; field.len()];
+            field.bytes(pages).load(0, &mut bytes).unwrap();
+            run.extend(bytes);
+        }
+        assert_eq!(run.len(), size);
         for len in [0, 1, 2, 3, 4, 7, 0x10, 0x30] {
             for offset in (0..size + 8).chain([usize::MAX - 2, usize::MAX]) {
                 let mut by_chain = vec![0xAA; len];
-                let mut by_layout = vec![0xAA; len];
                 let chain = PagesChain.load(offset, &mut by_chain);
-                let layout = crate::cells::load_cells(pages, offset, &mut by_layout);
-                assert_eq!(chain, layout, "{len} bytes at {offset}");
-                assert_eq!(by_chain, by_layout, "{len} bytes at {offset}");
+                match offset.checked_add(len).filter(|&end| end <= size) {
+                    Some(end) => {
+                        assert_eq!(chain, Ok(()), "{len} bytes at {offset}");
+                        assert_eq!(by_chain, run[offset..end], "{len} bytes at {offset}");
+                    }
+                    None => assert!(chain.is_err(), "{len} bytes at {offset}"),
+                }
             }
         }
         // A write across a field's edge (the gap before the clocks into the key's clock),
@@ -665,18 +679,27 @@ mod tests {
         let at = PagesField::KeyClock.offset() - 2;
         let mut saved = [0; 4];
         PagesChain.load(at, &mut saved).unwrap();
+        let clock = pages.key_clock.get();
         PagesChain.store(at, &[1, 2, 3, 4]).unwrap();
-        let mut by_layout = [0; 4];
-        crate::cells::load_cells(pages, at, &mut by_layout).unwrap();
+        let written = (
+            pages._gap_51d417.get(2),
+            pages._gap_51d417.get(3),
+            pages.key_clock.get(),
+        );
         PagesChain.store(at, &saved).unwrap();
-        assert_eq!(by_layout, [1, 2, 3, 4]);
+        assert_eq!(written, (1, 2, (clock & !0xFFFF) | 0x0403));
         assert!(PagesChain.store(size - 1, &[0, 0]).is_err());
-        // A place compares by the byte of memory that holds it.
-        for offset in [0, 7, 0x1007, 0x1194, size - 1] {
-            assert_eq!(
-                PagesChain.byte_at(offset),
-                core::ptr::from_ref(pages).cast::<u8>().wrapping_add(offset)
-            );
+        // A place compares by the byte of memory that holds it: each byte its field's, no two
+        // alike, and past the pages none of a field's.
+        let mut seen = std::collections::HashSet::new();
+        for offset in 0..size {
+            let (field, byte) = PagesField::holding(offset).unwrap();
+            let at = PagesChain.byte_at(offset);
+            assert_eq!(at, field.bytes(pages).first().wrapping_add(byte));
+            assert!(seen.insert(at), "{offset}");
+        }
+        for past in 0..0x20 {
+            assert!(!seen.contains(&PagesChain.byte_at(size + past)), "{past}");
         }
     }
 

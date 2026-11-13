@@ -249,6 +249,22 @@ impl PageLink {
     }
 }
 
+/// A dword of the pages' data that holds a link (a drawing list record's font or palette):
+/// the link's raw dword is its four bytes in the pages' run.
+#[repr(transparent)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
+pub struct LinkCell(crate::session::PlainDword);
+
+impl LinkCell {
+    pub const fn new(link: PageLink) -> Self {
+        Self(crate::session::PlainDword::new(link.raw()))
+    }
+
+    pub fn get(&self) -> PageLink {
+        PageLink::from_raw(self.0.get())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

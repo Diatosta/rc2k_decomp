@@ -129,7 +129,7 @@ fn entry_line(entry: PageEntry) -> String {
 }
 
 fn pages_size() -> usize {
-    size_of::<crate::install::vars::InstallerPages>()
+    crate::place::Chain::size(&crate::install::pages_map::PagesChain)
 }
 
 /// Every probe, as the golden's lines.

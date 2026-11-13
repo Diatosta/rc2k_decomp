@@ -336,7 +336,7 @@ enum CellRef<'a> {
     /// A non-atomic dword (a `PlainDword` and the other plain cells): only the game's thread
     /// reaches it.
     Plain32(&'a std::cell::Cell<u32>),
-    /// A non-atomic byte (`PlainByte`, `PlainBytes`, `PlainLoose`).
+    /// A non-atomic byte (`PlainByte`, `PlainBytes`).
     Plain8(&'a std::cell::Cell<u8>),
     /// A non-atomic word (`PlainWord`).
     Plain16(&'a std::cell::Cell<u16>),
@@ -1028,26 +1028,6 @@ unsafe impl<const N: usize> ByteView for crate::session::PlainBytes<N> {
         (0, CellRun::PlainBytes(self.cells()))
     }
 }
-// SAFETY: four cells of plain bytes, all of it one run.
-unsafe impl Cells for crate::session::PlainLoose {
-    fn copy_from(&self, other: &Self) {
-        copy_by_runs(self, other);
-    }
-
-    fn merge_changes(&self, now: &Self, start: &Self) {
-        merge_by_runs(self, now, start);
-    }
-
-    fn visit(&self, visitor: &mut dyn CellVisitor) {
-        visit_by_runs(self, visitor);
-    }
-}
-// SAFETY: four cells of plain bytes, all of it one run.
-unsafe impl ByteView for crate::session::PlainLoose {
-    fn cell_run(&self, _: usize) -> (usize, CellRun<'_>) {
-        (0, CellRun::PlainBytes(self.cells()))
-    }
-}
 // SAFETY: `N` of a type of cells, one after another.
 unsafe impl<T: Cells, const N: usize> Cells for [T; N] {
     fn copy_from(&self, other: &Self) {
@@ -1156,7 +1136,6 @@ zero_cells!(
     crate::session::PlainInt = crate::session::PlainInt::new(0),
     crate::session::PlainWord = crate::session::PlainWord::new(0),
     crate::session::PlainByte = crate::session::PlainByte::new(0),
-    crate::session::PlainLoose = crate::session::PlainLoose::new(0),
 );
 impl<const N: usize> ZeroCells for crate::session::Bytes<N> {
     const ZERO: Self = crate::session::Bytes::new([0; N]);

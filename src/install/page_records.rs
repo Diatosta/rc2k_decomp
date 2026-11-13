@@ -23,7 +23,7 @@ use crate::place::BytePlace;
 const UPDATE_RUN: u32 = 17;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-/// A page entry: its byte offset in the installer pages.
+/// A page entry: its place in the installer pages (a table entry, or a byte the pages run on to).
 pub struct PageEntry(PagesAt);
 
 impl PageEntry {

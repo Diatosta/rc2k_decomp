@@ -939,34 +939,7 @@ impl<const N: usize> PlainBytes<N> {
     }
 }
 
-/// A `Loose` only the game's thread reaches: a dword at an address that is not a multiple of
-/// 4, four byte cells.
-#[repr(transparent)]
-pub struct PlainLoose([Cell<u8>; 4]);
-
-impl PlainLoose {
-    pub const fn new(value: u32) -> Self {
-        Self(plain_bytes(value.to_le_bytes()))
-    }
-
-    pub fn get(&self) -> u32 {
-        u32::from_le_bytes(std::array::from_fn(|i| self.0[i].get()))
-    }
-
-    pub fn set(&self, value: u32) {
-        for (cell, b) in self.0.iter().zip(value.to_le_bytes()) {
-            plain_written(cell);
-            cell.set(b);
-        }
-    }
-
-    /// Its cells (the cells' copies, `cells::CellRef`).
-    pub(crate) fn cells(&self) -> &[Cell<u8>] {
-        &self.0
-    }
-}
-
-/// `value`'s bytes as cells (a `const` initialiser of `PlainBytes` and `PlainLoose`), in one
+/// `value`'s bytes as cells (a `const` initialiser of `PlainBytes`), in one
 /// move: a loop over a table of the game's data is too slow for the compiler's evaluator.
 const fn plain_bytes<const N: usize>(value: [u8; N]) -> [Cell<u8>; N] {
     use std::mem::ManuallyDrop;
