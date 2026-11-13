@@ -1230,7 +1230,10 @@ impl<T> std::ops::Deref for PhaseRead<'_, T> {
 //    handed only `&`-references made from it for the length of their call
 //    (`workers::DrawReads`, a higher-ranked lifetime in `draw_parts`' part type), so a part
 //    can keep none past its run. `PhaseRead` is neither `Clone` nor `Send`: it stays in the
-//    `Lent` `draw_parts` holds.
+//    `Lent` `draw_parts` holds. The one part handed the `Lent` itself (part 0's
+//    `workers::Helper`, for a piece of its drawing on another thread, `workers::draw_aside`)
+//    uses it only inside `draw_aside`, which joins the piece (rayon's `in_place_scope`) before
+//    it returns, inside the part's call.
 // 3. `T: Cells` (records of the crate's cells): reading one is a plain load of each cell
 //    read, never a write (no borrow counts, no lazy set-up), so the parts' reads at once do
 //    not race each other.

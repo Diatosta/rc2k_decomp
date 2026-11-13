@@ -161,6 +161,17 @@ pub fn begin_part(part: &crate::workers::PartScratch, start: Columns) {
     part.columns.set(Some(start));
 }
 
+/// The columns `part` holds of its own, if any (a part being drawn).
+pub fn part_columns(part: &crate::workers::PartScratch) -> Option<Columns> {
+    part.columns.get()
+}
+
+/// `part`'s own columns made `columns` (a piece drawn aside starts from its part's,
+/// `workers::draw_aside`).
+pub fn set_part_columns(part: &crate::workers::PartScratch, columns: Option<Columns>) {
+    part.columns.set(columns);
+}
+
 /// Part `part` is over: the columns it leaves.
 pub fn end_part(part: &crate::workers::PartScratch) -> Option<Columns> {
     part.columns.set(None)

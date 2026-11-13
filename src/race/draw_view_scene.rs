@@ -58,6 +58,7 @@ pub fn draw_view_scene(
     filter: [u32; 3],
     part: &crate::workers::PartScratch,
     reads: crate::workers::DrawReads<'_>,
+    helper: Option<crate::workers::Helper<'_>>,
 ) -> Result<ViewOutput, Refused> {
     use crate::race::frame_draw::*;
     view.begin();
@@ -107,18 +108,41 @@ pub fn draw_view_scene(
     let environment = eax_environment(reads.course(), reads.work, &part.points, &view.grid)?;
     gather_lamps(&ctx)?;
     lamps_wanted(reads.work, reads.view, &view.lamps)?;
-    sort_entries(&lists.sort_entry_count, lists.sort_entries())?;
-    let begun = crate::debug::timing::start();
-    draw_entries(&ctx, &lists.sort_entry_count, |n| lists.sort_from(n))?;
-    crate::debug::timing::stop(crate::debug::timing::Stage::CourseEntries, begun);
-    draw_race_slots(&ctx)?;
-    crate::race::car_shadow::cast_car_shadows(&ctx)?;
-    crate::race::skidmarks::draw_skidmarks_if_on(&ctx)?;
-    car_lights(&ctx)?;
-    sort_entries(&lists.depth_entry_count, lists.depth_entries())?;
-    let begun = crate::debug::timing::start();
-    draw_entries(&ctx, &lists.depth_entry_count, |n| lists.depth_from(n))?;
-    crate::debug::timing::stop(crate::debug::timing::Stage::DepthEntries, begun);
+    // From here the view's own car can be drawn aside (`race::car_part`): its drawing reads
+    // nothing the rest of the view's drawing makes.
+    let rest = |car: Option<&crate::race::car_part::CarAside<'_, '_>>| -> Result<(), Refused> {
+        sort_entries(&lists.sort_entry_count, lists.sort_entries())?;
+        let begun = crate::debug::timing::start();
+        draw_entries(&ctx, &lists.sort_entry_count, |n| lists.sort_from(n))?;
+        crate::debug::timing::stop(crate::debug::timing::Stage::CourseEntries, begun);
+        draw_race_slots(&ctx)?;
+        crate::race::car_shadow::cast_car_shadows(&ctx)?;
+        crate::race::skidmarks::draw_skidmarks_if_on(&ctx)?;
+        car_lights(&ctx)?;
+        sort_entries(&lists.depth_entry_count, lists.depth_entries())?;
+        let begun = crate::debug::timing::start();
+        draw_entries_around(&ctx, &lists.depth_entry_count, |n| lists.depth_from(n), car)?;
+        crate::debug::timing::stop(crate::debug::timing::Stage::DepthEntries, begun);
+        Ok(())
+    };
+    let car = match (helper, crate::race::car_part::own_car(&ctx)) {
+        (Some(helper), Some(car))
+            if crate::race::car_part::filter_cleared(
+                &ctx,
+                lists.sort_entries(),
+                lists.sort_entry_count.get(),
+            ) =>
+        {
+            Some((helper, car))
+        }
+        _ => None,
+    };
+    match car {
+        Some((helper, car)) => {
+            crate::race::car_part::draw_with_car_aside(helper, &ctx, car, |car| rest(Some(car)))?;
+        }
+        None => rest(None)?,
+    }
     let view_value = view_value(reads.view, &view.polygon.sun, view.drawn_view(race))?;
     Ok(ViewOutput {
         environment: Some(environment),

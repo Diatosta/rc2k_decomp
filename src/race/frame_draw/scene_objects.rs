@@ -814,6 +814,17 @@ pub fn draw_entries<'a>(
     count: &crate::session::PlainDword,
     from: impl Fn(usize) -> &'a [crate::session::PlainDword],
 ) -> Result<(), Refused> {
+    draw_entries_around(ctx, count, from, None)
+}
+
+/// `draw_entries`, the view's own car's entry (its second word without the top bit,
+/// `race::car_part::CarAside::entry_word`) taken from `car`, which drew it aside.
+pub fn draw_entries_around<'a>(
+    ctx: &crate::race::view_scratch::DrawCtx<'_>,
+    count: &crate::session::PlainDword,
+    from: impl Fn(usize) -> &'a [crate::session::PlainDword],
+    car: Option<&crate::race::car_part::CarAside<'_, '_>>,
+) -> Result<(), Refused> {
     let entries = from(0)
         .get(..2 * count.get() as usize)
         .ok_or(BadInput("a draw list entry past the list"))?;
@@ -825,7 +836,11 @@ pub fn draw_entries<'a>(
         return Err(BadInput("a list entry of 0x4000000 or more").into());
     }
     for (k, entry) in entries.iter().enumerate() {
-        draw_list_entry(ctx, Description::PlainCells(from(k)), entry[1].get())?;
+        let word = entry[1].get();
+        match car {
+            Some(car) if word & 0x7FFF_FFFF == car.entry_word() => car.draw(ctx)?,
+            _ => draw_list_entry(ctx, Description::PlainCells(from(k)), word)?,
+        }
     }
     Ok(())
 }

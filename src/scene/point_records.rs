@@ -34,6 +34,56 @@ pub const fn new_records() -> Records {
     [const { [const { PlainDword::new(0) }; 8] }; COUNT as usize]
 }
 
+/// Which of a part's records have been written since `clear_written`, a bit each
+/// (`workers::PartScratch::records_written`): what a piece drawn aside wrote is put into its
+/// part's records (`put_written`).
+pub type Written = [std::cell::Cell<u64>; COUNT as usize / 64];
+
+/// No record written.
+pub const fn new_written() -> Written {
+    [const { std::cell::Cell::new(0) }; COUNT as usize / 64]
+}
+
+/// Record `r` (1 .. `COUNT`) written in `part`'s records.
+#[inline]
+fn note_written(part: &crate::workers::PartScratch, r: u32) {
+    if let Some(k) = (r as usize).checked_sub(1)
+        && let Some(bits) = part.records_written.get(k / 64)
+    {
+        bits.set(bits.get() | 1 << (k % 64));
+    }
+}
+
+/// The records `part` has written (since `clear_written`), each by its index.
+fn each_written(part: &crate::workers::PartScratch, mut f: impl FnMut(usize)) {
+    for (n, bits) in part.records_written.iter().enumerate() {
+        let mut left = bits.get();
+        while left != 0 {
+            f(n * 64 + left.trailing_zeros() as usize);
+            left &= left - 1;
+        }
+    }
+}
+
+/// Each record `from` has written (since `clear_written`) put into `to`'s records, whole.
+pub fn put_written(from: &crate::workers::PartScratch, to: &crate::workers::PartScratch) {
+    each_written(from, |k| {
+        for (a, b) in to.records[k].iter().zip(&from.records[k]) {
+            a.set(b.get());
+        }
+    });
+}
+
+/// The records `part` has written (since the last time) set back to 0 and forgotten: a piece
+/// drawn aside starts from records all 0 each time (`workers::draw_aside`) without clearing
+/// all 0x2000.
+pub fn clear_written(part: &crate::workers::PartScratch) {
+    each_written(part, |k| part.records[k].iter().for_each(|c| c.set(0)));
+    for bits in &part.records_written {
+        bits.set(0);
+    }
+}
+
 /// Whether the records are taken.
 static TAKEN: AtomicBool = AtomicBool::new(false);
 
@@ -211,6 +261,7 @@ pub fn set_in(
     for (cell, v) in cells(part, r, quad)?.iter().zip(record) {
         cell.set(v);
     }
+    note_written(part, r);
     Ok(())
 }
 
@@ -252,6 +303,7 @@ pub fn put_field_in(
     v: u32,
 ) -> Result<(), BadInput> {
     cell(cells(part, r, quad)?, offset)?.set(v);
+    note_written(part, r);
     Ok(())
 }
 

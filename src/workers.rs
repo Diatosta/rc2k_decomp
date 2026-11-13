@@ -12,6 +12,11 @@
 //! own thread's, what everything drawn outside the parts works on too (`game_scratch`).
 //! A `PartScratch` is made of plain cells (and the `RefCell` of its noted drawing, which only
 //! the thread that has claimed the part reaches): it is `Send`, asserted below.
+//!
+//! Inside a part, one piece of its drawing can be drawn aside on another drawing thread
+//! (`draw_aside`, the view's own car: `race::car_part`), on a scratch of its own behind a
+//! mutex, from the part's render states as the piece was handed aside; its drawing is put in
+//! at its place in the part's order, as `draw_parts` puts a part's after the earlier ones.
 
 use crate::errors::{BadInput, Refused};
 use crate::part_cell::{PartCell, PartTurn};
@@ -44,6 +49,9 @@ pub struct PartScratch {
     pub polygon: crate::scene::polygon_store::PolygonWork,
     /// The point records, a cache of the points' projections (`scene::point_records`).
     pub records: crate::scene::point_records::Records,
+    /// Which records have been written since they were last forgotten
+    /// (`scene::point_records::Written`).
+    pub records_written: crate::scene::point_records::Written,
     /// The held matrix columns while a part other than the first is drawn
     /// (`scene::view_matrices::Held`), from the list's start.
     pub columns: crate::scene::view_matrices::OwnColumns,
@@ -73,6 +81,7 @@ impl PartScratch {
             vertices: crate::d3d::vertices_store::PolygonVertices::new(),
             polygon: crate::scene::polygon_store::PolygonWork::new(),
             records: crate::scene::point_records::new_records(),
+            records_written: crate::scene::point_records::new_written(),
             columns: crate::scene::view_matrices::OwnColumns::new(),
             points: crate::race::scene_points::OwnPoints::new(),
             cache: if first {
@@ -607,6 +616,11 @@ pub fn wait_for_earlier_runs() {
     if n == 0 {
         return;
     }
+    if n == ASIDE_INDEX {
+        // A piece drawn aside (`draw_aside`): after what its part draws before it.
+        wait_for_aside_turn();
+        return;
+    }
     let mut e = ENDED
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
@@ -653,6 +667,9 @@ pub struct PartRun<'a> {
     pub n: usize,
     pub part: &'a PartScratch,
     pub view: &'a ViewScratch,
+    /// What the part may hand a piece of its drawing to (`draw_aside`): part 0's only, when
+    /// the pool has a thread for it besides the other parts' (`Helper::for_first_part`).
+    pub helper: Option<Helper<'a>>,
 }
 
 /// Parts 0 .. `slots.len()` (`part(run, reads)`, at most `COUNT`, each on its own scratch and
@@ -754,6 +771,7 @@ fn draw_parts(
                 n,
                 part: scratch,
                 view,
+                helper: None,
             },
             lent.reads(),
         );
@@ -782,6 +800,7 @@ fn draw_parts(
                 n: 0,
                 part: scratch,
                 view,
+                helper: Helper::for_first_part(pool, k, lent),
             },
             lent.reads(),
         );
@@ -857,4 +876,295 @@ struct OtherRun {
     states: crate::d3d::run_states::RunStates,
     /// The held matrix columns it left.
     columns: crate::scene::view_matrices::Columns,
+}
+
+// ---- a piece of a part drawn aside ----
+
+/// Whether the player's car is drawn as a piece of its own beside the rest of its view
+/// (`race::car_part`, `draw_aside`): `RC2K_CAR_PART=0` off (the view drawn on its part's
+/// thread alone, as before, for a comparison of times), any other value or none on.
+pub fn car_part() -> bool {
+    static ON: OnceLock<bool> = OnceLock::new();
+    *ON.get_or_init(|| std::env::var("RC2K_CAR_PART").as_deref() != Ok("0"))
+}
+
+/// Whether a view drawn alone is drawn as a part of one (`draw_side_by_side`) for its car to
+/// be drawn aside: the car part on and a drawing thread for it, or the parts drawn one after
+/// another (`RC2K_DRAW_SERIAL`).
+pub fn car_part_wanted() -> bool {
+    car_part() && (pool().is_some() || serial())
+}
+
+/// What a part may hand a piece of its own drawing to (`draw_aside`): the drawing threads (none
+/// with `RC2K_DRAW_SERIAL`: the piece is then drawn on the part's own thread when it is joined,
+/// on its copies all the same) and the stores lent to the scope.
+#[derive(Clone, Copy)]
+pub struct Helper<'a> {
+    pool: Option<&'a rayon::ThreadPool>,
+    lent: &'a Lent<'a>,
+}
+
+impl<'a> Helper<'a> {
+    /// Part 0's helper in a scope of `parts` parts drawn on `pool` (none: one after another):
+    /// with the car part on, when the pool has a thread to spare besides the other parts' (each
+    /// part waits for nothing a later one does, so the piece never waits for a thread).
+    fn for_first_part(
+        pool: Option<&'a rayon::ThreadPool>,
+        parts: usize,
+        lent: &'a Lent<'a>,
+    ) -> Option<Self> {
+        if !car_part() {
+            return None;
+        }
+        match pool {
+            Some(p) if p.current_num_threads() >= parts => Some(Self {
+                pool: Some(p),
+                lent,
+            }),
+            None if serial() => Some(Self { pool: None, lent }),
+            _ => None,
+        }
+    }
+}
+
+/// The run number of a piece drawn aside (`INDEX` on its thread): past the parts'.
+const ASIDE_INDEX: usize = COUNT;
+
+/// The scratch a piece drawn aside draws on: one piece at a time, its thread holding the lock
+/// for its run (`draw_aside`), so it is reached by one thread at a time with no `unsafe`.
+static ASIDE: Mutex<PartScratch> = Mutex::new(PartScratch::new(false));
+
+/// Whether the part drawing a piece aside has come to the piece's place in its drawing
+/// (`Aside::join`): what the piece must do in the drawing's order (`wait_for_earlier_runs`)
+/// waits for it.
+static ASIDE_TURN: Mutex<bool> = Mutex::new(false);
+static ASIDE_TURN_CHANGED: Condvar = Condvar::new();
+
+fn set_aside_turn(reached: bool) {
+    *ASIDE_TURN
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner) = reached;
+    ASIDE_TURN_CHANGED.notify_all();
+}
+
+fn wait_for_aside_turn() {
+    let mut reached = ASIDE_TURN
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    while !*reached {
+        reached = ASIDE_TURN_CHANGED
+            .wait(reached)
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+    }
+}
+
+/// What a part's state was as it handed a piece aside: what the piece starts from.
+struct AsideStart {
+    point_count: u32,
+    cache: crate::d3d::render_cache::Cache,
+    columns: Option<crate::scene::view_matrices::Columns>,
+    control: u16,
+    in_race: bool,
+}
+
+/// What a piece drawn aside left: its result, its noted drawing (its fans before its own
+/// setting of a state given the part's value of it at the piece's place, `Aside::join`) and
+/// where it set the render states and the texture.
+pub struct AsideRun {
+    pub result: Result<(), Refused>,
+    pub noted: crate::render::CommandList,
+    states: crate::d3d::run_states::RunStates,
+}
+
+/// The piece drawn on `scratch` (on the thread that holds it) from `start`.
+fn run_aside(
+    scratch: &PartScratch,
+    start: &AsideStart,
+    reads: DrawReads<'_>,
+    piece: impl FnOnce(&PartScratch, DrawReads<'_>) -> Result<(), Refused>,
+) -> AsideRun {
+    scratch.points.begin_run(start.point_count);
+    scratch.in_race.set(start.in_race);
+    crate::math::x87::set_control_word(start.control);
+    crate::d3d::run_states::begin_run(scratch, &start.cache);
+    crate::scene::view_matrices::set_part_columns(scratch, start.columns);
+    let result = piece(scratch, reads);
+    let states = crate::d3d::run_states::end_run(scratch);
+    crate::scene::view_matrices::end_part(scratch);
+    scratch.points.end_run();
+    let noted = crate::platform_3d::take_noted(scratch);
+    AsideRun {
+        result,
+        noted,
+        states,
+    }
+}
+
+/// A piece of a part's drawing: what it draws, on its own scratch, reading the scope's stores.
+pub type Piece<'a> =
+    Box<dyn FnOnce(&PartScratch, DrawReads<'_>) -> Result<(), Refused> + Send + 'a>;
+
+/// A piece of a part's drawing being drawn aside (`draw_aside`), handed to the rest of the
+/// part's drawing: `join` where the piece goes in the drawing's order, `put` its drawing
+/// there.
+pub struct Aside<'a> {
+    part: &'a PartScratch,
+    start: AsideStart,
+    /// The piece's run, sent by its thread.
+    ran: Option<std::sync::mpsc::Receiver<AsideRun>>,
+    /// The piece itself while it is to be drawn when joined (no drawing threads).
+    later: std::cell::RefCell<Option<(Piece<'a>, &'a Lent<'a>)>>,
+    joined: Cell<bool>,
+}
+
+impl Aside<'_> {
+    /// The piece's run, once it has ended (drawn here now without drawing threads), its fans
+    /// before its own setting of a state given the part's value of it now. Once only.
+    pub fn join(&self) -> Result<AsideRun, Refused> {
+        if self.joined.replace(true) {
+            return Err(BadInput("a piece drawn aside joined twice").into());
+        }
+        set_aside_turn(true);
+        let mut run = match &self.ran {
+            Some(ran) => ran
+                .recv()
+                .map_err(|_| BadInput("a piece drawn aside that did not end"))?,
+            None => {
+                let (piece, lent) = self
+                    .later
+                    .borrow_mut()
+                    .take()
+                    .ok_or(BadInput("a piece drawn aside with nothing to draw"))?;
+                let scratch = ASIDE
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner);
+                run_aside(&scratch, &self.start, lent.reads(), piece)
+            }
+        };
+        let carried = crate::d3d::run_states::carried(&self.part.cache);
+        crate::d3d::run_states::patch(&mut run.noted.commands, &run.states, &carried);
+        let now = crate::d3d::render_cache::current(&self.part.cache);
+        if crate::d3d::run_states::drew_before_texture(&run.noted.commands, &run.states)
+            && !crate::d3d::render_cache::same_texture(&now, &self.start.cache)
+        {
+            crate::framework::log(
+                "workers: a piece drawn aside drew before setting its texture (not as one thread)",
+            );
+        }
+        Ok(run)
+    }
+
+    /// `run`'s drawing put after the part's so far, and the render states and the texture it
+    /// set into the part's cache.
+    pub fn put(&self, run: AsideRun) -> Result<(), Refused> {
+        debug_assert!(
+            std::ptr::eq(self.part, part_scratch(0)),
+            "a piece drawn aside of a part other than the first"
+        );
+        crate::platform_3d::put_noted(run.noted);
+        crate::d3d::run_states::carry_set(&self.part.cache, &run.states);
+        // The point records it wrote, as the part would have them after it; the piece's own
+        // set back to 0 for the next piece.
+        {
+            let scratch = ASIDE
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            crate::scene::point_records::put_written(&scratch, self.part);
+            crate::scene::point_records::clear_written(&scratch);
+        }
+        crate::platform_3d::forget_states(self.part);
+        run.result
+    }
+
+    /// The part's drawing is over: a piece not joined is waited for and its drawing dropped
+    /// (it had no place in the drawing).
+    fn finish(&self) {
+        if self.joined.replace(true) {
+            return;
+        }
+        set_aside_turn(true);
+        if let Some(ran) = &self.ran {
+            let _ = ran.recv();
+            crate::scene::point_records::clear_written(
+                &ASIDE
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner),
+            );
+        }
+    }
+}
+
+/// The piece's turn given when dropped: a part's drawing that ends early (a refusal, a panic)
+/// never leaves its piece waiting for a turn that will not come.
+struct GiveTurn;
+
+impl Drop for GiveTurn {
+    fn drop(&mut self) {
+        set_aside_turn(true);
+    }
+}
+
+/// `piece` drawn aside of part `part` (the first, on the game's thread) on a drawing thread of
+/// `helper`'s, on a scratch of its own set from the part's as it is now (its render states,
+/// its held matrix columns, its scene points past `point_count`; its point records all 0, the
+/// ones it writes put into the part's when it is put, so a piece must make every record it
+/// reads: the view's car's held races drew the same), while `rest` draws on in the part;
+/// `rest` gets the piece as an `Aside`, to join and put where it goes in the drawing's order.
+/// What the piece must do in that order (its random numbers) waits until it is joined.
+/// Without drawing threads the piece is drawn when it is joined, on the part's thread.
+pub fn draw_aside<'a, R>(
+    helper: Helper<'a>,
+    part: &'a PartScratch,
+    point_count: u32,
+    piece: Piece<'a>,
+    rest: impl FnOnce(&Aside<'a>) -> R,
+) -> R {
+    let start = AsideStart {
+        point_count,
+        cache: crate::d3d::render_cache::current(&part.cache),
+        columns: crate::scene::view_matrices::part_columns(part),
+        control: crate::math::x87::control_word(),
+        in_race: part.in_race.is_set(),
+    };
+    set_aside_turn(false);
+    let Some(pool) = helper.pool else {
+        let aside = Aside {
+            part,
+            start,
+            ran: None,
+            later: std::cell::RefCell::new(Some((piece, helper.lent))),
+            joined: Cell::new(false),
+        };
+        let r = rest(&aside);
+        // Not joined: never drawn.
+        aside.joined.set(true);
+        return r;
+    };
+    let (send, ran) = std::sync::mpsc::sync_channel(1);
+    let aside = Aside {
+        part,
+        start,
+        ran: Some(ran),
+        later: std::cell::RefCell::new(None),
+        joined: Cell::new(false),
+    };
+    let lent = helper.lent;
+    let begin = &aside.start;
+    pool.in_place_scope(|s| {
+        s.spawn(move |_| {
+            INDEX.set(ASIDE_INDEX);
+            let run = {
+                let scratch = ASIDE
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner);
+                run_aside(&scratch, begin, lent.reads(), piece)
+            };
+            INDEX.set(0);
+            let _ = send.send(run);
+        });
+        let _turn = GiveTurn;
+        let r = rest(&aside);
+        aside.finish();
+        r
+    })
 }

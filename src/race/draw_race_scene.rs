@@ -103,10 +103,12 @@ fn view_scene(
     filter: [u32; 3],
     reads: crate::workers::DrawReads<'_>,
 ) -> Result<(), Refused> {
-    let crate::workers::PartRun { part, view, .. } = run;
+    let crate::workers::PartRun {
+        part, view, helper, ..
+    } = run;
     view.take_vars(reads);
     let output = crate::race::draw_view_scene::draw_view_scene(
-        o.race, o.scene, o.net, o.input, view, filter, part, reads,
+        o.race, o.scene, o.net, o.input, view, filter, part, reads, helper,
     )?;
     view.hand_off.keep_output(output);
     view.hand_off.keep(reads.matrices, part);
@@ -232,7 +234,12 @@ fn draw_view(
     // their owners.
     let part = crate::workers::game_scratch();
     let reads = || crate::workers::DrawReads::on_game_thread(o.lent());
-    let run = |view: &'static ViewScratch| crate::workers::PartRun { n: 0, part, view };
+    let run = |view: &'static ViewScratch| crate::workers::PartRun {
+        n: 0,
+        part,
+        view,
+        helper: None,
+    };
     let view = || -> Result<(), Refused> {
         view_scene(o, run(main_view(car)), filter_input(car), reads())?;
         view_drawn(o, car, false)?;
@@ -240,6 +247,19 @@ fn draw_view(
     };
     let mirror = || view_mirror(o, car, run(mirror_view(car)), reads());
     if !mirrored(o.race, flags) {
+        if crate::workers::car_part_wanted() {
+            // The view as a part of its own, for its car to be drawn aside (`race::car_part`).
+            let filter = filter_input(car);
+            return crate::workers::draw_side_by_side(
+                o.lent(),
+                &[car],
+                |run, reads| view_scene(o, run, filter, reads),
+                |_| {
+                    view_drawn(o, car, false)?;
+                    view_rest(o, gfx, effects, cheats, car, blit)
+                },
+            );
+        }
         return view();
     }
     // The mirror drawn beside its view's scene (`workers::draw_beside`,

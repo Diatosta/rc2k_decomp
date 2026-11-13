@@ -20,6 +20,8 @@ type States = [u32; STATES];
 /// never).
 pub struct RunStates {
     first_set: [usize; STATES],
+    /// Where it first set the texture, counted the same way.
+    texture_set: usize,
     /// The cache the run left.
     left: crate::d3d::render_cache::Cache,
 }
@@ -32,6 +34,7 @@ pub struct OwnRun {
     /// The noted commands' count as the run began.
     base: Cell<usize>,
     first_set: [Cell<usize>; STATES],
+    texture_set: Cell<usize>,
 }
 
 impl OwnRun {
@@ -40,6 +43,7 @@ impl OwnRun {
             on: Cell::new(false),
             base: Cell::new(0),
             first_set: [const { Cell::new(usize::MAX) }; STATES],
+            texture_set: Cell::new(usize::MAX),
         }
     }
 }
@@ -58,19 +62,24 @@ pub fn begin_run(part: &PartScratch, start: &crate::d3d::render_cache::Cache) {
     for f in &run.first_set {
         f.set(usize::MAX);
     }
+    run.texture_set.set(usize::MAX);
     run.on.set(true);
 }
 
 /// Part `part`'s run is over: where it set its states.
 pub fn end_run(part: &PartScratch) -> RunStates {
     let run = &part.run;
-    let first_set = if run.on.replace(false) {
-        std::array::from_fn(|i| run.first_set[i].get())
+    let (first_set, texture_set) = if run.on.replace(false) {
+        (
+            std::array::from_fn(|i| run.first_set[i].get()),
+            run.texture_set.get(),
+        )
     } else {
-        [usize::MAX; STATES]
+        ([usize::MAX; STATES], usize::MAX)
     };
     RunStates {
         first_set,
+        texture_set,
         left: crate::d3d::render_cache::end(part),
     }
 }
@@ -83,6 +92,24 @@ pub fn note_set(part: &PartScratch, state: usize) {
         run.first_set[state]
             .set(crate::platform_3d::noted_len(part).saturating_sub(run.base.get()));
     }
+}
+
+/// The texture set in `part`'s run, if one is under way (as `note_set`).
+pub fn note_texture_set(part: &PartScratch) {
+    let run = &part.run;
+    if run.on.get() && run.texture_set.get() == usize::MAX {
+        run.texture_set
+            .set(crate::platform_3d::noted_len(part).saturating_sub(run.base.get()));
+    }
+}
+
+/// Whether the run noted a fan before it set the texture (that fan took the texture as the
+/// run began, which `patch` cannot change).
+pub fn drew_before_texture(noted: &[Command], run: &RunStates) -> bool {
+    noted
+        .iter()
+        .take(run.texture_set)
+        .any(|c| matches!(c, Command::Fan { .. }))
 }
 
 /// The run's fans before its own setting of a state given `carried`'s value of it (the
@@ -137,6 +164,24 @@ pub fn carry(
     crate::d3d::render_cache::merge_texture(first, &run.left, start);
 }
 
+/// The states and the texture a piece drawn aside set (`workers::draw_aside`), as it left
+/// them, into its part's cache `first`: each it set, whatever its value (the piece was drawn
+/// after everything in the part so far).
+pub fn carry_set(first: &crate::d3d::render_cache::OwnCache, run: &RunStates) {
+    for (i, &f) in run.first_set.iter().enumerate() {
+        if f != usize::MAX {
+            crate::d3d::render_cache::put_kept(
+                first,
+                i,
+                crate::d3d::render_cache::left_kept(&run.left, i),
+            );
+        }
+    }
+    if run.texture_set != usize::MAX {
+        crate::d3d::render_cache::put_texture(first, &run.left);
+    }
+}
+
 /// The first part's (`first`) states now: what the runs merged so far left.
 pub fn carried(first: &crate::d3d::render_cache::OwnCache) -> [u32; STATES] {
     crate::d3d::render_cache::stored_kept(first)
@@ -165,6 +210,7 @@ mod tests {
         first_set[14] = 2; // set before the third fan
         let run = RunStates {
             first_set,
+            texture_set: usize::MAX,
             left: crate::d3d::render_cache::current(&crate::workers::part_scratch(0).cache),
         };
         let mut carried = [1; STATES];
@@ -179,5 +225,21 @@ mod tests {
         assert_eq!((a[14], a[3]), (0, 3));
         assert!(Arc::ptr_eq(&a, &b), "shared states stay shared");
         assert_eq!((c[14], c[3]), (1, 3));
+    }
+
+    /// A run's fans before it set the texture are found; none when it set it first.
+    #[test]
+    fn fans_before_the_texture_are_found() {
+        let start: Arc<[u32; STATES]> = Arc::new([1; STATES]);
+        let noted = vec![fan(&start), fan(&start)];
+        let run = |texture_set| RunStates {
+            first_set: [usize::MAX; STATES],
+            texture_set,
+            left: crate::d3d::render_cache::current(&crate::workers::part_scratch(0).cache),
+        };
+        assert!(drew_before_texture(&noted, &run(usize::MAX)));
+        assert!(drew_before_texture(&noted, &run(1)));
+        assert!(!drew_before_texture(&noted, &run(0)));
+        assert!(!drew_before_texture(&[], &run(usize::MAX)));
     }
 }

@@ -113,7 +113,19 @@ pub fn texture(part: &PartScratch) -> u32 {
 
 /// The texture set last in `part`'s cache made `texture`.
 pub fn set_texture(part: &PartScratch, texture: u32) {
+    crate::d3d::run_states::note_texture_set(part);
     active(part).texture.set(texture);
+}
+
+/// Whether two caches have the same texture set last.
+pub fn same_texture(a: &Cache, b: &Cache) -> bool {
+    a.texture == b.texture
+}
+
+/// The texture `run` left into the first part's cache `first` (a piece drawn aside that set
+/// one, `run_states::carry_set`).
+pub fn put_texture(first: &OwnCache, run: &Cache) {
+    first.texture.set(run.texture);
 }
 
 /// A part left `run`: its texture goes into the first part's cache (`first`) if it changed

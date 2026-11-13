@@ -92,10 +92,36 @@ impl SortLists {
     }
 }
 
+/// `$f` (`Cells::copy_from` or `merge_changes`) on each part of a view's state but the sort
+/// lists (`copy_drawing_from`, `merge_drawing`).
+macro_rules! for_each_part {
+    ($f:ident, $to:expr, $from:expr $(, $start:expr)?) => {{
+        use crate::cells::Cells;
+        let (to, from) = ($to, $from);
+        to.fog.$f(&from.fog $(, &$start.fog)?);
+        to.object.$f(&from.object $(, &$start.object)?);
+        to.light.$f(&from.light $(, &$start.light)?);
+        to.face.$f(&from.face $(, &$start.face)?);
+        to.cars.$f(&from.cars $(, &$start.cars)?);
+        to.matrices.$f(&from.matrices $(, &$start.matrices)?);
+        to.polygon.$f(&from.polygon $(, &$start.polygon)?);
+        to.grid.$f(&from.grid $(, &$start.grid)?);
+        to.course.$f(&from.course $(, &$start.course)?);
+        to.quad.$f(&from.quad $(, &$start.quad)?);
+        to.lamps.$f(&from.lamps $(, &$start.lamps)?);
+        to.state.$f(&from.state $(, &$start.state)?);
+        to.car.$f(&from.car $(, &$start.car)?);
+        to.hand_off.$f(&from.hand_off $(, &$start.hand_off)?);
+        to.vars.$f(&from.vars $(, &$start.vars)?);
+        to.vars_taken.$f(&from.vars_taken $(, &$start.vars_taken)?);
+    }};
+}
+
 /// A view slot's working state.
 pub struct ViewScratch {
-    /// The slot's number (`number`).
-    slot: u8,
+    /// The slot's number (`number`); a copy's the slot it was copied from
+    /// (`copy_drawing_from`).
+    slot: std::cell::Cell<u8>,
     pub lists: SortLists,
     /// The view's fog, set up at the start of its drawing (`race::set_up_fog`).
     pub fog: crate::scene::fog::Fog,
@@ -138,9 +164,9 @@ pub struct ViewScratch {
 }
 
 impl ViewScratch {
-    const fn new(slot: u8) -> Self {
+    pub(crate) const fn new(slot: u8) -> Self {
         Self {
-            slot,
+            slot: std::cell::Cell::new(slot),
             lists: SortLists::new(),
             fog: crate::scene::fog::Fog::new(),
             object: crate::scene::object_place::ObjectPlace::new(),
@@ -221,7 +247,21 @@ impl ViewScratch {
 
     /// The slot's number (`slot`).
     pub fn number(&self) -> usize {
-        usize::from(self.slot)
+        usize::from(self.slot.get())
+    }
+
+    /// Every part but the sort lists set from `other`'s, and its slot: a copy of the view as
+    /// its drawing has it now, for a piece of its drawing on another thread
+    /// (`race::car_part`), which reads no list.
+    pub fn copy_drawing_from(&self, other: &ViewScratch) {
+        self.slot.set(other.slot.get());
+        for_each_part!(copy_from, self, other);
+    }
+
+    /// What `now` (a copy, `copy_drawing_from`) changed since it was `start` put into this
+    /// view, part by part but the sort lists: the copy's drawing put after this view's own.
+    pub fn merge_drawing(&self, now: &ViewScratch, start: &ViewScratch) {
+        for_each_part!(merge_changes, self, now, start);
     }
 
     /// The view drawn (`RACE_VIEW.drawn_view`, the original's `g_drawnView`): the player
@@ -384,5 +424,36 @@ pub fn filter_input(slot: usize) -> [u32; 3] {
         ]
     } else {
         [0; 3]
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A copy answers with its source's slot; merging it back puts what it changed since it
+    /// was taken over what the view changed meanwhile, and leaves the rest as the view has it.
+    #[test]
+    fn a_copy_is_merged_over_the_view() {
+        let (view, copy, taken) = (
+            ViewScratch::new(1),
+            ViewScratch::new(0),
+            ViewScratch::new(0),
+        );
+        view.cars.car_depth.set(5);
+        view.light.view_kind.set(7);
+        copy.copy_drawing_from(&view);
+        taken.copy_drawing_from(&view);
+        assert_eq!(copy.number(), 1);
+        // The view draws on; the copy changes the depth and the object number.
+        view.light.view_kind.set(2);
+        view.cars.object_number.set(3);
+        copy.cars.car_depth.set(9);
+        copy.cars.object_number.set(4);
+        view.merge_drawing(&copy, &taken);
+        assert_eq!(view.cars.car_depth.get(), 9);
+        assert_eq!(view.cars.object_number.get(), 4);
+        assert_eq!(view.light.view_kind.get(), 2);
+        assert_eq!(view.number(), 1);
     }
 }
