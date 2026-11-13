@@ -148,7 +148,6 @@ pub fn load_kind_data(
 }
 
 /// The edge picture packed to a byte a pixel (`effects::edges`, `effects::run_windscreen_flakes`, `effects::windscreen_drops_frame`) (IDA 0x809BC3 .. 0x811BC3).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct EdgeMask {
     /// 0x809BC3: `g_marksEdgeMask`: 256 x 128 cells, a byte set where an item dies.
@@ -164,7 +163,6 @@ impl EdgeMask {
 }
 
 /// The kinds' boxes and floats (`effects::edges`, `effects::corners`) (IDA 0x811BEB .. 0x8122D3).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct KindBoxes {
     /// 0x811BEB: `g_marksKindBoxes`: 0x22 records of 0x30 bytes, scaled once at `effects::load_edges`.
@@ -361,7 +359,6 @@ impl KindBoxes {
 }
 
 /// The edges' scales, once-only mark and picture path (IDA 0x8BC39E .. 0x8BC3FD).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct EdgeSettings {
     /// 0x8BC39E: `flt_8BC39E`: what the settings' +0x2750 is multiplied by (`effects::scale_setting`; 1.0).

@@ -76,7 +76,6 @@ pub const FIRST_IDA: u32 = 0x506E6C;
 pub const POOL_LEN: usize = EFFECTS_LEN + 2 * SPEECH_LEN + RALLY_LEN + MENU_LEN;
 
 /// The sound samples' file names (IDA 0x506E6C .. 0x50A7A4).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct SampleNames {
     /// 0x506E6C: `aFilesDSndMiscM` ..: the effects', engine, surface and ambience samples' file names (`files\d\snd\..`).

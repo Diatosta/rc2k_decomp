@@ -18,7 +18,6 @@ pub const START: usize = 0x51E3A4;
 pub const COUNT: usize = 63;
 
 /// A font object (0x20 bytes, `rc2k_core::text::Font`), its fields as cells.
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct FontObject {
     /// +0x00: the character drawn with glyph 0.
@@ -44,8 +43,6 @@ pub struct FontObject {
     /// +0x1C: the box width lines are aligned in (the widest line's width, measuring).
     pub box_width: PlainDword,
 }
-
-const _: () = assert!(size_of::<FontObject>() == size_of::<Font>());
 
 impl FontObject {
     const fn new(mode: u8, line_height: u32, palette: u32) -> Self {
@@ -121,7 +118,6 @@ impl FontObject {
 }
 
 /// The font objects.
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct FontObjects {
     pub objects: [FontObject; COUNT],

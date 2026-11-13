@@ -4,7 +4,8 @@
 //! `saves::allocate_best_times`, `load_best_times`, `free_best_times`). The
 //! nine tables are typed and Rust's own (`saves::best_times`): each pair keeps only the
 //! size.
-//! `#[repr(C)]` (all zero in the image).
+//! `TimeEntry` keeps its `#[repr(C)]` (the file's entries are copied as bytes, `default_times`), and
+//! `RallyTimes` too (`table_of` answers byte offsets).
 //! `allocate_best_times` walks the switches and the pairs as one run of dwords from
 //! `allocated` (`vars()`).
 
@@ -12,7 +13,6 @@ use crate::session::{PlainBytes, PlainDword};
 
 /// Where one table is: its address (the game's; 0 since the tables are typed)
 /// and its size in bytes.
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct TablePlace {
     pub address: PlainDword,
@@ -28,7 +28,6 @@ impl TablePlace {
     }
 }
 
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct BestTimes {
     /// `g_bestTimesMemory` (0x7475D0): the memory list (a `MemoryList`).

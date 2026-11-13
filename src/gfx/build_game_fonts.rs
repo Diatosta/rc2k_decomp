@@ -27,7 +27,6 @@ use crate::memory::take_from_list::rewind_list;
 // ---- game data ----
 
 /// The game fonts' memory.
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct GameFontsMemory {
     /// `dword_5BE894`: the memory's size in units of 0x400 bytes times `Screen.bytes`

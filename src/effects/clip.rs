@@ -5,7 +5,6 @@ use crate::d3d::vertices_store::Vertex;
 use crate::session::{PlainDword, PlainFloat};
 
 /// The clip's screen edges and work vertices (IDA 0x7687E4 .. 0x7688B4).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct ClipScreen {
     /// 0x7687E4: `g_marksScreenMiddleX`, `g_marksScreenMiddleXLess`, `g_marksScreenMiddleY`, `g_marksScreenMiddleYLess`: the screen's middle and one less (`effects::init_marks` sets them; `effects::clip_quad` clips against the settings' edge).
@@ -42,7 +41,6 @@ impl ClipScreen {
 }
 
 /// The glow's variables (and the clip's count) (IDA 0x93CC70 .. 0x93CCB0).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct GlowState {
     /// 0x93CC70: `dword_93CC70`: 1 = no glow (initially 1).

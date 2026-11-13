@@ -6,7 +6,6 @@
 use crate::cells::ZeroCells;
 use crate::session::PlainDword;
 
-#[repr(C)]
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct KindRecords {
     /// 0x5CC3C0: IDA touches +0x1c (0x5CC3DC) only in code outside any function (0x421C63 .. 0x421D96, dead); the port never reaches it.

@@ -193,7 +193,6 @@ pub fn emit_slip_spray_with(
 }
 
 /// Kind 5's emitter variables (`emit_slip_spray::FIFTH`) (IDA 0x93A23A .. 0x93A262).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct SlipSpraySet {
     /// 0x93A23A: `dword_93A23A`: the place's random

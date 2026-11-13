@@ -1,13 +1,12 @@
 //! The screens' string-id tables and a few flags, out of RAL.EXE's image (IDA 0x758806 .. 0x758B72): the "screen left" flag, the stage shown, the nationalities, the duel's labels, the
 //! places' points, the player views, and the lists of
-//! captions' string ids. A `#[repr(C)]` struct, one static.
+//! captions' string ids. One static.
 
 use crate::errors::BadInput;
 use crate::menu::owner::Menus;
 use crate::session::{PlainDword, PlainFlag};
 
 /// The string-id tables (IDA 0x758806 .. 0x758B72).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct CaptionTables {
     /// `dword_758806`: 1 when the screen was left with a key (Escape in `handle_keys`, a yes / no

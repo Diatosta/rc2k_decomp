@@ -82,36 +82,32 @@ pub fn restore_saved_car(
 mod tests {
     use super::*;
 
-    /// The copy of every count up to the limit leaves the work copy as the byte-offset copy did.
+    /// The copy of every count up to the limit puts the saved faces and then the flips into the
+    /// work copy's list, and leaves the rest of the list as it was.
     #[test]
-    fn faces_run_on_as_the_old_copy() {
+    fn faces_run_on_into_the_flips() {
         for n in 0..=0x7C {
-            let (new, old) = (Car::new(), Car::new());
-            let (c_new, c_old) = (ContactWork::new(), ContactWork::new());
+            let new = Car::new();
+            let c_new = ContactWork::new();
             for (k, cell) in c_new.probe_saved_faces.iter().enumerate() {
                 cell.set(0x100 + k as u32);
-                c_old.probe_saved_faces[k].set(0x100 + k as u32);
             }
             for (k, cell) in c_new.probe_face_flip.iter().enumerate() {
                 cell.set(0x200 + k as u32);
-                c_old.probe_face_flip[k].set(0x200 + k as u32);
             }
             let from: [&dyn Run; 2] = [&c_new.probe_saved_faces, &c_new.probe_face_flip];
             let to = faces_and_after(&new);
             for k in 0..n {
                 write_runs(&to, k, read_runs(&from, k, "t").unwrap(), "t").unwrap();
             }
-            crate::session::copy_on_in(
-                (&c_old, &c_old.probe_saved_faces),
-                (&old, &old.probe_point_face),
-                n,
-                "t",
-            )
-            .unwrap();
             for k in 0..0x7C {
-                let read =
-                    |c: &Car| crate::session::read_on_in(c, &c.probe_point_face, k, "t").unwrap();
-                assert_eq!(read(&new), read(&old), "count {n}, dword {k}");
+                let read = crate::session::read_on_in(&new, &new.probe_point_face, k, "t").unwrap();
+                let wanted = if k < n {
+                    read_runs(&from, k, "t").unwrap()
+                } else {
+                    0
+                };
+                assert_eq!(read, wanted, "count {n}, dword {k}");
             }
         }
     }

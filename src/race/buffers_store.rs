@@ -11,7 +11,6 @@ use crate::scene::polygon_store::PolygonTables;
 use crate::session::DrawShared;
 
 /// The buffers: the tables the parts only read (`BufferReads`).
-#[repr(C, align(16))]
 pub struct Buffers {
     /// The tables written on the game's thread outside a drawing scope and read by every
     /// part inside one (lent as `workers::DrawReads::buffers`).
@@ -20,7 +19,6 @@ pub struct Buffers {
 
 /// The buffers the drawing parts read and none writes, in the image's order after the polygon
 /// work.
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct BufferReads {
     /// `scene::polygon_store`'s tables.

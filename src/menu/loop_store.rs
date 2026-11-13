@@ -1,13 +1,11 @@
 //! The menu loop's flags, out of RAL.EXE's image (IDA 0x755525 .. 0x755595): the
 //! item highlighted, the leaving flags, the text entry's counters, the sprite table and the menu
 //! shown. The game keeps these dwords at addresses one past a multiple of four (IDA 0x755525 ..);
-//! here they lie at the same distances from the start. A `#[repr(C)]` struct with the image's
-//! layout, one static.
+//! here they lie at the same distances from the start. One static.
 
 use crate::session::{PlainDword, PlainFlag};
 
 /// The menu loop's flags (IDA 0x755525 .. 0x755595).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct LoopFlags {
     /// `dword_755525`: The highlighted menu item, from 1.

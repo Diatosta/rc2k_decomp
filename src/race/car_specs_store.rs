@@ -60,7 +60,6 @@ pub struct CarSpec {
 const _: () = assert!(core::mem::size_of::<CarSpec>() == 0xB0);
 
 /// The car kinds' records.
-#[repr(C)]
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct CarSpecs {
     pub cars: [CarSpec; 34],

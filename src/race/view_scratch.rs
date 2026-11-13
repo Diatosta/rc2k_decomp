@@ -38,7 +38,6 @@ const CELLS: usize = 4 * ENTRIES + 0x10;
 /// (lamps, flares, cars, faces drawn by depth) and the sort entries (the course faces); then
 /// 0x10 dwords that a flare's entry is read on into as a description of 0x3C bytes
 /// (`scene::draw_described_object`), past the last sort entry as past the original's.
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct SortLists {
     cells: [PlainDword; CELLS],
@@ -94,7 +93,6 @@ impl SortLists {
 }
 
 /// A view slot's working state.
-#[repr(C)]
 pub struct ViewScratch {
     /// The slot's number (`number`).
     slot: u8,

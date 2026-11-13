@@ -1,11 +1,10 @@
 //! The pace notes' work (IDA 0x614D38 .. 0x61FE18; phase 7, typed): the distance words, the
 //! notes' starts, ends, end codes and gaps, the groups' checkpoints and texts, and the texts'
-//! codes. `#[repr(C)]` with the image's layout, over the race block's bytes (`PACE`). Names
+//! codes. Names
 //! are readings unless IDA's.
 
 use crate::session::{PlainBytes, PlainDword};
 
-#[repr(C)]
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct PaceNotes {
     /// +0x0 (0X614D38): `g_paceDistanceWords`: the distance's word by tens, the first 41 bytes used (`race::pace_notes`); IDA names its first byte only.

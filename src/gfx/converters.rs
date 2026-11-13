@@ -7,7 +7,6 @@ use crate::session::PlainDword;
 pub const MASKS: usize = 19;
 
 /// The converters' masks and table.
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct Converters {
     /// `0x4F51F0` .. `0x4F5288`: the masks the MMX and 3DNow converters work with, 19

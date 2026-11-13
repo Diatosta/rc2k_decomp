@@ -5,7 +5,6 @@
 use crate::cells::ZeroCells;
 use crate::session::PlainDword;
 
-#[repr(C)]
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct FrameCounter {
     /// +0x0 (0x5EB100): `dword_5EB100`: the `framecounter` setting (`race::draw_frame_rate`).

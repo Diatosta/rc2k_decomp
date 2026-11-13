@@ -1,13 +1,11 @@
 //! The scene objects' tables (IDA 0x62DB5C .. 0x634FA0): the listed faces,
 //! the material phase work, the textures listed, and the per-slot tables the objects' shapes
 //! are loaded into (first point, point count, normal count, first face, face count, the
-//! parts' middles and half extents, the radii). `#[repr(C)]` with the image's layout, over
-//! the race block's bytes (`OBJECT_SLOTS`). Names are readings unless IDA's.
+//! parts' middles and half extents, the radii). Names are readings unless IDA's.
 
 use crate::cells::ZeroCells;
 use crate::session::PlainDword;
 
-#[repr(C)]
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct ObjectTables {
     /// +0x0 (0x62DB5C): `g_listedFaces`: the original's faces listed for drawing, no longer used: each object's drawing has its own (`scene::face_list`). Kept for the store's layout.
@@ -91,28 +89,37 @@ impl ObjectTables {
 mod tests {
     use super::*;
 
-    /// Every slot from each table to the end of the record gives what the byte-offset read gave.
+    /// Every slot from each table to the end of the record gives the entry of the tables after it.
     #[test]
-    fn slot_value_runs_on_as_the_old_read() {
+    fn slot_value_runs_on_through_the_tables_after() {
         let t = Box::new(ObjectTables::new());
-        let room = (core::mem::size_of::<ObjectTables>()
-            - core::mem::offset_of!(ObjectTables, first_point))
-            / 4;
-        for n in 0..room {
-            crate::session::write_on_in(&*t, &t.first_point, n, 0x5000 + n as u32, "t").unwrap();
+        let parts: [&[PlainDword]; 8] = [
+            &t.first_point,
+            &t.point_counts,
+            &t.normal_counts,
+            &t.first_face,
+            &t.face_counts,
+            t.part_extents.as_flattened(),
+            &t.measures,
+            &t.radii,
+        ];
+        let chain: Vec<&PlainDword> = parts.into_iter().flatten().collect();
+        for (n, cell) in chain.iter().enumerate() {
+            cell.set(0x5000 + n as u32);
         }
-        for (table, own) in [
-            (SlotTable::FirstPoint, &t.first_point),
-            (SlotTable::PointCounts, &t.point_counts),
-            (SlotTable::FirstFace, &t.first_face),
-            (SlotTable::FaceCounts, &t.face_counts),
+        for (table, first) in [
+            (SlotTable::FirstPoint, 0),
+            (SlotTable::PointCounts, 256),
+            (SlotTable::FirstFace, 3 * 256),
+            (SlotTable::FaceCounts, 4 * 256),
         ] {
-            let left = (core::mem::size_of::<ObjectTables>()
-                - (own.as_ptr() as usize - std::ptr::from_ref(&*t) as usize))
-                / 4;
+            let left = chain.len() - first;
             for n in (0..left).step_by(7).chain(left - 3..left) {
-                let old = crate::session::read_on_in(&*t, own, n, "t").unwrap();
-                assert_eq!(t.slot_value(table, n), old, "slot {n}");
+                assert_eq!(
+                    t.slot_value(table, n),
+                    0x5000 + (first + n) as u32,
+                    "slot {n}"
+                );
             }
         }
     }

@@ -4,7 +4,6 @@
 use crate::session::{PlainDword, PlainFloat, PlainInt};
 
 /// The marks' frame timing and counters (`effects::frame_marks`, `effects::run_frame`, `effects::draw_frame`) (IDA 0x765110 .. 0x765140).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct MarksFrame {
     /// 0x765110: `dword_765110`: the time stamp counter's low half at the last frame step.
@@ -53,7 +52,6 @@ impl MarksFrame {
 }
 
 /// The marks' constants (a pool of integers and floats the effects' code multiplies by) (IDA 0x765140 .. 0x765238).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct MarksFloats {
     /// 0x765140: `dword_765140`: 0x10000, the ring's pull limit (`effects::run_ring`).
@@ -150,7 +148,6 @@ impl MarksFloats {
 }
 
 /// The settings' copies and the kinds' floats (`effects::frame_marks`, `effects::init_marks`) (IDA 0x765238 .. 0x7652A4).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct MarksKindFloats {
     /// 0x765238: `dword_765238`: the settings' +0x4C, copied each frame step (a reading: which colours the ribbons use).

@@ -10,7 +10,6 @@ use crate::race::draw_view_scene::ViewOutput;
 use crate::race::owner::Race;
 use crate::session::{PlainDword, PlainFloat};
 
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct SceneHandOff {
     /// 1 when the mirror was drawn this frame (its full window follows: `race::draw_race_scene`).

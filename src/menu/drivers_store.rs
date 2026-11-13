@@ -1,7 +1,8 @@
 //! The championship's drivers, out of RAL.EXE's image (IDA 0x73B674 .. 0x742C98): `g_drivers`, the 180 computer drivers' records (0x94 bytes, IDA's `Driver`), the
 //! -1 that ends them for the walks (`menu::standings::drivers`), and `g_driverNames`, the
 //! 180 name entries (0x14 bytes, IDA's `DriverName`) a driver's first dword picks.
-//! `#[repr(C)]`, the image's layout. The event code
+//! `#[repr(C)]`: the savegame holds the table as bytes (`saves::gather_savegame`,
+//! `load_savegame`) and `shuffle_drivers` copies records as bytes. The event code
 //! works on the records by field (`menu::standings::drivers` walks them).
 //! The fields' meanings are readings (IDA's `Driver` names +8, +0x14 and +0x18
 //! `nationality`, `car` and `flag`: the time entries and the section screen say class,

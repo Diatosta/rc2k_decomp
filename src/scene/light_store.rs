@@ -7,7 +7,6 @@
 use crate::cells::ZeroCells;
 use crate::session::{PlainDword, PlainFloat};
 
-#[repr(C)]
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct LightState {
     /// (0x636588): `g_litPlace`, `dword_63658C`, `dword_636590`: the place (x, y, z) being lit, a car or a point (`scene::add_point_lights`, `race::frame_draw`, `race::course_faces`); now each view's (`scene::object_light`); unused.

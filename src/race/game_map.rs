@@ -15,14 +15,12 @@ use crate::errors::{BadInput, FatalError, Refused};
 use crate::gfx::pixel_format::PixelFormat;
 use crate::race::owner::Race;
 use crate::race::owner_frame::Frame;
-use crate::session::{PlainBytes, PlainLoose};
+use crate::session::{PlainBytes, PlainDword};
 
 const MAGIC: u32 = 0x4D53_5153; // "SQSM"
 const VERSION: u32 = 0x5_0000;
 
-/// The in-race map's variables. The dwords are at addresses that are not multiples of 4
-/// (`Loose`), as are the lists (16 bytes each, a `MemoryList`).
-#[repr(C)]
+/// The in-race map's variables.
 #[derive(rc2k_derive::Cells)]
 pub struct MapVars {
     /// `g_mapList` (`0x5BE90D`): the list the tiles' memory is on.
@@ -35,30 +33,30 @@ pub struct MapVars {
     pub _gap_50: PlainBytes<0x30>,
     /// `g_mapKeyPixels` (`0x5BE98D`): the sheet, 16 MB (a picture buffer's number since phase
     /// 12, `gfx::picture::Buffer::Key`).
-    pub key_pixels: PlainLoose,
+    pub key_pixels: PlainDword,
     /// `g_mapTiles` (`0x5BE991`): each tile's place in the pixels (128 x 128 dwords; the
     /// game's address, 0 since the map is Rust's, `GAME_MAP`).
-    pub tiles: PlainLoose,
+    pub tiles: PlainDword,
     /// `g_mapTilePixels` (`0x5BE995`; 0 as `tiles`).
-    pub tile_pixels: PlainLoose,
+    pub tile_pixels: PlainDword,
     /// `g_mapTileCount` (`0x5BE999`).
-    pub tile_count: PlainLoose,
+    pub tile_count: PlainDword,
     /// `g_mapPicturePath` (`0x5BE99D`). Not used: nothing reads it (the paths are arguments).
-    pub picture_path: PlainLoose,
+    pub picture_path: PlainDword,
     /// `g_mapKeyPath` (`0x5BE9A1`). Not used: nothing reads it (the paths are arguments).
-    pub key_path: PlainLoose,
+    pub key_path: PlainDword,
     /// `g_mapPixelBytes` (`0x5BE9A5`): bytes a pixel.
-    pub pixel_bytes: PlainLoose,
+    pub pixel_bytes: PlainDword,
     /// `g_mapPixelFormat` (`0x5BE9A9`): the pixel format, by handle (`gfx::pixel_format::layout`).
-    pub format: PlainLoose,
+    pub format: PlainDword,
     /// `dword_5BE9AD`: the surface's gap after a row (`blit_map_tiles`).
-    pub row_gap: PlainLoose,
+    pub row_gap: PlainDword,
     /// `g_mapBlack` (`0x5BE9B1`): the format's opaque black.
-    pub black: PlainLoose,
+    pub black: PlainDword,
     /// `g_usePackedMaps` (`0x5BE9B5`).
-    pub use_packed: PlainLoose,
+    pub use_packed: PlainDword,
     /// `dword_5BE9B9`: set by `race::loadlevel` to 1 outside the editor (0 in it) next to `use_packed`; IDA reads it at 0x44428F / 0x4442A2 (outside the ported path), no ported code does.
-    pub packed_unless_editor: PlainLoose,
+    pub packed_unless_editor: PlainDword,
 }
 
 /// The map's variables; the first values are the image's.
@@ -69,18 +67,18 @@ impl MapVars {
             _gap_10: PlainBytes::new([0; 0x30]),
             key_list: crate::memory::ListCells::empty(),
             _gap_50: PlainBytes::new([0; 0x30]),
-            key_pixels: PlainLoose::new(0),
-            tiles: PlainLoose::new(0),
-            tile_pixels: PlainLoose::new(0),
-            tile_count: PlainLoose::new(0),
-            picture_path: PlainLoose::new(0),
-            key_path: PlainLoose::new(0),
-            pixel_bytes: PlainLoose::new(0),
-            format: PlainLoose::new(0),
-            row_gap: PlainLoose::new(0),
-            black: PlainLoose::new(0),
-            use_packed: PlainLoose::new(1),
-            packed_unless_editor: PlainLoose::new(1),
+            key_pixels: PlainDword::new(0),
+            tiles: PlainDword::new(0),
+            tile_pixels: PlainDword::new(0),
+            tile_count: PlainDword::new(0),
+            picture_path: PlainDword::new(0),
+            key_path: PlainDword::new(0),
+            pixel_bytes: PlainDword::new(0),
+            format: PlainDword::new(0),
+            row_gap: PlainDword::new(0),
+            black: PlainDword::new(0),
+            use_packed: PlainDword::new(1),
+            packed_unless_editor: PlainDword::new(1),
         }
     }
 }

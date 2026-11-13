@@ -7,7 +7,6 @@
 use crate::cells::ZeroCells;
 use crate::session::{PlainDword, PlainFloat};
 
-#[repr(C)]
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct CourseLists {
     /// 0x5C694C: the mask of input keys read for the car's controls (`drive::read_car_controls`, `dword_5C694C`).

@@ -7,7 +7,6 @@
 use crate::cells::ZeroCells;
 use crate::session::{PlainDword, PlainFloat};
 
-#[repr(C)]
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct LightWork {
     /// (0x62DA44): `g_drawingObject`: the object being drawn; now each view's (`scene::object_place`); unused.

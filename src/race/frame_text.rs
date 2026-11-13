@@ -62,7 +62,6 @@ fn credit_line(
 pub const SCRIPT_WORDS: usize = 670;
 
 /// The credits' state and script.
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct Credits {
     /// `dword_52984C`: the top of the script on the screen.

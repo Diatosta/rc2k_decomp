@@ -7,7 +7,6 @@ use crate::race::owner_frame::Frame;
 use crate::session::{PlainDword, PlainFloat};
 
 /// One mark slot (IDA `g_markSlots`, 0x14 bytes): a sprite that lives a number of ticks.
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct MarkSlot {
     /// +0: the ticks left (0 or less: free; `effects::add_mark_slot` sets 0x3C).
@@ -42,7 +41,6 @@ pub fn slot_matrix(
 }
 
 /// The mark slots (IDA 0x934F7C .. 0x935300).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct MarkSlots {
     /// 0x934F7C: `g_markSlots`: 0x20 slots of 0x14 bytes.
@@ -73,7 +71,6 @@ impl MarkSlots {
 }
 
 /// The mark slots' constants and randoms (IDA 0x9353A6 .. 0x935412).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct SlotTuning {
     /// 0x9353A6: `flt_9353A6`: half the slot square's size on the screen.

@@ -148,14 +148,12 @@ pub struct MarkRecord {
     pub place: [PlainFloat; 3],
 }
 
-/// A wheel's or body's record length.
-pub const RECORD_LEN: usize = 0x48;
 /// Where the car's records begin.
 pub const RECORDS_AT: usize = 0xD4;
 /// The records a car has: four wheels, then the body.
 pub const RECORDS: usize = 5;
 
-const _: () = assert!(std::mem::size_of::<MarkRecord>() == RECORD_LEN);
+const _: () = assert!(std::mem::size_of::<MarkRecord>() == 0x48);
 const _: () = assert!(std::mem::size_of::<CarEffects>() == CAR_LEN);
 const _: () = assert!(std::mem::offset_of!(CarEffects, records) == RECORDS_AT);
 
@@ -184,7 +182,6 @@ pub const CAR_LEN: usize = 0x4C8;
 /// The cars the record has room for.
 pub const CARS: usize = 8;
 
-#[repr(C)]
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct EffectsSettings {
     /// +0x0 (0x5C2F84): `asc_5C2F84`: a 2-byte tab text, a pointer taken in place by `effects::init_mark_step` (probably the settings' text path start).

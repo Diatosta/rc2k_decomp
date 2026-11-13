@@ -6,7 +6,6 @@ use crate::session::{PlainBytes, PlainDword};
 
 /// A pixel layout's number and its masks' summary (`describe_format` picks the number of
 /// the layout whose bits the masks match).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct Numbered {
     /// The layout's number.
@@ -25,7 +24,6 @@ impl Numbered {
 }
 
 /// The pixel formats' variables.
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct Formats {
     /// `Formats.numbers[0].number`: six of (number, layout).

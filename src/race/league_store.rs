@@ -1,12 +1,10 @@
 //! The league's kept times and the automatic set-ups (IDA 0x60410C .. 0x60463C; phase 7,
 //! typed): the ten first records' ids, the sixteen rows of ten kept times, the car's time at
-//! a split in race mode 3, the 36 set-ups of 0x10 bytes. `#[repr(C)]` with the image's
-//! layout, over the race block's bytes (`LEAGUE`). Names are readings unless IDA's.
+//! a split in race mode 3, the 36 set-ups of 0x10 bytes. The fields are in the image's order. Names are readings unless IDA's.
 
 use crate::cells::ZeroCells;
 use crate::session::PlainDword;
 
-#[repr(C)]
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct League {
     /// +0x0 (0x60410C): `dword_60410C`: the ten records' names (`race::copy_league_table`, `physics::compare_split_times`).
@@ -201,19 +199,18 @@ impl League {
 mod tests {
     use super::*;
 
-    /// Every index to the end of the record gives what the byte-offset read gave, and the first
-    /// past it is refused as before.
+    /// The rows are read by index, and an index far past the record is refused.
     #[test]
-    fn kept_time_runs_on_as_the_old_read() {
+    fn kept_time_reads_the_rows_and_refuses_far_past_them() {
         let league = League::new();
-        let room = 160 + 17 + 1 + 144;
-        for n in 0..room {
-            crate::session::write_on_in(&league, &league.rows, n, 0x1000 + n as u32, "t").unwrap();
+        for (n, row) in league.rows.iter().enumerate() {
+            row.set(0x1000 + n as u32);
+            assert_eq!(
+                league.kept_time(n).ok(),
+                Some(0x1000 + n as u32),
+                "index {n}"
+            );
         }
-        for n in 0..room + 20 {
-            let old = crate::session::read_on_in(&league, &league.rows, n, "t");
-            assert_eq!(old.is_ok(), n < room, "index {n}");
-            assert_eq!(league.kept_time(n).ok(), old.ok(), "index {n}");
-        }
+        assert!(league.kept_time(1 << 20).is_err());
     }
 }

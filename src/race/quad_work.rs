@@ -5,7 +5,6 @@
 
 use crate::session::PlainDword;
 
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct QuadWork {
     /// The quad's colour and see-through (`scene::draw_flat_quad`, `scene::draw_tinted_quad`).

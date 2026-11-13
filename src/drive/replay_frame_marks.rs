@@ -44,24 +44,3 @@ pub fn replay_frame_marks(race: &Race) -> Result<(), BadInput> {
     }
     Ok(())
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    /// Every frame's marks, and the ones past the table, are the bytes the record has there.
-    #[test]
-    fn marks_as_the_record_has_them() {
-        let buffers = race_buffers();
-        let first = core::mem::offset_of!(ViewerBuffers, block_cameras);
-        let end = core::mem::size_of::<ViewerBuffers>() - first;
-        for at in (0..end + 16).step_by(8) {
-            let old: Result<[u32; 2], _> = crate::cells::load_value(buffers, first + at);
-            assert_eq!(marks_at(buffers, at).ok(), old.ok(), "{at:#x}");
-        }
-    }
-
-    fn race_buffers() -> &'static ViewerBuffers {
-        crate::race::owner::race().viewer_buffers()
-    }
-}

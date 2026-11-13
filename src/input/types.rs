@@ -1,23 +1,14 @@
 //! The input's game objects as Rust types, the same as IDA's structs of the same names
 //! (`Controller`, `ForceEffect`, `Binding`, `InputDevice`) and DirectInput's that the game
-//! fills (`DIJOYSTATE`, `DIEFFECT`, `DIENVELOPE`): their layouts, checked at compile time.
-//! The code reads and writes the game's memory through `field!` (a field's offset).
+//! fills (`DIJOYSTATE`, `DIEFFECT`, `DIENVELOPE`); the DirectInput ones keep their layouts,
+//! checked at compile time.
 
 use crate::session::{Bytes, Dword};
 use std::mem::{offset_of, size_of};
 
-/// A field's offset in a type, as the `u32` the record helpers take.
-#[macro_export]
-macro_rules! field {
-    ($t:ty, $($f:tt)+) => {
-        ::std::mem::offset_of!($t, $($f)+) as u32
-    };
-}
-
 pub type Guid = [u8; 16];
 
 /// `g_controllers` (16 of them): a listed joystick (`input::joystick_found`).
-#[repr(C)]
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct Controller {
     /// +0: DIDEVCAPS' flags: 1 attached, 0x100 force feedback.
@@ -191,7 +182,6 @@ impl DiEffect {
 }
 
 /// One of a device record's six force-feedback effects (`input::make_effect`).
-#[repr(C)]
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct ForceEffect {
     /// +0: its function (`input::effect_N_change`, a game address), called with a change.
@@ -282,7 +272,6 @@ impl ForceEffect {
 }
 
 /// A control's binding: its key, the axis's place in the record, its sign, a button's bit.
-#[repr(C)]
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct Binding {
     pub key: Dword,
@@ -310,7 +299,6 @@ impl Binding {
 }
 
 /// `g_inputRecord1` / `2`: a player's input device (`input/devices.rs`).
-#[repr(C)]
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct InputDevice {
     /// +0: the controller's number in `g_controllers`.
@@ -480,40 +468,7 @@ impl DiJoyState {
     }
 }
 
-const _: () = assert!(size_of::<Controller>() == 0x50);
-const _: () = assert!(offset_of!(Controller, instance) == 0x20);
-const _: () = assert!(offset_of!(Controller, name) == 0x30);
 const _: () = assert!(size_of::<DiEffect>() == 0x34);
-const _: () = assert!(size_of::<ForceEffect>() == 0xA4);
-const _: () = assert!(offset_of!(ForceEffect, object) == 0x30);
-const _: () = assert!(offset_of!(ForceEffect, effect) == 0x34);
-const _: () = assert!(offset_of!(ForceEffect, type_specific) == 0x68);
-const _: () = assert!(offset_of!(ForceEffect, axes) == 0x80);
-const _: () = assert!(offset_of!(ForceEffect, directions) == 0x88);
-const _: () = assert!(offset_of!(ForceEffect, envelope) == 0x90);
-const _: () = assert!(size_of::<InputDevice>() == 0x4F8);
-const _: () = assert!(offset_of!(InputDevice, sensitivity) == 0x20);
-const _: () = assert!(offset_of!(InputDevice, axes) == 0x2C);
-const _: () = assert!(offset_of!(InputDevice, effects) == 0x3C);
-const _: () = assert!(offset_of!(InputDevice, reading) == 0x414);
-const _: () = assert!(offset_of!(InputDevice, bindings) == 0x41C);
-const _: () = assert!(offset_of!(InputDevice, readings) == 0x4DC);
-const _: () = assert!(offset_of!(InputDevice, bits) == 0x4E8);
-const _: () = assert!(offset_of!(InputDevice, device) == 4);
-const _: () = assert!(offset_of!(InputDevice, strength) == 0xC);
-const _: () = assert!(offset_of!(InputDevice, axis_code) == 0x18);
-const _: () = assert!(offset_of!(InputDevice, axis_pick) == 0x1C);
-const _: () = assert!(offset_of!(InputDevice, acquired) == 0x24);
-const _: () = assert!(offset_of!(InputDevice, effects_on) == 0x28);
-const _: () = assert!(offset_of!(InputDevice, buttons) == 0x38);
-const _: () = assert!(offset_of!(InputDevice, hat_kind) == 0x418);
-const _: () = assert!(offset_of!(InputDevice, gauge) == 0x4EC);
-const _: () = assert!(offset_of!(InputDevice, clock) == 0x4F4);
-const _: () = assert!(size_of::<InputDevice>() == crate::input::store::RECORD_LEN);
-const _: () = assert!(size_of::<Binding>() == 16);
-const _: () = assert!(offset_of!(ForceEffect, wanted) == 8);
-const _: () = assert!(offset_of!(ForceEffect, guid) == 0x10);
-const _: () = assert!(offset_of!(ForceEffect, pending) == 0x2C);
 const _: () = assert!(size_of::<DiJoyState>() == 0x50);
 
 /// DirectInput's `DIDEVCAPS` (`g_joystickCaps`).

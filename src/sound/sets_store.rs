@@ -7,8 +7,8 @@
 //! and surface sets' lists by their byte offset in the block of lists after the table, the
 //! kinds' records by their number.
 //!
-//! `#[repr(C)]` structs of atomic cells with the image's layout, first values the image's
-//! (`tests`).
+//! Structs of atomic cells, first values the image's (`tests`); the race's sets keep the
+//! image's layout, as their lists' handles are offsets in it.
 
 use crate::session::{Bytes, Cell32, Dword, PlainBytes, PlainDword, PlainFloat, with_runs};
 
@@ -30,8 +30,7 @@ fn offset_in(handle: u32, tag: u32, len: usize) -> Option<usize> {
     (offset < len).then_some(offset)
 }
 
-/// The settings page's menu sounds list (IDA 0x511AE4 .. 0x511B0C, the image's layout).
-#[repr(C, align(16))]
+/// The settings page's menu sounds list (IDA 0x511AE4 .. 0x511B0C).
 #[derive(rc2k_derive::Cells)]
 pub struct MenuSounds {
     /// Not in the image: the bytes that keep every field the alignment its IDA address has (the struct is 16-byte aligned).
@@ -59,7 +58,9 @@ impl MenuSounds {
     }
 }
 
-/// The sets of sounds a race loads (`sound::load_race_sounds`) and the request it sends (IDA 0x511B10 .. 0x5124E4, the image's layout).
+/// The sets of sounds a race loads (`sound::load_race_sounds`) and the request it sends (IDA 0x511B10 .. 0x5124E4).
+/// Laid out as the image: the lists' handles are byte offsets in this layout and a list runs on
+/// into the fields after it.
 #[repr(C, align(16))]
 #[derive(rc2k_derive::Cells)]
 pub struct RaceSoundSets {
@@ -91,6 +92,7 @@ pub struct RaceSoundSets {
 /// `g_raceSoundRequest` (0x5124BC): the ten dwords the race's sounds are sent with
 /// (`sound::play_placed_sound`, `sound::stop_sound`); a work area each turn fills again. The game
 /// thread's (`sound::owner::RaceSoundState::request`).
+/// Laid out as the image: the recorded assembly's tests lay it over raw bytes.
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct SoundRequest {
@@ -111,8 +113,6 @@ pub struct SoundRequest {
     /// +0x24: the volume's factor, a float.
     pub volume_factor: PlainFloat,
 }
-
-const _: () = assert!(size_of::<SoundRequest>() == 40);
 
 impl SoundRequest {
     /// The request as the game starts: all 0.
@@ -915,8 +915,7 @@ impl RaceSoundSets {
     const LEN: usize = 0x9D4;
 }
 
-/// The cues' lists (IDA 0x512508 .. 0x512A10, the image's layout).
-#[repr(C, align(16))]
+/// The cues' lists (IDA 0x512508 .. 0x512A10).
 #[derive(rc2k_derive::Cells)]
 pub struct CueLists {
     /// Not in the image: the bytes that keep every field the alignment its IDA address has (the struct is 16-byte aligned).
@@ -976,6 +975,7 @@ impl CueLists {
 /// start, an end and the span between them (`race::sound_tables` makes the whole numbers
 /// floats and the spans once). The sound at the object's pitch is `input * scale + low`.
 /// The values are kept as bits: a whole number in the image until the tables are made ready.
+/// Laid out as the image: the recorded assembly's tests lay it over raw bytes.
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct SoundSet {
@@ -1003,7 +1003,6 @@ pub struct SoundSet {
 }
 
 const SOUND_SET_LEN: usize = 0x28;
-const _: () = assert!(size_of::<SoundSet>() == SOUND_SET_LEN);
 
 impl SoundSet {
     /// The set in `b` from byte `at` (each dword little-endian).
@@ -1033,6 +1032,7 @@ impl SoundSet {
 
 /// A sound kind's record (0x88 bytes, `g_carSoundKinds`' entries): the revs' range and
 /// slope, then the engine's three sets.
+/// Laid out as the image: the recorded assembly's tests lay it over raw bytes.
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct KindRecord {
@@ -1054,7 +1054,6 @@ pub struct KindRecord {
 }
 
 const KIND_RECORD_LEN: usize = 0x88;
-const _: () = assert!(size_of::<KindRecord>() == KIND_RECORD_LEN);
 
 impl KindRecord {
     /// A record of zeros with the byte runs `runs` ((offset, bytes), as `with_runs`).
@@ -1075,8 +1074,7 @@ impl KindRecord {
     }
 }
 
-/// The car sound kinds'' records, the computer cars' set and the sine table (IDA 0x514F90 .. 0x516358, the image's layout).
-#[repr(C, align(16))]
+/// The car sound kinds'' records, the computer cars' set and the sine table (IDA 0x514F90 .. 0x516358).
 #[derive(rc2k_derive::Cells)]
 pub struct SoundKinds {
     /// 0x514F90: `g_carSoundKinds`: each sound kind's record, by its number (`sound::car_engine_state`).
@@ -1574,8 +1572,7 @@ impl SoundKinds {
     }
 }
 
-/// The surface sound sets (IDA 0x51639C .. 0x51655C, the image's layout).
-#[repr(C, align(16))]
+/// The surface sound sets (IDA 0x51639C .. 0x51655C).
 #[derive(rc2k_derive::Cells)]
 pub struct SurfaceSets {
     /// Not in the image: the bytes that keep every field the alignment its IDA address has (the struct is 16-byte aligned).
@@ -1614,8 +1611,8 @@ impl SurfaceSets {
     }
 }
 
-/// The spot voices (IDA 0x5168C0 .. 0x517F40, the image's layout).
-#[repr(C, align(16))]
+/// The spot voices (IDA 0x5168C0 .. 0x517F40).
+#[repr(align(16))]
 #[derive(rc2k_derive::Cells)]
 pub struct SpotVoices {
     /// 0x5168C0: `g_spotVoices`: 0x48 records of 0x50 bytes (`sound::spot_voices`).
@@ -3223,11 +3220,13 @@ mod tests {
     /// old byte read of the record did.
     #[test]
     fn list_entries_read_as_the_byte_read() {
+        use crate::test_support::paths;
         let sets = Box::new(RaceSoundSets::new());
-        let total = size_of::<RaceSoundSets>();
-        for k in 0..total / 4 {
-            crate::cells::store_value::<u32>(&*sets, 4 * k, 0x7000_0000 + k as u32).unwrap();
-        }
+        let total = paths::field_bytes(&*sets, "").len();
+        let filled: Vec<u8> = (0..total as u32 / 4)
+            .flat_map(|k| (0x7000_0000 + k).to_le_bytes())
+            .collect();
+        assert!(paths::set_field_range(&*sets, "", &filled));
         for offset in (0..total as u32 + 8).step_by(4).chain([1, 2, 3, 0x9D1]) {
             for n in 0..3 {
                 let old = if offset as usize >= total {
@@ -3235,7 +3234,8 @@ mod tests {
                 } else {
                     Ok((offset as usize)
                         .checked_add(4 * n)
-                        .and_then(|at| crate::cells::load_value::<u32>(&*sets, at).ok()))
+                        .and_then(|at| filled.get(at..at + 4))
+                        .map(|word| u32::from_le_bytes(word.try_into().unwrap())))
                 };
                 assert_eq!(
                     sets.list_entry(offset, n).ok(),

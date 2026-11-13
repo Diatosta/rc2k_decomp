@@ -26,7 +26,6 @@ pub const SLOTS: u32 = 100;
 pub const NAME_BYTES: usize = 0x20;
 
 /// The saved games' buffers.
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct SaveGames {
     /// `dword_51EBB0`: a value the options file (`var\ral.dat`) keeps; nothing else reads it.

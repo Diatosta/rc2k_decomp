@@ -1,7 +1,6 @@
 //! The car table, out of RAL.EXE's image (IDA 0x75648C .. 0x7585D8): the places of
 //! the players' names, the carousel's last index, the table of the 34 car descriptions' addresses, the
-//! descriptions (`CarDescription`, 0x78 bytes each) and the texts they point at. A `#[repr(C)]` struct,
-//! one static.
+//! descriptions (`CarDescription`, 0x78 bytes each) and the texts they point at. One static.
 
 use crate::errors::BadInput;
 use crate::menu::owner::Menus;
@@ -9,7 +8,6 @@ use crate::session::{PlainBytes, PlainDword, Shared, with_runs};
 use rc2k_core::screens::car_pages::CarDescription;
 
 /// The car table (IDA 0x75648C .. 0x7585D8).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct CarTable {
     /// `| The four players' names' addresses in `g_playerNames` (`Player::name` is one of them).`:

@@ -3,7 +3,6 @@
 use crate::session::{PlainBytes, PlainDword};
 
 /// The masks' shape picks and pixel tables (IDA 0x844604 .. 0x884E5C).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct MaskPicks {
     /// 0x844604: `dword_844604`, `dword_844608`: 2 or 0 by the shape picked (A, B)

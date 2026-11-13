@@ -7,13 +7,14 @@
 //! `indices`) read or write it. The image keeps the two pointers (0x764F2C, 0x764F30) the
 //! original's batch drawer followed; nothing reads them now.
 //!
-//! One struct (`HudBlock`, the static `HUD`).
+//! One struct (`HudBlock`, the static `HUD`). Its records keep the game's layout (`repr(C)`, `ByteView`):
+//! the recorded-assembly tests of the disc and quad code (`disc_vertex`) read it by byte offset.
 
 use crate::session::{PlainDword, PlainFloat, PlainWord};
 
 /// The HUD's quad record (`g_hudQuad`, 14 dwords): what `add_quad` makes four vertices of.
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
 pub struct HudQuad {
     /// The alpha (the colour's top byte under it, `add_quad`).
     pub alpha: PlainDword,
@@ -84,7 +85,7 @@ pub mod texture {
 
 /// One of the texture's rectangles (`g_hudRects`).
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
 pub struct Rect {
     pub left: PlainDword,
     pub top: PlainDword,
@@ -105,7 +106,7 @@ impl Rect {
 
 /// A batch vertex (Direct3D's transformed and lit vertex, 0x20 bytes).
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
 pub struct Vertex {
     pub x: PlainFloat,
     pub y: PlainFloat,
@@ -134,7 +135,7 @@ impl Vertex {
 
 /// The HUD's variables (IDA 0x75B940 .. 0x764F2C).
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
 pub struct HudBlock {
     /// `g_hudRects` (92 rectangles) and `HudBlock.rects[92].left` (the last five): the texture's rectangles, 16 bytes each (left, top, width, height), picked by number (`hud::layout_*` sprites, markers, signs). Sign `v` is rectangle 0x4C + (v - 1) & 0xF.
     pub rects: [Rect; 0x61],

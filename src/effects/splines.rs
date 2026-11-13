@@ -698,7 +698,6 @@ pub fn load_splines(
 }
 
 /// The car models' tables and the splines' head: the points and looks by car model (`effects::emit_exhaust_smoke`, `effects::draw_mark_slots`, `effects::cars_particles`), then the spline variables the looks table runs into (the original reads two dwords past it) and the spline file (IDA 0x769312 .. 0x76A1D2).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct SplineHead {
     /// 0x769312: `g_marksPoints`: three floats by car model (34 models), a mark slot's point is an index into it (12 bytes each).
@@ -913,7 +912,6 @@ impl SplineHead {
 }
 
 /// The splines' work places (`effects::bend_points`, `effects::splines`, `effects::place_spline`) (IDA 0x76A1D2 .. 0x76B9B2).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct SplineWork {
     /// 0x76A1D2: `dword_76A1D2` ..: four points of three whole numbers: A, B, C and D (`effects::bend_points`).
@@ -974,7 +972,6 @@ impl SplineWork {
 }
 
 /// The four tables of eight spline records of 0xE90 bytes (`effects::splines`) (IDA 0x76B9B2 .. 0x788BB2).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct SplineTables {
     /// 0x76B9B2: `g_marksSplinesA`: eight `MarkSpline` records.
@@ -1228,7 +1225,6 @@ impl SplineTables {
 }
 
 /// The splines' values by kind (`effects::splines`) (IDA 0x788BB2 .. 0x788EFA).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct SplineKinds {
     /// 0x788BB2: `g_marksSplineChosen`, then `g_marksSplineKinds` (four): the five values of `g_marksKind`.
@@ -1428,7 +1424,6 @@ impl SplineKinds {
 }
 
 /// The splines' file name (`effects::splines`) (IDA 0x788EFA .. 0x788F0D).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct SplinePath {
     /// 0x788EFA: `files\m\spline.dat`, the file's name.
@@ -1448,7 +1443,6 @@ impl SplinePath {
 }
 
 /// The splines' constants (`effects::run_splines`, `effects::place_spline`, `effects::splines`) (IDA 0x788F0D .. 0x788F69).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct SplineConstants {
     /// 0x788F0D: `flt_788F0D`, `flt_788F11`, `flt_788F15`: the wave's constants.

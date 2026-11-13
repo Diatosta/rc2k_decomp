@@ -165,7 +165,6 @@ pub fn gate_with(
 }
 
 /// The particle emitters' variables (IDA 0x935416 .. 0x935562): the record they are on, the vectors they share, and their constants and randoms.
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct EmitterVars {
     /// 0x935416: `g_marksRecordNumber` (`dword_935416`): which wheel record the emitters are on (0 .. 3, 2 or 3 for the body); bit 0 the side.

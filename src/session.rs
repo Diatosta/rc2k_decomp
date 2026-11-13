@@ -345,27 +345,6 @@ pub fn write_runs(
     Ok(())
 }
 
-/// `n` cells from `from` into `to`, one at a time forwards (a `rep movsd`: an overlap reads
-/// what it has just written), each past its table's end only inside its holder.
-#[cfg(test)]
-pub fn copy_on_in<F: crate::cells::ByteView, T: crate::cells::ByteView, A: Cell32, B: Cell32>(
-    (from_holder, from): (&F, &[A]),
-    (to_holder, to): (&T, &[B]),
-    n: usize,
-    what: &str,
-) -> Result<(), crate::errors::BadInput> {
-    for k in 0..n {
-        write_on_in(
-            to_holder,
-            to,
-            k,
-            read_on_in(from_holder, from, k, what)?,
-            what,
-        )?;
-    }
-    Ok(())
-}
-
 /// A 32-bit cell read and written by its bits (the float code's loads and stores): a `Dword` or a
 /// `Float` (a parameter that may be either, the damage model's).
 pub trait Cell32 {
@@ -586,16 +565,6 @@ pub struct Loose([AtomicU8; 4]);
 impl Loose {
     pub const fn new(value: u32) -> Self {
         Self(atomic_bytes(value.to_le_bytes()))
-    }
-
-    pub fn get(&self) -> u32 {
-        u32::from_le_bytes(std::array::from_fn(|i| self.0[i].load(Relaxed)))
-    }
-
-    pub fn set(&self, value: u32) {
-        for (cell, b) in self.0.iter().zip(value.to_le_bytes()) {
-            cell.store(b, Relaxed);
-        }
     }
 
     /// Its atomics (the cells' copies, `cells::CellRef`).
@@ -1457,7 +1426,6 @@ impl<T> Shared<T> {
 }
 
 /// The screen: 0x4F494C .. 0x4F4984.
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct Screen {
     pub width: PlainDword,       // g_screenWidth
@@ -1491,7 +1459,6 @@ impl Screen {
 /// thread, the network's receiving thread, the file loads), `window_focused` (the key thread,
 /// the SDL audio callback) and `window_active` (the audio thread's restore). Atomic cells;
 /// the rest of the main loop's state is `WindowLoopState`, the game's thread alone.
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct WindowShared {
     pub window_active: Dword,  // g_windowActive
@@ -1511,7 +1478,6 @@ impl WindowShared {
 
 /// The window's state and the main loop's that only the game's thread reaches: 0x518370 ..
 /// 0x51839C, less the three flags of `WindowShared`.
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct WindowLoopState {
     pub f370: PlainDword,           // dword_518370
@@ -1541,7 +1507,6 @@ impl WindowLoopState {
 /// The two machine facts the audio thread reads: the window handle (`hWnd`, the sound
 /// device's cooperative level) and the FPU flag (`g_hasFpu`, the listener's set-up). Atomic
 /// cells; the rest is `Machine`, the game's thread alone.
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct HostShared {
     pub has_fpu: Dword, // g_hasFpu
@@ -1559,8 +1524,7 @@ impl HostShared {
 
 /// What the machine is and has, and the window handles that only the game's thread reaches:
 /// 0x5183A8 .. 0x5184A8, less `HostShared`'s two.
-#[repr(C)]
-#[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
+#[derive(rc2k_derive::Cells)]
 pub struct Machine {
     pub has_mmx: PlainDword,          // g_hasMmx
     pub ignore_mmx: PlainDword,       // Machine.ignore_mmx (`ignoremmx`)
@@ -1621,7 +1585,6 @@ impl Machine {
 
 /// The key thread's count of turns (`Clocks.key_ticks`), which the game's thread reads for
 /// its waits and the lists' clocks. One atomic cell; the menus' clocks are `Clocks`.
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct KeyClock {
     pub ticks: Dword, // Clocks.key_ticks
@@ -1637,7 +1600,6 @@ impl KeyClock {
 
 /// The clocks the menus keep (the game's thread alone): 0x518998 .. 0x5189A4, less the key
 /// thread's count (`KeyClock`).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct Clocks {
     pub frame: PlainDword, // Clocks.frame: the menus' clock (`update_frame_clock`)

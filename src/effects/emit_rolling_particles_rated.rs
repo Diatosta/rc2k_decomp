@@ -169,7 +169,6 @@ pub fn emit_rolling_particles_rated(
 }
 
 /// Kind 0x15's emitter variables (`emit_rolling_particles_rated`) (IDA 0x93A312 .. 0x93A39A).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct RollingRatedSet {
     /// 0x93A312: `flt_93A312` .. `flt_93A31E`: the rate's factors

@@ -153,7 +153,6 @@ impl crate::session::Run for ObjectMaterial {
     }
 }
 
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct PolygonWork {
     /// +0x0 (0x975510): `g_polygonEntries`: `PolygonEntry[64]`, and from entry 64 (0x976610, `g_polygonKeptEntries`) the 64 entries kept for the fan: the table `scene::draw_polygon` takes room for 0x80 (`scene::clip`, `scene::draw_object_polygon`, `race::car_shadow`, `race::skidmarks`).

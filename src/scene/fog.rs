@@ -13,7 +13,6 @@ use crate::session::{PlainBytes, PlainDword};
 /// The table's room in bytes.
 pub const TABLE_LEN: usize = 0x1000;
 
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct Fog {
     /// The fog's far value (the glare's alpha).

@@ -1,13 +1,11 @@
 //! The finish routine's variables (IDA 0x64BB18 .. 0x64BB88; phase 7, typed): the
 //! "no place" switch, the stage numbers of the finish, the finish lengths and limits, the
-//! clock at the finish's start, the time, the eased time and the share. `#[repr(C)]` with the
-//! image's layout, over the race block's bytes (`FINISH`). Plain cells: a drawing store
+//! clock at the finish's start, the time, the eased time and the share. Plain cells: a drawing store
 //! (`session::DrawShared`), written on the game's thread and read by the drawing parts (the
 //! mirror's "no place" test) through their `workers::DrawReads`. Names are readings unless IDA's.
 
 use crate::session::{PlainDword, PlainFloat};
 
-#[repr(C)]
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct Finish {
     /// +0x0 (0x64BB18): `dword_64BB18`: set while the race has no place or panel to draw (`race::car_starts`, `race::draw_mirror_view`, `race::draw_race_scene`, `race::loadlevel`, `race::stage_loading`, `physics::passed_split_point`, `drive::finish_race`).
@@ -137,18 +135,41 @@ impl Finish {
 mod tests {
     use super::*;
 
-    /// Every index to the end of the record gives what the byte-offset read gave, and the first
-    /// past it is refused as before.
+    /// Every index to the end of the fields gives the entry of the fields after the table, and
+    /// the first past them is refused.
     #[test]
-    fn finish_stage_runs_on_as_the_old_read() {
+    fn finish_stage_runs_on_through_the_fields_after() {
         let f = Finish::new();
+        let runs: [&dyn crate::session::Run; 19] = [
+            &f.finish_stages,
+            &f.car_lift,
+            &f.finish_lengths,
+            &f.limit_a,
+            &f.limit_b,
+            &f.camera_yaw_rate,
+            &f.camera_distance_start,
+            &f.camera_height_start,
+            &f.camera_distance_rate,
+            &f.camera_height_rate,
+            &f.start_clock,
+            &f.time,
+            &f.eased,
+            &f.share,
+            &f.limit_c,
+            &f.limit_d,
+            &f.camera_pitch_per_share,
+            &f.camera_height_per_share,
+            &f.unreached_loader_buffers,
+        ];
         for n in 0..27 {
-            crate::session::write_on_in(&f, &f.finish_stages, n, 0x1000 + n as u32, "t").unwrap();
+            crate::session::write_runs(&runs, n, 0x1000 + n as u32, "t").unwrap();
         }
         for n in 0..40 {
-            let old = crate::session::read_on_in(&f, &f.finish_stages, n, "t");
-            assert_eq!(old.is_ok(), n < 27, "index {n}");
-            assert_eq!(f.finish_stage(n).ok(), old.ok(), "index {n}");
+            let read = f.finish_stage(n);
+            assert_eq!(read.is_ok(), n < 27, "index {n}");
+            if n < 27 {
+                assert_eq!(read.ok(), Some(0x1000 + n as u32), "index {n}");
+            }
         }
     }
 }

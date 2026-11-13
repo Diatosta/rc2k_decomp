@@ -11,7 +11,6 @@ use crate::race::owner_shared::RaceShared;
 use crate::session::{PlainDword, PlainFloat};
 
 /// The marks' clock (`effects::tick_clock`) (IDA 0x764FC8 .. 0x764FFC).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct MarksClock {
     /// 0x764FC8: `g_marksClockStarted`: 0 until `effects::tick_clock` has run once (`init_marks` clears it).
@@ -312,7 +311,6 @@ pub fn make_noise_curve(
 /// held the address of the settings the game hands `effects::init_marks`; it is 1 once they are
 /// handed over and 0 before (nothing runs without them). The settings are the race's one
 /// record, `EFFECTS_SETTINGS` (the original kept its address).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct SettingsPointer {
     /// 0x767A28: `g_marksSettings`: 1 when the settings are set, else 0.
@@ -337,7 +335,6 @@ pub fn effects_settings(
 }
 
 /// The marks' clock constants (IDA 0x93CC10 .. 0x93CC18).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct ClockK {
     /// 0x93CC10: `flt_93CC10`: the reciprocal the first tick starts with

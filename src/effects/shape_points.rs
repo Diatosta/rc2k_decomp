@@ -483,7 +483,6 @@ pub fn make_shape_sets(
 }
 
 /// The shape sets' inputs (`effects::shape_points`, `effects::turns`) (IDA 0x764F40 .. 0x764F7C).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct ShapeInputs {
     /// 0x764F40: `dword_764F40`: the angle in hand while a turn matrix is made (`turn_shape_points`, `smooth_steps`; a scratch, nothing reads it back).
@@ -510,7 +509,6 @@ impl ShapeInputs {
 }
 
 /// The shape sets' tables and constants (`effects::make_shape_sets`, `make_shape_set`, `turn_all_shapes`) (IDA 0x89C724 .. 0x89C994).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct ShapeSetTuning {
     /// 0x89C724: `g_marksShapeKinds`, `dword_89C728`: the two face kinds the shape sets are made for (set by `effects::make_shape_sets` from the kind's entries of the two tables that follow).

@@ -30,7 +30,6 @@ use crate::session::{PlainDword, PlainFloat};
 /// The kept reflections' room: four caches of 1024 by point number.
 pub const KEPT_REFLECTIONS: usize = 4096;
 
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct ObjectPlace {
     /// `ObjectWork.object_position` (0x635004): the object's x, y, depth.

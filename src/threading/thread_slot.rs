@@ -1,24 +1,22 @@
-//! The game's four thread slots (`g_inputThreadSlot`, `g_audioThreadSlot`, the net slot and
-//! the shutdown slot, 0x5184F4 .. 0x518934, four of 0x110 bytes in a row). A slot: +0 the thread's routine, +4 its thread id,
-//! +8 its handle, +0xC its flag (1 running, 0xFF suspended), +0x10 .. +0x110 the path
-//! buffer `files::resolve_path` uses for the thread.
+//! The game's four thread slots (the input, audio, net and shutdown threads'). A slot: the
+//! thread's routine, its thread id, its handle, its flag (1 running, 0xFF suspended) and the
+//! path buffer `files::resolve_path` uses for the thread.
 
 use crate::errors::{BadInput, Refused};
 use crate::session::{Byte, Bytes, Dword};
 
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct ThreadSlot {
     /// The routine: its IDA address, as the image held it before relocation
     /// (`start_slot_thread` makes the running address of it).
     pub routine: Dword,
     pub thread_id: Dword,
-    /// The thread's handle (+8).
+    /// The thread's handle.
     pub handle: Dword,
-    /// +0xC: 1 running, 0xFF suspended.
+    /// 1 running, 0xFF suspended.
     pub flag: Byte,
     _pad: Bytes<3>,
-    /// +0x10: the buffer `files::resolve_path` uses for the thread.
+    /// The buffer `files::resolve_path` uses for the thread.
     pub path: Bytes<0x100>,
 }
 
@@ -48,8 +46,6 @@ pub const NET: usize = 2;
 pub const SHUTDOWN: usize = 3;
 /// The slots, in the order they are started (`start_threads` starts the first three).
 pub const SLOT_COUNT: usize = 4;
-#[cfg(test)]
-pub const SLOT_LEN: usize = size_of::<ThreadSlot>();
 
 pub static SLOTS: [ThreadSlot; SLOT_COUNT] = [
     ThreadSlot::new(0x4078DA),
@@ -104,17 +100,5 @@ pub fn run_routine(routine: u32, o: SlotOwners<'_>) -> Option<Result<(), Refused
         )),
         0x410C17 => Some(crate::threading::shutdown_thread::shutdown_thread()),
         _ => None,
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn slot_layout() {
-        assert_eq!(super::SLOT_LEN, 0x110);
-        assert_eq!(
-            size_of_val(&super::SLOTS),
-            super::SLOT_COUNT * super::SLOT_LEN
-        );
     }
 }

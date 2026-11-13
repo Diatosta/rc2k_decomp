@@ -9,7 +9,6 @@ use crate::errors::BadInput;
 use crate::race::owner::race;
 use crate::session::{PlainBytes, PlainDword};
 
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct ViewerBuffers {
     /// +0x0 (0x960FA0): `unk_960FA0`: 256 colours the panel fonts' palettes point at (`race::viewer_palettes`).

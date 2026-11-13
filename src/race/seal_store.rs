@@ -3,17 +3,16 @@
 //! result and the sixteen subkeys. The cipher's tables (the image's read-only bytes) are
 //! Rust constants (`race::seal_tables`).
 //!
-//! A `#[repr(C)]` struct of atomic cells with the image's layout, first values the image's
+//! A struct of cells with the image's first values
 //! (`tests`): the settings
 //! table names the key (`key` in `var\ral.cfg`) by its IDA address.
 
 use crate::session::{PlainBytes, PlainDword};
 
 /// The seal cipher's subkeys, key, block and result (IDA 0x4E04AC .. 0x4E0544, the image's layout).
-#[repr(C, align(16))]
 #[derive(rc2k_derive::Cells)]
 pub struct SealWork {
-    /// Not in the image: the bytes that keep every field the alignment its IDA address has (the struct is 16-byte aligned).
+    /// Bytes before the first field, not in the image.
     pub _lead: PlainBytes<12>,
     /// 0x4E04AC: `dword_4E04AC`: sixteen subkeys (two dwords each), made from the key by every block.
     pub subkeys: [PlainDword; 32],
@@ -23,7 +22,7 @@ pub struct SealWork {
     pub block: [PlainDword; 2],
     /// 0x4E053C: `value`, `dword_4E0540`: the enciphered block (two dwords).
     pub sealed: [PlainDword; 2],
-    /// Not in the image: the struct's tail up to its 16-byte alignment.
+    /// Bytes after the last field, not in the image.
     pub _tail: PlainBytes<12>,
 }
 

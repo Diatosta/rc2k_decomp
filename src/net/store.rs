@@ -9,7 +9,7 @@
 //! installer's variables, the build notice and the lobby's registry names are
 //! `install::store`'s.
 //!
-//! `#[repr(C)]` structs of cells (what `Cells` needs), in two kinds, by thread (M3). The
+//! Structs of cells (what `Cells` needs), in two kinds, by thread (M3). The
 //! receiving thread (T3, `net::receive_thread`) shares `NetShared`: atomic cells, plain
 //! loads and stores (`Relaxed`), as the original's; the received blocks are written under
 //! the game's mutex (`lock_received`). What only the game's thread (T0) reaches is plain
@@ -276,7 +276,6 @@ pub fn put_bytes(cells: &[Dword], bytes: &[u8]) {
 }
 
 /// DirectPlay's `DPSESSIONDESC2` (80 bytes).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct SessionDesc {
     pub size: Dword,
@@ -334,7 +333,6 @@ impl SessionDesc {
 }
 
 /// IDA 0x52a4b4 ..: the edit variables, the game thread's.
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct EditVars {
     /// 0x52A4B4: `g_netEditText`: the text of the item edited, by number
@@ -370,7 +368,6 @@ impl EditVars {
 }
 
 /// IDA 0x52ab70 ..: the setup variables, the game thread's.
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct SetupVars {
     /// 0x52AB70: `byte_52AB70`: this player's name.
@@ -404,7 +401,6 @@ impl SetupVars {
 }
 
 /// IDA 0x52ac3c ..: the address variables, the game thread's.
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct AddressVars {
     /// 0x52AC3C: `dword_52AC3C`: the address elements added.
@@ -436,7 +432,6 @@ impl AddressVars {
 }
 
 /// IDA 0x52ad00 ..: the joined variables, the game thread's.
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct JoinedVars {
     /// 0x52AD00: `unk_52AD00`: the joined session's GUID.
@@ -461,7 +456,6 @@ impl JoinedVars {
 }
 
 /// The lobby's variables, the game thread's (IDA 0x52A908 .. 0x52AD88).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct LobbyVars {
     /// 0x52A908: `g_netMode`: 0 the settings, 1 host, 2 join, 3 lobby.
@@ -528,7 +522,6 @@ impl NetMain {
 }
 
 /// IDA 0x52A4B0 .. 0x5AB419.
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct NetShared {
     /// 0x52A4B0: `g_netReceiveDone`: set when the receiving thread has ended; also the `nonetwork` setting's variable (`settings::read_settings`).
@@ -694,7 +687,6 @@ impl NetShared {
 }
 
 /// IDA 0x5AB490 .. 0x5AB4AC.
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct Button {
     /// 0x5AB490: `dword_5AB490`: `net::draw_button`'s string.

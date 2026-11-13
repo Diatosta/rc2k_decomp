@@ -8,7 +8,6 @@
 use crate::cells::ZeroCells;
 use crate::session::{PlainBytes, PlainDword};
 
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct ViewCourse {
     /// The four face tables (`face_table_a` .. `face_table_d`), each view's own: the depth flag

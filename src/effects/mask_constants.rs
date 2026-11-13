@@ -5,7 +5,6 @@
 use crate::session::{PlainDword, PlainFloat};
 
 /// The constants and randoms of `make_masks` and the shapes' runs (IDA 0x89C994 .. 0x89CA30).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct MaskConstants {
     /// 0x89C994: `dword_89C994`: the random (times 0xC5 plus 0x5D) of the moving time (`effects::run_shapes`).

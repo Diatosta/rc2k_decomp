@@ -4,7 +4,6 @@
 use crate::session::PlainDword;
 
 /// The bar being drawn.
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct BarVars {
     /// `dword_755224`: the bar's x (`blit_bar_marker` moves it to the marker).

@@ -2,9 +2,7 @@
 //! race clock, the inputs, the ground kinds' records, the handling constants, the car's
 //! working figures, the force and contact records, the gearbox and the spec's figures.
 //! Named from the code's uses (2026-10-25); most names are readings, `unknown_*` runs are
-//! places no ported code names. `#[repr(C)]` with the image's layout, over the race block's
-//! bytes (`PHYSICS`, as `crate::race::owner::race().shared.car()`) until the code reaching them by RVA from
-//! the race block is typed.
+//! places no ported code names.
 
 #[cfg(test)]
 use crate::race::owner::race;
@@ -525,10 +523,6 @@ pub struct PhysicsTables {
     /// +0x150c (0x614D34): `g_paceSlot`: the slot 0 .. 7.
     pub pace_slot: PlainDword,
 }
-
-const _: () = assert!(core::mem::size_of::<PhysicsTables>() == 0x1510);
-const _: () = assert!(core::mem::size_of::<Surface>() == 0x30);
-const _: () = assert!(core::mem::size_of::<ForceRecord>() == 0x20);
 
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
 // them): any bit pattern is a valid value.

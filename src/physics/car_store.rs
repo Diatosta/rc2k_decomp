@@ -2,8 +2,8 @@
 //! `drive::load_car` copies the current car's block (`g_carBlocks[n]`, the same layout,
 //! IDA's `CarBlock`) into it and `drive::store_car` back; the physics step works on it.
 //! Named from the code's uses (2026-10-25); most names are readings, `unknown_*` runs are
-//! places no ported code names. `#[repr(C)]` with the image's layout, over the race
-//! block's bytes (`CAR`) until the code reaching the car by RVA is typed.
+//! places no ported code names. `#[repr(C)]` with the 1999 layout on purpose: the recorded
+//! vectors and the car blocks address it by byte offset (`ByteView`).
 
 use crate::session::{CellKind, PlainCells};
 

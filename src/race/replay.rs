@@ -32,7 +32,6 @@ pub const NAME_BYTES: usize = 0x20;
 pub const SLOTS: usize = 100;
 
 /// The replays' buffers.
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct Replays {
     /// `dword_528504`: the file's header (a dword array, `HEADER_LEN` bytes).

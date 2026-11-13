@@ -5,7 +5,6 @@
 use crate::session::PlainDword;
 
 /// The clip rectangle (all four edges inclusive).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct ClipRect {
     /// `g_clipLeft` (`Blitter.clip.left`).
@@ -19,7 +18,6 @@ pub struct ClipRect {
 }
 
 /// The blitters' variables.
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct Blitter {
     /// The clip rectangle.

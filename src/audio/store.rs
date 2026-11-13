@@ -1,5 +1,5 @@
 //! The audio module's variables, out of RAL.EXE's image,
-//! typed: each block is a `#[repr(C)]` struct of cells with the image's layout
+//! typed: each block is a struct of cells
 //! (the first values the image's, `tests::*_start_as_the_games`), one static a piece:
 //! - `AudioShared` (IDA 0x4F8294 .. 0x506E6C, the part of it both the game's thread and the
 //!   audio thread touch): the sound mode and volumes, the voices (0x200 records of 0x70
@@ -30,13 +30,12 @@
 //! in a locked queue (`sound::queue`). `ENVIRONMENT` (below) is written by the game's thread
 //! and read by the audio thread, so it is shared, not the audio thread's own.
 
-use crate::session::{Bytes, Dword, Loose, Shared};
+use crate::session::{Bytes, Dword, Shared};
 use rc2k_core::audio::modes::AudioOptions;
 use rc2k_core::audio::streams::AudioStream;
 use rc2k_core::audio::voices::{MixerChannel, SampleRecord, Voice};
 
 /// The audio variables both the game's thread and the audio thread touch (IDA 0x4F8294 ..).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct AudioShared {
     /// `g_qualityModes`: the sound mode of each quality (0x212, 0x222, 0x221, 0x220), the advanced page's first choice picks one. (IDA 0x4F8294)
@@ -87,10 +86,10 @@ pub struct AudioShared {
     pub has_a3d2: Dword,
     /// `g_tuneTurn`: which of tunes 10 .. 15 the next tune 0xA is (0 .. 5), kept in `var\ral.dat`; the audio thread's music command steps it, the game's thread loads and saves it. (IDA 0x5180F8, was in `SoundOptions`)
     pub tune_turn: Dword,
-    /// `ignoreds3d` (an unaligned dword): 1 = no 3D listener. (IDA 0x506B42)
-    pub no_listener: Loose,
-    /// `g_has3d` (an unaligned dword): 3D is there. (IDA 0x506B46)
-    pub has_3d: Loose,
+    /// `ignoreds3d`: 1 = no 3D listener. (IDA 0x506B42)
+    pub no_listener: Dword,
+    /// `g_has3d`: 3D is there. (IDA 0x506B46)
+    pub has_3d: Dword,
 }
 
 /// A voice as the image holds all of them: free (sound -2), 44100 Hz, scale 0x40.
@@ -204,8 +203,8 @@ impl AudioShared {
             }),
             has_a3d2: Dword::new(0),
             tune_turn: Dword::new(0),
-            no_listener: Loose::new(0x0),
-            has_3d: Loose::new(0x0),
+            no_listener: Dword::new(0),
+            has_3d: Dword::new(0),
         }
     }
 }
@@ -219,7 +218,6 @@ const SAMPLE_COUNT: usize = 0x1CD;
 /// (the audio thread's loads and `free_voices` set it, `sample_settings` of the game's
 /// thread reads it). The other twelve are constants (`SAMPLE_CONSTANTS`, read by both
 /// threads), so `record` gives a whole `SampleRecord` made of both.
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct SampleRecords {
     data_keys: [Dword; SAMPLE_COUNT],

@@ -26,7 +26,6 @@ use crate::session::{PlainByte, PlainDword, PlainFloat};
 /// (`g_shadowPoints` and after at 0x641AA4 .. 0x643ACC, `g_shadowPointCount` and its
 /// neighbours at 0x641928 .. 0x641AA0), left from view to view; nothing else read it, and
 /// each call wrote every value before reading it.
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct ShadowWork {
     /// The shadow's points, records of 0x20 bytes (0x40 at most), the hull's records after.

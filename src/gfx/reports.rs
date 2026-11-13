@@ -5,7 +5,6 @@
 use crate::session::PlainDword;
 
 /// The 3D reports switch.
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct Reports {
     /// `dword_4F52AC`: 1 while Direct3D's errors are reported (fatal).

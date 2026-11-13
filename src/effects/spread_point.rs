@@ -40,7 +40,6 @@ pub fn spread_point(
 }
 
 /// The spread point's random (IDA 0x923004 .. 0x923008).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct SpreadRandom {
     /// 0x923004: `g_marksSpreadRandom`: the random (times 0x9D plus 0x47) of `effects::spread_point`.

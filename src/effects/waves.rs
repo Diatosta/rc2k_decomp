@@ -5,7 +5,6 @@
 use crate::session::{PlainDword, PlainFloat};
 
 /// The marks' sine table (IDA 0x92001E .. 0x92051E).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct MarksSines {
     /// 0x92001E: `g_marksSines`: 0x140 sines of 0, step, 2 step .. (`effects::make_wave_tables`; nothing ported reads them).
@@ -22,7 +21,6 @@ impl MarksSines {
 }
 
 /// The wave levels (IDA 0x9205F6 .. 0x92063A).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct WaveLevels {
     /// 0x9205F6: `g_marksWaveLevels`: the lens flare's parts' places along the line: whole numbers at first, floats once `effects::make_wave_tables` has run (as bits).
@@ -57,7 +55,6 @@ impl WaveLevels {
 }
 
 /// The wave tables' flag and constants (IDA 0x9206C2 .. 0x9206D2).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct WaveState {
     /// 0x9206C2: `g_marksWaveDone`: 0, or `nullsub_23`'s address once the tables are made.

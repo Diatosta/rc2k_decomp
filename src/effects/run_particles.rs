@@ -494,7 +494,6 @@ pub static TRAIL_PALETTE: TrailColours = TrailColours {
 };
 
 /// The puff's work values (IDA 0x93A5F0 .. 0x93A618).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct PuffWork {
     /// 0x93A600: `flt_93A600` .. `flt_93A614`: the puff's place, size and motion
@@ -576,7 +575,6 @@ const fn burst_colours() -> [u8; 0x2000] {
 }
 
 /// The burst particles' colour ramps (IDA 0x93A618 .. 0x93C618).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct BurstColours {
     /// 0x93A618: `dword_93A618`: 8 ramps of 256 dwords (a channel mask times the step)
@@ -593,7 +591,6 @@ impl BurstColours {
 }
 
 /// The particle effects' constants (`run_particles`, `trail_particles`, `burst_particles`, `add_drift_particle`) (IDA 0x93C618 .. 0x93C6C8).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct ParticleTuning {
     /// 0x93C618: `flt_93C618` .. `flt_93C620`: the puff's x wave (three factors)

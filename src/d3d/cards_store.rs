@@ -6,7 +6,6 @@
 use crate::session::{PlainBytes, PlainDword};
 
 /// The 3D cards, the device's render states and the 3D switches (IDA 0x5AB4B4 ..).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct Cards3d {
     /// 0x5AB4B4: `g_secondaryCardGuid`: the secondary card's GUID.

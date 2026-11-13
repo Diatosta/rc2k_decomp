@@ -6,7 +6,6 @@
 use crate::cells::ZeroCells;
 use crate::session::PlainDword;
 
-#[repr(C)]
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct TexturePlaces {
     /// +0x0 (0x5D2AE8): `dword_5D2AE8`: the texture of each slot (`scene::try_allocate_textures`).

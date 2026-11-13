@@ -5,7 +5,6 @@
 use crate::session::PlainDword;
 
 /// The surface handles.
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct Surfaces {
     /// `g_frontSurface` (`dword_4F32B4`): the front surface, 0 with none.

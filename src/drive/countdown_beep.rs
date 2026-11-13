@@ -11,7 +11,7 @@
 use crate::errors::Refused;
 use crate::physics::car_store::Car;
 use crate::race::owner::Race;
-use crate::session::PlainLoose;
+use crate::session::PlainDword;
 use rc2k_core::drive::countdown::{self, Beep};
 
 /// The car block `block`, the second into `to`.
@@ -19,7 +19,7 @@ use rc2k_core::drive::countdown::{self, Beep};
 pub fn countdown_beep(
     race: &Race,
     block: &Car,
-    to: &PlainLoose,
+    to: &PlainDword,
     audio: &crate::audio::owner::Audio,
 ) -> Result<(), Refused> {
     let beep = countdown::countdown_beep(

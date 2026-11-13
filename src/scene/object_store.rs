@@ -6,7 +6,6 @@
 use crate::cells::ZeroCells;
 use crate::session::PlainDword;
 
-#[repr(C)]
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct ObjectWork {
     /// (0x634FA0): the bytes of face memory used (`scene::objects`).

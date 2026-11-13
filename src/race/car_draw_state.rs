@@ -11,7 +11,6 @@
 
 use crate::session::PlainDword;
 
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct CarDrawState {
     /// Each car block's state bits as the view draws it (+0x6FC of the block in the original:

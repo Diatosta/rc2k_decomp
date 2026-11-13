@@ -1,13 +1,12 @@
 //! The screens' flow variables, out of RAL.EXE's image (IDA 0x7554C0 .. 0x755525): the
 //! sections an event starts at, the yes / no screens' switches, the lists a screen puts in place
 //! (`g_unreadList`, `g_drawList`, `g_overlayList`, `g_sceneList`) and a few switches of the item
-//! keys. A `#[repr(C)]` struct, one static. The list pointers hold the lists by handle (`menu::fn_list`).
+//! keys. One static. The list pointers hold the lists by handle (`menu::fn_list`).
 
 use crate::menu::fn_list::ListCell;
 use crate::session::{PlainDword, PlainFlag};
 
 /// The screens' flow variables (IDA 0x7554C0 .. 0x755525).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct ScreenFlow {
     /// +0 (0x7554C0) `g_startSection`: the rally of the Mobil One championship to start at, 0 .. 6 (0: from the first, with the welcome; n: section n - 1, `rc2k_core::menu::championship`). Chosen on the options page by `menu::next_colour_a` / `previous_colour_a` (IDA's names: nothing here is a colour; the pictures are string 0x1D9, the championship's name, then the six rallies' names, 0x3DC .. 0x3E1). `saves::gather_savegame` keeps it in car 0 at +0x14 and `load_savegame` puts it back.

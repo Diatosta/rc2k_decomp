@@ -4,7 +4,6 @@
 use crate::session::{PlainBytes, PlainDword};
 
 /// The arcade game's variables (IDA 0x7587E8 .. 0x758806).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct Arcade {
     /// `dword_7587E8`: 1 when the front end's scene was let go for a race (`menu::reload_front_end` sets it up again).

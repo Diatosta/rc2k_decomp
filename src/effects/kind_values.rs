@@ -132,7 +132,6 @@ pub fn set_kind_values(k: &KindSet<'_>, effects: &Effects) -> Result<(), Refused
 }
 
 /// The marks' kind (`effects::kind_values`) (IDA 0x769232 .. 0x769236).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct MarksKind {
     /// 0x769232: `g_marksKind`: the kind of the marks (the surface / weather: 0 .. 0x21), set at `effects::init_marks`.

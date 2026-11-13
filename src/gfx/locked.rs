@@ -3,7 +3,6 @@
 use crate::session::PlainDword;
 
 /// The surface-locked switch.
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct Locked {
     /// `g_surfaceLocked` (`dword_4F3870`): 1 while the screen's surface is locked for drawing.

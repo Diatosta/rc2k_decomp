@@ -12,7 +12,6 @@ pub const FANS_LEN: usize = 0x1800;
 pub const RECORDS_LEN: usize = 0x3000;
 
 /// The windscreen drop batch.
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct WindscreenDrops {
     /// `dword_62423C`: the indices to draw.

@@ -9,14 +9,11 @@
 use crate::errors::BadInput;
 use crate::gfx::plain_dwords;
 use crate::session::{PlainDword, Run};
-#[cfg(test)]
-use core::mem::offset_of;
 
 /// The modes the table holds (32 of 8 bytes).
 pub const TABLE_ROOM: usize = 0x20;
 
 /// The screen mode tables.
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct Modes {
     /// `dword_4F4E30`: the two pixel kinds' bits (the mode flags' 0x1000, 0x2000: the card).
@@ -131,30 +128,35 @@ mod tests {
     /// The tables' places in dwords are the fields' places in the record.
     #[test]
     fn places_are_the_fields() {
-        assert_eq!(Modes::PIXEL_KINDS_AT * 4, offset_of!(Modes, pixel_kinds));
-        assert_eq!(Modes::SIZES_AT * 4, offset_of!(Modes, sizes));
-        assert_eq!(Modes::KINDS_AT * 4, offset_of!(Modes, kinds));
-        assert_eq!(Modes::TABLE_AT * 4, offset_of!(Modes, table));
+        let m = Modes::new();
+        assert_eq!(
+            Modes::PIXEL_KINDS_AT,
+            m.kind_bits.len() + m.third_bits.len()
+        );
+        assert_eq!(Modes::SIZES_AT, Modes::PIXEL_KINDS_AT + m.pixel_kinds.len());
+        assert_eq!(Modes::KINDS_AT, Modes::SIZES_AT + m.sizes.len());
+        assert_eq!(
+            Modes::TABLE_AT,
+            Modes::KINDS_AT + m.kinds.len() + m.other_tables.len() + 1
+        );
     }
 
-    /// The old byte read of the record, kept to check the reads by field.
-    fn old_dword(m: &Modes, at: usize) -> Result<u32, BadInput> {
-        crate::cells::load_value(m, at)
-    }
-
-    /// Every dword to the end of the record reads as the byte read did; the first past it is
-    /// refused by both.
+    /// Every dword to the end of the record reads in the order of the fields; the first past
+    /// it is refused.
     #[test]
-    fn dwords_read_as_the_byte_read() {
+    fn dwords_read_in_field_order() {
         let m = Modes::new();
         for (n, d) in m.table.iter().enumerate() {
             d.set(0x1000_0001 + n as u32);
         }
         m.count.set(7);
-        let total = size_of::<Modes>() / 4;
-        for n in 0..total + 4 {
-            assert_eq!(m.dword(n).ok(), old_dword(&m, 4 * n).ok(), "dword {n}");
+        let mut expected = Vec::new();
+        for run in m.runs() {
+            expected.extend((0..run.count()).map(|i| run.bits(i)));
         }
-        assert!(m.dword(total).is_err());
+        for (n, want) in expected.iter().enumerate() {
+            assert_eq!(m.dword(n).ok(), Some(*want), "dword {n}");
+        }
+        assert!(m.dword(expected.len()).is_err());
     }
 }

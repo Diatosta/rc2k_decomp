@@ -130,7 +130,6 @@ pub fn make_profiles(
 }
 
 /// The profiles' rings of indexes (IDA 0x8DD061 .. 0x8DD865).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct ProfileRings {
     /// 0x8DD061: `g_marksRingBefore`: each of the 0x100 indexes' one before it (`effects::make_profiles`).
@@ -168,7 +167,6 @@ const fn table(first: &[(usize, u32)]) -> ProfileTable {
 }
 
 /// The profile tables (13 of 0x800 bytes, in this order of memory: ramp 0, curves 0 and 1, ramps 1 and 2, sines 0 .. 7) (IDA 0x8E506D .. 0x8EB86D).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct ProfileTables {
     /// 0x8E506D: ramp 0, curve 0, curve 1, ramp 1, ramp 2, then sines 0 .. 7 (`RAMPS`, `CURVES`, `SINES`).

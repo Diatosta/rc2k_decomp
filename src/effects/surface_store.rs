@@ -3,7 +3,6 @@
 use crate::session::{PlainBytes, PlainDword};
 
 /// The surface's texture places and the emitters' lives and colours (IDA 0x935766 .. 0x939DB2).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct SurfaceTables {
     /// 0x935766: `g_marksCellPlaces` (0x40 cells of four floats, 16 bytes each, then `g_marksSubcellPlaces` at 0x935B66: 0x40 x 0x100 bytes, 4 x 4 sub-cells of 16 bytes per cell). The cell draw reads cell 0x40, the first sub-cell's place, as the original does.

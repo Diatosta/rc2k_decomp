@@ -5,7 +5,6 @@ use crate::cells::ZeroCells;
 
 use crate::session::{PlainBytes, PlainDword};
 
-#[repr(C)]
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct DrawBatches {
     /// +0x0 (0x6D3CF4): `unk_6D3CF4`: the scene batch's vertices (the original's `flush_draw_batch`; 0x20-byte vertex records appended by the unreached `sub_45FCBA`; the length is the span to the next item).

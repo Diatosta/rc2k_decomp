@@ -20,7 +20,6 @@
 
 use crate::session::{PlainDword, PlainFloat};
 
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct ObjectLight {
     /// The lamp's tint taken from its entry (`LightWork.lamp_tint`).

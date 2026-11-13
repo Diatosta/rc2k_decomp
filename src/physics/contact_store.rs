@@ -5,7 +5,6 @@
 
 use crate::session::{PlainDword, PlainFloat};
 
-#[repr(C)]
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct ContactWork {
     /// (0x6D1DD8): the original's `race::eax_face_weight` kept the x of the middle of a face's second and third points here, which nothing read (a local now; kept for the layout).

@@ -7,7 +7,6 @@
 use crate::cells::ZeroCells;
 use crate::session::PlainDword;
 
-#[repr(C)]
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct ObjectTables {
     /// +0x0 (0x5CCE7C): `g_slotKinds`: each object slot's kind (`scene::load_front_end_objects`, `scene::set_up_front_end_scene`, `race::objects`; cleared by `scene::clear_slot_kinds`). [64] is `dword_5CCF7C`, the kind kept by `race::objects` (`scene::draw_object_polygon`).
@@ -117,20 +116,34 @@ impl ObjectTables {
 mod tests {
     use super::*;
 
-    /// Every object number from the table to the end of the record gives what the byte-offset
-    /// read gave.
+    /// Every object number from the table to the end of the record gives the entry of
+    /// the fields after the table.
     #[test]
-    fn object_kind_runs_on_as_the_old_read() {
+    fn object_kind_runs_on_through_the_fields_after() {
+        use core::slice::from_ref;
         let t = Box::new(ObjectTables::new());
-        let room = (core::mem::size_of::<ObjectTables>()
-            - core::mem::offset_of!(ObjectTables, object_kinds))
-            / 4;
-        for n in 0..room {
-            crate::session::write_on_in(&*t, &t.object_kinds, n, 0x6000 + n as u32, "t").unwrap();
+        let parts: [&[PlainDword]; 14] = [
+            &t.object_kinds,
+            from_ref(&t.face_count),
+            from_ref(&t.point_count),
+            from_ref(&t.normals_at),
+            &t.car_mark_textures,
+            from_ref(&t.car_letter_b),
+            from_ref(&t.d3d_drawing_on),
+            &t.unknown_c14,
+            &t.level_sizes,
+            &t.level_mips,
+            from_ref(&t.other_levels),
+            &t.texture_tags,
+            &t.system_levels,
+            &t.video_levels,
+        ];
+        let chain: Vec<&PlainDword> = parts.into_iter().flatten().collect();
+        for (n, cell) in chain.iter().enumerate() {
+            cell.set(0x6000 + n as u32);
         }
-        for n in 0..room {
-            let old = crate::session::read_on_in(&*t, &t.object_kinds, n, "t").unwrap();
-            assert_eq!(t.object_kind(n as u32), old, "object {n}");
+        for n in 0..chain.len() {
+            assert_eq!(t.object_kind(n as u32), 0x6000 + n as u32, "object {n}");
         }
     }
 }

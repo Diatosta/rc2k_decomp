@@ -183,7 +183,6 @@ pub fn set_up_surface(
 }
 
 /// The surface masks' memory list and the bytes after it (IDA 0x93A1DA .. 0x93A21A).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct MaskList {
     /// 0x93A1DA: `stru_93A1DA`: a `memory::List` (head, total, cursor, remaining)

@@ -2,7 +2,6 @@
 //! last left (`current`, the screen loop's `saved_item`) and the item some screens start
 //! on (`first`, read into `measure_x` or the action's argument on entry). The screens name
 //! their slot by `slot::*`; the 20 slots no ported screen names keep the image's values.
-//! `#[repr(C)]`, the image's layout.
 
 use crate::session::PlainDword;
 
@@ -96,7 +95,6 @@ pub mod slot {
 /// The number of slots.
 pub const SLOTS: usize = 103;
 
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct ScreenItems {
     /// `dword_747660` ..: the item highlighted when the screen was last left.

@@ -5,7 +5,6 @@
 
 use crate::session::PlainDword;
 
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct ItemSprites {
     pub lists: [[PlainDword; 5]; 16],

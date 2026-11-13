@@ -1,13 +1,11 @@
 //! The frame's draw work (IDA 0x64158C .. 0x641AA4; phase 7, typed): the counts of a frame
 //! (flares, lamps, cars drawn and culled), the sun's place and size, the mirror, the views'
 //! layouts and scales, the lead car's camera kept, each car's listed sound, the car parts'
-//! matrices and decal places, and the car shadow's work. `#[repr(C)]` with the image's
-//! layout, over the race block's bytes (`FRAME_WORK`), as `CAR`. Names are readings unless IDA's.
+//! matrices and decal places, and the car shadow's work. The fields are in the image's order. Names are readings unless IDA's.
 
 use crate::cells::ZeroCells;
 use crate::session::{PlainDword, PlainFlag, PlainFloat};
 
-#[repr(C)]
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct FrameWork {
     /// +0x0 (0x64158C): `g_flareCount`: the flares this frame; now each view's (`race::lamp_work::LampWork`); unused.

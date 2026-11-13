@@ -6,7 +6,7 @@
 //! - `LobbyKeys` (0x5AB419 .. 0x5AB490): the registry key and value names a lobby
 //!   registration writes (`install::register_lobby`).
 //!
-//! `#[repr(C)]` structs of atomic cells with the image's layout, first values the image's
+//! Structs of atomic cells with the image's layout (`InstallVars` and `DriveRows` keep `#[repr(C)]`: their texts are read on past a field by offset), first values the image's
 //! (`tests`): the credits'
 //! pointers name these texts. `InstallVars` starts on an odd address in the image
 //! (0x529DAD): a one-byte lead keeps every image address's alignment.

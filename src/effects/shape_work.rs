@@ -3,7 +3,6 @@
 use crate::session::{PlainBytes, PlainDword, PlainFloat};
 
 /// A shape set (IDA `MarkShapes`, 0xAB8 bytes): the working block `g_marksFarthestA` .. and each set copied from it.
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct MarkShapes {
     /// 0x0: `g_marksFarthestA`, `dword_884FB8`: list A's farthest pair (inner, outer)
@@ -73,7 +72,6 @@ impl MarkShapes {
     }
 }
 
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct ShapeWork {
     /// 0x884E5C: `g_marksShapeFirstPoint`

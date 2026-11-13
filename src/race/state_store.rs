@@ -30,7 +30,6 @@ pub const UNSET_BINDING: usize = 9;
 /// fields of the player's record (`Player`), at the record's order less the words the race
 /// does not take. Only the game's thread reaches it. Field docs name the record's field and
 /// offset.
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct RaceCarOwn {
     /// `Player.tyre` (+0x10C).
@@ -122,7 +121,6 @@ impl PlayerControls {
 /// One player's settings as the race variables keep them (IDA 0x75AD1C and 0x75AE88, 0x16C
 /// bytes each): the game thread's own fields and the controls both threads reach. The own
 /// fields read through the record (`car.tyre`).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct RaceCar {
     /// The fields only the game's thread reaches.
@@ -158,7 +156,6 @@ pub struct RaceResult {
 
 /// The first twenty words of the race's settings (IDA 0x75ACCC ..): the mode, the stage, the
 /// direction and the options, which only the game's thread reaches.
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct SettingsHead {
     /// `g_newSimulationUnlocked`: 1 in the A8 game (`menu::apply_cheats`).
@@ -208,7 +205,6 @@ pub struct SettingsHead {
 /// variables, which `race::copy_settings_in` copies to the race's ("Shaun's")): the mode,
 /// the stage, the direction, the two players' settings. The head's fields read through the
 /// record (`settings.stage`).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct RaceSettings {
     /// The mode, the stage, the direction and the options.
@@ -226,7 +222,6 @@ impl core::ops::Deref for RaceSettings {
 }
 
 /// The race's results (IDA 0x75AFF4 .. 0x75B10C).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct RaceResults {
     /// `RaceState.results.race_stage`: the arcade race's stage (Shaun's `RaceVars.race_stage`).
@@ -262,7 +257,6 @@ pub struct RaceResults {
 }
 
 /// The race's settings and results.
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct RaceState {
     /// The race's settings as the front end keeps them (IDA 0x75ACCC .. 0x75AFF4; "Graham's"

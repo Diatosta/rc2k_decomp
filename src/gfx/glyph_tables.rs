@@ -14,7 +14,6 @@ use crate::memory::take_from_list::take_from_list;
 use crate::session::PlainDword;
 
 /// The fonts' and the sprites' tables.
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct GlyphTables {
     /// `dword_51B980`: the tables' size in units of 0x400 bytes times `Screen.bytes`

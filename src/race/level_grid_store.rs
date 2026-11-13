@@ -9,7 +9,6 @@
 use crate::cells::ZeroCells;
 use crate::session::{PlainBytes, PlainDword, PlainFloat};
 
-#[repr(C)]
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct LevelGrid {
     /// +0x0 (0x63DC5C): the first of four 256-byte tables `object_bytes` fills (`race::frame_draw` `FACE_TABLES`); used in place (`byte_63DC5C`); now each view's (`race::view_course::ViewCourse`); unused.

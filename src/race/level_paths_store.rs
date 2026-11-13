@@ -1,12 +1,10 @@
 //! The picture and level file names the game writes numbers into (IDA 0x60AF0C .. 0x60B0BD;
 //! phase 7, typed): the twelve `txxxxx.pcx` names of the texture pictures (a name and a
 //! second name for each of six folders), then the course's `editpref`, `cdat00c` and
-//! `localdat` paths. `#[repr(C)]` with the image's layout, over the race block's bytes
-//! (`LEVEL_PATHS`). Names are readings unless IDA's.
+//! `localdat` paths. The fields are in the image's order. Names are readings unless IDA's.
 
 use crate::session::PlainBytes;
 
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct LevelPaths {
     /// 0x60AF0C: `files\a\txxxxx.pcx` (`scene::load_texture_picture`; the number written in).

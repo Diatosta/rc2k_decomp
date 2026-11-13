@@ -46,7 +46,6 @@ pub fn emit_slip_spray_long(
 }
 
 /// Kind 0xB's emitter variables (`emit_slip_spray::ELEVENTH`), and the constants of code that is in no function (IDA 0x93A262 .. 0x93A312).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct SlipSprayLongSet {
     /// 0x93A262: `dword_93A262`: the place's random

@@ -14,6 +14,7 @@ use crate::logfile::date_text::write_date_text;
 use crate::logfile::log_hex8::log_hex8;
 use crate::logfile::log_int::log_int;
 use crate::logfile::write_line::{LOG_PATH, level};
+use crate::session::PlainDword;
 use crate::system::owner::System;
 
 // ---- game data ----
@@ -58,12 +59,28 @@ pub fn start_log(system: &System) -> Result<(), BadInput> {
     // Converted: `rc2k_core::files::log::head`; the values gathered (the date text,
     // the memory and the drive's numbers left in game memory as the original leaves
     // them), then each message logged as the original's call.
-    use crate::cells::Store;
     use rc2k_core::files::log::{Machine, Message, head};
     let machine = system.machine();
-    let machine_text = |offset: usize, len: usize| crate::files::cstring_from(machine, offset, len);
-    let vendor_at = core::mem::offset_of!(crate::session::Machine, cpu_vendor);
-    let version_at = core::mem::offset_of!(crate::session::Machine, version);
+    let le_bytes = |words: &[PlainDword]| -> Vec<u8> {
+        words.iter().flat_map(|w| w.get().to_le_bytes()).collect()
+    };
+    let runs_bytes =
+        |runs: &[&[PlainDword]]| -> Vec<u8> { runs.iter().flat_map(|run| le_bytes(run)).collect() };
+    // The vendor's text is read on through the fields after it, to the record's end.
+    let vendor_run = runs_bytes(&[
+        &machine.cpu_vendor[..],
+        core::slice::from_ref(&machine.gap_e4),
+        core::slice::from_ref(&machine.cpu_mhz),
+        core::slice::from_ref(&machine.has_tsc),
+        core::slice::from_ref(&machine.has_cmov),
+        core::slice::from_ref(&machine.found_mmx),
+        core::slice::from_ref(&machine.found_sse),
+        core::slice::from_ref(&machine.found_3dnow),
+        core::slice::from_ref(&machine.keyboard_type),
+        &machine.version[..],
+        core::slice::from_ref(&machine.exception_resume),
+        core::slice::from_ref(&machine.instance),
+    ]);
     // The date in the numbers' scratch buffer, as the original makes it (the log's
     // lock is not held: no thread logs yet).
     let date = write_date_text(system, &system.work().numbers)?;
@@ -78,7 +95,7 @@ pub fn start_log(system: &System) -> Result<(), BadInput> {
         cpu_family: system.machine().cpu_family.get() as i32,
         cpu_flags: system.machine().cpu_signature.get(),
         // Twelve characters; the end follows the field (read on to the record's end).
-        cpu_name: machine_text(vendor_at, machine.size() - vendor_at)?,
+        cpu_name: crate::files::cstring_in(&vendor_run)?,
         clock: system.machine().cpu_mhz.get() as i32,
         fpu: system.session.host.has_fpu.get() as i32,
         mmx: system.machine().found_mmx.get() as i32,
@@ -92,7 +109,7 @@ pub fn start_log(system: &System) -> Result<(), BadInput> {
             (system.machine().version[3].get() & 0xFFFF) as i32,
         ],
         // The Windows version record's text, inside the record.
-        platform_text: machine_text(version_at + 0x14, 4 * 37 - 0x14)?,
+        platform_text: crate::files::cstring_in(&le_bytes(&machine.version[5..]))?,
         memory,
         free_kb: free,
     };

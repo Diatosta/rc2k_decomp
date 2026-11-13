@@ -11,13 +11,11 @@ use crate::gfx::texture_pixels::{
 };
 use crate::session::{Dword, Run};
 
-pub const RECORD_LEN: usize = 0x78;
 pub const TEXTURES: u32 = 0x140;
 
 /// A pixel kind's description, 0x40 bytes (`TextureFormat` in IDA): five from
 /// `Textures.descriptions[0].0[0]` (555, 1555, 4444, 8888 and one more), pointed at by `Textures.kinds[0]`, filled
 /// by `d3d::find_texture_formats`.
-#[repr(C)]
 #[derive(Clone, Copy, Debug)]
 pub struct TextureFormat {
     /// 1 when the device has the format.
@@ -31,11 +29,8 @@ pub struct TextureFormat {
     pub dd: [u32; 8],
 }
 
-const _: () = assert!(std::mem::size_of::<TextureFormat>() == 0x40);
-
 /// A texture's record, 0x78 bytes (`TextureRecord` in IDA): the system textures from
 /// `Textures.system.records[0].0[0]`, the video textures from `Textures.video.records[0].0[0]`, 0x140 of each.
-#[repr(C)]
 #[derive(Clone, Copy, Debug)]
 pub struct TextureRecord {
     /// 1 system, 2 video, 0 free.
@@ -59,8 +54,6 @@ pub struct TextureRecord {
     pub material: u32,
     pub material_handle: u32,
 }
-
-const _: () = assert!(std::mem::size_of::<TextureRecord>() == RECORD_LEN);
 
 impl TextureRecord {
     /// The record's dwords, in the game's order.
@@ -565,20 +558,30 @@ pub fn keep_second_picture(
 mod tests {
     use super::*;
 
-    /// A kind past the kinds table reads the dword the byte read of the whole record gave, to
-    /// the record's end; the first past it is refused by both.
+    /// A kind past the kinds table reads on through the fields after it in the record's order,
+    /// to the end of the last; the first past it is refused.
     #[test]
-    fn kind_entry_reads_on_as_the_byte_read() {
+    fn kind_entry_reads_on_through_the_fields() {
         let t = Box::new(Textures::new());
-        let from = core::mem::offset_of!(Textures, kinds) / 4;
-        let total = size_of::<Textures>() / 4;
-        for k in from..total {
-            crate::cells::store_value::<u32>(&*t, 4 * k, 0x4000_0000 + k as u32).unwrap();
+        let (video, system) = (&t.video, &t.system);
+        let runs: [&dyn Run; 6] = [
+            &t.kinds,
+            &t.descriptions,
+            &video.count,
+            &video.records,
+            &system.count,
+            &system.records,
+        ];
+        let mut expected = Vec::new();
+        for (r, run) in runs.iter().enumerate() {
+            for i in 0..run.count() {
+                run.set_bits(i, 0x4000_0000 + (r * 0x10000 + i) as u32);
+                expected.push(run.bits(i));
+            }
         }
-        for n in t.kinds.len()..(total - from) + 2 {
-            let old = crate::cells::load_value::<u32>(&*t, 4 * from + 4 * n);
-            assert_eq!(t.dword_from_kinds(n).ok(), old.ok(), "dword {n}");
+        for (n, want) in expected.iter().enumerate() {
+            assert_eq!(t.dword_from_kinds(n).ok(), Some(*want), "dword {n}");
         }
-        assert!(t.dword_from_kinds(total - from).is_err());
+        assert!(t.dword_from_kinds(expected.len()).is_err());
     }
 }

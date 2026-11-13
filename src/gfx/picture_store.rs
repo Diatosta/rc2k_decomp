@@ -7,7 +7,6 @@ use crate::session::PlainDword;
 
 /// The picture buffer: where a picture file is decoded to, as 32-bit pixels of four 8-bit
 /// components, before it is converted to the surface's format and drawn.
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct Picture {
     /// `dword_4F49C8`: the name of the file a screenshot is written to, or 0 for the

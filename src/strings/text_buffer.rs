@@ -1,10 +1,10 @@
 //! The strings' text buffer (`strings::text_from_ids` and the screens that build a line
-//! there), out of RAL.EXE's image, typed. `#[repr(C)]` struct of a byte buffer.
+//! there), out of RAL.EXE's image, typed. Struct of a byte buffer.
 
 use crate::session::PlainBytes;
 
-/// The strings' text buffer (IDA 0x93E430 .. 0x93E830, the image's layout).
-#[repr(C, align(16))]
+/// The strings' text buffer (IDA 0x93E430 .. 0x93E830).
+#[repr(align(16))]
 #[derive(rc2k_derive::Cells)]
 pub struct TextBuffer {
     /// 0x93E430: `text`: the shared text buffer (the string of an id is built here, then drawn).

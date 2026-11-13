@@ -13,7 +13,6 @@ use crate::session::{CellKind, PlainCells, PlainDword, PlainFloat};
 /// The view variables, on the cells of kind `K`: plain for the shared ones
 /// (`ViewAndRecords::view_vars`, which only the game's thread writes) and for a view's copy
 /// (`ViewVarsCopy`), which only the view's drawing part reaches.
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct ViewVars<K: CellKind = PlainCells> {
     /// +0x0 (0x60626C): the car block's +0x69C copied at the frame start (`race::frame_draw`); `race::car_draw` tests it against the drawn car, so it marks which car the view follows.
@@ -74,7 +73,6 @@ pub struct ViewVars<K: CellKind = PlainCells> {
 /// mode's figures. The three-letter names are the developers' (the kstar camera page).
 /// Records 1 .. 3 are refilled from the car's light record (`physics::update_camera`),
 /// 4 .. 6 placed by `physics::place_camera`, 6 by the finish camera too.
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct ViewRecord {
     /// +0x0: the mode's kind (what a replay camera wish stops at: `drive::pick_replay_camera`).
@@ -107,8 +105,6 @@ pub struct ViewRecord {
     /// +0x58: the blend's figure (`ease_view_blend`; sign read).
     pub blend: PlainDword,
 }
-
-const _: () = assert!(core::mem::size_of::<ViewRecord>() == ViewVars::RECORD_SIZE);
 
 impl ViewRecord {
     /// The offset's three dwords (+0x4 .. +0xC).
@@ -143,9 +139,6 @@ impl ViewVars {
     pub fn record(view_records: &ViewAndRecords, n: usize) -> &ViewRecord {
         &view_records.records[n]
     }
-
-    /// The bytes of a view record.
-    pub const RECORD_SIZE: usize = 0x5C;
 
     /// View record `n` (phase 13: the table holds handles, `VIEW_TAG | k` for the k-th
     /// record). A view past the 52, or a value that is no handle, is refused.

@@ -1,11 +1,9 @@
 //! The main menu's notice flag, the car specification screen's kept car and the cheats, out of
-//! RAL.EXE's image (IDA 0x7585D8 .. 0x758714). A `#[repr(C)]` struct with the image's
-//! layout, one static.
+//! RAL.EXE's image (IDA 0x7585D8 .. 0x758714). One static.
 
 use crate::session::{PlainBytes, PlainDword, with_runs};
 
 /// The notice flag, the kept car and the cheats (IDA 0x7585D8 .. 0x758714).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct Cheats {
     /// `g_noticeDue`: Set to 1 by the main menu before a frame (`menu::frame_callback` looks at it).

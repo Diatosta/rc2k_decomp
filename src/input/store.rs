@@ -1,6 +1,5 @@
-//! The input module's variables, kept with the image's layout (`notes/conversion.md`).
-//! Three blocks, one `#[repr(C)]` struct each (the keyboard file's layouts are
-//! `input::layouts`):
+//! The input module's variables, three records of named fields (the keyboard file's layouts
+//! are `input::layouts`):
 //! - `Devices` (`DEVICES`), 0x4F68D8 .. 0x4F7E18: the settings' switches (`nojoysticks` ...),
 //!   the DirectInput objects, the joystick's state, caps and properties, the key tables (down,
 //!   now, before, pressed, repeat: a byte a key), the mouse word, the two device records
@@ -34,11 +33,8 @@ use crate::session::{Byte, Bytes, Dword, Float, PlainBytes, PlainDword};
 
 /// A key table: a byte a scan code (0x80 down / pressed).
 pub const KEYS: usize = 0x80;
-/// A device record's size (`types::InputDevice`).
-pub const RECORD_LEN: usize = 0x4F8;
 
 /// The input thread's and the settings' variables.
-#[repr(C)]
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct Devices {
     /// `dword_4F68D8`: the input thread's last tick (ms).
@@ -286,7 +282,6 @@ pub fn device_of(devices: &Devices, handle: u32) -> Option<&InputDevice> {
 // ---- the keyboard: 0x4F7FD8 .. 0x4F8294 ----
 
 /// The yes/no key, the built-in layout and the dead keys.
-#[repr(C)]
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct Keyboard {
     /// `g_yesNoKeyGiven`: 1 = the key comes from the caller.
@@ -341,7 +336,6 @@ key_names: PlainBytes::new(with_runs::<256>(&[(2, b"\x05\x00\x06\x00\x07\x00\x08
 // ---- the mouse: 0x5C6924 .. 0x5C6948 ----
 
 /// The mouse's position, clicks and buttons.
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct Mouse {
     /// `g_mouseX`, `g_mouseY` (signed).
@@ -376,7 +370,6 @@ impl Mouse {
 }
 
 /// The force-feedback effects' clock, surface kinds and constants (IDA 0x518084 .. 0x5180f0).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct ForceFeedback {
     /// `g_effectsLastTime`: the force-feedback effects' last clock.

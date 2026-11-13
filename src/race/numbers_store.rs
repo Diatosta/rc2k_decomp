@@ -1,15 +1,13 @@
 //! The game's numbers (IDA 0x5C5CE0 .. 0x5C5E50; phase 7, typed): its float constants (1.0,
 //! 65536.0, pi, the tenths, ...), named by value, with three variables among them (the
 //! replay's mode, `g_inRace`, the grip change). Read-only but for those three and
-//! `physics::clamped_asin`'s turn of `one`. `#[repr(C)]` with the image's layout, over the
-//! race block's bytes. Plain cells: a drawing store (`session::DrawShared`), written on the
+//! `physics::clamped_asin`'s turn of `one`. The fields are in the image's order. Plain cells: a drawing store (`session::DrawShared`), written on the
 //! game's thread between frames and read by the drawing parts through their
 //! `workers::DrawReads`.
 
 use crate::cells::ZeroCells;
 use crate::session::{PlainDword, PlainFlag, PlainFloat};
 
-#[repr(C)]
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct Numbers {
     /// +0x0 (0x5C5CE0): `dword_5C5CE0`: the replay's mode, 1 recording, 2 playing (`drive::keep_replay_frame`; the scene skips the tyre screen while 2).

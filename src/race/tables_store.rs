@@ -1,12 +1,11 @@
 //! The start and tables work (IDA 0x60463C .. 0x60526C; phase 7, typed): the stage time factors, the arcade
 //! mode's tables by rally and stage (cars, places, car types and numbers), the cars data text read in
 //! place, the noise seed, the start and pace cars' values, the car kind order, and the camera's share and
-//! ground-turn variables. `#[repr(C)]` with the image's layout, over the race block's bytes. Names are readings unless IDA's.
+//! ground-turn variables. The fields are in the image's order. Names are readings unless IDA's.
 
 use crate::cells::ZeroCells;
 use crate::session::{PlainDword, PlainFloat};
 
-#[repr(C)]
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct RaceTables {
     /// +0x0 (0x60463C): `flt_60463C`: the factor by section for the last three record times (`menu::scale_stage_times`).
@@ -764,19 +763,12 @@ impl RaceTables {
 mod run_on_tests {
     use super::*;
 
-    /// Every dword from each listed table to the end of the record gives what the byte-offset
-    /// read gave, and the first past it is refused as before.
+    /// A dword from each listed table is read by index inside the table, and an index far past
+    /// the record is refused.
     #[test]
-    fn dword_from_runs_on_as_the_old_read() {
+    fn dword_from_reads_the_tables_and_refuses_far_past_them() {
         let t = Box::new(RaceTables::new());
-        let room = (core::mem::size_of::<RaceTables>()
-            - core::mem::offset_of!(RaceTables, arcade_cars_by_rally))
-            / 4;
-        for n in 0..room {
-            crate::session::write_on_in(&*t, &t.arcade_cars_by_rally, n, 0x8000 + n as u32, "t")
-                .unwrap();
-        }
-        let from: [(Listed, &[PlainDword]); 4] = [
+        let tables: [(Listed, &[PlainDword]); 4] = [
             (Listed::ArcadeCarsByRally, &t.arcade_cars_by_rally),
             (Listed::BestPlaceByStage, &t.arcade_best_place_by_stage),
             (Listed::StartShareLastByRally, &t.start_share_last_by_rally),
@@ -785,36 +777,25 @@ mod run_on_tests {
                 &t.start_share_first_by_rally,
             ),
         ];
-        let single: [(Listed, &PlainDword); 4] = [
-            (Listed::ComputerEaseSpeed, &t.computer_ease_speed),
-            (Listed::ArcadeCarKinds, &t.arcade_car_kinds[0]),
-            (Listed::NumberBeforeFirst, &t.number_before_first),
-            (Listed::ArcadeCarNumbers, &t.arcade_car_numbers[0]),
-        ];
-        for (listed, table) in from
-            .into_iter()
-            .chain(single.map(|(l, c)| (l, std::slice::from_ref(c))))
-        {
-            let left = room + 8;
-            for n in 0..left {
-                let old = crate::session::read_on_in(&*t, table, n, "t");
-                assert_eq!(t.dword_from(listed, n).ok(), old.ok(), "{n}");
+        for (listed, table) in tables {
+            for (n, cell) in table.iter().enumerate() {
+                cell.set(0x8000 + n as u32);
+                assert_eq!(t.dword_from(listed, n).ok(), Some(0x8000 + n as u32), "{n}");
             }
+            assert!(t.dword_from(listed, 1 << 20).is_err());
         }
     }
 
-    /// The kind order read from its first entry on gives what the byte-offset read gave, the two
-    /// past its 32 included.
+    /// The kind order is read by index from its first entry.
     #[test]
-    fn kind_order_runs_on_as_the_old_read() {
+    fn kind_order_reads_the_entries() {
         let t = Box::new(RaceTables::new());
         for (k, cell) in t.kind_order.iter().enumerate() {
             cell.set(0x300 + k as u32);
-        }
-        let first = core::mem::offset_of!(RaceTables, kind_order);
-        for n in 0..rc2k_core::race::cars::KIND_ORDER_LEN as usize + 3 {
-            let old = crate::cells::load_value::<u32>(&*t, first + 4 * n);
-            assert_eq!(t.dword_from(Listed::KindOrder, n).ok(), old.ok(), "{n}");
+            assert_eq!(
+                t.dword_from(Listed::KindOrder, k).ok(),
+                Some(0x300 + k as u32)
+            );
         }
     }
 }

@@ -11,8 +11,8 @@ use crate::hud::owner::{Hud, Pen};
 use crate::hud::store::HudBlock;
 use crate::race::owner_frame::Frame;
 use crate::race::panel_store::Panel;
+use crate::session::PlainDword;
 use crate::session::PlainFloat;
-use crate::session::PlainLoose;
 
 /// A layout's own variables of a dial, in the order its set-up copies them.
 type Vars = fn(&HudBlock) -> &[PlainFloat];
@@ -20,7 +20,7 @@ type Vars = fn(&HudBlock) -> &[PlainFloat];
 /// How one disc is set up.
 pub struct DiscStyle {
     /// The texture shift (two dwords) and turn: a view's `motion`.
-    shift: fn(&Panel) -> &[PlainLoose; 3],
+    shift: fn(&Panel) -> &[PlainDword; 3],
     /// The layout's variables: size, texture scale, centre x, centre y; then, when
     /// `lifted_centre`, a second centre y.
     vars: Vars,
@@ -31,7 +31,7 @@ pub struct DiscStyle {
 /// How one needle is set up.
 pub struct NeedleStyle {
     /// The needle's value: a view's `whole`.
-    value: fn(&Panel) -> &PlainLoose,
+    value: fn(&Panel) -> &PlainDword,
     /// The layout's variables: centre x, centre y; then, when `lifted_centre`, a second
     /// centre y; then the size.
     vars: Vars,

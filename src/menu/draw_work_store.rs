@@ -1,12 +1,10 @@
 //! The drawing code's work variables, out of RAL.EXE's image (IDA 0x7559A4 .. 0x755A4C): the blink, the scratch dwords the screens' routines pass values in (the original kept them
 //! in globals: a button's width, x and y, the sorts' counters, the sliders' ends), the marker's
-//! place, and the item action's value and the Escape flag. A `#[repr(C)]` struct with the image's
-//! layout, one static.
+//! place, and the item action's value and the Escape flag. One static.
 
 use crate::session::{PlainDword, PlainFlag};
 
 /// The drawing work variables (IDA 0x7559A4 .. 0x755A4C).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct DrawWork {
     /// `dword_7559A4`: 1 in the visible half of a blink (`menu::update_blink`).

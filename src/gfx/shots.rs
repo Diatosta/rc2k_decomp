@@ -4,7 +4,6 @@
 use crate::session::{PlainBytes, PlainDword};
 
 /// The screenshots' variables.
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct Shots {
     /// `g_screenshotsOn` (`dword_4F52B4`, a `var\ral.cfg` setting, `screensnapshot`).

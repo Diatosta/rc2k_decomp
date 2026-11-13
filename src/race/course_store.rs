@@ -1,15 +1,13 @@
 //! The course's data and the scene's state (IDA 0x5CCBF0 .. 0x5CCE7C; phase 7, typed): the
 //! course's records, faces and scene points (addresses and counts), the ground face being
 //! probed, the faces' light, the camera's and start place's place and heading, a shape's
-//! radius, the car model's part groups' masks, the shine. `#[repr(C)]` with the image's
-//! layout. Plain cells: a drawing store (`session::DrawShared`), written on the game's thread
+//! radius, the car model's part groups' masks, the shine. The fields are in the image's order. Plain cells: a drawing store (`session::DrawShared`), written on the game's thread
 //! between frames and read by the drawing parts through their `workers::DrawReads`. Names are
 //! readings unless IDA's.
 
 use crate::cells::ZeroCells;
 use crate::session::PlainDword;
 
-#[repr(C)]
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct CourseWork {
     /// +0x0 (0x5CCBF0): a course record's x and z (`race::frame_draw`, `race::car_shadow`); written only, by nothing now (a dead store); unused.

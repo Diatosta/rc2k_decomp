@@ -1,13 +1,11 @@
 //! The lists of car numbers the options file holds, out of RAL.EXE's image (IDA 0x755258 ..
 //! 0x7554C0): the numbers of the cars that can be chosen in two lists
 //! (`saves::rebuild_car_lists` makes the car pointers of `menu::lists_store` from them) and the two
-//! scratch tables `menu::shuffle_drivers` works in. A `#[repr(C)]` struct with the image's layout, one
-//! static.
+//! scratch tables `menu::shuffle_drivers` works in. One static.
 
 use crate::session::{PlainBytes, PlainDword, with_runs};
 
 /// The lists of car numbers (IDA 0x755258 .. 0x7554C0).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct CarNumbers {
     /// `unk_755258`: The first list's car numbers, ended by -1 (0x28 entries; the options file's first 0xA0 bytes here).

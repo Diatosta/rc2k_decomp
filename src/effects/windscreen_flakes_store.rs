@@ -5,7 +5,6 @@
 use crate::session::{PlainDword, PlainFloat};
 
 /// The windscreen flakes' frame count and rates (IDA 0x89CA30 .. 0x89CA3C).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct WindscreenFlakeTiming {
     /// 0x89CA30: `dword_89CA30`: the frames the windscreen flakes have run (`effects::windscreen_flakes_spawn` adds one each call).
@@ -28,7 +27,6 @@ impl WindscreenFlakeTiming {
 }
 
 /// The windscreen flakes' curve, circles, frame and corners (IDA 0x89CACA .. 0x89D16A).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct WindscreenFlakeTables {
     /// 0x89CACA: `g_marksWindscreenFlakeCurve`: the quarter-circle curve of 0x100 floats (`effects::set_up_windscreen_flakes`; nothing ported reads it).
@@ -157,7 +155,6 @@ impl WindscreenFlakeTables {
 }
 
 /// One windscreen flake item (0x3C bytes; `effects::spawn_windscreen_flake`, `expire_windscreen_flakes`, `run_windscreen_flakes`).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct WindscreenFlakeItem {
     /// +0: 1 while the flake lives, 0 for a free item.
@@ -194,7 +191,6 @@ impl WindscreenFlakeItem {
 }
 
 /// The windscreen flakes' 0x800 items (`g_marksWindscreenFlakeItems`) (IDA 0x89E18A .. 0x8BC18A).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct WindscreenFlakeItems {
     /// 0x89E18A: `g_marksWindscreenFlakeItems`: the items, 0x3C bytes each.
@@ -211,7 +207,6 @@ impl WindscreenFlakeItems {
 }
 
 /// The windscreen flakes' once-only mark, constants and randoms (IDA 0x8BC18A .. 0x8BC266).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct WindscreenFlakeState {
     /// 0x8BC18A: `g_marksWindscreenFlakesDone`: 0, or where `effects::set_up_windscreen_flakes` goes on.

@@ -5,7 +5,6 @@ use crate::gfx::plain_dwords;
 use crate::session::PlainDword;
 
 /// The view strips' places.
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct Strips {
     /// `dword_6D1870` .. `dword_6D187C`: the strip being drawn: top, height, left, width.

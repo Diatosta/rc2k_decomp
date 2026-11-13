@@ -65,7 +65,6 @@ impl ShadowPoint {
     }
 }
 
-#[repr(C)]
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct ShadowSkids {
     /// +0x0 (0x641AA4): `g_shadowPoints`: the shadow's points, 0x100 records of 0x20 bytes (`ShadowPoint`: x, y, z, angle, length, ...; 0x40 at most) and the hull's records after (`race::car_shadow`), held as bytes. Unused since the shadow keeps its own work (`race::car_shadow::ShadowWork`); kept for the layout.

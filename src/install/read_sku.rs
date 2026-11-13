@@ -42,8 +42,7 @@ pub fn read_sku(
     Ok(())
 }
 
-/// The edition's markers (`install::read_sku`) (IDA 0x5190F4 .. 0x519118, the image's layout).
-#[repr(C)]
+/// The edition's markers (`install::read_sku`) (IDA 0x5190F4 .. 0x519118).
 #[derive(rc2k_derive::Cells)]
 pub struct Sku {
     /// 0x5190F4: `dword_5190F4`: the edition's number.

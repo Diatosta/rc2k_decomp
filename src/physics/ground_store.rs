@@ -2,12 +2,11 @@
 //! face, the face under a point (the point, the three corners, the differences, the shares and the height
 //! physics::ground, plane_height, the car shadow and the lighting share), the object drawing state (texture set,
 //! fade, see-through, polygon counts, lamp strength) and the reflection work with its first kept table (normals;
-//! the point and coordinate tables follow at +0x1000 each). #[repr(C)]: the derive reads the fields in order.
+//! the point and coordinate tables follow at +0x1000 each).
 //! Names are readings unless IDA's.
 
 use crate::session::{PlainDword, PlainFloat};
 
-#[repr(C)]
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct GroundWork {
     /// (0x63967C): `dword_63967C`: a count kept up by one for each frame drawn (`race::draw_race_scene`).

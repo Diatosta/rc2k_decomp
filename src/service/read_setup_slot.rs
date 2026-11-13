@@ -21,7 +21,6 @@ pub const SLOT_COUNT: u32 = 100;
 pub const NAME_LEN: usize = 0x20;
 
 /// The car set-ups' buffers.
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct SetUps {
     /// `dword_527838`: the head of a set-up file as it is read or written.

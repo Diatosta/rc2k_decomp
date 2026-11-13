@@ -8,7 +8,6 @@
 use crate::session::PlainDword;
 
 /// What the PCX and PNG readers lay out and the glyph builder works with.
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct Decoder {
     /// `g_glyphBuilderFlags` (`dword_519118`): how the sheet is read and its glyphs built.

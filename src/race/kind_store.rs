@@ -1,9 +1,8 @@
-//! The known-kind tables (IDA 0x5C5708 .. 0x5C5CE0; phase 7, typed; the listener's figures and the mark set-up's numbers before them are the marks' settings' tail since 2026-11-02, `race::effects_settings_store`): the per-kind tables of 34 known cars (pictures, object kinds, file and icon numbers, view, wheel, hit and part flags). `#[repr(C)]` with the image's layout, over the race block's bytes. Names are readings unless IDA's.
+//! The known-kind tables (IDA 0x5C5708 .. 0x5C5CE0; phase 7, typed; the listener's figures and the mark set-up's numbers before them are the marks' settings' tail since 2026-11-02, `race::effects_settings_store`): the per-kind tables of 34 known cars (pictures, object kinds, file and icon numbers, view, wheel, hit and part flags). The fields are in the image's order. Names are readings unless IDA's.
 
 use crate::race::first_cells::dwords;
 use crate::session::Dword;
 
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct KindTables {
     /// +0xe4 (0x5C5708): `dword_5C5708`: a known kind's first picture, 0x22 kinds (`scene::known_kind_picture`).

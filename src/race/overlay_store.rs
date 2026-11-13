@@ -4,7 +4,6 @@ use crate::cells::ZeroCells;
 use crate::race::first_cells::{plain_dwords, plain_dwords_of_text};
 use crate::session::{PlainDword, PlainFloat};
 
-#[repr(C)]
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct OverlayBlock {
     /// +0x0 (0x6D150C): `g_overlayPartMiles`: the overlay parts' distances (`race::init_overlay`, `hud::draw_stage_bar`).

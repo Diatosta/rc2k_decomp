@@ -1,13 +1,11 @@
 //! The ground probe's marks (IDA 0x620458 .. 0x620474; phase 7, typed): the edge test's
 //! product (a qword) and the mark that tells the ground search how it was called.
-//! `#[repr(C)]` with the image's layout, over the race block's bytes (`GROUND_PROBE`).
 //! Plain cells: a drawing store (`session::DrawShared`), written on the game's thread between
 //! frames and read by the drawing parts (the shadow's search reads the mark) through their
 //! `workers::DrawReads`. Names are readings unless IDA's.
 
 use crate::session::PlainDword;
 
-#[repr(C)]
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct GroundProbe {
     /// +0x0 (0x620458): `dword_620458`: referenced only by dead code outside any function (0x450330 ..); the port never reaches it.

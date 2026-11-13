@@ -8,7 +8,6 @@
 use crate::cells::ZeroCells;
 use crate::session::{PlainDword, PlainFloat};
 
-#[repr(C)]
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct SceneMatrices {
     /// 0x5E9EC8: `dword_5E9EC8`: the model last set up for drawing (`scene::load_object`, `race::car_draw`).

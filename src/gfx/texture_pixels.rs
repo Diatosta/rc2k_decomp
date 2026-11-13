@@ -26,7 +26,6 @@ use crate::session::{PlainBytes, PlainDword};
 
 /// The texture pictures' grading (`gfx::texture_upload` grades a texture's colours when the
 /// settings ask for it).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct Grading {
     /// `dword_4F4A24`: 1 while the textures are being read (`reload_system_textures`).

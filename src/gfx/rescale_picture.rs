@@ -29,7 +29,6 @@ use crate::session::{PlainBytes, PlainDword};
 // ---- game data ----
 
 /// The rescaler's variables (`gfx::rescale_picture`, `gfx::rescale_to_surface`).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct Rescaler {
     /// `Rescaler.copy_memory.head`: the list the copy's memory is on (16 bytes).

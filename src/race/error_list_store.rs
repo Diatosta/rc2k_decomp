@@ -1,13 +1,11 @@
 //! The error list loaded from the course's file (IDA 0x637660 .. 0x63967C; phase 7,
 //! typed): the file's 0x2000 bytes (`race::level_init::load_error_list`) and the seven
-//! dwords after them. `#[repr(C)]` with the image's layout, over the race block's bytes
-//! (`ERROR_LIST`). Names are readings unless IDA's.
+//! dwords after them. The fields are in the image's order. Names are readings unless IDA's.
 
 use crate::cells::ZeroCells;
 
 use crate::session::{PlainBytes, PlainDword};
 
-#[repr(C)]
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct ErrorList {
     /// +0x0 (0x637660): `unk_637660`: the error list read from the file named at 0x60AE02 (`race::load_error_list`).

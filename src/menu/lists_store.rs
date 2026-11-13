@@ -1,6 +1,7 @@
 //! The menus' lists and tables, out of RAL.EXE's image (IDA 0x7594AA .. 0x75A658): the last draw list, the carousel kinds' own places, the paths and sounds the menus
 //! name, the car lists the menus walk, the best scores' titles. `#[repr(C)]` struct of atomic
-//! cells, one static. Its last field is a 22-byte string: the struct is padded to a multiple of 4.
+//! cells, one static; the lists run on past their fields into the next (and over the gaps), read
+//! by byte offset. Its last field is a 22-byte string: the struct is padded to a multiple of 4.
 
 use crate::audio::names_store::NameList;
 use crate::menu::cars_store::car_cell;

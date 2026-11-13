@@ -2,14 +2,12 @@
 //! race's settings as the race code reads them (stage, direction, car kinds, tyres, run kind,
 //! split, settings words; `race::settings_copy` fills them), the checkpoints and the best
 //! line's work, the loading bar, the mud texture's state, and the flat quads' corners,
-//! colours and vertices. `#[repr(C)]` with the image's layout, over the race block's bytes
-//! (`RACE_VARS`), as `CAR`. Names are readings unless IDA's.
+//! colours and vertices. The fields are in the image's order. Names are readings unless IDA's.
 
 use crate::cells::ZeroCells;
 
 use crate::session::{PlainDword, PlainFloat};
 
-#[repr(C)]
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct RaceVars {
     /// +0x0 (0x6235E8): a scene switch (`race::show_replay_still`; read by `physics::car_lighting`, `race::skid_laying`).

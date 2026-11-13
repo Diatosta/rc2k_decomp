@@ -7,7 +7,6 @@
 use crate::session::{PlainDword, PlainFloat};
 
 /// The rain's variables (IDA 0x8BC405 .. 0x8BDE55).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct RainState {
     /// 0x8BC405: `dword_8BC405`: 1 once a rain frame has been drawn, 0 with no drops (and after `effects::seed_noise`, which also clears it); `effects::draw_rain_streak` draws nothing while it is 0.

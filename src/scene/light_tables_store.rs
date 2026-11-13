@@ -1,14 +1,12 @@
 //! The lighting tables (IDA 0x635118 .. 0x636588): the colours the lights
 //! pick from (the light table, two lamp tables, the car light table, a third lamp table),
-//! the view window's mode and the words around it. `#[repr(C)]` with the image's layout,
-//! over the race block's bytes (`scene::owner::Scene::light_tables`). Plain cells: a drawing
+//! the view window's mode and the words around it (`scene::owner::Scene::light_tables`). Plain cells: a drawing
 //! store (`session::DrawShared`), written on the game's thread between frames and read by
 //! the drawing parts through their `workers::DrawReads`. Names are readings unless IDA's.
 
 use crate::cells::ZeroCells;
 use crate::session::{PlainBytes, PlainDword, PlainWord};
 
-#[repr(C)]
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct LightTables {
     /// +0x0 (0x635118): `g_lightTable`: 256 colours (`scene::vertex_light`, `physics::car_lighting`, `race::course_faces`).

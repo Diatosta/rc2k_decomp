@@ -1,5 +1,5 @@
 //! The sound module's variables, out of RAL.EXE's image,
-//! typed: each is a `#[repr(C)]` struct of atomic cells (the first values the image's,
+//! typed: each is a struct of atomic cells (the first values the image's,
 //! `tests::*_start_as_the_games`; the race sounds' objects and the surface sounds hold their fields
 //! with nothing between them: `sound::asm_layout` has the 1999 offsets the kept assembly's tests use), one static a piece:
 //! - `WHEEL_SURFACES` (IDA 0x4F66F1 .. 0x4F66F9): the two wheel surfaces the sound reads;
@@ -29,8 +29,7 @@ pub static WHEEL_SURFACES: GameThread<[PlainDword; 2]> =
     GameThread::new([PlainDword::new(0), PlainDword::new(0)]);
 
 /// One cue of a car's queue: eight dwords.
-#[repr(C)]
-#[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
+#[derive(rc2k_derive::Cells)]
 pub struct CueEntry {
     /// The cue's first sound.
     pub first: PlainDword,
@@ -41,8 +40,7 @@ pub struct CueEntry {
 }
 
 /// A car's queue of spoken cues, 0x210 bytes.
-#[repr(C)]
-#[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
+#[derive(rc2k_derive::Cells)]
 pub struct CueQueue {
     /// The first cue queued.
     pub first: PlainDword,
@@ -57,7 +55,6 @@ pub struct CueQueue {
 }
 
 /// One of a car's four wheel records in its sound object: five dwords.
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct EngineVoice {
     /// A share the physics sets (`physics::car_sound_state`: +0x294 of the work car, or 0); the first wheel sum (`sum_a`) scales these by 0.4.
@@ -71,7 +68,6 @@ pub struct EngineVoice {
 }
 
 /// A race sound object (0x4A8 bytes in the image): a car's sound state (the revs, the throttle, the place, the timed sound slots) as `sound::car_sounds` and the physics keep it.
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct SoundObject {
     /// Added to a sound set's first sound to pick the car's sound; negative for a computer's car (the sets are picked in `sound::revs_sound` and `surface_sound`).
@@ -444,7 +440,6 @@ pub(crate) const fn initial_object(sound_offset: u32) -> SoundObject {
 }
 
 /// The race sounds' objects and the cars they follow (IDA 0x512A10 .. 0x514F90).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct RaceSounds {
     /// `g_raceSoundObjects`: the eight objects' addresses as the image names them (IDA's); read by nothing, the objects are reached by number (`objects`).
@@ -466,7 +461,6 @@ pub struct RaceSounds {
 /// The two race sound values the input thread reads (its force-feedback effects follow the
 /// objects in use and the player count); the game's thread writes them, the rest of the race
 /// sounds stays with it alone (`RaceSounds`).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct SoundShared {
     /// `g_onePlayer`: 1 when one player races.
@@ -519,6 +513,7 @@ impl RaceSounds {
 
 /// The race sounds' clock and the constants of the placed and moving sounds (IDA 0x5124E4
 /// .. 0x512508).
+/// Laid out as the image: the recorded assembly's tests lay it over raw bytes.
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct RaceClock {
@@ -566,7 +561,6 @@ impl RaceClock {
 /// The surface sounds' constants and work (IDA 0x516358 .. 0x51639C):
 /// the factors the engine, speed, revs and throttle sounds and the
 /// wheel sounds scale by, and what `sound::surface_sounds` works out.
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct SurfaceSounds {
     /// `dword_516358`: 1 once `race::prepare_sound_tables` has run.
@@ -629,7 +623,6 @@ impl SurfaceSounds {
 }
 
 /// A timed sound's slot: six dwords (`sound::play_timed_slot`); a car's seven, its gear change's and two more, and the stage's own.
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct SoundSlot {
     /// The sound (a sample number); +0 of the slot `sound::play_timed_slot` takes.
@@ -674,7 +667,6 @@ impl TimedCells for SoundSlot {
 }
 
 /// A sound spot shared with the sound side, 0x14 bytes.
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct SharedSpot {
     /// The spot's id.
@@ -686,7 +678,6 @@ pub struct SharedSpot {
 }
 
 /// A spot kind's repeats, 8 bytes.
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct KindRepeats {
     /// Nothing reads it (a gap).
@@ -700,7 +691,6 @@ pub struct KindRepeats {
 }
 
 /// The stage sounds' state and the shared sound spots (IDA 0x51655C .. 0x5168C0).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct StageSounds {
     /// `g_surfaceSoundSet` (`dword_51655C`): a surface's sound set (an index into `off_51639C`'s pairs), 16 surfaces.
@@ -791,7 +781,6 @@ impl StageSounds {
 }
 
 /// The spot voices' pickers' work and the sound kinds per spot (IDA 0x517f40 .. 0x518080).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct SpotPicks {
     /// `g_spotPickPlaying`: the pickers' work (`sound::merge_spot_voices`): the playing voice (its number + 1, 0 none).
@@ -981,7 +970,6 @@ impl SpotPicks {
 }
 
 /// Set once the kept sound settings are applied (IDA 0x518080 .. 0x518084).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct SettingsApplied {
     /// `dword_518080`: set once the kept sound settings are applied (`sound::apply_settings`, `sound::set_up_race_sounds`).
@@ -997,7 +985,6 @@ impl SettingsApplied {
 }
 
 /// The kept sound options (IDA 0x5180f0 .. 0x518104; `g_tuneTurn`, 0x5180F8, is the audio thread's too and lives in `audio::store::AudioShared`).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct SoundOptions {
     /// +0 (0x5180F0) `dword_5180F0`: kept in `var\ral.dat` (`saves::load_options`), 1 at start; read and written by no other code, so what it sets is unknown.
@@ -1022,7 +1009,6 @@ impl SoundOptions {
 }
 
 /// The CD audio's state (IDA 0x518104 .. 0x518120).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct CdAudio {
     /// `dword_518104`: `nocdaudio` (`var\ral.cfg`).
@@ -1058,7 +1044,6 @@ impl CdAudio {
 /// speech row's `texts_store::text_key`; the original kept its address), and
 /// whether it is on (`sound::play_car_stream`, `sound::step_car_stream`, the stage
 /// view's speech).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct CarStream {
     pub place: PlainDword,  // CarStream.place

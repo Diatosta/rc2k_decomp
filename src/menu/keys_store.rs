@@ -1,12 +1,10 @@
 //! The keyboard pages' tables, out of RAL.EXE's image (IDA 0x755595 .. 0x755640): the
 //! keys the redefine page works on, the copy of a player's controls the controller pages keep, and
-//! the reserved keys. Bytes only, at addresses one past a multiple of four. A `#[repr(C)]` struct, one
-//! static.
+//! the reserved keys. Bytes only, at addresses one past a multiple of four. One static.
 
 use crate::session::{PlainBytes, with_runs};
 
 /// The keys' tables (IDA 0x755595 .. 0x755640).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct KeyTables {
     /// `g_redefinedKeys`: The copy of the player's twelve keys the page works on (`menu::redefine_keys`).

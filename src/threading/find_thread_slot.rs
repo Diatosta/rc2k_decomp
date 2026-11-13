@@ -4,8 +4,6 @@
 
 use crate::threading::thread_slot::ThreadSlot;
 
-const _: () = assert!(size_of::<ThreadSlot>() == 0x110);
-
 // ---- Rust version ----
 
 /// The number of the current thread's slot, None if it has none.

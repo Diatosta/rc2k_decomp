@@ -8,7 +8,6 @@
 use crate::session::{PlainBytes, PlainDword};
 
 /// The ground picture's name (IDA 0x934CC8 .. 0x934D6E). The offsets are from its start.
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct GroundNames {
     /// +0x0: `g_marksGround`: which of the six names (0 .. 5)
@@ -44,7 +43,6 @@ impl GroundNames {
 }
 
 /// The mask blocks' lists and pointers (IDA 0x934D6E .. 0x934E29, on an address 2 more than a multiple of 4 in the image). The offsets are from its start.
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct MaskBlocks {
     /// +0x0: `dword_934D6E`: the last mask switch seen by `swap_mask` (-1 once the masks are loaded)
@@ -148,7 +146,6 @@ impl Mask {
 }
 
 /// The picture copy's list and pointer, and the mask paths (IDA 0x934E29 .. 0x934EA8, on an address 1 more than a multiple of 4 in the image). The offsets are from its start.
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct PictureCopy {
     /// +0x0: the list the 0x80000-byte picture copy is taken on (its head starts inside `aRseRseRseRseRs`: the image's first values are "se" and zeros)

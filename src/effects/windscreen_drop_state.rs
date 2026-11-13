@@ -5,7 +5,6 @@
 use crate::session::{PlainDword, PlainFloat};
 
 /// The windscreen drops' and windscreen flakes' frame variables (`effects::windscreen_drops_*`, `effects::squares_*`, `effects::draw_plane`) (IDA 0x814710 .. 0x814770).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct WindscreenDropState {
     /// 0x814710: `dword_814710`: the live windscreen drop items counted in this frame (`effects::windscreen_drops_frame`).
@@ -42,7 +41,6 @@ impl WindscreenDropState {
 }
 
 /// The windscreen drops' work (`effects::windscreen_drops_*`, `effects::shapes`, `effects::spawn_windscreen_drop`): the drift, the curve, the radii, the axes, the sprite's corners and the windscreen drop points (IDA 0x814772 .. 0x81518A).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct WindscreenDropWork {
     /// 0x814772: `flt_814772`, `flt_814776`: the drift at the item's cell (`effects::windscreen_drops_frame`).

@@ -5,16 +5,23 @@
 //! (`menu::single_rally` and four more).
 use crate::cells::Store;
 use crate::menu::owner::Menus;
-use crate::menu::results_store::Results;
-
-const RUN_DWORDS: usize = 28;
 
 pub fn clear_event_state(menus: &Menus) -> Result<(), crate::errors::BadInput> {
     menus.screens.event.stages_done.store(0, &[0; 4])?;
     menus.play.results.round.store(0, &[0; 4])?;
-    menus.play.results.store(
-        std::mem::offset_of!(Results, time_bonus),
-        &[0; RUN_DWORDS * 4],
-    )?;
+    let results = &menus.play.results;
+    for run in [
+        &results.time_bonus,
+        &results.positions,
+        &results.points,
+        &results.extra,
+        &results.sums,
+        &results.before,
+        &results.totals,
+    ] {
+        for cell in run {
+            cell.set(0);
+        }
+    }
     Ok(())
 }

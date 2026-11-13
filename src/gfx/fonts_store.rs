@@ -15,7 +15,6 @@ use crate::session::PlainDword;
 use rc2k_core::text::Font;
 
 /// The fonts, their palettes and glyph tables (IDA 0x51DE30 .. 0x51E384).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct FontBlock {
     /// 0x51DE30: `stru_51DE50` ..: the four fonts the menus and the race's text use (the third is the race's, `race::frame_text`).

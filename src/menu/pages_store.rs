@@ -1,12 +1,10 @@
 //! The front end's list pages and its yes / no answer, out of RAL.EXE's image (IDA 0x75523C ..
 //! 0x755258): the pages the save, scores, set-up and replay lists are on, the answer
-//! the yes / no screens leave, and the two championship switches the event sets. A `#[repr(C)]` struct
-//! with the image's layout, one static.
+//! the yes / no screens leave, and the two championship switches the event sets. One static.
 
 use crate::session::PlainDword;
 
 /// The list pages and the answer (IDA 0x75523C .. 0x755258).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct MenuPages {
     /// `g_savePage`: The page the list of saved games is on (`menu::item_actions`, `menu::name_lists`).

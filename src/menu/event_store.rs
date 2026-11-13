@@ -1,11 +1,10 @@
 //! The event's state, out of RAL.EXE's image (IDA 0x7558C4 .. 0x7559A4): the stage
 //! chosen, the classes, the times and flags of the event's players, the service, the event's
-//! type, kind and sections, the current player and the car shown. A `#[repr(C)]` struct, one static.
+//! type, kind and sections, the current player and the car shown. One static.
 
 use crate::session::{PlainDword, PlainFlag};
 
 /// The event's state (IDA 0x7558C4 .. 0x7559A4).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct Event {
     /// +0 (0x7558C4) `dword_7558C4`: the controller (0 the keyboard, n the input device n - 1) of the player picked on the controller page, written by `screens::pick_player_n` (player +0x2C); read by no code.

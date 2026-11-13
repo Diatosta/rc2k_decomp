@@ -423,7 +423,6 @@ pub fn set_up_blocks(
 }
 
 /// The block lines' work (`lines`) (IDA 0x93C738 .. 0x93C8C0).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct LinesWork {
     /// 0x93C738: `g_marksBlockStart`: the eight values a block's +0x90 .. starts with

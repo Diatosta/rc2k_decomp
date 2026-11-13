@@ -5,7 +5,6 @@
 
 use crate::session::PlainDword;
 
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct ViewState {
     /// `g_drawnCar` (0x60627C): the car being drawn, each view's own.

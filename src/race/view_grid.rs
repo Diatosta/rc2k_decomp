@@ -13,7 +13,6 @@ use crate::cells::ZeroCells;
 use crate::errors::BadInput;
 use crate::session::PlainDword;
 
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct ViewGrid {
     /// The course records by cell (`g_courseGrid`), 0x0FFFFFFF where none; bit 31 a far

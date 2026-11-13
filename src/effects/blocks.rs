@@ -171,7 +171,6 @@ pub fn reset_settings_blocks(effects: &crate::effects::owner::Effects) -> Result
 }
 
 /// The places' list, block and first floats (IDA 0x8DB570 .. 0x8DB5C0).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct PlacesBlock {
     /// 0x8DB570: `stru_8DB570` (`g_marksPlacesList`): the list the places' block is taken on (16 bytes).
@@ -198,7 +197,6 @@ impl PlacesBlock {
 }
 
 /// The links' list and block (IDA 0x9206F0 .. 0x920734).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct MarkLinks {
     /// 0x9206F0: `stru_9206F0` (`g_marksLinksList`): the list the links' block is taken on (16 bytes).
@@ -220,7 +218,6 @@ impl MarkLinks {
 /// A corner's slope record (0x24 bytes): the slope of its sides and its eight scaled values
 /// (`effects::scale_corners`; `effects::draw_cell_sprite` scales a sprite by the slope, and
 /// `effects::set_quad_uvs` reads record 0x58's eight values as four texture places).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct Slope {
     /// +0: |+0xA - +2| over |+4 - +0| of the corner record, as a float.
@@ -239,7 +236,6 @@ impl Slope {
 }
 
 /// The corners' slopes (`g_marksCornerSlopes`: 0x100 records of 0x24 bytes) (IDA 0x920734 .. 0x922B34).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct CornerSlopes {
     /// 0x920734: `g_marksCornerSlopes`: one record for each corner record.
@@ -287,7 +283,6 @@ impl MarkCorners {
 }
 
 /// The particle ring's pool and the burst code's scratch (IDA 0x93A580 .. 0x93A5F0).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct RingPool {
     /// 0x93A580: `stru_93A580` (`g_marksRingList`): a `memory::List` (head, total, cursor, remaining)

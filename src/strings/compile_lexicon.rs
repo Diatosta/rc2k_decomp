@@ -46,7 +46,6 @@ const TOTAL_SIZE: usize = 0xC40;
 const WORK_FLAGS: u32 = 0x1100_0000;
 
 /// The lexicon compiler's memory (the glyph builder takes the same work memory).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct LexiconMemory {
     /// `dword_519554`: the memory's kilobytes (`imageheapsize`, a `var\ral.cfg` setting;

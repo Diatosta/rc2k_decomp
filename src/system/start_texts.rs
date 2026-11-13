@@ -1,11 +1,10 @@
 //! The program's own texts (version, copyright, window and class names), out of RAL.EXE's
-//! image. `#[repr(C)]` struct of cells,
+//! image. Struct of cells,
 //! first values the image's (`tests`).
 
 use crate::session::{PlainByte, PlainBytes, with_runs};
 
 /// The version, copyright, window and class texts (IDA 0x4E0000 ..).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct StartTexts {
     /// 0x4E0000: `aVerRally530482`: "$VER: Rally 5.30 (4.8.2000)" (`system::read_command_line`, `install::check_at_start`).

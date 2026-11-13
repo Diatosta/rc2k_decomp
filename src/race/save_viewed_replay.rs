@@ -155,34 +155,19 @@ fn undo_place(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::cells::{ByteView, CellRun};
 
-    /// The place the byte-offset lookup gave: past the table, the cells that follow it.
-    fn undo_place_run_on(buffers: &ViewerBuffers, n: usize) -> Option<&crate::session::PlainDword> {
-        buffers.undo_places.get(n).or_else(|| {
-            let field = core::mem::offset_of!(ViewerBuffers, undo_places);
-            let offset = field.wrapping_add(((n as u32).wrapping_mul(4)) as usize);
-            (offset < core::mem::size_of::<ViewerBuffers>())
-                .then(|| buffers.cell_run(offset))
-                .and_then(|(start, run)| match run {
-                    CellRun::PlainDword(cells) if (offset - start).is_multiple_of(4) => {
-                        cells.get((offset - start) / 4)
-                    }
-                    _ => None,
-                })
-        })
-    }
-
-    /// Every place the viewer's block counts (up to 0x708 blocks, two a block) ask for is the
-    /// cell the byte-offset lookup found.
+    /// Every place the viewer's block counts (up to 0x708 blocks, two a block) ask for is a
+    /// cell of the table, and the first past the 0xE10 places is refused.
     #[test]
-    fn places_as_the_old_lookup() {
+    fn places_cover_the_blocks() {
         let buffers = crate::race::owner::race().viewer_buffers();
         for n in 0..2 * rc2k_core::race::replay::MOST_BLOCKS as usize {
-            let old = undo_place_run_on(buffers, n).map(std::ptr::from_ref);
             let new = undo_place(buffers, n).ok().map(std::ptr::from_ref);
-            assert!(new.is_some());
-            assert_eq!(new, old, "{n}");
+            assert_eq!(
+                new,
+                buffers.undo_places.get(n).map(std::ptr::from_ref),
+                "{n}"
+            );
         }
         assert!(undo_place(buffers, 0xE10).is_err());
     }

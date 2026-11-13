@@ -3,7 +3,6 @@
 use crate::session::PlainDword;
 
 /// Whether a 3D card was found.
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct Cards {
     /// `g_primary3dCard` (`dword_5AB4AC`): a 3D primary card.

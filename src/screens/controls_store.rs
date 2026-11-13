@@ -1,10 +1,9 @@
 //! The controller screen's variables, out of RAL.EXE's image (IDA 0x755170 .. 0x755224): the history of the polls the direction learner keeps, the binding being
-//! learnt, and the names the bindings are drawn with. A `#[repr(C)]` struct of plain cells, one static.
+//! learnt, and the names the bindings are drawn with. A struct of plain cells, one static.
 
 use crate::session::{PlainDword, PlainWord};
 
 /// The controller screen's variables (IDA 0x755170 .. 0x755224).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct ControlsScreen {
     /// Unreferenced (IDA 0X755178): 1 .. 12 and a -1.

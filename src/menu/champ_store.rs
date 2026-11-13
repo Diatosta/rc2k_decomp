@@ -6,7 +6,6 @@
 use crate::session::PlainDword;
 
 /// The rows, the key clock and the tables' addresses (IDA 0x7556B4 .. 0x755784).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct ChampView {
     /// `dword_7556B4`: The rows (players or drivers) the results and standings pages show.

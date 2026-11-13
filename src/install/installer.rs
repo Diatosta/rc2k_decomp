@@ -23,7 +23,6 @@ use crate::place::BytePlace;
 
 /// The texts the installer (and `files::resolve_path`) use. Atomic cells: the audio
 /// thread's file calls resolve paths against `base_b`.
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct InstallTexts {
     /// `unk_5295B4`: base directory B, an empty text.

@@ -211,7 +211,6 @@ pub fn emit_wheel_fade_particle(
 }
 
 /// Kind 6's emitter variables (`emit_wheel_fade_particle`) (IDA 0x93A41A .. 0x93A462).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct WheelFadeSet {
     /// 0x93A41A: `flt_93A41A` .. `flt_93A426`: the rate's factors

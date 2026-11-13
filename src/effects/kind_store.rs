@@ -15,7 +15,6 @@
 use crate::session::{PlainDword, PlainFloat};
 
 /// A quad's work area, the image's layout (IDA 0xF8 bytes, three copies: `QUAD_1`, `QUAD_2`, `QUAD_3`). The offsets are from its start.
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct QuadWork {
     /// +0x0: the quad's place (z, y, x as `kind_values` writes it, a reading): the kind's two triples blended (set 1 `flt_9331B4`, `flt_9331B8` ..; set 2 `flt_9331B4`, `flt_9331B8` ..; plane `flt_9331B4`, `flt_9331B8` ..)
@@ -498,7 +497,6 @@ pub static TABLES_2: KindTables = KindTables {
 };
 
 /// Set 1's two outs after its quad (IDA 0x933E70 .. 0x933E7C).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct KindExtras1 {
     /// +0x0: the kind's `extra` times `extra_k` (`flt_933E70`), the lift along the up
@@ -518,7 +516,6 @@ impl KindExtras1 {
 }
 
 /// Set 2's out after its quad (IDA 0x934B78 .. 0x934B7C).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct KindExtra2 {
     /// +0x0: the kind's `extra` times `extra_k` (`flt_934B78`), the lift along the up

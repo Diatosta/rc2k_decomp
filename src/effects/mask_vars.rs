@@ -3,7 +3,6 @@
 use crate::session::{PlainBytes, PlainDword, PlainFloat, PlainWord};
 
 /// One of the masks' shapes (IDA `g_marksShapesA` / `B`, 0x24 bytes).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct Shape {
     /// 0x0: the step number of the shape's eased turn: `pick_shapes` sets it to the absolute value of the picks table's entry; `turn_all_shapes` passes it (and one more) to the cosine easing between the set's turn angle and the work step; `expire_windscreen_flakes` reads its low byte as the square-ends test input. Probable: indirect, from these uses.
@@ -21,7 +20,6 @@ pub struct Shape {
 }
 
 /// The masks' variables (IDA 0x82E342 .. 0x844602): the work block's list, the corner tables, the shapes, the rasteriser's scratch, the runs, the masks and the ring angles.
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct MaskVars {
     /// 0x82E342: `g_marksSpansTotal`: the spans made

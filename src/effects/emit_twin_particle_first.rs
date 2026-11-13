@@ -174,7 +174,6 @@ pub fn emit_twin(
 }
 
 /// The twin car emitters' shared work (`emit_twin_particle_first`, `emit_twin_particle_second`) (IDA 0x93A1B6 .. 0x93A1D6).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct TwinState {
     /// 0x93A1B6: `flt_93A1B6` .. `flt_93A1BE`: the point the entry's place starts at (turned and placed by the car's matrix)
@@ -205,7 +204,6 @@ impl TwinState {
 }
 
 /// One twin car emitter's variables (`emit_twin_particle_first`'s at 0x93A48A, `emit_twin_particle_second`'s at 0x93A4B2) (IDA 0x93A48A .. 0x93A4B2).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct TwinTuning {
     /// 0x93A48A: the chance's random

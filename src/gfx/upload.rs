@@ -7,7 +7,6 @@ use crate::session::PlainDword;
 
 /// A DirectDraw surface description (DDSURFACEDESC, 0x6C bytes), filled by a surface's
 /// `Lock`; the game's code reads its fields by their DirectDraw offsets.
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct SurfaceDesc {
     /// `dwSize` (`Upload.description.size`).
@@ -34,7 +33,6 @@ pub struct SurfaceDesc {
 }
 
 /// The upload's variables.
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct Upload {
     /// `Upload.description.size`: the description a `Lock` fills.

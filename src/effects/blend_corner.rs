@@ -34,7 +34,6 @@ pub fn blend_corner(
 }
 
 /// The corner blend's factor (IDA 0x93C6C8 .. 0x93C6CC).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct BlendWork {
     /// 0x93C6C8: `flt_93C6C8`: the blend factor (`blend_corner`'s)

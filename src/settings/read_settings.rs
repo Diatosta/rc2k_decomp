@@ -10,7 +10,7 @@
 
 use crate::errors::BadInput;
 use crate::owners::Owners;
-use crate::session::{Cell32, Loose};
+use crate::session::Cell32;
 use crate::settings::read_text::read_text;
 use crate::strings::same_text::case_table;
 
@@ -23,8 +23,6 @@ use crate::strings::same_text::case_table;
 enum Target {
     /// A whole aligned dword of a store (`dword!`).
     Dword(fn(Owners<'static>) -> &'static dyn Cell32),
-    /// A dword at an address that is not a multiple of 4 (`loose!`).
-    Loose(fn(Owners<'static>) -> &'static Loose),
     /// A dword that straddles two cells of its store's untyped tail: the store's own
     /// setter writes the four bytes (`race::viewer_screen_store`'s).
     Unaligned(fn(Owners<'static>, u32)),
@@ -35,7 +33,6 @@ impl Target {
     fn set(self, o: Owners<'static>, number: u32) {
         match self {
             Target::Dword(cell) => cell(o).set_bits(number),
-            Target::Loose(cell) => cell(o).set(number),
             Target::Unaligned(set) => set(o, number),
         }
     }
@@ -47,18 +44,6 @@ macro_rules! dword {
     ($o:ident => $($path:tt)+) => {
         Target::Dword({
             fn cell($o: Owners<'static>) -> &'static dyn Cell32 {
-                &$($path)+
-            }
-            cell
-        })
-    };
-}
-
-/// `loose!(o => o.owner.field)`: an unaligned dword as a `Target`.
-macro_rules! loose {
-    ($o:ident => $($path:tt)+) => {
-        Target::Loose({
-            fn cell($o: Owners<'static>) -> &'static Loose {
                 &$($path)+
             }
             cell
@@ -133,7 +118,7 @@ const ENTRIES: [(&[u8], u32, Target); 77] = [
     (
         b"ignoreds3d",
         0x506B42,
-        loose!(o => o.audio.state.no_listener),
+        dword!(o => o.audio.state.no_listener),
     ),
     (
         b"ignoredsv",
@@ -728,7 +713,6 @@ mod tests {
             let name = String::from_utf8_lossy(key);
             let cell: *const () = match target {
                 Target::Dword(cell) => std::ptr::from_ref(cell(Owners::the())).cast(),
-                Target::Loose(cell) => std::ptr::from_ref(cell(Owners::the())).cast(),
                 // Their cells are bytes of a tail: checked by writing, in the test below.
                 Target::Unaligned(_) => continue,
             };

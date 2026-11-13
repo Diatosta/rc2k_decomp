@@ -1,12 +1,11 @@
 //! The savegame preview's variables, with the image's layout (IDA 0x755144 .. 0x755170):
 //! the `usesavegamekeys` setting, the slot shown and the saved game's figures the preview
-//! and details screens draw. A `#[repr(C)]` struct of plain cells (only the game thread
-//! reaches it) with the image's layout, one static.
+//! and details screens draw. A struct of plain cells (only the game thread
+//! reaches it), one static.
 
 use crate::session::PlainDword;
 
 /// The savegame preview (IDA 0x755144 .. 0x755170).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct SavegamePreview {
     /// `dword_755144`: the `usesavegamekeys` setting of `var\ral.cfg`; 0 lets

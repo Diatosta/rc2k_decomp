@@ -297,8 +297,7 @@ pub fn load_in_game(o: Owners<'static>) -> Result<(), Refused> {
     load_game_data(o, &mut |call| in_game(o, call))
 }
 
-/// How many times the game was run (IDA 0x518BB0 .. 0x518BB4, the image's layout).
-#[repr(C)]
+/// How many times the game was run (IDA 0x518BB0 .. 0x518BB4).
 #[derive(rc2k_derive::Cells)]
 pub struct RunCount {
     /// 0x518BB0: `g_runCount`: the game's runs counted (`system::load_game_data`; the save file keeps it).

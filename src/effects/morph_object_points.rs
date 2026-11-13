@@ -159,7 +159,6 @@ pub fn morph_object_points(
 }
 
 /// The object morph's work (IDA 0x93C6CC .. 0x93C6F4).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct MorphWork {
     /// 0x93C6CC: `g_marksTaken`: the block last taken for a settings block's points (`lines::set_up_blocks`)

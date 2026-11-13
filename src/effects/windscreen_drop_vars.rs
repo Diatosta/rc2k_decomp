@@ -3,7 +3,6 @@
 use crate::session::{PlainBytes, PlainDword, PlainFloat, PlainInt};
 
 /// The windscreen drops' variables (IDA 0x816192 .. 0x82E342).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct WindscreenDropVars {
     /// 0x816192: `flt_816192` .. `flt_81619E`: four floats `set_up_windscreen_drops` scales once

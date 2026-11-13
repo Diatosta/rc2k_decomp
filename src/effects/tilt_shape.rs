@@ -25,7 +25,6 @@ pub fn tilt_shape(drops: &WindscreenDrops) {
 }
 
 /// The shape tilt and the first view point (`effects::tilt_shape`, `effects::copy_first_point`, `effects::edges`) (IDA 0x811BC3 .. 0x811BEB).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct ShapeTilt {
     /// 0x811BC3: `g_marksShapeTilt`: the kind's float times 0.0175.

@@ -1,12 +1,11 @@
 //! The players' records, out of RAL.EXE's image (IDA 0x755A4C .. 0x75648C): the four
 //! `Player` records of 0x28C bytes (`g_player1` .. `g_player4`) and `g_players`, the table of their
-//! addresses (IDA's, as the image has them; nothing reads them). A `#[repr(C)]` struct, one static. (The cars follow in `CarTable`.)
+//! addresses (IDA's, as the image has them; nothing reads them). One static. (The cars follow in `CarTable`.)
 
 use crate::session::{PlainDword, Shared, with_runs};
 use rc2k_core::menu::player::Player;
 
 /// The four players and their table (IDA 0x755A4C .. 0x75648C).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct PlayerTable {
     /// `g_player1 .. g_player4`: The players' records (settings, and the state of each player's car).

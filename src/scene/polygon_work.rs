@@ -12,7 +12,6 @@
 
 use crate::session::{PlainDword, PlainFloat};
 
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct PolygonWork {
     /// `g_polygonNextRecord`.
@@ -99,7 +98,6 @@ pub struct PolygonWork {
 /// its place on the screen as whole numbers and as floats' bits (0x6415C8, 0x6415D0), and the
 /// view's value fetched from its block (0x6415D8, `race::fetch_view_value`), which scales the
 /// fog with the size.
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct ViewSun {
     pub on_screen: PlainDword,

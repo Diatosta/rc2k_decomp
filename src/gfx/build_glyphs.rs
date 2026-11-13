@@ -47,7 +47,6 @@ use crate::session::PlainDword;
 // ---- game data ----
 
 /// The sheet and table being built.
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct SheetVars {
     /// `dword_519598`: the sheet's table, and

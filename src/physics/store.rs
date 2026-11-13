@@ -1,6 +1,6 @@
 //! The damage model's figures, out of RAL.EXE's image (IDA 0x75B340 .. 0x75B940; phase 7,
 //! typed): shares, thresholds, the work floats, the tables of four (x0, y0, x1, y1)
-//! `physics::flow::table_lerp` reads, and the rates. `#[repr(C)]` struct of atomic cells, one
+//! `physics::flow::table_lerp` reads, and the rates. Atomic cells, one
 //! static. What each figure is, is a reading from how `physics::damage_factors`, `damage_wear`, `damage_gauges`
 //! and `rate_damage` use it (`physics/damage_model.rs`); the doc of each says what.
 

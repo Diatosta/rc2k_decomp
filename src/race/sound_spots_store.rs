@@ -4,7 +4,6 @@ use crate::cells::ZeroCells;
 
 use crate::session::{PlainDword, PlainFloat};
 
-#[repr(C)]
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct SoundSpotBlock {
     /// +0x0 (0x6D18C8): `g_workVectorLength` (a float, stored by `fst` / `movss`).

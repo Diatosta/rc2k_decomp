@@ -1,7 +1,7 @@
 //! The replay's work (IDA 0x719AFC .. 0x719FD8; phase 7, typed): the car header (stage, mode, players, car kinds, start place, seed, game-over
 //! flags, co-driver sexes), the sealed header part (0x100 bytes, some fields unaligned), the patch
 //! switches and the co-driver's door kept in the header, and the replay cameras' wishes and last
-//! draw frames. `#[repr(C)]` with the image's layout, over the race block's bytes. Names are readings unless IDA's.
+//! draw frames. The fields are in the image's order. Names are readings unless IDA's.
 
 use crate::cells::ZeroCells;
 
@@ -9,7 +9,6 @@ use crate::cells::ZeroCells;
 use crate::race::owner::race;
 use crate::session::PlainDword;
 
-#[repr(C)]
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct ReplayWork {
     /// +0x0 (0x719AFC): only pointed to by data offsets in the table at 0x5ECBC6 .. (a pointer table nothing ported reads).

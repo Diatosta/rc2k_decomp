@@ -2,13 +2,11 @@
 //! face being drawn (corners, textures, orders, coordinates, colours and lights by corner,
 //! `race::course_faces`), the polygon mode, the lamps, the views (which are on, their cars and
 //! blocks, the drawn view), the race's cars and players, the frame clock, the depth and sort
-//! counts. `#[repr(C)]` with the image's layout, over the race block's bytes (`RACE_VIEW`), as
-//! `CAR`. Names are readings unless IDA's.
+//! counts. The fields are in the image's order. Names are readings unless IDA's.
 
 use crate::cells::ZeroCells;
 use crate::session::{PlainDword, PlainFloat};
 
-#[repr(C)]
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct RaceView {
     /// +0x0 (0x63D9B8): `g_reflectionsKept` (`scene::cached_reflection_coordinates`); now each view's (`race::face_work::FaceWork`); unused.
@@ -285,21 +283,18 @@ impl RaceView {
 mod surface_kind_tests {
     use super::*;
 
-    /// Every index to the end of the record gives what the byte-offset read gave (the first
-    /// past it is refused as before), as the stage's byte indexes run 0 ..= 255.
+    /// The four kinds are read by index, and an index far past the record is refused.
     #[test]
-    fn surface_kind_runs_on_as_the_old_read() {
+    fn surface_kind_reads_the_kinds_and_refuses_far_past_them() {
         let view = RaceView::new();
-        let room =
-            (core::mem::size_of::<RaceView>() - core::mem::offset_of!(RaceView, surface_kinds)) / 4;
-        for n in 0..room {
-            crate::session::write_on_in(&view, &view.surface_kinds, n, 0x2000 + n as u32, "t")
-                .unwrap();
+        for (n, cell) in view.surface_kinds.iter().enumerate() {
+            cell.set(0x2000 + n as u32);
+            assert_eq!(
+                view.surface_kind(n).ok(),
+                Some(0x2000 + n as u32),
+                "index {n}"
+            );
         }
-        for n in 0..256 {
-            let old = crate::session::read_on_in(&view, &view.surface_kinds, n, "t");
-            assert_eq!(old.is_ok(), n < room, "index {n}");
-            assert_eq!(view.surface_kind(n).ok(), old.ok(), "index {n}");
-        }
+        assert!(view.surface_kind(1 << 20).is_err());
     }
 }

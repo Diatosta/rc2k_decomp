@@ -8,7 +8,6 @@
 
 use crate::session::{PlainDword, PlainFloat};
 
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct ViewWindow {
     /// The window's offsets x, y (`scene::set_view_window`; the menus and `race::frame_views` set them).

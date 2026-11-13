@@ -1,9 +1,8 @@
-//! The camera's work and the car parts' axle figures (IDA 0x608B08 .. 0x608CB4): the lights file's path text, the two views' figures (heading, roll, pitch, turns, offsets, points, shares) and the blended camera offset and turn, the pitch ease limits, the ground probe counts, the axle figures, the listener's points, and the car draw flags. `#[repr(C)]`: the derive reads the fields in order. The stage prefs buffer `g_stagePrefs` (0x608CB4 ..) is a separate piece.
+//! The camera's work and the car parts' axle figures (IDA 0x608B08 .. 0x608CB4): the lights file's path text, the two views' figures (heading, roll, pitch, turns, offsets, points, shares) and the blended camera offset and turn, the pitch ease limits, the ground probe counts, the axle figures, the listener's points, and the car draw flags. The stage prefs buffer `g_stagePrefs` (0x608CB4 ..) is a separate piece.
 //! Names are readings unless IDA's.
 
 use crate::session::{PlainDword, PlainFloat, PlainInt};
 
-#[repr(C)]
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct CameraWork {
     /// (0x608B08): the text `files\s\data\ldata` (19 bytes + pad, read in place; `race::stage_prefs`).

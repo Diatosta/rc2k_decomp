@@ -1,13 +1,10 @@
 //! The object and picture loaders' file numbers (IDA 0x60AD20 .. 0x60AF0C): the
 //! .ro3 / .lwo name numbers and paths, the picture number and texture. The path strings between
-//! them stay unknown_* bytes, reached by address. `#[repr(C)]` with the image's layout over the
-//! race block's bytes.
-//! Names are readings unless IDA's.
+//! them stay unknown_* bytes, reached by address. Names are readings unless IDA's.
 
 use crate::cells::ZeroCells;
 use crate::session::PlainDword;
 
-#[repr(C)]
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct ObjectFileNumbers {
     /// +0x0 (0x60AD20): the dword before the file numbers; nothing reads or writes it (a gap).

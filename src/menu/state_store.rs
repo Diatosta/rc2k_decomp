@@ -1,5 +1,5 @@
 //! The menus' working variables, out of RAL.EXE's image (IDA 0x75A658 .. 0x75ACCC): the carousel, the service area's boxes, the standings' and class figures, the
-//! fade, the inspection's figures and the four setup items. `#[repr(C)]` structs of atomic
+//! fade, the inspection's figures and the four setup items. Structs of atomic
 //! cells, one static.
 
 use crate::menu::lists_store::CarList;
@@ -7,7 +7,6 @@ use crate::session::{PlainDword, PlainFlag, PlainFloat};
 
 /// One of the service area's four setup items (gear ratio, tyre, ride height, suspension
 /// stiffness; IDA 0x75AC90 on, 12 bytes each).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct SetupItem {
     /// The value being chosen (`service::step_*_up` / `_down`).
@@ -20,7 +19,6 @@ pub struct SetupItem {
 
 /// The menu carousel (IDA 0x75A658 .. 0x75AA90): the entry shown, the list, the turn,
 /// the place of its entries, their kinds, and the menu's own numbers.
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct Carousel {
     /// `MenuState.carousel.kind`: the kind of the entry being drawn.
@@ -68,7 +66,6 @@ impl Carousel {
 }
 
 /// The service area's boxes and the inspection's fade (IDA 0x75AA90 .. 0x75AAA8).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct ServiceUi {
     /// `MenuState.service_ui.box_colour_a`: the boxes' see-through value (`screens::draw_service_boxes`).
@@ -86,7 +83,6 @@ pub struct ServiceUi {
 }
 
 /// The carousel's pictures (IDA 0x75AAA8 .. 0x75AAD8): four wanted, four shown, four held.
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct CarouselPictures {
     /// `MenuState.carousel_pictures.wanted[0]` ..: the pictures wanted (`scene::draw_car_object`).
@@ -99,7 +95,6 @@ pub struct CarouselPictures {
 
 /// The menus' working variables (IDA 0x75AAD8 .. 0x75AB58): the review kind, the class
 /// times `menu::calc_cpu_times` makes, the fade, the standings' switches.
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct Menus {
     /// `MenuState.menus.review_kind`: the review option screens' kind (`sensiblesaving` in `ral.cfg`).
@@ -147,7 +142,6 @@ pub struct Menus {
 }
 
 /// The driver figures and the service area's variables (IDA 0x75AB58 .. 0x75ACCC).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct DriverStats {
     /// `MenuState.driver_stats.steps`: the steps a flat pair is divided by (`menu::driver_stats`).
@@ -185,7 +179,6 @@ pub struct DriverStats {
 }
 
 /// The menus' working variables.
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct MenuState {
     /// The menu carousel (IDA 0x75A658 .. 0x75AA90): the entry shown, the list, the turn,

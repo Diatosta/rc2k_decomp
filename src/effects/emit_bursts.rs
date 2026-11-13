@@ -289,7 +289,6 @@ pub fn emit_bursts_with(
 }
 
 /// One burst emitter's factors and randoms (`emit_bursts`' at 0x93A3D2, `emit_bursts_kind_3`'s at 0x93A3F6).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct BurstTuning {
     /// 0x93A3D2: the strength's factor

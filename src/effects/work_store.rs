@@ -2,7 +2,6 @@
 
 use crate::session::{PlainDword, PlainFloat};
 
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct MarksWork {
     /// `g_fpuStatus`: the last compare's C0 .. C2 (`scene::vector3`, the marks' compares).

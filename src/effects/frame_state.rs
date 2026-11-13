@@ -6,7 +6,6 @@
 use crate::session::{PlainDword, PlainFloat};
 
 /// The marks' sprites' and profiles' work places (IDA 0x8EB871 .. 0x8EB971).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct DrawWork {
     /// 0x8EB871: `flt_8EB871` ..: the profile tables' running values (`effects::make_profiles`; as bits).
@@ -83,7 +82,6 @@ impl DrawWork {
 }
 
 /// The marks' view heading, step and ribbon work (IDA 0x8F3975 .. 0x8F39CD).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct ViewVars {
     /// 0x8F3975: `g_marksViewHeading`: the view's heading (`effects::view_heading`).
@@ -126,7 +124,6 @@ impl ViewVars {
 }
 
 /// The marks' frame: profile mark and steps, turned points, view, quads and flare (IDA 0x91FF3E .. 0x91FFE2).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct DrawFrame {
     /// 0x91FF3E: `g_marksProfilesDone`: 0, or where `effects::make_profiles` goes on.
@@ -214,7 +211,6 @@ impl DrawFrame {
 }
 
 /// The lens flare's unit way and its parts' cells and sizes (IDA 0x92051E .. 0x9205F6).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct FlareParts {
     /// 0x92051E: `flt_92051E` .. `flt_920526`: the lens flare's unit way (`effects::draw_lens_flare`).
@@ -297,7 +293,6 @@ impl FlareParts {
 }
 
 /// The lens flare's constants (IDA 0x9206D2 .. 0x9206E6).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct FlareScales {
     /// 0x9206D2: `flt_9206D2`, `flt_9206D6`: the lens flare's fade constants (`effects::draw_lens_flare`).

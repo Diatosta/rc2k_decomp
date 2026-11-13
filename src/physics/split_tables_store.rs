@@ -2,12 +2,10 @@
 //! replay still flag, the timer factor, the checkpoint list of the splits, the stage's car
 //! numbers, the split count and the dwords after it, the stage's car total and extra time,
 //! the kind factor, the kept split times and the 90 rivals' tables (names, times, cars, times
-//! scaled to a split). `#[repr(C)]` with the image's layout, over the race block's bytes
-//! (`SPLIT_TABLES`). Names are readings unless IDA's.
+//! scaled to a split). Names are readings unless IDA's.
 
 use crate::session::{PlainDword, PlainFloat};
 
-#[repr(C)]
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct SplitTables {
     /// +0x0 (0x60101C): `dword_60101C`: the arcade kind (1 or 2: `race::race_end`, `race::credits_race`, `race::race_cars`).

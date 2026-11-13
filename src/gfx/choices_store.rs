@@ -1,7 +1,7 @@
 //! The graphics settings page's choices (the screen mode chosen and the modes to choose from, and
 //! the switches the page's items copy), out of RAL.EXE's image.
-//! Placed in a file of its own beside the graphics module's stores. `#[repr(C)]` struct of
-//! atomic cells with the image's layout, first values the image's (`tests`).
+//! Placed in a file of its own beside the graphics module's stores. Struct of
+//! atomic cells, first values the image's (`tests`).
 
 use crate::errors::BadInput;
 use crate::session::{PlainBytes, PlainDword, Run};
@@ -9,7 +9,6 @@ use crate::session::{PlainBytes, PlainDword, Run};
 /// The graphics page's choices (IDA 0x4F50C0 .. 0x4F51F0, the image's layout; the rows' texts
 /// in the language file: `tokAVPPrimary` / `tokAVPSecondary`, `tokAVPDoubleBuffer` /
 /// `tokAVPTripleBuffer`, `tokOff` / `tokOn`).
-#[repr(C, align(16))]
 #[derive(rc2k_derive::Cells)]
 pub struct ScreenChoices {
     /// 0x4F50C0: `unk_4F50C0`: 1 once the choices are made (`gfx::screen_mode_choices`).
@@ -42,7 +41,6 @@ pub struct ScreenChoices {
 }
 
 /// One resolution of the list (`ScreenChoices.list.modes[0].width`, 0x10 bytes).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct ScreenMode {
     /// +0.
@@ -56,7 +54,6 @@ pub struct ScreenMode {
 }
 
 /// The resolutions' list: room for 16 and 8 bytes more.
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct ModeList {
     pub modes: [ScreenMode; 16],
@@ -118,15 +115,10 @@ impl ScreenChoices {
 mod tests {
     use super::*;
 
-    /// The old byte read of the list, kept to check the read by field.
-    fn old_dword(list: &ModeList, place: u32, index: usize) -> Result<u32, BadInput> {
-        crate::cells::load_value(list, (16 * place + 4 * index as u32) as usize)
-    }
-
-    /// Every place and index the byte read allowed (to the end of the list) reads the same,
-    /// and the first past it is refused by both.
+    /// Every place and index to the end of the list reads the field it names, then the spare
+    /// bytes; the first past it is refused.
     #[test]
-    fn dword_reads_as_the_byte_read() {
+    fn dwords_read_the_fields() {
         let list = ScreenChoices::new().list;
         for (k, m) in list.modes.iter().enumerate() {
             for (i, v) in [&m.width, &m.height, &m.figure, &m.mode]
@@ -138,15 +130,14 @@ mod tests {
         }
         list.spare.set_u32(0, 0xAAAA_0001);
         list.spare.set_u32(4, 0xAAAA_0002);
-        for place in 0..20 {
+        for place in 0..16 {
             for index in 0..4 {
-                assert_eq!(
-                    list.dword(place, index, "t").ok(),
-                    old_dword(&list, place, index).ok(),
-                    "place {place} index {index}"
-                );
+                let want = 0x100 * place + index + 1;
+                assert_eq!(list.dword(place, index as usize, "t").ok(), Some(want));
             }
         }
+        assert_eq!(list.dword(16, 0, "t").ok(), Some(0xAAAA_0001));
+        assert_eq!(list.dword(16, 1, "t").ok(), Some(0xAAAA_0002));
         assert!(list.dword(16, 2, "t").is_err());
     }
 }

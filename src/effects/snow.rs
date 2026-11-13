@@ -8,7 +8,6 @@
 use crate::session::{PlainDword, PlainFloat, PlainInt};
 
 /// The snow's random tables (0x800 flakes) (IDA 0x8C6000 .. 0x8D2000).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct SnowTables {
     /// 0x8C6000: `g_marksRandomsA` (0x8C6000), `g_marksRandomsB` (0x8C8000), `g_marksRandomsC` (0x8CA000): the flakes' places, 20-bit randoms (`effects::make_noise_curve`).
@@ -30,7 +29,6 @@ impl SnowTables {
 }
 
 /// The snow's curve (IDA 0x8D2310 .. 0x8DA310).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct SnowCurve {
     /// 0x8D2310: `g_marksCurve`: 0x1000 whole numbers, a smoothed random walk the flakes' x and z are moved by (`effects::make_noise_curve`).
@@ -49,7 +47,6 @@ impl SnowCurve {
 }
 
 /// The snow's variables (IDA 0x8D2000 .. 0x8D2310).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct SnowState {
     /// 0x8D2030: `xmmword_8D2030` .. `xmmword_8D20B0`: the turn's nine floats, each four times (`effects::run_snow`).
@@ -209,7 +206,6 @@ impl SnowState {
 }
 
 /// The snow curve's walk variables and records (IDA 0x8DA410 .. 0x8DB430).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct SnowCurveVars {
     /// 0x8DA410: `dword_8DA410` ..: the curve walk's value, least step, most step, change, step and the running sum of the seeds (`effects::make_noise_curve`).
@@ -231,7 +227,6 @@ impl SnowCurveVars {
 }
 
 /// The snow's light, fade colours and constants (IDA 0x8DB430 .. 0x8DB558).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct SnowLight {
     /// 0x8DB430: `flt_8DB430` ..: the light's place turned by the view (`effects::run_snow`).

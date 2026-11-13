@@ -237,7 +237,6 @@ pub fn emit_rolling_particles(
 }
 
 /// The wheel kind 1's choice (IDA 0x93A1D6 .. 0x93A1DA).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct RollingChoice {
     /// 0x93A1D6: `g_marksKind1Choice`: `emit_rolling_particles_rated` when not 0 (`ring_frame` sets it from the rain's drops)
@@ -254,7 +253,6 @@ impl RollingChoice {
 }
 
 /// Kind 1's emitter variables (`emit_particle_1`) (IDA 0x93A39A .. 0x93A3D2).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct RollingSet {
     /// 0x93A39A: `dword_93A39A`: the side's random

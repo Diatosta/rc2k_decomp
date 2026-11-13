@@ -136,7 +136,6 @@ pub fn emit_exhaust_smoke(
 }
 
 /// Kind 0xD's emitter variables (`emit_exhaust_smoke`) (IDA 0x93A462 .. 0x93A48A).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct ExhaustSet {
     /// 0x93A462: `flt_93A462`: the place's lift

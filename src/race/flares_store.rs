@@ -10,7 +10,6 @@
 
 use crate::session::{CellKind, PlainCells};
 
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct FlareTables<K: CellKind = PlainCells> {
     /// 0x63F58C: `dword_63F58C`: the flares' y (`race::frame_draw::add_flare`, `draw_flare`).

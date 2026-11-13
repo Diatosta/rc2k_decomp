@@ -245,7 +245,6 @@ fn every_store_s_cells_tile_it_and_copy_as_raw_copies_do() {
     let race = race();
     let _lock = crate::test_support::test_lock();
     byte_view_stores! {
-        menus.play.results,
         menus.tables.lists,
         *race.course.stage_prefs.get(),
         *race.replay.replay_view(),
@@ -253,6 +252,7 @@ fn every_store_s_cells_tile_it_and_copy_as_raw_copies_do() {
         *race.shared.text_buffers(),
     }
     cells_stores! {
+        menus.play.results,
         audio.state,
         audio.sample_records,
         menus.play.players,

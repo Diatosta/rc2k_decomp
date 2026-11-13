@@ -18,15 +18,21 @@ pub fn drop_cue(q: &crate::sound::store::CueQueue, place: u32) -> Result<(), Ref
     Ok(())
 }
 
-/// The queue's 0x84 dwords.
+/// The queue's 0x84 dwords: its four header dwords, then the cues' eight each.
 pub fn read_words(
     q: &crate::sound::store::CueQueue,
 ) -> Result<[u32; 0x84], crate::errors::BadInput> {
-    let mut bytes = [0u8; 0x84 * 4];
-    crate::cells::load_cells(q, 0, &mut bytes)?;
-    Ok(std::array::from_fn(|n| {
-        u32::from_le_bytes(bytes[4 * n..4 * n + 4].try_into().unwrap())
-    }))
+    let head = [&q.first, &q.place, &q.due, &q.count];
+    let cues = q.cues.iter().flat_map(|cue| {
+        [&cue.first, &cue.count]
+            .into_iter()
+            .chain(cue.sounds.iter())
+    });
+    let mut words = head
+        .into_iter()
+        .chain(cues)
+        .map(crate::session::PlainDword::get);
+    Ok(std::array::from_fn(|_| words.next().unwrap_or(0)))
 }
 
 /// `words` as the queue's dwords.
@@ -34,6 +40,14 @@ pub fn write_words(
     q: &crate::sound::store::CueQueue,
     words: [u32; 0x84],
 ) -> Result<(), crate::errors::BadInput> {
-    let bytes: Vec<u8> = words.iter().flat_map(|w| w.to_le_bytes()).collect();
-    crate::cells::store_cells(q, 0, &bytes)
+    let head = [&q.first, &q.place, &q.due, &q.count];
+    let cues = q.cues.iter().flat_map(|cue| {
+        [&cue.first, &cue.count]
+            .into_iter()
+            .chain(cue.sounds.iter())
+    });
+    for (cell, word) in head.into_iter().chain(cues).zip(words) {
+        cell.set(word);
+    }
+    Ok(())
 }

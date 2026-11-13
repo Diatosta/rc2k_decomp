@@ -27,7 +27,6 @@ use rc2k_core::menu::films::{self, Film, Step, StepAnswer};
 // ---- game data ----
 
 /// The films' file names.
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct Films {
     /// `a3filesFmvIntro` (`0x5297F5`).

@@ -6,7 +6,6 @@
 use crate::cells::ZeroCells;
 use crate::session::PlainDword;
 
-#[repr(C)]
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct KindTextureTables {
     /// (0x5D0AE0): `dword_5D0AE0`: bytes of video memory asked for so far by the texture allocation, a running sum of each needed texture's level size; only logged ("VMEMREQ") and left in the game's data (`scene::try_allocate_textures`).

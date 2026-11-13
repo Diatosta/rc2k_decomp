@@ -18,8 +18,7 @@ pub fn set_error_mode(system: &System) {
     system.start().error_mode.changed.set(1);
 }
 
-/// The error mode kept and whether it was set (IDA 0x4E059C .. 0x4E05A4, the image's layout).
-#[repr(C)]
+/// The error mode kept and whether it was set (IDA 0x4E059C .. 0x4E05A4).
 #[derive(rc2k_derive::Cells)]
 pub struct ErrorMode {
     /// 0x4E059C: `g_errorModeSet`: 1 after `set_error_mode` set the mode.

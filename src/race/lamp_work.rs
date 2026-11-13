@@ -13,7 +13,6 @@
 use crate::cells::ZeroCells;
 use crate::session::PlainDword;
 
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct LampWork {
     /// `g_lamps`: 16 lamps of 0x10 bytes (+0 the point, +4 the strength, +8 the colour), each

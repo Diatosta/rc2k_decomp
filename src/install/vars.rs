@@ -4,8 +4,8 @@
 //! image's scattered variables (`rest::low`); the network's and the strings' neighbours are
 //! in their own modules.
 //!
-//! `#[repr(C)]` structs of atomic cells with the image's layout, first values the image's
-//! (`tests`): the pages'
+//! Structs of atomic cells, first values the image's (`tests`); the ones read by byte offset
+//! (the names, the pages, the paths) keep `#[repr(C)]` and the image's layout: the pages'
 //! tables hold pointers into each other and into the installer's texts, as IDA addresses
 //! resolved where they are read. The pages' lists, handler records, edit record and boxes
 //! are typed records (`menu::list_handle`) with the image's bytes; a list is read by place
@@ -20,8 +20,7 @@ use crate::menu::list_handle::{
 };
 use crate::session::{PlainByte, PlainBytes, PlainDword, PlainLoose, with_runs};
 
-/// The installer's flags, counters and lists (IDA 0x51B9C8 .. 0x51BB60, the image's layout).
-#[repr(C, align(16))]
+/// The installer's flags, counters and lists (IDA 0x51B9C8 .. 0x51BB60).
 #[derive(rc2k_derive::Cells)]
 pub struct InstallerRun {
     /// Not in the image: the bytes that keep every field the alignment its IDA address has (the struct is 16-byte aligned).
@@ -609,8 +608,7 @@ impl InstallerPaths {
     }
 }
 
-/// The installer's palette buffer (IDA 0x4F3874 .. 0x4F3B74, the image's layout).
-#[repr(C, align(16))]
+/// The installer's palette buffer (IDA 0x4F3874 .. 0x4F3B74).
 #[derive(rc2k_derive::Cells)]
 pub struct InstallerPalette {
     /// Not in the image: the bytes that keep every field the alignment its IDA address has (the struct is 16-byte aligned).

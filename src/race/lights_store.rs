@@ -5,7 +5,6 @@
 use crate::cells::ZeroCells;
 use crate::session::{PlainBytes, PlainDword};
 
-#[repr(C)]
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct LightsData {
     /// 0x6077B0: `unk_6077B0`: seven dwords of the camera's place (`physics::place_camera`, the usual mode).

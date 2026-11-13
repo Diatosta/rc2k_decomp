@@ -8,7 +8,6 @@
 use crate::session::{Dword, PlainDword};
 
 /// The screen mode chosen (IDA 0x4F492C .. 0x4F494C).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct ScreenMode {
     /// 0x4F492C: `g_depthFormatBits`: the depth formats' bits (`gfx::mark_3d_modes`).
@@ -39,7 +38,6 @@ impl ScreenMode {
 }
 
 /// The surface the screen is drawn on (IDA 0x4F4984 .. 0x4F49C8).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct DrawSurface {
     /// 0x4F4984: `dword_4F4984`: the presented picture's row pitch (`platform`).

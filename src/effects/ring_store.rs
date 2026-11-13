@@ -8,7 +8,6 @@ use crate::memory::owned::Owned;
 use crate::session::{PlainBytes, PlainDword, PlainFloat};
 
 /// The ring's work (IDA 0x935620 .. 0x93573C): its list, cursor and count, the emitters' and the draws' integers.
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct RingWork {
     /// 0x935620: `stru_935620`: the ring's memory list (`memory::List`, 16 bytes: `effects::set_up_surface` takes the 0x25000-byte ring on it).
@@ -69,7 +68,6 @@ impl RingWork {
 }
 
 /// The surface pictures' names (IDA 0x93573C .. 0x935766): `effects::set_up_surface` reads them.
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct PictureNames {
     /// 0x93573C: "files\m\surfdata.pcx" (`aFilesMSurfdata`).

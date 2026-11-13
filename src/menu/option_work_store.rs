@@ -1,13 +1,11 @@
 //! The options screens' work copies, out of RAL.EXE's image (IDA 0x755640 .. 0x7556B4):
 //! the switches and settings the options pages change, the sound options and volumes, the menu sound
 //! and the key being redefined. The first 0x2C and the next 0x18 bytes are the options file's
-//! (`saves::load_options`). A `#[repr(C)]` struct with the image's layout, one static;
-//!
+//! (`saves::load_options`). One static.
 
 use crate::session::{PlainBytes, PlainDword, PlainFlag};
 
 /// The options' work copies (IDA 0x755640 .. 0x7556B4).
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct OptionWork {
     /// `dword_755640`: A visual page switch (a copy of `ScreenChoices.mipmapping`; `OptionSwitch::Mipmapping`).
