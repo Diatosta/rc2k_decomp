@@ -17,8 +17,9 @@ use crate::session::PlainDword;
 use rc2k_core::drive::replay_views::{WishStep, wish_step};
 
 /// Byte `k` of the frame's head (the first car block's start, `g_carBlockStore`).
-fn head_byte(race: &Race, k: usize) -> Result<u32, BadInput> {
-    crate::cells::load_value::<u8>(&race.car_blocks().cars[0].frame_head, k).map(u32::from)
+/// Asked only for bytes 0 .. 5 (the cars' and the four switches'), inside the head's 8.
+fn head_byte(race: &Race, k: usize) -> u32 {
+    (race.car_blocks().cars[0].frame_head[k / 4].get() >> (8 * (k % 4))) & 0xFF
 }
 
 /// `replay_camera_wishes`[head byte]: the table holds 47; the two dwords that follow it in
@@ -49,7 +50,7 @@ fn steps(race: &Race) -> Result<(), Refused> {
         .set(race.car_blocks().cars[0].frame_head[1].get());
     for c in 0..2usize {
         let car = &race.car_blocks().cars[c];
-        let wish = wish_of(race.replay_work(), head_byte(race, c)? as usize)?;
+        let wish = wish_of(race.replay_work(), head_byte(race, c) as usize)?;
         match wish_step(
             wish,
             replay.replay_view().replay_block.get(),
@@ -95,7 +96,7 @@ fn steps(race: &Race) -> Result<(), Refused> {
     .into_iter()
     .enumerate()
     {
-        to.set(head_byte(race, 2 + k)?);
+        to.set(head_byte(race, 2 + k));
     }
     Ok(())
 }
@@ -114,5 +115,18 @@ mod tests {
         // The two dwords after the table are the replay work's own.
         assert!(wish_of(crate::race::owner::race().replay_work(), 48).is_ok());
         assert!(wish_of(crate::race::owner::race().replay_work(), 255).is_err());
+    }
+
+    /// Each byte of the head, as the byte-offset read gave it.
+    #[test]
+    fn head_bytes_as_the_old_read() {
+        let race = crate::race::owner::race();
+        let head = &race.car_blocks().cars[0].frame_head;
+        head[0].set(0x0403_0201);
+        head[1].set(0x0807_0605);
+        for k in 0..8 {
+            let old = crate::cells::load_value::<u8>(head, k).map(u32::from);
+            assert_eq!(Ok(head_byte(race, k)), old, "byte {k}");
+        }
     }
 }

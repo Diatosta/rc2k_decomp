@@ -56,14 +56,23 @@ pub fn add_polygon(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
             crate::hud::set_batch_texture::set_batch_texture(pen.part, frame, pen.scene)?;
         }
         let vc = hud.block.vertex_count.get();
-        crate::cells::copy_between(
-            &pen.vertices.vertices,
-            0,
-            &hud.block.vertices,
-            (vc * 0x20) as usize,
-            (count * 0x20) as usize,
-            "the hud's vertices",
-        )?;
+        // Room for them was checked above (the batch holds 0x400 vertices).
+        for (from, to) in pen
+            .vertices
+            .vertices
+            .iter()
+            .zip(&hud.block.vertices[vc as usize..])
+            .take(count as usize)
+        {
+            to.x.set(from.x.get());
+            to.y.set(from.y.get());
+            to.z.set(from.z.get());
+            to.rhw.set(from.rhw.get());
+            to.colour.set(from.colour.get());
+            to.specular.set(from.specular.get());
+            to.u.set(from.u.get());
+            to.v.set(from.v.get());
+        }
         let ic = hud.block.index_count.get();
         let indices = batch::polygon_indices(vc, count);
         for (k, &i) in indices.iter().enumerate() {

@@ -67,14 +67,22 @@ pub fn bars(
     let total = f32::from_bits(frame.panel_and_overlay.get().panel.overlay_miles.get());
     for n in 0..count {
         let left = count - n;
-        // `kind` is a byte offset into the colours (the original's, unchecked).
+        // `kind` is a byte offset into the colours, held to 0xC by `check` (so four bytes of the
+        // four colours, though not always a whole one).
         let colours: Vec<u32> = kinds
             .iter()
             .map(|&k| {
                 let kind: u32 = k[n as usize].get();
-                crate::cells::load_value(&hud.block.stage_colours, kind as usize)
+                let mut bytes = [0; 4];
+                crate::session::read_run_bytes(
+                    &[&hud.block.stage_colours],
+                    kind as usize,
+                    &mut bytes,
+                    "a stage bar colour",
+                )?;
+                Ok(u32::from_le_bytes(bytes))
             })
-            .collect::<Result<_, _>>()?;
+            .collect::<Result<_, crate::errors::BadInput>>()?;
         for (to, &c) in colour_vars.iter().zip(&colours) {
             to.set(c);
         }
@@ -110,4 +118,23 @@ pub fn draw_stage_bar(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused>
         &[&hud.block.bar_colour],
         0,
     )
+}
+
+#[cfg(test)]
+mod tests {
+    /// Every colour offset the check lets through reads the four bytes the byte-offset read did.
+    #[test]
+    fn colour_bytes_as_the_old_read() {
+        let hud = Box::new(crate::hud::store::HudBlock::new());
+        for (k, cell) in hud.stage_colours.iter().enumerate() {
+            cell.set((0x0101_0101 * (k as u32 + 1)) ^ 0x00A0_0C00);
+        }
+        for kind in 0..=rc2k_core::hud::stage_bars::LAST_KIND {
+            let old: Result<u32, _> = crate::cells::load_value(&hud.stage_colours, kind as usize);
+            let mut bytes = [0; 4];
+            crate::session::read_run_bytes(&[&hud.stage_colours], kind as usize, &mut bytes, "t")
+                .unwrap();
+            assert_eq!(Ok(u32::from_le_bytes(bytes)), old, "{kind}");
+        }
+    }
 }

@@ -104,7 +104,7 @@ fn save(race: &Race, system: &System, slot: u32) -> Result<bool, Refused> {
             2 * block as usize,
             CAMERA_DWORDS,
         )?;
-        undo_place(race.viewer_buffers(), 2 * block as usize)
+        undo_place(race.viewer_buffers(), 2 * block as usize)?
             .set(replay.replay_view().file_offset.get());
         let (written, failed) = crate::race::replay::write_replay_chunk(
             race,
@@ -115,7 +115,7 @@ fn save(race: &Race, system: &System, slot: u32) -> Result<bool, Refused> {
             close();
             return Ok(false);
         }
-        undo_place(race.viewer_buffers(), 2 * block as usize + 1).set(written);
+        undo_place(race.viewer_buffers(), 2 * block as usize + 1)?.set(written);
         replay
             .replay_view()
             .file_offset
@@ -138,26 +138,52 @@ fn save(race: &Race, system: &System, slot: u32) -> Result<bool, Refused> {
     Ok(done)
 }
 
-/// The undo's block place `n` (`g_undoPlaces`, 0x3840 bytes: a number past it is the undo's
-/// cameras', as the original's).
-fn undo_place(buffers: &ViewerBuffers, n: usize) -> &crate::session::PlainDword {
+/// The undo's block place `n` (`g_undoPlaces`, 0x3840 bytes). The viewer holds a replay's
+/// block count to 0x708 (`open_viewed_replay` clamps what the file says, the recorder stops at
+/// the full index, a paste is refused past it, a cut only lowers it), so `n`, 2 a block and one
+/// more, stays inside the 0xE10 places.
+fn undo_place(
+    buffers: &ViewerBuffers,
+    n: usize,
+) -> Result<&crate::session::PlainDword, crate::errors::BadInput> {
+    buffers
+        .undo_places
+        .get(n)
+        .ok_or(crate::errors::BadInput("an undo place past the table"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
     use crate::cells::{CellRun, Cells};
-    buffers.undo_places.get(n).unwrap_or_else(|| {
-        let field = core::mem::offset_of!(ViewerBuffers, undo_places);
-        let offset = field.wrapping_add(((n as u32).wrapping_mul(4)) as usize);
-        let cell = (offset < core::mem::size_of::<ViewerBuffers>())
-            .then(|| buffers.cell_run(offset))
-            .and_then(|(start, run)| match run {
-                CellRun::PlainDword(cells) if (offset - start).is_multiple_of(4) => {
-                    cells.get((offset - start) / 4)
-                }
-                _ => None,
-            });
-        cell.unwrap_or_else(|| {
-            crate::fatal::raise::end(
-                "a cell past a table",
-                crate::errors::BadInput("a cell past the tables of its record"),
-            )
+
+    /// The place the byte-offset lookup gave: past the table, the cells that follow it.
+    fn undo_place_run_on(buffers: &ViewerBuffers, n: usize) -> Option<&crate::session::PlainDword> {
+        buffers.undo_places.get(n).or_else(|| {
+            let field = core::mem::offset_of!(ViewerBuffers, undo_places);
+            let offset = field.wrapping_add(((n as u32).wrapping_mul(4)) as usize);
+            (offset < core::mem::size_of::<ViewerBuffers>())
+                .then(|| buffers.cell_run(offset))
+                .and_then(|(start, run)| match run {
+                    CellRun::PlainDword(cells) if (offset - start).is_multiple_of(4) => {
+                        cells.get((offset - start) / 4)
+                    }
+                    _ => None,
+                })
         })
-    })
+    }
+
+    /// Every place the viewer's block counts (up to 0x708 blocks, two a block) ask for is the
+    /// cell the byte-offset lookup found.
+    #[test]
+    fn places_as_the_old_lookup() {
+        let buffers = crate::race::owner::race().viewer_buffers();
+        for n in 0..2 * rc2k_core::race::replay::MOST_BLOCKS as usize {
+            let old = undo_place_run_on(buffers, n).map(std::ptr::from_ref);
+            let new = undo_place(buffers, n).ok().map(std::ptr::from_ref);
+            assert!(new.is_some());
+            assert_eq!(new, old, "{n}");
+        }
+        assert!(undo_place(buffers, 0xE10).is_err());
+    }
 }

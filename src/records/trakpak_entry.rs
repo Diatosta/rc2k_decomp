@@ -124,3 +124,45 @@ pub fn track_of(
         None => Track::RunOn(at),
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::records::stages_store::{RecordTable, StageTables};
+
+    /// The records' track numbers come from the player's files: every number up to the record's
+    /// end reads the dword the byte offset names (in the pack, the typed entry), and the first
+    /// past the end is refused.
+    #[test]
+    fn track_numbers_run_on_to_the_end_of_the_tables() {
+        let stages = Box::new(StageTables::new());
+        let r = RecordTable::Championship.row(&stages, 2).unwrap();
+        let first = core::mem::offset_of!(StageTables, trak_pak);
+        let size = core::mem::size_of::<StageTables>();
+        let mut refused = 0;
+        for index in 0..=(size - first) / 0x40 + 1 {
+            r.record(&stages).unwrap().words[1].set(index as u32);
+            let read = |track: &Track, field: usize| match track {
+                Track::InPack(_) => None,
+                Track::RunOn(at) => Some(run_on(&stages, at + field)),
+            };
+            match track_of(&stages, r) {
+                Ok(track) => {
+                    let at = first + 0x34 + index * 0x40;
+                    let mut bytes = [0; 4];
+                    let old = crate::cells::load_cells(&*stages, at, &mut bytes)
+                        .map(|()| u32::from_le_bytes(bytes));
+                    assert_eq!(track.name(&stages).ok(), old.ok(), "{index}");
+                    refused += usize::from(old.is_err());
+                    if index < 36 {
+                        assert!(matches!(track, Track::InPack(_)));
+                    } else {
+                        assert!(read(&track, 0).is_some());
+                    }
+                }
+                Err(_) => unreachable!("the offset itself is never refused"),
+            }
+        }
+        assert!(refused >= 1);
+    }
+}

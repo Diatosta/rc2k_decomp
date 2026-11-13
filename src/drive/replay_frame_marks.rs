@@ -5,15 +5,63 @@
 
 use crate::errors::BadInput;
 use crate::race::owner::Race;
+use crate::race::viewer_buffers_store::ViewerBuffers;
+use crate::session::{Run, read_run_bytes};
+
+/// The two marks at byte `at` of the cameras. The original does not hold the frame to the
+/// table's 0x708: past it the marks are the fields that follow the cameras in the viewer's
+/// buffers, in order, to the record's end.
+fn marks_at(buffers: &ViewerBuffers, at: usize) -> Result<[u32; 2], BadInput> {
+    let runs: [&dyn Run; 12] = [
+        &buffers.block_cameras,
+        &buffers.undo_blocks,
+        &buffers.undo_places,
+        &buffers.undo_cameras,
+        &buffers.mark_in,
+        &buffers.mark_out,
+        &buffers.camera_edit,
+        &buffers.clip_blocks,
+        &buffers.clip_places,
+        &buffers.clip_cameras,
+        &buffers.from_file,
+        &buffers.to_file,
+    ];
+    let mut bytes = [0; 8];
+    read_run_bytes(&runs, at, &mut bytes, "a replay frame's marks")?;
+    Ok([
+        u32::from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]),
+        u32::from_le_bytes([bytes[4], bytes[5], bytes[6], bytes[7]]),
+    ])
+}
 
 // Converted: `rc2k_core::drive::replay_frames::marks_offset`.
 pub fn replay_frame_marks(race: &Race) -> Result<(), BadInput> {
     let replay = &race.replay;
     let at = rc2k_core::drive::replay_frames::marks_offset(replay.replay_view().replay_block.get());
-    let marks: [u32; 2] =
-        crate::cells::load_value(&race.viewer_buffers().block_cameras, at as usize)?;
+    let marks = marks_at(race.viewer_buffers(), at as usize)?;
     for (k, mark) in marks.into_iter().enumerate() {
         race.viewer_buffers().block[k].set(mark);
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Every frame's marks, and the ones past the table, are the bytes the record has there.
+    #[test]
+    fn marks_as_the_record_has_them() {
+        let buffers = race_buffers();
+        let first = core::mem::offset_of!(ViewerBuffers, block_cameras);
+        let end = core::mem::size_of::<ViewerBuffers>() - first;
+        for at in (0..end + 16).step_by(8) {
+            let old: Result<[u32; 2], _> = crate::cells::load_value(buffers, first + at);
+            assert_eq!(marks_at(buffers, at).ok(), old.ok(), "{at:#x}");
+        }
+    }
+
+    fn race_buffers() -> &'static ViewerBuffers {
+        crate::race::owner::race().viewer_buffers()
+    }
 }

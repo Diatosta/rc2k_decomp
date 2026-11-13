@@ -164,6 +164,7 @@ impl Int {
 /// Cell `n` of `cells`, or the dword the original reads there: past the table's end it reads what
 /// follows only inside `holder`, the store or record holding the table. The original reads
 /// on anywhere; here the next thing in memory is another static, so that is refused.
+#[cfg(test)]
 pub fn read_on_in<H: crate::cells::Cells, C: Cell32>(
     holder: &H,
     cells: &[C],
@@ -183,6 +184,7 @@ pub fn read_on_in<H: crate::cells::Cells, C: Cell32>(
 }
 
 /// `read_on_in`'s write.
+#[cfg(test)]
 pub fn write_on_in<H: crate::cells::Cells, C: Cell32>(
     holder: &H,
     cells: &[C],
@@ -203,6 +205,7 @@ pub fn write_on_in<H: crate::cells::Cells, C: Cell32>(
 
 /// `access` on dword `n` of `cells`, placed from `holder`'s first byte (refused, and logged,
 /// when that is not inside `holder`).
+#[cfg(test)]
 fn on_in<H, C>(
     holder: &H,
     cells: &[C],
@@ -344,6 +347,7 @@ pub fn write_runs(
 
 /// `n` cells from `from` into `to`, one at a time forwards (a `rep movsd`: an overlap reads
 /// what it has just written), each past its table's end only inside its holder.
+#[cfg(test)]
 pub fn copy_on_in<F: crate::cells::Cells, T: crate::cells::Cells, A: Cell32, B: Cell32>(
     (from_holder, from): (&F, &[A]),
     (to_holder, to): (&T, &[B]),

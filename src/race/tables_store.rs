@@ -103,6 +103,7 @@ pub enum Listed {
     ArcadeCarKinds = 10,
     NumberBeforeFirst = 11,
     ArcadeCarNumbers = 12,
+    KindOrder = 30,
 }
 
 impl RaceTables {
@@ -799,6 +800,21 @@ mod run_on_tests {
                 let old = crate::session::read_on_in(&*t, table, n, "t");
                 assert_eq!(t.dword_from(listed, n).ok(), old.ok(), "{n}");
             }
+        }
+    }
+
+    /// The kind order read from its first entry on gives what the byte-offset read gave, the two
+    /// past its 32 included.
+    #[test]
+    fn kind_order_runs_on_as_the_old_read() {
+        let t = Box::new(RaceTables::new());
+        for (k, cell) in t.kind_order.iter().enumerate() {
+            cell.set(0x300 + k as u32);
+        }
+        let first = core::mem::offset_of!(RaceTables, kind_order);
+        for n in 0..rc2k_core::race::cars::KIND_ORDER_LEN as usize + 3 {
+            let old = crate::cells::load_value::<u32>(&*t, first + 4 * n);
+            assert_eq!(t.dword_from(Listed::KindOrder, n).ok(), old.ok(), "{n}");
         }
     }
 }

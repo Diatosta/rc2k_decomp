@@ -12,8 +12,27 @@
 //! anything.
 
 use crate::effects::owner::Effects;
+use crate::errors::BadInput;
 use crate::errors::Refused;
+use crate::race::light_records_store::LightRecords;
 use crate::race::owner::Race;
+/// The dword `offset` bytes into the kind's row: the rows start at the sixth group of a record,
+/// and the kind is held to the 23 records the rows are laid in, so the seven offsets asked
+/// (up to 0x28) fall inside that record's groups.
+fn kind_row_word(records: &LightRecords, kind: i32, offset: usize) -> Result<u32, BadInput> {
+    use rc2k_core::effects::race;
+    const SIXTH_GROUP: usize = 5;
+    let record = records
+        .records
+        .get(race::kind_row(kind) / race::ROW_LEN)
+        .ok_or(BadInput("a kind's row past the light records"))?;
+    record
+        .groups
+        .get(SIXTH_GROUP + offset / 4)
+        .map(crate::session::PlainDword::get)
+        .ok_or(BadInput("a kind's row field past the groups"))
+}
+
 // Converted: `rc2k_core::effects::race::{check_cars, kind_row, car_fields}`
 pub fn init_mark_step(
     race: &'static Race,
@@ -51,16 +70,9 @@ pub fn init_mark_step(
         race.effects_settings().mark_car_file_number.set(file);
         for n in 0..count {
             let kind = race.shared.race_car_or_end(n as usize).car_kind.get() as i32;
-            // Rows of 0x134 bytes, from the sixth group of the kind's light record on, run on
-            // past it as the original does.
-            let row = (0x6C + race::kind_row(kind)) as u32 as usize;
             let bad = crate::effects::Sticky::default();
-            // Each field is a dword at a byte offset of the row, a run-on as the original.
             let fields = race::car_fields(n, |offset| {
-                bad.take(crate::cells::load_value::<u32>(
-                    &race.light_records().records,
-                    row + offset,
-                ))
+                bad.take(kind_row_word(race.light_records(), kind, offset))
             });
             bad.done()?;
             let car = record(n);
@@ -77,4 +89,32 @@ pub fn init_mark_step(
         crate::effects::init_marks::init_marks(race, effects, file, scene, gfx, system)?;
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rc2k_core::effects::race::{self, SLOT_KIND_ROWS};
+
+    /// Each field of each kind's row is the dword the byte-offset read gave.
+    #[test]
+    fn row_words_as_the_old_read() {
+        let records = Box::new(LightRecords::new());
+        for (k, record) in records.records.iter().enumerate() {
+            for (g, cell) in record.groups.iter().enumerate() {
+                cell.set(0x1000 * k as u32 + g as u32);
+            }
+        }
+        for kind in -3..40 {
+            let row = (0x6C + race::kind_row(kind)) as u32 as usize;
+            for offset in SLOT_KIND_ROWS {
+                let old = crate::cells::load_value::<u32>(&records.records, row + offset);
+                assert_eq!(
+                    kind_row_word(&records, kind, offset),
+                    old,
+                    "{kind} {offset}"
+                );
+            }
+        }
+    }
 }

@@ -14,7 +14,42 @@ use crate::errors::Refused;
 use crate::physics::car_store::Car;
 use crate::physics::contact_store::ContactWork;
 use crate::physics::tables_store::PhysicsTables;
+use crate::session::{Run, read_runs, write_runs};
 use rc2k_core::physics::saved_car::{restore_count, restored};
+
+/// The car's last-face list and the fields after it in the record, in order, to its end.
+fn faces_and_after(car: &Car) -> [&dyn Run; 28] {
+    [
+        &car.probe_point_face,
+        &car.camera_ground_faces,
+        &car.group_mask,
+        &car.engine_speed_scaled,
+        &car.previous_step_clock,
+        &car.wheel_ground_x,
+        &car.wheel_ground_height,
+        &car.wheel_ground_z,
+        &car.skid_grip,
+        &car.skid_slots,
+        &car.car_event_times,
+        &car.car_event_codes,
+        &car.car_event_count,
+        &car.car_event_limit,
+        &car.car_event_position,
+        &car.two_car_place,
+        &car.view_covered,
+        &car.reset_marker,
+        &car.value_jump_steps,
+        &car.light_hold_steps,
+        &car.eased_target,
+        &car.eased_value,
+        &car.glide_target,
+        &car.glide_steps_left,
+        &car.kept_throttle_word,
+        &car.kept_keys_word,
+        &car.kept_steering_word,
+        &car.kept_brake_word,
+    ]
+}
 
 /// Converted: `rc2k_core::physics::saved_car::{restore_count, restored}`.
 pub fn restore_saved_car(
@@ -32,13 +67,52 @@ pub fn restore_saved_car(
     for (to, from) in car.crash_matrix.iter().zip(&tables.saved_matrix) {
         to.set(from.get());
     }
-    // By address: up to 0x7C dwords from a list of 0x40 (the original copies on into what
-    // follows each).
-    crate::session::copy_on_in(
-        (contact, &contact.probe_saved_faces),
-        (car, &car.probe_point_face),
-        n as usize,
-        "the saved faces",
-    )?;
+    // Up to 0x7C dwords from the saved faces (0x40), on into the face-flip list after them, into
+    // the car's faces (0x40), on through the fields after them to the record's end (0x7C in all).
+    let from: [&dyn Run; 2] = [&contact.probe_saved_faces, &contact.probe_face_flip];
+    let to = faces_and_after(car);
+    for k in 0..n as usize {
+        let v = read_runs(&from, k, "the saved faces")?;
+        write_runs(&to, k, v, "the saved faces")?;
+    }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The copy of every count up to the limit leaves the work copy as the byte-offset copy did.
+    #[test]
+    fn faces_run_on_as_the_old_copy() {
+        for n in 0..=0x7C {
+            let (new, old) = (Car::new(), Car::new());
+            let (c_new, c_old) = (ContactWork::new(), ContactWork::new());
+            for (k, cell) in c_new.probe_saved_faces.iter().enumerate() {
+                cell.set(0x100 + k as u32);
+                c_old.probe_saved_faces[k].set(0x100 + k as u32);
+            }
+            for (k, cell) in c_new.probe_face_flip.iter().enumerate() {
+                cell.set(0x200 + k as u32);
+                c_old.probe_face_flip[k].set(0x200 + k as u32);
+            }
+            let from: [&dyn Run; 2] = [&c_new.probe_saved_faces, &c_new.probe_face_flip];
+            let to = faces_and_after(&new);
+            for k in 0..n {
+                write_runs(&to, k, read_runs(&from, k, "t").unwrap(), "t").unwrap();
+            }
+            crate::session::copy_on_in(
+                (&c_old, &c_old.probe_saved_faces),
+                (&old, &old.probe_point_face),
+                n,
+                "t",
+            )
+            .unwrap();
+            for k in 0..0x7C {
+                let read =
+                    |c: &Car| crate::session::read_on_in(c, &c.probe_point_face, k, "t").unwrap();
+                assert_eq!(read(&new), read(&old), "count {n}, dword {k}");
+            }
+        }
+    }
 }

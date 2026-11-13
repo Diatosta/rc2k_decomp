@@ -6,8 +6,7 @@
 use crate::errors::Refused;
 use crate::physics::clear_records::clear_records;
 use crate::physics::tables_store::PhysicsTables;
-const COUNT: u32 = 0x17;
-
 pub fn clear_forces(tables: &PhysicsTables) -> Result<(), Refused> {
-    clear_records(&tables.forces, COUNT)
+    clear_records(&tables.forces);
+    Ok(())
 }
