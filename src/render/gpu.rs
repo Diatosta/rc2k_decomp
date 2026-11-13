@@ -8,7 +8,7 @@
 //! wants the true picture in the canvas asks `bring_back`, which is slow on a handheld.
 
 use super::batches::{Batch, Batches, PipelineKey};
-use super::{Command, Target, TextureNote};
+use super::{CommandList, Target, TextureNote};
 use crate::ffi::sdl_gpu::{
     self, Buffer, Device, Pipeline, PipelineSpec, Sampler, Shader, ShaderCode, Texture, Transfer,
 };
@@ -431,7 +431,7 @@ impl Gpu {
     }
 
     /// Draws the commands over the target, the canvas's written pixels first.
-    pub fn draw(&mut self, canvas: &mut [u8], commands: &[Command]) -> Result<(), String> {
+    pub fn draw(&mut self, canvas: &mut [u8], commands: &CommandList) -> Result<(), String> {
         self.take_changes();
         let batches = Batches::of(commands, self.width, self.height, None);
         let vertex_bytes = batches.vertices.len() as u32 * VERTEX_BYTES;
@@ -570,7 +570,7 @@ impl Gpu {
 
     /// The frame's end: what the canvas has written goes over the target.
     pub fn finish_frame(&mut self, canvas: &mut [u8]) -> Result<(), String> {
-        self.draw(canvas, &[])
+        self.draw(canvas, &CommandList::new())
     }
 
     /// The target's picture, with the canvas's written pixels, into the canvas.
@@ -634,11 +634,12 @@ fn compare_op(function: u32) -> SDL_GPUCompareOp {
 }
 
 impl super::Backend for Gpu {
-    fn draw(&mut self, target: &Target, commands: Vec<Command>) {
+    fn draw(&mut self, target: &Target, commands: CommandList) {
         let done = target.with_canvas(|canvas| {
             self.set_size(target.width as u32, target.height as u32)
                 .and_then(|()| Gpu::draw(self, canvas, &commands))
         });
+        super::give_back(commands);
         if let Err(why) = done {
             crate::fatal::raise::end(
                 "render::gpu",
@@ -706,7 +707,7 @@ mod comparison {
             }
         };
         let read_commands = |r: &mut Reader| {
-            let mut commands = Vec::new();
+            let mut commands = CommandList::new();
             for _ in 0..r.dword() {
                 if r.dword() == 1 {
                     let corners = r.dword() as usize;
@@ -718,14 +719,14 @@ mod comparison {
                         *s = r.dword();
                     }
                     let number = r.dword();
-                    commands.push(Command::Fan {
-                        vertices: vertices.into(),
-                        states: states.into(),
-                        texture: (number != u32::MAX).then(|| note(number as usize)),
-                        bounds: (f32::MIN, f32::MIN, f32::MAX, f32::MAX),
-                    });
+                    commands.push_fan(
+                        &vertices,
+                        states.into(),
+                        (number != u32::MAX).then(|| note(number as usize)),
+                        (f32::MIN, f32::MIN, f32::MAX, f32::MAX),
+                    );
                 } else {
-                    commands.push(Command::Clear([0; 4].map(|_: u8| r.dword() as usize)));
+                    commands.push_clear([0; 4].map(|_: u8| r.dword() as usize));
                 }
             }
             commands

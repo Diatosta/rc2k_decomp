@@ -12,8 +12,9 @@ pub struct Software {
 }
 
 impl Backend for Software {
-    fn draw(&mut self, target: &Target, commands: Vec<Command>) {
-        draw(target, commands, self.screen);
+    fn draw(&mut self, target: &Target, mut commands: CommandList) {
+        draw(target, &mut commands, self.screen);
+        give_back(commands);
     }
 }
 
@@ -62,18 +63,17 @@ impl Small {
 
 /// The noted things' screen places for the handheld's small frame.
 #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
-fn scale_noted(noted: &mut [Command]) {
+fn scale_noted(noted: &mut CommandList) {
     const BY: f32 = crate::handheld::SMALLER as f32;
     let by = crate::handheld::SMALLER;
-    for what in noted {
+    // Every vertex is a fan's (the list holds no others).
+    for v in noted.vertices.iter_mut() {
+        v[0] = (f32::from_bits(v[0]) / BY).to_bits();
+        v[1] = (f32::from_bits(v[1]) / BY).to_bits();
+    }
+    for what in noted.commands.iter_mut() {
         match what {
-            Command::Fan {
-                vertices, bounds, ..
-            } => {
-                for v in vertices.iter_mut() {
-                    v[0] = (f32::from_bits(v[0]) / BY).to_bits();
-                    v[1] = (f32::from_bits(v[1]) / BY).to_bits();
-                }
+            Command::Fan { bounds, .. } => {
                 *bounds = (bounds.0 / BY, bounds.1 / BY, bounds.2 / BY, bounds.3 / BY);
             }
             Command::Clear([left, top, right, bottom]) => {
@@ -86,17 +86,13 @@ fn scale_noted(noted: &mut [Command]) {
     }
 }
 
-fn draw(into: &Target, noted: Vec<Command>, screen: (usize, usize)) {
+fn draw(into: &Target, noted: &mut CommandList, screen: (usize, usize)) {
     use crate::rasteriser::{Frame, Pixels, States, Texture};
     use rayon::prelude::*;
-    #[cfg_attr(
-        not(all(target_os = "linux", target_arch = "aarch64")),
-        allow(unused_mut) // only the handheld changes them
-    )]
-    let mut noted = noted;
     FLUSHES.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     let started = std::time::Instant::now();
     let fans = noted
+        .commands
         .iter()
         .filter(|n| matches!(n, Command::Fan { .. }))
         .count() as u64;
@@ -107,7 +103,7 @@ fn draw(into: &Target, noted: Vec<Command>, screen: (usize, usize)) {
         && crate::handheld::draws_small()
         && !crate::render::gpu::wanted())
     .then(|| {
-        scale_noted(&mut noted);
+        scale_noted(noted);
         // SAFETY: not kept: the screen's rows, checked by `slice`, nothing else writes them
         // while the game's code waits here.
         let screen = unsafe { into.bytes() };
@@ -136,11 +132,11 @@ fn draw(into: &Target, noted: Vec<Command>, screen: (usize, usize)) {
             ),
         };
         let mut tiles = frame.tiles(if noted.len() < FEW { 0 } else { TILE });
-        let noted = &noted;
+        let noted = &*noted;
         // The noted textures' bytes, taken once (a noted texture is not written while it is
         // drawn from: locking it flushes the noted fans first), by id.
         let mut notes: Vec<super::TextureNote> = Vec::new();
-        for what in noted.iter() {
+        for what in noted.commands.iter() {
             if let Command::Fan {
                 texture: Some(t), ..
             } = what
@@ -160,7 +156,7 @@ fn draw(into: &Target, noted: Vec<Command>, screen: (usize, usize)) {
             let tile_started = std::time::Instant::now();
             let clip = *tile.clip();
             let mut written = 0u64;
-            for what in noted {
+            for what in &noted.commands {
                 match what {
                     Command::Fan {
                         vertices,
@@ -187,7 +183,11 @@ fn draw(into: &Target, noted: Vec<Command>, screen: (usize, usize)) {
                             bytes: t.bytes,
                             masks: t.masks,
                         });
-                        written += tile.draw_fan(vertices, &States(&states[..]), texture.as_ref());
+                        written += tile.draw_fan(
+                            noted.fan_vertices(*vertices),
+                            &States(&states[..]),
+                            texture.as_ref(),
+                        );
                     }
                     Command::Clear(rect) => tile.clear_depth(*rect),
                 }

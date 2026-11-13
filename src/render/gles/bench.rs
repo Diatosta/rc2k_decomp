@@ -135,7 +135,7 @@ pub(super) fn due(batches: usize) -> bool {
 impl Gpu {
     /// Draws `batches` (whose vertices `draw` has just sent up) in each of the `WAYS`, and logs
     /// the time each takes.
-    pub(super) fn bench(&mut self, commands: &[Command], batches: &Batches, height: i32) {
+    pub(super) fn bench(&mut self, commands: &CommandList, batches: &Batches, height: i32) {
         self.bench_gathering(commands, batches);
         let changes =
             |f: &dyn Fn(&super::super::batches::Batch, &super::super::batches::Batch) -> bool| {
@@ -368,7 +368,7 @@ impl Gpu {
 impl Gpu {
     /// How many draws the frame takes with its textures as layers, against one texture a
     /// draw (`Batches::of`).
-    fn bench_gathering(&self, commands: &[Command], batches: &Batches) {
+    fn bench_gathering(&self, commands: &CommandList, batches: &Batches) {
         let opaque = |note: &TextureNote| self.textures.get(&note.pixels).is_some_and(|t| t.opaque);
         let alone = Batches::of(
             commands,

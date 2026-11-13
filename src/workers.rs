@@ -834,7 +834,7 @@ fn draw_parts(
         result = result.and(run.result);
         // Its fans before it set a state draw with what the earlier runs left.
         let carried = crate::d3d::run_states::carried(first_cache);
-        crate::d3d::run_states::patch(&mut run.noted, &run.states, &carried);
+        crate::d3d::run_states::patch(&mut run.noted.commands, &run.states, &carried);
         crate::platform_3d::put_noted(run.noted);
         crate::d3d::run_states::carry(first_cache, &run.states, &cache_start);
         crate::scene::view_matrices::merge_columns(matrices.get(), &columns_start, &run.columns);
@@ -852,7 +852,7 @@ fn draw_parts(
 /// What a drawing thread's run left.
 struct OtherRun {
     result: Result<(), Refused>,
-    noted: Vec<crate::render::Command>,
+    noted: crate::render::CommandList,
     /// Where it set the render states.
     states: crate::d3d::run_states::RunStates,
     /// The held matrix columns it left.

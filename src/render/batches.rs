@@ -1,7 +1,7 @@
 //! The commands as a GPU wants them: triangles in one list, and runs of them drawn alike. What a
 //! state means is decided here, the same for every GPU backend; nothing here touches one.
 
-use super::{Command, STATES, TextureNote};
+use super::{Command, CommandList, STATES, TextureNote};
 
 /// A vertex as the game makes it: x, y, z, 1/w, colour, specular, u, v.
 pub type Vertex = crate::rasteriser::Vertex;
@@ -264,7 +264,7 @@ impl Batches {
     /// blended joins the fan before as its second pass (`Batch::second`): one draw for both,
     /// the same picture but for the blend's rounding done in the shader (a step at most).
     pub fn of(
-        commands: &[Command],
+        commands: &CommandList,
         width: u32,
         height: u32,
         opaque: Option<&dyn Fn(&TextureNote) -> bool>,
@@ -278,7 +278,7 @@ impl Batches {
     /// read in one draw. The order and the gathering's rule are `of`'s, so the picture is.
     #[cfg(any(test, all(target_os = "linux", target_arch = "aarch64")))]
     pub fn of_layered(
-        commands: &[Command],
+        commands: &CommandList,
         width: u32,
         height: u32,
         opaque: &dyn Fn(&TextureNote) -> bool,
@@ -293,12 +293,12 @@ impl Batches {
 
     fn of_in(
         mut out: Batches,
-        commands: &[Command],
+        noted: &CommandList,
         width: u32,
         height: u32,
         opaque: Option<&dyn Fn(&TextureNote) -> bool>,
     ) -> Batches {
-        for command in commands {
+        for command in &noted.commands {
             match command {
                 Command::Fan {
                     vertices,
@@ -306,6 +306,7 @@ impl Batches {
                     texture,
                     ..
                 } => {
+                    let vertices = noted.fan_vertices(*vertices);
                     if vertices.len() < 3 {
                         continue;
                     }
@@ -675,9 +676,11 @@ impl Batches {
 mod tests {
     use super::*;
 
-    fn fan(corners: usize, states: [u32; STATES]) -> Command {
-        Command::Fan {
-            vertices: smallvec::smallvec![[0; 8]; corners],
+    use crate::render::{TestCommand, list};
+
+    fn fan(corners: usize, states: [u32; STATES]) -> TestCommand {
+        TestCommand::Fan {
+            vertices: vec![[0; 8]; corners],
             states: std::sync::Arc::new(states),
             texture: None,
             bounds: (0.0, 0.0, 0.0, 0.0),
@@ -690,7 +693,7 @@ mod tests {
         let mut blended = plain;
         blended[0x1B] = 1;
         let b = Batches::of(
-            &[fan(4, plain), fan(3, plain), fan(3, blended)],
+            &list([fan(4, plain), fan(3, plain), fan(3, blended)]),
             640,
             480,
             None,
@@ -714,25 +717,26 @@ mod tests {
 
     #[test]
     fn a_clear_is_cut_to_the_target_and_only_touches_depth() {
-        let b = Batches::of(&[Command::Clear([10, 20, 9999, 30])], 640, 480, None);
+        let b = Batches::of(
+            &list([TestCommand::Clear([10, 20, 9999, 30])]),
+            640,
+            480,
+            None,
+        );
         assert_eq!(b.batches[0].scissor, Some([10, 20, 640, 30]));
         assert!(!b.batches[0].pipeline.colour);
         assert!(
-            Batches::of(&[Command::Clear([5, 5, 5, 9])], 640, 480, None)
+            Batches::of(&list([TestCommand::Clear([5, 5, 5, 9])]), 640, 480, None)
                 .batches
                 .is_empty()
         );
     }
 
     /// A triangle over x `left ..= right`, y 0 ..= 10, marked by its first vertex's colour.
-    fn triangle(left: f32, right: f32, mark: u32, states: [u32; STATES]) -> Command {
+    fn triangle(left: f32, right: f32, mark: u32, states: [u32; STATES]) -> TestCommand {
         let corner = |x: f32, y: f32| [x.to_bits(), y.to_bits(), 0, 0, mark, 0, 0, 0];
-        Command::Fan {
-            vertices: smallvec::smallvec![
-                corner(left, 0.0),
-                corner(right, 0.0),
-                corner(left, 10.0)
-            ],
+        TestCommand::Fan {
+            vertices: vec![corner(left, 0.0), corner(right, 0.0), corner(left, 10.0)],
             states: std::sync::Arc::new(states),
             texture: None,
             bounds: (0.0, 0.0, 0.0, 0.0),
@@ -757,11 +761,11 @@ mod tests {
         let mut blended = plain;
         blended[0x1B] = 1;
         let b = Batches::of(
-            &[
+            &list([
                 triangle(0.0, 10.0, 1, plain),
                 triangle(20.0, 30.0, 2, blended),
                 triangle(40.0, 50.0, 3, plain),
-            ],
+            ]),
             640,
             480,
             None,
@@ -777,11 +781,11 @@ mod tests {
         blended[0x1B] = 1;
         // Pixel column 20 is in all three: the order there is the picture.
         let b = Batches::of(
-            &[
+            &list([
                 triangle(0.0, 20.0, 1, plain),
                 triangle(20.0, 30.0, 2, blended),
                 triangle(20.0, 50.0, 3, plain),
-            ],
+            ]),
             640,
             480,
             None,
@@ -789,11 +793,11 @@ mod tests {
         assert_eq!(marks(&b), [vec![1], vec![2], vec![3]]);
         // A column apart, with a margin under a pixel, is apart.
         let b = Batches::of(
-            &[
+            &list([
                 triangle(0.0, 19.0, 1, plain),
                 triangle(20.0, 30.0, 2, blended),
                 triangle(31.0, 50.0, 3, plain),
-            ],
+            ]),
             640,
             480,
             None,
@@ -805,11 +809,11 @@ mod tests {
     fn nothing_gathers_past_a_clear() {
         let plain = [0; STATES];
         let b = Batches::of(
-            &[
+            &list([
                 triangle(0.0, 10.0, 1, plain),
-                Command::Clear([100, 100, 200, 200]),
+                TestCommand::Clear([100, 100, 200, 200]),
                 triangle(40.0, 50.0, 3, plain),
-            ],
+            ]),
             640,
             480,
             None,
@@ -824,11 +828,11 @@ mod tests {
         let mut blended = plain;
         blended[0x1B] = 1;
         let b = Batches::of(
-            &[
+            &list([
                 triangle(0.0, 10.0, 1, plain),
                 triangle(f32::NAN, 30.0, 2, blended),
                 triangle(40.0, 50.0, 3, plain),
-            ],
+            ]),
             640,
             480,
             None,
@@ -838,12 +842,12 @@ mod tests {
 
     /// A textured fan of `corners` places (the same each time), its colour `colour`, its
     /// texture at `texture` (an identity only).
-    fn textured(corners: usize, colour: u32, texture: u32, states: [u32; STATES]) -> Command {
+    fn textured(corners: usize, colour: u32, texture: u32, states: [u32; STATES]) -> TestCommand {
         let corner = |n: usize| {
             let (x, y) = (n as f32 * 10.0, (n % 2) as f32 * 10.0);
             [x.to_bits(), y.to_bits(), 0, 0, colour, 0x7F00_0000, 3, 4]
         };
-        Command::Fan {
+        TestCommand::Fan {
             vertices: (0..corners).map(corner).collect(),
             states: std::sync::Arc::new(states),
             texture: Some(TextureNote {
@@ -879,9 +883,9 @@ mod tests {
     const OPAQUE: u32 = 0x1000;
     const SEE_THROUGH: u32 = 0x2000;
 
-    fn joined(commands: &[Command]) -> Batches {
+    fn joined(commands: impl IntoIterator<Item = TestCommand>) -> Batches {
         Batches::of(
-            commands,
+            &list(commands),
             640,
             480,
             Some(&|t: &TextureNote| t.pixels.surface == OPAQUE),
@@ -891,7 +895,7 @@ mod tests {
     #[test]
     fn a_second_pass_over_the_same_places_joins_the_first() {
         let (first, second) = passes();
-        let b = joined(&[
+        let b = joined([
             textured(4, 0xFF00_0000, OPAQUE, first),
             textured(4, 0x8000_0000, SEE_THROUGH, second),
         ]);
@@ -933,16 +937,16 @@ mod tests {
                 textured(4, 0x8000_0000, OPAQUE, first),
             ],
         ] {
-            let b = joined(&commands);
+            let b = joined(commands);
             assert!(b.batches.iter().all(|b| b.second.is_none()));
             assert_eq!(b.seconds.len(), b.vertices.len());
         }
     }
 
     /// `textured`'s, with a texture of `size` x `size`.
-    fn sized(texture: u32, size: usize, x: f32, states: [u32; STATES]) -> Command {
+    fn sized(texture: u32, size: usize, x: f32, states: [u32; STATES]) -> TestCommand {
         let mut command = textured(3, 0xFF00_0000, texture, states);
-        if let Command::Fan {
+        if let TestCommand::Fan {
             vertices,
             texture: Some(note),
             ..
@@ -964,12 +968,12 @@ mod tests {
             a.width == b.width || (main(a) && main(b))
         };
         let b = Batches::of_layered(
-            &[
+            &list([
                 sized(0x10, 128, 0.0, plain),
                 sized(0x20, 256, 0.0, plain),
                 sized(0x30, 64, 0.0, plain),
                 sized(0x40, 128, 100.0, plain),
-            ],
+            ]),
             640,
             480,
             &|_| false,
@@ -983,7 +987,7 @@ mod tests {
         assert_eq!(numbers, [0, 0, 0, 1, 1, 1, 3, 3, 3, 2, 2, 2]);
         assert!(b.vertex_textures.iter().all(|v| v[1] == NO_TEXTURE));
         // Unlayered, one texture a draw.
-        let commands = [sized(0x10, 128, 0.0, plain), sized(0x20, 256, 0.0, plain)];
+        let commands = list([sized(0x10, 128, 0.0, plain), sized(0x20, 256, 0.0, plain)]);
         assert_eq!(Batches::of(&commands, 640, 480, None).batches.len(), 2);
         assert!(
             Batches::of(&commands, 640, 480, None)
@@ -995,7 +999,7 @@ mod tests {
     #[test]
     fn the_first_pass_leaves_the_batch_it_had_joined() {
         let (first, second) = passes();
-        let b = joined(&[
+        let b = joined([
             textured(3, 0xFF00_0000, OPAQUE, first),
             textured(4, 0xFF00_0000, OPAQUE, first),
             textured(4, 0x8000_0000, SEE_THROUGH, second),

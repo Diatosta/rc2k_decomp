@@ -72,11 +72,28 @@ pub struct TextureNote {
     pub masks: [u32; 4],
 }
 
-// A fan is by far the common command and its vertices live inline to spare an allocation each.
-#[allow(clippy::large_enum_variant)]
+/// A fan's vertices: where they start in its list's `vertices` (`CommandList`) and how many.
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
+pub struct VertexSpan {
+    first: u32,
+    count: u32,
+}
+
+impl VertexSpan {
+    /// How many vertices the fan has.
+    pub fn len(self) -> usize {
+        self.count as usize
+    }
+
+    fn range(self) -> std::ops::Range<usize> {
+        self.first as usize..self.first as usize + self.count as usize
+    }
+}
+
 pub enum Command {
     Fan {
-        vertices: smallvec::SmallVec<[crate::rasteriser::Vertex; 6]>,
+        /// In the list's `vertices`: a fan has no vertices of its own (an allocation each).
+        vertices: VertexSpan,
         /// Shared between fans with the same states, which most of a frame's are.
         states: std::sync::Arc<[u32; STATES]>,
         texture: Option<TextureNote>,
@@ -85,6 +102,151 @@ pub enum Command {
     },
     /// The depth buffer back to 1.0 in a rectangle (left, top, right, bottom).
     Clear([usize; 4]),
+}
+
+/// Commands in the order they were noted, with the vertices their fans name (`VertexSpan`),
+/// the fans' one after another: one unit, moved and joined as one.
+#[derive(Default)]
+pub struct CommandList {
+    pub commands: Vec<Command>,
+    pub vertices: Vec<crate::rasteriser::Vertex>,
+}
+
+impl CommandList {
+    pub const fn new() -> Self {
+        Self {
+            commands: Vec::new(),
+            vertices: Vec::new(),
+        }
+    }
+
+    /// An empty list with room for as many commands and vertices as `like` holds.
+    pub fn with_room_of(like: &CommandList) -> Self {
+        Self {
+            commands: Vec::with_capacity(like.commands.capacity()),
+            vertices: Vec::with_capacity(like.vertices.capacity()),
+        }
+    }
+
+    /// The commands noted.
+    pub fn len(&self) -> usize {
+        self.commands.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.commands.is_empty()
+    }
+
+    /// Everything taken out, the room kept.
+    pub fn clear(&mut self) {
+        self.commands.clear();
+        self.vertices.clear();
+    }
+
+    /// A fan of `vertices` noted after the rest.
+    pub fn push_fan(
+        &mut self,
+        vertices: &[crate::rasteriser::Vertex],
+        states: std::sync::Arc<[u32; STATES]>,
+        texture: Option<TextureNote>,
+        bounds: (f32, f32, f32, f32),
+    ) {
+        let span = VertexSpan {
+            first: self.vertices.len() as u32,
+            count: vertices.len() as u32,
+        };
+        self.vertices.extend_from_slice(vertices);
+        self.commands.push(Command::Fan {
+            vertices: span,
+            states,
+            texture,
+            bounds,
+        });
+    }
+
+    /// A depth clear noted after the rest.
+    pub fn push_clear(&mut self, rect: [usize; 4]) {
+        self.commands.push(Command::Clear(rect));
+    }
+
+    /// A fan's vertices (`span` one of this list's fans').
+    pub fn fan_vertices(&self, span: VertexSpan) -> &[crate::rasteriser::Vertex] {
+        &self.vertices[span.range()]
+    }
+
+    /// `other`'s commands after this list's, its fans' vertices after this list's; `other` is
+    /// left empty with its room.
+    pub fn append(&mut self, other: &mut CommandList) {
+        let base = self.vertices.len() as u32;
+        self.vertices.append(&mut other.vertices);
+        self.commands.reserve(other.commands.len());
+        for mut command in other.commands.drain(..) {
+            if let Command::Fan { vertices, .. } = &mut command {
+                vertices.first += base;
+            }
+            self.commands.push(command);
+        }
+    }
+}
+
+/// Drawn lists handed back (`give_back`), their room kept for the next flushes: a list grown to
+/// a frame's fans each flush shows in a profile.
+static SPARE_LISTS: Mutex<Vec<CommandList>> = Mutex::new(Vec::new());
+
+/// Lists kept at most: the noted ones in flight (the GL's queue, `gles::JOBS_WAITING`) and the
+/// parts'.
+const SPARE_LISTS_KEPT: usize = 8;
+
+/// An empty list: a drawn one handed back, else one with `like`'s room.
+pub fn spare_list(like: &CommandList) -> CommandList {
+    SPARE_LISTS
+        .lock()
+        .unwrap()
+        .pop()
+        .unwrap_or_else(|| CommandList::with_room_of(like))
+}
+
+/// A list drawn: emptied and kept for `spare_list`.
+pub fn give_back(mut list: CommandList) {
+    if list.commands.capacity() == 0 && list.vertices.capacity() == 0 {
+        return;
+    }
+    list.clear();
+    let mut spare = SPARE_LISTS.lock().unwrap();
+    if spare.len() < SPARE_LISTS_KEPT {
+        spare.push(list);
+    }
+}
+
+/// A command with vertices of its own, for building lists in tests (`list`).
+#[cfg(test)]
+#[derive(Clone)]
+pub enum TestCommand {
+    Fan {
+        vertices: Vec<crate::rasteriser::Vertex>,
+        states: std::sync::Arc<[u32; STATES]>,
+        texture: Option<TextureNote>,
+        bounds: (f32, f32, f32, f32),
+    },
+    Clear([usize; 4]),
+}
+
+/// The list of `commands`, in their order.
+#[cfg(test)]
+pub fn list(commands: impl IntoIterator<Item = TestCommand>) -> CommandList {
+    let mut list = CommandList::new();
+    for command in commands {
+        match command {
+            TestCommand::Fan {
+                vertices,
+                states,
+                texture,
+                bounds,
+            } => list.push_fan(&vertices, states, texture, bounds),
+            TestCommand::Clear(rect) => list.push_clear(rect),
+        }
+    }
+    list
 }
 
 /// What the commands draw into.
@@ -99,9 +261,10 @@ pub struct Target {
 }
 
 /// A way of drawing the commands. It draws them all, in order, before it returns: the game's
-/// code may read or change the target and the textures as soon as it has.
+/// code may read or change the target and the textures as soon as it has. The list drawn goes
+/// back to `give_back`, for the next flushes' noting.
 pub trait Backend: Send {
-    fn draw(&mut self, target: &Target, commands: Vec<Command>);
+    fn draw(&mut self, target: &Target, commands: CommandList);
 }
 
 /// Whether the GPU holds the frame: a race's on the GPU backend (the menus stay the rasteriser's:
@@ -110,7 +273,7 @@ static GPU_HOLDS_FRAME: AtomicBool = AtomicBool::new(false);
 
 /// Draws the commands on the backend that holds the frame; `screen` is the screen's size (the
 /// rasteriser's depth buffer is kept at it).
-pub fn draw(in_race: bool, screen: (usize, usize), target: &Target, commands: Vec<Command>) {
+pub fn draw(in_race: bool, screen: (usize, usize), target: &Target, commands: CommandList) {
     if target.bits == 32 && in_race {
         let mut gpu = gpu::GPU.lock().unwrap();
         if let Some(gpu) = gpu.as_mut() {
@@ -408,7 +571,130 @@ pub static GL_SHOW_MICROS: std::sync::atomic::AtomicU64 = std::sync::atomic::Ato
 
 #[cfg(test)]
 mod tests {
-    use super::{TextureChanges, TextureId, TextureMap};
+    use super::{Command, CommandList, TestCommand, TextureChanges, TextureId, TextureMap, list};
+
+    /// A scene of `count` commands as the game notes them: fans of 3 to 12 corners (most past
+    /// six, which spilled out of a fan's own room before the vertices were the list's), runs of
+    /// shared states, textures and clears between, from a fixed seed.
+    fn scene(count: usize) -> Vec<TestCommand> {
+        let mut state = 0x2468_ACE1u32;
+        let mut next = move || {
+            state = state.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
+            state
+        };
+        let mut states = std::sync::Arc::new([0u32; super::STATES]);
+        (0..count)
+            .map(|n| {
+                if next() % 29 == 0 {
+                    return TestCommand::Clear([n, n + 1, n + 40, n + 30]);
+                }
+                if next() % 7 == 0 {
+                    let mut changed = *states;
+                    changed[0x1B] = next() % 2;
+                    changed[0x0E] = next() % 2;
+                    states = std::sync::Arc::new(changed);
+                }
+                let corners = 3 + (next() % 10) as usize;
+                let vertices = (0..corners)
+                    .map(|_| {
+                        let mut v = [0u32; 8];
+                        v[0] = ((next() % 640) as f32).to_bits();
+                        v[1] = ((next() % 480) as f32).to_bits();
+                        v[2] = (next() as f32 / u32::MAX as f32).to_bits();
+                        v[3] = 1.0f32.to_bits();
+                        for d in &mut v[4..] {
+                            *d = next();
+                        }
+                        v
+                    })
+                    .collect();
+                let texture = (next() % 3 == 0).then(|| super::TextureNote {
+                    pixels: TextureId {
+                        surface: next() % 4,
+                        serial: 0,
+                    },
+                    len: 4,
+                    width: 1,
+                    height: 1,
+                    pitch: 4,
+                    bytes: 4,
+                    masks: [0xFF_0000, 0xFF00, 0xFF, 0xFF00_0000],
+                });
+                TestCommand::Fan {
+                    vertices,
+                    states: std::sync::Arc::clone(&states),
+                    texture,
+                    bounds: (0.0, 0.0, 640.0, 480.0),
+                }
+            })
+            .collect()
+    }
+
+    /// Whether `noted` reads back as `scene`, command by command: each fan its own vertices in
+    /// order, its states (the same shared ones), texture and bounds.
+    fn reads_back_as(noted: &CommandList, scene: &[TestCommand]) {
+        assert_eq!(noted.len(), scene.len());
+        for (n, (got, want)) in noted.commands.iter().zip(scene).enumerate() {
+            match (got, want) {
+                (
+                    Command::Fan {
+                        vertices,
+                        states,
+                        texture,
+                        bounds,
+                    },
+                    TestCommand::Fan {
+                        vertices: want_vertices,
+                        states: want_states,
+                        texture: want_texture,
+                        bounds: want_bounds,
+                    },
+                ) => {
+                    assert_eq!(noted.fan_vertices(*vertices), &want_vertices[..], "{n}");
+                    assert!(std::sync::Arc::ptr_eq(states, want_states), "{n}");
+                    assert_eq!(
+                        texture.map(|t| t.pixels),
+                        want_texture.map(|t| t.pixels),
+                        "{n}"
+                    );
+                    assert_eq!(bounds, want_bounds, "{n}");
+                }
+                (Command::Clear(got), TestCommand::Clear(want)) => assert_eq!(got, want, "{n}"),
+                _ => panic!("command {n} of another kind"),
+            }
+        }
+    }
+
+    /// A scene noted in one list and the same scene noted by parts and joined in their order
+    /// (`platform_3d::put_noted`) read back as the scene, and give the same batches, plain and
+    /// with second passes joined: the fans' vertices in their list draw what each fan's own did.
+    #[test]
+    fn a_scene_noted_whole_or_by_parts_reads_back_and_batches_the_same() {
+        let scene = scene(600);
+        let whole = list(scene.iter().cloned());
+        reads_back_as(&whole, &scene);
+        let mut joined = CommandList::new();
+        let mut rest = &scene[..];
+        for cut in [0, 1, 150, 7, 200] {
+            let (part, after) = rest.split_at(cut.min(rest.len()));
+            let mut part = list(part.iter().cloned());
+            joined.append(&mut part);
+            assert!(part.is_empty() && part.vertices.is_empty());
+            rest = after;
+        }
+        joined.append(&mut list(rest.iter().cloned()));
+        reads_back_as(&joined, &scene);
+        assert_eq!(joined.vertices, whole.vertices);
+        let opaque = |t: &super::TextureNote| t.pixels.surface == 1;
+        for opaque in [None, Some(&opaque as &dyn Fn(&super::TextureNote) -> bool)] {
+            let a = super::batches::Batches::of(&whole, 640, 480, opaque);
+            let b = super::batches::Batches::of(&joined, 640, 480, opaque);
+            assert_eq!(a.vertices, b.vertices);
+            assert_eq!(a.batches, b.batches);
+            assert_eq!(a.seconds, b.seconds);
+            assert!(a.batches.len() > 1 && a.vertices.len() > 3 * 600);
+        }
+    }
 
     /// Every id of a grid of surfaces and serials is found again under its own value, and
     /// the same hashes as a std map's lookups give the same answers.

@@ -1,6 +1,6 @@
 //! A frame's commands written to a file, for replaying them outside the program.
 
-use super::{Command, Target};
+use super::{Command, CommandList, Target};
 
 /// With `RC2K_DUMP=n` in the environment: the n-th flush of 1000 fans or more written to
 /// `rc2k_frame_dump.bin`, for replaying it outside the program (the benchmark): "RC2KDUMP",
@@ -8,7 +8,8 @@ use super::{Command, Target};
 /// four masks, its bytes' length and bytes); then each noted thing in order: 1 a fan (its
 /// vertices' count and the vertices, 8 dwords each; the 0x40 states; its texture's number
 /// or -1), 2 a depth clear (left, top, right, bottom). All little-endian dwords.
-pub fn dump_if_asked(noted: &[Command], into: &Target) {
+pub fn dump_if_asked(list: &CommandList, into: &Target) {
+    let noted = &list.commands;
     use std::sync::atomic::{AtomicU32, Ordering::Relaxed};
     static SEEN: AtomicU32 = AtomicU32::new(0);
     let Some(wanted) = std::env::var("RC2K_DUMP")
@@ -70,7 +71,7 @@ pub fn dump_if_asked(noted: &[Command], into: &Target) {
             } => {
                 put(&mut out, 1);
                 put(&mut out, vertices.len() as u32);
-                for v in vertices {
+                for v in list.fan_vertices(*vertices) {
                     for &d in v {
                         put(&mut out, d);
                     }
@@ -104,7 +105,7 @@ pub fn dump_if_asked(noted: &[Command], into: &Target) {
 /// vertices, states and texture, every clear) and logged with the flush's number, so that two
 /// runs of a replay can be compared flush by flush (the check of a change that should draw the
 /// same).
-pub fn hash_if_asked(noted: &[Command], in_race: bool) {
+pub fn hash_if_asked(list: &CommandList, in_race: bool) {
     use std::hash::{Hash, Hasher};
     use std::sync::atomic::{AtomicU32, Ordering::Relaxed};
     static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
@@ -129,7 +130,7 @@ pub fn hash_if_asked(noted: &[Command], in_race: bool) {
         seen.push((at, v));
         v
     };
-    for n in noted {
+    for n in &list.commands {
         match n {
             Command::Fan {
                 vertices,
@@ -138,7 +139,7 @@ pub fn hash_if_asked(noted: &[Command], in_race: bool) {
                 ..
             } => {
                 1u8.hash(&mut h);
-                for v in vertices {
+                for v in list.fan_vertices(*vertices) {
                     v.hash(&mut h);
                 }
                 states.hash(&mut h);
@@ -153,7 +154,7 @@ pub fn hash_if_asked(noted: &[Command], in_race: bool) {
     let n = FLUSHES.fetch_add(1, Relaxed);
     crate::framework::log(&format!(
         "fan hash {n}: {} commands, {:016x}",
-        noted.len(),
+        list.len(),
         h.finish()
     ));
 }

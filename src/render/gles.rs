@@ -8,7 +8,7 @@
 mod bench;
 
 use super::batches::{Batches, NO_TEXTURE, PipelineKey, PixelValues};
-use super::{Command, Target, TextureNote};
+use super::{Command, CommandList, Target, TextureNote};
 use crate::ffi::gl::Gles;
 use crate::framework::log;
 use std::collections::HashMap;
@@ -700,6 +700,7 @@ impl Gpu {
         if bench::due(batches.batches.len()) {
             self.bench(&commands, &batches, height);
         }
+        super::give_back(commands);
     }
 
     /// Each vertex's passes' arrays and layers (`unit_of`, the texture's layer), two
@@ -916,7 +917,7 @@ struct Written {
 
 /// What a draw needs, all of it the thread's own: the game goes on with its memory meanwhile.
 struct Part {
-    commands: Vec<Command>,
+    commands: CommandList,
     uploads: Vec<(TextureNote, Vec<u8>)>,
     written: Vec<Written>,
     size: (i32, i32),
@@ -963,7 +964,7 @@ impl Front {
     }
 
     /// Hands over the commands and the canvas's written rows, which it marks again.
-    fn draw(&mut self, canvas: &mut [u8], commands: Vec<Command>) {
+    fn draw(&mut self, canvas: &mut [u8], commands: CommandList) {
         super::FANS.fetch_add(commands.len() as u64, std::sync::atomic::Ordering::Relaxed);
         super::FLUSHES.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         let changes = super::take_changed_textures();
@@ -977,7 +978,7 @@ impl Front {
         let mut uploads = Vec::new();
         // One texture is usually drawn many times running.
         let mut last = None;
-        for command in &commands {
+        for command in &commands.commands {
             if let Command::Fan {
                 texture: Some(note),
                 ..
@@ -1011,7 +1012,7 @@ impl Front {
 
     /// The frame's end: what the canvas has written over the target, and the target shown.
     pub fn finish_and_show(&mut self, canvas: &mut [u8]) {
-        self.draw(canvas, Vec::new());
+        self.draw(canvas, CommandList::new());
         self.send(Job::ShowTarget);
     }
 
@@ -1028,7 +1029,7 @@ impl Front {
     /// GL: the frame's whole work so far).
     pub fn bring_back(&mut self, canvas: &mut [u8]) {
         super::READ_BACKS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-        self.draw(canvas, Vec::new());
+        self.draw(canvas, CommandList::new());
         let (answer, picture) = channel();
         self.send(Job::ReadTarget(answer));
         let Ok(picture) = picture.recv() else {
@@ -1161,7 +1162,7 @@ pub fn start_if_wanted() {
 static TRIED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
 impl super::Backend for Front {
-    fn draw(&mut self, target: &Target, commands: Vec<Command>) {
+    fn draw(&mut self, target: &Target, commands: CommandList) {
         self.size = (target.width as i32, target.height as i32);
         target.with_canvas(|canvas| Front::draw(self, canvas, commands));
     }
