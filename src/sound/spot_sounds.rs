@@ -19,7 +19,7 @@ pub fn spot_sounds(
     use crate::sound::*;
     match_spot_voices::match_spot_voices(sound)?;
     free_spot_voices::free_spot_voices(request, sound, audio)?;
-    spot_voice_distances::spot_voice_distances(sound)?;
+    spot_voice_distances::spot_voice_distances(sound);
     merge_spot_voices_all::merge_spot_voices_all(sound, system)?;
     thin_spot_voices_all::thin_spot_voices_all(sound, system)?;
     exclusive_spot_voices::exclusive_spot_voices(sound);

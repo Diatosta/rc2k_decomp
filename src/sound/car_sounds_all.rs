@@ -46,7 +46,7 @@ pub fn car_sounds_all(
             continue;
         }
         x87_1(o, &sound.race.sounds.get().nearest_distance);
-        nearest.consider(n, sound.race.sounds.get().nearest_distance.bits());
+        nearest.consider(n, sound.race.sounds.get().nearest_distance.get());
     }
     let (first, second) = nearest.kept(
         sound.race.sounds.get().nearest.get(),

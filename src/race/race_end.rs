@@ -152,8 +152,8 @@ pub fn reset_race_sounds(
     }
     clear_stage_flags(sound);
     for voice in v.voices.iter() {
-        voice[0].set(0x1888_FFFF);
-        voice[5].set(0xFFFF_FFFE);
+        voice.id.set(crate::sound::spot_voices::SpotVoice::FREE_ID);
+        voice.sound.set(0xFFFF_FFFE);
     }
     sound.race.stage.get().shared_count.set(0);
     crate::audio::store::ENVIRONMENT.set(0x3F80_0000u32);
@@ -165,7 +165,7 @@ pub fn reset_race_sounds(
 /// Where `reset_race_sounds` finds the voices (the game's,
 /// or a test's: the audio thread reads the game's).
 pub struct SoundVars<'a> {
-    pub voices: &'a [[crate::session::PlainDword; 20]; 72],
+    pub voices: &'a [crate::sound::spot_voices::SpotVoice; 72],
 }
 
 impl<'a> SoundVars<'a> {

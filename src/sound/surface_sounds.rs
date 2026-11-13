@@ -38,8 +38,8 @@ fn one(
 ) -> Result<(), Refused> {
     // Converted: `rc2k_core::sound::surfaces` (`wheel`, `quieter`, `set_pair`).
     let (first, _) = surfaces::wheel(
-        sound.race.surface.get().across.bits(),
-        sound.race.surface.get().along.bits(),
+        sound.race.surface.get().across.get(),
+        sound.race.surface.get().along.get(),
     );
     let surface = o.voices[first].surface.get();
     if second == 0 {

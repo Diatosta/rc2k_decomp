@@ -38,12 +38,11 @@ pub fn volume(whole: u32) -> u32 {
     (whole as i32).clamp(0, LOUDEST) as u32
 }
 
-/// The place sent: 0 when the sound is straight ahead (the request's x, a float's bits,
-/// is a zero), else the whole number from the angle; with Dolby (`mode`) and an angle
-/// below zero (its bits, signed) the second byte inverted.
-pub fn place(whole: u32, x: u32, angle: u32, mode: u32) -> u32 {
-    let mut place = if x & 0x7FFF_FFFF == 0 { 0 } else { whole };
-    if mode & MODE_DOLBY != 0 && (angle as i32) < 0 {
+/// The place sent: 0 when the sound is straight ahead (the request's x is a zero of either
+/// sign), else the whole number from the angle; with Dolby (`mode`) and an angle (a whole number) below zero the second byte inverted.
+pub fn place(whole: u32, x: f32, angle: i32, mode: u32) -> u32 {
+    let mut place = if x == 0.0 { 0 } else { whole };
+    if mode & MODE_DOLBY != 0 && angle < 0 {
         place ^= 0xFF00;
     }
     place
@@ -62,9 +61,9 @@ mod tests {
         assert_eq!(volume(0x41), 0x40);
         assert_eq!(volume(0xFFFF_FFFF), 0);
         assert_eq!(volume(0x20), 0x20);
-        assert_eq!(place(0x40, 0x8000_0000, 0xBF00_0000, MODE_DOLBY), 0xFF00);
-        assert_eq!(place(0x40, 0x3F80_0000, 0xBF00_0000, MODE_DOLBY), 0xFF40);
-        assert_eq!(place(0x40, 0x3F80_0000, 0x3F00_0000, MODE_DOLBY), 0x40);
-        assert_eq!(place(0x40, 0x3F80_0000, 0xBF00_0000, 0), 0x40);
+        assert_eq!(place(0x40, -0.0, -1, MODE_DOLBY), 0xFF00);
+        assert_eq!(place(0x40, 1.0, -1, MODE_DOLBY), 0xFF40);
+        assert_eq!(place(0x40, 1.0, 1, MODE_DOLBY), 0x40);
+        assert_eq!(place(0x40, 1.0, -1, 0), 0x40);
     }
 }

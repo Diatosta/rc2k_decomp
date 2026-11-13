@@ -95,7 +95,7 @@ pub fn play_placed_sound(
         );
         request.angle.set(angle);
         request.pan.set(place);
-        let place = placed::place(place, request.place[0].bits(), angle, mode);
+        let place = placed::place(place, request.place[0].get(), angle as i32, mode);
         // Outside 3D `play_sound` sends no place beyond the pan, so the other two values are 0.
         (volume_sent, pan, place_b, place_c) = (volume, place, 0, 0);
     } else {

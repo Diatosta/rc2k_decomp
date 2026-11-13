@@ -18,8 +18,8 @@ use crate::math::x87::from_int;
 use crate::sound::sample_duration::sample_duration;
 use crate::sound::sample_settings::{OWN, RECORDS, sample_settings};
 use crate::sound::sets_store::SoundRequest;
-use crate::sound::spot_voices::{VOICE_COUNT, set, voice, vw};
-use rc2k_core::sound::spot_voices::{Played, REQUEST_FROM, end_time, going_on, played, time_up};
+use crate::sound::spot_voices::{VOICE_COUNT, voice};
+use rc2k_core::sound::spot_voices::{Played, end_time, going_on, played, time_up};
 
 /// The spots' voices played through `request`.
 pub fn play_spot_voices(
@@ -30,36 +30,27 @@ pub fn play_spot_voices(
     let clock = owner.race.clock.get().last.get();
     for n in 0..VOICE_COUNT {
         let v = voice(n, owner);
-        if vw(v, 4)? != 1 {
+        if v.heard.get() != 1 {
             continue;
         }
-        set(v, 4, 0)?;
-        let sound = vw(v, 0x14)?;
+        v.heard.set(0);
+        let sound = v.sound.get();
         request.sound.set(sound);
         // Converted: `rc2k_core::sound::spot_voices` (`played`, `end_time`,
-        // `going_on`, `REQUEST_FROM`, `time_up`).
-        let failed = std::cell::Cell::new(None);
-        let kind = played(vw(v, 0x24)?, || {
-            vw(v, 0x28).unwrap_or_else(|e| {
-                failed.set(Some(e));
-                0
-            })
-        });
-        if let Some(e) = failed.take() {
-            return Err(e.into());
-        }
+        // `going_on`, `time_up`).
+        let kind = played(v.restart.get(), || v.playing.get());
         match kind {
             Played::Start => {
-                set(v, 0x24, 0)?;
+                v.restart.set(0);
                 let (volume, rate) = sample_settings(audio, sound, OWN, OWN)?;
-                set(v, 0x3C, from_int(volume as i32).to_bits())?;
-                set(v, 0x38, from_int(rate as i32).to_bits())?;
-                set(
-                    v,
-                    0x34,
-                    end_time(sample_duration(audio, sound, rate)?, clock, vw(v, 0x30)?),
-                )?;
-                set(v, 0x28, 1)?;
+                v.volume.set(from_int(volume as i32));
+                v.rate.set(from_int(rate as i32));
+                v.ends.set(end_time(
+                    sample_duration(audio, sound, rate)?,
+                    clock,
+                    v.delay.get(),
+                ));
+                v.playing.set(1);
             }
             Played::Silent => continue,
             Played::GoOn => {
@@ -70,16 +61,27 @@ pub fn play_spot_voices(
                 request.sound.set(going_on(request.sound.get(), looping));
             }
         }
-        for (to, from) in REQUEST_FROM {
+        // The request's dwords the voice fills (request words 2, 1, 8, 9, 3 .. 5): the volume, the rate,
+        // the two factors, the place; the request holds them as dwords.
+        let filled = [
+            (2, v.volume.bits()),
+            (1, v.rate.bits()),
+            (8, v.pitch_factor.bits()),
+            (9, v.volume_factor.bits()),
+            (3, v.place[0].bits()),
+            (4, v.place[1].bits()),
+            (5, v.place[2].bits()),
+        ];
+        for (to, bits) in filled {
             request
-                .set_word(to, vw(v, from)?)
+                .set_word(to, bits)
                 .ok_or(BadInput("a request word past its ten"))?;
         }
         crate::sound::turn_parts::placed(request, owner, audio)?;
-        if time_up(clock, vw(v, 0x34)?) {
-            request.sound.set(vw(v, 0x14)?);
+        if time_up(clock, v.ends.get()) {
+            request.sound.set(v.sound.get());
             crate::sound::turn_parts::stop(request, audio)?;
-            set(v, 0x28, 0)?;
+            v.playing.set(0);
         }
     }
     Ok(())

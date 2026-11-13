@@ -50,8 +50,9 @@ impl Default for Nearest {
 }
 
 impl Nearest {
-    /// Car `n` at squared distance `d` (a float's bits).
-    pub fn consider(&mut self, n: u32, d: u32) {
+    /// Car `n` at squared distance `d` (compared as the float's bits are, as signed integers).
+    pub fn consider(&mut self, n: u32, d: f32) {
+        let d = d.to_bits();
         if self.first_distance as i32 > d as i32 {
             self.second_distance = self.first_distance;
             self.second = self.first;
@@ -90,10 +91,10 @@ mod tests {
     #[test]
     fn nearest() {
         let mut n = Nearest::default();
-        n.consider(4, 0x4000_0000);
-        n.consider(5, 0x3F00_0000);
-        n.consider(6, 0x4100_0000);
-        n.consider(7, 0x3F80_0000);
+        n.consider(4, 2.0);
+        n.consider(5, 0.5);
+        n.consider(6, 8.0);
+        n.consider(7, 1.0);
         assert_eq!((n.first, n.second), (5, 7));
         assert_eq!(n.kept(1, 2), (5, 7));
         assert_eq!(n.kept(7, 2), (7, 5));

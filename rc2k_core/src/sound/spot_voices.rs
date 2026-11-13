@@ -458,18 +458,6 @@ pub fn time_up(clock: u32, end: u32) -> bool {
     clock.wrapping_sub(end) as i32 >= 0
 }
 
-/// The request's dwords a voice fills, with the voice's offsets they come from, in order:
-/// the volume, the rate, the two factors, the place.
-pub const REQUEST_FROM: [(usize, u32); 7] = [
-    (2, 0x3C),
-    (1, 0x38),
-    (8, 0x48),
-    (9, 0x4C),
-    (3, 8),
-    (4, 0xC),
-    (5, 0x10),
-];
-
 #[cfg(test)]
 mod tests {
     use super::*;
