@@ -2,19 +2,21 @@
 //! there, and SDL has no display for it), drawing to `/dev/fb0` through its EGL. The same frame
 //! as `gpu`'s: `batches`' lists, the canvas's written pixels over the 3D. The GL's own thread
 //! holds the context and does the driver's work (a quarter of a frame's time on this processor);
-//! the game's thread hands it copies, by channel, and goes on. The calls into the
-//! library are `ffi::gl`'s.
+//! the game's thread hands it copies, by channel, and goes on. They pass a batching thread on
+//! the way (`gl_batching`), which makes each part's batches while the GL draws the part before.
+//! The calls into the library are `ffi::gl`'s.
 
 mod bench;
 
 use super::batches::{Batches, NO_TEXTURE, PipelineKey, PixelValues};
+use super::gl_batching::{Batched, Job, Part, Written};
 use super::{Command, CommandList, Target, TextureNote};
 use crate::ffi::gl::Gles;
 use crate::framework::log;
 use std::collections::HashMap;
 use std::ffi::CStr;
 use std::sync::Mutex;
-use std::sync::mpsc::{Receiver, Sender, SyncSender, channel, sync_channel};
+use std::sync::mpsc::{Receiver, SyncSender, channel, sync_channel};
 
 /// A canvas pixel the game has not written (`gpu::UNWRITTEN`'s kin).
 pub const UNWRITTEN: u32 = 0xA5FF_00FF;
@@ -223,8 +225,6 @@ struct CachedTexture {
     layer: i32,
     width: usize,
     height: usize,
-    /// Every pixel's alpha full: a first pass over it can take a second (`Batches::of`).
-    opaque: bool,
 }
 
 pub struct Gpu {
@@ -565,13 +565,18 @@ impl Gpu {
 
     /// A frame's part: the textures brought up, the canvas's written rows over the target, then
     /// the batches.
-    fn draw(&mut self, part: Part) {
-        let Part {
-            commands,
-            uploads,
-            written,
-            size: (width, height),
-        } = part;
+    fn draw(&mut self, batched: Batched) {
+        let Batched {
+            part:
+                Part {
+                    commands,
+                    uploads,
+                    written,
+                    size: (width, height),
+                },
+            batches,
+            opaque,
+        } = batched;
         if let Err(why) = self.set_size(width, height) {
             crate::fatal::raise::end(
                 "render::gles",
@@ -581,14 +586,6 @@ impl Gpu {
         for (note, bytes) in &uploads {
             self.bring_texture_up(note, bytes);
         }
-        let opaque = |note: &TextureNote| self.textures.get(&note.pixels).is_some_and(|t| t.opaque);
-        let start = std::time::Instant::now();
-        let batches =
-            Batches::of_layered(&commands, width as u32, height as u32, &opaque, same_array);
-        super::GL_BATCHING_MICROS.fetch_add(
-            start.elapsed().as_micros() as u64,
-            std::sync::atomic::Ordering::Relaxed,
-        );
         super::GPU_DRAWS.fetch_add(
             batches.batches.len() as u64,
             std::sync::atomic::Ordering::Relaxed,
@@ -698,7 +695,7 @@ impl Gpu {
             }
         }
         if bench::due(batches.batches.len()) {
-            self.bench(&commands, &batches, height);
+            self.bench(&commands, &batches, &opaque, height);
         }
         super::give_back(commands);
     }
@@ -807,11 +804,6 @@ impl Gpu {
                 layer,
                 width: note.width,
                 height: note.height,
-                opaque: bytes
-                    .as_chunks::<4>()
-                    .0
-                    .iter()
-                    .all(|pixel| pixel[3] == 0xFF),
             },
         );
     }
@@ -878,7 +870,7 @@ impl Gpu {
         }
     }
 
-    fn run(mut self, jobs: Receiver<Job>) {
+    fn run(mut self, jobs: Receiver<Job<Batched>>) {
         for job in jobs {
             let start = std::time::Instant::now();
             match job {
@@ -908,47 +900,25 @@ impl Gpu {
     }
 }
 
-/// The canvas's written rows, copied.
-struct Written {
-    first: usize,
-    last: usize,
-    bytes: Vec<u8>,
-}
-
-/// What a draw needs, all of it the thread's own: the game goes on with its memory meanwhile.
-struct Part {
-    commands: CommandList,
-    uploads: Vec<(TextureNote, Vec<u8>)>,
-    written: Vec<Written>,
-    size: (i32, i32),
-}
-
-enum Job {
-    /// The textures whose memory is gone, by address.
-    Forget(Vec<super::TextureId>),
-    Draw(Part),
-    ShowTarget,
-    ShowPicture {
-        frame: Vec<u8>,
-        width: i32,
-        height: i32,
-    },
-    ReadTarget(Sender<Vec<u8>>),
-}
-
 /// The game's side of the GL's thread, and what it knows the GPU holds.
 pub struct Front {
-    jobs: SyncSender<Job>,
+    jobs: SyncSender<Job<Part>>,
     /// The textures up to date on the GPU, with their sizes.
     known: super::TextureMap<(usize, usize)>,
     size: (i32, i32),
 }
 
-/// Jobs waiting at most: a frame's part, its end, a little more; then the game waits.
+/// Jobs waiting for the batching thread at most: a frame's part, its end, a little more; then
+/// the game waits. Past them, one being batched and `BATCHED_WAITING` batched wait for the GL:
+/// with fewer (one waiting in all, handed over directly) the game waited for the GL three
+/// times as long and the handheld drew about 8 % fewer frames (2026-11-13).
 const JOBS_WAITING: usize = 2;
 
+/// Parts batched and waiting for the GL's thread at most.
+const BATCHED_WAITING: usize = 1;
+
 impl Front {
-    fn send(&self, job: Job) {
+    fn send(&self, job: Job<Part>) {
         let start = std::time::Instant::now();
         let sent = self.jobs.send(job);
         super::GL_WAIT_MICROS.fetch_add(
@@ -1125,14 +1095,15 @@ pub fn start_if_wanted() {
     if held.is_some() || !wanted() || TRIED.swap(true, std::sync::atomic::Ordering::Relaxed) {
         return;
     }
-    let (jobs, waiting) = sync_channel(JOBS_WAITING);
+    let (jobs, to_batch) = sync_channel(JOBS_WAITING);
+    let (batched, to_draw) = sync_channel(BATCHED_WAITING);
     let (answer, started) = channel();
     let thread = std::thread::Builder::new()
         .name("GL".into())
         .spawn(move || match Gpu::new() {
             Ok(gpu) => {
                 let _ = answer.send(Ok(()));
-                gpu.run(waiting);
+                gpu.run(to_draw);
             }
             Err(why) => {
                 let _ = answer.send(Err(why));
@@ -1144,6 +1115,14 @@ pub fn start_if_wanted() {
             .unwrap_or_else(|_| Err("the GL's thread ended".into())),
         Err(why) => Err(why.to_string()),
     };
+    // The GL's thread, without its batches' sender, ends when this does not start.
+    let outcome = outcome.and_then(|()| {
+        std::thread::Builder::new()
+            .name("GL batches".into())
+            .spawn(move || super::gl_batching::run(to_batch, batched, same_array))
+            .map(drop)
+            .map_err(|why| why.to_string())
+    });
     match outcome {
         Ok(()) => {
             log("render: the GPU backend on libmali's OpenGL ES, on its own thread");

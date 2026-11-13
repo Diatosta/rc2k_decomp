@@ -135,8 +135,14 @@ pub(super) fn due(batches: usize) -> bool {
 impl Gpu {
     /// Draws `batches` (whose vertices `draw` has just sent up) in each of the `WAYS`, and logs
     /// the time each takes.
-    pub(super) fn bench(&mut self, commands: &CommandList, batches: &Batches, height: i32) {
-        self.bench_gathering(commands, batches);
+    pub(super) fn bench(
+        &mut self,
+        commands: &CommandList,
+        batches: &Batches,
+        opaque: &[bool],
+        height: i32,
+    ) {
+        self.bench_gathering(commands, batches, opaque);
         let changes =
             |f: &dyn Fn(&super::super::batches::Batch, &super::super::batches::Batch) -> bool| {
                 batches
@@ -368,8 +374,15 @@ impl Gpu {
 impl Gpu {
     /// How many draws the frame takes with its textures as layers, against one texture a
     /// draw (`Batches::of`).
-    fn bench_gathering(&self, commands: &CommandList, batches: &Batches) {
-        let opaque = |note: &TextureNote| self.textures.get(&note.pixels).is_some_and(|t| t.opaque);
+    /// `opaque`: whether each of `batches.textures` is (`Batched::opaque`).
+    fn bench_gathering(&self, commands: &CommandList, batches: &Batches, opaque: &[bool]) {
+        let opaque = |note: &TextureNote| {
+            let n = batches
+                .textures
+                .iter()
+                .position(|t| t.pixels == note.pixels);
+            n.is_some_and(|n| opaque[n])
+        };
         let alone = Batches::of(
             commands,
             self.width as u32,

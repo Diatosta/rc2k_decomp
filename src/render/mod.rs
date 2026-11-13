@@ -6,6 +6,8 @@
 
 pub mod batches;
 pub mod dump;
+#[cfg(any(test, all(target_os = "linux", target_arch = "aarch64")))]
+pub mod gl_batching;
 #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
 pub mod gles;
 // The handheld has no Vulkan: its GPU is reached through `gles`, by the same name here.
@@ -193,8 +195,8 @@ impl CommandList {
 /// a frame's fans each flush shows in a profile.
 static SPARE_LISTS: Mutex<Vec<CommandList>> = Mutex::new(Vec::new());
 
-/// Lists kept at most: the noted ones in flight (the GL's queue, `gles::JOBS_WAITING`) and the
-/// parts'.
+/// Lists kept at most: the noted ones in flight (the GL's queues, `gles::JOBS_WAITING` and
+/// `gles::BATCHED_WAITING`, and the one being batched) and the parts'.
 const SPARE_LISTS_KEPT: usize = 8;
 
 /// An empty list: a drawn one handed back, else one with `like`'s room.
@@ -582,8 +584,8 @@ pub static GPU_DRAWS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU6
 /// in microseconds: which of the two the frame waits for.
 pub static GL_BUSY_MICROS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 pub static GL_WAIT_MICROS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
-/// Of the GL thread's time: making the batches from the commands, and showing the target
-/// (its swap) (microseconds).
+/// Making the batches from the commands (the batching thread's time beside the GL's,
+/// `gl_batching`), and of the GL thread's time showing the target (its swap) (microseconds).
 pub static GL_BATCHING_MICROS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 pub static GL_SHOW_MICROS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 
