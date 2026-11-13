@@ -1,10 +1,7 @@
-//! `threading::request_quit` (0x410BF9): asks the game to shut down: sets `flags.quitting` to 1
-//! and, if it was not 1 already, starts the thread of slot 3, whose routine
-//! at 0x410C17 logs "SHUTDOWN:START", waits for the other threads and posts a close message
-//! to the window.
-//!
-//! Two callers: the fatal-error reporter and `system::main_loop`.
-//! It cannot be run twice or undone.
+//! Asks the game to shut down: sets `flags.quitting` to 1 and, if it was not 1 already, starts
+//! the thread of slot 3, which logs "SHUTDOWN:START", waits for the other threads and posts a
+//! close message to the window. Used by the fatal-error reporter and `system::main_loop`; it
+//! cannot be run twice or undone.
 
 use crate::errors::FatalError;
 use crate::framework::log;
@@ -12,17 +9,12 @@ use crate::system::owner::System;
 use crate::threading::start_slot_thread::start_slot_thread;
 use std::sync::atomic::{AtomicU32, Ordering};
 
-// ---- game data ----
-
-// ---- Rust version ----
-
 /// `requested` is the shutdown switch; `start` starts the thread of the slot of the number
 /// it is given.
 pub fn request_quit_with(
     requested: &AtomicU32,
     start: &mut dyn FnMut(usize) -> Result<(), FatalError>,
 ) -> Result<(), FatalError> {
-    // Converted: `rc2k_core::threading::starts_shutdown`.
     use rc2k_core::threading::{QUITTING, starts_shutdown};
     if !starts_shutdown(requested.swap(QUITTING, Ordering::SeqCst)) {
         return Ok(());
@@ -36,7 +28,7 @@ pub fn request_quit_in(system: &System) -> Result<(), FatalError> {
     let before = requested.load(Ordering::SeqCst);
     let result = request_quit_with(requested, &mut start_slot_thread);
     if result.is_err() {
-        // Left as it was, so that the original, run in its place, tries the thread too.
+        // Left as it was, so that a later request tries the thread again.
         requested.store(before, Ordering::SeqCst);
     }
     result

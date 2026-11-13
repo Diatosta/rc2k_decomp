@@ -1,6 +1,5 @@
-//! Texts the menus compose for their screens (from
-//! `screens::savegame_page_numbers` 0x46D262, `draw_spaced_number` 0x468180,
-//! `yes_no_caption` 0x46FA5A, `player_number_text` 0x46A359 and `gearing_text` 0x4699E0).
+//! Texts the menus compose for their screens: saved-game page numbers, spaced-out numbers,
+//! yes/no captions, player numbers and the gearing choice.
 
 use crate::Invalid;
 use crate::strings::format::{Pad, decimal};
@@ -25,10 +24,9 @@ pub fn two_digits(n: u32) -> Vec<u8> {
     text
 }
 
-/// The saved games' list numbers for page `page`: the caption ("n-m" and its NUL) and the
-/// ten numbers (each at most three digits and a NUL, in four bytes). Refused: a page
-/// whose numbers do not fit (the original's compares are signed: a negative first number
-/// is refused too).
+/// The saved games' list numbers for page `page`: the caption ("n-m") and ten numbers (each at
+/// most three digits and a NUL, in four bytes). Refused: numbers that do not fit (the compares
+/// are signed, so a negative first number is refused too).
 pub fn savegame_numbers(page: u32) -> Result<(Vec<u8>, Vec<Vec<u8>>), Invalid> {
     let first = page.wrapping_mul(10);
     if (first as i32) < 0 || first.wrapping_add(9) >= 1000 {
@@ -42,9 +40,9 @@ pub fn savegame_numbers(page: u32) -> Result<(Vec<u8>, Vec<Vec<u8>>), Invalid> {
     Ok((caption, numbers))
 }
 
-/// Where `draw_spaced_number` draws each character of a text of `len`, last first:
-/// (the character's index, x): the last at x + 0x32, the next two 9 apart, the rest 0xD.
-/// Refused: fewer than 3 (the original's loops then run on) or more than `room` / 2.
+/// Where `draw_spaced_number` draws each character of a text of `len`, last first, as
+/// (index, x): the last at x + 0x32, the next two 9 apart, the rest 0xD.
+/// Refused: fewer than 3 or more than `room` / 2.
 pub fn spaced_places(len: u32, x: i32, room: usize) -> Result<Vec<(usize, i32)>, Invalid> {
     if len < 3 {
         return Err(Invalid(

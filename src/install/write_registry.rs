@@ -1,14 +1,8 @@
-//! `install::write_registry` (0x413DC5): the installation written to the registry, under
-//! `HKEY_LOCAL_MACHINE\SOFTWARE\Magnetic Fields\RC99`: the value `status` (one byte,
-//! `g_installStatus`, type binary) and, if `g_installSource` is not empty, `source`
-//! (`source_size` bytes, type string). The key opened (`RegCreateKeyA`) and closed
-//! (`RegCloseKey`).
-//!
-//! A failed create, or a failed set of either value, is fatal error 0x80108420, 0x80108421
-//! or 0x80108425. Three callers (`install::install_files`, `uninstall`, and
-//! `install::run_installer`). The registry calls through `api` (`installer::game_api` in the game:
-//! `windows-sys`
-//! `Win32_System_Registry`); the standalone makes them too .
+//! The installation written to the registry, under `HKEY_LOCAL_MACHINE\SOFTWARE\Magnetic
+//! Fields\RC99`: the value `status` (one byte, type binary) and, if the install source is not
+//! empty, `source` (type string). A failed create, or a failed set of either value, is fatal
+//! error 0x80108420, 0x80108421 or 0x80108425. Called by `install::install_files`, `uninstall`
+//! and `install::run_installer`; the registry calls go through `api`.
 
 use crate::errors::Refused;
 use crate::install::installer::fatal;

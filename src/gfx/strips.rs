@@ -1,5 +1,4 @@
-//! The HUD's view strips' places (sizes, tops, lefts), out of RAL.EXE's image: IDA 0x6D1870 ..
-//! 0x6D18C8. Used by `hud::draw_view_strip` only.
+//! The HUD's view strips' places (sizes, tops, lefts), used by `hud::draw_view_strip` only.
 
 use crate::gfx::plain_dwords;
 use crate::session::PlainDword;
@@ -7,16 +6,16 @@ use crate::session::PlainDword;
 /// The view strips' places.
 #[derive(rc2k_derive::Cells)]
 pub struct Strips {
-    /// `dword_6D1870` .. `dword_6D187C`: the strip being drawn: top, height, left, width.
+    /// The strip being drawn: top, height, left, width.
     pub sizes: [PlainDword; 4],
-    /// `dword_6D1880`: the strips' tops (12; the entry is picked by the view and the flat layout).
+    /// The strips' tops (12; the entry is picked by the view and the flat layout).
     pub tops: [PlainDword; 12],
-    /// `dword_6D18B0`: the strips' lefts (6, one a view).
+    /// The strips' lefts (6, one a view).
     pub lefts: [PlainDword; 6],
 }
 
 impl Strips {
-    /// The places; the first values are the image's.
+    /// The places.
     pub const fn new() -> Self {
         Strips {
             sizes: plain_dwords([0; 4]),

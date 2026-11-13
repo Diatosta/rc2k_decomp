@@ -1,5 +1,4 @@
-//! A race's sounds set up (from `sound::load_race_sounds` 0x40EED8),
-//! and the car screens' sound stream (`sound::step_car_stream` 0x46F7AD).
+//! A race's sounds set up, and the car screens' sound stream.
 
 /// The co-driver's two lists of speech files.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -8,8 +7,8 @@ pub enum Voice {
     Female,
 }
 
-/// The two cars' lists: the first car's by its +0x298 (0 the male list), the second the
-/// other, or the same when the two +0x298 are the same.
+/// The two cars' lists: the first car's by its +0x298 (0 the male list), the second the other,
+/// or the same when the two +0x298 are the same.
 pub fn voices(first: u32, second: u32) -> (Voice, Voice) {
     let (a, b) = if first == 0 {
         (Voice::Male, Voice::Female)
@@ -30,13 +29,12 @@ pub enum Set {
     /// The second car's kind's set (unless the count is 1), then its two.
     SecondKind(u32),
     Second(usize),
-    /// Unless the two counts are the same.
+    /// The last set, unless the two counts are the same.
     Last,
 }
 
-/// The sets for a race: in a replay only its own; else the first car's kind and three, the
-/// second car's kind and two unless `count` is 1, and the last unless `count` is
-/// `other_count`.
+/// The sets for a race: in a replay only its own; else the first car's kind and three, the second
+/// car's kind and two unless `count` is 1, and the last unless `count` is `other_count`.
 pub fn sets(
     replay: bool,
     first_kind: u32,

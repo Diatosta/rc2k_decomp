@@ -1,14 +1,6 @@
-//! `audio::release_voice` (0x40B767): a voice's buffers released and the voice made empty.
-//!
-//! Takes: the voice
-//!
-//! With A3D (`g_useA3d` 1, the chunk at 0x40CD47): its buffer, if any, is stopped (A3D's
-//! +0x38, 0x40CEBB) and released. Otherwise a buffer is stopped (`Stop`, +0x48,
-//! `audio::stop_buffer`), then its 3D buffer and the buffer released (`Release`, +8) and cleared.
-//! Then the voice: `flags`, `data_key` .. `length`, `format`, `frames`, `priority`,
-//! `kind`, `state`, `dirty`, `channel`, `next` 0; `own_frequency` 44100, `scale` and
-//! `volume_factor` 0x40, `min_distance` 1.0. Callers: `audio::start` (0x40A0DB) and
-//! `audio::free_voices`.
+//! Releases a voice's buffers and makes the voice empty: a buffer is stopped, then its 3D buffer
+//! and the buffer released, and the voice's fields reset (own frequency 44100, scale and volume
+//! factor 0x40, minimum distance 1.0, the rest 0).
 
 use crate::audio::own::AudioOwn;
 use crate::audio::voices::*;
@@ -17,8 +9,7 @@ use crate::platform_sound as ds;
 pub fn release_voice(state: &AudioOwn, at: u32, a3d: bool) {
     update_voice(state, at, |v| {
         if a3d {
-            // A3D's source objects (`Stop` at +0x38, `Release`): A3D is never there
-            // (`audio::a3d`), so no voice has one.
+            // A3D's source objects: A3D is never there (`audio::a3d`), so no voice has one.
             if v.buffer != 0 {
                 crate::fatal::raise::end(
                     "audio::release_voice",
@@ -36,7 +27,6 @@ pub fn release_voice(state: &AudioOwn, at: u32, a3d: bool) {
                 v.buffer = 0;
             }
         }
-        // Converted: `rc2k_core::audio::voices::empty`.
         rc2k_core::audio::voices::empty(v);
     });
 }

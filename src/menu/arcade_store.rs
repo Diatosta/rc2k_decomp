@@ -1,22 +1,24 @@
-//! The arcade game's variables, out of RAL.EXE's image (IDA 0x7587E8 .. 0x758806): the
-//! scene switch, the level, stage and retry being played and the levels won. One static.
+//! The arcade game's variables: the scene switch, the level, stage and retry being played and
+//! the levels won. One static.
 
 use crate::session::{PlainBytes, PlainDword};
 
-/// The arcade game's variables (IDA 0x7587E8 .. 0x758806).
+/// The arcade game's variables.
 #[derive(rc2k_derive::Cells)]
 pub struct Arcade {
-    /// `dword_7587E8`: 1 when the front end's scene was let go for a race (`menu::reload_front_end` sets it up again).
+    /// 1 when the front end's scene was let go for a race (`menu::reload_front_end` sets it up
+    /// again).
     pub scene_let_go: PlainDword,
-    /// `g_arcadeLevel`: The arcade level being played.
+    /// The arcade level being played.
     pub level: PlainDword,
-    /// `g_arcadeStage`: The arcade stage being played.
+    /// The arcade stage being played.
     pub stage: PlainDword,
-    /// `g_arcadeRetry`: The retry count.
+    /// The retry count.
     pub retry: PlainDword,
-    /// `dword_7587F8`: The places the arcade game ranks (`menu::arcade_steps`).
+    /// The places the arcade game ranks (`menu::arcade_steps`).
     pub places: PlainDword,
-    /// `byte_758800`: One byte a level: won before (the options file's last six bytes; `screens::locked_notes`).
+    /// One byte a level: 1 when won before (the options file's last six bytes;
+    /// `screens::locked_notes`).
     pub levels_won: PlainBytes<8>,
 }
 

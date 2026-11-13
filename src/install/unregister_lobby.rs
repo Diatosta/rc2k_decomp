@@ -1,7 +1,4 @@
-//! `install::unregister_lobby` (0x4190E9): the game's DirectPlay lobby key removed:
-//! `RegDeleteKeyA(HKEY_LOCAL_MACHINE, "SOFTWARE\Microsoft\DirectPlay\Applications\RC")`.
-//!
-//! Caller `install::uninstall`. The call through `api`.
+//! The game's DirectPlay lobby key removed. Called by `install::uninstall`.
 
 use crate::install::read_registry::Registry;
 

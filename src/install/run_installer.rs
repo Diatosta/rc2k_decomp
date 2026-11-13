@@ -1,17 +1,10 @@
-//! `install::run_installer` (0x412DE0): the installer's branch of the main loop. The base
-//! directory is cleared, the languages read (`install::read_languages`), the fonts built
-//! (`gfx::build_fonts`) and the installer opened (`install::open_installer`). With the `-i`
-//! paths given (`run.from_command`), `install::install_from_command` does it all; otherwise base
-//! directory B is normalised (failing: fatal error 0x80AF8101), the drives listed
-//! (`install::list_drives`), a default folder built in `InstallerPaths::typed` (strings 0x9F, 0xA0, the
-//! first drive letter when `g_keyboardType` is 2), the registry read, the recorded source
-//! copied over it, and the installed version checked (`install::check_installed_version`); if
-//! it is this build, its record is read and language loaded. Then the pages run
-//! (`install::run_pages` with `update_pages` for an update, else `normal_pages`); if installing
-//! from a CD a "please wait" frame is shown. Finally the installer is closed
-//! (`install::close_installer`) and the fonts freed (`gfx::free_fonts`).
-//!
-//! Caller `system::main_loop` (called directly).
+//! The installer's branch of the main loop: the languages read, the fonts built, the installer
+//! opened. With the `-i` paths given, `install::install_from_command` does it all; otherwise base
+//! directory B is normalised (failing: fatal error 0x80AF8101), the drives listed, a default
+//! folder built, the registry read, and the installed version checked (this build: its record
+//! read and its language loaded). Then the pages run
+//! (`install::run_pages`); if installing from a CD a "please wait" frame is shown. Finally the
+//! installer is closed and the fonts freed. Called by `system::main_loop`.
 
 use crate::errors::Refused;
 use crate::install::installer::{
@@ -29,9 +22,8 @@ pub fn run_installer(
     let (gfx, system) = (o.gfx, o.system);
     use crate::install as i;
     crate::platform_events::keep_running_after_close();
-    // The folder page's edit item (0x51DBC8) shows the folder from its third byte
-    // (0x95EBFA, past the drive's `c:`); a Unix path has no drive, so the item shows it
-    // whole.
+    // The folder page's edit item shows the folder from its third byte, past the drive's `c:`;
+    // a Unix path has no drive, so the item shows it whole.
     #[cfg(unix)]
     install.pages.folder_menu.items[1]
         .target
@@ -42,7 +34,7 @@ pub fn run_installer(
     i::read_languages::read_languages(install, system, &install.names.lang_cfg.text()[..])?;
     crate::gfx::build_fonts::build_fonts_in(gfx, system, o.strings)?;
     i::open_installer::open_installer(install, o)?;
-    // From the command line: the install, and on past the pages (`jmp loc_412EDC`).
+    // From the command line: the install, and on past the pages.
     let from_command = install.run.from_command.get() == 1;
     if from_command {
         i::install_from_command::install_from_command(install, o)?;
@@ -121,7 +113,7 @@ pub fn run_installer(
 }
 
 /// The folder page's text by the system's rules (`install::folders`): a recorded folder as
-/// shown, else the system's first folder (on Windows both the original's, unchanged).
+/// shown, else the system's first folder.
 fn show_folder(install: &crate::install::owner::Install) {
     use crate::install::folders::{Folders, Native};
     let typed = &install.paths.typed;

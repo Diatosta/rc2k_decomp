@@ -1,4 +1,5 @@
-//! `menu::switch_stage_group` (0x481FAB): the stage choice's group switched (0 <-> 1), then the map drawn again.
+//! `menu::switch_stage_group`: the stage choice's group switched (0 <-> 1), then the map drawn
+//! again.
 //!
 //! See `menu/stage_choice.rs`. In three item lists (the stage choice screens). The menus and draw
 //! lists run its `entry` (`menu::table_calls`).

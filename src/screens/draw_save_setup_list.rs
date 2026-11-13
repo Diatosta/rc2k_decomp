@@ -1,9 +1,6 @@
-//! `screens::draw_save_setup_list` (0x46F031): draws the text of the "save setup" screen: a
-//! title (string 0x4DC), a label under each column of slots (strings 0x4E3 and 0x4E4) and the
-//! slot names (`draw_setup_slot_names`).
-//!
-//! Its address is in the draw list at 0x759156. That it is the "save" screen is a reading: the
-//! screen loop `menu::save_setup_loop`, which also runs the name editor, uses that list. The menus and draw lists run its `entry` (`menu::table_calls`).
+//! The text of the "save setup" screen: a title, a label under each column of slots and the
+//! slot names (`draw_setup_slot_names`). That it is the "save" screen is a reading: the screen
+//! loop `menu::save_setup_loop`, which also runs the name editor, uses its draw list.
 
 use crate::errors::Refused;
 use crate::text::draw_text::Canvas;

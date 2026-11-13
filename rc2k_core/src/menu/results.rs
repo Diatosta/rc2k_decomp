@@ -1,11 +1,9 @@
-//! The players' results (from `menu::rank_stage_times` 0x48340B,
-//! `menu::rank_totals` 0x48356F, `menu::score_four_players` 0x485CBB and
-//! `menu::score_two_players` 0x485B0E): the four players ranked by their stage times or
-//! totals, and each one's points, time bonus and new total.
+//! The players' results: the four players ranked by their stage times or totals, and each one's
+//! points, time bonus and new total.
 
-/// The four players' (byte offset 0, 4, 8, 12, value) pairs sorted by the original's
-/// exchange loop: each pair i < j exchanged when j's value is at most i's (times) or at
-/// least i's (totals), signed.
+/// The four players' (byte offset 0, 4, 8, 12, value) pairs sorted by an exchange loop:
+/// each pair i < j exchanged when j's value is at most i's (times) or at least i's (totals),
+/// signed.
 pub fn rank(values: [u32; 4], by_totals: bool) -> [(u32, u32); 4] {
     let mut pairs = [0, 1, 2, 3].map(|k| (4 * k as u32, values[k]));
     for i in 0..3 {

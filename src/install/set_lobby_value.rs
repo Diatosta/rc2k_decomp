@@ -1,10 +1,5 @@
-//! `install::set_lobby_value` (0x4190D0): one string value set under the lobby's registry
-//! key (`register_lobby`): its data's length found (`strings::text_length`) and one more
-//! (the NUL), and `RegSetValueExA(phkResult, name, 0, REG_SZ, data, len + 1)`.
-//!
-//! Takes the value's name and the data (NUL-terminated). Returns `RegSetValueExA`'s result.
-//! Caller `install::register_lobby` (five times). The call through `api`
-//! (`installer::game_api`: `RegSetValueExA`).
+//! One string value (the data and its NUL) set under the lobby's registry key with
+//! `RegSetValueExA`, for `install::register_lobby`; returns the call's result.
 
 use crate::errors::Refused;
 use crate::install::read_registry::Registry;

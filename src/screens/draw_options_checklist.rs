@@ -1,14 +1,6 @@
-//! `screens::draw_options_checklist` (0x47DEA2): a player's options page: its title (string
-//! 0x190, a space and the player's number, in the cells text buffer) at (0x190, 0x14), the page's
-//! lines (strings 0x524 .. 0x531 at x 0x190 / 0x186, three fonts), the slider (`gfx::blit_bar`
-//! at (0x128, 0x1E3), 0xD0 wide, the inspection score percent) with its knob and two labels, and a
-//! tick or cross per option (the inspection fault flags .., -1 ends them; sprite 0x9E + (value ^ 1), its
-//! palette the same value) at x 0x190 from y 0x82 every 0x1B (`draw_work.figure`, `hhmm` the
-//! glyph, `g_markerX` 0x190).
-//!
-//!
-//! In a menu loop's draw list (0x75927E). The menus and draw lists run its `entry`
-//! (`menu::table_calls`).
+//! A player's options page: its title (a string, a space and the player's number), the page's
+//! lines, the slider (the inspection score percent) with its knob and two labels, and a tick or
+//! cross per option.
 
 use crate::errors::Refused;
 use crate::session::PlainDword;

@@ -1,13 +1,6 @@
-//! `net::settings_frame` (0x4169E2): the frame of the network settings screen
-//! (`net::settings_loop`): on the locked surface, the background, four settings from y 0x92
-//! (`net::setting_label` and the value): the connection (string 0x163, `saved_name`), the
-//! player's name (0x164, `machine_name`), the most players (0x165, `most_players`,
-//! `net::draw_number_value`) and the host's address (0x166, `host_address`); then the last
-//! item's frame, right to left from 0x311 at y 0x21D (sprites 0x13, 0x12 once per 32 pixels
-//! of string 0x16F's width, 0x11) and its string (`net::draw_centred_item`); unlocked, shown.
-//!
-//! The width's tiles are counted down with `dec` / `jnz`: a string of width 0 would go round
-//! 2^32 times (refused). Called by `screens::run_frame` for `net::settings_loop`.
+//! The frame of the network settings screen: background, four settings (connection, player's
+//! name, most players, host's address) and the last item's framed string. A zero-width string is
+//! refused.
 
 use crate::errors::Refused;
 use crate::net::draw_centred_item::draw_centred_item;
@@ -51,8 +44,7 @@ pub fn settings_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> 
             }
         };
     }
-    // The last item's string measured (the x the original hands it is `draw_text`'s x of the
-    // value above, 0x190).
+    // The last item's string measured from the x of the value above (0x190).
     let measured = {
         crate::text::measure_string_by_id::measure_string_by_id_at(
             crate::strings::append_string_by_id::StringOwners::of(o),
@@ -63,7 +55,7 @@ pub fn settings_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> 
         )
     }?;
     let width = measured.width;
-    // Converted: `rc2k_core::net::screens::last_item` (and the frame's sprites).
+    // The logic is in `rc2k_core::net::screens::last_item` (and the frame's sprites).
     let (tiles, text_x) = screens::last_item(width)?;
     let mut at = screens::LAST_ITEM_RIGHT;
     let mut piece = |glyph: u32, step: u32| -> Result<(), Refused> {

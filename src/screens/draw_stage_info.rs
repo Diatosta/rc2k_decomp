@@ -1,19 +1,9 @@
-//! `screens::draw_stage_info` (0x473DE4): draws the information panel of a stage: a title, the
-//! stage heading, then everything in `stage_panel::draw_stage_body` and the stage's record
-//! rows.
-//!
-//! It is not called directly: its address is in the list of draw functions at 0x758D7E, which
-//! belongs to the screen loop `menu::next_stage_loop`. That loop is called from
-//! `menu::run_championship` and
-//! `menu::run_a8_championship`, which step through the stages of an event (`inc index`) and show
-//! another screen (`menu::rally_stages_loop`) before this one.
-//!
-//! The stage is the record `find_record(g_recordTable, index, section)`.
-//!
-//! Screen: confirmed by the owner on 2026-10-10 with a `blank on` test: the stage details screen
-//! shown before each stage starts during a championship. The stage selection screen in the menu has
-//! the same layout but is drawn by another function. The menus and draw lists run its `entry`
-//! (`menu::table_calls`).
+//! The information panel of a stage: a title, the stage heading, then everything in
+//! `stage_panel::draw_stage_body` and the stage's record rows. Only reached through the draw list
+//! of `menu::next_stage_loop`, which the championship runners step through between stages. The
+//! stage is the record found by the event's index and section. Seen as the stage details screen
+//! shown before each stage of a championship; the stage selection screen in the menu has the same
+//! layout but is drawn by another function.
 
 use crate::errors::Refused;
 use crate::menu::owner::Menus;
@@ -59,8 +49,9 @@ pub fn event_title(menus: &Menus, system: &System) -> Result<u32, crate::errors:
     }
 }
 
-/// Returns the carry flag of `draw_stage_records`. The errors are those of the functions it
-/// uses: the track pack lookup, the blitter, the formatters and the record rows.
+/// Returns whether `draw_stage_records`' last text was too wide for its box. The errors are those
+/// of the functions it uses: the track pack lookup, the blitter, the formatters and the record
+/// rows.
 pub fn draw_stage_info(
     o: crate::owners::Owners<'static>,
     system: &crate::system::owner::System,
@@ -89,7 +80,6 @@ pub fn draw_stage_info(
     )
 }
 
-//
 // One case: the event's current stage, with the game's own fonts, strings and records. It
-// only runs when all of that is there and looks sane, because the original scans the record
-// table and follows several pointers without checks.
+// only runs when all of that is there and looks sane, because it scans the record table and
+// follows several pointers without checks.

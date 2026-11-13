@@ -1,12 +1,6 @@
-//! `net::set_hud_options` (0x463D3F): this machine's car (`g_carBlocks[g_netPlayer]`) given
-//! the player's HUD: its bits (+0x220) from the player's saved HUD bits, or, when that is
-//! -1, made from the switches (rear mirror 0x10, rev counter 8, message display 1, driver
-//! info 4, metric units 2, progress bar 0x100, car info 0x40, pace notes 0x20 and the
-//! last one 0x80, each when not 0); its view (+0x684) from the player's view setting;
-//! `mip_setting` from the graphics options' mipmapping; five more settings (lens flare,
-//! reflections, car shadows, car detail, headlights) to `settings_words`.
-//!
-//! Caller: `net::lets_race`.
+//! Gives this machine's car the player's HUD: its bits from the saved HUD bits, or, when that
+//! is -1, from the individual switches; its view from the view setting; and the mipmapping, lens
+//! flare, reflection, shadow, car detail and headlight settings.
 
 use crate::gfx::owner::Gfx;
 use crate::net::store::NetShared;
@@ -15,7 +9,7 @@ use crate::race::owner_shared::RaceShared;
 use crate::session::PlainDword;
 use rc2k_core::net::cars;
 
-/// The switches, in the original's order (their bits: `rc2k_core::net::cars::HUD_SWITCH_BITS`).
+/// The switches, in order (their bits: `rc2k_core::net::cars::HUD_SWITCH_BITS`).
 fn switches(race: &Race) -> [&PlainDword; 9] {
     [
         &race.shared.state.settings.cars[0].map_area,
@@ -29,7 +23,8 @@ fn switches(race: &Race) -> [&PlainDword; 9] {
         &race.shared.state.settings.cars[0].pace_notes,
     ]
 }
-/// The settings words copied to the race's variables (`crate::race::owner::race().shared.vars.settings_words`).
+/// The settings words copied to the race's variables
+/// (`crate::race::owner::race().shared.vars.settings_words`).
 fn copied_words(race: &Race) -> [&PlainDword; 5] {
     [
         &race.shared.state.settings.lens_flare,
@@ -53,7 +48,7 @@ pub fn set_hud_options(
     vars: &NetShared,
 ) -> Result<(), crate::errors::BadInput> {
     let mut bits = race.shared.state.results.hud_bits_current.get();
-    // Converted: `rc2k_core::net::cars::hud_bits`.
+    // The logic is in `rc2k_core::net::cars::hud_bits`.
     if bits == cars::NOT_KEPT {
         bits = cars::hud_bits(switches(race).map(PlainDword::get));
     }

@@ -1,23 +1,17 @@
-//! The pictures the carousel's entries show (from
-//! `scene::choose_carousel_pictures` 0x4901B9 and `scene::update_carousel_pictures`
-//! 0x49029C, with `keep_held_pictures` 0x49036F and `assign_picture_slots` 0x4903E3
-//! inlined, `scene::draw_carousel` 0x490649 and the cars' lists of `scene::set_up_carousel`
-//! 0x4904DD): the four entries that can be seen, the four pictures held in the four
-//! places, each place's eight texture slots, the entries drawn, and the lists of cars the
-//! cars' carousels show.
+//! The carousel's pictures: the four visible entries, the four held pictures with their eight
+//! texture slots each, the entries drawn, and the lists of cars.
 
 use crate::Invalid;
 
 /// No picture.
 pub const NONE: u32 = u32::MAX;
 
-/// The menus whose carousel shows pictures (`g_carouselMenu` 0xB .. 0xE).
+/// The menus whose carousel shows pictures (0xB ..= 0xE).
 pub fn shows_pictures(menu: u32) -> bool {
     (0xB..=0xE).contains(&menu)
 }
 
-/// The four entries that can be seen: the one before the front one and the three after
-/// it, going round `count` (wrapping as the original's compares do).
+/// The four visible entries (one before the front, three after), wrapping at `count`.
 pub fn visible_entries(front: u32, count: u32) -> [u32; 4] {
     let mut entry = if front == 0 { count } else { front }.wrapping_sub(1);
     let mut entries = [entry; 4];
@@ -31,9 +25,8 @@ pub fn visible_entries(front: u32, count: u32) -> [u32; 4] {
     entries
 }
 
-/// `keep_held_pictures`: the held pictures still wanted stay where they are (and are no
-/// longer wanted), the others give their places to the newly wanted, in order. Gives
-/// what is left wanted and the held.
+/// Held pictures still wanted stay in place; the others give their places to the newly
+/// wanted, in order. Gives what is left wanted and the held.
 pub fn keep_held(mut wanted: [u32; 4], mut held: [u32; 4]) -> ([u32; 4], [u32; 4]) {
     for held in &mut held {
         match wanted.iter().position(|w| w == held) {
@@ -51,8 +44,8 @@ pub fn keep_held(mut wanted: [u32; 4], mut held: [u32; 4]) -> ([u32; 4], [u32; 4
     (wanted, held)
 }
 
-/// `assign_picture_slots`: each place's eight slots want its picture's eight textures
-/// (the picture times 8 from the kind's first texture, wrapping).
+/// Each place's eight slots want its picture's eight textures (picture * 8 from the kind's
+/// first, wrapping).
 pub fn picture_textures(held: [u32; 4], first_texture: u32) -> [u32; 32] {
     std::array::from_fn(|n| {
         (held[n / 8] << 3)
@@ -61,20 +54,19 @@ pub fn picture_textures(held: [u32; 4], first_texture: u32) -> [u32; 32] {
     })
 }
 
-/// The entries `draw_carousel` draws.
+/// The entries drawn.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Drawn {
     /// None (no entries, or a count past 0x80000000, signed).
     Nothing,
-    /// A carousel of one: entry 0, the place whatever the caller left.
+    /// A carousel of one: entry 0, in whatever place the caller left.
     Lone,
     /// (entry, place): the one before the front at -1, the front at 0, the next at 1, and
     /// while the carousel turns the one after at 2.
     Row(Vec<(u32, u32)>),
 }
 
-/// `draw_carousel`'s entries: `front` (`g_carouselFront`) and `turning`
-/// (`g_carouselAngle` not 0) asked only for a row.
+/// The entries drawn; `front` and `turning` are asked only for a row.
 pub fn drawn(count: u32, front: impl FnOnce() -> u32, turning: impl FnOnce() -> bool) -> Drawn {
     if count == 1 {
         return Drawn::Lone;
@@ -93,23 +85,19 @@ pub fn drawn(count: u32, front: impl FnOnce() -> u32, turning: impl FnOnce() -> 
     )
 }
 
-/// A list of cars' entries looked at for its end (-1), and the car numbers a kind is
-/// picked by.
+/// A list's entries, looked at for its end (-1), and the car numbers a kind is picked by.
 pub const LIST_ENTRIES: usize = 0x100;
 pub const CAR_NUMBERS: u32 = 0x400;
 pub const END: u32 = u32::MAX;
 
-/// Where a list's end is from its entry `from` on (`entry(n)` the list's), within
-/// `LIST_ENTRIES`.
+/// Where a list's end is from entry `from` on, within `LIST_ENTRIES`.
 pub fn list_end(entry: impl Fn(usize) -> u32, from: usize) -> Option<usize> {
     (from..LIST_ENTRIES).find(|&n| entry(n) == END)
 }
 
-/// The checks of a list of cars (each entry a car, its first dword its number:
-/// `number(car)`), before anything is written: refuses a list without its end, a
-/// car that is not there and a car's number past the kinds' table. With `from_second`
-/// (menu 0xE) the list as it will be after a list of one has had its car copied over its
-/// end.
+/// Checks a list of cars before anything is written: refuses a list without its end, a
+/// missing car, or a car number past the kinds' table. With `from_second` (menu 0xE) the list
+/// is checked as it is after a list of one has had its car copied over its end.
 pub fn check_cars(
     entry: impl Fn(usize) -> u32,
     number: impl Fn(u32) -> u32,
@@ -181,7 +169,7 @@ mod tests {
         assert_eq!(list_end(entry, 1), Some(2));
         assert!(check_cars(entry, |c| c / 0x100, false).is_ok());
         assert!(check_cars(entry, |c| c * 4, false).is_err());
-        // A list of one has its car over its end: then read on to the next end.
+        // A list of one has its car over its end: then check on to the next end.
         let one = [0x100u32, END, 0x200, END];
         let entry = |n: usize| one.get(n).copied().unwrap_or(0);
         assert!(check_cars(entry, |_| 1, true).is_ok());

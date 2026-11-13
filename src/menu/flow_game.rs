@@ -19,7 +19,7 @@ pub struct Game<'a> {
     menus: &'a Menus,
     /// The game's owners, for the screens the flows enter.
     owners: crate::owners::Owners<'static>,
-    /// The record `Call::FindRecord` found (the original's edi), read through `Var::Record`.
+    /// The record `Call::FindRecord` found, read through `Var::Record`.
     record: Option<RecordRef>,
     /// The car list the next car choice shows (`Game::hand_cars`, `Call::CheatCarList`).
     cars: Option<CarList>,
@@ -69,7 +69,7 @@ impl PlayerField {
 enum Place<'a> {
     /// A variable of the front end's or the physics block's.
     Cell(&'a dyn DwordLike),
-    /// Player n's field (edi the player).
+    /// Player n's field.
     Player(u32, PlayerField),
     /// The found record's field.
     Record(u32),
@@ -191,8 +191,7 @@ impl flow::Game for Game<'_> {
                 use crate::records::find_record::{find_record_in, has_section};
                 let stages = &self.owners.system.records().stage_tables;
                 let table = stages.championship();
-                // The original has no end-of-table check: a section past the table's
-                // is refused.
+                // A section past the table's end is refused.
                 if !has_section(stages, table, section, 600)? {
                     return Err(BadInput("a record section past the table").into());
                 }

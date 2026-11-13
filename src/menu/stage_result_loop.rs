@@ -1,29 +1,25 @@
-//! `menu::stage_result_loop` (0x48558D): the loop of a stage's result screen. Seen after a
-//! single race's stage.
-//!
-//! The loop itself is `menu::screen_loop`; this file says what is this screen's own
-//! (`SCREEN`), as extracted from the disassembly: background `results1.png` through
-//! `menu::load_background` (carry afterwards = fatal error 0x80712345); leaving is asked about;
-//! its own 3D list goes to `g_sceneList` before the first frame only.
-//! Screen: the one player's result after a stage, "RESULTADOS": the rally and
-//! stage, then "piloto", "tempo" and "velocidade máxima".
+//! The loop of a stage's result screen. Seen after a single race's stage. Screen-specific part of
+//! `menu::screen_loop`: background `results1.png` through `menu::load_background` (a failed load is
+//! fatal error 0x80712345); leaving is asked about; its own 3D scene list is set before the first
+//! frame only. Screen: the one player's result after a stage, "RESULTADOS": the rally and stage,
+//! then "piloto", "tempo" and "velocidade máxima".
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Asking, Callee, Frames, List, MenuSound, Screen, Step};
 
 pub const SCREEN: Screen = Screen {
     lists: &[
         List {
-            pointer: |m| &m.screens.flow.unread_list, // g_unreadList
+            pointer: |m| &m.screens.flow.unread_list,
             table: |m| m.tables.draw_lists.unread_draw_list.id(),
             run: false,
         },
         List {
-            pointer: |m| &m.screens.flow.draw_list, // g_drawList
+            pointer: |m| &m.screens.flow.draw_list,
             table: |m| m.tables.draw_lists.stage_result_draw.id(),
             run: false,
         },
         List {
-            pointer: |m| &m.screens.flow.overlay_list, // g_overlayList
+            pointer: |m| &m.screens.flow.overlay_list,
             table: |m| m.tables.draw_lists.stage_result_overlay.id(),
             run: false,
         },
@@ -37,17 +33,17 @@ pub const SCREEN: Screen = Screen {
     frames: Frames {
         first_frame_lists: Some(&[
             List {
-                pointer: |m| &m.screens.flow.scene_list, // g_sceneList
+                pointer: |m| &m.screens.flow.scene_list,
                 table: |m| m.tables.draw_lists.stage_result_scene.id(),
                 run: false,
             },
             List {
-                pointer: |m| &m.screens.flow.draw_list, // g_drawList
+                pointer: |m| &m.screens.flow.draw_list,
                 table: |m| m.tables.draw_lists.stage_result_draw.id(),
                 run: false,
             },
             List {
-                pointer: |m| &m.screens.flow.overlay_list, // g_overlayList
+                pointer: |m| &m.screens.flow.overlay_list,
                 table: |m| m.tables.draw_lists.stage_result_overlay.id(),
                 run: false,
             },

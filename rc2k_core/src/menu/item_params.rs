@@ -1,11 +1,11 @@
 //! What the parameterised item functions (`tables_data::ItemFn`) are given: which volume, which
-//! option switch, which counter, which event. One variant of `ItemFn` stands for a family of the
-//! original's functions that differ only in such a value.
+//! option switch, which counter, which event. One variant of `ItemFn` stands for a family of item
+//! functions that differ only in such a value.
 
 /// The volumes of the sound pages that have a "less" and a "more" item.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum VolumeKind {
-    /// The general volume (`g_masterVolumeShown`), sent to the audio thread.
+    /// The general volume, sent to the audio thread.
     Master,
     /// The music's volume (`option_work.music_level`).
     Music,
@@ -26,7 +26,8 @@ pub enum VolumeKind {
 /// The switches of the options pages (the items flipped left or right).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum OptionSwitch {
-    /// `sound.menu.options.race_music_on`: the race music on or off (tune 8 plays only while it is 1), kept in the options file.
+    /// `sound.menu.options.race_music_on`: the race music on or off (tune 8 plays only while it is
+    /// 1), kept in the options file.
     RaceMusicOn,
     /// `play.champ_view.switch_f8`: which stage record tables the stage pages show.
     StageRecordsSet,

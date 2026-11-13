@@ -1,13 +1,12 @@
-//! The rain's two drifting offsets (from `effects::drift_offsets`
-//! 0x4C1BA9): whole-number offsets moved each frame by a pace that eases toward targets
-//! drawn anew after a wait. As in `math::geometry`, what the x87 keeps on its stack is an
-//! `f64`, rounded to `f32` where the original stores it; the offsets' rounding follows the
-//! x87's control word and comes in as a closure.
+//! The rain's two drifting offsets: whole-number offsets moved each frame by a pace that eases
+//! toward targets drawn anew after a wait. As in `math::geometry`, what the x87 keeps on its stack
+//! is an `f64`, rounded to `f32` where it is stored; the offsets' rounding follows the x87's
+//! control word and comes in as a closure.
 
-/// The drift's variables: the clock at the last targets, the wait
-///, the targets and paces (`RainState.drift_target[0]`, `RainState.drift_target[2]`; `RainState.drift_pace[0]`,
-/// `RainState.drift_pace[2]`), a second random's halves times 0x100 (`RainState.drift_halves[0]`, `RainState.drift_halves[2]`:
-/// only written) and the offsets.
+/// The drift's variables: the clock at the last targets, the wait, the targets and paces
+/// (`RainState.drift_target[0]`, `RainState.drift_target[2]`; `RainState.drift_pace[0]`,
+/// `RainState.drift_pace[2]`), a second random's halves times 0x100 (`RainState.drift_halves[0]`,
+/// `RainState.drift_halves[2]`: only written) and the offsets.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct Drift {
     pub since: u32,
@@ -29,11 +28,11 @@ pub struct DriftLeftovers {
 
 impl Drift {
     /// One frame at `clock`: when the wait has passed since the last targets (unsigned), new
-    /// targets from the marks' random (`random()`: the next seed, the marks' `next_seed`) (its low
-    /// 12 bits and the next 12, less 0x7FF, times `scale()`, asked only then), a new wait ((its top
-    /// byte + 0x40) times 5), the clock kept, and a second random's halves times 0x100. Then each
-    /// pace eased toward its target (`fld t; fsub p; fmul k; fadd p`) and added to its offset
-    /// (`add(offset, pace)`: `fild; fadd; fistp`).
+    /// targets from the marks' random (`random()`, the marks' `next_seed`: its low 12 bits and the
+    /// next 12, less 0x7FF, times `scale()`, asked only then), a new wait ((its top byte + 0x40)
+    /// times 5), the clock kept, and a second random's halves times 0x100. Then each pace eased
+    /// toward its target (`(t - p) * k + p`) and added to its offset (`add(offset, pace)`, rounded
+    /// to a whole number).
     pub fn step(
         &mut self,
         clock: u32,

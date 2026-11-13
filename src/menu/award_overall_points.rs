@@ -1,4 +1,4 @@
-//! `menu::award_overall_points` (0x4A4933): the stage's overall championship points. The
+//! `menu::award_overall_points`: the stage's overall championship points. The
 //! points start at 0x14 (`seconds`); each entry of standings table B whose +0x10 is not 0,
 //! in the table's order, gets them into its +0x38 + 4 * `section` and they go down by one
 //! (not below 0); a computer's driver (+4 0, `menu::find_cpu_team` by its +0) also into
@@ -46,7 +46,6 @@ pub fn award_overall_points(menus: &Menus) -> Result<(), Refused> {
         for e in &all {
             owners.push(owner(menus, e)?);
         }
-        // The logic is in `rc2k_core::menu::points` (`Points`, `total`).
         use rc2k_core::menu::points::{Points, total};
         let mut points = Points::default();
         screens.draw_work.seconds.set(points.0);

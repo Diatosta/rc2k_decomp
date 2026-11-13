@@ -1,15 +1,7 @@
-//! `screens::draw_player_stage_result` (0x486299): the player's result on a championship
-//! stage: the three labels (strings 0x206 .. 0x208 at x 0x1EC, font 0x51E6E4), the stage's
-//! heading (`screens::draw_stage_times_heading`'s), the player's time (+0x88) and top speed
-//! (+0x94, with its unit) at x 0x1FE, the car's sprite, the name (+0x18) at x 0x221 and the
-//! flag's sprite after it (its width by `text::measure_text` in the font at 0x51E624); the
-//! sprites' palette ebx as the original leaves it (the speed line past its NUL, then the
-//! measure's line count).
-//!
-//!
-//! In a menu loop's draw list (0x758E7E). Refuses (before anything) no current player or name, no
-//! stage records, and what `strings::append_speed` refuses. The menus and draw lists run its
-//! `entry` (`menu::table_calls`).
+//! The player's result on a championship stage: three labels, the stage's heading, the
+//! player's time and top speed (with its unit), the car's sprite, the name and the flag's sprite
+//! after it. Refuses no current player or name, no stage records and what `strings::append_speed`
+//! refuses.
 
 use crate::errors::Refused;
 use crate::screens::best_scores::{STAGE_TIMES, draw_times_heading};

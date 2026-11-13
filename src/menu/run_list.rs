@@ -1,9 +1,8 @@
-//! `menu::run_list` (0x468202): calls every function of a screen's list (a screen has four
-//! such lists, which its loop and its frame callback run).
+//! `menu::run_list`: calls every function of a screen's list (a screen has four such lists,
+//! which its loop and its frame callback run).
 //!
 //! The functions are the typed tables' screen functions (`menu::table_routes::screen_fn`),
-//! which take no register: the registers the original hands each (esi the place in the list,
-//! the rest as the one before left them) are nobody's.
+//! which take no arguments.
 
 use crate::errors::Refused;
 use crate::menu::fn_list::FnList;

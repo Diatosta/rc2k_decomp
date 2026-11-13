@@ -1,18 +1,9 @@
-//! `screens::draw_stage_records` (0x4742BF): draws the two record rows of a stage, at y = 508
-//! and y = 531: "best time: <flag> <name> <car> <time>" and
-//! "top speed: <flag> <name> <car> <speed>".
-//!
-//! Takes best-time entry: +0x08 nationality, +0x10 car number (see `car_sprite`), +0x14 time in
-//! hundredths of a second, +0x20 name.
-//! The top-speed row comes from the record the game has selected (see `selection`):
-//! +0x30 speed in tenths of a mile per hour, +0x54 name, +0x74 nationality, +0x78 car number.
-//! The labels are strings 0x34B ("melhor tempo" in the Portuguese build) and 0x34C
-//! ("velocidade máxima").
-//!
-//! It has three more call sites that have not been looked at.
-//!
-//! The sprites are drawn with whatever is in ebx as the palette: a pointer into text, or an
-//! index. That only works because those sprites do not use a palette; it is reproduced as is.
+//! The two record rows of a stage: `best time: <flag> <name> <car> <time>` and `top speed:
+//! <flag> <name> <car> <speed>` (strings 0x34B and 0x34C). Takes the best-time entry (nationality,
+//! car number, time in hundredths of a second, name). The top-speed row comes from the record the
+//! game has selected (speed in tenths of a mile per hour, name, nationality, car number). The
+//! sprites take whatever the text left as their palette, which they do not use (kept). It has
+//! three more call sites that have not been looked at.
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::owner::Menus;
@@ -42,7 +33,7 @@ pub struct Selection {
     pub record: RecordRef,
 }
 
-/// None while the tables are not there; the original then reads through a null pointer.
+/// None while the tables are not there.
 pub fn selection_in(menus: &Menus, system: &System) -> Result<Option<Selection>, BadInput> {
     let screens = &menus.screens;
     let group: u32 = screens.event.stage_group.get();
@@ -64,10 +55,9 @@ fn selected_record(menus: &Menus, system: &System) -> Result<Option<(RecordRef, 
     Ok(selection_in(menus, system)?.map(|s| (s.record, s.sub)))
 }
 
-/// Where the top-speed row's values are in the selected record, and the y its car's sprite
-/// is drawn at: the stage panels' (`draw_stage_records`) and the time trial's
-/// (`screens::draw_time_trial_records` 0x48DE45, whose car sprite sits on the first row's
-/// y, sic).
+/// Where the top-speed row's values are in the selected record, and the y its car's sprite is
+/// drawn at: the stage panels' (`draw_stage_records`) and the time trial's
+/// (`TIME_TRIAL_ROWS`, whose car sprite sits on the first row's y).
 pub struct Rows {
     pub holder: RecordHolder,
     pub car_y: i32,
@@ -83,7 +73,7 @@ pub const TIME_TRIAL_ROWS: Rows = Rows {
     car_y: ROW_1_Y,
 };
 
-/// Returns the carry flag of the last `draw_text`. Refuses a missing record table and what
+/// Returns whether the last text was too wide for its box. Refuses a missing record table and what
 /// the speed formatter refuses; the fatal errors are the blitter's.
 pub fn draw_stage_records(
     o: crate::owners::Owners<'static>,
@@ -106,7 +96,7 @@ pub fn draw_records_rows(
     let menus = o.menus;
     use rc2k_core::screens::stage_panel::{CarRow, Holder};
     {
-        // Without it the original reads through a null pointer after drawing the first row.
+        // Refused without a record table (the first row is drawn after this).
         let Some((record, _)) = selected_record(menus, system)? else {
             return Err(
                 BadInput("no record table is selected: the original reads through null").into(),

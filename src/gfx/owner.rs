@@ -1,9 +1,5 @@
-//! Module gfx's owner (step 11, owned state): the module's state in one struct, handed by
-//! reference to the code that runs it in place of global stores. The PNG reader's state
-//! comes first; the other groups join it one by one.
-//!
-//! `gfx()` is the boundary: the callers outside the module that do not take the owner yet
-//! fetch it there and pass it down (`notes/memory_layer_plan.md`, step 11).
+//! Module gfx's owner: the module's state in one struct, handed by reference to the code that runs
+//! it in place of global stores.
 
 use crate::gfx::bar_store::BarVars;
 use crate::gfx::blit::Blitter;
@@ -39,13 +35,12 @@ use crate::gfx::upload::Upload;
 use crate::gfx::windscreen_drop_batch::WindscreenDrops;
 use crate::session::{GameThread, PlainBytes, PlainDword};
 
-/// The PNG reader's state: the file being decoded, its header and the setting that turns
-/// PNG files off.
+/// The PNG reader's state: the file being decoded, its header and the setting that turns PNG files
+/// off.
 pub struct Png {
     pub file: PngFile,
     pub header: PngHeader,
-    /// `g_pngSetting` (`dword_51B97C`, `nopngdecode`, a `var\ral.cfg` setting): 0 = PNG
-    /// files are read.
+    /// The `nopngdecode` setting (`var\ral.cfg`): 0 = PNG files are read.
     pub setting: PlainDword,
 }
 
@@ -59,8 +54,8 @@ impl Png {
     }
 }
 
-/// The screen modes: the 3D cards found, the mode table, the chosen modes and the
-/// graphics settings' choices.
+/// The screen modes: the 3D cards found, the mode table, the chosen modes and the graphics
+/// settings' choices.
 pub struct Display {
     pub cards: Cards,
     pub modes: Modes,
@@ -94,15 +89,15 @@ impl Pixel {
     }
 }
 
-/// The picture loader and the decoders: the picture being loaded, the decoded picture,
-/// the PCX file, the row of planes a screenshot writes and the showing switch.
+/// The picture loader and the decoders: the picture being loaded, the decoded picture, the PCX
+/// file, the row of planes a screenshot writes and the showing switch.
 pub struct Pictures {
     pub picture: Picture,
     pub decoder: Decoder,
     pub pcx: Pcx,
     /// The planes of the row being written (a buffer, zero at the start).
     pub planes: PlainBytes<PLANES_LEN>,
-    /// `g_showingPicture` (`dword_51B9C4`): 1 while a picture is being shown.
+    /// 1 while a picture is being shown.
     pub showing: PlainDword,
 }
 
@@ -118,8 +113,8 @@ impl Pictures {
     }
 }
 
-/// The fonts: the menu fonts, the font objects, the jade font, the game fonts' memory and
-/// the glyph tables.
+/// The fonts: the menu fonts, the font objects, the jade font, the game fonts' memory and the glyph
+/// tables.
 pub struct FontStores {
     pub font_block: FontBlock,
     pub typefaces: FontObjects,
@@ -140,8 +135,8 @@ impl FontStores {
     }
 }
 
-/// The drawing target: the blitters' variables, the loading bar, the draw surface, the
-/// surface handles and the row and thirds tables.
+/// The drawing target: the blitters' variables, the loading bar, the draw surface, the surface
+/// handles and the row and thirds tables.
 pub struct Drawing {
     pub blit: Blitter,
     pub bar: BarVars,
@@ -149,8 +144,7 @@ pub struct Drawing {
     /// threads read it.
     pub draw_surface: &'static DrawSurface,
     pub surfaces: Surfaces,
-    /// `dword_4F3FC4`: each row of a picture (602 of them), zero at the start: its offset in
-    /// the decoded buffer now (the original's addresses).
+    /// Each row of a picture (602 of them), zero at the start: its offset in the decoded buffer.
     pub row_table: [PlainDword; ROW_TABLE_ROOM as usize],
     /// `byte_4F4B30`: n / 3 for the sums of three components (zero until filled).
     pub thirds: PlainBytes<TABLE_LEN>,
@@ -169,8 +163,8 @@ impl Drawing {
     }
 }
 
-/// The 3D card's textures: the upload's variables, the card's tables and the windscreen
-/// drops' batch.
+/// The 3D card's textures: the upload's variables, the card's tables and the windscreen drops'
+/// batch.
 pub struct Card3d {
     pub upload: Upload,
     /// The card's tables: a static of their own (`TEXTURE_TABLES`), as the drawing threads read
@@ -189,7 +183,6 @@ impl Card3d {
     }
 }
 
-/// Module gfx's state.
 pub struct Gfx {
     pub display: Display,
     pub pixel: Pixel,
@@ -197,7 +190,6 @@ pub struct Gfx {
     pub sheet: SheetVars,
     /// The screenshot switch and name.
     pub shots: Shots,
-    /// `g_surfaceLocked`.
     pub locked: Locked,
     /// The switch that makes Direct3D's errors fatal.
     pub reports: Reports,

@@ -1,8 +1,5 @@
-//! `net::hosting` (0x4176D5): "hosting" shown (string 0x151, as `net::connecting` shows
-//! its), then the session made (`net::host_session`).
-//!
-//! Returns whether `net::host_session` worked.
-//! Caller: `net::start_link`.
+//! Shows "hosting", then makes the session with `net::host_session`. Returns whether that
+//! worked.
 
 use crate::errors::Refused;
 pub fn hosting(

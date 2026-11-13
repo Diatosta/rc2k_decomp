@@ -1,13 +1,6 @@
-//! `menu::arcade_select_level_loop` (0x487999): the mode menu's third entry, by its title
-//! "ESCOLHA NÍVEL" (named from its title string and callers; the original's name is lost)
-//!
-//! The loop itself is `menu::screen_loop`; this file says what is this screen's own (`SCREEN`),
-//! as extracted from the disassembly: background `Selarc.png`; leaving is not asked about; the
-//! next frame begins with the steps after the first frame; the steps that are more than a call
-//! or a store are the functions below, generated from the listing.
-//! The name is a reading from the title string of its menu, "ESCOLHA NÍVEL", not yet a visit.
-//! Callers: none in code: it is reached through a table. The menus and draw lists run its `entry`
-//! (`menu::table_calls`).
+//! The mode menu's third entry, by its title "ESCOLHA NÍVEL". Screen-specific part of
+//! `menu::screen_loop`: background `Selarc.png`; leaving is not asked about; the next frame begins
+//! with the steps after the first frame.
 
 use crate::errors::Refused;
 use crate::menu::screen_items_store::slot;
@@ -41,17 +34,17 @@ fn after_first_frame(entry: &Entry) -> Result<Flow, Refused> {
 pub const SCREEN: Screen = Screen {
     lists: &[
         List {
-            pointer: |m| &m.screens.flow.scene_list, // g_sceneList
+            pointer: |m| &m.screens.flow.scene_list,
             table: |m| m.tables.draw_lists.arcade_select_level_scene.id(),
             run: false,
         },
         List {
-            pointer: |m| &m.screens.flow.draw_list, // g_drawList
+            pointer: |m| &m.screens.flow.draw_list,
             table: |m| m.tables.draw_lists.arcade_select_level_draw.id(),
             run: false,
         },
         List {
-            pointer: |m| &m.screens.flow.overlay_list, // g_overlayList
+            pointer: |m| &m.screens.flow.overlay_list,
             table: |m| m.tables.draw_lists.arcade_select_level_overlay.id(),
             run: false,
         },
@@ -76,7 +69,6 @@ pub const SCREEN: Screen = Screen {
     )
 };
 
-/// Runs the screen (a refusal is the caller's).
 pub fn run(o: crate::owners::Owners<'static>) -> Result<(), crate::errors::Refused> {
     screen_entry(o, "menu::arcade_select_level_loop", &SCREEN)
 }

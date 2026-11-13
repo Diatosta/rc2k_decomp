@@ -1,11 +1,9 @@
-//! The audio thread put in its modes, and the waits for it (from
-//! `sound::apply_settings` 0x40EFF3, `sound::set_up_race_sounds` 0x40F02E,
-//! `sound::wait_for_commands` 0x409C1E and `sound::play_car_stream` 0x469AA1).
+//! The audio thread put in its modes, and the waits for it.
 //!
 //! Both set-ups mark which they are (`SettingsApplied.done`: 1 the menus', 2 the race's), stop the
 //! music, queue their commands, wait for the thread to take them and let sounds play again
-//! (`AudioShared.sounds_held_back` 0). Each command's values go in as the caller left them, a result set by each
-//! command for those after it.
+//! (`AudioShared.sounds_held_back` 0). Each command's values go in as the caller left them; a
+//! command's result is set for those after it.
 
 /// `SettingsApplied.done` after the menus' set-up.
 pub const MENUS: u32 = 1;
@@ -56,7 +54,7 @@ pub trait Waiting {
     fn pending(&mut self) -> bool;
     fn sleep_a_millisecond(&mut self);
     fn pump_messages(&mut self);
-    /// The quit switch is 1.
+    /// Whether the quit switch is set to 1.
     fn quitting(&mut self) -> bool;
 }
 
@@ -74,9 +72,8 @@ pub fn wait_for_commands(w: &mut dyn Waiting) {
     }
 }
 
-/// The car screens' stream started (`sound::play_car_stream`): on (`CarStream.on` 1), its
-/// list, the place in it 0, and `sound::start_stream`
-/// with the list's first entry and the volume.
+/// The car screens' stream started (`sound::play_car_stream`): on, its list, the place in it 0, and
+/// `sound::start_stream` with the list's first entry and the volume.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct CarStream {
     pub on: u32,

@@ -1,11 +1,11 @@
-//! The players' own settings kept aside while a championship runs (an improvement,
-//! not in the original). A championship, started or loaded, works on the four
-//! players' records and names: its car choice, gearing, controls and set-ups, and a loaded
-//! one puts the saved game's records over them whole. The original never put the players'
-//! own back, so a championship's choices stayed for every other mode afterwards (and
-//! `var\ral.dat` kept them on leaving). Here the records and names are set aside before
-//! the championship touches them and put back when it is over or left, on every way out.
-//! Saving the championship still saves its own (`saves::gather_savegame` runs inside it).
+//! The players' own settings kept aside while a championship runs (an improvement on 1999). A
+//! championship, started or loaded, works on the four players' records and names: its car
+//! choice, gearing, controls and set-ups, and a loaded one puts the saved game's records over
+//! them whole. The 1999 game never put the players' own back, so a championship's choices
+//! stayed for every other mode afterwards (and `var\ral.dat` kept them on leaving). Here the
+//! records and names are set aside before the championship touches them and put back when it is
+//! over or left, on every way out. Saving the championship still saves its own
+//! (`saves::gather_savegame` runs inside it).
 
 use crate::errors::Refused;
 use crate::menu::owner::Menus;

@@ -1,27 +1,11 @@
-//! `input::read_device` (0x408E38): a device's four readings from its bindings (see
-//! `input/devices.rs`). The device polled (`input::poll_device`: its state copied into +0x2C ..
-//! +0x38); while it is read (+0x414 1):
-//! - the bits: the hat's angle (`input::hat_reading`) in the top byte, its direction
-//!   (`input::hat_direction`) in the second;
-//! - steering left (binding +0x41C) and right (+0x42C), throttle (+0x43C), brake (+0x44C):
-//!   each its key down (`g_keysDown`), or its axis (the record's dword at the binding's
-//!   place times its sign, below 0 made 0) as it is, or, with a button bound too, all of it
-//!   when that is above 0x40 and the button down, or the button alone: all of it is
-//!   0xFFFFFF00 for left (whose axis is negated), 0x100 for the others, and sets bit 0x1000
-//!   (steering), 0x4000 (throttle), 0x2000 (brake); the steering is left plus right, and
-//!   with bit 0x1000 set held to 0xFFFFFF00 or 0x100 by its sign; on a digital device (+8
-//!   1) bits 0x7000 and every reading not 0 made all of it;
-//! - eight buttons (+0x45C .. +0x4CC) as bits 1 .. 0x80: the key down, or the axis's
-//!   value above 0x40 (with a button bound, that button down as well), or the button;
-//!
-//! Into +0x4DC (steering), +0x4E0 (brake), +0x4E4 (throttle), +0x4E8 (the bits).
-//!
-//! Takes: the device's record
-//!
-//! Callers: `input::input_tick` (both devices, each tick of the input thread). Refuses (before
-//! anything) a bound key past 0xFF and an axis's place past the record.
-//!
-//! Its arguments are what it reads.
+//! A device's four readings (steering, brake, throttle, the bits) from its bindings (record
+//! layout: `input/devices.rs`), after polling it. Each of steering left / right, throttle and
+//! brake is its key down, or its axis (times its sign, below 0 made 0), or a button, "all of
+//! it" being 0xFFFFFF00 for left and 0x100 for the others, setting bit 0x1000 (steering),
+//! 0x4000 (throttle) or 0x2000 (brake); the steering is left plus right; on
+//! a digital device every reading not 0 is made all of it. Eight buttons become bits 1 .. 0x80
+//! and the hat the top two bytes of the bits. Refuses (before anything) a bound key past 0xFF
+//! and an axis's place past the record.
 
 use crate::errors::Refused;
 use crate::input::devices::{joy_state, key_table, record_bytes};

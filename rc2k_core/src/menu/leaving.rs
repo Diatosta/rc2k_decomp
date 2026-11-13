@@ -1,8 +1,6 @@
-//! Leaving a screen, and the yes/no question that may come before
-//! (from `menu::go_back` 0x471C82, `menu::ask_to_leave` 0x47E8BB, `menu::leave_with_carry`
-//! 0x471CCE, `menu::handle_yes_no` 0x470D2E and `menu::confirm_leaving` 0x46FA90).
+//! Leaving a screen, and the yes/no question that may come before.
 
-/// The menus' leaving switches the event flows read and write; each is 0 or 1 in the game.
+/// The menus' leaving switches the event flows read and write; each is 0 or 1.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Switch {
     /// The event is left too, not only the screen.
@@ -26,7 +24,7 @@ pub enum Switch {
     RallyDone,
     /// One was entered in the best times.
     Entered,
-    /// `g_quitting`: the window was closed (read only).
+    /// The window was closed (read only).
     Quitting,
 }
 
@@ -42,8 +40,8 @@ pub struct Leaving {
     pub left_with_carry: bool,
     /// The screen loop asks whether to leave.
     pub ask_leave: bool,
-    /// `DrawWork.scratch_0c` (`DrawWork::scratch_0c`, a scratch variable the screens share): -1 on going
-    /// back; the screens after it use it for their own values.
+    /// `DrawWork.scratch_0c` (`DrawWork::scratch_0c`, a scratch variable the screens share): -1 on
+    /// going back; the screens after it use it for their own values.
     pub scratch_0c: u32,
 }
 
@@ -60,16 +58,15 @@ impl Leaving {
         self.ask_leave = true;
     }
 
-    /// `menu::leave_with_carry` (its carry set is the caller's).
+    /// `menu::leave_with_carry` (its result is the caller's).
     pub fn leave_with_carry(&mut self) {
         self.leave_screen = true;
         self.left_with_carry = true;
     }
 }
 
-/// A yes/no question's state: 1 on a screen that asks, the answer
-/// (`g_yesNoAnswer`, 1 yes, 0 no) and whether it was answered (`CaptionTables.left_by_key`, which the
-/// screen loops also read as "left").
+/// A yes/no question's state: 1 on a screen that asks, the answer (1 yes, 0 no) and whether it
+/// was answered (`CaptionTables.left_by_key`, which the screen loops also read as "left").
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Question {
     pub asking: bool,

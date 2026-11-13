@@ -1,5 +1,5 @@
-//! Module service's owner (step 11, owned state): the car set-ups' stores in one struct,
-//! reached through `service()` by the code that does not take it as a parameter.
+//! The service's owner: the car set-ups' stores in one struct, reached through `service()` by
+//! the code that does not take it as a parameter.
 
 use crate::service::read_setup_slot::{SetUps, template};
 use crate::session::{GameThread, PlainBytes};
@@ -8,7 +8,7 @@ use crate::session::{GameThread, PlainBytes};
 pub struct Service {
     /// The set-ups' buffers (file head, names, a kept value).
     pub set_ups: SetUps,
-    /// `aSavedataCarset`: the set-up file's name, the number's two digits last.
+    /// The set-up file's name, the number's two digits last.
     pub template: PlainBytes<27>,
 }
 
@@ -21,7 +21,7 @@ impl Service {
     }
 }
 
-/// The one instance. Reached through `service()`; `moved` registers its stores' places.
+/// The one instance, reached through `service()`.
 pub static SERVICE: GameThread<Service> = GameThread::new(Service::new());
 
 /// The service's state, for a caller that does not take it as a parameter yet.

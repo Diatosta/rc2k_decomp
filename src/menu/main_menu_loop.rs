@@ -1,23 +1,15 @@
-//! `menu::main_menu_loop` (0x4748D9): the loop of the main menu, the screen the game starts
-//! on (named from its title string and callers; the original's name is lost)
-//!
-//! The loop itself is `menu::screen_loop`; this file says what is this screen's own (`SCREEN`),
-//! - background `mainscr.png`, loaded first thing at set-up, and its carry is not looked at;
+//! The loop of the main menu, the screen the game starts on. Screen-specific part of
+//! `menu::screen_loop`:
+//! - background `mainscr.png`, loaded first thing at set-up;
 //! - `captions.left_by_key` is cleared and the highlight put in place only after the first frame
 //!   (`late_highlight`), and `cheats.notice_due` = 1 is stored before every frame;
 //! - an idle timer at the top of each frame (`idle`): while `loop_flags.idle` is not 0 (set by
-//!   `menu::update_blink` after 300,000 ms without a key) `loop_flags.idle_frames` counts up, and
-//!   unless `g_noFmv` (0x5BE870, `nofmv` in `var\ral.cfg`) is 1, `menu::play_films` is called with
-//!   eax = 1 (it plays the intro film), the flag cleared and the screen set up again;
+//!   `menu::update_blink` after 300,000 ms without a key) `loop_flags.idle_frames` counts up,
+//!   and unless `nofmv` in `var\ral.cfg` is 1, `menu::play_films` plays the intro film, the flag
+//!   is cleared and the screen set up again;
 //! - after an action: `restart_action_check`;
 //! - leaving is always asked about, and after a "yes" the loop returns at once
 //!   (`always_asks`); the quit switch leads to the question too.
-//!
-//! The five calls and three stores between the last jump and the end (0x474CD9 ..
-//! 0x474D0F) are never reached and are not ported. The name is a reading from the menu
-//! (0x748CB8): its items open `start_rally_loop`, `load_championship_loop`, `network_rally_loop`
-//! and `options_loop`, and the fifth is `menu::go_back`. Screen: the main menu. Rust callers run
-//! its `entry` (`routes.rs`).
 
 use crate::errors::Refused;
 use crate::framework::log;
@@ -27,8 +19,6 @@ use crate::menu::screen_loop::{
     carousel, prepare_scene,
 };
 use crate::menu::update_blink::update_blink;
-
-// ---- game data ----
 
 fn set_up_first(entry: &Entry) -> Result<(), Refused> {
     let menus = entry.menus;
@@ -95,12 +85,12 @@ fn idle(entry: &Entry) -> Result<Flow, Refused> {
 pub const SCREEN: Screen = Screen {
     lists: &[
         List {
-            pointer: |m| &m.screens.flow.scene_list, // g_sceneList
+            pointer: |m| &m.screens.flow.scene_list,
             table: |m| m.tables.draw_lists.main_menu_scene.id(),
             run: false,
         },
         List {
-            pointer: |m| &m.screens.flow.draw_list, // g_drawList
+            pointer: |m| &m.screens.flow.draw_list,
             table: |m| m.tables.draw_lists.main_menu_draw.id(),
             run: false,
         },
@@ -110,7 +100,7 @@ pub const SCREEN: Screen = Screen {
             run: true,
         },
         List {
-            pointer: |m| &m.screens.flow.overlay_list, // g_overlayList
+            pointer: |m| &m.screens.flow.overlay_list,
             table: |m| m.tables.draw_lists.main_menu_overlay.id(),
             run: false,
         },

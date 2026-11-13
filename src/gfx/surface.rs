@@ -1,7 +1,6 @@
-//! The global drawing surface and clip rectangle that the game's blitters read.
-//!
-//! The surface is a `Target`. The screen's and a locked texture's
-//! pixels are reached by a handle (`gfx::locked_pixels`; `DRAW_SURFACE.pixels`, set by the platform's lock and
+//! The global drawing surface and clip rectangle that the game's blitters read. The surface is a
+//! `Target`. The screen's and a locked texture's pixels are reached by a handle
+//! (`gfx::locked_pixels`; `DRAW_SURFACE.pixels`, set by the platform's lock and
 //! `d3d::texture_surface_info`); the picture buffer, the menus' surface after
 //! `gfx::picture_as_surface`, by its number (`ON_PICTURE`, `DRAW_SURFACE.pixels` 0 then).
 
@@ -21,7 +20,7 @@ pub enum Target {
     Picture(u32),
 }
 
-/// The surface now; `None` for none (the original's null `g_surface.pixels`).
+/// The surface now; `None` for none (no pixels).
 pub fn target(gfx: &Gfx) -> Option<Target> {
     match (
         ON_PICTURE.load(Relaxed),
@@ -33,8 +32,8 @@ pub fn target(gfx: &Gfx) -> Option<Target> {
     }
 }
 
-/// The surface's pixels' handle (`gfx::locked_pixels`; 0 for none), for code that only ever draws on
-/// the screen or a texture: refused while the picture buffer is the surface.
+/// The surface's pixels' handle (`gfx::locked_pixels`; 0 for none), for code that only ever draws
+/// on the screen or a texture: refused while the picture buffer is the surface.
 pub fn handle(gfx: &Gfx) -> Result<u32, BadInput> {
     match target(gfx) {
         Some(Target::Picture(_)) => Err(BadInput(
@@ -50,8 +49,8 @@ pub fn on_address() {
     ON_PICTURE.store(0, Relaxed);
 }
 
-/// `bytes` written at `offset` from the target's start; refused past its rows (pitch x height)
-/// or its memory.
+/// `bytes` written at `offset` from the target's start; refused past its rows (pitch x height) or
+/// its memory.
 pub fn write(target: Target, offset: u32, bytes: &[u8], gfx: &Gfx) -> Result<(), BadInput> {
     let drawing = &gfx.drawing;
     match target {

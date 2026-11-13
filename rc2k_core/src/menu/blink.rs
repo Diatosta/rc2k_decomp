@@ -1,10 +1,9 @@
-//! What blinks in the menus, and the idle switch (from
-//! `menu::update_blink` 0x47E826): worked out from the menus' clock each frame.
+//! What blinks in the menus, and the idle switch: worked out from the menus' clock each frame.
 
 /// Five minutes without a key, in ms.
 pub const IDLE_AFTER_MS: i32 = 300_000;
 
-/// (the highlight's blink, the text entry's cursor, idle) for a clock value: the highlight
+/// The highlight's blink, the text entry's cursor and idle, for a clock value: the highlight
 /// is on while bit 8 of the time since the last key (`last_key`) is clear, 256 ms on and
 /// 256 off, and stays off while `blink_off` is 1; the cursor is on while bit 9 of the time
 /// since `cursor_time` is clear; idle once the time since the last key has reached five

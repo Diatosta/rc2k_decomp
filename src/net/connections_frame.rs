@@ -1,12 +1,5 @@
-//! `net::connections_frame` (0x4175C7): the frame of `net::choose_connection`: on the locked
-//! surface the background, the title (string 0x14E, `typefaces::STAGE_TITLE` at 0x316, 0x6F), and from
-//! y 0x9B sixteen of the connections' names from `g_listChoiceBefore` (the list's top) in
-//! `font`, the highlighted one in `typefaces::BUTTON_LIT` in the blink's lit half
-//! (`net::connection_entry`, `text::draw_text` at 0x190, each the font's line height lower);
-//! unlocked and shown.
-//!
-//! Called by `screens::run_frame` for `net::choose_connection` (`routes.rs`).
-//! Called by `screens::run_frame` for `net::choose_connection`.
+//! The frame of `net::choose_connection`: background, title and sixteen connection names from
+//! the list's top, the highlighted one in the lit font during the blink's lit half.
 
 use crate::errors::Refused;
 use crate::net::connecting::STATUS_FONT;
@@ -38,7 +31,7 @@ pub fn list_frame(
         gfx,
     )?;
     let mut y: u32 = 0x6F + 0x2C;
-    // Converted: `rc2k_core::net::screens` (`LIST_ROWS`, `listed`, `blink_lit`).
+    // The logic is in `rc2k_core::net::screens` (`LIST_ROWS`, `listed`, `blink_lit`).
     let pages = &install.pages;
     for row in 0..screens::LIST_ROWS {
         let Some(item) = screens::listed(row, pages.choice_before.get(), count.get()) else {

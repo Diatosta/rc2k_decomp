@@ -1,17 +1,8 @@
-//! `hud::draw_needle` (0x4B6ECD): a HUD needle: its value (`HudBlock.needle_value`, as a float through
-//! `HudBlock.fistp_scratch`) held to `HudBlock.least` at least; with `HudBlock.needle_kind` held to `HudBlock.needle_k[3]` at most
-//! and made an angle over `HudBlock.needle_k[4]` plus `HudBlock.needle_k[0]`; without, held to `HudBlock.needle_k[6]`, and below
-//! `HudBlock.needle_k[2]` over `HudBlock.needle_k[5]` plus `HudBlock.needle_k[0]`, else less `HudBlock.needle_k[2]` over `HudBlock.needle_k[4]` plus
-//! `HudBlock.needle_k[1]`; times `HudBlock.uv_scale_y` times `HudBlock.turn_k` (`fistp`), times -16 the turn; the needle's
-//! four corners (x `HudBlock.needle_corners[0]` / `HudBlock.needle_corners[2]`, y `HudBlock.needle_corners[1]` / `HudBlock.needle_corners[3]`) by
-//! `hud::turned_vertex`, then `hud::add_polygon` on four. (The holds by the compares' C0, an
-//! unordered compare counting as below.)
-//!
-//! Callers: the needles' set-ups (`hud::needle_*`).
-//!
-//! The value made a float and the turn's arithmetic and rounding stay the x87's (they follow its
-//! control word). `HudBlock.fistp_scratch` is written once, with the turn (the original also holds the value
-//! there between, read by nothing).
+//! A HUD needle: its value (`HudBlock.needle_value`) held to `least` at least and made an angle
+//! by the needle's constants (`needle_k`, which differ with `needle_kind`), times `uv_scale_y`
+//! times `turn_k`, times -16 the turn; its four corners go through `hud::turned_vertex` and
+//! `hud::add_polygon`. The value made a float and the turn's arithmetic and rounding stay the
+//! x87's (they follow its control word); an unordered compare counts as below.
 
 use crate::errors::Refused;
 use crate::hud::owner::{Hud, Pen};
@@ -20,7 +11,7 @@ use crate::math::x87_float::{ld, to_int};
 use crate::race::owner_frame::Frame;
 use crate::scene::matrix3::extended;
 
-/// `fld v [; fsub less]; fdiv over; fadd plus; fmul k0; fmul k1; fistp`.
+/// ((v [- less]) / over + plus) x k0 x k1 as a whole number, rounded as the x87 rounds.
 fn turn_of(v: f32, less: Option<f32>, over: f32, plus: f32, k: [f32; 2]) -> u32 {
     let a = [v, less.unwrap_or(0.0), over, plus, k[0], k[1]];
     if less.is_some() {
@@ -30,7 +21,6 @@ fn turn_of(v: f32, less: Option<f32>, over: f32, plus: f32, k: [f32; 2]) -> u32 
     }
 }
 
-// Converted: `rc2k_core::hud::disc::{needle_turn, needle_angle, needle_corners}`
 pub fn draw_needle(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
     use rc2k_core::hud::disc::{needle_angle, needle_corners, needle_turn};
     use rc2k_core::math::extended::to_f64;
@@ -61,9 +51,7 @@ pub fn draw_needle(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
     crate::hud::add_polygon::add_polygon(frame, hud, pen)
 }
 
-// ---- the arithmetic that was x87 assembly ----
-
-/// An x87 run of the original, in plain Rust over `X`, on the six floats:
+/// The recorded x87 run, in plain Rust over `X`, on the six floats:
 /// `int = ((((a0 - a1) / a2) + a3) * a4) * a5`
 fn turn_less(a: [f32; 6]) -> u32 {
     let [v, less, over, plus, k0, k1] = a.map(ld);
@@ -104,7 +92,7 @@ mod reference_vectors {
     use super::*;
     use crate::test_support::vectors::{Block, In, Operand, Out, sparse};
 
-    // The original's instructions, one function per run.
+    // The recorded run, one function per run.
 
     fn blocks() -> Vec<Block> {
         vec![

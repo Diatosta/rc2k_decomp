@@ -33,7 +33,6 @@ pub fn taken_off(v: [u8; 10]) -> u32 {
 }
 
 /// The two players' markers at `rows` (see the header).
-// Converted: `rc2k_core::hud::quads::{marker_x, int_over}`
 pub fn draw_markers(frame: &Frame, hud: &Hud, pen: Pen, rows: [u32; 2]) -> Result<(), Refused> {
     {
         let k = hud.block.uv_scale_x.get();
@@ -68,7 +67,7 @@ pub fn draw_markers(frame: &Frame, hud: &Hud, pen: Pen, rows: [u32; 2]) -> Resul
                 rect,
                 [st0, st1],
             )?;
-            // the second scale is what stays in the fistp_scratch cell
+            // the second scale is what stays in the scratch cell
             hud.block.fistp_scratch.set(taken_off(st1));
         }
     }

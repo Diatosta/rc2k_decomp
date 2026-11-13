@@ -1,19 +1,17 @@
-//! `saves::list_car_numbers` (0x470825): two lists of numbers from two lists of pointers,
-//! the other way round from `saves::rebuild_car_lists`.
+//! Two lists of numbers from two lists of pointers, the other way round from
+//! `saves::rebuild_car_lists`.
 //!
 //! 0x28 dwords of -1 in `first_numbers` and 0x28 in `second_numbers` (the second list has 0x14
-//! entries in `var\ral.dat`; the rest of what is filled is whatever lies after it); then
-//! for each entry of `cars_second` up to its -1 the first dword of what it points at goes
-//! to the first, and likewise from `shown_cars` to the second.
-//! Callers: `menu::run_front_end` after the main menu is left, and `menu::add_shown_car`.
+//! entries in `var\ral.dat`; the rest of what is filled is whatever lies after it); then for
+//! each entry of `cars_second` up to its -1 the first dword of what it points at goes to the
+//! first, and likewise from `shown_cars` to the second.
+//! Called by `menu::run_front_end` after the main menu is left, and `menu::add_shown_car`.
 //! Refuses a list of pointers without its -1 within the numbers' room, and a null entry.
 
 use crate::errors::BadInput;
 use crate::menu::owner::Menus;
 use crate::session::PlainDword;
 use crate::system::checked_reads::CheckedReads;
-
-// ---- game data ----
 
 /// How many dwords of each list of numbers are filled.
 const FILLED: usize = 0x28;
@@ -33,8 +31,7 @@ fn lists(menus: &Menus) -> [(&[PlainDword], &[PlainDword]); 2] {
 
 pub fn list_car_numbers_in(menus: &Menus) -> Result<(), BadInput> {
     let lists = lists(menus);
-    // Converted: `rc2k_core::saves::cars::numbers`, both lists worked out before either is
-    // written.
+    // Both lists are worked out before either is written.
     {
         let mut found = Vec::new();
         for (_, pointers) in lists {

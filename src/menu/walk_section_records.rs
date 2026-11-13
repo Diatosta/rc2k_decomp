@@ -1,4 +1,4 @@
-//! `menu::walk_section_records` (0x471F0D): the current section's records walked from
+//! `menu::walk_section_records`: the current section's records walked from
 //! `index`: a record tagged 0 gets the computer drivers' times (`menu::calc_cpu_times`)
 //! and `event.cpu_spread_first` 0, one tagged 1 the drivers' condition reset
 //! (`menu::reset_driver_condition`) and `event.cpu_spread_first` 1; past each of those and of any
@@ -40,7 +40,6 @@ fn walk(menus: &Menus, system: &System, race: &Race) -> Result<Vec<(u32, Step)>,
     counted_players(menus)?;
     drivers(menus)?;
     let index: u32 = menus.screens.event.index.get();
-    // The logic is in `rc2k_core::menu::section_walk::walk`.
     let fault = Fault::default();
     let walked = rc2k_core::menu::section_walk::walk(
         index,

@@ -1,23 +1,18 @@
-//! The mud amounts the wheels add (from
-//! `physics::accumulate_mud` 0x449EE9; it adds the mud thrown and splashed
-//! per car texture, `mud_thrown_in` / `mud_splashes_in`, for `race::update_mud_texture`).
-//!
-//! Floats: what the x87 keeps on its stack is an `f64`, rounded to `f32` where the
-//! original stores (`physics::x87`): the same bits at the game's double precision.
+//! The mud amounts the wheels add: the mud thrown and splashed per car texture. Floats: the
+//! x87's stack values are `f64`, rounded to `f32` where stored.
 
 use super::x87::{below, loaded};
 
-/// The car kinds' table (`kind_gets_mud`): 0x22 entries.
+/// The car kinds' table size.
 pub const KINDS: u32 = 0x22;
 
-/// Whether the car's kind (`g_car` +0x24) collects mud: below 0x22 and its entry
-/// (`kinds`, asked then) not 0.
+/// Whether the car's kind collects mud: below 0x22 and its entry (asked then) not 0.
 pub fn gets_mud(kind: u32, kinds: impl FnOnce(u32) -> u32) -> bool {
     kind < KINDS && kinds(kind) != 0
 }
 
-/// One half: `speed` (None with the switch `all_wheels_off` set: 0) held at `zero` or more,
-/// times `f1` and `f2` (kept in `scratch`), added to the four amounts.
+/// One half: `speed` (`None` with all wheels off: 0) held at `zero` or more, times `f1` and
+/// `f2`, added to the four amounts.
 pub fn add_mud(speed: Option<f32>, zero: f32, f1: f32, f2: f32, amounts: &mut [f32; 4]) -> f32 {
     let s = match speed {
         Some(s) if below(s as f64, zero as f64) => loaded(zero),
@@ -31,7 +26,7 @@ pub fn add_mud(speed: Option<f32>, zero: f32, f1: f32, f2: f32, amounts: &mut [f
     step
 }
 
-/// The second half's speed: the drive speed less the car's (stored: a float).
+/// The second half's speed: the drive speed less the car's.
 pub fn slip(drive: f32, speed: f32) -> f32 {
     (drive as f64 - speed as f64) as f32
 }

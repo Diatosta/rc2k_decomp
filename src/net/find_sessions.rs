@@ -1,14 +1,7 @@
-//! `net::find_sessions` (0x418999): "NET: Find sessions"; with DirectPlay's object there, the
-//! sessions listed afresh (`sessions` 0): a session description (`session_desc`, 0x50
-//! bytes, zeroed, its size 0x50, the game's GUID `app_guid` at +0x18) and
-//! `EnumSessions` (no timeout, `net::session_found`, flags 0x91) called, or with
-//! `g_netPosting` 1 posted to the receiving thread (`net::post_call`, the code at 0x418A43);
-//! then the window restored (`system::restore_window`).
-//!
-//! Returns true when done (or DPERR_CONNECTING); false when there is no object, the user
-//! cancelled (DPERR_USERCANCEL) or it failed. The original's callers read only the carry (`lq
-//! -s 0x41771E`).
-//! Caller: `net::find_sessions_regs`.
+//! Lists the sessions afresh ("NET: Find sessions") with `EnumSessions` for the game's GUID,
+//! called directly or, with `posting` 1, on the receiving thread (`net::post_call`); then the
+//! window is restored. Returns true when done (or DPERR_CONNECTING); false for no object, a
+//! user cancel or a failure.
 
 use crate::errors::Refused;
 use crate::net::lobby::log_bytes;
@@ -27,7 +20,7 @@ pub fn zeroed_description(vars: &NetShared) -> Result<(), Refused> {
     Ok(())
 }
 
-/// `EnumSessions` as the code at 0x418A43 calls it.
+/// `EnumSessions` as the receiving thread calls it when it is posted.
 pub fn enum_sessions(net: &Net, lines: &NetTexts) -> u32 {
     let vars = &net.vars;
     let application = crate::net::dp_objects::desc(&vars.session_desc, b"").application;
@@ -40,13 +33,13 @@ pub fn enum_sessions(net: &Net, lines: &NetTexts) -> u32 {
     )
 }
 
-/// The code at 0x418A43 as the receiving thread calls it when it is posted.
+/// The enumeration as the receiving thread calls it when it is posted.
 pub fn posted_enum_sessions(net: &Net, lines: &NetTexts) -> u32 {
     enum_sessions(net, lines)
 }
 
-/// The piece `code` made: posted to the receiving thread (`net::post_call`) while
-/// `g_netPosting` is 1, else called here.
+/// The piece `code` made: posted to the receiving thread (`net::post_call`) while `posting`
+/// is 1, else called here.
 pub fn posted_or_called(
     o: crate::owners::Owners<'static>,
     lines: &NetTexts,

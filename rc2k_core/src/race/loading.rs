@@ -1,14 +1,11 @@
-//! The loading bar drawn while a stage loads (from
-//! `race::loading_bar_quad` 0x446861): a red rectangle along the bottom of the screen, as
-//! long as the share loaded, laid out on 800 x 600 and scaled to the screen; and the flat
-//! rectangles' corners (from `race::draw_screen_quad` 0x44B364);
-//! a frame's way through from `race::loading_bar_frame` 0x4467C7.
+//! The loading bar drawn while a stage loads: a red rectangle along the bottom, as long as the
+//! share loaded, laid out on 800 x 600 and scaled to the screen; and a frame's way through.
 
 /// The bar's colour.
 pub const BAR_COLOUR: u32 = 0xFF_0000;
 
-/// The bar on the screen: its left and right edges, its top and bottom, and the rest of
-/// the right edge's division (the division's high half).
+/// The bar on the screen: left and right edges, top and bottom, and the right edge's division
+/// remainder.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Bar {
     pub left: u32,
@@ -18,19 +15,19 @@ pub struct Bar {
     pub rest: u32,
 }
 
-/// `v` x `size` / `of` (`mul`, `div`): the quotient and the rest.
+/// `v` x `size` / `of`: the quotient and the remainder.
 fn scaled(v: u32, size: u32, of: u32) -> (u32, u32) {
     let n = u64::from(v) * u64::from(size);
     ((n / u64::from(of)) as u32, (n % u64::from(of)) as u32)
 }
 
-/// The share loaded held to 0 .. 100 (signed).
+/// The share loaded held to 0 ..= 100 (signed).
 pub fn held_share(share: u32) -> u32 {
     (share as i32).clamp(0, 0x64) as u32
 }
 
-/// The bar for a screen of `width` x `height` and the share loaded (0 .. 100): from x 0
-/// to the width times the share / 100, y 0x24D .. 0x258 of 600.
+/// The bar for a `width` x `height` screen and the share loaded: x 0 to width x share / 100,
+/// y 0x24D ..= 0x258 of 600.
 pub fn loading_bar(width: u32, height: u32, share: u32) -> Bar {
     let left = scaled(0, width, 0x320).0;
     let (right, rest) = scaled(width, held_share(share), 0x64);
@@ -43,19 +40,16 @@ pub fn loading_bar(width: u32, height: u32, share: u32) -> Bar {
     }
 }
 
-/// `race::draw_screen_quad`'s four corners (x, y) of the rectangle from x `x0` .. `x1`
-/// and y `y0` .. `y1` (whole numbers made floats: `fild` / `fstp`, one rounding at any
-/// precision), round from the top left.
+/// The four corners (x, y) of a rectangle, from the top left; whole numbers made floats.
 pub fn quad_corners(x0: i32, x1: i32, y0: i32, y1: i32) -> [(f32, f32); 4] {
     let (x0, x1, y0, y1) = (x0 as f32, x1 as f32, y0 as f32, y1 as f32);
     [(x0, y0), (x1, y0), (x1, y1), (x0, y1)]
 }
 
-/// `loading_bar_frame`'s mark (`scene_state`) while the bar is on.
+/// The scene state mark while the bar is on.
 pub const FRAME_MARK: u32 = 8;
 
-/// A frame is tried with the window active and the surfaces not lost (`WindowLoopState.lost`
-/// not 1).
+/// A frame is tried with the window active and the surfaces not lost (`lost` not 1).
 pub fn frame_tried(active: u32, lost: u32) -> bool {
     active != 0 && lost != 1
 }

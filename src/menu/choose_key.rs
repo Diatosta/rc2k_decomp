@@ -1,12 +1,11 @@
-//! What the twelve `menu::choose_key_0` .. `_11` (0x4682D3 .. 0x4683BA, 0x15 bytes apart)
-//! share: the actions of the redefine keys pages' items, each starting the redefining of
-//! its key's place (`menu/redefine_keys.rs`): `g_redefiningKey` = 1 and
-//! `g_redefinedKeyPlace` = the place. `choose_key_8` is in no menu.
+//! What the twelve `menu::choose_key_0` .. `_11` share: the actions of the redefine keys
+//! pages' items, each starting the redefining of its key's place (`menu/redefine_keys.rs`):
+//! `option_work.redefining_key` = 1 and `option_work.redefined_key_place` = the place.
+//! `choose_key_8` is in no menu.
 
 use crate::menu::owner::Screens;
 
 pub fn choose_key(screens: &Screens, place: u32) {
-    // The logic is in `rc2k_core::menu::player::Redefining`.
     let r = rc2k_core::menu::player::Redefining::start(place);
 
     screens.option_work.redefining_key.set(r.on);

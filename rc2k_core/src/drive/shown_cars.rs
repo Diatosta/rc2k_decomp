@@ -1,6 +1,5 @@
-//! Which cars the views show (from `drive::choose_shown_cars`
-//! 0x4560EA): the cars the views show, by the players, a network game (this machine's
-//! car only) and a playing replay's layout (the replay frame head's byte +5).
+//! Which cars the views show: by the players, a network game (this machine's car only) and a
+//! playing replay's layout (the replay frame head's byte +5).
 
 use crate::Invalid;
 
@@ -14,7 +13,7 @@ pub struct ShownSetup {
     /// The playing replay's layout (1 .. 3), the replay frame head's byte +5: 1 one
     /// view of car 1, 2 two views with split 1 (side by side), 3 two views with split 2.
     pub layout: u32,
-    /// `NetVars.session` (`g_netSession`): a network game on (only this machine's car is shown).
+    /// `NetVars.session`: a network game on (only this machine's car is shown).
     pub network: u32,
     /// This machine's car in a network game.
     pub local_car: u32,
@@ -39,9 +38,9 @@ pub struct ShownCars {
 pub const BLOCK: u32 = 0xFE0;
 
 impl ShownCars {
-    /// `drive::choose_shown_cars`: the blocks from `first_block` on. Returns this machine's car
-    /// (network game), or the second view's block. A car past 7 is refused before anything (it
-    /// would write past the eight).
+    /// The shown cars set with the blocks from `first_block` on. Gives back this machine's car
+    /// (network game) or the second view's block. Refused before anything: a car past 7 (it
+    /// would write past the eight blocks).
     pub fn choose(&mut self, s: &ShownSetup, first_block: u32) -> Result<u32, Invalid> {
         let network = s.network != 0;
         if network && s.local_car > 7 {

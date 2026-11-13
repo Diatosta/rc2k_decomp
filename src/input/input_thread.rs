@@ -1,24 +1,14 @@
-//! `input::input_thread` (0x4078DA): the input thread's routine ("INPUTTDB", its slot
-//! `slot` 0x5184F4). Unless its slot's flag (+0xC) is already 1 (then straight to the end):
-//! the flag 1, "INPUTTDB:START" logged; DirectInput made (`direct_input`; none:
-//! to the end), the keyboard, the mouse and the joysticks (0x407A1F, 0x407FFE,
-//! `input::list_joysticks`), the priority 2 (`threading::set_priority`). Then every 20 ms (waits of
-//! 5 ms on `system::tick_count`, kept in `last_tick`): `clocks.key_ticks` one more for each
-//! 20 ms gone, the keyboard and the mouse read (0x407AC2, 0x4080F2), a tick of the
-//! devices (`input::input_tick`), a second's sleep while the window is not the active one
-//! (`flags.window_active` not 1); until `g_quitting` is 1. The end: both devices given back
-//! (`input::release_device`), the mouse, the keyboard and DirectInput released
-//! (0x40809E, 0x407A84, 0x4079FE), "INPUTTDB:QUIT" logged, the priority 0, the
-//! flag 0, `ExitThread`.
+//! The input thread's routine ("INPUTTDB"). Unless its slot's flag is already 1: the flag set,
+//! "INPUTTDB:START" logged, DirectInput made (none: to the end), the keyboard, the mouse and the
+//! joysticks set up, the priority raised. Then every 20 ms (waits of 5 ms on the tick count, kept
+//! in `last_tick`): `clocks.key_ticks` one more for each 20 ms gone, the keyboard and the mouse
+//! read, a tick of the devices, a second's sleep while the window is not the active one; until
+//! the game is quitting. The end: both devices given back, the mouse, the keyboard and DirectInput
+//! released, "INPUTTDB:QUIT" logged, the priority back, the flag 0.
 //!
-//! Takes: the thread's parameter (not read)
-//! Out: does not return
-//!
-//! Started by `threading::start_threads` (a slot's routine). In
-//! the standalone program DirectInput is made in Rust (`input::di_objects`, on SDL's
-//! joysticks, `platform_input.rs`) and released; the keyboard and the mouse are SDL's
-//! events (they fill `g_keysDown`): nothing is made, read or released for them. Refuses what its
-//! steps refuse.
+//! Started by `threading::start_threads`. DirectInput is Rust's here (`input::di_objects`, on
+//! SDL's joysticks, `platform_input.rs`); the keyboard and the mouse are SDL's events (they fill
+//! the key table), so nothing is made, read or released for them. Refuses what its steps refuse.
 
 use crate::errors::Refused;
 use crate::input::devices::records;

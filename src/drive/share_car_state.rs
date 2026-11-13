@@ -1,26 +1,10 @@
-//! `drive::share_car_state` (0x45699C): one car's state from its block (0xFE0 bytes)
-//! into its record (`car_records[n]`, read by the drawing and the sounds) and back:
-//! - a count at +0xFAC: when not 0, record +0x30 = 1 and the count less 1;
-//! - record +0x2C = the sound object's +0xF0, which is cleared (`xchg`);
-//! - two levels (record +0x4C0, +0x4C4) from block +0x2B4, +0x2B8: 0 below
-//!   `level_from`, else (x - it) / `four` rounded, held to 0 .. 7 (the sign of the
-//!   difference);
-//! - the car file's light record (`g_lightRecords`, 0x134 each, by
-//!   `race::car_file_number` of block +0x24) +0x2C .. +0x38 into record +0xC .. +0x18;
-//! - the block named at record +0x24 and +0x28 (the original wrote the addresses of
-//!   block +0x8C0 and +0x740 there; a block handle here: `CarEffects::whole`,
-//!   `part_matrix`);
-//! - about eighty fields moved as the original moves them (`MOVES`, the wheels' four
-//!   each), four of them cleared by the block's switches (+0x600 .. and bits 5 .. 8 of
-//!   +0x298), a part only when block +0xA34 is set;
-//! - record +0x258 (6 dwords) into block +0x700, whose 0x80000000 entries are then
-//!   filled from the next one that is not (round, at most six looked at); record +0x32C
-//!   (8) into block +0xA3C, record +0x3F4 (0x11) into block +0xA5C.
-//!
-//! Takes: the block, the record, the sound object
-//!
-//! Caller: `drive::share_all_cars`, for each of the eight cars.
-//! Refuses (before anything) a car file number above 0x21 (past `g_lightRecords`).
+//! One car's state from its block (0xFE0 bytes) into its record (`car_records[n]`, read by the
+//! drawing and the sounds) and back: the sound object's request flag and a countdown, two levels
+//! from block +0x2B4 / +0x2B8 (`level_from`, `four`, held to 0 .. 7), the car file's light
+//! record, the block handles at record +0x24 / +0x28, about eighty fields moved (`MOVES`, the
+//! wheels' four each; four cleared by the block's switches, a part only when block +0xA34 is
+//! set), and three arrays into the block (+0x700 with its 0x80000000 entries filled from the next
+//! real one). Refuses (before anything) a car file number above 0x21 (past the light records).
 
 use crate::errors::Refused;
 use crate::math::x87;
@@ -83,8 +67,8 @@ const LIGHT_MOVES: [(RecordWord, LightField); 4] = [
     (|o| &o.axles[1], |l| &l.axles[1]),
 ];
 
-/// (record field, block field) moves in the original's order, after the light record: the
-/// four wheels' flags, second flags, flags and second flags under the wheel, and chances.
+/// (record field, block field) moves after the light record: the four wheels' flags, second
+/// flags, flags and second flags under the wheel, and chances.
 const MOVES_A: [Move; 20] = [
     Move::Word(rec!(0, flags), blk!(wheel_cell_a_byte18[0])),
     Move::Word(rec!(1, flags), blk!(wheel_cell_a_byte18[1])),
@@ -154,7 +138,6 @@ fn light_record(race: &Race, car: &Car) -> Result<u32, Refused> {
 
 /// The Rust core: block `car`, record `o` (the marks' car record), sound object `p`, the
 /// scratch dword `scratch`.
-// Converted: `rc2k_core::drive::sharing` (the levels' x87 sums stay).
 pub fn share_car_state_at(
     race: &Race,
     car: &Car,
@@ -268,7 +251,7 @@ pub fn share_car_state(
         block,
         record,
         sound,
-        // The original's spill to `g_scratch` (0x62400C), which nothing read: a local.
+        // A local for a scratch dword nothing reads.
         &PlainDword::new(0),
     )
 }
@@ -290,7 +273,6 @@ mod tests {
         offset_1999(c, core::ptr::from_ref(f(c)).addr())
     }
 
-    /// A move's (record field, block field) offsets.
     fn move_offs(o: &CarEffects, c: &Car, m: Move) -> (usize, usize) {
         let (r, b) = match m {
             Move::Word(r, b) => (
@@ -305,7 +287,6 @@ mod tests {
         (r - core::ptr::from_ref(o).addr(), offset_1999(c, b))
     }
 
-    /// The block's dword at `offset`, as the byte-offset version read it.
     fn at(car: &Car, offset: usize) -> u32 {
         load_1999(car, offset)
     }

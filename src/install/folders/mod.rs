@@ -1,15 +1,9 @@
-//! How the installer names, checks, makes and measures folders on each system (owner:
-//! native on each, another system a plug-in). The installer's pages and steps
-//! are the original's; every folder they handle passes through `Folders`, chosen at build
-//! time as `Native`:
-//! - `windows`: the original's own rules (`c:\..\` lower case, its bad characters, the
-//!   walk into each folder, the drive's room, the drive page);
-//! - `unix`: native paths (`/home/me/.local/share/rally-championship/`, shown whole, `~` may
-//!   be typed for the home folder), no drive page, the room of the folder's file system.
-//!
-//! macOS takes the `unix` rules with its own first folder (`~/Library/Application
-//! Support/Rally Championship`). A new system is one more implementation and its line in
-//! `Native`. Texts are the game's (Windows-1252 bytes, no NUL unless said).
+//! How the installer names, checks, makes and measures folders on each system, chosen at build
+//! time as `Native` through `Folders`: `windows` (`c:\..\` lower case, its bad characters, the
+//! drive's room, the drive page) and `unix` (native paths shown whole, `~` may be typed for the
+//! home folder, no drive page, the room of the folder's file system). macOS takes the `unix`
+//! rules with its own first folder. A new system is one more implementation and its line in
+//! `Native`. Texts are Windows-1252 bytes, no NUL unless said.
 
 use crate::errors::{BadInput, Refused};
 
@@ -44,7 +38,7 @@ mod windows;
 pub enum Room {
     /// So many KB.
     Kb(u32),
-    /// Not measured (the original skips a network path's).
+    /// Not measured (a network path's).
     #[cfg_attr(not(windows), allow(dead_code))] // reason: only the Windows rules have one
     Unmeasured,
     /// It could not be read (the path is refused).
@@ -55,10 +49,10 @@ pub enum Room {
 pub type Current<'a> = &'a mut dyn FnMut() -> Result<Option<Vec<u8>>, BadInput>;
 
 pub trait Folders {
-    /// Whether a drive is chosen before the folder (the original's drive page).
+    /// Whether a drive is chosen before the folder (the Windows drive page).
     const DRIVES: bool;
 
-    /// The folder page's first text; None for the original's (its strings 0x9F, 0xA0).
+    /// The folder page's first text; None for the default (strings 0x9F, 0xA0).
     fn first_folder() -> Option<Vec<u8>>;
 
     /// A path (as typed or recorded) in the installer's one form of a folder: ending in its
@@ -78,16 +72,16 @@ pub trait Folders {
     /// A folder in that form as the folder page shows it.
     fn shown(folder: &[u8]) -> Vec<u8>;
 
-    /// The folder field's width in pixels, given the original's (its record's +6).
+    /// The folder field's width in pixels, given the default (its record's +6).
     fn field_width(original: u16) -> u16;
 
-    /// The folder field's most bytes, given the original's (its record's +1). The buffers
-    /// hold 256, with the game's folders still to go after it.
+    /// The folder field's most bytes, given the default (its record's +1). The buffers hold
+    /// 256, with the game's folders still to go after it.
     fn field_most(original: u8) -> u8;
 }
 
 /// An edit field's width: the folder field's by the system's rules, any other's its
-/// record's (`original`). `text` is the field's text (its game address).
+/// record's (`original`). `text` is the field's text.
 pub fn field_width(
     install: &'static crate::install::owner::Install,
     text: crate::place::BytePlace,

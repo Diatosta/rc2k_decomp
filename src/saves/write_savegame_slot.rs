@@ -1,11 +1,10 @@
-//! `saves::write_savegame_slot` (0x4AB558): builds a saved game in the save-games buffer and
-//! writes it to `savedata\savegame\svgameNN`.
+//! Builds a saved game in the save-games buffer and writes it to `savedata\savegame\svgameNN`.
 //!
-//! Takes slot, 0 .. 99.
-//! The file is always 0x8000 bytes: "R5SG", 0, version 0x51122, `packed_local_time`, the slot's
-//! 0x20-byte name from the saved game list (`names`), then what `gather_savegame` collects
-//! (0x725C bytes); the rest of the buffer is written as it is. Only caller:
-//! `menu::edit_savegame_name`. Refuses a slot past 99 and what `gather_savegame` refuses.
+//! `slot` is 0 .. 99. The file is always 0x8000 bytes: "R5SG", 0, version 0x51122,
+//! `packed_local_time`, the slot's 0x20-byte name from the saved game list (`names`), then what
+//! `gather_savegame` collects (0x725C bytes); the rest of the buffer is written as it is. Only
+//! caller: `menu::edit_savegame_name`. Refuses a slot past 99 and what `gather_savegame`
+//! refuses.
 
 use crate::errors::{BadInput, Refused};
 use crate::files::numbered_path::numbered_path_bytes;
@@ -17,8 +16,6 @@ use crate::saves::owner::Saves;
 use crate::session::{PlainBytes, PlainDword};
 use crate::system::packed_local_time::packed_local_time;
 
-// ---- game data ----
-
 pub const FILE_LEN: usize = 0x8000;
 pub const SLOTS: u32 = 100;
 
@@ -28,17 +25,17 @@ pub const NAME_BYTES: usize = 0x20;
 /// The saved games' buffers.
 #[derive(rc2k_derive::Cells)]
 pub struct SaveGames {
-    /// `dword_51EBB0`: a value the options file (`var\ral.dat`) keeps; nothing else reads it.
+    /// A value the options file (`var\ral.dat`) keeps; nothing else reads it.
     pub kept_a: PlainDword,
-    /// `dword_51EBB4`: the saved game as it is read or written (`FILE_LEN` bytes).
+    /// The saved game as it is read or written (`FILE_LEN` bytes).
     pub file: PlainBytes<FILE_LEN>,
-    /// `byte_526BB4`: the saved games' names, 100 of 0x20 bytes (ten to a page).
+    /// The saved games' names, 100 of 0x20 bytes (ten to a page).
     pub names: PlainBytes<{ SLOTS as usize * NAME_BYTES }>,
-    /// `dword_527834`: a value the options file keeps; nothing else reads it.
+    /// A value the options file keeps; nothing else reads it.
     pub kept_b: PlainDword,
 }
 
-/// The saved games' buffers; the first values are the image's (all zero).
+/// The saved games' buffers, all zero at first.
 impl SaveGames {
     pub const fn new() -> Self {
         SaveGames {
@@ -50,7 +47,6 @@ impl SaveGames {
     }
 }
 
-// "R5SG"
 pub fn slot_name(saves: &'static Saves, slot: u32) -> crate::place::BytePlace {
     crate::place::BytePlace::In(&saves.save_games.names, slot as usize * NAME_LEN)
 }
@@ -68,7 +64,6 @@ pub fn write_savegame_slot(
         let file = &saves.save_games.file;
         // First, because it is what can be refused: nothing else is written before it.
         gather_savegame(menus, file, 0x30)?;
-        // Converted: `rc2k_core::saves::kept::slot_head`.
         use rc2k_core::saves::kept;
         let head = kept::slot_head(
             kept::SAVEGAME,

@@ -1,23 +1,18 @@
-//! The course map's scroll in the race (from `race::scroll_maps`
-//! 0x45B4E6, `race::scroll_map` 0x45B527 and `race::map_tiles` 0x45B663): the car on the
-//! map (16.16 places), the map picture's corner (16-pixel steps) moved round it when it
-//! nears an edge, and its place in the picture.
+//! The course map's scroll in the race: the car on the map (16.16), the picture's corner moved
+//! in 16-pixel steps when the car nears an edge, and the car's place in the picture.
 
-/// A distance on the ground as a distance on the map: n x 0x60 / 1000 (`imul`, `idiv`):
-/// the quotient and the remainder.
+/// A ground distance as a map distance: n x 0x60 / 1000, quotient and remainder.
 pub fn on_map(n: u32) -> (u32, u32) {
     let v = n as i32 as i64 * 0x60;
     ((v / 1000) as i32 as u32, (v % 1000) as i32 as u32)
 }
 
-/// Whether the car's pixel, `d` from the picture's corner, is still well inside it
-/// (0x34 .. 0x4B, signed).
+/// Whether the car's pixel, `d` from the corner, is still well inside (0x34 .. 0x4B, signed).
 pub fn well_inside(d: u32) -> bool {
     (d.wrapping_sub(0x34) as i32) >= 0 && (d.wrapping_sub(0x4C) as i32) < 0
 }
 
-/// The picture's corner put round the car's pixel: centred (0x40 back), in 16-pixel
-/// steps.
+/// The corner put round the car's pixel: centred (0x40 back), in 16-pixel steps.
 pub fn centred_corner(pixel: u32) -> u32 {
     pixel.wrapping_add(8).wrapping_sub(0x40) & !0xF
 }
@@ -40,8 +35,7 @@ pub fn first_tile(corner: u32) -> u32 {
     ((corner as i32) >> 4) as u32
 }
 
-/// The map picture's slot: the first plus the car's number, unless one
-/// view only is shown (`session`).
+/// The map picture's slot: the first plus the car's number, unless one view is shown.
 pub fn picture_slot(first: u32, one_view: bool, car: u32) -> u32 {
     if one_view {
         first
@@ -50,8 +44,8 @@ pub fn picture_slot(first: u32, one_view: bool, car: u32) -> u32 {
     }
 }
 
-/// The views whose cars scroll their maps: the third view's alone (`session`), the
-/// first's with one player (`views` 1), else the first's and the second's.
+/// The views whose cars scroll their maps: the third's alone, the first's with one player,
+/// else the first's and second's.
 pub fn scrolled_views(third_only: bool, players: u32) -> &'static [usize] {
     if third_only {
         &[2]
@@ -62,14 +56,12 @@ pub fn scrolled_views(third_only: bool, players: u32) -> &'static [usize] {
     }
 }
 
-/// The map's tiles (`race::blit_map_tiles` 0x41B931): 8 x 8 tiles
-/// of 16 x 16 pixels blitted from a first tile; the tile table is 0x80 x 0x80 pointers.
+/// The map's tiles: 8 x 8 of 16 x 16 pixels from a first tile; the table is 0x80 x 0x80.
 pub const TILE: u32 = 16;
 pub const TILES: u32 = 0x80;
 pub const BLITTED: u32 = 8;
 
-/// A tile's index in the table, None outside its 0x80 x 0x80 (unsigned: no tile, the
-/// black colour drawn).
+/// A tile's index in the table, None outside it (no tile: black drawn).
 pub fn tile_index(x: u32, y: u32) -> Option<u32> {
     (x < TILES && y < TILES).then(|| y * TILES + x)
 }
@@ -81,8 +73,7 @@ pub fn any_inside(x: u32, y: u32) -> bool {
     })
 }
 
-/// `blit_map_tiles`' refusals, after the lock: a null surface, or no tile table with a
-/// tile inside it.
+/// The tile blit's refusals: a null surface, or no tile table with a tile inside it.
 pub fn check_tiles(pixels: u32, tiles: u32, any_inside: bool) -> Result<(), crate::Invalid> {
     if pixels == 0 {
         Err(crate::Invalid("a null surface"))
@@ -98,10 +89,9 @@ pub fn row_gap(pitch: u32, bytes: u32) -> u32 {
     pitch.wrapping_sub(bytes.wrapping_mul(TILE))
 }
 
-/// Tile (`col`, `row`)'s pixel row `r` (of the 8 x 8): the surface's row and the byte along
-/// it. The original starts a tile at 16 x (`col` x `bytes` + `row` x the pitch) and steps its
-/// rows by `wide` x 16 + `row_gap`: the pitch, and 16 x (`wide` - `bytes`) more when the
-/// pixels are stored wider than the surface's.
+/// Tile (`col`, `row`)'s pixel row `r`: the surface's row and byte along it. A tile starts at
+/// 16 x (`col` x `bytes` + `row` x pitch); rows step by `wide` x 16 + `row_gap` (16 x
+/// (`wide` - `bytes`) more when pixels are stored wider than the surface's).
 pub fn tile_row(col: u32, row: u32, r: u32, bytes: u32, wide: u32) -> (u32, u32) {
     let along = (col.wrapping_mul(bytes) << 4)
         .wrapping_add(r.wrapping_mul(TILE).wrapping_mul(wide.wrapping_sub(bytes)));
@@ -128,7 +118,7 @@ mod tests {
         assert!(check_tiles(1, 0, true).is_err());
         assert!(check_tiles(1, 0, false).is_ok());
         assert_eq!(row_gap(0x400, 2), 0x3E0);
-        // The original's address: the tile's start plus r steps of wide x 16 + the gap.
+        // The row's address as a stride walk: the tile's start plus r steps of wide x 16 + the gap.
         let (pitch, r) = (0x400u32, 5u32);
         for (bytes, wide) in [(2, 2), (4, 4), (3, 4)] {
             let start = (bytes << 4) + (pitch << 4);

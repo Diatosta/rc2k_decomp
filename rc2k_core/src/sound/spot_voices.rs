@@ -1,10 +1,5 @@
-//! The voices of the race's shared sound spots (from
-//! `sound::match_spot_voices` 0x40E642, `sound::exclusive_spot_voices` 0x40EAF3 and
-//! `sound::spot_voice_distances` 0x40E733; also the pickers `sound::merge_spot_voices`
-//! 0x40E809 and `thin_spot_voices` 0x40E9F8, `repeat_spot_voices` 0x40EB44 and
-//! `free_spot_voices` 0x40E6F4, and `play_spot_voices` 0x40EB9E's choices): 0x48 voices
-//! the race sound keeps in step with the spots the frame shares (a waterfall, the crowd:
-//! kinds 1 ..= 0x15).
+//! The voices of the race's shared sound spots: 0x48 voices the race sound keeps in step with the
+//! spots the frame shares (a waterfall, the crowd: kinds 1 ..= 0x15).
 
 use crate::Invalid;
 
@@ -17,11 +12,9 @@ pub const MOST_SPOTS: usize = 36;
 /// The last kind.
 pub const MOST_KIND: u32 = 0x15;
 
-/// The sounds whose voices are merged each turn, in order (from
-/// `sound::merge_spot_voices_all` 0x40E7CA).
+/// The sounds whose voices are merged each turn, in order.
 pub const MERGED_SOUNDS: [u32; 6] = [0x1B7, 0x1B8, 0x1BB, 0x1BC, 0x1C1, 0x1BF];
-/// The sounds whose voices are thinned each turn, in order (from
-/// `sound::thin_spot_voices_all` 0x40E97D).
+/// The sounds whose voices are thinned each turn, in order.
 pub const THINNED_SOUNDS: [u32; 12] = [
     0x1B1, 0x1B2, 0x1B3, 0x1B4, 0x1B5, 0x1B6, 0x1B9, 0x1BA, 0x1B0, 0x1BE, 0x1C0, 0x1C3,
 ];
@@ -120,10 +113,9 @@ impl Voice {
     }
 }
 
-/// Each spot of a kind 1 ..= 0x15 given its voice (the one with its id, else the first
-/// free one, made its: new, the kind's sound, kind and bit, not repeating, playing or
-/// restarting; none free: unheard), its place and heard. Refused (before anything): more
-/// than 36 spots.
+/// Each spot of a kind 1 ..= 0x15 given its voice (the one with its id, else the first free one,
+/// made new with the kind's sound; none free: unheard), its place and heard. Refused before
+/// anything: more than 36 spots.
 pub fn match_spots(
     spots: &[Spot],
     voices: &mut [Voice; VOICES],
@@ -185,10 +177,9 @@ pub struct Hearing {
     pub ease: f32,
 }
 
-/// Each heard voice's distance (the root of its place's squares), the distance's change a
-/// second, the pitch (1, or for a voice not new eased from 1 toward (change + offset) x
-/// factor) and loudness (1, or 1 / the distance when that is over 1, compared as the
-/// floats' bits), and new cleared. What the x87 keeps on its stack is an `f64`.
+/// Each heard voice's distance, the distance's change a second, the pitch (1, or for a voice not
+/// new eased from 1 toward (change + offset) x factor) and loudness (1, or 1 / the distance when
+/// that is over 1, compared as float bits), and new cleared. Intermediates are `f64`.
 pub fn hear(voices: &mut [Voice; VOICES], k: &Hearing) {
     for v in voices.iter_mut().filter(|v| v.heard == 1) {
         let [x, y, z] = v.place.map(|w| f32::from_bits(w) as f64);
@@ -211,9 +202,8 @@ pub fn hear(voices: &mut [Voice; VOICES], k: &Hearing) {
     }
 }
 
-/// A voice's distance x 1000 as a whole number, as `fistp` makes it: the nearest, halves to
-/// even (the product is exact in the x87's precision); out of range or not a number the
-/// x87's 0x80000000.
+/// A voice's distance x 1000 as a whole number: nearest, ties to even; out of range or not a number
+/// gives 0x80000000.
 pub fn distance_1000(distance: f32) -> u32 {
     let product = (distance as f64 * 1000.0).round_ties_even();
     if product.is_nan() || product < i32::MIN as f64 || product > i32::MAX as f64 {
@@ -246,7 +236,7 @@ impl Default for Picks {
     }
 }
 
-/// What a pick leaves behind besides its work, for the registers the original leaves.
+/// What a pick leaves behind besides its work, which later code reads.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Trail {
     /// The last distance worked out (also the game's scratch dword).
@@ -307,10 +297,9 @@ pub fn merge_between(voices: &mut [Voice; VOICES], picks: &Picks, point: [u32; 3
     }
 }
 
-/// Of the voices heard with `sound`, the nearest two found (a playing one ends the search
-/// at once, nothing more changed); the others silenced (a nearest pushed out stays heard:
-/// the original's silencing of it is never reached). The caller chooses one of the two by
-/// a random number with `thin_choose` when there is a next.
+/// Of the voices heard with `sound`, the nearest two found (a playing one ends the search at once,
+/// nothing more changed); the others silenced (a nearest pushed out stays heard: kept). The caller
+/// chooses one of the two by a random number with `thin_choose` when there is a next.
 pub fn thin(voices: &mut [Voice; VOICES], sound: u32) -> (Picks, Trail) {
     let (mut picks, mut trail) = (Picks::default(), Trail::default());
     for (n, v) in voices.iter_mut().enumerate() {
@@ -359,8 +348,7 @@ impl Repeats {
 
 /// Each voice heard and not playing: a delay of its kind (the least plus `below(n, range)` when the
 /// range is not 0, the random number's upper half kept in the low 16 bits), and the restart flag
-/// while its repeats last (counted). Refused (before anything): such a voice of kind 0 or past
-/// 0x15.
+/// while its repeats last (counted). Refused before anything: such a voice of kind 0 or past 0x15.
 pub fn repeat<E: From<Invalid>>(
     voices: &mut [Voice; VOICES],
     table: &[Repeats; MOST_KIND as usize],
@@ -421,7 +409,7 @@ pub enum Played {
     Start,
     /// Playing (+0x28 1): it goes on.
     GoOn,
-    /// Neither: nothing sent.
+    /// Neither: nothing is sent.
     Silent,
 }
 

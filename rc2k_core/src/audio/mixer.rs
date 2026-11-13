@@ -1,11 +1,9 @@
-//! The game's own software mixer (from `audio::mix_channels` 0x40BECC
-//! and `audio::write_mix` 0x40C03A): the playing channels mixed into a work buffer of left
-//! and right `i32`s, then clipped into the sound buffer's format. The standalone mixes
-//! this way.
+//! The game's own software mixer: the playing channels mixed into a work buffer of left and right
+//! `i32`s, then clipped into the sound buffer's format. The standalone mixes this way.
 //!
-//! One change from the original: a channel's frame is blended with the
-//! next by the position's fraction, as DirectSound resamples; the original took the frame
-//! the position is in, whose steps gave the Dolby mode's effects a harsh edge.
+//! A channel's frame is blended with the next by the position's fraction, as DirectSound
+//! resamples (fixed: the game took the frame the position is in, whose steps gave the Dolby
+//! mode's effects a harsh edge).
 
 use crate::Invalid;
 
@@ -36,8 +34,8 @@ pub struct Channel {
     pub right: i32,
 }
 
-/// The frame at `position` of a channel's data, (left, right) before the volumes (a mono
-/// sample is both); `byte` reads the data at an offset (the original's offsets wrap).
+/// The frame at `position` of a channel's data, (left, right) before the volumes (a mono sample is
+/// both); `byte` reads the data at an offset (offsets wrap).
 fn sample(format: u32, position: u32, byte: &dyn Fn(u32) -> u8) -> (i32, i32) {
     let b = |at: u32| byte(at) as i32 - 0x80;
     let w = |at: u32| i16::from_le_bytes([byte(at), byte(at.wrapping_add(1))]) as i32;
@@ -78,14 +76,12 @@ fn blended(c: &Channel, byte: &dyn Fn(u32) -> u8) -> (i32, i32) {
     (mix(l0, l1), mix(r0, r1))
 }
 
-/// `frames` frames of every playing channel added into `mix` (zeroed first, left and right
-/// a frame); `data(n, offset)` is a byte of channel `n`'s sample data. A frame is blended
-/// with the next (the first for a looping channel at its end, itself for any other) by the
-/// fraction. After each frame a
-/// channel's position steps; at its length a looping channel goes back to 0 (the fraction
-/// kept), any other stops playing. Refused (before anything): no channels or no frames
-/// with one playing (the original's counts then run 2^32 times), more frames than `mix`
-/// holds.
+/// `frames` frames of every playing channel added into `mix` (zeroed first, left and right a
+/// frame); `data(n, offset)` is a byte of channel `n`'s sample data. A frame is blended with the
+/// next (the first for a looping channel at its end, itself for any other) by the fraction. After
+/// each frame a channel's position steps; at its length a looping channel goes back to 0 (the
+/// fraction kept), any other stops playing. Refused (before anything): no channels or no frames
+/// with one playing (the counts would run 2^32 times), more frames than `mix` holds.
 pub fn mix_channels(
     frames: u32,
     channels: &mut [Channel],
@@ -142,12 +138,11 @@ pub fn frame_bytes(mode: u32) -> usize {
     }
 }
 
-/// The mix clipped into the sound buffer's parts (each as many whole frames as fit), in
-/// its format: eight bits mono (left + right `>> 15`), eight bits stereo (each `>> 14`),
-/// held to -0x80 ..= 0x7F and moved up by 0x80; else sixteen bits stereo (each `>> 14`,
-/// held to -0x8000 ..= 0x7FFF). Refused (before anything): more frames than `mix` holds;
-/// sixteen bits with a right sample that clips (the original loops for ever there: its
-/// clamp goes back to the left sample's store).
+/// The mix clipped into the sound buffer's parts (each as many whole frames as fit), in its format:
+/// eight bits mono (left + right `>> 15`), eight bits stereo (each `>> 14`), held to -0x80 ..= 0x7F
+/// and moved up by 0x80; else sixteen bits stereo (each `>> 14`, held to -0x8000 ..= 0x7FFF).
+/// Refused (before anything): more frames than `mix` holds; sixteen bits with a right sample that
+/// clips.
 pub fn write_mix(mode: u32, mix: &[i32], parts: &mut [&mut [u8]]) -> Result<(), Invalid> {
     let size = frame_bytes(mode);
     let total: usize = parts.iter().map(|p| p.len() / size).sum();

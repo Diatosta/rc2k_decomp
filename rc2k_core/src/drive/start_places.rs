@@ -1,16 +1,16 @@
-//! A computer car put at a start on the line (from
-//! `drive::start_car_on_line` 0x437613; the motion's turn is left to the caller): which
-//! checkpoint it starts at and its share between two figures by its start's number.
+//! A computer car put at a start on the line: which checkpoint it starts at and its share between
+//! two figures by its start's number. The motion's turn stays with the caller.
 //!
-//! Floats: what the x87 keeps on its stack is an `f64`, rounded to `f32` where the
-//! original stores: the same bits at the game's double precision.
+//! Floats: sums are `f64` and rounded to `f32` where stored, the same bits as the game's x87 at
+//! double precision.
 
 use crate::Invalid;
 
-/// The highest start number worked out (`RaceTables.start_slot` indexes `RaceTables.arcade_car_numbers[0]`).
+/// The highest start number worked out (`RaceTables.start_slot` indexes
+/// `RaceTables.arcade_car_numbers[0]`).
 pub const LAST_START: u32 = 0x400;
 
-/// The start number checked.
+/// Refused: a start number above `LAST_START`.
 pub fn check_start(n: u32) -> Result<(), Invalid> {
     if n > LAST_START {
         return Err(Invalid(
@@ -28,10 +28,8 @@ pub fn start_checkpoint(lead: u32, ahead: u32) -> u32 {
     lead.wrapping_add(ahead)
 }
 
-/// The share of start n of m between lo and hi:
-/// lo + ((m - 1) - n) / (m - 1) x (hi - lo), "1" the float `one`, in the
-/// original's order (`fild n; fild m; fsub one; fsubr; fdivp; fld hi; fsub lo; fmulp;
-/// fadd lo`).
+/// The share of start n of m between lo and hi: lo + ((m - 1) - n) / (m - 1) x (hi - lo), "1"
+/// the float `one`. The operations run in this order to give the game's bits.
 pub fn start_share(n: i32, m: i32, one: f32, hi: f32, lo: f32) -> f32 {
     let m1 = f64::from(m) - f64::from(one);
     let share = (m1 - f64::from(n)) / m1;

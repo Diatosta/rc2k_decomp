@@ -57,8 +57,6 @@ pub fn refuse_here<T>(r: Result<T, BadInput>, at: &str) -> T {
     }
 }
 
-// ---- the variables ----
-
 /// The variable of a leaving switch.
 pub fn switch_cell<'a>(o: Owners<'a>, s: Switch) -> &'a dyn FlagLike {
     let screens = &o.menus.screens;
@@ -76,7 +74,7 @@ pub fn switch_cell<'a>(o: Owners<'a>, s: Switch) -> &'a dyn FlagLike {
     }
 }
 
-/// Player `n`'s record (`g_players`).
+/// Player `n`'s record.
 pub fn player(menus: &Menus, n: u32) -> crate::menu::standings::PlayerCell<'_> {
     &menus.play.players.players[n as usize]
 }
@@ -94,16 +92,17 @@ pub fn current_player(menus: &Menus) -> Result<crate::menu::standings::PlayerCel
     Ok(player(menus, n))
 }
 
-/// The stage chosen: `off_735512[Event.stage_group][Event.stage_sub]` + `Event.stage_number` x 0xA4.
+/// The stage chosen: the stage table of `Event.stage_group` and `Event.stage_sub`, then
+/// `Event.stage_number` x 0xA4 into it.
 const KINDS: u32 = 4;
-/// The stages' best times: `g_stageBestTimesAlt` (kind 1) or `ChampView.time_trial_best_times`, ten for each
-/// stage (the record's +0x3C).
+/// The stages' best times: the second stage best times (kind 1) or
+/// `ChampView.time_trial_best_times`, ten for each stage (the record's +0x3C).
 pub type StageTable = crate::memory::owned::Owned<rc2k_core::saves::entries::StageTimes>;
 pub const TIMES_ONE: &StageTable = &crate::saves::best_times::STAGE_TIMES_ALT;
 pub const TIMES_OTHER: &StageTable = &crate::saves::best_times::TIME_TRIAL_TIMES;
 
 /// The chosen stage's record; refused for a kind past the table's four or a null pointer
-/// on the way (the original reads through it).
+/// on the way.
 pub fn stage_record(menus: &Menus, system: &System) -> Result<RecordRef, BadInput> {
     let event = &menus.screens.event;
     let kind = event.stage_group.get();

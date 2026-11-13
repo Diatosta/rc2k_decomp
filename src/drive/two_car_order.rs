@@ -1,18 +1,12 @@
-//! `drive::two_car_order` (0x460CDA): the two cars' places in a two-car race (the car blocks'
-//! +0xFA4, `g_carBlockStore`): -1 for both outside mode 0 (`run_kind`) or with one car
-//! (`players` 1); left as they are while either has +0xA8 set; else 1 for the one ahead
-//! (checkpoint +0x94, then +0x624, each by the sign of the `cmp`), 2 for the other.
-//!
-//! Returns: the last figure compared
-//!
-//! Caller: `drive::replay_step`.
+//! The two cars' places in a two-car race (the car blocks' +0xFA4): -1 for both outside mode 0
+//! (`run_kind`) or with one car; left as they are while either has +0xA8 set; else 1 for the
+//! one ahead (checkpoint +0x94, then +0x624), 2 for the other. Gives the last figure compared.
 
 use crate::race::owner::Race;
 use rc2k_core::drive::places;
 
-// Converted: `rc2k_core::drive::places::two_car_order`.
 pub fn two_car_order(race: &Race) -> Result<(), crate::errors::BadInput> {
-    // g_carBlockStore: the figures of car block `car`.
+    // The figures of car block `car`.
     let figure = |car: usize, o: u32| {
         let block = &race.car_blocks().cars[car];
         match o {

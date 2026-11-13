@@ -418,7 +418,7 @@ pub fn with_com<T>(f: impl FnOnce() -> T) -> T {
     value
 }
 
-// ---- the fault reporter (`standalone`) and the profiler's sampler (`platform_timing`) ----
+// ---- the fault reporter and the profiler's sampler (`platform_timing`) ----
 
 /// A manual-reset event, made by `create_event` and never closed: valid for the program's
 /// life, so a copy may be signalled or waited on from any thread.

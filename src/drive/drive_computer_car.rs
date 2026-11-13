@@ -1,30 +1,12 @@
-//! `drive::drive_computer_car` (0x462811): the computer's driving of the work car, in
-//! `pusha` / `popa`. Its controls (0x71BF88 .. 0x71BFA0: steering, throttle 0x100, brake
-//! 0xFF / 0x100, and three switches) start at 0; nothing more below a step count
-//! (`run_ticks`) of 800 or with `Car.crash_matrix[5]` below `driver_tilt_limit`. Else, by the
-//! checkpoint the car is at (`checkpoint`, n) and its speed (`fistp` of the root of
-//! `velocity`² + `Car.velocity[2]`², doubled, `driver_speed`):
-//! - the looked-at checkpoint's face's two bytes (+0xA, +0xB) and the line's turn ahead
-//!   (`Buffers.checkpoints.angles[2][n + k]`, k by the speed and `wheel_surface_a`: the difference of two of
-//!   them >> 16) note a bend (0x71C010, 0x71C038, 0x71C088 by slot `driver_slot`, 0);
-//! - a wanted speed from the tables at 0x71BF1C / 0x71BF38 / 0x71BF54 by the bend's turn
-//!   (n's, `>> 25`), 25 / 40 / 50 near a bend, eased by `driver_start_blend` above 50; throttle or
-//!   brake by the speed against it;
-//! - the point aimed at: a checkpoint face's first point (n + 2 .. n + 5 by the speed and
-//!   the bend) moved sideways by `bend_speeds`[(n + slot) & 0x1F]` along the line's
-//!   normal (`scene::cross_product` with `driver_vector`, `race::normalise_work_vector`);
-//! - the steering: the car's forward (row 0's and row 2's z of `g_crashMatrix`) crossed
-//!   with the way to that point, its y times 256 `fist`'d, its sign by the product's
-//!   (and turned round in reverse) into `driver_steer`;
-//! - a reverse count (`driver_reverse_left`), and every 200 steps (`driver_steps`) a check that
-//!   the car moved 0x8000 (else reversing for 250 steps, or the reverse tries counted
-//!   in `driver_reverse_tries`, the fourth setting `RaceWork.driver_flags[3]`).
-//!
-//! The checkpoint tables' indices are held to `g_checkpointCount` - 1 (unsigned) as the
-//! original holds them. What each value is, is a reading at best.
-//!
-//! Callers: `drive::read_car_controls`. Refuses (before anything) no checkpoints when the tables
-//! are to be read.
+//! The computer's driving of the work car: from the checkpoint the car is at and its speed it
+//! notes the bend ahead, picks a wanted speed (25 / 40 / 50 near a bend, eased by
+//! `driver_start_blend`) and sets throttle or brake against it, aims at a point on a checkpoint
+//! face a few checkpoints on (moved sideways by `bend_speeds`) and steers by the cross product of
+//! the car's forward and the way to it, and reverses for 250 steps when the car has not moved
+//! 0x8000 in 200. Controls start at 0; nothing more below a step count of 800 or with
+//! `Car.crash_matrix[5]` below `driver_tilt_limit`. The checkpoint tables' indices are held to
+//! the checkpoint count - 1 (unsigned). What each value is, is a reading at best. Refuses
+//! (before anything) no checkpoints when the tables are to be read.
 
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
@@ -39,8 +21,7 @@ use crate::scene::view_matrix::cross_product;
 use crate::session::{PlainDword, PlainFloat};
 use rc2k_core::drive::computer_driver as driver;
 
-/// `table[n + k]`, the index held to the count less one (unsigned) as the original holds
-/// it (through `lea`, `sub` and `shr 2`).
+/// `table[n + k]`, the index held to the count less one (unsigned).
 fn held(
     shared: &RaceShared,
     table: fn(&crate::race::checkpoints_store::Checkpoints, usize) -> &crate::session::PlainDword,
@@ -70,8 +51,8 @@ fn face_point(course: &Course, face: u32) -> Result<(u32, u32), BadInput> {
     ))
 }
 
-/// 0x463296 then 0x4632AE: (to - from) in x and z, y 0, as floats, into `out`
-/// (the whole numbers written first, then each turned into a float in place).
+/// (to - from) in x and z, y 0, as floats, into `out` (the whole numbers written first, then
+/// each turned into a float in place).
 fn flat_way(from: &[PlainDword], to: &[PlainDword], out: &[PlainFloat]) {
     let x = to[0].get().wrapping_sub(from[0].get());
     let z = to[2].get().wrapping_sub(from[2].get());
@@ -80,8 +61,8 @@ fn flat_way(from: &[PlainDword], to: &[PlainDword], out: &[PlainFloat]) {
     }
 }
 
-/// Through `g_workVector` and `race::normalise_work_vector`: the vector `from` made one
-/// long into `to`.
+/// The vector `from` made one long into `to`, through the work vector and
+/// `race::normalise_work_vector`.
 fn normalised(
     race: &Race,
     scene: &crate::scene::owner::Scene,
@@ -107,7 +88,6 @@ fn slot_point(points: &[PlainDword; 40], slot: u32) -> Result<&[PlainDword], Bad
         .ok_or(BadInput("a computer driver's slot past the points"))
 }
 
-// Converted: `rc2k_core::drive::computer_driver` (the x87 steps stay).
 pub fn drive_computer_car(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let course = &race.course;
     let reaches = race.shared.car().run_ticks.get() >= driver::FIRST_STEP
@@ -132,7 +112,7 @@ pub fn drive_computer_car(race: &Race, scene: &crate::scene::owner::Scene) -> Re
         &w.driver_aim,
         &w.driver_flag_bc,
         // The car's slot too: every computer car uses the per-car arrays' first entry
-        // (the game's own slip, `notes/bugs.md`).
+        // (the game's own slip, kept as is).
         &w.driver_slot,
     ] {
         v.set(0);
@@ -141,8 +121,7 @@ pub fn drive_computer_car(race: &Race, scene: &crate::scene::owner::Scene) -> Re
         return Ok(());
     }
     let slot = race.shared.work.get().driver_slot.get();
-    // The slot's points by their byte offset in the tables (the original kept their
-    // addresses; it alone read them, as `slot_point` does here).
+    // The slot's points by their byte offset in the tables (only `slot_point` reads them).
     race.shared.work.get().driver_point_now.set(slot << 4);
     race.shared.work.get().driver_point_then.set(slot << 4);
     let n = race.shared.car().checkpoint.get();

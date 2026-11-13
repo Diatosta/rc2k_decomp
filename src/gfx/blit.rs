@@ -1,39 +1,37 @@
-//! The blitters' variables (the clip rectangle and the skips of the visible part), out of
-//! RAL.EXE's image: IDA 0x4F503C ..
-//! 0x4F505C. The rescaler's own variables follow (`gfx::rescale_picture::RESCALE`).
+//! The blitters' variables (the clip rectangle and the skips of the visible part). The rescaler's
+//! own variables follow (`gfx::rescale_picture::RESCALE`).
 
 use crate::session::PlainDword;
 
 /// The clip rectangle (all four edges inclusive).
 #[derive(rc2k_derive::Cells)]
 pub struct ClipRect {
-    /// `g_clipLeft` (`Blitter.clip.left`).
+    /// `Blitter.clip.left`.
     pub left: PlainDword,
-    /// `g_clipRight` (`Blitter.clip.right`).
+    /// `Blitter.clip.right`.
     pub right: PlainDword,
-    /// `g_clipTop` (`Blitter.clip.top`).
+    /// `Blitter.clip.top`.
     pub top: PlainDword,
-    /// `g_clipBottom` (`Blitter.clip.bottom`).
+    /// `Blitter.clip.bottom`.
     pub bottom: PlainDword,
 }
 
-/// The blitters' variables.
 #[derive(rc2k_derive::Cells)]
 pub struct Blitter {
     /// The clip rectangle.
     pub clip: ClipRect,
-    /// `g_blitLeftSkip`: pixels clipped off on the left.
+    /// Pixels clipped off on the left.
     pub left_skip: PlainDword,
-    /// `g_blitVisibleWidth`: pixels of each row inside the clip.
+    /// Pixels of each row inside the clip.
     pub visible_width: PlainDword,
-    /// `g_blitTopSkip`: rows clipped off at the top.
+    /// Rows clipped off at the top.
     pub top_skip: PlainDword,
-    /// `g_blitRowsLeft`: visible rows (counted down while drawing).
+    /// Visible rows (counted down while drawing).
     pub rows_left: PlainDword,
 }
 
 impl Blitter {
-    /// The blitters' variables; the first values are the image's (a screen of 800 x 600).
+    /// The blitters' variables (a screen of 800 x 600).
     pub const fn new() -> Self {
         Blitter {
             clip: ClipRect {

@@ -1,18 +1,16 @@
-//! The HUD's variables, out of RAL.EXE's image (phase 5; typed in phase 7,
-//! `notes/conversion.md`): IDA 0x75B940 .. 0x764F2C, the whole of it the HUD's: the
-//! rectangle table (`g_hudRects`), the quad record, the layouts' set-up values and floats,
-//! the dials' and needles' work variables, the batch's vertices (`HudBlock.vertices[0].x`, 0x400 of
-//! them), indices (`HudBlock.indices[0]`, 0x600) and the two counts (`g_hudVertexCount`,
-//! `g_hudIndexCount`). Only `hud` and `d3d::draw_hud_batch` (which reads `vertices` and
-//! `indices`) read or write it. The image keeps the two pointers (0x764F2C, 0x764F30) the
-//! original's batch drawer followed; nothing reads them now.
+//! The HUD's variables, the whole of them the HUD's: the rectangle table, the quad record, the
+//! layouts' set-up values and floats, the dials' and needles' work variables, the batch's
+//! vertices (`HudBlock.vertices`, 0x400 of them), indices (`HudBlock.indices`, 0x600) and the
+//! two counts. Only `hud` and `d3d::draw_hud_batch` (which reads `vertices` and `indices`) read
+//! or write it.
 //!
-//! One struct (`HudBlock`, the static `HUD`). Its records keep the game's layout (`repr(C)`, `ByteView`):
-//! the recorded-assembly tests of the disc and quad code (`disc_vertex`) read it by byte offset.
+//! One struct (`HudBlock`, the static `HUD`). Its records keep the game's layout (`repr(C)`,
+//! `ByteView`): the recorded-assembly tests of the disc and quad code (`disc_vertex`) read it by
+//! byte offset.
 
 use crate::session::{PlainDword, PlainFloat, PlainWord};
 
-/// The HUD's quad record (`g_hudQuad`, 14 dwords): what `add_quad` makes four vertices of.
+/// The HUD's quad record (14 dwords): what `add_quad` makes four vertices of.
 #[cfg_attr(test, repr(C))]
 #[derive(rc2k_derive::Cells)]
 pub struct HudQuad {
@@ -63,7 +61,6 @@ impl HudQuad {
         self.bottom.set(b);
     }
 
-    /// The whole record in order.
     pub fn words(&self) -> [u32; 14] {
         std::array::from_fn(|n| self.word(n).get())
     }
@@ -83,7 +80,6 @@ pub mod texture {
     pub const ICONS: u32 = 0xDC;
 }
 
-/// One of the texture's rectangles (`g_hudRects`).
 #[cfg_attr(test, repr(C))]
 #[derive(rc2k_derive::Cells)]
 pub struct Rect {
@@ -133,147 +129,145 @@ impl Vertex {
     }
 }
 
-/// The HUD's variables (IDA 0x75B940 .. 0x764F2C).
 #[cfg_attr(test, repr(C))]
 #[derive(rc2k_derive::Cells)]
 pub struct HudBlock {
-    /// `g_hudRects` (92 rectangles) and `HudBlock.rects[92].left` (the last five): the texture's rectangles, 16 bytes each (left, top, width, height), picked by number (`hud::layout_*` sprites, markers, signs). Sign `v` is rectangle 0x4C + (v - 1) & 0xF.
+    /// The texture's rectangles, 16 bytes each (left, top, width, height), picked by number
+    /// (sprites, markers, signs). Sign `v` is rectangle 0x4C + (v - 1) & 0xF.
     pub rects: [Rect; 0x61],
-    /// `dword_75BF50`, `dword_75BF54` (the stage marker's two colours, `draw_markers`) and the six dwords after them (probably colours too; nothing ported reads them).
+    /// The stage marker's two colours (`draw_markers`) and the six dwords after them (probably
+    /// colours too; nothing reads them).
     pub marker_colours: [PlainDword; 8],
-    /// `dword_75BF70`: the stage bar's four part colours, read at the byte offset the kind table gives (`draw_stage_bar`).
+    /// The stage bar's four part colours, read at the byte offset the kind table gives
+    /// (`draw_stage_bar`).
     pub stage_colours: [PlainDword; 4],
-    /// `dword_75BF80`: the widths of the eight signs (`draw_signs`: centres a sign in its place).
+    /// The widths of the eight signs (`draw_signs`: centres a sign in its place).
     pub sign_widths: [PlainDword; 8],
-    /// `dword_75BFA0`: the part colour of the one-player stage bar.
+    /// The part colour of the one-player stage bar.
     pub bar_colour: PlainDword,
-    /// `dword_75BFA4`, `dword_75BFA8`: the part colours of the two-player stage bars.
+    /// The part colours of the two-player stage bars.
     pub bar_colours: [PlainDword; 2],
-    /// `dword_75BFAC`: the needle's way (the record's +0xCC / +0xD0; 0 or not, `draw_needle`).
+    /// The needle's way (the record's +0xCC / +0xD0; 0 or not, `draw_needle`).
     pub needle_kind: PlainDword,
-    /// `g_hudQuad` (`HudBlock.quad.alpha` .. `HudBlock.quad.places[7]`): the quad record `add_quad` makes four vertices of: alpha, left, top, right, bottom, colour, then the four corners' texture places (whole numbers, `rc2k_core::hud::quads::RECORD` dwords).
+    /// The quad record `add_quad` makes four vertices of.
     pub quad: HudQuad,
-    /// `flt_75BFE8`: the batch's depth (z of every vertex, `set_batch_depth`).
+    /// The batch's depth (z of every vertex, `set_batch_depth`).
     pub depth: PlainFloat,
-    /// `flt_75BFEC`: the batch's rhw (`set_batch_depth`).
+    /// The batch's rhw (`set_batch_depth`).
     pub rhw: PlainFloat,
-    /// `dword_75BFF0`, `dword_75BFF4`: the stage bar's part places (whole numbers) and a turned shape's point (floats' bits, `turned_vertex`).
+    /// The stage bar's part places (whole numbers) and a turned shape's point (floats' bits,
+    /// `turned_vertex`).
     pub point: [PlainDword; 2],
-    /// `dword_75BFF8`, `dword_75BFFC`: the stage bar's part start and end (miles, as floats).
+    /// The stage bar's part start and end (miles, as floats).
     pub ends: [PlainFloat; 2],
-    /// `dword_75C000`: the stage bar's width in places.
+    /// The stage bar's width in places.
     pub bar_width: PlainDword,
-    /// `0x75C004`, `0x75C008`: nothing reads or writes them (a gap).
     pub unused_c004: [PlainDword; 2],
-    /// `flt_75C00C`: the texture places over it make the u (`add_quad`, `turned_vertex`, markers).
+    /// The texture places over it make the u (`add_quad`, `turned_vertex`, markers).
     pub uv_scale_x: PlainFloat,
-    /// `flt_75C010`: the texture places over it make the v; also the needle's first turn factor (`draw_needle`).
+    /// The texture places over it make the v; also the needle's first turn factor (`draw_needle`).
     pub uv_scale_y: PlainFloat,
-    /// `flt_75C014`: the needle's second turn factor.
+    /// The needle's second turn factor.
     pub turn_k: PlainFloat,
-    /// `flt_75C018`: the needle's least value.
+    /// The needle's least value.
     pub least: PlainFloat,
-    /// `flt_75C01C`: added to a disc entry's texture place (`disc_vertex`).
+    /// Added to a disc entry's texture place (`disc_vertex`).
     pub disc_place_offset: PlainFloat,
-    /// `flt_75C020`: a disc entry's texture place is divided by it (`disc_vertex`).
+    /// A disc entry's texture place is divided by it (`disc_vertex`).
     pub disc_place_divisor: PlainFloat,
-    /// `flt_75C024`: the second factor of the disc texture's turn (`draw_disc`).
+    /// The second factor of the disc texture's turn (`draw_disc`).
     pub disc_turn_b: PlainFloat,
-    /// `flt_75C028`: the first factor of the disc texture's turn (`draw_disc`).
+    /// The first factor of the disc texture's turn (`draw_disc`).
     pub disc_turn_a: PlainFloat,
-    /// `flt_75C02C`, `flt_75C030`: the virtual screen's width and height the HUD is drawn in (`add_polygon` scales to the real one).
+    /// The virtual screen's width and height the HUD is drawn in (`add_polygon` scales to the
+    /// real one).
     pub virtual_screen: [PlainFloat; 2],
-    /// `dword_75C034`: the texture asked for.
+    /// The texture asked for.
     pub texture: PlainDword,
-    /// `dword_75C038`: the batch's texture (-1 none).
+    /// The batch's texture (-1 none).
     pub batch_texture: PlainDword,
-    /// `dword_75C03C`: 1 while the leading digits of a time are 0 (`layout_0::leading_time`).
+    /// 1 while the leading digits of a time are 0 (`layout_0::leading_time`).
     pub leading: PlainDword,
-    /// `dword_75C040`: the needle sign's rectangle.
+    /// The needle sign's rectangle.
     pub pick: PlainDword,
-    /// `dword_75C044`, `dword_75C048`: the disc's / needle's centre (x, y), copied from a set-up.
+    /// The disc's / needle's centre (x, y), copied from a set-up.
     pub disc_centre: [PlainFloat; 2],
-    /// `dword_75C04C`: the disc's texture scale: the ring's (sine x size) is multiplied by it to get the texture offsets (`hud::disc_vertex`); set from the layout's disc set-up (`dials::set_up_disc`).
+    /// The disc's texture scale: the ring's (sine x size) is multiplied by it to get the texture
+    /// offsets (`hud::disc_vertex`).
     pub disc_texture_scale: PlainFloat,
-    /// `dword_75C050`: the disc's size (the ring entries are times it).
+    /// The disc's size (the ring entries are times it).
     pub disc_size: PlainFloat,
-    /// `dword_75C054`, `dword_75C058`: the disc texture's shift (u, v), from the record.
+    /// The disc texture's shift (u, v), from the record.
     pub disc_texture_shift: [PlainFloat; 2],
-    /// `dword_75C05C`: the disc texture's turn, from the record (+0x3C / +0x64).
+    /// The disc texture's turn, from the record (+0x3C / +0x64).
     pub disc_turn: PlainFloat,
-    /// `dword_75C060`: the original's `fistp` scratch (a sprite's height, the needle's turn, the marker's x).
+    /// A scratch for the x87's integer stores (a sprite's height, the needle's turn, the
+    /// marker's x).
     pub fistp_scratch: PlainDword,
-    /// `dword_75C064`, `dword_75C068`: the icon's width and drop, scaled.
+    /// The icon's width and drop, scaled.
     pub icon_size: [PlainDword; 2],
-    /// `dword_75C06C`: the icon scale (from `icon_scales`).
+    /// The icon scale (from `icon_scales`).
     pub icon_scale: PlainFloat,
-    /// `dword_75C070`: the icon's shift.
+    /// The icon's shift.
     pub icon_shift: PlainDword,
-    /// `dword_75C074` .. `dword_75C088`: six record times in tenths (`tenths`): the two clocks, the lap time, the two layout-1 clocks (`dword_75C080`, `dword_75C084`) and the second lap time (`dword_75C088`).
+    /// Six record times in tenths (`tenths`): the two clocks, the lap time, the two layout-1
+    /// clocks and the second lap time.
     pub times: [PlainDword; 6],
-    /// `dword_75C08C` .. `dword_75C0A0`: a time made digits (`layout_0::time_digits`).
+    /// A time made digits (`layout_0::time_digits`).
     pub digits: [PlainDword; 6],
-    /// `dword_75C0A4`: a time's sign rectangle.
+    /// A time's sign rectangle.
     pub sign: PlainDword,
-    /// `flt_75C0A8`, `flt_75C0AC`: the stage marker's position factors (`draw_marker`).
+    /// The stage marker's position factors (`draw_marker`).
     pub marker_k: [PlainFloat; 2],
-    /// `0x75C0B0`, `0x75C0B4`: nothing reads or writes them (a gap; 0.96875 and 0.03125).
     pub unused_c0b0: [PlainFloat; 2],
-    /// `dword_75C0B8`, `dword_75C0BC`, `dword_75C0C0`: the icon scale of layouts 0, 2 and 1 (`icons_*`).
+    /// The icon scale of layouts 0, 2 and 1 (`icons_*`).
     pub icon_scales: [PlainFloat; 3],
-    /// `dword_75C0C4` .. `0x75C120`: whole numbers in fours, probably six screen rectangles (x, y, width, height; e.g. 0x25d, 0x30, 0xd6, 0x24); nothing ported reads them; in IDA only the first two are touched, written by code outside any function (0x4B6968).
+    /// Whole numbers in fours, probably six screen rectangles (x, y, width, height; e.g. 0x25d,
+    /// 0x30, 0xd6, 0x24); nothing reads them.
     pub unused_c0c4: [PlainDword; 0x18],
-    /// `dword_75C124` .. `dword_75C130`: nothing reads or writes them.
     pub unused_c124: [PlainDword; 4],
-    /// `dword_75C134` .. `dword_75C144`: the set-up of layout 2's first disc (copied by `dials::set_up`; the fifth only with `` 0).
+    /// The set-up of layout 2's first disc (copied by `dials::set_up`; the fifth only with
+    /// `Panel::flat` 0).
     pub disc_setup_layout2_first: [PlainFloat; 5],
-    /// `dword_75C148` .. `dword_75C154`: the set-up of layout 2's second disc.
     pub disc_setup_layout2_second: [PlainFloat; 4],
-    /// `dword_75C158` .. `dword_75C164`: the set-up of layout 1's first disc.
     pub disc_setup_layout1_first: [PlainFloat; 4],
-    /// `dword_75C168` .. `dword_75C174`: the set-up of layout 1's second disc.
     pub disc_setup_layout1_second: [PlainFloat; 4],
-    /// `dword_75C178` .. `dword_75C184`: the set-up of layout 0's disc.
     pub disc_setup_layout0: [PlainFloat; 4],
-    /// `flt_75C188`: the disc's ring, sines of the entries (1 .. 16 written; entry 0 stays 0).
+    /// The disc's ring, sines of the entries (1 .. 16 written; entry 0 stays 0).
     pub ring_sines: [PlainFloat; 17],
-    /// `flt_75C1CC`: the ring's cosines.
     pub ring_cosines: [PlainFloat; 17],
-    /// `flt_75C210`: the texture ring's sines.
     pub texture_ring_sines: [PlainFloat; 17],
-    /// `flt_75C254`: the texture ring's cosines.
     pub texture_ring_cosines: [PlainFloat; 17],
-    /// `flt_75C298`, `flt_75C29C`: added to a turned shape's point to make its texture place (`turned_vertex`).
+    /// Added to a turned shape's point to make its texture place (`turned_vertex`).
     pub uv_shift: [PlainFloat; 2],
-    /// `dword_75C2A0`, `dword_75C2A4`: the needle's centre (x, y), copied from a set-up.
+    /// The needle's centre (x, y), copied from a set-up.
     pub needle_centre: [PlainFloat; 2],
-    /// `flt_75C2A8` .. `flt_75C2B4`: the needle's corner offsets (`needle_corners`).
+    /// The needle's corner offsets (`needle_corners`).
     pub needle_corners: [PlainFloat; 4],
-    /// `dword_75C2B8`: the needle's size, copied from a set-up.
+    /// The needle's size, copied from a set-up.
     pub needle_size: PlainFloat,
-    /// `flt_75C2BC` .. `flt_75C2D4`: the needle's base, base 2, split, scale, scale 2, most, most 2.
+    /// The needle's base, base 2, split, scale, scale 2, most, most 2.
     pub needle_k: [PlainFloat; 7],
-    /// `0x75C2D8`, `0x75C2DC`: nothing reads or writes them (a gap).
     pub unused_c2d8: [PlainFloat; 2],
-    /// `dword_75C2E0`: the needle's value (a whole number, from the record).
+    /// The needle's value (a whole number, from the record).
     pub needle_value: PlainDword,
-    /// `dword_75C2E4` .. `dword_75C2EC`: the set-up of layout 0's needle (centre x, y, size).
+    /// The set-up of layout 0's needle (centre x, y, size).
     pub needle_setup_layout0: [PlainFloat; 3],
-    /// `dword_75C2F0` .. `dword_75C2FC`: the set-up of layout 2's first needle (the third only with `` 0).
+    /// The set-up of layout 2's first needle (the third only with `Panel::flat` 0).
     pub needle_setup_layout2_first: [PlainFloat; 4],
-    /// `dword_75C300` .. `dword_75C308`: the set-up of layout 2's second needle.
+    /// The set-up of layout 2's second needle.
     pub needle_setup_layout2_second: [PlainFloat; 3],
-    /// `dword_75C30C` .. `dword_75C314`: the set-up of layout 1's first needle.
+    /// The set-up of layout 1's first needle.
     pub needle_setup_layout1_first: [PlainFloat; 3],
-    /// `dword_75C318` .. `dword_75C320`: the set-up of layout 1's second needle.
+    /// The set-up of layout 1's second needle.
     pub needle_setup_layout1_second: [PlainFloat; 3],
     /// `HudBlock.vertices[0].x`: the batch's vertices (transformed and lit, 0x20 bytes each).
     pub vertices: [Vertex; 0x400],
-    /// `unk_764324`: the batch's indices (16 bits, a triangle list).
+    /// The batch's indices (16 bits, a triangle list).
     pub indices: [PlainWord; 0x600],
-    /// `g_hudVertexCount`: the vertices in the batch.
+    /// The vertices in the batch.
     pub vertex_count: PlainDword,
-    /// `g_hudIndexCount`: the indices in the batch.
+    /// The indices in the batch.
     pub index_count: PlainDword,
 }
 

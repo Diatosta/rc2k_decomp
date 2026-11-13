@@ -1,13 +1,6 @@
-//! `menu::player_details_loop` (0x4773D6): the loop of the player details screen.
-//!
-//! The loop itself is `menu::screen_loop`; this file says what is this screen's own (`SCREEN`),
-//! as extracted from the disassembly: background `pdetc.png`; leaving is not asked about; after
-//! an action it is left or set up again, nothing else; the steps that are more than a call or a
-//! store are the functions below, generated from the listing.
-//! The name is a reading from the title string of its menu, "PORMENORES DO JOGADOR", not yet a
-//! visit.
-//! Callers: none in code: it is reached through a table. The menus and draw lists run its `entry`
-//! (`menu::table_calls`).
+//! The loop of the player details screen. Screen-specific part of `menu::screen_loop`: background
+//! `pdetc.png`; leaving is not asked about; after an action it is left or set up again, nothing
+//! else.
 
 use crate::errors::Refused;
 use crate::menu::screen_items_store::slot;
@@ -32,17 +25,17 @@ fn set_up_first(entry: &Entry) -> Result<(), Refused> {
 pub const SCREEN: Screen = Screen {
     lists: &[
         List {
-            pointer: |m| &m.screens.flow.scene_list, // g_sceneList
+            pointer: |m| &m.screens.flow.scene_list,
             table: |m| m.tables.draw_lists.player_details_scene.id(),
             run: false,
         },
         List {
-            pointer: |m| &m.screens.flow.draw_list, // g_drawList
+            pointer: |m| &m.screens.flow.draw_list,
             table: |m| m.tables.draw_lists.player_details_draw.id(),
             run: false,
         },
         List {
-            pointer: |m| &m.screens.flow.overlay_list, // g_overlayList
+            pointer: |m| &m.screens.flow.overlay_list,
             table: |m| m.tables.draw_lists.player_details_overlay.id(),
             run: false,
         },
@@ -61,7 +54,6 @@ pub const SCREEN: Screen = Screen {
     )
 };
 
-/// Runs the screen (a refusal is the caller's).
 pub fn run(o: crate::owners::Owners<'static>) -> Result<(), crate::errors::Refused> {
     screen_entry(o, "menu::player_details_loop", &SCREEN)
 }

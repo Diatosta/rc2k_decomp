@@ -1,17 +1,9 @@
-//! `screens::draw_section_best_times` (0x46762B): ten rows of the section's best times (the menu table[section], the
-//! game's own tables of 0x9C-byte entries, six sections), from y 0xF0, 0x19 apart, row n
-//! (1 .. 10, kept in `seconds`): a player's (+0x40 1) in 0x51E524 / 0x51E544, else 0x51E584 /
-//! 0x51E5A4: the name (the text at +0x20) at 0xF0, the time (+0x18, `strings::append_time`,
-//! drawn as text) at 0x1E0, n at 0xC8; then the nationality's sprite (0x1C + +8) at 0xD2,
-//! the flag's (+0x10, 0x18 and 0x19 swapped, + 0x44) at 0x276, and again at 0x276 the glyph
-//! that number gives once more (+0x44 on it, sic: `notes/bugs.md`), each with the palette
-//! the last text left (ebx). Each drawer's y is edx as the text drawers leave it.
-//!
-//!
-//! Refuses (before anything) a section past the six or with no table, and a line past the line
-//! buffer. In the draw list 0x758E4E of `menu::unused_section_times_loop_1` / `_2` (0x466E50,
-//! 0x467392), which nothing reaches (no code or data refers to them). The menus and
-//! draw lists run its `entry` (`menu::table_calls`).
+//! Ten rows of a section's best times (six sections): name, time, number, the nationality's
+//! flag and the car's sprite, with a player's own row in the highlight fonts. The second, wrong
+//! sprite once drawn over each car is gone (fixed: "The section best times drew a second, wrong
+//! sprite" in `wiki/Fixed-bugs.md`). Refuses a section past the six or with no table and a line
+//! past the line buffer. Only in the draw list of `menu::unused_section_times_loop_1` / `_2`,
+//! which nothing reaches.
 
 use crate::errors::{BadInput, Refused};
 use crate::strings::append_time::show_hours;

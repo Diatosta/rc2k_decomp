@@ -1,26 +1,17 @@
 //! The controller set-up pages' item actions and set-ups (`menu::player1_controller_loop` and
-//! the seven after it): what they change of the current player's record (`event.current_player`,
-//! `g_players`): +0x2C the controller (0 none, 1 .. the controller count the listed ones), +0x34
-//! its sensitivity (0 .. 3), +0x38 its mode, +0x40 and +0x44 the two dead zones (their sum
-//! held at 90).
-//! - `menu::apply_controller` (0x46B47C): with a listed controller (`controller - 1` below
-//!   the count, unsigned), `input::request_device_setup` with it less 1, +0x34, +0x38, edx and
-//!   ebp 0.
-//! - `menu::release_controller` (0x46B4B4): `input::request_device_release`.
-//! - `menu::next_controller` (0x46A3BF), `previous_controller` (0x46A40B): the controller
-//!   up (after the count, 0) or down (0 or less: the count); then with 0 the release, else
-//!   the set-up.
-//! - `menu::lower_controller_sensitivity` (0x46B414): with a controller and +0x34 above 0
-//!   (signed), one less and the set-up.
-//! - `menu::raise_controller_sensitivity` (0x46B44F): if the dword at +0x2C of the caller's
-//!   edi (the original's slip: it reads it before taking the player's record; edi is what
-//!   `menu::run_item_action` hands on) is not 0 and +0x34 is below 3 (signed), one more
-//!   and the set-up.
-//! - `menu::raise_dead_zone_a` (0x46B3A3), `raise_dead_zone_b` (0x46B3EA): +0x40 (or +0x44)
-//!   one more if `100 - (+0x40) - (+0x44)` is above 10 (signed).
+//! the seven after it): what they change of the current player's record: +0x2C the controller
+//! (0 none, 1 .. the controller count the listed ones), +0x34 its sensitivity (0 .. 3), +0x38
+//! its mode, +0x40 and +0x44 the two dead zones (their sum held at 90).
+//! - apply / release the controller (`input::request_device_setup` / `_release`).
+//! - next / previous controller: up (after the count, 0) or down (0 or less: the count); then
+//!   the release with 0, else the set-up.
+//! - lower / raise the sensitivity (0 .. 3, signed) and the set-up. Raising reads the dword at
+//!   +0x2C of the item or menu the caller hands on before the player's record is taken (kept).
+//! - raise the dead zones: +0x40 (or +0x44) one more if `100 - (+0x40) - (+0x44)` is above 10.
 //!
-//! Refusals (before anything): no current player record; a set-up to make without a
-//! first input device record; for `raise_controller_sensitivity` an edi below 0x10000.
+//! Refusals (before anything): no current player record; a set-up to make without a first
+//! input device record; for `raise_controller_sensitivity` an item or menu address below
+//! 0x10000.
 
 use crate::errors::{BadInput, Refused};
 use crate::input::owner::Input;
@@ -113,7 +104,6 @@ fn set_sensitivity(input: &Input, p: PlayerCell, value: u32) -> Result<(), Refus
 
 /// `menu::lower_controller_sensitivity`.
 pub fn lower_controller_sensitivity(menus: &Menus, input: &Input) -> Result<(), Refused> {
-    // The logic is in `rc2k_core::menu::steps::lower_sensitivity`.
     let p = player(menus)?;
     if let Some(s) =
         rc2k_core::menu::steps::lower_sensitivity(p.get().controller, p.get().sensitivity_level)
@@ -123,9 +113,8 @@ pub fn lower_controller_sensitivity(menus: &Menus, input: &Input) -> Result<(), 
     Ok(())
 }
 
-/// `menu::raise_controller_sensitivity`; `edi` is the caller's.
-/// `gate` is the dword at +0x2C of what edi points at: a key's item (its left link) or an
-/// action's menu (its first item's down link).
+/// `menu::raise_controller_sensitivity`. `gate` is the dword at +0x2C of what the caller hands
+/// on: a key's item (its left link) or an action's menu (its first item's down link).
 pub fn raise_controller_sensitivity(
     menus: &Menus,
     input: &Input,
@@ -134,7 +123,6 @@ pub fn raise_controller_sensitivity(
     if gate == 0 {
         return Ok(());
     }
-    // The logic is in `rc2k_core::menu::steps::raise_sensitivity`.
     let p = player(menus)?;
     if let Some(s) = rc2k_core::menu::steps::raise_sensitivity(p.get().sensitivity_level) {
         { set_sensitivity(input, p, s) }?;

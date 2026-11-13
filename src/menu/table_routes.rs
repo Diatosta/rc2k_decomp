@@ -419,7 +419,6 @@ pub fn item_fn(o: Owners<'static>, f: ItemFn, c: &table_calls::ItemCall) -> Resu
         ItemFn::NewSimulationIfUnlocked => item_actions::new_simulation_if_unlocked(o),
         ItemFn::NewSimulationLoop => new_simulation_loop::run(o),
         ItemFn::NetworkSettingsItem => settings_loop::settings_loop(o),
-        // (The original leaves eax the mode and the carry set: no caller reads them.)
         ItemFn::JoinNetworkGame => start_link::start_link(o, 2),
         ItemFn::HostNetworkGame => start_link::start_link(o, 1),
     }
@@ -454,8 +453,8 @@ pub fn screen_fn(o: Owners<'static>, f: ScreenFn) -> Result<(), Refused> {
         }
         ScreenFn::StageChoiceTexts => page_settings::stage_choice_texts(o).map(|_| ()),
         ScreenFn::DrawHighlightedCaption => {
-            // The original's x is the ecx `StepCarousel` leaves, which only the measuring
-            // gets, in a font in measure mode (the option font): it changes nothing, so 0.
+            // The x only matters to a measuring, in a font in measure mode (the option font): it
+            // changes nothing, so 0.
             draw_highlighted_caption::draw_highlighted_caption(o, 0, &mut GameCanvas::new(o.gfx))?;
             Ok(())
         }

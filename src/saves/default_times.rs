@@ -1,16 +1,15 @@
-//! Both are plain functions here.
+//! The made-up entries of the best times: `default_time_entry` and `guess_checkpoint_times`.
 //!
-//! An entry is 0x9C bytes. `default_time_entry` gives it a random driver (a number under
-//! 0xAA): the driver's +8 to the entry's +0x1C, +0x14 to +8, +0x18 to +0x10, the id of
-//! the name's string to +0xC, the name (without a NUL) to +0x20, and 0xB to +0x50. While
-//! the checkpoint switch is 1 it first guesses the stage's checkpoint times from the entry's
-//! time and the stage, writes some twenty-six pieces to the game's log
-//! about it ("guesscheckpointtimes:start" ..), and copies the sixteen times to +0x5C on.
+//! An entry is 0x9C bytes. `default_time_entry` gives it a random driver (a number under 0xAA):
+//! the driver's class to the entry's +0x1C, nationality to +8, car to +0x10, the id of the
+//! name's string to +0xC, the name (without a NUL) to +0x20, and 0xB to +0x50. While the
+//! checkpoint switch is 1 it first guesses the stage's checkpoint times from the entry's time
+//! and the stage, writes some twenty-six pieces to the game's log about it
+//! ("guesscheckpointtimes:start" ..), and copies the sixteen times to +0x5C on.
 //! `guess_checkpoint_times`: the sixteen dwords of `guessed_checkpoints` = 0; for a stage up to
 //! 0x24, with `checkpoint_counts[stage]` checkpoints, checkpoint n's time is the time *
-//! (n + 1) / the count.
-//! Converted: `rc2k_core::saves::defaults` (everything worked out before anything is
-//! written; `GameSource` and `apply` here).
+//! (n + 1) / the count. Everything is worked out before anything is written (`GameSource` and
+//! `apply` here).
 
 use crate::errors::BadInput;
 use crate::math::random_below::random_below;
@@ -21,8 +20,7 @@ use crate::saves::drivers::Driver;
 use rc2k_core::Invalid;
 use rc2k_core::saves::defaults::{Filled, Record};
 
-/// A piece written to the game's log: a text of the game's (its address) or a number,
-/// with or without a new line after it.
+/// A piece written to the game's log: a text or a number, with or without a new line after it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Piece {
     Text(&'static std::ffi::CStr, bool),

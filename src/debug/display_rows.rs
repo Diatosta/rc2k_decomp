@@ -1,9 +1,8 @@
-//! The display page's figures (`debug::draw_wear_bars`' 380) named and
-//! grouped for the debug UI (a more meaningful name, the input with other
-//! inputs, the damage together): generated from the page's items (`debug::wear_items`), with
-//! the names IDA gives their places and the developers' labels; a place the page printed
-//! twice is listed once. "Car 1" and "Car 2" are the cars' blocks 0 and 1 (0xFE0 apart);
-//! "Player car" the first block's gauges and its state record (0x75B39C ..).
+//! The display page's figures named and grouped for the debug UI (a more meaningful name, the
+//! input with other inputs, the damage together): generated from the page's items
+//! (`debug::wear_items`), with the developers' labels; a place the page printed twice is listed
+//! once. "Car 1" and "Car 2" are the cars' blocks 0 and 1 (0xFE0 apart); "Player car" the first
+//! block's gauges and its state record.
 
 use super::row_cells::{car_cell, indexed_cell, store_cell};
 use super::ui::{Group, Row, Shown};
@@ -3267,8 +3266,8 @@ pub static GROUPS: &[Group] = &[
                 false,
                 (468, 328),
             ),
-            // The 1999 counters below were never written by the shipped game; these rows show
-            // the port's own figures (`debug::frame_figures`).
+            // The counters below were never written by the shipped game; these rows show our
+            // own figures (`debug::frame_figures`).
             Row::typed(
                 "Polygons (triangle fans drawn, the whole frame)",
                 "pols",

@@ -1,21 +1,15 @@
-//! `menu::championship_standings_loop` (0x4670DF): the loop of the championship table, the
-//! points of every driver in each of the six rallies and in total.
-//!
-//! In those screenshots the 3D objects of that menu (green arrows, a floppy disk) are drawn over
-//! the table. This loop puts its own empty 3D list in `g_sceneList` only before the first frame
-//! after set-up (and in the unread `flow.unread_list` at the other two places); the list of the menu before is cleared
-//! with `Screen::first_frame_lists`, so the table shows without them.
-//!
-//! The loop itself is `menu::screen_loop`; this file says what is this screen's own (`SCREEN`):
-//! nothing happens before the loop (its set-up starts at the function's second byte); its
-//! background comes from `menu::load_background`, after which a set carry flag is fatal error
-//! 0x80712345; leaving is asked about, and a "no" sets the screen up again. If `state.menus.standings_shown` is set
-//! when the screen is left, nothing more is done: no question, and the highlight is not saved. One
-//! caller.
+//! `menu::championship_standings_loop`: the loop of the championship table, the points of every
+//! driver in each of the six rallies and in total. The 3D objects of the menu before (green arrows,
+//! a floppy disk) would be drawn over the table. This loop puts its own empty 3D list in the scene
+//! list only before the first frame after set-up (and in the unread `flow.unread_list` at the other
+//! two places); the list of the menu before is cleared with `Screen::first_frame_lists`, so the
+//! table shows without them. Screen-specific part of `menu::screen_loop`: nothing happens before
+//! the loop; its background comes from `menu::load_background` (a failed load is fatal
+//! error 0x80712345); leaving is asked about, and a "no" sets the screen up again. If
+//! `state.menus.standings_shown` is set when the screen is left, nothing more is done: no question,
+//! and the highlight is not saved. One caller.
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Asking, Callee, Frames, List, Screen, Step};
-
-// ---- game data ----
 
 pub const SCREEN: Screen = Screen {
     lists: &[
@@ -43,7 +37,7 @@ pub const SCREEN: Screen = Screen {
     frames: Frames {
         first_frame_lists: Some(&[
             List {
-                pointer: |m| &m.screens.flow.scene_list, // g_sceneList
+                pointer: |m| &m.screens.flow.scene_list,
                 table: |m| m.tables.draw_lists.championship_standings_scene.id(),
                 run: false,
             },
@@ -60,7 +54,6 @@ pub const SCREEN: Screen = Screen {
         ]),
         ..Frames::DEFAULT
     },
-    // saved_item is the saved highlight
     ..Screen::new(
         |m| m.tables.menus.championship_standings.id(),
         |m| &m.screens.items.current[slot::CHAMPIONSHIP_STANDINGS],

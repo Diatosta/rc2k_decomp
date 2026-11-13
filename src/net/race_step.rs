@@ -1,11 +1,6 @@
-//! `net::race_step` (0x464133): a car's step in a network race (nothing without one,
-//! `session` 0): for the own player's car (`g_currentCar` = `player`) its
-//! messages sent (`net::send_turn`) and the others' applied (`net::apply_received`); for
-//! another's, its glide (`net::follow_remote`).
-//!
-//!
-//! See `net/mod.rs`. One caller, `drive::replay_step` (each car's step, after its
-//! physics).
+//! A car's step in a network race (nothing without a session): the own player's car sends its
+//! messages and applies the others'; another car follows its glide. Called from each car's step
+//! after its physics.
 
 use crate::errors::Refused;
 use crate::net::owner::Net;

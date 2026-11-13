@@ -1,9 +1,6 @@
-//! The single rally's and the time trial's events (from
-//! `menu::single_rally` 0x482382, `menu::single_rally_split` 0x4824C1, `_two` 0x4826A2,
-//! `_three` 0x4828B0, `_four` 0x482B7A, `menu::time_trial_one` 0x48AE39, `_split`
-//! 0x48AFD0, `_two` 0x48B23D, `_three` 0x48B54B, `_four` 0x48B90F): the players' car
-//! choices, then round after round the stage, the races and the pages after them, until a
-//! yes or a leaving ends it. Each event's steps in its original's order, on `flow::Game`.
+//! The single rally's and the time trial's events: the players' car choices, then round after round
+//! the stage, the races and the pages after them, until a yes or a leaving ends it. Each event
+//! runs its steps in order on `flow::Game`.
 
 use super::flow::{Call, CarList, Game, Var};
 use super::leaving::Switch;
@@ -79,9 +76,9 @@ fn times_2_3<G: Game>(e: &mut G) {
     e.set(Var::PlayerTime(3), TIME_3);
 }
 
-/// The races of players 0 .. n one after another (the single rally repairs each car
-/// first): a race left resets the players' times and sets the front end up again (None);
-/// else the results and-ed together, kept as the original keeps them between the races.
+/// The races of players 0 .. n one after another (the single rally repairs each car first): a race
+/// left resets the players' times and sets the front end up again (None); else the results and-ed
+/// together, kept between the races.
 fn race_series<G: Game>(
     e: &mut G,
     n: u32,
@@ -249,9 +246,8 @@ pub fn single_rally_split<G: Game>(e: &mut G) -> Result<(), G::Error> {
         }
         e.set(Var::Current, 0);
         e.set(Var::PlayerEntry(0), 1);
-        // Both cars repaired. (The original passed 0 and 1, which `repair_car` does not
-        // read: player 0's car was repaired twice, player 1's kept the last stage's damage.
-        // Fixed bug; the current player is 0 again for the race, as the original's.)
+        // Both cars repaired (fixed bug: "The second player's car is not repaired between
+        // split-screen stages" in wiki/Fixed-bugs.md); the current player is 0 again for the race.
         for player in 0..2 {
             e.set(Var::Current, player);
             e.run(Call::RepairCar)?;
@@ -419,8 +415,8 @@ pub fn time_trial_one<G: Game>(e: &mut G) -> Result<(), G::Error> {
     end(e)
 }
 
-/// The time trial's start for two to four players: `g_eventMode` 3, the event begun,
-/// the players' +0x284 cleared, player 1's units.
+/// The time trial's start for two to four players: event mode 3, the event begun, the players'
+/// +0x284 cleared, player 1's units.
 fn time_trial_start<G: Game>(e: &mut G) -> Result<(), G::Error> {
     e.set(Var::Mode, 3);
     e.run(Call::BeginEvent)?;
@@ -504,7 +500,7 @@ pub fn time_trial_two<G: Game>(e: &mut G) -> Result<(), G::Error> {
         e.set(Var::ServiceDue, 1);
         e.run(Call::TimeTrialService)?;
         if let Some(all) = race_series(e, 2, 3, false)? {
-            // All results -1: the original's jump goes to player 1's qualifying.
+            // All results -1: the flow goes to player 1's qualifying.
             let first = if all != NO_RESULT {
                 e.run(Call::TimeTrialResultsLoop)?;
                 if e.yes() {

@@ -1,12 +1,11 @@
-//! The sounds of what a car's wheels run on, their choices (from
-//! `sound::surface_sounds` 0x40DE9B and `sound::surface_sound` 0x40E068; the floats that
-//! pick the wheel and make the volume stay with the caller x87 for now).
+//! The sounds of what a car's wheels run on, their choices (the floats that pick the wheel and
+//! make the volume are the caller's).
 //!
-//! The four wheels are records of five dwords at the object's +0x44, +0x58, +0x6C, +0x80
-//! (+0x10 the surface). The wheel whose surface counts is the front or back pair by the
-//! sign of one difference, then the second of the pair by the other's. A surface's sound
-//! set comes from a table of 16, the set from seven pairs (one for each of the two
-//! sounds); a set is four sounds, or eight (+0 1) for a car whose +0xC picks the half.
+//! The four wheels are records of five dwords at the object's +0x44, +0x58, +0x6C, +0x80 (+0x10 the
+//! surface). The counting wheel is the front or back pair by the sign of one difference, then the
+//! pair's second by the other's. A surface's set comes from a table of 16, the set from seven
+//! pairs (one for each of the two sounds); a set is four sounds, or eight (+0 is 1) for a car
+//! whose +0xC picks the half.
 
 use crate::Invalid;
 
@@ -16,8 +15,8 @@ pub const WHEELS: [u32; 4] = [0x44, 0x58, 0x6C, 0x80];
 pub const SURFACES: u32 = 16;
 pub const SET_PAIRS: u32 = 7;
 
-/// The wheel whose surface counts and the other of its pair (indexes into `WHEELS`), from
-/// the two differences' signs (the original tested the float's sign bit as an integer's).
+/// The wheel whose surface counts and the other of its pair (indexes into `WHEELS`), from the two
+/// differences' signs (the float's sign bit read as an integer's).
 pub fn wheel(across: f32, along: f32) -> (usize, usize) {
     let (mut first, second) = if !across.is_sign_negative() {
         (1, 3)
@@ -35,8 +34,8 @@ pub fn quieter(surface: u32) -> bool {
     surface == 7 || surface == 8
 }
 
-/// The pair of sets of `surface` (`sets_of` the table, asked for a surface inside it).
-/// Refuses a surface past the table and a pair past the seven.
+/// The pair of sets of `surface` (`sets_of` the table, asked for a surface inside it). Refuses a
+/// surface past the table and a pair past the seven.
 pub fn set_pair(surface: u32, sets_of: impl FnOnce(u32) -> u32) -> Result<u32, Invalid> {
     if surface >= SURFACES {
         return Err(Invalid("a surface past the 16 surface sounds"));

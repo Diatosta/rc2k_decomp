@@ -1,7 +1,6 @@
-//! The drives the game may be installed to (from
-//! `install::list_drives` 0x413C27): which are taken, each one's text on the drive page
-//! ("c 512 MB": the letter, a byte not written, a space, the free space) and the page's
-//! menu by how many there are.
+//! The drives the game may be installed to: which are taken, each one's text on the drive page
+//! ("c 512 MB": the letter, a byte left unwritten, a space, the free space) and the page's menu
+//! by drive count.
 
 use crate::strings::format::{Pad, decimal};
 use std::ops::RangeInclusive;
@@ -10,7 +9,7 @@ use std::ops::RangeInclusive;
 pub const CD_ROM: u32 = 5;
 pub const RAM_DISK: u32 = 6;
 
-/// String ids of the units.
+/// String ids of the size units, from KB up.
 pub const KB: u32 = 0xA6;
 pub const MB: u32 = 0xA7;
 pub const GB: u32 = 0xA8;
@@ -20,8 +19,7 @@ pub fn offered(drive_type: u32) -> bool {
     drive_type != CD_ROM && drive_type != RAM_DISK
 }
 
-/// The letters listed on the page: 'a' to 'y' (a drive Z found is never listed,
-/// the game's slip).
+/// The letters listed on the page: 'a' to 'y' (a drive Z is never listed: the game's slip, kept).
 pub const LISTED: RangeInclusive<u8> = b'a'..=b'y';
 
 /// Free space as the page shows it: the number, its unit's string id, and whether ">="
@@ -57,8 +55,7 @@ pub fn free(kb: u32) -> Free {
     }
 }
 
-/// A drive's text from its third byte on: a space, ">=" for GB, the number, the unit's
-/// text, a NUL.
+/// A drive's text from its third byte on: a space, ">=" for GB, the number, the unit's text, NUL.
 pub fn text(free: Free, unit: &[u8]) -> Vec<u8> {
     let mut out = vec![b' '];
     if free.at_least {
@@ -70,7 +67,7 @@ pub fn text(free: Free, unit: &[u8]) -> Vec<u8> {
     out
 }
 
-/// The drive page's menu by the drives listed.
+/// The drive page's menu, by the drives listed.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum DriveMenu {
     /// 8 or fewer.

@@ -1,13 +1,7 @@
-//! `net::find_connections` (0x41867C): "NET: Find connections"; unless the receiving thread
-//! has ended (`g_netReceiveDone` 1): the lobby object made (`net::open_lobby`); then (the
-//! original's lobby-launched branch is left out: `net::open_lobby`) DirectPlay's object made
-//! (`net::create_dplay`), the lists' memory taken (`net::allocate_lists`), and the
-//! connections listed (`EnumConnections` for the game's GUID `app_guid` with
-//! `net::connection_found`, flags DPCONNECTION_DIRECTPLAY).
-//!
-//! Returns true when connections were listed; false when the receiving thread ended, something
-//! failed or nothing was listed. The original's callers read only the carry (`lq -s 0x4174BD`).
-//! Caller: `net::find_connections_regs`.
+//! Lists the DirectPlay connections ("NET: Find connections"): unless the receiving thread has
+//! ended, makes the lobby object and DirectPlay's object and the lists' memory, then enumerates
+//! the connections for the game's GUID. Returns true when some were listed. Games launched from a
+//! lobby are not supported.
 
 use crate::errors::Refused;
 use crate::net::lobby::log_bytes;
@@ -34,6 +28,6 @@ pub fn find_connections(
         },
         0,
     );
-    // The carry is set when none was listed.
+    // False when none was listed.
     Ok(result == 0 && vars.connections.get() >= 1)
 }

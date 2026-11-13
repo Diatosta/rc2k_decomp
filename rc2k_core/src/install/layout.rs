@@ -1,10 +1,7 @@
-//! A page's pieces placed in their boxes (from `install::place_pieces`
-//! 0x414ED1 and `install::place_row` 0x414F11). A piece (0x30 bytes in the page's table):
-//! +0 its item's kind and marks, +1 its own kind (bit 0 a label, bit 1 a choice; for the
-//! rest bit 2 at the left, bit 3 at the right, else centred), +8 x, +0xC y, +0x10 width,
-//! +0x14 height. A box: x, y, width, height. Compares are signed, as the original's. And
-//! the drawing lists of the installer's frames (from
-//! `install::draw_string_list` 0x402370 and `install::blit_glyph_list` 0x402628).
+//! A page's pieces placed in their boxes, and the drawing lists of the installer's frames. A piece
+//! (0x30 bytes): +0 its item's kind and marks, +1 its own kind (bit 0 a label, bit 1 a choice;
+//! else bit 2 at the left, bit 3 at the right, else centred), +8 x, +0xC y, +0x10 width, +0x14
+//! height. A box: x, y, width, height. Compares are signed.
 
 use crate::Invalid;
 
@@ -54,12 +51,11 @@ const AT_RIGHT: u8 = 8;
 /// The pixels between a choice and what follows it.
 const GAP: u32 = 10;
 
-/// The pieces of one box placed in it: labels in a column as wide as the widest, choices
-/// after their label and each other 10 pixels apart, wrapped to a new line where they would
-/// pass the box's width, the rest centred (or at the left, or at the right edge); then the
-/// whole centred across and down in the box (by an even number of pixels down in the
-/// title's box) and moved to its place. Refused: no pieces (the original goes round 2^32
-/// times).
+/// The pieces of one box placed in it: labels in a column as wide as the widest, choices after
+/// their label and each other 10 pixels apart (wrapped where they would pass the box's width), the
+/// rest centred, at the left or at the right edge; then the whole centred across and down in the
+/// box (by an even number of pixels down in the title's box) and moved to its place. Refused: no
+/// pieces.
 pub fn place_row(pieces: &mut [Piece], area: Area, title: bool) -> Result<Placed, Invalid> {
     if pieces.is_empty() {
         return Err(Invalid("a box of no pieces"));
@@ -97,8 +93,7 @@ pub fn place_row(pieces: &mut [Piece], area: Area, title: bool) -> Result<Placed
     })
 }
 
-/// The widest label's width; a choice followed by a choice pushes the next one to the right
-/// of its own end (and the gap).
+/// The widest label's width; a choice after a choice goes right of its end (and the gap).
 fn widest_label_and_push_choices(pieces: &mut [Piece]) -> u32 {
     let mut widest = 0u32;
     for k in 0..pieces.len() {
@@ -117,11 +112,11 @@ fn widest_label_and_push_choices(pieces: &mut [Piece]) -> u32 {
     widest
 }
 
-/// Breaks the pieces into lines. A choice stays on its line while its end is within `limit`
-/// (the box's width less the label column); any other piece, and a choice past the limit,
-/// starts a new line: the pieces from it on move down by the line's height (and back left by
-/// the new line's first choice's x, which choices after a plain piece do not follow), and the
-/// pieces of the line just ended move down to its bottom.
+/// Breaks the pieces into lines. A choice stays on its line while its end is within `limit` (the
+/// box's width less the label column); any other piece, and a choice past the limit, starts a new
+/// line: later pieces move down by the line's height (and back left by the new line's first
+/// choice's x, which choices after a plain piece do not follow), and those of the line just ended
+/// move down to its bottom.
 fn wrap_lines(pieces: &mut [Piece], limit: u32) {
     let mut line_start = 0usize;
     let mut line_height = pieces[0].height;
@@ -154,9 +149,8 @@ fn wrap_lines(pieces: &mut [Piece], limit: u32) {
     }
 }
 
-/// Each piece's place across: labels at the label column's end, choices after it and the
-/// gap, the rest centred, at the left or at the right edge. The right-most end of the
-/// choices.
+/// Each piece's place across: labels at the label column's end, choices after it and the gap,
+/// the rest centred, at the left or at the right edge. The right-most end of the choices.
 fn place_across(pieces: &mut [Piece], width: u32, labels: u32) -> u32 {
     let mut right_edge = 0u32;
     for p in pieces.iter_mut() {
@@ -177,9 +171,8 @@ fn place_across(pieces: &mut [Piece], width: u32, labels: u32) -> u32 {
     right_edge
 }
 
-/// A page's pieces in rows of the same box (`box_of`, asked of each piece in turn, the next
-/// only while pieces are left): each row's first piece, its pieces and its box. Refused: a
-/// page of no pieces (the original goes round 2^32 times).
+/// A page's pieces in rows of the same box (`box_of`, asked of each piece in turn): each row's
+/// first piece, its pieces and its box. Refused: a page of no pieces.
 pub fn rows(count: u32, box_of: impl Fn(u32) -> u32) -> Result<Vec<(u32, u32, u32)>, Invalid> {
     if count == 0 {
         return Err(Invalid("a page of no pieces"));
@@ -204,9 +197,8 @@ pub fn rows(count: u32, box_of: impl Fn(u32) -> u32) -> Result<Vec<(u32, u32, u3
 /// glyph and a palette).
 pub const LIST_RECORD: u32 = 0x10;
 
-/// A drawing list of `count` records: each record's offset in the table and the number
-/// of records left while it is drawn (this one counted), in order. Refused: a count of 0
-/// (the original's do-while goes round 2^32 times).
+/// A drawing list of `count` records: each record's offset in the table and the number of
+/// records left while it is drawn (this one counted), in order. Refused: a count of 0.
 pub fn list_records(count: u32) -> Result<Vec<(u32, u32)>, Invalid> {
     if count == 0 {
         return Err(Invalid(

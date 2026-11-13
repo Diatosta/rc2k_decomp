@@ -7,8 +7,8 @@ use std::collections::VecDeque;
 /// How many commands the queue holds; one more is dropped.
 pub const CAPACITY: usize = 0x400;
 
-/// The fields of the race's sets of sounds, in the order a list that runs past its field reads
-/// on through them (the order the original's data lay in).
+/// The fields of the race's sets of sounds, in the order a list that runs past its field reads on
+/// through them (the order of the game's data layout).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum RaceField {
     KindSetsFirst,
@@ -46,8 +46,8 @@ impl RaceField {
         [102, 23, 94, 102, 23, 95, 31, 54, 8, 87, 1][self as usize]
     }
 
-    /// The original's offset of the field's start in the sets: only for the sound hash and the
-    /// command word, which carry the numbers the original's data gave (see `SoundList::word`).
+    /// The byte offset of the field's start in the game's data layout of the sets: used only for
+    /// the sound hash and the command word, whose numbers depend on it.
     pub const fn original_offset(self) -> u32 {
         let mut dwords = 0;
         let mut i = 0;
@@ -59,9 +59,8 @@ impl RaceField {
     }
 }
 
-/// A list of sounds command 3 loads, by handle (the original sent its address). The menus'
-/// list, or a list of the race's sets: entry `entry` of a field (the list reads on into the
-/// fields after it until its -1).
+/// A list of sounds command 3 loads, by handle. The menus' list, or a list of the race's sets:
+/// entry `entry` of a field (the list reads on into the fields after it until its -1).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum SoundList {
     Menu,
@@ -69,10 +68,9 @@ pub enum SoundList {
 }
 
 impl SoundList {
-    /// The word a command record carries: 0 is no list, 1 the menus', 2 and up the race's
-    /// list at the original's offset in the sets plus 2. The offset is "the original's offset,
-    /// for the hash": the words are hashed by the sound check (`RC2K_SOUND_HASH`), whose
-    /// numbers stay the same as before the lists had handles.
+    /// The word a command record carries: 0 is no list, 1 the menus', 2 and up a race list's
+    /// `original_offset` plus 2. Kept: the sound check (`RC2K_SOUND_HASH`) hashes these words,
+    /// so its numbers stay comparable.
     pub fn word(self) -> u32 {
         match self {
             SoundList::Menu => 1,
@@ -83,8 +81,8 @@ impl SoundList {
         }
     }
 
-    /// The list a record's word names; none for 0, and for a word that names no dword of the
-    /// sets (the game sends only words `word` made).
+    /// The list a record's word names; none for 0, and for a word that names no dword of the sets
+    /// (`word` makes no such word).
     pub fn from_word(word: u32) -> Option<SoundList> {
         match word {
             0 => None,

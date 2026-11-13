@@ -1,12 +1,7 @@
-//! `net::stop` (0x41838C): the network race ended (`session` 0); while the receiving
-//! thread is busy with a message (`receiving`), a millisecond's sleep and the window's
-//! messages, until it is done, or the game is closing (`g_quitting` 1) and the thread has
-//! ended (`receive_done` 1); then `net::destroy_connection`.
-//!
-//!
-//! See `net/mod.rs`. Four callers: `net::shut_down` and three of the network's menus
-//! (`net::settings_link`, `net::settings_done`, `net::stopping`). It waits on another
-//! thread. Refuses what `net::destroy_connection` refuses.
+//! Ends the network race; while the receiving thread is busy with a message, sleeps a
+//! millisecond and pumps the window's messages until it is done (or the game is closing and the
+//! thread has ended); then destroys the connection. Refuses what `net::destroy_connection`
+//! refuses.
 
 use crate::errors::Refused;
 use crate::net::store::NetShared;

@@ -1,11 +1,8 @@
-//! The game's options in `var/rc2k.toml` and in the old `var\ral.dat`: which is read at
-//! start and which is written (the rule is `rc2k_core::options`).
-//!
-//! The new file always wins when it exists. The old file is read only when the new one is
-//! not there yet (its values are brought over and the new file written at once), or on the
-//! command line's `--load-old-options`, or by `load_old` (the settings page's button, to
-//! come). The options are saved to the new file; to the old one only with
-//! `--save-old-options` or by `save_old`.
+//! The game's options in `var/rc2k.toml` and in the old `var\ral.dat`: which is read at start and
+//! which is written (the rule is `rc2k_core::options`). The new file wins when it exists; the old
+//! one is read only when the new one is not there yet (its values are brought over and the new
+//! file written at once), with `--load-old-options`, or by `load_old`. The options are saved to
+//! the new file; to the old one only with `--save-old-options` or by `save_old`.
 
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::owners::Owners;
@@ -75,7 +72,7 @@ pub fn load_old(o: Owners<'static>) -> Result<bool, Refused> {
     load_game_options(o)
 }
 
-/// Writes the old file from the stores (the button's, and `--save-old-options`'s).
+/// Writes the old file from the stores.
 pub fn save_old(o: Owners<'static>) -> Result<bool, Refused> {
     crate::saves::save_options::save_options(o, &o.saves.files.options_path)
 }

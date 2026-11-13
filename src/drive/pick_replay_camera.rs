@@ -1,13 +1,9 @@
-//! `drive::pick_replay_camera` (0x460AA6): for a replay's camera wish (0x23, 0x24, 0x25: kinds
-//! 0, 1, 2), a camera mode is drawn (`math::next_random` x 0x34, high dword) until its record
-//! (`view_records[mode]`) is of that kind (0x23: until it is NOT of kind 0, the original's wrong
-//! branch; notes/bugs.md); modes 2 and 3 become 4 when a car's kind (`car_kind`, `g_carBlockStore`)
-//! is past 0x16 (the second car's only with two cars, `players` not 1). Other wishes: nothing.
+//! For a replay's camera wish (0x23, 0x24, 0x25: kinds 0, 1, 2), a camera mode is drawn
+//! (`math::next_random` x 0x34, high dword) until its record is of that kind (0x23: until it is
+//! NOT of kind 0, a slip kept as is); modes 2 and 3 become 4 when a car's kind is
+//! past 0x16 (the second car's only with two cars). Other wishes: nothing.
 //!
-//! Takes: the wish
-//!
-//! Caller: `drive::replay_cameras`. Refuses (before anything) a wish no mode stops (the
-//! original draws for ever).
+//! Refuses (before anything) a wish no mode stops (it would draw for ever).
 
 use crate::errors::{BadInput, Refused};
 use crate::race::owner::Race;
@@ -22,7 +18,6 @@ fn kind_of(race: &Race, reading: &crate::scene::reading::Reading, mode: u32) -> 
     )
 }
 
-// Converted: `rc2k_core::drive::replay_views::{wish_kind, fits, draw, kept_mode}`.
 /// The camera wish `wish`; the mode kept, or `None` for a wish that draws
 /// nothing (its one caller draws only for the wishes that
 /// draw).

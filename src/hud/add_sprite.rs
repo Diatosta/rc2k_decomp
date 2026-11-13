@@ -1,10 +1,6 @@
-//! `hud::add_sprite` (0x4B70EE): a sprite from the texture's rectangle (left, top, width,
+//! A sprite from the texture's rectangle (left, top, width,
 //! height) put at: the quad record's texture places (<< 16), its corners (the width and height made
 //! positive), then `hud::add_quad`.
-//!
-//! Takes: the rectangle, x, y
-//!
-//! Callers: the HUD's drawers (several places).
 
 use crate::errors::Refused;
 use crate::hud::owner::{Hud, Pen};
@@ -32,7 +28,6 @@ pub fn put_corners(hud: &Hud, x: u32, y: u32, w: u32, h: u32) {
 }
 
 /// The sprite whose rectangle is the place `rect` with its corner at `x`, `y`.
-// Converted: `rc2k_core::hud::quads::{sprite_places, sprite_corners}`
 pub fn add_sprite(
     frame: &Frame,
     hud: &Hud,

@@ -1,7 +1,5 @@
-//! The passes over the players after a stage: the inspection and the service area
-//! (from `menu::inspection_pass` 0x4A8556, `menu::service_pass`
-//! 0x4A15E3 and `menu::time_trial_service` 0x48E093): who is looked at, when the event is
-//! over, the service's minutes and money, and the pauses between the screens.
+//! The passes over the players after a stage (the inspection and the service area): who is looked
+//! at, when the event is over, the service's minutes and money, and the pauses between the screens.
 
 /// A player's +0xD0: taking part, and out (failed the inspection).
 pub const TAKING_PART: u32 = 1;

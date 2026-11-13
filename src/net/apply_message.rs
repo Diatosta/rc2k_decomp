@@ -1,19 +1,12 @@
-//! `net::apply_message` (0x4644EC): one message received from a player put into that
-//! player's car block (`g_carBlocks[player]`), after logging the own player, the step, the
-//! message's first byte, "rcvd fm plyr" and the player's number. Players 8 and up: nothing more.
-//! - 'JGSM': the four input dwords into +0xFD0 .. +0xFDC;
-//! - 'XGSM': nine dwords into +0x64 .. +0x84;
-//! - 'PGSM': the place into +0xFC0 .. +0xFC8 (where the car is to be), the other 37
-//!   dwords where `net::send_position` took them from. Then, after the car's first 1000
-//!   steps (+8) and when the place received is 10 or more away from the
-//!   car's (+0x134 .. +0x13C, whole numbers; a distance by square root) the
-//!   car is put there; else +0xFC0 .. +0xFC8 become a 32nd of the way and
-//!   +0xFCC 32, for `net::follow_remote` to glide it;
-//! - others: nothing.
-//!
-//! Takes `player`, `message`.
-//!
-//! See `net/mod.rs`. One caller, `net::apply_received`.
+//! Puts one message received from a player into that player's car block, logging the step and
+//! the sender first. Players 8 and up are ignored.
+//! - 'JGSM': the four input dwords.
+//! - 'XGSM': nine extra dwords.
+//! - 'PGSM': the position the car should be at, then the remaining dwords. After the car's first
+//!   1000 steps, if the received position is 10 or more away from the car's, the car jumps there;
+//!   otherwise the target is set to a 32nd of the way and 32 glide steps are armed for
+//!   `net::follow_remote`.
+//! - Anything else: nothing.
 
 use crate::errors::BadInput;
 use crate::logfile::log_int::log_int;
@@ -24,7 +17,7 @@ use crate::race::owner::Race;
 use crate::session::PlainDword;
 use rc2k_core::net::race::{self, Arrival, Kind};
 
-/// g_carBlocks: the eight cars' blocks.
+/// The log text before the sender's number.
 const TEXT: &std::ffi::CStr = c"rcvd fm plyr"; // "rcvd fm plyr"
 
 /// A car's place (+0x134 .. +0x13C).
@@ -82,8 +75,8 @@ pub fn apply_message(
     if player >= 8 {
         return Ok(());
     }
-    // The block is looked up after the message is read and believed: a null one refuses
-    // at the first write, as the original's.
+    // The block is looked up after the message is read and believed: a null one refuses at the
+    // first write.
     let Some(kind) = Kind::of(word_at(message, 0)?) else {
         return Ok(());
     };

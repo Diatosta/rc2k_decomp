@@ -1,17 +1,14 @@
-//! The race's steps over the cars (from `drive::race_cars_step`
-//! 0x4608BB, `drive::replay_step` 0x460B2F, `drive::play_replay_frame` 0x460049,
-//! `drive::read_packed` 0x41EEB5 and `drive::race_init` 0x4462B9): every car stepped in
-//! turn (`g_currentCar` from 0 to `g_raceCars`), the skid marks begun again, the
-//! replay's frame read at each whole frame, the replay file's packed reads, and the
-//! race's start (its best line, its fifty settling steps).
+//! The race's steps over the cars: every car stepped in turn, the skid marks begun again, the
+//! replay's frame read at each whole frame, the replay file's packed reads, and the race's start
+//! (its best line, its fifty settling steps).
 
 use crate::Invalid;
 
-/// The cars' room (`g_carBlocks`, eight).
+/// The most cars a race has (the car blocks' table).
 pub const CAR_ROOM: u32 = 8;
 
-/// The race's cars' count (`g_raceCars`): 1 ..= 8 (0 runs the original's loop round the
-/// whole of `g_currentCar`; past 8 its blocks' table).
+/// Refused: a cars' count outside 1 ..= 8 (0 would loop through every value of the current car;
+/// past 8 is past its blocks' table).
 pub fn check_cars(count: u32) -> Result<(), Invalid> {
     if !(1..=CAR_ROOM).contains(&count) {
         return Err(Invalid("a cars' count of 0 or past 8"));
@@ -19,14 +16,14 @@ pub fn check_cars(count: u32) -> Result<(), Invalid> {
     Ok(())
 }
 
-/// A car's block slot (`g_carBlocks[n & 7]`).
+/// A car's slot in the car blocks' table.
 pub fn block_slot(car: u32) -> usize {
     (car & 7) as usize
 }
 
-/// The cars' loop: `g_currentCar` 0 (`set_current`), then `step()` (a car's step: it
-/// reads the current car itself), the current (`current()`, read back) one up, until it
-/// is the count (`count()`, read after each). The last current car.
+/// Steps every car: current car 0 (`set_current`), then `step()` (it reads the current car
+/// itself) and the current (`current()`, read back) one up, until it is the count (`count()`,
+/// read after each). Gives back the last current car.
 pub fn each_car<E>(
     current: impl Fn() -> u32,
     count: impl Fn() -> u32,
@@ -44,29 +41,28 @@ pub fn each_car<E>(
     }
 }
 
-/// `drive::replay_step`: whether the skid marks are begun again: unless the first
-/// block's clock (+8) is one past the kept one (+0xF0C), by the difference.
+/// Whether the skid marks are begun again: unless the first block's clock (+8) is one past the
+/// kept one (+0xF0C).
 pub fn skids_restart(clock: u32, kept: u32) -> bool {
     clock.wrapping_sub(kept) != 1
 }
 
-/// `drive::play_replay_frame`: None while not playing (`Numbers.replay_mode` not 2); else
-/// whether the tenth is a whole frame's (0: the frame read and loaded).
+/// None while not playing a replay (`Numbers.replay_mode` not 2); else whether the tenth starts
+/// a whole frame (0: the frame is read and loaded).
 pub fn play_frame(mode: u32, tenth: impl FnOnce() -> u32) -> Option<bool> {
     (mode == crate::drive::replay_frames::PLAYING).then(|| tenth() == 0)
 }
 
-/// `drive::read_packed`: the count's meaning: 0 or more a plain read of that many
-/// bytes (None); below 0 the packed bytes to read, -count.
+/// A replay read's count: 0 or more is a plain read of that many bytes (None); below 0, -count
+/// packed bytes to read.
 pub fn packed_bytes(count: u32) -> Option<u32> {
     ((count as i32) < 0).then(|| count.wrapping_neg())
 }
 
-/// `drive::race_init`'s fatal error with fewer than two checkpoints.
+/// The race start's fatal error with fewer than two checkpoints.
 pub const NO_BEST_LINE: u32 = 0x8060_0D1E;
 
-/// Whether the best line failed: fewer than two checkpoints (`g_checkpointCount`), by the
-/// sign of the `cmp`.
+/// Whether the best line failed: fewer than two checkpoints (signed).
 pub fn no_best_line(checkpoints: u32) -> bool {
     (checkpoints.wrapping_sub(2) as i32) < 0
 }

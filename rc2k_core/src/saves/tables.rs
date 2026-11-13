@@ -1,23 +1,18 @@
-//! The best times' tables in memory (from
-//! `saves::allocate_best_times` 0x47C4D8 and `saves::count_stages` 0x47C95D, a plain
-//! function there).
-//!
-//! Nine tables are taken once, their sizes fixed but for two that hold an entry of 0x618
-//! bytes for each stage of the championship's record table (`g_recordTable`, records of
-//! 0xA4 bytes ending with a -1, a stage's tag 0). The sixth and the seventh end with -1.
+//! The best times' tables in memory: nine tables taken once, their sizes fixed but for two that
+//! hold 0x618 bytes for each stage of the championship's record table (records of 0xA4 bytes
+//! ending with a -1, a stage's tag 0). The sixth and the seventh end with -1.
 
 use crate::Invalid;
 
 pub const TABLES: usize = 9;
-/// A stage's entry in the two tables of stages.
+/// A stage's entry in the two tables of stages, in bytes.
 pub const STAGE_ENTRY_LEN: u32 = 0x618;
 /// More records than any table has.
 pub const MOST_RECORDS: u32 = 0x1000;
 
-/// A typed table as `var\hst.dat` holds it, in the original's layout.
+/// A typed table as `var\hst.dat` holds it.
 pub trait FileTable: Sized {
-    /// A new one (zeros) of the size `allocate_best_times` asks; None for a size it cannot
-    /// be.
+    /// A new one (zeros) of the size `allocate_best_times` asks; None for an impossible size.
     fn zeroed(bytes: usize) -> Option<Self>;
     /// From its bytes (as many as `write` gives).
     fn read(b: &[u8]) -> Self;
@@ -25,9 +20,8 @@ pub trait FileTable: Sized {
     fn write(&self) -> Vec<u8>;
 }
 
-/// `saves::count_stages`: the records with tag 0, up to the table's -1 (`tag` record n's
-/// first dword; the first record is not looked at for the end). Refused: no end within
-/// `MOST_RECORDS`.
+/// The records with tag 0, up to the table's -1 (`tag` is record n's first dword; the first
+/// record is not looked at for the end). Refused: no end within `MOST_RECORDS`.
 pub fn count_stages(tag: impl Fn(u32) -> u32) -> Result<u32, Invalid> {
     let mut stages = 0;
     for n in 0..MOST_RECORDS {
@@ -66,8 +60,8 @@ mod tests {
     }
 }
 
-/// The six tables `var\hst.dat` holds, each made from varied bytes and written out again,
-/// are the bytes they were when the file was first kept (a checksum of each).
+/// The six tables of `var\hst.dat`, each made from varied bytes and written out again, are
+/// the bytes they were when first kept (a checksum of each).
 #[cfg(test)]
 mod golden {
     use super::*;

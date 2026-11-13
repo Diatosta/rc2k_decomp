@@ -1,12 +1,10 @@
-//! The replays' run-length packing (from `drive::unpack_rle`
-//! 0x41F080): a signed count byte; below 0, that many bytes copied; above 0, the next
-//! byte repeated count + 1 times; 0 ends it.
+//! The replays' run-length packing: a signed count byte; below 0, that many bytes copied; above 0,
+//! the next byte repeated count + 1 times; 0 ends it.
 
 use crate::Invalid;
 use crate::strings::bytes::Bytes;
 
-/// The most bytes unpacked: past it the packing is refused (the original runs on; a
-/// guard against a broken frame).
+/// The most bytes unpacked: past it the packing is refused (a guard against a broken frame).
 pub const MOST_OUT: u32 = 0x10_0000;
 
 fn byte(packed: &(impl Bytes + ?Sized), at: u32) -> Result<u8, Invalid> {
@@ -37,9 +35,8 @@ pub fn unpacked_len(packed: &(impl Bytes + ?Sized)) -> Result<u32, Invalid> {
     }
 }
 
-/// `drive::unpack_rle`: the packing unpacked, each byte given to `put(offset, byte)` in
-/// the original's order (a copy byte by byte forwards, as `rep movsb`); the bytes
-/// written. Checked whole before anything is put.
+/// The packing unpacked, each byte given to `put(offset, byte)` in order (copies run byte by byte
+/// forwards); gives the bytes written. Checked whole before anything is put.
 pub fn unpack_rle(
     packed: &(impl Bytes + ?Sized),
     mut put: impl FnMut(u32, u8),

@@ -1,9 +1,7 @@
-//! The championship's points (from `menu::award_stage_points`
-//! 0x4A47EA and `award_overall_points` 0x4A4933): handed out in the standings' order from
-//! 0x14 down by one, kept or not, and each entry's total of its six sections.
+//! The championship's points: handed out in the standings' order from 0x14 down by one, kept or
+//! not, and each entry's total of its six sections.
 
-/// What is handed out (`seconds`, 0x7559AC, in the game): from 0x14 down by one, not below
-/// 0 (signed).
+/// What is handed out (`seconds`): from 0x14 down by one, not below 0 (signed).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Points(pub u32);
 
@@ -39,8 +37,8 @@ pub fn total(sections: [u32; 6]) -> u32 {
         .fold(0u32, |s, v| s.wrapping_add(v as u32))
 }
 
-/// `menu::find_section_player` (0x4A940E): the first of the four players whose points for
-/// the section are 0x14 (a reading: the section's winner).
+/// `menu::find_section_player`: the first of the four players whose points for the section are 0x14
+/// (a reading: the section's winner).
 pub fn section_player(points: [u32; 4]) -> Option<u32> {
     points.iter().position(|&p| p == 0x14).map(|n| n as u32)
 }

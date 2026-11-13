@@ -1,14 +1,9 @@
-//! `input::take_key` (0x407F95): takes the pending key: returns the pending key and sets it to 0,
-//! in one `xchg`.
-//!
-//! 65 callers. The
-//! other flags of the original's `test al, al` (sign, parity) are not reproduced; carry and
-//! zero are.
+//! Takes the pending key: gives it and sets it to 0 in one atomic swap.
 
 use crate::input::owner::Input;
 use std::sync::atomic::{AtomicU8, Ordering};
 
-/// `Devices.keys_down`: the first byte of `g_keysDown`.
+/// The first byte of the key table.
 pub fn pending_key(input: &Input) -> &AtomicU8 {
     input.devices.keys_down.atomic(0)
 }

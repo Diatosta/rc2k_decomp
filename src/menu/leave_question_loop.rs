@@ -1,30 +1,23 @@
-//! `menu::leave_question_loop` (0x47FA94): the loop of the "leave?" question that
-//! `menu::confirm_leaving` puts.
-//!
-//! The loop itself is `menu::screen_loop`; this file says what is this screen's own
-//! (`SCREEN`), as extracted from the disassembly: background `mainscr.png` through
-//! `menu::load_background` (carry afterwards = fatal error 0x80712345); leaving is not asked
-//! about; its own 3D list goes to `g_sceneList` before the first frame only.
-//! A reading, not yet a visit: its one caller is `menu::confirm_leaving`, and it sets
-//! `g_askingYesNo` to 1 while it is up, which is what makes `handle_yes_no` listen.
-//! Callers: `menu::confirm_leaving`. Rust callers run its `entry` (`routes.rs`).
+//! The loop of the "leave?" question that `menu::confirm_leaving` puts. Screen-specific part of
+//! `menu::screen_loop`: background `mainscr.png` through `menu::load_background`; leaving is not
+//! asked about; its own 3D scene list is set before the first frame only.
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Callee, Frames, List, Screen, Step};
 
 pub const SCREEN: Screen = Screen {
     lists: &[
         List {
-            pointer: |m| &m.screens.flow.unread_list, // g_unreadList
+            pointer: |m| &m.screens.flow.unread_list,
             table: |m| m.tables.draw_lists.unread_draw_list.id(),
             run: false,
         },
         List {
-            pointer: |m| &m.screens.flow.draw_list, // g_drawList
+            pointer: |m| &m.screens.flow.draw_list,
             table: |m| m.tables.draw_lists.leave_question_draw.id(),
             run: false,
         },
         List {
-            pointer: |m| &m.screens.flow.overlay_list, // g_overlayList
+            pointer: |m| &m.screens.flow.overlay_list,
             table: |m| m.tables.draw_lists.leave_question_overlay.id(),
             run: false,
         },
@@ -37,17 +30,17 @@ pub const SCREEN: Screen = Screen {
     frames: Frames {
         first_frame_lists: Some(&[
             List {
-                pointer: |m| &m.screens.flow.scene_list, // g_sceneList
+                pointer: |m| &m.screens.flow.scene_list,
                 table: |m| m.tables.draw_lists.leave_question_scene.id(),
                 run: false,
             },
             List {
-                pointer: |m| &m.screens.flow.draw_list, // g_drawList
+                pointer: |m| &m.screens.flow.draw_list,
                 table: |m| m.tables.draw_lists.leave_question_draw.id(),
                 run: false,
             },
             List {
-                pointer: |m| &m.screens.flow.overlay_list, // g_overlayList
+                pointer: |m| &m.screens.flow.overlay_list,
                 table: |m| m.tables.draw_lists.leave_question_overlay.id(),
                 run: false,
             },

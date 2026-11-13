@@ -1,14 +1,14 @@
-//! The menus, out of RAL.EXE's image: the 98 lists of labels (IDA 0x747AD8 .. 0x74826C) as cells
-//! (the screens that draw a menu's labels, and the original's slip that writes into them, walk them
-//! as a run of dwords, five to a list: `LabelTables::dword`), and the 96 menus as handles into `rc2k_core::menu::tables::MENUS`,
+//! The menus: the 98 lists of labels as cells (the screens that draw a menu's labels, and a
+//! 1999 slip that writes into them, walk them as a run of dwords, five to a list:
+//! `LabelTables::dword`), and the 96 menus as handles into `rc2k_core::menu::tables::MENUS`,
 //! the one source of the menus' items (their places, links, functions and starting values).
 //!
 //! What the game changes in play is kept here, per item (`MenuItem`, 567 of them in one
 //! array, the menus' in `MENUS`' order): the string id (+0x14), the font (+0x18), +0x1C, the
 //! sprite (+0x20), the font a highlighted item pulses in (+0x50) and the skip mark (+0x48),
 //! each starting as the table has it. Nothing else of an item is written anywhere (the
-//! compiler says so: the rest is read from `MenuItem::fixed`). Menus are named for the screen that
-//! shows them (`menu::screen_loop`'s `Screen::menu`), the ones no screen names by their
+//! compiler says so: the rest is read from `MenuItem::fixed`). Menus are named for the screen
+//! that shows them (`menu::screen_loop`'s `Screen::menu`), the ones no screen names by their
 //! handle in `MenuTables`.
 
 use crate::gfx::typefaces::{FontCell, FontId, fonts};
@@ -25,6 +25,7 @@ pub struct MenuLabel {
     pub y: PlainDword,
     /// The font.
     pub font: FontCell,
+    /// The string id (+0x14).
     pub string: PlainDword,
 }
 
@@ -58,201 +59,103 @@ impl LabelList {
 /// The label lists in the image's order.
 #[derive(rc2k_derive::Cells)]
 pub struct LabelTables {
-    /// Label list at IDA 0x747AD8 (the labels of the single_rally_review menu).
     pub single_rally_review_labels: LabelList,
-    /// Label list at IDA 0x747AEC (the labels of the arcade_review_options menu).
     pub arcade_review_options_labels: LabelList,
-    /// Label list at IDA 0x747B00 (the labels of the arcade_next_level_review menu).
     pub arcade_next_level_review_labels: LabelList,
-    /// Label list at IDA 0x747B14 (the labels of the arcade_retry_review menu).
     pub arcade_retry_review_labels: LabelList,
-    /// Label list at IDA 0x747B28 (the labels of the menu after the previous one in the menu array).
     pub after_arcade_retry_review_labels: LabelList,
-    /// Label list at IDA 0x747B3C (the labels of the stage_result menu).
     pub stage_result_labels: LabelList,
-    /// Label list at IDA 0x747B50.
     pub labels_747b50: LabelList,
-    /// Label list at IDA 0x747B64 (the labels of the single_rally_two_results menu).
     pub single_rally_two_results_labels: LabelList,
-    /// Label list at IDA 0x747B78 (the labels of the menu after the previous one in the menu array).
     pub after_single_rally_two_results_labels: LabelList,
-    /// Label list at IDA 0x747B8C (the labels of the single_rally_three_four_results menu).
     pub single_rally_three_four_results_labels: LabelList,
-    /// Label list at IDA 0x747BA0 (the labels of the single_rally_overall_results menu).
     pub single_rally_overall_results_labels: LabelList,
-    /// Label list at IDA 0x747BB4 (the labels of the time_trial_results menu).
     pub time_trial_results_labels: LabelList,
-    /// Label list at IDA 0x747BC8.
     pub labels_747bc8: LabelList,
-    /// Label list at IDA 0x747BDC (the labels of the main_menu menu).
     pub main_menu_labels: LabelList,
-    /// Label list at IDA 0x747BF0 (the labels of the network_rally menu).
     pub network_rally_labels: LabelList,
-    /// Label list at IDA 0x747C04 (the labels of the start_rally menu).
     pub start_rally_labels: LabelList,
-    /// Label list at IDA 0x747C18 (the labels of the championship_new_simulation menu).
     pub championship_new_simulation_labels: LabelList,
-    /// Label list at IDA 0x747C2C (the labels of the new_simulation menu).
     pub new_simulation_labels: LabelList,
-    /// Label list at IDA 0x747C40 (the labels of the menu after the previous one in the menu array).
     pub after_new_simulation_labels: LabelList,
-    /// Label list at IDA 0x747C54 (the labels of the menu after the previous one in the menu array).
     pub second_after_new_simulation_labels: LabelList,
-    /// Label list at IDA 0x747C68 (the labels of the simple_select_players menu).
     pub simple_select_players_labels: LabelList,
-    /// Label list at IDA 0x747C7C (the labels of the time_trial_select_players menu).
     pub time_trial_select_players_labels: LabelList,
-    /// Label list at IDA 0x747C90.
     pub labels_747c90: LabelList,
-    /// Label list at IDA 0x747CA4 (the labels of the arcade_select_level menu).
     pub arcade_select_level_labels: LabelList,
-    /// Label list at IDA 0x747CB8 (the labels of the service_area menu).
     pub service_area_labels: LabelList,
-    /// Label list at IDA 0x747CCC (the labels of the menu after the previous one in the menu array).
     pub after_service_area_labels: LabelList,
-    /// Label list at IDA 0x747CE0 (the labels of the in_game_options menu).
     pub in_game_options_labels: LabelList,
-    /// Label list at IDA 0x747CF4 (the labels of the menu after the previous one in the menu array).
     pub after_in_game_options_labels: LabelList,
-    /// Label list at IDA 0x747D08 (the labels of the audio_setup menu).
     pub audio_setup_labels: LabelList,
-    /// Label list at IDA 0x747D1C (the labels of the advanced_audio menu).
     pub advanced_audio_labels: LabelList,
-    /// Label list at IDA 0x747D30 (the labels of the leave_question menu).
     pub leave_question_labels: LabelList,
-    /// Label list at IDA 0x747D44 (the labels of the car_specification menu).
     pub car_specification_labels: LabelList,
-    /// Label list at IDA 0x747D58 (the labels of the slideshow menu).
     pub slideshow_labels: LabelList,
-    /// Label list at IDA 0x747D6C (the labels of the select_car menu).
     pub select_car_labels: LabelList,
-    /// Label list at IDA 0x747D80 (the labels of the car_specs_display menu).
     pub car_specs_display_labels: LabelList,
-    /// Label list at IDA 0x747D94 (the labels of the cspecs_menu menu).
     pub menu_74ba3c_labels: LabelList,
-    /// Label list at IDA 0x747DA8 (the labels of the inspection_area menu).
     pub inspection_area_labels: LabelList,
-    /// Label list at IDA 0x747DBC (the labels of the welcome menu).
     pub welcome_labels: LabelList,
-    /// Label list at IDA 0x747DD0 (the labels of the arcade_next_stage menu).
     pub arcade_next_stage_labels: LabelList,
-    /// Label list at IDA 0x747DE4 (the labels of the arcade_level_end_results menu).
     pub arcade_level_end_results_labels: LabelList,
-    /// Label list at IDA 0x747DF8 (the labels of the arcade_results menu).
     pub arcade_results_labels: LabelList,
-    /// Label list at IDA 0x747E0C (the labels of the rally_stages menu).
     pub rally_stages_labels: LabelList,
-    /// Label list at IDA 0x747E20 (the labels of the class_stage_results menu).
     pub class_stage_results_labels: LabelList,
-    /// Label list at IDA 0x747E34 (the labels of the overall_stage_results menu).
     pub overall_stage_results_labels: LabelList,
-    /// Label list at IDA 0x747E48 (the labels of the class_rally_results menu).
     pub class_rally_results_labels: LabelList,
-    /// Label list at IDA 0x747E5C (the labels of the overall_rally_results menu).
     pub overall_rally_results_labels: LabelList,
-    /// Label list at IDA 0x747E70 (the labels of the menu after the previous one in the menu array).
     pub after_overall_rally_results_labels: LabelList,
-    /// Label list at IDA 0x747E84 (the labels of the menu after the previous one in the menu array).
     pub second_after_overall_rally_results_labels: LabelList,
-    /// Label list at IDA 0x747E98 (the labels of the class_championship_standings menu).
     pub class_championship_standings_labels: LabelList,
-    /// Label list at IDA 0x747EAC (the labels of the championship_standings menu).
     pub championship_standings_labels: LabelList,
-    /// Label list at IDA 0x747EC0 (the labels of the section_times_menu menu).
     pub menu_74fea8_labels: LabelList,
-    /// Label list at IDA 0x747ED4 (the labels of the championship_service_review menu).
     pub championship_service_review_labels: LabelList,
-    /// Label list at IDA 0x747EE8 (the labels of the championship_standings_review menu).
     pub championship_standings_review_labels: LabelList,
-    /// Label list at IDA 0x747EFC (the labels of the championship_races_review menu).
     pub championship_races_review_labels: LabelList,
-    /// Label list at IDA 0x747F10 (the labels of the championship_end_review menu).
     pub championship_end_review_labels: LabelList,
-    /// Label list at IDA 0x747F24 (the labels of the select_stage menu).
     pub select_stage_labels: LabelList,
-    /// Label list at IDA 0x747F38 (the labels of the time_trial_select_stage menu).
     pub time_trial_select_stage_labels: LabelList,
-    /// Label list at IDA 0x747F4C (the labels of the next_stage menu).
     pub next_stage_labels: LabelList,
-    /// Label list at IDA 0x747F60 (the labels of the view_stage menu).
     pub view_stage_labels: LabelList,
-    /// Label list at IDA 0x747F74 (the labels of the view_courses menu).
     pub view_courses_labels: LabelList,
-    /// Label list at IDA 0x747F88.
     pub labels_747f88: LabelList,
-    /// Label list at IDA 0x747F9C (the labels of the player1_controller menu).
     pub player1_controller_labels: LabelList,
-    /// Label list at IDA 0x747FB0 (the labels of the player1_buttons menu).
     pub player1_buttons_labels: LabelList,
-    /// Label list at IDA 0x747FC4 (the labels of the player2_controller menu).
     pub player2_controller_labels: LabelList,
-    /// Label list at IDA 0x747FD8 (the labels of the player2_buttons menu).
     pub player2_buttons_labels: LabelList,
-    /// Label list at IDA 0x747FEC (the labels of the player3_controller menu).
     pub player3_controller_labels: LabelList,
-    /// Label list at IDA 0x748000 (the labels of the player3_buttons menu).
     pub player3_buttons_labels: LabelList,
-    /// Label list at IDA 0x748014 (the labels of the player4_controller menu).
     pub player4_controller_labels: LabelList,
-    /// Label list at IDA 0x748028 (the labels of the player4_buttons menu).
     pub player4_buttons_labels: LabelList,
-    /// Label list at IDA 0x74803C (the labels of the redefine_keys_player1 menu).
     pub redefine_keys_player1_labels: LabelList,
-    /// Label list at IDA 0x748050 (the labels of the redefine_keys_player2 menu).
     pub redefine_keys_player2_labels: LabelList,
-    /// Label list at IDA 0x748064 (the labels of the redefine_keys_player3 menu).
     pub redefine_keys_player3_labels: LabelList,
-    /// Label list at IDA 0x748078 (the labels of the redefine_keys_player4 menu).
     pub redefine_keys_player4_labels: LabelList,
-    /// Label list at IDA 0x74808C (the labels of the view_best_times menu).
     pub view_best_times_labels: LabelList,
-    /// Label list at IDA 0x7480A0 (the labels of the view_best_scores menu).
     pub view_best_scores_labels: LabelList,
-    /// Label list at IDA 0x7480B4 (the labels of the best_times menu).
     pub best_times_labels: LabelList,
-    /// Label list at IDA 0x7480C8 (the labels of the arcade_best_times menu).
     pub arcade_best_times_labels: LabelList,
-    /// Label list at IDA 0x7480DC (the labels of the time_trial_best_times menu).
     pub time_trial_best_times_labels: LabelList,
-    /// Label list at IDA 0x7480F0 (the labels of the arcade_best_scores menu).
     pub arcade_best_scores_labels: LabelList,
-    /// Label list at IDA 0x748104 (the labels of the best_class_scores menu).
     pub best_class_scores_labels: LabelList,
-    /// Label list at IDA 0x748118 (the labels of the best_overall_scores menu).
     pub best_overall_scores_labels: LabelList,
-    /// Label list at IDA 0x74812C (the labels of the menu after the previous one in the menu array).
     pub after_best_overall_scores_labels: LabelList,
-    /// Label list at IDA 0x748140 (the labels of the options menu).
     pub options_labels: LabelList,
-    /// Label list at IDA 0x748154 (the labels of the menu after the previous one in the menu array).
     pub after_options_labels: LabelList,
-    /// Label list at IDA 0x748168 (the labels of the player1_details menu).
     pub player1_details_labels: LabelList,
-    /// Label list at IDA 0x74817C (the labels of the player2_details menu).
     pub player2_details_labels: LabelList,
-    /// Label list at IDA 0x748190 (the labels of the player3_details menu).
     pub player3_details_labels: LabelList,
-    /// Label list at IDA 0x7481A4 (the labels of the player4_details menu).
     pub player4_details_labels: LabelList,
-    /// Label list at IDA 0x7481B8 (the labels of the player_details menu).
     pub player_details_labels: LabelList,
-    /// Label list at IDA 0x7481CC (the labels of the information menu).
     pub information_labels: LabelList,
-    /// Label list at IDA 0x7481E0 (the labels of the load_championship menu).
     pub load_championship_labels: LabelList,
-    /// Label list at IDA 0x7481F4 (the labels of the save_championship menu).
     pub save_championship_labels: LabelList,
-    /// Label list at IDA 0x748208 (the labels of the load_replay menu).
     pub load_replay_labels: LabelList,
-    /// Label list at IDA 0x74821C (the labels of the save_replay menu).
     pub save_replay_labels: LabelList,
-    /// Label list at IDA 0x748230.
     pub labels_748230: LabelList,
-    /// Label list at IDA 0x748244 (the labels of the save_setup menu).
     pub save_setup_labels: LabelList,
-    /// Label list at IDA 0x748258 (the labels of the visual_preferences menu).
     pub visual_preferences_labels: LabelList,
-    /// Label list at IDA 0x74826C (the labels of the visual_options menu).
     pub visual_options_labels: LabelList,
 }
 
@@ -363,7 +266,7 @@ impl LabelTables {
 }
 
 /// The 98 label lists, in the image's order (the first 98 fields of `MenuTables`, one after
-/// the other from IDA 0x747AD8).
+/// the other).
 pub fn label_lists(labels: &LabelTables) -> [&LabelList; 98] {
     [
         &labels.single_rally_review_labels,
@@ -478,8 +381,8 @@ impl LabelList {
         }
     }
 
-    /// Dword `i` set. The font cell holds a font's number: another value is refused (a write
-    /// of the original's reaches the end marks, never a font).
+    /// Dword `i` set. The font cell holds a font's number: another value is refused (a 1999
+    /// write reaches the end marks, never a font).
     fn set_dword(&self, i: usize, v: u32) -> Result<(), crate::errors::BadInput> {
         match i {
             0 => self.label.x.set(v),
@@ -496,7 +399,7 @@ impl LabelList {
 
 impl LabelTables {
     /// The dword at byte `at` of the lists laid end to end (any alignment, over the lists'
-    /// borders, as the original reads them), refused past the 98th list's end.
+    /// borders), refused past the 98th list's end.
     pub fn dword(&self, at: usize) -> Result<u32, crate::errors::BadInput> {
         let lists = label_lists(self);
         let mut bytes = [0; 4];
@@ -537,7 +440,6 @@ impl LabelTables {
     }
 }
 
-/// The number of label lists.
 const LABEL_LIST_COUNT: usize = 98;
 /// A label list's length.
 const LABEL_LIST_LEN: usize = 4 * LABEL_LIST_DWORDS;
@@ -547,14 +449,14 @@ const LABEL_LIST_DWORDS: usize = 5;
 
 const _: () = assert!(LABEL_LIST_DWORDS * 4 == 0x14);
 
-/// Where the original kept the label lists (IDA 0x747AD8 ..): core's menu table names a menu's
+/// The label lists' first address in the game's layout: core's menu table names a menu's
 /// labels by their address there.
 const LABELS_FIRST_ADDRESS: usize = 0x747AD8;
 
 /// The byte `offset` bytes on from the labels of `menu`, as an offset in the label lists
 /// (`MenuTables::labels`, whose bytes the readers and writers are bounded to); None for a menu
-/// without labels. For the original's slip of writing item 1 of the "menu" its labels would be
-/// (`notes/bugs.md`): the place lands in the labels' memory.
+/// without labels. A game slip kept as is: item 1 is written to the "menu" its labels would
+/// be, a place that lands in the labels' memory.
 pub fn labels_slot(menu: MenuId, offset: u32) -> Result<Option<usize>, crate::errors::BadInput> {
     let Some(at) = menu.labels_place()? else {
         return Ok(None);
@@ -564,8 +466,7 @@ pub fn labels_slot(menu: MenuId, offset: u32) -> Result<Option<usize>, crate::er
 
 /// The font of the label whose font field is `at` bytes into the label lists (`screens::
 /// draw_menu_labels` walks them by offset). Refused: a place that is no label's font (the
-/// walk gone off the lists' grid: the original would take what is there for a font object's
-/// address).
+/// walk gone off the lists' grid).
 pub fn label_font(
     labels: &LabelTables,
     at: u32,
@@ -624,21 +525,21 @@ impl MenuItem {
     }
 }
 
-/// The font of the block a font the menus' table names is (its IDA address in a comment).
+/// The font block of a font the menus' table names.
 pub const fn font_of(font: MenuFont) -> FontId {
     match font {
-        MenuFont::Measure => fonts::MEASURE,    // 0x51E824
-        MenuFont::CaptionB => fonts::CAPTION_B, // 0x51E844
-        MenuFont::ArcadeButtonPulse => fonts::ARCADE_BUTTON_PULSE, // 0x51E864
-        MenuFont::StageItemB => fonts::STAGE_ITEM_B, // 0x51E884
-        MenuFont::Title => fonts::TITLE,        // 0x51E8A4
-        MenuFont::ItemPlain => fonts::ITEM_PLAIN, // 0x51E8E4
-        MenuFont::BoxText => fonts::BOX_TEXT,   // 0x51E904
-        MenuFont::Head => fonts::HEAD,          // 0x51E944
-        MenuFont::CaptionA => fonts::CAPTION_A, // 0x51E964
-        MenuFont::ArcadeButton => fonts::ARCADE_BUTTON, // 0x51E984
-        MenuFont::StageTitle => fonts::STAGE_TITLE, // 0x51E9A4
-        MenuFont::ItemGrey => fonts::ITEM_GREY, // 0x51EA04
+        MenuFont::Measure => fonts::MEASURE,
+        MenuFont::CaptionB => fonts::CAPTION_B,
+        MenuFont::ArcadeButtonPulse => fonts::ARCADE_BUTTON_PULSE,
+        MenuFont::StageItemB => fonts::STAGE_ITEM_B,
+        MenuFont::Title => fonts::TITLE,
+        MenuFont::ItemPlain => fonts::ITEM_PLAIN,
+        MenuFont::BoxText => fonts::BOX_TEXT,
+        MenuFont::Head => fonts::HEAD,
+        MenuFont::CaptionA => fonts::CAPTION_A,
+        MenuFont::ArcadeButton => fonts::ARCADE_BUTTON,
+        MenuFont::StageTitle => fonts::STAGE_TITLE,
+        MenuFont::ItemGrey => fonts::ITEM_GREY,
     }
 }
 
@@ -915,8 +816,7 @@ impl MenuId {
         &tables.items[from..to]
     }
 
-    /// Item `number` (from 1). Refused: item 0, for which the original counts through all
-    /// 32 bits, and one past the menu's end (the original reads on into what follows).
+    /// Item `number` (from 1). Refused: item 0 and one past the menu's end.
     pub fn item(
         self,
         tables: &MenuTables,

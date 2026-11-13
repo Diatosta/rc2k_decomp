@@ -1,16 +1,13 @@
-//! The best lists' entry. A best time is 0x9C bytes, and its
-//! first 0x50, `Entry` here, are laid out as the arcade levels' best scores are whole. The
-//! lists are of ten, best first; a new entry goes over the tenth and moves up.
-//!
-//! The levels' best scores (`g_levelBestScores`, 0x7556DC held its block; 0x15E0 bytes in
-//! memory and in `var\hst.dat`): seven groups of ten `Entry`s (the arcade's levels 0 .. 5
-//! and the page of `menu::view_best_scores_loop` that shows "class times").
+//! The best lists' entry: a best time is 0x9C bytes, its first 0x50 (`Entry`) laid out like an
+//! arcade level's best score. Lists are of ten, best first; a new entry goes over the tenth
+//! and moves up. The levels' best scores (0x15E0 bytes in memory and in `var\hst.dat`) are
+//! seven groups of ten `Entry`s (arcade levels 0 .. 5 and the "class times" page).
 
 use crate::menu::bests::NewBest;
 
 pub const ENTRY_LEN: usize = 0x50;
 pub const PER_LIST: usize = 10;
-/// The name's room (+0x20 .. +0x40).
+/// The name's room in bytes.
 pub const NAME_ROOM: usize = 0x20;
 /// What a move takes of a name (and what an entered name gets): its room less the last byte.
 pub const NAME_MOVED: usize = 0x1F;
@@ -18,7 +15,7 @@ pub const NAME_MOVED: usize = 0x1F;
 /// The head of a best entry (0x50 bytes).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Entry {
-    /// +0: -1 ends a list (`rc2k_core::screens::best_scores`); otherwise not used here.
+    /// +0: -1 ends a list.
     pub first: u32,
     /// +4: the player (1 .. 4); 0 for a made-up entry.
     pub player: u32,
@@ -34,14 +31,14 @@ pub struct Entry {
     pub rally_time: u32,
     /// +0x1C: the group.
     pub group: u32,
-    /// +0x20: the name. A made-up entry's fills what its driver's name needs, without a
-    /// NUL; an entered one gets the player's first 0x1F bytes.
+    /// +0x20: the name; a made-up entry's has no NUL, an entered one the player's first 0x1F
+    /// bytes.
     pub name: [u8; NAME_ROOM],
     /// +0x40: 1 for the entry just made.
     pub mark: u32,
     /// +0x44.
     pub figure: u32,
-    /// +0x48: read by no code but as the name's tail (`name_text` reads on into it).
+    /// +0x48: the name's tail (`name_text` reads on into it).
     pub unread_48: u32,
     /// +0x4C: the records' taking part.
     pub entered: u32,
@@ -55,8 +52,7 @@ fn put(b: &mut [u8], at: usize, v: u32) {
     b[at..at + 4].copy_from_slice(&v.to_le_bytes());
 }
 
-/// A field of a best entry, for the lists of fields the original moves when it exchanges
-/// two entries (each list moves some and leaves the others where they are).
+/// A field of a best entry, for the lists of fields an exchange moves.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Field {
     /// +0 (table A's sorts move it).
@@ -135,9 +131,8 @@ impl Entry {
         }
     }
 
-    /// The text the game draws for the name: from +0x20 to the first NUL, which may come
-    /// after the name's room (the original reads on into the mark). None: no NUL before
-    /// the head's end.
+    /// The name's text from +0x20 to the first NUL, which may lie past the name's room. None:
+    /// no NUL before the head's end.
     pub fn name_text(&self) -> Option<Vec<u8>> {
         let mut bytes = self.name.to_vec();
         for v in [self.mark, self.figure, self.unread_48, self.entered] {
@@ -148,9 +143,8 @@ impl Entry {
         Some(bytes)
     }
 
-    /// The head's part of a new entry (`menu::bests::enter_tenth`): the key, group,
-    /// nationality, name pointer, car, the taking part (if any), the player, the mark 1 and
-    /// the name's first bytes. (A best time's seal and line are its tail's.)
+    /// The head of a new entry (`menu::bests::enter_tenth`); a best time's seal and line are
+    /// its tail's.
     pub fn enter(&mut self, best: &NewBest) {
         self.key = best.key;
         self.group = best.group;
@@ -206,8 +200,8 @@ impl Ranked for Entry {
 /// A list of ten.
 pub type List = [Entry; PER_LIST];
 
-/// Entries `a` and `b`'s `fields` and names exchanged as the original does it (the name's
-/// last byte stays); the name through `kept`, which ends with `a`'s.
+/// Exchanges entries `a` and `b`'s `fields` and names (the name's last byte stays); the name
+/// goes through `kept`, which ends with `a`'s.
 pub fn exchange<T: Ranked>(
     list: &mut [T],
     a: usize,
@@ -226,8 +220,8 @@ pub fn exchange<T: Ranked>(
     (list[a], list[b]) = (x, y);
 }
 
-/// The tenth moved up: nine steps from the bottom, each pair exchanged when
-/// `exchange_if(lower's key, upper's key)`; the pair one up is next either way.
+/// Moves the tenth up: nine steps from the bottom, each pair exchanged when
+/// `exchange_if(lower's key, upper's key)`.
 pub fn bubble_up<T: Ranked>(
     list: &mut [T; PER_LIST],
     fields: &[Field],
@@ -254,13 +248,12 @@ pub const SCORE_FIELDS: [Field; 8] = [
     Field::Mark,
 ];
 
-/// An arcade level's ten best scores sorted (a lower score at least the upper's, signed,
-/// moves up).
+/// Sorts an arcade level's ten scores (a lower score at least the upper's, signed, moves up).
 pub fn sort_level_scores(list: &mut List, kept: &mut [u8; NAME_MOVED]) {
     bubble_up(list, &SCORE_FIELDS, |l, u| l as i32 >= u as i32, kept);
 }
 
-/// No entry marked as just made.
+/// Marks no entry as just made.
 pub fn clear_marks<T: Ranked>(list: &mut [T; PER_LIST]) {
     for e in list {
         e.head_mut().mark = 0;
@@ -299,10 +292,8 @@ impl crate::saves::tables::FileTable for LevelScores {
     }
 }
 
-/// The made-up table (`saves::default_class_times`): `entries`
-/// (`defaults::class_times`' seventy, level by level) over `t`: each its score, the
-/// driver's +8 as the group, +0x14 the nationality, +0x18 the car, the name's string id
-/// and the name's bytes.
+/// The made-up table (`saves::default_class_times`): `entries` (seventy, level by level) over
+/// `t`: each its score, group, nationality, car, name id and name.
 pub fn fill_made_up(t: &mut LevelScores, entries: &[(u32, crate::saves::defaults::Driver)]) {
     for (e, (key, d)) in t.levels.as_flattened_mut().iter_mut().zip(entries) {
         e.key = *key;
@@ -314,7 +305,7 @@ pub fn fill_made_up(t: &mut LevelScores, entries: &[(u32, crate::saves::defaults
     }
 }
 
-/// A best time (0x9C bytes): the head, then the seal and the checkpoints.
+/// A best time (156 bytes): the head, then the seal and the checkpoints.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct BestTime {
     pub head: Entry,
@@ -322,7 +313,7 @@ pub struct BestTime {
     pub cheats: u32,
     /// +0x54, +0x58: the sealed time.
     pub sealed: [u32; 2],
-    /// +0x5C: the checkpoint times (the player's line, `menu::bests::LINE_LEN` bytes at its +0x20C).
+    /// +0x5C: the checkpoint times (the player's line).
     pub checkpoints: [u32; CHECKPOINTS],
 }
 
@@ -353,8 +344,7 @@ impl BestTime {
         }
     }
 
-    /// The text the game draws for the name: from +0x20 to the first NUL, which may come
-    /// after the name's room. None: no NUL before the entry's end.
+    /// The name's text from +0x20 to the first NUL. None: no NUL before the entry's end.
     pub fn name_text(&self) -> Option<Vec<u8>> {
         let mut b = [0; TIME_LEN];
         self.write(&mut b);
@@ -362,7 +352,7 @@ impl BestTime {
         Some(text[..text.iter().position(|&c| c == 0)?].to_vec())
     }
 
-    /// The checkpoints as the 0x40 bytes they are (the player's line).
+    /// The checkpoints as the 64 bytes they are (the player's line).
     pub fn line(&self) -> [u8; crate::menu::bests::LINE_LEN] {
         let mut b = [0; crate::menu::bests::LINE_LEN];
         for (n, c) in self.checkpoints.iter().enumerate() {
@@ -371,8 +361,8 @@ impl BestTime {
         b
     }
 
-    /// A new best time (`menu::bests::enter_tenth`): the head's part, and the seal and the
-    /// line when it has them.
+    /// A new best time (`menu::bests::enter_tenth`): the head's part, and the seal and the line
+    /// when it has them.
     pub fn enter(&mut self, best: &NewBest) {
         self.head.enter(best);
         if let Some(seal) = best.seal {
@@ -384,9 +374,8 @@ impl BestTime {
         }
     }
 
-    /// A made-up time (`saves::defaults`): its time (the key, or with `rally` the rally
-    /// time), the driver's +8 as the group, +0x14 the nationality, the cheats 0xB, the
-    /// guessed checkpoints when it has them, the car, the name's string id and its bytes.
+    /// A made-up time (`saves::defaults`): the key or, with `rally`, the rally time; the driver's
+    /// group, nationality, car and name; cheats 0xB; the guessed checkpoints when it has them.
     pub fn fill_made_up(&mut self, e: &crate::saves::defaults::TimeEntry, rally: bool) {
         let h = &mut self.head;
         if rally {
@@ -467,8 +456,7 @@ pub fn rank_record(list: &mut Times, kept: &mut [u8; NAME_MOVED]) {
     bubble_up(list, &RECORD_FIELDS, |l, u| l as i32 <= u as i32, kept);
 }
 
-/// A stage's ten best times: the tenth moved up (a lower time below the upper's,
-/// unsigned).
+/// A stage's ten best times: the tenth moved up (a lower time below the upper's, unsigned).
 pub fn rank_time_trial(list: &mut Times, kept: &mut [u8; NAME_MOVED]) {
     bubble_up(list, &TIME_FIELDS, |l, u| l < u, kept);
 }
@@ -478,28 +466,26 @@ pub fn sort_arcade_times(list: &mut Times, kept: &mut [u8; NAME_MOVED]) {
     bubble_up(list, &TIME_FIELDS, |l, u| l as i32 <= u as i32, kept);
 }
 
-/// The best times of the stages (the championship's: `g_stageBestTimes`, `ChampView.time_trial_best_times`;
-/// the courses': `g_courseBestTimes`, `g_stageBestTimesAlt`): ten for each stage.
+/// The best times of the stages: ten for each stage.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct StageTimes {
     pub stages: Vec<Times>,
 }
 
-/// A stage's ten in the file.
+/// A stage's ten entries in the file, in bytes.
 pub const STAGE_LEN: usize = PER_LIST * TIME_LEN;
 
 impl StageTimes {
-    /// The bytes the game's block had past the table (its pages less its header): what a
-    /// read just past the table finds (zeros).
+    /// The zero bytes the block holds past the table (its pages less its header): what a read
+    /// just past the table finds.
     fn slack(&self) -> usize {
         let len = self.stages.len() * STAGE_LEN;
         let header = crate::memory::HEADER_LEN as usize;
         (len + header).next_multiple_of(0x1000) - header - len
     }
 
-    /// The first dword of entry `n` counted from the first stage's first, as the lists
-    /// read the entry after their ten: past the stages, the block's zeros. None: past the
-    /// block (the original reads memory not its own).
+    /// The first dword of entry `n` counted from the first stage's, for the lists' look past
+    /// their ten: zeros past the stages. None: past the block.
     pub fn first_at(&self, n: usize) -> Option<u32> {
         match self.stages.as_flattened().get(n) {
             Some(e) => Some(e.head.first),

@@ -1,14 +1,7 @@
-//! `install::list_folder_tree` (0x41371C): a folder and everything under it added to the
-//! tables, breadth first. The skip mask (`FindFileData+0x13E`) is set to 0 for the walk
-//! (and put back at the end). The folder is resolved; if not empty it goes into the
-//! folders table (`dir_cursor` its end). Then, starting with that folder and working through every
-//! folder recorded from `dir_scan` to `dir_cursor`, each is searched (`<folder>\*.*`
-//! built in the numbered paths' buffer): a sub-folder (not `.`/`..`) is appended to the folders table
-//! behind its parent, a file to the files table (`file_cursor` its end); the folders table is the
-//! queue. Overflow of either table is fatal error 0x80AF2201 or 0x80AF2202.
-//!
-//! Takes the folder.
-//! Caller `install::run_script` (opcode 4).
+//! A folder and everything under it added to the tables, breadth first (the folders table is the
+//! queue): a sub-folder (not `.` / `..`) is appended behind its parent, a file to the files
+//! table. The skip mask is 0 for the walk and put back at the end. Overflow of either table is
+//! fatal error 0x80AF2201 or 0x80AF2202. Called by `install::run_script` (opcode 4).
 
 use crate::errors::Refused;
 use crate::install::installer::{
@@ -60,8 +53,7 @@ fn walk(
     loop {
         // list the folder
         let mut search_text = folder.clone();
-        // The original tests the byte before its cursor; for an empty folder that is the
-        // byte before the search buffer (not the path's): here an empty folder gets its `\\`.
+        // An empty folder gets its `\` too.
         if folder.last() != Some(&b'\\') {
             search_text.push(b'\\');
         }

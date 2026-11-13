@@ -1,21 +1,15 @@
 //! The options pages' small steps (item and left/right handlers):
-//! - the volume steps (`menu::music_volume_down` 0x467F48 .. `menu_sounds_b_volume_up`
-//!   0x46810A): a work value one less (below 0: 0) or one more (above 0x40: 0x40), signed,
-//!   then: the music's (`option_work.music_level`) into `g_musicVolume` and `sound::set_music_volume`
-//!   (eax the value); the speech's (`option_work.speech_level`) heard with `sound::start_stream` (eax
-//!   the path ";3files\%speech\rally\st1.wav", ecx the value); two of the menu sounds'
-//!   (`audio.levels.sounds_a`, `sounds_b`) into `screen_flow.menu_sounds_volume` and `sound::play_menu_sound`
-//!   with eax 0x10 / 0x20 (the first's) or 0x40 (the second's).
-//! - `menu::next_screen_mode` (0x46FFEF): the chosen screen mode one more, 0 past the
-//!   last mode (signed); `option_work.mode_changed` flipped; leaves eax that flag, ebx the last mode.
-//! - `menu::previous_texture_setting` (0x47012B), `next_texture_setting` (0x47015B):
-//!   `option_work.car_detail` cycled through 0 .. 2 and copied to the texture setting; leave eax it.
-//! - `menu::next_colour_a` .. `previous_colour_b` (0x471AE4, 0x471B16, 0x471B48, 0x471B7A):
-//!   `screen_flow.start_section` (or `start_section_a8`) cycled through 0 .. 6 and the entry
-//!   of the colour list it picks into a caption list slot.
-//! - `menu::apply_audio_choices` (0x470766): the advanced audio page's six work values
-//!   (quality, channels, Dolby, A3D, EAX, DS3D) into `g_audioOptions`' choices,
-//!   `audio::choose_modes`, and the six as applied back.
+//! - the volume steps: a work value one less (below 0: 0) or one more (above 0x40: 0x40),
+//!   signed, then the music's goes into the music volume (`sound::set_music_volume`), the
+//!   speech's is heard (`sound::start_stream`), two of the menu sounds' go into
+//!   `screen_flow.menu_sounds_volume` and are played.
+//! - `menu::next_screen_mode`: the chosen screen mode one more, 0 past the last (signed);
+//!   `option_work.mode_changed` flipped.
+//! - the texture steps cycle `option_work.car_detail` through 0 .. 2 into the texture setting;
+//!   the colour steps cycle `screen_flow.start_section` (or `start_section_a8`) through 0 .. 6
+//!   and put the entry of the colour list it picks into a caption list slot.
+//! - `menu::apply_audio_choices`: the advanced audio page's six work values into the audio
+//!   options' choices, `audio::choose_modes`, and the six as applied back.
 //!
 //! The names of the texture and colour steps are readings of their variables.
 
@@ -25,8 +19,6 @@ use crate::menu::owner::Tables;
 use crate::menu::owner::{Menus, Screens};
 use crate::owners::Owners;
 use crate::session::{DwordLike, PlainDword};
-
-// ---- the volume steps ----
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum Then {
@@ -46,7 +38,6 @@ pub struct Volume<'a> {
 /// One volume step.
 pub fn volume_step(o: Owners<'static>, v: Volume<'_>) {
     let screens = &o.menus.screens;
-    // The logic is in `rc2k_core::menu::steps::volume`.
     let value = rc2k_core::menu::steps::volume(v.value.get() as i32, v.up);
     v.value.set(value as u32);
     match v.then {
@@ -66,12 +57,9 @@ pub fn volume_step(o: Owners<'static>, v: Volume<'_>) {
     }
 }
 
-// ---- the plain steps (no calls) ----
-
 /// `menu::next_screen_mode`: the next screen mode chosen, the changed flag flipped.
 pub fn next_screen_mode(screens: &Screens, gfx: &Gfx) {
     let display = &gfx.display;
-    // The logic is in `rc2k_core::menu::steps::next_mode`.
     let mode = rc2k_core::menu::steps::next_mode(
         display.choices.resolution.get(),
         display.choices.resolutions.get(),
@@ -84,13 +72,12 @@ pub fn next_screen_mode(screens: &Screens, gfx: &Gfx) {
 /// `menu::previous_texture_setting` / `next_texture_setting`: the texture setting one
 /// step down or up.
 pub fn step_texture_setting(screens: &Screens, up: bool, race: &crate::race::owner::Race) {
-    // The logic is in `rc2k_core::menu::steps::texture`.
     let v = rc2k_core::menu::steps::texture(screens.option_work.car_detail.get(), up);
     screens.option_work.car_detail.set(v);
     race.shared.state.settings.car_detail.set(v);
 }
 
-/// One of the two start-section picks (IDA's "colour" choices): (its number, the table, where the pick goes).
+/// One of the two start-section picks: (its number, the table, where the pick goes).
 #[derive(Clone, Copy)]
 pub struct StartPick<'a> {
     pub number: &'a PlainDword,
@@ -116,10 +103,9 @@ pub fn start_pick_b(menus: &Menus) -> StartPick<'_> {
 
 /// `menu::next_colour_a` and the three others.
 pub fn step_start_pick(tables: &Tables, c: StartPick<'_>, up: bool) {
-    // The logic is in `rc2k_core::menu::steps::colour`.
     let n = rc2k_core::menu::steps::colour(c.number.get() as i32, up);
     c.number.set(n as u32);
-    // The original does not check `n` (a number kept in a savegame): the list is the last field
+    // `n` is not checked (a number kept in a savegame): the list is the last field
     // of the captions' record, so a pick past it is read nowhere and ends the program.
     let pick = tables
         .captions
@@ -135,9 +121,7 @@ pub fn step_start_pick(tables: &Tables, c: StartPick<'_>, up: bool) {
     c.pick.set(pick);
 }
 
-// ---- the advanced audio page's choices ----
-
-/// (the work value, its place among `g_audioOptions`' six choices and six applied).
+/// (the work value, its place among the audio options' six choices and six applied).
 fn choices(menus: &Menus) -> [(&PlainDword, usize); 6] {
     let work = &menus.screens.option_work;
     [
@@ -158,8 +142,7 @@ pub fn apply_audio_choices(
         let value = work.get();
         audio.state.audio_options.update(|o| o.choice[n] = value);
     }
-    // `audio::choose_modes` with the game's log (the original's eax there, the last
-    // value copied, is read by none of it).
+    // `audio::choose_modes` with the game's log.
     crate::audio::choose_modes::in_game(audio, &mut crate::audio::choose_modes::real_log)?;
     for (work, n) in choices(menus) {
         work.set(audio.state.audio_options.get().applied[n]);

@@ -1,22 +1,14 @@
-//! `screens::draw_message_box` (0x415EA6): string 0x1FE ("not in this version" and the
-//! like) in a box in the middle of the surface: the string measured (font 0x51E824, x as
-//! the caller's ecx), the box 0x32 wider and 0x19 higher (the first path cell .. the second path cell:
-//! x, y, width, height) filled with colour 1 (`gfx::fill_rect`) and framed with colour 0xA
-//! (`gfx::frame_rect`), both through `g_fontPalettes`, then the string drawn centred (font
-//! 0x51E904).
-//!
-//! Takes the x the measuring starts at.
-//!
-//! Callers: `screens::cheat_locked_note` .. (`screens::note_locked_item_3`, 0x4AAAD5, 0x48ADF2 and
-//! others). Refuses what
-//! `gfx::fill_rect` refuses (a surface of neither 16 nor 32 bits), before anything.
+//! A string ("not in this version" and the like, string 0x1FE) in a box in the middle of the
+//! surface: measured, the box 0x32 wider and 0x19 higher filled and framed, then the string drawn
+//! centred. Takes the x the measuring starts at. Refuses what `gfx::fill_rect` refuses (a surface
+//! of neither 16 nor 32 bits).
 
 use crate::errors::{BadInput, Refused};
 use crate::session::{GameThread, PlainDword};
 use crate::text::draw_text::Canvas;
 use rc2k_core::screens::message_box::{FILL, FRAME, STRING, layout};
 
-/// `dword_52983C` .. `dword_529848`: the box's rectangle (left, top, width, height).
+/// The box's rectangle (left, top, width, height).
 pub static BOX: GameThread<[PlainDword; 4]> = GameThread::new([const { PlainDword::new(0) }; 4]);
 
 pub fn draw_message_box(

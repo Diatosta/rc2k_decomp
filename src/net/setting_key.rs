@@ -1,11 +1,6 @@
-//! `net::setting_key` (0x416C76): a key for the setting being edited (`net::edit_key`); when
-//! that ends the editing: the player's name (item 1) left empty gets its old text back
-//! (`script_path`, 64 bytes); the most players (item 2) read from its text
-//! (`settings::parse_number`), held to 2 .. 8 (signed), and to 4 with `g_noticeKind` 2, into
-//! `most_players`.
-//!
-//! Takes the key.
-//! Caller: `net::settings_loop`.
+//! A key for the setting being edited. When that ends the editing, an empty player name gets
+//! its old text back and the most players is read from its text, held to 2 ..= 8 (4 with the
+//! notice kind 2).
 
 use crate::errors::Refused;
 use crate::install::owner::Install;
@@ -25,7 +20,7 @@ pub fn setting_key(
     if !crate::net::edit_key::edit_key(input, net, install, key, gfx)? {
         return Ok(());
     }
-    // Converted: `rc2k_core::net::chat` (`NAME`, `MOST_PLAYERS`, `most_players`).
+    // The logic is in `rc2k_core::net::chat` (`NAME`, `MOST_PLAYERS`, `most_players`).
     match install.pages.choice.get() {
         chat::NAME => {
             if net.setup().machine_name.get(0) == 0 {

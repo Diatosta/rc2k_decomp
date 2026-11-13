@@ -1,10 +1,5 @@
-//! The sound samples' file names (the text pool the sample records' keys point into and the
-//! speech lists `sound::load_race_sounds` names), out of RAL.EXE's image, typed.
-//! Five lists of names, each a byte buffer (`NameList`): the sample records
-//! (`audio::store::SampleRecords`) name their files by a key, the position of the name in the
-//! five lists read one after the other (`audio::store::name_key`; the original kept the names'
-//! addresses); the co-driver's speech lists are two runs of 95 names. First values the image's
-//! (`tests`).
+//! The sound samples' file names: the text pool the sample records' keys point into and the
+//! speech lists `sound::load_race_sounds` names.
 
 use crate::session::{Bytes, with_runs};
 
@@ -31,8 +26,8 @@ pub enum NameList {
     FemaleSpeech,
     /// The menu speech's first name (`;3files\%speech\rally\rally0.wav`).
     RallySpeech,
-    /// The settings page's speech (`;3files\%speech\rally\st1.wav`, `menu::option_steps`) and
-    /// the names to the end.
+    /// The settings page's speech (`;3files\%speech\rally\st1.wav`, `menu::option_steps`) and the
+    /// names to the end.
     MenuSpeech,
 }
 
@@ -56,8 +51,7 @@ impl NameList {
         }
     }
 
-    /// The key of the list's first name: the keys number the five lists' bytes one after
-    /// the other.
+    /// The key of the list's first name: the keys number the five lists' bytes one after the other.
     pub const fn first_key(self) -> u32 {
         let mut key = FIRST_KEY as usize;
         let mut n = 0;
@@ -69,24 +63,25 @@ impl NameList {
     }
 }
 
-/// IDA's address of the first name: the image's data names the files by address, which
+/// Where the first name lay in the image: the image's data names the files by address, which
 /// `audio::store::name_key` turns into keys.
 pub const FIRST_IDA: u32 = 0x506E6C;
 /// The five lists' bytes in all.
 pub const POOL_LEN: usize = EFFECTS_LEN + 2 * SPEECH_LEN + RALLY_LEN + MENU_LEN;
 
-/// The sound samples' file names (IDA 0x506E6C .. 0x50A7A4).
+/// The sound samples' file names.
 #[derive(rc2k_derive::Cells)]
 pub struct SampleNames {
-    /// 0x506E6C: `aFilesDSndMiscM` ..: the effects', engine, surface and ambience samples' file names (`files\d\snd\..`).
+    /// The effects', engine, surface and ambience samples' file names (`files\d\snd\..`).
     pub effects: Bytes<EFFECTS_LEN>,
-    /// 0x507C1A: `aFilesSpeechMCo`: the male co-driver's 95 file names (`files\%speech\m\..`; `sound::load_race_sounds`).
+    /// The male co-driver's 95 file names (`files\%speech\m\..`; `sound::load_race_sounds`).
     pub male_speech: Bytes<SPEECH_LEN>,
-    /// 0x508914: `aFilesSpeechFCo`: the female co-driver's 95 file names (`..\f\..`).
+    /// The female co-driver's 95 file names (`..\f\..`).
     pub female_speech: Bytes<SPEECH_LEN>,
-    /// 0x50960E: `a3filesSpeechRa_0` ..: the menu speech's file names (`;3files\%speech\rally\..`).
+    /// The menu speech's file names (`;3files\%speech\rally\..`).
     pub rally_speech: Bytes<RALLY_LEN>,
-    /// 0x50962F: `a3filesSpeechRa`: ";3files\%speech\rally\st1.wav", the settings page's speech (`menu::option_steps`); the names go on to the end.
+    /// ";3files\%speech\rally\st1.wav", the settings page's speech (`menu::option_steps`); the
+    /// names go on to the end.
     pub menu_speech_st1: Bytes<MENU_LEN>,
 }
 

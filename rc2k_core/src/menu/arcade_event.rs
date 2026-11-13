@@ -1,6 +1,5 @@
-//! The arcade event (from `menu::arcade_event` 0x487E2C): from the car
-//! choice on, a level after another, six stages a level; a failed race retries the level
-//! from its first stage. Its steps in the original's order, on `Arcade`.
+//! The arcade event: from the car choice on, a level after another, six stages a level; a failed
+//! race retries the level from its first stage. Its steps, on `Arcade`.
 
 use super::leaving::Switch;
 use crate::Invalid;
@@ -25,12 +24,12 @@ pub enum Var {
     Level,
     /// The current player.
     Current,
-    /// `g_yesNoAnswer`.
+    /// The answer to the last yes / no question.
     Answer,
     /// The race's stage and level.
     RaceStage,
     RaceLevel,
-    /// The cheat switch and the cheat bits (`g_cheats`).
+    /// The cheat switch and the cheat bits.
     CheatSwitch,
     Cheats,
     /// The race's result (-1 none).
@@ -40,7 +39,7 @@ pub enum Var {
     RaceFigure000,
     /// A best was made.
     Qualifies,
-    /// Player 0's +0xD0.
+    /// Player 0's `entry` field.
     Player0Entry,
 }
 
@@ -78,7 +77,7 @@ pub enum Step {
     NextLevelReview = 21,
     RetryReview = 22,
     StageReview = 23,
-    /// `menu::show_in_game_options` with the registers the event was entered with.
+    /// `menu::show_in_game_options` with the values the event was entered with.
     ShowInGameOptions = 24,
 }
 
@@ -125,7 +124,7 @@ fn screen<A: Arcade>(e: &mut A, s: Step) -> Result<bool, A::Error> {
     Ok(e.yes())
 }
 
-/// One stage (from the stage screen): where the event goes next.
+/// One stage: where the event goes next.
 fn stage<A: Arcade>(e: &mut A) -> Result<At, A::Error> {
     e.set(Var::Failed, 0);
     if screen(e, Step::NextStageLoop)? {

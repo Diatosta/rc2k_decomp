@@ -1,8 +1,6 @@
-//! The two championships' driver (from `menu::run_championship`
-//! 0x4A0E60 and `menu::run_a8_championship` 0x4AA4D7): a whole championship from its
-//! start or a saved game, section by section and record by record of `g_recordTable`,
-//! with the stages' races, results, services and standings, to its finish. Its steps in
-//! the originals' order, on `flow::Game`; `a8` for the A8's differences.
+//! The two championships' driver: a whole championship from its start or a saved game, section by
+//! section and record by record of the record table, with the stages' races, results, services
+//! and standings, to its finish. Its steps, on `flow::Game`; `a8` for the A8's differences.
 
 use super::flow::{Call, Game, Var};
 use super::leaving::Switch;
@@ -71,7 +69,7 @@ const OVERALL_RALLY: [Call; 3] = [
     Call::ShowOverallRallyResults,
 ];
 
-/// The whole championship. Ends with the in-game options shown from the entry's registers.
+/// The whole championship. Ends with the in-game options shown with the values the entry had.
 pub fn run<G: Game>(e: &mut G, a8: bool) -> Result<(), G::Error> {
     let start_section = Var::StartSection { a8 };
     let next_section = if a8 {

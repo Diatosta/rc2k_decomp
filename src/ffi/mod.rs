@@ -1,5 +1,5 @@
-//! The outside libraries' `unsafe`, behind thin safe wrappers: one module per library
-//! (owner, 2026-11-07). Outside these and the memory primitives no file allows `unsafe`.
+//! The outside libraries' `unsafe`, behind thin safe wrappers: one module per library. Outside
+//! these and the memory primitives no file allows `unsafe`.
 
 #![deny(clippy::undocumented_unsafe_blocks)]
 

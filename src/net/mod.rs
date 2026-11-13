@@ -1,24 +1,14 @@
-//! Network play (DirectPlay), the game's side: its set-up at the start, the receiving
-//! thread, the race's messages and the way out (a reading, not seen in play). `session` is
-//! 1 while a network race runs, `player` is this machine's player (its car's number),
-//! `players` the players. Each race step of the player's
-//! own car (`net::race_step`, from `drive::replay_step`) sends its inputs ('JGSM', every
-//! fourth step), its place and motion ('PGSM', step 2 of 32) and nine more dwords ('XGSM',
-//! step 1 of 256), and applies what the other players sent; a remote car's steps glide
-//! its place to the one received (`net::follow_remote`).
-//! The messages: `net::send_message` puts a sequence byte (`sequence`, counted, top bit
-//! set) and the bytes into `send_buffer` and sends them to everyone (`send_to`) through
-//! DirectPlay (`net::dplay_send`). The receiving thread (`net::receive_thread`, "NETRXTDB";
-//! its loop is `net::take_messages`) keeps each player's in `received`, a block of
-//! 0x804C bytes a player: +0x34 a count, from +0x38 records of 0x100 bytes
-//! (+1 the length, +2 the bytes); `net::copy_received` copies that to +0x4040 under the
-//! mutex (`mutex`) for `net::apply_received`.
-//! The way out: `net::shut_down` (the network ended, the connection destroyed, the two
-//! handles closed).
+//! Network play (DirectPlay), the game's side: set-up at the start, the receiving thread, the
+//! race's messages and the way out. `session` is 1 while a network race runs, `player` is this
+//! machine's player (its car's number), `players` the players. Each race step of the player's own
+//! car (`net::race_step`) sends its inputs ('JGSM', every fourth step), its place and motion
+//! ('PGSM', step 2 of 32) and nine more dwords ('XGSM', step 1 of 256), and applies what the
+//! other players sent; a remote car's steps glide its place to the one received.
 //!
-//! The race's messages, the receiving thread, the way out and the DirectPlay set-up are plain
-//! functions calling each other directly; the screens' loops and frames of the lobby too (no
-//! registers, no calls by place). DirectPlay's methods from Rust (`net::dplay`).
+//! `net::send_message` puts a sequence byte (top bit set) and the bytes into `send_buffer` and
+//! sends them to everyone through DirectPlay. The receiving thread (`net::receive_thread`) keeps
+//! each player's messages in `received`; `net::copy_received` copies them under the mutex for
+//! `net::apply_received`. `net::shut_down` ends the network at the game's end.
 
 use crate::net::store::NetShared;
 use crate::race::owner::Race;
@@ -132,7 +122,7 @@ pub mod take_player_settings;
 pub mod types;
 pub mod unlock_received;
 
-/// Logs as the send functions do: "send x", the player, the step (`log_int_l1_nl`).
+/// Logs as the send functions do: "send x", the player, the step.
 pub fn log_send(race: &Race, vars: &NetShared, text: &std::ffi::CStr) {
     use crate::logfile::log_int::log_int;
     crate::logfile::log_write::log_nul(&text, false, 1);

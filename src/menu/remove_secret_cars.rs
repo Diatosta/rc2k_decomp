@@ -1,21 +1,18 @@
-//! `menu::remove_secret_cars` (0x471BC7): takes the secret cars out of the two lists of
-//! cars that can be chosen, and clears the cheats.
+//! `menu::remove_secret_cars`: takes the secret cars out of the two lists of cars that can be
+//! chosen, and clears the cheats.
 //!
-//! For the list at the second car list and then the one at the A8 championship car list (0x471BEC): the
-//! entries that are not in the list of secret cars `lists.secret_cars` (0x471BAC) are copied
-//! to the scratch list the scratch car list and from there back to the list's start, a -1 put
-//! after them, and the cheats' flags `g_cheats` (0x75870C) set to 0. The lists hold the
-//! addresses of car descriptions; each ends with -1.
+//! For the second car list and then the A8 championship car list: the entries that are not in
+//! the list of secret cars `lists.secret_cars` are copied to the scratch car list and from
+//! there back to the list's start, a -1 put after them, and the cheats' flags set to 0. The
+//! lists hold the handles of car descriptions; each ends with -1.
 //! One caller, `system::load_game_data`, when the setting `allsecretcars` is 0.
-//! Refuses a list without its end within its room, and a list that would be left with no
-//! car at all: the original copies one entry back and then counts through all 32 bits.
+//! Refuses a list without its end within its room, and a list that would be left with no car
+//! at all (the count would run through all 32 bits).
 
 use crate::errors::BadInput;
 use crate::menu::owner::Menus;
 use crate::session::PlainDword;
 use rc2k_core::menu::car_lists;
-
-// ---- game data ----
 
 /// A list of dwords ended by -1: its cells and how many dwords it has room for.
 pub type List<'a> = (&'a [PlainDword], usize);
@@ -49,10 +46,9 @@ pub fn write_list(list: List, entries: &[u32]) {
 }
 
 pub fn remove_secret_cars(menus: &Menus) -> Result<(), BadInput> {
-    // The logic is in `rc2k_core::menu::car_lists` (`entries`, `without_secret`).
     {
         let secret = read_list(secret(menus))?;
-        // Each list read and checked in turn, as the original goes.
+        // Each list is read and checked in turn.
         let scratch = scratch(menus);
         let mut kept = Vec::new();
         for list in [first(menus), second(menus)] {

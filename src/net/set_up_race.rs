@@ -1,15 +1,7 @@
-//! `net::set_up_race` (0x463A94): the network race set up from the players' records: this
-//! machine's player to the view's local car; each player's car (record +1) to
-//! `g_raceCarKinds`, its colours (+2) to `car_colours`, its race number (+6) to
-//! `start_numbers`; the host's (state bit 0x10) stage (+4, low seven bits) to
-//! `g_stageNumber` and direction (+5, bit 0) to `direction`; the run kind 0, `race_cars`
-//! the players, `players` 1, the editor mode 0; the cars' blocks reset (`net::reset_cars`),
-//! `race::set_up_arcade_cars`, `race::set_start_states`; the colours and the race numbers
-//! into the eight cars' stored blocks; the log ("LOADING NETWORK START", the counts, the
-//! cars), the stage loaded (`race::load_stage`), "LOADING NETWORK COMPLETE".
-//!
-//! The players' loop ends on a compare with the count: none, or more than the tables'
-//! eight, would run past them: refused. Caller: `net::lets_rally`.
+//! Sets the network race up from the players' records: each player's car, colours and race
+//! number, the host's stage and direction, the race counts; resets the cars' blocks, sets up the
+//! arcade cars and start states and loads the stage ("LOADING NETWORK START" ..
+//! "LOADING NETWORK COMPLETE"). None or more than eight players are refused.
 
 use crate::errors::Refused;
 use crate::net::lobby::{log_bytes, log_int_nl};
@@ -36,8 +28,9 @@ const COUNTS: [(&std::ffi::CStr, Count); 11] = [
     (c"[shauncarnum8]", Count::Kind(7)),
 ];
 
-/// A count logged: `crate::race::owner::race().shared.view`'s car and player counts, this machine's player (`crate::net::owner::net().vars.player`), or
-/// a car's kind (`crate::race::owner::race().shared.vars.race_car_kinds`).
+/// A count logged: `crate::race::owner::race().shared.view`'s car and player counts, this machine's
+/// player (`crate::net::owner::net().vars.player`), or a car's kind
+/// (`crate::race::owner::race().shared.vars.race_car_kinds`).
 #[derive(Clone, Copy)]
 enum Count {
     RaceCars,
@@ -50,7 +43,7 @@ pub fn set_up_race(
     vars: &NetShared,
     o: crate::owners::Owners<'static>,
 ) -> Result<(), Refused> {
-    // Converted: `rc2k_core::net::record` (`race_players`, `seat`).
+    // The logic is in `rc2k_core::net::record` (`race_players`, `seat`).
     let players = record::race_players(vars.players.get())?;
     race.shared.view.get().local_car.set(vars.player.get());
     for n in 0..players {

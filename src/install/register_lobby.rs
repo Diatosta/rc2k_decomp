@@ -1,13 +1,7 @@
-//! `install::register_lobby` (0x419030): the game registered as a DirectPlay lobby program,
-//! under `HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\DirectPlay\Applications\RC`: the key opened
-//! (`RegCreateKeyA`; failing: nothing more), then five string values set
-//! (`install::set_lobby_value`): `Guid` the application's GUID (`app_guid`) as
-//! `{XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX}` built in `text`, `File` "ral.exe", `CommandLine`
-//! empty, `Path` and `CurrentDirectory` the installed folder (`installed`); the key
-//! closed (`RegCloseKey`).
-//!
-//! Caller `install::install_files`. The registry calls through `api`; the GUID formatting
-//! (0x40171A) done here.
+//! The game registered as a DirectPlay lobby program under
+//! `HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\DirectPlay\Applications\RC`: five string values
+//! (`Guid`, `File`, `CommandLine`, `Path`, `CurrentDirectory`) set with `install::set_lobby_value`.
+//! Called by `install::install_files`.
 
 use crate::errors::Refused;
 use crate::install::read_registry::Registry;
@@ -23,7 +17,6 @@ pub fn register_lobby(
         return Ok(());
     };
     install.run.reg_key.set(key);
-    // Converted: `rc2k_core::install::lobby::guid_text`.
     let guid = rc2k_core::install::lobby::guid_text(&crate::net::store::APP_GUID);
     let mut text = guid.to_vec();
     text.push(0);

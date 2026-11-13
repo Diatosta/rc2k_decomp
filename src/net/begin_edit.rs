@@ -1,17 +1,11 @@
-//! `net::begin_edit` (0x416E1A): an item's text starts being edited: the item (`edited`),
-//! the text (`edit_text`), the widest it may be (`edit_width`) and the font it is
-//! measured with (`edit_font`) noted, and the text's 64 bytes kept (`script_path`) for
-//! Escape.
-//!
-//! Takes `item`, `text`, `width`, `font`.
-//! Callers: `net::begin_setting_edit`, `net::begin_chat`.
+//! Starts editing an item's text: notes the item, text, the widest it may be and its font, and
+//! keeps the text's 64 bytes so Escape can put them back.
 
 use crate::install::owner::Install;
 use crate::net::owner::Net;
 
-/// The texts an edit works on (`crate::net::owner::net().edit().edit_text`, where the original keeps the address): the
-/// settings' machine name, host address and players' count (written into the installer's
-/// first path), and the chat's input line.
+/// The texts an edit works on: the settings' machine name, host address and players' count
+/// (written into the installer's first path), and the chat's input line.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum EditedText {
     MachineName = 1,

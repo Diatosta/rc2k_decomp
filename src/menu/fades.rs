@@ -6,13 +6,12 @@
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::owners::Owners;
 
-// system::tick_count
 const DIVIDE_BY_ZERO: FatalError = FatalError {
     code: 0x80701010,
     message: "",
 };
 
-/// `screens::run_frame` with `menu::fade_frame` (0x4A1E60): the messages, then (unless
+/// `screens::run_frame` with `menu::fade_frame`: the messages, then (unless
 /// quitting) the frame.
 fn frame(o: Owners<'static>) -> Result<(), Refused> {
     match crate::platform::run_frame_now(o, || crate::menu::fade_frame::fade_frame(o)) {
@@ -24,7 +23,6 @@ fn frame(o: Owners<'static>) -> Result<(), Refused> {
 /// A fade: `out` the way.
 pub fn fade(o: Owners<'static>, out: bool) -> Result<(), Refused> {
     let screens = &o.menus.screens;
-    // The logic is in `rc2k_core::menu::fades` (`too_short`, `first_see`, `step`, `over`).
     use rc2k_core::menu::fades::{self, Stop};
     let length: u32 = screens.state.menus.fade_length.get();
     if fades::too_short(length) {
@@ -45,7 +43,7 @@ pub fn fade(o: Owners<'static>, out: bool) -> Result<(), Refused> {
             let gone = crate::system::tick_count::tick_count()
                 .wrapping_sub(screens.state.menus.fade_start.get());
             screens.state.menus.fade_gone.set(gone);
-            // The length and the full see-through read only where the original reads them.
+            // The length and the full see-through are read only where they are needed.
             let made = if gone != 0 || out {
                 fades::step(
                     gone,

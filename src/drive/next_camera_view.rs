@@ -1,11 +1,7 @@
-//! `drive::next_camera_view` (0x43AA38): unless the block's view is held (+0x694), the next view:
+//! Unless the block's view is held (+0x694), the next view:
 //! +0x684 + 1, but views 2 and 3 become 4 when the car has none (`kind_has_views`[car]` 0, or the car
 //! number +0x24 past 0x21) or with two players (`players` 2); 7 and above wrap to 0; into
 //! +0x688, then `drive::set_camera_view`. It is the change-view key's action.
-//!
-//! Takes: the block
-//!
-//! Callers: `drive::read_car_controls`, `race::race_keys`.
 
 use crate::drive::set_camera_view::set_view_at;
 use crate::errors::BadInput;
@@ -15,8 +11,6 @@ use crate::race::owner::Race;
 use crate::session::PlainDword;
 use rc2k_core::drive::camera_views::next_view;
 
-/// On block `car`, the players `players`, the step count `step`.
-// Converted: `rc2k_core::drive::camera_views::next_view`.
 pub fn next_view_at(
     kinds: &KindTables,
     car: &Car,
@@ -36,7 +30,6 @@ pub fn next_view_at(
     set_view_at(car, step)
 }
 
-/// On the block `car`.
 pub fn next_camera_view(race: &Race, car: &Car) -> Result<(), BadInput> {
     let shared = &race.shared;
     next_view_at(

@@ -1,20 +1,15 @@
-//! `menu::calc_cpu_times` (0x470950): the computer drivers' times for the current record
-//! ("CALCCPUTIMES:STARTED" / "FINISHED" logged around it). The record's four times (+0x18
-//! .. +0x24) go into `state.menus.class_times` and are scaled (`menu::scale_stage_times`); its
-//! track pack entry's +0xC goes into `track_length[0]` and its hundredfold / 0x96A into
-//! `track_length[1]`. Then for each class c (0 .. `event.classes`) and each driver of that
-//! class (+8), in order: half the class's time / its driver count (`class_counts`[c]) into
-//! the gap; the draw work's figure gets a random number under 3000, plus (when
-//! `cpu_spread_first` is not 1) one under 1000 times `cpu_spread_step` (then
-//! `cpu_spread_first` is cleared and `cpu_spread_step` goes up by one; when it is 1,
-//! `cpu_spread_step` is cleared); a driver whose +0x24 is 1 gets that plus the class's time
-//! plus the gaps so far into its +0xC, added to its +0x10; the gap added for each driver of
-//! the class.
+//! `menu::calc_cpu_times`: the computer drivers' times for the current record
+//! ("CALCCPUTIMES:STARTED" / "FINISHED" logged around it). The record's four times go into
+//! `state.menus.class_times` and are scaled (`menu::scale_stage_times`); its track entry's length
+//! goes into `track_length[0]` and that x 100 / 0x96A into `track_length[1]`. Then for each class
+//! and each driver of it: half the class's time / its driver count is the gap, a random number
+//! under 3000 (plus, when `cpu_spread_first` is not 1, one under 1000 times `cpu_spread_step`) is
+//! added, and a driver whose +0x24 is 1 gets the class's time plus the gaps so far into its +0xC,
+//! added to its +0x10.
 //!
-//! The random numbers are `math::random_below`'s. Fatal error 0x80701010 as the original's checks (a hundredfold of 0, a
-//! half time of 0: the original tests the dividend), before anything; refuses a record past the
-//! table, a class count of 0 or past 4 (`event.classes` is only ever 4), a class's driver count of 0 (the original's `div`
-//! traps), a drivers table without its end, before anything.
+//! The random numbers are `math::random_below`'s. Fatal error 0x80701010 for a hundredfold of 0
+//! or a half time of 0 (before anything); refuses a record past the table, a class count of 0
+//! or past 4, a class's driver count of 0, and a drivers table without its end.
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::menu::drivers_store::{Driver, IN_EVENT};
 use crate::menu::owner::{Menus, Screens};
@@ -25,7 +20,7 @@ use crate::system::owner::System;
 
 use crate::menu::scale_stage_times::{held_section, scaled};
 
-const TEXTS_RVA: [&std::ffi::CStr; 2] = [c"CALCCPUTIMES:STARTED", c"CALCCPUTIMES:FINISHED"]; // aCalccputimesSt, aCalccputimesFi
+const TEXTS_RVA: [&std::ffi::CStr; 2] = [c"CALCCPUTIMES:STARTED", c"CALCCPUTIMES:FINISHED"];
 
 /// The class time `c`, the class's entry of `class_times`. `event.classes` is only ever the 4 of
 /// `Event::new` (no other writer, no saved copy), so a class is one of the four.
@@ -128,7 +123,6 @@ pub fn calc_cpu_times(menus: &Menus, system: &System, race: &Race) -> Result<(),
     )?;
     screens.state.menus.track_length[0].set(length);
     screens.state.menus.track_length[1].set(length.wrapping_mul(100) / 0x96A);
-    // The logic is in `rc2k_core::menu::event::{Spread, cpu_gap, cpu_time}`.
     use rc2k_core::menu::event::{Spread, cpu_gap, cpu_time};
     for c in 0..classes {
         let mut gaps = 0u32;

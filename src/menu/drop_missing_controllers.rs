@@ -1,4 +1,4 @@
-//! `menu::drop_missing_controllers` (0x4748B6): a car whose number at +0x2C is above
+//! `menu::drop_missing_controllers`: a car whose number at +0x2C is above
 //! the controller count gets 0 there.
 //!
 //! For each of the four players, compared unsigned. A reading of what the two are:
@@ -14,7 +14,6 @@ use crate::menu::player_names::cars;
 
 pub fn drop_missing_controllers(menus: &Menus, input: &Input) -> Result<(), BadInput> {
     let play = &menus.play;
-    // The logic is in `rc2k_core::menu::steps::kept_controller`.
     let most = input.devices.controller_count.get();
     for car in cars(play) {
         let c = car.get().controller;

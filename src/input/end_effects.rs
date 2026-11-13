@@ -1,10 +1,5 @@
-//! `input::end_effects` (0x40F2B8): the race's force feedback ended: both records'
-//! effects asked to stop (`input::stop_effects`).
-//!
-//! See `input/effects.rs`. One caller, `input::device_command` (command 2, the race's
-//! end).
-//!
-//! Its arguments are what it reads.
+//! Ends the race's force feedback (command 2, the race's end): both records' effects asked to
+//! stop (`input::stop_effects`). See `input/effects.rs`.
 
 use crate::errors::Refused;
 use crate::input::owner::Input;

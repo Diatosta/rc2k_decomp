@@ -1,18 +1,10 @@
-//! The developers' "kstar modes" (`g_maskKind`, 0x621870, cycled by a key of the unreached
-//! handler at 0x43AE87; `debug::draw_pages` calls their drawers), as the debug UI's tab. In
-//! RAL.EXE a mode's keys edited one thing at a time; here each is a section:
-//! - 5: the car's faces by group (`g_groupTable`, `scene::car_face_hidden`); the game's own.
-//! - 6: the camera's record (0x43B177, the texts in 0x427DB4).
-//! - 7: the "error list", places kept (`g_errorList`, 0x20 bytes each; the stage's file loads it).
-//! - 8: a car's light places (`g_lightsData`), a flare at the light (`race::car_light_flares`).
-//!   One place a pair: the left is the right's x negated (`light_pair`). The car's real lights
-//!   are copies made at the load (`race::copy_lights_data`), hence "Apply".
-//! - 0xC: the road's height around the car (0x42985B).
-//! - 0x11: the sun's point on the screen (0x428D75).
-//! - 0x12: the course from above (0x42935E; here the checkpoints' line, not its bitmap).
-//!
-//! Not here: 0xB is the "Probe points" box; 3, 9, 0xA draw nothing; 4 reads lists at 0x5EE6B8
-//! nothing writes; 0x10 has only 8's keys. What this tab writes is the game's memory until
+//! The developers' "kstar modes" as the debug UI's tab; each mode is a section: 5 the car's faces
+//! by group, 6 the camera's record, 7 the "error list" (places kept; the stage's file loads it), 8
+//! a car's light places with a flare at the light (one place a pair, the left the right's x
+//! negated; the car's real lights are copies made at the load, hence "Apply"), 0xC the road's
+//! height around the car, 0x11 the sun's point on the screen, 0x12 the course from above (the
+//! checkpoints' line). Not here: 0xB is the "Probe points" box; 3, 9, 0xA draw nothing; 4 reads
+//! lists nothing writes; 0x10 has only 8's keys. What this tab writes is the game's memory until
 //! the stage reloads, as the developers' keys did.
 
 use crate::owners::Owners;
@@ -36,7 +28,6 @@ const ERROR_ENTRIES: usize = 0x100;
 const GROUP_COUNT: usize = 32;
 /// The lights' table: 0x22 models of 12 lights of 3 dwords.
 const LIGHTS_LEN: usize = 0x1320;
-/// The camera views' names, by view number.
 const VIEW_NAMES: [&str; 52] = [
     "bumper",
     "bonnet",
@@ -92,7 +83,7 @@ const VIEW_NAMES: [&str; 52] = [
     "widezoomout",
 ];
 
-/// `off_5EE228`: the lights' names (the rest are "null"; the left ones mirror the right).
+/// The lights' names (the rest are "null"; the left ones mirror the right).
 const LIGHT_NAMES: [&str; 12] = [
     "right head",
     "right spot 1",
@@ -108,8 +99,8 @@ const LIGHT_NAMES: [&str; 12] = [
     "null",
 ];
 
-/// The camera record's figures, as 0x43B177: name, offset; the last is whole.
-/// The record's figures the page edits, by the developers' labels.
+/// The camera record's figures the page edits, by the developers' labels: name, offset; the
+/// last is whole.
 fn camera_figures(r: &ViewRecord) -> [(&'static str, &PlainDword); 12] {
     [
         ("xfoc", &r.focus[0]),
@@ -134,8 +125,8 @@ static SUN: AtomicBool = AtomicBool::new(false);
 /// The last place kept.
 static KEPT: Mutex<usize> = Mutex::new(0);
 
-/// The game's own cell of group `g`'s entry in the car's face table (`g_groupTable` is the
-/// first of a table the face code indexes by group, on past its one named cell).
+/// The game's own cell of group `g`'s entry in the car's face table (the first of a table the
+/// face code indexes by group, on past its one named cell).
 fn group_cell(scene: &Scene, g: usize) -> &crate::session::PlainDword {
     let switches = scene.draw_switches.get();
     match g.checked_sub(1) {
@@ -171,7 +162,6 @@ fn section(ui: &Ui, name: &str) -> bool {
     ui.collapsing_header(name, TreeNodeFlags::NONE)
 }
 
-/// The tab.
 pub fn tab(o: &Owners<'static>, ui: &Ui) {
     let race = o.race;
     mode_choice(&race.shared, ui);
@@ -211,7 +201,7 @@ pub fn tab(o: &Owners<'static>, ui: &Ui) {
     }
 }
 
-/// The value of `g_maskKind` itself: only 5 and 8 change what the game draws.
+/// The mode value itself: only 5 and 8 change what the game draws.
 fn mode_choice(shared: &RaceShared, ui: &Ui) {
     let now = shared.switches.get().mask_kind.get();
     ui.text("The game's own mode:");
@@ -280,7 +270,7 @@ fn kept_places(race: &Race, ui: &Ui) {
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
     if ui.button("Keep the car's place") {
-        // The first free, as the original's key (0x43B0BF).
+        // The first free.
         if let Some(n) = (0..ERROR_ENTRIES).find(|&n| kept(race, n, 0x1C) == 0) {
             let car = first_car(race);
             set_kept(race, n, 0, car.camera_view.get());
@@ -306,7 +296,7 @@ fn kept_places(race: &Race, ui: &Ui) {
         ));
         ui.same_line();
         if ui.button("Go") {
-            // As the original's key (0x43B13E): the car put there.
+            // The car put there.
             let car = first_car(race);
             for (k, place) in car.position.iter().enumerate() {
                 place.set(kept(race, n, 4 + 4 * k));
@@ -353,12 +343,12 @@ fn lights(race: &Race, ui: &Ui) {
         if fixed(ui, label, &mut v) && readable {
             table.set_u32(at, v as u32);
         }
-        // The original's key loop leaves the place where `car_light_flares` reads it.
+        // The place where `car_light_flares` reads it.
         frame.frame_work.get().part_place[k].set(if readable { table.get_u32(at) } else { 0 });
     }
 }
 
-/// A checkpoint's place: the first point of its face (0x42985B).
+/// A checkpoint's place: the first point of its face.
 fn checkpoint_place(race: &Race, n: usize) -> Option<[i32; 3]> {
     let face = race.checkpoints().checkpoint_faces.get(n)?.get();
     let point = crate::race::course_places::face_field::<u32>(race.course.reads(), face, 4).ok()?;

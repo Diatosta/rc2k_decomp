@@ -1,6 +1,5 @@
-//! `strings::hex_append` (0x40211D): appends `digits` uppercase hex digits of a value, MSB first.
-//!
-//! Returns new cursor. More than 8 digits is refused (the only callers ask for 2 and 8).
+//! Appends `digits` uppercase hex digits of a value, most significant first. More than 8 digits is
+//! refused (the only callers ask for 2 and 8).
 
 use crate::errors::BadInput;
 

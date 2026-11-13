@@ -1,13 +1,6 @@
-//! `net::copy_received` (0x4173A0): under the mutex of the received messages
-//! (`net::lock_received` / `net::unlock_received`, `mutex`), each player's
-//! messages as the receiving thread left them (its block in `received`: the count and the
-//! records) copied to `copied_count` and `copied` for `net::apply_received`, the count made 0
-//! and the newest sequence copied to the oldest.
-//! The loop runs at least once (player 0 with no players).
-//!
-//!
-//! See `net/mod.rs`. Two callers: `net::apply_received` and `net::lets_rally`. Refuses
-//! (before anything) more than the 8 players there are blocks for.
+//! Under the received messages' mutex, copies each player's received messages for
+//! `net::apply_received`, then resets the count and moves the newest sequence to the oldest. The
+//! loop runs at least once. Refuses more than the 8 players there are blocks for.
 
 use crate::errors::{BadInput, Refused};
 use crate::net::store::NetShared;
@@ -24,7 +17,7 @@ pub fn copy_received(vars: &NetShared) -> Result<(), Refused> {
     lock_received::lock_received(vars);
     let mut player = 0u32;
     loop {
-        // Converted: `rc2k_core::net::inbox::hand_over`, on the inbox.
+        // The logic is in `rc2k_core::net::inbox::hand_over`, on the inbox.
         let at = vars.player_block(player)?;
         let mut inbox = at.inbox();
         let (handed, records) = inbox::hand_over(&mut inbox);

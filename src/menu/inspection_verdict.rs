@@ -1,4 +1,4 @@
-//! `menu::inspection_verdict` (0x4A1952): the current player's (`event.current_player`) inspection
+//! `menu::inspection_verdict`: the current player's (`event.current_player`) inspection
 //! verdict. The penalties (the penalties ..) of its inspected parts at or past their
 //! limits whose flag in the service box flags (index + 2) is 0 added into `draw_work.figure`; 100
 //! less that into the inspection score; the player's +0xD0 1 when that is at least 100 (no
@@ -14,7 +14,6 @@ pub fn inspection_verdict(menus: &Menus) -> Result<(), Refused> {
     if n >= 4 {
         return Err(BadInput("a current player past 3 or missing").into());
     }
-    // The logic is in `rc2k_core::menu::inspection::verdict`.
     let p = player(menus, n);
 
     let fault = crate::menu::event_flow::Fault::default();

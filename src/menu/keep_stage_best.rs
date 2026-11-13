@@ -1,4 +1,4 @@
-//! `menu::keep_stage_best` (0x48E02D): when the current player's +0x94 is above (signed)
+//! `menu::keep_stage_best`: when the current player's +0x94 is above (signed)
 //! the chosen stage record's +0x2C, the record takes it: +0x2C that, +0x9C the player's
 //! nationality (+4), +0xA0 the car (+8), and the 0x20 bytes of the player's name (at
 //! +0x18) at +0x7C.
@@ -21,7 +21,6 @@ pub fn keep_stage_best(
     use rc2k_core::menu::bests;
     let record = stage_record(menus, system)?;
     let p = current_player(menus)?;
-    // The logic is in `rc2k_core::menu::bests::takes_record`.
     let figure = p.get().figure;
     if !bests::takes_record(
         figure,

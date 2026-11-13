@@ -1,20 +1,17 @@
-//! The menus: `screens::draw_menu_labels` 0x471EF0 (a menu's fixed
-//! labels), `screens::draw_menu_item_text` 0x471E99 (an item's text, spaced out or not) and
-//! `screens::draw_menu_items` 0x471D0A (the items: what is behind each, then its text). The
-//! fonts are the menu tables' own (the screen's font type).
+//! The menus: a menu's fixed labels, an item's text (spaced out or not) and the items (what is
+//! behind each, then its text).
 
 use crate::Invalid;
 use crate::screens::screen::{Buffer, Screen};
 
-/// The work variable of the spaced-out text.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Work {
     /// The spaced-out text's font.
     SpacedFont,
-    /// `g_markerX`, `g_markerY`: where the item's text went.
+    /// Where the item's text went (the marker's x and y).
     MarkerX,
     MarkerY,
-    /// `DrawWork.drawing_highlighted_item`: 1 while the highlighted item is drawn.
+    /// 1 while the highlighted item is drawn.
     Highlighted,
 }
 
@@ -27,7 +24,7 @@ pub struct Label<F> {
     pub id: u32,
 }
 
-/// The labels, each a string.
+/// Draws the labels, each a string.
 pub fn labels<S: Screen>(s: &mut S, labels: &[Label<S::Font>]) -> Result<(), S::Error> {
     for l in labels {
         s.string(l.font, l.id, l.x, l.y)?;
@@ -35,18 +32,15 @@ pub fn labels<S: Screen>(s: &mut S, labels: &[Label<S::Font>]) -> Result<(), S::
     Ok(())
 }
 
-/// The line buffer's length: `Buffers.text.cells` (the one-character text) follows it.
+/// The line buffer's length; the one-character text follows it.
 const LINE_LEN: usize = 0x100;
 
-/// An item's text: one string, or with `spaced` one character at a time 18 pixels apart
-/// from x - 26, each through a one-character text in `Buffers.text.cells`, the font kept
-/// (`font_value`: the font's number). The string is put in the line buffer with its NUL
-/// and read from there: the first character is drawn even when it is an empty string's
-/// NUL, and then the loop goes on into what the line buffer held after it (`after(n)`,
-/// asked for each byte past the string the original reads, n < 0x100). At the buffer's end
-/// it reads the one-character text: its first byte the character drawn last, then the 0
-/// written over it. Refused: a string of 0x100 bytes or more with its NUL.
-#[allow(clippy::too_many_arguments)] // the item's id, fonts, position and spacing, as the original takes them
+/// An item's text: one string, or with `spaced` one character at a time 18 pixels apart from
+/// x - 26 through a one-character text, the font kept (`font_value`). The string is read with
+/// its NUL: an empty string's NUL is still drawn, then the loop goes on into what the line
+/// buffer held after it (`after(n)`, n < 0x100; past the buffer, the one-character text).
+/// Refused: a string of 0x100 bytes or more with its NUL.
+#[allow(clippy::too_many_arguments)] // the item's id, fonts, position and spacing
 pub fn item_text<S: Screen<Work = Work>>(
     s: &mut S,
     id: u32,
@@ -72,8 +66,7 @@ pub fn item_text<S: Screen<Work = Work>>(
     let mut x = x.wrapping_sub(0x1A);
     let mut place = 0usize;
     loop {
-        // The one-character text is cleared before the byte is read: past the buffer the
-        // byte is that text's own, so 0.
+        // Cleared before the byte is read: past the buffer the byte is that text's own, so 0.
         let character = if place < LINE_LEN { byte(place) } else { 0 };
         s.store(Buffer::Cells, &[character, 0, 0, 0])?;
         s.draw(font, Buffer::Cells, x, y)?;
@@ -90,17 +83,17 @@ pub fn item_text<S: Screen<Work = Work>>(
     }
 }
 
-/// What is behind an item's text (its +0x1C).
+/// What is behind an item's text: nothing, or one of the buttons below.
 pub const NOTHING: u32 = 0xFFFF_FFA9;
 pub const OWN_BUTTON: u32 = 0xFFFF_FFA5;
 pub const RIGHT_BUTTON: u32 = 0xFFFF_FFA7;
 pub const CENTRED_BUTTON: u32 = 0xFFFF_FFA6;
-/// Nothing either, but only looked at when the item is not highlighted; as a highlighted
-/// item's sprite (+0x20): nothing at all behind it.
+/// Also nothing, looked at only when the item is not highlighted; as a highlighted item's sprite
+/// it means nothing at all behind it.
 pub const NOTHING_EITHER: u32 = 0xFFFF_FFAA;
 
 /// What an item's +0x20 holds: a sprite number, or for a button one of the menus' lists of
-/// five sprite numbers (the original kept the list's address there).
+/// five sprite numbers.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ItemSprite {
     Number(u32),
@@ -118,24 +111,24 @@ pub struct Item<F> {
     pub text_y: u32,
     /// +0x10: highlighted when it is the current item.
     pub kind: u32,
-    /// +0x14.
+    /// The item's text string.
     pub id: u32,
-    /// +0x18, and +0x50 the highlighted item's second font.
+    /// The item's font; `pulse_font` is the highlighted item's second font.
     pub font: F,
     pub pulse_font: F,
-    /// +0x1C, +0x20.
+    /// What is behind the text (`NOTHING` and the buttons).
     pub behind: u32,
     pub sprite: ItemSprite,
-    /// +0x58 is 1.
+    /// The text is drawn spaced out.
     pub spaced: bool,
 }
 
 /// The buttons behind the texts.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TextButton {
-    /// Right-aligned, as wide as the text (`ALT`).
+    /// Right-aligned, as wide as the text.
     Right,
-    /// Centred (`PLAIN`).
+    /// Centred.
     Centred,
     /// The highlighted item's, right-aligned or centred.
     HighlightedRight,
@@ -144,19 +137,18 @@ pub enum TextButton {
 
 /// What the items' drawing asks of the game beside the screen.
 pub trait MenuScreen: Screen<Work = Work> {
-    /// Item `n`'s own button (`screens::draw_item_button`).
+    /// Item `n`'s own button.
     fn own_button(&mut self, n: usize) -> Result<(), Self::Error>;
-    /// A button as wide as item `n`'s text (`screens::draw_text_button`).
+    /// A button as wide as item `n`'s text.
     fn text_button(&mut self, button: TextButton, n: usize) -> Result<(), Self::Error>;
-    /// The font blended between two by the time since the last key (`text::blend_font`).
+    /// The font blended between two by the time since the last key.
     fn blended(
         &mut self,
         since_key: u32,
         a: Self::Font,
         b: Self::Font,
     ) -> Result<Self::Font, Self::Error>;
-    /// A sprite list drawn where a sprite number is drawn (the original passed the list's
-    /// address as the number).
+    /// A sprite list drawn where a sprite number is drawn.
     fn list_sprite(&mut self, list: usize, x: i32, y: i32) -> Result<(), Self::Error>;
     /// A font as the work variable keeps it (its number).
     fn font_value(&self, f: Self::Font) -> u32;
@@ -175,15 +167,11 @@ fn draw_sprite<S: MenuScreen>(
     }
 }
 
-/// The items. `current` is the highlighted item's kind, `since_key` the
-/// time since the last key (0 while the blink is off). `after` as for `item_text`.
+/// The items. `current` is the highlighted item's kind, `since_key` the time since the last key
+/// (0 while the blink is off). `after` as for `item_text`.
 ///
-/// The original hands each sprite a palette (its own number, or for the highlighted item
-/// the font of the item before, or for the first none) and each text button's
-/// measuring an x (the text x of the item before, or none). Neither is looked
-/// at: the menu sprites are direct colour (`gfx::build_menu_sprites` checks) and a measured
-/// width does not depend on where the measuring starts (`screens::buttons` checks the
-/// measuring font only measures).
+/// Sprites take no palette and text buttons' measuring no x: menu sprites are direct colour and
+/// a measured width does not depend on where measuring starts.
 pub fn items<S: MenuScreen>(
     s: &mut S,
     items: &[Item<S::Font>],

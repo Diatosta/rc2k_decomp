@@ -1,4 +1,4 @@
-//! `menu::clear_result_slots` (0x470DDA): the four players' fourteen result slots
+//! `menu::clear_result_slots`: the four players' fourteen result slots
 //! (+0x98 .. +0xCC) and every driver's (+0x5C .. +0x90) emptied: -1, but 0 in the seventh
 //! and the last (two groups of six sections' points and their total).
 //!

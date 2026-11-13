@@ -1,8 +1,5 @@
-//! `net::settings_link` (0x416EEC): Enter on the settings screen's connection: the
-//! connections listed (`net::find_connections_regs`), one chosen (`net::choose_connection`)
-//! and kept (`net::keep_connection`); then the network stopped again (`net::stop`).
-//!
-//! Caller: `net::settings_loop`. Long-running (a list screen).
+//! Enter on the settings screen's connection: lists the connections, lets one be chosen and
+//! keeps it; then stops the network again. A list screen, so it runs long.
 
 use crate::errors::Refused;
 use crate::race::viewer_screen_store::NetTexts;

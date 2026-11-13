@@ -1,9 +1,6 @@
-//! `install::key_number` (0x4147DC): a number key (2 .. 0xA) on an item (`[item] & 0xF`):
-//! kind 2 that choice (`install::choice_by_number`), kind 3 that eighth of the value's
-//! span (`install::value_by_number`); the number is the key less 2.
-//!
-//! Takes the key, item. Returns the key less 2, kind.
-//! Caller `install::page_key`, reading zero.
+//! A number key (2 .. 0xA) on an item: kind 2 that choice (`install::choice_by_number`), kind 3
+//! that eighth of the value's span (`install::value_by_number`); the number is the key less 2.
+//! Called by `install::page_key`.
 
 use crate::errors::Refused;
 use crate::install::key_up::item_key;
@@ -16,7 +13,6 @@ pub fn key_number(
     key: u32,
     item: ListItem,
 ) -> Result<bool, Refused> {
-    // Converted: `rc2k_core::install::items` (`number_of_key`, `ItemKey::helper`).
     let number = rc2k_core::install::items::number_of_key(key as u8);
     item_key(install, item, ItemKey::Number, number)
 }

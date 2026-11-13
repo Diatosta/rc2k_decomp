@@ -1,30 +1,21 @@
-//! Made-up best times and scores, for a game without `var\hst.dat`
-//! (from `saves::default_stage_times` 0x47C7FE, `default_stage_times_alt` 0x47C86F,
-//! `default_class_times` 0x47C8E3, `default_best_scores` 0x47C923,
-//! `default_championship_times` 0x47C973, `default_checkpoint_times` 0x47CA46, and their
-//! plain helpers `default_time_entry` 0x47CB74, `saves::random_driver`, 0x47CDA7,
-//! `physics::guess_checkpoint_times` 0x4650F6).
+//! Made-up best times and scores, for a game without `var\hst.dat`.
 //!
-//! Every entry gets a random driver (one of the 180 drivers' records: three of its dwords,
-//! the id of its name's string and the name). A time entry (0x9C bytes) may also get the
-//! checkpoint times guessed from its time, while the game's switch for them is on; the
-//! guessing writes some twenty-six pieces to the game's log each time.
-//!
-//! Everything is worked out before anything is written: a refusal leaves the tables as
-//! they were (the original could stop half way).
+//! Every entry gets a random driver. A time entry may also get checkpoint times guessed from
+//! its time, while the game's switch for them is on. Everything is worked out before anything
+//! is written: a refusal leaves the tables as they were.
 
 use crate::Invalid;
 
 /// A time entry's length.
 pub const ENTRY_LEN: usize = 0x9C;
-/// A stage's ten time entries.
+/// A stage's ten time entries, in bytes.
 pub const STAGE_LEN: usize = 10 * ENTRY_LEN;
 /// The stages a stage table has room for.
 pub const STAGE_ROOM: u32 = 36;
 /// A rally's table: twenty time entries.
 pub const RALLY_ENTRIES: usize = 20;
 pub const RALLY_TABLE_LEN: usize = RALLY_ENTRIES * ENTRY_LEN;
-/// The rallies' tables.
+/// The number of rallies with a table.
 pub const RALLIES: usize = 6;
 pub const CHECKPOINTS: usize = 16;
 /// The last stage with a checkpoint count; past it the guesses are all 0.
@@ -35,10 +26,10 @@ const SLACK: u32 = 0x5DC0;
 const DRIVER_DRAW: u32 = 0xAA;
 const SCORE_DRAW: u32 = 0xB3;
 
-/// The texts the guessing writes to the log (the game's own; the adapter knows where).
+/// The texts the guessing writes to the log.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Text {
-    /// A line of dashes, before.
+    /// A line of dashes, before the guess.
     Dashes,
     /// "guesscheckpointtimes:start"
     Start,
@@ -64,7 +55,7 @@ pub enum Piece {
 /// What an entry takes from a driver's record.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Driver {
-    /// The record's +8, +0x14, +0x18.
+    /// Fields +8, +0x14, +0x18 of the driver's record.
     pub fields: [u32; 3],
     pub name_id: u32,
     /// Without a NUL; at most 0x20 bytes (the adapter refuses longer).
@@ -77,12 +68,12 @@ pub trait Source {
     fn below(&mut self, limit: u32) -> Result<u32, Invalid>;
     /// Driver `number`'s record (refused past the 180).
     fn driver(&mut self, number: u32) -> Result<Driver, Invalid>;
-    /// How many checkpoints `stage` (at most 0x24) has.
+    /// How many checkpoints `stage` (at most 36) has.
     fn checkpoint_count(&mut self, stage: u32) -> u32;
     fn log(&mut self, piece: Piece);
 }
 
-/// A championship record (0xA4 bytes) as these functions read it.
+/// A championship record (164 bytes) as these functions read it.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Record {
     /// +0: 0 a stage, 3 or 4 a rally's end.
@@ -101,8 +92,7 @@ fn put(bytes: &mut [u8], at: usize, value: u32) {
     bytes[at..at + 4].copy_from_slice(&value.to_le_bytes());
 }
 
-/// `physics::guess_checkpoint_times`: checkpoint n of `count` at `time` * (n + 1) / count,
-/// the rest 0.
+/// Checkpoint n of `count` at `time` * (n + 1) / count, the rest 0.
 pub fn guess_checkpoints(time: u32, count: u32) -> [u32; CHECKPOINTS] {
     let mut guessed = [0; CHECKPOINTS];
     for (n, g) in guessed.iter_mut().enumerate().take(count as usize) {
@@ -120,7 +110,7 @@ pub struct TimeEntry {
 }
 
 impl TimeEntry {
-    /// Into its 0x9C bytes, the time at `time_at` (+0x14 in a stage's table, +0x18 in a
+    /// Into its 0x9C bytes; the time goes at `time_at` (+0x14 in a stage table, +0x18 in a
     /// rally's).
     pub fn write(&self, entry: &mut [u8], time_at: usize) {
         put(entry, time_at, self.time);
@@ -138,14 +128,13 @@ impl TimeEntry {
     }
 }
 
-/// A random driver (`saves::random_driver`).
+/// A random driver.
 fn random_driver(src: &mut dyn Source) -> Result<Driver, Invalid> {
     let number = src.below(DRIVER_DRAW)?;
     src.driver(number)
 }
 
-/// `saves::default_time_entry`: with `with_checkpoints` the guess (logged), then the
-/// driver.
+/// A time entry: with `with_checkpoints` the guessed checkpoints (logged), then the driver.
 pub fn time_entry(
     src: &mut dyn Source,
     time: u32,
@@ -202,7 +191,7 @@ fn entries(
         .collect()
 }
 
-/// Entries for one table: where the first goes (its number), and where an entry's time is.
+/// Where the first entry goes (its number) and where an entry's time is.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Block {
     /// 0: the function's own table; 1 .. 6: the rallies' tables.
@@ -222,16 +211,16 @@ impl Block {
     }
 }
 
-/// What a function of the time tables leaves: its blocks in order (a later one may cover
-/// an earlier one) and the game's work variables as it ends.
+/// What a function of the time tables leaves: its blocks in order (a later one may cover an
+/// earlier one) and the work variables as it ends.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Filled {
     pub blocks: Vec<Block>,
-    /// `seconds` (0x7559AC).
+    /// The `seconds` work variable.
     pub seconds: u32,
     /// `DrawWork.scratch_b0`, when the function writes it.
     pub sum: Option<u32>,
-    /// The last guess (the game's 16 dwords at 0x71C7C0), when one was made.
+    /// The last guess, when one was made.
     pub checkpoints: Option<[u32; CHECKPOINTS]>,
 }
 
@@ -253,10 +242,9 @@ impl Filled {
     }
 }
 
-/// `default_stage_times` (`stage` its argument) and `default_stage_times_alt` (`stage` None:
-/// each record's pick): for each table's records 1 .. 6, ten entries at the record's
-/// time + 24 s, 0x8B apart, in the ten its +0x3C picks. `tables` holds the six tables'
-/// records 1 .. 6.
+/// For each table's records 1 .. 6, ten entries at the record's time + 24 s, 0x8B apart, in the
+/// ten its +0x3C picks; `stage` is the stage, or None for each record's own pick. `tables` holds
+/// the six tables' records 1 .. 6.
 pub fn stage_times(
     src: &mut dyn Source,
     tables: &[[Record; 6]],
@@ -285,19 +273,17 @@ pub fn stage_times(
 /// Which of the two championship functions.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Championship {
-    /// `default_championship_times`: the record's +0x24, the stage for the checkpoints
-    /// the caller's argument, and the rallies' tables filled.
+    /// The record's +0x24, the stage for the checkpoints the caller's argument, the rallies'
+    /// tables filled.
     Times { stage: u32 },
-    /// `default_checkpoint_times`: the record's +0x18, the stage its track; the rallies'
-    /// sum made and thrown away.
+    /// The record's +0x18, the stage its track; the rallies' sum made and thrown away.
     Checkpoints,
 }
 
-/// The championship's stages (the records of `records`, up to its end, with tag 0): ten
-/// entries each from the record's time + 24 s, 0x9F apart; then the records again,
-/// adding up each stage's +0x18 + 0xB6, and at each rally's end (tag 3 or 4) the sum
-/// used (`Times`: twenty entries of the next rally's table from the sum, 0xB2 apart, the
-/// time at +0x18) and started again. `rally_tables`: which of the six tables are there.
+/// The championship's stages (`records` up to its end, tag 0): ten entries each from the
+/// record's time + 24 s, 0x9F apart; then, adding up each stage's +0x18 + 0xB6, at each rally's
+/// end (tag 3 or 4) the sum is used (`Times`: twenty entries of the next rally's table, 0xB2
+/// apart, the time at +0x18) and restarted. `rally_tables`: which of the six tables exist.
 pub fn championship_times(
     src: &mut dyn Source,
     records: &[Record],
@@ -362,8 +348,7 @@ pub fn championship_times(
     Ok(filled)
 }
 
-/// `default_class_times`: seven groups of ten, from 100,000 down by 0xAB3, each with a
-/// random driver.
+/// Seven groups of ten, from 100,000 down by 0xAB3, each with a random driver.
 pub fn class_times(src: &mut dyn Source) -> Result<Vec<(u32, Driver)>, Invalid> {
     let mut entries = Vec::new();
     for _ in 0..7 {
@@ -374,10 +359,9 @@ pub fn class_times(src: &mut dyn Source) -> Result<Vec<(u32, Driver)>, Invalid> 
     Ok(entries)
 }
 
-/// `default_best_scores`: five groups of ten, scores 50 down to 41. Each entry draws a
-/// number under 0xB3; in groups 0 .. 3 it is thrown away and the driver is one of the
-/// group's `counts[group]` from `firsts[group]` on (0x47CDA7). Refuses (before any
-/// draw) a group without drivers (the original divides by 0).
+/// Five groups of ten, scores 50 down to 41. Each entry draws a number under 0xB3; in groups
+/// 0 .. 3 it is thrown away and the driver is one of the group's `counts[group]` from
+/// `firsts[group]` on. Refused (before any draw): a group without drivers.
 pub fn best_scores(
     src: &mut dyn Source,
     counts: [u32; 4],

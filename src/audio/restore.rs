@@ -1,13 +1,12 @@
-//! Lost buffers restored, and the mixer's primary buffer closed:
-//! `audio::restore_buffer`, `replay_looping`, `restore_lost`, `close_primary_mixer`. Their
-//! calls go through a `Part` (the buffer's place and the voice -> the carry), so that the tests can
-//! stand them in.
+//! Lost buffers restored, and the mixer's primary buffer closed: `audio::restore_buffer`,
+//! `replay_looping`, `restore_lost`, `close_primary_mixer`. Their calls go through a `Part`, so
+//! that the tests can stand them in.
 
 use crate::audio::own::{AudioOwn, AudioThread};
 use crate::errors::{BadInput, Refused};
 use crate::system::owner::System;
 
-/// `restore_buffer` of the buffer `buffer`: true when it failed (the carry).
+/// `restore_buffer` of the buffer `buffer`: true when it failed.
 fn restore_failed(state: &AudioOwn, buffer: u32) -> Result<bool, Refused> {
     Ok(restore_buffer(state, buffer)?.carry)
 }
@@ -17,12 +16,13 @@ fn refill_failed(state: &AudioOwn, n: usize) -> Result<bool, Refused> {
     crate::audio::fill_buffer::fill_buffer(state, &state.voices[n].get())
 }
 
-/// `audio::make_primary` on the game's variables: true when it failed (the carry).
+/// `audio::make_primary`: true when it failed.
 pub fn make_primary_failed(audio: &AudioThread, system: &System) -> Result<bool, Refused> {
     Ok(!crate::audio::primary::make_primary(audio, system)?)
 }
 
-/// What `restore_buffer` leaves: the carry, and the status and the `Restore` result where it changes them.
+/// What `restore_buffer` leaves: failure, and the status and the `Restore` result where it changes
+/// them.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Restored {
     pub carry: bool,
@@ -30,9 +30,8 @@ pub struct Restored {
     pub status: Option<u32>,
 }
 
-/// `audio::restore_buffer`: the buffer `b`, if any: `GetStatus` (+0x24, giving the
-/// status); lost: `Restore` (+0x50), whose failure sets
-/// the lost flag and the carry. Refuses A3D (0x40CB0A).
+/// The buffer `b`, if any: its status is read; lost: `Restore`, whose failure sets the lost flag
+/// and fails. Refuses A3D.
 pub fn restore_buffer(state: &AudioOwn, b: u32) -> Result<Restored, Refused> {
     if crate::audio::buffer_settings::a3d(state) {
         return Err(BadInput("A3D (0x40CB0A)").into());
@@ -49,7 +48,6 @@ pub fn restore_buffer(state: &AudioOwn, b: u32) -> Result<Restored, Refused> {
         // A failed call leaves the status 0.
         let status = crate::platform_sound::status(b).unwrap_or(0);
         left.status = Some(status);
-        // Converted: `rc2k_core::audio::buffers::needs_restore`.
         if !rc2k_core::audio::buffers::needs_restore(status) {
             return Ok(left);
         }
@@ -65,11 +63,9 @@ pub fn restore_buffer(state: &AudioOwn, b: u32) -> Result<Restored, Refused> {
     Ok(left)
 }
 
-/// `audio::replay_looping`: each playing voice (the list at `g_playingVoices`, linked at
-/// +0x48) whose +0x3C is 2 and that has a buffer (+8) played again (`play_buffer`).
+/// Each playing voice that has a buffer and is looping is played again.
 pub fn replay_looping(audio: &AudioThread) -> Result<(), Refused> {
-    // Converted: `rc2k_core::audio::voices::sounding_to_replay` (the list is walked before
-    // any is played, so a list without its end plays none).
+    // The list is walked before any is played, so a list without its end plays none.
     let lists = rc2k_core::audio::voices::Lists {
         playing: audio.state.playing_voices.get(),
         ..Default::default()
@@ -84,9 +80,9 @@ pub fn replay_looping(audio: &AudioThread) -> Result<(), Refused> {
     Ok(())
 }
 
-/// `audio::restore_lost`: a second's wait; with the window active: the flag cleared, the
-/// primary buffer and each voice's buffer restored (and the voice's refilled), the primary
-/// played, the looping voices replayed. A failure ends it. Refuses A3D (0x40CB0A).
+/// A second's wait; with the window active: the flag cleared, the primary buffer and each voice's
+/// buffer restored (and the voice's refilled), the primary played, the looping voices replayed. A
+/// failure ends it. Refuses A3D.
 pub fn restore_lost(audio: &AudioThread, system: &System) -> Result<(), Refused> {
     let state = &audio.state;
     if crate::audio::buffer_settings::a3d(state) {
@@ -109,13 +105,11 @@ pub fn restore_lost(audio: &AudioThread, system: &System) -> Result<(), Refused>
     replay_looping(audio)
 }
 
-/// `audio::close_primary_mixer` on the game's variables: the channels cleared; in the
-/// mixer's mode with a DirectSound: `release_primary`, cooperative level 3, `make_primary`.
-/// The carry it leaves: `make_primary`'s, when that ran.
+/// The channels cleared; in the mixer's mode with a DirectSound: `release_primary`, cooperative
+/// level 3, `make_primary`. Returns failure of `make_primary`, when that ran.
 pub fn close_primary_mixer(audio: &AudioThread, system: &System) -> Result<bool, Refused> {
     let state = &audio.state;
     crate::audio::clear_channels::clear_channels(audio);
-    // Converted: `rc2k_core::audio::buffers::remakes_primary`.
     if !rc2k_core::audio::buffers::remakes_primary(state.sound_mode.get(), || {
         state.direct_sound.get()
     }) {

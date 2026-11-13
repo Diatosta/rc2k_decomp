@@ -6,10 +6,9 @@ use crate::owners::Owners;
 use crate::records::stages_store::{RecordRef, RecordTable};
 use crate::screens::text_buffers_store::TextBuffers;
 
-/// `screens::pick_player_1` .. `_4` (0x46AEC5, 0x46AF21, 0x46AF58, 0x46AF8F): player `n`
-/// the current one, its +0x2C into `event.picked_controller` and its 0x2C bytes at
-/// +0x50 into the page's copy (`keys.tables.controls`). Refuses (before
-/// anything) a player without its record.
+/// Player `n` (1 to 4) becomes the current one, its controller goes into `event.picked_controller`
+/// and its 0x2C bytes of bindings into the page's copy (`keys.tables.controls`). Refuses a player
+/// without its record.
 pub fn pick_player(menus: &Menus, n: u32) -> Result<(), Refused> {
     // The logic is in `rc2k_core::screens::page_values` (`Player::picked`).
     let (value, copy) = crate::menu::player::player(menus, n)
@@ -22,8 +21,8 @@ pub fn pick_player(menus: &Menus, n: u32) -> Result<(), Refused> {
     Ok(())
 }
 
-/// `screens::load_audio_settings` (0x4707E6): the audio options (`g_audioOptions`: quality,
-/// channels, Dolby, A3D, EAX, DS3D) into the sound page's work variables (`option_work`).
+/// The audio options (quality, channels, Dolby, A3D, EAX, DS3D) into the sound page's work
+/// variables (`option_work`).
 pub fn load_audio_settings(menus: &Menus, audio: &crate::audio::owner::Audio) {
     // The logic is in `rc2k_core::screens::page_values::audio_page`.
     let options: rc2k_core::audio::modes::AudioOptions = audio.state.audio_options.get();
@@ -78,8 +77,8 @@ fn set_item(items: &[crate::menu::menus_store::MenuItem], n: u32, v: u32) -> Res
     Ok(())
 }
 
-/// The stage record of the event's stage table `a`, `b` (its +0x38 the page's value), and the record + `c` x
-/// 0xA4 the line is about.
+/// The stage record of the event's stage table `a`, `b` (its +0x38 the page's value), and the
+/// record + `c` x 0xA4 the line is about.
 fn stage_record(
     stages: &crate::records::stages_store::StageTables,
     a: u32,
@@ -100,10 +99,10 @@ fn stage_refuses(
     Ok(())
 }
 
-/// `screens::stage_options_texts` (0x4692A9): the stage options page's items of the best times menu (items 1 and 2 string 0x19C / 0x19B by
-/// `champ_view.switch_f8`, 0x19E / 0x19D by `switch_fc`, item 3 the record's +0x38), the stage
-/// line (string 0x481) and the caption string 0x4FC + `state.menus.caption_choice`. Refuses (before anything) no
-/// stage records; a record of another track pack is the original's fatal error.
+/// The stage options page's items of the best times menu (items 1 and 2 string 0x19C / 0x19B by
+/// `champ_view.switch_f8`, 0x19E / 0x19D by `switch_fc`, item 3 the record's name), the stage line
+/// (string 0x481) and the caption string 0x4FC + `state.menus.caption_choice`. Refuses no stage
+/// records; a record of another track pack is a fatal error.
 pub fn stage_options_texts(o: Owners<'static>) -> Result<(), Refused> {
     let menus = o.menus;
     let (a, b) = (
@@ -143,11 +142,10 @@ pub fn stage_options_texts(o: Owners<'static>) -> Result<(), Refused> {
     Ok(())
 }
 
-/// `screens::stage_choice_texts` (0x469434): the stage choice page's items: item 0 of the
-/// courses menu `results.group_titles[stage_group]`, item 1 of the table it
-/// points to the record's +0x38 (the original reads the table both ways: `notes/bugs.md`),
-/// then the stage line (string 0x482) for the chosen stage number of the event's stage table. Refuses (before anything) no stage records or no
-/// item table; another track pack is the original's fatal error.
+/// The stage choice page's items: item 0 of the courses menu `results.group_titles[stage_group]`,
+/// item 1 of the table it points to the record's name (the table is read both ways, kept as is),
+/// then the stage line (string 0x482) for the chosen stage number of the event's stage table.
+/// Refuses no stage records or no item table; another track pack is a fatal error.
 pub fn stage_choice_texts(o: Owners<'static>) -> Result<(), Refused> {
     let menus = o.menus;
     let (a, b) = (
@@ -157,7 +155,7 @@ pub fn stage_choice_texts(o: Owners<'static>) -> Result<(), Refused> {
     let text = o.race.text_buffers();
     let stages = &o.system.records().stage_tables;
     stage_refuses(stages, a, b)?;
-    // Item 1 of the "menu" the head points to (the labels: the slip in `notes/bugs.md`).
+    // Item 1 of the "menu" the head points to (the labels; kept as is).
     let item_1 = crate::menu::menus_store::labels_slot(
         menus.tables.menus.view_courses.id(),
         4 + 0x5C + 0x14,

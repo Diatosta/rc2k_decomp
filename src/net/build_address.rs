@@ -1,16 +1,8 @@
-//! `net::build_address` (0x41882C): "NET: DPCA", and the connection's DirectPlay address
-//! built with the lobby object (`CreateCompoundAddress`): the address elements cleared
-//! (`elements`, `address`, the size `address_size`) and `posting` 0; for IPX (`sp_ipx`) the
-//! service provider alone; for TCP/IP (`sp_tcpip`) the service provider, the host's address
-//! (`host_address`, its length + 1) and, if not 0, the port (`port`, 2 bytes); for any
-//! other the record's service provider and `posting` 1 (DirectPlay's calls then made on
-//! the receiving thread: a modem's or a serial link's dialogs, it seems). The size asked
-//! (DPERR_BUFFERTOOSMALL), that much memory taken on the network's list into `address`,
-//! the address made there.
-//!
-//! Takes `connection`. Returns true when built; false when there is no lobby object, the size
-//! was not asked as expected, or `CreateCompoundAddress` failed.
-//! Caller: `net::init_connection`.
+//! Builds the connection's DirectPlay address with the lobby object ("NET: DPCA"). IPX gets the
+//! service provider alone; TCP/IP the provider, the host's address and the port if set; any other
+//! provider the record's service provider and `posting` 1 (its calls then run on the receiving
+//! thread, for modem and serial dialogs). Returns false when there is no lobby object, the size
+//! query is unexpected or `CreateCompoundAddress` fails.
 
 use crate::errors::{BadInput, Refused};
 use crate::net::add_address_element::{self as elements, add_address_element};

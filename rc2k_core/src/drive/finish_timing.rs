@@ -1,9 +1,8 @@
-//! The championship finish routine's time and shares (from
-//! `drive::finish_timing` 0x45948A, after its clock call): the time since the start in
-//! seconds, eased to a stop between two times, and a share rising between two others.
+//! The championship finish routine's time and shares: the time since the start in seconds, eased to
+//! a stop between two times, and a share rising between two others.
 //!
-//! Floats: what the x87 keeps on its stack is an `f64`, rounded to `f32` where the
-//! original stores (`physics::x87`): the same bits at the game's double precision.
+//! Floats: sums are `f64` and rounded to `f32` where stored (`physics::x87`), the same bits as the
+//! game's x87 at double precision.
 
 use crate::physics::x87::{below, loaded};
 

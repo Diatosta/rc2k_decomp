@@ -1,9 +1,5 @@
-//! `install::choice_by_number` (0x41486A): an item of choices (kind 2) set to choice `number` (a
-//! number key's), if there is one and it is not marked.
-//!
-//! Returns the chosen byte's address, table.
-//! The compare is of the number's low byte with the choices; the mark is read for the whole number.
-//! Callers `install::key_number`.
+//! An item of choices (kind 2) set to choice `number` (a number key's), if there is one and it
+//! is not marked. Called by `install::key_number`.
 
 use crate::menu::list_handle::ListItem;
 use rc2k_core::install::items::{self, MARKS};
@@ -12,7 +8,6 @@ use rc2k_core::install::items::{self, MARKS};
 pub fn choice_by_number(item: ListItem, number: u32) {
     let chosen_at = item.value();
     let table = item.choices();
-    // Converted: `rc2k_core::install::items::choice_by_number`.
     let free = || table.marks(number) & MARKS == 0;
     if let Some(choice) = items::choice_by_number(number, item.count(), free) {
         chosen_at.set(choice);

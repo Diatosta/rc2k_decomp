@@ -1,13 +1,10 @@
-//! A device's force-feedback effects as DirectInput is told of them
-//! (from `input::effect_found` 0x40953B and `input::make_effect` 0x40992F's parameters).
+//! A device's force-feedback effects as DirectInput is told of them.
 //!
 //! A device record has six effects, each of a kind (1 constant, 2 ramp, 3 periodic, 4
-//! condition) and maybe a GUID it wants. While DirectInput lists the device's effects,
-//! each of the six takes the last listed of its kind, unless it has already found the one
-//! it wants. Its `DIEFFECT` is then filled the same for all six, with its kind's
-//! type-specific parameters.
+//! condition) and maybe a wanted GUID. While DirectInput lists the device's effects, each takes
+//! the last listed of its kind unless it already found the one it wants; its `DIEFFECT` is then
+//! filled the same for all six.
 
-/// A GUID's 16 bytes.
 pub type Guid = [u8; 16];
 
 /// What `EnumEffects` tells of one of the device's effects (`DIEFFECTINFOA`).
@@ -27,9 +24,9 @@ pub struct Found {
     pub listed: Listed,
 }
 
-/// `input::effect_found` for one effect of kind `kind`: whether it takes `listed` (of the
-/// type's low byte its kind), unless what it found is the GUID it wants (`wanted`, asked
-/// only then). Taken: found 1 and the listed effect's GUID, type and parameters.
+/// One effect of kind `kind` takes `listed` unless what it found is the GUID it wants
+/// (`wanted`, asked only then). Taken: found 1 and the listed effect's GUID, type and
+/// parameters.
 pub fn take_listed(kind: u32, f: &mut Found, listed: &Listed, wanted: impl Fn() -> Guid) -> bool {
     if listed.eff_type & 0xFF != kind {
         return false;
@@ -55,7 +52,7 @@ pub const AXES_COUNT: u32 = 1;
 /// The axes' offsets (only the first, x, counts) and the direction.
 pub const AXES: [u32; 2] = [0, 4];
 pub const DIRECTION: u32 = 0;
-/// `DIENVELOPE`'s size; its four figures 0.
+/// `DIENVELOPE`'s size; its four figures are 0.
 pub const ENVELOPE_SIZE: u32 = 0x14;
 
 /// The type-specific parameters by kind: a constant force of 10000; a ramp from 10000 to

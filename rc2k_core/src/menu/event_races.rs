@@ -1,7 +1,6 @@
-//! An event's races (from `menu::run_event_races` 0x473126): the
-//! computer drivers' times shaken by lot (eight get time added, one to four drop out),
-//! the standings before the race, then the players' races by the event mode, the event
-//! ended when every result is -1. Its steps in the original's order, on `EventRaces`.
+//! An event's races: the computer drivers' times shaken by lot (eight get time added, one to four
+//! drop out), the standings before the race, then the players' races by the event mode, the event
+//! ended when every result is -1. Its steps, on `EventRaces`.
 
 /// The drivers the lot picks from (the first 0xB2).
 pub const PICKED: u32 = 0xB2;
@@ -41,7 +40,7 @@ pub fn players_of(mode: u32) -> Option<(u32, bool)> {
 pub enum Var {
     /// The event goes on.
     GoesOn,
-    /// `RaceState.settings.direction`, `g_cheats`.
+    /// `RaceState.settings.direction`, the cheat bits.
     CheatSwitch,
     Cheats,
     /// `ScreenFlow.kept`, `RaceState.settings.kept`.
@@ -62,7 +61,8 @@ pub enum Step {
     StandingsFromDrivers,
     SortByTime,
     CopySummary,
-    /// `RaceState.settings.rivals` the summary table, `RaceState.settings.stage` the track pack entry's +0x34.
+    /// `RaceState.settings.rivals` the summary table, `RaceState.settings.stage` the track pack
+    /// entry's +0x34.
     RaceInfo,
     /// `race::single_rally_race` (kind 1); `next` when another player's race follows
     /// (1 from `menu::player_entered`; 0 otherwise).

@@ -1,10 +1,8 @@
-//! Native Unix folders: absolute paths kept as the system names them (a `/` at the end, no
-//! case change), shown whole (the game's font has no `~`), typed whole
-//! or with `~` for the home folder; by default the user's data
-//! folder (`$XDG_DATA_HOME`, `~/.local/share`) + `rally-championship`, not the home
-//! folder's root (owner); on macOS `~/Library/Application Support/Rally
-//! Championship` (the same rules otherwise: macOS paths are Unix ones). The installer's file lists name their files with `\`
-//! (`files\d\..`): `files::host_path` reads those as `/`.
+//! Native Unix folders: absolute paths as the system names them (a `/` at the end, no case
+//! change), shown whole, typed whole or with `~` for the home folder; by default the user's data
+//! folder (`$XDG_DATA_HOME`, `~/.local/share`) + `rally-championship`; on macOS
+//! `~/Library/Application Support/Rally Championship`. The installer's file lists name their
+//! files with `\` (`files\d\..`): `files::host_path` reads those as `/`.
 
 use super::{Current, Folders, Room};
 use crate::errors::{BadInput, Refused};
@@ -147,7 +145,7 @@ impl Folders for Unix {
     }
 
     fn field_most(_original: u8) -> u8 {
-        // A whole path: the original's 124 cut a long home folder's without a word.
+        // A whole path: a long home folder is not cut.
         200
     }
 

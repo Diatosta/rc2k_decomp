@@ -1,7 +1,7 @@
-//! `menu::standings_b_from_all` (0x4A44A0): standings table B emptied
+//! `menu::standings_b_from_all`: standings table B emptied
 //! (`menu::init_standings_b`) and filled from the drivers in order: +4 0, +0x10 / +8 /
 //! +0xC / +0 / +0x34 the driver's +8 / +0x14 / +0x18 / +0 / +0x10, +0x38 .. +0x6C its
-//! +0x5C .. +0x90, +0x14 the text of its name (`g_driverNames`, 0x14 each, by its +0);
+//! +0x5C .. +0x90, +0x14 the text of its name (the driver names, 0x14 each, by its +0);
 //! then each group's (+0x90, 0 .. 3) counted players into the entries from 89, 119, 169
 //! and 179 down (`menu::player_to_standing_b`).
 //!
@@ -14,11 +14,10 @@ use crate::menu::owner::Menus;
 use crate::menu::standings::*;
 
 /// Each group's (0 .. 3) players, in order, into the table's entries from the group's slot
-/// down (`player_to_standing_b`, ebx the player's index).
+/// down (`player_to_standing_b`).
 fn players_by_group(menus: &Menus, firsts: [usize; 4]) -> Result<(), Refused> {
     let players = counted_players(menus)?;
     let groups: Vec<u32> = players.iter().map(|p| p.get().class).collect();
-    // The logic is in `rc2k_core::menu::standings::by_group`.
     for (n, e) in rc2k_core::menu::standings::by_group(&groups, firsts) {
         {
             crate::menu::player_to_standing_b::player_to_standing_b(menus, e, players[n], n as u32)
@@ -51,7 +50,6 @@ pub fn standings_b_from_all(
         texts.push(text);
     }
     crate::menu::init_standings_b::init_standings_b()?;
-    // The logic is in `rc2k_core::saves::rankings::fill_b_from_driver`.
     with_b(|t| {
         for ((d, text), e) in drivers.iter().zip(&texts).zip(&mut t.entries) {
             rc2k_core::saves::rankings::fill_b_from_driver(e, d, text)

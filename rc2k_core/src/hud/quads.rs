@@ -1,16 +1,12 @@
-//! The HUD's quad record and sprites (from `hud::add_quad` 0x4B72D1,
-//! `hud::add_sprite` 0x4B70EE, `hud::add_scaled_sprite` 0x4B716A, `hud::add_solid_quad`
-//! 0x4B7216, `hud::add_polygon`'s scaling 0x4B7413, `hud::draw_marker` 0x4B55AB and
-//! `hud::draw_markers_1` 0x4B56E3): the record `HudBlock.quad.alpha` (alpha, left, top, right,
-//! bottom, colour, then the four corners' texture places as whole numbers, << 16 of a
-//! texel) made the four vertices of a polygon.
+//! The HUD's quad record and sprites: the record `HudBlock.quad.alpha` (alpha, left, top, right,
+//! bottom, colour, then the four corners' texture places as whole numbers, << 16 of a texel) made
+//! the four vertices of a polygon.
 //!
-//! As in `math::geometry`, what the x87 keeps on its stack is an `f64` here, rounded to
-//! `f32` where the original stores it: the same bits at the game's double precision.
+//! Intermediates are `f64`, rounded to `f32` where stored, as in `math::geometry`.
 
 use crate::math::geometry::fistp64;
 
-/// The record's dwords.
+/// Indices of the record's dwords.
 pub const ALPHA: usize = 0;
 pub const LEFT: usize = 1;
 pub const TOP: usize = 2;
@@ -21,8 +17,8 @@ pub const COLOUR: usize = 5;
 pub const PLACES: usize = 6;
 pub const RECORD: usize = 14;
 
-/// The places of a texture's rectangle (left, top, width, height in texels): the record's
-/// dwords in the order the original writes them.
+/// The places of a texture's rectangle (left, top, width, height in texels): the record's dwords in
+/// order.
 pub fn sprite_places([left, top, w, h]: [u32; 4]) -> [(usize, u32); 8] {
     let [u0, u1] = [left << 16, left.wrapping_add(w) << 16];
     let [v0, v1] = [top << 16, top.wrapping_add(h) << 16];
@@ -38,13 +34,12 @@ pub fn sprite_places([left, top, w, h]: [u32; 4]) -> [(usize, u32); 8] {
     ]
 }
 
-/// `abs` as the original's `cmp 0; jns; neg`.
+/// The absolute value of a signed number.
 pub fn positive(v: u32) -> u32 {
     if (v as i32) < 0 { v.wrapping_neg() } else { v }
 }
 
-/// A sprite's corners at (x, y), its size made positive: the record's dwords in the order
-/// written.
+/// A sprite's corners at (x, y), its size made positive: the record's dwords in order.
 pub fn sprite_corners(x: u32, y: u32, w: u32, h: u32) -> [(usize, u32); 4] {
     [
         (LEFT, x),
@@ -54,8 +49,7 @@ pub fn sprite_corners(x: u32, y: u32, w: u32, h: u32) -> [(usize, u32); 4] {
     ]
 }
 
-/// `fild size; fmul scale; fistp`: a scaled sprite's width or height (before it is made
-/// positive).
+/// A scaled sprite's width or height (before it is made positive).
 pub fn scaled_size(size: u32, scale: f64) -> u32 {
     fistp64(size as i32 as f64 * scale) as u32
 }
@@ -73,7 +67,7 @@ pub const SOLID_PLACES: [(usize, u32); 8] = [
     (13, 0x8_0000),
 ];
 
-/// One vertex of the polygon (`g_polygonVertices`: x at +0, y +4, colour +0x10, u +0x18, v
+/// One vertex of the polygon (x at +0, y +4, colour +0x10, u +0x18, v
 /// +0x1C; the rest left).
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Vertex {
@@ -84,14 +78,14 @@ pub struct Vertex {
     pub v: f32,
 }
 
-/// `fild i; fdiv a; fdiv b`.
+/// `i / a / b`, with `i` converted to a float first.
 fn int_over_over(i: u32, a: f32, b: f32) -> f32 {
     (i as i32 as f64 / a as f64 / b as f64) as f32
 }
 
-/// `add_quad`: the record's four vertices (left top, right top, right bottom, left bottom),
-/// the places over `a` and over `b`, the colour's low 24 bits
-/// under the alpha; and the colour and its low 24 bits.
+/// `add_quad`: the record's four vertices (left top, right top, right bottom, left bottom), the
+/// places over `a` and over `b`, the colour's low 24 bits under the alpha; also the colour and
+/// its low 24 bits.
 pub fn quad_vertices(q: &[u32; RECORD], a: f32, b: f32) -> ([Vertex; 4], u32, u32) {
     let int = |n: usize| q[n] as i32 as f32;
     let corners = [
@@ -112,18 +106,18 @@ pub fn quad_vertices(q: &[u32; RECORD], a: f32, b: f32) -> ([Vertex; 4], u32, u3
     (vertices, colour, low)
 }
 
-/// `add_polygon`'s scaling: `fld v; fimul i; fdiv k` (the virtual screen to the real one).
+/// `add_polygon`'s scaling: `v` times `i` over `k` (the virtual screen to the real one).
 pub fn screen_scaled(v: f32, i: u32, k: f32) -> f32 {
     (v as f64 * i as i32 as f64 / k as f64) as f32
 }
 
-/// The markers' place along the top (`draw_marker`, `draw_markers_1`): `fld share; fdiv
-/// of; fmul k; fadd c; fistp`.
+/// The markers' place along the top (`draw_marker`, `draw_markers_1`): `share` over `of` times `k`
+/// plus `c`, rounded.
 pub fn marker_x(share: f32, of: f32, k: f32, c: f32) -> u32 {
     fistp64(share as f64 / of as f64 * k as f64 + c as f64) as u32
 }
 
-/// `fild i; fdiv k`: a scale the markers and the split layouts hand on (kept at 80 bits).
+/// `i` over `k`: a scale the markers and the split layouts hand on (kept at 80 bits).
 pub fn int_over(i: u32, k: f32) -> f64 {
     i as i32 as f64 / k as f64
 }

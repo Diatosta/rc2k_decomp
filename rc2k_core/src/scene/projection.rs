@@ -1,29 +1,24 @@
-//! A point's place in the view and on the screen (from
-//! `scene::project_point` 0x44D004, its matrix step `scene::rotate_point` and its screen step, and
-//! from `scene::project_polygon` 0x44E1F7). The records are 0x20 bytes: +0 the point's
-//! number, +0xC the x on the screen, +0x10 .. +0x18 the point in the view, +0x1C the y on
-//! the screen; a point n of the scene has record n & 0xFFF, a point -n of an object record
-//! 0x1000 + (n & 0xFFF). As in `math::geometry`, what the x87 keeps on its stack is an
-//! `f64`, rounded to `f32` where the original stores it: the same bits at the game's double
-//! precision. Also an object's points and normals (from `scene::place_object_points`
-//! 0x45BE05, its normal step 0x45C1E7).
+//! A point's place in the view and on the screen. Records are 0x20 bytes: +0 the point's
+//! number, +0xC the x on the screen, +0x10 ..= +0x18 the point in the view, +0x1C the y on
+//! the screen; point n of the scene has record n & 0xFFF, point -n of an object record
+//! 0x1000 + (n & 0xFFF). Intermediates are `f64`, rounded to `f32` where stored (as in
+//! `math::geometry`). Also an object's points and normals.
 
-/// A point nearer than this is not put on the screen, and counts as outside
-/// a polygon's depths.
+/// A point nearer than this is not put on the screen, and counts as outside a polygon's depths.
 pub const NEAR: f32 = 4096.0;
 /// What a lowered record's depth loses.
 pub const LOWERED_BY: f32 = 262144.0;
 
-/// Why a point's number has no record: past the object's points (fatal error 0x80600902)
-/// or past the scene's and the 0x40 after them (0x80600903).
+/// Why a point's number has no record: past the object's points or past the scene's and
+/// the 0x40 after them.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TooHigh {
     Object,
     Scene,
 }
 
-/// The offset of a point's record: `object_points` the objects' count,
-/// `scene_points` the scene's.
+/// The offset of a point's record: `object_points` the objects' count, `scene_points` the
+/// scene's.
 pub fn record_offset(point: u32, object_points: u32, scene_points: u32) -> Result<u32, TooHigh> {
     if (point as i32) < 0 {
         let number = point.wrapping_neg();
@@ -38,9 +33,8 @@ pub fn record_offset(point: u32, object_points: u32, scene_points: u32) -> Resul
     }
 }
 
-/// `scene::rotate_point`: a point's three whole numbers through the view's matrix (`SceneMatrices.view_matrix[0]`, 4
-/// x 4: row c of the result is factors c, 4 + c, 8 + c on x, y, z, the y and z products added
-/// first, then 12 + c).
+/// A point's three whole numbers through the view's 4 x 4 matrix: row c of the result is
+/// factors c, 4 + c, 8 + c on x, y, z (the y and z products added first), then 12 + c.
 pub fn rotate(point: [i32; 3], m: &[f32; 16]) -> [f32; 3] {
     let [x, y, z] = point.map(|v| v as f64);
     std::array::from_fn(|c| {
@@ -49,8 +43,8 @@ pub fn rotate(point: [i32; 3], m: &[f32; 16]) -> [f32; 3] {
     })
 }
 
-/// 0x45C1E7: a normal's three floats through the matrix's first three rows (as
-/// `rotate`, without the fourth).
+/// A normal's three floats through the matrix's first three rows (`rotate` without the
+/// fourth).
 pub fn turn_normal(normal: [f32; 3], m: &[f32; 16]) -> [f32; 3] {
     let [x, y, z] = normal.map(|v| v as f64);
     std::array::from_fn(|c| {
@@ -59,9 +53,8 @@ pub fn turn_normal(normal: [f32; 3], m: &[f32; 16]) -> [f32; 3] {
     })
 }
 
-/// The view's screen: its scale, centre and,
-/// when it is flat, the whole number the depth divided by is made from
-/// (`CourseWork.flat_depth`, plus 1).
+/// The view's screen: its scale, centre and, when it is flat, the whole number the depth
+/// divided by is made from.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Screen {
     pub scale: f32,
@@ -69,8 +62,8 @@ pub struct Screen {
     pub flat: Option<i32>,
 }
 
-/// A place in the view onto the screen: x times (the scale over the depth) plus the
-/// centre's x, the centre's y less y times the same.
+/// A place in the view onto the screen: x times (the scale over the depth) plus the centre's x,
+/// the centre's y less y times the same.
 pub fn to_screen(view: [f32; 3], s: &Screen) -> [f32; 2] {
     let depth = match s.flat {
         Some(d) => d as f64 + 1.0,
@@ -83,9 +76,9 @@ pub fn to_screen(view: [f32; 3], s: &Screen) -> [f32; 2] {
     ]
 }
 
-/// A record made anew: the place in the view, on the screen (0, 0 nearer than `NEAR`),
-/// and what goes to `SceneDraw.scratch` (the depth when flat and on the screen, then
-/// `LOWERED_BY` when lowered), if anything.
+/// A record made anew: the place in the view, on the screen (0, 0 nearer than `NEAR`), and
+/// what goes to the scratch (the depth when flat and on the screen, then `LOWERED_BY` when
+/// lowered), if anything.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Made {
     pub view: [f32; 3],
@@ -93,9 +86,8 @@ pub struct Made {
     pub checked: Option<f32>,
 }
 
-/// A scene point's record made (`project_point`, 0x44CF4E): through the matrix, onto
-/// the screen (`screen()`, asked only then) unless nearer than `NEAR` (or no number), and,
-/// `lowered` (`LightState.draw_mode` 1), the depth less `LOWERED_BY`.
+/// A scene point's record: through the matrix, onto the screen (`screen()`, asked only then)
+/// unless nearer than `NEAR` (or no number), and, `lowered`, the depth less `LOWERED_BY`.
 pub fn make_record(
     point: [i32; 3],
     m: &[f32; 16],
@@ -123,8 +115,8 @@ pub fn make_record(
     }
 }
 
-/// `project_polygon`'s test of a projected point's depth: nearer than `NEAR` or not below
-/// the farthest, each compare taking "no number" for "below".
+/// Whether a projected point's depth is nearer than `NEAR` or not below the farthest, each
+/// compare taking "no number" for "below".
 pub fn outside_depths(depth: f32, far: f32) -> bool {
     let below = |a: f32, b: f32| a.partial_cmp(&b).is_none_or(std::cmp::Ordering::is_lt);
     below(depth, NEAR) || !below(depth, far)
@@ -145,7 +137,7 @@ mod tests {
         assert_eq!(record_offset(0x48, 6, 8), Err(TooHigh::Scene));
         assert_eq!(record_offset(-5i32 as u32, 6, 8), Ok((0x1005) << 5));
         assert_eq!(record_offset(-6i32 as u32, 6, 8), Err(TooHigh::Object));
-        // 0x80000000 is an object's number past any count
+        // 0x80000000 is an object's number past any count.
         assert_eq!(record_offset(0x8000_0000, 6, 8), Err(TooHigh::Object));
     }
 
@@ -160,18 +152,18 @@ mod tests {
         assert_eq!(m.view, [100.0, -50.0, 10000.0]);
         assert_eq!(m.screen, [406.4, 303.7]);
         assert_eq!(m.checked, None);
-        // too near: not on the screen; lowered
+        // Too near: not on the screen; lowered.
         let m = make_record([1, 2, -6000], &IDENTITY_FAR, || unreachable!(), true);
         assert_eq!((m.view[2], m.screen), (3000.0 - 262144.0, [0.0, 0.0]));
         assert_eq!(m.checked, Some(LOWERED_BY));
-        // flat: the depth divided by is 7999 + 1, the real one checked
+        // Flat: the depth divided by is 7999 + 1, the real one checked.
         let flat = Screen {
             flat: Some(7999),
             ..s
         };
         let m = make_record([80, 0, 0], &IDENTITY_FAR, || flat, false);
         assert_eq!((m.screen, m.checked), ([406.4, 300.5], Some(9000.0)));
-        // the order of the sums: x' = m0 x + (m4 y + m8 z) + m12
+        // The order of the sums: x' = m0 x + (m4 y + m8 z) + m12.
         let mut r = [0.0f32; 16];
         (r[0], r[4], r[8], r[12]) = (1.0, 1.0, -1.0, 0.5);
         assert_eq!(rotate([0x4000_0000, 1, -0x4000_0000], &r)[0], 2147483648.0);

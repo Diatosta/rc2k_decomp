@@ -1,14 +1,6 @@
-//! `net::receive_message` (0x419722): one message taken from DirectPlay: its size
-//! (`received_size`) set to 0x100, `Receive` (`IDirectPlay4A` +0x64: the sender into
-//! `received_from`, the addressee into `received_to`, flags 1 DPRECEIVE_ALL, the bytes into
-//! `receive_data`) through `g_dplay`; the size made 0 if it failed (no message, or one too
-//! big for the buffer).
-//!
-//! Returns `Received`: the sender (0 a system message) and the size (0 none); the bytes
-//! (`receive_data`) are not in `Received`. The original leaves the processor flags on the
-//! method's result, which its one caller does not read (it tests the size next).
-//! Caller: `net::take_messages`. `Receive` from Rust (`net::dplay`). Refuses
-//! nothing (no check of `g_dplay`: its caller makes it).
+//! Takes one message from DirectPlay (room for 0x100 bytes); the size is 0 if there is none
+//! or it is too big. Returns the sender (0 a system message) and the size; the bytes are in
+//! `receive_data`. No check for a missing object: the caller makes it.
 
 use crate::net::owner::Net;
 

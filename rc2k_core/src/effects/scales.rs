@@ -1,16 +1,14 @@
-//! The marks' scaled settings (from `effects::scale_axes` 0x4BFD73, `effects::scale_setting`
-//! 0x4C08BB and `effects::scale_corners` 0x4C6420). As in `math::vector`, what the x87 keeps on its
-//! stack is an `f64`, rounded to `f32` where the original stores it: the same bits at the game's
-//! double precision.
+//! The marks' scaled settings. As in `math::vector`, what the x87 keeps on its stack is an `f64`,
+//! rounded to `f32` where it is stored: the same bits at the game's double precision.
 
-/// `fild n; fmul k; fstp`: a setting's whole number scaled.
+/// A setting's whole number times `factor` in `f64`, stored as `f32`.
 pub fn scaled_setting(n: i32, factor: f32) -> f32 {
     (n as f64 * factor as f64) as f32
 }
 
-/// What `scale_axes` reads: the two axes, the factor of
-/// both, one factor each and two sets of
-/// per-part factors (`WindscreenFlakeState.axis_factors[0]` .., `WindscreenFlakeState.halves[0]` ..).
+/// What `scale_axes` reads: the two axes, the factor of both, one factor each and two sets of
+/// per-part factors (`WindscreenFlakeState.axis_factors[0]` .., `WindscreenFlakeState.halves[0]`
+/// ..).
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Axes {
     pub axes: [[f32; 3]; 2],
@@ -20,9 +18,10 @@ pub struct Axes {
     pub second_parts: [[f32; 3]; 2],
 }
 
-/// What it writes, in its order: both axes by the factor (`WindscreenFlakeTables.scaled_by_radius[0][0]` ..), each by its
-/// own factor and its parts' (`WindscreenFlakeTables.scaled_axes[0][0]` ..), and the first results by the second
-/// parts (`WindscreenFlakeTables.half_axes[0][0]` ..).
+/// What it writes, in its order: both axes by the factor
+/// (`WindscreenFlakeTables.scaled_by_radius[0][0]` ..), each by its own factor and its parts'
+/// (`WindscreenFlakeTables.scaled_axes[0][0]` ..), and the first results by the second parts
+/// (`WindscreenFlakeTables.half_axes[0][0]` ..).
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ScaledAxes {
     pub scaled: [[f32; 3]; 2],
@@ -48,13 +47,13 @@ pub fn scale_axes(a: &Axes) -> ScaledAxes {
     }
 }
 
-/// The corner records (`g_marksCorners`: 0x100 of 0x80, words) and the word pairs scaled,
-/// in the order they are made: +0, +4, +0xC, +8.
+/// The corner records (0x100 of 0x80 bytes, words) and the word pairs scaled, in the order they
+/// are made: +0, +4, +0xC, +8.
 pub const CORNERS: u32 = 0x100;
 pub const CORNER_PAIRS: [u32; 4] = [0, 4, 0xC, 8];
 
 /// A corner record scaled (`scale_corners`): the four pairs' words times the scale
-/// (`fild` of the word as an unsigned 16-bit number), the two sides (|+4 - +0| and
+/// (each word as an unsigned 16-bit number), the two sides (|+4 - +0| and
 /// |+0xA - +2|, sixteen-bit differences) and the slope, the second side over the first.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Corner {

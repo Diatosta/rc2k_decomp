@@ -1,17 +1,10 @@
-//! `install::install_files` (0x4130CD): the install itself. The status is marked busy and
-//! written; the source is scanned (`install::run_script` with `script_count`) to count the
-//! files and the room needed (`room_by_mode[g_mediaMode]`); the destination is normalised,
-//! checked for a bad name (`install::check_folder_name`), for room
-//! (`files::drive_free_space_kb` unless UNC) and made (`install::make_folders`); the source
-//! must be a CD (`files::is_cd_drive`). Then the page is shown and the folders made and the
-//! files copied one by one (`install::make_folders`, `install::copy_counted`), a frame drawn
-//! after each and Escape watched; the record is written (`install::write_record`); the readme
-//! and manual are copied if a language is set; finally the status is set installed, written,
-//! the lobby registered (`install::register_lobby`), the Start-menu add and
-//! `g_installing` asked, and registration if offered. Failures set `list_answer`
-//! (0 bad path, 3 no room / not a CD) or show an error/cancel message.
-//!
-//! The action of a list item. Caller `install::run_page`.
+//! The install itself, the action of a list item: the source is scanned to count the files and
+//! the room needed, the destination checked (bad name, room, folders made, source a CD), then
+//! the folders made and the files copied one by one with a frame after each and Escape watched,
+//! the record written, the readme and manual copied if a language is set, and finally the status
+//! set to installed and the lobby, shortcuts and registration done. Failures set `list_answer`
+//! (0 bad path, 3 no room / not a CD) or show an error / cancel message. Called by
+//! `install::run_page`.
 
 use crate::errors::Refused;
 use crate::install::installer::{
@@ -53,13 +46,13 @@ fn build(
 }
 
 /// The error message's two records: its own and the cancel message's that follows it in the
-/// pages (the original draws two records from the error message's place).
+/// pages.
 fn error_messages(install: &'static crate::install::owner::Install) -> [&'static StringRecord; 2] {
     [&install.pages.msg_error[0], &install.pages.msg_cancel[0]]
 }
 
-/// The error (count 2, `InstallerPages.msg_error`, y 0) or cancel (count 1, `InstallerPages.msg_cancel`, y -0x32)
-/// message shown, then a wait for a key.
+/// The error (count 2, `InstallerPages.msg_error`, y 0) or cancel (count 1,
+/// `InstallerPages.msg_cancel`, y -0x32) message shown, then a wait for a key.
 fn message(
     o: crate::owners::Owners<'static>,
     table: &[&StringRecord],
@@ -126,8 +119,7 @@ pub fn install_files(
     if i::check_folder_name::check_folder_name(&install.paths.installed) {
         return bad_path();
     }
-    // The room where it goes, by the system's rules (`install::folders`; the original
-    // reads the drive's, not a network path's).
+    // The room where it goes, by the system's rules (`install::folders`).
     let folder = BytePlace::from(&install.paths.installed).text("the install folder")?;
     match <i::folders::Native as i::folders::Folders>::room(&folder, o.system) {
         i::folders::Room::Unreadable => return bad_path(),
@@ -168,7 +160,7 @@ pub fn install_files(
         loop {
             build(game_dir(install), path_a(install), &FILES, n)?;
             build(installed(install), path_b(install), &FILES, n)?;
-            // 0x413242: a failed copy is the error message.
+            // A failed copy is the error message.
             if !i::copy_counted::copy_counted(
                 install,
                 o.system,
@@ -195,8 +187,8 @@ pub fn install_files(
             }
         }
     }
-    // 0x413280: the change of folder's result is not looked at; 0x41328A: a failed
-    // record write is the error message.
+    // The change of folder's result is not looked at; a failed record write is the error
+    // message.
     set_cd(&install.paths.installed);
     if !i::write_record::write_record(install, o.strings)? {
         return message(o, &error_messages(install), 0);
@@ -217,7 +209,7 @@ pub fn install_files(
             path.extend(text_at(full));
             path.push(0);
             store_text(&install.paths.path_a, &path);
-            // Not looked at (0x413435, 0x413463).
+            // Not looked at.
             i::copy_counted::copy_counted(install, o.system, &install.paths.path_a, base)?;
         }
     }
@@ -225,7 +217,7 @@ pub fn install_files(
     install.pages.list_answer.set(2);
     sleep(1000);
     install.names.status.set(1);
-    // The installed folder's path copied to `g_installSource`, with its length (NUL included)
+    // The installed folder's path copied to the install source, with its length (NUL included)
     // kept in `source_size`.
     let mut n = 0;
     loop {

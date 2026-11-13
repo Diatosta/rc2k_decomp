@@ -1,29 +1,24 @@
-//! The input's game objects as Rust types, the same as IDA's structs of the same names
-//! (`Controller`, `ForceEffect`, `Binding`, `InputDevice`) and DirectInput's that the game
-//! fills (`DIJOYSTATE`, `DIEFFECT`, `DIENVELOPE`); the DirectInput ones keep their layouts,
-//! checked at compile time.
+//! The input's game objects as Rust types (`Controller`, `ForceEffect`, `Binding`,
+//! `InputDevice`) and DirectInput's that the game fills (`DIJOYSTATE`, `DIEFFECT`,
+//! `DIENVELOPE`); the DirectInput ones keep their layouts, checked at compile time.
 
 use crate::session::{Bytes, Dword};
 use std::mem::{offset_of, size_of};
 
 pub type Guid = [u8; 16];
 
-/// `g_controllers` (16 of them): a listed joystick (`input::joystick_found`).
+/// A listed joystick, one of 16 (`input::joystick_found`).
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct Controller {
     /// +0: DIDEVCAPS' flags: 1 attached, 0x100 force feedback.
     pub caps_flags: Dword,
     /// +4: the device's type (DIDEVICEINSTANCEA's).
     pub dev_type: Dword,
-    /// +8.
     pub axes: Dword,
-    /// +0xC.
     pub buttons: Dword,
-    /// +0x10.
     pub hats: Dword,
     /// +0x14: which axes it has: 1 x, 2 y, 4 z, 8 rx, 0x10 ry, 0x20 rz (`input::axis_found`).
     pub axis_bits: Dword,
-    /// +0x18.
     pub attached: Dword,
     /// +0x1C: 1 with force feedback.
     pub force_feedback: Dword,
@@ -33,7 +28,7 @@ pub struct Controller {
     pub name: Bytes<32>,
 }
 
-// ---- the device records: cells in the store, built from the image's bytes ----
+// ---- the device records ----
 
 /// The little-endian dword of `b` at `at`.
 #[cfg(test)]
@@ -298,10 +293,10 @@ impl Binding {
     }
 }
 
-/// `g_inputRecord1` / `2`: a player's input device (`input/devices.rs`).
+/// A player's input device, one of two (`input/devices.rs`).
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct InputDevice {
-    /// +0: the controller's number in `g_controllers`.
+    /// +0: the controller's number in the controllers' table.
     pub controller: Dword,
     /// +4: its `IDirectInputDevice2A` (0: none).
     pub device: Dword,
@@ -309,16 +304,13 @@ pub struct InputDevice {
     pub kind: Dword,
     /// +0xC: the force feedback's strength (0 .. 100).
     pub strength: Dword,
-    /// +0x10.
     pub dead_zone: Dword,
-    /// +0x14.
     pub end_zone: Dword,
     /// +0x18: which state dwords the axes are, a byte each (+0x1A, +0x1B the second and
     /// third).
     pub axis_code: Dword,
     /// +0x1C: the axes for the ranges and dead zones, a byte each (+0x1C, +0x1D).
     pub axis_pick: Dword,
-    /// +0x20.
     pub sensitivity: Dword,
     /// +0x24: 1 while acquired.
     pub acquired: Dword,
@@ -332,13 +324,11 @@ pub struct InputDevice {
     pub effects: [ForceEffect; 6],
     /// +0x414: 1 while it is read.
     pub reading: Dword,
-    /// +0x418.
     pub hat_kind: Dword,
     /// +0x41C: the twelve bindings.
     pub bindings: [Binding; 12],
     /// +0x4DC: steering, brake, throttle (`drive::device_axes`).
     pub readings: [Dword; 3],
-    /// +0x4E8.
     pub bits: Dword,
     /// +0x4EC, +0x4F0, +0x4F4: the tyre change's gauge, stage and clock
     /// (`race::tyre_change_gauge`).
@@ -438,7 +428,7 @@ impl InputDevice {
     }
 }
 
-/// DirectInput's `DIJOYSTATE` (`g_deviceState`).
+/// DirectInput's `DIJOYSTATE`.
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct DiJoyState {
@@ -449,7 +439,7 @@ pub struct DiJoyState {
 }
 
 impl DiJoyState {
-    /// The state as the dwords of `g_deviceState`.
+    /// The state as the device state's dwords.
     pub fn dwords(&self) -> [u32; 20] {
         let mut out = [0u32; 20];
         let head = self
@@ -471,7 +461,7 @@ impl DiJoyState {
 const _: () = assert!(size_of::<DiEffect>() == 0x34);
 const _: () = assert!(size_of::<DiJoyState>() == 0x50);
 
-/// DirectInput's `DIDEVCAPS` (`g_joystickCaps`).
+/// DirectInput's `DIDEVCAPS`.
 #[repr(C)]
 pub struct DiDevCaps {
     pub size: u32,
@@ -497,14 +487,14 @@ pub struct DiPropHeader {
     pub how: u32,
 }
 
-/// DirectInput's `DIPROPDWORD` (`g_dwordProperty`).
+/// DirectInput's `DIPROPDWORD`.
 #[repr(C)]
 pub struct DiPropDword {
     pub header: DiPropHeader,
     pub data: u32,
 }
 
-/// DirectInput's `DIPROPRANGE` (`g_rangeProperty`).
+/// DirectInput's `DIPROPRANGE`.
 #[repr(C)]
 pub struct DiPropRange {
     pub header: DiPropHeader,

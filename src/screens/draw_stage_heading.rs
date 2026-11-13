@@ -1,14 +1,8 @@
-//! `screens::draw_stage_heading` (0x466DF3): draws one heading line for a record:
-//! string 0x481, a space, "<record +0x40>/6", ": " and the name of the record's track pack
-//! entry, at (747, 145) with the font at 0x51E9A4.
-//!
-//! Takes record.
-//! The line reads like "es 1/6: Clocaenog centro" in the Portuguese build: string 0x481 is the
-//! short stage label.
-//!
-//! Screen: it is part of the panel `draw_stage_info` draws, which the owner confirmed on
-//! 2026-10-10 as the stage details screen shown before each stage of a championship. Its other
-//! caller, `screens::draw_service_stage_info`, has not been seen in the game.
+//! One heading line for a stage record: string 0x481, a space, `<record>/6`, ": " and the
+//! name of the record's track pack entry; it reads like "es 1/6: Clocaenog centro" in the
+//! Portuguese build. Takes the record. Part of the panel `draw_stage_info` draws (seen as the
+//! stage details screen shown before each stage of a championship); its other caller,
+//! `screens::draw_service_stage_info`, has not been seen in the game.
 
 use crate::errors::Refused;
 use crate::records::stages_store::RecordRef;
@@ -50,7 +44,7 @@ pub fn string_bytes(o: StringOwners<'_>, id: u32) -> Result<Vec<u8>, crate::erro
     Ok(out)
 }
 
-/// Builds the line in the game's line buffer and draws it. Returns the carry flag.
+/// Builds the line in the game's line buffer and draws it. Returns whether it was too wide.
 /// The logic is in `rc2k_core::screens::stage_panel::heading`.
 pub fn draw_stage_heading(
     o: crate::owners::Owners<'static>,

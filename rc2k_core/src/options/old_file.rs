@@ -8,16 +8,15 @@ use crate::saves::kept;
 /// The whole file's length.
 pub const FILE_LEN: usize = kept::HEAD_LEN + PIECES_LEN + 4;
 
-/// The options in the old file's bytes, with `time` (the game's packed local time) in its
-/// head.
+/// The options in the old file's bytes, with `time` (packed local time) in its head.
 pub fn write(options: &Options, time: u32) -> Vec<u8> {
     let pieces = options.to_pieces();
     let refs: Vec<&[u8]> = pieces.iter().map(Vec::as_slice).collect();
     kept::options_file(time, &refs)
 }
 
-/// The options of the old file `bytes`. `Ok(None)` for bytes that are not an options file
-/// of this version (the head is wrong), as the game takes them.
+/// The options of the old file `bytes`; `Ok(None)` for bytes that are not an options file of this
+/// version (the head is wrong).
 pub fn read(bytes: &[u8]) -> Result<Option<Options>, OptionsError> {
     if !kept::head_ok(bytes, kept::OPTIONS) {
         return Ok(None);

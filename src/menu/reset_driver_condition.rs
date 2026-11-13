@@ -1,4 +1,4 @@
-//! `menu::reset_driver_condition` (0x47E7BC): every driver's (`g_drivers`) twelve figures
+//! `menu::reset_driver_condition`: every driver's twelve figures
 //! +0x2C .. +0x58 set to 100 (a reading: the cars' condition at an event's start).
 //!
 //! Callers: the event drivers. Refuses a table without its end entry, before

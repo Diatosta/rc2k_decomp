@@ -30,7 +30,7 @@ pub mod system;
 pub mod text;
 pub mod threading;
 
-/// An input the core does not take: one the original goes wrong on (a read past a table, a
-/// division that traps) or whose handling is not worked out; the reason in words.
+/// An input the core does not take (a read past a table, a division that traps) or whose
+/// handling is not worked out; the reason in words.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Invalid(pub &'static str);

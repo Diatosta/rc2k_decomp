@@ -1,10 +1,5 @@
-//! `hud::flush_batch` (0x4B74EF): unless the batch holds no indices, drawn by the device
-//! (`d3d::draw_hud_batch`: `DrawIndexedPrimitive` through `g_d3dDevice`, the platform's) and
-//! emptied.
-//!
-//! Callers: `hud::draw_hud` (the HUD's end), `hud::add_polygon`.
+//! Unless the batch holds no indices, drawn by the device (`d3d::draw_hud_batch`) and emptied.
 
-// Converted: `rc2k_core::hud::batch::flush_due`
 pub fn flush_batch(part: &crate::workers::PartScratch, hud: &Hud) {
     if !rc2k_core::hud::batch::flush_due(hud.block.index_count.get()) {
         return;

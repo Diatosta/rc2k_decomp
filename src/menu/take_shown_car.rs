@@ -1,9 +1,8 @@
-//! `menu::take_shown_car` (0x47B29D): the car shown on the car choice given to the current
-//! player.
+//! `menu::take_shown_car`: the car shown on the car choice given to the current player.
 //!
-//! The current player (`event.current_player`) gets the entry `event.shown_car` of the list: its +0 as
-//! `car_number` (+8), its +8 as `class` (+0x90). Callers: seven more. Refuses a current player
-//! past the four (the original reads past `g_players`) and no list of cars.
+//! The current player (`event.current_player`) gets the entry `event.shown_car` of the list: its
+//! +0 as `car_number` (+8), its +8 as `class` (+0x90). Callers: seven more. Refuses a current
+//! player past the four (it would read past the players) and no list of cars.
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::lists_store::CarList;
@@ -17,7 +16,6 @@ pub fn take_shown_car(menus: &Menus, list: Option<CarList>) -> Result<(), Refuse
         return Err(BadInput("a current player past the four").into());
     }
     let shown: u32 = menus.screens.event.shown_car.get();
-    // The logic is in `rc2k_core::menu::player::Player::take_car`.
     {
         let entry = menus.tables.lists.car_entry(list, shown)?;
         // The entry is a description's handle (`cars_store::car_ref`).

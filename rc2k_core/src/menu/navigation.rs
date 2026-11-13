@@ -1,9 +1,7 @@
-//! Moving the highlight about a menu (from the four
-//! `menu::move_highlight_*`, and the turning objects' turn from `menu::step_carousel`
-//! 0x46989B): each item names its neighbours by number; a link of 0x6F is
-//! none, 0xFFFFFC1A "ask the item" (its callback for that direction runs instead). The two
-//! vertical moves go on along the same link until an item that can be chosen (its +0x48
-//! 0xFFFFFC1B); the two horizontal ones take one step and may first turn a counter.
+//! Moving the highlight about a menu: each item names its neighbours by number; a link of 0x6F is
+//! none, 0xFFFFFC1A "ask the item" (its callback for that direction runs instead). The two vertical
+//! moves go on along the same link until an item that can be chosen (its +0x48 0xFFFFFC1B); the two
+//! horizontal ones take one step and may first turn a counter.
 
 use crate::Invalid;
 
@@ -14,7 +12,8 @@ pub const CAN_BE_CHOSEN: u32 = 0xFFFF_FC1B;
 pub const STEP_LIMIT: u32 = 256;
 
 /// The counter left and right turn while it is on (`MenuState.carousel.count` its count,
-/// `MenuState.carousel.front` the value, `MenuState.carousel.direction` the way, `MenuState.carousel.angle` the step).
+/// `MenuState.carousel.front` the value, `MenuState.carousel.direction` the way,
+/// `MenuState.carousel.angle` the step).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Turn {
     pub count: i32,
@@ -56,7 +55,7 @@ pub fn passed(clock: u32, last: u32) -> u32 {
     clock.wrapping_sub(last).min(LONGEST)
 }
 
-/// 0x4904C7: how far the angle moves from `from` in `passed` ms. Refused: a time so
+/// How far the angle moves from `from` in `passed` ms. Refused: a time so
 /// long that the division traps (above 0x71C71C6; `passed` keeps it from coming).
 fn spin_step(from: u32, passed: u32) -> Result<u32, Invalid> {
     let moved = ((from >> 3) + 0x400_0000) as u64 * passed as u64 / 20;
@@ -64,9 +63,9 @@ fn spin_step(from: u32, passed: u32) -> Result<u32, Invalid> {
 }
 
 /// `menu::step_carousel`'s turn (`menu::turn_carousel`): while the way is not 0 the angle (`step`)
-/// moves by `spin_step`, down for a negative way, up (from the angle negated) for a
-/// positive one. Past zero it is 0 and the way 0; after a turn upwards the next object is
-/// in front (`value`), the first again after the last (`count`).
+/// moves by `spin_step`, down for a negative way, up for a positive one. Past zero it is 0 and the
+/// way 0; after a turn upwards the next object is in front (`value`), the first again after the
+/// last (`count`).
 pub fn spin(t: Turn, passed: u32) -> Result<Turn, Invalid> {
     let mut t = t;
     match t.way as i32 {

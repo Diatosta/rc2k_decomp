@@ -1,9 +1,7 @@
-//! `menu::list_take_key` (0x41469A): a list menu's key: the pending key taken
-//! (`input::take_key`, eax 0 first); none: a millisecond's sleep (`system::sleep`). A key:
-//! the key repeat count is reset unless it is the last key again and the time since the
-//! last key (less 6) is negative (`js`), then one more; the key is kept as the last key.
-//!
-//! Returns the key, 0 for none.
+//! `menu::list_take_key`: a list menu's key: the pending key taken (`input::take_key`); none: a
+//! millisecond's sleep (`system::sleep`). A key: the key repeat count is reset unless it is the
+//! last key again and the time since the last key (less 6) is negative, then one more; the key
+//! is kept as the last key.
 //!
 //! Callers: `race::replay_viewer`.
 
@@ -16,7 +14,6 @@ pub fn list_take_key(
     if key == 0 {
         crate::system::sleep::sleep(1);
     } else {
-        // The logic is in `rc2k_core::menu::list_menu::repeats`.
         let pages = &install.pages;
         let repeated = key == pages.last_key.get();
         let (mut frame, mut moved) = (0, 0);

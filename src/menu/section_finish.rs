@@ -6,6 +6,5 @@ use crate::menu::finish_calls::Game;
 use rc2k_core::menu::finish;
 
 pub fn section_finish(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
-    // The logic is in `rc2k_core::menu::finish::section_finish`.
     Game::run(o, finish::section_finish)
 }

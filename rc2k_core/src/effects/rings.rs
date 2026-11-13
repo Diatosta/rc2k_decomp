@@ -1,10 +1,9 @@
-//! The marks' rings of 0x1000 entries (from `effects::allocate_ring`
-//! 0x4CFAC5 and `effects::allocate_links` 0x4C5398): each entry linked to the one before
-//! and the one after, round.
+//! The marks' rings of 0x1000 entries: each entry linked to the one before and the one after,
+//! round.
 
 /// The entries of a ring.
 pub const ENTRIES: u32 = 0x1000;
-/// `g_marksRing`'s entries' size.
+/// The bytes of an entry of the marks' ring.
 pub const RING_ENTRY: u32 = 0x4C;
 
 /// Entry n's neighbours (before, after), round.

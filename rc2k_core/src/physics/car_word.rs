@@ -1,10 +1,6 @@
-//! The work copy's +0xC word (`noise_word`; from
-//! `physics::test_car_word` 0x44133F): its bits tested by rotation. What they are is not
-//! known yet.
+//! The work copy's `noise_word`: its bits tested by rotation.
 
-/// The test of the word rotated left by
-/// `rotation` (taken mod 32) and masked to 16 bits; the original's flags of `cmp` with 1
-/// (carry when 0, zero when 1).
+/// The word rotated left by `rotation` (mod 32) and masked to 16 bits: carry when 0, zero when 1.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct WordTest {
     pub value: u32,
@@ -12,7 +8,7 @@ pub struct WordTest {
     pub zero: bool,
 }
 
-/// `physics::test_car_word`'s rule.
+/// Tests the word's bits at `rotation`.
 pub fn test_car_word(word: u32, rotation: u8) -> WordTest {
     let value = word.rotate_left(u32::from(rotation & 31)) & 0xFFFF;
     WordTest {

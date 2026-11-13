@@ -1,18 +1,15 @@
-//! `menu::list_clear_marks` (0x414AC9): the marks (bits 6 and 7) of a list menu's items
-//! cleared: each of the `[edi+1]` items (16 bytes from +0x18) its first byte `and 0x3F`,
-//! and for an item of kind 2 (low nibble) its `[+1]` choices (2 bytes each from
-//! `[+0xC] + 1`) too.
+//! `menu::list_clear_marks`: the marks (bits 6 and 7) of a list menu's items cleared: each of
+//! its items (16 bytes from +0x18) has its first byte masked with 0x3F, and for an item of
+//! kind 2 (low nibble) its choices (2 bytes each from the choice table's second byte) too.
 //!
-//! A list of no items goes round 2^32 times, and a kind 2 of no choices 256 times, as the original
-//! (the callers' lists have items). Callers: `race::mark_viewer_items`.
+//! A list of no items goes round 2^32 times, and a kind 2 of no choices 256 times (the callers'
+//! lists have items). Callers: `race::mark_viewer_items`.
 
 use crate::menu::list_handle::ListMenu;
 use rc2k_core::menu::list_menu::{has_choices, rounds, unmarked};
 
 pub fn list_clear_marks(list: ListMenu) {
-    // The logic is in `rc2k_core::menu::list_menu` (`unmarked`, `has_choices`, `rounds`).
-    // Its count is a byte, but the original counts it down as a dword: 0 goes round
-    // 2^32 times.
+    // Its count is a byte, but it is counted down as a dword: 0 goes round 2^32 times.
     let mut count = list.count() as u32;
     let mut n = 0;
     loop {

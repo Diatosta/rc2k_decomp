@@ -1,24 +1,13 @@
-//! `install::run_page` (0x4144CF): one of the installer's pages (a list menu) run until it
-//! is left: the answer 1, not leaving, the clocks, the highlight from the list's +4; the
-//! marks cleared (`menu::list_clear_marks`) and the list's action (+8) told the start (state
-//! 0). A list with 0x40 or 0x80 is only that action. Else the items marked
-//! (`install::mark_page`), the highlight moved on past items that cannot be chosen
-//! (`menu::list_item_unusable`), the backdrop shown (`install::show_backdrop`); then each
-//! frame: the pieces laid out, measured, placed, a frame's messages (`screens::run_frame`,
-//! no key), the page drawn (lock, backdrop, `install::draw_pieces`, unlock, show), the
-//! clocks, a key (`menu::list_take_key`). The game quitting ends it. A key (1 .. 0x7F)
-//! goes to the item (`install::page_key`); if it did nothing, to the list's key action
-//! (+0x14); if that did nothing either, it moves the highlight (`menu::list_step`, the
-//! neighbours at +0x10); what took the key restarts the move clock. Then the marks again,
-//! the action told (state 1), the items marked, and a highlight that cannot be chosen moved
-//! on (an arrow on to the same item as before: the key again on the new one; else back for
-//! 0x66 and 0x68, on for the rest, round the list). Leaving (`g_listLeave`): the backdrop,
-//! the action told the end (state -1). At the end the marks cleared and the highlight kept.
+//! One of the installer's pages (a list menu) run until it is left: the list's action is told the
+//! start (state 0); a list with 0x40 or 0x80 is only that action. Else the items are marked, the
+//! highlight moved past items that cannot be chosen, the backdrop shown; then each frame: the
+//! pieces laid out, measured, placed, the page drawn, a key taken. A key goes to the item
+//! (`install::page_key`); if it did nothing, to the list's key action; if that did nothing
+//! either, it moves the highlight (`menu::list_step`). Leaving tells the action the end
+//! (state -1). The game quitting ends it.
 //!
-//! Takes the list. Returns the answer (`list_answer`).
-//! A page whose every item cannot be chosen would go round for ever: refused. Caller
-//! `install::run_pages`.
-//! The quitting way is not tested (it would set the game's `g_quitting`).
+//! Returns the answer (`list_answer`). Refused: a page whose every item cannot be chosen.
+//! Called by `install::run_pages`.
 
 use crate::errors::{BadInput, Refused};
 use crate::install::installer::{

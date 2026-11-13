@@ -1,9 +1,5 @@
-//! `net::choose_stage` (0x418347): the lobby's stage item (the host's): the stage screen
-//! (`menu::select_stage_loop`, the Escape flag `escape_pressed` 0 first); unless it was left
-//! with Escape, this player's record given the stage (+4 from the chosen stage) and its
-//! direction (+5 from the stage's direction); then the background again (`net::show_background`).
-//!
-//! Caller: `net::lobby_loop`.
+//! The lobby's stage item (the host's): runs the stage screen; unless left with Escape, the
+//! chosen stage and its direction go into the player's record. The background is drawn again.
 
 use crate::errors::Refused;
 use crate::menu::screen_loop::{Entry, run_screen};

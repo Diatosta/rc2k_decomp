@@ -1,16 +1,14 @@
-//! `menu::inspection_pass` (0x4A8556): the inspection after a stage. `event.event_goes_on` 1;
-//! for each counted player (`event.current_player` 0 .. `event.player_count`, the original's `do ..
-//! while`) taking part (+0xD0 1): its figures (`menu::driver_stats`), the verdict
-//! (`menu::inspection_verdict`) and the faults (`menu::inspection_faults`); one that fails
-//! (+0xD0 now 2) counts in `event.event_out` and is shown the inspection: its screen
-//! (`menu::inspection_screen`), a second's sleep, the fade in, the inspection page
-//! (`menu::inspection_area_loop`; a yes to leaving ends it all), the fade out, 1250 ms'
-//! sleep. When every player has failed (`event.event_out` the player count), `event.event_goes_on`
-//! 0 (the event is over).
+//! `menu::inspection_pass`: the inspection after a stage. `event.event_goes_on` 1;
+//! for each counted player (`event.current_player` 0 .. `event.player_count`) taking part
+//! (+0xD0 1): its figures (`menu::driver_stats`), the verdict (`menu::inspection_verdict`) and
+//! the faults (`menu::inspection_faults`); one that fails (+0xD0 now 2) counts in
+//! `event.event_out` and is shown the inspection: its screen (`menu::inspection_screen`), a
+//! second's sleep, the fade in, the inspection page (`menu::inspection_area_loop`; a yes to
+//! leaving ends it all), the fade out, 1250 ms' sleep. When every player has failed
+//! (`event.event_out` the player count), `event.event_goes_on` 0 (the event is over).
 //!
-//! Callers: the event drivers. Refuses a
-//! player count of 0 or past 4, a player missing, a taking-part player's car without its table,
-//! before anything.
+//! Callers: the event drivers. Refuses a player count of 0 or past 4, a player missing, a
+//! taking-part player's car without its table, before anything.
 
 use crate::errors::Refused;
 use crate::menu::owner::Menus;
@@ -19,7 +17,6 @@ use crate::menu::standings::*;
 
 pub fn inspection_pass(menus: &Menus, entry: &Entry) -> Result<(), Refused> {
     let screens = &menus.screens;
-    // The logic is in `rc2k_core::menu::passes` (who is looked at, the pauses, `goes_on`).
     use rc2k_core::menu::passes;
     let players = counted_players(menus)?;
     for &p in &players {

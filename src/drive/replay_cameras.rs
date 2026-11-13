@@ -1,14 +1,9 @@
-//! `drive::replay_cameras` (0x460949): the two cars' replay cameras from the frame's head (the
-//! first car block, `g_carBlockStore`: its first two dwords into `camera_word_0`, `6EF7D4`). For
-//! each car c (block c, its byte c of the head): the wish `replay_camera_wishes`[byte]`; 0x23 .. 0x25 at
-//! least three frames after the last (`camera_last_frame`[c]`, frame `replay_block`): a mode drawn
-//! (`drive::pick_replay_camera`) into +0x684, +0x694 0, +0x690 the block's +8; another wish not
-//! already +0x684: it into +0x688 and +0x684, the same two, the last frame 0. Then the option bits
-//! (+0x220) of both from `player_options`, `63DB80`, and the head's bytes 2 .. 5 into `view_on`,
-//! `63DB78`, `63DB84`, `63DB88`.
-//!
-//! Callers: `drive::play_replay_frame`, `race::show_replay_still`. Refuses what
-//! `pick_replay_camera` refuses (everything written put back).
+//! The two cars' replay cameras from the frame's head (the first car block's first dwords). For
+//! each car, the head's byte picks a wish (`replay_camera_wishes`); 0x23 .. 0x25 at least three
+//! frames after the last draw a camera mode (`drive::pick_replay_camera`), another wish not
+//! already set is taken as it is. Then the option bits of both come from `player_options` and
+//! the head's bytes 2 .. 5 become the view switches. Refuses what `pick_replay_camera` refuses
+//! (everything written put back).
 
 use crate::errors::{BadInput, Refused};
 use crate::race::owner::Race;
@@ -16,16 +11,15 @@ use crate::race::replay_work_store::ReplayWork;
 use crate::session::PlainDword;
 use rc2k_core::drive::replay_views::{WishStep, wish_step};
 
-/// Byte `k` of the frame's head (the first car block's start, `g_carBlockStore`).
-/// Asked only for bytes 0 .. 5 (the cars' and the four switches'), inside the head's 8.
+/// Byte `k` of the frame's head (the first car block's start). Asked only for bytes 0 .. 5
+/// (the cars' and the four switches'), inside the head's 8.
 fn head_byte(race: &Race, k: usize) -> u32 {
     (race.car_blocks().cars[0].frame_head[k / 4].get() >> (8 * (k % 4))) & 0xFF
 }
 
-/// `replay_camera_wishes`[head byte]: the table holds 47; the two dwords that follow it in
+/// `replay_camera_wishes[head byte]`: the table holds 47; the two dwords that follow it in
 /// the replay's work, the last draw frames (`camera_last_frame`), answer for the bytes 47
-/// and 48, as the original reads on; any larger byte is refused (a damaged replay file gives
-/// any byte).
+/// and 48; any larger byte is refused (a damaged replay file gives any byte).
 fn wish_of(replay_work: &ReplayWork, byte: usize) -> Result<u32, BadInput> {
     replay_work
         .replay_camera_wishes
@@ -36,7 +30,6 @@ fn wish_of(replay_work: &ReplayWork, byte: usize) -> Result<u32, BadInput> {
         .ok_or(BadInput("a replay camera wish past the replay work"))
 }
 
-// Converted: `rc2k_core::drive::replay_views::wish_step`.
 fn steps(race: &Race) -> Result<(), Refused> {
     let shared = &race.shared;
     let replay = &race.replay;
@@ -86,7 +79,7 @@ fn steps(race: &Race) -> Result<(), Refused> {
     race.car_blocks().cars[1]
         .option_bits
         .set(shared.view.get().player_options[1].get());
-    // The head's bytes 2 .. 5 into `view_on`, `63DB78`, `63DB84`, `63DB88`.
+    // The head's bytes 2 .. 5 into the view switches.
     for (k, to) in [
         &shared.view.get().view_on[0],
         &shared.view.get().view_on[1],

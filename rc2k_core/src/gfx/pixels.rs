@@ -1,11 +1,6 @@
-//! Pixels, palettes and textures (from `gfx::describe_format`
-//! 0x405BB6, `components_to_pixel` 0x405C8A, `pixel_to_components` 0x405CFA,
-//! `blend_palette` 0x405F0A, `fade_colour` 0x44A4C5, `palette_to_dwords` 0x405DDE,
-//! `least_colour` 0x4053BC, `alpha_from_kept` 0x405443, `key_texture_colours` 0x40540C,
-//! `grade_texture` 0x4055A2, `halve_texture` 0x40545F; also the brighter
-//! palette of `gfx::build_game_fonts` 0x41B178).
+//! Pixels, palettes and textures.
 //!
-//! The game works in "components": a dword whose bytes 0, 1, 2 are a colour and byte 3
+//! The graphics work in "components": a dword whose bytes 0, 1, 2 are a colour and byte 3
 //! the alpha. A `PixelFormat` says how a surface's or texture's pixel holds them.
 
 /// How a pixel holds the four components.
@@ -41,7 +36,7 @@ fn top_bit(mask: u32) -> u8 {
     }
 }
 
-/// The layout and the format's number for four masks (`describe_format`). If each mask is
+/// The layout and the format's number for four masks. If each mask is
 /// empty or one run of bits: the masks' top bits less 7, 15, 23, 31 as rotation counts
 /// with the sign bit, and, if the masks together are one run too, the number `numbers`
 /// (number, layout) gives that layout (else 0). With a gap in a mask: the top bit of all
@@ -61,8 +56,8 @@ pub fn describe(masks: [u32; 4], numbers: &[(u32, u32)]) -> (u32, u32) {
     (layout, number)
 }
 
-/// Components made a pixel (`components_to_pixel`), and for a bit-by-bit format what is
-/// left of the four bytes it shifts the components out of (the game keeps them).
+/// Components made a pixel, and for a bit-by-bit format what is left of the four bytes it shifts
+/// the components out of (the caller keeps them).
 pub fn pack(format: &PixelFormat, components: u32) -> (u32, Option<[u8; 4]>) {
     if components == 0 {
         return (0, None);
@@ -91,7 +86,7 @@ pub fn pack(format: &PixelFormat, components: u32) -> (u32, Option<[u8; 4]>) {
     (pixel, Some(left))
 }
 
-/// A pixel taken apart into components (`pixel_to_components`): rotated back, or bit by
+/// A pixel taken apart into components: rotated back, or bit by
 /// bit from the top, at most eight a component, left-aligned when fewer.
 pub fn unpack(format: &PixelFormat, pixel: u32) -> u32 {
     if pixel == 0 {
@@ -134,7 +129,7 @@ pub fn least_colour(format: &PixelFormat) -> u32 {
     unpack(format, pixel)
 }
 
-/// One entry of a palette between two (`blend_palette`): each of the three colour
+/// One entry of a palette between two: each of the three colour
 /// components first + ((second - first) * `towards` >> 8); the fourth is `old`'s top byte
 /// (what the entry held before). The pixel, and the bytes `pack` leaves.
 pub fn blend_entry(
@@ -155,8 +150,8 @@ pub fn blend_entry(
     pack(format, u32::from_le_bytes(entry))
 }
 
-/// One byte brought toward another (`fade_colour`): s + ((t - s) * amount >> 8), held to
-/// 0 .. 0xFF. The byte, and the high dword of the product (the original leaves it).
+/// One byte brought toward another: s + ((t - s) * amount >> 8), held to 0 .. 0xFF. Gives the
+/// byte and the high dword of the product (the caller keeps it).
 pub fn fade_step(s: u32, t: u32, amount: u32) -> (u32, u32) {
     let p = i64::from(t.wrapping_sub(s) as i32) * i64::from(amount as i32);
     let v = ((p as u32 as i32) >> 8).wrapping_add(s as i32);
@@ -175,7 +170,7 @@ pub fn palette_entry([first, second, third]: [u8; 3]) -> u32 {
     (first as u32) << 16 | (second as u32) << 8 | third as u32
 }
 
-/// n / 3 (the game's table `g_thirds`, n up to 0x2FF).
+/// n / 3 (as the thirds table holds it, n up to 0x2FF).
 fn thirds(n: u32) -> u32 {
     n / 3
 }
@@ -183,8 +178,8 @@ fn thirds(n: u32) -> u32 {
 /// Where a texture's second picture is, in bytes after the first's start.
 pub const KEPT: usize = 0x40000;
 
-/// Each of `count` pixels' alpha the inverted first byte of the pixel `KEPT` bytes on
-/// (`alpha_from_kept`), in order.
+/// Each of `count` pixels' alpha made the inverted first byte of the pixel `KEPT` bytes on, in
+/// order.
 pub fn alpha_from_kept(buffer: &mut [u8], count: usize) -> Option<()> {
     for n in 0..count {
         let kept = *buffer.get(KEPT + n * 4)?;
@@ -194,7 +189,7 @@ pub fn alpha_from_kept(buffer: &mut [u8], count: usize) -> Option<()> {
 }
 
 /// Alpha made 0xFF; a colour whose top five bits are all 0 becomes the key, magenta
-/// (0xF800F8 by those bits) all 0 (`key_texture_colours`).
+/// (0xF800F8 by those bits) with alpha 0.
 pub fn key_colours(pixels: &mut [u32], key: u32) {
     let key = key | 0xFF00_0000;
     for p in pixels {
@@ -226,7 +221,7 @@ pub fn grading(reading: u32, scale: u32, saturation: u32) -> bool {
     reading == 1 && !(scale == 0x100 && saturation == 0x100)
 }
 
-/// A texture's colours made brighter or duller (`grade_texture`): each pixel of an alpha
+/// A texture's colours made brighter or duller: each pixel of an alpha
 /// above 0 through `table`, then drawn towards or away from the colours' average by
 /// `saturation`; one left black by the top five bits becomes the key.
 pub fn grade(pixels: &mut [u32], key: u32, saturation: u32, table: &[u8; 0x100]) {
@@ -257,7 +252,7 @@ pub fn halvable(width: u32, height: u32, times: u32) -> bool {
     times <= 32 && (width >> times) > 0 && (height >> times) > 0
 }
 
-/// A texture made half as wide and high in place, `times` times (`halve_texture`): each
+/// A texture made half as wide and high in place, `times` times: each
 /// pixel the average of four, the colour counting only those of an alpha above 0. The
 /// size after the last pass; `None` if the pixels are fewer than the size says.
 pub fn halve(pixels: &mut [u32], width: u32, height: u32, times: u32) -> Option<(u32, u32)> {
@@ -306,17 +301,16 @@ pub fn halve(pixels: &mut [u32], width: u32, height: u32, times: u32) -> Option<
     Some((width, height))
 }
 
-/// The masks of the game's own components (`gfx::set_component_format` 0x405DB4).
+/// The masks of the components format (bytes 0 .. 3).
 pub const COMPONENT_MASKS: [u32; 4] = [0xFF, 0xFF00, 0xFF_0000, 0xFF00_0000];
 
-/// The table of n / 3 for n = 0 .. 0x2FF (`gfx::fill_thirds_table` 0x405580).
+/// The table of n / 3 for n = 0 .. 0x2FF.
 pub fn thirds_table() -> [u8; 0x300] {
     std::array::from_fn(|n| (n / 3) as u8)
 }
 
-/// `count` pixels of three bytes turned into dwords in place, from the last down (the
-/// first byte up 16, the second up 8, the top byte 0: `gfx::rgb_pixels_to_dwords`
-/// 0x41CC96). `None` if the buffer is shorter than the dwords.
+/// `count` pixels of three bytes turned into dwords in place, from the last down (the first byte
+/// up 16, the second up 8, the top byte 0). `None` if the buffer is shorter than the dwords.
 pub fn rgb_to_dwords(buffer: &mut [u8], count: usize) -> Option<()> {
     if buffer.len() < count.checked_mul(4)? {
         return None;
@@ -328,9 +322,8 @@ pub fn rgb_to_dwords(buffer: &mut [u8], count: usize) -> Option<()> {
     Some(())
 }
 
-/// `count` palette numbers (a byte a pixel) turned into the palette's dwords in place, from
-/// the last down (`gfx::palette_pixels_to_dwords` 0x41CCCB). `None` if the buffer is
-/// shorter than the dwords.
+/// `count` palette numbers (a byte a pixel) turned into the palette's dwords in place, from the
+/// last down. `None` if the buffer is shorter than the dwords.
 pub fn palette_to_dwords(buffer: &mut [u8], count: usize, palette: &[u32; 256]) -> Option<()> {
     if buffer.len() < count.checked_mul(4)? {
         return None;
@@ -342,19 +335,17 @@ pub fn palette_to_dwords(buffer: &mut [u8], count: usize, palette: &[u32; 256]) 
     Some(())
 }
 
-/// A pixel of four eight-bit components as format 4's two bytes (`gfx::
-/// components_to_4444_rows` 0x40750D): the top four bits of the first and second
-/// component in the first byte (low half, high half), of the third and fourth in the
+/// A pixel of four eight-bit components as format 4's two bytes: the top four bits of the first
+/// and second component in the first byte (low half, high half), of the third and fourth in the
 /// second.
 pub fn to_4444(c: [u8; 4]) -> [u8; 2] {
     [c[0] >> 4 | c[1] & 0xF0, c[2] >> 4 | c[3] & 0xF0]
 }
 
-/// A picture of four components a pixel made the surface's pixels in place
-/// (`gfx::convert_picture` 0x406126 without a converter): each packed (`pack`) and written
-/// from the buffer's start as words (`words`, a 16-bit screen) or dwords. The last scratch
-/// the packing left, which the game keeps (0x4F3FA8). Refused: a buffer shorter than
-/// the pixels.
+/// A picture of four components a pixel made the surface's pixels in place, for a format without
+/// a converter: each packed (`pack`) and written from the buffer's start as words (`words`, a
+/// 16-bit screen) or dwords. Gives the last scratch the packing left (the caller keeps it).
+/// Refused: a buffer shorter than the pixels.
 pub fn convert_in_place(
     buffer: &mut [u8],
     pixels: usize,
@@ -378,10 +369,9 @@ pub fn convert_in_place(
     Ok(kept)
 }
 
-/// A row of pixels of four components packed into the surface's format
-/// (`gfx::blit_components` 0x4065EE): `from` holds the row's components, `to` gets words
-/// (`words`, two bytes a pixel) or dwords. The last scratch the packing left. Refused: a
-/// row longer than either side.
+/// A row of pixels of four components packed into the surface's format: `from` holds the row's
+/// components, `to` gets words (`words`, two bytes a pixel) or dwords. Gives the last scratch the
+/// packing left. Refused: a row longer than either side.
 pub fn pack_row(
     from: &[u8],
     to: &mut [u8],
@@ -405,16 +395,15 @@ pub fn pack_row(
     Ok(kept)
 }
 
-/// The row table (`gfx::fill_row_table` 0x40586A): `rows` addresses,
-/// `step` apart from `first` (wrapping).
+/// The row table: `rows` addresses, `step` apart from `first` (wrapping).
 pub fn row_table(first: u32, step: u32, rows: usize) -> Vec<u32> {
     (0..rows as u32)
         .map(|n| first.wrapping_add(n.wrapping_mul(step)))
         .collect()
 }
 
-/// `gfx::build_game_fonts`' second palette: a palette entry made brighter, its first
-/// component + 0x40, the second and third + 0x20, each stopping at 0xFF; the alpha kept.
+/// The game fonts' second palette: a palette entry made brighter, its first component + 0x40,
+/// the second and third + 0x20, each stopping at 0xFF; the alpha kept.
 pub fn brighter(entry: u32) -> u32 {
     let [a, b, c, d] = entry.to_le_bytes();
     u32::from_le_bytes([

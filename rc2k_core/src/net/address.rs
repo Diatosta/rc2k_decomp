@@ -1,14 +1,12 @@
-//! A connection's DirectPlay address (from `net::add_address_element`
-//! 0x41896E and `net::build_address` 0x41882C): a compound address made of elements
-//! (`DPCOMPOUNDADDRESSELEMENT`: the data type's GUID, the data's size, the data's
-//! address), which by the connection's service provider: IPX the provider alone, TCP/IP
-//! the provider, the host's address and a port if one is set, any other the provider and
-//! DirectPlay's calls made on the receiving thread.
+//! A connection's DirectPlay address: a compound address of elements (the data type's GUID, the
+//! data's size and address), built by the connection's service provider: IPX the provider
+//! alone, TCP/IP the provider, the host's address and a port if one is set, any other the
+//! provider and DirectPlay's calls made on the receiving thread.
 
 /// An element's bytes.
 pub const ELEMENT_LEN: u32 = 0x18;
 
-/// Where element `count` (the count so far) goes in the table: no limit, as the original.
+/// Where element `count` goes in the table: no limit.
 pub fn element_at(count: u32) -> u32 {
     count.wrapping_mul(ELEMENT_LEN)
 }
@@ -57,8 +55,8 @@ pub fn has_port(port: u32) -> bool {
     port != 0
 }
 
-/// Whether DirectPlay's calls are made on the receiving thread (`g_netPosting` 1): for a
-/// provider not IPX nor TCP/IP (a modem's or a serial link's dialogs, it seems).
+/// Whether DirectPlay's calls are made on the receiving thread: for a provider that is neither
+/// IPX nor TCP/IP.
 pub fn posts(provider: Provider) -> bool {
     provider == Provider::Other
 }

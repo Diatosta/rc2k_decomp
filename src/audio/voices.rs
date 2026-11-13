@@ -1,19 +1,11 @@
-//! The audio thread's sounds: sample records, voices and mixer channels.
-//!
-//! A sound number (what `sound::play_sound` sends) picks a sample record (`SampleRecord`,
-//! 0x1CD of them at `g_sampleRecords`, 0x50A7A4). A record that is loaded points at its
-//! first voice (`Voice`, a pool of 0x200 at `g_voices`, 0x4F834C, `g_voiceCount` used); a
-//! sound that can sound more than once at a time has more voices, linked by `next_copy`.
-//! A voice that sounds is on the playing list (`g_playingVoices`, 0x4F8340, linked by
-//! `next`) and holds a mixer channel (`MixerChannel`, `g_channelCount` of them at
-//! `g_channels`, 0x506354; `g_channelsUsed` held); a voice put out of use goes to the
-//! stopping list (`g_stoppingVoices`, 0x4F8344) for the next turn to stop. What a command
-//! changes in a voice is marked in its `dirty` bits for the turn to carry out: 1 volume,
-//! 2 pan, 4 frequency, 8 place, 0x10 play, 0x20 restart.
-//!
-//! A voice or a channel is named by its id, its place + 1 (the original's
-//! pointers: `first_voice`, `source`, `next_copy`, `next`, a channel's `voice`, the lists),
-//! never by an address.
+//! The audio thread's sounds: sample records, voices and mixer channels. A sound number (what
+//! `sound::play_sound` sends) picks a sample record (`SampleRecord`, 0x1CD of them). A record that
+//! is loaded points at its first voice (`Voice`, a pool of 0x200); a sound that can sound more than
+//! once at a time has more voices, linked by `next_copy`. A voice that sounds is on the playing
+//! list (linked by `next`) and holds a mixer channel (`MixerChannel`); a voice put out of use goes
+//! to the stopping list for the next turn to stop. What a command changes in a voice is marked in
+//! its `dirty` bits for the turn to carry out: 1 volume, 2 pan, 4 frequency, 8 place, 0x10 play,
+//! 0x20 restart.
 
 use crate::audio::own::{AudioOwn, AudioThread};
 use crate::audio::store::{AudioShared, SampleRecords};
@@ -24,8 +16,8 @@ pub use rc2k_core::audio::voices::{SAMPLES, VOICES};
 // The records, voices and channels and their constants: `rc2k_core::audio::voices`.
 pub use rc2k_core::audio::voices::{LOADED, MODE_3D, MixerChannel, SampleRecord, Voice};
 
-/// An id's place in a pool of `len`: ids are the place + 1 (0 is
-/// none, as a null pointer was). 0, or one past the pool, ends the program.
+/// An id's place in a pool of `len`: ids are the place + 1 (0 is none). 0, or one past the pool,
+/// ends the program.
 fn place_of(id: u32, len: usize, what: &'static str) -> usize {
     match (id as usize).checked_sub(1) {
         Some(n) if n < len => n,
@@ -38,7 +30,7 @@ fn voice_place(state: &AudioShared, id: u32) -> &Shared<Voice> {
     &state.voices[place_of(id, state.voices.len(), "a voice id past the pool")]
 }
 
-/// The mixer channel's place for id `id` (its place in `g_channels` + 1).
+/// The mixer channel's place for id `id` (its place + 1).
 fn channel_place(state: &AudioOwn, id: u32) -> &Plain<MixerChannel> {
     &state.channels[place_of(
         id,
@@ -47,8 +39,7 @@ fn channel_place(state: &AudioOwn, id: u32) -> &Plain<MixerChannel> {
     )]
 }
 
-/// The sample record of sound `number` (the original indexes the table unchecked; a number
-/// past it ends the program).
+/// The sample record of sound `number`; a number past the table ends the program.
 fn sample_of(records: &SampleRecords, number: u32) -> SampleRecord {
     let Some(r) = records.record(number) else {
         crate::fatal::raise::end(
@@ -74,8 +65,8 @@ pub fn update_voice<R>(state: &AudioShared, id: u32, change: impl FnOnce(&mut Vo
     answer
 }
 
-/// The voice being changed stored now, for the property sets' openings that read its
-/// `buffer_3d` from the pool.
+/// The voice being changed stored now, for the property sets' openings that read its `buffer_3d`
+/// from the pool.
 pub fn stored_buffer_3d(
     state: &AudioOwn,
     id: u32,

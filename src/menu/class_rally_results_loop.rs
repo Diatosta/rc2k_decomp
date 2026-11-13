@@ -1,19 +1,13 @@
-//! `menu::class_rally_results_loop` (0x466858): the loop of the third results screen after a
-//! stage, the rally's standings so far for the player's class.
-//!
-//! Named `screen_466858_loop`, then `rally_results_loop`.
-//!
-//! The loop itself is `menu::screen_loop`; this file says what is this screen's own (`SCREEN`):
-//! before the loop it sets the string of the menu's first item to 0x138 if `state.menus.which_title` is 1 and
-//! to 0x139 otherwise, as the stage results screen does; its background comes from
-//! `menu::load_background`, after which a set carry flag is fatal error 0x80712345; leaving is
-//! asked about, and a "no" sets the screen up again. One caller.
+//! The loop of the third results screen after a stage, the rally's standings so far for the
+//! player's class. Screen-specific part of `menu::screen_loop`: before the loop it sets the
+//! string of the menu's first item to 0x138 if `state.menus.which_title` is 1 and to 0x139
+//! otherwise, as the stage results screen does; its background comes from
+//! `menu::load_background` (a failure is fatal error 0x80712345); leaving is asked about, and a
+//! "no" sets the screen up again. One caller.
 
 use crate::errors::Refused;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Asking, Callee, Entry, List, Screen, Step};
-
-// ---- game data ----
 
 fn set_first_item(entry: &Entry) -> Result<(), Refused> {
     let menus = entry.menus;
@@ -57,7 +51,6 @@ pub const SCREEN: Screen = Screen {
         &m.tables.texts.class_rally_results_picture
     }))],
     asking: Some(Asking { ..Asking::DEFAULT }),
-    // saved_item is the saved highlight
     ..Screen::new(
         |m| m.tables.menus.class_rally_results.id(),
         |m| &m.screens.items.current[slot::CLASS_RALLY_RESULTS],

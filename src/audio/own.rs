@@ -1,31 +1,11 @@
-//! The audio thread's own variables: what only the audio thread touches (its mixer, voice
-//! lists, device objects, sample work buffers and set-up state), plain cells in a record the
-//! thread's loop owns (`audio::thread::audio_thread` makes it, a test makes its own), so that
-//! the game's thread cannot reach it. What both threads touch is `store::AudioShared`.
-//!
-//! Which thread touches which field (read by grep of every access, round 56; T0 = the game's
-//! thread, T1 = the audio thread's loop and what it calls; the SDL callback of
-//! `platform_sound` touches none of them):
-//! - T1 only, here: the mixer (`channels`, `channel_count`, `mix_*`, the cursors), the
-//!   voice lists (`playing_voices`, `stopping_voices`), the sample work buffers and files,
-//!   the stream files' header, the DirectSound / A3D / EAX objects and ids, the buffer and
-//!   wave format descriptions, `volume_table`, `sound_buffer_lost`, `commit_3d`,
-//!   `audio_turn_tick`, `opened_sound_mode`, `sound_list_loaded`, `next_tune`, `music_path`.
-//! - Both, in `AudioShared`: written by T0 (settings, menus) and read by T1 (`no_audio`,
-//!   `menu_sound_mode`, `race_sound_mode`, `master_volume`, `audio_options`, `tune_turn`, the
-//!   levels), written by T1 and read by T0 (`sound_mode`, `has_3d`, `has_eax`, `has_a3d2`,
-//!   `sound_caps`, `voice_manager_on`, the two streams' players, `voices` (`sample_settings`),
-//!   `channels_used` and `voice_count` (the debug window)), and the set-up values T0 reads
-//!   from the settings file before the audio thread starts and T1 reads after it
-//!   (`mix_rate_setting`, `sample_buffer_kb`, `no_music`, `no_listener`, the `ignore*`
-//!   settings): shared, the "before the thread starts" order is not enforced anywhere.
-//!   `sounds_held_back` is T0-only today (the census found a T1 read; there is none), kept
-//!   shared with the others.
-//! - `AudioOwn` reaches the shared part as a reference and derefs to it, so the audio
-//!   thread's code reads both through one `state`.
-//!
-//! The records (`ListCells`, `Shared<MixerChannel>`, ...) keep their `Shared` cells: the
-//! memory and file helpers take them as such.
+//! The audio thread's own variables: what only the audio thread touches (its mixer, voice lists,
+//! device objects, sample work buffers and set-up state), plain cells in a record the thread's
+//! loop owns (`audio::thread::audio_thread` makes it, a test makes its own), so that the game's
+//! thread cannot reach it. What both threads touch is `store::AudioShared`: settings and menus
+//! written by the game thread and read by the audio thread, results written by the audio thread
+//! and read by the game thread, and the set-up values read from the settings file before the audio
+//! thread starts (that order is not enforced). `AudioOwn` reaches the shared part as a reference
+//! and derefs to it.
 
 use crate::audio::describe_wave_format::WaveFormat;
 use crate::audio::make_buffer::BufferDescription;
@@ -40,111 +20,108 @@ use rc2k_core::audio::voices::MixerChannel;
 pub struct AudioOwn {
     /// The shared part, which `AudioOwn` reaches as a reference (and derefs to).
     shared: &'static AudioShared,
-    /// `g_audioTurnTick`: the clock reading of the audio thread's last turn. (IDA 0x4F82B8)
+    /// The clock reading of the audio thread's last turn.
     pub audio_turn_tick: PlainDword,
-    /// `g_openedSoundMode`: the mode DirectSound was opened with. (IDA 0x4F82C0)
+    /// The mode DirectSound was opened with.
     pub opened_sound_mode: PlainDword,
-    /// `g_soundBufferLost`: 1 when a DirectSound buffer was lost (the thread restores them). (IDA 0x4F82CC)
+    /// 1 when a DirectSound buffer was lost (the thread restores them).
     pub sound_buffer_lost: PlainDword,
-    /// `g_commit3d`: 1 when 3D settings are waiting for the listener's commit. (IDA 0x4F82D0)
+    /// 1 when 3D settings are waiting for the listener's commit.
     pub commit_3d: PlainDword,
-    /// `g_primaryVolumeKept`: the primary buffer's volume kept at start (1: none). (IDA 0x4F82DC)
+    /// The primary buffer's volume kept at start (1: none).
     pub primary_volume_kept: PlainDword,
-    /// `g_sampleBitsFlags`: {format flag, bits} twice: 0x10 eight bits, 0x20 sixteen. (IDA 0x4F82E0)
+    /// {format flag, bits} twice: 0x10 eight bits, 0x20 sixteen.
     pub sample_bits_flags: [PlainDword; 4],
-    /// `g_sampleChannelFlags`: {format flag, channels} twice: 0x100 mono, 0x200 stereo. (IDA 0x4F82F0)
+    /// {format flag, channels} twice: 0x100 mono, 0x200 stereo.
     pub sample_channel_flags: [PlainDword; 4],
-    /// `g_sampleMemory`: the samples' memory (a `MemoryList`). (IDA 0x4F8300)
+    /// The samples' memory (a `MemoryList`).
     pub sample_memory: ListCells,
-    /// `g_playingVoices`: the first voice on the playing list (an address; 0: none). (IDA 0x4F8340)
+    /// The first voice on the playing list (an address; 0: none).
     pub playing_voices: PlainDword,
-    /// `g_stoppingVoices`: the first voice on the stopping list. (IDA 0x4F8344)
+    /// The first voice on the stopping list.
     pub stopping_voices: PlainDword,
-    /// `g_channelCount`: the mixer's channels (8 at start). (IDA 0x50634C)
+    /// The mixer's channels (8 at start).
     pub channel_count: PlainDword,
-    /// `g_channels`: the mixer's channels. (IDA 0x506354)
+    /// The mixer's channels.
     pub channels: [Plain<MixerChannel>; 16],
-    /// `g_mixRate`: the mixer's rate (the primary buffer's). (IDA 0x5068D4)
+    /// The mixer's rate (the primary buffer's).
     pub mix_rate: PlainDword,
-    /// `g_primarySize`: the primary buffer's bytes. (IDA 0x5068D8)
+    /// The primary buffer's bytes.
     pub primary_size: PlainDword,
-    /// `g_mixMost`: the most a turn mixes, 40 ms of bytes. (IDA 0x5068DC)
+    /// The most a turn mixes, 40 ms of bytes.
     pub mix_most: PlainDword,
-    /// `g_mixShift`: bytes to frames (a shift). (IDA 0x5068E0)
+    /// Bytes to frames (a shift).
     pub mix_shift: PlainDword,
-    /// `g_playCursor`: the primary buffer's play cursor. (IDA 0x5068E4)
+    /// The primary buffer's play cursor.
     pub play_cursor: PlainDword,
-    /// `g_writeCursor`: the mixer's write place. (IDA 0x5068E8)
+    /// The mixer's write place.
     pub write_cursor: PlainDword,
-    /// `g_sampleBufferMemory`: the work buffer's memory (a `MemoryList`). (IDA 0x5068F0)
+    /// The work buffer's memory (a `MemoryList`).
     pub sample_buffer_memory: ListCells,
-    /// `g_sampleBuffer`: the work buffer for reading samples (an address). (IDA 0x506930)
+    /// The work buffer for reading samples (an address).
     pub sample_buffer: PlainDword,
-    /// `g_sampleBufferSize`: its bytes. (IDA 0x506934)
+    /// Its bytes.
     pub sample_buffer_size: PlainDword,
-    /// `g_sampleFile`: what the last sample file read held. (IDA 0x506938)
+    /// What the last sample file read held.
     pub sample_file: Plain<SampleFile>,
-    /// `dword_506958`: 0x40, the volume factor a sample record's `volume_factor` points at. (IDA 0x506958)
+    /// 0x40, the volume factor a sample record's `volume_factor` points at.
     pub unit_volume_factor: PlainDword,
-    /// `g_soundListLoaded`: the sound list loaded (command 3), 0 after it is freed. (IDA 0x50695C)
+    /// The sound list loaded (command 3), 0 after it is freed.
     pub sound_list_loaded: PlainDword,
-    /// `g_nextTune`: the tune played when the music stops. (IDA 0x50698C)
+    /// The tune played when the music stops.
     pub next_tune: PlainDword,
-    /// `g_musicPath`: `;3files\music\00.wav`, the tune's two digits are put at +0xE. (IDA 0x5069C0)
+    /// `;3files\music\00.wav`, the tune's two digits are put at +0xE.
     pub music_path: PlainBytes<24>,
-    /// `g_streamHeader`: the 0xC00 bytes a stream's file head is read into (an address; 0: not taken yet). (IDA 0x5069D8)
+    /// The 0xC00 bytes a stream's file head is read into (an address; 0: not taken yet).
     pub stream_header: PlainDword,
-    /// `g_streamHeaderMemory`: the header's memory (a `MemoryList`). (IDA 0x5069DC)
+    /// The header's memory (a `MemoryList`).
     pub stream_header_memory: ListCells,
-    /// `riid`: A3D's interface id. (IDA 0x506A28)
+    /// A3D's interface id.
     pub a3d_iid: PlainBytes<16>,
-    /// `g_iidListener3d`: the 3D listener's interface id. (IDA 0x506A48)
+    /// The 3D listener's interface id.
     pub iid_listener: PlainBytes<16>,
-    /// `g_iidSound3dBuffer`: the 3D buffer's interface id. (IDA 0x506A58)
+    /// The 3D buffer's interface id.
     pub iid_sound_3d_buffer: PlainBytes<16>,
-    /// `g_iidKsPropertySet`: the property set's interface id. (IDA 0x506A78)
+    /// The property set's interface id.
     pub iid_property_set: PlainBytes<16>,
-    /// `g_directSound`: the IDirectSound object (an address; 0: none). (IDA 0x506A88)
+    /// The IDirectSound object (an address; 0: none).
     pub direct_sound: PlainDword,
-    /// `g_primaryBuffer`: the primary buffer. (IDA 0x506A8C)
+    /// The primary buffer.
     pub primary_buffer: PlainDword,
-    /// `g_soundListener`: the 3D listener. (IDA 0x506A90)
+    /// The 3D listener.
     pub sound_listener: PlainDword,
-    /// `g_lockedParts`: what `Lock` gives: two pointers and their sizes. (IDA 0x506A98)
+    /// What `Lock` gives: two pointers and their sizes.
     pub locked_parts: [PlainDword; 4],
-    /// `g_primaryCaps`: the primary buffer's `DSBCAPS` (its bytes at +8). (IDA 0x506B08)
+    /// The primary buffer's `DSBCAPS` (its bytes at +8).
     pub primary_caps: PlainBytes<20>,
-    /// `g_bufferDescription`: the `DSBUFFERDESC` a buffer is made with. (IDA 0x506B1C)
+    /// The `DSBUFFERDESC` a buffer is made with.
     pub buffer_description: Plain<BufferDescription>,
-    /// `g_waveFormat`: the `WAVEFORMATEX` a buffer is made with. (IDA 0x506B30)
+    /// The `WAVEFORMATEX` a buffer is made with.
     pub wave_format: Plain<WaveFormat>,
-    /// `g_volumeTable`: 65 volumes, -10000 .. 0 (signed). (IDA 0x506B4C)
+    /// 65 volumes, -10000 .. 0 (signed).
     pub volume_table: [PlainDword; 65],
-    /// `g_voiceManager`: the voice manager's IKsPropertySet. (IDA 0x506C58)
+    /// The voice manager's IKsPropertySet.
     pub voice_manager: PlainDword,
-    /// `g_a3dSplashKept`: 1 = the splash pair acts. (IDA 0x506C60)
+    /// 1 = the splash pair acts.
     pub a3d_splash_kept: PlainDword,
-    /// `g_a3dReady`. (IDA 0x506C64)
     pub a3d_ready: PlainDword,
-    /// `g_a3dObject`. (IDA 0x506C68)
     pub a3d_object: PlainDword,
-    /// `g_eaxProperties`: EAX's IKsPropertySet. (IDA 0x506C74)
+    /// EAX's IKsPropertySet.
     pub eax_properties: PlainDword,
-    /// `g_eaxRoom`: the room asked for (6 at start). (IDA 0x506C78)
+    /// The room asked for (6 at start).
     pub eax_room: PlainDword,
-    /// `g_eaxRoomSet`: the room set (6 at start). (IDA 0x506C7C)
+    /// The room set (6 at start).
     pub eax_room_set: PlainDword,
-    /// `g_eaxEnvironmentSet`: the race's environment (`ENVIRONMENT`) last set (1.0 at start). (IDA 0x506C80)
+    /// The race's environment (`ENVIRONMENT`) last set (1.0 at start).
     pub environment_kept: PlainDword,
-    /// `rclsid`: A3D's class id. (IDA 0x506CD8)
+    /// A3D's class id.
     pub a3d_clsid: PlainBytes<16>,
-    /// `g_a3d2Interface`. (IDA 0x506D58)
     pub a3d2_interface: PlainDword,
-    /// `g_useA3d`: 1 = A3D is the sound. (IDA 0x506D60)
+    /// 1 = A3D is the sound.
     pub use_a3d: PlainDword,
-    /// A3D2's class id. (IDA 0x506D6C)
+    /// A3D2's class id.
     pub a3d2_clsid: PlainBytes<16>,
-    /// A3D2's interface id. (IDA 0x506D8C)
+    /// A3D2's interface id.
     pub a3d2_iid: PlainBytes<16>,
 }
 
@@ -355,9 +332,9 @@ impl std::ops::Deref for AudioOwn {
     }
 }
 
-/// What the audio thread works with: its own variables (`state`, which derefs to the shared
-/// ones) and the rest of the audio owner (the commands, the sample records and names, the
-/// levels), which `AudioThread` derefs to. Made by the thread's loop (`audio::thread`).
+/// What the audio thread works with: its own variables (`state`, which derefs to the shared ones)
+/// and the rest of the audio owner (the commands, the sample records and names, the levels), which
+/// `AudioThread` derefs to. Made by the thread's loop (`audio::thread`).
 pub struct AudioThread {
     pub state: AudioOwn,
     owner: &'static Audio,

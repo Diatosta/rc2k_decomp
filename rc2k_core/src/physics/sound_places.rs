@@ -1,18 +1,8 @@
-//! The car's sound object placed (from `physics::place_sound_e1`
-//! 0x45CEF9, `place_sound_e1_other` 0x45CE32, `place_sound_e5` 0x45CF95 and
-//! `place_sound_object` 0x45CD60): a sound and its band set in one of the object's two
-//! slots, and the place it is heard from: the car's place (with an offset for one) less
-//! the listener's, turned by the view (`g_viewTurnMatrix`) and scaled (`one_over_65536`,
-//! 1/65536); then the object is told to play (+0x10 1). A reading: the hits' sounds.
-//!
-//! Floats: the place's parts are whole numbers (`fild` / `fiadd` / `fisub`), exact in an
-//! `f64`; the turn is `math::vector::rotate_point`, kept on the stack, each part times the
-//! scale and stored: the same bits at the game's double precision.
-//!
-//! The work car's engine sound object told the car's state (from
-//! `physics::car_sound_state` 0x45CACE): its voices' shares, the volume, the place heard
-//! from (`place`, the listener the view block's or the car's own) and its motion turned
-//! by the view.
+//! The car's sound object placed: a sound and its band set in one of the object's two slots,
+//! and the place it is heard from (the car's place less the listener's, turned by the view and
+//! scaled), then the object is told to play. Also the work car's engine sound object told the
+//! car's state: its voices' shares, the volume, the place heard from and its motion turned by
+//! the view. Floats: the place's parts are whole numbers, exact in an `f64`.
 
 use crate::Invalid;
 use crate::math::vector::rotate_point;
@@ -20,18 +10,21 @@ use crate::math::vector::rotate_point;
 /// One of a sound object's two slots: where the sound, its band and its place go.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Slot {
+    /// Offset of the slot's sound.
     pub sound: u32,
+    /// Offset of the slot's band.
     pub band: u32,
+    /// Offset of the slot's place.
     pub place: u32,
 }
 
-/// The first slot (`place_sound_e1`, `_e1_other`, `place_sound_object`).
+/// The first slot.
 pub const FIRST: Slot = Slot {
     sound: 0x238,
     band: 0x23C,
     place: 0x240,
 };
-/// The second (`place_sound_e5`).
+/// The second slot.
 pub const SECOND: Slot = Slot {
     sound: 0x24C,
     band: 0x250,
@@ -39,13 +32,15 @@ pub const SECOND: Slot = Slot {
 };
 /// The object's play switch, set to `PLAY` last.
 pub const PLAYING: u32 = 0x10;
+/// The value that tells the object to play.
 pub const PLAY: u32 = 1;
-/// The sounds of `place_sound_e1` / `_e1_other` and of `place_sound_e5`.
+/// The first slot's sound.
 pub const SOUND_E1: u32 = 0xE1;
+/// The second slot's sound.
 pub const SOUND_E5: u32 = 0xE5;
 
-/// The place heard from: the car's (+ `offset`) less the listener's, turned by `view`,
-/// each part times `scale`.
+/// The place heard from: the car's (+ `offset`) less the listener's, turned by `view`, each
+/// part times `scale`.
 pub fn place(
     car: [i32; 3],
     listener: [i32; 3],
@@ -60,14 +55,13 @@ pub fn place(
     rotate_point(view, [part(0), part(1), part(2)]).map(|x| (x * scale as f64) as f32)
 }
 
-/// The roadside objects (`g_objectKinds` has 0x100) and their kinds' material records
-/// (0x4B0).
+/// The roadside objects' count.
 pub const OBJECTS: u32 = 0x100;
+/// The material records' count (one per kind).
 pub const KINDS: u32 = 0x4B0;
 
-/// `physics::place_sound_object`'s sound: the object `thing`'s kind (`kind_of`), its
-/// material record's byte +0x24 (`byte_of`), its low four bits into the sounds' table
-/// (`sound_of`). An object or kind past its table refused.
+/// A roadside object's sound: its kind, the kind's material byte, its low four bits into the
+/// sounds' table. An object or kind past its table is refused.
 pub fn object_sound(
     thing: u32,
     kind_of: impl FnOnce(u32) -> u32,
@@ -84,19 +78,18 @@ pub fn object_sound(
     Ok(sound_of(byte_of(kind) as u32 & 0xF))
 }
 
-/// `physics::car_sound_state`'s voices' figures (also kept at `g_car` +0x28C, +0x290,
-/// +0x294).
+/// The voices' figures.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Voices {
-    /// +0x28C: +0x288 over `sound_speed_scale`; the voices' +0x50 .. are it times a scale.
+    /// The speed over the scale; the voices' pitches are it times a scale.
     pub share: f32,
-    /// +0x290: 1.0; the voices' +0x4C ...
+    /// 1.0.
     pub full: f32,
-    /// +0x294: the motion's figure (as it was); the voices' +0x44 ...
+    /// The motion's figure.
     pub motion: f32,
 }
 
-/// The voices' figures: all three 0 with all four wheels off the ground (`all_wheels_off`).
+/// The voices' figures: all three 0 with all four wheels off the ground.
 pub fn voices(level: f32, divisor: f32, motion: f32, all_off: bool) -> Voices {
     if all_off {
         return Voices {
@@ -112,17 +105,17 @@ pub fn voices(level: f32, divisor: f32, motion: f32, all_off: bool) -> Voices {
     }
 }
 
-/// A voice's pitch: the share times the scale (`k256`), one product rounded once.
+/// A voice's pitch: the share times the scale, one product rounded once.
 pub fn pitch(share: f32, scale: f32) -> f32 {
     (f64::from(share) * f64::from(scale)) as f32
 }
 
-/// The object's volume (+0x18): the car's +0x638 held to 0 ..= 0x100 (signed).
+/// The object's volume: held to 0 ..= 0x100 (signed).
 pub fn volume(v: u32) -> u32 {
     (v as i32).clamp(0, 0x100) as u32
 }
 
-/// The car's motion (+0xD4 ..) turned by the view, each part stored as a float.
+/// The car's motion turned by the view, each part stored as a float.
 pub fn turned_motion(view: &[f32; 15], motion: [f32; 3]) -> [f32; 3] {
     rotate_point(view, motion.map(f64::from)).map(|x| x as f32)
 }

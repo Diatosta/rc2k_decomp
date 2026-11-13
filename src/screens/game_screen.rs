@@ -1,6 +1,6 @@
-//! The game's side of `rc2k_core::screens::screen::Screen`: a
-//! family's fonts are font records in game memory, its texts places in typed stores or
-//! held names, its work variables game dwords; drawn through the text functions and the canvas.
+//! The game's side of `rc2k_core::screens::screen::Screen`: a family's fonts are font records
+//! in game memory, its texts places in typed stores or held names, its work variables game
+//! dwords; drawn through the text functions and the canvas.
 
 use crate::errors::{BadInput, Refused};
 use crate::gfx::blit_glyph::BlitCall;
@@ -16,7 +16,7 @@ use crate::gfx::owner::Gfx;
 use rc2k_core::screens::screen::{Buffer, Drawn, Screen};
 use std::marker::PhantomData;
 
-/// A family's font: the address of its record (as IDA shows it).
+/// A family's font: the handle of its record.
 pub trait GameFont: Copy {
     /// The font record in the game.
     fn pointer(self) -> FontRef;
@@ -342,8 +342,8 @@ pub fn buffer_at(
     }
 }
 
-/// `bytes` (with their NUL) into a shared buffer; refused past its end (the line buffer
-/// 0x100 bytes: `byte_A8BC54` follows).
+/// `bytes` (with their NUL) into a shared buffer; refused past its end (the line buffer is
+/// 0x100 bytes, and the next buffer follows).
 pub fn store_in(
     race: &'static Race,
     strings: &'static crate::strings::owner::Strings,
@@ -1038,7 +1038,7 @@ impl GameFont for rc2k_core::screens::highlighted_caption::Font {
             Font::Measure => crate::gfx::typefaces::fonts::MEASURE.into(),
             Font::A => crate::gfx::typefaces::fonts::CAPTION_A.into(),
             Font::B => crate::gfx::typefaces::fonts::CAPTION_B.into(),
-            // g_blendedFont.
+            // The blended font.
             Font::Blended => FontRef::Blended,
         }
     }

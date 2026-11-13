@@ -1,33 +1,17 @@
-//! `system::read_command_line` (0x410684): takes the switches off the command line.
-//!
-//! The first word is the program (its length goes to `COMMAND_LINE`; the original also
-//! kept its place, which nothing reads).
-//! Of the words after it only those of two characters or more count, by their first two:
-//! - `-v`: a message box with the version ("Rally 5.30 (4.8.2000)", a tab, a line break and
-//!   the second version text, built in the fatal report's `Text`; the title is the
-//!   report's "Rally: Guru Meditation" cut after "Rally"), and the game leaves through
-//!   `start`'s exit path without coming back here. The words after it are not read;
-//! - `-u`: `run.updating` = 1; `-p`: `run.installing` = 1; `-a`: `no_audio` = 1;
-//! - `-i`: `run.from_command` and `run.ignore_room` = 1, the next two words are copied
-//!   (without a NUL) to the game and installed folder paths, and the first characters of
-//!   the two after them, less `0`, become the given display mode and language (0 for a
-//!   word that is not there);
-//! - `-c`: the next word's first character: `1` sets `cards.ignore_secondary`
-//!   (`ignoresecondary`), `2` sets `cards.not_primary` (`ignoreprimary`).
-//!
-//! The line ends at a word of no length that starts where the reading stands. One caller, `start`.
-//! Refuses a word for `-i` of 0x100 bytes or more. The `-v` part cannot be run in a test: it was
-//! looked at by the owner. `start` calls it directly.
+//! Takes the switches off the command line: the first word is the program (its length goes to
+//! `COMMAND_LINE`); of the words after it only those of two characters or more count, by their
+//! first two. `-v` shows a message box with the version and leaves; `-u` `run.updating`, `-p`
+//! `run.installing`, `-a` `no_audio`; `-i` takes the next two words as the game and installed
+//! folder paths and the two after as the display mode and language; `-c` takes `1`
+//! (`cards.ignore_secondary`) or `2` (`cards.not_primary`). Refuses a word for `-i` of 0x100
+//! bytes or more. The `-v` part cannot be run in a test.
 
 use crate::errors::BadInput;
 use crate::session::PlainDword;
 use crate::system::owner::Start;
 
-// ---- game data ----
-
 const EXIT_PATH: usize = 0x401116;
 
-/// What the line asks for besides its switches.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Asked {
     Nothing,
@@ -58,10 +42,8 @@ pub fn show_version_and_leave(start: &Start) -> ! {
     crate::fatal::state::TEXT // Text
         .write_at(0, &kept, "the version's text")
         .unwrap_or_else(|e| leave(e));
-    // MB_ICONINFORMATION | MB_TASKMODAL.
     let caption = c_text(caption, "the caption");
     crate::os::message_box(crate::os::Icon::Information, &caption, &text);
-    // The exit path ends in `ExitProcess`; so does the standalone, here.
     crate::standalone::finish(&format!("the game's way out {EXIT_PATH:#x} was reached"), 0)
 }
 
@@ -74,8 +56,6 @@ pub fn read_command_line(
     audio: &crate::audio::owner::Audio,
     line: &[u8],
 ) -> Result<Asked, BadInput> {
-    // Converted: `rc2k_core::system::command_line::read`, the whole line read before
-    // anything is written (a refused `-i` word now leaves nothing written).
     let sw = rc2k_core::system::command_line::read(line)?;
     start.command_line.program_len.set(sw.program.1 as u32);
     if sw.u {
@@ -131,7 +111,7 @@ pub fn read_own_command_line(o: crate::owners::Owners<'static>) -> Result<(), Ba
 /// The program's name on the command line, as `read_command_line` found it (the image had
 /// its place and length; nothing reads the place).
 pub struct CommandLine {
-    /// Its length (`dword_518BAC`).
+    /// The program word's length.
     pub program_len: PlainDword,
 }
 

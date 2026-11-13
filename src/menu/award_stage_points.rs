@@ -1,4 +1,4 @@
-//! `menu::award_stage_points` (0x4A47EA): the stage's championship points. For each class
+//! `menu::award_stage_points`: the stage's championship points. For each class
 //! (`event.class`, 0 .. `event.classes`) the points start at 0x14 (`seconds`); each entry
 //! of standings table B in that class, in the table's order, is logged ("Status of
 //! driver" and its +0x74), gets the points into its +0x54 + 4 * `section` and the points
@@ -50,7 +50,6 @@ pub fn award_stage_points(menus: &Menus) -> Result<(), Refused> {
     for e in &all {
         owners.push(owner(menus, e)?);
     }
-    // The logic is in `rc2k_core::menu::points` (`Points`, `kept`, `total`).
     use rc2k_core::menu::points::{Points, kept, total};
     for class in 0..classes {
         let mut points = Points::default();

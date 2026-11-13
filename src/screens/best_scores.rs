@@ -1,9 +1,8 @@
-//! The best scores pages (`menu::view_best_scores_loop`'s lists): the scores page (`pages.scores_page`) 0 .. 4 shows a group of the best scores
-//! (`champ_view.best_scores`: groups of ten 0x3C-byte entries, 0x258 a group; +8 the nationality, +0xC
-//! the car, +0x18 the name, +0x38 the score), 5 on a group of the class times (`champ_view.level_best_scores`:
-//! groups of ten 0x50-byte entries, 0x320 a group; +8 the nationality, +0x10 the car, +0x14
-//! the time, +0x20 the name); the group by the page's entry of the group list, the caption string by the page's entry
-//! of the caption list. And the replays' range caption. `rc2k_core::screens::best_scores` draws through `game_screen::GameScreen`.
+//! The best scores pages: scores pages 0 to 4 show a group of the best scores (ten entries a
+//! group: nationality, car, name, score); page 5 shows a group of the class times (nationality,
+//! car, time, name). The group and the caption string come from the page's entries in the group
+//! and caption lists; the replays' range caption is here too. Drawing goes through
+//! `game_screen::GameScreen`.
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::event_flow::Fault;
@@ -99,7 +98,7 @@ pub const CLASS_TIMES: Table = Table {
     highlight: false,
     sprite_dy: 0,
 };
-/// `screens::draw_class_times_marked`'s (0x48AB87): the class `arcade.level`, the player's
+/// `screens::draw_class_times_marked`'s: the class `arcade.level`, the player's
 /// own times (`mark` 1) in the highlight fonts, the sprites 4 lower.
 pub const MARKED_CLASS_TIMES: Table = Table {
     at: Source::LevelScores,
@@ -119,13 +118,10 @@ pub type ScoresScreen<'a> = GameScreen<
     HeldText,
 >;
 
-/// `screens::draw_best_scores` (0x4A9300) / `screens::draw_class_times` (0x46D162): the
-/// page's group, from rank 1 until ten or an entry of -1: its name (x 0xF0), its value (x
-/// 0x21C), its rank (x 0xC8, the rank font), the car's sprite 0x1C + car (x 0xD2) and the
-/// flag's 0x44 + flag (24 and 25 swapped, x 0x1CC) on the rank's line; each text starting at
-/// the last one's y (`draw_text` leaves it), the next row 0x19 below; the sprites' palette
-/// the line buffer past its NUL (ebx after the rank's `draw_text`).
-/// Refuses (before anything) no table.
+/// The page's group, from rank 1 until ten or an entry of -1: its name, its value, its rank (in
+/// the rank font), the car's sprite and the flag's sprite (24 and 25 swapped) on the rank's
+/// line; each text starts at the last one's y and the next row is 0x19 below. The sprites take
+/// the line buffer past its NUL as their palette (unused). Refuses no table.
 pub fn draw_scores(
     o: crate::owners::Owners<'static>,
     t: &Table,
@@ -220,8 +216,7 @@ fn draw_held_rows(
     drawn
 }
 
-/// `screens::draw_best_scores_page` (0x46D149): the best scores for pages up to 4, else
-/// the class times.
+/// The best scores for pages up to 4, else the class times.
 pub fn draw_best_scores_page(
     o: crate::owners::Owners<'static>,
     canvas: &mut dyn Canvas,
@@ -234,22 +229,21 @@ pub fn draw_best_scores_page(
     }
 }
 
-/// `screens::best_scores_caption` (0x46D128): the caption (`g_captionText`) string
-/// from the page's entry of the caption list and its NUL.
+/// The caption string from the page's entry of the caption list and its NUL.
 pub fn best_scores_caption(
     so: crate::strings::append_string_by_id::StringOwners<'_>,
     menus: &Menus,
     text: &crate::screens::text_buffers_store::TextBuffers,
 ) -> Result<(), Refused> {
     let tables = &menus.tables;
-    // The logic is in `rc2k_core::screens::captions::fit` (through `car_caption::put_string`); refused
-    // where the original writes past the caption's 0x100 bytes.
+    // The logic is in `rc2k_core::screens::captions::fit` (through `car_caption::put_string`);
+    // refused when the caption would pass 0x100 bytes.
     let id = page_title(&tables.lists.page_titles_a, menus)?;
     crate::screens::car_caption::put_string(so, id, &text.caption, 0x100)
 }
 
-/// `screens::replay_range_caption` (0x470501): the caption "n-m", n = `pages.replay_page` x 20,
-/// m = n + 19 (`strings::append_u32`, `append_minus`).
+/// The caption "n-m", n = `pages.replay_page` x 20, m = n + 19 (`strings::append_u32`,
+/// `append_minus`).
 pub fn replay_range_caption(
     menus: &Menus,
     text: &crate::screens::text_buffers_store::TextBuffers,
@@ -301,14 +295,14 @@ fn rally_table(_: &Menus) -> &'static StageTable {
     &crate::saves::best_times::COURSE_TIMES
 }
 
-/// `screens::draw_stage_times`' (0x48D0F2).
+/// `screens::draw_stage_times`'.
 pub const STAGE_TIMES: StageTimes = StageTimes {
     records: champ_records,
     record: event_stage_number,
     table: champ_table,
     rally: false,
 };
-/// `screens::draw_rally_stage_times`' (0x48A948).
+/// `screens::draw_rally_stage_times`'.
 pub const RALLY_STAGE_TIMES: StageTimes = StageTimes {
     records: rally_records,
     record: arcade_stage,
@@ -316,10 +310,9 @@ pub const RALLY_STAGE_TIMES: StageTimes = StageTimes {
     rally: true,
 };
 
-/// `screens::draw_stage_times_heading` (0x48D295) / `screens::draw_rally_times_heading`
-/// (0x48AAF6): the stage's name (string +0x38 of the records) at (0x2EB, 0x77) and its stage
-/// line (string 0x482 ..., built in the line buffer) at (0x2EB, 0x91), in the heading font.
-/// Refuses (before anything) no stage records.
+/// The stage's name (string +0x38 of the records) and its stage line (string 0x482 ..., built
+/// in the line buffer), in the heading font. Used for the stage and rally times headings.
+/// Refuses no stage records.
 pub fn draw_times_heading(
     o: crate::owners::Owners<'static>,
     system: &System,
@@ -343,8 +336,8 @@ pub fn draw_times_heading(
     }
 }
 
-/// The stage line (`page_settings::stage_line_bytes`) without its NUL; refused past the
-/// line buffer, as the originals' callers check it.
+/// The stage line (`page_settings::stage_line_bytes`) without its NUL; refused past the line
+/// buffer.
 fn stage_line_without_nul(
     so: crate::strings::append_string_by_id::StringOwners<'_>,
     id: u32,
@@ -358,12 +351,11 @@ fn stage_line_without_nul(
     Ok(line)
 }
 
-/// `screens::draw_stage_times` (0x48D0F2) / `screens::draw_rally_stage_times` (0x48A948): the
-/// heading, then up to ten times of the stage's group (+0x3C, its stage in the table): name
-/// (x 0xF0), time (`strings::append_time`, drawn in fixed columns ending at x 0x276), rank (x
-/// 0xC8), the car's and flag's sprites; the player's own in the highlight fonts; rows 0x19
-/// apart from the last text's y. Refuses (before anything) no stage
-/// records or no times table.
+/// For `screens::draw_stage_times` / `screens::draw_rally_stage_times`: the heading, then up to ten
+/// times of the stage's group (+0x3C, its stage in the table): name (x 0xF0), time
+/// (`strings::append_time`, drawn in fixed columns ending at x 0x276), rank (x 0xC8), the car's and
+/// flag's sprites; the player's own in the highlight fonts; rows 0x19 apart from the last text's y.
+/// Refuses (before anything) no stage records or no times table.
 pub fn draw_stage_times(
     o: crate::owners::Owners<'static>,
     system: &System,
@@ -463,11 +455,10 @@ pub fn section_there(menus: &Menus, system: &System) -> Result<bool, crate::erro
     )
 }
 
-/// `screens::draw_record_heading` (0x4A247D): the section's heading at (0x2EB, 0x77) in the
-/// heading font (in event mode 0x13 the section's entry of the heading list, else the section's first
-/// record's +0x38 string), then record `index`'s stage line (string 0x481 ...) in the line
-/// buffer at (0x2EB, 0x91). Refuses (before anything) a section the
-/// table has not.
+/// The section's heading at (0x2EB, 0x77) in the heading font (in event mode 0x13 the section's
+/// entry of the heading list, else the section's first record's +0x38 string), then record
+/// `index`'s stage line (string 0x481 ...) in the line buffer at (0x2EB, 0x91). Refuses (before
+/// anything) a section the table has not.
 pub fn draw_record_heading(
     o: crate::owners::Owners<'static>,
     system: &System,
@@ -500,12 +491,10 @@ pub fn draw_record_heading(
     }
 }
 
-/// `screens::draw_record_times` (0x4A41AE): the record's heading, its best times (group
-/// +0x3C of `g_stageBestTimes`, the rows' y kept in `draw_work.scratch_b0`), and, when the list ran its
-/// ten rows, the fastest line (string 0x1A2 at (0x142, 0x1FB), the car's sprite +0x74, the
-/// name +0x54, the flag's sprite +0x78, the speed +0x30 with its unit; a list that ended early
-/// leaves it out: `notes/bugs.md`). Refuses (before anything) a section
-/// the table has not, no times table, and what `strings::append_speed` refuses.
+/// The record's heading, its best times (the rows' y kept in `draw_work.scratch_b0`), and, when the
+/// list ran to ten rows, the fastest line (string 0x1A2, the car's sprite, the name, the flag's
+/// sprite, the speed with its unit; a list that ended early leaves it out, kept as is). Refuses a
+/// section the table lacks, no times table and what `strings::append_speed` refuses.
 pub fn draw_record_times(
     o: crate::owners::Owners<'static>,
     system: &System,
@@ -546,27 +535,23 @@ pub fn draw_record_times(
     )
 }
 
-/// `screens::draw_event_best_scores`' (0x4A8DBF): group `event.class`, the player's own
+/// `screens::draw_event_best_scores`': group `event.class`, the player's own
 /// (+0x14 1) in the highlight fonts.
 pub const EVENT_BEST_SCORES: Table = Table {
     group_at: Some(event_class),
     highlight: true,
     ..BEST_SCORES
 };
-/// `screens::draw_overall_best_scores`' (0x4A8FA2): group 4.
+/// `screens::draw_overall_best_scores`': group 4.
 pub const OVERALL_BEST_SCORES: Table = Table {
     group_fixed: Some(4),
     highlight: true,
     ..BEST_SCORES
 };
 
-/// `screens::draw_event_best_scores` (0x4A8DBF) / `screens::draw_overall_best_scores`
-/// (0x4A8FA2): the heading at (0x2EB, 0x77) in the heading font: in event mode 0x13
-/// (`g_eventMode`) the section's name (the section's entry of the heading list), else string `other` (the
-/// first: 0x35E + `event.class`, kept in `draw_work.figure`; the second 0x362); then the scores
-/// as `draw_scores`. (Both first look the section's first record up with
-/// `records::find_record` and do not use it: left out.) Refuses
-/// (before anything) no table.
+/// The heading in the heading font: in event mode 0x13 the section's name (the section's entry
+/// of the heading list), else string `other` (the first: 0x35E + `event.class`, kept in
+/// `draw_work.figure`; the second 0x362); then the scores as `draw_scores`. Refuses no table.
 pub fn draw_scores_with_heading(
     o: crate::owners::Owners<'static>,
     t: &Table,

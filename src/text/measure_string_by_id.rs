@@ -1,8 +1,5 @@
-//! `text::measure_string_by_id` (0x40232C): builds the text of a string id in the shared text
-//! buffer, NUL-terminates it and measures it with `measure_text`.
-//!
-//! Takes: string id, font (one in measure mode), x
-//! 13 callers. A text longer than the buffer is refused: the original writes past it.
+//! Builds the text of a string id in the shared text buffer, NUL-terminates it and measures it with
+//! `measure_text` (the font is one in measure mode). A text longer than the buffer is refused.
 
 use crate::errors::Refused;
 use crate::gfx::typefaces::FontRef;
@@ -15,7 +12,7 @@ use crate::text::font::Font;
 use crate::text::measure_text::{Measured, measure_text};
 
 /// `buffer` is where the text is built: the game's text buffer, or a private one of at least
-/// `TEXT_LEN` bytes. `font` is changed as the original changes the font object.
+/// `TEXT_LEN` bytes. `font` is updated as `measure_text` updates it.
 pub fn measure_string_by_id(
     so: StringOwners<'_>,
     id: u32,
@@ -29,8 +26,8 @@ pub fn measure_string_by_id(
     measure_text(font, &bytes, x, canvas)
 }
 
-/// The same with a font object in game memory and the game's text buffer, for Rust callers.
-/// The font object is only written if the canvas keeps font changes.
+/// The same with a font object in game memory and the game's text buffer, for Rust callers. The
+/// font object is only written if the canvas keeps font changes.
 pub fn measure_string_by_id_at(
     so: StringOwners<'static>,
     id: u32,

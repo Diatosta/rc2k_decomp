@@ -1,39 +1,25 @@
-//! `drive::race_init` (0x4462B9, three chunks): the race's start after the stage is
-//! loaded ("RACEINIT : ..." logged before each part, the log indented by 3 round it):
-//! the best line (`race::build_best_line`); with fewer than two checkpoints
-//! (`g_checkpointCount`, by the sign of the `cmp`) the fatal error 0x80600D1E "Race
-//! initialisation failed - no best line" (its third chunk, 0x4D917B), unless
-//! `editor_mode` is set (then it returns); the cars' places (`race::start_cars`), the
-//! objects (`race::reset_face_lights`), the game mode (`race::set_up_cars`), the messages
-//! (`race::reset_car_race_state`), the car parts (`race::clear_race_slots`), the timers
-//! (`race::reset_car_starts`, `race::seed_car_randoms`); fifty settling steps (in `pusha`
-//! / `popa`: `drive::race_cars_step`; `drive::share_all_cars` with `other_marks_shown` 1;
-//! `effects::frame_marks`, `effects::run_frame`); the slots again; the damage messages
-//! (`race::grade_all_cars`); "RACEINIT : end". Its second chunk (0x40763C ..) is the
-//! fatal-error reporter's, shared, not entered from here.
-//!
-//! Not the race's step loop (that runs elsewhere, a step per frame): a run of fifty steps at
-//! the stage's start.
-//!
-//! Caller: `race::load_stage` (0x44412D). Refuses what its parts refuse; raises 0x80600D1E
-//! as the original.
+//! The race's start after the stage is loaded ("RACEINIT : ..." logged before each part): the
+//! best line (`race::build_best_line`; with fewer than two checkpoints the fatal error
+//! 0x80600D1E, unless `editor_mode` is set), the cars' places, objects, game mode, messages, car
+//! parts and timers, fifty settling steps (`drive::race_cars_step`, `drive::share_all_cars`,
+//! `effects::frame_marks`, `effects::run_frame`), the slots again and the damage messages. Not
+//! the race's step loop: a run of fifty steps at the stage's start. Refuses what its parts
+//! refuse.
 
 use crate::errors::{FatalError, Refused};
 use crate::race::owner::Race;
 use rc2k_core::drive::race_steps;
 
-/// `g_logIndent` changed by `by` (wrapping, as the original's `add`).
 fn indent_by(by: u32) {
     let indent = crate::logfile::write_line::state::INDENT.atomic();
     indent.fetch_add(by, std::sync::atomic::Ordering::Relaxed);
 }
 
-/// A "RACEINIT : ..." line (level 1, a line break).
 fn log(text: &std::ffi::CStr) {
     crate::logfile::log_write::log_nul(&text, true, 1);
 }
 
-/// The log indented round a part (`pushf`; +- 3; `popf`).
+/// The log indented by 3 round a part.
 fn indented(part: &mut dyn FnMut() -> Result<(), Refused>) -> Result<(), Refused> {
     indent_by(race_steps::LOG_INDENT);
     part()?;
@@ -41,11 +27,8 @@ fn indented(part: &mut dyn FnMut() -> Result<(), Refused>) -> Result<(), Refused
     Ok(())
 }
 
-/// The registers the original leaves are read by no caller. A value the
-/// caller hands on to `race::checkpoint_distances` is never read there: that function
-/// is reached only with two checkpoints or more.
-// Converted: `rc2k_core::drive::race_steps::{no_best_line, NO_BEST_LINE, SETTLING_STEPS,
-// LOG_INDENT}`.
+/// A value handed on to `race::checkpoint_distances` is never read there: that function is
+/// reached only with two checkpoints or more.
 pub fn race_init(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refused> {
     let (sound, scene, effects, net) = (o.sound, o.scene, o.effects, o.net);
     let race_owner = race;

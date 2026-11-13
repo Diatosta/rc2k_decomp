@@ -1,27 +1,23 @@
-//! `menu::time_trial_stage_details_loop` (0x48F1F4): the loop of the stage details screen of a
-//! time trial.
-//!
-//! The loop itself is `menu::screen_loop`; this file says what is this screen's own
-//! (`SCREEN`), as extracted from the disassembly: leaving is not asked about.
-//! A reading, not yet a visit: its draw list 0x758CFE is the one of
-//! `screens::draw_time_trial_stage_info`, a confirmed screen; it sets `champ_view.stage_mode` to 1 first.
+//! The loop of the stage details screen of a time trial. Screen-specific part of
+//! `menu::screen_loop`: it sets `champ_view.stage_mode` to 1 first; leaving is not asked about.
+//! Its draw list is that of `screens::draw_time_trial_stage_info`.
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Callee, List, Screen, Step};
 
 pub const SCREEN: Screen = Screen {
     lists: &[
         List {
-            pointer: |m| &m.screens.flow.scene_list, // g_sceneList
+            pointer: |m| &m.screens.flow.scene_list,
             table: |m| m.tables.draw_lists.time_trial_stage_details_scene.id(),
             run: false,
         },
         List {
-            pointer: |m| &m.screens.flow.draw_list, // g_drawList
+            pointer: |m| &m.screens.flow.draw_list,
             table: |m| m.tables.draw_lists.time_trial_stage_details_draw.id(),
             run: false,
         },
         List {
-            pointer: |m| &m.screens.flow.overlay_list, // g_overlayList
+            pointer: |m| &m.screens.flow.overlay_list,
             table: |m| m.tables.draw_lists.time_trial_stage_details_overlay.id(),
             run: false,
         },

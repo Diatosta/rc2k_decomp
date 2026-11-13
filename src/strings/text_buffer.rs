@@ -1,18 +1,17 @@
-//! The strings' text buffer (`strings::text_from_ids` and the screens that build a line
-//! there), out of RAL.EXE's image, typed. Struct of a byte buffer.
+//! The strings' text buffer (`strings::text_from_ids` and the screens that build a line there).
 
 use crate::session::PlainBytes;
 
-/// The strings' text buffer (IDA 0x93E430 .. 0x93E830).
+/// The strings' text buffer.
 #[repr(align(16))]
 #[derive(rc2k_derive::Cells)]
 pub struct TextBuffer {
-    /// 0x93E430: `text`: the shared text buffer (the string of an id is built here, then drawn).
+    /// The shared text buffer (the string of an id is built here, then drawn).
     pub text: PlainBytes<1024>,
 }
 
-/// One of the game's shared text buffers, which texts are built in and drawn from: the text
-/// buffer, or one of the screens' 0x100-byte line buffers. Reads and writes stay inside it.
+/// One of the game's shared text buffers, which texts are built in and drawn from: the text buffer,
+/// or one of the screens' 0x100-byte line buffers. Reads and writes stay inside it.
 #[derive(Clone, Copy)]
 pub enum TextBuf {
     Text(&'static PlainBytes<1024>),

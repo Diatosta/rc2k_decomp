@@ -1,4 +1,4 @@
-//! `menu::hide_all_in_game_options` (0x46FC52): four entries of the in-game options menu's table (0x5C apart
+//! `menu::hide_all_in_game_options`: four entries of the in-game options menu's table (0x5C apart
 //! from +0x118) given +0x14 0, +0x48 -0x3E4 and +0x1C -0x57 (a reading: the cars on the
 //! front end's carousel at their start).
 //!

@@ -1,9 +1,5 @@
-//! The car's shadow, its whole-number parts (from `race::shadow_hull`
-//! 0x45836F, the cells of `race::shadow_faces` 0x457618 with 0x4576C9, and the near
-//! test of `race::clip_shadow_to_face` 0x457960). A shadow point is a 0x20-byte record
-//! (+0 x, +4 y, +8 z as whole numbers, +0xC the angle, ...). The cars' shadows' passes
-//! from `race::cast_car_shadow` 0x4575C1 and `race::cast_car_shadows`
-//! 0x45754C.
+//! The car's shadow, its whole-number parts: the hull, cells, near test and the cars' shadow
+//! passes. A shadow point is a 0x20-byte record (x, y, z as whole numbers, then the angle).
 
 use crate::Invalid;
 
@@ -16,42 +12,41 @@ pub const MOST_POINTS: u32 = 0x40;
 /// The removal that ended or last changed the hull.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Cut {
-    /// The point taken out (the records after it moved down over it).
+    /// The point taken out (the records after it move down over it).
     pub at: u32,
     /// The records moved.
     pub moved: u32,
 }
 
+/// How the hull walk ended.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Hull {
-    /// The points left (`hull_count`).
+    /// The points left.
     pub count: u32,
     /// The point the walk was at.
     pub at: u32,
     /// The point tested last (whose turn decided).
     pub tested: u32,
-    /// The last turn's two products' difference (a 64-bit value: not negative takes a point out).
+    /// The last turn's cross-product difference (64 bits; not negative takes a point out).
     pub difference: i64,
-    /// The last turn's first product (`product`).
+    /// The last turn's first product.
     pub product: i64,
-    /// The last removal (none: no point was taken out).
+    /// The last removal (`None`: no point was taken out).
     pub cut: Option<Cut>,
-    /// Whether the walk ended on a removal (no point left to test) rather than at the end.
+    /// Whether the walk ended on a removal rather than at the end.
     pub ended_on_cut: bool,
 }
 
-/// The records `hull` reads and moves for `count` points: the points, the first's copy
-/// after them and the two after that (moved down with the rest).
+/// Records `hull` reads and moves for `count` points: the points, the first's copy after
+/// them and two more (moved down with the rest).
 pub fn hull_records(count: u32) -> usize {
     count as usize + 3
 }
 
-/// `race::shadow_hull`: the first record copied after the last; then, walking the points,
-/// each one where the turn from the one before to the one after is not to the left (the
-/// 64-bit cross product of whole numbers, (z1 - z0)(x2 - x0) taken from (x1 - x0)(z2 - z0),
-/// not negative) is taken out (the rest moved down, starting again from the first) until
-/// none is. Refuses (before anything) fewer than two points, more than `MOST_POINTS`, and
-/// records shorter than `hull_records`.
+/// Copies the first record after the last; then each point where the turn from the one before
+/// to the one after is not to the left (64-bit cross product not negative) is taken out
+/// (the rest move down, restarting from the first) until none is. Refuses fewer than two
+/// points, more than `MOST_POINTS`, and records shorter than `hull_records`.
 pub fn hull(records: &mut [Record], count: u32) -> Result<Hull, Invalid> {
     if !(2..=MOST_POINTS).contains(&count) {
         return Err(Invalid("fewer than two shadow points or more than 0x40"));
@@ -112,44 +107,44 @@ pub fn hull(records: &mut [Record], count: u32) -> Result<Hull, Invalid> {
     }
 }
 
-/// A course record's cell (its first dword: x in bits 0 .. 10, z in bits 11 .. 21; -1 for
+/// A course record's cell (x in bits 0 ..= 10, z in bits 11 ..= 21 of its first dword; -1 for
 /// none).
 pub fn record_cell(word: u32) -> Option<(u32, u32)> {
     (word != u32::MAX).then_some((word & 0x7FF, word >> 11 & 0x7FF))
 }
 
-/// Whether a cell is one of the 3 x 3 round the car's place (x and z, whole numbers: a
-/// cell is 2^21 across, the car's place moved half a cell on).
+/// Whether a cell is one of the 3 x 3 around the car's place (a cell is 2^21 across).
 pub fn cell_near_car(car: (u32, u32), cell: (u32, u32)) -> bool {
     let off =
         |p: u32, c: u32| ((p.wrapping_add(0x10_0000).wrapping_sub(c << 21)) as i32 >> 21) as u32;
     off(car.0, cell.0).wrapping_add(1) < 3 && off(car.1, cell.1).wrapping_add(1) < 3
 }
 
-/// Whether a course face takes the shadow (0x4576C9): its kind below 0x10 and bit 7 of
-/// its switches' word (asked for only then) clear.
+/// Whether a course face takes the shadow: kind below 0x10 and bit 7 of its switches word
+/// (asked only then) clear.
 pub fn takes_shadow(kind: u8, switches: impl FnOnce() -> u16) -> bool {
     kind < 0x10 && switches() & 0x80 == 0
 }
 
-/// A face's two triangles for the shadow: its corners' offsets in the face record.
+/// A face's two triangles: corner offsets in the face record.
 pub const SHADOW_TRIANGLES: [[u32; 3]; 2] = [[4, 8, 0xC], [0x10, 0xC, 8]];
 
-/// How far a face's corner may be from the car (each of x and z) to be near.
+/// How far a face's corner may be from the car (x and z) to be near.
 pub const NEAR: u32 = 0x10_0000;
 
-/// What `face_near` found: whether the face is near, the corner asked about last and
-/// the last distance worked out.
+/// What `face_near` found: whether near, the last corner asked and the last distance.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Near {
+    /// Whether the face is near.
     pub near: bool,
+    /// The corner asked about last.
     pub corner: usize,
+    /// The last distance worked out.
     pub distance: u32,
 }
 
-/// `race::clip_shadow_to_face`'s test: the face's corners in turn (`corner(n)`: its x and
-/// z) until one is more than `NEAR` off the car in x (not near) or within it in z (near);
-/// none such, not near.
+/// The face's corners in turn (`corner(n)`: x and z) until one is more than `NEAR` off the car
+/// in x (not near) or within it in z (near); none such, not near.
 pub fn face_near(car: (u32, u32), mut corner: impl FnMut(usize) -> (u32, u32)) -> Near {
     let off = |a: u32, b: u32| (a.wrapping_sub(b) as i32).wrapping_abs() as u32;
     let mut found = Near {
@@ -173,11 +168,9 @@ pub fn face_near(car: (u32, u32), mut corner: impl FnMut(usize) -> (u32, u32)) -
     found
 }
 
-/// 0x457A85's walk: the polygon's `count` sides (`entry(k)` and `entry(k + 1)`, the
-/// first entry again after the last) cut by an edge: for each side whether each end is on
-/// the inner side (`inside`, asked of the first then the second), the first kept (`add`)
-/// when it is, and where the two differ the crossing (`cross`, giving the new entry)
-/// added after it. Gives what the last side added last (none: nothing).
+/// Clips a polygon of `count` sides by an edge: per side (`entry(k)`, `entry(k + 1)`, wrapping)
+/// the first is kept (`add`) when `inside`, and where the ends differ the crossing (`cross`)
+/// is added after it. Returns what the last side added last.
 pub fn clip_by_edge(
     count: u32,
     mut entry: impl FnMut(u32) -> u32,
@@ -203,7 +196,7 @@ pub fn clip_by_edge(
     last_added
 }
 
-/// `cast_car_shadow`: a shadow is cast with three corners or more (signed).
+/// A shadow is cast with three corners or more (signed).
 pub fn casts(corners: u32) -> bool {
     (corners.wrapping_sub(3) as i32) >= 0
 }
@@ -218,13 +211,12 @@ pub fn hull_list(points: u32) -> impl Iterator<Item = u32> {
     0..points
 }
 
-/// The shadow's texture (`shadow_texture`), its strength (`shadow_strength`) and the sun's
-/// height for the second pass (`sun_height`, put back after).
+/// The shadow's texture, strength and the sun height of the second pass.
 pub const SHADOW_TEXTURE: u32 = 0xC3;
 pub const SHADOW_STRENGTH: u32 = 0x1999;
 pub const SUN_PASS: u32 = 0x40;
 
-/// `cast_car_shadows`' refusals: no cars or more than eight, a null block.
+/// Refuses no cars, more than eight, or a null block.
 pub fn check_shadow_cars(cars: u32, block: impl Fn(u32) -> u32) -> Result<(), Invalid> {
     if cars == 0 || cars > 8 {
         return Err(Invalid("no race cars or more than eight"));
@@ -235,12 +227,12 @@ pub fn check_shadow_cars(cars: u32, block: impl Fn(u32) -> u32) -> Result<(), In
     Ok(())
 }
 
-/// A car casts a shadow when its +0x6FC is set.
+/// A car casts a shadow when its shadow word is set.
 pub fn casts_shadow(word: u32) -> bool {
     word != 0
 }
 
-/// A car's passes: one with `RaceVars.settings_words[2]` set, then one with the sun at `SUN_PASS`.
+/// A car's passes: one when the race switch is set, then one with the sun at `SUN_PASS`.
 pub fn first_pass(switch: u32) -> bool {
     switch != 0
 }

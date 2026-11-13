@@ -1,8 +1,7 @@
-//! A rally stage's information page (`screens::draw_rally_stage_info` ->
-//! `screens::draw_stage_best_and_fastest`): the stage record
-//! (the arcade stage tables + 0xA4 x `arcade.stage`) and its track-pack entry: start and finish
-//! times, the time allowed, the length, the surface's shares, the weather, the description, the
-//! stage's number, and the best and fastest.
+//! A rally stage's information page (`screens::draw_rally_stage_info` and
+//! `screens::draw_stage_best_and_fastest`): the stage record and its track-pack entry: start and
+//! finish times, the time allowed, the length, the surface's shares, the weather, the
+//! description, the stage's number, and the best and fastest.
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::owner::Play;
@@ -26,11 +25,10 @@ pub fn stage_record_in(
     )
 }
 
-/// `screens::draw_stage_best_and_fastest` (0x4744A9): the "best" and "fastest" lines
-/// (`rc2k_core::screens::stage_panel::records`): the best of the times at edi
-/// and the stage record's fastest (+0x74 nationality, +0x54 name, +0x78 car, +0x30 speed).
-/// The fastest's flag sprite gets `Arcade.level` as its palette (ebx as the original loads
-/// it). The speed is formatted before anything is drawn (its refusals first).
+/// The "best" and "fastest" lines (`rc2k_core::screens::stage_panel::records`): the best of
+/// the given times and the stage record's fastest (nationality, name, car, speed). The fastest's
+/// flag sprite gets `Arcade.level` as its palette (unused). The speed is formatted before
+/// anything is drawn (its refusals first).
 pub fn draw_stage_best_and_fastest(
     o: crate::owners::Owners<'static>,
     play: &Play,
@@ -84,13 +82,11 @@ pub fn draw_stage_best_and_fastest(
     }
 }
 
-/// `screens::draw_rally_stage_info` (0x489AC8): the heading
-/// (`screens::draw_rally_times_heading`'s), the stage panel's body
+/// The rally times heading (`best_scores::draw_times_heading`), the stage panel's body
 /// (`stage_panel::draw_stage_body`: the map's markers with `Arcade.level` as their palette,
-/// times, length, surface, weather, description and number; entry +0x34 kept in
-/// `RaceState.settings.rivals`'s second dword), then `draw_stage_best_and_fastest` on its times
-/// (`g_courseBestTimes`, the stage the record's +0x3C). Refuses (before anything) no
-/// stage record or times table.
+/// times, length, surface, weather, description and number; an entry kept in
+/// `RaceState.settings.rivals`'s second dword), then `draw_stage_best_and_fastest` on the stage's
+/// times. Refuses no stage record or times table.
 pub fn draw_rally_stage_info(
     o: crate::owners::Owners<'static>,
     system: &crate::system::owner::System,
@@ -106,7 +102,8 @@ pub fn draw_rally_stage_info(
         return Err(BadInput("no stage record or times table").into());
     }
     draw_times_heading(o, system, &RALLY_STAGE_TIMES, canvas)?;
-    // the two headings in `FontObjects.objects[14].first_char` here (the other stage pages: `FontObjects.objects[17].first_char`)
+    // the two headings in `FontObjects.objects[14].first_char` here (the other stage pages:
+    // `FontObjects.objects[17].first_char`)
     crate::screens::stage_panel::draw_stage_body_in(
         o,
         gfx,

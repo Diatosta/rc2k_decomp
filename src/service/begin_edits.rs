@@ -1,12 +1,10 @@
-//! The four item actions that open an edit page of the service area that costs service
-//! time (`service::begin_gear_ratio_edit` .. `begin_suspension_stiffness_edit`, 0x46B674,
-//! 0x46B6BD, 0x46B72E, 0x46B777): if the highlighted item is chosen already (its flag 1),
-//! or the service time still covers the chosen repairs plus this item's time
-//! (`budget - (total + time)`, signed, at least 0), the value at the edit's start is the
-//! chosen one, edit mode flips (`xor 1`) and the edit page is the item's. Else nothing.
+//! The four item actions that open an edit page of the service area that costs service time
+//! (gear ratio, tyre, ride height, suspension stiffness): if the highlighted item is chosen
+//! already (its flag is 1), or the service time still covers the chosen repairs plus this
+//! item's time (`budget - (total + time)`, signed, at least 0), the value at the edit's start is
+//! the chosen one, edit mode flips and the edit page is the item's. Else nothing.
 //!
-//! Refuses (before anything) a highlighted item past the flag table (the original reads
-//! past it).
+//! Refuses (before anything) a highlighted item past the flag table.
 
 use crate::errors::Refused;
 use crate::menu::owner::Menus;
@@ -18,17 +16,16 @@ use crate::service::state::{flagged_item, repair_flag_in};
 pub struct Edit {
     /// The page number written to `MenuState.service_ui.box_page`.
     pub page: u32,
-    /// The setup item (0 .. 3): its service time is `MenuState.driver_stats.repair_times[12 + setup]`,
-    /// its chosen value is copied to the value at the edit's start.
+    /// The setup item (0 .. 3): its service time is
+    /// `MenuState.driver_stats.repair_times[12 + setup]`, its chosen value is copied to the
+    /// value at the edit's start.
     pub setup: usize,
 }
 
-/// The Rust version (see the header).
 pub fn begin_edit(menus: &Menus, e: Edit) -> Result<(), Refused> {
     let screens = &menus.screens;
     let item = flagged_item(screens)?;
 
-    // Converted: `rc2k_core::service::repairs::may_edit`.
     if rc2k_core::service::repairs::may_edit(
         repair_flag_in(&menus.tables, item),
         screens.state.driver_stats.repair_time.get() as i32,

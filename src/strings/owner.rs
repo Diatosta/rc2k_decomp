@@ -1,6 +1,5 @@
-//! Module strings's owner (step 11, owned state): the text buffer, the keyboard tables, the
-//! language and the lexicon in one struct, reached through `strings()` by the code that does
-//! not take it as a parameter.
+//! The strings' owned state: the text buffer, the keyboard tables, the language and the lexicon in
+//! one struct, reached through `strings()` by the code that does not take it as a parameter.
 
 use crate::session::{GameThread, PlainBytes, PlainDword};
 use crate::settings::read_driver_names::NAMES_SIZE;
@@ -12,8 +11,8 @@ use crate::strings::text_buffer::TextBuffer;
 /// The text buffer and the font blend mode.
 pub struct Text {
     pub buffer: TextBuffer,
-    /// `g_fontBlendMode` (0x4F3F74, the setting `textflashmode`):
-    /// 0 = no palette is made, 2 = eased. 3 in the image.
+    /// The font blend mode (the setting `textflashmode`): 0 = no palette is made, 2 = eased. Starts
+    /// at 3.
     pub blend_mode: PlainDword,
 }
 
@@ -28,9 +27,9 @@ impl Text {
 
 /// The language and keyboard tables.
 pub struct Language {
-    /// The `.loc` file's 0x30 bytes (`g_localeFile`).
+    /// The `.loc` file's 0x30 bytes.
     pub locale: PlainBytes<LOCALE_LEN>,
-    /// `g_plainLetters`.
+    /// The plain-letters table.
     pub plain_letters: PlainBytes<256>,
     pub keyboard: KeyboardTables,
 }
@@ -66,7 +65,7 @@ impl Lexicon {
 
 /// The driver names' work areas (`settings::read_driver_names`).
 pub struct Drivers {
-    /// `aName000` (0x529DA5 in the image, 8 bytes): the key, made in place.
+    /// The key, made in place (8 bytes).
     pub key: PlainBytes<8>,
     pub names: PlainBytes<NAMES_SIZE>,
 }
@@ -80,7 +79,6 @@ impl Drivers {
     }
 }
 
-/// The strings' state.
 pub struct Strings {
     pub text: Text,
     pub language: Language,

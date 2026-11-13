@@ -1,4 +1,4 @@
-//! `menu::draw_frame` (0x47C420): draws a menu once, without the 3D scene and without
+//! `menu::draw_frame`: draws a menu once, without the 3D scene and without
 //! showing the frame: what a screen loop does when it has set a screen up.
 //!
 //! Makes the menu the current one (`loop_flags.menu`). Unless the game is quitting:
@@ -10,7 +10,7 @@ use crate::errors::Refused;
 use crate::menu::frame_callback::{copy_picture, draw_menu, lock_failed};
 use crate::owners::Owners;
 
-/// `menu` is edi at entry.
+/// Draws one frame of `menu`.
 pub fn draw_frame(
     o: Owners<'static>,
     menu: crate::menu::menus_store::MenuId,

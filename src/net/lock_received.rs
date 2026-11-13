@@ -1,9 +1,4 @@
-//! `net::lock_received` (0x418474): the received messages' mutex (`g_netMutex`) taken:
-//! `system::wait_object` (0x4110A6: `WaitForSingleObject(handle, INFINITE)`, whose flags
-//! are not used).
-//!
-//! Six callers (`net::copy_received`, `net::start_link`, `net::lobby_frame`,
-//! `net::send_chat`, `net::chat_line_locked`, `net::take_messages`). Refuses nothing.
+//! Takes the received messages' mutex.
 
 use crate::net::store::NetShared;
 pub fn lock_received(vars: &NetShared) {

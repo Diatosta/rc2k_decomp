@@ -1,17 +1,8 @@
-//! `install::lay_out_pieces` (0x414C7E): a page's pieces (`layout` of them, 0x30 bytes
-//! each after it: +0 the item's kind and marks, +1 the piece's kind, +2 its text, +4 its
-//! item, +8 x, +0xC y, +0x10 width, +0x14 height) made from its list. The title (unless the
-//! list's flags are 0x40 of 0xC0: `test; jg`) is kind 0x10 of `title`; then each item
-//! not hidden (0x40 of 0xC0): a link a piece of kind 0; a choice a label (1) and a piece
-//! (2) for each of its choices not hidden, its marks from the choice's high bits; a value
-//! a label (1) and a piece (0x12); an edit the same, without the label when the item has
-//! 0x10; a text kind 0x10 with its font's bits; an action 0x14. The places
-//! and sizes are zeroed.
-//!
-//! Takes the list.
-//! Any other kind is fatal error 0x80A97451. More pieces than the 0xFFC bytes hold (85) is
-//! refused (the original writes over the list variables after them). Caller
-//! `install::run_page`.
+//! A page's pieces (0x30 bytes each after `layout`) made from its list: the title (unless the
+//! list is hidden), then for each item not hidden: a link a piece, a choice a label and a piece
+//! for each choice not hidden, a value or edit a label and a piece, a text and an action one
+//! piece each. Places and sizes are zeroed. Any other kind is fatal error 0x80A97451. More
+//! pieces than the 0xFFC bytes hold (85) are refused. Called by `install::run_page`.
 
 use crate::errors::{BadInput, Refused};
 use crate::install::installer::fatal;
@@ -19,7 +10,7 @@ use crate::install::page_records::{Piece, set_piece_count};
 use crate::menu::list_handle::{ListItem, ListMenu};
 use rc2k_core::install::pieces::{self, Item, LayoutError, ListSource, Owner};
 
-/// A page's list, read where the original reads it.
+/// A page's list.
 struct GameList<'a>(ListMenu, &'a crate::install::owner::Install);
 
 impl ListSource for GameList<'_> {
@@ -53,7 +44,6 @@ pub fn lay_out_pieces(
     install: &'static crate::install::owner::Install,
     list: ListMenu,
 ) -> Result<(), Refused> {
-    // Converted: `rc2k_core::install::pieces::lay_out`; the pieces written here.
     let made = match pieces::lay_out(&GameList(list, install)) {
         Ok(made) => made,
         Err(LayoutError::UnknownKind) => return Err(fatal(pieces::UNKNOWN_KIND)),

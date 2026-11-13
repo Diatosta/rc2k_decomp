@@ -1,23 +1,10 @@
-//! `drive::set_listener` (0x4565B7): the state the sounds are placed by, from the viewed
-//! car (`g_carBlocks[`drawn_view`]`), car block 0 (0x70F410 ..) and the view: its three
-//! whole numbers +0x134 .. +0x13C as floats (0x5C5630 ..), `listener_near` = (+0xABC >=
-//! 0x10); the view's place negated and its turn's nine (0x5C2FA0 .. 0x5C2FCC); three of
-//! 0x6415D0 .. (the first 0 without `settings_words`) into 0x5C56D8 ..; six whole numbers of
-//! the car's light record (`g_lightRecords` +0x40 .., by `race::car_file_number` of
-//! `CarBlocks.cars[0].car_kind`) times 65536 over 1000 (two less `ground_drop`) into 0x608C60 ..; car
-//! block 0's matrix (0x70FC2C) through `scene::multiply_matrices` with 0x70FC6C and the
-//! view matrix into `g_madeObjectMatrix` (and a copy at 0x5EA0CC); the two points of
-//! 0x608C60 .. turned by it, each with its x and then -x (`scene::rotate_point`,
-//! `fistp`'d into 0x5C568C .. 0x5C56B8); the switches of 0x5C56BC .. 0x5C56E8 by
-//! `mirror_wanted`, `CarBlocks.cars[0].surface_noise_a`, `CarBlocks.cars[0].surface_noise_b`; `spline_gear_changed` from `CarBlocks.cars[0].gear_change_pending`
-//! (then cleared), `spline_handbrake`; `listener_scale` = `CarBlocks.cars[0].steer_angle_visual` / 2^29 + `camera_shake_listener`;
-//! two floats copied; with `still` set, `spline_gear_changed` and `spline_handbrake` 0. By
-//! the look of it the listener for the 3D sounds (a reading).
-//!
-//! Caller: `drive::share_all_cars` (0x456484), second. Refuses (before anything) a viewed
-//! car past the eight blocks or with a null block, a car file number above 0x21, and a
-//! light record figure whose times 65536 over 1000 leaves 32 bits (the original's `idiv`
-//! traps).
+//! The state the sounds are placed by (by the look of it the listener for the 3D sounds, a
+//! reading), from the viewed car, car block 0 and the view: the car's position, the view's place
+//! and turn, the car's light record points turned by its matrix and the view's, the sound
+//! switches from the mirror and surface noise, `listener_scale` from the visual steer angle plus
+//! `camera_shake_listener`; with `still` set, the gear-change and handbrake sounds are off.
+//! Refuses (before anything) a viewed car past the eight blocks or with a null block, a car file
+//! number above 0x21, and a light record figure whose times 65536 over 1000 leaves 32 bits.
 
 use crate::errors::Refused;
 use crate::math::x87;
@@ -39,15 +26,14 @@ fn figures(race: &Race, session: u32, viewed: u32) -> Result<[i32; 6], Refused> 
     rc2k_core::drive::sharing::check_light_record(n)?;
     let mut out = [0i32; 6];
     for (k, o) in out.iter_mut().enumerate() {
-        // `g_lightRecords + 0x40` of the car file's record: `axles[5 + k]`.
+        // The car file's light record's `axles[5 + k]`.
         *o = listener::light_figure(race.light_records().records[n as usize].axles[5 + k].get())?;
     }
     Ok(out)
 }
 
-/// The view the listener is placed by: its number, its matrix, its turn and its place (the
-/// original's `g_drawnView`, `g_viewMatrix`, `g_viewTurnMatrix`, `g_viewPlace`, as the last
-/// view drawn left them).
+/// The view the listener is placed by: its number, its matrix, its turn and its place, as the
+/// last view drawn left them.
 #[derive(Clone, Copy)]
 pub struct ListenerView<'a> {
     /// Which car's view (0 or 1).
@@ -55,7 +41,7 @@ pub struct ListenerView<'a> {
     pub view_matrix: &'a [PlainFloat; 16],
     pub view_turn_matrix: &'a [PlainFloat; 16],
     pub view_place: [&'a dyn DwordLike; 3],
-    /// The view's sun (its place and the view's value, `ViewSun`).
+    /// The view's sun (its place and the view's value).
     pub sun: &'a crate::scene::polygon_work::ViewSun,
 }
 
@@ -76,8 +62,8 @@ impl<'a> ListenerView<'a> {
     }
 
     /// Before any view of the race (`drive::race_init`'s settling steps): what the last view
-    /// drawn left, as the original read; the sun the first player's view's (the original's
-    /// was the last view drawn's: all 0 before a session's first race either way).
+    /// drawn left; the sun the first player's view's (all 0 before a session's first race
+    /// either way).
     pub fn before_any_view(race: &'a Race) -> Self {
         let frame = &race.frame;
         Self {
@@ -96,8 +82,6 @@ impl<'a> ListenerView<'a> {
     }
 }
 
-/// The registers the original leaves are read by no caller.
-// Converted: `rc2k_core::drive::listener` (the matrices, turns and x87 sums stay).
 pub fn set_listener(
     race: &Race,
     scene: &crate::scene::owner::Scene,
@@ -140,7 +124,7 @@ pub fn set_listener(
     for (k, &v) in f.iter().enumerate() {
         physics.camera().listener_points[k].set(v as u32);
     }
-    // The car block 0's body matrix (0x70FC2C).
+    // The car block 0's body matrix.
     for (cell, body) in race
         .frame
         .matrices

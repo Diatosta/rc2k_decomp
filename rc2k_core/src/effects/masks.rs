@@ -1,9 +1,6 @@
-//! The marks' masks (from `effects::collect_points_a` 0x4BD551,
-//! `collect_points_b` 0x4BD59F, `reset_mask_cursor` 0x4BE0A3, `fill_mask_spans` 0x4BE712,
-//! `draw_mask_shape` 0x4BE6FB and `draw_mask` 0x4BE6C2, under `effects::make_masks`, and
-//! `swap_mask` 0x4C95F5): the points of faces gathered into lists, shapes' rows of spans
-//! filled into a mask of 0x8000 bytes (rows of 0x100) with the shape's number, 0xFF
-//! elsewhere, and a mask put into the marks' texture when the settings switch masks.
+//! The marks' masks: the points of faces gathered into lists, shapes' rows of spans filled into a
+//! mask of 0x8000 bytes (rows of 0x100) with the shape's number, 0xFF elsewhere, and a mask put
+//! into the marks' texture when the settings switch masks.
 
 use crate::Invalid;
 use crate::effects::points::{Collected, add_points};
@@ -17,7 +14,7 @@ pub const MOST_POINTS: u32 = 0x40;
 /// The mask's byte where no shape is.
 pub const EMPTY: u8 = 0xFF;
 
-/// A list of points (`g_marksPointsA` / `B`): their ids and the face each came with.
+/// A list of points: their ids and the face each came with.
 pub struct PointList<'a> {
     pub count: u32,
     pub ids: &'a mut [u32],
@@ -25,7 +22,7 @@ pub struct PointList<'a> {
 }
 
 impl PointList<'_> {
-    /// Refuses a list of more than 0x40 (the original would read and write past it).
+    /// Refuses a list of more than 0x40.
     pub fn check(&self) -> Result<(), Invalid> {
         if self.count > MOST_POINTS {
             return Err(Invalid("a points list of more than 0x40"));
@@ -89,7 +86,7 @@ pub struct ShapeRows {
 }
 
 impl ShapeRows {
-    /// Whether every span is inside the mask (signed, as the original's addresses go).
+    /// Whether every span is inside the mask (signed).
     pub fn fit(&self) -> Result<(), Invalid> {
         for (i, s) in self.spans.iter().enumerate() {
             let row = self.first_row.wrapping_add(i as u32) as i32 as i64;
@@ -126,9 +123,8 @@ pub fn draw_shape(mask: &mut [u8], entries: [&ShapeRows; 2], shape: u32) -> Resu
     Ok(())
 }
 
-/// `draw_mask`: the mask all `EMPTY`, then each shape drawn (two entries a shape). Refuses
-/// no shapes (the original's loop would run round) or a span outside the mask, before
-/// writing.
+/// `draw_mask`: the mask all `EMPTY`, then each shape drawn (two entries a shape). Refuses no
+/// shapes (the loop would run round) or a span outside the mask, before writing.
 pub fn draw_mask(mask: &mut [u8], entries: &[ShapeRows]) -> Result<(), Invalid> {
     if entries.len() < 2 {
         return Err(Invalid("a mask of no shapes: the loop would run round"));
@@ -147,9 +143,8 @@ pub fn draw_mask(mask: &mut [u8], entries: &[ShapeRows]) -> Result<(), Invalid> 
 pub const TEXTURE_ROWS: u32 = 0x7E;
 pub const TEXTURE_ROW_AT: u32 = 0x80;
 
-/// `swap_mask`: with the settings' switch (+0x2704) not the one last seen, which mask goes
-/// into the texture: the second (`g_marksBMaskBlock`) with the switch set; None when it
-/// has not changed.
+/// `swap_mask`: with the settings' switch (+0x2704) not the one last seen, which mask goes into the
+/// texture: the second with the switch set; None when it has not changed.
 pub fn swapped(switch: u32, seen: u32) -> Option<bool> {
     (switch != seen).then_some(switch != 0)
 }
@@ -162,8 +157,8 @@ pub fn check_width(width: u32) -> Result<(), Invalid> {
     Ok(())
 }
 
-/// The pixels put, in order: (row, column, the mask's dword); each row's first pixel put
-/// whatever the width (the original tests the column after it).
+/// The pixels put, in order: (row, column, the mask's dword); each row's first pixel put whatever
+/// the width.
 pub fn texture_pixels(width: u32) -> impl Iterator<Item = (u32, u32, u32)> {
     (0..TEXTURE_ROWS)
         .flat_map(move |row| (0..width.max(1)).map(move |col| (row, col, (row << 8) + col)))

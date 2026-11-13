@@ -1,13 +1,9 @@
-//! The scene's objects as they are loaded and listed (from
-//! `scene::measure_object` 0x4222B8, `list_object_textures` 0x426ACA,
-//! `set_object_file_names` 0x43964A, `list_object_faces` 0x45048C and
-//! `allocate_object_memory` 0x41F814): the memory objects load into, an object's middle
-//! and extent, the textures its file's faces use, its files' names, its faces looked up.
+//! The scene's objects as they are loaded and listed: the memory they load into, an object's
+//! middle and extent, the textures its file's faces use, its files' names, its faces.
 
 use crate::Invalid;
 
-/// `allocate_object_memory`: the rooms of the objects' points and faces, in bytes, taken
-/// as one block: smaller in a race.
+/// The rooms of the objects' points and faces, in bytes: smaller in a race.
 pub fn object_rooms(in_race: bool) -> (u32, u32) {
     if in_race {
         (0xC_0000, 0x24_0000)
@@ -16,12 +12,11 @@ pub fn object_rooms(in_race: bool) -> (u32, u32) {
     }
 }
 
-/// Where the lowest of each axis starts (`measure_object`), and the highest.
+/// Where the lowest of each axis starts, and the highest (`HIGHEST_START`).
 pub const LOWEST_START: u32 = 0x0064_0000;
 pub const HIGHEST_START: u32 = 0xFF9C_0000;
 
-/// An object's measures (`ObjectTables.measures[0]` ..: the middle, half the extent, the lowest, the
-/// highest; three axes each).
+/// An object's measures: the middle, half the extent, the lowest, the highest; three axes each.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Measures {
     pub middle: [u32; 3],
@@ -30,10 +25,8 @@ pub struct Measures {
     pub highest: [u32; 3],
 }
 
-/// `measure_object`: the lowest and highest of each axis over the points (compared by the
-/// difference's sign, as the original does), half the extent (an arithmetic shift), the
-/// middle that plus the lowest; the middle taken off every point. None for no points (the
-/// original then writes the middle 0 and the two starts, and leaves the half extents).
+/// The lowest and highest of each axis over the points, half the extent, and the middle
+/// (that plus the lowest); the middle is taken off every point. None for no points.
 pub fn measure(points: &mut [[u32; 3]]) -> Option<Measures> {
     if points.is_empty() {
         return None;
@@ -67,15 +60,14 @@ pub fn measure(points: &mut [[u32; 3]]) -> Option<Measures> {
 
 /// The textures a list holds at most.
 pub const MOST_TEXTURES: usize = 0x100;
-/// The slots with a record of textures (0x40 bytes each, `TexturePlaces.object_texture_records[0]`).
+/// The slots with a record of textures (0x40 bytes each).
 pub const RECORD_SLOTS: u32 = 0x40;
 pub const RECORD_LEN: usize = 0x40;
 
-/// `list_object_textures`: the file's faces (after its header of 0x2C bytes and its points,
-/// 12 bytes each; a face 0x10 bytes and as many again a vertex) each name a texture (the
-/// low word of +4), listed once in the order met. `dword(offset)` reads the file, refusing
-/// past its room. Refuses a file of no faces (the original goes through 2^32), faces past
-/// the room and more textures than the list holds.
+/// The file's faces (after its 0x2C-byte header and its points, 12 bytes each; a face is
+/// 0x10 bytes and as many again a vertex) each name a texture (the low word of +4), listed
+/// once in the order met. `dword(offset)` reads the file. Refuses a file of no faces, faces
+/// past the room and more textures than the list holds.
 pub fn texture_list(dword: impl Fn(usize) -> Result<u32, Invalid>) -> Result<Vec<u32>, Invalid> {
     let past = Invalid("the object's file runs past its room");
     let (points, faces) = (dword(4)?, dword(8)?);
@@ -104,9 +96,9 @@ pub fn texture_list(dword: impl Fn(usize) -> Result<u32, Invalid>) -> Result<Vec
     Ok(textures)
 }
 
-/// Where a slot's record of `count` textures starts in the records (a slot under 0x40;
-/// a long list runs on into the next slots' records, as in the original), or None for a
-/// slot without one. Refuses a list that would leave the records.
+/// Where a slot's record of `count` textures starts in the records (a long list runs on
+/// into the next slots' records), or None for a slot without one. Refuses a list that would
+/// leave the records.
 pub fn texture_record(slot: u32, count: usize) -> Result<Option<usize>, Invalid> {
     if slot >= RECORD_SLOTS {
         return Ok(None);
@@ -118,12 +110,11 @@ pub fn texture_record(slot: u32, count: usize) -> Result<Option<usize>, Invalid>
     Ok(Some(record))
 }
 
-/// The four folders of an object's files, by its kind (`set_object_file_names`): under
-/// 0x190 `files\a\`, under 0x258 `files\b\`, under 0x320 `files\g\frnt\`, else
-/// `files\s\extr\`.
+/// The folders of an object's files by its kind: under 0x190 `files\a\`, under 0x258
+/// `files\b\`, under 0x320 `files\g\frnt\`, else `files\s\extr\`.
 pub const FOLDER_ENDS: [u32; 3] = [0x190, 0x258, 0x320];
 
-/// The folder of a kind (0 .. 3).
+/// The folder of a kind (0 ..= 3).
 pub fn folder(kind: u32) -> usize {
     FOLDER_ENDS
         .iter()
@@ -131,8 +122,8 @@ pub fn folder(kind: u32) -> usize {
         .unwrap_or(FOLDER_ENDS.len())
 }
 
-/// The four characters written over a name's `????`: thousands, hundreds, tens, units
-/// (the thousands as one byte: above 9999 another character).
+/// The four characters written over a name's `????`: thousands, hundreds, tens, units (above
+/// 9999 the thousands byte runs past '9').
 pub fn number_digits(kind: u32) -> [u8; 4] {
     [
         (kind / 1000) as u8,
@@ -143,14 +134,13 @@ pub fn number_digits(kind: u32) -> [u8; 4] {
     .map(|digit| digit.wrapping_add(b'0'))
 }
 
-/// The faces' table (`g_faces`) and the listed faces' room.
+/// The faces' table and the listed faces' room (`LIST_ROOM`).
 pub const FACES: u32 = 0xC000;
 pub const LIST_ROOM: u32 = 0x1000;
 
-/// `list_object_faces`' look-up: the object's `count` faces from `first` on (`face(n)`
-/// the table's entry, read in order), every one before anything is listed. Refuses no
-/// faces (the original goes through 2^32), more than the list holds, a number past the
-/// table, a face that is not there.
+/// The object's `count` faces from `first` on (`face(n)` the table's entry), every one
+/// checked before anything is listed. Refuses no faces, more than the list holds, a number
+/// past the table, a face that is not there.
 pub fn object_faces(
     first: u32,
     count: u32,

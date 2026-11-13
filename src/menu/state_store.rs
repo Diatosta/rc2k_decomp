@@ -1,12 +1,12 @@
-//! The menus' working variables, out of RAL.EXE's image (IDA 0x75A658 .. 0x75ACCC): the carousel, the service area's boxes, the standings' and class figures, the
-//! fade, the inspection's figures and the four setup items. Structs of atomic
-//! cells, one static.
+//! The menus' working variables: the carousel, the service area's boxes, the standings' and
+//! class figures, the fade, the inspection's figures and the four setup items. Structs of
+//! atomic cells, one static.
 
 use crate::menu::lists_store::CarList;
 use crate::session::{PlainDword, PlainFlag, PlainFloat};
 
 /// One of the service area's four setup items (gear ratio, tyre, ride height, suspension
-/// stiffness; IDA 0x75AC90 on, 12 bytes each).
+/// stiffness; 12 bytes each).
 #[derive(rc2k_derive::Cells)]
 pub struct SetupItem {
     /// The value being chosen (`service::step_*_up` / `_down`).
@@ -17,40 +17,40 @@ pub struct SetupItem {
     pub start: PlainDword,
 }
 
-/// The menu carousel (IDA 0x75A658 .. 0x75AA90): the entry shown, the list, the turn,
+/// The menu carousel: the entry shown, the list, the turn,
 /// the place of its entries, their kinds, and the menu's own numbers.
 #[derive(rc2k_derive::Cells)]
 pub struct Carousel {
-    /// `MenuState.carousel.kind`: the kind of the entry being drawn.
+    /// The kind of the entry being drawn.
     pub kind: PlainDword,
-    /// `MenuState.carousel.entries`: the menu's list of cars (the address of the entries' records in the
-    /// original), `CarList::code` (0: none); `Carousel::list`.
+    /// The menu's list of cars, `CarList::code` (0: none); `Carousel::list`.
     pub entries: PlainDword,
-    /// `g_carouselDirection`: 1 after right, -1 after left, 0 at rest.
+    /// 1 after right, -1 after left, 0 at rest.
     pub direction: PlainDword,
-    /// `MenuState.carousel.spacing`: the x spacing of the places.
+    /// The x spacing of the places.
     pub spacing: PlainDword,
-    /// `MenuState.carousel.y`: the y of the places.
+    /// The y of the places.
     pub y: PlainDword,
-    /// `MenuState.carousel.z`: the z of the places.
+    /// The z of the places.
     pub z: PlainDword,
-    /// `MenuState.carousel.forward`: the way forward (the front entry's step).
+    /// The way forward (the front entry's step).
     pub forward: PlainDword,
-    /// `MenuState.carousel.kinds[0]`: the entries' kinds (room for 0x100: the carousel checks that many).
+    /// The entries' kinds (room for 0x100: the carousel checks that many).
     pub kinds: [PlainDword; 256],
-    /// `g_carouselMenu`: the menu whose carousel is up.
+    /// The menu whose carousel is up.
     pub menu: PlainDword,
-    /// `g_carouselCount`: the entries.
+    /// The entries.
     pub count: PlainDword,
-    /// `g_carouselFront`: the entry in front.
+    /// The entry in front.
     pub front: PlainDword,
-    /// `g_carouselAngle`: the turn's angle (0 after right, -1 after left).
+    /// The turn's angle (0 after right, -1 after left).
     pub angle: PlainDword,
-    /// `MenuState.carousel.last_clock`: the clock at the last `menu::step_carousel`.
+    /// The clock at the last `menu::step_carousel`.
     pub last_clock: PlainDword,
-    /// `MenuState.carousel.passed`: the time since, held to 100.
+    /// The time since, held to 100.
     pub passed: PlainDword,
-    /// `MenuState.carousel.set_up`: set to 1 by `scene::set_up_carousel` when the carousel's set-up is done; only the carousel set-up lists (scene::carousel_set_ups) name it.
+    /// Set to 1 by `scene::set_up_carousel` when the carousel's set-up is done; only the
+    /// carousel set-up lists (`scene::carousel_set_ups`) name it.
     pub set_up: PlainDword,
 }
 
@@ -65,131 +65,132 @@ impl Carousel {
     }
 }
 
-/// The service area's boxes and the inspection's fade (IDA 0x75AA90 .. 0x75AAA8).
+/// The service area's boxes and the inspection's fade.
 #[derive(rc2k_derive::Cells)]
 pub struct ServiceUi {
-    /// `MenuState.service_ui.box_colour_a`: the boxes' see-through value (`screens::draw_service_boxes`).
+    /// The boxes' see-through value (`screens::draw_service_boxes`).
     pub box_colour_a: PlainDword,
-    /// `MenuState.service_ui.fade_full`: the fade's full see-through (`menu::fades`).
+    /// The fade's full see-through (`menu::fades`).
     pub fade_full: PlainDword,
-    /// `MenuState.service_ui.box_colour_b`: the colour of the item's boxes, set from its inspection flags as each item is drawn.
+    /// The colour of the item's boxes, set from its inspection flags as each item is drawn.
     pub box_colour_b: PlainDword,
-    /// `MenuState.service_ui.box_shown`: 1 when a service box is turned over.
+    /// 1 when a service box is turned over.
     pub box_shown: PlainFlag,
-    /// `MenuState.service_ui.box_page`: its page.
+    /// Its page.
     pub box_page: PlainDword,
-    /// `MenuState.service_ui.status`: the result of the last attempt (`service::state`).
+    /// The result of the last attempt (`service::state`).
     pub status: PlainDword,
 }
 
-/// The carousel's pictures (IDA 0x75AAA8 .. 0x75AAD8): four wanted, four shown, four held.
+/// The carousel's pictures: four wanted, four shown, four held.
 #[derive(rc2k_derive::Cells)]
 pub struct CarouselPictures {
-    /// `MenuState.carousel_pictures.wanted[0]` ..: the pictures wanted (`scene::draw_car_object`).
+    /// The pictures wanted (`scene::draw_car_object`).
     pub wanted: [PlainDword; 4],
-    /// `MenuState.carousel_pictures.shown[0]` ..: the pictures shown.
+    /// The pictures shown.
     pub shown: [PlainDword; 4],
-    /// `MenuState.carousel_pictures.held[0]` ..: the pictures held (`menu::clear_choice_marks` sets them to -1).
+    /// The pictures held (`menu::clear_choice_marks` sets them to -1).
     pub held: [PlainDword; 4],
 }
 
-/// The menus' working variables (IDA 0x75AAD8 .. 0x75AB58): the review kind, the class
+/// The menus' working variables: the review kind, the class
 /// times `menu::calc_cpu_times` makes, the fade, the standings' switches.
 #[derive(rc2k_derive::Cells)]
 pub struct MenuVariables {
-    /// `MenuState.menus.review_kind`: the review option screens' kind (`sensiblesaving` in `ral.cfg`).
+    /// The review option screens' kind (`sensiblesaving` in `ral.cfg`).
     pub review_kind: PlainDword,
-    /// `MenuState.menus.which_title`: 1 for "voltar" in the results' first item, else "continuar".
+    /// 1 for "voltar" in the results' first item, else "continuar".
     pub which_title: PlainFlag,
-    /// `MenuState.menus.skip_edit_values`: 1 = leave the service area's edit variables alone.
+    /// 1 = leave the service area's edit variables alone.
     pub skip_edit_values: PlainFlag,
-    /// `MenuState.menus.dword_75aae4`: no code reads or writes it (its first value is 0).
+    /// No code reads or writes it (its first value is 0).
     pub dword_75aae4: PlainDword,
-    /// `MenuState.menus.class_times[0]`: the class times (`menu::calc_cpu_times`), by class.
+    /// The class times (`menu::calc_cpu_times`), by class.
     pub class_times: [PlainDword; 4],
-    /// `MenuState.menus.track_length[0]`, `MenuState.menus.track_length[1]`: the track entry's +0xC and its hundredfold / 0x96A.
+    /// The track entry's +0xC and its hundredfold / 0x96A.
     pub track_length: [PlainDword; 2],
-    /// `MenuState.menus.class_counts[0]`: the drivers per class.
+    /// The drivers per class.
     pub class_counts: [PlainDword; 4],
-    /// `MenuState.menus.firsts[0]`: the first driver of each group (`saves::default_best_scores`).
+    /// The first driver of each group (`saves::default_best_scores`).
     pub firsts: [PlainDword; 4],
-    /// `MenuState.menus.rally_done`: 0 first, 1 when going to the rally's results.
+    /// 0 first, 1 when going to the rally's results.
     pub rally_done: PlainFlag,
-    /// `g_firstRowTime`: the first row's time, kept for the others' gap to it.
+    /// The first row's time, kept for the others' gap to it.
     pub first_row_time: PlainDword,
-    /// `MenuState.menus.pair_ab28[0]`: eight bytes no code reads or writes.
+    /// Eight bytes no code reads or writes.
     pub pair_ab28: [PlainDword; 2],
-    /// `MenuState.menus.caption_choice`: bit 0 turned over by `menu::toggle_caption_choice`.
+    /// Bit 0 turned over by `menu::toggle_caption_choice`.
     pub caption_choice: PlainDword,
-    /// `MenuState.menus.standings_shown`: 1 while the championship's standings show.
+    /// 1 while the championship's standings show.
     pub standings_shown: PlainFlag,
-    /// `MenuState.menus.service_flag`: set to 1 by the repairs, 0 by the service pass.
+    /// Set to 1 by the repairs, 0 by the service pass.
     pub service_flag: PlainFlag,
-    /// `MenuState.menus.unk_75ab3c`: no code reads or writes it.
+    /// No code reads or writes it.
     pub unk_75ab3c: PlainDword,
-    /// `MenuState.menus.class_mode`: 2 in event mode 0x13 (`menu::class_championship_pass`).
+    /// 2 in event mode 0x13 (`menu::class_championship_pass`).
     pub class_mode: PlainDword,
-    /// `MenuState.menus.fade_length`: the fade's length in milliseconds.
+    /// The fade's length in milliseconds.
     pub fade_length: PlainDword,
-    /// `MenuState.menus.fade_start`: the clock when the fade (or a repair phase) started.
+    /// The clock when the fade (or a repair phase) started.
     pub fade_start: PlainDword,
-    /// `MenuState.menus.fade_gone`: the time gone.
+    /// The time gone.
     pub fade_gone: PlainDword,
-    /// `MenuState.menus.fade_see`: the see-through the fade's quad is drawn with.
+    /// The see-through the fade's quad is drawn with.
     pub fade_see: PlainDword,
-    /// `MenuState.menus.repair_last_step`: `elapsed` at the last repair step (`service::apply_repairs`).
+    /// `elapsed` at the last repair step (`service::apply_repairs`).
     pub repair_last_step: PlainDword,
 }
 
-/// The driver figures and the service area's variables (IDA 0x75AB58 .. 0x75ACCC).
+/// The driver figures and the service area's variables.
 #[derive(rc2k_derive::Cells)]
 pub struct DriverStats {
-    /// `MenuState.driver_stats.steps`: the steps a flat pair is divided by (`menu::driver_stats`).
+    /// The steps a flat pair is divided by (`menu::driver_stats`).
     pub steps: PlainFloat,
-    /// `MenuState.driver_stats.scale`: the scale the wear figures use.
+    /// The scale the wear figures use.
     pub scale: PlainFloat,
-    /// `MenuState.driver_stats.repair_times[0]`: the repair times; 14 values for `menu::driver_stats`, 16 in two
-    /// columns of eight for `screens::draw_repair_times` (items 12 .. 15 are `begin_edits`' times).
+    /// The repair times; 14 values for `menu::driver_stats`, 16 in two columns of eight for
+    /// `screens::draw_repair_times` (items 12 .. 15 are `begin_edits`' times).
     pub repair_times: [PlainDword; 16],
-    /// `MenuState.driver_stats.highs[0]`: each part's high end.
+    /// Each part's high end.
     pub highs: [PlainDword; 14],
-    /// `MenuState.driver_stats.limits[0]`: each part's limit (`screens::draw_inspection_status` reads
-    /// the item's from 0x75ABD0, two words earlier).
+    /// Each part's limit (`screens::draw_inspection_status` reads the item's from two words
+    /// before this array).
     pub limits: [PlainDword; 14],
-    /// `MenuState.driver_stats.weights[0]`: each part's share of the total.
+    /// Each part's share of the total.
     pub weights: [PlainDword; 14],
-    /// `MenuState.driver_stats.penalties[0]`: each part's penalty (`screens::draw_inspection_status` reads the
-    /// item's from 0x75AC40, two words earlier).
+    /// Each part's penalty (`screens::draw_inspection_status` reads the item's from two words
+    /// before this array).
     pub penalties: [PlainDword; 14],
-    /// `MenuState.driver_stats.score`: the inspection's score (100 or more passes).
+    /// The inspection's score (100 or more passes).
     pub score: PlainDword,
-    /// `MenuState.driver_stats.total`: the high ends' total but part 4's.
+    /// The high ends' total but part 4's.
     pub total: PlainDword,
-    /// `MenuState.driver_stats.repair_time`: the time of the chosen repairs.
+    /// The time of the chosen repairs.
     pub repair_time: PlainDword,
-    /// `MenuState.driver_stats.setups[0].chosen` ..: the four setup items: [0] gear ratio, [1] tyre (0 .. 5, its name is string
-    /// 0x4B0 + it), [2] ride height (a percentage), [3] suspension stiffness (a percentage).
+    /// The four setup items: [0] gear ratio, [1] tyre (0 .. 5, its name is string 0x4B0 + it),
+    /// [2] ride height (a percentage), [3] suspension stiffness (a percentage).
     pub setups: [SetupItem; 4],
-    /// `MenuState.driver_stats.money`: the money (times 100 into the player's +0x288).
+    /// The money (times 100 into the player's +0x288).
     pub money: PlainDword,
-    /// `MenuState.driver_stats.switch_a`: part 4's switch (`menu::driver_stats`).
+    /// Part 4's switch (`menu::driver_stats`).
     pub switch_a: PlainDword,
-    /// `MenuState.driver_stats.switch_b`: part 5's switch.
+    /// Part 5's switch.
     pub switch_b: PlainDword,
 }
 
 /// The menus' working variables.
 #[derive(rc2k_derive::Cells)]
 pub struct MenuState {
-    /// The menu carousel (IDA 0x75A658 .. 0x75AA90): the entry shown, the list, the turn,
+    /// The menu carousel: the entry shown, the list, the turn, the entries.
     pub carousel: Carousel,
-    /// The service area's boxes and the inspection's fade (IDA 0x75AA90 .. 0x75AAA8).
+    /// The service area's boxes and the inspection's fade.
     pub service_ui: ServiceUi,
-    /// The carousel's pictures (IDA 0x75AAA8 .. 0x75AAD8): four wanted, four shown, four held.
+    /// The carousel's pictures: four wanted, four shown, four held.
     pub carousel_pictures: CarouselPictures,
-    /// The menus' working variables (IDA 0x75AAD8 .. 0x75AB58): the review kind, the class
+    /// The menus' working variables: the review kind, the class times, the fade, the
+    /// standings' switches.
     pub menus: MenuVariables,
-    /// The driver figures and the service area's variables (IDA 0x75AB58 .. 0x75ACCC).
+    /// The driver figures and the service area's variables.
     pub driver_stats: DriverStats,
 }
 

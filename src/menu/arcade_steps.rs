@@ -1,49 +1,23 @@
-//! The arcade event's small steps (`menu::arcade_event` and its callers). Plain stores. What
-//! they share: the arcade's level (1 .. 5) and stage (0 .. 6), the stage's record (the
-//! level's stage table row for the stage, 0xA4 bytes each; its +0x3C is the course), the
-//! course's ten best times (entries of 0x9C, the tenth at +0x57C), the level's ten best scores
-//! (entries of 0x50, the tenth at +0x2D0) and the current player.
-//! - `menu::keep_arcade_stage_best`: given the stage's record (the caller's): if its +0x30 is
-//!   below the player's +0x94 (signed), +0x30 takes that, +0x74 / +0x78 take the player's
-//!   +4 / +8 and the 0x20 bytes at the player's +0x18 (a pointer) go to +0x54.
-//! - `menu::check_arcade_level_score`: the time-qualifies flag is set when the score is at
-//!   least the tenth best's +0x14 (signed).
-//! - `menu::check_arcade_stage_time`: the event's player time takes the player's time (+0x88);
-//!   the time-qualifies flag is set when it is at most the tenth best's +0x14 (signed).
-//! - `menu::enter_arcade_stage_time`: the player's time goes into the tenth best (+0x14 the
-//!   player's +0x88, +0x1C +0x90, +8 +4, +0xC +0x18, +0x10 +8, +0x50 the cheat bits, +0x54 /
-//!   +0x58 `menu::sealed_player_time` of the course, +4 and +0x40 1, +0x20 the +0x18, 0x40
-//!   bytes of the player's +0x20C at +0x5C, then 31 bytes of the name +0xC points at over
-//!   +0x20), the course is the draw work's figure first; then `sort_arcade_stage_times`.
-//! - `menu::sort_arcade_stage_times`: nine times, from the tenth up: a pair whose lower time
-//!   (+0x14) is at most the upper's (signed) exchanges +0xC, +0x14, +4, +8, +0x1C, +0x10,
-//!   +0x18, +0x40, +0x50 .. +0x98 and the 31 bytes of the names at +0x20 (through the kept
-//!   player name, which keeps the last upper name); either way the pair one up is next.
-//! - `menu::enter_arcade_level_score`: the score goes into the tenth best (+0x14 the score,
-//!   or the second score for player 1; +0x1C, +8, +0xC, +0x10, +4, +0x40, +0x20 as above,
-//!   the name over +0x20); then `sort_arcade_level_scores`.
-//! - `menu::sort_arcade_level_scores`: as the times' sort on entries of 0x50, exchanging when
-//!   the lower score is at least the upper's: +0xC, +0x14, +4, +8, +0x1C, +0x10, +0x18,
-//!   +0x40 and the names.
-//! - `menu::score_arcade_stage`: the total before is the score, the bonus is player 0's
-//!   +0x94, the place's points are (the places ranked - the player's place + 1) x 1000, their
-//!   sum with the time bonus is kept next to the total.
-//! - `menu::clear_arcade_score_marks`: +0x40 of the level's ten scores 0.
-//! - `menu::clear_arcade_time_marks`: +0x40 of the course's ten times 0.
-//! - `menu::take_arcade_stage_best`: 0x40 bytes of the course's best's +0x5C go to the kept
-//!   setup bytes.
-//! - `menu::add_shown_car`: the shown car (from the carousel's list) goes over the end mark
-//!   of the car list (no new end mark: the original's slip, kept).
-//! - `menu::remove_shown_car`: the entries of the carousel's list after the shown one move
-//!   down one, up to and with the end mark; `saves::list_car_numbers`.
-//! - `menu::secret_car_list`: with cheat bit 1, the secret car list; the carry is the bit.
+//! The arcade event's small steps (`menu::arcade_event` and its callers): plain stores on the
+//! arcade's level (1 .. 5), stage (0 .. 6), the stage's record (0xA4 bytes; its +0x3C is the
+//! course), the course's ten best times (entries of 0x9C), the level's ten best scores (entries
+//! of 0x50) and the current player.
+//! - keep / take the stage best: the record's best (+0x30) and its setup bytes.
+//! - check the level score / stage time: set the time-qualifies flag when the figure beats the
+//!   tenth entry's +0x14 (signed).
+//! - enter a stage time / level score: the player's figures go into the tenth entry, then the
+//!   entries are sorted (an exchange sort from the tenth up; the lower figure moves up, ties
+//!   move too; names exchanged through the kept player name).
+//! - `menu::score_arcade_stage`: total before, bonus, places' points
+//!   ((places ranked - place + 1) x 1000) and their sum with the time bonus.
+//! - clear the score / time marks (+0x40 of the ten entries); add / remove the shown car in the
+//!   car list (the added car gets no new end mark, kept as is); `secret_car_list`.
 //!
-//! The entries' logic is `rc2k_core::menu::bests` and
-//! `rc2k_core::menu::standings`; this file reads and writes the game's memory for it.
-//!
-//! Refusals (before anything): a level past 5, a stage past 6, a missing record or table
-//! on the way, a current player past 3 or missing, a null name, a list without its end
-//! in 0x28 (0x30 for the carousel's list) entries, a shown car past the list.
+//! The entries' logic is `rc2k_core::menu::bests` and `rc2k_core::menu::standings`; this file
+//! reads and writes the game's memory for it. Refusals (before anything): a level past 5, a
+//! stage past 6, a missing record or table, a current player past 3 or missing, a null name, a
+//! list without its end in 0x28 (0x30 for the carousel's list) entries, a shown car past the
+//! list.
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::owner::Menus;
@@ -55,7 +29,6 @@ use crate::session::{PlainDword, read_all, write_all};
 use crate::system::owner::System;
 use rc2k_core::menu::{bests, standings};
 
-// hhmm
 const CARS_LEN: u32 = 0x28;
 const SHOWN_LIST_LEN: u32 = 0x30;
 
@@ -112,14 +85,13 @@ fn current(menus: &Menus) -> Result<(u32, crate::menu::standings::PlayerCell<'_>
     }
 }
 
-/// `menu::keep_arcade_stage_best`, `record` the caller's edi.
+/// `menu::keep_arcade_stage_best`; `record` is the caller's stage record.
 pub fn keep_arcade_stage_best(
     menus: &Menus,
     stages: &crate::records::stages_store::StageTables,
     record: RecordRef,
 ) -> Result<(), Refused> {
     let (_, player) = current(menus)?;
-    // The logic is in `rc2k_core::menu::bests::takes_record`.
     let figure = player.get().figure;
     if bests::takes_record(figure, record.record(stages)?.holder(Holder::Fastest).speed) {
         name_player(&player.get())?;
@@ -132,7 +104,6 @@ pub fn keep_arcade_stage_best(
 }
 
 pub fn check_arcade_level_score(menus: &Menus) -> Result<(), Refused> {
-    // The logic is in `rc2k_core::menu::bests::makes_score`.
     let best = with_level_scores(&menus.play, |ten| ten[9].key)?;
     if bests::makes_score(menus.play.results.totals[0].get(), best) {
         menus.screens.event.time_qualifies.set(1);
@@ -146,7 +117,6 @@ pub fn check_arcade_stage_time(menus: &Menus, system: &System) -> Result<(), Ref
     let (_, player) = current(menus)?;
     let time = player.get().time;
     screens.event.player_time.set(time);
-    // The logic is in `rc2k_core::menu::bests::makes_time`.
     if bests::makes_time(
         time,
         with_course_times(&menus.play, system, |ten| ten[9].head.key)?,
@@ -193,7 +163,6 @@ pub fn enter_arcade_stage_time(
     menus.screens.draw_work.figure.set(course);
     let cheats = menus.play.cheats.cheats.get();
     let sealed = crate::menu::sealed_player_time::sealed_player_time(menus, race, course)?;
-    // The logic is in `rc2k_core::saves::entries` (`BestTime::enter`, `sort_arcade_times`).
     let seal = bests::Seal { cheats, sealed };
     let best = new_best(
         menus,
@@ -215,7 +184,6 @@ pub fn enter_arcade_level_score(menus: &Menus) -> Result<(), Refused> {
     with_level_scores(&menus.play, |_| ())?;
     let (n, player) = current(menus)?;
     name_player(&player.get())?;
-    // The logic is in `rc2k_core::saves::entries` (`Entry::enter`, `sort_level_scores`).
     let score = menus.play.results.totals[usize::from(n == 1)].get();
     let best = new_best(menus, player, score, None, None)?;
     with_level_scores(&menus.play, |ten| {
@@ -232,7 +200,6 @@ pub fn score_arcade_stage(menus: &Menus) -> Result<(), Refused> {
     let first = crate::menu::standings::player(menus, 0);
     play.results.before[0].set(play.results.totals[0].get());
     play.results.extra[0].set(first.get().figure);
-    // The logic is in `rc2k_core::menu::standings::arcade_points`.
     let points =
         standings::arcade_points(play.arcade.places.get(), play.results.positions[0].get());
     play.results.points[0].set(points);
@@ -245,19 +212,16 @@ pub fn score_arcade_stage(menus: &Menus) -> Result<(), Refused> {
 }
 
 pub fn clear_arcade_score_marks(play: &Play) -> Result<(), Refused> {
-    // The logic is in `rc2k_core::saves::entries::clear_marks`.
     with_level_scores(play, rc2k_core::saves::entries::clear_marks)?;
     Ok(())
 }
 
 pub fn clear_arcade_time_marks(play: &Play, system: &System) -> Result<(), Refused> {
-    // The logic is in `rc2k_core::saves::entries::clear_marks`.
     with_course_times(play, system, rc2k_core::saves::entries::clear_marks)?;
     Ok(())
 }
 
 pub fn take_arcade_stage_best(play: &Play, system: &System, race: &Race) -> Result<(), Refused> {
-    // The logic is in `rc2k_core::saves::entries::BestTime::line`.
     let line = with_course_times(play, system, |ten| ten[0].line())?;
     race.shared.state.results.results[0].data.write(&line);
     Ok(())
@@ -271,7 +235,6 @@ fn end_of(list: &[PlainDword], len: u32) -> Result<u32, Refused> {
 }
 
 pub fn add_shown_car(menus: &Menus) -> Result<(), Refused> {
-    // The logic is in `rc2k_core::menu::car_lists` (`entries`, `shown_car`).
     use rc2k_core::menu::car_lists::{entries, shown_car};
     let list = |cells: &[PlainDword], len: u32| entries(len as usize, |k| cells[k].get());
     let shown = menus.screens.event.shown_car.get();
@@ -295,7 +258,6 @@ pub fn remove_shown_car(
     if shown >= end {
         return Err(BadInput("a shown car past the list").into());
     }
-    // The logic is in `rc2k_core::menu::standings::remove_at`.
     let mut cars: [u32; SHOWN_LIST_LEN as usize] = read_all(&menus.tables.lists.shown_cars);
     standings::remove_at(&mut cars, shown as usize, end as usize);
     write_all(&menus.tables.lists.shown_cars, cars);

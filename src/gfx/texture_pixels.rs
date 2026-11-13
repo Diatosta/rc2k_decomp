@@ -1,24 +1,18 @@
-//! What a picture goes through on its way into a texture (from
-//! `gfx::load_picture_to_texture`'s upload `gfx::upload_texture_picture` and
-//! `scene::upload_car_icon`). Pixels are 32-bit components: byte 0, 1, 2 the colour, byte 3 the
+//! What a picture goes through on its way into a texture (from `gfx::upload_texture_picture` and
+//! `scene::upload_car_icon`). Pixels are 32-bit components: bytes 0, 1, 2 the colour, byte 3 the
 //! alpha.
 //!
-//! - `gfx::alpha_from_kept` (0x405443): each pixel's alpha = the first byte of the
-//!   pixel at the same place 0x40000 bytes on (a second picture kept there), inverted.
-//! - `gfx::key_texture_colours` (0x40540C): alpha made 0xFF; a colour whose top five
-//!   bits are all 0 becomes the key (the format's least colour), 0xF800F8 by those
-//!   bits (magenta) becomes 0, all of it.
-//! - `gfx::least_colour` (0x4053BC): the lowest step of each of a format's four masks
-//!   put together, as components.
-//! - `gfx::grade_texture` (0x4055A2): with the reading switch (`reading`) at 1 and
-//!   the scale `scale` and saturation `saturation` not both 0x100: each
-//!   colour's parts through a table of 0x100 bytes (`grades`, made here from the
-//!   scale), drawn towards or away from their average (`g_thirds`) by the saturation,
-//!   and a colour left black by the top five bits becomes the key; pixels of alpha 0
-//!   are left alone.
-//! - `gfx::halve_texture` (0x40545F): the picture made half as wide and high in
-//!   place, so many times: each pixel the average of four, counting only those of an
-//!   alpha above 0 for the colour.
+//! - `gfx::alpha_from_kept`: each pixel's alpha = the first byte of the pixel at the same place
+//!   0x40000 bytes on (a second picture kept there), inverted.
+//! - `gfx::key_texture_colours`: alpha made 0xFF; a colour whose top five bits are all 0 becomes
+//!   the key (the format's least colour), 0xF800F8 by those bits (magenta) becomes 0.
+//! - `gfx::least_colour`: the lowest step of each of a format's four masks put together.
+//! - `gfx::grade_texture`: with the reading switch at 1 and the scale and saturation not both
+//!   0x100: each colour's parts go through a table of 0x100 bytes (`grades`, made from the
+//!   scale), drawn towards or away from their average by the saturation, and a colour left black
+//!   by the top five bits becomes the key; pixels of alpha 0 are left alone.
+//! - `gfx::halve_texture`: the picture made half as wide and high in place, so many times: each
+//!   pixel the average of four, counting only those of an alpha above 0 for the colour.
 
 use crate::errors::BadInput;
 use crate::gfx::picture::{read_bytes, write_bytes};
@@ -28,18 +22,17 @@ use crate::session::{PlainBytes, PlainDword};
 /// settings ask for it).
 #[derive(rc2k_derive::Cells)]
 pub struct Grading {
-    /// `dword_4F4A24`: 1 while the textures are being read (`reload_system_textures`).
+    /// 1 while the textures are being read (`reload_system_textures`).
     pub reading: PlainDword,
-    /// `dword_4F4A28`: the scale pictures are read at (0x100: none).
+    /// The scale pictures are read at (0x100: none).
     pub scale: PlainDword,
-    /// `dword_4F4A2C`: the saturation pictures are read at (0x100: none).
+    /// The saturation pictures are read at (0x100: none).
     pub saturation: PlainDword,
     /// `byte_4F4A30`: the grades table the last graded texture used.
     pub grades: PlainBytes<0x100>,
 }
 
 impl Grading {
-    /// The grading variables; the first values are the image's.
     pub const fn new() -> Self {
         Grading {
             reading: PlainDword::new(1),
@@ -52,8 +45,6 @@ impl Grading {
 
 /// The second picture's place, in bytes from the first's start.
 pub const KEPT: usize = rc2k_core::gfx::pixels::KEPT;
-
-// Converted: `rc2k_core::gfx::pixels` (the pixels as slices of the counts given).
 
 // `pixels` names a picture buffer (`gfx::picture`; the textures are read in it).
 

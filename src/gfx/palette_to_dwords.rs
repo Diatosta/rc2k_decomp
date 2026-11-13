@@ -1,10 +1,6 @@
-//! `gfx::palette_to_dwords` (0x405DDE): turns a palette of 256 entries of three bytes into
-//! 256 dwords.
-//!
-//! Takes: the three-byte palette, the dwords
-//! A dword is the entry's first byte shifted up 16, its second shifted up 8, and its third;
-//! the top byte is 0. Entry 255 is done first. Four callers, the picture readers.
-//! A palette or dwords field too short is refused. The name is a reading.
+//! Turns a palette of 256 entries of three bytes into 256 dwords: an entry's first byte shifted up
+//! 16, its second shifted up 8, and its third; the top byte is 0. Entry 255 is done first. A
+//! palette or dwords field too short is refused.
 
 use crate::cells::Store;
 use crate::errors::BadInput;
@@ -23,12 +19,11 @@ pub fn palette_bytes_to_dwords(
     palette: &[u8; ENTRIES * 3],
     to: &dyn Store,
 ) -> Result<(), BadInput> {
-    // From the last entry down, as the original goes: it matters if the two overlap. The
-    // bytes are read first (an entry's three bytes lie below its dword, so the order of the
-    // writes cannot change a read that comes after it).
+    // From the last entry down: it matters if the two overlap. The bytes are read first (an entry's
+    // three bytes lie below its dword, so the order of the writes cannot change a read that comes
+    // after it).
     let mut dwords = Vec::with_capacity(ENTRIES * 4);
     for entry in 0..ENTRIES {
-        // Converted: `rc2k_core::gfx::pixels::palette_entry`.
         let bytes = [
             palette[entry * 3],
             palette[entry * 3 + 1],

@@ -1,5 +1,5 @@
-//! Rows of the debug pages read through the field they show, not through an IDA address: the
-//! row's IDA address is only its label and identity.
+//! Rows of the debug pages read through the field they show; the row's address is only its
+//! label and identity.
 
 use crate::session::{Dword, Float, PlainDword, PlainFloat};
 

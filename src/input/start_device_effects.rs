@@ -1,11 +1,7 @@
-//! `input::start_device_effects` (0x409672): the six effects of the record asked to
+//! The six effects of the record asked to
 //! start (`input::set_effect` with 2, effects 0 .. 5).
 //!
-//! Takes: the device's record
-//!
-//! See `input/effects.rs`. Two callers, both in `input::start_effects`.
-//!
-//! Its arguments are what it reads.
+//! See `input/effects.rs`.
 
 use crate::errors::Refused;
 use crate::input::store::ForceFeedback;

@@ -1,8 +1,5 @@
-//! Whether and how an object of the scene is drawn (from
-//! `scene::draw_shown_object` 0x4503A5 with its inlined tests `scene::object_hidden_by_kind`
-//! 0x4522EA and `scene::object_hidden` 0x4503DD, and from `scene::draw_scene_object`
-//! 0x451E3E): the race's tests that hide an object, the menus' kind bytes, the texture set
-//! and the way on.
+//! Whether and how an object of the scene is drawn: the race's tests that hide an object, the
+//! menus' kind bytes, the texture set and the way on.
 
 /// The objects' tables' length.
 pub const OBJECTS: u32 = 0x100;
@@ -10,10 +7,8 @@ pub const OBJECTS: u32 = 0x100;
 pub const OTHER_SET: u32 = 0x108;
 
 /// What the race's tests read, each asked for where they read it: the object, the kind
-/// test's switches, an object's kind (`g_objectKinds`), the
-/// other way, whether the special objects are shown,
-/// which of two, the only object (`ObjectWork.only_object`, plus 1) and an object's
-/// face count.
+/// test's switches, an object's kind, the other way, whether the special objects are shown,
+/// which of two, the only object (plus 1) and an object's face count.
 pub trait RaceObject {
     fn object(&self) -> u32;
     fn kind_switch(&self) -> bool;
@@ -26,10 +21,10 @@ pub trait RaceObject {
     fn faces(&self, object: u32) -> u32;
 }
 
-/// The race's two tests, whether the object is drawn: hidden by kind (0x30, 0x4E with
-/// either switch); objects 0x38 and 0x3A .. 0x3F hidden on the other way, when the special
-/// objects are not shown, 0x3E unless `which` is 0 and 0x3D unless it is 1; on the other way
-/// every object but the only one; and an object without faces.
+/// The race's two tests, whether the object is drawn: hidden by kind (0x30, 0x4E with either
+/// switch); objects 0x38 and 0x3A ..= 0x3F hidden on the other way when the special objects
+/// are not shown (0x3E unless `which` is 0, 0x3D unless 1); on the other way every object
+/// but the only one; and an object without faces.
 pub fn race_shown(o: &impl RaceObject) -> bool {
     let object = o.object();
     if (o.kind_switch() || o.kind_mode() == 2) && matches!(o.kind(object), 0x30 | 0x4E) {
@@ -56,26 +51,23 @@ pub fn race_shown(o: &impl RaceObject) -> bool {
     o.faces(object) != 0
 }
 
-/// `scene::clear_kind_bytes` (0x46219C): the menus' 0x100 kind dwords, 0
-/// but the seventh, eighth and tenth, 999.
+/// The menus' kind bytes: 0x100 kind dwords, 0 but the seventh, eighth and tenth, 999.
 pub fn kind_bytes() -> [u32; 0x100] {
     let mut bytes = [0u32; 0x100];
     (bytes[6], bytes[7], bytes[9]) = (999, 999, 999);
     bytes
 }
 
-/// Why the texture set cannot be chosen: an object past the tables (fatal error
-/// 0x80600A01), a car without its block.
+/// Why the texture set cannot be chosen: an object past the tables, a car without its block.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SetError {
     TooHigh,
     NoBlock,
 }
 
-/// `draw_scene_object`'s texture set: outside a race the other set for an object of kind
-/// 0x23A (`kind(object)`); in a race for objects 0x50 .. 0xEF (the cars, 0x14 objects each)
-/// whose car's block has 0x21 at +0x24 (`car_word(car)`, `None` for a car without its
-/// block).
+/// The texture set: outside a race the other set for an object of kind 0x23A; in a race for
+/// objects 0x50 ..= 0xEF (the cars, 0x14 objects each) whose car's block has 0x21 at +0x24
+/// (`car_word(car)`, `None` for a car without its block).
 pub fn texture_set(
     object: u32,
     in_race: bool,
@@ -94,12 +86,12 @@ pub fn texture_set(
     Ok(if other { OTHER_SET } else { 0 })
 }
 
-/// The two ways on from `draw_scene_object`.
+/// The two ways an object is drawn on.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Way {
-    /// `scene::draw_shown_object`.
+    /// Drawn as a shown object.
     Shown,
-    /// `scene::draw_described_object`.
+    /// Drawn as a described object.
     Described,
 }
 
@@ -119,7 +111,6 @@ pub fn way(faces: u32, mode: u32) -> Option<Way> {
 mod tests {
     use super::*;
 
-    /// The test's variables, all at hand.
     #[derive(Clone, Copy, Default)]
     struct Vars {
         object: u32,

@@ -1,12 +1,5 @@
-//! `net::apply_received` (0x4644A4): the messages received since the last step
-//! (`net::copy_received`), each player's in turn (`copied_count`,
-//! then `copied`: records of 0x100 bytes, +1 the length, +2 the message) applied
-//! (`net::apply_message`, with the message, its length and the player).
-//! The players' loop ends on `jnz` against `players`: with no players it would not end.
-//! The receiving thread keeps a count to 0x40 (`net::store_received`), the room there is.
-//!
-//! See `net/mod.rs`. One caller, `net::race_step`. Refuses (before anything) no players
-//! and more than 8.
+//! Applies, player by player, the messages copied by `net::copy_received` since the last step.
+//! Refuses no players and more than 8.
 
 use crate::errors::{BadInput, Refused};
 use crate::net::apply_message::apply_message;

@@ -1,10 +1,6 @@
-//! `input::list_joysticks` (0x408216): unless the configuration turned them off
-//! (`no_joysticks` not 0), the attached joysticks listed into `g_controllers`
-//! (`EnumDevices` of `direct_input`, DirectInput, for joysticks (4), attached only (1), with
-//! `input::joystick_found`, context 0; its result not looked at).
-//!
-//! Caller: `input::input_thread` (its start). The method DirectInput's own (in the
-//! standalone program Rust's, `input::di_objects`).
+//! Unless the configuration turned them off, lists the attached joysticks into the controllers'
+//! table (`EnumDevices` for joysticks, attached only, with `input::joystick_found`; its result is
+//! not looked at). Called at the input thread's start.
 
 use crate::input::owner::Input;
 

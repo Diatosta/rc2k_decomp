@@ -1,16 +1,10 @@
-//! Loading a sound's sample (command 3's logic).
-//!
-//! `audio::read_sample` reads a file into the work buffer (`g_sampleBuffer`, 0x506930, of
-//! `g_sampleBufferSize` bytes: the setting at 0x5068EC times 0x400, else 0x400) and leaves
-//! what it found in `g_sampleFile` (`SampleFile`, 0x506938). A voice is then filled from
-//! it, or from the voice it shares data with; the data is prepared in place for the sound
-//! mode's quality and copied to the samples' memory (`g_sampleMemory`).
-//!
-//! The bytes are Rust's (`audio::sample_data`): `SampleFile::data` and a
-//! voice's `data` are ids there, not addresses.
-//!
-//! The format word: 0x10 eight bits, 0x20 sixteen; 0x100 mono, 0x200 stereo; the low four
-//! bits how many times the data was halved (the frequency is shifted right by them).
+//! Loading a sound's sample. `audio::read_sample` reads a file into the work buffer (the setting
+//! times 0x400 bytes, else 0x400) and leaves what it found in `SampleFile`. A voice is then filled
+//! from it, or from the voice it shares data with; the data is prepared in place for the sound
+//! mode's quality and copied to the samples' memory. The bytes are Rust's (`audio::sample_data`):
+//! `SampleFile::data` and a voice's `data` are ids there. The format word: 0x10 eight bits, 0x20
+//! sixteen; 0x100 mono, 0x200 stereo; the low four bits how many times the data was halved (the
+//! frequency is shifted right by them).
 
 use crate::audio::own::{AudioOwn, AudioThread};
 use crate::audio::voices::*;
@@ -33,8 +27,8 @@ pub struct SampleFile {
 
 const _: () = assert!(std::mem::size_of::<SampleFile>() == 0x20);
 
-/// Reads and parses a sample file into `buffer`: true for the carry clear (a sample was
-/// found). The data's id goes in `out`.
+/// Reads and parses a sample file into `buffer`: true when a sample was found. The
+/// data's id goes in `out`.
 pub fn read_sample(
     state: &AudioOwn,
     path: &[u8],
@@ -58,8 +52,6 @@ pub fn read_sample(
         if !read.ok {
             return Ok(false);
         }
-        // Converted: `rc2k_core::audio::samples::parse`, on the work buffer's memory as the
-        // original reads it (the data's place kept as its offset there).
         let mut core = rc2k_core::audio::samples::SampleFile {
             data: data::offset(f.data).unwrap_or(0),
             length: f.length,
@@ -104,7 +96,7 @@ pub fn flags(table: &[PlainDword; 4]) -> rc2k_core::audio::samples::FormatBitTab
     ]
 }
 
-/// The game's: the work buffer and `g_sampleFile`.
+/// The game's: the work buffer and the sample file.
 pub fn read_sample_in_game(state: &AudioOwn, path: &[u8]) -> Result<bool, Refused> {
     read_sample(
         state,
@@ -117,7 +109,6 @@ pub fn read_sample_in_game(state: &AudioOwn, path: &[u8]) -> Result<bool, Refuse
 
 /// The voice of `count` from `voices` whose `data_key` is the record's (0: none).
 pub fn find_shared_voice(audio: &AudioThread, record: &SampleRecord, count: u32) -> u32 {
-    // Converted: `rc2k_core::audio::voices::find_shared`.
     rc2k_core::audio::voices::find_shared(
         &mut GamePool::new(audio),
         count,
@@ -127,8 +118,8 @@ pub fn find_shared_voice(audio: &AudioThread, record: &SampleRecord, count: u32)
     .unwrap_or(0)
 }
 
-/// `audio::fill_voice`: the voice `at` for the record (`record` its sample record), from the
-/// sample file or, with `shared`, from that voice.
+/// `audio::fill_voice`: the voice `at` for the record (`record` its sample record), from the sample
+/// file or, with `shared`, from that voice.
 pub fn fill_voice(
     audio: &AudioThread,
     at: u32,
@@ -137,7 +128,6 @@ pub fn fill_voice(
     file: &SampleFile,
     sound_mode: u32,
 ) -> Result<(), Refused> {
-    // Converted: `rc2k_core::audio::voices::fill_voice`.
     let from_file = rc2k_core::audio::voices::FileSample {
         data: file.data,
         length: file.length,
@@ -168,15 +158,13 @@ pub fn fill_voice(
     Ok(())
 }
 
-/// `audio::sample_mode`: the mode a voice's sample is prepared for. Converted:
-/// `rc2k_core::audio::samples::sample_mode`.
+/// `audio::sample_mode`: the mode a voice's sample is prepared for.
 pub fn sample_mode(mode: u32, record: Option<&SampleRecord>) -> u32 {
     rc2k_core::audio::samples::sample_mode(mode, record.map(|r| (r.number, r.group)))
 }
 
-/// `audio::prepare_sample`: the voice's data, in place, scaled by `scale` / 64, halved
-/// until its shift is the mode's, and made eight bits if the mode asks. Converted:
-/// `rc2k_core::audio::samples::prepare`, on the voice's data in game memory.
+/// `audio::prepare_sample`: the voice's data, in place, scaled by `scale` / 64, halved until its
+/// shift is the mode's, and made eight bits if the mode asks.
 pub fn prepare_sample(v: &mut Voice, mode: u32) -> Result<(), Refused> {
     if v.data == 0 || v.length == 0 || v.data_key == 0 {
         return Ok(());

@@ -1,4 +1,4 @@
-//! `menu::unused_cspecs_loop` (0x4AA1A3): a car specification screen with the carousel of
+//! `menu::unused_cspecs_loop`: a car specification screen with the carousel of
 //! menu 0xC, background `cspecs.png`. Nothing in RAL.EXE reaches it; reached here from the
 //! debug UI's "Screens" tab (`debug::screens`). What it was for is not known; a reading.
 
@@ -14,8 +14,7 @@ fn before(entry: &Entry) -> Result<(), Refused> {
     Ok(())
 }
 
-// The original prepares the scene before the carousel, which left the front car white:
-// here as `menu::select_car_loop`, the scene last.
+// The scene is prepared after the carousel, so the front car is not left white.
 fn set_up_first(entry: &Entry) -> Result<(), Refused> {
     let screens = &entry.menus.screens;
     screens.flow.turning.set(0x1u32);
@@ -36,12 +35,12 @@ fn set_up_first(entry: &Entry) -> Result<(), Refused> {
 pub const SCREEN: Screen = Screen {
     lists: &[
         List {
-            pointer: |m| &m.screens.flow.scene_list, // g_sceneList
+            pointer: |m| &m.screens.flow.scene_list,
             table: |m| m.tables.draw_lists.cspecs_scene_list.id(),
             run: false,
         },
         List {
-            pointer: |m| &m.screens.flow.draw_list, // g_drawList
+            pointer: |m| &m.screens.flow.draw_list,
             table: |m| m.tables.draw_lists.cspecs_draw_list.id(),
             run: false,
         },
@@ -51,7 +50,7 @@ pub const SCREEN: Screen = Screen {
             run: true,
         },
         List {
-            pointer: |m| &m.screens.flow.overlay_list, // g_overlayList
+            pointer: |m| &m.screens.flow.overlay_list,
             table: |m| m.tables.draw_lists.cspecs_overlay_list.id(),
             run: false,
         },

@@ -1,7 +1,6 @@
-//! The HUD's signs (from `hud::draw_signs` 0x4B4F2B and its four
-//! twins `draw_signs_1a` 0x4B52F7, `_1b`, `_2a`, `_2b`): up to four signs of the HUD's
-//! record, each a rectangle of the HUD's picture centred in a place 0x40 wide; and the
-//! rows of the HUD, which move up when `dword_6D1502` is 0.
+//! The HUD's signs: up to four signs of the HUD's record, each a rectangle of the HUD's picture
+//! centred in a place 0x40 wide; and the rows of the HUD, which move up when the flat-layout
+//! switch is 0.
 
 /// The signs a record holds.
 pub const SIGNS: usize = 4;
@@ -15,7 +14,6 @@ pub fn row(y: u32, lift: u32, switch: u32) -> u32 {
     if switch == 0 { y.wrapping_sub(lift) } else { y }
 }
 
-/// A sign drawn.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Sign {
     /// Its place's left (before the sprite is centred).
@@ -27,7 +25,7 @@ pub struct Sign {
     pub rectangle: u32,
 }
 
-/// The place of sign n: the first place plus 0x40 a sign.
+/// The place of sign `n`: the first place plus 0x40 for each sign before it.
 pub fn place(first: u32, n: u32) -> u32 {
     first.wrapping_add(PLACE_WIDTH.wrapping_mul(n))
 }

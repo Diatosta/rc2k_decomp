@@ -1,7 +1,7 @@
-//! `menu::enter_record_entry` (0x4A3C7F): the current player (`event.current_player`) entered as
+//! `menu::enter_record_entry`: the current player (`event.current_player`) entered as
 //! the current record's event's tenth record entry (its +0x57C): +0x14 the time (+0x88),
 //! +0x1C its +0x90, +8 its +4, +0xC its name pointer (+0x18), +0x10 its +8, +0x4C its
-//! +0xD0, +0x50 `g_cheats`, +0x54 / +0x58 the sealed time (`menu::sealed_player_time` with
+//! +0xD0, +0x50 the cheats, +0x54 / +0x58 the sealed time (`menu::sealed_player_time` with
 //! the event's number), +4 the player + 1, +0x40 1, +0x20 the name's 0x1F bytes; the
 //! event's number into `draw_work.figure` first; then moved up (`menu::rank_record_entry`).
 //!
@@ -11,7 +11,6 @@ use crate::errors::{BadInput, Refused};
 use crate::menu::owner::Menus;
 use crate::menu::standings::*;
 
-// hhmm
 pub fn enter_record_entry(
     menus: &Menus,
     system: &System,

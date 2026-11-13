@@ -1,12 +1,10 @@
-//! The players' stage results pages (`screens::draw_players_results_points` with the points column,
-//! `screens::draw_players_results` without). Both draw the same
-//! columns, one loop over the rows each (rows in the order `results.order` .. the fourth ranked offset, byte
-//! offsets into `g_players`,
-//! 0x17 apart from y 0xFE), shifted 0x1E right on `screens::draw_players_results`'s page; their
-//! differences are
-//! the `Layout`. The original's slips are kept (bugs.md): `screens::draw_players_results_points`
-//! draws four rows for two players, tests the first row's time with `jl` (the others with equality)
-//! and puts the third row's time at 0x1B2.
+//! The players' stage results pages (`screens::draw_players_results_points` with the points
+//! column, `screens::draw_players_results` without). Both draw the same columns, one loop over
+//! the rows each (in the order of `results.order`, 0x17 apart), shifted 0x1E right on
+//! `screens::draw_players_results`'s page; the differences are the `Layout`. Kept as is:
+//! `screens::draw_players_results_points` draws four rows for two players, tests
+//! the first row's time with a less-than (the others with equality) and puts the third row's time
+//! at 0x1B2.
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::captions_store::CaptionTables;
@@ -49,8 +47,8 @@ fn points_at<'a>(menus: &'a Menus, play: &Play, row: usize) -> Result<&'a dyn Dw
     )?)
 }
 
-/// The section's first record and the stage's (`off_735512[Event.stage_group][Event.stage_sub]`, +
-/// 0xA4 x `dword_7558CC`); none: 0.
+/// The section's first record and the stage's (by `Event.stage_group` and `Event.stage_sub`);
+/// none: 0.
 fn records(
     screens: &Screens,
     stages: &crate::records::stages_store::StageTables,

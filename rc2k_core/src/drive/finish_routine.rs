@@ -1,7 +1,5 @@
-//! The championship's finish routine's set-up (from
-//! `drive::finish_race` 0x459116, its stores 0x4591B0 .. 0x4592FA and its tidy-up): one
-//! car in race mode 3 set up before the stage is loaded and the routine played. What most
-//! variables are is a reading; they are named by their IDA names.
+//! The championship's finish routine's set-up: one car in race mode 3 set up before the stage is
+//! loaded and the routine played. What most variables are is a reading.
 
 /// A variable the routine sets.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -53,7 +51,7 @@ pub enum Set {
     Lead(Lead),
 }
 
-/// The set-up's stores, in the original's order (`RaceVars.direction` twice, as there).
+/// The set-up's stores in order (`RaceVars.direction` is stored twice).
 pub fn set_up() -> Vec<(Set, u32)> {
     use Lead::*;
     use Set::{Lead as L, Var as V};

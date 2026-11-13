@@ -1,4 +1,4 @@
-//! `input::set_up_device` (0x408BCD): a device's record made from a player's controls
+//! A device's record made from a player's controls
 //! (player 1's or player 2's settings): +0x414 .. +0x4DB 0
 //! (`system::zero_memory`, 0xC8 bytes); with a controller chosen (the car's `controller` n, not 0): +0 n - 1,
 //! +0x418 `controller_mode`, +0xC `strength`, +0x10 `centre_dead_zone_pct`, +0x14
@@ -6,13 +6,6 @@
 //! then the twelve bindings: each its key (a byte of `keys`) and the place, sign
 //! and button of its word (`input::binding_place` of a dword of `bindings`), in the order
 //! of `BINDINGS`.
-//!
-//! Takes: the device's record, the player's controls
-//!
-//! Caller: `input::device_command` (the race's start, both players). The acquiring through
-//! `input::acquire_device`.
-//!
-//! Its arguments are what it reads.
 
 use crate::errors::Refused;
 use crate::input::types::InputDevice;
@@ -86,7 +79,6 @@ pub fn set_up_device(
         ] {
             to.set(word(from));
         }
-        // Converted: `rc2k_core::input::devices::device_kind`.
         let kind = word(8);
         record.sensitivity.set(kind);
         record
@@ -94,7 +86,6 @@ pub fn set_up_device(
             .set(rc2k_core::input::devices::device_kind(kind));
         crate::input::acquire_device::acquire_device(input, system, record)?;
     }
-    // Converted: `rc2k_core::input::devices::binding` over `DEVICE_BINDINGS`.
     for (binding, (key, controls_word, _)) in record
         .bindings
         .iter()

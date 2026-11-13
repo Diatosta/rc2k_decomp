@@ -1,11 +1,6 @@
-//! A player, 0x28C bytes (`Player` in IDA), with the players' details
-//! pages' settings, `menu::next_nationality` 0x467AFD .. `menu::flip_codriver` 0x467BD6,
-//! `menu::next_car_number` 0x470D7F / `previous_car_number` 0x470DA1,
-//! `menu::raise_sensitivity` 0x470F05 / `lower_sensitivity` 0x470F2D and the nine visual
-//! preferences' toggles 0x467DE2 .. 0x467E92; `menu::take_shown_car` 0x47B29D and
-//! `menu::set_player_entry_kind` 0x4A1922): the player's settings (name, nationality,
-//! views, co-driver, keys, controller) and the state of the player's car (which car,
-//! damage, setup, wear). What is known of it; the rest are gaps.
+//! A player, 0x28C bytes: the player's settings (name, nationality, views, co-driver, keys,
+//! controller) and the state of the player's car (which car, damage, setup, wear). What is known
+//! of it; the rest are gaps.
 
 use crate::menu::event::HOUR;
 
@@ -17,21 +12,21 @@ pub const PLAYERS: u32 = 4;
 pub struct Player {
     /// Record +0x00: nothing reads or writes it (the saved games carry it as it is).
     pub unused_0: u32,
-    /// The player's nationality (0 Great Britain, 1 Argentina, ..; `CaptionTables.nationalities[0]` has
-    /// their strings, the flag is sprite 0x1C + it).
+    /// The player's nationality (0 Great Britain, 1 Argentina, ..; `CaptionTables.nationalities[0]`
+    /// has their strings, the flag is sprite 0x1C + it).
     pub nationality: u32,
     /// The number of the player's car.
     pub car_number: u32,
     /// The view (`CaptionTables.views[0]`: bumper, bonnet, driver, interior, chase 1 .. 3).
     pub view: u32,
-    /// The second view (`CaptionTables.second_views[0]`: bonnet, bumper, chase 1 .. 3; 5 is made 0).
+    /// The second view (`CaptionTables.second_views[0]`: bonnet, bumper, chase 1 .. 3); 5 is
+    /// made 0.
     pub second_view: u32,
     /// The section a saved game starts at (`SCREEN_FLOW.start_section`; player 0's, kept
     /// in the saved game).
     pub saved_start_section: u32,
-    /// Whose name in the four name buffers (`g_playerNames`) is the player's: 0 none, n the
-    /// name of player n - 1 (the original kept the name's address; the saved games still
-    /// carry it, `to_file_bytes`).
+    /// Whose name in the four name buffers is the player's: 0 none, n the name of player n - 1.
+    /// The saved games hold the buffer's address here instead (`to_file_bytes`).
     pub name_number: u32,
     pub keys: [u8; 12],
     /// The number on the player's car, 1 .. 90, chosen on the player details page.
@@ -70,7 +65,7 @@ pub struct Player {
     /// Record +0x7C .. +0x84: nothing reads or writes it.
     pub unused_7c: [u8; 8],
     /// Zeroed for each player by `menu::begin_event` and `menu::reset_single_event`; nothing
-    /// reads it (IDA: no other access of a player's +0x84).
+    /// reads it.
     pub unread_84: u32,
     /// The stage's time (`HOUR`: none yet; `menu::reset_player_times`).
     pub time: u32,
@@ -589,8 +584,8 @@ impl Player {
     }
 }
 
-/// `menu::set_player_entry_kind`: the current player's +0xD0 for a score
-///: 1 at 100 or more (signed), else 2.
+/// `menu::set_player_entry_kind`: the current player's +0xD0 for a score: 1 at 100 or more
+/// (signed), else 2.
 pub fn entry_kind(score: i32) -> u32 {
     if score >= 100 { 1 } else { 2 }
 }
@@ -665,8 +660,7 @@ pub fn place_key(keys: &mut [u8; KEYS], place: usize, key: u8, reserved: &[u8]) 
     true
 }
 
-/// What a frame of redefining (from `menu::redefine_keys`' pages) does
-/// with the pending key.
+/// What a frame of redefining does with the pending key.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Redefined {
     /// No key, or a reserved one: the page goes on waiting.
@@ -676,7 +670,7 @@ pub enum Redefined {
     Done { keys: [u8; KEYS], placed: bool },
 }
 
-/// The redefine keys page's state (`g_redefiningKey`, `g_redefinedKeyPlace`).
+/// The redefine keys page's state.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Redefining {
     pub on: bool,
@@ -772,7 +766,7 @@ mod tests {
             let mut p = Player::from_le_bytes(bytes);
             p.set_name_player(k);
             assert_eq!(p.name_player(), Some(k));
-            // The file has what the original wrote: the record with the address at +0x18.
+            // The file has what the game wrote: the record with the address at +0x18.
             let mut expected = bytes;
             expected[0x18..0x1c].copy_from_slice(&address(k).to_le_bytes());
             assert_eq!(p.to_file_bytes(address), expected);

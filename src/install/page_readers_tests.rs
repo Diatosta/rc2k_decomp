@@ -1,12 +1,8 @@
-//! Characterisation of the installer pages' readers: `PageLink`, `PageEntry`, `ListMenu`,
-//! `ListItem`, `Choices`, `BoxRecord` and `Piece`, over the pages as they start. Every
-//! reader is asked for every index it can be given, run-ons included (an item past a list's
-//! items, a choice past a table, an entry's word past its answers, a piece past the layout),
-//! and what it returns, or that it refuses, is compared with `page_readers.golden`. The
-//! golden holds the readable lines (the real items, the edges of each run-on) and, per
-//! sweep, a count and a hash of every line.
-//!
-//! `RC2K_BLESS=1 cargo test page_readers` writes the golden again.
+//! Characterisation of the installer pages' readers (`PageLink`, `PageEntry`, `ListMenu`,
+//! `ListItem`, `Choices`, `BoxRecord`, `Piece`) over the pages as they start: every reader is
+//! asked for every index it can be given, run-ons included, and what it returns, or that it
+//! refuses, is compared with `page_readers.golden` (the readable lines, and per sweep a count
+//! and a hash of every line). `RC2K_BLESS=1 cargo test page_readers` writes the golden again.
 
 use crate::install::page_links::{ListId, PageLink};
 use crate::install::page_records::{BoxRecord, PageEntry, Piece};

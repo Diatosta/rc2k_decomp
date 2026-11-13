@@ -1,5 +1,5 @@
-//! Module system's owner (step 11, owned state): the program-wide state in one struct, reached
-//! through `system()` by code that has no reference to it.
+//! Module system's owner: the program-wide state in one struct, reached through `system()` by
+//! code that has no reference to it.
 
 use crate::files::scratch::Scratch as FileScratch;
 use crate::logfile::numeric::SCRATCH_LEN;
@@ -16,7 +16,8 @@ use crate::system::start_texts::StartTexts;
 
 /// The screen's figures and what other threads read of the window, the machine and the clocks.
 pub struct Session {
-    /// Lent to the drawing parts (`workers::Lent`): the game's thread sets the mode between frames.
+    /// Lent to the drawing parts (`workers::Lent`): the game's thread sets the mode between
+    /// frames.
     pub screen: DrawShared<Screen>,
     /// The window's flags the audio, key and network threads read (`quitting`, focus, active).
     pub flags: WindowShared,
@@ -62,9 +63,8 @@ impl Start {
 
 /// The scratch areas: the shared 64 KB one and the numbers' text.
 pub struct Work {
-    /// `files::scratch::SCRATCH` before the owner.
     pub files: FileScratch,
-    /// `logfile::numeric::SCRATCH` before the owner: where a number's text is made.
+    /// Where a number's text is made.
     pub numbers: PlainBytes<SCRATCH_LEN>,
 }
 
@@ -77,7 +77,6 @@ impl Work {
     }
 }
 
-/// The stage and rally record tables.
 pub struct Records {
     pub stage_tables: StageTables,
 }
@@ -124,17 +123,14 @@ pub struct System {
 }
 
 impl System {
-    /// What the start-up keeps.
     pub fn start(&self) -> &Start {
         &self.main.get().start
     }
 
-    /// The scratch areas.
     pub fn work(&self) -> &Work {
         &self.main.get().work
     }
 
-    /// The stage and rally record tables.
     pub fn records(&self) -> &Records {
         &self.main.get().records
     }
@@ -144,18 +140,15 @@ impl System {
         &self.main.get().window_loop
     }
 
-    /// What the machine is and has.
     pub fn machine(&self) -> &Machine {
         &self.main.get().machine
     }
 
-    /// The menus' clocks.
     pub fn clocks(&self) -> &Clocks {
         &self.main.get().clocks
     }
 }
 
-/// The one instance. Reached through `system()`.
 pub static SYSTEM: System = System {
     session: Session::new(),
     main: GameThread::new(SystemMain::new()),

@@ -1,9 +1,6 @@
-//! Clipping and solid shapes on a surface (from `gfx::set_clip`
-//! 0x406988, `gfx::fill_rect` 0x406869, `draw_hline` 0x406710, `draw_vline` 0x4067AF,
-//! `frame_rect` 0x4066DF): the message box's fill and frame. A shape becomes a `Plan`: the
-//! work variables the original leaves (`g_blitLeftSkip`, `g_blitVisibleWidth`,
-//! `g_blitTopSkip`, `g_blitRowsLeft`; only those it writes before it stops) and the pixels
-//! to set, as byte offsets from the surface's start.
+//! Clipping and solid shapes on a surface: the message box's fill and frame. A shape becomes a
+//! `Plan`: the blitter's work variables it leaves (only those written before it stops) and the
+//! pixels to set, as byte offsets from the surface's start.
 
 use crate::Invalid;
 
@@ -16,7 +13,7 @@ pub struct Clip {
     pub bottom: i32,
 }
 
-/// (left, top, right, bottom) for a rectangle of x, y, width, height (`set_clip`).
+/// The clip's (left, top, right, bottom) for a rectangle of x, y, width, height.
 pub fn clip_of([x, y, width, height]: [u32; 4]) -> [u32; 4] {
     [
         x,
@@ -60,9 +57,9 @@ fn step(bits: u32) -> i32 {
     }
 }
 
-/// Rectangle x, y, width, height filled, clipped (`fill_rect`). As the original: on a
-/// 16-bit surface; on a 32-bit one the work is done and nothing drawn (`notes/bugs.md`).
-/// Refused (before anything) at other depths: on 8 bits the original fills past the rows.
+/// Rectangle x, y, width, height filled, clipped, on a 16-bit surface; on a 32-bit
+/// one the work is done and nothing drawn (a slip kept). Refused before
+/// anything at other depths (on 8 bits the fill would run past the rows).
 pub fn fill(rect: [i32; 4], clip: &Clip, s: &Surface) -> Result<Plan, Invalid> {
     if s.bits != 16 && s.bits != 32 {
         return Err(Invalid(
@@ -122,8 +119,8 @@ pub fn fill(rect: [i32; 4], clip: &Clip, s: &Surface) -> Result<Plan, Invalid> {
     Ok(plan)
 }
 
-/// `length` pixels from x, y rightwards, clipped (`draw_hline`; the left clip as the
-/// original: what is cut is -x, right only for a left edge of 0).
+/// `length` pixels from x, y rightwards, clipped. Kept: at the left clip what is cut is -x,
+/// which is right only for a left edge of 0.
 pub fn hline(x: i32, y: i32, length: i32, clip: &Clip, s: &Surface) -> Plan {
     let mut plan = Plan {
         bits: s.bits,
@@ -155,8 +152,7 @@ pub fn hline(x: i32, y: i32, length: i32, clip: &Clip, s: &Surface) -> Plan {
     plan
 }
 
-/// `length` pixels from x, y downwards, clipped (`draw_vline`; the top clip as the
-/// original: what is cut is -y).
+/// `length` pixels from x, y downwards, clipped; at the top clip what is cut is -y.
 pub fn vline(x: i32, y: i32, length: i32, clip: &Clip, s: &Surface) -> Plan {
     let mut plan = Plan {
         bits: s.bits,
@@ -191,7 +187,7 @@ pub fn vline(x: i32, y: i32, length: i32, clip: &Clip, s: &Surface) -> Plan {
     plan
 }
 
-/// A rectangle's outline moved by dx, dy (`frame_rect`): the top and bottom rows, then the
+/// A rectangle's outline moved by dx, dy: the top and bottom rows, then the
 /// left and right columns between them, in that order.
 pub fn frame(rect: [i32; 4], dx: i32, dy: i32, clip: &Clip, s: &Surface) -> [Plan; 4] {
     let [x, y, w, h] = rect;

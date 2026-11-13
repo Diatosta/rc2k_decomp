@@ -1,8 +1,5 @@
-//! What the game's sound senders decide before they queue a command
-//! (from `sound::play_menu_sound` 0x40F059, `sound::play_sound` 0x409B36,
-//! `sound::set_music_volume` 0x40F83E and `sound::stop_sound` 0x40F1D1), and the music's
-//! command (`sound::play_music` 0x40F80E, `stop_music` 0x40F826, `play_tune_2` .. `_9`
-//! 0x40F76F ..).
+//! What the sound senders decide before they queue a command, and the music's command
+//! (`sound::play_music`, `stop_music`, `play_tune_2` .. `_9`).
 
 /// The three volume settings the menus' sounds are played at.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -47,10 +44,10 @@ pub const MODE_3D: u32 = 0x10_0000;
 /// No place: what the three place coordinates are sent as outside the 3D modes.
 pub const NO_PLACE: u32 = 0xFF80_0000;
 
-/// The four values command 1 carries besides the sound, from the sender's `place`
-/// (a volume or distance value, then two coordinates): None while sounds are held back
-/// (1); outside the 3D modes no place and the first value in the second slot, else the
-/// place with a zero in the second slot.
+/// The four values command 1 carries besides the sound, from the sender's `place` (a volume or
+/// distance value, then two coordinates): None while
+/// sounds are held back; outside the 3D modes no place and the first value in the second slot, else
+/// the place with a zero there.
 pub fn sound_place(held_back: u32, mode: u32, place: [u32; 3]) -> Option<[u32; 4]> {
     if held_back == 1 {
         return None;
@@ -95,7 +92,7 @@ impl Music {
         }
     }
 
-    /// `sound::stop_music`'s: four zeros.
+    /// What `sound::stop_music` sends: all four fields 0.
     pub const STOP: Music = Music {
         tune: 0,
         then: 0,
@@ -107,7 +104,7 @@ impl Music {
 /// The volume a tune is started at.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TuneVolume {
-    /// 0x40.
+    /// 0x40: full volume.
     Full,
     /// The music's volume setting.
     Music,

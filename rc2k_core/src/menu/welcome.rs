@@ -1,6 +1,5 @@
-//! The championships' welcomes (from `menu::championship_welcome`
-//! 0x47F314 and `menu::a8_welcome` 0x47F3C7): the picture, a key, and Escape asking about
-//! leaving, a no starting over; the championship's with its speech.
+//! The championships' welcomes: the picture, a key, and Escape asking about leaving, a no starting
+//! over; the championship's with its speech.
 
 use super::flow::{Call, Game, Picture, Var};
 use super::leaving::Switch;

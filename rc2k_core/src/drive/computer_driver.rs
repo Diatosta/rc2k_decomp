@@ -1,15 +1,13 @@
-//! The computer's driving of a car (from `drive::drive_computer_car`
-//! 0x462811; its x87 steps, the speed's root, the aim's normal and the steering's cross
-//! product, stay with the caller): how far along the line it looks by its speed, the bends it
-//! notes, the speed it wants and the pedals for it, the point it aims at, the steering's
-//! sign, and the reverse when it is stuck. Speeds are whole numbers (twice the root of
+//! The computer's driving of a car: how far along the line it looks by its speed, the bends it
+//! notes, the speed it wants and the pedals for it, the point it aims at, the steering's sign, and
+//! the reverse when it is stuck. The float steps (the speed's root, the aim's normal, the
+//! steering's cross product) stay with the caller. Speeds are whole numbers (twice the root of
 //! the motion's x² + z²); what each value means is a reading at best.
 
 /// The step count of the race from which the computer drives.
 pub const FIRST_STEP: u32 = 0x320;
 
-/// The index into a checkpoint table (`g_checkpointFaces`) for n + k,
-/// held to the count less one (unsigned), as the original holds it.
+/// The index into a checkpoint table for n + k, held to the count less one (unsigned).
 pub fn held_index(n: u32, k: u32, count: u32) -> u32 {
     let i = (n.wrapping_add(k).wrapping_mul(4)) >> 2;
     if i >= count { count.wrapping_sub(1) } else { i }

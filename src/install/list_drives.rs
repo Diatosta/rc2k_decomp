@@ -1,22 +1,14 @@
-//! `install::list_drives` (0x413C27): the drives that can be installed to found and their
-//! menu built. Each letter from `first_drive` ('c') to 'z' that is not a CD-ROM (5) or a
-//! RAM disk (6) and whose free space can be read (`files::drive_free_space_kb`) is recorded
-//! at `drives[letter-'a']` (count 1, free KB). Then for each recorded letter a text is
-//! built in `drive_rows` (0x10 bytes each; 'a' to 'y': drive Z is found but never listed,
-//! the game's slip): the letter, a space, the free space as KB
-//! (id 0xA6), MB (0xA7) or GB (0xA8, with ">=" before it), NUL. The number is in
-//! `drive_count`; the drive menu list is chosen (the 8-drive menu up to 8 drives, the
-//! 16-drive menu up to 16, else the largest) into the drive page's entry with its item count set to the number
-//! plus two.
-//!
-//! Caller `install::run_installer`. Its two probes: `files::drive_type`,
-//! `files::drive_free_space_kb`.
+//! The drives that can be installed to found and their menu built: each letter from `first_drive`
+//! to 'z' that is not a CD-ROM or a RAM disk and whose free space can be read is recorded, then
+//! a text (letter, space, free space as KB, MB or GB) is built in `drive_rows` for 'a' to 'y'
+//! (drive Z is found but never listed, a slip kept as is), and the drive menu list that fits the
+//! count is put into the drive page's entry. Called by `install::run_installer`.
 
 use crate::install::installer::wb;
 use crate::install::page_links::{ListId, PageLink};
 use rc2k_core::install::drives::{self, DriveMenu};
 
-/// The drive page's entry in the pages' table (`g_driveMenu`, 0x51D5F8, from 0x51D594).
+/// The drive page's entry in the pages' table.
 const DRIVE_ENTRY: usize = 25;
 
 pub fn list_drives(
@@ -27,8 +19,6 @@ pub fn list_drives(
     let drives = &install.run.drives;
     let mut letter = install.run.first_drive.get();
     loop {
-        // Converted: `rc2k_core::install::drives` (`offered`, `LISTED`, `free`, `text`,
-        // `menu`, `items`).
         let kind = crate::files::drive_type::drive_type(letter as u8);
         if drives::offered(kind)
             && let Some(free) =
@@ -70,7 +60,7 @@ pub fn list_drives(
             ),
             "install::list_drives: a string",
         );
-        // the original writes the letter, skips a byte, then the rest
+        // the letter, a skipped byte, then the rest
         for (n, &b) in drives::text(free, &unit).iter().enumerate() {
             wb(row.add(2 + n as u32), b);
         }

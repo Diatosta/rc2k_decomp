@@ -2,25 +2,20 @@
 //! the one it may pick past them) and the NEC keyboard's, held as owned tables
 //! (`rc2k_core::input::layouts`), and which of them is current.
 //!
-//! The original kept the layouts in the keyboard file's block (`g_keyboardFile`, 0x4F07C8,
-//! 0x400 bytes) and the current layout as a pointer into it (`g_keyboardLayout`, 0x4F07D4),
-//! or into the built-in layout in `KEYBOARD` or the NEC one in `crate::strings::owner::strings().language.keyboard`.
-//! A later `load_language` keeps what an earlier one left, as the block did: the layouts
-//! stay unless a new file replaces them, and the new file is read over the old bytes.
-//! `strings::load_language` fills this at start: the built-in layout and mode 1, then the
-//! keyboard file's (its layout mode, layouts and pick), then with keyboard type 2 (NEC) its
-//! own layout. The readers are `input::key_to_char`, `append_key_name`, `yes_no_key` and the
-//! name editors.
+//! A later `load_language` keeps what an earlier one left: the layouts stay unless a new file
+//! replaces them, and the new file is read over the old bytes. `strings::load_language` fills
+//! this at start: the built-in layout and mode 1, then the keyboard file's (its layout mode,
+//! layouts and pick), then with keyboard type 2 (NEC) its own layout. The readers are
+//! `input::key_to_char`, `append_key_name`, `yes_no_key` and the name editors.
 
 use crate::input::owner::Input;
 use crate::strings::owner::Strings;
 use rc2k_core::input::layouts::{FILE_LEN, File, Layout, Picked};
 use std::sync::{Mutex, MutexGuard, PoisonError};
 
-/// Which layout is current.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Current {
-    /// Before `load_language` (pointer 0): there is no layout.
+    /// Before `load_language`: there is no layout.
     None,
     BuiltIn,
     /// The NEC keyboard's, with keyboard type 2.
@@ -32,7 +27,7 @@ pub enum Current {
 }
 
 pub struct Layouts {
-    /// `byte_4F07D2`: 2 lets Alt (or AltGr) with a shift key switch the layout.
+    /// 2 lets Alt (or AltGr) with a shift key switch the layout.
     mode: u8,
     current: Current,
     built_in: Layout,
@@ -54,13 +49,12 @@ static LAYOUTS: Mutex<Layouts> = Mutex::new(Layouts {
     file_bytes: [0; FILE_LEN],
 });
 
-/// The layouts, locked.
 pub fn layouts() -> MutexGuard<'static, Layouts> {
     LAYOUTS.lock().unwrap_or_else(PoisonError::into_inner)
 }
 
-/// IDA 0x4F0E10: the NEC layout block; its tables follow at +0x14 (plain), +0x94 (shifted)
-/// and +0x114 (key names, 0x100 bytes).
+/// The NEC layout block; its tables follow at +0x14 (plain), +0x94 (shifted) and +0x114 (key
+/// names, 0x100 bytes).
 const NEC_TABLES: (usize, usize, usize, usize) = (0x14, 0x94, 0x114, 0x214);
 /// `crate::strings::owner::strings().language.keyboard.nec_head`'s layout mode byte (+0xA).
 const NEC_MODE_AT: usize = 0xA;

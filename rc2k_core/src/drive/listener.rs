@@ -1,12 +1,11 @@
-//! The state the 3D sounds are placed by (from `drive::set_listener`
-//! 0x4565B7; its matrices, turns and the x87 sums stay with the caller): the viewed car
-//! checked, the car file's six light figures scaled, the view's turn taken, and the
-//! sound switches from car block 0's words. What each value is, is a reading.
+//! The state the 3D sounds are placed by: the viewed car checked, the car file's six light figures
+//! scaled, the view's turn taken, and the sound switches from car block 0's words. What each value
+//! is, is a reading. The matrices, turns and float sums stay with the caller.
 
 use crate::Invalid;
 
-/// The viewed car has a block among the eight (`nonnull` its block's
-/// pointer not 0, asked only for one of the eight).
+/// Refused: a viewed car past the eight blocks, or one whose block is null (`nonnull`, asked
+/// only for one of the eight).
 pub fn check_viewed(viewed: u32, nonnull: impl FnOnce() -> bool) -> Result<(), Invalid> {
     if viewed > 7 {
         return Err(Invalid("a viewed car past the eight blocks"));
@@ -17,8 +16,7 @@ pub fn check_viewed(viewed: u32, nonnull: impl FnOnce() -> bool) -> Result<(), I
     Ok(())
 }
 
-/// A light record figure (`g_lightRecords` +0x40 ..) times 65536 over 1000 (`shl`,
-/// `idiv`); refused where the quotient leaves 32 bits (the original's `idiv` traps).
+/// A light record figure times 65536 over 1000. Refused: a quotient that does not fit 32 bits.
 pub fn light_figure(v: u32) -> Result<i32, Invalid> {
     let q = (i64::from(v as i32) << 16) / 1000;
     if q != i64::from(q as i32) {
@@ -29,8 +27,8 @@ pub fn light_figure(v: u32) -> Result<i32, Invalid> {
     Ok(q as i32)
 }
 
-/// The six figures (two points) with the second's and fifth's less `less`
-///: `CameraWork.listener_points[0]` ...
+/// The six figures (two points, `CameraWork.listener_points[0]` ..) with the second and fifth
+/// less `less`.
 pub fn listener_points(f: [i32; 6], less: u32) -> [i32; 6] {
     [
         f[0],
@@ -42,7 +40,7 @@ pub fn listener_points(f: [i32; 6], less: u32) -> [i32; 6] {
     ]
 }
 
-/// The view turn's nine (`g_viewTurnMatrix` offsets) into 0x5C2FAC ...
+/// The byte offsets of the view turn's nine figures copied into the listener's matrix.
 pub const TURN_OFFSETS: [u32; 9] = [0, 4, 8, 0x10, 0x14, 0x18, 0x20, 0x24, 0x28];
 
 /// The viewed car ahead: its +0xABC 0x10 or more (unsigned).
@@ -55,9 +53,9 @@ pub fn first_figure(switch: u32, figure: impl FnOnce() -> u32) -> u32 {
     if switch == 0 { 0 } else { figure() }
 }
 
-/// The sound switches from car block 0's words a and b
-/// with `FrameWork.mirror_wanted` (`on`), in the original's order of stores (`ViewerAndKinds.marks_settings.windscreen_drops_rate_factor`, `E8`,
-/// `C0`, `C4`, `E4`, `D0`, `C8`, `CC`).
+/// The sound switches from car block 0's words a and b with `FrameWork.mirror_wanted` (`on`), in
+/// store order (`ViewerAndKinds.marks_settings.windscreen_drops_rate_factor`, `E8`, `C0`, `C4`,
+/// `E4`, `D0`, `C8`, `CC`).
 pub fn switches(on: bool, a: u32, b: u32) -> [u32; 8] {
     [
         if on { a << 2 } else { 0 },

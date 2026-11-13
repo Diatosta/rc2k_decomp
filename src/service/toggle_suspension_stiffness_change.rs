@@ -1,11 +1,6 @@
-//! `service::toggle_suspension_stiffness_change` (0x46C0CF): flips the flag of the highlighted menu item
-//! and, if the flag is then not 1, puts the chosen suspension stiffness (`setups[3].chosen`)
-//! back to the installed value (`setups[3].installed`).
-//!
-//! Refuses a highlighted item past the flag table. "Toggle change" is a reading of that.
+//! Flips the flag of the highlighted menu item; if it is then not 1, the chosen suspension
+//! stiffness goes back to the installed value. Refuses a highlighted item past the flag table.
 
 use crate::service::setup_values::Change;
-
-// ---- Rust version: `setup_values::toggle_change` with this ----
 
 pub const CHANGE: Change = Change { setup: 3 };

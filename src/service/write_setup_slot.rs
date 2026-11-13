@@ -1,9 +1,9 @@
-//! `service::write_setup_slot` (0x4AB378): builds the 0x48-byte car setup file in the buffer at
-//! 0x527838 and writes it to `savedata\carsetup\carsetNN`.
+//! Builds the 0x48-byte car setup file in the set-ups' buffer and writes it to
+//! `savedata\carsetup\carsetNN`.
 //!
-//! Takes slot, 0 .. 99. The file: "CRSU", 0, version 0x50000, `packed_local_time`, the slot's
-//! 0x20-byte name from the set-ups' names (`names[slot * 0x20]`), then the chosen tyre, the car's brake balance,
-//! the chosen ride height and suspension stiffness, the car's steering sensitivity and the chosen
+//! `slot` is 0 .. 99. The file: "CRSU", 0, version 0x50000, `packed_local_time`, the slot's
+//! 0x20-byte name from the set-ups' names, then the chosen tyre, the car's brake balance, the
+//! chosen ride height and suspension stiffness, the car's steering sensitivity and the chosen
 //! gear ratio. The name is taken from the slot list, so the caller puts it there first; nothing
 //! takes it out again if the write fails. Refuses a slot past 99 and a missing player.
 
@@ -19,8 +19,6 @@ use crate::service::read_setup_slot::{NAME_LEN, SETUP_FILE_LEN, SLOT_COUNT, slot
 use crate::service::state::current_player;
 use crate::system::packed_local_time::packed_local_time;
 
-// ---- Rust version ----
-
 /// True if the file was written.
 pub fn write_setup_slot(
     menus: &Menus,
@@ -35,7 +33,6 @@ pub fn write_setup_slot(
     };
     {
         let file = &service.set_ups.file;
-        // Converted: `rc2k_core::saves::kept::setup_file`.
         let in_car = |field: rc2k_core::menu::player::SetupField| field.get(player.get());
         let bytes = rc2k_core::saves::kept::setup_file(
             packed_local_time(),

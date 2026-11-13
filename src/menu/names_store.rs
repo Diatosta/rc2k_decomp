@@ -1,19 +1,19 @@
-//! The players' names and the text being typed, out of RAL.EXE's image (IDA 0x755784 .. 0x7558C4; phase
-//! 7, typed): the four players' names (0x20 bytes each) and what follows them, the name `menu::standings`
-//! keeps, and the text as it was before an entry started. One static.
+//! The players' names and the text being typed: the four players' names (0x20 bytes each) and
+//! what follows them, the name `menu::standings` keeps, and the text as it was before an entry
+//! started. One static.
 
 use crate::session::PlainBytes;
 
-/// The names and the text backup (IDA 0x755784 .. 0x7558C4).
+/// The names and the text backup.
 #[derive(rc2k_derive::Cells)]
 pub struct Names {
-    /// `g_playerNames`: The four players' names, 0x20 bytes each (`menu::player_names`).
+    /// The four players' names, 0x20 bytes each (`menu::player_names`).
     pub player_names: PlainBytes<128>,
     /// `Names.player_names`: The rest of the names' area.
     pub more_names: PlainBytes<128>,
-    /// `g_keptPlayerName`: The name kept by `menu::standings` (0x1F bytes and a NUL).
+    /// The name kept by `menu::standings` (0x1F bytes and a NUL).
     pub kept_name: PlainBytes<32>,
-    /// `unk_7558A4`: The text as it was before the entry started (`menu::text_entry`).
+    /// The text as it was before the entry started (`menu::text_entry`).
     pub text_backup: PlainBytes<32>,
 }
 

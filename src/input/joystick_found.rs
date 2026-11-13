@@ -1,20 +1,9 @@
-//! `input::joystick_found` (0x408238): DirectInput's `EnumDevices` callback: with fewer than
-//! 16 controllers (`g_controllerCount`) the found joystick is looked at through a device
-//! made for it (`CreateDevice` with its instance GUID into `new_joystick`, its
-//! `IDirectInputDevice2A` into `new_joystick2`, the joystick data format, the cooperative
-//! level 5 (exclusive, background) for `hWnd`, `GetCapabilities` into `joystick_caps`, its
-//! axes into the entry's +0x14 bits (`EnumObjects` with `input::axis_found`)), and the next
-//! entry of `g_controllers` (0x50 bytes) filled: +0 the capabilities' flags, +4 the device's
-//! type, +8 its axes, +0xC buttons, +0x10 hats, +0x18 1 if attached, +0x1C 1 if it has force
-//! feedback (only when `no_force_feedback` is 0: the configuration's switch turns it off), +0x20
-//! its instance GUID, +0x30 its name as "(n) name" (n the count + 1; the name through
-//! `strings::copy_printable`, 0x19 room, `KEEP_CASE` 0 meanwhile: lower case), and the
-//! count one more. Any failure leaves the entry and the count. Both objects are given back
-//! in the end, whatever happened. With 16 the listing stops (returns 0), else it goes on (1).
-//!
-//! In:  (stdcall) the `DIDEVICEINSTANCEA`, the context (not read)
-//!
-//! Caller: DirectInput, from `input::list_joysticks`. The methods the objects' own.
+//! DirectInput's `EnumDevices` callback: with fewer than 16 controllers the found joystick is
+//! looked at through a device made for it and the next controller entry (0x50 bytes) filled:
+//! capabilities' flags, device type, axes, buttons, hats, attached and force-feedback flags
+//! (force feedback only when `no_force_feedback` is 0), instance GUID and its name as "(n) name"
+//! in lower case. Any failure leaves the entry and the count. Both objects are given back in the
+//! end. With 16 the listing stops (returns 0), else it goes on (1).
 
 use crate::errors::BadInput;
 use crate::input::di_harness::{CAPS_LEN, CONTROLLERS};
@@ -59,7 +48,6 @@ fn look_over(
     let guid = instance.instance;
     entry.dev_type.set(dev_type);
     entry.instance.write(&guid);
-    // Converted: `rc2k_core::input::joystick::{name_prefix, found}`.
     use rc2k_core::input::joystick::{NAME_ROOM, name_prefix};
     let count = input.devices.controller_count.get();
     let name = name_prefix(count);

@@ -1,15 +1,9 @@
-//! `hud::draw_view_strip` (0x45B86E): three flat quads side by side for a view (a reading: a
-//! strip of the screen's overlay): the view's top (a table entry) and height 0x19 scaled from 600 to
-//! `g_screenHeight`, left (a table entry) and width 0x78 scaled from 800 to `g_screenWidth`
-//! (into the strip's work rectangle), texture rows 0x320000 apart; then the shared tail
-//! (`overlay_tail`, which `hud::draw_view_strips` jumps to as well): with `hud_flags`
-//! bit 0x40 and `split` 0, two more quads at the top corners (texture `polygon_textures` 0xC4).
-//!
-//! Takes: the view (0 .. 5)
-//!
-//! Callers: `hud::draw_view_strips` (twice). Each quad's inputs (`quad_colour` ..,
-//! `g_polygonAlpha` 0xFF, colour -1, `polygon_sides` 1, the next flag 0) then
-//! `scene::draw_flat_quad`. Refuses a view past 5 (the tables' end),
+//! Three flat quads side by side for a view (a reading: a strip of the screen's overlay): the
+//! view's top (a table entry) and height 0x19 scaled from 600 to the screen's height, left (a
+//! table entry) and width 0x78 scaled from 800 to its width (into the strip's work rectangle),
+//! texture rows 0x320000 apart; then the shared tail (`overlay_tail`, which
+//! `hud::draw_view_strips` uses as well): with `hud_flags` bit 0x40 and `split` 0, two more quads
+//! at the top corners (texture `polygon_textures` 0xC4). Refuses a view past 5 (the tables' end),
 //! before anything.
 
 use crate::errors::{BadInput, Refused};
@@ -99,8 +93,7 @@ fn quad(
     )
 }
 
-/// The shared tail (0x45B9AA, see the header).
-// Converted: `rc2k_core::hud::strips::{tail_shown, TAIL}`
+/// The shared tail (see the header).
 pub fn overlay_tail(overlay: &Overlay) -> Result<(), Refused> {
     let Overlay {
         race,
@@ -125,7 +118,6 @@ pub fn overlay_tail(overlay: &Overlay) -> Result<(), Refused> {
 }
 
 /// View `view`'s strip, then the shared tail.
-// Converted: `rc2k_core::hud::strips::{VIEWS, top_entry, sizes, quad_inputs}`
 pub fn draw_view_strip(overlay: &Overlay, view: u32) -> Result<(), Refused> {
     let Overlay {
         race,

@@ -1,19 +1,14 @@
-//! `menu::overall_stage_results_loop` (0x46658F): the loop of the second results screen after a
-//! stage, the stage's times for all classes.
+//! `menu::overall_stage_results_loop`: the loop of the second results screen after a stage, the
+//! stage's times for all classes.
 //!
-//!
-//!
-//! The loop itself is `menu::screen_loop`; this file says what is this screen's own (`SCREEN`):
-//! before the loop it sets the string of the menu's first item to 0x138 if `state.menus.which_title` is 1 and
-//! to 0x139 otherwise, as the stage results screen does; its background comes from
-//! `menu::load_background`, after which a set carry flag is fatal error 0x80712345; leaving is
-//! asked about, and a "no" sets the screen up again. One caller.
+//! Screen-specific part of `menu::screen_loop`: before the loop it sets the string of the menu's
+//! first item to 0x138 if `state.menus.which_title` is 1 and to 0x139 otherwise, as the stage
+//! results screen does; its background comes from `menu::load_background`, a failed load being
+//! fatal error 0x80712345; leaving is asked about, and a "no" sets the screen up again. One caller.
 
 use crate::errors::Refused;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Asking, Callee, Entry, List, Screen, Step};
-
-// ---- game data ----
 
 fn set_first_item(entry: &Entry) -> Result<(), Refused> {
     let menus = entry.menus;
@@ -57,7 +52,6 @@ pub const SCREEN: Screen = Screen {
         &m.tables.texts.overall_stage_results_picture
     }))],
     asking: Some(Asking { ..Asking::DEFAULT }),
-    // saved_item is the saved highlight
     ..Screen::new(
         |m| m.tables.menus.overall_stage_results.id(),
         |m| &m.screens.items.current[slot::OVERALL_STAGE_RESULTS],

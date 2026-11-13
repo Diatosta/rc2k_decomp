@@ -1,19 +1,7 @@
-//! `net::receive_thread` (0x4183C3): the network's receiving thread ("NETRXTDB"), the
-//! routine of the third slot `threading::start_threads` starts, from its start to
-//! `ExitThread`.
-//!
-//! Its slot's byte +0xC (running) 1 already: straight to the end. Else running;
-//! "NETRXTDB:START" (log level 2); `receive_done` not 0: the end. Else round and round:
-//! `threading::wait_for_object` on the event (`event`, `net::set_up`'s) for 1000 ms;
-//! signalled (zero clear): `receiving` 1 and, with `session` 1 (a network session),
-//! `net::take_messages`; then `receiving` 0; with `posting` 1 the call posted in
-//! `posted_call` (taken with an `xchg`) is made and its result kept in `posted_result`,
-//! `posted_answered` 1 (`net::post_call` posts them and waits; what it posts are Rust
-//! functions, `net::lobby_calls`); until `g_quitting` is 1.
-//! The end: done 1, "NETRXTDB:QUIT", not running, `ExitThread(0)`.
-//! The original hands the starter's registers on from call to call; the calls' Rust
-//! versions read none of them (`take_messages` and the posted calls take no arguments).
-//! Run by `threading::start_slot_thread` (the net slot, `routes.rs`).
+//! The network's receiving thread ("NETRXTDB"): until the game is quitting, waits up to a
+//! second for the event; when signalled and a network session is on, takes the messages
+//! (`net::take_messages`); a call posted by `net::post_call` is made and its result kept. Ends
+//! with "NETRXTDB:QUIT".
 
 use crate::errors::Refused;
 use crate::gfx::owner::Gfx;
@@ -61,6 +49,6 @@ pub fn receive_thread(net: &Net, gfx: &'static Gfx, system: &System) -> Result<(
     vars.receive_done.set(1);
     crate::logfile::log_write::log_nul(&QUIT_TEXT, true, 2);
     running.set(0);
-    // The routine's end ends its thread (the original's `ExitThread`).
+    // The routine's end ends its thread.
     Ok(())
 }

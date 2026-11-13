@@ -1,13 +1,9 @@
 //! The SSE estimates `rcpss` and `rsqrtss` as tables, so every machine gets the same bits.
 //!
-//! The game's code uses the two instructions (a reciprocal and a reciprocal square root,
-//! good to about 12 bits). Their results are not fixed by any standard and differ between
-//! processors, so a replay or a network game drawn from them would differ too. These
-//! functions give one processor's results everywhere: an AMD Ryzen 7 5800X's, whose
-//! estimates depend only on the input's exponent and its top 12 mantissa bits. The tables
-//! (`estimate_tables`) hold its results for one octave (two for the square root);
-//! `tools/estimate_tables` makes them and checks these functions against the processor it
-//! runs on over all 2^32 inputs (no differences on the 5800X).
+//! The two instructions (reciprocal and reciprocal square root, about 12 bits) differ between
+//! processors, which would make replays and network games differ. These functions give an AMD
+//! Ryzen 7 5800X's results everywhere, from `estimate_tables` (one octave, two for the root);
+//! `tools/estimate_tables` makes the tables and checks all 2^32 inputs.
 
 use super::estimate_tables::{RECIPROCAL, ROOT_EVEN, ROOT_ODD};
 
@@ -54,8 +50,8 @@ pub fn reciprocal_root_estimate(a: f32) -> f32 {
         0 => sign | INFINITY,
         _ if sign != 0 => DEFAULT_NAN,
         _ => {
-            // An even power of two scales the root by a whole power; an odd one is the
-            // even one's octave above (the table for 2 x 1.m).
+            // An even power of two scales the root by a whole power; an odd one uses
+            // the octave above (the table for 2 x 1.m).
             let odd = (exponent as i32 - 127) & 1 != 0;
             let (table, base) = if odd {
                 (&ROOT_ODD, 128)
@@ -93,8 +89,7 @@ mod tests {
         assert_eq!(s(f32::from_bits(0x7F80_0001)), 0x7FC0_0001);
     }
 
-    /// Intel documents both as within 1.5 x 2^-12 relative error; check that on a spread
-    /// of inputs over the whole normal range.
+    /// Both are documented as within 1.5 x 2^-12 relative error.
     #[test]
     fn within_the_documented_error() {
         let bound = 1.5 / 4096.0;

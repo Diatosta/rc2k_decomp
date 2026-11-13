@@ -1,14 +1,6 @@
-//! `net::set_up` (0x41848E): what the network game needs before anything else: the
-//! receiving thread's event and the mutex (and in the original whether a lobby launched the
-//! game).
-//!
-//! With `g_noticeKind` (a byte) 2, `most_players` (signed) held to 4 at most. An event
-//! (auto reset, not signalled: `threading::create_event`) to `event`, none: fatal error
-//! 0x80168501; a mutex (`threading::create_mutex`) to `mutex`, none: fatal error
-//! 0x80168502. Then DirectPlay's lobby asked (`CoCreateInstance`) whether the game was
-//! launched by one ("NET: Lobby launch detected", `g_lobbyLaunched` 1); left out with the
-//! lobbies (`net::open_lobby`).
-//! One caller, `start`.
+//! What the network game needs before anything else: the receiving thread's event and the
+//! mutex (fatal errors 0x80168501 and 0x80168502 when either cannot be made). With the notice
+//! kind 2, `most_players` is held to 4 at most.
 
 use crate::errors::{FatalError, Refused};
 use crate::net::owner::Net;

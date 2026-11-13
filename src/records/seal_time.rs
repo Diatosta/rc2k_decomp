@@ -1,18 +1,17 @@
-//! `records::seal_time` (0x40264D): a time sealed for the records. The time, at most
-//! 0x22550FF; negated when a cheat of 0x16000 is on, or negated and bit 30 cleared when
-//! cheat 0x40000 is on or `g_patchSwitch` is set; into the block's first dword
-//! (the seal's first dword), then its next three bytes, its eighth byte 0x5A plus the
-//! seven before it each inverted (a byte sum); then `race::seal_block`.
+//! A time sealed for the records. The time, at most 0x22550FF; negated when a cheat of
+//! 0x16000 is on, or negated and bit 30 cleared when cheat 0x40000 is on or the patch switch
+//! is set; into the block's first dword (the seal's first dword), then its next three bytes,
+//! its eighth byte 0x5A plus the seven before it each inverted (a byte sum); then
+//! `race::seal_block`.
 //!
-//! Caller: `menu::sealed_player_time`.
+//! Called by `menu::sealed_player_time`.
 
 use crate::race::save_seal::seal_block;
-/// The time as sealed (converted: `rc2k_core::files::records::sealed_value`).
 pub fn sealed_value(time: u32, cheats: u32, patch_switch: u32) -> u32 {
     rc2k_core::files::records::sealed_value(time, cheats, patch_switch != 0)
 }
 
-/// The block's eight bytes (converted: `rc2k_core::files::records::seal_block`).
+/// The block's eight bytes.
 pub use rc2k_core::files::records::seal_block as block;
 
 /// `time` and the block's three bytes in; the sealed block's two dwords out.

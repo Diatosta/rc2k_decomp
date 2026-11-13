@@ -1,27 +1,22 @@
-//! `menu::welcome_loop` (0x4721F0): the screen titled "BEM-VINDO" that the championship's event
-//! loops show.
-//!
-//! The loop itself is `menu::screen_loop`; this file says what is this screen's own (`SCREEN`),
-//! as extracted from the disassembly: leaving is asked about; something runs before the
-//! question is put.
-//! The name is a reading from the title string of its menu, "BEM-VINDO", not yet a visit.
+//! The screen titled "BEM-VINDO" that the championship's event loops show. Screen-specific part of
+//! `menu::screen_loop`: leaving is asked about; something runs before the question is put.
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Asking, Callee, List, Screen, Step};
 
 pub const SCREEN: Screen = Screen {
     lists: &[
         List {
-            pointer: |m| &m.screens.flow.scene_list, // g_sceneList
+            pointer: |m| &m.screens.flow.scene_list,
             table: |m| m.tables.draw_lists.welcome_scene.id(),
             run: false,
         },
         List {
-            pointer: |m| &m.screens.flow.draw_list, // g_drawList
+            pointer: |m| &m.screens.flow.draw_list,
             table: |m| m.tables.draw_lists.welcome_draw.id(),
             run: false,
         },
         List {
-            pointer: |m| &m.screens.flow.overlay_list, // g_overlayList
+            pointer: |m| &m.screens.flow.overlay_list,
             table: |m| m.tables.draw_lists.welcome_overlay.id(),
             run: false,
         },

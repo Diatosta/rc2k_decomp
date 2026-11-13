@@ -1,15 +1,16 @@
-//! `menu::fade_frame` (0x4A1E60): a frame of the inspection's fades: the picture copied to the locked surface, then in a 3D scene the fade's see-through quad (`screens::draw_fade_overlay`), the frame shown.
+//! `menu::fade_frame`: a frame of the inspection's fades: the picture copied to the locked
+//! surface, then in a 3D scene the fade's see-through quad (`screens::draw_fade_overlay`), the
+//! frame shown.
 //!
-//! The frame callback of `menu::fade_in` and 0x4A1DA5 (handed to `screens::run_frame`). The steps
-//! are the game's (the surface, the 3D scene and the showing are the platform's), through an `Env`
-//! (`picture_frame` and `fade_frame` alike).
+//! The frame callback of `menu::fade_in` and the fade out (handed to `screens::run_frame`). The
+//! steps are the game's (the surface, the 3D scene and the showing are the platform's), through
+//! an `Env` (`picture_frame` and `fade_frame` alike).
 
 use crate::errors::Refused;
 use crate::owners::Owners;
 
-/// Whether the frame was made (the original's carry clear): as
-/// `picture_frame`, with the fade's overlay drawn in a scene between the unlock and the
-/// showing (`scene::begin_scene` never sets the carry).
+/// Whether the frame was made: as `picture_frame`, with the fade's overlay drawn in a scene
+/// between the unlock and the showing (`scene::begin_scene` never fails).
 pub fn fade_frame(o: Owners<'static>) -> Result<bool, Refused> {
     if crate::platform::lock_surface(o.gfx, o.system) < 1 {
         return Ok(false);

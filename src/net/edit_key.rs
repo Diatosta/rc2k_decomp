@@ -1,16 +1,7 @@
-//! `net::edit_key` (0x416E43): a key for the text being edited (`net::begin_edit`), if one
-//! is (`edited` not -1): Escape (1) puts the kept text back and ends the editing,
-//! Enter (0x1C) ends it, 0x6E clears the text's 64 bytes, backspace (0x0E) drops its last
-//! character; any other key is made a character (`input::key_to_char`), which, if it is one
-//! (0x20 or more), goes at the text's end (if it has fewer than 0x3F) with a NUL after it,
-//! and is taken off again if the text is then wider (`text::measure_text` with the editing's
-//! font, signed) than allowed.
-//!
-//! Takes `key`. Returns whether no text is edited (any more); the original's callers read this
-//! as the zero flag of the compare of the edited item with -1. `input::key_to_char` and
-//! `text::measure_text` see only the key's byte and the text (the measure's x changes no width
-//! it reads).
-//! Callers: `net::setting_key`, `net::chat_key`.
+//! A key for the text being edited (`net::begin_edit`), if any: Escape puts the kept text back
+//! and ends the editing, Enter ends it, 0x6E clears the text, backspace drops the last
+//! character; any other key becomes a character appended (up to 0x3F) and taken off again if the
+//! text is then wider than allowed. Returns whether no text is being edited (any more).
 
 use crate::cells::{StoreBytes, copy_between, store_value};
 use crate::errors::Refused;
@@ -26,7 +17,7 @@ pub fn edit_key(
     key: u8,
     gfx: &'static crate::gfx::owner::Gfx,
 ) -> Result<bool, Refused> {
-    // Converted: `rc2k_core::net::editing` (`EditKey`, `last_char`, `takes`,
+    // The logic is in `rc2k_core::net::editing` (`EditKey`, `last_char`, `takes`,
     // `end_for_char`, `too_wide`).
     if net.edit().edited.get() != editing::NOT_EDITING {
         let text = crate::net::begin_edit::EditedText::edited(net)?.text(net, install);
@@ -56,8 +47,8 @@ pub fn edit_key(
                     && let Some(at) = editing::end_for_char(&words)?
                 {
                     // The text up to the character's place and the character, measured as a
-                    // value; the original writes the character and a NUL, then takes the
-                    // character off again (a NUL over it) when the text is too wide.
+                    // value; the character is taken off again (a NUL over it) when the text is
+                    // then too wide.
                     let mut shown = vec![0; at];
                     text.load(0, &mut shown)?;
                     shown.extend_from_slice(&[typed, 0]);

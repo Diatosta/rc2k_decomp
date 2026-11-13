@@ -1,10 +1,5 @@
-//! `net::draw_setting_value` (0x416BC4): a setting's value drawn (`text::draw_text` with
-//! `font` at 0x190, at y; y 0x1E lower): for the item being edited (`edited`) the
-//! text with string 4 (the cursor) after it, built in the game's text buffer; an empty text
-//! as string 0x16E; any other as it is.
-//!
-//! Takes the text, the item and y.
-//! Callers: `net::settings_frame`, `net::draw_number_value` (which goes on into it).
+//! A setting's value drawn at x 0x190: the edited item's text followed by the cursor string,
+//! an empty text as string 0x16E, any other as it is. The next y is 0x1E lower.
 
 use crate::errors::Refused;
 use crate::net::lobby::{FONT, push_id, store_text};
@@ -21,7 +16,7 @@ pub fn draw_setting_value(
     y: u32,
 ) -> Result<u32, Refused> {
     let net = o.net;
-    // Converted: `rc2k_core::net::screens` (`text_value`, `Value`, `CARET`, `NOTHING`).
+    // The logic is in `rc2k_core::net::screens` (`text_value`, `Value`, `CARET`, `NOTHING`).
     let value = screens::text_value(item == net.edit().edited.get(), || {
         text.first().copied().unwrap_or(0)
     });

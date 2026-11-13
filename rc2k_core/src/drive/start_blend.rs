@@ -1,10 +1,10 @@
-//! The share used at a start (from `drive::start_blend` 0x43773D): the checkpoints the work car is
-//! past the lead's start, held to 0 ..= 100, times a step, added to a base and an offset, held to 0
-//! ..= 1. It is the computer driver's skill share: 0 holds its wanted speed down to 30, 1 lets it
-//! drive the full table speed (`drive_computer_car`).
+//! The share used at a start: the checkpoints the work car is past the lead's start, held to 0 ..=
+//! 100, times a step, added to a base and an offset, held to 0 ..= 1. It is the computer driver's
+//! skill share: 0 holds its wanted speed down to 30, 1 lets it drive the full table speed
+//! (`drive_computer_car`).
 //!
-//! Floats: what the x87 keeps on its stack is an `f64`, rounded to `f32` where the original stores:
-//! the same bits at the game's double precision.
+//! Floats: sums are `f64` and rounded to `f32` where stored, the same bits as the game's x87 at
+//! double precision.
 
 use crate::physics::x87::{below, loaded};
 
@@ -19,10 +19,9 @@ pub struct StartBlend {
     pub blend: f32,
 }
 
-/// `drive::start_blend`: `car` less `lead` held to
-/// 0 ..= 100 by the signs; the share times `step`; the blend of `base`
-///, the share and `offset` held to `low` .. `high`
-/// (`Numbers.zero`, `Numbers.one`: 0, 1; below or no number raised, not below lowered).
+/// `car` less `lead` held to 0 ..= 100 (signed); the share is that times `step`; the blend of
+/// `base`, the share and `offset` is held to `low` ..= `high` (`Numbers.zero`, `Numbers.one`: 0,
+/// 1). A blend below `low` or not a number is raised to it; one not below `high` is lowered.
 pub fn start_blend(
     car: u32,
     lead: u32,

@@ -1,14 +1,11 @@
 //! Solid rectangles and lines straight on the surface (`gfx::fill_rect`, `gfx::frame_rect`,
-//! `gfx::draw_hline`): the message box's fill and frame. The colour is the byte itself on
-//! an 8-bit surface, else `palette[colour]` (a table of 256 dwords). Clipped to the clip rectangle; the work in `g_blitLeftSkip`,
-//! `g_blitVisibleWidth`, `g_blitTopSkip`, `g_blitRowsLeft`.
+//! `gfx::draw_hline`): the message box's fill and frame. The colour is the byte itself on an 8-bit
+//! surface, else `palette[colour]` (a table of 256 dwords). Clipped to the clip rectangle; the work
+//! variables are the blitter's skips.
 
 use crate::errors::Refused;
 use crate::gfx::owner::Gfx;
 use crate::gfx::surface::{clip, surface};
-
-// Converted: `rc2k_core::gfx::raster`; here the clip and surface are read from the game, and
-// the work variables and pixels the plan holds written back.
 
 fn set(a: &crate::session::PlainDword, v: i32) {
     a.set(v as u32);
@@ -87,8 +84,8 @@ fn carry_out(plan: &rc2k_core::gfx::raster::Plan, colour: u32, palette: Palette<
     }
 }
 
-/// The pixel for colour `colour` by the surface's depth: `palette[colour]` as a word or a
-/// dword, else the byte itself.
+/// The pixel for colour `colour` by the surface's depth: `palette[colour]` as a word or a dword,
+/// else the byte itself.
 fn pixel(
     fonts: &crate::gfx::owner::FontStores,
     bits: u32,
@@ -108,11 +105,10 @@ pub fn rect_in(bytes: &impl crate::session::ByteBuffer) -> [i32; 4] {
     std::array::from_fn(|n| bytes.get_u32_at(4 * n) as i32)
 }
 
-/// `gfx::fill_rect` (0x406869): the rectangle (x, y, width, height) filled, clipped. As the
-/// original: on a 16-bit surface `palette[colour]`; on a 32-bit one nothing is drawn (the 32-bit
-/// test skips the fill: `notes/bugs.md`). Refuses (before anything) other depths: on 8 bits
-/// the original fills with the byte and then once more with dwords past the rectangle's
-/// rows.
+/// `gfx::fill_rect`: the rectangle (x, y, width, height) filled, clipped: on a 16-bit surface
+/// `palette[colour]`; on a 32-bit one nothing is drawn (a game bug kept). Refuses
+/// (before anything) other depths: on 8 bits the game fills with the byte and then once more with
+/// dwords past the rectangle's rows.
 pub fn fill_rect(
     rect: [i32; 4],
     colour: u32,
@@ -124,15 +120,15 @@ pub fn fill_rect(
     Ok(())
 }
 
-/// `gfx::draw_hline` (0x406710): `length` pixels from (x, y) rightwards, clipped (the left
-/// clip as the original: what is cut is -x, right only for a left edge of 0).
+/// `gfx::draw_hline`: `length` pixels from (x, y) rightwards, clipped (the left clip: what is cut
+/// is -x, right only for a left edge of 0).
 pub fn draw_hline(x: i32, y: i32, length: i32, colour: u32, palette: Palette<'_>, gfx: &Gfx) {
     let plan = rc2k_core::gfx::raster::hline(x, y, length, &core_clip(gfx), &core_surface(gfx));
     carry_out(&plan, colour, palette, gfx);
 }
 
-/// `gfx::frame_rect` (0x4066DF): the rectangle's outline moved by (dx, dy): the top and
-/// bottom rows (`draw_hline`), then the left and right columns between them (`draw_vline`).
+/// `gfx::frame_rect`: the rectangle's outline moved by (dx, dy): the top and bottom rows
+/// (`draw_hline`), then the left and right columns between them (`draw_vline`).
 pub fn frame_rect(rect: [i32; 4], dx: i32, dy: i32, colour: u32, palette: Palette<'_>, gfx: &Gfx) {
     for plan in rc2k_core::gfx::raster::frame(rect, dx, dy, &core_clip(gfx), &core_surface(gfx)) {
         carry_out(&plan, colour, palette, gfx);

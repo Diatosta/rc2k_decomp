@@ -1,14 +1,8 @@
-//! `net::take_player_settings` (0x48755D): player 1's record (`g_players[0]`) copied into
-//! the network game's settings (the player's car to its last setting), field to field: the car,
-//! the driving aids and the HUD's switches, the controls, the co-driver, the view; and the
-//! record's +0xD0 (`entry`) made 1.
+//! Copies player 1's record into the network game's settings (car, driving aids, HUD
+//! switches, controls, co-driver, view) and sets the record's `entry` to 1.
 //!
-//! The original copies 91 dwords, 12 bytes from the record's +0x1C and 0x20 bytes from
-//! +0x24C by offset. It writes the settings' 0xA4 (`cars[0].wear[9]`) twice, first from the
-//! record's +0x104 and then from its +0x1A0 (`parts_wear[9]`); only the second stays, so the
-//! record's +0x104 (`damage[12]`) has no field to go to.
-//!
-//! Called by `net::start_link`.
+//! The record's `damage[12]` has no field to go to: the settings' `cars[0].wear[9]` is written
+//! from it and then from `parts_wear[9]`, and only the second stays (kept as is).
 
 use crate::menu::owner::Menus;
 use crate::race::owner::Race;

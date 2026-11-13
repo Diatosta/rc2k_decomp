@@ -1,11 +1,5 @@
-//! `system::read_windows_version` (0x410AC5): `VersionInformation` (0x518408, an
-//! `OSVERSIONINFOA` of 0x94 bytes) filled by `GetVersionExA`, its size set first.
-//!
-//! What `logfile::start_log` writes to the log ("Windows" major.minor.build). One caller, `start`
-//! (0x401024). The Win32 call is made from Rust.
-//! `start` calls it directly.
-
-// ---- game data ----
+//! The Windows version record (`OSVERSIONINFOA`, 0x94 bytes) filled, its size set first. What
+//! `logfile::start_log` writes to the log ("Windows" major.minor.build).
 
 const VERSION_INFO_LEN: usize = 0x94;
 

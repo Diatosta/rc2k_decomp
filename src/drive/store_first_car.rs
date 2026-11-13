@@ -1,7 +1,5 @@
-//! `drive::store_first_car` (0x460CAA): `g_currentCar` 0 and `drive::store_car` (the work car back
-//! into the first block).
-//!
-//! Callers: `drive::finish_run`, 0x4293CB (twice). Refuses what `store_car` refuses.
+//! The current car set to 0 and `drive::store_car` (the work car back into the first block).
+//! Refuses what `store_car` refuses.
 
 use crate::errors::Refused;
 use crate::race::owner_shared::RaceShared;

@@ -1,11 +1,10 @@
-//! Gathering a face's points into a list without repeats, as `effects::collect_points_a`
-//! / `_b` (0x4BD551, 0x4BD59F) and `effects::add_face_points` (0x4B9E29) do it: each point looked for among those already there, added at the end when
-//! new, until the list is full.
+//! Gathering a face's points into a list without repeats: each point looked for among those already
+//! there, added at the end when new, until the list is full.
 
-/// What adding a face's points leaves (the originals' registers).
+/// What adding a face's points leaves.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Collected {
-    /// The last point read (none read: the register keeps what it had).
+    /// The last point read (none when no point was read).
     pub last_point: Option<u32>,
     /// Where the last search stopped.
     pub stopped: Option<u32>,

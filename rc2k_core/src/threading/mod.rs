@@ -1,12 +1,7 @@
-//! The game's threads: their slots and what its waits and handles say
-//! (from `threading::find_thread_slot` 0x410CC5, `threading::wait_for_object`
-//! 0x411063, `threading::create_event` 0x41103C and `threading::create_mutex` 0x41107F's
-//! results; the same day the shutdown's rules from `threading::request_quit` 0x410BF9 and
-//! `threading::wait_for_threads` 0x410BA8).
+//! The game's threads: their slots and what its waits and handles say.
 //!
-//! The game keeps four thread slots (0x110 bytes, +4 the thread's id); a thread finds its
-//! own by its id. Its Win32 calls answer in the flags: a handle by comparing with 1, a wait
-//! by carry (failed) and zero (failed or timed out).
+//! Four thread slots (0x110 bytes, +4 the thread's id); a thread finds its own by its id. A
+//! handle is compared with 1 and a wait's answer taken as (failed, failed or timed out).
 
 /// The thread slots.
 pub const SLOTS: usize = 4;
@@ -20,7 +15,7 @@ pub fn slot_of(id_of: impl Fn(usize) -> u32, id: u32) -> Option<usize> {
 pub const WAIT_TIMEOUT: u32 = 0x102;
 pub const WAIT_FAILED: u32 = 0xFFFF_FFFF;
 
-/// What a wait ended in, as the flags say it.
+/// What a wait ended in, as the game's flags say it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Waited {
     Signalled,
@@ -38,7 +33,7 @@ impl Waited {
         }
     }
 
-    /// (carry, zero).
+    /// (failed, failed or timed out).
     pub fn flags(self) -> (bool, bool) {
         match self {
             Waited::Signalled => (false, false),
@@ -48,7 +43,7 @@ impl Waited {
     }
 }
 
-/// A handle compared with 1: (carry, zero); the carry says there is none.
+/// A handle compared with 1: (none, exactly 1).
 pub fn handle_flags(handle: u32) -> (bool, bool) {
     (handle < 1, handle == 1)
 }
@@ -56,8 +51,7 @@ pub fn handle_flags(handle: u32) -> (bool, bool) {
 /// The quit switch once the game is shutting down.
 pub const QUITTING: u32 = 1;
 
-/// `threading::request_quit`: the shutdown thread is started only by the first request
-/// (the switch, swapped for `QUITTING`, was not that already).
+/// `threading::request_quit`: the shutdown thread starts only on the first request.
 pub fn starts_shutdown(was: u32) -> bool {
     was != QUITTING
 }
@@ -66,7 +60,7 @@ pub fn starts_shutdown(was: u32) -> bool {
 pub const SUSPENDED: u8 = 0xFF;
 pub const RESUMED: u8 = 1;
 
-/// `threading::resume_slot_thread` (0x410D1D): only a suspended thread is resumed.
+/// `threading::resume_slot_thread`: only a suspended thread is resumed.
 pub fn resumes(flag: u8) -> bool {
     flag == SUSPENDED
 }
@@ -76,8 +70,8 @@ pub fn resumes(flag: u8) -> bool {
 pub const WAITED: usize = 3;
 pub const WAIT_MS: u32 = 3000;
 
-/// The handles as the wait gets them: the slots' handles pushed in order, so the last
-/// first; closed in that order too.
+/// The handles as the wait gets them: the slots' handles pushed in order, so the last first;
+/// closed in that order too.
 pub fn wait_order(handles: [u32; WAITED]) -> [u32; WAITED] {
     let [a, b, c] = handles;
     [c, b, a]

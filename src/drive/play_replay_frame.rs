@@ -1,15 +1,14 @@
-//! `drive::play_replay_frame` (0x460049): while playing a replay (`replay_mode` 2): the replay's
-//! frame and tenth (`replay_block`, `5C2534`) into `step_block`, `6EF7E4`; at a whole frame the
-//! frame read and its state loaded (`drive::load_replay_frame`, `drive::load_replay_cars`); then
-//! the cameras (`drive::replay_cameras`).
+//! While playing a replay (`replay_mode` 2): the replay's frame and tenth (`replay_block`,
+//! `replay_frame`) into `step_block`, `step_frame`; at a whole frame the frame read and its state
+//! loaded (`drive::load_replay_frame`, `drive::load_replay_cars`); then the cameras
+//! (`drive::replay_cameras`).
 //!
-//! Caller: `drive::replay_step`. Refuses what its calls refuse.
+//! Refuses what its calls refuse.
 
 use crate::errors::Refused;
 use crate::race::owner::Race;
 use crate::system::owner::System;
 
-// Converted: `rc2k_core::drive::race_steps::play_frame`.
 pub fn play_replay_frame(race: &Race, system: &System) -> Result<(), Refused> {
     let Some(whole) = rc2k_core::drive::race_steps::play_frame(
         race.course.numbers.get().replay_mode.get(),

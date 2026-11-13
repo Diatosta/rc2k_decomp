@@ -1,8 +1,8 @@
-//! `drive::load_replay_frame` (0x46020A): the replay's frame `step_block` read
+//! The replay's frame `step_block` read
 //! (`drive::read_replay_frame_0`), its marks (`drive::replay_frame_marks`), and the frame (0xA04
 //! dwords at `block`) copied to the replay's staging (`race::replay_staging_store`).
 //!
-//! Caller: `drive::play_replay_frame`. Refuses what `read_replay_frame` refuses.
+//! Refuses what `read_replay_frame` refuses.
 
 use crate::cells::copy_cells;
 use crate::errors::Refused;

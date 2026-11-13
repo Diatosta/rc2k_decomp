@@ -1,7 +1,5 @@
-//! Drawing text with the game's bitmap fonts (from `text::draw_text`
-//! 0x4023D5, `text::glyph_kerning` 0x402577, `text::reset_line_state` 0x402563): the
-//! layout of lines, their alignment, kerning and the control codes; the pixels are the
-//! canvas's.
+//! Drawing text with the game's bitmap fonts: line layout, alignment, kerning and control
+//! codes; the pixels are the canvas's.
 //!
 //! Text bytes from `first_char` to `last_char` are glyphs, bytes above are ignored, bytes
 //! below are control codes:
@@ -14,10 +12,10 @@
 //! Except in `MODE_AT_X` each line is measured before it is drawn. In `MODE_MEASURE`
 //! nothing is drawn and the font is updated instead.
 //!
-//! A glyph table: a dword per glyph, the offset of its record from the table's start. A
-//! record: +0 the x offset (the advance of a glyph without a bitmap), +1 blank rows on top,
-//! +2 the bitmap's width (the advance), +3 its rows, then each row as runs (a count of
-//! pixels, the gap before them, the pixels; a count of 0 ends the row).
+//! A glyph table: a dword per glyph, the offset of its record from the table's start. A record:
+//! +0 the x offset (the advance of a glyph without a bitmap), +1 blank rows on top, +2 the
+//! bitmap's width (the advance), +3 its rows, then each row as runs (a count of pixels, the gap
+//! before them, the pixels; a count of 0 ends the row).
 
 use crate::Invalid;
 use crate::strings::bytes::{self, Bytes};
@@ -73,7 +71,7 @@ pub const FLAG_KERNING: u8 = 4;
 /// Rows of the kerning outline.
 pub const KERNING_ROWS: usize = 64;
 /// The kerning outline of the line so far: for each row, its trailing blank pixels and its
-/// gap (the game's table at 0x93E830).
+/// gap.
 pub type Kerning = [u8; KERNING_ROWS * 2];
 
 /// Glyph `glyph`'s record: its offset in the table.
@@ -115,7 +113,7 @@ fn trailing_of(kerning: &Kerning, row: usize) -> u8 {
 }
 
 /// The outline updated for one glyph `record`; how far the glyph moves left. Rows past the
-/// 64th are left out (the original writes past its table).
+/// 64th are left out.
 pub fn add_record(kerning: &mut Kerning, record: &(impl Bytes + ?Sized)) -> Result<u32, Invalid> {
     let adv = byte(record, 2)?;
     if adv == 0 {
@@ -382,9 +380,8 @@ pub struct Measured {
     pub width: u32,
 }
 
-/// `text` measured (from `text::measure_text` 0x40230B): `draw` from x and the
-/// font's line height with the line count and widest line cleared first; the font is left
-/// with them, as the original leaves it.
+/// `text` measured: `draw` from x and the font's line height with the line count and widest line
+/// cleared first; the font is left holding them.
 pub fn measure<C: Canvas>(
     font: &mut Font,
     text: &(impl Bytes + ?Sized),
@@ -402,16 +399,14 @@ pub fn measure<C: Canvas>(
     })
 }
 
-/// A race time's eight characters ("01:23.45" and one more) in fixed columns: the step
-/// from each column to the next (digit to digit 13, to or from punctuation 10; from
-/// `text::draw_time_fixed_pitch` 0x465EC4).
+/// A race time's eight characters ("01:23.45" and one more) in fixed columns: the step from each
+/// column to the next (digit to digit 13, to or from punctuation 10).
 pub const TIME_STEPS: [i32; 8] = [13, 10, 10, 13, 10, 10, 13, 0];
-/// A time of day's five ("09:05"; `text::draw_clock_fixed_pitch` 0x465F42). The last step
-/// is added after the fifth character too.
+/// A time of day's five ("09:05"). The last step is added after the fifth character too.
 pub const CLOCK_STEPS: [i32; 5] = [13, 10, 10, 13, 10];
 
-/// The x of each fixed column for text ending at `right`: the first at `right` - 100,
-/// then on by `steps`.
+/// The x of each fixed column for text ending at `right`: the first at `right` - 100, then on
+/// by `steps`.
 pub fn columns(right: i32, steps: &[i32]) -> Vec<i32> {
     let mut x = right.wrapping_sub(100);
     steps
@@ -424,10 +419,9 @@ pub fn columns(right: i32, steps: &[i32]) -> Vec<i32> {
         .collect()
 }
 
-/// Where a highlighted menu item's pulse stands (from `text::blend_font`
-/// 0x405E92): whether it goes from font A to font B now (else back), and how far, 0 ..
-/// `half_pulse` - 1. `eased` (blend mode 2) makes it t * t >> 8 and the same from the other
-/// end.
+/// Where a highlighted menu item's pulse stands: whether it goes from font A to font B now (else
+/// back), and how far, 0 .. `half_pulse` - 1. `eased` (blend mode 2) makes it t * t >> 8 and the
+/// same from the other end.
 pub fn pulse(time: u32, half_pulse: u32, eased: bool) -> (bool, u32) {
     let mut t = time & half_pulse.wrapping_sub(1);
     if eased {
@@ -439,9 +433,8 @@ pub fn pulse(time: u32, half_pulse: u32, eased: bool) -> (bool, u32) {
     (half_pulse & time != 0, t)
 }
 
-/// The fixed widths a time's characters are drawn at, one by one (`text::draw_time_text`
-/// 0x402395): 6 for ':' and '.', 0x10 for the others, so that the digits keep their
-/// columns; at most 11 characters, up to the NUL.
+/// The fixed widths a time's characters are drawn at, one by one: 6 for ':' and '.', 0x10 for the
+/// others, so that the digits keep their columns; at most 11 characters, up to the NUL.
 pub fn time_text_widths(text: &(impl Bytes + ?Sized)) -> Result<Vec<u32>, Invalid> {
     let mut widths = Vec::new();
     for at in 0..11 {

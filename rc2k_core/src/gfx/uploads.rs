@@ -1,5 +1,4 @@
-//! A picture put into a system texture's levels, its sizes (from
-//! `gfx::upload_texture_picture` 0x41A68B).
+//! A picture put into a system texture's levels, its sizes.
 //!
 //! Sizes are counted in halvings from 256 by the game's table (five sizes). The picture
 //! must be as many halvings from the texture across as down; it is halved that many times
@@ -7,7 +6,7 @@
 
 use crate::Invalid;
 
-/// The surfaces a record has.
+/// The most surfaces (levels) a record has.
 pub const MOST_LEVELS: u32 = 9;
 
 /// Which size is not in the table, or that the two differ: the fatal error's place in the
@@ -21,10 +20,9 @@ pub enum Apart {
     NotSquare = 4,
 }
 
-/// How many halvings the picture (`width` x `height`) is from the texture, the same
-/// across and down (each difference not below 0), `halvings` the table's lookup (asked in
-/// the original's order: the picture's width, the texture's, the picture's height, the
-/// texture's).
+/// How many halvings the picture (`width` x `height`) is from the texture, the same across and
+/// down (each difference not below 0). `halvings` is the table's lookup, asked in this order: the
+/// picture's width, the texture's, the picture's height, the texture's.
 pub fn halvings_apart(
     halvings: impl Fn(u32) -> Option<u32>,
     width: u32,

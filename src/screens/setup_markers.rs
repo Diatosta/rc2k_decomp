@@ -1,16 +1,15 @@
 //! What the six marker functions of the service area's setup bars share. There are four bars,
-//! 204 pixels long: an upper pair at y = 409 and a lower pair at y = 465, the left ones at
-//! x = 129 and the right ones at x = 464. They belong to menu items 0x10 (upper left), 0x11
-//! (upper right), 0x12 (lower left) and 0x13 (lower right). Each function sets up the bar
-//! globals and calls `gfx::blit_bar_marker`, so the marker sits at a percentage of the bar.
+//! 204 pixels long: an upper pair at y = 409 and a lower pair at y = 465, the left ones at x = 129
+//! and the right ones at x = 464. They belong to menu items 0x10 (upper left), 0x11 (upper right),
+//! 0x12 (lower left) and 0x13 (lower right). Each function sets up the bar globals and calls
+//! `gfx::blit_bar_marker`, so the marker sits at a percentage of the bar.
 //!
-//! Screen: seen in a screenshot of the championship's service area (2026-10-10), setup section:
-//! 0x10 is the steering sensitivity (slow .. fast), 0x11 the brake balance (front .. rear), 0x12
-//! the ride height (low .. high), 0x13 the suspension stiffness (soft .. hard). The two lower bars
-//! have two markers each. The other (0x76, yellow) is at the value being chosen (a driver figure,
-//! a driver figure, which the keys step) and only appears while it differs or its change is
-//! selected. The steering and brake values are changed in the player directly, so those bars have
-//! one marker.
+//! Seen in a screenshot of the championship's service area, setup section: 0x10 is the steering
+//! sensitivity (slow to fast), 0x11 the brake balance (front to rear), 0x12 the ride height (low
+//! to high), 0x13 the suspension stiffness (soft to hard). The two lower bars have two markers
+//! each: the other (yellow) is at the value being chosen, which the keys step, and only appears
+//! while it differs or its change is selected. The steering and brake values are changed in the
+//! player directly, so those bars have one marker.
 
 use crate::errors::Refused;
 use crate::gfx::blit_bar::Bar;
@@ -53,8 +52,8 @@ pub enum Marker {
         chosen: Setting,
         installed: Setting,
     },
-    /// Glyph 0x76 on an upper bar, at the percentage in a field of the player in edi.
-    /// While its item is being edited it blinks.
+    /// Glyph 0x76 on an upper bar, at the percentage in a field of the player. While its item is
+    /// being edited it blinks.
     Upper {
         item: u32,
         x: i32,
@@ -83,8 +82,8 @@ fn place(
     Ok(())
 }
 
-/// `player` is the player for the upper bars. What the original
-/// leaves in eax and esi its one caller, `screens::draw_service_area`, does not read.
+/// `player` is the player for the upper bars. Its one caller, `screens::draw_service_area`,
+/// reads no result.
 pub fn draw_marker(
     menus: &Menus,
     gfx: &Gfx,
@@ -92,7 +91,8 @@ pub fn draw_marker(
     player: crate::menu::standings::PlayerCell,
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
-    // The logic is in `rc2k_core::screens::setup_markers::plan`; here the values read and the bar drawn.
+    // The logic is in `rc2k_core::screens::setup_markers::plan`; here the values read and the bar
+    // drawn.
     use rc2k_core::screens::setup_markers::{Marker as M, Menu, Plan};
     let menu = Menu {
         edit_mode: edit_mode(menus),

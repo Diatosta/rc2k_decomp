@@ -1,9 +1,9 @@
-//! The arcade race's (run kind 2) two computer opponents kept near the lead car (from
-//! `drive::start_cars_behind` 0x43703E, its rules; the moves and calls stay the adapter's): their
-//! first starts, the gaps by how many cars are ahead, the wanted gaps eased toward (what the arcade
-//! HUD shows as the gaps to the cars ahead and behind), and the push apart of two cars too close.
-//! Only two of the arcade race's opponents are simulated at a time (the rest are numbers in
-//! `arcade_cars`). Every comparison takes the sign of the difference, as the original.
+//! The arcade race's (run kind 2) two computer opponents kept near the lead car: their first
+//! starts, the gaps by how many cars are ahead, the wanted gaps eased toward (what the arcade HUD
+//! shows as the gaps to the cars ahead and behind), and the push apart of two cars too close. Only
+//! two of the arcade race's opponents are simulated at a time (the rest are numbers in
+//! `arcade_cars`). Every comparison takes the sign of the difference. The moves and calls stay
+//! with the caller.
 
 /// The first two starts: the last start less 2 and less 1, put 80 and 40
 /// checkpoints on.
@@ -12,7 +12,8 @@ pub fn first_starts(last: u32) -> [(u32, u32); 2] {
     [(a, 0x50), (a.wrapping_add(1), 0x28)]
 }
 
-/// A value held below `hi` (`cmp; jns`) and, with `lo_zero`, above 0 (`cmp 0; jns`).
+/// A value held below `hi` and, with `lo_zero`, at 0 or above; both by the sign of the
+/// difference.
 pub fn hold_signs(v: u32, lo_zero: bool, hi: u32) -> u32 {
     let mut v = v;
     if lo_zero && (v as i32) < 0 {
@@ -32,7 +33,7 @@ pub fn gap_start(ahead: u32, count: u32) -> u32 {
 }
 
 /// The gaps from the start's word (its low four bits b): (passed, 0x2C + b; behind, 0x28
-/// + b; their sum), `dword_6051D4` .. `DC`.
+/// + b; their sum).
 pub fn gaps(word: u32) -> (u32, u32, u32) {
     let b = word & 0xF;
     let (pass, back) = (0x2C + b, 0x28 + b);

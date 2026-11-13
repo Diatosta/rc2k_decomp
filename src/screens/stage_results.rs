@@ -9,7 +9,7 @@ use crate::records::stages_store::{Holder, RecordRef, RecordTable};
 use crate::screens::game_screen::{Held, HeldText};
 use crate::text::draw_text::Canvas;
 
-/// The stage's record table and record (`off_735512[ChampView.switch_f8][CaptionTables.shown_group]`, + 0xA4 x
+/// The stage's record table and record (by `ChampView.switch_f8`, `CaptionTables.shown_group` and
 /// `CaptionTables.shown_stage`), none: 0.
 fn records(
     menus: &Menus,
@@ -25,9 +25,8 @@ fn records(
     ))
 }
 
-/// The times table: `off_7354FE[ChampView.switch_f8 (+ 2 when ChampView.switch_fc is 1)]` names the
-/// variable that holds it (the list's four: `g_stageBestTimes`, `g_courseBestTimes`,
-/// `ChampView.time_trial_best_times`, `g_stageBestTimesAlt`; their tables are typed now,
+/// The times table: `ChampView.switch_f8` (+ 2 when `ChampView.switch_fc` is 1) names which of
+/// the four holds it (the stage, course, time trial and alternate best times; see
 /// `saves::best_times`), or None. Refuses a list entry that names none of them.
 fn times_table<'a>(
     play: &'a Play,
@@ -65,20 +64,18 @@ fn ends_within_ten(table: &StageTable, stage: usize) -> Result<bool, BadInput> {
     })?
 }
 
-/// `screens::draw_stage_results` (0x48E740): the time trial stage's results: the current
-/// menu's (`LoopFlags.menu.0`) items 1 .. 3 (strings by the two switches, the record's +0x38), the
-/// record's +4 into `Buffers.text.stage_result_value`, the stage line (string 0x481 .. in `Buffers.text.stage_heading`), then up
-/// to ten rows of name, result and rank with the car's and flag's sprites: in seal mode
-/// (`MenuState.menus.caption_choice` 1) the row's seal code (`strings::format_seal_code` of +0x54 / +0x58) one
-/// character at a time from x 0x20A every 0xE; else its time (fixed pitch at 0x276), the first
-/// kept in `MenuState.menus.first_row_time` and the others' gap to it (string 0x579 and the time at 0x2EE); after
+/// The time trial stage's results: the current menu's items 1 to 3 (strings by the two
+/// switches, the record's name), the record's value into `Buffers.text.stage_result_value`, the
+/// stage line (string 0x481 .. in `Buffers.text.stage_heading`), then up to ten rows of name,
+/// result and rank with the car's and flag's sprites: in seal mode
+/// (`MenuState.menus.caption_choice` 1) the row's seal code (`strings::format_seal_code`) one
+/// character at a time; else its time (fixed pitch), the first kept in
+/// `MenuState.menus.first_row_time` and the others' gap to it (string 0x579 and the time); after
 /// ten rows the fastest line (string 0x1A2; from the stage record found again by
 /// `records::find_stage_record` when both switches are 0, else the record's own, its second
-/// fastest with `ChampView.switch_fc` 1). The sprites' palettes are ebx as the original leaves it.
-/// Refuses (before anything) no current menu, no stage records or times
-/// table, a stage line past its buffer, a times table whose end (-1) comes within the ten rows
-/// (the original's early exit leaves two dwords on the stack and returns through a wrong
-/// slot), and what the strings refuse.
+/// fastest with `ChampView.switch_fc` 1). The sprites' palette is unused. Refuses no current
+/// menu, no stage records or times table, a stage line past its buffer, a times table whose end
+/// (-1) comes within the ten rows and what the strings refuse.
 pub fn draw_stage_results(o: Owners<'static>, canvas: &mut dyn Canvas) -> Result<(), Refused> {
     let menus = o.menus;
     let play = &menus.play;

@@ -1,11 +1,11 @@
-//! `menu::step_carousel` (0x46989B): moves a menu's turning objects on by the time passed.
+//! `menu::step_carousel`: moves a menu's turning objects on by the time passed.
 //!
-//! The time since the last call (the scene clock less the clock kept at the last call, which becomes the
-//! clock) is kept, held to 100, as the time since the last step. Then the turn
-//! (`menu::turn_carousel`, inlined): while the turn direction is not 0 the angle is moved by ((angle / 8) + 0x4000000) x the
-//! time / 20 (0x4904C7), down for a negative direction, up (from the angle negated) for a
-//! positive one. When it passes zero it is 0 and the direction 0; after a turn upwards the object
-//! in front is the next one, the first again after the last.
+//! The time since the last call (the scene clock less the clock kept at the last call, which
+//! becomes the clock) is kept, held to 100, as the time since the last step. Then the turn
+//! (`menu::turn_carousel`, inlined): while the turn direction is not 0 the angle is moved by
+//! ((angle / 8) + 0x4000000) x the time / 20, down for a negative direction, up (from the angle
+//! negated) for a positive one. When it passes zero it is 0 and the direction 0; after a turn
+//! upwards the object in front is the next one, the first again after the last.
 //! `menu::move_highlight_left` and `_right` start a turn. In 17 lists of the screens with turning
 //! objects (the main menu's among them). Refuses a time kept above 0x71C71C6, with which the
 //! division would trap; it cannot come, the time being held to 100. The menus and draw lists run
@@ -14,8 +14,6 @@
 use crate::errors::BadInput;
 use crate::menu::owner::Screens;
 use crate::race::owner::Race;
-
-// ---- game data ----
 
 pub fn step_carousel(screens: &Screens, race: &Race) -> Result<(), BadInput> {
     // The logic is in `rc2k_core::menu::navigation` (`passed`, `spin`), worked out before

@@ -1,94 +1,88 @@
-//! The audio module's variables, out of RAL.EXE's image,
-//! typed: each block is a struct of cells
-//! (the first values the image's, `tests::*_start_as_the_games`), one static a piece:
-//! - `AudioShared` (IDA 0x4F8294 .. 0x506E6C, the part of it both the game's thread and the
-//!   audio thread touch): the sound mode and volumes, the voices (0x200 records of 0x70
-//!   bytes), the two stream players, the quality modes and the audio options the advanced
-//!   page edits, the facts of the sound device the menus show, the settings read from the
-//!   file, `tune_turn`. The rest of the old block (the mixer's channels and cursors, the
-//!   sample file and buffers, DirectSound / A3D / EAX's objects and ids, the voice lists) is
-//!   the audio thread's own, `audio::own::AudioOwn`, which has the thread table;
-//! - `SampleRecords` (the image's 0x50A7A4 .. 0x511AE4 held the 0x1CD sample records of
-//!   0x40 bytes; now `SAMPLE_CONSTANTS` for the twelve fields that never change and, shared,
-//!   only each record's `data_key` and `first_voice`); their pointers (to the sample names and the volume factors) are handles
-//!   (`name_key`, `level_code`);
+//! The audio module's variables, typed: each block is a struct of cells, one static a piece:
+//! - `AudioShared`, the part both the game's thread and the audio thread touch: the sound mode
+//!   and volumes, the voices (0x200 records of 0x70 bytes), the two stream players, the quality
+//!   modes and the audio options the advanced page edits, the facts of the sound device the menus
+//!   show, the settings read from the file, `tune_turn`. The rest (the mixer's channels and
+//!   cursors, sample file and buffers, the device objects and ids, the voice lists) is the audio
+//!   thread's own, `audio::own::AudioOwn`;
+//! - `SampleRecords`: the 0x1CD sample records of 0x40 bytes, `SAMPLE_CONSTANTS` for the twelve
+//!   fields that never change and, shared, only each record's `data_key` and `first_voice`; their
+//!   pointers (to the sample names and the volume factors) are handles (`name_key`,
+//!   `level_code`).
 //!
-//! Thread table of the sample records: `data_key` is written by the game's thread when a race
-//! is set up (`sound::load_race_sounds`), before the Load command, and read by the audio
-//! thread when it loads (the command queue's lock orders them); `first_voice` is written by
-//! the audio thread (`audio::load_sounds`, `free_voices`) and read by the game's thread
-//! (`sound::sample_settings`) and the audio thread; the rest is read by both, written by none.
-//! No field is touched by one thread only, so none is a plain record of its own thread.
+//! `data_key` is written by the game's thread when a race is set up (`sound::load_race_sounds`),
+//! before the Load command, and read by the audio thread when it loads (the command queue's lock
+//! orders them); `first_voice` is written by the audio thread (`audio::load_sounds`,
+//! `free_voices`) and read by both; the rest is read by both, written by none.
 //!
 //! The records the core works on (`Voice`, `SampleRecord`, `MixerChannel`, `AudioStream`,
-//! `MemoryList`, `AudioOptions`, `SampleFile`) are its plain structs held in `Shared`, copied
-//! out and in or borrowed whole; the scalars of `AudioShared` are atomic cells. Gaps (bytes
-//! the code never names) are kept, with the image's values, as `_gap_XXXX` buffers.
-//!
-//! Threads: the audio thread and the game's thread share `AudioShared` as the image's bytes
-//! were shared (relaxed loads and stores). The commands the game sends the audio thread wait
-//! in a locked queue (`sound::queue`). `ENVIRONMENT` (below) is written by the game's thread
-//! and read by the audio thread, so it is shared, not the audio thread's own.
+//! `MemoryList`, `AudioOptions`, `SampleFile`) are plain structs held in `Shared`, copied out and
+//! in or borrowed whole; the scalars of `AudioShared` are atomic cells with relaxed loads and
+//! stores. Gaps (bytes the code never names) are kept as `_gap_XXXX` buffers. The commands the game
+//! sends the audio thread wait in a locked queue (`sound::queue`). `ENVIRONMENT` is written by the
+//! game's thread and read by the audio thread, so it is shared.
 
 use crate::session::{Bytes, Dword, Shared};
 use rc2k_core::audio::modes::AudioOptions;
 use rc2k_core::audio::streams::AudioStream;
 use rc2k_core::audio::voices::{MixerChannel, SampleRecord, Voice};
 
-/// The audio variables both the game's thread and the audio thread touch (IDA 0x4F8294 ..).
+/// The audio variables both the game's thread and the audio thread touch.
 #[derive(rc2k_derive::Cells)]
 pub struct AudioShared {
-    /// `g_qualityModes`: the sound mode of each quality (0x212, 0x222, 0x221, 0x220), the advanced page's first choice picks one. (IDA 0x4F8294)
+    /// The sound mode of each quality (0x212, 0x222, 0x221, 0x220), the advanced page's first
+    /// choice picks one.
     pub quality_modes: [Dword; 4],
-    /// `g_noAudio`: 1 = no sound (the `noaudio` / `nosound` settings; the audio thread sets it when it ends). (IDA 0x4F82B4)
+    /// 1 = no sound (the `noaudio` / `nosound` settings; the audio thread sets it when it ends).
     pub no_audio: Dword,
-    /// `g_soundMode`: the mode's bits (0x10000 own buffers, 0x40000 the game's mixer, 0x100000 3D ..) the thread works in. (IDA 0x4F82BC)
+    /// The mode's bits (0x10000 own buffers, 0x40000 the game's mixer, 0x100000 3D ..) the thread
+    /// works in.
     pub sound_mode: Dword,
-    /// `g_menuSoundMode`: the mode for the menus (saved in `var\ral.dat`). (IDA 0x4F82C4)
+    /// The mode for the menus (saved in `var\ral.dat`).
     pub menu_sound_mode: Dword,
-    /// `g_raceSoundMode`: the mode for the races (saved in `var\ral.dat`). (IDA 0x4F82C8)
+    /// The mode for the races (saved in `var\ral.dat`).
     pub race_sound_mode: Dword,
-    /// `g_mixRateSetting`: the mixing rate (`audiobasefreq`, 0xAC44 = 44100). (IDA 0x4F82D4)
+    /// The mixing rate (`audiobasefreq`, 0xAC44 = 44100).
     pub mix_rate_setting: Dword,
-    /// `g_masterVolume`: the master volume, 0 ..= 0x40 (saved in `var\ral.dat`). (IDA 0x4F82D8)
+    /// The master volume, 0 ..= 0x40 (saved in `var\ral.dat`).
     pub master_volume: Dword,
-    /// `g_voiceCount`: the voices made so far. (IDA 0x4F8348)
+    /// The voices made so far.
     pub voice_count: Dword,
-    /// `g_voices`: the pool of voices (`audio::voices::Voice`). (IDA 0x4F834C)
+    /// The pool of voices (`audio::voices::Voice`).
     pub voices: [Shared<Voice>; 512],
-    /// `g_channelsUsed`: the channels held by voices. (IDA 0x506350)
+    /// The channels held by voices.
     pub channels_used: Dword,
-    /// `g_sampleBufferKb`: the work buffer's KB (`wavheapsize`). (IDA 0x5068EC)
+    /// The work buffer's KB (`wavheapsize`).
     pub sample_buffer_kb: Dword,
-    /// `g_soundStream`: the sound stream's player (command 9). (IDA 0x506960)
+    /// The sound stream's player (command 9).
     pub sound_stream: Shared<AudioStream>,
-    /// `g_musicStream`: the music's player (command 0xB). (IDA 0x506990)
+    /// The music's player (command 0xB).
     pub music_stream: Shared<AudioStream>,
-    /// `g_noMusic`: 1 = no music (`nomusic`). (IDA 0x5069BC)
+    /// 1 = no music (`nomusic`).
     pub no_music: Dword,
-    /// `g_soundCaps`: DirectSound's `DSCAPS` (flags at +4, free hardware buffers at +0x14, free 3D ones at +0x3C). (IDA 0x506AA8)
+    /// DirectSound's `DSCAPS` (flags at +4, free hardware buffers at +0x14, free 3D ones at +0x3C).
     pub sound_caps: Bytes<96>,
-    /// `g_ignoreDsvSetting` (`ignoredsv`). (IDA 0x506C50)
+    /// The `ignoredsv` setting.
     pub ignore_dsv_setting: Dword,
-    /// `g_voiceManagerOn`: the voice manager is open. (IDA 0x506C54)
+    /// The voice manager is open.
     pub voice_manager_on: Dword,
-    /// `g_noA3dSetting` (`ignorea3d`): 1 no A3D, 2 no A3D2 (1 at start). (IDA 0x506C5C)
+    /// `ignorea3d`: 1 no A3D, 2 no A3D2 (1 at start).
     pub no_a3d_setting: Dword,
-    /// `g_ignoreEaxSetting` (`ignoreeax`). (IDA 0x506C6C)
+    /// The `ignoreeax` setting.
     pub ignore_eax_setting: Dword,
-    /// `g_hasEax`: EAX is open. (IDA 0x506C70)
+    /// EAX is open.
     pub has_eax: Dword,
-    /// `g_soundsHeldBack`: sounds held back. (IDA 0x506C84)
+    /// Sounds held back.
     pub sounds_held_back: Dword,
-    /// `g_audioOptions`: the advanced page's choices. (IDA 0x506C88)
+    /// The advanced page's choices.
     pub audio_options: Shared<AudioOptions>,
-    /// `g_hasA3d2`. (IDA 0x506D5C)
     pub has_a3d2: Dword,
-    /// `g_tuneTurn`: which of tunes 10 .. 15 the next tune 0xA is (0 .. 5), kept in `var\ral.dat`; the audio thread's music command steps it, the game's thread loads and saves it. (IDA 0x5180F8, was in `SoundOptions`)
+    /// Which of tunes 10 .. 15 the next tune 0xA is (0 .. 5), kept in `var\ral.dat`; the audio
+    /// thread's music command steps it, the game's thread loads and saves it.
     pub tune_turn: Dword,
-    /// `ignoreds3d`: 1 = no 3D listener. (IDA 0x506B42)
+    /// `ignoreds3d`: 1 = no 3D listener.
     pub no_listener: Dword,
-    /// `g_has3d`: 3D is there. (IDA 0x506B46)
+    /// 3D is there.
     pub has_3d: Dword,
 }
 
@@ -211,21 +205,21 @@ impl AudioShared {
 
 const SAMPLE_COUNT: usize = 0x1CD;
 
-/// The sample records (the image's IDA 0x50A7A4 .. 0x511AE4): sound number -> its record.
-/// Of a record's 14 fields only two change after the start, and these are all that is shared
-/// here: `data_key` (the game's thread sets the race voices' file names, then sends the load
-/// command, which the locked queue orders before the audio thread's read) and `first_voice`
-/// (the audio thread's loads and `free_voices` set it, `sample_settings` of the game's
-/// thread reads it). The other twelve are constants (`SAMPLE_CONSTANTS`, read by both
-/// threads), so `record` gives a whole `SampleRecord` made of both.
+/// The sample records: sound number -> its record. Of a record's 14 fields only
+/// two change after the start, and these are all that is shared here: `data_key` (the game's thread
+/// sets the race voices' file names, then sends the load command, which the locked queue orders
+/// before the audio thread's read) and `first_voice` (the audio thread's loads and `free_voices`
+/// set it, `sample_settings` of the game's thread reads it). The other twelve are constants
+/// (`SAMPLE_CONSTANTS`, read by both threads), so `record` gives a whole `SampleRecord` made of
+/// both.
 #[derive(rc2k_derive::Cells)]
 pub struct SampleRecords {
     data_keys: [Dword; SAMPLE_COUNT],
     first_voices: [Dword; SAMPLE_COUNT],
 }
 
-/// The sample records' fields that never change (`data_key` and `first_voice` are 0 here:
-/// they are `SampleRecords`'), by sound number.
+/// The sample records' fields that never change (`data_key` and `first_voice` are 0 here: they are
+/// `SampleRecords`'), by sound number.
 pub static SAMPLE_CONSTANTS: [SampleRecord; SAMPLE_COUNT] = constants();
 
 /// The records as the image holds them, without the two fields that change.
@@ -239,9 +233,9 @@ const fn constants() -> [SampleRecord; SAMPLE_COUNT] {
     out
 }
 
-/// A record's `data_key`: its file's name by position in the five lists of
-/// `names_store::SampleNames` (the original kept the name's address; 0: none). The key is
-/// also what voices sharing a sample are matched by.
+/// A record's `data_key` from the image's place of its name: the name's position in the five lists
+/// of `names_store::SampleNames` (0: none). The key is also what voices sharing a sample are
+/// matched by.
 pub const fn name_key(ida: u32) -> u32 {
     use crate::audio::names_store::{FIRST_IDA, FIRST_KEY, POOL_LEN};
     if ida == 0 {
@@ -252,8 +246,8 @@ pub const fn name_key(ida: u32) -> u32 {
     (at - FIRST_IDA as usize) as u32 + FIRST_KEY
 }
 
-/// The name of `key` in `names`, read to its NUL inside the list that holds it: the last name
-/// of every list ends in a NUL, so a name never runs on into the next list.
+/// The name of `key` in `names`, read to its NUL inside the list that holds it: the last name of
+/// every list ends in a NUL, so a name never runs on into the next list.
 pub fn name_in(
     names: &crate::audio::names_store::SampleNames,
     key: u32,
@@ -283,22 +277,21 @@ pub fn name_in(
     Ok(text)
 }
 
-/// A record's `volume_factor`: which level its voices take (the original
-/// kept the level's address; 0: none, 0x40).
+/// A record's `volume_factor`: which level its voices take (0: none, 0x40).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 #[repr(u32)]
 pub enum VolumeLevel {
     /// `AudioOwn::unit_volume_factor`.
     Unit = 1,
-    /// `dword_755694`: `Levels::menu_sounds_a`.
+    /// `Levels::menu_sounds_a`.
     MenuSounds = 2,
-    /// `dword_75569C`: `Levels::sounds_a`.
+    /// `Levels::sounds_a`.
     SoundsA = 3,
-    /// `dword_7556A0`: `Levels::sounds_b`.
+    /// `Levels::sounds_b`.
     SoundsB = 4,
 }
 
-/// The code of the level at IDA's `ida` (0 for none; another address fails to compile).
+/// The code of the level named by `ida` (0 for none); another value fails to compile.
 pub const fn level_code(ida: u32) -> u32 {
     match ida {
         0 => 0,
@@ -330,11 +323,10 @@ pub fn volume_level(
     })
 }
 
-/// The records as the image holds them: per record its group, data key (the sample's name,
-/// IDA's address of it), priority, voice kind, copies, scale, volume factor (IDA's address
-/// of the level), minimum distance (bits of an f32), volume, pan and frequency; the number
-/// is the index and the first voice and place are 0. The two addresses become handles
-/// (`name_key`, `level_code`).
+/// The records as the image holds them: per record its group, data key, priority, voice kind,
+/// copies, scale, volume factor, minimum distance (bits of an f32), volume, pan and frequency; the
+/// number is the index and the first voice and place are 0. The name and level, held in the image
+/// as places, become handles (`name_key`, `level_code`).
 const fn first_records() -> [SampleRecord; SAMPLE_COUNT] {
     let rows: [[u32; 11]; SAMPLE_COUNT] = [
         [
@@ -1796,7 +1788,6 @@ impl SampleRecords {
     }
 }
 
-/// `g_eaxEnvironment` (IDA 0x6D1DD4): the EAX environment the race asks for (the audio
-/// thread reads it, the game's own copy). Set by the game's thread from the first player's
-/// view's output (`race::draw_race_scene`), never by a drawing part.
+/// The EAX environment the race asks for, read by the audio thread. Set by the game's thread from
+/// the first player's view's output (`race::draw_race_scene`), never by a drawing part.
 pub static ENVIRONMENT: crate::session::Dword = crate::session::Dword::new(0);

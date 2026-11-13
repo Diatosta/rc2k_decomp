@@ -1,9 +1,7 @@
 //! The list menus (the replay viewer's, `install::run_page`'s): their items' marks and kinds, the
-//! highlight's moves and the keys' repeat count (from
-//! `menu::list_clear_marks` 0x414AC9, `menu::list_item_unusable` 0x414C1B,
-//! `menu::list_step` 0x414A55 and `menu::list_take_key` 0x41469A). An item is 16 bytes:
-//! its first byte the marks (bits 6 and 7) and the kind (low nibble); a kind 2 item has
-//! choices, 2 bytes each, whose first bytes have marks too.
+//! highlight's moves and the keys' repeat count. An item is 16 bytes: its first byte the marks
+//! (bits 6 and 7) and the kind (low nibble); a kind 2 item has choices, 2 bytes each, whose first
+//! bytes have marks too.
 
 /// An item's or a choice's first byte without its marks.
 pub fn unmarked(byte: u8) -> u8 {
@@ -15,7 +13,7 @@ pub fn has_choices(byte: u8) -> bool {
     byte & 0xF == 2
 }
 
-/// The rounds a count byte's loop makes: 0 goes round 256 times, as the original does.
+/// The rounds a count byte's loop makes: 0 goes round 256 times.
 pub fn rounds(count: u8) -> u32 {
     if count == 0 { 0x100 } else { count as u32 }
 }

@@ -1,13 +1,7 @@
-//! `net::fill_own_player` (0x4181A3): this machine's player set up for the network game from
-//! player 1 (`g_player1`): its name (`strings::copy_printable`, 0x1F room) to `player_name`;
-//! its record (`own`): state 0, the car, its colours, the nationality, the stage (0 is made
-//! 0x29 with direction 0) and its direction, the race number, a random byte
-//! (`math::next_random`), the time and total 0; and the race's copy of the player's
-//! settings (the co-driver, the race number, the view, the HUD's switches, the steering),
-//! the HUD's bits -1, and the next field after them 0.
-//!
-//! Takes `name`.
-//! Callers: `net::start_link`, `net::open_lobby`.
+//! Sets this machine's player up for the network game from player 1: its name, its record
+//! (state 0, car, colours, nationality, stage and direction, race number, a random byte, time and
+//! total 0) and the race's copy of the player's settings (co-driver, race number, view, HUD
+//! switches, steering) with the HUD bits -1. Stage 0 becomes 0x29 with direction 0.
 
 use crate::errors::Refused;
 use crate::menu::owner::Menus;
@@ -90,7 +84,7 @@ pub fn fill_own_player(race: &Race, net: &Net, menus: &Menus, name: &[u8]) -> Re
     net.setup()
         .player_name
         .write_at(0, &printable, "a printable name")?;
-    // Converted: `rc2k_core::net::record::own_record`.
+    // The logic is in `rc2k_core::net::record::own_record`.
     let player = menus.play.players.players[0].get();
     let own = record::own_record(
         player.car_number as u8,

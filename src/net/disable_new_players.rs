@@ -1,9 +1,5 @@
-//! `net::disable_new_players` (0x418D8A): on the host (state bit 0x10 of `own`), "crate::net::owner::NET_OWNER.vars:
-//! Disable new players", and with DirectPlay's object there the session's description
-//! (`session_desc`) given DPSESSION_NEWPLAYERSDISABLED and DPSESSION_JOINDISABLED (0x21) and
-//! set (`SetSessionDesc`, flags 0); its result logged.
-//!
-//! Caller: `net::close_if_host`.
+//! On the host, with a DirectPlay object, sets the session description to refuse new players
+//! and joins ("NET: Disable new players").
 
 use crate::net::lobby::{log_bytes, log_hex};
 use crate::net::owner::Net;
@@ -28,9 +24,8 @@ pub fn disable_new_players(net: &Net, lines: &NetTexts) {
     log_hex(result, true);
 }
 
-/// Not the original's: on the host, with the session closed by
-/// `disable_new_players`, the session opened to new players again (0x21 cleared), so a player
-/// who left can join again between races. The original closed it for good at the first race.
+/// On the host, with the session closed by `disable_new_players`, the session is opened to
+/// new players again (0x21 cleared), so a player who left can join again between races.
 /// Caller: `net::lobby_loop`, each frame no player is still racing (only then: a player let
 /// in while others raced would be sent their race's messages).
 pub fn enable_new_players(net: &Net) {

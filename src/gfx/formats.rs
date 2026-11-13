@@ -1,11 +1,10 @@
-//! The pixel formats' work variables (format numbers, scratch bytes, component format), out
-//! of RAL.EXE's image: IDA 0x4F3F78 ..
-//! 0x4F3FC4. The row table follows (`ROW_TABLE`).
+//! The pixel formats' work variables (format numbers, scratch bytes, component format). The row
+//! table follows (`ROW_TABLE`).
 
 use crate::session::{PlainBytes, PlainDword};
 
-/// A pixel layout's number and its masks' summary (`describe_format` picks the number of
-/// the layout whose bits the masks match).
+/// A pixel layout's number and its masks' summary (`describe_format` picks the number of the layout
+/// whose bits the masks match).
 #[derive(rc2k_derive::Cells)]
 pub struct Numbered {
     /// The layout's number.
@@ -23,19 +22,17 @@ impl Numbered {
     }
 }
 
-/// The pixel formats' variables.
 #[derive(rc2k_derive::Cells)]
 pub struct Formats {
     /// `Formats.numbers[0].number`: six of (number, layout).
     pub numbers: [Numbered; 6],
-    /// `dword_4F3FA8`: four bytes `components_to_pixel` shifts the components out of.
+    /// Four bytes `components_to_pixel` shifts the components out of.
     pub scratch: PlainBytes<4>,
-    /// `unk_4F3FAC`: the component format, a pixel format record (layout, four masks, number).
+    /// The component format, a pixel format record (layout, four masks, number).
     pub component_format: [PlainDword; 6],
 }
 
 impl Formats {
-    /// The pixel formats' variables; the first values are the image's.
     pub const fn new() -> Self {
         Formats {
             numbers: [

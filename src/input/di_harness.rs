@@ -8,8 +8,7 @@ use crate::input::store::Devices;
 pub const CAPS_LEN: usize = std::mem::size_of::<crate::input::types::DiDevCaps>();
 pub const CONTROLLERS: u32 = rc2k_core::input::joystick::CONTROLLERS;
 
-/// The controller's entry for a record (`g_controllers` + 0x50 its number). The original
-/// does not check the number ; a number past the table is refused.
+/// The controller's entry for a record; a number past the table is refused.
 pub fn entry_of<'a>(
     devices: &'a Devices,
     record: &crate::input::types::InputDevice,

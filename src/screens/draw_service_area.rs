@@ -1,29 +1,19 @@
-//! `screens::draw_service_area` (0x4A5FA2): draws everything on the service area screen that
-//! is text, bars and small sprites, over the picture: a title with the car's number, the
-//! service time readouts, fourteen bars from the car's values at +0xD4 .. +0x108 with their
-//! labels and sprites, the setup bars' labels and markers, the repair times and the car
-//! condition bar.
+//! Everything on the service area screen that is text, bars and small sprites, over the
+//! picture: a title with the car's number, the service time readouts, fourteen damage bars with
+//! their labels and sprites, the setup bars' labels and markers, the repair times and the car
+//! condition bar. The order is fixed (the title, `draw_service_time`, the `STEPS` list,
+//! `draw_repair_times`, the six setup markers, `draw_inspection_status`); the sprites in the list
+//! take the end of the text drawn just before them as their palette (unused). It also sets a
+//! service area work cell to 0.
 //!
-//! The order is the original's: the title ("<string 0x190> <car index + 1> <string 0x486>",
-//! built in the shared text buffer), `draw_service_time`, the `STEPS` list, the string
-//! 0x4B0 + a driver figure, `draw_repair_times`, the six setup markers, `draw_inspection_status`.
-//! The sprites in the list are blitted with whatever ebx holds as the palette, which is the
-//! end of the text drawn just before them; reproduced. It also sets a service area work cell to 0.
-//! Its address is in the service area's list at 0x75924A; it is also called from 0x46D001.
-//! What is on it, from the owner's screenshot of 2026-10-10 (Portuguese game): the title
-//! "JOGADOR 1 ÁREA DE SERVIÇO"; a repair section with fourteen parts in two columns (engine,
-//! exhaust, turbo, cooling, clutch, differential, gearbox; body, electronics, lights,
-//! steering, suspension, brakes, tyres), each with an icon, a repair time and a damage bar
-//! (car +0xD4 .. +0x108, in that row order left then right); "n/d" on the turbo's bar when
-//! the car's dword at +0x90 is not 0; five gear ratio pictures (acceleration .. top speed)
-//! and six tyre pictures with the name of the chosen tyre (a driver figure); a setup section
-//! with four sliders; and the inspection status bar. The four big buttons at the bottom
-//! (load setup, save setup, view stage, continue) are labels drawn here too.
-//!
-//! Screen: confirmed by the owner on 2026-10-10 with `blank on screens::draw_service_area`: the
-//! service area of a championship. All text and icons disappeared; the boxes that hold them stayed,
-//! so those are drawn by something else (not ported). The menus and draw lists run its `entry`
-//! (`menu::table_calls`).
+//! Seen in a screenshot of a championship's service area: the title "JOGADOR 1 ÁREA DE SERVIÇO";
+//! fourteen parts in two columns (engine, exhaust, turbo, cooling, clutch, differential, gearbox;
+//! body, electronics, lights, steering, suspension, brakes, tyres), each with an icon, a repair
+//! time and a damage bar; "n/d" on the turbo's bar when the car has no turbo; five gear ratio
+//! pictures and six tyre pictures with the name of the chosen tyre; four setup sliders; the
+//! inspection status bar; and the four big buttons at the bottom (load setup, save setup, view
+//! stage, continue), whose labels are drawn here. Switching it off removed all text and icons; the
+//! boxes that hold them are drawn by `draw_service_boxes`.
 
 use crate::errors::{BadInput, Refused};
 use crate::gfx::blit_bar::{Bar, blit_bar_in};
@@ -63,8 +53,8 @@ fn font_of(font: AreaFont) -> crate::gfx::typefaces::FontId {
     }
 }
 
-/// Returns the carry flag of the last text drawn. Refuses a missing player and a title
-/// that does not fit the text buffer.
+/// Returns whether the last text drawn was too wide for its box. Refuses a missing player and a
+/// title that does not fit the text buffer.
 pub fn draw_service_area(
     o: crate::owners::Owners<'static>,
     gfx: &Gfx,
@@ -169,7 +159,7 @@ pub fn draw_service_area(
         canvas,
     )?;
 
-    // The markers get the car in edi.
+    // The markers get the car.
     draw_repair_times(o, canvas)?;
     for marker in [
         draw_brake_balance_marker::MARKER,

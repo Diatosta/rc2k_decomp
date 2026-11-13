@@ -1,18 +1,18 @@
-//! The 3D primary and secondary card switches, out of RAL.EXE's image: IDA 0x5AB4AC .. 0x5AB4B4.
+//! The 3D primary and secondary card switches.
 
 use crate::session::PlainDword;
 
 /// Whether a 3D card was found.
 #[derive(rc2k_derive::Cells)]
 pub struct Cards {
-    /// `g_primary3dCard` (`dword_5AB4AC`): a 3D primary card.
+    /// A 3D primary card.
     pub primary: PlainDword,
-    /// `g_secondary3dCard` (`dword_5AB4B0`): a 3D secondary card.
+    /// A 3D secondary card.
     pub secondary: PlainDword,
 }
 
 impl Cards {
-    /// The switches; the first values are the image's.
+    /// The switches.
     pub const fn new() -> Self {
         Cards {
             primary: PlainDword::new(0),

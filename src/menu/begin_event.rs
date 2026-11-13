@@ -1,14 +1,13 @@
-//! `menu::begin_event` (0x472BAA): the drivers and the four players made ready for a new
-//! event.
+//! `menu::begin_event`: the drivers and the four players made ready for a new event.
 //!
-//! `pages.services` and `event.stages_done` 0; every driver of `g_drivers` (`standings::drivers`'s walk)
-//! gets +0x10, +0xC, +0x20 = 0 and +0x24 = 1 (`Driver::begin`); `event.event_goes_on` 1,
-//! `event.event_out` 0; then for each player n (the current player `event.current_player` = n, left at 3):
-//! `total` and `unread_84` 0, `entry` 1 (`Player::begin`), `service::repair_car`, and unless the event mode
-//! the event mode is 3 the setup's defaults: gear ratio 2, brake balance 0x32, tyre 3, ride height
-//! 0x46, suspension 0x1E, steering sensitivity = the controller's (+0x280). Callers: the event
-//! loops' starts (`menu::single_rally` and nine more). Refuses drivers without their end entry, a
-//! missing player.
+//! `pages.services` and `event.stages_done` 0; every driver (`standings::drivers`'s walk) gets
+//! +0x10, +0xC, +0x20 = 0 and +0x24 = 1 (`Driver::begin`); `event.event_goes_on` 1,
+//! `event.event_out` 0; then for each player n (the current player `event.current_player` = n, left
+//! at 3): `total` and `unread_84` 0, `entry` 1 (`Player::begin`), `service::repair_car`, and unless
+//! the event mode is 3 the setup's defaults: gear ratio 2, brake balance 0x32, tyre
+//! 3, ride height 0x46, suspension 0x1E, steering sensitivity = the controller's (+0x280). Callers:
+//! the event loops' starts (`menu::single_rally` and nine more). Refuses drivers without their end
+//! entry, a missing player.
 
 use crate::errors::Refused;
 use crate::menu::owner::Menus;
@@ -20,7 +19,6 @@ pub fn begin_event(menus: &Menus) -> Result<(), Refused> {
     let drivers = crate::menu::standings::drivers(menus)?;
     menus.tables.pages.services.set(0u32);
     menus.screens.event.stages_done.set(0u32);
-    // The logic is in `rc2k_core::menu::player::Player::{begin, default_setup}`.
     drivers
         .iter()
         .for_each(crate::menu::drivers_store::Driver::begin);

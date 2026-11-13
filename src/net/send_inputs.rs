@@ -1,11 +1,6 @@
-//! `net::send_inputs` (0x464194): "send j", the player and the step logged, and the
-//! message 'JGSM' (0x4D53474A) with the car's four input dwords (the current car's block
-//! +0xFD0 .. +0xFDC) built in `net_message` and sent (`net::send_race_message`, which is
-//! `call net::send_message; retn`: `net::send_message` here).
-//!
-//!
-//! See `net/mod.rs`; `send_position` and `send_extra` are the same with other dwords (this
-//! file has their shared body). One caller, `net::send_turn` (every fourth step).
+//! Logs "send j" and sends the 'JGSM' message with the car's four input dwords; `send_position`
+//! and `send_extra` are the same with other dwords, sharing this body. Called every fourth
+//! step.
 
 use crate::errors::{BadInput, Refused};
 use crate::net::log_send;
@@ -108,7 +103,7 @@ const EXTRA_FIELDS: [Field; 9] = [
     (|c| &c.lights_on, Free),
 ];
 
-/// The shared body: the car block `g_car`, the message built at `RaceWork::net_message`.
+/// The shared body: the car block, the message built at `RaceWork::net_message`.
 pub fn send_fields(race: &Race, net: &Net, m: &Message) -> Result<(), Refused> {
     let shared = &race.shared;
     let car = shared.car();

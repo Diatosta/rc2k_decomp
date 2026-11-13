@@ -1,12 +1,9 @@
-//! Small float steps of the masks' making (from `effects::set_line_turn`
-//! 0x4BF432, `set_line_turn_back` 0x4BF466, `turn_pair` 0x4BF409, `scale_rows3` 0x4BF498,
-//! `smooth_steps` 0x4BE928, `adjugate3` 0x4BCED6 and `clamp_pair` 0x4BEF22): the 2 x 2
-//! turn a line gives, a pair turned by it, rows scaled to set lengths, two cosine-eased
-//! steps, a 3 x 3 adjugate, a pair held to whole numbers.
+//! Small float steps of the masks' making: the 2 x 2 turn a line gives, a pair turned by it, rows
+//! scaled to set lengths, two cosine-eased steps, a 3 x 3 adjugate, a pair held to whole numbers.
 //!
-//! As in `math::vector`, what the x87 keeps on its stack is an `f64`, rounded to `f32`
-//! where the original stores it (the same bits at the game's double precision, but for
-//! the cosines: `scene::trig`).
+//! As in `math::vector`, what the x87 keeps on its stack is an `f64`, rounded to `f32` where it
+//! is stored (the same bits at the game's double precision, but for the cosines:
+//! `scene::trig`).
 
 use crate::math::vector;
 use crate::scene::places::Places;
@@ -15,7 +12,7 @@ use crate::scene::trig;
 /// The 2 x 2 turn a line gives: its four floats in their order in memory (m0 .. m3).
 pub type LineTurn = [f32; 4];
 
-/// The order the original writes the turn's floats in (dx, dy, -dy, dx).
+/// The order the turn's floats are written in (dx, dy, -dy, dx).
 pub const LINE_TURN_ORDER: [usize; 4] = [0, 2, 1, 3];
 
 /// `effects::set_line_turn` (`back` false) and `set_line_turn_back` (true): from the line's
@@ -27,7 +24,7 @@ pub fn line_turn(from: [f32; 2], to: [f32; 2], back: bool) -> LineTurn {
     [dx, -dy, dy, dx]
 }
 
-/// `effects::turn_pair`: the pair (st(0) a, st(1) b) turned by the line's turn: (a m3 + b m2,
+/// `effects::turn_pair`: the pair (a, b) turned by the line's turn: (a m3 + b m2,
 /// b m0 + a m1), unrounded.
 pub fn turn_pair(m: LineTurn, a: f64, b: f64) -> (f64, f64) {
     let m = m.map(f64::from);
@@ -42,14 +39,13 @@ pub fn scale_to_length(row: [f32; 3], length: f32) -> [f32; 3] {
 }
 
 /// `effects::scale_rows3`: the three rows each made the length of their own (a row of no
-/// length gives NaNs, as there).
+/// length gives NaNs).
 pub fn scale_rows(rows: [[f32; 3]; 3], lengths: [f32; 3]) -> [[f32; 3]; 3] {
     std::array::from_fn(|n| scale_to_length(rows[n], lengths[n]))
 }
 
-/// `fldpi; fidiv c; fimul m; fcos; fchs; fmul t; fadd a; fadd t`, stored: a + t - t
-/// cos(pi m / c). (`fldpi` has 64 bits of pi; the `f64`'s 53 bits may make the angle's
-/// last bit differ, far under what the float keeps.)
+/// a + t - t cos(pi m / c) in `f64`, stored as `f32`. (The x87's pi has 64 bits; the `f64`'s 53
+/// bits may make the angle's last bit differ, far under what the float keeps.)
 pub fn cosine_step(c: i32, m: i32, t: f32, a: f32) -> f32 {
     let angle = std::f64::consts::PI / c as f64 * m as f64;
     let (t, a) = (t as f64, a as f64);
@@ -57,8 +53,8 @@ pub fn cosine_step(c: i32, m: i32, t: f32, a: f32) -> f32 {
 }
 
 /// `effects::smooth_steps`' two results from step `n`, a and b: t
-/// (b - a) times `ease` (stored), then a + t - t cos(pi (n + 1) / steps[0]) and the same
-/// with n over steps[1].
+/// (b - a) times `ease` (stored), then a + t - t cos(pi (n + 1) / `steps[0]`) and the same
+/// with n over `steps[1]`.
 pub fn smooth_pair(n: u32, a: f32, b: f32, ease: f32, steps: [i32; 2]) -> (f32, f32) {
     let t = ((b as f64 - a as f64) * ease as f64) as f32;
     (
@@ -91,9 +87,9 @@ pub fn adjugate(p: &mut impl Places, s: u32, d: u32) {
     }
 }
 
-/// `effects::clamp_pair`: st(0) times `k[0]` rounded (`fistp`) and held to 0 .. 0x7FFF
-///, st(1) times `k[1]` held to 0 .. 0xFFFF; then each over `k[3]` (st(0))
-/// and `k[2]` (st(1)), kept on the stack: (the first, the second, [st(0), st(1)]).
+/// `effects::clamp_pair`: `st0` times `k[0]` rounded and held to 0 .. 0x7FFF, `st1` times `k[1]`
+/// rounded and held to 0 .. 0xFFFF; returns those two and each over `k[3]` and `k[2]`, unrounded
+/// in `f64`.
 pub fn clamp_pair(st0: f64, st1: f64, k: [f32; 4]) -> (u32, u32, [f64; 2]) {
     use crate::math::geometry::fistp64;
     let b = fistp64(st0 * k[0] as f64).clamp(0, 0x7FFF);

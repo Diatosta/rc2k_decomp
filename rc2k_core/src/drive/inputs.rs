@@ -1,18 +1,15 @@
-//! The race's input words (from `drive::pack_inputs` 0x409328,
-//! `unpack_inputs` 0x409338, `any_key_down` 0x444F55 and `car_input_words` 0x43A27E):
-//! four words packed into one for the replays, whether any key is down, and a car's
-//! words from its device or its replay block.
+//! The race's input words: four words packed into one for the replays, whether any key is down, and
+//! a car's words from its device or its replay block.
 
 use crate::Invalid;
 
-/// `drive::pack_inputs`: `a | ((b << 9 | c) << 9)`, << 4 (the original's `shl`s, high
-/// bits lost).
+/// Three input words packed into one: `a | ((b << 9 | c) << 9)`, << 4 (high bits lost).
 pub fn pack_inputs(a: u32, b: u32, c: u32) -> u32 {
     (a | ((b << 9 | c) << 9)) << 4
 }
 
-/// `drive::unpack_inputs`: a packed word taken apart: [bits 4 .. 12, the top ten (signed,
-/// `sar` 22), bits 13 .. 21].
+/// A packed word taken apart: [bits 4 .. 12, the top ten (signed, shifted down 22),
+/// bits 13 .. 21].
 pub fn unpack_inputs(x: u32) -> [u32; 3] {
     [
         (x >> 4) & 0x1FF,
@@ -21,21 +18,21 @@ pub fn unpack_inputs(x: u32) -> [u32; 3] {
     ]
 }
 
-/// The key bytes (`g_keysPressed`).
+/// The number of key bytes.
 pub const KEY_COUNT: usize = 0x80;
 
-/// `drive::any_key_down`: the key bytes or'ed together (a key is down when not 0).
+/// The key bytes or'ed together: not 0 when any key is down.
 pub fn keys_or(keys: &[u8; KEY_COUNT]) -> u8 {
     keys.iter().fold(0, |o, &k| o | k)
 }
 
-/// The cars a race has (`FrameWork.listed_car_sounds[0]`, `g_carBlocks`: eight).
+/// The cars a race has (the car tables' length).
 pub const CARS: u32 = 8;
 
 /// No device (`FrameWork.listed_car_sounds[0][car]`).
 pub const NO_DEVICE: u32 = u32::MAX;
 
-/// A current car past the tables refused (`drive::car_input_words`, before anything).
+/// Refused: a current car past the tables (checked before anything else).
 pub fn check_car(car: u32) -> Result<(), Invalid> {
     if car >= CARS {
         return Err(Invalid("a current car past 7"));
@@ -43,8 +40,8 @@ pub fn check_car(car: u32) -> Result<(), Invalid> {
     Ok(())
 }
 
-/// `drive::car_input_words`: the words (`PhysicsTables.input_words[0]` ..) 0, or the device's readings
-/// (`drive::device_axes`) for a car with one.
+/// The car's input words (`PhysicsTables.input_words[0]` ..): the device's readings for a car
+/// with one, else 0.
 pub fn device_words(readings: Option<[u32; 4]>) -> [u32; 4] {
     readings.unwrap_or([0; 4])
 }
@@ -59,7 +56,8 @@ pub enum ReplayWords {
     IntoBlock,
 }
 
-/// `drive::car_input_words`' replay rule: the car recorded takes, every other gives.
+/// With a replay on: the car recorded writes its words into its block, every other car reads
+/// them from it.
 pub fn replay_words(car: u32, recorded: u32) -> ReplayWords {
     if car == recorded {
         ReplayWords::IntoBlock

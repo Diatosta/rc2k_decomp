@@ -5,7 +5,6 @@
 use std::sync::atomic::{AtomicU32, AtomicU64, Ordering::Relaxed};
 use std::time::Instant;
 
-/// What is timed.
 #[derive(Clone, Copy)]
 pub enum Stage {
     /// `input::update`.
@@ -28,7 +27,6 @@ pub enum Stage {
     Effects,
 }
 
-/// Stages.
 pub const STAGES: usize = 9;
 
 static NANOS: [AtomicU64; STAGES] = [const { AtomicU64::new(0) }; STAGES];
@@ -38,7 +36,7 @@ static RUNS: [AtomicU64; STAGES] = [const { AtomicU64::new(0) }; STAGES];
 /// (the lists are its own).
 static VOICES: [AtomicU32; 2] = [const { AtomicU32::new(0) }; 2];
 
-/// The audio thread's note (`on_lists`).
+/// The audio thread's note of its voices playing and stopping (`on_lists`).
 pub fn note_voices((playing, stopping): (u32, u32)) {
     VOICES[0].store(playing, Relaxed);
     VOICES[1].store(stopping, Relaxed);
@@ -53,13 +51,11 @@ pub fn voices() -> (u32, u32) {
 /// The race's ticks run (`drive::race_step`), whichever way each goes.
 static TICKS: AtomicU32 = AtomicU32::new(0);
 
-/// A tick is run.
 #[inline]
 pub fn note_tick() {
     TICKS.fetch_add(1, Relaxed);
 }
 
-/// The race's ticks so far.
 #[cfg(any(debug_ui, all(target_os = "linux", target_arch = "aarch64")))]
 pub fn ticks() -> u32 {
     TICKS.load(Relaxed)

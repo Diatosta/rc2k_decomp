@@ -1,22 +1,15 @@
 //! The current player's inspection figures from the car's table (the car table's row for the
-//! player's car, +0x74; car 0x21 counts as 0x17).
-//! - For each of the fourteen parts k (wear the player's +0xD4 + 4k; the table's pair at
-//!   +8 (k / 2), +0x38 for odd k): its repair time (`driver_stats.repair_times`[k]) is 0
-//!   without wear, the pair's low end when the pair is flat, else that plus (high - low) /
-//!   `scale` times (wear - 1); its high end goes into `highs`[k]; its limit (`limits`[k]) is
-//!   the table's +0x78 + 4k, 0xA for part 1 unless the player's +0x278 has all of 0x1E0, for
-//!   part 13 unless it has all of 0x1E.
-//! - The high ends' total but part 4's goes into `total`; the table's +0x70 / +0x74 and
-//!   +0x30 / +0x68 and the player's +0x114 / +0x118 are copied to the figures beside it.
-//! - For each inspected part (`menu::standings::INSPECTED`): its weight (`weights`[k]) is its
-//!   high end / the total times `steps`; logged ("DriverStats.<part>", the wear, "eax=", the
-//!   limit: 0xA for part 1 unless `switch_a` is 1, for part 5 when `switch_b` is 1); when
-//!   the wear is at or past that limit, its penalty (`penalties`[k]) is the wear / `steps`
-//!   times the weight. Each figure also passes through the draw work's figure.
+//! player's car; car 0x21 counts as 0x17).
+//! - For each of the fourteen parts: its repair time (`repair_times`) from the wear and the
+//!   table's pair of low / high ends, its high end (`highs`) and its limit (`limits`).
+//! - The high ends' total but part 4's goes into `total`; some of the table's and player's
+//!   figures are copied beside it.
+//! - For each inspected part (`menu::standings::INSPECTED`): its weight (`weights`) is its high
+//!   end / the total times `steps`, logged as `DriverStats.<part>`; when the wear is at or past
+//!   the limit its penalty (`penalties`) is the wear / `steps` times the weight.
 //!
-//! Logs through `logfile::`
-//! (level 1). Refuses a current player past 3 or missing, a car past 0xFF or without its table,
-//! before anything.
+//! Refuses a current player past 3 or missing, a car past 0xFF or without its table, before
+//! anything.
 use crate::errors::{BadInput, Refused};
 use crate::menu::event_flow::Fault;
 use crate::menu::owner::Menus;
@@ -40,7 +33,7 @@ const NAMES_RVA: [&std::ffi::CStr; 13] = [
     c"DriverStats.Gearbox",
     c"DriverStats.TyresWear",
 ];
-/// The "eax=" after each (the game has one copy per part; all the same text).
+/// The text logged after each part (one copy per part, all the same).
 const EQUALS_RVA: [&std::ffi::CStr; 13] = [
     c"eax=", c"eax=", c"eax=", c"eax=", c"eax=", c"eax=", c"eax=", c"eax=", c"eax=", c"eax=",
     c"eax=", c"eax=", c"eax=",
@@ -68,7 +61,7 @@ pub fn car_table(
         0x21 => 0x17,
         c => c,
     };
-    // The original reads entries up to 0xFF, on past the table's 34: refused there.
+    // Entries up to 0xFF are possible, past the table's 34: refused there.
     crate::menu::cars_store::description_table(
         &menus.cars.table,
         crate::menu::cars_store::car_entry(menus, car)?,
@@ -77,7 +70,6 @@ pub fn car_table(
 
 pub fn driver_stats(menus: &Menus, screens: &Screens) -> Result<(), Refused> {
     use crate::logfile::log_int::log_int;
-    // The logic is in `rc2k_core::menu::driver_figures` (float: exact at the game's 0x027F).
     use rc2k_core::menu::driver_figures::{Car, Constants, Table, figures};
     let (p, t) = player_and_table(menus, screens)?;
     let fault = Fault::default();

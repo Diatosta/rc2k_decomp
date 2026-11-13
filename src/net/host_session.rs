@@ -1,17 +1,7 @@
-//! `net::host_session` (0x418B13): "NET: Host" and the machine's name logged; with
-//! DirectPlay's object there, the session kept (`joined`: no GUID yet, the name
-//! `machine_name`, the most players `most_players`, `session_password` as its user data)
-//! and described (the session description: zeroed, size 0x50, flags 0x44, the game's GUID, the most
-//! players, the name, the user data) and made (`Open` with DPOPEN_CREATE, or with
-//! `posting` 1 posted); "NET: Open" and its result logged, the
-//! window restored (`system::restore_window`); then the session is marked made, the player made
-//! (`net::create_player`), the group made (`net::create_group`), "NET: Host complete".
-//!
-//! The session's name goes to `net::dp_objects` as text (`open`): the
-//! description's name pointer is left 0.
-//!
-//! Returns true when hosted.
-//! Caller: `net::hosting`.
+//! Hosts a session ("NET: Host"): keeps its description (name, most players, password), opens
+//! it with DPOPEN_CREATE (directly or, with `posting` 1, on the receiving thread), logs the
+//! result and restores the window; then the own player and the group are made. The name goes to
+//! `net::dp_objects` as text. Returns true when hosted.
 
 use crate::errors::Refused;
 use crate::net::find_sessions::{posted_or_called, zeroed_description};
@@ -29,7 +19,7 @@ pub fn open(vars: &NetShared, flags: u32, name: &[u8]) -> u32 {
     crate::net::dp_objects::open(vars.dplay.get(), &d, flags)
 }
 
-/// The code at 0x418C5A as the receiving thread calls it when it is posted.
+/// The `Open` as the receiving thread calls it when it is posted.
 pub fn posted_open_host(net: &Net, _lines: &NetTexts) -> u32 {
     open(&net.vars, OPEN_CREATE, &net.vars.host_name.read())
 }
@@ -66,9 +56,9 @@ pub fn host_session(o: crate::owners::Owners<'static>, lines: &NetTexts) -> Resu
     )
 }
 
-/// The session opened (posted or called: `posted`), "NET: Open" and its result logged, the
-/// window restored; the session marked made, the player made, then `then` (the group made or
-/// joined) and the text numbered `done` logged. Shared with `net::join_session`. Whether all of it worked.
+/// The session opened (posted or called: `posted`), "NET: Open" and its result logged, the window
+/// restored; the session marked made, the player made, then `then` (the group made or joined) and
+/// the text numbered `done` logged. Shared with `net::join_session`. Whether all of it worked.
 pub fn finish(
     o: crate::owners::Owners<'static>,
     lines: &NetTexts,

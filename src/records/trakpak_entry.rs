@@ -1,39 +1,34 @@
-//! `records::trakpak_entry` (0x473027): the entry of the loaded track pack that a record
-//! refers to.
+//! The entry of the loaded track pack that a record refers to.
 //!
-//! Takes the record (+4 the entry's number, +8 the track pack's id). The entries are 0x40
-//! bytes each and start 0x34 bytes into the pack header. If the record's pack id is not the
-//! loaded pack's, the original reports "Invalid TrakPak Header" or, when the header's first
-//! dword is non-zero, loops forever (it reloads the header address on every pass instead of
-//! following the link): this version reports it in both cases.
+//! The record holds the entry's number at +4 and the track pack's id at +8. The entries are 0x40
+//! bytes each and start 0x34 bytes into the pack header. A record of another track pack is
+//! fatal error "Invalid TrakPak Header", whatever the header's link (a slip kept as is).
 //!
 //! The entry's number comes from the player's files and has no bound: past the pack's 36
-//! entries the original read on into what follows the pack, and so does `Track::get`, field
-//! by name, along the stage tables' chain (`stages_store::Piece`).
+//! entries `Track::get` reads field by name on into what follows the pack, along the stage
+//! tables' chain (`stages_store::Piece`).
 
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::records::stages_store::{Piece, RecordRef, StageTables, TrackEntry, TrackField};
-
-// ---- game data ----
 
 pub fn loaded_pack_id(stages: &StageTables) -> u32 {
     stages.trak_pak.pack_id.get()
 }
 
-/// What the original reports when a record belongs to another track pack.
+/// Reported when a record belongs to another track pack.
 pub const INVALID_HEADER: FatalError = FatalError {
     code: 0x8070_DA00,
     message: "Invalid TrakPak Header",
 };
 
-/// The entry numbers the original's 32-bit address reaches apart: an entry 0x40 bytes on,
-/// so the address wraps every 2^26 entries (as the 32-bit builds' byte offset did).
+/// The entry numbers after which the 32-bit byte offset (0x40 bytes an entry) wraps: kept,
+/// since the numbers come from the player's files.
 const ENTRIES_IN_ADDRESS_SPACE: u32 = 1 << 26;
 
 /// A record's track: the entry of the loaded pack by its number, in the pack or past it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Track {
-    /// The entry's number, as the original's address reaches it.
+    /// The entry's number, wrapped as the 32-bit byte offset wrapped.
     index: u32,
 }
 
@@ -43,8 +38,8 @@ impl Track {
         stages.trak_pak.tracks.get(self.index as usize)
     }
 
-    /// Field `field`: the entry's own in the pack; past the pack, the dword the original's
-    /// read reached there along the tables (refused only past the tables' end).
+    /// Field `field`: the entry's own in the pack; past the pack, the dword reached there along
+    /// the tables (refused only past the tables' end).
     pub fn get(self, stages: &StageTables, field: TrackField) -> Result<u32, BadInput> {
         match self.entry(stages) {
             Some(entry) => Ok(entry.get(field)),
@@ -90,14 +85,14 @@ mod tests {
     use super::*;
     use crate::records::stages_store::RecordTable;
 
-    /// IDA: the pack's entries (0x734BC6 + 0x34) and the end of the stage tables.
+    /// Byte offsets of the pack's entries and of the end of the stage tables in the old image.
     const ENTRIES: usize = 0x734BFA;
     const END: usize = 0x73B674;
 
     /// The records' track numbers come from the player's files: every number reads its
-    /// fields along the tables (in the pack, the typed entry) up to the image's end, where
-    /// the old byte-offset read stopped (a dword ending past 0x73B674), and the first past
-    /// the end is refused.
+    /// fields along the tables (in the pack, the typed entry) up to the old image's end, where
+    /// the old byte-offset read stopped (a dword ending past `END`), and the first past the end
+    /// is refused.
     #[test]
     fn track_numbers_run_on_to_the_end_of_the_tables() {
         let stages = Box::new(StageTables::new());
@@ -129,7 +124,7 @@ mod tests {
             track.name(&stages),
             Ok(stages.trak_pak.tracks[3].name.get())
         );
-        // Another pack's record is the original's fatal error.
+        // Another pack's record is a fatal error.
         r.record(&stages).unwrap().pack_id.set(7);
         assert!(track_of(&stages, r).is_err());
     }

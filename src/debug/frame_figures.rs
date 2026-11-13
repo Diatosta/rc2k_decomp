@@ -1,7 +1,7 @@
-//! Figures of the last frame for the display and watch pages' rows whose 1999 counters
-//! nothing in the shipped game wrote: worked out here from what the port already counts or
-//! keeps (taken once a UI frame, `take`, and when the first view's scene is drawn,
-//! `note_first_view`), so play pays nothing more for them.
+//! Figures of the last frame for the display and watch pages' rows whose counters nothing in the
+//! shipped game wrote: worked out here from what the game already counts or keeps (taken
+//! once a UI frame, `take`, and when the first view's scene is drawn, `note_first_view`), so
+//! play pays nothing more for them.
 
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicU32, Ordering::Relaxed};

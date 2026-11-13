@@ -1,4 +1,4 @@
-//! `menu::select_car_loop` (0x47AC0C): the car selection screen, which the starters of
+//! `menu::select_car_loop`: the car selection screen, which the starters of
 //! every kind of event run (the car select menu).
 //!
 //! The loop itself is `menu::screen_loop`; this file says what is this screen's own
@@ -52,12 +52,12 @@ fn leaving(entry: &Entry) -> Result<(), Refused> {
 pub const SCREEN: Screen = Screen {
     lists: &[
         List {
-            pointer: |m| &m.screens.flow.scene_list, // g_sceneList
+            pointer: |m| &m.screens.flow.scene_list,
             table: |m| m.tables.draw_lists.select_car_scene.id(),
             run: false,
         },
         List {
-            pointer: |m| &m.screens.flow.draw_list, // g_drawList
+            pointer: |m| &m.screens.flow.draw_list,
             table: |m| m.tables.draw_lists.select_car_draw.id(),
             run: false,
         },
@@ -67,7 +67,7 @@ pub const SCREEN: Screen = Screen {
             run: true,
         },
         List {
-            pointer: |m| &m.screens.flow.overlay_list, // g_overlayList
+            pointer: |m| &m.screens.flow.overlay_list,
             table: |m| m.tables.draw_lists.select_car_overlay.id(),
             run: false,
         },

@@ -1,24 +1,21 @@
-//! The game's number and text formatting (from `strings::format_u32`,
-//! `append_u32`, `append_clock`, `append_clock_padded`, `append_fraction`,
-//! `append_percent`, `append_time`, `hex_append`, `bin_append`, `format_seal_code`,
-//! `rot13_into_text`). Each gives the bytes the original appends (no NUL).
+//! The game's number and text formatting. Each gives the bytes appended (no NUL).
 
-/// How a decimal number is padded (RAL.EXE 0x40204A's flags byte).
+/// How a decimal number is padded (from a flags byte).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Pad {
     /// No padding: the digits alone ("0" for zero).
     None,
-    /// Exactly `width` characters, '0's before the digits (up to 15: past ten digits the
-    /// original's buffer gives more '0's).
+    /// Exactly `width` characters, '0's before the digits (up to 15; past ten digits the extra
+    /// characters are '0's).
     Zeros(u8),
-    /// `width` characters, spaces before the digits (a lone "0" for zero); a number wider
-    /// than `width` is cut to its last `width` digits, as the original's.
+    /// `width` characters, spaces before the digits (a lone "0" for zero); a wider number is
+    /// cut to its last `width` digits.
     Spaces(u8),
 }
 
 impl Pad {
-    /// From the original's flags byte: the low four bits the width, 0x10 zeros, 0x20 spaces
-    /// (0x10 first); without either, no padding.
+    /// From a flags byte: the low four bits the width, 0x10 zeros, 0x20 spaces (0x10 first);
+    /// without either, no padding.
     pub fn from_flags(flags: u8) -> Self {
         let width = flags & 0x0F;
         if flags & 0x10 != 0 {
@@ -33,7 +30,7 @@ impl Pad {
 
 /// `value` in decimal, padded as `pad` says.
 pub fn decimal(value: u32, pad: Pad) -> Vec<u8> {
-    // The original's 16-byte buffer: five filler '0's, ten digits, the NUL.
+    // A 16-byte buffer: five filler '0's, ten digits, the NUL.
     let mut buf = [b'0'; 16];
     buf[5..15].copy_from_slice(format!("{value:010}").as_bytes());
     match pad {
@@ -114,8 +111,7 @@ pub fn time(hundredths: u32, show_hours: bool) -> Vec<u8> {
 }
 
 /// The low `digits` hex digits of `value`, upper case, most significant first; `None` for
-/// more than 8 (no caller asks for them: `hex_append`'s callers use 2 and 8; the
-/// original's result for more is not modelled).
+/// more than 8.
 pub fn hex(value: u32, digits: u32) -> Option<Vec<u8>> {
     const DIGITS: &[u8; 16] = b"0123456789ABCDEF";
     (digits <= 8).then(|| {
@@ -127,7 +123,7 @@ pub fn hex(value: u32, digits: u32) -> Option<Vec<u8>> {
 }
 
 /// The low `digits` bits of `value` as '0' and '1', most significant first; `None` for
-/// more than 32 (the original reads below its buffer).
+/// more than 32.
 pub fn binary(value: u32, digits: u32) -> Option<Vec<u8>> {
     (digits <= 32).then(|| {
         (0..digits)

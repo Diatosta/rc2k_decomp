@@ -1,12 +1,10 @@
-//! `saves::keep_player_settings` (`maybeCopySomeData` in IDA): the players'
-//! own settings copied into the saved game's four cars before those are put over the
-//! players, so that a loaded game keeps the controls and choices made since: for each of
-//! the four players, the bytes +0x1C .. +0x27 (the keys), the dwords +0x2C .. +0x78 and
-//! +0x178, into the saved car at the buffer offset + n x 0x28C.
+//! The players' own settings copied into the saved game's four cars before those are put over
+//! the players, so that a loaded game keeps the controls and choices made since: for each of the
+//! four players, the bytes +0x1C .. +0x27 (the keys), the dwords +0x2C .. +0x78 and +0x178,
+//! into the saved car at the buffer offset + n x 0x28C.
 //!
-//!
-//! Caller: `saves::load_savegame` (when `use_savegame_keys` is 0). Refuses (before anything) a missing
-//! player or a null buffer.
+//! Called by `saves::load_savegame` (when `use_savegame_keys` is 0). Refuses (before anything) a
+//! missing player or a null buffer.
 
 use crate::cells::Store;
 use crate::errors::Refused;

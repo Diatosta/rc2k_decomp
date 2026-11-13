@@ -1,18 +1,17 @@
-//! `drive::simple_car_step` (0x43A1CA): the free-roaming car's step (no physics, the race mode
+//! The free-roaming car's step (no physics, the race mode
 //! `levers_on` 0). The inputs (`drive::car_input_words`, `drive::read_car_controls`,
 //! `drive::steer_inputs`, `drive::pedal_inputs`, `drive::reset_request`); the car moved along its
 //! heading (+0x9C0) by (+0x638 - +0x63C) << 5, turned by +0x644 >> 4; the wheels' surfaces; the
-//! ground under `place_x`, `5CCDE0` (`physics::find_ground`), found: the height
+//! ground under `place_x`, `place_z` (`physics::find_ground`), found: the height
 //! `ground_height` + `ground_drop`'s bits into `place_y` and +0x138; pitch and roll 0;
-//! `race::get_mat_crash`. The first car block (`g_carBlockStore`) throughout.
+//! `race::get_mat_crash`. The first car block throughout.
 //!
-//! Caller: `drive::race_tick`. Refuses what its calls refuse.
+//! Refuses what its calls refuse.
 
 use crate::errors::Refused;
 use crate::race::owner::Race;
 use rc2k_core::drive::roaming::{roam_distance, roam_turn};
 
-// Converted: `rc2k_core::drive::roaming::{roam_distance, roam_turn}`.
 pub fn simple_car_step(
     race: &Race,
     input: &crate::input::owner::Input,

@@ -1,15 +1,6 @@
-//! `screens::draw_players_standings` (0x483FDE): the players' standings: the heads (strings
-//! 0x218, 0x219, 0x21B at y 0xE7), then four rows (three when `event.player_count` is 3: two
-//! players still get four, as the original) in the order of `results.order` (byte offsets into
-//! `g_players`): the names at x 0x132, the cars' sprites at 0x114, the flags' at 0x1DA, the
-//! places (strings 0x4FE ..) at 0xEA and the points (the place's first dword of the points list, kept in
-//! `draw_work.scratch_b8`) at 0x217; rows 0x17 apart from y 0xFE; the sprites' palette ebx after the
-//! last name.
-//!
-//!
-//! In a menu loop's draw list. Refuses (before anything) a row's player without its
-//! record or name, or without its points. The menus and draw lists run its `entry`
-//! (`menu::table_calls`).
+//! The players' standings: the heads, then four rows (three when `event.player_count` is 3;
+//! two players still get four, kept) in the order of `results.order`: name, car sprite, flag,
+//! place and points. Refuses a row's player without its record, name or points.
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::captions_store::CaptionTables;

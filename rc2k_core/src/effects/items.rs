@@ -1,7 +1,5 @@
-//! The squares' and windscreen drops' items (from `effects::spawn_windscreen_flake` 0x4C0120,
-//! `pick_windscreen_flake` 0x4C0623, `spawn_windscreen_drop` 0x4BC22B and `pick_windscreen_drop`
-//! 0x4BC6F1): 0x800 records each, a cursor (a byte offset into them) where the next is looked for,
-//! made live at a place by lot.
+//! The squares' and windscreen drops' items: 0x800 records each, a cursor (a byte offset into them)
+//! where the next is looked for, made live at a place by lot.
 
 use crate::effects::particles::next_random;
 
@@ -20,10 +18,9 @@ pub struct Found {
     pub cursor: u32,
 }
 
-/// The first free item (`is_free` of its offset: its +0 is 0) of the `WINDOW` from the
-/// cursor on, each step `len` on and back to 0 at the end (only there: a cursor that is
-/// not a multiple of `len` goes past the end, as in the original); the cursor the item
-/// after the one found, or `WINDOW` items on.
+/// The first free item (`is_free` of its offset: its +0 is 0) of the `WINDOW` from the cursor on,
+/// each step `len` on and back to 0 at the end (only there: a cursor that is not a multiple of
+/// `len` goes past the end); the cursor the item after the one found, or `WINDOW` items on.
 pub fn find_free(cursor: u32, len: u32, mut is_free: impl FnMut(u32) -> bool) -> Found {
     let end = ITEMS * len;
     let step = |at: u32| {
@@ -55,8 +52,8 @@ pub struct Pick {
     pub kind: u32,
 }
 
-/// `effects::pick_windscreen_flake`'s: the squares' own random (`WindscreenFlakeState.pick_random`, times 0xC5 plus
-/// 0x5D), the kind its bits 21 .. 23.
+/// `effects::pick_windscreen_flake`'s: the squares' own random (`WindscreenFlakeState.pick_random`,
+/// times 0xC5 plus 0x5D), the kind its bits 21 .. 23.
 pub fn pick_windscreen_flake(random: u32) -> Pick {
     let s = random.wrapping_mul(0xC5).wrapping_add(0x5D);
     Pick {
@@ -67,8 +64,7 @@ pub fn pick_windscreen_flake(random: u32) -> Pick {
     }
 }
 
-/// `effects::pick_windscreen_drop`'s: the marks' random (`g_marksSeed`), the kind its bits 22 ..
-/// 24.
+/// `effects::pick_windscreen_drop`'s: the marks' random (its seed), the kind its bits 22 .. 24.
 pub fn pick_windscreen_drop(seed: u32) -> Pick {
     let s = next_random(seed);
     Pick {
@@ -79,8 +75,8 @@ pub fn pick_windscreen_drop(seed: u32) -> Pick {
     }
 }
 
-/// A new square's floats: its place (`fild`), its size (the kind & 7 times `size[0]` plus
-/// `size[1]`, stored).
+/// A new square's floats: its place (from whole numbers), its size (the kind & 7 times `size[0]`
+/// plus `size[1]`, stored).
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct NewWindscreenFlake {
     pub x: f32,

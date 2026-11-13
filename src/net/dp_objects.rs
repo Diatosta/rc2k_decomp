@@ -1,29 +1,18 @@
-//! DirectPlay's objects made in Rust for the standalone program (`net::dplay::create_instance`
-//! hands them out there; the game keeps Windows' DirectPlay): an `IDirectPlay4A` and an
-//! `IDirectPlayLobby2A`, as far as the game uses them, on the sessions of `net::dp_session`.
+//! DirectPlay's objects made in Rust: an `IDirectPlay4A` and an `IDirectPlayLobby2A`, as far as
+//! the game uses them, on the sessions of `net::dp_session`.
 //!
-//! - The connections listed (`EnumConnections`): TCP/IP alone (IPX, modems and serial
-//!   links are gone); its address (`InitializeConnection`, made by the lobby object's
-//!   `CreateCompoundAddress` as DirectPlay's: `DPAID_TotalSize`, the service provider, the
-//!   host's address `DPAID_INet` and port `DPAID_INetPort`) says where sessions are looked
-//!   for: that host, or with none the network's broadcast and this machine; the port
-//!   DirectPlay's 47624 unless given.
-//! - `EnumSessions`: the sessions heard (asynchronously, as the game asks: each call sends a
-//!   probe and lists what has answered), the full or closed ones left out when asked
-//!   (DPENUMSESSIONS_AVAILABLE), then the time-out (DPESC_TIMEDOUT). `Open`: a session hosted
-//!   (DPOPEN_CREATE, a new instance GUID) or one heard joined (DPOPEN_JOIN, by its instance).
-//! - Players and groups (`CreatePlayer`, its event signalled when a message comes for it;
-//!   `DestroyPlayer`, `CreateGroup`, `AddPlayerToGroup`, `DeletePlayerFromGroup`,
-//!   `EnumPlayers`, `EnumGroups`, `GetPlayerData`, `SetPlayerData`), `SetSessionDesc`, `Send`,
-//!   `Receive` (DPERR_NOMESSAGES, DPERR_BUFFERTOOSMALL as DirectPlay), `Close`.
-//! - The lobby object: `CreateCompoundAddress` (the original never takes a lobby's launch:
-//!   `net::open_lobby`).
+//! - Connections (`EnumConnections`): TCP/IP only. Its address says where sessions are looked
+//!   for: the given host, or the network's broadcast and this machine; the port is 47624 unless
+//!   given.
+//! - `EnumSessions`: asynchronous, as the game asks; each call sends a probe and lists what has
+//!   answered, leaves out full or closed sessions when asked, then reports the time-out.
+//!   `Open` hosts a session (DPOPEN_CREATE) or joins one heard (DPOPEN_JOIN).
+//! - Players and groups (create, destroy, add, delete, enumerate, data), `SetSessionDesc`,
+//!   `Send`, `Receive` and `Close`.
+//! - The lobby object only makes compound addresses.
 //!
-//! The game calls the methods as the functions here (the original went through
-//! COM method tables), on objects held as ids; the enumerations' callbacks are Rust
-//! functions. The methods the game does not call are not here. They take
-//! and give typed values (GUIDs, names, the session's `Desc`, byte buffers, results
-//! returned) in place of the structures' addresses; the callbacks get them the same way.
+//! The methods take and give typed values (GUIDs, names, the session's `Desc`, byte buffers)
+//! and objects are held as ids; enumeration callbacks are Rust functions.
 
 use crate::net::dp_session::{
     DEFAULT_PORT, DP_OK, Desc, Session, Signal, find_sessions, session_address,
@@ -60,7 +49,7 @@ const fn guid(d1: u32, d2: u16, d3: u16, d4: [u8; 8]) -> Guid {
     ]
 }
 
-// The game's copies are at 0x5AB310 .. 0x5AB3F0.
+// The IIDs and GUIDs the game's objects are asked for.
 const CLSID_DIRECTPLAY: Guid = guid(
     0xD1EB_6D20,
     0x8923,

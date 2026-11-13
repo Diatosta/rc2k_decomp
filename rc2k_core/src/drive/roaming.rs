@@ -1,6 +1,5 @@
-//! The free-roaming car (from `drive::simple_car_step` 0x43A1CA, its
-//! own rules; the inputs, the turn of the move, the ground and the matrix are its calls):
-//! no physics, the car moved along its heading by its pedals and turned by its steering.
+//! The free-roaming car: no physics, the car moved along its heading by its pedals and turned by
+//! its steering. The inputs, the move's turn, the ground and the matrix stay with the caller.
 
 /// The move along the heading: the throttle less the brake (+0x638 - +0x63C) << 5, << 7
 /// with the fast switch.

@@ -1,6 +1,4 @@
-//! The race's sound turn: when one is due, which cars are heard
-//! (from `sound::race_sound_tick` 0x421BA9, `sound::car_sounds_all` 0x40D7AB's choice and
-//! `sound::play_cue_queues` 0x40ED13's).
+//! The race's sound turn: when one is due, which cars are heard.
 
 /// `sound::race_sound_tick`: a turn is due once 20 ms (0x14) of the scene clock have gone
 /// since the last (unsigned, so a clock gone back counts as far on).
@@ -20,10 +18,10 @@ pub fn cue_cars(first: u32, second: impl FnOnce() -> u32, one_player: u32) -> Ve
 
 /// No car (-1).
 pub const NO_CAR: u32 = u32::MAX;
-/// A float's +infinity, as the original's starting distance.
+/// A float's +infinity: the starting distance.
 pub const FAR: u32 = 0x7F80_0000;
-/// The marks the two computer's cars' objects carry (+0) while their sounds are made: the
-/// nearest -2, the next -1.
+/// The marks the two computer cars' objects carry (+0) while their sounds are made: the nearest -2,
+/// the next -1.
 pub const NEAREST_MARK: u32 = 0xFFFF_FFFE;
 pub const NEXT_MARK: u32 = 0xFFFF_FFFF;
 

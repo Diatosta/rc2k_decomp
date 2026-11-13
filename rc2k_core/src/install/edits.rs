@@ -1,7 +1,5 @@
-//! The installer's edit items (kind 4) being edited (from
-//! `install::start_edit` 0x4148D6 and `install::edit_key` 0x4148F7): an edit's record has
-//! +0 its flags (bit 0 being edited), +1 the most bytes of its text, +2 its default text (a
-//! string id), +4 its kind, +6 the widest its text may be.
+//! The installer's edit items (kind 4) being edited. An edit's record: +0 flags (bit 0 being
+//! edited), +1 most bytes of its text, +2 default text (a string id), +4 kind, +6 widest text.
 
 use crate::Invalid;
 use crate::strings::bytes::Bytes;

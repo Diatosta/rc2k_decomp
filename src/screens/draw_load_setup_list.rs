@@ -1,10 +1,6 @@
-//! `screens::draw_load_setup_list` (0x46F087): draws the text of the "load setup" screen: a
-//! title (string 0x4DD), a label under each column of slots (strings 0x4E3 and 0x4E4) and the
-//! slot names (`draw_setup_slot_names`).
-//!
-//! Its address is in the draw list at 0x75915E. That it is the "load" screen is a reading: by
-//! elimination from `draw_save_setup_list`. The menus
-//! and draw lists run its `entry` (`menu::table_calls`).
+//! The text of the "load setup" screen: a title, a label under each column of slots and the
+//! slot names (`draw_setup_slot_names`). That it is the "load" screen is a reading, by elimination
+//! from `draw_save_setup_list`.
 
 use crate::errors::Refused;
 use crate::text::draw_text::Canvas;

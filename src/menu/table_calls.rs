@@ -16,12 +16,11 @@ use rc2k_core::fatal::Context;
 use rc2k_core::menu::tables::ItemFn;
 
 /// A menu item's callback for a direction (`menu::navigation`). Of the item functions the
-/// tables name as key callbacks only `RaiseControllerSensitivity` reads a register: edi,
-/// which is the item here; the rest get none (`tables_data.rs`' `on_key`
-/// against `item_fn`'s reads).
+/// tables name as key callbacks only `RaiseControllerSensitivity` reads the item; the rest get
+/// none (`tables_data.rs`' `on_key` against `item_fn`'s reads).
 pub fn call_key(o: Owners<'static>, function: ItemFn, item: &MenuItem) -> Result<(), Refused> {
     match function {
-        // edi the item: its +0x2C, the left link.
+        // The item: its +0x2C, the left link.
         ItemFn::RaiseControllerSensitivity => {
             crate::menu::controller_items::raise_controller_sensitivity(
                 o.menus,
@@ -33,9 +32,8 @@ pub fn call_key(o: Owners<'static>, function: ItemFn, item: &MenuItem) -> Result
     }
 }
 
-/// What a menu item's function is given (the original's registers at
-/// the call: eax the item's value, ebp the item (not kept), edi the menu; the screen loop's others,
-/// which no function reads).
+/// What a menu item's function is given: the item's value, the item and the menu (the screen
+/// loop's other state is read by no function).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct ItemCall {
     pub value: u32,

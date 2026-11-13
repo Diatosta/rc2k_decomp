@@ -1,8 +1,5 @@
-//! Module `install`'s owner (step 11, owned state): the installer's state in one struct,
-//! handed by reference to the code that runs it in place of global stores.
-//!
-//! `install()` is the boundary: a caller outside the module fetches the owner there. The
-//! `name_tables` `Owned` tables stay where they are.
+//! The installer's owner: its state in one struct, handed by reference to the code that runs it.
+//! `install()` is the boundary: a caller outside the module fetches the owner there.
 
 use crate::install::installer::InstallTexts;
 use crate::install::read_sku::Sku;
@@ -27,7 +24,7 @@ pub struct Install {
     pub lobby_keys: LobbyKeys,
 }
 
-/// The one instance. Reached through `install()`; `moved` registers its stores' places.
+/// The one instance, reached through `install()`.
 pub static INSTALL: GameThread<Install> = GameThread::new(Install {
     texts: InstallTexts::new(),
     sku: Sku::new(),

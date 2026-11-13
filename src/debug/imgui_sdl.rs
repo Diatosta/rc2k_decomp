@@ -15,10 +15,8 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-/// The debug UI shown (`debug::overlay`'s key).
 static OPEN: AtomicBool = AtomicBool::new(false);
 
-/// Whether the debug UI is shown.
 #[inline]
 pub fn is_open() -> bool {
     OPEN.load(Ordering::Relaxed)
@@ -27,31 +25,27 @@ pub fn is_open() -> bool {
 /// SDL's text input is on (it goes off with the UI, once).
 static TEXT_INPUT: AtomicBool = AtomicBool::new(false);
 
-/// The debug UI shown or hidden.
 pub fn toggle() -> bool {
     !OPEN.fetch_xor(true, Ordering::Relaxed)
 }
 
-/// The first view's scene has been drawn.
 pub fn view_drawn(frame: &Frame) {
     if OPEN.load(Ordering::Relaxed) {
         crate::debug::ui::note_view(frame);
     }
 }
 
-/// An SDL texture of ImGui's.
 struct Texture {
     sdl: SdlTexture,
     format: TextureFormat,
 }
 
-/// ImGui and its renderer's state.
 struct Gui {
     context: Context,
     consumer: dear_imgui_rs::render::SynchronousRendererConsumer,
     textures: HashMap<SnapshotTextureId, Texture>,
     last: std::time::Instant,
-    /// The style scaled for this height.
+    /// The height the style is scaled for.
     scaled_for: i32,
 }
 
@@ -59,7 +53,6 @@ thread_local! {
     static GUI: RefCell<Option<Gui>> = const { RefCell::new(None) };
 }
 
-/// ImGui made at the first use.
 fn with_gui<T>(f: impl FnOnce(&mut Gui) -> T) -> Option<T> {
     GUI.with(|gui| {
         let mut gui = gui.borrow_mut();
@@ -95,7 +88,6 @@ fn with_gui<T>(f: impl FnOnce(&mut Gui) -> T) -> Option<T> {
     })
 }
 
-/// ImGui's key of SDL's.
 fn key_of(code: SDL_Keycode) -> Option<Key> {
     Some(match code {
         SDLK_TAB => Key::Tab,

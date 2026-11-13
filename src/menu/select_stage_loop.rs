@@ -1,13 +1,7 @@
-//! `menu::select_stage_loop` (0x482099): the stage selection "ESCOLHA ETAPA" of the start menus
-//! under `menu::single_rally`.
-//!
-//! The loop itself is `menu::screen_loop`; this file says what is this screen's own (`SCREEN`),
-//! as extracted from the disassembly: leaving is asked about; left without the question, the
-//! highlight is not saved; the next frame begins with the steps after the first frame; the
-//! question is not put while the lamps flag is 1; the steps that are more than a call or a
-//! store are the functions below, generated from the listing.
-//! The name is a reading from the title string of its menu, "ESCOLHA ETAPA", not yet a visit.
-//! Rust callers run its `entry` (`routes.rs`).
+//! The stage selection "ESCOLHA ETAPA" of the start menus under `menu::single_rally`.
+//! Screen-specific part of `menu::screen_loop`: leaving is asked about; left without the
+//! question, the highlight is not saved; the next frame begins with the steps after the first
+//! frame; the question is not put while the lamps flag is 1.
 
 use crate::errors::Refused;
 use crate::menu::screen_items_store::slot;
@@ -27,12 +21,12 @@ fn after_first_frame(entry: &Entry) -> Result<Flow, Refused> {
 pub const SCREEN: Screen = Screen {
     lists: &[
         List {
-            pointer: |m| &m.screens.flow.scene_list, // g_sceneList
+            pointer: |m| &m.screens.flow.scene_list,
             table: |m| m.tables.draw_lists.select_stage_scene.id(),
             run: false,
         },
         List {
-            pointer: |m| &m.screens.flow.draw_list, // g_drawList
+            pointer: |m| &m.screens.flow.draw_list,
             table: |m| m.tables.draw_lists.select_stage_draw.id(),
             run: false,
         },
@@ -42,7 +36,7 @@ pub const SCREEN: Screen = Screen {
             run: true,
         },
         List {
-            pointer: |m| &m.screens.flow.overlay_list, // g_overlayList
+            pointer: |m| &m.screens.flow.overlay_list,
             table: |m| m.tables.draw_lists.select_stage_overlay.id(),
             run: false,
         },

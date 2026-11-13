@@ -2,7 +2,7 @@
 //! (`saves::best_times::RANKED_TIMES`, best times: `player` 1 .. 4 or 0 for a computer
 //! driver, `group`, `figure` the position) and table B (`saves::best_times::CHAMP_HISTORY`,
 //! `rankings::HistoryEntry`); both end with an entry whose first dword is -1.
-//! Also the drivers (`g_drivers`, -1 at the end) and the players (`g_players`).
+//! Also the drivers (-1 at the end) and the players.
 
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::menu::drivers_store::Driver;
@@ -31,9 +31,9 @@ pub fn player(menus: &Menus, n: u32) -> PlayerCell<'_> {
     &menus.play.players.players[n as usize]
 }
 
-/// The drivers (`g_drivers`) as the original's `do .. while` walks them: the first always,
-/// then each while its first dword is not -1. The walk ends at the latest on the -1 after the
-/// 180 (`DriverTable.end`); refused when that is gone (the original would read on).
+/// The drivers as a `do .. while` walks them: the first always, then each while its first
+/// dword is not -1. The walk ends at the latest on the -1 after the 180 (`DriverTable.end`);
+/// refused when that is gone.
 pub fn drivers(menus: &Menus) -> Result<&[Driver], BadInput> {
     let cars = &menus.cars;
     let all = &cars.drivers.drivers;
@@ -57,8 +57,8 @@ pub fn with_b<R>(f: impl FnOnce(&mut ChampHistory) -> R) -> Result<R, BadInput> 
     TABLE_B.with(f)
 }
 
-/// How many of table A's entries the original walks; refused without the table or with no
-/// end entry within the core's `MOST_WALKED`.
+/// How many of table A's entries are walked; refused without the table or with no end entry
+/// within the core's `MOST_WALKED`.
 pub fn walked_a() -> Result<usize, BadInput> {
     with_a(|t| t.walked())?.ok_or(BadInput("a standings table without its end entry"))
 }
@@ -87,10 +87,10 @@ pub enum Which {
     B,
 }
 
-/// The original's search for the first player (`find1stplayer`) from the table's start:
-/// the entries of `group` (ebx) (`ANY_GROUP`: any entry whose group is not 0) whose player
-/// is not 0; ecx counts the group's computer drivers before it, edx its figure (the
-/// position), edi the entry. None: the fatal error `code` with `message`.
+/// The search for the first player (`find1stplayer`) from the table's start: the entries of
+/// `group` (`ANY_GROUP`: any entry whose group is not 0) whose player is not 0; counts the
+/// group's computer drivers before it, its figure (the position) and the entry. None: the
+/// fatal error `code` with `message`.
 pub fn first_player(
     which: Which,
     group: u32,
@@ -117,9 +117,9 @@ pub fn first_player(
     }
 }
 
-/// What the first-player searches find, as the original leaves it in the registers: ecx
-/// (`computers`, the group's computer drivers before it; the player's number for
-/// `first_player_unplaced`), edx its figure, edi the entry (here its number in the table).
+/// What the first-player searches find: `computers` (the group's computer drivers before it;
+/// the player's number for `first_player_unplaced`), its figure, and the entry (here its
+/// number in the table).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Found {
     pub computers: u32,
@@ -145,7 +145,7 @@ pub fn walked_drivers(menus: &Menus) -> Result<Vec<rc2k_core::saves::rankings::D
 }
 
 /// A player as a stage record's holder: the figure (+0x94), nationality, car and the name's
-/// 0x20 bytes (as the original copies them, past the NUL too).
+/// 0x20 bytes (copied past the NUL too).
 pub fn as_holder(
     menus: &Menus,
     p: &rc2k_core::menu::player::Player,
@@ -164,8 +164,8 @@ pub fn as_holder(
     Ok((row, name_of(menus, p)?))
 }
 
-/// The player's name, `N` bytes from its start (bounded by the names' store: the original
-/// runs on past a name that lacks its end).
+/// The player's name, `N` bytes from its start (bounded by the names' store: a name that lacks
+/// its end is read on past it).
 pub fn name_of<const N: usize>(
     menus: &Menus,
     p: &rc2k_core::menu::player::Player,
@@ -187,7 +187,7 @@ pub fn name_address_of(p: &rc2k_core::menu::player::Player) -> Result<u32, BadIn
     Ok(crate::menu::player_names::name_address(name_player(p)?))
 }
 
-/// Runs `f` on `g_keptPlayerName`, the sorts' swap buffer (a copy of it, put back after).
+/// Runs `f` on the kept player name, the sorts' swap buffer (a copy of it, put back after).
 pub fn with_kept_name<R>(play: &Play, f: impl FnOnce(&mut [u8; NAME_LEN]) -> R) -> R {
     let mut all = play.names.kept_name.read();
     let [kept @ .., _] = &mut all;
@@ -196,8 +196,7 @@ pub fn with_kept_name<R>(play: &Play, f: impl FnOnce(&mut [u8; NAME_LEN]) -> R) 
     r
 }
 
-/// The players `0 .. Event.player_count` (the original's `do .. while`): refused at 0, past 4 or
-/// with one missing.
+/// The players `0 .. Event.player_count`: refused at 0, past 4 or with one missing.
 pub fn counted_players(menus: &Menus) -> Result<Vec<PlayerCell<'_>>, BadInput> {
     let n: u32 = menus.screens.event.player_count.get();
     if n == 0 || n > 4 {
@@ -206,7 +205,7 @@ pub fn counted_players(menus: &Menus) -> Result<Vec<PlayerCell<'_>>, BadInput> {
     Ok((0..n).map(|k| player(menus, k)).collect())
 }
 
-/// The current record's event (`g_recordTable`, `section`, `index`; its +0x3C): its place
+/// The current record's event (the record table, `section`, `index`; its +0x3C): its place
 /// in the stages' best times (`saves::best_times::STAGE_TIMES`); refused past the table's
 /// sections, with no table, or past it.
 pub fn current_event(screens: &Screens, system: &System) -> Result<usize, BadInput> {
@@ -256,12 +255,11 @@ pub fn tenth_best_score(group: u32) -> Result<u32, BadInput> {
 }
 const SORTED: u32 = standings::SORTED as u32;
 
-/// Standings table A's first 0xB4 entries sorted by `key` (signed; the original's
-/// exchange sort: an entry later or equal moves up; `DrawWork.scratch_b4` / `DrawWork.scratch_b8` its
-/// counters). Refused without a table.
+/// Standings table A's first 0xB4 entries sorted by `key` (signed; an exchange sort: an entry
+/// later or equal moves up; `DrawWork.scratch_b4` / `DrawWork.scratch_b8` its counters).
+/// Refused without a table.
 pub fn sort_table_a(menus: &Menus, key: rc2k_core::saves::entries::Field) -> Result<(), BadInput> {
     let screens = &menus.screens;
-    // The logic is in `rc2k_core::saves::rankings::sort_a`.
     with_a(|t| {
         with_kept_name(&menus.play, |kept| {
             rc2k_core::saves::rankings::sort_a(t, SORTED as usize, key, kept);
@@ -299,7 +297,6 @@ pub fn enter_best(
     ) else {
         return Err(BadInput("no best-score table, a group past 4 or no name"));
     };
-    // The logic is in `rc2k_core::saves::scores::enter_best`.
     use rc2k_core::saves::scores as s;
     let name_ref = name_address_of(&p.get())?;
     let best = s::Best {
@@ -324,7 +321,6 @@ pub fn enter_best(
 /// entry not below one moves up). Refused without a table.
 pub fn sort_table_b(menus: &Menus, key: BKey, down: bool) -> Result<(), BadInput> {
     let screens = &menus.screens;
-    // The logic is in `rc2k_core::saves::rankings::sort_b`.
     with_b(|t| {
         with_kept_name(&menus.play, |kept| {
             rc2k_core::saves::rankings::sort_b(t, SORTED as usize, key, down, kept);

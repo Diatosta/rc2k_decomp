@@ -1,7 +1,6 @@
-//! `saves::save_game_data` (0x411499): writes what the game keeps between runs.
-//!
-//! `saves::save_options`, then `saves::save_best_times`. Callers: the main loop after the front end
-//! is left, and `menu::arcade_level_end`. Rust callers run its `entry` (`routes.rs`).
+//! Writes what the game keeps between runs: `saves::save_options`, then
+//! `saves::save_best_times`. Called by the main loop after the front end is left, and
+//! `menu::arcade_level_end`.
 
 use crate::errors::Refused;
 use crate::menu::owner::Menus;
@@ -21,9 +20,8 @@ pub fn save_game_data(
     save_best_times()
 }
 
-/// The two parts on the game's files: whether the best times were written. The original's
-/// flags (carry: not written) are read by neither of its callers (`system::main_loop`,
-/// `menu::arcade_level_end`).
+/// The two parts on the game's files: whether the best times were written (neither caller,
+/// `system::main_loop` and `menu::arcade_level_end`, reads it).
 pub fn save_in_game(o: Owners<'static>, saves: &Saves) -> Result<bool, Refused> {
     save_game_data(
         o.menus,

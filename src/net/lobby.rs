@@ -1,28 +1,18 @@
-//! The way through (`net::start_link`, 1 host, 2 join):
-//! the player's record set up (`net::take_player_settings`, `net::fill_own_player`), the
-//! DirectPlay connections listed (`net::find_connections`: the lobby object, DirectPlay,
-//! `EnumConnections` into the 0x54-byte records at `connection_table`), one chosen
-//! (`net::choose_connection`, a list screen) unless the one saved (`saved_connection`) is there,
-//! the connection made (`net::init_connection`), then hosting (`net::host_session`) or the
-//! sessions listed (`net::choose_session`, `EnumSessions` into the 0x68-byte records at
-//! `session_table`) and one joined (`net::join_session`). Then the lobby screen
-//! (`net::lobby_loop`: chat, car, stage, ready) and the race (`net::lets_rally`) until a
-//! player leaves. The settings screen before all that is `net::settings_loop`.
-//! Each player's record is 16 bytes of DirectPlay player data (`own` for this
-//! machine: +0 the state bits, 1 ready, 2 waiting, 4 racing, 0x10 the host; +1 the car, +2
-//! its colours, +3 the nationality, +4 the stage, +5 its direction, +6 the race number,
-//! +7 a random number, +8 the race's time, +0xC the total), read into each player's block
-//! of `g_netReceived` (+0x20 the DirectPlay id, +0x24 the record).
+//! The network game's way through (`net::start_link`, 1 host, 2 join): the player's record is set
+//! up, connections are listed and one chosen (unless the saved one is there), the connection
+//! made, then the session hosted or the sessions listed and one joined. Then the lobby screen
+//! (`net::lobby_loop`) and the race (`net::lets_rally`) run until a player leaves. The settings
+//! screen before all that is `net::settings_loop`.
 //!
-//! The calls by place: DirectPlay's methods are called from Rust (`net::dplay`). In the
-//! tests: stand-ins that note each call and answer what the test says, and test COM
-//! objects whose methods note their arguments.
+//! A player's record is 16 bytes of DirectPlay player data: the state bits (1 ready, 2 waiting,
+//! 4 raced, 0x10 host), the car, its colours, the nationality, the stage, its direction, the race
+//! number, a random number, the race's time and the total.
 
 use crate::errors::Refused;
 use crate::session::Dword;
 use rc2k_core::fatal::Context;
 
-// ---- game data (IDA addresses) ----
+// ---- game data ----
 
 pub const PALETTE: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::MEASURE_23;
 pub const FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::HEADING_23;
@@ -57,8 +47,7 @@ pub fn push_id(
 }
 
 /// The text a line is built as (`text` up to its NUL), stored with its NUL at the start of
-/// the game's text buffer, where the original builds it; the text with its NUL, to be
-/// drawn or measured as a value.
+/// the game's text buffer, to be drawn or measured as a value.
 pub fn store_text(
     strings: &crate::strings::owner::Strings,
     mut text: Vec<u8>,
@@ -68,9 +57,8 @@ pub fn store_text(
     Ok(text)
 }
 
-/// `gfx::blit_glyph` of the sprite `glyph` of the sprite table (`g_spriteTable`) at (`x`,
-/// `y`). (The original hands each the palette the blit before left, which the sprites, direct
-/// colour, never look at.)
+/// `gfx::blit_glyph` of the sprite `glyph` of the sprite table at (`x`, `y`). The sprites are
+/// direct colour and never look at a palette.
 pub fn blit(
     glyph: u32,
     x: u32,
@@ -88,18 +76,18 @@ pub fn blit(
     )
 }
 
-/// `logfile::log_write_l<level>[_nl]` on a text in hand (up to its NUL or its end).
+/// A log line at the given level from a text in hand (up to its NUL or its end).
 pub fn log_bytes(text: &[u8], newline: bool, level: u8) {
     let n = text.iter().position(|&c| c == 0).unwrap_or(text.len());
     crate::logfile::write_line::log_text(&text[..n], newline, level);
 }
 
-/// `logfile::log_hex8_l2[_nl]`.
+/// A hexadecimal number logged at level 2.
 pub fn log_hex(value: u32, newline: bool) {
     crate::logfile::log_hex8::log_hex8(value, newline, 2);
 }
 
-/// `logfile::log_int_l<level>_nl`.
+/// A number logged at the given level, with a line end.
 pub fn log_int_nl(value: u32, level: u8) {
     crate::logfile::log_int::log_int(value as i32, true, level);
 }
@@ -154,7 +142,7 @@ pub fn other_key(o: crate::owners::Owners<'static>, key: u8) -> Result<(), Refus
     crate::strings::maybe_compile_lexicon::maybe_compile_lexicon(o.input, o.strings, o.system)
 }
 
-/// `gfx::lock_surface`: whether it is locked (the original's carry clear).
+/// `gfx::lock_surface`: whether it is locked.
 pub fn lock_surface(gfx: &crate::gfx::owner::Gfx, system: &crate::system::owner::System) -> bool {
     crate::platform::lock_surface(gfx, system) >= 1
 }
@@ -172,7 +160,7 @@ pub fn copy_picture(
     Ok(())
 }
 
-/// `text::draw_string_by_id` with the font at the IDA address `font`.
+/// `text::draw_string_by_id` with the given `font`.
 pub fn draw_string(
     so: crate::strings::append_string_by_id::StringOwners<'static>,
     id: u32,

@@ -1,11 +1,6 @@
-//! `screens::gearing_text` (0x4699E0): string 0x21F + the current player's `gearing`, as
-//! a text of the car choice.
-//!
-//!
-//! `flow.shown_gearing` = the current player's (`event.current_player`) `gearing`; the string and a NUL into
-//! the title buffer. In two entry lists (0x7593FE, 0x75941A). Refuses a current player past four, a
-//! text longer than its place (0x100). The menus and draw lists run its `entry`
-//! (`menu::table_calls`).
+//! String 0x21F plus the current player's `gearing`, as a text of the car choice;
+//! `flow.shown_gearing` is set to it. Refuses a current player past four and a text longer
+//! than its place (0x100).
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::owner::Menus;
@@ -31,8 +26,8 @@ pub fn gearing_text(
     Ok(())
 }
 
-/// `menu::next_gearing` / `menu::previous_gearing`: `ScreenFlow.shown_gearing` on (past 2 to 0) or back
-/// (below 0 to 2, both signed), the current player's `gearing` it, and its text.
+/// `menu::next_gearing` / `menu::previous_gearing`: `ScreenFlow.shown_gearing` on (past 2 to 0) or
+/// back (below 0 to 2, both signed), the current player's `gearing` it, and its text.
 pub fn step_gearing(
     so: crate::strings::append_string_by_id::StringOwners<'_>,
     menus: &Menus,

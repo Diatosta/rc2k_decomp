@@ -1,8 +1,6 @@
-//! The championship's finish routines (from
-//! `menu::championship_finish` 0x4A14CB and `menu::section_finish` 0x4A9439): who drives
-//! the finish (the championship's leader, else the first player done with the section),
-//! the race's set-up from that player, the steps of the finish and the front end's set-up
-//! again, a key taken at the end.
+//! The championship's finish routines: who drives the finish (the championship's leader, else the
+//! first player done with the section), the race's set-up from that player, the steps of the finish
+//! and the front end's set-up again, a key taken at the end.
 
 use crate::Invalid;
 
@@ -15,11 +13,12 @@ pub enum Var {
     Kept,
     /// A leader was found.
     Leader,
-    /// `g_eventMode`.
+    /// The event mode.
     EventMode,
     /// `section`.
     Section,
-    /// The race's set-up: `RaceState.results.finish_player`, `RaceState.results.finish_kind`, `RaceState.settings.car_kind_current`, `RaceState.results.stage_index`.
+    /// The race's set-up: `RaceState.results.finish_player`, `RaceState.results.finish_kind`,
+    /// `RaceState.settings.car_kind_current`, `RaceState.results.stage_index`.
     SetUpCar,
     SetUpDriver,
     SetUpDriver2,
@@ -39,7 +38,8 @@ pub enum Step {
     RaceSounds = 2,
     /// `menu::show_loading_picture`.
     LoadingPicture = 3,
-    /// `race::render3d_tidy`, `race::objects_tidy`, `nullsub_6`, `race::release_textures`.
+    /// `race::render3d_tidy`, `race::objects_tidy`, a step that does nothing, and
+    /// `race::release_textures`.
     Render3dTidy = 4,
     ObjectsTidy = 5,
     Nothing = 6,
@@ -120,8 +120,8 @@ pub trait Finish {
     fn step(&mut self, s: Step) -> Result<(), Self::Error>;
 }
 
-/// The race's set-up from the racer: its race number, its car twice, `RaceState.settings.kept` 0, the
-/// section.
+/// The race's set-up from the racer: its race number, its car twice, `RaceState.settings.kept` 0,
+/// the section.
 fn set_up<F: Finish>(e: &mut F) {
     let car = e.get(Var::RacerNumber);
     e.set(Var::SetUpCar, car);
@@ -146,10 +146,10 @@ fn take_key<F: Finish>(e: &mut F) -> Result<(), F::Error> {
     e.step(TakeKey)
 }
 
-/// `menu::championship_finish`: the leader looked for (in event mode 0x13 in group 0);
-/// found, `RaceState.settings.a8_game` and `RaceState.results.finished` 1 and the finish is its; else the first player
-/// done with the section's (none: only the key). The leader's flag is 0 again before the
-/// front end's set-up.
+/// `menu::championship_finish`: the leader looked for (in event mode 0x13 in group 0); found,
+/// `RaceState.settings.a8_game` and `RaceState.results.finished` 1 and the finish is its; else the
+/// first player done with the section's (none: only the key). The leader's flag is 0 again before
+/// the front end's set-up.
 pub fn championship_finish<F: Finish>(e: &mut F) -> Result<(), F::Error> {
     e.set(Var::On, 0);
     e.set(Var::Kept, 0);

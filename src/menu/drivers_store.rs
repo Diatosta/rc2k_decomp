@@ -1,14 +1,13 @@
-//! The championship's drivers, out of RAL.EXE's image (IDA 0x73B674 .. 0x742C98): `g_drivers`, the 180 computer drivers' records (0x94 bytes, IDA's `Driver`), the
-//! -1 that ends them for the walks (`menu::standings::drivers`), and `g_driverNames`, the
-//! 180 name entries (0x14 bytes, IDA's `DriverName`) a driver's first dword picks.
+//! The championship's drivers: the 180 computer drivers' records (0x94 bytes), the -1 that ends
+//! them for the walks (`menu::standings::drivers`), and the 180 name entries (0x14 bytes) a
+//! driver's first dword picks.
 //! No layout of their own: the savegame holds the records as bytes (`saves::gather_savegame`,
 //! `load_savegame`) and `shuffle_drivers` copies one as bytes, through `records_to_bytes` /
 //! `records_from_bytes` (the fields' dwords in declaration order, which the test pins to the
 //! file's offsets). The event code works on the records by field (`menu::standings::drivers`
 //! walks them).
-//! The fields' meanings are readings (IDA's `Driver` names +8, +0x14 and +0x18
-//! `nationality`, `car` and `flag`: the time entries and the section screen say class,
-//! nationality and car).
+//! The fields' meanings are readings (`nationality`, `car` and `flag` at +8, +0x14 and +0x18:
+//! the time entries and the section screen say class, nationality and car).
 
 use crate::menu::owner::Menus;
 use crate::session::PlainDword;
@@ -31,7 +30,8 @@ pub struct Driver {
     /// +0x18: the car (a time entry's +0x10; `name.cfg`'s second number).
     pub car: PlainDword,
     pub field_1c: PlainDword,
-    /// +0x20: 0 in all 180 shipped records and put back to 0 at an event's start (`begin`); read by no code (saved with the record).
+    /// +0x20: 0 in all 180 shipped records and put back to 0 at an event's start (`begin`); read by
+    /// no code (saved with the record).
     pub unread_zero_20: PlainDword,
     /// +0x24: 1 while in the event (`IN_EVENT`), 4 once dropped out
     /// (`rc2k_core::menu::event_races::DROPPED`).
@@ -84,7 +84,7 @@ impl Driver {
     }
 }
 
-/// A driver's record in the savegame (and in the original's memory), in bytes.
+/// A driver's record in the savegame, in bytes.
 pub const DRIVER_LEN: usize = 0x94;
 
 const _: () = assert!(core::mem::size_of::<Driver>() == DRIVER_LEN);
@@ -200,11 +200,10 @@ impl DriverName {
 
 #[derive(rc2k_derive::Cells)]
 pub struct DriverTable {
-    /// `g_drivers` (0x73B674).
     pub drivers: [Driver; 180],
-    /// 0x741E84: -1, the walks' end.
+    /// -1, the walks' end.
     pub end: PlainDword,
-    /// `g_driverNames` (0x741E88).
+    /// The 180 name entries a driver's first dword picks.
     pub names: [DriverName; 180],
 }
 
@@ -600,8 +599,8 @@ impl DriverTable {
     }
 }
 
-/// The string id of name entry `entry` (a driver's first dword). The original does not
-/// check the entry and reads on past the 180 (fixed: refused).
+/// The string id of name entry `entry` (a driver's first dword). An entry past the 180 is
+/// refused (a 1999 bug fixed: it read on past them).
 pub fn name_string(menus: &Menus, entry: u32) -> Result<u32, crate::errors::BadInput> {
     Ok(menus
         .cars

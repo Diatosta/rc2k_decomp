@@ -1,13 +1,8 @@
-//! `hud::layout_0` (0x4B1D8C): the HUD of layout 0 (`Panel::players` neither 1 nor 2), by the first
-//! view's HUD flags (`Panel::hud_flags`): 0x10 the dial (`dials::DISC_0`) and a sprite; 0x40 the
-//! stage bar (`hud::draw_stage_bar`), the marker (`hud::draw_marker`) and the two time panels
-//! (sprite 0x29 + the cars behind and ahead, `ViewA::back` / `ViewA::front`, held to 0 .. 0x16; the
-//! HUD's `times` 0 and 1 as digits); 8 the cut call (0x4B6A6D: an empty function); always the icons
-//! (`hud::icons`); 0x20 two sprites (the second by `ViewA::gear`) and `ViewA::speed` with its
-//! leading digits left out while they are 0; 1 the sign by `Panel::start_values` (also into
-//! `needle_kind`) and the needle (`dials::NEEDLE_0`); 0x80 the signs (`draw_signs::LAYOUT_0`); 2
-//! `ViewA::place`'s last two digits, two sprites and `times` 2. The texture, the quad record's
-//! alpha and colour set between, as the original.
+//! The HUD of layout 0 (`Panel::players` neither 1 nor 2), by the first view's HUD flags
+//! (`Panel::hud_flags`): the dial, the stage bar with the marker and two time panels, the icons,
+//! the gear and speed digits, the sign and needle, the signs and the place; each flag's items in
+//! the order the code below draws them, with the texture, the quad record's alpha and colour set
+//! between.
 
 use crate::errors::Refused;
 use crate::hud::draw_signs::row;
@@ -21,8 +16,6 @@ use crate::race::owner_frame::Frame;
 use rc2k_core::hud::panels;
 
 /// The HUD of one player.
-// Converted: `rc2k_core::hud::panels` (the digits, signs, panels, leading digits, the
-// stage panel and the needle's sign)
 pub fn layout_0(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
     use crate::hud::*;
     let panel = &frame.panel_and_overlay.get().panel;

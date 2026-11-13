@@ -1,28 +1,10 @@
-//! `net::lobby_loop` (0x417A0D): the lobby: no players, not racing (`racing` 0), the
-//! background; the list's clocks, no editing, item 3 (the chat); the clocks of the players'
-//! listing and of the sync noted, the sync table to clear (`sync_first` 1), the sync
-//! counter (`sync`) up by one; the car item on, the stage item only for the host.
-//! Each frame (`net::lobby_frame` through `screens::run_frame`): once a second the players
-//! listed (`net::list_players_regs`); a key (`menu::list_take_key`): to the chat message
-//! while it is typed (`net::chat_key`); else, unless this player is ready (state bit 1),
-//! left (0x69) and right (0x68) move over the items 0 .. 3 skipping those off (and not below
-//! 1 after a race, `after_race`); Enter on 0 makes this player ready (state & ~6 | 1, the
-//! highlight to 3), on 1 the car (`net::choose_car`), on 2 the stage (`net::choose_stage`),
-//! each then the players listed, on 3 a chat message (`net::begin_chat`); 0x0F switches the
-//! gaps' display (`show_gaps`); Escape leaves (-1); 'R' and the lexicon's key as in the
-//! other lists. On the host, with two players or more all ready (each state's bit 1, those
-//! with bit 0x80 left out), each player not yet answering is sent "@" and the sync counter
-//! once a second ('@' messages, `net::dplay_send` to its id) until all have (`synced`,
-//! filled by the receiving thread); then everyone has raced (`all_raced` 1) and it ends
-//! with 1, as on the others when `all_raced` is 1 (set by the host's message). In the
-//! original, all players with state bit 4 (raced) ends the "after a race" (`after_race`
-//! 0); here no player with bit 2 (still racing), as a player who joined since
-//! never has bit 4, and then the host opens the session again (`net::enable_new_players`).
-//! The game closing ends it with -1.
-//!
-//! Returns 1 (the race) or -1 (left).
-//! A failed listing would give -2, but `net::list_players_regs` never comes back with the
-//! carry (section 16). Caller: `net::start_link`.
+//! The lobby: players listed once a second, keys to the chat message while one is typed, else
+//! left and right move over the items (ready, car, stage, chat), Enter acts on one, 0x0F toggles
+//! the gaps' display, Escape leaves. On the host, once two or more players are all ready, each is
+//! sent "@" with the sync counter until all have answered; then everyone races and the loop ends
+//! with 1. After a race, the "after a race" state ends when no player is still racing (a player
+//! who joined since never has the raced bit), and the host opens the session again
+//! (`net::enable_new_players`). Returns 1 (the race) or -1 (left).
 
 use crate::errors::Refused;
 use crate::net::lobby::{list_key, other_key, run_frame};
@@ -31,11 +13,11 @@ use crate::net::store::NetShared;
 use crate::net::store::PlayerRecord;
 use crate::owners::Owners;
 
-/// The players' states and-ed together (those with bit 0x80 left out), starting from
-/// `bits`, as the original's al: over `count` players (at least one turn: `count` > 0).
+/// The players' states and-ed together (those with bit 0x80 left out), starting from `bits`,
+/// over `count` players (at least one turn: `count` > 0).
 pub fn all_states(vars: &NetShared, bits: u8, count: u32) -> u8 {
     let state = |n: u32| vars.player_block_or_end(n).record.state();
-    // Converted: `rc2k_core::net::players::all_in_state`.
+    // The logic is in `rc2k_core::net::players::all_in_state`.
     rc2k_core::net::players::all_in_state(bits, count, state)
 }
 
@@ -137,8 +119,8 @@ pub fn lobby_loop(o: Owners<'static>) -> Result<u32, Refused> {
             >= 0
         {
             net.edit().clock_a.set(tick);
-            // The original's `jb` after it is never taken (`list_players_regs` loses
-            // the carry, section 16).
+            // A failed listing is never reported here (`list_players_regs` drops the result;
+            // kept as is).
             crate::net::list_players::list_players_regs(net)?;
         }
         install
@@ -218,8 +200,8 @@ pub fn lobby_loop(o: Owners<'static>) -> Result<u32, Refused> {
             install.pages.choice.set(1);
             return Ok(install.pages.choice.get());
         }
-        // Changed: the original waited for every player to have raced, which a
-        // player who joined since the race never has; now for none to be still racing.
+        // Waits for no player to be still racing: a player who joined since the race never has
+        // the raced bit.
         if net.vars.players.get() >= 1
             && rc2k_core::net::players::none_racing(net.vars.players.get(), |n| {
                 net.vars.player_block_or_end(n).record.state()

@@ -1,9 +1,7 @@
-//! The players' stage results pages: `screens::draw_players_results_points`
-//! 0x4836CF (with the points column) and `screens::draw_players_results` 0x48D32E (without),
-//! drawn by one loop over the rows each; their differences are the `Layout`. The original's
-//! slips are kept for now (bugs.md): 0x4836CF draws four rows for two players, tests the
-//! first row's time with `jl` (the others with equality) and puts the third row's time at
-//! 0x1B2.
+//! The players' stage results pages, with and without the points column, drawn by one loop over
+//! the rows each; their differences are the `Layout`. Slips kept as is: the
+//! points version draws four rows for two players, tests the first row's time with a signed
+//! comparison (the others with equality) and puts the third row's time at 0x1B2.
 
 use crate::screens::best_scores::{car_glyph, flag_glyph};
 use crate::screens::screen::{Buffer, Screen};
@@ -11,11 +9,10 @@ use crate::strings::format::{Pad, decimal, time};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Font {
-    /// `FontObjects.objects[15].first_char`.
     Rows,
-    /// `FontObjects.objects[14].first_char`: speeds and times.
+    /// Speeds and times.
     Small,
-    /// `FontObjects.objects[48].first_char`: the stage.
+    /// The stage.
     Stage,
 }
 
@@ -34,15 +31,16 @@ pub const NO_TIME: u32 = 0x36EE80;
 pub struct Layout {
     /// Added to every column's x but the stage's and the "no time" string's.
     pub dx: i32,
-    /// Two players give two rows (0x48D32E) or four (0x4836CF).
+    /// Two players give two rows or four (the points version).
     pub two_rows_for_two: bool,
-    /// The first row's "no time" test: signed `>= NO_TIME` (`jl`) or `== NO_TIME`.
+    /// The first row's "no time" test: signed `>= NO_TIME` or `== NO_TIME`.
     pub first_time_signed: bool,
-    /// The third row's time's x (0x1B2 on 0x4836CF, the column's 0x1E4 + dx on the other).
+    /// The third row's time's x (0x1B2 in the points version, the column's 0x1E4 + dx in the
+    /// other).
     pub third_time_x: i32,
     /// The head string 0x21A at 0x2BB and the points column.
     pub points: bool,
-    /// After the third row's flag, the extra sprite there too (0x48D32E).
+    /// After the third row's flag, the extra sprite there too (the version without points).
     pub third_row_extra: bool,
 }
 
@@ -101,8 +99,7 @@ pub struct Page {
     pub extra_glyph: u32,
 }
 
-/// The page. Every sprite's palette is taken from where the previous drawing left off: the line
-/// buffer after the spaced numbers, then what the times leave.
+/// The page. Every sprite's palette is taken from where the previous drawing left off.
 pub fn players_results<S: Screen<Font = Font, Work = Work>>(
     s: &mut S,
     layout: &Layout,
@@ -190,9 +187,8 @@ pub struct Standing<T> {
     pub points: u32,
 }
 
-/// `screens::draw_players_standings` 0x483FDE: the heads, then per row the name, the
-/// nationality's and the car's sprites (the palette where the last name ended), the place
-/// (strings 0x4FE ..) and the points; rows 0x17 apart from y 0xFE.
+/// The players' standings: the heads, then per row the name, the nationality's and the car's
+/// sprites, the place (strings 0x4FE ..) and the points; rows 0x17 apart from y 0xFE.
 pub fn standings<S: Screen<Font = Font, Work = Work>>(
     s: &mut S,
     rows: &[Standing<S::Text>],

@@ -1,9 +1,5 @@
-//! `net::send_turn` (0x46415B): the own car's messages by its step count (the current
-//! car's block +8): every fourth step (& 3 = 0) `net::send_inputs`, at & 0x1F
-//! = 2 `net::send_position`, at & 0xFF = 1 `net::send_extra`.
-//!
-//!
-//! See `net/mod.rs`. One caller, `net::race_step`.
+//! The own car's messages by its step count: every fourth step its inputs, at step 2 of 32 its
+//! position, at step 1 of 256 the extra dwords.
 
 use crate::errors::Refused;
 use crate::net::owner::Net;
@@ -19,7 +15,7 @@ pub fn send_turn(race: &Race, net: &Net) -> Result<(), Refused> {
         send_position::send_position,
         send_extra::send_extra,
     ];
-    // Converted: `rc2k_core::net::race::Kind::due`.
+    // The logic is in `rc2k_core::net::race::Kind::due`.
     for (kind, send) in SENT.into_iter().zip(sends) {
         if kind.due(race.shared.car().step_clock.get()).0 {
             send(race, net)?;

@@ -1,39 +1,30 @@
-//! `gfx::picture_as_surface` (0x405FE7): makes the picture buffer the surface that the
-//! blitters draw on, so that sprites can be drawn into a picture.
-//!
-//! From `g_pictureFlags`: the low byte names the size (the table `sizes`: 1 = 640 x
-//! 480, 2 = 800 x 600, 4 = 960 x 720, 8 = 1024 x 768, 0x10 = 1152 x 864, 0x20 = 1280 x 1024,
-//! 0x40 = 1600 x 1200, 0x80 = 1920 x 1280; anything else is fatal error 0x80A19091), bits 8
-//! to 11 the pixels (the table `pixel_kinds`: 0x200 = 16 bits, 0x800 = 32; anything else
-//! is fatal error 0x80A19092). Into the surface block (`g_surface`, 0x4F4998) go the
-//! width, the height, the bits and bytes of a pixel, the bytes of a row (also as the
-//! pitch, with no gap after a row, and as dwords), the picture buffer as the pixels and
-//! `g_surfaceFormat` as the format; the block's corner is left as it is. Then the clip
-//! rectangle is set to the block's rectangle (`set_clip`).
-//! Five callers, `menu::load_background` among them.
-//! The name is a reading.
+//! Makes the picture buffer the surface that the blitters draw on, so that sprites can be drawn
+//! into a picture. From the picture flags: the low byte names the size (1 = 640 x 480, 2 = 800 x
+//! 600, 4 = 960 x 720, 8 = 1024 x 768, 0x10 = 1152 x 864, 0x20 = 1280 x 1024, 0x40 = 1600 x 1200,
+//! 0x80 = 1920 x 1280; anything else is a fatal error), bits 8 to 11 the pixels (0x200 = 16 bits,
+//! 0x800 = 32; anything else is a fatal error). Into the surface block go the width, the height,
+//! the bits and bytes of a pixel, the bytes of a row (also as the pitch, with no gap after a row,
+//! and as dwords), the picture buffer as the pixels and the surface format; the block's corner is
+//! left as it is. Then the clip rectangle is set to the block's rectangle (`set_clip`).
 
 use crate::errors::{FatalError, Refused};
 use crate::gfx::modes::Modes;
 use crate::gfx::set_clip::set_clip;
 
-// ---- game data ----
-
-// `DRAW_SURFACE` is the surface block, twelve dwords: x, y, width, height,
-// bits a pixel, bytes a pixel, bytes of a row's pixels, dwords of a row, the pixel format,
-// the pitch, the pixels, the gap after a row.
+// `DRAW_SURFACE` is the surface block, twelve dwords: x, y, width, height, bits a pixel, bytes a
+// pixel, bytes of a row's pixels, dwords of a row, the pixel format, the pitch, the pixels, the gap
+// after a row.
 pub const SURFACE_DWORDS: usize = 12;
 const SIZE_COUNT: u32 = 8;
 const PIXEL_KIND_COUNT: u32 = 2;
 
-/// The surface block for a picture with these flags, from its third dword on (the corner
-/// is not touched).
+/// The surface block for a picture with these flags, from its third dword on (the corner is not
+/// touched).
 pub fn surface_of(
     modes: &Modes,
     flags: u32,
     pixels: u32,
 ) -> Result<[u32; SURFACE_DWORDS - 2], Refused> {
-    // Converted: `rc2k_core::gfx::screen_modes::picture_surface`.
     rc2k_core::gfx::screen_modes::picture_surface(
         flags,
         modes.entries(Modes::SIZES_AT, SIZE_COUNT),
@@ -52,7 +43,7 @@ pub fn surface_of(
 
 pub fn picture_as_surface(gfx: &crate::gfx::owner::Gfx) -> Result<(), Refused> {
     // The surface is the picture buffer by its number (`gfx::surface::Target::Picture`),
-    // `g_surface.pixels` 0 (no address).
+    // the surface's pixels 0 (no address).
     let block = surface_of(&gfx.display.modes, gfx.pictures.picture.flags.get(), 0)?;
     let s = &gfx.drawing.draw_surface;
     s.width.set(block[0]);

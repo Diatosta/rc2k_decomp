@@ -1,24 +1,14 @@
-//! `screens::draw_control_bindings` (0x46A829): what each of the current player's ten
-//! controls is bound to, on the controller pages.
-//!
-//!
-//! The current player's (`event.current_player`) bindings at +0x50 .. +0x74 (a dword each: dl a button, dh
-//! a direction, 0 nothing), at x 0x1B8, y 0xD5 and on every 0x1B, in the font at 0x51E8C4, built in
-//! the cells text buffer: string 0x3BD for nothing; else dh's name (string the pad direction names for a device
-//! kind, +0x34, below 2, else the stick direction names), for kind 3 on the first two rows the axis
-//! (`strings::append_axis_name` of +0x3B, +0x3A), then for a button ('+' after a direction) string
-//! 0x3C0, a space and the button's number. The row being learnt (`controls.learning` 1, the control being learnt
-//! the row from 1) is left out. In the draw lists of the four controller pages (0x758D9A ..).
-//! Refuses (before anything) no current player and a direction past the two 9-entry tables (dh
-//! above 8: the original reads past them). The menus and draw lists run its `entry`
-//! (`menu::table_calls`).
+//! What each of the current player's ten controls is bound to, on the controller pages: "no
+//! binding" (string 0x3BD), or the direction's name, for a device of kind 3 on the first two rows
+//! the axis, and for a button the button's number. The row being learnt is left out. Refuses no
+//! current player and a direction past the two 9-entry name tables.
 
 use crate::errors::{BadInput, Refused};
 use crate::screens::game_screen::ControlsScreen;
 use crate::screens::owner::ScreensOwner;
 use crate::text::draw_text::Canvas;
 
-/// The directions' names (`word_755200`, `ControlsScreen.stick_names[0]`).
+/// The directions' names (`ControlsScreen.stick_names[0]`).
 fn direction_names(
     controls: &crate::screens::controls_store::ControlsScreen,
 ) -> rc2k_core::screens::controls::DirectionNames {
@@ -55,7 +45,7 @@ pub fn binding_text(
     )?)
 }
 
-/// Returns the carry.
+/// Returns whether the last text drawn was too wide for its box.
 pub fn draw_control_bindings(
     o: crate::owners::Owners<'static>,
     screens: &ScreensOwner,

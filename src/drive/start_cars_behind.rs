@@ -1,33 +1,15 @@
-//! `drive::start_cars_behind` (0x43703E): with `run_kind` 2 (by `drive::race_mode_cars`), two
-//! computer cars kept near the lead car (car block 0), put back on the line behind or
-//! ahead of it as it passes them (`CarBlocks.cars[0].mode2_behind` counts the moves; `CarBlocks.cars[0].pace_cars[0]` and
-//! `CarBlocks.cars[0].pace_cars[1]` are their cars, `CarBlocks.cars[0].pace_starts[0]` / `54` their start numbers):
-//! - once (`CarBlocks.cars[0].pace_placed`): the two set at starts `start_place` - 2 and - 1 (cars from
-//!   `arcade_car_kinds`), 80 and 40 checkpoints on (`drive::start_car_on_line`);
-//! - the gaps by `CarBlocks.cars[0].mode2_place` (held to 0 .. `arcade_cars` - 1 by the signs) and the
-//!   start's `arcade_car_numbers` (low four bits): 0x2C / 0x28 + it (`pace_pass_gap`, `D8`,
-//!   `DC` their sum);
-//! - a car the lead has gone `pace_pass_gap` past moved behind it (- `pace_back_gap`), one
-//!   too far ahead of it moved ahead (+), when `drive::checkpoint_taken` allows; each
-//!   moved car's start values cleared (`drive::clear_start_state`);
-//! - unless `CarBlocks.cars[0].finish_flag` is set: the cars ahead and behind counted into `CarBlocks.cars[0].mode2_place`,
-//!   their least gaps (`drive::note_gap_ahead` / `behind`, from -1), the wanted gaps
-//!   (0x70FA14, 0x70FA18; held to `pace_back_gap` .. `pace_gap_sum`), eased into 0x70FA1C,
-//!   0x70FA20 (times 0x14A; jumps past 1000, else 1/64 of the way);
-//! - the four cars' +0x674 0, and for the two when within 8 checkpoints of each other (not
-//!   0) a push apart of 8 less the gap (times `pace_push_scale`, as floats).
+//! With `run_kind` 2 (the arcade race, by `drive::race_mode_cars`), two computer cars kept near
+//! the lead car (car block 0): put at their starts once (`pace_placed`), then moved back on the
+//! line behind or ahead of it when it has passed them by `pace_pass_gap` or they are too far
+//! ahead (when `drive::checkpoint_taken` allows), their start values cleared; the cars ahead and
+//! behind counted, their least gaps noted and the wanted gaps eased (`pace_gaps_eased`: the HUD's
+//! gaps to the neighbours, `race::panel_neighbours`, are these, not measured times); the four
+//! cars' +0x674 cleared and the two pushed apart when within 8 checkpoints. The game lists up
+//! to 89 opponents (`arcade_cars`) but only these two are simulated at a time.
 //!
-//! These are the arcade race's opponents (run kind 2 = "arcade" in the developers' mode list, and
-//! the only kind `race::set_up_arcade_cars` and `race::panel_neighbours` act on): the game lists up
-//! to 89 opponents by start number (`arcade_cars`), but only these two are simulated at a time, one
-//! kept behind the player and one ahead, and each is put back at the line behind or ahead of the
-//! player when passed or left far behind. The HUD's gaps to the neighbours (`race::panel_neighbours`)
-//! are the eased wanted gaps (`pace_gaps_eased`), not measured times.
-//!
-//! Caller: `drive::race_mode_cars` (0x436758). Refuses a start count (`arcade_cars`) above 0x58
-//! (the start tables' room) or a start table car past the eight blocks, before anything; the calls'
-//! refusals mid-way (the cars, the starts' variables and the work car put back first; the calls'
-//! scratch is not).
+//! Refuses a start count above 0x58 (the start tables' room) or a start table car past the eight
+//! blocks, before anything; the calls' refusals mid-way (the cars, the starts' variables and the
+//! work car put back first; the calls' scratch is not).
 
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
@@ -108,7 +90,6 @@ fn clear_car(shared: &RaceShared, car: u32) -> Result<(), Refused> {
     Ok(())
 }
 
-// Converted: `rc2k_core::drive::pace_cars` (the rules; the moves and calls stay here).
 pub fn start_cars_behind(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let course = &race.course;
     if let Some(why) = refusal(race)? {

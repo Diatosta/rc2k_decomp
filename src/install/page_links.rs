@@ -1,26 +1,20 @@
-//! The links in the installer pages' data, as handles.
-//!
-//! The original's pages hold addresses: a page entry names its list, an item its box, its
-//! choices, its edit record, its value or its text, a list its neighbours table, a drawing
-//! list's record its font or palette. The data here holds a handle in each of those dwords,
-//! made once where the data is built (`vars::InstallerPages::new`, from IDA's address), and
-//! every reader resolves it with bounds. A handle is a kind in the high byte and a number
-//! below:
+//! The links in the installer pages' data, as handles: a page entry names its list, an item its
+//! box, its choices, its edit record, its value or its text, a list its neighbours table, a
+//! drawing list's record its font or palette. Each dword holds a handle, made once where the
+//! data is built (`vars::InstallerPages::new`) and resolved with bounds by every reader. A
+//! handle is a kind in the high byte and a number below:
 //!
 //! - `TABLE`: a dword of `InstallerPages::page_table` (the page entries), by index;
-//! - `LIST`: one of the pages' lists, by `ListId` (a page entry's first word names a list, or one of
-//!   the header-only `action_pages`);
+//! - `LIST`: one of the pages' lists, by `ListId`;
 //! - `BOX`: one of `InstallerPages::boxes`, by index (0 the title item's, 1 the title's);
 //! - `EDIT`: the folder item's edit record;
 //! - `FONT`: a font of the font block, by number (`gfx::typefaces::FontId`);
 //! - `BLENDED_PALETTE`: the blended palette (the install bar's glyphs);
-//! - `TYPED_PATH`: a byte offset in `InstallerPaths::typed` (the folder item's text starts
-//!   past the drive's `c:`).
+//! - `TYPED_PATH`: a byte offset in `InstallerPaths::typed`.
 //!
-//! 0 is no link (a page with no next entry, the title's box). A thing of the pages resolves
-//! to its place in `InstallerPages` (`in_pages`), which is bounded by the whole of the
-//! pages: a read that runs on past a list's items or a table's end reads the bytes that
-//! follow, as the original's.
+//! 0 is no link. A thing of the pages resolves to its place in `InstallerPages` (`in_pages`),
+//! bounded by the whole of the pages: a read that runs past a list's items or a table's end
+//! reads the bytes that follow.
 
 use crate::errors::BadInput;
 use crate::gfx::typefaces::FontId;
@@ -40,9 +34,9 @@ const EDIT: u32 = 8;
 /// The bytes of the folder typed a link can name.
 const TYPED_LEN: u32 = 0x100;
 
-/// How many entries `InstallerPages::page_table` holds (IDA 0x51D594 ..).
+/// How many entries `InstallerPages::page_table` holds.
 pub const TABLE_LEN: u32 = 55;
-/// How many `InstallerPages::boxes` there are (16 bytes each, IDA 0x51DD88 ..).
+/// How many `InstallerPages::boxes` there are (16 bytes each).
 const BOXES: u32 = 9;
 
 /// One of the installer pages' lists.
@@ -116,22 +110,18 @@ impl PageLink {
         Self((TABLE << KIND_SHIFT) | index)
     }
 
-    /// The link to one of the pages' lists.
     pub const fn list(list: ListId) -> Self {
         Self((LIST << KIND_SHIFT) | list.number())
     }
 
-    /// The link to the folder item's edit record.
     pub const fn folder_edit() -> Self {
         Self(EDIT << KIND_SHIFT)
     }
 
-    /// The link to a font of the font block.
     pub const fn of_font(font: FontId) -> Self {
         Self((FONT << KIND_SHIFT) | font.number())
     }
 
-    /// The link to the blended palette (the install bar's glyphs).
     pub const fn blended_palette() -> Self {
         Self(BLENDED_PALETTE << KIND_SHIFT)
     }
@@ -171,12 +161,10 @@ impl PageLink {
         self.0 & NUMBER
     }
 
-    /// The page table entry a link names.
     pub fn table_index(self) -> Option<u32> {
         (self.kind() == TABLE && self.number() < TABLE_LEN).then_some(self.number())
     }
 
-    /// Where the thing of the installer pages the link names starts.
     pub fn pages_at(self) -> Option<PagesAt> {
         let number = self.number();
         match self.kind() {
@@ -189,20 +177,17 @@ impl PageLink {
     }
 
     /// The place in the installer pages the link names (a table entry, a list, a box, a
-    /// handler or the edit record), bounded by the pages (a table or text may run on inside
-    /// them as the original's does).
+    /// handler or the edit record), bounded by the pages.
     pub fn in_pages(self) -> Result<BytePlace, BadInput> {
         Ok(self.pages_start()?.place())
     }
 
-    /// The position in the pages of the place the link names.
     pub fn pages_start(self) -> Result<PagesAt, BadInput> {
         self.pages_at().ok_or(BadInput(
             "a page link that is no place in the installer's pages",
         ))
     }
 
-    /// The position in the pages of the box a link names.
     pub fn box_position(self) -> Result<PagesAt, BadInput> {
         match self.pages_at() {
             Some(at) if self.kind() == BOX => Ok(at),
@@ -218,7 +203,6 @@ impl PageLink {
         }
     }
 
-    /// The edit record a link names (the folder item's).
     pub fn edit_record(self) -> Result<&'static EditRecord, BadInput> {
         match self.kind() {
             EDIT if self.number() == 0 => Ok(&installer().pages.folder_edit),
@@ -235,7 +219,6 @@ impl PageLink {
         self.in_pages()
     }
 
-    /// The font the link names.
     pub fn font(self) -> Result<FontId, BadInput> {
         match FontId::try_numbered(self.number() as usize) {
             Some(font) if self.kind() == FONT => Ok(font),

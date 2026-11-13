@@ -1,14 +1,14 @@
-//! The built-in NEC keyboard (`strings::load_language`), out of RAL.EXE's image, typed
-//!: its file head and its layout with the tables the layout's pointers name. Plain immutable bytes; nothing names the image's
-//! addresses any more (`input::layouts` reads the layout's tables by offset).
+//! The built-in NEC keyboard (`strings::load_language`): its file head and its layout with the
+//! tables the layout's pointers name. Plain immutable bytes (`input::layouts` reads the layout's
+//! tables by offset).
 
 use crate::session::with_runs;
 
-/// The built-in NEC keyboard's file head, layout and tables (IDA 0x4F0DE0 ..).
+/// The built-in NEC keyboard's file head, layout and tables.
 pub struct KeyboardTables {
-    /// 0x4F0DE0: `aKeyb`: the built-in file's head ("KEYB", its kinds; 0x30 bytes copied into the keyboard file).
+    /// The built-in file's head ("KEYB", its kinds; 0x30 bytes copied into the keyboard file).
     pub nec_head: [u8; 48],
-    /// 0x4F0E10: `unk_4F0E10`: the layout (pointers to the tables from +4) and the tables after it.
+    /// The layout (pointers to the tables from +4) and the tables after it.
     pub nec_layout: [u8; 8740],
 }
 

@@ -1,13 +1,11 @@
 //! The picture buffer: where a picture file is decoded to, as 32-bit pixels of four 8-bit
-//! components, before it is converted to the surface's format and drawn. The background of
-//! every menu screen goes through it. Its variables are `PICTURE`.
-//!
-//! The buffers are Rust's (`Buffer`: the game's, the overlay's of
-//! `load_picture_with_overlay`, the map key sheet's), counted on their lists as the game's
-//! blocks were and given back with them. `PICTURE.buffer` and `DECODER.pixels` hold a
-//! buffer's number (0 none), and its users work on its bytes (`with_buffer`, `read_bytes`,
-//! `write_bytes`). The drawing layer reaches the picture as `gfx::surface::Target::Picture`
-//! (no address).
+//! components, before it is converted to the surface's format and drawn. The background of every
+//! menu screen goes through it. Its variables are `PICTURE`.
+//! The buffers are Rust's (`Buffer`: the game's, the overlay's of `load_picture_with_overlay`, the
+//! map key sheet's), counted on their lists as the game's blocks were and given back with them.
+//! `PICTURE.buffer` and `DECODER.pixels` hold a buffer's number (0 none), and its users work on its
+//! bytes (`with_buffer`, `read_bytes`, `write_bytes`). The drawing layer reaches the picture as
+//! `gfx::surface::Target::Picture` (no address).
 
 use crate::errors::{BadInput, Refused};
 use crate::gfx::owner::Pictures;
@@ -44,8 +42,8 @@ fn owned(handle: u32) -> Result<&'static Owned<Vec<u8>>, BadInput> {
         .ok_or(BadInput("no picture buffer"))
 }
 
-/// Buffer `which` taken, zeroed, `bytes` counted on `list` (sized as the game's block was:
-/// whole pages less its header). Its number.
+/// Buffer `which` taken, zeroed, `bytes` counted on `list` (sized as the game's block was: whole
+/// pages less its header). Its number.
 pub fn take(which: Buffer, list: &crate::memory::ListCells, bytes: u32) -> Result<u32, Refused> {
     let memory = vec![0u8; crate::memory::owned::block_len(bytes)];
     BUFFERS[which as usize - 1].take(list, bytes, memory)?;
@@ -89,8 +87,7 @@ pub fn write_bytes(handle: u32, at: usize, bytes: &[u8]) -> Result<(), BadInput>
     .ok_or(BadInput("a write past the picture buffer"))
 }
 
-/// `bytes` into a buffer's bytes at `at`, a decoder's write: past the end it ends the game,
-/// as the original's write past its block would have gone wrong.
+/// `bytes` into a buffer's bytes at `at`, a decoder's write: past the end it ends the game.
 pub fn put_or_end(buffer: &mut [u8], at: usize, bytes: &[u8]) {
     match at
         .checked_add(bytes.len())
@@ -150,8 +147,8 @@ mod tests {
             .buffer
             .set(take(Buffer::Main, list, 0x1D_4C00 + 0xC80).unwrap());
         set_size(&gfx().pictures, rc2k_core::gfx::picture_size::READ);
-        // A 4 x 2 picture of palette numbers 1 .. 8 (each byte below 0xC0 is itself), the
-        // palette after it: number k is (k, 2k, 3k).
+        // A 4 x 2 picture of palette numbers 1 .. 8 (each byte below 0xC0 is itself), the palette
+        // after it: number k is (k, 2k, 3k).
         let mut file = vec![0u8; 0x80];
         file[0] = 10;
         file[1] = 5;

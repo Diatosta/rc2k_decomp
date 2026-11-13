@@ -1,10 +1,9 @@
-//! The work car's steering from its input word (from
-//! `drive::steer_inputs` 0x439DB1): by keys (stepped toward the side the word says, or
+//! The work car's steering from its input word: by keys (stepped toward the side the word says, or
 //! back toward 0) or by device (the word scaled), then the trim.
 //!
-//! Floats: each figure is one whole number times a float, `fistp`ed: the same at the
-//! game's double precision (at extended a device product of more than 53 bits may round
-//! one off).
+//! Floats: each figure is one whole number times a float, rounded to a whole number: the same as
+//! the game's x87 at double precision (at extended, a device product of more than 53 bits may
+//! round one off).
 
 use crate::physics::x87::{below, fistp64};
 
@@ -16,7 +15,7 @@ fn sign(v: u32) -> bool {
     (v as i32) < 0
 }
 
-/// What `steer_inputs` reads.
+/// What the steering reads.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct SteerInputs {
     /// The input word (0 none, below 0 left).
@@ -36,7 +35,7 @@ pub struct SteerInputs {
     pub limit: f32,
 }
 
-/// What `steer_inputs` makes.
+/// What the steering makes.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Steered {
     /// `Car.steering`, `Car.steering_raw`.
@@ -49,9 +48,8 @@ pub struct Steered {
     pub scratch: u32,
 }
 
-/// One steering value moved by the key step toward the word's side (held at the ends),
-/// or with the word 0 back toward 0 at twice the step (stopping at 0; each by the sign of
-/// the result, as the original).
+/// One steering value moved by the key step toward the word's side (held at the ends), or with the
+/// word 0 back toward 0 at twice the step (stopping at 0); each by the sign of the result.
 fn by_keys(v: u32, word: u32, step: u32) -> u32 {
     if word != 0 {
         if sign(word) {
@@ -79,7 +77,7 @@ fn by_keys(v: u32, word: u32, step: u32) -> u32 {
     }
 }
 
-/// `drive::steer_inputs` on the two steering values.
+/// The work car's steering from `s`: both steering values moved, then the trim and the angles.
 pub fn steer(s: &SteerInputs, values: [u32; 2]) -> Steered {
     let [mut first, mut second] = values;
     let mut keys = s.word == 0;

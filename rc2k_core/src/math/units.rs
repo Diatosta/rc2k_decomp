@@ -1,13 +1,10 @@
-//! The game's units: conversions (RAL.EXE 0x4019A5, 0x4019BB, 0x40191E;
-//! from `math::celsius_to_fahrenheit`, `hhmm_to_minutes`, `miles_to_km`) and the
-//! figures shown with a unit (from `strings::append_speed`, `append_distance_2dp`,
-//! `append_temperature`, `append_power`, `append_length`, `append_weight`,
-//! `append_torque`).
+//! Unit conversions (Celsius to Fahrenheit, hhmm to minutes, miles to km) and the figures
+//! shown with a unit.
 
 use crate::strings::format::{Pad, decimal};
 
-/// The player's choice of units (the game's setting: 0 imperial, 1 metric). The game keeps
-/// miles, Celsius, bhp, lb, lb.ft and 1/100 yd and converts for the metric display.
+/// The player's choice of units (setting 0 imperial, 1 metric). Figures are kept in miles,
+/// Celsius, bhp, lb, lb.ft and 1/100 yd and converted for the metric display.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Units {
     Imperial,
@@ -31,23 +28,23 @@ impl Units {
         }
     }
 
-    /// The temperature's label: "F" / "C" (RAL.EXE's table at 0x51EB84).
+    /// The temperature unit's label: "F" / "C".
     pub fn temperature_label(self) -> u16 {
         self.pick(0x576, 0x575)
     }
-    /// The speed's label: "mph" / "km/h" (0x51EB88).
+    /// The speed unit's label: "mph" / "km/h".
     pub fn speed_label(self) -> u16 {
         self.pick(0x573, 0x574)
     }
-    /// The power's label: "bhp" / "kW" (0x51EB8C).
+    /// The power unit's label: "bhp" / "kW".
     pub fn power_label(self) -> u16 {
         self.pick(0x557, 0x558)
     }
-    /// The torque's label (0x51EB90).
+    /// The torque unit's label.
     pub fn torque_label(self) -> u16 {
         self.pick(0x55C, 0x55D)
     }
-    /// The weight's label (0x51EB94).
+    /// The weight unit's label.
     pub fn weight_label(self) -> u16 {
         self.pick(0x55F, 0x55E)
     }
@@ -183,7 +180,7 @@ pub fn torque(tenths: u32, units: Units) -> Figure {
     }
 }
 
-/// Whole degrees Celsius in Fahrenheit (the original's `imul` / `idiv`, rounding toward 0).
+/// Whole degrees Celsius in Fahrenheit (rounding toward 0).
 pub fn celsius_to_fahrenheit(celsius: i32) -> i32 {
     ((celsius as i64 * 9 / 5) as i32).wrapping_add(32)
 }
@@ -198,7 +195,7 @@ pub fn hhmm_to_minutes(hhmm: u32) -> u32 {
 pub const MAX_MILES: u32 = (((1u64 << 32) * 10_000 - 1 - 5_000) / 16_093) as u32;
 
 /// A distance in miles (any fixed-point scale) in kilometres, rounded to the nearest:
-/// times 1.6093. `None` past `MAX_MILES` (the original's `div` faults there).
+/// times 1.6093. `None` past `MAX_MILES`.
 pub fn miles_to_km(miles: u32) -> Option<u32> {
     (miles <= MAX_MILES).then(|| ((miles as u64 * 16_093 + 5_000) / 10_000) as u32)
 }
@@ -212,7 +209,7 @@ mod tests {
         assert_eq!(celsius_to_fahrenheit(0), 32);
         assert_eq!(celsius_to_fahrenheit(100), 212);
         assert_eq!(celsius_to_fahrenheit(-40), -40);
-        // rounding toward 0, as `idiv`
+        // rounds toward 0
         assert_eq!(celsius_to_fahrenheit(-1), 31);
         assert_eq!(celsius_to_fahrenheit(1), 33);
     }

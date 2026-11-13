@@ -1,16 +1,15 @@
-//! `menu::sealed_player_time` (0x4A3D38): the current player's (`event.current_player`) time
-//! (+0x88) sealed (`records::seal_time`) with bl its +8, cl the run kind and dl eax's low
-//! byte; the result also into `draw_work.figure` and `hhmm`.
+//! `menu::sealed_player_time`: the current player's (`event.current_player`) time (+0x88)
+//! sealed (`records::seal_time`) with the player's +8, the run kind and a byte given by the
+//! caller; the result also goes into `draw_work.figure` and `hhmm`.
 //!
-//! Callers: `menu::enter_time_trial_best`, `menu::enter_record_entry`. The seal is its Rust
-//! version. Refuses a current player past 3 or missing, before anything.
+//! Callers: `menu::enter_time_trial_best`, `menu::enter_record_entry`. Refuses a current player
+//! past 3 or missing, before anything.
 use crate::errors::{BadInput, Refused};
 use crate::menu::owner::Menus;
 use crate::menu::standings::*;
 use crate::race::owner::Race;
 
-/// `byte` the original's eax (its low byte sealed);
-/// the sealed block's two dwords (its eax, ebx) out.
+/// `byte` is the low byte sealed; the sealed block's two dwords come out.
 pub fn sealed_player_time(menus: &Menus, race: &Race, byte: u32) -> Result<[u32; 2], Refused> {
     let screens = &menus.screens;
     let n: u32 = screens.event.current_player.get();

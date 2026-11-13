@@ -1,20 +1,13 @@
-//! `menu::view_stage_loop` (0x47FD37): the stage details opened from the service area of a
-//! championship, by its title "VER ETAPA" and its draw list, which is that of
-//! `screens::draw_service_stage_info` (named from its title string and callers; the original's name is lost)
-//!
-//! The loop itself is `menu::screen_loop`; this file says what is this screen's own (`SCREEN`),
-//! as extracted from the disassembly: leaving is asked about; it has a step of its own once a
-//! frame; the steps that are more than a call or a store are the functions below, generated
-//! from the listing.
-//! The name is a reading from the title string of its menu, "VER ETAPA", not yet a visit.
+//! The stage details opened from the service area of a championship, by its title "VER ETAPA"
+//! and its draw list, which is that of `screens::draw_service_stage_info`. Screen-specific part
+//! of `menu::screen_loop`: leaving is asked about; it has a step of its own once a frame.
 
 use crate::errors::Refused;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Asking, Callee, Entry, Frames, List, Screen, Step};
 
-// The original pushes `event.section` and `event.index` at its entry and pops them at its
-// end, with the whole screen in between: the two are kept here across the loop's steps
-// (written by hand; the generated functions each have a stack of their own).
+// `event.section` and `event.index` are saved when the screen is entered and put back when it
+// ends, kept here across the loop's steps (by hand: the generated steps share no stack).
 thread_local! {
     static KEPT: std::cell::RefCell<Vec<u32>> = const { std::cell::RefCell::new(Vec::new()) };
 }
@@ -63,17 +56,17 @@ fn after(entry: &Entry) -> Result<(), Refused> {
 pub const SCREEN: Screen = Screen {
     lists: &[
         List {
-            pointer: |m| &m.screens.flow.scene_list, // g_sceneList
+            pointer: |m| &m.screens.flow.scene_list,
             table: |m| m.tables.draw_lists.view_stage_scene.id(),
             run: false,
         },
         List {
-            pointer: |m| &m.screens.flow.draw_list, // g_drawList
+            pointer: |m| &m.screens.flow.draw_list,
             table: |m| m.tables.draw_lists.view_stage_draw.id(),
             run: false,
         },
         List {
-            pointer: |m| &m.screens.flow.overlay_list, // g_overlayList
+            pointer: |m| &m.screens.flow.overlay_list,
             table: |m| m.tables.draw_lists.view_stage_overlay.id(),
             run: false,
         },

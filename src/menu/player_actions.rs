@@ -1,23 +1,13 @@
-//! More item actions the standalone could reach unported (found by surveying the
-//! menu and draw-list tables):
-//! - the current player's (`g_players`[`g_currentPlayer`]) settings:
-//!   `menu::keep_player_keys` (0x46AEFC): the 0x2C bytes of the page's key copy (`keys.tables.controls`) to
-//!   +0x50; `menu::lower_player_40` (0x46B386, `lower_end_zone`): the first dead zone (+0x40) one less while above 0
-//!   (signed); `menu::lower_player_44` (0x46B3CB, `lower_centre_dead_zone`): the second one less
-//!   unless 0; `menu::raise_player_48` (0x46B528) / `lower_player_48` (0x46B54C): the
-//!   strength (+0x48) ten more unless 100 / ten less unless 0; `menu::toggle_player_3c`
-//!   (0x4704EC, `toggle_controller_mode`): the mode's (+0x3C) bit 0 turned over;
-//! - `menu::next_scores_page` (0x46D0FB) and `menu::previous_scores_page` (0x46D115): the
-//!   best scores' page (`pages.scores_page`) one more (11 back to 0) or less (below 0 to 10);
-//! - `menu::previous_replay_range` (0x46D423) and `menu::next_replay_range` (0x46D43B): the
-//!   replays' range (`pages.replay_page`) one less (below 0 to 4) or more (past 4 to 0), then its
-//!   caption (`screens::replay_range_caption`);
-//! - `menu::player_N_car_specs` (0x46FCC1, 0x46FCDD, 0x46FCF9, 0x46FD15): `menu::show_car_specs`
-//!   for player N (0 .. 3, `g_currentPlayer` set and put back);
-//! - `menu::toggle_caption_choice` (0x47056B): the caption choice's bit 0 turned over and string
-//!   0x4FC + it with a NUL into the caption (`g_captionText`; the eax and ebx it leaves are
-//!   read by none of its callers);
-//! - `menu::leave_with_carry` (0x471CCE): `loop_flags.leave_screen` and `left_with_carry` set to 1, the carry set;
+//! More menu item actions (found by surveying the menu and draw-list tables):
+//! - the current player's settings: keep the key copy (0x2C bytes to +0x50), lower the dead
+//!   zones (+0x40, +0x44), step the strength (+0x48, by ten, 0 .. 100), turn the mode's bit 0
+//!   (+0x3C);
+//! - the best scores' page (`pages.scores_page`, 0 .. 10) and the replays' range
+//!   (`pages.replay_page`, 0 .. 4) one more or less, wrapping, then the replays' caption;
+//! - `menu::player_N_car_specs`: `menu::show_car_specs` for player N (0 .. 3);
+//! - `menu::toggle_caption_choice`: the caption choice's bit 0 turned over and its string
+//!   (0x4FC + it) into the caption;
+//! - `menu::leave_with_carry`: `loop_flags.leave_screen` and `left_with_carry` set.
 //!
 //! Refuses (before anything) no current player (or one past the four).
 
@@ -35,8 +25,6 @@ fn player(menus: &Menus) -> Result<crate::menu::standings::PlayerCell<'_>, Refus
     crate::menu::player::player(menus, menus.screens.event.current_player.get())
         .ok_or_else(|| BadInput("no current player (or one past the four)").into())
 }
-
-// ---- the functions ----
 
 // The logic is in `rc2k_core::menu::player` (the player's fields) and `rc2k_core::menu::steps`
 // (`scores_page`, `replay_range`, `flip`).
@@ -136,7 +124,6 @@ pub fn toggle_caption_choice(
 }
 
 pub fn leave_with_carry(menus: &Menus) {
-    // The logic is in `rc2k_core::menu::leaving::Leaving::leave_with_carry`.
     crate::menu::leaving::with_leaving(menus, rc2k_core::menu::leaving::Leaving::leave_with_carry);
 }
 

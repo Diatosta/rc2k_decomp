@@ -1,16 +1,13 @@
-//! A joystick as the input thread reads it (from
-//! `input::axis_found` 0x4083F4, `input::poll_device` 0x408869's reading and
-//! `input::request_device_setup` 0x409351).
+//! A joystick as the input thread reads it.
 //!
-//! DirectInput's state of a joystick (`DIJOYSTATE`, 0x50 bytes: six axes, two sliders,
-//! four hats as dwords, then 32 buttons as bytes) is read into a device record's three
-//! axes and its buttons' bits; which state dwords make the axes the record's selector
-//! bytes say (`& 7` the dword, bit 0x10 the sign or a half's offset).
+//! DirectInput's state of a joystick (`DIJOYSTATE`: six axes, two sliders, four hats as dwords,
+//! then 32 buttons as bytes) is read into a device record's three axes and its buttons' bits;
+//! the record's selector bytes say which state dwords make the axes (`& 7` the dword, bit 0x10
+//! the sign or a half's offset).
 
 use crate::input::force::Guid;
 
-/// The six axes' bits in a controller's entry (+0x14), in the order of their GUIDs
-/// (`GUID_XAxis` .. `GUID_RzAxis`).
+/// The six axes' bits in a controller's entry, in the order of their GUIDs.
 pub const AXES: u32 = 6;
 
 /// `input::axis_found`: the bits a controller's axes have once an object of type
@@ -22,26 +19,25 @@ pub fn axis_bits(bits: u32, object_type: &Guid, axes: &[Guid; AXES as usize]) ->
         .fold(bits, |bits, (n, _)| bits | 1 << n)
 }
 
-/// The most controllers `g_controllers` lists.
+/// The most controllers the list holds.
 pub const CONTROLLERS: u32 = 16;
 
-/// What a found joystick's entry in `g_controllers` gets from its capabilities
-/// (`DIDEVCAPS`; from `input::joystick_found` 0x408238).
+/// What a found joystick's entry gets from its capabilities.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Found {
     pub caps_flags: u32,
     pub axes: u32,
     pub buttons: u32,
     pub hats: u32,
-    /// 1 when attached (`DIDC_ATTACHED`).
+    /// 1 when attached.
     pub attached: u32,
     /// 1 with force feedback (`DIDC_FORCEFEEDBACK`); not written when the configuration
     /// turned force feedback off.
     pub force_feedback: Option<u32>,
 }
 
-/// The entry from the capabilities' flags, axes, buttons and hats, and the configuration's
-/// switch (`Devices.no_force_feedback`, not 0: force feedback off).
+/// The entry from the capabilities' flags, axes, buttons and hats; `no_force` (not 0) turns
+/// force feedback off.
 pub fn found(flags: u32, axes: u32, buttons: u32, hats: u32, no_force: u32) -> Found {
     Found {
         caps_flags: flags,
@@ -73,17 +69,16 @@ pub const SELECT_THIRD: u32 = 0x1B;
 pub const SELECT_Y: u32 = 0x1C;
 pub const SELECT_X: u32 = 0x1D;
 
-/// `cmp v, 0; jns; neg v`.
+/// The absolute value (wrapping).
 fn positive(v: u32) -> u32 {
     if (v as i32) < 0 { v.wrapping_neg() } else { v }
 }
 
-/// `input::poll_device`'s three axes for a record of `kind` from the state's dwords
-/// (`state`) by its selector bytes (`selector`, by place), each asked only as the original
-/// reads it. Kinds up to 2: x and y the selected dwords (negated with bit 0x10), a y below
-/// 0 being the third axis (made positive) and the second 0; above 2: x the state's first
-/// dword, the others the selected (plus 0x100 with bit 0x10). The second and third made
-/// positive.
+/// A record's three axes for a `kind` from the state's dwords (`state`) by its selector bytes
+/// (`selector`, by place), each asked for only when used. Kinds up to 2: x and y the selected
+/// dwords (negated with bit 0x10), a y below 0 being the third axis (made positive) and the second
+/// 0; above 2: x the first dword, the others the selected (plus 0x100 with bit 0x10). The second
+/// and third are made positive.
 pub fn poll_axes(kind: u32, selector: impl Fn(u32) -> u8, state: impl Fn(u32) -> u32) -> [u32; 3] {
     let selected = |place: u32| {
         let b = selector(place);
@@ -119,13 +114,13 @@ pub fn poll_buttons(buttons: &[u8; 32]) -> u32 {
         .fold(0, |bits, (k, _)| bits | 1 << k)
 }
 
-/// What `input::request_device_setup` gives the first device record (the input thread
-/// then gives the device back and acquires it again with these).
+/// What `input::request_device_setup` gives the first device record (the input thread then
+/// gives the device back and acquires it again with these).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct DeviceSetup {
     pub controller: u32,
     pub sensitivity: u32,
-    /// The sensitivity, 2 for 0.
+    /// The kind: the sensitivity, 2 for 0.
     pub kind: u32,
     pub axis_code: u32,
     /// No force feedback asked.

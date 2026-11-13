@@ -1,14 +1,8 @@
-//! `screens::draw_redefined_keys` (0x47CFA7): the keys on a redefine keys page.
-//!
-//!
-//! The current player's (`event.current_player`) keys (`Player::keys`, +0x1C), places 0 .. 7 and 9 .. 11
-//! (place 8 is not drawn), at x = 0x1CC, y = 0xAF and on every 0x1D, in the font at 0x51E8C4: each
-//! key's name (`input::append_key_name` and a NUL into the cells text buffer, then `draw_text`), but at the
-//! place being redefined (`g_redefinedKeyPlace`) the cursor, string 4, while the text cursor's
-//! blink (`draw_work.cursor_on`) is 1, else nothing (the carry then that of `cmp `draw_work.cursor_on`, 1`). The
-//! player's keys, not the page's work copy: a key shows when the redefining ends. In the draw lists
-//! of the four pages (0x758DE6 ..). Refuses no current player and what the key's name refuses. The
-//! menus and draw lists run its `entry` (`menu::table_calls`).
+//! The keys on a redefine keys page: the current player's keys, places 0 to 7 and 9 to 11
+//! (place 8 is not drawn), each as the key's name, but at the place being redefined the cursor
+//! while the text cursor's blink is on, else nothing. The player's keys are drawn, not the page's
+//! work copy: a key shows when the redefining ends. Refuses no current player and what the key's
+//! name refuses.
 
 use crate::errors::Refused;
 use crate::input::append_key_name::append_key_name;
@@ -20,7 +14,7 @@ use crate::text::draw_text::Canvas;
 // the cells text buffer
 // up to the stage heading buffer
 
-/// Returns the carry.
+/// Returns whether the last text drawn was too wide for its box.
 pub fn draw_redefined_keys(
     o: crate::owners::Owners<'static>,
     canvas: &mut dyn Canvas,
@@ -29,8 +23,8 @@ pub fn draw_redefined_keys(
     let screens = &menus.screens;
     let keys = current(menus)?.get().keys;
     let redefined: u32 = screens.option_work.redefined_key_place.get();
-    // The logic is in `rc2k_core::screens::controls::redefined_keys`; the names made first
-    // (none at the place being redefined, as the original).
+    // The logic is in `rc2k_core::screens::controls::redefined_keys`; the names are made first
+    // (none at the place being redefined).
     use rc2k_core::screens::controls::KEY_PLACES;
     let row = KEY_PLACES.iter().position(|&p| p as u32 == redefined);
     let mut names: [Vec<u8>; 11] = Default::default();

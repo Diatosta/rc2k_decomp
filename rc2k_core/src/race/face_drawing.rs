@@ -1,12 +1,8 @@
-//! How a course face goes to the polygon drawer: as one quad or as its two triangles, the
-//! corners each takes, the polygon mode its textures pick, which corners are in sight
-//! (from `race::draw_whole_quad` 0x452F3D, `draw_face_triangles`
-//! 0x452CF3, `draw_face_polygons` 0x452CCF, `draw_face` 0x452C6F, `clip_and_draw_face`
-//! 0x454187, `face_out_of_view` 0x45246F, `draw_tinted_face` 0x44F9F3, `draw_back_face`
-//! 0x452B58 and `draw_face_sides` 0x452393).
+//! How a course face goes to the polygon drawer: one quad or two triangles, their corners, the
+//! polygon mode, which corners are in sight, the tint and the back of a two-sided face.
 
-/// The quad's polygon entries from the face's corners, (entry, corner) in the original's
-/// order: entries 1, 2, 3, 0 from corners 0, 1, 3, 2.
+/// The quad's polygon entries as (entry, corner), in drawing order: entries 1, 2, 3, 0 from
+/// corners 0, 1, 3, 2.
 pub const QUAD_ENTRIES: [(u32, u32); 4] = [(1, 0), (2, 1), (3, 3), (0, 2)];
 /// The first triangle's entries (corners 0, 1, 2) and the second's (3, 2, 1).
 pub const FIRST_TRIANGLE: [(u32, u32); 3] = [(0, 0), (1, 1), (2, 2)];
@@ -15,8 +11,7 @@ pub const SECOND_TRIANGLE: [(u32, u32); 3] = [(0, 3), (1, 2), (2, 1)];
 /// The polygon mode of a face with one texture.
 pub const PLAIN_MODE: u32 = 2;
 
-/// `draw_face`'s polygon mode: the plain one, or with a second texture the mode its
-/// record's +0x2C picks (`surface_kinds`[pick]`, asked only then).
+/// The polygon mode: the plain one, or with a second texture the mode its record picks.
 pub fn face_mode(second_texture: u32, picked: impl FnOnce() -> u32) -> u32 {
     if second_texture != 0 {
         picked()
@@ -25,14 +20,13 @@ pub fn face_mode(second_texture: u32, picked: impl FnOnce() -> u32) -> u32 {
     }
 }
 
-/// `draw_face_polygons`: one quad is tried in a race with both triangles facing the view
-/// (their two answers adding to 0).
+/// One quad is tried in a race with both triangles facing the view (answers adding to 0).
 pub fn tries_quad(in_race: u32, first_away: u32, second_away: u32) -> bool {
     in_race != 0 && first_away.wrapping_add(second_away) == 0
 }
 
-/// `draw_face_triangles`: the first triangle drawn unless it faces away; the second when
-/// the face has one (a fourth corner) and it does not face away.
+/// The first triangle is drawn unless it faces away; the second when there is a fourth corner
+/// and it does not face away.
 pub fn draws_first(first_away: u32) -> bool {
     first_away == 0
 }
@@ -41,9 +35,8 @@ pub fn draws_second(fourth: u32, second_away: u32) -> bool {
     fourth != crate::race::faces::NO_CORNER && second_away == 0
 }
 
-/// `draw_whole_quad` after the projection: by the vertices outside, Some(true) to draw as
-/// triangles (some outside), Some(false) to draw nothing (all four), None to test the
-/// screen's inside.
+/// After projection: Some(true) to draw as triangles (some corners outside), Some(false) to
+/// draw nothing (all four outside), None to test the screen's inside.
 pub fn quad_by_outside(outside: u32) -> Option<bool> {
     match outside {
         4 => Some(false),
@@ -52,8 +45,7 @@ pub fn quad_by_outside(outside: u32) -> Option<bool> {
     }
 }
 
-/// The screen's inside the quad must keep to: (left, right, top, bottom) each one in
-/// from the edges (`SceneDraw.clip_edges[2]`, `SceneDraw.clip_edges[3]`, `clip_edges`, `SceneDraw.clip_edges[1]`).
+/// The screen's inside a quad must keep to: (left, right, top, bottom), one in from the edges.
 pub fn screen_inside(left: u32, right: u32, top: u32, bottom: u32) -> [u32; 4] {
     [
         left.wrapping_add(1),
@@ -68,23 +60,21 @@ pub fn inside(n: u32, low: u32, high: u32) -> bool {
     (n.wrapping_sub(low) as i32) >= 0 && (n.wrapping_sub(high) as i32) < 0
 }
 
-/// `clip_and_draw_face`: a polygon is drawn with three vertices or more.
+/// A polygon is drawn with three vertices or more.
 pub fn draws_polygon(vertices: u32) -> bool {
     vertices >= 3
 }
 
-/// How a corner of `face_out_of_view` is in sight.
+/// How a corner is in sight.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum InSight {
-    /// |x| below the near limit (the original keeps |x| in `scratch`).
+    /// |x| below the near limit.
     Near,
-    /// |x| times the slope below the depth.
     Slope,
 }
 
-/// A corner in sight: its depth (a float's bits) not negative (sign bit clear), and |x|
-/// below the near limit, or |x| times the slope below the depth (each "below" true when
-/// unordered, as `fcomp` / `jb`). Exact in `f64`: the product of two floats is.
+/// A corner in sight: its depth not negative, and |x| below the near limit or |x| times the
+/// slope below the depth ("below" is true when unordered). Exact in `f64`.
 pub fn corner_in_sight(depth: u32, x: u32, near: f32, slope: f32) -> Option<InSight> {
     if depth & 0x8000_0000 != 0 {
         return None;
@@ -101,8 +91,8 @@ pub fn corner_in_sight(depth: u32, x: u32, near: f32, slope: f32) -> Option<InSi
     None
 }
 
-/// `draw_tinted_face`: the polygon colour times the object's tint byte by byte
-/// ((a x b) >> 8): all four bytes with MMX, the low three without (the top byte 0).
+/// The polygon colour times the object's tint byte by byte ((a x b) >> 8): four bytes with
+/// MMX, else the low three.
 pub fn tinted(tint: u32, colour: u32, mmx: bool) -> u32 {
     let mut out = 0;
     for k in 0..if mmx { 4 } else { 3 } {
@@ -117,25 +107,22 @@ pub fn tints(tint: u32) -> bool {
     tint != 0
 }
 
-/// `draw_back_face`: a two-sided face (`back_a`, the first kind's bit 3) has a back.
+/// A two-sided face (its first kind's bit 3) has a back.
 pub fn has_back(two_sided: u32) -> bool {
     two_sided != 0
 }
 
-/// The corners turned over: the first two swapped always, the last two when there is a
-/// fourth.
+/// The corners turned over: the first two swapped, the last two too when there is a fourth.
 pub fn turns_last_pair(fourth: u32) -> bool {
     fourth != crate::race::faces::NO_CORNER
 }
 
-/// The first texture's order turned over: the turned order of its low three bits
-/// (`turned_corner_order`[order & 7]`), its bit 3 kept.
+/// The first texture's order turned over: its low three bits turned, bit 3 kept.
 pub fn turned_order(order: u32, turned: impl FnOnce(u32) -> u8) -> u32 {
     turned(order & 7) as u32 | (order & 8)
 }
 
-/// `draw_face_sides` in a race: a face is drawn only with an object on either triangle
-/// (+1 or +0x21).
+/// In a race a face is drawn only with an object on either triangle.
 pub fn has_objects(first: u8, second: u8) -> bool {
     first | second != 0
 }
@@ -145,18 +132,17 @@ pub fn two_sided(kind: u8) -> bool {
     kind & 8 != 0
 }
 
-/// A side is drawn unless both triangles face away (their answers and'ed).
+/// A side is drawn unless both triangles face away.
 pub fn side_drawn(first_away: u32, second_away: u32) -> bool {
     first_away & second_away == 0
 }
 
-/// The facings flipped for the back (`xor 1`).
+/// The facings flipped for the back.
 pub fn flipped(away: u32) -> u32 {
     away ^ 1
 }
 
-/// A projected corner: its depth in the view and its place on the screen (floats' bits, a
-/// point record's +0x18, +0xC, +0x1C).
+/// A projected corner: its depth in the view and its place on the screen (floats' bits).
 #[derive(Clone, Copy, Debug)]
 pub struct ScreenCorner {
     pub depth: u32,
@@ -164,7 +150,7 @@ pub struct ScreenCorner {
     pub y: u32,
 }
 
-/// The screen's clip edges (`clip_screen`: top, bottom, left, right).
+/// The screen's clip edges.
 #[derive(Clone, Copy, Debug)]
 pub struct ScreenEdges {
     pub top: f32,
@@ -173,14 +159,9 @@ pub struct ScreenEdges {
     pub right: f32,
 }
 
-/// Whether a face whose polygons all lie within its corners' hull leaves nothing on the
-/// screen (not the original's: it finds this only at the end, cutting each polygon to the
-/// screen): every corner projected (its depth at least `near`, so no polygon is cut at the
-/// near plane and each lies on the same side of a screen edge as its corners), and every
-/// corner strictly past the same edge (the clipper's passes then keep none of its
-/// vertices). Ties never count as past, and a corner with an unordered depth or place keeps
-/// the face (the clipper counts such a place as inside), so a face this answers for would
-/// have been cut away whole.
+/// Whether a face whose polygons all lie within its corners' hull leaves nothing on the screen:
+/// every corner projected (depth at least `near`) and strictly past the same edge. Ties never
+/// count as past, and an unordered depth or place keeps the face (drawn).
 pub fn off_screen(corners: &[ScreenCorner], edges: ScreenEdges, near: f32) -> bool {
     let f = |b: u32| f32::from_bits(b) as f64;
     let mut past = [true; 4];
@@ -193,7 +174,7 @@ pub fn off_screen(corners: &[ScreenCorner], edges: ScreenEdges, near: f32) -> bo
             return false;
         }
         let (x, y) = (f(c.x), f(c.y));
-        // The clipper keeps an unordered place inside every edge: a face with one is drawn.
+        // An unordered place counts as inside every edge: a face with one is drawn.
         if x.is_nan() || y.is_nan() {
             return false;
         }

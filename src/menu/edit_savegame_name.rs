@@ -1,15 +1,19 @@
-//! `menu::edit_savegame_name` (0x46D685): one step of typing the name of a saved game; Enter
+//! `menu::edit_savegame_name`: one step of typing the name of a saved game; Enter
 //! saves the game.
 //!
-//! The name is the highlighted entry of the saved game list. One pending key is taken: none
-//! the cursor is written again; 1 (Escape)    the name from before comes back, the entry ends; 0x1C
-//! (Enter)  an empty name is replaced by the one from before; the entry ends, the name is cut at
-//! its length and the game is saved in that slot (`saves::write_savegame_slot`); 0x6E          the
-//! name is cleared; 0x0E          the last character goes (`backspace_savegame_name`); any other
-//! `key_to_char`; a character is appended unless the length is already above the maximum, and taken
-//! off again if the name then measures 0xEC pixels or more. After anything but Escape and Enter the
-//! cursor (string 4) is written after the name if `draw_work.cursor_on` is set, then a NUL. Called from the
-//! screen loop `menu::save_championship_loop` while `option_work.typing` is set. Refuses, before the key is
+//! The name is the highlighted entry of the saved game list. One pending key is taken:
+//! - none: the cursor is written again;
+//! - 1 (Escape): the name from before comes back, the entry ends;
+//! - 0x1C (Enter): an empty name is replaced by the one from before; the entry ends, the name is
+//!   cut at its length and the game is saved in that slot (`saves::write_savegame_slot`);
+//! - 0x6E: the name is cleared;
+//! - 0x0E: the last character goes (`backspace_savegame_name`);
+//! - any other: `key_to_char`; a character is appended unless the length is already above the
+//!   maximum, and taken off again if the name then measures 0xEC pixels or more.
+//!
+//! After anything but Escape and Enter the cursor (string 4) is written after the name if
+//! `draw_work.cursor_on` is set, then a NUL. Called from the screen loop
+//! `menu::save_championship_loop` while `option_work.typing` is set. Refuses, before the key is
 //! taken: a name past the list, a length outside 0 .. 0x1F, no keyboard layout.
 
 use crate::errors::{BadInput, Refused};
@@ -28,8 +32,6 @@ use crate::service::state::menu_item;
 use crate::strings::append_string_by_id::push_string;
 use crate::text::draw_text::Canvas;
 use crate::text::measure_text::measure_text_at;
-
-// ---- game data ----
 
 const CURSOR_STRING: u32 = 4;
 const MEASURING_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::MEASURE;
@@ -51,8 +53,8 @@ fn highlighted_slot(menus: &Menus) -> u32 {
         .wrapping_sub(1)
 }
 
-/// Saves the game in `slot`. Whether it worked is not looked at, as in the original. A slot
-/// or a state the Rust writer refuses ends the program with the reason.
+/// Saves the game in `slot`. Whether it worked is not looked at. A slot or a state the writer
+/// refuses ends the program with the reason.
 pub fn save_game(menus: &Menus, saves: &'static Saves, slot: u32) {
     if let Err(why) = write_savegame_slot(menus, saves, slot) {
         crate::framework::log(&format!("saves::write_savegame_slot: slot {slot}"));
@@ -80,7 +82,6 @@ pub fn edit_savegame_name(
     }
 
     let key = take_key(input);
-    // The logic is in `rc2k_core::menu::text_entry` (`key`, `appends`, `too_wide`).
     use rc2k_core::menu::text_entry::{self as entry, Key};
     match entry::key(key) {
         Key::None => {}

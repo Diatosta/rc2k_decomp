@@ -1,15 +1,13 @@
-//! The light on the work car from the face under it (`physics::car_lighting`): the face's four
-//! corner lights blended by the car's shares across the face (16.16), scaled by the texture's shade
-//! bytes when it has them; a change held to `MOST_CHANGE` a step; colours added byte by byte with
-//! saturation. Each step also returns the leftover values of the original's last products, which
-//! later code of the original still reads.
+//! The light on the work car from the face under it: four corner lights blended by the car's
+//! shares, shaded by the texture's bytes, a change held to `MOST_CHANGE` a step, colours added
+//! with saturation.
 
-/// The shares' whole (16.16 fixed point).
+/// The shares' whole (16.16).
 pub const WHOLE: u32 = 0x10000;
 /// The most a held light changes in a step.
 pub const MOST_CHANGE: u32 = 10;
 
-/// The shares taken from the whole on the face's second half (the face's half flag 1).
+/// The shares taken from the whole on the face's second half.
 pub fn half_shares(half: u32, s: u32, t: u32) -> (u32, u32) {
     if half == 1 {
         (WHOLE.wrapping_sub(s), WHOLE.wrapping_sub(t))
@@ -18,7 +16,7 @@ pub fn half_shares(half: u32, s: u32, t: u32) -> (u32, u32) {
     }
 }
 
-/// lo + ((hi - lo) x s >> 16) (`imul`, `shrd` 16); and the product's high half.
+/// lo + ((hi - lo) x s >> 16), and the product's high half.
 pub fn blend(lo: u32, hi: u32, s: u32) -> (u32, u32) {
     let product = (hi.wrapping_sub(lo) as i32 as i64).wrapping_mul(s as i32 as i64);
     (
@@ -27,8 +25,7 @@ pub fn blend(lo: u32, hi: u32, s: u32) -> (u32, u32) {
     )
 }
 
-/// The four corners blended: corners 0 - 1 and 2 - 3 by `s`, then the two by `t`; the
-/// two halves (kept for the ground store), the result and the product's high half.
+/// The four corners blended: 0 - 1 and 2 - 3 by `s`, then the two by `t`.
 pub fn corners(c: [u32; 4], s: u32, t: u32) -> ([u32; 2], u32, u32) {
     let (a, _) = blend(c[0], c[1], s);
     let (b, _) = blend(c[2], c[3], s);
@@ -36,8 +33,7 @@ pub fn corners(c: [u32; 4], s: u32, t: u32) -> ([u32; 2], u32, u32) {
     ([a, b], v, high)
 }
 
-/// A corner's light scaled by its shade byte (the face's +0x22 + k): ((byte >> 1) ^ 0x7F)
-/// + 0x80 times the light (`mul`), >> 8; and the product's high half.
+/// A corner's light scaled by its shade byte.
 pub fn shaded(light: u32, shade: u8) -> (u32, u32) {
     let v = ((shade as u32 >> 1) ^ 0x7F) + 0x80;
     let product = v as u64 * light as u64;
@@ -50,9 +46,8 @@ pub struct Held {
     pub light: u32,
 }
 
-/// The light's change from `old` held (with the car's +0xFB4 set): kept at `old` with
-/// `keep` (`scene_switch`); else a change of `MOST_CHANGE` or more (by its size, signed)
-/// made `MOST_CHANGE` that way.
+/// The light's change from `old` held: kept at `old` when `keep`; else a change of
+/// `MOST_CHANGE` or more (signed) is made `MOST_CHANGE` that way.
 pub fn hold_change(light: u32, old: u32, keep: bool) -> Held {
     if keep {
         return Held { light: old };
@@ -78,8 +73,8 @@ pub fn hold_change(light: u32, old: u32, keep: bool) -> Held {
 /// The light and colour tables' size: an index past it is refused.
 pub const TABLE: u32 = 0x100;
 
-/// A colour added to the light byte by byte with saturation: four bytes with MMX
-/// (`g_hasMmx`), else the low three (the colour's top byte kept).
+/// A colour added to the light byte by byte with saturation: four bytes with MMX, else the
+/// low three (the colour's top byte kept).
 pub fn add_colour(colour: u32, light: u32, mmx: bool) -> u32 {
     let sat = |k: u32| (((colour >> k) & 0xFF) + ((light >> k) & 0xFF)).min(0xFF) << k;
     let top = if mmx { sat(24) } else { colour & 0xFF00_0000 };

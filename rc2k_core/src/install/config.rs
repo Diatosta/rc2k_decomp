@@ -1,8 +1,5 @@
-//! The files about the installation (from `install::read_record`
-//! 0x4110C9, `install::write_record` 0x411186, `install::read_sku` 0x411696,
-//! `install::read_languages` 0x413908 and `install::choose_language` 0x41397A): the record
-//! `var\ral.zog`, the edition file `files\d\gfx\sku` and the languages file `lang.cfg`, all
-//! settings texts (`files::settings`); the keys and the record's header are RAL.EXE's.
+//! The installation's files: the record `var\ral.zog`, the edition file `files\d\gfx\sku`
+//! and the languages file `lang.cfg`, all settings texts (`files::settings`).
 
 use crate::Invalid;
 use crate::files::settings::{find_key, number, value};
@@ -32,7 +29,7 @@ pub struct Record {
 }
 
 /// A directory as the record names it: the value, a `\` unless it is empty or ends in `\`
-/// or `/`, a NUL. Refused: one past its place (the original writes on).
+/// or `/`, a NUL. Refused: one past its place.
 pub fn directory(mut text: Vec<u8>) -> Result<Vec<u8>, Invalid> {
     if text.len() + 2 > PATH_ROOM {
         return Err(Invalid("a directory in the record longer than its place"));
@@ -44,8 +41,7 @@ pub fn directory(mut text: Vec<u8>) -> Result<Vec<u8>, Invalid> {
     Ok(text)
 }
 
-/// The record read from its text (to its NUL): the keys looked for in the original's order,
-/// `cdrom`, `installation`, `language`.
+/// The record read from its text (to its NUL); each field `None` when its key is not there.
 pub fn read_record(text: &(impl Bytes + ?Sized), case: &CaseTable) -> Result<Record, Invalid> {
     let base = find_key(text, CDROM, case)?
         .map(|at| directory(value(text, at)?))
@@ -59,8 +55,8 @@ pub fn read_record(text: &(impl Bytes + ?Sized), case: &CaseTable) -> Result<Rec
     Ok(Record { base, mode, locale })
 }
 
-/// The record's text: the header, `cdrom=` the folder installed into, `language=` the
-/// language's directory when there is one, `installation=` the kind, each line ended CR LF.
+/// The record's text: the header, `cdrom=` the folder installed into, `language=` the language's
+/// directory when there is one, `installation=` the kind, each line ended CR LF.
 pub fn record_text(installed_into: &[u8], locale: Option<&[u8]>, mode: u32) -> Vec<u8> {
     let mut out = HEADER.to_vec();
     let mut line = |key: &[u8], value: &[u8]| {
@@ -80,9 +76,9 @@ pub fn record_text(installed_into: &[u8], locale: Option<&[u8]>, mode: u32) -> V
 /// The edition file's key.
 pub const SKU: &[u8] = b"sku";
 
-/// What the edition file's `sku` sets: the marks `oem:` and `dvd:` (each one there sets its
-/// switch to 1; what is not there keeps its value), a number, after the next `:` a second
-/// and after the next `.` (within 254 characters) a third.
+/// What the edition file's `sku` sets: the marks `oem:` and `dvd:` (each sets its switch to 1,
+/// absent ones keep their value), a number, after the next `:` a second, after the next `.`
+/// (within 254 characters) a third.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Sku {
     pub oem: bool,
@@ -92,7 +88,7 @@ pub struct Sku {
     pub third: Option<u8>,
 }
 
-/// The edition file read from its text; `None` without the key.
+/// The edition read from the edition file's text; `None` without the key.
 pub fn read_sku(text: &(impl Bytes + ?Sized), case: &CaseTable) -> Result<Option<Sku>, Invalid> {
     let Some(mut at) = find_key(text, SKU, case)? else {
         return Ok(None);
@@ -123,7 +119,7 @@ pub fn read_sku(text: &(impl Bytes + ?Sized), case: &CaseTable) -> Result<Option
         }
     }
     sku.second = Some(number(text, at)? as u8);
-    // On to after the next `.`: the original's count gives up at the 255th character.
+    // On to after the next `.`, within 254 characters.
     for seen in 1.. {
         let c = byte(at)?;
         at += 1;
@@ -143,14 +139,13 @@ pub fn read_sku(text: &(impl Bytes + ?Sized), case: &CaseTable) -> Result<Option
 pub const SLOT: usize = 0x80;
 pub const SLOTS: usize = 9;
 
-/// The languages file's keys, `lang1` .. `lang9`, for slots 0 .. 8 (RAL.EXE's table at
-/// 0x51C378).
+/// The languages file's keys, `lang1` .. `lang9`, for slots 0 .. 8.
 pub const LANGUAGE_KEYS: [&[u8]; SLOTS] = [
     b"lang1", b"lang2", b"lang3", b"lang4", b"lang5", b"lang6", b"lang7", b"lang8", b"lang9",
 ];
 
-/// The languages found in the file's text, in the keys' order: each slot and its value.
-/// Refused: a value of `SLOT` bytes or more (the original writes on into the next slot).
+/// The languages found in the text, in key order: each slot and its value. Refused: a value of
+/// `SLOT` bytes or more.
 pub fn find_languages(
     text: &(impl Bytes + ?Sized),
     case: &CaseTable,
@@ -189,9 +184,8 @@ pub fn keep_languages(slots: &mut [u8]) -> u32 {
     kept as u32
 }
 
-/// The slot of language `number` (from 1) when there is one to choose: `None` for a number
-/// above the `count` (nothing done). Refused: 0 (the original takes the slot before the
-/// first) and one past the slots.
+/// The slot of language `number` (from 1): `None` for a number above `count`. Refused: 0 and
+/// one past the slots.
 pub fn language_slot(number: u32, count: u32) -> Result<Option<usize>, Invalid> {
     if number > count {
         return Ok(None);

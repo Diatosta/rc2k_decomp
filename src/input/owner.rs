@@ -1,5 +1,5 @@
-//! Module input's owner (step 11, owned state): the input stores in one struct, reached
-//! through `input()` by the code that does not take it as a parameter.
+//! Module input's owner: the input stores in one struct, reached through `input()` by the code
+//! that does not take it as a parameter.
 
 use crate::input::guids::InputGuids;
 use crate::input::store::{Devices, ForceFeedback, Keyboard, Mouse};

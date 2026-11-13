@@ -1,24 +1,18 @@
-//! `drive::replay_step` (0x460B2F): the two-player / replay race's step (`drive::race_tick`'s).
-//! `drive::choose_shown_cars`; the replay's frame kept (`drive::keep_replay_frame`) and, playing,
-//! read (`drive::play_replay_frame`); the skid marks begun again (`race::init_skidmarks`) unless
-//! the first block's clock (+8) is one past +0xF0C, which takes it. For each car (`g_currentCar`
-//! from 0): its input words (`drive::car_input_words`, recorded or played: `record_inputs_if`,
-//! `play_inputs_if`), its block into `work_block`, `drive::load_car`; running (`driver_kind`):
-//! controls, gear rules, steering, pedals, the reset key, `physics::car_physics_step` and the
-//! network's step (`net::race_step`, its Rust version); the work car's clocks (`step_clock`,
-//! `run_ticks`) + 1; `drive::store_car`. Then the stage's animation, the race-mode cars, the
-//! duel's sound levels, the count down's beeps, the two cars' order, the hold count, the replay
-//! written at its last tenth, the replay's clock.
-//!
-//! Caller: `drive::race_step`'s `drive::race_tick`. Refuses (before anything) a cars' count of 0
-//! or past 8, and what its calls refuse (the cars' blocks, the work car and the physics'
-//! variables put back).
+//! The two-player / replay race's step (`drive::race_tick`'s): `drive::choose_shown_cars`, the
+//! replay's frame kept and, playing, read; the skid marks begun again at a frame change; then
+//! for each car its input words (recorded or played), `drive::load_car`, and, when running,
+//! controls, gear rules, steering, pedals, the reset key, `physics::car_physics_step`, the
+//! network's step, the clocks + 1 and `drive::store_car`; then the stage's animation, the
+//! race-mode cars, the duel's sound levels, the count down's beeps, the two cars' order, the hold
+//! count and the replay's writing and clock. Refuses (before anything) a cars' count of 0 or past
+//! 8, and what its calls refuse (the cars' blocks, the work car and the physics' variables put
+//! back).
 
 use crate::errors::Refused;
 use crate::race::owner::Race;
 use rc2k_core::drive::race_steps;
 
-/// One car's step (inside `pusha` / `popa`: nothing it leaves in the registers goes out).
+/// One car's step.
 fn car_step(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refused> {
     let (scene, input, net) = (o.scene, o.input, o.net);
     crate::drive::car_input_words::car_input_words(race, input, net)?;
@@ -56,8 +50,6 @@ fn car_step(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refuse
     Ok(())
 }
 
-// Converted: `rc2k_core::drive::race_steps::{check_cars, each_car, block_slot,
-// skids_restart}`.
 pub fn replay_step(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refused> {
     let (sound, scene, net) = (o.sound, o.scene, o.net);
     let shared = &race.shared;

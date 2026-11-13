@@ -6,8 +6,7 @@ pub const BUFFER_LEN: usize = 0x2000;
 /// The core's stream: the mode, the file, the position, the fill and the buffer.
 pub type Stream = rc2k_core::files::io::Stream<u32>;
 
-/// The one stream the picture readers and the screenshot use (the original's at
-/// `g_pcx` + 0x18; the block there is unused).
+/// The one stream the picture readers and the screenshot use.
 static STREAM: std::sync::Mutex<Stream> = std::sync::Mutex::new(Stream {
     mode: 0,
     file: u32::MAX,

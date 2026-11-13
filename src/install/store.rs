@@ -1,41 +1,38 @@
-//! The installer's variables, with the image's fields in the image's order, around
-//! the network's block (the build notice between them is `menu::build_notice`'s):
-//! - `InstallVars` (IDA 0x529DAD .. 0x52A263): run from the CD, the Clio's car (file, script,
-//!   name), and the credits' texts with their 64 pointers (nothing ported reads those);
-//! - `DriveRows` (0x52A30F .. 0x52A4B0): the drive page's rows;
-//! - `LobbyKeys` (0x5AB419 .. 0x5AB490): the registry key and value names a lobby
-//!   registration writes (`install::register_lobby`).
+//! The installer's variables, in the old layout's order around the network's block:
+//! - `InstallVars`: run from the CD, the Clio's car (file, script, name), and the credits'
+//!   texts with their 64 pointers (nothing reads those);
+//! - `DriveRows`: the drive page's rows;
+//! - `LobbyKeys`: the registry key and value names a lobby registration writes.
 //!
-//! Structs of cells, first values the image's: the texts of `InstallVars` and `DriveRows` that
-//! the strings name are read on past a field into the next, in the order the fields are
-//! declared (`strings::string_table`). `InstallVars` starts on an odd address in the image
-//! (0x529DAD): a one-byte lead keeps every image address's alignment.
+//! Structs of cells: the texts of `InstallVars` and `DriveRows` that the strings name are read
+//! on past a field into the next, in the order the fields are declared
+//! (`strings::string_table`). `InstallVars` keeps a one-byte lead so that every field has the
+//! alignment it had.
 
 use crate::session::{PlainByte, PlainBytes, PlainDword, with_runs};
 
-/// IDA 0x529DAD .. 0x52A263.
 #[derive(rc2k_derive::Cells)]
 pub struct InstallVars {
-    /// Not in the image: one byte so that the dwords are aligned (the block starts on an odd address).
+    /// Padding so that the dwords are aligned.
     pub _lead: PlainByte,
-    /// 0x529DAD: Not named: 3 bytes (a gap, or text or data nothing reads here).
+    /// A gap of 3 byte(s): nothing reads it.
     pub _gap_529dad: PlainBytes<3>,
-    /// 0x529DB0: `g_runningFromCd`: 1 when the game runs from the CD (`install::check_at_start`).
+    /// 1 when the game runs from the CD (`install::check_at_start`).
     pub running_from_cd: PlainDword,
-    /// 0x529DB4: `g_hasClio`: 1 when `files\b\obj0570.ro3` (the Clio's car) is there.
+    /// 1 when `files\b\obj0570.ro3` (the Clio's car) is there.
     pub has_clio: PlainDword,
-    /// 0x529DB8: `aFilesBObj0570R`: the Clio's car file, `files\b\obj0570.ro3`.
+    /// The Clio's car file, `files\b\obj0570.ro3`.
     pub clio_file: PlainBytes<20>,
-    /// 0x529DCC: `byte_529DCC`: the installer's script for the Clio (`install::install_clio`).
+    /// The installer's script for the Clio (`install::install_clio`).
     pub clio_script: PlainBytes<28>,
-    /// 0x529DE8: the original's 64 pointers to the texts of string ids 0x1000 .. 0x103F; the texts
-    /// are found by `strings::string_table::made_text`, so the bytes are not kept.
+    /// 64 pointers to the texts of string ids 0x1000 .. 0x103F; the texts are found by
+    /// `strings::string_table::made_text`, so the bytes are not kept.
     pub _gap_529de8: PlainBytes<256>,
-    /// 0x529EE8: The credits' first texts (`aUmlaut`, `aCraigGriffiths`).
+    /// The credits' first texts.
     pub credits_a: PlainBytes<27>,
-    /// 0x529F03: `aRenaultClioSpo`: "renault clio sport V6 (A7)" (`install::check_clio_disc` rewrites it).
+    /// "renault clio sport V6 (A7)" (`install::check_clio_disc` rewrites it).
     pub clio_car_name: PlainBytes<27>,
-    /// 0x529F1E: The Clio's descriptions (`a1121`, `aSolutionFTuned`, `aRearWheel` ..) in the languages, and the credits' texts.
+    /// The Clio's descriptions in the languages, and the credits' texts.
     pub credits_b: PlainBytes<837>,
     /// Up to the record's alignment (no byte of a record of cells outside a field).
     pub _tail: PlainBytes<1>,
@@ -59,12 +56,11 @@ impl InstallVars {
     }
 }
 
-/// IDA 0x52A30F .. 0x52A4B0.
 #[derive(rc2k_derive::Cells)]
 pub struct DriveRows {
-    /// 0x52A30F: `byte_52A30F`: the installer's drive rows, 0x10 bytes each (letter, a byte, the text).
+    /// The installer's drive rows, 0x10 bytes each (letter, a byte, the text).
     pub drive_rows: PlainBytes<400>,
-    /// 0x52A49F: Not named: 17 bytes (a gap, or text or data nothing reads here).
+    /// A gap of 17 byte(s): nothing reads it.
     pub _gap_52a49f: PlainBytes<17>,
 }
 
@@ -103,22 +99,21 @@ impl DriveRows {
     }
 }
 
-/// IDA 0x5AB419 .. 0x5AB490: plain immutable texts, each NUL-ended in its room (read with
-/// `text_of`).
+/// Plain immutable texts, each NUL-ended in its room (read with `text_of`).
 pub struct LobbyKeys {
-    /// 0x5AB419: `aSoftwareMicros`: "SOFTWARE\Microsoft\DirectPlay\Applications\RC" (`install::register_lobby`).
+    /// "SOFTWARE\Microsoft\DirectPlay\Applications\RC" (`install::register_lobby`).
     pub registry_key: [u8; 74],
-    /// 0x5AB463: `aGuid`.
+    /// "Guid".
     pub name_guid: [u8; 5],
-    /// 0x5AB468: `aFile`.
+    /// "File".
     pub name_file: [u8; 5],
-    /// 0x5AB46D: `aCommandline`.
+    /// "CommandLine".
     pub name_command_line: [u8; 12],
-    /// 0x5AB479: `aPath`.
+    /// "Path".
     pub name_path: [u8; 5],
-    /// 0x5AB47E: `aCurrentdirecto`.
+    /// "CurrentDirectory".
     pub name_current_directory: [u8; 17],
-    /// 0x5AB48F: Not named: 1 bytes (a gap, or text or data nothing reads here).
+    /// A gap of 1 byte(s): nothing reads it.
     pub _gap_5ab48f: [u8; 1],
 }
 

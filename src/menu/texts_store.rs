@@ -1,10 +1,10 @@
-//! The menus' texts, out of RAL.EXE's image (IDA 0x731B82 .. 0x734BC6):
-//! two log texts of the map's polygon code, the keys menu (`MenuTexts.keys_menu`), each menu
-//! screen's picture path (one copy per screen, named for the screen that loads it; the
-//! others by their file), the stage maps', car specifications' and slides' paths (which
-//! `menu::lists_store`'s tables name by `MenuText::key`), and two tables of speech samples' names
-//! (`car_speech`, `stage_speech`: keys of `audio::names_store`'s names, `speech_entry`). Nothing writes
-//! the texts.
+//! The menus' texts, laid out as in RAL.EXE's image: two log texts of the map's polygon code,
+//! the keys menu (`MenuTexts.keys_menu`), each menu screen's picture path (one copy per screen,
+//! named for the screen that loads it; the others by their file), the stage maps', car
+//! specifications' and slides' paths (which `menu::lists_store`'s tables name by
+//! `MenuText::key`), and two tables of speech samples' names (`car_speech`, `stage_speech`: keys
+//! of `audio::names_store`'s names, `speech_entry`). Each text's value is in `MenuTexts::new`
+//! under its field's name. Nothing writes the texts.
 //!
 //! The texts sit where the image's would, 2 past a multiple of 4 before the keys menu's
 //! dword (a two-byte lead and `align(4)`); the dword is aligned by a byte of padding, so the
@@ -18,619 +18,319 @@ use crate::session::{PlainBytes, PlainDword, with_runs};
 pub struct MenuTexts {
     /// Not in the image: two bytes so that each address keeps its alignment mod 4.
     pub _lead: PlainBytes<2>,
-    /// 0x731B82: "No point in poly".
     pub no_point_text: PlainBytes<17>,
-    /// 0x731B93: "While scanning right didnt find point 2".
     pub no_second_point_text: PlainBytes<40>,
     /// Not in the image: one byte so that the keys menu's dword is aligned (the texts after
     /// it sit one byte later than the image's).
     pub _keys_menu_pad: PlainBytes<1>,
-    /// 0x731BBB: `dword_731BBB`: the code of the keys menu (`MenuId::code`; `menu::handle_keys`,
-    /// `screen_loop`). Written, never read.
+    /// The code of the keys menu (`MenuId::code`; `menu::handle_keys`, `screen_loop`). Written,
+    /// never read.
     pub keys_menu: PlainDword,
-    /// 0x731BBF: "files\g\graphics\screens\loading.pcx".
     pub loading_pcx: PlainBytes<37>,
-    /// 0x731BE4: "files\g\graphics\screens\mainscr.png".
     pub leave_question_picture: PlainBytes<37>,
-    /// 0x731C09: "files\g\graphics\screens\mob_welc.png".
     pub mob_welc_png: PlainBytes<38>,
-    /// 0x731C2F: "files\g\graphics\screens\a8_welc.png".
     pub a8_welc_png: PlainBytes<37>,
-    /// 0x731C54: "files\g\graphics\screens\titlebar.png".
     pub titlebar_png: PlainBytes<38>,
-    /// 0x731C7A: "files\g\graphics\screens\mainscr.png".
     pub main_menu_picture: PlainBytes<37>,
-    /// 0x731C9F: "files\g\graphics\screens\sral.png".
     pub start_rally_picture: PlainBytes<34>,
-    /// 0x731CC1: "files\g\graphics\screens\nral.png".
     pub network_rally_picture: PlainBytes<34>,
-    /// 0x731CE3: "files\g\graphics\screens\pdet1.png".
     pub player1_details_picture: PlainBytes<35>,
-    /// 0x731D06: "files\g\graphics\screens\pdet1.png".
     pub player2_details_picture: PlainBytes<35>,
-    /// 0x731D29: "files\g\graphics\screens\pdet1.png".
     pub player3_details_picture: PlainBytes<35>,
-    /// 0x731D4C: "files\g\graphics\screens\pdet1.png".
     pub player4_details_picture: PlainBytes<35>,
-    /// 0x731D6F: "files\g\graphics\screens\pdetc.png".
     pub player_details_picture: PlainBytes<35>,
-    /// 0x731D92: "files\g\graphics\screens\opts.png".
     pub options_picture: PlainBytes<34>,
-    /// 0x731DB4: "files\g\graphics\screens\info.png".
     pub information_picture: PlainBytes<34>,
-    /// 0x731DD6: "files\g\graphics\screens\video.png".
     pub video_png: PlainBytes<35>,
-    /// 0x731DF9: "files\g\graphics\screens\visual.png".
     pub visual_preferences_picture: PlainBytes<36>,
-    /// 0x731E1D: "files\g\graphics\screens\visual.png".
     pub visual_options_picture: PlainBytes<36>,
-    /// 0x731E41: "files\g\graphics\screens\cspecs.png".
     pub cspecs_png: PlainBytes<36>,
-    /// 0x731E65: "files\g\graphics\screens\cspecs.png".
     pub cspecs_png_2: PlainBytes<36>,
-    /// 0x731E89: "files\g\graphics\screens\loadsv.png".
     pub load_championship_picture: PlainBytes<36>,
-    /// 0x731EAD: "files\g\graphics\screens\loadsv.png".
     pub save_championship_picture: PlainBytes<36>,
-    /// 0x731ED1: "files\g\graphics\screens\loadsv.png".
     pub save_replay_picture: PlainBytes<36>,
-    /// 0x731EF5: "files\g\graphics\screens\loadsv.png".
     pub load_replay_picture: PlainBytes<36>,
-    /// 0x731F19: "files\g\graphics\screens\cspecs.png".
     pub select_car_picture: PlainBytes<36>,
-    /// 0x731F3D: "files\g\graphics\screens\cspecs.png".
     pub car_specs_display_picture: PlainBytes<36>,
-    /// 0x731F61: "files\g\graphics\screens\cspecs.png".
     pub cspecs_png_3: PlainBytes<36>,
-    /// 0x731F85: "files\g\graphics\screens\btimes.png".
     pub view_best_times_picture: PlainBytes<36>,
-    /// 0x731FA9: "files\g\graphics\screens\bascores.png".
     pub view_best_scores_picture: PlainBytes<38>,
-    /// 0x731FCF: "files\g\graphics\screens\btimes.png".
     pub best_times_picture: PlainBytes<36>,
-    /// 0x731FF3: "files\g\graphics\screens\btimes.png".
     pub arcade_best_times_picture: PlainBytes<36>,
-    /// 0x732017: "files\g\graphics\screens\btimes.png".
     pub time_trial_best_times_picture: PlainBytes<36>,
-    /// 0x73203B: "files\g\graphics\screens\bascores.png".
     pub arcade_best_scores_picture: PlainBytes<38>,
-    /// 0x732061: "files\g\graphics\screens\bascores.png".
     pub best_class_scores_picture: PlainBytes<38>,
-    /// 0x732087: "files\g\graphics\screens\bascores.png".
     pub best_overall_scores_picture: PlainBytes<38>,
-    /// 0x7320AD: "files\g\graphics\screens\audio.png".
     pub audio_setup_picture: PlainBytes<35>,
-    /// 0x7320D0: "files\g\graphics\screens\audio.png".
     pub advanced_audio_picture: PlainBytes<35>,
-    /// 0x7320F3: "files\g\graphics\screens\vcourses.png".
     pub vcourses_png: PlainBytes<38>,
-    /// 0x732119: "files\g\graphics\screens\vcourses.png".
     pub vcourses_png_2: PlainBytes<38>,
-    /// 0x73213F: "files\g\graphics\screens\vcourses.png".
     pub vcourses_png_3: PlainBytes<38>,
-    /// 0x732165: "files\g\graphics\screens\vcourses.png".
     pub vcourses_png_4: PlainBytes<38>,
-    /// 0x73218B: "files\g\graphics\screens\ukmap.png".
     pub ukmap_png: PlainBytes<35>,
-    /// 0x7321AE: "files\g\graphics\screens\loading.png".
     pub loading_png: PlainBytes<37>,
-    /// 0x7321D3: "files\g\graphics\screens\control.png".
     pub player1_controller_picture: PlainBytes<37>,
-    /// 0x7321F8: "files\g\graphics\screens\control.png".
     pub player1_buttons_picture: PlainBytes<37>,
-    /// 0x73221D: "files\g\graphics\screens\control.png".
     pub player2_controller_picture: PlainBytes<37>,
-    /// 0x732242: "files\g\graphics\screens\control.png".
     pub player2_buttons_picture: PlainBytes<37>,
-    /// 0x732267: "files\g\graphics\screens\control.png".
     pub player3_controller_picture: PlainBytes<37>,
-    /// 0x73228C: "files\g\graphics\screens\control.png".
     pub player3_buttons_picture: PlainBytes<37>,
-    /// 0x7322B1: "files\g\graphics\screens\control.png".
     pub player4_controller_picture: PlainBytes<37>,
-    /// 0x7322D6: "files\g\graphics\screens\control.png".
     pub player4_buttons_picture: PlainBytes<37>,
-    /// 0x7322FB: "files\g\graphics\screens\defkeys.png".
     pub redefine_keys_player1_picture: PlainBytes<37>,
-    /// 0x732320: "files\g\graphics\screens\defkeys.png".
     pub redefine_keys_player2_picture: PlainBytes<37>,
-    /// 0x732345: "files\g\graphics\screens\defkeys.png".
     pub redefine_keys_player3_picture: PlainBytes<37>,
-    /// 0x73236A: "files\g\graphics\screens\defkeys.png".
     pub redefine_keys_player4_picture: PlainBytes<37>,
-    /// 0x73238F: "files\g\graphics\screens\sral.png".
     pub sral_png: PlainBytes<34>,
-    /// 0x7323B1: "files\g\graphics\screens\sral.png".
     pub sral_png_2: PlainBytes<34>,
-    /// 0x7323D3: "files\g\graphics\screens\sral.png".
     pub championship_new_simulation_picture: PlainBytes<34>,
-    /// 0x7323F5: "files\g\graphics\screens\sral.png".
     pub new_simulation_picture: PlainBytes<34>,
-    /// 0x732417: "files\g\graphics\screens\endday.png".
     pub endday_png: PlainBytes<36>,
-    /// 0x73243B: "files\g\graphics\screens\endday.png".
     pub endday_png_2: PlainBytes<36>,
-    /// 0x73245F: "files\g\graphics\screens\ukmap.png".
     pub rally_stages_picture: PlainBytes<35>,
-    /// 0x732482: "files\g\graphics\screens\serv00.png".
     pub serv00_png: PlainBytes<36>,
-    /// 0x7324A6: "files\g\graphics\screens\serv00.png".
     pub serv00_png_2: PlainBytes<36>,
-    /// 0x7324CA: "files\g\graphics\screens\serv00.png".
     pub serv00_png_3: PlainBytes<36>,
-    /// 0x7324EE: "files\g\graphics\screens\results1.png".
     pub class_stage_results_picture: PlainBytes<38>,
-    /// 0x732514: "files\g\graphics\screens\results1.png".
     pub overall_stage_results_picture: PlainBytes<38>,
-    /// 0x73253A: "files\g\graphics\screens\results1.png".
     pub class_rally_results_picture: PlainBytes<38>,
-    /// 0x732560: "files\g\graphics\screens\results1.png".
     pub overall_rally_results_picture: PlainBytes<38>,
-    /// 0x732586: "files\g\graphics\screens\results1.png".
     pub results1_png: PlainBytes<38>,
-    /// 0x7325AC: "files\g\graphics\screens\results1.png".
     pub results1_png_2: PlainBytes<38>,
-    /// 0x7325D2: the copy `menu::section_times_loop` loads as its background: "files\g\graphics\screens\results1.png".
+    /// The copy `menu::section_times_loop` loads as its background.
     pub section_times_png: PlainBytes<38>,
-    /// 0x7325F8: "files\g\graphics\screens\service.png".
     pub inspection_area_picture: PlainBytes<37>,
-    /// 0x73261D: "files\g\graphics\screens\roptions.png".
     pub championship_service_review_picture: PlainBytes<38>,
-    /// 0x732643: "files\g\graphics\screens\roptions.png".
     pub championship_standings_review_picture: PlainBytes<38>,
-    /// 0x732669: "files\g\graphics\screens\roptions.png".
     pub championship_races_review_picture: PlainBytes<38>,
-    /// 0x73268F: "files\g\graphics\screens\roptions.png".
     pub championship_end_review_picture: PlainBytes<38>,
-    /// 0x7326B5: "files\g\graphics\screens\opts.png".
     pub in_game_options_picture: PlainBytes<34>,
-    /// 0x7326D7: "files\g\graphics\screens\welcomer.png".
     pub welcomer_png: PlainBytes<38>,
-    /// 0x7326FD: "files\g\graphics\screens\welvx.png".
     pub welvx_png: PlainBytes<35>,
-    /// 0x732720: "files\g\graphics\screens\welpir.png".
     pub welpir_png: PlainBytes<36>,
-    /// 0x732744: "files\g\graphics\screens\welsct.png".
     pub welsct_png: PlainBytes<36>,
-    /// 0x732768: "files\g\graphics\screens\weljc.png".
     pub weljc_png: PlainBytes<35>,
-    /// 0x73278B: "files\g\graphics\screens\welul.png".
     pub welul_png: PlainBytes<35>,
-    /// 0x7327AE: "files\g\graphics\screens\welmnx.png".
     pub welmnx_png: PlainBytes<36>,
-    /// 0x7327D2: "files\g\graphics\screens\a8_1.png".
     pub a8_1_png: PlainBytes<34>,
-    /// 0x7327F4: "files\g\graphics\screens\a8_2.png".
     pub a8_2_png: PlainBytes<34>,
-    /// 0x732816: "files\g\graphics\screens\a8_3.png".
     pub a8_3_png: PlainBytes<34>,
-    /// 0x732838: "files\g\graphics\screens\a8_4.png".
     pub a8_4_png: PlainBytes<34>,
-    /// 0x73285A: "files\g\graphics\screens\a8_5.png".
     pub a8_5_png: PlainBytes<34>,
-    /// 0x73287C: "files\g\graphics\screens\a8_6.png".
     pub a8_6_png: PlainBytes<34>,
-    /// 0x73289E: "files\g\graphics\screens\setcar.png".
     pub setcar_png: PlainBytes<36>,
-    /// 0x7328C2: "files\g\graphics\screens\champoc.png".
     pub class_championship_standings_picture: PlainBytes<37>,
-    /// 0x7328E7: "files\g\graphics\screens\champoc.png".
     pub championship_standings_picture: PlainBytes<37>,
-    /// 0x73290C: "files\g\graphics\screens\arcade1.png".
     pub simple_select_players_picture: PlainBytes<37>,
-    /// 0x732931: "files\g\graphics\screens\roptions.png".
     pub single_rally_review_picture: PlainBytes<38>,
-    /// 0x732957: "files\g\graphics\screens\roptions.png".
     pub arcade_review_options_picture: PlainBytes<38>,
-    /// 0x73297D: "files\g\graphics\screens\arcade1.png".
     pub time_trial_select_players_picture: PlainBytes<37>,
-    /// 0x7329A2: "files\g\graphics\screens\roptions.png".
     pub arcade_next_level_review_picture: PlainBytes<38>,
-    /// 0x7329C8: "files\g\graphics\screens\roptions.png".
     pub arcade_retry_review_picture: PlainBytes<38>,
-    /// 0x7329EE: "files\g\graphics\screens\roptions.png".
     pub roptions_png: PlainBytes<38>,
-    /// 0x732A14: "files\g\graphics\screens\results1.png".
     pub arcade_level_end_results_picture: PlainBytes<38>,
-    /// 0x732A3A: "files\g\graphics\screens\results1.png".
     pub stage_result_picture: PlainBytes<38>,
-    /// 0x732A60: "files\g\graphics\screens\results1.png".
     pub results1_png_4: PlainBytes<38>,
-    /// 0x732A86: "files\g\graphics\screens\results1.png".
     pub single_rally_two_results_picture: PlainBytes<38>,
-    /// 0x732AAC: "files\g\graphics\screens\results1.png".
     pub single_rally_three_four_results_picture: PlainBytes<38>,
-    /// 0x732AD2: "files\g\graphics\screens\results1.png".
     pub time_trial_results_picture: PlainBytes<38>,
-    /// 0x732AF8: "files\g\graphics\screens\results1.png".
     pub single_rally_overall_results_picture: PlainBytes<38>,
-    /// 0x732B1E: "files\g\graphics\screens\results1.png".
     pub results1_png_5: PlainBytes<38>,
-    /// 0x732B44: "files\g\graphics\screens\selstage.png".
     pub selstage_png: PlainBytes<38>,
-    /// 0x732B6A: "files\g\graphics\screens\selstage.png".
     pub selstage_png_2: PlainBytes<38>,
-    /// 0x732B90: "files\g\graphics\screens\arcstage.png".
     pub arcstage_png: PlainBytes<38>,
-    /// 0x732BB6: "files\g\graphics\screens\arcade1.png".
     pub arcade1_png: PlainBytes<37>,
-    /// 0x732BDB: "files\g\graphics\screens\Selarc.png".
     pub arcade_select_level_picture: PlainBytes<36>,
-    /// 0x732BFF: "files\g\graphics\screens\results1.png".
     pub arcade_results_picture: PlainBytes<38>,
-    /// 0x732C25: "files\g\graphics\screens\roptions.png".
     pub roptions_png_2: PlainBytes<38>,
-    /// 0x732C4B: "files\g\graphics\screens\racing.png".
     pub racing_png: PlainBytes<36>,
-    /// 0x732C6F: "files\g\graphics\screens\racing.png".
     pub racing_png_2: PlainBytes<36>,
-    /// 0x732C93: "files\g\graphics\sprites\mbuts00.pcx".
     pub mbuts00_pcx: PlainBytes<37>,
-    /// 0x732CB8: "files\g\graphics\screens\serv00.png".
     pub serv00_png_4: PlainBytes<36>,
-    /// 0x732CDC: "files\g\graphics\screens\serv01.png".
     pub serv01_png: PlainBytes<36>,
-    /// 0x732D00: "files\g\graphics\screens\serv02.png".
     pub serv02_png: PlainBytes<36>,
-    /// 0x732D24: "files\g\graphics\screens\serv03.png".
     pub serv03_png: PlainBytes<36>,
-    /// 0x732D48: "files\g\graphics\screens\serv04.png".
     pub serv04_png: PlainBytes<36>,
-    /// 0x732D6C: "files\g\graphics\screens\serv05.png".
     pub serv05_png: PlainBytes<36>,
-    /// 0x732D90: "files\g\graphics\screens\serv06.png".
     pub serv06_png: PlainBytes<36>,
-    /// 0x732DB4: "files\g\graphics\screens\serv07.png".
     pub serv07_png: PlainBytes<36>,
-    /// 0x732DD8: "files\g\graphics\screens\serv08.png".
     pub serv08_png: PlainBytes<36>,
-    /// 0x732DFC: "files\g\graphics\screens\serv09.png".
     pub serv09_png: PlainBytes<36>,
-    /// 0x732E20: "files\g\graphics\screens\serv10.png".
     pub serv10_png: PlainBytes<36>,
-    /// 0x732E44: "files\g\graphics\screens\serv11.png".
     pub serv11_png: PlainBytes<36>,
-    /// 0x732E68: "files\g\graphics\screens\serv12.png".
     pub serv12_png: PlainBytes<36>,
-    /// 0x732E8C: "files\g\graphics\screens\serv13.png".
     pub serv13_png: PlainBytes<36>,
-    /// 0x732EB0: "files\g\graphics\screens\serv14.png".
     pub serv14_png: PlainBytes<36>,
-    /// 0x732ED4: "files\g\graphics\screens\serv15.png".
     pub serv15_png: PlainBytes<36>,
-    /// 0x732EF8: "files\g\graphics\screens\serv16.png".
     pub serv16_png: PlainBytes<36>,
-    /// 0x732F1C: "files\g\graphics\screens\serv17.png".
     pub serv17_png: PlainBytes<36>,
-    /// 0x732F40: "files\g\graphics\screens\serv18.png".
     pub serv18_png: PlainBytes<36>,
-    /// 0x732F64: "files\g\graphics\screens\serv19.png".
     pub serv19_png: PlainBytes<36>,
-    /// 0x732F88: "files\g\graphics\screens\serv20.png".
     pub serv20_png: PlainBytes<36>,
-    /// 0x732FAC: "files\g\graphics\screens\serv21.png".
     pub serv21_png: PlainBytes<36>,
-    /// 0x732FD0: "files\g\graphics\screens\serv22.png".
     pub serv22_png: PlainBytes<36>,
-    /// 0x732FF4: "files\g\graphics\screens\serv33.png".
     pub serv33_png: PlainBytes<36>,
-    /// 0x733018: "files\g\graphics\screens\maps\vrw_001.png".
     pub vrw_001_png: PlainBytes<42>,
-    /// 0x733042: "files\g\graphics\screens\maps\vrw_002.png".
     pub vrw_002_png: PlainBytes<42>,
-    /// 0x73306C: "files\g\graphics\screens\maps\vrw_003.png".
     pub vrw_003_png: PlainBytes<42>,
-    /// 0x733096: "files\g\graphics\screens\maps\vrw_004.png".
     pub vrw_004_png: PlainBytes<42>,
-    /// 0x7330C0: "files\g\graphics\screens\maps\vrw_005.png".
     pub vrw_005_png: PlainBytes<42>,
-    /// 0x7330EA: "files\g\graphics\screens\maps\vrw_006.png".
     pub vrw_006_png: PlainBytes<42>,
-    /// 0x733114: "files\g\graphics\screens\maps\pir_001.png".
     pub pir_001_png: PlainBytes<42>,
-    /// 0x73313E: "files\g\graphics\screens\maps\pir_002.png".
     pub pir_002_png: PlainBytes<42>,
-    /// 0x733168: "files\g\graphics\screens\maps\pir_003.png".
     pub pir_003_png: PlainBytes<42>,
-    /// 0x733192: "files\g\graphics\screens\maps\pir_004.png".
     pub pir_004_png: PlainBytes<42>,
-    /// 0x7331BC: "files\g\graphics\screens\maps\pir_005.png".
     pub pir_005_png: PlainBytes<42>,
-    /// 0x7331E6: "files\g\graphics\screens\maps\pir_006.png".
     pub pir_006_png: PlainBytes<42>,
-    /// 0x733210: "files\g\graphics\screens\maps\sc_001.png".
     pub sc_001_png: PlainBytes<41>,
-    /// 0x733239: "files\g\graphics\screens\maps\sc_002.png".
     pub sc_002_png: PlainBytes<41>,
-    /// 0x733262: "files\g\graphics\screens\maps\sc_003.png".
     pub sc_003_png: PlainBytes<41>,
-    /// 0x73328B: "files\g\graphics\screens\maps\sc_004.png".
     pub sc_004_png: PlainBytes<41>,
-    /// 0x7332B4: "files\g\graphics\screens\maps\sc_005.png".
     pub sc_005_png: PlainBytes<41>,
-    /// 0x7332DD: "files\g\graphics\screens\maps\sc_006.png".
     pub sc_006_png: PlainBytes<41>,
-    /// 0x733306: "files\g\graphics\screens\maps\jc_001.png".
     pub jc_001_png: PlainBytes<41>,
-    /// 0x73332F: "files\g\graphics\screens\maps\jc_002.png".
     pub jc_002_png: PlainBytes<41>,
-    /// 0x733358: "files\g\graphics\screens\maps\jc_003.png".
     pub jc_003_png: PlainBytes<41>,
-    /// 0x733381: "files\g\graphics\screens\maps\jc_004.png".
     pub jc_004_png: PlainBytes<41>,
-    /// 0x7333AA: "files\g\graphics\screens\maps\jc_005.png".
     pub jc_005_png: PlainBytes<41>,
-    /// 0x7333D3: "files\g\graphics\screens\maps\jc_006.png".
     pub jc_006_png: PlainBytes<41>,
-    /// 0x7333FC: "files\g\graphics\screens\maps\ul_001.png".
     pub ul_001_png: PlainBytes<41>,
-    /// 0x733425: "files\g\graphics\screens\maps\ul_002.png".
     pub ul_002_png: PlainBytes<41>,
-    /// 0x73344E: "files\g\graphics\screens\maps\ul_003.png".
     pub ul_003_png: PlainBytes<41>,
-    /// 0x733477: "files\g\graphics\screens\maps\ul_004.png".
     pub ul_004_png: PlainBytes<41>,
-    /// 0x7334A0: "files\g\graphics\screens\maps\ul_005.png".
     pub ul_005_png: PlainBytes<41>,
-    /// 0x7334C9: "files\g\graphics\screens\maps\ul_006.png".
     pub ul_006_png: PlainBytes<41>,
-    /// 0x7334F2: "files\g\graphics\screens\maps\mnx_001.png".
     pub mnx_001_png: PlainBytes<42>,
-    /// 0x73351C: "files\g\graphics\screens\maps\mnx_002.png".
     pub mnx_002_png: PlainBytes<42>,
-    /// 0x733546: "files\g\graphics\screens\maps\mnx_003.png".
     pub mnx_003_png: PlainBytes<42>,
-    /// 0x733570: "files\g\graphics\screens\maps\mnx_004.png".
     pub mnx_004_png: PlainBytes<42>,
-    /// 0x73359A: "files\g\graphics\screens\maps\mnx_005.png".
     pub mnx_005_png: PlainBytes<42>,
-    /// 0x7335C4: "files\g\graphics\screens\maps\mnx_006.png".
     pub mnx_006_png: PlainBytes<42>,
-    /// 0x7335EE: "files\g\graphics\screens\cspecs\mgnvc.png".
     pub mgnvc_png: PlainBytes<42>,
-    /// 0x733618: "files\g\graphics\screens\cspecs\vxavc.png".
     pub vxavc_png: PlainBytes<42>,
-    /// 0x733642: "files\g\graphics\screens\cspecs\stcvc.png".
     pub stcvc_png: PlainBytes<42>,
-    /// 0x73366C: "files\g\graphics\screens\cspecs\hycvc.png".
     pub hycvc_png: PlainBytes<42>,
-    /// 0x733696: "files\g\graphics\screens\cspecs\sbivc.png".
     pub sbivc_png: PlainBytes<42>,
-    /// 0x7336C0: "files\g\graphics\screens\cspecs\pgovc.png".
     pub pgovc_png: PlainBytes<42>,
-    /// 0x7336EA: "files\g\graphics\screens\cspecs\mxpvc.png".
     pub mxpvc_png: PlainBytes<42>,
-    /// 0x733714: "files\g\graphics\screens\cspecs\mtlvc.png".
     pub mtlvc_png: PlainBytes<42>,
-    /// 0x73373E: "files\g\graphics\screens\cspecs\vwgvc.png".
     pub vwgvc_png: PlainBytes<42>,
-    /// 0x733768: "files\g\graphics\screens\cspecs\nsavc.png".
     pub nsavc_png: PlainBytes<42>,
-    /// 0x733792: "files\g\graphics\screens\cspecs\ptwvc.png".
     pub ptwvc_png: PlainBytes<42>,
-    /// 0x7337BC: "files\g\graphics\screens\cspecs\ctsvc.png".
     pub ctsvc_png: PlainBytes<42>,
-    /// 0x7337E6: "files\g\graphics\screens\cspecs\hncvc.png".
     pub hncvc_png: PlainBytes<42>,
-    /// 0x733810: "files\g\graphics\screens\cspecs\nsmvc.png".
     pub nsmvc_png: PlainBytes<42>,
-    /// 0x73383A: "files\g\graphics\screens\cspecs\pgtvc.png".
     pub pgtvc_png: PlainBytes<42>,
-    /// 0x733864: "files\g\graphics\screens\cspecs\frtvc.png".
     pub frtvc_png: PlainBytes<42>,
-    /// 0x73388E: "files\g\graphics\screens\cspecs\sdovc.png".
     pub sdovc_png: PlainBytes<42>,
-    /// 0x7338B8: "files\g\graphics\screens\cspecs\stivc.png".
     pub stivc_png: PlainBytes<42>,
-    /// 0x7338E2: "files\g\graphics\screens\cspecs\sdfvc.png".
     pub sdfvc_png: PlainBytes<42>,
-    /// 0x73390C: "files\g\graphics\screens\cspecs\ptcvc.png".
     pub ptcvc_png: PlainBytes<42>,
-    /// 0x733936: "files\g\graphics\screens\cspecs\fmxvc.png".
     pub fmxvc_png: PlainBytes<42>,
-    /// 0x733960: "files\g\graphics\screens\cspecs\fpmvc.png".
     pub fpmvc_png: PlainBytes<42>,
-    /// 0x73398A: "files\g\graphics\screens\cspecs\oscvc.png".
     pub oscvc_png: PlainBytes<42>,
-    /// 0x7339B4: "files\g\graphics\screens\cspecs\rclvc.png".
     pub rclvc_png: PlainBytes<42>,
-    /// 0x7339DE: "files\g\graphics\screens\cspecs\mgndm.png".
     pub mgndm_png: PlainBytes<42>,
-    /// 0x733A08: "files\g\graphics\screens\cspecs\vxadm.png".
     pub vxadm_png: PlainBytes<42>,
-    /// 0x733A32: "files\g\graphics\screens\cspecs\stcdm.png".
     pub stcdm_png: PlainBytes<42>,
-    /// 0x733A5C: "files\g\graphics\screens\cspecs\hycdm.png".
     pub hycdm_png: PlainBytes<42>,
-    /// 0x733A86: "files\g\graphics\screens\cspecs\sbidm.png".
     pub sbidm_png: PlainBytes<42>,
-    /// 0x733AB0: "files\g\graphics\screens\cspecs\pgodm.png".
     pub pgodm_png: PlainBytes<42>,
-    /// 0x733ADA: "files\g\graphics\screens\cspecs\mxpdm.png".
     pub mxpdm_png: PlainBytes<42>,
-    /// 0x733B04: "files\g\graphics\screens\cspecs\mtldm.png".
     pub mtldm_png: PlainBytes<42>,
-    /// 0x733B2E: "files\g\graphics\screens\cspecs\vwgdm.png".
     pub vwgdm_png: PlainBytes<42>,
-    /// 0x733B58: "files\g\graphics\screens\cspecs\nsadm.png".
     pub nsadm_png: PlainBytes<42>,
-    /// 0x733B82: "files\g\graphics\screens\cspecs\ptwdm.png".
     pub ptwdm_png: PlainBytes<42>,
-    /// 0x733BAC: "files\g\graphics\screens\cspecs\ctsdm.png".
     pub ctsdm_png: PlainBytes<42>,
-    /// 0x733BD6: "files\g\graphics\screens\cspecs\hncdm.png".
     pub hncdm_png: PlainBytes<42>,
-    /// 0x733C00: "files\g\graphics\screens\cspecs\nsmdm.png".
     pub nsmdm_png: PlainBytes<42>,
-    /// 0x733C2A: "files\g\graphics\screens\cspecs\pgtdm.png".
     pub pgtdm_png: PlainBytes<42>,
-    /// 0x733C54: "files\g\graphics\screens\cspecs\frtdm.png".
     pub frtdm_png: PlainBytes<42>,
-    /// 0x733C7E: "files\g\graphics\screens\cspecs\sdodm.png".
     pub sdodm_png: PlainBytes<42>,
-    /// 0x733CA8: "files\g\graphics\screens\cspecs\stidm.png".
     pub stidm_png: PlainBytes<42>,
-    /// 0x733CD2: "files\g\graphics\screens\cspecs\sdfdm.png".
     pub sdfdm_png: PlainBytes<42>,
-    /// 0x733CFC: "files\g\graphics\screens\cspecs\ptcdm.png".
     pub ptcdm_png: PlainBytes<42>,
-    /// 0x733D26: "files\g\graphics\screens\cspecs\fmxdm.png".
     pub fmxdm_png: PlainBytes<42>,
-    /// 0x733D50: "files\g\graphics\screens\cspecs\fpmdm.png".
     pub fpmdm_png: PlainBytes<42>,
-    /// 0x733D7A: "files\g\graphics\screens\cspecs\oscdm.png".
     pub oscdm_png: PlainBytes<42>,
-    /// 0x733DA4: "files\g\graphics\screens\cspecs\rcldm.png".
     pub rcldm_png: PlainBytes<42>,
-    /// 0x733DCE: "files\g\graphics\screens\cspecs\mgnen.png".
     pub mgnen_png: PlainBytes<42>,
-    /// 0x733DF8: "files\g\graphics\screens\cspecs\vxaen.png".
     pub vxaen_png: PlainBytes<42>,
-    /// 0x733E22: "files\g\graphics\screens\cspecs\stcen.png".
     pub stcen_png: PlainBytes<42>,
-    /// 0x733E4C: "files\g\graphics\screens\cspecs\hycen.png".
     pub hycen_png: PlainBytes<42>,
-    /// 0x733E76: "files\g\graphics\screens\cspecs\sbien.png".
     pub sbien_png: PlainBytes<42>,
-    /// 0x733EA0: "files\g\graphics\screens\cspecs\pgoen.png".
     pub pgoen_png: PlainBytes<42>,
-    /// 0x733ECA: "files\g\graphics\screens\cspecs\mxpen.png".
     pub mxpen_png: PlainBytes<42>,
-    /// 0x733EF4: "files\g\graphics\screens\cspecs\mtlen.png".
     pub mtlen_png: PlainBytes<42>,
-    /// 0x733F1E: "files\g\graphics\screens\cspecs\vwgen.png".
     pub vwgen_png: PlainBytes<42>,
-    /// 0x733F48: "files\g\graphics\screens\cspecs\nsaen.png".
     pub nsaen_png: PlainBytes<42>,
-    /// 0x733F72: "files\g\graphics\screens\cspecs\ptwen.png".
     pub ptwen_png: PlainBytes<42>,
-    /// 0x733F9C: "files\g\graphics\screens\cspecs\ctsen.png".
     pub ctsen_png: PlainBytes<42>,
-    /// 0x733FC6: "files\g\graphics\screens\cspecs\hncen.png".
     pub hncen_png: PlainBytes<42>,
-    /// 0x733FF0: "files\g\graphics\screens\cspecs\nsmen.png".
     pub nsmen_png: PlainBytes<42>,
-    /// 0x73401A: "files\g\graphics\screens\cspecs\pgten.png".
     pub pgten_png: PlainBytes<42>,
-    /// 0x734044: "files\g\graphics\screens\cspecs\frten.png".
     pub frten_png: PlainBytes<42>,
-    /// 0x73406E: "files\g\graphics\screens\cspecs\sdoen.png".
     pub sdoen_png: PlainBytes<42>,
-    /// 0x734098: "files\g\graphics\screens\cspecs\stien.png".
     pub stien_png: PlainBytes<42>,
-    /// 0x7340C2: "files\g\graphics\screens\cspecs\sdfen.png".
     pub sdfen_png: PlainBytes<42>,
-    /// 0x7340EC: "files\g\graphics\screens\cspecs\ptcen.png".
     pub ptcen_png: PlainBytes<42>,
-    /// 0x734116: "files\g\graphics\screens\cspecs\fmxen.png".
     pub fmxen_png: PlainBytes<42>,
-    /// 0x734140: "files\g\graphics\screens\cspecs\fpmen.png".
     pub fpmen_png: PlainBytes<42>,
-    /// 0x73416A: "files\g\graphics\screens\cspecs\oscen.png".
     pub oscen_png: PlainBytes<42>,
-    /// 0x734194: "files\g\graphics\screens\cspecs\rclen.png".
     pub rclen_png: PlainBytes<42>,
-    /// 0x7341BE: "files\g\graphics\screens\cspecs\mgntc.png".
     pub mgntc_png: PlainBytes<42>,
-    /// 0x7341E8: "files\g\graphics\screens\cspecs\vxatc.png".
     pub vxatc_png: PlainBytes<42>,
-    /// 0x734212: "files\g\graphics\screens\cspecs\stctc.png".
     pub stctc_png: PlainBytes<42>,
-    /// 0x73423C: "files\g\graphics\screens\cspecs\hyctc.png".
     pub hyctc_png: PlainBytes<42>,
-    /// 0x734266: "files\g\graphics\screens\cspecs\sbitc.png".
     pub sbitc_png: PlainBytes<42>,
-    /// 0x734290: "files\g\graphics\screens\cspecs\pgotc.png".
     pub pgotc_png: PlainBytes<42>,
-    /// 0x7342BA: "files\g\graphics\screens\cspecs\mxptc.png".
     pub mxptc_png: PlainBytes<42>,
-    /// 0x7342E4: "files\g\graphics\screens\cspecs\mtltc.png".
     pub mtltc_png: PlainBytes<42>,
-    /// 0x73430E: "files\g\graphics\screens\cspecs\vwgtc.png".
     pub vwgtc_png: PlainBytes<42>,
-    /// 0x734338: "files\g\graphics\screens\cspecs\nsatc.png".
     pub nsatc_png: PlainBytes<42>,
-    /// 0x734362: "files\g\graphics\screens\cspecs\ptwtc.png".
     pub ptwtc_png: PlainBytes<42>,
-    /// 0x73438C: "files\g\graphics\screens\cspecs\ctstc.png".
     pub ctstc_png: PlainBytes<42>,
-    /// 0x7343B6: "files\g\graphics\screens\cspecs\hnctc.png".
     pub hnctc_png: PlainBytes<42>,
-    /// 0x7343E0: "files\g\graphics\screens\cspecs\nsmtc.png".
     pub nsmtc_png: PlainBytes<42>,
-    /// 0x73440A: "files\g\graphics\screens\cspecs\pgttc.png".
     pub pgttc_png: PlainBytes<42>,
-    /// 0x734434: "files\g\graphics\screens\cspecs\frttc.png".
     pub frttc_png: PlainBytes<42>,
-    /// 0x73445E: "files\g\graphics\screens\cspecs\sdotc.png".
     pub sdotc_png: PlainBytes<42>,
-    /// 0x734488: "files\g\graphics\screens\cspecs\stitc.png".
     pub stitc_png: PlainBytes<42>,
-    /// 0x7344B2: "files\g\graphics\screens\cspecs\sdftc.png".
     pub sdftc_png: PlainBytes<42>,
-    /// 0x7344DC: "files\g\graphics\screens\cspecs\ptctc.png".
     pub ptctc_png: PlainBytes<42>,
-    /// 0x734506: "files\g\graphics\screens\cspecs\fmxtc.png".
     pub fmxtc_png: PlainBytes<42>,
-    /// 0x734530: "files\g\graphics\screens\cspecs\fpmtc.png".
     pub fpmtc_png: PlainBytes<42>,
-    /// 0x73455A: "files\g\graphics\screens\cspecs\osctc.png".
     pub osctc_png: PlainBytes<42>,
-    /// 0x734584: "files\g\graphics\screens\cspecs\rcltc.png".
     pub rcltc_png: PlainBytes<42>,
-    /// 0x7345AE: ";3files\g\slides\mgnsl00.png".
     pub mgnsl00_png: PlainBytes<29>,
-    /// 0x7345CB: ";3files\g\slides\vxasl00.png".
     pub vxasl00_png: PlainBytes<29>,
-    /// 0x7345E8: ";3files\g\slides\stcsl00.png".
     pub stcsl00_png: PlainBytes<29>,
-    /// 0x734605: ";3files\g\slides\hycsl00.png".
     pub hycsl00_png: PlainBytes<29>,
-    /// 0x734622: ";3files\g\slides\sbisl00.png".
     pub sbisl00_png: PlainBytes<29>,
-    /// 0x73463F: ";3files\g\slides\pgosl00.png".
     pub pgosl00_png: PlainBytes<29>,
-    /// 0x73465C: ";3files\g\slides\mxpsl00.png".
     pub mxpsl00_png: PlainBytes<29>,
-    /// 0x734679: ";3files\g\slides\mtlsl00.png".
     pub mtlsl00_png: PlainBytes<29>,
-    /// 0x734696: ";3files\g\slides\vwgsl00.png".
     pub vwgsl00_png: PlainBytes<29>,
-    /// 0x7346B3: ";3files\g\slides\nsasl00.png".
     pub nsasl00_png: PlainBytes<29>,
-    /// 0x7346D0: ";3files\g\slides\ptwsl00.png".
     pub ptwsl00_png: PlainBytes<29>,
-    /// 0x7346ED: ";3files\g\slides\ctssl00.png".
     pub ctssl00_png: PlainBytes<29>,
-    /// 0x73470A: ";3files\g\slides\hncsl00.png".
     pub hncsl00_png: PlainBytes<29>,
-    /// 0x734727: ";3files\g\slides\nsmsl00.png".
     pub nsmsl00_png: PlainBytes<29>,
-    /// 0x734744: ";3files\g\slides\pgtsl00.png".
     pub pgtsl00_png: PlainBytes<29>,
-    /// 0x734761: ";3files\g\slides\frtsl00.png".
     pub frtsl00_png: PlainBytes<29>,
-    /// 0x73477E: ";3files\g\slides\sdosl00.png".
     pub sdosl00_png: PlainBytes<29>,
-    /// 0x73479B: ";3files\g\slides\stisl00.png".
     pub stisl00_png: PlainBytes<29>,
-    /// 0x7347B8: ";3files\g\slides\sdfsl00.png".
     pub sdfsl00_png: PlainBytes<29>,
-    /// 0x7347D5: ";3files\g\slides\ptcsl00.png".
     pub ptcsl00_png: PlainBytes<29>,
-    /// 0x7347F2: ";3files\g\slides\fmxsl00.png".
     pub fmxsl00_png: PlainBytes<29>,
-    /// 0x73480F: ";3files\g\slides\fpmsl00.png".
     pub fpmsl00_png: PlainBytes<29>,
-    /// 0x73482C: ";3files\g\slides\oscsl00.png".
     pub oscsl00_png: PlainBytes<29>,
-    /// 0x734849: ";3files\g\slides\rclsl00.png".
     pub rclsl00_png: PlainBytes<29>,
     /// Not in the image: two bytes that put the speech tables on a dword boundary.
     pub _speech_pad: PlainBytes<1>,
-    /// 0x734866: per car, its two speech samples' names and a 0.
+    /// Per car, its two speech samples' names and a 0.
     pub car_speech: [[PlainDword; 3]; 24],
-    /// 0x734986: per stage, three speech samples' names and a 0.
+    /// Per stage, three speech samples' names and a 0.
     pub stage_speech: [[PlainDword; 4]; 36],
 }
 
@@ -2416,8 +2116,8 @@ impl MenuText {
     }
 }
 
-/// A speech table's entry: a sample name's handle (`audio::store::name_key`; the
-/// original kept its address), or the row's end mark, -1.
+/// A speech table's entry: a sample name's handle (`audio::store::name_key`), or the row's end
+/// mark, -1.
 const fn speech_key(ida: u32) -> u32 {
     if ida == SPEECH_END {
         return ida;
@@ -2490,7 +2190,7 @@ pub fn speech_entry(
     let entry = speech_dword(texts, first as usize + place as usize).ok_or(
         crate::errors::BadInput("a speech entry off the speech rows"),
     )?;
-    // 0: none, as the original's null.
+    // 0: none.
     if entry == SPEECH_END || entry == 0 {
         return Ok(entry);
     }

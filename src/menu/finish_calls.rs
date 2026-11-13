@@ -6,9 +6,8 @@ use crate::race::owner::Race;
 use crate::session::DwordLike;
 use rc2k_core::menu::finish::{self, Racer, Step, Var};
 
-/// The game for `rc2k_core::menu::finish`: the variables at their addresses, the finders
-/// and the steps. `racer` is the record (the original's
-/// edi) the racer fields are read through: a player's.
+/// The game for `rc2k_core::menu::finish`: the variables, the finders and the steps. `racer` is
+/// the record the racer fields are read through: a player's.
 pub struct Game<'a> {
     menus: &'a Menus,
     owners: Owners<'static>,
@@ -35,8 +34,7 @@ impl<'a> Game<'a> {
     }
 }
 
-/// The player the racer's fields are read from (the original's edi). After the leader's
-/// search edi is a standings entry, but the flows read the racer only after choosing a
+/// The player the racer's fields are read from. The flows read the racer only after choosing a
 /// player (`Racer::Leader`) or finding one done (`find_done`): no entry is read as one.
 #[derive(Clone, Copy)]
 pub enum RacerAt<'a> {
@@ -132,8 +130,7 @@ impl finish::Finish for Game<'_> {
         Ok(())
     }
 
-    /// The original leaves the value in eax for the key taken at the end, which replaces
-    /// its low byte and is not read: nothing to keep.
+    /// The value left for the key taken at the end is not read: nothing to keep.
     fn step(&mut self, s: Step) -> Result<(), Refused> {
         let (sound, race) = (self.owners.sound, self.owners.race);
         self.fault.check()?;
@@ -150,7 +147,6 @@ impl finish::Finish for Game<'_> {
                 crate::race::stage_free::render3d_tidy(race)?;
             }
             Step::ObjectsTidy => crate::race::stage_free::objects_tidy(race)?,
-            // `nullsub_6`.
             Step::Nothing => {}
             Step::ReleaseTextures => {
                 crate::race::race_end::release_textures(self.owners.scene, self.owners.gfx);

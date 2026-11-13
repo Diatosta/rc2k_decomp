@@ -1,10 +1,5 @@
-//! The game's folder primitives as Rust functions (as `handle.rs`'s): each calls the Win32
-//! function on the path and gives back whether it worked (the original returned the BOOL, with
-//! carry set when it failed and zero set when it is 1):
-//! - `files::set_current_directory`: `SetCurrentDirectoryA`;
-//! - `files::make_directory`: `CreateDirectoryA` (no security attributes);
-//! - `files::remove_directory`: `RemoveDirectoryA`, the uninstaller's (`install::uninstall`);
-//! - `files::delete_file`: `DeleteFileA`.
+//! The game's folder primitives, each giving back whether it worked: `set_current_directory`,
+//! `make_directory`, `remove_directory` (the uninstaller's) and `delete_file`.
 
 // `std::fs` / `std::env` stand in for the Win32 calls (`SetCurrentDirectoryA`,
 // `CreateDirectoryA`, `RemoveDirectoryA`, `DeleteFileA`): the same cases fail (a folder

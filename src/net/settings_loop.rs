@@ -1,16 +1,6 @@
-//! `net::settings_loop` (0x4168CF): the network settings screen (its menu's action 0x4AAADB):
-//! `mode` 0, the background (`net::show_background`), the saved connection checked
-//! (`net::settings_done`); the list's clocks from `clocks.key_ticks`, no editing, item 0. Each
-//! frame (`net::settings_frame` through `screens::run_frame`): the frame clock noted, a key
-//! (`menu::list_take_key`); while a setting is edited the key goes to it
-//! (`net::setting_key`); else up (0x66) and down (0x6B) move the highlight within 0 .. 4
-//! (the move clock then noted), Enter (0x1C) on item 4 leaves, on item 0 chooses the
-//! connection (`net::settings_link`, the highlight back to 0), on the others starts the
-//! editing (`net::begin_setting_edit`); Escape (1) leaves; 'R' (0x52) with screenshots on
-//! takes one (`gfx::take_screenshot`); any other key may compile the lexicon again
-//! (`strings::maybe_compile_lexicon`). It ends too when the game is closing; then
-//! `g_listChoice` -1.
-//!
+//! The network settings screen: up and down move the highlight over five items, Enter leaves
+//! (item 4), chooses the connection (item 0) or starts editing the setting; Escape leaves. A
+//! setting being edited gets the keys. Also ends when the game is closing.
 
 use crate::errors::Refused;
 use crate::net::lobby::{list_key, other_key, run_frame};

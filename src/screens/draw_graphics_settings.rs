@@ -1,10 +1,6 @@
 //! The graphics page: item 2 is choosable only when the card has both a primary and a
-//! secondary display; each setting's name is a string picked by its value, drawn at x 0x1D1
-//! from y 0xDC every 0x1B in the item font, with the screen mode ("w x h x bits", built in
-//! the shared text buffer) on row 1.
-//!
-//! In a menu loop's draw list. Refuses what `menu::enable_item` refuses (no current menu),
-//! before anything.
+//! secondary display; each setting's name is a string picked by its value, with the screen mode
+//! ("w x h x bits") on row 1. Refuses what `menu::enable_item` refuses (no current menu).
 
 use crate::errors::Refused;
 use crate::gfx::owner::Gfx;

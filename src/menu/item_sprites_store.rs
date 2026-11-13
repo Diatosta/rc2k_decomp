@@ -1,7 +1,7 @@
-//! The menu items' sprite lists, out of RAL.EXE's image (IDA 0x747998 .. 0x747AD8): 16 lists of five sprite numbers (the item's look in each state), which a menu
-//! item names (`menus_store::MenuItem::sprites`, a `SpriteCell`: the original kept the
-//! list's address). The first eight are the menus' (sprites 0xA ..), the last
-//! eight the in-race menus' (0x11 ..). Nothing changes them.
+//! The menu items' sprite lists: 16 lists of five sprite numbers (the item's look in each
+//! state), which a menu item names (`menus_store::MenuItem::sprites`, a `SpriteCell`). The
+//! first eight are the menus' (sprites 0xA ..), the last eight the in-race menus' (0x11 ..).
+//! Nothing changes them.
 
 use crate::session::PlainDword;
 
@@ -132,8 +132,7 @@ impl ItemSprites {
 }
 
 /// What a menu item's +0x20 holds: a sprite number (the glyph drawn behind an item that is no
-/// button, and its palette), or for a button one of the lists (the original kept its
-/// address).
+/// button, and its palette), or for a button one of the lists.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum ItemSprite {
     Sprite(u32),
@@ -144,8 +143,7 @@ pub enum ItemSprite {
 /// 0 .. 2 and 0xFFFFFFA9; one in the tag's range is refused when set).
 const LIST_TAG: u32 = 0x7FFF_FFF0;
 
-/// Where the original kept the sprite lists (IDA 0x747998 ..): core's menu table names a
-/// button's list by its address there.
+/// Where the sprite lists sit: core's menu table names a button's list by its address there.
 const LISTS: core::ops::Range<usize> = 0x747998..0x747AD8;
 
 /// A menu item's +0x20 (a handle).
@@ -154,7 +152,7 @@ const LISTS: core::ops::Range<usize> = 0x747998..0x747AD8;
 pub struct SpriteCell(crate::session::PlainDword);
 
 impl SpriteCell {
-    /// From the image's value (`ida`: a number, or IDA's address of a list; an address inside
+    /// From the table's value (`ida`: a number, or the address of a list; an address inside
     /// the lists that is no list's start, or a number in the tag's range, fails to compile).
     pub const fn at(ida: u32) -> Self {
         let ida_at = ida as usize;

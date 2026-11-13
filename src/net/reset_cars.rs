@@ -1,8 +1,5 @@
-//! `net::reset_cars` (0x463E52): the eight cars' blocks (`g_carBlocks`) made ready for a
-//! network race: +0xAA8 the car's number + 1, +0x684 4, +0x28 2, +0x34, +0x30, +0x20,
-//! +0x3C 0x80, then `net::clear_car_state`; two more race variables 0.
-//!
-//! Caller: `net::set_up_race`.
+//! Makes the eight cars' blocks ready for a network race (car number, view, a few settings),
+//! clearing each with `net::clear_car_state`.
 
 use crate::net::clear_car_state::clear_car_state;
 use crate::physics::car_store::Car;

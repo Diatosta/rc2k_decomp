@@ -1,15 +1,14 @@
-//! The championships' starters: the actions of the start menus' items that set a
-//! championship up for one to four players and run it.
+//! The championships' starters: the actions of the start menus' items that set a championship
+//! up for one to four players and run it.
 //!
 //! The common shape: `event_type` is set (4, 5), `left_by_key` cleared, the carousel's last car
 //! set to 0xF, `menu::reset_driver_condition`, `index`, `section` and `stages_done` cleared,
-//! `player_count` set; for each player (`current_player`, edi its record) the repairs
-//! (`service::repair_car`), the car choice (`menu::select_car_loop`, esi the championship's
-//! car list; leaving it, `left_by_key` is set and ends it all) and the car taken
-//! (`menu::take_shown_car`); the event mode is set; the championship
-//! (`menu::run_championship` / `menu::run_a8_championship`); then for the first
-//! championship `event_left`, `ask_leave` and `left_with_carry` are cleared, and for both
-//! `event_over` is set. The one-player ones differ (see `Starter::first`).
+//! `player_count` set; for each player (`current_player`) the repairs (`service::repair_car`),
+//! the car choice (`menu::select_car_loop` with the championship's car list; leaving it,
+//! `left_by_key` is set and ends it all) and the car taken (`menu::take_shown_car`); the event
+//! mode is set; the championship (`menu::run_championship` / `menu::run_a8_championship`);
+//! then for the first championship `event_left`, `ask_leave` and `left_with_carry` are
+//! cleared, and for both `event_over` is set. The one-player ones differ (see `Starter::first`).
 
 use crate::errors::Refused;
 use crate::menu::event_flow::*;
@@ -103,7 +102,7 @@ fn var(menus: &crate::menu::owner::Menus, v: starters::Var) -> &PlainDword {
 pub fn start_event(o: crate::owners::Owners<'static>, s: &Starter) -> Result<(), Refused> {
     let menus = o.menus;
     // The logic is in `rc2k_core::menu::starters::start`. The players' own settings come back
-    // afterwards (`menu::own_settings`; not the original's).
+    // afterwards (`menu::own_settings`).
     crate::menu::own_settings::around_championship(menus, || {
         starters::start(
             s.kind,

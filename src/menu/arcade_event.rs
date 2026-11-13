@@ -109,7 +109,7 @@ impl arcade::Arcade for Game<'_> {
                 a::take_arcade_stage_best(play, self.owners.system, self.owners.race)?;
             }
             Step::RepairCar => crate::service::repair_parts::repair_car_in(menus)?,
-            // From 0 (the original clears eax for the repair just before).
+            // The repair's result is not used: the race starts from 0.
             Step::Race => crate::race::single_rally_race::single_rally_race(self.owners, 0, 2)?,
             Step::ScoreStage => a::score_arcade_stage(menus)?,
             Step::ResultsLoop => self.screen(&m::arcade_results_loop::SCREEN)?,
@@ -162,6 +162,5 @@ pub fn arcade_event(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
         cars: None,
         player0,
     };
-    // The logic is in `rc2k_core::menu::arcade_event::arcade_event`.
     arcade::arcade_event(&mut game)
 }

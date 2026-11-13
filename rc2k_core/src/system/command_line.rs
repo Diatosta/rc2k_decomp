@@ -1,10 +1,8 @@
-//! The command line's switches (from `system::read_command_line`
-//! 0x410684). The first word is the program; of the words after it only those of two
-//! characters or more count, by their first two: `-v` (the version shown, the game left;
-//! the words after it not read), `-u`, `-p` (installing), `-a` (no audio), `-i` (the next
-//! two words copied, the first characters of the two after them less `0`), `-c` (the next
-//! word's first character: `1` ignores the secondary, `2` the primary). The line ends at a
-//! word of no length that starts where the reading goes on from (its NUL).
+//! The command line's switches. The first word is the program; of the rest only words of two
+//! characters or more count, by their first two: `-v` (version shown, game left; later words
+//! not read), `-u`, `-p` (installing), `-a` (no audio), `-i` (the next two words copied, the
+//! first characters of the two after them less `0`), `-c` (the next word's first character:
+//! `1` ignores the secondary, `2` the primary). The line ends at its NUL.
 
 use crate::Invalid;
 use crate::strings::bytes::Bytes;
@@ -20,8 +18,8 @@ pub struct Install {
     pub digits: [u32; 2],
 }
 
-/// What the line asks for. Each `-i` is kept, in order (the later one's words are copied
-/// over the earlier's, without a NUL).
+/// What the line asks for. Each `-i` is kept, in order (a later one's words are copied over
+/// the earlier's, without a NUL).
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Switches {
     /// The program's word (start, length).

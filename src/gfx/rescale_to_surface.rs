@@ -1,16 +1,11 @@
-//! `gfx::rescale_to_surface` (0x4063B7): draws the decoded picture onto the surface at the
-//! surface's size.
-//!
-//! `gfx::rescale_picture`'s arithmetic with other ends: the rows are those of the decoded
-//! picture where it lies (`g_decodedPixels`, `g_decodedStride` apart, listed with
-//! `gfx::fill_row_table`), and every pixel made goes to the surface in the surface's
-//! format: its three parts are put in `components` (0x4F50BC, whose fourth byte is left
-//! as it was), `gfx::components_to_pixel` with the surface's format makes the pixel, and
-//! it is stored as a word on a 16-bit surface, else as a dword; the surface's gap is
-//! added after each row.
-//! Three call sites, all in `gfx::show_picture_file`, with the surface locked.
-//! Refuses a decoded picture or a surface without width or height, more rows than the row
-//! table holds, and missing pixels or format.
+//! Draws the decoded picture onto the surface at the surface's size: `gfx::rescale_picture`'s
+//! arithmetic with other ends. The rows are those of the decoded picture where it lies (the decoded
+//! stride apart, listed with `gfx::fill_row_table`), and every pixel made goes to the surface in
+//! the surface's format: its three parts are put in `components` (whose fourth byte is left as it
+//! was), `gfx::components_to_pixel` with the surface's format makes the pixel, and it is stored as
+//! a word on a 16-bit surface, else as a dword; the surface's gap is added after each row. Refuses
+//! a decoded picture or a surface without width or height, more rows than the row table holds, and
+//! missing pixels or format.
 
 use crate::errors::{BadInput, Refused};
 use crate::gfx::components_to_pixel::components_to_pixel;
@@ -41,8 +36,6 @@ pub fn rescale_to_surface(
     }
     // The count was checked above. The rows as offsets in the decoded buffer.
     let _ = fill_row_table(0, pictures.decoder.stride.get(), from_height, gfx);
-    // Converted: `rc2k_core::gfx::picture::rescale`; each pixel's parts through the
-    // components variable, the last left there with its fourth byte as it was.
     let format = crate::gfx::pixel_format::layout(system, gfx, surface.format.get())?;
     let words = surface.bits_per_pixel.get() == 0x10;
     // Where the next pixel goes.

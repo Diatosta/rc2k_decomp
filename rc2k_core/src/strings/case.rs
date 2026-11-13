@@ -1,5 +1,4 @@
-//! The language's letter case: the lower-case table the language file sets up, and what the
-//! game does with it (from `strings::same_text`, `copy_printable`).
+//! The language's letter case: the lower-case table the language file sets up.
 
 use std::cmp::Ordering;
 
@@ -17,9 +16,8 @@ impl CaseTable {
         }
     }
 
-    /// The language's table (RAL.EXE `strings::make_case_tables`): ASCII's letters, then `pairs`
-    /// (the language's string 2) as "lower, upper" pairs. An odd length is refused (the original
-    /// reads on past the string).
+    /// The language's table: ASCII's letters, then `pairs` (the language's string 2) as "lower,
+    /// upper" pairs. An odd length is refused.
     pub fn for_language(pairs: &[u8]) -> Result<Self, crate::Invalid> {
         if !pairs.len().is_multiple_of(2) {
             return Err(crate::Invalid("the lower case string has an odd length"));
@@ -69,9 +67,9 @@ impl CaseTable {
         Ordering::Equal
     }
 
-    /// A name as it can be shown: at most `room - 1` characters of `text` (up to a NUL),
-    /// leaving out those whose low seven bits are under 0x20, in lower case unless
-    /// `keep_case`; then the NUL. `None` for a room of 0 (the original looks at 2^32 - 1).
+    /// A name as it can be shown: at most `room - 1` characters of `text` (up to a NUL), leaving
+    /// out those whose low seven bits are under 0x20, in lower case unless `keep_case`; then the
+    /// NUL. `None` for a room of 0.
     pub fn printable(&self, text: &[u8], room: usize, keep_case: bool) -> Option<Vec<u8>> {
         let looked_at = room.checked_sub(1)?;
         let mut out: Vec<u8> = text

@@ -1,7 +1,6 @@
-//! The clock of the race's sounds (from `sound::start_race_clock`
-//! 0x40F1E9 and `sound::step_race_clock` 0x40F20E): `RaceClock.last` ..`RaceClock.turns`.
+//! The clock of the race's sounds.
 
-/// The clock, in the game's order.
+/// The race clock's fields, in the game's order.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct RaceClock {
     /// When the last turn was (milliseconds).
@@ -12,7 +11,7 @@ pub struct RaceClock {
     pub turns: u32,
 }
 
-/// The least time between turns.
+/// The least time between turns, in milliseconds.
 pub const TURN_MS: u32 = 20;
 
 impl RaceClock {
@@ -23,8 +22,8 @@ impl RaceClock {
         self.turns = 0;
     }
 
-    /// Whether a turn is due at `now` (20 ms or more since the last, unsigned): it then
-    /// becomes the last, its milliseconds held to 1000, 1000 / them (whole) a second.
+    /// Whether a turn is due at `now` (20 ms or more since the last, unsigned): it then becomes the
+    /// last, its milliseconds held to 1000, and the turns a second are 1000 / them (whole).
     pub fn step(&mut self, now: u32) -> bool {
         let passed = now.wrapping_sub(self.last);
         if passed < TURN_MS {

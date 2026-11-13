@@ -1,29 +1,24 @@
-//! `gfx::build_glyphs` (0x412085): makes a glyph table from numbered sheets of pictures.
-//!
-//! The sprite and font builder ("Extracting:" and "Appending:" in the game's log). For
-//! number 0, 1, .. while such a file exists: the sheet is read (`gfx/read_sheet.rs`: a PCX
-//! of one plane stays palette numbers, one of three becomes components), its backdrop is
-//! what its four corners agree on and its transparent colour magenta, every glyph on it
-//! is found and coded (`gfx/glyph_builder.rs`), and the sheet's table is appended to the
-//! table being built (`SheetVars::table`, its size in `table_size`), whose memory comes from
-//! the memory list piece by piece. The builder's flags (`g_glyphBuilderFlags`): 1 = glyphs
-//! are run-length coded, 0x10 = the path is one file's and not numbered, 0x20 = every
-//! sheet has a second one with its alpha; bits 2 and 4 are set here for a sheet of
-//! components. The callers (`gfx::build_menu_sprites` for the menus' sprites,
-//! `gfx::build_fonts` for the fonts, `gfx::build_game_fonts`) set the flags, take the work
-//! memory `g_lexiconMemory` and point the table at where the list stands.
-//! Errors: a sheet that does not read is fatal error 0x80E4F010; no room for a glyph, a
-//! sheet's table or the table's growth 0x80E48001, 0x80E48011, 0x80E48012; a table to
-//! append to that is nowhere 0x80E48077.
-//! With the alpha flag every sheet has two files: the one with the lower number is read
-//! first and kept in the picture buffer's second half, and the low four bits of its
-//! pixels become the top four of the other's (both must be palette sheets: fatal errors
-//! 0x80E4F412 and 0x80E4F422; with the one-file flag 0x80E4F411). If that first file is
-//! not there, the alpha is made from each glyph's own shape (`Sheet::soften`).
-//! The glyphs are kept in memory of its own and only counts them off the work memory, where
-//! it puts the sheet's table as the original does. It leaves alone: the list of glyph
-//! records, the five work variables of the row scan, and the up to three bytes after a
-//! first table that the original's copy by dwords drags along.
+//! Makes a glyph table from numbered sheets of pictures: the sprite and font builder ("Extracting:"
+//! and "Appending:" in the game's log).
+//! For number 0, 1, .. while such a file exists: the sheet is read (`gfx/read_sheet.rs`: a PCX of
+//! one plane stays palette numbers, one of three becomes components), its backdrop is what its four
+//! corners agree on and its transparent colour magenta, every glyph on it is found and coded
+//! (`gfx/glyph_builder.rs`), and the sheet's table is appended to the table being built
+//! (`SheetVars::table`, its size in `table_size`), whose memory comes from the memory list piece by
+//! piece. The builder's flags: 1 = glyphs are run-length coded, 0x10 = the path is one file's and
+//! not numbered, 0x20 = every sheet has a second one with its alpha; bits 2 and 4 are set here for
+//! a sheet of components. The callers (`gfx::build_menu_sprites` for the menus' sprites,
+//! `gfx::build_fonts` for the fonts, `gfx::build_game_fonts`) set the flags, take the work memory
+//! and point the table at where the list stands. Errors: a sheet that does not read, no room for a
+//! glyph, a sheet's table or the table's growth, and a table to append to that is nowhere are
+//! fatal. With the alpha flag every sheet has two files: the one with the lower number is read
+//! first and kept in the picture buffer's second half, and the low four bits of its pixels become
+//! the top four of the other's (both must be palette sheets, else fatal; with the one-file flag
+//! likewise). If that first file is not there, the alpha is made from each glyph's own shape
+//! (`Sheet::soften`). The glyphs are kept in memory of their own and only counted off the work
+//! memory, where the sheet's table is put. Left alone: the list of glyph records, the five work
+//! variables of the row scan, and the up to three bytes after a first table that a copy by dwords
+//! drags along.
 
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::files::file_exists::file_exists;
@@ -44,35 +39,30 @@ use crate::logfile::write_line::level;
 use crate::memory::take_from_list::{rewind_list, take_from_list};
 use crate::session::PlainDword;
 
-// ---- game data ----
-
 /// The sheet and table being built.
 #[derive(rc2k_derive::Cells)]
 pub struct SheetVars {
-    /// `dword_519598`: the sheet's table, and
+    /// The sheet's table.
     pub sheet_table: PlainDword,
-    /// `dword_51959C`: its size.
+    /// Its size.
     pub sheet_table_size: PlainDword,
-    /// `dword_5195A0`: the memory list the caller gave. Not used: nothing reads it, so the list
-    /// is not kept here.
+    /// Not used: nothing reads it, so the list is not kept here.
     pub table_list: PlainDword,
-    /// `g_builtTable` (`dword_5195A4`): the table being built.
+    /// The table being built.
     pub table: PlainDword,
-    /// `g_builtTableSize` (`dword_5195A8`): its size so far.
+    /// Its size so far.
     pub table_size: PlainDword,
-    /// `g_sheetGlyphCount` (`dword_5195B0`): the sheet's glyphs, and
+    /// The sheet's glyph count.
     pub glyph_count: PlainDword,
-    /// `g_sheetGlyphBytes` (`dword_5195B4`): their records' bytes.
+    /// The bytes of the sheet's glyph records.
     pub glyph_bytes: PlainDword,
-    /// `g_glyphPixelSize` (`dword_5195CC`).
     pub pixel_size: PlainDword,
-    /// `g_alphaSheetLoaded` (`dword_5195D0`): 1 = the sheet read last was an alpha sheet,
-    /// kept for the next one.
+    /// 1 = the sheet read last was an alpha sheet, kept for the next one.
     pub alpha_loaded: PlainDword,
 }
 
 impl SheetVars {
-    /// The sheet builder's variables; the first values are the image's (all zero).
+    /// The sheet builder's variables (all zero).
     pub const fn new() -> Self {
         SheetVars {
             sheet_table: PlainDword::new(0),
@@ -175,8 +165,7 @@ fn log_glyph(glyph: &Glyph, number: u32, flags: u32, pixel_size: u32) {
     }
 }
 
-/// On the table being built: the sheet's table of `size` bytes at `sheet`
-/// becomes part of it.
+/// On the table being built: the sheet's table of `size` bytes at `sheet` becomes part of it.
 fn append_to_table(
     fonts: &crate::gfx::owner::FontStores,
     vars: &SheetVars,
@@ -207,9 +196,8 @@ fn append_to_table(
 }
 
 /// `gfx::read_alpha_sheet`: the sheet with the next number, if it is there and reads, is kept in
-/// the picture buffer's second half as the alpha of the one after it. The number moves on
-/// either way.
-/// The path's text, up to its NUL.
+/// the picture buffer's second half as the alpha of the one after it. The number moves on either
+/// way. The path's text, up to its NUL.
 fn read_alpha_sheet(
     vars: &SheetVars,
     template: &[u8],
@@ -359,7 +347,7 @@ pub fn build_glyphs(
         pictures.decoder.transparent.set(transparent);
         let logging = level() as i32 >= 3;
         if logging {
-            // The original makes the path anew for the line.
+            // The path is made anew for the line.
             let path = match flags & ONE_FILE {
                 0 => numbered_path_bytes(template, pictures.decoder.number.get())?,
                 _ => template.to_vec(),
@@ -425,9 +413,8 @@ pub fn build_glyphs(
             return Err(fatal(0x80E4_8011, ""));
         };
         vars.sheet_table_size.set(size);
-        // The sheet's table is counted off the work memory where the original put it
-        // (`place` is that list's cursor, logged as the original logs its address), and
-        // appended from Rust's bytes (`gfx::glyph_store`).
+        // The sheet's table is counted off the work memory (`place` is that list's cursor, logged
+        // as an address), and appended from Rust's bytes (`gfx::glyph_store`).
         vars.sheet_table.set(place);
         if take_from_list(list, size)?.is_none() {
             return Err(fatal(0x80E4_8012, ""));

@@ -1,11 +1,8 @@
-//! `drive::finish_race` (0x459116): the championship's finish routine: the stage
-//! (`finish_stages`[RaceState.results.stage_index]` into `g_stageNumber`), the cars' kind (`RaceState.results.finish_kind` into
-//! `g_raceCarKinds` and the first block's +0x24) and +0xAA8 (`RaceState.results.finish_player`) logged; one car in
-//! mode 3 set up (some thirty settings and block words); the stage loaded (`race::load_stage`);
-//! `after_credits` 0; `drive::finish_run`; everything tidied (`race::tidy_everything`);
-//! `race_done`, `64BB18`, `606744`, `606748` 0; logged.
-//!
-//! Callers: `drive::finish_race_0`, 0x442FEF. Refuses what its calls refuse.
+//! The championship's finish routine: the stage (`finish_stages[stage_index]` into the stage
+//! number), the cars' kind and the finish player logged; one car in mode 3 set up (some thirty
+//! settings and block words); the stage loaded (`race::load_stage`); `after_credits` 0;
+//! `drive::finish_run`; everything tidied (`race::tidy_everything`); `race_done` and the finish
+//! variables 0; logged. Refuses what its calls refuse.
 
 use crate::drive::race_parts::log_line;
 use crate::errors::Refused;
@@ -38,7 +35,6 @@ impl Place<'_> {
     }
 }
 
-/// A variable's place.
 fn var(race: &Race, v: Var) -> Place<'_> {
     Place::Shared(match v {
         Var::D60101C => &race.physics.split_tables().arcade_kind,
@@ -70,7 +66,6 @@ fn var(race: &Race, v: Var) -> Place<'_> {
     })
 }
 
-/// The first car block's cell for `field`.
 fn lead_cell(car: &Car, field: Lead) -> &dyn Cell32 {
     match field {
         Lead::CameraView => &car.camera_view,
@@ -84,7 +79,6 @@ fn lead_cell(car: &Car, field: Lead) -> &dyn Cell32 {
     }
 }
 
-/// The settings for the routine (0x4591B0 .. 0x4592FA).
 fn set_up(race: &Race) {
     for (at, v) in finish_routine::set_up() {
         match at {
@@ -94,11 +88,11 @@ fn set_up(race: &Race) {
     }
 }
 
-// Converted: `rc2k_core::drive::finish_routine`.
 pub fn finish_race(race: &'static Race, o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     let race_owner = race;
     let replay = &race.replay;
-    // The stage index is not checked against the seven (a read past them is the original's).
+    // The stage index is not checked against the seven (a read past them reads the fields
+    // after the table).
     race_owner.shared.vars.get().stage_number.set(
         replay
             .finish
@@ -140,7 +134,6 @@ pub fn finish_race(race: &'static Race, o: crate::owners::Owners<'static>) -> Re
 mod tests {
     use super::*;
 
-    /// The byte offset the set-up stored to before the fields were named.
     fn old_offset(field: Lead) -> usize {
         match field {
             Lead::CameraView => 0x684,

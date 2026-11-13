@@ -1,18 +1,17 @@
-//! `system::check_developer_machine` (0x416292): whether the computer is called "andrew".
+//! Whether the computer is called "andrew".
 //!
 //! `DEVELOPER` = 0; the computer's name is asked for into the text buffer (`GetComputerNameA`,
 //! through `system::computer_name`; if that fails the buffer is looked at as it is); if its first
 //! six characters are "andrew" in any case, `DEVELOPER` = 1. (`race::tyre_change_gauge` reads
 //! it.) One caller, `start`, which calls it directly.
 
-/// `g_developerMachine` (`dword_529D94` in IDA): 1 on a computer called "andrew".
+/// 1 on a computer called "andrew".
 pub static DEVELOPER: crate::session::GameThread<crate::session::PlainDword> =
     crate::session::GameThread::new(crate::session::PlainDword::new(0));
 
 const NAME_ROOM: u32 = 0x40;
 
-/// `system::computer_name`: the computer's name with its NUL (room for 0x40 bytes), if it can be
-/// had; the callers store it where the original did.
+/// The computer's name with its NUL (room for 0x40 bytes), if it can be had.
 pub fn computer_name() -> Option<Vec<u8>> {
     let mut name = crate::os::computer_name(NAME_ROOM)?;
     name.push(0);
@@ -25,7 +24,6 @@ pub fn check_developer_machine(strings: &crate::strings::owner::Strings) {
         text.write_at(0, &name, "the computer's name")
             .unwrap_or_else(|e| crate::fatal::raise::end("system::computer_name", e));
     }
-    // Converted: `rc2k_core::system::machine::developer`.
     let (yes, _) = rc2k_core::system::machine::developer(core::array::from_fn(|n| text.get(n)));
     if yes {
         DEVELOPER.get().set(1);

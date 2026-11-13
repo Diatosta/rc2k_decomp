@@ -1,11 +1,11 @@
-//! A gamepad in the menus (not the original's, which take only the keyboard; owner): any pad SDL knows, on every system. The menus read one pending key
-//! (`input::take_key`), so a button gives them the key of what it means; the race's own
-//! controls are the game's devices (`platform_input`), and the held-key table is left alone,
-//! so driving with the pad steers nothing through the keyboard's controls.
+//! A gamepad in the menus (the game's menus otherwise take only the keyboard): any pad SDL knows,
+//! on every system. The menus read one pending key (`input::take_key`), so a button gives them the
+//! key of what it means; the race's own controls are the game's devices (`platform_input`), and the
+//! held-key table is left alone, so driving with the pad steers nothing through the keyboard's
+//! controls.
 
 use std::sync::atomic::{AtomicU32, Ordering::Relaxed};
 
-/// What a button means in a menu.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum MenuAction {
     Up,
@@ -32,12 +32,10 @@ const NONE: u32 = 0;
 /// The menus' question has items to choose from: there only Back answers (`handle_yes_no`).
 static ANSWER: AtomicU32 = AtomicU32::new(NONE);
 
-/// A button's answer.
 pub fn note_answer(answer: u32) {
     ANSWER.store(answer, Relaxed);
 }
 
-/// The button's answer since the last time, if any.
 pub fn take_answer() -> Option<u32> {
     match ANSWER.swap(NONE, Relaxed) {
         NONE => None,
@@ -48,7 +46,6 @@ pub fn take_answer() -> Option<u32> {
 /// How long START's Escape stays down in a race (ms): longer than a slow frame.
 const LEAVE_HOLD: u64 = 400;
 
-/// A gamepad's button, as far as the menus care.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum PadButton {
     DpadUp,
@@ -65,7 +62,6 @@ pub enum PadButton {
 const REPEAT_AFTER: u64 = 400;
 const REPEAT_EVERY: u64 = 120;
 
-/// What the buttons are doing.
 #[derive(Default)]
 pub struct MenuPad {
     /// The direction held and when it next repeats.

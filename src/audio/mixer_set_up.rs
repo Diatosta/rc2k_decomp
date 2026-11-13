@@ -1,6 +1,5 @@
-//! The game's mixer set up, and the two ways chosen by the mode:
-//! `audio::set_up_primary_mixer` (0x40BAD2), `audio::open_way` (0x40AC3A),
-//! `audio::close_way` (0x40AC58).
+//! The game's mixer set up, and the two ways chosen by the mode: `audio::set_up_primary_mixer`,
+//! `audio::open_way`, `audio::close_way`.
 
 use crate::audio::own::AudioThread;
 use crate::errors::Refused;
@@ -10,13 +9,10 @@ pub const MODE_MIXER: u32 = 0x4_0000;
 /// `SetCooperativeLevel`: write the primary buffer.
 const WRITE_PRIMARY: u32 = 4;
 
-/// `audio::set_up_primary_mixer`: nothing (true) outside the mixer's mode. Else
-/// `release_primary`, cooperative level 4, `make_primary`, the mode's format
-/// (`set_primary_format`), failing that eight bits, failing that mono too; the mode
-/// kept so; the mixing rate (the format's), the most a turn mixes (rate x 2 / 50 x block
-/// align, 40 ms), the shift (block / 2), the cursors; `GetCaps` (+0xC) of the primary into
-/// `g_primaryCaps`, whose bytes are `g_primarySize`; `clear_channels`. A failure:
-/// `close_primary_mixer` and false (the carry).
+/// Nothing (true) outside the mixer's mode. Else the primary buffer is released and made again with
+/// the mode's format (failing that eight bits, failing that mono too), and the mixing rate, the
+/// most a turn mixes (40 ms), the shift and the cursors are set; the channels are cleared. A
+/// failure closes the mixer and returns false.
 pub fn set_up_primary_mixer(audio: &AudioThread, system: &System) -> Result<bool, Refused> {
     if audio.state.sound_mode.get() & MODE_MIXER == 0 {
         return Ok(true);
@@ -33,7 +29,6 @@ pub fn set_up_primary_mixer(audio: &AudioThread, system: &System) -> Result<bool
     {
         return failed();
     }
-    // Converted: `rc2k_core::audio::device::{mixer_formats, mixer_figures}`.
     use rc2k_core::audio::device::{mixer_figures, mixer_formats};
     let mut chosen = None;
     for mode in mixer_formats(audio.state.sound_mode.get()) {
@@ -49,8 +44,6 @@ pub fn set_up_primary_mixer(audio: &AudioThread, system: &System) -> Result<bool
     let wave = audio.state.wave_format.get();
     let rate = wave.samples_per_second;
     audio.state.mix_rate.set(rate);
-    // The original reads the dword at +0xC (block align, bits); the figures use its low
-    // word.
     let (most, shift) = mixer_figures(rate, wave.block_align as u32);
     audio.state.mix_most.set(most);
     audio.state.mix_shift.set(shift);
@@ -76,13 +69,11 @@ pub fn set_up_primary_mixer(audio: &AudioThread, system: &System) -> Result<bool
     Ok(true)
 }
 
-/// `audio::open_way`: the voices' own buffers: `clear_channels`; the mixer:
-/// `set_up_primary_mixer`; neither: the carry. Returns the carry.
+/// The voices' own buffers: `clear_channels`; the mixer: `set_up_primary_mixer`; neither: failure.
 pub fn open_way(audio: &AudioThread, system: &System, mode: u32) -> Result<bool, Refused> {
-    // Converted: `rc2k_core::audio::device::way`.
     use rc2k_core::audio::device::{Way, way};
     match way(mode) {
-        // A jump into it: the carry is the one it leaves.
+        // The result is the one the callee leaves.
         Some(Way::OwnBuffers) => {
             crate::audio::clear_channels::clear_channels(audio);
             Ok(false)
@@ -92,12 +83,11 @@ pub fn open_way(audio: &AudioThread, system: &System, mode: u32) -> Result<bool,
     }
 }
 
-/// `audio::close_way`: as `open_way`, with `close_primary_mixer` for the mixer.
+/// As `open_way`, with `close_primary_mixer` for the mixer.
 pub fn close_way(audio: &AudioThread, system: &System, mode: u32) -> Result<bool, Refused> {
-    // Converted: `rc2k_core::audio::device::way`.
     use rc2k_core::audio::device::{Way, way};
     match way(mode) {
-        // A jump into it: the carry is the one it leaves.
+        // The result is the one the callee leaves.
         Some(Way::OwnBuffers) => {
             crate::audio::clear_channels::clear_channels(audio);
             Ok(false)

@@ -1,7 +1,8 @@
-//! The menus' lists and tables, out of RAL.EXE's image (IDA 0x7594AA .. 0x75A658): the last draw list, the carousel kinds' own places, the paths and sounds the menus
-//! name, the car lists the menus walk, the best scores' titles. `#[repr(C)]` struct of atomic
-//! cells, one static; the lists run on past their fields into the next (and over the gaps), read
-//! by byte offset. Its last field is a 22-byte string: the struct is padded to a multiple of 4.
+//! The menus' lists and tables, out of RAL.EXE's image: the last draw list, the carousel kinds' own
+//! places, the paths and sounds the menus name, the car lists the menus walk, the best scores'
+//! titles. `#[repr(C)]` struct of atomic cells, one static; the lists run on past their fields into
+//! the next (and over the gaps), read by byte offset. Its last field is a 22-byte string: the
+//! struct is padded to a multiple of 4.
 
 use crate::audio::names_store::NameList;
 use crate::menu::cars_store::car_cell;
@@ -43,104 +44,95 @@ pub struct OwnPlace {
 #[repr(C)]
 #[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
 pub struct MenuLists {
-    /// `dword_7594AA`: the menus' last draw list (25 entries, -1 at start;
+    /// The menus' last draw list (25 entries, -1 at start;
     /// `menu::player4_buttons_loop`'s).
     pub draw_list: [PlainDword; 25],
-    /// `MenuLists.own_places[0].size`: the carousel kinds' own places, 12 bytes each, indexed by a kind's
-    /// number (`scene::draw_carousel_entry` checks it against 0x88 records, a slip: the table
-    /// holds 73 and the lists that follow answer the rest).
+    /// `MenuLists.own_places[0].size`: the carousel kinds' own places, 12 bytes each, indexed by a
+    /// kind's number (`scene::draw_carousel_entry` checks it against 0x88 records, a slip: the
+    /// table holds 73 and the lists that follow answer the rest).
     pub own_places: [OwnPlace; 73],
-    /// Unreferenced bytes (IDA 0X75987A .. 0X75987E).
     pub _gap_75987a: PlainBytes<4>,
-    /// `off_75987E`: the pictures' paths the stage view's welcome shows, a championship's.
+    /// The pictures' paths the stage view's welcome shows, a championship's.
     pub welcome_championship: [PlainDword; 6],
-    /// `off_759896`: the same for the other modes (the A8 game).
+    /// The same for the other modes (the A8 game).
     pub welcome_other: [PlainDword; 6],
-    /// `off_7598AE`: the map's overlays, by the stage's +0x3C (`menu::stage_choice`).
+    /// The map's overlays, by the stage's +0x3C (`menu::stage_choice`).
     pub map_overlays: [PlainDword; 36],
-    /// Unreferenced bytes (IDA 0X75993E .. 0X759942).
     pub _gap_75993e: PlainBytes<4>,
-    /// `off_759942`: the first of the four lists of paths a car page cycles through
+    /// The first of the four lists of paths a car page cycles through
     /// (`menu::load_car_background`), ending in a gap dword.
     pub page_pictures_a: [PlainDword; 25],
-    /// `off_7599A6`: the second of the four lists.
+    /// The second of the four lists.
     pub page_pictures_b: [PlainDword; 25],
-    /// `off_759A0A`: the third of the four lists.
+    /// The third of the four lists.
     pub page_pictures_c: [PlainDword; 25],
-    /// `off_759A6E`: the fourth of the four lists.
+    /// The fourth of the four lists.
     pub page_pictures_d: [PlainDword; 25],
-    /// `off_759AD2`: the addresses of the four lists above; read by nothing now (`page_pictures`).
+    /// The addresses of the four lists above; read by nothing (`page_pictures`).
     pub page_picture_lists: [PlainDword; 4],
-    /// Unreferenced bytes (IDA 0X759AE2 .. 0X759AE6).
     pub _gap_759ae2: PlainBytes<4>,
-    /// `funcs_47CED1`: four code addresses (0x469C40 ..) of the car pages. Not used by the
-    /// standalone.
+    /// Four code addresses of the car pages. Not used.
     pub page_functions: [PlainDword; 4],
-    /// Unreferenced bytes (IDA 0X759AF6 .. 0X759AFA).
     pub _gap_759af6: PlainBytes<4>,
-    /// `dword_759AFA`: the car pages' title strings, ended by -1 (`screens::car_page_title`).
+    /// The car pages' title strings, ended by -1 (`screens::car_page_title`).
     pub car_page_titles: [PlainDword; 5],
-    /// `off_759B0E`: the slideshow pictures' path templates (`menu::load_slideshow_picture`).
+    /// The slideshow pictures' path templates (`menu::load_slideshow_picture`).
     pub slideshow_templates: [PlainDword; 24],
-    /// `dword_759B6E`: the service boxes' flags, the first set, by item value.
+    /// The service boxes' flags, the first set, by item value.
     pub inspection_flags_a: [PlainDword; 21],
-    /// `dword_759BC2`: the service boxes' flags, the second set, by item value.
+    /// The service boxes' flags, the second set, by item value.
     pub inspection_flags_b: [PlainDword; 21],
-    /// `unk_759C16`: pointers to each repair item's time, by item (`service::state`).
+    /// Pointers to each repair item's time, by item (`service::state`).
     pub repair_time_ptrs: [PlainDword; 24],
-    /// `dword_759C76`: the inspection's fault flags, 13 items.
+    /// The inspection's fault flags, 13 items.
     pub inspection_faults: [PlainDword; 14],
-    /// `g_championshipCars`: the championship's car list (`menu::event_flow`).
+    /// The championship's car list (`menu::event_flow`).
     pub cars_championship: [PlainDword; 26],
-    /// `g_a8Cars`: the A8 rally championship's car list (45 entries ended by -1; `menu::remove_secret_cars` edits it with the first list).
+    /// The A8 rally championship's car list (45 entries ended by -1; `menu::remove_secret_cars`
+    /// edits it with the first list).
     pub a8_championship_cars: [PlainDword; 45],
-    /// `off_759DCA`: the car list without the Clio, the first.
+    /// The car list without the Clio, the first.
     pub cars_first: [PlainDword; 34],
-    /// `off_759E52`: the car list with the Clio and the extra cars.
+    /// The car list with the Clio and the extra cars.
     pub cars_with_clio: [PlainDword; 62],
-    /// `g_secretCars`: the cars won.
+    /// The cars won.
     pub secret_cars: [PlainDword; 12],
-    /// `unk_759F7A`: the scratch list `menu::remove_secret_cars` builds.
+    /// The scratch list `menu::remove_secret_cars` builds.
     pub cars_scratch: [PlainDword; 50],
-    /// `off_75A042`: the second car list (arcade events).
+    /// The second car list (arcade events).
     pub cars_second: [PlainDword; 59],
-    /// `off_75A12E`: the list of the cars shown (`menu::arcade_steps`).
+    /// The list of the cars shown (`menu::arcade_steps`).
     pub shown_cars: [PlainDword; 48],
-    /// Unreferenced bytes (IDA 0X75A1EE .. 0X75A1FE).
     pub _gap_75a1ee: PlainBytes<16>,
-    /// `dword_75A1FE`: a kind by car number (`scene::set_up_carousel`).
+    /// A kind by car number (`scene::set_up_carousel`).
     pub car_kinds: [PlainDword; 35],
-    /// `dword_75A28A`: the best scores' section title string ids, by section.
+    /// The best scores' section title string ids, by section.
     pub section_titles: [PlainDword; 7],
-    /// `dword_75A2A6`: the best scores' page title string ids, by page.
+    /// The best scores' page title string ids, by page.
     pub page_titles_a: [PlainDword; 12],
-    /// `dword_75A2D6`: the best scores' second page title string ids, by page.
+    /// The best scores' second page title string ids, by page.
     pub page_titles_b: [PlainDword; 11],
-    /// `off_75A302`: the rally speeches' sounds, by section (`menu::stage_view_steps`).
+    /// The rally speeches' sounds, by section (`menu::stage_view_steps`).
     pub rally_speeches: [PlainDword; 6],
-    /// Unreferenced bytes (IDA 0X75A31A .. 0X75A31E).
     pub _gap_75a31a: PlainBytes<4>,
-    /// `off_75A31E`: the car streams' file names (`sound::play_car_stream`).
+    /// The car streams' file names (`sound::play_car_stream`).
     pub car_streams: [PlainDword; 24],
-    /// `off_75A37E`: the stage speeches' sounds (`menu::stage_view_steps`).
+    /// The stage speeches' sounds (`menu::stage_view_steps`).
     pub stage_speeches: [PlainDword; 36],
-    /// Unreferenced bytes (IDA 0X75A40E .. 0X75A412).
     pub _gap_75a40e: PlainBytes<4>,
-    /// `off_75A412`: the cheat car list (`menu::cheat_car_list`).
+    /// The cheat car list (`menu::cheat_car_list`).
     pub cheat_cars: [PlainDword; 22],
-    /// Unreferenced bytes (IDA 0X75A46A .. 0X75A49A).
     pub _gap_75a46a: PlainBytes<48>,
-    /// `dword_75A49A`: the stage panel's durations in minutes, by entry +8
+    /// The stage panel's durations in minutes, by entry +8
     /// (`screens::stage_panel`; the table runs on over unreferenced bytes).
     pub durations: [PlainDword; 37],
-    /// `g_servicePictures`: the service pictures' paths (`service::load_background`).
+    /// The service pictures' paths (`service::load_background`).
     pub service_pictures: [PlainDword; 60],
-    /// Unreferenced bytes (IDA 0X75A61E .. 0X75A622).
     pub _gap_75a61e: PlainBytes<4>,
-    /// `dword_75A622`: the eight texture numbers of the carousel's menu (-1 none).
+    /// The eight texture numbers of the carousel's menu (-1 none).
     pub carousel_textures: [PlainDword; 8],
-    /// `aFilesGFrntBack`: a path string, ends at 0x75A658 (and two bytes to the record's
-    /// size, which every byte of a record of cells is part of).
+    /// The path "files\g\frnt\back.pcx" (and two bytes to the record's size, which every
+    /// byte of a record of cells is part of).
     pub front_back_path: PlainBytes<24>,
 }
 
@@ -189,9 +181,9 @@ pub fn repair_time_at(
 }
 
 impl MenuLists {
-    /// The picture of car `car` on car page `page`, from the page's list (the original's
-    /// `page_picture_lists`, in its order). The cars of the 34 descriptions run to 0x20, past a
-    /// list's 25: a car past a list reads on into the lists and tables after it.
+    /// The picture of car `car` on car page `page`, from the page's list (`page_picture_lists`,
+    /// in its order). The cars of the 34 descriptions run to 0x20, past a list's 25: a car past a
+    /// list reads on into the lists and tables after it.
     pub fn page_picture(&self, page: u32, car: usize) -> Result<u32, crate::errors::BadInput> {
         let own = match page {
             0 => &self.page_pictures_a,
@@ -292,9 +284,8 @@ impl MenuLists {
 }
 
 impl MenuLists {
-    /// The record's fields from `map_overlays` to its end, in order (the image's order, which
-    /// `run_on_tests` checks against the layout): a list read on past its field goes on into the
-    /// next, over the gaps, as the original's reads did.
+    /// The record's fields from `map_overlays` to its end, in order (`run_on_tests` checks them
+    /// against the layout): a list read on past its field goes on into the next, over the gaps.
     fn runs_from_map_overlays(&self) -> [&dyn crate::session::Run; 41] {
         [
             &self.map_overlays,
@@ -343,9 +334,9 @@ impl MenuLists {
 }
 
 impl MenuLists {
-    /// A list of cars, from its first entry to the end of these lists: the original reads
-    /// a list on to its end mark, and a list of one shown twice (menu 0xE) is read on past
-    /// its field into the next.
+    /// A list of cars, from its first entry to the end of these lists: a list is read on to its
+    /// end mark, and a list of one shown twice (menu 0xE) is read on past its field into the
+    /// next.
     pub fn car_entry(&self, list: CarList, n: u32) -> Result<u32, crate::errors::BadInput> {
         let all = self.runs_from_map_overlays();
         crate::session::read_runs(

@@ -1,18 +1,14 @@
-//! `service::load_background` (0x470F55): the service area's picture for the current
-//! player's car: the player (`g_players`[the current player]), its car (+8; car 0x21 takes car
-//! 0x17's picture), the picture of the car (`files\g\graphics\screens\servNN.png`, 60
-//! of them) loaded (`gfx::load_picture`) and converted (`gfx::convert_picture`); a failed
-//! conversion (carry) is fatal error 0x80712435.
+//! The service area's picture for the current player's car (`files\g\graphics\screens\servNN.png`,
+//! 60 of them; car 0x21 takes car 0x17's picture), loaded and converted. A failed conversion
+//! is fatal error 0x80712435.
 //!
-//! Callers: the service area's screens (`service::service_area_loop`, 0x47296A, 0x472B53,
-//! 0x4A1C0F). Refuses (before anything) a current player past the
+//! Called by the service area's screens. Refuses (before anything) a current player past the
 //! four or missing, and a car past the table.
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::owner::Menus;
 
-/// The Rust version (see the header). The conversion's carry (fatal error 0x80712435) is
-/// never set by `gfx::convert_picture`'s Rust version, which refuses instead.
+/// `gfx::convert_picture` refuses instead of failing, so fatal error 0x80712435 never arises.
 pub fn load_background_in(
     menus: &'static Menus,
     gfx: &crate::gfx::owner::Gfx,
@@ -22,7 +18,6 @@ pub fn load_background_in(
     else {
         return Err(BadInput("no current player (or one past the four)").into());
     };
-    // Converted: `rc2k_core::service::car::background`.
     let car =
         rc2k_core::service::car::background(player.get().car_number).map_err(BadInput::from)?;
     let path = crate::menu::texts_store::text_at(

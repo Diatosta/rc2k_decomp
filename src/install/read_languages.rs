@@ -1,20 +1,15 @@
-//! `install::read_languages` (0x413908): reads the languages file `lang.cfg`.
-//!
-//! A settings text with the keys `lang1` .. `lang9` (the table at 0x51C378: key, slot, 0x7F), each
-//! value `name:directory`. Every key found has its value copied to its slot of 0x80 bytes at
-//! 0x51BEEE (0x4139AB, inlined). Then the slots that start with a character above a space other
-//! than `:` and have a `:` are kept, moved together to the front, the `:` made a NUL, and counted
-//! in `language_count`; then `choose_language` for the first of them. Without the file nothing
-//! changes, not even the count. Callers: `start` and `install::run_installer`. Refuses a value of
-//! 0x80 bytes or more (the original writes on into the next slot).
+//! Reads the languages file `lang.cfg`: a settings text with the keys `lang1` .. `lang9`, each
+//! value `name:directory`. Every key found has its value copied to its slot of 0x80 bytes; the
+//! slots that start with a character above a space other than `:` and have a `:` are kept, moved
+//! together to the front, the `:` made a NUL, and counted in `language_count`; then
+//! `choose_language` for the first of them. Without the file nothing changes. Called by `start`
+//! and `install::run_installer`. Refuses a value of 0x80 bytes or more.
 
 use crate::errors::BadInput;
 use crate::install::choose_language::{LANGUAGE_SLOT, LANGUAGE_SLOTS, choose_language};
 use crate::settings::read_text::read_text;
 use crate::strings::same_text::case_table;
 use rc2k_core::install::config;
-
-// ---- game data ----
 
 pub fn read_languages(
     install: &'static crate::install::owner::Install,
@@ -25,8 +20,7 @@ pub fn read_languages(
         let Some(text) = read_text(system, path)? else {
             return Ok(());
         };
-        // Converted: `rc2k_core::install::config` (`find_languages`, its keys as constants;
-        // `keep_languages`). Found first, stored after (0x4139AB).
+        // Found first, stored after.
         let found = config::find_languages(&text, &case_table())?;
         let all = &install.names.languages;
         let mut slots = all.read_at(0, LANGUAGE_SLOT * LANGUAGE_SLOTS, "the languages' slots")?;

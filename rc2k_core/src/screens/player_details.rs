@@ -1,33 +1,28 @@
-//! The players' details pages (from `screens::draw_player_details`
-//! 0x46F894, the same code as `draw_player2_details` 0x4677B5, and `draw_player34_details`
-//! 0x467975 without the second view): the name (and the typing cursor), the nationality
-//! and its flag, the views, the race number, the co-driver, the sensitivity's bar; and the
-//! typing cursor (`screens::draw_name_cursor` 0x4677EF).
+//! The players' details pages: the name (and the typing cursor), the nationality and its
+//! flag, the views, the race number, the co-driver, the sensitivity's bar; and the typing
+//! cursor.
 
 use crate::screens::screen::Screen;
 use crate::strings::format::{Pad, decimal};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Font {
-    /// `FontObjects.objects[41].first_char`.
     Value,
-    /// `FontObjects.objects[36].first_char`: the nationality measured for its flag's place.
+    /// The nationality measured for its flag's place.
     Measure,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Work {
-    /// `seconds` (0x7559AC): the string drawn.
+    /// The string drawn.
     Seconds,
-    /// `DrawWork.figure`.
     Kept,
 }
 
 /// What the page shows, its strings looked up.
 #[derive(Clone, Copy, Debug)]
 pub struct Details<T> {
-    /// The controller's item of the menu, greyed out without a controller
-    /// (`g_controllerCount` 0).
+    /// The controller's item of the menu, greyed out without a controller.
     pub controller_item: u32,
     pub controllers: bool,
     pub name: T,
@@ -48,7 +43,7 @@ pub struct Details<T> {
 }
 
 /// The typing cursor: the name measured from x, string 4 after it while the blink is 1.
-/// The carry: the cursor's text's, or (not drawn) its `cmp blink, 1`.
+/// Returns the cursor text's `too_wide`.
 pub fn name_cursor<S: Screen<Font = Font, Work = Work>>(
     s: &mut S,
     name: S::Text,

@@ -1,42 +1,38 @@
-//! The graphics settings page's choices (the screen mode chosen and the modes to choose from, and
-//! the switches the page's items copy), out of RAL.EXE's image.
-//! Placed in a file of its own beside the graphics module's stores. Struct of
-//! atomic cells, first values the image's (`tests`).
+//! The graphics settings page's choices: the screen mode chosen, the modes to choose from, and the
+//! switches the page's items copy. Struct of atomic cells.
 
 use crate::errors::BadInput;
 use crate::session::{PlainBytes, PlainDword, Run};
 
-/// The graphics page's choices (IDA 0x4F50C0 .. 0x4F51F0, the image's layout; the rows' texts
-/// in the language file: `tokAVPPrimary` / `tokAVPSecondary`, `tokAVPDoubleBuffer` /
-/// `tokAVPTripleBuffer`, `tokOff` / `tokOn`).
+/// The graphics page's choices (the rows' texts are in the language file: `tokAVPPrimary` /
+/// `tokAVPSecondary`, `tokAVPDoubleBuffer` / `tokAVPTripleBuffer`, `tokOff` / `tokOn`).
 #[derive(rc2k_derive::Cells)]
 pub struct ScreenChoices {
-    /// 0x4F50C0: `unk_4F50C0`: 1 once the choices are made (`gfx::screen_mode_choices`).
+    /// 1 once the choices are made (`gfx::screen_mode_choices`).
     pub made: PlainDword,
-    /// 0x4F50C4: `dword_4F50C4`: the video card chosen, 0 primary, 1 secondary (the page's
-    /// row 0; `OptionSwitch::ScreenModeCard` flips it).
+    /// The video card chosen, 0 primary, 1 secondary (the page's row 0;
+    /// `OptionSwitch::ScreenModeCard` flips it).
     pub card: PlainDword,
-    /// 0x4F50C8: `dword_4F50C8`: the resolution chosen, its place in `list` (row 1).
+    /// The resolution chosen, its place in `list` (row 1).
     pub resolution: PlainDword,
-    /// 0x4F50CC: `dword_4F50CC`: the buffering, 0 double, 1 triple (row 2; the copy of
-    /// `OptionWork.switch_1`).
+    /// The buffering, 0 double, 1 triple (row 2; the copy of `OptionWork.switch_1`).
     pub buffering: PlainDword,
-    /// 0x4F50D0: `dword_4F50D0`: mipmapping, 0 off, 1 on (row 3; the copy of
-    /// `OptionWork.switch_0`; into `RACE_VARS.mip_setting`), held to `mip_limit`.
+    /// Mipmapping, 0 off, 1 on (row 3; the copy of `OptionWork.switch_0`; into
+    /// `RACE_VARS.mip_setting`), held to `mip_limit`.
     pub mipmapping: PlainDword,
-    /// 0x4F50D4: `dword_4F50D4`: 1 when there is a primary 3D card (`gfx::cards`).
+    /// 1 when there is a primary 3D card (`gfx::cards`).
     pub has_primary: PlainDword,
-    /// 0x4F50D8: `dword_4F50D8`: 1 when there is a secondary one; row 0 is choosable only
-    /// with both (`screens::draw_graphics_settings`).
+    /// 1 when there is a secondary one; row 0 is choosable only with both
+    /// (`screens::draw_graphics_settings`).
     pub has_secondary: PlainDword,
-    /// 0x4F50DC: 1 once `list` is made.
+    /// 1 once `list` is made.
     pub listed: PlainDword,
-    /// 0x4F50E0: the mipmapping's limit when the list was made (`CARDS_3D.mips`).
+    /// The mipmapping's limit when the list was made (`CARDS_3D.mips`).
     pub mip_limit: PlainDword,
-    /// 0x4F50E4: `dword_4F50E4`: how many resolutions there are in `list`.
+    /// How many resolutions there are in `list`.
     pub resolutions: PlainDword,
-    /// 0x4F50E8: `ScreenChoices.list.modes[0].width`: the resolutions, 0x10 bytes each (width, height, the pixel
-    /// kind's figure, the mode); room for 16 and 8 bytes more.
+    /// The resolutions, 0x10 bytes each (width, height, the pixel kind's figure, the mode); room
+    /// for 16 and 8 bytes more.
     pub list: ModeList,
 }
 
@@ -75,8 +71,8 @@ impl Run for ScreenMode {
 
 impl ModeList {
     /// PlainDword `index` (0 width, 1 height, 2 figure, 3 mode) of the resolution at `place`. A
-    /// place past the 16 reads on into the 8 bytes after the list, as the original does, and
-    /// past those is refused (`what` names it in the log).
+    /// place past the 16 reads on into the 8 bytes after the list, and past those is refused
+    /// (`what` names it in the log).
     pub fn dword(&self, place: u32, index: usize, what: &'static str) -> Result<u32, BadInput> {
         let n = 4 * place as usize + index;
         crate::session::read_runs(&[&self.modes, &self.spare], n, what)
@@ -115,8 +111,8 @@ impl ScreenChoices {
 mod tests {
     use super::*;
 
-    /// Every place and index to the end of the list reads the field it names, then the spare
-    /// bytes; the first past it is refused.
+    /// Every place and index to the end of the list reads the field it names, then the spare bytes;
+    /// The first past it is refused.
     #[test]
     fn dwords_read_the_fields() {
         let list = ScreenChoices::new().list;

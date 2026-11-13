@@ -1,10 +1,5 @@
-//! `net::choose_car` (0x4182FA): the lobby's car item: the current player 0, the car screen
-//! (`menu::select_car_loop` on `net::car_list`'s list, from player 1's car, the Escape flag
-//! `escape_pressed` 0 first); unless it was left with Escape, the car taken
-//! (`menu::take_shown_car`) and this player's record given it (+1 the car, +2 its colours);
-//! then the background again (`net::show_background`).
-//!
-//! Caller: `net::lobby_loop`.
+//! The lobby's car item: runs the car screen from the player's car; unless left with Escape, the
+//! chosen car and its colours go into the player's record. The background is drawn again after.
 
 use crate::errors::Refused;
 use crate::menu::screen_loop::{Entry, run_screen};

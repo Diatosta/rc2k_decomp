@@ -1,16 +1,7 @@
-//! `hud::draw_stage_bar` (0x4B5A86): the stage's progress bar along the top: the quad record's
-//! alpha 0xE0; a frame of five solid quads (0x212463, the last black); then for each of the
-//! record's +0x74 parts: its colour (`HudBlock.stage_colours[0]` at the byte offset `overlay_part_kinds_a`[n]) into
-//! `HudBlock.bar_colour`, its end (`HudBlock.ends[1]`, the sum of `g_overlayPartMiles` .., the last the
-//! record's +0x68) and start (`HudBlock.ends[0]`) as places across 0x229 (`fistp` into `HudBlock.point[0]` /
-//! `HudBlock.point[1]`); a black border of four quads, the part's colour inside under alpha 0x78, and
-//! between parts a 0x212463 line.
-//!
-//! Takes: the HUD's record
-//!
-//! Caller: layout 0's drawer (`hud::layout_0`, 0x4B1DC7). Refuses more than 0x40 parts and a colour
-//! offset past
-//! `HudBlock.stage_colours[0]`'s four, before anything.
+//! The stage's progress bar along the top: a frame of five solid quads, then for each of the
+//! record's parts its colour, its start and end as places across 0x229, a black border of four
+//! quads, the part's colour inside under alpha 0x78 and between parts a line. Refuses more than
+//! 0x40 parts and a colour offset past `HudBlock.stage_colours`' four, before anything.
 
 use crate::errors::Refused;
 use crate::hud::owner::{Hud, Pen};
@@ -40,7 +31,6 @@ pub fn quad(
 
 /// The bars of `kinds`' players (each player's colour into `colour_vars`), `dy` lower
 /// (see the header and `hud::draw_stage_bars`'s).
-// Converted: `rc2k_core::hud::stage_bars`
 pub fn bars(
     frame: &Frame,
     hud: &Hud,
@@ -108,7 +98,6 @@ pub fn bars(
     Ok(())
 }
 
-// Converted: `rc2k_core::hud::stage_bars` (through `bars`)
 pub fn draw_stage_bar(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
     bars(
         frame,

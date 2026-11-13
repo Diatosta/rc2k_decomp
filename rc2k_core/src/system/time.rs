@@ -1,9 +1,6 @@
-//! The game's time stamp (from `system::packed_local_time` 0x410F99):
-//! the local date and time to the minute in one dword: the year, then 4 bits of month, 5 of
-//! day, 5 of hour, 6 of minute. The save files carry it. Also the start time kept
-//! (`system::keep_start_time` 0x410F29) and the millisecond clock's override
-//! (`system::tick_count` 0x411024), and `system::wait_or_key`
-//! 0x407F69's time running out (the same day).
+//! The time stamp in save files: the local date and time to the minute in one dword (year,
+//! then 4 bits of month, 5 of day, 5 of hour, 6 of minute). Also the start time, the
+//! millisecond clock's override, and `system::wait_or_key`'s time running out.
 
 /// The local time as Windows gives it (`SYSTEMTIME`).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -18,9 +15,8 @@ pub struct LocalTime {
     pub milliseconds: u16,
 }
 
-/// `system::keep_start_time`'s nine bytes (`byte_51839F` on, what the log's date and the
-/// random seed read): weekday, day, month, the year as a word, hour, minute, second,
-/// hundredths.
+/// The start time's nine bytes: weekday, day, month, the year as a word, hour, minute,
+/// second, hundredths.
 pub fn start_time(t: &LocalTime) -> [u8; 9] {
     let year = t.year.to_le_bytes();
     [

@@ -1,12 +1,9 @@
-//! The dyno graph (the "Dyno" tab; RAL.EXE 0x428DB3 .. 0x4291C9, no references to it).
-//! For each forward gear, speeds from 0 to 71 (`flt_5F36C8`): the driven speeds set,
-//! `physics::revs_from_wheels`, and below the engine's limit full throttle's
-//! 0x43CAAB (`torque`, `physics::drive_force` but for the cut's own check); the colours say
-//! where each point lies against the gearbox's shift points. Then the drag at each speed, the
-//! best gear's drive less it, and the acceleration test's samples
-//! (`physics::test_drive_run`). The original drew pixels on the race's picture on every frame;
-//! here the curves are measured once for the car, and every variable the measuring
-//! writes is put back (the original kept seven; the rest were the frame's scratch).
+//! The dyno graph (the "Dyno" tab). For each forward gear, speeds from 0 to 71: the driven
+//! speeds set, `physics::revs_from_wheels`, and below the engine's limit full throttle's drive;
+//! the colours say where each point lies against the gearbox's shift points. Then the drag, the
+//! best gear's drive less it, and the acceleration test's samples (`physics::test_drive_run`).
+//! The curves are measured once for the car, and every variable the measuring writes is put
+//! back.
 
 use crate::debug::ui_plot::Plot;
 use crate::math::x87::{mul_div2, sum_times_int_over_minus};
@@ -20,21 +17,19 @@ use crate::session::Cell32;
 use dear_imgui_rs::Ui;
 use std::sync::Mutex;
 
-/// `flt_5F36C8`: the speed at the graph's right edge.
+/// The speed at the graph's right edge.
 const TOP_SPEED: f32 = 71.0;
-/// Points across the graph (the original: one in two of the screen's columns).
 const POINTS: usize = 400;
 
-/// Where a point lies against the shift points (the original's colours 3, 5, 4, 0xB).
 #[derive(Clone, Copy, PartialEq)]
 enum Zone {
-    /// At or above `g_shiftUpPoint`.
+    /// At or above the shift-up point.
     ShiftUp,
     /// Between the points.
     Normal,
-    /// Below `g_shiftDownClutchPoint`.
+    /// Below the shift-down clutch point.
     Clutch,
-    /// Below `g_shiftDownPoint`.
+    /// Below the shift-down point.
     ShiftDown,
 }
 
@@ -49,7 +44,7 @@ impl Zone {
     }
 }
 
-/// What the gear of a sample of the test drive is drawn in (`dword_5FF258`'s seven, by eye).
+/// What the gear of a sample of the test drive is drawn in.
 const GEAR_COLOURS: [[f32; 4]; 7] = [
     [0.7, 0.7, 0.7, 1.0],
     [1.0, 0.35, 0.3, 1.0],
@@ -60,7 +55,6 @@ const GEAR_COLOURS: [[f32; 4]; 7] = [
     [0.8, 0.5, 1.0, 1.0],
 ];
 
-/// One measuring.
 struct Measured {
     /// Each gear's points: (speed, drive, zone).
     gears: Vec<Vec<(f32, f32, Zone)>>,
@@ -68,7 +62,7 @@ struct Measured {
     drag: Vec<(f32, f32)>,
     /// At each point's speed: the best gear's drive less the drag.
     net: Vec<(f32, f32)>,
-    /// `g_gearCount`, the limit and the three shift points when measured.
+    /// The gear count, the limit and the three shift points when measured.
     limit: f32,
     points: [f32; 3],
 }
@@ -108,7 +102,7 @@ fn kept<T>(shared: &RaceShared, scene: &Scene, f: impl FnOnce() -> T) -> T {
     result
 }
 
-/// 0x43CAAB: the drive at the engine's speed and the car's throttle.
+/// The drive at the engine's speed and the car's throttle.
 fn torque(race: &Race, scene: &Scene) {
     let shared = &race.shared;
     let course = &race.course;
@@ -161,7 +155,7 @@ fn drive_at(race: &Race, scene: &Scene, speed: f32) -> Option<(f32, f32)> {
     Some((shared.physics_tables.get().drive_torque.get(), revs / limit))
 }
 
-/// 0x428F42, without its drawing.
+/// The measuring, without its drawing.
 fn measure(race: &Race, scene: &Scene) -> Option<Measured> {
     let shared = &race.shared;
     let course = &race.course;
@@ -222,7 +216,7 @@ fn measure(race: &Race, scene: &Scene) -> Option<Measured> {
     }))
 }
 
-/// The car's speed and its drive right now, full throttle (0x4291C9), in a forward gear
+/// The car's speed and its drive right now, full throttle, in a forward gear
 /// below the limit.
 fn cursor(race: &Race, scene: &Scene) -> Option<(f32, f32, f32, i32)> {
     let shared = &race.shared;

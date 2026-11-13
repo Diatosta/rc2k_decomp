@@ -1,14 +1,9 @@
-//! `hud::overlay_pass` (0x45A893): the race frame's 2D pass: `players` the players
-//! (`split`); `scene::depth_buffer_off`; `hud::overlay_states`; with `views` 2, a
-//! player whose car block's +0xFA8 is set (`CarBlocks.cars[0].view_covered` / `CarBlocks.cars[1].view_covered`) keeps only bit 0x40 of
-//! its HUD flags (`hud_flags` / `dword_6D14FA`, put back after) and its `unk_6D1486` /
-//! `unk_6D1496` is 0; `hud::draw_hud`; `scene::depth_buffer_on`; `scene::full_view_window`; render
-//! state 3 = 3; `plain_first` and `plain_second` 1; `hud::draw_view_strips`; an empty function
-//! (`nullsub_9`); `scene::depth_buffer_off`; `scene::set_filters`.
-//!
-//! Out: as the last call leaves them
-//!
-//! Caller: `race::show_frame` (0x454786). a call by address goes through `routes.rs`.
+//! The race frame's 2D pass: the players (`split`); `scene::depth_buffer_off`;
+//! `hud::overlay_states`; with `views` 2, a player whose car block's +0xFA8 is set (`view_covered`)
+//! keeps only bit 0x40 of its HUD flags (put back after) and its start lights' icon width 0;
+//! `hud::draw_hud`; `scene::depth_buffer_on`; `scene::full_view_window`; render state 3 = 3;
+//! `plain_first` and `plain_second` 1; `hud::draw_view_strips`; `scene::depth_buffer_off`;
+//! `scene::set_filters`.
 
 use crate::errors::Refused;
 use crate::hud::owner::{Hud, Pen};
@@ -16,9 +11,8 @@ use crate::race::owner::Race;
 use crate::race::owner_shared::RaceShared;
 
 /// The HUD's layout: `split`, or 0 while one view is drawn (`views` 1).
-/// The original reads `split` alone, which a replay after a split-screen race
-/// leaves at 1 / 2 while its one view fills the screen: the divider, the second
-/// player's bars and strip stayed drawn (section 16, fixed).
+/// `split` alone is 1 / 2 in a replay after a split-screen race while its one view fills the
+/// screen (fixed: `wiki/Fixed-bugs.md`, "Split-screen divider left in a replay").
 pub fn shown_layout(shared: &RaceShared) -> u32 {
     {
         if shared.view.get().views.get() == 1 {

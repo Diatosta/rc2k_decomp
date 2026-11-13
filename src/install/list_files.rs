@@ -1,12 +1,6 @@
-//! `install::list_files` (0x4138B2): the files matching a pattern added to the files-to-copy
-//! table. The pattern is resolved (`files::resolve_path`) and searched
-//! (`files::find_first` / `files::find_next_wanted`); each found name is appended at
-//! `file_cursor` (the cursor) behind its folder (`files::append_directory` of the pattern's path) with a
-//! NUL, the cursor advanced and `file_count` (the count) raised. More than 0x40000 bytes
-//! of names is fatal error 0x80AF2206. The search is closed at the end.
-//!
-//! Takes the pattern.
-//! Caller `install::run_script` (opcode 3).
+//! The files matching a pattern added to the files-to-copy table: each found name is appended
+//! with a NUL behind its folder, the cursor advanced and `file_count` raised. More than 0x40000
+//! bytes of names is fatal error 0x80AF2206. Called by `install::run_script` (opcode 3).
 
 use crate::errors::Refused;
 use crate::install::installer::{close_search, fatal, find_first, find_next, resolve_path};
@@ -34,7 +28,6 @@ pub fn list_files(
                 .run
                 .file_count
                 .set(install.run.file_count.get().wrapping_add(1));
-            // Converted: `rc2k_core::install::script::room_left`.
             script::room_left(used, script::FILES_ROOM, script::FILES_FULL).map_err(fatal)?;
             if !find_next() {
                 break;

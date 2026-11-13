@@ -1,22 +1,17 @@
-//! `menu::play_films` (0x4161CD): the films: the two logos at the start, then the intro,
-//! over and over with the game's own demonstration between, until a key.
-//!
-//! - `sound::stop_music`, and a pending key is taken and thrown away.
-//! - At the start only: nothing at all (straight to the end) with the setting `nofmv`;
-//!   else `allogo.avi` if the screen has 16 bits (its extension swapped by
-//!   `files::swap_missing_extension` if the file is missing), then `mflogo.mpg`, each
-//!   through the player 0x41AE39 with ebx = 0; then `gfx::clear_front_surface`.
-//! - `scene::set_up_lit_engine`; from the idle menu also `race::render3d_tidy`, `nullsub_6`.
-//! - Then round and round: without `nofmv`, and if `intro.mpg` is there, the intro
-//!   through the player, which ends the round if it comes back with the zero flag
-//!   clear; else `race::credits_race` (ebp kept across it), and a key ends the
-//!   round.
+//! `menu::play_films`: the two logos at the start, then the intro, over and over with the
+//! game's own demonstration between, until a key.
+//! - `sound::stop_music`; a pending key is taken and thrown away.
+//! - At the start only: nothing at all with the setting `nofmv`; else `allogo.avi` if the screen
+//!   has 16 bits (the extension swapped by `files::swap_missing_extension` if missing), then
+//!   `mflogo.mpg`, each through the film player; then `gfx::clear_front_surface`.
+//! - `scene::set_up_lit_engine`; from the idle menu also `race::render3d_tidy`.
+//! - Round and round: without `nofmv` and if `intro.mpg` is there, the intro, which ends the
+//!   round if the player reports it was stopped; else `race::credits_race`, and a key ends it.
 //! - `sound::let_sounds_play`, `gfx::clear_front_surface`; from the idle menu also
 //!   `scene::set_up_engine`.
 //!
-//! What the unnamed ones do has not been read. Callers: `menu::run_front_end` (with 0),
-//! `menu::main_menu_loop`'s idle step (with 1), and 0x470593. Rust callers run its `entry`
-//! (`routes.rs`).
+//! Callers: `menu::run_front_end` (at the start), `menu::main_menu_loop`'s idle step and the
+//! intro item (`menu::show_intro`). Rust callers run its `entry` (`routes.rs`).
 
 use crate::errors::Refused;
 use crate::framework::log;
@@ -24,16 +19,14 @@ use crate::menu::owner::Panels;
 use crate::owners::Owners;
 use rc2k_core::menu::films::{self, Film, Step, StepAnswer};
 
-// ---- game data ----
-
 /// The films' file names.
 #[derive(rc2k_derive::Cells)]
 pub struct Films {
-    /// `a3filesFmvIntro` (`0x5297F5`).
+    /// The intro film's path.
     pub intro: crate::session::PlainBytes<22>,
-    /// `a3filesFmvMflog` (`0x52980B`).
+    /// The `mflogo` film's path.
     pub mflogo: crate::session::PlainBytes<23>,
-    /// `a3filesFmvAllog` (`0x529822`).
+    /// The `allogo` film's path.
     pub allogo: crate::session::PlainBytes<23>,
 }
 
@@ -97,7 +90,6 @@ impl Game {
                 crate::race::stage_free::render3d_tidy(race)?;
             }
             Step::ObjectsTidy => crate::race::stage_free::objects_tidy(race)?,
-            // `nullsub_6`.
             Step::Nothing => {}
             Step::ReleaseTextures => crate::race::race_end::release_textures(scene, o.gfx),
             Step::FileExists(f) => {
@@ -107,10 +99,9 @@ impl Game {
                 flags.carry = !there;
                 flags.zero = there;
             }
-            // Fixed (`wiki/Fixed-bugs.md`): the players' absences cleared
-            // first, as the original's other caller of the demonstration (0x443104)
-            // does; the original's films kept the quit answer of the last race left by
-            // the quit question, and its demonstration ended at its first frame.
+            // Fixed (`wiki/Fixed-bugs.md`): the players' absences are cleared first, as the
+            // other caller of the demonstration does; the films kept the quit answer of the last
+            // race left by the quit question, and the demonstration ended at its first frame.
             Step::Demonstration => {
                 crate::race::race_shell::clear_player_absences(race);
                 crate::race::credits_race::credits_race(race, o)?;
@@ -167,7 +158,6 @@ pub fn play_films(o: Owners<'static>, idle: bool) -> Result<(), Refused> {
         failed: None,
         owners: o,
     };
-    // The logic is in `rc2k_core::menu::films::play_films`.
     films::play_films(&mut game, idle);
     log("menu::play_films: done");
     match game.failed {

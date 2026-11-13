@@ -1,12 +1,7 @@
-//! `files::read_file` (0x402BB6): opens a file for reading, seeks if the offset is not 0,
-//! reads, closes.
-//!
-//! Takes path, buffer, bytes to read, offset. Returns bytes read if the read was reached, else
-//! unchanged. It fails if the open, the seek, the read or the close fails. A short read is not a
-//! failure: the caller has to look at the count. The file is opened as the original's mode 0 says (table
-//! at 0x4E06EA). Like the original's `open_by_mode` and `close`, which are inlined here, it sets
-//! `g_lastFilePath` to the resolved path while the file is open and to 0 after closing; after a
-//! failed open the path stays.
+//! Opens a file for reading, seeks if the offset is not 0, reads, closes. It fails if the open,
+//! the seek, the read or the close fails; a short read is not a failure (the caller looks at the
+//! count). The last file path is the resolved path while the file is open and none after the
+//! close; after a failed open it stays.
 
 use crate::errors::BadInput;
 use crate::files::handle::GameFiles;

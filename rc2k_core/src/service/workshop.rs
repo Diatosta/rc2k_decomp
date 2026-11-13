@@ -1,6 +1,5 @@
-//! The work chosen in the service area carried out, on leaving it
-//! (from `service::apply_repairs` 0x46C14D): each chosen repair shown being done, a frame
-//! at a time, then the chosen setup installed.
+//! The work chosen in the service area carried out, on leaving it: each chosen repair shown being
+//! done, a frame at a time, then the chosen setup installed.
 //!
 //! A chosen item is one whose flag is exactly 1. Items 2 .. 0xF are the
 //! car's parts, their damage `Player::damage[item - 2]` (the tyres' the last).
@@ -25,7 +24,6 @@ pub const RESET_RUNS: [(u32, Part); 5] = [
     (0xD, Part::Brakes),
 ];
 
-/// An item's damage.
 fn damage(car: &mut Player, item: u32) -> &mut u32 {
     &mut car.damage[item as usize - 2]
 }
@@ -79,7 +77,6 @@ pub enum Timer {
 /// What the work is done with.
 pub trait Workshop {
     type Error;
-    /// An item's flag.
     fn flag(&mut self, item: u32) -> u32;
     fn set_flag(&mut self, item: u32, value: u32);
     /// The car (the current player's record).
@@ -89,7 +86,6 @@ pub trait Workshop {
     fn set_working(&mut self);
     fn timer(&mut self, t: Timer) -> u32;
     fn set_timer(&mut self, t: Timer, value: u32);
-    /// `service::reset_tyre_wear`.
     fn reset_tyre_wear(&mut self) -> Result<(), Self::Error>;
     /// The chosen value made the installed one; it is returned.
     fn install(&mut self, s: Setting) -> u32;
@@ -99,7 +95,7 @@ pub trait Workshop {
     fn sleep(&mut self, milliseconds: u32);
 }
 
-/// Frames for `PAUSE_MS`.
+/// Waits frames for `PAUSE_MS`.
 fn pause<W: Workshop>(w: &mut W) {
     let now = w.clock();
     w.set_timer(Timer::Start, now);
@@ -112,7 +108,7 @@ fn pause<W: Workshop>(w: &mut W) {
     }
 }
 
-/// `service::apply_repairs`.
+/// Applies the repairs the item flags ask for, as `service::apply_repairs`.
 pub fn apply_repairs<W: Workshop>(w: &mut W) -> Result<(), W::Error> {
     w.set_working();
     for (item, part) in RESET_RUNS {

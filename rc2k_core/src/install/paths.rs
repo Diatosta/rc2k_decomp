@@ -1,13 +1,11 @@
-//! The installer's folder paths (from `install::normalise_path`
-//! 0x4139EC and `install::check_folder_name` 0x413A6C): the one form it keeps them in, and
-//! the characters a folder's name may not hold.
+//! The installer's folder paths: the one form it keeps them in, and the characters a folder's
+//! name may not hold.
 
 use crate::Invalid;
 use crate::strings::bytes::Bytes;
 use crate::strings::case::CaseTable;
 
-/// The characters no folder name may hold (RAL.EXE's `InstallerPages.bad_folder_chars`, NUL-ended there). The
-/// `\` in it is never compared: a `\` is looked at as a separator first.
+/// The characters no folder name may hold. The `\` in it is never compared: a `\` is a separator.
 pub const NOT_IN_NAMES: &[u8] = b"\"+*,;=/:<>?\\{}[]|\x7f";
 
 /// The longest path taken, less one (the installer's places are 0x100 bytes).
@@ -39,12 +37,11 @@ fn is_slash(c: u8) -> bool {
     c == b'\\' || c == b'/'
 }
 
-/// A directory's path in the installer's form, with its NUL; `None` if it is not one that
-/// is taken. The form: lower case (`case`), `\` for every `/`, and a `\` at the end. An
-/// empty path stands for the current directory (`current`, asked only then; `None`: not
-/// written), which gets a `\` after it unless it ends in one. Otherwise it must start with
-/// `\\` or `//`, or with a drive letter and `:`, after which a `\` is put if there is none.
-/// Refused: a path of `LONGEST` bytes or more.
+/// A directory's path in the installer's form, with its NUL; `None` if it is not one that is
+/// taken. The form: lower case (`case`), `\` for every `/`, and a `\` at the end. An empty path
+/// stands for the current directory (`current`, asked only then; `None`: not written). Otherwise
+/// it must start with `\\` or `//`, or with a drive letter and `:`, after which a `\` is put if
+/// there is none. Refused: a path of `LONGEST` bytes or more.
 pub fn normalise<E: From<Invalid>>(
     path: &[u8],
     case: &CaseTable,

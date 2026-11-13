@@ -1,70 +1,75 @@
-//! The options screens' work copies, out of RAL.EXE's image (IDA 0x755640 .. 0x7556B4):
-//! the switches and settings the options pages change, the sound options and volumes, the menu sound
-//! and the key being redefined. The first 0x2C and the next 0x18 bytes are the options file's
-//! (`saves::load_options`). One static.
+//! The options screens' work copies: the switches and settings the options pages change, the sound
+//! options and volumes, the menu sound and the key being redefined. The first 0x2C and the next
+//! 0x18 bytes are the options file's (`saves::load_options`). One static.
 
 use crate::session::{PlainBytes, PlainDword, PlainFlag};
 
-/// The options' work copies (IDA 0x755640 .. 0x7556B4).
+/// The options' work copies.
 #[derive(rc2k_derive::Cells)]
 pub struct OptionWork {
-    /// `dword_755640`: A visual page switch (a copy of `ScreenChoices.mipmapping`; `OptionSwitch::Mipmapping`).
+    /// A visual page switch (a copy of `ScreenChoices.mipmapping`; `OptionSwitch::Mipmapping`).
     pub switch_0: PlainDword,
-    /// `dword_755644`: A visual page switch (a copy of `ScreenChoices.buffering`).
+    /// A visual page switch (a copy of `ScreenChoices.buffering`).
     pub switch_1: PlainDword,
-    /// `dword_755648`: Set when the screen mode was changed (`menu::option_steps`).
+    /// Set when the screen mode was changed (`menu::option_steps`).
     pub mode_changed: PlainDword,
-    /// `dword_75564C`: The screen modes' switch (`OptionSwitch::ScreenModeCard`).
+    /// The screen modes' switch (`OptionSwitch::ScreenModeCard`).
     pub modes_switch: PlainDword,
-    /// `dword_755650`: The graphics page's lens flare option, work copy (the race's `lens_flare`).
+    /// The graphics page's lens flare option, work copy (the race's `lens_flare`).
     pub lens_flare: PlainDword,
-    /// `dword_755654`: a 0 ..= 100 level, stepped by dead code only; copied to `race::state_store`.
+    /// A 0 ..= 100 level, stepped by dead code only; copied to `race::state_store`.
     pub unused_percent_a: PlainDword,
-    /// `dword_755658`: the same, the second level.
+    /// The same, the second level.
     pub unused_percent_b: PlainDword,
-    /// `dword_75565C`: The graphics page's reflections option, work copy.
+    /// The graphics page's reflections option, work copy.
     pub reflections: PlainDword,
-    /// +0x10 (0x755660) `dword_755660`: the options page's car shadows setting (row 6 of the visual options, strings 0x396 "reduzido" / 0x397 "completo"); copied to the race's `settings.car_shadows` (0x75AD10) and `settings_words[2]` (0x6238B0). Probable: the debug tab reads the race copy as "Car shadows".
+    /// The options page's car shadows setting (row 6 of the visual options, strings 0x396
+    /// "reduzido" / 0x397 "completo"); copied to the race's `settings.car_shadows` and
+    /// `settings_words[2]`. Probable: the debug tab reads the race copy as "Car shadows".
     pub car_shadows: PlainDword,
-    /// +0x14 (0x755664) `dword_755664`: the options page's car detail setting, 0 .. 2 (row 7, strings 0x393 "nenhum carro" / "o seu carro" / "todos os carros": which cars get the detailed textures; stepped by `menu::next_texture_setting`); copied to the race's `settings.car_detail` (0x75AD14) and `settings_words[3]` (0x6238B4). Probable, from the string and the page's row order.
+    /// The options page's car detail setting, 0 .. 2 (row 7, strings 0x393 "nenhum carro" / "o seu
+    /// carro" / "todos os carros": which cars get the detailed textures; stepped by
+    /// `menu::next_texture_setting`); copied to the race's `settings.car_detail` and
+    /// `settings_words[3]`. Probable, from the string and the page's row order.
     pub car_detail: PlainDword,
-    /// `dword_755668`: The graphics page's headlights option, work copy.
+    /// The graphics page's headlights option, work copy.
     pub headlights: PlainDword,
-    /// `dword_75566C`: The audio quality chosen (`menu::next_audio_quality`).
+    /// The audio quality chosen (`menu::next_audio_quality`).
     pub audio_quality: PlainDword,
-    /// `dword_755670`: The DirectSound 3D switch.
+    /// The DirectSound 3D switch.
     pub ds3d: PlainDword,
-    /// `dword_755674`: The EAX switch.
+    /// The EAX switch.
     pub eax: PlainDword,
-    /// `dword_755678`: The A3D switch.
+    /// The A3D switch.
     pub a3d: PlainDword,
-    /// `dword_75567C`: The Dolby switch.
+    /// The Dolby switch.
     pub dolby: PlainDword,
-    /// `dword_755680`: The channels chosen.
+    /// The channels chosen.
     pub channels: PlainDword,
     /// 4 bytes of the image's layout: the master volume shown (now `audio::levels::Levels`).
     pub _gap_755684: PlainBytes<4>,
-    /// `dword_755688`: The music level (`menu::option_steps`).
+    /// The music level (`menu::option_steps`).
     pub music_level: PlainDword,
-    /// `dword_75568C`: Read by the music "up" step (`menu::music_volume_up`).
+    /// Read by the music "up" step (`menu::music_volume_up`).
     pub other_volume: PlainDword,
-    /// `dword_755690`: The menu sounds' third volume (`sound::play_menu_sound`).
+    /// The menu sounds' third volume (`sound::play_menu_sound`).
     pub menu_sounds_c: PlainDword,
     /// 4 bytes of the image's layout: the race sounds' volume (now `audio::levels::Levels`).
     pub _gap_755694: PlainBytes<4>,
-    /// `dword_755698`: The speech level (`menu::option_steps`, `sound::play_car_stream`).
+    /// The speech level (`menu::option_steps`, `sound::play_car_stream`).
     pub speech_level: PlainDword,
     /// 4 bytes of the image's layout: the sounds' first level (now `audio::levels::Levels`).
     pub _gap_75569c: PlainBytes<4>,
     /// 4 bytes of the image's layout: the sounds' second level (now `audio::levels::Levels`).
     pub _gap_7556a0: PlainBytes<4>,
-    /// `dword_7556A4`: The menu's sound: 0x6F, or 0x14D after Enter (`menu::handle_keys`).
+    /// The menu's sound: 0x6F, or 0x14D after Enter (`menu::handle_keys`).
     pub menu_sound: PlainDword,
-    /// `dword_7556A8`: 1 while a text is being typed (`menu::text_entry`).
+    /// 1 while a text is being typed (`menu::text_entry`).
     pub typing: PlainFlag,
-    /// `g_redefiningKey`: 1 while a key is being redefined; also 1 = the highlight does not blink (`menu::update_blink`).
+    /// 1 while a key is being redefined; also 1 = the highlight does not blink
+    /// (`menu::update_blink`).
     pub redefining_key: PlainFlag,
-    /// `g_redefinedKeyPlace`: The place of the key being redefined (999 = none).
+    /// The place of the key being redefined (999 = none).
     pub redefined_key_place: PlainDword,
 }
 

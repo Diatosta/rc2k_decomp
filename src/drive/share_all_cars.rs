@@ -1,12 +1,10 @@
-//! `drive::share_all_cars` (0x456484): `drive::keep_lead_car_values`, `drive::set_listener`, then
-//! for each of the eight cars (`g_currentCar` = n) `drive::share_car_state` with its block, its
-//! record (`car_records`[n]`) and its sound object (`g_raceSoundObjects[n]`); then `sound_objects_shown` = 1
-//! when `CarBlocks.cars[0].car_kind` is not 0x21 and the first record's +0x258 is 10 or more (else 0); then
-//! `drive::put_back_lead_car_values`.
+//! `drive::keep_lead_car_values`, `drive::set_listener`, then for each of the eight cars
+//! `drive::share_car_state` with its block, its record and its sound object; then
+//! `sound_objects_shown` = 1 when `CarBlocks.cars[0].car_kind` is not 0x21 and the first record's
+//! +0x258 is 10 or more (else 0); then `drive::put_back_lead_car_values`.
 //!
-//! Callers: race init's loop (`drive::race_init`, 0x4463F4) and `race::run_view_marks`. Refuses
-//! (before anything) what `set_listener` refuses, a car whose file number is above 0x21, and a null
-//! record or block. Its pieces have their own tests on test memory.
+//! Refuses (before anything) what `set_listener` refuses, a car whose file number is above 0x21,
+//! and a null record or block.
 
 use crate::drive::keep_lead_car_values::keep_lead_car_values;
 use crate::drive::put_back_lead_car_values::put_back_lead_car_values;
@@ -37,7 +35,6 @@ fn cars(
     }))
 }
 
-/// The refusals, worked out before anything is written.
 fn refusal(race: &Race, sound: &'static Sound) -> Result<Option<&'static str>, BadInput> {
     let shared = &race.shared;
     for (block, _, _) in cars(shared, sound)? {
@@ -55,7 +52,6 @@ fn refusal(race: &Race, sound: &'static Sound) -> Result<Option<&'static str>, B
     Ok(None)
 }
 
-// Converted: `rc2k_core::drive::sharing::{check_light_record, cars_shown}`.
 pub fn share_all_cars(
     race: &Race,
     sound: &'static Sound,
@@ -66,8 +62,8 @@ pub fn share_all_cars(
     if let Some(why) = refusal(race, sound)? {
         return Err(BadInput(why).into());
     }
-    // `set_listener` refuses before writing; nothing is written before it but the
-    // lead car's values, which are kept again by the original.
+    // `set_listener` refuses before writing; nothing is written before it but the lead car's
+    // values, which are kept again.
     set_listener(race, scene, net, view)?;
     keep_lead_car_values(race.shared.own_car(net.vars.session.get()), &race.frame);
     for (n, (block, record, sound)) in cars(&race.shared, sound)?.into_iter().enumerate() {

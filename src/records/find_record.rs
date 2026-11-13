@@ -1,14 +1,12 @@
-//! `records::find_record` (0x47255D): finds a record by index within a section of a record table.
+//! Finds a record by index within a section of a record table.
 //!
-//! Takes the index, the section (0 = from the table start) and the table. Returns the record.
-//! Section N starts after the Nth record whose tag is 4. There is no end-of-table check.
+//! Section 0 is the table's start; section N starts after the Nth record whose tag is 4. There
+//! is no end-of-table check.
 
 use crate::errors::BadInput;
 use crate::records::stages_store::{RECORD_LEN, RecordRef, RecordTable, StageTables};
 
-/// The record, as the original finds it (converted: `rc2k_core::files::records::find_record`, on
-/// the table in game memory: no end test, as the original; a table running past its block
-/// is refused).
+/// The record, with no end test; a table running past its block is refused.
 pub fn find_record_in(
     stages: &StageTables,
     table: RecordTable,

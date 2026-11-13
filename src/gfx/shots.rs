@@ -1,22 +1,19 @@
-//! The screenshot switch, its lock and the file name's template, out of RAL.EXE's image: IDA
-//! 0x4F52B4 .. 0x4F52C4.
+//! The screenshot switch, its lock and the file name's template.
 
 use crate::session::{PlainBytes, PlainDword};
 
-/// The screenshots' variables.
 #[derive(rc2k_derive::Cells)]
 pub struct Shots {
-    /// `g_screenshotsOn` (`dword_4F52B4`, a `var\ral.cfg` setting, `screensnapshot`).
+    /// 1 = screenshots on (the `screensnapshot` setting in `var\ral.cfg`).
     pub on: PlainDword,
-    /// `dword_4F52B8`: the lock a screenshot holds.
+    /// The lock a screenshot holds.
     pub locked_here: PlainDword,
-    /// `0x4F52BC`: the screenshot file's name, "000.pcx" and its NUL (the number's three
-    /// digits are counted up for each file).
+    /// The screenshot file's name, "000.pcx" and its NUL (the number's three digits are counted up
+    /// for each file).
     pub name: PlainBytes<8>,
 }
 
 impl Shots {
-    /// The screenshots' variables; the first values are the image's.
     pub const fn new() -> Self {
         Shots {
             on: PlainDword::new(0),

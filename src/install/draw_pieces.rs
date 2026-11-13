@@ -1,13 +1,7 @@
-//! `install::draw_pieces` (0x415058): each of a page's pieces drawn at its place. A plain
-//! text piece (no 0x10 in its kind) its string (`text::draw_string_by_id`) in the font of
-//! its marks (`kind_fonts`: bits 6, 7 of its first byte, its kind and 0x10); else by the
-//! item's kind: an edit its text (`text::draw_text`) in the font of its record's kind and
-//! marks, with the caret (string 4) after it while it is edited, lit and its record has
-//! bit 1; a text its string and the item's appended text in `text`; an action its drawing
-//! action (`[item+0xC]`, given the place).
-//!
-//! No pieces would go round 2^32 times: refused. Caller `install::run_page` (the surface
-//! locked).
+//! Each of a page's pieces drawn at its place: a plain text piece as its string in the font of
+//! its marks; else by the item's kind: an edit its text (with the caret after it while it is
+//! edited), a text its string and the item's appended text, an action its drawing action.
+//! Refused: no pieces. Called by `install::run_page` (the surface locked).
 
 use crate::errors::{BadInput, Refused};
 use crate::install::installer::{
@@ -43,7 +37,6 @@ pub fn draw_pieces(
         let piece = Piece::nth(install, k);
         let first = piece.marks();
         let (x, y) = (piece.x(), piece.y());
-        // Converted: `rc2k_core::install::pieces` (`Way`, `colour_at`, `caret`).
         match Way::of(first, piece.kind()) {
             Way::String { font_kind } => {
                 draw_string(

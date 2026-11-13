@@ -1,8 +1,5 @@
-//! The arcade's levels: which are open, and what a level's end does
-//! (from `menu::arcade_level_1` .. `arcade_level_5` 0x487CC9 .. 0x487DE5,
-//! `menu::arcade_level_end` 0x48AD73 and `menu::arcade_finale` 0x488155). A level's
-//! "opened" byte is `Arcade.levels_won[level - 1]`; winning a level opens the next
-//! (`Arcade.levels_won[level]`).
+//! The arcade's levels: which are open, and what a level's end does. A level's "opened" byte is
+//! `Arcade.levels_won[level - 1]`; winning a level opens the next (`Arcade.levels_won[level]`).
 
 use crate::Invalid;
 
@@ -15,8 +12,8 @@ pub const UNLOCK_ARCADE: u32 = 1;
 /// The menu's sound for a level not open.
 pub const CLOSED_SOUND: u32 = 8;
 
-/// A level item: open with the cheat on, or with its opened byte (`opened`, asked only
-/// without the cheat) 1.
+/// A level item is open with the cheat on, or when its opened byte (`opened`, asked only without
+/// the cheat) is 1.
 pub fn level_open(cheats: u32, opened: impl FnOnce() -> u8) -> bool {
     cheats & UNLOCK_ARCADE != 0 || opened() == 1
 }
@@ -41,8 +38,8 @@ pub fn first_win(next_opened: u8) -> bool {
     next_opened == 0
 }
 
-/// `menu::arcade_finale`: the levels left after `level` (`RaceState.results.stage_index`, the finale's
-/// drive), wrapping as the original's `sub`.
+/// `menu::arcade_finale`: the levels left after `level` (`RaceState.results.stage_index`, the
+/// finale's drive), wrapping when `level` is past 5.
 pub fn levels_left(level: u32) -> u32 {
     LEVELS.wrapping_sub(level)
 }

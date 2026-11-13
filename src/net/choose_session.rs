@@ -1,14 +1,6 @@
-//! `net::choose_session` (0x417726): the list screen of the sessions (`net::sessions_frame`
-//! through `screens::run_frame`), as `net::choose_connection`'s, and once a second
-//! (`system::tick_count` against `clock_a`) the sessions listed again
-//! (`net::find_sessions_regs`, with `g_netPosting` 0 for it): the highlighted session's GUID
-//! kept first (`joined`) and found again after (`system::same_guid`), the highlight on
-//! it (the top moved by as much, from 0 when sixteen or fewer, not below 0), or at the top
-//! when it is gone; a failed listing gives -2. With no session listed only Escape, 'R' and
-//! the lexicon's key work.
-//!
-//! Returns the session chosen.
-//! Caller: `net::start_link`.
+//! The list screen of the sessions, like `net::choose_connection`'s, with the sessions listed
+//! again once a second; the highlighted session is found again by its GUID and stays highlighted
+//! (at the top when it is gone). A failed listing gives -2. Returns the session chosen.
 
 use crate::errors::Refused;
 use crate::net::choose_connection::list_move;
@@ -42,7 +34,7 @@ fn refresh(o: crate::owners::Owners<'static>, lines: &NetTexts) -> Result<bool, 
             let joined = net.joined().joined.read();
             // `system::same_guid`: the four dwords alike.
             if with_session(&net.vars, n, |s| s.instance)? == joined {
-                // Converted: `rc2k_core::net::screens` (`keeps_top`, `moved_top`).
+                // The logic is in `rc2k_core::net::screens` (`keeps_top`, `moved_top`).
                 choice = n;
                 top = if screens::keeps_top(net.vars.sessions.get()) {
                     screens::moved_top(

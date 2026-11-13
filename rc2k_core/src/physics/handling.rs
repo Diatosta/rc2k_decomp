@@ -1,14 +1,7 @@
-//! The car's damage made into its working grades and failures, and its handling figures from its
-//! setup (from `physics::rate_damage` 0x4AF1EC and `physics::set_handling` 0x43EB5D). What each
-//! figure is, is a reading at best; the variables are named by where they are: the work copy
-//! (`g_car`) +offset, the grades' block (0x75B340) +offset, the handling block (0x613E00) +offset,
-//! and the setup's scale (`k256`, 256.0). The functions read and write them through `Figures`, in
-//! the original's order, each only where the original does.
-//!
-//! Floats: what the x87 keeps on its stack is an `f64`, rounded to `f32` where the original stores
-//! (`physics::x87`): the same bits at the game's double precision. The chances' whole numbers are
-//! `fistp`ed from the product of two floats (exact in an `f64`, as on the x87), so the failures
-//! follow the original's to the bit.
+//! The car's damage made into its working grades and failures, and its handling figures from
+//! its setup, read and written through `Figures` in a fixed order, each only where needed.
+//! Floats: what the x87 keeps on its stack is an `f64`, rounded to `f32` where stored; the
+//! chances' whole numbers come from exact products, so the failures stay bit-identical.
 
 use super::x87::{below, equal, fistp64, loaded};
 use crate::Invalid;
@@ -16,13 +9,13 @@ use crate::Invalid;
 /// Where a variable is.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum At {
-    /// The work copy (`g_car`, 0x719FD8) +offset.
+    /// The work copy, by offset.
     Car(u32),
-    /// The grades' block (0x75B340) +offset.
+    /// The grades' block.
     Grades(u32),
-    /// The handling block (0x613E00) +offset.
+    /// The handling block.
     Handling(u32),
-    /// The setup's scale (`k256`, 256.0).
+    /// The setup's scale (256.0).
     Scale,
 }
 
@@ -31,12 +24,10 @@ pub trait Figures {
     fn get(&self, at: At) -> u32;
     fn put(&mut self, at: At, v: u32);
 
-    /// The dword at `at` as a float.
     fn float(&self, at: At) -> f32 {
         f32::from_bits(self.get(at))
     }
 
-    /// A float stored at `at`.
     fn put_float(&mut self, at: At, v: f32) {
         self.put(at, v.to_bits());
     }
@@ -49,7 +40,7 @@ const K: At = Grades(0x48);
 /// The grades' floor and ceiling.
 const LOW: At = Grades(0x10);
 const HIGH: At = Grades(0x08);
-/// Zero, as the original compares with it.
+/// Zero, for the comparisons.
 const ZERO: At = Grades(0x0C);
 /// The chances' factor.
 const CHANCE: At = Grades(0);
@@ -57,13 +48,13 @@ const CHANCE: At = Grades(0);
 const RANDOM: At = Grades(0x160);
 /// Each chance's whole number.
 const SCRATCH: At = Grades(0x2C);
-/// `engine_power_factor`: the first grade (+0x3F4).
+/// The first grade.
 const FIRST: At = Car(0x3F4);
-/// `g_carGearBits` (+0x434).
+/// The gear bits.
 pub const GEAR_BITS: At = Car(0x434);
-/// The last ramp table (0x75B568), where the original's table pointer is left.
+/// The last ramp table.
 pub const LAST_TABLE: At = Grades(0x228);
-/// The gears counted into the bits (the original's counter is left at it).
+/// The gears counted into the bits.
 pub const GEARS: u32 = 9;
 
 /// The ramps in order: (destination, figure, table).
@@ -102,9 +93,8 @@ const FAILURES: [(At, At, At, u32); 7] = [
     (Car(0x424), Grades(0xF8), Grades(0xDC), 0xA),
 ];
 
-/// A ramp through (t0, t1) .. (t2, t3) as the original reads it (`math::x87::ramp`):
-/// below t0 (or no number) t1; not below t2, t3; t2 - t0 equal to `zero` (or no number),
-/// t1; else (x - t0) / (t2 - t0) x (t3 - t1) + t1, rounded to a float.
+/// A ramp through (t0, t1) .. (t2, t3): below t0 (or no number) t1; not below t2, t3; a zero
+/// span, t1; else linear between, rounded to a float.
 pub fn ramp(x: f32, t: [f32; 4], zero: f32) -> f32 {
     let [t0, t1, t2, t3] = t.map(f64::from);
     if below(x as f64, t0) {
@@ -120,19 +110,19 @@ pub fn ramp(x: f32, t: [f32; 4], zero: f32) -> f32 {
     ((x as f64 - t0) / span * (t3 - t1) + t1) as f32
 }
 
-/// 1 less the products a b c of `terms`, in order (kept on the stack: unrounded).
+/// 1 less the products of `terms`, in order (unrounded).
 pub fn one_less_products(terms: &[[f32; 3]]) -> f64 {
     terms
         .iter()
         .fold(1.0, |acc, t| acc - t[0] as f64 * t[1] as f64 * t[2] as f64)
 }
 
-/// lo + i / d (hi - lo) (`math::x87::int_lerp`), rounded to a float.
+/// lo + i / d (hi - lo), rounded to a float.
 pub fn int_lerp(i: i32, d: f32, hi: f32, lo: f32) -> f32 {
     (i as f64 / d as f64 * (hi as f64 - lo as f64) + lo as f64) as f32
 }
 
-/// Held to the grades' floor and ceiling, each compared after the last store.
+/// Held to the grades' floor and ceiling.
 fn hold(m: &mut impl Figures, v: At) {
     if below(m.float(v) as f64, m.float(LOW) as f64) {
         let low = loaded(m.float(LOW));
@@ -144,7 +134,6 @@ fn hold(m: &mut impl Figures, v: At) {
     }
 }
 
-/// The figure at `x` along the table at `t` into `out`.
 fn ramp_into(m: &mut impl Figures, out: At, x: At, t: At) {
     let Grades(o) = t else { unreachable!() };
     let table = [0, 4, 8, 12].map(|k| m.float(Grades(o + k)));
@@ -152,8 +141,8 @@ fn ramp_into(m: &mut impl Figures, out: At, x: At, t: At) {
     m.put_float(out, v);
 }
 
-/// A failure's chance: the figure times the chances' factor as a whole number (kept),
-/// against the random's low word turned right by `turn`: whether the random is below.
+/// Whether a failure's chance comes up: the random's low word turned right by `turn` is below
+/// the figure times the chances' factor as a whole number.
 fn chance(m: &mut impl Figures, figure: At, turn: u32) -> bool {
     let t = fistp64(m.float(figure) as f64 * m.float(CHANCE) as f64) as u32;
     m.put(SCRATCH, t);
@@ -161,8 +150,7 @@ fn chance(m: &mut impl Figures, figure: At, turn: u32) -> bool {
     (r.wrapping_sub(t) as i32) < 0
 }
 
-/// `physics::rate_damage`: the damage figures made into the grades and failures; returns the gear
-/// bits.
+/// The damage figures made into the grades and failures; returns the gear bits.
 pub fn rate_damage(m: &mut impl Figures) -> u32 {
     let k = m.float(K);
     let mut e = one_less_products(&[
@@ -246,11 +234,10 @@ pub fn rate_damage(m: &mut impl Figures) -> u32 {
     bits
 }
 
-/// `g_carDriveKind` (+0x40): 0 or 1 (the pair tables hold two).
+/// The drive kind: 0 or 1.
 pub const DRIVE_KIND: At = Car(0x40);
 
-/// `physics::set_handling`'s interpolations: (out, setting, hi, lo), in the original's
-/// order but for the drive kind's.
+/// The interpolations (out, setting, hi, lo), in order but for the drive kind's.
 const BEFORE: [(At, At, At, At); 4] = [
     (Handling(0xE0C), Car(0x3C), Handling(0x128), Handling(0x124)),
     (Handling(0xE08), Car(0x3C), Handling(0x130), Handling(0x12C)),
@@ -264,9 +251,9 @@ const AFTER: [(At, At, At, At); 4] = [
     (Handling(0xE04), Car(0x34), Handling(0x180), Handling(0x17C)),
 ];
 
-/// `physics::set_handling`: a drive kind above 1 refused before anything; then `grade`
-/// (`physics::grade_or_reset`, its result passed back) and the nine figures, each lo + setting /
-/// 256 (hi - lo), the drive kind's then times the drive-kind factor. Also returns the drive kind.
+/// A drive kind above 1 is refused before anything; then `grade` and the nine figures, each
+/// lo + setting / 256 (hi - lo), the drive kind's then times the drive-kind factor. Also
+/// returns the drive kind.
 pub fn set_handling<M: Figures, T>(
     m: &mut M,
     grade: impl FnOnce(&mut M) -> T,

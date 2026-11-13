@@ -1,13 +1,9 @@
-//! `hud::disc_vertex` (0x4B6D10): a vertex of the HUD's disc from its ring entry: the texture
-//! place; the place; colour white under the quad record's alpha, specular 0.
+//! A vertex of the HUD's disc from its ring entry (0 the centre .. 0x10): the texture place; the
+//! place; colour white under the quad record's alpha, specular 0. Refuses an entry past 0x10,
+//! before anything.
 //!
-//! Takes: the ring entry (0 the centre .. 0x10), the vertex
-//! Returns: the colour
-//!
-//! Caller: `hud::draw_disc` (three a triangle). Refuses an entry past 0x10, before anything.
-//!
-//! The arithmetic is the x87's, in plain Rust over `X` (`math/x87_float.rs`); the original's
-//! instructions' results are recorded vectors in the tests (`data/vectors`) ..
+//! The arithmetic is the x87's, in plain Rust over `X` (`math/x87_float.rs`); the tests compare
+//! it with recorded vectors (`data/vectors`).
 
 use crate::d3d::vertices_store::Vertex;
 use crate::errors::{BadInput, Refused};
@@ -38,8 +34,6 @@ pub fn disc_vertex(hud: &Hud, entry: u32, vertex: &Vertex) -> Result<(), Refused
     }
     Ok(())
 }
-
-// ---- the arithmetic that was x87 assembly ----
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
@@ -95,7 +89,7 @@ mod reference_vectors {
     use super::*;
     use crate::test_support::vectors::{Block, In, Operand, Out, sparse};
 
-    // The original's instructions, one function per run.
+    // The recorded run, one function per run.
 
     /// The four stored into the test's vertex at their offsets.
     fn put(stored: [f32; 4], vertex: &[std::cell::Cell<u32>]) {

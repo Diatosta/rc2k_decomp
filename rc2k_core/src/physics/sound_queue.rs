@@ -1,19 +1,19 @@
-//! A sound object's queue of cues (from `physics::queue_sound_cue`
-//! 0x40EE5C): up to 16 entries of 0x20 bytes (the cue, its sounds' number, up to six
-//! sounds); a cue put first stops the playing sound and moves the others up one.
+//! A sound object's queue of cues: up to 16 entries of 0x20 bytes; a cue put first stops the
+//! playing sound and moves the others up one.
 
 use crate::Invalid;
 
-/// The queue's room, and an entry's size in dwords.
+/// The queue's room.
 pub const ROOM: u32 = 16;
+/// An entry's size in dwords.
 pub const ENTRY_DWORDS: u32 = 8;
 
-/// The highest cue: `table` holds 113 sound lists, cues 0 ..= 0x70, ended by -1. The
-/// original does not check; a cue past the table would read past it.
+/// The highest cue: the table holds cues 0 ..= 0x70.
 pub const LAST_CUE: u32 = 0x70;
 
-/// The most sounds a cue lists, and the end of a list.
+/// The most sounds a cue lists.
 pub const MOST_SOUNDS: u32 = 6;
+/// The end of a sound list.
 pub const LIST_END: u32 = u32::MAX;
 
 /// Where a cue goes.
@@ -21,13 +21,13 @@ pub const LIST_END: u32 = u32::MAX;
 pub enum CuePlacement {
     /// The queue is full: nothing.
     Full,
-    /// At entry `n` (0 into an empty queue or last).
+    /// At entry `n` (0 into an empty queue, or last).
     At(u32),
-    /// First, ahead of the `count` queued (the playing sound stopped, the entries moved up).
+    /// First, ahead of the `count` queued (the playing sound stopped).
     First { count: u32 },
 }
 
-/// A cue past `LAST_CUE` is refused (before anything is read).
+/// A cue past `LAST_CUE` is refused.
 pub fn check_cue(cue: u32) -> Result<(), Invalid> {
     if cue > LAST_CUE {
         return Err(Invalid("a sound cue past 0x70"));
@@ -48,9 +48,8 @@ pub fn place(count: u32, first: bool) -> CuePlacement {
     }
 }
 
-/// A cue's sounds: the list read in order (`list(k)`) up to a -1 or `MOST_SOUNDS`, each
-/// not below 0 offset by the object's base; (the dwords written, the -1 included; their
-/// number less the -1, the entry's +4).
+/// A cue's sounds: the list read up to a -1 or `MOST_SOUNDS`, each not below 0 offset by
+/// the object's base; returns (the dwords written, their number less the -1).
 pub fn sounds(list: impl Fn(u32) -> u32, base: u32) -> (Vec<u32>, u32) {
     let mut out = Vec::new();
     let mut n = 0;

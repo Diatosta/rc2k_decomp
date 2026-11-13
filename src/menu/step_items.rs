@@ -1,6 +1,5 @@
-//! The left / right items of the menus' pages: each steps one setting a direction
-//! (`forward` is the right arrow). In the original each direction was a function of its
-//! own (`next_view` 0x467B45, `previous_view` 0x467B69, `next_car` 0x469AFD, ..).
+//! The left / right items of the menus' pages: each steps one setting a direction (`forward` is
+//! the right arrow).
 
 use crate::errors::Refused;
 use crate::menu::car_buttons::{Which, call_in_game, press};
@@ -32,10 +31,9 @@ pub fn car_button(o: Owners<'static>, button: Which) -> Result<(), Refused> {
     press(o.menus, button, &mut |call| call_in_game(o, call))
 }
 
-/// The saved games' list one page on (`menu::next_savegame_page`, 0x46D407): adds 1 to
+/// The saved games' list one page on (`menu::next_savegame_page`): adds 1 to
 /// `MenuPages.save_page`, and above 9 goes back to 0.
 pub fn next_savegame_page(tables: &Tables) {
-    // The logic is in `rc2k_core::menu::steps::savegame_page`.
     let page = tables.pages.save_page.get();
     tables
         .pages

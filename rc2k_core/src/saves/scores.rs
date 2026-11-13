@@ -1,23 +1,21 @@
-//! The best scores (`g_bestScores`, 0x7556D4 held its block; 0xBB8 bytes in memory and in
-//! `var\hst.dat`): five groups (the classes; the fifth the overall) of ten entries,
-//! best first, typed from the byte offsets the original uses.
+//! The best scores (0xBB8 bytes in memory and in `var\hst.dat`): five groups (the classes; the
+//! fifth the overall) of ten entries, best first.
 
 pub const GROUPS: usize = 5;
 pub const PER_GROUP: usize = 10;
 pub const ENTRY_LEN: usize = 0x3C;
 /// The table's bytes in `var\hst.dat`.
 pub const TABLE_LEN: usize = GROUPS * PER_GROUP * ENTRY_LEN;
-/// The name's room (+0x18 .. +0x38).
+/// The name's room in bytes.
 pub const NAME_ROOM: usize = 0x20;
-/// What a ranking moves of a name (and what an entered name gets): its room less the last
-/// byte.
+/// What a ranking moves of a name (and what an entered name gets): its room less the last byte.
 pub const NAME_MOVED: usize = 0x1F;
 
 /// One best score (0x3C bytes).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct ScoreEntry {
-    /// +0: where the player's name was (a game address): written when entered, never moved
-    /// by a ranking. A list's end where it is -1 (`rc2k_core::screens::best_scores`).
+    /// +0: where the player's name was (a game address), written when entered and never moved by a
+    /// ranking. -1 ends a list.
     pub name_ref: u32,
     /// +4: the player (1 .. 4); 0 for a made-up entry, cleared after the pages.
     pub player: u32,
@@ -29,8 +27,8 @@ pub struct ScoreEntry {
     pub group: u32,
     /// +0x14: 1 for an entry made in this event, cleared after the pages.
     pub new: u32,
-    /// +0x18: the name. A made-up entry's fills what its driver's name needs, without a NUL;
-    /// an entered one gets the player's first 0x1F bytes.
+    /// +0x18: the name; a made-up entry's has no NUL, an entered one the player's first 0x1F
+    /// bytes.
     pub name: [u8; NAME_ROOM],
     /// +0x38: the score.
     pub score: u32,
@@ -71,9 +69,8 @@ impl ScoreEntry {
         put(b, 0x38, self.score);
     }
 
-    /// The text the game draws for the name: from +0x18 to the first NUL, which may come
-    /// after the name's room (the original reads on into the score). None: no NUL before
-    /// the entry's end.
+    /// The name's text from +0x18 to the first NUL, which may lie past the name's room. None:
+    /// no NUL before the entry's end.
     pub fn name_text(&self) -> Option<Vec<u8>> {
         let mut bytes = self.name.to_vec();
         bytes.extend(self.score.to_le_bytes());
@@ -116,8 +113,8 @@ impl crate::saves::tables::FileTable for BestScores {
     }
 }
 
-/// `upper` and `lower` exchanged as the original does it: everything but `name_ref` and
-/// the name's last byte; the name through `kept`, which ends with the upper's.
+/// Exchanges `upper` and `lower` but for `name_ref` and the name's last byte; the name goes
+/// through `kept`, which ends with the upper's.
 fn exchange(ten: &mut Group, upper: usize, lower: usize, kept: &mut [u8; NAME_MOVED]) {
     let (a, b) = (ten[upper], ten[lower]);
     for (to, from) in [(upper, b), (lower, a)] {
@@ -133,8 +130,8 @@ fn exchange(ten: &mut Group, upper: usize, lower: usize, kept: &mut [u8; NAME_MO
     kept.copy_from_slice(&a.name[..NAME_MOVED]);
 }
 
-/// A group's last entry moved up: nine steps from the bottom, each pair exchanged when the
-/// lower score (signed) is at least the upper's; the pair one up is next either way.
+/// Moves a group's last entry up: nine steps from the bottom, each pair exchanged when the
+/// lower score (signed) is at least the upper's.
 pub fn rank_in_group(ten: &mut Group, kept: &mut [u8; NAME_MOVED]) {
     for lower in (1..PER_GROUP).rev() {
         let upper = lower - 1;
@@ -144,8 +141,7 @@ pub fn rank_in_group(ten: &mut Group, kept: &mut [u8; NAME_MOVED]) {
     }
 }
 
-/// A best score to enter: the player's number (1 .. 4), score, nationality (+4), car (+8),
-/// group (+0x90), name pointer and name.
+/// A best score to enter: player (1 .. 4), score, nationality, car, group, name pointer, name.
 pub struct Best {
     pub player: u32,
     pub score: u32,
@@ -178,9 +174,9 @@ pub fn clear_marks(t: &mut BestScores) {
     }
 }
 
-/// The made-up table (`saves::default_best_scores`): `entries` (`defaults::best_scores`'
-/// fifty, group by group) over `t`: each its score, the driver's +8 as the group, +0x14 the
-/// nationality, +0x18 the car and the name's bytes.
+/// The made-up table (`saves::default_best_scores`): `entries` (fifty, group by group) over `t`:
+/// each its score, the driver's +8 as the group, +0x14 the nationality, +0x18 the car and the
+/// name's bytes.
 pub fn fill_made_up(t: &mut BestScores, entries: &[(u32, crate::saves::defaults::Driver)]) {
     for (e, (score, d)) in t.groups.as_flattened_mut().iter_mut().zip(entries) {
         e.score = *score;

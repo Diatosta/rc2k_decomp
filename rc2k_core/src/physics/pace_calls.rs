@@ -1,22 +1,19 @@
-//! The pace notes called as the car goes (from
-//! `physics::pace_notes_step` 0x4417EC (its whole-number rules; the look-ahead's
-//! `fistp` stays x87) and `physics::queue_pace_note` 0x4418B3): the checkpoints ahead of
-//! the car up to which notes are called, and each checkpoint's group of codes, cued and
-//! queued up to a NUL (a code of 0x54 or more is bad data, logged).
+//! The pace notes called as the car goes: the checkpoint up to which notes are called, and each
+//! checkpoint's group of codes, cued and queued up to a NUL (a code of 0x54 or more is bad
+//! data, logged).
 
 use crate::Invalid;
 
 /// The start timer from which notes are called (unsigned).
 pub const CALL_FROM: u32 = 1000;
 
-/// Whether notes are called this step: the seven gates 0, the grades' mode 1, the start
-/// timer at least `CALL_FROM`.
+/// Whether notes are called this step: all gates 0, mode 1, the start timer at `CALL_FROM`.
 pub fn calling(gates: impl IntoIterator<Item = u32>, mode: u32, timer: u32) -> bool {
     gates.into_iter().all(|g| g == 0) && mode == 1 && timer >= CALL_FROM
 }
 
-/// The checkpoint up to which notes are called: the car's plus the look-ahead when that
-/// is not negative, 0 when at or past the count (by the sign).
+/// The checkpoint up to which notes are called: the car's plus the look-ahead when that is
+/// not negative, 0 at or past the count.
 pub fn call_target(checkpoint: u32, ahead: i32, count: u32) -> u32 {
     let mut t = checkpoint;
     if ahead >= 0 {
@@ -32,9 +29,8 @@ pub fn call_target(checkpoint: u32, ahead: i32, count: u32) -> u32 {
 pub const MOST_CALLED: u32 = 0x10;
 
 /// The checkpoints whose groups are called: (the last called as the calls begin, the
-/// difference when it was worked out); None when the target is not
-/// past the last called (unsigned). The calls run from the first after it up to the
-/// target, at least one.
+/// difference); `None` when the target is not past the last called (unsigned). The calls run
+/// from the first checkpoint after it up to the target, at least one.
 pub fn calls(target: u32, last: u32) -> Option<(u32, u32)> {
     if target <= last {
         return None;
@@ -43,11 +39,11 @@ pub fn calls(target: u32, last: u32) -> Option<(u32, u32)> {
     Some((if gap > MOST_CALLED { target } else { last }, gap))
 }
 
-/// The most groups (`PaceNotes.group_checkpoints[0]`'s room).
+/// The most groups.
 pub const MOST_GROUPS: u32 = 0x400;
 
-/// The first group called at `checkpoint` (`checkpoint_of(n)` read in order); None when
-/// there are no groups or none is at it (`Err` past `MOST_GROUPS`).
+/// The first group called at `checkpoint`; `None` when there are none or none is at it
+/// (an error past `MOST_GROUPS`).
 pub fn find_group(
     groups: u32,
     checkpoint: u32,
@@ -67,7 +63,6 @@ pub const TEXT_LEN: u32 = 0x4000;
 /// The first bad code.
 pub const BAD_CODE: u32 = 0x54;
 
-/// A code of a group's text.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Code {
     /// The NUL: the group ends.

@@ -1,32 +1,30 @@
-//! The course's records by grid cell (from
-//! `physics::find_course_record` 0x4220B6): a record (0x20 bytes, `g_courseRecords`) is
-//! looked for by its key (its first dword) among its kind's records, `g_kindFirstRecords`
-//! ..= `g_kindLastRecords` of the kind (-1 first: none). The key is a grid cell by the
-//! callers: (z >> 21) << 11 + (x >> 21).
+//! The course's records by grid cell: a 0x20-byte record is found by its key (its first dword)
+//! among its kind's records, a range per kind (first -1: none). The key is a grid cell:
+//! (z >> 21) << 11 + (x >> 21).
 
 use crate::Invalid;
 
-/// A key's kind and the record offset: (kind, ((key >> 11) & 0xF) << 4); the kind is
-/// (key & 0xF) + that.
+/// A key's kind and record offset: ((key & 0xF) + offset, offset), where
+/// offset = ((key >> 11) & 0xF) << 4.
 pub fn kind_of(key: u32) -> (u32, u32) {
     let high = ((key >> 11) & 0xF) << 4;
     ((key & 0xF) + high, high)
 }
 
-/// The search's end.
+/// How a search for a record ended.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Search {
-    /// The kind has no records (its first -1).
+    /// The kind has no records.
     Empty,
     /// Record `number` has the key.
     Found { number: u32 },
-    /// None has it: `next` the last tried + 1.
+    /// None has it; `next` is the last tried + 1.
     Missing { next: u32 },
 }
 
-/// `physics::find_course_record`: the records `first` ..= `last` of the key's kind,
-/// `key_of(n)` read in order until one is `key`. Refused (before reading a record) when a
-/// kind's last is at or past `count` or before its first.
+/// Finds the record with `key` among the key's kind's records `first` ..= `last`, reading
+/// `key_of(n)` in order. Refused, before reading a record, when `last` is at or past `count` or
+/// before `first`.
 pub fn find_record(
     key: u32,
     first: u32,

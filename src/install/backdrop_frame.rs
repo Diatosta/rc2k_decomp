@@ -1,15 +1,11 @@
-//! `install::backdrop_frame` (0x415273, `loc_415273`, inside `install::show_backdrop`): the frame
-//! of
-//! `install::show_backdrop`: the surface locked (`gfx::lock_surface`; failing: carry set,
-//! nothing more), the backdrop picture copied to it, unlocked and shown.
-//!
-//! Caller `screens::run_frame` as the frame callback.
+//! The frame of `install::show_backdrop`: locks the surface (nothing more if that fails), copies
+//! the backdrop picture to it, unlocks it and shows it. `screens::run_frame` runs it as the frame
+//! callback.
 
 use crate::errors::Refused;
 use crate::install::installer::{copy_picture, lock, show, unlock};
 
-/// The surface locked, the backdrop drawn, the frame shown; the carry it leaves (the
-/// lock's or the show's).
+/// Draws and shows one frame of the backdrop; true when the lock or the show failed.
 pub fn backdrop_frame(o: crate::owners::Owners<'static>) -> Result<bool, Refused> {
     let (gfx, system) = (o.gfx, o.system);
     if !lock(gfx, system) {

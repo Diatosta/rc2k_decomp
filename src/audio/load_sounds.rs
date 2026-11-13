@@ -1,17 +1,8 @@
-//! `audio::load_sounds` (0x40AEB9): command 3: a list of sounds loaded.
-//!
-//! For each sound whose record has a file (`data_key`) and `copies` above 0 (signed), that
-//! many voices while fewer than 0x200 are in use: `audio::find_shared_voice`; none:
-//! `audio::read_sample_of` (a carry ends the sound's voices); `audio::new_voice` (the
-//! record's first voice if it has none); `audio::fill_voice` with the shared voice;
-//! `audio::sample_mode` on `g_soundMode`; `audio::prepare_sample`; `audio::keep_sample`;
-//! `audio::make_buffer` and `audio::fill_buffer` (their carries not looked at); the
-//! voice's flags get `LOADED`. After each entry of the list, `g_quitting` 1 ends it. The
-//! callees get the record, the voice and the shared voice or the mode; `make_buffer` gets
-//! the record as the holder value its EAX set-up reads through. One
-//! caller, `audio::take_commands`.
-//! Refuses, before anything is done: a list without its -1 within 0x1000 entries, or with
-//! a sound of 0x1CD or more; A3D.
+//! Command 3: loads a list of sounds. For each sound whose record has a file and a copy count
+//! above 0, that many voices are made (while fewer than 0x200 are in use): found shared voice or
+//! sample read, new voice, `fill_voice`, sample mode, prepare, keep, make and fill buffer; the
+//! voice's flags get `LOADED`. Quitting ends it after any entry. Refuses, before anything is
+//! done: a list without its -1 within 0x1000 entries, a sound of 0x1CD or more, and A3D.
 
 use crate::audio::own::AudioThread;
 use crate::audio::voices::*;
@@ -21,9 +12,6 @@ use crate::sound::sets_store::RaceSoundSets;
 use crate::system::owner::System;
 use rc2k_core::audio::commands::SoundList;
 
-/// The core's loader: each step is one of the original's callees, given what it reads (the
-/// record, the voice, the shared voice or the mode; `make_buffer` the record as the
-/// holder value its EAX set-up reads through).
 struct GameLoader<'a> {
     audio: &'a AudioThread,
     system: &'a System,
@@ -121,9 +109,8 @@ impl rc2k_core::audio::load::Loader for GameLoader<'_> {
     }
 }
 
-/// A list of sounds, read by position. The original reads a list on until its -1, wherever
-/// that is: the menu's list is its whole record; a race list may run on through the next
-/// fields of the sets (`RaceSoundSets::list_entry`), and a read past the sets is refused.
+/// A list of sounds, read by position up to its -1: a race list may run on through the next fields
+/// of the sets (`RaceSoundSets::list_entry`); a read past the sets is refused.
 fn list_entries<'a>(
     sound: &'a crate::sound::owner::Sound,
     list: SoundList,
@@ -140,7 +127,6 @@ fn list_entries<'a>(
     }
 }
 
-/// Converted: `rc2k_core::audio::load` (`entries`, `load`).
 pub fn load_sounds(
     audio: &AudioThread,
     system: &System,

@@ -1,15 +1,9 @@
-//! `hud::draw_disc` (0x4B6C4E): the HUD's disc of 16 triangles: the ring's 16 entries (1 .. 0x10 of
-//! `HudBlock.ring_sines[0]` / `HudBlock.ring_cosines[0]`) from `g_sines` / `g_cosines` at k * 0x100, and of the texture ring
-//! (`HudBlock.texture_ring_sines[0]` / `HudBlock.texture_ring_cosines[0]`) at k * 0x100 less `HudBlock.disc_turn` times `HudBlock.disc_turn_a` times
-//! `HudBlock.disc_turn_b` (`fistp`, & 0xFFF); then each triangle (the centre, entry k + 1, entry k + 2
-//! wrapping past 0x10) from `hud::disc_vertex` and drawn by `hud::add_triangle`.
-//!
-//! Callers: 0x4B6B0A, 0x4B6B5B, 0x4B6BAC, 0x4B6BFD.
-//!
-//! the ring's angles and the triangles' entries through
-//! `rc2k_core::hud::disc` (whole numbers; the sines are copied); the texture's turn stays
-//! the x87's (its rounding follows the control word), worked out once (the original works
-//! the same value out sixteen times into `HudBlock.fistp_scratch`).
+//! The HUD's disc of 16 triangles: the ring's 16 entries from the sine and cosine tables at k *
+//! 0x100, and of the texture ring at k * 0x100 less `disc_turn` times `disc_turn_a` times
+//! `disc_turn_b` (rounded to a whole number, & 0xFFF); then each triangle (the centre, entries k +
+//! 1, k + 2 wrapping past 0x10) from `hud::disc_vertex` and drawn by `hud::add_triangle`. The
+//! ring's angles and the triangles' entries go through `rc2k_core::hud::disc`; the texture's turn
+//! stays the x87's (its rounding follows the control word), worked out once.
 
 use crate::errors::Refused;
 use crate::hud::disc_vertex::disc_vertex;
@@ -19,12 +13,11 @@ use crate::math::x87_float::{ld, to_int};
 use crate::race::owner_frame::Frame;
 use rc2k_core::hud::disc::SEGMENTS;
 
-/// `fld a; fchs; fmul b; fmul c; fistp`.
+/// -a x b x c as a whole number, rounded as the x87 rounds.
 fn negated_times_times_to_int(a: f32, b: f32, c: f32) -> u32 {
     to_int((-ld(a) * ld(b)) * ld(c)) as u32
 }
 
-// Converted: `rc2k_core::hud::disc::{ring_angles, disc_triangle}`
 pub fn draw_disc(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
     {
         use rc2k_core::hud::disc::{disc_triangle, ring_angles};
@@ -64,10 +57,8 @@ pub fn draw_disc(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
     Ok(())
 }
 
-// ---- the arithmetic that was x87 assembly ----
-
-/// `negated_times_times_to_int` over the test's operand buffers (`[v + 4 k]`, the result
-/// at `[o]`), for the comparison with the original's x87 run.
+/// `negated_times_times_to_int` over the test's operand buffers (`[v + 4 k]`, the result at
+/// `[o]`), for the comparison with the recorded x87 run.
 #[cfg(test)]
 fn x87_1(v: impl crate::scene::x87_mem::Base, o: impl crate::scene::x87_mem::Base) {
     o.set_dword(
@@ -85,7 +76,7 @@ mod reference_vectors {
     use super::*;
     use crate::test_support::vectors::{Block, In, Operand, Out, sparse};
 
-    // The original's instructions, one function per run.
+    // The recorded run, one function per run.
 
     fn blocks() -> Vec<Block> {
         vec![Block {

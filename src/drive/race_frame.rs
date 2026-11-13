@@ -1,20 +1,14 @@
-//! `drive::race_frame` (0x4541BF): one frame of the race. The window's messages
-//! (`system::pump_messages`); quitting (`g_quitting` 1) ends it there. With the window the active
-//! one and `WindowLoopState.lost` not 1: the 3D scene begun, drawn (`race::draw_race_scene`) and ended
-//! (`scene::end_scene`), the race's sounds, the replay's screenshot (`race::replay_screenshot`),
-//! the frame shown; made: carry clear.
-//!
-//! Callers: `drive::race_loop`, `quit_question`, `pause_until_key`, `finish_run`,
-//! `race::play_movie_loop`. The drawing, the sound tick, the screenshot and the showing are their
-//! Rust versions; the window, the scene's begin and end and the restore through the game.
+//! One frame of the race. The window's messages are pumped; quitting ends it there. With the
+//! window the active one and not lost: the 3D scene begun, drawn (`race::draw_race_scene`) and
+//! ended, the race's sounds, the replay's screenshot, the frame shown.
 
 use crate::errors::Refused;
 use crate::race::owner::Race;
 
-const RESTORE: usize = 0x405B10; // 0x405B10: the surfaces restored (the platform's)
+const RESTORE: usize = 0x405B10; // the surfaces restored (the platform's)
 
-/// Takes and returns the value the frame's calls leave on (the original's register); only
-/// `drive::quit_question` reads it.
+/// Takes and returns the value the frame's calls leave on; only `drive::quit_question` reads
+/// it.
 pub fn race_frame(
     race: &Race,
     o: crate::owners::Owners<'static>,
@@ -36,8 +30,7 @@ pub fn race_frame(
         { crate::race::draw_race_scene::draw_race_scene(race, o) }?;
         crate::scene::end_scene::end_scene(o.d3d);
         stop(Stage::Scene, begun);
-        // The original's sound tick here (tick 0x12) never found a turn due: the frame's one
-        // is in `draw_race_scene`.
+        // The frame's sound tick is in `draw_race_scene`.
         { crate::race::replay_screenshot::replay_screenshot(race, o.gfx, o.system) }?;
         #[cfg(feature = "remote")]
         crate::remote::shot_frame_drawn(race);

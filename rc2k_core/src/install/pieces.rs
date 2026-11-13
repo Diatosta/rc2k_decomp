@@ -1,12 +1,9 @@
-//! A page's pieces made from its list, measured and drawn (from
-//! `install::lay_out_pieces` 0x414C7E, `install::measure_pieces` 0x414DF5 and
-//! `install::draw_pieces` 0x415058). A list: +0 its flags (hidden: 0x40 of 0xC0), +1 its
-//! items (0: 0x100), +2 its title's string, from +0x18 its items, 0x10 bytes each: +0 the
-//! kind (low four bits: 1 a link, 2 a choice, 3 a value, 4 an edit, 5 a text, 6 an action)
-//! and marks, +1 a count or a font, +2 its string, +0xC a choice's table (a word a choice,
-//! its high bits marks) or an edit's record. A piece (`crate::install::layout::PIECE`
-//! bytes): +0 its item's kind and marks, +1 its own kind (0x10 and up: drawn by its item),
-//! +2 its string, +4 its item, then its place and size (zeroed here).
+//! A page's pieces made from its list, measured and drawn. A list: +0 flags (0x40 of 0xC0 hidden),
+//! +1 item count (0: 0x100), +2 title string, from +0x18 its items, 0x10 bytes each: +0 kind (low
+//! four bits: 1 link, 2 choice, 3 value, 4 edit, 5 text, 6 action) and marks, +1 a count or a
+//! font, +2 its string, +0xC a choice's table (a word a choice, high bits marks) or an edit's
+//! record. A piece (`crate::install::layout::PIECE` bytes): +0 its item's kind and marks, +1 its
+//! own kind (0x10 and up: drawn by its item), +2 its string, +4 its item, then place and size.
 
 use crate::install::layout::PIECE;
 
@@ -17,14 +14,14 @@ pub const MOST_PIECES: u32 = ROOM / PIECE;
 /// The fatal error of an item of a kind the installer does not know.
 pub const UNKNOWN_KIND: u32 = 0x80A9_7451;
 
-/// A list as the layout reads it, each part only when the original reads it: its header,
-/// its items by number, a choice item's table and a text item's font.
+/// A list as the layout reads it: its header, its items by number, a choice item's table and a
+/// text item's font.
 pub trait ListSource {
-    /// +0: the list's flags.
+    /// The list's flags.
     fn flags(&self) -> u8;
-    /// +1: its number of items (0: 0x100).
+    /// Its number of items (0 is 0x100).
     fn count(&self) -> u8;
-    /// +2: its title's string.
+    /// The string id of its title.
     fn title_text(&self) -> u16;
     /// Item `k`'s first four bytes: its kind and marks, its count or font, its string.
     fn item(&self, k: u32) -> Item;
@@ -37,15 +34,15 @@ pub trait ListSource {
 /// An item's first four bytes.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Item {
-    /// +0: the kind (low four bits) and marks.
+    /// The kind (low four bits) and marks.
     pub first: u8,
-    /// +1: a choice's number of choices, a text's font number.
+    /// A choice's number of choices, a text's font number.
     pub count: u8,
-    /// +2: its string.
+    /// The item's string id.
     pub text: u16,
 }
 
-/// Hidden: 0x40 of the marks 0xC0.
+/// Whether the marks (mask 0xC0) say hidden: bit 0x40.
 pub fn hidden(marks: u8) -> bool {
     marks & 0xC0 == 0x40
 }
@@ -59,11 +56,11 @@ fn count_of(b: u8) -> u32 {
 pub enum LayoutError {
     /// An item of an unknown kind: fatal error `UNKNOWN_KIND`.
     UnknownKind,
-    /// More pieces than the page has room for (the original writes over what follows).
+    /// More pieces than the page has room for.
     TooMany,
 }
 
-/// The pieces a list makes (the original's first pass), or its unknown kind.
+/// The pieces a list makes, or the error of its unknown kind.
 pub fn count(list: &impl ListSource) -> Result<u32, LayoutError> {
     let mut n = if hidden(list.flags()) { 0 } else { 1 };
     for k in 0..count_of(list.count()) {
@@ -104,12 +101,11 @@ pub struct NewPiece {
     pub owner: Owner,
 }
 
-/// The pieces of `list`, in order: the title (kind 0x10) unless the list is hidden; for
-/// each item not hidden, a link a piece of kind 0, a choice a label (1) and a piece (2) for
-/// each choice not hidden (its marks from the choice's high bits), a value a label and a
-/// piece (0x12), an edit the same but with 0x10 one piece (0x12, the label's string), a
-/// text kind 0x10 with its font's bits, an action 0x14. Refused, before any: an unknown
-/// kind, more than `MOST_PIECES`.
+/// The pieces of `list`, in order: the title (kind 0x10) unless the list is hidden; for each item
+/// not hidden, a link a piece of kind 0, a choice a label (1) and a piece (2) for each choice not
+/// hidden, a value a label and a piece (0x12), an edit the same but with 0x10 one piece (0x12, the
+/// label's string), a text kind 0x10 with its font's bits, an action 0x14. Refused, before any:
+/// an unknown kind, more than `MOST_PIECES`.
 pub fn lay_out(list: &impl ListSource) -> Result<Vec<NewPiece>, LayoutError> {
     if count(list)? > MOST_PIECES {
         return Err(LayoutError::TooMany);
@@ -218,12 +214,12 @@ impl Way {
     }
 }
 
-/// The colour byte (`InstallerPages.kind_fonts`, 8 a kind) of a piece's marks (bits 6, 7) and a kind.
+/// The colour byte (`InstallerPages.kind_fonts`, 8 a kind) of a piece's marks (bits 6, 7) and kind.
 pub fn colour_at(marks: u8, kind: u32) -> u32 {
     (marks >> 6) as u32 + 8 * kind
 }
 
-/// The colour byte a piece is measured with: the font's at 5 in the kind's eight.
+/// The colour byte a piece is measured with: the font's at index 5 in the kind's eight.
 pub fn measure_colour_at(kind: u32) -> u32 {
     5 + 8 * kind
 }

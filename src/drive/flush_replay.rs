@@ -1,7 +1,7 @@
-//! `drive::flush_replay` (0x46022D): the replay's starting state (the replay's staging, `race::replay_staging_store`)
-//! copied into the frame `block` and the frames written (`drive::write_replay_frames`).
+//! The replay's starting state (the replay's staging, `race::replay_staging_store`) copied into
+//! the frame `block` and the frames written (`drive::write_replay_frames`).
 //!
-//! Caller: `drive::flush_replay_if`. Refuses what `write_replay_frames` refuses.
+//! Refuses what `write_replay_frames` refuses.
 
 use crate::cells::copy_cells;
 use crate::errors::Refused;

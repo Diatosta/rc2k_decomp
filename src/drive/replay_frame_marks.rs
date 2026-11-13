@@ -1,7 +1,5 @@
-//! `drive::replay_frame_marks` (0x41D8A3): the replay frame `replay_block`'s two marks
+//! The replay frame `replay_block`'s two marks
 //! (`block_cameras`[frame]`, 8 bytes) into `block` ...
-//!
-//! Callers: `race::viewer_frame`, `race::play_replay_range`, `drive::load_replay_frame`.
 
 use crate::errors::BadInput;
 use crate::race::owner::Race;
@@ -34,7 +32,6 @@ fn marks_at(buffers: &ViewerBuffers, at: usize) -> Result<[u32; 2], BadInput> {
     ])
 }
 
-// Converted: `rc2k_core::drive::replay_frames::marks_offset`.
 pub fn replay_frame_marks(race: &Race) -> Result<(), BadInput> {
     let replay = &race.replay;
     let at = rc2k_core::drive::replay_frames::marks_offset(replay.replay_view().replay_block.get());

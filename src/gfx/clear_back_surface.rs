@@ -1,11 +1,6 @@
-//! `gfx::clear_back_surface` (0x40579A): with a front surface (`g_frontSurface`), the
-//! screen locked (`gfx::lock_surface`; failing, nothing), its rows (`g_screenHeight` of
-//! `g_screenRowDwords` dwords from `present_pixels`, `present_gap` bytes between them)
-//! zeroed and unlocked (`gfx::unlock_surface`).
-//!
-//! Callers: `race::viewer_frame` (at the replay's end), `gfx::set_screen_mode`,
-//! 0x405B10. The lock and unlock (the platform's) are called directly. A
-//! height of 0 is refused (the original goes round 2^32 times), before anything.
+//! With a front surface, locks the screen (`gfx::lock_surface`; failing, nothing), zeroes its rows
+//! (the screen's height of its row dwords from `present_pixels`, `present_gap` bytes between them)
+//! and unlocks it (`gfx::unlock_surface`). A height of 0 is refused, before anything.
 
 use crate::errors::{BadInput, Refused};
 pub fn clear_back_surface(
@@ -19,11 +14,11 @@ pub fn clear_back_surface(
     if system.session.screen.get().height.get() == 0 {
         return Err(BadInput("a screen of no rows: the original goes round 2^32 times").into());
     }
-    // `cmp g_surfaceLocked, 1`'s carry: not locked.
+    // Not locked.
     if crate::platform::lock_surface(gfx, system) < 1 {
         return Ok(());
     }
-    // Each row's dwords, then the gap to the next (the original's step).
+    // Each row's dwords, then the gap to the next.
     let dwords = system.session.screen.get().row_dwords.get();
     let rows = crate::gfx::rows::Rows::new(
         drawing.draw_surface.present_pixels.get(),

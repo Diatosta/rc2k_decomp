@@ -1,10 +1,7 @@
-//! `hud::draw_view_strips` (0x45B7B1): unless `hold_car_revs`, for each player's view block
-//! (`g_viewBlocks`, `+4` for the second when `split` is not 0) whose +0xFA8 is 0 and +0x728
-//! is set: while its flash is on (+0x730 at most 0, or +0x72C modulo +0x730 below half of +0x730),
-//! `hud::draw_view_strip` for view `split` (the second's plus 3) with texture `polygon_textures`
-//! 0xC4 (0xC5); then the strips' shared tail (the original jumps to 0x45B9AA).
-//!
-//! Caller: `hud::overlay_pass` (0x45A92E).
+//! Unless `hold_car_revs`, for each player's view block (the second's when `split` is not 0)
+//! whose +0xFA8 is 0 and +0x728 is set: while its flash is on (+0x730 at most 0, or +0x72C
+//! modulo +0x730 below half of +0x730), `hud::draw_view_strip` for view `split` (the second's
+//! plus 3) with texture `polygon_textures` 0xC4 (0xC5); then the strips' shared tail.
 
 use crate::errors::{BadInput, Refused};
 use crate::hud::draw_view_strip::Overlay;
@@ -25,7 +22,6 @@ fn flashing(shared: &crate::race::owner_shared::RaceShared, handle: u32) -> Resu
     .shown())
 }
 
-// Converted: `rc2k_core::hud::strips`
 pub fn draw_view_strips(overlay: &Overlay) -> Result<(), Refused> {
     use crate::hud::draw_view_strip::{draw_view_strip, overlay_tail};
     let Overlay { race, scratch, .. } = *overlay;

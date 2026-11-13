@@ -1,11 +1,7 @@
-//! `drive::tyre_turned_quad` (0x41C969): the tyre-change screen's turning quad (the steering
+//! The tyre-change screen's turning quad (the steering
 //! wheel): the device's turn turning the half-sizes of the rectangle (floats: x, y, w, h)
 //! round its place plus `TyreChange::wheel`'s place, with the given colour and the texture
 //! rectangle (`quad_tail`), drawn (place 5).
-//!
-//! Takes: the texture rectangle, the rectangle, the colour, the input device
-//!
-//! Caller: `drive::tyre_screen`.
 
 use crate::d3d::vertices_store::{PolygonVertices, Vertex};
 use crate::drive::tyre_parts::*;
@@ -81,8 +77,6 @@ mod reference_vectors {
     use super::*;
     use crate::math::x87::{control_word, set_control_word};
     use crate::test_support::vectors::{CONTROL_WORDS, Recorder, Rng, close_float};
-
-    // The original's instructions.
 
     /// The struct's offsets of the window the turn writes and reads.
     const WINDOW: usize = 0;

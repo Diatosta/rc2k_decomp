@@ -1,17 +1,15 @@
-//! The players' records, out of RAL.EXE's image (IDA 0x755A4C .. 0x75648C): the four
-//! `Player` records of 0x28C bytes (`g_player1` .. `g_player4`) and `g_players`, the table of their
-//! addresses (IDA's, as the image has them; nothing reads them). One static. (The cars follow in `CarTable`.)
+//! The players' records: the four `Player` records of 0x28C bytes and the table of their
+//! addresses (nothing reads them). One static. (The cars follow in `CarTable`.)
 
 use crate::session::{PlainDword, Shared, with_runs};
 use rc2k_core::menu::player::Player;
 
-/// The four players and their table (IDA 0x755A4C .. 0x75648C).
+/// The four players and their table.
 #[derive(rc2k_derive::Cells)]
 pub struct PlayerTable {
-    /// `g_player1 .. g_player4`: The players' records (settings, and the state of each player's car).
+    /// The players' records (settings, and the state of each player's car).
     pub players: [Shared<Player>; 4],
-    /// `g_players`: the records' addresses as the image names them, player 1 first; read by
-    /// nothing (the original's code that follows them is converted to numbers).
+    /// The records' file addresses, player 1 first; read by nothing.
     pub pointers: [PlainDword; 4],
 }
 
@@ -251,7 +249,7 @@ impl PlayerTable {
 }
 
 /// Links each player's name to its player (the image's records held the old links). The
-/// table of the records' addresses (`g_players`) keeps the image's: nothing reads it, the
+/// table of the records' addresses keeps the image's: nothing reads it, the
 /// players are reached by number.
 pub fn point_players(menus: &crate::menu::owner::Menus) {
     for (n, player) in menus.play.players.players.iter().enumerate() {

@@ -1,27 +1,13 @@
-//! `system::load_game_data` (0x411239): loads what the game keeps between runs, and gives
-//! every name that is empty a default.
-//!
-//! In this order:
-//! - `saves::load_options`, `saves::load_best_times`, `settings::read_settings` (again:
-//!   the settings file outranks the kept options), `install::read_sku`, `runs`
-//!   + 1, `settings::read_driver_names`, `physics::apply_patches`;
-//! - by the setting `allsecretcars` (`g_allSecretCars`): 0 `menu::remove_secret_cars`; 1
-//!   the cheats' bits 0x1FBC set and `menu::apply_cheats`; anything else neither;
-//! - the first player's name (`name`), if empty: the user's name
-//!   (`system::user_name`: `GetUserNameA`, 0x1F bytes) cut down by
-//!   `strings::copy_printable` in place, and if that leaves nothing, string 0x18C; the
-//!   other three players' (0x20 bytes apart), if empty: strings 0x18D .. 0x18F;
-//! - the machine's name (`machine_name`), if empty: the computer's name
-//!   (`system::computer_name`, 0x40 bytes) the same way, else string 0x14D;
-//! - the tyre change record's name, if empty: a random one of the 180 strings from 0x5A5 on
-//!   (`math::random_below`), drawn again while what is there starts "andr", and
-//!   `g_tyreChangeRecord` = 0x5208 (210.00 s, the tyre change's best time);
-//! - all 100 saved games are read (`saves::read_savegame_slot`) and every slot's name
-//!   that is empty becomes string 0x4E0 and the slot's number in two digits; the same for
-//!   the replays (string 0x4E2) and the car setups (string 0x4E1).
-//!
-//! One caller, `start`. Refuses a default name that does not fit its place, and what its parts
-//! refuse. A refusal comes with the work half done, and the original then starts from the top.
+//! Loads what the game keeps between runs, and gives every name that is empty a default. In
+//! order: the options, the best times and the settings (again: the settings file outranks the
+//! kept options), the SKU, the run count + 1, the driver names and the physics patches; by
+//! `allsecretcars`, 0 removes the secret cars and 1 sets the cheats' bits 0x1FBC; an empty first
+//! player's name becomes the user's name (its printable part, else string 0x18C), the other three
+//! players' strings 0x18D .. 0x18F; an empty machine name the computer's name, else string 0x14D;
+//! an empty tyre-change record name a random one of the 180 strings from 0x5A5 (drawn again while
+//! it starts "andr"), its time 0x5208 (210.00 s); every empty saved game's, replay's and car
+//! setup's name string 0x4E0, 0x4E2 or 0x4E1 and the slot's number in two digits.
+//! Refuses a default name that does not fit its place, and what its parts refuse.
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::name_lists::NAME_LEN;
@@ -30,10 +16,6 @@ use crate::session::PlainDword;
 use crate::strings::append_string_by_id::push_string;
 use crate::strings::copy_printable::printable_from;
 
-// ---- game data ----
-
-// Converted: `rc2k_core::system::game_data` (the choices, the default names, the drawn
-// driver's name).
 use rc2k_core::system::game_data::{
     ALL_CARS_CHEATS, DRIVER_NAME_IDS, MACHINE_NAME_ID, PLAYER_NAME_IDS, REPLAY_NAME_ID,
     SAVEGAME_NAME_ID, SETUP_NAME_ID, SLOTS, TYRE_CHANGE_RECORD, USER_NAME_ROOM, all_secret_cars,
@@ -297,10 +279,10 @@ pub fn load_in_game(o: Owners<'static>) -> Result<(), Refused> {
     load_game_data(o, &mut |call| in_game(o, call))
 }
 
-/// How many times the game was run (IDA 0x518BB0 .. 0x518BB4).
+/// How many times the game was run.
 #[derive(rc2k_derive::Cells)]
 pub struct RunCount {
-    /// 0x518BB0: `g_runCount`: the game's runs counted (`system::load_game_data`; the save file keeps it).
+    /// The game's runs counted (the save file keeps it).
     pub runs: PlainDword,
 }
 

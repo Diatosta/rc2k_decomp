@@ -1,29 +1,23 @@
 //! The stage screens' small set-ups and steps (`menu::view_stage_loop`, `next_stage_loop`,
 //! `welcome_loop` and the stage page items). `event.index` and `event.section` pick a record
-//! of the record table (`records::find_record`, 0xA4 a record); the event mode 2 is the
+//! of the record table (`records::find_record`, 0xA4 a record); event mode 2 is the
 //! championship.
-//! - `menu::count_stage_pages`: how many records after the stage's have a first dword 0, into
+//! - `count_stage_pages`: how many records after the stage's have a first dword 0, into
 //!   `event.stage_pages`.
-//! - `menu::play_stage_speech`: in the championship, the stage's speech: the record's +4
-//!   picks an entry of the speech name list, which names the sound file; the speech's volume
-//!   is the options' speech level; `sound::start_stream`.
-//! - `menu::play_rally_speech`: the pending key taken (`input::take_key`); in the
-//!   championship, the section's rally speech (";3files\%speech\rally\rally1.wav" ..) at the
-//!   speech's volume, `sound::start_stream`.
-//! - `menu::load_welcome_picture`: the welcome screen's background: the section's picture
-//!   (in the championship the championship list, else the other) with the title bar
-//!   "files\g\graphics\screens\titlebar.p..", `gfx::load_picture_with_overlay` (a set carry:
-//!   fatal error 0x80712345 without a message), `gfx::convert_picture`.
-//! - `menu::previous_stage_page`, `next_stage_page`: `event.stage_page` one less (0:
-//!   `event.stage_pages`) or one more (past `stage_pages`, signed: 0), `index` =
-//!   `event.first_page_stage` + it, `menu::draw_stage_map` and `play_stage_speech`.
-//! - `menu::style_stage_item_a`: menu item 1 (`menu::item_at`) +0x1C and +0x20 0xFFFFFFA9,
-//!   +0x50 the font 0x51E9A4. `style_stage_item_b`: +0x1C 0xFFFFFFA7, +0x20 the address of
-//!   a sprite list, +0x50 0x51E884. What the two looks are is a reading.
+//! - `previous_stage_page` / `next_stage_page`: `event.stage_page` one less or more, wrapping
+//!   over 0 .. `event.stage_pages`; `index` = `event.first_page_stage` + the page, then the map
+//!   is drawn and the stage's speech played.
+//! - `play_stage_speech`, `play_rally_speech` (which first takes the pending key): in the
+//!   championship, the stage's or the section's speech through `sound::start_stream` at the
+//!   options' speech level.
+//! - `load_welcome_picture`: the section's picture (from the championship's list or the other)
+//!   with the title bar; a failed load is fatal error 0x80712345.
+//! - `style_stage_item_a` / `_b`: the look of menu item 1 (`menu::item_at`); what the two looks
+//!   are is a reading.
 //!
-//! Refusals (before anything): a section past what `g_recordTable` has in 600 records;
-//! more than 256 pages; a speech list entry past 0x40 or null; a section past 0x20 for
-//! the speeches and pictures; what `item_at` refuses.
+//! Refusals (before anything): a section past what the record table has in 600 records; more
+//! than 256 pages; a speech list entry past 0x40 or null; a section past 0x20 for the speeches
+//! and pictures; what `item_at` refuses.
 
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::menu::event_flow::Fault;
@@ -63,7 +57,6 @@ fn small_section(menus: &Menus) -> Result<u32, Refused> {
 pub fn count_stage_pages(screens: &Screens, system: &System) -> Result<(), Refused> {
     let stages = &system.records().stage_tables;
     let record = stage_record(screens, system)?;
-    // The logic is in `rc2k_core::menu::event::stage_pages`.
     let fault = Fault::default();
     let n = rc2k_core::menu::event::stage_pages(|k| {
         fault.ok(record.offset(stages, k).map(|r| r.tag(stages)))
@@ -79,7 +72,6 @@ pub fn play_stage_speech(o: crate::owners::Owners<'static>) -> Result<(), Refuse
     let (menus, sound, audio, system) = (o.menus, o.sound, o.audio, o.system);
     let record = stage_record(&menus.screens, system)?;
     if championship(menus) {
-        // The logic is in `rc2k_core::menu::stage_screens::stage_speech`.
         let fault = std::cell::Cell::new(None);
         let at = stage_screens::stage_speech(
             record.record(&system.records().stage_tables)?.track(),
@@ -118,7 +110,6 @@ pub fn play_stage_speech(o: crate::owners::Owners<'static>) -> Result<(), Refuse
 /// `menu::play_rally_speech`: a key taken (and dropped), then the rally's speech.
 pub fn play_rally_speech(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     let (menus, input) = (o.menus, o.input);
-    // The logic is in `rc2k_core::menu::stage_screens::rally_speech`.
     let section = stage_screens::rally_speech(menus.play.champ_view.event_mode.get(), || {
         menus.screens.event.section.get()
     })?
@@ -139,7 +130,6 @@ pub fn play_rally_speech(o: crate::owners::Owners<'static>) -> Result<(), Refuse
 pub fn load_welcome_picture(o: Owners<'static>) -> Result<(), Refused> {
     let menus = o.menus;
     let section = small_section(menus)?;
-    // The logic is in `rc2k_core::menu::stage_screens::welcome`.
     let championship = matches!(
         stage_screens::welcome(menus.play.champ_view.event_mode.get()),
         stage_screens::Welcome::Championship
@@ -177,7 +167,6 @@ pub fn step_stage_page(o: Owners<'static>, up: bool) -> Result<(), Refused> {
         screens.event.stage_page.get(),
         screens.event.stage_pages.get(),
     );
-    // The logic is in `rc2k_core::menu::steps::stage_page`.
     let page = rc2k_core::menu::steps::stage_page(page, pages, up);
     screens.event.stage_page.set(page);
     screens

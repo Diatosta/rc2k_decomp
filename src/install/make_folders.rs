@@ -1,15 +1,9 @@
-//! `install::make_folders` (0x413A97): the folders of a path made, segment by segment. A
-//! drive path (`X:`) first changes to the drive's root; a UNC path (`\\`) skips the server
-//! and share. Then for each `\`-separated segment the path is cut there and changed into
-//! (`files::set_current_directory`); where that fails the folder is made
-//! (`files::make_directory`) and entered. The path's bytes are cut with a NUL and put back
-//! as the walk goes. A failed change or make ends it.
-//!
-//! A path without its closing `\\` (as `install_files` gives every folder) has its last
-//! folder made at its NUL: the original scans on past it into the buffers that follow
-//! (`notes/bugs.md`), to the same effect. Refuses (as met) a scan of 0x400 bytes from the
-//! path's start, and a UNC path without its share's `\\`.
-//! Callers `install::install_files`, `install::install_clio`.
+//! The folders of a path made, segment by segment: a drive path first changes to the drive's
+//! root, a UNC path skips the server and share; then each `\`-separated segment is entered
+//! (`files::set_current_directory`) and, where that fails, made (`files::make_directory`). A
+//! failed change or make ends it. A path without its closing `\` has its last folder made at its
+//! NUL. Refuses a scan of 0x400 bytes from the path's start and a UNC path without its share's
+//! `\`. Called by `install::install_files`, `install::install_clio`.
 
 use crate::errors::{BadInput, Refused};
 use crate::install::installer::{make_dir, rb, rw, set_cd, wb};
@@ -17,19 +11,18 @@ use crate::place::BytePlace;
 
 const LIMIT: u32 = 0x400;
 
-/// A path that does not end in `\\`: the original looks for the next one past its end.
+/// A path that does not end in `\\`: the walk looks for the next one past its end.
 const PAST_END: BadInput =
     BadInput("a path that does not end in \\ (the original reads past its end)");
 
-/// The folders of `path` gone into, made where missing; whether it worked (the
-/// original's carry clear).
+/// The folders of `path` gone into, made where missing; whether it worked.
 pub fn make_folders(path: impl Into<BytePlace>) -> Result<bool, Refused> {
     use crate::install::folders::{Folders, Native};
     <Native as Folders>::make(path.into())
 }
 
-/// The original's walk (`install::folders`' Windows rules); `at` the byte the original's
-/// walk is on, as an offset from the path's start.
+/// The Windows walk (`install::folders`' rules); `at` the byte the walk is on, as an offset
+/// from the path's start.
 #[cfg_attr(not(windows), allow(dead_code))] // reason: the Windows rules' and the tests'
 pub fn walk(path: BytePlace) -> Result<bool, Refused> {
     let byte = |n: u32| rb(path.add(n));
@@ -65,7 +58,7 @@ pub fn walk(path: BytePlace) -> Result<bool, Refused> {
             return Ok(false);
         }
     }
-    // loc_413AD6. Bounded: 0x400 bytes from the path's start.
+    // Bounded: 0x400 bytes from the path's start.
     while byte(at + 1) != 0 {
         loop {
             at += 1;
@@ -74,11 +67,8 @@ pub fn walk(path: BytePlace) -> Result<bool, Refused> {
             }
             match byte(at) {
                 b'\\' => break,
-                // The path's end without its closing `\`. The original scans on past its NUL
-                // to the next `\` in the buffers that follow: its first cut there leaves the
-                // path whole, so the last folder is gone into or made, and each later one
-                // only goes into it again. Done here at the NUL, without reading past the
-                // path's own buffer (whose end the scan would otherwise reach and refuse).
+                // The path's end without its closing `\`: the last folder is gone into or made
+                // at the NUL, without reading past the path's own buffer.
                 0 => return Ok(set_cd(path) || (make_dir(path) && set_cd(path))),
                 _ => {}
             }

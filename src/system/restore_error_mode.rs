@@ -1,8 +1,5 @@
-//! `system::restore_error_mode` (0x402B95): at the game's end, if the error mode was
-//! changed (`changed` 1, `system::set_error_mode`), the switch 0 and the mode it
-//! had before (`uMode`) put back (`SetErrorMode`).
-//!
-//! One caller, `start`'s way out (0x401116, also the short one), which calls it directly.
+//! At the game's end, if the error mode was changed (`system::set_error_mode`), the switch is
+//! set to 0 and the mode it had before put back.
 pub fn restore_error_mode(system: &crate::system::owner::System) {
     if system.start().error_mode.changed.get() != 1 {
         return;

@@ -1,7 +1,4 @@
-//! A menu's items: where each lies, and the looks the item actions give them
-//! (from `menu::item_at` 0x471CEF, `menu::disable_item` 0x46B4F6 /
-//! `enable_item` 0x46B50F, `menu::hide_in_game_options` 0x46FB63 /
-//! `show_in_game_options` 0x46FBE3 and `menu::hide_all_in_game_options` 0x46FC52, `menu::run_item_action` 0x474683).
+//! A menu's items: where each lies, and the looks the item actions give them.
 
 use crate::Invalid;
 use crate::menu::navigation::CAN_BE_CHOSEN;
@@ -14,9 +11,8 @@ pub const MENU_HEAD_LEN: u32 = 4;
 /// An item's +0x48 when the moves up and down pass over it (greyed or hidden).
 pub const PASSED_OVER: u32 = 0xFFFF_FC1C;
 
-/// Where item `number` (from 1) of the current menu lies (`menu` gives the menu, asked only
-/// for an item it can find). Refused: item 0, for which the original counts through all 32
-/// bits.
+/// Where item `number` (from 1) of the current menu lies (`menu` gives the menu, asked only for an
+/// item it can find). Refused: item 0.
 pub fn item_at(number: u32, menu: impl FnOnce() -> u32) -> Result<u32, Invalid> {
     if number == 0 {
         return Err(Invalid(
@@ -28,7 +24,7 @@ pub fn item_at(number: u32, menu: impl FnOnce() -> u32) -> Result<u32, Invalid> 
         .wrapping_add((number - 1).wrapping_mul(ITEM_LEN)))
 }
 
-/// The two fonts an item is given (the game's at 0x51E8E4 and 0x51EA04).
+/// The two fonts an item is given.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Font {
     Plain,
@@ -90,9 +86,9 @@ pub const ITEMS_END: u32 = u32::MAX;
 pub const MOST_ITEMS: u32 = 256;
 
 /// `menu::run_item_action`'s search: the number (from 0) of the first item whose type
-/// (`item_type(n)`) is `highlighted`, or None when the items end first (`word(n)` an
-/// item's first dword, the end mark; the first item is not checked for it). Refused:
-/// no end in `MOST_ITEMS` items.
+/// (`item_type(n)`) is `highlighted`, or None when the items end first (`word(n)` an item's first
+/// dword, the end mark; the first item is not checked for it). Refused: no end in `MOST_ITEMS`
+/// items.
 pub fn highlighted_item(
     highlighted: u32,
     mut item_type: impl FnMut(u32) -> u32,

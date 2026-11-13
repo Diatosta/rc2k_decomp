@@ -1,11 +1,5 @@
-//! `net::lobby_button` (0x41802F): one of the lobby's buttons, right to left: drawn
-//! (`net::draw_button`, flags 1, at x, y), dim (flag 2) while this player is ready (state & 1)
-//! for all but item 3, and for item 0 after a race (`after_race` 1); x then
-//! moves left past it (its width `width` + 0x44, and 8 more). (The code after its
-//! `ret`, 0x41806E .. 0x418082, is reached by nothing.)
-//!
-//! Takes the string, the item, x and y.
-//! Caller: `net::lobby_frame` (four times).
+//! One of the lobby's buttons, drawn right to left with `net::draw_button`; dim while this
+//! player is ready (except item 3) and for item 0 after a race. x moves left past the button.
 
 use crate::errors::Refused;
 use crate::install::owner::Install;
@@ -30,7 +24,7 @@ pub fn lobby_button(
     gfx: &'static crate::gfx::owner::Gfx,
     menus: &crate::menu::owner::Menus,
 ) -> Result<u32, Refused> {
-    // Converted: `rc2k_core::net::screens` (`lobby_button_flags`, `next_button_x`).
+    // The logic is in `rc2k_core::net::screens` (`lobby_button_flags`, `next_button_x`).
     let flags =
         screens::lobby_button_flags(net.vars.own.state(), item, net.lobby().after_race.get());
     draw_button(so, net, install, string, flags, x, y, item, gfx, menus)?;

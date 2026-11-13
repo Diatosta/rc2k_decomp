@@ -1,19 +1,17 @@
-//! The game's file search on std (it was `FindFirstFileA` / `FindNextFileA` /
-//! `FindClose`): the folder listed with `std::fs::read_dir`, its names matched as Windows
-//! matched them (`rc2k_core::files::wildcard`) in NTFS's order. One search at a time, as
-//! the game kept one (`hFindFile`, now 1 while a search is open). Each name found is put in
-//! the game's search record (`FindFileData`) where the game reads it: the attributes at
-//! +0, the name at +0x2C. `.` and `..` are not listed (the game passes over them by name).
+//! The game's file search on std: the folder listed with `std::fs::read_dir`, its names matched
+//! as Windows matched them (`rc2k_core::files::wildcard`) in NTFS's order. One search at a time.
+//! Each name found is put in the search record (`FindFileData`): the attributes at +0, the name
+//! at +0x2C. `.` and `..` are not listed.
 
 use crate::files::state::{FIND_DATA, FIND_HANDLE};
 use std::sync::Mutex;
 
-/// FILE_ATTRIBUTE_DIRECTORY, _READONLY, _ARCHIVE: what the record's attributes hold.
+/// `FILE_ATTRIBUTE_DIRECTORY`, `_READONLY`, `_ARCHIVE`: what the record's attributes hold.
 pub const DIRECTORY: u32 = 0x10;
 const READ_ONLY: u32 = 0x01;
 const ARCHIVE: u32 = 0x20;
 
-/// FindFileData.cFileName's offset and room (MAX_PATH).
+/// `cFileName`'s offset and room (`MAX_PATH`).
 const NAME_AT: usize = 0x2C;
 const NAME_ROOM: usize = 260;
 /// The record's length (`WIN32_FIND_DATAA`).
@@ -69,7 +67,6 @@ fn list(pattern: &[u8]) -> Option<Vec<(Vec<u8>, u32)>> {
     (!found.is_empty()).then_some(found)
 }
 
-/// One found name put in the game's record.
 fn put((name, attributes): &(Vec<u8>, u32)) {
     let mut record = [0u8; RECORD_LEN];
     record[..4].copy_from_slice(&attributes.to_le_bytes());
@@ -112,7 +109,6 @@ pub fn first(pattern: &[u8], skipped: u32) -> bool {
     open && next(skipped)
 }
 
-/// The search closed, if there is one.
 pub fn close() {
     *SEARCH
         .lock()
@@ -128,7 +124,6 @@ pub fn found_name() -> Vec<u8> {
     name[..name.iter().position(|&b| b == 0).unwrap_or(NAME_ROOM)].to_vec()
 }
 
-/// The record's attributes.
 pub fn found_attributes() -> u32 {
     FIND_DATA.get_u32(0)
 }

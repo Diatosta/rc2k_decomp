@@ -7,8 +7,6 @@ use crate::menu::state_store::SetupItem;
 use crate::service::state::current_player;
 use crate::session::PlainDword;
 
-// ---- steppers ----
-
 #[derive(Clone, Copy)]
 pub enum Target {
     /// The chosen value of a setup item (`setups[n].chosen`).
@@ -17,8 +15,8 @@ pub enum Target {
     CarField(rc2k_core::menu::player::SetupField),
 }
 
-/// One step down stops at 0 (a value that is already negative goes on down, as in the
-/// original); one step up stops at `max`, and a value above `max` becomes `max`.
+/// One step down stops at 0 (a value that is already negative goes on down; kept); one step
+/// up stops at `max`, and a value above `max` becomes `max`.
 #[derive(Clone, Copy)]
 pub struct Stepper {
     pub target: Target,
@@ -51,14 +49,11 @@ fn with_target(
 }
 
 pub fn step(menus: &Menus, stepper: Stepper) -> Result<(), Refused> {
-    // Converted: `rc2k_core::service::repairs::step`.
     with_target(menus, stepper, |value| {
         rc2k_core::service::repairs::step(value as i32, stepper.max, stepper.up) as u32
     })?;
     Ok(())
 }
-
-// ---- selecting a change ----
 
 /// A setup value that costs service time to change: `chosen` is what the keys step,
 /// `installed` what the car has.

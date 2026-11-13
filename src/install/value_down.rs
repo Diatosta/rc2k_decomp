@@ -1,14 +1,10 @@
-//! `install::value_down` (0x414881): an item of a value (kind 3) lowered by the key's
-//! repeats (`g_listRepeats`), not below its least (`[item+0Ch]`, signed compare).
-//!
-//! Returns the value's address, least, new value.
-//! Callers `install::key_left`.
+//! An item of a value (kind 3) lowered by the key's repeats, not below its least (signed
+//! compare). Called by `install::key_left`.
 
 use crate::menu::list_handle::ListItem;
 
 pub fn value_down(install: &crate::install::owner::Install, item: ListItem) {
     let value_at = item.value();
-    // Converted: `rc2k_core::install::items::value_down`.
     let value = rc2k_core::install::items::value_down(
         value_at.get(),
         install.pages.repeats.get(),

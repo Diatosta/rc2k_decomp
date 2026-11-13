@@ -1,20 +1,12 @@
-//! The cars listed for a device or sound slot (from the three
-//! twins `physics::flag_current_car_listed` 0x45D151, `set_flag_5165a0` 0x45D16D and
-//! `set_flag_5165a4` 0x45D189): a flag set when the current car has an entry in
-//! `listed_car_sounds` (eight, by car; -1 none). And the cues sent to a listed car's sound
-//! object (from `physics::cue_car_sound` 0x40ECE7,
-//! `cue_car_sound_last` 0x40ECBB, `cue_listed_car_sound` 0x45D1BC,
-//! `cue_listed_car_sound_last` 0x45D1D3 and `sound_cue_e5` 0x45D028): the sound objects
-//! (`g_raceSoundObjects`, eight, by car) and which cars' cues are heard.
+//! The cars listed for a device or sound slot (eight, by car; -1 none), and the cues sent to a
+//! listed car's sound object.
 
 use crate::Invalid;
 
 /// No entry.
 pub const NOT_LISTED: u32 = u32::MAX;
 
-/// The current car's entry, `entry(car)` asked once the car is known to be one of the
-/// eight (past 7 is refused: the table holds eight); and whether the flag
-/// is set by it (the entry not -1).
+/// The current car's entry (a car past 7 is refused), and whether it is listed.
 pub fn listed_entry(car: u32, entry: impl FnOnce(u32) -> u32) -> Result<(u32, bool), Invalid> {
     if car > 7 {
         return Err(Invalid("a current car past 7"));
@@ -23,22 +15,19 @@ pub fn listed_entry(car: u32, entry: impl FnOnce(u32) -> u32) -> Result<(u32, bo
     Ok((e, e != NOT_LISTED))
 }
 
-/// Where a cue goes in the object's queue (the original's leftover value for
-/// `physics::queue_sound_cue`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum CuePlace {
-    /// `physics::cue_car_sound`: first (0).
+    /// Queued first.
     First = 0,
-    /// `physics::cue_car_sound_last` (the pace notes): last (1).
+    /// Queued last (the pace notes).
     Last = 1,
 }
 
-/// A sound object's +8: 1 when the object is in use (`SoundObject::in_use`), so it takes cues.
+/// A sound object's in-use flag value: it takes cues.
 pub const READY: u32 = 1;
 
-/// `physics::cue_car_sound` and `_last`: for `which` 0 or 1 (unsigned; else nothing), the
-/// car `car_of(which)` (past 7 refused), its sound object `object_of(car)` (a handle of
-/// the caller's, never null), its +8 `ready_of(object)`: the object when that is `READY`.
+/// For `which` 0 or 1 (else nothing): the car's sound object when it is `READY` (a car past 7
+/// is refused).
 pub fn cue_object<O: Copy>(
     which: u32,
     car_of: impl FnOnce(u32) -> u32,
@@ -56,12 +45,10 @@ pub fn cue_object<O: Copy>(
     Ok((ready_of(object) == READY).then_some(object))
 }
 
-/// `physics::sound_cue_e5`'s stores into the current car's sound object (`SoundObject::cue_sound` 0xE5, `cue_volume` 0, and +0x10, which
-/// `new_revs` shares, 1): (offset, value) in the original's order.
+/// The stores of cue 0xE5 into the current car's sound object: (offset, value).
 pub const CUE_E5: [(u32, u32); 3] = [(0x24C, 0xE5), (0x250, 0), (0x10, 1)];
 
-/// `physics::sound_cue_e5`: the current car's sound object number (`car & 7`) when the
-/// car is listed; none when not; a car past 7 refused first.
+/// The current car's sound object number when the car is listed; a car past 7 is refused.
 pub fn cue_e5_object(car: u32, entry: impl FnOnce(u32) -> u32) -> Result<Option<u32>, Invalid> {
     let (_, listed) = listed_entry(car, entry)?;
     Ok(listed.then_some(car & 7))

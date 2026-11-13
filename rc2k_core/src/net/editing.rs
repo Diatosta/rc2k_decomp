@@ -1,8 +1,6 @@
-//! The network screens' text being edited (from `net::edit_key`
-//! 0x416E43 and `net::begin_setting_edit` 0x416C26): one item's
-//! text at a time (the item noted, -1 for none), 64 bytes kept for Escape, characters added
-//! while the text is narrower than allowed. As the installer's edits
-//! (`crate::install::edits`), with the network's own keys and room.
+//! The network screens' text being edited: one item's text at a time (the item noted, -1 for
+//! none), 64 bytes kept for Escape, characters added while the text is narrower than allowed.
+//! Like `crate::install::edits`, with the network's own keys and room.
 
 use crate::Invalid;
 use crate::strings::bytes::Bytes;
@@ -19,15 +17,15 @@ pub const WIDTH: u32 = 0x30C;
 /// What a key does to the text being edited.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum EditKey {
-    /// 1: the kept text put back and the editing ended.
+    /// The kept text put back and the editing ended.
     Escape,
-    /// 0x1C: the editing ended.
+    /// The editing ended.
     Enter,
-    /// 0x6E: the text's 64 bytes cleared.
+    /// The text's 64 bytes cleared.
     Clear,
-    /// 0x0E: its last character dropped.
+    /// Its last character dropped.
     Backspace,
-    /// Any other: the key made a character (`input::key_to_char`).
+    /// Any other key: it makes a character (`input::key_to_char`).
     Other,
 }
 
@@ -44,7 +42,7 @@ impl EditKey {
 }
 
 /// The byte Backspace clears: the last before the text's NUL; `None` for an empty text.
-/// Refused: a text with no end (the original reads on).
+/// Refused: a text with no end.
 pub fn last_char(text: &(impl Bytes + ?Sized)) -> Result<Option<usize>, Invalid> {
     let first = text.byte(0).ok_or(Invalid("an edited text with no end"))?;
     if first == 0 {
@@ -87,13 +85,13 @@ pub fn too_wide(width: u32, widest: u32) -> bool {
 /// The settings screen's items Enter starts editing.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Setting {
-    /// 1: the player's name.
+    /// The player's name.
     Name,
-    /// 2: the most players, edited as a number's text.
+    /// The most players, edited as a number's text.
     MostPlayers,
-    /// 3: the host's address.
+    /// The host's address.
     HostAddress,
-    /// Any other: nothing edited.
+    /// Any other item: nothing is edited.
     None,
 }
 

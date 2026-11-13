@@ -1,16 +1,13 @@
-//! `drive::keep_replay_frame` (0x45FFB6): the replay's frame and tenth (`frame`,
+//! The replay's frame and tenth (`frame`,
 //! `tenth`, 0 when playing, `replay_mode` 2; else the first block's +8 / 100 and its
 //! remainder); at a whole frame, while recording (`replay_mode` 1),
 //! `drive::save_replay_cars`. (The original also kept the four car blocks in slot frame & 7 of a
 //! store nothing read; that copy is gone.)
-//!
-//! Caller: `drive::replay_step`.
 
 use crate::errors::BadInput;
 use crate::race::owner::Race;
 use rc2k_core::drive::replay_frames::{PLAYING, RECORDING, frame_and_tenth};
 
-// Converted: `rc2k_core::drive::replay_frames::frame_and_tenth`.
 pub fn keep_replay_frame(race: &Race) -> Result<(), BadInput> {
     race.replay.replay_frames().frame.set(0);
     race.replay.replay_frames().tenth.set(0);

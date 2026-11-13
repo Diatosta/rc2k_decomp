@@ -1,6 +1,5 @@
-//! `menu::add_text_length` (0x46F4CE): adds the length of the NUL-terminated text at edi to
-//! the text entry's length. Its callers use it with the length at 0, to set it to the length
-//! of a text just restored.
+//! `menu::add_text_length`: adds the length of a NUL-terminated text to the text entry's length.
+//! Its callers use it with the length at 0, to set it to the length of a text just restored.
 //!
 //! Refuses a text with no NUL in its first 0x1000 bytes.
 
@@ -13,7 +12,6 @@ pub fn add_text_length(
     menus: &Menus,
     text: impl Into<crate::place::BytePlace>,
 ) -> Result<(), BadInput> {
-    // The logic is in `rc2k_core::menu::text_entry::{text_length, Entry::add_length}`.
     let text = text.into();
     let fault = crate::menu::event_flow::Fault::default();
     let len = text_length(|i| {

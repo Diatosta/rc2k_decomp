@@ -3,8 +3,8 @@
 //! by the field here (`menu::screen_loop`), and `menu::run_list` / `menu::frame_callback`
 //! walk the typed functions of the list. A list is named for the screen and the pointer it
 //! is put in (`unread`, `draw`, `overlay`, `scene`, `setup`), or, where several screens
-//! share it, for the pointers and its IDA address. Only the lists the Rust code names are
-//! here; the table has them all.
+//! share it, for the pointers it is put in. Only the lists the Rust code names are here; the
+//! table has them all.
 
 use crate::menu::fn_list::FnList;
 

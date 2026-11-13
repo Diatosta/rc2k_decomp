@@ -1,8 +1,7 @@
-//! The squares' and windscreen drops' items ending (from `effects::expire_windscreen_flakes`
-//! 0x4C06AD and `effects::expire_windscreen_drops` 0x4BCB1D): a live item ends when its cell of the
-//! masks (0x80 rows of 0x100, a cell 8 units square) holds the shapes' value, and a windscreen drop
-//! also by lot. The place is rounded by `fistp` of a float loaded from memory, which does not
-//! depend on the x87's precision.
+//! The squares' and windscreen drops' items ending: a live item ends when its cell of the masks
+//! (0x80 rows of 0x100, a cell 8 units square) holds the shapes' value, and a windscreen drop also
+//! by lot. The place is rounded by `fistp` of a float loaded from memory, which does not depend on
+//! the x87's precision.
 
 use crate::math::geometry::fistp;
 
@@ -36,8 +35,8 @@ pub fn square_ends(shape: u8, runs: impl FnOnce() -> i32, mask: impl Fn(usize) -
     first || second
 }
 
-/// A windscreen drop's draw of the squares' random (`WindscreenDropVars.random`, times 0xC5 plus 0x5D): the
-/// random after, and the draw (bits 16 .. 26); a draw of 0 ends it.
+/// A windscreen drop's draw of the squares' random (`WindscreenDropVars.random`, times 0xC5 plus
+/// 0x5D): the random after, and the draw (bits 16 .. 26); a draw of 0 ends it.
 pub fn windscreen_drop_draw(random: u32) -> (u32, u32) {
     let r = random.wrapping_mul(0xC5).wrapping_add(0x5D);
     (r, r.rotate_right(16) & 0x7FF)

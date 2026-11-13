@@ -1,13 +1,13 @@
-//! `menu::load_slideshow_picture` (0x4684F5): the slideshow's picture of the car shown,
+//! `menu::load_slideshow_picture`: the slideshow's picture of the car shown,
 //! the next one that is there.
 //!
-//! The car (as `menu::load_car_background` finds it, 0x21 counting as 0x17); its pictures are
-//! the slideshow picture paths (`;3files\g\slides\mgnslNN.png` and so on) with the number `event.picture`.
-//! Starting from that number: the path made (`files::numbered_path`); if the file is there it is
-//! taken, else the path's last two characters become "cx" (`.pcx`) and if that is there it is
-//! taken; else the number steps the way (from 0 back to 99, from 99 on to 0) and the next is tried,
-//! until the number comes round to where it started, when the last path tried is taken anyway. Then
-//! `gfx::load_picture_with_overlay` with it and the title bar
+//! The car (as `menu::load_car_background` finds it, 0x21 counting as 0x17); its pictures are the
+//! slideshow picture paths (`;3files\g\slides\mgnslNN.png` and so on) with the number
+//! `event.picture`. Starting from that number: the path made (`files::numbered_path`); if the file
+//! is there it is taken, else the path's last two characters become "cx" (`.pcx`) and if that is
+//! there it is taken; else the number steps the way (from 0 back to 99, from 99 on to 0) and the
+//! next is tried, until the number comes round to where it started, when the last path tried is
+//! taken anyway. Then `gfx::load_picture_with_overlay` with it and the title bar
 //! (`files\g\graphics\screens\titlebar.png`), or, if that could not read it, `gfx::load_picture` of
 //! the title bar alone; then `gfx::convert_picture`. Five call sites: the slideshow's buttons and
 //! its set-up. Refuses a car with no pictures (only the first 0x18 have them), and what its parts
@@ -23,12 +23,10 @@ use crate::menu::load_car_background::shown_car;
 use crate::menu::owner::Menus;
 use crate::owners::Owners;
 
-// ---- game data ----
-
 /// What it asks for.
 pub enum Step<'a> {
     /// `gfx::load_picture_with_overlay` with the path (its text, without the NUL) and the
-    /// title bar: the carry.
+    /// title bar: whether it failed.
     Overlay(Vec<u8>, &'a dyn crate::session::TextPlace),
     /// `gfx::load_picture` of the title bar.
     Load(&'a dyn crate::session::TextPlace),
@@ -40,7 +38,6 @@ pub fn load_slideshow_picture(
     way: u32,
     step: &mut dyn FnMut(Step<'_>) -> Result<bool, Refused>,
 ) -> Result<(), Refused> {
-    // The logic is in `rc2k_core::menu::slides` (`slideshow_car`, `search`, `pcx`).
     use rc2k_core::menu::slides;
     let car = slides::slideshow_car(shown_car(menus)?)?;
     let template = crate::menu::texts_store::text_at(
@@ -55,7 +52,7 @@ pub fn load_slideshow_picture(
         start,
         (way as i32) < 0,
         |number| -> Result<bool, Refused> {
-            // The path is also written to `PATHS`, as the original builds it there.
+            // The path is also written to `PATHS`.
             let numbered = numbered_path_bytes(&template, number)?;
             let there = file_exists(&numbered)?;
             path = Some(numbered.clone());
@@ -93,8 +90,8 @@ pub fn load_slideshow_picture_in(o: Owners<'static>, way: u32) -> Result<(), Ref
     })
 }
 
-/// A picture's path as a value, for the loader that may swap its ending: the swap is
-/// written to the value and, as the original swapped it in place, to `PATHS` too.
+/// A picture's path as a value, for the loader that may swap its ending: the swap is written
+/// to the value and to `PATHS` too.
 struct MirroredPath(std::cell::RefCell<Vec<u8>>);
 
 impl MirroredPath {

@@ -1,8 +1,5 @@
-//! `install::close_installer` (0x414490): the installer's memory list (`buffers`) freed
-//! (`memory::free_list`) and its folder- and file-name table pointers (`dirs`,
-//! `files`) zeroed.
-//!
-//! Caller `install::run_installer`.
+//! Frees the installer's memory list and zeroes its folder- and file-name table pointers.
+//! Called by `install::run_installer`.
 
 use crate::errors::Refused;
 

@@ -1,5 +1,5 @@
-//! `menu::sort_standings_b_by_score` (0x4A5C77): standings table B's first 0xB4 entries sorted going down by their +0x50, as
-//! `menu::standings::sort_table_b`.
+//! `menu::sort_standings_b_by_score`: standings table B's first 0xB4 entries sorted going down by
+//! their +0x50, as `menu::standings::sort_table_b`.
 //!
 //! Callers: two of the game's. Refuses a null table, before anything.
 use crate::errors::Refused;

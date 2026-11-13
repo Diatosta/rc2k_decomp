@@ -1,20 +1,10 @@
-//! The standalone program's installation record in place of the registry (owner:
-//! the standalone is portable, a folder that needs nothing outside it; a decided difference
-//! from the original).
-//!
-//! What the original keeps under `HKEY_LOCAL_MACHINE\SOFTWARE\Magnetic Fields\RC99`
-//! (`install::write_registry`, `install::read_registry`):
-//! - `status` (one byte: 1 installed) is kept in `var\install.cfg` of the installation's
-//!   folder, a settings text as `var\ral.zog` (`status=1`);
-//! - `source` (the installation's folder) is not kept: read, it is always the folder the
-//!   program runs in (the current directory with a `\`, as `files::current_directory`
-//!   gives it), so that a copied or moved folder is still its own installation. Written, it
-//!   says only where the record goes (the folder being installed to).
-//!
-//! The DirectPlay lobby's key (`install::register_lobby`, `unregister_lobby`) is not
-//! written: the standalone cannot be started by a lobby (its DirectPlay is not lobbied).
-//! Started from somewhere that is no installation (a CD), there is no record to find: the
-//! installer offers a new installation where the original offered an update.
+//! The standalone program's installation record in place of the registry: the standalone is
+//! portable, a folder that needs nothing outside it. `status` (1 installed) is kept in
+//! `var\install.cfg`; `source` is not kept: read, it is always the folder the program runs in,
+//! so that a copied or moved folder is still its own installation; written, it says only where
+//! the record goes. The DirectPlay lobby's key is
+//! not written. Started from somewhere that is no installation (a CD), there is no record to
+//! find: the installer offers a new installation.
 
 use crate::install::read_registry::{Query, Registry};
 use std::sync::Mutex;
@@ -30,7 +20,7 @@ pub fn is_source_folder() -> bool {
     let here = |p: &str| crate::files::host_path(p.as_bytes()).exists();
     here("files\\d\\gfx\\jade.bun") && !here("var\\ral.zog") && !here(FILE)
 }
-/// The original's key, the one kept (the lobby's is not).
+/// The key that is kept (the lobby's is not).
 const KEY: &[u8] = b"SOFTWARE\\Magnetic Fields\\RC99";
 /// The handles handed out for the kept key and for any other.
 const KEPT: u32 = 0x5243_3939; // "RC99"
@@ -53,7 +43,6 @@ pub fn parse_status(record: &str) -> Option<u8> {
     })
 }
 
-/// A record's text for `status`.
 pub fn record_text(status: u8) -> String {
     format!(
         "; Rally Championship\r\n; INSTALLATION STATUS (the standalone's, in place of the registry)\r\n\r\nstatus={status}\r\n"

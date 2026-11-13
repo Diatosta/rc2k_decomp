@@ -1,18 +1,16 @@
-//! Where things are in `InstallerPages`: the one place that turns the pages' records (a
-//! table entry, a list, a box, the edit record, the title item) into byte positions, and
-//! reads the bytes that follow them.
+//! Where things are in `InstallerPages`: the one place that turns the pages' records (a table
+//! entry, a list, a box, the edit record, the title item) into byte positions, and reads the
+//! bytes that follow them.
 //!
-//! The original reads on past the end of what it is given: an item past a list's items is the
-//! bytes that follow the list (the next list, the table, a record), a choice past a table is
-//! the bytes after it, a page entry's word past its answers is whatever comes next. Those
-//! reads are neighbour reads of the pages' bytes, bounded by the pages as a whole; a
-//! position here (`PagesAt`) names the record it starts at (or the field and byte, where no
-//! record starts), and `plus` walks on from it as the original's address sums do.
+//! A read past the end of what it is given goes on into the bytes that follow (an item past a
+//! list's items is the next list, a choice past a table the bytes after it), bounded by the
+//! pages as a whole. A position (`PagesAt`) names the
+//! record it starts at (or the field and byte, where no record starts), and `plus` walks on
+//! from it.
 //!
-//! The pages' bytes are run on through an explicit chain of their fields in declaration
-//! order (`PagesField`, `PagesChain`), not through the record's memory layout: the fields'
-//! offsets are the sums of their lengths, which the tests hold against the image's layout
-//! frozen in `NAMED_PLACES`.
+//! The pages' bytes are run on through an explicit chain of their fields in declaration order
+//! (`PagesField`, `PagesChain`), not through the record's memory layout; the tests hold the
+//! offsets against the old layout frozen in `NAMED_PLACES`.
 
 use crate::cells::Store;
 use crate::errors::BadInput;
@@ -122,7 +120,6 @@ impl PagesField {
         PagesField::Tail,
     ];
 
-    /// The field's bytes in `pages`.
     fn bytes(self, pages: &'static InstallerPages) -> &'static dyn Store {
         match self {
             PagesField::Lead => &pages._lead,
@@ -187,12 +184,10 @@ impl PagesField {
         Self::starts()[self as usize]
     }
 
-    /// The field's bytes.
     fn len(self) -> usize {
         Self::starts()[self as usize + 1] - self.offset()
     }
 
-    /// The bytes of all the fields.
     fn total() -> usize {
         Self::starts()[Self::ALL.len()]
     }
@@ -248,8 +243,7 @@ fn list_place(list: ListId) -> (PagesField, usize) {
 /// A position in `InstallerPages`, by the record it names. Every position has one form: a
 /// record's start is named by the record (a table entry, a list's header, a typed item, a
 /// box, the edit record, the title), any other byte of the pages by its field, and a byte
-/// past the pages by how far past their end it is (an address sum the original makes there
-/// is read as out of them).
+/// past the pages by how far past their end it is.
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum PagesAt {
     /// Page table entry `.0` (below `TABLE_LEN`).
@@ -283,7 +277,6 @@ impl core::fmt::LowerHex for PagesAt {
 }
 
 impl PagesAt {
-    /// Page table entry `index`.
     pub fn table(index: u32) -> Self {
         assert!(index < TABLE_LEN, "a page table entry past the table");
         Self::Table(index)
@@ -294,18 +287,15 @@ impl PagesAt {
         Self::List(list)
     }
 
-    /// Box `index` of the pages' boxes.
     pub fn box_at(index: u32) -> Self {
         assert!(index < BOXES, "a box past the pages' boxes");
         Self::Box(index)
     }
 
-    /// The folder item's edit record.
     pub fn edit() -> Self {
         Self::Edit
     }
 
-    /// The title's item.
     pub fn title() -> Self {
         Self::Title
     }
@@ -365,7 +355,6 @@ impl PagesAt {
         }
     }
 
-    /// The position at byte `offset` (tests sweep every byte).
     #[cfg(test)]
     pub fn at_offset(offset: usize) -> Self {
         Self::from_offset(offset)
@@ -398,7 +387,6 @@ impl PagesAt {
         crate::install::installer::refuse(BadInput("an item that is none of the installer's items"))
     }
 
-    /// Where `edit`, the folder item's edit record, is.
     pub fn of_edit(edit: &EditRecord) -> Self {
         if !core::ptr::eq(edit, &raw const installer().pages.folder_edit) {
             crate::install::installer::refuse(BadInput(
@@ -425,7 +413,7 @@ impl PagesAt {
         self.run_offset().saturating_add(ITEM) <= PagesField::total()
     }
 
-    /// `n` bytes on, wrapping at 32 bits as the original's address sum does.
+    /// `n` bytes on, wrapping at 32 bits.
     pub fn plus(self, n: u32) -> Self {
         Self::from_offset((self.run_offset() as u32).wrapping_add(n) as usize)
     }
@@ -450,8 +438,8 @@ impl PagesAt {
 }
 
 /// The installer's pages as one run of bytes: their fields in declaration order, back to
-/// back. A read or write that runs on past a field goes on into the next one, as the image's
-/// bytes did; the pages' memory layout is not used.
+/// back. A read or write that runs on past a field goes on into the next one; the pages'
+/// memory layout is not used.
 pub struct PagesChain;
 
 impl PagesChain {
@@ -515,10 +503,9 @@ pub fn typed_folder(offset: u32) -> BytePlace {
     BytePlace::In(&installer().paths.typed, offset as usize)
 }
 
-/// The pages' named places as the image lays them out (IDA 0x51C400 + the offset), frozen:
-/// every field of `InstallerPages` in declaration order, its byte offset and its length.
-/// The oracle the run-on chain and the handles are proven against; it is not read by the
-/// game's code.
+/// The pages' named places as the old layout had them, frozen: every field of `InstallerPages`
+/// in declaration order, its byte offset and its length. The oracle the run-on chain and the
+/// handles are proven against.
 #[cfg(test)]
 pub(crate) const NAMED_PLACES: [(&str, usize, usize); 40] = [
     ("_lead", 0x0, 7),
@@ -569,8 +556,7 @@ mod tests {
     use crate::menu::list_handle::ListMenu;
 
     /// The frozen table is the record's fields: each field's name and length (`size_of_val`)
-    /// in declaration order, the fields back to back from 0 to the image's 0x1A30 bytes
-    /// (0x51C400 .. 0x51DE30).
+    /// in declaration order, the fields back to back from 0 to the old 0x1A30 bytes.
     #[test]
     fn the_named_places_are_the_fields() {
         let _lock = crate::test_support::test_lock();
@@ -744,7 +730,7 @@ mod tests {
 
     /// What an item read past a list's items is: the header of the list that follows in the
     /// pages (the last action page's is the folder item's edit record). A read that runs on
-    /// reaches that neighbour, as the original's (`ListMenu::item`).
+    /// reaches that neighbour (`ListMenu::item`).
     #[test]
     fn an_item_past_a_list_is_the_field_after_it() {
         let _lock = crate::test_support::test_lock();

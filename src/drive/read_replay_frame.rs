@@ -1,22 +1,15 @@
-//! `drive::read_replay_frame` (0x41EBAB): reads a replay's frame while a replay plays from its file
-//! (`replay_open` 1; else it reports failure). Frames past 0x708 and tenths past 100 are the fatal
-//! errors 0x80A61151 and 0x80A61152 (raised as the original). At or past the last frame
-//! (`index_block_count`): the last frame, `replay_at_end` 1, the tenth 0. Else the tenth goes into
-//! `replay_frame`, `replay_at_end` 0, the frame into `replay_block`, the file is put at the frame's
-//! place (`lDistanceToMove[frame]`, `files::seek`) and its bytes (`ReplayFileBlock.index.block_places[1][frame]`, packed when
-//! below 0) are read into `block` (`drive::read_packed`).
-//!
-//! Takes: the frame, the tenth
-//!
-//! Callers: `drive::read_replay_frame_0`, the viewer's actions (four), `race::play_marked`. Refuses
-//! what `read_packed` refuses.
+//! Reads a replay's frame while a replay plays from its file (else it reports failure). Frames
+//! past 0x708 and tenths past 100 are the fatal errors 0x80A61151 and 0x80A61152. At or past the
+//! last frame: the last frame, `replay_at_end` 1, the tenth 0. Else the tenth goes into
+//! `replay_frame`, `replay_at_end` 0, the frame into `replay_block`, the file is put at the
+//! frame's place and its bytes (packed when the place is below 0) are read into `block`
+//! (`drive::read_packed`). Refuses what `read_packed` refuses.
 
 use crate::errors::{FatalError, Refused};
 use crate::race::owner::Race;
 use crate::system::owner::System;
 use rc2k_core::drive::replay_frames::{frame_fault, past_end};
 
-/// CF.
 pub fn read_replay_frame(
     race: &Race,
     system: &System,

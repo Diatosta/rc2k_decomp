@@ -1,26 +1,23 @@
-//! What a force-feedback effect's function does with a change (from
-//! `input::effect_0_change` 0x409708, `effect_1_change` 0x4097FA, `effect_2_change`
-//! 0x409754, `effect_3_change` 0x4097B4, `effect_4_change` 0x409871 and `effect_5_change`
-//! 0x4098BF).
+//! What a force-feedback effect's function does with a change.
 //!
-//! A change is 1 set up, 2 start, 3 values, 4 stop, with two signed values; each of the
-//! six effects of a device record answers with stores into its effect and at most one call
-//! of DirectInput's (start, set its parameters with flags, stop). A value v is stored as
-//! `(v x 10000, as a signed dword) >> 8` (arithmetic).
+//! A change is 1 set up, 2 start, 3 values, 4 stop, with two signed values; each of a record's
+//! six effects answers with stores into its effect and at most one DirectInput call (start, set
+//! parameters with flags, stop). A value v is stored as `(v x 10000) >> 8` (arithmetic, signed
+//! dword).
 
 use crate::Invalid;
 
-/// Rows in effect 1's table (`Devices.effect_rows[0][0]`, four dwords each).
+/// Rows in effect 1's table (four dwords each).
 pub const ROWS: i32 = 14;
 
 /// A place in an effect (`ForceEffect`) a change writes.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Field {
-    /// `DIEFFECT`'s duration.
+    /// The effect's duration.
     Duration,
     /// The first axis.
     FirstAxis,
-    /// `DIEFFECT`'s envelope pointer: made to point at the effect's own envelope.
+    /// The effect's envelope pointer: made to point at the effect's own envelope.
     EnvelopePointer,
     /// The envelope's fade time.
     FadeTime,
@@ -30,18 +27,18 @@ pub enum Field {
     Found,
 }
 
-/// DirectInput's call a change ends with.
+/// The DirectInput call a change ends with.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Call {
-    /// Download and Start.
+    /// Download and start.
     Start,
-    /// SetParameters with these flags.
+    /// Set the parameters with these flags.
     Set(u32),
     Stop,
 }
 
-/// What a change does: its stores in order, then its call. For effect 1's values the
-/// divisor and remainder of its `idiv` (the two operands of the division).
+/// What a change does: its stores in order, then its call; for effect 1's values also the
+/// division's divisor and remainder.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Plan {
     pub stores: Vec<(Field, u32)>,
@@ -49,7 +46,6 @@ pub struct Plan {
     pub division: Option<(u32, u32)>,
 }
 
-/// A value as stored.
 pub fn value(v: u32) -> u32 {
     ((v as i32).wrapping_mul(10000) >> 8) as u32
 }
@@ -59,10 +55,9 @@ fn blend(a: u32, b: u32, by: u32) -> u32 {
     ((((b.wrapping_sub(a) as i32).wrapping_mul(by as i32)) >> 8) as u32).wrapping_add(a)
 }
 
-/// Effect `number`'s answer to `change` with values `arg_a`, `arg_b`. `sensitivity` is the
-/// record's +0x20 (asked only for effect 5's set-up), `row` effect 1's table row (asked
-/// only for its values, with a row inside the table). Refuses (before anything) for effect
-/// 1's values a row past the table and a blend of 0 (the original's `idiv` traps).
+/// Effect `number`'s answer to `change` with values `arg_a`, `arg_b`. `sensitivity` is asked
+/// only for effect 5's set-up, `row` only for effect 1's values. Refused: for effect 1's
+/// values, a row past the table or a blend of 0 (a division by zero).
 pub fn plan(
     number: u32,
     change: u32,

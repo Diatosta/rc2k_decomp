@@ -1,9 +1,5 @@
-//! `net::chat_key` (0x4180E4): a key for the chat message being typed (`net::edit_key`); when
-//! that ends the editing and the message is not empty, it is sent (`net::send_chat_regs`,
-//! this machine's player) and the input emptied.
-//!
-//! Takes the key.
-//! Caller: `net::lobby_loop`.
+//! A key for the chat message being typed. When the key ends the editing and the message is
+//! not empty, it is sent and the input emptied.
 
 use crate::errors::Refused;
 use crate::install::owner::Install;

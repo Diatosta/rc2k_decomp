@@ -1,8 +1,6 @@
-//! The championship's standings table (`screens::draw_championship_table` ->
-//! `screens::find_history_entry`): ten rows from position
-//! `champ_view.first_row` of class `event.class` in the championship history (the championship history: 0x78-byte
-//! entries, -1 ends them; +4 the player's own, +8 the car, +0xC the flag, +0x10 the class, +0x14
-//! the name, +0x54 .. +0x68 six rounds' points, below 0 none, +0x6C the total, +0x70 the position).
+//! The championship's standings table: ten rows from `champ_view.first_row` of class
+//! `event.class` in the championship history (entries with the player flag, car, flag, class,
+//! name, six rounds' points (below 0: none), total and position).
 
 use crate::errors::{FatalError, Refused};
 use crate::screens::game_screen::{HeldText, held_name};
@@ -14,10 +12,9 @@ const NOT_FOUND: FatalError = FatalError {
     message: "Position in GB_ChampHST Not Found (see Log)",
 };
 
-/// `screens::find_history_entry` (0x4A256C): from the history's first entry (edi) on, the
-/// first of class ebx and position eax (the first entry is looked at before the end test);
-/// none before an entry of -1 is fatal error 0x8070A7FA. `walked`: the history's entries
-/// as far as its end entry.
+/// The first history entry of class `class` and position `position` (the first entry is looked
+/// at before the end test); none before an entry of -1 is fatal error 0x8070A7FA. `walked`: the
+/// history's entries as far as its end entry.
 pub fn find_history_entry(
     walked: &[HistoryEntry],
     class: u32,
@@ -34,24 +31,21 @@ pub fn find_history_entry(
     found.map(|n| n as usize).ok_or(NOT_FOUND.into())
 }
 
-/// `screens::draw_championship_table` (0x4A4E1E): the heads (strings 0x484, 0x485, 0x4F9 at
-/// y 0xDC), the six rounds' flags (sprites 0x90 .. 0x95 in event mode 0x13, else 0x8A .. 0x8F,
-/// at y 0x8C), then the ten rows (`LoopFlags.champ_row` from `ChampView.first_row` to `ChampView.row_end` =
-/// it + 10): position, name, the rounds' points ("-" alone for below 0), the total, the car's
-/// and flag's sprites; the player's own (+4 above 0) in the highlight fonts; each text from
-/// the last one's y, rows 0x19 apart from y 0xF0. The sprites' palettes ebx as the original
-/// leaves it. (It also looks the section's first record up and never uses it: left out.)
-/// Refuses (before anything) no history table; a position not in it is
-/// the original's fatal error.
+/// The heads, the six rounds' flags (sprites 0x90 to 0x95 in event mode 0x13, else 0x8A to
+/// 0x8F), then the ten rows (`LoopFlags.champ_row` from `ChampView.first_row` to
+/// `ChampView.row_end` = it + 10): position, name, the rounds' points ("-" alone for below 0),
+/// the total, the car's and flag's sprites; the player's own row in the highlight fonts; each
+/// text from the last one's y, rows 0x19 apart. The sprites take the last text's leftover as
+/// their palette (unused). Refuses no history table; a position not in it is a fatal error.
 pub fn draw_championship_table(
     o: crate::owners::Owners<'static>,
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
     let menus = o.menus;
     let walked = crate::menu::standings::walked_entries_b()?;
-    // The logic is in `rc2k_core::screens::championship_table`; the ten entries looked up
-    // first (a position not in the history is the original's fatal error, raised
-    // before the rows rather than after those before it).
+    // The logic is in `rc2k_core::screens::championship_table`; the ten entries are looked up
+    // first (a position not in the history is a fatal error, raised before the rows rather than
+    // after those before it).
     let (class, first) = (
         menus.screens.event.class.get(),
         menus.play.champ_view.first_row.get(),

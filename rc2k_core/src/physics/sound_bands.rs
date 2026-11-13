@@ -1,18 +1,13 @@
-//! The car sounds' bands (from the four twins
-//! `physics::sound_band_1` 0x45D067, `sound_band_2` 0x45D097, `sound_band_3` 0x45D0F1
-//! and `sound_band_4` 0x45D121): a value times a factor as a whole number (`fistp`, kept
-//! in `band_scratch`), less a step, held to 0 ..= 0x40 (by the sign). A reading: volume
-//! or pitch steps.
-//!
-//! Floats: the product of two floats is exact in an `f64` (48 bits), as on the x87 at
-//! double or extended precision, so the whole number is the original's to the bit.
+//! The car sounds' bands: a value times a factor as a whole number, less a step, held to
+//! 0 ..= 0x40 (signed). The product of two floats is exact in an `f64`, so the whole number is
+//! bit-identical to the x87's.
 
 use crate::math::geometry::fistp64;
 
 /// The band's top.
 pub const TOP: u32 = 0x40;
 
-/// (the whole number kept, the band).
+/// Returns (the whole number kept, the band).
 pub fn sound_band(value: f32, factor: f32, step: u32) -> (i32, u32) {
     let n = fistp64(value as f64 * factor as f64);
     let mut b = (n as u32).wrapping_sub(step);

@@ -1,17 +1,11 @@
-//! `input::begin_effects` (0x40F29D): the race's force feedback begun: if any sound object
-//! is in use (`g_raceSoundObjectCount`, a race is on) both records' effects asked to start
-//! (`input::start_effects`); the clock (`system::tick_count`) kept as the effects' last
-//! step (`g_effectsLastTime`).
-//!
-//! See `input/effects.rs`. One caller, `input::device_command` (command 3, the race's
-//! start).
-//!
-//! Its arguments are what it reads.
+//! Begins the race's force feedback: when a race is on (any sound object in use) both records'
+//! effects are asked to start and the clock is kept as the effects' last step. See
+//! `input/effects.rs`.
 
 use crate::errors::Refused;
 use crate::input::owner::Input;
 
-/// The effects started with sound objects in use (`g_raceSoundObjectCount`), and the
+/// The effects started with sound objects in use, and the
 /// effects' clock set.
 pub fn begin_effects(input: &Input, sound: &crate::sound::owner::Sound) -> Result<(), Refused> {
     if sound.race.shared.count.is_set() {

@@ -1,7 +1,5 @@
-//! The cars of a network race (from `net::car_list` 0x4AAAF7,
-//! `net::set_hud_options` 0x463D3F, `net::reset_cars` 0x463E52 and
-//! `net::clear_car_state` 0x463EB6): the car list offered, the HUD's bits, and the cars'
-//! blocks made ready (offsets into a car's block).
+//! The cars of a network race: the car list offered, the HUD's bits, and the cars' blocks made
+//! ready (offsets into a car's block).
 
 use crate::Invalid;
 
@@ -10,10 +8,9 @@ const MOST: u32 = 0x100;
 /// A list's end.
 pub const END: u32 = u32::MAX;
 
-/// Whether one of the cars won (`won`, a list ended by -1, its first entry looked at
-/// whatever it is) is in the secret cars' list (`secret`, likewise; each won car compared
-/// with its first entry before its end is looked for). The lists by index. Refused: a list
-/// with no end in 0x100 entries.
+/// Whether one of the cars won (`won`, a list ended by -1) is in the secret cars' list
+/// (`secret`, likewise). Each list's first entry is looked at before its end is looked for.
+/// Refused: a list with no end in 0x100 entries.
 pub fn any_won(secret: impl Fn(u32) -> u32, won: impl Fn(u32) -> u32) -> Result<bool, Invalid> {
     let mut w = 0u32;
     for _ in 0..MOST {
@@ -44,9 +41,7 @@ pub fn any_won(secret: impl Fn(u32) -> u32, won: impl Fn(u32) -> u32) -> Result<
 /// The HUD's bits kept from the last race; this value: none kept.
 pub const NOT_KEPT: u32 = u32::MAX;
 
-/// The HUD's bits each of the player's nine switches gives when not 0, in the original's
-/// order (`RaceState.settings.cars[0].map_area`, `75ADFC`, `75AE00`, `75AE08`, `75AE14`, `75AE04`, `75AE10`,
-/// `75AE0C`, `75AE18`).
+/// The HUD's bits each of the player's nine switches gives when not 0, in the settings' order.
 pub const HUD_SWITCH_BITS: [u32; 9] = [0x10, 8, 1, 4, 2, 0x100, 0x40, 0x20, 0x80];
 
 /// The HUD's bits made from the switches' values.
@@ -58,7 +53,7 @@ pub fn hud_bits(switches: [u32; 9]) -> u32 {
         .fold(0, |bits, (_, bit)| bits | bit)
 }
 
-/// The cars reset.
+/// The number of cars reset.
 pub const CARS: u32 = 8;
 
 #[cfg(test)]

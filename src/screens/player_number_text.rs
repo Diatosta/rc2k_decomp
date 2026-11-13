@@ -1,10 +1,5 @@
-//! `screens::player_number_text` (0x46A359): the current player's title, as a text of the
-//! car choice.
-//!
-//!
-//! String 0x191 + the current player's number (`event.current_player`), a space, string 0x170, a NUL, into
-//! the number text buffer. In six entry and draw lists (the car choice's). Refuses a text longer than its
-//! place (0x100). The menus and draw lists run its `entry` (`menu::table_calls`).
+//! The current player's title, as a text of the car choice: string 0x191, the player's
+//! number, a space and string 0x170. Refuses a text longer than its place (0x100).
 
 use crate::errors::Refused;
 use crate::menu::owner::Menus;

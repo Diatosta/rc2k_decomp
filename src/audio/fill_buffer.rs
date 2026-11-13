@@ -1,28 +1,18 @@
-//! `audio::fill_buffer` (0x40B82B): a voice's sample data copied into its buffer.
-//!
-//! Takes: the voice
-//!
-//! Only for a voice with a buffer of its own (none shared): `Lock` (+0x2C) from 0 for its
-//! length into `g_lockedParts` (0x506A98: two pointers and their sizes), the data copied
-//! into the first part and, if there is one, on into the second, `Unlock` (+0x4C) with
-//! them. A failing `Lock` or `Unlock` sets the carry, and with `DSERR_BUFFERLOST`
-//! (0x88780096) `g_soundBufferLost`. Callers: command 3 and `audio::restore_lost` (the lost
-//! buffers' restoring).
-//! Refuses A3D (the chunk at 0x40CDE8).
+//! Copies a voice's sample data into its buffer: only for a voice with a buffer of its own (none
+//! shared). The buffer is locked, the data copied into the locked parts and unlocked; a failing
+//! lock or unlock fails, and a lost buffer sets the lost flag. Refuses A3D.
 
 use crate::audio::buffer_settings::a3d;
 use crate::audio::own::AudioOwn;
 use crate::audio::voices::*;
 use crate::errors::{BadInput, Refused};
 
-/// The voice's buffer filled; the lost buffer's flag is `g_soundBufferLost`, the parts go
-/// to `g_lockedParts`. True for the carry clear.
+/// Fills the voice's buffer. True when it worked.
 pub fn fill_buffer(state: &AudioOwn, v: &Voice) -> Result<bool, Refused> {
     use crate::platform_sound as ds;
     if a3d(state) {
         return Err(BadInput("A3D (the chunk at 0x40CDE8)").into());
     }
-    // Converted: `rc2k_core::audio::buffers` (`fills`, `fill_copies`, `lost`).
     use rc2k_core::audio::buffers::{fill_copies, fills, lost as lost_memory};
     if !fills(v) {
         return Ok(true);

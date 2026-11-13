@@ -1,13 +1,6 @@
-//! The replay's frames (from `drive::keep_replay_frame` 0x45FFB6,
-//! `drive::read_replay_frame` 0x41EBAB, `drive::write_replay_frames` 0x41E930,
-//! `drive::flush_replay_if` 0x460031, `drive::record_inputs` 0x4601A8 and
-//! `drive::play_inputs` 0x460162, their switches `play_inputs_if` 0x4600A9 and
-//! `record_inputs_if` 0x46008D, the frame marks of `replay_frame_marks` 0x41D8A3; the
-//! starting state's layout from
-//! `drive::save_replay_cars` 0x4600B8 and `drive::load_replay_cars` 0x46010D): a frame is
-//! a hundred tenths; at each whole frame the four car blocks are kept in one of eight
-//! slots; the tape holds each tenth's input words, 16 bytes a tenth, 8 for each of the
-//! two cars.
+//! The replay's frames: a frame is a hundred tenths; at each whole frame the four car blocks are
+//! kept in one of eight slots; the tape holds each tenth's input words, 16 bytes a tenth, 8 for
+//! each of the two cars.
 
 /// The replay's mode: 1 recording, 2 playing.
 pub const RECORDING: u32 = 1;
@@ -35,8 +28,8 @@ pub const LAST_FRAME: u32 = 0x708;
 pub const FRAME_PAST: u32 = 0x80A6_1151;
 pub const TENTH_PAST: u32 = 0x80A6_1152;
 
-/// `read_replay_frame`'s checks: the fatal error's code for a frame or tenth past its
-/// end.
+/// The fatal error's code for reading a frame or a tenth past its end; None when both are in
+/// range.
 pub fn frame_fault(frame: u32, tenth: u32) -> Option<u32> {
     if frame > LAST_FRAME {
         Some(FRAME_PAST)
@@ -47,19 +40,17 @@ pub fn frame_fault(frame: u32, tenth: u32) -> Option<u32> {
     }
 }
 
-/// Whether a frame is at or past the replay's last: then the last is
-/// shown, nothing read.
+/// Whether a frame is at or past the replay's last: then the last is shown and nothing read.
 pub fn past_end(frame: u32, frames: u32) -> bool {
     frame >= frames
 }
 
-/// `write_replay_frames`' frame head's byte +5 (a reading: the view), held to 2 ..= 3
-/// (signed).
+/// The written frame head's byte +5 (a reading: the view), held to 2 ..= 3 (signed).
 pub fn written_view(byte: i8) -> i8 {
     byte.clamp(2, 3)
 }
 
-/// `flush_replay_if`: while recording at the last tenth of a frame.
+/// Whether the replay is flushed: while recording, at the last tenth of a frame.
 pub fn flush_due(mode: u32, tenth: u32) -> bool {
     mode == RECORDING && tenth == TENTHS - 1
 }
@@ -78,19 +69,19 @@ pub fn tape_slot(tenth: u32, car: u32) -> Option<(usize, usize)> {
     (tenth < TENTHS && on_tape(car)).then_some((tenth as usize, car as usize))
 }
 
-/// `drive::play_inputs_if`: the inputs played while playing a replay.
+/// Whether the inputs are played back: while playing a replay.
 pub fn plays_inputs(mode: u32) -> bool {
     mode == PLAYING
 }
 
-/// `drive::record_inputs_if`: the inputs recorded while recording, for the cars below
-/// the race's count (`RaceView.players`; asked only while recording).
+/// Whether a car's inputs are recorded: None unless recording; else for the cars below the
+/// race's count (`RaceView.players`, asked only while recording).
 pub fn records_inputs(mode: u32, car: u32, cars: impl FnOnce() -> u32) -> Option<bool> {
     (mode == RECORDING).then(|| car < cars())
 }
 
-/// `drive::replay_frame_marks`: the offset of a frame's two marks (8 bytes a frame,
-/// `Buffers.viewer.block_cameras`; the original's `shl`, high bits lost).
+/// The byte offset of a frame's two marks in `Buffers.viewer.block_cameras` (8 bytes a frame,
+/// high bits lost).
 pub fn marks_offset(frame: u32) -> u32 {
     frame.wrapping_mul(8)
 }
@@ -98,9 +89,9 @@ pub fn marks_offset(frame: u32) -> u32 {
 /// A piece of the replay's starting state.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum StartPiece {
-    /// The first `CAR_DWORDS` of car block k (`g_carBlockStore` + 0xFE0 k).
+    /// The first `CAR_DWORDS` of car block k.
     Car(u32),
-    /// The race slots (`g_raceSlots`).
+    /// The race slots (eight of 0x1E dwords).
     RaceSlots,
     /// `RaceWork.replay_extra`.
     Extra,
@@ -109,9 +100,8 @@ pub enum StartPiece {
 /// The dwords kept of each car block.
 pub const CAR_DWORDS: usize = 0x1A1;
 
-/// The starting state's pieces in order, each with its dwords (`rep movsd` one after
-/// another, as `drive::save_replay_cars` gathers them and `load_replay_cars` puts them
-/// back).
+/// The starting state's pieces in order, each with its dwords, copied one after another when
+/// the cars are saved to a frame and loaded back.
 pub const START_PIECES: [(StartPiece, usize); 6] = [
     (StartPiece::Car(0), CAR_DWORDS),
     (StartPiece::Car(1), CAR_DWORDS),
@@ -133,7 +123,7 @@ pub fn start_layout() -> impl Iterator<Item = (StartPiece, usize, usize)> {
     })
 }
 
-/// The dwords of the loose parts (`g_raceSlots`: eight of 0x1E dwords) in the starting state.
+/// The dwords of the loose parts (the race slots) in the starting state.
 pub const SLOT_DWORDS: usize = 0xF0;
 /// The dwords of the computer driver's state in the starting state.
 pub const EXTRA_DWORDS: usize = 0x100;
@@ -143,8 +133,8 @@ pub const TAPE_DWORDS: usize = 400;
 pub const FRAME_DWORDS: usize = START_DWORDS + TAPE_DWORDS;
 pub const FRAME_BYTES: usize = 4 * FRAME_DWORDS;
 
-/// One frame of a replay file, field by field at the file's offsets (the byte format is the
-/// 1999 game's and never changes; little-endian dwords):
+/// One frame of a replay file, field by field at the file's offsets (little-endian dwords; the
+/// format is fixed so that every replay keeps loading):
 /// - dword 0: the four cars' first `CAR_DWORDS` dwords each, one after another;
 /// - then the loose parts, `SLOT_DWORDS`;
 /// - then the computer driver's state, `EXTRA_DWORDS`;

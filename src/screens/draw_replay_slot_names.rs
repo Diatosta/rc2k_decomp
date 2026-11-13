@@ -1,19 +1,13 @@
-//! `screens::draw_replay_slot_names` (0x46F41A): draws the names of the 20 replay slots of
-//! the current page in two columns of 10 (the save and load replay pages' drawer).
-//!
-//! The page is `pages.replay_page`; a name is 0x20 bytes of the picture path buffer. Columns at x = 0xC6 and
-//! 0x213, rows from y = 0xB5 in steps of 0x1B, font 0x51E8C4. It keeps its position in
-//! `g_markerX`/`g_markerY` and its row counter in `draw_work.figure`, left at 0x213, 0x183 and 10.
-//! Refuses a page past the fifth: the table has 100 names. Called through the menu tables
-//! (0x758BCE, 0x758BD6). The menus and draw lists run its `entry` (`menu::table_calls`).
+//! The names of the 20 replay slots of the current page (`pages.replay_page`) in two columns
+//! of 10: the save and load replay pages' drawer. Leaves its position in the marker
+//! position and its row counter in `draw_work.figure`. Refuses a page past the fifth (the table
+//! has 100 names).
 
 use crate::errors::Refused;
 use crate::text::draw_text::Canvas;
 
 // ---- game data ----
 
-// g_markerX
-// g_markerY
 // `draw_work.figure`: a work variable, here the row counter
 
 // FontObjects.objects[41].first_char

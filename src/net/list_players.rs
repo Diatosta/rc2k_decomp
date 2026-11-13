@@ -1,16 +1,8 @@
-//! `net::list_players` (0x419192): this machine's record sent to the others as its player
-//! data (`SetPlayerData`, `own`, 0x10 bytes; its result not looked at); unless the
-//! race is on (`racing` 1), the players listed afresh (`g_netPlayers` 0, `EnumPlayers`
-//! with `net::player_found`); each listed player's record read into its block (+0x24,
-//! `GetPlayerData`, the size in `data_size`, 0x10); the blocks bubble-sorted by their
-//! DirectPlay ids (+0x20, unsigned); this machine's player found among them by its id
-//! (`g_netPlayerId`) into `g_netPlayer`.
-//!
-//! Returns true when this machine's player was found; false when there is no object, the
-//! listing failed or the player is not among them.
-//! The search looks at block 0 even with no player listed. More than eight players
-//! (possible only with the race on) would sort past the blocks: refused. Caller:
-//! `net::list_players_regs`, `net::open_lobby`. DirectPlay's calls from Rust (`net::dplay`).
+//! Sends this machine's record to the others as its player data; unless a race is on, lists
+//! the players afresh, reads each one's record into its block, sorts the blocks by DirectPlay id
+//! and finds this machine's player among them. Returns true when found; false for no object, a
+//! failed listing or a missing player. More than eight players (possible only during a race) are
+//! refused.
 
 use crate::errors::{BadInput, Refused};
 use crate::net::owner::Net;
@@ -54,7 +46,7 @@ pub fn list_players(net: &Net) -> Result<bool, Refused> {
             player.record.set_bytes(&data[..size as usize]);
         }
     }
-    // Converted: `rc2k_core::net::players` (`bubble` by the ids, `find_own`).
+    // The logic is in `rc2k_core::net::players` (`bubble` by the ids, `find_own`).
     let id = |n: u32| vars.player_block_or_end(n).id.get();
     bubble_blocks(
         players,
@@ -72,9 +64,8 @@ pub fn list_players(net: &Net) -> Result<bool, Refused> {
     }
 }
 
-/// `net::list_players_regs`: `net::list_players`, then a test of the result kept inside a
-/// register save: the carry it gives is lost, so its callers'
-/// `jb` after it are never taken (section 16). Callers: `net::lets_rally`,
+/// `net::list_players` with its result dropped, so a failed listing is never reported to the
+/// callers (kept as is). Callers: `net::lets_rally`,
 /// `net::race_wait`, `net::race_over`, `net::lobby_loop`.
 pub fn list_players_regs(net: &Net) -> Result<(), Refused> {
     list_players(net)?;

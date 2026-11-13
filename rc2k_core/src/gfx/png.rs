@@ -1,13 +1,12 @@
-//! PNG files as the game reads them (from `gfx::decode_png` 0x4D3040
-//! and `gfx::lay_out_png` 0x41CCF7).
+//! PNG files as the game reads them.
 //!
-//! The original walks the chunks to IEND trusting every length; IHDR gives the size and
-//! the colour type, an IDAT chunk is inflated (zlib 1.1.3; here `miniz_oxide`) straight
-//! into the pixel area, `(bytes a pixel * width + 1) * height` bytes at most, and its rows
-//! are unfiltered in place and closed up, as three bytes a pixel for colour type 2 and as
-//! one byte a pixel for every other type; a PLTE chunk is remembered. Check sums are not
-//! looked at. For the first row the "row above" of filters 2, 3 and 4 is what lies before
-//! the pixel area, not zeros as the PNG standard has it.
+//! The chunks are walked to IEND. IHDR gives the size and the colour type; the IDAT chunk is
+//! inflated (`miniz_oxide`) straight into the pixel area, `(bytes a pixel * width + 1) * height`
+//! bytes at most, and its rows are unfiltered in place and closed up, as three bytes a pixel for
+//! colour type 2 and one byte a pixel for every other type; a PLTE chunk is remembered. Check sums
+//! are not looked at. For the first row the "row above" of filters 2, 3 and 4 comes from the
+//! caller, which gives zeros as the PNG standard has it (fixed: "A PNG picture's first row read
+//! against stray memory" in wiki/Fixed-bugs.md).
 
 use crate::Invalid;
 use miniz_oxide::inflate::TINFLStatus;
@@ -15,7 +14,7 @@ use miniz_oxide::inflate::core::{DecompressorOxide, decompress, inflate_flags};
 
 pub const SIGNATURE: [u8; 8] = [0x89, b'P', b'N', b'G', 0x0D, 0x0A, 0x1A, 0x0A];
 
-/// Bytes a pixel by colour type (the game's table at 0x4DEE88).
+/// Bytes a pixel by colour type.
 pub const PIXEL_BYTES: [u32; 8] = [1, 0, 3, 1, 2, 0, 4, 0];
 
 /// What IHDR says.
@@ -42,7 +41,7 @@ fn be(file: &[u8], at: usize) -> u32 {
     u32::from_be_bytes([file[at], file[at + 1], file[at + 2], file[at + 3]])
 }
 
-/// The bytes of a file's head `gfx::read_png` (0x41CB50) looks at.
+/// The bytes of a file's head looked at before it is read.
 pub const HEAD_LEN: usize = 0x80;
 
 /// Whether a file's head is a PNG the game takes: the signature, an IHDR chunk of 13 bytes,
@@ -57,10 +56,9 @@ pub fn head_taken(head: &[u8; HEAD_LEN]) -> bool {
         && head[0x1C] == 0
 }
 
-/// The chunks of a file, walked to IEND. `Ok(None)` if the file does not begin as a PNG
-/// (the original's 2). Refused: a file shorter than the signature, a chunk past the end,
-/// a header out of place, a bit depth other than 8, more than one data chunk or one
-/// before the header, a palette past the end.
+/// The chunks of a file, walked to IEND. `Ok(None)` if the file does not begin as a PNG. Refused:
+/// a file shorter than the signature, a chunk past the end, a header out of place, a bit depth
+/// other than 8, more than one data chunk or one before the header, a palette past the end.
 pub fn chunks(file: &[u8]) -> Result<Option<Chunks>, Invalid> {
     if file.len() < 8 {
         return Err(Invalid("a PNG file shorter than its signature"));
@@ -120,9 +118,9 @@ pub fn chunks(file: &[u8]) -> Result<Option<Chunks>, Invalid> {
     Ok(Some(found))
 }
 
-/// The bytes the pixel area must hold for a picture with data; refused: colour types the
-/// original takes for one byte a pixel (4, 6), a width under 2 or a height of 0 (it counts
-/// round), more than `room`.
+/// The bytes the pixel area must hold for a picture with data. Refused: colour types 4 and 6
+/// (they would be taken as one byte a pixel), a width under 2 or a height of 0 (the counts would
+/// wrap), more than `room`.
 pub fn area_for(header: &Header, room: usize) -> Result<usize, Invalid> {
     if !matches!(header.colour_type, 0 | 2 | 3) {
         return Err(Invalid(
@@ -140,8 +138,8 @@ pub fn area_for(header: &Header, room: usize) -> Result<usize, Invalid> {
     Ok(bytes as usize)
 }
 
-/// The data inflated into `out` (its length the area's): done, the area full, or all
-/// there but for zlib's check sum are all as the original leaves them.
+/// The data inflated into `out` (its length the area's). Taken: done, the area full, or all there
+/// but for zlib's check sum; refused otherwise.
 pub fn inflate(data: &[u8], out: &mut [u8]) -> Result<(), Invalid> {
     let mut inflater = DecompressorOxide::new();
     let flags = inflate_flags::TINFL_FLAG_PARSE_ZLIB_HEADER
@@ -183,10 +181,9 @@ fn paeth(a: u8, b: u8, c: u8) -> u8 {
     }
 }
 
-/// The filter bytes taken out of `rows` rows of `area` and the filters undone, in place.
-/// The row above the first is what lies before the area: `first_above(i)` gives its byte
-/// `i`, asked for only by the filters that read it (2, 3, 4), as the original reads it.
-/// Refused: a filter above 4, and rows past the area.
+/// The filter bytes taken out of `rows` rows of `area` and the filters undone, in place. The row
+/// above the first is `first_above(i)` for its byte `i` (zeros for a standard PNG), asked for
+/// only by the filters that read it (2, 3, 4). Refused: a filter above 4, and rows past the area.
 pub fn unfilter(
     area: &mut [u8],
     row_bytes: usize,
@@ -244,7 +241,7 @@ pub fn unfilter(
     Ok(())
 }
 
-/// The layout variables for a decoded PNG picture (`lay_out_png`): rows without a gap, 8
+/// The layout variables for a decoded PNG picture: rows without a gap, 8
 /// bits a pixel when bit 8 of the picture flags is set, else 32. (width, height,
 /// pixel_bits, pixel_bytes, row_bytes, row_dwords, stride, row_gap.)
 pub fn layout(width: u32, height: u32, flags: u32) -> [u32; 8] {

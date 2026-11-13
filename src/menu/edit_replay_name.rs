@@ -1,25 +1,19 @@
-//! `menu::edit_replay_name` (0x46F4E7): one step of typing the name of a replay.
+//! `menu::edit_replay_name`: one step of typing the name of a replay.
 //!
-//! The name is the highlighted entry of the replay list. One pending key is taken:
-//! none          the cursor is written again;
-//! 1 (Escape)    the name from before comes back, the entry ends, `captions.left_by_key` = 1;
-//! carry set;
-//! 0x1C (Enter)  an empty name is replaced by the one from before; the entry ends and the
-//! name is cut at its length; carry clear;
-//! 0x6E          clears a name;
-//! 0x0E          takes the last character off a name;
-//! any other     `key_to_char`; a character is appended unless the length is already above
-//! the maximum, and taken off again if the name then measures 0xEC pixels
-//! or more.
+//! The name is the highlighted entry of the replay list. One pending key is taken: none writes
+//! the cursor again; Escape (1) restores the name from before, ends the entry and sets
+//! `captions.left_by_key` and returns true; Enter (0x1C) replaces an empty name by the one from
+//! before, cuts the name at its length and ends the entry; 0x6E clears the name; 0x0E takes the
+//! last character off; any other key goes through `key_to_char` and is appended unless the
+//! length is above the maximum, and taken off again if the name measures 0xEC pixels or more.
 //! After anything but Escape and Enter the cursor (string 4) is written after the name if
-//! `draw_work.cursor_on` is set, then a NUL; carry is then set exactly when `draw_work.cursor_on` is 0.
-//! A slip in the original, reproduced: the clear key, the backspace key and the "too wide"
-//! case act on the highlighted name of the SAVED GAME list, not the replay list, while the
-//! length they change is the replay entry's.
-//! Called from the screen loop `menu::save_replay_loop` while `option_work.typing` is set.
+//! `draw_work.cursor_on` is set, then a NUL; it returns true exactly when `cursor_on` is 0.
 //!
-//! Refuses, before the key is taken: a name past either list, a length outside 0 .. 0x1F, no
-//! keyboard layout.
+//! A 1999 slip kept as is: the clear key, the backspace key and the "too wide" case act on the
+//! highlighted name of the SAVED GAME list, not the replay list, while the length they change
+//! is the replay entry's. Called from `menu::save_replay_loop` while `option_work.typing` is
+//! set. Refuses, before the key is taken: a name past either list, a length outside 0 .. 0x1F,
+//! no keyboard layout.
 
 use crate::errors::{BadInput, Refused};
 use crate::input::key_to_char::{has_layout, key_to_char};
@@ -37,8 +31,6 @@ use crate::strings::append_string_by_id::push_string;
 use crate::text::draw_text::Canvas;
 use crate::text::measure_text::measure_text_at;
 
-// ---- game data ----
-
 const CURSOR_STRING: u32 = 4;
 const MEASURING_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::MEASURE;
 
@@ -47,7 +39,7 @@ fn end_name(menus: &Menus, name: crate::place::BytePlace) -> Result<(), BadInput
         .write(&[0], "a replay's name")
 }
 
-/// Returns the carry flag.
+/// Returns true after Escape, or when the cursor is off (see the module doc).
 pub fn edit_replay_name(
     input: &crate::input::owner::Input,
     so: crate::strings::append_string_by_id::StringOwners<'_>,
@@ -67,7 +59,6 @@ pub fn edit_replay_name(
     }
 
     let key = take_key(input);
-    // The logic is in `rc2k_core::menu::text_entry` (`key`, `appends`, `too_wide`).
     use rc2k_core::menu::text_entry::{self as entry, Key};
     match entry::key(key) {
         Key::None => {}
@@ -86,7 +77,7 @@ pub fn edit_replay_name(
             end_name(menus, name)?;
             return Ok(false);
         }
-        // The saved game's name, not the replay's: the original's slip.
+        // The saved game's name, not the replay's (a 1999 slip kept as is).
         Key::Clear => clear_text(menus, other_name)?,
         Key::Backspace => backspace_savegame_name(menus, saves)?,
         Key::Other(key) => {

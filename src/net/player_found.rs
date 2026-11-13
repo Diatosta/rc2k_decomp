@@ -1,11 +1,5 @@
-//! `net::player_found` (0x41929E): DirectPlay's `EnumPlayers` callback: while fewer than eight
-//! are listed (`g_netPlayers`), the player's block of `g_netReceived` gets its id (+0x20) and
-//! its short name (+0, `strings::copy_printable`, 0x1F room), and the enumeration goes on;
-//! with eight it stops.
-//!
-//! Takes (stdcall) the player's id, its type, its name (a DPNAME: +8 the short name), the flags
-//! and the context. Returns 1 to go on, 0 to stop.
-//! Caller: DirectPlay, from `net::list_players` (`callback`, a `stdcall` Rust function).
+//! DirectPlay's `EnumPlayers` callback: while fewer than eight players are listed, the player's
+//! block gets its id and short name. Returns 1 to go on, 0 to stop (eight listed).
 
 use crate::errors::Refused;
 use crate::net::store::NetShared;

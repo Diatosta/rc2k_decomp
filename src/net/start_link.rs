@@ -1,25 +1,10 @@
-//! `net::start_link` (0x416F50): a network game, from the menu's host (1) and join (2)
-//! items (the original's third, a lobby's launch, is left out with the lobbies:
-//! `net::open_lobby`):
-//! "NET: Starting link", the mode to `mode`, the player's settings
-//! (`net::take_player_settings`) and record (`net::fill_own_player` with `g_playerNames`),
-//! the background; the connections listed (`net::find_connections_regs`; failing: message
-//! 0x154). Then the saved connection (`net::find_saved_connection`)
-//! or one chosen (`net::choose_connection`; none: the end), kept (`net::keep_connection`),
-//! made (`net::connecting`; failing: 0x154); then as the host (mode 1, state bit 0x10) the
-//! session made (`net::hosting`), else the sessions listed (`net::find_sessions_regs`), one
-//! chosen (`net::choose_session`) and joined (`net::joining`; any of these failing: message
-//! 0x155). Then the session on (`g_netSession` 1), the chat cleared (`net::clear_chat`, under
-//! the received messages' lock), the sync counter 0, `g_netSequence` 0x80, not after a race;
-//! and round: `all_raced`, `race_over` 0, the lobby's tune (`sound::play_tune_4`), the
-//! lobby (`net::lobby_loop`; left: the end), new players kept out on the host
-//! (`net::close_if_host`), the race (`net::lets_rally`; failing: the end). The end: "NET:
-//! Stopping link", the network stopped (`net::stopping`), the menu's tune
-//! (`sound::play_tune_3`).
+//! A network game from the menu's host (1) and join (2) items: the player's settings and
+//! record are set up, connections listed, the saved or a chosen connection made, then the session
+//! hosted, or sessions listed and one joined (failures show messages 0x154 / 0x155). Then the
+//! chat is cleared and the lobby and the race run in turn until the lobby is left; the network is
+//! then stopped.
 //!
-//! Takes the mode.
-//! Escape on the sessions' list gives the carry too, so it shows message 0x155 as a failure
-//! does (section 16). Callers: 0x4AAAE1, 0x4AAAEC.
+//! Escape on the sessions' list shows message 0x155 as a failure does (kept as is).
 
 use crate::errors::Refused;
 use crate::net::lobby::log_bytes;
@@ -76,8 +61,8 @@ fn link(o: Owners<'static>) -> Result<Way, Refused> {
         return Ok(Way::Message(NO_SESSION));
     }
     let session = choose_session::choose_session(o, lines)?;
-    // Escape (a negative choice) sets the carry as a failure does, so it shows the
-    // message too (the original's slip, `notes/bugs.md`).
+    // Escape (a negative choice) is taken as a failure, so it shows the message too (kept as
+    // is).
     if (session as i32) < 0 {
         return Ok(Way::Message(NO_SESSION));
     }

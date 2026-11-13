@@ -1,11 +1,9 @@
-//! What the game keeps between runs, loaded, and the names that are empty given defaults
-//! (from `system::load_game_data` 0x411239: its choices and the
-//! names it makes; the loading and the Win32 names stay with the caller).
+//! What the game keeps between runs, loaded, and the names that are empty given defaults.
 
 use crate::strings::format::{Pad, decimal};
 
-/// `g_allSecretCars` (the setting `allsecretcars`): 0 removes the secret cars, 1 turns on
-/// the cheats that give them all (read again after the removal).
+/// The setting `allsecretcars`: 0 removes the secret cars, 1 turns on the cheats that give them
+/// all (read again after the removal).
 pub fn removes_secret_cars(setting: u32) -> bool {
     setting == 0
 }
@@ -17,8 +15,7 @@ pub fn all_secret_cars(setting: u32) -> bool {
 /// The cheats' bits that give every car.
 pub const ALL_CARS_CHEATS: u32 = 0x1FBC;
 
-/// The players' default names (strings), the first used only when the user's name gives
-/// nothing.
+/// The players' default names (strings); the first is used when the user's name is empty.
 pub const PLAYER_NAME_IDS: [u32; 4] = [0x18C, 0x18D, 0x18E, 0x18F];
 /// The machine's default name.
 pub const MACHINE_NAME_ID: u32 = 0x14D;
@@ -36,8 +33,7 @@ pub const SAVEGAME_NAME_ID: u32 = 0x4E0;
 pub const REPLAY_NAME_ID: u32 = 0x4E2;
 pub const SETUP_NAME_ID: u32 = 0x4E1;
 
-/// A default name: the string's bytes, what follows them, the NUL; None when it does not
-/// fit `room`.
+/// A default name: the string, `after`, a NUL; None when it does not fit `room`.
 pub fn default_name(string: &[u8], after: &[u8], room: usize) -> Option<Vec<u8>> {
     let mut name = string.to_vec();
     name.extend_from_slice(after);
@@ -50,8 +46,7 @@ pub fn slot_name(string: &[u8], slot: u32, room: usize) -> Option<Vec<u8>> {
     default_name(string, &decimal(slot, Pad::from_flags(0x12)), room)
 }
 
-/// Whether a drawn driver's name (its first four bytes where it was written) must be
-/// drawn again.
+/// Whether a drawn driver's name (its first four bytes) must be drawn again.
 pub fn drawn_again(first: [u8; 4]) -> bool {
     first == TAKEN_PREFIX
 }

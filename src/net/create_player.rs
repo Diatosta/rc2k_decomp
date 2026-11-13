@@ -1,14 +1,6 @@
-//! `net::create_player` (0x4190FB): "NET: Create player" and the player's name
-//! (`player_name`) logged; a DPNAME made (zeroed, its size 0x10, the short
-//! name) and this machine's DirectPlay player made with it (`CreatePlayer` into
-//! `g_netPlayerId`, the receiving thread's event `g_netEvent`, the player's record
-//! `own` as its data, 0x10 bytes, flags 0).
-//!
+//! Makes this machine's DirectPlay player ("NET: Create player"), with the receiving thread's
+//! event and the player's record as its data. The name goes to `net::dp_objects` as text.
 //! Returns true when made.
-//! Callers: `net::host_session`, `net::join_session`, `net::open_lobby`.
-//!
-//! The name goes to `net::dp_objects` as text: the DPNAME block
-//! is not made (nothing else reads it).
 
 use crate::errors::Refused;
 use crate::net::lobby::log_bytes;

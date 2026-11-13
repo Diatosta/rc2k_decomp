@@ -1,4 +1,4 @@
-//! `menu::init_standings_b` (0x4A4644): the 200 entries of standings table B emptied (their
+//! `menu::init_standings_b`: the 200 entries of standings table B emptied (their
 //! first five dwords -1).
 //!
 //! Refuses a null table, before anything.

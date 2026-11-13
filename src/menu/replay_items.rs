@@ -5,9 +5,9 @@
 use crate::errors::Refused;
 use crate::race::replay_viewer::Mode;
 
-/// `menu::replay_item_a` (0x47053E): unless `RaceState.settings.no_replay` is 1, with a replay there
-/// (`ReplayFileBlock.replay_closed` 1) `race::replay_mode_1`; else half a second's sleep and the menu's sound
-/// 8.
+/// `menu::replay_item_a`: unless `RaceState.settings.no_replay` is 1, with a replay there
+/// (`ReplayFileBlock.replay_closed` 1) `race::replay_mode_1`; else half a second's sleep and the
+/// menu's sound 8.
 pub fn replay_item_a(
     race: &'static crate::race::owner::Race,
     o: crate::owners::Owners<'static>,
@@ -22,7 +22,7 @@ pub fn replay_item_a(
     Ok(())
 }
 
-/// `menu::replay_item_b` (0x47052F): unless `RaceState.settings.no_replay` is 1, `race::replay_mode_3`.
+/// `menu::replay_item_b`: unless `RaceState.settings.no_replay` is 1, `race::replay_mode_3`.
 pub fn replay_item_b(
     race: &'static crate::race::owner::Race,
     o: crate::owners::Owners<'static>,
@@ -33,7 +33,7 @@ pub fn replay_item_b(
     Ok(())
 }
 
-/// `menu::replay_item_c` (0x470529): the viewer's mode 2 (a 6-byte stub in the original).
+/// `menu::replay_item_c`: the viewer's mode 2.
 pub fn replay_item_c(
     race: &'static crate::race::owner::Race,
     o: crate::owners::Owners<'static>,

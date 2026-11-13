@@ -1,4 +1,5 @@
-//! `menu::sort_standings_by_total` (0x47B3D7): as `menu::sort_standings_by_time` by +0x18 (a reading: the total time).
+//! `menu::sort_standings_by_total`: as `menu::sort_standings_by_time` by +0x18 (a reading: the
+//! total time).
 //!
 //! Refuses a null table, before anything.
 

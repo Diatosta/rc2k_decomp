@@ -1,8 +1,6 @@
-//! The squares' and windscreen drops' clock and the shapes they take (from
-//! `effects::windscreen_flakes_step` 0x4C0654, `windscreen_drops_step` 0x4BCAD0 and `pick_shapes`
-//! 0x4BE8C3): the steps since the shapes were last looked at counted on a clock of 256
-//! (`WindscreenDropState.clock` the clock, `MaskPicks.index` the latest step), and each step's shapes picked from a
-//! table of 256 entries.
+//! The squares' and windscreen drops' clock and the shapes they take: the steps since the shapes
+//! were last looked at counted on a clock of 256 (`WindscreenDropState.clock` the clock,
+//! `MaskPicks.index` the latest step), and each step's shapes picked from a table of 256 entries.
 
 use crate::Invalid;
 
@@ -19,7 +17,7 @@ pub fn next_step(latest: u32) -> u32 {
     latest.wrapping_add(1) & 0xFF
 }
 
-/// A step's shapes (`pick_shapes`): the entry made positive (`neg`, so 0x80000000 stays as
+/// A step's shapes (`pick_shapes`): the entry made positive (wrapping, so 0x80000000 stays as
 /// it is) and its flag: 2, or 0 for a negative entry.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Shapes {

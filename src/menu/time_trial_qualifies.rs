@@ -1,4 +1,4 @@
-//! `menu::time_trial_qualifies` (0x48C7CE): whether the current player's time makes the
+//! `menu::time_trial_qualifies`: whether the current player's time makes the
 //! chosen stage's best times: `event.time_qualifies` 0; `event.player_time` the player's +0x88 (the
 //! time); when that is not above (signed) the tenth entry's +0x14, `event.time_qualifies` and
 //! `event.any_time_qualified` 1.
@@ -21,7 +21,6 @@ pub fn time_trial_qualifies(
     set(&event.time_qualifies, 0);
     let time = p.get().time;
     set(&event.player_time, time);
-    // The logic is in `rc2k_core::menu::bests::makes_time`.
     let best = with_stage_times(menus, system, |ten| ten[9].head.key)?;
     if rc2k_core::menu::bests::makes_time(time, best) {
         set(&event.time_qualifies, 1);

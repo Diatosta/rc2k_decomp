@@ -1,8 +1,5 @@
-//! `net::chat_line_locked` (0x4193FF): `net::add_chat_line` with the received messages' lock
-//! held (`net::lock_received` .. `net::unlock_received`): a chat message another player sent.
-//!
-//! Takes `player`, `message`.
-//! Caller: `net::take_messages`. Refuses what `net::add_chat_line` refuses.
+//! `net::add_chat_line` with the received messages' lock held, for a chat message another
+//! player sent. Refuses what `net::add_chat_line` refuses.
 
 use crate::errors::Refused;
 use crate::gfx::owner::Gfx;

@@ -1,14 +1,13 @@
 //! Two draw-list steps that put up `screens::draw_message_box` when the chosen item is not
-//! open ().
+//! open.
 
 use crate::errors::Refused;
 
 /// The index of item 0 (`item - 2`, wrapping): two bytes before the levels won.
 const NOT_IN_TABLE: u32 = u32::MAX - 1;
 
-/// A note's box put up (converted: `rc2k_core::screens::locked`). The original's x for the
-/// box only reaches the measuring of the text, in a font in measure mode: it changes
-/// nothing, so 0.
+/// A note's box put up (converted: `rc2k_core::screens::locked`). The box's x only reaches the
+/// measuring of the text, in a font in measure mode: it changes nothing, so 0.
 fn show(
     o: crate::owners::Owners<'static>,
     note: rc2k_core::screens::locked::Note,
@@ -24,8 +23,8 @@ fn show(
     Ok(())
 }
 
-/// `screens::note_locked_item_3` (0x4AAAB8): unless cheat 0x11 is on, with item 3 chosen
-/// (`LoopFlags.item`) and `RaceState.settings.a8_game` not 1, the message box.
+/// Unless cheat 0x11 is on, with item 3 chosen (`LoopFlags.item`) and `RaceState.settings.a8_game`
+/// not 1, the message box.
 pub fn note_locked_item_3(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     show(
         o,
@@ -37,8 +36,8 @@ pub fn note_locked_item_3(o: crate::owners::Owners<'static>) -> Result<(), Refus
     )
 }
 
-/// `screens::note_locked_stage` (0x48ADCE): unless cheat 0 is on, with an item chosen other
-/// than 1 and 7 whose stage (`Arcade.levels_won[item - 2]`) is not open (1), the message box.
+/// Unless cheat 0 is on, with an item chosen other than 1 and 7 whose stage
+/// (`Arcade.levels_won[item - 2]`) is not open (1), the message box.
 pub fn note_locked_stage(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     let menus = o.menus;
     let fault = crate::menu::event_flow::Fault::default();
@@ -47,8 +46,7 @@ pub fn note_locked_stage(o: crate::owners::Owners<'static>) -> Result<(), Refuse
         menus.screens.loop_flags.item.get(),
         |index| {
             // The screen has eight items: item n is the stage `levels_won[n - 2]`, items 1 and
-            // 7 are not asked about. Item 0 (index -2) lies before the table, where the
-            // original reads two of the four unreferenced bytes in front of it, which nothing
+            // 7 are not asked about. Item 0 (index -2) lies before the table, in bytes nothing
             // writes: not open.
             match index {
                 0..8 => menus.play.arcade.levels_won.get(index as usize),

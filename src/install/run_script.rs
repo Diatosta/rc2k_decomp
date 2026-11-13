@@ -1,18 +1,13 @@
-//! `install::run_script` (0x41365D): the install script (a byte program) run to
-//! build the folder- and file-name tables. A name is assembled in `script_path` as nested
-//! folders, with a stack of the segment starts (the real stack in the original). Opcodes:
-//! - 1 n: read a name (`install::script_name`), add the whole path as a folder
-//!   (`install::list_folder`), append `\`, and push the level;
-//! - 2: pop a level (back to the parent; refused with nothing pushed: the original pops
-//!   its caller's stack);
-//! - 3 n: read a name and add the matching files (`install::list_files`), path unchanged;
-//! - 4 n: read a name and add the folder tree (`install::list_folder_tree`);
-//! - 8 n: if `g_mediaMode` is below n, skip to the matching 9 (they nest);
-//! - 9, 6: nothing;
-//! - any other byte (0): the end. An unbalanced stack is fatal error 0x80AF3011.
+//! The install script (a byte program) run to build the folder- and file-name tables. A name is
+//! assembled in `script_path` as nested folders. Opcodes:
+//! - 1 n: read a name, add the whole path as a folder, append `\`, and push the level;
+//! - 2: pop a level (refused with nothing pushed);
+//! - 3 n: read a name and add the matching files, path unchanged;
+//! - 4 n: read a name and add the folder tree;
+//! - 8 n: if the media mode is below n, skip to the matching 9 (they nest);
+//! - 9, 6: nothing; any other byte (0): the end. An unbalanced stack is fatal error 0x80AF3011.
 //!
-//! Takes the script.
-//! Callers `install::install_files`, `uninstall`, `install_clio`.
+//! Called by `install::install_files`, `uninstall`, `install_clio`.
 
 use crate::errors::{BadInput, Refused};
 use crate::install::installer::{fatal, media_mode, rb, wb};
@@ -34,7 +29,6 @@ pub fn run_script(
     let mut stack: Vec<BytePlace> = Vec::new();
     let media = media_mode() as u8;
     let mut guard = 0usize;
-    // Converted: `rc2k_core::install::script` (`Op`, `skipped`, `skip`).
     loop {
         guard += 1;
         if guard > script::LIMIT {

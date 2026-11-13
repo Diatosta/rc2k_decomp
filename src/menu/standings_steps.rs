@@ -1,8 +1,7 @@
 //! The event drivers' steps on the two standings tables (A: the rally's, B: the
 //! championship's; see `menu::standings`): clearing a table's figures and numbering its
 //! entries. Each refuses a table without its end entry (or a player past 4 or missing)
-//! before changing anything. Originals: `clear_standings_a` 0x4A5A14, `_b` 0x4A5A2F;
-//! `number_all_a` 0x4A2090, `_b` 0x4A5A98; `number_standings_a` 0x4A2055, `_b` 0x4A4A9D.
+//! before changing anything.
 
 use crate::errors::Refused;
 use crate::menu::owner::Menus;

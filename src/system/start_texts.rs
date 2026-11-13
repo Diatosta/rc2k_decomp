@@ -4,18 +4,19 @@
 
 use crate::session::{PlainByte, PlainBytes, with_runs};
 
-/// The version, copyright, window and class texts (IDA 0x4E0000 ..).
+/// The version, copyright, window and class texts.
 #[derive(rc2k_derive::Cells)]
 pub struct StartTexts {
-    /// 0x4E0000: `aVerRally530482`: "$VER: Rally 5.30 (4.8.2000)" (`system::read_command_line`, `install::check_at_start`).
+    /// "$VER: Rally 5.30 (4.8.2000)" (`system::read_command_line`, `install::check_at_start`).
     pub version: PlainBytes<28>,
-    /// 0x4E001C: `byte_4E001C`: the copyright text, "Copyright (c) Magnetic Fields .." (`install::check_installed_version` looks for it in the program).
+    /// The copyright text, "Copyright (c) Magnetic Fields .." (`install::check_installed_version`
+    /// looks for it in the program).
     pub copyright: PlainBytes<91>,
-    /// 0x4E0077: `byte_4E0077`: the second text of the `-v` box (empty).
+    /// The second text of the `-v` box (empty).
     pub second_text: PlainByte,
-    /// 0x4E0078: `WindowName`: the window's name, "Rally 5".
+    /// The window's name, "Rally 5".
     pub window_name: PlainBytes<8>,
-    /// 0x4E0080: `ClassName`: the window class's name, "MF-SDG R5" (`system::find_running_game`).
+    /// The window class's name, "MF-SDG R5" (`system::find_running_game`).
     pub class_name: PlainBytes<10>,
 }
 

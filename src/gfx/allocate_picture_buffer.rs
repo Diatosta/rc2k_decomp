@@ -1,16 +1,10 @@
-//! `gfx::allocate_picture_buffer` (0x40608F): takes the memory pictures are decoded in.
-//!
-//! `size` = 0x1D4C00 (800 x 600 dwords); that and 0xC80 bytes more from
-//! `memory::allocate` on the list `list` (Rust's: `gfx::picture`); the
-//! address to `g_pictureBuffer` (here the buffer's number)
-//! (0x4F49DC). A failed allocation would be fatal error 0x80A19090, but the allocator
-//! reports its own and does not come back. One caller, `start`. `gfx::free_picture_buffer`, after
-//! it in the listing, gives the memory back at the game's end.
+//! Takes the memory pictures are decoded in: `size` (800 x 600 dwords) and 0xC80 bytes more from
+//! `memory::allocate` on the list `list` (Rust's memory: `gfx::picture`); the buffer's number goes
+//! to the picture buffer variable. A failed allocation is fatal, but the allocator reports its own
+//! error. `gfx::free_picture_buffer` gives the memory back at the game's end.
 
 use crate::errors::Refused;
 use crate::gfx::picture::{Buffer, take};
-
-// ---- game data ----
 
 const BUFFER_LEN: u32 = 0x1D_4C00;
 const SPARE: u32 = 0xC80;

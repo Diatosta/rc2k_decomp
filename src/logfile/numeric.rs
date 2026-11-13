@@ -1,15 +1,11 @@
-//! What the six numeric log functions share. Each does what `log_write` does, with one step
-//! in between: under the log's lock it formats the number as text in a scratch
-//! buffer, ends it with a NUL, and goes on into `write_line` with that buffer and the
-//! line-break flag and level as given.
-//!
-//! Each of the six has four entries before it that set the flag and level (`_l1`, `_l1_nl`,
-//! `_l2`, `_l2_nl`) and jump to it, so they go through it.
+//! What the six numeric log functions share: under the log's lock the number is formatted as
+//! text in a scratch buffer, ended with a NUL, and logged through `write_line` with the
+//! line-break flag and level given by the entry used (`_l1`, `_l1_nl`, `_l2`, `_l2_nl`).
 
 use crate::errors::BadInput;
 
-/// `dst` (0x93E030 in the image, 0x50 bytes below the log's line buffer): where a number's
-/// text is made, and `start_log`'s date. Written under the log's lock.
+/// Where a number's text is made (0x50 bytes), and `start_log`'s date. Written under the
+/// log's lock.
 pub const SCRATCH_LEN: usize = 0x50;
 
 /// The text of a number, as it is left in the scratch buffer.
@@ -34,13 +30,12 @@ pub struct Body {
     pub text: fn(u32, u32) -> Result<NumberText, BadInput>,
 }
 
-/// For Rust callers: the number's text logged (`write_line::log_text`), not through the
-/// scratch buffer. The text ends where the original puts its NUL, but never past what was
-/// written: the original logs the scratch buffer's leftovers there (`log_float` with more
-/// decimals than its text has; `notes/bugs.md`, fixed here).
+/// The number's text logged (`write_line::log_text`), not through the scratch buffer. The
+/// text ends where its NUL goes, never past what was written (fixed: `wiki/Fixed-bugs.md`,
+/// "Logged floating-point numbers carry leftover digits").
 pub fn log_number(body: &Body, eax: u32, ecx: u32, newline: bool, level: u8) {
-    // A text the scratch buffer cannot hold the original refuses (not logged): none of the
-    // six makes one from a number.
+    // A text the scratch buffer cannot hold is refused (not logged): none of the six makes one
+    // from a number.
     let Ok(text) = (body.text)(eax, ecx) else {
         return;
     };

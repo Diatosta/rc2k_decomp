@@ -1,13 +1,10 @@
-//! `gfx::list_primary_modes` (0x4043DA): the primary card's screen modes listed into the
-//! modes' table and marked for Direct3D. (`gfx::list_secondary_modes` is the same for the
-//! secondary card; the two share what is here.)
-//!
-//! The primary: DirectDraw made for the card ("VID: Open ddraw"; failing, fatal errors
-//! 0x80208511 / 0x80208512, raised there), DirectDraw's `EnumDisplayModes` with the
-//! primary card's bit (0x1000), which puts the modes in the table, `gfx::mark_3d_modes`
-//! for the same kind if `cards.primary` (a 3D primary card) is 1, then DirectDraw closed. DirectDraw is the platform's: in the standalone
-//! the modes are every size the game knows in both pixel kinds (`standalone_modes`), and
-//! the opening and closing nothing. One caller, `start` (0x401098), which calls it directly.
+//! Lists the primary card's screen modes into the modes' table and marks them for Direct3D.
+//! (`gfx::list_secondary_modes` is the same for the secondary card; the two share what is here.)
+//! DirectDraw is made for the card ("VID: Open ddraw"; failing is a fatal error), its display modes
+//! are enumerated with the primary card's bit (0x1000), which puts the modes in the table,
+//! `gfx::mark_3d_modes` runs for the same kind if `cards.primary` (a 3D primary card) is 1, then
+//! DirectDraw is closed. DirectDraw is the platform's: in the standalone the modes are every size
+//! the game knows in both pixel kinds (`standalone_modes`), and the opening and closing do nothing.
 
 use crate::errors::{BadInput, Refused};
 use crate::gfx::mark_3d_modes::mark_3d_modes;
@@ -28,10 +25,10 @@ pub fn list_primary_modes(
 
 const TABLE_ROOM: u32 = 0x20;
 
-/// The standalone program's DirectDraw `EnumDisplayModes` for card `card` (0x1000 the
-/// primary): every screen size the game knows in both pixel kinds (its window takes
-/// any), entered as `gfx::mode_callback` (0x404A56) enters a mode: the card's, the kind's
-/// and the size's bits, once each, while the table has room.
+/// The standalone program's enumeration of display modes for card `card` (0x1000 the primary):
+/// Every screen size the game knows in both pixel kinds (its window takes any), entered as
+/// `gfx::mode_callback` enters a mode: the card's, the kind's and the size's bits, once each, while
+/// the table has room.
 pub fn standalone_modes(display: &Display, card: u32) -> Result<(), BadInput> {
     let table = &display.modes.table;
     for size in 0..8usize {

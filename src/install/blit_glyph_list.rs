@@ -1,10 +1,6 @@
-//! `install::blit_glyph_list` (0x402628): a list of `count` records (16 bytes each: dx, dy,
-//! glyph, palette) blitted, each at (dx + x, dy + y) with its palette (`gfx::blit_glyph`).
-//! //!
-//! Takes the count, table, x, y.
-//! Caller the copy-progress frame (the install bar). Refuses a count of 0
-//! (the original's loop is a do-while: it
-//! would blit 2^32 records).
+//! Blits a list of glyph records (16 bytes each: dx, dy, glyph, palette), each at
+//! (dx + x, dy + y) with its palette (`gfx::blit_glyph`). The copy-progress frame (the install
+//! bar) draws with it. Refused: an empty list.
 
 use crate::errors::Refused;
 use crate::install::vars::GlyphRecord;
@@ -19,10 +15,8 @@ pub fn blit_glyph_list(
     glyphs: u32,
     gfx: &crate::gfx::owner::Gfx,
 ) -> Result<(), Refused> {
-    // Converted: `rc2k_core::install::layout` (`list_records`, `list_place`).
     for (record, _) in table.iter().zip(layout::list_records(table.len() as u32)?) {
         let (x, y) = layout::list_place(record.dx.get(), record.dy.get(), x, y);
-        // `gfx::blit_glyph` with the glyph and the palette.
         crate::gfx::blit_glyph::blit_glyph_on_surface(
             record.glyph.get(),
             glyphs,

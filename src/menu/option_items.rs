@@ -1,30 +1,13 @@
-//! The options pages' remaining item handlers (on the sound and visual options pages): thirty small left/right
-//! and action handlers, each named by what it changes. What each does, by its kind:
-//! - a switch: a dword flipped (`xor .., 1`), nothing else (0x467EF8 a game flag,
-//!   0x468211 `champ_view.switch_f8`, 0x468219 `switch_fc`; what they switch is not read);
-//! - a switch with a copy: flipped, eax its value, then a second dword flipped too
-//!   (0x46FFB3, 0x46FFC7) or given eax (0x470035, 0x470107, 0x470119, 0x47018B: the
-//!   settings the game reads);
-//! - 0x470017: `option_work.modes_switch` flipped, eax its value, the display's twin switch flipped, then the
-//!   screen-mode list made again (`gfx::screen_mode_choices` with eax 0);
-//! - the advanced sound page's switches (0x4701E9 DS3D, 0x4701F6 EAX, 0x470203 A3D,
-//!   0x470210 Dolby, 0x47021D the channels): the work value flipped and
-//!   `menu::apply_audio_choices`; its quality (0x47019F one more, 0 after 3; 0x4701C4 one
-//!   less, 3 before 0), then the same;
-//! - a volume: its work value one less (below 0: 0) or one more (above 0x40: 0x40), signed;
-//!   then the master's (`g_masterVolumeShown`) is sent (`sound::send_command_8`, eax the
-//!   value), the race music's (`option_work.other_volume`) stored in the game's music volume (eax the value),
-//!   the race sounds' (`menu_sounds_a`) and the menu sounds' (`menu_sounds_c`) heard
-//!   (`sound::play_menu_sound` with eax 0x80 and 1);
-//! - a counter (0x468221 / 0x46823B: `captions.shown_group` 0 .. 5, 0x468255 / 0x46826F:
-//!   `captions.shown_stage` 1 .. 6), one less or one more, past an end the other end (signed);
-//! - 0x46FFDB: the screen mode chosen one less, before 0 the last; eax the new one.
+//! The options pages' remaining item handlers (sound and visual options pages): thirty small
+//! left/right and action handlers, each named by what it changes, of these kinds: a switch (a
+//! dword flipped), a switch with a copy (flipped, then a second dword flipped or given the
+//! value), the modes switch (also making the screen-mode list again), the advanced sound page's
+//! switches and quality (then `menu::apply_audio_choices`), a volume (one less / more within
+//! 0 ..= 0x40, signed, then sent or heard), a counter (`captions.shown_group` 0 .. 5,
+//! `shown_stage` 1 .. 6, wrapping) and the screen mode chosen (one less, before 0 the last).
 //!
-//! Result as above (the volumes: the value, or the sound when one is heard; the switches
-//! with a copy: the value).
-//!
-//! Which item each is: the page tables' readings (the owner named the sound page's four volumes:
-//! general, race music, race effects, menu effects).
+//! Which item each is: the page tables' readings (the sound page's four volumes: general, race
+//! music, race effects, menu effects).
 
 use crate::errors::Refused;
 use crate::owners::Owners;
@@ -34,11 +17,11 @@ use rc2k_core::menu::tables::{OptionSwitch, StageCounter, VolumeKind};
 /// After a volume step.
 #[derive(Clone, Copy)]
 pub enum Then {
-    /// `sound::send_command_8` with eax the value.
+    /// `sound::send_command_8` with the value.
     Send,
-    /// eax the value, stored there.
+    /// The value, stored there.
     Store(StepOperand),
-    /// `sound::play_menu_sound` with eax this.
+    /// `sound::play_menu_sound` with this sound.
     Sound(u32),
 }
 
@@ -46,12 +29,13 @@ pub enum Then {
 #[derive(Clone, Copy)]
 pub enum Kind {
     Switch,
-    /// Flipped, eax the value, `other` flipped (true) or given eax (false).
+    /// Flipped, then `other` flipped (true) or given the value (false).
     SwitchCopy {
         other: StepOperand,
         flip: bool,
     },
-    /// 0x470017.
+    /// `option_work.modes_switch` flipped, the display's twin switch flipped, then the
+    /// screen-mode list made again.
     SwitchModes {
         other: StepOperand,
     },
@@ -70,14 +54,13 @@ pub enum Kind {
         low: i32,
         high: i32,
     },
-    /// 0x46FFDB: `other` is how many modes there are.
+    /// `other` is how many modes there are.
     PreviousMode {
         other: StepOperand,
     },
 }
 
-/// A handler: its address and length as IDA shows them, its first instructions' bytes
-/// (for the test's copy), the dword it changes (IDA address) and its kind.
+/// A handler: the dword it changes and its kind.
 #[derive(Clone, Copy)]
 pub struct Item {
     pub var: StepOperand,
@@ -113,7 +96,7 @@ pub fn option_item(o: Owners<'static>, item: Item) -> Result<(), Refused> {
         Kind::SwitchModes { other } => {
             set(&o, v, steps::flip(get(&o, v) as u32) as i32);
             set(&o, other, steps::flip(get(&o, other) as u32) as i32);
-            // `gfx::screen_mode_choices` with eax 0; its flags are read by no caller.
+            // `gfx::screen_mode_choices` makes the list again; its flags are read by no caller.
             crate::gfx::screen_mode_choices::screen_mode_choices(o.gfx, o.d3d, o.system, false)?;
         }
         Kind::SwitchAudio => {
@@ -173,8 +156,8 @@ fn volume_item(var: StepOperand, up: bool, then: Then) -> Item {
 }
 
 /// `ItemFn::Volume { which, up }`: the volume `which` one step up or down on the sound
-/// pages (the first four on the sound page, the owner's names: general, race music, race
-/// effects, menu effects; the others on the volume page).
+/// pages (the first four on the sound page: general, race music, race effects, menu effects;
+/// the others on the volume page).
 pub fn volume(o: Owners<'static>, which: VolumeKind, up: bool) -> Result<(), Refused> {
     use crate::menu::option_steps::{Then as StepThen, Volume, volume_step};
     let work = &o.menus.screens.option_work;
@@ -316,8 +299,6 @@ pub fn stage_counter(o: Owners<'static>, which: StageCounter, up: bool) -> Resul
         },
     )
 }
-
-// ---- the visual and advanced sound pages' remaining items ----
 
 option_item!(
     previous_screen_mode,

@@ -34,8 +34,7 @@ fn table_of(options: &Options) -> Result<Table, OptionsError> {
     Ok(table)
 }
 
-/// The file's text for `options`; `existing` is the text of the file being written over
-/// (the keys this program does not know stay).
+/// The file's text for `options`; `existing` is the file written over (its unknown keys stay).
 pub fn write(options: &Options, existing: Option<&str>) -> Result<String, OptionsError> {
     let mut table = existing
         .and_then(|text| text.parse::<Table>().ok())

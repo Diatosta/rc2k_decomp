@@ -85,15 +85,15 @@ pub fn load_new(paths: &Paths, base: &Options) -> Result<Option<Options>, Option
     }
 }
 
-/// Reads the old file by the caller's own way (the game's functions, on its stores).
+/// Reads the old file by the caller's own way.
 pub type OldReader<'a> = &'a mut dyn FnMut() -> Result<Option<Options>, OptionsError>;
 /// Writes the old file by the caller's own way.
 pub type OldWriter<'a> = &'a mut dyn FnMut(&Options) -> Result<(), OptionsError>;
 
-/// The options to start with: the new file if it is there (unless the old is asked for),
-/// else the old file once (the new file is written from it before this returns), else
-/// nothing (`base` stays). `base` is the game's own values, for what a file lacks.
-/// `read_old` reads the old file (`load_old` is the plain way).
+/// The options to start with: the new file if it is there (unless the old is asked for), else
+/// the old file once (the new file is written from it first), else nothing (`base` stays,
+/// the game's own values for what a file lacks). `read_old` reads the old file (`load_old` is
+/// the plain way).
 pub fn load(
     paths: &Paths,
     asked: Asked,
@@ -115,7 +115,7 @@ pub fn load(
     }
 }
 
-/// Writes the new file (over its unknown keys kept).
+/// Writes the new file (keeping the unknown keys it holds).
 pub fn save_new(paths: &Paths, options: &Options) -> Result<(), OptionsError> {
     let existing = read_file(&paths.new)?.and_then(|b| String::from_utf8(b).ok());
     let text = toml_file::write(options, existing.as_deref())?;

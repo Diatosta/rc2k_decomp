@@ -1,9 +1,8 @@
-//! A car block's camera view (from `drive::set_camera_view`
-//! 0x43A9BA and `next_camera_view` 0x43AA38): the view wanted taken, and the next one
-//! the change-view key asks for: views 0 .. 6 cycle, 2 and 3 only for cars with their
-//! own views (`kind_has_views`) and with one player; 7 and above are the fixed replay cameras.
+//! A car block's camera view: the view wanted taken, and the next one the change-view key asks for:
+//! views 0 .. 6 cycle, 2 and 3 only for cars with their own views (`kind_has_views`) and with one
+//! player; 7 and above are the fixed replay cameras.
 
-/// The block's view fields (+0x684 .. +0x69C).
+/// A car block's view fields (block offsets +0x684 .. +0x69C).
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct CameraView {
     /// +0x684: the view shown.
@@ -14,7 +13,7 @@ pub struct CameraView {
     pub taken_at: u32,
     /// +0x694: held (no change).
     pub held: u32,
-    /// +0x698.
+    /// +0x698: not known; cleared when a view is taken.
     pub w698: u32,
     /// +0x69C: the share of the switch to the view made (a float).
     pub switch_share: f32,
@@ -26,8 +25,7 @@ pub const VIEWS: u32 = 7;
 pub const CARS_WITH_ENTRY: u32 = 0x22;
 
 impl CameraView {
-    /// `drive::set_camera_view`: the view wanted taken at step count `step`; the step
-    /// count.
+    /// Takes the wanted view at step count `step` and gives `step` back.
     pub fn take_wanted(&mut self, step: u32) -> u32 {
         self.view = self.wanted;
         self.held = 0;
@@ -38,10 +36,9 @@ impl CameraView {
     }
 }
 
-/// `drive::next_camera_view`'s choice: the view after `view`, but 2 and 3 become 4 when
-/// the car (`car()`, the block's +0x24) has none (past the table, or `has_views(car)`
-/// false) or with two players (`players()` 2, asked only when it has them); 7 and above
-/// wrap to 0.
+/// The view after `view` for the change-view key. 2 and 3 become 4 when the car (`car()`, the
+/// block's +0x24) has none (past the table or `has_views(car)` false) or with two players
+/// (`players()`, asked only when it has them); 7 and above wrap to 0.
 pub fn next_view(
     view: u32,
     car: impl FnOnce() -> u32,

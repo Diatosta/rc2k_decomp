@@ -1,10 +1,5 @@
-//! `net::connecting` (0x417688): an empty frame (`screens::run_frame`), then on the
-//! locked surface the background and "connecting" (string 0x14F, `typefaces::STAGE_TITLE` at 0x316,
-//! 0x6F), shown, a second's sleep (none when the lock fails); then the connection made
-//! (`net::init_connection`).
-//!
-//! Takes `connection`. Returns whether `net::init_connection` worked.
-//! Caller: `net::start_link`.
+//! Shows "connecting" on the background for a second, then makes the connection with
+//! `net::init_connection`. Returns whether that worked.
 
 use crate::errors::Refused;
 use crate::net::lobby::{lock_surface, run_frame};

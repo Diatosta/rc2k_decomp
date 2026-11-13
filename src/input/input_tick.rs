@@ -1,13 +1,8 @@
-//! `input::input_tick` (0x408A56): one tick of the input thread's devices: the command
-//! `g_inputCommand` taken (`xchg` with 0); when there is one, `input::device_command`;
-//! else both devices (`records`) read (`input::read_device`) and their
-//! effects told (`input::device_effects`), and with one player on two devices
-//! (`two_devices_one_player`) the second's readings added to the first's (its bits: those of 0x70FF).
-//!
-//! Callers: the input thread (`input::input_thread`, every 20 ms), `input::device_command`
-//! (twice).
-//!
-//! Its arguments are what it reads.
+//! One tick of the input thread's devices: the command is taken (swapped with 0); when there is
+//! one, `input::device_command` runs; else both devices (`records`) are read
+//! (`input::read_device`) and their effects told (`input::device_effects`), and with one player
+//! on two devices (`two_devices_one_player`) the second's readings are added to the first's
+//! (its bits: those of 0x70FF).
 
 use crate::errors::Refused;
 use crate::input::devices::records;
@@ -36,7 +31,6 @@ pub fn input_tick(
         crate::input::device_effects::device_effects(&input.devices, record)?;
     }
     if input.devices.two_devices_one_player.is_set() {
-        // Converted: `rc2k_core::input::devices::merge_readings`.
         let [first, second] = records;
         let read = |record: &InputDevice| -> [u32; 4] {
             let [steering, brake, throttle] = record.readings.each_ref().map(Dword::get);

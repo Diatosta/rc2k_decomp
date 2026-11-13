@@ -1,8 +1,6 @@
-//! The fatal-error report (from `fatal::report` 0x40763C and
-//! `fatal::show_report_at_exit` 0x407855): its text, made once per run, and how the
-//! reporter leaves.
+//! The fatal-error report: its text, made once per run, and how the reporter leaves.
 //!
-//! A code with bit 31 is fatal (the game quits), one without is a breakpoint (the game goes
+//! A code with bit 31 is fatal (the game quits); one without is a breakpoint (the game goes
 //! on); bit 28 makes a report of the message alone.
 
 use crate::strings::format::{binary, hex};
@@ -12,12 +10,12 @@ pub const FATAL: u32 = 0x8000_0000;
 /// Bit 28: the message alone (no heading, no file, no registers), and the message box's
 /// caption "Rally: Guru Meditation" cut to "Rally".
 pub const TEXT_ONLY: u32 = 0x1000_0000;
-/// The room for the report, its NUL included (`Text`, 0x9526F8).
+/// The room for the report, its NUL included.
 pub const TEXT_LEN: usize = 0x400;
 /// Where the caption is cut for a code with bit 28 (its byte 5 made 0).
 pub const CAPTION_CUT: usize = 5;
 
-/// The register lines' template (0x4F673A), which the original fills in place.
+/// The register lines' template.
 pub const TEMPLATE: &[u8] = b"EAX=XXXXXXXX\tEBX=XXXXXXXX\tECX=XXXXXXXX\tEDX=XXXXXXXX\r\nESI=XXXXXXXX\tEDI=XXXXXXXX\tESP=XXXXXXXX\tEBP=XXXXXXXX\r\nC=X  Z=X  S=X  V=X  P=X";
 /// Where the eight register values go in the template.
 const HEX_AT: [usize; 8] = [4, 17, 30, 43, 57, 70, 83, 96];
@@ -56,11 +54,10 @@ pub fn register_dump(c: &Context) -> Vec<u8> {
     dump
 }
 
-/// The report, without its NUL: unless the code has bit 28, "Error code [XXXXXXXX]" (bit
-/// 31) or "Breakpoint [XXXXXXXX]"; the message (an empty one as none) with the two
-/// characters `\n` made a line break; `extra` (the string at 0x4F67BD); unless bit 28,
-/// "Last file: `path'", "W32=XXXXXXXX" when `w32` is not 0, and the register lines (left out
-/// when no `context` is known).
+/// The report, without its NUL: unless bit 28, "Error code \[XXXXXXXX\]" (bit 31) or
+/// "Breakpoint \[XXXXXXXX\]"; the message (empty as none) with the two characters `\n` made a
+/// line break; `extra`; unless bit 28, "Last file: `path'", "W32=XXXXXXXX" when `w32` is not 0,
+/// and the register lines (left out without a `context`).
 pub fn report_text(
     code: u32,
     message: Option<&[u8]>,
@@ -113,8 +110,7 @@ pub fn report_text(
     text
 }
 
-/// Whether a report of `len` bytes fits its room with its NUL (one that does not is not
-/// worked out: the original writes past `Text`).
+/// Whether a report of `len` bytes fits its room with its NUL (a longer one is refused).
 pub fn fits(len: usize) -> bool {
     len < TEXT_LEN
 }
@@ -124,9 +120,9 @@ pub fn fits(len: usize) -> bool {
 pub enum Leave {
     /// Back to the game: the code was not fatal.
     Return,
-    /// To the exit path in `start`, with esi = 0: a fatal code on a thread without a slot.
+    /// To the exit path in `start`: a fatal code on a thread without a slot.
     Exit,
-    /// To the start routine of the current thread's slot, with esi = the slot.
+    /// To the start routine of the current thread's slot (`slot`).
     Routine { slot: u32, routine: u32 },
 }
 

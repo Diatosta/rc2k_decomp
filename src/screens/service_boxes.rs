@@ -1,5 +1,5 @@
-//! The service area's boxes (`screens::draw_service_boxes` and its four frames): flat see-through
-//! quads (`scene::draw_tinted_quad`), and the outlines and frames built from them.
+//! The service area's boxes (`screens::draw_service_boxes` and its four frames): flat
+//! see-through quads (`scene::draw_tinted_quad`), and the outlines and frames built from them.
 
 use crate::errors::Refused;
 use crate::owners::Owners;
@@ -52,7 +52,7 @@ pub const ORANGE: u32 = 0xFF8000;
 pub const SOLID: u32 = 0xFF;
 
 /// A one-pixel outline: the top and bottom edges are `w` wide, the left edge `left` tall and
-/// the right edge `right` tall (the original's right edge is one pixel taller than the left).
+/// the right edge `right` tall (the right edge is one pixel taller than the left).
 #[derive(Clone, Copy)]
 pub struct Outline {
     x: u32,

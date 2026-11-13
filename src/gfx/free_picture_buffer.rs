@@ -1,10 +1,7 @@
-//! `gfx::free_picture_buffer` (0x4060B7): the picture buffer given back at the game's end:
-//! `g_pictureFlags` and `g_pictureBuffer` 0, its list (`list`) freed
-//! (`memory::free_list`; the buffer, Rust's, given back). The other half of
-//! `gfx::allocate_picture_buffer`.
-//!
-//! One caller, `start`'s way out, which calls it directly. Refuses (before
-//! anything) what `free_list` refuses: a list holding a block.
+//! Gives the picture buffer back at the game's end: the picture flags and the buffer's number are
+//! 0, its list freed (`memory::free_list`; the buffer, Rust's, given back). The other half of
+//! `gfx::allocate_picture_buffer`. Refuses (before anything) what `free_list` refuses: a list
+//! holding a block.
 
 use crate::errors::BadInput;
 pub fn free_picture_buffer(gfx: &crate::gfx::owner::Gfx) -> Result<(), BadInput> {

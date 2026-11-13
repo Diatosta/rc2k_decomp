@@ -1,19 +1,17 @@
-//! The HUD's two car icons (from `scene::load_hud_car_icons`
-//! 0x4255AA): car 0's and car 1's, each by its model's icon number: one of two pairs of
-//! icon sheets and the icon's place on it from the two tables, uploaded at one of two rows
-//! of the HUD's texture.
+//! The HUD's two car icons, each chosen by its model's icon number and uploaded to one of two
+//! rows of the HUD's texture.
 
 use crate::Invalid;
 
-/// The icons' tables' room (`TexturePlaces.car_icon_sheet_x[0]`, `TexturePlaces.car_icon_sheet_y[0]`: 0x90 bytes each).
+/// The icon tables' room (0x90 bytes each).
 pub const NUMBERS: u32 = 0x24;
-/// CarIcon numbers below this take the first pair of pictures (`tx1822`, `tx1823`), the
-/// rest the second (`tx1824`, `tx1825`).
+/// Icon numbers below this use the first pair of pictures, the rest the second.
 pub const FIRST_PAIR_BELOW: u32 = 0x12;
-/// The two icons' rows and their column.
+/// The two icons' rows on the HUD's texture.
 pub const ROWS: [u32; 2] = [0x68, 0x94];
+/// The icons' column on the HUD's texture.
 pub const COLUMN: u32 = 0xAD;
-/// The most cars (`g_carBlocks`).
+/// The most cars.
 pub const CARS: u32 = 8;
 
 /// Refuses an icon number past the tables, before anything is uploaded.

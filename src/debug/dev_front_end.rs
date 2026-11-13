@@ -1,11 +1,8 @@
-//! The developers' front end (`dev_front_end::main`, 0x442B01, which nothing refers to): a menu of keys
-//! over `TITLE.PCX` that came before the real menus, to pick a course, a car and the
-//! switches and race at once. Here the "Developers" tab has its settings (first values the
-//! image's) and its races (test course, finish sequence, credits, last replay), run from the
-//! menu loop's next frame.
-//!
-//! Not here: `var\soptions` (the tab keeps no prefs between runs), and the reader of a
-//! developer's `e:\rally5\bin` file the game does not ship.
+//! The developers' front end: a menu of keys that came before the real menus, to pick a course,
+//! a car and the switches and race at once. Here the "Developers" tab has its settings and its
+//! races (test course, finish sequence, credits, last replay), run from the menu loop's next
+//! frame. Not here: `var\soptions` (the tab keeps no settings between runs) and a developer's
+//! `e:\rally5\bin` file.
 
 use crate::errors::Refused;
 use crate::owners::Owners;
@@ -15,25 +12,25 @@ use core::sync::atomic::{AtomicU32, Ordering::Relaxed};
 
 /// The settings' numbers.
 struct Settings {
-    /// the course, 0 .. 99 (42 at first).
+    /// The course, 0 .. 99 (42 at first).
     course: AtomicU32,
-    /// the car's kind, 0 .. 0x21.
+    /// The car's kind, 0 .. 0x21.
     car: AtomicU32,
-    /// forwards, backwards.
+    /// Forwards, backwards.
     direction: AtomicU32,
-    /// manual, automatic, bumper car.
+    /// Manual, automatic, bumper car.
     gears: AtomicU32,
-    /// the cars less one.
+    /// The cars less one.
     cars: AtomicU32,
-    /// the screens less one.
+    /// The screens less one.
     screens: AtomicU32,
-    /// single, simulation, arcade, time trial, editor free play.
+    /// Single, simulation, arcade, time trial, editor free play.
     mode: AtomicU32,
-    /// mipmapping.
+    /// Mipmapping.
     mips: AtomicU32,
-    /// the rally, 0 .. 5.
+    /// The rally, 0 .. 5.
     rally: AtomicU32,
-    /// the stage.
+    /// The stage.
     stage: AtomicU32,
 }
 
@@ -54,7 +51,7 @@ static SETTINGS: Settings = Settings {
 static WANTED: AtomicU32 = AtomicU32::new(0);
 
 /// Below this the courses (1 .. 6, 11 .. 16, some 30 KB each) have no pace notes, no set-up and
-/// no splits: the third is the original's own fatal error 0x80601843.
+/// no splits: the third is the game's own fatal error 0x80601843.
 const FIRST_RACED: usize = 0x15;
 
 const TEST: u32 = 1;
@@ -62,7 +59,7 @@ const FINISH: u32 = 2;
 const CREDITS: u32 = 3;
 const REPLAY: u32 = 4;
 
-/// `dev_front_end::set_up_race` (0x446994): the race's variables from the settings.
+/// The race's variables from the settings.
 fn set_up_race(race: &Race) -> Result<(), Refused> {
     let shared = &race.shared;
     let s = &SETTINGS;
@@ -72,7 +69,7 @@ fn set_up_race(race: &Race) -> Result<(), Refused> {
     shared.vars.get().race_car_kinds[0].set(car);
     shared.vars.get().race_car_kinds[1].set((car + 1) % 0x17);
     // The two blocks' start slots. The set-up figures and tyres stay the player's
-    // (`copy_settings_in`; the original set defaults here).
+    // (`copy_settings_in`; the developers' front end set defaults here).
     for (block, slot) in race.car_blocks().cars[..2].iter().zip([1, 2]) {
         block.start_slot_value.set(slot);
     }
@@ -152,7 +149,6 @@ fn round_a_race(
     Ok(())
 }
 
-/// `dev_front_end::test_course` (0x44306B) and `dev_front_end::run_race` (0x443F96).
 fn test_course(o: Owners<'static>) -> Result<(), Refused> {
     use crate::race::{race_end, race_shell, replay, stage_loading};
     let race = o.race;
@@ -182,7 +178,7 @@ fn test_course(o: Owners<'static>) -> Result<(), Refused> {
     })
 }
 
-/// The finish sequence (0x442FEF), for the course's index (0 .. 5) and the car.
+/// The finish sequence, for the course's index (0 .. 5) and the car.
 fn finish_sequence(o: Owners<'static>) -> Result<(), Refused> {
     let race = o.race;
     round_a_race(o, || {
@@ -203,7 +199,7 @@ fn finish_sequence(o: Owners<'static>) -> Result<(), Refused> {
     })
 }
 
-/// The credits' race (0x443104), without its fonts (the menus' are up).
+/// The credits' race, without its fonts (the menus' are up).
 fn credits(o: Owners<'static>) -> Result<(), Refused> {
     let race = o.race;
     round_a_race(o, || {
@@ -212,7 +208,7 @@ fn credits(o: Owners<'static>) -> Result<(), Refused> {
     })
 }
 
-/// The last race's replay (0x4430C0); nothing happens without one.
+/// The last race's replay; nothing happens without one.
 fn last_replay(o: Owners<'static>) -> Result<(), Refused> {
     let race = o.race;
     let shared = &race.shared;

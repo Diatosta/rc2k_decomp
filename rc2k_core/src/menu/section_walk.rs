@@ -1,6 +1,5 @@
-//! The walk over a section's records from `index` (from
-//! `menu::walk_section_records` 0x471F0D): each record's tag (its first dword) says what
-//! is done for it, until a tag 3 or 4.
+//! The walk over a section's records from `index`: each record's tag (its first dword) says what is
+//! done for it, until a tag 3 or 4.
 
 use crate::Invalid;
 

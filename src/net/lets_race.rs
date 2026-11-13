@@ -1,11 +1,5 @@
-//! `net::lets_race` (0x4640AA): the network race driven: a race variable and the eight stored
-//! cars' +0x74 (`g_carBlockStore.out`) 0, the HUD set (`net::set_hud_options`), the race
-//! (`drive::play_race`), the HUD kept (`net::keep_hud_options`); then this machine's car
-//! (`g_carBlocks[local car]`): its +0x88 (the race's time, it seems) and 0, or -1
-//! when its +0xB0 is -1.
-//!
-//! Returns the time and whether the car did not finish.
-//! Caller: `net::lets_rally`.
+//! Drives the network race: clears the stored cars' outputs, sets the HUD, plays the race, keeps
+//! the HUD; then returns this machine's car's race time and whether it did not finish.
 
 use crate::errors::Refused;
 use crate::net::store::NetShared;
@@ -26,7 +20,7 @@ pub fn lets_race(o: Owners<'static>, vars: &NetShared) -> Result<(u32, u32), Ref
     let block = race
         .shared
         .race_car(race.shared.view.get().local_car.get() as usize)?;
-    // Converted: `rc2k_core::net::record::not_finished`.
+    // The logic is in `rc2k_core::net::record::not_finished`.
     Ok((
         block.stage_time.get(),
         rc2k_core::net::record::not_finished(block.stop_state.get()),

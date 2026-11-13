@@ -1,27 +1,28 @@
-//! The controller screen's variables, out of RAL.EXE's image (IDA 0x755170 .. 0x755224): the history of the polls the direction learner keeps, the binding being
-//! learnt, and the names the bindings are drawn with. A struct of plain cells, one static.
+//! The controller screen's variables: the history of the polls the direction learner keeps,
+//! the binding being learnt and the names the bindings are drawn with. A struct of plain cells,
+//! one static.
 
 use crate::session::{PlainDword, PlainWord};
 
-/// The controller screen's variables (IDA 0x755170 .. 0x755224).
+/// The controller screen's variables.
 #[derive(rc2k_derive::Cells)]
 pub struct ControlsScreen {
-    /// Unreferenced (IDA 0X755178): 1 .. 12 and a -1.
+    /// Unreferenced: 1 .. 12 and a -1.
     pub _table_755178: [PlainDword; 13],
-    /// Unreferenced (IDA 0X7551E0): -1.
+    /// Unreferenced: -1.
     pub _unused_7551e0: PlainDword,
-    /// `dword_7551E4` .. `dword_7551F0`: the left, right, y and z directions' histories of the
+    /// The left, right, y and z directions' histories of the
     /// last 32 polls (`screens::classify_controller`: a 1 for "under 0x80").
     pub history: [PlainDword; 4],
-    /// `g_bindingLearning`: 1 while a control learns (the keys are not looked at).
+    /// 1 while a control learns (the keys are not looked at).
     pub learning: PlainDword,
-    /// `g_bindingLearnStart`: the clock when it began.
+    /// The clock when it began.
     pub learn_start: PlainDword,
-    /// `g_bindingLearned`: the control learning (from 1), -1 when it timed out.
+    /// The control learning (from 1), -1 when it timed out.
     pub learned: PlainDword,
-    /// `word_755200`: the string ids of the directions of a pad (a device kind below 2).
+    /// The string ids of the directions of a pad (a device kind below 2).
     pub pad_names: [PlainWord; 9],
-    /// `word_755212`: the string ids of the directions of a stick.
+    /// The string ids of the directions of a stick.
     pub stick_names: [PlainWord; 9],
 }
 

@@ -6,14 +6,14 @@ use crate::menu::owner::Play;
 pub const PLAYERS: usize = 4;
 pub const NAME_LEN: usize = 0x20;
 
-/// Where the original kept the first name (`g_playerNames`, IDA 0x755784): saved games and
-/// best-times entries still carry the names as addresses from it.
+/// The first player name's address in the saved files: saved games and best-times entries
+/// carry the names as addresses from it.
 const FIRST_NAME_ADDRESS: u32 = 0x755784;
 
-/// The original's address of player `player`'s name (`FIRST_NAME_ADDRESS` + 0x20 player): what the saved games and the best-times entries carry for the name
-/// (`Player::to_file_bytes`, the entries' `name_id`). A name, never read as memory: the
-/// files get the original's bytes, and an entry kept in `var\hst.dat` still names its
-/// player in a later run (the names' place in Rust's memory changes from run to run).
+/// The saved files' address of player `player`'s name (`FIRST_NAME_ADDRESS` + 0x20 player): what
+/// the saved games and the best-times entries carry for the name (`Player::to_file_bytes`, the
+/// entries' `name_id`). A name, never read as memory: the files get the 1999 bytes, and an entry
+/// kept in `var\hst.dat` still names its player in a later run.
 pub fn name_address(player: usize) -> u32 {
     FIRST_NAME_ADDRESS + (player * NAME_LEN) as u32
 }
@@ -24,8 +24,7 @@ pub fn index_of(name_at: u32) -> Option<usize> {
     (0..PLAYERS).find(|&k| name_address(k) == name_at)
 }
 
-/// Whose name the player record `player` has; refused for a record without a name (the
-/// original reads through its null pointer).
+/// Whose name the player record `player` has; refused for a record without a name.
 pub fn name_of(player: &rc2k_core::menu::player::Player) -> Result<usize, crate::errors::BadInput> {
     player
         .name_player()
@@ -33,8 +32,8 @@ pub fn name_of(player: &rc2k_core::menu::player::Player) -> Result<usize, crate:
 }
 
 /// A place in the names' area (the four names, then what follows them): a name's start, or
-/// a byte on in it. Reads run to the area's end, as the original runs on past a name that
-/// lacks its end.
+/// a byte on in it. Reads run to the area's end, as a name that lacks its end is read on past
+/// it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct NameAt(usize);
 
@@ -86,7 +85,7 @@ pub fn cars(play: &Play) -> &'_ [crate::session::Shared<crate::menu::player::Pla
 mod tests {
     use super::*;
 
-    /// The names' addresses are the original's, the same in every run.
+    /// The names' addresses are the same in every run.
     #[test]
     fn name_addresses_are_the_originals() {
         assert_eq!(

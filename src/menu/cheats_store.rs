@@ -1,20 +1,21 @@
 //! The main menu's notice flag, the car specification screen's kept car and the cheats, out of
-//! RAL.EXE's image (IDA 0x7585D8 .. 0x758714). One static.
+//! RAL.EXE's image. One static.
 
 use crate::session::{PlainBytes, PlainDword, with_runs};
 
-/// The notice flag, the kept car and the cheats (IDA 0x7585D8 .. 0x758714).
+/// The notice flag, the kept car and the cheats.
 #[derive(rc2k_derive::Cells)]
 pub struct Cheats {
-    /// `g_noticeDue`: Set to 1 by the main menu before a frame (`menu::frame_callback` looks at it).
+    /// Set to 1 by the main menu before a frame (`menu::frame_callback` looks at it).
     pub notice_due: PlainDword,
-    /// `dword_7585DC`: The car shown on the car specification screen, kept over its visits.
+    /// The car shown on the car specification screen, kept over its visits.
     pub kept_car: PlainDword,
-    /// `aNepnqrNpgvba`: The list of the cheats' coded names: each entry a rot13 name, its NUL and the cheat's bit number; a NUL where a name would start ends it (`menu::check_cheat_name`).
+    /// The list of the cheats' coded names: each entry a rot13 name, its NUL and the cheat's bit
+    /// number; a NUL where a name would start ends it (`menu::check_cheat_name`).
     pub cheat_names: PlainBytes<300>,
-    /// `g_cheats`: The cheats switched on, one bit each (`menu::apply_cheats`).
+    /// The cheats switched on, one bit each (`menu::apply_cheats`).
     pub cheats: PlainDword,
-    /// `g_allSecretCars`: The `allsecretcars` / `secretcar` setting of `var\ral.cfg`.
+    /// The `allsecretcars` / `secretcar` setting of `var\ral.cfg`.
     pub all_secret_cars: PlainDword,
 }
 

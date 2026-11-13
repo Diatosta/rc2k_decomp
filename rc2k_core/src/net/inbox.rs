@@ -1,10 +1,8 @@
-//! A player's race messages as the receiving thread keeps them (from
-//! `net::store_received` 0x419677 and `net::send_message` 0x41736D): a count, 0x40 records of
-//! 0x100 bytes (+0 the sequence byte doubled, +1 the length, +2 the bytes), the oldest
-//! sequence still wanted, the newest seen and the time of the last message; kept in sequence
-//! order. A race message's sequence byte has its top bit set. Each race step takes the
-//! messages over (`net::copy_received` 0x4173A0): the count and the records copied for the
-//! race, the inbox emptied.
+//! A player's race messages as the receiving thread keeps them: a count, 0x40 records of 0x100
+//! bytes (+0 the sequence byte doubled, +1 the length, +2 the bytes), the oldest sequence still
+//! wanted, the newest seen and the time of the last message; kept in sequence order. A race
+//! message's sequence byte has its top bit set. Each race step takes the messages over: the count
+//! and the records copied for the race, the inbox emptied.
 
 use crate::Invalid;
 
@@ -33,10 +31,9 @@ pub struct Inbox {
     pub time: u32,
 }
 
-/// What a message put into a full inbox writes past the last record (the game's slip, IDA
-/// checked): its sequence byte over the oldest sequence still wanted, its length over the
-/// newest seen, and its bytes on over the two bytes after them, the time of the last message,
-/// the count of the copy for the race and the copy's records.
+/// What a message put into a full inbox writes past the last record (the game's slip, kept): its
+/// sequence byte over the oldest sequence wanted, its length over the newest seen, its bytes over
+/// what follows (the time, the copy's count and records).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Spill {
     pub sequence: u8,
@@ -44,20 +41,18 @@ pub struct Spill {
     pub bytes: Vec<u8>,
 }
 
-/// True if sequence `a` is older than `b` (`cmp a, b; js`).
+/// True if sequence `a` is older than `b` (wrapping, as a signed byte).
 pub fn older(a: u8, b: u8) -> bool {
     (a.wrapping_sub(b) as i8) < 0
 }
 
-/// A message received (`sequence` as sent, doubled here) put into the inbox at `time`: one
-/// older than the oldest still wanted is dropped; the newest seen kept; the first goes
-/// first; into a full inbox the records move up one (the oldest gone) and it goes in past
-/// the last record (the `Spill` given back, to write over what follows the records, after
-/// the time was set); else it goes in after the last record not newer, those newer moved
-/// down one. Moving one leaves the original's count 0: the message then goes in with
-/// length 0 and none of its bytes (the game's slip). Refused, before anything: a count above
-/// 0x40 or a message longer than 0xFE bytes (the original writes past the block or the
-/// record).
+/// A message received (`sequence` as sent, doubled here) put into the inbox at `time`: one older
+/// than the oldest wanted is dropped; the newest seen is kept. Into a full inbox the records move
+/// up one (the oldest gone) and it goes in past the last record (the `Spill` given back, to write
+/// after the time is set); else it goes in after the last record not newer, those newer moved down
+/// one. Moving one leaves the count 0, so the message goes in with length 0 and none of its bytes
+/// (the game's slip, kept). Refused, before anything: a count above 0x40 or a message longer than
+/// 0xFE bytes.
 pub fn store(
     inbox: &mut Inbox,
     sequence: u8,
@@ -84,7 +79,7 @@ pub fn store(
         inbox.count = 1;
         0
     } else if count == RECORDS {
-        // rep movsd forwards: the records 1 .. 0x3F to 0 .. 0x3E.
+        // The records 1 .. 0x3F to 0 .. 0x3E.
         inbox.records.copy_within(RECORD.., 0);
         return Ok(Some(Spill {
             sequence,
@@ -113,9 +108,8 @@ pub fn store(
     Ok(None)
 }
 
-/// The inbox's messages handed to the race: the count and the records for the race to
-/// apply, the inbox's count made 0 and the oldest sequence still wanted made the newest
-/// seen.
+/// The inbox's messages handed to the race: the count and the records to apply; the inbox's
+/// count becomes 0 and the oldest wanted the newest seen.
 pub fn hand_over(inbox: &mut Inbox) -> (u32, Vec<u8>) {
     let handed = (inbox.count, inbox.records.clone());
     inbox.count = 0;
@@ -132,7 +126,7 @@ pub fn next_sequence(last: u8) -> u8 {
 }
 
 /// A message as sent: the sequence byte and the bytes. Refused: one that does not fit the
-/// buffer (the original writes on).
+/// buffer.
 pub fn outgoing(sequence: u8, bytes: &[u8]) -> Result<Vec<u8>, Invalid> {
     if bytes.len() as u32 >= SEND_ROOM {
         return Err(Invalid("a message longer than the buffer's 0x100 bytes"));

@@ -1,7 +1,5 @@
-//! The game's settings texts (`var\ral.cfg`, `var\name.cfg`): lines of `key=value` or
-//! `key value` (from `settings::find_key` 0x41157D,
-//! `settings::copy_value` 0x4115F5, `settings::parse_number` 0x411623). Places are offsets
-//! into the text; a text ends at its NUL.
+//! The game's settings texts (`var\ral.cfg`, `var\name.cfg`): lines of `key=value` or `key value`.
+//! Places are offsets into the text; a text ends at its NUL.
 
 use crate::Invalid;
 use crate::strings::bytes::Bytes;
@@ -12,13 +10,11 @@ fn at(text: &(impl Bytes + ?Sized), place: usize) -> Result<u8, Invalid> {
         .ok_or(Invalid("a settings text without its NUL"))
 }
 
-/// Where key `key`'s value starts, or `None` (`find_key`). A line is looked at from its
-/// first character above a space; the key must be there in any case (the text is lowered
-/// through `case`; the key is given in lower case) and be followed by `=` or a character
-/// of a space or less. The value starts at the first character above a space after that,
-/// an `=` between them skipped once; a line that ends first has its value at its line feed
-/// (empty). A text that ends with the key itself is refused (the original compares on
-/// past both ends).
+/// Where key `key`'s value starts, or `None` (`find_key`). A line is looked at from its first
+/// character above a space; the key (given in lower case, compared through `case`) must be
+/// there and be followed by `=` or a character of a space or less. The value starts at the first
+/// character above a space after that, an `=` between them skipped once; a line that ends first
+/// has its (empty) value at its line feed. A text that ends with the key itself is refused.
 pub fn find_key(
     text: &(impl Bytes + ?Sized),
     key: &[u8],
@@ -108,7 +104,7 @@ pub fn value(text: &(impl Bytes + ?Sized), place: usize) -> Result<Vec<u8>, Inva
 
 /// The number at `place` (`parse_number`): an optional `+` or `-`, then hexadecimal after
 /// `$` or `0x` (upper or lower case), decimal otherwise, up to the first character that is
-/// no digit. It wraps, as the original's.
+/// no digit. It wraps.
 pub fn number(text: &(impl Bytes + ?Sized), place: usize) -> Result<u32, Invalid> {
     let mut place = place;
     let negative = at(text, place)? == b'-';
@@ -149,7 +145,7 @@ pub fn number(text: &(impl Bytes + ?Sized), place: usize) -> Result<u32, Invalid
     Ok(if negative { n.wrapping_neg() } else { n })
 }
 
-/// The game's settings table (0x518C09: for each a key, its NUL, then a dword naming its
+/// The game's settings table (for each a key, its NUL, then a dword naming its
 /// variable), read up to the empty key; `limit` the bytes it may take (refused past it).
 /// The dword is the caller's to interpret.
 pub fn table(bytes: &(impl Bytes + ?Sized), limit: usize) -> Result<Vec<(Vec<u8>, u32)>, Invalid> {
@@ -171,10 +167,9 @@ pub fn table(bytes: &(impl Bytes + ?Sized), limit: usize) -> Result<Vec<(Vec<u8>
     Ok(entries)
 }
 
-/// What a settings text sets (`settings::apply_settings`, 0x4114FF): for each key it
-/// has, in the table's order, the key's index and the number of its value (0 for a value
-/// that is no number). A key the text lacks sets nothing; of two keys with one variable
-/// the later one wins, as the caller stores in order.
+/// What a settings text sets: for each key it has, in the table's order, the key's index and the
+/// number of its value (0 for a value that is no number). A key the text lacks sets nothing; of two
+/// keys with one variable the later one wins, as the caller stores in order.
 pub fn apply(
     text: &(impl Bytes + ?Sized),
     keys: &[&[u8]],
@@ -189,7 +184,7 @@ pub fn apply(
     Ok(found)
 }
 
-/// The room a settings text is read into (`settings::read_text` 0x41155A), its NUL after it.
+/// The room a settings text is read into, its NUL after it.
 pub const TEXT_ROOM: u32 = 0xFFFF;
 
 /// `settings::read_text`: a read (whether it worked, the bytes it read) -> where the NUL
@@ -252,10 +247,9 @@ mod tests {
     }
 }
 
-/// What `var\name.cfg` gives a driver (`settings::read_driver_names` 0x4162DB): key
-/// `name000` .. `name179`, then up to three words: a name (at most 30 characters kept), a
-/// number under 0x28 for the driver record's +0, one under 0x22 for its +4
-///; a number too large is left out, a missing word ends the entry.
+/// What `var\name.cfg` gives a driver: key `name000` .. `name179`, then up to three words: a name
+/// (at most 30 characters kept), a number under 0x28 for the driver record's +0, one under 0x22 for
+/// its +4; a number too large is left out, a missing word ends the entry.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct DriverName {
     pub name: Option<Vec<u8>>,
@@ -308,9 +302,8 @@ pub fn driver_names(
     Ok(out)
 }
 
-/// Which of the processor's extensions the game uses (`settings::apply_feature_switches`
-/// 0x4114BB): MMX, SSE, 3DNow each when the processor has it (bit 0) and its ignore
-/// setting is 0.
+/// Which of the processor's extensions the game uses: MMX, SSE, 3DNow each when the processor has
+/// it (bit 0) and its ignore setting is 0.
 pub fn feature_switches(has: [u32; 3], ignore: [u32; 3]) -> [u32; 3] {
     std::array::from_fn(|n| ((ignore[n] == 0) as u32) & has[n])
 }

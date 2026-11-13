@@ -1,7 +1,6 @@
-//! `input::key_to_char` (0x407E43): turns a key (a scan code) into the character it types
-//! with the current keyboard layout, shift state and pending dead key.
+//! Turns a key (a scan code) into the character it types with the current keyboard layout,
+//! shift state and pending dead key.
 //!
-//! Takes: key
 //! The layout (`input::layouts`) has a list of dead keys {key, plain, shifted} ended by a 0
 //! key, a plain table, a shifted one and one used while AltGr is down. A dead key is stored
 //! (`dead_key`); the next key is then looked up, by its plain character, in the list of
@@ -9,15 +8,13 @@
 //! is set in the keyboard tables' bitmap type nothing. In layout mode 2, Alt or AltGr with
 //! a shift key switches the layout: left shift picks the keyboard file's first layout,
 //! right shift its second.
-//! Refuses: no layout; a dead key pending with no plain table (the original reads through
-//! null); lists without an end within 256 entries.
+//! Refuses: no layout; a dead key pending with no plain table; lists without an end within 256
+//! entries.
 
 use crate::errors::BadInput;
 use crate::input::layouts::{Current, layouts};
 use crate::input::owner::Input;
 use crate::input::store::Devices;
-
-// ---- game data ----
 
 // The key-down table (`keys_down`) is indexed by scan code: left shift 0x2A, right shift
 // 0x36, Alt 0x38, AltGr 0x64.
@@ -41,8 +38,7 @@ pub fn key_to_char(input: &Input, eax: u32) -> Result<u32, BadInput> {
 }
 
 /// The same for the name editors and the yes/no question, which in layout mode 2 always use
-/// the keyboard file's first layout and leave the current one as it was (the original put
-/// that layout in place for the call and the old one back after).
+/// the keyboard file's first layout and leave the current one as it was.
 pub fn key_to_char_for_text(input: &Input, eax: u32) -> Result<u32, BadInput> {
     typed(input, eax, true)
 }
@@ -55,8 +51,6 @@ fn typed(input: &Input, eax: u32, for_text: bool) -> Result<u32, BadInput> {
         return Ok(eax & !0xFF);
     }
     let mut layouts = layouts();
-    // Converted: `rc2k_core::input::keyboard`; here the layouts, and the switch and the
-    // pending key stored.
     let switched = keyboard::switch(
         layouts.mode(),
         down(ALT),

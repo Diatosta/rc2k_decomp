@@ -1,28 +1,23 @@
-//! `menu::class_championship_standings_loop` (0x4A4B6B): the loop of the championship table for
-//! the player's class.
-//!
-//! The loop itself is `menu::screen_loop`; this file says what is this screen's own
-//! (`SCREEN`), as extracted from the disassembly: background `champoc.png` through
-//! `menu::load_background` (carry afterwards = fatal error 0x80712345); leaving is asked about;
-//! returns at once on leaving if `state.menus.standings_shown` is set.
-//! A reading from the title string of its menu, not yet a visit: "CAMPEONATO DE CLASSE".
+//! The loop of the championship table for the player's class. Screen-specific part of
+//! `menu::screen_loop`: background `champoc.png` through `menu::load_background`; leaving is asked
+//! about; returns at once on leaving if `state.menus.standings_shown` is set.
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Asking, Callee, List, Screen, Step};
 
 pub const SCREEN: Screen = Screen {
     lists: &[
         List {
-            pointer: |m| &m.screens.flow.scene_list, // g_sceneList
+            pointer: |m| &m.screens.flow.scene_list,
             table: |m| m.tables.draw_lists.class_championship_standings_scene.id(),
             run: false,
         },
         List {
-            pointer: |m| &m.screens.flow.draw_list, // g_drawList
+            pointer: |m| &m.screens.flow.draw_list,
             table: |m| m.tables.draw_lists.class_championship_standings_draw.id(),
             run: false,
         },
         List {
-            pointer: |m| &m.screens.flow.overlay_list, // g_overlayList
+            pointer: |m| &m.screens.flow.overlay_list,
             table: |m| {
                 m.tables
                     .draw_lists

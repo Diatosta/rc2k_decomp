@@ -1,9 +1,7 @@
-//! `drive::tyre_screen_parts` (0x41C790): the tyre-change screen's fixed parts: ten quads
+//! The tyre-change screen's fixed parts: ten quads
 //! (`drive::tyre_quad`, place 2) from texture rectangles set in `texture_rect` and screen
 //! rectangles in `screen_rect`, placed from the layout (`TyreChange::parts`, `wheel`, the car's
 //! half by `player`).
-//!
-//! Caller: `drive::tyre_screen`.
 
 use crate::errors::Refused;
 use crate::race::owner::Race;
@@ -17,7 +15,6 @@ fn set(cells: &[PlainDword; 4], v: [u32; 4]) {
 }
 
 /// Its quads (`drive::tyre_quad`).
-// Converted: `rc2k_core::drive::tyre_screen::fixed_parts`.
 pub fn tyre_screen_parts(
     race: &Race,
     system: &crate::system::owner::System,

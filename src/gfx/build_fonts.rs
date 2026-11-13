@@ -1,20 +1,15 @@
-//! `gfx::build_fonts` (0x415563): builds the fonts' glyph tables and palettes and hangs
-//! them on the font objects.
-//!
-//! Fatal error 0x80A48020 if it has been done (the palettes, `palettes`, are not 0).
-//! Takes `units` * 0x400 * the pixel size bytes on the list `glyph_tables.memory`
-//! (0x80E48023 if there are none), `begin_glyph_tables`, the builder's flags = 1, 0x400
-//! bytes off the list for the palettes; then five builds with `gfx::build_glyphs`, a new
-//! table for each: `files\d\fnt\pal_00.pcx` (a sheet without glyphs: its palette becomes
-//! the 256 pixels at the palettes' place, and is kept as components at `palette_sheet`),
-//! `fnt13_00.pcx`, `fnt21_00.pcx`, `fnt23_00.pcx`, `fnt27_00.pcx`; `end_glyph_tables`. Then
-//! 125 stores: each font object's palette (+0x14: the palettes' place plus the offset of
-//! its sixteen colours) and glyph table (+0x18), as listed in `HUNG`. A font that measures
-//! (mode 4) gets a palette too, which `text::draw_text` then uses as its line counter.
-//! Callers: `menu::run_front_end` (the game's start, before the main menu), 0x4154CD,
-//! `menu::apply_screen_mode`, `race::viewer_load_stage`, `install::run_installer`, 0x443104.
-//! A refusal from one of the steps leaves the work half done; none can come with the
-//! game's own files.
+//! Builds the fonts' glyph tables and palettes and hangs them on the font objects.
+//! Fatal error 0x80A48020 if it has been done (the palettes, `palettes`, are not 0). Takes `units *
+//! 0x400 * pixel size` bytes on the list `glyph_tables.memory` (0x80E48023 if there are none),
+//! `begin_glyph_tables`, the builder's flags = 1, 0x400 bytes off the list for the palettes; then
+//! five builds with `gfx::build_glyphs`, a new table for each: `files\d\fnt\pal_00.pcx` (a sheet
+//! without glyphs: its palette becomes the 256 pixels at the palettes' place, and is kept as
+//! components at `palette_sheet`), `fnt13_00.pcx`, `fnt21_00.pcx`, `fnt23_00.pcx`, `fnt27_00.pcx`;
+//! `end_glyph_tables`. Then 125 stores: each font object's palette (+0x14: the palettes' place plus
+//! the offset of its sixteen colours) and glyph table (+0x18), as listed in `HUNG`. A font that
+//! measures (mode 4) gets a palette too, which `text::draw_text` then uses as its line counter. A
+//! refusal from one of the steps leaves the work half done; none can come with the game's own
+//! files.
 
 use crate::cells::Store;
 use crate::errors::{FatalError, Refused};
@@ -28,8 +23,6 @@ use crate::memory::take_from_list::{rewind_list, take_from_list};
 use crate::session::PlainDword;
 use crate::strings::owner::Strings;
 use crate::system::owner::System;
-
-// ---- game data ----
 
 /// The variables a store of `HUNG` reads: `FONTS.palettes` (FontBlock.palettes: 256 pixels, the
 /// fonts' palettes; 0 = the fonts are not built) and the four glyph tables' places.
@@ -80,8 +73,8 @@ enum Field {
 }
 use Field::{GlyphTable, Palette};
 
-/// The stores, in the original's order: (the font object's number, its field, the variable
-/// stored, plus this much).
+/// The stores, in order: (the font object's number, its field, the variable stored, plus this
+/// much).
 #[rustfmt::skip]
 const HUNG: [(usize, Field, Source, u32); 125] = [
     (0, Palette, P, 0x0),
@@ -211,9 +204,8 @@ const HUNG: [(usize, Field, Source, u32); 125] = [
     (62, GlyphTable, F21, 0x0),
 ];
 
-/// The part with the calls; `palettes` is where the palettes' place is kept. (The
-/// original's fatal error 0x80E48023 for a failed allocation cannot come: the allocator
-/// reports its own.)
+/// The part with the calls; `palettes` is where the palettes' place is kept. (A failed allocation
+/// cannot come: the allocator reports its own error.)
 fn tables(gfx: &Gfx, system: &System, strings: &Strings) -> Result<(), Refused> {
     let (vars, palettes) = (&gfx.sheet, &gfx.fonts.font_block.palettes);
     let list = &gfx.fonts.glyph_tables.memory;
@@ -246,8 +238,8 @@ fn tables(gfx: &Gfx, system: &System, strings: &Strings) -> Result<(), Refused> 
     Ok(())
 }
 
-/// 0x400 bytes carved off `list` for a palette: its place in `gfx::glyph_store`, or 0
-/// when the list has no room (the original's cursor would have been none).
+/// 0x400 bytes carved off `list` for a palette: its place in `gfx::glyph_store`, or 0 when the list
+/// has no room.
 pub fn palette_place(list: &crate::memory::ListCells) -> Result<u32, Refused> {
     Ok(match take_from_list(list, 0x400)? {
         Some(_) => crate::gfx::glyph_store::new_palette(list)?,

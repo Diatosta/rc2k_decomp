@@ -1,17 +1,18 @@
-//! The keyboard pages' tables, out of RAL.EXE's image (IDA 0x755595 .. 0x755640): the
+//! The keyboard pages' tables, out of RAL.EXE's image: the
 //! keys the redefine page works on, the copy of a player's controls the controller pages keep, and
 //! the reserved keys. Bytes only, at addresses one past a multiple of four. One static.
 
 use crate::session::{PlainBytes, with_runs};
 
-/// The keys' tables (IDA 0x755595 .. 0x755640).
+/// The keys' tables.
 #[derive(rc2k_derive::Cells)]
 pub struct KeyTables {
-    /// `g_redefinedKeys`: The copy of the player's twelve keys the page works on (`menu::redefine_keys`).
+    /// The copy of the player's twelve keys the page works on (`menu::redefine_keys`).
     pub redefined_keys: PlainBytes<14>,
-    /// `unk_7555B1`: The 0x2C bytes of a player's controls the controller pages copy out and back (`menu::keep_player_keys`).
+    /// The 0x2C bytes of a player's controls the controller pages copy out and back
+    /// (`menu::keep_player_keys`).
     pub controls: PlainBytes<44>,
-    /// `g_reservedKeys`: The keys that cannot be taken, ended by a NUL.
+    /// The keys that cannot be taken, ended by a NUL.
     pub reserved_keys: PlainBytes<31>,
 }
 

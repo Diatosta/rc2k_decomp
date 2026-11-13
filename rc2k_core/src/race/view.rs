@@ -1,22 +1,16 @@
-//! The view's surroundings: the draw distance's settings, the noise map sampled at the
-//! car, the fog table, and the course grid's cells round the view (
-//! from `race::draw_distance_settings` 0x43932A, `sample_noise` 0x44FD38, `fog_table`
-//! 0x44FC33, `eax_environment` 0x45C7EE, `find_sound_spots` 0x45C605,
-//! `cell_sound_spots` 0x45C6B8, `gather_visible_faces` 0x454B71 and the rules of
-//! `face_sound_spot` 0x45C6ED; the fog's colour and the mirror's window from
-//! `race::set_up_fog` 0x44FBD9 and `race::mirror_view_window` 0x455F17;
-//! the sound spots' sharing from `race::share_sound_spots` 0x45C7B9).
+//! The view's surroundings: draw-distance settings, the noise map sampled at the car, the fog
+//! table and colour, the mirror's window, the grid cells round the view and the sound spots.
 
 /// The draw distance's highest level.
 pub const MOST_LEVEL: i32 = 4;
 
-/// `race::draw_distance_settings`: the level (`draw_distance_level`) held to 0 ..= 4 by sign.
+/// The draw distance level held to 0 ..= 4 by sign.
 pub fn draw_distance_level(level: u32) -> u32 {
     (level as i32).clamp(0, MOST_LEVEL) as u32
 }
 
-/// `race::draw_distance_settings`: the grid's reach from the level's table: at least 1 by
-/// the sign of reach - 1 (0, and above 0x80000000, become 1).
+/// The grid's reach from the level's table: at least 1 by the sign of reach - 1 (0 and above
+/// 0x80000000 become 1).
 pub fn grid_reach(reach: u32) -> u32 {
     if (reach.wrapping_sub(1) as i32) < 0 {
         1
@@ -31,30 +25,30 @@ pub const NOISE_SIDE: u32 = 64;
 /// What `sample_noise` works out.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct NoiseSample {
-    /// The four corners round the place (`noise_samples` ..): (x, z), (x + 1, z),
-    /// (x, z + 1), (x + 1, z + 1).
+    /// The four corners round the place: (x, z), (x + 1, z), (x, z + 1), (x + 1, z + 1).
     pub corners: [u32; 4],
-    /// Blended along x at z and at z + 1.
+    /// Blended along x at z.
     pub near: u32,
+    /// Blended along x at z + 1.
     pub far: u32,
     /// Those blended along z, << 8.
     pub value: u32,
-    /// The two fractions (bits 8 .. 23 of the place).
+    /// The x fraction (bits 8 ..= 23 of the place).
     pub fx: u32,
+    /// The z fraction (bits 8 ..= 23 of the place).
     pub fz: u32,
     /// The last product's high half.
     pub high: u32,
 }
 
-/// A blend step: `imul` of (b - a) by the fraction, `shrd` by 16, plus a; and the
-/// product's high half.
+/// A blend step: (b - a) x fraction >> 16, plus a; and the product's high half.
 fn blend(a: u32, b: u32, f: u32) -> (u32, u32) {
     let p = (b.wrapping_sub(a) as i32 as i64) * (f as i32 as i64);
     (((p >> 16) as u32).wrapping_add(a), (p >> 32) as u32)
 }
 
-/// `race::sample_noise`: the 64 x 64 map (`map(index)`, each corner asked once, in order)
-/// at the place (`px`, `pz`: the top byte the cell, the next two the fraction).
+/// Samples the 64 x 64 map (`map(index)`, each corner asked once, in order) at (`px`, `pz`):
+/// the top byte is the cell, the next two the fraction.
 pub fn sample_noise(map: impl Fn(u32) -> u8, px: u32, pz: u32) -> NoiseSample {
     let (cx, cz) = (px >> 24, pz >> 24);
     let at = |x: u32, z: u32| map((x & 0x3F) + ((z & 0x3F) << 6)) as u32;
@@ -86,37 +80,40 @@ pub const MOST_FOG: u32 = 0x1000;
 /// What `fog_table` reads besides the noise.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct FogSettings {
-    /// The noise's spread: `fog_low` and `fog_high`.
+    /// The noise's spread: its low end.
     pub low: u32,
+    /// The noise's spread: its high end.
     pub high: u32,
-    /// `sun_size` and `view_out`, multiplied (>> 4).
+    /// The sun's size and the view distance, multiplied (>> 4).
     pub scale: [u32; 2],
-    /// `fog_near` and `fog_far`: the near and far parts of that.
+    /// The near part of that.
     pub near: u32,
+    /// The far part of that.
     pub far: u32,
-    /// `fog_start`: the table's first level.
+    /// The table's first level.
     pub start: u32,
-    /// `fog_end`: the level past the table.
+    /// The level past the table.
     pub end: u32,
-    /// The table's length (`RaceView.view_depth[1]` x 8).
+    /// The table's length (the view depth x 8).
     pub length: u32,
 }
 
 /// What `fog_table` makes.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Fog {
-    /// The step (`fog_step`): low << 8 plus the noise's share of the spread.
+    /// The step: low << 8 plus the noise's share of the spread.
     pub step: u32,
     /// The noise times the spread, >> 8.
     pub share: u32,
-    /// `fog_near` / `fog_far`.
+    /// The near level.
     pub near: u32,
+    /// The far level.
     pub far: u32,
-    /// `g_fogTable`.
+    /// The fog table.
     pub table: Vec<u8>,
     /// The steps' sum at the end.
     pub sum: u32,
-    /// `fog_next`: the next level with the end level, plus near, each held.
+    /// The next level with the end level, plus near, each held.
     pub next: u32,
 }
 
@@ -125,7 +122,7 @@ fn clamp_byte(v: u32) -> u32 {
     (v as i32).clamp(0, 0xFF) as u32
 }
 
-/// `race::fog_table`: the table from the noise at the car (`sample_noise`'s value).
+/// The fog table from the noise at the car (`sample_noise`'s value).
 pub fn fog_table(noise: u32, s: &FogSettings) -> Fog {
     let span = s.high.wrapping_sub(s.low);
     let share = ((noise as i32 as i64 * span as i32 as i64) >> 8) as u32;
@@ -160,12 +157,11 @@ pub fn fog_table(noise: u32, s: &FogSettings) -> Fog {
     }
 }
 
-/// The course grid's row (`g_courseGrid`: 32 cells a row, 0x20 dwords apart).
+/// The course grid's row: 32 cells, 0x20 dwords apart.
 pub const GRID_ROW: u32 = 0x20;
 
-/// The `side` x `side` cells from (`from`, `from`) on the grid's diagonal, row by row
-/// (`race::eax_environment`: 3 from reach - 1; `race::find_sound_spots`: 5 from reach -
-/// 2).
+/// The `side` x `side` cells from (`from`, `from`) on the grid's diagonal, row by row (3 from
+/// reach - 1 for the environment; 5 from reach - 2 for the sound spots).
 pub fn cells_from(from: u32, side: u32) -> Vec<u32> {
     let first = from.wrapping_mul(GRID_ROW + 1);
     (0..side)
@@ -176,15 +172,14 @@ pub fn cells_from(from: u32, side: u32) -> Vec<u32> {
 /// A grid cell with no record (from this up).
 pub const NO_RECORD: u32 = 0x0FFF_FFFF;
 
-/// A course record's faces (+8 the first, +0xC the last): None for -1 or a first past
-/// the last.
+/// A course record's faces (first, last): None for -1 or a first past the last.
 pub fn record_faces(first: u32, last: u32) -> Option<(u32, u32)> {
     (first != u32::MAX && first <= last).then_some((first, last))
 }
 
-/// `race::gather_visible_faces`: the records whose faces are gathered: each grid cell's
-/// (in order, those with one), then the last record of the course (`count` - 1) once
-/// more, unless there are none (its "already done" test is lost: section 16).
+/// The records whose faces are gathered: each grid cell's (in order, those with one), then
+/// the last record of the course once more unless there are none (it is not tested for being
+/// gathered already: kept as is).
 pub fn visible_records(grid: impl IntoIterator<Item = u32>, count: u32) -> Vec<u32> {
     let mut records: Vec<u32> = grid.into_iter().filter(|&n| n < NO_RECORD).collect();
     let last = count.wrapping_sub(1);
@@ -194,31 +189,30 @@ pub fn visible_records(grid: impl IntoIterator<Item = u32>, count: u32) -> Vec<u
     records
 }
 
-/// The sound spots' object (`race::face_sound_spot`; the face's kind 0xFF).
+/// The sound spots' object (the face's kind is 0xFF).
 pub const SPOT_OBJECT: u8 = 0x3F;
-/// The most sound spots (`g_soundSpots`).
+/// The most sound spots.
 pub const MOST_SPOTS: u32 = 0x24;
-/// The highest sound a spot has (the face's +8, from 1).
+/// The highest sound a spot has (from 1).
 pub const MOST_SPOT_SOUND: u32 = 0x15;
 
-/// `race::face_sound_spot`: whether a face of `kind` and `object` is a sound object.
+/// Whether a face of `kind` and `object` is a sound object.
 pub fn sound_object(kind: u8, object: u8) -> bool {
     kind == 0xFF && object == SPOT_OBJECT
 }
 
-/// `race::face_sound_spot`: whether a spot of `sound` is made with `count` made.
+/// Whether a spot of `sound` is made with `count` made.
 pub fn takes_spot(count: u32, sound: u32) -> bool {
     count != MOST_SPOTS && (1..=MOST_SPOT_SOUND).contains(&sound)
 }
 
-/// `race::face_sound_spot`: the spot's place, its point's plus the face's offset
-/// (+0x30 ..), each wrapping.
+/// The spot's place: its point's plus the face's offset, each wrapping.
 pub fn spot_place(point: [u32; 3], offset: [u32; 3]) -> [u32; 3] {
     [0, 1, 2].map(|k| point[k].wrapping_add(offset[k]))
 }
 
-/// `race::set_up_fog`'s fog colour from the stage's red, green and blue (each shifted into
-/// its byte and added, as dwords).
+/// The fog colour from the stage's red, green and blue (each shifted into its byte, added as
+/// dwords).
 pub fn fog_colour(red: u32, green: u32, blue: u32) -> u32 {
     (red << 16).wrapping_add(green << 8).wrapping_add(blue)
 }
@@ -237,8 +231,8 @@ pub struct MirrorRect {
     pub height: u32,
 }
 
-/// The mirror's place's entry (8 bytes each in its tables): the first (`split`)
-/// plus three a view, six on when the second set is asked for (`flat` 0).
+/// The mirror's place entry (8 bytes each): the first plus three a view, six on for the
+/// second set.
 pub fn mirror_entry(first: u32, view: u32, second_set: bool) -> u32 {
     let n = first.wrapping_add(view.wrapping_mul(3));
     if second_set { n.wrapping_add(6) } else { n }
@@ -247,15 +241,14 @@ pub fn mirror_entry(first: u32, view: u32, second_set: bool) -> u32 {
 /// The mirror's width and height on an 800 x 600 screen.
 pub const MIRROR_SIZE: (u32, u32) = (0xB3, 0x40);
 
-/// `n` x `size` / `of` (unsigned, 64 bits over 32 as `mul` / `div`), even; None where the
-/// original's `div` would fault.
+/// `n` x `size` / `of` (unsigned, 64 bits over 32), even; None where the division would fault.
 fn scaled(n: u32, size: u32, of: u32) -> Option<u32> {
     let q = n as u64 * size as u64 / of as u64;
     (q <= u32::MAX as u64).then_some(q as u32 & !1)
 }
 
-/// `race::mirror_view_window`'s window: its corner (`place`, on 800 x 600) and size scaled
-/// to the screen. None where the scaling would fault.
+/// The mirror's window: its corner (`place`, on 800 x 600) and size scaled to the screen; None
+/// where the scaling would fault.
 pub fn mirror_window(place: (u32, u32), screen: (u32, u32)) -> Option<MirrorRect> {
     Some(MirrorRect {
         x: scaled(place.0, screen.0, 800)?,
@@ -270,8 +263,7 @@ pub const MOST_SHARED_SPOTS: u32 = 36;
 /// A sound spot's bytes.
 pub const SPOT_BYTES: u32 = 0x14;
 
-/// `race::share_sound_spots`: the bytes of the frame's spots handed to the sound side;
-/// refused past 36 (past both tables).
+/// The bytes of the frame's spots handed to the sound side; refused past 36.
 pub fn shared_spot_bytes(count: u32) -> Result<u32, crate::Invalid> {
     if count > MOST_SHARED_SPOTS {
         return Err(crate::Invalid("more than 36 sound spots"));

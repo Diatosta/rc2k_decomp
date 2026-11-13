@@ -1,19 +1,12 @@
-//! `strings::append_speed` (0x401B10): appends a speed given in tenths of a mile per hour with
-//! one decimal, "Q.R", converted to km/h when the game is set to metric units, optionally
-//! followed by the unit label ("km/h" on a metric game).
-//!
-//! Takes tenths of a mile per hour, non-zero to append the unit label, and the cursor. Returns
-//! the new cursor.
-//! In metric mode a value above `miles_to_km::MAX_INPUT` makes the original trap: refused.
-//!
-//! Screen: confirmed on the stage selection screen ("Escolha Etapa"), where `draw_stage_records`
-//! uses it for the top speed, shown as "187.3km/h".
+//! Appends a speed given in tenths of a mile per hour with one decimal, "Q.R", converted to km/h
+//! when the game is set to metric units, optionally followed by the unit label ("km/h" on a metric
+//! game). A value above `miles_to_km::MAX_INPUT` in metric mode is refused.
 
 use crate::errors::BadInput;
 use crate::strings::units::{figure_bytes, setting};
 
-/// `units` is the game's unit setting (0 = imperial). Refuses what `miles_to_km` refuses, and
-/// a setting past 1. Converted: `rc2k_core::math::units::speed`.
+/// `units` is the game's unit setting (0 = imperial). Refuses what `miles_to_km` refuses, and a
+/// setting past 1.
 pub fn append_speed(
     o: crate::strings::append_string_by_id::StringOwners<'_>,
     tenths: u32,

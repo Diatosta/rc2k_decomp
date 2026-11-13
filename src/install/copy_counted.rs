@@ -1,15 +1,10 @@
-//! `install::copy_counted` (0x4139DA): `files_copied` (the files copied so far) raised by one
-//! and the file copied (`files::copy_file`, source to destination).
-//!
-//! Takes the source path, destination path.
-//! Callers `install::install_files`, `install::install_clio`.
+//! Raises `files_copied` by one and copies the file from the source path to the destination.
+//! Called by `install::install_files`, `install::install_clio`.
 
 use crate::errors::Refused;
 use crate::install::installer::copy_file;
 
-/// `from` copied to `to`; whether it was all done (the original passes
-/// `copy_file`'s carry on: the game's files' copies and the
-/// Clio's stop on it). A failed copy is seen by the callers.
+/// `from` copied to `to`; whether it was all done. The callers see a failed copy.
 pub fn copy_counted(
     install: &crate::install::owner::Install,
     system: &crate::system::owner::System,

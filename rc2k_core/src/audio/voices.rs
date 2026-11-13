@@ -1,12 +1,6 @@
-//! The audio thread's sounds (from `audio::start_voice` 0x40A9D1,
-//! `audio::update_voices` 0x40AC77's own-buffers way, `audio::stop_all_voices` 0x40AFD9,
-//! `audio::clear_channels` 0x40ACA1, `audio::find_shared_voice` 0x40B027,
-//! `audio::new_voice` 0x40B04C, `audio::replay_looping` 0x40A839, also
-//! `audio::fill_voice` 0x40B06E, `audio::release_voice` 0x40B767's emptying and
-//! `audio::make_buffer` 0x40B5CF's flags): sample
-//! records, voices
-//! and mixer channels as the game lays them out, reached through a `Pool` by handle (the
-//! game's addresses), and the playing and stopping lists linked by `Voice::next`.
+//! The audio thread's sounds: sample records, voices and mixer channels as the game lays them out,
+//! reached through a `Pool` by handle (the game's addresses), and the playing and stopping lists
+//! linked by `Voice::next`.
 //!
 //! A sound number picks a sample record (0x1CD); a loaded record points at its first voice
 //! (a pool of 0x200); a sound that can sound more than once at a time has more voices,
@@ -28,7 +22,7 @@ pub const DEFAULT: u32 = 0xFFFF_FF91;
 pub const OWN_FREQUENCY: u32 = 0xFFFF_FF90;
 /// "As the sample record says", for a place's float.
 pub const DEFAULT_PLACE: u32 = 0xFF80_0000;
-/// `g_soundMode`: places in 3D.
+/// The sound mode's bit: places in 3D.
 pub const MODE_3D: u32 = 0x10_0000;
 
 pub const DIRTY_VOLUME: u32 = 1;
@@ -72,7 +66,8 @@ pub struct Voice {
     /// Its sample record's number.
     pub sound: u32,
     pub buffer: u32,
-    /// The voice's DirectSound 3D buffer interface; 0 without one (`audio::buffer_settings`, `set_buffer_min_distance`).
+    /// The voice's DirectSound 3D buffer interface; 0 without one (`audio::buffer_settings`,
+    /// `set_buffer_min_distance`).
     pub buffer_3d: u32,
     pub data_key: u32,
     /// The voice whose sample data this one shares.
@@ -164,8 +159,7 @@ pub trait Pool {
     }
 }
 
-/// The lists' heads and the channels' counts (`g_playingVoices`, `g_stoppingVoices`,
-/// `g_channelsUsed`, `g_channelCount`).
+/// The lists' heads and the channels' counts.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Lists {
     pub playing: u32,
@@ -262,11 +256,10 @@ pub fn find_shared<P: Pool>(
         .find(|&at| pool.voice(at).data_key == key)
 }
 
-/// The game's fatal error when the pool is used up.
+/// The fatal error when the pool is used up.
 pub const POOL_USED_UP: u32 = 0x80A2_8501;
 
-/// The next voice of the pool: its place, the count one more. Used up: `None` (the
-/// game's fatal error 0x80A28501).
+/// The next voice of the pool: its place, the count one more. Used up: `None` (a fatal error).
 pub fn new_voice(count: &mut u32) -> Option<u32> {
     if *count >= VOICES {
         return None;
@@ -526,8 +519,8 @@ pub enum Step {
     Commit,
 }
 
-/// The EAX room's variables (`g_eaxRoom`, `g_eaxRoomSet`, `dword_6D1DD4` and the one kept,
-/// `AudioOwn::environment_kept`) and the 3D commit flag.
+/// The EAX room's variables (and the kept one, `AudioOwn::environment_kept`) and the 3D commit
+/// flag.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Room {
     pub asked: u32,
@@ -537,7 +530,7 @@ pub struct Room {
     pub commit: u32,
 }
 
-/// `g_soundMode`: with EAX.
+/// The sound mode's bit: with EAX.
 pub const MODE_EAX: u32 = 0x100_0000;
 
 fn stopping_pass<P: Pool, E>(
@@ -673,7 +666,7 @@ pub fn update_buffers<P: Pool, E: From<Invalid>>(
     Ok(())
 }
 
-/// What a voice takes from the sample file read for it (`g_sampleFile`).
+/// What a voice takes from the sample file read for it.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct FileSample {
     pub data: u32,
@@ -776,7 +769,7 @@ fn set_from_record(v: &mut Voice, record: &SampleRecord, own_buffers: bool, volu
     v.next = 0;
 }
 
-/// `g_soundMode`'s bits a voice's own buffer is made by: 3D, 3D in hardware.
+/// The sound mode's bits a voice's own buffer is made by: 3D, 3D in hardware.
 pub const MODE_HARDWARE_3D: u32 = 0x80_0000;
 
 /// `audio::make_buffer`'s buffer description flags for a voice: the frequency, pan and

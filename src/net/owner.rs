@@ -1,8 +1,7 @@
-//! Module net's owner (step 11, owned state): the network's variables in one struct,
-//! reached through `net()` by code that has no reference to it. The receive
-//! thread reads and writes `vars` concurrently (its cells stay atomic); `main` (what is
-//! edited, the settings, the address, the session joined, the lobby's) and the button are the game
-//! thread's.
+//! The network's variables in one struct, reached through `net()` by code that has no
+//! reference to it. The receiving thread reads and writes `vars` concurrently (its cells stay
+//! atomic); `main` (what is edited, the settings, the address, the session joined, the lobby's)
+//! and the button belong to the game thread.
 
 use crate::net::store::{
     AddressVars, Button, EditVars, JoinedVars, LobbyVars, NetMain, NetShared, SetupVars,

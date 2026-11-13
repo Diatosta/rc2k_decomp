@@ -1,13 +1,9 @@
-//! `install::open_installer` (0x414363): the installer's buffers taken and its backdrop
-//! drawn. Three blocks are allocated onto the installer memory list (`buffers`): the
-//! folder names (0x10100 bytes -> `dirs`/`50`/`54`), the file names (0x40100 ->
-//! `files`/`58`), the counts cleared, and the progress glyphs (0x3000 ->
-//! `bar_glyphs`) filled from `files\d\gfx\install.bun`. `install.pal` becomes the blended
-//! palette (`gfx::palette_to_dwords`, `gfx::components_to_pixels`); `backdrop.pcx` is loaded,
-//! converted and made the surface; three strings are drawn and the frame shown. A failed
-//! allocation or read is fatal error 0x80AF7121/7122/7022/7444/7445.
-//!
-//! Caller `install::run_installer`.
+//! The installer's buffers taken and its backdrop drawn: the folder names (0x10100 bytes), the
+//! file names (0x40100) and the progress glyphs (0x3000, from `files\d\gfx\install.bun`) are
+//! taken on the installer memory list; `install.pal` becomes the blended palette; `backdrop.pcx`
+//! is loaded and made the surface; three strings are drawn and the frame shown. A failed
+//! allocation or read is fatal error 0x80AF7121/7122/7022/7444/7445. Called by
+//! `install::run_installer`.
 
 use crate::errors::Refused;
 use crate::install::installer::{components_to_pixels, copy_picture, draw_string, fatal, show};
@@ -16,8 +12,6 @@ const FONT_94: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::HEA
 const FONT_1000: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::NOTICE;
 const FONT_1002: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::LABEL;
 
-/// `files::read_file` (0x402BB6): `count` bytes of `path` into `buffer`; failing is fatal
-/// error `code`.
 /// `count` bytes of the file `path` into `buffer`; the fatal error `code` when it cannot be
 /// read.
 fn read<const N: usize>(
@@ -46,8 +40,6 @@ pub fn open_installer(
         o.gfx,
         o.system,
     );
-    // The names' tables are Rust's, counted on the list as the game's blocks
-    // were; the scan and cursors count names and bytes from 0.
     use crate::install::name_tables::{FILES, FOLDERS, NameTable};
     let list = &install.run.buffers;
     FOLDERS.take(list, 0x10100, NameTable::default())?;
@@ -57,8 +49,8 @@ pub fn open_installer(
     install.run.file_cursor.set(0);
     install.run.dir_count.set(0);
     install.run.file_count.set(0);
-    // The progress glyphs: a glyph table of Rust's (`gfx::glyph_store`), counted on the
-    // list as the game's block was (its fatal error 0x80AF7022 for none cannot come).
+    // The progress glyphs: a glyph table in `gfx::glyph_store`, counted on the list (fatal
+    // error 0x80AF7022, for no memory, cannot come).
     let mut bytes = crate::memory::owned::counted(list, 0x3000)?;
     let glyphs = crate::gfx::glyph_store::new_table(list)?;
     install.run.bar_glyphs.set(glyphs);
@@ -84,7 +76,7 @@ pub fn open_installer(
         gfx,
         system,
     );
-    // gfx::load_picture: its carry is not read.
+    // Whether `gfx::load_picture` worked is not looked at.
     crate::gfx::load_picture::load_picture_with(&install.names.backdrop, gfx, system)?;
     crate::gfx::convert_picture::convert_picture_now_in(gfx, system)?;
     gfx.pictures

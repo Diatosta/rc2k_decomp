@@ -1,34 +1,30 @@
-//! `strings::load_language` (0x40331F): makes the language ready: its strings, its units,
-//! its keyboard and its letters' cases.
+//! Makes the language ready: its strings, its units, its keyboard and its letters' cases.
 //!
 //! In this order:
-//! - `strings::compile_lexicon`; `g_stringTable` is the lexicon; the keyboard layout
-//!   (`input::layouts`) is the built-in one, with the layout flags both 1;
-//! - the first `files\%locale\*.loc`, 0x30 bytes to 0x4E0798: none is fatal error
-//!   0x80E38381, one that does not start "LOCL" 0x80E38382. Its byte +0xF is the units
-//!   (`g_isImperialUnits` and each car's +0x178); its byte +8 (`g_noticeKind`) is read
-//!   further down;
-//! - the first `files\%locale\*.kim`, up to 0x400 bytes to 0x4F07C8, if there is one: not
-//!   starting "KEYB" is fatal error 0x80E383A2. The ten offsets at its +0x30 become
-//!   addresses, the layout is the block of 0x14 bytes its byte +0xB chooses, and if its
-//!   byte +8 is 0x0C three entries of that layout's fourth table are set (0x1034, 0x1035,
-//!   0x1036 at +0x34, +0x36, +0x52);
-//! - `strings::make_case_tables`: the case tables. `g_lowerCase`: every character
-//!   itself, A .. Z in lower case, then string 2 as pairs "lower, upper". `g_plainLetters`: a copy of
-//!   that in which string 3's accented letters become the plain letter before them ("aàáâ.." );
-//! - with keyboard type 2 (`keyboard_type`) a built-in layout takes the file's
-//!   place;
-//! - on a Japanese system (`GetSystemDefaultLCID`, language 0x11) a notice
-//!   kind other than 7 is fatal error 0x90006044; with kind 7 the glyph tables' units (`glyph_tables.units`) are 0x2EE;
+//! - `strings::compile_lexicon`; the keyboard layout (`input::layouts`) is the built-in one, with
+//!   the layout flags both 1;
+//! - the first `files\%locale\*.loc`, 0x30 bytes: none is fatal error 0x80E38381, one that does
+//!   not start "LOCL" 0x80E38382. Its byte +0xF is the units (the units setting and each car's
+//!   +0x178); its byte +8 is read further down;
+//! - the first `files\%locale\*.kim`, up to 0x400 bytes, if there is one: not starting "KEYB" is
+//!   fatal error 0x80E383A2. The ten offsets at its +0x30 become addresses, the layout is the
+//!   block of 0x14 bytes its byte +0xB chooses, and if its byte +8 is 0x0C three entries of that
+//!   layout's fourth table are set (0x1034, 0x1035, 0x1036 at +0x34, +0x36, +0x52);
+//! - `strings::make_case_tables`: the case tables. The lower-case table: every character
+//!   itself, A .. Z in lower case, then string 2 as pairs "lower, upper". The plain-letters
+//!   table: a copy of that in which string 3's accented letters become the plain letter before
+//!   them ("aàáâ..");
+//! - with keyboard type 2 (`keyboard_type`) a built-in layout takes the file's place;
+//! - on a Japanese system (language 0x11) a notice kind other than 7 is fatal error 0x90006044;
+//!   with kind 7 the glyph tables' units (`glyph_tables.units`) are 0x2EE;
 //! - `strings::correct_lexicon`: four corrections in the lexicon itself: in string 0x6CA the word
-//!   "Bowland" loses its `w`, in 0x6AB "Laukennen" becomes "Laukkanen", and in 0x23B the
-//!   word "A7" or "(A7)" is replaced by string 0x23A's "A8" or "(A8)";
+//!   "Bowland" loses its `w`, in 0x6AB "Laukennen" becomes "Laukkanen", and in 0x23B the word
+//!   "A7" or "(A7)" is replaced by string 0x23A's "A8" or "(A8)";
 //! - `offer_registration` = 1 if the notice kind is 2, string 0x57C is not empty and the file
 //!   `;4ereg\eregip.exe` is there, else 0.
 //!
-//! Callers: `start` and three in the installer.
-//! Refuses a string 2 of odd length (the original reads on past it) and one of the four
-//! corrections meeting its word where the string is that word alone.
+//! Refuses a string 2 of odd length and one of the four corrections meeting its word where the
+//! string is that word alone.
 
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::files::read_first_match::read_first_match;
@@ -40,13 +36,9 @@ use crate::strings::same_text::set_case_table;
 use rc2k_core::strings::case::CaseTable;
 use rc2k_core::strings::language::Locale;
 
-// ---- game data ----
-
-/// `aFilesLocaleLoc` (0x4E075C), `aFilesLocaleKim` (0x4E0784).
 const LOCALE_FILES: &[u8] = b"files\\%locale\\*.loc";
 const KEYBOARD_FILES: &[u8] = b"files\\%locale\\*.kim";
-/// The `.loc` file's 0x30 bytes: +0 "LOCL", +8 the notice kind (`g_noticeKind`), +0xF
-/// units (`g_localeFile`, 0x4E0798).
+/// The `.loc` file's 0x30 bytes: +0 "LOCL", +8 the notice kind, +0xF units.
 pub const LOCALE_LEN: usize = 0x30;
 pub const LOCALE_INIT: [u8; LOCALE_LEN] = [
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x01, 0x01, 0x01, 0x2F, 0x2E, 0x2C, 0x00,
@@ -54,14 +46,13 @@ pub const LOCALE_INIT: [u8; LOCALE_LEN] = [
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 ];
 
-/// `g_noticeKind` (the `.loc` file's byte +8, 0x4E07A0 in the image): which notice the
-/// language shows (2: the builds' notice; 7: Japan).
+/// The `.loc` file's byte +8: which notice the language shows (2: the builds' notice; 7: Japan).
 pub fn notice_kind(strings: &crate::strings::owner::Strings) -> u8 {
     strings.language.locale.get(8)
 }
 
-/// `g_plainLetters` (0x4F0CC8 in IDA): `g_lowerCase` with the
-/// accented letters made plain; made here, read by nothing. The image's first values.
+/// The plain-letters table before a language is loaded: the lower-case table with the accented
+/// letters made plain. Made here, read by nothing.
 pub const PLAIN_LETTERS_INIT: [u8; 256] = [
     0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
     0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x1D, 0x1E, 0x1F,
@@ -80,9 +71,8 @@ pub const PLAIN_LETTERS_INIT: [u8; 256] = [
     0x61, 0x61, 0x61, 0x61, 0x61, 0x61, 0x61, 0x63, 0x65, 0x65, 0x65, 0x65, 0x69, 0x69, 0x69, 0x69,
     0x64, 0x6E, 0x6F, 0x6F, 0x6F, 0x6F, 0x6F, 0xF7, 0x6F, 0x75, 0x75, 0x75, 0x75, 0x79, 0x74, 0x79,
 ];
-/// The `.kim` file (`g_keyboardFile`), 0x400 bytes: +0 "KEYB", +8 a kind, +0xA
-/// the layout mode, +0xB the layout's number, +0x30 the layouts
-/// (`rc2k_core::input::layouts`).
+/// The `.kim` file, 0x400 bytes: +0 "KEYB", +8 a kind, +0xA the layout mode, +0xB the layout's
+/// number, +0x30 the layouts (`rc2k_core::input::layouts`).
 const KEYBOARD_LEN: usize = rc2k_core::input::layouts::FILE_LEN;
 /// Where the file is read to (the layouts own the result).
 static KEYBOARD_BUFFER: GameThread<PlainBytes<KEYBOARD_LEN>> =
@@ -92,7 +82,7 @@ fn fatal(code: u32, message: &'static str) -> Refused {
     FatalError { code, message }.into()
 }
 
-/// String `id` as the original builds it: in the text buffer. Returns its bytes.
+/// String `id` built in the text buffer. Returns its bytes.
 fn built(
     o: crate::owners::Owners<'static>,
     text: &Text,
@@ -118,7 +108,7 @@ fn built(
     Ok(bytes)
 }
 
-/// `strings::make_case_tables` (converted: `rc2k_core::strings::case::CaseTable::{for_language,
+/// `strings::make_case_tables` (`rc2k_core::strings::case::CaseTable::{for_language,
 /// plain_letters}`).
 fn make_case_tables(o: crate::owners::Owners<'static>) -> Result<(), BadInput> {
     let strings = o.strings;
@@ -129,8 +119,7 @@ fn make_case_tables(o: crate::owners::Owners<'static>) -> Result<(), BadInput> {
     Ok(())
 }
 
-/// `strings::correct_lexicon` (converted: `rc2k_core::strings::lexicon::correct`), on the lexicon's
-/// room.
+/// `strings::correct_lexicon` (`rc2k_core::strings::lexicon::correct`), on the lexicon's room.
 fn correct_lexicon() -> Result<(), BadInput> {
     let mut table = crate::strings::string_table::lexicon_bytes()?;
     rc2k_core::strings::lexicon::correct(&mut table)?;
@@ -153,7 +142,6 @@ pub fn load_language(
     if found.is_none() {
         return Err(fatal(0x80E3_8381, ""));
     }
-    // Converted: `rc2k_core::strings::language::Locale`.
     let Ok(file) = Locale::parse(&strings.language.locale.read()) else {
         return Err(fatal(0x80E3_8382, ""));
     };
@@ -174,20 +162,17 @@ pub fn load_language(
         if &keyboard[..4] != b"KEYB" {
             return Err(fatal(0x80E3_83A2, ""));
         }
-        // Converted: `rc2k_core::input::layouts` (the offsets made places, the kind 0x0C
-        // patch).
         layouts().use_file(rc2k_core::input::layouts::parse(&keyboard)?);
     }
 
     make_case_tables(o)?;
 
-    // 0x403462: the NEC keyboard's head (its layout mode) and layout.
+    // The NEC keyboard's head (its layout mode) and layout.
     if o.system.machine().keyboard_type.get() == 2 {
         layouts().use_nec(strings);
         install.run.first_drive.set(0x61u32);
     }
 
-    // 0x403495
     let kind = file.notice_kind;
     if crate::os::language_id() & 0x3FF == 0x11 && kind != 7 {
         return Err(fatal(
@@ -202,6 +187,6 @@ pub fn load_language(
     correct_lexicon()?;
 
     install.run.offer_registration.set(0u32);
-    // The standalone offers no registration (owner).
+    // The standalone offers no registration.
     Ok(())
 }

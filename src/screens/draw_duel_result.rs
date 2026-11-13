@@ -1,19 +1,10 @@
-//! `screens::draw_duel_result` (0x48647A): the two-player stage result: the heads (strings
-//! 0x213 / 0x214, 0x20E, 0x217, 0x208, 0x210, 0x211, 0x212), the faster of players 1 and 2
-//! first (`results.order` holds the two's byte offsets in `g_players`, 0 / 4 or
-//! swapped when player 2's time +0x88 is below player 1's; strings 0x215 / 0x216 by it), the
-//! stage's name (+0x38 of its section's first record) and stage line (string 0x482 ..) at
-//! x 0x2EB, then per row the time (string 0x4FA for none, 0x36EE80; else fixed pitch at
-//! 0x2AD), the car and flag sprites, the name (+0x18); by player 1 and 2 (not by order) the
-//! top speeds (+0x94), the times (`results.time_bonus`), the strings
-//! `captions.duel_labels[position - 1]` of each, and two columns of six numbers
-//! (`results.points` at x 0x1C4, the second player's at 0x2C8).
+//! The two-player stage result: the headings, the faster of players 1 and 2 first
+//! (`results.order`), the stage's name and line, per row the time (string 0x4FA for none), the car
+//! and flag sprites and the name; then per player the top speeds, the time bonuses, their labels
+//! and two columns of six numbers (`results.points`).
 //!
-//!
-//! In a menu loop's draw list (0x758E86). The sprites' palettes are ebx as the original leaves it.
-//! Refuses (before anything) players 1 or 2 missing or without a name, no stage records, a stage
-//! line past the line buffer, and a string index past the duel labels' 21 (the original reads the
-//! -1 ends or past them). The menus and draw lists run its `entry` (`menu::table_calls`).
+//! Refuses players 1 or 2 missing or without a name, no stage records, a stage line past the line
+//! buffer and a string index past the duel labels' 21.
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::owner::Screens;

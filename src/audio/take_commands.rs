@@ -1,12 +1,8 @@
-//! `audio::take_commands` (0x40A8A4): the audio thread takes the commands the game queued.
-//!
-//! While commands wait (`sound/queue.rs`), the oldest: 1 `audio::start_voice`; 2 `g_eaxRoom`
-//! = the room; 3 `g_soundListLoaded` = the list's word, `audio::load_sounds`; 4
-//! `audio::free_voices`, `g_soundListLoaded` = 0; 5 `audio::set_mode`; 7
-//! `audio::stop_all_voices`; 8 `audio::volume_command`; 9 `audio::stream_command`; 0xB
-//! `audio::music_command`. Then it is dropped from the queue, which counts it as waiting
-//! until then; 0xA ends the turn's taking.
-//! `set_mode` hands the next stream stop the action 0 (section 16).
+//! The audio thread takes the commands the game queued (`sound/queue.rs`), oldest first: 1 start
+//! a voice; 2 set the EAX room; 3 load a sound list; 4 free the voices; 5 set the mode; 7 stop all
+//! voices; 8 the master volume; 9 the stream command; 0xB the music command; 0xA ends the turn's
+//! taking. A command is dropped from the queue when done; the queue counts it as waiting until
+//! then.
 
 use crate::audio::own::AudioThread;
 use crate::errors::Refused;

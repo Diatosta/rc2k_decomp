@@ -1,15 +1,10 @@
-//! `logfile::date_text` (0x401D74): writes the date and time the game started at.
-//!
-//! Takes cursor. Returns the cursor after the text. "Monday 12th October 2026 14:49:56.46": the
-//! day's name, the day with its ending, the month's name, the year, the time with hundredths. From
-//! what `system::keep_start_time` took from `GetLocalTime` at the game's start: the day of the week, the day, the month and (a word) the
-//! year, the hour, minute, second and hundredths. After the text a carriage return, a line feed and two NULs are
-//! written, which the cursor is not moved past. One caller, the log's start.
+//! Writes the date and time the game started at, as "Monday 12th October 2026 14:49:56.46" (the
+//! day's name, the day with its ending, the month's name, the year, the time with hundredths).
+//! After the text a carriage return, a line feed and two NULs are written, which the cursor is
+//! not moved past.
 
 use crate::errors::BadInput;
 use rc2k_core::files::log::Started;
-
-// ---- Rust version ----
 
 /// The text, without what is written after it (converted: `rc2k_core::files::log::date`, on the
 /// start's moment as the game keeps it). Refuses a weekday, day or month past the tables.
@@ -42,7 +37,7 @@ pub fn date_text(system: &crate::system::owner::System) -> Result<Vec<u8>, BadIn
     ))
 }
 
-/// For Rust callers: the text at the cursor, and after it CR, LF and two NULs. Returns the
+/// The text at the cursor, and after it CR, LF and two NULs. Returns the
 /// text with the CR and LF (what a read up to the first NUL finds there).
 pub fn write_date_text(
     system: &crate::system::owner::System,

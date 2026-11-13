@@ -1,8 +1,6 @@
-//! `drive::save_replay_cars` (0x4600B8): the first 0x1A1 dwords of the four car blocks
-//! (`g_carBlockStore`), the race slots (0xF0) and `replay_extra` (0x100) copied in that order to
-//! the replay's staging (`race::replay_staging_store`): the replay's starting state.
-//!
-//! Caller: `drive::keep_replay_frame`.
+//! The first 0x1A1 dwords of the four car blocks, the race slots (0xF0) and `replay_extra` (0x100)
+//! copied in that order to the replay's staging (`race::replay_staging_store`): the replay's
+//! starting state.
 
 use crate::drive::replay_state::gather;
 use crate::race::owner::Race;

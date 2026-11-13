@@ -1,13 +1,6 @@
-//! `menu::network_rally_loop` (0x475F1A): the network rally menu, by its title "RALI EM REDE"
-//! (named from its title string and callers; the original's name is lost)
-//!
-//! The loop itself is `menu::screen_loop`; this file says what is this screen's own (`SCREEN`),
-//! as extracted from the disassembly: background `nral.png`; leaving is not asked about; the
-//! quit switch is not looked at; the steps that are more than a call or a store are the
-//! functions below, generated from the listing.
-//! The name is a reading from the title string of its menu, "RALI EM REDE", not yet a visit.
-//! Callers: none in code: it is reached through a table. The menus and draw lists run its `entry`
-//! (`menu::table_calls`).
+//! The network rally menu, by its title "RALI EM REDE". Screen-specific part of
+//! `menu::screen_loop`: background `nral.png`; leaving is not asked about; the quit switch is not
+//! looked at.
 
 use crate::errors::Refused;
 use crate::menu::screen_items_store::slot;
@@ -30,17 +23,17 @@ fn set_up_first(entry: &Entry) -> Result<(), Refused> {
 pub const SCREEN: Screen = Screen {
     lists: &[
         List {
-            pointer: |m| &m.screens.flow.scene_list, // g_sceneList
+            pointer: |m| &m.screens.flow.scene_list,
             table: |m| m.tables.draw_lists.network_rally_scene.id(),
             run: false,
         },
         List {
-            pointer: |m| &m.screens.flow.draw_list, // g_drawList
+            pointer: |m| &m.screens.flow.draw_list,
             table: |m| m.tables.draw_lists.network_rally_draw.id(),
             run: false,
         },
         List {
-            pointer: |m| &m.screens.flow.overlay_list, // g_overlayList
+            pointer: |m| &m.screens.flow.overlay_list,
             table: |m| m.tables.draw_lists.network_rally_overlay.id(),
             run: false,
         },
@@ -81,7 +74,6 @@ pub const SCREEN: Screen = Screen {
     )
 };
 
-/// Runs the screen (a refusal is the caller's).
 pub fn run(o: crate::owners::Owners<'static>) -> Result<(), crate::errors::Refused> {
     screen_entry(o, "menu::network_rally_loop", &SCREEN)
 }

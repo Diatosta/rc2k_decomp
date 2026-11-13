@@ -1,9 +1,8 @@
-//! A car's description, 0x78 bytes (`CarDescription` in IDA): 34 of them from 0x756568,
-//! the last the Clio of the update disc (car 0x21), pointed at by the table at
-//! 0x7564A0 and by the carousels' records (the carousel's car list). The figures are in imperial
-//! units, in tenths; the strings are string ids. Read by the car specification screens
-//! (`screens::draw_car_figures`, `car_caption`, `menu::load_car_background`,
-//! `sound::play_car_stream`) and the carousels.
+//! A car's description, 0x78 bytes: 34 of them, the last the Clio of the update disc (car
+//! 0x21), pointed at by the car table and by the carousels' records (the carousel's car list).
+//! The figures are in imperial units, in tenths; the strings are string ids. Read by the car
+//! specification screens (`screens::draw_car_figures`, `car_caption`,
+//! `menu::load_car_background`, `sound::play_car_stream`) and the carousels.
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::owner::Menus;
@@ -15,7 +14,8 @@ const _: () = assert!(std::mem::size_of::<CarDescription>() == 0x78);
 /// The carousels' entries: a table of 0x100 description handles (`cars_store::car_ref`).
 const ENTRIES: u32 = 0x100;
 
-/// The description of the entry shown (`Event.shown_car` through `MenuState.carousel.entries`), by handle.
+/// The description of the entry shown (`Event.shown_car` through `MenuState.carousel.entries`), by
+/// handle.
 pub fn shown_description(menus: &Menus) -> Result<u32, Refused> {
     let table = menus.screens.state.carousel.list()?;
     let entry: u32 = menus.screens.event.shown_car.get();

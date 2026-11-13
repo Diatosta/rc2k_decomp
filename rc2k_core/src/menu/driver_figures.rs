@@ -1,11 +1,10 @@
-//! A player's inspection figures from its car's table (from
-//! `menu::driver_stats` 0x4A73D8): each part's value by its wear, the parts' limits, the
-//! weights of the inspected parts and the penalties of those at or past their limits.
+//! A player's inspection figures from its car's table: each part's value by its wear, the parts'
+//! limits, the weights of the inspected parts and the penalties of those at or past their limits.
 //!
-//! The three float steps (`fild`, `fdiv` / `fidiv`, `fimul` / `fmul`, `fistp`) are kept in
-//! `f64` and rounded once to a whole number: at the x87's double precision (the game's
-//! 0x027F) each step rounds as an `f64` step does, so the results are the same; at
-//! extended precision a result at a rounding edge may differ by one.
+//! Each figure's float steps (a division, then a multiplication) are kept in `f64` and rounded
+//! once to a whole number: at the x87's double precision each step rounds as an `f64` step does,
+//! so the results are the same; at extended precision a result at a rounding edge may differ by
+//! one.
 
 use crate::math::geometry::fistp64;
 use crate::menu::inspection::INSPECTED;
@@ -20,7 +19,7 @@ pub const SHORT_LIMIT: u32 = 0xA;
 pub const PART_1_FITTED: u32 = 0x1E0;
 pub const PART_13_FITTED: u32 = 0x1E;
 
-/// What is read from the car's table (`CarTable.cars[0]`[car]'s +0x74).
+/// What is read from the car's table (`CarTable.cars[0]`, entry `car`'s +0x74).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Table {
     /// Each part's (low, high): at +8 (k / 2), +0x38 for odd k.
@@ -37,7 +36,7 @@ impl Table {
         8 * (k / 2) + if k % 2 == 1 { 0x38 } else { 0 }
     }
 
-    /// The table read through `word` (a dword at an offset), in the original's order.
+    /// The table read through `word` (a dword at an offset).
     pub fn read(word: impl Fn(usize) -> u32) -> Table {
         Table {
             pairs: std::array::from_fn(|k| (word(Self::pair_at(k)), word(Self::pair_at(k) + 4))),
@@ -58,7 +57,7 @@ pub struct Car {
     pub setup: [u32; 2],
 }
 
-/// The game's values the figures use.
+/// The values the figures use.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Constants {
     /// A part's span is cut in this many steps of wear.
@@ -78,7 +77,7 @@ pub struct Logged {
     pub limit: u32,
 }
 
-/// The figures, as the original leaves them.
+/// A player's inspection figures.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Figures {
     /// The fourteen values, then (over 12 and 13 and past them) the
@@ -94,7 +93,8 @@ pub struct Figures {
     pub penalties: [Option<u32>; PARTS],
     /// The inspected parts' high ends added.
     pub total: u32,
-    /// `MenuState.driver_stats.setups[2].chosen`, `ACAC`, `ACB4`, `ACB8`: the player's +0x114 twice, +0x118 twice.
+    /// `MenuState.driver_stats.setups[2].chosen`, `ACAC`, `ACB4`, `ACB8`: the player's +0x114
+    /// twice, +0x118 twice.
     pub kept: [u32; 4],
     /// `DrawWork.figure` as the last step leaves it.
     pub figure: u32,
@@ -104,17 +104,17 @@ pub struct Figures {
     pub logged: [Logged; 13],
 }
 
-/// `fild span; fdiv steps; fimul n; fistp`.
+/// `span / steps * n`, rounded to a whole number: a part's share of its span by its wear.
 pub fn wear_share(span: u32, steps: f32, n: u32) -> u32 {
     fistp64(span as i32 as f64 / steps as f64 * n as i32 as f64) as u32
 }
 
-/// `fild high; fidiv total; fmul scale; fistp`: a part's weight.
+/// A part's weight: `high / total * scale`, rounded to a whole number.
 pub fn weight(high: u32, total: u32, scale: f32) -> u32 {
     fistp64(high as i32 as f64 / total as i32 as f64 * scale as f64) as u32
 }
 
-/// `fild wear; fdiv scale; fimul weight; fistp`: a part's penalty.
+/// A part's penalty: `wear / scale * weight`, rounded to a whole number.
 pub fn penalty(wear: u32, scale: f32, weight: u32) -> u32 {
     fistp64(wear as i32 as f64 / scale as f64 * weight as i32 as f64) as u32
 }

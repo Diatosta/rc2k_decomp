@@ -1,27 +1,22 @@
-//! `gfx::upload_texture_picture` (0x41A68B): a picture into every level of a system
-//! texture.
+//! A picture into every level of a system texture.
 //!
-//! - The picture made ready (`gfx/texture_upload.rs`: the least colour, the alpha from
-//!   the kept picture or the colours keyed, the grading).
-//! - Picture and texture the same number of halvings from 256 across and down, else a
-//!   fatal error (0x80A18741 .. 0x80A18747).
-//! - For each of the record's levels (+0x10; one at least): the picture halved (that
-//!   many times for the first, once for each after), the level's surface (+0x14 ..)
-//!   locked through its `Lock` (DirectDraw, vtable +0x64, into the description at
-//!   `size`), every pixel through `components_to_pixel` with the texture's
-//!   format into it as words or dwords by the kind's bytes a pixel (another number: a
-//!   fatal error 0x80A18775), rows `pitch` apart from `pixels`, and
-//!   `Unlock` (+0x80).
-//! - A `Lock` or `Unlock` that fails is a fatal error (0x80218772, 0x80218773) when
-//!   `reports.on` is 1; otherwise the original returns with three dwords still
-//!   pushed, so its `popa` and `ret` go astray: refused.
+//! - The picture made ready (`gfx/texture_upload.rs`: the least colour, the alpha from the kept
+//!   picture or the colours keyed, the grading).
+//! - Picture and texture the same number of halvings from 256 across and down, else a fatal
+//!   error (0x80A18741 .. 0x80A18747).
+//! - For each of the record's levels (one at least): the picture halved (that many times for the
+//!   first, once for each after), the level's surface locked (DirectDraw, into the description at
+//!   `size`), every pixel through `components_to_pixel` with the texture's format into it as
+//!   words or dwords by the kind's bytes a pixel (another number: fatal error 0x80A18775), rows
+//!   `pitch` apart from `pixels`, and unlocked.
+//! - A lock or unlock that fails is a fatal error (0x80218772, 0x80218773) when `reports.on` is
+//!   1; otherwise it is refused.
 //!
-//! One caller, `gfx::load_picture_to_texture` (the other reference, 0x425A52, is in code
-//! nothing reaches). The two DirectDraw calls go through `Surfaces`, which the standalone
-//! program can answer with textures of its own. Refuses a texture of 0x140 or more, a record
-//! without its format, more than nine levels, a picture that halves to nothing, and what
-//! `ready_picture` refuses; a refusal after the picture was changed hands the original the
-//! changed picture.
+//! One caller, `gfx::load_picture_to_texture`. The two DirectDraw calls go through `Surfaces`,
+//! which the standalone program can answer with textures of its own. Refuses a texture of 0x140
+//! or more, a record without its format, more than nine levels, a picture that halves to
+//! nothing, and what `ready_picture` refuses; a refusal after the picture was changed leaves it
+//! changed.
 
 use crate::errors::{BadInput, Refused};
 use crate::gfx::components_to_pixel::components_to_pixel;
@@ -30,8 +25,6 @@ use crate::gfx::texture_pixels::{halvable, halve_texture};
 use crate::gfx::texture_upload::{Record, fatal, halvings_apart, ready_picture};
 use rc2k_core::gfx::uploads::{self};
 
-// ---- game data ----
-
 /// A level's surface locked and unlocked; an error is what DirectDraw returned.
 pub trait Surfaces {
     /// The pixels and the pitch.
@@ -39,7 +32,7 @@ pub trait Surfaces {
     fn unlock(&mut self, surface: u32) -> Result<(), i32>;
 }
 
-/// The game's: DirectDraw's own calls, the description being the game's.
+/// DirectDraw's own calls, the description being the game's.
 pub struct GameSurfaces<'a>(pub &'a Gfx);
 
 impl Surfaces for GameSurfaces<'_> {
@@ -81,8 +74,6 @@ pub fn upload_texture_picture(
     if pixels == 0 {
         return Ok(());
     }
-    // Converted: `rc2k_core::gfx::uploads` (`levels`, `halvings_before`; the halvings
-    // through `texture_upload::halvings_apart`).
     let record = Record::of(texture)?;
     let levels = uploads::levels(record.get().levels).map_err(BadInput::from)?;
     ready_picture(&record, pixels, width, height, gfx)?;

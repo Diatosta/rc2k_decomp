@@ -1,13 +1,7 @@
-//! `menu::load_replay_loop` (0x47F48B): the replay list "CARREGAR REPETIÇÃO"; returns the
-//! replay chosen.
-//!
-//! The loop itself is `menu::screen_loop`; this file says what is this screen's own (`SCREEN`),
-//! as extracted from the disassembly: background `loadsv.png`; leaving is not asked about; its
-//! own 3D list goes to `g_sceneList` before the first frame only; the Escape flag is looked at
-//! at the top of every frame; it returns a value in eax; the steps that are more than a call or
-//! a store are the functions below, generated from the listing.
-//! The name is a reading from the title string of its menu, "CARREGAR REPETIÇÃO", not yet a
-//! visit.
+//! The replay list "CARREGAR REPETIÇÃO"; returns the replay chosen. Screen-specific part of
+//! `menu::screen_loop`: background `loadsv.png`; leaving is not asked about; its own 3D scene list
+//! is set before the first frame only; the Escape flag is looked at at the top of every frame; it
+//! returns a value.
 
 use crate::errors::Refused;
 use crate::menu::owner::Menus;
@@ -21,8 +15,9 @@ fn before(entry: &Entry) -> Result<(), Refused> {
     Ok(())
 }
 
-/// What the loop returns, written by hand from the end of the listing: -1 if the highlight is on item 0x16 or `CaptionTables.left_by_key` is 1, else the replay's
-/// number, `MenuPages.replay_page` * 20 + the highlighted item - 1.
+/// What the loop returns, written by hand from the end of the listing: -1 if the highlight is on
+/// item 0x16 or `CaptionTables.left_by_key` is 1, else the replay's number, `MenuPages.replay_page`
+/// * 20 + the highlighted item - 1.
 fn result(menus: &Menus) -> u32 {
     let item: u32 = menus.screens.loop_flags.item.get();
     if item == 0x16 || menus.tables.captions.left_by_key.is_set() {
@@ -41,12 +36,12 @@ fn result(menus: &Menus) -> u32 {
 pub const SCREEN: Screen = Screen {
     lists: &[
         List {
-            pointer: |m| &m.screens.flow.unread_list, // g_unreadList
+            pointer: |m| &m.screens.flow.unread_list,
             table: |m| m.tables.draw_lists.unread_draw_list.id(),
             run: false,
         },
         List {
-            pointer: |m| &m.screens.flow.draw_list, // g_drawList
+            pointer: |m| &m.screens.flow.draw_list,
             table: |m| m.tables.draw_lists.load_replay_draw.id(),
             run: false,
         },
@@ -56,7 +51,7 @@ pub const SCREEN: Screen = Screen {
             run: true,
         },
         List {
-            pointer: |m| &m.screens.flow.overlay_list, // g_overlayList
+            pointer: |m| &m.screens.flow.overlay_list,
             table: |m| m.tables.draw_lists.load_replay_overlay.id(),
             run: false,
         },
@@ -73,17 +68,17 @@ pub const SCREEN: Screen = Screen {
     frames: Frames {
         first_frame_lists: Some(&[
             List {
-                pointer: |m| &m.screens.flow.scene_list, // g_sceneList
+                pointer: |m| &m.screens.flow.scene_list,
                 table: |m| m.tables.draw_lists.load_replay_scene.id(),
                 run: false,
             },
             List {
-                pointer: |m| &m.screens.flow.draw_list, // g_drawList
+                pointer: |m| &m.screens.flow.draw_list,
                 table: |m| m.tables.draw_lists.load_replay_draw.id(),
                 run: false,
             },
             List {
-                pointer: |m| &m.screens.flow.overlay_list, // g_overlayList
+                pointer: |m| &m.screens.flow.overlay_list,
                 table: |m| m.tables.draw_lists.load_replay_overlay.id(),
                 run: false,
             },

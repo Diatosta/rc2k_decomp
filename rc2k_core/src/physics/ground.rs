@@ -1,41 +1,32 @@
-//! Small rules of the car on the ground (from
-//! `physics::note_surface_mode` 0x43F180, `start_skid_mark` 0x43F272,
-//! `flip_cell_index` 0x43DB13 and `plane_height` 0x4425B6; the whole-number steps of
-//! `surface_noise` 0x43BC68, whose share / 256 stays x87). The probe points' whole-number
-//! steps (from `physics::probe_ground` 0x45D305; the turns and the
-//! bump's scaling stay x87): the wheels' lift by the car's bits, and the ground's bump
-//! from the noise bytes (64 x 64) mixed by the place's low 14 bits.
+//! Small rules of the car on the ground: skid-mark starts, the whole-number steps of the
+//! surface noise and of the probe points (wheel lift, the bump from the 64 x 64 noise bytes).
 
-/// `physics::note_surface_mode`: `camera_mode_is_2_or_3` by the mode `camera_view`: 1 for 2 or 3,
-/// else 0. What the mode is is not known.
+/// 1 when `mode` is 2 or 3, else 0.
 pub fn surface_flag(mode: u32) -> u32 {
     u32::from(mode == 2 || mode == 3)
 }
 
-/// A skid mark's start (`camera_blend_view` .. `camera_switch_share`; a skid mark's start: its
-/// place, a count of 10 and the step it began).
+/// A skid mark's start: its place, a count of 10 and the step it began.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct SkidStart {
-    /// `camera_blend_view`: the pending value less one.
+    /// The pending value less one.
     pub from: u32,
-    /// `camera_view_return`: pending (cleared once taken).
+    /// Pending value (cleared once taken).
     pub pending: u32,
-    /// `camera_switch_clock`: the step count when it started.
+    /// The step count when it started.
     pub step: u32,
-    /// `camera_switch_active`: 1 once started.
+    /// 1 once started.
     pub on: u32,
-    /// `camera_switch_length`: 10 once started.
+    /// 10 once started.
     pub w670: u32,
-    /// `camera_switch_share`: 0 once started.
+    /// 0 once started.
     pub w674: u32,
 }
 
 impl SkidStart {
-    /// `physics::start_skid_mark`: when either of the two qwords `wheels`
-    /// (`wheel_squeeze`, as four dwords) is not 0: a pending value starts
-    /// the mark at the step count `step` (asked only then), and pending is cleared. Returns
-    /// `None` (kept) when both are 0, else the step count, or 0 when
-    /// nothing was pending.
+    /// Starts a skid mark when any of `wheels` is not 0: a pending value starts it at the step
+    /// count `step` (asked only then) and is cleared. `None` (kept) when all are 0, else the
+    /// step count, or 0 when nothing was pending.
     pub fn start(&mut self, wheels: [u32; 4], step: impl FnOnce() -> u32) -> Option<u32> {
         if wheels.iter().all(|&w| w == 0) {
             return None;
@@ -54,10 +45,8 @@ impl SkidStart {
     }
 }
 
-/// `physics::flip_cell_index`: a 2 x 2 cell (`x`, `y`, each 0 or 1) turned one of eight
-/// ways (`way` & 7: 1 flips x, 2 flips y, 3 both; 4 .. 7 swap the two first, then 4
-/// flips y, 5 both, 6 none, 7 x); the cell's index 2 y + x. Returns (way & 7, x, index) as the
-/// original leaves them.
+/// A 2 x 2 cell (`x`, `y`, each 0 or 1) turned one of eight ways (`way` & 7: flips and swaps);
+/// the cell's index is 2 y + x. Returns (way & 7, x, index).
 pub fn flip_cell_index(way: u32, x: u32, y: u32) -> (u32, u32, u32) {
     let way = way & 7;
     let (mut b, mut d) = (x, y);
@@ -76,18 +65,15 @@ pub fn flip_cell_index(way: u32, x: u32, y: u32) -> (u32, u32, u32) {
     (way, b, d.wrapping_add(d).wrapping_add(b))
 }
 
-/// `physics::plane_height`: the height of a course face's plane under a point, from its
-/// corners' heights `a`, `b`, `c` (whole numbers) and the point's shares `f`, `g`:
-/// (a - c) f + ((b - c) g + c), `fistp`ed (the sums in the original's order; what the x87
-/// keeps on its stack an `f64`, the same bits at the game's double precision).
+/// The height of a course face's plane under a point, from its corners' heights and the
+/// point's shares `f`, `g`: (a - c) f + ((b - c) g + c), rounded, summed in this order.
 pub fn plane_height(a: i32, b: i32, c: i32, f: f32, g: f32) -> i32 {
     let (a, b, c) = (a as f64, b as f64, c as f64);
     super::x87::fistp64((a - c) * f as f64 + ((b - c) * g as f64 + c))
 }
 
-/// `surface_noise`'s level from a noise sample: lo + (hi - lo) x sample >> 16 (`imul`,
-/// `shrd`: the low 32 bits of the 64-bit product >> 16), held to 0 ..= 0xFF (by the
-/// sign). Returns the level, the range hi - lo and the product's high dword.
+/// The noise level from a sample: lo + (hi - lo) x sample >> 16, held to 0 ..= 0xFF. Returns
+/// the level, the range hi - lo and the product's high dword.
 pub fn noise_level(sample: u32, lo: u32, hi: u32) -> (u32, u32, u32) {
     let range = hi.wrapping_sub(lo);
     let product = (sample as i32 as i64).wrapping_mul(range as i32 as i64);
@@ -102,14 +88,13 @@ pub fn noise_level(sample: u32, lo: u32, hi: u32) -> (u32, u32, u32) {
     (v, range, (product >> 32) as u32)
 }
 
-/// The roughness kept: the second level, at least `floor` (unsigned).
+/// The roughness kept: at least `floor` (unsigned).
 pub fn rough_floor(level: u32, floor: u32) -> u32 {
     level.max(floor)
 }
 
-/// `physics::probe_ground`: whether wheel `b` (0 .. 3) is lifted by `probe_lift`: bit b + 5 of the
-/// car's bits (`parts_present`) clear, or else bit b + 1 clear. Returns whether it is lifted and
-/// the last bit tested.
+/// Whether wheel `b` (0 .. 3) is lifted: bit b + 5 of the car's bits clear, or else bit b + 1
+/// clear. Returns whether it is lifted and the last bit tested.
 pub fn wheel_lifted(bits: u32, b: u32) -> (bool, u32) {
     if bits >> (b + 5) & 1 == 0 {
         (true, b + 5)
@@ -118,9 +103,8 @@ pub fn wheel_lifted(bits: u32, b: u32) -> (bool, u32) {
     }
 }
 
-/// The noise bytes' cell of a place (whole-number x, z): the row, the row's offset (the row << 6),
-/// the four bytes' indices in the original's order (`ground_noise_corners`: the corner, the one
-/// right, below right, below) and the last row offset.
+/// The noise bytes' cell of a place: the row, its offset (row << 6), the four bytes' indices
+/// (corner, right, below right, below) and the last row offset.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct NoiseCell {
     pub row: u32,
@@ -148,16 +132,14 @@ pub fn noise_cell(x: u32, z: u32) -> NoiseCell {
     }
 }
 
-/// The noise's mix: a + the low 32 bits of ((b - a) f) >> 14 (`imul`, `shrd`), and the
-/// product's high dword.
+/// The noise's mix: a + the low 32 bits of ((b - a) f) >> 14, and the product's high dword.
 pub fn noise_lerp(a: u32, b: u32, f: u32) -> (u32, u32) {
     let p = i64::from(b.wrapping_sub(a) as i32) * i64::from(f as i32);
     (((p >> 14) as u32).wrapping_add(a), (p >> 32) as u32)
 }
 
-/// The bump's noise from the four bytes (in `NoiseCell::corners`' order) by the place's
-/// low 14 bits: (the bottom mix `6D3058`, the top `6D3054`, the whole `6D305C`, its
-/// product's high dword).
+/// The bump's noise from the four bytes (`NoiseCell::corners` order): (bottom mix, top, whole,
+/// the product's high dword).
 pub fn bump_noise(n: [u32; 4], x: u32, z: u32) -> (u32, u32, u32, u32) {
     let (fx, fz) = (x & 0x3FFF, z & 0x3FFF);
     let (bottom, _) = noise_lerp(n[3], n[2], fx);

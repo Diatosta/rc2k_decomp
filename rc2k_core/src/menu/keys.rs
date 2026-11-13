@@ -1,5 +1,4 @@
-//! What a key means on a menu (from `menu::handle_keys` 0x465FCC).
-//! The keys are the game's scan codes as `input::take_key` gives them.
+//! What a key means on a menu. The keys are the game's scan codes as `input::take_key` gives them.
 
 /// What a key means to the screen loop (`handle_keys`' answers 1, 2, 3).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -23,7 +22,7 @@ impl MenuSound {
     const NONE_CODE: u32 = 0x6F;
     const ENTER_CODE: u32 = 0x14D;
 
-    /// The value the game's variable holds.
+    /// The value the menus' sound variable holds.
     pub const fn code(self) -> u32 {
         match self {
             MenuSound::None => Self::NONE_CODE,
@@ -48,8 +47,8 @@ pub const ESCAPE: u8 = 1;
 pub const ENTER: u8 = 0x1C;
 pub const IGNORED: u8 = 0x38;
 
-/// The cheat bit that lets key 0x14 add time (bit 14 of `g_cheats`), and the time it adds
-/// to the service's budget.
+/// The cheats' bit (bit 14) that lets key 0x14 add time, and the time it adds to the service's
+/// budget.
 pub const ADD_TIME_BIT: u32 = 14;
 pub const ADDED_TIME: u32 = 60;
 
@@ -69,10 +68,11 @@ pub enum Action {
     NoKey,
     /// Key 0x38: nothing (after the yes / no handling).
     Ignored,
-    /// Escape: `LoopFlags.leave_screen`, `DrawWork.escape_pressed` and `CaptionTables.left_by_key` 1; answer 2.
+    /// Escape: `LoopFlags.leave_screen`, `DrawWork.escape_pressed` and `CaptionTables.left_by_key`
+    /// 1; answer 2.
     Escape,
-    /// Enter: the sound 0x14D, the key's time, `g_enterSkipsNameEntry` by the key code's second
-    /// byte, the click; answer 3.
+    /// Enter: the sound 0x14D, the key's time, the skip-name-entry flag from the key code's
+    /// second byte, the click; answer 3.
     Enter,
     /// The key's time, then one of the four highlight moves.
     Move(Move),
@@ -110,7 +110,7 @@ pub fn action(key: u8, cheats: impl FnOnce() -> u32) -> Action {
     }
 }
 
-/// Enter's `g_enterSkipsNameEntry`: 1 when the key code's second byte is 4.
+/// Enter's skip-name-entry flag: 1 when the key code's second byte is 4.
 pub fn enter_skips_name_entry(key_code: u32) -> u32 {
     (key_code >> 8 & 0xFF == 4) as u32
 }

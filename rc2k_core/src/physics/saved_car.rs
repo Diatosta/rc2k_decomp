@@ -1,19 +1,16 @@
-//! The work car's state kept for a step and put back (from
-//! `physics::save_car_state` 0x43DBD5 and `physics::restore_saved_car` 0x43DC25): its
-//! place (`position` ..), its matrix (`g_crashMatrix`, 0x10 dwords) and its probe
-//! points' faces (`probe_point_face` .., `probe_count` of them), with a counter of the puts
-//! back (`clear_place_count`). What the pieces are is a reading.
+//! The work car's state kept for a step and put back: its place, its matrix (0x10 dwords) and
+//! its probe points' faces, with a counter of the puts back.
 
 use crate::Invalid;
 
-/// The most faces the kept list holds (`probe_saved_faces` has 0x40 before `probe_face_flip`).
+/// The most faces the kept list holds.
 pub const MOST_SAVED: u32 = 0x40;
-/// The most faces the work copy's list holds (0x71ADC8 to the copy's end, 0x71AFB8).
+/// The most faces the work copy's list holds.
 pub const MOST_LISTED: u32 = (0x1E0 + 0x10) / 4;
 /// The matrix's dwords.
 pub const MATRIX: usize = 0x10;
 
-/// The pieces, as dwords.
+/// The pieces kept, as dwords.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct CarState {
     pub place: [u32; 3],
@@ -21,8 +18,7 @@ pub struct CarState {
     pub faces: Vec<u32>,
 }
 
-/// `physics::save_car_state`: the faces' count checked before anything (refused past
-/// `MOST_SAVED`); the counter is then 0.
+/// The faces' count, checked before anything (refused past `MOST_SAVED`); the counter is then 0.
 pub fn save_count(count: u32) -> Result<usize, Invalid> {
     if count > MOST_SAVED {
         return Err(Invalid(
@@ -32,8 +28,7 @@ pub fn save_count(count: u32) -> Result<usize, Invalid> {
     Ok(count as usize)
 }
 
-/// `physics::restore_saved_car`: the faces' count checked before anything (refused past
-/// `MOST_LISTED`).
+/// The faces' count, checked before anything (refused past `MOST_LISTED`).
 pub fn restore_count(count: u32) -> Result<usize, Invalid> {
     if count > MOST_LISTED {
         return Err(Invalid(

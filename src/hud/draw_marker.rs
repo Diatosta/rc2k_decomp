@@ -1,10 +1,6 @@
-//! `hud::draw_marker` (0x4B55AB): a marker sprite (rectangle 0x5C of `HudBlock.rects[0].left`) along the top
-//! at the share +0x6C over +0x68 of the HUD's record, times `HudBlock.marker_k[0]` plus `HudBlock.marker_k[1]` (`fistp`
-//! through `HudBlock.fistp_scratch`), coloured `HudBlock.marker_colours[0]`.
-//!
-//! Takes: the HUD's record
-//!
-//! Caller: layout 0's drawer (`hud::layout_0`, 0x4B1F0C).
+//! A marker sprite (rectangle 0x5C) along the top at the share +0x6C over +0x68 of the HUD's
+//! record, times `HudBlock.marker_k[0]` plus `marker_k[1]` (rounded through `fistp_scratch`),
+//! coloured `HudBlock.marker_colours[0]`.
 
 use crate::errors::Refused;
 use crate::hud::owner::{Hud, Pen};
@@ -14,7 +10,6 @@ use rc2k_core::hud::quads::marker_x;
 
 const RECT: u32 = 0x5C;
 
-// Converted: `rc2k_core::hud::quads::marker_x`
 pub fn draw_marker(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
     hud.block.quad.colour.set(hud.block.marker_colours[0].get());
     {

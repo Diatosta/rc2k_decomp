@@ -1,12 +1,6 @@
-//! `screens::draw_savegame_names` (0x46D45A): the names of the saved games on the page
-//! shown, in two columns of five.
-//!
-//!
-//! The ten names of 0x20 bytes from the sound file path buffer + page (`pages.save_page`) times 0x140, at x = 0xCF
-//! for the first five and 0x21C for the others, y = 0xB5, 0xD2, 0xEF, 0x10C, 0x129, with the font
-//! at 0x51E8C4. In two draw lists (the load and save screens). The twin of
-//! `screens::draw_setup_slot_names`. Refuses a page past the tenth (the list has 100 names). The
-//! menus and draw lists run its `entry` (`menu::table_calls`).
+//! The names of the saved games on the page shown (`pages.save_page`), ten in two columns of
+//! five. The twin of `screens::draw_setup_slot_names`. Refuses a page past the tenth (the list has
+//! 100 names).
 
 use crate::errors::Refused;
 use crate::text::draw_text::Canvas;

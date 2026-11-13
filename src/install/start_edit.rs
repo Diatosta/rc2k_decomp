@@ -1,9 +1,6 @@
-//! `install::start_edit` (0x4148D6): an edit item (kind 4) begins to be edited: its record's
-//! bit 0 set, its text cut at its most bytes (`[record+1]`: a NUL there) and that and two
-//! bytes more kept in `script_path` (for Escape, `install::edit_key`).
-//!
-//! Takes the item.
-//! Callers `install::item_enter`, `install::next_edit`.
+//! An edit item (kind 4) begins to be edited: its record's bit 0 is set, its text cut at its most
+//! bytes and kept in `script_path` (for Escape, `install::edit_key`). Called by
+//! `install::item_enter`, `install::next_edit`.
 
 use crate::menu::list_handle::ListItem;
 
@@ -11,7 +8,6 @@ pub fn start_edit(install: &'static crate::install::owner::Install, item: ListIt
     let record = item.edit_field();
     let text = item.text();
     let most = crate::install::folders::field_most(install, text, record.most());
-    // Converted: `rc2k_core::install::edits::start_edit`, on the text's `most` + 2 bytes.
     let mut words = text
         .read(most as usize + 2, "an edited text")
         .unwrap_or_else(|e| crate::install::installer::refuse(e));

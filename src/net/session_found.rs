@@ -1,13 +1,6 @@
-//! `net::session_found` (0x418A62): DirectPlay's `EnumSessions` callback: "NET: Found", the
-//! flags, the session's name logged; on a time-out (flag 1) or no session the enumeration
-//! stops; a session whose `dwUser2` bit 0 is clear is passed over; else, if fewer than
-//! 0x100 are listed, a record added (`net::session_entry`): the name
-//! (`strings::copy_printable`, 0x40 room), the instance GUID (+0x40), the most players
-//! (+0x50), the players (+0x54), `dwUser1` .. `dwUser4` (+0x58).
-//!
-//! Takes (stdcall) the session's description (a DPSESSIONDESC2), the time-out's address, the
-//! flags and the context. Returns 1 to go on, 0 to stop.
-//! Caller: DirectPlay, from `net::find_sessions` (`callback`, a `stdcall` Rust function).
+//! DirectPlay's `EnumSessions` callback: logs the session; a time-out or no session stops the
+//! enumeration, a session whose `dwUser2` bit 0 is clear is passed over, else (up to 0x100) a
+//! record is added. Returns 1 to go on, 0 to stop.
 
 use crate::errors::Refused;
 use crate::net::dp_session::Desc;

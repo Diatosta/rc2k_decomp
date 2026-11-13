@@ -1,10 +1,5 @@
-//! `input::clear_device_readings` (0x40883C): a device's state copies (+0x2C .. +0x38) and
+//! A device's state copies (+0x2C .. +0x38) and
 //! readings (+0x4DC .. +0x4E4) 0, its bits reading +0x4E8 0xE00 (the hat centred).
-//!
-//! Takes: the device's record (`input/devices.rs`)
-//!
-//! Callers: `input::acquire_device` (an acquiring that failed), `input::release_device` (the
-//! release).
 
 use crate::input::types::InputDevice;
 

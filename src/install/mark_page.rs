@@ -1,20 +1,17 @@
-//! `install::mark_page` (0x414B53): a page's items marked for drawing, item by item (all
-//! of them; a count of 0 is 256):
-//! - a choice item (kind 2) marked 0x80 (not to be chosen) gives every unmarked choice
-//!   0x80 too; one unmarked has its free choices counted, and with at most one its chosen
-//!   byte becomes that one (with none, the choices less 2) and the item 0x80;
-//! - the highlighted item (`g_listChoice`), if unmarked: an edit (kind 4) whose record has
-//!   bit 2 is begun (`install::next_edit`), and an edit being edited, or any item while the
-//!   clock's bit 3 (frame clock less move clock) is clear, gets 0xC0 (lit);
-//! - a choice item's chosen choice, if it is one, gets 0xC0.
+//! A page's items marked for drawing, item by item (a count of 0 is 256):
+//! - a choice item (kind 2) marked 0x80 (not to be chosen) gives every unmarked choice 0x80
+//!   too; one unmarked with at most one free choice has its chosen byte become that one (with
+//!   none, the choices' count less 2) and the item 0x80;
+//! - the highlighted item, if unmarked: an edit (kind 4) whose record has bit 2 is begun
+//!   (`install::next_edit`), and an edit being edited, or any item while the blink clock's bit 3
+//!   is clear, gets 0xC0 (lit);
+//! - a choice item's chosen choice gets 0xC0.
 
 use crate::menu::list_handle::{ListItem, ListMenu};
 use rc2k_core::install::items::{self, MARKS};
 use rc2k_core::install::pages::UNUSABLE;
 
 pub fn mark_page(install: &'static crate::install::owner::Install, list: ListMenu) {
-    // Converted: `rc2k_core::install::items` (`walked`, `mark_choices`, `lone_choice`,
-    // `lit`).
     let table = |item: ListItem| {
         item.choices()
             .bytes(2 * items::walked(item.count()), "an item's choices")

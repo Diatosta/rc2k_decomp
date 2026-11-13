@@ -1,8 +1,6 @@
-//! `hud::add_scaled_sprite` (0x4B716A): as `hud::add_sprite` with the width times st(0) and the
-//! height times st(1) (`fistp`ed through `HudBlock.fistp_scratch`) before they are made positive; st(0) and
-//! st(1) are read, not popped.
-//!
-//! Callers: the HUD's drawers (code at 0x4B28B0, ...).
+//! As `hud::add_sprite` with the width times the first scale and the height times the second
+//! (rounded to whole numbers through `HudBlock.fistp_scratch`) before they are made positive; the
+//! scales are read, not popped.
 
 use crate::errors::Refused;
 use crate::hud::add_sprite::{put_corners, put_places};
@@ -14,7 +12,6 @@ use rc2k_core::math::extended::to_f64;
 
 /// The scales as `f64`s (what the x87 holds at the game's double precision): the sprite at `rect`
 /// with its corner at `x`, `y`.
-// Converted: `rc2k_core::hud::quads::{sprite_places, scaled_size, sprite_corners}`
 pub fn add_scaled_sprite_plain(
     frame: &Frame,
     hud: &Hud,

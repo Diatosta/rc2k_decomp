@@ -1,9 +1,4 @@
-//! `net::setting_label` (0x416AF8): a setting's label as a button (`net::draw_button`, flags
-//! 0, x 0x190, at y), and y 0x20 lower. (The code after its `ret`, 0x416B0D .. 0x416B52,
-//! is reached by nothing.)
-//!
-//! Takes the string, the item, y. Returns 0, 0x190, y, + 0x20.
-//! Caller: `net::settings_frame` (four times).
+//! A setting's label drawn as a button at x 0x190; returns the item's y moved down by 0x20.
 
 use crate::errors::Refused;
 use crate::install::owner::Install;

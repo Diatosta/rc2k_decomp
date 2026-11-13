@@ -1,8 +1,5 @@
-//! `begin_glyph_tables` is `gfx::begin_glyph_tables` (0x412014), `begin_glyph_table`
-//! `gfx::begin_glyph_table` (0x411FEC), `end_glyph_tables` `gfx::end_glyph_tables` (0x412077),
-//! `palette_to_pixels`
-//! `gfx::palette_to_pixels` (0x411FC8) with 0x405E02 under it, `alpha_palette` `gfx::alpha_palette`
-//! (0x412528).
+//! The glyph tables' work: `begin_glyph_tables`, `begin_glyph_table`, `end_glyph_tables`,
+//! `palette_to_pixels` and `alpha_palette`.
 
 use crate::errors::{BadInput, Refused};
 use crate::gfx::build_glyphs::SheetVars;
@@ -16,16 +13,14 @@ use crate::session::PlainDword;
 /// The fonts' and the sprites' tables.
 #[derive(rc2k_derive::Cells)]
 pub struct GlyphTables {
-    /// `dword_51B980`: the tables' size in units of 0x400 bytes times `Screen.bytes`
-    /// (`bundleheapsize`, a `var\ral.cfg` setting).
+    /// The tables' size in units of 0x400 bytes times `Screen.bytes` (`bundleheapsize`, a
+    /// `var\ral.cfg` setting).
     pub units: PlainDword,
-    /// `g_glyphTablesMemory` (`GlyphTables.memory.head`): the list the fonts' and the sprites' tables
-    /// lie on (16 bytes).
+    /// `GlyphTables.memory.head`: the list the fonts' and the sprites' tables lie on (16 bytes).
     pub memory: crate::memory::ListCells,
 }
 
 impl GlyphTables {
-    /// The glyph tables' variables; the first values are the image's.
     pub const fn new() -> Self {
         GlyphTables {
             units: PlainDword::new(0x15E),
@@ -39,8 +34,8 @@ impl GlyphTables {
     }
 }
 
-/// The work memory taken, the picture's size set for sheets, the pixel layout the
-/// surface's, and no table yet.
+/// The work memory taken, the picture's size set for sheets, the pixel layout the surface's, and no
+/// table yet.
 pub fn begin_glyph_tables(
     vars: &SheetVars,
     gfx: &crate::gfx::owner::Gfx,
@@ -62,17 +57,17 @@ pub fn begin_glyph_tables(
         .get()
         .wrapping_mul(0x400)
         .wrapping_mul(system.session.screen.get().bytes.get());
-    // (The original's fatal error 0x80E48021 for no memory cannot come: the allocator
-    // reports its own.) Only counted: the work memory holds nothing Rust reads back
-    // (`build_glyphs` keeps the sheet's table in its own bytes).
+    // (A failed allocation cannot come: the allocator reports its own error.) Only counted: the
+    // work memory holds nothing Rust reads back (`build_glyphs` keeps the sheet's table in its own
+    // bytes).
     crate::memory::owned::count_on(&strings.lexicon.memory.memory, bytes)?;
     vars.table.set(0u32);
     vars.table_size.set(0u32);
     Ok(())
 }
 
-/// A new table starts where the list stands, after the padding that brings the table
-/// before it to whole dwords.
+/// A new table starts where the list stands, after the padding that brings the table before it to
+/// whole dwords.
 pub fn begin_glyph_table(
     vars: &SheetVars,
     list: &crate::memory::ListCells,
@@ -89,8 +84,8 @@ pub fn end_glyph_tables(strings: &crate::strings::owner::Strings) -> Result<(), 
     free_list(&strings.lexicon.memory.memory)
 }
 
-/// The last sheet's palette as 256 pixels of the builder's layout at `to`; nothing if `to`
-/// is 0 or the last sheet was one of components.
+/// The last sheet's palette as 256 pixels of the builder's layout at `to`; nothing if `to` is 0 or
+/// the last sheet was one of components.
 pub fn palette_to_pixels(
     to: u32,
     gfx: &crate::gfx::owner::Gfx,
@@ -113,9 +108,9 @@ pub fn palette_to_pixels(
     crate::gfx::glyph_store::write_bytes(&gfx.fonts, to, 0, &pixels, "a palette's pixels")
 }
 
-/// The last sheet's palette for pixels that are a colour in the low four bits and an alpha
-/// in the top four: entry 0 becomes 0, every entry the colour of its low four bits'
-/// entry, and its fourth byte the alpha, the four bits twice.
+/// The last sheet's palette for pixels that are a colour in the low four bits and an alpha in the
+/// top four: entry 0 becomes 0, every entry the colour of its low four bits' entry, and its fourth
+/// byte the alpha, the four bits twice.
 pub fn alpha_palette(gfx: &crate::gfx::owner::Gfx) {
     let palette = &gfx.pictures.decoder.palette;
     palette[0].set(0);

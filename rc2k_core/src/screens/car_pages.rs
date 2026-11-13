@@ -1,28 +1,25 @@
-//! The car specification's four figure pages (from
-//! `screens::draw_car_figures` 0x46A41F's pages: `car_page_description` 0x469C40,
-//! `car_page_engine` 0x469F12, `car_page_transmission` 0x46A193, `car_page_dimensions`
-//! 0x469CA0): labels and figures, "n/d" for an unknown figure, the Clio's own strings.
+//! The car specification's four figure pages (description, engine, transmission, dimensions):
+//! labels and figures, "n/d" for an unknown figure, the Clio's own strings.
 
 use crate::Invalid;
 use crate::math::units::{Figure, Units, length, power, torque, weight};
 use crate::screens::screen::{Buffer, Screen};
 use crate::strings::format::{Pad, decimal};
 
-/// A car's description, 0x78 bytes (`CarDescription` in IDA): 34 of them from 0x756568,
-/// the last the Clio of the update disc (car 0x21). The figures are in imperial units, in
-/// tenths; the strings are string ids.
+/// A car's description (0x78 bytes): 34 of them, the last the Clio of the update disc (car
+/// 0x21). Figures are imperial, in tenths; strings are string ids.
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct CarDescription {
     /// The car's number: its pictures, background, slides and stream go by it.
     pub car: u32,
-    /// String: the car's name.
+    /// String id: the car's name.
     pub name: u32,
     /// The car's class, 0 .. 3 (a player's `class`, the standings' group).
     pub class: u32,
     /// Cubic centimetres.
     pub capacity: u32,
-    /// String.
+    /// String id.
     pub engine_type: u32,
     pub power: u32,
     pub power_rpm: u32,
@@ -30,15 +27,15 @@ pub struct CarDescription {
     pub torque_rpm: u32,
     pub bore: u32,
     pub stroke: u32,
-    /// String.
+    /// String id.
     pub compression: u32,
-    /// Strings.
+    /// String id.
     pub transmission: u32,
     pub drive: u32,
     pub steering: u32,
     pub front_brake_size: u32,
     pub rear_brake_size: u32,
-    /// Strings.
+    /// String id.
     pub front_brakes: u32,
     pub rear_brakes: u32,
     pub front_suspension: u32,
@@ -52,13 +49,12 @@ pub struct CarDescription {
     pub weight: u32,
     /// String: the first of the seven lines of its description.
     pub description: u32,
-    /// Where its figures are (an IDA address into the description texts,
-    /// `cars_store::description_table`).
+    /// Where its figures are (`cars_store::description_table`).
     pub figures: u32,
 }
 
 impl CarDescription {
-    /// The record from its 120 bytes in the game's layout (little-endian dwords).
+    /// The record from its 120 bytes (little-endian dwords).
     pub const fn from_le_bytes(b: [u8; 120]) -> Self {
         const fn word(b: &[u8; 120], n: usize) -> u32 {
             u32::from_le_bytes([b[4 * n], b[4 * n + 1], b[4 * n + 2], b[4 * n + 3]])
@@ -106,14 +102,13 @@ pub enum Font {
     Figures,
 }
 
-/// No work variable: the original keeps the description's buffer's address in
-/// `DrawWork.figure`, a scratch dword every other reader sets before reading.
+/// No work variables: the description is passed in, not kept in a scratch value.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Work {}
 
 /// The string "n/d".
 const NOT_KNOWN: u32 = 0x578;
-/// The Clio.
+/// The Clio's car number.
 const CLIO: u32 = 0x21;
 
 struct Page<'a, S> {
@@ -187,9 +182,8 @@ enum Kind {
     Weight,
 }
 
-/// Page `page` (0 .. 3) of `d`: the carry of the last text drawn. For the Clio in the
-/// editions of notice kind 3 a string of its description is replaced first (in `d`: the
-/// original writes the record). `units` is the game's setting.
+/// Page `page` (0 .. 3) of `d`: returns the last text's `too_wide`. The Clio in notice kind 3
+/// editions has a description string replaced first (in `d`). `units` is the game's setting.
 pub fn page<S: Screen<Font = Font, Work = Work>>(
     s: &mut S,
     page: u32,

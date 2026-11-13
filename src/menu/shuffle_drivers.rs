@@ -1,19 +1,18 @@
-//! `menu::shuffle_drivers` (0x470AB9): meant to shuffle four driver tables
-//! (a menu table, a menu table, a menu table, `g_drivers`; 0x94 an entry; counts
-//! `state.menus.class_counts`, `state.menus.class_counts`, `state.menus.class_counts`, `state.menus.class_counts`), but it never adds the
-//! two random entries' offsets: for each table, count times, two random numbers under the
-//! count (`draw_work.figure`, `hhmm`) and the first entry swapped with itself through
-//! the first shuffle table / the second shuffle table (both left holding it). Section 16.
+//! `menu::shuffle_drivers`: meant to shuffle four driver tables (three menu tables and the
+//! drivers; 0x94 an entry; counts `state.menus.class_counts`), but it never adds the two random
+//! entries' offsets: for each table, count times, two random numbers under the count
+//! (`draw_work.figure`, `hhmm`) and the first entry swapped with itself through the first
+//! shuffle table / the second shuffle table (both left holding it). A 1999 slip kept as is.
 //!
-//! Callers: one of the game's. The random numbers are `math::random_below`'s.
-//! Refuses a count of 0 (the original's `div` traps, its loop runs on), before anything.
+//! Callers: one of the game's. The random numbers are `math::random_below`'s. Refuses a count
+//! of 0 (it would divide by 0), before anything.
 use crate::cells::Store;
 use crate::errors::{BadInput, Refused};
 use crate::menu::drivers_store::{DRIVER_LEN, records_from_bytes, records_to_bytes};
 use crate::menu::owner::Menus;
 use crate::session::PlainDword;
 
-/// The four classes' first drivers (`g_drivers` + 90, + 140, + 170, + 0) and counts.
+/// The four classes' first drivers (the drivers + 90, + 140, + 170, + 0) and counts.
 fn tables(menus: &Menus) -> [(usize, &PlainDword); 4] {
     let counts = &menus.screens.state.menus.class_counts;
     [

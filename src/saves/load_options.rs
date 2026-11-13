@@ -1,14 +1,12 @@
-//! `saves::load_options` (0x4AAB32): reads the game's kept options, `var\ral.dat`.
-//!
-//! `g_optionsLoaded` (0x75557D) = 0. Up to 0x10000 bytes of the file into the scratch block at
-//! 0x93E8B0; it is taken if it starts "R5CI" and has 0x50004 at +8. From +0x10 on it is copied out
-//! piece by piece to the 69 fields of `pieces_of` (0xB656 bytes: the screen modes, the sound's and
-//! the network's settings, the four players, the record table, the players' names and much else).
-//! After the last piece the file must have "####", else fatal error 0x80ACFF01 "ral.dat out of
-//! date" (the pieces have been copied by then). Then `saves::rebuild_car_lists`, and
-//! `g_optionsLoaded` = 1. A file shorter than that is not noticed as such: what the scratch block
-//! held decides. One caller, `system::load_game_data`. `saves::save_options` writes the file, the
-//! same pieces the other way.
+//! Reads the game's kept options, `var\ral.dat`: up to 0x10000 bytes of the file go into the
+//! scratch block; it is taken if it starts "R5CI" and has 0x50004 at +8. From +0x10 on it is
+//! copied out piece by piece to the 69 fields of `pieces_of` (0xB656 bytes: the screen modes,
+//! the sound's and the network's settings, the four players, the record table, the players'
+//! names and much else). After the last piece the file must have "####", else fatal error
+//! 0x80ACFF01 "ral.dat out of date" (the pieces have been copied by then). Then
+//! `saves::rebuild_car_lists`, and the loaded flag (0 until then) becomes 1. A file shorter than
+//! that is not noticed as such: what the scratch block held decides. One caller,
+//! `system::load_game_data`; `saves::save_options` writes the same pieces the other way.
 
 use crate::cells::Store;
 use crate::errors::{BadInput, FatalError, Refused};
@@ -20,8 +18,6 @@ use crate::saves::best_times_store::TimeEntry;
 use crate::saves::rebuild_car_lists::rebuild_car_lists;
 use crate::session::{DwordLike, Run, Shared};
 use crate::settings::TEXT_ROOM;
-
-// ---- game data ----
 
 /// The 69 pieces' lengths together.
 pub const PIECES_LEN: usize = 0xB656;
@@ -294,7 +290,6 @@ pub fn pieces_of(o: Owners<'static>) -> [Field<'static>; 69] {
     ]
 }
 
-/// The fields on the game's own places.
 #[cfg(test)]
 pub fn pieces() -> [Field<'static>; 69] {
     pieces_of(Owners::the())
@@ -309,7 +304,6 @@ pub struct Places<'a> {
     pub rebuild_car_lists: &'a mut dyn FnMut() -> Result<(), BadInput>,
 }
 
-/// `saves::load_options` (see the header).
 pub fn load_options(path: &dyn Store, places: &mut Places) -> Result<bool, Refused> {
     places.loaded.set(false);
     let file = places.file;
@@ -358,7 +352,7 @@ pub fn load_game_options(o: Owners<'static>) -> Result<bool, Refused> {
 #[cfg(test)]
 mod tests {
 
-    /// The lengths of the pieces, in the original's order.
+    /// The lengths of the pieces, in the file's order.
     #[rustfmt::skip]
     const OPTIONS: [usize; 69] = [0x4, 0x4, 0x4, 0x4, 0x4, 0x4, 0x4, 0x4, 0x4, 0x4, 0x4, 0x4, 0x40, 0x4, 0x40, 0x4, 0x10, 0x4, 0x4, 0x4, 0x20, 0x4, 0x4, 0x4, 0x4, 0x4, 0x28C, 0x28C, 0x28C, 0x28C, 0x4, 0x4, 0x4, 0x4, 0x4, 0x4, 0x4, 0x4, 0x2C, 0x18, 0x4, 0x4, 0x4, 0x6, 0xA0, 0x50, 0x2A48, 0x47C, 0x47C, 0x47C, 0x47C, 0x47C, 0x47C, 0x47C, 0x47C, 0x47C, 0x47C, 0x47C, 0x47C, 0xC30, 0xC30, 0xC30, 0xC30, 0xC30, 0xC30, 0x20, 0x20, 0x20, 0x20];
 

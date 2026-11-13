@@ -1,9 +1,7 @@
-//! The sound page: items 4 .. 6 (3D sound, EAX, A3D 2) are choosable only when the card has
-//! them, and the six settings' names (quality, channels, DS3D, EAX, A3D, Dolby: a string
-//! picked by each value) are drawn at x 0x1D1 from y 0x10B every 0x1B in the item font.
-//!
-//! In a menu loop's draw list. Refuses what `menu::enable_item` refuses (no current menu),
-//! before anything.
+//! The sound page: items 4 to 6 (3D sound, EAX, A3D 2) are choosable only when the card has
+//! them, and the six settings' names (quality, channels, DS3D, EAX, A3D, Dolby: a string picked
+//! by each value) are drawn in the item font. Refuses what `menu::enable_item` refuses (no current
+//! menu).
 
 use crate::errors::Refused;
 use crate::menu::disable_item::disable_item;

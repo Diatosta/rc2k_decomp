@@ -1,8 +1,5 @@
-//! `drive::countdown_beeps` (0x440E6C): `drive::countdown_beep` for the two cars of a two-car race
-//! (`g_currentCar` 0 and 1, the blocks `g_carBlockStore` + 0 and + 0xFE0, the seconds into
-//! `lights` and `unk_6D1492`).
-//!
-//! Caller: `drive::replay_step`. Refuses what `countdown_beep` refuses.
+//! `drive::countdown_beep` for the two cars of a two-car race. Refuses what `countdown_beep`
+//! refuses.
 
 use crate::errors::Refused;
 use crate::race::owner::Race;

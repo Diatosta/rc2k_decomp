@@ -188,7 +188,7 @@ pub fn exit_now(code: u32) -> ! {
     unsafe { libc::_exit(code as i32) }
 }
 
-// ---- the fault reporter (`standalone`) ----
+// ---- the fault reporter ----
 
 /// The process is ended by SIGALRM (its default action) after this many seconds. Async-signal
 /// safe: it touches no memory of ours.

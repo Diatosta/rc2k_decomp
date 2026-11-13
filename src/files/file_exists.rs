@@ -1,8 +1,5 @@
-//! `files::file_exists` (0x402EBE): opens a file for reading and closes it again.
-//!
-//! Takes path. `open_by_mode` with mode 0, then `close`. `g_lastFilePath` is 0 after a file that
-//! exists and the resolved path after one that does not. 20 callers. Refuses what `resolve_path`
-//! refuses. The name is a reading.
+//! Opens a file for reading and closes it again. The last file path is none afterwards for a file
+//! that exists and the resolved path for one that does not. Refuses what `resolve_path` refuses.
 
 use crate::errors::BadInput;
 

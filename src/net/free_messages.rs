@@ -1,10 +1,5 @@
-//! `net::free_messages` (0x4185BB): the network's memory given back (`memory::free_list`
-//! on `memory`) and four of its counts (`connections`, `connection_table`,
-//! `sessions`, `session_table`) made 0.
-//!
-//!
-//! See `net/mod.rs`. One caller, `net::destroy_connection`. Refuses what
-//! `memory::free_list` refuses.
+//! Gives the network's memory back and zeroes the four connection and session counts and
+//! tables. Refuses what `memory::free_list` refuses.
 
 use crate::errors::Refused;
 use crate::net::store::NetShared;

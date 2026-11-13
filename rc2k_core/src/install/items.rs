@@ -1,25 +1,19 @@
-//! The installer's page items under the keys (from `install::choice_back` 0x414826, `choice_on`
-//! 0x414848, `choice_by_number` 0x41486A, `value_down` 0x414881, `value_up` 0x41489C,
-//! `value_by_number` 0x4148B7, `key_up` 0x414784, `key_down` 0x414794, `key_left` 0x4147A4,
-//! `key_right` 0x4147C0 and `key_number` 0x4147DC; and the choices' part of `install::mark_page`
-//! 0x414B53, and `install::next_edit` 0x41530F; the keys' ways of `install::page_key` 0x4146E4,
-//! `install::item_enter` 0x4147FE, `install::item_link` 0x414A28, `install::item_action` 0x414A4B
-//! and `install::folder_key` 0x41534E). An item of choices (kind 2) has a chosen byte and a table
-//! of two bytes a choice, the second's bits 6, 7 its marks; an item of a value (kind 3) has the
-//! value's byte and its least and most.
+//! The installer's page items under the keys. An item of choices (kind 2) has a chosen byte and a
+//! table of two bytes a choice, the second's bits 6, 7 its marks; an item of a value (kind 3) has
+//! the value's byte and its least and most.
 
 use crate::Invalid;
 
-/// Steps a choice may take before it is clear that the original goes round for ever.
+/// Steps a choice may take before the walk is taken to go round for ever.
 pub const ROUND: usize = 0x202;
 
-/// A choice's marks (bits 6, 7 of its second byte): marked, it is passed over.
+/// A choice's marks (bits 6 and 7 of its second byte): when marked, it is passed over.
 pub const MARKS: u8 = 0xC0;
 
-/// The choice before `chosen` that is free (`free`, asked of each choice reached but the chosen
-/// one), round from the first to the last (stepping below 0 wraps to 0xFF; from 0x80 .. 0xFF it
-/// goes to the last, `count` - 1, asked only then); the chosen one again when none is. Refused: a
-/// chosen byte past the choices with every choice marked (the original goes round for ever).
+/// The choice before `chosen` that is free (`free` is asked of each choice reached), going round
+/// from first to last (below 0 wraps to 0xFF; from 0x80 .. 0xFF it goes to the last, `count` - 1,
+/// asked only then); `chosen`
+/// again when none is. Refused: a chosen byte past the choices with every choice marked.
 pub fn choice_back(
     chosen: u8,
     count: impl Fn() -> u8,
@@ -38,7 +32,7 @@ pub fn choice_back(
     Err(Invalid("every choice marked and the chosen one past them"))
 }
 
-/// The choice after `chosen` that is free, round from the last (`count`, asked each step)
+/// The next free choice after `chosen`, round from the last (`count`, asked at each step)
 /// to the first; as `choice_back`.
 pub fn choice_on(
     chosen: u8,
@@ -58,8 +52,8 @@ pub fn choice_on(
     Err(Invalid("every choice marked and the chosen one past them"))
 }
 
-/// A number key's choice (`number`, all 32 bits; its low byte compared with the `count`):
-/// taken if there is one and it is free (`free`, asked only for a choice there is).
+/// A number key's choice (`number`, all 32 bits; its low byte compared with `count`): taken if
+/// there is one and it is free.
 pub fn choice_by_number(number: u32, count: u8, free: impl Fn() -> bool) -> Option<u8> {
     ((number as u8) < count && free()).then_some(number as u8)
 }
@@ -85,8 +79,8 @@ pub fn value_up(value: u8, repeats: u32, most: u8) -> u32 {
     }
 }
 
-/// A number key's value: the least plus (most - least) x `number` / 8 (`imul`, `idiv` by
-/// 8, towards 0), the byte stored. Refused: a quotient past 32 bits (`idiv` traps).
+/// A number key's value: least + (most - least) x `number` / 8, truncated towards 0, stored as a
+/// byte. Refused: a quotient past 32 bits.
 pub fn value_by_number(least: u8, most: u8, number: u32) -> Result<u8, Invalid> {
     let span = most as i32 - least as i32;
     let quotient = (span as i64 * number as i32 as i64) / 8;
@@ -96,14 +90,13 @@ pub fn value_by_number(least: u8, most: u8, number: u32) -> Result<u8, Invalid> 
     Ok((quotient as i32 as u32).wrapping_add(least as u32) as u8)
 }
 
-/// How many choices the original walks for an item's count byte: 0 is 256.
+/// How many choices are walked for an item's count byte: 0 is 256.
 pub fn walked(count: u8) -> usize {
     if count == 0 { 0x100 } else { count as usize }
 }
 
-/// `install::mark_page` (0x414B53), an item of choices marked `mark` (0x80, not to be
-/// chosen): every unmarked choice of its table (two bytes a choice, `walked` of them) gets
-/// the mark too.
+/// `install::mark_page`, an item of choices marked `mark` (0x80, not to be chosen): every unmarked
+/// choice of its table (two bytes a choice, `walked` of them) gets the mark too.
 pub fn mark_choices(table: &mut [u8], mark: u8) {
     for choice in table.chunks_mut(2) {
         if choice[1] & MARKS == 0 {
@@ -112,9 +105,9 @@ pub fn mark_choices(table: &mut [u8], mark: u8) {
     }
 }
 
-/// `install::mark_page`, an unmarked item of choices: with at most one free choice (counted in a
-/// byte), its chosen byte becomes that one (with none, the count less 2) and the item is not to be
-/// chosen; `None`: more are free.
+/// `install::mark_page`, an unmarked item of choices: with at most one free choice, its chosen
+/// byte becomes that one (with none, the count less 2) and the item is not to be chosen;
+/// `None`: more are free.
 pub fn lone_choice(table: &[u8], count: u8) -> Option<u8> {
     let mut free = 0u8;
     let mut last = 2u8;
@@ -129,18 +122,17 @@ pub fn lone_choice(table: &[u8], count: u8) -> Option<u8> {
     (free <= 1).then(|| last.wrapping_neg().wrapping_add(count))
 }
 
-/// `install::mark_page`: whether the highlighted (unmarked) item is lit: an edit being
-/// edited (`editing`, its record's bit 0, for an edit only) always, any other while the
-/// clock's bit 3 (frame clock less move clock) is clear.
+/// `install::mark_page`: whether the highlighted (unmarked) item is lit: an edit being edited
+/// (`editing`: its record's bit 0, `None` for any other kind) always, any other while the clock's
+/// bit 3 (frame clock less move clock) is clear.
 pub fn lit(editing: Option<bool>, clock: u32) -> bool {
     editing == Some(true) || clock & 8 == 0
 }
 
-/// `install::next_edit` (0x41530F): from the highlight on, the first item whose kind
-/// (`kind_of`, asked for each item reached) is an edit (4): its number and true; the
-/// number the search stopped at and false when the list's `count` (unsigned) is reached
-/// first (the highlight then goes back to 0). The highlight item itself is looked at
-/// whatever its number.
+/// `install::next_edit`: from the highlight on, the first item whose kind is an edit (4): its
+/// number and true; else the number the search stopped at and false when `count` (unsigned) is
+/// reached (the highlight then goes back to 0). The highlight item itself is looked at whatever
+/// its number.
 pub fn next_edit(from: u32, count: u32, kind_of: impl Fn(u32) -> u8) -> (u32, bool) {
     let mut choice = from;
     loop {
@@ -224,11 +216,11 @@ pub fn number_of_key(key: u8) -> u32 {
 pub enum PageKey {
     /// The arrows and the number keys: the item's helpers.
     Item(ItemKey),
-    /// 0x1C: the item entered (`EnterWay`).
+    /// Enter (key 0x1C): the item is entered (`EnterWay`).
     Enter,
-    /// 1: the page left with answer 0, unless the list's flags have `STAYS`.
+    /// Escape (key 1): the page is left with answer 0, unless the list's flags have `STAYS`.
     Escape,
-    /// Any other (a screenshot for `SCREENSHOT_KEY`).
+    /// Any other key (a screenshot for `SCREENSHOT_KEY`).
     Other,
 }
 
@@ -263,11 +255,11 @@ pub fn takes_every_key(kind: u8, editing: impl FnOnce() -> bool) -> bool {
 /// What Enter does to an item, by its kind.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum EnterWay {
-    /// 1: a link (`LinkWay`).
+    /// Kind 1: a link (`LinkWay`).
     Link,
-    /// 4: an edit begun.
+    /// Kind 4: an edit begun.
     StartEdit,
-    /// 6: an action run.
+    /// Kind 6: an action run.
     Action,
 }
 
@@ -282,7 +274,7 @@ impl EnterWay {
     }
 }
 
-/// Whether an item's action (its `[+8]`) is there to run: 1 or more.
+/// Whether an item's action is there to run: 1 or more.
 pub fn has_action(action: u32) -> bool {
     action >= 1
 }
@@ -294,7 +286,7 @@ pub enum LinkWay {
     Action,
     /// The page left for list `n`.
     Leave(u8),
-    /// Nothing: its next list negative.
+    /// Nothing: its next list is negative.
     Stay,
 }
 
@@ -315,13 +307,13 @@ pub fn link(action: u32, next: impl FnOnce() -> u8) -> LinkWay {
 /// edit's key), 1 leaves with answer 0 (not while the edit holds `STAYS`), 0x1C with answer 1.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum FolderKey {
-    /// No bit 3: nothing.
+    /// Bit 0x800 clear (the folder not being edited): nothing.
     NotEdited,
-    /// 1.
+    /// Escape (key 1).
     Back,
-    /// 0x1C.
+    /// Enter (key 0x1C).
     On,
-    /// Any other: nothing.
+    /// Any other key: nothing.
     Other,
 }
 

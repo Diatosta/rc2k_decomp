@@ -1,13 +1,6 @@
-//! `net::join_session` (0x418C6D): "NET: Join session" and the session's number logged; with
-//! DirectPlay's object there, the session's record (`net::session_entry`) kept
-//! (`joined`: its GUID, name, most players, user data), a session description
-//! (zeroed, size 0x50, the instance GUID) made and the session joined
-//! (`Open` with DPOPEN_JOIN, or with `posting` 1 posted);
-//! "NET: Open" and its result logged, the window restored; then the session marked made, the player
-//! made (`net::create_player`), the group joined (`net::join_group`), "NET: Join complete".
-//!
-//! Takes `session`. Returns true when joined.
-//! Caller: `net::joining`.
+//! Joins a session ("NET: Join session"): keeps its record, opens it with DPOPEN_JOIN
+//! (directly or, with `posting` 1, on the receiving thread), logs the result and restores the
+//! window; then the own player is made and the group joined. Returns true when joined.
 
 use crate::errors::Refused;
 use crate::net::host_session::{OPEN_JOIN, finish, open};
@@ -16,7 +9,7 @@ use crate::net::owner::Net;
 use crate::net::store::put_bytes;
 use crate::race::viewer_screen_store::{NetTexts, texts};
 
-/// The code at 0x418D77 as the receiving thread calls it when it is posted.
+/// The `Open` as the receiving thread calls it when it is posted.
 pub fn posted_open_join(net: &Net, _lines: &NetTexts) -> u32 {
     open(&net.vars, OPEN_JOIN, b"")
 }

@@ -1,12 +1,9 @@
-//! `input::request_device_setup` (0x409351): the first input device's record
-//! (`g_inputDevices`[0]) given a controller and its settings, and the input thread asked to
-//! give the device back and acquire it again (`g_inputCommand` 1, which
-//! `input::device_command` takes with device 0): `controller` the given controller, `sensitivity` the
-//! given sensitivity, `kind` the sensitivity (2 for 0), `axis_code` the given axes' code,
-//! `strength` 0, `dead_zone` and `end_zone` the given zones.
-//!
-//! Not DirectInput itself: the request is the input thread's to act on. Caller:
-//! `menu::apply_controller`. Refuses (before anything) no first record (null pointer).
+//! The first input device's record is given a controller and its settings, and the input thread
+//! is asked to give the device back and acquire it again (command 1, device 0): `controller` the
+//! given controller, `sensitivity` the given sensitivity, `kind` the sensitivity (2 for 0),
+//! `axis_code` the given axes' code, `strength` 0, `dead_zone` and `end_zone` the given zones.
+//! Not DirectInput itself: the request is the input thread's to act on. Refuses (before
+//! anything) no first record.
 
 use crate::errors::BadInput;
 
@@ -22,7 +19,6 @@ pub fn request_device_setup(
     let Some(record) = input.devices.device(0) else {
         return Err(BadInput("no first input device record"));
     };
-    // Converted: `rc2k_core::input::joystick::device_setup`.
     let s = rc2k_core::input::joystick::device_setup(controller, sensitivity, mode, edx, ebp);
     record.controller.set(s.controller);
     record.sensitivity.set(s.sensitivity);

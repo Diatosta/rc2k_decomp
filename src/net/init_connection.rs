@@ -1,10 +1,5 @@
-//! `net::init_connection` (0x418794): "NET: Init connection index" and the number logged;
-//! with DirectPlay's object there, the connection's address built (`net::build_address`)
-//! and DirectPlay set to it (`InitializeConnection`, `address`, flags 0); "NET: Init"
-//! and its result logged.
-//!
-//! Takes `connection`. Returns true when made.
-//! Caller: `net::connecting`.
+//! Builds the connection's address and sets DirectPlay to it ("NET: Init connection").
+//! Returns true when made.
 
 use crate::errors::Refused;
 use crate::net::build_address::build_address;

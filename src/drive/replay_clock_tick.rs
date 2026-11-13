@@ -1,12 +1,9 @@
-//! `drive::replay_clock_tick` (0x460C20): the replay's clock: `replay_frame` + 1, at 100 back to 0
+//! The replay's clock: `replay_frame` + 1, at 100 back to 0
 //! with the frame `replay_block` + 1.
-//!
-//! Caller: `drive::replay_step`.
 
 use crate::race::owner_replay::Replay;
 use rc2k_core::drive::clocks::ReplayClock;
 
-// Converted: `rc2k_core::drive::clocks::ReplayClock::tick`.
 pub fn replay_clock_tick(replay: &Replay) {
     let was = ReplayClock {
         frame: replay.replay_view().replay_block.get(),

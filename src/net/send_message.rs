@@ -1,21 +1,13 @@
-//! `net::send_message` (0x41736D): a message to every player: the sequence byte
-//! (`sequence` + 1, top bit set, kept) and the bytes into `send_buffer`, sent
-//! (`net::dplay_send`: to `send_to`, the bytes and their count, one more than given,
-//! flags 0).
-//!
-//! Takes `bytes`, `count`.
-//!
-//! See `net/mod.rs`. Callers: `net::send_inputs`, `net::send_position`, `net::send_extra`
-//! (through `net::send_race_message`). Refuses
-//! (before anything) more than 0xFF bytes: the buffer is 0x100 (the original writes on
-//! into the receiving thread's event handle).
+//! A message to every player: the sequence byte (incremented, top bit set) and the bytes go
+//! into `send_buffer` and are sent with `net::dplay_send`. Refuses more than 0xFF bytes (the
+//! buffer holds 0x100).
 
 use crate::errors::Refused;
 use crate::net::dplay_send::dplay_send;
 use crate::net::owner::Net;
 use rc2k_core::net::inbox;
 pub fn send_message(net: &Net, bytes: &[u8]) -> Result<(), Refused> {
-    // Converted: `rc2k_core::net::inbox` (`next_sequence`, `outgoing`: a message too long
+    // The logic is in `rc2k_core::net::inbox` (`next_sequence`, `outgoing`: a message too long
     // refused before anything is written).
     let byte = inbox::next_sequence(net.lobby().sequence.get());
     let message = inbox::outgoing(byte, bytes)?;

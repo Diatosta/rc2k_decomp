@@ -1,16 +1,11 @@
-//! `input::device_effects` (0x4096B4): a device's force-feedback effects told their
+//! A device's force-feedback effects told their
 //! changes: with its effects on (+0x28 1), a DirectInput device (+4) and its controller's
 //! entry (`controllers`, its number x 0x50, +0x1C) 1, each of its six effects (from +0x3C,
 //! 0xA4 bytes each) that is on (+0x30) and has a change waiting (+0x2C, taken and 0): its
 //! function (+0) called with the change's low byte, bits 8 .. 19 and bits 20 .. 31 (each
 //! signed), the record and the effect.
 //!
-//! Takes: the device's record
-//!
-//! Caller: `input::input_tick` (each device, each tick). Refuses (before anything) a controller number past the
-//! table's 16.
-//!
-//! Its arguments are what it reads.
+//! Refuses (before anything) a controller number past the table's 16.
 
 use crate::errors::{BadInput, Refused};
 use crate::input::store::Devices;
@@ -47,7 +42,6 @@ pub fn device_effects(devices: &Devices, record: &InputDevice) -> Result<(), Ref
         if change == 0 {
             continue;
         }
-        // Converted: `rc2k_core::input::effects::change`.
         let (what, a, b) = rc2k_core::input::effects::change(change);
         let function = effect.change.get();
         crate::input::effect_changes::effect_change_at(

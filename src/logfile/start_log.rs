@@ -1,13 +1,9 @@
-//! `logfile::start_log` (0x401135): begins the game's log anew.
-//!
-//! Nothing if the log is off (`g_logLevel` 0). Else `var\logfile.txt` is deleted and the
-//! head is written: "Log started" with `logfile::date_text`, the version, a second text if
+//! Begins the game's log anew. Nothing if the log is off. Else `var\logfile.txt` is deleted and
+//! the head is written: "Log started" with `logfile::date_text`, the version, a second text if
 //! there is one (`SECOND_TEXT`), then what `start` has found out by then: the processor
-//! (`cpu=`, `clk=`, `fpu=`, `mmx=`, `amdk3d=`, `katmai=`), the keyboard type
-//! (`machinetype=`), the Windows version (`platform=`), the memory (`GlobalMemoryStatus`
-//! into `Buffer`) and the free space of the current drive in Kb
-//! (`files::drive_free_space_kb` with no drive given, here as `free_space_kb`; kept in
-//! `FREE_SPACE_KB`). One caller, `start`, which calls it directly.
+//! (`cpu=`, `clk=`, `fpu=`, `mmx=`, `amdk3d=`, `katmai=`), the keyboard type (`machinetype=`),
+//! the Windows version (`platform=`), the memory and the free space of the current drive in Kb
+//! (`FREE_SPACE_KB`).
 
 use crate::errors::BadInput;
 use crate::logfile::date_text::write_date_text;
@@ -17,29 +13,21 @@ use crate::logfile::write_line::{LOG_PATH, level};
 use crate::session::PlainDword;
 use crate::system::owner::System;
 
-// ---- game data ----
-
-/// `aVerRally530482` (0x4E0000): the version's text.
+/// The version's text.
 pub const VERSION: &[u8] = b"$VER: Rally 5.30 (4.8.2000)\0";
 /// `StartTexts.second_text`: a second text, logged when not empty (it is empty).
 pub const SECOND_TEXT: &[u8] = b"\0";
-/// `g_freeSpaceKb` (0x4E073A in IDA): what the log's head says of
-/// the current drive. Nothing reads it.
+/// What the log's head says of the current drive. Nothing reads it.
 pub static FREE_SPACE_KB: crate::session::GameThread<crate::session::PlainDword> =
     crate::session::GameThread::new(crate::session::PlainDword::new(0));
 
-// ---- Rust version ----
-
-/// `files::drive_free_space_kb` for the current drive: the free space of the current drive in Kb, or
-/// 0xFFFFFFFF if it cannot be asked or is 2^42 bytes or more. The original asks for the four
-/// numbers in the scratch block at 0x93E8B0 (`g_pngInfo`, written before read by each of its
-/// users): here locals.
+/// The free space of the current drive in Kb, or 0xFFFFFFFF if it cannot be asked or is 2^42
+/// bytes or more.
 pub fn free_space_kb() -> u32 {
     let Some([cluster_sectors, sector_bytes, free, _]) = crate::os::disk_free(None) else {
         return u32::MAX;
     };
     // The cluster's bytes as 32 bits, times the free clusters as 64.
-    // Converted: `rc2k_core::files::log::free_kb`.
     rc2k_core::files::log::free_kb(cluster_sectors, sector_bytes, free)
 }
 
@@ -48,17 +36,13 @@ fn text(text: &[u8], newline: bool) {
     crate::logfile::log_write::log_nul(text, newline, 1);
 }
 
-/// The Rust version (see the header). Refuses, before doing anything, a start date the
-/// date's text refuses.
+/// Refuses, before doing anything, a start date the date's text refuses.
 pub fn start_log(system: &System) -> Result<(), BadInput> {
     if level() == 0 {
         return Ok(());
     }
     crate::logfile::date_text::date_text(system)?;
     let _ = std::fs::remove_file(crate::files::host_path(&LOG_PATH[..LOG_PATH.len() - 1]));
-    // Converted: `rc2k_core::files::log::head`; the values gathered (the date text,
-    // the memory and the drive's numbers left in game memory as the original leaves
-    // them), then each message logged as the original's call.
     use rc2k_core::files::log::{Machine, Message, head};
     let machine = system.machine();
     let le_bytes = |words: &[PlainDword]| -> Vec<u8> {
@@ -81,10 +65,9 @@ pub fn start_log(system: &System) -> Result<(), BadInput> {
         core::slice::from_ref(&machine.exception_resume),
         core::slice::from_ref(&machine.instance),
     ]);
-    // The date in the numbers' scratch buffer, as the original makes it (the log's
-    // lock is not held: no thread logs yet).
+    // The date in the numbers' scratch buffer (the log's lock is not held: no thread logs yet).
     let date = write_date_text(system, &system.work().numbers)?;
-    // `Buffer` (0x4E0558), written and read here only: a local.
+    // `Buffer`, written and read here only: a local.
     let memory = crate::os::memory();
     let free = free_space_kb();
     FREE_SPACE_KB.get().set(free);

@@ -1,17 +1,14 @@
-//! A device record's controller acquired: which, its settings, and the properties'
-//! figures (from `input::acquire_device` 0x408473 and
-//! `input::begin_force` 0x40945D's gain).
+//! A device record's controller acquired: which, its settings, and the properties' figures.
 //!
-//! The record's settings: the kind (2 when 0, 3 for a controller of more than three axes),
-//! then each of the configuration's values that is set (the kind 1 .. 3, the axes' code and
-//! the axis pick not negative, the strength and the two zones up to 100). Its axes' ranges
-//! and dead zones go by the axis pick's bytes; the saturation leaves the dead and end
-//! zones out.
+//! The kind is 2 when 0 and 3 for a controller of more than three axes; each configured value
+//! that is set is copied (kind 1 ..= 3, axes' code and axis pick not negative, strength and the
+//! two zones up to 100). Axis ranges and dead zones go by the axis pick's bytes; the saturation
+//! leaves out the dead and end zones.
 
 /// What becomes of a record asked to be acquired.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Acquire {
-    /// A controller not listed, or not attached: nothing.
+    /// A controller not listed, or not attached: nothing is done.
     Nothing,
     /// The record still has a device: fatal error 0x8023831D.
     HasDevice,
@@ -19,11 +16,11 @@ pub enum Acquire {
     Acquire,
 }
 
-/// The fatal error of a record that still has a device.
+/// The fatal error code of a record that still has a device.
 pub const HAS_DEVICE: u32 = 0x8023_831D;
 
-/// `controller` of `count` listed; `attached` (its entry's +0x18) asked only for a listed
-/// one, `device` (the record's +4) only for an attached one.
+/// `controller` of `count` listed; `attached` is asked only for a listed one, `device` only for
+/// an attached one.
 pub fn acquire(
     controller: u32,
     count: u32,
@@ -39,7 +36,6 @@ pub fn acquire(
     }
 }
 
-/// The configuration's values.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Config {
     pub kind: u32,
@@ -50,7 +46,7 @@ pub struct Config {
     pub strength: u32,
 }
 
-/// A record's settings (its dwords +8, +0x18, +0xC, +0x10, +0x14, +0x1C).
+/// A record's settings: kind, axis code, strength, dead zone, end zone, axis pick.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Settings {
     pub kind: u32,
@@ -61,8 +57,7 @@ pub struct Settings {
     pub axis_pick: u32,
 }
 
-/// The settings a record leaves with; `axes` (the controller's, asked only for a kind of
-/// 0).
+/// The settings a record leaves with; `axes` is asked only for a kind of 0.
 pub fn settings(mut s: Settings, axes: impl FnOnce() -> u32, c: &Config) -> Settings {
     if s.kind == 0 {
         s.kind = if axes() > 3 { 3 } else { 2 };
@@ -98,13 +93,13 @@ pub fn two_axes(kind: u32) -> bool {
     kind <= 2
 }
 
-/// The dead zone's property: the zone x 100 (wrapping).
+/// The dead zone's property value: the zone times 100 (wrapping).
 pub fn dead_zone_value(dead_zone: u32) -> u32 {
     dead_zone.wrapping_mul(100)
 }
 
-/// The saturation: (100 - dead - end) x 10000 / (100 - dead) when both are above 0
-/// (compared signed, divided unsigned); None: not set.
+/// The saturation: (100 - dead - end) x 10000 / (100 - dead) when both are above 0 (compared
+/// signed, divided unsigned); `None`: not set.
 pub fn saturation(dead_zone: u32, end_zone: u32) -> Option<u32> {
     let rest = 100u32.wrapping_sub(dead_zone);
     if (rest as i32) <= 0 {

@@ -1,20 +1,13 @@
-//! `install::edit_key` (0x4148F7): a key while an edit item (kind 4) is being edited.
+//! A key while an edit item (kind 4) is being edited.
 //! - bit 8 of the key word set: its low byte is the character itself;
-//! - Escape (1): the edit ended (record bit 0 off) and the text put back from
-//!   `script_path` (its most bytes and two); the key word gets bit 3;
-//! - Enter (0x1C): the edit ended; a text of nothing but spaces and control bytes is cleared
-//!   (its most bytes and two) and the record's default text (`[record+2]`, a string id)
-//!   put in; the key word gets bit 3;
-//! - 0x6E: the text cleared; Backspace (0xE): its last byte cut;
-//! - the four arrows: nothing;
-//! - any other: the key's character (`input::key_to_char`, with the keyboard file's first layout
-//!   while the layout mode is 2) added if it is not below a space and there is room
-//!   (the most bytes), and cut again if the text is then wider than `[record+6]`
-//!   (`text::measure_text` with the font of the record's kind: `fonts`).
+//! - Escape: the edit ended and the text put back from `script_path`; the key word gets bit 3;
+//! - Enter: the edit ended; a text of nothing but spaces and control bytes is cleared and the
+//!   record's default text put in; the key word gets bit 3;
+//! - 0x6E: the text cleared; Backspace: its last byte cut; the four arrows: nothing;
+//! - any other: the key's character (`input::key_to_char`) added if it is not below a space and
+//!   there is room, and cut again if the text is then wider than the record's width.
 //!
-//! The key word is the key in its low byte and its bits in the next. What comes back is
-//! an `EditOutcome`: the word as the caller goes on reading it, and whether the key was a
-//! plain edit (not Escape or Enter, the keys that end the edit). Caller `install::page_key`.
+//! The key word is the key in its low byte and its bits in the next. Called by `install::page_key`.
 
 use crate::errors::Refused;
 use crate::install::installer::{
@@ -65,8 +58,8 @@ fn clear(text: BytePlace, most: u32) {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct EditOutcome {
     /// The key word the caller goes on reading: the key itself, with bit 3 of its bits set
-    /// when the edit ended; after an edit that took a character, the original leaves the
-    /// field's allowed width here (the callers read only the low byte as a key).
+    /// when the edit ended; after an edit that took a character, the field's allowed width
+    /// (the callers read only the low byte as a key).
     pub key_word: u32,
     /// True for a key that was only an edit, false for Escape and Enter (the edit ended).
     pub plain_edit: bool,
@@ -97,7 +90,6 @@ pub fn edit_key(
             wb(text.add(past_nul(text).wrapping_sub(2)), 0);
         }
     };
-    // Converted: `rc2k_core::install::edits` (`EditKey`, `blank`, `takes`, `too_wide`).
     let ch = if key & 0x100 != 0 {
         key as u8
     } else {

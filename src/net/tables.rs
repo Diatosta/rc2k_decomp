@@ -1,8 +1,6 @@
-//! The network's lists (`g_netConnectionTable`, `g_netSessionTable`, each connection's
-//! data and the connection's compound address: blocks of the game's heap on `g_netMemory`),
-//! Rust's: taken counted on the list as the game's blocks
-//! were (`allocate_lists`, `connection_found`, `build_address`), given back with it
-//! (`free_messages`). The counts stay in `crate::net::owner::net().vars.connections` / `crate::net::owner::net().vars.sessions`.
+//! The network's connection and session lists and the data hung on them, Rust's: taken counted
+//! on the list (`allocate_lists`, `connection_found`, `build_address`), given back with it
+//! (`free_messages`). The counts stay in the network's variables.
 
 use crate::errors::{BadInput, Refused};
 use crate::memory::owned::Owned;
@@ -34,7 +32,7 @@ pub struct Session {
 pub struct NetTables {
     pub connections: Vec<Connection>,
     pub sessions: Vec<Session>,
-    /// The compound address `build_address` makes (`g_netAddress`).
+    /// The compound address `build_address` makes.
     pub address: Vec<u8>,
 }
 
@@ -66,7 +64,7 @@ impl NetTables {
 
 pub static NET_TABLES: Owned<NetTables> = Owned::new("no network lists");
 
-/// The network's list (`g_netMemory`).
+/// The network's list.
 pub fn list(vars: &NetShared) -> &[crate::session::Dword; 4] {
     &vars.memory
 }
@@ -77,13 +75,12 @@ pub fn take(vars: &NetShared) -> Result<(), Refused> {
     crate::memory::owned::count_on(list(vars), TABLES[1].0)
 }
 
-/// `bytes` more counted on the network's list (a block the original takes there).
+/// `bytes` more counted on the network's list.
 pub fn count(vars: &NetShared, bytes: u32) -> Result<(), Refused> {
     crate::memory::owned::count_on(list(vars), bytes)
 }
 
-/// The original's `net::connection_entry` checks: a number not below the count, then no
-/// table, are its fatal errors.
+/// A number not below the count, then no table, are `net::connection_entry`'s fatal errors.
 fn listed(index: u32, count: u32, codes: [u32; 2]) -> Result<(), Refused> {
     if index >= count {
         return Err(fatal(codes[0]).into());

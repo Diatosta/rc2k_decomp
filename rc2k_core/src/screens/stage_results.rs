@@ -1,6 +1,5 @@
-//! The time trial stage results page (from `screens::draw_stage_results`
-//! 0x48E740): ten rows of name, result and rank with the car's and flag's sprites, then the
-//! fastest line.
+//! The time trial stage results page: ten rows of name, result and rank with the car's and
+//! flag's sprites, then the fastest line.
 
 use crate::Invalid;
 use crate::screens::best_scores::{car_glyph, flag_glyph};
@@ -9,19 +8,19 @@ use crate::strings::format::{Pad, decimal, time};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Font {
-    /// `FontObjects.objects[15].first_char`: names, the gap's string, the speed.
+    /// Names, the gap's string, the speed.
     Rows,
-    /// `FontObjects.objects[14].first_char`: times and the seal codes.
+    /// Times and the seal codes.
     Small,
-    /// `FontObjects.objects[16].first_char`: the ranks.
+    /// The ranks.
     Rank,
-    /// `FontObjects.objects[26].first_char`: the fastest line's string.
+    /// The fastest line's string.
     Fastest,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Work {
-    /// `seconds` (0x7559AC): the rank.
+    /// The rank.
     Rank,
     /// The seal code's y.
     Scratch,
@@ -36,15 +35,12 @@ pub enum Work {
 /// A row: an entry of the times table (0x9C bytes).
 #[derive(Clone, Copy, Debug)]
 pub struct Entry<T> {
-    /// +0x20.
     pub name: T,
-    /// +8.
     pub nation: u32,
-    /// +0x10.
     pub car: u32,
-    /// +0x14, hundredths.
+    /// Hundredths.
     pub time: u32,
-    /// +0x54, +0x58.
+    /// The two seal values.
     pub seal: (u32, u32),
 }
 
@@ -58,10 +54,9 @@ pub struct Fastest<T> {
     pub speed: Vec<u8>,
 }
 
-/// The page's drawing: in seal mode each row's seal code (`seal_code`, which the game keeps
-/// at 0x4E0544) one character at a time in `Buffers.text.cells` from x 0x20A every 0xE; else its
-/// time at 0x276, and for the rows after the first the gap (string 0x579, the time at
-/// 0x2EE). The sprites' palette is where the rank's text ended.
+/// The page's drawing: in seal mode each row's seal code one character at a time from x 0x20A
+/// every 0xE; else its time at 0x276, and for the rows after the first the gap (string 0x579,
+/// the time at 0x2EE). The sprites' palette is where the rank's text ended.
 pub fn stage_results<S: Screen<Font = Font, Work = Work>>(
     s: &mut S,
     seal_mode: bool,

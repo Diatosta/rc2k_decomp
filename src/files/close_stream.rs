@@ -1,8 +1,5 @@
-//! `files::close_stream` (0x402CFA): closes a buffered stream.
-//!
-//! A stream opened with mode 1 has what is in its buffer written out first (0x402D8E: `filled`
-//! bytes, nothing if that is 0; whether the write worked is not looked at). Then the handle is
-//! closed and -1 stored in its place. Five callers. The name is a reading.
+//! Closes a buffered stream: a stream opened with mode 1 has its buffer written out first (the
+//! write's result is not looked at), then the handle is closed and -1 stored in its place.
 
 use crate::errors::BadInput;
 use crate::files::handle::NO_HANDLE;

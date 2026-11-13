@@ -4,17 +4,15 @@ use crate::errors::BadInput;
 use crate::place::Run;
 use rc2k_core::strings::table::StringTable;
 
-// `g_stringTable` (0x4E07D4), the packed table's address, is not kept: the original sets it
-// to the lexicon only (`compile_lexicon`, `load_language`) and the table is always read from
-// `PUBLISHED`.
+// The string table pointer is not kept: the table is always read from `PUBLISHED`.
 
-/// The ids of the texts the game keeps in its own variables (the original's pointer table
-/// indexed by the id): the build notice, the screens' text buffers, the drive rows, the
-/// installer's languages and the credits.
+/// The ids of the texts the game keeps in its own variables (the pointer table indexed by the id):
+/// The build notice, the screens' text buffers, the drive rows, the installer's languages and the
+/// credits.
 pub const MADE_TEXT_IDS: core::ops::Range<u32> = 0x1000..0x1040;
 
-/// Which made text it is: the variable holding it and the text's number in that variable.
-/// The text runs on to its NUL inside the variable, which may be past the field it starts in.
+/// Which made text it is: the variable holding it and the text's number in that variable. The text
+/// runs on to its NUL inside the variable, which may be past the field it starts in.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum MadeText {
     /// The build notice's first text, its second, and the second's second line.
@@ -77,8 +75,8 @@ impl MadeText {
         }
     }
 
-    /// The variable's buffers from the one the made texts are counted from, in the order
-    /// they follow one another: a text runs on past its field into the next.
+    /// The variable's buffers from the one the made texts are counted from, in the order they
+    /// follow one another: a text runs on past its field into the next.
     fn chain<'a>(
         self,
         race: &'a crate::race::owner::Race,
@@ -143,9 +141,8 @@ pub fn made_text(
     text_across(&chain, place.offset(&chain))
 }
 
-/// The bytes from `offset` into the first of `buffers` to the first NUL (left out); the
-/// original reads on past the field the text starts in, so the buffers that follow one another
-/// are the limit.
+/// The bytes from `offset` into the first of `buffers` to the first NUL (left out); the text runs
+/// on past the field it starts in, so the buffers that follow one another are the limit.
 fn text_across(buffers: &[&dyn Run], offset: usize) -> Result<Vec<u8>, BadInput> {
     let mut text = Vec::new();
     let mut skip = offset;
@@ -166,8 +163,8 @@ fn text_across(buffers: &[&dyn Run], offset: usize) -> Result<Vec<u8>, BadInput>
     Err(BadInput("a string without its end in its block"))
 }
 
-/// The text in the driver names' block at byte `slot` (a driver name's slot value), up to its
-/// NUL (left out).
+/// The text in the driver names' block at byte `slot` (a driver name's slot value), up to its NUL
+/// (left out).
 pub fn driver_name_text(
     strings: &crate::strings::owner::Strings,
     slot: u32,
@@ -184,8 +181,8 @@ pub fn driver_name_text(
     Err(BadInput("a string without its end in its block"))
 }
 
-/// The offset in `drivers.names` of the name of driver-name id `id` (`POINTER_IDS`), 0 for
-/// none: the pointer slot each id has.
+/// The offset in `drivers.names` of the name of driver-name id `id` (`POINTER_IDS`), 0 for none:
+/// The pointer slot each id has.
 pub fn driver_name_slot(
     strings: &crate::strings::owner::Strings,
     id: u32,
@@ -198,7 +195,7 @@ pub fn driver_name_slot(
     Ok(strings.drivers.names.get_u32(4 * slot))
 }
 
-/// Where `strings::compile_lexicon` puts the table, and its room (`g_lexicon` in IDA, 0x4E07F8 .. the keyboard file at 0x4F07C8).
+/// The lexicon's room: where `strings::compile_lexicon` puts the table.
 pub const LEXICON_ROOM: usize = rc2k_core::strings::lexicon::TABLE_ROOM;
 pub static LEXICON: crate::session::GameThread<crate::session::PlainBytes<LEXICON_ROOM>> =
     crate::session::GameThread::new(crate::session::PlainBytes::new([0; LEXICON_ROOM]));
@@ -213,13 +210,13 @@ pub fn write_lexicon(table: &[u8]) -> Result<(), BadInput> {
     LEXICON.get().write_at(0, table, "the lexicon's room")
 }
 
-/// The finished table as the core reads it: a copy of the lexicon's room, made once its bytes
-/// are written (`publish`). Readers never see the room itself, so a text being looked up cannot
-/// meet a language being loaded.
+/// The finished table as the core reads it: a copy of the lexicon's room, made once its bytes are
+/// written (`publish`). Readers never see the room itself, so a text being looked up cannot meet a
+/// language being loaded.
 static PUBLISHED: std::sync::RwLock<Option<&'static [u8]>> = std::sync::RwLock::new(None);
 
-/// Makes the room's bytes the table the game reads. Called at most twice, while the language
-/// loads (compiled, then corrected), so the copies kept for the program's life stay small.
+/// Makes the room's bytes the table the game reads. Called at most twice, while the language loads
+/// (compiled, then corrected), so the copies kept for the program's life stay small.
 pub fn publish() -> Result<(), BadInput> {
     let copy = lexicon_bytes()?;
     *PUBLISHED
@@ -228,8 +225,7 @@ pub fn publish() -> Result<(), BadInput> {
     Ok(())
 }
 
-/// The table `g_stringTable` points at, as the core reads it: `None` before the language is
-/// loaded.
+/// The table the game reads, as the core reads it: `None` before the language is loaded.
 pub fn table() -> Option<StringTable<'static>> {
     PUBLISHED
         .read()
@@ -241,9 +237,9 @@ pub fn table() -> Option<StringTable<'static>> {
 mod tests {
     use super::*;
 
-    /// Where the original's pointer table sent each made text, ids 0x1000 .. 0x103F: the
-    /// holder (N the notice text, B the screens' text buffers, D the drive rows, M the
-    /// installer's names, V its variables) and the text's offset in the holder.
+    /// Where each made text, ids 0x1000 .. 0x103F, lives: the holder (N the notice text, B the
+    /// screens' text buffers, D the drive rows, M the installer's names, V its variables) and the
+    /// text's offset in the holder.
     const IMAGE_PLACES: [(char, usize); 64] = [
         ('N', 0x0),
         ('N', 0x4e),

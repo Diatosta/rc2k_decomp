@@ -1,27 +1,22 @@
-//! `menu::single_rally_three_four_results_loop` (0x482E9B): a screen titled "RESULTADOS" called by
-//! `menu::single_rally_three` and `menu::single_rally_four`.
-//!
-//! The loop itself is `menu::screen_loop`; this file says what is this screen's own (`SCREEN`),
-//! as extracted from the disassembly: background `results1.png`; leaving is asked about; left
-//! without the question, the highlight is not saved; its own 3D list goes to `g_sceneList`
-//! before the first frame only; around an action the highlight is kept in the saved highlight; the
-//! action run is that of the item of another menu, 0x750ACC (the original's slip); on leaving
-//! the highlight is saved in the saved highlight, not in the variable it is taken from (the
-//! original's slip); the keys are handled with another menu, 0x750ACC, in `menu_texts.keys_menu` (the
-//! original's slip).
-//! The name is a reading from the title string of its menu, "RESULTADOS", not yet a visit.
+//! A screen titled "RESULTADOS" called by `menu::single_rally_three` and `menu::single_rally_four`.
+//! Screen-specific part of `menu::screen_loop`: background `results1.png`; leaving is asked about;
+//! left without the question, the highlight is not saved; its own 3D scene list is set before the
+//! first frame only; around an action the highlight is kept in the saved highlight; the action run
+//! is that of the item of another menu; on leaving the highlight is saved in the saved highlight,
+//! not in the variable it is taken from; the keys are handled with another menu, in
+//! `menu_texts.keys_menu` (all 1999 slips kept as is).
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Asking, Callee, Frames, Keys, List, MenuSound, Screen, Step};
 
 pub const SCREEN: Screen = Screen {
     lists: &[
         List {
-            pointer: |m| &m.screens.flow.unread_list, // g_unreadList
+            pointer: |m| &m.screens.flow.unread_list,
             table: |m| m.tables.draw_lists.unread_draw_list.id(),
             run: false,
         },
         List {
-            pointer: |m| &m.screens.flow.draw_list, // g_drawList
+            pointer: |m| &m.screens.flow.draw_list,
             table: |m| {
                 m.tables
                     .draw_lists
@@ -31,7 +26,7 @@ pub const SCREEN: Screen = Screen {
             run: false,
         },
         List {
-            pointer: |m| &m.screens.flow.overlay_list, // g_overlayList
+            pointer: |m| &m.screens.flow.overlay_list,
             table: |m| {
                 m.tables
                     .draw_lists
@@ -64,7 +59,7 @@ pub const SCREEN: Screen = Screen {
     frames: Frames {
         first_frame_lists: Some(&[
             List {
-                pointer: |m| &m.screens.flow.scene_list, // g_sceneList
+                pointer: |m| &m.screens.flow.scene_list,
                 table: |m| {
                     m.tables
                         .draw_lists
@@ -74,7 +69,7 @@ pub const SCREEN: Screen = Screen {
                 run: false,
             },
             List {
-                pointer: |m| &m.screens.flow.draw_list, // g_drawList
+                pointer: |m| &m.screens.flow.draw_list,
                 table: |m| {
                     m.tables
                         .draw_lists
@@ -84,7 +79,7 @@ pub const SCREEN: Screen = Screen {
                 run: false,
             },
             List {
-                pointer: |m| &m.screens.flow.overlay_list, // g_overlayList
+                pointer: |m| &m.screens.flow.overlay_list,
                 table: |m| {
                     m.tables
                         .draw_lists

@@ -1,14 +1,12 @@
-//! The tyre-change screen's layout (from `drive::tyre_screen`
-//! 0x41C5FA, the layout and the wheel's place, and `drive::tyre_screen_parts` 0x41C790,
-//! its ten fixed quads): rectangles as (x, y, w, h) whole numbers, a texture's and the
-//! screen's. A quad's corners (from `drive::tyre_quad` 0x41DD3B).
+//! The tyre-change screen's layout and the wheel's place, its ten fixed quads, and a quad's
+//! corners: rectangles as (x, y, w, h) whole numbers, a texture's and the screen's.
 
 /// A rectangle (x, y, w, h).
 pub type Rect = [u32; 4];
 
-/// The layout tables (0x20 bytes each from `TyreChange.layouts[0]`): one table (mode 0), two for the
-/// wheel further left (mode 2), two more (other modes); by car 0 or not. (The table's
-/// number from `TyreChange.layouts[0]`, the wheel's shift left.)
+/// The layout tables (0x20 bytes each from `TyreChange.layouts[0]`): one table (mode 0), two for
+/// the wheel further left (mode 2), two more (other modes); by car 0 or not. (The table's number
+/// from `TyreChange.layouts[0]`, the wheel's shift left.)
 pub fn layout(mode: u32, car: u32) -> (u32, u32) {
     match mode {
         0 => (0, 0),
@@ -17,8 +15,8 @@ pub fn layout(mode: u32, car: u32) -> (u32, u32) {
     }
 }
 
-/// The wheel's place: the panel's middle less the wheel's half (each by an arithmetic
-/// shift of the difference), less the shift.
+/// The wheel's place, centred in the panel: the panel's corner plus half the difference of
+/// their sizes (an arithmetic shift), x less `shift`.
 pub fn wheel_place(panel: Rect, wheel: [u32; 2], shift: u32) -> [u32; 2] {
     let half = |x: u32, y: u32| ((x.wrapping_sub(y) as i32) >> 1) as u32;
     [
@@ -30,8 +28,8 @@ pub fn wheel_place(panel: Rect, wheel: [u32; 2], shift: u32) -> [u32; 2] {
 }
 
 /// The ten fixed quads (texture, screen) from the second rectangle of the layout
-/// (`TyreChange.parts[0]` ..), the wheel's rectangle (`TyreChange.wheel[0]` ..) and whether the car is
-/// not the first (its half of the texture).
+/// (`TyreChange.parts[0]` ..), the wheel's rectangle (`TyreChange.wheel[0]` ..) and whether the car
+/// is not the first (its half of the texture).
 pub fn fixed_parts(table: Rect, wheel: Rect, second_car: bool) -> [(Rect, Rect); 10] {
     let mut out = [([0; 4], [0; 4]); 10];
     out[0] = ([0, 0x80, 0x100, 0x19], [table[0], table[1], 0x100, 0x19]);
@@ -75,10 +73,9 @@ pub fn fixed_parts(table: Rect, wheel: Rect, second_car: bool) -> [(Rect, Rect);
     out
 }
 
-/// `drive::tyre_quad`: a screen rectangle's four corners as the vertices' (x, y)
-/// floats, in the vertices' order: (x, y), (x + w, y), (x, y + h), (x + w, y + h). Each
-/// sum `fild` / `fiadd` (exact) and stored once (`fst`): rounded once to the float at any
-/// precision.
+/// A screen rectangle's four corners as the vertices' (x, y) floats, in the vertices' order:
+/// (x, y), (x + w, y), (x, y + h), (x + w, y + h). Each sum is exact and rounded once to `f32`,
+/// so the result is the same at any x87 precision.
 pub fn quad_corners(rect: Rect) -> [[f32; 2]; 4] {
     let n = |v: u32| i64::from(v as i32);
     let (x, y) = (n(rect[0]) as f32, n(rect[1]) as f32);

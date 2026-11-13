@@ -1,4 +1,4 @@
-//! `drive::pause_until_key` (0x445376): the race paused until a key. The hold count
+//! The race paused until a key. The hold count
 //! `hold_count` 0x19, five keys taken, the race's sounds stopped (`race::stop_race_sounds`),
 //! `scene_switch` 1, the two first blocks' notice 0xCB (+0x71C, +0x730 0, +0x72C -1); the
 //! wait `pause_wait` 30, held at 10 or more while the window is not active; each turn a key
@@ -8,7 +8,7 @@
 //! 0 and the sounds woken (`race::wake_car_sounds`), a key taken, the first block's +0x468
 //! 0.
 //!
-//! Caller: `drive::race_loop`. Refuses what its calls refuse.
+//! Refuses what its calls refuse.
 
 use crate::drive::race_parts::{
     input_update, race_frame, race_keys, stop_race_sounds, take_key, wake_car_sounds,
@@ -24,7 +24,6 @@ fn any_ending_key(input: &crate::input::owner::Input) -> u32 {
         .fold(0u32, |o, k| o | input.devices.keys_pressed.get(k) as u32)
 }
 
-// Converted: `rc2k_core::drive::race_ticks::{ends_pause, held_wait}`.
 pub fn pause_until_key(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     let (input, system) = (o.input, o.system);
     let shared = &race.shared;
@@ -40,7 +39,7 @@ pub fn pause_until_key(race: &Race, o: crate::owners::Owners<'static>) -> Result
         race.car_blocks().cars[c as usize].notice_time.set(u32::MAX);
     }
     shared.vars.get().pause_wait.set(0x1E);
-    // From 0x4453EE (the wait held) or 0x445401 (a turn).
+    // Entered from the wait held, or from a turn.
     let mut hold = true;
     loop {
         if hold {

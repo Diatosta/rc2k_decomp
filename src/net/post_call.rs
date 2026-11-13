@@ -1,17 +1,8 @@
-//! `net::post_call` (0x4184F8): with `g_netPosting` 1, the given code handed to the
-//! receiving thread (`g_netPostedCall`), which calls it and sets `g_netPostedResult` and
-//! `g_netPostedAnswered`; meanwhile a tenth of a second's sleep (`system::sleep`) and the
-//! window's messages (`system::pump_messages`) until it has answered or the game is
-//! closing; then the result is `g_netPostedResult` (also without posting).
-//!
-//! Takes `code`, the function to call (a Rust function, handed over beside the cell, which
-//! holds 1 while it waits). Returns the posted call's result. The
-//! original's callers read only that result (`lq -s 0x4184F8`).
-//! DirectPlay's calls that may show a dialog (a modem's, a serial link's) are made on the
-//! receiving thread this way (`net::build_address` sets `g_netPosting`). Callers:
-//! `net::find_sessions`, `net::host_session`, `net::join_session`, each posting its own
-//! piece of code (Rust functions). It waits on
-//! another thread.
+//! With `posting` 1, hands the given Rust function to the receiving thread, which calls it,
+//! and waits (sleeping a tenth of a second and pumping the window's messages) until it has
+//! answered or the game is closing; returns its result. DirectPlay calls that may show a dialog
+//! (modem, serial link) are made on the receiving thread this way. Without posting it just
+//! calls `code`.
 
 use crate::net::owner::Net;
 use crate::net::store::NetShared;
@@ -23,7 +14,7 @@ use std::sync::atomic::Ordering;
 /// lines's texts.
 pub type PostedCall = fn(&Net, &NetTexts) -> u32;
 
-/// The call posted, while `g_netPostedCall` is 1.
+/// The call posted, while `posted_call` is 1.
 static POSTED: Mutex<Option<PostedCall>> = Mutex::new(None);
 pub fn post_call(o: crate::owners::Owners<'static>, code: PostedCall) -> u32 {
     let net = o.net;

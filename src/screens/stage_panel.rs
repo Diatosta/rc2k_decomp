@@ -1,7 +1,7 @@
 //! What the four stage panel functions share: `draw_stage_info`, `draw_service_stage_info`,
-//! `draw_time_trial_stage_info` and `draw_selected_stage_menu`. In the original each is a full copy of
-//! the same layout; they differ only in where the stage comes from, what goes above the panel
-//! and which best-time table the record rows use.
+//! `draw_time_trial_stage_info` and `draw_selected_stage_menu`. They use the same layout and differ
+//! only in where the stage comes from, what goes above the panel and which best-time table the
+//! record rows use.
 
 use crate::errors::{BadInput, Refused};
 use crate::gfx::blit_marker_pair::{marker_calls, set_marker_position};
@@ -89,8 +89,8 @@ pub fn build_second_heading(
 }
 
 /// Everything from the map markers down to the numbered line at the bottom left, for the
-/// stage `record`. `marker_palette` is whatever the caller has in ebx when the markers are
-/// drawn. `keep_entry_34` is the one store that two of the panels add: entry +0x34 into
+/// stage `record`. `marker_palette` is whatever the caller passes for the markers (unused).
+/// `keep_entry_34` is the one store that two of the panels add: the entry's field at +0x34 into
 /// RaceState.settings.rivals[1].
 ///
 /// The stage's track pack entry holds most of what is shown: +0x08 index of its duration,
@@ -109,8 +109,8 @@ pub fn draw_stage_body(
 }
 
 /// `draw_stage_body` with the two headings (surface, weather) in `heading_font`: the rally
-/// stage page (`screens::draw_rally_stage_info`) uses `FontObjects.objects[14].first_char`, the others
-/// `FontObjects.objects[17].first_char`.
+/// stage page (`screens::draw_rally_stage_info`) uses `FontObjects.objects[14].first_char`, the
+/// others `FontObjects.objects[17].first_char`.
 pub fn draw_stage_body_in(
     o: crate::owners::Owners<'static>,
     gfx: &Gfx,
@@ -128,15 +128,15 @@ pub fn draw_stage_body_in(
         canvas.blit_glyph(call)?;
     }
     let entry = || -> Result<Entry, Refused> {
-        // By name: past the pack's 36 entries the original's number reads on into what
-        // follows it (`trakpak_entry::Track::get`), and every field here may be reached so.
+        // By name: past the pack's 36 entries the number reads on into what follows it
+        // (`trakpak_entry::Track::get`), and every field here may be reached so.
         let stages = &o.system.records().stage_tables;
         let track = track_of(stages, record)?;
         let fault = crate::menu::event_flow::Fault::default();
         let f = |field: TrackField| fault.ok(track.get(stages, field));
         let made = Entry {
-            // `MENU_LISTS.durations` (the stage durations) has 37 entries; the original's index
-            // has no bound (fixed: refused).
+            // `MENU_LISTS.durations` (the stage durations) has 37 entries; a duration index past it
+            // is refused.
             duration: menus
                 .tables
                 .lists
@@ -182,8 +182,8 @@ pub type PanelScreen<'a> = GameScreen<
     crate::screens::game_screen::HeldText,
 >;
 
-/// Stage `stage`'s best time (its first) in `table`, copied out. Refuses no table (the
-/// original reads near 0) and a stage past it.
+/// Stage `stage`'s best time (its first) in `table`, copied out. Refuses no table and a stage
+/// past it.
 pub fn best_of(
     table: &crate::menu::event_flow::StageTable,
     stage: u32,
@@ -197,7 +197,7 @@ pub fn best_of(
 }
 
 /// The record rows, with the stage's best time (the record's +0x3C its stage) from
-/// `table`. Returns the carry flag.
+/// `table`. Returns whether the last text was too wide for its box.
 pub fn draw_records_from(
     o: crate::owners::Owners<'static>,
     system: &crate::system::owner::System,
@@ -214,7 +214,8 @@ pub fn draw_records_from(
 
 /// The record rows as the two "selected stage" panels draw them: from the group 1 table when
 /// group 1 is selected, else from the usual one, and not at all while either the group 1
-/// table or the chosen one is missing. Returns the carry flag (clear when nothing is drawn).
+/// table or the chosen one is missing. Returns whether the last text was too wide
+/// for its box (false when nothing is drawn).
 pub fn draw_records_for_group(
     o: crate::owners::Owners<'static>,
     system: &crate::system::owner::System,

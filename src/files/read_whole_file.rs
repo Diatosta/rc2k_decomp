@@ -1,13 +1,6 @@
-//! `files::read_whole_file` (0x421B54): reads a file's start into a buffer and says how
-//! much it got.
-//!
-//! Takes the path, the buffer and how many bytes at most. Sets the last-read count to the bytes read
-//! (0 after a failed open or close). Fails if the file could not be opened, read or closed; the
-//! original also leaves what `CloseHandle` gave (-1 if the file did not open) and 1 after a
-//! good read, 0 after a failed one, in registers.
-//!
-//! `files::open_by_mode` with mode 0, `files::read`, `files::close`. 29 callers: the models, the
-//! stage's files. Refuses what `files::resolve_path` refuses.
+//! Reads a file's start into a buffer and says how much it got: `files::open_by_mode` with mode
+//! 0, `files::read`, `files::close`. Fails if the file could not be opened, read or closed. Used
+//! for the models and the stage's files. Refuses what `files::resolve_path` refuses.
 
 use crate::errors::BadInput;
 use crate::files::state::BYTES_READ;
@@ -55,7 +48,6 @@ pub fn read_whole_file_plain_bytes<const N: usize>(
 
 /// `read_whole_file` into Rust's memory (`into.len()` bytes at most).
 pub fn read_whole_file_into(path: &[u8], into: &mut [u8]) -> Result<(), BadInput> {
-    // Converted: `rc2k_core::files::io::read_whole_file`.
     {
         let w = rc2k_core::files::io::read_whole_file(
             &mut crate::files::handle::GameFiles::new(),

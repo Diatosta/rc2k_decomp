@@ -79,7 +79,6 @@ pub fn cstring_from(
     cstring_in(&bytes)
 }
 
-/// The text in the store up to its NUL, within the store.
 pub fn cstring(
     at: &dyn crate::cells::Store,
     _what: &str,
@@ -87,8 +86,8 @@ pub fn cstring(
     cstring_from(at, 0, at.size())
 }
 
-/// A path in the game's bytes (no NUL) as a `PathBuf`: the one place a game path becomes
-/// the system's.
+/// A path in the game's bytes (no NUL) as a `PathBuf`: the one place a game path becomes the
+/// system's.
 #[cfg(windows)]
 pub fn host_path(path: &[u8]) -> std::path::PathBuf {
     std::path::PathBuf::from(ansi_text(path))
@@ -180,65 +179,60 @@ mod ansi_tests {
     }
 }
 
-/// The file code's variables.
 pub mod state {
 
-    /// g_lastFilePath (0x4F52B0): the path of the last file opened or searched for, or
-    /// none (the fatal-error report names it). The original holds the path's address (and
-    /// the report reads what is there then); here it is the path's text.
+    /// The path of the last file opened or searched for, or none (the fatal-error report names
+    /// it).
     static LAST_FILE_PATH: std::sync::Mutex<Option<Vec<u8>>> = std::sync::Mutex::new(None);
 
-    /// `g_lastFilePath` set to `path` (without its NUL), or to none.
+    /// Set to `path` (without its NUL), or to none.
     pub fn set_last_file_path(path: Option<&[u8]>) {
         *LAST_FILE_PATH
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner) = path.map(<[u8]>::to_vec);
     }
 
-    /// `g_lastFilePath`'s path.
     pub fn last_file_path() -> Option<Vec<u8>> {
         LAST_FILE_PATH
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .clone()
     }
-    /// hFindFile (0x4E05A4): 1 while a search is open (`files::search`), `u32::MAX` for
-    /// none.
+    /// 1 while a search is open (`files::search`), `u32::MAX` for none.
     pub static FIND_HANDLE: crate::session::Dword = crate::session::Dword::new(u32::MAX);
-    /// FindFileData (0x4E05A8, `WIN32_FIND_DATAA`, 0x13E bytes; 0x140 here): the search's
-    /// record (`files::search` fills its attributes and name).
+    /// The search's record (`WIN32_FIND_DATAA`, 0x13E bytes; 0x140 here): `files::search` fills
+    /// its attributes and name.
     pub static FIND_DATA: crate::session::Bytes<0x140> = crate::session::Bytes::new([0; 0x140]);
-    /// The attributes a search passes over (0x4E06E6, the dword after the record): the
-    /// directory bit; the installer clears it for its walk of folders.
+    /// The attributes a search passes over: the directory bit; the installer clears it for its
+    /// walk of folders.
     pub static SKIPPED_ATTRIBUTES: crate::session::Dword = crate::session::Dword::new(0x10);
-    /// dword_60B2CC (g_readBytes): the bytes `read_whole_file` read.
+    /// The bytes `read_whole_file` read.
     pub static BYTES_READ: crate::session::Dword = crate::session::Dword::new(0);
-    /// g_mediaMode (0x5189A4): how the game is installed (0 .. 3), as the installer's record
-    /// says (`var\ral.zog`); `resolve_path` looks at it.
+    /// How the game is installed (0 .. 3), as the installer's record says; `resolve_path` looks at
+    /// it.
     pub static MEDIA_MODE: crate::session::Dword = crate::session::Dword::new(0);
-    /// g_baseDirectory (0x5189A8, 0x100 bytes) and, after it, g_localeDirectory (0x518AA8,
-    /// 0x100 bytes): strings, empty at the start. One block, as in the image.
+    /// The base directory (0x100 bytes) and, after it, the locale directory (0x100 bytes):
+    /// strings, empty at the start.
     pub const DIRECTORIES_LEN: usize = 0x200;
     pub static DIRECTORIES: crate::session::Bytes<DIRECTORIES_LEN> =
         crate::session::Bytes::new([0; DIRECTORIES_LEN]);
-    /// g_packedPath (0x5BE9BD .. 0x5BEAC0): the packed copy's path is built here.
+    /// The packed copy's path is built here.
     pub const PACKED_PATH_LEN: usize = 0x103;
     pub static PACKED_PATH: crate::session::Bytes<PACKED_PATH_LEN> =
         crate::session::Bytes::new([0; PACKED_PATH_LEN]);
-    /// byte_94E8B0 (the numbered paths, 0x100 bytes) and, after it, the resolved paths of
-    /// a thread without a slot (0x94E9B0, 0x100 bytes).
+    /// The numbered paths (0x100 bytes) and, after them, the resolved paths of a thread without a
+    /// slot (0x100 bytes).
     pub const PATHS_LEN: usize = 0x200;
     pub static PATHS: crate::session::Bytes<PATHS_LEN> = crate::session::Bytes::new([0; PATHS_LEN]);
 
     /// A directory's room (`DIRECTORIES` holds the two).
     pub const DIRECTORY_LEN: u32 = 0x100;
 
-    /// Directory `n`'s first byte (0 g_baseDirectory, 1 g_localeDirectory).
+    /// Directory `n`'s first byte (0 base, 1 locale).
     pub fn directory_byte(n: usize) -> u8 {
         DIRECTORIES.get(n * DIRECTORY_LEN as usize)
     }
 
-    /// Sets directory `n`'s first byte.
     pub fn set_directory_byte(n: usize, byte: u8) {
         DIRECTORIES.set(n * DIRECTORY_LEN as usize, byte);
     }
@@ -262,8 +256,8 @@ pub mod state {
         Ok(())
     }
 
-    /// Directory `n`'s text (0 g_baseDirectory, 1 g_localeDirectory), up to its NUL (a text
-    /// with no NUL in its room is refused).
+    /// Directory `n`'s text (0 base, 1 locale), up to its NUL (a text with no NUL in its room is
+    /// refused).
     pub fn directory_text(n: usize, what: &str) -> Result<Vec<u8>, crate::errors::BadInput> {
         let room = DIRECTORY_LEN as usize;
         let bytes = DIRECTORIES.read_at(n * room, room, what)?;

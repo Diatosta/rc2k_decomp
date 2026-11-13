@@ -1,23 +1,15 @@
-//! `install::uninstall` (0x4134DF): the installation removed. Only when installed
-//! (`g_installStatus` != 0) with a source. The status is marked busy and written
-//! (`install::write_registry`); a "removing" frame is shown; the source is made current and
-//! the install script run (`install::run_script`) to rebuild the file and folder lists; each
-//! listed file is deleted (`files::delete_file`) and each folder removed in reverse
-//! (`files::remove_directory`); the parent is entered and the install folder removed; after a
-//! second the status and source are cleared, written again, the DirectPlay key removed
-//! (`install::unregister_lobby`), the Start-menu removal asked (`g_removeStartItems`) and
-//! `g_installing` cleared. Each path is built in `path_b` from `installed` plus the
-//! listed name.
+//! The installation removed, the action of a list item. Only when installed with a source: the
+//! status is marked busy and written; a "removing" frame is shown; the source is made current and
+//! the install script run to rebuild the file and folder lists; each listed file is deleted and
+//! each folder removed in reverse; the parent is entered and the install folder removed; after a
+//! second the status and source are cleared and written again, the DirectPlay key removed, the
+//! Start menu removal asked and the installing flag cleared. Called by `install::run_page`.
 //!
-//! The action of a list item. Caller `install::run_page`.
-//!
-//! "Remove all" (a decided difference): the original removed only what its
-//! script lists, so files the game made (its log, `rc2k.log`, the program and its
-//! libraries) kept the folder. With every folder chosen (`script_mark` not 5, "keep saved
-//! data"'s End) the installation's folder goes whole once the listed files are gone; on
-//! Windows what is still in use goes after the program ends (`os::remove_folder_after_exit`).
-//! Only a folder that holds an installation's record (`var\install.cfg`) and is neither a
-//! root nor the home folder.
+//! "Remove all" (a decided difference: removing only what the script lists would leave the
+//! files the game made, and so the folder): with every folder chosen (`script_mark` not 5) the
+//! installation's folder goes whole once the listed files are gone; on Windows what is still in
+//! use goes after the program ends (`os::remove_folder_after_exit`). Only a folder that holds an
+//! installation's record (`var\install.cfg`) and is neither a root nor the home folder.
 
 use crate::errors::Refused;
 use crate::install::installer::{

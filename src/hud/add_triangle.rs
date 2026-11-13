@@ -1,6 +1,4 @@
-//! `hud::add_triangle` (0x4B6DA7): `g_polygonVertexCount` 3 and `hud::add_polygon`.
-//!
-//! Caller: `hud::disc_vertex` (0x4B6D03).
+//! A polygon of three vertices: `hud::add_polygon`.
 
 use crate::errors::Refused;
 use crate::hud::owner::{Hud, Pen};

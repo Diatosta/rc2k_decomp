@@ -1,4 +1,4 @@
-//! `drive::quit_question` (0x445069): the "quit?" question in a race. The race's sounds stopped,
+//! The "quit?" question in a race. The race's sounds stopped,
 //! `scene_switch` 1; the best whole frame less 7 (the first block's +8 / 100) kept in
 //! `last_kept` when not below it (by the sign); the eight blocks' notice 0xC2 (with
 //! `no_replay`) or 0xC1, +0x730 0, +0x72C -1. Then until answered (`input::yes_no_key`, the
@@ -6,17 +6,15 @@
 //! mode 2 with `no_replay` the third answer -2. The notices cleared, `scene_switch` 0 and the
 //! sounds woken, the eight blocks' +0x468 0.
 //!
-//! Returns: the answer
+//! Gives the answer.
 //!
-//! Caller: `drive::race_loop`. Refuses what its calls refuse.
+//! Refuses what its calls refuse.
 
 use crate::drive::race_parts::{stop_race_sounds, wake_car_sounds};
 use crate::errors::Refused;
 use crate::race::owner::Race;
 use rc2k_core::drive::race_ticks;
 
-// Converted: `rc2k_core::drive::race_ticks::{best_frame, keeps_frame, quit_notice,
-// quit_answer}`.
 /// The answer: 0 to race on.
 pub fn quit_question(race: &Race, o: crate::owners::Owners<'static>) -> Result<u32, Refused> {
     let input = o.input;
@@ -43,8 +41,7 @@ pub fn quit_question(race: &Race, o: crate::owners::Owners<'static>) -> Result<u
         race.car_blocks().cars[c as usize].notice_time.set(u32::MAX);
     }
     let answer = loop {
-        // A gamepad's button answers directly (not the original's): this question has no
-        // items on screen to choose from.
+        // A gamepad's button answers directly: this question has no items on screen to choose from.
         eax = match crate::input::menu_pad::take_answer() {
             Some(answer) => answer,
             None => {

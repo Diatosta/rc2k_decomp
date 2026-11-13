@@ -1,11 +1,8 @@
-//! A diagnostic: a sound is sometimes heard stuck over
-//! everything, one that even a pause does not stop, with the audio thread still turning. A
-//! sound only stops through the playing and stopping lists (`audio::update_voices`,
-//! `audio::stop_all_voices`), so a buffer that plays while its voice is on neither list
-//! can never be stopped. Once a second, after the turn's update (the voices' own buffers'
-//! way only: not A3D, not the game's mixer), every voice of the pool whose buffer plays is
-//! looked for on the two lists; one on neither is logged once ("audio: stray voice"), with
-//! what it holds, until it is quiet again.
+//! A diagnostic: a sound is sometimes heard stuck over everything, one that even a pause does not
+//! stop. A sound only stops through the playing and stopping lists, so a buffer that plays while
+//! its voice is on neither list can never be stopped. Once a second, after the turn's update (the
+//! voices' own buffers' way only), every voice whose buffer plays is looked for on the two
+//! lists; one on neither is logged once ("audio: stray voice") until it is quiet again.
 
 use crate::audio::own::AudioOwn;
 use crate::audio::voices::{VOICES, voice_of};

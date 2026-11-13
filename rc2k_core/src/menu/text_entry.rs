@@ -1,12 +1,6 @@
-//! The menus' one-line text entry (from its four editors:
-//! `menu::edit_player_name` 0x467C63, `edit_savegame_name`, `edit_replay_name` and
-//! `service::edit_setup_name` 0x46F1A9): what a pending key does. Each editor does its
-//! own with it (the name brought back, the slot saved, the cursor written). And the
-//! entry's state and its helpers (from `menu::backup_text` 0x46D5CC,
-//! `restore_text` 0x46D5E3, `clear_text` 0x467DC9, `add_text_length` 0x46F4CE,
-//! `backspace_savegame_name` 0x46D5FD, `begin_player_name` 0x467C34, `begin_savegame_name`
-//! 0x46D571 and `begin_replay_name` 0x46F715); the players' names fitted to their width
-//! (`menu::fit_player_names` 0x411445).
+//! The menus' one-line text entry: what a pending key does (each editor does its own with it: the
+//! name brought back, the slot saved, the cursor written), the entry's state and its helpers, and
+//! the players' names fitted to their width.
 
 use crate::Invalid;
 
@@ -89,10 +83,9 @@ impl Entry {
 /// The widest a player's name may be shown, in pixels (`menu::fit_player_names`).
 pub const WIDEST_NAME: u32 = 0x15E;
 
-/// `menu::fit_name` (0x411474, of `menu::fit_player_names` 0x411445): a name of `len`
-/// characters cut, one character at a time, until it is no wider than `WIDEST_NAME`;
-/// `measure(len)` ends the name at `len` (its NUL written) and measures it. The width it is
-/// left with. Refused: an empty name still too wide.
+/// `menu::fit_name`, of `menu::fit_player_names`: a name of `len` characters cut, one character at
+/// a time, until it is no wider than `WIDEST_NAME`; `measure(len)` ends the name at `len` (its NUL
+/// written) and measures it. The width it is left with. Refused: an empty name still too wide.
 pub fn fit_name<E: From<Invalid>>(
     len: usize,
     mut measure: impl FnMut(usize) -> Result<u32, E>,

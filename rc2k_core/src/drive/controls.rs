@@ -1,10 +1,8 @@
-//! The work car's controls from its input words (from
-//! `drive::read_car_controls` 0x43A35A, `drive::pedal_inputs` 0x43A004,
-//! `drive::reset_request` 0x43A0D3 and `drive::device_axes` 0x409430): the keys newly
-//! pressed and the switches they give, the pedals stepped by keys or set by a device, the
-//! reset key held long enough, and a device's first reading's curve.
+//! The work car's controls from its input words: the keys newly pressed and the switches they give,
+//! the pedals stepped by keys or set by a device, the reset key held long enough, and a device's
+//! first reading's curve.
 
-/// What the keys word gives (`read_car_controls`).
+/// What the keys word gives.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Keys {
     /// The bits not held before.

@@ -1,25 +1,16 @@
-//! `net::take_messages` (0x4194CC): the receiving thread's turn: while there is a DirectPlay
-//! object (`g_dplay`) and `net::receive_message` gives a message (a size other than 0), the messages
-//! taken (`messages_taken` counted) and handled:
-//! - sender 0: DirectPlay's system message (`net::system_message`);
-//! - a sender not among the players (`g_netReceived` +0x20, `g_netPlayers`; the first
-//!   player compared even with none): dropped;
-//! - first byte 0x22: a chat line (`net::chat_line_locked`, with the player and the text
-//!   after the byte; a NUL put at the end first, past the buffer for a
-//!   message of 0x100 bytes: on `g_netSendBuffer`'s first byte, section 16);
-//! - 0x40 / 0x50 (two bytes, the second the round `g_netSync`; on a machine not the host,
-//!   `g_netOwnRecord` bit 0x10 clear): answered 0x41 / 0x51 with the round
-//!   (`sync_answer`, `net::dplay_send` to the sender, flags 0) and `g_netAllRaced` /
-//!   `g_netRaceOver` set; not the original's: a machine that has just joined takes the round
-//!   of the host's first call (`ROUND_UNKNOWN`);
-//! - 0x41 / 0x51 (two bytes, the round; on the host): the player's byte of `g_netSynced` 1;
-//! - bit 0x80 (a race message), 1 .. 0xFF bytes: the bytes after the first, with the time
-//!   (`system::tick_count`), put into the player's block (`net::store_received`) under the
-//!   lock (`net::lock_received` .. `net::unlock_received`);
+//! The receiving thread's turn: while a DirectPlay object exists and a message comes, it is
+//! counted and handled by sender and first byte:
+//! - sender 0: a system message;
+//! - a sender not among the players: dropped (the first player is compared even with none);
+//! - 0x22: a chat line (the text after the byte);
+//! - 0x40 / 0x50 (a sync round, on a machine that is not the host): answered 0x41 / 0x51 and the
+//!   race flags set; a machine that has just joined takes the round of the host's first call;
+//! - 0x41 / 0x51 (on the host): the player's synced byte is set;
+//! - bit 0x80 (a race message, 1 to 0xFF bytes): the bytes after the first stored with the time
+//!   in the player's block under the lock;
 //! - others dropped.
 //!
-//! Caller: `net::receive_thread` (with a network session, when its event is signalled).
-//! Refuses (before anything) more than 16 players (the blocks' room).
+//! Refuses more than 16 players (the blocks' room).
 
 use crate::errors::{BadInput, Refused};
 use crate::net::chat_line_locked::chat_line_locked;
@@ -36,11 +27,11 @@ use rc2k_core::net::messages::{self, Kind};
 /// The players the blocks have room for.
 pub const MOST_PLAYERS: u32 = rc2k_core::net::players::MOST;
 
-/// Not the original's: whether this machine has joined a session and not yet
-/// heard the host's round. Every machine counts the rounds up as it enters the lobby, so one
-/// that joins after races (the host lets players in again between them,
-/// `net::enable_new_players`) is behind the others: it takes the round of the host's first
-/// call. A machine there from the start has the host's round already and takes the same.
+/// Whether this machine has joined a session and not yet heard the host's round. Every machine
+/// counts the rounds up as it enters the lobby, so one that joins after races (the host lets
+/// players in again between them, `net::enable_new_players`) is behind the others: it takes the
+/// round of the host's first call. A machine there from the start has the host's round already
+/// and takes the same.
 static ROUND_UNKNOWN: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
 /// A session joined (`net::start_link`): the round taken from the host's first call.
@@ -96,7 +87,7 @@ pub fn take_messages(
         }
         let block = net.vars.player_block(player)?;
         let first = get8(&net.vars, 0)?;
-        // Converted: `rc2k_core::net::messages` (`Kind`, `this_round`, `answers_call`,
+        // The logic is in `rc2k_core::net::messages` (`Kind`, `this_round`, `answers_call`,
         // `notes_answer`, `answer`, `race_fits`).
         let own_state = net.vars.own.state();
         // The core asks for the second byte only when it needs it: a refusal is kept.
@@ -113,8 +104,8 @@ pub fn take_messages(
         };
         match Kind::of(first) {
             Kind::Chat => {
-                // A message that fills the buffer loses its last byte to the NUL (the original
-                // writes it over the send buffer's first).
+                // A message that fills the buffer gives up its last byte to the NUL (fixed: "A
+                // full-length chat message writes past its buffer" in `wiki/Fixed-bugs.md`).
                 net.vars
                     .receive_data
                     .set((m.size as usize).min(ROOM as usize - 1), 0);

@@ -1,20 +1,18 @@
 //! Each menu item names its neighbours by number at +0x24, +0x28, +0x2C and +0x30 (which key
 //! goes with which is in `Direction`). A link of 0x6F means there is none, and 0xFFFFFC1A
-//! means "ask the item": its callback for that direction (+0x34 .. +0x40) is called
-//! instead. Every move plays the click, `sound::play_menu_sound` with eax = 1.
-//! The two vertical moves go on along the same link until they reach an item whose +0x48 is
-//! 0xFFFFFC1B, so items that cannot be chosen are stepped over. The two horizontal ones take
-//! one step and, while `flow.turning` is 1, first turn a counter: the object in front goes round
-//! the objects, and the turn direction and the angle are left at 1 and 0 (right)
-//! or -1 and -1 (left). They click only if `flow.quiet` is not 1.
+//! means "ask the item": its callback for that direction (+0x34 .. +0x40) is called instead.
+//! Every move plays the click, `sound::play_menu_sound` with sound 1. The two vertical moves go
+//! on along the same link until they reach an item whose +0x48 is 0xFFFFFC1B, so items that
+//! cannot be chosen are stepped over. The two horizontal ones take one step and, while
+//! `flow.turning` is 1, first turn a counter: the object in front goes round the objects, and
+//! the turn direction and the angle are left at 1 and 0 (right) or -1 and -1 (left). They click
+//! only if `flow.quiet` is not 1.
 //!
 //! The click, the callbacks and the screenshot are called directly.
 
 use crate::errors::Refused;
 use crate::menu::item_at::item_at;
 use crate::owners::Owners;
-
-// ---- game data ----
 
 /// The four moves. Which is up and which is down is a reading: the keys are 0x66 and 0x6B.
 /// Left and right are keys 0x68 and 0x69, the ones that step a value down and up in the
@@ -40,10 +38,7 @@ impl Direction {
     }
 }
 
-// ---- the four moves ----
-
-/// The click is 0x40F059 with sound 1 (`sound::play_menu_sound`); the callback gets
-/// the item (edi in the original, the only register its callbacks read).
+/// The click is `sound::play_menu_sound` with sound 1; the callback gets the item.
 pub fn move_highlight(o: Owners<'static>, direction: Direction) -> Result<(), Refused> {
     let menus = o.menus;
     let screens = &menus.screens;

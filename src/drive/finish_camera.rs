@@ -1,8 +1,6 @@
-//! `drive::finish_camera` (0x45941D): the finish routine's camera from the eased time
-//! (`eased`) and the share (`share`): `ViewAndRecords.records[6].angles[1]`, `606730`, `606734`, `606744` (each
-//! a line in them, `camera_yaw_rate` .. `camera_height_per_share`), `ViewAndRecords.records[6].offset[0]` 0.
-//!
-//! Caller: `drive::finish_run`.
+//! The finish routine's camera from the eased time (`eased`) and the share (`share`): view
+//! record 6's yaw (`angles[1]`), its pitch and its distance and height offsets (each a line in
+//! them, `camera_yaw_rate` .. `camera_height_per_share`), its `offset[0]` 0.
 
 use crate::math::x87_float::ld;
 use crate::math::x87_float::st;
@@ -15,8 +13,8 @@ fn record(view_records: &ViewAndRecords) -> &ViewRecord {
     ViewVars::record(view_records, 6)
 }
 
-/// `ViewAndRecords.records[6].angles[1]`, `606730`, `606734` from the eased time, the share and the lines'
-/// constants, over the race block at `rc` (the dwords at RVA offsets).
+/// The finish camera's lines (`ViewAndRecords.records[6]` angles and two more values) from the
+/// eased time, the share and the lines' constants.
 fn lines(view_records: &ViewAndRecords, replay: &Replay) {
     let finish = replay.finish.get();
     record(view_records).angles[1]

@@ -1,15 +1,11 @@
-//! `screens::draw_service_time` (0x4A5DE7): draws the two time readouts at the top of the
-//! service area, from the time budget and the time of the repairs chosen.
+//! The two time readouts at the top of the service area, from the time budget and the time of
+//! the repairs chosen. While `budget - repairs` is at least 900: the time available
+//! (`budget - 900`) on the left and the time left (`budget - 900 - repairs`) on the right. Below
+//! that: the overrun (`900 - (budget - repairs)`) and the penalty (10 for every started 60 of
+//! overrun). All four are printed with `append_clock`. It leaves the penalty in the money.
 //!
-//! While `budget - repairs` is at least 900: "<string 0x48D>:  <budget - 900>" on the left
-//! and "<string 0x48E>:  <budget - 900 - repairs>" on the right. Below that:
-//! "<string 0x490>:  <overrun>" and "<string 0x491>:  <penalty>", where the overrun is
-//! `900 - (budget - repairs)` and the penalty is 10 for every started 60 of overrun.
-//! All four values are printed with `append_clock`. It leaves the penalty in the money.
-//!
-//! Screen: seen in a screenshot of the championship's service area (2026-10-10): "TEMPO DISPONÍVEL: 40:00" at
-//! the top left and "TEMPO RESTANTE: 40:00" at the top right (time available, time left).
-//! The overrun pair of labels has not been seen.
+//! Seen in a screenshot: "TEMPO DISPONÍVEL: 40:00" at the top left and "TEMPO RESTANTE: 40:00" at
+//! the top right. The overrun pair of labels has not been seen.
 
 use crate::errors::Refused;
 use crate::text::draw_text::Canvas;
@@ -21,7 +17,7 @@ use crate::text::draw_text::Canvas;
 // `draw_work.figure`: a work variable
 
 // (label string, font) for the four readouts.
-/// Returns the carry flag of the last `draw_text`.
+/// Returns whether the last text drawn was too wide for its box.
 pub fn draw_service_time(
     o: crate::owners::Owners<'static>,
     canvas: &mut dyn Canvas,

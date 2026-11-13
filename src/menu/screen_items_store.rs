@@ -1,7 +1,8 @@
-//! The screens' kept items, out of RAL.EXE's image (IDA 0x747660 .. 0x747998): one slot per menu screen in two arrays, the item highlighted when the screen was
-//! last left (`current`, the screen loop's `saved_item`) and the item some screens start
-//! on (`first`, read into `measure_x` or the action's argument on entry). The screens name
-//! their slot by `slot::*`; the 20 slots no ported screen names keep the image's values.
+//! The screens' kept items: one slot per menu screen in two arrays, the item highlighted when
+//! the screen was last left (`current`, the screen loop's `saved_item`) and the item some
+//! screens start on (`first`, read into `measure_x` or the action's argument on entry). The
+//! screens name their slot by `slot::*`; the 20 slots no ported screen names keep their
+//! starting values.
 
 use crate::session::PlainDword;
 
@@ -97,9 +98,9 @@ pub const SLOTS: usize = 103;
 
 #[derive(rc2k_derive::Cells)]
 pub struct ScreenItems {
-    /// `dword_747660` ..: the item highlighted when the screen was last left.
+    /// The item highlighted when the screen was last left.
     pub current: [PlainDword; SLOTS],
-    /// `dword_7477FC` ..: the item a screen starts on.
+    /// The item a screen starts on.
     pub first: [PlainDword; SLOTS],
 }
 

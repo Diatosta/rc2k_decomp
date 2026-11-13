@@ -1,16 +1,13 @@
-//! The two stream commands: command 9, `audio::stream_command`
-//! (0x40C194, `g_soundStream`), and command 0xB, `audio::music_command` (0x40C4DD,
-//! `g_musicStream`); and `audio::stop_streams` (0x40C5E8). Actions (unsigned): 0 stop;
-//! 1 the thread's turn (feed while playing; stopped after it: stop, and for the music the
-//! next tune); 3 the volume of what plays; any other plays (stop first if playing; nothing
-//! for a volume <= 0, for `g_noMusic` (music), and a stop for no path or tune).
-//!
-//! Music tunes: the file is `g_musicPath` with the tune's two last digits at +0xE
-//! (`strings::format_u32`, flags 0x12); tune 0xA is 10 + `g_tuneTurn` for the first turn
-//! (counted on, 0 .. 5) whose file exists. When a tune stops, `g_nextTune` is played, and it
-//! is never cleared there: the second tune repeats. Fixed (section 16): a turn
-//! past 5 starts from 0, and after `RETRIES` plays in a row that stop at their first feed
-//! the music stops (the original: both for ever, the audio thread hung).
+//! The two stream commands: command 9, `audio::stream_command`, and command 0xB,
+//! `audio::music_command`; and `audio::stop_streams`. Actions (unsigned): 0 stop; 1 the thread's
+//! turn (feed while playing; stopped after it: stop, and for the music the next tune); 3 the
+//! volume of what plays; any other plays (stop first if playing; nothing for a volume <= 0, for
+//! no music, and a stop for no path or tune). Music tunes: the file is the music path with the
+//! tune's two last digits at +0xE; tune 0xA is 10 + the tune turn for the first turn (counted on,
+//! 0 .. 5) whose file exists. When a tune stops, the next tune is played, and it is never cleared
+//! there: the second tune repeats (kept). Fixed: a turn past 5 starts from 0, and after `RETRIES`
+//! plays in a row that stop at their first feed the music stops ("The music can hang the sound",
+//! `wiki/Fixed-bugs.md`).
 
 use crate::audio::own::{AudioOwn, AudioThread};
 use crate::audio::stream::*;
@@ -21,8 +18,7 @@ fn playing(player: &Shared<AudioStream>) -> bool {
     player.get().playing == 1
 }
 
-/// The core's player: one of the game's stream players, `path` the file it starts (none for a
-/// stop: the core starts nothing then).
+/// The core's player: one of the stream players, `path` the file it starts (none for a stop).
 struct GamePlayer<'a> {
     state: &'a AudioOwn,
     player: &'a Shared<AudioStream>,
@@ -48,8 +44,7 @@ impl StreamPath<'_> {
 }
 
 impl GamePlayer<'_> {
-    /// `work` on a copy of the player's record, written back after it (the stream
-    /// functions do not reach the record by address).
+    /// `work` on a copy of the player's record, written back after it.
     fn with<R>(&self, work: impl FnOnce(&mut AudioStream) -> R) -> R {
         let mut stream = self.player.get();
         let out = work(&mut stream);
@@ -106,9 +101,8 @@ impl rc2k_core::audio::streams::Tunes for GamePlayer<'_> {
     }
 }
 
-/// `audio::stream_command` on the player at `player`. Converted:
-/// `rc2k_core::audio::streams::stream_command`.
-/// `name` the sample name's key (`audio::store::name_key`), 0 with none (a stop).
+/// `audio::stream_command` on the player at `player`. `name` is the sample name's key
+/// (`audio::store::name_key`), 0 with none (a stop).
 pub fn stream_command(
     audio: &AudioThread,
     name: u32,
@@ -128,9 +122,7 @@ pub fn stream_command(
     rc2k_core::audio::streams::stream_command(&mut p, name != 0, volume, action)
 }
 
-/// `audio::music_command`: `tune` with `next` to follow. Converted:
-/// `rc2k_core::audio::streams::music_command` (its calls do not read the three variables,
-/// which are stored once it is done).
+/// `audio::music_command`: `tune` with `next` to follow.
 pub fn music_command(
     state: &AudioOwn,
     tune: u32,

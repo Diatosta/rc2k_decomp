@@ -1,26 +1,23 @@
-//! `menu::inspection_area_loop` (0x47DBF3): the loop of the inspection area screen.
-//!
-//! The loop itself is `menu::screen_loop`; this file says what is this screen's own (`SCREEN`), as
-//! extracted from the disassembly: background `service.png` through `menu::load_background` (carry
-//! afterwards = fatal error 0x80712345); leaving is asked about. A reading from the title string of
-//! its menu, not yet a visit: "ÁREA DE INSPECÇÃO".
+//! The loop of the inspection area screen. Screen-specific part of `menu::screen_loop`: background
+//! `service.png` through `menu::load_background` (a failed load is fatal error 0x80712345); leaving
+//! is asked about.
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Asking, Callee, FrameRoutine, Frames, List, Screen, Step};
 
 pub const SCREEN: Screen = Screen {
     lists: &[
         List {
-            pointer: |m| &m.screens.flow.scene_list, // g_sceneList
+            pointer: |m| &m.screens.flow.scene_list,
             table: |m| m.tables.draw_lists.inspection_area_scene.id(),
             run: false,
         },
         List {
-            pointer: |m| &m.screens.flow.draw_list, // g_drawList
+            pointer: |m| &m.screens.flow.draw_list,
             table: |m| m.tables.draw_lists.inspection_area_draw.id(),
             run: false,
         },
         List {
-            pointer: |m| &m.screens.flow.overlay_list, // g_overlayList
+            pointer: |m| &m.screens.flow.overlay_list,
             table: |m| m.tables.draw_lists.inspection_area_overlay.id(),
             run: false,
         },

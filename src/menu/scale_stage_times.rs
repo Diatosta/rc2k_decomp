@@ -1,9 +1,8 @@
-//! `menu::scale_stage_times` (0x46354E): the stage's four record times (the four
-//! `class_times`) scaled for the section (`section` held to 0 .. 5): the last three by
-//! the section's entry of one factor table, the first by the section's entry of another
-//! (`fild`, `fmul`, `fistp`; the two factors kept in the x87 work cells); then logged ("stage times info", the
-//! section, the record's +0x40, "a7x" and the first factor, "a8x" and the second, "times
-//! a8-a5" and the four times).
+//! `menu::scale_stage_times`: the stage's four record times (the four `class_times`) scaled for the
+//! section (`section` held to 0 .. 5): the last three by the section's entry of one factor table,
+//! the first by the section's entry of another (the two factors kept in the x87 work cells); then
+//! logged ("stage times info", the section, the record's +0x40, "a7x" and the first factor, "a8x"
+//! and the second, "times a8-a5" and the four times).
 //!
 //! Caller: `menu::calc_cpu_times`. Logs through `logfile::` (level 1).
 use crate::errors::Refused;
@@ -32,8 +31,7 @@ pub fn scaled(race: &Race, times: [u32; 4], section: u32) -> ([u32; 4], [f32; 2]
     (out, f)
 }
 
-/// `record` the stage's record (edi in the original; its +0x40 is logged). The original
-/// leaves eax the section, which its one caller (`calc_cpu_times`) does not read.
+/// `record` is the stage's record (its +0x40 is logged).
 pub fn scale_stage_times(
     screens: &Screens,
     stages: &crate::records::stages_store::StageTables,

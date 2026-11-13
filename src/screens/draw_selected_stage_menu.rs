@@ -1,19 +1,10 @@
-//! `screens::draw_selected_stage_menu` (0x481A78): the stage panel for the stage the game has
-//! selected, on a screen whose titles are menu items. Instead of drawing the group's and the
-//! table's titles it stores their string ids in items 0 and 1 of the current menu, and it
-//! builds the heading text (string 0x482) in its own buffer without drawing it.
-//!
-//! Reached through the draw lists at 0x758CF6 (screen loop `menu::view_courses_loop`, a menu entry)
-//! and 0x758E9E (screen loop `menu::select_stage_loop`, six callers).
-//!
-//! Screen: confirmed by the owner on 2026-10-10 with `blank on
-//! screens::draw_selected_stage_menu`: the stage selection screen in the menu ("Escolha
-//! Etapa"), whose two titles sit in menu boxes. Which of the two screen loops that was is not
-//! known.
-//!
-//! The record rows come from one of two best-time tables and are skipped while a table is missing
-//! (see `stage_panel::draw_records_for_group`). The menus and draw lists run its `entry`
-//! (`menu::table_calls`).
+//! The stage panel for the stage the game has selected, on a screen whose titles are menu
+//! items: instead of drawing the group's and the table's titles it stores their string ids in
+//! items 0 and 1 of the current menu, and it builds the heading text (string 0x482) in its own
+//! buffer without drawing it. Used by the stage selection screen ("Escolha Etapa"); which of the
+//! two screen loops that use it was seen is not known. The record rows come from one of two
+//! best-time tables and are skipped while a table is missing (see
+//! `stage_panel::draw_records_for_group`).
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::owner::Menus;
@@ -39,8 +30,8 @@ pub fn menu_titles(
     )))
 }
 
-/// Returns the carry flag. Refuses a missing selection or menu: the original reads or writes
-/// through null.
+/// Returns whether the record rows' last text was too wide for its box. Refuses a missing selection
+/// or menu.
 pub fn draw_selected_stage_menu(
     o: crate::owners::Owners<'static>,
     system: &crate::system::owner::System,
@@ -78,7 +69,6 @@ pub fn draw_selected_stage_menu(
     draw_records_for_group(o, system, sel.group, sel.record, canvas)
 }
 
-//
-// The original writes two string ids into whatever menu is current. The test therefore only
-// runs where those items already hold exactly these ids, which is on the screen this function
-// draws: there the writes change nothing.
+// The function writes two string ids into whatever menu is current. The test therefore
+// only runs where those items already hold exactly these ids, which is on the screen this
+// function draws: there the writes change nothing.

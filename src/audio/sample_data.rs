@@ -1,17 +1,9 @@
-//! The sounds' sample data in Rust's memory (the game kept them in its heap, reached by
-//! address): the work buffer a sound file is read into (`g_sampleBuffer`, its size
-//! `g_sampleBufferSize`), the stream's header buffer (`g_streamHeader`), and the samples a
-//! voice keeps (`audio::keep_sample`, on `g_sampleMemory`'s list).
-//!
-//! A voice's `data` (a channel's, the sample file's) is an id into `DATA`, its place + 1:
-//! a place in the work buffer, or a kept copy the entry owns. Voices sharing a sound share
-//! the id. A voice that does not keep its sample reads the work buffer where its sound was
-//! read, whatever was read there since, as the original does. The entries go with the
-//! voices (`audio::free_voices`).
-//!
-//! The memory is sized as the game's blocks were (whole pages, the block's header left
-//! out): a read just past a sample's end reads zeros, as in the game, and is not
-//! refused. The memory figures count it as `memory::allocate` did (`memory::count_owned`).
+//! The sounds' sample data in Rust's memory: the work buffer a sound file is read into, the
+//! stream's header buffer, and the samples a voice keeps (`audio::keep_sample`). A voice's `data`
+//! is an id into `DATA`, its place + 1: a place in the work buffer, or a kept copy the entry owns.
+//! Voices sharing a sound share the id. The entries go with the voices (`audio::free_voices`).
+//! The memory is sized in whole pages less a header, so a read just past a sample's end reads
+//! zeros and is not refused; the memory figures count it (`memory::count_owned`).
 
 use crate::errors::BadInput;
 use std::sync::Mutex;
@@ -99,8 +91,8 @@ pub fn offset(id: u32) -> Result<u32, BadInput> {
     }
 }
 
-/// `f` on id `id`'s bytes: from its start to its memory's end. Refuses an id that names
-/// nothing, or a buffer place past the buffer.
+/// `f` on id `id`'s bytes: from its start to its memory's end. Refuses an id that names nothing, or
+/// A buffer place past the buffer.
 pub fn with_data<R>(id: u32, f: impl FnOnce(&mut [u8]) -> R) -> Result<R, BadInput> {
     let mut table = DATA
         .lock()
@@ -122,8 +114,8 @@ pub fn with_data<R>(id: u32, f: impl FnOnce(&mut [u8]) -> R) -> Result<R, BadInp
     Ok(f(bytes))
 }
 
-/// Every id's bytes readable at once (the mixer's): the locks held while it lives, taken
-/// in `with_data`'s order.
+/// Every id's bytes readable at once (the mixer's): the locks held while it lives, taken in
+/// `with_data`'s order.
 pub struct View<'a> {
     table: std::sync::MutexGuard<'a, Vec<Data>>,
     work: std::sync::MutexGuard<'a, Vec<u8>>,
@@ -162,8 +154,8 @@ pub fn with_view<R>(f: impl FnOnce(&View) -> R) -> R {
     })
 }
 
-/// `length` bytes of id `id` kept as a sample of its own (`audio::keep_sample`): its id.
-/// Counted on `list` as `memory::allocate` counts a block.
+/// `length` bytes of id `id` kept as a sample of its own (`audio::keep_sample`): its id. Counted on
+/// `list` as `memory::allocate` counts a block.
 pub fn keep(id: u32, length: u32, list: &crate::memory::ListCells) -> Result<u32, BadInput> {
     let mut kept = vec![0; block_bytes(length)];
     with_data(id, |from| {

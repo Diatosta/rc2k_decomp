@@ -1,14 +1,13 @@
-//! `menu::player_to_standing_b` (0x46618A): a standings-B entry (edi) filled from the player
-//! record esi: +4 ebx + 1, +0x14 the name's 0x20 bytes (from the record's +0x18 pointer),
-//! +8 / +0xC / +0x10 its +4 / +8 / +0x90, +0x34 its +0x8C, +0x38 .. +0x50 its +0xB4 ..
-//! +0xCC, +0x54 .. +0x6C its +0x98 .. +0xB0.
+//! `menu::player_to_standing_b`: a standings-B entry filled from a player record: +4 the
+//! player's index + 1, +0x14 the name's 0x20 bytes (from the record's +0x18 pointer), +8 / +0xC
+//! / +0x10 its +4 / +8 / +0x90, +0x34 its +0x8C, +0x38 .. +0x50 its +0xB4 .. +0xCC, +0x54 ..
+//! +0x6C its +0x98 .. +0xB0.
 //!
 //! Refuses a null entry, record or name, before anything.
 use crate::errors::Refused;
 use crate::menu::standings::*;
 
-/// `e` the entry of table B (edi in the original), `p` the player's record (esi), `index`
-/// the player's index (ebx).
+/// `e` the entry of table B, `p` the player's record, `index` the player's index.
 pub fn player_to_standing_b(
     menus: &crate::menu::owner::Menus,
     e: usize,
@@ -16,7 +15,6 @@ pub fn player_to_standing_b(
     index: u32,
 ) -> Result<(), Refused> {
     name_player(&p.get())?;
-    // The logic is in `rc2k_core::saves::rankings::fill_b`.
     use rc2k_core::menu::standings::PlayerB;
     let source = PlayerB {
         index,

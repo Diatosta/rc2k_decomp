@@ -1,23 +1,11 @@
-//! `install::check_at_start` (0x416477): finds the game's data when the game is started
-//! from somewhere that is not an installation.
-//!
-//! Nothing if the installer is running (`g_installing`) or `var\ral.zog` is there: the
-//! usual case. Otherwise `g_noAudio` = 1, and nothing more if `files\d\gfx\jade.bun` is
-//! there. Otherwise:
-//! - `read_registry`; if an installation is recorded (status 1, a source) and
-//!   `<source>ral.exe` exists (the source through `normalise_path` into the numbered paths' buffer),
-//!   the installer's script is set up for an update: the text "patch6:  (4.8.2000)" and a
-//!   line feed at the player's number text, and in the script's entry (`main_menu.items[0]`) the bytes 5 and 0x0C at
-//!   +0x18, the word 0x1006 at +0x1A and the word 0xBD at +0x2A (`main_menu.items[1].text`, which
-//!   sends the main loop into the installer);
-//! - then, either way, the drives a .. z: the first CD-ROM on which `x:\ral.exe` and
-//!   `x:\files\d\gfx\jade.bun` exist and whose root can be made the current directory
-//!   ends the search with `g_runningFromCd` (0x529DB0) = 1. If there is none: "Update
-//!   cannot find RC CD-ROM" in the log and the fatal error.
-//!
-//! One caller, `start`, which calls it directly. This is not the copy protection's CD check (that one is in the
-//! main loop and `nop`ped out in this build).
-//! Refuses a scratch path that is not a text when the source cannot be put there.
+//! Finds the game's data when the game is started from somewhere that is not an installation.
+//! Nothing when the installer is running or `var\ral.zog` is there; otherwise the sound is
+//! switched off, and nothing more if `files\d\gfx\jade.bun` is there. Else, if the registry
+//! records an installation whose `ral.exe` exists, the installer's script is set up for an
+//! update; either way the first CD-ROM drive holding the game's files becomes the current
+//! directory ("Update cannot find RC CD-ROM" and a fatal error if there is none). Not the copy
+//! protection's CD check. Called once, by `start`. Refused: a scratch path that is not a text
+//! when the source cannot be put there.
 
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::install::outside::Outside;
@@ -26,8 +14,6 @@ use crate::session::Dword;
 use crate::system::owner::System;
 
 const PATH_ROOM: usize = 0x100;
-
-// ---- game data ----
 
 /// What both checks write into the script's entry, but for the string's id.
 pub fn set_script_entry(install: &crate::install::owner::Install, text_id: u16) {

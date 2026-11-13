@@ -1,30 +1,16 @@
-//! The standalone's Start menu items and the program's copy (platform code, owner's decision):
-//! what `install::add_start_menu_items` and
-//! `install::remove_start_menu_items` ask the Program Manager by DDE is done with
-//! shell shortcuts (`IShellLinkW` saved by `IPersistFile`) in the user's Start menu
-//! Programs folder, group "Rally Championship" (Wine makes them menu entries):
-//! - "Rally": `<installed folder>rc2k.exe` (the original: `ral.exe`);
-//! - "Uninstall Rally": `<installed folder>rc2k.exe` with " -u" (the original names the
-//!   program it ran from, the CD's, which finds the installation in the registry; the
-//!   standalone's record is in the installed folder, so only that copy can remove it);
-//! - "View Readme": `<installed folder>readme.txt` (named in the case the folder holds it);
-//! - the removal deletes the three and the group's folder (the original's `DeleteGroup`).
-//!
-//! On Unix the items are desktop entries in the user's applications folder
-//! (`~/.local/share/applications`, as Wine makes them from Start menu items).
-//! On macOS they are small application bundles in `~/Applications/Rally Championship/`
-//! (Launchpad and Spotlight list them), each running a shell script that starts the item in
-//! the installed folder.
-//!
-//! And the program installed: `rc2k.exe` and its DLLs copied from the running program's
-//! folder into the current one (the original copies the program named on its command line
-//! to `.\ral.exe` when run from the CD).
+//! The standalone's Start menu items and the program's copy (platform code): shell shortcuts in
+//! the user's Start menu Programs folder, group "Rally Championship": "Rally", "Uninstall Rally"
+//! (`rc2k.exe -u`; only that copy can remove the installation) and "View Readme"; the removal
+//! deletes the three and the group's folder. On Unix the items are desktop entries in
+//! `~/.local/share/applications`; on macOS small application bundles in
+//! `~/Applications/Rally Championship/`. And the program installed: `rc2k.exe` and its DLLs
+//! copied from the running program's folder into the current one.
 
 use std::path::{Path, PathBuf};
 
-/// The group's folder name (the original's `[CreateGroup(Rally Championship)]`).
+/// The group's folder name.
 pub const GROUP: &str = "Rally Championship";
-/// The program's file, in place of the original's `ral.exe`.
+/// The program's file.
 #[cfg(windows)]
 pub const PROGRAM: &str = "rc2k.exe";
 #[cfg(not(windows))]
@@ -59,12 +45,10 @@ fn readme_name(installed: &Path) -> std::ffi::OsString {
         .unwrap_or_else(|| "readme.txt".into())
 }
 
-/// The three items, all in `installed`, the installed folder.
 pub fn add_start_menu_items(installed: &Path) {
     start_menu::add(installed);
 }
 
-/// The group and its items removed.
 pub fn remove_start_menu_items() {
     start_menu::remove();
 }
@@ -79,7 +63,6 @@ mod start_menu {
         programs_folder().map(|p| p.join(GROUP))
     }
 
-    /// The three items, all in `installed`, the installed folder.
     pub fn add(installed: &Path) {
         let Some(group) = group_folder() else {
             crate::framework::log("install: no Start menu Programs folder; no items added");
@@ -104,7 +87,6 @@ mod start_menu {
         });
     }
 
-    /// The group and its items removed.
     pub fn remove() {
         let Some(group) = group_folder() else {
             return;
@@ -122,7 +104,6 @@ mod start_menu {
     use super::{GROUP, items};
     use std::path::{Path, PathBuf};
 
-    /// The group's folder in the user's applications folder.
     fn group_folder() -> Option<PathBuf> {
         let home = std::env::var_os("HOME")?;
         Some(PathBuf::from(home).join("Applications").join(GROUP))
@@ -203,7 +184,6 @@ mod start_menu {
     use super::{GROUP, items};
     use std::path::{Path, PathBuf};
 
-    /// The user's applications folder.
     fn applications() -> Option<PathBuf> {
         let data = std::env::var_os("XDG_DATA_HOME")
             .map(PathBuf::from)
@@ -211,7 +191,6 @@ mod start_menu {
         Some(data.join("applications"))
     }
 
-    /// An item's desktop entry's file.
     fn entry_file(folder: &Path, name: &str) -> PathBuf {
         let id = format!("{GROUP} {name}").to_lowercase().replace(' ', "-");
         folder.join(format!("{id}.desktop"))
@@ -302,7 +281,7 @@ pub fn copy_program() -> bool {
     all
 }
 
-/// A program started, not waited for (the original's `system::run_program` not waiting).
+/// A program started, not waited for.
 pub fn run_program(command: &Path) -> bool {
     let started = std::process::Command::new(command).spawn();
     crate::framework::log(&format!(

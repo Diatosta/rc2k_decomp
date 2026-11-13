@@ -1,7 +1,6 @@
-//! Whether an object's face is drawn: the four tests of `scene::list_object_face`'s own
-//! (from 0x4504CB and its parts 0x452292, 0x4505BD,
-//! 0x450688, 0x4506B7). A face's group is the low five bits of its byte +7. The
-//! game's variables come through `FaceWorld`, each asked only where the original reads it.
+//! Whether an object's face is drawn: the four tests of `scene::list_object_face`. A face's
+//! group is the low five bits of its byte +7. Scene state comes through `FaceWorld`, each
+//! asked only where the tests read it.
 
 use crate::Invalid;
 use crate::scene::kinds::{KNOWN_KINDS, OBJECTS, find_known};
@@ -9,13 +8,13 @@ use crate::scene::kinds::{KNOWN_KINDS, OBJECTS, find_known};
 /// The bytes of a face the tests read.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Face {
-    /// +6: its kind.
+    /// The face's kind.
     pub kind: u8,
-    /// +7: its group in the low five bits.
+    /// The face's group in the low five bits.
     pub group: u8,
-    /// +8: bits 2 and 3 its see-through, bit 0 drawn first.
+    /// Bits 2 and 3 its see-through, bit 0 drawn first.
     pub flags: u8,
-    /// +0xB: the line kind (kind 0x1C) or what a kind's byte must be.
+    /// The line kind (kind 0x1C) or what a kind's byte must be.
     pub extra: u8,
 }
 
@@ -25,17 +24,17 @@ impl Face {
     }
 }
 
-/// The game's variables the tests read and the two they write.
+/// The scene state the tests read and the two values they write.
 pub trait FaceWorld {
-    /// Whether a race is on (a game flag that is not 0).
+    /// Whether a race is on.
     fn in_race(&self) -> bool;
-    /// `g_objectNumber`.
+    /// The number of the object being drawn.
     fn object(&self) -> u32;
     /// The kind of an object (the object number under 0x100).
     fn object_kind(&self, object: u32) -> u32;
     /// The known kinds of car, by place.
     fn known_kind(&self, place: usize) -> u32;
-    /// The two groups a car kind's record names (records 0x134 bytes apart, by place).
+    /// The two groups a car kind's record names, by place.
     fn kind_groups(&self, place: usize) -> [u32; 2];
     /// The two groups hidden by the chosen view.
     fn hidden_groups(&self) -> [u32; 2];
@@ -52,7 +51,7 @@ pub trait FaceWorld {
     fn no_second_mask(&self) -> u32;
     /// The second mask.
     fn second_mask(&self) -> u32;
-    /// The lone group and whether it is on.
+    /// The lone group, and whether it is on (`lone_group_on`).
     fn lone_group(&self) -> u32;
     fn lone_group_on(&self) -> u32;
     /// Which of the groups to show.
@@ -60,17 +59,17 @@ pub trait FaceWorld {
     /// Whether see-through is on, and its value.
     fn see_through_on(&self) -> u32;
     fn see_through_value(&self) -> u32;
-    /// `g_objectSeeThrough`.
+    /// Sets the see-through value of the object being drawn.
     fn set_see_through(&mut self, value: u32);
-    /// The dword the line kind picks at +0x6FC of the block of the car being drawn;
-    /// refused when there is no block.
+    /// The dword the line kind picks from the block of the car being drawn; refused when there
+    /// is no block.
     fn line_value(&self, extra: u32) -> Result<u32, Invalid>;
     /// The byte the face kind selects in the kind table.
     fn kind_byte(&self, kind: u32) -> u32;
 }
 
-/// The tests in the original's order; Ok(true): the face is dropped. Refuses an object's
-/// number past the tables (outside a race) and no block for a face of kind 0x1C.
+/// The tests in their fixed order; Ok(true): the face is dropped. Refuses an object's number
+/// past the tables (outside a race) and no block for a face of kind 0x1C.
 pub fn dropped(w: &mut impl FaceWorld, face: Face) -> Result<bool, Invalid> {
     let group = face.group();
     let object = w.object();

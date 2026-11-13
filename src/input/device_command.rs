@@ -1,18 +1,8 @@
-//! `input::device_command` (0x408AE5): the input thread's command:
-//! - 1: the device given back (`input::release_device`) and acquired again (`input::acquire_device`);
-//! - 2 (the race's end): the force feedback's race switch (`force_feedback.race_on`) 0, the effects ended (`input::end_effects`), a
-//!   tick (`input::input_tick`), both devices given back and +0x414 0 (not read);
-//! - 3 (the race's start): device 0 set up from player 1's controls
-//!   (`input::set_up_device`) and read (+0x414 1); unless one player on one device
-//!   (`two_devices_one_player` 0 and `one_player` 1), device 1 from player 2's (its
-//!   controller first made none when it is player 1's), likewise; a second's sleep, the
-//!   effects begun (`input::begin_effects`), a tick, `race_on` 1;
-//! - others: nothing.
-//!
-//! Caller: `input::input_tick` (when `g_inputCommand` was set). Refuses (before
-//! anything) a device past 1 for command 1.
-//!
-//! Its arguments are what it reads.
+//! The input thread's command: 1 gives the device back and acquires it again; 2 (the race's
+//! end) switches the race off, ends the effects, ticks, gives both devices back; 3 (the race's
+//! start) sets up device 0 from player 1's controls and, unless one player uses one device,
+//! device 1 from player 2's, sleeps a second, begins the effects, ticks and switches the race
+//! on; others do nothing. Refuses (before anything) a device past 1 for command 1.
 
 use crate::errors::Refused;
 use crate::input::owner::Input;
@@ -38,7 +28,6 @@ pub fn device_command(
     system: &System,
     race: &Race,
 ) -> Result<(), Refused> {
-    // Converted: `rc2k_core::input::devices::command_steps`.
     use rc2k_core::input::devices::{CommandStep::*, command_steps};
     {
         let steps = command_steps(

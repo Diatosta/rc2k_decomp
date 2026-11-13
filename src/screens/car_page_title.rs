@@ -1,9 +1,5 @@
-//! `screens::car_page_title` (0x469A34): the car specification page's title.
-//!
-//!
-//! The string the car pages' title list (the page: 0x24C, 0x249, 0x24B, 0x24A) and a NUL into
-//! the title buffer. In two draw lists. Refuses a page past the four, and a title longer than 0x100
-//! bytes. The menus and draw lists run its `entry` (`menu::table_calls`).
+//! The car specification page's title, from the page's title list. Refuses a page past the
+//! four and a title longer than 0x100 bytes.
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::owner::Menus;

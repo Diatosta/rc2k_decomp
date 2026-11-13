@@ -1,10 +1,8 @@
 //! The maths functions with the same bits on every machine.
 //!
-//! `f64::sin` and its kin call the platform's maths library (glibc, the Windows CRT,
-//! Apple's), whose results may differ in the last bit; a replay or a network game must not
-//! depend on which one. These are the `libm` crate's (a port of musl's), built without its
-//! processor-specific paths, so every build computes them the same way. The game calls these
-//! and never the standard library's (clippy's `disallowed-methods`, `clippy.toml`).
+//! The platform's maths libraries may differ in the last bit, and replays and network games
+//! must not depend on which one runs. These are the `libm` crate's (musl's), without its
+//! processor-specific paths; the standard library's are disallowed in `clippy.toml`.
 
 pub fn sin(x: f64) -> f64 {
     libm::sin(x)

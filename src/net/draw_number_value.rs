@@ -1,19 +1,13 @@
-//! `net::draw_number_value` (0x416B8E): a number setting's value: for the item being edited
-//! the number's text as typed (`path_a`); else the number written into the game's text
-//! buffer (`strings::format_u32`, or string 0x16E for 0); then on into
-//! `net::draw_setting_value`.
-//!
-//! Takes the number, item, y.
-//! Caller: `net::settings_frame` (the most players).
+//! A number setting's value: the number's text as typed for the item being edited, else the
+//! number as text (string 0x16E for 0), then drawn by `net::draw_setting_value`.
 
 use crate::errors::Refused;
 use crate::net::draw_setting_value::draw_setting_value;
 use crate::net::lobby::{push_id, store_text};
 use rc2k_core::net::screens::{self, Number};
 
-/// The number `number` for item `item` at `y`, as the text being typed,
-/// "nothing" or its digits (the last two built in the game's text buffer); returns the next
-/// y (`draw_setting_value`'s).
+/// The number `number` for item `item` at `y`, as the text being typed, "nothing" or its
+/// digits (the last two built in the game's text buffer); returns the next y.
 pub fn draw_number_value(
     o: crate::owners::Owners<'static>,
     number: u32,
@@ -21,7 +15,7 @@ pub fn draw_number_value(
     y: u32,
 ) -> Result<u32, Refused> {
     let (net, install) = (o.net, o.install);
-    // Converted: `rc2k_core::net::screens` (`number_value`, `Number`, `NOTHING`).
+    // The logic is in `rc2k_core::net::screens` (`number_value`, `Number`, `NOTHING`).
     let shown = screens::number_value(item == net.edit().edited.get(), number);
     let text = if shown == Number::Typed {
         crate::place::BytePlace::from(&install.paths.path_a).text("a setting's text")?

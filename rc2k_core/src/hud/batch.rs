@@ -1,8 +1,6 @@
-//! The HUD's batch of vertices and indices (from `hud::draw_hud`
-//! 0x4B1CD0, `hud::add_polygon` 0x4B7413, `hud::flush_batch` 0x4B74EF and
-//! `hud::set_batch_texture` 0x45A855): polygons
-//! gathered with one texture and drawn by the device in one go; a change of texture or a
-//! batch fuller than 0x64 vertices draws what is there first.
+//! The HUD's batch of vertices and indices: polygons gathered with one texture and drawn by the
+//! device in one go; a change of texture or a batch fuller than 0x64 vertices draws what is there
+//! first.
 
 use crate::Invalid;
 
@@ -46,9 +44,8 @@ pub fn flushes(vertices: u32, texture: u32, batch_texture: u32) -> bool {
     vertices > FULL || texture != batch_texture
 }
 
-/// Refuses a polygon of no vertices (the original's loop would run on) or more than
-/// `MOST_VERTICES`, and one the batch has no room for (the counts as the flush leaves
-/// them: emptied when it draws).
+/// Refuses a polygon of no vertices or more than `MOST_VERTICES`, and one the batch has no room for
+/// (counts as the flush leaves them: emptied when it draws).
 pub fn check_polygon(
     count: u32,
     vertices: u32,
@@ -79,7 +76,7 @@ pub fn polygon_indices(first: u32, count: u32) -> Vec<u16> {
     out
 }
 
-/// The kinds' first slots (`g_kindFirstSlots`: 0x400 entries; the HUD asks for 0xC0 ..
+/// The kinds' first slots (0x400 entries; the HUD asks for 0xC0 ..
 /// 0xDC).
 pub const KIND_SLOTS: u32 = 0x400;
 

@@ -1,7 +1,4 @@
-//! `audio::stop_streams` (0x40C5E8): both stream commands with action 0.
-//!
-//! `audio::stream_command` and then `audio::music_command`, each with action 0
-//! (any action but 1 and 3 stops the stream).
+//! Both stream commands with action 0: the stream and the music stopped.
 
 use crate::audio::own::AudioThread;
 use crate::audio::stream_commands::{music_command, stream_command};

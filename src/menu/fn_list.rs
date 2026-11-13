@@ -1,5 +1,5 @@
 //! A screen's function list by handle: the five list pointers
-//! (`g_unreadList` .. `g_sceneList`, `menu::flow_store`) hold a `FnList`, and `menu::run_list`
+//! (the unread list .. the scene list, `menu::flow_store`) hold a `FnList`, and `menu::run_list`
 //! and the frame callbacks walk its functions. The lists are the typed tables' (`LISTS`,
 //! named by `menu::draw_lists_store`); a screen's list may start inside one (at its end
 //! mark: the in-game options' `in_game_options_list.from(2)`), and the menus' last list

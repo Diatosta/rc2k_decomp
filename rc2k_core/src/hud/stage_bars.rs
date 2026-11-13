@@ -1,17 +1,14 @@
-//! The stage's progress bars along the top of the HUD (from
-//! `hud::draw_stage_bar` 0x4B5A86, `hud::draw_stage_bars_1` 0x4B5E29 and
-//! `hud::draw_stage_bars_2` 0x4B63C2): a frame of solid quads, then for each part of the
-//! stage (`g_overlayPartMiles`) its stretch of the bar across 0x229 pixels, a black border,
-//! the part's colour inside under alpha 0x78 and a line between parts. The single layout
-//! has one band, the split layouts one a player (two bands, 0xE apart).
+//! The stage's progress bars along the top of the HUD: a frame of solid quads, then for each part
+//! of the stage its stretch of the bar across 0x229 pixels, a black border,
+//! the part's colour inside under alpha 0x78 and a line between parts. The single layout has one
+//! band, the split layouts one a player (two bands, 0xE apart).
 //!
-//! As in `math::geometry`, what the x87 keeps on its stack is an `f64` here, rounded to
-//! `f32` where the original stores it: the same bits at the game's double precision.
+//! Intermediates are `f64`, rounded to `f32` where stored, as in `math::geometry`.
 
 use crate::Invalid;
 use crate::math::geometry::fistp64;
 
-/// The most parts (`g_overlayPartMiles`, `dword_6D160C`: 0x40 each).
+/// The most parts the bars show.
 pub const PARTS: u32 = 0x40;
 /// The frame's and the lines' colour.
 pub const FRAME: u32 = 0x21_2463;
@@ -59,8 +56,7 @@ pub fn frame(dy: u32, two: bool) -> Vec<(u32, [u32; 4])> {
     ]
 }
 
-/// A part's end: the miles so far plus its own (`fld; fadd; fstp`), the
-/// last part's the record's total.
+/// A part's end: the miles so far plus its own; the last part's is the record's total.
 pub fn part_end(miles: f32, end: f32, last: bool, total: f32) -> f32 {
     if last {
         total
@@ -69,7 +65,7 @@ pub fn part_end(miles: f32, end: f32, last: bool, total: f32) -> f32 {
     }
 }
 
-/// `fild width; fmul miles; fdiv total; fistp`: a place across the bar.
+/// A place across the bar: `width` times `miles` over `total`, rounded.
 pub fn place(width: u32, miles: f32, total: f32) -> u32 {
     fistp64(width as i32 as f64 * miles as f64 / total as f64) as u32
 }
@@ -90,9 +86,8 @@ fn bands(dy: u32, two: bool) -> Vec<(u32, u32)> {
     }
 }
 
-/// A part's quads, its places `a` and `b` (start and end) in, its colours (one a band), in
-/// the original's order: each band's border, the colours inside, and unless it is the last
-/// part the lines after it.
+/// A part's quads, its places `a` and `b` (start and end) in, its colours (one a band), in order:
+/// each band's border, the colours inside, and unless it is the last part the lines after it.
 pub fn part_quads(a: u32, b: u32, colours: &[u32], last: bool, dy: u32) -> Vec<Quad> {
     let two = colours.len() == 2;
     let rows = bands(dy, two);

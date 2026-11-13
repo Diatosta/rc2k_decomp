@@ -1,14 +1,12 @@
-//! The force feedback's requests (from `input::set_effect` 0x40961F,
-//! `input::update_effects` 0x40F2C0 and `input::device_effects` 0x4096B4): a device
-//! record's six effects each take a request, a dword: what to do in the low byte (2 start,
-//! 3 set, 4 stop) and two signed 12-bit numbers above it; the input thread hands each
-//! waiting change to the effect's function.
+//! The force feedback's requests: each of a device record's six effects takes a request dword:
+//! what to do in the low byte (2 start, 3 set, 4 stop) and two signed 12-bit numbers above it.
+//! The input thread hands each waiting change to the effect's function.
 
 use crate::Invalid;
 
-/// The effects a record has.
+/// The number of effects a record has.
 pub const EFFECTS: u32 = 6;
-/// What a request does.
+/// What a request does: start, set or stop an effect.
 pub const START: u32 = 2;
 pub const SET: u32 = 3;
 pub const STOP: u32 = 4;
@@ -19,8 +17,8 @@ pub fn request(kind: u32, a: u32, b: u32) -> u32 {
     kind | (a & 0xFFF) << 8 | (b & 0xFFF) << 20
 }
 
-/// Whether a request is written for a record with effects `on`: "set" only while the race
-/// runs. Refused: an effect past 5 (the original writes wherever it lands).
+/// Whether a request is written for a record with effects `on`: "set" only while the race runs.
+/// Refused: an effect past 5.
 pub fn wanted(on: bool, race_on: bool, effect: u32, kind: u32) -> Result<bool, Invalid> {
     if !on || (!race_on && kind == SET) {
         return Ok(false);

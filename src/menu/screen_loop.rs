@@ -1,50 +1,26 @@
 //! The loop every menu screen runs, from entering the screen to leaving it. The 83 screens
-//! differ only in what their `Screen` describes; each has a file of its own that holds it,
-//! and this is what they share.
+//! differ only in what their `Screen` describes; each has a file of its own that holds it.
 //!
-//! Once, on entry: the screen's `before` steps.
+//! On entry the screen's `before` steps run. Set-up (again after every action that does not
+//! leave the screen): the `set_up_first` steps, the highlight comes back from the screen's own
+//! variable, the `prepare` steps, the menu and function lists are put in place, the
+//! `background` steps, one frame is drawn, the `after_first_frame` steps.
 //!
-//! Set-up (again after every action that does not leave the screen): the `set_up_first`
-//! steps; `left_by_key` = 0; the highlight comes back from the screen's own variable; the
-//! `prepare` steps; the menu and the function lists are put in place (a list marked `run`
-//! is run once, here); `option_work.menu_sound` = 0x6F and `loop_flags.leave_screen` = 0; the `background` steps;
-//! one frame is drawn (`menu::draw_frame`, `menu::update_blink`, then `screens::run_frame`
-//! with the screen's frame callback, before which the lists are put in place again: the
-//! `first_frame_lists` if the screen has any), with the time noted in `clocks.setup_time`; the
-//! `after_first_frame` steps.
+//! Every frame: `menu::update_blink`; leave if the game is quitting; `screens::run_frame`; then
+//! `menu::handle_keys`: 1 next frame, 2 (Escape) leave, 3 (Enter) the highlighted item's action
+//! runs (`menu::run_item_action`, the highlight saved to the screen's variable around it); then
+//! leave if `loop_flags.ask_leave`, `event.event_over` or `loop_flags.leave_screen` (cleared) is
+//! set, else next frame if `draw_work.action_mode` is 2, else leave if `loop_flags.event_left`
+//! is set, else set up again; anything else leaves. Optional per-screen behaviour is described
+//! at the fields of `Screen`.
 //!
-//! Every frame: `menu::update_blink`; leave if the game is quitting; `screens::run_frame`;
-//! the milliseconds since set-up noted; then `menu::handle_keys`:
-//!   1  next frame
-//!   2  (Escape) leave
-//!   3  (Enter) the highlighted item's action runs (`menu::run_item_action`, with the
-//!      highlight saved to the screen's variable before and taken back from it after).
-//!      Then: leave if `loop_flags.ask_leave` or `event.event_over` is set, or if `loop_flags.leave_screen` is set
-//!      (which is cleared); else next frame if `draw_work.action_mode` is 2; else leave if
-//!      `loop_flags.event_left` is set (clearing `loop_flags.leave_screen`); else set up again.
-//!   else leave
-//! The same action check is made at the top of a frame whose `option_work.menu_sound` is 0x14D.
-//! Three things a screen may have besides (`escape_leaves`, `each_frame`,
-//! `short_action_check`) are described at those fields of `Screen`.
+//! Leaving: on a screen that asks (`confirm`), `menu::confirm_leaving` puts the question when
+//! `left_by_key` is set; unless the answer is yes the `on_refusal` steps run and the screen is
+//! set up again; after a yes the `confirmed` steps run. Otherwise the highlight is saved and the
+//! `after` steps run. Wherever the highlight is saved or taken back, the Escape flags are
+//! cleared if `draw_work.escape_pressed` is set (`clear_escape`).
 //!
-//! Leaving: nothing more happens if the screen's `leave_at_once` variable is 1. On a screen
-//! that asks (`confirm`), if `left_by_key` is set,
-//! `menu::confirm_leaving` puts the question; unless the answer (`g_yesNoAnswer`) is 1, the
-//! `on_refusal` steps run and the screen is set up again; after a "yes" the `confirmed`
-//! steps run. Otherwise the highlight is saved and the `after` steps run. Two variants: the
-//! question is put as well when the `ask_also_if` variable is 1; and with
-//! `unasked_skips_save`, a screen left without the question only runs its `after` steps.
-//! More of the same kind are at their fields of `Screen`: `before_asking`, `ask_unless`,
-//! `leaving`, `leave_saved_item`, `keys_menu`, `after_restored` and `result` (two loops
-//! return a value).
-//!
-//! Wherever the highlight is saved or taken back, `draw_work.escape_pressed` and `loop_flags.leave_screen` are
-//! cleared if `event.clears_escape_flag` and `draw_work.escape_pressed` are both 1.
-//!
-//! What the loop calls is called directly: its own functions (`Callee` below, what the
-//! steps name), the frame callbacks, `handle_keys` and the item's action
-//! (`menu::run_item_action`). A refusal goes back to the loop's caller; a set carry after a
-//! `Step::CallOrFatal` is the fatal error, raised by the caller too.
+//! A refusal goes back to the loop's caller; a failed `Step::CallOrFatal` is the fatal error.
 
 use crate::audio::owner::Audio;
 use crate::errors::{FatalError, Refused};
@@ -70,21 +46,14 @@ use rc2k_core::menu::keys::Pressed;
 pub use rc2k_core::menu::screen_loop::{ActionResult, Exit};
 use rc2k_core::menu::screen_loop::{AskShape, Place, ScreenHost, Shape, screen_loop as core_loop};
 
-// ---- game code the loop calls itself ----
-
-/// The frame routine a screen runs each frame (the original kept its code address in the
-/// screen's description).
+/// The frame routine a screen runs each frame (named in the screen's description).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum FrameRoutine {
-    /// `menu::frame_callback` (0x474D4B): every menu screen's.
+    /// `menu::frame_callback`: every menu screen's.
     Menu,
-    /// `menu::inspection_frame` (0x46D019): the inspection area's after its first frame.
+    /// `menu::inspection_frame`: the inspection area's after its first frame.
     Inspection,
 }
-
-// ---- game data ----
-
-// ---- what differs from screen to screen ----
 
 /// A variable of the game that a screen's description names, found when asked (a description
 /// is a constant, and a constant cannot hold a reference to a static).
@@ -121,8 +90,8 @@ pub enum Step {
         fn(&crate::scene::object_place::ObjectPlace) -> &dyn DwordLike,
         u32,
     ),
-    /// Calls the game function, and if it fails (the original's carry flag), that is the
-    /// fatal error with this code (and no message).
+    /// Calls the game function, and if it fails, that is the fatal error with this code (and no
+    /// message).
     CallOrFatal(Callee, u32),
     /// Something only this screen does, written out in its file.
     Do(fn(&Entry) -> Result<(), Refused>),
@@ -184,10 +153,11 @@ pub use rc2k_core::menu::screen_loop::ActionCheck;
 /// What differs in how a screen takes its keys and their actions.
 #[derive(Clone, Copy)]
 pub struct Keys {
-    /// The menu stored in `menu_texts.keys_menu` before `menu::handle_keys`, where it is not `menu`.
+    /// The menu stored in `menu_texts.keys_menu` before `menu::handle_keys`, where it is not
+    /// `menu`.
     pub menu: Option<fn(&Menus) -> MenuId>,
-    /// The Escape flag `draw_work.escape_pressed` is looked at at the top of every frame, before the quit
-    /// switch, and the screen is left when it is 1.
+    /// The Escape flag `draw_work.escape_pressed` is looked at at the top of every frame, before
+    /// the quit switch, and the screen is left when it is 1.
     pub escape_leaves: bool,
     /// What is looked at after an action.
     pub action_check: ActionCheck,
@@ -195,7 +165,7 @@ pub struct Keys {
     /// `saved_item`.
     pub action_saved_item: Option<Cell>,
     /// The menu whose item's action is run, where it is not `menu`: three loops name a
-    /// neighbouring screen's menu there (the original's slip, reproduced).
+    /// neighbouring screen's menu there (a 1999 slip kept as is).
     pub action_menu: Option<fn(&Menus) -> MenuId>,
 }
 
@@ -218,12 +188,12 @@ pub struct Frames {
     /// one: the inspection area's loop is the only one.
     pub later_callback: Option<FrameRoutine>,
     /// The lists put in place before the first frame after set-up, where they are not the
-    /// same as before every other frame: 35 loops put their 3D list in `g_unreadList` at
-    /// set-up and before each frame, and a list of their own in `g_sceneList` only here.
+    /// same as before every other frame: 35 loops put their 3D list in the unread list at
+    /// set-up and before each frame, and a list of their own in the scene list only here.
     pub first_frame_lists: Option<&'static [List]>,
     /// "Next frame" (after `handle_keys` returns 1, and after an action that leaves 2 in
-    /// `draw_work.action_mode`) goes to the `after_first_frame` steps, not past them. A `Flow` those
-    /// steps return is honoured on every screen.
+    /// `draw_work.action_mode`) goes to the `after_first_frame` steps, not past them. A `Flow`
+    /// those steps return is honoured on every screen.
     pub next_frame_repeats_first: bool,
     /// Steps before the first frame after set-up.
     pub before_first_frame: &'static [Step],
@@ -262,6 +232,7 @@ pub struct Screen {
     /// The variable the highlight is kept in between visits.
     pub saved_item: Cell,
     pub lists: &'static [List],
+    /// Steps run once, on entering the screen.
     pub before: &'static [Step],
     pub set_up_first: &'static [Step],
     pub prepare: &'static [Step],
@@ -415,8 +386,7 @@ pub fn quitting(system: &System) -> bool {
     system.session.flags.quitting.is_set()
 }
 
-/// `scene::prepare_menu_scene` (0x46F7FD). (It leaves esi the view's turn matrix: a screen
-/// whose carousel is set up after it hands that no list of cars.)
+/// `scene::prepare_menu_scene`.
 pub fn prepare_scene(entry: &Entry) {
     crate::scene::prepare_menu_scene::prepare_menu_scene(
         entry.owners.race,
@@ -426,7 +396,7 @@ pub fn prepare_scene(entry: &Entry) {
     );
 }
 
-/// `scene::set_up_carousel` (0x4904DD), with the list of cars menus 0xD and 0xE show.
+/// `scene::set_up_carousel`, with the list of cars menus 0xD and 0xE show.
 /// (`_scene`: the loops pass it; the carousel's set-up writes the front end's slot.)
 pub fn carousel(entry: &Entry, cars: Option<CarList>) -> Result<(), Refused> {
     crate::scene::set_up_carousel::set_up_carousel(entry.menus, cars)
@@ -443,7 +413,7 @@ pub fn log_line(text: &std::ffi::CStr) {
 pub enum Callee {
     /// Takes the pending key.
     TakeKey,
-    /// A function that does nothing (two lone returns in the original).
+    /// A function that does nothing.
     NoOp,
     /// Loads the screen's background picture from the given path.
     LoadBackground(Text),
@@ -522,8 +492,7 @@ pub enum Callee {
 }
 
 impl Callee {
-    /// Runs the function: whether it failed (the original's carry flag; false for those that
-    /// do not set it).
+    /// Runs the function: whether it failed (false for those that cannot).
     pub fn run(self, entry: &Entry) -> Result<bool, Refused> {
         let menus = entry.menus;
         let (audio, input, sound) = (entry.audio, entry.input, entry.sound);
@@ -536,7 +505,7 @@ impl Callee {
                 take_key(input);
             }
             Self::NoOp => {}
-            // Its carry is never set.
+            // It never fails.
             Self::LoadBackground(path) => {
                 crate::menu::load_background::load_background_in(
                     path(menus),
@@ -629,12 +598,12 @@ impl Callee {
             Self::CheckCheatName => {
                 crate::menu::check_cheat_name::check_cheat_name(entry.owners)?;
             }
-            // The way to look is the original's eax there, which the slideshow screen's set-up
-            // leaves 0 or (after an action) a small number: always on.
+            // The slideshow screen's set-up leaves the way to look 0 or (after an action) a
+            // small number: always on.
             Self::LoadSlideshowPicture => {
                 crate::menu::load_slideshow_picture::load_slideshow_picture_in(entry.owners, 0)?;
             }
-            // Its carry is never set.
+            // It never fails.
             Self::LoadCarBackground => {
                 crate::menu::load_car_background::load_car_background_in_game(
                     menus,
@@ -667,13 +636,10 @@ impl Callee {
     }
 }
 
-/// Clears the Escape flags if they are set. The original clears them only when
-/// `g_clearsEscapeFlag` (0x7558D8) is 1, which only four screens set (start rally, options,
-/// player 1 details, information) and nothing clears: before one of them has been seen, a
-/// "no" given with Escape to a leave question left the flag set, and the screen below left
-/// at its next frame (a championship loaded at start-up ended at its review screen; seen
-/// in play). Fixed: cleared as once any of those screens has been seen
-/// (`wiki/Fixed-bugs.md`).
+/// Clears the Escape flags if they are set, whether or not one of the four screens that set
+/// `event.clears_escape_flag` (start rally, options, player 1 details, information) has been
+/// seen. Fixed bug (`wiki/Fixed-bugs.md`, Escape on the "leave?" question leaves the screen
+/// anyway): before, a "no" given with Escape left the screen below at its next frame.
 /// Returns whether it was set (and so `leave_screen` was cleared with it).
 fn clear_escape(screens: &Screens) -> bool {
     let pressed = screens.draw_work.escape_pressed.is_set();
@@ -724,8 +690,7 @@ fn run(steps: &[Step], entry: &Entry) -> Result<Flow, Refused> {
     Ok(Flow::On)
 }
 
-/// Puts the menu and the lists in place, as the original does before a frame (the esi it
-/// leaves at the last list's table is read by no one: `cars` is set before its reader).
+/// Puts the menu and the lists in place before a frame.
 fn set_lists(menus: &Menus, screens: &Screens, screen: &Screen, lists: &[List]) {
     screens.loop_flags.menu.set((screen.menu)(menus));
     for list in lists.iter().filter(|list| !list.run) {
@@ -733,10 +698,9 @@ fn set_lists(menus: &Menus, screens: &Screens, screen: &Screen, lists: &[List]) 
     }
 }
 
-/// `screens::run_frame` (0x405A71) with the screen's frame callback: the messages, then
+/// `screens::run_frame` with the screen's frame callback: the messages, then
 /// (unless quitting) the frame, with the menu and the carried palette and x. Neither
-/// changes a carried value (the callbacks keep every register; the carry they leave is
-/// read by nothing).
+/// changes a carried value; whether the frame was made is not read.
 fn run_frame(o: Owners<'static>, callback: FrameRoutine, menu: MenuId) -> Result<(), Refused> {
     let frame = || match callback {
         FrameRoutine::Menu => crate::menu::frame_callback::frame_callback(o, menu),
@@ -906,8 +870,7 @@ impl ScreenHost for MenuHost<'_> {
     fn handle_keys(&mut self) -> Result<Pressed, Refused> {
         let menus = self.entry.menus;
         menus.tables.texts.keys_menu.set(self.keys_menu.code());
-        // The original hands it the time since set-up in eax (the frame's last write there
-        // that a screen's steps do not change before it reads it).
+        // The handler is handed the time since set-up, as noted for this frame.
         handle_keys(
             self.entry.owners,
             self.entry
@@ -1021,16 +984,15 @@ pub fn screen_loop(_screens: &Screens, screen: &Screen, entry: &Entry) -> Result
     core_loop(&screen.shape(), &mut host)
 }
 
-/// `menu::confirm_leaving` (0x46FA90): the question's screen (`menu::leave_question_loop`),
+/// `menu::confirm_leaving`: the question's screen (`menu::leave_question_loop`),
 /// which reads nothing it is entered with; every register comes back as it was.
 pub fn confirm_leaving(o: Owners<'static>) -> Result<u32, Refused> {
     let mut asked = Ok(());
     let answer = {
         crate::menu::confirm_leaving::confirm_leaving(o.menus, &mut || {
             if o.system.session.flags.quitting.is_set() {
-                // The window was closed: leaving is the answer. (The original asked; the
-                // question left at once on the switch with no answer, and the screen asked
-                // again forever, 0x474B43 / 0x47FB9A. Fixed bug.)
+                // The window was closed: leaving is the answer. Fixed bug (`wiki/Fixed-bugs.md`,
+                // the "leave?" question loops once the game is quitting).
                 o.menus.tables.pages.yes_no_answer.set(1u32);
                 return;
             }
@@ -1040,8 +1002,6 @@ pub fn confirm_leaving(o: Owners<'static>) -> Result<u32, Refused> {
     };
     asked.map(|()| answer)
 }
-
-// ---- entries ----
 
 /// Runs a screen from the menus' tables, starting with nothing carried in. Rust callers use
 /// `run_screen`.
@@ -1055,8 +1015,7 @@ pub fn screen_entry(o: Owners<'static>, name: &str, screen: &Screen) -> Result<(
 
 /// A screen loop run from Rust (the event flows, `confirm_leaving`), entered with what the
 /// screen reads from its caller (`Entry`: the list of cars of `select_car_loop` and
-/// `car_specs_display_loop`). Returns the screen's result where it has one (the original's
-/// eax).
+/// `car_specs_display_loop`). Returns the screen's result where it has one.
 pub fn run_screen(screen: &Screen, entry: &Entry) -> Result<Option<u32>, Refused> {
     let menus = entry.menus;
     let screens = &menus.screens;

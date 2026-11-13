@@ -1,9 +1,4 @@
-//! `net::chat_input_line` (0x418083): the lobby's chat input drawn (`text::draw_text` with
-//! `typefaces::NAME` at x 0xA, one line lower each time), with string 4 (the cursor) after it while
-//! it is being edited (`edited` the item), built in the game's text buffer.
-//!
-//! Takes the text, the item and y.
-//! Caller: `net::lobby_frame`.
+//! Draws the lobby's chat input line, followed by the cursor string while it is being edited.
 
 use crate::errors::Refused;
 use crate::net::lobby::{push_id, store_text};

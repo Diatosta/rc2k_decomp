@@ -1,13 +1,11 @@
-//! `menu::inspection_frame` (0x46D019): one frame of the inspection area after its first
+//! `menu::inspection_frame`: one frame of the inspection area after its first
 //! (`menu::inspection_area_loop`'s later frame callback): `menu::frame_callback`'s steps in
 //! another order and without its notice: lock the surface; the background
-//! (`copy_picture_to_surface`); the draw list (`g_drawList`); unlock; the scene state 4;
-//! begin the 3D scene; the scene list (`g_sceneList`);
-//! end the scene; lock again; `draw_menu`; the overlay list (`g_overlayList`); unlock;
-//! show the frame. A set carry after either lock, the scene's beginning or the showing ends
-//! it there (carry set), with what was locked left locked; else the carry is cleared.
+//! (`copy_picture_to_surface`); the draw list; unlock; the scene state 4; begin the 3D scene;
+//! the scene list; end the scene; lock again; `draw_menu`; the overlay list; unlock; show the
+//! frame. A failed lock, scene beginning or showing ends it there (a frame not made), with what
+//! was locked left locked.
 //!
-//! The draw and overlay lists' functions get the registers as the one before left them.
 //! The surface and the showing are the platform's, as in `frame_callback`.
 
 use crate::errors::Refused;

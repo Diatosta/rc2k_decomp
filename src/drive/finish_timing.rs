@@ -1,13 +1,11 @@
-//! `drive::finish_timing` (0x45948A): the finish routine's time and shares. The clock
+//! The finish routine's time and shares. The clock
 //! (`scene::restart_clock`) less the start `start_clock` / `thousand` into `time` (t); the
 //! eased time `eased`: t below `limit_a` (or unordered) t; below `limit_b` t less ((t -
 //! a) / (b - a))^2 x (b - a) / 2; else a + (b - a) / 2; the share `share`: 0, with
 //! `RaceState.results.finished` and t from `limit_c` on 1, below `limit_d` (t - c) / (d - c); and with
 //! `RaceState.results.finished` and t from `limit_c` on, `race_done` 1.
 //!
-//! Returns: the clock less the start
-//!
-//! Caller: `drive::finish_run`.
+//! Gives the clock less the start.
 
 use crate::math::x87::loaded;
 use crate::math::x87_float::int;
@@ -55,7 +53,7 @@ fn share(replay: &Replay) {
     finish.share.set(stf(q));
 }
 
-/// The core from the clock's reading `now` (already in `g_sceneClock`).
+/// The core from the clock's reading `now` (already in the scene clock).
 pub fn timing_from(race: &Race, now: u32, scene: &crate::scene::owner::Scene) {
     let finish = race.replay.finish.get();
     let since = now.wrapping_sub(finish.start_clock.get());

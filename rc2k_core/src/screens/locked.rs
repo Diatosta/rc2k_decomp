@@ -1,9 +1,7 @@
-//! The notes a menu puts up for a choice that is not open yet (from
-//! `screens::note_locked_item_3` 0x4AAAB8 and `note_locked_stage` 0x48ADCE): a message box,
-//! unless a cheat opens everything.
+//! The notes a menu puts up for a choice that is not open yet: a message box, unless a cheat
+//! opens everything.
 
-/// The cheat bit that opens item 3 (`g_cheats`, bit 0x11), and the one that opens the stages
-/// (bit 0).
+/// The cheat bits that open item 3 (bit 0x11) and the stages (bit 0).
 pub const ITEM_3_CHEAT: u32 = 0x11;
 pub const STAGES_CHEAT: u32 = 0;
 
@@ -28,7 +26,7 @@ pub fn item_3(cheats: u32, item: u32, switch: u32) -> Note {
 }
 
 /// `note_locked_stage`: items 1 and 7 are not stages; item n's stage is open when
-/// `open(n - 2)` (`Arcade.levels_won`, wrapping as the original's address does) is 1.
+/// `open(n - 2)` (`Arcade.levels_won`, wrapping) is 1.
 pub fn stage(cheats: u32, item: u32, open: impl FnOnce(u32) -> u8) -> Note {
     if cheat(cheats, STAGES_CHEAT) {
         return Note { show: false };

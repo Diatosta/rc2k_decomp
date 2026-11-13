@@ -1,5 +1,4 @@
-//! The glyph blitter (from `gfx::blit_glyph` 0x4069B2): one
-//! run-length coded glyph drawn on a surface, clipped.
+//! The glyph blitter: one run-length coded glyph drawn on a surface, clipped.
 //!
 //! A glyph table starts with one dword offset per glyph (the first offset / 4 is the
 //! count). A normal record is `[x offset][y offset][width][height]` in bytes, then per row
@@ -13,8 +12,8 @@ use crate::Invalid;
 use crate::gfx::raster::{Clip, Surface};
 use crate::strings::bytes::Bytes;
 
-/// The four work variables the blitter leaves (`g_blitLeftSkip` ..). Each is written only
-/// once the clipping has got that far.
+/// The four work variables the blitter leaves. Each is written only once the clipping has got that
+/// far.
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
 pub struct Scratch {
     pub left_skip: i32,
@@ -24,8 +23,8 @@ pub struct Scratch {
     pub rows_left: i32,
 }
 
-/// The offset of record `glyph` of a table; `None` for a glyph past the table (the
-/// original's fatal error 0x80A7DF32).
+/// The offset of record `glyph` of a table; `None` for a glyph past the table (the caller raises
+/// a fatal error).
 pub fn record_offset(table: &(impl Bytes + ?Sized), glyph: u32) -> Result<Option<usize>, Invalid> {
     let first = table.u32_le(0).ok_or(PAST)?;
     if glyph >= first >> 2 {
@@ -139,17 +138,17 @@ impl<B: Bytes + ?Sized> Runs<'_, B> {
     }
 }
 
-/// `a - b` and whether a `jle` after that `sub` is taken.
+/// `a - b` and whether `a <= b`.
 fn sub_le(a: i32, b: i32) -> (i32, bool) {
     (a.wrapping_sub(b), a <= b)
 }
 
-/// `a + b` and whether a `jle` after that `add` is taken.
+/// `a + b` and whether the exact sum is 0 or less.
 fn add_le(a: i32, b: i32) -> (i32, bool) {
     (a.wrapping_add(b), a as i64 + b as i64 <= 0)
 }
 
-/// Where the walk over a clipped row stands; `bool` carries the original's `jle`.
+/// Where the walk over a clipped row stands; `bool` carries the last `sub_le` / `add_le` test.
 enum Step {
     Skip,
     Next,
@@ -160,7 +159,7 @@ enum Step {
 
 /// Draws `record` at x, y. `put(offset, bytes)` gets every write, at byte offsets from the
 /// surface's start (wrapping).
-#[allow(clippy::too_many_arguments)] // the original's inputs, the surface, the clip and the sink
+#[allow(clippy::too_many_arguments)] // the record, its place, palette, surface, clip and sink
 pub fn blit_glyph(
     record: &(impl Bytes + ?Sized),
     x: i32,
@@ -282,8 +281,8 @@ pub fn blit_glyph(
     }
 
     loop {
-        // One clipped row. `left` is the original's edx: pixels still to skip while left of
-        // the clip edge, then pixels of room inside it.
+        // One clipped row. `left`: pixels still to skip while left of the clip edge, then pixels
+        // of room inside it.
         let mut dst = row;
         let mut left = scratch.left_skip;
         let mut count = 0u32;

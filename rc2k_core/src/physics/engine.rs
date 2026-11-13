@@ -1,21 +1,14 @@
-//! The engine's torque from its speed (from `physics::engine_torque`
-//! 0x43CBBB, `physics::engine_torque_or_cut` 0x43CB7D and `physics::free_rev` 0x43EA80):
-//! the speed's share of its top, a curve of eight steps read by it, and the factors
-//! after; the cut at the top; the engine revving free; the drive's two figures of
-//! `physics::drive_force` 0x43CB14; and when `physics::share_engine_sound` 0x45D294
-//! passes the engine's figures to the car's sound object. The revs heard eased toward
-//! the engine's speed (from `physics::engine_sound` 0x43DC72; its
-//! speed figures and the rounding stay with the caller x87).
+//! The engine's torque from its speed: the speed's share of its top, a curve of eight steps,
+//! the cut at the top, the engine revving free, the drive's two figures, and the revs heard
+//! eased toward the engine's speed.
 //!
-//! Floats: what the x87 keeps on its stack is an `f64`, rounded to `f32` where the
-//! original stores (`physics::x87`): the same bits at the game's double precision. The
-//! curve's entry is chosen from the stored share (a float) times the steps (a float
-//! product, exact in an `f64`): the same entry at any precision.
+//! Floats: what the x87 keeps on its stack is an `f64`, rounded to `f32` where it is stored.
+//! The curve's entry comes from the stored share times the steps (exact in an `f64`): the same
+//! entry at any precision.
 
 use super::x87::{below, loaded};
 
-/// `fld a; fmul b; fistp` with the rounding set to chop: the whole number toward 0, the
-/// "integer indefinite" (0x80000000) for what does not fit.
+/// The whole number toward 0 (chopped), `i32::MIN` for what does not fit or is not a number.
 pub fn fistp_chop(v: f64) -> i32 {
     let r = v.trunc();
     if r.is_nan() || r < i32::MIN as f64 || r >= 2147483648.0 {
@@ -25,40 +18,38 @@ pub fn fistp_chop(v: f64) -> i32 {
     }
 }
 
-/// The engine's figures `engine_torque` reads (the constants as read).
+/// The engine's figures the torque is made from.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Engine {
-    /// `g_carEngineSpeed` and its top (+0x1DC, `engine_speed_limit`).
+    /// The engine's speed and its top.
     pub speed: f32,
     pub top: f32,
-    /// `zero`, `one` (0, 1): the curve's range.
+    /// 0 and 1: the curve's range.
     pub zero: f32,
     pub one: f32,
-    /// `eight` (8): the curve's steps.
+    /// 8: the curve's steps.
     pub steps: f32,
-    /// `torque_ease` (0.25).
+    /// 0.25: the share's factor for the torque.
     pub quarter: f32,
-    /// +0x3F4 (`engine_power_factor`): the torque's factor.
+    /// The torque's factor.
     pub factor: f32,
 }
 
-/// What `engine_torque` makes.
+/// What the engine torque makes.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Torque {
-    /// The speed's share of its top (kept in `scratch`).
+    /// The speed's share of its top.
     pub share: f32,
-    /// The curve's entry (the scene's work dword) when the share is in
-    /// 0 ..= below 1.
+    /// The curve's entry, when the share is in 0 ..= below 1.
     pub entry: Option<u32>,
-    /// `engine_torque`: the share x `quarter`, from the unrounded quotient.
+    /// The share x `quarter`, from the unrounded quotient.
     pub revs: f32,
-    /// `engine_force`: the curve's line at the share (or its first value), x `factor`.
+    /// The curve's line at the share (or its first value), x `factor`.
     pub torque: f32,
 }
 
-/// `physics::engine_torque`: `curve(i)` the line's two ends ((`torque_curve`[i]`,
-/// `torque_curve`[i + 1]`), (`spec_torque`[i]`, `spec_torque`[i + 1]`)), asked only on the
-/// curve's path; `first` (`spec_torque`[0]`) asked only off it.
+/// `curve(i)` gives the line's two ends (curve x, curve y), asked only on the curve's path;
+/// `first` gives the first y, asked only off it.
 pub fn engine_torque(
     e: &Engine,
     curve: impl FnOnce(u32) -> ([f32; 2], [f32; 2]),
@@ -84,10 +75,9 @@ pub fn engine_torque(
     }
 }
 
-/// `physics::engine_torque_or_cut`'s test: at or past the engine's top (an unordered
-/// compare counts as below: no cut) the cut (+0x1F0, `rev_cut_count`, set to 5); below it,
-/// while the cut counts down, it goes down by one; either way the torque is 0 then
-/// (Some(the cut)); else None: the torque is `engine_torque`'s.
+/// The cut: at or past the top (unordered counts as below: no cut) the cut is set to 5;
+/// below it, while the cut counts down, it goes down by one. Either way the torque is 0 then
+/// (Some(the cut)); else None.
 pub fn torque_cut(speed: f32, top: f32, cut: u32) -> Option<u32> {
     if !below(speed as f64, top as f64) {
         Some(5)
@@ -98,30 +88,29 @@ pub fn torque_cut(speed: f32, top: f32, cut: u32) -> Option<u32> {
     }
 }
 
-/// What `physics::free_rev` reads besides the torque's.
+/// What the free rev reads besides the torque's.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct FreeRev {
-    /// `drive_ratio`, `drive_torque_figure`.
+    /// The drive ratio and the drive torque figure.
     pub drive: f32,
     pub drive_factor: f32,
-    /// Gear 0's ratio (`g_gearRatios[0]`), `k10000` (10000).
+    /// Gear 0's ratio and 10000.
     pub ratio: f32,
     pub k10000: f32,
-    /// +0x638 (`throttle`, a whole number), `k256` (256).
+    /// The throttle gearing (a whole number) and 256.
     pub gearing: i32,
     pub k256: f32,
-    /// The step (`step_time`).
+    /// The step's time.
     pub step: f32,
-    /// `g_carEngineSpeed`.
+    /// The engine's speed.
     pub engine: f32,
-    /// `free_rev_scale`, `free_rev_add`: the drag's factor and base.
+    /// The drag's factor and base.
     pub drag_factor: f32,
     pub drag_base: f32,
 }
 
-/// What `physics::free_rev` makes: (`drive_torque`, the engine speed, the drag kept in
-/// `scratch`). The engine speed is brought toward 0 by the drag, not past it (at 0
-/// or no number left alone).
+/// Returns (the push, the engine speed, the drag). The engine speed is brought toward 0 by the
+/// drag, not past it (at 0 or not a number left alone).
 pub fn free_rev(f: &FreeRev) -> (f32, f32, f32) {
     let push = (f.drive as f64 * f.drive_factor as f64 / f.ratio as f64 / f.k10000 as f64
         * f.gearing as f64
@@ -140,25 +129,25 @@ pub fn free_rev(f: &FreeRev) -> (f32, f32, f32) {
     (push, eased, drag)
 }
 
-/// What `physics::drive_force` reads.
+/// What the drive's two figures are made from.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Drive {
-    /// `engine_force` (the torque), `engine_torque` (its base).
+    /// The engine's torque and its base.
     pub torque: f32,
     pub base: f32,
-    /// +0x638 (`throttle`, a whole number), `k256` (256).
+    /// The throttle gearing (a whole number) and 256.
     pub gearing: i32,
     pub k256: f32,
-    /// `drive_torque_figure`, the gear's ratio, `k10000` (10000).
+    /// The drive torque figure, the gear's ratio and 10000.
     pub factor: f32,
     pub ratio: f32,
     pub k10000: f32,
-    /// +0x1D0 (`drive_cut_steps`) set.
+    /// The drive cut is set.
     pub cut: bool,
 }
 
-/// `physics::drive_force`'s figures: `drive_ratio` = (torque + base) x gearing / 256 -
-/// base; `drive_torque` = it x factor / the gear's ratio / 10000, or 0 with the cut.
+/// Returns (the drive ratio, the drive torque): ratio = (torque + base) x gearing / 256 - base;
+/// torque = ratio x factor / gear ratio / 10000, or 0 with the cut.
 pub fn drive(d: &Drive) -> (f32, f32) {
     let b = d.base as f64;
     let engine = ((d.torque as f64 + b) * d.gearing as f64 / d.k256 as f64 - b) as f32;
@@ -170,20 +159,18 @@ pub fn drive(d: &Drive) -> (f32, f32) {
     (engine, drive)
 }
 
-/// `physics::share_engine_sound`'s test: the work car's figure (`contact_depth`) above the
-/// sound object's (+0xD0; `fcomp`: not equal, not below, not unordered): the four
-/// figures (0x71A1FC .. 0x71A208) go to the object.
+/// Whether the work car's figure is above the sound object's (not equal, not below, not
+/// unordered): the four figures then go to the object.
 pub fn shares_figures(figure: f32, kept: f32) -> bool {
     !below(figure as f64, kept as f64) && figure != kept
 }
 
-/// The revs heard (`g_car` +0x1E4) held to these (by the sign of the difference).
+/// The revs heard are held to this range (by the sign of the difference).
 pub const REVS_LOW: u32 = 2000;
 pub const REVS_HIGH: u32 = 12000;
 
-/// `physics::engine_sound`: the revs heard eased toward the engine's speed (`target`, the
-/// whole number the x87 made of it, at least `idle_engine_speed`) by 50/256 of the gap (`imul`,
-/// `sar`), then held to `REVS_LOW` ..= `REVS_HIGH`. (the revs, the step).
+/// Eases the revs heard toward `target` by 50/256 of the gap, then holds them to
+/// `REVS_LOW` ..= `REVS_HIGH`. Returns (the revs, the step).
 pub fn ease_revs(revs: u32, target: u32) -> (u32, u32) {
     let step = ((target.wrapping_sub(revs).wrapping_mul(50)) as i32 >> 8) as u32;
     let mut r = revs.wrapping_add(step);
@@ -240,7 +227,7 @@ mod tests {
         let t = engine_torque(&past, |_| panic!("not asked"), || 7.0);
         assert_eq!((t.entry, t.torque), (None, 14.0));
         assert_eq!(torque_cut(6000.0, 6000.0, 0), Some(5));
-        // No number counts as below (C0): no cut.
+        // Not a number counts as below: no cut.
         assert_eq!(torque_cut(f32::NAN, 6000.0, 0), None);
         assert_eq!(torque_cut(100.0, 6000.0, 3), Some(2));
         assert_eq!(torque_cut(100.0, 6000.0, 0), None);

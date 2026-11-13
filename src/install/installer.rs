@@ -1,45 +1,40 @@
-//! The installer that `RAL.EXE` also is (`install::run_installer` and its tree):
-//! the variables its parts share, the calls they make, the functions its tables hold (its
-//! registry calls: `install::read_registry::Registry`).
+//! The installer (`install::run_installer` and its tree): the variables its parts share, the calls
+//! they make and the functions its page tables hold (its registry calls:
+//! `install::read_registry::Registry`).
 //!
 //! The installer runs only with its script set up (`-i`, `-u`, `-p`, or the update and Clio
 //! discs: `install::check_at_start`, `check_clio_disc`). Its pages are list menus
 //! (`install::run_page`): a list of 0x18 bytes (+0 flags, +1 items, +2 title, +4 the item chosen,
-//! +8 the list's action with the state 0 at the start, 1 after a key, -1 at the end, +0x10
-//! the neighbours for `menu::list_step`, +0x14 a key action) and its items of 0x10 bytes
-//! from +0x18 (+0 kind and marks, +1 the next list or the choices, +2 the text, +8 and +0xC
-//! the kind's pointers). `install::run_pages` goes from list to list by the answer.
-//!
-//! The parts call each other and the game's other functions directly with typed arguments; the
-//! functions the tables hold (by address in RAL.EXE's data) are run by `page_action`, `key_action`,
-//! `item_action_at`, `text_action` and `draw_action`, each knowing the functions the game's tables
-//! put in that place.
+//! +8 the list's action with the state 0 at the start, 1 after a key, -1 at the end, +0x10 the
+//! neighbours for `menu::list_step`, +0x14 a key action) and its items of 0x10 bytes from +0x18
+//! (+0 kind and marks, +1 the next list or the choices, +2 the text, +8 and +0xC the kind's
+//! pointers). `install::run_pages` goes from list to list by the answer. The functions the
+//! tables hold are run by `page_action`, `key_action`, `item_action_at`, `text_action` and
+//! `draw_action`.
 
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::menu::list_handle::ListMenu;
 use crate::place::BytePlace;
 
-// ---- the variables (IDA addresses) ----
-
 /// The texts the installer (and `files::resolve_path`) use. Atomic cells: the audio
 /// thread's file calls resolve paths against `base_b`.
 #[derive(rc2k_derive::Cells)]
 pub struct InstallTexts {
-    /// `unk_5295B4`: base directory B, an empty text.
+    /// Base directory B, an empty text.
     pub base_b: crate::session::Bytes<1>,
-    /// `unk_5295B5`: the other directory, "\".
+    /// The other directory, "\".
     pub other_dir: crate::session::Bytes<2>,
-    /// `byte_5295B7`: ".".
+    /// ".".
     pub dot: crate::session::Bytes<2>,
-    /// `asc_5295B9`: "..".
+    /// "..".
     pub dotdot: crate::session::Bytes<3>,
-    /// `asc_5295BC`: "*.*".
+    /// "*.*".
     pub star: crate::session::Bytes<4>,
-    /// `aVarRalZog` (`0x5295C0`): the installation's record.
+    /// The installation's record.
     pub record_path: crate::session::Bytes<12>,
 }
 
-/// The installer's texts; the first values are the image's.
+/// The installer's texts.
 impl InstallTexts {
     pub const fn new() -> Self {
         InstallTexts {
@@ -53,9 +48,9 @@ impl InstallTexts {
     }
 }
 
-// g_baseDirectory, g_localeDirectory: `files::state::{base_directory, locale_directory}`
+// The base and locale directories: `files::state::{base_directory, locale_directory}`.
 
-/// g_mediaMode (`files::state::MEDIA_MODE`).
+/// The media mode (`files::state::MEDIA_MODE`).
 pub fn media_mode() -> u32 {
     crate::files::state::MEDIA_MODE.get()
 }
@@ -66,8 +61,6 @@ pub fn set_media_mode(mode: u32) {
 // The installer's other variables (the update switch, the remove-items switch, the install.bun
 // flag, the room by installation, the list variables, the third page's action, the file
 // search record and its skip mask) are in `install::vars`.
-
-// ---- refusals ----
 
 /// A read or write of the installer's code is refused: the program ends naming it (the
 /// script and its pages have no way to carry the refusal back).
@@ -131,8 +124,6 @@ pub fn fatal(code: u32) -> Refused {
     FatalError { code, message: "" }.into()
 }
 
-// ---- pure text work ----
-
 /// The NUL-ended text at `place` (a refused read ends the installer, as every wrapper here).
 pub fn text_at(place: impl Into<BytePlace>) -> Vec<u8> {
     place
@@ -165,19 +156,17 @@ pub fn push_string_by_id(
     crate::menu::event_flow::refuse_here(pushed, "install::installer: a string");
 }
 
-// ---- the game's other functions the installer calls ----
-
 /// A path place read as text (a refused read ends the installer, as every wrapper here).
 fn path_text(path: impl Into<BytePlace>) -> Vec<u8> {
     path.into().text("a path").unwrap_or_else(|e| refuse(e))
 }
 
-/// `files::set_current_directory` (0x403105): whether it worked.
+/// Makes `path` the current directory; whether it worked.
 pub fn set_cd(path: impl Into<BytePlace>) -> bool {
     crate::files::directories::set_current_directory(&path_text(path))
 }
 
-/// `files::make_directory` (0x403113): whether it worked.
+/// Makes the folder `path`; whether it worked.
 pub fn make_dir(path: impl Into<BytePlace>) -> bool {
     crate::files::directories::make_directory(&path_text(path))
 }
@@ -187,12 +176,12 @@ pub fn remove_dir(path: impl Into<BytePlace>) -> bool {
     crate::files::directories::remove_directory(&path_text(path))
 }
 
-/// `files::delete_file` (0x402E8C): whether it worked.
+/// Deletes the file `path`; whether it worked.
 pub fn delete_file(path: impl Into<BytePlace>) -> bool {
     crate::files::directories::delete_file(&path_text(path))
 }
 
-/// `install::normalise_path` (0x4139EC): `path` written at `to`; whether it was.
+/// `path` normalised and written at `to`; whether it was.
 pub fn normalise(path: impl Into<BytePlace>, to: impl Into<BytePlace>) -> Result<bool, Refused> {
     Ok(crate::install::normalise_path::normalise_path(
         path.into(),
@@ -200,7 +189,7 @@ pub fn normalise(path: impl Into<BytePlace>, to: impl Into<BytePlace>) -> Result
     )?)
 }
 
-/// `files::copy_file` (0x402C28): whether it worked.
+/// Copies the file `from` to `to`; whether it worked.
 pub fn copy_file(
     system: &crate::system::owner::System,
     from: impl Into<BytePlace>,
@@ -213,64 +202,58 @@ pub fn copy_file(
     )?)
 }
 
-/// `files::resolve_path` (0x403206): the path the game opens (without its NUL).
+/// The path the game opens (without its NUL).
 pub fn resolve_path(path: impl Into<BytePlace>) -> Result<Vec<u8>, Refused> {
     Ok(crate::files::resolve_path::resolve(
         &path.into().text("a path")?,
     )?)
 }
 
-/// `files::find_first` (0x402FC2): whether a file was found.
+/// Starts a file search on `pattern`; whether a file was found.
 pub fn find_first(pattern: &[u8]) -> bool {
     crate::race::find_snapshot_number::find_first(pattern)
 }
 
-/// `files::find_next_wanted` (0x402FF6): whether a file was found.
+/// The search's next wanted file; whether one was found.
 pub fn find_next() -> bool {
     crate::race::find_snapshot_number::find_next_wanted()
 }
 
-/// `files::close_search` (0x40301F).
 pub fn close_search() {
     crate::files::search::close();
 }
 
-/// `system::sleep` (0x41100C).
 pub fn sleep(milliseconds: u32) {
     crate::system::sleep::sleep(milliseconds);
 }
 
-/// `input::take_key` (0x407F95): the pending key (0: none).
+/// The pending key (0: none).
 pub fn take_key(input: &crate::input::owner::Input) -> u8 {
     crate::input::take_key::take_key(input)
 }
 
-/// `gfx::lock_surface` (0x4058AD): whether the surface is locked (the original's carry
-/// clear).
+/// Whether the surface is locked.
 pub fn lock(gfx: &crate::gfx::owner::Gfx, system: &crate::system::owner::System) -> bool {
     crate::platform::lock_surface(gfx, system) >= 1
 }
 
-/// `gfx::unlock_surface` (0x405949).
 pub fn unlock(gfx: &crate::gfx::owner::Gfx) {
     crate::platform::unlock_surface(gfx);
 }
 
-/// `gfx::show_frame` (0x4057D1): whether it was shown (the original's carry clear).
+/// Whether it was shown.
 pub fn show(o: crate::owners::Owners<'static>) -> bool {
     crate::platform::show_frame_now(o)
 }
 
-/// `system::pump_messages` (0x410535).
 pub fn pump(o: crate::owners::Owners<'static>) {
     crate::platform::pump_messages_now(o);
 }
 
-/// A frame of the installer's for `screens::run_frame`: its carry.
+/// A frame of the installer's for `screens::run_frame`; true when it failed.
 pub type Frame<'a> = &'a dyn Fn() -> Result<bool, Refused>;
 
-/// `screens::run_frame` (0x405A71): the window's messages, then (unless quitting) the
-/// frame; the carry it leaves (the frame's, else clear).
+/// The window's messages, then (unless quitting) the frame; true when the frame failed.
 pub fn run_frame(
     o: crate::owners::Owners<'static>,
     frame: Option<Frame<'_>>,
@@ -283,7 +266,6 @@ pub fn run_frame(
     }
 }
 
-/// `gfx::copy_picture_to_surface` (0x4060E3).
 pub fn copy_picture(
     gfx: &crate::gfx::owner::Gfx,
     system: &crate::system::owner::System,
@@ -296,7 +278,7 @@ pub fn copy_picture(
     Ok(())
 }
 
-/// `text::draw_string_by_id` (0x40234A): string `id` in `font` at (x, y).
+/// String `id` in `font` at (x, y).
 pub fn draw_string(
     so: crate::strings::append_string_by_id::StringOwners<'static>,
     id: u32,
@@ -317,8 +299,7 @@ pub fn draw_string(
     Ok(())
 }
 
-/// `text::draw_text` (0x4023D5): `text` in `font` at (x, y); the font object written back
-/// when the drawing changed it.
+/// `text` in `font` at (x, y); the font object written back when the drawing changed it.
 pub fn draw_text(
     font: crate::gfx::typefaces::FontId,
     text: &(impl rc2k_core::strings::bytes::Bytes + ?Sized),
@@ -342,7 +323,7 @@ pub fn draw_text(
     Ok(())
 }
 
-/// `text::measure_text` (0x40230B), at `x`: (the widest line, the last line's y).
+/// `text::measure_text`, at `x`: (the widest line, the last line's y).
 pub fn measure_text(
     font: crate::gfx::typefaces::FontId,
     text: &(impl rc2k_core::strings::bytes::Bytes + ?Sized),
@@ -356,7 +337,7 @@ pub fn measure_text(
     Ok((m.width, m.outcome.y as u32))
 }
 
-/// `text::measure_string_by_id` (0x40232C), at `x`: (the widest line, the last line's y).
+/// `text::measure_string_by_id`, at `x`: (the widest line, the last line's y).
 pub fn measure_string(
     so: crate::strings::append_string_by_id::StringOwners<'static>,
     id: u32,
@@ -377,8 +358,7 @@ pub fn measure_string(
     Ok((m.width, m.outcome.y as u32))
 }
 
-/// `gfx::components_to_pixels` (0x405E02): 0x100 colours of `from` made pixels of the
-/// surface's format into `to`.
+/// 0x100 colours of `from` made pixels of the surface's format into `to`.
 pub fn components_to_pixels(
     from: &[crate::session::PlainDword; 256],
     to: &[crate::session::PlainDword; 256],
@@ -395,14 +375,13 @@ pub fn components_to_pixels(
     }
 }
 
-/// `strings::load_language` (0x40331F).
 pub fn load_language(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     crate::strings::load_language::load_language(o, &mut || {
         crate::strings::compile_lexicon::compile_lexicon(o.strings, o.system)
     })
 }
 
-/// `menu::list_take_key` (0x41469A): the key (0: none).
+/// The key (0: none).
 pub fn list_take_key(
     install: &crate::install::owner::Install,
     input: &crate::input::owner::Input,
@@ -410,8 +389,7 @@ pub fn list_take_key(
     Ok(crate::menu::list_take_key::list_take_key(install, input))
 }
 
-/// `menu::list_step` (0x414A55): `key` moving the highlight of `list` by the neighbours
-/// table `table`; whether it moved (the original's zero).
+/// `key` moving the highlight of `list` by the neighbours table `table`; whether it moved.
 pub fn list_step(
     install: &crate::install::owner::Install,
     key: u32,
@@ -421,12 +399,11 @@ pub fn list_step(
     crate::menu::list_step::list_step(install, key as u8, table, list)
 }
 
-/// `menu::list_clear_marks` (0x414AC9).
 pub fn list_clear_marks(list: ListMenu) {
     crate::menu::list_clear_marks::list_clear_marks(list);
 }
 
-/// `menu::list_item_unusable` (0x414C1B): whether the highlighted item cannot be chosen.
+/// Whether the highlighted item cannot be chosen.
 pub fn list_item_unusable(install: &crate::install::owner::Install, list: ListMenu) -> bool {
     crate::menu::list_item_unusable::list_item_unusable(install, list)
 }
@@ -439,8 +416,6 @@ pub fn logged(what: &str, done: Result<(), Refused>) -> Result<(), Refused> {
     ));
     done
 }
-
-// ---- the functions the installer's tables hold, by place ----
 
 /// A list's action (+8): the page told where it is (`state` 0 at the start, 1 after a key,
 /// -1 at the end). The game's lists hold the pages' actions and, in lists of nothing else
@@ -473,8 +448,8 @@ pub fn page_action(
     Ok(())
 }
 
-/// A list's key action (+0x14): `key`; whether it took the
-/// key (the original's zero). The game's lists hold only the folder page's.
+/// A list's key action (+0x14): `key`; whether it took the key. The lists hold only the
+/// folder page's.
 pub fn key_action(
     install: &crate::install::owner::Install,
     place: u32,
@@ -487,8 +462,8 @@ pub fn key_action(
     }
 }
 
-/// A link's or an action item's action (+8); the original's zero after it. The game's items
-/// hold only the not-enough-room page's "go on anyway".
+/// A link's or an action item's action (+8). The items hold only the not-enough-room page's
+/// "go on anyway".
 pub fn item_action_at(
     install: &crate::install::owner::Install,
     place: u32,
@@ -514,7 +489,7 @@ pub fn text_action(place: u32, out: &mut Vec<u8>) -> Result<(), Refused> {
     }
 }
 
-/// An action item's drawing (+0xC): the game's lists have no action items.
+/// An action item's drawing (+0xC): the lists have no action items.
 pub fn draw_action(_place: u32) -> Result<(), Refused> {
     Err(BadInput("an action item's drawing (the game's lists have none)").into())
 }

@@ -1,13 +1,8 @@
-//! DirectSound's device, primary buffer and turn way: what the audio thread decides around
-//! them (from `audio::open_sound` 0x409E1D, `audio::reopen_sound`
-//! 0x40A52A, `audio::read_caps` 0x409EF8, `audio::release_primary` 0x40A61F,
-//! `audio::make_primary` 0x40A54B, `audio::open_listener` 0x40C5F9, `audio::open_way`
-//! 0x40AC3A, `audio::close_way` 0x40AC58, `audio::set_up_primary_mixer` 0x40BAD2,
-//! `audio::start` 0x40A01D's choice of the race mode and `audio::thread` 0x409CCE's turn
-//! wait). The COM calls stay the platform's.
+//! DirectSound's device, primary buffer and turn way: what the audio thread decides around them.
+//! The COM calls stay the platform's.
 //!
 //! The sound mode's bits used here: 0xF000 the device (0x1000 DirectSound, 0x2000 A3D2),
-//! 0xF0000 the turn's way (0x10000 the voices' own buffers, 0x40000 the game's mixer),
+//! 0xF0000 the turn's way (0x10000 the voices' own buffers, 0x40000 the software mixer),
 //! 0x100000 3D.
 
 use super::voices::MODE_3D;
@@ -35,9 +30,9 @@ pub trait Opening {
     fn log_open(&mut self, guid: u32) -> Result<(), Self::Error>;
     /// "AUD: open failed rc=" and the code logged.
     fn log_failed(&mut self, code: u32) -> Result<(), Self::Error>;
-    /// `audio::open_a3d2`: true for its carry (not used).
+    /// `audio::open_a3d2`: true when it failed (not used).
     fn open_a3d2(&mut self, guid: u32) -> Result<bool, Self::Error>;
-    /// `audio::open_a3d`: true for its carry.
+    /// `audio::open_a3d`: true when it failed.
     fn open_a3d(&mut self, guid: u32) -> Result<bool, Self::Error>;
     /// `DirectSoundCreate`'s result.
     fn create(&mut self, guid: u32) -> i32;
@@ -45,10 +40,10 @@ pub trait Opening {
     fn cooperate(&mut self) -> i32;
 }
 
-/// `audio::open_sound`: logged; with A3D2's bit `open_a3d2`, which done is all, failing,
-/// the mode's 0x3000 bits flipped; then only with DirectSound's bit: `open_a3d`, failing
-/// which `DirectSoundCreate`; cooperative level 3. A failure (or no DirectSound bit) logs
-/// the code (the GUID, or the call's result) and gives false (the carry).
+/// `audio::open_sound`: logs the GUID; with A3D2's bit tries `open_a3d2` (done if it opens,
+/// else the mode's 0x3000 bits flipped); then, only with DirectSound's bit, `open_a3d`, failing
+/// which `DirectSoundCreate`, and cooperative level 3. A failure (or no DirectSound bit) logs the
+/// code (the GUID, or the call's result) and gives false.
 pub fn open_sound<O: Opening>(guid: u32, o: &mut O) -> Result<bool, O::Error> {
     let failed = |o: &mut O, code: u32| o.log_failed(code).map(|_| false);
     o.log_open(guid)?;
@@ -164,8 +159,8 @@ pub fn without_3d(mode: u32) -> u32 {
 pub const NO_FPU: u32 = 0xFFFF_FF91;
 pub const LISTENER_OFF: u32 = 0xFFFF_FF90;
 
-/// `audio::open_listener`: the code it fails with before asking for the listener (`g_hasFpu`
-/// not 1, the dword at 0x506B42 1), or None to ask (`no_listener` read only with an FPU).
+/// `audio::open_listener`: the code it fails with before asking for the listener (no FPU,
+/// or the listener switched off), or None to ask (`no_listener` read only with an FPU).
 pub fn listener_refused(has_fpu: u32, no_listener: impl FnOnce() -> u32) -> Option<u32> {
     if has_fpu != 1 {
         Some(NO_FPU)
@@ -181,12 +176,12 @@ pub fn listener_refused(has_fpu: u32, no_listener: impl FnOnce() -> u32) -> Opti
 pub enum Way {
     /// The voices' own buffers (`audio::clear_channels`).
     OwnBuffers,
-    /// The game's mixer on the primary buffer.
+    /// The software mixer on the primary buffer.
     Mixer,
 }
 
 /// `audio::open_way` / `close_way`: the way by the mode's bits (the own buffers first);
-/// None for neither (the carry).
+/// None for neither.
 pub fn way(mode: u32) -> Option<Way> {
     if mode & OWN_BUFFERS != 0 {
         Some(Way::OwnBuffers)
@@ -219,7 +214,7 @@ pub enum Fact {
     CapsFlags,
     /// The free hardware buffers (+0x14).
     FreeHardware,
-    /// `g_has3d` (a 3D primary buffer was made).
+    /// Whether a 3D primary buffer was made.
     Has3d,
     HasA3d2,
     VoiceManagerOn,

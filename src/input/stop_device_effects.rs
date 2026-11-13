@@ -1,12 +1,7 @@
-//! `input::stop_device_effects` (0x40969E): the six effects of the record asked to
+//! The six effects of the record asked to
 //! stop (`input::set_effect` with 4, effects 0 .. 5).
 //!
-//! Takes: the device's record
-//!
-//! See `input/effects.rs` and `start_device_effects` (the same loop with 2). Two callers,
-//! both in `input::stop_effects`.
-//!
-//! Its arguments are what it reads.
+//! See `input/effects.rs` and `start_device_effects` (the same loop with 2).
 
 use crate::errors::Refused;
 use crate::input::start_device_effects::all_six;

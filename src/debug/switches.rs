@@ -1,16 +1,14 @@
-//! The developers' keypad switches (`debug::take_switch_keys`, 0x43B3D6, no callers)
-//! as the debug UI's tab: each key cycled one variable. Key 2's `dword_6218E0`
-//! has no reader, so it is only named. Key 9 also set `g_stageLoading`, which nothing reads.
-//! What each does is read from its readers, and marked as such in the tab's texts. These
-//! are the game's own variables: the race's settings copy (`race::settings_copy`) and a
-//! stage's load may put them back.
+//! The developers' keypad switches as the debug UI's tab: each key cycled one variable. Key 2's
+//! variable has no reader, so it is only named. Key 9 also set a stage-loading flag, which
+//! nothing reads. What each does is read from its readers, and marked as such in the tab's
+//! texts. These are the game's own variables: the race's settings copy (`race::settings_copy`)
+//! and a stage's load may put them back.
 
 use crate::owners::Owners;
 use dear_imgui_rs::Ui;
 use std::sync::atomic::{AtomicU32, Ordering::Relaxed};
 
-/// `g_debugExtensionsSwitch` (`dword_6218B8`): the developers' switch, 1 in the image. Only
-/// their handler (not ported) changed it, and nothing else reads it.
+/// The developers' switch, 1 by default; nothing reads it.
 pub static EXTENSIONS: AtomicU32 = AtomicU32::new(1);
 
 /// A tick box over a switch of 0 and 1, with the key it had and what it does.
@@ -44,8 +42,8 @@ pub fn tab(o: &Owners<'static>, ui: &Ui) {
         EXTENSIONS.store(v, Relaxed);
         use_.use_sse
             .set(on && o.system.machine().has_sse.get() & 1 != 0);
-        // Not the original's: its 3DNow way (0x45BF89) is not ported and would end the
-        // program, so it stays off on a processor that has it.
+        // The 3DNow way is not ported and would end the program, so it stays off on a
+        // processor that has it.
         use_.use_3dnow.set(0);
         use_.use_mmx.set(v & o.system.machine().has_mmx.get());
     }

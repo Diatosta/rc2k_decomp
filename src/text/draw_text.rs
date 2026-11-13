@@ -1,17 +1,15 @@
-//! `text::draw_text` (0x4023D5): draws NUL-terminated text with a bitmap font, line by line.
-//!
-//! Takes: font, text, x, y
-//!
+//! Draws NUL-terminated text with a bitmap font, line by line.
 //! Bytes from `first_char` to `last_char` are glyphs, bytes above are ignored, bytes below are
 //! control codes:
-//!   0x00        end of text
-//!   0x0A        new line: back to x, down by the line height
-//!   0x0E n      x += n (signed byte)
-//!   0x0F n      y += n (signed byte); ignored while measuring
-//!   0x10.. n    extended glyph (((code - 0x10) << 8 | n) >> 1) + number of normal glyphs
-//!   other       x -= code
-//! Except in `MODE_AT_X` each line is measured before it is drawn. In `MODE_MEASURE` nothing
-//! is drawn and the font object is updated instead.
+//! - 0x00: end of text;
+//! - 0x0A: new line: back to x, down by the line height;
+//! - 0x0E n: x += n (signed byte);
+//! - 0x0F n: y += n (signed byte); ignored while measuring;
+//! - 0x10.. n: extended glyph (((code - 0x10) << 8 | n) >> 1) + number of normal glyphs;
+//! - other: x -= code.
+//!
+//! Except in `MODE_AT_X` each line is measured before it is drawn. In `MODE_MEASURE` nothing is
+//! drawn and the font object is updated instead.
 
 use crate::errors::Refused;
 use crate::gfx::blit_glyph::{BlitCall, blit_glyph_on_surface};
@@ -23,8 +21,8 @@ use rc2k_core::strings::bytes::Bytes;
 
 /// What drawing text needs from outside: the kerning row table and the blitter.
 pub trait Canvas {
-    /// The fonts' stores: the typefaces a font number is resolved against, the palettes and
-    /// glyph tables.
+    /// The fonts' stores: the typefaces a font number is resolved against, the palettes and glyph
+    /// tables.
     fn fonts(&self) -> &'static crate::gfx::owner::FontStores;
     fn typefaces(&self) -> &'static crate::gfx::typefaces::FontObjects {
         &self.fonts().typefaces
@@ -75,10 +73,10 @@ impl Canvas for GameCanvas {
     }
 }
 
-/// How `draw_text` ended. The original also returns 0.
+/// How `draw_text` ended.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Outcome {
-    /// A line was wider than the box and the font has `FLAG_FAIL_IF_WIDER`: the carry flag.
+    /// A line was wider than the box and the font has `FLAG_FAIL_IF_WIDER`.
     pub too_wide: bool,
     /// The x that was passed in.
     pub x: i32,
@@ -148,8 +146,8 @@ pub fn refusal<T>(result: Result<T, AdaptError>) -> Result<T, Refused> {
 }
 
 /// `font` is changed only in `MODE_MEASURE`. An error can only come from the blitter; by then
-/// earlier glyphs are drawn. The text is read up to where the core stops (a text that does
-/// not end is refused). Converted: `rc2k_core::text::draw`.
+/// earlier glyphs are drawn. The text is read up to where the core stops (a text that does not end
+/// is refused).
 pub fn draw_text(
     font: &mut Font,
     text: &(impl Bytes + ?Sized),
@@ -173,8 +171,8 @@ pub fn draw_text(
     })
 }
 
-/// `draw_text` with a font object in game memory, for Rust callers. The object is only
-/// written (it only changes in `MODE_MEASURE`) if the canvas keeps font changes.
+/// `draw_text` with a font object in game memory, for Rust callers. The object is only written (it
+/// only changes in `MODE_MEASURE`) if the canvas keeps font changes.
 pub fn draw_text_at(
     font: impl Into<FontRef>,
     text: &(impl Bytes + ?Sized),

@@ -1,16 +1,15 @@
-//! The installer's page tables by name: the entries that chain the pages, the layout's
-//! pieces and the boxes they are placed in, in place of sums on game addresses.
+//! The installer's page tables by name: the entries that chain the pages, the layout's pieces
+//! and the boxes they are placed in.
 //!
-//! - A page entry (`PageEntry`): dwords in `InstallerPages::page_table`: +0 the page's list (`menu::list_handle::ListMenu`), and from
-//!   there the entries the page's answers lead on to (`rc2k_core::install::pages::
-//!   next_entry_at`).
-//! - A piece (`Piece`): the layout `InstallerPages::layout` holds a count (a dword) and
-//!   0x30 bytes a piece, made by `install::lay_out_pieces`: +0 the item's kind and marks,
-//!   +1 the piece's kind, +2 its text, +4 its item, +8 x, +0xC y, +0x10 width, +0x14 height.
+//! - A page entry (`PageEntry`): dwords in `InstallerPages::page_table`: +0 the page's list
+//!   (`menu::list_handle::ListMenu`), then the entries the page's answers lead on to
+//!   (`rc2k_core::install::pages::next_entry_at`).
+//! - A piece (`Piece`): the layout `InstallerPages::layout` holds a count (a dword) and 0x30
+//!   bytes a piece, made by `install::lay_out_pieces`: +0 the item's kind and marks, +1 the
+//!   piece's kind, +2 its text, +4 its item, +8 x, +0xC y, +0x10 width, +0x14 height.
 //! - A box (`BoxRecord`): four dwords `{x, y, width, height}`, an item's (+4) or the title's.
 //!
-//! Reads and writes are checked as `install::installer::{rb, ..}` are: a place outside its
-//! buffer or every allocation ends the program.
+//! Reads and writes are checked: a place outside its buffer ends the program.
 
 use crate::errors::BadInput;
 use crate::install::installer::{rb, rd, refuse, rw, wb, wd, ww};
@@ -19,7 +18,7 @@ use crate::install::pages_map::PagesAt;
 use crate::menu::list_handle::{ListItem, ListMenu};
 use crate::place::BytePlace;
 
-/// The page table's index of the update run's first entry (0x51D5D8, from 0x51D594).
+/// The page table's index of the update run's first entry.
 const UPDATE_RUN: u32 = 17;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -27,12 +26,10 @@ const UPDATE_RUN: u32 = 17;
 pub struct PageEntry(PagesAt);
 
 impl PageEntry {
-    /// The first entry of a normal run.
     pub fn normal_run() -> Self {
         Self::at(PageLink::table(0))
     }
 
-    /// The first entry of an update run.
     pub fn update_run() -> Self {
         Self::at(PageLink::table(UPDATE_RUN))
     }
@@ -56,7 +53,6 @@ impl PageEntry {
         Self::word(self.0)
     }
 
-    /// Whether the entry has a list (+0).
     pub fn has_list(self) -> bool {
         !self.list_link().is_none()
     }
@@ -72,8 +68,8 @@ impl PageEntry {
 
     /// How many answers the entry holds: the table words after its list's that link to an
     /// entry or to none, up to the next entry's list (the table's last word, 9, is no link).
-    /// The word for an answer past them is the next entry's, which the original would read as
-    /// a link; no page leaves with such an answer (`answers_stay_inside_their_entry`).
+    /// An answer past them reads the next entry's word as a link; no page leaves with such an
+    /// answer (`answers_stay_inside_their_entry`).
     pub fn answers(self) -> u32 {
         let first = self.0.table_index().unwrap_or_else(|| {
             refuse(BadInput(
@@ -100,7 +96,6 @@ impl PageEntry {
         (!link.is_none()).then(|| PageEntry::at(link))
     }
 
-    /// The link at byte `at` of the pages.
     fn word(at: PagesAt) -> PageLink {
         PageLink::from_raw(at.dword().unwrap_or_else(|e| refuse(e)))
     }
@@ -115,7 +110,6 @@ pub fn set_piece_count(install: &'static crate::install::owner::Install, count: 
     wd(BytePlace::from(&install.pages.layout), count);
 }
 
-/// A piece of the layout.
 #[derive(Clone, Copy)]
 pub struct Piece(BytePlace);
 
@@ -131,8 +125,7 @@ enum Field {
     Kind = 1,
     /// The piece's text (a string id).
     Text = 2,
-    /// The piece's item (the original kept its address; this is its offset in the
-    /// installer's pages, `ListItem::in_pages`).
+    /// The piece's item: its offset in the installer's pages (`ListItem::in_pages`).
     Item = 4,
     X = 8,
     Y = 0xC,
@@ -141,8 +134,7 @@ enum Field {
 }
 
 impl Piece {
-    /// Piece `n` (wrapping as the original's sum); a piece outside the layout is refused
-    /// when it is read or written.
+    /// Piece `n` (wrapping); a piece outside the layout is refused when it is read or written.
     pub fn nth(install: &'static crate::install::owner::Install, n: u32) -> Self {
         Self(BytePlace::from(&install.pages.layout).add(4 + PIECE.wrapping_mul(n)))
     }
@@ -258,7 +250,6 @@ mod tests {
     use super::*;
     use crate::install::page_links::ListId;
 
-    /// Every page of both runs resolves its list, its items' links and its neighbours table.
     #[test]
     fn every_page_resolves_its_links() {
         let mut seen = 0;

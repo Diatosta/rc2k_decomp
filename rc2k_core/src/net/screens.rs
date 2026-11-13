@@ -1,11 +1,6 @@
-//! The network game's screens: the lobby, the settings, the connections' and sessions'
-//! lists (from `net::draw_button` 0x416CE0, `net::draw_centred_item`
-//! 0x416B53, `net::connections_frame` 0x4175C7, `net::sessions_frame` 0x41790E,
-//! `net::settings_frame` 0x4169E2, `net::lobby_button` 0x41802F, `net::lobby_frame`
-//! 0x417D95, `net::choose_connection` 0x4174C5, `net::choose_session` 0x417726,
-//! `net::draw_setting_value` 0x416BC4 and `net::draw_number_value` 0x416B8E): what is lit,
-//! where buttons and their frames go, which rows a list shows, how the highlight moves,
-//! and what a value or a time is shown as. Compares are signed where the original's are.
+//! The network game's screens: the lobby, the settings, the connections' and sessions' lists:
+//! what is lit, where buttons and their frames go, which rows a list shows, how the highlight
+//! moves, and what a value or a time is shown as.
 
 use crate::Invalid;
 
@@ -59,8 +54,8 @@ pub struct Button {
     pub text_x: u32,
 }
 
-/// A button of a text `width` wide at `x` with `flags`: centred on x, or ending half its
-/// width left of x with its text centred too (halves signed, as `sar`).
+/// A button of a text `width` wide at `x` with `flags`: centred on x, or ending half its width
+/// left of x with its text centred too.
 pub fn button(width: u32, x: u32, flags: u32) -> Button {
     let span = width.wrapping_add(FRAME_MORE);
     let half = ((span as i32) >> 1) as u32;
@@ -185,7 +180,7 @@ pub fn moved_top(found: u32, top: u32, choice: u32) -> u32 {
 pub const LAST_ITEM_RIGHT: u32 = 0x311;
 
 /// The settings screen's last item (a text `width` wide): its tiles and its text's x.
-/// Refused: a text of no width (the original's tiles' loop goes round 2^32 times).
+/// Refused: a text of no width.
 pub fn last_item(width: u32) -> Result<(u32, u32), Invalid> {
     let tiles = width.wrapping_add(0x1F) >> 5;
     if tiles == 0 {

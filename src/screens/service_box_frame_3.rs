@@ -1,6 +1,4 @@
-//! `screens::service_box_frame_3` (0x49252A): the orange frame round the installed part of the
-//! service area's second row of six cells.
-//!
+//! The orange frame round the installed part of the service area's second row of six cells.
 //! Part of `screens::draw_service_boxes`.
 
 use crate::errors::Refused;

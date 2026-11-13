@@ -1,11 +1,6 @@
-//! `audio::write_mix` (0x40C03A): the work buffer clipped into the primary buffer's two
-//! locked parts.
-//!
-//! Works on `g_lockedParts` and `g_soundMode`.
-//!
-//! See `audio/mixer.rs`; 0x40C087, 0x40C0E0, 0x40C153 (the three formats)
-//! inlined. Refuses sixteen bits with a right sample that clips (the original loops for
-//! ever there: section 16).
+//! Clips the work buffer into the primary buffer's two locked parts, by the sound mode's format
+//! (see `audio/mixer.rs`). Refuses sixteen bits with a right sample that clips (the clamp there
+//! would loop for ever).
 
 use crate::audio::mixer::*;
 use crate::audio::own::AudioOwn;

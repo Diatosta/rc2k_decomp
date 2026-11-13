@@ -1,14 +1,13 @@
-//! `drive::race_step` (0x4454D2): the race's ticks for this frame. The clock in tenths
+//! The race's ticks for this frame. The clock in tenths
 //! (`drive::race_clock_tick`); unless paused (`PhysicsTables.debug[1]`), `drive::race_tick` once for each
 //! tenth gone (`race_tenths`, signed), stopping when the players are all out
 //! (`race::players_all_out`).
 //!
-//! Callers: `drive::race_loop`, `race::play_movie_loop`. Refuses what its calls refuse.
+//! Refuses what its calls refuse.
 
 use crate::errors::Refused;
 use crate::race::owner::Race;
 
-// Converted: `rc2k_core::drive::race_ticks::run_ticks`.
 pub fn race_step(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refused> {
     let net = o.net;
     crate::drive::race_clock_tick::race_clock_tick(&race.shared);

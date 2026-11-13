@@ -1,22 +1,10 @@
-//! `input::update_car_effects` (0x40F347): one car's force feedback for one device. From the
-//! car's physics (the view block) and its sound object it fills the object's feedback inputs
-//! and sends up to seven requests (`input::set_effect`) to the device:
-//! - the object's `flag_ac` = the block's `front_wheels_off`; `effect_in` = the local velocity
-//!   (x, then drive speed minus z, then x and z again) times ten, truncated (`fistp`);
-//! - the knock: with a weight and an x component both not zero, (256 - |atan2(y, x)| *
-//!   162.97) * weight * 0.1, else 0; the angle also goes into the session's scratch dword; the
-//!   knock inputs are cleared afterwards;
-//! - the surface effect: the surface's effect kind and the speed (|`sum_a`|, or at 5 or less
-//!   the revs squared >> 19), held to 0x100;
-//! - the steering and engine effects by the surface kind (5, 9 and 0; 7; 8; others), and for
-//!   the others the car's landing (leaving the ground, coming back) or a steering force from
-//!   `effect_in`;
-//! - the knock effect once per knock (+-0x100; `knock_count` counts to 4 before the next);
-//! - the speed-change effect: the change of `effect_in[3]` since the last time, held to +-0x200,
-//!   halved.
-//!
-//! Every request is a "set" (what 3). The x87 work uses the original's rounding.
-//! Refuses (before anything) a surface number past the table's 16.
+//! One car's force feedback for one device. From the car's physics (the view block) and its
+//! sound object it fills the object's feedback inputs (the local velocity times ten, the knock
+//! from the impact's angle and weight, the surface effect and speed) and sends up to seven "set"
+//! requests (`input::set_effect`): the steering and engine effects by the surface kind, the
+//! car's landing or a steering force, a knock effect once per knock, and a speed-change effect
+//! (the change of the velocity input since last time, held to +-0x200, halved). The x87 work
+//! rounds as the game's x87 does. Refuses (before anything) a surface number past the table's 16.
 
 use crate::errors::{BadInput, Refused};
 use crate::input::store::ForceFeedback;
@@ -25,7 +13,6 @@ use crate::math::x87::mul_to_int;
 use crate::math::x87_float::{Loadable, ld, st, to_int};
 use crate::system::owner::System;
 
-/// The force feedback effects of a device's record (its six slots).
 #[derive(Clone, Copy)]
 enum Effect {
     Steering = 0,
@@ -38,7 +25,7 @@ enum Effect {
 }
 
 /// A "set" request of one effect with its two numbers; the second number is what the
-/// next request that has none of its own repeats (the original passes it on in a register).
+/// next request that has none of its own repeats.
 struct Requests<'a> {
     feedback: &'a ForceFeedback,
     device: &'a InputDevice,
@@ -52,16 +39,15 @@ impl Requests<'_> {
     }
 }
 
-/// The number of surface kinds (the effect kind table's entries).
 const KIND_COUNT: u32 = 16;
 
-/// `fld a; fsub b; fmul c; fistp`.
+/// (a - b) x c as a whole number, rounded as the x87 rounds.
 fn sub_mul_to_int(a: impl Loadable, b: impl Loadable, c: impl Loadable) -> i32 {
     to_int((ld(a) - ld(b)) * ld(c))
 }
 
-/// `fld y; fld x; fpatan; fst angle; fabs; fmul s; fsubr full; fmul d; fmul tenth;
-/// fistp`: (the angle's bits, the knock).
+/// The angle atan2(y, x) and the knock (full - |angle| x s) x d x tenth as a whole number:
+/// (the angle's bits, the knock).
 fn knock(
     y: impl Loadable,
     x: impl Loadable,
@@ -75,9 +61,8 @@ fn knock(
     (st(angle), to_int(knock))
 }
 
-/// The car's feedback for the frame, the angle written to `scratch`; the original's x87
-/// arithmetic. `view` the view block, `o` the car's sound object, `device` the device's
-/// record.
+/// The car's feedback for the frame, the angle written to `scratch`. `view` the view block,
+/// `o` the car's sound object, `device` the device's record.
 fn update_car_effects_with(
     effects: &ForceFeedback,
     view: &crate::physics::car_store::Car,
@@ -207,9 +192,8 @@ fn update_car_effects_with(
     out.set(Effect::SpeedChange, change as u32, carried)
 }
 
-/// The car's force feedback for the frame (the original's x87 arithmetic). The
-/// converted version (`rc2k_core::input::feedback::update_car_effects`, plain floats)
-/// waits for the float pass.
+/// The car's force feedback for the frame (x87 arithmetic; the plain-float version in
+/// `rc2k_core::input::feedback` waits for the float pass).
 pub fn update_car_effects(
     effects: &ForceFeedback,
     view: &crate::physics::car_store::Car,

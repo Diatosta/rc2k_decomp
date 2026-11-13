@@ -1,15 +1,10 @@
-//! `input::step_effects_clock` (0x40F257): the force feedback's clock: every 40 ms the
-//! effects brought up to date.
+//! The force feedback's clock: every 40 ms the effects are brought up to date.
 //!
-//! `system::tick_count` less the last time (`last_time`); under 40 ms (`js`)
-//! nothing. Else the last time = now, `rate` = 1000 / now held to 1000 (unsigned
-//! `div`, as a float: the original divides by the clock, not by the time passed, so it
-//! is 1.0 once the clock is past a second; notes' bugs), `steps` counts up, and
-//! `input::update_effects` (its Rust version in the game).
-//! One caller, `sound::race_turn`.
-//! Refuses (before anything) a clock of 0 when due (the original's `div` traps).
-//!
-//! Its arguments are what it reads.
+//! The tick count less the last time (`last_time`); under 40 ms nothing. Else the last time =
+//! now, `rate` = 1000 / now held to 1000 (unsigned, as a float: it divides by the clock, not by
+//! the time passed, so it is 1.0 once the clock is past a second; kept as is),
+//! `steps` counts up, and `input::update_effects` runs. Refuses (before anything) a clock of 0
+//! when due (it divides by it).
 
 use crate::errors::{BadInput, Refused};
 

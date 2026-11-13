@@ -1,13 +1,12 @@
-//! The scene's own generator (from `scene::noise_step` 0x440F4E and
-//! `scene::next_noise` 0x440F3E): the game's random step (`math::random::step`) with
-//! 0x87654321 mixed into each result, on a state of its own.
+//! The scene's own generator: the game's random step (`math::random::step`) with 0x87654321
+//! mixed into each result, on a state of its own.
 
 use crate::math::random;
 
 /// What each step mixes in.
 pub const MIXED_IN: u32 = 0x8765_4321;
 
-/// `noise_step`: the state after `state`.
+/// The state after `state`.
 pub fn step(state: u32) -> u32 {
     random::step(state, MIXED_IN)
 }
@@ -19,7 +18,7 @@ pub struct Noise {
 }
 
 impl Noise {
-    /// `next_noise`: the next number, which is the new state.
+    /// The next number, which is the new state.
     pub fn draw(&mut self) -> u32 {
         self.state = step(self.state);
         self.state

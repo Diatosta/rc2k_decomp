@@ -1,14 +1,6 @@
-//! The options pages' small steps (from the eight volume steps
-//! `menu::music_volume_down` 0x467F48 .. `menu_sounds_b_volume_up` 0x46810A,
-//! `menu::next_screen_mode` 0x46FFEF, the two texture steps 0x47012B / 0x47015B and the
-//! four colour steps 0x471AE4 .. 0x471B7A; the controller pages' steps, `menu::next_controller`
-//! 0x46A3BF .. `raise_dead_zone_b` 0x46B3EA, `lower_controller_sensitivity` 0x46B414 /
-//! `raise_controller_sensitivity` 0x46B44F and `menu::drop_missing_controllers` 0x4748B6;
-//! the event pages' row steps 0x4A3736 .. 0x4A37B5;
-//! the stage choice's `switch_stage_group`, `next_stage_sub` / `previous_stage_sub`,
-//! `next_stage_number` / `previous_stage_number`; the stage pages' `previous_stage_page`
-//! 0x46FAEE / `next_stage_page` 0x46FB27; the graphics page's `menu::apply_screen_mode`
-//! 0x4703C2).
+//! The menu pages' small steps: the options pages' volumes, screen mode, textures and colours,
+//! the controller pages' choices, the event pages' rows, the stage choice's and stage pages'
+//! moves, and applying the screen mode.
 
 /// A volume one less (below 0: 0) or one more (above 0x40: 0x40), signed.
 pub fn volume(value: i32, up: bool) -> i32 {
@@ -39,8 +31,8 @@ pub fn texture(value: u32, up: bool) -> u32 {
     }
 }
 
-/// A start-section pick (IDA's "colour": 0 .. 6, see `ScreenFlow::start_section`) cycled through 0
-/// .. 6 (signed: a number past 6 going up is 0, one below 0 going down 6).
+/// A start-section pick cycled through 0 .. 6 (signed: a number past 6 going up is 0, one below 0
+/// going down 6).
 pub fn colour(n: i32, up: bool) -> i32 {
     if up {
         let n = n.wrapping_add(1);

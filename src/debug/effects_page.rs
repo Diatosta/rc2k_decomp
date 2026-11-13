@@ -1,7 +1,6 @@
-//! The "Effects" tab: the effects' developers' page (`debug::effects_page_1`, 0x4D1711, no
-//! references to it), its labels kept. Some figures lie through
-//! `g_marksSettings` (0x767A28, now a set / not-set flag), the rest at their own places. Labels with `?` were
-//! the developers' own, for the names in their source.
+//! The "Effects" tab: the effects' developers' page (`debug::effects_page_1`), its labels kept.
+//! Some figures lie through the settings (now a set / not-set flag), the rest at their own
+//! places. Labels with `?` were the developers' own, for the names in their source.
 
 use crate::effects::setup::effects_settings;
 use crate::owners::Owners;
@@ -13,8 +12,8 @@ use dear_imgui_rs::{TreeNodeFlags, Ui};
 enum At {
     /// A variable of the effects' or the scene's state.
     Cell(fn(&Owners<'static>) -> Figure),
-    /// A figure of the settings `g_marksSettings` stands for (the race's record); the windows
-    /// and cracks lie in its first car's record.
+    /// A figure of the effects' settings (the race's record); the windows and cracks lie in its
+    /// first car's record.
     Through(fn(&EffectsSettings) -> Figure),
 }
 
@@ -218,7 +217,7 @@ fn shown(value: Option<Figure>) -> String {
 
 /// The tab.
 pub fn tab(o: &Owners<'static>, ui: &Ui) {
-    // 0x4D2B90: its warning, when the two counts differ.
+    // Its warning, when the two counts differ.
     let frame = &o.effects.frame.draw_frame;
     let (drawn, run) = (
         Some(frame.drawn.get().into()),

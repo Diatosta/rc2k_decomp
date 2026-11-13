@@ -1,23 +1,18 @@
-//! The standalone program's network sessions, under DirectPlay's objects made in Rust
-//! (`net::dp_objects`): what DirectPlay's TCP/IP service provider did for the game, in a
-//! protocol of its own (standalone programs play each other, not the original game).
+//! The network sessions under DirectPlay's objects made in Rust (`net::dp_objects`), over a
+//! protocol of its own.
 //!
-//! - A session's host keeps it: its description, the players (each of a machine: the host
-//!   is machine 1, each joined one the next number), the groups. Every change is the host's
-//!   to make: the others ask it (a request, answered once the change has gone out), and it
-//!   sends each change to every machine, so that each holds the same lists. Messages go to
-//!   the host, which hands them to the machines of their addressees (a player, a group's
-//!   players, or all; never back to the sender).
-//! - Machines talk over TCP to the host's port (one connection each); a session is found by
-//!   a UDP probe to the same port (to the address asked, or broadcast on the network and to
-//!   this machine), which the host answers with its description.
-//! - What DirectPlay told the program of the others' doings comes as its system messages
-//!   (from 0): a player or a group made or gone, a player added to a group or taken out of
-//!   it, a player's data set; the session lost when the host's connection ends (the host
-//!   does not pass to another machine: the session ends with it).
+//! - A session's host keeps it: its description, the players (the host is machine 1, each joined
+//!   machine the next number) and the groups. Every change is the host's to make: the others ask
+//!   it, and it sends each change to every machine. Messages go to the host, which hands them to
+//!   their addressees (a player, a group's players, or all; never back to the sender).
+//! - Machines talk over TCP to the host's port; a session is found by a UDP probe to the same
+//!   port (to the address asked, or broadcast and to this machine), which the host answers with
+//!   its description.
+//! - Others' doings come as DirectPlay system messages (a player or group made or gone, a player
+//!   added to or removed from a group, a player's data set); the session is lost when the host's
+//!   connection ends (the host does not pass to another machine).
 //!
-//! Nothing here knows the game: it is tested on its own, two sessions talking over this
-//! machine's loopback.
+//! Nothing here knows the game: it is tested on its own over loopback.
 
 use std::collections::{BTreeMap, HashMap, VecDeque};
 use std::io::{Read, Write};

@@ -1,22 +1,14 @@
-//! The look-ups of the championship's results pages in the ranked times (`g_rankedTimes`,
-//! 0x9C-byte `RankedTime` entries, -1 ends them; +0x14 the stage's time, +0x18 the
-//! rally's, +0x1C the class, +0x44 the position), each ending in the original's fatal error
-//! when it finds nothing:
-//! - `menu::find_ranked_entry` (0x4A2547): from edi on, the entry of class ebx at position
-//!   eax; none: (ebx 1, which does nothing) fatal error 0x8070A7F9 "Position in
-//!   GB_TimedHST Not Found (see Log)";
-//! - `menu::find_ranked_position` (0x4A2584): from edi on, the entry at position eax; none:
-//!   fatal error 0x8070A7FF "Position in GB_TimedHST Not Found";
-//! - `menu::find_champ_position` (0x4A5A85): from edi on, in the championship's history
-//!   (`g_champHistory`, 0x78-byte `ChampEntry` entries), the entry at position eax (+0x70);
-//!   none: fatal error 0x8070A7FC "Position in GB_ChampHST Not Found (see Log)";
-//! - `menu::first_overall_time` (0x4A327A): for eax 2 the first entry from edi on with a
-//!   class (+0x1C not 0; none: fatal error 0x8070A982 "Seriously buggered"), else the entry
-//!   at edi; its rally time (ebx 1) or its stage time.
+//! The look-ups of the championship's results pages in the ranked times (0x9C-byte
+//! `RankedTime` entries, -1 ends them; +0x14 the stage's time, +0x18 the rally's, +0x1C the
+//! class, +0x44 the position), each ending in a fatal error when it finds nothing:
+//! `find_ranked_entry` (a class at a position; 0x8070A7F9), `find_ranked_position` (0x8070A7FF),
+//! `find_champ_position` (in the championship's history, 0x78-byte `ChampEntry` entries;
+//! 0x8070A7FC) and `first_overall_time` (the first entry with a class, else the first entry;
+//! its rally or stage time; 0x8070A982).
 //!
 //! Callers: the results pages (`screens::results_pages`). Every entry is compared before the end
-//! mark is looked at (the first one too, as the original). Refuses (before anything) a search that
-//! runs 0x400 entries without the end mark.
+//! mark is looked at (the first one too). Refuses (before anything) a search that runs 0x400
+//! entries without the end mark.
 
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::menu::standings::{with_a, with_b};

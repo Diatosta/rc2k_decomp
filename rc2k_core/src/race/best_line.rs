@@ -1,21 +1,13 @@
-//! The best line's later steps (from `race::checkpoint_distances`
-//! 0x445AF1, `race::replay_cameras_1` 0x445BB2 / `_2` 0x445CF1, `race::surface_shares`
-//! 0x445E30 and `race::add_surface_share` 0x445F7B; the links' angles and the map's
-//! stretches from `race::checkpoint_angles` 0x4459DF and
-//! `race::map_checkpoints` 0x445FB4): the distances along the line, each checkpoint's
-//! nearest replay camera, how much of the line runs on each surface, the angle of each
-//! link, the line cut into stretches between the map's anchors. A distance or an angle
-//! between two places is the game's (the x87's root or `fpatan`, rounded), asked for
-//! through closures in the original's order. The share's sum is a float step as the float pass
-//! keeps it: the x87's stack in `f64`, rounded to `f32` where stored (exact at the game's
-//! double precision).
+//! The best line's later steps: distances along the line, each checkpoint's nearest replay
+//! camera, the share of the line on each surface, link angles, and the line's stretches between
+//! map anchors. Distances and angles come from closures asked in a fixed order;
+//! the share's sum keeps `f64` intermediates rounded to `f32` where stored.
 
 /// The most faces a set of replay cameras lists.
 pub const MOST_CAMERAS: u32 = 0x400;
 
-/// `race::checkpoint_distances`: the distance along the line at each checkpoint from 0 to
-/// `last` (the link from k to k + 1 `length(k)`, asked in order): the sum before each,
-/// and the whole at `last`.
+/// Distance along the line at each checkpoint 0 ..= `last`: the running sum, `length(k)` asked
+/// in order for the link k to k + 1.
 pub fn distances(last: u32, mut length: impl FnMut(u32) -> u32) -> Vec<u32> {
     let mut sums = Vec::with_capacity(last as usize + 1);
     let mut sum = 0u32;
@@ -28,9 +20,8 @@ pub fn distances(last: u32, mut length: impl FnMut(u32) -> u32) -> Vec<u32> {
     sums
 }
 
-/// The faces a set of replay cameras lists: from face 0 on (`faces` of them, one or
-/// more), each of the set's (`is_camera`), up to `MOST_CAMERAS`. Gives the list and the
-/// face the search stopped at (`faces`, or the one that filled the list).
+/// The replay cameras' faces from face 0 on (`is_camera`), up to `MOST_CAMERAS`. Gives the list
+/// and the face the search stopped at.
 pub fn camera_faces(faces: u32, mut is_camera: impl FnMut(u32) -> bool) -> (Vec<u32>, u32) {
     let mut list = Vec::new();
     let mut face = 0u32;
@@ -48,8 +39,8 @@ pub fn camera_faces(faces: u32, mut is_camera: impl FnMut(u32) -> bool) -> (Vec<
     }
 }
 
-/// The nearest of `count` cameras (one or more; `distance(e)` asked in order): the last
-/// of the nearest when two are as near. Gives its distance and number.
+/// The nearest of `count` cameras (`distance(e)` asked in order; the last wins a tie): its
+/// distance and number.
 pub fn nearest_camera(count: u32, mut distance: impl FnMut(u32) -> u32) -> (u32, u32) {
     let mut best = (u32::MAX, u32::MAX);
     for e in 0..count {
@@ -61,9 +52,8 @@ pub fn nearest_camera(count: u32, mut distance: impl FnMut(u32) -> u32) -> (u32,
     best
 }
 
-/// The weight of a face's second texture in `race::surface_shares` (of 0x100): a quarter
-/// of the face's four blend bytes (+0x22 .. +0x25); 0 without a second texture, or when
-/// its kind's surface is 4 or 5.
+/// The weight of a face's second texture in the surface shares (of 0x100): a quarter of the
+/// face's four blend bytes; 0 without a second texture or when its kind's surface is 4 or 5.
 pub fn second_weight(blend: [u8; 4], second: u8, second_surface: u32) -> u32 {
     let weight = blend.iter().map(|&b| b as u32).sum::<u32>() >> 2;
     if second == 0 || second_surface == 5 || second_surface == 4 {
@@ -73,14 +63,13 @@ pub fn second_weight(blend: [u8; 4], second: u8, second_surface: u32) -> u32 {
     }
 }
 
-/// The first texture's weight: what the second leaves of 0x100 (`g_surfaceWeight`).
+/// The first texture's weight: what the second leaves of 0x100.
 pub fn first_weight(second: u32) -> u32 {
     0x100u32.wrapping_sub(second)
 }
 
-/// `race::add_surface_share`'s sum: the share plus the weight / `per` (256) x `quarter`
-/// (0.25) / the checkpoints x `percent` (100), as `fild`, `fdiv`, `fmul`, `fidiv`, `fmul`,
-/// `fadd`, `fstp`.
+/// The surface share's sum: the share plus weight / `per` x `quarter` / checkpoints x
+/// `percent`, in that order of operations.
 pub fn surface_share(
     weight: i32,
     per: f32,
@@ -93,11 +82,9 @@ pub fn surface_share(
     (v + share as f64) as f32
 }
 
-/// `race::checkpoint_angles`: the angles' table (`g_checkpointAngles`) as written, in the
-/// original's order: with two checkpoints or more, the link from b - 1 to b (`angle(b)`,
-/// asked from 1 on) at b + 1, the last again at count + 1; then 0 and 1 as 2 (with fewer
-/// checkpoints the table's own, `at_2`). Gives the writes (place, angle) and the angle at
-/// 2.
+/// The checkpoint angles table, in write order: with two checkpoints or more,
+/// `angle(b)` (from 1 on) goes to b + 1, the last again to count + 1, then 0 and 1 as 2 (fewer
+/// checkpoints: `at_2`). Gives the writes (place, angle) and the angle at 2.
 pub fn link_angles(
     count: u32,
     mut angle: impl FnMut(u32) -> u32,
@@ -120,9 +107,8 @@ pub fn link_angles(
     (writes, second)
 }
 
-/// `race::map_checkpoints`: the line cut at its map anchors, from checkpoint 0: the next
-/// anchor after the last (`next_anchor`, asked from the one after it) ends a stretch
-/// (`stretch(from, to)`), until there is none.
+/// The line cut at its map anchors from checkpoint 0: `next_anchor` ends a `stretch(from, to)`,
+/// until there is none.
 pub fn map_stretches<E>(
     mut next_anchor: impl FnMut(u32) -> Result<Option<u32>, E>,
     mut stretch: impl FnMut(u32, u32) -> Result<(), E>,

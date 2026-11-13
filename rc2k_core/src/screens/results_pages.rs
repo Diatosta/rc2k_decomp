@@ -1,8 +1,6 @@
-//! The championship's four results pages:
-//! `screens::draw_class_rally_results` 0x4A3376, `draw_overall_rally_results` 0x4A37E2,
-//! `draw_class_stage_results` 0x4A2111, `draw_overall_stage_results` 0x4A2F46: a heading,
-//! the column headings and ten rows of the ranked times. `screens::draw_class_ranking`
-//! 0x47C16A's rows found in its list (`class_rows`).
+//! The championship's four results pages (class and overall, rally and stage): a heading, the
+//! column headings and ten rows of the ranked times; the class ranking's rows are found in
+//! its list (`class_rows`).
 
 use crate::Invalid;
 use crate::screens::best_scores::{car_glyph, flag_glyph};
@@ -11,15 +9,15 @@ use crate::strings::format::{Pad, decimal, time};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Font {
-    /// `FontObjects.objects[45].first_char`: the title.
+    /// The title.
     Title,
-    /// `FontObjects.objects[48].first_char`: the stage's name.
+    /// The stage's name.
     StageName,
-    /// `FontObjects.objects[16].first_char`, `FontObjects.objects[15].first_char`, `FontObjects.objects[14].first_char`: position, name, time.
+    /// The position, name and time fonts.
     Place,
     Name,
     Time,
-    /// `FontObjects.objects[13].first_char`, `FontObjects.objects[12].first_char`, `FontObjects.objects[11].first_char`: a player's row's.
+    /// The same for a player's own row.
     PlayerPlace,
     PlayerName,
     PlayerTime,
@@ -27,15 +25,14 @@ pub enum Font {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Work {
-    /// `g_firstPlayerTime`.
     FirstTime,
     /// The overall stage page's first time.
     OverallFirst,
-    /// `hundredths`: a row's gap.
+    /// A row's gap.
     Gap,
-    /// `g_champRow`.
+    /// The championship row being drawn.
     Row,
-    /// `g_champRowEnd`.
+    /// The championship row after the last.
     RowEnd,
 }
 
@@ -54,28 +51,24 @@ pub enum Heading {
 /// A row: an entry of the ranked times.
 #[derive(Clone, Copy, Debug)]
 pub struct Row<T> {
-    /// A player's (+4 above 0): the highlight fonts.
+    /// A player's own row (highlight fonts).
     pub player: bool,
-    /// +0x44.
     pub position: u32,
-    /// +0x20.
     pub name: T,
-    /// +0x4C is 1.
+    /// The entry's finished flag is 1.
     pub finished: bool,
     /// The page's "not timed" field is `NOT_TIMED`.
     pub not_timed: bool,
     /// The page's time (+0x18 the rally's, +0x14 the stage's).
     pub time: u32,
-    /// +8.
     pub nation: u32,
-    /// +0x10.
     pub car: u32,
 }
 
-/// One page: `first` the time the gaps are from, `first_row` the list's row the page starts
-/// at, `keep_overall` the first time kept in `DrawWork.overall_first_time` too. The sprites' palette is
-/// where the last text ended: the line buffer after a time, the string's end else.
-#[allow(clippy::too_many_arguments)] // one page's parts, as the original reads them
+/// One page: `first` the time the gaps are from, `first_row` the list's row the page starts at,
+/// `keep_overall` keeps the first time in `DrawWork.overall_first_time` too. Sprites take the
+/// palette where the last text ended.
+#[allow(clippy::too_many_arguments)] // one page's parts
 pub fn results_page<S: Screen<Font = Font, Work = Work>>(
     s: &mut S,
     heading: Heading,
@@ -127,20 +120,19 @@ pub fn results_page<S: Screen<Font = Font, Work = Work>>(
     Ok(())
 }
 
-/// The work variables of `screens::draw_class_ranking` 0x47C16A.
+/// The work variables of the class ranking page.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum RankingWork {
-    /// `g_firstPlayerTime`.
     FirstTime,
-    /// `seconds` (0x7559AC): the row's place.
+    /// The row's place.
     Place,
-    /// `glyph` (0x7559C0): the row's gap.
+    /// The row's gap.
     Gap,
     /// The sprites' y.
     SpriteY,
 }
 
-/// A class ranking row's name: a string (a driver of the game's, kind 0) or a text.
+/// A class ranking row's name: a driver's string (kind 0) or a text.
 #[derive(Clone, Copy, Debug)]
 pub enum Name<T> {
     String(u32),
@@ -154,7 +146,6 @@ pub struct RankedRow<T> {
     /// The player `ChampView.ranked_player` (the highlight fonts).
     pub mine: bool,
     pub name: Name<T>,
-    /// +0x18.
     pub time: u32,
     pub nation: u32,
     pub car: u32,
@@ -166,13 +157,11 @@ pub type ClassRows = (Vec<(u32, u32)>, Option<u32>);
 /// The most entries `class_rows` walks before it gives up on the list's end.
 pub const MOST_ENTRIES: u32 = 0x400;
 
-/// The rows `screens::draw_class_ranking` draws: from the list's first entry (n 0) on, the
-/// class's `first`-th entry and up to nine more of the class, each with its place; and
-/// the place left when the list ends while the next row is looked for (the loop writes it
-/// before it looks). `class_of(n)` is entry n's class (+0x1C), `ends(n)` whether entry n
-/// is the end mark (its +0 -1), each asked where the original reads. Refuses a list
-/// without its end in `MOST_ENTRIES`, a page that starts past the list (the original reads
-/// on) and a row just before the end mark (the original's stack slips).
+/// The rows `screens::draw_class_ranking` draws: from the list's first entry on, the class's
+/// `first`-th entry and up to nine more of the class, each with its place, and the place left
+/// when the list ends while the next row is looked for. `class_of(n)` is entry n's class
+/// (+0x1C), `ends(n)` whether entry n is the end mark. Refused: a list without its end in
+/// `MOST_ENTRIES`, a page that starts past the list, a row just before the end mark.
 pub fn class_rows(
     class_of: impl Fn(u32) -> u32,
     ends: impl Fn(u32) -> bool,
@@ -224,9 +213,8 @@ pub fn class_rows(
     }
 }
 
-/// `screens::draw_class_ranking`: a page of one class's times, the rows found by the
-/// caller; `after` the place `seconds` is left at when the list ended while the next row
-/// was looked for. The sprites 4 below the row.
+/// A page of one class's times, the rows found by the caller; `after` the place `seconds` is
+/// left at when the list ended while the next row was looked for.
 pub fn class_ranking<S: Screen<Font = Font, Work = RankingWork>>(
     s: &mut S,
     first: u32,
@@ -273,24 +261,18 @@ pub fn class_ranking<S: Screen<Font = Font, Work = RankingWork>>(
 /// A championship standings row: an entry of the history.
 #[derive(Clone, Copy, Debug)]
 pub struct StandingRow<T> {
-    /// +4 above 0: the highlight fonts.
+    /// A player's own row (highlight fonts).
     pub player: bool,
-    /// +0x70.
     pub position: u32,
-    /// +0x14.
     pub name: T,
-    /// +0x38 .. +0x50: the six rounds' points and the total (below 0: "-").
+    /// The six rounds' points and the total (below 0: "-").
     pub points: [u32; 7],
-    /// +8.
     pub nation: u32,
-    /// +0xC.
     pub car: u32,
 }
 
-/// `screens::draw_championship_standings` 0x4A5410: the column headings, the six rounds'
-/// sprites (0x90 .. in event mode 0x13, else 0x8A ..; the palette where the last heading
-/// ended), then the rows from y 0xF0, 0x19 apart; each row's sprites with the palette where
-/// its total ended.
+/// The championship standings: the column headings, the six rounds' sprites (0x90 .. in event
+/// mode 0x13, else 0x8A ..), then the rows from y 0xF0, 0x19 apart.
 pub fn championship_standings<S: Screen<Font = Font, Work = Work>>(
     s: &mut S,
     first_row: u32,

@@ -1,14 +1,8 @@
-//! `install::install_clio` (0x41675B): the Clio update copied from its disc. A frame is
-//! shown; the two source base directories (`path_a`, `path_b`) are normalised into
-//! `paths.game_dir` and `paths.installed` and the first made current; the Clio script
-//! (`clio_script`) is run (`install::run_script`); each listed folder is made
-//! (`install::make_folders`, path built in `path_b`) and each listed file copied
-//! (`install::copy_counted`, source in `path_a`, destination in `path_b`), Escape
-//! stopping the copy. A failed normalise, change or make ends it. Finally `installing`,
-//! `updating` and `from_command` are cleared after a second.
-//!
-//! The action of a list item (the third page's, for the Clio disc). Caller
-//! `install::run_page`.
+//! The Clio update copied from its disc: a frame is shown; the two source base directories are
+//! normalised and the first made current; the Clio script is run; each listed folder is made and
+//! each listed file copied (Escape stops the copy). A failed normalise, change or make ends it.
+//! Finally `installing`, `updating` and `from_command` are cleared after a second. The action of
+//! the third page's list item (for the Clio disc). Called by `install::run_page`.
 
 use crate::errors::Refused;
 use crate::install::installer::{
@@ -32,8 +26,7 @@ fn append_both(
     Ok(())
 }
 
-/// Where the work stops: `loc_41689A` (the current directory set back first) or
-/// `loc_4168A5` (not).
+/// Where the work stops: with the current directory set back first, or not.
 enum Stop {
     SetBack,
     Straight,

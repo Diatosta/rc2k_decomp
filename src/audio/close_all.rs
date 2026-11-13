@@ -1,10 +1,5 @@
-//! `audio::close_all` (0x409DD5): everything of the sound closed (the audio thread's end).
-//!
-//! Takes: handed to `audio::stop_streams` (its action)
-//!
-//! `audio::stop_streams`, `audio::free_voices`, `audio::close_way`,
-//! `audio::release_primary`, `audio::close_sound`, then `g_soundMode` 0. One caller, the
-//! audio thread.
+//! Closes everything of the sound (the audio thread's end): streams, voices, the way, the primary
+//! buffer and the sound itself, then the sound mode is 0.
 
 use crate::audio::own::AudioThread;
 use crate::errors::Refused;

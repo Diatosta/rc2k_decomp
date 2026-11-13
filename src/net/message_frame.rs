@@ -1,9 +1,4 @@
-//! `net::message_frame` (0x41748D): the frame of `net::show_message`: the surface locked
-//! (`gfx::lock_surface`; failing, nothing), the background copied, the message (string)
-//! drawn with `font_b` at 0x190, 0x12C, unlocked and shown.
-//!
-//! Takes `message`.
-//! Called by `screens::run_frame` for `net::show_message`.
+//! The frame of `net::show_message`: the background with the message drawn.
 
 use crate::errors::Refused;
 use crate::net::lobby::{copy_picture, draw_string, lock_surface};

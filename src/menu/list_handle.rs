@@ -14,11 +14,10 @@
 //! installer's pages hold in place of addresses and each accessor resolves with bounds; the
 //! words that name code stay as read.
 //!
-//! The item count is the list's own and is not checked against the item asked for: the
-//! original goes past it too (a list of no items goes round 2^32 times). An item past the
-//! list's items is the bytes that follow the list in the installer's pages (the next list,
-//! table or record), read as an item: `item` and `Choices` reach them through a place bounded
-//! by the whole of the pages, not by the list.
+//! The item count is the list's own and is not checked against the item asked for (a list of
+//! no items goes round 2^32 times). An item past the list's items is the bytes that follow the
+//! list in the installer's pages (the next list, table or record), read as an item: `item` and
+//! `Choices` reach them through a place bounded by the whole of the pages, not by the list.
 //!
 //! The installer's own lists are typed records (`ListData`, `Item`, `EditRecord`) in
 //! `install::vars::InstallerPages`, with the layout of these bytes.
@@ -47,7 +46,7 @@ pub struct ListHeader {
     pub title_text: PlainWord,
     /// +4: the item highlighted.
     pub highlight: PlainDword,
-    /// +8: the list's action (an address in RAL.EXE's code).
+    /// +8: the list's action.
     pub action: PlainDword,
     /// +0xC: nothing reads it.
     pub unused_0c: PlainDword,
@@ -223,7 +222,7 @@ enum Head {
 /// Bytes read as a header or an item: at an offset of the installer's pages, or at a place.
 #[derive(Clone, Copy)]
 enum Raw {
-    /// A position in the installer's pages (wrapping as the original's address sum).
+    /// A position in the installer's pages (wrapping on overflow, as an address sum).
     Pages(PagesAt),
     Place(BytePlace),
 }
@@ -411,7 +410,7 @@ impl ListMenu {
         }
     }
 
-    /// +8: the list's action (an address in RAL.EXE's code: `install::installer::page_action`).
+    /// +8: the list's action (`install::installer::page_action`).
     pub fn action(self) -> u32 {
         match self.0 {
             Head::Pages(header, _) => header.action.get(),
@@ -436,10 +435,10 @@ impl ListMenu {
         }
     }
 
-    /// Item `n`, from +0x18, 0x10 bytes each (wrapping as the original's sum). The item count
-    /// is not checked: an item past the list's items is the bytes that follow the list in the
-    /// installer's pages, read as an item (the next list's header; `pages_map` tests name each
-    /// neighbour). The installer's counts stay within their items, so no page reaches it.
+    /// Item `n`, from +0x18, 0x10 bytes each (the sum wraps). The item count is not checked: an
+    /// item past the list's items is the bytes that follow the list in the installer's pages,
+    /// read as an item (the next list's header; `pages_map` tests name each neighbour). The
+    /// installer's counts stay within their items, so no page reaches it.
     pub fn item(self, n: u32) -> ListItem {
         let start = match self.0 {
             Head::Pages(_, items) if (n as usize) < items.len() => {
@@ -658,7 +657,7 @@ impl ListItem {
     }
 
     /// +0xC as the item's choices (a choice item; a link): the table is bytes of the
-    /// installer's pages, read on as far as the original reads (see `Choices`).
+    /// installer's pages, read on past the table (see `Choices`).
     pub fn choices(self) -> Choices {
         Choices(
             PageLink::from_raw(self.data())
@@ -692,7 +691,7 @@ impl ItemByte {
 }
 
 /// A choice item's table: two bytes a choice, the second (at +1, +3, ...) its marks. Its
-/// length is the item's own count, which the original does not check an index against.
+/// length is the item's own count, which an index is not checked against.
 #[derive(Clone, Copy, Debug)]
 pub struct Choices(PagesAt);
 
@@ -772,7 +771,7 @@ mod tests {
         let title = ListItem::of_title();
         let offset = title.pages_offset().unwrap();
         assert_eq!(ListItem::in_pages(offset).unwrap(), title);
-        // The title's record is where IDA has it (0x51DD78), from the pages' first byte.
+        // The title's record is at the pages' first byte.
         assert_eq!(PagesAt::of_item_word(offset), Some(PagesAt::title()));
     }
 

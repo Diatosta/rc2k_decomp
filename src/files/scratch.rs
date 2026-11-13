@@ -4,11 +4,11 @@
 
 use crate::session::PlainBytes;
 
-/// The shared 64 KB scratch (IDA 0x93E8B0 .. 0x94E8B0).
+/// The shared 64 KB scratch.
 #[repr(align(16))]
 #[derive(rc2k_derive::Cells)]
 pub struct Scratch {
-    /// 0x93E8B0: `g_pngInfo`: scratch space (0x10000 bytes), used by whoever needs a buffer for a moment.
+    /// Scratch space (0x10000 bytes), used by whoever needs a buffer for a moment.
     pub buffer: PlainBytes<65536>,
 }
 

@@ -1,11 +1,6 @@
-//! `menu::car_specs_display_loop` (0x47AF4C): a screen over the car specification background,
-//! called from `menu::show_car_specs` and `menu::arcade_level_end`.
-//!
-//! The loop itself is `menu::screen_loop`; this file says what is this screen's own (`SCREEN`),
-//! as extracted from the disassembly: background `cspecs.png`; leaving is not asked about; the
-//! steps that are more than a call or a store are the functions below, generated from the
-//! listing.
-//! The name is a reading from its background and callers, not yet a visit.
+//! A screen over the car specification background, called from `menu::show_car_specs` and
+//! `menu::arcade_level_end`. Screen-specific part of `menu::screen_loop`: background `cspecs.png`;
+//! leaving is not asked about.
 
 use crate::errors::Refused;
 use crate::menu::screen_items_store::slot;
@@ -41,12 +36,12 @@ fn after_first_frame(entry: &Entry) -> Result<Flow, Refused> {
 pub const SCREEN: Screen = Screen {
     lists: &[
         List {
-            pointer: |m| &m.screens.flow.scene_list, // g_sceneList
+            pointer: |m| &m.screens.flow.scene_list,
             table: |m| m.tables.draw_lists.car_specs_display_scene.id(),
             run: false,
         },
         List {
-            pointer: |m| &m.screens.flow.draw_list, // g_drawList
+            pointer: |m| &m.screens.flow.draw_list,
             table: |m| m.tables.draw_lists.car_specs_display_draw.id(),
             run: false,
         },
@@ -56,7 +51,7 @@ pub const SCREEN: Screen = Screen {
             run: true,
         },
         List {
-            pointer: |m| &m.screens.flow.overlay_list, // g_overlayList
+            pointer: |m| &m.screens.flow.overlay_list,
             table: |m| m.tables.draw_lists.car_specs_display_overlay.id(),
             run: false,
         },

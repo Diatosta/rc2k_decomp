@@ -1,8 +1,7 @@
-//! Whether the installed `ral.exe` is this same build (from
-//! `install::check_installed_version` 0x413B0B): the file read in chunks of 0xFF00 bytes,
-//! each scanned (with the last 0x100 bytes of the one before in front of it) for
-//! "$VER: Rally 5"; at the first one, the text after the version's NUL compared with the
-//! game's copyright line up to its first '.'.
+//! Whether the installed `ral.exe` is this same build: the file read in chunks of 0xFF00 bytes,
+//! each scanned (with the last 0x100 bytes of the one before in front) for "$VER: Rally 5"; at
+//! the first one, the text after the version's NUL is compared with the game's copyright line up
+//! to its first '.'.
 
 use crate::Invalid;
 use crate::strings::bytes::Bytes;

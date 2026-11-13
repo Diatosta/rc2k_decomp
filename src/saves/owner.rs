@@ -1,5 +1,5 @@
-//! Module saves's owner (step 11, owned state): the saved games' and best times' stores in
-//! one struct, reached through `saves()` by the code that does not take it as a parameter.
+//! The saves' owner: the saved games' and best times' stores in one struct, reached through
+//! `saves()` by the code that does not take it as a parameter.
 
 use crate::saves::best_times_store::{BestTimes, RallyTimes};
 use crate::saves::preview_store::SavegamePreview;
@@ -8,14 +8,13 @@ use crate::session::{GameThread, PlainBytes, PlainDword};
 
 /// The file names and kept values that belong to no larger store.
 pub struct Files {
-    /// `aSavedataSavega`: the saved game's file name, the number's two digits last.
+    /// The saved game's file name, the number's two digits last.
     pub savegame_template: PlainBytes<27>,
-    /// `aVarRalDat`: the options file's name.
+    /// The options file's name.
     pub options_path: PlainBytes<12>,
-    /// `unk_4F66DD`, `unk_4F66E1`, `unk_4F66E5` (-1 at start), `unk_4F66E9`: four dwords the
-    /// options file keeps (here and in `saves::save_options`, by address); nothing else of
-    /// the game reads them (a table of the developers' variables names the first). The fifth
-    /// (0x4F66ED) is a gap.
+    /// Four dwords the options file keeps (the third is -1 at start; here and in
+    /// `saves::save_options`); nothing else of the game reads them (a table of the developers'
+    /// variables names the first). The fifth is a gap.
     pub options_kept: [PlainDword; 5],
 }
 
@@ -44,7 +43,7 @@ pub struct Saves {
     pub files: Files,
 }
 
-/// The one instance. Reached through `saves()`; `moved` registers its stores' places.
+/// The one instance, reached through `saves()`.
 pub static SAVES: GameThread<Saves> = GameThread::new(Saves {
     best_times: BestTimes::new(),
     rally_times: RallyTimes::new(),

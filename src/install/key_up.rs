@@ -1,16 +1,12 @@
-//! `install::key_up` (0x414784): key 0x66 on an item: for choices shown upright (kind
-//! 0x22 of `[item] & 0x2F`) the choice before (`install::choice_back`).
-//!
-//! Takes the item. Returns the kind (`[item] & 0x2F`).
-//! Caller `install::page_key`, reading zero.
+//! Key 0x66 on an item: for choices shown upright (kind 0x22) the previous choice
+//! (`install::choice_back`). Called by `install::page_key`.
 
 use crate::errors::Refused;
 use crate::menu::list_handle::ListItem;
 use rc2k_core::install::items::{Helper, ItemKey};
 
 /// A key on `item`: the helper the key has for the item's kind, `number` for the number
-/// keys' helpers; the original's zero after it (the helpers' set, else that of the last
-/// compare of the kind).
+/// keys' helpers; whether the key was taken.
 pub fn item_key(
     install: &crate::install::owner::Install,
     item: ListItem,
@@ -18,7 +14,6 @@ pub fn item_key(
     number: u32,
 ) -> Result<bool, Refused> {
     let kind = item.first() & key.kind_mask();
-    // Converted: `rc2k_core::install::items::ItemKey::helper`.
     use crate::install as i;
     match key.helper(kind) {
         Some(Helper::ChoiceBack) => i::choice_back::choice_back(item)?,
@@ -32,7 +27,7 @@ pub fn item_key(
     Ok(true)
 }
 
-/// Whether the key was taken (the original's zero).
+/// Whether the key was taken.
 pub fn key_up(install: &crate::install::owner::Install, item: ListItem) -> Result<bool, Refused> {
     item_key(install, item, ItemKey::Up, 0)
 }

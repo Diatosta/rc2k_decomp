@@ -1,33 +1,10 @@
-//! The six force-feedback effects' functions (+0 of each effect of an input device's
-//! record: `input::effect_0_change` for the first effect, `effect_1_change` and so on to
-//! `effect_5_change`; both records hold the same six), which `input::device_effects` calls
-//! with a change waiting: the change `what` (1 set up, 2 start,
-//! 3 values, 4 stop), `a` and `b` its two values (signed), the device's record and the
-//! effect (0xA4 bytes; +0x30 its DirectInput effect, +0x34 its parameters).
-//! A value v below is `(v x 10000, as a signed dword) >> 8` (arithmetic).
-//! - effect 0: 2 start; 3 +0x6C and +0x70 `a`, +0x68 `b`, the parameters set with
-//!   flags 0x100; 4 stop.
-//! - effect 1: 1 +0x68 0; 2 start; 3 by the row `a` of `effect_rows` (four dwords each): +0x68
-//!   the row's first two blended by `b` (`(second - first) x b >> 8 + first`, then as a
-//!   value), +0x74
-//!   10000000 / the next two blended likewise (`idiv`); flags 0x100; 4 stop.
-//! - effect 2: 1 +0x3C 500000, +0x5C the effect's +0x90, +0xA0 500000, +0x74 100000, +0x68
-//!   0; 3 +0x68 `a`, flags 0x20000100; 4 stop.
-//! - effect 3: 1 +0x3C 250000, +0x68 0; 3 +0x68 `a`, flags 0x20000100; 4 stop.
-//! - effect 4: 1 +0x6C and +0x70 0; 2 start; 3 +0x6C and +0x70 `a`, flags 0x100; 4 stop.
-//! - effect 5: 1 +0x3C 200000, +0x80 4, +0x5C the effect's +0x90, +0xA0 200000, +0x68 0, and
-//!   with the record's +0x20 above 1 (unsigned) +0xC 0; 3 +0x68 `a`, flags 0x20000100; 4
-//!   stop.
-//!
-//! Other changes do nothing.
-//!
-//! The DirectInput calls (`input::start_effect` the effect's Download and Start,
-//! `input::set_effect_parameters` its SetParameters with the flags, `input::stop_effect` its
-//! Stop; each only with an effect at +0x30) go through `effect_objects`. Refuses
-//! (before anything) for effect 1 a row past the table's 14 and a blend of 0 (the
-//! original's `idiv` traps).
-//!
-//! Its arguments are what it reads.
+//! The six force-feedback effects' change functions (`effect_0_change` .. `effect_5_change`),
+//! which `input::device_effects` calls with a change waiting: the change `what` (1 set up, 2
+//! start, 3 values, 4 stop), `a` and `b` its two signed values, the device's record and the
+//! effect (0xA4 bytes). Each effect type sets its parameters (a value v is
+//! `(v x 10000, as a signed dword) >> 8`) and flags as the code below says; other changes do
+//! nothing. The DirectInput calls go through `effect_objects`. Refuses (before anything) for
+//! effect 1 a row past the table's 14 and a blend of 0 (it divides by it).
 
 use crate::errors::{BadInput, Refused};
 use crate::input::store::Devices;
@@ -51,7 +28,6 @@ pub fn effect_change(
     use crate::input::effect_objects::{set_effect_parameters, start_effect, stop_effect};
     use rc2k_core::input::effect_changes::{Call, Field, plan};
     let e = effect;
-    // Converted: `rc2k_core::input::effect_changes::plan`.
     let p = plan(
         number,
         what,

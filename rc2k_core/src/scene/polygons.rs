@@ -1,8 +1,7 @@
-//! An object's polygon drawn whole or as a fan of triangles (from
-//! `scene::draw_object_polygon` 0x451F69 and its test `scene::needs_clipping`): the work list
-//! started, whether a vertex is off the screen or too near, and the fan's triangles.
+//! An object's polygon drawn whole or as a fan of triangles: the work list started, whether a
+//! vertex is off the screen or too near, and the fan's triangles.
 
-/// The kept entries' room (`Buffers.polygon.entries[64].point`, up to the list): the most vertices.
+/// The kept entries' room: the most vertices.
 pub const MOST_KEPT: u32 = 0x40;
 
 /// Whether a polygon of `count` vertices can be drawn (1 .. 0x40).
@@ -15,8 +14,8 @@ pub fn first_list(count: u32) -> Vec<u32> {
     (0..count).chain([0]).collect()
 }
 
-/// The edges `scene::needs_clipping` tests against: the least (`Numbers.zero`, for the depth, x and
-/// y), the screen's right and bottom (`g_clipScreenRight`, `g_clipScreenBottom`).
+/// The edges `scene::needs_clipping` tests against: the least (for depth, x and y), and the
+/// screen's right and bottom.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Edges {
     pub least: f32,
@@ -24,7 +23,7 @@ pub struct Edges {
     pub bottom: f32,
 }
 
-/// A vertex's x, y on the screen and depth (its record's +0xC, +0x1C, +0x18).
+/// A vertex's x, y on the screen and depth.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Vertex {
     pub x: f32,
@@ -32,14 +31,14 @@ pub struct Vertex {
     pub depth: f32,
 }
 
-/// The x87's "below" (C0): also when one of the two is no number.
+/// Whether `a` is below `b`, also when one of the two is no number.
 fn below(a: f32, b: f32) -> bool {
     a.partial_cmp(&b).is_none_or(std::cmp::Ordering::is_lt)
 }
 
-/// `scene::needs_clipping`: whether some vertex of a polygon of three or more is nearer than the
-/// least, left of or above it, or at or past the right or bottom edge. `vertex(n)` is
-/// asked for each in turn until one is.
+/// Whether some vertex of a polygon of three or more is nearer than the least, left of or
+/// above it, or at or past the right or bottom edge. `vertex(n)` is asked for each in turn
+/// until one is.
 pub fn needs_clipping<E>(
     count: u32,
     e: &Edges,
@@ -62,8 +61,7 @@ pub fn needs_clipping<E>(
     Ok(false)
 }
 
-/// Whether the polygon is drawn whole (nothing to clip, or a triangle) rather than as a
-/// fan.
+/// Whether the polygon is drawn whole (nothing to clip, or a triangle) rather than as a fan.
 pub fn drawn_whole(count: u32, needs_clipping: bool) -> bool {
     !needs_clipping || count == 3
 }

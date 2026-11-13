@@ -1,21 +1,17 @@
-//! `menu::apply_cheats` (0x480AC1): acts on the cheats that are switched on.
-//!
-//! The cheats are the bits of `g_cheats` (0x75870C); each that is set writes "Cheat n
-//! (...)" to the game's log (`CHEATS` below, in this order):
+//! `menu::apply_cheats`: acts on the cheats that are switched on. Each set bit of the cheats
+//! writes "Cheat n (...)" to the game's log (`CHEATS` below):
 //! - bits 0, 1, 13 .. 16 stay set and do nothing more here (unlock arcade, unlock cars, no
-//!   damage, damage timer, 16, arcade timer): other code looks at them;
-//! - bits 2 .. 9, 11 and 12 are cleared and each adds one secret car to the list of cars
-//!   at the second car list, unless it is there already (the ten functions 0x470FE9 ..
-//!   0x471332, plain functions here). Bit 6, "Max Power", also adds its car to the
-//!   list at the A8 championship car list, but only when it was not in the first. The other nine have
-//!   the same code for the second list, which is never reached;
-//! - bit 10 is cleared and does nothing;
-//! - bits 17 and 18 stay set and store 1 in the leader-found flag (the A8 game; the reversed
-//!   tracks).
+//!   damage, damage timer, 16, arcade timer: other code looks at them);
+//! - bits 2 .. 9, 11 and 12 are cleared and each adds one secret car to the second car list,
+//!   unless it is there already; bit 6, "Max Power", also adds its car to the A8 championship
+//!   car list, but only when it was not in the first;
+//! - bit 10 is cleared and does nothing; bits 17 and 18 (the A8 game, the reversed tracks)
+//!   stay set and store 1 in the leader-found flag.
 //!
-//! Callers: `system::load_game_data` with the bits 0x1FBC (when the setting `allsecretcars` is 1)
-//! and `menu::check_cheat_name`, which finds a cheat's name typed as the fourth player's name.
-//! Refuses a list without its end, or without room for a car more.
+//! Callers: `system::load_game_data` with the bits 0x1FBC (when the setting
+//! `allsecretcars` is 1) and `menu::check_cheat_name` (a cheat's name typed as the fourth
+//! player's name).
+//! Refuses a list without its end, or without room for one more car.
 
 use crate::errors::BadInput;
 use crate::menu::owner::Menus;
@@ -23,8 +19,6 @@ use crate::menu::remove_secret_cars::{
     List, first as first_list, read_list, second as second_list, write_list,
 };
 use rc2k_core::menu::car_lists;
-
-// ---- game data ----
 
 /// By bit (what each does: `rc2k_core::menu::car_lists::CHEATS`): the log line's text and
 /// the cheat's car (an index into `CarTable.descriptions`), if any.
@@ -57,7 +51,6 @@ pub fn apply_cheats(
     race: &crate::race::owner::Race,
 ) -> Result<(), BadInput> {
     let play = &menus.play;
-    // The logic is in `rc2k_core::menu::car_lists::apply_cheats`.
     {
         let cheats: u32 = play.cheats.cheats.get();
         let list = |l: List<'_>| -> Result<car_lists::List, BadInput> {
@@ -88,5 +81,3 @@ pub fn apply_cheats(
         Ok(())
     }
 }
-
-// logfile::log_write_l1_nl

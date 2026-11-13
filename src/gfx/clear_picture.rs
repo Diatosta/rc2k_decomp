@@ -1,8 +1,5 @@
-//! `gfx::clear_picture` (0x4060D1): fills the picture buffer with zeros.
-//!
-//! 0x75300 dwords (800 x 600) at the buffer `buffer` points at, whatever size the
-//! picture in it has. Three callers, the picture loader `gfx::load_picture` among them.
-//! Refuses a null buffer pointer. The name is a reading.
+//! Fills the picture buffer with zeros: 800 x 600 dwords at the buffer, whatever size the picture
+//! in it has. Refuses a null buffer pointer.
 
 use crate::errors::BadInput;
 use crate::gfx::owner::Pictures;
@@ -18,5 +15,5 @@ pub fn clear_picture(pictures: &Pictures) -> Result<(), BadInput> {
     .ok_or(BadInput("a picture buffer shorter than a screen"))
 }
 
-// Written out: the buffer is nearly two megabytes, and what the function leaves is known
-// without running the original. It writes zeros.
+// Written out: the buffer is nearly two megabytes, and what the function leaves is known without
+// running it. It writes zeros.

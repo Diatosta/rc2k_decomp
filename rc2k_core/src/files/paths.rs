@@ -1,7 +1,4 @@
-//! The game's paths as text (from `files::append_directory` 0x403070,
-//! `files::append_file_name` 0x403040, `files::numbered_path` 0x403292,
-//! `files::resolve_path` 0x403206, `files::swap_missing_extension` 0x4032DB). Paths are
-//! given without their NUL.
+//! The game's paths as text. Paths are given without their NUL.
 
 use crate::Invalid;
 use crate::strings::format::{Pad, decimal};
@@ -11,8 +8,7 @@ pub fn is_separator(b: u8) -> bool {
     matches!(b, b'/' | b'\\' | b':')
 }
 
-/// The last separator's place, searched from the end down to the second byte (the first
-/// is never looked at, as in the original).
+/// The last separator's place, searched from the end down to the second byte.
 pub fn last_separator(path: &[u8]) -> Option<usize> {
     (1..path.len()).rev().find(|&k| is_separator(path[k]))
 }
@@ -27,10 +23,9 @@ pub fn file_name(path: &[u8]) -> &[u8] {
     &path[last_separator(path).map_or(0, |k| k + 1)..]
 }
 
-/// The template with `number` written over its last `!!`, or if there is none its last
-/// `00`: two digits, zero-padded (a larger number's last two). `Ok(None)` without
-/// either marker (a fatal error in the game); an empty template is refused (the original
-/// reads before it).
+/// The template with `number` written over its last `!!`, or if there is none its last `00`:
+/// two digits, zero-padded (a larger number's last two). `Ok(None)` without either marker; an
+/// empty template is refused.
 pub fn numbered(template: &[u8], number: u32) -> Result<Option<Vec<u8>>, Invalid> {
     if template.is_empty() {
         return Err(Invalid(
@@ -104,14 +99,13 @@ pub fn missing_partner(path: &[u8]) -> Option<&'static [u8; 4]> {
         .map(|(_, to)| *to)
 }
 
-/// The root `files::drive_type` (0x4031D8) asks about: `x:\` with
-/// the letter lowered (`lower`, the game's case table), with its NUL; None (the current
-/// drive) for a letter of 0.
+/// The root `files::drive_type` asks about: `x:\` with the letter lowered by `lower`, with its
+/// NUL; None (the current drive) for a letter of 0.
 pub fn drive_root(letter: u8, lower: impl FnOnce(u8) -> u8) -> Option<[u8; 4]> {
     (letter != 0).then(|| [lower(letter), b':', b'\\', 0])
 }
 
-/// `GetDriveTypeA`'s answer for a CD-ROM drive.
+/// The drive kind of a CD-ROM.
 pub const CD_ROM: u32 = 5;
 
 #[cfg(test)]

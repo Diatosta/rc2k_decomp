@@ -1,18 +1,6 @@
-//! `net::lobby_frame` (0x417D95): the frame of the lobby (`net::lobby_loop`): on the locked
-//! surface the background; the table's headings (strings 0x15F at 0x21A and 0x160 at 0x2C0,
-//! `typefaces::TIME`, y 0x6F); the players sorted (`net::sort_players`) and one row each from y
-//! 0x8C: the nationality's flag (sprite +0x27 + 0x1C at 0x18), the name (`typefaces::READY` when
-//! ready, else `typefaces::VALUES`), the car's sprite (+0x25 + 0x44, 0x18 and 0x19 swapped), the
-//! race's time and the total (`text::draw_time_text` with the hours always shown, or string
-//! 0x161 for no time; with gaps shown, `show_gaps` 1, each as its gap to the first row's
-//! with a '+' over its first character when within 0x36EE7F); the chat's eight lines (under
-//! the received messages' lock) and its input (`net::chat_input_line`, item 3); the four
-//! buttons right to left from 0x310 at 0x223 (`net::lobby_button`: ready 0x15D, the car 0x15B
-//! and the stage 0x15C when they can be chosen, the chat 0x15E); two lines (`gfx::draw_hline`
-//! at y 0x156 and 0x217, 0x320 long, colour 7); unlocked and shown.
-//!
-//! More than eight players would read past the sorted copy: refused. Called by
-//! `screens::run_frame` for `net::lobby_loop`.
+//! The frame of the lobby: background, the table's headings, the sorted players one row each
+//! (flag, name, car, race time and total, or gaps to the first row when `show_gaps`), the chat's
+//! eight lines and input, the four buttons and two lines. More than eight players are refused.
 
 use crate::errors::{BadInput, Refused};
 use crate::net::lobby::{FONT, blit, copy_picture, lock_surface, push_id, store_text};
@@ -42,7 +30,7 @@ pub fn lobby_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     let (net, install, strings, gfx) = (o.net, o.install, o.strings, o.gfx);
     let text = &strings.text;
     let vars = &net.vars;
-    // Converted: `rc2k_core::net::screens` (`shown_time`, `flag_sprite`, `car_sprite`,
+    // The logic is in `rc2k_core::net::screens` (`shown_time`, `flag_sprite`, `car_sprite`,
     // `NO_TIME`, `lobby_buttons`), the ready bit and no time of `rc2k_core::net::players`.
     if !lock_surface(o.gfx, o.system) {
         return Ok(());
@@ -102,12 +90,12 @@ pub fn lobby_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
                 o.menus,
             )?;
             x += 0x48;
-            use crate::strings::append_time::SHOW_HOURS; // g_timeShowHours
+            use crate::strings::append_time::SHOW_HOURS;
             let kept_hours = SHOW_HOURS.get().get();
             SHOW_HOURS.get().set(1);
             let time = block.record.race_time.get();
-            // The total is drawn at the y the drawing before it leaves: the text's,
-            // font offset included, when there is no time (the original's slip).
+            // The total is drawn at the y the drawing before it leaves: the text's, font offset
+            // included, when there is no time (kept as is).
             let mut total_y = y;
             if time == players::NO_TIME {
                 let mut none = Vec::new();

@@ -1,14 +1,12 @@
-//! `drive::finish_run` (0x459360): the championship's finish routine played. The car lifted
-//! (+0x138 + `car_lift` x 65536, `fiadd` / `fistp`); the clock into `clock_a`, `5CC3B0`;
-//! 0x20 dwords at `marks` and `play_end` -1; the start `start_clock`. Each frame:
-//! `RaceSounds.objects[0].revs` 0, `input::update`, the time (`drive::finish_timing`); until the time reaches the
-//! length (`finish_lengths`[n]`, n `RaceState.results.finished`) or Esc or key 0x1C is down: the car's view 6
-//! (+0x684), the first car loaded (`race::load_first_car`), the camera (`drive::finish_camera`,
-//! `physics::camera_frame`), the car stored (`drive::store_first_car`), the race's frame
-//! (`drive::race_frame`, stream A's: through the game).
+//! The championship's finish routine played. The car is lifted (`car_lift` x 65536 added to its
+//! height); the clock restarted into `clock_a`; 0x20 dwords at `marks` and `play_end` -1; the
+//! start `start_clock`. Each frame: the lead car's revs 0, `input::update`, the time
+//! (`drive::finish_timing`); until the time reaches the length (`finish_lengths[finished]`) or
+//! Esc or key 0x1C is down: the car's view 6 (+0x684), the first car loaded
+//! (`race::load_first_car`), the camera (`drive::finish_camera`, `physics::camera_frame`), the
+//! car stored (`drive::store_first_car`), the race's frame (`drive::race_frame`).
 //!
-//! Caller: `drive::finish_race`. Refuses a length index past 1 (the table's two), and what
-//! its calls refuse.
+//! Refuses a length index past 1 (the table's two), and what its calls refuse.
 
 use crate::drive::race_parts::{input_update, race_frame, restart_clock};
 use crate::errors::{BadInput, Refused};
@@ -18,8 +16,7 @@ use crate::math::x87_float::to_int;
 use crate::physics::flow::c0;
 use crate::race::owner::Race;
 
-/// The car's lift: `CarBlocks.cars[0].position[1]` += `car_lift` x `k65536` (`fiadd`, `fistp`), over the
-/// race block at `rc`.
+/// The car's lift: `CarBlocks.cars[0].position[1]` += `car_lift` x `k65536`.
 fn lift_car(race: &Race) {
     race.car_blocks().cars[0].position[1].set(to_int(
         ld(race.replay.finish.get().car_lift.get()) * ld(race.course.numbers.get().k65536.get())

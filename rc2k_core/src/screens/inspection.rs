@@ -1,12 +1,10 @@
-//! The service area's inspection status (from
-//! `screens::draw_inspection_status` 0x4A6B54): 100 less the weights of the damaged parts
-//! not chosen for repair, as a bar between "fail" and "pass" with a sprite at its left.
+//! The service area's inspection status: 100 less the weights of the damaged parts not chosen
+//! for repair, as a bar between "fail" and "pass" with a sprite at its left.
 
 use crate::screens::screen::{Bar, Drawn, Screen};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Font {
-    /// `FontObjects.objects[1].first_char`.
     Labels,
 }
 
@@ -18,8 +16,9 @@ pub enum Work {
     Status,
 }
 
-/// A part: the car's damage (+0xCC + 4 x item), its threshold (`MenuState.driver_stats.highs[12][item]`), its
-/// weight (`MenuState.driver_stats.weights[12][item]`) and whether it is chosen for repair (its flag not 0).
+/// A part: the car's damage (+0xCC + 4 x item), its threshold
+/// (`MenuState.driver_stats.highs[12][item]`), its weight (`weights[12][item]`) and whether it is
+/// chosen for repair.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Part {
     pub damage: i32,
@@ -28,7 +27,7 @@ pub struct Part {
     pub repairing: bool,
 }
 
-/// The menu items whose parts count (the repair section's fourteen without the turbo, 6).
+/// The menu items whose parts count (the repair section's fourteen without the turbo, item 6).
 pub const PARTS: [u32; 13] = [2, 3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15];
 
 /// The status and the index (into `PARTS`) of the last damaged part looked at.

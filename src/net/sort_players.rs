@@ -1,11 +1,6 @@
-//! `net::sort_players` (0x418108): the eight players' blocks of `g_netReceived` copied and
-//! bubble-sorted for the lobby's table: by the total (+0x30), then
-//! the race's time (+0x2C), then the DirectPlay id (+0x20), unsigned, the smaller first; a
-//! player whose time is -1 (no time) goes after one who has a time.
-//!
-//! `g_netPlayers` - 1 passes (signed: none for one player or none). More than eight players
-//! would sort past the copy: refused (DirectPlay's listing keeps eight at most). Caller:
-//! `net::lobby_frame`.
+//! Copies and sorts the eight players' blocks for the lobby's table by total, then race time,
+//! then DirectPlay id (smaller first; a player with no time goes after one with a time). More
+//! than eight players are refused.
 
 use crate::cells::Store;
 use crate::errors::{BadInput, Refused};
@@ -64,7 +59,7 @@ pub fn sort_players(vars: &NetShared) -> Result<[PlayerBlock; 8], Refused> {
     Store::load(&vars.received, 0, &mut all)?;
     let sorted = [const { PlayerBlock::zero() }; 8];
     Store::store(&sorted, 0, &all)?;
-    // Converted: `rc2k_core::net::players` (`bubble`, `goes_after`).
+    // The logic is in `rc2k_core::net::players` (`bubble`, `goes_after`).
     // `k + 1` is at most 7: `players` is at most eight.
     bubble_blocks(
         players,

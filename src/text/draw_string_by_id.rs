@@ -1,8 +1,5 @@
-//! `text::draw_string_by_id` (0x40234A): builds the text of a string id in the shared text
-//! buffer, NUL-terminates it and draws it with `draw_text`.
-//!
-//! Takes: string id, font, x, y
-//! A text longer than the buffer is refused: the original writes past it.
+//! Builds the text of a string id in the shared text buffer, NUL-terminates it and draws it with
+//! `draw_text`. A text longer than the buffer is refused.
 
 use crate::errors::{BadInput, Refused};
 use crate::gfx::typefaces::FontRef;
@@ -12,7 +9,7 @@ use crate::strings::text_from_ids::{TEXT_LEN, text_at};
 use crate::text::draw_text::{Canvas, Outcome, draw_text};
 use crate::text::font::Font;
 
-/// The text of string `id` with its NUL, as the original leaves it in the text buffer.
+/// The text of string `id` with its NUL, as it is left in the text buffer.
 pub fn string_text(o: StringOwners<'_>, id: u32) -> Result<Vec<u8>, BadInput> {
     let mut out = Vec::new();
     append_string_by_id(o, id, &mut |bytes| out.extend_from_slice(bytes))?;

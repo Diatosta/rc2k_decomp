@@ -1,6 +1,5 @@
-//! The controller pages' lists: `screens::draw_control_bindings`
-//! 0x46A829 (what each of the player's ten controls is bound to) and
-//! `screens::draw_redefined_keys` 0x47CFA7 (the keys on a redefine keys page).
+//! The controller pages' lists: what each of the player's ten controls is bound to, and the
+//! keys on a redefine keys page.
 
 use crate::Invalid;
 use crate::screens::screen::{Buffer, Screen};
@@ -8,7 +7,6 @@ use crate::strings::format::{Pad, axis_name, decimal};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Font {
-    /// `FontObjects.objects[41].first_char`.
     Value,
 }
 
@@ -21,22 +19,21 @@ pub enum Work {}
 #[derive(Clone, Copy, Debug)]
 pub struct Binding {
     pub binding: u32,
-    /// The device kind (+0x34).
+    /// The device kind.
     pub kind: u32,
     /// The row's axis (+0x3B - n), read for kind 3 on the first two rows.
     pub axis: u8,
 }
 
-/// The directions' names: `word_755200` for a device kind below 2, else `ControlsScreen.stick_names[0]`.
+/// The directions' names: `pad` for a device kind below 2, else `stick`.
 pub struct DirectionNames {
     pub pad: [u16; 9],
     pub stick: [u16; 9],
 }
 
-/// Row n's text (no NUL): string 0x3BD for nothing; else the direction's name (for kind 3
-/// on the first two rows with the axis), then for a button ('+' after a direction) string
-/// 0x3C0, a space and its number. Refused: a direction past the name tables (the original
-/// reads past them).
+/// Row n's text (no NUL): string 0x3BD for nothing; else the direction's name (for kind 3 on
+/// the first two rows with the axis), then for a button ('+' after a direction) string 0x3C0, a
+/// space and its number. Refused: a direction past the name tables.
 pub fn binding_text<S: Screen>(
     s: &mut S,
     b: &Binding,
@@ -93,8 +90,8 @@ fn draw_cells<S: Screen<Font = Font>>(
     Ok(s.draw(Font::Value, Buffer::Cells, x, y)?.too_wide)
 }
 
-/// The ten bindings at x 0x1B8 from y 0xD5 every 0x1B; the row being learnt (`learning`,
-/// from 0) left out. The carry of the last row (clear when it is the one being learnt).
+/// The ten bindings at x 0x1B8 from y 0xD5 every 0x1B; the row being learnt is left out. Returns
+/// the last row's `too_wide` (false when it is the one being learnt).
 pub fn control_bindings<S: Screen<Font = Font, Work = Work>>(
     s: &mut S,
     texts: &[Vec<u8>; 10],
@@ -116,8 +113,8 @@ pub fn control_bindings<S: Screen<Font = Font, Work = Work>>(
 pub const KEY_PLACES: [usize; 11] = [0, 1, 2, 3, 4, 5, 6, 7, 9, 10, 11];
 
 /// The keys' names (row n at x 0x1CC, y 0xAF + n x 0x1D); at the row being redefined the
-/// cursor (string 4) while the blink is 1, else nothing (the carry then that of `cmp
-/// blink, 1`). The carry of the last row.
+/// cursor (string 4) while the blink is 1, else nothing.
+/// Returns the last row's `too_wide`.
 pub fn redefined_keys<S: Screen<Font = Font, Work = Work>>(
     s: &mut S,
     names: &[Vec<u8>; 11],

@@ -1,19 +1,8 @@
-//! `drive::read_car_controls` (0x43A35A): the work car's controls for this step:
-//! - the keys (`input_words` .. `D0`) into the car's (`input_throttle` .. `48`), the
-//!   held-before into `input_keys_mask` and the newly pressed (`keys_pressed`, bits not held
-//!   before); steering, throttle and brake into 0x613890 .. 0x613898, and three bits as
-//!   0x61389C (bit 2 times 0x60), 0x6138A0, 0x6138A4;
-//! - for a player's car (or in a network game, `session`, whatever the car): bit 3 newly pressed flips
-//!   `lights_on`, bit 5 changes the view (`drive::next_camera_view` on `g_car`);
-//! - for a computer's car (`in_credits` set, or `run_kind` and `driver_kind` 2):
-//!   `drive::start_blend`, `driver_start_blend` = `start_blend`, `drive::drive_computer_car`, and
-//!   its six controls (0x71BF88 ..) into 0x613890 .. 0x6138A4.
-//!
-//! The bytes after its `retn` (0x43A4E5 ..) are another entry that nothing calls.
-//!
-//! Callers: race init's loop (`drive::race_cars_step`), `race::step_replay_cars`,
-//! `drive::replay_step`, `drive::simple_car_step`. Refuses what `drive_computer_car` refuses
-//! (before anything).
+//! The work car's controls for this step: the keys (`input_words`) into the car's controls and
+//! the newly pressed keys; for a player's car (or any car in a network game) bit 3 flips
+//! `lights_on` and bit 5 changes the view (`drive::next_camera_view`); for a computer's car
+//! (`in_credits` set, or `run_kind` and `driver_kind` 2) `drive::drive_computer_car` supplies
+//! them. Refuses what `drive_computer_car` refuses (before anything).
 
 use crate::drive::drive_computer_car::drive_computer_car;
 use crate::drive::next_camera_view::next_view_at;
@@ -40,8 +29,6 @@ fn computer(shared: &RaceShared) -> bool {
     )
 }
 
-/// `r` as the original leaves it.
-// Converted: `rc2k_core::drive::controls::{read_keys, computer_drives, flipped}`.
 pub fn read_car_controls(
     race: &Race,
     net: &crate::net::owner::Net,

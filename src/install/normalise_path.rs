@@ -1,18 +1,13 @@
-//! `install::normalise_path` (0x4139EC): a directory's path in the installer's one form.
-//!
-//! Takes the path, where to write it.
-//! The form: lower case (through `g_lowerCase`), `\` for every `/`, and a `\` at the end.
-//! An empty path stands for the current directory (0x4030D1: `GetCurrentDirectoryA`
-//! into the place, a `\` added). Otherwise it must start with `\\` or `//`, or with a
-//! drive letter and `:`, after which a `\` is put if there is none; anything else is not
-//! written. 14 callers, most of them in the installer.
-//! Refuses a path of 0xF8 bytes or more, and a current directory that does not fit the
-//! 0xFF bytes asked with.
+//! A directory's path in the installer's one form: lower case, `\` for every `/`, and a `\` at
+//! the end. An empty path stands for the current directory. Otherwise it must start with `\\` or
+//! `//`, or with a drive letter and `:` (after which a `\` is put if there is none); anything
+//! else is not written. Refuses a path of 0xF8 bytes or more, and a current directory that does
+//! not fit 0xFF bytes.
 
 use crate::errors::BadInput;
 use crate::install::folders::{Folders, Native};
 
-/// 0x4030D1's asking: the current directory, or None if it cannot be had.
+/// The current directory, or None if it cannot be had.
 pub fn current_directory() -> Result<Option<Vec<u8>>, BadInput> {
     // The game's place for it is 0x100 bytes, 0xFF asked for.
     match crate::os::current_folder() {

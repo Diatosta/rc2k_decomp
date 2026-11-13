@@ -1,36 +1,27 @@
-//! The network's variables, typed: `NetShared` (IDA 0x52A4B0 .. 0x5AB419): `nonetwork` and
-//! `inetport`, the chat lines, the session's state (`session`, 1 while a network game runs,
-//! which the race code reads too) and this machine's player, the send and receive buffers,
-//! the connections and sessions listed, the received message stores (8 `PlayerBlock`s),
-//! DirectPlay's objects, GUIDs and the chat zone's picture; `Button` (0x5AB490),
-//! `net::draw_button`'s; and `NetMain`'s records (the item edited, this machine's settings,
-//! the address being built, the session joined, the lobby's `LobbyVars`), which only the
-//! game's thread reaches. The
-//! installer's variables, the build notice and the lobby's registry names are
-//! `install::store`'s.
+//! The network's variables, typed: `NetShared` (session state, this machine's player, chat,
+//! send and receive buffers, connections and sessions listed, the received message stores,
+//! DirectPlay's objects and the chat zone's picture), `Button` (`net::draw_button`'s) and
+//! `NetMain`'s records (the item edited, this machine's settings, the address being built, the
+//! session joined, the lobby's `LobbyVars`), which only the game's thread reaches.
 //!
-//! Structs of cells (what `Cells` needs), in two kinds, by thread (M3). The
-//! receiving thread (T3, `net::receive_thread`) shares `NetShared`: atomic cells, plain
-//! loads and stores (`Relaxed`), as the original's; the received blocks are written under
-//! the game's mutex (`lock_received`). What only the game's thread (T0) reaches is plain
-//! cells in `NetMain` (`LobbyVars` and the records below), and the DirectPlay and service-
-//! provider GUIDs, never written, are constants.
+//! Two kinds of cell structs, by thread. The receiving thread shares `NetShared`: atomic cells
+//! with plain relaxed loads and stores; the received blocks are written under the game's mutex.
+//! What only the game's thread reaches is plain cells in `NetMain`; the DirectPlay and service
+//! provider GUIDs are never written and are constants.
 //!
-//! The receiving thread's reach, field by field (checked by grep, 2026-11-12):
-//! - T3 writes, T0 reads: `receive_done`, `receiving`, `posted_result`, `posted_answered`,
-//!   `messages_taken`, `sync_answer`, `all_raced`, `race_over`, `synced`, `sync_first`,
-//!   `stage_item` (a host made), `own` (the host bit), `received` (a message stored, a chat
-//!   sender's name), `chat`, `chat_line`, `chat_text` (`add_chat_line`), `receive_data`,
-//!   `received_from` / `_to` / `_size`, `session` (a lost session: `destroy_connection`) and,
-//!   with it, `dplay`, `lobby`, `session_open`, `memory`, `connections`, `sessions`,
-//!   `connection_table`, `session_table`, `player_id`, `sync` (the round of a host's first
-//!   call), and `players` (`close_session`, `release_*`, `free_messages`, `destroy_player`).
-//! - T0 writes, T3 reads: `posting`, `posted_call`, `event`, `mutex`, `host_name`,
+//! The receiving thread's reach, field by field:
+//! - It writes, the game thread reads: `receive_done`, `receiving`, `posted_result`,
+//!   `posted_answered`, `messages_taken`, `sync_answer`, `all_raced`, `race_over`, `synced`,
+//!   `sync_first`, `stage_item` (a host made), `own` (the host bit), `received`, `chat`,
+//!   `chat_line`, `chat_text`, `receive_data`, `received_from` / `_to` / `_size`, `session` (a
+//!   lost session: `destroy_connection`) and with it `dplay`, `lobby`, `session_open`, `memory`,
+//!   `connections`, `sessions`, `connection_table`, `session_table`, `player_id`, `sync` (the
+//!   round of a host's first call) and `players`.
+//! - The game thread writes, it reads: `posting`, `posted_call`, `event`, `mutex`, `host_name`,
 //!   `session_desc`, `send_to`, `players`, `dplay`.
-//! - Read by the drawing threads: `session`, `player` (lights, hud icons).
-//! - T0 only, plain (`LobbyVars`): `mode`, `sequence`, `first_host`, `send_buffer`,
+//! - Read by the drawing threads: `session`, `player` (lights, HUD icons).
+//! - Game thread only (`LobbyVars`): `mode`, `sequence`, `first_host`, `send_buffer`,
 //!   `show_gaps`, `data_size`, `racing`, `after_race`, `sync_clock`.
-//! - Dead and removed: the `DPNAME`, `dplay_2`, `DPAID_TotalSize`, the chat zone's file name.
 
 use crate::session::{Byte, Bytes, Dword, PlainByte, PlainBytes, PlainDword, Word, with_runs};
 use rc2k_core::net::inbox::{Inbox, Spill};
@@ -39,84 +30,84 @@ const fn zeros<const N: usize>() -> [Dword; N] {
     [const { Dword::new(0) }; N]
 }
 
-/// the game's application GUID (`g_netAppGuid`), IDA 0x5AB300: never written.
+/// The game's application GUID: never written.
 pub const APP_GUID: [u8; 16] = with_runs::<16>(&[
     (0, b"\x80\xb0\xfa\xb5W\x09\xd1\x11\x91\xc0"),
     (11, b"\xc0\xf0\x1a\x9f\xb3"),
 ]);
 
-/// `IID_IDirectPlay4A`, IDA 0x5AB310: never written.
+/// `IID_IDirectPlay4A`: never written.
 pub const IID_DPLAY4A: [u8; 16] = with_runs::<16>(&[
     (0, b"A\xfe>\x13\xdc2\xd0\x11\x9c\xfb"),
     (11, b"\xa0\xc9\x0aC\xcb"),
 ]);
 
-/// `IID_IDirectPlayLobby2A`, IDA 0x5AB320: never written.
+/// `IID_IDirectPlayLobby2A`: never written.
 pub const IID_LOBBY2A: [u8; 16] = with_runs::<16>(&[
     (0, b"\x80\xaf\xb4\x1b\x03\xa3\xd0\x11\x9cO"),
     (11, b"\xa0\xc9\x05B^"),
 ]);
 
-/// `CLSID_DirectPlay`, IDA 0x5AB330: never written.
+/// `CLSID_DirectPlay`: never written.
 pub const CLSID_DPLAY: [u8; 16] = with_runs::<16>(&[
     (0, b" m\xeb\xd1#\x89\xd0\x11\x9d\x97"),
     (11, b"\xa0\xc9\x0aC\xcb"),
 ]);
 
-/// `CLSID_DirectPlayLobby`, IDA 0x5AB340: never written.
+/// `CLSID_DirectPlayLobby`: never written.
 pub const CLSID_LOBBY: [u8; 16] = with_runs::<16>(&[
     (0, b"\x10\xf8\xe8/\xa5\xb2\xd0\x11\xa7\x87"),
     (12, b"\xf8\x03\xab\xfc"),
 ]);
 
-/// `DPSPGUID_IPX`, IDA 0x5AB350: never written.
+/// `DPSPGUID_IPX`: never written.
 pub const SP_IPX: [u8; 16] = with_runs::<16>(&[
     (1, b"\xc4[h,\x9d\xcf\x11\xa9\xcd"),
     (11, b"\xaa"),
     (13, b"h\x86\xe3"),
 ]);
 
-/// `DPSPGUID_TCPIP`, IDA 0x5AB360: never written.
+/// `DPSPGUID_TCPIP`: never written.
 pub const SP_TCPIP: [u8; 16] = with_runs::<16>(&[
     (0, b"\xe0^\xe96w\x85\xcf\x11\x96\x0c"),
     (11, b"\x80\xc7SN\x82"),
 ]);
 
-/// `DPSPGUID_SERIAL`, IDA 0x5AB370: never written.
+/// `DPSPGUID_SERIAL`: never written.
 pub const SP_SERIAL: [u8; 16] = with_runs::<16>(&[
     (0, b"`h\x1d\x0f\xd9\x88\xcf\x11\x9cN"),
     (11, b"\xa0\xc9\x05B^"),
 ]);
 
-/// `DPSPGUID_MODEM`, IDA 0x5AB380: never written.
+/// `DPSPGUID_MODEM`: never written.
 pub const SP_MODEM: [u8; 16] = with_runs::<16>(&[
     (0, b"`\xa7\xeaDh\xcb\xcf\x11\x9cN"),
     (11, b"\xa0\xc9\x05B^"),
 ]);
 
-/// `DPAID_ServiceProvider`, IDA 0x5AB3A0: never written.
+/// `DPAID_ServiceProvider`: never written.
 pub const AID_SERVICE_PROVIDER: [u8; 16] = with_runs::<16>(&[
     (0, b"\xc0\x16\xd9\x07\xaf\xe0\xcf\x11\x9cN"),
     (11, b"\xa0\xc9\x05B^"),
 ]);
 
-/// `DPAID_INet`, IDA 0x5AB3E0: never written.
+/// `DPAID_INet`: never written.
 pub const AID_INET: [u8; 16] = with_runs::<16>(&[
     (0, b"\xa0M\xa5\xc4\xaf\xe0\xcf\x11\x9cN"),
     (11, b"\xa0\xc9\x05B^"),
 ]);
 
-/// `DPAID_INetPort`, IDA 0x5AB3F0: never written.
+/// `DPAID_INetPort`: never written.
 pub const AID_INET_PORT: [u8; 16] = with_runs::<16>(&[
     (0, b"AER\xe4\xa5\x8e\xd1\x11\x8a\x96"),
     (11, b"`\x97\xb0\x14\x11"),
 ]);
 
-/// 0x5AB25C: `aSusanivanovafa`: "susanivanovafanclub", the group's name; never written.
+/// "susanivanovafanclub", the host's group's name; never written.
 pub const GROUP_NAME: [u8; 20] = with_runs::<20>(&[(0, b"susanivanovafanclub")]);
 
-/// A player's 16 bytes of DirectPlay player data (`NetPlayerRecord`; `g_netOwnRecord` for
-/// this machine).
+/// A player's 16 bytes of DirectPlay player data (`NetPlayerRecord`; this machine's own record
+/// is `own`).
 #[repr(C)]
 #[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
 pub struct PlayerRecord {
@@ -174,7 +165,7 @@ impl PlayerRecord {
     }
 }
 
-/// A player's block of `g_netReceived` (`NetPlayerBlock`).
+/// A player's block of received messages (`NetPlayerBlock`).
 #[repr(C)]
 #[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
 pub struct PlayerBlock {
@@ -332,22 +323,20 @@ impl SessionDesc {
     }
 }
 
-/// IDA 0x52a4b4 ..: the edit variables, the game thread's.
+/// The edit variables, the game thread's.
 #[derive(rc2k_derive::Cells)]
 pub struct EditVars {
-    /// 0x52A4B4: `g_netEditText`: the text of the item edited, by number
-    /// (`net::begin_edit::EditedText`; the original keeps its address).
+    /// The text of the item edited, by number (`net::begin_edit::EditedText`).
     pub edit_text: PlainDword,
-    /// 0x52A4B8: `g_netEdited`: the item edited (-1: none).
+    /// The item edited (-1: none).
     pub edited: PlainDword,
-    /// 0x52A4BC: `dword_52A4BC`: the widest the edited text may be.
+    /// The widest the edited text may be.
     pub edit_width: PlainDword,
-    /// 0x52A4C0: `dword_52A4C0`: the font the edited text is measured with (the original
-    /// keeps its address).
+    /// The font the edited text is measured with.
     pub edit_font: crate::gfx::typefaces::FontCell,
-    /// 0x52A4C4: `dword_52A4C4`: the time of the players' last listing.
+    /// The time of the players' last listing.
     pub clock_a: PlainDword,
-    /// 0x52A4C8: `g_netChatInput`: what this player types into the chat.
+    /// What this player types into the chat.
     pub chat_input: PlainBytes<64>,
 }
 
@@ -367,22 +356,22 @@ impl EditVars {
     }
 }
 
-/// IDA 0x52ab70 ..: the setup variables, the game thread's.
+/// The setup variables, the game thread's.
 #[derive(rc2k_derive::Cells)]
 pub struct SetupVars {
-    /// 0x52AB70: `byte_52AB70`: this player's name.
+    /// This player's name.
     pub player_name: PlainBytes<32>,
-    /// 0x52AB90: `g_machineName`: the machine's name (kept in `var\ral.dat`).
+    /// The machine's name (kept in `var\ral.dat`).
     pub machine_name: PlainBytes<64>,
-    /// 0x52ABD0: `g_netMostPlayers`: the most players a hosted session takes (kept).
+    /// The most players a hosted session takes (kept).
     pub most_players: PlainDword,
-    /// 0x52ABD4: `unk_52ABD4`: the session's password.
+    /// The session's password.
     pub session_password: PlainBytes<16>,
-    /// 0x52ABE4: `unk_52ABE4`: the host's address (TCP/IP), kept.
+    /// The host's address (TCP/IP), kept.
     pub host_address: PlainBytes<64>,
-    /// 0x52AC24: `dword_52AC24`: the TCP/IP port (the `inetport` setting, kept).
+    /// The TCP/IP port (the `inetport` setting, kept).
     pub port: PlainDword,
-    /// 0x52AC28: `dword_52AC28`: the lobby's car item can be chosen.
+    /// The lobby's car item can be chosen.
     pub car_item: PlainDword,
 }
 
@@ -400,21 +389,21 @@ impl SetupVars {
     }
 }
 
-/// IDA 0x52ac3c ..: the address variables, the game thread's.
+/// The address variables, the game thread's.
 #[derive(rc2k_derive::Cells)]
 pub struct AddressVars {
-    /// 0x52AC3C: `dword_52AC3C`: the address elements added.
+    /// The address elements added.
     pub elements: PlainDword,
-    /// 0x52AC40: `dword_52AC40`: the compound address (memory of the network's list; 0 now:
-    /// `net::tables::NET_TABLES`).
+    /// The compound address (memory of the network's list; 0 now: `net::tables::NET_TABLES`).
     pub address: PlainDword,
-    /// 0x52AC44: `bytes`: the compound address's size.
+    /// The compound address's size.
     pub address_size: PlainDword,
-    /// 0x52AC48: `unk_52AC48`: the address elements, 0x18 bytes each (a DPCOMPOUNDADDRESSELEMENT: the data type's GUID, the size, the data).
+    /// The address elements, 0x18 bytes each (a DPCOMPOUNDADDRESSELEMENT: the data type's GUID,
+    /// the size, the data).
     pub element_table: PlainBytes<76>,
-    /// 0x52AC94: `unk_52AC94`: the saved connection's GUID (kept).
+    /// The saved connection's GUID (kept).
     pub saved_connection: PlainBytes<16>,
-    /// 0x52ACA4: `unk_52ACA4`: the saved connection's name.
+    /// The saved connection's name.
     pub saved_name: PlainBytes<64>,
 }
 
@@ -431,16 +420,16 @@ impl AddressVars {
     }
 }
 
-/// IDA 0x52ad00 ..: the joined variables, the game thread's.
+/// The joined variables, the game thread's.
 #[derive(rc2k_derive::Cells)]
 pub struct JoinedVars {
-    /// 0x52AD00: `unk_52AD00`: the joined session's GUID.
+    /// The joined session's GUID.
     pub joined: PlainBytes<16>,
-    /// 0x52AD10: `unk_52AD10`: its name.
+    /// Its name.
     pub joined_name: PlainBytes<64>,
-    /// 0x52AD50: `dword_52AD50`: its most players.
+    /// Its most players.
     pub joined_most: PlainDword,
-    /// 0x52AD54: `unk_52AD54`: its password.
+    /// Its password.
     pub joined_password: PlainBytes<16>,
 }
 
@@ -455,26 +444,26 @@ impl JoinedVars {
     }
 }
 
-/// The lobby's variables, the game thread's (IDA 0x52A908 .. 0x52AD88).
+/// The lobby's variables, the game thread's.
 #[derive(rc2k_derive::Cells)]
 pub struct LobbyVars {
-    /// 0x52A908: `g_netMode`: 0 the settings, 1 host, 2 join, 3 lobby.
+    /// 0 the settings, 1 host, 2 join, 3 lobby.
     pub mode: PlainDword,
-    /// 0x52A924: `dword_52A924`: the first player not the host.
+    /// The first player not the host.
     pub first_host: PlainDword,
-    /// 0x52AA68: `g_netSendBuffer`: the message being sent.
+    /// The message being sent.
     pub send_buffer: PlainBytes<256>,
-    /// 0x52AC30: `dword_52AC30`: times shown as gaps.
+    /// Times shown as gaps.
     pub show_gaps: PlainDword,
-    /// 0x52AD74: `dword_52AD74`: the size of the player data listed.
+    /// The size of the player data listed.
     pub data_size: PlainDword,
-    /// 0x52AD80: `g_netAfterRace`: back in the lobby after a race.
+    /// Back in the lobby after a race.
     pub after_race: PlainDword,
-    /// 0x52AD84: `g_netRacing`: the players are not listed again.
+    /// The players are not listed again.
     pub racing: PlainDword,
-    /// 0x52AD88: `dword_52AD88`: the time of the last sync message.
+    /// The time of the last sync message.
     pub sync_clock: PlainDword,
-    /// 0x52A915: `g_netSequence`: the sequence byte of the messages sent.
+    /// The sequence byte of the messages sent.
     pub sequence: PlainByte,
     /// Three bytes that fill the record's last dword (`Cells` takes no padding); nothing
     /// reads or writes them.
@@ -521,94 +510,93 @@ impl NetMain {
     }
 }
 
-/// IDA 0x52A4B0 .. 0x5AB419.
+/// The network's variables the receiving thread shares with the game thread (atomic cells).
 #[derive(rc2k_derive::Cells)]
 pub struct NetShared {
-    /// 0x52A4B0: `g_netReceiveDone`: set when the receiving thread has ended; also the `nonetwork` setting's variable (`settings::read_settings`).
+    /// Set when the receiving thread has ended; also the `nonetwork` setting's variable
+    /// (`settings::read_settings`).
     pub receive_done: Dword,
-    /// 0x52A508: `g_netChat`: the chat's lines (0x300 bytes).
+    /// The chat's lines (0x300 bytes).
     pub chat: Bytes<768>,
-    /// 0x52A808: `byte_52A808`: a chat line being cut.
+    /// A chat line being cut.
     pub chat_line: Bytes<128>,
-    /// 0x52A888: `word_52A888`: a chat message "name> text".
+    /// A chat message "name> text".
     pub chat_text: Bytes<128>,
-    /// 0x52A910: `g_netSession`: 1 while a network game runs; the race code reads it as the split screen's switch (one car's view chosen).
+    /// 1 while a network game runs; the race code reads it as the split screen's switch (one
+    /// car's view chosen).
     pub session: Dword,
-    /// 0x52A914: `g_netSync`: the sync round, counted up at each lobby.
+    /// The sync round, counted up at each lobby.
     pub sync: Byte,
     /// One byte that aligns `sync_answer` (`Cells` takes no padding); nothing reads or writes it.
     pub _pad_cells: Bytes<1>,
-    /// 0x52A916: `g_netSyncAnswer`: the race-sync answer sent (0x41 or 0x51, the round).
+    /// The race-sync answer sent (0x41 or 0x51, the round).
     pub sync_answer: Word,
-    /// 0x52A918: `g_netReceiving`: the receiving thread is busy.
+    /// The receiving thread is busy.
     pub receiving: Dword,
-    /// 0x52A91C: `g_netMessagesTaken`: the messages the receiving thread took, counted.
+    /// The messages the receiving thread took, counted.
     pub messages_taken: Dword,
-    /// 0x52A920: `g_netPlayer`: this machine's player (its car's number); the race code reads it as the car chosen.
+    /// This machine's player (its car's number); the race code reads it as the car chosen.
     pub player: Dword,
-    /// 0x52A928: `g_netMemory`: the network's memory list (`memory::List`, 16 bytes).
+    /// The network's memory list (`memory::List`, 16 bytes).
     pub memory: [Dword; 4],
-    /// 0x52A968: `unk_52A968`: the bytes of the message `net::receive_message` took.
+    /// The bytes of the message `net::receive_message` took.
     pub receive_data: Bytes<256>,
-    /// 0x52AB68: `g_netEvent`: the receiving thread's event (a handle).
+    /// The receiving thread's event (a handle).
     pub event: Dword,
-    /// 0x52AB6C: `g_netMutex`: the mutex of the received messages (a handle).
+    /// The mutex of the received messages (a handle).
     pub mutex: Dword,
-    /// 0x52AC2C: `g_netStageItem`: the lobby's stage item can be chosen.
+    /// The lobby's stage item can be chosen.
     pub stage_item: Dword,
-    /// 0x52AC34: `g_netConnections`: the connections listed.
+    /// The connections listed.
     pub connections: Dword,
-    /// 0x52AC38: `g_netConnectionTable`: the connection records (0x54 bytes each; an address,
-    /// 0 now: `net::tables::NET_TABLES`).
+    /// The connection records (0x54 bytes each; an address, 0 now: `net::tables::NET_TABLES`).
     pub connection_table: Dword,
-    /// Not the original's: the machine's name, copied here by `net::host_session` before the
-    /// session is opened on the receiving thread (`posted_open_host`), which may not reach
-    /// the game thread's settings.
+    /// The machine's name, copied here by `net::host_session` before the session is opened on
+    /// the receiving thread (`posted_open_host`), which may not reach the game thread's settings.
     pub host_name: Bytes<64>,
-    /// 0x52ACE4: `g_netPosting`: DirectPlay's calls are made on the receiving thread.
+    /// DirectPlay's calls are made on the receiving thread.
     pub posting: Dword,
-    /// 0x52ACE8: `g_netPostedCall`: the call posted to the receiving thread.
+    /// The call posted to the receiving thread.
     pub posted_call: Dword,
-    /// 0x52ACEC: `g_netPostedResult`: its result.
+    /// Its result.
     pub posted_result: Dword,
-    /// 0x52ACF0: `g_netPostedAnswered`: the receiving thread has answered.
+    /// The receiving thread has answered.
     pub posted_answered: Dword,
-    /// 0x52ACF4: `g_netSessions`: the sessions listed.
+    /// The sessions listed.
     pub sessions: Dword,
-    /// 0x52ACF8: `g_netSessionTable`: the session records (0x68 bytes each; an address, 0
-    /// now: `net::tables::NET_TABLES`).
+    /// The session records (0x68 bytes each; an address, 0 now: `net::tables::NET_TABLES`).
     pub session_table: Dword,
-    /// 0x52ACFC: `g_netSessionOpen`.
+    /// 1 while a DirectPlay session is open.
     pub session_open: Dword,
-    /// 0x52AD64: `g_netOwnRecord`: this machine's player record.
+    /// This machine's player record.
     pub own: PlayerRecord,
-    /// 0x52AD78: `g_netAllRaced`: every player is ready.
+    /// Every player is ready.
     pub all_raced: Dword,
-    /// 0x52AD7C: `g_netRaceOver`: every player has finished.
+    /// Every player has finished.
     pub race_over: Dword,
-    /// 0x52AD8C: `g_netSyncFirst`: the sync table is not cleared yet.
+    /// The sync table is not cleared yet.
     pub sync_first: Dword,
-    /// 0x52AD90: `g_netSynced`: a byte a player, 1 when the player answered the sync.
+    /// A byte a player, 1 when the player answered the sync.
     pub synced: Bytes<8>,
-    /// 0x52AD98: `g_netPlayers`: the players.
+    /// The players.
     pub players: Dword,
-    /// 0x52AD9C: `g_netReceived`: the players' blocks.
+    /// The players' blocks.
     pub received: [PlayerBlock; 8],
-    /// 0x5AB270: `g_netPlayerId`: this player's DirectPlay id.
+    /// This player's DirectPlay id.
     pub player_id: Dword,
-    /// 0x5AB274: `g_netSendTo`: the group the messages go to.
+    /// The group the messages go to.
     pub send_to: Dword,
-    /// 0x5AB278: `g_netReceivedFrom`: the sender of the message taken.
+    /// The sender of the message taken.
     pub received_from: Dword,
-    /// 0x5AB27C: `unk_5AB27C`: its addressee.
+    /// Its addressee.
     pub received_to: Dword,
-    /// 0x5AB280: `g_netReceivedSize`: the size of the buffer / the message taken.
+    /// The size of the buffer / the message taken.
     pub received_size: Dword,
-    /// 0x5AB288: `g_dplay`: the `IDirectPlay4A` object.
+    /// The `IDirectPlay4A` object.
     pub dplay: Dword,
-    /// 0x5AB28C: `g_dplayLobby`: the `IDirectPlayLobby2A` object.
+    /// The `IDirectPlayLobby2A` object.
     pub lobby: Dword,
-    /// 0x5AB2AC: `g_netSessionDesc`: a `DPSESSIONDESC2`.
+    /// A `DPSESSIONDESC2`.
     pub session_desc: SessionDesc,
 }
 
@@ -686,22 +674,22 @@ impl NetShared {
     }
 }
 
-/// IDA 0x5AB490 .. 0x5AB4AC.
+/// `net::draw_button`'s arguments and measurements, the game thread's.
 #[derive(rc2k_derive::Cells)]
 pub struct Button {
-    /// 0x5AB490: `dword_5AB490`: `net::draw_button`'s string.
+    /// `net::draw_button`'s string.
     pub text: PlainDword,
-    /// 0x5AB494: `dword_5AB494`: its flags.
+    /// Its flags.
     pub flags: PlainDword,
-    /// 0x5AB498: `x`: its x.
+    /// Its x.
     pub x: PlainDword,
-    /// 0x5AB49C: `y`: its y.
+    /// Its y.
     pub y: PlainDword,
-    /// 0x5AB4A0: `dword_5AB4A0`: its width.
+    /// Its width.
     pub width: PlainDword,
-    /// 0x5AB4A4: `dword_5AB4A4`: its frame's tiles.
+    /// Its frame's tiles.
     pub tiles: PlainDword,
-    /// 0x5AB4A8: `dword_5AB4A8`: its item.
+    /// Its item.
     pub item: PlainDword,
 }
 

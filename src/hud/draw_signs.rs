@@ -1,4 +1,4 @@
-//! `hud::draw_signs` (0x4B4F2B): up to four signs of a view's marks (`Panel::marks`; 0 none): sign
+//! Up to four signs of a view's marks (`Panel::marks`; 0 none): sign
 //! v as rectangle 0x4C + (v - 1) & 0xF of the sprite sheet, centred in its 0x40 wide place by its
 //! width (`sign_widths`[(v - 1) & 7]), the places 0x40 apart from the marks' `base`. Each layout
 //! and player has a `SignStyle` for whose marks they are and the row they are drawn at.
@@ -29,35 +29,35 @@ pub struct SignStyle {
     lift: u32,
 }
 
-/// Layout 0's signs (0x4B4F2B).
+/// Layout 0's signs.
 pub static LAYOUT_0: SignStyle = SignStyle {
     view: 0,
     shift: 0,
     y: 0x36,
     lift: 0x20,
 };
-/// The first player's signs in layout 1 (0x4B52F7).
+/// The first player's signs in layout 1.
 pub static LAYOUT_1A: SignStyle = SignStyle {
     view: 0,
     shift: 0xFFFFFF38,
     y: 0x70,
     lift: 0x20,
 };
-/// The second player's signs in layout 1 (0x4B5451).
+/// The second player's signs in layout 1.
 pub static LAYOUT_1B: SignStyle = SignStyle {
     view: 1,
     shift: 0xC8,
     y: 0x70,
     lift: 0x20,
 };
-/// The first player's signs in layout 2 (0x4B507F).
+/// The first player's signs in layout 2.
 pub static LAYOUT_2A: SignStyle = SignStyle {
     view: 0,
     shift: 0,
     y: 0x8,
     lift: 0,
 };
-/// The second player's signs in layout 2 (0x4B51A3).
+/// The second player's signs in layout 2.
 pub static LAYOUT_2B: SignStyle = SignStyle {
     view: 1,
     shift: 0,
@@ -66,7 +66,6 @@ pub static LAYOUT_2B: SignStyle = SignStyle {
 };
 
 /// Draws the four signs of `style`.
-// Converted: `rc2k_core::hud::signs::{sign, place, row}`
 pub fn draw_signs(frame: &Frame, hud: &Hud, pen: Pen, style: &SignStyle) -> Result<(), Refused> {
     use rc2k_core::hud::signs;
     let marks = &frame.panel_and_overlay.get().panel.marks[style.view];

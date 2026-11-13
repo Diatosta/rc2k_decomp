@@ -1,17 +1,13 @@
-//! `gfx::build_game_fonts` (0x41B178): builds the font with an alpha that a stage's loading
-//! asks for, and hangs it on five font objects.
-//!
-//! ("LOADLEVEL_INIT : loadgamefonts" in the game's log; one caller, `race::loadlevel_init`.)
-//! Takes `units` * 0x400 * the pixel size bytes on the list `memory` (fatal
-//! error 0x80E48061 if there are none), `begin_glyph_tables`, the builder's flags = 0x21
-//! (run-length coded, with alpha sheets), the pixel layout (a fixed table's entry), twice
-//! 0x400 bytes off the list for two palettes, a new table, `gfx::build_glyphs` on
-//! `files\d\fnt\fnt22_00.pcx` (0x80E48062 if that leaves no table), `alpha_palette`, the
-//! palette's pixels to the first palette, `end_glyph_tables`. The fonts at 0x51E2E4 and
-//! 0x51E304 get the first palette and the table. Then the sheet's palette is made
-//! brighter where it lies (first byte + 0x40, second and third + 0x20, each stopping at
-//! 0xFF) and its pixels are the second palette, which the fonts at 0x51E324, 0x51E344 and
-//! 0x51E364 get with the same table.
+//! Builds the font with an alpha that a stage's loading asks for, and hangs it on five font objects
+//! ("LOADLEVEL_INIT : loadgamefonts" in the game's log; one caller, `race::loadlevel_init`). Takes
+//! `units` * 0x400 * the pixel size bytes on the list `memory` (fatal error 0x80E48061 if there are
+//! none), `begin_glyph_tables`, the builder's flags = 0x21 (run-length coded, with alpha sheets),
+//! the pixel layout (a fixed table's entry), twice 0x400 bytes off the list for two palettes, a new
+//! table, `gfx::build_glyphs` on `files\d\fnt\fnt22_00.pcx` (0x80E48062 if that leaves no table),
+//! `alpha_palette`, the palette's pixels to the first palette, `end_glyph_tables`. `game_fonts[1]`
+//! and `[2]` get the first palette and the table. Then the sheet's palette is made brighter where
+//! it lies (first byte + 0x40, second and third + 0x20, each stopping at 0xFF) and its pixels are
+//! the second palette, which `game_fonts[3 ..= 5]` get with the same table.
 
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::gfx::build_glyphs::SheetVars;
@@ -24,20 +20,18 @@ use crate::gfx::glyph_tables::{
 use crate::memory::MemoryList;
 use crate::memory::take_from_list::rewind_list;
 
-// ---- game data ----
-
 /// The game fonts' memory.
 #[derive(rc2k_derive::Cells)]
 pub struct GameFontsMemory {
-    /// `dword_5BE894`: the memory's size in units of 0x400 bytes times `Screen.bytes`
-    /// (`gamegfxheapsize`, a `var\ral.cfg` setting).
+    /// The memory's size in units of 0x400 bytes times `Screen.bytes` (`gamegfxheapsize`, a
+    /// `var\ral.cfg` setting).
     pub units: crate::session::PlainDword,
-    /// `g_gameFontMemory` (`GameFontsMemory.memory.head`): the list the fonts' tables lie on (16 bytes).
+    /// `GameFontsMemory.memory.head`: the list the fonts' tables lie on (16 bytes).
     pub memory: crate::memory::ListCells,
 }
 
 impl GameFontsMemory {
-    /// The game fonts' memory; the first values are the image's.
+    /// The game fonts' memory.
     pub const fn new() -> Self {
         GameFontsMemory {
             units: crate::session::PlainDword::new(0x20),
@@ -51,17 +45,16 @@ impl GameFontsMemory {
     }
 }
 
-// The first palette's place and the table are the palette and
-// glyph table of `FONTS.game_fonts[0]`; the five font objects after it (IDA 0x51E2E4) are
-// `game_fonts[1 ..]`. The second palette's place is the palette of `game_fonts[3]`.
+// The first palette's place and the table are the palette and glyph table of `FONTS.game_fonts[0]`;
+// the five font objects after it are `game_fonts[1 ..]`. The second palette's place is the palette
+// of `game_fonts[3]`.
 
 fn fatal(code: u32) -> Refused {
     FatalError { code, message: "" }.into()
 }
 
-/// `pixels_b` is where the place of the second palette's pixels is read from when they
-/// are made. (The original's fatal error 0x80E48061 for a failed allocation cannot come:
-/// the allocator reports its own.)
+/// `pixels_b` is where the place of the second palette's pixels is read from when they are made. (A
+/// failed allocation cannot come: the allocator reports its own error.)
 pub fn build_game_fonts(
     vars: &SheetVars,
     pixels_b: &crate::session::PlainDword,
@@ -128,7 +121,6 @@ pub fn build_game_fonts(
     let layout = crate::gfx::pixel_format::layout(system, gfx, layout)?;
     let mut pixels = Vec::with_capacity(256 * 4);
     for n in 0..256usize {
-        // Converted: `rc2k_core::gfx::pixels::brighter`.
         let brighter = rc2k_core::gfx::pixels::brighter(gfx.pictures.decoder.palette[n].get());
         gfx.pictures.decoder.palette[n].set(brighter);
         pixels.extend_from_slice(&components_to_pixel(&layout, brighter, gfx).to_le_bytes());

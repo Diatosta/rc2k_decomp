@@ -3,8 +3,6 @@
 //! driver's state; the byte format is the 1999 game's and is never changed. Each piece below
 //! names the fields of the live record (`Car`, `RaceSlot`, `RaceWork`) at the file's offsets, so
 //! the file does not depend on how those records lie in memory.
-//!
-//! Callers: `drive::save_replay_cars`, `drive::load_replay_cars`.
 
 use crate::cells::{ByteView, load_cells, store_cells};
 use crate::physics::car_store::Car;
@@ -12,7 +10,6 @@ use crate::race::work_store::{RaceSlot, RaceWork};
 use core::mem::size_of;
 use rc2k_core::drive::replay_frames::{CAR_DWORDS, ReplayFrame, SLOT_DWORDS, START_DWORDS};
 
-/// A car's bytes in the file.
 const CAR_BYTES: usize = 4 * CAR_DWORDS;
 /// A loose part's bytes in the file.
 const SLOT_BYTES: usize = 0x78;
@@ -470,7 +467,6 @@ mod tests {
         assert_eq!(frame.tape, [0; 400]);
     }
 
-    /// A scatter writes the frame's fields and nothing else.
     #[test]
     fn scatter_writes_only_the_starting_state() {
         let frame = gather(&cars_of(pattern), &work_of(pattern));

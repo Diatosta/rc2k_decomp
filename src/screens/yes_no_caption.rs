@@ -1,11 +1,6 @@
-//! `screens::yes_no_caption` (0x46FA5A): the "leave?" question's button shows the
-//! answer.
-//!
-//!
-//! String 0x56B + `g_yesNoAnswer` (0x56B "não", 0x56C "sim", by the language file) and a NUL into
-//! `g_captionText`, from which `screens::draw_highlighted_caption` draws the button. In the
-//! question screen's draw list (0x758C9E). IDA has not made it a function. Refuses a caption longer
-//! than its place. The menus and draw lists run its `entry` (`menu::table_calls`).
+//! The "leave?" question's button shows the answer: string 0x56B + the answer ("não" /
+//! "sim" by the language file) goes to the caption text, from which
+//! `screens::draw_highlighted_caption` draws the button. Refuses a caption longer than its place.
 
 use crate::errors::Refused;
 use crate::menu::owner::Tables;

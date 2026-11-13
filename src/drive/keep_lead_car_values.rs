@@ -1,8 +1,5 @@
-//! `drive::keep_lead_car_values` (0x4564F5): eight fields of car block 0 (0x70FA70 ..,
-//! `drive/lead_car_values.rs`) into 0x64165C .. 0x641678 (`push`/`pop`). The marks read
-//! `lead_kept` (`effects::stage_record`).
-//!
-//! Caller: `drive::share_all_cars` (0x456484), first.
+//! Eight fields of car block 0 (`drive/lead_car_values.rs`) kept aside in `lead_kept`; the effects
+//! read `lead_kept` (`effects::stage_record`).
 
 use crate::drive::lead_car_values::pairs;
 use crate::physics::car_store::Car;

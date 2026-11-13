@@ -1,14 +1,11 @@
-//! `drive::play_inputs` (0x460162): for cars 0 and 1 the input words from the replay's tape: frame
+//! For cars 0 and 1 the input words from the replay's tape: frame
 //! `step_frame` (16 bytes; the car's 8) has the first word and the packed rest, taken apart
 //! (`drive::unpack_inputs`) into `input_words` ...
-//!
-//! Callers: `drive::play_inputs_if`, `race::step_replay_cars`.
 
 use crate::errors::BadInput;
 use crate::race::owner::Race;
 use rc2k_core::drive::replay_frames::on_tape;
 
-// Converted: `rc2k_core::drive::replay_frames::{on_tape}`.
 pub fn play_inputs(race: &Race) -> Result<(), BadInput> {
     let shared = &race.shared;
     let replay = &race.replay;

@@ -1,12 +1,13 @@
-//! `menu::class_championship_pass` (0x4A4A1C): for each class from 1 (0 outside `state.menus.class_mode` 2 in event mode 0x13) up to `event.classes`:
-//! when a player (1 .. 3: the original does not look for player 4, section 16) is in the
-//! class's entries of standings table B, the class numbered (`number_standings`, its
-//! count into `event.count_a`) and its page shown (`menu::show_class_championship_standings`), stopping when the
-//! leaving is answered yes (`g_yesNoAnswer` 1). `loop_flags.left_with_carry` the class's flag.
+//! `menu::class_championship_pass`: for each class from 1 (0 outside `state.menus.class_mode` 2
+//! in event mode 0x13) up to `event.classes`: when a player (1 .. 3: player 4 is not looked for,
+//! a 1999 slip kept as is) is in the class's entries of standings table B, the class is
+//! numbered (`number_standings`, its count into `event.count_a`) and its page shown
+//! (`menu::show_class_championship_standings`), stopping when leaving is answered yes.
+//! `loop_flags.left_with_carry` is the class's flag.
 //!
-//! Callers: the event drivers. Refuses a table
-//! without its end entry and a class count the loop would run past (at or below the first, or past
-//! 0x100), before anything; what the steps refuse.
+//! Callers: the event drivers. Refuses a table without its end entry and a class count the
+//! loop would run past (at or below the first, or past 0x100), before anything; what the steps
+//! refuse.
 
 use crate::errors::Refused;
 use crate::menu::owner::Menus;
@@ -24,7 +25,6 @@ fn first_class(menus: &Menus) -> u32 {
 
 pub fn class_championship_pass(menus: &Menus, entry: &Entry) -> Result<(), Refused> {
     let first = first_class(menus);
-    // The logic is in `rc2k_core::menu::class_pages` (`classes`, `has_player`).
     let classes = class_pages::classes(first, menus.screens.event.classes.get())?;
     let all: Vec<(u32, u32)> = walked_entries_b()?
         .iter()

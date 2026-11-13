@@ -1,7 +1,5 @@
-//! The game's random numbers (RAL.EXE 0x401864 .. 0x4018C8): a 32-bit shift register
-//! stepped once a number, seeded at start from the clock and stirred with a number the
-//! start finds (from `math::next_random`, `random_below`,
-//! `seed_random`, `stir_random`, `random_step`).
+//! The game's random numbers: a 32-bit shift register stepped once a number, seeded at start from
+//! the clock and stirred with a number the start finds.
 
 /// The generator.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -9,7 +7,7 @@ pub struct Random {
     pub state: u32,
 }
 
-/// The clock at the start, as the start keeps it.
+/// The clock at the start.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct StartClock {
     /// Hour, minute, second, hundredths.
@@ -36,7 +34,7 @@ impl Random {
         self.state
     }
 
-    /// A number under `limit`; `None` for a limit of 0 (the original divides by it).
+    /// A number under `limit`; `None` for a limit of 0.
     pub fn below(&mut self, limit: u32) -> Option<u32> {
         (limit != 0).then(|| self.draw() % limit)
     }

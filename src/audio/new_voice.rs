@@ -1,15 +1,9 @@
-//! `audio::new_voice` (0x40B04C): the next voice of the pool.
-//!
-//! Returns: the voice
-//!
-//! `g_voices[g_voiceCount]`, and the count + 1; with 0x200 in use fatal error 0x80A28501.
-//! One caller, command 3 (`audio::load_sounds`).
+//! The next voice of the pool and the count + 1; with 0x200 in use fatal error.
 
 use crate::audio::own::AudioOwn;
 use crate::errors::{FatalError, Refused};
 
 pub fn new_voice(state: &AudioOwn) -> Result<u32, Refused> {
-    // Converted: `rc2k_core::audio::voices::new_voice`.
     let mut n = state.voice_count.get();
     let Some(place) = rc2k_core::audio::voices::new_voice(&mut n) else {
         return Err(FatalError {
@@ -19,6 +13,5 @@ pub fn new_voice(state: &AudioOwn) -> Result<u32, Refused> {
         .into());
     };
     state.voice_count.set(n);
-    // Its id (the original: the place's address, no check against the pool).
     Ok(crate::audio::voices::voice_id(place))
 }

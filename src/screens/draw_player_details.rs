@@ -1,28 +1,16 @@
-//! `screens::draw_player_details` (0x46F894): player 1's details page. The players'
-//! pages share this file's code: `draw_player2_details` (0x4677B5) is the same code,
-//! `draw_player34_details` (0x467975) the page without the second view (`Layout`).
+//! Player 1's details page; the other players' pages share this file's code
+//! (`draw_player2_details` is the same, `draw_player34_details` is the page without the second
+//! view: see `Layout`).
+//! - The controller's item (9) of the current menu is greyed out when there is no controller,
+//!   else made choosable.
+//! - The current player's name, with the cursor after it while a name is being typed.
+//! - The nationality's string and its flag after it.
+//! - The view and, on the pages that have it, the second view (a 5 is made 0 first).
+//! - The race number and the co-driver's sex.
+//! - The controller sensitivity's slider sprites.
 //!
-//! - The controller's item (9) of the current menu greyed out when there is no
-//!   controller (`g_controllerCount`), else made choosable (`menu::disable_item`,
-//!   `menu::enable_item`).
-//! - The current player (`Player`): its name at (0x1BB, 0xD4) in the font at 0x51E8C4, and
-//!   while a name is being typed (`option_work.typing` not 0) the cursor after it
-//!   (`screens::draw_name_cursor`).
-//! - The nationality's string (`captions.nationalities[nationality]`, kept in `seconds`,
-//!   0x7559AC) at (0x1BB, 0xEF); measured with the font at 0x51E824 from the x the text
-//!   left, its flag (sprite 0x1C + nationality) at 0x1CA + the width, y 0xF3.
-//! - The view `captions.views[view]` at y 0x10A; the second view
-//!   `captions.second_views[second_view]` at 0x125, a second view of 5 made 0 first (only on
-//!   the pages that have it; on the others the lines below are 0x1B higher).
-//! - `race_number` as a number at 0x140; the co-driver's sex's string (0x18A + it, kept in
-//!   the draw work's figure) at 0x15B.
-//! - Sprite 4 at (0x1BA, 0x176) and sprite 6 at (0x1BA + 2 * `controller_sensitivity`,
-//!   0x176), the blits' palette being what the last text left in ebx.
-//!
-//! In the draw lists of the four players' details screens. Refuses a player past the
-//! four, a player without its name, an index past its string table, and what its parts refuse;
-//! before the controller's item is switched (the original
-//! switches it first). The menus and draw lists run its `entry` (`menu::table_calls`).
+//! Refuses a player past the four, a player without a name, an index past a string table and what
+//! its parts refuse, before the controller's item is switched.
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::player::Player;
@@ -30,9 +18,9 @@ use crate::text::draw_text::Canvas;
 
 // ---- game data ----
 
-/// What differs between the players' pages: players 1 and 2 (`screens::draw_player_details`,
-/// 0x4677B5) have the controller's item at 9 and the second view's line; players 3
-/// and 4 (0x467975) have it at 8 and no second view, the lines below moving up one.
+/// What differs between the players' pages: players 1 and 2 have the controller's item at 9
+/// and the second view's line; players 3 and 4 have it at 8 and no second view, the lines below
+/// moving up one.
 #[derive(Clone, Copy, Debug)]
 pub struct Layout {
     pub controller_item: u32,

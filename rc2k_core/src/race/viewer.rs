@@ -1,13 +1,6 @@
-//! The replay viewer's rules: its files, the play stepped frame by frame, the edits (the
-//! marked clip, a camera spread over the next blocks), the menu's items marked, the
-//! pictures' numbers (from `race::replay_path` 0x41EF27,
-//! `step_viewed_replay` 0x41EC47, `copy_marked` 0x41E2F6, `spread_camera` 0x41E6BD,
-//! `mark_viewer_items` 0x41D456, `find_snapshot_number` 0x41EF51, and the camera step of
-//! `next_camera` 0x41E5EB / `previous_camera`; the marks, the frames' pictures and the
-//! snapshot's number from `race::reset_marks` 0x41E403,
-//! `start_frame_pictures` 0x41F35E and `viewer_snapshot` 0x41EFAB; the viewer's actions
-//! from `race::viewer_action` 0x41DE6F, an item's drawing from
-//! `race::draw_viewer_item` 0x41D94A).
+//! The replay viewer's rules: its files, frame-by-frame play, edits (the marked clip, a camera
+//! spread over the next blocks), menu item marks, picture numbers, marks, frame pictures, the
+//! snapshot number and the viewer's actions.
 
 use crate::Invalid;
 
@@ -15,15 +8,15 @@ use crate::Invalid;
 pub const MOST_BLOCKS: u32 = 0x708;
 /// The frames of a block.
 pub const BLOCK_FRAMES: u32 = 100;
-/// The slot of the last race's replay (`var\tmprpl`).
+/// The slot of the last race's replay.
 pub const LAST_RACE: u32 = 0xDE;
 /// The slots from which the game's own replays are numbered.
 pub const OWN_FROM: u32 = 100;
 
-/// A replay's file by its slot (`race::replay_path`).
+/// A replay's file by its slot.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ReplayFile {
-    /// `var\tmprpl`.
+    /// The last race's replay in the var folder.
     LastRace,
     /// `savedata\replay\replayNN`.
     Saved(u32),
@@ -50,15 +43,13 @@ pub enum Step {
     Closed,
     /// At or past the last block: stopped at the end; `last` when exactly at it.
     AtLast { last: bool },
-    /// A new block that reaches the play's end: stopped (not at the end); `end` when
-    /// exactly at it.
+    /// A new block reaching the play's end: stopped (not at the end); `end` when exactly at it.
     PlayEnd { end: bool },
     /// On to `frame` of `block`; `read` when the block is new (it is read first).
     On { block: u32, frame: u32, read: bool },
 }
 
-/// `race::step_viewed_replay`: one frame on (`frame` + 1; past 99 the next block from
-/// frame 0).
+/// One frame on (`frame` + 1; past 99 the next block from frame 0).
 pub fn step(open: bool, block: u32, frame: u32, blocks: u32, play_end: u32) -> Step {
     if !open {
         return Step::Closed;
@@ -89,9 +80,8 @@ pub fn step(open: bool, block: u32, frame: u32, blocks: u32, play_end: u32) -> S
     }
 }
 
-/// `race::copy_marked`: the marked clip (first block, blocks) from the marks, None when
-/// the out mark is not after the in mark (signed); refused with an in mark below 0 or an
-/// out mark past the table.
+/// The marked clip (first block, blocks) from the marks; None when the out mark is not after
+/// the in mark (signed). Refused with an in mark below 0 or an out mark past the table.
 pub fn clip(mark_in: u32, mark_out: u32) -> Result<Option<(u32, u32)>, Invalid> {
     if (mark_out as i32) <= (mark_in as i32) {
         return Ok(None);
@@ -113,9 +103,9 @@ pub struct Spread {
     pub taken: u32,
 }
 
-/// `race::spread_camera`: from the block changed, the next blocks (`byte(n)`, n from 1,
-/// asked in order) that held `old`, until `count` - 1 are gone over or one held another
-/// value. The count is not checked: refused when the walk would pass the table's blocks.
+/// From the block changed, the next blocks (`byte(n)`, n from 1, asked in order) that held
+/// `old`, until `count` - 1 are gone over or one holds another value. Refused when the walk
+/// would pass the table's blocks (the count is not checked).
 pub fn spread(count: u32, old: u8, byte: impl Fn(u32) -> u8) -> Result<Spread, Invalid> {
     let (mut gone, mut left, mut taken) = (0u32, count, 0u32);
     loop {
@@ -135,7 +125,7 @@ pub fn spread(count: u32, old: u8, byte: impl Fn(u32) -> u8) -> Result<Spread, I
     Ok(Spread { gone, left, taken })
 }
 
-/// The last camera (`ViewerAndKinds.viewer_panel.camera_name_ids[0]` names 0x2F).
+/// The last camera's number.
 pub const LAST_CAMERA: u8 = 0x2E;
 /// The names of the cameras a step passes over.
 pub const SKIPPED_NAMES: [u16; 2] = [0x1C1, 0x1C2];
@@ -145,16 +135,15 @@ pub fn camera_skipped(name: u16) -> bool {
     SKIPPED_NAMES.contains(&name)
 }
 
-/// Whether every camera is offered: one player (`header_one_player` 1) whose first car
-/// (`header_kind_0`, the header's) is not a kind 0x17 .. 0x20.
+/// Whether every camera is offered: one player whose first car (the header's) is not kind
+/// 0x17 ..= 0x20.
 pub fn every_camera(one_player: bool, first_car: u32) -> bool {
     one_player && !(0x17..0x21).contains(&first_car)
 }
 
-/// `race::next_camera` (`forward`) / `race::previous_camera`: the camera after (before)
-/// `old`, round from the last to 0 (0 to the last, by sign), passing over the skipped
-/// ones (`skipped(camera)`, asked for each tried) unless `every`. Refused when every
-/// camera is skipped (the original goes round for ever).
+/// The camera after (`forward`) or before `old`, wrapping, passing over the skipped ones
+/// (`skipped(camera)`) unless `every`. Refused when every camera is skipped (it would loop
+/// for ever).
 pub fn step_camera(
     old: u8,
     forward: bool,
@@ -181,23 +170,26 @@ pub fn step_camera(
     }
 }
 
-/// What `race::mark_viewer_items` reads.
+/// What the menu items' marking reads.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ViewerState {
-    /// `last_race_viewed`: the last race's replay is viewed.
+    /// The last race's replay is viewed.
     pub last_race: bool,
-    /// The block shown and the blocks.
+    /// The block shown.
     pub block: u32,
+    /// The replay's blocks.
     pub blocks: u32,
+    /// The first mark.
     pub mark_in: u32,
+    /// The second mark.
     pub mark_out: u32,
     /// The clip's blocks (0: nothing copied).
     pub clip_blocks: u32,
     /// The undo's blocks (0: nothing to undo).
     pub undo_blocks: u32,
-    /// The block's camera (its +5 byte).
+    /// The block's camera (its byte 5).
     pub camera: u8,
-    /// `header_one_player` (the replay header's) 1: one player.
+    /// The replay has one player.
     pub one_player: bool,
 }
 
@@ -206,7 +198,7 @@ pub const GREY: u8 = 0x80;
 /// The item's bit for "ticked".
 pub const TICK: u8 = 0x40;
 
-/// `race::mark_viewer_items`: the items marked (item, bit), in the original's order.
+/// The items marked (item, bit), in menu order.
 pub fn item_marks(s: &ViewerState) -> Vec<(u32, u8)> {
     let mut marks = Vec::new();
     if s.last_race {
@@ -245,8 +237,8 @@ pub fn item_marks(s: &ViewerState) -> Vec<(u32, u8)> {
     marks
 }
 
-/// `race::find_snapshot_number`: a picture's number from its name's first three
-/// characters (each asked in order until one is not a digit), None unless all are.
+/// A picture's number from its name's first three characters (asked in order until one is not
+/// a digit); None unless all are.
 pub fn snapshot_number(name: impl Fn(usize) -> u8) -> Option<u32> {
     (0..3).try_fold(0u32, |n, k| {
         let d = name(k).wrapping_sub(b'0');
@@ -254,9 +246,8 @@ pub fn snapshot_number(name: impl Fn(usize) -> u8) -> Option<u32> {
     })
 }
 
-/// `race::reset_marks` after an edit: the block shown held to the replay's blocks
-/// (signed), the marks round the whole replay. Gives the block, the first mark and the
-/// last.
+/// The marks after an edit: the block shown held to the replay's blocks (signed), the marks
+/// round the whole replay. Returns the block, first mark and last.
 pub fn reset_marks(block: u32, blocks: u32) -> (u32, u32, u32) {
     let block = if (block as i32) > (blocks as i32) {
         blocks
@@ -266,30 +257,29 @@ pub fn reset_marks(block: u32, blocks: u32) -> (u32, u32, u32) {
     (block, 0, blocks)
 }
 
-/// The frames' pictures' rate (a second), held to 1 .. 100 (signed).
+/// The frames' pictures' rate (a second), held to 1 ..= 100 (signed).
 pub fn picture_rate(rate: u32) -> u32 {
     (rate as i32).clamp(1, 100) as u32
 }
 
-/// The time a picture (ms): the one asked for, or for 0 1000 / the rate.
+/// The time of a picture (ms): the one asked for, or for 0 1000 / the rate.
 pub fn picture_time(asked: u32, rate: u32) -> u32 {
     if asked == 0 { 1000 / rate } else { asked }
 }
 
-/// The camera byte a camera-switch item (`switch_pictures_a`) shows: 2 for item kind 0xE, else 3.
+/// The camera byte a camera-switch item shows: 2 for item kind 0xE, else 3.
 pub fn switch_byte(item_kind: u8) -> u32 {
     if item_kind == 0xE { 2 } else { 3 }
 }
 
-/// An item's picture placed in its box: x + (the box's width less the picture's) / 2
-/// (arithmetic).
+/// An item's picture x in its box: x + (box width less picture width) / 2 (arithmetic).
 pub fn centred(x: u32, box_width: u32, width: u32) -> u32 {
     (((box_width.wrapping_sub(width) as i32) >> 1) as u32).wrapping_add(x)
 }
 
-/// An item's colour: grey when marked (`GREY`), white unless it is the highlighted one;
-/// that one red while a camera is edited, else yellow and red by turns (bit 3 of the
-/// clocks' difference, asked only then).
+/// An item's colour: grey when marked (`GREY`), white unless highlighted; the highlighted one
+/// red while a camera is edited, else alternating yellow and red (bit 3 of the clocks'
+/// difference, asked only then).
 pub fn item_colour(
     flags: u8,
     highlighted: bool,
@@ -310,9 +300,13 @@ pub fn item_colour(
 /// Where a go-to action reads the replay from (frame 0 of the block).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Goto {
+    /// The first block.
     Start,
+    /// The first mark.
     MarkIn,
+    /// The second mark.
     MarkOut,
+    /// The last block.
     End,
     /// Blocks back, not below 0 (signed).
     Back(u32),
@@ -320,40 +314,42 @@ pub enum Goto {
     On(u32),
 }
 
-/// One of the viewer's actions (`race::viewer_action`'s argument).
+/// One of the viewer's actions (numbers are action codes).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Action {
-    /// 0, 1, 0xB, 0xC, 3, 4, 8, 9.
+    /// A go-to.
     Goto(Goto),
-    /// 5, 7: a frame back, a frame on.
     FrameBack,
     FrameOn,
-    /// 2, 0xA: the first or the second mark at the block shown.
+    /// The first mark at the block shown.
     MarkIn,
+    /// The second mark at the block shown.
     MarkOut,
-    /// 6, 0x22 (`from_here`: `play_from_here` 1 first).
+    /// Play from the start, or from here.
     PlayHere {
+        /// From the block and frame shown, not from the start.
         from_here: bool,
     },
-    /// 0x1A.
+    /// Play the marked clip.
     PlayMarked,
     /// 0x23: from the start again and again until a key ends a play.
     PlayAgain,
-    /// 0x11, 0x1B, 0x12.
+    /// Cut the marked clip.
     Cut,
+    /// Copy the marked clip.
     CopyMarked,
     Paste,
     /// 0x13, 0x20 (`end_edit`: the camera edit ended after).
     Undo {
         end_edit: bool,
     },
-    /// 0x14.
+    /// Open another replay.
     AnotherReplay,
     /// 0x15 (`back`: into its own slot), 0x16.
     Save {
         back: bool,
     },
-    /// 0x17.
+    /// Take a picture of the frame.
     Snapshot,
     /// 0xF, 0x10: the block's camera byte 5 / 4 one on (`next_byte`).
     Cycle {
@@ -376,7 +372,7 @@ pub enum Action {
     Step {
         back: bool,
     },
-    /// 0x21.
+    /// End the camera edit.
     EndEdit,
     /// 0x25 .. 0x28: the marked clip played saving pictures every so many ms (0: the
     /// rate's).
@@ -447,13 +443,17 @@ impl Action {
 /// The viewer's variables a go-to reads.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Var {
+    /// The block shown.
     Block,
+    /// The replay's blocks.
     Blocks,
+    /// The first mark.
     MarkIn,
+    /// The second mark.
     MarkOut,
 }
 
-/// The block a go-to reads (each variable asked only where the original reads it).
+/// The block a go-to reads (each variable asked only where needed).
 pub fn goto_block(goto: Goto, var: impl Fn(Var) -> u32) -> u32 {
     let held = |v: u32| {
         let blocks = var(Var::Blocks);
@@ -474,8 +474,8 @@ pub fn goto_block(goto: Goto, var: impl Fn(Var) -> u32) -> u32 {
     }
 }
 
-/// A frame back: from frame 0 the last frame (99) of the block before (not below 0,
-/// signed); at block 0 frame 0 it stays. (block, frame).
+/// A frame back: from frame 0 the last frame (99) of the block before (not below 0, signed);
+/// at block 0 frame 0 it stays. Returns (block, frame).
 pub fn frame_back(block: u32, frame: u32) -> (u32, u32) {
     if block == 0 && frame == 0 {
         return (0, 0);
@@ -489,8 +489,8 @@ pub fn frame_back(block: u32, frame: u32) -> (u32, u32) {
     }
 }
 
-/// A frame on: past 99 frame 0 of the next block (not past the count, signed); at the
-/// last block it stays. (block, frame).
+/// A frame on: past 99 frame 0 of the next block (not past the count, signed); at the last
+/// block it stays. Returns (block, frame).
 pub fn frame_on(block: u32, frame: u32, blocks: u32) -> (u32, u32) {
     if block == blocks {
         return (block, frame);
@@ -521,16 +521,16 @@ pub fn mark_out_here(block: u32, mark_in: u32) -> bool {
     block >= mark_in
 }
 
-/// A camera byte one on: byte 5 (the view) past 3 back to 2, byte 4 past 2 back to 0
-/// (signed bytes).
+/// A camera byte one on: byte 5 (the view) past 3 back to 2, byte 4 past 2 back to 0 (signed
+/// bytes).
 pub fn next_byte(byte: u32, old: u8) -> u8 {
     let next = old.wrapping_add(1);
     let (last, back) = if byte == 5 { (3, 2) } else { (2, 0) };
     if (next as i8) > last { back } else { next }
 }
 
-/// A cut's marks (first, second): None when the second is not after the first
-/// (signed); refused with marks or a count outside the table.
+/// A cut's marks (first, second); None when the second is not after the first (signed).
+/// Refused with marks or a count outside the table.
 pub fn cut_marks(mark_in: u32, mark_out: u32, blocks: u32) -> Result<Option<(u32, u32)>, Invalid> {
     if (mark_out as i32) <= (mark_in as i32) {
         return Ok(None);
@@ -541,9 +541,8 @@ pub fn cut_marks(mark_in: u32, mark_out: u32, blocks: u32) -> Result<Option<(u32
     Ok(Some((mark_in, mark_out)))
 }
 
-/// Whether the clipboard (`clip` blocks) is pasted: not empty and fitting the table;
-/// refused at a block shown past the count (the original moves memory by a negative
-/// count).
+/// Whether the clipboard (`clip` blocks) is pasted: not empty and fitting the table. Refused
+/// at a block shown past the count.
 pub fn pastes(clip: u32, blocks: u32, block: u32) -> Result<bool, Invalid> {
     if clip == 0 || blocks.wrapping_add(clip) > MOST_BLOCKS {
         return Ok(false);
@@ -556,17 +555,15 @@ pub fn pastes(clip: u32, blocks: u32, block: u32) -> Result<bool, Invalid> {
     Ok(true)
 }
 
-/// The snapshot's three digits one more (999 round to 000), and where the counting
-/// stopped: the last digit touched and the loop's counter (that digit's place, one less
-/// when it went past '9').
+/// The snapshot's three digits one more (999 wraps to 000), and where the counting stopped:
+/// the last digit touched and the loop counter.
 pub fn next_snapshot(digits: [u8; 3]) -> ([u8; 3], usize, u32) {
     count_up(digits)
 }
 
-/// Decimal digits one more from the last (all nines round to zeros), as the original's
-/// loops count them (`inc byte`, past '9' back to '0' and on to the one before): the
-/// digits, the last touched, and the loop's counter (its place, one less when it went past
-/// '9'). Also used for the picture name of `race::replay_screenshot`.
+/// Decimal digits one more from the last (nines wrap to zeros, carrying to the digit before):
+/// the digits, the last touched, and the loop counter. Also used for the screenshot's picture
+/// name.
 pub fn count_up<const N: usize>(mut digits: [u8; N]) -> ([u8; N], usize, u32) {
     let mut counter = 0;
     let mut last = N - 1;

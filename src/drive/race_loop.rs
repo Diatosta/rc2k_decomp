@@ -1,17 +1,9 @@
-//! `drive::race_loop` (0x444D46): the race played until it ends. The eight blocks' +0xFAC 10,
-//! `WindowLoopState.paused` (paused) and `scene_switch` 0; the clock (`scene::restart_clock`) into
-//! `clock_a`, `5CC3B0`; 0x20 dwords at `marks` and `play_end` -1. Then, with the
-//! tenth's base `race_clock_base` the clock each time round: a window not active pauses
-//! (`WindowLoopState.paused` 1); unpaused, `input::update`; in the attract mode (`in_credits`) a key
-//! (`drive::any_key_down`) or `Credits.done` ends it; key 1 (Esc) asks to quit
-//! (`drive::quit_question`: no goes on, else the answer into the cars' +0xB0 (a replay's car's
-//! only), with two cars a finished car's 2) and ends it; the views' bit 0x40 (+0x468,
-//! `g_viewBlocks`; the second with two views) while not holding (`hold_count` 0) pauses; else
-//! `race::race_keys`, `drive::race_step`, `race::tyre_change`, all out (`race::players_all_out`)
-//! ends it, and the race's frame (`drive::race_frame`, stream A's: through the game). Paused: in a
-//! replay its car's +0x468 0, else `drive::pause_until_key`; unpaused again.
-//!
-//! Caller: `drive::play_race`. Refuses what its calls refuse.
+//! The race played until it ends: each time round the clock is read, a window not active pauses,
+//! unpaused `input::update` runs; in the attract mode a key or the credits' end leaves; Esc asks
+//! to quit (`drive::quit_question`) and the answer goes into the cars; a view's pause bit pauses;
+//! else `race::race_keys`, `drive::race_step`, `race::tyre_change` and the race's frame
+//! (`drive::race_frame`) run, and all players out ends it. Paused: in a replay the car's pause
+//! bit is cleared, else `drive::pause_until_key`. Refuses what its calls refuse.
 
 use crate::drive::race_parts::{
     input_update, players_all_out, race_frame, race_keys, restart_clock, tyre_change,
@@ -29,7 +21,6 @@ fn view_bit(shared: &RaceShared, view: &crate::session::PlainDword) -> Result<bo
     Ok(car.input_keys.get() & 0x40 != 0)
 }
 
-/// The network player's car block.
 fn net_player_car(
     net: &Net,
     shared: &RaceShared,
@@ -46,7 +37,6 @@ fn net_player_car(
         .ok_or(BadInput("the network player's car"))
 }
 
-/// The quit answer `answer` put into the cars (0x444EB5 ..).
 fn put_answer(race: &Race, net: &Net, answer: u32) -> Result<(), BadInput> {
     let shared = &race.shared;
     if net.vars.session.get() != 0 {
@@ -95,7 +85,6 @@ pub fn race_loop(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), R
             .get()
             .race_clock_base
             .set(race.shared.physics_tables.get().scene_clock.get());
-        // 0x444DE9: a frame.
         let paused = loop {
             if system.session.flags.window_active.get() == 0 {
                 system.window_loop().paused.set(1);
@@ -113,9 +102,8 @@ pub fn race_loop(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), R
                 }
                 let or = crate::drive::any_key_down::any_key_down(input);
                 if or != 0 {
-                    // Which keys (`g_keysPressed`, by scan code), and the window's own state
-                    // of them (`g_keysDown`), for the credits race that ends at once after
-                    // the intro.
+                    // Which keys (by scan code), and the window's own state of them, for the
+                    // credits race that ends at once after the intro.
                     let keys = |table: &crate::session::Bytes<0x80>| {
                         (0..0x80usize)
                             .filter(|&n| table.get(n) != 0)
@@ -179,7 +167,6 @@ pub fn race_loop(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), R
         if !paused {
             continue;
         }
-        // 0x444F0F: paused.
         if net.vars.session.get() != 0 {
             net_player_car(net, &race.shared)?.input_keys.set(0);
         } else {

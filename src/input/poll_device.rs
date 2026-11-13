@@ -1,21 +1,9 @@
-//! `input::poll_device` (0x408869): an acquired device's state copied into its record.
-//! With its DirectInput device (+4) acquired (+0x24 1): `Poll`; `GetDeviceState` (0x50
-//! bytes into `g_deviceState`); when that fails `Acquire` and (sic) the record's first 0x50
-//! bytes copied over the state (a copy where zeros were meant, which also leaves the copy's pointer
-//! 0x50 further on, so that the rest reads and writes the record from there: section 16).
-//! Then the
-//! axes: for kinds up to 2, x the state dword `+0x1D & 7` (negated with bit 0x10) and y
-//! `+0x1C & 7` (likewise), a y below 0 being the third axis (made positive) and the second
-//! 0; for kinds above 2, x the state's first dword and the others by `+0x1A` / `+0x1B` (each
-//! plus 0x100 with bit 0x10); the second and third made positive; into +0x2C, +0x30, +0x34;
-//! the 32 buttons (state +0x30 .., bit 7) as bits into +0x38.
-//!
-//! Takes: the device's record (`input/devices.rs`)
-//!
-//! Caller: `input::read_device`. Its DirectInput calls: `Poll`, `GetDeviceState`
-//! (its result), `Acquire` (platform).
-//!
-//! Its arguments are what it reads.
+//! Copies an acquired device's state into its record: `Poll`, then `GetDeviceState`; when that
+//! fails, `Acquire` and the record's first 0x50 bytes are copied over the state, and the rest then
+//! works on the record 0x50 bytes further on (a slip kept as is: zeros were meant). Then the three
+//! axes by the record's kind (x, y, and a third from a negative y or the state's other dwords, made
+//! positive) go into +0x2C, +0x30, +0x34 and the 32 buttons (state +0x30 .., bit 7) into +0x38 as
+//! bits. Record layout: `input/devices.rs`.
 
 use crate::errors::Refused;
 use crate::input::devices::{STATE_LEN, joy_state};
@@ -67,7 +55,6 @@ pub fn poll_device(devices: &Devices, record: &InputDevice) -> Result<(), Refuse
         poll_shifted(devices, record);
         return Ok(());
     }
-    // Converted: `rc2k_core::input::joystick` (`poll_axes`, `poll_buttons`).
     use rc2k_core::input::joystick::{poll_axes, poll_buttons};
     let [x, y, z] = poll_axes(
         record.kind.get(),

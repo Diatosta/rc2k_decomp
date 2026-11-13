@@ -1,32 +1,19 @@
-//! `saves::load_savegame` (0x46E6E1): the action of a slot on the "load game" menu: reads the
-//! saved game, puts its state back into the game and goes on with the event from there.
+//! The action of a slot on the "load game" menu: reads the saved game, puts its state back into
+//! the game and goes on with the event from there.
 //!
-//! In order:
-//! - `menu::ready_players`; the event is marked as going on (`event_goes_on` = 1), the
-//!   times are not reset (`reset_times` = 0) and the player is not out (`event_out` = 0);
-//! - `read_savegame_slot` on the highlighted slot (page x 10 + item - 1). If that fails:
-//!   menu sound 8, `menu::go_back`, and that is all;
-//! - the seven dwords, the four cars and the 180 records go back where `gather_savegame`
-//!   took them from; the saved cars are left in the file's buffer (`saved_cars`); between
-//!   the dwords and the cars it calls `saves::keep_player_settings` (only if
-//!   `use_savegame_keys` is 0) and `menu::drop_missing_controllers`. Each car's 0x20 bytes
-//!   at +0x124 are copied to where the car's name pointer at +0x18 pointed before the car
-//!   was overwritten; car 0's two start sections go back to `flow.start_section` and
-//!   `start_section_a8`;
-//! - `menu::next_record_kind` says where the event stands: 4 or 5, the next section starts
-//!   (section + 1, stage index 0); 0 or 1, the next stage (index + 1); 3, nothing more
-//!   happens here; any other value is fatal error 0x80702821 "Corrupt SaveGame";
-//! - unless it was 3: `continuing_save` = 1, `menu::link_player_names`, and then the event
-//!   itself runs: `menu::run_a8_championship` if the event mode is 0x13, else
-//!   `menu::run_championship`. These only come back when the event is over or left;
-//! - `menu::go_back`.
+//! In order: `menu::ready_players`; `read_savegame_slot` on the highlighted slot (page x 10 +
+//! item - 1; if that fails: menu sound 8, `menu::go_back`, and that is all); the seven dwords,
+//! the four cars and the 180 records go back where `gather_savegame` took them from (between
+//! the dwords and the cars `saves::keep_player_settings` runs if `use_savegame_keys` is 0, and
+//! `menu::drop_missing_controllers`); `menu::next_record_kind` says where the event stands (4
+//! or 5: the next section; 0 or 1: the next stage; 3: nothing more happens here; any other
+//! value is fatal error 0x80702821 "Corrupt SaveGame"); unless it was 3, the event itself runs
+//! (`menu::run_a8_championship` if the event mode is 0x13, else `menu::run_championship`) and
+//! `menu::go_back` follows. The players' own records and names are set aside first and put back
+//! at the end (`menu::own_settings`).
 //!
-//! Not the original's: the players' own records and names are set aside first and put
-//! back at the end (`menu::own_settings`).
-//!
-//! Ten menu tables point at this function. Refuses, before anything is done: a slot past 99,
-//! a missing player or a car without its name pointer; later, what its Rust callees refuse
-//! (the event loops when their callees refuse).
+//! Refuses, before anything is done: a slot past 99, a missing player or a car without its name
+//! pointer; later, what its callees refuse.
 
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::menu::go_back;
@@ -37,8 +24,6 @@ use crate::saves::read_savegame_slot::read_savegame_slot_in;
 use crate::saves::write_savegame_slot::SLOTS;
 use rc2k_core::saves::savegame::{A8_MODE, CORRUPT, Resume, resume};
 
-// ---- game data ----
-
 /// Where the saved game starts in the file: what `gather_savegame` wrote.
 const PAYLOAD_OFFSET: usize = 0x30;
 
@@ -47,15 +32,14 @@ const UNREADABLE_SOUND: u32 = 8;
 
 /// The slot the highlighted menu item stands for.
 fn highlighted_slot(menus: &Menus) -> u32 {
-    // Converted: `rc2k_core::saves::savegame::slot`.
     rc2k_core::saves::savegame::slot(
         menus.tables.pages.save_page.get(),
         menus.screens.loop_flags.item.get(),
     )
 }
 
-/// The players' own records and names come back when
-/// the loaded championship is over or left (`menu::own_settings`; not the original's).
+/// The players' own records and names come back when the loaded championship is over or left
+/// (`menu::own_settings`).
 pub fn load_savegame(o: Owners<'static>) -> Result<(), Refused> {
     crate::menu::own_settings::around_championship(o.menus, || load_and_run(o))
 }

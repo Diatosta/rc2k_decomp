@@ -1,17 +1,11 @@
 //! `menu::service_pass`: the service area between stages. The money is cleared, the service
-//! minutes go up by 900 and `event_goes_on` is set to 1; for each counted player
-//! (`current_player` 0 .. `player_count`, the original's `do .. while`; ebx adds up their
-//! +0xD0) taking part (+0xD0 1) when the service is due (`service_due` 1): the inspection's
-//! screen (`menu::inspection_screen`), a second's sleep, the fade in, 250 ms' sleep, the time
-//! of the chosen repairs cleared, the figures (`menu::driver_stats`), the service flag
-//! cleared, the drivers' condition reset (`menu::reset_driver_condition`), the repair flags
-//! cleared (`service::clear_repair_flags`), six keys taken (`input::take_key`), the service
-//! page (`service::service_area_loop`; a yes to leaving ends it all), the repairs
-//! (`service::apply_repairs`), the entry kind (`menu::set_player_entry_kind`); a player now
-//! out (+0xD0 2) gets the faults (`menu::inspection_faults`) and the inspection page
-//! (`menu::inspection_area_loop`; a yes ends it all) and is counted in `event_out`; its
-//! +0x288 then takes the money x 100. When every player is out, `event_goes_on` is cleared.
-//! At the end `service_due` is cleared.
+//! minutes go up by 900 and `event_goes_on` is set; for each counted player taking part when the
+//! service is due: the inspection's screen, the fade in, the figures (`menu::driver_stats`),
+//! the repair flags cleared, the service page (`service::service_area_loop`; a yes to leaving
+//! ends it all), the repairs (`service::apply_repairs`), the entry kind; a player now out
+//! (+0xD0 2) gets the faults and the inspection page and is counted in `event_out`, its +0x288
+//! takes the money x 100. When every player is out, `event_goes_on` is cleared; `service_due`
+//! is cleared at the end.
 //!
 //! Callers: the event drivers. Refuses a player count of 0 or past 4, a player missing, a
 //! taking-part player's car without its table, before anything.

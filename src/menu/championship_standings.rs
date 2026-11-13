@@ -1,4 +1,4 @@
-//! `menu::championship_standings` (0x4A9583): the championship's standings pages,
+//! `menu::championship_standings`: the championship's standings pages,
 //! `state.menus.standings_shown` set while they show. Standings table B from all
 //! (`menu::standings_b_from_all`); outside event mode 0x13: sorted by figure and by score
 //! (`menu::sort_standings_b_by_figure`, `_by_score`), numbered (`number_all`), the
@@ -16,7 +16,6 @@ use crate::menu::standings_steps::number_all;
 
 pub fn championship_standings(menus: &Menus, entry: &Entry) -> Result<(), Refused> {
     use crate::menu::{sort_standings_b_by_figure as fig, sort_standings_b_by_points as pts};
-    // The logic is in `rc2k_core::menu::results_pages` (`class_pages_only`, `standings_sorts`).
     use rc2k_core::menu::results_pages::{Sort, class_pages_only, standings_sorts};
     crate::menu::standings_b_from_all::standings_b_from_all(
         crate::strings::append_string_by_id::StringOwners::of(entry.owners),

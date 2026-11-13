@@ -1,7 +1,5 @@
-//! DOS file times (date << 16 | time, two-second steps), as `FileTimeToDosDateTime` and
-//! `DosDateTimeToFileTime` make and read them: the game copies a file's last write time
-//! through one (`files::copy_file`). Neither converts time zones: the DOS fields are the
-//! UTC time's. Ticks are a Windows file time's: 100 ns since 1601-01-01 UTC.
+//! DOS file times (date << 16 | time, two-second steps) to and from Windows file times
+//! (100 ns ticks since 1601-01-01 UTC). No time zones: the DOS fields are UTC.
 
 /// Ticks from 1601-01-01 to 1980-01-01.
 const TICKS_1980: u64 = 119_600_064_000_000_000;

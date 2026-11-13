@@ -1,15 +1,6 @@
-//! `menu::load_championship_table_loop` (0x46E899): a second screen titled "CARREGAR
-//! CAMPEONATO", reached through a table.
-//!
-//! The loop itself is `menu::screen_loop`; this file says what is this screen's own (`SCREEN`),
-//! as extracted from the disassembly: leaving is not asked about; on leaving the highlight is
-//! saved in the saved highlight, not in the variable it is taken from (the original's slip); the
-//! steps that are more than a call or a store are the functions below, generated from the
-//! listing.
-//! The name is a reading from the title string of its menu, "CARREGAR CAMPEONATO", not yet a
-//! visit.
-//! Callers: none in code: it is reached through a table. The menus and draw lists run its `entry`
-//! (`menu::table_calls`).
+//! A second screen titled "CARREGAR CAMPEONATO", reached through a table. Screen-specific part of
+//! `menu::screen_loop`: leaving is not asked about; on leaving the highlight is saved in the saved
+//! highlight, not in the variable it is taken from (a 1999 slip kept as is).
 
 use crate::errors::Refused;
 use crate::menu::screen_items_store::slot;
@@ -25,17 +16,17 @@ fn prepare(entry: &Entry) -> Result<(), Refused> {
 pub const SCREEN: Screen = Screen {
     lists: &[
         List {
-            pointer: |m| &m.screens.flow.scene_list, // g_sceneList
+            pointer: |m| &m.screens.flow.scene_list,
             table: |m| m.tables.draw_lists.load_championship_table_scene.id(),
             run: false,
         },
         List {
-            pointer: |m| &m.screens.flow.draw_list, // g_drawList
+            pointer: |m| &m.screens.flow.draw_list,
             table: |m| m.tables.draw_lists.load_championship_table_draw.id(),
             run: false,
         },
         List {
-            pointer: |m| &m.screens.flow.overlay_list, // g_overlayList
+            pointer: |m| &m.screens.flow.overlay_list,
             table: |m| m.tables.draw_lists.load_championship_table_overlay.id(),
             run: false,
         },
@@ -50,7 +41,6 @@ pub const SCREEN: Screen = Screen {
     )
 };
 
-/// Runs the screen (a refusal is the caller's).
 pub fn run(o: crate::owners::Owners<'static>) -> Result<(), crate::errors::Refused> {
     screen_entry(o, "menu::load_championship_table_loop", &SCREEN)
 }

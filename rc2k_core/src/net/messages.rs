@@ -1,12 +1,11 @@
-//! The messages the receiving thread takes (from `net::take_messages`
-//! 0x4194CC), by their first byte: a chat line, the host's two calls to wait for everyone
-//! (with the round, `g_netSync`) and the other machines' answers to them, and the race's
-//! messages (top bit set) that go into the sender's inbox.
+//! The messages the receiving thread takes, by their first byte: a chat line, the host's two calls
+//! to wait for everyone (with the round) and the other machines' answers to them, and
+//! the race's messages (top bit set) that go into the sender's inbox.
 
 use crate::net::inbox::LONGEST;
 use crate::net::record::is_host;
 
-/// A chat line: the text after the byte.
+/// A chat line: the text follows the byte.
 pub const CHAT: u8 = 0x22;
 /// The host's call: everyone ready for the race (answered `READY_ANSWER`).
 pub const ALL_READY: u8 = 0x40;

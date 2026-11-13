@@ -1,14 +1,12 @@
-//! `menu::inspection_screen` (0x4A1BBF): the inspection's screen shown: a scene work cell /
-//! a scene work cell 0 and a scene work cell 0x100, the menu scene prepared
-//! (`scene::prepare_menu_scene`), the clip's screen edges 0 and 0x320 (a scene work cell /
-//! a scene work cell and, as floats, `g_clipScreenLeft` / `Right`), the background loaded
-//! (`service::load_background`, 0x470F55; its carry not read), copied to the surface and
-//! the frame shown.
+//! `menu::inspection_screen`: the inspection's screen shown: two scene work cells set to 0 and
+//! 0x100, the menu scene prepared (`scene::prepare_menu_scene`), the clip's screen edges 0 and
+//! 0x320 (as scene work cells and, as floats, the clip screen left / right), the background
+//! loaded (`service::load_background`; its result not read), copied to the surface and the
+//! frame shown.
 
 use crate::errors::Refused;
 
-/// Whether the copy and the showing worked is not looked at (the original's carries are
-/// not).
+/// Whether the copy and the showing worked is not looked at.
 pub fn inspection_screen(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     let scene = o.scene;
     let front_end = crate::scene::polygon_work::front_end();

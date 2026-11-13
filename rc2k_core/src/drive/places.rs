@@ -1,26 +1,25 @@
-//! The cars' order (from `drive::two_car_order` 0x460CDA,
-//! `note_gap_ahead` 0x4373A4 and `note_gap_behind`): the two places of a two-car race,
-//! and the nearest gap in checkpoints to the lead car.
+//! The cars' order: the two places of a two-car race, and the nearest gap in checkpoints to the
+//! lead car.
 
-/// A car block's figures `two_car_order` reads.
+/// The byte offsets of the car block's figures `two_car_order` reads.
 pub const FINISHED: u32 = 0xA8;
 pub const CHECKPOINT: u32 = 0x94;
 /// The tie-break (+0x624 = `checkpoint_offset[1]`: the car's z in its checkpoint's frame,
 /// `physics::checkpoint_offset`).
 pub const TIE_BREAK: u32 = 0x624;
 
-/// `two_car_order`'s result: the places to give the two cars (`None`: left as they are)
-/// and the last figure compared (as `last_figure` came in when none was).
+/// The places to give the two cars (`None`: left as they are) and the last figure compared
+/// (`last_figure` as it came in when none was).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Order {
     pub places: Option<[u32; 2]>,
     pub last: u32,
 }
 
-/// `drive::two_car_order`: -1 for both outside mode 0 or with one view (`players` 1);
-/// left as they are while either is finished; else 1 for the one ahead (by checkpoint,
-/// then the tie-break, each by the sign of the difference), 2 for the other. `figure(car,
-/// offset)` reads a car block's dword, asked as the original reads them.
+/// The places of a two-car race: -1 for both outside mode 0 or with one view (`players` 1); left
+/// as they are while either is finished; else 1 for the one ahead (by checkpoint, then the
+/// tie-break, each by the sign of the difference), 2 for the other. `figure(car, offset)` reads a
+/// car block's dword, asked only when needed.
 pub fn two_car_order(
     mode: u32,
     players: u32,
@@ -55,9 +54,8 @@ pub fn two_car_order(
     }
 }
 
-/// `drive::note_gap_ahead` / `note_gap_behind`: the car's checkpoint against the lead
-/// car's (ahead: car - lead, behind: lead - car), plus one; it
-/// replaces `best` when below it (unsigned).
+/// The gap ahead or behind: the car's checkpoint against the lead car's (ahead: car - lead,
+/// behind: lead - car), plus one; it replaces `best` when below it (unsigned).
 pub fn note_gap(car: u32, lead: u32, behind: bool, best: &mut u32) -> u32 {
     let d = if behind {
         lead.wrapping_sub(car)

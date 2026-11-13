@@ -1,20 +1,21 @@
-//! The lists of car numbers the options file holds, out of RAL.EXE's image (IDA 0x755258 ..
-//! 0x7554C0): the numbers of the cars that can be chosen in two lists
-//! (`saves::rebuild_car_lists` makes the car pointers of `menu::lists_store` from them) and the two
-//! scratch tables `menu::shuffle_drivers` works in. One static.
+//! The lists of car numbers the options file holds: the numbers of the cars that can be chosen
+//! in two lists (`saves::rebuild_car_lists` makes the car pointers of `menu::lists_store` from
+//! them) and the two scratch tables `menu::shuffle_drivers` works in. One static.
 
 use crate::session::{PlainBytes, PlainDword, with_runs};
 
-/// The lists of car numbers (IDA 0x755258 .. 0x7554C0).
+/// The lists of car numbers.
 #[derive(rc2k_derive::Cells)]
 pub struct CarNumbers {
-    /// `unk_755258`: The first list's car numbers, ended by -1 (0x28 entries; the options file's first 0xA0 bytes here).
+    /// The first list's car numbers, ended by -1 (0x28 entries; the options file's first 0xA0 bytes
+    /// here).
     pub first_numbers: [PlainDword; 40],
-    /// `unk_7552F8`: The second list's car numbers, ended by -1 (the options file holds 0x14 of its entries, `saves::list_car_numbers` fills 0x28).
+    /// The second list's car numbers, ended by -1 (the options file holds 0x14 of its entries,
+    /// `saves::list_car_numbers` fills 0x28).
     pub second_numbers: [PlainDword; 40],
-    /// `unk_755398`: The first scratch table of `menu::shuffle_drivers` (0x94 bytes).
+    /// The first scratch table of `menu::shuffle_drivers` (0x94 bytes).
     pub shuffle_a: PlainBytes<148>,
-    /// `unk_75542C`: The second.
+    /// The second.
     pub shuffle_b: PlainBytes<148>,
 }
 

@@ -1,24 +1,16 @@
 //! The set-ups of the players' results screens, all plain stores:
-//! - `menu::rank_stage_times`: the four players' stage times (`g_players`[n] + 0x88) with
-//!   their byte offsets (0, 4, 8, 12) in `results.pairs`, sorted by the original's exchange
-//!   loop (each pair i < j exchanged when j's time is at most i's, signed; its two counters
-//!   are left at 3 and 4); the offsets in that order go into the duel's first and second
-//!   players and the two entries after them; and through the place pointers
-//!   (`captions.place_pointers`[offset], the four `results.positions`) the places 1 .. 4.
-//! - `menu::rank_totals`: the same on `results.totals`, exchanged when j's is at least i's.
-//! - `menu::score_four_players`: for each of the four: the total before (`results.before`
-//!   takes `results.totals`), the place's points (`captions.place_points`[position] into
-//!   `results.points`), the time bonus (`results.time_bonus`: the stage record's +0x34 less
-//!   the player's time, 0 when the time is greater, signed; the record is the stage's row of
-//!   the event's stage table), the player's +0x94 (`results.extra`), their sum
-//!   (`results.sums`) and the new total (`results.totals`).
-//! - `menu::score_two_players`: the same for two, with the places worked out here: 1 and 2,
-//!   or 2 and 1 when the second's time is below the first's (signed; the second counter
-//!   keeps the first's time).
+//! - `menu::rank_stage_times` / `rank_totals`: the four players' stage times (or totals) sorted
+//!   with an exchange loop (stage times: each pair exchanged when j's time is at most i's,
+//!   signed; totals: at least); the order goes into the duel's players and, through the place
+//!   pointers, the places 1 .. 4.
+//! - `menu::score_four_players`: per player the total before, the place's points, the time
+//!   bonus (the stage record's +0x34 less the player's time, 0 when greater, signed), the
+//!   player's +0x94, their sum and the new total (`results.*`).
+//! - `menu::score_two_players`: the same for two, with the places worked out here (1 and 2, or
+//!   2 and 1 when the second's time is below the first's).
 //!
-//! Refusals (before anything): a missing player record, a stage record missing on the
-//! way, a position past 16 (the points table is read unchecked), an offset past the four
-//! (the pointer table likewise), a null place pointer.
+//! Refusals (before anything): a missing player record or stage record, a position past 16, an
+//! offset past the four, a null place pointer.
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::captions_store::CaptionTables;
@@ -52,7 +44,6 @@ pub fn rank(menus: &Menus, by_totals: bool) -> Result<(), Refused> {
     } else {
         players(menus, 4)?.iter().map(|&r| r.get().time).collect()
     };
-    // The logic is in `rc2k_core::menu::results::rank`.
     let pairs =
         rc2k_core::menu::results::rank([values[0], values[1], values[2], values[3]], by_totals);
     let targets: Vec<_> = pairs
@@ -118,7 +109,6 @@ pub fn score(menus: &Menus, system: &System, n: usize) -> Result<(), Refused> {
         menus.play.results.positions[0].set(positions[0]);
         menus.play.results.positions[1].set(positions[1]);
     }
-    // The logic is in `rc2k_core::menu::results::score`.
     for k in 0..n {
         let sc = rc2k_core::menu::results::score(
             menus.play.results.before[k].get(),

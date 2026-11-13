@@ -1,18 +1,13 @@
-//! `install::read_sku` (0x411696): reads the edition file `files\d\gfx\sku`.
-//!
-//! A settings text with the key `sku`. Its value may start with the marks `oem:` and
-//! `dvd:`, in any order and number, each setting a switch to 1 (the OEM and DVD
-//! switches); then a number, after the next `:` a second byte and after the next `.`
-//! within 254 characters a third byte.
-//! What is not there keeps its value. One caller, `system::load_game_data`.
+//! Reads the edition file `files\d\gfx\sku`: a settings text with the key `sku`. Its value may
+//! start with the marks `oem:` and `dvd:`, in any order and number, each setting a switch to 1;
+//! then a number, after the next `:` a second byte and after the next `.` within 254 characters
+//! a third byte. What is not there keeps its value. One caller, `system::load_game_data`.
 
 use crate::errors::BadInput;
 use crate::session::{PlainByte, PlainBytes, PlainDword, with_runs};
 use crate::settings::read_text::read_text;
 use crate::strings::same_text::case_table;
 use rc2k_core::install::config;
-
-// ---- game data ----
 
 pub fn read_sku(
     install: &crate::install::owner::Install,
@@ -22,7 +17,6 @@ pub fn read_sku(
     let Some(text) = read_text(system, path)? else {
         return Ok(());
     };
-    // Converted: `rc2k_core::install::config::read_sku` (the key as its constant).
     let Some(sku) = config::read_sku(&text, &case_table())? else {
         return Ok(());
     };
@@ -42,22 +36,22 @@ pub fn read_sku(
     Ok(())
 }
 
-/// The edition's markers (`install::read_sku`) (IDA 0x5190F4 .. 0x519118).
+/// The edition's markers (`install::read_sku`).
 #[derive(rc2k_derive::Cells)]
 pub struct Sku {
-    /// 0x5190F4: `dword_5190F4`: the edition's number.
+    /// The edition's number.
     pub number: PlainDword,
-    /// 0x5190F8: `dword_5190F8`: 1 for an OEM edition.
+    /// 1 for an OEM edition.
     pub oem: PlainDword,
-    /// 0x5190FC: `dword_5190FC`: 1 for a DVD edition.
+    /// 1 for a DVD edition.
     pub dvd: PlainDword,
-    /// 0x519100: `byte_519100`: the sku file's third byte.
+    /// The sku file's third byte.
     pub third: PlainByte,
-    /// 0x519101: `byte_519101`: its second byte.
+    /// Its second byte.
     pub second: PlainByte,
-    /// 0x519102: `aFilesDGfxSku`: "files\d\gfx\sku", the file read.
+    /// "files\d\gfx\sku", the file read.
     pub path: PlainBytes<16>,
-    /// 0x519112: Not named: 6 bytes (a gap, or data nothing reads here).
+    /// A gap of 6 byte(s): nothing reads it.
     pub _gap_519112: PlainBytes<6>,
 }
 

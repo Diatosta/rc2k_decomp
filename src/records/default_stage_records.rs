@@ -1,13 +1,11 @@
-//! `records::default_stage_records` (0x47C7E0): gives every stage of a record table a
-//! made-up best time and top speed.
+//! Gives every stage of a record table a made-up best time and top speed.
 //!
-//! Takes the record table. Nothing if the first record's byte +0x54 is not 0 (it has a name there
-//! already). Else for every record with tag 0, up to the table's -1 (0x47CE05, a plain function
-//! here), from four random numbers under 0xAA: a driver, whose +0x14 goes to the record's +0x74,
-//! +0x18 to +0x78 and name (without a NUL) to +0x54; the second + 1000 to +0x30; another driver to
-//! +0x9C, +0xA0 and +0x7C; the fourth + 1000 to +0x2C. One caller, `menu::set_up_front_end`, on
-//! each of thirteen record tables when `var\ral.dat` was not loaded. Refuses a null table, a table
-//! without its end, and a name that does not fit.
+//! Nothing if the first record's holder already has a name. Else every record with tag 0, up
+//! to the table's -1, gets two made-up holders from four random numbers under 0xAA: a random
+//! driver (nationality, car and name, without a NUL) as the fastest holder with the second
+//! number + 1000 as its speed, and another driver as the second holder with the fourth + 1000.
+//! Called by `menu::set_up_front_end` on each of thirteen record tables when `var\ral.dat` was
+//! not loaded. Refuses a null table, a table without its end, and a name that does not fit.
 
 use crate::errors::{BadInput, Refused};
 use crate::math::random_below::random_below;
@@ -15,15 +13,11 @@ use crate::menu::owner::Menus;
 use crate::records::stages_store::{HOLDER_NAME_LEN, Holder, HolderRow, RecordTable, StageTables};
 use crate::saves::drivers::Driver;
 
-// ---- game data ----
-
 /// More records than any table has.
 const MOST_RECORDS: usize = 0x1000;
 
-/// How many records the table has before its -1 (the first is not looked at for the
-/// end, as in the original).
+/// How many records the table has before its -1 (the first is not looked at for the end).
 fn records(stages: &StageTables, table: RecordTable) -> Result<usize, BadInput> {
-    // Converted: `rc2k_core::files::records::record_count`.
     Ok(rc2k_core::files::records::record_count(
         &table.bytes(stages),
         MOST_RECORDS,

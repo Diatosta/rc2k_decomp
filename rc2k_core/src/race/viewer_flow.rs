@@ -1,12 +1,5 @@
-//! The replay viewer's flows: opening a replay and saving one, the undo, the camera
-//! edit's switch, the physics patches a replay was recorded with, the plays, the frame's
-//! bar and the tidying (from `race::open_viewed_replay` 0x41E9FF,
-//! `save_viewed_replay` 0x41ED1C, `close_viewed_replay` 0x41EB7C, `keep_undo` 0x41E438,
-//! `undo_edit` 0x41E46B, `edit_camera_1` 0x41E599 / `edit_camera_2` 0x41E5BA,
-//! `apply_replay_patches` 0x41F2C9, `restore_replay_patches` 0x41F31D, `play_marked`
-//! 0x41E224, `play_from_here` 0x41E1E2, `viewer_frame` 0x41D5FB, `viewer_tidy_stage`
-//! 0x41CEB4, `replay_mode_1` 0x41CD75 / `replay_mode_3` 0x41CD89, `step_replay_cars`
-//! 0x460835, `draw_viewer_panel` 0x41DA25 and `viewer_palettes` 0x41D8BF).
+//! The replay viewer's flows: opening and saving a replay, the undo, the camera edit switch,
+//! the physics patches a replay was recorded with, plays, the frame's bar and tidying.
 
 use crate::Invalid;
 use crate::race::replay::{HEADER_MAGIC, HEADER_VERSION, INDEX_MAGIC};
@@ -18,11 +11,11 @@ use crate::race::viewer::{MOST_BLOCKS, OWN_FROM};
 pub const HEADER_LEN: u32 = 0x430;
 /// The index at the file's end ("RCIB", the count, the blocks' places).
 pub const INDEX_LEN: u32 = 0x3850;
-/// The cars' header kept from the first block (`Replays.header` into `header_stage`).
+/// The cars' header kept from the first block.
 pub const CAR_HEADER_LEN: usize = 0x400;
 
-/// The last race's replay asked for when none was recorded (`replay_closed` not 1, asked
-/// only then): the opening fails at once.
+/// The last race's replay was asked for when none was recorded (`recorded` asked only then):
+/// opening fails at once.
 pub fn last_race_missing(is_last_race: bool, recorded: impl FnOnce() -> u32) -> bool {
     is_last_race && recorded() != 1
 }
@@ -32,8 +25,8 @@ pub fn copied_first(slot: u32) -> bool {
     slot < OWN_FROM
 }
 
-/// A read of the header or the index went well: no carry, all asked read, the magic
-/// word right ("REPL" for the header, "RCIB" for the index).
+/// A header or index read went well: no error, all asked read, the magic word right ("REPL"
+/// for the header, "RCIB" for the index).
 pub fn read_good(carry: bool, read: u32, asked: u32, first_word: u32, header: bool) -> bool {
     !carry && read == asked && first_word == if header { HEADER_MAGIC } else { INDEX_MAGIC }
 }
@@ -54,7 +47,7 @@ pub enum Blocks {
     Held(u32),
 }
 
-/// `open_viewed_replay`'s test of the index's count.
+/// Classifies the index's block count.
 pub fn index_blocks(count: u32) -> Blocks {
     if (count as i32) <= 0 {
         Blocks::Bad
@@ -70,75 +63,75 @@ pub fn opened_marks(blocks: u32) -> (u32, u32) {
     (0, blocks)
 }
 
-/// The block's cameras: the first two dwords of each block read.
+/// The cameras: the first two dwords read of each block.
 pub const CAMERA_DWORDS: usize = 2;
 
-/// The opening's answer: carry clear, zero when the patches' call left 0.
+/// Whether the opening's patch call returned 0.
 pub fn opened_zero(result: u32) -> bool {
     result == 0
 }
 
 // ---- saving ----
 
-/// The new header's first three dwords ("REPL", 0, the version); the date follows.
+/// The new header's first three dwords (magic, 0, the version); the date follows.
 pub const SAVED_HEADER: [u32; 3] = [HEADER_MAGIC, 0, HEADER_VERSION];
 /// A slot's name: 32 bytes a slot, copied after the date.
 pub const NAME_LEN: usize = 0x20;
-/// A block's data read and written packed (`block`).
+/// A block's data length, read and written packed.
 pub const BLOCK_LEN: u32 = 0x2810;
 /// The index's head written after the blocks ("RCIB" and the count).
 pub const INDEX_HEAD_LEN: u32 = 0x10;
 
-/// Nothing to save with no blocks.
+/// Nothing is saved with no blocks.
 pub fn has_blocks(blocks: u32) -> bool {
     blocks != 0
 }
 
-/// A slot's name's offset in the names (the original's `shl`, high bits lost).
+/// A slot's name's offset in the names (wrapping).
 pub fn name_offset(slot: u32) -> u32 {
     slot.wrapping_mul(NAME_LEN as u32)
 }
 
-/// The new file's length after a block written: its size negative when packed.
+/// The new file's length after a block; its size is negative when packed.
 pub fn next_offset(offset: u32, size: u32) -> u32 {
     offset.wrapping_add((size as i32).unsigned_abs())
 }
 
 // ---- the undo, the camera edit, closing ----
 
-/// `keep_undo` and `undo_edit`'s copies: the places and cameras into their keeping.
+/// Copies the places and cameras tables into their keeping (the undo's keep and restore).
 pub fn copy_tables(to: (&mut [u32], &mut [u32]), from: (&[u32], &[u32])) {
     to.0.copy_from_slice(from.0);
     to.1.copy_from_slice(from.1);
 }
 
-/// `undo_edit`: the block count to put back, None when nothing is kept (0).
+/// The block count to put back; None when nothing is kept (0).
 pub fn undo_count(kept: u32) -> Option<u32> {
     (kept != 0).then_some(kept)
 }
 
-/// `edit_camera_1` / `_2`: the camera is edited unless the block shown is the last.
+/// The camera is edited unless the block shown is the last.
 pub fn edits_camera(block: u32, blocks: u32) -> bool {
     block != blocks
 }
 
-/// `close_viewed_replay`: only an open replay (`replay_open` 1) is closed.
+/// Only an open replay is closed.
 pub fn closes(open: bool) -> bool {
     open
 }
 
-/// `replay_mode_1` / `_3`: the viewer runs only with a replay there (`replay_closed`).
+/// The viewer runs only with a replay there.
 pub fn views_replay(there: u32) -> bool {
     there != 0
 }
 
 // ---- the physics patches ----
 
-/// The patch switches (`g_patchSwitch`): 13 dwords.
+/// The patch switches: 13 dwords.
 pub const PATCH_DWORDS: usize = 13;
 
-/// Whether the patches change: applying when the header has them and they are not in
-/// force, restoring when it has them and they are.
+/// Whether the patches change: applying when the header has them and they are not in force,
+/// restoring when it has them and they are.
 pub fn patches_change(in_header: u32, in_force: u32, restoring: bool) -> bool {
     in_header != 0 && (in_force != 0) == restoring
 }
@@ -153,7 +146,7 @@ pub struct Play {
     pub end: u32,
 }
 
-/// `play_marked`: from the first mark's start to the second mark.
+/// A play from the first mark's start to the second mark.
 pub fn marked_play(mark_in: u32, mark_out: u32) -> Play {
     Play {
         from: mark_in,
@@ -162,7 +155,7 @@ pub fn marked_play(mark_in: u32, mark_out: u32) -> Play {
     }
 }
 
-/// `play_from_here`: from the block and frame shown to the end.
+/// A play from the block and frame shown to the end.
 pub fn play_from_here(block: u32, frame: u32, blocks: u32) -> Play {
     Play {
         from: block,
@@ -173,7 +166,7 @@ pub fn play_from_here(block: u32, frame: u32, blocks: u32) -> Play {
 
 // ---- the frame ----
 
-/// The render states set for the stopped viewer's list, (value, state) in order.
+/// Render states set for the stopped viewer's list, (value, state) in order.
 pub const LIST_STATES: [(u32, u32); 8] = [
     (2, 0x15),
     (0, 0x1C),
@@ -185,15 +178,15 @@ pub const LIST_STATES: [(u32, u32); 8] = [
     (2, 0x12),
 ];
 
-/// A place along the bar: `at * width / of` as `mul` / `div` (quotient, remainder);
-/// None where the `div` faults (a divisor of 0, a quotient past 32 bits).
+/// A place along the bar: `at * width / of` (quotient, remainder); None where the division
+/// faults (divisor 0, quotient past 32 bits).
 pub fn along(at: u32, width: u32, of: u32) -> Option<(u32, u32)> {
     let product = at as u64 * width as u64;
     let q = product.checked_div(of as u64)?;
     Some((u32::try_from(q).ok()?, (product % of as u64) as u32))
 }
 
-/// The bar's three places: the two marks, and the frame shown counted in frames.
+/// The bar's three places: the two marks and the frame shown, counted in frames.
 pub fn bar_places(
     marks: (u32, u32),
     block: u32,
@@ -216,7 +209,7 @@ pub fn bar_places(
     }
 }
 
-/// A mark's rectangle's x (2 left of its place), the place's (12 left).
+/// A mark's rectangle x (2 left of its place), the place's (12 left).
 pub fn mark_x(place: u32, bar_x: u32) -> u32 {
     place.wrapping_add(bar_x).wrapping_sub(2)
 }
@@ -236,8 +229,7 @@ pub fn replay_length(blocks: u32) -> u32 {
     blocks.wrapping_mul(100)
 }
 
-/// A block's camera byte as a name's index: held to the last camera (signed, as a byte
-/// zero-extended it never is below 0).
+/// A block's camera byte as a name index, held to the last camera (signed).
 pub fn camera_name(byte: u8) -> u32 {
     let camera = byte as u32;
     if (camera as i32) > crate::race::viewer::LAST_CAMERA as i32 {
@@ -247,8 +239,7 @@ pub fn camera_name(byte: u8) -> u32 {
     }
 }
 
-/// The two switch lights' colours (the first's, the second's) by the block's camera
-/// byte 5: 1 dims the first, 0 the second.
+/// The two switch lights' colours by the block's camera byte 5: 1 dims the first, 0 the second.
 pub const DIM: u32 = 0x0055_5555;
 pub const LIT: u32 = 0x00FF_FFFF;
 
@@ -261,8 +252,8 @@ pub fn switch_lights(byte5: u8) -> (u32, u32) {
 
 // ---- the fonts' palettes ----
 
-/// `viewer_palettes`: a font colour made opaque between taking it apart in the screen's
-/// format and putting it together in the texture's.
+/// A font colour made opaque between splitting it in the screen's format and rebuilding it in
+/// the texture's.
 pub const OPAQUE: u32 = 0xFF00_0000;
 
 pub fn font_colour(
@@ -278,7 +269,7 @@ pub const FONT_COLOURS: usize = 0x100;
 
 // ---- the stage tidied ----
 
-/// `viewer_tidy_stage`'s steps.
+/// A step of tidying the viewer's stage.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TidyStep {
     TidyEverything,
@@ -292,9 +283,8 @@ pub enum TidyStep {
     TakeKey,
 }
 
-/// With the stage loaded (`viewer_stage_loaded` 1): the race tidied, then the fonts freed when
-/// the viewer built them (`viewer_fonts_built` 1, asked after these), then `TIDY_AFTER`; the
-/// key always last.
+/// With the stage loaded: the race tidied, then the fonts freed when the viewer built them,
+/// then `TIDY_AFTER`; the key always last.
 pub fn tidies(loaded: u32) -> bool {
     loaded == 1
 }
@@ -320,7 +310,7 @@ pub fn frees_fonts(built: u32) -> bool {
 
 // ---- the replay's cars stepped ----
 
-/// The cars a step takes: 1 ..= 8 (0 would go round 2^32 times).
+/// Cars a step takes: 1 ..= 8 (0 would loop 2^32 times).
 pub fn check_replay_cars(cars: u32) -> Result<(), Invalid> {
     if (1..=8).contains(&cars) {
         Ok(())
@@ -334,8 +324,8 @@ pub fn car_block(current: u32) -> u32 {
     current & 7
 }
 
-/// A running car's steps after it is loaded: controls, gear rules, steering, pedals,
-/// the reset key, the physics' step; then its two clocks one on.
+/// A running car's steps after loading: controls, gear rules, steering, pedals, reset key,
+/// the physics step; then its two clocks advance.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum RunStep {
     Controls,
@@ -355,13 +345,12 @@ pub const RUN_STEPS: [RunStep; 6] = [
     RunStep::Physics,
 ];
 
-/// Whether the loaded car runs (`driver_kind`, read after the loading).
+/// Whether the loaded car runs.
 pub fn car_runs(running: u32) -> bool {
     running != 0
 }
 
-/// The next car, and whether the step is over (the count reached; the loop's test at
-/// its end).
+/// The next car, and whether the step is over (the count reached).
 pub fn next_car(current: u32, cars: u32) -> (u32, bool) {
     let next = current.wrapping_add(1);
     (next, next == cars)

@@ -1,10 +1,5 @@
-//! `screens::car_caption` (0x469A0E): the car shown's name as the caption.
-//!
-//!
-//! The shown car's name (`CarDescription::name`, the entry `event.shown_car` through the carousel's car list)
-//! and a NUL into `g_captionText`. In four draw lists (the car specification screens). Refuses an
-//! entry past the records, one without its record, and a caption longer than its place. The menus
-//! and draw lists run its `entry` (`menu::table_calls`).
+//! The shown car's name as the caption. Refuses an entry past the records, one without its
+//! record and a caption longer than its place.
 
 use crate::errors::Refused;
 use crate::menu::car_description::{read, shown_description};

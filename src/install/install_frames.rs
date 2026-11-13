@@ -1,30 +1,17 @@
-//! The two frames of `install::install_files` (code inside it, given to `screens::run_frame`
-//! as the frame callback). Each
-//! starts with `call $+5`: its body runs twice, the second time
-//! from the pushed return, so both buffers of the flip get the frame:
-//! - `install::progress_frame`: the surface locked (`gfx::lock_surface`;
-//!   failing: carry, nothing more this time round); the bar's place (`bar`: x, y,
-//!   width, height) filled with colour 0 (`gfx::fill_rect`, with `g_blendedPalette`); the
-//!   bar's width `g_filesCopied * 0x190 / g_filesToCopy`; the bar's glyphs
-//!   (`install::blit_glyph_list`, two from `bar_glyphs_list`, with `g_installBarGlyphs`) clipped
-//!   at x + that + 1 (`g_clipRight`, put back); a quarter of it as a percentage (`text`)
-//!   drawn in `font` (0x51E6A4) at (x + 0xC8, y + 2); unlocked, shown;
-//! - `install::copying_frame`: locked; the backdrop (`gfx::copy_picture_to_surface`);
-//!   two texts (`install::draw_string_list`, `texts`); a frame (`gfx::frame_rect`,
-//!   colour 0x2A, `frame`); unlocked, shown.
+//! The two frames of `install::install_files`, given to `screens::run_frame` as the frame
+//! callback; each runs twice so both buffers of the flip get the frame.
+//! - `install::progress_frame`: the bar's place filled, its width `files_copied * 0x190 /
+//!   files_to_copy`, the bar's glyphs clipped at that width, a percentage drawn on it;
+//! - `install::copying_frame`: the backdrop, two texts and a frame.
 //!
-//!
-//! Every call by `at(..)`: the image is elsewhere in the standalone (a bare IDA address
-//! there faulted). Callers: `screens::run_frame` from `install_files`.
-//! Refuses (before anything) no files to copy, and a bar width past 32 bits (the original's
-//! `div` faults).
+//! Refuses (before anything) no files to copy, and a bar width past 32 bits.
 
 use crate::errors::{BadInput, Refused};
 use crate::install::installer::{copy_picture, draw_text, lock, show, unlock};
 
 const FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::HEADING_23;
 
-/// The bar's width, or the refusal of a count the original's `div` faults on.
+/// The bar's width, or the refusal of a count it cannot divide by.
 fn bar_width(install: &crate::install::owner::Install) -> Result<u32, Refused> {
     let to_copy = install.run.files_to_copy.get();
     if to_copy == 0 {
@@ -35,7 +22,7 @@ fn bar_width(install: &crate::install::owner::Install) -> Result<u32, Refused> {
         .map_err(|_| BadInput("a bar width past 32 bits: the original's div faults").into())
 }
 
-/// The progress frame: its carry (the last lock's or show's).
+/// The progress frame; true when the last lock or show failed.
 pub fn progress_frame(o: crate::owners::Owners<'static>) -> Result<bool, Refused> {
     let (install, strings, gfx, system) = (o.install, o.strings, o.gfx, o.system);
     let drawing = &gfx.drawing;
@@ -88,7 +75,7 @@ pub fn progress_frame(o: crate::owners::Owners<'static>) -> Result<bool, Refused
     Ok(carry)
 }
 
-/// The copying frame: its carry (the last lock's or show's).
+/// The copying frame; true when the last lock or show failed.
 pub fn copying_frame(o: crate::owners::Owners<'static>) -> Result<bool, Refused> {
     let (install, gfx, system) = (o.install, o.gfx, o.system);
     let mut carry = false;

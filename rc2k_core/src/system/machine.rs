@@ -1,6 +1,4 @@
-//! What the game asks of the machine (from
-//! `system::check_developer_machine` 0x416292 and `system::read_keyboard_type` 0x410AA3;
-//! `system::same_guid` 0x4016F9 and `system::read_volume_serial` 0x403131's results).
+//! What the game asks of the machine.
 
 /// Whether the computer is called "andrew" (its first six bytes, as three words each with 0x2020
 /// or'ed in: any case, and some other bytes, pass), and the last word compared. A developer's
@@ -16,7 +14,7 @@ pub fn developer(name: [u8; 6]) -> (bool, u16) {
     (true, last)
 }
 
-/// `g_keyboardType` for a keyboard's subtype: 2 (Japanese) for 0xD01 ..= 0xD06.
+/// The keyboard type for a keyboard's subtype: 2 (Japanese) for 0xD01 ..= 0xD06.
 pub fn keyboard_type(subtype: u32) -> Option<u32> {
     (0xD01..=0xD06).contains(&subtype).then_some(2)
 }
@@ -29,7 +27,7 @@ pub fn same_guid(a: impl Fn(u32) -> u32, b: impl Fn(u32) -> u32) -> bool {
 
 /// What `system::read_volume_serial` leaves from the 16 bytes `GetVolumeInformationA`
 /// filled (+0 the serial, +4 the name in 12 bytes): the name's last byte (+0xF) made 0,
-/// the dwords at +4, +8, +0xC and whether the serial is 0 (the zero flag).
+/// the dwords at +4, +8, +0xC and whether the serial is 0.
 pub fn volume_registers(info: &mut [u8; 16]) -> ([u32; 3], bool) {
     info[0xF] = 0;
     let d = |o: usize| u32::from_le_bytes([info[o], info[o + 1], info[o + 2], info[o + 3]]);

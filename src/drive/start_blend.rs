@@ -1,4 +1,4 @@
-//! `drive::start_blend` (0x43773D): the checkpoints the work car is past the lead's start
+//! The checkpoints the work car is past the lead's start
 //! (`checkpoint` - `CarBlocks.cars[0].checkpoint`, held to 0 .. 100 by the signs), through `scratch` times
 //! `start_blend_step` into `start_blend_share`; `start_blend` = `start_share` + that + `pace_push`, held to
 //! `zero` .. `one` (0 .. 1). The result is the computer
@@ -8,9 +8,7 @@
 //! start) rising with the checkpoints past the lead, plus the pace push (`pace_push`, the arcade
 //! opponents' push apart). A player's car under test is given blend 1 (`remote`).
 //!
-//! Returns: the held count
-//!
-//! Caller: `drive::read_car_controls` (0x43A486).
+//! Gives the held count.
 
 use crate::math::x87;
 use crate::math::x87::compare_full;
@@ -24,7 +22,7 @@ pub struct BlendCells<'a> {
     pub checkpoint: &'a PlainDword,
     /// The lead car's checkpoint.
     pub lead_checkpoint: &'a PlainDword,
-    /// The held count (the original's `scratch`).
+    /// The held count.
     pub scratch: &'a crate::session::PlainDword,
     /// `start_blend_share`: the count times `start_blend_step`.
     pub step_share: &'a PlainFloat,

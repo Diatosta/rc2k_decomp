@@ -1,20 +1,14 @@
-//! The six edit pages of the service area: what the keys do while one of the setup values or
-//! the tyre or gear ratio choice is being edited ("locked", in the original's error text).
-//! Key 0x68 steps the value down, 0x69 up, 0x1C confirms. Every key also copies
-//! the clock into `last_key_time`.
+//! The six edit pages of the service area: what the keys do while one of the setup values or the
+//! tyre or gear ratio choice is being edited. Key 0x68 steps the value down, 0x69 up, 0x1C
+//! confirms; every key also copies the clock into `last_key_time`.
 //!
-//! Two pages (steering sensitivity, brake balance) change the car directly: confirming just
-//! leaves edit mode. The other four cost service time; confirming goes through this:
-//!   - ride height and stiffness only: if the chosen value is what the car has, the item's
-//!     flag is cleared and that is all;
-//!   - if the value was not changed in this edit (it equals the value at entry), the item's
-//!     selection is flipped (`toggle_change`), and unless that selected it, that is all;
-//!   - the flag is cleared and `try_toggle_repair` says whether selecting it fits:
-//!     - status 2 (no time left at all): the chosen value goes back to the installed one;
-//!     - status 1 (fits only by overrunning): selected and marked (`choose_repair_marked`);
-//!     - status 3 (fits): the marks are cleared and it is selected (`choose_repair`).
-//!
-//! Whatever happened, the four end with `update_repair_total`.
+//! Steering sensitivity and brake balance change the car directly: confirming just leaves edit
+//! mode. The other four cost service time; confirming either clears the flag (ride height and
+//! stiffness whose chosen value is what the car has), flips the item's selection
+//! (`toggle_change`, when the value was not changed in this edit), or clears the flag and asks
+//! `try_toggle_repair` whether selecting it fits: status 2 puts the chosen value back to the
+//! installed one, 1 selects and marks it (`choose_repair_marked`), 3 clears the marks and
+//! selects it (`choose_repair`). All four end with `update_repair_total`.
 
 use crate::errors::{BadInput, Refused};
 use crate::input::take_key::take_key;
@@ -111,7 +105,6 @@ fn key_and_step(
     down: Stepper,
     up: Stepper,
 ) -> Result<u8, Refused> {
-    // Converted: `rc2k_core::service::setups::page_key`.
     use rc2k_core::service::setups::{PageKey, page_key};
     let key = take_key(input);
     let action = page_key(key);
@@ -149,8 +142,8 @@ pub fn simple_page(
     Ok(())
 }
 
-/// `confirm`: act as if the confirm key had been pressed, without taking a key (the callers
-/// outside the key handler pass the page-end value 1 for this).
+/// `confirm`: act as if the confirm key had been pressed, without taking a key (callers
+/// outside the key handler pass true).
 pub fn change_page(
     menus: &Menus,
     system: &System,
@@ -178,7 +171,6 @@ pub fn change_page(
         return update_repair_total(menus);
     }
 
-    // Converted: `rc2k_core::service::repairs::confirm_change`.
     use crate::service::state::{flags, marks, store_flags, store_marks, time_of};
     let (mut f, mut m) = (flags(tables), marks(tables));
     let v = rc2k_core::service::repairs::Value {

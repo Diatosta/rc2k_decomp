@@ -1,13 +1,6 @@
-//! `install::check_installed_version` (0x413B0B): whether the already-installed `ral.exe` is
-//! this same build (`same_version`). Only when installed (`g_installStatus` 1) with a source
-//! (`g_installSource`): the source is normalised into `paths.installed` and made current, then
-//! `.\ral.exe` is read in 0xFF00-byte chunks (`g_pngInfo` the buffer, the last 0x100 bytes of
-//! each chunk carried to the front of the next so a match can span a boundary). Each chunk is
-//! scanned for `$VER: Rally 5`; on a hit the bytes are skipped to the next NUL and compared
-//! against the copyright line (the copyright text, up to its first `.`); a full match sets
-//! `same_version`. The file is closed and the current directory set to `paths.game_dir`.
-//!
-//! Caller `install::run_installer`.
+//! Whether the already-installed program is this same build (`same_version`): the installed
+//! copy is read in chunks and scanned for the version text and the copyright line. Called by
+//! `install::run_installer`.
 
 use crate::errors::Refused;
 use crate::install::installer::set_cd;
@@ -44,7 +37,7 @@ pub fn check_installed_version(
     }
     system.work().files.buffer.write(&[0; BUFFER_LEN]);
     // The standalone checks its own program (the same version text is in its built-in
-    // image). files::open_by_mode, mode 0.
+    // image).
     let program = crate::install::run_after_exit::RC2K;
     if let Some(file) = crate::files::handle::open_by_mode(program, 0)? {
         let buffer = &system.work().files.buffer;
@@ -59,8 +52,7 @@ pub fn check_installed_version(
             if !ok || read == 0 {
                 break;
             }
-            // Converted: `rc2k_core::install::version::scan` (the copyright compared up
-            // to its NUL, inside its 91 bytes).
+            // The copyright is compared up to its NUL, inside its 91 bytes.
             let scanned = buffer.read_at(0, BUFFER_LEN, "the scan buffer")?;
             let copyright = system.start().texts.copyright.read();
             if let Scan::Stopped { same, .. } = version::scan(&scanned[..], &copyright[..])? {

@@ -1,7 +1,5 @@
-//! The markers on the service area's four setup bars (from the six
-//! `screens::draw_*_marker` functions, 0x4A6E.. .. 0x4A70..): which marker is drawn, where
-//! on its bar. Drawing it (the bar's length
-//! and the blit) is the caller's.
+//! The markers on the service area's four setup bars: which marker is drawn, and where on its
+//! bar. Drawing it (the bar's length and the blit) is the caller's.
 
 /// The bars' x (left, right) and y (upper, lower); 204 pixels long.
 pub const LEFT_X: i32 = 0x81;
@@ -47,10 +45,9 @@ pub enum Plan {
     },
 }
 
-/// What a marker does. `percent` is the value it shows (the installed one for `Always`,
-/// the chosen one for `Lower`, the player's for `Upper`), read only when the original
-/// reads it; for `Lower`, `installed` and `repair_flag` likewise. Errors are the
-/// readers'.
+/// What a marker does. `percent` is the value it shows (the installed one for `Always`, the
+/// chosen one for `Lower`, the player's for `Upper`), read only when needed; for `Lower`,
+/// `installed` and `repair_flag` likewise.
 pub fn plan<E>(
     marker: Marker,
     menu: Menu,

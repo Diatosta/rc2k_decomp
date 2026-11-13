@@ -1,19 +1,15 @@
-//! `gfx::show_picture_file` (0x41172B): loads a picture and shows it at once, on every
-//! page of the screen: the loading picture.
+//! Loads a picture and shows it at once, on every page of the screen: the loading picture.
 //!
-//! Takes: the picture's path
-//! The window's messages are passed on (0x410535); `showing` = 1; the picture's
-//! size is set to 800 x 600 with row length 0xFFFFFFFD and the file is read
-//! (`gfx::read_picture_file`); the size then becomes the screen's, the row length the
-//! screen's width * 4.
+//! The window's messages are passed on; `showing` = 1; the picture's size is set to 800 x 600 with
+//! row length 0xFFFFFFFD and the file is read (`gfx::read_picture_file`); the size then becomes
+//! the screen's, the row length the screen's width * 4.
 //! - Not read: `gfx::clear_picture`, and on as for a picture of the screen's width.
-//! - Read: `showing` is taken (set to 0); if it was not 0 and the fonts are built
-//!   (`g_fontPalettes`), the picture's flags become 0x802, the picture is made the
-//!   surface (`gfx::picture_as_surface`) and string 0xC0 is drawn on it at (790, 47) with
-//!   the font at 0x51EAA4.
+//! - Read: `showing` is taken (set to 0); if it was not 0 and the fonts are built, the picture's
+//!   flags become 0x802, the picture is made the surface (`gfx::picture_as_surface`) and string
+//!   0xC0 is drawn on it at (790, 47) with the loading font.
 //! - A picture of the screen's width: `gfx::convert_picture`, then twice
-//!   `gfx::copy_picture_to_surface` and `gfx::show_frame`, and a third time if the
-//!   screen mode has bit 0x40000 (three pages).
+//!   `gfx::copy_picture_to_surface` and `gfx::show_frame`, and a third time if the screen mode
+//!   has bit 0x40000 (three pages).
 //! - Any other width: as many times, `gfx::lock_surface` (failing ends it),
 //!   `gfx::rescale_to_surface`, `gfx::unlock_surface`, `gfx::show_frame`.
 //!
@@ -23,8 +19,6 @@ use crate::errors::Refused;
 use crate::gfx::copy_picture_to_surface::{GameSurface, copy_picture_to_surface};
 use crate::platform::{lock_surface, pump_messages_now, show_frame_now, unlock_surface};
 use rc2k_core::gfx::picture_size as sizes;
-
-// ---- game data ----
 
 const LOADING_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::LOADING;
 
@@ -36,10 +30,8 @@ pub fn show_picture_file(
     let (gfx, system) = (o.gfx, o.system);
     pump_messages_now(o);
     gfx.pictures.showing.set(1);
-    // Converted: `rc2k_core::gfx::picture_size` (`READ`, `screen`, `pages`,
-    // `rescaled`).
     crate::gfx::picture::set_size(&gfx.pictures, sizes::READ);
-    // A refused picture is not read, as `read_picture_file`'s callers by address see it.
+    // A refused picture is not read, as `read_picture_file`'s callers see it.
     let read = match crate::gfx::read_picture_file::read_picture_file(path, gfx, system) {
         Ok(read) => read,
         Err(Refused::BadInput(_)) => false,
@@ -70,7 +62,7 @@ pub fn show_picture_file(
         }
         if sizes::rescaled(gfx.pictures.decoder.width.get(), width) {
             for _ in 0..pages {
-                // `cmp g_surfaceLocked, 1`'s carry: not locked.
+                // Not locked.
                 if lock_surface(gfx, system) < 1 {
                     return Ok(());
                 }

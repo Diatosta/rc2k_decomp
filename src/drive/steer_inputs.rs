@@ -1,15 +1,11 @@
-//! `drive::steer_inputs` (0x439DB1): the work car's steering from the input word `input_steer`.
-//! Key steering (the word 0, or a car not driven by device, `driver_kind` not 2, with the keys' bit
-//! 0x1000 of `input_keys`): the step 0xA00000 x `PhysicsTables.handling[8]` (`fistp`) moves the two steering
-//! values `steering_raw`, `steering` toward the side the word says, held at ± 0x20000000, or, with
-//! the word 0, back toward 0 at twice the step (stopping at 0; each by the sign of the result, as
-//! the original). Device steering: the word x 0x20000000 >> 8 (`imul`, `shrd`) x `PhysicsTables.handling[7]`, held
-//! ± 0x20000000, into both (`steering` 0 first). Then the trim (0x20000000 x `steering_efficiency`,
-//! negated with `car_flags` bit 0x10) into `steer_trim`; `steer_angle` = `steering` + it,
-//! `steer_angle_visual` = `steering_raw` + 4 x it; both 0 unless `steering_damage` is below `hundred` (or
-//! unordered).
-//!
-//! Callers: `drive::car_controls`, `race::step_replay_cars`, `drive::replay_step`.
+//! The work car's steering from the input word `input_steer`. Key steering (the word 0, or a
+//! car not driven by device, with the keys' bit 0x1000): a step of 0xA00000 x
+//! `PhysicsTables.handling[8]` moves `steering_raw` and `steering` toward the side the word says,
+//! held at +-0x20000000, or back toward 0 at twice the step. Device steering: the word x
+//! 0x20000000 >> 8 x `PhysicsTables.handling[7]`, held +-0x20000000. Then the trim
+//! (`steering_efficiency`, negated with `car_flags` bit 0x10) into `steer_trim`, `steer_angle` =
+//! `steering` + it, `steer_angle_visual` = `steering_raw` + 4 x it; both 0 unless
+//! `steering_damage` is below `hundred` (or unordered).
 
 use crate::effects::cell_x87::CellX87;
 use crate::math::x87_float::int;
@@ -19,7 +15,7 @@ use crate::race::owner::Race;
 use crate::race::owner_shared::RaceShared;
 use crate::session::{DwordLike, FloatLike};
 
-/// `fild dword [from]; fmul dword [by]; fistp dword [to]`.
+/// `to` = `from` (signed) x `by`, as a whole number rounded as the x87 rounds.
 fn scale(from: &impl DwordLike, by: &impl FloatLike, to: &impl DwordLike) {
     to.set(to_int(int(from.get() as i32) * by.ld()) as u32);
 }
@@ -43,7 +39,7 @@ fn key_step(shared: &RaceShared, scene: &crate::scene::owner::Scene) -> u32 {
     drawing.scene.get().scratch.get()
 }
 
-/// One steering value moved by the key step (0x439DFA .. / 0x439E95 ..).
+/// One steering value moved by the key step.
 fn steer(shared: &RaceShared, cell: &impl DwordLike, step: u32) {
     let word = shared.physics_tables.get().input_steer.get();
     let v = cell.get();
@@ -122,7 +118,7 @@ pub fn steer_inputs(race: &Race, scene: &crate::scene::owner::Scene) {
             .steering
             .set(drawing.scene.get().scratch.get());
     }
-    // 0x439F7D: the trim.
+    // The trim.
     drawing.scene.get().scratch.set(RIGHT);
     scale(
         &drawing.scene.get().scratch,

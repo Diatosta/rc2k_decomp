@@ -1,13 +1,12 @@
-//! The in-game options menu's (`menu::in_game_options_loop`, the in-game options menu) items 3 .. 6,
-//! hidden and shown by `menu::hide_in_game_options` and `menu::show_in_game_options`
-//!.
+//! The in-game options menu's (`menu::in_game_options_loop`) items 3 .. 6, hidden and shown by
+//! `menu::hide_in_game_options` and `menu::show_in_game_options`.
 use crate::menu::owner::Menus;
 use crate::menu::owner::Tables;
 use rc2k_core::menu::items::{
     HIDDEN, IN_GAME_OPTIONS, Look, hidden_in_game_options, shown_in_game_option,
 };
 
-/// Item `n` given its look: +0x14, +0x48, +0x1C, in the original's order.
+/// Item `n` given its look: +0x14, +0x48, +0x1C.
 pub fn set(tables: &Tables, n: u32, look: Look) -> Result<(), crate::errors::BadInput> {
     let item = tables
         .menus
@@ -22,10 +21,8 @@ pub fn set(tables: &Tables, n: u32, look: Look) -> Result<(), crate::errors::Bad
     Ok(())
 }
 
-// The logic is in `rc2k_core::menu::items` (`hidden_in_game_options`, `shown_in_game_option`).
-
-/// `menu::hide_in_game_options`: eax 1, 2, 3: items 3 + eax .. 6 hidden (no string, passed
-/// over, nothing behind); anything else nothing.
+/// `menu::hide_in_game_options`: for `from` 1, 2, 3 the items 3 + `from` .. 6 are hidden (no
+/// string, passed over, nothing behind); anything else nothing.
 pub fn hide_in_game_options(menus: &Menus, from: u32) -> Result<(), crate::errors::BadInput> {
     let tables = &menus.tables;
     for n in hidden_in_game_options(from) {

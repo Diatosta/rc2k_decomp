@@ -1,14 +1,9 @@
-//! `drive::tyre_change_screen` (0x445047): the tyre-change screen while a tyre change is under way
-//! (the first block's +0x26C, `g_carBlockStore`, not 0 or -1): `drive::tyre_screen` for the mode
-//! `split`, car 0.
-//!
-//! Caller: `race::draw_race_scene` (the race's frame, stream A's).
+//! The tyre-change screen while a tyre change is under way (the first block's +0x26C not 0 or
+//! -1): `drive::tyre_screen` for the mode `split`, car 0.
 
 use crate::errors::Refused;
 use crate::race::owner::Race;
 
-/// .
-// Converted: `rc2k_core::drive::race_ticks::tyre_change_shown`.
 pub fn tyre_change_screen(
     race: &Race,
     input: &crate::input::owner::Input,

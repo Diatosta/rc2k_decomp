@@ -1,8 +1,6 @@
-//! The x87's 80-bit values as `f64`: where the game leaves a result on
-//! the x87 stack, the converted code has an `f64`; the caller writes it back as the ten
-//! bytes the x87 would load. At the game's double precision (control word 0x027F) every
-//! result the x87 makes fits an `f64` (53 bits of mantissa), so both ways are exact for
-//! them; a value with more bits (made at extended precision) is rounded to the nearest.
+//! The x87's 80-bit values as `f64` and back. At double precision (control word 0x027F)
+//! every result fits an `f64`, so both ways are exact; a value with more bits is rounded
+//! to the nearest.
 
 const BIAS: i32 = 16383;
 const QUIET: u64 = 1 << 51;
@@ -22,8 +20,7 @@ fn scale(mut x: f64, mut k: i32) -> f64 {
 }
 
 /// The ten bytes (mantissa, then sign and exponent, little-endian) as an `f64`, rounded to
-/// the nearest. A NaN keeps its sign and its payload's top bits, made quiet (as `fstp
-/// qword` does).
+/// the nearest. A NaN keeps its sign and its payload's top bits, made quiet.
 pub fn to_f64(v: [u8; 10]) -> f64 {
     let mantissa = u64::from_le_bytes(v[..8].try_into().unwrap());
     let top = u16::from_le_bytes([v[8], v[9]]);
@@ -45,7 +42,7 @@ pub fn to_f64(v: [u8; 10]) -> f64 {
     if negative { -magnitude } else { magnitude }
 }
 
-/// An `f64` as the ten bytes, exactly (`fld qword; fstp tbyte`).
+/// An `f64` as the ten bytes, exactly.
 pub fn from_f64(f: f64) -> [u8; 10] {
     let bits = f.to_bits();
     let sign = ((bits >> 63) as u16) << 15;

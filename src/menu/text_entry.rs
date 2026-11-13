@@ -68,7 +68,6 @@ pub fn begin_logged(
     at: impl Into<crate::place::BytePlace>,
     log: bool,
 ) -> Result<(), crate::errors::BadInput> {
-    // The logic is in `rc2k_core::menu::text_entry::Entry::begin`.
     let at = at.into();
     let mut text = field(at)?;
     with_entry(menus, |e| e.begin(&mut text));

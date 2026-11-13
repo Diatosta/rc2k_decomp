@@ -1,31 +1,12 @@
-//! `screens::draw_car_figures` (0x47CEB4): the car specification's figures for the page
-//! shown.
+//! The car specification's figures for the page shown (`event.car_page`):
+//! - 0: the description (the seven strings of the car, or the one string for car 0x21).
+//! - 1: engine: capacity, type, power and torque with their rpm, bore and stroke, compression.
+//! - 2: transmission, drive, steering, brakes (front and rear) and suspension.
+//! - 3: length, width, height, wheelbase, front and rear track, weight.
 //!
-//! The page `event.car_page` picks the function from `funcs_47CED1` (at 0x759AE6), which
-//! gets edi = the shown car's record (the entry `event.shown_car` through the carousel's car list)
-//! and eax = its first dword, the car. The four have this one caller and are inlined.
-//! Labels are in the font at 0x51E5A4, figures in the one at 0x51E584; a figure line is
-//! built in `g_lineBuffer`; a figure of 0 is string 0x578 ("n/d").
-//! - 0 (0x469C40): the description at (0x1A4, 0xD5): for car 0x21 the string at
-//!   +0x70 (made 0x103F first when `g_noticeKind` is 3), else the seven strings from
-//!   +0x70 on (`strings::text_from_ids`, the text's address kept in `draw_work.figure`).
-//! - 1 (0x469F12), x = 0x244: capacity +0xC and "cc"; type, the string +0x10 (0x103A
-//!   for car 0x21 with notice kind 3); power +0x14 (`append_power`) and, if +0x18 is not
-//!   0, "@", it and "rpm"; torque +0x1C (`append_torque`) with +0x20 the same way; bore
-//!   +0x24 and stroke +0x28 (`append_length`); compression, the string +0x2C. Rows
-//!   0x10A, 0x121, 0x14F, 0x166, 0x17D, 0x194, 0x1AB.
-//! - 2 (0x46A193), x = 0x220: transmission +0x30, drive +0x34 (0x103D for car 0x21
-//!   with notice kind 3), steering +0x38, at 0xF3, 0x10A, 0x121; brakes at 0x138, two
-//!   lines: "frente - " +0x3C (`append_length`), a space and the string +0x44, then
-//!   "traseira - " +0x40 and +0x48; suspension at 0x18C: the strings +0x4C and +0x50
-//!   after the same two words.
-//! - 3 (0x469CA0), x = 0x28B: length, width, height, wheelbase, front and rear track
-//!   +0x54 .. +0x68 (`append_length`) at 0x10A .. 0x17D, 0x17 apart; weight +0x6C
-//!   (`append_weight`) at 0x194.
-//!
-//! In two draw lists (the car specification screens). Refuses a page past the four, what the
-//! record's lookup refuses, and a line longer than the line buffer. The menus and draw lists run
-//! its `entry` (`menu::table_calls`).
+//! Labels and figures use the two fonts of the page; a figure of 0 is string 0x578 ("n/d").
+//! Refuses a page past the four, what the record's lookup refuses and a line longer than the line
+//! buffer.
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::car_description::{read, shown_description};
@@ -37,7 +18,7 @@ use crate::text::draw_text::Canvas;
 // `draw_work.figure`
 const PAGES: u32 = 4;
 
-/// Returns the carry of the last text drawn.
+/// Returns whether the last text drawn was too wide for its box.
 pub fn draw_car_figures(
     o: crate::owners::Owners<'static>,
     canvas: &mut dyn Canvas,
@@ -50,10 +31,9 @@ pub fn draw_car_figures(
     draw_car_page(o, page, shown_description(menus)?, canvas)
 }
 
-/// One page (0x469C40, 0x469F12, 0x46A193, 0x469CA0 for 0 .. 3) of the
-/// record at `record`: the carry of the last text drawn. The logic is in
-/// `rc2k_core::screens::car_pages::page` (the record written back when it changed it: the Clio's
-/// strings).
+/// One page (0 to 3) of the record at `record`; returns whether the last text drawn was too wide
+/// for its box. The logic is in `rc2k_core::screens::car_pages::page` (the record written back when
+/// it changed it: the Clio's strings).
 pub fn draw_car_page(
     o: crate::owners::Owners<'static>,
     page: u32,
@@ -65,7 +45,7 @@ pub fn draw_car_page(
     {
         let before = read(o.menus, record)?;
         let mut d = before;
-        let notice = crate::strings::load_language::notice_kind(o.strings); // g_noticeKind
+        let notice = crate::strings::load_language::notice_kind(o.strings);
         let carry = rc2k_core::screens::car_pages::page(
             &mut GameScreen::<Font, Work>::new(canvas, o),
             page,

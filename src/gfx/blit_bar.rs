@@ -1,18 +1,14 @@
-//! `gfx::blit_bar` (0x46B574): draws a bar filled to a percentage: the fill sprite with the
-//! clip rectangle's right edge pulled in to where the fill ends, then an end piece there.
-//!
-//! Nothing is drawn at 0 percent. If width * percent is 0 with a non-zero percent the original
-//! reports fatal error 0x80701010. The blitter is given the fill's end x as its palette,
-//! which only works because these sprites do not use one; it is reproduced as is.
-//! Also leaves the fill's end x in `seconds` (0x7559AC), a work variable.
+//! Draws a bar filled to a percentage: the fill sprite with the clip rectangle's right edge pulled
+//! in to where the fill ends, then an end piece there.
+//! Nothing is drawn at 0 percent. If width * percent is 0 with a non-zero percent a fatal error is
+//! reported. The blitter is given the fill's end x as its palette, which only works because these
+//! sprites do not use one: kept as is. Also leaves the fill's end x in `seconds`, a work variable.
 
 use crate::errors::{FatalError, Refused};
 use crate::gfx::blit_glyph::BlitCall;
 use crate::gfx::owner::Gfx;
 use crate::gfx::surface::clip;
 use crate::menu::owner::Menus;
-
-// ---- game data ----
 
 /// The six globals a caller fills in before drawing a bar or its marker.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -52,7 +48,7 @@ impl Bar {
     }
 }
 
-/// What the original reports when width * percent is 0. Its message pointer is null.
+/// The fatal error for width * percent being 0. Its message pointer is null.
 pub const BAR_HAS_NO_LENGTH: FatalError = FatalError {
     code: 0x8070_1010,
     message: "",
@@ -110,7 +106,7 @@ impl Bar {
     }
 }
 
-/// The bar described by the bar globals. Converted: `rc2k_core::gfx::bars::bar`.
+/// The bar described by the bar globals.
 pub fn blit_bar_in(gfx: &Gfx, menus: &Menus, blit: Blit) -> Result<(), Refused> {
     rc2k_core::gfx::bars::bar(&mut GameBar { blit, gfx, menus }, &Bar::read(gfx).core())
 }

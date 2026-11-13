@@ -9,21 +9,19 @@ use crate::logfile::write_line::log_text;
 pub trait Outside {
     fn file_exists(&mut self, path: &[u8]) -> Result<bool, BadInput>;
     fn drive_type(&mut self, letter: u8) -> u32;
-    /// `files::set_current_directory` (0x403105): whether it worked.
+    /// Makes `path` the current directory; whether it worked.
     fn set_directory(&mut self, path: &[u8]) -> bool;
-    /// `install::read_record` on `var\ral.zog`.
+    /// Reads the installation's record `var\ral.zog`.
     fn read_record(&mut self) -> Result<(), BadInput>;
     /// A line for the game's log.
     fn log(&mut self, text: &[u8]);
-    /// `install::read_registry`.
     fn read_registry(&mut self);
     // The same for the game and for a test:
     /// `install::normalise_path`: the path as written (with its NUL), None when not taken.
     fn normalise_path(&mut self, path: &[u8]) -> Result<Option<Vec<u8>>, BadInput> {
         normalised_bytes(path, &mut || current_directory())
     }
-    /// `files::current_directory` (0x4030D1): the current directory with a `\` after it
-    /// (and its NUL), if it could be had.
+    /// The current directory with a `\` after it (and its NUL), if it could be had.
     fn current_directory(&mut self) -> Result<Option<Vec<u8>>, BadInput> {
         let Some(mut directory) = current_directory()? else {
             return Ok(None);

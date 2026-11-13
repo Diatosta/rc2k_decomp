@@ -1,4 +1,4 @@
-//! `saves::gather_savegame` (0x4AB427): copies the state a saved game holds into a buffer.
+//! Copies the state a saved game holds into a buffer.
 //!
 //! In this order:
 //! - seven dwords (`head`): the event's player count, stages done, stage index and
@@ -16,8 +16,6 @@ use crate::cells::Store;
 use crate::errors::BadInput;
 use crate::menu::owner::{Menus, Play};
 use crate::session::DwordLike;
-
-// ---- game data ----
 
 /// The seven variables at the start, in the order they are saved.
 pub fn head(menus: &Menus) -> [&dyn DwordLike; 7] {
@@ -89,8 +87,8 @@ mod tests {
     use rc2k_core::menu::player::Player;
     use rc2k_core::saves::savegame::{LEN, car_at};
 
-    /// The saved game's cars are the bytes the original wrote: each record as it is in
-    /// memory, with the address of its name's buffer at +0x18.
+    /// The saved game's cars are each record as it is in memory, with the address of its
+    /// name's buffer at +0x18.
     #[test]
     fn the_saved_cars_carry_the_names_addresses() {
         let play = &menus().play;
@@ -126,7 +124,7 @@ mod tests {
         gather_savegame(menus(), buffer, 0).unwrap();
         let file = buffer.read_at(0, LEN, "the file").unwrap();
         for (n, car) in play.players.players.iter().enumerate() {
-            // What the original wrote: the record, its name address in place of the number.
+            // The record, its name address in place of the number.
             let mut expected = car.get();
             expected.name_number = crate::menu::player_names::name_address(n);
             let at = car_at(n);

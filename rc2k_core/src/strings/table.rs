@@ -1,5 +1,4 @@
-//! The packed string table (from `strings::expand_entry` 0x401FE1):
-//! what `lexicon::compile` makes, read back.
+//! The packed string table: what `lexicon::compile` makes, read back.
 //!
 //! An index of dwords, one per entry: the low 24 bits an offset into the table, the top byte
 //! a flag. Below 0x80 the entry is that many bytes of text at the offset; from 0x80 it is
@@ -7,8 +6,7 @@
 
 use crate::Invalid;
 
-/// How deep entries may nest (the compiler makes two levels: messages of words). The
-/// original has no limit, and no check of an entry's place: a bad table runs away.
+/// How deep entries may nest (the compiler makes two levels: messages of words).
 const MAX_DEPTH: u32 = 8;
 
 /// The table's bytes.
@@ -76,7 +74,6 @@ impl<'a> StringTable<'a> {
         Ok(())
     }
 
-    /// Entry `id`'s text.
     pub fn text(&self, id: u32) -> Result<Vec<u8>, Invalid> {
         let mut out = Vec::new();
         self.expand(id, &mut out)?;
@@ -84,8 +81,8 @@ impl<'a> StringTable<'a> {
     }
 }
 
-/// String `index` of a list of NUL-terminated strings, without its NUL (from
-/// `strings::str_append_indexed` 0x401F8E: `index` of 0 or less is the first).
+/// String `index` of a list of NUL-terminated strings, without its NUL; an `index` of 0 or less
+/// is the first.
 pub fn nth_string(list: &[u8], index: i32) -> &[u8] {
     let mut rest = list;
     for _ in 0..index.max(0) {
@@ -101,7 +98,7 @@ pub fn nth_string(list: &[u8], index: i32) -> &[u8] {
 /// The ids whose text may come from the second table of pointers (ids 0x5A5 ..= 0x658).
 pub const POINTER_IDS: std::ops::RangeInclusive<u32> = 0x5A5..=0x658;
 
-/// Where a string id's text is (from `strings::append_string_by_id` 0x401FA3).
+/// Where a string id's text is.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Source {
     /// Ids with the 0x1000 bit: a table of pointers the game fills in (texts made at run
@@ -126,10 +123,9 @@ impl Source {
     }
 }
 
-/// The text of `count` ids from `first` (from `strings::text_from_ids` 0x40229B), with its NUL.
-/// `append` appends one id's text and returns the id it finished at; the next id is that plus one
-/// (the id itself for the string table's texts). `None` for a count of 0 (the original's counter
-/// wraps) or a text over `room`.
+/// The text of `count` ids from `first`, with its NUL. `append` appends one id's text and returns
+/// the id it finished at; the next id is that plus one (the id itself for the string table's
+/// texts). `None` for a count of 0 or a text over `room`.
 pub fn text_from_ids(
     first: u32,
     count: u32,

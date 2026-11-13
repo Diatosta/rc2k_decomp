@@ -1,7 +1,5 @@
-//! `screens::service_box_frame_4` (0x4932D4): the yellow frame round the chosen part of the
-//! service area's second row of six cells (`service_boxes::chosen_frame`, item 0xF).
-//!
-//! Part of `screens::draw_service_boxes`.
+//! The yellow frame round the chosen part of the service area's second row of six cells
+//! (item 0xF). Part of `screens::draw_service_boxes`.
 
 use crate::errors::Refused;
 use crate::owners::Owners;

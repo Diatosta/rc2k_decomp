@@ -82,8 +82,8 @@ pub fn leading_time(hud: &Hud, v: u32, xs: [u32; 3], y: u32, draw: Draw) -> Resu
     Ok(())
 }
 
-/// The needle's sign by a start value (`pick`, `needle_kind`, the texture, as the original
-/// writes them): its rectangle.
+/// The needle's sign by a start value (`pick`, `needle_kind` and the texture set): its
+/// rectangle.
 pub fn needle_sign(hud: &Hud, field: u32) -> u32 {
     hud.block.pick.set(0x5E);
     hud.block.texture.set(0xC0);

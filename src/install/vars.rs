@@ -1,15 +1,11 @@
-//! The installer's variables, out of RAL.EXE's image : the flags
-//! and counters of its run, the folder and file lists, the registry names and scripts, the
-//! language list, and the pages' tables. Split by owner from the rest of the
-//! image's scattered variables (`rest::low`); the network's and the strings' neighbours are
-//! in their own modules.
+//! The installer's variables: the flags and counters of its run, the folder and file lists, the
+//! registry names and scripts, the language list, and the pages' tables.
 //!
-//! Structs of cells, first values the image's, fields in the image's order with its gaps.
-//! The pages' tables hold handles (`install::page_links`) where the original held addresses
-//! into each other and into the installer's texts. The pages' lists, handler records, edit
-//! record and boxes are typed records (`menu::list_handle`) with the image's bytes; the pages
+//! Structs of cells, with the old layout's fields in its order and its gaps. The pages' tables
+//! hold handles (`install::page_links`) in place of addresses. The pages' lists,
+//! handler records, edit record and boxes are typed records (`menu::list_handle`); the pages
 //! are read by place through their fields in order (`install::pages_map`), which runs on into
-//! the bytes after a record as the original's reads do.
+//! the bytes after a record.
 
 use crate::gfx::typefaces::{FontId, fonts};
 use crate::install::page_links::{LinkCell, ListId, PageLink};
@@ -19,78 +15,79 @@ use crate::menu::list_handle::{
 };
 use crate::session::{PlainByte, PlainBytes, PlainDword, with_runs};
 
-/// The installer's flags, counters and lists (IDA 0x51B9C8 .. 0x51BB60).
+/// The installer's flags, counters and lists.
 #[derive(rc2k_derive::Cells)]
 pub struct InstallerRun {
-    /// Not in the image: the bytes that keep every field the alignment its IDA address has (the struct is 16-byte aligned).
+    /// Padding that keeps every field its alignment (the struct is 16-byte aligned).
     pub _lead: PlainBytes<8>,
-    /// 0x51B9C8: `dword_51B9C8`: the installation is this version (`install::mark_main_page`).
+    /// The installation is this version (`install::mark_main_page`).
     pub same_version: PlainDword,
-    /// 0x51B9CC: `dword_51B9CC`: -u: the update run (`install::install_clio`).
+    /// -u: the update run (`install::install_clio`).
     pub updating: PlainDword,
-    /// 0x51B9D0: `dword_51B9D0`: -i: the paths were given on the command line.
+    /// -i: the paths were given on the command line.
     pub from_command: PlainDword,
-    /// 0x51B9D4: `g_addStartItems`: the shortcuts are added.
+    /// The shortcuts are added.
     pub add_items: PlainDword,
-    /// 0x51B9D8: `g_removeStartItems`: the shortcuts are removed (`install::uninstall`).
+    /// The shortcuts are removed (`install::uninstall`).
     pub remove_items: PlainDword,
-    /// 0x51B9DC: `g_runDxSetup`: DirectX's set-up is run at the end.
+    /// DirectX's set-up is run at the end.
     pub run_dxsetup: PlainDword,
-    /// 0x51B9E0: `g_installing`: -p: installing (`install::check_at_start`).
+    /// -p: installing (`install::check_at_start`).
     pub installing: PlainDword,
-    /// 0x51B9E4: `dword_51B9E4`: the registration is offered.
+    /// The registration is offered.
     pub offer_registration: PlainDword,
-    /// 0x51B9E8: `g_runRegistration`: the registration program is run at the end.
+    /// The registration program is run at the end.
     pub run_registration: PlainDword,
-    /// 0x51B9EC: `a4eregEregipExe`: the registration program's script: a count, "ereg\eregip.exe" from +2 (`install::run_after_exit`).
+    /// The registration program's script: a count, "ereg\eregip.exe" from +2
+    /// (`install::run_after_exit`).
     pub ereg: PlainBytes<20>,
-    /// 0x51BA00: `g_pathProblem`: 1 a bad folder, 2 no room.
+    /// 1 a bad folder, 2 no room.
     pub path_problem: PlainDword,
-    /// 0x51BA04: `g_ignoreRoom`: the lack of room is ignored.
+    /// The lack of room is ignored.
     pub ignore_room: PlainDword,
-    /// 0x51BA08: `g_givenMediaMode`: -i's first digit.
+    /// -i's first digit.
     pub given_mode: PlainDword,
-    /// 0x51BA0C: `g_givenLanguage`: -i's second digit.
+    /// -i's second digit.
     pub given_language: PlainDword,
-    /// 0x51BA10: `dword_51BA10`: 26 of (found, free KB), by drive letter.
+    /// 26 of (found, free KB), by drive letter.
     pub drives: [PlainDword; 52],
-    /// 0x51BAE0: `g_driveCount`: the drives found.
+    /// The drives found.
     pub drive_count: PlainDword,
-    /// 0x51BAE4: `g_firstDrive`: the first letter looked at.
+    /// The first letter looked at.
     pub first_drive: PlainDword,
-    /// 0x51BAE8: `g_filesCopied`: the files copied so far.
+    /// The files copied so far.
     pub files_copied: PlainDword,
-    /// 0x51BAEC: `g_filesToCopy`: the files to copy.
+    /// The files to copy.
     pub files_to_copy: PlainDword,
-    /// 0x51BAF0: `dword_51BAF0`: `install::install_files`' spare.
+    /// `install::install_files`' spare.
     pub copy_spare: PlainDword,
-    /// 0x51BAF4: Not named: 4 bytes (a gap, or data nothing reads here).
+    /// A gap of 4 byte(s): nothing reads it.
     pub _gap_51baf4: PlainBytes<4>,
-    /// 0x51BAF8: `g_roomNeededKb`: KB needed.
+    /// KB needed.
     pub room_needed: PlainDword,
-    /// 0x51BAFC: `stru_51BAFC`: the installer's memory list (a `MemoryList` of 16 bytes, then its work).
+    /// The installer's memory list (a `MemoryList` of 16 bytes, then its work).
     pub buffers: crate::memory::ListCells,
-    /// 0x51BB0C: the 48 bytes after the list (no code reads or writes them).
+    /// The 48 bytes after the list (no code reads or writes them).
     pub buffers_rest: PlainBytes<48>,
-    /// 0x51BB3C: `g_installBarGlyphs`: the progress bar's glyph table.
+    /// The progress bar's glyph table.
     pub bar_glyphs: PlainDword,
-    /// 0x51BB40: `g_dirNames`: the folders' names (a 0x10000-byte buffer; 0 now:
+    /// The folders' names (a 0x10000-byte buffer; 0 now:
     /// `install::name_tables::FOLDERS`).
     pub dirs: PlainDword,
-    /// 0x51BB44: `g_fileNames`: the files' names (a 0x40000-byte buffer; 0 now:
+    /// The files' names (a 0x40000-byte buffer; 0 now:
     /// `install::name_tables::FILES`).
     pub files: PlainDword,
-    /// 0x51BB48: `g_dirCount`: the folders listed.
+    /// The folders listed.
     pub dir_count: PlainDword,
-    /// 0x51BB4C: `g_fileCount`: the files listed.
+    /// The files listed.
     pub file_count: PlainDword,
-    /// 0x51BB50: `g_dirScan`: the next folder to search (its number).
+    /// The next folder to search (its number).
     pub dir_scan: PlainDword,
-    /// 0x51BB54: `g_dirCursor`: the folders' table's end (its bytes).
+    /// The folders' table's end (its bytes).
     pub dir_cursor: PlainDword,
-    /// 0x51BB58: `g_fileCursor`: the files' table's end (its bytes).
+    /// The files' table's end (its bytes).
     pub file_cursor: PlainDword,
-    /// 0x51BB5C: `phkResult`: the open registry key.
+    /// The open registry key.
     pub reg_key: PlainDword,
 }
 
@@ -135,61 +132,60 @@ impl InstallerRun {
     }
 }
 
-/// The registry names, the installed record, the scripts and file names, the languages (IDA 0x51BB60 .. 0x51C407, the image's fields in its order).
+/// The registry names, the installed record, the scripts and file names, and the languages.
 #[derive(rc2k_derive::Cells)]
 pub struct InstallerNames {
-    /// 0x51BB60: `aSoftwareMagnet`: "SOFTWARE\Magnetic Fields\RC99".
+    /// "SOFTWARE\Magnetic Fields\RC99".
     pub key_name: PlainBytes<30>,
-    /// 0x51BB7E: `aStatus`: "status".
+    /// "status".
     pub status_name: PlainBytes<7>,
-    /// 0x51BB85: `aSource`: "source".
+    /// "source".
     pub source_name: PlainBytes<7>,
-    /// 0x51BB8C: `g_installStatus`: the installed status byte (`install::check_installed_version`).
+    /// The installed status byte (`install::check_installed_version`).
     pub status: PlainByte,
-    /// 0x51BB8D: `g_installSource`: the folder installed from (0xFF bytes used).
+    /// The folder installed from (0xFF bytes used).
     pub source: PlainBytes<259>,
-    /// 0x51BC90: `dword_51BC90`: the size of the source folder's name.
+    /// The size of the source folder's name.
     pub source_size: PlainDword,
-    /// 0x51BC94: `Type`: the registry value's type.
+    /// The registry value's type.
     pub reg_type: PlainDword,
-    /// 0x51BC98: Not named: 176 bytes (a gap, or data nothing reads here).
+    /// A gap of 176 byte(s): nothing reads it.
     pub _gap_51bc98: PlainBytes<176>,
-    /// 0x51BD48: `g_countScript`: the count script (`install::install_files`).
+    /// The count script (`install::install_files`).
     pub script_count: PlainBytes<200>,
-    /// 0x51BE10: `byte_51BE10`: the uninstall script, 17 bytes, then the mark (0x51BE21,
-    /// `byte_51BE21`, `SCRIPT_MARK`), then the rest of the script (0x51BE22) to its end (5)
-    /// at +0x2F: the save and settings folders. `install::run_script` reads on into the rest
-    /// when the mark is 1; 5 in the mark ends the script there.
+    /// The uninstall script, 17 bytes, then the mark (`SCRIPT_MARK`), then the rest of the script
+    /// to its end (5) at +0x2F: the save and settings folders. `install::run_script` reads on
+    /// into the rest when the mark is 1; 5 in the mark ends the script there.
     pub script: PlainBytes<{ SCRIPT_MARK + 1 + 30 }>,
-    /// 0x51BE40: `path`: "ral.exe" (in ".\ral.exe").
+    /// "ral.exe" (in ".\ral.exe").
     pub program: PlainBytes<8>,
-    /// 0x51BE48: `aRalExe_0`: "ral.exe".
+    /// "ral.exe".
     pub ral_exe: PlainBytes<8>,
-    /// 0x51BE50: Not named: 4 bytes (a gap, or data nothing reads here).
+    /// A gap of 4 byte(s): nothing reads it.
     pub _gap_51be50: PlainBytes<4>,
-    /// 0x51BE54: `aRedistDirectxD`: "redist\directx\dxsetup.exe".
+    /// "redist\directx\dxsetup.exe".
     pub dxsetup: PlainBytes<27>,
-    /// 0x51BE6F: `aFilesReadmeRea`: "files\%readme\readme.txt".
+    /// "files\%readme\readme.txt".
     pub readme: PlainBytes<25>,
-    /// 0x51BE88: `aFilesReadmeMan`: "files\%readme\manual.pdf".
+    /// "files\%readme\manual.pdf".
     pub manual: PlainBytes<25>,
-    /// 0x51BEA1: `aFilesDGfxInsta`: "files\d\gfx\install.bun".
+    /// "files\d\gfx\install.bun".
     pub installer_data: PlainBytes<24>,
-    /// 0x51BEB9: `aFilesDGfxInsta_0`: "files\d\gfx\install.pal".
+    /// "files\d\gfx\install.pal".
     pub install_pal: PlainBytes<24>,
-    /// 0x51BED1: `aFilesDGfxBackd`: "files\d\gfx\backdrop.pcx".
+    /// "files\d\gfx\backdrop.pcx".
     pub backdrop: PlainBytes<25>,
-    /// 0x51BEEA: `g_languageCount`: the languages found.
+    /// The languages found.
     pub language_count: PlainDword,
-    /// 0x51BEEE: `g_languages`: the languages found, 0x80 bytes each (eight).
+    /// The languages found, 0x80 bytes each (eight).
     pub languages: PlainBytes<1024>,
-    /// 0x51C2EE: Not named: 128 bytes (a gap, or data nothing reads here).
+    /// A gap of 128 byte(s): nothing reads it.
     pub _gap_51c2ee: PlainBytes<128>,
-    /// 0x51C36E: `aLangCfg`: "lang.cfg".
+    /// "lang.cfg".
     pub lang_cfg: PlainBytes<10>,
-    /// 0x51C378: Not named: 127 bytes (a gap, or data nothing reads here).
+    /// A gap of 127 byte(s): nothing reads it.
     pub _gap_51c378: PlainBytes<127>,
-    /// 0x51C3F7: `g_roomByMode`: KB needed by installation mode.
+    /// KB needed by installation mode.
     pub room_by_mode: PlainBytes<16>,
     /// Up to the record's alignment (no byte of a record of cells outside a field).
     pub _tail: PlainBytes<9>,
@@ -291,93 +287,98 @@ impl GlyphRecord {
 /// save and settings folders removed too), 5 ends the script there (`install::finish_page`).
 pub const SCRIPT_MARK: usize = 17;
 
-/// The page: its pieces, the list menu's state, the fonts and the pages' tables (IDA 0x51C407 ..
-/// 0x51DE2C). The fields are in the image's order with its gaps: the pages' bytes are run on
-/// through them in that order (`install::pages_map::PagesChain`, its frozen table
-/// `NAMED_PLACES`), not through the record's memory layout, which is the compiler's.
+/// The page: its pieces, the list menu's state, the fonts and the pages' tables. The pages'
+/// bytes are run on through the fields in declaration order (`install::pages_map::PagesChain`,
+/// its frozen table `NAMED_PLACES`), not through the record's memory layout.
 #[derive(rc2k_derive::Cells)]
 pub struct InstallerPages {
-    /// Not in the image: the bytes before 0x51C407 up to 0x51C400 (the pages' run starts there:
-    /// the offsets the pieces keep for items count from it).
+    /// Padding before the pages' run starts: the offsets the pieces keep for items count from it.
     pub _lead: PlainBytes<7>,
-    /// 0x51C407: `g_pageLayout`: the page's pieces: a count, then 0x30 bytes each.
+    /// The page's pieces: a count, then 0x30 bytes each.
     pub layout: PlainBytes<4096>,
-    /// 0x51D407: `g_listChoice`: the list's choice.
+    /// The list's choice.
     pub choice: PlainDword,
-    /// 0x51D40B: `g_listChoiceBefore`: the choice before the key.
+    /// The choice before the key.
     pub choice_before: PlainDword,
-    /// 0x51D40F: `g_listRepeats`: how many repeats of the key.
+    /// How many repeats of the key.
     pub repeats: PlainDword,
-    /// 0x51D413: `g_listLastKey`: the last key (`race::viewer` reads it too).
+    /// The last key (`race::viewer` reads it too).
     pub last_key: PlainByte,
-    /// 0x51D414: `byte_51D414`: a key was taken.
+    /// A key was taken.
     pub key_taken: PlainByte,
-    /// 0x51D415: `byte_51D415`: the list's answer.
+    /// The list's answer.
     pub list_answer: PlainByte,
-    /// 0x51D416: `g_listLeave`: the list is left.
+    /// The list is left.
     pub list_leave: PlainByte,
-    /// 0x51D417: Not named: 4 bytes (a gap, or data nothing reads here).
+    /// A gap of 4 byte(s): nothing reads it.
     pub _gap_51d417: PlainBytes<4>,
-    /// 0x51D41B: `dword_51D41B`: the key's clock.
+    /// The key's clock.
     pub key_clock: PlainDword,
-    /// 0x51D41F: `dword_51D41F`: the frame's clock.
+    /// The frame's clock.
     pub frame_clock: PlainDword,
-    /// 0x51D423: `dword_51D423`: the move's clock.
+    /// The move's clock.
     pub move_clock: PlainDword,
-    /// 0x51D427: Not named: 12 bytes (a gap, or data nothing reads here).
+    /// A gap of 12 byte(s): nothing reads it.
     pub _gap_51d427: PlainBytes<12>,
-    /// 0x51D433: `unk_51D433`: the copying page's two texts.
+    /// The copying page's two texts.
     pub texts: [StringRecord; 2],
-    /// 0x51D453: `unk_51D453`: the error message.
+    /// The error message.
     pub msg_error: [StringRecord; 1],
-    /// 0x51D463: `unk_51D463`: the cancel message.
+    /// The cancel message.
     pub msg_cancel: [StringRecord; 1],
-    /// 0x51D473: `unk_51D473`: the removal page's strings.
+    /// The removal page's strings.
     pub remove_strings: [StringRecord; 1],
-    /// 0x51D483: `unk_51D483`: the bar's glyph list.
+    /// The bar's glyph list.
     pub bar_glyphs_list: [GlyphRecord; 2],
-    /// 0x51D4A3: `dword_51D4A3`: the bar's x, y, width, height.
+    /// The bar's x, y, width, height.
     pub bar: PlainBytes<16>,
-    /// 0x51D4B3: `unk_51D4B3`: its frame.
+    /// Its frame.
     pub frame: PlainBytes<17>,
-    /// 0x51D4C4: `dword_51D4C4`: the page's fonts (links to the font objects).
+    /// The page's fonts (links to the font objects).
     pub fonts: [PlainDword; 25],
-    /// 0x51D528: `byte_51D528`: font by mark, 8 bytes a kind (`install::lay_out_pieces`, from +4).
+    /// Font by mark, 8 bytes a kind (`install::lay_out_pieces`, from +4).
     pub kind_fonts: PlainBytes<108>,
-    /// 0x51D594: `off_51D594` .. `g_driveMenu`: the page entries (dwords): the page's list, then the entries its answers lead on to (`page_records::PageEntry`); the normal run's first entry is at 0x51D594, the update run's at 0x51D5D8, the drive page's (`chosen_menu`) at 0x51D5F8.
+    /// The page entries (dwords): the page's list, then the entries its answers lead on to
+    /// (`page_records::PageEntry`); the normal run's first entry is first, then the update run's
+    /// and the drive page's (`chosen_menu`).
     pub page_table: [PlainDword; 55],
-    /// 0x51D670: `language_page`'s list: the nine languages and cancel.
+    /// `language_page`'s list: the nine languages and cancel.
     pub language_menu: ListData10,
-    /// 0x51D728: `mark_main_page`'s list: play, uninstall, registration and the rest of the main page. Its highlight is `g_readInstalledRecord`; the first item's kind, marks and text and the second item's text are set by `install::check_at_start::set_script_entry`.
+    /// `mark_main_page`'s list: play, uninstall, registration and the rest of the main page. The
+    /// first item's kind, marks and text and the second item's text are set by
+    /// `install::check_at_start::set_script_entry`.
     pub main_menu: ListData5,
-    /// 0x51D790: `mode_page`'s list (the installation kind).
+    /// `mode_page`'s list (the installation kind).
     pub mode_menu: ListData5,
-    /// 0x51D7F8: `install::drive_page`'s list when there are 8 or fewer drives (`install::list_drives` sets the item count and the page entry's link).
+    /// `install::drive_page`'s list when there are 8 or fewer drives (`install::list_drives` sets
+    /// the item count and the page entry's link).
     pub drive_menu_8: ListData10,
-    /// 0x51D8B0: The drive page's list when there are 9 to 16 drives.
+    /// The drive page's list when there are 9 to 16 drives.
     pub drive_menu_16: ListData18,
-    /// 0x51D9E8: The drive page's list when there are more drives.
+    /// The drive page's list when there are more drives.
     pub menu_more: ListData26,
-    /// 0x51DBA0: `folder_page`'s list; its second item is the edit item (`folder_edit`), whose text link (+8) `run_installer` sets on Unix.
+    /// `folder_page`'s list; its second item is the edit item (`folder_edit`), whose text link
+    /// (+8) `run_installer` sets on Unix.
     pub folder_menu: ListData6,
-    /// 0x51DC18: `room_page`'s list.
+    /// `room_page`'s list.
     pub room_menu: ListData3,
-    /// 0x51DC60: `dxsetup_page`'s list.
+    /// `dxsetup_page`'s list.
     pub dxsetup_menu: ListData4,
-    /// 0x51DCB8: `finish_page`'s list.
+    /// `finish_page`'s list.
     pub finish_menu: ListData4,
-    /// 0x51DD10: the pages that are only an action: a list header with no items (flags 0x40), each; the third's action (`off_51DD48`) is where `check_clio_disc` puts the update step.
+    /// The pages that are only an action: a list header with no items (flags 0x40), each; the
+    /// third's action is where `check_clio_disc` puts the update step.
     pub action_pages: [ListHeader; 4],
-    /// 0x51DD70: the folder item's edit record.
+    /// The folder item's edit record.
     pub folder_edit: EditRecord,
-    /// `unk_51DD78`: the title's item.
+    /// The title's item.
     pub title: Item,
-    /// 0x51DD88: the boxes items are placed in, `{x, y, width, height}` each: the title item's (0), the title's (1, `unk_51DD98`), the drive texts' (2 .. 8).
+    /// The boxes items are placed in, `{x, y, width, height}` each: the title item's (0), the
+    /// title's (1), the drive texts' (2 .. 8).
     pub boxes: [BoxRect; 9],
-    /// 0x51DE18: `g_badFolderChars`: the characters a folder name may not hold.
+    /// The characters a folder name may not hold.
     pub bad_folder_chars: PlainBytes<20>,
-    /// 0x51DE2C: the four bytes after the characters, up to 0x51DE30 (a read on past them
-    /// reaches these, as the image's).
+    /// Four bytes after the characters (a read on past them reaches these).
     pub _tail: PlainBytes<4>,
 }
 
@@ -567,8 +568,8 @@ impl InstallerPages {
         install.pages.kind_fonts.get(index as usize)
     }
 
-    /// Where font `index` of the page's fonts is (the table keeps links to the font objects). A slot that names no font
-    /// object (the unused slot 0, an index off the table) is refused.
+    /// Where font `index` of the page's fonts is (the table keeps links to the font objects). A
+    /// slot that names no font object (the unused slot 0, an index off the table) is refused.
     pub fn font_of(
         install: &crate::install::owner::Install,
         index: u32,
@@ -584,22 +585,22 @@ impl InstallerPages {
     }
 }
 
-/// The installer's path buffers (0x100 bytes each; the network's lobby edits two of them) (IDA 0x95E6F8 .. 0x95ECF8, the image's order).
+/// The installer's path buffers (0x100 bytes each; the network's lobby edits two of them).
 #[derive(rc2k_derive::Cells)]
 pub struct InstallerPaths {
-    /// Not in the image: the bytes that keep every field the alignment its IDA address has (the struct is 16-byte aligned).
+    /// Padding that keeps every field its alignment (the struct is 16-byte aligned).
     pub _lead: PlainBytes<8>,
-    /// 0x95E6F8: `byte_95E6F8`: the folder installed into (also the first of `-i`'s paths).
+    /// The folder installed into (also the first of `-i`'s paths).
     pub game_dir: PlainBytes<256>,
-    /// 0x95E7F8: `byte_95E7F8`: the folder installed from (also `-i`'s second path).
+    /// The folder installed from (also `-i`'s second path).
     pub installed: PlainBytes<256>,
-    /// 0x95E8F8: `byte_95E8F8`: a path being built (the lobby's number edited as text).
+    /// A path being built (the lobby's number edited as text).
     pub path_a: PlainBytes<256>,
-    /// 0x95E9F8: `byte_95E9F8`: another path being built.
+    /// Another path being built.
     pub path_b: PlainBytes<256>,
-    /// 0x95EAF8: `byte_95EAF8`: the script's path; an edit's backup (the lobby's text before editing).
+    /// The script's path; an edit's backup (the lobby's text before editing).
     pub script_path: PlainBytes<256>,
-    /// 0x95EBF8: `byte_95EBF8`: the folder typed on the page.
+    /// The folder typed on the page.
     pub typed: PlainBytes<256>,
     /// Up to the record's alignment (no byte of a record of cells outside a field).
     pub _tail: PlainBytes<8>,
@@ -620,12 +621,12 @@ impl InstallerPaths {
     }
 }
 
-/// The installer's palette buffer (IDA 0x4F3874 .. 0x4F3B74).
+/// The installer's palette buffer.
 #[derive(rc2k_derive::Cells)]
 pub struct InstallerPalette {
-    /// Not in the image: the bytes that keep every field the alignment its IDA address has (the struct is 16-byte aligned).
+    /// Padding that keeps every field its alignment (the struct is 16-byte aligned).
     pub _lead: PlainBytes<4>,
-    /// 0x4F3874: `unk_4F3874`: the installer's palette file read here (0x300 bytes, `install::open_installer`).
+    /// The installer's palette file read here (0x300 bytes, `install::open_installer`).
     pub palette: PlainBytes<768>,
     /// Up to the record's alignment (no byte of a record of cells outside a field).
     pub _tail: PlainBytes<12>,

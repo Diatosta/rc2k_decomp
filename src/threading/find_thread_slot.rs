@@ -1,14 +1,11 @@
-//! `threading::find_thread_slot` (0x410CC5): finds the `ThreadSlot` of the current thread.
+//! Finds the `ThreadSlot` of the current thread.
 //!
 //! Returns the slot, or none; the result depends on which thread calls it.
 
 use crate::threading::thread_slot::ThreadSlot;
 
-// ---- Rust version ----
-
 /// The number of the current thread's slot, None if it has none.
 fn current_slot_number() -> Result<Option<usize>, crate::errors::BadInput> {
-    // Converted: `rc2k_core::threading::slot_of`.
     let tid = crate::sync::thread_id();
     let failed = std::cell::Cell::new(None);
     let found = rc2k_core::threading::slot_of(

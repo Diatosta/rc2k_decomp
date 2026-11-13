@@ -1,10 +1,5 @@
-//! `net::race_over` (0x41732E): this player's race done: `all_raced` and `race_over` 0,
-//! the race's time to the record (+8) and added to its total (+0xC), its state
-//! "raced" (bits 0 and 1 off, bit 2 on), "after a race" (`after_race` 1), and the players
-//! listed (`net::list_players_regs`: the record sent).
-//!
-//! Takes `time`.
-//! Caller: `net::lets_rally`.
+//! This player's race is done: its time goes to the record and its total, its state becomes
+//! "raced", "after a race" is set and the players are listed again (the record is sent).
 
 use crate::errors::Refused;
 use crate::net::owner::Net;
@@ -17,7 +12,7 @@ pub fn race_over(net: &Net, time: u32) -> Result<(), Refused> {
         .own
         .total
         .set(net.vars.own.total.get().wrapping_add(time));
-    // Converted: `rc2k_core::net::players::raced`.
+    // The logic is in `rc2k_core::net::players::raced`.
     net.vars.own.head.set(
         PlayerRecord::STATE,
         rc2k_core::net::players::raced(net.vars.own.state()),

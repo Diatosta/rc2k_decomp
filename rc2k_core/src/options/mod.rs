@@ -1,5 +1,5 @@
-//! The game's options, kept between runs in `var/rc2k.toml`, and the old file they came
-//! from, `var\ral.dat` (`saves::load_options`), whose byte format never changes.
+//! The game's options, kept in `var/rc2k.toml`, and the old file they came from, `var\ral.dat`
+//! (`saves::load_options`), whose byte format never changes.
 //!
 //! The model (`Options`) holds everything the old file holds, by area. `old_file` is the
 //! old file's codec (bit-exact both ways), `toml_file` the new file's text, `files` the rule

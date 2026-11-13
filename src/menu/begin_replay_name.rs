@@ -1,9 +1,9 @@
-//! `menu::begin_replay_name` (0x46F715): starts typing the name of the highlighted replay:
+//! `menu::begin_replay_name`: starts typing the name of the highlighted replay:
 //! the name is copied to the text entry's backup and cleared, the entry's length is 0 and
 //! `option_work.typing` (an entry is going on) is 1.
-//! It first logs "getrepsaveslotname result=<name>".
+//! It first logs `getrepsaveslotname result=<name>`.
 //!
-//! It writes "Backed up name=<the name>" to the game's log (`logfile::log_write`). In six menu
+//! It writes `Backed up name=<the name>` to the game's log (`logfile::log_write`). In six menu
 //! tables. Refuses a name past the list. The menus and draw lists run its `entry`
 //! (`menu::table_calls`).
 
@@ -25,6 +25,5 @@ pub fn begin_replay_name(
         crate::logfile::log_write::log_nul(c"getrepsaveslotname result=", false, 1);
         crate::logfile::log_write::log_at(name, true, 1);
     }
-    // The logic is in `rc2k_core::menu::text_entry::Entry::begin` (through `begin_logged`).
     begin_logged(menus, name, log)
 }

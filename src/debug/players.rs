@@ -1,15 +1,14 @@
-//! The "Players" tab: the developers' two data dumps (no references to either).
-//! 0x471412 wrote each player's record to the game's log under the labels below (the
-//! record's fields, named by them); 0x449A59 a car block's state, of "car1" and "car2", which
-//! are both the first block (a slip: `notes/bugs.md`; here every car). The button
-//! writes the same to the log.
+//! The "Players" tab: the developers' two data dumps (nothing reached either). One wrote each
+//! player's record to the game's log under the labels below (the record's fields, named by
+//! them); the other a car block's state, of "car1" and "car2", which were both the first block
+//! (a slip in the dump; here every car). The button writes the same to the log.
 
 use crate::owners::Owners;
 use crate::physics::car_store::Car;
 use crate::session::PlainDword;
 use dear_imgui_rs::{TableFlags, Ui};
 
-/// 0x471412's labels and offsets, in its order.
+/// The player dump's labels and offsets, in its order.
 const PLAYER_ROWS: [(&str, usize); 51] = [
     ("zxplayer", 0x0),
     ("country", 0x4),
@@ -67,7 +66,7 @@ const PLAYER_ROWS: [(&str, usize); 51] = [
 /// A car block's cell.
 type CarField = fn(&Car) -> &PlainDword;
 
-/// 0x449AA3's labels and fields (it shows `racefinished` twice).
+/// The car dump's labels and fields (it shows `racefinished` twice).
 const CAR_ROWS: [(&str, CarField); 7] = [
     ("driver", |c| &c.driver_kind),
     ("racefinished", |c| &c.finish_flag),

@@ -1,13 +1,7 @@
-//! `audio::mix` (0x40BDC5): a turn of the game's mixer into the primary buffer.
-//!
-//! `GetCurrentPosition` (+0x10) of `g_primaryBuffer` into `g_playCursor`; the bytes the
-//! play cursor moved since the last turn (round the buffer's `g_primarySize`); nothing
-//! for none; more than `g_mixMost` (40 ms) are cut to it and the write cursor put that far
-//! ahead of the play cursor. Then `audio::mix_channels` for them, `Lock` (+0x2C) from
-//! `g_writeCursor` into `g_lockedParts`, the write cursor moved on round the buffer,
-//! `audio::write_mix`, `Unlock` (+0x4C). A failing call ends it with the carry, and
-//! `DSERR_BUFFERLOST` sets `g_soundBufferLost`. (A `GetStatus` at 0x40BE9D is in it but not
-//! reached.) One caller, the mixer's way of the turn.
+//! A turn of the game's mixer into the primary buffer: the bytes the play cursor moved since the
+//! last turn (at most 40 ms; more are cut and the write cursor put that far ahead) are mixed
+//! (`audio::mix_channels`), the buffer locked at the write cursor, filled (`audio::write_mix`) and
+//! unlocked. A failing call ends it with failure, and a lost buffer sets the lost flag.
 
 use crate::audio::own::AudioOwn;
 use crate::errors::Refused;
@@ -31,7 +25,6 @@ pub fn mix(state: &AudioOwn) -> Result<bool, Refused> {
             Ok((play, _)) => state.play_cursor.set(play),
             Err(r) => return Ok(failed(r)),
         }
-        // Converted: `rc2k_core::audio::streams::cursor_moved` and `round`.
         use rc2k_core::audio::streams::{cursor_moved, round};
         let size = state.primary_size.get();
         let Some((bytes, write_at)) =

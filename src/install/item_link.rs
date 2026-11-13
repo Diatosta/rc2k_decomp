@@ -1,24 +1,19 @@
-//! `install::item_link` (0x414A28): Enter on a link item (kind 1): its action (`[item+8]`,
-//! given its `[item+0Ch]`) if it has one; else, unless its next list (`[item+1]`) is negative,
-//! that number into `list_answer` and the page left (`g_listLeave` 1).
-//!
-//! Takes the item.
-//! Caller `install::item_enter`.
+//! Enter on a link item (kind 1): its action if it has one; else, unless its next list is
+//! negative, that number goes into `list_answer` and the page is left. Called by
+//! `install::item_enter`.
 
 use crate::errors::Refused;
 use crate::install::installer::item_action_at;
 use crate::menu::list_handle::ListItem;
 use rc2k_core::install::items::{self, LinkWay};
 
-/// Enter on a link; the original's zero after it (the action's, else that of `test bl, bl`
-/// on the next list).
+/// Enter on a link; whether it was taken.
 pub fn item_link(
     install: &crate::install::owner::Install,
     item: ListItem,
 ) -> Result<bool, Refused> {
     let action = item.target();
     let mut next = 0;
-    // Converted: `rc2k_core::install::items::link`.
     match items::link(action, || {
         next = item.count();
         next

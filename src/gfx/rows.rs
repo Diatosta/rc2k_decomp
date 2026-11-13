@@ -1,11 +1,9 @@
-//! A locked surface's or texture's pixels by row: where the first row starts, the bytes from
-//! one row to the next (the pitch, the gap after a row's pixels included) and how many rows
-//! there are. Every row is reached from one place bounded to the rows' extent (pitch x rows),
-//! so a row past the last, or bytes running past the last row, are refused where the
-//! address arithmetic of each drawer let them through to whatever memory followed.
-//!
-//! The arithmetic stays the original's: row y starts at first + y x pitch, and a drawer that
-//! works out its pitch its own way (`row_dwords` x 4 + the gap) passes that pitch.
+//! A locked surface's or texture's pixels by row: where the first row starts, the bytes from one
+//! row to the next (the pitch, the gap after a row's pixels included) and how many rows there are.
+//! Every row is reached from one place bounded to the rows' extent (pitch x rows), so a row past
+//! the last, or bytes running past the last row, are refused.
+//! Row y starts at first + y x pitch, and a drawer that works out its pitch its own way
+//! (`row_dwords` x 4 + the gap) passes that pitch.
 
 use crate::errors::BadInput;
 use crate::gfx::locked_pixels::Place;
@@ -29,8 +27,8 @@ impl Rows {
         }
     }
 
-    /// The drawing surface's (`DRAW_SURFACE`: its pixels, pitch and height); refused while
-    /// the picture buffer is the surface (`gfx::surface::handle`).
+    /// The drawing surface's (`DRAW_SURFACE`: its pixels, pitch and height); refused while the
+    /// picture buffer is the surface (`gfx::surface::handle`).
     pub fn surface(gfx: &crate::gfx::owner::Gfx) -> Result<Self, BadInput> {
         let drawing = &gfx.drawing;
         Ok(Self::new(
@@ -40,7 +38,7 @@ impl Rows {
         ))
     }
 
-    /// Whether there are no pixels (a null first row, as the original's null surface).
+    /// Whether there are no pixels (a null first row).
     pub fn is_null(&self) -> bool {
         self.first.is_null()
     }
@@ -59,8 +57,8 @@ impl Rows {
             .offset(y.wrapping_mul(self.pitch).wrapping_add(at)))
     }
 
-    /// The byte `offset` from the first row's start (a drawer's plan of byte places), bounded
-    /// to the rows' extent as any row's.
+    /// The byte `offset` from the first row's start (a drawer's plan of byte places), bounded to
+    /// the rows' extent as any row's.
     pub fn byte(&self, offset: u32) -> Place {
         self.first.offset(offset)
     }
@@ -78,8 +76,8 @@ impl Rows {
     }
 }
 
-/// `rows` rows of the drawing surface (a locked texture) cleared from byte `start` of its
-/// first (`rep stosd` of the row's dwords, then the row's gap, as the original steps).
+/// `rows` rows of the drawing surface (a locked texture) cleared from byte `start` of its first
+/// (each row's dwords, then the row's gap).
 pub fn clear_surface_rows(
     start: u32,
     rows: u32,

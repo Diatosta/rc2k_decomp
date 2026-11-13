@@ -1,17 +1,14 @@
-//! The championships' starters: the start menus' items that set a championship up for
-//! one to four players and run it (from `menu::start_championship_one`
-//! 0x4A25F4, `_split`, `_two` 0x4A27B5, `_three`, `_four`, and `menu::start_a8_one`
-//! 0x4A9C9B, `_split`, `_two`, `_three`, `_four`). Their steps in the original's order, on
-//! the game's variables and callees through `Event`.
+//! The championships' starters: the start menus' items that set a championship up for one to four
+//! players and run it, on the game's variables and callees through `Event`.
 
 use super::leaving::Switch;
 
 /// The two championships.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Championship {
-    /// `g_eventType` 4, `menu::run_championship`.
+    /// Event type 4, `menu::run_championship`.
     First,
-    /// `g_eventType` 5, `menu::run_a8_championship`.
+    /// Event type 5, `menu::run_a8_championship`.
     A8,
 }
 
@@ -61,7 +58,7 @@ impl Starter {
         }
     }
 
-    /// The one-player starters differ (see `start`).
+    /// The one-player starters, whose steps differ (see `start`).
     pub fn first(self) -> bool {
         self.seats == Seats::One
     }

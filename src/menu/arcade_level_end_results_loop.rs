@@ -1,27 +1,22 @@
-//! `menu::arcade_level_end_results_loop` (0x488F4C): the loop of a screen with the results background.
-//!
-//! The loop itself is `menu::screen_loop`; this file says what is this screen's own
-//! (`SCREEN`), as extracted from the disassembly: background `results1.png` through
-//! `menu::load_background` (carry afterwards = fatal error 0x80712345); leaving is not asked
-//! about.
-//! Which screen it is has not been confirmed, hence the name. Its title string: "(empty)".
+//! The loop of a screen with the results background. Screen-specific part of `menu::screen_loop`:
+//! background `results1.png` through `menu::load_background`; leaving is not asked about.
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Callee, List, MenuSound, Screen, Step};
 
 pub const SCREEN: Screen = Screen {
     lists: &[
         List {
-            pointer: |m| &m.screens.flow.scene_list, // g_sceneList
+            pointer: |m| &m.screens.flow.scene_list,
             table: |m| m.tables.draw_lists.arcade_level_end_results_scene.id(),
             run: false,
         },
         List {
-            pointer: |m| &m.screens.flow.draw_list, // g_drawList
+            pointer: |m| &m.screens.flow.draw_list,
             table: |m| m.tables.draw_lists.arcade_level_end_results_draw.id(),
             run: false,
         },
         List {
-            pointer: |m| &m.screens.flow.overlay_list, // g_overlayList
+            pointer: |m| &m.screens.flow.overlay_list,
             table: |m| m.tables.draw_lists.arcade_level_end_results_overlay.id(),
             run: false,
         },

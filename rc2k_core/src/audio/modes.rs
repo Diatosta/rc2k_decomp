@@ -1,8 +1,5 @@
-//! The sound modes chosen (from `audio::choose_modes` 0x40A1CA): the
-//! advanced audio screen's options (`g_audioOptions`, 0x40 bytes: +0 kept, +4 .. +0x18 the
-//! six choices quality, channels, DS3D, EAX, A3D, Dolby, +0x1C .. +0x30 the six as last
-//! applied, +0x34 3D there, +0x38 A3D2 there, +0x3C EAX there) made the race's mode, and
-//! the menus' 0x11221.
+//! The sound modes chosen: the advanced audio screen's options made the race's mode, and the menus'
+//! 0x11221.
 //!
 //! The first call fills the options from the race's mode (quality: the first of the three
 //! quality modes whose low byte the mode has, else 3; the others from the mode's bits, set
@@ -16,7 +13,7 @@
 
 use crate::Invalid;
 
-/// The quality modes (`g_qualityModes`, four).
+/// The quality modes.
 pub const QUALITIES: u32 = 4;
 
 #[repr(C)]
@@ -162,11 +159,10 @@ pub fn choose_modes(
     Ok(())
 }
 
-/// The mixer channels of a sound mode (`audio::set_mode` 0x40A426): 8, 0x10 with bit
-/// 0x400000; held to the free hardware buffers of the mode's kind (`buffers`: the caps'
-/// all and static counts, 2D +0x24 / +0x28, 3D with bit 0x100000 +0x3C / +0x40; bit
-/// 0x10000 holds to all, else 0x20000 to static) when there are any, and at least 6.
-/// Also the count looked at last (the second result).
+/// The mixer channels of a sound mode (`audio::set_mode`): 8, 0x10 with bit 0x400000; held to the
+/// free hardware buffers of the mode's kind (`buffers`: the caps' all and static counts, 2D +0x24 /
+/// +0x28, 3D with bit 0x100000 +0x3C / +0x40; bit 0x10000 holds to all, else 0x20000 to static)
+/// when there are any, and at least 6. Also the count looked at last (the second result).
 pub fn channels(mode: u32, buffers_2d: [u32; 2], buffers_3d: [u32; 2]) -> (u32, u32) {
     let mut channels: i32 = if mode & 0x40_0000 != 0 { 0x10 } else { 8 };
     let [all, other] = if mode & 0x10_0000 == 0 {

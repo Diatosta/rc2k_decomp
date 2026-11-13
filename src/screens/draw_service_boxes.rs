@@ -1,12 +1,10 @@
-//! `screens::draw_service_boxes` (0x4940BC): the service area's boxes, the layer behind
-//! `screens::draw_service_area`'s text: the backdrop, the header and item boxes of the
-//! inspection (colour by the item's flags, a yellow highlight on the item under the cursor,
-//! blinking) and last the four frames round the setup cells.
+//! The service area's boxes, the layer behind `screens::draw_service_area`'s text: the
+//! backdrop, the header and item boxes of the inspection (colour by the item's flags, a blinking
+//! yellow highlight on the item under the cursor) and last the four frames round the setup cells.
 //!
-//! The boxes are called "items" as the original numbers them (`crate::menu::owner::menus().screens.loop_flags.item`): 2 .. 0xD the
-//! twelve small boxes in two columns, 0xE and 0xF the setup rows, 0x10 .. 0x13 the four tall
-//! boxes, 0x14, 0x15, 0x16 and 1 the four bars at the bottom, and 0x63 the headers and the
-//! bottom panel.
+//! The boxes are called "items" (`loop_flags.item`): 2 to 0xD the twelve small boxes in two
+//! columns, 0xE and 0xF the setup rows, 0x10 to 0x13 the four tall boxes, 0x14, 0x15, 0x16 and 1
+//! the four bars at the bottom, and 0x63 the headers and the bottom panel.
 
 use crate::errors::Refused;
 use crate::menu::owner::Menus;
@@ -221,7 +219,7 @@ fn tall_item(o: Owners<'static>, item: u32) -> Result<(), Refused> {
     Ok(())
 }
 
-/// The service area's boxes, in the order the original draws them.
+/// The service area's boxes, in drawing order.
 pub fn draw_service_boxes(o: Owners<'static>) -> Result<(), Refused> {
     let menus = o.menus;
     for [x, y, w, h] in BACKDROP_BOXES {

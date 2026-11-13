@@ -1,16 +1,12 @@
-//! `drive::car_input_words` (0x43A27E): the current car's input words (`input_words` .. `6138D0`):
-//! 0, then, for a car with a device (`listed_car_sounds`[g_currentCar]` not -1), its readings
-//! (`drive::device_axes`). In a network game (`session`): the car's block
-//! (`g_carBlocks[g_currentCar]`) +0xFD0 .. gives them, or, for the car recorded (`player`),
-//! takes them.
+//! The current car's input words: 0, then, for a car with a device, its readings
+//! (`drive::device_axes`). In a network game the car's block gives them, or, for the car
+//! recorded, takes them.
 //!
-//! Callers: `drive::car_controls`, `race::step_replay_cars`, `drive::replay_step`. Refuses (before
-//! anything) a current car past 7, and what `device_axes` refuses.
+//! Refuses (before anything) a current car past 7, and what `device_axes` refuses.
 
 use crate::errors::Refused;
 use crate::race::owner::Race;
 
-// Converted: `rc2k_core::drive::inputs::{check_car, device_words, replay_words}`.
 pub fn car_input_words(
     race: &Race,
     input: &crate::input::owner::Input,

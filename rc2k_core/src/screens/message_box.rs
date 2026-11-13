@@ -1,6 +1,5 @@
-//! The "not in this version" box (from `screens::draw_message_box`
-//! 0x415EA6): string 0x1FE in a box in the middle of the surface, 0x32 wider and 0x19
-//! higher than the string measures, the string drawn centred in another font.
+//! The "not in this version" box: a string in a box in the middle of the surface, 0x32 wider
+//! and 0x19 higher than the string measures, the string drawn centred in another font.
 
 /// The string shown.
 pub const STRING: u32 = 0x1FE;
@@ -11,7 +10,7 @@ pub const FRAME: u32 = 0xA;
 /// The box and where the string goes.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct MessageBox {
-    /// x, y, width, height (`dword_52983C` ..).
+    /// x, y, width, height.
     pub rect: [u32; 4],
     pub text_x: i32,
     pub text_y: i32,

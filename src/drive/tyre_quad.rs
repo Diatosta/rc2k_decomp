@@ -1,11 +1,7 @@
-//! `drive::tyre_quad` (0x41DD3B): a screen quad of the tyre-change screen: the screen rectangle (x,
-//! y, w, h, whole numbers) as the four vertices' places (`g_polygonVertices`), z 0, rhw 1, the given
+//! A screen quad of the tyre-change screen: the screen rectangle (x,
+//! y, w, h, whole numbers) as the four vertices' places, z 0, rhw 1, the given
 //! colour, the texture rectangle (`drive::tyre_parts`' `quad_tail`, scaled to the screen), drawn
 //! (place 5, the device's DrawPrimitive: a call into the game).
-//!
-//! Takes: the texture rectangle, the screen rectangle, the colour
-//!
-//! Callers: `drive::tyre_screen` (two), `drive::tyre_screen_parts` (ten).
 
 use crate::d3d::vertices_store::PolygonVertices;
 use crate::drive::tyre_parts::*;
@@ -35,7 +31,6 @@ pub fn tyre_quad(
 }
 
 /// `tyre_quad` on the rectangles' values.
-// Converted: `rc2k_core::drive::tyre_screen::quad_corners` (the shared tail stays x87).
 pub fn quad_of(
     uv: [u32; 4],
     rect: [u32; 4],

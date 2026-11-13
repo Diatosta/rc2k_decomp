@@ -1,15 +1,6 @@
-//! `net::connection_found` (0x4186E5): DirectPlay's `EnumConnections` callback: "NET: Found"
-//! and the connection's name logged; with `g_noticeKind` 2, the two service providers
-//! `sp_serial` and `sp_modem` (`system::same_guid`) left out; else the connection's data
-//! copied into memory of the network's list (`memory::allocate`; none: the enumeration
-//! stops) and, if fewer than 0x100 are listed, a record added (`net::connection_entry`):
-//! +0x50 the data, +0x40 the service provider's GUID, +0 the name
-//! (`strings::copy_printable`, 0x40 room).
-//!
-//! Takes (stdcall) the service provider's GUID, the connection, its size, its name (a DPNAME:
-//! +8 the short name), the flags and the context. Returns 1 to go on, 0 to stop.
-//! A full list stops the enumeration after the memory is taken (it stays on the list).
-//! Caller: DirectPlay, from `net::find_connections` (`callback`, a `stdcall` Rust function).
+//! DirectPlay's `EnumConnections` callback: logs the connection and, unless it is a serial or
+//! modem provider (with the notice kind 2), copies its data into the network's memory and adds a
+//! record to the list (up to 0x100). Returns 1 to go on, 0 to stop (out of memory or a full list).
 
 use crate::errors::Refused;
 use crate::net::lobby::log_bytes;

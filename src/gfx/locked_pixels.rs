@@ -1,13 +1,11 @@
-//! The pixels of the screen and of a texture's levels, which the game locks to draw on: a
-//! handle in the place of the address DirectDraw's `Lock` gave, and a place in them reached
-//! through the handle's bytes.
-//!
+//! The pixels of the screen and of a texture's levels, which the game locks to draw on: a handle in
+//! the place of the address DirectDraw's `Lock` gave, and a place in them reached through the
+//! handle's bytes.
 //! The platform registers its bytes under a handle (`SCREEN`, `level`), and the game's data
-//! (`DRAW_SURFACE.pixels`, `present_pixels`, a lock's description) keeps the handle where
-//! the original kept the pixels' address. A `Place` is a byte of those bytes; a read or
-//! write past the bytes' end, or past the extent a drawer limited it to, is refused.
-//! Bytes that are gone (the screen of an earlier mode, a level let go) are refused as
-//! those of an address outside every allocation were.
+//! (`DRAW_SURFACE.pixels`, `present_pixels`, a lock's description) keeps the handle where an
+//! address was once kept. A `Place` is a byte of those bytes; a read or write past the bytes' end,
+//! or past the extent a drawer limited it to, is refused. Bytes that are gone (the screen of an
+//! earlier mode, a level let go) are refused too.
 
 use crate::cells::Plain;
 use crate::errors::BadInput;
@@ -25,8 +23,8 @@ pub const fn level(surface: usize) -> u32 {
 
 static HELD: Mutex<BTreeMap<u32, Weak<PoolBytes>>> = Mutex::new(BTreeMap::new());
 
-/// How many times a handle has been registered: what a cached answer of `bytes_of` is
-/// checked against (a handle's bytes change only by a registration, or by their end).
+/// How many times a handle has been registered: what a cached answer of `bytes_of` is checked
+/// against (a handle's bytes change only by a registration, or by their end).
 static REGISTRATIONS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 
 /// `bytes` named by `handle`, for as long as they live.
@@ -40,8 +38,8 @@ pub fn registrations() -> u64 {
     REGISTRATIONS.load(std::sync::atomic::Ordering::Acquire)
 }
 
-/// A handle's bytes as `bytes_of` found them, kept by whoever asks often: still the answer
-/// while no handle has been registered since and the bytes live, and then without the lock.
+/// A handle's bytes as `bytes_of` found them, kept by whoever asks often: still the answer while no
+/// handle has been registered since and the bytes live, and then without the lock.
 pub struct Remembered(Option<(u32, u64, Weak<PoolBytes>)>);
 
 impl Remembered {
@@ -72,14 +70,14 @@ impl Remembered {
     }
 }
 
-/// The bytes `handle` names; `None` for none (0), for a handle never registered, or for
-/// bytes that are gone.
+/// The bytes `handle` names; `None` for none (0), for a handle never registered, or for bytes that
+/// are gone.
 pub fn bytes_of(handle: u32) -> Option<Arc<PoolBytes>> {
     HELD.lock().unwrap().get(&handle)?.upgrade()
 }
 
-/// A byte of a locked surface's pixels: the bytes, the offset from their start and the
-/// offset the reachable bytes end at.
+/// A byte of a locked surface's pixels: the bytes, the offset from their start and the offset the
+/// reachable bytes end at.
 #[derive(Clone)]
 pub struct Place {
     bytes: Option<Arc<PoolBytes>>,

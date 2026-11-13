@@ -1,5 +1,4 @@
-//! The audio thread (`audio::thread`, 0x409CCE): the side that carries out what `sound::`
-//! sends. See `voices.rs`.
+//! The audio thread (`audio::thread`): the side that carries out what `sound::` sends.
 
 pub mod a3d;
 pub mod buffer_play;

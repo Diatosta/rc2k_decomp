@@ -1,8 +1,5 @@
-//! Object kinds (from `scene::known_kind` 0x41F469, `known_kind_picture` 0x41F44D,
-//! `car_icon_number` 0x41F519, `find_object_kind` 0x41F4BD, `find_object_of_kind` 0x422298,
-//! `kind_is_hidden` 0x452303 and `kind_hidden_at` 0x4522F7): the 0x22 known kinds of car, each with
-//! an object kind, a first picture and an icon number (the HUD's car icons), and the kind of each
-//! of the scene's 0x100 objects. The tables are read entry by entry, as the original reads them.
+//! Object kinds: the 0x22 known kinds of car, each with an object kind, a first picture and an
+//! icon number, and the kind of each of the scene's 0x100 objects.
 
 use crate::Invalid;
 
@@ -10,7 +7,7 @@ use crate::Invalid;
 pub const KNOWN_KINDS: u32 = 0x22;
 /// The scene's objects.
 pub const OBJECTS: u32 = 0x100;
-/// The kinds a hiding setting hides.
+/// The object kinds a hiding setting hides.
 pub const HIDDEN_KINDS: [u32; 2] = [0x30, 0x4E];
 
 /// The entry of a known kind's tables a number asks for: held to 0 .. 0x21, signed.
@@ -18,8 +15,8 @@ pub fn known_place(which: u32) -> usize {
     (which as i32).clamp(0, KNOWN_KINDS as i32 - 1) as usize
 }
 
-/// The place of the first known kind whose object kind (`known(place)`), or that plus 1,
-/// is `kind`; `KNOWN_KINDS` for none.
+/// The place of the first known kind whose object kind (`known(place)`), or that plus 1, is
+/// `kind`; `KNOWN_KINDS` for none.
 pub fn find_known(known: impl Fn(usize) -> u32, kind: u32) -> u32 {
     (0..KNOWN_KINDS)
         .find(|&n| {
@@ -51,9 +48,8 @@ impl HideSettings {
     }
 }
 
-/// Whether `object` is hidden by its kind (`kind_of`, asked only with the settings on), and the
-/// number looked at: the kind when it looked, else the object. Refuses an object past the table
-/// with the settings on (the original reads past it).
+/// Whether `object` is hidden by its kind (`kind_of`, asked only with the settings on), and
+/// the number looked at. Refuses an object past the table with the settings on.
 pub fn kind_is_hidden(
     settings: HideSettings,
     object: u32,

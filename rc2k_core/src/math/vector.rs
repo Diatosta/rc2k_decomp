@@ -1,42 +1,40 @@
-//! The game's three-float vectors and 3 x 3 (or 4 x 3) float matrices
-//! (from `scene::vector3`, `scene::matrix3`, `scene::rotate_point` and the
-//! physics helpers on them). 3 x 3 matrices: rows of three floats; `rotate_point`'s: rows
-//! of four, the fourth the translation. As in `geometry`, what the x87 keeps on its stack is an `f64`, rounded to
-//! `f32` where the original stores: the same bits at the game's double precision.
+//! Three-float vectors and 3 x 3 (or 4 x 3) float matrices: rows of three floats;
+//! `rotate_point`'s rows have four, the fourth the translation. As in `geometry`, x87 stack
+//! values are `f64`, rounded to `f32` where stored.
 
-/// `x x' + (y y' + z z')`, as left on the stack.
+/// `x x' + (y y' + z z')`, as an `f64`.
 pub fn dot(a: [f32; 3], b: [f32; 3]) -> f64 {
     let (a, b) = (a.map(f64::from), b.map(f64::from));
     a[0] * b[0] + (a[1] * b[1] + a[2] * b[2])
 }
 
-/// The length, `sqrt(x x + (y y + z z))`, as left on the stack.
+/// The length, `sqrt(x x + (y y + z z))`, as an `f64`.
 pub fn length(v: [f32; 3]) -> f64 {
     dot(v, v).sqrt()
 }
 
-/// Each float times one over the length (`fld1; fdivrp`), stored.
+/// Each float times one over the length.
 pub fn normalise(v: [f32; 3]) -> [f32; 3] {
     let reciprocal = 1.0 / length(v);
     v.map(|x| (x as f64 * reciprocal) as f32)
 }
 
-/// Each float times `factor` (a value on the stack), stored.
+/// Each float times `factor`.
 pub fn scale(v: [f32; 3], factor: f64) -> [f32; 3] {
     v.map(|x| (x as f64 * factor) as f32)
 }
 
-/// Each float times its partner, stored.
+/// Each float times its partner.
 pub fn multiply_parts(a: [f32; 3], b: [f32; 3]) -> [f32; 3] {
     [a[0] * b[0], a[1] * b[1], a[2] * b[2]]
 }
 
-/// A row times a column (`b`'s three floats a row apart), stored.
+/// A row times a column (`b`'s three floats a row apart).
 pub fn row_times_column(row: [f32; 3], column: [f32; 3]) -> f32 {
     dot(row, column) as f32
 }
 
-/// A point turned by the matrix `m` and moved by its translation, as left on the stack.
+/// A point turned by the matrix `m` and moved by its translation, as `f64`s.
 /// `m` is the game's 4 x 4 layout, four floats a row (the last float of each row is not
 /// read): the point times the rows 0 .. 2, the translation the fourth row (12 .. 14).
 pub fn rotate_point(m: &[f32; 15], p: [f64; 3]) -> [f64; 3] {
@@ -49,8 +47,7 @@ pub fn rotate_point(m: &[f32; 15], p: [f64; 3]) -> [f64; 3] {
     ]
 }
 
-/// A point of three whole numbers turned by the 3 x 3 matrix `m`, rounded by `fistp`
-/// (the third sum in the original's order).
+/// A point of three whole numbers turned by the 3 x 3 matrix `m`, rounded to the nearest.
 pub fn turn_int_point(p: [i32; 3], m: &[f32; 9]) -> [i32; 3] {
     use crate::math::geometry::fistp64;
     let m = m.map(f64::from);
@@ -73,7 +70,7 @@ pub enum Axis {
 /// The x87's "indefinite" (an invalid operation's NaN) as a float.
 const INDEFINITE: u32 = 0xFFC0_0000;
 
-/// The 3 x 3 matrix of a turn by `angle` about `axis` (`fsincos`, its results stored).
+/// The 3 x 3 matrix of a turn by `angle` about `axis`.
 /// A NaN angle gives itself as both; an infinite one the indefinite.
 pub fn turn_matrix(axis: Axis, angle: f64) -> [f32; 9] {
     let (s, c) = if angle.is_nan() {
@@ -104,9 +101,8 @@ pub struct Search {
 }
 
 /// The angle whose cosine is `cosine` (the two vectors' dot product, normalised first),
-/// found by 16 halvings, and the last compare's status (C0 .. C2 of the x87 status word):
-/// `fcom`'s C0 for less, C3 C2 C0 for unordered (C3 is not kept). The original stops on
-/// C2 alone, which a compare never gives, so it always runs the 16.
+/// found by 16 halvings, and the last compare's status (0x100 for less, 0x500 for
+/// unordered, else 0).
 pub fn search_angle(cosine: f32, k: Search) -> (f32, u32) {
     let d = cosine as f64;
     let (mut angle, mut step, mut status) = (k.start, k.step, 0);

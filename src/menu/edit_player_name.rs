@@ -1,16 +1,15 @@
-//! `menu::edit_player_name` (0x467C63): one step of typing a player's name on the players'
-//! details pages.
+//! `menu::edit_player_name`: one step of typing a player's name on the players' details pages.
 //!
 //! The name is the current player's (`Player::name`, `menu/player_name.rs`). One pending key is
-//! taken: none          nothing; 1 (Escape)    the name kept at the start comes back, the entry
-//! ends; 0x1C (Enter)  an empty name is replaced by the one kept; the entry ends; 0x6E          the
-//! name is cleared (`menu::clear_text`); 0x0E          the last character goes; any other
-//! `key_to_char`; a character is appended unless the length is already above the maximum
-//! (`loop_flags.text_max`, signed), and taken off again if the name then measures 0xEC pixels or more in
-//! the font at 0x51E824 (measured from the x that is the length before the character, as ecx held
-//! it). No cursor is written: the page draws it (`screens::draw_name_cursor`). Called from the four
-//! `player*_details_loop`s while `option_work.typing` is set. Refuses, before the key is taken: no current
-//! player, a player without a name, a length outside 0 .. 0x1F, no keyboard layout.
+//! taken: none: nothing; 1 (Escape): the name kept at the start comes back, the entry ends;
+//! 0x1C (Enter): an empty name is replaced by the one kept, the entry ends; 0x6E: the name is
+//! cleared (`menu::clear_text`); 0x0E: the last character goes; any other `key_to_char`: a
+//! character is appended unless the length is already above the maximum (`loop_flags.text_max`,
+//! signed), and taken off again if the name then measures 0xEC pixels or more in the font
+//! (measured from the x that is the length before the character). No cursor is written: the
+//! page draws it (`screens::draw_name_cursor`). Called from the four `player*_details_loop`s
+//! while `option_work.typing` is set. Refuses, before the key is taken: no current player, a
+//! player without a name, a length outside 0 .. 0x1F, no keyboard layout.
 
 use crate::errors::{BadInput, Refused};
 use crate::input::key_to_char::{has_layout, key_to_char};
@@ -22,8 +21,6 @@ use crate::menu::player_name::{backspace_name, bring_back_name, name_place};
 use crate::menu::text_entry::{TEXT_LEN, set_length};
 use crate::text::draw_text::Canvas;
 use crate::text::measure_text::measure_text_at;
-
-// ---- game data ----
 
 const MEASURING_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::MEASURE;
 
@@ -45,7 +42,6 @@ pub fn edit_player_name(
     }
 
     let key = take_key(input);
-    // The logic is in `rc2k_core::menu::text_entry` (`key`, `appends`, `too_wide`).
     use rc2k_core::menu::text_entry::{self as entry, Key};
     match entry::key(key) {
         Key::None => {}

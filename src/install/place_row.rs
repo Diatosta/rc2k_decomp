@@ -1,10 +1,8 @@
-//! `install::place_row` (0x414F11): the pieces of one box of a page (`install::place_pieces`:
-//! the pieces of one item row record `{x, y, width, height}`) placed in it: labels (bit 0 of
-//! the piece's kind) in a column as wide as the widest, choices (bit 1) after their label
-//! and each other 10 pixels apart, wrapped to a new line where they would pass the box's
-//! width, the rest centred (or, with bit 2, at 0, with bit 3, at the right edge); then the
-//! whole centred across and down in the box (by an even number of pixels down in the
-//! title's box `title_box`), moved to its place.
+//! The pieces of one box of a page placed in it: labels in a column as wide as the widest,
+//! choices after their label and each other 10 pixels apart, wrapped where they would pass the
+//! box's width, the rest centred (or at 0 / the right edge by the piece's kind bits); then the
+//! whole centred across and down in the box (by an even number of pixels down in the title's
+//! box). Called by `install::place_pieces`.
 
 use crate::errors::Refused;
 use crate::install::page_records::{BoxRecord, Piece as LaidPiece};
@@ -21,8 +19,6 @@ pub fn place_row(
     title: bool,
 ) -> Result<(), Refused> {
     let at = |k: u32| LaidPiece::nth(install, first.wrapping_add(k));
-    // Converted: `rc2k_core::install::layout::place_row`, on the pieces' fields it reads;
-    // their x and y written back.
     let mut pieces: Vec<Piece> = (0..count)
         .map(|k| Piece {
             marks: at(k).marks(),

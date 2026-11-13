@@ -1,13 +1,12 @@
-//! Module hud's owner (step 11, owned state): the HUD's variables block in one struct,
-//! handed by reference to the code that draws the HUD in place of a global store.
+//! Module hud's owner: the HUD's variables block in one struct, handed by reference to the code
+//! that draws the HUD in place of a global store.
 //!
-//! `hud()` is the boundary: the callers that do not take the owner yet fetch it there and
-//! pass it down. It rises as their callers take the owner, until the program's top holds it
-//! (`notes/memory_layer_plan.md`, step 11).
+//! `hud()` is the boundary: the callers that do not take the owner yet fetch it there and pass
+//! it down.
 
 use crate::hud::store;
 
-/// The HUD's state: the one block (IDA 0x75B940 .. 0x764F2C, `store::HudBlock`).
+/// The HUD's state: the one block (`store::HudBlock`).
 pub struct Hud {
     pub block: store::HudBlock,
 }

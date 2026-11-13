@@ -1,19 +1,10 @@
-//! `drive::start_car_on_line` (0x437613): the work car put at a start on the line: `start_slot_value` =
-//! `arcade_car_numbers`[`start_slot`]` (the start's number's entry); the grades' mode `driver_kind` 2;
-//! the checkpoint into `checkpoint`, `6C`, `74`, `line_place` and `line_fraction`; a share
-//! `start_share` / `start_share` = lo + ((m - 1) - n) / (m - 1) (hi - lo) (n `start_slot`, m
-//! `arcade_cars`, lo / hi `start_share_last` / `start_share_first`); `race::place_car_on_line`,
-//! `race::reset_car_motion`; then the motion: 0, 0 and the speed `start_speed` turned by
-//! `g_crashMatrix` (`scene::rotate_point`) into 0x71A170 .. 0x71A178 (`g_carSpeed` the speed). The
-//! share is the computer driver's pace for that start (best start = `start_share_first`, last =
-//! `start_share_last`; see `drive::start_blend`). Used by `start_cars_behind` for the arcade race's
-//! opponents (also at their first start).
-//!
-//! Takes: the checkpoints on from the lead's
-//!
-//! Caller: `drive::start_cars_behind` (0x43703E; four calls). Refuses (before anything) a
-//! start number (`start_slot`) above 0x400 (the table `arcade_car_numbers` holds 90; the check is the original's), and what the two calls
-//! refuse.
+//! The work car put at a start on the line, for the arcade race's opponents (`start_cars_behind`,
+//! also at their first start): the start's car number, `driver_kind` 2, the checkpoint and line
+//! place, a share lo + ((m - 1) - n) / (m - 1) (hi - lo) (n `start_slot`, m `arcade_cars`, lo / hi
+//! `start_share_last` / `start_share_first`) that is the computer driver's pace for that start
+//! (see `drive::start_blend`), `race::place_car_on_line`, `race::reset_car_motion`, and the speed
+//! `start_speed` turned into the car's speed. Refuses (before anything) a start number above
+//! 0x400 (the table `arcade_car_numbers` holds 90), and what the two calls refuse.
 
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
@@ -23,9 +14,9 @@ use crate::scene::matrix3::{extended, rounded_value};
 use crate::scene::rotate_point::rotate_point;
 use rc2k_core::drive::start_places;
 
-/// `arcade_car_numbers`[start]: each car's number. The table holds 90; a start past it (the
-/// check lets up to 0x400 through; the start is `put_car`'s, dynamic, or `gap_start`'s, held to the
-/// count) reads on into the variables after it, as the original (kept, the starts not proven).
+/// `arcade_car_numbers[start]`: each car's number. The table holds 90; a start past it (the
+/// check lets up to 0x400 through; the start is `put_car`'s, dynamic, or `gap_start`'s, held to
+/// the count) reads on into the variables after it (kept, the starts not proven).
 pub fn car_number(shared: &RaceShared, start: usize) -> Result<u32, BadInput> {
     shared
         .tables()
@@ -33,8 +24,6 @@ pub fn car_number(shared: &RaceShared, start: usize) -> Result<u32, BadInput> {
 }
 
 /// `distance` checkpoints on from the lead car.
-// Converted: `rc2k_core::drive::start_places` (the share in plain floats; the motion's
-// turn stays x87).
 pub fn start_car_on_line(
     race: &Race,
     distance: u32,

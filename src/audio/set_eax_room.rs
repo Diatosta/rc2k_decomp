@@ -1,12 +1,5 @@
-//! `audio::set_eax_room` (0x40D26B): the EAX room asked for set.
-//!
-//! Returns: the room's entry in `g_eaxRooms`
-//!
-//! See `audio/property_sets.rs`: the entry of `g_eaxRoom` (an EAX 1 reverb, 0x10 bytes)
-//! given to `g_eaxProperties`' `Set` when that is there (its result not read). The `Set`
-//! is a chunk (`audio::set_eax_room`, 0x40D325) entered by `jmp`. Callers: `audio::update_voices`
-//! (twice),
-//! `audio::make_buffer`. Refuses a room past the table's ten (the original reads past it).
+//! Sets the EAX room: returns the room's entry in the rooms table. Refuses a room past the table's
+//! ten.
 
 use crate::audio::own::AudioOwn;
 use crate::audio::property_sets::set_eax_room;

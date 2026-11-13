@@ -1,13 +1,11 @@
-//! The debug pages' keys: with Ctrl held, F11 shows or
-//! hides the debug UI (`debug::ui`), F12 freezes the race or lets it go
-//! (`g_debugFreezeRace`: `drive::race_step` skips its physics ticks). The game's code that
-//! set `g_debugPage` and `g_debugFreezeRace` is not in RAL.EXE (`input::end_frame` sets
-//! both 0 every frame): the freeze is kept here and put back by `input::end_frame`
-//! (`words`); the page stays 0 (the original's pages are the UI's tabs now).
+//! The debug pages' keys: with Ctrl held, F11 shows or hides the debug UI (`debug::ui`), F12
+//! freezes the race or lets it go (`drive::race_step` skips its physics ticks). `input::end_frame`
+//! clears the freeze every frame, so it is kept here and put back there (`words`); the page
+//! stays 0 (the developers' pages are the UI's tabs now).
 
 use core::sync::atomic::{AtomicU32, Ordering};
 
-/// The keys (scan codes in `g_keysNow` / `g_keysPressed`): Ctrl, F11, F12.
+/// The keys (scan codes in the key tables): Ctrl, F11, F12.
 const CONTROL_KEY: usize = 0x1D;
 const UI_KEY: usize = 0x57;
 const FREEZE_KEY: usize = 0x58;
@@ -37,8 +35,7 @@ pub fn toggle_ui() {
 
 /// The keys, once a frame (`input::update`, before the game reads the frame's keys): with
 /// Ctrl down, F11 pressed the UI shown or hidden, F12 pressed the race frozen or going; and
-/// both taken out of `g_keysDown` (the bindings read it), `g_keysNow` and `g_keysPressed`,
-/// so that the game does not see them (F12 is its map).
+/// both taken out of the key tables, so that the game does not see them (F12 is its map).
 pub fn take_keys(devices: &crate::input::store::Devices) {
     if devices.keys_now.get(CONTROL_KEY) == 0 {
         return;
@@ -55,8 +52,7 @@ pub fn take_keys(devices: &crate::input::store::Devices) {
     }
 }
 
-/// What `input::end_frame` leaves in `g_debugPage` and `g_debugFreezeRace`: 0 and the
-/// freeze (both 0, the original's, until it is used).
+/// What `input::end_frame` leaves in the debug page and freeze words: 0 and the freeze.
 pub fn words() -> [u32; 2] {
     [0, FROZEN.load(Ordering::Relaxed)]
 }

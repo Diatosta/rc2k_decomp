@@ -94,8 +94,7 @@ pub fn time_of(menus: &Menus, tables: &Tables, item: usize) -> Option<i32> {
         .map(|time| time.get() as i32)
 }
 
-/// The time of every item whose flag is not 0, as the original adds it up. Converted:
-/// `rc2k_core::service::repairs::chosen_time`.
+/// The time of every item whose flag is not 0.
 pub fn chosen_repairs_time(menus: &Menus, tables: &Tables) -> Result<i32, BadInput> {
     Ok(rc2k_core::service::repairs::chosen_time(
         &flags(tables),

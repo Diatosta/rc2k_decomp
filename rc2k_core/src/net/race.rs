@@ -1,25 +1,21 @@
-//! A network race's messages between the cars (from `net::send_turn`
-//! 0x46415B, `net::send_inputs` 0x464194, `net::send_position` 0x464201,
-//! `net::send_extra` 0x4643FA, `net::apply_message` 0x4644EC and `net::follow_remote`
-//! 0x464883). Each step of the own car sends, by its step count, its inputs ('JGSM'),
-//! its place and motion ('PGSM') or nine more dwords ('XGSM'): a tag and dwords of its car
-//! block; the others' are put into their cars' blocks, a place received far from where the
-//! car is taken at once, a near one glided to over 32 steps.
+//! A network race's messages between the cars. Each step of the own car sends, by its step count,
+//! its inputs ('JGSM'), its place and motion ('PGSM') or nine more dwords ('XGSM'): a tag and
+//! dwords of its car block; the others' are put into their cars' blocks, a place received far from
+//! where the car is taken at once, a near one glided to over 32 steps.
 
 /// A race message's kind.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Kind {
-    /// 'JGSM': the four inputs.
+    /// `'JGSM'`: the four inputs.
     Inputs,
-    /// 'PGSM': the place, the matrix and 25 more dwords.
+    /// `'PGSM'`: the place, the matrix and 25 more dwords.
     Position,
-    /// 'XGSM': nine dwords.
+    /// `'XGSM'`: nine dwords.
     Extra,
 }
 
 /// How far a message's dwords may be from what a car could hold, by field: the game crate's
-/// table of each kind's fields (selectors into a car's block) says which limit goes with
-/// each.
+/// table of each kind's fields says which limit goes with each.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Limit {
     /// Any value.
@@ -64,9 +60,9 @@ impl Kind {
 }
 
 /// Whether a car could hold what a message carries (`values`: its dwords after the tag,
-/// `limits`: the limit of each field of its kind, in order). Another machine's message is
-/// not to be believed by a game that refuses such values and so ends: one that fails is not
-/// applied. The original took any, and read its tables with them.
+/// `limits`: the limit of each field of its kind, in order). One that fails is not applied:
+/// another machine's message is not to be believed (wiki: "A network message can end or stall
+/// another player's race").
 pub fn believable(limits: impl IntoIterator<Item = Limit>, values: &[u32]) -> bool {
     let within = |value: u32, most: f32| f32::from_bits(value).abs() <= most; // NaN: false
     limits
@@ -84,29 +80,26 @@ pub fn believable(limits: impl IntoIterator<Item = Limit>, values: &[u32]) -> bo
 /// The kinds in the order a step looks at them.
 pub const SENT: [Kind; 3] = [Kind::Inputs, Kind::Position, Kind::Extra];
 
-/// How far a place received may be from where the car is and still be glided to:
-/// RAL.EXE's `Numbers.ten`, 10.0.
+/// How far a place received may be from where the car is and still be glided to.
 pub const NEAR: f32 = 10.0;
 
 /// What a place received does to the car.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Arrival {
-    /// The car put there at once.
+    /// The car is put there at once.
     Jump,
     /// A 32nd of the way to it a step, 32 steps.
     Glide([u32; 3]),
 }
 
 /// A place received (`wanted`) against the car's (`now`): in the car's first 1000 steps
-/// (signed), or when it is less than `near` away (`fild; fisub; fmul` for each, the sum,
-/// `fsqrt`, `fcomp`; unordered counts as less), glided to; else jumped to. The distance's
-/// test is exact in `f64` at every precision the x87 runs: the differences are whole
-/// numbers below 2^33 and the squares' sum is exact while it is anywhere near `near`
-/// squared, rounding only far above it.
+/// (signed), or when it is less than `near` away (unordered counts as less), glided to; else
+/// jumped to. The distance test is exact in `f64`: the differences are whole numbers below 2^33
+/// and the squares' sum is exact near `near` squared.
 pub fn arrival(wanted: [u32; 3], now: [u32; 3], steps: u32, near: f32) -> Arrival {
     let early = (steps.wrapping_sub(1000) as i32) < 0;
     let d = |k: usize| wanted[k] as i32 as f64 - now[k] as i32 as f64;
-    // The original's order: the last two squares' sum, then the first's added.
+    // Order of the sum: the last two squares, then the first.
     let distance = (d(0) * d(0) + (d(1) * d(1) + d(2) * d(2))).sqrt();
     let near = near as f64;
     let closer = distance < near || distance.is_nan() || near.is_nan();
@@ -119,10 +112,9 @@ pub fn arrival(wanted: [u32; 3], now: [u32; 3], steps: u32, near: f32) -> Arriva
     }
 }
 
-/// How far off a car's place received is snapped to rather than glided to: ten metres. The
-/// original compares with 10.0 (`g_ten`) in the place's own units, 1/65536 of a metre, so
-/// past a car's first 1000 steps every message snapped it; moved from outside the physics
-/// that way, a remote car crossed face edges and was reset to the line.
+/// The distance past which a place received is snapped to rather than glided to: ten metres, in
+/// the place's own units (1/65536 of a metre). A fixed bug: see the wiki's "Cars warp and jerk in
+/// network races".
 pub const SNAP_FROM: f32 = 10.0 * 65536.0;
 
 /// The steps of a glide.

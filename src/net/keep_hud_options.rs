@@ -1,7 +1,4 @@
-//! `net::keep_hud_options` (0x463E39): this machine's car's HUD bits (+0x220 of
-//! `g_carBlocks[g_netPlayer]`) kept in the player's saved HUD bits for the next race.
-//!
-//! Caller: `net::lets_race`.
+//! Keeps this machine's car's HUD bits as the player's saved HUD bits for the next race.
 
 use crate::net::set_hud_options::own_block;
 use crate::net::store::NetShared;

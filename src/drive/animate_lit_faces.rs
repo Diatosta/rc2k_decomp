@@ -1,31 +1,11 @@
-//! `drive::animate_lit_faces` (0x45EB06): one step of the stage's moving faces, those in
-//! `g_litFaces` (0x6D3220, `g_litFaceCount` of them). For each (face record at
-//! `g_courseFaces` + 0x40 n):
-//! - object 0x3B (byte +1): a countdown at +0x11; at 0 the face leaves the list;
-//! - else its distance from car block 0 (+0x134 / +0x13C: `CarBlocks.cars[0].position[0]`, `CarBlocks.cars[0].position[2]`;
-//!   `fistp` of the root of the squares, through `scratch`) into `lit_face_distance`, and
-//!   a pace 1 .. 17 from it (closer is faster) into `lit_face_pace`; then by its object's
-//!   kind (`Buffers.polygon_tables.object_materials[0].words[7][g_objectKinds[object] * 0x80]`):
-//!   - 1, 9: +0x11 counts up to 0x18 (then cleared, and the face leaves), +0x13 from
-//!     `blink_levels`;
-//!   - 2: +0x13 up by the pace, leaving at 0x30;
-//!   - 3, 8: +9 stepped (the pace times 4) towards making +8 + +9 + +0x12 a multiple of
-//!     0x80; once it is, as 2 up to 0x40;
-//!   - 4: while +0x11 is not 0, the face's offset (+0x30, +0x38) moved by
-//!     `math::rotate_point_about_y` of (0, +0x11 << 8) by (+0x12 + 0x80) << 24, its height
-//!     (+0x34) set on the ground under it (`physics::find_ground`, last face
-//!     `CarBlocks.cars[0].probe_point_face[4]`; no ground puts the offset back), +0x11 less 1; at 0 it leaves;
-//!   - others: nothing.
-//!
-//! A face leaves by the list's last taking its place (the count less 1), and the next
-//! one is looked at (so the one moved in waits a step). These are the course faces the
-//! car has touched (`physics::touch_face` lists them): roadside objects that react for a
-//! while by their object's kind, blinking (1, 9), rising (2, 3, 8) or being knocked away
-//! along the ground (4).
-//!
-//! Caller: `drive::animate_stage` (0x45E9CA). Refuses (before anything) more than 0x100 lit faces
-//! (the list's room) and a face number past `g_courseFaceCount`; `find_ground`'s refusals mid-way
-//! (what it wrote is put back first).
+//! One step of the stage's moving faces, the lit faces (the course faces the car has touched:
+//! `physics::touch_face` lists them): roadside objects that react for a while by their object's
+//! kind, blinking (1, 9), rising (2, 3, 8) or being knocked away along the ground (4); object
+//! 0x3B counts down. Each face's pace comes from its distance to car block 0 (closer is
+//! faster). A face leaves the list by the last one taking its place, and the next one is looked
+//! at (so the one moved in waits a step). Refuses (before anything) more than 0x100 lit faces and
+//! a face number past the course's face count; `find_ground`'s refusals mid-way (what it wrote
+//! is put back first).
 
 use crate::errors::{BadInput, Refused};
 use crate::race::owner::Race;
@@ -54,7 +34,6 @@ fn set_byte(course: &Course, f: u32, o: u32, v: u8) -> Result<(), BadInput> {
     crate::race::course_places::write_face_field(course.reads(), f, o, v)
 }
 
-/// The face's animated bytes.
 fn load(course: &Course, f: u32) -> Result<FaceBytes, BadInput> {
     Ok(FaceBytes {
         b8: byte(course, f, 8)?,
@@ -72,12 +51,11 @@ fn store(course: &Course, f: u32, b: &FaceBytes) -> Result<(), BadInput> {
     Ok(())
 }
 
-/// `g_litFaces`[k] (0x100 of them; the count is checked below).
+/// The lit face list's entry `k` (0x100 of them; the count is checked below).
 fn list(physics: &Physics, k: u32) -> &crate::session::PlainDword {
     &physics.contact.get().lit_faces[k as usize]
 }
 
-/// The refusals, worked out before anything is written.
 fn refusal(race: &Race) -> Option<&'static str> {
     let count: u32 = race.physics.contact.get().lit_face_count.get();
     if count > MOST {
@@ -92,7 +70,6 @@ fn refusal(race: &Race) -> Option<&'static str> {
     None
 }
 
-/// The Rust core.
 pub fn animate_at(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     if let Some(why) = refusal(race) {
         return Err(BadInput(why).into());
@@ -104,7 +81,6 @@ pub fn animate_at(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(),
     animate_faces(race, scene)
 }
 
-// Converted: `rc2k_core::drive::lit_faces` (all but kind 4's turn and ground).
 fn animate_faces(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let mut k = 0;
     loop {

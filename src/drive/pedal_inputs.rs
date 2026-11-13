@@ -1,12 +1,8 @@
-//! `drive::pedal_inputs` (0x43A004): the work car's pedals from the input words. With the keys' bit
-//! 0x4000 of `input_keys`: the throttle `throttle` stepped by 0x10 toward 0x100 (`input_throttle`
-//! set) or 0, held there (by the sign of the steps, as the original); else it is `input_throttle`.
-//! The same for the brake `brake` by bit 0x2000 and `input_brake`. The handbrake `handbrake`
-//! = `input_handbrake`, 0 when that is 0x100 or less and `handbrake_failed` is set.
-//!
-//! Returns: `input_handbrake`, `input_keys`
-//!
-//! Callers: `drive::car_controls`, `race::step_replay_cars`, `drive::replay_step`.
+//! The work car's pedals from the input words. With the keys' bit 0x4000 of `input_keys`: the
+//! throttle `throttle` stepped by 0x10 toward 0x100 (`input_throttle` set) or 0, held there (by
+//! the sign of the steps); else it is `input_throttle`. The same for the brake `brake` by bit
+//! 0x2000 and `input_brake`. The handbrake `handbrake` = `input_handbrake`, 0 when that is 0x100
+//! or less and `handbrake_failed` is set.
 
 use crate::race::owner::Race;
 use crate::race::owner_shared::RaceShared;
@@ -22,7 +18,6 @@ fn step_pedal(shared: &RaceShared, bit: u32, input: &impl DwordLike, at: &impl D
     ));
 }
 
-// Converted: `rc2k_core::drive::controls::{pedal, handbrake}`.
 pub fn pedal_inputs(race: &Race) {
     step_pedal(
         &race.shared,

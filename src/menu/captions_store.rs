@@ -1,34 +1,36 @@
-//! The screens' string-id tables and a few flags, out of RAL.EXE's image (IDA 0x758806 .. 0x758B72): the "screen left" flag, the stage shown, the nationalities, the duel's labels, the
-//! places' points, the player views, and the lists of
-//! captions' string ids. One static.
+//! The screens' string-id tables and a few flags, out of RAL.EXE's image: the "screen left" flag,
+//! the stage shown, the nationalities, the duel's labels, the places' points, the player views, and
+//! the lists of captions' string ids. One static.
 
 use crate::errors::BadInput;
 use crate::menu::owner::Menus;
 use crate::session::{PlainDword, PlainFlag};
 
-/// The string-id tables (IDA 0x758806 .. 0x758B72).
+/// The string-id tables.
 #[derive(rc2k_derive::Cells)]
 pub struct CaptionTables {
-    /// `dword_758806`: 1 when the screen was left with a key (Escape in `handle_keys`, a yes / no
-    /// answer, a name entry); the loop puts its leave question on it and the screens that look at it clear it.
+    /// 1 when the screen was left with a key (Escape in `handle_keys`, a yes / no answer, a name
+    /// entry); the loop puts its leave question on it and the screens that look at it clear it.
     pub left_by_key: PlainFlag,
-    /// `dword_75880A`: Not read.
+    /// Not read.
     pub dword_75880a: PlainDword,
-    /// `dword_75880E`: The stage group of the stage shown (the record table's index; set by menu::option_items).
+    /// The stage group of the stage shown (the record table's index; set by menu::option_items).
     pub shown_group: PlainDword,
-    /// `dword_758812`: The index of the stage shown in its group (times 0xA4 into the group's records; set by the stage pages' steps in menu::option_items and read by screens::stage_results).
+    /// The index of the stage shown in its group (times 0xA4 into the group's records; set by the
+    /// stage pages' steps in menu::option_items and read by screens::stage_results).
     pub shown_stage: PlainDword,
-    /// `dword_758816`: The nationalities' name string ids (`screens::draw_player_details`).
+    /// The nationalities' name string ids (`screens::draw_player_details`).
     pub nationalities: [PlainDword; 47],
-    /// `g_duelLabels`: The duel result's labels' string ids, by value (-1 ends).
+    /// The duel result's labels' string ids, by value (-1 ends).
     pub duel_labels: [PlainDword; 22],
-    /// `g_placePoints`: The points of each place (0, 20000, ..., -1 ends).
+    /// The points of each place (0, 20000, ..., -1 ends).
     pub place_points: [PlainDword; 22],
-    /// `dword_7589BA`: The views' name string ids (`screens::draw_player_details`).
+    /// The views' name string ids (`screens::draw_player_details`).
     pub views: [PlainDword; 8],
-    /// `dword_7589DA`: The second views' name string ids.
+    /// The second views' name string ids.
     pub second_views: [PlainDword; 14],
-    /// `unk_758A12`: The lists of captions' string ids, each ended by -1 (`screens::draw_highlighted_caption`, `menu::option_steps`).
+    /// The lists of captions' string ids, each ended by -1 (`screens::draw_highlighted_caption`,
+    /// `menu::option_steps`).
     pub caption_lists: [PlainDword; 88],
 }
 

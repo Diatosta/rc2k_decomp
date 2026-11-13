@@ -1,10 +1,7 @@
-//! The HUD's dials: a layout's discs (rev counter and speedometer dials, `hud::draw_disc`)
-//! and needles (`hud::draw_needle`). Each is drawn from the shape's variables, which a
-//! set-up first fills from fields of the panel (`race::panel_store::Panel`) and from variables of
-//! the layout's own (the originals: `disc_setup_layout0` 0x4B6BFD, `disc_setup_layout1_first` 0x4B6B5B, `disc_setup_layout1_second` 0x4B6BAC,
-//! `disc_setup_layout2_first` 0x4B6AA4, `disc_setup_layout2_second` 0x4B6B0A; `needle_setup_layout0` 0x4B6DB9, `needle_setup_layout1_first` 0x4B6E67,
-//! `needle_setup_layout1_second` 0x4B6E9A, `needle_setup_layout2_first` 0x4B6DEC, `needle_setup_layout2_second` 0x4B6E34). The layouts are the
-//! HUD's three (`Panel::players`).
+//! The HUD's dials: a layout's discs (rev counter and speedometer dials, `hud::draw_disc`) and
+//! needles (`hud::draw_needle`). Each is drawn from the shape's variables, which a set-up first
+//! fills from fields of the panel (`race::panel_store::Panel`) and from variables of the layout's
+//! own. The layouts are the HUD's three (`Panel::players`).
 
 use crate::errors::Refused;
 use crate::hud::owner::{Hud, Pen};
@@ -17,7 +14,6 @@ use crate::session::PlainFloat;
 /// A layout's own variables of a dial, in the order its set-up copies them.
 type Vars = fn(&HudBlock) -> &[PlainFloat];
 
-/// How one disc is set up.
 pub struct DiscStyle {
     /// The texture shift (two dwords) and turn: a view's `motion`.
     shift: fn(&Panel) -> &[PlainDword; 3],
@@ -28,7 +24,6 @@ pub struct DiscStyle {
     lifted_centre: bool,
 }
 
-/// How one needle is set up.
 pub struct NeedleStyle {
     /// The needle's value: a view's `whole`.
     value: fn(&Panel) -> &PlainDword,
@@ -91,7 +86,6 @@ pub static NEEDLE_2B: NeedleStyle = NeedleStyle {
     lifted_centre: false,
 };
 
-/// Copies a variable's value to another cell.
 fn copy(from: &PlainFloat, to: &PlainFloat) {
     to.set(from.get());
 }
@@ -130,13 +124,11 @@ fn set_up_needle(frame: &Frame, hud: &Hud, style: &NeedleStyle) {
     copy(&own[size], &hud.block.needle_size);
 }
 
-/// A disc's set-up and the disc.
 pub fn disc(frame: &Frame, hud: &Hud, pen: Pen, style: &DiscStyle) -> Result<(), Refused> {
     set_up_disc(frame, hud, style);
     crate::hud::draw_disc::draw_disc(frame, hud, pen)
 }
 
-/// A needle's set-up and the needle.
 pub fn needle(frame: &Frame, hud: &Hud, pen: Pen, style: &NeedleStyle) -> Result<(), Refused> {
     set_up_needle(frame, hud, style);
     crate::hud::draw_needle::draw_needle(frame, hud, pen)

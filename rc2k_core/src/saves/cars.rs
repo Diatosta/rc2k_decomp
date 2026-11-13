@@ -1,22 +1,18 @@
-//! The two lists of cars that can be chosen (from
-//! `saves::rebuild_car_lists` 0x47088C and `saves::list_car_numbers` 0x470825): kept in
-//! `var\ral.dat` as numbers, used as pointers to the cars' records; and what a loaded
-//! game's cars keep of the players' own settings (from
-//! `saves::keep_player_settings` 0x4719F5).
+//! The two lists of selectable cars (numbers in `var\ral.dat`, pointers in memory) and the
+//! player settings a loaded game keeps.
 
 use crate::Invalid;
 use crate::strings::bytes::Bytes;
 
-/// A saved game's car (a player's object as it is saved).
+/// A saved game's car (a player's object as saved), in bytes.
 pub const SAVED_CAR_LEN: usize = 0x28C;
 
-/// The players' own settings that a loaded game keeps (the controls and choices made
-/// since it was saved), as (offset, bytes): the keys' bytes +0x1C .. +0x27, the dwords
-/// +0x2C .. +0x78 and +0x178.
+/// The player settings a loaded game keeps (the controls and choices made since it was saved),
+/// as (offset, length): the keys' bytes +0x1C, the dwords +0x2C .. +0x78 and +0x178.
 pub const KEPT_SETTINGS: [(usize, usize); 3] = [(0x1C, 0xC), (0x2C, 0x50), (0x178, 4)];
 
-/// `saves::keep_player_settings` for one player: its kept settings (`player`'s bytes)
-/// written over the saved car's (`car`, by offset). Refused: a read past the player.
+/// Writes the kept settings from `player` over the saved `car`. Refused: a read past the
+/// player.
 pub fn keep_settings(
     player: &(impl Bytes + ?Sized),
     car: &mut impl FnMut(usize, u8),
@@ -34,11 +30,11 @@ pub fn keep_settings(
     Ok(())
 }
 
-/// The car numbers' limit (the original reads wherever a bigger one leads).
+/// Car numbers must stay below this.
 pub const MOST_CARS: u32 = 0x400;
 
-/// A list of pointers from a list of numbers up to its -1 (`car` the record of a
-/// number), the rest -1. Refused: no -1 within the list, a number of `MOST_CARS` or more.
+/// Pointers for numbers up to the first -1 (`car` maps a number), the rest -1. Refused: no
+/// -1 in the list, a number of `MOST_CARS` or more.
 pub fn pointers(numbers: &[u32], car: impl Fn(u32) -> u32) -> Result<Vec<u32>, Invalid> {
     let ids: Vec<u32> = numbers
         .iter()
@@ -56,14 +52,14 @@ pub fn pointers(numbers: &[u32], car: impl Fn(u32) -> u32) -> Result<Vec<u32>, I
     Ok(out)
 }
 
-/// Whether a list of numbers in the options file was never filled: all 0 and no -1, as a file
-/// saved before the front end first ended has it (never a real list, which has its -1).
+/// Whether an options-file list was never filled: all 0 and no -1, as in a file saved before
+/// the front end first ended (a real list always has its -1).
 pub fn never_listed(numbers: &[u32]) -> bool {
     numbers.iter().all(|&id| id == 0)
 }
 
-/// A list of numbers from a list of pointers up to its -1 (`number` a record's first
-/// dword), the rest -1. Refused: no -1 within the list, a null pointer.
+/// Numbers for pointers up to the first -1 (`number` maps a record), the rest -1. Refused:
+/// no -1 in the list, a null pointer.
 pub fn numbers(pointers: &[u32], number: impl Fn(u32) -> u32) -> Result<Vec<u32>, Invalid> {
     let cars: Vec<u32> = pointers
         .iter()

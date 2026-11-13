@@ -1,30 +1,27 @@
-//! `gfx::screen_mode_choices` (0x4045D6): the graphics options' screen mode choices, the
-//! record `gfx::choices_store` (`made`: made, the video card (0 primary, 1
-//! secondary), the resolution (a place in the list), the buffering (0 double, 1 triple),
-//! mipmapping, the two cards present, the list made, the mipmapping's limit, the list's
-//! length, the list: 16 bytes a resolution, its width, height, pixel kind's figure and
+//! The graphics options' screen mode choices, in the record `gfx::choices_store` (`made`: made,
+//! the video card (0 primary, 1 secondary), the resolution (a place in the list), the buffering
+//! (0 double, 1 triple), mipmapping, the two cards present, the list made, the mipmapping's limit,
+//! the list's length, the list: 16 bytes a resolution, its width, height, pixel kind's figure and
 //! the mode). The card is the mode's bit `display.modes.kind_bits` (0x1000: the secondary).
 //!
-//! - Made and the choice to be tried: the mode chosen (0x300000 with `kind_bits[+4]`, the
-//!   list's mode at +8 and `third_bits[+0xC]`) tried (`gfx::try_screen_mode`); if it works and
-//!   +0x10 is not above the texture figure (`cards.mips`) it is kept (`gfx::keep_race_screen_mode`); either
-//!   way the menus' mode set again (`gfx::set_menu_screen_mode`); carry if it did not work.
-//! - Not made: the card from `g_raceScreenMode` (0x1000 or not), the cards present, then
-//!   as made without a choice to try, from `g_raceScreenMode`.
-//! - Made and no choice to try (or not made): the list made again from the mode table's modes of the
-//!   pixel kind (`system::find_entry_with_bits`, `system::next_entry`), each with its size
-//!   (`g_screenSizes`) and pixel kind's figure (`g_pixelKinds`) by `system::find_entry`
-//!   (a key not there: the place past the table, as the original reads it); +8 the mode's
-//!   place in the list by its low 12 bits (else the first whose width is not below the
-//!   mode's: the original's search keeps 0, its bound never moves); then +8 and +0xC from
-//!   `g_raceScreenMode` (its low 12 bits in the list, else both 0; +0xC from
-//!   `modes.kinds` by its fourth nibble, less 1, not below 0); +0x10 masked by +0x20;
-//!   made.
+//! - Made and the choice to be tried: the mode chosen (0x300000 with `kind_bits[+4]`, the list's
+//!   mode at +8 and `third_bits[+0xC]`) tried (`gfx::try_screen_mode`); if it works and +0x10 is
+//!   not above the texture figure (`cards.mips`) it is kept (`gfx::keep_race_screen_mode`); either
+//!   way the menus' mode set again (`gfx::set_menu_screen_mode`); failure if it did not work.
+//! - Not made: the card from the race screen mode (0x1000 or not), the cards present, then as
+//!   made without a choice to try, from the race screen mode.
+//! - Made and no choice to try (or not made): the list made again from the mode table's modes of
+//!   the pixel kind (`system::find_entry_with_bits`, `system::next_entry`), each with its size and
+//!   pixel kind's figure by `system::find_entry` (a key not there: the place past the table, as
+//!   the game reads it); +8 the mode's place in the list by its low 12 bits (else the first whose
+//!   width is not below the mode's: the search keeps 0, its bound never moves); then +8 and +0xC
+//!   from the race screen mode (its low 12 bits in the list, else both 0; +0xC from `modes.kinds`
+//!   by its fourth nibble, less 1, not below 0); +0x10 masked by +0x20; made.
 //!
 //! Callers: `gfx::choose_screen_modes` and the graphics options' actions
-//! (`menu::apply_screen_mode`). Refuses (before anything is written) a list longer than
-//! the record's room (16 modes: the original would write over the constants after the record) and a size's
-//! place of 0x1000 or more when made (the original reads that far past the list).
+//! (`menu::apply_screen_mode`). Refuses (before anything is written) a list longer than the
+//! record's room (16 modes: it would write over the constants after the record) and a size's place
+//! of 0x1000 or more when made (it would read that far past the list).
 
 use crate::d3d::owner::D3d;
 use crate::errors::{BadInput, Refused};
@@ -33,11 +30,9 @@ use crate::gfx::modes::Modes;
 use crate::gfx::owner::{Display, Gfx};
 use rc2k_core::gfx::mode_choices as mc;
 
-// ---- game data (IDA addresses) ----
-
-/// `system::find_entry` as the original uses it (a run-on past a table's last entry goes on
-/// into the field after it): the dword of `Modes` where the entry whose first dword is `key`
-/// starts, or the place past the table's `count` entries.
+/// `system::find_entry` as the game uses it (a run-on past a table's last entry goes on into the
+/// field after it): the dword of `Modes` where the entry whose first dword is `key` starts, or the
+/// place past the table's `count` entries.
 fn entry_or_past(modes: &Modes, key: u32, table: usize, count: u32) -> Result<usize, BadInput> {
     for n in 0..count as usize {
         if modes.dword(table + 2 * n)? == key {
@@ -81,8 +76,8 @@ fn first_with_bits(modes: &Modes, bits: u32, table: usize, count: u32) -> Option
     })
 }
 
-/// The modes the list would hold (the mode table's of the pixel kind's bits), or None
-/// when the original stops (the kind's choice past 1, no mode of the kind).
+/// The modes the list would hold (the mode table's of the pixel kind's bits), or None when it stops
+/// (the kind's choice past 1, no mode of the kind).
 fn modes_of(display: &Display, kind: u32) -> Option<Vec<usize>> {
     if kind > 1 {
         return None;
@@ -93,7 +88,7 @@ fn modes_of(display: &Display, kind: u32) -> Option<Vec<usize>> {
     let mut found = Vec::new();
     loop {
         found.push(at);
-        // `system::next_entry`: on by one entry, the carry set when none are left.
+        // `system::next_entry`: on by one entry, a failure when none are left.
         if left <= 1 {
             break;
         }
@@ -106,8 +101,8 @@ fn modes_of(display: &Display, kind: u32) -> Option<Vec<usize>> {
     Some(found)
 }
 
-/// With `try_choice` (true) the choice tried, else the list made
-/// again; the flags it leaves (see the header).
+/// With `try_choice` (true) the choice tried, else the list made again; the flags it leaves (see
+/// the header).
 pub fn screen_mode_choices(
     gfx: &Gfx,
     d3d: &D3d,
@@ -115,7 +110,6 @@ pub fn screen_mode_choices(
     try_choice: bool,
 ) -> Result<CarryZeroFlags, Refused> {
     let display = &gfx.display;
-    // Converted: `rc2k_core::gfx::mode_choices`.
     let failed = || {
         Ok(CarryZeroFlags {
             carry: true,
@@ -242,7 +236,7 @@ fn rebuild(
     let (place, third) = mc::race_place(&listed, race, || {
         entry_or_past(&display.modes, mc::third_key(race), Modes::KINDS_AT, 3)
             // (a third's entry: the race mode's key may be none of the three, then the place past
-            // `kinds` is `other_tables`' first entry, as the original)
+            // `kinds` is `other_tables`' first entry)
             .and_then(|e| display.modes.dword(e + 1))
             .unwrap_or_else(|e| {
                 failed.set(Some(e));

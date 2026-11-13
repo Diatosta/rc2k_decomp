@@ -1,8 +1,8 @@
-//! A PCX file here: a header of 0x80 bytes (+4 .. +0xA the picture's left, top, right and
-//! bottom as words; +0x41 the number of planes, 1 or 3; +0x42 the bytes of one plane of one
-//! row as a word), then the rows, run-length coded: a byte of 0xC0 or more is a count (less
-//! 0xC0) for the byte after it, any other byte stands for itself. With one plane a byte is
-//! a palette number and the palette, 0x300 bytes, is the end of the file.
+//! A PCX file: a header of 0x80 bytes (+4 .. +0xA the picture's left, top, right and bottom as
+//! words; +0x41 the number of planes, 1 or 3; +0x42 the bytes of one plane of one row as a word),
+//! then the rows, run-length coded: a byte of 0xC0 or more is a count (less 0xC0) for the byte
+//! after it, any other byte stands for itself. With one plane a byte is a palette number and the
+//! palette, 0x300 bytes, is the end of the file.
 
 use crate::files::stream::Stream;
 use crate::session::{PlainBytes, PlainDword, with_runs};
@@ -17,29 +17,26 @@ pub const STREAM_LEN: usize = core::mem::size_of::<Stream>();
 #[cfg_attr(test, repr(C))]
 #[derive(rc2k_derive::Cells)]
 pub struct Pcx {
-    /// `dword_5195D4`: the picture's width, as the header says.
+    /// The picture's width, as the header says.
     pub file_width: PlainDword,
-    /// `dword_5195D8`: its height.
+    /// Its height.
     pub file_height: PlainDword,
-    /// `g_pcxLineBytes` (`dword_5195DC`).
     pub line_bytes: PlainDword,
-    /// `g_pcxPlanes` (`dword_5195E0`).
     pub planes: PlainDword,
-    /// `g_pictureStream` (`dword_5195E4`): the stream the readers opened the file as; not
-    /// used (`files::stream::with_stream`), kept for the block's layout.
+    /// The stream the readers opened the file as; not used (`files::stream::with_stream`), kept for
+    /// the block's layout.
     pub stream: PlainBytes<STREAM_LEN>,
-    /// `g_pcxHeader` (`dword_51B5F4`): the header as read from the file, 0x80 bytes.
+    /// The header as read from the file, 0x80 bytes.
     pub header: PlainBytes<HEADER_LEN>,
-    /// `unk_51B674`: the palette as read from the file, three bytes an entry.
+    /// The palette as read from the file, three bytes an entry.
     pub file_palette: PlainBytes<FILE_PALETTE_LEN>,
-    /// `dword_51B974`: the widest picture that is taken.
+    /// The widest picture that is taken.
     pub width_limit: PlainDword,
-    /// `dword_51B978`: the highest picture that is taken.
+    /// The highest picture that is taken.
     pub height_limit: PlainDword,
 }
 
 impl Pcx {
-    /// The PCX file's variables; the first values are the image's.
     pub const fn new() -> Self {
         Pcx {
             file_width: PlainDword::new(0),
@@ -55,8 +52,8 @@ impl Pcx {
     }
 }
 
-/// The header zeroed and the file's first 0x80 bytes read into it (`files::read_file`):
-/// whether the read worked.
+/// The header zeroed and the file's first 0x80 bytes read into it (`files::read_file`): whether the
+/// read worked.
 pub fn read_header(
     path: &[u8],
     gfx: &crate::gfx::owner::Gfx,
@@ -67,8 +64,8 @@ pub fn read_header(
     Ok(ok)
 }
 
-/// The header read through `stream` (`files::read_stream_block`): whether it worked. The
-/// bytes past a short read stay as they were.
+/// The header read through `stream` (`files::read_stream_block`): whether it worked. The bytes past
+/// A short read stay as they were.
 pub fn read_stream_header(
     stream: &mut Stream,
     gfx: &crate::gfx::owner::Gfx,
@@ -80,8 +77,8 @@ pub fn read_stream_header(
     Ok(!failed)
 }
 
-/// `path` opened as the stream (mode 0), `rows` run on it, the stream closed: whether all
-/// three worked.
+/// `path` opened as the stream (mode 0), `rows` run on it, the stream closed: whether all three
+/// worked.
 pub fn on_stream(
     path: &[u8],
     rows: impl FnOnce(&mut Stream) -> Result<bool, crate::errors::BadInput>,

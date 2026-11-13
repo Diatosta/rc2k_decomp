@@ -1,14 +1,5 @@
-//! `net::add_address_element` (0x41896E): one more element of the compound address being
-//! built (`element_table`, 0x18 bytes each, `elements` of them: a DPCOMPOUNDADDRESSELEMENT,
-//! the data type's GUID, the data's size, the data).
-//!
-//! Takes `data_type`, `size`, `data`.
-//! No limit on the count. Caller: `net::build_address` (five times; three at most in one
-//! go).
-//!
-//! The elements are Rust's (`elements`, each its type and its data's
-//! bytes, as `net::dp_objects` takes them); the count is kept, the game's table
-//! (`element_table`, which held pointers to the data) is not written.
+//! One more element of the compound DirectPlay address being built: a data type, its size and
+//! its bytes. At most three are added in one go; there is no limit check.
 
 use crate::net::dp_objects::Element;
 use crate::net::owner::Net;

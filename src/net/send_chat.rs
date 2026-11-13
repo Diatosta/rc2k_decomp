@@ -1,10 +1,5 @@
-//! `net::send_chat` (0x4193C8): this player's chat message added to the chat
-//! (`net::add_chat_line`, under the received messages' lock) and sent to everyone
-//! (`g_netSendTo`, DirectPlay's `Send` through `net::dplay_send`) as '"' and the text, no NUL.
-//!
-//! Takes `player` and `message`.
-//! Caller: `net::chat_key` (the original through `net::send_chat_regs`, 0x41819B).
-//! Refuses what `net::add_chat_line` refuses.
+//! Adds this player's chat message to the chat and sends it to everyone as '"' followed by
+//! the text, no NUL. Refuses what `net::add_chat_line` refuses.
 
 use crate::errors::Refused;
 use crate::gfx::owner::Gfx;

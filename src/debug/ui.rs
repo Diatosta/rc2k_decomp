@@ -1,19 +1,9 @@
-//! The debug UI: one semi-transparent ImGui window over the game,
-//! resizable, its pages as tabs.
-//! - "Display": the display page's figures (`debug::wear_page`), named and grouped
-//!   (`debug::display_rows`), its bars as bars, filtered by name; a wide window lays the
-//!   groups out in columns side by side.
-//! - "Profiler": the original profile page's live items (`debug::draw_profile`, 0x43530E:
-//!   the frame rate, the course's memory, the processor's features, `dword_6218B8`) and our
-//!   own timings (`debug::timing`, `platform::frame_counters`): RAL.EXE writes none of its
-//!   page's 40 timers (the developers' timing code was taken out).
-//! - "Watch list": the variables of the developers' watch pages (`debug::watch_rows`), laid
-//!   out as "Display"; "Dumps": the league tables those pages dumped in hex.
-//! - "Rivals": the rivals' table the display page ended with (`g_rivalNames`,
-//!   `g_rivalScaled`, `g_rivalTimes`, as they are: unlike the original page this does not
-//!   refill them).
-//!
-//! The race's freeze as a check box.
+//! The debug UI: one semi-transparent ImGui window over the game, resizable, its pages as tabs:
+//! "Display" (the display page's figures, named and grouped, bars as bars, filtered by name; a wide
+//! window lays the groups out in columns), "Profiler" (the developers' profile page's live items
+//! and our own timings), "Watch list" (the developers' watch pages' variables) and "Dumps" (the
+//! league tables those pages dumped in hex), "Rivals" (the rivals' table the display page ended
+//! with, as it is), and the race's freeze as a check box.
 
 use crate::debug::row_cells::Raw;
 use crate::debug::switches::EXTENSIONS;
@@ -27,7 +17,6 @@ use dear_imgui_rs::{Condition, TableColumnFlags, TableColumnWidth, TableFlags, T
 use std::collections::VecDeque;
 use std::sync::atomic::{AtomicBool, Ordering::Relaxed};
 
-/// How a figure is shown.
 #[derive(Clone, Copy)]
 pub enum Shown {
     Whole,
@@ -37,21 +26,18 @@ pub enum Shown {
 }
 
 /// A figure of the display page: its name, the developers' label, how it is shown, its
-/// place (IDA's address), whether the page drew a bar of it, and its place on the
-/// original's 800 x 600 screen.
+/// place, whether the page drew a bar of it, and its place on the page's 800 x 600 screen.
 pub struct Row {
     name: &'static str,
     label: &'static str,
     shown: Shown,
     at: usize,
-    /// The figure's cell.
     cell: for<'a> fn(&Owners<'a>) -> &'a dyn Raw,
     bar: bool,
     place: (u32, u32),
 }
 
 impl Row {
-    /// A figure read through its field (`row_cells::car_cell`).
     pub const fn typed(
         name: &'static str,
         label: &'static str,
@@ -72,13 +58,11 @@ impl Row {
         }
     }
 
-    /// The figure's 32 bits.
     fn value(&self, o: &Owners<'static>) -> u32 {
         (self.cell)(o).raw()
     }
 }
 
-/// A group of figures.
 pub struct Group {
     pub name: &'static str,
     pub rows: &'static [Row],
@@ -104,7 +88,6 @@ type NotedView = ([f32; 16], f32, [f32; 2]);
 /// drawing (the mirror) changes them, so they are noted here (`note_view`).
 static VIEW: std::sync::Mutex<Option<NotedView>> = std::sync::Mutex::new(None);
 
-/// The first view's scene has been drawn.
 pub fn note_view(frame: &Frame) {
     let view = (
         std::array::from_fn(|n| frame.matrices.get().view_matrix[n].get()),
@@ -132,12 +115,11 @@ pub fn note_view(frame: &Frame) {
     crate::debug::frame_figures::note_first_view();
 }
 
-/// In the spirit of 0x4295AD, the developers' mode 0xB, which drew the probe
-/// lists as one pixel each: the physics' probe points as last worked out
-/// (`physics::probe_ground`: 0x6D1E14 .. in the world, whole numbers), through the view
-/// noted, each with a line down to the ground found under it. Green the first four (the
-/// wheels, a reading), red a point at or under the ground, white the rest; yellow the
-/// ground. Above the window, and behind the eye skipped.
+/// After the developers' mode 0xB, which drew the probe lists as one pixel each: the physics'
+/// probe points as last worked out (`physics::probe_ground`, in the world, whole numbers),
+/// through the view noted, each with a line down to the ground found under it. Green the
+/// first four (the wheels, a reading), red a point at or under the ground, white the rest;
+/// yellow the ground. Above the window, and behind the eye skipped.
 fn draw_probes(race: &Race, system: &crate::system::owner::System, ui: &Ui) {
     let physics = &race.physics;
     let wk = &physics.contact.get();
@@ -213,7 +195,6 @@ fn body(ui: &Ui, f: impl FnOnce()) {
     ui.child_window("body").build(ui, f);
 }
 
-/// The UI's frame.
 pub fn build(o: &Owners<'static>, ui: &Ui) {
     let race = o.race;
     crate::debug::frame_figures::take();
@@ -331,7 +312,6 @@ fn screens(saves: &crate::saves::owner::Saves, ui: &Ui) {
     }
 }
 
-/// A figure's text.
 fn figure(value: u32, shown: Shown) -> String {
     let v = value;
     match shown {
@@ -390,7 +370,6 @@ fn display(ui: &Ui, o: &Owners<'static>, all: &'static [Group], filter: &std::sy
     }
 }
 
-/// A group's figures as a table.
 fn group_table(ui: &Ui, o: &Owners<'static>, group: &Group, wanted: &str) {
     let flags = TableFlags::BORDERS | TableFlags::ROW_BG | TableFlags::RESIZABLE;
     let Some(_table) = ui.begin_table_with_flags(group.name, 4, flags) else {
@@ -465,7 +444,6 @@ fn push(history: &mut VecDeque<f32>, value: f32) {
     }
 }
 
-/// A reading of the running counters.
 #[derive(Clone, Copy)]
 struct Counts {
     at: std::time::Instant,
@@ -576,7 +554,6 @@ fn take_readings(system: &crate::system::owner::System, t: &mut Timings) {
     t.last = Some(now);
 }
 
-/// The "Profiler" tab.
 fn profiler(o: &Owners<'static>, ui: &Ui) {
     let race = o.race;
     let course = &race.course;
@@ -715,10 +692,9 @@ fn profiler(o: &Owners<'static>, ui: &Ui) {
             ("Mode's bits", format!("{:08x}", state.sound_mode.get())),
         ],
     );
-    // The original profile page's items. `dword_6218B8` is the developers' switch: 1 in the
-    // image, changed only by a key of their handler at 0x43B3D6, which nothing calls; that
-    // handler is also all that masks the processor's features into `g_useSse`, `g_use3dNow`
-    // and `DrawSwitches.use_mmx`, so "Game uses" stays at none.
+    // The developers' profile page's items. The developers' switch is 1 by default, changed only by
+    // a key of their handler, which nothing calls; that handler is also all that masks the
+    // processor's features into the SSE, 3DNow and MMX switches, so "Game uses" stays at none.
     let names = |flags: [(&'static str, Option<u32>); 3]| {
         let on: Vec<&str> = flags
             .iter()
@@ -808,8 +784,8 @@ fn parts_graph(ui: &Ui, t: &Timings, total: &[f32], top: f32, height: f32, summa
 /// A dump's dword by its number.
 type DumpWord = fn(&Race, usize) -> u32;
 
-/// The league tables the watch pages dumped (`debug::draw_league_dump`, 0x427A79: 50 rows of
-/// 8 bytes each, `off_4278DB` ..; `g_leagueRows` was dumped twice).
+/// The league tables the watch pages dumped (`debug::draw_league_dump`: 50 rows of 8 bytes
+/// each; the league rows were dumped twice).
 const DUMPS: [(&str, &str, DumpWord, usize, usize); 4] = [
     (
         "League: the ten records' names (g_leagueNames)",
@@ -841,7 +817,6 @@ const DUMPS: [(&str, &str, DumpWord, usize, usize); 4] = [
     ),
 ];
 
-/// A row of a dump as text.
 fn dump_row(race: &Race, word: DumpWord, columns: usize, row: usize) -> String {
     let figures: Vec<String> = (0..columns)
         .map(|column| format!("{}", word(race, row * columns + column) as i32))
@@ -875,7 +850,6 @@ fn time(t: u32) -> String {
     format!("{}:{:02}.{:02}", t / 6000, t / 100 % 60, t % 100)
 }
 
-/// The "Rivals" tab.
 fn rivals(so: crate::strings::append_string_by_id::StringOwners<'_>, physics: &Physics, ui: &Ui) {
     let flags = TableFlags::BORDERS | TableFlags::ROW_BG | TableFlags::SCROLL_Y;
     let Some(_table) = ui.begin_table_with_flags("rivals", 4, flags) else {

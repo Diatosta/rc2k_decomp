@@ -1,4 +1,4 @@
-//! The original's folders (RAL.EXE's rules, kept as they were).
+//! The Windows folder rules.
 
 use super::{Current, Folders, Room};
 use crate::errors::{BadInput, Refused};
@@ -13,7 +13,6 @@ impl Folders for Windows {
     }
 
     fn normalised(path: &[u8], current: Current) -> Result<Option<Vec<u8>>, BadInput> {
-        // Converted: `rc2k_core::install::paths::normalise`.
         rc2k_core::install::paths::normalise(
             path,
             &crate::strings::same_text::case_table(),
@@ -22,10 +21,8 @@ impl Folders for Windows {
     }
 
     fn bad_name(folder: &[u8]) -> Result<bool, BadInput> {
-        // Converted: `rc2k_core::install::paths::bad_folder_name` (RAL.EXE's list of bad characters),
-        // which reads to the NUL the original's place held: `folder` is the text without
-        // it. Zeros up to its third byte stand for the place's bytes past a shorter text
-        // (the original reads from there on whatever its length).
+        // `folder` is the text without its NUL; zeros up to its third byte stand for the bytes
+        // past a shorter text.
         let mut text = folder.to_vec();
         text.push(0);
         if text.len() < 3 {

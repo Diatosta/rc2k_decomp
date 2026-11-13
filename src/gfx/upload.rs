@@ -1,12 +1,11 @@
-//! The texture upload's surface description (DDSURFACEDESC) and the mode-trial switch, out
-//! of RAL.EXE's image: IDA 0x5ABA18 ..
-//! 0x5ABA8C. A surface's `Lock` fills the description; `d3d::texture_lock` and
-//! `upload_texture_picture` hand its address on and read the pitch and the pixels.
+//! The texture upload's surface description (DDSURFACEDESC) and the mode-trial switch. A surface's
+//! `Lock` fills the description; `d3d::texture_lock` and `upload_texture_picture` hand its address
+//! on and read the pitch and the pixels.
 
 use crate::session::PlainDword;
 
-/// A DirectDraw surface description (DDSURFACEDESC, 0x6C bytes), filled by a surface's
-/// `Lock`; the game's code reads its fields by their DirectDraw offsets.
+/// A DirectDraw surface description (DDSURFACEDESC, 0x6C bytes), filled by a surface's `Lock`; the
+/// game's code reads its fields by their DirectDraw offsets.
 #[derive(rc2k_derive::Cells)]
 pub struct SurfaceDesc {
     /// `dwSize` (`Upload.description.size`).
@@ -32,12 +31,11 @@ pub struct SurfaceDesc {
     pub caps: PlainDword,
 }
 
-/// The upload's variables.
 #[derive(rc2k_derive::Cells)]
 pub struct Upload {
     /// `Upload.description.size`: the description a `Lock` fills.
     pub description: SurfaceDesc,
-    /// `dword_5ABA88`: 1 while a screen mode is tried (`try_screen_mode`).
+    /// 1 while a screen mode is tried (`try_screen_mode`).
     pub trying: PlainDword,
 }
 
@@ -46,7 +44,6 @@ const fn zeros<const N: usize>() -> [PlainDword; N] {
 }
 
 impl Upload {
-    /// The upload's variables; the first values are the image's.
     pub const fn new() -> Self {
         Upload {
             description: SurfaceDesc {

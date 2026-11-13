@@ -1,18 +1,12 @@
-//! `input::update_effects` (0x40F2C0): the race's force feedback brought up to date, once
-//! each 40 ms (`input::step_effects_clock`): with sound objects in use
-//! (`g_raceSoundObjectCount`), `input::update_car_effects` for player A's car on the first
-//! device (`g_inputDevices[0]`, the first view block) if that device has effects; then, if
-//! the two devices are one player's (`two_devices_one_player` not 0), for car A again on the second
-//! device. Otherwise (no effects on the first device, or one device a player), unless one
-//! player (`g_onePlayer` 1), for player B's car on the second device with the second view
-//! block. Each only if that device has effects (+0x28 1).
-//!
-//! See `input/effects.rs`. One caller, `input::step_effects_clock`. Refuses (before anything: the way
-//! through is worked out
-//! first, nothing it calls changes what decides it) a car number past the eight sound
-//! objects and a null device on the way taken.
-//!
-//! Its arguments are what it reads.
+//! The race's force feedback brought up to date, once each 40 ms (`input::step_effects_clock`):
+//! with sound objects in use, `input::update_car_effects` for player A's car on the first device
+//! (with the first view block) if that device has effects; then, if the two devices are one
+//! player's (`two_devices_one_player` not 0), for car A again on the second device. Otherwise
+//! (no effects on the first device, or one device a player), unless one player is playing, for
+//! player B's car on the second device with the second view block. Each only if that device has
+//! effects (+0x28 1). See `input/effects.rs`. Refuses (before anything: the way through is
+//! worked out first) a car number past the eight sound objects and a null device on the way
+//! taken.
 
 use crate::errors::{BadInput, Refused};
 use crate::input::owner::Input;
@@ -39,7 +33,7 @@ pub struct Vars<'a> {
 impl<'a> Vars<'a> {
     pub fn game(input: &'a Input, sound: &'a Sound, race: &'a Race) -> Self {
         Self {
-            // g_playerCarA, g_playerCarB, g_onePlayer, g_raceSoundObjectCount.
+            // Player A's and B's cars, the one-player flag and the sound object count.
             cars: &sound.race.sounds.get().player_cars,
             one_player: &sound.race.shared.one_player,
             count: &sound.race.shared.count,

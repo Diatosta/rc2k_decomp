@@ -1,23 +1,12 @@
-//! `install::run_after_exit` (0x412FA2): what the installer's pages asked to be done once
-//! the game has closed (not after a fatal error, `g_fatalReported` 1):
-//! - `add_items` 1: the Start menu's items added (`install::add_start_menu_items`, DDE to
-//!   the Program Manager: "Rally", "Uninstall Rally", "View Readme"); `remove_items` 1:
-//!   removed (`install::remove_start_menu_items`, DDE);
-//! - then the first of: `run_dxsetup` 1: DirectX's set-up run (from the game's folder
-//!   `paths.game_dir`, then `texts.other_dir`; "redist\directx\dxsetup.exe", not waited
-//!   for); `run_registration` 1: the registration program run (its folder, the game's
-//!   and "ereg\", made current; "eregip.exe" into the program's name buffer); installing
-//!   (`installing` 1): the installed folder (`g_installSource` normalised into
-//!   `paths.installed`) made current, from the CD (`running_from_cd` 1) the program named
-//!   on the command line (`program_len` bytes, into the program's name buffer; the
-//!   standalone copies its own folder's program instead, so only the length is kept)
-//!   copied to ".\ral.exe" (`files::copy_file`) and a second's sleep, and ".\ral.exe" run.
+//! What the installer's pages asked to be done once the game has closed (not after a fatal
+//! error): the Start menu items added or removed (shell shortcuts, `install::shortcuts`); then
+//! the first of: DirectX's set-up run; the registration program run; or, when installing, the
+//! installed folder made current, from the CD the program copied to `.\ral.exe` after a
+//! second's sleep, and run. A folder that cannot be made current ends it.
 //!
-//! A folder that cannot be made current ends it.
-//!
-//! One caller, `start`'s way out. Refuses (before anything, where the way could lead there)
-//! a game folder too long for "ereg\" in its 0x100 bytes, and a command line's program of
-//! 0x100 bytes or more.
+//! One caller, `start`'s way out. Refuses (before anything, where the way could lead there) a
+//! game folder too long for "ereg\" in its 0x100 bytes, and a command line's program of 0x100
+//! bytes or more.
 
 use crate::errors::{BadInput, Refused};
 use crate::install::runs_from_source::{scratch_put, scratch_text};
@@ -42,7 +31,6 @@ pub fn run_after_exit(
     system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
     let run_vars = &install.run;
-    // `g_addStartItems` .. `g_runRegistration`.
     let switch = |n: u32| {
         [
             &run_vars.add_items,
@@ -74,8 +62,7 @@ pub fn run_after_exit(
     {
         return Err(BadInput("a command line's program of 0x100 bytes or more").into());
     }
-    // install::add_start_menu_items, install::remove_start_menu_items (DDE in the
-    // original): the standalone's shell shortcuts.
+    // The Start menu items: the standalone's shell shortcuts.
     if switch(0) == 1 {
         crate::install::shortcuts::add_start_menu_items(&crate::files::host_path(
             &install.paths.installed.text(),

@@ -1,13 +1,8 @@
-//! `system::set_error_mode` (0x402B7C): `SetErrorMode(SEM_FAILCRITICALERRORS)` (no
-//! "insert a disc" boxes from Windows), the mode before it kept in `uMode` (0x4E05A0), and
-//! `changed` 1.
-//!
-//! One caller, `start` (0x401035). The Win32 call is made from Rust.
+//! `SetErrorMode(SEM_FAILCRITICALERRORS)` (no "insert a disc" boxes from Windows), the mode
+//! before it kept in `mode`, and `changed` 1. Called by `start`.
 
 use crate::session::PlainDword;
 use crate::system::owner::System;
-
-// ---- game data ----
 
 /// SEM_FAILCRITICALERRORS.
 const FAIL_CRITICAL_ERRORS: u32 = 1;
@@ -18,12 +13,12 @@ pub fn set_error_mode(system: &System) {
     system.start().error_mode.changed.set(1);
 }
 
-/// The error mode kept and whether it was set (IDA 0x4E059C .. 0x4E05A4).
+/// The error mode kept and whether it was set.
 #[derive(rc2k_derive::Cells)]
 pub struct ErrorMode {
-    /// 0x4E059C: `g_errorModeSet`: 1 after `set_error_mode` set the mode.
+    /// 1 after `set_error_mode` set the mode.
     pub changed: PlainDword,
-    /// 0x4E05A0: `uMode`: the mode before.
+    /// The mode before.
     pub mode: PlainDword,
 }
 

@@ -1,27 +1,23 @@
 //! The input module's variables, three records of named fields (the keyboard file's layouts
 //! are `input::layouts`):
-//! - `Devices` (`DEVICES`), 0x4F68D8 .. 0x4F7E18: the settings' switches (`nojoysticks` ...),
-//!   the DirectInput objects, the joystick's state, caps and properties, the key tables (down,
-//!   now, before, pressed, repeat: a byte a key), the mouse word, the two device records
-//!   (0x4F8 bytes each, `types::InputDevice`; `input_devices` points at them), the
-//!   controllers' table (`types::Controller`) and the input command;
-//! - `Keyboard` (`KEYBOARD`), 0x4F7FD8 .. 0x4F8294: the yes/no key, the built-in layout's
-//!   tables, the silent keys' bitmap and the dead keys' list (0x4F8000);
-//! - `Mouse` (`MOUSE`), 0x5C6924 .. 0x5C6948: the mouse's position, clicks and buttons.
+//! - `Devices` (`DEVICES`): the settings' switches (`nojoysticks` ...), the DirectInput
+//!   objects, the joystick's state, caps and properties, the key tables (down, now, before,
+//!   pressed, repeat: a byte a key), the mouse word, the two device records
+//!   (0x4F8 bytes each, `types::InputDevice`; `input_devices` points at them), the controllers'
+//!   table (`types::Controller`) and the input command;
+//! - `Keyboard` (`KEYBOARD`): the yes/no key, the built-in layout's tables, the silent keys'
+//!   bitmap and the dead keys' list;
+//! - `Mouse` (`MOUSE`): the mouse's position, clicks and buttons.
 //!
-//! The effects' GUIDs and the DirectInput identifiers (0x4F7E18 .. 0x4F7FA8) stay in the
-//! image: the device records' effect slots point at them, and they are constants.
+//! The effects' GUIDs and the DirectInput identifiers are constants (`input::guids`): the device
+//! records' effect slots name them by handle. `input_devices` names the records by handle
+//! (`DEVICE_TAG`, `Devices::device`).
 //!
-//! The pointers in the data that name these blocks keep IDA's addresses (the layouts'
-//! pointers to their tables); `input_devices` names the records by handle (`DEVICE_TAG`,
-//! `Devices::device`).
+//! `ForceFeedback`: the force-feedback effects' clock, the race switch, the surfaces' effect
+//! kinds and the effects' constants.
 //!
-//! `ForceFeedback` (IDA 0x518084 .. 0x5180F0): the force-feedback effects' clock, the race
-//! switch, the surfaces' effect kinds and the effects' constants (split from sound's block
-//! around it).
-//!
-//! Threads: the input thread polls and the game's thread reads, as the image's bytes were
-//! shared (atomic cells and volatile bytes).
+//! Threads: the input thread polls and the game's thread reads (atomic cells and volatile
+//! bytes).
 
 use crate::cells::ZeroCells;
 use crate::errors::BadInput;
@@ -29,7 +25,7 @@ use crate::input::guids::EffectGuid;
 use crate::input::types::{Controller, ForceEffect, InputDevice};
 use crate::session::{Byte, Bytes, Dword, Float, PlainBytes, PlainDword};
 
-// ---- the devices: 0x4F68D8 .. 0x4F7E18 ----
+// ---- the devices ----
 
 /// A key table: a byte a scan code (0x80 down / pressed).
 pub const KEYS: usize = 0x80;
@@ -37,89 +33,79 @@ pub const KEYS: usize = 0x80;
 /// The input thread's and the settings' variables.
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct Devices {
-    /// `dword_4F68D8`: the input thread's last tick (ms).
+    /// The input thread's last tick (ms).
     pub last_tick: Dword,
-    /// `g_noJoysticks` (`nojoy`).
+    /// `nojoy`: no joysticks listed.
     pub no_joysticks: Dword,
-    /// `dword_4F68E0` (`joymode`): the configuration's kind.
+    /// `joymode`: the configuration's kind.
     pub joy_mode: Dword,
-    /// `dword_4F68E4` (`joycode`): its axes' code.
+    /// `joycode`: its axes' code.
     pub joy_code: Dword,
-    /// `dword_4F68E8` (`joylowerdz`): its dead zone.
+    /// `joylowerdz`: its dead zone.
     pub joy_dead_zone: Dword,
-    /// `dword_4F68EC` (`joyupperdz`): its end zone.
+    /// `joyupperdz`: its end zone.
     pub joy_end_zone: Dword,
-    /// `dword_4F68F0` (`alt2axcode`): its +0x1C.
+    /// `alt2axcode`: its +0x1C.
     pub alt_axes_code: Dword,
-    /// `g_noForceFeedback` (`noforcefeedback`).
+    /// `noforcefeedback`.
     pub no_force_feedback: Dword,
-    /// `dword_4F68F8` (`joyffgain`): its strength.
+    /// `joyffgain`: its strength.
     pub ff_gain: Dword,
-    /// `g_twoDevicesOnePlayer` (`mergejoy`).
+    /// `mergejoy`: one player on both devices.
     pub two_devices_one_player: Dword,
-    /// `dword_4F6900` (`nonlinearsteering`).
+    /// `nonlinearsteering`.
     pub nonlinear_steering: Dword,
-    /// `g_directInput`: the IDirectInputA.
+    /// The `IDirectInputA`.
     pub direct_input: Dword,
-    /// `dword_4F6908` and `dword_4F690C`: nothing reads them.
     pub _unused_6908: [Dword; 2],
-    /// `g_newJoystick`: a device being made.
+    /// A device being made.
     pub new_joystick: Dword,
-    /// `g_newJoystick2`: its IDirectInputDevice2A.
+    /// Its `IDirectInputDevice2A`.
     pub new_joystick2: Dword,
-    /// `g_deviceState`: the device's state, 0x50 bytes (DirectInput's `DIJOYSTATE`).
+    /// The device's state, 0x50 bytes (DirectInput's `DIJOYSTATE`).
     pub device_state: [Dword; 20],
-    /// `g_joystickCaps`: a DIDEVCAPS (0x2C bytes).
+    /// A `DIDEVCAPS`.
     pub joystick_caps: Bytes<0x2C>,
-    /// `g_dwordProperty`: a DIPROPDWORD (0x14).
+    /// A `DIPROPDWORD`.
     pub dword_property: Bytes<0x14>,
-    /// `g_rangeProperty`: a DIPROPRANGE (0x18).
+    /// A `DIPROPRANGE`.
     pub range_property: Bytes<0x18>,
-    /// `byte_4F6AD0`: the dead key pending (`key_to_char`).
+    /// The dead key pending (`key_to_char`).
     pub dead_key: Byte,
-    /// `byte_4F6AD1` .. `dword_4F6AD8`: nothing reads them; they keep the key tables after on a dword's
-    /// boundary (the cells take no padding).
+    /// Nothing reads them; they keep the key tables after them on a dword's boundary (the cells
+    /// take no padding).
     pub _gap_6ad1: Bytes<0xB>,
-    /// `g_keysDown` (0x4F6ADC): what the window's messages keep, by scan code; its first
+    /// What the window's messages keep, by scan code; its first
     /// byte the pending key of `input::take_key`.
     pub keys_down: Bytes<KEYS>,
-    /// `g_keysNow` (0x4F6B5C): the frame's copy.
+    /// The frame's copy.
     pub keys_now: Bytes<KEYS>,
-    /// `g_keysBefore` (0x4F6BDC): last frame's.
+    /// Last frame's.
     pub keys_before: Bytes<KEYS>,
-    /// `g_keysPressed` (0x4F6CDC).
+    /// The keys that went down this frame, or auto-repeat.
     pub keys_pressed: Bytes<KEYS>,
-    /// `g_keyRepeat` (0x4F6D5C): the frames a key has been held.
+    /// The frames a key has been held.
     pub key_repeat: Bytes<KEYS>,
-    /// `dword_4F6DDC` .. `dword_4F6DEC`: nothing reads them.
     pub _unused_6ddc: [Dword; 5],
-    /// `g_mouseWord`: buttons, x << 8, y << 20.
+    /// Buttons, x << 8, y << 20.
     pub mouse_word: Dword,
-    /// `dword_4F6DF4` .. 0x4F6E04: nothing reads them.
     pub _unused_6df4: [Dword; 5],
-    /// `unk_4F6E08`: the force-feedback effects' parameter rows (16 bytes each).
+    /// The force-feedback effects' parameter rows (16 bytes each).
     pub effect_rows: [[Dword; 4]; 14],
-    /// `g_inputDevices` and `off_4F6EEC`: the two records, by handle (`DEVICE_TAG | n`; the
-    /// original kept their addresses and never changes them; 0 none).
+    /// The two records, by handle (`DEVICE_TAG | n`, never changed; 0 none).
     pub input_devices: [Dword; 2],
-    /// `g_inputRecord1` and `g_inputRecord2` (`types::InputDevice`).
     pub records: [InputDevice; 2],
-    /// `g_controllerCount`.
     pub controller_count: Dword,
-    /// `g_controllers`: 16 entries (`types::Controller`).
     pub controllers: [Controller; 16],
-    /// `g_inputCommand`.
     pub input_command: Dword,
-    /// 0x4F7DE8 .. 0x4F7E18: three GUIDs the effect slots point at.
+    /// Three GUIDs the effect slots point at.
     pub guids: Bytes<0x30>,
 }
 
-/// A record's force-feedback effects.
 const EFFECTS: usize = 6;
 
-/// The six effects of a record, in order: the function that changes it (an IDA address of
-/// `input::effect_N_change`), the kind wanted (1 constant, 3 periodic, 4 condition) and the
-/// GUID wanted.
+/// The six effects of a record, in order: the change function (`input::effect_N_change`), the
+/// kind wanted (1 constant, 3 periodic, 4 condition) and the GUID wanted.
 const EFFECT_KINDS: [(u32, u32, EffectGuid); EFFECTS] = [
     (0x409708, 4, EffectGuid::Spring),
     (0x4097FA, 3, EffectGuid::Sine),
@@ -162,7 +148,6 @@ const fn record(controller: u32) -> InputDevice {
 /// `IDirectInput2A`, `IDirectInputDevice2A`), 16 bytes each.
 const INTERFACE_GUIDS: [u8; 0x30] = *b"\x60\x13\x52\x89\x8a\xaa\xcf\x11\xbf\xc7\x44\x45\x53\x54\x00\x00\x62\xe6\x44\x59\x8a\xaa\xcf\x11\xbf\xc7\x44\x45\x53\x54\x00\x00\x80\xe6\x44\x59\x2e\xc9\xcf\x11\xbf\xc7\x44\x45\x53\x54\x00\x00";
 
-/// The force-feedback effects' parameter rows at start (16 bytes each).
 const EFFECT_ROWS: [[u32; 4]; 14] = [
     [0x30, 0x64, 0x0, 0x226],
     [0x10, 0x32, 0x20, 0x14A],
@@ -213,8 +198,8 @@ impl Devices {
 }
 
 impl Devices {
-    /// `g_keysDown` and `g_keysNow` as one table of 0x100 bytes (the key table the device
-    /// bindings read: a key code past 0x7F reads `g_keysNow`).
+    /// The key table the device bindings read, as one table of 0x100 bytes: a key code past 0x7F
+    /// reads the frame's table.
     pub fn key_table(&self) -> [u8; 0x100] {
         let mut table = [0u8; 0x100];
         table[..KEYS].copy_from_slice(&self.keys_down.read());
@@ -222,22 +207,19 @@ impl Devices {
         table
     }
 
-    /// Device `n`'s record (`g_inputDevices[n]`, by handle: `device_of`); `None` for a
-    /// device the table holds as 0.
+    /// Device `n`'s record (by handle: `device_of`); `None` for a device the table holds as 0.
     pub fn device(&self, n: usize) -> Option<&InputDevice> {
         device_of(self, self.input_devices[n].get())
     }
 
-    /// `g_inputDevices[n]` as the original indexes it: past the two pointers (`n` up to 7)
-    /// it reads the first record's bytes (the drive code only refuses `n` past 7). What
-    /// those hold is no handle: a 0 is no device, any other value the original would
-    /// follow as an address, which is refused here.
+    /// Device `n` as the drive code indexes it: past the two handles (`n` up to 7) it reads the
+    /// first record's bytes (the drive code only refuses `n` past 7). What those hold is no
+    /// handle: a 0 is no device, any other value is refused.
     pub fn input_device(&self, n: usize) -> Result<Option<&InputDevice>, BadInput> {
         if n < self.input_devices.len() {
             return Ok(self.device(n));
         }
         let at = 4 * (n - self.input_devices.len());
-        // A run-on past the pointers into the first record's fields, as the original.
         let held = self.records[0]
             .to_bytes()
             .get(at..at + 4)
@@ -279,29 +261,28 @@ pub fn device_of(devices: &Devices, handle: u32) -> Option<&InputDevice> {
     }
 }
 
-// ---- the keyboard: 0x4F7FD8 .. 0x4F8294 ----
+// ---- the keyboard ----
 
 /// The yes/no key, the built-in layout and the dead keys.
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct Keyboard {
-    /// `g_yesNoKeyGiven`: 1 = the key comes from the caller.
+    /// 1 = the key comes from the caller.
     pub yes_no_key_given: PlainDword,
-    /// `unk_4F7FDC`: the built-in layout's five pointers (nothing reads them: `input::layouts`
+    /// The built-in layout's five pointers (nothing reads them: `input::layouts`
     /// copies the tables below).
     pub _built_in_layout: [PlainDword; 5],
-    /// `dword_4F7FF0`: one bit per key; the keys set type nothing.
+    /// One bit per key; the keys set type nothing.
     pub silent_keys: [PlainDword; 4],
-    /// `unk_4F8000`: the dead keys' list {dead key, base, plain result, shifted result}.
+    /// The dead keys' list {dead key, base, plain result, shifted result}.
     pub compose: PlainBytes<0x6C>,
-    /// 0x4F806C: the built-in layout's plain table.
+    /// The built-in layout's plain table.
     pub plain: PlainBytes<0x80>,
-    /// 0x4F80EC: its shifted table.
+    /// Its shifted table.
     pub shifted: PlainBytes<0x80>,
-    /// 0x4F816C .. 0x4F826C: its key names' table.
+    /// Its key names' table.
     pub key_names: PlainBytes<0x100>,
-    /// `dword_4F826C`.
     pub _unused_826c: PlainDword,
-    /// `unk_4F8270`: the axes' rest values (6 dwords, taken by `input::axis_moved`).
+    /// The axes' rest values (6 dwords, taken by `input::axis_moved`).
     pub axes_rest: [PlainDword; 6],
 }
 
@@ -312,9 +293,9 @@ impl Keyboard {
         Self {
 _built_in_layout: {
 let mut v: [PlainDword; 5] = ZeroCells::ZERO;
-v[1] = PlainDword::new(0x4F806C); // an IDA address: wave 3
-v[2] = PlainDword::new(0x4F80EC); // an IDA address: wave 3
-v[4] = PlainDword::new(0x4F816C); // an IDA address: wave 3
+v[1] = PlainDword::new(0x4F806C); // a game address nothing reads
+v[2] = PlainDword::new(0x4F80EC); // a game address nothing reads
+v[4] = PlainDword::new(0x4F816C); // a game address nothing reads
 v
 },
 silent_keys: {
@@ -333,21 +314,20 @@ key_names: PlainBytes::new(with_runs::<256>(&[(2, b"\x05\x00\x06\x00\x07\x00\x08
 }
     }
 }
-// ---- the mouse: 0x5C6924 .. 0x5C6948 ----
 
 /// The mouse's position, clicks and buttons.
 #[derive(rc2k_derive::Cells)]
 pub struct Mouse {
-    /// `g_mouseX`, `g_mouseY` (signed).
+    /// The mouse's x and y (signed).
     pub x: PlainDword,
     pub y: PlainDword,
-    /// `g_lastMouseX`, `g_lastMouseY`: last frame's.
+    /// Last frame's x and y.
     pub last_x: PlainDword,
     pub last_y: PlainDword,
-    /// `g_leftClick`, `g_rightClick`.
+    /// The left and right clicks.
     pub left_click: PlainDword,
     pub right_click: PlainDword,
-    /// `g_mouseButtons`: the buttons' bits; `g_leftButton` (bit 0), `g_rightButton` (bit 1).
+    /// The buttons' bits (bit 0 left, bit 1 right).
     pub buttons: PlainDword,
     pub left_button: PlainDword,
     pub right_button: PlainDword,
@@ -369,26 +349,24 @@ impl Mouse {
     }
 }
 
-/// The force-feedback effects' clock, surface kinds and constants (IDA 0x518084 .. 0x5180f0).
+/// The force-feedback effects' clock, surface kinds and constants.
 #[derive(rc2k_derive::Cells)]
 pub struct ForceFeedback {
-    /// `g_effectsLastTime`: the force-feedback effects' last clock.
+    /// The force-feedback effects' last clock.
     pub last_time: Dword,
-    /// `g_effectsRate`: their rate.
     pub rate: Dword,
-    /// `g_effectsSteps`: their steps.
     pub steps: Dword,
-    /// `g_effectsRaceOn`: the effects run in a race.
+    /// The effects run in a race.
     pub race_on: Dword,
-    /// `g_surfaceEffectKinds` (`0x51809C`): a surface's effect kind, 16 of them.
+    /// A surface's effect kind, 16 of them.
     pub surface_effect_kinds: [Dword; 16],
-    /// `flt_5180DC`: 10.0.
+    /// 10.0.
     pub effect_ten: Float,
-    /// `flt_5180E0`: 162.97.
+    /// 162.97.
     pub effect_angle_scale: Float,
-    /// `flt_5180E4`: 256.0.
+    /// 256.0.
     pub effect_full: Float,
-    /// `flt_5180EC`: 0.1.
+    /// 0.1.
     pub effect_tenth: Float,
 }
 

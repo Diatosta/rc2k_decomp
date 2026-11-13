@@ -1,16 +1,10 @@
-//! `files::read_level_file` (0x41BA2E): a file read as it is, or, when it is not there,
-//! its packed copy under `files\levels`.
-//!
-//! Takes path (`srclvls\...`), buffer, its bytes.
-//!
-//! Refuses a path too short for the packed copy's prefix (the
-//! original's text then runs on past it). One caller, `race::load_level` (loadlevel, the course
-//! data).
+//! A file read as it is, or, when it is not there, its packed copy under `files\levels`. Refuses
+//! a path too short for the packed copy's prefix. Used by `race::load_level`.
 
 use crate::errors::Refused;
 use crate::files::read_packed_file::{Outcome, read, read_packed_file};
 
-/// `files::read_level_file` (see the header): the file at `path` (or its packed copy) into
+/// The file at `path` (or its packed copy) into
 /// `buffer` (its length is the room).
 /// `path` without its NUL.
 pub fn read_level_file(path: &[u8], buffer: &mut [u8]) -> Result<Outcome, Refused> {

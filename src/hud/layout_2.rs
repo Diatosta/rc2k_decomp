@@ -1,12 +1,7 @@
-//! `hud::layout_2` (0x4B3B64): the HUD of layout 2, two players one above the other (by
-//! `Panel::hud_flags`, the upper's and the lower's): the dials (`dials::DISC_2A` / `_2B`), a black
-//! divider at 0x12B, the stage bars (`hud::draw_stage_bars`), the cut calls (0x4B6A8E / 0x4B6A99),
-//! the icons (`hud::icons`), the scaled sprites, the markers (`hud::draw_markers`), signs
-//! (`draw_signs::LAYOUT_2A` / `_2B`), needles (`dials::NEEDLE_2A` / `_2B`), the lap panels
-//! (`ViewA::place` / `ViewB::place`, the HUD's `times` 2 / 5), the speeds with their leading digits
-//! left out and the four clocks. The upper's rows move 0x10 down and the lower's 0x10 up with
-//! `Panel::flat` 0. Both needles' signs read the second start value (`Panel::start_values`; layout
-//! 1 reads the first for the first: section 16).
+//! The HUD of layout 2, two players one above the other: as layout 1, with a black divider at
+//! 0x12B; the upper's rows move 0x10 down and the lower's 0x10 up with `Panel::flat` 0. Both
+//! needles' signs read the second start value (layout 1 reads the first for the first: a slip kept
+//! as is).
 
 use crate::errors::Refused;
 use crate::hud::draw_signs::row_by;
@@ -29,8 +24,6 @@ fn lower(frame: &Frame, y: u32) -> u32 {
 }
 
 /// The HUD of two players one above the other.
-// Converted: `rc2k_core::hud::panels` (through `layout_0`'s panels and `needle_sign`),
-// `rc2k_core::hud::quads::int_over` (the sprites' scales)
 pub fn layout_2(frame: &Frame, hud: &Hud, pen: Pen) -> Result<(), Refused> {
     use crate::hud::*;
     let panel = &frame.panel_and_overlay.get().panel;

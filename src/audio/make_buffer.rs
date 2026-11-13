@@ -1,25 +1,12 @@
-//! `audio::make_buffer` (0x40B5CF): a voice's DirectSound buffer made.
-//!
-//! Takes: the voice
-//!
-//! Nothing (carry clear) unless voices have buffers of their own (`g_soundMode` bit
-//! 0x10000). No `g_directSound`: carry. A voice that shares data gets a duplicate of the
-//! other's buffer (`DuplicateSoundBuffer`, +0x14); if that fails, or for any other voice,
-//! `audio::describe_wave_format` and `CreateSoundBuffer` (+0x0C) with
-//! `g_bufferDescription`: size 0x14, flags 0xE0 (frequency, pan and volume controls), + 8
-//! (in software) unless 3D with bit 0x800000, + 2 (static) for the voice's flags bit 0, +
-//! 0x10 (3D) in 3D, the length, `g_waveFormat`; failing: "AUD: 1-DSBCreate failed" and the
-//! result to the game's log, carry. Then the volume, pan and frequency
-//! (`audio::set_buffer_*`). In 3D: the 3D interface (`QueryInterface` with
-//! `g_iidSound3dBuffer`; failing: "AUD: 1-DSBQuery3D failed" logged, carry), the place,
-//! `audio::set_buffer_min_distance`, `g_commit3d` 1, `audio::open_voice_manager` with bit
-//! 0x800000, with EAX (bit 0x1000000) `audio::open_eax` and, unless that sets the carry,
-//! `audio::set_eax_room`. The openings read the 3D buffer through a "holder" value that
-//! is the caller's own value (`property_sets::Holder`), or the frequency after the create
-//! path, or the voice's 3D buffer after the voice manager's call (the game's bug, kept;
-//! `open_eax` refuses one that is no pointer). Callers:
-//! command 3 and `audio::start`.
-//! Refuses A3D (the chunk at 0x40CC88), and what the settings refuse, checked first.
+//! Makes a voice's DirectSound buffer: nothing (success) unless voices have buffers of their own.
+//! A voice that shares data gets a duplicate of the other's buffer; if that fails, or for any
+//! other voice, the wave format is described and the buffer created (frequency, pan and volume
+//! controls, in software unless 3D, static for the voice's flags bit 0, 3D in 3D); failing:
+//! "AUD: 1-DSBCreate failed" and the result are logged. Then the volume, pan and frequency are
+//! set. The openings read the 3D buffer through a "holder" value that is the caller's own value
+//! (`property_sets::Holder`), or the frequency after the create path, or the voice's 3D buffer
+//! after the voice manager's call (a game bug kept; `open_eax` refuses one that
+//! is no pointer). Refuses A3D, and what the settings refuse, checked first.
 
 use crate::audio::buffer_settings::{a3d, set_buffer_frequency, set_buffer_pan, set_buffer_volume};
 use crate::audio::describe_wave_format::describe_wave_format;
@@ -40,13 +27,11 @@ pub struct BufferDescription {
     pub flags: u32,
     pub bytes: u32,
     pub reserved: u32,
-    /// The wave format's address (the original kept it). Not used: nothing reads it, the
-    /// format goes to the platform as a value.
+    /// Not used: the format goes to the platform as a value.
     pub format: u32,
 }
 
-/// True for the carry clear. `holder`: the caller's value, which the EAX parts read the 3D
-/// buffer through (replaced as below, as the original does).
+/// True when it worked.
 pub fn make_buffer(state: &AudioOwn, at: u32, holder: Holder) -> Result<bool, Refused> {
     if a3d(state) {
         return Err(BadInput("A3D (the chunk at 0x40CC88)").into());
@@ -65,9 +50,6 @@ pub fn make_buffer(state: &AudioOwn, at: u32, holder: Holder) -> Result<bool, Re
         if !(0..=0x40).contains(&level) || !(-0x40..=0x40).contains(&v.pan) {
             return Err(BadInput("a volume or pan past the volume table").into());
         }
-        // The holder value at each call, as the original has it: the caller's, the
-        // frequency after the create path, the voice's 3D buffer after
-        // `audio::open_voice_manager`'s.
         let mut holder = holder;
         let mut made = false;
         if v.source != 0 {
@@ -82,7 +64,6 @@ pub fn make_buffer(state: &AudioOwn, at: u32, holder: Holder) -> Result<bool, Re
         if !made {
             holder = Holder::Value;
             describe_wave_format(state, v.format, v.frequency)?;
-            // Converted: `rc2k_core::audio::voices::buffer_flags`.
             let flags = rc2k_core::audio::voices::buffer_flags(mode, v.flags);
             state.buffer_description.set(BufferDescription {
                 size: 0x14,
@@ -126,7 +107,7 @@ pub fn make_buffer(state: &AudioOwn, at: u32, holder: Holder) -> Result<bool, Re
     })
 }
 
-/// The failure's text and result to the game's log; false (the carry).
+/// The failure's text and result to the log; false.
 fn log_failure(text: &std::ffi::CStr, result: i32) -> bool {
     crate::logfile::log_write::log_nul(&text, false, 1);
     crate::logfile::log_hex8::log_hex8(result as u32, true, 1);

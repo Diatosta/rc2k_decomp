@@ -14,7 +14,6 @@ use crate::race::owner_frame::Frame;
 pub const STAGE_BARS_DROP_2: u32 = 0x11E;
 
 /// The two players' bars `dy` lower (see the header).
-// Converted: `rc2k_core::hud::stage_bars` (through `draw_stage_bar::bars`)
 pub fn draw_stage_bars(frame: &Frame, hud: &Hud, pen: Pen, dy: u32) -> Result<(), Refused> {
     bars(
         frame,

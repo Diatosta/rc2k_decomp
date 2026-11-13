@@ -1,29 +1,26 @@
-//! The players' input devices, as the input thread (`input::input_thread`, "INPUTTDB") keeps them:
-//! two records of 0x4F8 bytes (`records`; `g_inputDevices` points
-//! at them). What is known of a record (a reading from the code that uses it):
-//! - +0 the controller's number, +4 its DirectInput device (0: none), +8 its kind (1
-//!   digital: every reading all or nothing; 2, 3), +0xC .. +0x20 its settings, +0x1A ..
-//!   +0x1D which state dwords its axes are, +0x24 1 while acquired, +0x28 1 while its
-//!   effects run, +0x3C six effects of 0xA4 bytes;
-//! - +0x2C, +0x30, +0x34 its three axes and +0x38 its buttons (bits), copied from the
-//!   device's state (`device_state`, 0x50 bytes, DirectInput's `DIJOYSTATE`) at each poll;
-//! - +0x414 1 while it is read, +0x418 its hat's kind;
-//! - from +0x41C twelve bindings of 0x10 bytes: the key (`g_keysDown`), the axis's place in
-//!   the record (+0x2C, +0x30, +0x34; 0 none), its sign, a button's bit (0 none): steering
-//!   left and right, throttle, brake, then eight buttons;
-//! - +0x4DC .. +0x4E8 its four readings (steering, brake, throttle, the bits), which
-//!   `drive::device_axes` reads.
+//! The players' input devices, as the input thread keeps them: two records of 0x4F8 bytes.
+//! What is known of a record:
+//! - +0 the controller's number, +4 its DirectInput device (0: none), +8 its kind (1 digital:
+//!   every reading all or nothing; 2, 3), +0xC .. +0x20 its settings (+0x1A .. +0x1D which
+//!   state dwords its axes are), +0x24 1 while acquired,
+//!   +0x28 1 while its effects run, +0x3C six effects of 0xA4 bytes;
+//! - +0x2C, +0x30, +0x34 its three axes and +0x38 its buttons (bits), copied from the device's
+//!   state at each poll;
+//! - +0x414 1 while it is read, +0x418 its hat's kind; from +0x41C twelve bindings of 0x10 bytes
+//!   (key, axis place, sign, button bit): steering left and right, throttle, brake, then eight
+//!   buttons;
+//! - +0x4DC .. +0x4E8 its four readings, which `drive::device_axes` reads.
 
 use crate::errors::BadInput;
 use crate::input::store::Devices;
 use crate::input::types::InputDevice;
 
-/// The two records (`g_inputRecord1`, `g_inputRecord2`).
+/// The two records.
 pub fn records(devices: &Devices) -> &[InputDevice; 2] {
     &devices.records
 }
 
-/// The device's state (`g_deviceState`), 0x50 bytes.
+/// The device's state, 0x50 bytes.
 pub const STATE_LEN: usize = 0x50;
 
 /// A record's bytes, for the core (`rc2k_core::input::devices`).

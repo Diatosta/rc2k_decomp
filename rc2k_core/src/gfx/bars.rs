@@ -1,6 +1,4 @@
-//! Bars filled to a percentage (from `gfx::blit_bar` 0x46B574 and
-//! `gfx::blit_bar_marker` 0x46B5FC), as the six bar globals describe them
-//! (`BarVars.x` ..).
+//! Bars filled to a percentage, as the six bar globals describe them (`BarVars.x` ..).
 
 pub use crate::screens::screen::{BAR_HAS_NO_LENGTH, Bar};
 
@@ -9,14 +7,14 @@ pub trait BarCanvas {
     type Error;
     /// A sprite of the sprite table.
     fn sprite(&mut self, glyph: u32, x: i32, y: i32) -> Result<(), Self::Error>;
-    /// The clip rectangle's right edge, and it set.
+    /// The clip rectangle's right edge (read, and set by `set_clip_right`).
     fn clip_right(&mut self) -> i32;
     fn set_clip_right(&mut self, x: i32);
-    /// `seconds` (0x7559AC): the fill's end.
+    /// The fill's end kept (in `seconds`).
     fn keep_fill_end(&mut self, x: i32);
     /// The bar's x set: the marker's place.
     fn set_bar_x(&mut self, x: i32);
-    /// The game's fatal error 0x80701010.
+    /// The fatal error for a bar with no length (`BAR_HAS_NO_LENGTH`).
     fn no_length(&mut self) -> Self::Error;
 }
 
@@ -46,8 +44,8 @@ pub fn bar<C: BarCanvas>(c: &mut C, bar: &Bar) -> Result<(), C::Error> {
     c.sprite(bar.end_glyph, end, bar.y)
 }
 
-/// The marker (the fill sprite) at where the percentage ends, the bar's x moved there; at
-/// 0 percent or less at the bar's x.
+/// The marker (the fill sprite) where the percentage ends, the bar's x moved there; at 0 percent
+/// or less, at the bar's x.
 pub fn marker<C: BarCanvas>(c: &mut C, bar: &Bar) -> Result<(), C::Error> {
     if bar.percent <= 0 {
         return c.sprite(bar.fill_glyph, bar.x, bar.y);

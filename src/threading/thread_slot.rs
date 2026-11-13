@@ -7,8 +7,7 @@ use crate::session::{Byte, Bytes, Dword};
 
 #[derive(rc2k_derive::Cells)]
 pub struct ThreadSlot {
-    /// The routine: its IDA address, as the image held it before relocation
-    /// (`start_slot_thread` makes the running address of it).
+    /// The routine, by its game address (`run_routine` finds its Rust function by it).
     pub routine: Dword,
     pub thread_id: Dword,
     /// The thread's handle.
@@ -54,9 +53,9 @@ pub static SLOTS: [ThreadSlot; SLOT_COUNT] = [
     ThreadSlot::new(0x410C17),
 ];
 
-/// The owners the slot threads work with. Every one is a plain static whose state the
-/// other threads may read (atomic cells); none holds a `GameThread` state, which only the
-/// game's thread may reach.
+/// The owners the slot threads work with. Every one is a plain static whose state the other
+/// threads may read (atomic cells); none holds a `GameThread` state, which only the game's
+/// thread may reach.
 #[derive(Clone, Copy)]
 pub struct SlotOwners<'a> {
     pub audio: &'static crate::audio::owner::Audio,
@@ -70,8 +69,7 @@ pub struct SlotOwners<'a> {
 }
 
 impl SlotOwners<'static> {
-    /// The owners as the accessors give them: the root of a slot's thread fetches them (the
-    /// graphics owner by `on_any_thread`, as the receiving thread has always reached it).
+    /// The owners as the accessors give them: the root of a slot's thread fetches them.
     pub fn fetch() -> Self {
         SlotOwners {
             audio: crate::audio::owner::audio(),         // m6-root
@@ -85,8 +83,7 @@ impl SlotOwners<'static> {
     }
 }
 
-/// A slot's routine (the IDA address the slot holds) run by its Rust version; None for
-/// an address that is none of the four.
+/// A slot's routine run by its Rust function; None for an address that is none of the four.
 pub fn run_routine(routine: u32, o: SlotOwners<'_>) -> Option<Result<(), Refused>> {
     match routine {
         0x4078DA => Some(crate::input::input_thread::input_thread(

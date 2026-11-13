@@ -1,37 +1,29 @@
-//! The picture converters for 16-bit screens with MMX (`gfx::install_converters` puts them
-//! in the converter table for the surface format numbers 1 .. 4 when the processor has MMX, the
-//! 3DNow ones when it has that as well; `gfx::convert_picture` calls the one of the
-//! surface's format): four pixels of four 8-bit components a step turned into four 16-bit
-//! pixels, as MMX does it:
-//! - the components picked (`pand` with 0x00FF.., the second and fourth after `psrlw 8`)
-//!   and packed (`packuswb`): mm0 = the first and third of each pixel, mm2 = the second and
-//!   fourth;
-//! - format 1 (5-6-5: 0x4070F9, 3DNow 0x4072FB; constants 0x4F51F8 ..): mm0 & 0xF800 | mm0
-//!   >> 3 & 0x001F | mm2 << 3 & 0x07E0;
-//! - format 2 (5-5-5: 0x407171, 0x407377; 0x4F5218 ..): mm0 >> 1 & 0x7C00 | mm0 >> 3 &
-//!   0x001F | mm2 << 2 & 0x03E0;
-//! - format 3 (1-5-5-5: 0x4071ED, 0x4073F7; 0x4F5238 .., the alpha 0x4F5258): as 2, and
-//!   mm2's alpha bit (& 0x8000);
-//! - format 4 (4-4-4-4: 0x407276, 0x407484; 0x4F5260 .., 0x4F5280): mm0 >> 4 & 0x0F00 | mm0
-//!   >> 4 & 0x000F | mm2 & 0x00F0 | mm2 & 0xF000.
+//! The picture converters for 16-bit screens with MMX (`gfx::install_converters` puts them in the
+//! converter table for the surface format numbers 1 .. 4 when the processor has MMX, the 3DNow
+//! ones when it has that as well; `gfx::convert_picture` calls the one of the surface's format):
+//! four pixels of four 8-bit components a step turned into four 16-bit pixels, as MMX does it:
+//! - the components picked (`pand` with 0x00FF.., the second and fourth after `psrlw 8`) and
+//!   packed (`packuswb`): mm0 = the first and third of each pixel, mm2 = the second and fourth;
+//! - format 1 (5-6-5): mm0 & 0xF800 | mm0 >> 3 & 0x001F | mm2 << 3 & 0x07E0;
+//! - format 2 (5-5-5): mm0 >> 1 & 0x7C00 | mm0 >> 3 & 0x001F | mm2 << 2 & 0x03E0;
+//! - format 3 (1-5-5-5): as 2, and mm2's alpha bit (& 0x8000);
+//! - format 4 (4-4-4-4): mm0 >> 4 & 0x0F00 | mm0 >> 4 & 0x000F | mm2 & 0x00F0 | mm2 & 0xF000.
 //!
-//! The masks are the game's constants (read from it, so a change there would show).
+//! The masks are the game's constants.
 //!
-//! Callers: `gfx::convert_picture` (one row of width x height pixels). Refuses (before
-//! anything) fewer than four pixels a row and no rows (the original's `dec` counts on through
-//! 2^32).
+//! Callers: `gfx::convert_picture` (one row of width x height pixels). Refuses (before anything)
+//! fewer than four pixels a row and no rows.
 
 use crate::errors::BadInput;
 use crate::gfx::converters::Converters;
 
-/// A converter: the format it makes and where its constants are (the number of the first
-/// of its five masks in `gfx::converters`).
+/// A converter: the format it makes and where its constants are (the number of the first of its
+/// five masks in `gfx::converters`).
 #[derive(Clone, Copy)]
 pub struct Converter {
     pub format: u32,
     pub constants: usize,
-    // The original's next-row step differs for the 3DNow ones; its one call (one row) never
-    // takes it now.
+    // The next-row step differs for the 3DNow ones; the one call (one row) never takes it.
     #[allow(dead_code)]
     pub three_dnow: bool,
 }
@@ -45,9 +37,9 @@ fn masks(table: &Converters, c: &Converter) -> [u64; 5] {
     std::array::from_fn(|n| constant(table, c.constants + n))
 }
 
-/// Converts in place on the picture's bytes: its one caller, `gfx::convert_picture`,
-/// gives the buffer as source and target, one row of `pixels` pixels. Each step's 16 bytes are read before its 8 are
-/// written, behind them.
+/// Converts in place on the picture's bytes: its one caller, `gfx::convert_picture`, gives the
+/// buffer as source and target, one row of `pixels` pixels. Each step's 16 bytes are read before
+/// its 8 are written, behind them.
 pub fn convert_in_place(
     table: &Converters,
     bytes: &mut [u8],
@@ -63,7 +55,6 @@ pub fn convert_in_place(
     if bytes.len() < steps * 16 {
         return Err(BadInput("a picture shorter than its pixels"));
     }
-    // Converted: `rc2k_core::gfx::converters` (`step`).
     use rc2k_core::gfx::converters::step;
     let k = masks(table, &c);
     let quad =
@@ -75,8 +66,8 @@ pub fn convert_in_place(
     Ok(())
 }
 
-/// The eight converters by their IDA address (`gfx::convert_picture`
-/// finds the one the game's table names here).
+/// The eight converters by their address in the image (`gfx::convert_picture` finds here the one
+/// the converter table names).
 pub const CONVERTERS: [(u32, Converter); 8] = [
     (
         0x4070F9,
@@ -144,7 +135,7 @@ pub const CONVERTERS: [(u32, Converter); 8] = [
     ), // gfx::rows_4444_3dnow
 ];
 
-/// The converter at `at` (an IDA address), if it is one of the eight.
+/// The converter at `at` (an address in the image), if it is one of the eight.
 pub fn converter_at(at: u32) -> Option<Converter> {
     CONVERTERS.iter().find(|(a, _)| *a == at).map(|(_, c)| *c)
 }

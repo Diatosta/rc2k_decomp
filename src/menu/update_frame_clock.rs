@@ -1,12 +1,10 @@
-//! `menu::update_frame_clock` (0x411019): stores `tick_count` in the window handle, the clock the
+//! `menu::update_frame_clock`: stores `tick_count` in the window handle, the clock the
 //! menu code measures blinking and idle time against.
 //!
 //! Three callers.
 
 use crate::system::owner::System;
 use crate::system::tick_count::tick_count;
-
-// ---- game data ----
 
 pub fn update_frame_clock(system: &System) -> u32 {
     let now = tick_count();

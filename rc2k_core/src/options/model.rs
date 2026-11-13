@@ -16,7 +16,7 @@ pub trait Field {
     fn byte_len(&self) -> usize;
     /// Appends the piece's bytes.
     fn put(&self, out: &mut Vec<u8>);
-    /// Takes the piece's bytes (`len()` of them).
+    /// Takes the piece's bytes (`byte_len()` of them).
     fn take(&mut self, bytes: &[u8]);
 }
 

@@ -1,9 +1,5 @@
-//! `install::script_name` (0x41370C): a name copied from the script (from the cursor on) to
-//! `script_path`, byte by byte, until a byte below a space (a control byte or the
-//! end); a NUL written at the end.
-//!
-//! Takes the script cursor, where to write.
-//! Caller `install::run_script` (three times).
+//! A name copied from the script (from the cursor on) to `script_path` until a byte below a
+//! space, a NUL written at the end. Called by `install::run_script`.
 
 use crate::errors::Refused;
 use crate::install::installer::wb;
@@ -15,8 +11,7 @@ pub fn script_name(
     cursor: crate::place::BytePlace,
     to: impl Into<crate::place::BytePlace>,
 ) -> Result<(crate::place::BytePlace, crate::place::BytePlace), Refused> {
-    // Converted: `rc2k_core::install::script::script_name` (read whole, then written; a
-    // name with no end is refused before anything is written).
+    // Read whole, then written; a name with no end is refused before anything is written.
     let words = cursor.bytes("the installer's script")?;
     let (name, _) = script::script_name(&words)?;
     let mut at = to.into();

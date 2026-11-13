@@ -1,18 +1,15 @@
-//! The stages' tables (IDA 0x734BC6 .. 0x73B674): the track pack (`g_trakPakHeader`: its
-//! head and the 36 tracks' entries), the lists that pick a record table (by stage group
-//! `off_735512`, by arcade level `off_73555A`, the results' `off_7354FE`), the
-//! championship's records (`g_recordTable`, 66 and the -1 that ends them), the twelve events'
-//! tables (seven records and a -1 each), then 0xB2 bytes nothing ported names.
+//! The stages' tables: the track pack (its head and the 36 tracks' entries), the lists that
+//! pick a record table (by stage group, by arcade level, and the results'), the championship's
+//! records (66 and the -1 that ends them), the twelve events' tables (seven records and a -1
+//! each), then 0xB2 bytes nothing names.
 //!
-//! The records, the pack and the tail are cells of the values they hold, by name. The lists
-//! are built into RAL.EXE and never written: constants of handles (`Listed`, `StageList`,
-//! `RecordTable`, `TimesVariable`) in place of the addresses the image holds. The image's
-//! order survives as one explicit chain (`Piece::ORDER`): a read past a piece's end goes on
-//! into the next piece, as the original's reads by address did (a track number from the
-//! player's files, `records::trakpak_entry`; the record kind scan, `menu::next_record_kind`),
-//! each piece read as the dwords the image held there (a list's handle as the address it
-//! stood for). Past the last piece a read is refused. The image's addresses are kept only in
-//! the tests, as the oracle of the chain's order.
+//! The records, the pack and the tail are cells of the values they hold, by name. The lists are
+//! constants of handles (`Listed`, `StageList`, `RecordTable`, `TimesVariable`). The old
+//! layout's order survives as one explicit chain (`Piece::ORDER`): a read past a piece's end
+//! goes on into the next piece (a track number from the player's files, `records::trakpak_entry`;
+//! the record kind scan, `menu::next_record_kind`), each piece read as the dwords it held there
+//! (a list's handle as the address it stood for). Past the last piece a read is refused. The old
+//! addresses are kept only in the tests, as the oracle of the chain's order.
 
 use crate::errors::BadInput;
 use crate::menu::champ_store::TimesVariable;
@@ -21,8 +18,8 @@ use crate::session::{PlainBytes, PlainDword, PlainInt, Run};
 #[cfg(test)]
 use crate::system::owner::system;
 
-/// A record (0xA4 bytes in the image and the options file, IDA's `Record`): a stage, a
-/// service area, a rally's end or a welcome (`tag`), with its two record holders.
+/// A record (0xA4 bytes in the options file): a stage, a service area, a rally's end or a
+/// welcome (`tag`), with its two record holders.
 #[derive(rc2k_derive::Cells)]
 pub struct Record {
     /// +0: 0 a stage, 1 a service area, 3 or 4 a rally's end, 5 a welcome, -1 a table's end.
@@ -40,7 +37,7 @@ pub struct Record {
     /// +0x18 .. +0x24: the four classes' times (`menu::calc_cpu_times`; the made-up times
     /// read the first and last, `saves::default_times`).
     pub class_times: [PlainDword; 4],
-    /// +0x28: read by no ported code by name (a read on through the tables reaches it).
+    /// +0x28: read by no code by name (a read on through the tables reaches it).
     pub unread_28: PlainDword,
     /// +0x2C: the second record holder's speed (or figure).
     pub second_speed: PlainDword,
@@ -79,8 +76,8 @@ pub enum Holder {
 }
 
 impl Holder {
-    /// Where its name (0x20 bytes) is in the record's image bytes (`RecordRef::holder_text`
-    /// reads on from there).
+    /// Where its name (0x20 bytes) is in the record's bytes (`RecordRef::holder_text` reads on
+    /// from there).
     pub const fn name_at(self) -> u32 {
         match self {
             Holder::Fastest => 0x54,
@@ -99,7 +96,7 @@ pub struct HolderRow {
     pub speed: u32,
 }
 
-/// One dword of a record in the image's order: a cell, or four bytes of a name.
+/// One dword of a record in the old layout's order: a cell, or four bytes of a name.
 enum RecordWord<'a> {
     Dword(&'a PlainDword),
     Int(&'a PlainInt),
@@ -233,7 +230,7 @@ impl Record {
         self.markers.each_ref().map(|[x, y]| (x.get(), y.get()))
     }
 
-    /// Its dwords in the image's (and the options file's) order, +0 to +0xA0: the one place
+    /// Its dwords in the old layout's (and the options file's) order, +0 to +0xA0: the one place
     /// that knows the record's byte layout.
     fn words(&self) -> [RecordWord<'_>; Record::WORDS] {
         use RecordWord::{Dword as D, Int as I, Name as N};
@@ -285,7 +282,7 @@ impl Record {
         ]
     }
 
-    /// Its bytes as the image and the options file hold them.
+    /// Its bytes as the old layout and the options file hold them.
     pub fn image_bytes(&self) -> impl Iterator<Item = u8> {
         self.words().into_iter().flat_map(|w| w.get().to_le_bytes())
     }
@@ -302,9 +299,8 @@ impl Record {
             .ok_or(BadInput("a record's field past its end"))
     }
 
-    /// The record of the image's dwords `v` (+0 to +0xA0).
+    /// The record of the old layout's dwords `v` (+0 to +0xA0).
     const fn new(v: [u32; Record::WORDS]) -> Self {
-        /// The name in the eight dwords from `v[first]`.
         const fn name(v: &[u32; Record::WORDS], first: usize) -> PlainBytes<HOLDER_NAME_LEN> {
             let mut bytes = [0; HOLDER_NAME_LEN];
             let mut k = 0;
@@ -314,11 +310,9 @@ impl Record {
             }
             PlainBytes::new(bytes)
         }
-        /// Dword `k` as a number.
         const fn d(v: &[u32; Record::WORDS], k: usize) -> PlainDword {
             PlainDword::new(v[k])
         }
-        /// Dword `k` as a signed number.
         const fn i(v: &[u32; Record::WORDS], k: usize) -> PlainInt {
             PlainInt::new(v[k] as i32)
         }
@@ -348,7 +342,7 @@ impl Record {
     }
 }
 
-/// A record as the image's 41 dwords (the options file's walk, the read on).
+/// A record as the old layout's 41 dwords (the options file's walk, the read on).
 impl Run for Record {
     fn count(&self) -> usize {
         Record::WORDS
@@ -373,7 +367,7 @@ pub struct EventRecords {
     pub end: PlainDword,
 }
 
-/// An event's table as the image's dwords: the records', then the end mark.
+/// An event's table as the old layout's dwords: the records', then the end mark.
 impl Run for EventRecords {
     fn count(&self) -> usize {
         self.records.count() + 1
@@ -392,7 +386,7 @@ impl Run for EventRecords {
     }
 }
 
-/// A track's entry in the track pack (0x40 bytes in the image; fields read from
+/// A track's entry in the track pack (0x40 bytes in the old layout; fields read from
 /// `screens::stage_panel`, `menu::calc_cpu_times`, `menu::run_event_races` and
 /// `race::single_rally`).
 #[derive(rc2k_derive::Cells)]
@@ -456,7 +450,7 @@ impl TrackField {
         TrackField::Surface3,
     ];
 
-    /// Its dword in the entry's image (+0 the name .. +0x3C).
+    /// Its dword in the entry's old layout (+0 the name .. +0x3C).
     pub const fn word(self) -> usize {
         match self {
             TrackField::Name => 0,
@@ -481,7 +475,6 @@ impl TrackEntry {
     /// The dwords an entry has.
     pub const WORDS: usize = 16;
 
-    /// Its cells in the image's order (+0 to +0x3C).
     fn words(&self) -> [&PlainDword; TrackEntry::WORDS] {
         let [s0, s1, s2, s3] = &self.surfaces;
         [
@@ -504,13 +497,12 @@ impl TrackEntry {
         ]
     }
 
-    /// Field `field`.
     pub fn get(&self, field: TrackField) -> u32 {
         self.words()[field.word()].get()
     }
 }
 
-/// A track's entry as the image's 16 dwords (the read on past the pack).
+/// A track's entry as the old layout's 16 dwords (the read on past the pack).
 impl Run for TrackEntry {
     fn count(&self) -> usize {
         TrackEntry::WORDS
@@ -546,8 +538,8 @@ const fn track(v: [u32; 16]) -> TrackEntry {
     }
 }
 
-/// The track pack (`g_trakPakHeader`): the link, the pack's id, its name, the count, the
-/// entries (`records::trakpak_entry`, `race::single_rally`) and a -1.
+/// The track pack: the link, the pack's id, its name, the count, the entries
+/// (`records::trakpak_entry`, `race::single_rally`) and a -1.
 #[derive(rc2k_derive::Cells)]
 pub struct TrakPak {
     pub link: PlainDword,
@@ -562,35 +554,35 @@ pub struct TrakPak {
 /// The stages' tables' cells (the lists are constants: `GROUP_LISTS` and the others).
 #[derive(rc2k_derive::Cells)]
 pub struct StageTables {
-    /// `g_trakPakHeader` (0x734BC6).
+    /// The track pack.
     pub trak_pak: TrakPak,
-    /// `g_recordTable` (0x735576): the championship's records.
+    /// The championship's records.
     pub championship: [Record; 66],
     pub championship_end: PlainDword,
-    /// 0x737FC2 ..: the events' tables.
+    /// The events' tables.
     pub events: [EventRecords; 12],
-    /// 0x73B5C2 .. 0x73B674: bytes nothing ported names.
+    /// Bytes nothing names.
     pub tail: PlainBytes<TAIL_LEN>,
 }
 
 /// The tail's bytes.
 pub const TAIL_LEN: usize = 0xB2;
 
-/// An entry of a list built into RAL.EXE: a thing, or the -1 that ends the list.
+/// An entry of a built-in list: a thing, or the -1 that ends the list.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Listed<T> {
     Entry(T),
     End,
 }
 
-/// A thing a list of the image names, as the address it stood for there (what a read on
+/// A thing a built-in list names, as the address it stood for in the old layout (what a read on
 /// through the tables sees in the list's dword).
 pub trait ImageName: Copy {
     fn image_name(self) -> u32;
 }
 
 impl<T: ImageName> Listed<T> {
-    /// The dword the image held: the thing's address, or -1.
+    /// The dword the old layout held: the thing's address, or -1.
     fn image_word(self) -> u32 {
         match self {
             Listed::Entry(thing) => thing.image_name(),
@@ -606,7 +598,6 @@ impl ImageName for TimesVariable {
 }
 
 impl ImageName for RecordTable {
-    /// The table's first record's address.
     fn image_name(self) -> u32 {
         match self {
             RecordTable::Championship => 0x735576,
@@ -615,9 +606,8 @@ impl ImageName for RecordTable {
     }
 }
 
-/// One of the three lists of event tables, one after the other in the image: the two stage
-/// groups' (`off_735522`, `off_73553E`) and the arcade levels' (`off_73555A`); a list read
-/// past its -1 reads on into the next (`group_event_table`).
+/// One of the three lists of event tables, one after the other: the two stage groups' and the
+/// arcade levels'; a list read past its -1 reads on into the next (`group_event_table`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum StageList {
     GroupA,
@@ -636,10 +626,9 @@ impl ImageName for StageList {
 }
 
 impl StageList {
-    /// The three lists in the image's order.
+    /// The three lists in the old layout's order.
     const ORDER: [StageList; 3] = [StageList::GroupA, StageList::GroupB, StageList::Levels];
 
-    /// Its entries.
     const fn entries(self) -> &'static [Listed<RecordTable>; 7] {
         match self {
             StageList::GroupA => &GROUP_LIST_A,
@@ -649,7 +638,7 @@ impl StageList {
     }
 
     /// Entry `n` from this list's first on, reading on into the lists after it; `None` past
-    /// the last (the original read on into the championship's records: refused).
+    /// the last (refused, not read on into the championship's records).
     fn entry_on(self, n: usize) -> Option<Listed<RecordTable>> {
         StageList::ORDER
             .into_iter()
@@ -659,8 +648,7 @@ impl StageList {
     }
 }
 
-/// `off_7354FE` (0x7354FE): the stage results' four best-times tables and a -1
-/// (`screens::stage_results`).
+/// The stage results' four best-times tables and a -1 (`screens::stage_results`).
 pub const RESULT_TABLES: [Listed<TimesVariable>; 5] = [
     Listed::Entry(TimesVariable::StageTimes),
     Listed::Entry(TimesVariable::CourseTimes),
@@ -669,7 +657,7 @@ pub const RESULT_TABLES: [Listed<TimesVariable>; 5] = [
     Listed::End,
 ];
 
-/// `off_735512`: per stage group, its list of event tables.
+/// Per stage group, its list of event tables.
 pub const GROUP_LISTS: [StageList; 4] = [
     StageList::GroupB,
     StageList::GroupA,
@@ -677,7 +665,7 @@ pub const GROUP_LISTS: [StageList; 4] = [
     StageList::GroupA,
 ];
 
-/// The event tables `Event(5)` down to `Event(0)` and a -1 (`off_735522` and `off_73555A`).
+/// The event tables `Event(5)` down to `Event(0)` and a -1.
 const EVENTS_DOWN: [Listed<RecordTable>; 7] = [
     Listed::Entry(RecordTable::Event(5)),
     Listed::Entry(RecordTable::Event(4)),
@@ -688,10 +676,10 @@ const EVENTS_DOWN: [Listed<RecordTable>; 7] = [
     Listed::End,
 ];
 
-/// `off_735522`: the first stage group's six event tables and a -1.
+/// The first stage group's six event tables and a -1.
 pub const GROUP_LIST_A: [Listed<RecordTable>; 7] = EVENTS_DOWN;
 
-/// `off_73553E`: the second stage group's six event tables and a -1.
+/// The second stage group's six event tables and a -1.
 pub const GROUP_LIST_B: [Listed<RecordTable>; 7] = [
     Listed::Entry(RecordTable::Event(6)),
     Listed::Entry(RecordTable::Event(7)),
@@ -702,10 +690,10 @@ pub const GROUP_LIST_B: [Listed<RecordTable>; 7] = [
     Listed::End,
 ];
 
-/// `off_73555A`: per arcade level (and the championship's stages), an event table, and a -1.
+/// Per arcade level (and the championship's stages), an event table, and a -1.
 pub const LEVEL_TABLES: [Listed<RecordTable>; 7] = EVENTS_DOWN;
 
-/// The tables' pieces in the image's order: the chain a read on goes along.
+/// The tables' pieces in the old layout's order: the chain a read on goes along.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Piece {
     /// The pack's link, id, name (10 dwords) and count.
@@ -725,7 +713,7 @@ pub enum Piece {
 }
 
 impl Piece {
-    /// The chain, in the image's order (`chain_tests` checks it against IDA's addresses).
+    /// The chain, in the old layout's order (`chain_tests` checks it against the old addresses).
     pub const ORDER: [Piece; 12] = [
         Piece::PackHead,
         Piece::Tracks,
@@ -741,7 +729,6 @@ impl Piece {
         Piece::Tail,
     ];
 
-    /// Its whole dwords.
     fn count(self, t: &StageTables) -> usize {
         match self {
             Piece::PackHead => 3 + t.trak_pak.name.count(),
@@ -758,7 +745,6 @@ impl Piece {
         }
     }
 
-    /// Its bytes.
     fn len(self, t: &StageTables) -> usize {
         match self {
             Piece::Tail => TAIL_LEN,
@@ -766,7 +752,7 @@ impl Piece {
         }
     }
 
-    /// Its dword `i` (below `count`), as the image held it.
+    /// Its dword `i` (below `count`), as the old layout held it.
     fn word(self, t: &StageTables, i: usize) -> u32 {
         let pack = &t.trak_pak;
         match self {
@@ -790,7 +776,6 @@ impl Piece {
         }
     }
 
-    /// Its byte `k` (below `len`).
     fn byte(self, t: &StageTables, k: usize) -> u8 {
         match self {
             Piece::Tail => t.tail.get(k),
@@ -798,15 +783,14 @@ impl Piece {
         }
     }
 
-    /// The pieces from this one on.
     fn and_after(self) -> impl Iterator<Item = Piece> {
         Piece::ORDER.into_iter().skip_while(move |&p| p != self)
     }
 }
 
 impl StageTables {
-    /// Dword `n` from piece `from`'s first on, reading on into the pieces after it, as the
-    /// original's reads by address did; `None` past the last piece.
+    /// Dword `n` from piece `from`'s first on, reading on into the pieces after it; `None` past
+    /// the last piece.
     pub fn word_on(&self, from: Piece, n: usize) -> Option<u32> {
         let mut n = n;
         for piece in from.and_after() {
@@ -832,13 +816,13 @@ impl StageTables {
         None
     }
 
-    /// The tables from piece `from` on as a reader of bytes (`rc2k_core`'s walks).
+    /// The tables from piece `from` on as a reader of bytes (for `rc2k_core`'s walks).
     pub fn bytes_on(&self, from: Piece) -> BytesOn<'_> {
         BytesOn { tables: self, from }
     }
 }
 
-/// The stage tables' bytes from a piece on, in the image's order (`StageTables::bytes_on`).
+/// The stage tables' bytes from a piece on, in the old layout's order (`StageTables::bytes_on`).
 pub struct BytesOn<'a> {
     tables: &'a StageTables,
     from: Piece,
@@ -1945,9 +1929,9 @@ fn listed_table(entry: Listed<RecordTable>) -> Result<RecordTable, BadInput> {
 }
 
 impl StageTables {
-    /// `off_735512[group][sub]`: the event table (a stage group's rally) `sub` of stage group
-    /// `group`. A `sub` past the group's list reads on into the lists after it; refused for a
-    /// group past the four, past the lists, or on a list's -1.
+    /// The event table (a stage group's rally) `sub` of stage group `group`. A `sub` past the
+    /// group's list reads on into the lists after it; refused for a group past the four, past
+    /// the lists, or on a list's -1.
     pub fn group_event_table(&self, group: u32, sub: u32) -> Result<RecordTable, BadInput> {
         let list = GROUP_LISTS
             .get(group as usize)
@@ -1958,8 +1942,8 @@ impl StageTables {
         listed_table(entry)
     }
 
-    /// `off_73555A[level]`: arcade level `level`'s event table; refused for a level past the
-    /// six (the -1 ends the list).
+    /// Arcade level `level`'s event table; refused for a level past the six (the -1 ends the
+    /// list).
     pub fn level_table(&self, level: u32) -> Result<RecordTable, BadInput> {
         let entry = LEVEL_TABLES
             .get(level as usize)
@@ -1967,7 +1951,7 @@ impl StageTables {
         listed_table(*entry)
     }
 
-    /// `off_7354FE[n]`: the variable that holds best-times table `n` (the list's four, in
+    /// The variable that holds best-times table `n` (the list's four, in
     /// `menu::champ_store::ChampView`); refused for a place past the four.
     pub fn result_table(&self, n: u32) -> Result<TimesVariable, BadInput> {
         match RESULT_TABLES.get(n as usize) {
@@ -1976,18 +1960,18 @@ impl StageTables {
         }
     }
 
-    /// The championship's records (`g_recordTable`).
+    /// The championship's records.
     pub fn championship(&self) -> RecordTable {
         RecordTable::Championship
     }
 
-    /// Event table `k` (0x737FC2 + 0x480 k in the image).
+    /// Event table `k`.
     pub fn event_table(&self, k: usize) -> RecordTable {
         RecordTable::Event(k)
     }
 }
 
-/// A table of records: the championship's (`g_recordTable`) or one of the twelve events'.
+/// A table of records: the championship's or one of the twelve events'.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum RecordTable {
     Championship,
@@ -2022,7 +2006,7 @@ impl RecordTable {
         Ok(self.row(stages, 0)?.record(stages)?.name())
     }
 
-    /// Its rows and end mark as the original's bytes, for the walks.
+    /// Its rows and end mark as bytes, for the walks.
     pub fn bytes(self, stages: &StageTables) -> Vec<u8> {
         self.rows(stages)
             .iter()
@@ -2031,8 +2015,7 @@ impl RecordTable {
             .collect()
     }
 
-    /// Row `n` (or the end mark). Refused past the end mark: the original's sum runs on into
-    /// the next table.
+    /// Row `n` (or the end mark). Refused past the end mark.
     pub fn row(self, stages: &StageTables, n: u32) -> Result<RecordRef, BadInput> {
         let index = n as usize;
         if index > self.rows(stages).len() {
@@ -2082,8 +2065,8 @@ impl RecordRef {
         }
     }
 
-    /// The record `n` rows on (wrapping as the original's sum); refused past the table's end
-    /// mark or before its first row.
+    /// The record `n` rows on (wrapping); refused past the table's end mark or before its
+    /// first row.
     pub fn offset(self, stages: &StageTables, n: u32) -> Result<Self, BadInput> {
         self.table.row(stages, (self.index as u32).wrapping_add(n))
     }
@@ -2095,30 +2078,32 @@ pub fn row(stages: &StageTables, table: RecordTable, n: u32) -> Result<RecordRef
 }
 
 #[cfg(test)]
-/// The old layout's lists, as the image's dwords (`off_7354FE` .. `off_73555A`).
+/// The old layout's lists, as its dwords.
 const OLD_LISTS: [u32; 30] = [
-    0x7556d8, 0x7556e0, 0x7556e8, 0x7556e4, 0xffffffff, // off_7354FE
-    0x73553e, 0x735522, 0x73553e, 0x735522, // off_735512
-    0x739642, 0x7391c2, 0x738d42, 0x7388c2, 0x738442, 0x737fc2, 0xffffffff, // off_735522
-    0x739ac2, 0x739f42, 0x73a3c2, 0x73a842, 0x73acc2, 0x73b142, 0xffffffff, // off_73553E
-    0x739642, 0x7391c2, 0x738d42, 0x7388c2, 0x738442, 0x737fc2, 0xffffffff, // off_73555A
+    0x7556d8, 0x7556e0, 0x7556e8, 0x7556e4, 0xffffffff, // the results' variables
+    0x73553e, 0x735522, 0x73553e, 0x735522, // per stage group
+    0x739642, 0x7391c2, 0x738d42, 0x7388c2, 0x738442, 0x737fc2,
+    0xffffffff, // first group's tables
+    0x739ac2, 0x739f42, 0x73a3c2, 0x73a842, 0x73acc2, 0x73b142,
+    0xffffffff, // second group's tables
+    0x739642, 0x7391c2, 0x738d42, 0x7388c2, 0x738442, 0x737fc2,
+    0xffffffff, // the levels' tables
 ];
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    /// The event tables the image's lists named, by the old dwords (IDA addresses of the
-    /// tables' first records, 0x737FC2 + 0x480 k).
+    /// The event tables the old lists named, by the old dwords (the addresses of the tables'
+    /// first records).
     fn table_at(address: u32) -> Option<RecordTable> {
         let k = address.checked_sub(0x737FC2)?;
         (k.is_multiple_of(0x480) && k / 0x480 < 12)
             .then_some(RecordTable::Event(k as usize / 0x480))
     }
 
-    /// The lists resolve to what the old dwords named: each group's entries through its list
-    /// (the old `(list - 0x735522) / 4 + sub` into the lists after `off_735512`), the levels'
-    /// tables, the results' variables.
+    /// The lists resolve to what the old dwords named: each group's entries through its list, the
+    /// levels' tables, the results' variables.
     #[test]
     fn the_lists_resolve_to_what_they_name() {
         let t = StageTables::new();
@@ -2170,7 +2155,7 @@ mod tests {
     }
 
     /// The named fields sit where the old dword array had them (`words[k]` at +4 k): each
-    /// accessor reads the dword of its old offset, and the record's image is the dwords in.
+    /// accessor reads the dword of its old offset, and the record's old layout is the dwords in.
     #[test]
     fn record_fields_keep_the_old_offsets() {
         let v: [u32; 41] = std::array::from_fn(|k| 0x0101_0000 * (k as u32 + 1) + k as u32);
@@ -2236,29 +2221,29 @@ mod tests {
     }
 }
 
-/// The chain against the old layout (IDA's addresses): each piece starts where the image had
-/// it, the lists read as the image's dwords, and a read on goes from piece to piece in that
-/// order up to the image's end.
+/// The chain against the old layout's addresses: each piece starts where it did there, the
+/// lists read as the old dwords, and a read on goes from piece to piece in that order up to
+/// the end.
 #[cfg(test)]
 mod chain_tests {
     use super::*;
 
-    /// IDA 0x734BC6, the first byte of the piece.
+    /// The old address of the first byte.
     const START: usize = 0x734BC6;
-    /// IDA 0x73B674, the end of the piece.
+    /// The old address of the end.
     const END: usize = 0x73B674;
 
-    /// Where each piece of `Piece::ORDER` began in the image.
+    /// Where each piece of `Piece::ORDER` began in the old layout.
     const IDA_STARTS: [usize; 12] = [
-        0x734BC6, // g_trakPakHeader
+        0x734BC6, // the pack head
         0x734BFA, // its entries (+0x34)
         0x7354FA, // the pack's -1
-        0x7354FE, // off_7354FE
-        0x735512, // off_735512
-        0x735522, // off_735522
-        0x73553E, // off_73553E
-        0x73555A, // off_73555A
-        0x735576, // g_recordTable
+        0x7354FE, // the results' variables
+        0x735512, // per stage group
+        0x735522, // first group's tables
+        0x73553E, // second group's tables
+        0x73555A, // the levels' tables
+        0x735576, // the championship's records
         0x737FBE, // its -1
         0x737FC2, // the events' tables
         0x73B5C2, // the tail
@@ -2306,7 +2291,7 @@ mod chain_tests {
     }
 
     /// Every dword from the pack's entries on reads the cell at its old byte offset: the
-    /// chain's dword `n` is the image's dword at 0x734BFA + 4 n, which the typed fields hold
+    /// chain's dword `n` is the old dword at the entries' start + 4 n, which the typed fields hold
     /// at their old places (numbered cells, read back by name).
     #[test]
     fn a_read_on_reaches_the_fields_in_the_images_order() {

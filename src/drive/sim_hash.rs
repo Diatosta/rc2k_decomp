@@ -13,7 +13,6 @@
 use crate::cells::{CellVisitor, Cells};
 use crate::race::blocks_store::CarBlocks;
 
-/// The prefixes of the names of gap fields.
 const GAP_PREFIXES: [&str; 4] = ["_gap_", "_lead", "_pad", "_tail"];
 
 /// The field path holds a gap field (`.cars[0]._gap_f4`).

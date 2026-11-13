@@ -1,13 +1,7 @@
-//! `screens::draw_visual_preferences` (0x47A4C7): the values on the visual preferences page.
-//!
-//!
-//! For the current player (`event.current_player`), at x = 0x1D1 from y = 0xC8 on every 0x1D, in the font
-//! at 0x51E8C4: string 0x56B + the setting ("não", "sim") for the progress bar, the driver's
-//! information, the pace notes, the rear mirror, the message bar, the rev counter, the car's
-//! information and the local map, then string 0x373 + the units' setting ("imperial", "métrico").
-//! Each id is stored in `draw_work.figure` first. In the draw list 0x758CAA
-//! (`menu::visual_preferences_loop`). Refuses no current player and what `draw_string_by_id`
-//! refuses. The menus and draw lists run its `entry` (`menu::table_calls`).
+//! The values on the visual preferences page for the current player: "no" / "yes" for the
+//! progress bar, the driver's information, the pace notes, the rear mirror, the message bar, the
+//! rev counter, the car's information and the local map, then the units' setting ("imperial" or
+//! "metric"). Refuses no current player and what `draw_string_by_id` refuses.
 
 use crate::errors::Refused;
 use crate::menu::player::Player;
@@ -35,7 +29,7 @@ fn rows(p: &Player) -> [(u32, u32); 9] {
     ]
 }
 
-/// Returns the carry.
+/// Returns whether the last text drawn was too wide for its box.
 pub fn draw_visual_preferences(
     o: crate::owners::Owners<'static>,
     canvas: &mut dyn Canvas,

@@ -1,10 +1,5 @@
-//! `strings::rot13_into_text` (0x4022C4): a text coded by rot13 (letters 13 on, `A` .. `Z`
-//! and `a` .. `z` each in their own round; other bytes as they are) into the shared text
-//! buffer (`text`, 0x93E430), with its NUL.
-//!
-//! Takes the text. Returns the text buffer. Caller: `menu::check_cheat_name` (the fourth player's
-//! name, against the coded cheat (every byte value, the round's edges), the buffer filled with 0xAA
-//! first and put back.
+//! A text coded by rot13 (letters 13 on, `A` .. `Z` and `a` .. `z` each in their own round; other
+//! bytes as they are) into the shared text buffer (`text`), with its NUL.
 
 use crate::errors::BadInput;
 use crate::strings::text_from_ids::TEXT_LEN;

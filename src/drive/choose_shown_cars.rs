@@ -1,18 +1,14 @@
-//! `drive::choose_shown_cars` (0x4560EA): which car blocks the two views show (`view_blocks`,
-//! `RaceView.view_blocks[1]` = 0x70F3EC + n 0xFE0 for `view_cars`, `RaceView.view_cars[1]`), `views` (the
-//! views' number, from `players`, by `view_switch` when `replay_mode` is 2, also setting
-//! `split`), this machine's car in a network game (`session`, `g_netSession`, set; the car
-//! `local_car`, set by `net::set_up_race` from the network player's number; then the second
-//! view 0), and the eight of `listed_car_sounds` (each car's device, -1 none) all -1 but the shown ones'
-//! 0 (the first, and the second when there are two views). The layout `view_switch` (1 .. 3) is
-//! the replay frame head's byte +5 (`drive::replay_cameras`), used while a replay plays
-//! (`replay_mode` 2): 1 one view of car 1, 2 two views side by side, 3 two views split the other
-//! way (`split` the split, 1 = side by side, `race::draw_race_scene`).
+//! Which car blocks the two views show, `views` (the views' number, from `players`, by
+//! `view_switch` when the replay plays, also setting `split`), this machine's car in a network
+//! game (`local_car`, set by `net::set_up_race` from the network player's number; then the
+//! second view 0), and the eight car sound slots all -1 but the shown ones' 0 (the first, and
+//! the second when there are two views). The layout `view_switch` (1 .. 3) is the replay frame
+//! head's byte +5 (`drive::replay_cameras`), used while a replay plays: 1 one view of car 1, 2
+//! two views side by side, 3 two views split the other way (`split`, 1 = side by side,
+//! `race::draw_race_scene`).
 //!
-//! Callers (5): race init's loop (`drive::race_cars_step`), `race::step_replay_cars`,
-//! `drive::replay_step`, `race::race_keys`,
-//! `race::draw_race_scene`. Refuses (before anything) a network car (`local_car`) above 7 with
-//! `session` set (it would write past `listed_car_sounds`'s eight).
+//! Refuses (before anything) a network car above 7 with a session set (it would write past the
+//! eight slots).
 
 use crate::errors::Refused;
 use crate::race::owner::Race;
@@ -28,7 +24,6 @@ fn put(v: &[&dyn DwordLike], k: usize, x: u32) {
 }
 
 /// On the variables at `v` (`game`'s order).
-// Converted: `rc2k_core::drive::shown_cars::ShownCars::choose`.
 pub fn choose_at(v: &[&dyn DwordLike], listed: &[PlainDword]) -> Result<(), Refused> {
     let setup = ShownSetup {
         players: get(v, 2),

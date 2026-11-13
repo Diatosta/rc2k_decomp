@@ -1,13 +1,8 @@
-//! `gfx::set_clip` (0x406988): sets the clip rectangle from a rectangle given as a corner
-//! and a size.
-//!
-//! Takes: four dwords: x, y, width, height
-//! `g_clipLeft` = x, `g_clipTop` = y, `g_clipRight` = x + width - 1, `g_clipBottom` = y +
-//! height - 1. Three callers, each with the surface's own rectangle (`g_surface`).
-//! Refuses a null rectangle. The name is a reading.
+//! Sets the clip rectangle from a rectangle given as a corner and a size: four dwords x, y, width,
+//! height become left = x, top = y, right = x + width - 1, bottom = y + height - 1. Refuses a null
+//! rectangle.
 
-/// (left, top, right, bottom) for a rectangle of x, y, width, height. Converted:
-/// `rc2k_core::gfx::raster::clip_of`.
+/// (left, top, right, bottom) for a rectangle of x, y, width, height.
 pub use rc2k_core::gfx::raster::clip_of;
 
 pub fn set_clip(rectangle: [u32; 4], gfx: &crate::gfx::owner::Gfx) {

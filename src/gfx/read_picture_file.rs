@@ -1,25 +1,18 @@
-//! `gfx::read_picture_file` (0x4119F4): reads a picture file, PNG or PCX, into the picture
-//! buffer as 32-bit pixels.
-//!
-//! Takes: path, which may be written to (see `files::swap_missing_extension`)
-//! A path ending in `.pcx` goes to `gfx::read_pcx`. Any other first has its ending swapped
-//! if the file is missing, and then goes to `gfx::read_png` and, if that fails, to
-//! `read_pcx` (which is how a `.png` path whose file is missing ends up read as PCX).
-//! That is with the setting `setting` at 0, as it is in the owner's game. With another
-//! value a path ending in `.png` is not read at all (the value 2: success, nothing done) or
-//! replaced by `files\d\gfx\chatzone.pcx`, and other paths go to `read_pcx` alone.
-//! 14 callers. Refuses a path of fewer than four characters (the original looks at the four
-//! bytes before the text's end) and what the readers refuse. The name is a reading.
+//! Reads a picture file, PNG or PCX, into the picture buffer as 32-bit pixels. The path may be
+//! written to (see `files::swap_missing_extension`).
+//! A path ending in `.pcx` goes to `gfx::read_pcx`. Any other first has its ending swapped if the
+//! file is missing, and then goes to `gfx::read_png` and, if that fails, to `read_pcx` (which is
+//! how a `.png` path whose file is missing ends up read as PCX). That is with the setting `setting`
+//! at 0, the usual value. With another value a path ending in `.png` is not read at all (the value
+//! 2: success, nothing done) or replaced by `files\d\gfx\chatzone.pcx`, and other paths go to
+//! `read_pcx` alone. Refuses a path of fewer than four characters and what the readers refuse.
 
 use crate::errors::Refused;
 use crate::files::swap_missing_extension::swap_missing_extension;
 use crate::gfx::read_pcx::read_pcx;
 use crate::gfx::read_png::read_png;
 
-// ---- game data ----
-
-/// Returns whether a picture was read. Converted: `rc2k_core::gfx::loading::{ending,
-/// reader}`.
+/// Returns whether a picture was read.
 pub fn read_picture_file(
     path: &dyn crate::session::TextPlace,
     gfx: &crate::gfx::owner::Gfx,

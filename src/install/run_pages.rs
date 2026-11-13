@@ -1,10 +1,6 @@
-//! `install::run_pages` (0x4144AA): the installer's pages, from the first entry on: each entry
-//! is the page's list and the entries that follow its answers (+4 + 4 x answer); a page
-//! answered 0 or 1 has its highlight put back to 0; an answer of no entry (0) or the game
-//! quitting ends it. (The original calls itself with `jnz` to its start.)
-//!
-//! Returns 0 (or the next entry when quitting), last page's list, its answer.
-//! Caller 0x412DE0 (`install::run_installer`, twice).
+//! The installer's pages, from the first entry on: each entry is the page's list and the entries
+//! that follow its answers; a page answered 0 or 1 has its highlight put back to 0; an answer of
+//! no entry (0) or the game quitting ends it. Called by `install::run_installer`.
 
 use crate::errors::Refused;
 use crate::install::page_records::PageEntry;
@@ -27,7 +23,6 @@ pub fn run_pages(
             continue;
         }
         let answer = crate::install::run_page::run_page(install, o, list)?;
-        // Converted: `rc2k_core::install::pages` (`resets_highlight`, `next_entry_at`).
         if pages::resets_highlight(answer) {
             list.set_highlight(0);
         }
@@ -42,7 +37,7 @@ pub fn run_pages(
     }
 }
 
-/// Whether `list`'s action (+8) is the page at IDA `page`.
+/// Whether `list`'s action (+8) is the page `page`.
 fn is_page(entry: PageEntry, page: u32) -> bool {
     entry.has_list() && entry.list().action() == page
 }
@@ -55,9 +50,8 @@ struct Passed {
 }
 
 /// The pages not shown, passed over as if answered:
-/// - the installation-kind page (small / normal / full): always the full installation,
-///   `g_mediaMode` 3 (owner: nobody installs another, and the game does not
-///   read a CD); on to its answer 3's entry;
+/// - the installation-kind page (small / normal / full): always the full installation (media
+///   mode 3); on to its answer 3's entry;
 /// - the drive page on a system without drives (`install::folders`, `DRIVES` false): on
 ///   to the entry of its answer that is the folder page.
 ///

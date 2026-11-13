@@ -1,18 +1,11 @@
-//! The best times: the six rallies' tables (IDA
-//! 0x742C98 .. 0x7475D0, `RallyTimes`), then the memory the nine other tables are taken
-//! on, the two switches and where each table is (0x7475D0 .. 0x747660, `BestTimes`:
-//! `saves::allocate_best_times`, `load_best_times`, `free_best_times`). The
-//! nine tables are typed and Rust's own (`saves::best_times`): each pair keeps only the
-//! size.
-//! `TimeEntry` keeps its `#[repr(C)]` (`ByteView`: the standings and the options file's entries are
-//! copied in runs); `RallyTimes` has no layout of its own (`table_named` answers the table's number).
-//! `allocate_best_times` walks the switches and the pairs as one run of dwords from
-//! `allocated` (`vars()`).
+//! The best times: the six rallies' tables (`RallyTimes`), then the memory the nine other tables
+//! are taken on, the two switches and where each table is (`BestTimes`). The nine tables are
+//! typed and Rust's own (`saves::best_times`): each pair keeps only the size. `TimeEntry` keeps
+//! its `#[repr(C)]` (`ByteView`: entries are copied in runs).
 
 use crate::session::{PlainBytes, PlainDword};
 
-/// Where one table is: its address (the game's; 0 since the tables are typed)
-/// and its size in bytes.
+/// Where one table is: its address (0, since the tables are typed) and its size in bytes.
 #[derive(rc2k_derive::Cells)]
 pub struct TablePlace {
     pub address: PlainDword,
@@ -30,18 +23,17 @@ impl TablePlace {
 
 #[derive(rc2k_derive::Cells)]
 pub struct BestTimes {
-    /// `g_bestTimesMemory` (0x7475D0): the memory list (a `MemoryList`).
+    /// The memory list (a `MemoryList`).
     pub memory: crate::memory::ListCells,
-    /// `g_bestTimesAllocated` (0x747610): 1 once the memory is taken.
+    /// 1 once the memory is taken.
     pub allocated: PlainDword,
-    /// `g_bestTimesLoaded` (0x747614): 1 once the tables hold times (the file's or made up).
+    /// 1 once the tables hold times (the file's or made up).
     pub loaded: PlainDword,
     /// `BestTimes.tables[0].address` ..: the nine tables, in `rc2k_core::saves::tables`' order.
     pub tables: [TablePlace; 9],
 }
 
 impl BestTimes {
-    /// The first values (the image's), for the saves' owner.
     pub const fn new() -> Self {
         BestTimes {
             memory: crate::memory::ListCells::empty(),
@@ -51,7 +43,6 @@ impl BestTimes {
         }
     }
 
-    /// The memory list.
     pub fn list(&self) -> &crate::memory::ListCells {
         &self.memory
     }
@@ -85,7 +76,8 @@ pub struct TimeEntry {
     pub is_player: PlainDword,
     /// +0x44: a figure.
     pub figure: PlainDword,
-    /// +0x48 .. +0x50: read by no code but as the name's tail (a name without a NUL reads on into it); 0 in the shipped data.
+    /// +0x48 .. +0x50: read by no code but as the name's tail (a name without a NUL reads on into
+    /// it); 0 in the shipped data.
     pub unread_48: [PlainDword; 2],
     /// +0x50: read by no code (0xB in a made-up entry).
     pub unread_50: PlainDword,
@@ -166,9 +158,10 @@ impl TimeEntry {
 
 const _: () = assert!(core::mem::size_of::<TimeEntry>() == 0x9C);
 
-/// The six rallies' best times (IDA 0x742C98 .. 0x7475D0): `RallyTimes.tables[0]`, the six tables'
-/// addresses, kept as IDA's, as names (`RallyTimes::table_named` makes one real, for
-/// `screens::draw_section_best_times` and `saves::default_championship_times`), then the tables, twenty entries each.
+/// The six rallies' best times: `RallyTimes.tables[0]`, the six tables' names (addresses of
+/// the old layout; `RallyTimes::table_named` makes one real, for
+/// `screens::draw_section_best_times` and `saves::default_championship_times`), then the
+/// tables, twenty entries each.
 #[derive(rc2k_derive::Cells)]
 pub struct RallyTimes {
     pub tables: [PlainDword; 6],
@@ -176,7 +169,6 @@ pub struct RallyTimes {
 }
 
 impl RallyTimes {
-    /// The first values (the image's), for the saves' owner.
     pub const fn new() -> Self {
         RallyTimes {
             tables: [
@@ -1286,8 +1278,8 @@ impl RallyTimes {
 }
 
 impl RallyTimes {
-    /// The number of the table the name kept for rally `n` names (its own, when the game's
-    /// data is whole).
+    /// The number of the table the name kept for rally `n` names (its own, when the data is
+    /// whole).
     pub fn table_named(&self, n: usize) -> Result<usize, crate::errors::BadInput> {
         let name = self.tables.get(n).ok_or(crate::errors::BadInput(
             "a rally past the six best-times tables",
@@ -1308,7 +1300,7 @@ impl RallyTimes {
         Ok(at / table_len)
     }
 
-    /// Rally `n`'s table, when the name the game keeps for it (`table_named`) is that table.
+    /// Rally `n`'s table, when the name kept for it (`table_named`) is that table.
     pub fn table(&self, n: usize) -> Result<&[TimeEntry; 20], crate::errors::BadInput> {
         let named = self.table_named(n)?;
         let table = self.rallies.get(n).ok_or(crate::errors::BadInput(
@@ -1322,11 +1314,11 @@ impl RallyTimes {
         Ok(table)
     }
 
-    /// IDA 0x742CB0, where the first rally's table is (the six names follow the piece's start).
+    /// Where the first rally's table is in the old layout (the six names follow the piece's start).
     const FIRST_TABLE: usize = 0x742CB0;
-    /// IDA 0x742C98, the first byte of the piece.
+    /// The old address of the piece's first byte.
     pub const START: usize = 0x742C98;
-    /// IDA 0x7475D0, its end.
+    /// The old address of its end.
     pub const END: usize = 0x7475D0;
 }
 

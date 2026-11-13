@@ -1,23 +1,20 @@
-//! The sprite and font builder's work on one sheet: `gfx::build_glyphs` calls it; what
-//! the original's functions under `gfx::build_glyphs` do with a loaded sheet is here, in their
-//! order. A sheet is a picture with glyphs drawn on a backdrop. The builder finds each
-//! glyph's rectangle, codes it, fills the rectangle with the
-//! backdrop and goes on looking; the coded glyphs become a table of offsets followed by
-//! the glyph records, which is appended to the table built so far.
+//! The sprite and font builder's work on one loaded sheet, called by `gfx::build_glyphs`. A sheet
+//! is a picture with glyphs drawn on a backdrop. The builder finds each glyph's rectangle, codes
+//! it, fills the rectangle with the backdrop and goes on looking; the coded glyphs become a table
+//! of offsets followed by the glyph records, which is appended to the table built so far.
 //!
-//! The sheet is read through `SheetPixels` (in the game, the row table `g_rowTable`), as
-//! bytes that are palette numbers or as dwords of four components, by bit 1 of the
-//! builder's flags. From `gfx/glyph_builder.rs`.
-//! A glyph is coded as the blitter reads it (CLAUDE.md, section 11): a head with the offsets
-//! and the size left after blank edges are cut off, then for every row runs of count, gap
-//! and pixels, a count of 0 ending the row. Blank is the backdrop or the transparent
-//! colour. Without bit 0 of the flags a glyph is its pixels and nothing else.
+//! The sheet is read through `SheetPixels`, as bytes that are palette numbers or as dwords of
+//! four components, by bit 1 of the builder's flags. A glyph is coded as the blitter
+//! (`gfx::blit`) reads it: a head with the offsets and the size left after blank edges are cut
+//! off, then for every row runs of count, gap and pixels, a count of 0 ending the row. Blank is
+//! the backdrop or the transparent colour. Without bit 0 of the flags a glyph is its pixels and
+//! nothing else.
 
 use crate::Invalid;
 use crate::gfx::pixels::PixelFormat;
 
-/// A sheet's pixels by place: bytes (palette numbers) or dwords (components). Places
-/// outside the sheet may be asked for (the original reads wherever its row table leads).
+/// A sheet's pixels by place: bytes (palette numbers) or dwords (components). Places outside the
+/// sheet may be asked for (wherever the row table leads).
 pub trait SheetPixels {
     fn byte(&self, x: u32, y: u32) -> u8;
     fn set_byte(&mut self, x: u32, y: u32, value: u8);
@@ -39,7 +36,7 @@ pub struct Glyph {
     pub y: u32,
     pub width: u32,
     pub height: u32,
-    /// Bits for what did not fit a byte (the original only logs them).
+    /// Bits for what did not fit a byte (the caller only logs them).
     pub warnings: u32,
     pub data: Vec<u8>,
 }
@@ -201,8 +198,7 @@ impl Sheet<'_> {
             return Ok(glyph);
         }
 
-        // The registers as the original has them: the place, and counts that are one
-        // less than what is left.
+        // The place, and counts that are one less than what is left.
         let (mut left_edge, mut top) = (x, y);
         let mut columns = width.wrapping_sub(1) as i32;
         let mut rows = height.wrapping_sub(1);
@@ -247,8 +243,7 @@ impl Sheet<'_> {
         let (cut_width, cut_height) = (cut.wrapping_add(1), rows.wrapping_add(1));
         columns = cut_width.wrapping_sub(1) as i32;
 
-        // The size of the coded rows; and what the last scan found, which the original
-        // looks at afterwards.
+        // The size of the coded rows, and what the last scan found (looked at afterwards).
         let wide = self.flags & WIDE_HEAD != 0;
         let mut units = 0u32;
         let mut last;
@@ -284,9 +279,9 @@ impl Sheet<'_> {
                 glyph.warnings |= 2;
             }
             if glyph.warnings != 0 {
-                // A glyph of one empty row in its place. When it is the blank end of
-                // the last row that is too long, the original has already counted the
-                // whole glyph's size and leaves the rest of it unwritten.
+                // A glyph of one empty row in its place. When the row that is too long is the
+                // blank end of the last row, the whole glyph's size is already counted and the
+                // rest would be left unwritten: refused.
                 if size != 1 {
                     return Err(Invalid(
                         "a glyph whose last row ends in more than 255 blank pixels",
@@ -301,7 +296,7 @@ impl Sheet<'_> {
                 glyph.warnings |= 4;
             }
             glyph.data.push(top_cut as u8);
-            // The original tests the top cut three times over, not the two sizes.
+            // Kept: the top cut sets all three bits; the two sizes are not tested.
             if top_cut > 0xFF {
                 glyph.warnings |= 8 | 0x10 | 0x20;
             }
@@ -423,8 +418,7 @@ impl Sheet<'_> {
                     if self.flags & DIRECT_COLOUR != 0 {
                         return Err(Invalid("an alpha made for a sheet of components"));
                     }
-                    // One pixel more on every side; the original does not ask
-                    // whether the sheet goes that far.
+                    // One pixel more on every side; refused where the sheet does not go that far.
                     if cell_x == 0 || cell_y == 0 || right >= self.width || bottom >= self.height {
                         return Err(Invalid("a glyph at the sheet's edge to be softened"));
                     }

@@ -1,12 +1,12 @@
-//! What the marks take from the race (from `effects::init_mark_step`
-//! 0x456EA7 and `effects::stage_record` 0x4D2DE0): each car's record set up for the marks
-//! when a stage loads, and the stage's record among the 0x34.
+//! What the marks take from the race: each car's record set up for the marks when a stage loads,
+//! and the stage's record among the 0x34.
 
 use crate::Invalid;
 
 /// The most cars of a race.
 pub const MOST_CARS: u32 = 8;
-/// The last kind of car with a row (`LightsAndGear.light_records.records[0].groups[5]` ..: rows of 0x134 bytes).
+/// The last kind of car with a row (`LightsAndGear.light_records.records[0].groups[5]` ..: rows of
+/// 0x134 bytes).
 pub const LAST_KIND: i32 = 0x16;
 pub const ROW_LEN: usize = 0x134;
 /// The stages' records.
@@ -32,8 +32,8 @@ pub struct CarFields {
     pub kinds: [u32; 17],
 }
 
-/// `init_mark_step`'s check, before anything: refuses no cars or more than 8 (the original's
-/// loop would run on) and a car without its block or record (`has(n)`).
+/// `init_mark_step`'s check, before anything: refuses no cars or more than 8 (the loop would
+/// run on) and a car without its block or record (`has(n)`).
 pub fn check_cars(count: u32, has: impl Fn(u32) -> bool) -> Result<(), Invalid> {
     if count == 0 || count > MOST_CARS {
         return Err(Invalid("an init mark of 0 or more than 8 cars"));

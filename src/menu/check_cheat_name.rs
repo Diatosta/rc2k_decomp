@@ -1,13 +1,13 @@
-//! `menu::check_cheat_name` (0x480CBF): the fourth player's name taken as a cheat's: the
-//! name coded by rot13 into the text buffer (`strings::rot13_into_text`) is looked for in
-//! the list at `aNepnqrNpgvba` (0x7585E0: each entry a coded name, its NUL and the cheat's
-//! bit number; a NUL where a name would start ends it), each by `strings::same_text`
-//! (case aside). Found: the bit set in `g_cheats`, the menu's sound 8, `menu::apply_cheats`,
-//! and the player's name made string 0x18F.
+//! `menu::check_cheat_name`: the fourth player's name taken as a cheat's. The name coded by
+//! rot13 into the text buffer (`strings::rot13_into_text`) is looked for in the list of coded
+//! cheat names (each entry a coded name, its NUL and the cheat's bit number; a NUL where a name
+//! would start ends the list), each by `strings::same_text` (case aside). Found: the bit is set
+//! in the cheats, the menu's sound 8 plays, `menu::apply_cheats` runs, and the player's name
+//! becomes string 0x18F.
 //!
-//! Called by `menu::player4_details_loop` once the name's editing ends. Refuses (before anything) a
-//! missing fourth player or name, a list without its end in 64 entries, a bit past 31 (the
-//! original's `bts` would reach past `g_cheats`), and what the coding refuses.
+//! Called by `menu::player4_details_loop` once the name's editing ends. Refuses (before
+//! anything) a missing fourth player or name, a list without its end in 64 entries, a bit past
+//! 31 (past the cheats' 32 bits), and what the coding refuses.
 
 use crate::cells::Store;
 use crate::errors::Refused;
@@ -23,7 +23,6 @@ fn find(play: &Play, coded: &[u8]) -> Result<Option<(u32, u32)>, Refused> {
     let mut list = vec![0; play.cheats.cheat_names.size()];
     play.cheats.cheat_names.load(0, &mut list)?;
     let coded: Vec<u8> = coded.iter().copied().take_while(|&b| b != 0).collect();
-    // The logic is in `rc2k_core::menu::cheat_names::find`.
     let found = rc2k_core::menu::cheat_names::find(
         &list,
         &coded,
@@ -42,11 +41,9 @@ pub fn check_cheat_name(o: crate::owners::Owners<'static>) -> Result<(), Refused
     let Some((_found, bit)) = find(play, &coded)? else {
         return Ok(());
     };
-    // The logic is in `rc2k_core::menu::cheat_names::with_cheat`.
     let cheats = rc2k_core::menu::cheat_names::with_cheat(play.cheats.cheats.get(), bit as u8)?;
     play.cheats.cheats.set(cheats);
-    // The original's registers at the calls: eax 8, ebx the entry, ecx the bit, edi
-    // the record.
+    // The sound, the cheat bit and the record are handed on as the callees expect.
     crate::sound::play_menu_sound::play_menu_sound_in_game(o, 8);
     crate::menu::apply_cheats::apply_cheats(
         menus,

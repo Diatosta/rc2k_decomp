@@ -1,5 +1,4 @@
-//! The MMX converters' masks and the converters table, out of RAL.EXE's image: IDA 0x4F51F0 ..
-//! 0x4F52A4.
+//! The MMX converters' masks and the converters table.
 
 use crate::session::PlainDword;
 
@@ -9,18 +8,17 @@ pub const MASKS: usize = 19;
 /// The converters' masks and table.
 #[derive(rc2k_derive::Cells)]
 pub struct Converters {
-    /// `0x4F51F0` .. `0x4F5288`: the masks the MMX and 3DNow converters work with, 19
-    /// qwords as (low, high) dwords, never written (the four formats' sets of five start
-    /// at qwords 1, 5, 9 and 14 and share some: `mmx_converters`). The first qword is
-    /// not used.
+    /// The masks the MMX and 3DNow converters work with, 19 qwords as (low, high) dwords, never
+    /// written (the four formats' sets of five start at qwords 1, 5, 9 and 14 and share some:
+    /// `mmx_converters`). The first qword is not used.
     pub masks: [PlainDword; 2 * MASKS],
-    /// `dword_4F5288`: the converter (an address of the game's code) for each of the
-    /// pixel formats' numbers, 0 for none (`install_converters`).
+    /// The converter (an address of the game's code) for each of the pixel formats' numbers, 0 for
+    /// none (`install_converters`).
     pub table: [PlainDword; 7],
 }
 
 impl Converters {
-    /// The masks and the table; the first values are the image's.
+    /// The masks and the table.
     pub const fn new() -> Self {
         Converters {
             masks: crate::gfx::plain_dwords([

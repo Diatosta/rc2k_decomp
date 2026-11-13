@@ -1,10 +1,5 @@
-//! `net::show_message` (0x41745C): the message shown (`net::message_frame` through
-//! `screens::run_frame`), a quarter of a second's sleep, the pending key dropped
-//! (`input::take_key`), then frames until a key is pressed.
-//!
-//! Takes `message`.
-//! Caller: `net::start_link`. The frame's message goes to `net::message_frame`
-//! (through `screens::run_frame`).
+//! Shows a message, sleeps a quarter of a second, drops the pending key, then shows frames
+//! until a key is pressed.
 
 use crate::errors::Refused;
 use crate::net::lobby::run_frame;

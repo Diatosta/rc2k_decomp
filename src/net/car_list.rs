@@ -1,10 +1,7 @@
-//! `net::car_list` (0x4AAAF7): the car list the network game's car screen shows: with any
-//! of the cars won (`g_secretCars`, ended by -1) in the secret cars' list (ended by -1), the list with them, else the one without.
-//!
-//! Returns the list.
-//! Each won car is compared with the secret list's first entry before its end is looked
-//! for (so the -1 of an empty secret list's end can match a -1 entry, as in the original).
-//! Lists without their end in their fields are refused (none are: `any_won`). Caller: `net::choose_car`.
+//! The car list the network game's car screen shows: the list with the secret cars when any of
+//! the cars won is in the secret list, else the one without. Each won car is compared with the
+//! secret list's first entry before its end is looked for, so an empty secret list's -1 end can
+//! match a -1 entry (kept). Lists with no end are refused.
 
 use crate::errors::Refused;
 use crate::menu::lists_store::CarList;
@@ -21,7 +18,7 @@ pub fn any_won(
     secret: &[impl crate::session::Cell32],
     won: &[impl crate::session::Cell32],
 ) -> Result<bool, Refused> {
-    // Converted: `rc2k_core::net::cars::any_won`, the lists' dwords by index.
+    // The logic is in `rc2k_core::net::cars::any_won`, the lists' dwords by index.
     // The core asks infallibly: the first refusal is kept and raised after.
     let refused = std::cell::Cell::new(None);
     fn reader<'a>(

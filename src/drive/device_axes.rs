@@ -1,16 +1,11 @@
-//! `drive::device_axes` (0x409430): an input device's four readings, with `Devices.nonlinear_steering` set the
+//! An input device's four readings, with `Devices.nonlinear_steering` set the
 //! first squared / 256 with its sign kept.
 //!
-//! Takes: the device
-//! Returns: the readings
-//!
-//! Caller: `drive::car_input_words`. Refuses a device past 7 or a null one.
+//! Refuses a device past 7 or a null one.
 
 use crate::errors::{BadInput, Refused};
 use rc2k_core::drive::controls::device_curve;
 
-/// The four axes.
-// Converted: `rc2k_core::drive::controls::device_curve`.
 pub fn device_axes(device: u32, input: &crate::input::owner::Input) -> Result<[u32; 4], Refused> {
     if device > 7 {
         return Err(BadInput("a device past 7").into());

@@ -1,8 +1,5 @@
-//! The game's record tables: rows of 0xA4 bytes (stages, sections, best times), each
-//! starting with its tag, ended by a tag of -1 (from
-//! `records::find_record` 0x47255D, `find_stage_record` 0x468289,
-//! `default_stage_records` 0x47C7E0, `seal_time` 0x40264D, `trakpak_entry` 0x473027).
-//! Places are byte offsets from the table's start.
+//! The game's record tables: rows of 0xA4 bytes (stages, sections, best times), each starting with
+//! its tag, ended by a tag of -1. Places are byte offsets from the table's start.
 
 use crate::Invalid;
 use crate::strings::bytes::Bytes;
@@ -16,7 +13,7 @@ pub const SECTION: u32 = 4;
 /// The tag after the last record.
 pub const END: u32 = u32::MAX;
 
-/// How far `find_stage_record` goes before it is refused (the original has no end test).
+/// How far `find_stage_record` goes before it is refused.
 const MOST_STEPS: usize = 0x1000;
 
 /// Record `n`'s tag.
@@ -49,8 +46,8 @@ fn section_start(
 }
 
 /// The place of record `index` of section `section` (`find_record`): the index is not
-/// checked, the place may be anywhere. The section is looked for as far as the table goes
-/// (the original has no end test; its callers check `has_section` first).
+/// checked, the place may be anywhere. The section is looked for as far as the table goes;
+/// callers check `has_section` first.
 pub fn find_record(
     table: &(impl Bytes + ?Sized),
     index: i32,
@@ -66,8 +63,7 @@ pub fn has_section(table: &(impl Bytes + ?Sized), section: u32, limit: usize) ->
 }
 
 /// The place of the `number`-th stage (from 1) of section `section` (`find_stage_record`).
-/// The original counts the section record itself when looking for the stage (its tag is
-/// not a stage's, so that is the same).
+/// The section record itself is counted (its tag is not a stage's, so the result is the same).
 pub fn find_stage_record(
     table: &(impl Bytes + ?Sized),
     section: u32,
@@ -76,7 +72,7 @@ pub fn find_stage_record(
     if number == 0 {
         return Err(Invalid("stage number 0: the original runs on"));
     }
-    // The original stops at the section record itself, not after it.
+    // Starts at the section record itself, not after it.
     let from =
         section_start(table, section, MOST_STEPS + 1)?.saturating_sub((section != 0) as usize);
     let mut seen = 0u32;
@@ -134,8 +130,7 @@ pub const PACK_ENTRIES: usize = 0x34;
 pub const PACK_ENTRY_LEN: usize = 0x40;
 
 /// The place in the loaded pack's header of the entry a record names (`trakpak_entry`);
-/// `None` when the record belongs to another pack (the original's "Invalid TrakPak
-/// Header", or a loop that never ends when the header's first dword is not 0: fixed).
+/// `None` when the record belongs to another pack.
 pub fn pack_entry(index: u32, pack: u32, loaded_pack: u32) -> Option<usize> {
     (pack == loaded_pack).then(|| PACK_ENTRIES + index as usize * PACK_ENTRY_LEN)
 }

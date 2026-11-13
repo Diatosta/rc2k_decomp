@@ -1,26 +1,21 @@
-//! The views' name plates: when the time plate is drawn again and how a car's name is
-//! asked for (from `race::update_name_plates` 0x45B3B9); the plates'
-//! layouts from `race::draw_name_plate` 0x45B695 and
-//! `race::draw_time_plate` 0x45B70A.
+//! The views' name plates: when the time plate redraws, how a car's name is asked for and the
+//! plate layouts.
 
-/// `race::update_name_plates`: whether the two time texts (8 bytes each at
-/// `label_behind` / `label_ahead`, four dwords) differ from their last copies
-/// (`kept_behind` ..), compared dword by dword as the original does.
+/// Whether the two time texts (8 bytes each) differ from their last copies.
 pub fn times_changed(now: [u32; 4], kept: [u32; 4]) -> bool {
     now != kept
 }
 
-/// The ids below which a name is a string id (`race::update_name_plates`).
+/// Ids below this are string ids; a name at or above it is a text.
 pub const STRING_IDS: u32 = 0x1_0000;
 
-/// A name asked for at a car's +0x71C.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum NameAsk {
     /// None asked (0).
     Nothing,
-    /// A string id (below 0x10000), drawn by `race::draw_plate_by_id`.
+    /// A string id (below `STRING_IDS`).
     Id(u32),
-    /// A text's address, drawn by `race::draw_name_plate`.
+    /// A text's address.
     Text(u32),
 }
 
@@ -34,12 +29,13 @@ impl NameAsk {
     }
 }
 
-/// The name font's box width on a name plate, the time font's on a time plate.
+/// The name font's box width on a name plate.
 pub const NAME_BOX: u32 = 0x168;
+/// The time font's box width on a time plate.
 pub const TIME_BOX: u32 = 0x80;
 
-/// A name plate: three lines cleared, the name drawn three times (a long name wrapped
-/// over the plate's rows): at x 4, -0x74, -0xEC and y 0, a line, two lines.
+/// A name plate: three lines cleared, the name drawn three times (a long name wraps) at x 4,
+/// -0x74, -0xEC and y 0, a line, two lines.
 pub fn name_rows(line: u32) -> u32 {
     line.wrapping_mul(3)
 }
@@ -55,9 +51,8 @@ pub fn name_places(line: u32) -> [(u32, u32); 3] {
     })
 }
 
-/// A time plate below the name's three lines: its first row's byte offset (three lines
-/// of the pitch, the low half of the `mul`), the rows cleared (two lines and three), and
-/// the two times' places (x 4, y three and four lines).
+/// A time plate below the name's three lines: first row's byte offset, rows cleared, and the
+/// two times' places (x 4, y three and four lines).
 pub fn time_start(line: u32, pitch: u32) -> u32 {
     (line.wrapping_mul(3) as u64 * pitch as u64) as u32
 }

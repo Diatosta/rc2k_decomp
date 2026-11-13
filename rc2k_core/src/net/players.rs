@@ -1,8 +1,6 @@
-//! The network game's players (from `net::sort_players` 0x418108,
-//! `net::list_players` 0x419192, `net::race_over` 0x41732E, `net::race_wait` 0x4171FE and
-//! `net::system_message` 0x41976F): their blocks' order, this machine's among them, and a
-//! player's record's state (16 bytes of DirectPlay player data: +0 the state, +8 the
-//! race's time, +0xC the total).
+//! The network game's players: their blocks' order, this machine's among them, and a player's
+//! record's state (16 bytes of DirectPlay player data: +0 the state, +8 the race's time, +0xC the
+//! total).
 
 /// The most players a session has.
 pub const MOST: u32 = 8;
@@ -38,9 +36,9 @@ pub fn goes_after(a: Standing, b: Standing) -> bool {
     (a.total, a.time, a.id) > (b.total, b.time, b.id)
 }
 
-/// The original's bubble sort of `count` blocks: `count` - 1 passes (signed: none for one
-/// or none), pass p comparing the first p pairs in order (`after(k)`: block k goes after
-/// block k + 1, asked of the blocks as they are then), `swap(k)` where it does.
+/// Bubble sort of `count` blocks: `count` - 1 passes (signed: none for one or none), pass p
+/// comparing the first p pairs in order (`after(k)`: block k goes after block k + 1), `swap(k)`
+/// where it does.
 pub fn bubble(count: u32, mut after: impl FnMut(u32) -> bool, mut swap: impl FnMut(u32)) {
     let mut pass = count.wrapping_sub(1) as i32;
     while pass > 0 {
@@ -104,9 +102,8 @@ pub fn all_in_state(bits: u8, count: u32, state_of: impl Fn(u32) -> u8) -> u8 {
 }
 
 /// Whether none of the players (`state_of`, asked of each of `count`) is still in a race
-/// (`WAITING`), those with `LEFT_OUT` left out. The lobby's wait after a race: the original
-/// waited for every player to have `RACED`, which a player who joined the session since the
-/// race never has (the host lets players in again between races).
+/// (`WAITING`), those with `LEFT_OUT` left out. The lobby waits for this after a race: waiting
+/// for every player to have `RACED` would hang on a player who joined since.
 pub fn none_racing(count: u32, state_of: impl Fn(u32) -> u8) -> bool {
     (0..count)
         .map(state_of)
@@ -125,11 +122,11 @@ pub enum System {
     SessionLost,
     /// 0x101, DPSYS_HOST: this machine the host.
     Host,
-    /// Any other: nothing.
+    /// Any other system message: nothing.
     Other,
 }
 
-/// DPPLAYERTYPE_PLAYER.
+/// DirectPlay's player type for a player (`DPPLAYERTYPE_PLAYER`).
 pub const A_PLAYER: u32 = 1;
 
 impl System {

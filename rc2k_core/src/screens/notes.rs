@@ -1,14 +1,11 @@
-//! The screens that draw one string: `screens::draw_leave_question`
-//! 0x46FA75, `draw_note_1fd` 0x4881F8, `draw_arcade_stage_title` 0x488F2F,
-//! `draw_no_controller` 0x46AEAA.
+//! The screens that draw one string: the leave question, string 0x1FD, the arcade stage's
+//! title and the no-controller note.
 
 use crate::screens::screen::{Drawn, Screen};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Font {
-    /// `FontObjects.objects[40].first_char`.
     Question,
-    /// `FontObjects.objects[41].first_char`.
     Value,
 }
 
@@ -54,7 +51,7 @@ pub const NO_CONTROLLER: Note = Note {
     font: Font::Value,
 };
 
-/// The note drawn.
+/// Draws the note.
 pub fn note<S: Screen<Font = Font, Work = Work>>(s: &mut S, n: &Note) -> Result<Drawn, S::Error> {
     s.string(n.font, n.id, n.x, n.y)
 }

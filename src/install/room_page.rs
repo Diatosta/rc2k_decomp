@@ -1,8 +1,4 @@
-//! `install::room_page` (0x4142C7): the not-enough-room page. At the start (state 0)
-//! `ignore_room` (ignore the room) is set to 0.
-//!
-//! Takes the state.
-//! Caller `install::run_page`.
+//! The not-enough-room page: at the start `ignore_room` is set to 0. Called by `install::run_page`.
 
 /// `state` which call of the list action this is (0 the start, negative the end).
 pub fn room_page(install: &crate::install::owner::Install, state: u32) {

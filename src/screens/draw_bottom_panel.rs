@@ -1,10 +1,5 @@
-//! `screens::draw_bottom_panel` (0x49FCCF): a page's backdrop: the whole page above 0x1E3
-//! and the bottom bar round its middle, see-through blue 0x11166A (the fade's full see-through), the
-//! middle's strip dark grey 0x1F1F1F; each a `scene::draw_tinted_quad`.
-//!
-//!
-//! In a menu loop's draw list (0x7590BA). The menus and draw lists run its `entry`
-//! (`menu::table_calls`).
+//! A page's backdrop: the whole page above the bottom bar and the bar round its middle in
+//! see-through blue, the middle's strip dark grey, each a `scene::draw_tinted_quad`.
 
 use crate::errors::Refused;
 use crate::owners::Owners;

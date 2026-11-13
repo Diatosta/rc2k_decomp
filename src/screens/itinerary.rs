@@ -1,8 +1,6 @@
-//! The itinerary pages (`screens::draw_itinerary` and its sisters):
-//! a section of the record table (`g_recordTable`, records 0xA4 bytes; +0 the tag: 0 a stage,
-//! 1 a service, 3 / 4 the end; +0x10 its time of day as hhmm) listed row by row from y 0xE8
-//! (`seconds`), the rows counted in `draw_work.scratch_b0`, the stages in `draw_work.scratch_b4`, the
-//! services in `draw_work.scratch_0c`.
+//! The itinerary pages (`screens::draw_itinerary` and its sisters): a section of the record
+//! table (records of 0xA4 bytes; a tag: 0 a stage, 1 a service, 3 / 4 the end; the time of day as
+//! hhmm) listed row by row, with the rows, stages and services counted in the draw work.
 
 use crate::errors::{FatalError, Refused};
 use crate::screens::best_scores::{record_at, section_there};
@@ -14,15 +12,12 @@ const INVALID_STAGE: FatalError = FatalError {
     message: "Invalid Stage ID",
 };
 
-/// `screens::draw_itinerary` (0x472C8C): the section's heading (event mode 0x13
-/// `MenuLists.section_titles[0][section]`, else its first record's +0x38 string) at (0x2EB, 0x77), the column
-/// heads (strings 0x482, 0x47E, 0x480, 0x47F at y 0xD1), then from record 1: a service its
-/// name (string 0x478 + its number, kept in `DrawWork.scratch_08`) and time; a stage (the row
-/// `index` in the highlight fonts) its track-pack entry's name, its length (hundredths of a
-/// mile, `strings::append_distance_2dp` and the unit's string 0x56F / 0x570; none for 0), its
-/// number, and its time; tags 3 and 4 end the list, any other is fatal error 0x8070D91A
-/// "Invalid Stage ID". Refuses (before anything) a section past the
-/// table.
+/// The section's heading (event mode 0x13: `MenuLists.section_titles[0][section]`, else its
+/// first record's string), the column heads, then from record 1: a service its name and time;
+/// a stage (the row `index` in the highlight fonts) its track-pack entry's name, its length
+/// (hundredths of a mile and the unit's string; none for 0), its number and its time; tags 3 and
+/// 4 end the list, any other is fatal error 0x8070D91A "Invalid Stage ID". Refuses a section
+/// past the table.
 pub fn draw_itinerary(
     o: crate::owners::Owners<'static>,
     system: &crate::system::owner::System,

@@ -1,17 +1,10 @@
-//! `net::draw_button` (0x416CE0): a button of the network screens: the string measured
-//! (`text::measure_string_by_id` with `palette`), its frame drawn from the menu sprites
-//! (`g_spriteTable` glyphs 0x11, 0x12 once per 32 pixels of the width, at least once, and
-//! 0x13: `gfx::blit_glyph`), the string drawn on it (`text::draw_string_by_id`) in
-//! `typefaces::BUTTON`, or `typefaces::BUTTON_LIT` when it is the highlighted item
-//! (`g_listChoice`) and either being edited (`edited`) or in the blink's lit half (bit 3
-//! of the frame clock, with the move clock clear), or `typefaces::BUTTON_DIM` with flag 2.
+//! A button of the network screens: the string measured, its frame drawn from the menu sprites
+//! (a left cap, one middle tile per 32 pixels of width, at least one, and a right cap), then the
+//! string on it, in the lit font when it is the highlighted item and either edited or in the
+//! blink's lit half, or the dim font with flag 2.
 //!
 //! Takes the string, the flags (1: the frame centred on x, else ending half its width left of x
 //! and the text centred too; 2: the dim font), x, y and the item.
-//! The arguments are kept in the button's variables (`text`, flags, ..), the width in
-//! `width`, the frame's tiles in `tiles`. The blits get the measuring register as the
-//! measuring and the blits before leave it (the sprites are drawn as they are). Callers:
-//! `net::setting_label`, `net::lobby_button`.
 
 use crate::errors::Refused;
 use crate::install::owner::Install;
@@ -32,7 +25,7 @@ pub fn item_font(
     plain: crate::gfx::typefaces::FontId,
     lit: crate::gfx::typefaces::FontId,
 ) -> crate::gfx::typefaces::FontId {
-    // Converted: `rc2k_core::net::screens::{item_lit, blink_lit}`.
+    // The logic is in `rc2k_core::net::screens::{item_lit, blink_lit}`.
     let blink = || {
         screens::blink_lit(
             install.pages.frame_clock.get(),
@@ -80,7 +73,7 @@ pub fn draw_button(
         &mut GameCanvas::new(gfx),
     )?;
     net.button.get().width.set(measured.width);
-    // Converted: `rc2k_core::net::screens` (`button`, `item_lit`, `button_font`).
+    // The logic is in `rc2k_core::net::screens` (`button`, `item_lit`, `button_font`).
     let place = screens::button(
         net.button.get().width.get(),
         net.button.get().x.get(),

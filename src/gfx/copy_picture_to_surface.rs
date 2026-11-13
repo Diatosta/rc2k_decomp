@@ -1,26 +1,18 @@
-//! `gfx::copy_picture_to_surface` (0x4060E3): copies the picture buffer onto the surface, row
-//! by row: the background of a menu frame.
-//!
-//! If the surface is not locked (`locked.surface` is 0) it is locked first, and nothing is
-//! copied if that fails; it is then unlocked again afterwards. The copy takes
-//! `height` rows of `row_dwords` dwords from the buffer, which it reads without
-//! gaps, and after each row moves on `row_gap` more bytes on the surface. All of these
-//! are read after the lock, which sets them.
-//! Callers: `menu::frame_callback`, `menu::draw_frame` and a dozen more.
-//! The lock and the unlock are the game's (`gfx::lock_surface`,
-//! `gfx::unlock_surface`, DirectDraw calls); it reaches them through
-//! `PictureSurface`, which is where a build without the game puts its own surface.
-//! Refuses a row count of 0 (the original counts through all 32 bits) and null pointers. The
-//! name is a reading.
+//! Copies the picture buffer onto the surface, row by row: the background of a menu frame.
+//! If the surface is not locked (`locked.surface` is 0) it is locked first, and nothing is copied
+//! if that fails; it is then unlocked again afterwards. The copy takes `height` rows of
+//! `row_dwords` dwords from the buffer, which it reads without gaps, and after each row moves on
+//! `row_gap` more bytes on the surface. All of these are read after the lock, which sets them. The
+//! lock and the unlock (`gfx::lock_surface`, `gfx::unlock_surface`) are reached through
+//! `PictureSurface`, which is where a build without a display puts its own surface. Refuses a row
+//! count of 0 and null pointers.
 
 use crate::errors::BadInput;
 use crate::gfx::owner::Pictures;
 use crate::gfx::picture::{has_picture, with_picture};
 
-// ---- game data ----
-
-// The surface's height (rows), `row_dwords` and `row_gap` (surface bytes after a row's
-// pixels) are `DRAW_SURFACE`'s.
+// The surface's height (rows), `row_dwords` and `row_gap` (surface bytes after a row's pixels) are
+// `DRAW_SURFACE`'s.
 
 /// The surface the picture goes to, and the picture.
 pub trait PictureSurface {
@@ -47,7 +39,7 @@ impl PictureSurface for GameSurface<'_> {
         self.0.locked.surface.is_set()
     }
     fn lock(&mut self) -> bool {
-        // `cmp g_surfaceLocked, 1`'s carry clear: locked.
+        // Locked.
         crate::platform::lock_surface(self.0, self.1) >= 1
     }
     fn unlock(&mut self) {

@@ -1,10 +1,8 @@
-//! `text::draw_time_fixed_pitch` (0x465EC4): draws the first eight bytes of a text one at a
-//! time in fixed columns, so that the digits of a time like "01:23.45" do not move.
-//!
-//! Takes: font, text, x of the right edge, y
-//! Each byte is copied to text + 0x40 with a NUL after it and drawn from there, so the text
-//! needs 0x42 bytes of room. All eight bytes are read even if a NUL comes earlier. The columns
-//! are at x - 100 plus 0, 13, 23, 33, 46, 56, 66 and 79.
+//! Draws the first eight bytes of a text one at a time in fixed columns, so that the digits of a
+//! time like "01:23.45" do not move.
+//! Each byte is copied to text + 0x40 with a NUL after it and drawn from there, so the text needs
+//! 0x42 bytes of room. All eight bytes are read even if a NUL comes earlier. The columns are at x -
+//! 100 plus 0, 13, 23, 33, 46, 56, 66 and 79.
 
 use crate::errors::Refused;
 use crate::text::draw_text::Canvas;
@@ -15,7 +13,7 @@ use rc2k_core::text::{TIME_STEPS, columns};
 /// Where the one-character text is built, relative to the text.
 pub const CELL_OFFSET: usize = 0x40;
 
-/// Returns whether the last character was too wide: the carry flag.
+/// Returns whether the last character was too wide.
 pub fn draw_time_fixed_pitch(
     font: &mut Font,
     text: crate::strings::text_buffer::TextBuf,
@@ -24,7 +22,6 @@ pub fn draw_time_fixed_pitch(
     canvas: &mut dyn Canvas,
 ) -> Result<bool, Refused> {
     let mut too_wide = false;
-    // Converted: `rc2k_core::text::{columns, TIME_STEPS}`.
     for (i, x) in columns(x, &TIME_STEPS).into_iter().enumerate() {
         let cell = put_cell(text, i)?;
         too_wide = draw_text_keep_regs(font, &cell, x, y, canvas)?;
@@ -32,8 +29,8 @@ pub fn draw_time_fixed_pitch(
     Ok(too_wide)
 }
 
-/// Copies the text's byte `i` to its cell with a NUL after it (the buffer keeps the cell, as
-/// the original's) and returns the cell, which is what is drawn.
+/// Copies the text's byte `i` to its cell with a NUL after it and returns the cell, which is what
+/// is drawn.
 pub fn put_cell(text: crate::strings::text_buffer::TextBuf, i: usize) -> Result<[u8; 2], Refused> {
     let b = text.byte(i, "a fixed-pitch text")?;
     let cell = [b, 0];

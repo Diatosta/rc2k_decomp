@@ -1,28 +1,16 @@
-//! `menu::run_event_races`: an event's races. `event_goes_on` is set to 1, the cheat bit 0x12
-//! is copied for the race, the kept value is cleared; the computer drivers' times
-//! (`menu::calc_cpu_times`); eight drivers picked by lot (of the first 0xB2) get 0x4844
-//! plus a random number under 3000 added to their +0xC and +0x10; one to four drivers by
-//! lot still running (+0x24 1) drop out (+0x24 4, +0xC and +0x10 0x36EE8A). With
-//! `reset_times` set the players' times are reset (`menu::reset_player_times`); otherwise
-//! standings table A from the drivers (`menu::standings_from_drivers`), sorted by time,
-//! the summary copied (`menu::copy_standings_summary`), the race's summary table and the
-//! record's track pack entry's +0x34 kept; then by the event mode (`event_kind`):
-//! - 9, 0xE: one race (`race::single_rally_race`, eax 0, ebx 1); a result of -1 ends the
-//!   event (`event_goes_on` cleared).
-//! - 0xA, 0xF: the same with the kept value (0xA: before and after), the result and the
-//!   second result both -1 ending it.
-//! - 0xB, 0x10 (two players), 0xC, 0x11 (three), 0xD, 0x12 (four): each player
-//!   (`current_player`) taking part (+0xD0 1) races, eax 1 when the next one takes part
-//!   (`menu::player_entered`), 0 for the last; a result of -2 resets the players' times,
-//!   sets the front end up again (`menu::reload_front_end`) and stops; one not taking
-//!   part counts -1; all -1 ends the event (0xD also gives the fourth player +0x88
-//!   0x36EE80 and +0xD0 6).
+//! `menu::run_event_races`: an event's races. The computer drivers' times are made
+//! (`menu::calc_cpu_times`); eight drivers picked by lot (of the first 0xB2) get 0x4844 plus a
+//! random number under 3000 added to their +0xC and +0x10, and one to four drivers by lot still
+//! running (+0x24 1) drop out (+0x24 4, +0xC and +0x10 0x36EE8A). With `reset_times` set the
+//! players' times are reset; otherwise standings table A is built from the drivers, sorted by time,
+//! and the summary kept. Then by the event mode (`event_kind`): 9 / 0xE one race, 0xA / 0xF the
+//! same with the kept value, 0xB .. 0x12 each player taking part races in turn; a result of -1 ends
+//! the event, -2 resets the players' times and sets the front end up again. Last, the players'
+//! +0x288 is cleared (`menu::clear_service_spent`).
 //!
-//! Then the players' +0x288 cleared (`menu::clear_service_spent`).
-//!
-//! Callers: the event drivers. Refuses fewer than 0xB2 drivers
-//! or fewer than four still running among them (the drop-out loop would run on), a missing player
-//! for the mode, and what the steps refuse, before anything.
+//! Callers: the event drivers. Refuses fewer than 0xB2 drivers or fewer than four still running
+//! among them (the drop-out draw would never end), a missing player for the mode, and what the
+//! steps refuse, before anything.
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::drivers_store::{Driver, IN_EVENT};
@@ -70,7 +58,7 @@ fn cell<'a>(menus: &'a Menus, race: &'a Race, v: Var) -> &'a dyn DwordLike {
         Var::Result => &race.shared.state.results.results[0].result,
         Var::Result2 => &race.shared.state.results.results[1].result,
         Var::GoesOn => &menus.screens.event.event_goes_on,
-        Var::Cheats => &menus.play.cheats.cheats, // g_cheats
+        Var::Cheats => &menus.play.cheats.cheats,
         Var::Kept => &menus.screens.flow.kept,
         Var::Current => &menus.screens.event.current_player,
     }
@@ -206,7 +194,6 @@ pub fn run_event_races(o: Owners<'static>) -> Result<(), Refused> {
         asked: None,
         fault: Fault::default(),
     };
-    // The logic is in `rc2k_core::menu::event_races::run_event_races`.
     let done = races::run_event_races(&mut game, mode, reset_only);
     game.fault.check()?;
     done

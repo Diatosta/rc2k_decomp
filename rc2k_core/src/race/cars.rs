@@ -1,20 +1,10 @@
-//! The race's cars: their entries in the per-car tables, their kinds, their grades, their
-//! starts and the players' states. The logic of the game's `race::car_file_number`,
-//! `car_kind_10`, `car_kind_11`, `kind_past_table`, `kind_unusable`, `index_of_kind`,
-//! `players_all_out`, `reset_car_starts`, `nonzero_random`, `seed_car_randoms`,
-//! `drop_absent_player`, `grade_car_values`, `grade_all_cars`, `set_car_counter`,
-//! `set_both_counters`, `set_start_states` and `store_results_by_mode`, the set-up's choice
-//! (`auto_set_up_car`), the opponents' draws (`choose_arcade_opponents`), the blocks' reset
-//! (`race::reset_car_blocks`), the modes' steps, the brakes and the arcade's draws
-//! (`race::set_up_cars`, `set_up_mode_0_cars`, `set_up_mode_2_cars`), the race state's reset
-//! (`race::reset_car_race_state`) and the collision points' floats and their two new corners
-//! (`race::set_up_car_points`).
+//! The race's cars: their entries in the per-car tables, kinds, grades, starts and players'
+//! states; each game mode's set-up, the automatic set-ups, the arcade draws and collision points.
 
 use crate::Invalid;
 use crate::math::random::Random;
 
-/// The cars the per-car tables hold (the file numbers `car_file_numbers`, the kinds
-/// `kind_10_table` / `kind_11_table`, the car records).
+/// The cars the per-car tables hold (file numbers, kinds, car records).
 pub const TABLE_CARS: u32 = 0x22;
 
 /// A car's entry in the per-car tables: the car held to 0 ..= 0x21 (signed).
@@ -25,7 +15,7 @@ pub fn table_entry(car: u32) -> usize {
 /// The kinds the kind tables hold.
 pub const KINDS: u32 = 0x17;
 
-/// The kind no race uses (`kind_unusable`).
+/// The kind no race uses.
 pub const UNUSABLE_KIND: u32 = 6;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -34,8 +24,7 @@ pub struct KindCheckFlags {
     pub zero: bool,
 }
 
-/// `race::kind_past_table`: carry for a kind of 0x17 or more; zero as a comparison with 0x17
-/// leaves it.
+/// Carry for a kind of 0x17 or more; zero when it equals 0x17.
 pub fn kind_past_table(kind: u32) -> KindCheckFlags {
     KindCheckFlags {
         carry: kind >= KINDS,
@@ -43,8 +32,7 @@ pub fn kind_past_table(kind: u32) -> KindCheckFlags {
     }
 }
 
-/// `race::kind_unusable`: carry for a kind past the table or 6; zero as the last `cmp`
-/// leaves it (against 0x17 when past, else against 6).
+/// Carry for a kind past the table or 6; zero as a comparison against 0x17 when past, else 6.
 pub fn kind_unusable(kind: u32) -> KindCheckFlags {
     let past = kind_past_table(kind);
     if past.carry {
@@ -57,11 +45,10 @@ pub fn kind_unusable(kind: u32) -> KindCheckFlags {
     }
 }
 
-/// The kinds in the order `kind_order` keeps (0x22).
+/// The kinds the kind order lists.
 pub const KIND_ORDER_LEN: u32 = 0x22;
 
-/// `race::index_of_kind`: the place of `kind` in the kind order (the first of equals),
-/// None for none; the order is read entry by entry, up to the one found.
+/// The place of `kind` in the kind order (the first of equals), None when absent.
 pub fn index_of_kind(kind: u32, order: impl IntoIterator<Item = u32>) -> Option<u32> {
     order
         .into_iter()
@@ -73,15 +60,14 @@ pub fn index_of_kind(kind: u32, order: impl IntoIterator<Item = u32>) -> Option<
 /// Whose state `players_all_out` looks at.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Players {
-    /// The one chosen car (`session` 1, the car `player`).
+    /// The one chosen car.
     Chosen(u32),
-    /// The first n cars (`players`).
+    /// The first n cars.
     First(u32),
 }
 
-/// `race::players_all_out`: whether every player is out (`out` asked of each car, in
-/// order, up to the first still in). None in: false. Refuses a chosen car past 7 or more
-/// than 8 players (the original reads past the blocks).
+/// Whether every player is out (`out` asked in order up to the first still in); no players:
+/// false. Refuses a chosen car past 7 or more than 8 players.
 pub fn players_all_out(players: Players, out: impl Fn(u32) -> bool) -> Result<bool, Invalid> {
     match players {
         Players::Chosen(n) if n > 7 => Err(Invalid("a chosen car past the eight")),
@@ -92,9 +78,8 @@ pub fn players_all_out(players: Players, out: impl Fn(u32) -> bool) -> Result<bo
     }
 }
 
-/// `race::drop_absent_player`: the player who is out of a two-player race: unless the
-/// race's mode (`run_kind`) is 2 or 4, with two players (asked then), the first of the
-/// two whose block's +0xB0 is set (`absent`, asked in order).
+/// The player who is out of a two-player race: not in modes 2 and 4, and only with two players;
+/// the first of the two for whom `absent` is set.
 pub fn absent_player(
     mode: u32,
     players: impl FnOnce() -> u32,
@@ -106,13 +91,12 @@ pub fn absent_player(
     (0..2).find(|&n| absent(n))
 }
 
-/// `race::reset_car_starts`: the value each block's +0x14 and +8 start at: 0x320 while a
-/// replay runs (`in_credits`), else 0.
+/// The value each block's start fields begin at: 0x320 while a replay runs, else 0.
 pub fn start_value(replaying: bool) -> u32 {
     if replaying { 0x320 } else { 0 }
 }
 
-/// `race::nonzero_random`: the next random number, 1 in place of 0.
+/// The next random number, 1 in place of 0.
 pub fn nonzero_random(random: &mut Random) -> u32 {
     match random.draw() {
         0 => 1,
@@ -120,15 +104,13 @@ pub fn nonzero_random(random: &mut Random) -> u32 {
     }
 }
 
-/// `race::seed_car_randoms`: the eight blocks' seeds (+0x10 and +0xC), one
-/// `nonzero_random` each, in the blocks' order.
+/// The eight car blocks' seeds: one `nonzero_random` each, in the blocks' order.
 pub fn car_seeds(random: &mut Random) -> [u32; 8] {
     std::array::from_fn(|_| nonzero_random(random))
 }
 
-/// A value's grade: how many of the thresholds, taken in order, lie below it (`fild t;
-/// fcomp x` then `jnb` on C0: a NaN, unordered, passes them all); and the last threshold
-/// tried (the original's way in to the x87, `scratch`).
+/// A value's grade: how many of the thresholds, in order, lie below it (NaN passes all);
+/// and the last threshold tried.
 pub fn grade(value: f32, thresholds: &[u32]) -> (u32, u32) {
     let mut grade = 0u32;
     let mut tried = 0;
@@ -143,20 +125,19 @@ pub fn grade(value: f32, thresholds: &[u32]) -> (u32, u32) {
     (grade, tried)
 }
 
-/// What a car's message (the panel's line at its block's +0x71C, shown 0x12C frames from
-/// +0x72C's start, +0x730 its age) becomes when `race::set_car_counter` sets it.
+/// A car's panel message as set: its string id, how long it stays and its age.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Message {
-    /// +0x71C: the message (a string id).
+    /// The message's string id.
     pub id: u32,
-    /// +0x72C: how long it stays.
+    /// How long the message stays, in frames.
     pub time_left: u32,
-    /// +0x730.
+    /// Frames since the message was set.
     pub age: u32,
 }
 
 impl Message {
-    /// How long a new message stays.
+    /// How long a new message stays, in frames.
     pub const SHOWN_FOR: u32 = 0x12C;
 
     /// A new message.
@@ -172,21 +153,17 @@ impl Message {
 /// A car record's limit past which its start value is 0.
 pub const START_LIMIT: u32 = 0x1B58;
 
-/// `race::set_start_states`: the car record a kind's start value comes from (the kind
-/// held to 0x21, unsigned).
+/// The car record a kind's start value comes from: the kind held to 0x21.
 pub fn start_record(kind: u32) -> u32 {
     kind.min(TABLE_CARS - 1)
 }
 
-/// `race::set_start_states`: a record's start value: its value (+0x18) unless its limit
-/// is past `START_LIMIT`, then 0. `value` is asked only when used.
+/// A record's start value: its value unless its limit is past `START_LIMIT`, then 0.
 pub fn start_state_value(limit: u32, value: impl FnOnce() -> u32) -> u32 {
     if limit > START_LIMIT { 0 } else { value() }
 }
 
-/// `race::set_start_states`: the split choice (`split`) for one player (0) or
-/// two (held to 1 ..= 2 by the original's two sign tests, `cmp` / `jns` / `js`, wrapping
-/// as they do).
+/// The split choice for one player (0) or two (held to 1 ..= 2 by two signed tests).
 pub fn held_split(two: bool, choice: i32) -> i32 {
     if !two {
         return 0;
@@ -201,20 +178,18 @@ pub fn held_split(two: bool, choice: i32) -> i32 {
     h
 }
 
-/// `race::set_start_states`: a block's start state (+0x684) settled: 2 or 3 become 4,
-/// None (left) otherwise.
+/// A block's start state settled: 2 or 3 become 4, None (left as is) otherwise.
 pub fn settled_state(state: u32) -> Option<u32> {
     matches!(state, 2 | 3).then_some(4)
 }
 
-/// The longest result `store_results_by_mode` keeps in mode 0 (300000).
+/// The longest result kept in mode 0 (300000).
 pub const MOST_MARGIN: i32 = 300_000;
 
-/// The last stage `store_results_by_mode` holds to (0x4C).
+/// The last stage mode 0's results hold to.
 pub const LAST_STAGE: i32 = 0x4C;
 
-/// `race::store_results_by_mode` (mode 0): the stage held to 0 ..= 0x4C (the original's
-/// sign tests, wrapping).
+/// The stage held to 0 ..= 0x4C (mode 0).
 pub fn held_stage(stage: i32) -> u32 {
     let mut s = stage.max(0);
     if s.wrapping_sub(LAST_STAGE) >= 0 {
@@ -223,9 +198,7 @@ pub fn held_stage(stage: i32) -> u32 {
     s as u32
 }
 
-/// `race::store_results_by_mode` (mode 0): a car's margin: the stage's total
-/// (`g_stageCarTotal`) x 100 less its time, held to 0 ..= 300000 (signed, the sign tests
-/// wrapping).
+/// A mode 0 car's margin: the stage's total x 100 less its time, held to 0 ..= 300000.
 pub fn margin(total: u32, time: u32) -> u32 {
     let mut v = (total.wrapping_mul(100).wrapping_sub(time) as i32).max(0);
     if v.wrapping_sub(MOST_MARGIN) >= 0 {
@@ -234,12 +207,12 @@ pub fn margin(total: u32, time: u32) -> u32 {
     v as u32
 }
 
-/// The first stage with an automatic set-up (`race::auto_set_up_car`).
+/// The first stage with an automatic set-up.
 pub const FIRST_SET_UP_STAGE: u32 = 0x15;
-/// The stages with one end before this.
+/// The stages with an automatic set-up end before this.
 pub const SET_UP_STAGES_END: u32 = 0x50;
 
-/// The set-up `race::auto_set_up_car` picks.
+/// The set-up picked for a stage.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct SetUpPick {
     /// Its number in `auto_setups` (16 bytes each): (stage - 0x15) / 10 x 6 + the rest.
@@ -248,9 +221,7 @@ pub struct SetUpPick {
     pub rest: u32,
 }
 
-/// `race::auto_set_up_car`: the set-up for `stage` (0x15 .. 0x4F; None for the others).
-/// Refused for stage 0x14, which the original's range test lets in: its `sub` makes an
-/// index of 0x9999999B (a read far outside).
+/// The set-up for `stage` (0x15 ..= 0x4F; None for the others). Refused for stage 0x14.
 pub fn set_up_pick(stage: u32) -> Result<Option<SetUpPick>, Invalid> {
     if stage == FIRST_SET_UP_STAGE - 1 {
         return Err(Invalid("stage 0x14: the set-up index runs outside"));
@@ -265,8 +236,7 @@ pub fn set_up_pick(stage: u32) -> Result<Option<SetUpPick>, Invalid> {
     }))
 }
 
-/// `race::choose_arcade_opponents`: a kind drawn from a random number (x 0x22, the high
-/// half).
+/// A kind drawn from a random number (x 0x22, the high half).
 pub fn drawn_kind(random: u32) -> u32 {
     ((random as u64 * TABLE_CARS as u64) >> 32) as u32
 }
@@ -274,8 +244,7 @@ pub fn drawn_kind(random: u32) -> u32 {
 /// How far apart in the kinds' order an opponent may be from the first car (below).
 pub const OPPONENT_REACH: u32 = 5;
 
-/// `race::choose_arcade_opponents`: the places' distance (`cmp` / `jns` / `neg`) and
-/// whether an opponent at `place` is close enough to the first car's (unsigned, below 5).
+/// The places' distance and whether an opponent at `place` is close enough (below 5).
 pub fn opponent_distance(place: u32, first: u32) -> (u32, bool) {
     let d = place.wrapping_sub(first);
     let d = if (d as i32) < 0 { d.wrapping_neg() } else { d };
@@ -285,9 +254,7 @@ pub fn opponent_distance(place: u32, first: u32) -> (u32, bool) {
 /// The car blocks reset for a race.
 pub const CAR_BLOCKS: u32 = 8;
 
-/// What `race::reset_car_race_state` writes into each car block (offset, value, in the
-/// original's order): +0x730 0, +0x72C 0x12C, +0x724 0, +0x71C 0xCA, +0x720 0, +0x728 0,
-/// the five dwords +0xA0C .. -1.
+/// The car block's race-state reset: (offset, value) pairs, in order.
 pub const RACE_STATE: [(u32, u32); 11] = [
     (0x730, 0),
     (0x72C, 0x12C),
@@ -306,18 +273,15 @@ pub const BLANK_TEXT: u32 = 0x2020_2020;
 /// The second four text dwords' reset: none (-1).
 pub const UNSET_TEXT: u32 = u32::MAX;
 
-/// A car block's collision points: x, y and z lists of 0x40 floats' bits (+0xAF0,
-/// +0xBF0, +0xCF0).
+/// A car block's collision points: x, y and z lists of 0x40 floats' bits.
 pub type PointLists = [[u32; 0x40]; 3];
 
-/// `race::set_up_car_points`: a point's place (16.16) as a float (`fild` / `fdiv` by
-/// 65536 / `fstp`: one rounding).
+/// A point's place (16.16) as a float: one rounding.
 pub fn point_float(whole: u32, scale: f32) -> f32 {
     (whole as i32 as f64 / scale as f64) as f32
 }
 
-/// `race::set_up_car_points`: points 4 .. 0x3D moved two on (from the last down), the
-/// new 4 at 0 and the new 5 at 0 with the y of the new 6.
+/// Points 4 ..= 0x3D moved two on, the new 4 at 0, the new 5 at 0 with the new 6's y.
 pub fn open_two_points(lists: &mut PointLists) {
     for n in (4..=0x3Dusize).rev() {
         for list in lists.iter_mut() {
@@ -335,17 +299,17 @@ pub fn open_two_points(lists: &mut PointLists) {
 /// One of race init's "cars" steps for a game mode.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum CarsStep {
-    /// The stage's numbers read (`race::read_stage_car_numbers`).
+    /// The stage's car numbers read.
     Numbers,
-    /// The cars' times (`race::set_car_times`).
+    /// The cars' times set.
     Times,
-    /// The mode's set-up: 2 the arcade's, 1, 0, 4 theirs, 3 `race::set_up_race_cars`.
+    /// The mode's set-up: 2 the arcade's, 0, 1 and 4 their own, 3 the race cars'.
     SetUp(u32),
-    /// The arcade's 0x40 dwords at `kept_times` cleared.
+    /// The arcade's kept times cleared.
     ClearArcadeTable,
 }
 
-/// `race::set_up_cars`: the steps for a mode (`run_kind`); none for others.
+/// The steps for a mode; none for others.
 pub fn cars_steps(mode: u32) -> &'static [CarsStep] {
     use CarsStep::*;
     match mode {
@@ -358,8 +322,7 @@ pub fn cars_steps(mode: u32) -> &'static [CarsStep] {
     }
 }
 
-/// A player's brake setting (the player's, from the settings) for the block's +0x3C:
-/// below 0 is 0, 100 or more 0x100, else `scaled` (the x87's x 2.56, rounded).
+/// A player's brake setting for the block: below 0 is 0, 100 or more 0x100, else x 2.56.
 pub fn held_brake(v: i32, scaled: impl FnOnce(i32) -> u32) -> u32 {
     if v < 0 {
         0
@@ -370,8 +333,7 @@ pub fn held_brake(v: i32, scaled: impl FnOnce(i32) -> u32) -> u32 {
     }
 }
 
-/// `race::set_up_mode_0_cars`: with every car set up automatically (`session`) the
-/// race's cars (`g_raceCars`) must be 1 .. 8 (the original's `jnz` runs on otherwise).
+/// With every car set up automatically the race's cars must be 1 ..= 8.
 pub fn every_car_set_up(all: bool, cars: u32) -> Result<bool, Invalid> {
     if all && (cars == 0 || cars > CAR_BLOCKS) {
         return Err(Invalid("no cars or more than eight"));
@@ -379,14 +341,12 @@ pub fn every_car_set_up(all: bool, cars: u32) -> Result<bool, Invalid> {
     Ok(all)
 }
 
-/// The arcade's start place: the cars' count with `arcade_kind` 2 or at the rally's
-/// first stage; else it stays.
+/// The arcade's start place: the cars' count with `arcade_kind` 2 or at the rally's first stage.
 pub fn arcade_start_is_last(kind: u32, stage_in_rally: u32) -> bool {
     kind == 2 || stage_in_rally == 0
 }
 
-/// `race::set_up_mode_2_cars`: the next number a car takes, the players' numbers
-/// (+0xAA8; the second only with two players) skipped in turn.
+/// The next number an arcade car takes, skipping the players' numbers.
 pub fn arcade_number(number: u32, first: u32, second: Option<u32>) -> u32 {
     let mut n = number;
     if n == first {
@@ -398,15 +358,13 @@ pub fn arcade_number(number: u32, first: u32, second: Option<u32>) -> u32 {
     n
 }
 
-/// `race::set_up_mode_2_cars`: a car's type drawn from noise (turned right by the car's
-/// index, x 3): (the product's low half, its high half: the type less one, 0 .. 2).
+/// An arcade car's type drawn from noise: (the product's low half, its high half 0 ..= 2).
 pub fn arcade_type_draw(noise: u32, car: u32) -> (u32, u32) {
     let p = noise.rotate_right(car & 0x1F) as u64 * 3;
     (p as u32, (p >> 32) as u32)
 }
 
-/// `race::set_up_mode_2_cars`: the place a car's number is swapped with (noise x the
-/// count): (the product's low half, its high half).
+/// The place an arcade car's number is swapped with: (low half, high half) of noise x count.
 pub fn arcade_swap_draw(noise: u32, cars: u32) -> (u32, u32) {
     let p = noise as u64 * cars as u64;
     (p as u32, (p >> 32) as u32)

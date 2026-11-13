@@ -1,10 +1,6 @@
-//! `menu::arcade_review_options_loop` (0x488958): the menu after the results screens, by its
-//! title "OPÇÕES DE REVISÃO" (named from its title string and callers; the original's name is lost)
-//!
-//! The loop itself is `menu::screen_loop`; this file says what is this screen's own (`SCREEN`), as
-//! extracted from the disassembly: background `roptions.png`; leaving is asked about; also when
-//! `loop_flags.ask_leave` is set; the steps that are more than a call or a store are the functions below,
-//! generated from the listing. visit.
+//! The menu after the results screens, by its title "OPÇÕES DE REVISÃO". Screen-specific part of
+//! `menu::screen_loop`: background `roptions.png`; leaving is asked about; also when
+//! `loop_flags.ask_leave` is set.
 
 use crate::errors::Refused;
 use crate::menu::screen_items_store::slot;
@@ -30,17 +26,17 @@ fn set_up_first(entry: &Entry) -> Result<(), Refused> {
 pub const SCREEN: Screen = Screen {
     lists: &[
         List {
-            pointer: |m| &m.screens.flow.scene_list, // g_sceneList
+            pointer: |m| &m.screens.flow.scene_list,
             table: |m| m.tables.draw_lists.arcade_review_options_scene.id(),
             run: false,
         },
         List {
-            pointer: |m| &m.screens.flow.draw_list, // g_drawList
+            pointer: |m| &m.screens.flow.draw_list,
             table: |m| m.tables.draw_lists.arcade_review_options_draw.id(),
             run: false,
         },
         List {
-            pointer: |m| &m.screens.flow.overlay_list, // g_overlayList
+            pointer: |m| &m.screens.flow.overlay_list,
             table: |m| m.tables.draw_lists.arcade_review_options_overlay.id(),
             run: false,
         },

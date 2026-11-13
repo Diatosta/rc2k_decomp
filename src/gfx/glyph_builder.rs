@@ -1,7 +1,6 @@
-//! The sprite and font builder's work on one sheet: is in
-//! `rc2k_core::gfx::glyphs` (finding, coding and tabling a sheet's glyphs, in the original's
-//! order). Here the game's side: the sheet's pixels through the row table (`g_rowTable`,
-//! offsets in the decoded buffer).
+//! The sprite and font builder's work on one sheet is in `rc2k_core::gfx::glyphs` (finding, coding
+//! and tabling a sheet's glyphs). Here the game's side: the sheet's pixels through the row table
+//! (offsets in the decoded buffer).
 
 use crate::gfx::fill_row_table::row_address;
 
@@ -10,9 +9,8 @@ pub use rc2k_core::gfx::glyphs::{
     backdrop_of, direct_pixel_size, table_of,
 };
 
-/// A sheet's pixels where the row table leads, as the original reads them: the decoded
-/// buffer's bytes (`gfx::picture`), the row table's offsets in them. A read or write past
-/// them ends the game, as the original's would have gone wrong.
+/// A sheet's pixels where the row table leads: the decoded buffer's bytes (`gfx::picture`), the row
+/// table's offsets in them. A read or write past them ends the game.
 pub struct RowTable<'a> {
     pixels: &'a mut [u8],
     gfx: &'a crate::gfx::owner::Gfx,
@@ -56,7 +54,7 @@ impl SheetPixels for RowTable<'_> {
     }
 }
 
-/// 0x412232 on the palette at `palette` (an RVA): see `rc2k_core::gfx::glyphs::transparent_of`.
+/// On the palette at `palette` (an RVA): see `rc2k_core::gfx::glyphs::transparent_of`.
 pub fn transparent_of(
     flags: u32,
     backdrop: u32,

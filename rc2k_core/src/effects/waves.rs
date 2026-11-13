@@ -1,8 +1,7 @@
-//! The marks' wave tables, made once (from `effects::make_wave_tables`
-//! 0x4C4E2F): the 0x11 wave levels, whole numbers, made floats, and a table of 0x140
-//! sines. As in `math::vector`, what the x87 keeps on its stack is an `f64`, rounded to
-//! `f32` where the original stores it; the sines are `fsin`'s (`scene::trig`): the last bit
-//! may differ at a rounding edge.
+//! The marks' wave tables, made once: the 0x11 wave levels, whole numbers, made floats, and a table
+//! of 0x140 sines. As in `math::vector`, what the x87 keeps on its stack is an `f64`, rounded to
+//! `f32` where it is stored; the sines are `fsin`'s (`scene::trig`): the last bit may differ
+//! at a rounding edge.
 
 use crate::scene::trig::sine;
 
@@ -10,8 +9,8 @@ use crate::scene::trig::sine;
 pub const LEVELS: usize = 0x11;
 pub const SINES: usize = 0x140;
 
-/// Whether the tables are to be made, by the mark (`g_marksWaveDone`): 0 not yet; where
-/// the original goes on instead (`nullsub_23`) made before; anything else it would jump to.
+/// Whether the tables are to be made, by the mark's value: 0 not yet (`ToMake`), `made` made
+/// before, anything else `Elsewhere` (a value not worked out).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Mark {
     ToMake,
@@ -29,12 +28,12 @@ pub fn mark(value: u32, made: u32) -> Mark {
     }
 }
 
-/// `fild n; fdiv scale; fsub less`: a level as a float.
+/// A level as a float: `n / scale - less` in `f64`, stored as `f32`.
 pub fn level(n: i32, scale: f32, less: f32) -> f32 {
     (n as f64 / scale as f64 - less as f64) as f32
 }
 
-/// The sines of 0, step, 2 step ..: the angle summed on the x87's stack, never rounded to
+/// The sines of 0, step, 2 step ..: the angle summed in `f64`, never rounded to
 /// a float.
 pub fn sines(step: f32) -> [f32; SINES] {
     let mut x = 0.0f64;

@@ -1,11 +1,6 @@
-//! The tyre-change screen's drawing: `drive::tyre_change_screen`,
-//! `drive::tyre_screen`, `drive::tyre_screen_parts`, `drive::tyre_turned_quad`, `drive::tyre_quad`.
-//! Their calls by place: 0 `d3d::set_texture`, 1 `d3d::set_render_state`, 2 `tyre_quad`, 3
-//! `tyre_turned_quad`, 4 `tyre_screen_parts`, 5 the device's DrawPrimitive
-//! (`d3d::draw_vertex_strip`: platform, a call into the game), 6 `tyre_screen`. In the game the
-//! Rust versions and the game's three.
-//!
-//! This file: the places, the quads' shared steps and the tests' frame.
+//! The tyre-change screen's drawing: `drive::tyre_change_screen`, `drive::tyre_screen`,
+//! `drive::tyre_screen_parts`, `drive::tyre_turned_quad`, `drive::tyre_quad`. This file: the
+//! places, the quads' shared steps and the tests' frame.
 
 use crate::d3d::vertices_store::{PolygonVertices, Vertex};
 use crate::errors::Refused;
@@ -14,18 +9,17 @@ use crate::math::x87_float::{int, ld, st, stf};
 use crate::race::viewer_screen_store::ViewerPanelBlock;
 use crate::session::PlainDword;
 
-/// `d3d::set_texture` (0x41ACF5), on the game's thread (the tyre change is drawn there).
+/// `d3d::set_texture`, on the game's thread (the tyre change is drawn there).
 pub fn set_texture(texture: u32) {
     crate::d3d::set_texture::set_texture(crate::workers::game_scratch(), texture);
 }
 
-/// `d3d::set_render_state` (0x41AB5B), on the game's thread.
+/// `d3d::set_render_state`, on the game's thread.
 pub fn set_render_state(value: u32, state: u32) {
     crate::d3d::set_render_state::set_render_state(crate::workers::game_scratch(), value, state);
 }
 
-/// The quads' fixed words (0x41DD68 .. / 0x41CA49 ..): z 0, rhw 1.0, the colour, the
-/// specular 0.
+/// The quads' fixed words: z 0, rhw 1.0, the colour, the specular 0.
 pub fn quad_words(buffer: &PolygonVertices, colour: u32) {
     for item in buffer.vertices.iter().take(4) {
         let v = &item;
@@ -36,10 +30,9 @@ pub fn quad_words(buffer: &PolygonVertices, colour: u32) {
     }
 }
 
-/// The quads' shared tail (0x41DDA1 ..): the texture places from the rectangle `uv`
-/// (x, y, w, h, whole numbers) times the panel's texel scale, and the corners scaled to
-/// the screen (width and height times the panel's two smaller scales, through the
-/// machine's scratch float).
+/// The quads' shared tail: the texture places from the rectangle `uv` (x, y, w, h, whole
+/// numbers) times the panel's texel scale, and the corners scaled to the screen (width and
+/// height times the panel's two smaller scales, through the machine's scratch float).
 pub fn quad_tail(
     buffer: &PolygonVertices,
     uv: [u32; 4],
@@ -59,10 +52,10 @@ pub fn quad_tail(
     );
 }
 
-/// The tail's arithmetic: `rect` the texture rectangle (x, y, width, height, whole
-/// numbers), `vertices` the four corners (left top, right top, left bottom, right bottom),
-/// `screen` the screen size (whole numbers), `scratch` the float the screen scales pass
-/// through (stored as a single, as the original does).
+/// The tail's arithmetic: `rect` the texture rectangle (x, y, width, height, whole numbers),
+/// `vertices` the four corners (left top, right top, left bottom, right bottom), `screen` the
+/// screen size (whole numbers), `scratch` the float the screen scales pass through (stored as
+/// a single).
 fn quad_tail_math_in(
     panel: &ViewerPanelBlock,
     rect: [u32; 4],
@@ -106,7 +99,7 @@ fn quad_tail_math(rect: [u32; 4], vertices: &[Vertex], screen: [u32; 2], scratch
     );
 }
 
-/// The draw (`d3d::draw_vertex_strip`, 0x41ADE1) of 4 vertices at `g_polygonVertices`.
+/// The draw (`d3d::draw_vertex_strip`) of 4 vertices.
 pub fn draw(buffer: &PolygonVertices) -> Result<(), Refused> {
     crate::d3d::draw_vertex_strip::draw_vertex_strip(
         crate::workers::game_scratch(),

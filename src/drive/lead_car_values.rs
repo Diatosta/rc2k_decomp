@@ -1,5 +1,5 @@
 //! The eight fields of car block 0 that `drive::share_all_cars` keeps around its work:
-//! (block field, keeping place) pairs, in the original's order.
+//! (block field, keeping place) pairs.
 use crate::physics::car_store::Car;
 use crate::race::owner_frame::Frame;
 use crate::session::PlainDword;

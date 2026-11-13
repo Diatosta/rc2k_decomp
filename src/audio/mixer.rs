@@ -1,7 +1,5 @@
-//! The game's own mixer (the Dolby mode's way, `g_soundMode` bit 0x40000):
-//! the voices' channels mixed into a work buffer of left and right dwords
-//! (`g_mixBuffer`, 0x952AF8, 0x3C00 bytes up to `g_soundCommands`; `MIX`), then clipped into the primary buffer's format. The standalone program will
-//! mix this way.
+//! The game's own mixer (the Dolby mode's way): the voices' channels mixed into a work buffer of
+//! left and right dwords (`MIX`), then clipped into the primary buffer's format.
 
 use crate::audio::own::AudioOwn;
 use crate::audio::voices::*;
@@ -9,18 +7,15 @@ use crate::errors::{BadInput, Refused};
 
 pub const MIX_BUFFER_LEN: u32 = 0x3C00;
 
-/// The mixing buffer (`g_mixBuffer`): a turn's left and right dwords, from `mix_channels`
-/// to `write_mix`.
+/// The mixing buffer: a turn's left and right dwords, from `mix_channels` to `write_mix`.
 static MIX: std::sync::Mutex<[i32; MIX_BUFFER_LEN as usize / 4]> =
     std::sync::Mutex::new([0; MIX_BUFFER_LEN as usize / 4]);
 
-/// `audio::mix_channels` (0x40BECC): `bytes` of the primary buffer's worth, `>> shift`
-/// frames, of every used channel (`count` from `channels`) added into `MIX` (zeroed
-/// first, two dwords a frame: the sample times the channel's left and its right volume).
-/// A channel's 32.32 position steps by its step after each frame; at its length a looping
-/// channel (kind 1) goes back to 0 (the fraction kept), any other is no longer used and
-/// stops there. Positions are stored back. Refuses no channels, no frames with a channel
-/// used (both counts run 2^32 times in the original), more frames than the buffer holds.
+/// `bytes` of the primary buffer's worth, `>> shift` frames, of every used channel added into
+/// `MIX` (zeroed first, two dwords a frame: the sample times the channel's left and its right
+/// volume). A channel's 32.32 position steps by its step after each frame; at its length a looping
+/// channel (kind 1) goes back to 0 (the fraction kept), any other is no longer used and stops.
+/// Refuses no channels, no frames with a channel used, and more frames than the buffer holds.
 pub fn mix_channels(
     state: &AudioOwn,
     bytes: u32,
@@ -31,8 +26,6 @@ pub fn mix_channels(
     use rc2k_core::audio::mixer::Channel;
     // Channel ids (place + 1) on from the first's.
     let at = |n: u32| channels.wrapping_add(n);
-    // Converted: `rc2k_core::audio::mixer`; here the channels loaded and stored, the data read
-    // where the channels point.
     let mut loaded: Vec<(Channel, u32)> = (0..count)
         .map(|n| {
             let c = channel(state, at(n));
@@ -53,11 +46,11 @@ pub fn mix_channels(
         .collect();
     let data: Vec<u32> = loaded.iter().map(|(_, d)| *d).collect();
     let mut cores: Vec<Channel> = loaded.drain(..).map(|(c, _)| c).collect();
-    // The mix buffer worked on as a vector of its dwords (the core zeroes it first), written
-    // back whole.
+    // The mix buffer worked on as a vector of its dwords (the core zeroes it first), written back
+    // whole.
     let mut buffer = vec![0i32; MIX_BUFFER_LEN as usize / 4];
-    // A channel's sample data (an id: `audio::sample_data`) found when the channel is first
-    // read, all of it readable while the mix runs.
+    // A channel's sample data (an id: `audio::sample_data`) found when the channel is first read,
+    // all of it readable while the mix runs.
     let failed = std::cell::Cell::new(None);
     let mixed = crate::audio::sample_data::with_view(|view| {
         let samples: Vec<std::cell::OnceCell<Result<&[u8], BadInput>>> =
@@ -92,7 +85,7 @@ pub fn mix_channels(
         .unwrap_or_else(std::sync::PoisonError::into_inner)
         .copy_from_slice(&buffer);
     for (n, core) in cores.iter().enumerate() {
-        // Only the channels that played: the original stores no others.
+        // Only the channels that played are stored back.
         update_channel(state, at(n as u32), |c| {
             if c.used == 1 {
                 c.used = core.used;
@@ -104,17 +97,11 @@ pub fn mix_channels(
     Ok(())
 }
 
-/// `audio::write_mix` (0x40C03A, with 0x40C087, 0x40C0E0, 0x40C153): the
-/// mix clipped into the two locked parts of buffer `primary` (`parts`: `platform_sound::
-/// lock`'s; the second used if it has a place) in the primary buffer's format: eight
-/// bits (mode bit 0x10) mono (0x100: left + right `>> 15`, held to -0x80 .. 0x7F, + 0x80),
-/// eight bits stereo (each `>> 14`, the same), else sixteen bits stereo (each `>> 14`,
-/// held to -0x8000 .. 0x7FFF). Refuses sixteen bits with a right sample that clips: the
-/// original's clamp there goes back to the left sample's store and reads the same right
-/// sample again, for ever.
+/// Clips the mix into the two locked parts of buffer `primary` in the primary buffer's format:
+/// Eight bits mono (left + right `>> 15`, held to -0x80 .. 0x7F, + 0x80), eight bits stereo (each
+/// `>> 14`, the same), else sixteen bits stereo (each `>> 14`, held to -0x8000 .. 0x7FFF).
+/// Refuses sixteen bits with a right sample that clips.
 pub fn write_mix(mode: u32, primary: u32, parts: [u32; 4]) -> Result<(), Refused> {
-    // Converted: `rc2k_core::audio::mixer`; here the parts as slices of the locked buffer,
-    // whole frames of each.
     let size = rc2k_core::audio::mixer::frame_bytes(mode);
     let mix = *MIX
         .lock()

@@ -1,9 +1,7 @@
-//! A player's record, the 16 bytes of DirectPlay player data each machine keeps for its
-//! player (from `net::fill_own_player` 0x4181A3, `net::set_up_race`
-//! 0x463A94, `net::lets_rally` 0x4170E0, `net::close_if_host` 0x41837B and
-//! `net::lets_race` 0x4640AA): +0 the state (`crate::net::players`' bits), +1 the car, +2
-//! its colours, +3 the nationality, +4 the stage, +5 its direction, +6 the race number, +7
-//! a random byte, +8 the race's time, +0xC the total; and what a race is set up from it.
+//! A player's record, the 16 bytes of DirectPlay player data each machine keeps for its player: +0
+//! the state (`crate::net::players`' bits), +1 the car, +2 its colours, +3 the nationality, +4 the
+//! stage, +5 its direction, +6 the race number, +7 a random byte, +8 the race's time, +0xC the
+//! total; and what a race is set up from it.
 
 use crate::Invalid;
 use crate::net::players::HOST;
@@ -53,8 +51,7 @@ pub fn is_host(state: u8) -> bool {
 /// The most players a race's tables hold.
 pub const RACE_PLAYERS: u32 = 8;
 
-/// A race's players: refused, none or more than the tables' eight (the original's loop,
-/// ended by `jnz`, runs past them).
+/// A race's players: refused, none or more than the tables' eight.
 pub fn race_players(players: u32) -> Result<u32, Invalid> {
     if players == 0 || players > RACE_PLAYERS {
         return Err(Invalid("no players, or more than eight"));
@@ -62,8 +59,8 @@ pub fn race_players(players: u32) -> Result<u32, Invalid> {
     Ok(players)
 }
 
-/// A player's place in the race (`set_up_race`), from its record (`byte`, asked of the
-/// offsets the original reads, the direction only for the host).
+/// A player's place in the race, from its record (`byte`, asked of the offsets read, the
+/// direction only for the host).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Seat {
     pub car: u32,

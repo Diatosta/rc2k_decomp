@@ -1,9 +1,7 @@
-//! `service::handle_edit_keys` (0x46B890): while an item of the service area is being edited
-//! (`box_shown == 1`), passes the keys to the edit page in `box_page`: 1 gear ratio,
-//! 2 tyre, 3 steering sensitivity, 4 brake balance, 5 ride height, 6 suspension stiffness.
-//!
-//! Any other page number is fatal error 0x80709A9A, "Incorrect Locked Box", in the original. It is
-//! not called directly: its address is in the service area's list at 0x758D6E.
+//! While an item of the service area is being edited (`box_shown == 1`), passes the keys to the
+//! edit page in `box_page`: 1 gear ratio, 2 tyre, 3 steering sensitivity, 4 brake balance,
+//! 5 ride height, 6 suspension stiffness. Any other page number is fatal error 0x80709A9A,
+//! "Incorrect Locked Box".
 
 use crate::errors::FatalError;
 use crate::errors::Refused;
@@ -17,8 +15,6 @@ use crate::service::edit_tyre::edit_tyre;
 use crate::service::state::edit_mode;
 use crate::system::owner::System;
 
-// ---- Rust version ----
-
 pub fn handle_edit_keys(
     menus: &Menus,
     system: &System,
@@ -27,7 +23,6 @@ pub fn handle_edit_keys(
     if !edit_mode(menus) {
         return Ok(());
     }
-    // Converted: `rc2k_core::service::setups::EditPage`.
     use rc2k_core::service::setups::EditPage;
     match EditPage::from_number(menus.screens.state.service_ui.box_page.get()) {
         Some(EditPage::GearRatio) => edit_gear_ratio(menus, system, input, false),

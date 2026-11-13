@@ -1,7 +1,6 @@
-//! The films (from `menu::play_films` 0x4161CD): at the game's start
-//! the two logos (the first on 16-bit screens only), then the intro over and over with
-//! the game's demonstration between, until a key; from the idle main menu the scene let
-//! go first and set up again after. The setting `nofmv` leaves the films out.
+//! The films: at the game's start the two logos (the first on 16-bit screens only), then the intro
+//! over and over with the game's demonstration between, until a key; from the idle main menu the
+//! scene let go first and set up again after. The setting `nofmv` leaves the films out.
 
 /// The films.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -12,28 +11,29 @@ pub enum Film {
     Intro,
 }
 
-/// The steps, by the game's address of each.
+/// The steps of the film sequence.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Step {
-    /// 0x40F826 (`sound::stop_music`).
+    /// Stops the music (`sound::stop_music`).
     StopMusic,
     /// `gfx::clear_front_surface`.
     Step4059F4,
-    /// `input::take_key`: the zero flag clear with a key.
+    /// `input::take_key`: `zero` false when a key was taken.
     TakeKey,
     /// `files::swap_missing_extension` on the film.
     SwapMissingExtension(Film),
-    /// The player (0x41AE39) on the film, or on the path the step before left
-    /// (None); the zero flag clear when a key ended it.
+    /// The player on the film, or on the path the step before left (None); `zero` false when a
+    /// key ended it.
     Player(Option<Film>),
     /// `scene::set_up_lit_engine`.
     LitEngine,
-    /// `race::render3d_tidy`, `race::objects_tidy`, `nullsub_6`, `race::release_textures`.
+    /// `race::render3d_tidy`, `race::objects_tidy`, a step that does nothing, and
+    /// `race::release_textures`.
     Render3dTidy,
     ObjectsTidy,
     Nothing,
     ReleaseTextures,
-    /// `files::file_exists`: the carry set when it is not there.
+    /// `files::file_exists`: `carry` true when the film is not there.
     FileExists(Film),
     /// `race::credits_race`, the demonstration.
     Demonstration,
@@ -45,7 +45,7 @@ pub enum Step {
     Tune3,
 }
 
-/// What a step answered.
+/// What a step answered: two flags, read as each step says.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct StepAnswer {
     pub carry: bool,
@@ -53,9 +53,9 @@ pub struct StepAnswer {
 }
 
 pub trait Films {
-    /// `g_noFmv` not 0.
+    /// The setting `nofmv` is on.
     fn no_fmv(&mut self) -> bool;
-    /// `g_screenBits`.
+    /// The screen's bits a pixel.
     fn screen_bits(&mut self) -> u32;
     fn step(&mut self, s: Step) -> StepAnswer;
 }

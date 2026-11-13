@@ -1,8 +1,5 @@
-//! `net::joining` (0x4179B6): "joining" shown (string 0x153, as `net::connecting` shows
-//! its), then the session joined (`net::join_session`).
-//!
-//! Takes `session`. Returns whether `net::join_session` worked.
-//! Caller: `net::start_link`.
+//! Shows "joining", then joins the session with `net::join_session`. Returns whether that
+//! worked.
 
 use crate::errors::Refused;
 pub fn joining(

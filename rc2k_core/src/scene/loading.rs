@@ -1,5 +1,4 @@
-//! The loading bar's progress while the textures load (from
-//! `scene::step_loading_bar` 0x446786).
+//! The loading bar's progress while the textures load.
 
 /// The bar's ends.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -14,9 +13,8 @@ impl BarEnds {
         self.high.wrapping_sub(self.low)
     }
 
-    /// The progress with `done` of `textures` system textures loaded: the low end plus
-    /// done times the span (the product's low half) over the textures (unsigned), plus
-    /// 1; none with no textures (the progress is left as it is).
+    /// The progress with `done` of `textures` system textures loaded: the low end plus done
+    /// times the span (low half of the product) over the textures, plus 1; none with no textures.
     pub fn progress(self, done: u32, textures: u32) -> Option<u32> {
         if textures == 0 {
             return None;
@@ -37,7 +35,7 @@ mod tests {
         assert_eq!(ends.progress(0, 20), Some(11));
         assert_eq!(ends.progress(20, 20), Some(111));
         assert_eq!(ends.progress(3, 7), Some(10 + 300 / 7 + 1));
-        // the product's low half
+        // The product's low half.
         assert_eq!(
             BarEnds {
                 low: 0,

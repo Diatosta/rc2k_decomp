@@ -1,27 +1,23 @@
-//! `menu::list_step` (0x414A55): the highlight of a list menu (the replay viewer's,
-//! `install::run_page`'s) moved by a key: 0x66 and 0x6B back and on, 0x68 and 0x69 the other way.
-//! With a table of neighbours (ebx, 4 bytes an item: 0x66's, 0x6B's, 0x68's, 0x69's) the
-//! item's entry, unless negative; without one (ebx 0) 0x66 and 0x6B go round the list
-//! (`[edi+1]` items) and 0x68 and 0x69 do nothing. The item into the item table.
+//! `menu::list_step`: the highlight of a list menu (the replay viewer's, `install::run_page`'s)
+//! moved by a key: 0x66 and 0x6B back and on, 0x68 and 0x69 the other way.
+//! With a table of neighbours (4 bytes an item: 0x66's, 0x6B's, 0x68's, 0x69's) the item's
+//! entry, unless negative; without one 0x66 and 0x6B go round the list and 0x68 and 0x69 do
+//! nothing. The item goes into the item table.
 //!
-//! another key (carry: al below 0x69), else the item table with cl the table's entry
-//! (carry clear), or for 0x68 / 0x69 without a table the item table (carry set)
-//!
-//! Callers: `race::replay_viewer` (two), reading ZF.
+//! Another key does not move it. Callers: `race::replay_viewer` (two), which read whether it
+//! moved.
 
 use crate::place::BytePlace;
 use rc2k_core::menu::list_menu::{MOVES, Step, step};
 
-/// `key` (al) moving the highlight of the list menu `list` (edi) by the neighbours table
-/// `table` (ebx; None for none): whether it moved (the zero flag the original leaves; its
-/// carry and ecx no caller reads).
+/// `key` moving the highlight of the list menu `list` by the neighbours table `table` (None
+/// for none): whether it moved.
 pub fn list_step(
     install: &crate::install::owner::Install,
     key: u8,
     table: Option<BytePlace>,
     list: crate::menu::list_handle::ListMenu,
 ) -> Result<bool, crate::errors::BadInput> {
-    // The logic is in `rc2k_core::menu::list_menu::step`.
     let count = list.count();
     if !MOVES.contains(&key) {
         return Ok(false);

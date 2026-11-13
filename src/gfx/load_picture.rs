@@ -1,14 +1,9 @@
-//! `gfx::load_picture` (0x411863): loads a picture file into the picture buffer at the
-//! screen's size.
-//!
-//! Takes: path, which may be written to (see `files::swap_missing_extension`)
-//! Sets the picture's size to 800 x 600 with rows that follow one another (row length
-//! 0xFFFFFFFD), clears the buffer and calls `read_picture_file`. Whatever that says, the
-//! picture's size then becomes the screen's (`g_screenWidth` x `g_screenHeight`) and its row
-//! length four bytes a pixel. If the file was read and its decoded width is not the
-//! screen's, `rescale_picture` makes it so.
-//! Ten callers, `menu::load_background` and `service::load_background` among them.
-//! Refuses what the functions it calls refuse. The name is a reading.
+//! Loads a picture file into the picture buffer at the screen's size. The path may be written to
+//! (see `files::swap_missing_extension`).
+//! Sets the picture's size to 800 x 600 with rows that follow one another, clears the buffer and
+//! calls `read_picture_file`. Whatever that says, the picture's size then becomes the screen's and
+//! its row length four bytes a pixel. If the file was read and its decoded width is not the
+//! screen's, `rescale_picture` makes it so. Refuses what the functions it calls refuse.
 
 use crate::errors::Refused;
 use crate::gfx::clear_picture::clear_picture;
@@ -17,8 +12,6 @@ use crate::gfx::picture::set_size;
 use crate::gfx::read_picture_file::read_picture_file;
 use crate::gfx::rescale_picture::rescale_picture;
 use rc2k_core::gfx::picture_size as sizes;
-
-// ---- game data ----
 
 /// Returns whether the file was read.
 pub fn load_picture_with(
@@ -31,7 +24,6 @@ pub fn load_picture_with(
     if !has_picture(pictures) {
         clear_picture(pictures)?;
     }
-    // Converted: `rc2k_core::gfx::picture_size` (`READ`, `screen`, `rescaled`).
     set_size(pictures, sizes::READ);
     clear_picture(pictures)?;
     let read = read_picture_file(path, gfx, system);

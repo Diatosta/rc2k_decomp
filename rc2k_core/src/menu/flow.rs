@@ -10,7 +10,7 @@ use crate::Invalid;
 /// The game's variables the flows read and write.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Var {
-    /// `g_yesNoAnswer`.
+    /// The answer to the last yes / no question.
     Answer,
     /// The number of players.
     PlayerCount,
@@ -18,7 +18,7 @@ pub enum Var {
     EventMode,
     /// The kind of event: 3 the time trial, 4 and 5 the championships.
     EventType,
-    /// `g_eventMode`: 2, 3, 0x13.
+    /// The championship view's event mode: 2, 3, 0x13.
     Mode,
     /// The current player.
     Current,
@@ -33,13 +33,13 @@ pub enum Var {
     RaceResult2,
     /// 1 picks the single rally's first car list.
     CarListKind,
-    /// `g_cheats`.
+    /// The cheat bits.
     Cheats,
     /// The cleared flag of level k (k 0 .. 7).
     Cleared(u32),
     /// Player n's time (+0x88).
     PlayerTime(u32),
-    /// Player n's +0xD0.
+    /// Player n's `entry` field (+0xD0).
     PlayerEntry(u32),
     /// 1 when a saved game goes on.
     Continuing,
@@ -89,7 +89,7 @@ pub enum Picture {
     A8,
 }
 
-/// The callees, with what the originals give them.
+/// The callees, and what they give back.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Call {
     BeginEvent,
@@ -105,7 +105,7 @@ pub enum Call {
     ResetSingleEvent,
     ChampionshipWelcome,
     A8Welcome,
-    /// `records::find_record` on `g_recordTable` (its fields through `Var::Record`).
+    /// `records::find_record` on the record table (its fields through `Var::Record`).
     FindRecord {
         section: u32,
         index: u32,
@@ -164,8 +164,7 @@ pub enum Call {
     SelectStageLoop,
     TimeTrialSelectStage,
     TimeTrialService,
-    /// `race::single_rally_race`: `next` when another player's race follows, `kind`
-    ///.
+    /// `race::single_rally_race`: `next` when another player's race follows, `kind`.
     Race {
         next: bool,
         kind: u32,
@@ -224,7 +223,7 @@ pub trait Game {
         self.set(v, x);
     }
 
-    /// `g_yesNoAnswer` 1.
+    /// The last yes / no question answered yes (1).
     fn yes(&mut self) -> bool {
         self.get(Var::Answer) == 1
     }

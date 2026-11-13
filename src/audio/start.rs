@@ -1,26 +1,17 @@
-//! `audio::start` (0x40A01D): the sound device probed at the audio thread's start, and the
-//! two sound modes chosen.
-//!
-//! `audio::open_a3d2`, `g_hasA3d2` = `g_useA3d`, `audio::close_a3d2`; the mode
-//! 0x11221 | 0x1900000; `audio::open_sound` (with 0). Opened: `g_a3dSplashKept` =
-//! `g_a3dReady`; `audio::read_caps`; unless it fails or the caps say emulated (0x20):
-//! `audio::make_primary`, `g_has3d` from the mode's 3D bit, `audio::open_way`, a probe voice
-//! in `g_voices[0]` (zeroed; format 0x121, `g_mixRateSetting`, flags 1, 0x4000 bytes)
-//! through `audio::make_buffer` (mode 0x11221, the probe voice), `release_eax`,
-//! `release_voice_manager`, `release_voice`, `audio::close_way`, `audio::release_primary`; with
-//! caps flag 0x100, free hardware buffers and 3D: race bits 0x112221 for A3D2, else with
-//! `g_voiceManagerOn` and at least 6 free 3D buffers 0x900000 (and 0x1000000 with `g_hasEax`). Not
-//! opened: 0x112221 with A3D2, else both modes 0 and straight to the log. Then: unless
-//! both modes are kept, the race mode is the probe's and at once the menu's 0x11221 (the
-//! probe thrown away: section 16); `audio::choose_modes`; "AUD: Using modes" and both;
-//! `audio::close_sound`; the mode 0. One caller, the audio thread.
+//! Probes the sound device at the audio thread's start and chooses the two sound modes: A3D2
+//! tried, DirectSound opened, its caps read; unless that fails or the caps say emulated, the
+//! primary made, a probe voice made through `make_buffer` and released, and the 3D / EAX / voice
+//! manager abilities noted for the race mode. Not opened: A3D2's race mode with A3D2, else both
+//! modes 0. Unless both modes are kept, the race mode is the probe's and at once the menu's (the
+//! probe thrown away: a game slip kept). Then `audio::choose_modes`, "AUD: Using
+//! modes" logged and the device closed.
 
 use crate::audio::own::AudioThread;
 use crate::errors::Refused;
 
 const USING_MODES_TEXT: &std::ffi::CStr = c"AUD: Using modes"; // "AUD: Using modes"
 
-/// False for the carry (no race mode).
+/// False when there is no race mode.
 pub fn start(audio: &AudioThread, system: &crate::system::owner::System) -> Result<bool, Refused> {
     use crate::audio::sound_device as sd;
     use rc2k_core::audio::device::{
@@ -49,8 +40,8 @@ pub fn start(audio: &AudioThread, system: &crate::system::owner::System) -> Resu
             let has_3d = (audio.state.sound_mode.get() & 0x10_0000 != 0) as u32;
             audio.state.has_3d.set(has_3d);
             crate::audio::mixer_set_up::open_way(audio, system, audio.state.sound_mode.get())?;
-            // A probe voice in the pool's first record: zeroed, then its format, the mixing
-            // rate setting, flags 1 and 0x4000 bytes.
+            // A probe voice in the pool's first record: zeroed, then its format, the mixing rate
+            // setting, flags 1 and 0x4000 bytes.
             let probe = &audio.state.voices[0];
             probe.update(|v| {
                 *v = Default::default();
@@ -70,7 +61,6 @@ pub fn start(audio: &AudioThread, system: &crate::system::owner::System) -> Resu
             crate::audio::release_voice::release_voice_in_game(&audio.state, voice);
             crate::audio::mixer_set_up::close_way(audio, system, audio.state.sound_mode.get())?;
             sd::release_primary(&audio.state);
-            // Converted: `rc2k_core::audio::device::probed_race_mode`.
             found = probed_race_mode(|fact| match fact {
                 Fact::CapsFlags => flags(),
                 Fact::FreeHardware => audio.state.sound_caps.get_u32(0x14),

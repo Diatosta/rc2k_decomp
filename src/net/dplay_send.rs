@@ -1,11 +1,5 @@
-//! `net::dplay_send` (0x4196FF): DirectPlay's `Send` (`IDirectPlay4A` +0x68) from this
-//! machine's player (`g_netPlayerId`) through `g_dplay`.
-//!
-//! Takes `to`, `flags`, `data` and `size`. The original sets the carry on a failure; no caller
-//! reads it (`lq -s 0x4196FF`).
-//! Six callers (`net::send_message`, `net::send_chat`, `net::race_wait`, `net::lobby_loop`,
-//! `net::take_messages` twice). `Send` from Rust (`net::dplay`). Refuses nothing
-//! (no check of `g_dplay`, as the original).
+//! DirectPlay's `Send` of `data` from this machine's player to `to`. Nothing checks for a
+//! missing DirectPlay object, and no caller reads the result.
 
 use crate::net::store::NetShared;
 pub fn dplay_send(vars: &NetShared, to: u32, data: &[u8]) {

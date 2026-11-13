@@ -1,7 +1,7 @@
-//! `menu::unused_section_times_loop_2` (0x467392; the same but for its scene list:
-//! `_1`, 0x466E50): the ten best times of a section (`screens::draw_section_best_times`),
-//! background `results1.png`. Nothing in RAL.EXE reaches either; reached here from the debug
-//! UI's "Screens" tab (`debug::screens`), which says the section (`EVENT_STATE.section`).
+//! `menu::unused_section_times_loop_2` (the same but for its scene list: `_1`): the ten best
+//! times of a section (`screens::draw_section_best_times`), background `results1.png`. Nothing
+//! in the menus reaches either; reached here from the debug UI's "Screens" tab
+//! (`debug::screens`), which says the section (`EVENT_STATE.section`).
 use crate::menu::screen_loop::{Callee, List, Screen, Step};
 
 /// `ScreenItems.current[78]`'s slot, the item kept between visits.
@@ -10,17 +10,17 @@ const SLOT: usize = (0x747798 - 0x747660) / 4;
 pub const SCREEN: Screen = Screen {
     lists: &[
         List {
-            pointer: |m| &m.screens.flow.scene_list, // g_sceneList
+            pointer: |m| &m.screens.flow.scene_list,
             table: |m| m.tables.draw_lists.section_times_scene_list.id(),
             run: false,
         },
         List {
-            pointer: |m| &m.screens.flow.draw_list, // g_drawList
+            pointer: |m| &m.screens.flow.draw_list,
             table: |m| m.tables.draw_lists.section_times_draw_list.id(),
             run: false,
         },
         List {
-            pointer: |m| &m.screens.flow.overlay_list, // g_overlayList
+            pointer: |m| &m.screens.flow.overlay_list,
             table: |m| m.tables.draw_lists.section_times_overlay_list.id(),
             run: false,
         },

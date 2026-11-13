@@ -1,19 +1,16 @@
-//! `hud::turned_vertex` (0x4B7058): one vertex of a turned HUD shape: the point (x and y from the x87
+//! One vertex of a turned HUD shape: the point (x and y from the x87
 //! stack, rounded into the vertex scratch pair); its texture place (x and y plus the shape's
 //! texture offsets, over the texture size); the point turned by the given turn, times the
 //! shape's scale plus its centre; colour white under the quad record's alpha, specular 0.
-//!
-//! Callers: `hud::draw_needle`'s four (four calls). The turn is `math::rotate_float_point_about_y`.
 
 use crate::d3d::vertices_store::Vertex;
 use crate::hud::owner::Hud;
 use crate::math::rotate_float_point_about_y::rotate_float_point_about_y_plain;
 use rc2k_core::hud::disc;
 
-/// The point as `f64`s (what the x87 holds at the game's double precision): the vertex at `vertex`,
-/// turned by `angle`. that goes to `g_scratchY` alone, which is written before it is read
-/// everywhere: 0 here.
-// Converted: `rc2k_core::hud::disc::{turned_texture, turned_place, white_under}`
+/// The point as `f64`s (what the x87 holds at the game's double precision): the vertex at
+/// `vertex`, turned by `angle`. The scratch y goes nowhere (it is written before it is read
+/// everywhere): 0 here.
 pub fn turned_vertex(
     engine_tables: &crate::scene::engine_tables_store::EngineTables,
     hud: &Hud,

@@ -1,8 +1,7 @@
-//! The HUD's time panels (from `hud::layout_0` 0x4B1D8C,
-//! `hud::layout_1` 0x4B2743 and `hud::layout_2`): a time in hundredths made six digits,
-//! each a rectangle of the HUD's sprite sheet (`HudBlock.rects[0].left`, 0x10 bytes a rectangle), and
-//! the rules the three layouts share: the clock and lap panels' rectangles, the times with
-//! their leading digits left out, the stage panel's number and the needle's sign.
+//! The HUD's time panels: a time in hundredths made six digits, each a rectangle of the HUD's
+//! sprite sheet (`HudBlock.rects[0].left`, 0x10 bytes a rectangle), and the rules the three layouts
+//! share: the clock and lap panels' rectangles, the times with their leading digits left out, the
+//! stage panel's number and the needle's sign.
 
 /// The six digits are the time's remainder by this (an hour and a half in hundredths:
 /// minutes go up to 89).
@@ -11,8 +10,8 @@ pub const WRAP: u32 = 0x57E40;
 /// what is left is the hundredths.
 pub const DIVISORS: [u32; 5] = [60000, 6000, 1000, 100, 10];
 
-/// A time's digits (`HudBlock.digits[0]` ..): its size (the original's `neg` of a negative,
-/// wrapping) by `WRAP`, then by `DIVISORS`; each plus `base` (the first digit's rectangle).
+/// A time's digits (`HudBlock.digits[0]` ..): its size (negatives wrap) by `WRAP`, then by
+/// `DIVISORS`; each plus `base` (the first digit's rectangle).
 pub fn time_digits(value: u32, base: u32) -> [u32; 6] {
     let mut r = if (value as i32) < 0 {
         value.wrapping_neg()

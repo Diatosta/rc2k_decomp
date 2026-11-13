@@ -1,13 +1,9 @@
-//! `install::page_key` (0x4146E4): a key on the page's highlighted item. Nothing for no key
-//! or one of 0x80 and above . An edit being edited takes every key
-//! (`install::edit_key`); else 0x66, 0x6B, 0x68, 0x69 (`install::key_up`, `key_down`,
-//! `key_left`, `key_right`), 2 .. 0xA (`install::key_number`), Enter (`install::item_enter`);
-//! Escape leaves the page with answer 0 unless the list's flags have 0x10. After an edit's
-//! key or any other key: 0x52 a screenshot (`gfx::take_screenshot`) with screenshots on.
-//! Then a key that did something (zero set) sets `key_taken` and gives zero set.
-//!
-//! Takes the key, item, list.
-//! Caller `install::run_page`, reading zero.
+//! A key on the page's highlighted item. Nothing for no key or one of 0x80 and above. An edit
+//! being edited takes every key (`install::edit_key`); else the arrows (`install::key_up`,
+//! `key_down`, `key_left`, `key_right`), 2 .. 0xA (`install::key_number`), Enter
+//! (`install::item_enter`); Escape leaves the page with answer 0 unless the list's flags have
+//! 0x10. Key 0x52 takes a screenshot with screenshots on. A key that did something sets
+//! `key_taken`. Called by `install::run_page`.
 
 use crate::errors::Refused;
 use crate::menu::list_handle::{ListItem, ListMenu};
@@ -25,8 +21,6 @@ pub fn page_key(
 ) -> Result<(u32, bool), Refused> {
     use crate::install as i;
     let (gfx, system) = (o.gfx, o.system);
-    // Converted: `rc2k_core::install::items` (`page_key`, `takes_every_key`, `STAYS`,
-    // `SCREENSHOT_KEY`).
     let Some(way) = items::page_key(key as u8) else {
         // No key, or one of 0x80 and above.
         return Ok((key, key as u8 == 0));

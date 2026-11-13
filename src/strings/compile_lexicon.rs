@@ -1,16 +1,11 @@
-//! `strings::compile_lexicon` (0x40356E): makes the string table from the language file.
-//!
-//! The original ("Compiling lexicon..." in the game's log) is a compiler of 25 functions on memory
-//! of its own; what they do is in `strings/lexicon.rs`. Around that: it zeroes its 0xC44 bytes of
-//! work variables, takes `kilobytes` * 0x400 bytes on the memory list, reads the first file matching `files\%locale\*.txt` (at most 0x40000 bytes),
-//! compiles, writes the table and points `g_stringTable` at it, logs its counts when
-//! the log level is 3 or more, and gives the memory back. There must be 0x757 messages, or it is
-//! fatal error 0x80E18052; an error in the file is logged with its line and ends in fatal error
-//! 0x80E18051 (the original's error paths jump back to its own start with a failure flag set, and
-//! it ends there). It leaves the work variables that are pointers into the given-back
-//! memory 0 (the original leaves them dangling), and raises the fatal errors itself (`compiled`).
-//! Callers: `strings::load_language` (from `start` and the installer) and
-//! `strings::maybe_compile_lexicon`.
+//! Makes the string table from the language file ("Compiling lexicon..." in the game's log). The
+//! compiler proper is in `strings/lexicon.rs`. Around it: zeroes the 0xC44 bytes of work variables,
+//! takes `kilobytes` * 0x400 bytes on the memory list, reads the first file matching
+//! `files\%locale\*.txt`, compiles, writes the table and makes it the game's table, logs its counts
+//! when the log level is 3 or more, and gives the memory back. There must be 0x757 messages, or it
+//! is fatal error 0x80E18052; an error in the file is logged with its line and ends in fatal error
+//! 0x80E18051. The work variables that are pointers into the given-back memory are left 0. The
+//! fatal errors are raised here (`compiled`).
 
 use crate::errors::{FatalError, Refused};
 use crate::files::read_first_match::read_first_match;
@@ -23,13 +18,10 @@ use crate::session::PlainDword;
 use crate::strings::owner::Lexicon;
 use rc2k_core::strings::lexicon::{Compiled, compile};
 
-// ---- game data ----
-
-/// The work variables (`Bytes<3140>` .. in IDA). Written here and read by nothing (the
-/// original's compiler read them).
+/// The work variables' size; they are written here and read by nothing.
 pub const WORK_LEN: usize = 0xC44;
-/// The work variables that are counts, as offsets into the block, in `Compiled`'s order;
-/// before them the flags word (0x11000000) at 0, after them the unused count at 0x30.
+/// The work variables that are counts, as offsets into the block, in `Compiled`'s order; before
+/// them the flags word at 0, after them the unused count at 0x30.
 const PADDED: usize = 0x04;
 const LINES: usize = 0x08;
 const MESSAGES: usize = 0x14;
@@ -48,15 +40,15 @@ const WORK_FLAGS: u32 = 0x1100_0000;
 /// The lexicon compiler's memory (the glyph builder takes the same work memory).
 #[derive(rc2k_derive::Cells)]
 pub struct LexiconMemory {
-    /// `dword_519554`: the memory's kilobytes (`imageheapsize`, a `var\ral.cfg` setting;
-    /// the glyph tables' work memory is sized by it too).
+    /// The memory's kilobytes (the `imageheapsize` setting; the glyph tables' work memory is sized
+    /// by it too).
     pub kilobytes: PlainDword,
-    /// `g_lexiconMemory` (`LexiconMemory.memory.head`): the list the memory is taken from (16 bytes).
+    /// `LexiconMemory.memory.head`: the list the memory is taken from (16 bytes).
     pub memory: crate::memory::ListCells,
 }
 
 impl LexiconMemory {
-    /// The lexicon's memory; the first values are the image's.
+    /// The lexicon's memory.
     pub const fn new() -> Self {
         LexiconMemory {
             kilobytes: PlainDword::new(0x400),
@@ -70,16 +62,14 @@ impl LexiconMemory {
     }
 }
 
-/// The record all empty messages share (`Bytes<16>` in IDA): +4 how
-/// often it was used (never reset), +0xC its index entry. Written here only.
+/// The record all empty messages share: +4 how often it was used (never reset), +0xC its index
+/// entry. Written here only.
 pub const EMPTY_MESSAGE_LEN: usize = 0x10;
-/// `aFilesLocaleTxt` (0x4E0770).
 const PATTERN: &[u8] = b"files\\%locale\\*.txt";
 const FILE_ROOM: u32 = 0x40000;
 const MESSAGE_COUNT: u32 = 0x757;
 
-/// The original's fatal errors (`loc_4D815E`, `loc_4D812C`, `loc_4D8145`); the `\\n` is the
-/// reporter's, as in RAL.EXE.
+/// The fatal errors; the `\\n` is the reporter's.
 const NOT_LOADED: FatalError = FatalError {
     code: 0x80E1_8010,
     message: "Error loading lexicon file",
@@ -93,9 +83,8 @@ const WRONG_COUNT: FatalError = FatalError {
     message: "Too many or too few tokens defined in lexicon.txt",
 };
 
-/// `lexicon::report` (0x4040CC) for an error: "LC:" "ERROR:" and the reason on one line.
-/// The original adds "on line" with the line's number and its text; the core does not
-/// keep the line (`notes/reference.md` section 15).
+/// `lexicon::report` for an error: "LC:" "ERROR:" and the reason on one line; the line's number
+/// and text are not logged (the core does not keep the line).
 fn report(why: &str) {
     let why = why.strip_prefix("language file: ").unwrap_or(why);
     let mut text = b"LC:ERROR:".to_vec();
@@ -104,11 +93,10 @@ fn report(why: &str) {
     line(&text, true);
 }
 
-/// Reads the language file and compiles it, changing nothing of the game's but what the
-/// file's finding and reading leave (the search record, the last file's path). A file that
-/// does not load or does not compile is the original's fatal error: one that fails the
-/// compiler is reported in the log first. Memory and table overflows, which the original
-/// reports as 0x80E1801x / 2x, are 0x80E18051 here.
+/// Reads the language file and compiles it, changing nothing of the game's but what the file's
+/// finding and reading leave (the search record, the last file's path). A file that does not load
+/// or does not compile is a fatal error: one that fails the compiler is reported in the log first.
+/// Memory and table overflows are fatal error 0x80E18051 here.
 pub fn compiled(
     lexicon: &Lexicon,
     system: &crate::system::owner::System,
@@ -167,8 +155,8 @@ pub fn compile_lexicon(
         line(b"Compiling lexicon...\0", true);
         let compiled = compiled(&strings.lexicon, system)?;
         strings.lexicon.work.write(&[0; WORK_LEN]);
-        // The original's memory, for the game's memory figures: counted and given back
-        // (nothing is put in it: the lexicon is built in Rust's memory).
+        // The lexicon's memory list, for the game's memory figures: counted and given back (nothing
+        // is put in it: the lexicon is built in Rust's memory).
         let list = &strings.lexicon.memory.memory;
         crate::memory::owned::count_on(
             list,

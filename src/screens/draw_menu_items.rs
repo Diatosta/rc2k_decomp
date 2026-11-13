@@ -1,33 +1,19 @@
-//! `screens::draw_menu_items` (0x471D0A): draws the items of a menu, each a picture or a
-//! button with a text, the highlighted one with pulsing colours.
+//! Draws the items of a menu, each a picture or a button with a text, the highlighted one with
+//! pulsing colours. Items follow a 4-byte head, are 0x5C bytes each and end with -1; the first is
+//! drawn without being checked for the end. An item is the highlighted one when its type equals
+//! `loop_flags.item`; `draw_work.drawing_highlighted_item` is left at 1 or 0 for the last item.
 //!
-//! Takes the menu; the first and third values the original keeps in registers are handed on as
-//! they come (see below).
-//! Items are 0x5C bytes after a 4-byte head and end with -1; the first is drawn without
-//! being checked for the end. An item is the highlighted one when its type (+0x10) equals
-//! `loop_flags.item`; `draw_work.drawing_highlighted_item` is left at 1 or 0 for the last item accordingly.
+//! What goes behind the text depends on the item's kind: nothing, the button the item describes
+//! (`draw_item_button`), a right-aligned button as wide as the text, a centred one, or a sprite of
+//! the sprite table at the item's place. A highlighted item gets the highlighted buttons, and
+//! nothing at all for the "nothing" kind. The sprites are direct colour, so the palette and the
+//! text's x passed to the measuring do not matter.
 //!
-//! What goes behind the text depends on the item's +0x1C:
-//! 0xFFFFFFA9  nothing
-//! 0xFFFFFFA5  the button the item describes (`draw_item_button`)
-//! 0xFFFFFFA7  a right-aligned button as wide as the text
-//! 0xFFFFFFA6  a centred one
-//! 0xFFFFFFAA  nothing (only looked at when the item is not highlighted)
-//! other       the sprite at +0x20 of `g_spriteTable`, at the item's +0 and +4
-//! A highlighted item gets the highlighted buttons, and nothing at all if its +0x20 is
-//! 0xFFFFFFAA. The sprite's palette is the sprite number itself for a plain item and, for
-//! a highlighted one, whatever ebx holds: the font of the item before, or the caller's ebx
-//! for the first item. The measuring of the text buttons is given ecx as its x: the text x
-//! of the item before, or the caller's ecx. Neither is looked at (the sprites are direct
-//! colour, a measured width does not depend on its x), so neither is passed here.
-//!
-//! The text (string +0x14, `draw_menu_item_text` with the spacing flag at +0x58) goes at the
-//! item's +0 and +4 minus 3 for the three button kinds (4 further left for the right-aligned
-//! one), else at +8 and +0xC; the place is left in `g_markerX` and `g_markerY`. Its font is
-//! the one at +0x18; for the highlighted item it is `text::blend_font` of that one and the
-//! one at +0x50, by the time since the last key (0 while `option_work.redefining_key` is set).
-//!
-//! One caller, `menu::draw_menu`. Refuses a menu without an end in its first 256 items.
+//! The text goes at the item's place (3 further left for the three button kinds, 4 for the
+//! right-aligned one), which is left in the marker position; its font is the item's, blended
+//! with its highlight font by the time since the last key (0 while a key is being redefined) for
+//! the highlighted item. One caller, `menu::draw_menu`. Refuses a menu without an end in its first
+//! 256 items.
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::item_sprites_store::ItemSprite;
@@ -52,8 +38,8 @@ pub fn draw_menu_items(
     if all.len() > ITEM_LIMIT as usize {
         return Err(BadInput("a menu without an end").into());
     }
-    // The logic is in `rc2k_core::screens::menus::items` (the items read here: the first
-    // drawn without being checked for the end, as the original).
+    // The logic is in `rc2k_core::screens::menus::items` (the first item is drawn without being
+    // checked for the end).
     use crate::screens::game_screen::{MenuFont, MenuScreen};
     use rc2k_core::screens::menus::Item;
     // The first item, then each until one whose x is the end mark (the -1 after the

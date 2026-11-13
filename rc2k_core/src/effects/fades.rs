@@ -1,8 +1,7 @@
-//! The marks' fade colours (from `effects::make_fade_colours`
-//! 0x4C37EF): 0x11 colours from one toward white, each component's inverse (0xFF less it)
-//! times a step growing from 0, rounded, made a pixel (alpha 0xFF) and added to the colour
-//! as one dword (carries cross components). As in `math::geometry`, what the x87 keeps on
-//! its stack is an `f64`: the same at the game's double precision.
+//! The marks' fade colours: 0x11 colours from one toward white, each component's inverse (0xFF less
+//! it) times a step growing from 0, rounded, made a pixel (alpha 0xFF) and added to the colour as
+//! one dword (carries cross components). As in `math::geometry`, what the x87 keeps on its stack is
+//! an `f64`: the same at the game's double precision.
 
 use crate::math::geometry::fistp64;
 
@@ -22,8 +21,8 @@ pub struct Fades {
     pub scaled: [i32; 3],
 }
 
-/// The fades of `colour` with the step growing by `growth` (`fld step; fadd growth;
-/// fstp`), each inverse times the step (`fild; fmul; fistp`).
+/// The fades of `colour` with the step growing by `growth` (stored as `f32` after each fade),
+/// each inverse times the step and rounded.
 pub fn fades(colour: u32, growth: f32) -> Fades {
     let inv = inverses(colour);
     let mut step = 0.0f32;

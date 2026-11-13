@@ -1,16 +1,7 @@
-//! The course's faces as the frame draws them: a face record is 0x40 bytes (+0 the kind
-//! and flags, +1 the object, +2 a word of switches, +4 .. +0x10 four scene points, the
-//! fourth the third's again for a triangle, +0x11 .. +0x13 and +0x30 .. +0x38 its lights,
-//! +0x20 / +0x21 the second triangle's kind and object). from
-//! `race::reset_face_lights` 0x45ED70, `face_corners` 0x452444, `face_switches` 0x45322C,
-//! `face_texture_coordinates` 0x453267 / `face_texture_coordinates_2` 0x45349F,
-//! `face_corners_to_new_points` 0x452722, `face_hide_mask` 0x456056,
-//! `gather_record_faces` 0x454C99, `gather_lamps` 0x454E08, `lay_out_course` 0x421BE3,
-//! `store_norms` 0x421F02 and the whole-number part of `store_face_normal` 0x421F72;
-//! the faces' drawing decisions, depths and materials from
-//! `race::face_depth_test_off` 0x452358, `face_depth_test_on` 0x45237A, `face_lights`
-//! 0x453715, `face_hidden` 0x454D92, `face_depth` 0x4552D8, `add_depth_entry` 0x454D2A
-//! and `face_materials` 0x45265C.
+//! The course's faces as the frame draws them: a 0x40-byte face record (+0 kind and flags, +1
+//! object, +2 switches, +4 .. +0x10 four scene points, +0x11 .. +0x13 and +0x30 .. +0x38 lights,
+//! +0x20 / +0x21 the second triangle's kind and object); its corners, switches, texture
+//! coordinates, normals, hide masks, gathering, depths and materials.
 
 use crate::Invalid;
 
@@ -21,12 +12,10 @@ pub const NO_CORNER: u32 = u32::MAX;
 /// The kind byte of the faces whose lights `reset_lights` clears (and of the lit ones).
 pub const LIT_KIND: u8 = 0xFF;
 
-/// The faces the course memory's count may give (`race::reset_face_lights`,
-/// `race::store_norms`).
+/// The faces the course memory's count may give.
 pub const MOST_FACES: u32 = 0x10_0000;
 
-/// What `race::reset_face_lights` and `race::store_norms` refuse: no faces (the
-/// original's loop tests at its end and counts round) or 0x100000 or more.
+/// Refuses a face count of none (a loop over it would count round) or 0x100000 or more.
 pub fn check_face_count(count: u32) -> Result<(), Invalid> {
     if count == 0 || count >= MOST_FACES {
         return Err(Invalid(
@@ -36,9 +25,8 @@ pub fn check_face_count(count: u32) -> Result<(), Invalid> {
     Ok(())
 }
 
-/// Where `race::lay_out_course` puts the course's parts (`course_records` ..): from the
-/// course memory + 0x100 (after its header), the 0x20-byte records, the faces, the
-/// points, what follows and its offset from the memory.
+/// Where the course layout puts the course's parts: from the course memory + 0x100, the 0x20-byte
+/// records, the faces, the points, what follows and its offset from the memory.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct CourseLayout {
     pub records: u32,
@@ -52,8 +40,7 @@ impl CourseLayout {
     /// The header's size before the records.
     pub const HEADER: u32 = 0x100;
 
-    /// `race::lay_out_course`: from the memory's address and the three counts (each
-    /// product wrapping).
+    /// Lays out from the memory's address and the three counts (products wrap).
     pub fn of(memory: u32, records: u32, faces: u32, points: u32) -> Self {
         let first = memory.wrapping_add(Self::HEADER);
         let face_at = first.wrapping_add(records.wrapping_mul(0x20));
@@ -68,7 +55,7 @@ impl CourseLayout {
         }
     }
 
-    /// The five dwords as the game keeps them.
+    /// The five dwords as the course memory keeps them.
     pub fn dwords(&self) -> [u32; 5] {
         [
             self.records,
@@ -80,14 +67,13 @@ impl CourseLayout {
     }
 }
 
-/// The faces whose normals `race::store_face_normal` stores: kinds below 0x10.
+/// The faces whose normals are stored: kinds below 0x10.
 pub fn takes_normals(kind: u8) -> bool {
     kind < 0x10
 }
 
-/// `race::store_face_normal`: whether two of the face's points (+4, +8, +0xC, and +0x10
-/// when `quad`, asked only when the first three have none alike) are the same in their
-/// low twelve bits.
+/// Whether two of the face's points (the fourth only when `quad`, asked only when the first three
+/// have none alike) are the same in their low twelve bits.
 pub fn repeated_points(points: [u32; 4], quad: impl FnOnce() -> bool) -> bool {
     let same = |x: usize, y: usize| (points[x] ^ points[y]) & 0xFFF == 0;
     same(0, 1) || same(0, 2) || same(1, 2) || (quad() && (same(0, 3) || same(1, 3) || same(2, 3)))
@@ -96,7 +82,7 @@ pub fn repeated_points(points: [u32; 4], quad: impl FnOnce() -> bool) -> bool {
 /// The switches word's bit for a face with repeated points.
 pub const REPEATED: u16 = 0x200;
 
-/// `race::store_face_normal`: the switches word (+2) with `REPEATED` set or cleared.
+/// The switches word (+2) with `REPEATED` set or cleared.
 pub fn with_repeated(word: u16, repeated: bool) -> u16 {
     if repeated {
         word | REPEATED
@@ -105,22 +91,19 @@ pub fn with_repeated(word: u16, repeated: bool) -> u16 {
     }
 }
 
-/// `race::store_face_normal`: the two triangles' points whose normals are made (+4, +8,
-/// +0xC and +0x10, +0xC, +8), and where each normal goes (+0x18, +0x30, +0x38 and +0x1C,
-/// +0x34, +0x3C).
+/// The two triangles' normal points (+4, +8, +0xC and +0x10, +0xC, +8) and where each normal
+/// goes (+0x18, +0x30, +0x38 and +0x1C, +0x34, +0x3C).
 pub const NORMAL_TRIANGLES: [([usize; 3], [u32; 3]); 2] = [
     ([0, 1, 2], [0x18, 0x30, 0x38]),
     ([3, 2, 1], [0x1C, 0x34, 0x3C]),
 ];
 
-/// `race::store_face_normal`: whether a triangle's normal is made: all three points below
-/// the scene's point count (else the work vector is stored as it was).
+/// Whether a triangle's normal is made: all three points below the scene's point count.
 pub fn normal_made(points: [u32; 3], count: u32) -> bool {
     points.iter().all(|&p| p < count)
 }
 
-/// `race::reset_face_lights`: a face of kind 0xFF gets its lights (+0x30, +0x34, +0x38
-/// and the bytes +0x11 .. +0x13) 0; the others are left.
+/// A face of kind 0xFF gets its lights (+0x30 .. +0x38 and +0x11 .. +0x13) 0; others stay.
 pub fn reset_lights(face: &mut [u8; FACE_BYTES]) {
     if face[0] == LIT_KIND {
         face[0x30..0x3C].fill(0);
@@ -128,8 +111,7 @@ pub fn reset_lights(face: &mut [u8; FACE_BYTES]) {
     }
 }
 
-/// `race::face_corners`: the face's four points as corners, the fourth `NO_CORNER` when
-/// it is the third (a triangle).
+/// The face's four points as corners, the fourth `NO_CORNER` for a triangle.
 pub fn corners(points: [u32; 4]) -> [u32; 4] {
     let mut c = points;
     if c[3] == c[2] {
@@ -138,8 +120,7 @@ pub fn corners(points: [u32; 4]) -> [u32; 4] {
     c
 }
 
-/// `race::face_switches`: 1 for each of the face's two textures that is animated (not
-/// 0), else 0.
+/// 1 for each of the face's two textures that is animated, else 0.
 pub fn switches(textures: [u32; 2]) -> [u32; 2] {
     textures.map(|t| u32::from(t != 0))
 }
@@ -166,9 +147,8 @@ pub struct Coordinates {
     pub uv: [u32; 8],
 }
 
-/// `race::face_texture_coordinates` / `_2`: the four corners' u, v from the texture's
-/// corner pairs (`pairs`, u16 each, << 8, doubled for sizes 0x190 .. 0x31F); with a
-/// mapping above 0 the corners' scene x and z (`corner_xz(k)`, asked only then) shifted by
+/// The four corners' u, v from the texture's corner pairs (`pairs`, u16 << 8, doubled for sizes
+/// 0x190 .. 0x31F); with a mapping above 0 the corners' scene x and z (`corner_xz(k)`) shifted by
 /// (mapping & 3) + 2 instead, less the first corner's top byte.
 pub fn texture_coordinates(
     info: TextureInfo,
@@ -206,12 +186,11 @@ pub fn texture_coordinates(
     }
 }
 
-/// The scene point records' mask (`race::face_corners_to_new_points`: 0x1000 records).
+/// The scene point records' mask (0x1000 records).
 pub const POINT_RECORD_MASK: u32 = 0xFFF;
 
-/// `race::face_corners_to_new_points`: the four new points after the last (`count` + 0 ..
-/// 3; all four records are marked unmade), and for each corner that is there (the fourth
-/// only when not `NO_CORNER`) the point it is copied from and the new one it then names.
+/// The four new points after the last (all marked unmade) and, for each corner that is there,
+/// the point it is copied from and the new one it then names.
 pub fn new_points(count: u32, corners: [u32; 4]) -> ([u32; 4], Vec<(u32, u32)>) {
     let marked = [0, 1, 2, 3].map(|k| count.wrapping_add(k) & POINT_RECORD_MASK);
     let copies = (0..4u32)
@@ -221,8 +200,8 @@ pub fn new_points(count: u32, corners: [u32; 4]) -> ([u32; 4], Vec<(u32, u32)>) 
     (marked, copies)
 }
 
-/// `race::face_hide_mask`: the mask from the face's switches word (+2): bits 1 and 3
-/// flipped when any is set, or'd with bits 4 and 5 likewise.
+/// The mask from the face's switches word: bits 1 and 3 flipped when any is set, or'd with bits
+/// 4 and 5 likewise.
 pub fn hide_mask(word: u16) -> u32 {
     let word = word as u32;
     let flip = |bits: u32| {
@@ -235,18 +214,18 @@ pub fn hide_mask(word: u16) -> u32 {
     flip(0xA) | flip(0x30)
 }
 
-/// Which list a gathered face goes to (`race::gather_record_faces`).
+/// Which list a gathered face goes to.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Gathered {
     /// Not gathered (a kind other than 0xFF or below 0x10).
     No,
-    /// A lit face (kind 0xFF): its object +1, the second tables.
+    /// A lit face (kind 0xFF): its object, the second tables.
     Lit,
-    /// A plain face (kind below 0x10): its object +1, or +0x21 when that is 0.
+    /// A plain face (kind below 0x10): its object, or +0x21 when that is 0.
     Plain,
 }
 
-/// `race::gather_record_faces`: how a face of `kind` is gathered (before its hidden test).
+/// How a face of `kind` is gathered (before its hidden test).
 pub fn gathered(kind: u8) -> Gathered {
     if kind == LIT_KIND {
         Gathered::Lit
@@ -257,8 +236,7 @@ pub fn gathered(kind: u8) -> Gathered {
     }
 }
 
-/// `race::gather_record_faces`: a gathered face's object: +1, for a plain face +0x21
-/// (`second`, asked only then) when +1 is 0.
+/// A gathered face's object: +1, for a plain face +0x21 when +1 is 0.
 pub fn face_object(how: Gathered, first: u8, second: impl FnOnce() -> u8) -> u32 {
     if how == Gathered::Plain && first == 0 {
         second() as u32
@@ -267,41 +245,36 @@ pub fn face_object(how: Gathered, first: u8, second: impl FnOnce() -> u8) -> u32
     }
 }
 
-/// The lamps' object (`race::gather_lamps`).
+/// The lamps' object.
 pub const LAMP_OBJECT: u32 = 0x3B;
-/// The most lamps (`g_lamps`).
+/// The most lamps.
 pub const MOST_LAMPS: u32 = 16;
-/// A lamp's third dword.
+/// A lamp's third dword: its colour.
 pub const LAMP_COLOUR: u32 = 0x00FF_FFFF;
 
-/// `race::gather_lamps`: whether a lit face of `object` becomes a lamp with `lamps` made.
+/// Whether a lit face of `object` becomes a lamp with `lamps` made.
 pub fn takes_lamp(object: u32, lamps: u32) -> bool {
     object == LAMP_OBJECT && lamps != MOST_LAMPS
 }
 
-/// `race::face_depth_test_off`: whether the depth test goes off for a face: no texture
-/// animation (`texture_a` 0) and polygon mode 4.
+/// Whether the depth test goes off for a face: no texture animation and polygon mode 4.
 pub fn depth_test_off(animation: u32, mode: u32) -> bool {
     animation == 0 && mode == 4
 }
 
-/// `race::face_depth_test_on`: whether depth writing goes back on after a face: when it
-/// was turned off (`depth_test` set). Fixed: the original's test is the wrong way round
-/// (on only when it was not turned off).
+/// Whether depth writing goes back on after a face: when it was turned off (a fixed bug: see
+/// "Course faces drawn with the last face's depth setting" in `wiki/Fixed-bugs.md`).
 pub fn depth_test_on(turned_off: u32) -> bool {
     turned_off != 0
 }
 
-/// `race::face_lights`: whether the face's corners take the lamps' light: lamps wanted
-/// (`g_lampsWanted`) and not a plain mode-4 face.
+/// Whether the face's corners take the lamps' light: lamps wanted and not a plain mode-4 face.
 pub fn corners_lit(wanted: u32, animation: u32, mode: u32) -> bool {
     wanted != 0 && !depth_test_off(animation, mode)
 }
 
-/// `race::face_hidden`: the face's switch word's bits the view hides (the shown view's
-/// `view_hides` entry 0 and `scene_set_up` set; the word asked only then): Some(bits)
-/// when it is hidden by them, None to go on to the depth test (the bits, 0, only
-/// when asked).
+/// The switch bits the view hides (asked only with the shown view's hide entry 0 and the scene
+/// set up): Some(bits) when hidden by them, None to go on to the depth test.
 pub fn hidden_by_switches(
     view_shows: u32,
     hiding: u32,
@@ -315,24 +288,23 @@ pub fn hidden_by_switches(
     }
 }
 
-/// `race::face_hidden`: hidden by depth: the depth (whole) below |x| (the sign of the
-/// difference).
+/// Hidden by depth: the depth (whole) below |x|.
 pub fn hidden_by_depth(depth: u32, x: u32) -> bool {
     (depth.wrapping_sub(x) as i32) < 0
 }
 
-/// How `race::face_depth` keys a face.
+/// How a face is keyed for the depth order.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum DepthBy {
     /// Kind 0x10 or more: its first point's depth.
     First,
-    /// Its object's record +0xE bit 1: the deepest of its four points.
+    /// Its object's flags bit 1 (record +0xE): the deepest of its four points.
     Deepest,
     /// Else the four points' sum over four.
     Average,
 }
 
-/// `race::face_depth`: how a face is keyed (the object's flags asked only below 0x10).
+/// How a face is keyed (the object's flags asked only below 0x10).
 pub fn depth_by(kind: u8, object_flags: impl FnOnce() -> u8) -> DepthBy {
     if kind >= 0x10 {
         DepthBy::First
@@ -352,12 +324,12 @@ pub fn deeper(key: u32, depth: u32) -> u32 {
     }
 }
 
-/// The average's key: the four depths' rounded sum over four (arithmetic).
+/// The average's key: the four depths' sum over four (arithmetic shift).
 pub fn average_key(sum: i32) -> u32 {
     (sum >> 2) as u32
 }
 
-/// A face's depth key (`face_depth_key`): the depth + 0x2000000, logical >> 10.
+/// A face's depth key: the depth + 0x2000000, logical >> 10.
 pub fn depth_key(depth: u32) -> u32 {
     depth.wrapping_add(0x200_0000) >> 10
 }
@@ -365,7 +337,7 @@ pub fn depth_key(depth: u32) -> u32 {
 /// The depth entries' room.
 pub const MOST_DEPTH_ENTRIES: u32 = 0x1000;
 
-/// `race::add_depth_entry`: refused past the room (the original writes past the table).
+/// Refused past the room.
 pub fn depth_entry_room(count: u32) -> Result<(), Invalid> {
     if count >= MOST_DEPTH_ENTRIES {
         return Err(Invalid("a depth entry past the 0x1000"));
@@ -373,22 +345,20 @@ pub fn depth_entry_room(count: u32) -> Result<(), Invalid> {
     Ok(())
 }
 
-/// `race::face_materials`: a triangle's kind's material bits: the low three and bit 3.
+/// A triangle's kind's material bits: the low three and bit 3.
 pub fn material_bits(kind: u8) -> (u32, u32) {
     ((kind & 7) as u32, (kind & 8) as u32)
 }
 
-/// `race::face_materials`: the animation frame's place in `face_places` (8 frames an
-/// object) from the rounded clock product (& 7).
+/// The animation frame's place in `face_places` (8 frames an object) from the clock (& 7).
 pub fn frame_place(object: u32, frame: u32) -> (u32, u32) {
     let f = frame & 7;
     (f, f + object * 8)
 }
 
-/// A course face (`CourseFace`, 0x40 bytes), its fields by name. The same bytes mean
-/// different things for the different kinds (a checkpoint face's +0xC is its next link,
-/// the fourth point's dword +0x10 shares its high bytes with the lights +0x11 .. +0x13),
-/// so the record stays its bytes and each reading is a method.
+/// A course face, its fields by name. The same bytes mean different things for different kinds
+/// (a checkpoint face's +0xC is its next link, the fourth point's dword shares its high bytes
+/// with the lights), so the record stays its bytes and each reading is a method.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Face(pub [u8; FACE_BYTES]);
 
@@ -407,8 +377,7 @@ impl Face {
         u32::from_le_bytes(self.0[at..at + 4].try_into().unwrap_or_default())
     }
 
-    /// The dword at byte `at`, for code that takes the field's offset from a table (the
-    /// ground search's corners and edges).
+    /// The dword at byte `at`, for code that takes the field's offset from a table.
     pub fn dword_at(&self, at: u32) -> u32 {
         self.0
             .get(at as usize..)
@@ -435,7 +404,7 @@ impl Face {
         self.0[2..4].copy_from_slice(&word.to_le_bytes());
     }
 
-    /// +4 + 4 `n`: point `n` (0 .. 3) of the scene points.
+    /// +4 + 4 `n`: point `n` (0 ..= 3) of the scene points.
     pub fn point(&self, n: usize) -> u32 {
         self.dword(4 + 4 * (n & 3))
     }
@@ -481,7 +450,7 @@ impl Face {
         self.0[0x11] = mark;
     }
 
-    /// +0x14 + `k`: corner `k`'s (0 .. 3) colour, an index of the light table.
+    /// +0x14 + `k`: corner `k`'s (0 ..= 3) colour, an index of the light table.
     pub fn corner_light(&self, k: usize) -> u8 {
         self.0[0x14 + (k & 3)]
     }
@@ -491,8 +460,7 @@ impl Face {
         self.0[0x22 + (k & 3)]
     }
 
-    /// +0x28 + `k`: corner `k`'s colour on a two-sided face's back (the bytes `lamps` reads
-    /// for a face with extra lights).
+    /// +0x28 + `k`: corner `k`'s colour on a two-sided face's back.
     pub fn back_light(&self, k: usize) -> u8 {
         self.0[0x28 + (k & 3)]
     }

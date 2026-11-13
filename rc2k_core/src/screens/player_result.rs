@@ -1,7 +1,6 @@
-//! The current player's result pages: `screens::draw_player_stage_result`
-//! 0x486299 (a championship stage) and `screens::draw_player_rally_result` (the rally's).
-//! Each: labels, the times heading of another family (drawn by the caller's closure, in
-//! its place), the player's values, the nationality's and the car's sprites.
+//! The current player's result pages (a championship stage and the rally's). Each: labels,
+//! the times heading of another family (drawn by the caller's closure, in its place), the
+//! player's values, the nationality's and the car's sprites.
 
 use crate::screens::best_scores::{car_glyph, flag_glyph};
 use crate::screens::screen::Screen;
@@ -9,13 +8,11 @@ use crate::strings::format::{Pad, decimal, time};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Font {
-    /// `FontObjects.objects[26].first_char`.
     Labels,
-    /// `FontObjects.objects[25].first_char`.
     Values,
-    /// `FontObjects.objects[20].first_char`: the stage page measures the name with it.
+    /// The stage page measures the name with it.
     Measure,
-    /// `FontObjects.objects[15].first_char`: the rally page's name.
+    /// The rally page's name.
     Name,
 }
 
@@ -26,22 +23,20 @@ pub enum Work {}
 /// The other family's heading, drawn in its place.
 pub type Heading<'a, S> = &'a mut dyn FnMut(&mut S) -> Result<(), <S as Screen>::Error>;
 
-/// The player as the pages show them.
 #[derive(Clone, Debug)]
 pub struct Player<T> {
     pub name: T,
     pub nation: u32,
     pub car: u32,
-    /// +0x88, hundredths.
+    /// Hundredths.
     pub time: u32,
     /// The top speed as formatted (no NUL).
     pub speed: Vec<u8>,
 }
 
-/// The stage page: labels 0x206 .. 0x208, the heading, the time and the speed at x 0x1FE,
-/// the nationality's sprite (palette where the speed ended), the name at 0x221, and the
-/// car's sprite after the name (its width measured in `Measure`; the palette the line
-/// count the measuring leaves).
+/// The stage page: labels 0x206 .. 0x208, the heading, the time and the speed at x 0x1FE, the
+/// nationality's sprite, the name at 0x221 and the car's sprite after it (the name's width
+/// measured in `Measure`).
 pub fn stage_result<S: Screen<Font = Font, Work = Work>>(
     s: &mut S,
     heading: Heading<S>,
@@ -75,20 +70,20 @@ const RALLY_LABELS: [(u32, i32, i32, Font); 7] = [
 /// A player time of 0x980000: none (string 0x513).
 pub const NO_TIME: u32 = 0x98_0000;
 
-/// The rally page's figures (`Results.positions[0]`, `Results.time_bonus[0]`, and the six at x 0x21C).
+/// The rally page's figures (`Results.positions[0]`, `Results.time_bonus[0]`, and the six at x
+/// 0x21C).
 #[derive(Clone, Copy, Debug)]
 pub struct RallyFigures {
     pub position: u32,
     pub best: u32,
-    /// `Results.points[0]`, `Results.time_bonus[0]`, `Results.extra[0]`, `Results.sums[0]`, `Results.before[0]`,
-    /// `Results.totals[0]`, as numbers.
+    /// `Results.points[0]`, `Results.time_bonus[0]`, `Results.extra[0]`, `Results.sums[0]`,
+    /// `Results.before[0]`, `Results.totals[0]`, as numbers.
     pub column: [u32; 6],
 }
 
 /// The rally page: labels, heading, the position, the time (or string 0x513), the best time
-/// and the speed, the six numbers at x 0x21C, the nationality's sprite (palette where the
-/// last number ended), the name in `Name` at 0x168 and the car's sprite at 0x1FE (palette
-/// where the name ended).
+/// and the speed, the six numbers at x 0x21C, the nationality's sprite, the name in `Name` at
+/// 0x168 and the car's sprite at 0x1FE.
 pub fn rally_result<S: Screen<Font = Font, Work = Work>>(
     s: &mut S,
     heading: Heading<S>,

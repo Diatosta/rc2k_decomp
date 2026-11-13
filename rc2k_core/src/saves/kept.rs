@@ -1,14 +1,8 @@
-//! The two files the game keeps between runs (from `saves::load_options`
-//! 0x4AAB32, `save_options` 0x4AAE57, `load_best_times` 0x4AB155, `save_best_times`
-//! 0x4AB236): each begins with a head of 0x10 bytes, its four letters, 0, the version
-//! 0x50004 and the time it was written. `var\ral.dat` ("R5CI") then has the 69 pieces of
-//! the options one after the other and "####"; `var\hst.dat` ("R5HS") the six best times'
-//! tables. A car setup, `savedata\carsetup\carsetNN` ("CRSU", version 0x50000, from
-//! `service::write_setup_slot` 0x4AB378 / `read_setup_slot` 0x4AB31E), is 0x48 bytes: the
-//! head, the slot's name (0x20 bytes) and six values. A saved game ("R5SG", 0x51122,
-//! `saves::write_savegame_slot` 0x4AB558 / `read_savegame_slot` 0x4AB4FE) and a replay's
-//! head ("REPL", 0x50400, `saves::read_replay_slot` 0x41ECAD) have the slot's name at +0x10
-//! too.
+//! The files the game keeps between runs, each beginning with a 0x10-byte head (four letters, 0,
+//! the version, the time written): `var\ral.dat` ("R5CI", 0x50004: 69 option pieces and
+//! "####"), `var\hst.dat` ("R5HS": the six best-times tables), car setups ("CRSU", 0x50000:
+//! 0x48 bytes), saved games ("R5SG", 0x51122) and replay heads ("REPL", 0x50400). Setups, saves
+//! and replays carry the slot's name at +0x10.
 
 use crate::Invalid;
 
@@ -30,16 +24,14 @@ pub fn head(letters: [u8; 4], time: u32) -> [u8; HEAD_LEN] {
     h
 }
 
-/// Whether `block` begins with a head of these letters and the version (the 0 and the
-/// time not looked at).
+/// Whether `block` begins with a head of these letters and the version (the 0 and the time not
+/// looked at).
 pub fn head_ok(block: &[u8], letters: [u8; 4]) -> bool {
     block.len() >= HEAD_LEN && block[..4] == letters && block[8..12] == VERSION.to_le_bytes()
 }
 
-/// The options' pieces as `block` (what was read, and what the block held past it) has
-/// them after the head, of the sizes given; and whether "####" follows them (else the
-/// game's fatal error 0x80ACFF01, "ral.dat out of date", once they are copied). Refused: a
-/// block too short for them.
+/// The options' pieces of the given sizes after the head, and whether "####" follows them
+/// (else fatal error 0x80ACFF01 "ral.dat out of date"). Refused: a block too short.
 pub fn pieces<'a>(block: &'a [u8], sizes: &[usize]) -> Result<(Vec<&'a [u8]>, bool), Invalid> {
     let total: usize = sizes.iter().sum();
     if block.len() < HEAD_LEN + total + 4 {
@@ -100,13 +92,13 @@ pub const SAVEGAME_VERSION: u32 = 0x5_1122;
 pub const REPLAY: [u8; 4] = *b"REPL";
 pub const REPLAY_VERSION: u32 = 0x5_0400;
 
-/// The name of a slot's file (at +0x10), if its head has these letters and version.
+/// The slot's name (at +0x10), if the head has these letters and version.
 pub fn slot_name(file: &[u8], letters: [u8; 4], version: u32) -> Option<[u8; SETUP_NAME_LEN]> {
     (file.len() >= 0x30 && head_ok_with(file, letters, version))
         .then(|| file[0x10..0x30].try_into().unwrap())
 }
 
-/// A slot's head and name, the first 0x30 bytes of its file.
+/// A slot's head and name, the first 48 bytes of its file.
 pub fn slot_head(
     letters: [u8; 4],
     version: u32,
@@ -142,8 +134,7 @@ mod tests {
         assert_eq!((setup_name(&f), f[0x44]), (Some([b'n'; 0x20]), 6));
     }
 
-    /// The heads and the car setup file of varied values, as they were when the files were
-    /// first kept (a checksum of each).
+    /// The heads and setup file of varied values, as first kept (a checksum of each).
     #[test]
     fn heads_and_setup_file_are_unchanged() {
         let checksum = |bytes: &[u8]| {

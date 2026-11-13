@@ -1,7 +1,6 @@
-//! `drive::animate_stage` (0x45E9CA): `drive::animate_lit_faces`, then `physics::move_slots`.
+//! `drive::animate_lit_faces`, then `physics::move_slots`.
 //!
-//! Callers: race init's loop (`drive::race_cars_step`, 0x46093E) and `drive::replay_step`. Refuses
-//! what the two refuse; what was written before a refusal is put back first.
+//! Refuses what the two refuse; what was written before a refusal is put back first.
 
 use crate::drive::animate_lit_faces::animate_lit_faces;
 use crate::errors::Refused;

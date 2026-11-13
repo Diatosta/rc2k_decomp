@@ -1,16 +1,13 @@
-//! The two stream commands (from `audio::stream_command` 0x40C194,
-//! command 9, the sound stream, and `audio::music_command` 0x40C4DD, command 0xB, the
-//! music). Actions (unsigned): 0 stop; 1 the thread's turn (feed while playing; stopped
-//! after it: stop, and for the music the next tune); 3 the volume of what plays; any other
-//! plays (stopped first if playing; nothing for a volume <= 0 or, the music, with no
-//! music; a stop for no path or tune).
+//! The two stream commands. Actions (unsigned): 0 stop; 1 the thread's turn (feed while playing;
+//! stopped after it: stop, and for the music the next tune); 3 the volume of what plays; any other
+//! plays (stopped first if playing; nothing for a volume <= 0 or, the music, with no music; a stop
+//! for no path or tune).
 //!
-//! Music tunes: the file is the music path with the tune's two last digits; tune 0xA is
-//! the tune turn plus 10, for the first turn (counted on, 0 .. 5) whose file exists. When a tune
-//! stops the next tune is played, never cleared there: the second tune repeats. Fixed
-//! (see the game's own bugs): a turn past 5 starts from 0, and after `RETRIES` plays
-//! in a row that stop at their first feed the music stops (the original: both for ever,
-//! the audio thread hung).
+//! Music tunes: the file is the music path with the tune's two last digits; tune 0xA is the tune
+//! turn plus 10, for the first turn (counted on, 0 .. 5) whose file exists. When a tune stops the
+//! next tune is played, never cleared there: the second tune repeats. Fixed (both used to go on
+//! for ever and hang the audio thread): a turn past 5 starts from 0, and after `RETRIES` plays in
+//! a row that stop at their first feed the music stops.
 
 /// A stream player and what it is told.
 pub trait Player {
@@ -79,7 +76,7 @@ pub trait Tunes: Player {
     fn gave_up(&mut self, tune: u32);
 }
 
-/// The music's variables (`g_nextTune`, `g_noMusic`, `g_tuneTurn`).
+/// The music's variables.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Music {
     pub next_tune: u32,
@@ -185,10 +182,9 @@ pub fn music_command<P: Tunes>(
     }
 }
 
-/// What a looping buffer's play cursor moved over since the last turn (from `old` to
-/// `new`, round a buffer of `size`), at most `most`: None when it has not moved; else the
-/// bytes, and when they were cut the write place put that far ahead of the cursor. The
-/// streams' (`audio::feed_stream`) and the mixer's (`audio::mix` 0x40BDC5) rule.
+/// What a looping buffer's play cursor moved over since the last turn, at most `most`: None when it
+/// has not moved; else the bytes, and when they were cut the write place put that far ahead of the
+/// cursor. The streams' (`audio::feed_stream`) and the mixer's (`audio::mix`) rule.
 pub fn cursor_moved(old: u32, new: u32, size: u32, most: u32) -> Option<(u32, Option<u32>)> {
     let mut moved = new.wrapping_sub(old);
     if (moved as i32) < 0 {
@@ -212,14 +208,12 @@ pub fn round(at: u32, size: u32) -> u32 {
     }
 }
 
-/// A stream player (`g_soundStream` 0x506960, `g_musicStream` 0x506990): a WAV file
-/// played through a looping buffer refilled each turn (from
-/// `audio::feed_stream` 0x40C349 and `audio::fill_stream_part` 0x40C42C).
+/// A stream player: a WAV file played through a looping buffer refilled each turn.
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct AudioStream {
     pub playing: u32,
-    /// An index into `g_volumeTable`.
+    /// An index into the volume table.
     pub volume: u32,
     pub buffer: u32,
     /// 1: `file` is open.
@@ -253,8 +247,8 @@ impl AudioStream {
         Some(moved)
     }
 
-    /// The ring set up for a file just opened (`audio::start_stream` 0x40C1EA): the write place and the tail of silence `step` ahead, the play cursor
-    /// at 0, the file's format kept.
+    /// The ring set up for a file just opened (`audio::start_stream`): the write place and the tail
+    /// of silence `step` ahead, the play cursor at 0, the file's format kept.
     pub fn start_ring(&mut self, format: u32) {
         self.write_at = self.step;
         self.play_cursor = 0;
@@ -262,9 +256,8 @@ impl AudioStream {
         self.format = format;
     }
 
-    /// The player stopped (`audio::stop_stream` 0x40C468): not
-    /// playing, its buffer and its open file forgotten; what to stop and release, what to
-    /// close.
+    /// The player stopped (`audio::stop_stream`): not playing, its buffer and its open file
+    /// forgotten; what to stop and release, what to close.
     pub fn stop(&mut self) -> (Option<u32>, Option<u32>) {
         self.playing = 0;
         let buffer = (self.buffer != 0).then_some(self.buffer);

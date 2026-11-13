@@ -1,8 +1,6 @@
-//! The depth a face is sorted by (from `scene::face_sort_key`
-//! 0x450564): its points' depths (each point's record 0x1000 + its number's low 12 bits,
-//! +0x18) added one by one, each sum stored as a float, times one over the vertices
-//!, rounded to a whole number. As in `math::geometry`, what the x87 keeps on
-//! its stack is an `f64`: the same at the game's double precision.
+//! The depth a face is sorted by: its points' depths (each point's record 0x1000 + its
+//! number's low 12 bits, +0x18) added one by one, each sum stored as a float, times one over
+//! the vertices, rounded to a whole number (`f64` intermediates).
 
 use crate::Invalid;
 use crate::math::geometry::fistp64;
@@ -12,8 +10,8 @@ pub const FACTORS: u32 = 0x100;
 /// The most points a face's key is made from (the records' second half).
 pub const MOST_POINTS: u32 = 0x1000;
 
-/// Refuses no face, no records, a count of 0 (the original goes through 2^32) or past the
-/// records, and a vertex count past the factors.
+/// Refuses no face, no records, a count of 0 or past the records, and a vertex count past
+/// the factors.
 pub fn check(face: bool, records: bool, count: u32, vertices: u32) -> Result<(), Invalid> {
     if !face || !records || count == 0 || count > MOST_POINTS || vertices >= FACTORS {
         return Err(Invalid(
@@ -28,8 +26,7 @@ pub fn record_offset(point: u32) -> u32 {
     ((point & 0xFFF) + 0x1000) << 5
 }
 
-/// The key: the depths summed (`fld depth; fadd sum; fstp sum`, from 0), times the factor
-/// (`fistp`).
+/// The depths summed (each sum stored as a float), times the factor, rounded to a whole number.
 pub fn key(depths: impl IntoIterator<Item = f32>, factor: f32) -> i32 {
     let sum = depths
         .into_iter()

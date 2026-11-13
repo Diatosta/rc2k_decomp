@@ -1,15 +1,12 @@
-//! The menu's buttons: a left end, a run of 32-pixel middle pieces and a right end, all sprites of
-//! `g_spriteTable`. Three functions of the game draw them, alike but for the sprites they take, the
-//! work variables they use and two slips (see `Kind`); and five small ones choose among them for a
-//! menu item.
+//! The menu's buttons: a left end, a run of 32-pixel middle pieces and a right end, all sprites
+//! of the sprite table. Three drawers differ in the sprites they take, the work variables they use
+//! and two slips kept as is (see `Kind`); five small ones choose among them for a menu item.
 //!
-//! A button is drawn from an x by its alignment: 2 = x is its left edge, 3 = x is where its
-//! right end piece goes, 1 = x is its middle. Its width is that of the middle pieces. Any
-//! other alignment is fatal error 0x8070202n "Invalid Active Vbutt Align Tag", and a width of
-//! 0 is fatal error 0x80701010 (after the first piece is drawn).
-//! The sprites come from the five dwords the item's +0x20 points at: +0 and +4 the plain
-//! ends, +8 and +0xC the highlighted ends, +0x10 the middle. Every piece is blitted with the
-//! button's x as its palette (leftover ebx): these sprites do not use one.
+//! A button is drawn from an x by its alignment: 2 = x is its left edge, 3 = x is where its right
+//! end piece goes, 1 = x is its middle. Any other alignment is fatal error 0x8070202n "Invalid
+//! Active Vbutt Align Tag", and a middle width of 0 is fatal error 0x80701010 (after the first
+//! piece is drawn). The item's sprites are the plain ends, the highlighted ends and the middle.
+//! The palette passed with every piece is the button's x: these sprites do not use one.
 
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::gfx::blit_bar::BAR_HAS_NO_LENGTH;
@@ -72,7 +69,7 @@ fn alt_work(menus: &Menus) -> Work<'_> {
 
 const BAD_ALIGN: &str = "Invalid Active Vbutt Align Tag";
 
-/// `screens::draw_button` (0x4688A1).
+/// The plain button (with the right-aligned slips kept: `slips`).
 pub const PLAIN: Kind = Kind {
     left_at: 0,
     right_at: 1,
@@ -85,7 +82,7 @@ pub const PLAIN: Kind = Kind {
     },
 };
 
-/// `screens::draw_button_highlighted` (0x468BBE).
+/// The highlighted button.
 pub const HIGHLIGHTED: Kind = Kind {
     left_at: 2,
     right_at: 3,
@@ -97,7 +94,7 @@ pub const HIGHLIGHTED: Kind = Kind {
     ..PLAIN
 };
 
-/// `screens::draw_button_alt` (0x468EDD).
+/// The alternative button, on its own work variables (but see `borrows`).
 pub const ALT: Kind = Kind {
     left_at: 0,
     right_at: 1,
@@ -130,7 +127,7 @@ pub fn draw_button(
     let list = match set {
         ItemSprite::List(n) => &menus.panels.item_sprites.lists[n],
         ItemSprite::Sprite(0) => return Err(BadInput("a button without sprites").into()),
-        // The original reads the five numbers at the sprite number as at an address.
+        // A sprite number where the item should point at a list of five is refused.
         ItemSprite::Sprite(_) => return Err(BadInput("a button's sprites at no list").into()),
     };
     let sprites = [
@@ -145,7 +142,8 @@ pub fn draw_button(
     work.left.set(sprites[0]);
     work.right.set(sprites[1]);
     menus.screens.draw_work.middle.set(sprites[2]);
-    // The logic is in `rc2k_core::screens::buttons::draw`; the pieces blitted from the sprite table.
+    // The logic is in `rc2k_core::screens::buttons::draw`; the pieces blitted from the sprite
+    // table.
     use rc2k_core::screens::buttons::{Borrowed, Error};
     let plain = plain_work(menus);
     let borrowed = Borrowed {
@@ -180,8 +178,8 @@ pub fn draw_button(
 
 // ---- the five that choose for an item ----
 
-/// `screens::draw_item_button` (0x469283): the button an item describes itself (width at
-/// +8, alignment at +0xC), highlighted if the item is.
+/// The button an item describes itself (width at +8, alignment at +0xC), highlighted if the
+/// item is.
 pub fn draw_item_button(
     menus: &Menus,
     item: &crate::menu::menus_store::MenuItem,
@@ -199,10 +197,9 @@ pub fn draw_item_button(
     )
 }
 
-/// The other four: a button as wide as the item's text, measured with the item's font at
-/// +0x4C, plus 12. The original measures from whatever x its caller left in ecx; a measured
-/// width does not depend on it, so it is measured from 0. Refused: a measuring font that
-/// does not only measure (it would draw the text at that x).
+/// The other four: a button as wide as the item's text (measured with the item's font) plus
+/// 12. The text is measured from x 0, as its width does not depend on x. Refused: a measuring
+/// font that does not only measure (it would draw the text at that x).
 pub fn draw_text_button(
     o: crate::owners::Owners<'static>,
     kind: &Kind,

@@ -1,4 +1,4 @@
-//! `menu::reset_player_totals` (0x471FB8): the counted players' (`event.player_count`) +0x8C and
+//! `menu::reset_player_totals`: the counted players' (`event.player_count`) +0x8C and
 //! +0x88 3600000.
 //!
 //! Refuses a player count of 0 or past 4 or a missing player, before
@@ -8,7 +8,6 @@ use crate::menu::owner::Menus;
 use crate::menu::standings::*;
 
 pub fn reset_player_totals(menus: &Menus) -> Result<(), Refused> {
-    // The logic is in `rc2k_core::menu::player::Player::reset_totals`.
     for p in counted_players(menus)? {
         p.update(rc2k_core::menu::player::Player::reset_totals);
     }

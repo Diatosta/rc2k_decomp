@@ -1,16 +1,13 @@
-//! `service::edit_setup_name` (0x46F1A9): one step of typing the name of a setup slot on the
-//! "save setup" screen; Enter saves the setup.
+//! One step of typing the name of a setup slot on the "save setup" screen; Enter saves the setup.
 //!
-//! The name is the highlighted slot's entry in the slot list, with the text entry's cursor (string
-//! 4) appended while typing. One pending key is taken: none the cursor is written again; 1 (Escape)
-//! the name from before comes back, the entry ends; 0x1C (Enter) an empty name is replaced by the
-//! one from before; the entry ends, the name is cut at its length and `write_setup_slot` saves the
-//! slot (whether that worked is not looked at); 0x6E the name is cleared; 0x0E the last character
-//! goes (`backspace_setup_name`); any other `key_to_char`; a character is appended unless the
-//! length is already above the maximum (`text_max`), and taken off again if the name then
-//! measures 0xEC pixels or more in the font at 0x51E824. Called from the screen loop
-//! `menu::save_setup_loop` while `typing` is set. Refuses, before the key is taken: a slot past
-//! 99, a length outside 0 .. 0x1F, no car object, no keyboard layout.
+//! The name is the highlighted slot's entry in the slot list, with the text entry's cursor
+//! appended while typing. One pending key is taken: none, the cursor is written again; Escape,
+//! the name from before comes back and the entry ends; Enter, an empty name is replaced by the
+//! one from before, the entry ends and `write_setup_slot` saves the slot; 0x6E clears the name;
+//! 0x0E takes the last character off; any other key appends its character unless the length is
+//! at the maximum, and takes it off again if the name then measures 0xEC pixels or more.
+//! Called from `menu::save_setup_loop` while `typing` is set. Refuses, before the key is taken:
+//! a slot past 99, a length outside 0 .. 0x1F, no car object, no keyboard layout.
 
 use crate::errors::{BadInput, Refused};
 use crate::input::key_to_char::{has_layout, key_to_char};
@@ -30,12 +27,8 @@ use crate::strings::append_string_by_id::push_string;
 use crate::text::draw_text::Canvas;
 use crate::text::measure_text::measure_text_at;
 
-// ---- game data ----
-
 const CURSOR_STRING: u32 = 4;
 const MEASURING_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::MEASURE;
-
-// ---- Rust version ----
 
 /// Writes the cursor and a NUL after the name's `len` characters.
 fn put_cursor(
@@ -80,7 +73,6 @@ pub fn edit_setup_name(
     }
 
     let key = take_key(input);
-    // Converted: `rc2k_core::menu::text_entry` (`key`, `appends`, `too_wide`).
     use rc2k_core::menu::text_entry::{self as entry, Key};
     match entry::key(key) {
         Key::None => {}

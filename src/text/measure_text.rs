@@ -1,11 +1,7 @@
-//! `text::measure_text` (0x40230B): runs `draw_text` with the font's two result fields zeroed
-//! first, and returns them.
-//!
-//! Takes: font, text, x
-//! With a font in measure mode nothing is drawn, +0x14 counts the lines and +0x1C is the
-//! width of the widest one, which is what its twelve callers want. The y passed on is the
-//! font's dword at +8. With any other font it would draw, with a null palette: reproduced as
-//! it is.
+//! Runs `draw_text` with the font's two result fields zeroed first, and returns them.
+//! With a font in measure mode nothing is drawn, +0x14 counts the lines and +0x1C is the width of
+//! the widest one. The y passed on is the font's dword at +8. Any other font would draw, with a
+//! null palette: kept as it is.
 
 use crate::errors::Refused;
 use crate::gfx::glyph_store;
@@ -23,8 +19,7 @@ pub struct Measured {
     pub width: u32,
 }
 
-/// `font` is changed as the original changes the font object. Converted:
-/// `rc2k_core::text::measure`.
+/// `font` is updated as `draw_text` updates it.
 pub fn measure_text(
     font: &mut Font,
     text: &(impl Bytes + ?Sized),
@@ -50,9 +45,9 @@ pub fn measure_text(
     })
 }
 
-/// The font `font`, refused unless it only measures (`MODE_MEASURE`): then a measured width
-/// does not depend on the x the measuring starts from, so callers whose original hands
-/// whatever x its caller left measure from 0. A font in another mode would draw the text.
+/// The font `font`, refused unless it only measures (`MODE_MEASURE`): then a measured width does
+/// not depend on the x the measuring starts from, so callers measure from 0. A font in another mode
+/// would draw the text.
 pub fn only_measures(
     font: crate::gfx::typefaces::FontId,
     typefaces: &'static crate::gfx::typefaces::FontObjects,
@@ -63,8 +58,8 @@ pub fn only_measures(
     Ok(font.into())
 }
 
-/// For Rust callers, with a font object in game memory: the object is only written if the
-/// canvas keeps font changes.
+/// For Rust callers, with a font object in game memory: the object is only written if the canvas
+/// keeps font changes.
 pub fn measure_text_at(
     font: impl Into<FontRef>,
     text: &(impl Bytes + ?Sized),

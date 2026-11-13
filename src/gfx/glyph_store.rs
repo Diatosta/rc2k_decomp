@@ -1,28 +1,24 @@
-//! The fonts' and the sprites' palettes and glyph tables, Rust's (the font model).
-//! The game carved them from heap blocks (`build_fonts`, `build_game_fonts`,
-//! `build_glyphs`, `build_menu_sprites`, the installer's bar glyphs) and held their
-//! addresses in the font objects (+0x14 palette, +0x18 glyph table), the sprite tables'
-//! variables and the screens' palettes. Here each is bytes of its own, named by a place
-//! below 0x10000, where no game address lies:
-//! - a palette (0x400 bytes, 256 pixels): `id << 10 | offset`, ids 1 .. 15, so a place in
-//!   it (the fonts' `palettes + 0x180`) is the palette's number plus the offset, as the
-//!   address was;
+//! The fonts' and the sprites' palettes and glyph tables, held by Rust (the font model).
+//!
+//! Each is bytes of its own, named by a place below 0x10000, where no game address lies:
+//! - a palette (0x400 bytes, 256 pixels): `id << 10 | offset`, ids 1 .. 15, so a place in it (the
+//!   fonts' `palettes + 0x180`) is the palette's number plus the offset;
 //! - the blended font's palette (`BLENDED_PLACE`, id 16): the bytes of
 //!   `text::blend_font::BLENDED_PALETTE`, which the installer's bar shares;
-//! - the replay viewer's panel fonts' palette (`VIEWER_PALETTE`, id 17), the store's own,
-//!   zeroed on first use and never given back;
+//! - the replay viewer's panel fonts' palette (`VIEWER_PALETTE`, id 17), the store's own, zeroed
+//!   on first use and never given back;
 //! - the loading font's palette (`SHEET_PLACE`, id 18, font 56): the bytes of
 //!   `FontBlock.palette_sheet`, which `gfx::build_fonts` fills;
 //! - a glyph table: `TABLE_FIRST + id`, growing as sheets are appended;
-//! - the jade font (`JADE`, read only): its glyph table at `JADE`, its colour at
-//!   `JADE_COLOUR`, the bytes of `JadeFont` on from each.
+//! - the jade font (`JADE`, read only): its glyph table at `JADE`, its colour at `JADE_COLOUR`,
+//!   the bytes of `JadeFont` on from each.
 //!
-//! Every glyph table and palette a font object holds is such a place (or 0, none, or a
-//! counter in the measuring mode); no font object holds a game address.
+//! Every glyph table and palette a font object holds is such a place (or 0, none, or a counter in
+//! the measuring mode); no font object holds a game address.
 //!
-//! The lists keep their counts (`memory::owned::count_on` in place of `allocate`, the
-//! cursor carved as before): running out is the original's fatal error at the same point.
-//! What lies on a list is given back by its `free_list`.
+//! The lists keep their counts (`memory::owned::count_on`, the cursor carved as the game's
+//! allocator did): running out is a fatal error at the same point. What lies on a list is given
+//! back by its `free_list`.
 
 use crate::errors::BadInput;
 use crate::gfx::jade_store::JadeFont;
@@ -96,8 +92,8 @@ fn slot(s: &mut Store, place: u32) -> Option<(&mut Arc<Vec<u8>>, usize)> {
     }
 }
 
-/// A new palette, zeroed, counted on nothing (the caller has carved its bytes off `list`):
-/// its place. Refused when all fifteen are held.
+/// A new palette, zeroed, counted on nothing (the caller has carved its bytes off `list`): its
+/// place. Refused when all fifteen are held.
 pub fn new_palette(list: &crate::memory::ListCells) -> Result<u32, BadInput> {
     let mut s = store();
     let id = (1..FIRST_FIXED_PALETTE)
@@ -199,10 +195,9 @@ fn cell_palette_byte(cells: &[crate::session::PlainDword; 256], at: usize) -> Op
     Some(cell.get().to_le_bytes()[at % 4])
 }
 
-/// Byte `at` of the jade font's fields in the order the original keeps them (the glyph table,
-/// the colour, the file name), read from the cells. A glyph read from the file's offsets runs
-/// on from the table into the colour and the name, as in the original; what follows the name
-/// there is other data, so the read ends.
+/// Byte `at` of the jade font's fields in the order the game keeps them (the glyph table, the
+/// colour, the file name), read from the cells. A glyph read from the file's offsets runs on from
+/// the table into the colour and the name; what follows the name is other data, so the read ends.
 fn jade_byte(jade: &JadeFont, at: usize) -> Option<u8> {
     let colour = JADE_GLYPHS;
     let name = colour + 4;
@@ -296,8 +291,8 @@ pub fn read_bytes(
         .ok_or(BadInput("a read past a palette or glyph table"))
 }
 
-/// `bytes` written at `place` + `at`; a table grows to take them, a palette refuses a
-/// write past its end.
+/// `bytes` written at `place` + `at`; a table grows to take them, a palette refuses a write past
+/// its end.
 pub fn write_bytes(
     fonts: &FontStores,
     place: u32,
