@@ -93,16 +93,18 @@ fn turn_skid_point(
             return Err(BadInput("a skidmark point past the table"));
         }
         let lift = ctx.reads.shadow_skids.skid_lift.get();
-        use crate::math::x87_float::{int, ld, st};
-        let point = [
-            int(points.get_u32(at) as i32),
-            int(points.get_u32(at + 4) as i32) + ld(lift),
-            int(points.get_u32(at + 8) as i32),
-        ];
-        let t = crate::scene::rotate_point::turned(&matrix[..], point);
+        use crate::math::x87_float::{Rounds, at_rounding};
+        let turned = at_rounding!(|r| {
+            let point = [
+                r.int(points.get_u32(at) as i32),
+                r.int(points.get_u32(at + 4) as i32) + r.ld(lift),
+                r.int(points.get_u32(at + 8) as i32),
+            ];
+            crate::scene::rotate_point::turned(r, &matrix[..], point).map(|v| r.st(v))
+        });
         // Only +0xC .. +0x20 are written; the projection reads +0x10 .. +0x18.
         let mut made = [0u32; 8];
-        made[4..7].copy_from_slice(&t.map(st));
+        made[4..7].copy_from_slice(&turned);
         if !crate::math::x87::below_or_unordered(made[6], &ctx.reads.numbers.k4096_a) {
             project_record(
                 ctx.reads.stage_prefs,

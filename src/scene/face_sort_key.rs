@@ -37,10 +37,13 @@ pub fn face_sort_key(
         return Err(BadInput("no face, no records, or a count the key cannot be made for").into());
     }
     let mut sum = 0f32.to_bits();
-    for &point in &points[..count as usize] {
-        let record = crate::scene::point_records::of_object_point(point);
-        sum = x87::add(crate::scene::point_records::field(part, record, 0x18)?, sum).to_bits();
-    }
+    crate::math::x87_float::at_rounding!(|r| {
+        for &point in &points[..count as usize] {
+            let record = crate::scene::point_records::of_object_point(point);
+            let depth = crate::scene::point_records::field(part, record, 0x18)?;
+            sum = x87::add_with(r, depth, sum).to_bits();
+        }
+    });
     let factor = lists.face_key_factors[vertices as usize].get();
     poly.face_sort_key.set(x87::mul_to_int(sum, factor) as u32);
     Ok(())

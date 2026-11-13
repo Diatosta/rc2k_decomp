@@ -13,7 +13,7 @@
 //! Refuses when there is no face or no records.
 
 use crate::errors::{BadInput, FatalError, Refused};
-use crate::math::x87_float::{X, compare, ld, st};
+use crate::math::x87_float::{Rounds, at_rounding};
 
 // ---- game data ----
 
@@ -40,8 +40,13 @@ impl Triangle {
     /// The x87's arithmetic in its order, each value stored as a float where the original
     /// stores it (`fstp dword`) and read back from there.
     fn of(places: [[u32; 3]; 3]) -> Triangle {
-        let p = places.map(|point| point.map(ld));
-        let side = |axis: usize, to: usize| st(p[to][axis] - p[0][axis]);
+        at_rounding!(|r| Triangle::of_with(r, places))
+    }
+
+    /// `of` at the rounding `r`.
+    fn of_with<R: Rounds>(r: R, places: [[u32; 3]; 3]) -> Triangle {
+        let p = places.map(|point| point.map(|v| r.ld(v)));
+        let side = |axis: usize, to: usize| r.st(p[to][axis] - p[0][axis]);
         let sides = [
             side(0, 1),
             side(0, 2),
@@ -50,14 +55,14 @@ impl Triangle {
             side(2, 1),
             side(2, 2),
         ];
-        let [ax, bx, ay, by, az, bz] = sides.map(ld);
+        let [ax, bx, ay, by, az, bz] = sides.map(|v| r.ld(v));
         // The side to the third point times the side to the second.
         let cross = [
-            st(bz * ay - by * az),
-            st(bx * az - bz * ax),
-            st(by * ax - bx * ay),
+            r.st(bz * ay - by * az),
+            r.st(bx * az - bz * ax),
+            r.st(by * ax - bx * ay),
         ];
-        let c = cross.map(ld);
+        let c = cross.map(|v| r.ld(v));
         let product = p[0][0] * c[0] + (p[0][1] * c[1] + p[0][2] * c[2]);
         let mut work = [0; 15];
         work[..9].copy_from_slice(places.as_flattened());
@@ -65,7 +70,7 @@ impl Triangle {
         Triangle {
             work,
             cross,
-            status: compare(X(0.0), product),
+            status: r.compare(r.of(0.0), product),
         }
     }
 

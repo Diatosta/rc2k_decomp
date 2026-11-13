@@ -6,7 +6,7 @@
 
 #![allow(unsafe_code)]
 
-use crate::math::x87_float::{X, f80, from_f80, int, ld, st, to_int};
+use crate::math::x87_float::{Rounds, X, f80, from_f80, int, ld, st, to_int};
 
 /// An operand's base: a block the caller holds, reached by byte offset.
 pub(crate) trait Base: Copy {
@@ -311,6 +311,30 @@ pub(crate) fn fistp(base: impl Base, off: usize, x: X) {
 #[track_caller]
 pub(crate) fn fstp80(base: impl Base, off: usize, x: X) {
     base.set_tbyte(off, f80(x));
+}
+
+/// `fld` at the rounding `r` (code run by `x87_float::at_rounding!`).
+#[track_caller]
+pub(crate) fn fld_with<R: Rounds>(r: R, base: impl Base, off: usize) -> R::Reg {
+    r.ld(base.dword(off))
+}
+
+/// `fstp` at the rounding `r`.
+#[track_caller]
+pub(crate) fn fstp_with<R: Rounds>(r: R, base: impl Base, off: usize, x: R::Reg) {
+    base.set_dword(off, r.st(x));
+}
+
+/// `fld80` at the rounding `r` (the load itself does not round).
+#[track_caller]
+pub(crate) fn fld80_with<R: Rounds>(r: R, base: impl Base, off: usize) -> R::Reg {
+    r.of(from_f80(base.tbyte(off)).0)
+}
+
+/// `fstp80` at the rounding `r` (the store itself does not round).
+#[track_caller]
+pub(crate) fn fstp80_with<R: Rounds>(r: R, base: impl Base, off: usize, x: R::Reg) {
+    base.set_tbyte(off, f80(X(r.value(x))));
 }
 
 /// `fnstsw word ptr [base + off]`.

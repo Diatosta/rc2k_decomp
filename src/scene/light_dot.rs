@@ -11,7 +11,7 @@
 //! Plain Rust (the x87's arithmetic in `X`, `math/x87_float.rs`); the
 //! original's instructions' results are recorded vectors in the tests (`data/vectors`).
 
-use crate::math::x87_float::{ld, to_int};
+use crate::math::x87_float::{Rounds, at_rounding};
 
 // ---- Rust version ----
 
@@ -30,12 +30,17 @@ pub fn light_dot(light: &crate::scene::object_light::ObjectLight) -> i32 {
 /// `fld; fmul; fld; fmul; fld; fmul; faddp; faddp; fmul; fistp`: the point times the light,
 /// the second and third products added first, times the factor.
 fn dot(point: [f32; 3], light: [f32; 3], factor: f32) -> i32 {
-    let t2 = ld(point[0]) * ld(light[0]);
-    let t5 = ld(point[1]) * ld(light[1]);
-    let t8 = ld(point[2]) * ld(light[2]);
+    at_rounding!(|r| dot_with(r, point, light, factor))
+}
+
+/// `dot` at the rounding `r`.
+fn dot_with<R: Rounds>(r: R, point: [f32; 3], light: [f32; 3], factor: f32) -> i32 {
+    let t2 = r.ld(point[0]) * r.ld(light[0]);
+    let t5 = r.ld(point[1]) * r.ld(light[1]);
+    let t8 = r.ld(point[2]) * r.ld(light[2]);
     let t9 = t5 + t8;
     let t10 = t2 + t9;
-    to_int(t10 * ld(factor))
+    r.to_int(t10 * r.ld(factor))
 }
 
 #[cfg(test)]

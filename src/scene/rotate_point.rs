@@ -6,8 +6,8 @@
 //! are recorded in the tests' `reference_vectors`. Refuses a null matrix.
 
 use crate::math::cells::{Cells, load};
-use crate::math::x87_float::X;
-use crate::scene::x87_mem::{Base, fld, fld80, fstp80};
+use crate::math::x87_float::{Rounds, at_rounding};
+use crate::scene::x87_mem::{Base, fld_with, fld80_with, fstp80_with};
 
 /// The Rust version: `p` as st(0) .. st(2), the result the same way.
 pub fn rotate_point(m: &(impl Cells + ?Sized), p: [[u8; 10]; 3]) -> [[u8; 10]; 3] {
@@ -23,14 +23,19 @@ pub fn rotate_point(m: &(impl Cells + ?Sized), p: [[u8; 10]; 3]) -> [[u8; 10]; 3
 
 /// `fld tbyte` x3, the three rows' sums of products plus the place, `fstp tbyte` x3.
 fn rotate(p: impl Base, m: impl Base, o: impl Base) {
-    let [t12, t22, t32] = turned(m, [fld80(p, 0x0), fld80(p, 0xA), fld80(p, 0x14)]);
-    fstp80(o, 0x0, t12);
-    fstp80(o, 0xA, t22);
-    fstp80(o, 0x14, t32);
+    at_rounding!(|r| {
+        let point = [0x0, 0xA, 0x14].map(|off| fld80_with(r, p, off));
+        let [t12, t22, t32] = turned(r, m, point);
+        fstp80_with(r, o, 0x0, t12);
+        fstp80_with(r, o, 0xA, t22);
+        fstp80_with(r, o, 0x14, t32);
+    });
 }
 
-/// The point's three rows' sums of products plus the place, each with the x87's order.
-pub(crate) fn turned(m: impl Base, [t2, t1, t0]: [X; 3]) -> [X; 3] {
+/// The point's three rows' sums of products plus the place, each with the x87's order, at
+/// the rounding `r`.
+pub(crate) fn turned<R: Rounds>(r: R, m: impl Base, [t2, t1, t0]: [R::Reg; 3]) -> [R::Reg; 3] {
+    let fld = |m, off| fld_with(r, m, off);
     let t3 = fld(m, 0x0);
     let t4 = t3 * t2;
     let t5 = fld(m, 0x10);

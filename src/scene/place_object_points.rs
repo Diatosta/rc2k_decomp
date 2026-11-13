@@ -25,7 +25,7 @@
 //! over `X` (`math/x87_float.rs`), rounding as the control word says.
 
 use crate::errors::{BadInput, Refused};
-use crate::math::x87_float::{int, ld, st, to_int};
+use crate::math::x87_float::{Rounds, at_rounding, int, ld, st, to_int};
 use crate::scene::point_records;
 use crate::scene::project_point::{NEAR, rotate, to_screen};
 
@@ -68,11 +68,16 @@ fn turn(normal: &[u32; 3], matrix: &[f32; 16], record: &mut [u32]) {
 /// `fld` x3, the three rows' sums of products, `fstp dword` x3 (the floats' bits, as the
 /// record holds them).
 fn turn_normal(p: [f32; 3], m: &[f32; 16]) -> [u32; 3] {
-    let (t0, t1, t2) = (ld(p[2]), ld(p[1]), ld(p[0]));
-    let t10 = ld(m[0]) * t2 + (ld(m[4]) * t1 + ld(m[8]) * t0);
-    let t18 = ld(m[1]) * t2 + (ld(m[5]) * t1 + ld(m[9]) * t0);
-    let t26 = t2 * ld(m[2]) + (t0 * ld(m[10]) + t1 * ld(m[6]));
-    [st(t10), st(t18), st(t26)]
+    at_rounding!(|r| turn_normal_with(r, p, m))
+}
+
+/// `turn_normal` at the rounding `r`.
+fn turn_normal_with<R: Rounds>(r: R, p: [f32; 3], m: &[f32; 16]) -> [u32; 3] {
+    let (t0, t1, t2) = (r.ld(p[2]), r.ld(p[1]), r.ld(p[0]));
+    let t10 = r.ld(m[0]) * t2 + (r.ld(m[4]) * t1 + r.ld(m[8]) * t0);
+    let t18 = r.ld(m[1]) * t2 + (r.ld(m[5]) * t1 + r.ld(m[9]) * t0);
+    let t26 = t2 * r.ld(m[2]) + (t0 * r.ld(m[10]) + t1 * r.ld(m[6]));
+    [r.st(t10), r.st(t18), r.st(t26)]
 }
 
 /// What the object is made of, read and checked.

@@ -364,7 +364,21 @@ pub fn mark_far_cells(
     limit: u32,
 ) -> Result<(), BadInput> {
     let view = &scratch.grid;
-    use crate::math::x87::{below_or_unordered, float_hypot, scaled_abs_less_below};
+    crate::math::x87_float::at_rounding!(|r| mark_far_cells_with(r, numbers, scratch, view, limit));
+    Ok(())
+}
+
+/// `mark_far_cells` at the rounding `r`.
+fn mark_far_cells_with<R: crate::math::x87_float::Rounds>(
+    r: R,
+    numbers: &crate::race::numbers_store::Numbers,
+    scratch: &crate::race::view_scratch::ViewScratch,
+    view: &crate::race::view_grid::ViewGrid,
+    limit: u32,
+) {
+    use crate::math::x87::{
+        below_or_unordered, float_hypot_with, from_int_with, scaled_abs_less_below_with,
+    };
     let grid = &view.cells;
     for k in 0..0x400 {
         grid[k as usize].set(grid[k as usize].get() & 0x0FFF_FFFF);
@@ -384,21 +398,20 @@ pub fn mark_far_cells(
         let x = (cell & 0x1F).wrapping_sub(half);
         let z = (cell >> 5).wrapping_sub(half);
         let point = [x, 0, z];
-        crate::scene::project_point::rotate(&point, &matrix, &mut out);
+        crate::scene::project_point::rotate_with(r, &point, &matrix, &mut out);
         let (x, z) = (out[4], out[6]);
-        let length = float_hypot(x, z);
-        let limit = crate::math::x87::from_int(limit as i32);
+        let length = float_hypot_with(r, x, z);
+        let limit = from_int_with(r, limit as i32);
         if below_or_unordered(length, two) {
             continue;
         }
         let mark = below_or_unordered(z, zero)
-            || !scaled_abs_less_below(x, point_five, two, z)
+            || !scaled_abs_less_below_with(r, x, point_five, two, z)
             || !below_or_unordered(length, limit);
         if mark {
             grid[cell as usize].set(grid[cell as usize].get() | 0x8000_0000);
         }
     }
-    Ok(())
 }
 
 /// `race::prepare_course_view` (0x4548A8): `face_hide_mask`, `course_grid`; with

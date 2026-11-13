@@ -25,7 +25,7 @@
 
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::math::x87;
-use crate::math::x87_float::{ONE, int, ld, st, stf};
+use crate::math::x87_float::{ONE, Rounds, at_rounding, int, ld, st};
 use crate::scene::point_records;
 use crate::scene::x87_mem::{Base, fstp};
 
@@ -51,22 +51,32 @@ const TOO_HIGH: FatalError = FatalError {
 /// `scene::rotate_point` as `project_point` uses it: the point's three whole numbers through the
 /// matrix, into the record's +0x10, +0x14, +0x18.
 pub(crate) fn rotate(point: &[u32], matrix: &[f32; 16], record: &mut [u32]) {
-    let place = rotate_at([0, 1, 2].map(|k| point[k] as i32), matrix);
+    at_rounding!(|r| rotate_with(r, point, matrix, record));
+}
+
+/// `rotate` at the rounding `r`.
+pub(crate) fn rotate_with<R: Rounds>(r: R, point: &[u32], matrix: &[f32; 16], record: &mut [u32]) {
+    let place = rotate_at_with(r, [0, 1, 2].map(|k| point[k] as i32), matrix);
     record[4..7].copy_from_slice(&place.map(f32::to_bits));
 }
 
 /// `fild` x3, the three rows' sums of products plus the place, `fstp dword` x3.
 pub(crate) fn rotate_at(p: [i32; 3], m: &[f32; 16]) -> [f32; 3] {
-    let t0 = int(p[2]);
-    let t1 = int(p[1]);
-    let t2 = int(p[0]);
-    let t10 = ld(m[0]) * t2 + (ld(m[4]) * t1 + ld(m[8]) * t0);
-    let t12 = t10 + ld(m[12]);
-    let t20 = ld(m[1]) * t2 + (ld(m[5]) * t1 + ld(m[9]) * t0);
-    let t22 = t20 + ld(m[13]);
-    let t30 = t2 * ld(m[2]) + (t0 * ld(m[10]) + t1 * ld(m[6]));
-    let t32 = t30 + ld(m[14]);
-    [stf(t12), stf(t22), stf(t32)]
+    at_rounding!(|r| rotate_at_with(r, p, m))
+}
+
+/// `rotate_at` at the rounding `r`.
+fn rotate_at_with<R: Rounds>(r: R, p: [i32; 3], m: &[f32; 16]) -> [f32; 3] {
+    let t0 = r.int(p[2]);
+    let t1 = r.int(p[1]);
+    let t2 = r.int(p[0]);
+    let t10 = r.ld(m[0]) * t2 + (r.ld(m[4]) * t1 + r.ld(m[8]) * t0);
+    let t12 = t10 + r.ld(m[12]);
+    let t20 = r.ld(m[1]) * t2 + (r.ld(m[5]) * t1 + r.ld(m[9]) * t0);
+    let t22 = t20 + r.ld(m[13]);
+    let t30 = t2 * r.ld(m[2]) + (t0 * r.ld(m[10]) + t1 * r.ld(m[6]));
+    let t32 = t30 + r.ld(m[14]);
+    [r.stf(t12), r.stf(t22), r.stf(t32)]
 }
 
 /// The view window's values the screen's place is made with.
@@ -120,14 +130,19 @@ fn screen_flat(view: [f32; 3], s: Screen, checked: impl Base) -> [u32; 2] {
 
 /// The usual way: x = x' * (scale / depth) + centre x, y = centre y - y' * (the same).
 fn screen_plain(view: [f32; 3], s: Screen) -> [u32; 2] {
-    let t0 = ld(view[0]);
-    let t1 = ld(view[1]);
-    let t4 = ld(s.scale) / ld(view[2]);
+    at_rounding!(|r| screen_plain_with(r, view, s))
+}
+
+/// `screen_plain` at the rounding `r`.
+fn screen_plain_with<R: Rounds>(r: R, view: [f32; 3], s: Screen) -> [u32; 2] {
+    let t0 = r.ld(view[0]);
+    let t1 = r.ld(view[1]);
+    let t4 = r.ld(s.scale) / r.ld(view[2]);
     let t5 = t1 * t4;
     let t6 = t0 * t4;
-    let t9 = -t5 + ld(s.centre[1]);
-    let t11 = t6 + ld(s.centre[0]);
-    [st(t11), st(t9)]
+    let t9 = -t5 + r.ld(s.centre[1]);
+    let t11 = t6 + r.ld(s.centre[0]);
+    [r.st(t11), r.st(t9)]
 }
 
 /// The offset of a point's record, or the fatal error for a number too high.

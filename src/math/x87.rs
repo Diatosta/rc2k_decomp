@@ -29,6 +29,7 @@ macro_rules! x87 {
 pub(crate) use x87;
 
 use super::x87_float as bh;
+use bh::Rounds;
 
 /// `fstp dword`: a result stored as a float, as the control word says.
 fn out(x: bh::X) -> f32 {
@@ -103,9 +104,12 @@ impl<C: crate::session::Cell32 + ?Sized> Flt for C {
 
 /// `a + b`.
 pub fn add(a: impl Flt, b: impl Flt) -> f32 {
-    let a = a.value();
-    let b = b.value();
-    out(bh::ld(a) + bh::ld(b))
+    bh::at_rounding!(|r| add_with(r, a, b))
+}
+
+/// `add` at the rounding `r` (`x87_float::at_rounding!`).
+pub(crate) fn add_with<R: Rounds>(r: R, a: impl Flt, b: impl Flt) -> f32 {
+    r.stf(r.ld(a.value()) + r.ld(b.value()))
 }
 
 /// `a - b`.
@@ -117,29 +121,44 @@ pub fn sub(a: impl Flt, b: impl Flt) -> f32 {
 
 /// A whole number as a float.
 pub fn from_int(a: i32) -> f32 {
-    out(bh::int(a))
+    bh::at_rounding!(|r| from_int_with(r, a))
+}
+
+/// `from_int` at the rounding `r`.
+pub(crate) fn from_int_with<R: Rounds>(r: R, a: i32) -> f32 {
+    r.stf(r.int(a))
 }
 
 /// `a * b`.
 pub fn mul(a: impl Flt, b: impl Flt) -> f32 {
-    let a = a.value();
-    let b = b.value();
-    out(bh::ld(a) * bh::ld(b))
+    bh::at_rounding!(|r| mul_with(r, a, b))
+}
+
+/// `mul` at the rounding `r`.
+pub(crate) fn mul_with<R: Rounds>(r: R, a: impl Flt, b: impl Flt) -> f32 {
+    r.stf(r.ld(a.value()) * r.ld(b.value()))
 }
 
 /// `1 / a * b`.
 pub fn reciprocal_times(a: impl Flt, b: impl Flt) -> f32 {
-    let a = a.value();
-    let b = b.value();
-    out(bh::ONE / bh::ld(a) * bh::ld(b))
+    bh::at_rounding!(|r| reciprocal_times_with(r, a, b))
+}
+
+/// `reciprocal_times` at the rounding `r`.
+pub(crate) fn reciprocal_times_with<R: Rounds>(r: R, a: impl Flt, b: impl Flt) -> f32 {
+    r.stf(r.of(1.0) / r.ld(a.value()) * r.ld(b.value()))
 }
 
 /// `x` mirrored about a + b: `-(x - a - b) + b + a`.
+#[cfg(test)] // the callers use the `_with` form; the tests compare this one
 pub fn mirrored(x: impl Flt, a: impl Flt, b: impl Flt) -> f32 {
-    let x = x.value();
-    let a = a.value();
-    let b = b.value();
-    out(-(bh::ld(x) - bh::ld(a) - bh::ld(b)) + bh::ld(b) + bh::ld(a))
+    bh::at_rounding!(|r| mirrored_with(r, x, a, b))
+}
+
+/// `mirrored` at the rounding `r`.
+pub(crate) fn mirrored_with<R: Rounds>(r: R, x: impl Flt, a: impl Flt, b: impl Flt) -> f32 {
+    let (x, a, b) = (r.ld(x.value()), r.ld(a.value()), r.ld(b.value()));
+    r.stf(-(x - a - b) + b + a)
 }
 
 /// A float as it comes back from a register.
@@ -613,12 +632,23 @@ pub fn rounding() -> Rounding {
 /// `fistp dword` of `x` at this thread's rounding: out of range or NaN gives the integer
 /// indefinite, 0x80000000, as the x87 does with the invalid operation masked.
 pub fn round_to_int(x: f64) -> i32 {
-    let r = match rounding() {
+    whole_to_int(match rounding() {
         Rounding::Nearest => x.round_ties_even(),
         Rounding::Down => x.floor(),
         Rounding::Up => x.ceil(),
         Rounding::Chop => x.trunc(),
-    };
+    })
+}
+
+/// `fistp dword` of `x` rounding to nearest (`round_to_int` when the control word says so).
+#[inline]
+pub(crate) fn round_to_int_nearest(x: f64) -> i32 {
+    whole_to_int(x.round_ties_even())
+}
+
+/// A whole number `r` as `fistp` stores it: out of range or NaN gives the integer indefinite.
+#[inline]
+fn whole_to_int(r: f64) -> i32 {
     if r.is_nan() || !(-2_147_483_648.0..2_147_483_648.0).contains(&r) {
         i32::MIN
     } else {

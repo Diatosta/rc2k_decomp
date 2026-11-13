@@ -11,6 +11,13 @@ use super::x87_old as old;
 
 const CASES: usize = 20_000;
 
+/// The same result, NaN for NaN: which NaN's payload survives two NaN operands is left to the
+/// compiler where the helpers run on native floats (only after a NaN already exists, never in
+/// play), so a NaN result only has to be a NaN.
+fn same_result(left: u32, right: u32) -> bool {
+    left == right || (f32::from_bits(left).is_nan() && f32::from_bits(right).is_nan())
+}
+
 /// Runs `check` at every rounding mode, `CASES` times each, on a fixed seed.
 fn each(seed: u64, mut check: impl FnMut(&mut Rng)) {
     let word = x87::control_word();
@@ -87,16 +94,16 @@ fn reciprocal_times() {
         let a = rng.float();
         let b = rng.float();
         let old = old::reciprocal_times(a, b);
-        assert_eq!(
-            x87::reciprocal_times(a, b).to_bits(),
-            old,
-            "reciprocal_times {:x?}",
+        let new = x87::reciprocal_times(a, b).to_bits();
+        assert!(
+            same_result(new, old),
+            "reciprocal_times {:x?}: {new:x} against {old:x}",
             (a, b)
         );
-        assert_eq!(
-            x87::reciprocal_times(f32::from_bits(a), f32::from_bits(b)).to_bits(),
-            old,
-            "reciprocal_times (f32 inputs) {:x?}",
+        let new = x87::reciprocal_times(f32::from_bits(a), f32::from_bits(b)).to_bits();
+        assert!(
+            same_result(new, old),
+            "reciprocal_times (f32 inputs) {:x?}: {new:x} against {old:x}",
             (a, b)
         );
     });
@@ -1447,16 +1454,16 @@ fn float_hypot() {
         let a = rng.float();
         let b = rng.float();
         let old = old::float_hypot(a, b);
-        assert_eq!(
-            x87::float_hypot(a, b).to_bits(),
-            old,
-            "float_hypot {:x?}",
+        let new = x87::float_hypot(a, b).to_bits();
+        assert!(
+            same_result(new, old),
+            "float_hypot {:x?}: {new:x} against {old:x}",
             (a, b)
         );
-        assert_eq!(
-            x87::float_hypot(f32::from_bits(a), f32::from_bits(b)).to_bits(),
-            old,
-            "float_hypot (f32 inputs) {:x?}",
+        let new = x87::float_hypot(f32::from_bits(a), f32::from_bits(b)).to_bits();
+        assert!(
+            same_result(new, old),
+            "float_hypot (f32 inputs) {:x?}: {new:x} against {old:x}",
             (a, b)
         );
     });

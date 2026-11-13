@@ -91,15 +91,25 @@ pub fn multiply_matrices(
     b: &(impl Cells + ?Sized),
     out: &(impl Cells + ?Sized),
 ) {
+    bh::at_rounding!(|r| multiply_matrices_with(r, a, b, out));
+}
+
+/// `multiply_matrices` at the rounding `r`.
+fn multiply_matrices_with<R: bh::Rounds>(
+    r: R,
+    a: &(impl Cells + ?Sized),
+    b: &(impl Cells + ?Sized),
+    out: &(impl Cells + ?Sized),
+) {
     for column in 0..3 {
         for row in 0..4 {
             // `x87::row_times_column`: a's row times b's column, p1 + (p2 + p3).
-            let p = |k: usize| bh::ld(a.float(row * 4 + k)) * bh::ld(b.float(k * 4 + column));
+            let p = |k: usize| r.ld(a.float(row * 4 + k)) * r.ld(b.float(k * 4 + column));
             let (p1, p2, p3) = (p(0), p(1), p(2));
-            out.set_float(row * 4 + column, bh::stf(p1 + (p2 + p3)));
+            out.set_float(row * 4 + column, r.stf(p1 + (p2 + p3)));
         }
-        let sum = bh::ld(b.float(12 + column)) + bh::ld(out.float(12 + column));
-        out.set_float(12 + column, bh::stf(sum));
+        let sum = r.ld(b.float(12 + column)) + r.ld(out.float(12 + column));
+        out.set_float(12 + column, r.stf(sum));
     }
 }
 

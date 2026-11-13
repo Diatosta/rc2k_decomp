@@ -8,7 +8,7 @@
 //! (`x87_reference_c.rs`).
 
 use super::{Flt, out};
-use crate::math::x87_float::{X, compare, f80, from_f80, int, ld, st, to_int};
+use crate::math::x87_float::{Rounds, X, at_rounding, compare, f80, from_f80, int, ld, st, to_int};
 
 /// `(a * b) / c`, rounded once at the end as the x87 is set to round
 /// (`fild a; fimul b; fdiv c; fistp`): a whole number times a whole number over a float.
@@ -26,11 +26,16 @@ pub fn abs_to_int(a: u32) -> i32 {
 /// `sqrt(a a + b b)` as a float (`fld a; fmul st, st; fld b; fmul st, st; faddp; fsqrt;
 /// fstp`): the length of two floats at right angles.
 pub fn float_hypot(a: impl Flt, b: impl Flt) -> f32 {
+    at_rounding!(|r| float_hypot_with(r, a, b))
+}
+
+/// `float_hypot` at the rounding `r`.
+pub(crate) fn float_hypot_with<R: Rounds>(r: R, a: impl Flt, b: impl Flt) -> f32 {
     let a = a.value();
     let b = b.value();
-    let a2 = ld(a) * ld(a);
-    let b2 = ld(b) * ld(b);
-    out((a2 + b2).sqrt())
+    let a2 = r.ld(a) * r.ld(a);
+    let b2 = r.ld(b) * r.ld(b);
+    r.stf(r.sqrt(a2 + b2))
 }
 
 /// C0 of `fld a; fcomp b; fnstsw ax` (`shr ah, 1; jb`): a below b, or one is no number.
@@ -42,22 +47,34 @@ pub fn below_or_unordered(a: impl Flt, b: impl Flt) -> bool {
 
 /// C0 of `fld a; fmul h; fabs; fsub k; fcomp b`: |a h| - k below b (kept at the x87's
 /// precision), or one is no number.
+#[cfg(test)] // the callers use the `_with` form; the tests compare this one
 pub fn scaled_abs_less_below(a: impl Flt, h: impl Flt, k: impl Flt, b: impl Flt) -> bool {
+    at_rounding!(|r| scaled_abs_less_below_with(r, a, h, k, b))
+}
+
+/// `scaled_abs_less_below` at the rounding `r`.
+pub(crate) fn scaled_abs_less_below_with<R: Rounds>(
+    r: R,
+    a: impl Flt,
+    h: impl Flt,
+    k: impl Flt,
+    b: impl Flt,
+) -> bool {
     let a = a.value();
     let h = h.value();
     let k = k.value();
     let b = b.value();
-    let x = (ld(a) * ld(h)).abs() - ld(k);
-    compare(x, ld(b)) & 0x0100 != 0
+    let x = r.of(r.value(r.ld(a) * r.ld(h)).abs()) - r.ld(k);
+    r.compare(x, r.ld(b)) & 0x0100 != 0
 }
 
 /// The point (three whole numbers) through `matrix` (16 floats; the 12 used are the
 /// columns' at 0, 4, 8 / 0x10, 0x14, 0x18 / 0x20, 0x24, 0x28 and the translation at 0x30,
 /// 0x34, 0x38), as the original adds them: m0 x + (m4 y + m8 z) and so on, then the
 /// translation. Left at double precision.
-fn rotated(point: [i32; 3], matrix: &[u32]) -> [X; 3] {
-    let [x, y, z] = point.map(int);
-    let m = |i: usize| ld(matrix[i]);
+fn rotated<R: Rounds>(r: R, point: [i32; 3], matrix: &[u32]) -> [R::Reg; 3] {
+    let [x, y, z] = point.map(|v| r.int(v));
+    let m = |i: usize| r.ld(matrix[i]);
     let s0 = m(0) * x + (m(4) * y + m(8) * z) + m(12);
     let s1 = m(1) * x + (m(5) * y + m(9) * z) + m(13);
     let s2 = x * m(2) + (y * m(6) + z * m(10)) + m(14);
@@ -68,8 +85,10 @@ fn rotated(point: [i32; 3], matrix: &[u32]) -> [X; 3] {
 /// numbers) through `matrix`, x and y stored as floats at `out[0]`, `out[1]`, z rounded
 /// into the third from the x87's precision (0x4573FA).
 pub fn rotate_rounding_z(point: [i32; 3], matrix: &[u32]) -> [u32; 3] {
-    let s = rotated(point, matrix);
-    [st(s[0]), st(s[1]), to_int(s[2]) as u32]
+    at_rounding!(|r| {
+        let s = rotated(r, point, matrix);
+        [r.st(s[0]), r.st(s[1]), r.to_int(s[2]) as u32]
+    })
 }
 
 /// `a a + b b` of two whole numbers, as a float (`fild a; fmul st, st; fild b; fmul st,
@@ -106,7 +125,7 @@ pub fn abs_below_or_unordered(a: impl Flt, k: impl Flt) -> bool {
 /// `scene::project_point::rotate` with all three stores `fistp`: the point (three whole
 /// numbers) through `matrix`, each part rounded from the x87's precision.
 pub fn rotate_rounding(point: [i32; 3], matrix: &[u32]) -> [u32; 3] {
-    rotated(point, matrix).map(|part| to_int(part) as u32)
+    at_rounding!(|r| rotated(r, point, matrix).map(|part| r.to_int(part) as u32))
 }
 
 /// `(a a + b b) k` (`times` = 1) or `(a a + b b) k k` (`times` = 2) as a whole number

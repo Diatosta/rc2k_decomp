@@ -34,6 +34,7 @@ use crate::d3d::NO_TEXTURE;
 use crate::d3d::vertices_store::PolygonVertices;
 use crate::errors::BadInput;
 use crate::math::x87;
+use crate::math::x87_float;
 use crate::scene::polygon_store::PolygonEntry;
 use crate::scene::submit_polygon::{self, submit_polygon};
 
@@ -252,6 +253,19 @@ fn place(
     mirrored: bool,
     window: &crate::scene::view_window::ViewWindow,
 ) {
+    x87_float::at_rounding!(|r| place_with(r, part, quad, reads, entries, mirrored, window));
+}
+
+/// `place` at the rounding `r`.
+fn place_with<R: x87_float::Rounds>(
+    r: R,
+    part: &crate::workers::PartScratch,
+    quad: &[crate::session::PlainDword; 32],
+    reads: crate::workers::DrawReads<'_>,
+    entries: &[Listed],
+    mirrored: bool,
+    window: &crate::scene::view_window::ViewWindow,
+) {
     let buffer = &part.vertices;
     let (x_offset, y_offset) = (
         window.view_offset_float[0].get(),
@@ -263,29 +277,18 @@ fn place(
     for (n, &(_, entry)) in entries.iter().enumerate() {
         let vertex = entry.record.get();
         let out = out(buffer, n);
-        let mut x = x87::add(
-            crate::scene::point_records::vertex(part, quad, vertex, 0x0C),
-            x_offset,
-        );
-        let depth = x87::mul(
-            crate::scene::point_records::vertex(part, quad, vertex, 0x18),
-            depth_factor,
-        );
-        out.y.set(x87::add(
-            crate::scene::point_records::vertex(part, quad, vertex, 0x1C),
-            y_offset,
-        ));
+        let field = |offset: u32| crate::scene::point_records::vertex(part, quad, vertex, offset);
+        let mut x = x87::add_with(r, field(0x0C), x_offset);
+        let depth = x87::mul_with(r, field(0x18), depth_factor);
+        out.y.set(x87::add_with(r, field(0x1C), y_offset));
         out.z.set(depth);
         out.rhw.set(if sse {
-            x87::rcpss_times(
-                crate::scene::point_records::vertex(part, quad, vertex, 0x18),
-                reads.numbers.k65536.get(),
-            )
+            x87::rcpss_times(field(0x18), reads.numbers.k65536.get())
         } else {
-            x87::reciprocal_times(depth, reads.panel_and_overlay.overlay.w_factor.get())
+            x87::reciprocal_times_with(r, depth, reads.panel_and_overlay.overlay.w_factor.get())
         });
         if mirrored && entries.len() > 2 {
-            x = x87::mirrored(x, mirror_at, x_offset);
+            x = x87::mirrored_with(r, x, mirror_at, x_offset);
         }
         out.x.set(x);
     }
