@@ -506,52 +506,97 @@ mod header_tests {
     }
     use Dest::{Door, Sealed};
 
-    /// The header's copies as the first by-address version did them: (bytes, where they are written,
-    /// the store and offset read).
-    const HEADER_MOVES: [(usize, Dest, &str, usize); 31] = [
-        (1, Sealed(0x2D), LOCALE, 0x8),
-        (4, Sealed(0x5), REPLAYS, 0xC),
-        (1, Sealed(0x32), STATE, 0x1C),
-        (1, Sealed(0x33), STATE, 0x8),
-        (1, Sealed(0x34), STATE, 0x24),
-        (1, Sealed(0x35), STATE, 0xC),
-        (1, Sealed(0x36), STATE, 0x150),
-        (1, Door, STATE, 0x150),
-        (1, Sealed(0x37), STATE, 0x158),
-        (4, Sealed(0x9), REPLAY_FILE, 0x34),
-        (4, Sealed(0x2E), CHEATS, 0x134),
-        (1, Sealed(0x40), STATE, 0x160),
-        (1, Sealed(0x41), STATE, 0x64),
-        (1, Sealed(0x42), STATE, 0x50),
-        (1, Sealed(0x43), STATE, 0x54),
-        (1, Sealed(0x44), STATE, 0x60),
-        (1, Sealed(0x45), STATE, 0x58),
-        (1, Sealed(0x46), STATE, 0x5C),
-        (1, Sealed(0x47), WORK, 0x12C0),
-        (1, Sealed(0x48), WORK, 0x12C4),
-        (1, Sealed(0x49), WORK, 0x12C8),
-        (2, Sealed(0x4A), WORK, 0x12CC),
-        (4, Sealed(0x4C), WORK, 0x12D0),
-        (2, Sealed(0x50), WORK, 0x12D4),
-        (2, Sealed(0x52), WORK, 0x12D8),
-        (2, Sealed(0x54), WORK, 0x12DC),
-        (2, Sealed(0x56), WORK, 0x12E0),
-        (2, Sealed(0x58), WORK, 0x12E4),
-        (2, Sealed(0x5A), WORK, 0x12E8),
-        (2, Sealed(0x5C), WORK, 0x12EC),
-        (2, Sealed(0x5E), WORK, 0x12F0),
+    /// Where a copy reads: a cell (its low bytes), or bytes of a byte array from an offset.
+    #[derive(Clone, Copy)]
+    enum Source {
+        /// The byte array at the field `path` (empty: the store itself), from byte `offset`.
+        Bytes(&'static str, usize),
+        /// The cell at the field `path`.
+        Cell(&'static str),
+    }
+    use Source::{Bytes, Cell};
+
+    /// The header's copies as the first by-address version did them: (bytes, where they are
+    /// written, the store read and the field in it). The header's own layout is the file's, so
+    /// the destinations stay byte positions.
+    const HEADER_MOVES: [(usize, Dest, &str, Source); 31] = [
+        (1, Sealed(0x2D), LOCALE, Bytes("", 8)),
+        (4, Sealed(0x5), REPLAYS, Bytes(".header", 0xC)),
+        (1, Sealed(0x32), STATE, Cell(".settings.car_kind_current")),
+        (1, Sealed(0x33), STATE, Cell(".settings.stage")),
+        (1, Sealed(0x34), STATE, Cell(".settings.direction")),
+        (1, Sealed(0x35), STATE, Cell(".settings.run_kind")),
+        (
+            1,
+            Sealed(0x36),
+            STATE,
+            Cell(".settings.cars[0].own.race_number"),
+        ),
+        (1, Door, STATE, Cell(".settings.cars[0].own.race_number")),
+        (1, Sealed(0x37), STATE, Cell(".settings.cars[0].own.view")),
+        (4, Sealed(0x9), REPLAY_FILE, Cell(".season_code")),
+        (4, Sealed(0x2E), CHEATS, Cell(".cheats")),
+        (
+            1,
+            Sealed(0x40),
+            STATE,
+            Cell(".settings.cars[0].controls.gearing"),
+        ),
+        (
+            1,
+            Sealed(0x41),
+            STATE,
+            Cell(".settings.cars[0].own.gear_ratio"),
+        ),
+        (1, Sealed(0x42), STATE, Cell(".settings.cars[0].own.tyre")),
+        (
+            1,
+            Sealed(0x43),
+            STATE,
+            Cell(".settings.cars[0].own.brake_balance"),
+        ),
+        (
+            1,
+            Sealed(0x44),
+            STATE,
+            Cell(".settings.cars[0].own.steering_sensitivity"),
+        ),
+        (
+            1,
+            Sealed(0x45),
+            STATE,
+            Cell(".settings.cars[0].own.ride_height"),
+        ),
+        (
+            1,
+            Sealed(0x46),
+            STATE,
+            Cell(".settings.cars[0].own.suspension_stiffness"),
+        ),
+        (1, Sealed(0x47), WORK, Cell(".patches[0]")),
+        (1, Sealed(0x48), WORK, Cell(".patches[1]")),
+        (1, Sealed(0x49), WORK, Cell(".patches[2]")),
+        (2, Sealed(0x4A), WORK, Cell(".patches[3]")),
+        (4, Sealed(0x4C), WORK, Cell(".patches[4]")),
+        (2, Sealed(0x50), WORK, Cell(".patches[5]")),
+        (2, Sealed(0x52), WORK, Cell(".patches[6]")),
+        (2, Sealed(0x54), WORK, Cell(".patches[7]")),
+        (2, Sealed(0x56), WORK, Cell(".patches[8]")),
+        (2, Sealed(0x58), WORK, Cell(".patches[9]")),
+        (2, Sealed(0x5A), WORK, Cell(".patches[10]")),
+        (2, Sealed(0x5C), WORK, Cell(".patches[11]")),
+        (2, Sealed(0x5E), WORK, Cell(".patches[12]")),
     ];
 
     fn old_copy() -> Result<(), BadInput> {
-        use crate::test_support::state::store;
-        for &(size, to, from, from_at) in &HEADER_MOVES {
-            let mut bytes = vec![0; size];
-            let from_at = if from == WORK {
-                crate::race::work_store::from_1999(from_at)
-            } else {
-                from_at
+        for &(size, to, from, source) in &HEADER_MOVES {
+            let walk = crate::test_support::state::walk(from);
+            let (path, skip) = match source {
+                Bytes(path, skip) => (path, skip),
+                Cell(path) => (path, 0),
             };
-            store(from).load(from_at, &mut bytes)?;
+            let cells = walk.path_bytes(path).expect("a field of the store");
+            let bytes = cells[skip..skip + size].to_vec();
             let work = race().replay_work();
             match to {
                 Sealed(at) => crate::cells::Store::store(&work.sealed_header, at, &bytes)?,

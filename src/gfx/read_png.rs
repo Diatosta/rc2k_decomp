@@ -6,7 +6,7 @@
 //! 800, a height of at most 600 and no interlacing. Then the file's size (`file_size`),
 //! memory for the whole file from the game's allocator (`memory::allocate`, on the list
 //! `memory`), the whole file read into it, `decode_png` into the picture buffer with
-//! `buf` as the info block, `g_pictureFlags` = 0x802, `lay_out_png`, the picture's width,
+//! an info record (`gfx::png::PngInfo`, starting as `buf`'s first bytes), `g_pictureFlags` = 0x802, `lay_out_png`, the picture's width,
 //! height and row length set from the layout, and the pixels spread out to dwords
 //! (`palette_pixels_to_dwords` if the file had a palette, else `rgb_pixels_to_dwords`).
 //! The memory is given back (`memory::free_list`) on every way out. Once the decoder has been
@@ -21,6 +21,7 @@ use crate::gfx::decode_png::decode_png;
 use crate::gfx::lay_out_png::lay_out_png;
 use crate::gfx::owner::Png;
 use crate::gfx::palette_pixels_to_dwords::palette_pixels_to_dwords;
+use crate::gfx::png::PngInfo;
 use crate::gfx::rgb_pixels_to_dwords::rgb_pixels_to_dwords;
 use crate::memory::free_list::free_list;
 
@@ -59,21 +60,19 @@ fn read_held(
     if !read.ok || read.bytes_read != Some(size) {
         return Ok(false);
     }
-    decode_png(
-        png,
-        file,
-        pictures.picture.buffer.get(),
-        crate::gfx::png::info_buffer(system),
-    )?;
+    // The info record starts as the scratch left it: a file the decoder leaves unfinished
+    // is laid out from that.
+    let mut info = PngInfo::leftover(&system.work().files.buffer)?;
+    decode_png(png, file, pictures.picture.buffer.get(), &mut info)?;
     pictures.picture.flags.set(0x802u32);
-    lay_out_png(gfx, system)?;
+    lay_out_png(gfx, &info)?;
     pictures.picture.width.set(pictures.decoder.width.get());
     pictures.picture.height.set(pictures.decoder.height.get());
     pictures
         .picture
         .row_bytes
         .set(pictures.decoder.stride.get());
-    if crate::gfx::png::info_byte(crate::gfx::png::INFO_HAS_PALETTE, system) == 1 {
+    if info.has_palette {
         palette_pixels_to_dwords(gfx)?;
     } else {
         rgb_pixels_to_dwords(gfx)?;

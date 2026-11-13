@@ -2410,10 +2410,6 @@ impl MenuText {
     }
 }
 
-/// Where the first speech table is in `MenuTexts`.
-#[cfg(test)]
-pub const CAR_SPEECH_OFFSET: usize = core::mem::offset_of!(MenuTexts, car_speech);
-
 /// A speech table's entry: a sample name's handle (`audio::store::name_key`; the
 /// original kept its address), or the row's end mark, -1.
 const fn speech_key(ida: u32) -> u32 {

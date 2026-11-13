@@ -1,20 +1,20 @@
 //! `gfx::decode_png` (0x4D3040): decodes a PNG file held in memory.
 //!
-//! In (on the stack, a C function): the file, where the pixels go, the info block to fill (`gfx::png`)
+//! In (on the stack, a C function): the file, where the pixels go, the info record to fill (`gfx::png`)
 //! The original walks the chunks to IEND, trusting every length. IHDR gives the width, the
 //! height and the colour type; an IDAT chunk is inflated (zlib 1.1.3) straight into the
 //! pixel area, `(bytes a pixel * width + 1) * height` bytes at most, and its rows are then
 //! unfiltered in place and closed up, as three bytes a pixel for colour type 2 and as one
-//! byte a pixel for every other type; a PLTE chunk is remembered. At IEND the info block
-//! gets 0 or 1 in its first byte, the width and the height, and with a palette 0x300 bytes
-//! from the PLTE chunk. Check sums are not looked at, nor is what the inflating returns.
+//! byte a pixel for every other type; a PLTE chunk is remembered. At IEND the info record
+//! gets whether there was a palette, the width and the height, and with a palette its 0x300
+//! bytes from the PLTE chunk; without one the palette stays as it was. Check sums are not looked at, nor is what the inflating returns.
 //! For the first row the "row above" of filters 2, 3 and 4 is the memory before the pixel
 //! area, not zeros as the PNG standard has it; fixed: zeros
 //! (`notes/bugs.md`, `wiki/Fixed-bugs.md`).
 //! It inflates with the `miniz_oxide` crate and does the rest as the original
-//! does. What it does not do: use the info block and what follows it as zlib's work area
-//! (the original's zlib takes its memory from there), so that memory is left alone; and
-//! keep zlib's own variables (0xA8C1A4 on).
+//! does. What it does not do: use the memory after the info block as zlib's work area
+//! (the original's zlib takes its memory from there); and keep zlib's own variables
+//! (0xA8C1A4 on).
 //! One caller, `gfx::read_png`. Every PNG file of the game is of colour type 2 with 8 bits
 //! and one IDAT chunk.
 //! Refuses, and leaves to the original: a file whose length is not known (the function is
@@ -27,7 +27,7 @@
 use crate::errors::BadInput;
 use crate::gfx::owner::Png;
 use crate::gfx::picture::PICTURE_DWORDS;
-use crate::session::PlainBytes;
+use crate::gfx::png::PngInfo;
 
 // ---- game data ----
 
@@ -35,13 +35,13 @@ use crate::session::PlainBytes;
 // and the info block.
 
 /// Returns what the original returns, but for the 3 it gives when the info block lies inside
-/// the pixel area (here it is another buffer: 0). `pixels` names a picture buffer
-/// (`gfx::picture`, 0 none); `info` is the buffer the info block is laid in.
+/// the pixel area (here it is a record of its own: 0). `pixels` names a picture buffer
+/// (`gfx::picture`, 0 none); `info` is the record the decoder fills (`gfx::png::PngInfo`).
 pub fn decode_png(
     png: &Png,
     file: &[u8],
     pixels: u32,
-    info: &PlainBytes<65536>,
+    info: &mut PngInfo,
 ) -> Result<u32, BadInput> {
     use rc2k_core::gfx::png;
     if pixels == 0 {
@@ -82,24 +82,15 @@ pub fn decode_png(
         png::unfilter(&mut buffer, row_bytes, header.height, step, &|_| 0)?;
         crate::gfx::picture::write_bytes(pixels, 0, &buffer)?;
     }
-    let what = "the PNG info block";
-    info.write_at(crate::gfx::png::INFO_HAS_PALETTE, &[0u8], what)?;
-    info.write_at(
-        crate::gfx::png::INFO_WIDTH,
-        &header.width.to_le_bytes(),
-        what,
-    )?;
-    info.write_at(
-        crate::gfx::png::INFO_HEIGHT,
-        &header.height.to_le_bytes(),
-        what,
-    )?;
+    info.has_palette = false;
+    info.width = header.width;
+    info.height = header.height;
     if let Some(start) = found.palette {
-        info.write_at(crate::gfx::png::INFO_HAS_PALETTE, &[1u8], what)?;
+        info.has_palette = true;
         let palette = file
             .get(start..start + 0x300)
             .ok_or(BadInput("a palette chunk that runs past the file"))?;
-        info.write_at(crate::gfx::png::INFO_PALETTE, palette, what)?;
+        info.palette.copy_from_slice(palette);
     }
     Ok(0)
 }

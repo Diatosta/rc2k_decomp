@@ -1,14 +1,15 @@
 //! Test-only: the registry of the game state's stores, each with a name, so tests can read
-//! and put back the game's state by store name (`state::store`, `state::Snapshot`) rather
-//! than by address. Nothing in production uses it.
+//! and put back the game's state by store name (`state::walk`, `state::Snapshot`) and field
+//! path rather than by address; the few stores that tests name places of by byte also have a
+//! byte view (`state::store`). Nothing in production uses it.
 //!
 //! The list is the stores' own (`listed_stores`); a repeated name is found at its first entry.
 
-use crate::cells::{ByteView, Store};
+use crate::cells::{ByteView, Cells, Store};
 use crate::errors::BadInput;
 
 /// One store of the list: its name, the store, and how many of its first bytes are the
-/// game's (a store's record may be rounded up past the game's last byte).
+/// game's where that is known (a store's record may be rounded up past the game's last byte).
 struct Listed {
     name: &'static str,
     store: &'static (dyn Walk + Sync),
@@ -34,45 +35,20 @@ macro_rules! listed {
     };
 }
 
-/// A part of a record of cells, from byte `offset` to its end: a listed store that starts
-/// inside a record (`SealWork`'s fields past its alignment lead, the panel past its two lead
-/// bytes). Reads and writes go through the whole record's cells.
-struct RecordTail<T: crate::cells::ByteView + Sync + 'static> {
+/// A part of a record of cells, from the field `first` on: a listed store that starts inside a
+/// record (`SealWork`'s fields past its alignment lead, the panel past its two lead bytes).
+/// Reads and writes go through the whole record's cells by field path.
+struct RecordFrom<T: Cells + Sync + 'static> {
     whole: &'static T,
-    offset: usize,
+    first: &'static str,
 }
 
-// SAFETY: `first` is the record's byte at the window's offset, and `size` what is left of it.
-#[allow(
-    unsafe_code,
-    reason = "Store's promise: the window's bytes are the record's"
-)]
-unsafe impl<T: crate::cells::ByteView + Sync + 'static> crate::cells::Store for RecordTail<T> {
-    fn size(&self) -> usize {
-        size_of::<T>() - self.offset
-    }
-
-    fn first(&self) -> *const u8 {
-        std::ptr::from_ref(self.whole)
-            .cast::<u8>()
-            .wrapping_add(self.offset)
-    }
-
-    fn load(&self, offset: usize, to: &mut [u8]) -> Result<(), crate::errors::BadInput> {
-        crate::cells::load_cells(self.whole, self.offset + offset, to)
-    }
-
-    fn store(&self, offset: usize, from: &[u8]) -> Result<(), crate::errors::BadInput> {
-        crate::cells::store_cells(self.whole, self.offset + offset, from)
-    }
-}
-
-/// A part of a game-thread owner (`session::GameThread`) as a listed store, from byte `offset`
-/// of the record to its end: the record's cells are `!Sync`, so each access checks the thread
-/// in debug builds, as `GameThread::get` does.
+/// A part of a game-thread owner (`session::GameThread`) as a listed store, from the field
+/// `first` on (empty: the whole record): the record's cells are `!Sync`, so each access checks
+/// the thread in debug builds, as `GameThread::get` does.
 struct OnGame<S: 'static> {
     whole: &'static S,
-    offset: usize,
+    first: &'static str,
 }
 
 // SAFETY: as `GameThread`: the data is reached only after the game-thread check.
@@ -82,56 +58,76 @@ struct OnGame<S: 'static> {
 )]
 unsafe impl<S> Sync for OnGame<S> {}
 
-// SAFETY: `first` is the record's byte at the part's offset and `size` what is left of it;
-// the data is reached only after the game-thread check.
+/// A whole game-thread owner's record that also has a byte view: the few stores a test names a
+/// place of by byte (`race_places`), which need the record's fixed layout.
+struct OnGameBytes<S: 'static> {
+    game: OnGame<S>,
+}
+
+// SAFETY: `first` is the record's first byte and `size` its size; the data is reached only
+// after the game-thread check.
 #[allow(
     unsafe_code,
-    reason = "Store's promise: the part's bytes are the record's"
+    reason = "Store's promise: the record's bytes are the record's"
 )]
-unsafe impl<S: ByteView> Store for OnGame<S> {
+unsafe impl<S: ByteView> Store for OnGameBytes<S> {
     fn size(&self) -> usize {
-        size_of::<S>() - self.offset
+        size_of::<S>()
     }
 
     fn first(&self) -> *const u8 {
-        std::ptr::from_ref(self.whole)
-            .cast::<u8>()
-            .wrapping_add(self.offset)
+        std::ptr::from_ref(self.game.whole).cast::<u8>()
     }
 
     fn load(&self, offset: usize, to: &mut [u8]) -> Result<(), BadInput> {
         crate::session::assert_game_thread();
-        crate::cells::load_cells(self.whole, self.offset + offset, to)
+        crate::cells::load_cells(self.game.whole, offset, to)
     }
 
     fn store(&self, offset: usize, from: &[u8]) -> Result<(), BadInput> {
         crate::session::assert_game_thread();
-        crate::cells::store_cells(self.whole, self.offset + offset, from)
+        crate::cells::store_cells(self.game.whole, offset, from)
     }
 }
 
-/// A listed store that tests reach by field path (`race_places`) as well as by byte: the
-/// record's own `Cells`, whole where the store is a part of it.
-pub trait Walk: Store {
+/// A listed store that tests reach by field path: the record's own `Cells`, whole where the
+/// store is a part of it. A few also have a byte view (`bytes`).
+pub trait Walk {
     /// The bytes of the cells the field `path` of the record behind the store names
     /// (`paths::bytes`), whatever their place in the store.
     fn path_bytes(&self, path: &str) -> Option<Vec<u8>>;
     /// The cells `path` names set from `bytes`; says whether the path and the length fitted.
     fn set_path_bytes(&self, path: &str, bytes: &[u8]) -> bool;
+    /// `length` bytes of cells from the field `path` on, in field order (`paths::field_range`).
+    fn range_bytes(&self, path: &str, length: usize) -> Vec<u8>;
+    /// The cells `range_bytes` names set from `bytes`; says whether the record held that many.
+    fn set_range_bytes(&self, path: &str, bytes: &[u8]) -> bool;
+    /// The address of the first cell `path` names (`paths::first_addr`).
+    fn first_addr(&self, path: &str) -> Option<usize>;
     /// A copy of every cell of the record behind the store; the function returned puts the
     /// copy back (a store that is a part of a record keeps the whole record).
     fn keep(&self) -> Box<dyn Fn() + '_>;
+    /// The first field of the store when it is a part of a record that starts later (empty:
+    /// the store is the whole record).
+    fn first_field(&self) -> &'static str {
+        ""
+    }
+    /// The record by byte offset, for the places named by byte (`race_places`); none where the
+    /// record has no byte view.
+    fn bytes(&self) -> Option<&(dyn Store + Sync)> {
+        None
+    }
 }
 
 /// A copy of every cell of `whole`, and the function that puts it back.
-fn kept<T: crate::cells::Cells>(whole: &T) -> Box<dyn Fn() + '_> {
+fn kept<T: Cells>(whole: &T) -> Box<dyn Fn() + '_> {
     // On the heap: a large record off the stack.
     let copy: Box<T> = crate::cells::boxed_zeroed_cells();
     copy.copy_from(whole);
     Box::new(move || whole.copy_from(&copy))
 }
 
-impl<T: ByteView> Walk for T {
+impl<T: Cells> Walk for T {
     fn path_bytes(&self, path: &str) -> Option<Vec<u8>> {
         super::paths::bytes(self, path)
     }
@@ -140,12 +136,24 @@ impl<T: ByteView> Walk for T {
         super::paths::set_bytes(self, path, bytes)
     }
 
+    fn range_bytes(&self, path: &str, length: usize) -> Vec<u8> {
+        super::paths::field_range(self, path, length)
+    }
+
+    fn set_range_bytes(&self, path: &str, bytes: &[u8]) -> bool {
+        super::paths::set_field_range(self, path, bytes)
+    }
+
+    fn first_addr(&self, path: &str) -> Option<usize> {
+        super::paths::first_addr(self, path)
+    }
+
     fn keep(&self) -> Box<dyn Fn() + '_> {
         kept(self)
     }
 }
 
-impl<T: ByteView + Sync + 'static> Walk for RecordTail<T> {
+impl<T: Cells + Sync + 'static> Walk for RecordFrom<T> {
     fn path_bytes(&self, path: &str) -> Option<Vec<u8>> {
         super::paths::bytes(self.whole, path)
     }
@@ -154,12 +162,28 @@ impl<T: ByteView + Sync + 'static> Walk for RecordTail<T> {
         super::paths::set_bytes(self.whole, path, bytes)
     }
 
+    fn range_bytes(&self, path: &str, length: usize) -> Vec<u8> {
+        super::paths::field_range(self.whole, path, length)
+    }
+
+    fn set_range_bytes(&self, path: &str, bytes: &[u8]) -> bool {
+        super::paths::set_field_range(self.whole, path, bytes)
+    }
+
+    fn first_addr(&self, path: &str) -> Option<usize> {
+        super::paths::first_addr(self.whole, path)
+    }
+
     fn keep(&self) -> Box<dyn Fn() + '_> {
         kept(self.whole)
+    }
+
+    fn first_field(&self) -> &'static str {
+        self.first
     }
 }
 
-impl<S: ByteView> Walk for OnGame<S> {
+impl<S: Cells> Walk for OnGame<S> {
     fn path_bytes(&self, path: &str) -> Option<Vec<u8>> {
         crate::session::assert_game_thread();
         super::paths::bytes(self.whole, path)
@@ -170,25 +194,81 @@ impl<S: ByteView> Walk for OnGame<S> {
         super::paths::set_bytes(self.whole, path, bytes)
     }
 
+    fn range_bytes(&self, path: &str, length: usize) -> Vec<u8> {
+        crate::session::assert_game_thread();
+        super::paths::field_range(self.whole, path, length)
+    }
+
+    fn set_range_bytes(&self, path: &str, bytes: &[u8]) -> bool {
+        crate::session::assert_game_thread();
+        super::paths::set_field_range(self.whole, path, bytes)
+    }
+
+    fn first_addr(&self, path: &str) -> Option<usize> {
+        crate::session::assert_game_thread();
+        super::paths::first_addr(self.whole, path)
+    }
+
     fn keep(&self) -> Box<dyn Fn() + '_> {
         crate::session::assert_game_thread();
         kept(self.whole)
+    }
+
+    fn first_field(&self) -> &'static str {
+        self.first
+    }
+}
+
+impl<S: ByteView> Walk for OnGameBytes<S> {
+    fn path_bytes(&self, path: &str) -> Option<Vec<u8>> {
+        self.game.path_bytes(path)
+    }
+
+    fn set_path_bytes(&self, path: &str, bytes: &[u8]) -> bool {
+        self.game.set_path_bytes(path, bytes)
+    }
+
+    fn range_bytes(&self, path: &str, length: usize) -> Vec<u8> {
+        self.game.range_bytes(path, length)
+    }
+
+    fn set_range_bytes(&self, path: &str, bytes: &[u8]) -> bool {
+        self.game.set_range_bytes(path, bytes)
+    }
+
+    fn first_addr(&self, path: &str) -> Option<usize> {
+        self.game.first_addr(path)
+    }
+
+    fn keep(&self) -> Box<dyn Fn() + '_> {
+        self.game.keep()
+    }
+
+    fn bytes(&self) -> Option<&(dyn Store + Sync)> {
+        Some(self)
     }
 }
 
 /// The whole of a game-thread owner's part as a listed store (lives for the program).
-fn on_game<S: ByteView>(whole: &'static S) -> &'static OnGame<S> {
-    on_game_tail(whole, 0)
+fn on_game<S: Cells>(whole: &'static S) -> &'static OnGame<S> {
+    on_game_from(whole, "")
 }
 
-/// A game-thread owner's part from byte `offset` on as a listed store.
-fn on_game_tail<S: ByteView>(whole: &'static S, offset: usize) -> &'static OnGame<S> {
-    Box::leak(Box::new(OnGame { whole, offset }))
+/// A game-thread owner's part from the field `first` on as a listed store.
+fn on_game_from<S: Cells>(whole: &'static S, first: &'static str) -> &'static OnGame<S> {
+    Box::leak(Box::new(OnGame { whole, first }))
 }
 
-/// A record of atomic cells from byte `offset` on as a listed store.
-fn record_tail<T: ByteView + Sync>(whole: &'static T, offset: usize) -> &'static RecordTail<T> {
-    Box::leak(Box::new(RecordTail { whole, offset }))
+/// A game-thread owner's whole part as a listed store that also has a byte view.
+fn on_game_bytes<S: ByteView>(whole: &'static S) -> &'static OnGameBytes<S> {
+    Box::leak(Box::new(OnGameBytes {
+        game: OnGame { whole, first: "" },
+    }))
+}
+
+/// A record of atomic cells from the field `first` on as a listed store.
+fn record_from<T: Cells + Sync>(whole: &'static T, first: &'static str) -> &'static RecordFrom<T> {
+    Box::leak(Box::new(RecordFrom { whole, first }))
 }
 
 /// Every store, by the path of its owner (the static the store is a field of); a name repeats
@@ -433,7 +513,7 @@ fn listed_stores() -> Vec<Listed> {
         ),
         listed!(
             "install.owner.INSTALL.vars",
-            on_game_tail(&crate::install::owner::INSTALL.get().vars, 1),
+            on_game_from(&crate::install::owner::INSTALL.get().vars, "._gap_529dad"),
             0x4b6,
         ),
         listed!(
@@ -740,19 +820,25 @@ fn listed_stores() -> Vec<Listed> {
         ),
         listed!(
             "menu.owner.MENUS.tables.texts",
-            on_game_tail(&crate::menu::owner::MENUS.get().tables.texts, 2),
+            on_game_from(
+                &crate::menu::owner::MENUS.get().tables.texts,
+                ".no_point_text"
+            ),
             0x2ce4,
         ),
         listed!(
             "menu.owner.MENUS.tables.texts",
-            on_game_tail(
+            on_game_from(
                 &crate::menu::owner::MENUS.get().tables.texts,
-                crate::menu::texts_store::CAR_SPEECH_OFFSET,
+                ".car_speech[0][0]",
             ),
         ),
         listed!(
             "system.owner.SYSTEM.records.stage_tables",
-            on_game_tail(&crate::system::owner::SYSTEM.records().stage_tables, 2),
+            on_game_from(
+                &crate::system::owner::SYSTEM.records().stage_tables,
+                ".trak_pak.link",
+            ),
         ),
         listed!(
             "menu.owner.MENUS.cars.drivers",
@@ -784,7 +870,7 @@ fn listed_stores() -> Vec<Listed> {
         ),
         listed!(
             "race.owner.RACE.replay.seal_work",
-            on_game_tail(crate::race::owner::RACE.replay.seal_work(), 12),
+            on_game_from(crate::race::owner::RACE.replay.seal_work(), ".subkeys[0]"),
             0x98,
         ),
         listed!(
@@ -797,12 +883,12 @@ fn listed_stores() -> Vec<Listed> {
         ),
         listed!(
             "input.owner.INPUT.guids",
-            record_tail(&crate::input::owner::INPUT.guids, 8),
+            record_from(&crate::input::owner::INPUT.guids, ".device2"),
             0x1c0,
         ),
         listed!(
             "sound.owner.SOUND.menu.menu_sounds",
-            record_tail(&crate::sound::owner::SOUND.menu.menu_sounds, 4),
+            record_from(&crate::sound::owner::SOUND.menu.menu_sounds, ".list"),
             0x28,
         ),
         listed!(
@@ -816,7 +902,7 @@ fn listed_stores() -> Vec<Listed> {
         ),
         listed!(
             "sound.owner.SOUND.race.cue_lists",
-            on_game_tail(crate::sound::owner::SOUND.race.cue_lists.get(), 8),
+            on_game_from(crate::sound::owner::SOUND.race.cue_lists.get(), ".table[0]"),
         ),
         listed!(
             "sound.owner.SOUND.race.kinds",
@@ -825,7 +911,10 @@ fn listed_stores() -> Vec<Listed> {
         ),
         listed!(
             "sound.owner.SOUND.race.surface_sets",
-            on_game_tail(crate::sound::owner::SOUND.race.surface_sets.get(), 12),
+            on_game_from(
+                crate::sound::owner::SOUND.race.surface_sets.get(),
+                ".sets[0]"
+            ),
             0x1c0,
         ),
         listed!(
@@ -834,26 +923,26 @@ fn listed_stores() -> Vec<Listed> {
         ),
         listed!(
             "install.owner.INSTALL.run",
-            on_game_tail(&crate::install::owner::INSTALL.get().run, 8),
+            on_game_from(&crate::install::owner::INSTALL.get().run, ".same_version"),
         ),
         listed!(
             "install.owner.INSTALL.names",
-            on_game_tail(&crate::install::owner::INSTALL.get().names, 0),
+            on_game(&crate::install::owner::INSTALL.get().names),
             0x8a7,
         ),
         listed!(
             "install.owner.INSTALL.pages",
-            on_game_tail(&crate::install::owner::INSTALL.get().pages, 7),
+            on_game_from(&crate::install::owner::INSTALL.get().pages, ".layout"),
             0x1a25,
         ),
         listed!(
             "install.owner.INSTALL.paths",
-            on_game_tail(&crate::install::owner::INSTALL.get().paths, 8),
+            on_game_from(&crate::install::owner::INSTALL.get().paths, ".game_dir"),
             0x600,
         ),
         listed!(
             "install.owner.INSTALL.palette",
-            on_game_tail(&crate::install::owner::INSTALL.get().palette, 4),
+            on_game_from(&crate::install::owner::INSTALL.get().palette, ".palette"),
             0x300,
         ),
         listed!(
@@ -935,7 +1024,7 @@ fn listed_stores() -> Vec<Listed> {
         ),
         listed!(
             "race.owner.RACE.replay.car_blocks",
-            on_game(crate::race::owner::RACE.replay.car_blocks.get()),
+            on_game_bytes(crate::race::owner::RACE.replay.car_blocks.get()),
         ),
         listed!(
             "race.owner.RACE.replay.replay_work",
@@ -943,7 +1032,10 @@ fn listed_stores() -> Vec<Listed> {
         ),
         listed!(
             "race.groups_store.PANEL_TAIL",
-            on_game_tail(crate::race::owner::RACE.frame.panel_and_overlay.get(), 2),
+            on_game_from(
+                crate::race::owner::RACE.frame.panel_and_overlay.get(),
+                ".panel.split_6",
+            ),
         ),
         listed!(
             "race.owner.RACE.physics.split_tables",
@@ -1103,11 +1195,11 @@ fn listed_stores() -> Vec<Listed> {
         ),
         listed!(
             "race.owner.RACE.shared.car",
-            on_game(crate::race::owner::RACE.shared.car()),
+            on_game_bytes(crate::race::owner::RACE.shared.car()),
         ),
         listed!(
             "race.owner.RACE.shared.work",
-            on_game(crate::race::owner::RACE.shared.work.get()),
+            on_game_bytes(crate::race::owner::RACE.shared.work.get()),
         ),
         listed!(
             "race.owner.RACE.frame.text_state",
@@ -1567,12 +1659,12 @@ fn listed_stores() -> Vec<Listed> {
     ]
 }
 
-/// A store: its name, where its bytes are in this process, and how many bytes the game's
-/// range holds.
+/// A store: its name, its cells (by field path, and by byte where it has a byte view), and
+/// how many bytes the game's range holds where that is known.
 pub struct Entry {
     pub name: &'static str,
     pub store: &'static (dyn Walk + Sync),
-    pub len: usize,
+    pub len: Option<usize>,
 }
 
 /// The stores in the list's order (the golden file numbers a repeated name in this order).
@@ -1584,7 +1676,7 @@ pub fn listed() -> &'static [Entry] {
             .map(|l| Entry {
                 name: l.name,
                 store: l.store,
-                len: l.len.unwrap_or_else(|| l.store.size()),
+                len: l.len,
             })
             .collect()
     })
@@ -1594,10 +1686,20 @@ pub fn listed() -> &'static [Entry] {
 mod tests {
     use super::*;
 
+    /// A store's game range fits the store, where it has a byte view to measure; a store
+    /// that starts inside a record names a field the record has.
     #[test]
     fn every_store_holds_its_game_range() {
+        let _g = crate::test_support::test_lock();
         for e in listed() {
-            assert!(e.len > 0 && e.len <= e.store.size(), "{}", e.name);
+            assert!(e.len.is_none_or(|len| len > 0), "{}", e.name);
+            if let (Some(len), Some(bytes)) = (e.len, e.store.bytes()) {
+                assert!(len <= bytes.size(), "{}", e.name);
+            }
+            let first = e.store.first_field();
+            if !first.is_empty() {
+                assert!(e.store.path_bytes(first).is_some(), "{}: {first}", e.name);
+            }
         }
     }
 }

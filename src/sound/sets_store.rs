@@ -3297,19 +3297,13 @@ mod tests {
             let dwords = if set.get(0).unwrap() == 1 { 9 } else { 5 };
             assert!(set.get(dwords - 1).is_ok(), "{n}");
         }
+        let kinds = crate::sound::owner::sound().race.kinds.get();
         for n in 0..36 {
-            let record = crate::sound::owner::sound()
-                .race
-                .kinds
-                .get()
-                .record(n)
-                .unwrap();
-            // The records follow the table of their 36 addresses.
-            let kinds = crate::test_support::state::store("sound.owner.SOUND.race.kinds");
-            assert!(
-                std::ptr::from_ref(record).addr() - kinds.first().addr() >= 36 * 4,
-                "{n}"
-            );
+            kinds.record(n).unwrap();
         }
+        // The records follow the table of their 36 addresses, in the record's field order.
+        let table = crate::test_support::paths::field_start(kinds, ".kinds").unwrap();
+        let records = crate::test_support::paths::field_start(kinds, ".records").unwrap();
+        assert!(records - table >= 36 * 4);
     }
 }

@@ -1,7 +1,7 @@
 //! `gfx::lay_out_png` (0x41CCF7): sets the layout variables for a picture `decode_png` has
 //! just decoded.
 //!
-//! The decoded width and height are the info block's (`buf`, 0x93E8B0, the layout in `gfx::png`); pixels
+//! The decoded width and height are the info record's (`gfx::png::PngInfo`); pixels
 //! are 8 bits when bit 8 of `g_pictureFlags` is set, else 32; a row follows the one before
 //! without a gap; the rows are at `g_pictureBuffer`. Last, `palette_to_dwords` on the info
 //! block's palette, whether the file had one or not. The planes, the bytes of a plane's row
@@ -9,20 +9,13 @@
 //! `gfx::read_png`. The name is a reading.
 
 use crate::errors::BadInput;
-use crate::gfx::palette_to_dwords::palette_to_dwords;
-use crate::gfx::png::{INFO_HEIGHT, INFO_PALETTE, INFO_WIDTH, info_dword};
+use crate::gfx::palette_to_dwords::palette_bytes_to_dwords;
+use crate::gfx::png::PngInfo;
 
-pub fn lay_out_png(
-    gfx: &crate::gfx::owner::Gfx,
-    system: &crate::system::owner::System,
-) -> Result<(), BadInput> {
+pub fn lay_out_png(gfx: &crate::gfx::owner::Gfx, info: &PngInfo) -> Result<(), BadInput> {
     let pictures = &gfx.pictures;
     // Converted: `rc2k_core::gfx::png::layout`.
-    let layout = rc2k_core::gfx::png::layout(
-        info_dword(INFO_WIDTH, system),
-        info_dword(INFO_HEIGHT, system),
-        pictures.picture.flags.get(),
-    );
+    let layout = rc2k_core::gfx::png::layout(info.width, info.height, pictures.picture.flags.get());
     for (at, value) in [
         &pictures.decoder.width,
         &pictures.decoder.height,
@@ -40,10 +33,6 @@ pub fn lay_out_png(
     }
     pictures.decoder.pixels.set(pictures.picture.buffer.get());
     // Neither is null: both are the game's own tables.
-    palette_to_dwords(
-        &system.work().files.buffer,
-        INFO_PALETTE,
-        &pictures.decoder.palette,
-    )?;
+    palette_bytes_to_dwords(&info.palette, &pictures.decoder.palette)?;
     Ok(())
 }

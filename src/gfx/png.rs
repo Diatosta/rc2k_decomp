@@ -1,26 +1,37 @@
-/// The buffer the info block is in. The shared scratch (`files::scratch::SCRATCH`) holds first
-/// the file's first 0x80 bytes, then what the decoder says about the picture, laid out as the `INFO_` offsets below.
-pub fn info_buffer(system: &crate::system::owner::System) -> &crate::session::PlainBytes<65536> {
-    &system.work().files.buffer
+//! What the PNG decoder says about a picture.
+
+use crate::errors::BadInput;
+
+/// What `decode_png` says about the picture it decoded: whether the file has a palette (a
+/// PLTE chunk), the width and the height, and the palette's 0x300 bytes, three an entry.
+/// `decode_png` sets the fields it learns from the file; the others stay as the shared file
+/// scratch had them (see `PngInfo::leftover`).
+pub struct PngInfo {
+    pub has_palette: bool,
+    pub width: u32,
+    pub height: u32,
+    pub palette: [u8; PALETTE_LEN],
 }
 
-/// The info's dword at `offset` (`INFO_WIDTH` or `INFO_HEIGHT`).
-pub fn info_dword(offset: usize, system: &crate::system::owner::System) -> u32 {
-    system.work().files.buffer.get_u32(offset)
-}
+pub const PALETTE_LEN: usize = 0x300;
 
-/// The info's byte at `offset`.
-pub fn info_byte(offset: usize, system: &crate::system::owner::System) -> u8 {
-    system.work().files.buffer.get(offset)
-}
+/// Where the original laid the info block in the shared file scratch.
+const SCRATCH_PALETTE_AT: usize = 12;
 
-/// What `decode_png` leaves behind in the info buffer: a byte that is 1 if the file has a
-/// palette (a PLTE chunk), else 0 (`INFO_HAS_PALETTE`); the picture's width and height, dwords
-/// (`INFO_WIDTH`, `INFO_HEIGHT`); and a palette of 0x300 bytes, three an entry (`INFO_PALETTE`).
-/// Only the first byte is written, and the
-/// palette only when the file has one: the rest is whatever was there (in the original, the
-/// work area of zlib, which it lays over this block).
-pub const INFO_HAS_PALETTE: usize = 0;
-pub const INFO_WIDTH: usize = 4;
-pub const INFO_HEIGHT: usize = 8;
-pub const INFO_PALETTE: usize = 12;
+impl PngInfo {
+    /// What the decoder leaves unwritten: the first bytes of the shared file scratch, which
+    /// hold the file's head (`read_png` has just read it there) or an earlier user's bytes:
+    /// the first byte tells a palette if it is 1, then the width, the height and the palette's
+    /// 0x300 bytes. Read once, before the decoder runs; nothing writes the scratch between.
+    pub fn leftover(scratch: &crate::session::PlainBytes<65536>) -> Result<PngInfo, BadInput> {
+        let what = "the PNG info's leftover";
+        let mut palette = [0u8; PALETTE_LEN];
+        palette.copy_from_slice(&scratch.read_at(SCRATCH_PALETTE_AT, PALETTE_LEN, what)?);
+        Ok(PngInfo {
+            has_palette: scratch.get(0) == 1,
+            width: scratch.get_u32(4),
+            height: scratch.get_u32(8),
+            palette,
+        })
+    }
+}

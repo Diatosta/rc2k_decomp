@@ -197,6 +197,9 @@ struct Under<'a> {
     /// The bytes taken in so far.
     taken: usize,
     started: bool,
+    /// The field is a cell of an array of like cells, which the walk reports as one run (no
+    /// run lies at the field's own path).
+    in_run: bool,
     task: Span<'a>,
 }
 
@@ -208,6 +211,18 @@ impl Under<'_> {
             return false;
         };
         self.prefix.is_empty() || rest.is_empty() || rest.starts_with(['.', '['])
+    }
+
+    /// Whether the run at the current path is an array of like cells whose cell `prefix` names
+    /// (`.damage[2]`; the walk reports the array as its element 0), and the byte of the run the
+    /// field starts at.
+    fn cell_of_run(&self, run: &CellRun<'_>) -> Option<usize> {
+        if !self.in_run {
+            return None;
+        }
+        let (base, index) = split_index(self.prefix)?;
+        (index > 0 && self.path.strip_suffix("[0]") == Some(base))
+            .then(|| (index * run.width()).min(run.len()))
     }
 }
 
@@ -235,9 +250,16 @@ impl CellVisitor for Under<'_> {
         if len == 0 {
             return;
         }
+        let from = match self.length {
+            Some(_) if !self.started => self.cell_of_run(&run),
+            _ => None,
+        };
+        let skip = from.unwrap_or(0);
         let take = match self.length {
             None if self.inside() => len,
-            Some(n) if self.started || self.inside() => len.min(n - self.taken),
+            Some(n) if self.started || self.inside() || from.is_some() => {
+                (len - skip).min(n - self.taken)
+            }
             _ => 0,
         };
         if take > 0 {
@@ -246,10 +268,10 @@ impl CellVisitor for Under<'_> {
                 Span::Get(out) => {
                     let at = out.len();
                     out.resize(at + take, 0);
-                    run.load(0, &mut out[at..]);
+                    run.load(skip, &mut out[at..]);
                 }
                 Span::Set(rest) => {
-                    run.store(0, &rest[..take]);
+                    run.store(skip, &rest[..take]);
                     **rest = &rest[take..];
                 }
                 Span::Before(out) => {
@@ -262,18 +284,41 @@ impl CellVisitor for Under<'_> {
     }
 }
 
-fn walk_under<'a, T: Cells>(record: &T, prefix: &'a str, length: Option<usize>, task: Span<'a>) {
-    let mut under = Under {
+impl<'a> Under<'a> {
+    fn new(prefix: &'a str, length: Option<usize>, in_run: bool, task: Span<'a>) -> Self {
+        Under {
+            prefix,
+            length,
+            path: String::new(),
+            marks: Vec::new(),
+            seen: 0,
+            taken: 0,
+            started: false,
+            in_run,
+            task,
+        }
+    }
+}
+
+/// Whether some run of the record lies in the field or record `prefix` names.
+fn has_run_in<T: Cells>(record: &T, prefix: &str) -> bool {
+    let mut found = None;
+    record.visit(&mut Under::new(
         prefix,
-        length,
-        path: String::new(),
-        marks: Vec::new(),
-        seen: 0,
-        taken: 0,
-        started: false,
-        task,
-    };
-    record.visit(&mut under);
+        None,
+        false,
+        Span::Before(&mut found),
+    ));
+    found.is_some()
+}
+
+fn walk_under<'a, T: Cells>(record: &T, prefix: &'a str, length: Option<usize>, task: Span<'a>) {
+    // A path ending in an index names a record of an array or, where the array is of like
+    // cells, one cell of its single run: the second when no run lies at the path itself.
+    let in_run = length.is_some()
+        && split_index(prefix).is_some_and(|(_, index)| index > 0)
+        && !has_run_in(record, prefix);
+    record.visit(&mut Under::new(prefix, length, in_run, task));
 }
 
 /// The bytes of every cell in the field or record `prefix` names (the empty path is the whole
@@ -430,5 +475,39 @@ mod tests {
             first_addr(&record, ".c[1]").unwrap(),
         );
         assert_eq!(b - a, 2);
+    }
+
+    #[test]
+    fn a_range_starts_at_a_cell_of_an_array() {
+        #[derive(rc2k_derive::Cells)]
+        struct Free {
+            a: Dword,
+            b: [Dword; 3],
+            c: Dword,
+        }
+        let record = Free {
+            a: Dword::new(1),
+            b: [Dword::new(2), Dword::new(3), Dword::new(4)],
+            c: Dword::new(5),
+        };
+        let words = |bytes: Vec<u8>| -> Vec<u32> {
+            bytes
+                .chunks(4)
+                .map(|w| u32::from_le_bytes(w.try_into().unwrap()))
+                .collect()
+        };
+        assert_eq!(words(field_range(&record, ".b[1]", 12)), [3, 4, 5]);
+        assert_eq!(words(field_range(&record, ".b[2]", 4)), [4]);
+        let put: Vec<u8> = [7u32, 8].iter().flat_map(|w| w.to_le_bytes()).collect();
+        assert!(set_field_range(&record, ".b[2]", &put));
+        assert_eq!(
+            (
+                record.a.get(),
+                record.b[1].get(),
+                record.b[2].get(),
+                record.c.get()
+            ),
+            (1, 3, 7, 8)
+        );
     }
 }

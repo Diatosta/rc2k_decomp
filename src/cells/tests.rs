@@ -471,8 +471,8 @@ fn new_start<const N: usize>(
     out
 }
 
-/// The derived `SameShape` of a record over a kind (`ViewVars`) copies and merges as the byte
-/// runs do.
+/// The derived `SameShape` of a record over a kind (`ViewVars`) copies and merges as the
+/// derived `Cells` copy and merge do.
 #[test]
 fn same_shape_records_match_the_run_copies() {
     use crate::race::view_vars_store::ViewVars;
@@ -484,11 +484,11 @@ fn same_shape_records_match_the_run_copies() {
         varied(&start, seed ^ 0x55);
         varied(&a, seed + 9);
         varied(&b, seed + 9);
-        merge_cell_changes(&a, &from, &start);
+        a.merge_changes(&from, &start);
         from.merge_cells_to(&start, &b);
         assert_eq!(bytes_of(&a), bytes_of(&b));
         let (c, d) = (make(), make());
-        copy_whole(&from, &c);
+        c.copy_from(&from);
         from.copy_cells_to(&d);
         assert_eq!(bytes_of(&c), bytes_of(&d));
     }

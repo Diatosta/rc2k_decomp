@@ -43,13 +43,18 @@ impl<T: crate::cells::Cells> RecordSnapshot<'_, T> {
     }
 }
 
-/// The registry's store named `name` (the first of that name): what a test reads or
-/// writes by offset (`Store::load`, `Store::store`) where it named an address.
+/// The registry's store named `name` (the first of that name) by byte offset
+/// (`Store::load`, `Store::store`), for the places named by byte (`race_places`).
+///
+/// # Panics
+/// When the store has no byte view: name its fields by `walk` and a path.
 pub fn store(name: &str) -> &'static (dyn crate::cells::Store + Sync) {
     walk(name)
+        .bytes()
+        .unwrap_or_else(|| panic!("the store {name} has no byte view: use a field path"))
 }
 
-/// The same store, walkable by cell runs and field paths.
+/// The store named `name`, walkable by field paths.
 pub fn walk(name: &str) -> &'static (dyn super::registry::Walk + Sync) {
     super::registry::listed()
         .iter()
@@ -66,14 +71,12 @@ mod tests {
     fn a_snapshot_puts_a_store_back() {
         let _g = crate::test_support::test_lock();
         let snap = Snapshot::of(&["math.next_random.STATE"]);
-        let s = store("math.next_random.STATE");
-        let mut before = [0; 4];
-        s.load(0, &mut before).unwrap();
-        s.store(0, &[1, 2, 3, 4]).unwrap();
+        let s = walk("math.next_random.STATE");
+        let before = s.path_bytes("").unwrap();
+        assert!(s.set_path_bytes("", &[1, 2, 3, 4]));
+        assert_ne!(s.path_bytes("").unwrap(), before);
         snap.restore();
-        let mut after = [0; 4];
-        s.load(0, &mut after).unwrap();
-        assert_eq!(before, after);
+        assert_eq!(s.path_bytes("").unwrap(), before);
     }
 
     #[test]

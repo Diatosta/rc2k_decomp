@@ -471,211 +471,255 @@ pub fn read_settings(o: Owners<'static>) -> Result<(), BadInput> {
 #[cfg(test)]
 mod tests {
     use super::{ENTRIES, Owners, Target};
-    use crate::audio::store::AudioShared;
-    use crate::d3d::cards_store::Cards3d;
-    use crate::session::{Machine, WindowLoopState};
-    use core::mem::offset_of;
 
-    /// Where each setting's variable is: its store (a registry name) and the byte offset in
-    /// it. The game's table holds the variables' addresses; these are the places of them.
-    const PLACES: [(&str, &str, usize); 77] = [
+    /// Where each setting's variable is: its store (a registry name) and the field in it, by
+    /// path. The game's table holds the variables' addresses; these are the places of them.
+    const PLACES: [(&str, &str, &str); 77] = [
         (
             "notaskswitch",
             "system.owner.SYSTEM.window_loop",
-            offset_of!(WindowLoopState, no_task_switch),
+            ".no_task_switch",
         ),
         (
             "noprichange",
             "system.owner.SYSTEM.window_loop",
-            offset_of!(WindowLoopState, keep_priority),
+            ".keep_priority",
         ),
-        (
-            "ignoremmx",
-            "system.owner.SYSTEM.machine",
-            offset_of!(Machine, ignore_mmx),
-        ),
+        ("ignoremmx", "system.owner.SYSTEM.machine", ".ignore_mmx"),
         (
             "ignorekatmai",
             "system.owner.SYSTEM.machine",
-            offset_of!(Machine, ignore_katmai),
+            ".ignore_katmai",
         ),
         (
             "ignoreamdk3d",
             "system.owner.SYSTEM.machine",
-            offset_of!(Machine, ignore_3dnow),
+            ".ignore_3dnow",
         ),
-        ("altmemenable", "memory.state.OWN_HEAP", 0x0),
-        ("altmemheapsize", "memory.state.OWN_HEAP_KB", 0x0),
+        ("altmemenable", "memory.state.OWN_HEAP", ""),
+        ("altmemheapsize", "memory.state.OWN_HEAP_KB", ""),
+        ("noaudio", "audio.owner.AUDIO_OWNER.state", ".no_audio"),
+        ("nosound", "audio.owner.AUDIO_OWNER.state", ".no_audio"),
         (
-            "noaudio",
-            "audio.owner.AUDIO_OWNER.state",
-            offset_of!(AudioShared, no_audio),
+            "nocdaudio",
+            "sound.owner.SOUND.menu.cd_audio",
+            ".no_cd_audio",
         ),
-        (
-            "nosound",
-            "audio.owner.AUDIO_OWNER.state",
-            offset_of!(AudioShared, no_audio),
-        ),
-        ("nocdaudio", "sound.owner.SOUND.menu.cd_audio", 0x0),
-        (
-            "nomusic",
-            "audio.owner.AUDIO_OWNER.state",
-            offset_of!(AudioShared, no_music),
-        ),
+        ("nomusic", "audio.owner.AUDIO_OWNER.state", ".no_music"),
         (
             "audiobasefreq",
             "audio.owner.AUDIO_OWNER.state",
-            offset_of!(AudioShared, mix_rate_setting),
+            ".mix_rate_setting",
         ),
         (
             "ignoreds3d",
             "audio.owner.AUDIO_OWNER.state",
-            offset_of!(AudioShared, no_listener),
+            ".no_listener",
         ),
         (
             "ignoredsv",
             "audio.owner.AUDIO_OWNER.state",
-            offset_of!(AudioShared, ignore_dsv_setting),
+            ".ignore_dsv_setting",
         ),
         (
             "ignoreeax",
             "audio.owner.AUDIO_OWNER.state",
-            offset_of!(AudioShared, ignore_eax_setting),
+            ".ignore_eax_setting",
         ),
         (
             "ignorea3d",
             "audio.owner.AUDIO_OWNER.state",
-            offset_of!(AudioShared, no_a3d_setting),
+            ".no_a3d_setting",
         ),
         (
             "wavheapsize",
             "audio.owner.AUDIO_OWNER.state",
-            offset_of!(AudioShared, sample_buffer_kb),
+            ".sample_buffer_kb",
         ),
-        ("bundleheapsize", "gfx.owner.GFX.fonts.glyph_tables", 0x0),
-        ("imageheapsize", "strings.owner.STRINGS.lexicon.memory", 0x0),
+        (
+            "bundleheapsize",
+            "gfx.owner.GFX.fonts.glyph_tables",
+            ".units",
+        ),
+        (
+            "imageheapsize",
+            "strings.owner.STRINGS.lexicon.memory",
+            ".kilobytes",
+        ),
         (
             "gamegfxheapsize",
             "gfx.owner.GFX.fonts.game_fonts_memory",
-            0x0,
+            ".units",
         ),
-        (
-            "forcedx5",
-            "d3d.owner.D3D.cards",
-            offset_of!(Cards3d, force_dx5),
-        ),
-        (
-            "forceno3dcard",
-            "d3d.owner.D3D.cards",
-            offset_of!(Cards3d, no_search),
-        ),
-        (
-            "ignoreprimary",
-            "d3d.owner.D3D.cards",
-            offset_of!(Cards3d, not_primary),
-        ),
+        ("forcedx5", "d3d.owner.D3D.cards", ".force_dx5"),
+        ("forceno3dcard", "d3d.owner.D3D.cards", ".no_search"),
+        ("ignoreprimary", "d3d.owner.D3D.cards", ".not_primary"),
         (
             "ignoresecondary",
             "d3d.owner.D3D.cards",
-            offset_of!(Cards3d, ignore_secondary),
+            ".ignore_secondary",
+        ),
+        ("agpmode", "d3d.owner.D3D.cards", ".agp_mode"),
+        ("force3dtrans", "d3d.owner.D3D.cards", ".force_trans"),
+        ("force3dalpha", "d3d.owner.D3D.cards", ".force_alpha"),
+        ("force3dshadow", "d3d.owner.D3D.cards", ".force_shadow"),
+        ("force3dfogging", "d3d.owner.D3D.cards", ".force_fogging"),
+        ("textflashmode", "strings.owner.STRINGS.text.blend_mode", ""),
+        ("videomodemain", "gfx.owner.GFX.display.mode", ".menu_mode"),
+        ("videomodegame", "gfx.owner.GFX.display.mode", ".race_mode"),
+        (
+            "v3driverfix",
+            "scene.owner.SCENE.drawing.scene",
+            ".v3_driver_fix",
+        ),
+        ("nopngdecode", "gfx.owner.GFX.png.setting", ""),
+        ("nojoy", "input.owner.INPUT.devices", ".no_joysticks"),
+        ("joymode", "input.owner.INPUT.devices", ".joy_mode"),
+        ("joycode", "input.owner.INPUT.devices", ".joy_code"),
+        ("joylowerdz", "input.owner.INPUT.devices", ".joy_dead_zone"),
+        ("joyupperdz", "input.owner.INPUT.devices", ".joy_end_zone"),
+        (
+            "noforcefeedback",
+            "input.owner.INPUT.devices",
+            ".no_force_feedback",
+        ),
+        ("joyffgain", "input.owner.INPUT.devices", ".ff_gain"),
+        (
+            "mergejoy",
+            "input.owner.INPUT.devices",
+            ".two_devices_one_player",
+        ),
+        ("nonetwork", "net.owner.NET_OWNER.vars", ".receive_done"),
+        ("inetport", "net.owner.NET_OWNER.main.setup", ".port"),
+        ("screensnapshot", "gfx.owner.GFX.shots", ".on"),
+        ("framecounter", "race.owner.RACE.frame.counter", ".show"),
+        (
+            "noreplay",
+            "race.owner.RACE.shared.replay_file",
+            ".no_replay_switch",
         ),
         (
-            "agpmode",
-            "d3d.owner.D3D.cards",
-            offset_of!(Cards3d, agp_mode),
+            "replaykeys",
+            "race.owner.RACE.shared.replay_file",
+            ".viewer_editing",
+        ),
+        ("logfile", "logfile.write_line.state.LEVEL", ""),
+        ("nofmv", "film.NO_FMV", ""),
+        ("key", "race.owner.RACE.replay.seal_work", ".key[0]"),
+        (
+            "allsecretcars",
+            "menu.owner.MENUS.play.cheats",
+            ".all_secret_cars",
         ),
         (
-            "force3dtrans",
-            "d3d.owner.D3D.cards",
-            offset_of!(Cards3d, force_trans),
+            "secretcar",
+            "menu.owner.MENUS.play.cheats",
+            ".all_secret_cars",
         ),
         (
-            "force3dalpha",
-            "d3d.owner.D3D.cards",
-            offset_of!(Cards3d, force_alpha),
+            "usesavegamekeys",
+            "saves.owner.SAVES.savegame_preview",
+            ".use_savegame_keys",
         ),
         (
-            "force3dshadow",
-            "d3d.owner.D3D.cards",
-            offset_of!(Cards3d, force_shadow),
+            "sensiblesaving",
+            "menu.owner.MENUS.screens.state",
+            ".menus.review_kind",
         ),
         (
-            "force3dfogging",
-            "d3d.owner.D3D.cards",
-            offset_of!(Cards3d, force_fogging),
+            "noprecipitation",
+            "race.owner.RACE.shared.work",
+            ".no_precipitation",
         ),
         (
-            "textflashmode",
-            "strings.owner.STRINGS.text.blend_mode",
-            0x0,
+            "seasoncode",
+            "race.owner.RACE.shared.replay_file",
+            ".season_code",
         ),
-        ("videomodemain", "gfx.owner.GFX.display.mode", 0x10),
-        ("videomodegame", "gfx.owner.GFX.display.mode", 0x14),
-        ("v3driverfix", "scene.owner.SCENE.drawing.scene", 0x2b8),
-        ("nopngdecode", "gfx.owner.GFX.png.setting", 0x0),
-        ("nojoy", "input.owner.INPUT.devices", 0x4),
-        ("joymode", "input.owner.INPUT.devices", 0x8),
-        ("joycode", "input.owner.INPUT.devices", 0xc),
-        ("joylowerdz", "input.owner.INPUT.devices", 0x10),
-        ("joyupperdz", "input.owner.INPUT.devices", 0x14),
-        ("noforcefeedback", "input.owner.INPUT.devices", 0x1c),
-        ("joyffgain", "input.owner.INPUT.devices", 0x20),
-        ("mergejoy", "input.owner.INPUT.devices", 0x24),
-        ("nonetwork", "net.owner.NET_OWNER.vars", 0x0),
-        ("inetport", "net.owner.NET_OWNER.main.setup", 0xb4),
-        ("screensnapshot", "gfx.owner.GFX.shots", 0x0),
-        ("framecounter", "race.owner.RACE.frame.counter", 0x0),
-        ("noreplay", "race.owner.RACE.shared.replay_file", 0x4),
-        ("replaykeys", "race.owner.RACE.shared.replay_file", 0x30),
-        ("logfile", "logfile.write_line.state.LEVEL", 0x0),
-        ("nofmv", "film.NO_FMV", 0x0),
-        ("key", "race.owner.RACE.replay.seal_work", 0x80),
-        ("allsecretcars", "menu.owner.MENUS.play.cheats", 0x138),
-        ("secretcar", "menu.owner.MENUS.play.cheats", 0x138),
-        ("usesavegamekeys", "saves.owner.SAVES.savegame_preview", 0x0),
-        ("sensiblesaving", "menu.owner.MENUS.screens.state", 0x480),
-        ("noprecipitation", "race.owner.RACE.shared.work", 0x13f0),
-        ("seasoncode", "race.owner.RACE.shared.replay_file", 0x34),
         (
             "noautoneutral",
             "race.owner.RACE.shared.physics_tables",
-            0x944,
+            ".no_auto_neutral",
         ),
-        ("nonlinearsteering", "input.owner.INPUT.devices", 0x28),
+        (
+            "nonlinearsteering",
+            "input.owner.INPUT.devices",
+            ".nonlinear_steering",
+        ),
         (
             "wrreplayenable",
             "race.owner.RACE.replay.viewer_and_kinds",
-            0x3cf,
+            ".viewer_panel.untyped_tail",
         ),
         (
             "wrreplayrate",
             "race.owner.RACE.replay.viewer_and_kinds",
-            0x3d3,
+            ".viewer_panel.untyped_tail",
         ),
-        ("alt2axcode", "input.owner.INPUT.devices", 0x18),
-        ("fizpatch", "race.owner.RACE.shared.work", 0x12c0),
+        ("alt2axcode", "input.owner.INPUT.devices", ".alt_axes_code"),
+        ("fizpatch", "race.owner.RACE.shared.work", ".patches[0]"),
         (
             "patchmaxdrawdistance",
             "race.owner.RACE.shared.work",
-            0x12c4,
+            ".patches[1]",
         ),
-        ("patchstickygrass", "race.owner.RACE.shared.work", 0x12c8),
-        ("patchgravity", "race.owner.RACE.shared.work", 0x12cc),
-        ("patchdamages", "race.owner.RACE.shared.work", 0x12d0),
-        ("patchbrakegrip", "race.owner.RACE.shared.work", 0x12d4),
-        ("patchaccelgrip", "race.owner.RACE.shared.work", 0x12d8),
-        ("patchslidegrip", "race.owner.RACE.shared.work", 0x12dc),
-        ("patchgripgrass", "race.owner.RACE.shared.work", 0x12e0),
-        ("patchgriptarmac", "race.owner.RACE.shared.work", 0x12e4),
-        ("patchgripsnow", "race.owner.RACE.shared.work", 0x12e8),
-        ("patchgripmud", "race.owner.RACE.shared.work", 0x12ec),
-        ("patchgripgravel", "race.owner.RACE.shared.work", 0x12f0),
+        (
+            "patchstickygrass",
+            "race.owner.RACE.shared.work",
+            ".patches[2]",
+        ),
+        ("patchgravity", "race.owner.RACE.shared.work", ".patches[3]"),
+        ("patchdamages", "race.owner.RACE.shared.work", ".patches[4]"),
+        (
+            "patchbrakegrip",
+            "race.owner.RACE.shared.work",
+            ".patches[5]",
+        ),
+        (
+            "patchaccelgrip",
+            "race.owner.RACE.shared.work",
+            ".patches[6]",
+        ),
+        (
+            "patchslidegrip",
+            "race.owner.RACE.shared.work",
+            ".patches[7]",
+        ),
+        (
+            "patchgripgrass",
+            "race.owner.RACE.shared.work",
+            ".patches[8]",
+        ),
+        (
+            "patchgriptarmac",
+            "race.owner.RACE.shared.work",
+            ".patches[9]",
+        ),
+        (
+            "patchgripsnow",
+            "race.owner.RACE.shared.work",
+            ".patches[10]",
+        ),
+        (
+            "patchgripmud",
+            "race.owner.RACE.shared.work",
+            ".patches[11]",
+        ),
+        (
+            "patchgripgravel",
+            "race.owner.RACE.shared.work",
+            ".patches[12]",
+        ),
         (
             "lexcontrol",
             "strings.maybe_compile_lexicon.RECOMPILE_LEVEL",
-            0x0,
+            "",
         ),
-        ("sparksmode", "menu.owner.MENUS.screens.event", 0x18),
+        (
+            "sparksmode",
+            "menu.owner.MENUS.screens.event",
+            ".sparks_mode",
+        ),
     ];
 
     #[test]
@@ -688,46 +732,45 @@ mod tests {
                 // Their cells are bytes of a tail: checked by writing, in the test below.
                 Target::Unaligned(_) => continue,
             };
-            let (_, store, offset) = PLACES
+            let (_, store, path) = PLACES
                 .iter()
                 .find(|(k, _, _)| k.as_bytes() == key)
                 .unwrap_or_else(|| panic!("no place for {name}"));
-            let first = crate::test_support::state::store(store).first().addr();
-            let offset = crate::test_support::race_places::in_current_layout(store, *offset);
-            assert_eq!(cell.addr(), first + offset, "{name}");
+            let first = crate::test_support::state::walk(store).first_addr(path);
+            assert_eq!(Some(cell.addr()), first, "{name}");
         }
     }
 
-    /// The two unaligned settings write the four bytes at their address (and only those).
+    /// The two unaligned settings write the four bytes at their place in the viewer panel's
+    /// untyped tail (bytes 3 and 7 of it, as in the game's image) and only those.
     #[test]
     fn unaligned_targets_write_their_bytes() {
-        use crate::test_support::state::{Snapshot, store};
+        use crate::test_support::state::{Snapshot, walk};
         let _lock = crate::test_support::test_lock();
         for (key, _, target) in ENTRIES {
             if !matches!(target, Target::Unaligned(_)) {
                 continue;
             }
-            let (_, name, offset) = PLACES.iter().find(|(k, _, _)| k.as_bytes() == key).unwrap();
-            let snapshot = Snapshot::of(&[name]);
-            let store = store(name);
-            let read = |at: usize, len: usize| {
-                let mut bytes = vec![0; len];
-                store.load(at, &mut bytes).unwrap();
-                bytes
+            let (_, name, path) = PLACES.iter().find(|(k, _, _)| k.as_bytes() == key).unwrap();
+            let at = match key {
+                b"wrreplayenable" => 3,
+                b"wrreplayrate" => 7,
+                _ => unreachable!("an unaligned setting without a place"),
             };
-            let neighbours = read(offset - 4, 12);
+            let snapshot = Snapshot::of(&[name]);
+            let tail = walk(name);
+            let before = tail.path_bytes(path).unwrap();
             target.set(Owners::the(), 0x0A0B_0C0D);
-            let after = read(*offset, 4);
-            let neighbours_after = read(offset - 4, 12);
+            let after = tail.path_bytes(path).unwrap();
             snapshot.restore();
             assert_eq!(
-                after,
+                after[at..at + 4],
                 0x0A0B_0C0Du32.to_le_bytes(),
                 "{}",
                 String::from_utf8_lossy(key)
             );
-            assert_eq!(&neighbours[..4], &neighbours_after[..4]);
-            assert_eq!(&neighbours[8..], &neighbours_after[8..]);
+            assert_eq!(&before[..at], &after[..at]);
+            assert_eq!(&before[at + 4..], &after[at + 4..]);
         }
     }
 

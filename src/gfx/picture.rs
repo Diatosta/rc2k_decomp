@@ -279,4 +279,68 @@ mod tests {
         kept.restore();
         crate::memory::with_figures(|f| *f = figures);
     }
+
+    #[test]
+    fn the_png_info_holds_the_size_and_the_palette_only_when_there_is_one() {
+        use crate::gfx::png::{PALETTE_LEN, PngInfo};
+        let pictures = &gfx().pictures;
+        let _lock = crate::test_support::test_lock();
+        let figures = crate::memory::figures();
+        let kept = crate::test_support::state::Snapshot::of(&[
+            "gfx.owner.GFX.pictures.picture",
+            "gfx.owner.GFX.png.header",
+        ]);
+        let memory = crate::memory::ListCells::empty();
+        let list = &memory;
+        pictures
+            .picture
+            .buffer
+            .set(take(Buffer::Main, list, 0x1D_4C00 + 0xC80).unwrap());
+        set_size(&gfx().pictures, rc2k_core::gfx::picture_size::READ);
+        let leftover = || PngInfo {
+            has_palette: true,
+            width: 77,
+            height: 88,
+            palette: [0x55; PALETTE_LEN],
+        };
+        let mut plain = leftover();
+        let file = png(0);
+        let code = crate::gfx::decode_png::decode_png(
+            &gfx().png,
+            &file,
+            pictures.picture.buffer.get(),
+            &mut plain,
+        );
+        assert_eq!(code.unwrap(), 0);
+        assert!(!plain.has_palette);
+        assert_eq!((plain.width, plain.height), (3, 2));
+        assert_eq!(
+            plain.palette, [0x55; PALETTE_LEN],
+            "no PLTE: the palette stays"
+        );
+        // The same file with a PLTE chunk before its IDAT.
+        let idat = file.windows(4).position(|w| w == b"IDAT").unwrap() - 4;
+        let colours: Vec<u8> = (0..PALETTE_LEN).map(|n| n as u8).collect();
+        let mut chunk = (PALETTE_LEN as u32).to_be_bytes().to_vec();
+        chunk.extend(b"PLTE");
+        chunk.extend(&colours);
+        chunk.extend([0; 4]);
+        let mut with = file[..idat].to_vec();
+        with.extend(chunk);
+        with.extend(&file[idat..]);
+        let mut info = leftover();
+        let code = crate::gfx::decode_png::decode_png(
+            &gfx().png,
+            &with,
+            pictures.picture.buffer.get(),
+            &mut info,
+        );
+        assert_eq!(code.unwrap(), 0);
+        assert!(info.has_palette);
+        assert_eq!((info.width, info.height), (3, 2));
+        assert_eq!(info.palette.as_slice(), colours.as_slice());
+        give_back(Buffer::Main);
+        kept.restore();
+        crate::memory::with_figures(|f| *f = figures);
+    }
 }
