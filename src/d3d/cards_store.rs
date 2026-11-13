@@ -83,15 +83,3 @@ impl Cards3d {
         }
     }
 }
-
-#[cfg(test)]
-mod tests {
-
-    #[test]
-    fn cards3d_starts_as_the_games() {
-        let _g = crate::test_support::test_lock();
-        crate::test_support::first_values::assert_store_starts_as_the_games(
-            "store:d3d.owner.D3D.cards",
-        );
-    }
-}

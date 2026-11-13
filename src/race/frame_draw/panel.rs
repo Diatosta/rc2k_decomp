@@ -231,7 +231,7 @@ pub fn clear_point_records(
     part: &crate::workers::PartScratch,
 ) -> Result<(), BadInput> {
     let pattern: [u32; 4] = crate::session::read_bits(&reads.light_work.sse_fill);
-    let sse = reads.draw_switches.use_sse.get() != 0;
+    let sse = reads.draw_switches.use_sse.is_set();
     for record in crate::scene::point_records::first_records_everywhere(part, 0x1000)? {
         if sse {
             for (cell, v) in record.iter().zip(pattern) {
@@ -251,7 +251,6 @@ pub fn clear_point_records(
 /// `OBJECT_SLOTS.first_face` in `g_faces`) the kinds' byte of the first face's +4 word. Outputs:
 /// the view's four face tables (`race::view_course`; the original's `LEVEL_GRID.face_table_a` ...)
 pub fn object_bytes(
-    race: &Race,
     reads: crate::workers::DrawReads<'_>,
     mine: &crate::race::view_course::ViewCourse,
 ) -> Result<(), BadInput> {
@@ -265,13 +264,14 @@ pub fn object_bytes(
             .ok_or(BadInput("an object kind past the kinds' table"))
     };
     for n in 0..0x100usize {
-        let record = &race.polygon_tables().texture_infos[n].words[8..];
+        let record = &reads.buffers.polygon_tables.texture_infos[n].words[8..];
         let flags = record[3].get().to_le_bytes()[2];
         let record_kind = kind(record[0].get())?;
         let face_kind = if reads.object_slots.face_counts[n].get() != 0 {
             let first = reads.object_slots.first_face[n].get() as usize;
-            let face = race
-                .faces()
+            let face = reads
+                .buffers
+                .faces
                 .faces
                 .get(first)
                 .ok_or(BadInput("an object's first face past the faces"))?
@@ -712,14 +712,12 @@ pub fn set_up_panel(race: &Race) -> Result<(), Refused> {
 /// `race::reset_lamps` (0x45487A): `g_lampCount`, the view's two sort lists' counts and
 /// `race().frame.frame_work.flare_count` 0, then `race::object_bytes`.
 pub fn reset_lamps(ctx: &crate::race::view_scratch::DrawCtx) -> Result<(), BadInput> {
-    let crate::race::view_scratch::DrawCtx {
-        race, view, reads, ..
-    } = *ctx;
+    let crate::race::view_scratch::DrawCtx { view, reads, .. } = *ctx;
     view.lamps.lamp_count.set(0);
     view.lists.depth_entry_count.set(0);
     view.lists.sort_entry_count.set(0);
     view.lamps.flare_count.set(0);
-    object_bytes(race, reads, &view.course)
+    object_bytes(reads, &view.course)
 }
 
 /// `race::hold_to_limit` (0x4650A9): `value` held to `RACE_WORK.patch_settings` (unsigned).

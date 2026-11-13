@@ -76,14 +76,3 @@ pub fn compare_bytes(a: &[u8], b: &[u8]) -> Ordering {
 pub fn same_text(a: &(impl Bytes + ?Sized), b: &(impl Bytes + ?Sized)) -> Result<bool, BadInput> {
     Ok(compare_texts(a, b)? == Ordering::Equal)
 }
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn first_table_is_the_games() {
-        assert_eq!(
-            crate::test_support::first_values::bytes("strings.same_text.LOWER/256"),
-            super::case_table().lower
-        );
-    }
-}

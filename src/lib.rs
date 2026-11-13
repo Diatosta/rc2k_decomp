@@ -28,6 +28,7 @@ mod menu;
 mod net;
 mod os;
 mod owners;
+mod part_cell;
 mod physics;
 mod place;
 mod platform;
@@ -54,8 +55,6 @@ mod settings;
 mod shared_memory;
 mod sound;
 pub mod standalone;
-#[cfg(test)]
-mod stores;
 mod strings;
 mod sync;
 mod system;

@@ -57,7 +57,7 @@ pub fn point_hits_car(c: &ContactInputs<'_>, point: [u32; 3], face: u32) -> Resu
         contact.object_point_turned[k].set(contact.object_point_scaled[k].get());
     }
     turn_by_heading(
-        &c.shared.buffers.engine_tables,
+        &c.shared.buffers.reads.get().engine_tables,
         c.car,
         &contact.object_point_turned,
         y,
@@ -174,7 +174,7 @@ mod reference_vectors {
                 ulps: 0,
                 plain: |_| {
                     x87_1(
-                        &crate::race::owner::race().physics.contact,
+                        crate::race::owner::race().physics.contact.get(),
                         crate::race::owner::race().course.numbers.get(),
                     );
                 },
@@ -193,7 +193,7 @@ mod reference_vectors {
                 ulps: 0,
                 plain: |_| {
                     x87_2(
-                        &crate::race::owner::race().physics.contact,
+                        crate::race::owner::race().physics.contact.get(),
                         crate::race::owner::race().course.numbers.get(),
                     );
                 },
@@ -207,7 +207,7 @@ mod reference_vectors {
                 ulps: 0,
                 plain: |_| {
                     x87_3(
-                        &crate::race::owner::race().physics.contact,
+                        crate::race::owner::race().physics.contact.get(),
                         crate::race::owner::race().course.numbers.get(),
                         crate::race::owner::race().shared.car(),
                     );

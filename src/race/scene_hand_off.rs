@@ -73,8 +73,11 @@ impl SceneHandOff {
 
     /// The scene's values kept (at its end; the matrices' fourth columns the part's own,
     /// `scene::view_matrices::current_matrix`).
-    pub fn keep(&self, race: &Race, part: &crate::workers::PartScratch) {
-        let m = &race.frame.matrices;
+    pub fn keep(
+        &self,
+        m: &crate::race::matrices_store::SceneMatrices,
+        part: &crate::workers::PartScratch,
+    ) {
         for (kept, n) in [(&self.lit, 1), (&self.made, 2)] {
             let now = crate::scene::view_matrices::current_matrix(m, part, n);
             for (cell, v) in kept.iter().zip(now) {
@@ -85,7 +88,7 @@ impl SceneHandOff {
 
     /// The kept values set again (before the view's overlays).
     pub fn put(&self, race: &Race) {
-        let m = &race.frame.matrices;
+        let m = &race.frame.matrices.get();
         for (kept, now) in [&self.lit, &self.made]
             .into_iter()
             .zip([&m.lit_matrix, &m.made_object_matrix])

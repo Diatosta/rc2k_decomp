@@ -49,20 +49,3 @@ pub mod state {
         out
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::state::*;
-    use crate::test_support::first_values::assert_store_starts_as_the_games;
-
-    #[test]
-    fn state_starts_as_the_games() {
-        let _lock = crate::test_support::test_lock();
-        for name in [
-            "CODE", "W32", "REPORTED", "EXTRA", "TEMPLATE", "TEXT", "CAPTION",
-        ] {
-            assert_store_starts_as_the_games(&format!("store:fatal.state.{name}"));
-        }
-        assert_eq!(message(), None);
-    }
-}

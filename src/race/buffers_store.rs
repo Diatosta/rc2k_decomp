@@ -1,22 +1,28 @@
-//! The image's zeroed tail (IDA 0x960000 .. 0xA8C180): the seven typed pieces in the image's
-//! order, as one static. One static and not seven: the checkpoint tables are read by a number
-//! held to the count (`race::checkpoints_store::nth`), and the pieces stay together.
+//! The image's zeroed tail (IDA 0x960000 .. 0xA8C180) past the drawing parts' scratch (the
+//! polygon vertices and the polygon work, each part's own: `workers::PartScratch`): the read
+//! tables (`BufferReads`). One static and not seven: the checkpoint tables are read by a
+//! number held to the count (`race::checkpoints_store::nth`), and the pieces of the read
+//! tables stay together.
 
-use crate::d3d::vertices_store::PolygonVertices;
 use crate::race::checkpoints_store::Checkpoints;
-#[cfg(test)]
-use crate::race::owner::race;
 use crate::scene::engine_tables_store::EngineTables;
 use crate::scene::faces_store::Faces;
-use crate::scene::polygon_store::{PolygonTables, PolygonWork};
+use crate::scene::polygon_store::PolygonTables;
+use crate::session::DrawShared;
 
+/// The buffers: the tables the parts only read (`BufferReads`).
 #[repr(C, align(16))]
-#[derive(rc2k_derive::Cells)]
 pub struct Buffers {
-    /// `d3d::vertices_store`.
-    pub vertices: PolygonVertices,
-    /// `scene::polygon_store`.
-    pub polygon: PolygonWork,
+    /// The tables written on the game's thread outside a drawing scope and read by every
+    /// part inside one (lent as `workers::DrawReads::buffers`).
+    pub reads: DrawShared<BufferReads>,
+}
+
+/// The buffers the drawing parts read and none writes, in the image's order after the polygon
+/// work.
+#[repr(C)]
+#[derive(rc2k_derive::Cells)]
+pub struct BufferReads {
     /// `scene::polygon_store`'s tables.
     pub polygon_tables: PolygonTables,
     /// `scene::faces_store`.
@@ -25,26 +31,20 @@ pub struct Buffers {
     pub checkpoints: Checkpoints,
     /// `scene::engine_tables_store`.
     pub engine_tables: EngineTables,
-    /// The last twelve bytes: the record's size is a multiple of its alignment.
-    pub _pad_end: [crate::session::Dword; 3],
 }
 
-// SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
-// them): any bit pattern is a valid value.
+impl BufferReads {
+    /// The bytes, zero as in the image.
+    pub const fn new() -> Self {
+        crate::cells::cells_of_bytes([0u8; core::mem::size_of::<BufferReads>()])
+    }
+}
 
 impl Buffers {
     /// The bytes, zero as in the image.
     pub const fn new() -> Self {
-        crate::cells::cells_of_bytes([0u8; core::mem::size_of::<Buffers>()])
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn the_buffers_have_their_home() {
-        assert_eq!(core::ptr::from_ref(&race().shared.buffers).addr() % 16, 0);
+        Buffers {
+            reads: DrawShared::new(BufferReads::new()),
+        }
     }
 }

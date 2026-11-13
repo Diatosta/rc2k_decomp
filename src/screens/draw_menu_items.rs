@@ -85,8 +85,7 @@ pub fn draw_menu_items(
         0
     } else {
         o.system
-            .session
-            .clocks
+            .clocks()
             .frame
             .get()
             .wrapping_sub(menus.play.champ_view.last_key_time.get())

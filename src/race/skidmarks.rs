@@ -233,10 +233,8 @@ pub fn draw_skidmarks(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<()
             ctx.view.polygon.polygon_sides[0].set(0u32);
             ctx.view.polygon.polygon_sides[1].set(1u32);
             crate::scene::draw_polygon::draw_polygon_in_game(
-                &ctx.view.polygon,
+                ctx.view,
                 ctx.part,
-                race,
-                &ctx.view.face,
                 ctx.reads,
                 ctx.reads.screen,
             )?;

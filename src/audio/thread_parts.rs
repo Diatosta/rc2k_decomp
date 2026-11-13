@@ -1,11 +1,11 @@
 //! The audio thread's small set-up and tear-down parts: the work buffer
 //! for reading samples, the primary buffer's play and stop, the 3D listener's release.
 
-use crate::audio::store::AudioState;
+use crate::audio::own::AudioOwn;
 use crate::errors::Refused;
 
 /// `audio::take_sample_buffer`: the setting's KB (0: one) taken on its list.
-pub fn take_sample_buffer(state: &AudioState) {
+pub fn take_sample_buffer(state: &AudioOwn) {
     // Converted: `rc2k_core::audio::levels::sample_buffer_size`.
     let size = rc2k_core::audio::levels::sample_buffer_size(state.sample_buffer_kb.get());
     state.sample_buffer_size.set(size);
@@ -16,7 +16,7 @@ pub fn take_sample_buffer(state: &AudioState) {
 }
 
 /// `audio::free_sample_buffer`: its list freed, size and buffer 0.
-pub fn free_sample_buffer(state: &AudioState) -> Result<(), Refused> {
+pub fn free_sample_buffer(state: &AudioOwn) -> Result<(), Refused> {
     crate::memory::free_list::free_list(&state.sample_buffer_memory)?;
     crate::audio::sample_data::free(crate::audio::sample_data::Buffer::Work);
     state.sample_buffer_size.set(0);
@@ -26,7 +26,7 @@ pub fn free_sample_buffer(state: &AudioState) -> Result<(), Refused> {
 
 /// `audio::play_primary`: unless A3D, the primary buffer played looping; a failure sets
 /// the lost flag.
-pub fn play_primary(state: &AudioState) {
+pub fn play_primary(state: &AudioOwn) {
     let p = state.primary_buffer.get();
     if crate::audio::buffer_settings::a3d(state) || p == 0 {
         return;
@@ -37,7 +37,7 @@ pub fn play_primary(state: &AudioState) {
 }
 
 /// `audio::stop_primary`: unless A3D, the primary buffer stopped.
-pub fn stop_primary(state: &AudioState) {
+pub fn stop_primary(state: &AudioOwn) {
     let p = state.primary_buffer.get();
     if !crate::audio::buffer_settings::a3d(state) && p != 0 {
         crate::platform_sound::stop(p);
@@ -45,7 +45,7 @@ pub fn stop_primary(state: &AudioState) {
 }
 
 /// `audio::release_sound_listener`: the listener released and forgotten.
-pub fn release_sound_listener(state: &AudioState) {
+pub fn release_sound_listener(state: &AudioOwn) {
     let l = state.sound_listener.get();
     if l != 0 {
         crate::platform_sound::release(l);

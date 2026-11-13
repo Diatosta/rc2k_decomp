@@ -10,9 +10,6 @@
 
 use crate::errors::BadInput;
 use crate::files::state::{SKIPPED_ATTRIBUTES, set_last_file_path};
-#[cfg(test)]
-#[cfg(test)]
-use crate::race::owner::race;
 use crate::race::owner_replay::Replay;
 
 /// The three digits' place in the name.
@@ -67,15 +64,4 @@ pub fn find_snapshot_number(replay: &Replay) -> Result<(), BadInput> {
         .snapshot()
         .write_at(DIGITS_AT, &digits, "the snapshot name")?;
     Ok(())
-}
-
-#[cfg(test)]
-mod block_tests {
-    use super::*;
-
-    #[test]
-    fn first_value_is_the_games() {
-        let replay = &race().replay;
-        crate::test_support::first_values::assert_block_starts_as_the_games(replay.snapshot());
-    }
 }

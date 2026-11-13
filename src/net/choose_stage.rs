@@ -7,13 +7,13 @@
 
 use crate::errors::Refused;
 use crate::menu::screen_loop::{Entry, run_screen};
-use crate::net::store::NetVars;
+use crate::net::store::NetShared;
 use crate::net::store::PlayerRecord;
 use crate::owners::Owners;
 
 /// The stage screen; the lobby loop's leftovers it carries (see `net::choose_car`) are all 0
 /// here.
-pub fn choose_stage(o: Owners<'static>, vars: &NetVars) -> Result<(), Refused> {
+pub fn choose_stage(o: Owners<'static>, vars: &NetShared) -> Result<(), Refused> {
     let race = o.race;
     let escape_pressed = &o.menus.screens.draw_work.escape_pressed;
     escape_pressed.set(false);
@@ -28,11 +28,6 @@ pub fn choose_stage(o: Owners<'static>, vars: &NetVars) -> Result<(), Refused> {
             race.shared.state.settings.direction.get() as u8,
         );
     }
-    crate::net::show_background::show_background(
-        crate::strings::append_string_by_id::StringOwners::of(o),
-        o.gfx,
-        o.system,
-        vars,
-    )?;
+    crate::net::show_background::show_background(o)?;
     Ok(())
 }

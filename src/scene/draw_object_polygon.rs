@@ -36,7 +36,7 @@ fn needs_clipping(
     course: crate::race::owner_course::CourseReads<'_>,
     count: u32,
 ) -> Result<bool, BadInput> {
-    let polygon_work = part.polygon;
+    let polygon_work = &part.polygon;
     use rc2k_core::scene::polygons::{Edges, Vertex};
     if (count as i32).wrapping_sub(3) < 0 {
         return Ok(false);
@@ -75,7 +75,7 @@ pub fn draw_object_polygon(
     object: &crate::scene::object_place::ObjectPlace,
     step: &mut dyn FnMut(Step) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
-    let polygon_work = part.polygon;
+    let polygon_work = &part.polygon;
     use rc2k_core::scene::polygons::{drawn_whole, fan, first_list, fits};
     let count: u32 = poly.polygon_vertex_count.get();
     if !fits(count) {

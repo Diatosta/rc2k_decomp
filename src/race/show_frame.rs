@@ -48,7 +48,7 @@ pub fn show_frame(race: &Race, o: crate::owners::Owners<'static>) -> Result<Show
     }?;
     // `scene::unlock_frame` leaves 0 as the leftover value (its carry is `present_frame`'s next).
     crate::scene::unlock_frame::unlock_frame(&race.frame, o.gfx);
-    if !crate::scene::present_frame::present_frame() {
+    if !crate::scene::present_frame::present_frame(o) {
         return Ok(Shown { lost: true, eax: 0 });
     }
     let clock = crate::scene::restart_clock::restart_clock(

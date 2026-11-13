@@ -36,12 +36,8 @@ fn bar_width(install: &'static crate::install::owner::Install) -> Result<u32, Re
 }
 
 /// The progress frame: its carry (the last lock's or show's).
-pub fn progress_frame(
-    install: &'static crate::install::owner::Install,
-    strings: &crate::strings::owner::Strings,
-    gfx: &'static crate::gfx::owner::Gfx,
-    system: &crate::system::owner::System,
-) -> Result<bool, Refused> {
+pub fn progress_frame(o: crate::owners::Owners<'static>) -> Result<bool, Refused> {
+    let (install, strings, gfx, system) = (o.install, o.strings, o.gfx, o.system);
     let drawing = &gfx.drawing;
     let width = bar_width(install)?;
     let mut carry = false;
@@ -87,18 +83,14 @@ pub fn progress_frame(
             gfx,
         )?;
         unlock(gfx);
-        carry = !show();
+        carry = !show(o);
     }
     Ok(carry)
 }
 
 /// The copying frame: its carry (the last lock's or show's).
-pub fn copying_frame(
-    so: crate::strings::append_string_by_id::StringOwners<'static>,
-    install: &'static crate::install::owner::Install,
-    gfx: &'static crate::gfx::owner::Gfx,
-    system: &crate::system::owner::System,
-) -> Result<bool, Refused> {
+pub fn copying_frame(o: crate::owners::Owners<'static>) -> Result<bool, Refused> {
+    let (install, gfx, system) = (o.install, o.gfx, o.system);
     let mut carry = false;
     for _ in 0..2 {
         if !lock(gfx, system) {
@@ -107,7 +99,7 @@ pub fn copying_frame(
         }
         copy_picture(gfx, system)?;
         crate::install::draw_string_list::draw_string_list(
-            so,
+            crate::strings::append_string_by_id::StringOwners::of(o),
             &install.pages.texts.each_ref(),
             0,
             0,
@@ -123,7 +115,7 @@ pub fn copying_frame(
             gfx,
         );
         unlock(gfx);
-        carry = !show();
+        carry = !show(o);
     }
     Ok(carry)
 }

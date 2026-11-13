@@ -3,7 +3,6 @@
 use super::*;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87_float as bh;
-use crate::race::owner::Race;
 use crate::race::owner_course::CourseReads;
 use crate::race::trap::Trap;
 use crate::race::view_scratch::{DrawCtx, SortLists};
@@ -36,18 +35,16 @@ pub fn add_sort_entry(lists: &SortLists, kind: u32, face: u32) -> Result<(), Ref
 /// distance below 0x40000000 as signed), the high (from 0xC0000000), else the larger. The tables
 /// are read unchecked, as the original.
 pub fn checkpoint_colours(
-    race: &Race,
+    checkpoints: &crate::race::checkpoints_store::Checkpoints,
     course: CourseReads<'_>,
     car: &crate::physics::car_store::ViewCar,
 ) -> Result<u32, BadInput> {
     // Converted: `rc2k_core::race::frame::checkpoint_colours`.
     {
         let n: u32 = car.checkpoint.get();
-        let face =
-            crate::race::checkpoints_store::face_run_on(race.checkpoints(), n as usize).get();
+        let face = crate::race::checkpoints_store::face_run_on(checkpoints, n as usize).get();
         let byte: u8 = face_field(course, face, 0x10)?;
-        let along =
-            crate::race::checkpoints_store::angle_run_on(race.checkpoints(), n as usize).get();
+        let along = crate::race::checkpoints_store::angle_run_on(checkpoints, n as usize).get();
         let c = rc2k_core::race::frame::checkpoint_colours(byte, along, car.car_heading.get());
         Ok(c.level)
     }
@@ -128,7 +125,6 @@ pub fn face_hidden(
 /// shifted right 2. Then + 0x2000000, shifted right 10 (logical). Refuses (before anything) no
 /// point records or points.
 pub fn face_depth(ctx: &crate::race::view_scratch::DrawCtx<'_>, face: u32) -> Result<(), Refused> {
-    let race = ctx.race;
     use crate::math::x87::{add, to_int};
     points_there(ctx)?;
     let depth = |k: u32| -> Result<u32, Refused> {
@@ -143,7 +139,7 @@ pub fn face_depth(ctx: &crate::race::view_scratch::DrawCtx<'_>, face: u32) -> Re
     let by = depth_by(kind, || {
         let object = trap.keep_read(face_field::<u8>(ctx.reads.course(), face, 1)) as u32;
         // +0x2E of the object's 0x40-byte info (`object` a byte: inside the 0x100).
-        race.polygon_tables().texture_infos[object as usize].words[11]
+        ctx.reads.buffers.polygon_tables.texture_infos[object as usize].words[11]
             .get()
             .to_le_bytes()[2]
     });
@@ -324,7 +320,6 @@ pub fn gather_visible_faces(ctx: &DrawCtx) -> Result<(), Refused> {
 /// (`g_car` +0xE00) is -1, `race().frame.frame_work.face_hide_mask` = its +2 word's bits 1 and 3
 /// flipped when any is set (0xA), or'd with bits 4 and 5 likewise (0x30).
 pub fn face_hide_mask(
-    race: &Race,
     reads: crate::workers::DrawReads<'_>,
     view: &crate::race::view_scratch::ViewScratch,
     part: &crate::workers::PartScratch,
@@ -334,7 +329,7 @@ pub fn face_hide_mask(
             numbers: reads.numbers,
             tables: reads.physics_tables,
             course: reads.course(),
-            engine_tables: &race.shared.buffers.engine_tables,
+            engine_tables: &reads.buffers.engine_tables,
         },
         &view.car,
         reads.draw_switches,
@@ -408,19 +403,18 @@ pub fn mark_far_cells(
 /// `LEVEL_GRID.far_cell_limit`, set to 0x10 first, which nothing else read). Refuses (before
 /// anything) what `course_grid` would.
 pub fn prepare_course_view(
-    race: &Race,
     reads: crate::workers::DrawReads<'_>,
     view: &crate::race::view_scratch::ViewScratch,
     part: &crate::workers::PartScratch,
 ) -> Result<(), Refused> {
     check_course_grid(reads.course())?;
-    face_hide_mask(race, reads, view, part)?;
+    face_hide_mask(reads, view, part)?;
     course_grid(reads.course(), reads.work, &view.grid, &view.vars)?;
     if reads.switches.scene_set_up.get() == 0 {
         return Ok(());
     }
     let limit = if reads.vars.checkpoint_count.get() >= 2 {
-        checkpoint_colours(race, reads.course(), &view.car)?
+        checkpoint_colours(&reads.buffers.checkpoints, reads.course(), &view.car)?
     } else {
         0x10
     };

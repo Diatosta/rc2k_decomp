@@ -359,7 +359,7 @@ fn make_save_folders() {
 fn read_command_line_and_install_state(o: Owners<'static>, r: &Context) {
     let system = o.system;
     // `system::test_processor` (0x410883, called above) has set it from `cpuid`.
-    if system.session.machine.has_fpu.get() != 1 {
+    if system.session.host.has_fpu.get() != 1 {
         finish("fatal error 0x900010FF, FPU is required", 1);
     }
     rust("system::read_command_line");
@@ -457,7 +457,7 @@ fn start_workers(o: Owners<'static>, r: &Context) {
         refused("threading::start_threads", e, r);
     }
     rust("sound::wait_for_commands");
-    crate::sound::wait_for_commands::wait_in_game(o.audio, o.system);
+    crate::sound::wait_for_commands::wait_in_game(o);
     rust("system::sleep");
     crate::system::sleep::sleep(1000);
 }
@@ -494,7 +494,7 @@ fn stand_in_window_state(o: Owners<'static>) {
         &flags.window_focused,
         1,
     );
-    stand_in("the key thread runs", &o.system.session.clocks.key_ticks, 1);
+    stand_in("the key thread runs", &o.system.session.key_clock.ticks, 1);
 }
 
 fn run_main_loop(o: Owners<'static>, r: &Context) {
@@ -510,7 +510,9 @@ fn run_main_loop(o: Owners<'static>, r: &Context) {
 /// SDL's (`SDL_DOES`).
 fn shut_down(o: Owners<'static>, r: &Context) {
     rust("net::shut_down");
-    if let Err(e) = crate::net::shut_down::shut_down(o.net, o.system, o.race.viewer_panel()) {
+    if let Err(e) =
+        crate::net::shut_down::shut_down(o, &crate::race::viewer_screen_store::NET_TEXTS)
+    {
         refused("net::shut_down", e, r);
     }
     rust("gfx::free_picture_buffer");

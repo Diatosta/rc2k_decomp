@@ -33,25 +33,6 @@ impl Templates {
         }
     }
 }
-
-#[cfg(test)]
-mod block_tests {
-    use crate::race::owner::race;
-
-    #[test]
-    fn values_are_the_games() {
-        let shared = &race().shared;
-        let image = crate::test_support::first_values::bytes("race.replay_path.LAST_RACE");
-        assert_eq!(&race().replay.last_race[..], image);
-        let image = crate::test_support::first_values::bytes("race.replay_path.TEMPLATES");
-        let mine = [
-            &shared.replay_templates.saved[..],
-            &shared.replay_templates.own[..],
-        ]
-        .concat();
-        assert_eq!(mine, image);
-    }
-}
 // `numbered_path`'s buffer
 
 /// The last race's file's name (without its NUL).

@@ -161,7 +161,7 @@ pub fn race_keys(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), R
                 };
                 let volume = volume_step(from, step);
                 sound.menu.options.race_music_volume.set(volume);
-                crate::sound::set_music_volume::set_music_volume(volume, audio, o.system);
+                crate::sound::set_music_volume::set_music_volume(volume, o);
             } else {
                 let volume = volume_step(state.master_volume.get(), step);
                 state.master_volume.set(volume);

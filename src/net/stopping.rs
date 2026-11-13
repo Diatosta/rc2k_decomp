@@ -5,17 +5,14 @@
 //! Caller: `net::start_link`.
 
 use crate::errors::Refused;
-use crate::net::store::NetVars;
 pub fn stopping(
-    so: crate::strings::append_string_by_id::StringOwners<'static>,
-    vars: &NetVars,
-    system: &crate::system::owner::System,
-    gfx: &'static crate::gfx::owner::Gfx,
-    panel: &crate::race::viewer_screen_store::ViewerPanelBlock,
+    o: crate::owners::Owners<'static>,
+    lines: &crate::race::viewer_screen_store::NetTexts,
 ) -> Result<(), Refused> {
+    let vars = &o.net.vars;
     if vars.session.get() == 1 {
-        crate::net::show_background::show_background(so, gfx, system, vars)?;
-        crate::net::connecting::status(so, 0x157, gfx, system)?;
+        crate::net::show_background::show_background(o)?;
+        crate::net::connecting::status(o, 0x157)?;
     }
-    crate::net::stop::stop(vars, system, panel)
+    crate::net::stop::stop(o, vars, lines)
 }

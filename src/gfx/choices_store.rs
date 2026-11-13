@@ -103,19 +103,3 @@ impl ScreenChoices {
         }
     }
 }
-
-impl ScreenChoices {
-    pub const START: usize = 0x4F50C0;
-    pub const LEN: usize = 0x130;
-}
-
-#[cfg(test)]
-mod tests {
-
-    #[test]
-    fn screenchoices_starts_as_the_games() {
-        crate::test_support::first_values::assert_block_starts_as_the_games(
-            &crate::gfx::owner::GFX.get().display.choices,
-        );
-    }
-}

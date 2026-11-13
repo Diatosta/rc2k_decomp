@@ -49,7 +49,7 @@ impl Race {
 
     /// The scene's faces.
     pub fn faces(&self) -> &Faces {
-        &self.shared.buffers.faces
+        &self.shared.buffers.reads.get().faces
     }
 
     /// The surface kinds' tables.
@@ -59,7 +59,7 @@ impl Race {
 
     /// The checkpoints.
     pub fn checkpoints(&self) -> &Checkpoints {
-        &self.shared.buffers.checkpoints
+        &self.shared.buffers.reads.get().checkpoints
     }
 
     /// The screens' text buffers.
@@ -74,11 +74,11 @@ impl Race {
 
     /// The engine tables.
     pub fn engine_tables(&self) -> &EngineTables {
-        &self.shared.buffers.engine_tables
+        &self.shared.buffers.reads.get().engine_tables
     }
 
     /// The polygon tables.
     pub fn polygon_tables(&self) -> &PolygonTables {
-        &self.shared.buffers.polygon_tables
+        &self.shared.buffers.reads.get().polygon_tables
     }
 }

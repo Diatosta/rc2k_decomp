@@ -221,9 +221,9 @@ const FIELDS: &[(usize, &str, &str)] = &[
     (0x214C08, "race.owner.RACE.shared.physics_tables", ".handling[7]"),
     (0x214C0C, "race.owner.RACE.shared.physics_tables", ".handling[8]"),
     (0x214D04, "race.owner.RACE.shared.physics_tables", ".split_point_distance"),
-    (0x223AE4, "race.owner.RACE.shared.buffers", ".engine_tables.sines[0]"),
-    (0x223AE8, "race.owner.RACE.shared.buffers", ".engine_tables.sines[1]"),
-    (0x223AF4, "race.owner.RACE.shared.buffers", ".engine_tables.sines[4]"),
+    (0x223AE4, "race.owner.RACE.shared.buffers.reads", ".engine_tables.sines[0]"),
+    (0x223AE8, "race.owner.RACE.shared.buffers.reads", ".engine_tables.sines[1]"),
+    (0x223AF4, "race.owner.RACE.shared.buffers.reads", ".engine_tables.sines[4]"),
     (0x223DA8, "race.owner.RACE.shared.vars", ".mud_scale_a[0]"),
     (0x223DAC, "race.owner.RACE.shared.vars", ".mud_scale_a[1]"),
     (0x22400C, "scene.owner.SCENE.drawing.scene", ".scratch"),
@@ -477,12 +477,41 @@ fn without_indices(path: &str) -> String {
     out
 }
 
+/// A stretch of a store's bytes under one field path.
+struct Run {
+    offset: usize,
+    len: usize,
+    path: String,
+}
+
+/// The runs a store is cut into, in order.
+fn runs_of(store: &dyn crate::cells::Store) -> Vec<Run> {
+    let size = store.size();
+    let mut runs = Vec::new();
+    let mut at = 0;
+    while at < size {
+        let end = match store.cell_run_at(at) {
+            Some((start, run)) => (start + run.len()).min(size),
+            None => size,
+        };
+        assert!(end > at, "a run that does not advance, at byte {at}");
+        let mut path = String::new();
+        store.field_path_at(at, &mut path);
+        if path.is_empty() {
+            path = format!("@{at}");
+        }
+        runs.push(Run {
+            offset: at,
+            len: end - at,
+            path,
+        });
+        at = end;
+    }
+    runs
+}
+
 /// The offset in `store` of the cell named `path`.
-fn offset_in_store(
-    store: &dyn crate::cells::Store,
-    runs: &[super::first_values::Run],
-    path: &str,
-) -> usize {
+fn offset_in_store(store: &dyn crate::cells::Store, runs: &[Run], path: &str) -> usize {
     let wanted = without_indices(path);
     for run in runs {
         if without_indices(&run.path) != wanted {
@@ -503,14 +532,12 @@ fn offset_in_store(
 fn table() -> &'static [(usize, &'static str, usize)] {
     static TABLE: OnceLock<Vec<(usize, &'static str, usize)>> = OnceLock::new();
     TABLE.get_or_init(|| {
-        let mut runs: HashMap<&str, Vec<super::first_values::Run>> = HashMap::new();
+        let mut runs: HashMap<&str, Vec<Run>> = HashMap::new();
         let mut table: Vec<(usize, &'static str, usize)> = FIELDS
             .iter()
             .map(|&(block, name, path)| {
                 let store = super::state::store(name);
-                let runs = runs
-                    .entry(name)
-                    .or_insert_with(|| super::first_values::runs(store));
+                let runs = runs.entry(name).or_insert_with(|| runs_of(store));
                 (block, name, offset_in_store(store, runs, path))
             })
             .collect();

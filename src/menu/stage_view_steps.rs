@@ -75,12 +75,8 @@ pub fn count_stage_pages(screens: &Screens, system: &System) -> Result<(), Refus
 }
 
 /// `menu::play_stage_speech`.
-pub fn play_stage_speech(
-    menus: &Menus,
-    sound: &crate::sound::owner::Sound,
-    audio: &crate::audio::owner::Audio,
-    system: &System,
-) -> Result<(), Refused> {
+pub fn play_stage_speech(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
+    let (menus, sound, audio, system) = (o.menus, o.sound, o.audio, o.system);
     let record = stage_record(&menus.screens, system)?;
     if championship(menus) {
         // The logic is in `rc2k_core::menu::stage_screens::stage_speech`.
@@ -108,8 +104,7 @@ pub fn play_stage_speech(
         sound.race.car_stream.get().stream.set(at);
         sound.race.car_stream.get().place.set(0);
         crate::sound::start_stream::start_stream(
-            audio,
-            system,
+            o,
             crate::menu::texts_store::speech_entry(
                 &menus.tables.texts,
                 &audio.sample_names,
@@ -123,12 +118,8 @@ pub fn play_stage_speech(
 }
 
 /// `menu::play_rally_speech`: a key taken (and dropped), then the rally's speech.
-pub fn play_rally_speech(
-    menus: &Menus,
-    audio: &crate::audio::owner::Audio,
-    system: &crate::system::owner::System,
-    input: &crate::input::owner::Input,
-) -> Result<(), Refused> {
+pub fn play_rally_speech(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
+    let (menus, input) = (o.menus, o.input);
     // The logic is in `rc2k_core::menu::stage_screens::rally_speech`.
     let section = stage_screens::rally_speech(menus.play.champ_view.event_mode.get(), || {
         menus.screens.event.section.get()
@@ -137,8 +128,7 @@ pub fn play_rally_speech(
     crate::input::take_key::take_key(input);
     if championship(menus) {
         crate::sound::start_stream::start_stream(
-            audio,
-            system,
+            o,
             crate::session::read_on_in(
                 &menus.tables.lists,
                 &menus.tables.lists.rally_speeches,
@@ -191,7 +181,7 @@ pub fn load_welcome_picture(o: Owners<'static>) -> Result<(), Refused> {
 /// `menu::previous_stage_page` (`up` false) / `next_stage_page`: the page stepped, the
 /// stage's map drawn and its speech played.
 pub fn step_stage_page(o: Owners<'static>, up: bool) -> Result<(), Refused> {
-    let (menus, sound) = (o.menus, o.sound);
+    let menus = o.menus;
     let screens = &menus.screens;
     let (page, pages) = (
         screens.event.stage_page.get(),
@@ -205,7 +195,7 @@ pub fn step_stage_page(o: Owners<'static>, up: bool) -> Result<(), Refused> {
         .index
         .set(screens.event.first_page_stage.get().wrapping_add(page));
     crate::menu::stage_choice::draw_stage_map(o)?;
-    play_stage_speech(menus, sound, o.audio, o.system)
+    play_stage_speech(o)
 }
 
 /// The stage item's two looks: (+0x1C, +0x20, +0x50).

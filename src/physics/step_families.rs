@@ -215,7 +215,7 @@ impl<'a> StepInputs<'a> {
             view_records: self.frame.view_and_records.get(),
             lights_data: self.course.lights_data(),
             replay_frames: self.replay_frames,
-            checkpoints: &self.shared.buffers.checkpoints,
+            checkpoints: &self.shared.buffers.reads.get().checkpoints,
             kind_tables: &self.replay.viewer_and_kinds.kind_tables,
             light_records: &self.frame.lights_and_gear.get().light_records,
             ground: self.camera_ground(),
@@ -238,10 +238,10 @@ impl<'a> StepInputs<'a> {
             numbers: self.numbers,
             work: self.work,
             frame_work: self.frame.frame_work.get(),
-            matrices: &self.frame.matrices,
+            matrices: self.frame.matrices.get(),
             spots: self.frame.sound_spots(),
-            polygon_tables: &self.shared.buffers.polygon_tables,
-            contact: &self.physics.contact,
+            polygon_tables: &self.shared.buffers.reads.get().polygon_tables,
+            contact: self.physics.contact.get(),
             owner,
         }
     }
@@ -252,10 +252,10 @@ impl<'a> StepInputs<'a> {
             numbers: self.numbers,
             tables: self.tables,
             course: self.course,
-            contact: &self.physics.contact,
+            contact: self.physics.contact.get(),
             ground: self.physics.ground(),
             probe: self.physics.ground_probe.get(),
-            engine_tables: &self.shared.buffers.engine_tables,
+            engine_tables: &self.shared.buffers.reads.get().engine_tables,
         }
     }
 
@@ -265,7 +265,7 @@ impl<'a> StepInputs<'a> {
             numbers: self.numbers,
             tables: self.tables,
             course: self.course,
-            contact: &self.physics.contact,
+            contact: self.physics.contact.get(),
             work: self.work,
             scratch: self.frame.scratch(),
             shared: self.shared,
@@ -287,7 +287,7 @@ impl<'a> StepInputs<'a> {
             view: self.view,
             finish: self.replay.finish.get(),
             car_blocks: self.replay.car_blocks.get(),
-            matrices: &self.frame.matrices,
+            matrices: self.frame.matrices.get(),
             ground: self.ground(),
         }
     }
@@ -295,7 +295,7 @@ impl<'a> StepInputs<'a> {
     pub fn collisions(&self, sound: &'a crate::sound::owner::Sound) -> CollisionInputs<'a> {
         CollisionInputs {
             contact: self.contact(sound),
-            matrices: &self.frame.matrices,
+            matrices: self.frame.matrices.get(),
             vars: self.vars,
             view: self.view,
         }
@@ -320,7 +320,7 @@ impl<'a> StepInputs<'a> {
             vars: self.vars,
             frame_work: self.frame.frame_work.get(),
             finish: self.replay.finish.get(),
-            checkpoints: &self.shared.buffers.checkpoints,
+            checkpoints: &self.shared.buffers.reads.get().checkpoints,
         }
     }
 
@@ -331,7 +331,7 @@ impl<'a> StepInputs<'a> {
             ground: self.physics.ground(),
             probe: self.physics.ground_probe.get(),
             vars: self.vars,
-            polygon_tables: &self.shared.buffers.polygon_tables,
+            polygon_tables: &self.shared.buffers.reads.get().polygon_tables,
         }
     }
 
@@ -342,7 +342,7 @@ impl<'a> StepInputs<'a> {
             tables: self.tables,
             course: self.course,
             shared: self.shared,
-            contact: &self.physics.contact,
+            contact: self.physics.contact.get(),
             view: self.view,
             vars: self.vars,
         }
@@ -354,7 +354,7 @@ impl<'a> StepInputs<'a> {
             tables: self.tables,
             course: self.course,
             work: self.work,
-            matrices: &self.frame.matrices,
+            matrices: self.frame.matrices.get(),
             ground: self.physics.ground(),
             probe: self.physics.ground_probe.get(),
         }

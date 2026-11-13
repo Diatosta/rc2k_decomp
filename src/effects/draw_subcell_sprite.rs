@@ -250,7 +250,7 @@ mod reference_vectors {
                         (b[2] + 10 * n).host().cast::<[u8; 10]>().read_unaligned()
                     });
                     super::turn_x87(
-                        &crate::race::owner::race().frame.matrices.view_matrix,
+                        &crate::race::owner::race().frame.matrices.get().view_matrix,
                         &place,
                         w,
                         dw,

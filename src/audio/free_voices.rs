@@ -8,11 +8,11 @@
 //! end), `audio::set_mode`, `audio::take_commands`.
 //! Refuses more than 0x200 voices in use.
 
-use crate::audio::owner::Audio;
+use crate::audio::own::AudioThread;
 use crate::audio::voices::{SAMPLES, VOICES};
 use crate::errors::{BadInput, Refused};
 
-pub fn free_voices(audio: &Audio) -> Result<(), Refused> {
+pub fn free_voices(audio: &AudioThread) -> Result<(), Refused> {
     let count = audio.state.voice_count.get();
     if count > VOICES {
         return Err(BadInput("more than 0x200 voices").into());

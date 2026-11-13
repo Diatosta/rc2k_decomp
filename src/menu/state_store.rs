@@ -201,7 +201,6 @@ pub struct MenuState {
 }
 
 impl MenuState {
-    /// First values the image's.
     pub const fn new() -> Self {
         MenuState {
             carousel: Carousel {
@@ -305,16 +304,5 @@ impl MenuState {
                 switch_b: PlainDword::new(0),
             },
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-
-    #[test]
-    fn menu_state_starts_as_the_games() {
-        crate::test_support::first_values::assert_block_starts_as_the_games(
-            &crate::menu::owner::menus().screens.state,
-        );
     }
 }

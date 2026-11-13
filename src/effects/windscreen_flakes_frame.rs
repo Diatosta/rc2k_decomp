@@ -56,7 +56,7 @@ pub fn windscreen_flakes_frame(
     cheats: &crate::menu::cheats_store::Cheats,
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
-    let buffer = ctx.part.vertices;
+    let buffer = &ctx.part.vertices;
     let (frame, scene) = (&ctx.race.frame, ctx.scene);
     let m = effects.settings()?;
     frame_axes(fl, m);

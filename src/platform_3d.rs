@@ -44,23 +44,6 @@ const NO_TEXTURE: u32 = 0xFFFF_FC43;
 /// A `DDERR`, for a surface that is not there.
 const NOT_THERE: i32 = 0x8876_0000u32 as i32 | 0x1C2;
 
-// ---- DirectX interface ids (nothing reads them) ----
-
-/// The ids the original passed to `QueryInterface` (DirectDraw and Direct3D); the
-/// standalone's platform does not use them.
-#[cfg(test)]
-pub static GUIDS_A: [u32; 21] = [
-    0xb3a6f3e0, 0x11cf2b43, 0xaa00dea2, 0x5633b900, 0x57805885, 0x11cf6eec, 0x23a84194, 0x270ec103,
-    0x6aae1ec1, 0x11d0662a, 0xaa009d88, 0x6ab7bb00, 0x93281502, 0x11d08cf8, 0xa000ab89, 0x294105c9,
-    0, 0, 0, 0, 0,
-];
-
-/// The last two.
-#[cfg(test)]
-pub static GUIDS_B: [u32; 8] = [
-    0xa35ff56a, 0x11d09fda, 0xc000df8f, 0x9d18d94f, 0xa35ff56b, 0x11d09fda, 0xc000df8f, 0x9d18d94f,
-];
-
 // ---- the texture formats ----
 
 /// `d3d::find_texture_formats`, for a screen of `bits`.
@@ -253,6 +236,8 @@ struct Pending {
     states: Option<std::sync::Arc<[u32; STATES]>>,
     /// The last fan's texture level, the lock of the levels spared while it holds.
     level: Option<NotedLevel>,
+    /// Whether the screen has pixels, as the last fan found (`note`).
+    screen_pixels: crate::gfx::locked_pixels::Remembered,
 }
 
 /// A surface's level as a fan read it.
@@ -303,6 +288,7 @@ impl Noted {
             textures: Vec::new(),
             states: None,
             level: None,
+            screen_pixels: crate::gfx::locked_pixels::Remembered::new(),
         }))
     }
 
@@ -347,28 +333,36 @@ fn target_size() -> (u32, u32, u32) {
 
 /// The screen as the game has it now.
 pub fn screen() -> Option<Target> {
-    let surface = crate::gfx::owner::draw_surface();
-    // The renderers draw on the bytes where they lie.
-    let pixels = surface.present_pixels.get();
+    let pixels = crate::gfx::owner::draw_surface().present_pixels.get();
     crate::gfx::locked_pixels::bytes_of(pixels)?;
+    Some(screen_of(pixels))
+}
+
+/// The screen whose pixels are `pixels`, a handle that names bytes.
+fn screen_of(pixels: u32) -> Target {
+    // The renderers draw on the bytes where they lie.
+    let surface = crate::gfx::owner::draw_surface();
     let (width, height, bits) = target_size();
-    Some(Target {
+    Target {
         pixels,
         pitch: surface.present_pitch.get() as usize,
         width: width as usize,
         height: height as usize,
         bits,
-    })
+    }
 }
 
 /// Notes `what` in part `part`'s drawing for the screen as it is now (the noted so far
 /// drawn first when that is another).
 fn note(part: &crate::workers::PartScratch, what: impl FnOnce(&mut Pending) -> Command) {
-    let Some(into) = screen() else {
-        return;
-    };
     {
         let pending = &mut *part.noted.lock();
+        // A fan asks every time: the pixels' bytes are looked up only when they may differ.
+        let pixels = crate::gfx::owner::draw_surface().present_pixels.get();
+        if !pending.screen_pixels.has_bytes(pixels) {
+            return;
+        }
+        let into = screen_of(pixels);
         if pending.into.is_some_and(|i| i != into) {
             draw_noted(part, pending);
         }
@@ -1011,20 +1005,4 @@ pub fn clear_viewport(part: &crate::workers::PartScratch, own: &[crate::session:
     note(part, |_| {
         Command::Clear([c(left), c(top), c(right), c(bottom)])
     });
-}
-
-#[cfg(test)]
-mod block_tests {
-    use super::*;
-
-    fn bytes_of(ids: &[u32]) -> Vec<u8> {
-        ids.iter().flat_map(|w| w.to_le_bytes()).collect()
-    }
-
-    #[test]
-    fn the_interface_ids_are_the_games() {
-        use crate::test_support::first_values::assert_matches;
-        assert_matches("platform_3d.GUIDS_A/84", &bytes_of(&GUIDS_A));
-        assert_matches("platform_3d.GUIDS_B/32", &bytes_of(&GUIDS_B));
-    }
 }

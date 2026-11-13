@@ -16,7 +16,7 @@ fn prefs_paths(course: &Course) -> [&dyn Store; 2] {
     let p = course.level_paths();
     [&p.localdat_files, &p.localdat_src]
 }
-pub const LIGHT_RECORDS: u32 = rc2k_core::race::stage_objects::LIGHT_RECORDS as u32;
+pub const LIGHT_RECORD_COUNT: u32 = rc2k_core::race::stage_objects::LIGHT_RECORDS as u32;
 
 /// `g_textureKinds`.
 fn kind(race: &Race, n: u32) -> u32 {
@@ -120,7 +120,7 @@ pub fn copy_lights_data(race: &Race) -> Result<(), BadInput> {
     use rc2k_core::race::stage_objects::{LIGHT_RECORD, lay_lights};
     let records = &race.light_records().records;
     let source = race.course.lights_data().lights.read();
-    let mut laid = vec![0; LIGHT_RECORDS as usize * LIGHT_RECORD];
+    let mut laid = vec![0; LIGHT_RECORD_COUNT as usize * LIGHT_RECORD];
     Store::load(records, 0, &mut laid)?;
     lay_lights(&source, &mut laid);
     Store::store(records, 0, &laid)

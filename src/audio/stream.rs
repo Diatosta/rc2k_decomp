@@ -11,21 +11,21 @@
 //! stops. Each function begins `cmp g_useA3d, 1; jz` an A3D twin: refused.
 
 use crate::audio::buffer_settings::a3d;
-use crate::audio::store::AudioState;
+use crate::audio::own::AudioOwn;
 use crate::errors::{BadInput, Refused};
 
 pub const HEADER_LEN: u32 = 0xC00;
 
 pub use rc2k_core::audio::streams::AudioStream;
 
-pub fn not_a3d(state: &AudioState, twin: &'static str) -> Result<(), Refused> {
+pub fn not_a3d(state: &AudioOwn, twin: &'static str) -> Result<(), Refused> {
     if a3d(state) {
         return Err(BadInput(twin).into());
     }
     Ok(())
 }
 
-pub fn volume_of(state: &AudioState, index: u32) -> Result<u32, Refused> {
+pub fn volume_of(state: &AudioOwn, index: u32) -> Result<u32, Refused> {
     // Converted: `rc2k_core::audio::levels::stream_volume`.
     Ok(rc2k_core::audio::levels::stream_volume(index, |n| {
         crate::audio::buffer_settings::volumes(state, n)
@@ -62,7 +62,7 @@ fn written(filled: Filled, bytes: usize) -> usize {
 }
 
 /// `audio::stop_stream`: not playing; the buffer stopped and released; the file closed.
-pub fn stop_stream(state: &AudioState, s: &mut AudioStream) -> Result<(), Refused> {
+pub fn stop_stream(state: &AudioOwn, s: &mut AudioStream) -> Result<(), Refused> {
     not_a3d(state, "A3D (0x40D1D0)")?;
     // Converted: `rc2k_core::audio::streams::AudioStream::stop`.
     let (buffer, file) = s.stop();
@@ -77,7 +77,7 @@ pub fn stop_stream(state: &AudioState, s: &mut AudioStream) -> Result<(), Refuse
 }
 
 /// `audio::set_stream_volume`: `SetVolume` with the player's volume.
-pub fn set_stream_volume(state: &AudioState, s: &AudioStream) -> Result<(), Refused> {
+pub fn set_stream_volume(state: &AudioOwn, s: &AudioStream) -> Result<(), Refused> {
     not_a3d(state, "A3D (0x40D247)")?;
     if s.buffer == 0 {
         return Err(BadInput("a stream without its buffer").into());
@@ -90,7 +90,7 @@ pub fn set_stream_volume(state: &AudioState, s: &AudioStream) -> Result<(), Refu
 /// `audio::start_stream`: the file whose name `path` reads (when it gets there) opened and played. False for the carry (the
 /// player stopped).
 pub fn start_stream(
-    state: &AudioState,
+    state: &AudioOwn,
     s: &mut AudioStream,
     path: impl FnOnce() -> Result<Vec<u8>, crate::errors::BadInput>,
 ) -> Result<bool, Refused> {
@@ -155,7 +155,7 @@ pub fn start_stream(
 
 /// `audio::feed_stream`: the bytes the play cursor moved over refilled, through the locked
 /// parts (`g_lockedParts`). False for the carry (the player stopped).
-pub fn feed_stream(state: &AudioState, s: &mut AudioStream) -> Result<bool, Refused> {
+pub fn feed_stream(state: &AudioOwn, s: &mut AudioStream) -> Result<bool, Refused> {
     not_a3d(state, "A3D (0x40D0C0)")?;
     let failed = |s: &mut AudioStream| stop_stream(state, s).map(|_| false);
     if s.buffer == 0 {

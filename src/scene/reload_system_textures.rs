@@ -39,14 +39,8 @@ const TEXTS: [&std::ffi::CStr; 4] = [
 // ---- Rust version ----
 
 // Converted: `rc2k_core::scene::pictures::{kind_picture, read_size}`
-pub fn reload_system_textures(
-    race: &'static crate::race::owner::Race,
-    system: &crate::system::owner::System,
-    gfx: &crate::gfx::owner::Gfx,
-    d3d: &crate::d3d::owner::D3d,
-    net: &crate::net::owner::Net,
-    scene: &crate::scene::owner::Scene,
-) -> Result<(), Refused> {
+pub fn reload_system_textures(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
+    let (race, system, gfx, net, scene) = (o.race, o.system, o.gfx, o.net, o.scene);
     let gfx_grading = &gfx.grading;
     let course = &race.course;
     let textures: u32 = scene.textures.places.get().totals[3].get();
@@ -79,7 +73,7 @@ pub fn reload_system_textures(
         grading.scale.set(scale);
         grading.saturation.set(saturation);
         load_changed_texture_picture_in_game(race, gfx, texture, scene, system)?;
-        step_loading_bar(race, system, gfx, d3d, scene, texture)?;
+        step_loading_bar(o, texture)?;
     }
     let grading = &gfx_grading;
     grading.reading.set(0u32);

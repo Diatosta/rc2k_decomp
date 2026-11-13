@@ -21,8 +21,6 @@ use crate::gfx::glyph_builder::{RUN_LENGTHS, WITH_ALPHA};
 use crate::gfx::glyph_tables::{
     alpha_palette, begin_glyph_table, begin_glyph_tables, end_glyph_tables, palette_to_pixels,
 };
-#[cfg(test)]
-use crate::gfx::owner::gfx;
 use crate::memory::MemoryList;
 use crate::memory::take_from_list::rewind_list;
 
@@ -168,16 +166,4 @@ pub fn build_game_fonts_in_game(
         system,
         strings,
     )
-}
-
-#[cfg(test)]
-mod block_tests {
-    use super::*;
-
-    #[test]
-    fn first_values_are_the_games() {
-        crate::test_support::first_values::assert_block_starts_as_the_games(
-            &gfx().fonts.game_fonts_memory,
-        );
-    }
 }

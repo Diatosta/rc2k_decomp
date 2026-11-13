@@ -25,9 +25,51 @@ pub const fn level(surface: usize) -> u32 {
 
 static HELD: Mutex<BTreeMap<u32, Weak<PoolBytes>>> = Mutex::new(BTreeMap::new());
 
+/// How many times a handle has been registered: what a cached answer of `bytes_of` is
+/// checked against (a handle's bytes change only by a registration, or by their end).
+static REGISTRATIONS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
 /// `bytes` named by `handle`, for as long as they live.
 pub fn register(handle: u32, bytes: &Arc<PoolBytes>) {
     HELD.lock().unwrap().insert(handle, Arc::downgrade(bytes));
+    REGISTRATIONS.fetch_add(1, std::sync::atomic::Ordering::Release);
+}
+
+/// The registrations so far.
+pub fn registrations() -> u64 {
+    REGISTRATIONS.load(std::sync::atomic::Ordering::Acquire)
+}
+
+/// A handle's bytes as `bytes_of` found them, kept by whoever asks often: still the answer
+/// while no handle has been registered since and the bytes live, and then without the lock.
+pub struct Remembered(Option<(u32, u64, Weak<PoolBytes>)>);
+
+impl Remembered {
+    pub const fn new() -> Self {
+        Self(None)
+    }
+
+    /// Whether `bytes_of(handle)` has bytes, as it says.
+    pub fn has_bytes(&mut self, handle: u32) -> bool {
+        let registrations = registrations();
+        if let Some((kept, when, bytes)) = &self.0
+            && *kept == handle
+            && *when == registrations
+            && bytes.strong_count() > 0
+        {
+            return true;
+        }
+        match bytes_of(handle) {
+            Some(bytes) => {
+                self.0 = Some((handle, registrations, Arc::downgrade(&bytes)));
+                true
+            }
+            None => {
+                self.0 = None;
+                false
+            }
+        }
+    }
 }
 
 /// The bytes `handle` names; `None` for none (0), for a handle never registered, or for

@@ -56,19 +56,23 @@ fn copy_player_settings(p: &Player, state: &RaceState) {
     car.race_number.set(p.race_number);
     car.codriver_sex.set(p.codriver_sex);
     car.view.set(p.view);
-    car.controller.set(p.controller);
-    car.gearing.set(p.gearing);
-    car.sensitivity_level.set(p.sensitivity_level);
-    car.axis_codes.set(u32::from_le_bytes(p.axis_codes));
-    car.controller_mode.set(p.controller_mode);
-    car.end_zone_pct.set(p.end_zone_pct);
-    car.centre_dead_zone_pct.set(p.centre_dead_zone_pct);
-    car.strength.set(p.strength);
-    for (cell, word) in car.recorded_bindings().zip(p.bindings.words()) {
+    car.controls.controller.set(p.controller);
+    car.controls.gearing.set(p.gearing);
+    car.controls.sensitivity_level.set(p.sensitivity_level);
+    car.controls
+        .axis_codes
+        .set(u32::from_le_bytes(p.axis_codes));
+    car.controls.controller_mode.set(p.controller_mode);
+    car.controls.end_zone_pct.set(p.end_zone_pct);
+    car.controls
+        .centre_dead_zone_pct
+        .set(p.centre_dead_zone_pct);
+    car.controls.strength.set(p.strength);
+    for (cell, word) in car.controls.recorded_bindings().zip(p.bindings.words()) {
         cell.set(word);
     }
     for (n, b) in p.keys.iter().enumerate() {
-        car.keys.set(n, *b);
+        car.controls.keys.set(n, *b);
     }
     let r = &state.results;
     r.service_spent_current.set(p.service_spent);

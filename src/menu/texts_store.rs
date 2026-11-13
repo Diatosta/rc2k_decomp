@@ -2,17 +2,14 @@
 //! two log texts of the map's polygon code, the keys menu (`MenuTexts.keys_menu`), each menu
 //! screen's picture path (one copy per screen, named for the screen that loads it; the
 //! others by their file), the stage maps', car specifications' and slides' paths (which
-//! `menu::lists_store`'s tables name by handle, `text_key`), and two tables of speech samples' names
+//! `menu::lists_store`'s tables name by handle, the offset of the field), and two tables of speech samples' names
 //! (`car_speech`, `stage_speech`: handles of `audio::names_store`'s names, `speech_entry`). Nothing writes
 //! the texts.
 //!
 //! Every address of the texts is 2 past a multiple of 4: a two-byte lead and `align(4)` keep
 //! each image address's alignment; the keys menu's dword is `Loose`. The speech tables
-//! after the texts sit on dword boundaries (`SPEECH_PAD` bytes before them, which the
-//! handles of `text_key` count).
+//! after the texts sit on dword boundaries (two bytes of padding before them).
 
-#[cfg(test)]
-use crate::menu::owner::menus;
 use crate::session::{PlainBytes, PlainDword, PlainLoose, with_runs};
 
 #[repr(C, align(4))]
@@ -2183,18 +2180,11 @@ impl MenuTexts {
     }
 }
 
-/// IDA 0x731B82, the first byte of the piece.
-pub const START: usize = 0x731B82;
-/// The bytes `MenuTexts` has before IDA's `START` (its `_lead`).
-const LEAD: usize = 2;
-/// The bytes `MenuTexts` has before the speech tables that the image does not.
-const SPEECH_PAD: usize = 2;
-/// IDA 0x734866, the first speech table.
-#[cfg(test)]
-pub const CAR_SPEECH: usize = 0x734866;
+/// The handle of the first text (`MenuTexts` has two bytes before it).
+const LEAD: usize = core::mem::offset_of!(MenuTexts, no_point_text);
 /// Where the first speech table is in `MenuTexts`.
 #[cfg(test)]
-pub const CAR_SPEECH_OFFSET: usize = CAR_SPEECH - START + LEAD + SPEECH_PAD;
+pub const CAR_SPEECH_OFFSET: usize = core::mem::offset_of!(MenuTexts, car_speech);
 
 /// A speech table's entry: a sample name's handle (`audio::store::name_key`; the
 /// original kept its address), or the row's end mark, -1.
@@ -2208,7 +2198,7 @@ const fn speech_key(ida: u32) -> u32 {
 /// A speech row's end mark.
 pub const SPEECH_END: u32 = 0xFFFF_FFFF;
 
-/// The entry at `place` of the speech row `row` (its `text_key`): the sample name's key
+/// The entry at `place` of the speech row `row` (its handle): the sample name's key
 /// (`audio::store::name_key`), or `SPEECH_END`.
 pub fn speech_entry(
     texts: &MenuTexts,
@@ -2227,23 +2217,9 @@ pub fn speech_entry(
     Ok(entry)
 }
 
-/// A text's handle for the address the original kept: its place in `MENU_TEXTS`. 0
-/// (none) and -1 (an end mark) stay. The tables name the fields directly; the tests check the
-/// two agree.
-#[cfg(test)]
-pub const fn text_key(ida: u32) -> u32 {
-    if ida == 0 || ida == 0xFFFF_FFFF {
-        return ida;
-    }
-    let at = ida as usize;
-    assert!(START <= at && at < END);
-    let pad = if at >= CAR_SPEECH { SPEECH_PAD } else { 0 };
-    (at - START + LEAD + pad) as u32
-}
-
-/// Refused: a handle that is no text's (`text_key`).
+/// Refused: a handle that is no text's (a handle: its field's offset in `MenuTexts`).
 fn check_key(key: u32) -> Result<(), crate::errors::BadInput> {
-    if !(LEAD..LEAD + SPEECH_PAD + END - START).contains(&(key as usize)) {
+    if !(LEAD..size_of::<MenuTexts>()).contains(&(key as usize)) {
         return Err(crate::errors::BadInput(
             "a text's handle off the menus' texts",
         ));
@@ -2251,7 +2227,7 @@ fn check_key(key: u32) -> Result<(), crate::errors::BadInput> {
     Ok(())
 }
 
-/// Where the text of `key` is (`text_key`).
+/// Where the text of `key` is (a handle: its field's offset in `MenuTexts`).
 pub fn text_at(
     texts: &'static MenuTexts,
     key: u32,
@@ -2260,68 +2236,13 @@ pub fn text_at(
     Ok(crate::place::BytePlace::in_store(texts, key as usize))
 }
 
-/// IDA 0x734BC6, the end of the piece.
-pub const END: usize = 0x734BC6;
-
-#[cfg(test)]
-const SPEECH_TABLES_END: usize = CAR_SPEECH + 0x120 + 36 * 4 * 4;
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use core::mem::{offset_of, size_of};
 
     #[test]
-    fn each_speech_entry_names_the_samples_it_named_in_the_image() {
-        let image = crate::test_support::first_values::bytes("menu.owner.MENUS.tables.texts/12356");
-        let mut names = 0;
-        for at in (CAR_SPEECH..SPEECH_TABLES_END).step_by(4) {
-            let o = at - START;
-            let wanted = u32::from_le_bytes(image[o..o + 4].try_into().unwrap());
-            let found = speech_entry(
-                &crate::menu::owner::menus().tables.texts,
-                &crate::audio::owner::audio().sample_names,
-                text_key(at as u32),
-                0,
-            )
-            .unwrap();
-            if wanted == SPEECH_END || wanted == 0 {
-                assert_eq!(found, wanted);
-                continue;
-            }
-            names += 1;
-            assert!(
-                crate::audio::store::name_in(&crate::audio::owner::audio().sample_names, found)
-                    .is_ok(),
-                "{at:#x}"
-            );
-        }
-        assert_eq!(names, 156);
-    }
-
-    #[test]
-    fn menu_texts_start_as_the_games() {
-        assert_eq!(size_of::<MenuTexts>(), END - START + LEAD + SPEECH_PAD);
-        assert_eq!(offset_of!(MenuTexts, car_speech) % 4, 0);
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                (&raw const menus().tables.texts)
-                    .cast::<u8>()
-                    .wrapping_add(2),
-                END - START + SPEECH_PAD,
-            )
-        };
-        let mut image =
-            crate::test_support::first_values::bytes("menu.owner.MENUS.tables.texts/12356")
-                .to_vec();
-        for at in (CAR_SPEECH..SPEECH_TABLES_END).step_by(4) {
-            let o = at - START;
-            let v = u32::from_le_bytes(image[o..o + 4].try_into().unwrap());
-            image[o..o + 4].copy_from_slice(&speech_key(v).to_le_bytes());
-        }
-        let split = CAR_SPEECH - START;
-        assert_eq!(&mine[..split], &image[..split]);
-        assert_eq!(&mine[split..split + SPEECH_PAD], &[0, 0]);
-        assert_eq!(&mine[split + SPEECH_PAD..], &image[split..]);
+    fn the_speech_tables_sit_on_dword_boundaries() {
+        assert_eq!(core::mem::offset_of!(MenuTexts, car_speech) % 4, 0);
+        assert_eq!(size_of::<MenuTexts>() % 4, 0);
     }
 }

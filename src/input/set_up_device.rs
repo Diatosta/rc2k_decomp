@@ -16,16 +16,18 @@
 
 use crate::errors::Refused;
 use crate::input::types::InputDevice;
-use crate::race::state_store::RaceCar;
+use crate::race::state_store::PlayerControls;
 use crate::session::Dword;
 use std::mem::offset_of;
 
 // The controls run from the car's `controller` (+0) to the key bytes (+0x54): the word 0x20
 // is a gap no binding reads, 0x48 (`UNSET_BINDING`) the word the copies from the player's
 // record pass over.
+const _: () = assert!(
+    offset_of!(PlayerControls, bindings) + 4 * 11 - offset_of!(PlayerControls, controller) == 0x50
+);
 const _: () =
-    assert!(offset_of!(RaceCar, bindings) + 4 * 11 - offset_of!(RaceCar, controller) == 0x50);
-const _: () = assert!(offset_of!(RaceCar, keys) - offset_of!(RaceCar, controller) == 0x54);
+    assert!(offset_of!(PlayerControls, keys) - offset_of!(PlayerControls, controller) == 0x54);
 
 /// The device `record` set up from the controls of `car`, from its `controller` on (see the
 /// header).
@@ -33,7 +35,7 @@ pub fn set_up_device(
     input: &crate::input::owner::Input,
     system: &crate::system::owner::System,
     record: &InputDevice,
-    car: &RaceCar,
+    car: &PlayerControls,
 ) -> Result<(), Refused> {
     // The controls' words by their offset from `controller` (a quarter of it the index).
     let words: [&Dword; 21] = [

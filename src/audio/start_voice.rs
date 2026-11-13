@@ -18,13 +18,13 @@
 //! voice's); no channels left and no voice playing; a playing list that does not end
 //! within 0x200 voices; a playing voice to stop without its channel.
 
-use crate::audio::owner::Audio;
+use crate::audio::own::AudioThread;
 use crate::audio::voices::{GamePool, lists, store_lists};
 use crate::errors::Refused;
 use rc2k_core::audio::commands::Start;
 
 /// Converted: `rc2k_core::audio::voices::start_voice`; nothing is written when it refuses.
-pub fn start_voice(audio: &Audio, sound: i32, cmd: &Start) -> Result<(), Refused> {
+pub fn start_voice(audio: &AudioThread, sound: i32, cmd: &Start) -> Result<(), Refused> {
     let mut l = lists(&audio.state);
     let mode = audio.state.sound_mode.get();
     rc2k_core::audio::voices::start_voice(&mut GamePool::new(audio), &mut l, mode, sound, cmd)?;

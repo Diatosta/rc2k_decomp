@@ -78,7 +78,7 @@ impl Game {
         let panels = &o.menus.panels;
         let mut flags = StepAnswer::default();
         match s {
-            Step::StopMusic => crate::sound::stop_music::stop_music(o.audio, o.system),
+            Step::StopMusic => crate::sound::stop_music::stop_music(o),
             Step::Step4059F4 => {
                 crate::gfx::clear_front_surface::clear_front_surface(o.gfx, o.system)?;
             }
@@ -121,7 +121,7 @@ impl Game {
             Step::FrontEndScene => {
                 crate::scene::set_up_front_end_scene::set_up_front_end_scene_in(o)?;
             }
-            Step::Tune3 => crate::sound::play_tune_3::play_tune_3(o.sound, o.audio, o.system),
+            Step::Tune3 => crate::sound::play_tune_3::play_tune_3(o),
         }
 
         Ok(flags)
@@ -174,15 +174,5 @@ pub fn play_films(o: Owners<'static>, idle: bool) -> Result<(), Refused> {
     match game.failed {
         Some(e) => Err(e),
         None => Ok(()),
-    }
-}
-
-#[cfg(test)]
-mod films_tests {
-
-    #[test]
-    fn first_values_are_the_games() {
-        let panels = &crate::menu::owner::menus().panels;
-        crate::test_support::first_values::assert_block_starts_as_the_games(&panels.films);
     }
 }

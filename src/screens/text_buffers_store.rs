@@ -32,10 +32,3 @@ impl TextBuffers {
         crate::cells::cells_of_bytes([0u8; core::mem::size_of::<TextBuffers>()])
     }
 }
-
-/// IDA 0xA8BB54, the first byte of the piece.
-pub const START: usize = 0xA8BB54;
-/// IDA 0xA8C180, the end of the piece.
-pub const END: usize = 0xA8C180;
-
-const _: () = assert!(END - START == core::mem::size_of::<TextBuffers>());

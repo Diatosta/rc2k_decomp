@@ -7,10 +7,10 @@
 //! See `net/mod.rs`. One caller, `net::race_step`. Calls nothing.
 
 use crate::net::apply_message::{glide_steps, place, three, wanted};
-use crate::net::store::NetVars;
+use crate::net::store::NetShared;
 use crate::race::owner::Race;
 use rc2k_core::net::race;
-pub fn follow_remote(race: &Race, vars: &NetVars) -> Result<(), crate::errors::BadInput> {
+pub fn follow_remote(race: &Race, vars: &NetShared) -> Result<(), crate::errors::BadInput> {
     let car = race.shared.car();
     // Converted: `rc2k_core::net::race::glide` (the block read only with the race on).
     if vars.session.get() == 0 {

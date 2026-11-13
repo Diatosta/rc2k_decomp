@@ -6,14 +6,9 @@ use crate::race::owner_shared::RaceShared;
 pub fn game_music(shared: &RaceShared, o: crate::owners::Owners<'static>) {
     // Converted: `rc2k_core::race::music::race_tune`.
     let second: u32 = shared.state.results.finished.get();
-    crate::sound::senders::play_tune(
-        o.sound,
-        o.audio,
-        o.system,
-        rc2k_core::race::music::race_tune(second),
-    );
+    crate::sound::senders::play_tune(o, rc2k_core::race::music::race_tune(second));
 }
 
 pub fn game_music_8(o: crate::owners::Owners<'static>) {
-    crate::sound::play_tune_8::play_tune_8(o.sound, o.audio, o.system);
+    crate::sound::play_tune_8::play_tune_8(o);
 }

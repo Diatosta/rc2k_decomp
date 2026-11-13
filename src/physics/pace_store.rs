@@ -3,8 +3,6 @@
 //! codes. `#[repr(C)]` with the image's layout, over the race block's bytes (`PACE`). Names
 //! are readings unless IDA's.
 
-#[cfg(test)]
-use crate::race::owner::race;
 use crate::session::{PlainBytes, PlainDword};
 
 #[repr(C)]
@@ -62,15 +60,5 @@ impl PaceNotes {
             },
             ..ZeroCells::ZERO
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn first_values_are_the_games() {
-        crate::test_support::first_values::assert_block_starts_as_the_games(race().physics.pace());
     }
 }

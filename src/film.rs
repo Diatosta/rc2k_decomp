@@ -491,7 +491,7 @@ pub fn play_film(o: crate::owners::Owners<'static>, path: &dyn crate::session::T
             Err(why) => log(&format!("gfx::play_film: {name} not played: {why}")),
             Ok(mut film) => {
                 log(&format!("gfx::play_film: {name}: {}", film.what));
-                ended = run(&mut film, o.gfx, o.system, o.input) == 0;
+                ended = run(&mut film, o) == 0;
             }
         }
     }
@@ -500,7 +500,8 @@ pub fn play_film(o: crate::owners::Owners<'static>, path: &dyn crate::session::T
 }
 
 /// The frames until the end or a key: the key, or 0 at the end.
-fn run(film: &mut Film, gfx: &Gfx, system: &System, input: &crate::input::owner::Input) -> u8 {
+fn run(film: &mut Film, o: crate::owners::Owners<'static>) -> u8 {
+    let (gfx, system, input) = (o.gfx, o.system, o.input);
     let sound = film
         .sound
         .as_ref()
@@ -544,7 +545,7 @@ fn run(film: &mut Film, gfx: &Gfx, system: &System, input: &crate::input::owner:
         let Some(next) = queue.pop_front() else {
             break;
         };
-        crate::platform::pump_messages_now();
+        crate::platform::pump_messages_now(o);
         // The window closed: the film ends (the original played on without a window; its
         // pump's carry for `WM_QUIT` is not looked at here). Fixed bug.
         if system.session.flags.quitting.is_set() {
@@ -562,7 +563,7 @@ fn run(film: &mut Film, gfx: &Gfx, system: &System, input: &crate::input::owner:
             crate::platform::unlock_surface(gfx);
         }
         last = Some(next);
-        crate::platform::show_frame_now();
+        crate::platform::show_frame_now(o);
         let key = crate::input::take_key::take_key(input);
         if key != 0 {
             drop(sound);

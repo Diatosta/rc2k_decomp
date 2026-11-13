@@ -13,10 +13,11 @@
 //! `net::list_players_regs`, `net::open_lobby`. DirectPlay's calls from Rust (`net::dplay`).
 
 use crate::errors::{BadInput, Refused};
+use crate::net::owner::Net;
 use crate::net::sort_players::{bubble_blocks, swap_blocks};
-use crate::net::store::NetVars;
 use rc2k_core::net::players;
-pub fn list_players(vars: &NetVars) -> Result<bool, Refused> {
+pub fn list_players(net: &Net) -> Result<bool, Refused> {
+    let vars = &net.vars;
     if vars.dplay.get() == 0 {
         return Ok(false);
     }
@@ -25,7 +26,7 @@ pub fn list_players(vars: &NetVars) -> Result<bool, Refused> {
         vars.player_id.get(),
         &vars.own.bytes(),
     );
-    if vars.racing.get() != 1 {
+    if net.lobby().racing.get() != 1 {
         vars.players.set(0);
         let result = crate::net::dp_objects::enum_players(
             vars.dplay.get(),
@@ -43,12 +44,12 @@ pub fn list_players(vars: &NetVars) -> Result<bool, Refused> {
         return Err(BadInput("more than eight players").into());
     }
     for n in 0..players {
-        vars.data_size.set(0x10);
+        net.lobby().data_size.set(0x10);
         let player = vars.player_block(n)?;
         let mut data = [0u8; 0x10];
         let (result, size) =
             crate::net::dp_objects::get_player_data(vars.dplay.get(), player.id.get(), &mut data);
-        vars.data_size.set(size);
+        net.lobby().data_size.set(size);
         if result == 0 {
             player.record.set_bytes(&data[..size as usize]);
         }
@@ -75,7 +76,7 @@ pub fn list_players(vars: &NetVars) -> Result<bool, Refused> {
 /// register save: the carry it gives is lost, so its callers'
 /// `jb` after it are never taken (section 16). Callers: `net::lets_rally`,
 /// `net::race_wait`, `net::race_over`, `net::lobby_loop`.
-pub fn list_players_regs(vars: &NetVars) -> Result<(), Refused> {
-    list_players(vars)?;
+pub fn list_players_regs(net: &Net) -> Result<(), Refused> {
+    list_players(net)?;
     Ok(())
 }

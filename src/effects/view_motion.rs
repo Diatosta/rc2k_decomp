@@ -19,7 +19,7 @@ use crate::scene::vector3::{dot_product3, normalise};
 use crate::session::PlainFloat;
 
 pub fn view_motion(frame: &Frame, effects: &crate::effects::owner::Effects) -> Result<(), Refused> {
-    let m = &frame.matrices.view_place;
+    let m = &frame.matrices.get().view_place;
     // The original's six floats on its stack: the third row, then the step.
     let local: [PlainFloat; 6] = std::array::from_fn(|_| PlainFloat::new(0.0));
     for k in 0..3 {

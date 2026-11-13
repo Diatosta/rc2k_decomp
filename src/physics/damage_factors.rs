@@ -178,11 +178,9 @@ fn means_and_engine_speed(car: &Car, m: &DamageModel) {
         &car.stiffness_mean,
         (value(s0) + value(s1) + value(s2) + value(s3)) * quarter,
     );
-    // The car's whole number goes through the x87 as a float (`fld` / `fstp`).
-    store(
-        &m.drive_kind,
-        f64::from(f32::from_bits(car.drive_kind.get())),
-    );
+    // The original passed the car's whole number through the x87 as a float (`fld` / `fstp`),
+    // which gives back the same bits.
+    m.drive_kind.set(car.drive_kind.get());
     store(&m.scratch, value(&car.engine_speed).abs());
 }
 
@@ -938,8 +936,16 @@ mod plain_matches_x87 {
         );
         prove(
             "means_and_engine_speed",
-            |s| factors::means_and_engine_speed(&s.car, &s.damage),
-            |s| means_and_engine_speed(&s.car, &s.damage),
+            |s| {
+                // A drive kind is 0 .. 3 (`check_drive`); the reference's float pass would
+                // quiet the NaNs among the other words.
+                s.car.drive_kind.set(s.car.drive_kind.get() & 3);
+                factors::means_and_engine_speed(&s.car, &s.damage);
+            },
+            |s| {
+                s.car.drive_kind.set(s.car.drive_kind.get() & 3);
+                means_and_engine_speed(&s.car, &s.damage);
+            },
         );
     }
 

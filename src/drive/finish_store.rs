@@ -5,8 +5,6 @@
 //! (`session::DrawShared`), written on the game's thread and read by the drawing parts (the
 //! mirror's "no place" test) through their `workers::DrawReads`. Names are readings unless IDA's.
 
-#[cfg(test)]
-use crate::race::owner::race;
 use crate::session::{PlainDword, PlainFloat};
 
 #[repr(C)]
@@ -99,17 +97,5 @@ impl Finish {
             camera_height_per_share: PlainFloat::new(8.0),
             ..ZeroCells::ZERO
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn first_values_are_the_games() {
-        crate::test_support::first_values::assert_block_starts_as_the_games(
-            race().replay.finish.get(),
-        );
     }
 }

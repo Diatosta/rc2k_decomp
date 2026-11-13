@@ -61,7 +61,7 @@ fn place_object_points_any(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Resu
     if draw_switches.use_3dnow.get() != 0 {
         return Err(BadInput("the 3DNow way of placing points is not ported").into());
     }
-    if draw_switches.use_sse.get() != 0 {
+    if draw_switches.use_sse.is_set() {
         return crate::scene::place_object_points::place_object_points_sse(ctx);
     }
     place_object_points(ctx)?;
@@ -81,7 +81,7 @@ pub fn draw_object_in_game(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Resu
             Step::Points => place_object_points_any(ctx)?,
             Step::List => {
                 list_object_faces(
-                    ctx.race.faces(),
+                    &ctx.reads.buffers.faces,
                     &ctx.view.object,
                     &ctx.view.face,
                     &mut faces,
@@ -91,7 +91,7 @@ pub fn draw_object_in_game(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Resu
             Step::Sort => sort_listed_faces(&mut faces)?,
             Step::Faces => {
                 draw_object_faces(
-                    ctx.race.faces(),
+                    &ctx.reads.buffers.faces,
                     &ctx.view.polygon,
                     &ctx.view.object,
                     &ctx.view.face,

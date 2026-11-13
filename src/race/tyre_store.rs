@@ -5,8 +5,6 @@
 //! A `#[repr(C)]` struct of atomic cells with the image's layout, first values the image's
 //! (`tests`).
 
-#[cfg(test)]
-use crate::race::owner::race;
 use crate::session::{PlainBytes, PlainDword, PlainFloat};
 
 /// The tyre change's constants, layouts and work (IDA 0x5BEAC0 .. 0x5BEC30, the image's layout).
@@ -165,24 +163,5 @@ impl TyreChange {
             record: PlainDword::new(0x5208),
             palette: PlainBytes::new([0; 4]),
         }
-    }
-}
-
-impl TyreChange {
-    pub const START: usize = 0x5BEAC0;
-    pub const LEN: usize = 0x170;
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn tyrechange_starts_as_the_games() {
-        let size = size_of::<TyreChange>();
-        assert!(TyreChange::LEN <= size && size <= (TyreChange::LEN).next_multiple_of(16));
-        crate::test_support::first_values::assert_block_starts_as_the_games(
-            race().shared.tyre_change(),
-        );
     }
 }

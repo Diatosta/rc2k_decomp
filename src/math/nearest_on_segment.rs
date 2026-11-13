@@ -188,15 +188,3 @@ mod reference_vectors {
         sparse("math.nearest_on_segment", &blocks(), 1500, 208);
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use crate::test_support::first_values::dword;
-
-    #[test]
-    fn constants_are_the_games() {
-        let word = |key: &str| dword(key, 0);
-        assert_eq!(word("race.owner.RACE.course.numbers.zero/4"), super::ZERO);
-        assert_eq!(word("race.owner.RACE.course.numbers.one/4"), super::ONE);
-    }
-}

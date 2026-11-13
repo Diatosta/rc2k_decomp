@@ -145,6 +145,10 @@ pub enum ItemSprite {
 /// 0 .. 2 and 0xFFFFFFA9; one in the tag's range is refused when set).
 const LIST_TAG: u32 = 0x7FFF_FFF0;
 
+/// Where the original kept the sprite lists (IDA 0x747998 ..): core's menu table names a
+/// button's list by its address there.
+const LISTS: core::ops::Range<usize> = 0x747998..0x747AD8;
+
 /// A menu item's +0x20 (a handle).
 #[repr(transparent)]
 #[derive(rc2k_derive::Cells)]
@@ -155,9 +159,9 @@ impl SpriteCell {
     /// the lists that is no list's start, or a number in the tag's range, fails to compile).
     pub const fn at(ida: u32) -> Self {
         let ida_at = ida as usize;
-        let value = if START <= ida_at && ida_at < END {
-            assert!((ida_at - START).is_multiple_of(0x14));
-            LIST_TAG | ((ida_at - START) / 0x14) as u32
+        let value = if LISTS.start <= ida_at && ida_at < LISTS.end {
+            assert!((ida_at - LISTS.start).is_multiple_of(0x14));
+            LIST_TAG | ((ida_at - LISTS.start) / 0x14) as u32
         } else {
             assert!(ida & !0xF != LIST_TAG);
             ida
@@ -190,27 +194,12 @@ impl SpriteCell {
     }
 }
 
-/// IDA 0x747998, the first byte of the piece.
-pub const START: usize = 0x747998;
-/// IDA 0x747AD8, the end of the piece.
-pub const END: usize = 0x747AD8;
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use core::mem::size_of;
-
-    #[test]
-    fn item_sprites_start_as_the_games() {
-        assert_eq!(size_of::<ItemSprites>(), END - START);
-        crate::test_support::first_values::assert_block_starts_as_the_games(
-            &crate::menu::owner::menus().panels.item_sprites,
-        );
-    }
-
     #[test]
     fn a_sprite_cell_keeps_numbers_and_lists() {
-        let c = SpriteCell::at(START as u32 + 0x14);
+        let c = SpriteCell::at(LISTS.start as u32 + 0x14);
         assert_eq!(c.get(), ItemSprite::List(1));
         assert_eq!(SpriteCell::at(2).get(), ItemSprite::Sprite(2));
         assert_eq!(

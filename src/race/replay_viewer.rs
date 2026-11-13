@@ -143,7 +143,7 @@ fn view(race: &'static Race, o: Owners<'static>, mode: Mode) -> Result<(), Refus
     race.shared.replay_file().viewer_sound.set(0);
     install.pages.list_answer.set(1);
     install.pages.list_leave.set(0);
-    let now = session.clocks.key_ticks.get();
+    let now = session.key_clock.ticks.get();
     install.pages.move_clock.set(now);
     install.pages.key_clock.set(now);
     install.pages.choice.set(6);
@@ -158,15 +158,10 @@ fn view(race: &'static Race, o: Owners<'static>, mode: Mode) -> Result<(), Refus
     }
     loop {
         // `screens::run_frame` with `race::viewer_frame` (0x41D5FB).
-        if let Some(lost) =
-            crate::platform::run_frame_now(o.system, || viewer_frame::viewer_frame(o))
-        {
+        if let Some(lost) = crate::platform::run_frame_now(o, || viewer_frame::viewer_frame(o)) {
             lost?;
         }
-        install
-            .pages
-            .frame_clock
-            .set(session.clocks.key_ticks.get());
+        install.pages.frame_clock.set(session.key_clock.ticks.get());
         install.pages.choice_before.set(install.pages.choice.get());
         let mut key = crate::menu::list_take_key::list_take_key(install, o.input);
         if session.flags.quitting.is_set() {

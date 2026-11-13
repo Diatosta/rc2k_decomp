@@ -28,6 +28,8 @@ pub fn list_object_faces(
             crate::scene::objects::face_cell(faces_table, number as usize).get()
         })?;
         faces_list.clear();
+        // Room for every face at once: the list grows from nothing for each object otherwise.
+        faces_list.reserve(faces.len());
         // (The original's -1 into `g_faceMark`, 0x62361C: read by nothing.)
         for (n, &face) in faces.iter().enumerate() {
             work.face_number.set(n as u32);

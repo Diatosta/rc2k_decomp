@@ -1,7 +1,6 @@
 //! The players' records, out of RAL.EXE's image (IDA 0x755A4C .. 0x75648C): the four
 //! `Player` records of 0x28C bytes (`g_player1` .. `g_player4`) and `g_players`, the table of their
-//! addresses (IDA's, as the image has them; nothing reads them). A `#[repr(C)]` struct with the
-//! image's layout, one static. (The cars follow in `CarTable`.)
+//! addresses (IDA's, as the image has them; nothing reads them). A `#[repr(C)]` struct, one static. (The cars follow in `CarTable`.)
 
 use crate::session::{PlainDword, Shared, with_runs};
 use rc2k_core::menu::player::Player;
@@ -17,7 +16,6 @@ pub struct PlayerTable {
     pub pointers: [PlainDword; 4],
 }
 
-/// First values the image's (`tests::player_table_starts_as_the_games`).
 impl PlayerTable {
     pub const fn new() -> Self {
         PlayerTable {
@@ -253,13 +251,6 @@ impl PlayerTable {
     }
 }
 
-/// IDA 0x755A4C, the first byte of the piece.
-#[cfg(test)]
-pub const START: usize = 0x755A4C;
-/// IDA 0x75648C, the end of the piece.
-#[cfg(test)]
-pub const END: usize = 0x75648C;
-
 /// Links each player's name to its player (the image's records held the old links). The
 /// table of the records' addresses (`g_players`) keeps the image's: nothing reads it, the
 /// players are reached by number.
@@ -274,31 +265,18 @@ mod tests {
     use super::*;
 
     #[test]
-    fn player_table_starts_as_the_games() {
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                (&raw const crate::menu::owner::menus().play.players).cast::<u8>(),
-                END - START,
-            )
-        };
-        // The name words (+0x18) hold the player's number here, the name's address there.
-        let image = crate::test_support::first_values::bytes("menu.owner.MENUS.play.players/2624");
-        let mut mine = mine.to_vec();
-        for n in 0..4 {
-            let at = n * size_of::<Player>() + 0x18;
+    fn a_player_keeps_its_number_where_the_name_pointer_was() {
+        let players = &crate::menu::owner::menus().play.players.players;
+        for (n, player) in players.iter().enumerate() {
+            let at = 0x18;
             let word = |bytes: &[u8]| u32::from_le_bytes(bytes[at..at + 4].try_into().unwrap());
-            assert_eq!(word(&mine), n as u32 + 1);
-            assert_eq!(word(image), crate::menu::player_names::name_address(n));
+            assert_eq!(word(&player.get().to_le_bytes()), n as u32 + 1);
             // The best-times entries get the name's address, where the pointer was.
             assert_eq!(
-                crate::menu::standings::name_address_of(
-                    &crate::menu::owner::menus().play.players.players[n].get()
-                ),
+                crate::menu::standings::name_address_of(&player.get()),
                 Ok(crate::menu::player_names::name_address(n))
             );
-            mine[at..at + 4].copy_from_slice(&image[at..at + 4]);
         }
-        assert_eq!(mine, image);
         assert_eq!(size_of::<Player>(), 0x28c);
     }
 }

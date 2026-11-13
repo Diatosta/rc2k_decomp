@@ -73,7 +73,7 @@ pub fn race_loop(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), R
     for c in 0..8 {
         race.car_blocks().cars[c as usize].reset_marker.set(10);
     }
-    system.session.flags.paused.set(0);
+    system.window_loop().paused.set(0);
     race.shared.vars.get().scene_switch.set(0);
     restart_clock(race);
     race.frame
@@ -98,9 +98,9 @@ pub fn race_loop(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), R
         // 0x444DE9: a frame.
         let paused = loop {
             if system.session.flags.window_active.get() == 0 {
-                system.session.flags.paused.set(1);
+                system.window_loop().paused.set(1);
             }
-            if system.session.flags.paused.get() != 0 {
+            if system.window_loop().paused.get() != 0 {
                 break true;
             }
             let begun = crate::debug::timing::start();
@@ -157,7 +157,7 @@ pub fn race_loop(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), R
                     break true;
                 }
             }
-            if system.session.flags.paused.get() != 0 {
+            if system.window_loop().paused.get() != 0 {
                 break true;
             }
             race_keys(race, o)?;
@@ -185,6 +185,6 @@ pub fn race_loop(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), R
         } else {
             { crate::drive::pause_until_key::pause_until_key(race, o) }?;
         }
-        system.session.flags.paused.set(0);
+        system.window_loop().paused.set(0);
     }
 }

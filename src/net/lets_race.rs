@@ -8,12 +8,12 @@
 //! Caller: `net::lets_rally`.
 
 use crate::errors::Refused;
-use crate::net::store::NetVars;
+use crate::net::store::NetShared;
 use crate::owners::Owners;
 
 /// This machine's car's time (+0x88) and whether it did not finish
 /// (+0xB0 is -1: `u32::MAX`, else 0).
-pub fn lets_race(o: Owners<'static>, vars: &NetVars) -> Result<(u32, u32), Refused> {
+pub fn lets_race(o: Owners<'static>, vars: &NetShared) -> Result<(u32, u32), Refused> {
     let race = o.race;
     race.shared.view.get().after_credits.set(0);
     // The eight stored cars' +0xB0 (out).

@@ -214,7 +214,7 @@ pub fn rate_damage(car: &Car, damage: &DamageModel) {
         [c.engine_damage.get(), k, d.figures[7].get()],
         [c.exhaust_damage.get(), k, d.figures[8].get()],
     ]);
-    if d.drive_kind.bits() != 0 && !less(&c.turbo_damage, &d.gauge_top) {
+    if d.drive_kind.get() != 0 && !less(&c.turbo_damage, &d.gauge_top) {
         e = ext_times(e, d.wear_rates[10].get());
     }
     c.engine_power_factor.set(rounded_value(e));

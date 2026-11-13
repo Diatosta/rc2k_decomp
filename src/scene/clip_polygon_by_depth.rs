@@ -25,7 +25,7 @@ pub fn clip_polygon_by_depth(
     far_clip: bool,
     view: &crate::race::view_scratch::ViewScratch,
 ) -> Result<(), BadInput> {
-    let polygon_work = part.polygon;
+    let polygon_work = &part.polygon;
     let entries = listed_with_records(polygon_work, poly)?;
     or_undone(|| {
         poly.depth_clipped.set(1u32);

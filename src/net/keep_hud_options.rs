@@ -4,11 +4,11 @@
 //! Caller: `net::lets_race`.
 
 use crate::net::set_hud_options::own_block;
-use crate::net::store::NetVars;
+use crate::net::store::NetShared;
 use crate::race::owner_shared::RaceShared;
 pub fn keep_hud_options(
     shared: &RaceShared,
-    vars: &NetVars,
+    vars: &NetShared,
 ) -> Result<(), crate::errors::BadInput> {
     shared
         .state

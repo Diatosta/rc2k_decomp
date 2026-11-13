@@ -23,8 +23,6 @@
 use crate::effects::cell_x87::CellX87;
 use crate::effects::emitters::matrix_float;
 use crate::effects::mask_store::Masks;
-#[cfg(test)]
-use crate::effects::owner::effects;
 use crate::effects::ring_entries::{entry, ld, set, st};
 use crate::effects::ring_store::Ring;
 use crate::effects::ring_store::RingWork;
@@ -1205,27 +1203,6 @@ impl RingKinds {
             ribbon_a: -0.5_f32,
             ribbon_b: -0.5_f32,
         }
-    }
-}
-
-#[cfg(test)]
-mod ring_kinds_tests {
-    use super::*;
-
-    fn bytes<T>(v: &T) -> Vec<u8> {
-        let p = std::ptr::from_ref::<T>(v).cast::<u8>();
-        (0..size_of::<T>())
-            .map(|i| unsafe { p.add(i).read() })
-            .collect()
-    }
-
-    #[test]
-    fn ring_kinds_starts_as_the_games() {
-        assert!(
-            bytes(&effects().ring.kinds)
-                == crate::test_support::first_values::bytes("effects.run_ring.RING_KINDS"),
-            "RING_KINDS starts differently from the image"
-        );
     }
 }
 

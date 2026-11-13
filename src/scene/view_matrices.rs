@@ -15,7 +15,7 @@
 //! draw's two work matrices, and the listener's matrix.
 
 use crate::race::matrices_store::SceneMatrices;
-use crate::session::{Dword, Float};
+use crate::session::{Cell32, Dword, Float, PlainFloat};
 
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
@@ -95,7 +95,7 @@ pub struct Columns([u32; 12]);
 
 const CELLS: [usize; 4] = [3, 7, 11, 15];
 
-fn held(m: &SceneMatrices) -> [&[Float; 16]; 3] {
+fn held(m: &SceneMatrices) -> [&[PlainFloat; 16]; 3] {
     [&m.turned_matrix, &m.lit_matrix, &m.made_object_matrix]
 }
 
@@ -103,11 +103,11 @@ fn view_held(m: &ViewMatrices) -> [&[Float; 16]; 3] {
     [&m.turned_matrix, &m.lit_matrix, &m.made_object_matrix]
 }
 
-fn read_columns(from: [&[Float; 16]; 3]) -> Columns {
+fn read_columns<C: Cell32>(from: [&[C; 16]; 3]) -> Columns {
     Columns(std::array::from_fn(|n| from[n / 4][CELLS[n % 4]].bits()))
 }
 
-fn write_columns(c: &Columns, to: [&[Float; 16]; 3]) {
+fn write_columns<C: Cell32>(c: &Columns, to: [&[C; 16]; 3]) {
     for (n, &value) in c.0.iter().enumerate() {
         to[n / 4][CELLS[n % 4]].set_bits(value);
     }
@@ -218,74 +218,40 @@ impl Drop for Held<'_> {
 impl ViewMatrices {
     /// With the image's first values (an identity's floats in the turning matrices).
     pub const fn new() -> Self {
-        let s = SceneMatrices::new();
-        let SceneMatrices {
-            known_object,
-            turn_x_matrix,
-            turn_y_matrix,
-            turn_z_matrix,
-            placed_matrix,
-            body_turn_matrix,
-            turned_matrix,
-            lit_matrix,
-            made_object_matrix,
-            object_matrix_slots,
-            reflect_vector,
-            reflect_normal,
-            object_turn_matrix,
-            matrix_scratch,
-            view_matrix,
-            view_turn_matrix,
-            view_back_matrix,
-            view_place_matrix,
-            view_turn_copy,
-            ..
-        } = s;
-        let [
-            m0,
-            m1,
-            m2,
-            m3,
-            m4,
-            m5,
-            m6,
-            m7,
-            m8,
-            m9,
-            m10,
-            m11,
-            m12,
-            m13,
-            m14,
-            m15,
-            ..,
-        ] = matrix_scratch;
+        /// A matrix of zeros but for the ones at `ones`.
+        const fn ones_at<const N: usize>(ones: [usize; N]) -> [Float; 16] {
+            let mut a = [const { Float::new(0.0) }; 16];
+            let mut k = 0;
+            while k < N {
+                a[ones[k]] = Float::new(1.0);
+                k += 1;
+            }
+            a
+        }
         Self {
-            known_object,
-            turn_x_matrix,
-            turn_y_matrix,
-            turn_z_matrix,
-            placed_matrix,
-            body_turn_matrix,
-            turned_matrix,
-            lit_matrix,
-            made_object_matrix,
-            object_matrix_slots,
-            reflect_vector,
-            reflect_normal,
-            object_turn_matrix,
-            matrix_scratch: [
-                m0, m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12, m13, m14, m15,
-            ],
+            known_object: Dword::new(0),
+            turn_x_matrix: ones_at([0, 15]),
+            turn_y_matrix: ones_at([5, 15]),
+            turn_z_matrix: ones_at([10, 15]),
+            placed_matrix: ones_at([0, 5, 10, 15]),
+            body_turn_matrix: [const { Float::new(0.0) }; 16],
+            turned_matrix: [const { Float::new(0.0) }; 16],
+            lit_matrix: [const { Float::new(0.0) }; 16],
+            made_object_matrix: [const { Float::new(0.0) }; 16],
+            object_matrix_slots: [const { Dword::new(0) }; 32],
+            reflect_vector: [const { Float::new(0.0) }; 3],
+            reflect_normal: [const { Float::new(0.0) }; 3],
+            object_turn_matrix: [const { Float::new(0.0) }; 16],
+            matrix_scratch: [const { Float::new(0.0) }; 16],
             work_vector: [const { Dword::new(0) }; 4],
             turn_x_work: [const { Float::new(0.0) }; 2],
             turn_y_work: [const { Float::new(0.0) }; 2],
             turn_z_work: [const { Float::new(0.0) }; 2],
-            view_matrix,
-            view_turn_matrix,
-            view_back_matrix,
-            view_place_matrix,
-            view_turn_copy,
+            view_matrix: [const { Float::new(0.0) }; 16],
+            view_turn_matrix: [const { Float::new(0.0) }; 16],
+            view_back_matrix: [const { Float::new(0.0) }; 16],
+            view_place_matrix: [const { Float::new(0.0) }; 16],
+            view_turn_copy: [const { Float::new(0.0) }; 16],
         }
     }
 }

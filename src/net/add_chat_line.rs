@@ -13,6 +13,7 @@
 //! lock held).
 
 use crate::errors::{BadInput, Refused};
+use crate::gfx::owner::Gfx;
 use crate::net::owner::Net;
 use crate::session::Bytes;
 use crate::text::draw_text::GameCanvas;
@@ -58,7 +59,12 @@ pub fn text_in(bytes: &[u8]) -> Result<&[u8], BadInput> {
         .map(|end| &bytes[..end])
         .ok_or(BadInput("a text without its end in its block"))
 }
-pub fn add_chat_line(net: &Net, player: u32, message: &[u8]) -> Result<(), Refused> {
+pub fn add_chat_line(
+    net: &Net,
+    gfx: &'static Gfx,
+    player: u32,
+    message: &[u8],
+) -> Result<(), Refused> {
     let message = text_in(message)?;
     if message.is_empty() {
         return Ok(());
@@ -93,9 +99,7 @@ pub fn add_chat_line(net: &Net, player: u32, message: &[u8]) -> Result<(), Refus
             shown.push(0);
             let left = line.read();
             shown.extend_from_slice(left.get(shown.len()..).unwrap_or(&[]));
-            // On the receiving thread too (a chat message received): the graphics owner as
-            // that thread's other reads reach it.
-            let mut canvas = GameCanvas::new(crate::gfx::owner::GFX.on_any_thread());
+            let mut canvas = GameCanvas::new(gfx);
             let width = { measure_text_at(CHAT_FONT, &shown, 0, &mut canvas) }?.width;
             if width > LINE_WIDTH {
                 built.pop();

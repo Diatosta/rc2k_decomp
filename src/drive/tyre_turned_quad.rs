@@ -14,12 +14,12 @@ use crate::input::types::InputDevice;
 use crate::math::x87_float::{int, ld, stf};
 use crate::race::owner_shared::RaceShared;
 use crate::race::tyre_store::TyreChange;
-use crate::session::{Dword, PlainFloat};
+use crate::session::{PlainDword, PlainFloat};
 
 /// The turn's arithmetic: `ty` the tyre change's variables (the constants and results), `e`
 /// the input device, `d` the rectangle (floats), `v` the vertices, `t` the scratch float
 /// holding 2 pi.
-fn turn(ty: &TyreChange, e: &InputDevice, d: &[PlainFloat; 4], v: &[Vertex], t: &Dword) {
+fn turn(ty: &TyreChange, e: &InputDevice, d: &[PlainFloat; 4], v: &[Vertex], t: &PlainDword) {
     let angle = int(e.gauge.get() as i32) * ld(ty.gauge_unit.get()) * ld(t.get());
     let (sin, cos) = angle.sin_cos();
     ty.turn_cos.set(stf(cos));
@@ -63,13 +63,13 @@ pub fn tyre_turned_quad(
     panel: &crate::race::viewer_screen_store::ViewerPanelBlock,
     buffer: &PolygonVertices,
 ) -> Result<(), Refused> {
-    system.session.machine.scratch.set(0x40C9_0FDB);
+    system.machine().scratch.set(0x40C9_0FDB);
     turn(
         shared.tyre_change(),
         device,
         rect,
         &buffer.vertices[..4],
-        &system.session.machine.scratch,
+        &system.machine().scratch,
     );
     quad_words(buffer, colour);
     quad_tail(buffer, uv, panel, system);
@@ -172,7 +172,7 @@ mod reference_vectors {
                         &*e_b.as_ptr().cast::<InputDevice>(),
                         &*d_b.as_ptr().cast::<[PlainFloat; 4]>(),
                         &*v_b.as_ptr().cast::<[Vertex; 4]>(),
-                        &*t_b.as_ptr().cast::<Dword>(),
+                        &*t_b.as_ptr().cast::<PlainDword>(),
                     );
                 }
                 let (want_ty, want_v) = expected.split_at(WINDOW_END);

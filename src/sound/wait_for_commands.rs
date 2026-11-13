@@ -6,9 +6,7 @@
 //! and the quit switch at 1 ends the wait.
 //! Fourteen callers.
 
-use crate::audio::owner::Audio;
 use crate::sound::queue::{END_OF_TURN, pending, send_command_in};
-use crate::system::owner::System;
 
 // ---- game data ----
 
@@ -17,18 +15,17 @@ pub use rc2k_core::sound::set_up::{Waiting as Parts, wait_for_commands};
 
 /// The parts in the game: the queue's by the Rust functions, the window's messages by
 /// the game.
-pub struct Game<'a> {
-    pub audio: &'a Audio,
-    pub system: &'a System,
+pub struct Game {
+    pub o: crate::owners::Owners<'static>,
 }
 
-impl Parts for Game<'_> {
+impl Parts for Game {
     fn end_turn(&mut self) {
-        send_command_in(self.audio, END_OF_TURN);
+        send_command_in(self.o.audio, END_OF_TURN);
     }
 
     fn pending(&mut self) -> bool {
-        pending(self.audio)
+        pending(self.o.audio)
     }
 
     fn sleep_a_millisecond(&mut self) {
@@ -36,15 +33,15 @@ impl Parts for Game<'_> {
     }
 
     fn pump_messages(&mut self) {
-        crate::platform::pump_messages_now();
+        crate::platform::pump_messages_now(self.o);
     }
 
     fn quitting(&mut self) -> bool {
-        self.system.session.flags.quitting.is_set()
+        self.o.system.session.flags.quitting.is_set()
     }
 }
 
 /// With the game's parts: what `start` and the route call.
-pub fn wait_in_game(audio: &Audio, system: &System) {
-    wait_for_commands(&mut Game { audio, system });
+pub fn wait_in_game(o: crate::owners::Owners<'static>) {
+    wait_for_commands(&mut Game { o });
 }

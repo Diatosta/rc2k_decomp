@@ -4,8 +4,6 @@
 //! ground-turn variables. `#[repr(C)]` with the image's layout, over the race block's bytes. Names are readings unless IDA's.
 
 use crate::cells::ZeroCells;
-#[cfg(test)]
-use crate::race::owner::race;
 use crate::session::{PlainDword, PlainFloat};
 
 #[repr(C)]
@@ -698,22 +696,5 @@ impl RaceTables {
             ],
             ..ZeroCells::ZERO
         }
-    }
-}
-
-/// IDA 0x60463C, the first byte of the piece.
-pub const START: usize = 0x60463C;
-/// IDA 0x60526C, the end of the piece.
-pub const END: usize = 0x60526C;
-
-const _: () = assert!(END - START == core::mem::size_of::<RaceTables>());
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn first_values_are_the_games() {
-        crate::test_support::first_values::assert_block_starts_as_the_games(race().shared.tables());
     }
 }

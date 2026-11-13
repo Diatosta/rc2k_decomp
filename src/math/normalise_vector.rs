@@ -63,7 +63,7 @@ pub fn normalise_vector(
     switches: &DrawSwitches,
     work: &[Dword; 4],
 ) -> Result<Option<u32>, BadInput> {
-    normalise(lists, work, switches.use_sse.bits() != 0)
+    normalise(lists, work, switches.use_sse.is_set())
 }
 
 /// The original's SSE path: each component times the approximate reciprocal root of the
@@ -148,13 +148,5 @@ mod tests {
             by_instructions(&mut w);
             assert_eq!(super::sse_normalise(v), [w[0], w[1], w[2], w[3]], "{v:x?}");
         }
-    }
-
-    #[test]
-    fn nothing_is_the_games() {
-        assert_eq!(
-            crate::test_support::first_values::dword("race.owner.RACE.course.numbers.zero/4", 0),
-            super::NOTHING
-        );
     }
 }

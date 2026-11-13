@@ -1,5 +1,5 @@
 //! The race's shell (`race::single_rally_race`, `single_rally`'s race, and `race::run_race`): what runs round a stage's loading and its run. Here its small leaves.
-use crate::net::store::NetVars;
+use crate::net::store::NetShared;
 use crate::race::owner::Race;
 use crate::race::owner_physics::Physics;
 use crate::race::owner_shared::RaceShared;
@@ -141,7 +141,7 @@ fn settle_state(view: &PlainDword) {
 /// first car's kind is not flagged or there are two players, the first two blocks' +0x684 2 or 3
 /// made 4. it keeps the rest). Refuses, with `session` 1, a chosen car past 7 (the original
 /// reads past the tables), before anything.
-pub fn set_start_states(race: &Race, vars: &NetVars) -> Result<(), Refused> {
+pub fn set_start_states(race: &Race, vars: &NetShared) -> Result<(), Refused> {
     let shared = &race.shared;
     let frame = &race.frame;
     let physics = &race.physics;

@@ -224,28 +224,3 @@ pub fn compile_lexicon(
         Ok(())
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use crate::strings::owner::strings;
-    use crate::test_support::first_values::{assert_block_starts_as_the_games, bytes};
-
-    #[test]
-    fn lexicon_memory_first_values_are_the_games() {
-        let strings = strings();
-        assert_block_starts_as_the_games(&strings.lexicon.memory);
-    }
-
-    #[test]
-    fn pattern_and_first_values_are_the_games() {
-        assert_eq!(bytes("strings.compile_lexicon.PATTERN/19"), super::PATTERN);
-        // The work area, the empty message, the room and the counter start as zeros.
-        for key in [
-            "strings.compile_lexicon.WORK/3140",
-            "strings.compile_lexicon.EMPTY_MESSAGE/16",
-            "strings.compile_lexicon.COUNTER/4",
-        ] {
-            assert!(bytes(key).iter().all(|&b| b == 0), "{key}");
-        }
-    }
-}

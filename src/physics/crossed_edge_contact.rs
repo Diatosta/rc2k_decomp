@@ -96,7 +96,7 @@ pub fn steps(c: &ContactInputs<'_>, scene: &crate::scene::owner::Scene) -> Resul
     c.tables.crossed_edge[0].set(from);
     c.tables.crossed_edge[1].set(to);
     edge_normal(
-        &c.shared.buffers.engine_tables,
+        &c.shared.buffers.reads.get().engine_tables,
         c.contact,
         c.course,
         c.tables,

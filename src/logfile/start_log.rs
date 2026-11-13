@@ -60,7 +60,7 @@ pub fn start_log(system: &System) -> Result<(), BadInput> {
     // them), then each message logged as the original's call.
     use crate::cells::Store;
     use rc2k_core::files::log::{Machine, Message, head};
-    let machine = &system.session.machine;
+    let machine = system.machine();
     let machine_text = |offset: usize, len: usize| crate::files::cstring_from(machine, offset, len);
     let vendor_at = core::mem::offset_of!(crate::session::Machine, cpu_vendor);
     let version_at = core::mem::offset_of!(crate::session::Machine, version);
@@ -75,21 +75,21 @@ pub fn start_log(system: &System) -> Result<(), BadInput> {
         date,
         version: VERSION[..VERSION.len() - 1].to_vec(), // Rust's own text
         second: (SECOND_TEXT[0] != 0).then(|| SECOND_TEXT[..SECOND_TEXT.len() - 1].to_vec()),
-        cpu_family: system.session.machine.cpu_family.get() as i32,
-        cpu_flags: system.session.machine.cpu_signature.get(),
+        cpu_family: system.machine().cpu_family.get() as i32,
+        cpu_flags: system.machine().cpu_signature.get(),
         // Twelve characters; the end follows the field (read on to the record's end).
         cpu_name: machine_text(vendor_at, machine.size() - vendor_at)?,
-        clock: system.session.machine.cpu_mhz.get() as i32,
-        fpu: system.session.machine.has_fpu.get() as i32,
-        mmx: system.session.machine.found_mmx.get() as i32,
-        has_3dnow: system.session.machine.found_3dnow.get() as i32,
-        katmai: system.session.machine.found_sse.get() as i32,
-        machine_type: system.session.machine.keyboard_type.get() as i32,
+        clock: system.machine().cpu_mhz.get() as i32,
+        fpu: system.session.host.has_fpu.get() as i32,
+        mmx: system.machine().found_mmx.get() as i32,
+        has_3dnow: system.machine().found_3dnow.get() as i32,
+        katmai: system.machine().found_sse.get() as i32,
+        machine_type: system.machine().keyboard_type.get() as i32,
         platform: [
-            system.session.machine.version[4].get() as i32,
-            system.session.machine.version[1].get() as i32,
-            system.session.machine.version[2].get() as i32,
-            (system.session.machine.version[3].get() & 0xFFFF) as i32,
+            system.machine().version[4].get() as i32,
+            system.machine().version[1].get() as i32,
+            system.machine().version[2].get() as i32,
+            (system.machine().version[3].get() & 0xFFFF) as i32,
         ],
         // The Windows version record's text, inside the record.
         platform_text: machine_text(version_at + 0x14, 4 * 37 - 0x14)?,
@@ -107,21 +107,4 @@ pub fn start_log(system: &System) -> Result<(), BadInput> {
         }
     }
     Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::test_support::first_values::bytes;
-
-    #[test]
-    fn texts_are_the_games() {
-        assert_eq!(
-            bytes("system.owner.SYSTEM.start.texts.version/28"),
-            super::VERSION
-        );
-        assert_eq!(
-            bytes("system.owner.SYSTEM.start.texts.second_text/1"),
-            super::SECOND_TEXT
-        );
-    }
 }

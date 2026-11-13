@@ -6,11 +6,11 @@
 //! for the second. Caller: `net::find_connections`.
 
 use crate::errors::Refused;
-use crate::net::store::NetVars;
+use crate::net::store::NetShared;
 
 /// (`memory::allocate` refuses rather than come back with the carry, so
 /// the fatal errors 0x80E68021 / 0x80E68022 are not reached).
-pub fn allocate_lists(vars: &NetVars) -> Result<(), Refused> {
+pub fn allocate_lists(vars: &NetShared) -> Result<(), Refused> {
     // Converted: `rc2k_core::net::lists::TABLES` (the tables Rust's, `net::tables`).
     crate::net::tables::take(vars)?;
     vars.connections.set(0);

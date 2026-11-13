@@ -82,8 +82,8 @@ impl<'a> ListenerView<'a> {
         let frame = &race.frame;
         Self {
             drawn_view: race.shared.view.get().drawn_view.get(),
-            view_matrix: &frame.matrices.view_matrix,
-            view_turn_matrix: &frame.matrices.view_turn_matrix,
+            view_matrix: &frame.matrices.get().view_matrix,
+            view_turn_matrix: &frame.matrices.get().view_turn_matrix,
             view_place: frame
                 .view_and_records
                 .get()
@@ -137,22 +137,23 @@ pub fn set_listener(
     }
     // The car block 0's body matrix (0x70FC2C).
     for k in 0..16 {
-        race.frame.matrices.turned_matrix[k].set(car.body_matrix[k].get());
+        race.frame.matrices.get().turned_matrix[k].set(car.body_matrix[k].get());
     }
     multiply_matrices(
-        &race.frame.matrices.turned_matrix,
+        &race.frame.matrices.get().turned_matrix,
         &car.place_matrix,
-        &race.frame.matrices.lit_matrix,
+        &race.frame.matrices.get().lit_matrix,
     );
     multiply_matrices(
-        &race.frame.matrices.lit_matrix,
+        &race.frame.matrices.get().lit_matrix,
         view.view_matrix,
-        &race.frame.matrices.made_object_matrix,
+        &race.frame.matrices.get().made_object_matrix,
     );
     for k in 0..16 {
-        race.frame.matrices.listener_matrix[k].set(race.frame.matrices.made_object_matrix[k].get());
+        race.frame.matrices.get().listener_matrix[k]
+            .set(race.frame.matrices.get().made_object_matrix[k].get());
     }
-    let made = &race.frame.matrices.made_object_matrix;
+    let made = &race.frame.matrices.get().made_object_matrix;
     for (first, out, negate) in [
         (0, &race.effects_settings().light_point_a_negated, true),
         (0, &race.effects_settings().light_point_a, false),
@@ -170,7 +171,7 @@ pub fn set_listener(
         }
     }
     let switches = listener::switches(
-        race.frame.frame_work.get().mirror_wanted.get() != 0,
+        race.frame.frame_work.get().mirror_wanted.is_set(),
         car.surface_noise_a.get(),
         car.surface_noise_b.get(),
     );

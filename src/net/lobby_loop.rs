@@ -27,13 +27,13 @@
 use crate::errors::Refused;
 use crate::net::lobby::{list_key, other_key, run_frame};
 use crate::net::owner::Net;
-use crate::net::store::NetVars;
+use crate::net::store::NetShared;
 use crate::net::store::PlayerRecord;
 use crate::owners::Owners;
 
 /// The players' states and-ed together (those with bit 0x80 left out), starting from
 /// `bits`, as the original's al: over `count` players (at least one turn: `count` > 0).
-pub fn all_states(vars: &NetVars, bits: u8, count: u32) -> u8 {
+pub fn all_states(vars: &NetShared, bits: u8, count: u32) -> u8 {
     let state = |n: u32| vars.player_block_or_end(n).record.state();
     // Converted: `rc2k_core::net::players::all_in_state`.
     rc2k_core::net::players::all_in_state(bits, count, state)
@@ -53,22 +53,22 @@ pub fn sync(net: &Net, kind: u8) -> Result<bool, Refused> {
     }
     let now = crate::system::tick_count::tick_count();
     if (now
-        .wrapping_sub(net.vars.sync_clock.get())
+        .wrapping_sub(net.lobby().sync_clock.get())
         .wrapping_sub(1000) as i32)
         >= 0
     {
-        net.vars.sync_clock.set(now);
+        net.lobby().sync_clock.set(now);
         // Counted up with `jb` at the end: at least one turn.
         let mut n = 0;
         loop {
             if net.vars.synced(n as usize)? != 1 {
                 let id = net.vars.player_block(n)?.id.get();
-                net.vars.send_buffer.set(0, kind);
-                net.vars.send_buffer.set(1, net.vars.sync.get());
+                net.lobby().send_buffer.set(0, kind);
+                net.lobby().send_buffer.set(1, net.vars.sync.get());
                 crate::net::dplay_send::dplay_send(
                     &net.vars,
                     id,
-                    &net.vars.send_buffer.read()[..2],
+                    &net.lobby().send_buffer.read()[..2],
                 );
             }
             n += 1;
@@ -90,7 +90,7 @@ pub fn sync(net: &Net, kind: u8) -> Result<bool, Refused> {
 }
 
 /// An item move: from the highlight by `step` while it lands on an item that is off.
-fn step_item(install: &crate::install::owner::Install, net: &Net, vars: &NetVars, step: u32) {
+fn step_item(install: &crate::install::owner::Install, net: &Net, vars: &NetShared, step: u32) {
     loop {
         install
             .pages
@@ -111,21 +111,16 @@ fn step_item(install: &crate::install::owner::Install, net: &Net, vars: &NetVars
 pub fn lobby_loop(o: Owners<'static>) -> Result<u32, Refused> {
     let (install, net, system) = (o.install, o.net, o.system);
     net.vars.players.set(0);
-    net.vars.racing.set(0);
-    crate::net::show_background::show_background(
-        crate::strings::append_string_by_id::StringOwners::of(o),
-        o.gfx,
-        o.system,
-        &net.vars,
-    )?;
-    let now = system.session.clocks.key_ticks.get();
+    net.lobby().racing.set(0);
+    crate::net::show_background::show_background(o)?;
+    let now = system.session.key_clock.ticks.get();
     install.pages.move_clock.set(now);
     install.pages.key_clock.set(now);
     net.edit().edited.set(u32::MAX);
     install.pages.choice.set(3);
     let tick = crate::system::tick_count::tick_count();
     net.edit().clock_a.set(tick);
-    net.vars.sync_clock.set(tick);
+    net.lobby().sync_clock.set(tick);
     net.vars.sync_first.set(1);
     net.vars.sync.set(net.vars.sync.get().wrapping_add(1));
     net.setup().car_item.set(1);
@@ -134,7 +129,7 @@ pub fn lobby_loop(o: Owners<'static>) -> Result<u32, Refused> {
         net.vars.stage_item.set(0);
     }
     loop {
-        run_frame(o.system, || crate::net::lobby_frame::lobby_frame(o))?;
+        run_frame(o, || crate::net::lobby_frame::lobby_frame(o))?;
         let tick = crate::system::tick_count::tick_count();
         if (tick
             .wrapping_sub(net.edit().clock_a.get())
@@ -144,12 +139,12 @@ pub fn lobby_loop(o: Owners<'static>) -> Result<u32, Refused> {
             net.edit().clock_a.set(tick);
             // The original's `jb` after it is never taken (`list_players_regs` loses
             // the carry, section 16).
-            crate::net::list_players::list_players_regs(&net.vars)?;
+            crate::net::list_players::list_players_regs(net)?;
         }
         install
             .pages
             .frame_clock
-            .set(system.session.clocks.key_ticks.get());
+            .set(system.session.key_clock.ticks.get());
         let key = list_key(install, o.input)?;
         let mut moved = false;
         if net.edit().edited.get() != u32::MAX {
@@ -158,7 +153,7 @@ pub fn lobby_loop(o: Owners<'static>) -> Result<u32, Refused> {
             let ready = net.vars.own.state() & 1 != 0;
             if !ready && key == 0x69 {
                 step_item(install, net, &net.vars, u32::MAX);
-                if net.vars.after_race.get() == 1 && (install.pages.choice.get() as i32) < 1 {
+                if net.lobby().after_race.get() == 1 && (install.pages.choice.get() as i32) < 1 {
                     install.pages.choice.set(1);
                 }
                 if (install.pages.choice.get() as i32) < 0 {
@@ -187,7 +182,7 @@ pub fn lobby_loop(o: Owners<'static>) -> Result<u32, Refused> {
                         } else {
                             crate::net::choose_stage::choose_stage(o, &net.vars)?;
                         }
-                        crate::net::list_players::list_players_regs(&net.vars)?;
+                        crate::net::list_players::list_players_regs(net)?;
                         moved = true;
                     }
                     3 => {
@@ -197,7 +192,7 @@ pub fn lobby_loop(o: Owners<'static>) -> Result<u32, Refused> {
                     _ => {}
                 }
             } else if key == 0x0F {
-                net.vars.show_gaps.set(net.vars.show_gaps.get() ^ 1);
+                net.lobby().show_gaps.set(net.lobby().show_gaps.get() ^ 1);
                 moved = true;
             } else if key == 1 {
                 install.pages.choice.set(u32::MAX);
@@ -230,7 +225,7 @@ pub fn lobby_loop(o: Owners<'static>) -> Result<u32, Refused> {
                 net.vars.player_block_or_end(n).record.state()
             })
         {
-            net.vars.after_race.set(0);
+            net.lobby().after_race.set(0);
             crate::net::disable_new_players::enable_new_players(net);
         }
         if system.session.flags.quitting.is_set() {

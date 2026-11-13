@@ -9,20 +9,15 @@ pub fn send(audio: &crate::audio::owner::Audio, command: Command) {
 }
 
 /// `send`, then `sound::wait_for_commands`.
-pub fn send_and_wait(
-    audio: &crate::audio::owner::Audio,
-    system: &crate::system::owner::System,
-    command: Command,
-) {
-    send(audio, command);
-    wait_for_commands(&mut Game { audio, system });
+pub fn send_and_wait(o: crate::owners::Owners<'static>, command: Command) {
+    send(o.audio, command);
+    wait_for_commands(&mut Game { o });
 }
 
 /// Command 0xB (converted: `rc2k_core::sound::senders::Music`), sent and waited for.
-pub fn music(audio: &crate::audio::owner::Audio, system: &crate::system::owner::System, m: Music) {
+pub fn music(o: crate::owners::Owners<'static>, m: Music) {
     send_and_wait(
-        audio,
-        system,
+        o,
         Command::Music {
             tune: m.tune,
             next: m.then,
@@ -33,19 +28,14 @@ pub fn music(audio: &crate::audio::owner::Audio, system: &crate::system::owner::
 }
 
 /// `sound::play_tune_n` (converted: `rc2k_core::sound::senders::tune_command`).
-pub fn play_tune(
-    sound: &crate::sound::owner::Sound,
-    audio: &crate::audio::owner::Audio,
-    system: &crate::system::owner::System,
-    n: u32,
-) {
-    let options = &sound.menu.options;
+pub fn play_tune(o: crate::owners::Owners<'static>, n: u32) {
+    let options = &o.sound.menu.options;
     if let Some(m) = rc2k_core::sound::senders::tune_command(
         n,
         options.music_volume.get(),
         options.race_music_volume.get(),
         options.race_music_on.get() == 1,
     ) {
-        music(audio, system, m);
+        music(o, m);
     }
 }

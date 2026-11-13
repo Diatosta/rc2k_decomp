@@ -93,12 +93,16 @@ pub fn car_part_matrices(
     scene.object_work().part_values[2].set(c.shown_steering.get());
     scene.object_work().part_values[0].set(p.driven_wheel_turns[0].get());
     scene.object_work().part_values[1].set(p.driven_wheel_turns[1].get());
-    copy_cells(&p.crash_matrix, &race.frame.matrices.body_turn_matrix, 16);
+    copy_cells(
+        &p.crash_matrix,
+        &race.frame.matrices.get().body_turn_matrix,
+        16,
+    );
     for i in 0..4 {
         scene.object_work().part_weights[i].set(p.wheel_spring_force[i].get());
     }
     set_place(
-        &race.frame.matrices.placed_matrix,
+        &race.frame.matrices.get().placed_matrix,
         [
             p.position[0].get(),
             p.position[1].get(),
@@ -106,7 +110,7 @@ pub fn car_part_matrices(
         ],
     );
     crate::math::cells::copy_cells(
-        &race.frame.matrices.placed_matrix,
+        &race.frame.matrices.get().placed_matrix,
         &race.frame.frame_work.get().placed_matrices,
         16,
     );
@@ -150,7 +154,7 @@ pub fn car_part_matrices(
             scene.object_work().part_values[2].set(0);
         }
         set_place(
-            &race.frame.matrices.placed_matrix,
+            &race.frame.matrices.get().placed_matrix,
             [
                 x.get().wrapping_neg(),
                 race.physics.camera().axle_rear_lift.get().wrapping_neg(),
@@ -159,23 +163,23 @@ pub fn car_part_matrices(
         );
         set_turn_x(
             race.engine_tables(),
-            &race.frame.matrices.turn_x_matrix,
+            &race.frame.matrices.get().turn_x_matrix,
             &scene.drawing.scene.get().turn_x_work,
             spin.get(),
         );
-        let placed = &race.frame.matrices.placed_matrix;
-        let turned = &race.frame.matrices.turned_matrix;
-        let lit = &race.frame.matrices.lit_matrix;
-        multiply_matrices(placed, &race.frame.matrices.turn_x_matrix, turned);
+        let placed = &race.frame.matrices.get().placed_matrix;
+        let turned = &race.frame.matrices.get().turned_matrix;
+        let lit = &race.frame.matrices.get().lit_matrix;
+        multiply_matrices(placed, &race.frame.matrices.get().turn_x_matrix, turned);
         set_turn_y(
             race.engine_tables(),
-            &race.frame.matrices.turn_y_matrix,
+            &race.frame.matrices.get().turn_y_matrix,
             &scene.drawing.scene.get().turn_y_work,
             scene.object_work().part_values[2].get(),
         );
-        multiply_matrices(turned, &race.frame.matrices.turn_y_matrix, lit);
+        multiply_matrices(turned, &race.frame.matrices.get().turn_y_matrix, lit);
         set_place(
-            &race.frame.matrices.placed_matrix,
+            &race.frame.matrices.get().placed_matrix,
             [x.get(), lift.get(), z.get()],
         );
         multiply_matrices(lit, placed, out);
@@ -221,14 +225,14 @@ pub fn ready_car_parts(race: &Race, scene: &crate::scene::owner::Scene) -> Resul
             {
                 copy_cells(from, to, 16);
             }
-            copy_cells(&frame.matrices.body_turn_matrix, kept[4], 16);
+            copy_cells(&frame.matrices.get().body_turn_matrix, kept[4], 16);
             copy_cells(&work.placed_matrices[..16], kept[5], 16);
             multiply_matrices(
-                &frame.matrices.body_turn_matrix,
+                &frame.matrices.get().body_turn_matrix,
                 &frame.frame_work.get().placed_matrices,
-                &frame.matrices.view_place,
+                &frame.matrices.get().view_place,
             );
-            copy_cells(&frame.matrices.view_place, &block.whole_matrix, 16);
+            copy_cells(&frame.matrices.get().view_place, &block.whole_matrix, 16);
         }
         c += 1;
         if c == count {

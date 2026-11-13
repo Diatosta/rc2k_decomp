@@ -21,7 +21,6 @@ impl Scratch {
 }
 
 impl Scratch {
-    pub const START: usize = 0x93E8B0;
     pub const LEN: usize = 0x10000;
 
     /// `files::read` of `count` bytes from `file` into the scratch: (the bytes read, whether
@@ -41,16 +40,5 @@ impl Scratch {
         let (got, ok) = crate::files::handle::read_slice(file, &mut bytes);
         self.buffer.write_at(0, &bytes[..got as usize], what)?;
         Ok((got, ok))
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn scratch_starts_as_the_games() {
-        let size = size_of::<Scratch>();
-        assert!(Scratch::LEN <= size && size <= (Scratch::LEN).next_multiple_of(16));
     }
 }

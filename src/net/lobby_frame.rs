@@ -66,7 +66,7 @@ pub fn lobby_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     y += 0x1D;
     if vars.players.get() != 0 {
         let sorted = crate::net::sort_players::sort_players(&net.vars)?;
-        let gaps = vars.show_gaps.get() == 1;
+        let gaps = net.lobby().show_gaps.get() == 1;
         let (first_time, first_total) = (
             sorted[0].record.race_time.get(),
             sorted[0].record.total.get(),
@@ -209,6 +209,6 @@ pub fn lobby_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
         );
     }
     crate::platform::unlock_surface(o.gfx);
-    crate::platform::show_frame_now();
+    crate::platform::show_frame_now(o);
     Ok(())
 }

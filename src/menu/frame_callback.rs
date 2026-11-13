@@ -91,5 +91,5 @@ pub fn frame_callback(
         )?;
     }
     unlock_surface(o.gfx);
-    Ok(show_frame_now())
+    Ok(show_frame_now(o))
 }

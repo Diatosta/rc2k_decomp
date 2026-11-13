@@ -1,5 +1,5 @@
 //! `physics::keep_motion_vectors` (0x43BD41): unless `contact_step` is set, the three dwords of
-//! the car's `velocity` (the vector `physics::store_motion_length` measures) go into
+//! the car's `velocity` (the vector `physics::store_motion_length` measures) go as bits into
 //! `kept_vectors`, and those of `spin` into the following three.
 //!
 //! Caller: `physics::car_physics_step`, every physics step.
@@ -14,7 +14,7 @@ pub fn keep_motion_vectors(car: &Car, tables: &PhysicsTables) {
     }
     let kept = &tables.kept_vectors;
     for k in 0..3 {
-        kept[k].set(car.velocity[k].bits());
-        kept[4 + k].set(car.spin[k].bits());
+        kept[k].set_bits(car.velocity[k].bits());
+        kept[4 + k].set_bits(car.spin[k].bits());
     }
 }

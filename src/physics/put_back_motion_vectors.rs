@@ -12,8 +12,8 @@ use crate::physics::tables_store::PhysicsTables;
 /// frame.
 pub fn put_back_motion_vectors(car: &Car, tables: &PhysicsTables) {
     for k in 0..3 {
-        car.velocity[k].set_bits(tables.kept_vectors[k].get());
-        car.spin[k].set_bits(tables.kept_vectors[4 + k].get());
+        car.velocity[k].set_bits(tables.kept_vectors[k].bits());
+        car.spin[k].set_bits(tables.kept_vectors[4 + k].bits());
     }
     car_frame_motion(&car.velocity, &car.car_inverse_matrix, &car.local_velocity);
 }

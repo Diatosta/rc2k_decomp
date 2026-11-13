@@ -3,7 +3,6 @@
 use super::*;
 use crate::errors::{BadInput, Refused};
 use crate::race::frame_view::car as car_view;
-use crate::race::owner::Race;
 use crate::race::view_scratch::DrawCtx;
 use crate::scene::draw_described_object::Description;
 
@@ -143,7 +142,6 @@ pub fn draw_race_slots(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(
 pub fn draw_screen_quad(
     poly: &crate::scene::polygon_work::PolygonWork,
     part: &crate::workers::PartScratch,
-    race: &Race,
     face: &crate::race::face_work::FaceWork,
     reads: crate::workers::DrawReads<'_>,
     screen: &crate::session::Screen,
@@ -190,7 +188,7 @@ pub fn draw_screen_quad(
         face.polygon_mode.set(0u32);
         poly.polygon_sides[0].set(1u32);
         poly.polygon_sides[1].set(0u32);
-        crate::scene::draw_polygon::draw_polygon_in_game(poly, part, race, face, reads, screen)?;
+        crate::scene::draw_polygon::draw_polygon_in_game(view, part, reads, screen)?;
         face.polygon_mode.set(0u32);
         poly.polygon_drawn.set(1u32);
         crate::scene::depth_buffer_on::depth_buffer(part, true);
@@ -205,7 +203,6 @@ pub fn draw_screen_quad(
 pub fn draw_view_tint(
     poly: &crate::scene::polygon_work::PolygonWork,
     part: &crate::workers::PartScratch,
-    race: &Race,
     face: &crate::race::face_work::FaceWork,
     reads: crate::workers::DrawReads<'_>,
     screen: &crate::session::Screen,
@@ -219,7 +216,7 @@ pub fn draw_view_tint(
     poly.polygon_textures[0].set(u32::MAX);
     poly.polygon_sides[0].set(1u32);
     poly.polygon_sides[1].set(0u32);
-    draw_screen_quad(poly, part, race, face, reads, screen, view)
+    draw_screen_quad(poly, part, face, reads, screen, view)
 }
 
 /// `race::add_car_depth_entry` (0x4574A0): the place (+0x134 .., into `OBJECT_WORK.place` ..) of
@@ -538,8 +535,6 @@ pub(super) fn scale_object_turn(ctx: &DrawCtx) -> Result<(), BadInput> {
 /// `OBJECT_WORK.described_cleared[2]` again round `OBJECT_WORK.described_cleared`; then scaled by
 /// `OBJECT_WORK.size` / 16.
 pub fn place_object_matrix(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), BadInput> {
-    let race = ctx.race;
-    let frame = &race.frame;
     use crate::scene::matrix::{
         multiply_matrices, set_light_direction, set_turn_x, set_turn_y, set_turn_z_16,
     };
@@ -555,7 +550,7 @@ pub fn place_object_matrix(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Resu
         &ctx.view.matrices.object_turn_matrix,
     );
     set_light_direction(
-        race.engine_tables(),
+        &ctx.reads.buffers.engine_tables,
         &ctx.view.matrices,
         &ctx.view.light.light_direction,
         &ctx.view.matrices.view_turn_matrix,
@@ -563,20 +558,20 @@ pub fn place_object_matrix(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Resu
     );
     if ctx.reads.light_state.light_turn_off.get() == 0 {
         set_turn_y(
-            race.engine_tables(),
+            &ctx.reads.buffers.engine_tables,
             &ctx.view.matrices.turn_y_matrix,
             &ctx.view.matrices.turn_y_work,
             ctx.view.object.angles[1].get().wrapping_neg(),
         );
         set_turn_x(
-            race.engine_tables(),
+            &ctx.reads.buffers.engine_tables,
             &ctx.view.matrices.turn_x_matrix,
             &ctx.view.matrices.turn_x_work,
             ctx.view.object.angles[0].get().wrapping_neg(),
         );
         multiply_matrices(turn_y, turn_x, turned);
         set_turn_z_16(
-            race.engine_tables(),
+            &ctx.reads.buffers.engine_tables,
             &ctx.view.matrices.turn_z_matrix,
             &ctx.view.matrices.turn_z_work,
             ctx.view.object.angles[2].get().wrapping_neg(),
@@ -590,8 +585,10 @@ pub fn place_object_matrix(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Resu
     }
     let number = ctx.view.cars.object_number.get();
     let kind = ctx.reads.object_tables.object_kind(number);
-    let material = race
-        .polygon_tables()
+    let material = ctx
+        .reads
+        .buffers
+        .polygon_tables
         .object_materials
         .get(kind as usize)
         .ok_or_else(|| {
@@ -607,7 +604,7 @@ pub fn place_object_matrix(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Resu
             crate::math::cells::copy_cells(&ctx.view.matrices.view_back_matrix, &object, 16);
         }
         5 => {
-            crate::math::cells::copy_cells(&frame.matrices.identity_matrix, &object, 16);
+            crate::math::cells::copy_cells(&ctx.reads.matrices.identity_matrix, &object, 16);
             set_fine_turn(
                 ctx.reads.course(),
                 &ctx.view.matrices,
@@ -625,7 +622,7 @@ pub fn place_object_matrix(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Resu
         }
         _ => {
             set_turn_y(
-                race.engine_tables(),
+                &ctx.reads.buffers.engine_tables,
                 &ctx.view.matrices.turn_y_matrix,
                 &ctx.view.matrices.turn_y_work,
                 ctx.view.object.angles[0].get().wrapping_neg(),
@@ -633,21 +630,21 @@ pub fn place_object_matrix(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Resu
             crate::math::cells::copy_cells(&turn_y, &object, 16);
             if ctx.view.object.angles[1].get() != 0 {
                 set_turn_y(
-                    race.engine_tables(),
+                    &ctx.reads.buffers.engine_tables,
                     &ctx.view.matrices.turn_y_matrix,
                     &ctx.view.matrices.turn_y_work,
                     ctx.view.object.angles[2].get().wrapping_neg(),
                 );
                 multiply_matrices(object, turn_y, lit);
                 set_turn_x(
-                    race.engine_tables(),
+                    &ctx.reads.buffers.engine_tables,
                     &ctx.view.matrices.turn_x_matrix,
                     &ctx.view.matrices.turn_x_work,
                     ctx.view.object.angles[1].get().wrapping_neg(),
                 );
                 multiply_matrices(lit, turn_x, turned);
                 set_turn_y(
-                    race.engine_tables(),
+                    &ctx.reads.buffers.engine_tables,
                     &ctx.view.matrices.turn_y_matrix,
                     &ctx.view.matrices.turn_y_work,
                     ctx.view.object.angles[2].get(),
@@ -658,28 +655,28 @@ pub fn place_object_matrix(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Resu
                 || ctx.view.object.described_turns[1].get() != 0
             {
                 set_turn_y(
-                    race.engine_tables(),
+                    &ctx.reads.buffers.engine_tables,
                     &ctx.view.matrices.turn_y_matrix,
                     &ctx.view.matrices.turn_y_work,
                     ctx.view.object.described_turns[2].get().wrapping_neg(),
                 );
                 multiply_matrices(object, turn_y, lit);
                 set_turn_y(
-                    race.engine_tables(),
+                    &ctx.reads.buffers.engine_tables,
                     &ctx.view.matrices.turn_y_matrix,
                     &ctx.view.matrices.turn_y_work,
                     ctx.view.object.described_turns[0].get().wrapping_neg(),
                 );
                 multiply_matrices(lit, turn_y, turned);
                 set_turn_x(
-                    race.engine_tables(),
+                    &ctx.reads.buffers.engine_tables,
                     &ctx.view.matrices.turn_x_matrix,
                     &ctx.view.matrices.turn_x_work,
                     ctx.view.object.described_turns[1].get().wrapping_neg(),
                 );
                 multiply_matrices(turned, turn_x, lit);
                 set_turn_y(
-                    race.engine_tables(),
+                    &ctx.reads.buffers.engine_tables,
                     &ctx.view.matrices.turn_y_matrix,
                     &ctx.view.matrices.turn_y_work,
                     ctx.view.object.described_turns[0].get(),

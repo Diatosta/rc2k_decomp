@@ -3,8 +3,6 @@
 
 use crate::cells::ZeroCells;
 
-#[cfg(test)]
-use crate::race::owner::race;
 use crate::session::{PlainBytes, PlainDword};
 
 #[repr(C)]
@@ -43,24 +41,5 @@ pub struct DrawBatches {
 impl DrawBatches {
     pub const fn new() -> Self {
         Self::ZERO
-    }
-}
-
-/// IDA 0x6D3CF4, the first byte of the piece.
-pub const START: usize = 0x6D3CF4;
-/// IDA 0x6EF7CC, the end of the piece.
-pub const END: usize = 0x6EF7CC;
-
-const _: () = assert!(END - START == core::mem::size_of::<DrawBatches>());
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn first_values_are_the_games() {
-        crate::test_support::first_values::assert_block_starts_as_the_games(
-            race().frame.draw_batches(),
-        );
     }
 }

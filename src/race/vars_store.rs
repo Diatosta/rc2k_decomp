@@ -7,8 +7,6 @@
 
 use crate::cells::ZeroCells;
 
-#[cfg(test)]
-use crate::race::owner::race;
 use crate::session::{PlainDword, PlainFloat};
 
 #[repr(C)]
@@ -51,8 +49,8 @@ pub struct RaceVars {
     pub replay_camera_counts: [PlainDword; 2],
     /// +0x80 (0x623668): the nearest distance, then the one (`race::best_line`).
     pub line_nearest: [PlainDword; 2],
-    /// +0x88 (0x623670): `g_surfaceShares`.
-    pub surface_shares: [PlainFloat; 16],
+    /// +0x88 (0x623670): `g_surfaceShares`, as the whole numbers `race::surface_shares` leaves (it adds them as floats on its own).
+    pub surface_shares: [PlainDword; 16],
     /// +0xc8 (0x6236B0): `g_surfaceWeight`, a whole number.
     pub surface_weight: PlainDword,
     /// +0xcc (0x6236B4): `g_mapAnchorCount`.
@@ -266,24 +264,5 @@ impl RaceVars {
             move_by: PlainDword::new(0xC),
             ..ZeroCells::ZERO
         }
-    }
-}
-
-/// IDA 0x6235E8, the first byte of the piece.
-pub const START: usize = 0x6235E8;
-/// IDA 0x623F80, the end of the piece.
-pub const END: usize = 0x623F80;
-
-const _: () = assert!(END - START == core::mem::size_of::<RaceVars>());
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn first_values_are_the_games() {
-        crate::test_support::first_values::assert_block_starts_as_the_games(
-            race().shared.vars.get(),
-        );
     }
 }

@@ -57,7 +57,11 @@ pub fn draw_mirror_view(
         crate::race::frame_views::mirror_view_window(race, view, part, reads)?;
         view.polygon.window.view_depth[1].set(view.course.view_value_kept.get());
         crate::race::frame_flush::draw_view_backdrop(reads, view, part);
-        crate::race::draw_view_scene::draw_view_scene(race, scene, net, input, view, part, reads)
+        // A mirror starts from no filter switches (`race::view_scratch::filter_input`: only the
+        // first view's slot reads the front end's).
+        crate::race::draw_view_scene::draw_view_scene(
+            race, scene, net, input, view, [0; 3], part, reads,
+        )
     })();
     view.vars.view_scale.set(saved);
     // (The original's full window again after the mirror is the front end's: `race::draw_race_scene`.)

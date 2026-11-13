@@ -39,12 +39,8 @@ pub fn arcade_finale(o: Owners<'static>) -> Result<(), Refused> {
         .set(rc2k_core::menu::arcade::levels_left(level));
     race.shared.state.results.finished.set(0);
     crate::race::sound_tables::set_up_race_sound_objects(
-        race,
+        o,
         &crate::race::sound_tables::ObjectVars::of(sound),
-        sound,
-        o.audio,
-        o.net,
-        o.system,
     )?;
     crate::sound::set_up_race_sounds::set_up_race_sounds(o)?;
     crate::menu::show_loading_picture::show_loading_picture_in(o)?;
@@ -53,14 +49,14 @@ pub fn arcade_finale(o: Owners<'static>) -> Result<(), Refused> {
     // `nullsub_6`.
     crate::race::race_end::release_textures(o.scene, o.gfx);
     crate::drive::finish_race_0::finish_race_0(race, o)?;
-    crate::sound::stop_music::stop_music(o.audio, o.system);
+    crate::sound::stop_music::stop_music(o);
     crate::platform::set_menu_mode_now(o.gfx, o.system);
     crate::menu::show_loading_picture::show_loading_picture_in(o)?;
     crate::scene::set_up_engine::set_up_engine_in(race, o.scene)?;
     crate::scene::set_up_front_end_scene::set_up_front_end_scene_in(o)?;
     crate::scene::set_up_engine::set_up_engine_in(race, o.scene)?;
-    crate::sound::stop_music::stop_music(o.audio, o.system);
-    crate::sound::play_tune_3::play_tune_3(o.sound, o.audio, o.system);
+    crate::sound::stop_music::stop_music(o);
+    crate::sound::play_tune_3::play_tune_3(o);
     // The pending key taken (eax 0).
     crate::input::take_key::take_key(o.input);
     Ok(())

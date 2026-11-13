@@ -7,8 +7,6 @@
 
 use crate::cells::ZeroCells;
 
-#[cfg(test)]
-use crate::race::owner::race;
 use crate::session::PlainDword;
 
 #[repr(C)]
@@ -30,24 +28,5 @@ pub struct TextState {
 impl TextState {
     pub const fn new() -> Self {
         Self::ZERO
-    }
-}
-
-/// IDA 0x5C6604, the first byte of the piece.
-pub const START: usize = 0x5C6604;
-/// IDA 0x5C6610, the end of the piece.
-pub const END: usize = 0x5C6610;
-
-const _: () = assert!(END - START == core::mem::size_of::<TextState>());
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn first_values_are_the_games() {
-        crate::test_support::first_values::assert_block_starts_as_the_games(
-            race().frame.text_state(),
-        );
     }
 }

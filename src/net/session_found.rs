@@ -12,19 +12,19 @@
 use crate::errors::Refused;
 use crate::net::dp_session::Desc;
 use crate::net::lobby::{log_bytes, log_hex};
-use crate::net::store::NetVars;
+use crate::net::store::NetShared;
 use crate::net::tables::{copy_printable_into, with_session};
-use crate::race::viewer_screen_store::{ViewerPanelBlock, texts};
+use crate::race::viewer_screen_store::{NetTexts, texts};
 use rc2k_core::net::lists::{self, Found};
 
 /// The session (none at the end) and the flags.
 pub fn session_found(
-    vars: &NetVars,
-    panel: &ViewerPanelBlock,
+    vars: &NetShared,
+    lines: &NetTexts,
     desc: Option<&Desc>,
     flags: u32,
 ) -> Result<u32, Refused> {
-    log_bytes(&panel.text(texts::NET_FOUND), false, 2);
+    log_bytes(&lines.text(texts::NET_FOUND), false, 2);
     log_hex(flags, false);
     if let Some(d) = desc {
         log_bytes(d.name.as_bytes(), false, 2);
@@ -56,8 +56,8 @@ pub fn session_found(
     Ok(1)
 }
 
-pub fn callback(vars: &NetVars, panel: &ViewerPanelBlock, desc: Option<&Desc>, flags: u32) -> u32 {
+pub fn callback(vars: &NetShared, lines: &NetTexts, desc: Option<&Desc>, flags: u32) -> u32 {
     crate::net::lobby::callback_entry("net::session_found", 0x418A62, || {
-        session_found(vars, panel, desc, flags)
+        session_found(vars, lines, desc, flags)
     })
 }

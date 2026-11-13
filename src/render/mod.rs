@@ -244,6 +244,31 @@ pub(crate) fn noted_bytes<'a>(note: &TextureNote) -> &'a [u8] {
 pub(crate) fn texture_as_bgra(note: &TextureNote) -> Vec<u8> {
     let pixels = noted_bytes(note);
     let mut out = Vec::with_capacity(note.width * note.height * 4);
+    // How a pixel's raw bits become 0xAARRGGBB (`rasteriser::to_argb`), worked out once.
+    enum Convert {
+        /// A 16-bit format: its table.
+        Table(std::sync::Arc<Vec<u32>>),
+        /// 32 bits already laid out as 0xAARRGGBB (or with no alpha, which is made full).
+        Same {
+            alpha: u32,
+        },
+        Masks,
+    }
+    let m = note.masks;
+    let convert = if note.bytes == 2 {
+        Convert::Table(crate::rasteriser::table_for(&m))
+    } else if note.bytes == 4
+        && m[0] == 0xFF
+        && m[1] == 0xFF00
+        && m[2] == 0xFF_0000
+        && (m[3] == 0 || m[3] == 0xFF00_0000)
+    {
+        Convert::Same {
+            alpha: if m[3] == 0 { 0xFF00_0000 } else { 0 },
+        }
+    } else {
+        Convert::Masks
+    };
     for y in 0..note.height {
         for x in 0..note.width {
             let at = y * note.pitch + x * note.bytes;
@@ -251,7 +276,12 @@ pub(crate) fn texture_as_bgra(note: &TextureNote) -> Vec<u8> {
             if let Some(from) = pixels.get(at..at + note.bytes) {
                 raw[..note.bytes].copy_from_slice(from);
             }
-            let argb = crate::rasteriser::to_argb(u32::from_le_bytes(raw), &note.masks);
+            let pixel = u32::from_le_bytes(raw);
+            let argb = match &convert {
+                Convert::Table(table) => table[pixel as usize & 0xFFFF],
+                Convert::Same { alpha } => pixel | alpha,
+                Convert::Masks => crate::rasteriser::to_argb(pixel, &m),
+            };
             out.extend(argb.to_le_bytes());
         }
     }
@@ -352,6 +382,50 @@ pub static GL_SHOW_MICROS: std::sync::atomic::AtomicU64 = std::sync::atomic::Ato
 #[cfg(test)]
 mod tests {
     use super::{TextureChanges, TextureId};
+
+    /// The upload's conversion gives what `rasteriser::to_argb` gives for every pixel, in
+    /// each layout the fast paths take and one they do not.
+    #[test]
+    fn texture_conversion_matches_the_masks() {
+        let layouts: [(usize, [u32; 4]); 5] = [
+            (2, [0x001F, 0x07E0, 0xF800, 0]),
+            (2, [0x000F, 0x00F0, 0x0F00, 0xF000]),
+            (4, [0xFF, 0xFF00, 0xFF_0000, 0xFF00_0000]),
+            (4, [0xFF, 0xFF00, 0xFF_0000, 0]),
+            (4, [0xFF, 0xFF00, 0xFF_0000, 0x8000_0000]),
+        ];
+        for (bytes, masks) in layouts {
+            let (width, height) = (16usize, 16usize);
+            let mut state = 0x1234_5678u32;
+            let raw: Vec<u8> = (0..width * height * bytes)
+                .map(|_| {
+                    state = state.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
+                    (state >> 24) as u8
+                })
+                .collect();
+            let id = crate::platform_3d::test_level(raw.clone());
+            let note = super::TextureNote {
+                pixels: id,
+                len: raw.len(),
+                width,
+                height,
+                pitch: width * bytes,
+                bytes,
+                masks,
+            };
+            let got = super::texture_as_bgra(&note);
+            for (n, chunk) in raw.chunks_exact(bytes).enumerate() {
+                let mut word = [0u8; 4];
+                word[..bytes].copy_from_slice(chunk);
+                let want = crate::rasteriser::to_argb(u32::from_le_bytes(word), &masks);
+                assert_eq!(
+                    got[n * 4..n * 4 + 4],
+                    want.to_le_bytes(),
+                    "{bytes} {masks:x?} {n}"
+                );
+            }
+        }
+    }
 
     #[test]
     fn a_texture_gone_is_not_also_written() {

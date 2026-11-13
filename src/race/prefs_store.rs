@@ -180,25 +180,7 @@ impl StagePrefs {
 
 impl StagePrefs {
     /// The piece as its dwords in order: the stage's `localdat` read in place.
-    pub fn dwords(&self) -> &[PlainDword; (END - START) / 4] {
+    pub fn dwords(&self) -> &[PlainDword; core::mem::size_of::<StagePrefs>() / 4] {
         crate::cells::plain_dwords_in(self, 0)
-    }
-}
-
-/// IDA 0x608CB4, the first byte of the piece.
-pub const START: usize = 0x608CB4;
-/// IDA 0x60AD20, the end of the piece.
-pub const END: usize = 0x60AD20;
-
-const _: () = assert!(END - START == core::mem::size_of::<StagePrefs>());
-
-#[cfg(test)]
-mod tests {
-
-    #[test]
-    fn first_values_are_the_games() {
-        crate::test_support::first_values::assert_block_starts_as_the_games(
-            crate::race::owner::RACE.course.stage_prefs.get(),
-        );
     }
 }

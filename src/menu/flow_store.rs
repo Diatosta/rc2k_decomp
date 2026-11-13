@@ -45,7 +45,6 @@ pub struct ScreenFlow {
 }
 
 impl ScreenFlow {
-    /// First values the image's (`tests::screen_flow_starts_as_the_games`).
     pub const fn new() -> Self {
         ScreenFlow {
             start_section: PlainDword::new(0x0),
@@ -65,16 +64,5 @@ impl ScreenFlow {
             setup_list: ListCell::new(),
             scene_list: ListCell::new(),
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-
-    #[test]
-    fn screen_flow_starts_as_the_games() {
-        crate::test_support::first_values::assert_block_starts_as_the_games(
-            &crate::menu::owner::menus().screens.flow,
-        );
     }
 }

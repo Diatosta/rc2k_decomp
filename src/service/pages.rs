@@ -122,7 +122,7 @@ fn key_and_step(
         .play
         .champ_view
         .last_key_time
-        .set(system.session.clocks.frame.get());
+        .set(system.clocks().frame.get());
     match action {
         PageKey::Down => {
             step(menus, down)?;

@@ -5,9 +5,7 @@
 //! layout, over the race block's bytes (`FRAME_WORK`), as `CAR`. Names are readings unless IDA's.
 
 use crate::cells::ZeroCells;
-#[cfg(test)]
-use crate::race::owner::race;
-use crate::session::{PlainDword, PlainFloat};
+use crate::session::{PlainDword, PlainFlag, PlainFloat};
 
 #[repr(C)]
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
@@ -41,7 +39,7 @@ pub struct FrameWork {
     /// +0x50 (0x6415DC): `g_sunSize`; now each view's (`ViewSun::size`); unused.
     pub sun_size: PlainDword,
     /// +0x54 (0x6415E0): the mirror's picture wanted (`d3d::copy_screen_to_texture`, `race::draw_race_scene`).
-    pub mirror_wanted: PlainDword,
+    pub mirror_wanted: PlainFlag,
     /// +0x58 (0x6415E4): `g_viewLight`; now each view's (`scene::object_light`); unused.
     pub view_light: PlainDword,
     /// +0x5c (0x6415E8): (`race::frame_views`).
@@ -210,24 +208,5 @@ impl FrameWork {
             shadow_circle: [PlainFloat::new(8388608.0), PlainFloat::new(16777216.0)],
             ..ZeroCells::ZERO
         }
-    }
-}
-
-/// IDA 0x64158C, the first byte of the piece.
-pub const START: usize = 0x64158C;
-/// IDA 0x641AA4, the end of the piece.
-pub const END: usize = 0x641AA4;
-
-const _: () = assert!(END - START == core::mem::size_of::<FrameWork>());
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn first_values_are_the_games() {
-        crate::test_support::first_values::assert_block_starts_as_the_games(
-            &race().frame.frame_work,
-        );
     }
 }

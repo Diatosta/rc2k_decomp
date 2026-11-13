@@ -285,7 +285,7 @@ mod tests {
             let id = MADE_TEXT_IDS.start + n as u32;
             assert_eq!(place_of(id), place, "{id:#X}");
         }
-        let o = crate::owners::boundary();
+        let o = crate::owners::Owners::the();
         let (race, menus, install) = (o.race, o.menus, o.install);
         assert!(made_text(race, menus, install, 0x1040).is_err());
         assert!(made_text(race, menus, install, 0x1FFF).is_err());

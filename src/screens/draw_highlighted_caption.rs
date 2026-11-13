@@ -54,8 +54,7 @@ pub fn draw_highlighted_caption(
     // The logic is in `rc2k_core::screens::highlighted_caption`.
     let since_key = o
         .system
-        .session
-        .clocks
+        .clocks()
         .frame
         .get()
         .wrapping_sub(menus.play.champ_view.last_key_time.get());

@@ -39,7 +39,7 @@ use crate::physics::tables_store::Surface;
 use crate::race::numbers_store::Numbers;
 use crate::race::owner_course::Course;
 use crate::race::owner_shared::RaceShared;
-use crate::session::{Float, PlainDword};
+use crate::session::{PlainDword, PlainFloat};
 use std::cmp::Ordering;
 
 /// Byte `offset` of texture info `n`.
@@ -54,7 +54,12 @@ fn info_byte(
 }
 
 /// `fld v[c] x 65536; fistp` through `scratch` (`v` one of the probe shares).
-fn share_bit(course: &Course, v: &[Float; 64], c: u32, scene: &crate::scene::owner::Scene) -> u32 {
+fn share_bit(
+    course: &Course,
+    v: &[PlainFloat; 64],
+    c: u32,
+    scene: &crate::scene::owner::Scene,
+) -> u32 {
     x87_1(course, v, c as usize, scene);
     scene.drawing.scene.get().scratch.get()
 }
@@ -103,39 +108,39 @@ fn steps(c: &WheelInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(), 
         {
             let e = c.tables.surface_firsts[cc].get();
             c.car.wheel_surface_a[cc].set(info_byte(
-                &c.shared.buffers.polygon_tables,
+                &c.shared.buffers.reads.get().polygon_tables,
                 t1,
                 e.wrapping_add(0x10),
             )?);
             c.car.wheel_cell_a_byte18[cc].set(info_byte(
-                &c.shared.buffers.polygon_tables,
+                &c.shared.buffers.reads.get().polygon_tables,
                 t1,
                 e.wrapping_add(0x18),
             )?);
             c.car.wheel_cell_a_byte14[cc].set(info_byte(
-                &c.shared.buffers.polygon_tables,
+                &c.shared.buffers.reads.get().polygon_tables,
                 t1,
                 e.wrapping_add(0x14),
             )?);
             let t2 = face_byte(0x21)?;
             let e2 = c.tables.surface_seconds[cc].get();
             c.car.wheel_surface_b[cc].set(info_byte(
-                &c.shared.buffers.polygon_tables,
+                &c.shared.buffers.reads.get().polygon_tables,
                 t2,
                 e2.wrapping_add(0x10),
             )?);
             c.car.wheel_cell_b_byte18[cc].set(info_byte(
-                &c.shared.buffers.polygon_tables,
+                &c.shared.buffers.reads.get().polygon_tables,
                 t2,
                 e2.wrapping_add(0x18),
             )?);
             c.car.wheel_cell_b_byte14[cc].set(info_byte(
-                &c.shared.buffers.polygon_tables,
+                &c.shared.buffers.reads.get().polygon_tables,
                 t2,
                 e2.wrapping_add(0x14),
             )?);
             c.car.wheel_surface_blend[cc].set(0.0);
-            let kind_index = info_byte(&c.shared.buffers.polygon_tables, t2, 0x2C)?;
+            let kind_index = info_byte(&c.shared.buffers.reads.get().polygon_tables, t2, 0x2C)?;
             // The index is a byte: past the four kinds the original reads on (a slip).
             let kind = crate::session::read_on_in(
                 c.view,
@@ -245,7 +250,7 @@ pub fn wheel_surfaces(
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `int [scratch] = [t + c * 4] * [k65536]`
-fn x87_1(course: &Course, t: &[Float; 64], c: usize, scene: &crate::scene::owner::Scene) {
+fn x87_1(course: &Course, t: &[PlainFloat; 64], c: usize, scene: &crate::scene::owner::Scene) {
     let t0 = t[c].ld();
     let t1 = course.numbers.get().k65536.ld();
     let t2 = t0 * t1;
@@ -591,7 +596,7 @@ mod reference_vectors {
                 ulps: 0,
                 plain: |a| {
                     x87_2(
-                        &crate::race::owner::race().physics.contact,
+                        crate::race::owner::race().physics.contact.get(),
                         crate::race::owner::race().course.numbers.get(),
                         crate::race::owner::race().shared.car(),
                         a[1],
@@ -618,7 +623,7 @@ mod reference_vectors {
                 ulps: 0,
                 plain: |a| {
                     x87_2(
-                        &crate::race::owner::race().physics.contact,
+                        crate::race::owner::race().physics.contact.get(),
                         crate::race::owner::race().course.numbers.get(),
                         crate::race::owner::race().shared.car(),
                         a[1],
@@ -645,7 +650,7 @@ mod reference_vectors {
                 ulps: 0,
                 plain: |a| {
                     x87_2(
-                        &crate::race::owner::race().physics.contact,
+                        crate::race::owner::race().physics.contact.get(),
                         crate::race::owner::race().course.numbers.get(),
                         crate::race::owner::race().shared.car(),
                         a[1],

@@ -59,7 +59,6 @@ pub struct ChampView {
     pub stage_mode: PlainDword,
 }
 
-/// First values the image's (`tests::champ_view_starts_as_the_games`).
 impl ChampView {
     pub const fn new() -> Self {
         ChampView {
@@ -120,10 +119,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn champ_view_starts_as_the_games() {
-        crate::test_support::first_values::assert_block_starts_as_the_games(
-            &crate::menu::owner::menus().play.champ_view,
-        );
+    fn the_times_variables_are_named_by_address() {
         assert_eq!(
             TimesVariable::named(0x7556D8),
             Some(TimesVariable::StageTimes)

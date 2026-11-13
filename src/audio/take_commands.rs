@@ -8,11 +8,11 @@
 //! until then; 0xA ends the turn's taking.
 //! `set_mode` hands the next stream stop the action 0 (section 16).
 
-use crate::audio::owner::Audio;
+use crate::audio::own::AudioThread;
 use crate::errors::Refused;
 
 pub fn take_commands(
-    audio: &Audio,
+    audio: &AudioThread,
     system: &crate::system::owner::System,
     sound: &crate::sound::owner::Sound,
 ) -> Result<(), Refused> {
@@ -39,12 +39,7 @@ pub fn take_commands(
                 audio.state.sound_list_loaded.set(0);
             }
             Command::Mode(mode) => {
-                crate::audio::set_mode::set_mode(
-                    audio,
-                    system,
-                    &sound.menu.options.tune_turn,
-                    mode,
-                )?;
+                crate::audio::set_mode::set_mode(audio, system, mode)?;
             }
             Command::StopAll => crate::audio::stop_all_voices::stop_all_voices(audio)?,
             Command::Volume(volume) => {
@@ -62,14 +57,7 @@ pub fn take_commands(
                 next,
                 volume,
                 action,
-            } => music_command(
-                &audio.state,
-                &sound.menu.options.tune_turn,
-                tune,
-                next,
-                volume as i32,
-                action,
-            )?,
+            } => music_command(&audio.state, tune, next, volume as i32, action)?,
             Command::EndOfTurn => {}
         }
         crate::sound::queue::locked(audio).pop();

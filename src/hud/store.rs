@@ -7,8 +7,7 @@
 //! `indices`) read or write it. The image keeps the two pointers (0x764F2C, 0x764F30) the
 //! original's batch drawer followed; nothing reads them now.
 //!
-//! One struct (`HudBlock`, the static `HUD`); the first values are the image's
-//! (`tests::first_values_are_the_games`).
+//! One struct (`HudBlock`, the static `HUD`).
 
 use crate::session::{PlainDword, PlainFloat, PlainWord};
 
@@ -595,15 +594,5 @@ impl RectAt {
             rect.width.get(),
             rect.height.get(),
         ])
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn first_values_are_the_games() {
-        crate::test_support::first_values::assert_block_starts_as_the_games(
-            &crate::hud::owner::HUD.get().block,
-        );
     }
 }

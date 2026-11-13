@@ -2,16 +2,16 @@
 //! `set_buffer_place` share: a voice's settings to its DirectSound buffer (one COM call
 //! each).
 
-use crate::audio::store::AudioState;
+use crate::audio::own::AudioOwn;
 use crate::audio::voices::*;
 use crate::errors::{BadInput, Refused};
 
-pub fn a3d(state: &AudioState) -> bool {
+pub fn a3d(state: &AudioOwn) -> bool {
     state.use_a3d.get() == 1
 }
 
 /// `g_volumeTable`'s entry `n`, for the core.
-pub fn volumes(state: &AudioState, n: u32) -> u32 {
+pub fn volumes(state: &AudioOwn, n: u32) -> u32 {
     state.volume_table[n as usize].get()
 }
 
@@ -23,7 +23,7 @@ fn buffer(v: &Voice) -> Result<u32, Refused> {
 }
 
 /// `SetVolume` with `g_volumeTable[volume * volume_factor >> 6]` (signed). Returns the result code.
-pub fn set_buffer_volume(state: &AudioState, v: &Voice) -> Result<i32, Refused> {
+pub fn set_buffer_volume(state: &AudioOwn, v: &Voice) -> Result<i32, Refused> {
     if a3d(state) {
         return Err(BadInput("A3D (0x40CEFE)").into());
     }
@@ -36,7 +36,7 @@ pub fn set_buffer_volume(state: &AudioState, v: &Voice) -> Result<i32, Refused> 
 
 /// `SetPan`, nothing in 3D: a pan below 0 is `g_volumeTable[pan + 0x40]`, else
 /// `-g_volumeTable[0x40 - pan]`. Returns the result code, or `None` where the call is not made.
-pub fn set_buffer_pan(state: &AudioState, v: &Voice) -> Result<Option<i32>, Refused> {
+pub fn set_buffer_pan(state: &AudioOwn, v: &Voice) -> Result<Option<i32>, Refused> {
     if state.sound_mode.get() & MODE_3D != 0 {
         return Ok(None);
     }
@@ -50,7 +50,7 @@ pub fn set_buffer_pan(state: &AudioState, v: &Voice) -> Result<Option<i32>, Refu
 }
 
 /// `SetFrequency` with the frequency shifted right by the format's halvings.
-pub fn set_buffer_frequency(state: &AudioState, v: &Voice) -> Result<i32, Refused> {
+pub fn set_buffer_frequency(state: &AudioOwn, v: &Voice) -> Result<i32, Refused> {
     if a3d(state) {
         return Err(BadInput("A3D (0x40CEC5)").into());
     }

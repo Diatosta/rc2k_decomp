@@ -16,7 +16,7 @@ use crate::sound::sets_store::SoundRequest;
 
 /// The request (`g_raceSoundRequest`), the sound command's words.
 pub fn request(sound: &Sound) -> &SoundRequest {
-    &sound.race.sets.request
+    sound.race.request.get()
 }
 
 pub use crate::sound::play_sound::play_sound_in as play;

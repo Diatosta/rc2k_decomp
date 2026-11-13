@@ -44,7 +44,7 @@ pub fn service_area_frame(o: Owners<'static>) -> Result<CarryZeroFlags, Refused>
         &mut crate::text::draw_text::GameCanvas::new(o.gfx),
     )?;
     unlock_surface(o.gfx);
-    if !show_frame_now() {
+    if !show_frame_now(o) {
         return Ok(FAILED);
     }
     Ok(CarryZeroFlags {

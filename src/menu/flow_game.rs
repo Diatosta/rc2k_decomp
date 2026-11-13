@@ -325,21 +325,13 @@ impl flow::Game for Game<'_> {
             C::StartStream { channel } => {
                 // ";3files\%speech\rally\rally0.wav"
                 let name = crate::audio::names_store::NameList::RallySpeech.first_key();
-                crate::sound::start_stream::start_stream(
-                    self.owners.audio,
-                    self.owners.system,
-                    name,
-                    channel,
-                );
+                crate::sound::start_stream::start_stream(self.owners, name, channel);
             }
             C::WaitForCommands => {
-                crate::sound::wait_for_commands::wait_in_game(
-                    self.owners.audio,
-                    self.owners.system,
-                );
+                crate::sound::wait_for_commands::wait_in_game(self.owners);
             }
             C::StopStream => {
-                crate::sound::stop_stream::stop_stream(self.owners.audio, self.owners.system);
+                crate::sound::stop_stream::stop_stream(self.owners);
             }
             C::ConvertPicture => {
                 // Whether it worked is not looked at.
@@ -351,8 +343,8 @@ impl flow::Game for Game<'_> {
             C::RunFrame => {
                 // `screens::run_frame` with `menu::picture_frame` (whether the frame was
                 // made is not looked at).
-                if let Some(made) = crate::platform::run_frame_now(self.owners.system, || {
-                    m::picture_frame::picture_frame(self.owners.gfx, self.owners.system)
+                if let Some(made) = crate::platform::run_frame_now(self.owners, || {
+                    m::picture_frame::picture_frame(self.owners)
                 }) {
                     made?;
                 }
@@ -395,8 +387,7 @@ impl flow::Game for Game<'_> {
     fn wait_or_key(&mut self, ms: u32) -> Result<Option<u8>, Refused> {
         self.fault.check()?;
         Ok(key(crate::system::wait_or_key::wait_or_key(
-            self.owners.system,
-            self.owners.input,
+            self.owners,
             ms,
         )))
     }
@@ -405,7 +396,7 @@ impl flow::Game for Game<'_> {
         self.fault.check()?;
         // The welcome polls this until a key comes: the window goes on meanwhile.
         crate::system::sleep::sleep(10);
-        crate::platform::pump_messages_now();
+        crate::platform::pump_messages_now(self.owners);
         let (playing, _) = crate::sound::stream_playing::stream_playing(self.owners.audio);
         Ok(playing)
     }

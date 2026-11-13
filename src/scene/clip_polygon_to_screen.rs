@@ -19,11 +19,11 @@ use crate::session::Float;
 // ---- Rust version ----
 
 /// The polygon's entries and the mask of the edges some vertex is past.
-fn outside_mask(
-    part: &crate::workers::PartScratch,
+fn outside_mask<'p>(
+    part: &'p crate::workers::PartScratch,
     poly: &crate::scene::polygon_work::PolygonWork,
-) -> Result<(crate::scene::polygon::Listed, u32), BadInput> {
-    let polygon_work = part.polygon;
+) -> Result<(crate::scene::polygon::Listed<'p>, u32), BadInput> {
+    let polygon_work = &part.polygon;
     let entries = listed_with_records(polygon_work, poly)?;
     let edge = |cell: &Float| cell.get() as f64;
     let (left, right, top, bottom) = (

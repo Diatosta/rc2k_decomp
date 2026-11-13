@@ -7,7 +7,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::memory::owned::Owned;
 use crate::net::lobby::fatal;
-use crate::net::store::NetVars;
+use crate::net::store::NetShared;
 use crate::net::types::Guid;
 use rc2k_core::net::lists::{
     MOST_LISTED, NO_CONNECTION, NO_CONNECTIONS, NO_SESSION, NO_SESSIONS, TABLES,
@@ -67,18 +67,18 @@ impl NetTables {
 pub static NET_TABLES: Owned<NetTables> = Owned::new("no network lists");
 
 /// The network's list (`g_netMemory`).
-pub fn list(vars: &NetVars) -> &[crate::session::Dword; 4] {
+pub fn list(vars: &NetShared) -> &[crate::session::Dword; 4] {
     &vars.memory
 }
 
 /// `allocate_lists`: both tables taken, counted as the game's two blocks.
-pub fn take(vars: &NetVars) -> Result<(), Refused> {
+pub fn take(vars: &NetShared) -> Result<(), Refused> {
     NET_TABLES.take(list(vars), TABLES[0].0, NetTables::new())?;
     crate::memory::owned::count_on(list(vars), TABLES[1].0)
 }
 
 /// `bytes` more counted on the network's list (a block the original takes there).
-pub fn count(vars: &NetVars, bytes: u32) -> Result<(), Refused> {
+pub fn count(vars: &NetShared, bytes: u32) -> Result<(), Refused> {
     crate::memory::owned::count_on(list(vars), bytes)
 }
 
@@ -96,7 +96,7 @@ fn listed(index: u32, count: u32, codes: [u32; 2]) -> Result<(), Refused> {
 
 /// `f` on connection `index` (`net::connection_entry`'s checks first).
 pub fn with_connection<R>(
-    vars: &NetVars,
+    vars: &NetShared,
     index: u32,
     f: impl FnOnce(&mut Connection) -> R,
 ) -> Result<R, Refused> {
@@ -112,7 +112,7 @@ pub fn with_connection<R>(
 
 /// `f` on session `index` (`net::session_entry`'s checks first).
 pub fn with_session<R>(
-    vars: &NetVars,
+    vars: &NetShared,
     index: u32,
     f: impl FnOnce(&mut Session) -> R,
 ) -> Result<R, Refused> {
@@ -172,7 +172,7 @@ mod tests {
         let found = crate::net::connection_found::connection_found(
             &net.vars,
             crate::strings::owner::strings(),
-            crate::race::owner::race().viewer_panel(),
+            &crate::race::viewer_screen_store::NET_TEXTS,
             &guid,
             &data,
             b"Test Link\0",

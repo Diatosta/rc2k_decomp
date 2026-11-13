@@ -75,19 +75,3 @@ impl Sku {
         }
     }
 }
-
-impl Sku {
-    pub const START: usize = 0x5190F4;
-    pub const LEN: usize = 0x24;
-}
-
-#[cfg(test)]
-mod sku_tests {
-    use super::*;
-
-    #[test]
-    fn sku_starts_as_the_games() {
-        let size = size_of::<Sku>();
-        assert!(Sku::LEN <= size && size <= (Sku::LEN).next_multiple_of(4));
-    }
-}

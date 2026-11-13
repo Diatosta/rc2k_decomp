@@ -36,5 +36,5 @@ pub fn inspection_frame(
     draw_menu(o, menu)?;
     run_listed(o, &o.menus.screens.flow.overlay_list)?;
     unlock_surface(o.gfx);
-    Ok(show_frame_now())
+    Ok(show_frame_now(o))
 }

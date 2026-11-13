@@ -9,7 +9,6 @@
 //! `scene::reload_system_textures`. Refuses no function to call.
 
 use crate::errors::{BadInput, Refused};
-use crate::race::owner::Race;
 use crate::race::owner_shared::RaceShared;
 use crate::scene::owner::Scene;
 
@@ -35,15 +34,8 @@ fn progress(shared: &RaceShared, scene: &Scene, done: u32) -> Option<u32> {
 
 /// `done` of the system textures are done. The loading bar's function is one of the two the
 /// loading puts there: `race::loading_bar_frame` or the empty function after it.
-pub fn step_loading_bar(
-    race: &Race,
-    system: &crate::system::owner::System,
-    gfx: &crate::gfx::owner::Gfx,
-    d3d: &crate::d3d::owner::D3d,
-    scene: &Scene,
-    done: u32,
-) -> Result<(), Refused> {
-    let shared = &race.shared;
+pub fn step_loading_bar(o: crate::owners::Owners<'static>, done: u32) -> Result<(), Refused> {
+    let (scene, shared) = (o.scene, &o.race.shared);
     let show: u32 = shared.vars.get().bar_function.get();
     if show == 0 {
         return Err(BadInput("no function to show the loading with").into());
@@ -52,7 +44,7 @@ pub fn step_loading_bar(
         shared.vars.get().bar_share.set(progress);
     }
     if show == BAR {
-        crate::race::loading_bar_frame::loading_bar_frame(race, system, scene, gfx, d3d)
+        crate::race::loading_bar_frame::loading_bar_frame(o)
     } else if show == NOTHING {
         Ok(())
     } else {

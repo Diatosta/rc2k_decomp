@@ -25,7 +25,6 @@ fn tick(ui: &Ui, key: u32, name: &str, cell: &impl crate::session::Cell32, about
 
 /// The tab.
 pub fn tab(o: &Owners<'static>, ui: &Ui) {
-    let session = &o.system.session;
     let shared = &o.race.shared;
     let words = &shared.vars.get().settings_words;
     ui.text_disabled("Numbered by the keypad key each had");
@@ -43,20 +42,21 @@ pub fn tab(o: &Owners<'static>, ui: &Ui) {
     if ui.checkbox("3: Processor's extensions", &mut on) {
         let v = u32::from(on);
         EXTENSIONS.store(v, Relaxed);
-        use_.use_sse.set(v & session.machine.has_sse.get());
+        use_.use_sse
+            .set(on && o.system.machine().has_sse.get() & 1 != 0);
         // Not the original's: its 3DNow way (0x45BF89) is not ported and would end the
         // program, so it stays off on a processor that has it.
         use_.use_3dnow.set(0);
-        use_.use_mmx.set(v & session.machine.has_mmx.get());
+        use_.use_mmx.set(v & o.system.machine().has_mmx.get());
     }
     ui.same_line();
     let used = [
-        (&use_.use_sse, "SSE"),
-        (&use_.use_3dnow, "3DNow!"),
-        (&use_.use_mmx, "MMX"),
+        (use_.use_sse.is_set(), "SSE"),
+        (use_.use_3dnow.get() != 0, "3DNow!"),
+        (use_.use_mmx.get() != 0, "MMX"),
     ]
     .iter()
-    .filter(|(cell, _)| cell.get() != 0)
+    .filter(|&&(in_use, _)| in_use)
     .map(|&(_, name)| name)
     .collect::<Vec<_>>()
     .join(", ");

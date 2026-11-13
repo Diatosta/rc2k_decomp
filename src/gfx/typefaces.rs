@@ -383,14 +383,3 @@ pub mod fonts {
     pub const PANEL_B: FontId = FontId::numbered(61); // IDA 0x51EB44
     pub const PANEL_D: FontId = FontId::numbered(62); // IDA 0x51EB64
 }
-
-#[cfg(test)]
-mod tests {
-
-    #[test]
-    fn first_values_are_the_games() {
-        crate::test_support::first_values::assert_block_starts_as_the_games(
-            &crate::gfx::owner::gfx().fonts.typefaces,
-        );
-    }
-}

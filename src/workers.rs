@@ -12,6 +12,8 @@
 //! own thread's, what everything drawn outside the parts works on too (`game_scratch`).
 
 use crate::errors::{BadInput, Refused};
+use crate::part_cell::{PartCell, PartTurn};
+use crate::race::view_scratch::ViewScratch;
 use std::cell::Cell;
 use std::sync::{Condvar, Mutex, OnceLock};
 
@@ -34,12 +36,12 @@ pub fn index() -> usize {
 /// one thread).
 pub struct PartScratch {
     /// The polygon vertex buffer (`d3d::vertices_store`).
-    pub vertices: &'static crate::d3d::vertices_store::PolygonVertices,
+    pub vertices: crate::d3d::vertices_store::PolygonVertices,
     /// The polygon work: the entries, their lists, the clipper's pool
     /// (`scene::polygon_store`).
-    pub polygon: &'static crate::scene::polygon_store::PolygonWork,
+    pub polygon: crate::scene::polygon_store::PolygonWork,
     /// The point records, a cache of the points' projections (`scene::point_records`).
-    pub records: &'static crate::scene::point_records::Records,
+    pub records: crate::scene::point_records::Records,
     /// The held matrix columns while a part other than the first is drawn
     /// (`scene::view_matrices::Held`), from the list's start.
     pub columns: crate::scene::view_matrices::OwnColumns,
@@ -52,79 +54,70 @@ pub struct PartScratch {
     /// Where such a part first set each state (`d3d::run_states::OwnRun`).
     pub run: crate::d3d::run_states::OwnRun,
     /// The drawing it has noted (`platform_3d::Noted`): the first part's what the game's
-    /// thread flushes, the others' put after it at their runs' ends.
+    /// thread flushes, the others' put after it at their runs' ends. Behind a mutex: it is
+    /// reached by the game's thread (`platform_3d::game_part`) as well as by the part's own.
     pub noted: crate::platform_3d::Noted,
     /// Whether a race is on (`race::numbers_store::Numbers::in_race`) as the parts of a
     /// drawing scope read it, set from the store before the scope opens (`draw_parts`): the
     /// GPU draws only then. Read through `in_race`.
-    pub in_race: crate::session::Flag,
+    pub in_race: crate::session::PlainFlag,
 }
 
-/// The parts' scratch, part 0's in the stores' places in the race's buffers (the image's
-/// layout) and the game's own records, the others' their stores' other copies.
-static PARTS: [PartScratch; COUNT] = {
-    use crate::d3d::vertices_store::OTHER_COPIES as V;
-    use crate::scene::point_records::RECORDS as R;
-    use crate::scene::polygon_store::OTHER_COPIES as P;
-    let buffers = &crate::race::owner::RACE.shared.buffers;
-    [
-        PartScratch {
-            vertices: &buffers.vertices,
-            polygon: &buffers.polygon,
-            records: &R[0],
+impl PartScratch {
+    /// The scratch of part 0 (`first`: its render cache in use from the start) or another
+    /// part, zeroed as the image's tail was.
+    const fn new(first: bool) -> Self {
+        Self {
+            vertices: crate::d3d::vertices_store::PolygonVertices::new(),
+            polygon: crate::scene::polygon_store::PolygonWork::new(),
+            records: crate::scene::point_records::new_records(),
             columns: crate::scene::view_matrices::OwnColumns::new(),
             points: crate::race::scene_points::OwnPoints::new(),
-            cache: crate::d3d::render_cache::OwnCache::first(),
+            cache: if first {
+                crate::d3d::render_cache::OwnCache::first()
+            } else {
+                crate::d3d::render_cache::OwnCache::new()
+            },
             run: crate::d3d::run_states::OwnRun::new(),
             noted: crate::platform_3d::Noted::new(),
-            in_race: crate::session::Flag::new(false),
-        },
-        PartScratch {
-            vertices: &V[0],
-            polygon: &P[0],
-            records: &R[1],
-            columns: crate::scene::view_matrices::OwnColumns::new(),
-            points: crate::race::scene_points::OwnPoints::new(),
-            cache: crate::d3d::render_cache::OwnCache::new(),
-            run: crate::d3d::run_states::OwnRun::new(),
-            noted: crate::platform_3d::Noted::new(),
-            in_race: crate::session::Flag::new(false),
-        },
-        PartScratch {
-            vertices: &V[1],
-            polygon: &P[1],
-            records: &R[2],
-            columns: crate::scene::view_matrices::OwnColumns::new(),
-            points: crate::race::scene_points::OwnPoints::new(),
-            cache: crate::d3d::render_cache::OwnCache::new(),
-            run: crate::d3d::run_states::OwnRun::new(),
-            noted: crate::platform_3d::Noted::new(),
-            in_race: crate::session::Flag::new(false),
-        },
-        PartScratch {
-            vertices: &V[2],
-            polygon: &P[2],
-            records: &R[3],
-            columns: crate::scene::view_matrices::OwnColumns::new(),
-            points: crate::race::scene_points::OwnPoints::new(),
-            cache: crate::d3d::render_cache::OwnCache::new(),
-            run: crate::d3d::run_states::OwnRun::new(),
-            noted: crate::platform_3d::Noted::new(),
-            in_race: crate::session::Flag::new(false),
-        },
-    ]
-};
+            in_race: crate::session::PlainFlag::new(false),
+        }
+    }
+}
 
-/// Part `n`'s scratch (below `COUNT`).
+/// The parts' scratch. Run `n` of a drawing scope claims element `n` (`draw_parts`); the
+/// game's thread reaches element 0 by `part_scratch` and `game_scratch`, the others (all
+/// four, with the scope closed) by `all_parts_on_game_thread`.
+static PARTS: [PartCell<PartScratch>; COUNT] = [
+    PartCell::new(PartScratch::new(true)),
+    PartCell::new(PartScratch::new(false)),
+    PartCell::new(PartScratch::new(false)),
+    PartCell::new(PartScratch::new(false)),
+];
+
+/// Every part's scratch, on the game's thread with no drawing scope open (so no run holds
+/// one): what a clear of the point records reaches.
+pub fn all_parts_on_game_thread() -> impl Iterator<Item = &'static PartScratch> {
+    debug_assert!(
+        !in_scope(),
+        "every part's scratch reached inside a drawing scope"
+    );
+    PARTS.iter().map(PartCell::on_game_thread)
+}
+
+/// The first part's scratch, on the game's thread (inside a drawing scope, run 0 is that
+/// thread): what the platform's flush and the render states' cache reach it by. `n` is 0:
+/// the other parts' are handed to their runs (`PartRun`).
 pub fn part_scratch(n: usize) -> &'static PartScratch {
-    &PARTS[n]
+    debug_assert_eq!(n, 0, "only the first part's scratch is reached by number");
+    PARTS[n].on_game_thread()
 }
 
 /// The game's own thread's scratch: part 0's, what everything drawn outside the parts (the
 /// overlays, the HUD, the front end) works on.
 pub fn game_scratch() -> &'static PartScratch {
     debug_assert_eq!(index(), 0, "the game's scratch on a drawing part");
-    &PARTS[0]
+    PARTS[0].on_game_thread()
 }
 
 // ---- the stores the parts read ----
@@ -146,7 +139,8 @@ pub fn in_race(part: &PartScratch) -> bool {
     if in_scope() {
         part.in_race.is_set()
     } else {
-        crate::race::owner::RACE
+        // m6-root: read by the drawing workers' platform callback.
+        crate::race::owner::RACE // m6-root
             .course
             .numbers
             .get()
@@ -175,6 +169,10 @@ impl DrawScope {
 impl Drop for DrawScope {
     fn drop(&mut self) {
         crate::session::end_lending();
+        for part in &PARTS {
+            part.end_claim(self);
+        }
+        crate::race::view_scratch::end_claims(self);
         IN_SCOPE.store(false, std::sync::atomic::Ordering::Relaxed);
     }
 }
@@ -243,12 +241,17 @@ pub struct Lent<'s> {
     view: crate::session::PhaseRead<'s, crate::race::view_store::RaceView>,
     work: crate::session::PhaseRead<'s, crate::race::work_store::RaceWork>,
     physics_tables: crate::session::PhaseRead<'s, crate::physics::tables_store::PhysicsTables>,
+    // The frame's matrices and the physics' contact work.
+    matrices: crate::session::PhaseRead<'s, crate::race::matrices_store::SceneMatrices>,
+    contact: crate::session::PhaseRead<'s, crate::physics::contact_store::ContactWork>,
+    // The race's buffers the parts read.
+    buffers: crate::session::PhaseRead<'s, crate::race::buffers_store::BufferReads>,
 }
 
 /// Whether the processor has MMX and the game uses it: fixed at start-up, so one value for
 /// every part of a drawing.
 fn has_mmx(system: &crate::system::owner::System) -> bool {
-    system.session.machine.has_mmx.get() != 0
+    system.machine().has_mmx.get() != 0
 }
 
 impl<'s> Lent<'s> {
@@ -298,6 +301,11 @@ impl<'s> Lent<'s> {
             view: PhaseRead::lend(&race.shared.view, scope),
             work: PhaseRead::lend(&race.shared.work, scope),
             physics_tables: PhaseRead::lend(&race.shared.physics_tables, scope),
+            // The frame's matrices and the physics' contact work.
+            matrices: PhaseRead::lend(&race.frame.matrices, scope),
+            contact: PhaseRead::lend(&race.physics.contact, scope),
+            // The race's buffers the parts read.
+            buffers: PhaseRead::lend(&race.shared.buffers.reads, scope),
         }
     }
 
@@ -342,6 +350,11 @@ impl<'s> Lent<'s> {
             view: &self.view,
             work: &self.work,
             physics_tables: &self.physics_tables,
+            // The frame's matrices and the physics' contact work.
+            matrices: &self.matrices,
+            contact: &self.contact,
+            // The race's buffers the parts read.
+            buffers: &self.buffers,
         }
     }
 }
@@ -432,6 +445,17 @@ pub struct DrawReads<'a> {
     /// The physics' tables and work variables (`race::owner_shared::RaceShared::physics_tables`):
     /// the ground kinds, the scene's clock, the drops the models are placed by.
     pub physics_tables: &'a crate::physics::tables_store::PhysicsTables,
+    // The frame's matrices and the physics' contact work.
+    /// The frame's matrices (`race::owner_frame::Frame::matrices`): the identity and the work
+    /// matrices the views are made from, the fourth columns the views hold from.
+    pub matrices: &'a crate::race::matrices_store::SceneMatrices,
+    /// The physics' contact work (`race::owner_physics::Physics::contact`): the lit faces the
+    /// lamps are gathered from.
+    pub contact: &'a crate::physics::contact_store::ContactWork,
+    // The race's buffers the parts read.
+    /// The polygon tables (the textures' records, the objects' materials), the faces, the
+    /// checkpoints and the engine tables (`race::buffers_store::Buffers::reads`).
+    pub buffers: &'a crate::race::buffers_store::BufferReads,
 }
 
 impl<'a> DrawReads<'a> {
@@ -495,6 +519,11 @@ impl<'a> DrawReads<'a> {
             view: race.shared.view.get(),
             work: race.shared.work.get(),
             physics_tables: race.shared.physics_tables.get(),
+            // The frame's matrices and the physics' contact work.
+            matrices: race.frame.matrices.get(),
+            contact: race.physics.contact.get(),
+            // The race's buffers the parts read.
+            buffers: race.shared.buffers.reads.get(),
         }
     }
 }
@@ -588,29 +617,38 @@ pub fn wait_for_earlier_runs() {
 /// the other, each on its own copy as on its own thread, so that what is drawn is the same
 /// however many threads draw.
 pub fn draw_beside(
-    matrices: &crate::race::matrices_store::SceneMatrices,
     owners: LentOwners<'_>,
-    first: impl Fn(&PartScratch, DrawReads<'_>) -> Result<(), Refused> + Sync,
-    second: impl Fn(&PartScratch, DrawReads<'_>) -> Result<(), Refused> + Sync,
+    slots: [usize; 2],
+    first: impl Fn(PartRun<'_>, DrawReads<'_>) -> Result<(), Refused> + Sync,
+    second: impl Fn(PartRun<'_>, DrawReads<'_>) -> Result<(), Refused> + Sync,
     mut then: impl FnMut() -> Result<(), Refused>,
     mut then_second: impl FnMut() -> Result<(), Refused>,
 ) -> Result<(), Refused> {
     draw_side_by_side(
-        matrices,
         owners,
-        2,
-        |n, scratch, reads| {
-            if n == 0 {
-                first(scratch, reads)
+        &slots,
+        |run, reads| {
+            if run.n == 0 {
+                first(run, reads)
             } else {
-                second(scratch, reads)
+                second(run, reads)
             }
         },
         |n| if n == 0 { then() } else { then_second() },
     )
 }
 
-/// Parts 0 .. `k` (`part(n, scratch, reads)`, at most `COUNT`, each on its own scratch, reading
+/// What a part's run draws on: its number, its own scratch and the view slot it draws
+/// (`race::view_scratch::ViewScratch`), claimed for the run by `draw_parts`.
+#[derive(Clone, Copy)]
+pub struct PartRun<'a> {
+    pub n: usize,
+    pub part: &'a PartScratch,
+    pub view: &'a ViewScratch,
+}
+
+/// Parts 0 .. `slots.len()` (`part(run, reads)`, at most `COUNT`, each on its own scratch and
+/// the view slot `slots[n]`, which are distinct, reading
 /// the class D stores of `owners` through `reads`) drawn beside
 /// each other as `draw_beside` draws two: the first on the game's thread, each other on a drawing thread, each from the working
 /// state as it is now; their drawing put together and their changes put back in their order.
@@ -619,18 +657,24 @@ pub fn draw_beside(
 /// working state as the parts so far left it, and no part runs meanwhile (what it writes that
 /// has no copy per part, the cars' crumpled points, no part reads while it changes).
 pub fn draw_side_by_side(
-    matrices: &crate::race::matrices_store::SceneMatrices,
     owners: LentOwners<'_>,
-    k: usize,
-    part: impl Fn(usize, &PartScratch, DrawReads<'_>) -> Result<(), Refused> + Sync,
+    slots: &[usize],
+    part: impl Fn(PartRun<'_>, DrawReads<'_>) -> Result<(), Refused> + Sync,
     after: impl FnMut(usize) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
-    if k > COUNT {
+    if slots.len() > COUNT {
         return Err(BadInput("more parts beside each other than drawing copies").into());
+    }
+    // Each part draws a view slot of its own: the views are claimed one to a run.
+    if !crate::race::view_scratch::drawable_slots(slots) {
+        return Err(BadInput(
+            "two parts of one drawing on one view slot, or a slot not drawn by parts",
+        )
+        .into());
     }
     let pool = pool();
     BESIDE.store(true, std::sync::atomic::Ordering::Relaxed);
-    let drawn = draw_parts(matrices, owners, pool, k, part, after);
+    let drawn = draw_parts(owners, pool, slots, part, after);
     BESIDE.store(false, std::sync::atomic::Ordering::Relaxed);
     drawn
 }
@@ -646,7 +690,7 @@ pub fn players_beside() -> bool {
     })
 }
 
-/// Parts 0 .. `k` of a drawing (`part`), part 0 on the game's thread and each other on a
+/// Parts 0 .. `slots.len()` of a drawing (`part`), part 0 on the game's thread and each other on a
 /// drawing thread with its own copy of the working state, all set from the game's own at the
 /// start; the other parts' noted drawing put after part 0's in their order, and each copy's
 /// changes put into the game's own in that order, `after(n)` run after part `n`'s (part 0's
@@ -654,22 +698,23 @@ pub fn players_beside() -> bool {
 /// to them (`Lent`): each part reads them through the `DrawReads` it is handed, which lives
 /// only for its call.
 fn draw_parts(
-    matrices: &crate::race::matrices_store::SceneMatrices,
     owners: LentOwners<'_>,
     pool: Option<&rayon::ThreadPool>,
-    k: usize,
-    part: impl Fn(usize, &PartScratch, DrawReads<'_>) -> Result<(), Refused> + Sync,
+    slots: &[usize],
+    part: impl Fn(PartRun<'_>, DrawReads<'_>) -> Result<(), Refused> + Sync,
     mut after: impl FnMut(usize) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
+    let k = slots.len();
     // One after another on the game's thread without a pool or with `RC2K_DRAW_SERIAL`.
     let pool = pool.filter(|_| !serial());
     // The render states' cache as the list began, what each other part starts from.
     let first_cache = &part_scratch(0).cache;
     let cache_start = crate::d3d::render_cache::current(first_cache);
     // The held matrix columns likewise (`scene::view_matrices::Held`), in the race's
-    // matrices `matrices`.
+    // matrices; every part, the first too, holds its own while the scope is open.
     let point_count = owners.race.course.course.get().scene_point_count.get();
-    let columns_start = crate::scene::view_matrices::columns(matrices);
+    let matrices = &owners.race.frame.matrices;
+    let columns_start = crate::scene::view_matrices::columns(matrices.get());
     *ENDED
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner) = [false; COUNT];
@@ -678,22 +723,32 @@ fn draw_parts(
     // Whether a race is on, as the parts' noted drawing reads it inside the scope (`in_race`).
     let racing = owners.race.course.numbers.get().in_race.is_set();
     for scratch in &PARTS {
-        scratch.in_race.set(racing);
+        scratch.on_game_thread().in_race.set(racing);
     }
     // end r40course
     // The parts are drawn from here until every one has ended: the class D stores lent.
     let scope = DrawScope::open();
     let lent = Lent::new(&scope, owners);
     let lent = &lent;
+    let scope_ref = &scope;
     // Run `n` of the others, on the thread it is called on, with its own noted drawing.
     let other = |n: usize| {
         INDEX.set(n);
-        let scratch = part_scratch(n);
+        let turn = PartTurn::new(scope_ref, n);
+        let scratch = PARTS[n].claim(&turn);
+        let view = crate::race::view_scratch::claim(slots[n], &turn);
         scratch.points.begin_run(point_count);
         crate::math::x87::set_control_word(control);
         crate::d3d::run_states::begin_run(scratch, &cache_start);
         crate::scene::view_matrices::begin_part(scratch, columns_start);
-        let result = part(n, scratch, lent.reads());
+        let result = part(
+            PartRun {
+                n,
+                part: scratch,
+                view,
+            },
+            lent.reads(),
+        );
         let states = crate::d3d::run_states::end_run(scratch);
         let columns = crate::scene::view_matrices::end_part(scratch).unwrap_or(columns_start);
         ended(n);
@@ -709,16 +764,27 @@ fn draw_parts(
     };
     // Run 0, on the game's thread.
     let first_run = || {
-        let scratch = part_scratch(0);
+        let turn = PartTurn::new(scope_ref, 0);
+        let scratch = PARTS[0].claim(&turn);
+        let view = crate::race::view_scratch::claim(slots[0], &turn);
         scratch.points.begin_run(point_count);
-        let result = part(0, scratch, lent.reads());
+        crate::scene::view_matrices::begin_part(scratch, columns_start);
+        let result = part(
+            PartRun {
+                n: 0,
+                part: scratch,
+                view,
+            },
+            lent.reads(),
+        );
+        let columns = crate::scene::view_matrices::end_part(scratch).unwrap_or(columns_start);
         scratch.points.end_run();
         ended(0);
-        result
+        (result, columns)
     };
     let (first, others) = if let Some(pool) = pool {
         let slots: Vec<Mutex<Option<OtherRun>>> = (1..k).map(|_| Mutex::new(None)).collect();
-        let mut first = Ok(());
+        let mut first = (Ok(()), columns_start);
         // In place: the closure (run 0) on the game's thread, the spawned runs on the pool.
         pool.in_place_scope(|s| {
             for (n, slot) in slots.iter().enumerate() {
@@ -748,6 +814,9 @@ fn draw_parts(
     };
     // Every part has ended: the stores are the game's thread's again.
     drop(scope);
+    let (first, first_columns) = first;
+    // Part 0's held columns go into the store before anything runs on the game's thread.
+    crate::scene::view_matrices::merge_columns(matrices.get(), &columns_start, &first_columns);
     let mut result = first;
     // Part 0 is put back: what follows it draws on the game's thread, every part ended.
     if result.is_ok() {
@@ -760,7 +829,7 @@ fn draw_parts(
         crate::d3d::run_states::patch(&mut run.noted, &run.states, &carried);
         crate::platform_3d::put_noted(run.noted);
         crate::d3d::run_states::carry(first_cache, &run.states, &cache_start);
-        crate::scene::view_matrices::merge_columns(matrices, &columns_start, &run.columns);
+        crate::scene::view_matrices::merge_columns(matrices.get(), &columns_start, &run.columns);
         if result.is_ok() {
             // What it draws takes the merged states.
             crate::platform_3d::forget_states(part_scratch(0));

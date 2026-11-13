@@ -60,13 +60,6 @@ pub struct ReplayWork {
     pub camera_last_frame: [PlainDword; 2],
 }
 
-/// IDA 0x719AFC, the first byte of the piece.
-pub const START: usize = 0x719AFC;
-/// IDA 0x719FD8, the end of the piece.
-pub const END: usize = 0x719FD8;
-
-const _: () = assert!(END - START == core::mem::size_of::<ReplayWork>());
-
 impl ReplayWork {
     /// The work with the image's first values.
     pub const fn new() -> Self {

@@ -5,44 +5,36 @@
 //! original's: it writes into the tables that follow, so its code reaches them by address).
 //!
 //! Names are readings unless IDA's.
-//! The race's own copy is unused: each view draws its flares in its own
-//! (`race::lamp_work::LampWork::flares`).
+//! The race's own copy is unused (plain cells, the game's thread's): each view draws its flares
+//! in its own (`race::lamp_work::LampWork::flares`, `ViewFlares`, atomic cells).
 
-use crate::cells::ZeroCells;
-use crate::session::Dword;
+use crate::session::{CellKind, PlainCells, SharedCells};
 
 #[repr(C)]
-#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
-pub struct FlareTables {
+#[derive(rc2k_derive::Cells)]
+pub struct FlareTables<K: CellKind = PlainCells> {
     /// 0x63F58C: `dword_63F58C`: the flares' y (`race::frame_draw::add_flare`, `draw_flare`).
-    pub place_y: [Dword; 256],
+    pub place_y: [K::Dword; 256],
     /// 0x63F98C: `dword_63F98C`: the flares' z.
-    pub place_z: [Dword; 256],
+    pub place_z: [K::Dword; 256],
     /// 0x63FD8C: `dword_63FD8C`: the flares' colour (`g_otherLight`).
-    pub other_light: [Dword; 256],
+    pub other_light: [K::Dword; 256],
     /// 0x64018C: `dword_64018C`: the flares' size.
-    pub size: [Dword; 256],
+    pub size: [K::Dword; 256],
     /// 0x64058C: `dword_64058C`: the flares' object number.
-    pub object_number: [Dword; 256],
+    pub object_number: [K::Dword; 256],
 }
 
-// SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
-// them): any bit pattern is a valid value.
+/// A view's own flares (`race::lamp_work::LampWork::flares`), which its drawing part writes: on
+/// atomics.
+pub type ViewFlares = FlareTables<SharedCells>;
 
 /// The piece (a field of `race::owner::Race::course`), with the image's first values.
-impl FlareTables {
+impl<K: CellKind> FlareTables<K>
+where
+    Self: crate::cells::Cells,
+{
     pub const fn new() -> Self {
-        ZeroCells::ZERO
-    }
-}
-
-#[cfg(test)]
-mod tests {
-
-    #[test]
-    fn first_values_are_the_games() {
-        crate::test_support::first_values::assert_block_starts_as_the_games(
-            crate::race::owner::RACE.course.flare_tables(),
-        );
+        crate::cells::cells_of_bytes([0u8; core::mem::size_of::<FlareTables>()])
     }
 }

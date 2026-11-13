@@ -143,7 +143,7 @@ pub fn tyre_change_gauge(o: Owners<'static>, start: bool, player: u32) -> Result
     if gauge != before {
         io.store(&gauge);
     }
-    system.session.machine.scratch.set(result);
+    system.machine().scratch.set(result);
     Ok(result)
 }
 

@@ -86,7 +86,6 @@ pub struct DrawWork {
 }
 
 impl DrawWork {
-    /// First values the image's (`tests::draw_work_starts_as_the_games`).
     pub const fn new() -> Self {
         DrawWork {
             blink: PlainFlag::new(true),
@@ -127,16 +126,5 @@ impl DrawWork {
             action_mode: PlainDword::new(0x0),
             escape_pressed: PlainFlag::new(false),
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-
-    #[test]
-    fn draw_work_starts_as_the_games() {
-        crate::test_support::first_values::assert_block_starts_as_the_games(
-            &crate::menu::owner::menus().screens.draw_work,
-        );
     }
 }

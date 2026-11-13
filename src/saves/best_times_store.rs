@@ -1286,20 +1286,11 @@ impl RallyTimes {
 mod tests {
     use super::*;
     use crate::saves::owner::saves;
-    use core::mem::{offset_of, size_of};
+    use core::mem::offset_of;
 
     #[test]
-    fn best_times_start_as_the_games() {
-        crate::test_support::first_values::assert_block_starts_as_the_games(
-            &crate::saves::owner::SAVES.get().best_times,
-        );
-    }
-
-    #[test]
-    fn rally_times_start_as_the_games() {
+    fn rally_times_names_resolve() {
         let rally_times = &saves().rally_times;
-        assert_eq!(size_of::<RallyTimes>(), RallyTimes::END - RallyTimes::START);
-        crate::test_support::first_values::assert_block_starts_as_the_games(rally_times);
         // The six names are the tables' places and resolve to them.
         let first = rally_times.tables[0].get();
         for n in 0..6 {

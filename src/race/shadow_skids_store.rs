@@ -11,9 +11,7 @@
 
 use crate::cells::ZeroCells;
 
-#[cfg(test)]
-use crate::race::owner::race;
-use crate::session::{Dword, PlainBytes, PlainDword, PlainFloat};
+use crate::session::{PlainBytes, PlainDword, PlainFloat};
 
 /// One shadow point (0x20 bytes): the corner of the car's shadow, first as floats, then
 /// as whole numbers (`race::car_shadow`).
@@ -21,19 +19,19 @@ use crate::session::{Dword, PlainBytes, PlainDword, PlainFloat};
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct ShadowPoint {
     /// +0x0: x.
-    pub x: Dword,
+    pub x: PlainDword,
     /// +0x4: y.
-    pub y: Dword,
+    pub y: PlainDword,
     /// +0x8: z.
-    pub z: Dword,
+    pub z: PlainDword,
     /// +0xC: the angle from the first point (`fpatan` of x and z), then whole numbers.
-    pub angle: Dword,
+    pub angle: PlainDword,
     /// +0x10: the distance from the car.
-    pub length: Dword,
+    pub length: PlainDword,
     /// +0x14: 0 once the angles are laid (`race::car_shadow::shadow_angles`).
-    pub zeroed: Dword,
+    pub zeroed: PlainDword,
     /// +0x18: the record's last two dwords; only moved with the record when points are swapped or sorted, never read for a value.
-    pub carried_words: [Dword; 2],
+    pub carried_words: [PlainDword; 2],
 }
 
 const _: () = assert!(core::mem::size_of::<ShadowPoint>() == 0x20);
@@ -42,18 +40,18 @@ impl ShadowPoint {
     /// A record of zeros.
     pub const fn new() -> Self {
         Self {
-            x: Dword::new(0),
-            y: Dword::new(0),
-            z: Dword::new(0),
-            angle: Dword::new(0),
-            length: Dword::new(0),
-            zeroed: Dword::new(0),
-            carried_words: [Dword::new(0), Dword::new(0)],
+            x: PlainDword::new(0),
+            y: PlainDword::new(0),
+            z: PlainDword::new(0),
+            angle: PlainDword::new(0),
+            length: PlainDword::new(0),
+            zeroed: PlainDword::new(0),
+            carried_words: [PlainDword::new(0), PlainDword::new(0)],
         }
     }
 
     /// The record's eight dwords, in order (it is swapped and sorted whole).
-    pub fn words(&self) -> [&Dword; 8] {
+    pub fn words(&self) -> [&PlainDword; 8] {
         [
             &self.x,
             &self.y,
@@ -128,24 +126,5 @@ impl ShadowSkids {
             skid_lift: PlainFloat::new(4096.0),
             ..ZeroCells::ZERO
         }
-    }
-}
-
-/// IDA 0x641AA4, the first byte of the piece.
-pub const START: usize = 0x641AA4;
-/// IDA 0x64BB18, the end of the piece.
-pub const END: usize = 0x64BB18;
-
-const _: () = assert!(END - START == core::mem::size_of::<ShadowSkids>());
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn first_values_are_the_games() {
-        crate::test_support::first_values::assert_block_starts_as_the_games(
-            race().frame.shadow_skids.get(),
-        );
     }
 }

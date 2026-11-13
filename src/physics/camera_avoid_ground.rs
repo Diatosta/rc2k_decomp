@@ -127,7 +127,11 @@ fn turn_back(c: &CameraInputs<'_>, scene: &crate::scene::owner::Scene) -> Result
                 c.shared,
                 scene,
             );
-            if camera_over_ground(&c.shared.buffers.engine_tables, &c.ground, scene)? {
+            if camera_over_ground(
+                &c.shared.buffers.reads.get().engine_tables,
+                &c.ground,
+                scene,
+            )? {
                 continue;
             }
             stepped_back = true;
@@ -173,7 +177,11 @@ pub fn steps(c: &CameraInputs<'_>, scene: &crate::scene::owner::Scene) -> Result
     if record(c.view_records, c.car)?.halve_tilt.get() == 0 {
         return Ok(());
     }
-    if !camera_over_ground(&c.shared.buffers.engine_tables, &c.ground, scene)? {
+    if !camera_over_ground(
+        &c.shared.buffers.reads.get().engine_tables,
+        &c.ground,
+        scene,
+    )? {
         let mut found = false;
         for back in [1, 2] {
             if !face_checkpoint(c.checkpoints, c.course, c.shared, back, scene) {
@@ -188,7 +196,11 @@ pub fn steps(c: &CameraInputs<'_>, scene: &crate::scene::owner::Scene) -> Result
                 c.shared,
                 scene,
             );
-            if camera_over_ground(&c.shared.buffers.engine_tables, &c.ground, scene)? {
+            if camera_over_ground(
+                &c.shared.buffers.reads.get().engine_tables,
+                &c.ground,
+                scene,
+            )? {
                 found = true;
                 break;
             }

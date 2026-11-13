@@ -2,7 +2,7 @@
 //! `volume_index`, `set_primary_format`, `open_listener`. Logging and calls go through
 //! `sound_device`'s named calls.
 
-use crate::audio::store::AudioState;
+use crate::audio::own::AudioOwn;
 use crate::errors::Refused;
 
 const OPEN_TEXT: &std::ffi::CStr = c"AUD: open ds3d"; // "AUD: open ds3d"
@@ -11,7 +11,7 @@ const MODE_3D: u32 = crate::audio::voices::MODE_3D;
 
 /// `audio::volume_index`: the first index of `g_volumeTable` whose volume is at least
 /// `volume` (signed), or 0x40.
-pub fn volume_index(state: &AudioState, volume: i32) -> u32 {
+pub fn volume_index(state: &AudioOwn, volume: i32) -> u32 {
     // Converted: `rc2k_core::audio::samples::volume_index`.
     let table: [i32; 0x40] = std::array::from_fn(|n| state.volume_table[n].get() as i32);
     rc2k_core::audio::samples::volume_index(volume, &table)
@@ -19,7 +19,7 @@ pub fn volume_index(state: &AudioState, volume: i32) -> u32 {
 
 /// `audio::set_primary_format`: `describe_wave_format` (the mode, `rate`), `SetFormat`
 /// (+0x38). False for the carry (no primary buffer, or it failed).
-pub fn set_primary_format(state: &AudioState, mode: u32, rate: u32) -> Result<bool, Refused> {
+pub fn set_primary_format(state: &AudioOwn, mode: u32, rate: u32) -> Result<bool, Refused> {
     {
         let p = state.primary_buffer.get();
         if p == 0 {
@@ -35,7 +35,7 @@ pub fn set_primary_format(state: &AudioState, mode: u32, rate: u32) -> Result<bo
 /// with `g_iidListener3d` into `g_soundListener`) when `g_hasFpu` (`has_fpu`) is 1 and the
 /// dword at 0x506B42 is not; else, or failing, logged and `release_sound_listener`. False
 /// for the carry.
-pub fn open_listener(state: &AudioState, has_fpu: u32) -> Result<bool, Refused> {
+pub fn open_listener(state: &AudioOwn, has_fpu: u32) -> Result<bool, Refused> {
     crate::audio::sound_device::log_text(OPEN_TEXT, true);
     // Converted: `rc2k_core::audio::device::listener_refused`.
     let code = match rc2k_core::audio::device::listener_refused(has_fpu, || state.no_listener.get())
@@ -69,7 +69,7 @@ pub fn open_listener(state: &AudioState, has_fpu: u32) -> Result<bool, Refused> 
 /// (`set_master_volume`, place 12); in 3D `open_listener` (place 13), whose failure
 /// takes 3D out of the mode.
 pub fn make_primary(
-    audio: &crate::audio::owner::Audio,
+    audio: &crate::audio::own::AudioThread,
     system: &crate::system::owner::System,
 ) -> Result<bool, Refused> {
     use crate::audio::make_buffer::BufferDescription;

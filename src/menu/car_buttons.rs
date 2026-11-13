@@ -56,7 +56,7 @@ pub fn call_in_game(o: Owners<'static>, call: Call) -> Result<(), Refused> {
         }),
         Call::Stream => play_car_stream(
             &mut |name, volume| {
-                crate::sound::start_stream::start_stream(o.audio, o.system, name, volume);
+                crate::sound::start_stream::start_stream(o, name, volume);
             },
             o.menus,
             o.sound,

@@ -338,9 +338,6 @@ key_names: PlainBytes::new(with_runs::<256>(&[(2, b"\x05\x00\x06\x00\x07\x00\x08
 }
     }
 }
-
-#[cfg(test)]
-pub const KEYBOARD_IDA: usize = 0x4F7FD8;
 // ---- the mouse: 0x5C6924 .. 0x5C6948 ----
 
 /// The mouse's position, clicks and buttons.

@@ -482,8 +482,7 @@ pub fn screen_pixels(system: &crate::system::owner::System) -> u64 {
 
 /// `gfx::show_frame`: the frame drawn shown (at most some sixty a second); false while
 /// quitting (nothing shown).
-pub fn show_frame_now() -> bool {
-    let o = crate::owners::boundary();
+pub fn show_frame_now(o: crate::owners::Owners<'static>) -> bool {
     let drawing = &o.gfx.drawing;
     // The 3D drawing noted so far, before the screen is shown, written or changed.
     crate::platform_3d::flush();
@@ -557,17 +556,14 @@ pub fn show_frame_now() -> bool {
 // ---- system::pump_messages (0x410535), screens::run_frame (0x405A71) ----
 
 /// `system::pump_messages`: the window's events (SDL's).
-pub fn pump_messages_now() {
-    crate::platform_events::pump();
+pub fn pump_messages_now(o: crate::owners::Owners<'static>) {
+    crate::platform_events::pump(o);
 }
 
 /// `screens::run_frame` for Rust callers with a frame of their own (the screen loops): the messages, then the frame unless quitting (None then).
-pub fn run_frame_now<T>(
-    system: &crate::system::owner::System,
-    frame: impl FnOnce() -> T,
-) -> Option<T> {
-    crate::platform_events::pump();
-    if system.session.flags.quitting.is_set() {
+pub fn run_frame_now<T>(o: crate::owners::Owners<'static>, frame: impl FnOnce() -> T) -> Option<T> {
+    crate::platform_events::pump(o);
+    if o.system.session.flags.quitting.is_set() {
         None
     } else {
         Some(frame())

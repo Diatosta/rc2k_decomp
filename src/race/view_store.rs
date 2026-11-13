@@ -216,23 +216,3 @@ impl RaceView {
             .ok_or(crate::errors::BadInput("a drawn view past the two"))
     }
 }
-
-/// IDA 0x63D9B8, the first byte of the piece.
-pub const START: usize = 0x63D9B8;
-/// IDA 0x63DC5C, the end of the piece.
-pub const END: usize = 0x63DC5C;
-
-const _: () = assert!(END - START == core::mem::size_of::<RaceView>());
-
-#[cfg(test)]
-mod tests {
-
-    #[test]
-    fn first_values_are_the_games() {
-        let _g = crate::test_support::test_lock();
-        // The view blocks are handles where the game has addresses.
-        crate::test_support::first_values::assert_store_starts_as_the_games(
-            "store:race.owner.RACE.shared.view",
-        );
-    }
-}

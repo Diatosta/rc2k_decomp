@@ -6,15 +6,16 @@ use crate::menu::owner::Play;
 pub const PLAYERS: usize = 4;
 pub const NAME_LEN: usize = 0x20;
 
-/// The original's address of player `player`'s name (`g_playerNames`, IDA 0x755784 +
-/// 0x20 player): what the saved games and the best-times entries carry for the name
+/// Where the original kept the first name (`g_playerNames`, IDA 0x755784): saved games and
+/// best-times entries still carry the names as addresses from it.
+const FIRST_NAME_ADDRESS: u32 = 0x755784;
+
+/// The original's address of player `player`'s name (`FIRST_NAME_ADDRESS` + 0x20 player): what the saved games and the best-times entries carry for the name
 /// (`Player::to_file_bytes`, the entries' `name_id`). A name, never read as memory: the
 /// files get the original's bytes, and an entry kept in `var\hst.dat` still names its
 /// player in a later run (the names' place in Rust's memory changes from run to run).
 pub fn name_address(player: usize) -> u32 {
-    let names = crate::menu::names_store::START
-        + core::mem::offset_of!(crate::menu::names_store::Names, player_names);
-    (names + player * NAME_LEN) as u32
+    FIRST_NAME_ADDRESS + (player * NAME_LEN) as u32
 }
 
 /// Which player's name an entry's name address (`name_address`) names; None for an address

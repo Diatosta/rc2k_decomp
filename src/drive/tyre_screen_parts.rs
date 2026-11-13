@@ -7,10 +7,10 @@
 
 use crate::errors::Refused;
 use crate::race::owner::Race;
-use crate::session::Dword;
+use crate::session::PlainDword;
 use rc2k_core::drive::tyre_screen::fixed_parts;
 
-fn set(cells: &[Dword; 4], v: [u32; 4]) {
+fn set(cells: &[PlainDword; 4], v: [u32; 4]) {
     for (cell, x) in cells.iter().zip(v) {
         cell.set(x);
     }
@@ -33,12 +33,12 @@ pub fn tyre_screen_parts(
                 race.viewer_panel()
                     .texture_rect
                     .each_ref()
-                    .map(crate::session::Dword::get),
+                    .map(crate::session::PlainDword::get),
                 &race.viewer_panel().screen_rect,
                 0xFF_FFFF,
                 race.viewer_panel(),
                 system,
-                crate::workers::game_scratch().vertices,
+                &crate::workers::game_scratch().vertices,
             )
         }?;
     }

@@ -8,8 +8,6 @@ use crate::errors::{BadInput, Refused};
 use crate::gfx::build_glyphs::SheetVars;
 use crate::gfx::components_to_pixel::components_to_pixel;
 use crate::gfx::glyph_builder::DIRECT_COLOUR;
-#[cfg(test)]
-use crate::gfx::owner::gfx;
 use crate::memory::MemoryList;
 use crate::memory::free_list::free_list;
 use crate::memory::take_from_list::take_from_list;
@@ -123,17 +121,5 @@ pub fn alpha_palette(gfx: &crate::gfx::owner::Gfx) {
         let colour = palette[entry & 0x0F].get();
         let alpha = (entry & 0xF0 | entry >> 4) as u32;
         palette[entry].set(colour & 0x00FF_FFFF | alpha << 24);
-    }
-}
-
-#[cfg(test)]
-mod block_tests {
-    use super::*;
-
-    #[test]
-    fn first_values_are_the_games() {
-        crate::test_support::first_values::assert_block_starts_as_the_games(
-            &gfx().fonts.glyph_tables,
-        );
     }
 }

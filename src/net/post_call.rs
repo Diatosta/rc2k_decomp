@@ -14,19 +14,19 @@
 //! another thread.
 
 use crate::net::owner::Net;
-use crate::net::store::NetVars;
-use crate::race::viewer_screen_store::ViewerPanelBlock;
-use crate::system::owner::System;
+use crate::net::store::NetShared;
+use crate::race::viewer_screen_store::NetTexts;
 use std::sync::Mutex;
 use std::sync::atomic::Ordering;
 
 /// A piece of code posted to the receiving thread: it gets the network's state and the
-/// panel's texts.
-pub type PostedCall = fn(&Net, &ViewerPanelBlock) -> u32;
+/// lines's texts.
+pub type PostedCall = fn(&Net, &NetTexts) -> u32;
 
 /// The call posted, while `g_netPostedCall` is 1.
 static POSTED: Mutex<Option<PostedCall>> = Mutex::new(None);
-pub fn post_call(net: &Net, system: &System, code: PostedCall) -> u32 {
+pub fn post_call(o: crate::owners::Owners<'static>, code: PostedCall) -> u32 {
+    let net = o.net;
     if net.vars.posting.get() == 1 {
         *POSTED
             .lock()
@@ -38,8 +38,8 @@ pub fn post_call(net: &Net, system: &System, code: PostedCall) -> u32 {
                 break;
             }
             crate::system::sleep::sleep(100);
-            crate::platform::pump_messages_now();
-            if system.session.flags.quitting.is_set() {
+            crate::platform::pump_messages_now(o);
+            if o.system.session.flags.quitting.is_set() {
                 break;
             }
         }
@@ -48,7 +48,7 @@ pub fn post_call(net: &Net, system: &System, code: PostedCall) -> u32 {
 }
 
 /// The call posted, taken by the receiving thread (none waiting: `None`).
-pub fn take_posted(vars: &NetVars) -> Option<PostedCall> {
+pub fn take_posted(vars: &NetShared) -> Option<PostedCall> {
     if vars.posted_call.atomic().swap(0, Ordering::SeqCst) == 0 {
         return None;
     }

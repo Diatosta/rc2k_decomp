@@ -60,7 +60,7 @@ fn before_first_frame(entry: &Entry) -> Result<(), Refused> {
     let play = &entry.menus.play;
     play.champ_view
         .last_key_time
-        .set(entry.system.session.clocks.setup_time.get());
+        .set(entry.system.clocks().setup_time.get());
     play.cheats.notice_due.set(1u32);
 
     Ok(())
@@ -86,9 +86,9 @@ fn idle(entry: &Entry) -> Result<Flow, Refused> {
     log("menu::main_menu_loop: `menu::play_films` has come back");
     menus.screens.loop_flags.idle.set(false);
     update_blink(menus, system);
-    let now = system.session.clocks.frame.get();
+    let now = system.clocks().frame.get();
     menus.play.champ_view.last_key_time.set(now);
-    system.session.clocks.setup_time.set(now);
+    system.clocks().setup_time.set(now);
     Ok(Flow::SetUp)
 }
 

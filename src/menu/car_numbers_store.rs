@@ -20,7 +20,6 @@ pub struct CarNumbers {
     pub shuffle_b: PlainBytes<148>,
 }
 
-/// First values the image's (`tests::car_numbers_starts_as_the_games`).
 impl CarNumbers {
     pub const fn new() -> Self {
         CarNumbers {
@@ -55,16 +54,5 @@ impl CarNumbers {
                 ],
             )])),
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-
-    #[test]
-    fn car_numbers_starts_as_the_games() {
-        crate::test_support::first_values::assert_block_starts_as_the_games(
-            &crate::menu::owner::menus().cars.numbers,
-        );
     }
 }

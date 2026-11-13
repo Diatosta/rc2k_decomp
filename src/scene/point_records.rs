@@ -27,11 +27,12 @@ pub type Record = [u32; 8];
 /// The records of one part, as cells: read and written many times a polygon.
 pub type Records = [[Dword; 8]; COUNT as usize];
 
-/// The records, one set per drawing part (`workers::PartScratch`): a record is a part's own
+/// A part's records, all zero (`workers::PartScratch::records`): a record is the part's own
 /// projection, made again by another part that needs it. Every reader below is handed the
 /// part's scratch.
-pub(crate) static RECORDS: [Records; crate::workers::COUNT] =
-    [const { [const { [const { Dword::new(0) }; 8] }; COUNT as usize] }; crate::workers::COUNT];
+pub const fn new_records() -> Records {
+    [const { [const { Dword::new(0) }; 8] }; COUNT as usize]
+}
 
 /// Whether the records are taken.
 static TAKEN: AtomicBool = AtomicBool::new(false);
@@ -42,10 +43,8 @@ pub fn take(
     list: &dyn crate::cells::Store,
 ) -> Result<(), Refused> {
     crate::memory::owned::count_on(list, BYTES)?;
-    RECORDS
-        .iter()
-        .flatten()
-        .flatten()
+    crate::workers::all_parts_on_game_thread()
+        .flat_map(|part| part.records.iter().flatten())
         .for_each(|cell| cell.set(0));
     TAKEN.store(true, Ordering::Relaxed);
     course.lists.get().point_records.set(HELD);
@@ -71,12 +70,19 @@ pub fn first_records_everywhere<'a>(
     if n > COUNT as usize {
         return Err(BadInput("a point record past the block"));
     }
-    let copies: &'a [_] = if crate::workers::beside() {
-        std::slice::from_ref(part.records)
-    } else {
-        &RECORDS
-    };
-    Ok(copies.iter().flat_map(move |copy| &copy[..n]))
+    // Beside each other: the part's own. Otherwise the game's thread draws alone and reaches
+    // every part's (no scope is open: no run holds one).
+    let copies: [Option<&'a crate::workers::PartScratch>; crate::workers::COUNT] =
+        if crate::workers::beside() {
+            std::array::from_fn(|k| (k == 0).then_some(part))
+        } else {
+            let mut all = crate::workers::all_parts_on_game_thread();
+            std::array::from_fn(|_| all.next())
+        };
+    Ok(copies
+        .into_iter()
+        .flatten()
+        .flat_map(move |copy| &copy.records[..n]))
 }
 
 /// Whether the records are taken.

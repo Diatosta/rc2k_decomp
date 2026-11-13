@@ -73,13 +73,13 @@ fn store(course: &Course, f: u32, b: &FaceBytes) -> Result<(), BadInput> {
 }
 
 /// `g_litFaces`[k] (0x100 of them; the count is checked below).
-fn list(physics: &Physics, k: u32) -> &crate::session::Dword {
-    &physics.contact.lit_faces[k as usize]
+fn list(physics: &Physics, k: u32) -> &crate::session::PlainDword {
+    &physics.contact.get().lit_faces[k as usize]
 }
 
 /// The refusals, worked out before anything is written.
 fn refusal(race: &Race) -> Option<&'static str> {
-    let count: u32 = race.physics.contact.lit_face_count.get();
+    let count: u32 = race.physics.contact.get().lit_face_count.get();
     if count > MOST {
         return Some("more than 0x100 lit faces (past g_litFaces)");
     }
@@ -97,7 +97,7 @@ pub fn animate_at(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(),
     if let Some(why) = refusal(race) {
         return Err(BadInput(why).into());
     }
-    if race.physics.contact.lit_face_count.get() == 0 {
+    if race.physics.contact.get().lit_face_count.get() == 0 {
         return Ok(());
     }
 
@@ -133,9 +133,9 @@ fn animate_faces(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), 
             .wrapping_sub(race.car_blocks().cars[0].position[2].get());
             scene.drawing.scene.get().scratch.set(dz);
             let d = crate::math::x87::int_hypot(dx as i32, dz as i32) as u32;
-            race.physics.contact.lit_face_distance.set(d);
+            race.physics.contact.get().lit_face_distance.set(d);
             let step = pace(d);
-            race.physics.contact.lit_face_pace.set(step);
+            race.physics.contact.get().lit_face_pace.set(step);
             let kind_of: u32 = scene.objects.tables.get().object_kind(object as u32);
             // The material's byte +0x1C (the low byte of its eighth word).
             let kind = race
@@ -149,8 +149,8 @@ fn animate_faces(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), 
                 1 | 9 => {
                     blink(&mut bytes, |n| {
                         // `blink_levels`: the step is below 0x18 (`BLINK_STEPS`).
-                        (race.physics.contact.blink_levels[n as usize / 4].get() >> (8 * (n % 4)))
-                            as u8
+                        (race.physics.contact.get().blink_levels[n as usize / 4].get()
+                            >> (8 * (n % 4))) as u8
                     })
                     .is_none()
                 }
@@ -169,10 +169,12 @@ fn animate_faces(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), 
                     );
                     race.physics
                         .contact
+                        .get()
                         .lit_face_saved_30
                         .set(at(&race.course, f, 0x30)?);
                     race.physics
                         .contact
+                        .get()
                         .lit_face_saved_38
                         .set(at(&race.course, f, 0x38)?);
                     put(
@@ -235,13 +237,13 @@ fn animate_faces(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), 
                             &race.course,
                             f,
                             0x30,
-                            race.physics.contact.lit_face_saved_30.get(),
+                            race.physics.contact.get().lit_face_saved_30.get(),
                         )?;
                         put(
                             &race.course,
                             f,
                             0x38,
-                            race.physics.contact.lit_face_saved_38.get(),
+                            race.physics.contact.get().lit_face_saved_38.get(),
                         )?;
                     }
                     bytes.b11 = bytes.b11.wrapping_sub(1);
@@ -252,12 +254,18 @@ fn animate_faces(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), 
         };
         store(&race.course, f, &bytes)?;
         if leave {
-            let last = race.physics.contact.lit_face_count.get().wrapping_sub(1);
+            let last = race
+                .physics
+                .contact
+                .get()
+                .lit_face_count
+                .get()
+                .wrapping_sub(1);
             list(&race.physics, k).set(list(&race.physics, last).get());
-            race.physics.contact.lit_face_count.set(last);
+            race.physics.contact.get().lit_face_count.set(last);
         }
         k += 1;
-        if k >= race.physics.contact.lit_face_count.get() {
+        if k >= race.physics.contact.get().lit_face_count.get() {
             return Ok(());
         }
     }

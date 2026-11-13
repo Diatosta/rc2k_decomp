@@ -17,6 +17,7 @@ use crate::errors::BadInput;
 #[cfg(test)]
 use crate::race::owner::race;
 use crate::race::owner_course::CourseReads;
+use std::cell::{Cell, RefCell};
 
 /// `COURSE.scene_points` while the points are held: point 0's place.
 pub fn base() -> u32 {
@@ -32,46 +33,40 @@ pub static POINTS: crate::memory::shared_table::SharedTable =
 
 /// A drawing part's own points past the count (`workers::PartScratch::points`): kept from
 /// the count on while the part is drawn in a run of a list drawn by several parts (the game's
-/// thread's first part too), none otherwise (see the header).
+/// thread's first part too), none otherwise (see the header). Plain cells: only the thread
+/// that draws the part reaches it (`part_cell::PartCell`).
 pub struct OwnPoints {
     /// The byte from which the points are these own ones while the part is being drawn in a
     /// run (the count's), `usize::MAX` outside one.
-    from: std::sync::atomic::AtomicUsize,
+    from: Cell<usize>,
     /// Its points from the count on, as far as it has reached them in the run.
-    tail: std::sync::Mutex<Vec<u8>>,
+    tail: RefCell<Vec<u8>>,
 }
 
 impl OwnPoints {
     pub const fn new() -> Self {
         Self {
-            from: std::sync::atomic::AtomicUsize::new(usize::MAX),
-            tail: std::sync::Mutex::new(Vec::new()),
+            from: Cell::new(usize::MAX),
+            tail: RefCell::new(Vec::new()),
         }
     }
 
     /// A run begins over `point_count` points: the part's own points forgotten, its first
     /// reach takes them from the shared ones.
     pub fn begin_run(&self, point_count: u32) {
-        self.tail
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .clear();
-        self.from.store(
-            (point_count as usize).saturating_mul(12),
-            std::sync::atomic::Ordering::Relaxed,
-        );
+        self.tail.borrow_mut().clear();
+        self.from.set((point_count as usize).saturating_mul(12));
     }
 
     /// The run is over: the shared points read again.
     pub fn end_run(&self) {
-        self.from
-            .store(usize::MAX, std::sync::atomic::Ordering::Relaxed);
+        self.from.set(usize::MAX);
     }
 
     /// The byte from which the points are these own ones: the count's in a run, none
     /// otherwise.
     fn own_from(&self) -> usize {
-        self.from.load(std::sync::atomic::Ordering::Relaxed)
+        self.from.get()
     }
 }
 
@@ -81,9 +76,26 @@ impl Default for OwnPoints {
     }
 }
 
+thread_local! {
+    /// This thread's `NO_OWN`: an `OwnPoints` that never begins a run.
+    static NONE: &'static OwnPoints = Box::leak(Box::new(OwnPoints::new()));
+}
+
 /// No own points: the shared ones throughout, what everything outside the drawing parts
-/// reads (the physics, the map, the best line, the debug pages).
-pub static NO_OWN: OwnPoints = OwnPoints::new();
+/// reads (the physics, the map, the best line, the debug pages). Behind `&NO_OWN` is an
+/// `OwnPoints` of the reading thread's, which never begins a run (so reads only the shared
+/// points, and its plain cells are reached by that thread alone).
+pub static NO_OWN: NoOwn = NoOwn;
+
+/// The type of `NO_OWN`: derefs to the calling thread's empty `OwnPoints`.
+pub struct NoOwn;
+
+impl std::ops::Deref for NoOwn {
+    type Target = OwnPoints;
+    fn deref(&self) -> &OwnPoints {
+        NONE.with(|none| *none)
+    }
+}
 
 /// `f` on `points`' own bytes `from .. from + len` (`own` being their `own_from`, `from` at
 /// least `own`); `None` past the points.
@@ -99,10 +111,7 @@ fn with_own<R>(
         return Ok(None);
     };
     let (start, end) = (from - own, end - own);
-    let mut tail = points
-        .tail
-        .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    let mut tail = points.tail.borrow_mut();
     if tail.len() < end {
         let had = tail.len();
         tail.resize(end, 0);

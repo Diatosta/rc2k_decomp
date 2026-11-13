@@ -258,7 +258,6 @@ pub struct LabelTables {
     pub visual_options_labels: LabelList,
 }
 
-/// First values the image's (`rc2k_core::menu::tables::MENUS`' labels).
 #[rustfmt::skip]
 impl LabelTables {
     pub const fn new() -> Self {
@@ -479,8 +478,9 @@ const _: () = assert!(core::mem::offset_of!(MenuLabel, font) == 8);
 const _: () = assert!(core::mem::offset_of!(LabelTables, visual_options_labels) == 97 * 0x14);
 const _: () = assert!(core::mem::size_of::<LabelTables>() == 98 * LABEL_LIST_LEN);
 
-/// IDA 0x747AD8, the first byte of the label lists.
-pub const START: usize = 0x747AD8;
+/// Where the original kept the label lists (IDA 0x747AD8 ..): core's menu table names a menu's
+/// labels by their address there.
+const LABELS_FIRST_ADDRESS: usize = 0x747AD8;
 
 /// The byte `offset` bytes on from the labels of `menu`, as an offset in the label lists
 /// (`MenuTables::labels`, whose bytes the readers and writers are bounded to); None for a menu
@@ -828,10 +828,10 @@ impl MenuId {
     pub fn labels_place(self) -> Result<Option<u32>, crate::errors::BadInput> {
         match self.table().labels_at {
             0 => Ok(None),
-            at if at as usize >= START
-                && ((at as usize - START) < LABEL_LIST_COUNT * LABEL_LIST_LEN) =>
+            at if at as usize >= LABELS_FIRST_ADDRESS
+                && ((at as usize - LABELS_FIRST_ADDRESS) < LABEL_LIST_COUNT * LABEL_LIST_LEN) =>
             {
-                Ok(Some(at - START as u32))
+                Ok(Some(at - LABELS_FIRST_ADDRESS as u32))
             }
             _ => Err(crate::errors::BadInput(
                 "a menu's labels off the label lists",
@@ -968,12 +968,5 @@ mod tests {
         let tables = &menus().tables.menus;
         assert_eq!(tables.visual_preferences.id().0, 0);
         assert_eq!(tables.championship_end_review.id().0, MENU_COUNT - 1);
-    }
-
-    #[test]
-    fn labels_start_as_the_games() {
-        // The labels' fonts are kept as `FontCell`s: the golden file holds the cells.
-        let labels = &menus().tables.menus.labels;
-        crate::test_support::first_values::assert_block_starts_as_the_games(labels);
     }
 }

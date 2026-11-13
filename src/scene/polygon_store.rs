@@ -4,7 +4,7 @@
 //! clip), the pool of point records the clip makes, the textures' records and the objects'
 //! materials. Names are readings unless IDA's.
 
-use crate::session::{Byte, Bytes, Dword};
+use crate::session::{Byte, Bytes, Dword, PlainDword};
 
 /// A polygon work entry (IDA's `PolygonEntry`, 0x44 bytes).
 #[repr(C)]
@@ -117,14 +117,14 @@ impl PolygonEntry {
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct TextureInfo {
-    pub words: [Dword; 16],
+    pub words: [PlainDword; 16],
 }
 
 /// An object kind's material record (0x80 bytes: `scene::set_object_material`, `physics::face_contact`).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct ObjectMaterial {
-    pub words: [Dword; 32],
+    pub words: [PlainDword; 32],
 }
 
 #[repr(C)]
@@ -153,18 +153,13 @@ pub struct PolygonTables {
     pub object_materials: [ObjectMaterial; 1200],
 }
 
-/// The other drawing parts' copies of the work (`workers::PartScratch`).
-pub(crate) static OTHER_COPIES: [PolygonWork; crate::workers::COUNT - 1] =
-    [const { crate::cells::cells_of_bytes([0u8; WORK_LEN]) }; crate::workers::COUNT - 1];
+impl PolygonWork {
+    /// The work area, zeroed as in the image: one for each drawing part
+    /// (`workers::PartScratch::polygon`).
+    pub const fn new() -> Self {
+        crate::cells::cells_of_bytes([0u8; WORK_LEN])
+    }
+}
 
 /// The work's bytes.
 const WORK_LEN: usize = core::mem::size_of::<PolygonWork>();
-
-/// IDA 0x975510, the first byte of the piece.
-pub const START: usize = 0x975510;
-/// IDA 0x9A3730, the end of the piece.
-pub const END: usize = 0x9A3730;
-
-const _: () = assert!(
-    END - START == core::mem::size_of::<PolygonWork>() + core::mem::size_of::<PolygonTables>()
-);

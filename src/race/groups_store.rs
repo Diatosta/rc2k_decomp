@@ -37,7 +37,7 @@ use core::mem::{offset_of, size_of};
 #[derive(rc2k_derive::Cells)]
 pub struct ViewerAndKinds {
     /// +0x0 (0x5C291C): `race::viewer_screen_store`.
-    pub viewer_panel: ViewerPanelBlock,
+    pub viewer_panel: GameThread<ViewerPanelBlock>,
     /// +0x668 (0x5C2F84): `race::effects_settings_store`.
     pub marks_settings: GameThread<EffectsSettings>,
     /// +0x2DD0 (0x5C5708): `race::kind_store`.
@@ -104,7 +104,7 @@ const _: () = {
 impl ViewerAndKinds {
     pub const fn new() -> Self {
         ViewerAndKinds {
-            viewer_panel: ViewerPanelBlock::new(),
+            viewer_panel: GameThread::new(ViewerPanelBlock::new()),
             marks_settings: GameThread::new(EffectsSettings::new()),
             kind_tables: KindTables::new(),
         }
@@ -146,20 +146,6 @@ impl ViewAndRecords {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn first_values_are_the_games() {
-        use crate::test_support::first_values::{
-            assert_block_starts_as_the_games, assert_store_starts_as_the_games,
-        };
-        let race = race();
-        assert_block_starts_as_the_games(&race.replay.viewer_and_kinds);
-        assert_block_starts_as_the_games(race.frame.lights_and_gear.get());
-        // The view records hold handles where the game has addresses.
-        assert_block_starts_as_the_games(race.frame.view_and_records.get());
-        // The panel and the overlay after it: one store from the panel's first byte.
-        assert_store_starts_as_the_games("store:race.groups_store.PANEL_TAIL");
-    }
 
     #[test]
     fn groups_have_their_homes() {

@@ -7,14 +7,11 @@ use crate::errors::Refused;
 use crate::install::installer::run_frame;
 
 /// The backdrop's frame run three times.
-pub fn show_backdrop(
-    system: &crate::system::owner::System,
-    gfx: &crate::gfx::owner::Gfx,
-) -> Result<(), Refused> {
+pub fn show_backdrop(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     for _ in 0..3 {
         run_frame(
-            system,
-            Some(&|| crate::install::backdrop_frame::backdrop_frame(gfx, system)),
+            o,
+            Some(&|| crate::install::backdrop_frame::backdrop_frame(o)),
         )?;
     }
     Ok(())

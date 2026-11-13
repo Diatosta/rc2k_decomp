@@ -38,11 +38,14 @@ fn read<const N: usize>(
 }
 
 pub fn open_installer(
-    so: crate::strings::append_string_by_id::StringOwners<'static>,
     install: &'static crate::install::owner::Install,
-    gfx: &'static crate::gfx::owner::Gfx,
-    system: &crate::system::owner::System,
+    o: crate::owners::Owners<'static>,
 ) -> Result<(), Refused> {
+    let (so, gfx, system) = (
+        crate::strings::append_string_by_id::StringOwners::of(o),
+        o.gfx,
+        o.system,
+    );
     // The names' tables are Rust's, counted on the list as the game's blocks
     // were; the scan and cursors count names and bytes from 0.
     use crate::install::name_tables::{FILES, FOLDERS, NameTable};
@@ -93,6 +96,6 @@ pub fn open_installer(
     draw_string(so, 0x1000, FONT_1000, 0x320, 0x24B, gfx)?;
     draw_string(so, 0x1002, FONT_1002, 0, 0x24B, gfx)?;
     copy_picture(gfx, system)?;
-    show();
+    show(o);
     Ok(())
 }

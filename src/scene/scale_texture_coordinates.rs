@@ -18,7 +18,7 @@ use crate::scene::polygon::{Listed, listed};
 
 // Converted: `rc2k_core::scene::texture_coordinates`
 pub fn scale_texture_coordinates(
-    polygon_work: &'static crate::scene::polygon_store::PolygonWork,
+    polygon_work: &crate::scene::polygon_store::PolygonWork,
     poly: &crate::scene::polygon_work::PolygonWork,
 ) -> Result<(), Refused> {
     if (poly.polygon_vertex_count.get() as i32) <= 0 {

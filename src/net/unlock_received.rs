@@ -4,7 +4,7 @@
 //!
 //! Six callers, those of `net::lock_received`. Refuses nothing.
 
-use crate::net::store::NetVars;
-pub fn unlock_received(vars: &NetVars) {
+use crate::net::store::NetShared;
+pub fn unlock_received(vars: &NetShared) {
     crate::sync::release_mutex(vars.mutex.get());
 }

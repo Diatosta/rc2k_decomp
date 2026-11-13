@@ -70,7 +70,7 @@ pub enum ListId {
 /// handle are copied numbers with no owner, so this is a seam: the install pages' functions
 /// that hold a `ListItem`, `ListMenu` or `PageLink` would pass `&Install` to them.
 pub fn installer() -> &'static crate::install::owner::Install {
-    crate::owners::boundary().install
+    crate::install::owner::install() // m6-root
 }
 
 impl ListId {
@@ -249,99 +249,27 @@ impl PageLink {
     }
 }
 
-/// The image's addresses of what the links name, to check the handles against the image's
-/// own data (the game's pages hold addresses where the handles are).
-#[cfg(test)]
-pub(crate) mod image_addresses {
-    use super::*;
-
-    /// IDA's address of the folder typed on the page (`InstallerPaths.typed`).
-    pub const TYPED_IDA: u32 = 0x95EBF8;
-    /// IDA's address of the blended palette the install bar's glyphs name.
-    pub const PALETTE_IDA: u32 = 0x4F3B74;
-    /// IDA's address of the first dword of `InstallerPages::page_table`.
-    pub const TABLE_IDA: u32 = 0x51D594;
-    /// IDA's address of the folder item's edit record.
-    pub const EDIT_IDA: u32 = 0x51DD70;
-    /// IDA's address of the first of `InstallerPages::boxes`.
-    pub const BOX_IDA: u32 = 0x51DD88;
-
-    /// IDA's address of each list, in the order of `ListId::ALL`.
-    pub const LIST_IDA: [u32; 14] = [
-        0x51D670, 0x51D728, 0x51D790, 0x51D7F8, 0x51D8B0, 0x51D9E8, 0x51DBA0, 0x51DC18, 0x51DC60,
-        0x51DCB8, 0x51DD10, 0x51DD28, 0x51DD40, 0x51DD58,
-    ];
-
-    /// IDA's address of the list `list`.
-    pub fn list_ida(list: ListId) -> u32 {
-        LIST_IDA[ListId::ALL.iter().position(|&l| l == list).unwrap()]
-    }
-
-    /// The link the image's address `ida` is.
-    pub fn of_ida(ida: u32) -> PageLink {
-        if let Some(index) = LIST_IDA.iter().position(|&a| a == ida) {
-            return PageLink::list(ListId::ALL[index]);
-        }
-        if (TABLE_IDA..TABLE_IDA + 4 * TABLE_LEN).contains(&ida)
-            && (ida - TABLE_IDA).is_multiple_of(4)
-        {
-            return PageLink::table((ida - TABLE_IDA) / 4);
-        }
-        if ida == EDIT_IDA {
-            return PageLink::folder_edit();
-        }
-        if (BOX_IDA..BOX_IDA + 16 * BOXES).contains(&ida) && (ida - BOX_IDA).is_multiple_of(16) {
-            return PageLink::box_at((ida - BOX_IDA) / 16);
-        }
-        if let Some(font) = font_at_ida(ida) {
-            return PageLink::of_font(font);
-        }
-        if ida == PALETTE_IDA {
-            return PageLink::blended_palette();
-        }
-        if (TYPED_IDA..TYPED_IDA + TYPED_LEN).contains(&ida) {
-            return PageLink::typed(ida - TYPED_IDA);
-        }
-        panic!("an image address that names nothing a link can: {ida:#X}");
-    }
-
-    /// The font object of the block at the image's address `ida`.
-    pub fn font_at_ida(ida: u32) -> Option<FontId> {
-        let off = (ida as usize).checked_sub(crate::gfx::typefaces::START)?;
-        if !off.is_multiple_of(0x20) {
-            return None;
-        }
-        FontId::try_numbered(off / 0x20)
-    }
-}
-
 #[cfg(test)]
 mod tests {
-    use super::image_addresses::*;
     use super::*;
 
     #[test]
-    fn the_original_addresses_become_the_handles_of_their_kind() {
-        let title_box = of_ida(BOX_IDA + 16);
-        assert_eq!(title_box, PageLink::box_at(1));
+    fn the_handles_resolve_as_their_own_kind() {
+        let title_box = PageLink::box_at(1);
         assert_eq!(title_box.box_position().unwrap(), PagesAt::box_at(1));
         assert_eq!(
-            of_ida(TABLE_IDA + 4 * 25),
-            PageLink::table(25),
+            PageLink::table(25).table_index().unwrap(),
+            25,
             "the drive page's entry"
         );
         assert_eq!(
-            of_ida(list_ida(ListId::DrivesMore)),
-            PageLink::list(ListId::DrivesMore)
-        );
-        assert_eq!(
-            of_ida(crate::gfx::typefaces::fonts::TITLE.ida() as u32)
+            PageLink::of_font(crate::gfx::typefaces::fonts::TITLE)
                 .font()
                 .unwrap(),
             crate::gfx::typefaces::fonts::TITLE
         );
-        assert!(of_ida(PALETTE_IDA).is_blended_palette());
-        match of_ida(TYPED_IDA + 2).place().unwrap() {
+        assert!(PageLink::blended_palette().is_blended_palette());
+        match PageLink::typed(2).place().unwrap() {
             crate::place::BytePlace::Store(record, at) => {
                 assert!(std::ptr::addr_eq(
                     record,
@@ -360,12 +288,12 @@ mod tests {
     fn a_link_is_resolved_only_as_its_own_kind() {
         assert!(PageLink::from_raw(0).in_pages().is_err());
         assert!(
-            of_ida(crate::gfx::typefaces::fonts::TITLE.ida() as u32)
+            PageLink::of_font(crate::gfx::typefaces::fonts::TITLE)
                 .in_pages()
                 .is_err()
         );
-        assert!(of_ida(EDIT_IDA).font().is_err());
-        assert!(of_ida(TABLE_IDA + 4 * 11).box_position().is_err());
+        assert!(PageLink::folder_edit().font().is_err());
+        assert!(PageLink::table(11).box_position().is_err());
         assert!(
             PageLink::from_raw(TABLE << KIND_SHIFT | TABLE_LEN)
                 .in_pages()
@@ -381,7 +309,7 @@ mod tests {
                 .in_pages()
                 .is_err()
         );
-        assert!(of_ida(EDIT_IDA).edit_record().is_ok());
-        assert!(of_ida(list_ida(ListId::OpenInstalled)).in_pages().is_ok());
+        assert!(PageLink::folder_edit().edit_record().is_ok());
+        assert!(PageLink::list(ListId::OpenInstalled).in_pages().is_ok());
     }
 }

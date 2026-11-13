@@ -8,11 +8,11 @@
 //! command 3 (`audio::load_sounds`). The copy is Rust's (`audio::sample_data::keep`,
 //! counted on `g_sampleMemory` as the block was) and the voice's data its id.
 
-use crate::audio::store::AudioState;
+use crate::audio::own::AudioOwn;
 use crate::audio::voices::*;
 use crate::errors::Refused;
 
-pub fn keep_sample(state: &AudioState, v: &mut Voice) -> Result<(), Refused> {
+pub fn keep_sample(state: &AudioOwn, v: &mut Voice) -> Result<(), Refused> {
     // Converted: `rc2k_core::audio::buffers::keeps_sample`.
     if !rc2k_core::audio::buffers::keeps_sample(v) {
         return Ok(());

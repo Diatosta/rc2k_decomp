@@ -13,20 +13,14 @@
 use crate::errors::Refused;
 use crate::net::choose_connection::list_move;
 use crate::net::lobby::{list_key, other_key, run_frame};
-use crate::net::owner::Net;
 use crate::net::tables::with_session;
-use crate::race::viewer_screen_store::ViewerPanelBlock;
-use crate::system::owner::System;
+use crate::race::viewer_screen_store::NetTexts;
 use rc2k_core::net::screens::{self, ListKey};
 
 /// The sessions listed again (not posted), the highlight kept on the same one; false for
 /// a failed listing.
-fn refresh(
-    install: &crate::install::owner::Install,
-    net: &Net,
-    system: &System,
-    panel: &ViewerPanelBlock,
-) -> Result<bool, Refused> {
+fn refresh(o: crate::owners::Owners<'static>, lines: &NetTexts) -> Result<bool, Refused> {
+    let (install, net) = (o.install, o.net);
     let listed = net.vars.sessions.get();
     if listed != 0 {
         let instance = with_session(&net.vars, install.pages.choice.get(), |s| s.instance)?;
@@ -36,7 +30,7 @@ fn refresh(
     }
     let posting = net.vars.posting.get();
     net.vars.posting.set(0);
-    let found = crate::net::find_sessions::find_sessions(net, system, panel)?;
+    let found = crate::net::find_sessions::find_sessions(o, lines)?;
     net.vars.posting.set(posting);
     if !found {
         return Ok(false);
@@ -71,12 +65,9 @@ fn refresh(
     install.pages.choice_before.set(top);
     Ok(true)
 }
-pub fn choose_session(
-    o: crate::owners::Owners<'static>,
-    panel: &ViewerPanelBlock,
-) -> Result<u32, Refused> {
+pub fn choose_session(o: crate::owners::Owners<'static>, lines: &NetTexts) -> Result<u32, Refused> {
     let (install, net, system) = (o.install, o.net, o.system);
-    let now = system.session.clocks.key_ticks.get();
+    let now = system.session.key_clock.ticks.get();
     install.pages.move_clock.set(now);
     install.pages.key_clock.set(now);
     install.pages.choice.set(0);
@@ -85,15 +76,7 @@ pub fn choose_session(
         .clock_a
         .set(crate::system::tick_count::tick_count());
     loop {
-        run_frame(o.system, || {
-            crate::net::sessions_frame::sessions_frame(
-                crate::strings::append_string_by_id::StringOwners::of(o),
-                net,
-                install,
-                o.gfx,
-                o.system,
-            )
-        })?;
+        run_frame(o, || crate::net::sessions_frame::sessions_frame(o))?;
         let tick = crate::system::tick_count::tick_count();
         if (tick
             .wrapping_sub(net.edit().clock_a.get())
@@ -101,7 +84,7 @@ pub fn choose_session(
             >= 0
         {
             net.edit().clock_a.set(tick);
-            if !refresh(install, net, system, panel)? {
+            if !refresh(o, lines)? {
                 install.pages.choice.set(0xFFFF_FFFE);
                 return Ok(install.pages.choice.get());
             }
@@ -109,7 +92,7 @@ pub fn choose_session(
         install
             .pages
             .frame_clock
-            .set(system.session.clocks.key_ticks.get());
+            .set(system.session.key_clock.ticks.get());
         let key = list_key(install, o.input)?;
         let any = net.vars.sessions.get() != 0;
         if any && list_move(install, key, net.vars.sessions.get()) {

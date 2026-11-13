@@ -12,14 +12,14 @@
 
 use crate::errors::Refused;
 use crate::net::destroy_connection::destroy_connection;
-use crate::net::store::NetVars;
+use crate::net::store::NetShared;
 use crate::net::store::PlayerRecord;
 use rc2k_core::net::players::{A_PLAYER, System, made_host};
 
 /// The message is in `crate::net::owner::net().vars.receive_data`.
 pub fn system_message(
-    vars: &NetVars,
-    panel: &crate::race::viewer_screen_store::ViewerPanelBlock,
+    vars: &NetShared,
+    lines: &crate::race::viewer_screen_store::NetTexts,
 ) -> Result<(), Refused> {
     let get = |at: usize| vars.receive_data.get_u32(at);
     let kind = get(0);
@@ -36,7 +36,7 @@ pub fn system_message(
                 );
             }
         }
-        System::SessionLost => destroy_connection(vars, panel)?,
+        System::SessionLost => destroy_connection(vars, lines)?,
         System::Host => {
             vars.own
                 .head

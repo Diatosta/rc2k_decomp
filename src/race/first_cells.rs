@@ -1,7 +1,7 @@
 //! Builders for the first values of the race block's stores: arrays of cells from plain
 //! numbers or a text, as constants.
 
-use crate::session::{Dword, Float, PlainDword};
+use crate::session::{Dword, PlainDword};
 
 macro_rules! cells_of {
     ($name:ident, $cell:ident, $item:ty) => {
@@ -42,16 +42,4 @@ macro_rules! cells_of_text {
 
 cells_of!(dwords, Dword, u32);
 cells_of!(plain_dwords, PlainDword, u32);
-cells_of_text!(dwords_of_text, Dword);
 cells_of_text!(plain_dwords_of_text, PlainDword);
-
-/// The floats' cells.
-pub const fn floats<const N: usize>(values: [f32; N]) -> [Float; N] {
-    let mut out: [Float; N] = [const { Float::new(0.0) }; N];
-    let mut k = 0;
-    while k < N {
-        out[k] = Float::new(values[k]);
-        k += 1;
-    }
-    out
-}

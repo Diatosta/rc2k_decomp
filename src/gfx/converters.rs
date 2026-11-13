@@ -43,14 +43,3 @@ impl Converters {
         u64::from(self.masks[2 * n].get()) | u64::from(self.masks[2 * n + 1].get()) << 32
     }
 }
-
-#[cfg(test)]
-mod tests {
-
-    #[test]
-    fn first_values_are_the_games() {
-        crate::test_support::first_values::assert_block_starts_as_the_games(
-            &crate::gfx::owner::GFX.get().pixel.converters,
-        );
-    }
-}

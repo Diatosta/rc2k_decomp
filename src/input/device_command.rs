@@ -64,14 +64,17 @@ pub fn device_command(
                     input,
                     system,
                     device(&input.devices, n)?,
-                    &race.shared.state.settings.cars[n],
+                    &race.shared.state.settings.cars[n].controls,
                 )?,
                 Reading(n, on) => device(&input.devices, n)?.reading.set(on as u32),
                 SecondApart => {
-                    if race.shared.state.settings.cars[0].controller.get()
-                        == race.shared.state.settings.cars[1].controller.get()
+                    if race.shared.state.settings.cars[0].controls.controller.get()
+                        == race.shared.state.settings.cars[1].controls.controller.get()
                     {
-                        race.shared.state.settings.cars[1].controller.set(0);
+                        race.shared.state.settings.cars[1]
+                            .controls
+                            .controller
+                            .set(0);
                     }
                 }
                 Sleep(ms) => crate::system::sleep::sleep(ms),

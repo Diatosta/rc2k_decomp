@@ -1,7 +1,7 @@
 //! `sound::set_up_race_sounds` (0x40F02E): puts the audio thread in its mode for a race.
 //!
 //! `SettingsApplied.done` = 2; `sound::stop_music`; command 5 with the race's sound mode
-//! `AudioState.race_sound_mode`; `sound::load_race_sounds`; `sound::wait_for_commands`; `AudioState.sounds_held_back`
+//! `AudioShared.race_sound_mode`; `sound::load_race_sounds`; `sound::wait_for_commands`; `AudioShared.sounds_held_back`
 //! = 0 (`sound::let_sounds_play`). The menus' counterpart is `sound::apply_settings`.
 //! Nine callers (the events' starters, before a stage is loaded).
 

@@ -10,17 +10,12 @@
 //! `net::choose_car`, `net::choose_stage`.
 
 use crate::errors::Refused;
-use crate::gfx::owner::Gfx;
 use crate::net::lobby::{copy_picture, draw_string};
-use crate::net::store::NetVars;
 
 pub const TITLE_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::HEAD;
-pub fn show_background(
-    so: crate::strings::append_string_by_id::StringOwners<'static>,
-    gfx: &'static Gfx,
-    system: &crate::system::owner::System,
-    vars: &NetVars,
-) -> Result<(), Refused> {
+pub fn show_background(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
+    let (gfx, system, net) = (o.gfx, o.system, o.net);
+    let vars = &net.vars;
     crate::gfx::load_picture::load_picture_with(&crate::gfx::texts::CHATZONE, gfx, system)?;
     crate::gfx::convert_picture::convert_picture_now_in(gfx, system)?;
     gfx.pictures
@@ -31,14 +26,21 @@ pub fn show_background(
     let title = if vars.session.get() == 1 {
         0x15A
     } else {
-        match vars.mode.get() {
+        match net.lobby().mode.get() {
             0 => 0x162,
             1 => 0x14B,
             _ => 0x14C,
         }
     };
-    draw_string(so, title, TITLE_FONT, 0x316, 0x2F, gfx)?;
+    draw_string(
+        crate::strings::append_string_by_id::StringOwners::of(o),
+        title,
+        TITLE_FONT,
+        0x316,
+        0x2F,
+        gfx,
+    )?;
     copy_picture(gfx, system)?;
-    crate::platform::show_frame_now();
+    crate::platform::show_frame_now(o);
     Ok(())
 }

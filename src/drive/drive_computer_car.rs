@@ -43,12 +43,12 @@ use rc2k_core::drive::computer_driver as driver;
 /// it (through `lea`, `sub` and `shr 2`).
 fn held(
     shared: &RaceShared,
-    table: fn(&crate::race::checkpoints_store::Checkpoints, usize) -> &crate::session::Dword,
+    table: fn(&crate::race::checkpoints_store::Checkpoints, usize) -> &crate::session::PlainDword,
     n: u32,
     k: u32,
 ) -> u32 {
     let i = driver::held_index(n, k, shared.vars.get().checkpoint_count.get());
-    table(&shared.buffers.checkpoints, i as usize).get()
+    table(&shared.buffers.reads.get().checkpoints, i as usize).get()
 }
 
 /// A checkpoint face's first point: (x, z).

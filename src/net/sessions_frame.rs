@@ -6,26 +6,12 @@
 //! Called by `screens::run_frame` for `net::choose_session`.
 
 use crate::errors::Refused;
-use crate::install::owner::Install;
 use crate::net::connections_frame::list_frame;
-use crate::net::owner::Net;
-pub fn sessions_frame(
-    so: crate::strings::append_string_by_id::StringOwners<'static>,
-    net: &Net,
-    install: &Install,
-    gfx: &'static crate::gfx::owner::Gfx,
-    system: &crate::system::owner::System,
-) -> Result<(), Refused> {
-    let vars = &net.vars;
+pub fn sessions_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
+    let vars = &o.net.vars;
     // Converted: `rc2k_core::net::screens::sessions_title`.
     let title = rc2k_core::net::screens::sessions_title(vars.sessions.get());
-    list_frame(
-        so,
-        install,
-        title,
-        &vars.sessions,
-        |n| crate::net::tables::with_session(vars, n, |s| s.name),
-        gfx,
-        system,
-    )
+    list_frame(o, title, &vars.sessions, |n| {
+        crate::net::tables::with_session(vars, n, |s| s.name)
+    })
 }

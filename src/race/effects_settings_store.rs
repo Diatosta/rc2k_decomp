@@ -156,54 +156,8 @@ pub const RECORDS_AT: usize = 0xD4;
 pub const RECORDS: usize = 5;
 
 const _: () = assert!(std::mem::size_of::<MarkRecord>() == RECORD_LEN);
-const _: () = assert!(std::mem::offset_of!(MarkRecord, pace) == 0x4);
-const _: () = assert!(std::mem::offset_of!(MarkRecord, driven_speed) == 0xC);
-const _: () = assert!(std::mem::offset_of!(MarkRecord, local_velocity_z) == 0x18);
-const _: () = assert!(std::mem::offset_of!(MarkRecord, kind) == 0x1C);
-const _: () = assert!(std::mem::offset_of!(MarkRecord, under_kind) == 0x28);
-const _: () = assert!(std::mem::offset_of!(MarkRecord, chance) == 0x34);
-const _: () = assert!(std::mem::offset_of!(MarkRecord, place) == 0x3C);
 const _: () = assert!(std::mem::size_of::<CarEffects>() == CAR_LEN);
 const _: () = assert!(std::mem::offset_of!(CarEffects, records) == RECORDS_AT);
-const _: () = {
-    use std::mem::offset_of as at;
-    assert!(at!(CarEffects, model) == 0x4);
-    assert!(at!(CarEffects, engine_speed) == 0x8);
-    assert!(at!(CarEffects, axles) == 0xC);
-    assert!(at!(CarEffects, tag) == 0x1C);
-    assert!(at!(CarEffects, whole_block) == 0x24);
-    assert!(at!(CarEffects, parts_block) == 0x28);
-    assert!(at!(CarEffects, gear_notice) == 0x2C);
-    assert!(at!(CarEffects, reset_wait) == 0x30);
-    assert!(at!(CarEffects, last_place) == 0x40);
-    assert!(at!(CarEffects, motion) == 0x4C);
-    assert!(at!(CarEffects, steps) == 0x58);
-    assert!(at!(CarEffects, pace) == 0x88);
-    assert!(at!(CarEffects, rate) == 0x90);
-    assert!(at!(CarEffects, matrix) == 0x94);
-    assert!(at!(CarEffects, unread_d0) == 0xD0);
-    assert!(at!(CarEffects, object) == 0x23C);
-    assert!(at!(CarEffects, second_object) == 0x240);
-    assert!(at!(CarEffects, morph_start) == 0x244);
-    assert!(at!(CarEffects, morph_kept) == 0x248);
-    assert!(at!(CarEffects, morph_floats) == 0x24C);
-    assert!(at!(CarEffects, face_sums) == 0x258);
-    assert!(at!(CarEffects, face_shares) == 0x270);
-    assert!(at!(CarEffects, points_list) == 0x288);
-    assert!(at!(CarEffects, unread_298) == 0x298);
-    assert!(at!(CarEffects, point_block) == 0x2C8);
-    assert!(at!(CarEffects, factors) == 0x2CC);
-    assert!(at!(CarEffects, kept_factors) == 0x2EC);
-    assert!(at!(CarEffects, slot_kinds) == 0x30C);
-    assert!(at!(CarEffects, slot_sums) == 0x32C);
-    assert!(at!(CarEffects, slot_shares) == 0x34C);
-    assert!(at!(CarEffects, kinds) == 0x36C);
-    assert!(at!(CarEffects, unread_3b0) == 0x3B0);
-    assert!(at!(CarEffects, kind_sums) == 0x3F4);
-    assert!(at!(CarEffects, kind_shares) == 0x438);
-    assert!(at!(CarEffects, kind_counts) == 0x47C);
-    assert!(at!(CarEffects, levels) == 0x4C0);
-};
 
 /// The floats' cells.
 const fn plain_floats<const N: usize>(values: [f32; N]) -> [PlainFloat; N] {

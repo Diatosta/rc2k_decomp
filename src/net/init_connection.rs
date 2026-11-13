@@ -10,16 +10,12 @@ use crate::errors::Refused;
 use crate::net::build_address::build_address;
 use crate::net::lobby::{log_bytes, log_hex, log_int_nl};
 use crate::net::owner::Net;
-use crate::race::viewer_screen_store::{ViewerPanelBlock, texts};
-pub fn init_connection(
-    net: &Net,
-    panel: &ViewerPanelBlock,
-    connection: u32,
-) -> Result<bool, Refused> {
+use crate::race::viewer_screen_store::{NetTexts, texts};
+pub fn init_connection(net: &Net, lines: &NetTexts, connection: u32) -> Result<bool, Refused> {
     let vars = &net.vars;
-    log_bytes(&panel.text(texts::NET_INIT_CONNECTION_INDEX), false, 2);
+    log_bytes(&lines.text(texts::NET_INIT_CONNECTION_INDEX), false, 2);
     log_int_nl(connection, 2);
-    if vars.dplay.get() == 0 || !build_address(net, panel, connection)? {
+    if vars.dplay.get() == 0 || !build_address(net, lines, connection)? {
         return Ok(false);
     }
     let result = {
@@ -29,7 +25,7 @@ pub fn init_connection(
             (!address.is_empty()).then_some(&address[..]),
         )
     };
-    log_bytes(&panel.text(texts::NET_INIT), false, 2);
+    log_bytes(&lines.text(texts::NET_INIT), false, 2);
     log_hex(result, true);
     Ok(result == 0)
 }

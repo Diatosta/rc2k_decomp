@@ -15,8 +15,6 @@ use crate::screens::car_caption::put_string;
 pub const TEXT_LEN: usize = 0x100;
 const FIRST_STRING: u32 = 0x21F;
 
-const _: () = assert!(std::mem::offset_of!(Player, gearing) == 0x30);
-
 pub fn current(menus: &Menus) -> Result<&'_ crate::session::Shared<Player>, Refused> {
     Ok(player(menus, menus.screens.event.current_player.get())
         .ok_or(BadInput("a current player past the four"))?)

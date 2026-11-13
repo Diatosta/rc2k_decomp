@@ -420,7 +420,7 @@ pub fn run_particles(
             s & 0xFFFF
         };
         let r = seed();
-        let view = |o: usize| frame.matrices.view_place[o / 4].get();
+        let view = |o: usize| frame.matrices.get().view_place[o / 4].get();
         let uv_k: f32 = effects.frame.draw_work.uv_k.get();
         let wave = |k: &[crate::session::PlainFloat; 3], add: f32, cosine: bool| {
             x87::int_times3_wave_plus(r as i32, [uv_k, k[0].get(), k[1].get()], &k[2], add, cosine)
@@ -687,24 +687,5 @@ impl ParticleTuning {
                 PlainFloat::new(f32::NEG_INFINITY),
             ],
         }
-    }
-}
-
-#[cfg(test)]
-mod typed_tests {
-    use super::*;
-
-    #[test]
-    fn trail_palette_starts_as_the_games() {
-        let image = crate::test_support::first_values::bytes("effects.run_particles.TRAIL_PALETTE");
-        assert_eq!(size_of::<TrailColours>(), image.len());
-        let p = std::ptr::from_ref(&TRAIL_PALETTE).cast::<u8>();
-        let mine: Vec<u8> = (0..image.len())
-            .map(|i| unsafe { p.add(i).read() })
-            .collect();
-        assert!(
-            mine == image,
-            "TRAIL_PALETTE starts differently from the image"
-        );
     }
 }

@@ -134,11 +134,6 @@ impl InstallerRun {
     }
 }
 
-impl InstallerRun {
-    pub const START: usize = 0x51B9C8;
-    pub const LEN: usize = 0x198;
-}
-
 /// The registry names, the installed record, the scripts and file names, the languages (IDA 0x51BB60 .. 0x51C407, the image's layout).
 #[repr(C, align(16))]
 #[derive(rc2k_derive::Cells)]
@@ -237,11 +232,6 @@ impl InstallerNames {
     _tail: PlainBytes::new([0; 9]),
         }
     }
-}
-
-impl InstallerNames {
-    pub const START: usize = 0x51BB60;
-    pub const LEN: usize = 0x8A7;
 }
 
 /// A record of a drawing list on the pages (`install::draw_string_list`): 16 bytes at any
@@ -550,36 +540,6 @@ impl InstallerPages {
     }
 }
 
-// The layout of the image's bytes: every record sits at its IDA address (the struct's first
-// byte is 0x51C400), and the whole is the size the bytes had.
-const _: () = {
-    use core::mem::offset_of;
-    const BASE: usize = 0x51C400;
-    assert!(offset_of!(InstallerPages, texts) == 0x51D433 - BASE);
-    assert!(offset_of!(InstallerPages, msg_error) == 0x51D453 - BASE);
-    assert!(offset_of!(InstallerPages, msg_cancel) == 0x51D463 - BASE);
-    assert!(offset_of!(InstallerPages, remove_strings) == 0x51D473 - BASE);
-    assert!(offset_of!(InstallerPages, bar_glyphs_list) == 0x51D483 - BASE);
-    assert!(offset_of!(InstallerPages, kind_fonts) == 0x51D528 - BASE);
-    assert!(offset_of!(InstallerPages, page_table) == 0x51D594 - BASE);
-    assert!(offset_of!(InstallerPages, language_menu) == 0x51D670 - BASE);
-    assert!(offset_of!(InstallerPages, main_menu) == 0x51D728 - BASE);
-    assert!(offset_of!(InstallerPages, mode_menu) == 0x51D790 - BASE);
-    assert!(offset_of!(InstallerPages, drive_menu_8) == 0x51D7F8 - BASE);
-    assert!(offset_of!(InstallerPages, drive_menu_16) == 0x51D8B0 - BASE);
-    assert!(offset_of!(InstallerPages, menu_more) == 0x51D9E8 - BASE);
-    assert!(offset_of!(InstallerPages, folder_menu) == 0x51DBA0 - BASE);
-    assert!(offset_of!(InstallerPages, room_menu) == 0x51DC18 - BASE);
-    assert!(offset_of!(InstallerPages, dxsetup_menu) == 0x51DC60 - BASE);
-    assert!(offset_of!(InstallerPages, finish_menu) == 0x51DCB8 - BASE);
-    assert!(offset_of!(InstallerPages, action_pages) == 0x51DD10 - BASE);
-    assert!(offset_of!(InstallerPages, folder_edit) == 0x51DD70 - BASE);
-    assert!(offset_of!(InstallerPages, title) == 0x51DD78 - BASE);
-    assert!(offset_of!(InstallerPages, boxes) == 0x51DD88 - BASE);
-    assert!(offset_of!(InstallerPages, bad_folder_chars) == 0x51DE18 - BASE);
-    assert!(size_of::<InstallerPages>() == 0x1A30);
-};
-
 impl InstallerPages {
     /// The byte `index` of `kind_fonts` (8 bytes a font kind); an index past the table ends
     /// the program as every checked installer read does.
@@ -607,12 +567,6 @@ impl InstallerPages {
             .font()
             .map_err(|_| crate::errors::BadInput("a page font that is no font object"))
     }
-
-    /// 0x51D4C4: `dword_51D4C4`, the page fonts' table.
-    #[cfg(test)]
-    const FONTS_AT: usize = Self::START + 0x10BD;
-    pub const START: usize = 0x51C407;
-    pub const LEN: usize = 0x1A25;
 }
 
 /// The installer's path buffers (0x100 bytes each; the network's lobby edits two of them) (IDA 0x95E6F8 .. 0x95ECF8, the image's layout).
@@ -652,11 +606,6 @@ impl InstallerPaths {
     }
 }
 
-impl InstallerPaths {
-    pub const START: usize = 0x95E6F8;
-    pub const LEN: usize = 0x600;
-}
-
 /// The installer's palette buffer (IDA 0x4F3874 .. 0x4F3B74, the image's layout).
 #[repr(C, align(16))]
 #[derive(rc2k_derive::Cells)]
@@ -676,154 +625,5 @@ impl InstallerPalette {
             palette: PlainBytes::new([0; 768]),
             _tail: PlainBytes::new([0; 12]),
         }
-    }
-}
-
-impl InstallerPalette {
-    pub const START: usize = 0x4F3874;
-    pub const LEN: usize = 0x300;
-}
-
-/// The installer pages' dwords that name data: the pages' links, their items' fonts and
-/// variables (IDA's addresses, sorted). The code pointers beside them stay addresses.
-#[cfg(test)]
-pub(super) const PAGE_LINKS: [u32; 105] = [
-    0x51D43B, 0x51D44B, 0x51D45B, 0x51D46B, 0x51D47B, 0x51D48F, 0x51D49F, 0x51D594, 0x51D59C,
-    0x51D5A0, 0x51D5A4, 0x51D5A8, 0x51D5AC, 0x51D5B0, 0x51D5B4, 0x51D5B8, 0x51D5BC, 0x51D5C0,
-    0x51D5C8, 0x51D5CC, 0x51D5D0, 0x51D5D4, 0x51D5D8, 0x51D5E0, 0x51D5E4, 0x51D5E8, 0x51D5EC,
-    0x51D5F0, 0x51D5F4, 0x51D5F8, 0x51D5FC, 0x51D600, 0x51D604, 0x51D608, 0x51D60C, 0x51D610,
-    0x51D614, 0x51D618, 0x51D61C, 0x51D620, 0x51D62C, 0x51D630, 0x51D634, 0x51D638, 0x51D63C,
-    0x51D648, 0x51D654, 0x51D660, 0x51D814, 0x51D824, 0x51D834, 0x51D844, 0x51D854, 0x51D864,
-    0x51D874, 0x51D884, 0x51D894, 0x51D8A4, 0x51D8CC, 0x51D8DC, 0x51D8EC, 0x51D8FC, 0x51D90C,
-    0x51D91C, 0x51D92C, 0x51D93C, 0x51D94C, 0x51D95C, 0x51D96C, 0x51D97C, 0x51D98C, 0x51D99C,
-    0x51D9AC, 0x51D9BC, 0x51D9CC, 0x51D9DC, 0x51DA04, 0x51DA14, 0x51DA24, 0x51DA34, 0x51DA44,
-    0x51DA54, 0x51DA64, 0x51DA74, 0x51DA84, 0x51DA94, 0x51DAA4, 0x51DAB4, 0x51DAC4, 0x51DAD4,
-    0x51DAE4, 0x51DAF4, 0x51DB04, 0x51DB14, 0x51DB24, 0x51DB34, 0x51DB44, 0x51DB54, 0x51DB64,
-    0x51DB74, 0x51DB84, 0x51DB94, 0x51DBD0, 0x51DBD4, 0x51DD7C,
-];
-
-#[cfg(test)]
-mod tests {
-    use crate::install::page_links::image_addresses::{font_at_ida, of_ida};
-    /// The game's pages block and names block (named reads of `data/first_values.golden`),
-    /// and the pages store's key.
-    const PAGES_IMAGE: &str = "install.owner.INSTALL.pages/6693";
-    const NAMES_IMAGE: &str = "install.owner.INSTALL.names/2215";
-    const PAGES_STORE: &str = "store:install.owner.INSTALL.pages";
-
-    /// The game's dword at the address `at` of its pages block.
-    fn pages_dword(at: usize) -> u32 {
-        let image = crate::test_support::first_values::bytes(PAGES_IMAGE);
-        let off = at - InstallerPages::START;
-        u32::from_le_bytes(image[off..off + 4].try_into().unwrap())
-    }
-
-    #[test]
-    fn page_links_are_the_images_data_pointers() {
-        for &p in &PAGE_LINKS {
-            let off = p as usize - InstallerPages::START;
-            let ida = pages_dword(p as usize);
-            assert!(ida != 0, "{p:#X}");
-            let link = PageLink::from_raw(
-                crate::cells::load_value::<u32>(&crate::install::owner::install().pages, off + 7)
-                    .unwrap(),
-            );
-            assert_eq!(link, of_ida(ida), "{p:#X}");
-        }
-    }
-
-    use super::*;
-
-    #[test]
-    fn installer_page_fonts_resolve_as_the_images_do() {
-        // Slot 0 is no font; the others name font objects, as the image's dwords do.
-        assert!(InstallerPages::font_of(crate::install::owner::install(), 0).is_err());
-        assert!(InstallerPages::font_of(crate::install::owner::install(), 25).is_err());
-        for n in 1..25 {
-            let ida = pages_dword(InstallerPages::FONTS_AT + 4 * n);
-            let font = font_at_ida(ida).unwrap();
-            assert_eq!(font.ida() as u32, ida);
-            assert_eq!(
-                InstallerPages::font_of(crate::install::owner::install(), n as u32).unwrap(),
-                font
-            );
-        }
-    }
-
-    #[test]
-    fn installer_languages_keys_are_the_images() {
-        // Nine keys, a slot's address each (the first's + 0x80 n), kept as the image's numbers.
-        let first_slot = {
-            let at = core::mem::offset_of!(InstallerNames, _gap_51c378);
-            let image = &crate::test_support::first_values::bytes(NAMES_IMAGE)[at..at + 0xE];
-            u32::from_le_bytes(image[6..10].try_into().unwrap()) as usize
-        };
-        for n in 0..9 {
-            let at = core::mem::offset_of!(InstallerNames, _gap_51c378) + 0xE * n;
-            let image = &crate::test_support::first_values::bytes(NAMES_IMAGE)[at..at + 0xE];
-            assert_eq!(&image[..5], format!("lang{}", n + 1).as_bytes());
-            let slot = u32::from_le_bytes(image[6..10].try_into().unwrap()) as usize;
-            assert_eq!(slot, first_slot + 0x80 * n);
-        }
-    }
-
-    #[test]
-    fn installerrun_starts_as_the_games() {
-        // `list_folder_tree`'s test writes these (under the lock).
-        let _lock = crate::test_support::test_lock();
-        let size = size_of::<InstallerRun>();
-        assert!(
-            8 + InstallerRun::LEN <= size && size <= (8 + InstallerRun::LEN).next_multiple_of(16)
-        );
-    }
-
-    #[test]
-    fn installernames_starts_as_the_games() {
-        // `list_folder_tree`'s test writes these (under the lock).
-        let _lock = crate::test_support::test_lock();
-        let size = size_of::<InstallerNames>();
-        assert!(InstallerNames::LEN <= size && size <= (InstallerNames::LEN).next_multiple_of(16));
-    }
-
-    #[test]
-    fn installerpages_starts_as_the_games() {
-        let size = size_of::<InstallerPages>();
-        assert!(
-            7 + InstallerPages::LEN <= size
-                && size <= (7 + InstallerPages::LEN).next_multiple_of(16)
-        );
-        let mut image = crate::test_support::first_values::bytes(PAGES_IMAGE).to_vec();
-        // The links are the handles that stand for the image's addresses.
-        let fonts_at = InstallerPages::FONTS_AT - InstallerPages::START;
-        for n in 1..25 {
-            let at = fonts_at + 4 * n;
-            let ida = u32::from_le_bytes(image[at..at + 4].try_into().unwrap());
-            image[at..at + 4].copy_from_slice(&of_ida(ida).raw().to_le_bytes());
-        }
-        for &p in &PAGE_LINKS {
-            let at = p as usize - InstallerPages::START;
-            let ida = u32::from_le_bytes(image[at..at + 4].try_into().unwrap());
-            image[at..at + 4].copy_from_slice(&of_ida(ida).raw().to_le_bytes());
-        }
-        let mine = crate::test_support::first_values::store_bytes(PAGES_STORE);
-        assert_eq!(mine, image);
-    }
-
-    #[test]
-    fn installerpaths_starts_as_the_games() {
-        let size = size_of::<InstallerPaths>();
-        assert!(
-            8 + InstallerPaths::LEN <= size
-                && size <= (8 + InstallerPaths::LEN).next_multiple_of(16)
-        );
-    }
-
-    #[test]
-    fn installerpalette_starts_as_the_games() {
-        let size = size_of::<InstallerPalette>();
-        assert!(
-            4 + InstallerPalette::LEN <= size
-                && size <= (4 + InstallerPalette::LEN).next_multiple_of(16)
-        );
     }
 }

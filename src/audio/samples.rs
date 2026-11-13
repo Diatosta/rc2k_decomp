@@ -12,11 +12,10 @@
 //! The format word: 0x10 eight bits, 0x20 sixteen; 0x100 mono, 0x200 stereo; the low four
 //! bits how many times the data was halved (the frequency is shifted right by them).
 
-use crate::audio::owner::Audio;
-use crate::audio::store::AudioState;
+use crate::audio::own::{AudioOwn, AudioThread};
 use crate::audio::voices::*;
 use crate::errors::Refused;
-use crate::session::{Dword, Shared};
+use crate::session::{Plain, PlainDword};
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -37,11 +36,11 @@ const _: () = assert!(std::mem::size_of::<SampleFile>() == 0x20);
 /// Reads and parses a sample file into `buffer`: true for the carry clear (a sample was
 /// found). The data's id goes in `out`.
 pub fn read_sample(
-    state: &AudioState,
+    state: &AudioOwn,
     path: &[u8],
     buffer: crate::audio::sample_data::Buffer,
     size: u32,
-    out: &Shared<SampleFile>,
+    out: &Plain<SampleFile>,
 ) -> Result<bool, Refused> {
     use crate::audio::sample_data as data;
     let mut file = out.get();
@@ -98,7 +97,7 @@ pub fn read_sample(
 }
 
 /// A table of two {flag, value} entries, as the core takes it.
-pub fn flags(table: &[Dword; 4]) -> rc2k_core::audio::samples::FormatBitTable {
+pub fn flags(table: &[PlainDword; 4]) -> rc2k_core::audio::samples::FormatBitTable {
     [
         (table[0].get(), table[1].get()),
         (table[2].get(), table[3].get()),
@@ -106,7 +105,7 @@ pub fn flags(table: &[Dword; 4]) -> rc2k_core::audio::samples::FormatBitTable {
 }
 
 /// The game's: the work buffer and `g_sampleFile`.
-pub fn read_sample_in_game(state: &AudioState, path: &[u8]) -> Result<bool, Refused> {
+pub fn read_sample_in_game(state: &AudioOwn, path: &[u8]) -> Result<bool, Refused> {
     read_sample(
         state,
         path,
@@ -117,7 +116,7 @@ pub fn read_sample_in_game(state: &AudioState, path: &[u8]) -> Result<bool, Refu
 }
 
 /// The voice of `count` from `voices` whose `data_key` is the record's (0: none).
-pub fn find_shared_voice(audio: &Audio, record: &SampleRecord, count: u32) -> u32 {
+pub fn find_shared_voice(audio: &AudioThread, record: &SampleRecord, count: u32) -> u32 {
     // Converted: `rc2k_core::audio::voices::find_shared`.
     rc2k_core::audio::voices::find_shared(
         &mut GamePool::new(audio),
@@ -131,7 +130,7 @@ pub fn find_shared_voice(audio: &Audio, record: &SampleRecord, count: u32) -> u3
 /// `audio::fill_voice`: the voice `at` for the record (`record` its sample record), from the
 /// sample file or, with `shared`, from that voice.
 pub fn fill_voice(
-    audio: &Audio,
+    audio: &AudioThread,
     at: u32,
     record: SampleRecord,
     shared: u32,
@@ -156,12 +155,10 @@ pub fn fill_voice(
         sound_mode & 0x1_0000 != 0,
         // The record's level (`audio::store::VolumeLevel`).
         |factor| {
-            crate::audio::store::volume_level(audio, factor)
-                .map(super::super::session::Dword::get)
-                .unwrap_or_else(|e| {
-                    failed.set(failed.get().or(Some(e)));
-                    0
-                })
+            crate::audio::store::volume_level(audio, factor).unwrap_or_else(|e| {
+                failed.set(failed.get().or(Some(e)));
+                0
+            })
         },
     );
     if let Some(e) = failed.get() {

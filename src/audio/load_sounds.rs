@@ -13,7 +13,7 @@
 //! Refuses, before anything is done: a list without its -1 within 0x1000 entries, or with
 //! a sound of 0x1CD or more; A3D.
 
-use crate::audio::owner::Audio;
+use crate::audio::own::AudioThread;
 use crate::audio::voices::*;
 use crate::errors::{BadInput, Refused};
 #[cfg(test)]
@@ -25,14 +25,14 @@ use rc2k_core::audio::commands::SoundList;
 /// record, the voice, the shared voice or the mode; `make_buffer` the record as the
 /// holder value its EAX set-up reads through).
 struct GameLoader<'a> {
-    audio: &'a Audio,
+    audio: &'a AudioThread,
     system: &'a System,
 }
 
 impl<'a> GameLoader<'a> {
     /// The record, which `make_buffer` takes as its holder value.
     fn record_at(&self, sound: u32) -> crate::audio::property_sets::Holder<'a> {
-        let audio: &'a Audio = self.audio;
+        let audio: &'a AudioThread = self.audio;
         crate::audio::property_sets::Holder::Record(&audio.sample_records.records[sound as usize])
     }
 }
@@ -123,7 +123,7 @@ fn list_entries<'a>(
 
 /// Converted: `rc2k_core::audio::load` (`entries`, `load`).
 pub fn load_sounds(
-    audio: &Audio,
+    audio: &AudioThread,
     system: &System,
     sound: &crate::sound::owner::Sound,
     list: Option<SoundList>,

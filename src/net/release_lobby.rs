@@ -4,8 +4,8 @@
 //! Caller: `net::destroy_connection`. `Release` from Rust (`net::dplay`).
 //! Refuses nothing.
 
-use crate::net::store::NetVars;
-pub fn release_lobby(vars: &NetVars) {
+use crate::net::store::NetShared;
+pub fn release_lobby(vars: &NetShared) {
     if vars.lobby.get() != 0 {
         crate::net::dp_objects::release(vars.lobby.get());
         vars.lobby.set(0);

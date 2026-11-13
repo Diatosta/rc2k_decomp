@@ -10,11 +10,11 @@
 //! `volume_factor` 0x40, `min_distance` 1.0. Callers: `audio::start` (0x40A0DB) and
 //! `audio::free_voices`.
 
-use crate::audio::store::AudioState;
+use crate::audio::own::AudioOwn;
 use crate::audio::voices::*;
 use crate::platform_sound as ds;
 
-pub fn release_voice(state: &AudioState, at: u32, a3d: bool) {
+pub fn release_voice(state: &AudioOwn, at: u32, a3d: bool) {
     update_voice(state, at, |v| {
         if a3d {
             // A3D's source objects (`Stop` at +0x38, `Release`): A3D is never there
@@ -42,6 +42,6 @@ pub fn release_voice(state: &AudioState, at: u32, a3d: bool) {
 }
 
 /// With the game's A3D switch.
-pub fn release_voice_in_game(state: &AudioState, at: u32) {
+pub fn release_voice_in_game(state: &AudioOwn, at: u32) {
     release_voice(state, at, state.use_a3d.get() == 1);
 }

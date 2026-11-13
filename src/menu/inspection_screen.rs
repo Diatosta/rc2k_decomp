@@ -29,6 +29,6 @@ pub fn inspection_screen(o: crate::owners::Owners<'static>) -> Result<(), Refuse
     crate::gfx::copy_picture_to_surface::copy_picture_to_surface(
         &mut crate::gfx::copy_picture_to_surface::GameSurface(o.gfx, o.system),
     )?;
-    crate::platform::show_frame_now();
+    crate::platform::show_frame_now(o);
     Ok(())
 }

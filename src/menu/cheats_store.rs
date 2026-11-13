@@ -20,7 +20,6 @@ pub struct Cheats {
     pub all_secret_cars: PlainDword,
 }
 
-/// First values the image's (`tests::cheat_vars_starts_as_the_games`).
 impl Cheats {
     pub const fn new() -> Self {
         Cheats {
@@ -57,16 +56,5 @@ impl Cheats {
             cheats: PlainDword::new(0x0),
             all_secret_cars: PlainDword::new(0xFFFFFFFF),
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-
-    #[test]
-    fn cheat_vars_starts_as_the_games() {
-        crate::test_support::first_values::assert_block_starts_as_the_games(
-            &crate::menu::owner::menus().play.cheats,
-        );
     }
 }

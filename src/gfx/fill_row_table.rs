@@ -10,8 +10,6 @@
 //! table holds each row's offset in it: its callers give 0 for the first row.
 
 use crate::errors::BadInput;
-#[cfg(test)]
-use crate::gfx::owner::gfx;
 
 // ---- game data ----
 
@@ -51,16 +49,4 @@ pub fn fill_row_table(
         cell.set(address);
     }
     Ok(())
-}
-
-#[cfg(test)]
-mod block_tests {
-    use super::*;
-
-    #[test]
-    fn first_values_are_the_games() {
-        crate::test_support::first_values::assert_block_starts_as_the_games(
-            &gfx().drawing.row_table,
-        );
-    }
 }

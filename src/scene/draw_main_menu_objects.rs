@@ -48,6 +48,6 @@ pub fn run(o: crate::owners::Owners<'static>) -> Result<(), crate::errors::Refus
             system,
         }),
     );
-    let _held = ctx.view.matrices.hold(&race.frame.matrices, ctx.part);
+    let _held = ctx.view.matrices.hold(ctx.reads.matrices, ctx.part);
     draw_main_menu_carousel(menus, &ctx, count)
 }

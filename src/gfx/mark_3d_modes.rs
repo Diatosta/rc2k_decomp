@@ -32,7 +32,7 @@ pub fn mark_3d_modes(
     d3d: &D3d,
     kind: u32,
 ) -> Result<(), Refused> {
-    if system.session.machine.has_fpu.get() != 1 {
+    if system.session.host.has_fpu.get() != 1 {
         return Ok(());
     }
     let count: u32 = display.modes.count.get();

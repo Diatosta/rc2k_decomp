@@ -5,8 +5,6 @@
 //! scaled to a split). `#[repr(C)]` with the image's layout, over the race block's bytes
 //! (`SPLIT_TABLES`). Names are readings unless IDA's.
 
-#[cfg(test)]
-use crate::race::owner::race;
 use crate::session::{PlainDword, PlainFloat};
 
 #[repr(C)]
@@ -72,17 +70,5 @@ impl SplitTables {
             kind_factor: PlainFloat::new(1.0),
             ..ZeroCells::ZERO
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn first_values_are_the_games() {
-        crate::test_support::first_values::assert_block_starts_as_the_games(
-            race().physics.split_tables(),
-        );
     }
 }

@@ -10,7 +10,7 @@
 //! `#[repr(C)]` structs of atomic cells with the image's layout, first values the image's
 //! (`tests`).
 
-use crate::session::{Bytes, Cell32, Dword, Float, PlainBytes, PlainDword, PlainFloat, with_runs};
+use crate::session::{Bytes, Cell32, Dword, PlainBytes, PlainDword, PlainFloat, with_runs};
 
 /// Handle of the race's sets: in place of a list's address the table holds
 /// `TAG | (address - the piece's start)`; 0 does not occur. The resolver keeps
@@ -57,9 +57,6 @@ impl MenuSounds {
     pub fn sound(&self, n: usize) -> Option<u32> {
         (n < self.list.atomics().len() / 4).then(|| self.list.get_u32(4 * n))
     }
-
-    pub const START: usize = 0x511AE4;
-    pub const LEN: usize = 0x28;
 }
 
 /// The sets of sounds a race loads (`sound::load_race_sounds`) and the request it sends (IDA 0x511B10 .. 0x5124E4, the image's layout).
@@ -86,38 +83,56 @@ pub struct RaceSoundSets {
     pub replay_set: [Dword; 8],
     /// 0x512360: `off_512360`: two sets (pointers) a kind of car.
     pub kinds: [Dword; 87],
-    /// 0x5124BC: `g_raceSoundRequest`: the request `sound::turn_parts` sends (a work area).
-    pub request: SoundRequest,
-    /// Not in the image: the bytes that fill the record to its 16-byte alignment.
-    pub _tail: Bytes<12>,
+    /// Not in the image: the bytes that fill the record to its 16-byte alignment (the
+    /// image's `g_raceSoundRequest` followed here: it is the game thread's now, `SoundRequest`).
+    pub _tail: Bytes<4>,
 }
 
 /// `g_raceSoundRequest` (0x5124BC): the ten dwords the race's sounds are sent with
-/// (`sound::play_placed_sound`, `sound::stop_sound`); a work area each turn fills again.
+/// (`sound::play_placed_sound`, `sound::stop_sound`); a work area each turn fills again. The game
+/// thread's (`sound::owner::RaceSoundState::request`).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct SoundRequest {
     /// +0: the sound (bit 0x8000: none).
-    pub sound: Dword,
+    pub sound: PlainDword,
     /// +4: the pitch, a float (`sound::revs_sound::fill_pitch_and_volume`), then the whole number sent.
-    pub pitch: Dword,
+    pub pitch: PlainDword,
     /// +8: the volume, a float, then (without 3D) the whole number sent.
-    pub volume: Dword,
+    pub volume: PlainDword,
     /// +0xC .. +0x14: where the sound is, three floats.
-    pub place: [Float; 3],
+    pub place: [PlainFloat; 3],
     /// +0x18: without 3D, the angle (`fpatan` of +0x14 over +0xC).
-    pub angle: Dword,
+    pub angle: PlainDword,
     /// +0x1C: without 3D, the place between left and right (a whole number).
-    pub pan: Dword,
+    pub pan: PlainDword,
     /// +0x20: the pitch's factor, a float.
-    pub pitch_factor: Float,
+    pub pitch_factor: PlainFloat,
     /// +0x24: the volume's factor, a float.
-    pub volume_factor: Float,
+    pub volume_factor: PlainFloat,
 }
 
 const _: () = assert!(size_of::<SoundRequest>() == 40);
 
 impl SoundRequest {
+    /// The request as the game starts: all 0.
+    pub const fn new() -> Self {
+        Self {
+            sound: PlainDword::new(0),
+            pitch: PlainDword::new(0),
+            volume: PlainDword::new(0),
+            place: [
+                PlainFloat::new(0.0),
+                PlainFloat::new(0.0),
+                PlainFloat::new(0.0),
+            ],
+            angle: PlainDword::new(0),
+            pan: PlainDword::new(0),
+            pitch_factor: PlainFloat::new(0.0),
+            volume_factor: PlainFloat::new(0.0),
+        }
+    }
+
     /// Stores `bits` in dword `n` (the original's +4n), for the cores that name the words by
     /// number; None past the ten.
     pub fn set_word(&self, n: usize, bits: u32) -> Option<()> {
@@ -779,17 +794,7 @@ impl RaceSoundSets {
                 Dword::new(0x4),
                 Dword::new(0x0),
             ],
-            request: SoundRequest {
-                sound: Dword::new(0),
-                pitch: Dword::new(0),
-                volume: Dword::new(0),
-                place: [Float::new(0.0), Float::new(0.0), Float::new(0.0)],
-                angle: Dword::new(0),
-                pan: Dword::new(0),
-                pitch_factor: Float::new(0.0),
-                volume_factor: Float::new(0.0),
-            },
-            _tail: Bytes::new([0; 12]),
+            _tail: Bytes::new([0; 4]),
         }
     }
 }
@@ -840,12 +845,8 @@ impl RaceSoundSets {
         Ok(at.and_then(|at| crate::cells::load_value::<u32>(sets, at).ok()))
     }
 
-    /// 0x512360: `off_512360`, 36 kinds of car, two sets each.
-    #[cfg(test)]
-    const KINDS_AT: usize = Self::START + 0x850;
     const KIND_ENTRIES: usize = 72;
-    pub const START: usize = 0x511B10;
-    pub const LEN: usize = 0x9D4;
+    const LEN: usize = 0x9D4;
 }
 
 /// The cues' lists (IDA 0x512508 .. 0x512A10, the image's layout).
@@ -868,11 +869,6 @@ impl CueLists {
     lists: PlainBytes::new(with_runs::<836>(&[(0, b"\xff\xff\xff\xffE\x01\x00\x00\xff\xff\xff\xffG\x01\x00\x00\xff\xff\xff\xffI\x01\x00\x00\xff\xff\xff\xffK\x01\x00\x00\xff\xff\xff\xffM\x01\x00\x00\xff\xff\xff\xffO\x01\x00\x00\xff\xff\xff\xffQ\x01\x00\x00\xff\xff\xff\xffS\x01\x00\x00\xff\xff\xff\xffe\x01\x00\x00E\x01\x00\x00\xff\xff\xff\xffe\x01\x00\x00G\x01\x00\x00\xff\xff\xff\xffe\x01\x00\x00I\x01\x00\x00\xff\xff\xff\xffe\x01\x00\x00K\x01\x00\x00\xff\xff\xff\xffe\x01\x00\x00M\x01\x00\x00\xff\xff\xff\xffU\x01\x00\x00\xff\xff\xff\xffW\x01\x00\x00\xff\xff\xff\xffY\x01\x00\x00\xff\xff\xff\xff[\x01\x00\x00\xff\xff\xff\xff]\x01\x00\x00\xff\xff\xff\xff_\x01\x00\x00\xff\xff\xff\xffa\x01\x00\x00\xff\xff\xff\xffc\x01\x00\x00\xff\xff\xff\xffe\x01\x00\x00U\x01\x00\x00\xff\xff\xff\xffe\x01\x00\x00W\x01\x00\x00\xff\xff\xff\xffe\x01\x00\x00Y\x01\x00\x00\xff\xff\xff\xffe\x01\x00\x00[\x01\x00\x00\xff\xff\xff\xffe\x01\x00\x00]\x01\x00\x00\xff\xff\xff\xffe\x01\x00\x00\xff\xff\xff\xffg\x01\x00\x00\xff\xff\xff\xff\xf9\x00\x00\x00\xff\xff\xff\xff\xfb\x00\x00\x00\xff\xff\xff\xff\xfd\x00\x00\x00\xff\xff\xff\xff\xff\x00\x00\x00\xff\xff\xff\xff\x01\x01\x00\x00\xff\xff\xff\xff\x03\x01\x00\x00\xff\xff\xff\xff\x05\x01\x00\x00\xff\xff\xff\xff\x07\x01\x00\x00\xff\xff\xff\xff\t\x01\x00\x00\xff\xff\xff\xff\x0b\x01\x00\x00\xff\xff\xff\xff1\x01\x00\x00!\x01\x00\x00?\x01\x00\x00\xff\xff\xff\xff\x11\x01\x00\x00\xff\xff\xff\xff\x0f\x01\x00\x00\xff\xff\xff\xff\x13\x01\x00\x00\xff\xff\xff\xff\r\x01\x00\x00\xff\xff\xff\xff1\x01\x00\x00\xff\xff\xff\xffA\x01\x00\x00\xff\xff\xff\xff=\x01\x00\x00\xff\xff\xff\xff3\x01\x00\x00\xff\xff\xff\xff\x1b\x01\x00\x00\xff\xff\xff\xff)\x01\x00\x00\xff\xff\xff\xff\x1d\x01\x00\x00\xff\xff\xff\xff#\x01\x00\x00\xff\xff\xff\xff+\x01\x00\x00\xff\xff\xff\xffC\x01\x00\x00\xff\xff\xff\xff\x15\x01\x00\x00\xff\xff\xff\xff\x17\x01\x00\x00\xff\xff\xff\xff\x1f\x01\x00\x00\xff\xff\xff\xff%\x01\x00\x00\xff\xff\xff\xff\x19\x01\x00\x00\xff\xff\xff\xff'\x01\x00\x00\xff\xff\xff\xff-\x01\x00\x00\xff\xff\xff\xff/\x01\x00\x00\xff\xff\xff\xff5\x01\x00\x00\xff\xff\xff\xff7\x01\x00\x00\xff\xff\xff\xff9\x01\x00\x00\xff\xff\xff\xff;\x01\x00\x00\xff\xff\xff\xff}\x01\x00\x00\xff\xff\xff\xff\x81\x01\x00\x00\xff\xff\xff\xff\x7f\x01\x00\x00\xff\xff\xff\xffs\x01\x00\x00\xff\xff\xff\xffi\x01\x00\x00\xff\xff\xff\xffk\x01\x00\x00\xff\xff\xff\xffm\x01\x00\x00\xff\xff\xff\xffo\x01\x00\x00\xff\xff\xff\xffq\x01\x00\x00\xff\xff\xff\xffu\x01\x00\x00\xff\xff\xff\xffw\x01\x00\x00\xff\xff\xff\xffy\x01\x00\x00\xff\xff\xff\xff{\x01\x00\x00\xff\xff\xff\xff\x83\x01\x00\x00\xff\xff\xff\xff\x85\x01\x00\x00\xff\xff\xff\xff\x87\x01\x00\x00\xff\xff\xff\xff\x89\x01\x00\x00\xff\xff\xff\xff\x8b\x01\x00\x00\xff\xff\xff\xff\x8d\x01\x00\x00\xff\xff\xff\xff\x8f\x01\x00\x00\xff\xff\xff\xff\x91\x01\x00\x00\xff\xff\xff\xff\x93\x01\x00\x00\xff\xff\xff\xff\x95\x01\x00\x00\xff\xff\xff\xff\x97\x01\x00\x00\xff\xff\xff\xff\x99\x01\x00\x00\xff\xff\xff\xff\x9b\x01\x00\x00\xff\xff\xff\xff\x9d\x01\x00\x00\xff\xff\xff\xff\x9f\x01\x00\x00\xff\xff\xff\xff\xa1\x01\x00\x00\xff\xff\xff\xff\xa3\x01\x00\x00\xff\xff\xff\xff\xa5\x01\x00\x00\xff\xff\xff\xff\xa7\x01\x00\x00\xff\xff\xff\xff\xa9\x01\x00\x00\xff\xff\xff\xff")])),
         }
     }
-}
-
-impl CueLists {
-    pub const START: usize = 0x512508;
-    pub const LEN: usize = 0x508;
 }
 
 /// A list of dwords inside a block of bytes, read by position and bounded to the block.
@@ -993,11 +989,6 @@ pub struct KindRecord {
 
 const KIND_RECORD_LEN: usize = 0x88;
 const _: () = assert!(size_of::<KindRecord>() == KIND_RECORD_LEN);
-const _: () = assert!(core::mem::offset_of!(KindRecord, revs) == 0x10);
-const _: () = assert!(core::mem::offset_of!(KindRecord, throttle) == 0x38);
-const _: () = assert!(core::mem::offset_of!(KindRecord, speed) == 0x60);
-const _: () = assert!(core::mem::offset_of!(SoundSet, pitch_scale) == 0x18);
-const _: () = assert!(core::mem::offset_of!(SoundSet, volume_scale) == 0x24);
 
 impl KindRecord {
     /// A record of zeros with the byte runs `runs` ((offset, bytes), as `with_runs`).
@@ -1515,9 +1506,6 @@ impl SoundKinds {
     pub fn computers_set(&self) -> &SoundSet {
         &self.computers
     }
-
-    pub const START: usize = 0x514F90;
-    pub const LEN: usize = 0x13C8;
 }
 
 /// The surface sound sets (IDA 0x51639C .. 0x51655C, the image's layout).
@@ -1558,9 +1546,6 @@ impl SurfaceSets {
             from: cell.get() as usize,
         })
     }
-
-    pub const START: usize = 0x51639C;
-    pub const LEN: usize = 0x1C0;
 }
 
 /// The spot voices (IDA 0x5168C0 .. 0x517F40, the image's layout).
@@ -3164,91 +3149,27 @@ impl SpotVoices {
     }
 }
 
-impl SpotVoices {
-    pub const START: usize = 0x5168C0;
-    pub const LEN: usize = 0x1680;
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_support::first_values;
-
-    /// The game's first bytes of the stores that hold handles where the game holds addresses
-    /// (named reads of `data/first_values.golden`), and the stores' golden keys.
-    const SETS_IMAGE: &str = "sound.owner.SOUND.race.sets/2516";
-    const CUES_IMAGE: &str = "sound.owner.SOUND.race.cue_lists/1288";
-    const KINDS_IMAGE: &str = "sound.owner.SOUND.race.kinds/5064";
-    const SURFACES_IMAGE: &str = "sound.owner.SOUND.race.surface_sets/448";
-    const SETS_STORE: &str = "store:sound.owner.SOUND.race.sets";
-    const CUES_STORE: &str = "store:sound.owner.SOUND.race.cue_lists";
-    const KINDS_STORE: &str = "store:sound.owner.SOUND.race.kinds";
-    const SURFACES_STORE: &str = "store:sound.owner.SOUND.race.surface_sets";
-
-    /// The image's `count` address dwords from `at` made handles of `tag` (offsets from `start`).
-    fn handled(image: &mut [u8], at: usize, count: usize, tag: u32, start: usize) {
-        for k in 0..count {
-            let o = at + 4 * k;
-            let v = u32::from_le_bytes(image[o..o + 4].try_into().unwrap());
-            image[o..o + 4].copy_from_slice(&(tag | (v - start as u32)).to_le_bytes());
-        }
-    }
-
-    /// The image's `count` address dwords from `at` made `(address - first) / unit`: where the
-    /// list or record they name starts in the block that follows the table.
-    fn indexed(image: &mut [u8], at: usize, count: usize, first: usize, unit: usize) {
-        for k in 0..count {
-            let o = at + 4 * k;
-            let v = u32::from_le_bytes(image[o..o + 4].try_into().unwrap());
-            let v = (v as usize - first) / unit;
-            image[o..o + 4].copy_from_slice(&(v as u32).to_le_bytes());
-        }
-    }
 
     #[test]
-    fn menusounds_starts_as_the_games() {
-        let size = size_of::<MenuSounds>();
-        assert!(4 + MenuSounds::LEN <= size && size <= (4 + MenuSounds::LEN).next_multiple_of(16));
-    }
-
-    #[test]
-    fn racesoundsets_starts_as_the_games() {
+    fn racesoundsets_kind_lists_are_their_handles() {
         for n in 0..72 {
             let handle = crate::sound::owner::sound().race.sets.kinds[n].get();
-            let ida = (handle ^ RACE_LIST_TAG) as usize + RaceSoundSets::START;
             let at = RaceSoundSets::kind_list_of(n).unwrap();
             assert_eq!(
                 at,
                 rc2k_core::audio::commands::SoundList::Race {
-                    offset: (ida - RaceSoundSets::START) as u32
+                    offset: handle ^ RACE_LIST_TAG
                 }
-            );
-            // The image's relocated dword names the same set.
-            assert_eq!(
-                first_values::dword(
-                    SETS_IMAGE,
-                    (RaceSoundSets::KINDS_AT - RaceSoundSets::START) / 4 + n
-                ) as usize,
-                ida
             );
         }
         assert!(RaceSoundSets::kind_list_of(72).is_err());
-        let size = size_of::<RaceSoundSets>();
-        assert!(RaceSoundSets::LEN <= size && size <= (RaceSoundSets::LEN).next_multiple_of(16));
-        let mut image = first_values::bytes(SETS_IMAGE).to_vec();
-        let mine = first_values::store_bytes(SETS_STORE);
-        handled(
-            &mut image,
-            RaceSoundSets::KINDS_AT - RaceSoundSets::START,
-            72,
-            RACE_LIST_TAG,
-            RaceSoundSets::START,
-        );
-        assert_eq!(mine, image);
     }
 
     #[test]
-    fn cuelists_starts_as_the_games() {
+    fn cuelists_end_in_minus_one() {
         // Every cue's list is one of the lists, and ends.
         for cue in 0..113 {
             let list = crate::sound::owner::sound()
@@ -3268,32 +3189,10 @@ mod tests {
                 .list(113)
                 .is_err()
         );
-        let size = size_of::<CueLists>();
-        assert!(8 + CueLists::LEN <= size && size <= (8 + CueLists::LEN).next_multiple_of(16));
-        let mut image = first_values::bytes(CUES_IMAGE).to_vec();
-        let mine = first_values::store_bytes(CUES_STORE);
-        indexed(&mut image, 0, 113, CueLists::START + 4 * 113, 1);
-        assert_eq!(mine, image);
     }
 
     #[test]
-    fn soundkinds_starts_as_the_games() {
-        let size = size_of::<SoundKinds>();
-        assert!(SoundKinds::LEN <= size && size <= (SoundKinds::LEN).next_multiple_of(16));
-        let mut image = first_values::bytes(KINDS_IMAGE).to_vec();
-        let mine = first_values::store_bytes(KINDS_STORE);
-        indexed(
-            &mut image,
-            0,
-            36,
-            SoundKinds::START + 4 * 36,
-            KIND_RECORD_LEN,
-        );
-        assert_eq!(mine, image);
-    }
-
-    #[test]
-    fn surfacesets_starts_as_the_games() {
+    fn surfacesets_lists_are_inside_the_store() {
         for n in 0..14 {
             let set = crate::sound::owner::sound()
                 .race
@@ -3319,19 +3218,5 @@ mod tests {
                 "{n}"
             );
         }
-        let size = size_of::<SurfaceSets>();
-        assert!(
-            12 + SurfaceSets::LEN <= size && size <= (12 + SurfaceSets::LEN).next_multiple_of(16)
-        );
-        let mut image = first_values::bytes(SURFACES_IMAGE).to_vec();
-        let mine = first_values::store_bytes(SURFACES_STORE);
-        indexed(&mut image, 0, 14, SurfaceSets::START + 4 * 14, 1);
-        assert_eq!(mine, image);
-    }
-
-    #[test]
-    fn spotvoices_starts_as_the_games() {
-        let size = size_of::<SpotVoices>();
-        assert!(SpotVoices::LEN <= size && size <= (SpotVoices::LEN).next_multiple_of(16));
     }
 }

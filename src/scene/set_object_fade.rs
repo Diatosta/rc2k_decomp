@@ -52,10 +52,13 @@ fn words(
 }
 
 pub fn set_object_fade(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), BadInput> {
-    let race = ctx.race;
     let place: u32 = ctx.view.object.object_place.get();
-    let Some((other_kind, distance, needs_record)) =
-        words(race.polygon_tables(), ctx.reads, &ctx.view.cars, place)?
+    let Some((other_kind, distance, needs_record)) = words(
+        &ctx.reads.buffers.polygon_tables,
+        ctx.reads,
+        &ctx.view.cars,
+        place,
+    )?
     else {
         return Err(BadInput("an object's number past the tables"));
     };

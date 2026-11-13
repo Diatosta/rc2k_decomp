@@ -205,9 +205,9 @@ fn finish_sequence(o: Owners<'static>) -> Result<(), Refused> {
 
 /// The credits' race (0x443104), without its fonts (the menus' are up).
 fn credits(o: Owners<'static>) -> Result<(), Refused> {
-    let (race, sound) = (o.race, o.sound);
+    let race = o.race;
     round_a_race(o, || {
-        crate::race::sound_tables::silence_race_sounds(sound, o.audio, o.system)?;
+        crate::race::sound_tables::silence_race_sounds(o)?;
         crate::race::credits_race::credits_race(race, o)
     })
 }

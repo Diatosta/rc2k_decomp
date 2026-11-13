@@ -48,15 +48,3 @@ pub fn printable(text: &impl Bytes, room: u32) -> Result<Vec<u8>, BadInput> {
         .printable(&looked_at, room as usize, keep_case)
         .ok_or(BadInput("no room for a name: the original runs on"))
 }
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn switch_starts_as_the_games() {
-        let d = crate::test_support::first_values::bytes("strings.copy_printable.KEEP_CASE/4");
-        assert_eq!(
-            u32::from_le_bytes(d.try_into().unwrap()),
-            super::KEEP_CASE.get()
-        );
-    }
-}

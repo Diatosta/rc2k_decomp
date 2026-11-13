@@ -27,7 +27,7 @@
 //! `scene::load_front_end_objects`.
 
 use crate::errors::{FatalError, Refused};
-use crate::files::read_whole_file::read_whole_file_bytes;
+use crate::files::read_whole_file::read_whole_file_plain_bytes;
 use crate::files::state::BYTES_READ;
 use crate::scene::add_object_shape::add_object_shape;
 use crate::scene::list_object_textures::list_object_textures;
@@ -167,7 +167,7 @@ pub fn load_object(
         .text_at(name as usize + 7)
         .write_text_at(0, b"3", "an object's file name")?;
     BYTES_READ.set(0);
-    read_whole_file_bytes(
+    read_whole_file_plain_bytes(
         &scene
             .file_numbers()
             .text_at(scene.file_numbers().object_ro3_path.get() as usize)
@@ -190,7 +190,7 @@ pub fn load_object(
     }
     scene.draw_switches.get().loading_group_mask.set(u32::MAX);
     let known = find_object_kind(race, kind);
-    race.frame.matrices.known_object.set(known);
+    race.frame.matrices.get().known_object.set(known);
     // The kind's light record, from its groups; a kind none of the known ones takes the place
     // after the 34 records, which reads on into the gear figures (`group_at`).
     for part in &PARTS {

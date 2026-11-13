@@ -11,14 +11,14 @@ use crate::d3d::vertices_store::PolygonVertices;
 use crate::drive::tyre_parts::*;
 use crate::errors::Refused;
 use crate::race::viewer_screen_store::ViewerPanelBlock;
-use crate::session::Dword;
+use crate::session::PlainDword;
 use rc2k_core::drive::tyre_screen::quad_corners;
 
 /// The texture rectangle at `uv`, the screen rectangle `rect`, the colour `colour`; For the
 /// viewer's items, whose picture is a kept address (a rectangle or a switch table's entry).
 pub fn tyre_quad(
     uv: [u32; 4],
-    rect: &[Dword; 4],
+    rect: &[PlainDword; 4],
     colour: u32,
     panel: &ViewerPanelBlock,
     system: &crate::system::owner::System,
@@ -26,7 +26,7 @@ pub fn tyre_quad(
 ) -> Result<(), Refused> {
     quad_of(
         uv,
-        rect.each_ref().map(Dword::get),
+        rect.each_ref().map(PlainDword::get),
         colour,
         panel,
         system,

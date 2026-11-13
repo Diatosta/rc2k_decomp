@@ -7,15 +7,15 @@
 //! `has_3dnow` from `found_3dnow` and `ignoreamdk3d`. One caller, `start`, right after the settings are
 //! read.
 
-use crate::session::Dword;
+use crate::session::PlainDword;
 use crate::system::owner::System;
 
 // ---- game data ----
 
 /// (used, ignore setting, the processor has it): `has_mmx`, `ignore_mmx`, `found_mmx`;
 /// `has_sse`, `ignore_katmai`, `found_sse`; `has_3dnow`, `ignore_3dnow`, `found_3dnow`.
-fn features(system: &System) -> [(&Dword, &Dword, &Dword); 3] {
-    let m = &system.session.machine;
+fn features(system: &System) -> [(&PlainDword, &PlainDword, &PlainDword); 3] {
+    let m = system.machine();
     [
         (&m.has_mmx, &m.ignore_mmx, &m.found_mmx),
         (&m.has_sse, &m.ignore_katmai, &m.found_sse),

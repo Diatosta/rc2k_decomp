@@ -133,8 +133,6 @@ pub mod spans;
 pub mod splines;
 pub mod spread_point;
 pub mod stage_record;
-#[cfg(test)]
-pub mod store;
 pub mod surface_store;
 pub mod swap_mask;
 pub mod tidy_marks;

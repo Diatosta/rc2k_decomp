@@ -8,7 +8,7 @@
 
 use crate::errors::FatalError;
 use crate::framework::log;
-use crate::system::owner::{System, system};
+use crate::system::owner::System;
 use crate::threading::start_slot_thread::start_slot_thread;
 use std::sync::atomic::{AtomicU32, Ordering};
 
@@ -28,11 +28,6 @@ pub fn request_quit_with(
         return Ok(());
     }
     start(crate::threading::thread_slot::SHUTDOWN)
-}
-
-/// `request_quit_in` for the fatal reporter, which runs on any thread with no owners in hand.
-pub fn request_quit() -> Result<(), FatalError> {
-    request_quit_in(system())
 }
 
 /// `request_quit` on the system the caller holds.

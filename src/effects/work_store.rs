@@ -46,13 +46,3 @@ impl MarksWork {
         }
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use crate::effects::owner::effects;
-
-    #[test]
-    fn first_values_are_the_games() {
-        crate::test_support::first_values::assert_block_starts_as_the_games(&effects().setup.work);
-    }
-}

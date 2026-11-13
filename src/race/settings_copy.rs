@@ -16,6 +16,7 @@ use crate::physics::car_store::Car;
 use crate::race::owner::Race;
 use crate::race::owner_shared::RaceShared;
 use crate::race::state_store::RaceCar;
+#[cfg(test)]
 use crate::session::Dword;
 use crate::session::DwordLike;
 #[cfg(test)]
@@ -29,6 +30,9 @@ pub enum StepOperand {
     /// A cell of the physics block (the reference machine's tables).
     #[cfg(test)]
     Cell(&'static Dword),
+    /// A word of player `n`'s settings in the race's variables (`settings.cars[n]`), by field.
+    #[cfg(test)]
+    Setting(usize, SettingWord),
     /// A car's result float (`results[n].secs`), by its bits.
     #[cfg(test)]
     ResultSecs(usize),
@@ -52,7 +56,7 @@ use crate::session::{PlainDword, PlainFloat};
 use StepOperand::Var;
 use StepOperand::{CarBits, CarCell, Owned, RaceVar};
 #[cfg(test)]
-use StepOperand::{Cell, ResultMark, ResultSecs};
+use StepOperand::{Cell, ResultMark, ResultSecs, Setting};
 
 impl StepOperand {
     /// Its dword (a float's bits), in the game's owners (the tests').
@@ -73,6 +77,8 @@ impl StepOperand {
             #[cfg(test)]
             Cell(cell) => cell.get(),
             #[cfg(test)]
+            Setting(n, f) => f(&o.race.shared.state.settings.cars[n]).get(),
+            #[cfg(test)]
             ResultSecs(n) => o.race.shared.state.results.results[n].secs.bits(),
             #[cfg(test)]
             ResultMark(n, k) => o.race.shared.state.results.results[n].impact_marks[k].get(),
@@ -90,6 +96,8 @@ impl StepOperand {
         match self {
             #[cfg(test)]
             Cell(cell) => cell.set(v),
+            #[cfg(test)]
+            Setting(n, f) => f(&o.race.shared.state.settings.cars[n]).set(v),
             #[cfg(test)]
             ResultSecs(n) => o.race.shared.state.results.results[n].secs.set_bits(v),
             #[cfg(test)]
@@ -352,7 +360,7 @@ fn copy_in(race: &Race, gfx: &Gfx, fx: &mut impl Effects) -> Result<(), Refused>
     let balance = &race.car_blocks().cars[0].brake_balance;
     balance.set(0x100u32.wrapping_sub(balance.get()));
     for car in 0..2 {
-        vars.car_colours[car].set(settings.cars[car].gearing.get());
+        vars.car_colours[car].set(settings.cars[car].controls.gearing.get());
     }
     for car in 0..2 {
         race.car_blocks().cars[car]
@@ -484,7 +492,7 @@ type CarFloat = fn(&Car) -> &PlainFloat;
 /// A dword of a car block, picked by field.
 type CarWord = fn(&Car) -> &PlainDword;
 /// A word of a player's settings record in the race's variables, picked by field.
-type SettingWord = fn(&RaceCar) -> &Dword;
+type SettingWord = fn(&RaceCar) -> &PlainDword;
 
 /// The race's car blocks and the front end's per-car settings records: the 43 gauges of a
 /// car (damage and wear), each with the settings word it is kept in.

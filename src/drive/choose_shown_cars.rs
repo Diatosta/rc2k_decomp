@@ -70,7 +70,7 @@ fn game<'a>(race: &'a Race, net: &'a crate::net::owner::Net) -> Vec<&'a dyn Dwor
         &race.course.numbers.get().replay_mode,
         &shared.view.get().view_switch,
         &shared.vars.get().split,
-        &net.vars.session, // NetVars.session: in the network's variables
+        &net.vars.session, // NetShared.session: in the network's variables
         &shared.view.get().local_car,
         &shared.view.get().view_blocks[0],
         &shared.view.get().view_blocks[1],

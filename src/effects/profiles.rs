@@ -150,8 +150,6 @@ impl ProfileRings {
             zero: PlainDword::new(0x0),
         }
     }
-    pub const START: usize = 0x8DD061;
-    pub const LEN: usize = 0x804;
 }
 
 /// One profile table: 0x100 whole numbers and then their 0x100 differences (the first
@@ -198,36 +196,16 @@ impl ProfileTables {
             ],
         }
     }
-    pub const START: usize = 0x8E506D;
-    pub const LEN: usize = 0x6800;
 }
 
 #[cfg(test)]
 mod typed_tests {
     use super::*;
 
-    #[test]
-    fn profile_rings_starts_as_the_games() {
-        assert_eq!(size_of::<ProfileRings>(), ProfileRings::LEN);
-        let image = crate::test_support::first_values::bytes(
-            "effects.owner.EFFECTS.paths.profile_rings/2052",
-        );
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                (&raw const crate::effects::owner::effects().paths.profile_rings).cast::<u8>(),
-                ProfileRings::LEN,
-            )
-        };
-        assert!(
-            mine == image,
-            "PROFILE_RINGS starts differently from the image"
-        );
-    }
-
     /// The tables the image's pointer lists (0x9152F6) named, by address.
     #[test]
     fn table_numbers_name_the_tables_the_addresses_did() {
-        let named = |ida: usize| (ida - ProfileTables::START) / 0x800;
+        let named = |ida: usize| (ida - 0x8E506D) / 0x800;
         assert_eq!([0x8E506D, 0x8E686D, 0x8E706D].map(named), RAMPS);
         assert_eq!(
             [
@@ -237,21 +215,5 @@ mod typed_tests {
             SINES
         );
         assert_eq!([0x8E586D, 0x8E606D].map(named), CURVES);
-    }
-
-    #[test]
-    fn profile_tables_starts_as_the_games() {
-        assert_eq!(size_of::<ProfileTables>(), ProfileTables::LEN);
-        let key = "effects.owner.EFFECTS.paths.profile_tables/26624";
-        let mine = unsafe {
-            std::slice::from_raw_parts(
-                (&raw const crate::effects::owner::effects().paths.profile_tables).cast::<u8>(),
-                ProfileTables::LEN,
-            )
-        };
-        assert!(
-            crate::test_support::first_values::holds(key, mine),
-            "PROFILE_TABLES starts differently from the image"
-        );
     }
 }

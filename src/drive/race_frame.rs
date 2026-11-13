@@ -22,13 +22,13 @@ pub fn race_frame(
 ) -> Result<u32, Refused> {
     let system = o.system;
     let mut eax = eax;
-    crate::platform::pump_messages_now();
+    crate::platform::pump_messages_now(o);
     if system.session.flags.quitting.is_set() {
         // The game is closing. In the game its shutdown thread (`threading::request_quit`)
         // ends the program meanwhile; the standalone, which has none, ends it here.
         crate::standalone::leave_on_close(o);
     }
-    if system.session.flags.window_active.get() != 0 && system.session.flags.lost.get() != 1 {
+    if system.session.flags.window_active.get() != 0 && system.window_loop().lost.get() != 1 {
         use crate::debug::timing::{Stage, start, stop};
         let begun = start();
         // `scene::begin_scene` never loses the frame here.

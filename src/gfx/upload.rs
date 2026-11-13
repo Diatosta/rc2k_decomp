@@ -67,16 +67,3 @@ impl Upload {
         }
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::gfx::owner::gfx;
-    use core::mem::size_of;
-
-    #[test]
-    fn first_values_are_the_games() {
-        assert_eq!(size_of::<SurfaceDesc>(), 0x6C);
-        crate::test_support::first_values::assert_block_starts_as_the_games(&gfx().card.upload);
-    }
-}

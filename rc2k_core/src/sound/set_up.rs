@@ -4,7 +4,7 @@
 //!
 //! Both set-ups mark which they are (`SettingsApplied.done`: 1 the menus', 2 the race's), stop the
 //! music, queue their commands, wait for the thread to take them and let sounds play again
-//! (`AudioState.sounds_held_back` 0). Each command's values go in as the caller left them, a result set by each
+//! (`AudioShared.sounds_held_back` 0). Each command's values go in as the caller left them, a result set by each
 //! command for those after it.
 
 /// `SettingsApplied.done` after the menus' set-up.

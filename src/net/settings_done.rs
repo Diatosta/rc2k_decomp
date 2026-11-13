@@ -8,17 +8,11 @@
 
 use crate::errors::Refused;
 use crate::net::lobby::zero;
-use crate::net::owner::Net;
-use crate::race::viewer_screen_store::ViewerPanelBlock;
-use crate::system::owner::System;
-pub fn settings_done(
-    net: &'static Net,
-    system: &System,
-    strings: &crate::strings::owner::Strings,
-    panel: &ViewerPanelBlock,
-) -> Result<(), Refused> {
+use crate::race::viewer_screen_store::NetTexts;
+pub fn settings_done(o: crate::owners::Owners<'static>, lines: &NetTexts) -> Result<(), Refused> {
+    let (net, strings) = (o.net, o.strings);
     let vars = &net.vars;
-    let saved = if crate::net::find_connections::find_connections(vars, strings, panel)? {
+    let saved = if crate::net::find_connections::find_connections(vars, strings, lines)? {
         crate::net::find_saved_connection::find_saved_connection(net)?
     } else {
         None
@@ -30,5 +24,5 @@ pub fn settings_done(
             zero(&net.address().saved_name, 0x40)?;
         }
     }
-    crate::net::stop::stop(vars, system, panel)
+    crate::net::stop::stop(o, vars, lines)
 }

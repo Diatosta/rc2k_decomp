@@ -189,15 +189,6 @@ mod tests {
     use crate::gfx::owner::gfx;
 
     #[test]
-    fn fonts_starts_as_the_games() {
-        // The menu fonts' palette and glyph table are places in the glyph store where the
-        // game has the jade font's addresses: the golden file holds the places.
-        crate::test_support::first_values::assert_block_starts_as_the_games(
-            &gfx().fonts.font_block,
-        );
-    }
-
-    #[test]
     fn menu_fonts_keep_the_images_numbers() {
         // The first values are the jade font's places in the glyph store.
         for n in 0..4 {

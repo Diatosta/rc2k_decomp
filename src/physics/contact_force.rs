@@ -43,17 +43,17 @@ use crate::physics::vector_length::vector_length;
 use crate::race::numbers_store::Numbers;
 use crate::scene::matrix3::{extended, rounded, rounded_value};
 use crate::scene::view_matrix::cross_product;
-use crate::session::{Float, PlainFloat};
+use crate::session::{FloatLike, PlainFloat};
 
 /// Three floats copied as bits, in order.
-fn copy3(to: &[Float], from: &[Float]) {
+fn copy3(to: &[impl FloatLike], from: &[impl FloatLike]) {
     for k in 0..3 {
         to[k].set(from[k].get());
     }
 }
 
 /// Three floats set to the bits `v`.
-fn fill3(to: &[Float], v: u32) {
+fn fill3(to: &[impl FloatLike], v: u32) {
     for cell in &to[..3] {
         cell.set_bits(v);
     }
@@ -181,7 +181,7 @@ pub fn contact_force(
 
 /// An x87 run of the original, in plain Rust over `X`: three floats added, `out[k] = a[k] +
 /// b[k]` (each stored as made, so `out` may be one of the two).
-fn x87_1(a: &[Float; 3], b: &[Float; 3], out: &[Float; 3]) {
+fn x87_1(a: &[PlainFloat; 3], b: &[PlainFloat; 3], out: &[PlainFloat; 3]) {
     for k in 0..3 {
         out[k].st(a[k].ld() + b[k].ld());
     }
@@ -339,11 +339,17 @@ mod reference_vectors {
                         &crate::race::owner::race()
                             .physics
                             .contact
+                            .get()
                             .contact_turn_cross,
-                        &crate::race::owner::race().physics.contact.contact_car_speed,
                         &crate::race::owner::race()
                             .physics
                             .contact
+                            .get()
+                            .contact_car_speed,
+                        &crate::race::owner::race()
+                            .physics
+                            .contact
+                            .get()
                             .contact_point_speed,
                     );
                 },
@@ -357,7 +363,7 @@ mod reference_vectors {
                 ulps: 0,
                 plain: |_| {
                     x87_2(
-                        &crate::race::owner::race().physics.contact,
+                        crate::race::owner::race().physics.contact.get(),
                         crate::race::owner::race().course.numbers.get(),
                         crate::scene::owner::scene(),
                     );
@@ -378,7 +384,7 @@ mod reference_vectors {
                 ulps: 0,
                 plain: |_| {
                     x87_3(
-                        &crate::race::owner::race().physics.contact,
+                        crate::race::owner::race().physics.contact.get(),
                         crate::race::owner::race().course.numbers.get(),
                     );
                 },
@@ -397,7 +403,7 @@ mod reference_vectors {
                     writes: &[(0x2D30F0, Out::F), (0x2D30F4, Out::F), (0x2D30F8, Out::F)],
                 }],
                 ulps: 0,
-                plain: |_| x87_4(&crate::race::owner::race().physics.contact),
+                plain: |_| x87_4(crate::race::owner::race().physics.contact.get()),
             },
             Block {
                 name: "contact_force line 126",
@@ -415,7 +421,10 @@ mod reference_vectors {
                 plain: |a| {
                     a[1].set_tbyte(
                         0,
-                        x87_5(&race().physics.contact, race().shared.physics_tables.get()),
+                        x87_5(
+                            race().physics.contact.get(),
+                            race().shared.physics_tables.get(),
+                        ),
                     );
                 },
             },
@@ -438,11 +447,17 @@ mod reference_vectors {
                         &crate::race::owner::race()
                             .physics
                             .contact
+                            .get()
                             .contact_normal_push,
-                        &crate::race::owner::race().physics.contact.contact_extra,
                         &crate::race::owner::race()
                             .physics
                             .contact
+                            .get()
+                            .contact_extra,
+                        &crate::race::owner::race()
+                            .physics
+                            .contact
+                            .get()
                             .contact_normal_push,
                     );
                 },
@@ -469,7 +484,7 @@ mod reference_vectors {
                     a[1].set_word(
                         0,
                         x87_6(
-                            &crate::race::owner::race().physics.contact,
+                            crate::race::owner::race().physics.contact.get(),
                             crate::scene::owner::scene(),
                         ),
                     );
@@ -495,7 +510,7 @@ mod reference_vectors {
                 ulps: 0,
                 plain: |_| {
                     x87_7(
-                        &crate::race::owner::race().physics.contact,
+                        crate::race::owner::race().physics.contact.get(),
                         crate::scene::owner::scene(),
                     );
                 },
@@ -516,12 +531,21 @@ mod reference_vectors {
                 ulps: 0,
                 plain: |_| {
                     x87_1(
-                        &crate::race::owner::race().physics.contact.contact_slide,
                         &crate::race::owner::race()
                             .physics
                             .contact
+                            .get()
+                            .contact_slide,
+                        &crate::race::owner::race()
+                            .physics
+                            .contact
+                            .get()
                             .contact_normal_push,
-                        &crate::race::owner::race().physics.contact.contact_total,
+                        &crate::race::owner::race()
+                            .physics
+                            .contact
+                            .get()
+                            .contact_total,
                     );
                 },
             },
@@ -545,7 +569,7 @@ mod reference_vectors {
                 ulps: 0,
                 plain: |a| {
                     x87_8(
-                        &race().physics.contact,
+                        race().physics.contact.get(),
                         race().shared.physics_tables.get(),
                         view(a[1], 0),
                     );

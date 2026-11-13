@@ -14,7 +14,7 @@
 //! The file: `RC2KVEC1`, then little-endian dwords: the steps, the words a step, the steps
 //! kept whole, their words, the chunks, and each chunk's hash (two dwords, low first).
 
-use super::first_values::hash;
+use super::hash;
 
 /// The steps kept whole of an exact test.
 const FULL: usize = 256;

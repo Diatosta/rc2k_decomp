@@ -96,7 +96,7 @@ pub fn allocate_ring(particles: &Particles, ring: &Ring) -> Result<(), Refused> 
 pub fn allocate_links(effects: &crate::effects::owner::Effects) -> Result<(), Refused> {
     crate::memory::owned::count_on(&effects.blocks.links.list, LINKS_LEN)?;
     // Set up on the game's thread, into its buffer.
-    scale_corners(crate::workers::game_scratch().vertices, effects);
+    scale_corners(&crate::workers::game_scratch().vertices, effects);
     Ok(())
 }
 

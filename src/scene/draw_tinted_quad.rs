@@ -18,7 +18,6 @@ use crate::math::x87;
 use crate::session::Dword;
 
 pub fn draw_tinted_quad(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refused> {
-    let race = ctx.race;
     ctx.view.polygon.polygon_drawn.set(0);
     for n in 0..4 {
         let rec = &ctx.part.polygon.entries[n];
@@ -70,9 +69,9 @@ pub fn draw_tinted_quad(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<
         .polygon_next_record
         .set(crate::scene::polygon::pool_start());
     for n in 0..4u32 {
-        crate::scene::polygon::list_cell(ctx.part.polygon, n as usize).set(n);
+        crate::scene::polygon::list_cell(&ctx.part.polygon, n as usize).set(n);
     }
-    crate::scene::polygon::list_cell(ctx.part.polygon, 4).set(0);
+    crate::scene::polygon::list_cell(&ctx.part.polygon, 4).set(0);
     ctx.view.polygon.polygon_next_entry.set(4);
     crate::scene::clip_polygon_to_screen::clip_polygon_to_screen(
         ctx.part,
@@ -87,10 +86,8 @@ pub fn draw_tinted_quad(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<
         ctx.view.polygon.polygon_sides[0].set(0);
         ctx.view.polygon.polygon_sides[1].set(1);
         crate::scene::draw_polygon::draw_polygon_in_game(
-            &ctx.view.polygon,
+            ctx.view,
             ctx.part,
-            race,
-            &ctx.view.face,
             ctx.reads,
             ctx.reads.screen,
         )?;

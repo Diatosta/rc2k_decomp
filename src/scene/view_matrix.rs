@@ -155,8 +155,8 @@ pub fn set_view_matrices(
     scratch: &ViewMatrices,
 ) {
     crate::session::write_bits(
-        &frame.matrices.view_turn_matrix,
-        crate::session::read_bits(&frame.matrices.identity_matrix),
+        &frame.matrices.get().view_turn_matrix,
+        crate::session::read_bits(&frame.matrices.get().identity_matrix),
     );
     let angles: [u32; 3] =
         crate::session::read_first(&frame.view_and_records.get().view_vars.view_angles);
@@ -171,36 +171,33 @@ pub fn set_view_matrices(
     matrix::multiply_matrices(
         &scratch.lit_matrix,
         &scratch.turn_z_matrix,
-        &frame.matrices.view_turn_matrix,
+        &frame.matrices.get().view_turn_matrix,
     );
     let place =
         crate::session::read_bits::<_, 3>(&frame.view_and_records.get().view_vars.view_place)
             .map(u32::wrapping_neg);
     matrix::set_place(&scratch.placed_matrix, place);
     crate::session::write_bits(
-        &frame.matrices.view_place_matrix,
+        &frame.matrices.get().view_place_matrix,
         crate::session::read_bits(&scratch.placed_matrix),
     );
     matrix::multiply_matrices(
         &scratch.placed_matrix,
-        &frame.matrices.view_turn_matrix,
-        &frame.matrices.view_matrix,
+        &frame.matrices.get().view_turn_matrix,
+        &frame.matrices.get().view_matrix,
     );
     invert_turn(
         course,
-        &frame.matrices.view_turn_matrix,
-        &frame.matrices.view_back_matrix,
+        &frame.matrices.get().view_turn_matrix,
+        &frame.matrices.get().view_back_matrix,
     );
     // The front end's own (its drawing reads them).
-    let m = &frame.matrices;
-    for (own, shared) in [
-        (&scratch.view_turn_matrix, &m.view_turn_matrix),
-        (&scratch.view_place_matrix, &m.view_place_matrix),
-        (&scratch.view_matrix, &m.view_matrix),
-        (&scratch.view_back_matrix, &m.view_back_matrix),
-    ] {
-        crate::math::cells::copy_cells(shared, own, 16);
-    }
+    let m = &frame.matrices.get();
+    use crate::math::cells::copy_cells;
+    copy_cells(&m.view_turn_matrix, &scratch.view_turn_matrix, 16);
+    copy_cells(&m.view_place_matrix, &scratch.view_place_matrix, 16);
+    copy_cells(&m.view_matrix, &scratch.view_matrix, 16);
+    copy_cells(&m.view_back_matrix, &scratch.view_back_matrix, 16);
 }
 
 // ---- the converted versions (`rc2k_core::scene::matrices`) ----

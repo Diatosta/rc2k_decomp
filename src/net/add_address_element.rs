@@ -12,21 +12,20 @@
 
 use crate::net::dp_objects::Element;
 use crate::net::owner::Net;
-use crate::session::Bytes;
 use std::sync::Mutex;
 
 /// The elements added since the last `clear`.
 static ELEMENTS: Mutex<Vec<Element>> = Mutex::new(Vec::new());
 
 /// The element of type `data_type` with `data`.
-pub fn add_address_element(net: &Net, data_type: &Bytes<16>, data: &[u8]) {
+pub fn add_address_element(net: &Net, data_type: &[u8; 16], data: &[u8]) {
     net.address()
         .elements
         .set(net.address().elements.get().wrapping_add(1));
     ELEMENTS
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner)
-        .push((data_type.read(), data.to_vec()));
+        .push((*data_type, data.to_vec()));
 }
 
 /// No elements (the count 0).

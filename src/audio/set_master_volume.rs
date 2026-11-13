@@ -5,9 +5,9 @@
 //! held to 0x40 (unsigned). Callers: `audio::make_primary` (the mode's set-up) and
 //! `audio::volume_command`.
 
-use crate::audio::store::AudioState;
+use crate::audio::own::AudioOwn;
 
-pub fn set_master_volume(state: &AudioState, volume: u32) {
+pub fn set_master_volume(state: &AudioOwn, volume: u32) {
     if crate::audio::buffer_settings::a3d(state) {
         return;
     }

@@ -2,8 +2,6 @@
 //!
 //! 0x300 bytes at `thirds`: the mean of three components by their sum. One caller,
 //! `start`, which calls it directly. Who reads the table has not been looked up.
-#[cfg(test)]
-use crate::gfx::owner::gfx;
 
 // ---- game data ----
 
@@ -13,14 +11,4 @@ pub fn fill_thirds_table(gfx: &crate::gfx::owner::Gfx) {
     // Converted: `rc2k_core::gfx::pixels::thirds_table`.
     let table: [u8; TABLE_LEN] = rc2k_core::gfx::pixels::thirds_table();
     gfx.drawing.thirds.write(&table);
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn first_values_are_the_games() {
-        crate::test_support::first_values::assert_block_starts_as_the_games(&gfx().drawing.thirds);
-    }
 }

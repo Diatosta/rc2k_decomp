@@ -98,7 +98,7 @@ pub fn set_up_car_points(
                 .wrapping_mul(12)
                 .wrapping_add(race.course.lists.get().object_points.get());
             let held = (count as i32).clamp(0, MOST_SORTED as i32) as u32;
-            race.physics.contact.car_point_count.set(held);
+            race.physics.contact.get().car_point_count.set(held);
             for n in 0..held {
                 let y = points + n * 12 + 4;
                 let lifted = crate::scene::object_points::word(y)?.wrapping_add(LIFT);
@@ -110,13 +110,13 @@ pub fn set_up_car_points(
                 (BY_X_DOWN, 0, 2),
                 (BY_X_DOWN, 2, 2),
             ] {
-                race.physics.contact.car_point_count.set(n);
+                race.physics.contact.get().car_point_count.set(n);
                 if n >= 2 {
                     let first = points + start * 12;
                     sort_points(sort, first, first + n * 12 - 12)?;
                 }
             }
-            race.physics.contact.car_point_count.set(held);
+            race.physics.contact.get().car_point_count.set(held);
             for n in 0..held {
                 let y = points + n * 12 + 4;
                 let lifted = crate::scene::object_points::word(y)?.wrapping_sub(LIFT);
@@ -135,22 +135,22 @@ pub fn set_up_car_points(
                     list[n as usize].set(rc2k_core::race::cars::point_float(c, scale));
                 }
             }
-            race.physics.contact.car_point_count.set(count);
+            race.physics.contact.get().car_point_count.set(count);
             let mut points = lists.map(crate::session::read_bits);
             rc2k_core::race::cars::open_two_points(&mut points);
             for (l, p) in lists.into_iter().zip(points) {
                 crate::session::write_bits(l, p);
             }
-            race.physics.contact.car_point_count.set(count + 2);
+            race.physics.contact.get().car_point_count.set(count + 2);
         }
         log(c"carnum", false);
         log_number(race.shared.race_car(car_number)?.car_kind.get(), false);
         log(c"numcollpts", false);
-        log_number(race.physics.contact.car_point_count.get(), true);
+        log_number(race.physics.contact.get().car_point_count.get(), true);
         race.shared
             .race_car(car_number)?
             .probe_count
-            .set(race.physics.contact.car_point_count.get());
+            .set(race.physics.contact.get().car_point_count.get());
     }
     Ok(())
 }

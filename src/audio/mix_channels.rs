@@ -5,10 +5,10 @@
 //! See `audio/mixer.rs`.
 
 use crate::audio::mixer::*;
-use crate::audio::store::AudioState;
+use crate::audio::own::AudioOwn;
 use crate::errors::Refused;
 
-pub fn mix_channels_in_game(state: &AudioState, bytes: u32) -> Result<(), Refused> {
+pub fn mix_channels_in_game(state: &AudioOwn, bytes: u32) -> Result<(), Refused> {
     mix_channels(
         state,
         bytes,

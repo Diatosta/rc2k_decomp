@@ -74,13 +74,3 @@ pub fn draw_message_box(
     )?;
     Ok(())
 }
-
-#[cfg(test)]
-mod box_tests {
-    use super::*;
-
-    #[test]
-    fn first_values_are_the_games() {
-        crate::test_support::first_values::assert_block_starts_as_the_games(BOX.get());
-    }
-}

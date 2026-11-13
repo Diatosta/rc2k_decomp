@@ -86,7 +86,7 @@ fn place_with(
         let i = |v: u32| v as i32;
         let [new_y, new_x, _] = {
             turns.0(
-                &shared.buffers.engine_tables,
+                &shared.buffers.reads.get().engine_tables,
                 i(y),
                 i(z),
                 i(x),
@@ -97,7 +97,7 @@ fn place_with(
         x = new_x;
         let [new_z, new_y, _] = {
             turns.1(
-                &shared.buffers.engine_tables,
+                &shared.buffers.reads.get().engine_tables,
                 i(z),
                 i(x),
                 i(y),
@@ -108,7 +108,7 @@ fn place_with(
         y = new_y;
         let [new_x, _, new_z, _] = {
             turns.2(
-                &shared.buffers.engine_tables,
+                &shared.buffers.reads.get().engine_tables,
                 i(x),
                 i(y),
                 i(z),

@@ -15,7 +15,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::owners::Owners;
 use crate::race::owner::Race;
-use crate::session::Dword;
+use crate::session::PlainDword;
 
 /// Whether the frame was lost.
 pub fn viewer_frame(o: Owners<'static>) -> Result<bool, Refused> {
@@ -42,7 +42,7 @@ pub fn viewer_frame(o: Owners<'static>) -> Result<bool, Refused> {
         crate::platform_3d::end_layer(o.d3d);
     }
     // `gfx::show_frame`'s carry says nothing was shown.
-    Ok(!crate::platform::show_frame_now())
+    Ok(!crate::platform::show_frame_now(o))
 }
 
 /// The list, the bar and the panel (stopped).
@@ -72,18 +72,18 @@ fn stopped(race: &Race, o: Owners<'static>) -> Result<(), Refused> {
             .ok_or(BadInput("a viewer item past the 26"))?;
         crate::race::draw_viewer_item::draw_viewer_item(race, install, item, index, system)?;
     }
-    let quad = |uv: &[Dword], rect: &[Dword; 4], colour: u32| {
+    let quad = |uv: &[PlainDword], rect: &[PlainDword; 4], colour: u32| {
         // The texture rectangle's first four dwords (the frame's picture holds five).
         let uv = uv
             .first_chunk::<4>()
             .ok_or(BadInput("a texture rectangle of fewer than four"))?;
         crate::drive::tyre_quad::tyre_quad(
-            uv.each_ref().map(Dword::get),
+            uv.each_ref().map(PlainDword::get),
             rect,
             colour,
             race.viewer_panel(),
             system,
-            crate::workers::game_scratch().vertices,
+            &crate::workers::game_scratch().vertices,
         )
     };
     let v = race.viewer_panel();

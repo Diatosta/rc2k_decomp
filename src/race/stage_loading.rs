@@ -27,7 +27,7 @@ const WORDS: [&std::ffi::CStr; 9] = [
 /// (`drive::race_init`) and `scene::restart_clock`; the starting values (`STARTS` with the clock,
 /// the blocks' +0xFB4 3 and +0xFB0 8, `LAST_STARTS`); "FINIS", a rule, a line break.
 pub fn load_stage(race: &'static Race, o: crate::owners::Owners<'static>) -> Result<(), Refused> {
-    let (system, gfx, input) = (o.system, o.gfx, o.input);
+    let input = o.input;
     let indent = |by: i32| {
         crate::logfile::write_line::state::INDENT
             .atomic()
@@ -48,12 +48,7 @@ pub fn load_stage(race: &'static Race, o: crate::owners::Owners<'static>) -> Res
     /* dword_71C3E0 */
     {
         // As `menu::show_loading_picture`.
-        crate::gfx::show_picture_file::show_picture_file(
-            crate::strings::append_string_by_id::StringOwners::of(o),
-            &o.menus.tables.texts.loading_pcx,
-            gfx,
-            system,
-        )?;
+        crate::gfx::show_picture_file::show_picture_file(o, &o.menus.tables.texts.loading_pcx)?;
     }
     race.replay.replay_frames().last_kept.set(u32::MAX);
     crate::race::sounds::wake_car_sounds(race, o.sound, o.audio)?;

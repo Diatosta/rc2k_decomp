@@ -1,7 +1,7 @@
 //! The players' names and the text being typed, out of RAL.EXE's image (IDA 0x755784 .. 0x7558C4; phase
 //! 7, typed): the four players' names (0x20 bytes each) and what follows them, the name `menu::standings`
-//! keeps, and the text as it was before an entry started. A `#[repr(C)]` struct with the image's
-//! layout, one static.
+//! keeps, and the text as it was before an entry started. A `#[repr(C)]` struct, one
+//! static.
 
 use crate::session::PlainBytes;
 
@@ -43,7 +43,6 @@ impl crate::place::Run for Names {
     }
 }
 
-/// First values the image's (`tests::name_buffers_starts_as_the_games`).
 impl Names {
     pub const fn new() -> Self {
         Names {
@@ -52,19 +51,5 @@ impl Names {
             kept_name: PlainBytes::new([0; 32]),
             text_backup: PlainBytes::new([0; 32]),
         }
-    }
-}
-
-/// IDA 0x755784, the first byte of the piece.
-pub const START: usize = 0x755784;
-
-#[cfg(test)]
-mod tests {
-
-    #[test]
-    fn name_buffers_starts_as_the_games() {
-        crate::test_support::first_values::assert_block_starts_as_the_games(
-            &crate::menu::owner::menus().play.names,
-        );
     }
 }

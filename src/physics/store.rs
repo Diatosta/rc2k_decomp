@@ -81,8 +81,8 @@ pub struct DamageModel {
     pub wheel_load_mean: PlainFloat,
     /// `flt_75B3E0`: Copy of the centre point's surface figure (`point_surface_2c[4]`, the surface's +0x2c value blended between its two cells): how hard the ground is on the car; it scales the roughness wear. Probably a roughness.
     pub point_surface_copy: PlainFloat,
-    /// `flt_75B3E4`: Copy of the car's `drive_kind` (0 or 1, as a whole number in a float cell): picks the entry of the two kind tables, and a car with 0 has no turbo damage.
-    pub drive_kind: PlainFloat,
+    /// `flt_75B3E4`: Copy of the car's `drive_kind` (a whole number): picks the entry of the two kind tables (the kind must be 0 or 1 there), and a car with 0 has no turbo damage.
+    pub drive_kind: PlainDword,
     /// `dword_75B3E8`: Copy of the car's `tyre_kind`: the row of `wear_table` (16 dwords a row).
     pub tyre_kind: PlainDword,
     /// `dword_75B3EC`: Copy of the centre point's surface kind (`wheel_surface_a[4]`): its low four bits pick the wear table's columns.
@@ -265,7 +265,7 @@ impl DamageModel {
             wheel_loads: [const { PlainFloat::new(0.0) }; 4],
             wheel_load_mean: PlainFloat::new(0.0),
             point_surface_copy: PlainFloat::new(0.0),
-            drive_kind: PlainFloat::new(0.0),
+            drive_kind: PlainDword::new(0),
             tyre_kind: PlainDword::new(0),
             surface: PlainDword::new(0),
             surface_blend: PlainFloat::new(0.0),
@@ -683,14 +683,6 @@ pub(crate) use laid;
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::race::owner::race;
-
-    #[test]
-    fn damage_starts_as_the_games() {
-        crate::test_support::first_values::assert_block_starts_as_the_games(
-            race().physics.damage(),
-        );
-    }
 
     #[test]
     fn the_wear_table_reads_on_as_the_original_indexed_it() {

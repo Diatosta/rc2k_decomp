@@ -5,14 +5,10 @@
 //! Caller: `net::start_link`.
 
 use crate::errors::Refused;
-use crate::net::owner::Net;
 pub fn hosting(
-    so: crate::strings::append_string_by_id::StringOwners<'static>,
-    net: &Net,
-    system: &crate::system::owner::System,
-    panel: &crate::race::viewer_screen_store::ViewerPanelBlock,
-    gfx: &'static crate::gfx::owner::Gfx,
+    o: crate::owners::Owners<'static>,
+    lines: &crate::race::viewer_screen_store::NetTexts,
 ) -> Result<bool, Refused> {
-    crate::net::connecting::status(so, 0x151, gfx, system)?;
-    crate::net::host_session::host_session(net, system, panel)
+    crate::net::connecting::status(o, 0x151)?;
+    crate::net::host_session::host_session(o, lines)
 }

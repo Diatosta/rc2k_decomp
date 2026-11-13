@@ -8,14 +8,14 @@
 
 use crate::errors::Refused;
 use crate::menu::screen_loop::{Entry, run_screen};
-use crate::net::store::NetVars;
+use crate::net::store::NetShared;
 use crate::net::store::PlayerRecord;
 use crate::owners::Owners;
 
 /// The car screen is handed the list of cars; the
 /// car it starts from its set-up finds itself (the current player's record,
 /// `menu::car_choice::find_player_car`).
-pub fn choose_car(o: Owners<'static>, vars: &NetVars) -> Result<(), Refused> {
+pub fn choose_car(o: Owners<'static>, vars: &NetShared) -> Result<(), Refused> {
     let menus = o.menus;
     let play = &menus.play;
     // The current player of the event, and whether the screen was left with Escape.
@@ -36,11 +36,6 @@ pub fn choose_car(o: Owners<'static>, vars: &NetVars) -> Result<(), Refused> {
             play.players.players[0].get().gearing as u8,
         );
     }
-    crate::net::show_background::show_background(
-        crate::strings::append_string_by_id::StringOwners::of(o),
-        o.gfx,
-        o.system,
-        vars,
-    )?;
+    crate::net::show_background::show_background(o)?;
     Ok(())
 }

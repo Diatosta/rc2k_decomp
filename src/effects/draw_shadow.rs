@@ -108,7 +108,7 @@ pub fn draw_shadow_with(
     depth: bool,
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
-    let buffer = ctx.part.vertices;
+    let buffer = &ctx.part.vertices;
     let race = ctx.race;
     use crate::scene::set_render_state::set_render_state;
     let q = sh.quad;
@@ -156,7 +156,7 @@ pub fn draw_shadow_with(
     corners_x87(sh);
     normalise(&q.way);
     corners_in_x87(sh);
-    let view = &race.frame.matrices.listener_matrix;
+    let view = &race.frame.matrices.get().listener_matrix;
     for n in 0..4 {
         let p: [f32; 3] = std::array::from_fn(|k| q.corners[n][k].get());
         let turned = rotate_point(view, p.map(extended));
@@ -520,9 +520,9 @@ fn projected_x87(s: &Shadow) {
 mod reference_vectors {
     use super::Shadow;
     use crate::effects::asm_layout::with_laid_at;
+    use crate::effects::asm_test::START;
     use crate::effects::asm_test::with_copy;
     use crate::effects::kind_store::{KindConsts, QuadWork};
-    use crate::effects::store::START;
     use crate::session::PlainFloat;
 
     /// A shadow's variables: where the quad, the constants and the up start in the marks' block.

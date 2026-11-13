@@ -13,10 +13,8 @@
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::menu::owner::Menus;
 use crate::race::owner::Race;
-use crate::race::state_store::{RaceCar, RaceResult};
+use crate::race::state_store::{PlayerControls, RaceCar, RaceResult};
 use crate::session::Bytes;
-#[cfg(test)]
-use crate::session::Dword;
 use crate::session::DwordLike;
 use crate::session::PlainDword;
 #[cfg(test)]
@@ -130,24 +128,12 @@ fn current_side(race: &Race) -> Side<'_> {
     }
 }
 
+/// Car `car`'s four rally-time words and the word after them.
 #[cfg(test)]
-const TIMES_FIRST: [&Dword; 4] = [
-    &crate::race::owner::RACE.shared.state.settings.cars[1].wear[10],
-    &crate::race::owner::RACE.shared.state.settings.cars[1].wear[11],
-    &crate::race::owner::RACE.shared.state.settings.cars[1].wear[12],
-    &crate::race::owner::RACE.shared.state.settings.cars[1].wear[13],
-];
-#[cfg(test)]
-const EXTRA_FIRST: &Dword = &crate::race::owner::RACE.shared.state.settings.cars[1].wear[14];
-#[cfg(test)]
-const TIMES_CURRENT: [&Dword; 4] = [
-    &crate::race::owner::RACE.shared.state.settings.cars[0].wear[10],
-    &crate::race::owner::RACE.shared.state.settings.cars[0].wear[11],
-    &crate::race::owner::RACE.shared.state.settings.cars[0].wear[12],
-    &crate::race::owner::RACE.shared.state.settings.cars[0].wear[13],
-];
-#[cfg(test)]
-const EXTRA_CURRENT: &Dword = &crate::race::owner::RACE.shared.state.settings.cars[0].wear[14];
+fn rally_time_words(car: usize) -> ([&'static PlainDword; 4], &'static PlainDword) {
+    let wear = &crate::race::owner::RACE.shared.state.settings.cars[car].wear;
+    ([&wear[10], &wear[11], &wear[12], &wear[13]], &wear[14])
+}
 #[cfg(test)]
 fn outcome_first() -> &'static RaceResult {
     &crate::race::owner::RACE.shared.state.results.results[1]
@@ -188,8 +174,8 @@ pub fn player(menus: &Menus, n: u32) -> Result<Record<'_>, BadInput> {
 
 /// A record's controller settings into a car's: the controller, gearing, sensitivity, axes,
 /// mode, dead zones, strength, and the 0x2C bytes of `bindings` as eleven words
-/// (`RaceCar::recorded_bindings`).
-fn take_controls(p: &Player, car: &RaceCar) {
+/// (`PlayerControls::recorded_bindings`).
+fn take_controls(p: &Player, car: &PlayerControls) {
     car.controller.set(p.controller);
     car.gearing.set(p.gearing);
     car.sensitivity_level.set(p.sensitivity_level);
@@ -239,7 +225,7 @@ fn take_player(p: &Player, side: &Side, condition: bool) {
     car.race_number.set(p.race_number);
     car.codriver_sex.set(p.codriver_sex);
     car.view.set(p.view);
-    take_controls(p, car);
+    take_controls(p, &car.controls);
     if condition {
         // Record damage words 0 .. 12 and 13 (the word 12 has no variable).
         for (cell, &word) in car.damage.iter().zip(&p.damage[..12]) {
@@ -364,11 +350,11 @@ pub fn player_settings_in(o: crate::owners::Owners<'static>) -> Result<(), Refus
     results[0].result.set(0);
     results[1].result.set(0);
     let first = player(menus, 1)?.get();
-    take_controls(&first, first_side.car);
-    take_keys(&first, &first_side.car.keys);
+    take_controls(&first, &first_side.car.controls);
+    take_keys(&first, &first_side.car.controls.keys);
     let current = player(menus, menus.screens.event.current_player.get())?.get();
     take_player(&current, &current_side, false);
-    take_keys(&current, &current_side.car.keys);
+    take_keys(&current, &current_side.car.controls.keys);
     Ok(())
 }
 
@@ -437,8 +423,8 @@ fn single_rally(
         to.set(from.get());
     }
     let first = player(menus, 1)?.get();
-    take_controls(&first, first_side.car);
-    take_keys(&first, &first_side.car.keys);
+    take_controls(&first, &first_side.car.controls);
+    take_keys(&first, &first_side.car.controls.keys);
 
     let one_car = matches!(event.event_kind.get(), 5 | 4 | 0xF | 0xA);
     if one_car {
@@ -467,7 +453,7 @@ fn single_rally(
     if settings.race_mode.get() == 2 {
         settings.cars[0].view.set(rec.second_view);
     }
-    take_keys(&rec, &current_side.car.keys);
+    take_keys(&rec, &current_side.car.controls.keys);
 
     // The race.
     settings.no_replay.set(0);
@@ -546,18 +532,14 @@ pub fn step(o: crate::owners::Owners<'static>, call: Call) -> Result<(), Refused
     let (sound, race) = (o.sound, o.race);
     match call {
         Call::CopyRallyTimes => crate::race::rally::copy_rally_times(o.system, o.menus)?,
-        Call::StopMusic => crate::sound::stop_music::stop_music(o.audio, o.system),
+        Call::StopMusic => crate::sound::stop_music::stop_music(o),
         Call::SetRaceScreenMode => crate::race::race_shell::set_race_screen_mode(o.gfx, o.system),
         Call::ShowLoadingPicture => {
             crate::menu::show_loading_picture::show_loading_picture_in(o)?;
         }
         Call::SetUpRaceSoundObjects => crate::race::sound_tables::set_up_race_sound_objects(
-            race,
+            o,
             &crate::race::sound_tables::ObjectVars::of(sound),
-            sound,
-            o.audio,
-            o.net,
-            o.system,
         )?,
         Call::SetUpRaceSounds => crate::sound::set_up_race_sounds::set_up_race_sounds(o)?,
         Call::RaceFromMenu => crate::race::race_end::race_from_menu(o)?,
@@ -565,7 +547,7 @@ pub fn step(o: crate::owners::Owners<'static>, call: Call) -> Result<(), Refused
             crate::platform::set_menu_mode_now(o.gfx, o.system);
         }
         Call::ClearRaceSoundObjects => {
-            crate::race::sound_tables::clear_race_sound_objects(sound, o.audio, o.system)?;
+            crate::race::sound_tables::clear_race_sound_objects(o)?;
         }
         Call::ApplySettings => crate::sound::apply_settings::apply_settings(o)?,
         Call::SetUpEngine => crate::scene::set_up_engine::set_up_engine_in(race, o.scene)?,
@@ -575,7 +557,7 @@ pub fn step(o: crate::owners::Owners<'static>, call: Call) -> Result<(), Refused
         Call::TakeKey => {
             crate::input::take_key::take_key(o.input);
         }
-        Call::PlayTune3 => crate::sound::play_tune_3::play_tune_3(o.sound, o.audio, o.system),
+        Call::PlayTune3 => crate::sound::play_tune_3::play_tune_3(o),
     }
     Ok(())
 }
@@ -911,7 +893,7 @@ mod vector_tests {
 
     /// The ranges' bytes, hashed.
     fn digest() -> u64 {
-        crate::test_support::first_values::hash(&ranges_bytes())
+        crate::test_support::hash(&ranges_bytes())
     }
 
     /// The ranges' bytes (`g_players`, read by nothing, holds the records' numbers: the
@@ -944,9 +926,9 @@ mod vector_tests {
                     for at in (0x34..0x430).step_by(4) {
                         state.store(at, &self.rng.next().to_le_bytes()).unwrap();
                     }
-                    for (times, extra, sums, e) in [
-                        (TIMES_FIRST, EXTRA_FIRST, c.sums, c.extra),
-                        (TIMES_CURRENT, EXTRA_CURRENT, c.sums_2, c.extra_2),
+                    for ((times, extra), sums, e) in [
+                        (rally_time_words(1), c.sums, c.extra),
+                        (rally_time_words(0), c.sums_2, c.extra_2),
                     ] {
                         let v: [u32; 4] = match sums {
                             1 => [0; 4],
@@ -1022,7 +1004,7 @@ mod vector_tests {
         let (kind, code, message) = match result {
             Ok(()) => (0, 0, 0),
             Err(Refused::Fatal(f)) => {
-                let h = crate::test_support::first_values::hash(f.message.as_bytes());
+                let h = crate::test_support::hash(f.message.as_bytes());
                 (1, f.code, h as u32)
             }
             Err(Refused::BadInput(BadInput("injected"))) => (2, 0, 0),
@@ -1033,7 +1015,7 @@ mod vector_tests {
             calls.extend_from_slice(&place.to_le_bytes());
             calls.extend_from_slice(&memory.to_le_bytes());
         }
-        let calls = crate::test_support::first_values::hash(&calls);
+        let calls = crate::test_support::hash(&calls);
         let left = digest();
         [
             kind,

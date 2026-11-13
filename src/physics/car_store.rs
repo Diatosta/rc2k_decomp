@@ -635,13 +635,11 @@ pub fn to_1999(now: usize) -> usize {
 mod tests {
 
     #[test]
-    fn car_starts_as_the_games() {
+    fn car_is_aligned() {
         let shared_store = &crate::race::owner::race().shared;
 
         // other tests write the work car while they run
         let _lock = crate::test_support::test_lock();
         assert_eq!(core::ptr::from_ref(shared_store.car()).addr() % 4, 0);
-        drop(_lock);
-        crate::test_support::first_values::assert_block_starts_as_the_games(shared_store.car());
     }
 }

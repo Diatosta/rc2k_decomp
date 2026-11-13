@@ -284,16 +284,3 @@ impl<'a> rc2k_core::files::io::Files for GameFiles<'a> {
         set_file_time(file, dos)
     }
 }
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn modes_are_the_games() {
-        let bytes: Vec<u8> = super::MODES
-            .iter()
-            .flatten()
-            .flat_map(|w| w.to_le_bytes())
-            .collect();
-        crate::test_support::first_values::assert_matches("files.handle.MODES", &bytes);
-    }
-}

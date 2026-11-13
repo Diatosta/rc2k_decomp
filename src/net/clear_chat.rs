@@ -2,7 +2,7 @@
 //! seven 0x0A and a NUL.
 //!
 //! Caller: `net::start_link` (with the received messages' lock held).
-pub fn clear_chat(vars: &crate::net::store::NetVars) {
+pub fn clear_chat(vars: &crate::net::store::NetShared) {
     // Converted: `rc2k_core::net::chat::EMPTY`.
     if let Err(e) = vars
         .chat

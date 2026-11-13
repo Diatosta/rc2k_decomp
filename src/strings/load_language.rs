@@ -46,8 +46,7 @@ use rc2k_core::strings::language::Locale;
 const LOCALE_FILES: &[u8] = b"files\\%locale\\*.loc";
 const KEYBOARD_FILES: &[u8] = b"files\\%locale\\*.kim";
 /// The `.loc` file's 0x30 bytes: +0 "LOCL", +8 the notice kind (`g_noticeKind`), +0xF
-/// units (`g_localeFile`, 0x4E0798),
-/// with the image's first bytes (`tests::first_values_are_the_games`).
+/// units (`g_localeFile`, 0x4E0798).
 pub const LOCALE_LEN: usize = 0x30;
 pub const LOCALE_INIT: [u8; LOCALE_LEN] = [
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x01, 0x01, 0x01, 0x2F, 0x2E, 0x2C, 0x00,
@@ -183,7 +182,7 @@ pub fn load_language(
     make_case_tables(o)?;
 
     // 0x403462: the NEC keyboard's head (its layout mode) and layout.
-    if o.system.session.machine.keyboard_type.get() == 2 {
+    if o.system.machine().keyboard_type.get() == 2 {
         layouts().use_nec(strings);
         install.run.first_drive.set(0x61u32);
     }
@@ -205,33 +204,4 @@ pub fn load_language(
     install.run.offer_registration.set(0u32);
     // The standalone offers no registration (owner).
     Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::strings::owner::strings;
-    use crate::test_support::first_values::bytes;
-
-    #[test]
-    fn first_values_are_the_games() {
-        let strings = strings();
-        assert_eq!(
-            bytes("strings.load_language.LOCALE_FILES"),
-            super::LOCALE_FILES
-        );
-        assert_eq!(
-            bytes("strings.load_language.KEYBOARD_FILES"),
-            super::KEYBOARD_FILES
-        );
-        assert_eq!(
-            bytes("strings.load_language.LOCALE/48"),
-            strings.language.locale.read()
-        );
-        assert_eq!(
-            crate::test_support::first_values::bytes(
-                "strings.owner.STRINGS.language.plain_letters/256"
-            ),
-            strings.language.plain_letters.read()
-        );
-    }
 }

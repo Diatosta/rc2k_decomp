@@ -23,9 +23,9 @@ pub struct Frame {
     /// One copy, lent to the drawing parts (`workers::DrawReads`): no part writes it (the two
     /// counters nobody reads stay atomic).
     pub frame_work: DrawShared<FrameWork>,
-    /// One copy: no drawing part writes it (the write watch's carried census, frame plan F7;
-    /// the held columns are each part's own, `scene::view_matrices::Held`).
-    pub matrices: SceneMatrices,
+    /// One copy, lent to the drawing parts (`workers::DrawReads`): no part writes it (the held
+    /// columns are each part's own, `scene::view_matrices::Held`, merged in the parts' order).
+    pub matrices: DrawShared<SceneMatrices>,
     /// One copy, lent to the drawing parts (`workers::DrawReads`): the drawing only reads it
     /// (frame plan F4).
     pub shadow_skids: DrawShared<ShadowSkids>,
@@ -58,7 +58,7 @@ impl Frame {
     pub const fn new() -> Self {
         Frame {
             frame_work: DrawShared::new(FrameWork::new()),
-            matrices: SceneMatrices::new(),
+            matrices: DrawShared::new(SceneMatrices::new()),
             shadow_skids: DrawShared::new(ShadowSkids::new()),
             panel_and_overlay: DrawShared::new(PanelAndOverlay::new()),
             view_and_records: DrawShared::new(ViewAndRecords::new()),

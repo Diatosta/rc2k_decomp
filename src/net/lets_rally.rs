@@ -26,8 +26,12 @@ use rc2k_core::net::record;
 pub fn lets_rally(o: Owners<'static>) -> Result<bool, Refused> {
     let (race, net, sound) = (o.race, o.net, o.sound);
     use crate::race::sound_tables;
-    log_bytes(&race.viewer_panel().text(texts::NET_LETS_RALLY), true, 2);
-    net.vars.racing.set(1);
+    log_bytes(
+        &crate::race::viewer_screen_store::NET_TEXTS.text(texts::NET_LETS_RALLY),
+        true,
+        2,
+    );
+    net.lobby().racing.set(1);
     let own = &net.vars.player_block(net.vars.player.get())?.record;
     race.shared.state.settings.race_mode.set(1);
     race.shared.state.settings.run_kind.set(0);
@@ -38,35 +42,29 @@ pub fn lets_rally(o: Owners<'static>) -> Result<bool, Refused> {
         .car_kind_current
         .set(own.head.get(record::CAR) as u32);
     race.shared.state.settings.cars[0]
+        .controls
         .gearing
         .set(own.head.get(record::COLOURS) as u32);
     let state = |n: u32| net.vars.player_block_or_end(n).record.state();
     let Some(first) = record::first_not_host(net.vars.players.get(), state) else {
         return Ok(true);
     };
-    net.vars.first_host.set(first);
-    crate::sound::stop_music::stop_music(o.audio, o.system);
+    net.lobby().first_host.set(first);
+    crate::sound::stop_music::stop_music(o);
     crate::race::race_shell::set_race_screen_mode(o.gfx, o.system);
     crate::menu::show_loading_picture::show_loading_picture_in(o)?;
-    sound_tables::set_up_race_sound_objects(
-        race,
-        &sound_tables::ObjectVars::of(sound),
-        sound,
-        o.audio,
-        net,
-        o.system,
-    )?;
+    sound_tables::set_up_race_sound_objects(o, &sound_tables::ObjectVars::of(sound))?;
     crate::sound::set_up_race_sounds::set_up_race_sounds(o)?;
     crate::net::set_up_race::set_up_race(race, &net.vars, o)?;
     let tick = crate::system::tick_count::tick_count();
     net.edit().clock_a.set(tick);
-    net.vars.sync_clock.set(tick);
+    net.lobby().sync_clock.set(tick);
     net.vars.sync_first.set(1);
-    crate::net::list_players::list_players_regs(&net.vars)?;
+    crate::net::list_players::list_players_regs(net)?;
     // The race's time and whether the car did not finish (the original's result registers);
     // Escape leaves the second 1.
     let (time, not_finished) = loop {
-        run_frame(o.system, || Ok::<(), Refused>(()))?;
+        run_frame(o, || Ok::<(), Refused>(()))?;
         if crate::input::take_key::take_key(o.input) == 1 {
             break (1, 1);
         }
@@ -77,10 +75,10 @@ pub fn lets_rally(o: Owners<'static>) -> Result<bool, Refused> {
         }
     };
     crate::race::race_end::tidy_everything(race, o)?;
-    crate::sound::stop_music::stop_music(o.audio, o.system);
+    crate::sound::stop_music::stop_music(o);
     crate::platform::set_menu_mode_now(o.gfx, o.system);
     crate::menu::show_loading_picture::show_loading_picture_in(o)?;
-    sound_tables::clear_race_sound_objects(sound, o.audio, o.system)?;
+    sound_tables::clear_race_sound_objects(o)?;
     crate::sound::apply_settings::apply_settings(o)?;
     crate::scene::set_up_engine::set_up_engine_in(race, o.scene)?;
     crate::scene::set_up_front_end_scene::set_up_front_end_scene_in(o)?;

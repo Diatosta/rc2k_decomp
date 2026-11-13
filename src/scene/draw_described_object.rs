@@ -87,7 +87,9 @@ pub fn draw_described_object(
     d: Option<Description<'_>>,
 ) -> Result<(), Refused> {
     let d = d.ok_or(BadInput("a described object without its description"))?;
-    draw_description(ctx, &|len| d.read_bytes(ctx.race.polygon_tables(), len))
+    draw_description(ctx, &|len| {
+        d.read_bytes(&ctx.reads.buffers.polygon_tables, len)
+    })
 }
 
 /// The same for course face `face` (kind 0xFF), its own description.
@@ -107,7 +109,6 @@ fn draw_description(
     ctx: &crate::race::view_scratch::DrawCtx<'_>,
     read: &dyn Fn(usize) -> Result<Vec<u8>, BadInput>,
 ) -> Result<(), Refused> {
-    let race = ctx.race;
     let head = read(8)?;
     let object = head[1] as u32;
     let place = u32::from_le_bytes([head[4], head[5], head[6], head[7]]);
@@ -203,7 +204,8 @@ fn draw_description(
     ctx.view.light.light_kind.set(2u32);
     let object: u32 = ctx.view.cars.object_number.get();
     let kind: u32 = ctx.reads.object_tables.object_kind(object);
-    if crate::scene::polygon::material_run_byte(race.polygon_tables(), kind, 0x1F)? != 0 {
+    if crate::scene::polygon::material_run_byte(&ctx.reads.buffers.polygon_tables, kind, 0x1F)? != 0
+    {
         ctx.view.light.light_kind.set(1u32);
     }
     crate::scene::draw_scene_object::draw_scene_object_in_game(

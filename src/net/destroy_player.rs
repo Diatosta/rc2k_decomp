@@ -6,8 +6,8 @@
 //! Caller: `net::destroy_connection`. `DestroyPlayer` from Rust (`net::dplay`).
 //! Refuses nothing.
 
-use crate::net::store::NetVars;
-pub fn destroy_player(vars: &NetVars) {
+use crate::net::store::NetShared;
+pub fn destroy_player(vars: &NetShared) {
     let id = vars.player_id.get();
     if id == 0 {
         crate::net::dp_objects::destroy_player(vars.dplay.get(), id);

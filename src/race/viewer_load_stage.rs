@@ -62,8 +62,8 @@ pub fn viewer_load_stage(race: &'static Race, o: Owners<'static>) -> Result<(), 
             .shared
             .one_player
             .set(race.replay_work().header_one_player.get());
-        shared.state.settings.cars[0].controller.set(0);
-        shared.state.settings.cars[1].controller.set(0);
+        shared.state.settings.cars[0].controls.controller.set(0);
+        shared.state.settings.cars[1].controls.controller.set(0);
         shared
             .state
             .settings
@@ -76,14 +76,7 @@ pub fn viewer_load_stage(race: &'static Race, o: Owners<'static>) -> Result<(), 
         crate::logfile::log_write::log_nul(&DOOR_TEXT, false, 1);
         crate::logfile::log_int::log_int(door as i32, true, 1);
 
-        sound_tables::set_up_race_sound_objects(
-            race,
-            &sound_tables::ObjectVars::of(sound),
-            sound,
-            o.audio,
-            o.net,
-            o.system,
-        )?;
+        sound_tables::set_up_race_sound_objects(o, &sound_tables::ObjectVars::of(sound))?;
         crate::sound::set_up_race_sounds::set_up_race_sounds(o)?;
         if gfx.fonts.font_block.palettes.get() == 0 {
             crate::gfx::build_fonts::build_fonts_in(gfx, o.system, o.strings)?;
@@ -91,7 +84,7 @@ pub fn viewer_load_stage(race: &'static Race, o: Owners<'static>) -> Result<(), 
         }
         crate::race::read_replay_header::read_replay_header(race);
         { stage_loading::load_stage(race, o) }?;
-        race_end::reset_race_sounds(&race_end::SoundVars::game(sound), sound, o.audio, o.system)?;
+        race_end::reset_race_sounds(&race_end::SoundVars::game(sound), o)?;
         crate::race::viewer_palettes::viewer_palettes(shared, scene, gfx, o.system)?;
         shared.replay_file().viewer_stage_loaded.set(1);
     }

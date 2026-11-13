@@ -1,17 +1,19 @@
 //! Module net's owner (step 11, owned state): the network's variables in one struct,
 //! reached through `net()` by code that has no reference to it. The receive
 //! thread reads and writes `vars` concurrently (its cells stay atomic); `main` (what is
-//! edited, the settings, the address, the session joined) and the button are the game
+//! edited, the settings, the address, the session joined, the lobby's) and the button are the game
 //! thread's.
 
-use crate::net::store::{AddressVars, Button, EditVars, JoinedVars, NetMain, NetVars, SetupVars};
+use crate::net::store::{
+    AddressVars, Button, EditVars, JoinedVars, LobbyVars, NetMain, NetShared, SetupVars,
+};
 use crate::session::GameThread;
 
 /// The network's state.
 pub struct Net {
     /// The network's variables the receiving thread shares (sessions, players, DirectPlay
     /// objects, chat).
-    pub vars: NetVars,
+    pub vars: NetShared,
     /// The variables the game's thread alone reaches.
     pub main: GameThread<NetMain>,
     /// The lobby button being drawn (the game thread's).
@@ -21,7 +23,7 @@ pub struct Net {
 impl Net {
     pub const fn new() -> Self {
         Net {
-            vars: NetVars::new(),
+            vars: NetShared::new(),
             main: GameThread::new(NetMain::new()),
             button: GameThread::new(Button::new()),
         }
@@ -40,6 +42,11 @@ impl Net {
     /// The address being built and the connection kept.
     pub fn address(&self) -> &AddressVars {
         &self.main.get().address
+    }
+
+    /// The lobby's variables.
+    pub fn lobby(&self) -> &LobbyVars {
+        &self.main.get().lobby
     }
 
     /// The session joined.

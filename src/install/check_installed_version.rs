@@ -16,6 +16,8 @@ use rc2k_core::install::version::{self, Scan};
 const READ_TARGET: usize = 0x100; // into the scratch
 const TAIL: usize = 0xFF00;
 const SCAN_LEN: u32 = version::CHUNK;
+/// The scratch buffer's size: the scan zeroes and reads all of it.
+const BUFFER_LEN: usize = 0x10000;
 
 pub fn check_installed_version(
     install: &'static crate::install::owner::Install,
@@ -40,11 +42,7 @@ pub fn check_installed_version(
     if !set_cd(&install.paths.installed) {
         return Ok(());
     }
-    system
-        .work()
-        .files
-        .buffer
-        .write(&[0; crate::files::scratch::Scratch::LEN]);
+    system.work().files.buffer.write(&[0; BUFFER_LEN]);
     // The standalone checks its own program (the same version text is in its built-in
     // image). files::open_by_mode, mode 0.
     let program = crate::install::run_after_exit::RC2K;
@@ -63,8 +61,7 @@ pub fn check_installed_version(
             }
             // Converted: `rc2k_core::install::version::scan` (the copyright compared up
             // to its NUL, inside its 91 bytes).
-            let scanned =
-                buffer.read_at(0, crate::files::scratch::Scratch::LEN, "the scan buffer")?;
+            let scanned = buffer.read_at(0, BUFFER_LEN, "the scan buffer")?;
             let copyright = system.start().texts.copyright.read();
             if let Scan::Stopped { same, .. } = version::scan(&scanned[..], &copyright[..])? {
                 if same {

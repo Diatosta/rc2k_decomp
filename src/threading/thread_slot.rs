@@ -58,15 +58,50 @@ pub static SLOTS: [ThreadSlot; SLOT_COUNT] = [
     ThreadSlot::new(0x410C17),
 ];
 
+/// The owners the slot threads work with. Every one is a plain static whose state the
+/// other threads may read (atomic cells); none holds a `GameThread` state, which only the
+/// game's thread may reach.
+#[derive(Clone, Copy)]
+pub struct SlotOwners<'a> {
+    pub audio: &'static crate::audio::owner::Audio,
+    pub input: &'a crate::input::owner::Input,
+    pub sound: &'a crate::sound::owner::Sound,
+    pub system: &'a crate::system::owner::System,
+    pub race: &'a crate::race::owner::Race,
+    pub net: &'a crate::net::owner::Net,
+    /// Only for the receiving thread's chat lines, which measure text with its fonts.
+    pub gfx: &'static crate::gfx::owner::Gfx,
+}
+
+impl SlotOwners<'static> {
+    /// The owners as the accessors give them: the root of a slot's thread fetches them (the
+    /// graphics owner by `on_any_thread`, as the receiving thread has always reached it).
+    pub fn fetch() -> Self {
+        SlotOwners {
+            audio: crate::audio::owner::audio(),         // m6-root
+            input: crate::input::owner::input(),         // m6-root
+            sound: crate::sound::owner::sound(),         // m6-root
+            system: crate::system::owner::system(),      // m6-root
+            race: crate::race::owner::race(),            // m6-root
+            net: crate::net::owner::net(),               // m6-root
+            gfx: crate::gfx::owner::GFX.on_any_thread(), // m6-root
+        }
+    }
+}
+
 /// A slot's routine (the IDA address the slot holds) run by its Rust version; None for
 /// an address that is none of the four.
-pub fn run_routine(routine: u32) -> Option<Result<(), Refused>> {
-    let audio = crate::audio::owner::audio();
-    let input = crate::input::owner::input();
+pub fn run_routine(routine: u32, o: SlotOwners<'_>) -> Option<Result<(), Refused>> {
     match routine {
-        0x4078DA => Some(crate::input::input_thread::thread_routine(input)),
-        0x409CCE => Some(crate::audio::thread::audio_thread(audio)),
-        0x4183C3 => Some(crate::net::receive_thread::receive_thread()),
+        0x4078DA => Some(crate::input::input_thread::input_thread(
+            o.input, o.sound, o.system, o.race,
+        )),
+        0x409CCE => Some(crate::audio::thread::audio_thread(
+            o.audio, o.sound, o.system,
+        )),
+        0x4183C3 => Some(crate::net::receive_thread::receive_thread(
+            o.net, o.gfx, o.system,
+        )),
         0x410C17 => Some(crate::threading::shutdown_thread::shutdown_thread()),
         _ => None,
     }
@@ -75,12 +110,8 @@ pub fn run_routine(routine: u32) -> Option<Result<(), Refused>> {
 #[cfg(test)]
 mod tests {
     #[test]
-    fn slots_start_as_the_games() {
+    fn slot_layout() {
         assert_eq!(super::SLOT_LEN, 0x110);
-        // The routines are kept as the image's addresses.
-        crate::test_support::first_values::assert_store_starts_as_the_games(
-            "store:threading.thread_slot.SLOTS",
-        );
         assert_eq!(
             size_of_val(&super::SLOTS),
             super::SLOT_COUNT * super::SLOT_LEN

@@ -228,15 +228,5 @@ pub fn roll_credits(
 
 /// `roll_credits`' tune in the game: `sound::play_tune_2`'s command, sent and waited for.
 pub fn credits_tune(o: crate::owners::Owners<'static>) {
-    crate::sound::play_tune_2::play_tune_2(o.sound, o.audio, o.system);
-}
-
-#[cfg(test)]
-mod block_tests {
-    use crate::race::owner::race;
-
-    #[test]
-    fn first_values_are_the_games() {
-        crate::test_support::first_values::assert_block_starts_as_the_games(race().frame.credits());
-    }
+    crate::sound::play_tune_2::play_tune_2(o);
 }

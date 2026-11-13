@@ -101,7 +101,7 @@ pub fn race_init(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), R
         // No view of the race drawn yet (`EffectsView::before_any_view`).
         let view = crate::effects::run_frame::EffectsView::before_any_view(race);
         crate::effects::run_frame::run_frame(
-            crate::workers::game_scratch().vertices,
+            &crate::workers::game_scratch().vertices,
             race,
             scene,
             effects,

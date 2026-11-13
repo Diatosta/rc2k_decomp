@@ -353,7 +353,7 @@ mod reference_vectors {
             with_laid::<RingWork, _>(b[1], |w| {
                 with_laid::<DrawWork, _>(b[1], |dw| {
                     super::turn_x87(
-                        &crate::race::owner::race().frame.matrices.view_matrix,
+                        &crate::race::owner::race().frame.matrices.get().view_matrix,
                         &values(b[2]),
                         w,
                         dw,
@@ -455,21 +455,36 @@ mod reference_vectors {
                     let mut cells = vertices;
                     cells.push((
                         sine(
-                            &crate::race::owner::race().shared.buffers.engine_tables,
+                            &crate::race::owner::race()
+                                .shared
+                                .buffers
+                                .reads
+                                .get()
+                                .engine_tables,
                             b[4].number() / 4,
                         ),
                         tables.wrapping_add(b[4].number()),
                     ));
                     cells.push((
                         cosine(
-                            &crate::race::owner::race().shared.buffers.engine_tables,
+                            &crate::race::owner::race()
+                                .shared
+                                .buffers
+                                .reads
+                                .get()
+                                .engine_tables,
                             b[4].number() / 4,
                         ),
                         tables.wrapping_add(b[4].number() + 0x1000),
                     ));
                     staged(&cells, || {
                         super::square_x87(
-                            &crate::race::owner::race().shared.buffers.engine_tables,
+                            &crate::race::owner::race()
+                                .shared
+                                .buffers
+                                .reads
+                                .get()
+                                .engine_tables,
                             &crate::d3d::vertices_store::VERTICES,
                             b[3].number(),
                             b[4].number() / 4,

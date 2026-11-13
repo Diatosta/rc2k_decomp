@@ -136,7 +136,7 @@ pub fn car_lighting(
         c.car.light_colour.set(lighting::add_colour(
             colour,
             c.car.light_colour.get(),
-            system.session.machine.has_mmx.get() != 0,
+            system.machine().has_mmx.get() != 0,
         ));
     }
     Ok(())

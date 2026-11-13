@@ -75,7 +75,7 @@ pub fn copy_course_header(course: &Course) -> Result<(), BadInput> {
 
 /// `race::clear_lit_faces` (0x45E9D5): `g_litFaceCount` 0.
 pub fn clear_lit_faces(physics: &Physics) {
-    physics.contact.lit_face_count.set(0u32);
+    physics.contact.get().lit_face_count.set(0u32);
 }
 
 /// `race::reset_face_lights` (0x45ED70): each face whose first byte is 0xFF gets its +0x30 .. +0x38

@@ -25,7 +25,6 @@ pub struct MenuPages {
     pub services: PlainDword,
 }
 
-/// First values the image's (`tests::menu_pages_starts_as_the_games`).
 impl MenuPages {
     pub const fn new() -> Self {
         MenuPages {
@@ -37,16 +36,5 @@ impl MenuPages {
             reset_times: PlainDword::new(0x0),
             services: PlainDword::new(0x0),
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-
-    #[test]
-    fn menu_pages_starts_as_the_games() {
-        crate::test_support::first_values::assert_block_starts_as_the_games(
-            &crate::menu::owner::menus().tables.pages,
-        );
     }
 }

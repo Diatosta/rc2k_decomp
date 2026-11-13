@@ -3,7 +3,7 @@
 //! (`g_mixBuffer`, 0x952AF8, 0x3C00 bytes up to `g_soundCommands`; `MIX`), then clipped into the primary buffer's format. The standalone program will
 //! mix this way.
 
-use crate::audio::store::AudioState;
+use crate::audio::own::AudioOwn;
 use crate::audio::voices::*;
 use crate::errors::{BadInput, Refused};
 
@@ -22,7 +22,7 @@ static MIX: std::sync::Mutex<[i32; MIX_BUFFER_LEN as usize / 4]> =
 /// stops there. Positions are stored back. Refuses no channels, no frames with a channel
 /// used (both counts run 2^32 times in the original), more frames than the buffer holds.
 pub fn mix_channels(
-    state: &AudioState,
+    state: &AudioOwn,
     bytes: u32,
     shift: u32,
     channels: u32,

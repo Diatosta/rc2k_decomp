@@ -8,7 +8,7 @@
 //! recorded vectors.
 
 use crate::effects::asm_test::Operand;
-use crate::effects::store::START as BLOCK;
+use crate::effects::asm_test::START as BLOCK;
 use core::mem::offset_of;
 
 /// A run of fields that were next to each other in the 1999 layout.

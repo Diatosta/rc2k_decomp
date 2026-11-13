@@ -23,7 +23,12 @@ pub fn chat_key(
         return Ok(());
     }
     if net.edit().chat_input.get(0) != 0 {
-        crate::net::send_chat::send_chat(net, vars.player.get(), &net.edit().chat_input.read())?;
+        crate::net::send_chat::send_chat(
+            net,
+            gfx,
+            vars.player.get(),
+            &net.edit().chat_input.read(),
+        )?;
         net.edit().chat_input.set(0, 0);
     }
     Ok(())

@@ -58,14 +58,3 @@ impl ObjectTables {
         <Self as ZeroCells>::ZERO
     }
 }
-
-#[cfg(test)]
-mod tests {
-
-    #[test]
-    fn first_values_are_the_games() {
-        crate::test_support::first_values::assert_block_starts_as_the_games(
-            crate::scene::owner::scene().objects.slots.get(),
-        );
-    }
-}

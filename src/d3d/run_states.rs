@@ -8,8 +8,8 @@
 //! when the runs are joined, its fans before that point get the value the earlier runs
 //! left (`patch`), and the states it set go into the store whatever their value (`carry`).
 
+use std::cell::Cell;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering::Relaxed};
 
 use crate::render::{Command, STATES};
 use crate::workers::PartScratch;
@@ -26,20 +26,20 @@ pub struct RunStates {
 
 /// A drawing part's run under way (`workers::PartScratch::run`): where it first set each
 /// state. Only a part other than the first has one; only the thread drawing it reaches it
-/// while it is under way.
+/// (plain cells, `part_cell::PartCell`).
 pub struct OwnRun {
-    on: AtomicBool,
+    on: Cell<bool>,
     /// The noted commands' count as the run began.
-    base: AtomicUsize,
-    first_set: [AtomicUsize; STATES],
+    base: Cell<usize>,
+    first_set: [Cell<usize>; STATES],
 }
 
 impl OwnRun {
     pub const fn new() -> Self {
         Self {
-            on: AtomicBool::new(false),
-            base: AtomicUsize::new(0),
-            first_set: [const { AtomicUsize::new(usize::MAX) }; STATES],
+            on: Cell::new(false),
+            base: Cell::new(0),
+            first_set: [const { Cell::new(usize::MAX) }; STATES],
         }
     }
 }
@@ -54,18 +54,18 @@ impl Default for OwnRun {
 pub fn begin_run(part: &PartScratch, start: &crate::d3d::render_cache::Cache) {
     crate::d3d::render_cache::begin(part, start);
     let run = &part.run;
-    run.base.store(crate::platform_3d::noted_len(part), Relaxed);
+    run.base.set(crate::platform_3d::noted_len(part));
     for f in &run.first_set {
-        f.store(usize::MAX, Relaxed);
+        f.set(usize::MAX);
     }
-    run.on.store(true, Relaxed);
+    run.on.set(true);
 }
 
 /// Part `part`'s run is over: where it set its states.
 pub fn end_run(part: &PartScratch) -> RunStates {
     let run = &part.run;
-    let first_set = if run.on.swap(false, Relaxed) {
-        std::array::from_fn(|i| run.first_set[i].load(Relaxed))
+    let first_set = if run.on.replace(false) {
+        std::array::from_fn(|i| run.first_set[i].get())
     } else {
         [usize::MAX; STATES]
     };
@@ -79,11 +79,9 @@ pub fn end_run(part: &PartScratch) -> RunStates {
 /// under way.
 pub fn note_set(part: &PartScratch, state: usize) {
     let run = &part.run;
-    if run.on.load(Relaxed) && state < STATES && run.first_set[state].load(Relaxed) == usize::MAX {
-        run.first_set[state].store(
-            crate::platform_3d::noted_len(part).saturating_sub(run.base.load(Relaxed)),
-            Relaxed,
-        );
+    if run.on.get() && state < STATES && run.first_set[state].get() == usize::MAX {
+        run.first_set[state]
+            .set(crate::platform_3d::noted_len(part).saturating_sub(run.base.get()));
     }
 }
 

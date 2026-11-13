@@ -11,13 +11,13 @@
 //! Refuses A3D (the chunk at 0x40CDE8).
 
 use crate::audio::buffer_settings::a3d;
-use crate::audio::store::AudioState;
+use crate::audio::own::AudioOwn;
 use crate::audio::voices::*;
 use crate::errors::{BadInput, Refused};
 
 /// The voice's buffer filled; the lost buffer's flag is `g_soundBufferLost`, the parts go
 /// to `g_lockedParts`. True for the carry clear.
-pub fn fill_buffer(state: &AudioState, v: &Voice) -> Result<bool, Refused> {
+pub fn fill_buffer(state: &AudioOwn, v: &Voice) -> Result<bool, Refused> {
     use crate::platform_sound as ds;
     if a3d(state) {
         return Err(BadInput("A3D (the chunk at 0x40CDE8)").into());

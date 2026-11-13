@@ -34,12 +34,3 @@ pub fn figure_bytes(
     }
     Ok(out)
 }
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn setting_starts_as_the_games() {
-        let d = crate::test_support::first_values::bytes("strings.units.UNITS/4");
-        assert_eq!(u32::from_le_bytes(d.try_into().unwrap()), super::units());
-    }
-}

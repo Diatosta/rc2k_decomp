@@ -16,15 +16,11 @@ use crate::errors::{BadInput, Refused};
 use crate::net::add_address_element::{self as elements, add_address_element};
 use crate::net::lobby::log_bytes;
 use crate::net::owner::Net;
-use crate::race::viewer_screen_store::{ViewerPanelBlock, texts};
+use crate::race::viewer_screen_store::{NetTexts, texts};
 use rc2k_core::net::address::{self, Provider};
-pub fn build_address(
-    net: &Net,
-    panel: &ViewerPanelBlock,
-    connection_number: u32,
-) -> Result<bool, Refused> {
+pub fn build_address(net: &Net, lines: &NetTexts, connection_number: u32) -> Result<bool, Refused> {
     let vars = &net.vars;
-    log_bytes(&panel.text(texts::NET_DPCA), true, 2);
+    log_bytes(&lines.text(texts::NET_DPCA), true, 2);
     if vars.lobby.get() == 0 {
         return Ok(false);
     }
@@ -35,35 +31,43 @@ pub fn build_address(
     vars.posting.set(0);
     let provider = address::provider(|which| -> Result<bool, Refused> {
         let known = if which == Provider::Ipx {
-            &vars.sp_ipx
+            &crate::net::store::SP_IPX
         } else {
-            &vars.sp_tcpip
+            &crate::net::store::SP_TCPIP
         };
-        Ok(known.read() == guid)
+        Ok(*known == guid)
     })?;
     match provider {
-        Provider::Ipx => add_address_element(net, &vars.aid_service_provider, &vars.sp_ipx.read()),
+        Provider::Ipx => add_address_element(
+            net,
+            &crate::net::store::AID_SERVICE_PROVIDER,
+            &crate::net::store::SP_IPX,
+        ),
         Provider::TcpIp => {
-            add_address_element(net, &vars.aid_service_provider, &vars.sp_tcpip.read());
+            add_address_element(
+                net,
+                &crate::net::store::AID_SERVICE_PROVIDER,
+                &crate::net::store::SP_TCPIP,
+            );
             let host = net.setup().host_address.read();
             let length = host
                 .iter()
                 .position(|&c| c == 0)
                 .ok_or(BadInput("a host address without its end"))? as u32;
             let size = address::host_address_size(length) as usize;
-            add_address_element(net, &vars.aid_inet, &host[..size]);
+            add_address_element(net, &crate::net::store::AID_INET, &host[..size]);
             if address::has_port(net.setup().port.get()) {
                 let port = net.setup().port.get().to_le_bytes();
                 add_address_element(
                     net,
-                    &vars.aid_inet_port,
+                    &crate::net::store::AID_INET_PORT,
                     &port[..address::PORT_SIZE as usize],
                 );
             }
         }
         Provider::Other => {
             let data = &guid[..address::PROVIDER_SIZE as usize];
-            add_address_element(net, &vars.aid_service_provider, data);
+            add_address_element(net, &crate::net::store::AID_SERVICE_PROVIDER, data);
         }
     }
     if address::posts(provider) {

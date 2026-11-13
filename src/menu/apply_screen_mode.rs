@@ -46,7 +46,7 @@ pub fn apply_screen_mode(o: Owners<'static>) -> Result<(), Refused> {
     // `nullsub_6`.
     crate::race::race_end::release_textures(o.scene, o.gfx);
     crate::scene::set_up_front_end_scene::set_up_front_end_scene_in(o)?;
-    crate::sound::play_tune_4::play_tune_4(o.sound, o.audio, o.system);
+    crate::sound::play_tune_4::play_tune_4(o);
     let applied = applied_mode(taken);
     screens.loop_flags.item.set(applied.item);
     screens.items.current[slot::VISUAL_OPTIONS].set(applied.item);

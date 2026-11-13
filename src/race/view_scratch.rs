@@ -5,6 +5,11 @@
 //! passed down the drawing in a `DrawCtx` rather than reached through statics. Never read by
 //! another step.
 //!
+//! The race's four slots (views 0 and 1, mirrors 0 and 1) are `PartCell`s: the parts of a
+//! drawing scope get theirs from `workers::draw_parts` (`workers::PartRun::view`), the game's
+//! thread reaches them by `main_view`, `mirror` and `slot` outside the parts. The front end's
+//! slot belongs to the game's thread alone (`front_end`).
+//!
 //! Holds so far the two sort lists the view's drawing fills, sorts and draws (the original's
 //! `g_depthEntries` / `g_sortEntries` at 0x9D3730 in the buffers block, one for every view)
 //! and their counts (the original's `RACE_VIEW.depth_entry_count` / `sort_entry_count`), and
@@ -14,7 +19,8 @@
 //! polygon pipeline's work (`scene::polygon_work`).
 
 use crate::errors::BadInput;
-use crate::session::Dword;
+use crate::part_cell::{PartCell, PartTurn};
+use crate::session::{Dword, GameThread};
 
 /// The most entries in either list.
 pub const ENTRIES: usize = 0x1000;
@@ -83,8 +89,9 @@ impl SortLists {
 
 /// A view slot's working state.
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
 pub struct ViewScratch {
+    /// The slot's number (`number`).
+    slot: u8,
     pub lists: SortLists,
     /// The view's fog, set up at the start of its drawing (`race::set_up_fog`).
     pub fog: crate::scene::fog::Fog,
@@ -127,8 +134,9 @@ pub struct ViewScratch {
 }
 
 impl ViewScratch {
-    const fn new() -> Self {
+    const fn new(slot: u8) -> Self {
         Self {
+            slot,
             lists: SortLists::new(),
             fog: crate::scene::fog::Fog::new(),
             object: crate::scene::object_place::ObjectPlace::new(),
@@ -173,37 +181,40 @@ impl ViewScratch {
     /// every race view, held races draw and sound the same as when each kept its last).
     pub fn begin(&self) {
         use crate::cells::Cells;
-        self.fog.copy_from(&FRESH.fog);
-        self.object.copy_from(&FRESH.object);
-        self.light.copy_from(&FRESH.light);
-        self.face.copy_from(&FRESH.face);
-        self.cars.copy_from(&FRESH.cars);
-        self.matrices.copy_from(&FRESH.matrices);
+        self.fog.copy_from(&crate::scene::fog::Fog::new());
+        self.object
+            .copy_from(&crate::scene::object_place::ObjectPlace::new());
+        self.light
+            .copy_from(&crate::scene::object_light::ObjectLight::new());
+        self.face
+            .copy_from(&crate::race::face_work::FaceWork::new());
+        self.cars
+            .copy_from(&crate::race::car_draw_state::CarDrawState::new());
+        self.matrices
+            .copy_from(&crate::scene::view_matrices::ViewMatrices::new());
         // What the view's set-up gave before its scene, kept: the mirror's flag
         // (`race::mirror_view_window`), the view's value (`race::fetch_view_value`) and its
         // window (`scene::view_window`). Made beside and copied in whole, so the window is
         // never seen reset: the mirror's part reads its view's depth while the view begins.
         let fresh = crate::scene::polygon_work::PolygonWork::new();
-        fresh.copy_from(&FRESH.polygon);
         fresh.window.copy_from(&self.polygon.window);
         fresh.view_mirrored.set(self.polygon.view_mirrored.get());
         fresh.sun.view_out.set(self.polygon.sun.view_out.get());
         self.polygon.copy_from(&fresh);
-        self.grid.copy_from(&FRESH.grid);
-        self.course.copy_from(&FRESH.course);
-        self.quad.copy_from(&FRESH.quad);
-        self.state.copy_from(&FRESH.state);
-        self.lamps.copy_from(&crate::race::lamp_work::PUBLISHED);
+        self.grid
+            .copy_from(&crate::race::view_grid::ViewGrid::new());
+        self.course
+            .copy_from(&crate::race::view_course::ViewCourse::new());
+        self.quad
+            .copy_from(&crate::race::quad_work::QuadWork::new());
+        self.state
+            .copy_from(&crate::race::view_state::ViewState::new());
+        crate::race::lamp_work::PUBLISHED.take_into(&self.lamps);
     }
 
     /// The slot's number (`slot`).
     pub fn number(&self) -> usize {
-        SLOTS
-            .iter()
-            .position(|s| std::ptr::eq(s, self))
-            .unwrap_or_else(|| {
-                crate::fatal::raise::end("a view's slot", BadInput("not one of the slots"))
-            })
+        usize::from(self.slot)
     }
 
     /// The view drawn (`RACE_VIEW.drawn_view`, the original's `g_drawnView`): the player
@@ -217,34 +228,70 @@ impl ViewScratch {
     }
 }
 
-/// The view slots: the two players' views, then their mirrors, then the front end's 3D (the
-/// menus' objects and carousel).
-static SLOTS: [ViewScratch; SLOT_COUNT] = [const { ViewScratch::new() }; SLOT_COUNT];
+/// The race's view slots: the two players' views, then their mirrors. Each is claimed by the
+/// run that draws it (`claim`), or reached by the game's thread (`slot`).
+static VIEWS: [PartCell<ViewScratch>; PART_SLOTS] = [
+    PartCell::new(ViewScratch::new(0)),
+    PartCell::new(ViewScratch::new(1)),
+    PartCell::new(ViewScratch::new(2)),
+    PartCell::new(ViewScratch::new(3)),
+]; // m6-root
 
-/// The slots' parts as they start (`ViewScratch::begin`).
-static FRESH: ViewScratch = ViewScratch::new();
+/// The front end's 3D (the menus' objects and carousel; the HUD, the loading bar and the
+/// effects draw on its polygon work): the game's thread's alone, never drawn by a part.
+static FRONT_END: GameThread<ViewScratch> = GameThread::new(ViewScratch::new(4)); // m6-root
+
+/// The slots the parts of a drawing draw: the views and the mirrors.
+const PART_SLOTS: usize = 4;
 
 /// How many slots there are.
 pub const SLOT_COUNT: usize = 5;
 
-/// Slot `n` (below `SLOT_COUNT`).
+/// Whether `slots` can be drawn by one part each: at least one, each a view's or a mirror's,
+/// no two the same.
+pub fn drawable_slots(slots: &[usize]) -> bool {
+    !slots.is_empty()
+        && slots.iter().all(|&s| s < PART_SLOTS)
+        && slots
+            .iter()
+            .enumerate()
+            .all(|(n, s)| !slots[..n].contains(s))
+}
+
+/// Slot `slot` (below `PART_SLOTS`) for the run whose `turn` it is, until the scope ends
+/// (`workers::draw_parts`).
+pub(crate) fn claim<'s>(slot: usize, turn: &PartTurn<'s>) -> &'s ViewScratch {
+    VIEWS[slot].claim(turn)
+}
+
+/// The scope ending: the slots are the game's thread's again.
+pub(crate) fn end_claims(ending: &crate::workers::DrawScope) {
+    for view in &VIEWS {
+        view.end_claim(ending);
+    }
+}
+
+/// Slot `n` (below `SLOT_COUNT`), on the game's thread.
 pub fn slot(n: usize) -> &'static ViewScratch {
-    &SLOTS[n]
+    match VIEWS.get(n) {
+        Some(view) => view.on_game_thread(),
+        None => front_end(),
+    }
 }
 
-/// Player `car`'s view's working state.
+/// Player `car`'s view's working state, on the game's thread (the parts are handed theirs).
 pub fn main_view(car: usize) -> &'static ViewScratch {
-    &SLOTS[car]
+    VIEWS[car].on_game_thread()
 }
 
-/// Player `car`'s mirror's working state.
+/// Player `car`'s mirror's working state, on the game's thread.
 pub fn mirror(car: usize) -> &'static ViewScratch {
-    &SLOTS[2 + car]
+    VIEWS[2 + car].on_game_thread()
 }
 
-/// The front end's 3D's working state.
+/// The front end's 3D's working state, on the game's thread.
 pub fn front_end() -> &'static ViewScratch {
-    &SLOTS[4]
+    FRONT_END.get()
 }
 
 /// What a view's drawing works with: the race, the scene, the network session and the keys (read only, by the
@@ -306,14 +353,15 @@ impl<'a> DrawCtx<'a> {
     }
 }
 
-/// The texture filter's switches a view starts from (`scene::polygon_work`'s `smooth`,
-/// `plain_first`, `plain_second`): for the first view (slot 0) the front end's slot's, where
-/// the HUD's overlay left them the frame before (1, 1) or the menus' passes; for the others
-/// 0. In the original one set of variables went from view to view: the mirror and the second
-/// view read what the first view's last list entry left (0, measured), the first view the
-/// HUD's (its sky drawn smooth, the others not).
-pub fn filter_input(view: &ViewScratch) -> [u32; 3] {
-    if view.number() == 0 {
+/// The texture filter's switches the view in slot `slot` starts from (`scene::polygon_work`'s
+/// `smooth`, `plain_first`, `plain_second`): for the first view (slot 0) the front end's slot's,
+/// where the HUD's overlay left them the frame before (1, 1) or the menus' passes; for the
+/// others 0. In the original one set of variables went from view to view: the mirror and the
+/// second view read what the first view's last list entry left (0, measured), the first view the
+/// HUD's (its sky drawn smooth, the others not). On the game's thread, before the parts
+/// (the front end's slot is not a part's); the view's drawing is handed the values.
+pub fn filter_input(slot: usize) -> [u32; 3] {
+    if slot == 0 {
         let from = &front_end().polygon;
         [
             from.smooth.get(),
@@ -323,12 +371,4 @@ pub fn filter_input(view: &ViewScratch) -> [u32; 3] {
     } else {
         [0; 3]
     }
-}
-
-/// The view slot whose polygon work `poly` is (the bad polygon's log names the view's object
-/// and face).
-pub fn of_polygon(poly: &crate::scene::polygon_work::PolygonWork) -> Option<&'static ViewScratch> {
-    SLOTS
-        .iter()
-        .find(|s| std::ptr::eq(&raw const s.polygon, poly))
 }

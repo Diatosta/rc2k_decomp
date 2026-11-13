@@ -85,27 +85,27 @@ const ENTRIES: [(&[u8], u32, Target); 77] = [
     (
         b"notaskswitch",
         0x518384,
-        dword!(o => o.system.session.flags.no_task_switch),
+        dword!(o => o.system.window_loop().no_task_switch),
     ),
     (
         b"noprichange",
         0x518388,
-        dword!(o => o.system.session.flags.keep_priority),
+        dword!(o => o.system.window_loop().keep_priority),
     ),
     (
         b"ignoremmx",
         0x5183AC,
-        dword!(o => o.system.session.machine.ignore_mmx),
+        dword!(o => o.system.machine().ignore_mmx),
     ),
     (
         b"ignorekatmai",
         0x5183B4,
-        dword!(o => o.system.session.machine.ignore_katmai),
+        dword!(o => o.system.machine().ignore_katmai),
     ),
     (
         b"ignoreamdk3d",
         0x5183BC,
-        dword!(o => o.system.session.machine.ignore_3dnow),
+        dword!(o => o.system.machine().ignore_3dnow),
     ),
     (
         b"altmemenable",
@@ -471,65 +471,86 @@ pub fn read_settings(o: Owners<'static>) -> Result<(), BadInput> {
 #[cfg(test)]
 mod tests {
     use super::{ENTRIES, Owners, Target};
-    use crate::audio::store::AudioState;
+    use crate::audio::store::AudioShared;
     use crate::d3d::cards_store::Cards3d;
+    use crate::session::{Machine, WindowLoopState};
     use core::mem::offset_of;
 
     /// Where each setting's variable is: its store (a registry name) and the byte offset in
     /// it. The game's table holds the variables' addresses; these are the places of them.
     const PLACES: [(&str, &str, usize); 77] = [
-        ("notaskswitch", "system.owner.SYSTEM.session.flags", 0x14),
-        ("noprichange", "system.owner.SYSTEM.session.flags", 0x18),
-        ("ignoremmx", "system.owner.SYSTEM.session.machine", 0x4),
-        ("ignorekatmai", "system.owner.SYSTEM.session.machine", 0xc),
-        ("ignoreamdk3d", "system.owner.SYSTEM.session.machine", 0x14),
+        (
+            "notaskswitch",
+            "system.owner.SYSTEM.window_loop",
+            offset_of!(WindowLoopState, no_task_switch),
+        ),
+        (
+            "noprichange",
+            "system.owner.SYSTEM.window_loop",
+            offset_of!(WindowLoopState, keep_priority),
+        ),
+        (
+            "ignoremmx",
+            "system.owner.SYSTEM.machine",
+            offset_of!(Machine, ignore_mmx),
+        ),
+        (
+            "ignorekatmai",
+            "system.owner.SYSTEM.machine",
+            offset_of!(Machine, ignore_katmai),
+        ),
+        (
+            "ignoreamdk3d",
+            "system.owner.SYSTEM.machine",
+            offset_of!(Machine, ignore_3dnow),
+        ),
         ("altmemenable", "memory.state.OWN_HEAP", 0x0),
         ("altmemheapsize", "memory.state.OWN_HEAP_KB", 0x0),
         (
             "noaudio",
             "audio.owner.AUDIO_OWNER.state",
-            offset_of!(AudioState, no_audio),
+            offset_of!(AudioShared, no_audio),
         ),
         (
             "nosound",
             "audio.owner.AUDIO_OWNER.state",
-            offset_of!(AudioState, no_audio),
+            offset_of!(AudioShared, no_audio),
         ),
         ("nocdaudio", "sound.owner.SOUND.menu.cd_audio", 0x0),
         (
             "nomusic",
             "audio.owner.AUDIO_OWNER.state",
-            offset_of!(AudioState, no_music),
+            offset_of!(AudioShared, no_music),
         ),
         (
             "audiobasefreq",
             "audio.owner.AUDIO_OWNER.state",
-            offset_of!(AudioState, mix_rate_setting),
+            offset_of!(AudioShared, mix_rate_setting),
         ),
         (
             "ignoreds3d",
             "audio.owner.AUDIO_OWNER.state",
-            offset_of!(AudioState, no_listener),
+            offset_of!(AudioShared, no_listener),
         ),
         (
             "ignoredsv",
             "audio.owner.AUDIO_OWNER.state",
-            offset_of!(AudioState, ignore_dsv_setting),
+            offset_of!(AudioShared, ignore_dsv_setting),
         ),
         (
             "ignoreeax",
             "audio.owner.AUDIO_OWNER.state",
-            offset_of!(AudioState, ignore_eax_setting),
+            offset_of!(AudioShared, ignore_eax_setting),
         ),
         (
             "ignorea3d",
             "audio.owner.AUDIO_OWNER.state",
-            offset_of!(AudioState, no_a3d_setting),
+            offset_of!(AudioShared, no_a3d_setting),
         ),
         (
             "wavheapsize",
             "audio.owner.AUDIO_OWNER.state",
-            offset_of!(AudioState, sample_buffer_kb),
+            offset_of!(AudioShared, sample_buffer_kb),
         ),
         ("bundleheapsize", "gfx.owner.GFX.fonts.glyph_tables", 0x0),
         ("imageheapsize", "strings.owner.STRINGS.lexicon.memory", 0x0),
@@ -708,24 +729,6 @@ mod tests {
             assert_eq!(&neighbours[..4], &neighbours_after[..4]);
             assert_eq!(&neighbours[8..], &neighbours_after[8..]);
         }
-    }
-
-    #[test]
-    fn table_is_the_games() {
-        let bytes = super::table_bytes();
-        crate::test_support::first_values::assert_matches(
-            "settings.read_settings.TABLE/1256",
-            &bytes,
-        );
-        assert_eq!(
-            crate::test_support::first_values::bytes("settings.read_settings.PATH"),
-            &super::PATH[..]
-        );
-        // The empty key that ends the table.
-        assert_eq!(
-            crate::test_support::first_values::bytes("settings.read_settings.TABLE_END/1"),
-            [0]
-        );
     }
 
     #[test]

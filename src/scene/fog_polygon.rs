@@ -25,7 +25,7 @@ pub fn fog_polygon(
     part: &crate::workers::PartScratch,
     view: &crate::race::view_scratch::ViewScratch,
 ) -> Result<(), Refused> {
-    let polygon_work = part.polygon;
+    let polygon_work = &part.polygon;
     fog_entries(part, &listed(polygon_work, &view.polygon)?, view)
 }
 

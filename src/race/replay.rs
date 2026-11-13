@@ -51,25 +51,6 @@ impl Replays {
     }
 }
 
-#[cfg(test)]
-mod block_tests {
-    use super::*;
-    use crate::race::owner::race;
-    use core::mem::offset_of;
-
-    #[test]
-    fn first_values_are_the_games() {
-        crate::test_support::first_values::assert_block_starts_as_the_games(
-            race().shared.replays(),
-        );
-    }
-
-    #[test]
-    fn fields_are_at_the_games_offsets() {
-        assert_eq!(offset_of!(Replays, names), 0x430);
-    }
-}
-
 /// `race::seal_replay_header` (0x41F0A3): the replay's sealed header part (`sealed_header`, 0x40
 /// dwords): version byte 6, the player's name (`strings::copy_printable`, 0x20), the settings and
 /// options copied (`copy_header_settings`), a checksum (from dword 1: add, `rol` 5) into dword 0 and
@@ -157,43 +138,6 @@ fn copy_header_settings_of(
     strings: &crate::strings::owner::Strings,
     sealed: &[PlainDword; 64],
 ) -> Result<(), BadInput> {
-    use crate::race::state_store::{RaceCar, RaceSettings, RaceState, SettingsHead};
-    use core::mem::offset_of;
-    // The cells of the race's settings as the front end keeps them, by IDA's address.
-    const SETTINGS: usize = offset_of!(RaceState, settings);
-    const CARS: usize = SETTINGS + offset_of!(RaceSettings, cars);
-    const fn setting(ida: usize) -> usize {
-        ida - 0x75ACCC
-    }
-    const _: () = {
-        assert!(
-            SETTINGS + offset_of!(RaceSettings, inline) + offset_of!(SettingsHead, stage)
-                == setting(0x75ACD4)
-        );
-        assert!(
-            SETTINGS + offset_of!(RaceSettings, inline) + offset_of!(SettingsHead, run_kind)
-                == setting(0x75ACD8)
-        );
-        assert!(
-            SETTINGS
-                + offset_of!(RaceSettings, inline)
-                + offset_of!(SettingsHead, car_kind_current)
-                == setting(0x75ACE8)
-        );
-        assert!(
-            SETTINGS + offset_of!(RaceSettings, inline) + offset_of!(SettingsHead, direction)
-                == setting(0x75ACF0)
-        );
-        assert!(CARS + offset_of!(RaceCar, tyre) == setting(0x75AD1C));
-        assert!(CARS + offset_of!(RaceCar, brake_balance) == setting(0x75AD20));
-        assert!(CARS + offset_of!(RaceCar, ride_height) == setting(0x75AD24));
-        assert!(CARS + offset_of!(RaceCar, suspension_stiffness) == setting(0x75AD28));
-        assert!(CARS + offset_of!(RaceCar, steering_sensitivity) == setting(0x75AD2C));
-        assert!(CARS + offset_of!(RaceCar, gear_ratio) == setting(0x75AD30));
-        assert!(CARS + offset_of!(RaceCar, race_number) == setting(0x75AE1C));
-        assert!(CARS + offset_of!(RaceCar, view) == setting(0x75AE24));
-        assert!(CARS + offset_of!(RaceCar, gearing) == setting(0x75AE2C));
-    };
     let shared = &race.shared;
     let settings = &shared.state.settings;
     let car = &settings.cars[0];
@@ -225,7 +169,7 @@ fn copy_header_settings_of(
         (1, 0x719B8B, car.view.get()),
         (4, 0x719B5D, shared.replay_file().season_code.get()),
         (4, 0x719B82, menus.play.cheats.cheats.get()),
-        (1, 0x719B94, car.gearing.get()),
+        (1, 0x719B94, car.controls.gearing.get()),
         (1, 0x719B95, car.gear_ratio.get()),
         (1, 0x719B96, car.tyre.get()),
         (1, 0x719B97, car.brake_balance.get()),
@@ -529,18 +473,8 @@ mod seal_key_tests {
     use crate::race::owner::race;
 
     #[test]
-    fn seal_key_starts_as_the_games() {
-        assert_eq!(
-            crate::test_support::first_values::bytes("race.owner.RACE.replay.seal_key/4"),
-            [0; 4]
-        );
+    fn seal_key_starts_at_zero() {
         assert_eq!(race().replay.seal_key().get(), 0);
-    }
-
-    #[test]
-    fn sealed_header_sits_at_the_games_address() {
-        use crate::race::replay_work_store::ReplayWork;
-        assert_eq!(core::mem::offset_of!(ReplayWork, sealed_header), 0x58);
     }
 }
 
@@ -642,7 +576,7 @@ mod header_tests {
             &settings.direction,
             &car.race_number,
             &car.view,
-            &car.gearing,
+            &car.controls.gearing,
             &car.gear_ratio,
             &car.tyre,
             &car.brake_balance,

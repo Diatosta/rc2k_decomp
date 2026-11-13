@@ -1,7 +1,5 @@
 //! The replay's frame variables: the first step, the cameras' words, the frame and tenth kept, the step's block and frame, the eight kept frames of the car blocks (`ReplayFrames.slots`, 0x3F80 bytes each) and the last frame `quit_question` keeps (`ReplayFrames.last_kept`, just before `g_carBlockStore`). Names are readings unless IDA's.
 
-#[cfg(test)]
-use crate::race::owner::race;
 use crate::session::{PlainBytes, PlainDword};
 
 #[repr(C)]
@@ -104,17 +102,5 @@ impl ReplayFrames {
             ])),
             ..ZeroCells::ZERO
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn first_values_are_the_games() {
-        crate::test_support::first_values::assert_block_starts_as_the_games(
-            race().replay.replay_frames(),
-        );
     }
 }

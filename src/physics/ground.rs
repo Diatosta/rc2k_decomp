@@ -54,7 +54,7 @@ pub fn face_shares_at(
     for &(cell, value) in &d {
         cell.set(value);
     }
-    let sse = switches.use_sse.get() != 0;
+    let sse = switches.use_sse.is_set();
     let shares = crate::math::x87::face_shares(
         &crate::math::x87::FaceDifferences {
             x: [d[0].1 as i32, d[1].1 as i32, d[2].1 as i32],

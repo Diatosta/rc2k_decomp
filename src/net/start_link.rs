@@ -42,10 +42,10 @@ enum Way {
 
 fn link(o: Owners<'static>) -> Result<Way, Refused> {
     let net = o.net;
-    let panel = o.race.viewer_panel();
+    let lines = &crate::race::viewer_screen_store::NET_TEXTS;
     let vars = &net.vars;
     use crate::net::*;
-    if !find_connections::find_connections(&net.vars, o.strings, panel)? {
+    if !find_connections::find_connections(&net.vars, o.strings, lines)? {
         return Ok(Way::Message(NO_CONNECTION));
     }
     let connection = match find_saved_connection::find_saved_connection(net)? {
@@ -59,57 +59,33 @@ fn link(o: Owners<'static>) -> Result<Way, Refused> {
         }
     };
     keep_connection::keep_connection(net, connection)?;
-    if !connecting::connecting(
-        crate::strings::append_string_by_id::StringOwners::of(o),
-        net,
-        panel,
-        connection,
-        o.gfx,
-        o.system,
-    )? {
+    if !connecting::connecting(o, lines, connection)? {
         return Ok(Way::Message(NO_CONNECTION));
     }
-    if vars.mode.get() == 1 {
+    if net.lobby().mode.get() == 1 {
         vars.own
             .head
             .set(PlayerRecord::STATE, vars.own.state() | 0x10);
-        return Ok(
-            if hosting::hosting(
-                crate::strings::append_string_by_id::StringOwners::of(o),
-                net,
-                o.system,
-                panel,
-                o.gfx,
-            )? {
-                Way::On
-            } else {
-                Way::Message(NO_SESSION)
-            },
-        );
+        return Ok(if hosting::hosting(o, lines)? {
+            Way::On
+        } else {
+            Way::Message(NO_SESSION)
+        });
     }
-    if !find_sessions::find_sessions(net, o.system, panel)? {
+    if !find_sessions::find_sessions(o, lines)? {
         return Ok(Way::Message(NO_SESSION));
     }
-    let session = choose_session::choose_session(o, panel)?;
+    let session = choose_session::choose_session(o, lines)?;
     // Escape (a negative choice) sets the carry as a failure does, so it shows the
     // message too (the original's slip, `notes/bugs.md`).
     if (session as i32) < 0 {
         return Ok(Way::Message(NO_SESSION));
     }
-    Ok(
-        if joining::joining(
-            crate::strings::append_string_by_id::StringOwners::of(o),
-            net,
-            o.system,
-            panel,
-            session,
-            o.gfx,
-        )? {
-            Way::On
-        } else {
-            Way::Message(NO_SESSION)
-        },
-    )
+    Ok(if joining::joining(o, lines, session)? {
+        Way::On
+    } else {
+        Way::Message(NO_SESSION)
+    })
 }
 
 /// A network game in `mode` (1 host, 2 join).
@@ -117,25 +93,18 @@ pub fn start_link(o: crate::owners::Owners<'static>, mode: u32) -> Result<(), Re
     let (net, race) = (o.net, o.race);
     let vars = &net.vars;
     use crate::net::*;
-    log_bytes(&race.viewer_panel().text(texts::NET_STARTING_LINK), true, 2);
-    vars.mode.set(mode);
+    log_bytes(
+        &crate::race::viewer_screen_store::NET_TEXTS.text(texts::NET_STARTING_LINK),
+        true,
+        2,
+    );
+    net.lobby().mode.set(mode);
     take_player_settings::take_player_settings(race, o.menus);
     let menus = o.menus;
     fill_own_player::fill_own_player(race, net, menus, &menus.play.names.player_names.read())?;
-    show_background::show_background(
-        crate::strings::append_string_by_id::StringOwners::of(o),
-        o.gfx,
-        o.system,
-        &net.vars,
-    )?;
+    show_background::show_background(o)?;
     match link(o)? {
-        Way::Message(n) => show_message::show_message(
-            crate::strings::append_string_by_id::StringOwners::of(o),
-            n,
-            o.gfx,
-            o.system,
-            o.input,
-        )?,
+        Way::Message(n) => show_message::show_message(o, n)?,
         Way::End => {}
         Way::On => {
             vars.session.set(1);
@@ -146,30 +115,28 @@ pub fn start_link(o: crate::owners::Owners<'static>, mode: u32) -> Result<(), Re
             clear_chat::clear_chat(vars);
             unlock_received::unlock_received(&net.vars);
             vars.sync.set(0);
-            vars.sequence.set(0x80);
-            vars.after_race.set(0);
+            net.lobby().sequence.set(0x80);
+            net.lobby().after_race.set(0);
             loop {
                 vars.all_raced.set(0);
                 vars.race_over.set(0);
-                crate::sound::play_tune_4::play_tune_4(o.sound, o.audio, o.system);
+                crate::sound::play_tune_4::play_tune_4(o);
                 if (lobby_loop::lobby_loop(o)? as i32) < 0 {
                     break;
                 }
-                close_if_host::close_if_host(net, race.viewer_panel());
+                close_if_host::close_if_host(net, &crate::race::viewer_screen_store::NET_TEXTS);
                 if lets_rally::lets_rally(o)? {
                     break;
                 }
             }
         }
     }
-    log_bytes(&race.viewer_panel().text(texts::NET_STOPPING_LINK), true, 2);
-    stopping::stopping(
-        crate::strings::append_string_by_id::StringOwners::of(o),
-        &net.vars,
-        o.system,
-        o.gfx,
-        race.viewer_panel(),
-    )?;
-    crate::sound::play_tune_3::play_tune_3(o.sound, o.audio, o.system);
+    log_bytes(
+        &crate::race::viewer_screen_store::NET_TEXTS.text(texts::NET_STOPPING_LINK),
+        true,
+        2,
+    );
+    stopping::stopping(o, &crate::race::viewer_screen_store::NET_TEXTS)?;
+    crate::sound::play_tune_3::play_tune_3(o);
     Ok(())
 }

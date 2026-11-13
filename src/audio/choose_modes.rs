@@ -17,7 +17,7 @@
 //! 0x4707A3). Refuses a quality past `g_qualityModes` (the original reads past it).
 
 use crate::audio::owner::Audio;
-use crate::audio::store::AudioState;
+use crate::audio::store::AudioShared;
 use crate::errors::Refused;
 
 const NEW_MODES_TEXT: &std::ffi::CStr = c"AUD: New modes"; // "AUD: New modes"
@@ -25,7 +25,7 @@ const NEW_MODES_TEXT: &std::ffi::CStr = c"AUD: New modes"; // "AUD: New modes"
 pub use rc2k_core::audio::modes::{AudioOptions, Facts};
 
 /// The machine's facts as the game holds them.
-pub fn game_facts(state: &AudioState) -> Facts {
+pub fn game_facts(state: &AudioShared) -> Facts {
     Facts {
         qualities: state
             .quality_modes

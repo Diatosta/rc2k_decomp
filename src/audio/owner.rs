@@ -1,17 +1,19 @@
 //! Module audio's owner (step 11, owned state): the audio stores in one struct, reached
 //! through `audio()` by the code that does not take it as a parameter. The audio thread
-//! reads them at the same time as the game thread (atomic cells).
+//! reads them at the same time as the game thread (atomic cells); what only the audio thread
+//! touches is not here but in its own record (`audio::own`, made by the thread's loop).
 
 use crate::audio::levels::Levels;
 use crate::audio::names_store::SampleNames;
-use crate::audio::store::{AudioState, SampleRecords};
+use crate::audio::store::{AudioShared, SampleRecords};
 use rc2k_core::audio::commands::Queue;
 use std::sync::Mutex;
 
 /// The audio's state.
 pub struct Audio {
-    /// The mixer, the voices, the options and the streams.
-    pub state: AudioState,
+    /// What the game's thread and the audio thread both touch: the modes, the volumes, the
+    /// voices, the options and the streams.
+    pub state: AudioShared,
     /// The sample records.
     pub sample_records: SampleRecords,
     /// The commands the game sends to the audio thread.
@@ -28,7 +30,7 @@ pub struct Audio {
 /// The one instance (not `AUDIO`: that is `store::AUDIO`'s old name). Reached through
 /// `audio()`; `moved` registers its stores' places.
 pub static AUDIO_OWNER: Audio = Audio {
-    state: AudioState::new(),
+    state: AudioShared::new(),
     sample_records: SampleRecords::new(),
     commands: Mutex::new(Queue::new()),
     sample_names: SampleNames::new(),

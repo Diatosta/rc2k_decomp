@@ -4,9 +4,9 @@
 //! without A3D's driver (there is no COM here: the class is never there), and the
 //! code goes the original's way for that.
 
-use crate::audio::store::AudioState;
+use crate::audio::own::AudioOwn;
 use crate::errors::{BadInput, Refused};
-use crate::session::Dword;
+use crate::session::PlainDword;
 
 /// `REGDB_E_CLASSNOTREG`: what `CoCreateInstance` says of a class no driver registered.
 const CLASS_NOT_REGISTERED: i32 = 0x8004_0154u32 as i32;
@@ -17,7 +17,7 @@ fn game_create<C: ?Sized, I: ?Sized>(_class: &C, _interface: &I) -> i32 {
 }
 
 /// The object a cell holds released (when there is one) and forgotten.
-fn release(cell: &Dword) {
+fn release(cell: &PlainDword) {
     let o = cell.get();
     if o != 0 {
         crate::platform_sound::release(o);
@@ -28,7 +28,7 @@ fn release(cell: &Dword) {
 const THERE: &str = "A3D is there (CoCreateInstance worked): not ported";
 
 /// `audio::open_a3d`: A3D as the DirectSound. False for the carry (not used).
-pub fn open_a3d(state: &AudioState) -> Result<bool, Refused> {
+pub fn open_a3d(state: &AudioOwn) -> Result<bool, Refused> {
     if state.no_a3d_setting.get() & 1 != 0 {
         release(&state.a3d_object);
         release(&state.direct_sound);
@@ -43,7 +43,7 @@ pub fn open_a3d(state: &AudioState) -> Result<bool, Refused> {
 }
 
 /// `audio::open_a3d2`: A3D's second interface. False for the carry (not used).
-pub fn open_a3d2(state: &AudioState) -> Result<bool, Refused> {
+pub fn open_a3d2(state: &AudioOwn) -> Result<bool, Refused> {
     if state.no_a3d_setting.get() & 2 != 0 {
         release(&state.a3d_object);
         state.a3d_object.set(0);
@@ -58,7 +58,7 @@ pub fn open_a3d2(state: &AudioState) -> Result<bool, Refused> {
 }
 
 /// `audio::close_a3d2`: its interface released, `release_a3d` (place 9), A3D off.
-pub fn close_a3d2(state: &AudioState) {
+pub fn close_a3d2(state: &AudioOwn) {
     release(&state.a3d2_interface);
     crate::audio::sound_device::release_a3d_object(state);
     state.use_a3d.set(0);
@@ -67,7 +67,7 @@ pub fn close_a3d2(state: &AudioState) {
 /// `audio::read_splash` and `write_splash`: nothing unless A3D was found at the start
 /// (`g_a3dSplashKept` 1); then they read and turn off, or write back, A3D's
 /// "SplashScreen" and "SplashAudio" under HKLM\SOFTWARE\Aureal\A3D: refused.
-pub fn splash(state: &AudioState) -> Result<(), Refused> {
+pub fn splash(state: &AudioOwn) -> Result<(), Refused> {
     if state.a3d_splash_kept.get() == 1 {
         return Err(BadInput("A3D's splash settings in the registry (not ported)").into());
     }

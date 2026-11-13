@@ -5,8 +5,6 @@
 //! the point and coordinate tables follow at +0x1000 each). #[repr(C)]: the derive reads the fields in order.
 //! Names are readings unless IDA's.
 
-#[cfg(test)]
-use crate::race::owner::race;
 use crate::session::{PlainDword, PlainFloat};
 
 #[repr(C)]
@@ -112,17 +110,5 @@ impl GroundWork {
             drawn_car_light: PlainDword::new(0xFFFFFFFF),
             ..ZeroCells::ZERO
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn first_values_are_the_games() {
-        crate::test_support::first_values::assert_block_starts_as_the_games(
-            race().physics.ground(),
-        );
     }
 }

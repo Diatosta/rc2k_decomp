@@ -16,26 +16,20 @@ use crate::errors::Refused;
 use crate::net::lobby::{list_key, other_key, run_frame};
 pub fn settings_loop(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     let (install, net, system) = (o.install, o.net, o.system);
-    let vars = &net.vars;
-    vars.mode.set(0);
-    crate::net::show_background::show_background(
-        crate::strings::append_string_by_id::StringOwners::of(o),
-        o.gfx,
-        o.system,
-        &net.vars,
-    )?;
-    crate::net::settings_done::settings_done(net, system, o.strings, o.race.viewer_panel())?;
-    let now = system.session.clocks.key_ticks.get();
+    net.lobby().mode.set(0);
+    crate::net::show_background::show_background(o)?;
+    crate::net::settings_done::settings_done(o, &crate::race::viewer_screen_store::NET_TEXTS)?;
+    let now = system.session.key_clock.ticks.get();
     install.pages.move_clock.set(now);
     install.pages.key_clock.set(now);
     net.edit().edited.set(u32::MAX);
     install.pages.choice.set(0);
     loop {
-        run_frame(o.system, || crate::net::settings_frame::settings_frame(o))?;
+        run_frame(o, || crate::net::settings_frame::settings_frame(o))?;
         install
             .pages
             .frame_clock
-            .set(system.session.clocks.key_ticks.get());
+            .set(system.session.key_clock.ticks.get());
         let key = list_key(install, o.input)?;
         let mut moved = false;
         if net.edit().edited.get() != u32::MAX {
@@ -57,7 +51,10 @@ pub fn settings_loop(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
                         break;
                     }
                     if install.pages.choice.get() == 0 {
-                        crate::net::settings_link::settings_link(o, o.race.viewer_panel())?;
+                        crate::net::settings_link::settings_link(
+                            o,
+                            &crate::race::viewer_screen_store::NET_TEXTS,
+                        )?;
                         install.pages.choice.set(0);
                     } else {
                         crate::net::begin_setting_edit::begin_setting_edit(net, install)?;

@@ -2,7 +2,8 @@
 """M6's progress: production uses of the owners reached without a parameter, per module.
 
 Kinds: accessor calls (`race()` ...), the zero-sized statics that deref into an owner,
-`owner::STATIC` paths, and `owners::boundary()`. Tests, comments and strings are left out."""
+`owner::STATIC` paths. Tests, comments and strings are left out, and
+so is a line marked `m6-root` (a root of a thread or of the platform: no caller to take owners from)."""
 import collections
 import os
 import re
@@ -24,17 +25,20 @@ KINDS = {
     'accessor': re.compile(r'(?<![\w.])(?:\w+::)*(?:%s)\(\)' % '|'.join(ACCESSORS)),
     'zst': re.compile(r'(?<![\w.])(?:\w+::)*(?:%s)\b(?!\s*[:(!])' % '|'.join(ZST)),
     'static': re.compile(r'\bowner::(?:%s)\b' % '|'.join(STATICS)),
-    'boundary': re.compile(r'\bowners::boundary\(\)'),
 }
 
 STRING = re.compile(r'"(?:\\.|[^"\\])*"')
 
 
 def clean(s):
+    # a line marked `m6-root` is a root that cannot be handed owners (a thread's or the platform's)
+    s = '\n'.join(l for l in s.split('\n') if 'm6-root' not in l)
     s = re.sub(r'/\*.*?\*/', '', s, flags=re.S)
     s = re.sub(r'//[^\n]*', '', s)
     s = strip_tests(s)
     s = STRING.sub('""', s)
+    # the core's constants share names with some statics
+    s = re.sub(r'rc2k_core(?:::\w+)+', 'rc2k_core', s)
     # a definition is not a use
     return re.sub(r'\bfn\s+\w+\(\)', 'fn x()', s)
 

@@ -23,8 +23,8 @@
 
 use crate::audio::buffer_settings::{a3d, set_buffer_frequency, set_buffer_pan, set_buffer_volume};
 use crate::audio::describe_wave_format::describe_wave_format;
+use crate::audio::own::AudioOwn;
 use crate::audio::property_sets::Holder;
-use crate::audio::store::AudioState;
 use crate::audio::voices::*;
 use crate::errors::{BadInput, Refused};
 
@@ -47,7 +47,7 @@ pub struct BufferDescription {
 
 /// True for the carry clear. `holder`: the caller's value, which the EAX parts read the 3D
 /// buffer through (replaced as below, as the original does).
-pub fn make_buffer(state: &AudioState, at: u32, holder: Holder) -> Result<bool, Refused> {
+pub fn make_buffer(state: &AudioOwn, at: u32, holder: Holder) -> Result<bool, Refused> {
     if a3d(state) {
         return Err(BadInput("A3D (the chunk at 0x40CC88)").into());
     }

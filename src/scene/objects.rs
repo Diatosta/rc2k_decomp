@@ -9,7 +9,10 @@ pub const SLOTS: u32 = 0x100;
 /// The face table's cell `n`. Every caller holds `n` below `FACES` (the object slots' face
 /// ranges are checked against it where they are read, and written only by `add_object_shape`
 /// within it), so a cell past the table is refused.
-pub fn face_cell(faces: &crate::scene::faces_store::Faces, n: usize) -> &crate::session::Dword {
+pub fn face_cell(
+    faces: &crate::scene::faces_store::Faces,
+    n: usize,
+) -> &crate::session::PlainDword {
     faces.faces.get(n).unwrap_or_else(|| {
         crate::fatal::raise::end(
             "a face number past g_faces",
@@ -19,7 +22,7 @@ pub fn face_cell(faces: &crate::scene::faces_store::Faces, n: usize) -> &crate::
 }
 pub const FACES: u32 = 0xC000;
 /// The file as read: +4 points, +8 faces, +0xC normals, +0x2C the points.
-pub fn file(race: &crate::race::owner::Race) -> &crate::session::Bytes<FILE_ROOM> {
+pub fn file(race: &crate::race::owner::Race) -> &crate::session::PlainBytes<FILE_ROOM> {
     &race.engine_tables().object_file
 }
 pub const FILE_ROOM: usize = 0x40000;

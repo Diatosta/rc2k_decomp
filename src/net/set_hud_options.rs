@@ -9,14 +9,14 @@
 //! Caller: `net::lets_race`.
 
 use crate::gfx::owner::Gfx;
-use crate::net::store::NetVars;
+use crate::net::store::NetShared;
 use crate::race::owner::Race;
 use crate::race::owner_shared::RaceShared;
-use crate::session::{Dword, PlainDword};
+use crate::session::PlainDword;
 use rc2k_core::net::cars;
 
 /// The switches, in the original's order (their bits: `rc2k_core::net::cars::HUD_SWITCH_BITS`).
-fn switches(race: &Race) -> [&Dword; 9] {
+fn switches(race: &Race) -> [&PlainDword; 9] {
     [
         &race.shared.state.settings.cars[0].map_area,
         &race.shared.state.settings.cars[0].rear_mirror,
@@ -43,19 +43,19 @@ fn copied_words(race: &Race) -> [&PlainDword; 5] {
 /// This machine's car's block.
 pub fn own_block(
     shared: &RaceShared,
-    vars: &NetVars,
+    vars: &NetShared,
 ) -> Result<&'static crate::physics::car_store::Car, crate::errors::BadInput> {
     shared.race_car(vars.player.get() as usize)
 }
 pub fn set_hud_options(
     race: &Race,
     gfx: &Gfx,
-    vars: &NetVars,
+    vars: &NetShared,
 ) -> Result<(), crate::errors::BadInput> {
     let mut bits = race.shared.state.results.hud_bits_current.get();
     // Converted: `rc2k_core::net::cars::hud_bits`.
     if bits == cars::NOT_KEPT {
-        bits = cars::hud_bits(switches(race).map(super::super::session::Dword::get));
+        bits = cars::hud_bits(switches(race).map(PlainDword::get));
     }
     let block = own_block(&race.shared, vars)?;
     block.option_bits.set(bits);

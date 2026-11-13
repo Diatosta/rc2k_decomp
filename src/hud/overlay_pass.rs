@@ -65,7 +65,7 @@ pub fn overlay_pass(
     let polygons = &scratch.polygon;
     let pen = Pen {
         polygons,
-        vertices: part.vertices,
+        vertices: &part.vertices,
         part,
         system,
         scene,

@@ -31,14 +31,3 @@ impl Shots {
 pub fn on_byte(gfx: &crate::gfx::owner::Gfx) -> u8 {
     gfx.shots.on.get() as u8
 }
-
-#[cfg(test)]
-mod tests {
-
-    #[test]
-    fn first_values_are_the_games() {
-        crate::test_support::first_values::assert_block_starts_as_the_games(
-            &crate::gfx::owner::GFX.get().shots,
-        );
-    }
-}

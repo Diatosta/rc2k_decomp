@@ -7,8 +7,8 @@
 //! (`net::dplay`).
 
 use crate::net::create_group::join;
-use crate::net::store::NetVars;
-pub fn join_group(vars: &NetVars) -> bool {
+use crate::net::store::NetShared;
+pub fn join_group(vars: &NetShared) -> bool {
     let result = {
         crate::net::dp_objects::enum_groups(
             vars.dplay.get(),

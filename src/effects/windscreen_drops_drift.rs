@@ -60,7 +60,7 @@ pub fn windscreen_drops_drift(
         drops.hex.moved.set(1);
         if second != 0 {
             view_moved(drops, m, effects);
-            let view = &frame.matrices.view_place;
+            let view = &frame.matrices.get().view_place;
             for col in 0..3usize {
                 let v = [view[col].get(), view[4 + col].get(), view[8 + col].get()];
                 for (k, x) in v.into_iter().enumerate() {

@@ -20,5 +20,4 @@ pub mod string_table;
 pub mod text_buffer;
 pub mod text_from_ids;
 pub mod text_length;
-pub mod unit_labels;
 pub mod units;

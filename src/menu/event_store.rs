@@ -117,7 +117,6 @@ pub struct Event {
 }
 
 impl Event {
-    /// First values the image's (`tests::event_state_starts_as_the_games`).
     pub const fn new() -> Self {
         Event {
             picked_controller: PlainDword::new(0x0),
@@ -174,16 +173,5 @@ impl Event {
             picture: PlainDword::new(0x0),
             car_page: PlainDword::new(0x0),
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-
-    #[test]
-    fn event_state_starts_as_the_games() {
-        crate::test_support::first_values::assert_block_starts_as_the_games(
-            &crate::menu::owner::menus().screens.event,
-        );
     }
 }

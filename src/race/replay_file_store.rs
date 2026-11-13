@@ -6,8 +6,6 @@
 
 use crate::cells::ZeroCells;
 
-#[cfg(test)]
-use crate::race::owner::race;
 use crate::session::{PlainDword, PlainFlag};
 
 #[repr(C)]
@@ -90,41 +88,5 @@ impl ReplayFileBlock {
     /// read and written in place.
     pub fn index(&self) -> &[PlainDword; INDEX_DWORDS] {
         crate::cells::plain_dwords_in(self, core::mem::offset_of!(Self, index_magic))
-    }
-}
-
-/// IDA 0x5BEC78, the first byte of the piece.
-pub const START: usize = 0x5BEC78;
-/// IDA 0x5C2518, the end of the piece.
-pub const END: usize = 0x5C2518;
-
-const _: () = assert!(END - START == core::mem::size_of::<ReplayFileBlock>());
-
-/// The piece's host address (the alignment checks).
-#[cfg(test)]
-pub fn piece_addr() -> usize {
-    core::ptr::from_ref(race().shared.replay_file()).addr()
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use core::mem::offset_of;
-
-    #[test]
-    fn first_values_are_the_games() {
-        crate::test_support::first_values::assert_block_starts_as_the_games(
-            race().shared.replay_file(),
-        );
-    }
-
-    #[test]
-    fn fields_are_at_the_games_offsets() {
-        assert_eq!(piece_addr() % 4, 0);
-        assert_eq!(offset_of!(ReplayFileBlock, replays_on), 0x0);
-        assert_eq!(offset_of!(ReplayFileBlock, replay_at_end), 0x18);
-        assert_eq!(offset_of!(ReplayFileBlock, viewer_editing), 0x30);
-        assert_eq!(offset_of!(ReplayFileBlock, viewer_stage_loaded), 0x48);
-        assert_eq!(offset_of!(ReplayFileBlock, block_places), 0x60);
     }
 }

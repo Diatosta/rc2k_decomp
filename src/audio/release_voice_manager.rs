@@ -3,9 +3,9 @@
 //! If `g_voiceManager` holds an object, its `Release` (+8), and the variable 0. Callers:
 //! `audio::start` (0x40A0D6) and `audio::free_voices`.
 
-use crate::audio::store::AudioState;
+use crate::audio::own::AudioOwn;
 
-pub fn release_voice_manager(state: &AudioState) {
+pub fn release_voice_manager(state: &AudioOwn) {
     let object = state.voice_manager.get();
     if object != 0 {
         crate::platform_sound::release(object);

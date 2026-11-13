@@ -33,7 +33,7 @@ enum Shown {
 }
 
 /// The value column: what the line shows.
-type Value = fn(&crate::scene::polygon_work::PolygonWork, &crate::session::Screen) -> Shown;
+type Value = fn(&crate::race::view_scratch::ViewScratch, &crate::session::Screen) -> Shown;
 const MOST: u32 = 64;
 
 /// (label, value): the head's lines before the mask's clearing, and after.
@@ -41,52 +41,46 @@ const HEAD: [(&std::ffi::CStr, Value); 10] = [
     (c"videox", |_, screen| Shown::Hex8(screen.width.get())), // "videox" g_screenWidth
     (c"videoy", |_, screen| Shown::Hex8(screen.height.get())), // "videoy" g_screenHeight
     (c"videoy", |_, screen| Shown::Hex8(screen.height.get())), // "videoy" g_screenHeight
-    (c"r", |poly, _| {
-        Shown::Float(poly.window.clip_screen[3].get())
+    (c"r", |view, _| {
+        Shown::Float(view.polygon.window.clip_screen[3].get())
     }), // "r" g_clipScreenRight
-    (c"l", |poly, _| {
-        Shown::Float(poly.window.clip_screen[2].get())
+    (c"l", |view, _| {
+        Shown::Float(view.polygon.window.clip_screen[2].get())
     }), // "l" g_clipScreenLeft
-    (c"b", |poly, _| {
-        Shown::Float(poly.window.clip_screen[1].get())
+    (c"b", |view, _| {
+        Shown::Float(view.polygon.window.clip_screen[1].get())
     }), // "b" g_clipScreenBottom
-    (c"t", |poly, _| {
-        Shown::Float(poly.window.clip_screen[0].get())
+    (c"t", |view, _| {
+        Shown::Float(view.polygon.window.clip_screen[0].get())
     }), // "t" g_clipScreenTop
-    (c"donezcut", |poly, _| {
-        Shown::Int(poly.depth_clipped.get() as i32)
+    (c"donezcut", |view, _| {
+        Shown::Int(view.polygon.depth_clipped.get() as i32)
     }), // "donezcut"
-    (c"donesuth", |poly, _| {
-        Shown::Int(poly.screen_clipped.get() as i32)
+    (c"donesuth", |view, _| {
+        Shown::Int(view.polygon.screen_clipped.get() as i32)
     }), // "donesuth"
-    (c"cuttest", |poly, _| {
-        Shown::IntNewline(poly.polygon_clip_mask.get() as i32)
+    (c"cuttest", |view, _| {
+        Shown::IntNewline(view.polygon.polygon_clip_mask.get() as i32)
     }), // "cuttest" g_polygonClipMask
 ];
 const AFTER: [(&std::ffi::CStr, Value); 2] = [
-    (c"tpage", |poly, _| Shown::Hex8(poly.texture_page.get())), // "tpage"
-    (c"points", |poly, _| {
-        Shown::Int(poly.polygon_vertex_count.get() as i32)
+    (c"tpage", |view, _| {
+        Shown::Hex8(view.polygon.texture_page.get())
+    }), // "tpage"
+    (c"points", |view, _| {
+        Shown::Int(view.polygon.polygon_vertex_count.get() as i32)
     }), // "points" g_polygonVertexCount
 ];
-const POLYGON_NUMBER: [(&std::ffi::CStr, Value); 1] = [(c"polynum", |poly, _| {
-    Shown::Int(
-        crate::race::view_scratch::of_polygon(poly).map_or(0, |v| v.face.course_face.get()) as i32,
-    )
+const POLYGON_NUMBER: [(&std::ffi::CStr, Value); 1] = [(c"polynum", |view, _| {
+    Shown::Int(view.face.course_face.get() as i32)
 })]; // "polynum"
 const OBJECT: [(&std::ffi::CStr, Value); 2] = [
     // The view's whose polygon this is (every polygon work is a view slot's).
-    (c"objdraw", |poly, _| {
-        Shown::Int(
-            crate::race::view_scratch::of_polygon(poly).map_or(0, |v| v.cars.object_number.get())
-                as i32,
-        )
+    (c"objdraw", |view, _| {
+        Shown::Int(view.cars.object_number.get() as i32)
     }), // "objdraw" g_objectNumber
-    (c"objfaced", |poly, _| {
-        Shown::Int(
-            crate::race::view_scratch::of_polygon(poly).map_or(0, |v| v.face.face_number.get())
-                as i32,
-        )
+    (c"objfaced", |view, _| {
+        Shown::Int(view.face.face_number.get() as i32)
     }), // "objfaced" g_faceNumber
 ];
 /// How a vertex's dword is shown.
@@ -112,25 +106,24 @@ const PT: &std::ffi::CStr = c"pt"; // "pt"
 /// The Rust version: the dump of the `g_polygonVertexCount` vertices at `vertices` (at most 64,
 /// held to the vertex buffer: the longest read is the last vertex's 0x20 bytes of its 0x800).
 pub fn log_bad_polygon(
-    poly: &crate::scene::polygon_work::PolygonWork,
+    view: &crate::race::view_scratch::ViewScratch,
     screen: &crate::session::Screen,
     vertices: &dyn Store,
 ) -> Result<(), BadInput> {
-    let count: u32 = poly.polygon_vertex_count.get();
+    let count: u32 = view.polygon.polygon_vertex_count.get();
     if count > MOST {
         return Err(BadInput("more than 64 vertices"));
     }
     for (label, at) in HEAD {
         write(label);
-        log(at(poly, screen));
+        log(at(view, screen));
     }
-    poly.polygon_clip_mask.set(0u32);
-    let object = crate::race::view_scratch::of_polygon(poly)
-        .is_some_and(|v| v.object.drawing_object.get() == 1);
+    view.polygon.polygon_clip_mask.set(0u32);
+    let object = view.object.drawing_object.get() == 1;
     let tail: &[(&std::ffi::CStr, Value)] = if object { &OBJECT } else { &POLYGON_NUMBER };
     for &(label, at) in AFTER.iter().chain(tail) {
         write(label);
-        log(at(poly, screen));
+        log(at(view, screen));
     }
     log(Shown::Newline);
     if count == 0 {

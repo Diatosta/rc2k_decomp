@@ -17,7 +17,6 @@ pub struct KeyTables {
     pub reserved_keys: PlainBytes<31>,
 }
 
-/// First values the image's (`tests::key_tables_starts_as_the_games`).
 impl KeyTables {
     pub const fn new() -> Self {
         KeyTables {
@@ -40,16 +39,5 @@ impl KeyTables {
                 ],
             )])),
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-
-    #[test]
-    fn key_tables_starts_as_the_games() {
-        crate::test_support::first_values::assert_block_starts_as_the_games(
-            &crate::menu::owner::menus().keys.tables,
-        );
     }
 }

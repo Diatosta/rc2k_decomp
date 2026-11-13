@@ -83,7 +83,7 @@ fn update_car_effects_with(
     view: &crate::physics::car_store::Car,
     o: &crate::sound::store::SoundObject,
     device: &InputDevice,
-    scratch: &crate::session::Dword,
+    scratch: &crate::session::PlainDword,
 ) -> Result<(), Refused> {
     let surface = o.surface.get();
     if surface >= KIND_COUNT {
@@ -102,13 +102,13 @@ fn update_car_effects_with(
     o.effect_in[2].set(mul_to_int(&view.local_velocity[0], ten) as u32);
     o.effect_in[3].set(mul_to_int(&view.local_velocity[2], ten) as u32);
     // The knock's force from its inputs (angle from y = `knock_in[2]`, x = `knock_in[0]`).
-    if o.knock_in[3].get() & 0x7FFF_FFFF != 0 && o.knock_in[0].get() & 0x7FFF_FFFF != 0 {
+    if o.knock_in[3].bits() & 0x7FFF_FFFF != 0 && o.knock_in[0].bits() & 0x7FFF_FFFF != 0 {
         let (angle, force) = knock(
-            o.knock_in[2].get(),
-            o.knock_in[0].get(),
+            o.knock_in[2].bits(),
+            o.knock_in[0].bits(),
             effects.effect_angle_scale.get(),
             effects.effect_full.get(),
-            o.knock_in[3].get(),
+            o.knock_in[3].bits(),
             effects.effect_tenth.get(),
         );
         scratch.set(angle);
@@ -117,7 +117,7 @@ fn update_car_effects_with(
         o.knock.set(0);
     }
     for d in &o.knock_in {
-        d.set(0);
+        d.set_bits(0);
     }
     // The surface effect: the surface's kind and the speed.
     let mut kind = effects.surface_effect_kinds[surface as usize].get();
@@ -217,13 +217,7 @@ pub fn update_car_effects(
     device: &InputDevice,
     system: &System,
 ) -> Result<(), Refused> {
-    update_car_effects_with(
-        effects,
-        view,
-        object,
-        device,
-        &system.session.machine.scratch,
-    )
+    update_car_effects_with(effects, view, object, device, &system.machine().scratch)
 }
 
 #[cfg(test)]

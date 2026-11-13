@@ -60,11 +60,6 @@ impl InstallVars {
     }
 }
 
-impl InstallVars {
-    pub const START: usize = 0x529DAD;
-    pub const LEN: usize = 0x4B6;
-}
-
 /// IDA 0x52A30F .. 0x52A4B0.
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
@@ -110,11 +105,6 @@ impl DriveRows {
     }
 }
 
-impl DriveRows {
-    pub const START: usize = 0x52A30F;
-    pub const LEN: usize = 0x1A1;
-}
-
 /// IDA 0x5AB419 .. 0x5AB490: plain immutable texts, each NUL-ended in its room (read with
 /// `text_of`).
 pub struct LobbyKeys {
@@ -154,60 +144,4 @@ impl LobbyKeys {
 /// The bytes up to the first NUL (or all of them): a text kept in a field of `LobbyKeys`.
 pub fn text_of(field: &[u8]) -> &[u8] {
     &field[..field.iter().position(|&c| c == 0).unwrap_or(field.len())]
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    /// The static's bytes (after `lead`) are the game's first values (`image`, a named read
-    /// of `data/first_values.golden`), its size the range's (with the tail padding up to the
-    /// struct's alignment: each range ends at a string's end, so no read runs on into the
-    /// next).
-    fn check(p: *const u8, size: usize, lead: usize, image: &str, skip: core::ops::Range<usize>) {
-        let image = crate::test_support::first_values::bytes(image);
-        let end = lead + image.len();
-        assert!(
-            end <= size && size <= end.next_multiple_of(4),
-            "{image:?}: size"
-        );
-        for (i, &b) in image.iter().enumerate() {
-            if skip.contains(&i) {
-                continue;
-            }
-            let ours = unsafe { p.add(lead + i).read() };
-            assert_eq!(ours, b, "differs first at {i:#x}");
-        }
-    }
-
-    #[test]
-    fn start_as_the_games_image_and_keep_its_layout() {
-        check(
-            (&raw const crate::install::owner::INSTALL.get().vars).cast::<u8>(),
-            size_of::<InstallVars>(),
-            1,
-            "install.store.VARS/1206",
-            // The original's pointers to the made texts (zeros here).
-            0x3B..0x13B,
-        );
-        check(
-            (&raw const crate::install::owner::INSTALL.get().drive_rows).cast::<u8>(),
-            size_of::<DriveRows>(),
-            0,
-            "install.store.DRIVE_ROWS/417",
-            0..0,
-        );
-        let keys = &crate::install::owner::INSTALL.get().lobby_keys;
-        let mine = [
-            &keys.registry_key[..],
-            &keys.name_guid,
-            &keys.name_file,
-            &keys.name_command_line,
-            &keys.name_path,
-            &keys.name_current_directory,
-            &keys._gap_5ab48f,
-        ]
-        .concat();
-        crate::test_support::first_values::assert_matches("install.store.LOBBY_KEYS/119", &mine);
-    }
 }

@@ -104,7 +104,7 @@ pub fn steps(c: &ContactInputs<'_>, scene: &crate::scene::owner::Scene) -> Resul
     c.contact.wall_edge_from.set(from);
     c.contact.wall_edge_to.set(to);
     edge_normal(
-        &c.shared.buffers.engine_tables,
+        &c.shared.buffers.reads.get().engine_tables,
         c.contact,
         c.course,
         c.tables,

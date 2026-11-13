@@ -8,11 +8,11 @@
 //! 2, "AUD: Using DSV" logged, `g_voiceManagerOn` 1. One caller, `audio::make_buffer` with bit
 //! 0x800000.
 
+use crate::audio::own::AudioOwn;
 use crate::audio::property_sets::*;
-use crate::audio::store::AudioState;
 use crate::errors::Refused;
 
 /// True for the carry clear.
-pub fn open_voice_manager(state: &AudioState, holder: Holder) -> Result<bool, Refused> {
+pub fn open_voice_manager(state: &AudioOwn, holder: Holder) -> Result<bool, Refused> {
     open_property_set(state, &Opening::voice_manager(state), holder)
 }

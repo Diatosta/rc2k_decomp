@@ -73,6 +73,6 @@ pub fn draw_viewer_item(
         colour,
         panel,
         system,
-        crate::workers::game_scratch().vertices,
+        &crate::workers::game_scratch().vertices,
     )
 }

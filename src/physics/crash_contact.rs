@@ -206,7 +206,7 @@ mod reference_vectors {
                 ulps: 0,
                 plain: |_| {
                     x87_1(
-                        &crate::race::owner::race().physics.contact,
+                        crate::race::owner::race().physics.contact.get(),
                         crate::race::owner::race().shared.physics_tables.get(),
                         crate::race::owner::race().course.numbers.get(),
                     );
@@ -221,7 +221,7 @@ mod reference_vectors {
                 ulps: 0,
                 plain: |_| {
                     x87_2(
-                        &crate::race::owner::race().physics.contact,
+                        crate::race::owner::race().physics.contact.get(),
                         crate::race::owner::race().shared.car(),
                         crate::race::owner::race().course.numbers.get(),
                     );

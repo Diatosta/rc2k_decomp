@@ -14,8 +14,7 @@ pub fn read_windows_version(system: &crate::system::owner::System) {
     debug_assert_eq!(record.len(), VERSION_INFO_LEN);
     use crate::cells::Store as _;
     system
-        .session
-        .machine
+        .machine()
         .version
         .store(0, &record)
         .unwrap_or_else(|e| crate::fatal::raise::end("system::read_windows_version", e));

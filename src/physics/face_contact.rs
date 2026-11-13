@@ -104,7 +104,12 @@ pub fn steps(
     }
     // An unset kind wraps to the record before the first, as the original reads it.
     c.contact.contact_kind.set(
-        crate::scene::polygon::material_byte(&c.shared.buffers.polygon_tables, kind, 0x1C)?.into(),
+        crate::scene::polygon::material_byte(
+            &c.shared.buffers.reads.get().polygon_tables,
+            kind,
+            0x1C,
+        )?
+        .into(),
     );
     if contacts::object_tried(face_byte(0x25)?, c.work.stage_direction.get(), object).is_err() {
         return Ok(());
@@ -260,7 +265,7 @@ mod reference_vectors {
                 ulps: 0,
                 plain: |_| {
                     x87_1(
-                        &crate::race::owner::race().physics.contact,
+                        crate::race::owner::race().physics.contact.get(),
                         crate::race::owner::race().course.numbers.get(),
                     );
                 },
@@ -287,7 +292,7 @@ mod reference_vectors {
                 ulps: 0,
                 plain: |_| {
                     x87_2(
-                        &crate::race::owner::race().physics.contact,
+                        crate::race::owner::race().physics.contact.get(),
                         crate::race::owner::race().shared.car(),
                         crate::race::owner::race().course.numbers.get(),
                     );

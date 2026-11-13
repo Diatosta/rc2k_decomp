@@ -200,9 +200,9 @@ fn speed_input(so: &SoundObject, surface: &SurfaceSounds) {
 /// (the factors as the game's float constants). The original worked in the machine's
 /// scratch dword and left 0.75 there.
 fn gear_pitch(so: &SoundObject, low: u32, system: &System) {
-    system.session.machine.scratch.set(low);
+    system.machine().scratch.set(low);
     let pitch = gear_pitch_value(low);
-    system.session.machine.scratch.set(GEAR_PITCH_BASE);
+    system.machine().scratch.set(GEAR_PITCH_BASE);
     so.gear_pitch.set(pitch);
 }
 

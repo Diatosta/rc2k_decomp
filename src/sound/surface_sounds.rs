@@ -48,9 +48,9 @@ fn one(
     WHEEL_SURFACES.get()[second].set(surface);
     if surfaces::quieter(surface) {
         if second == 0 {
-            x87_1(sound.race.surface.get(), &system.session.machine.scratch);
+            x87_1(sound.race.surface.get(), &system.machine().scratch);
         } else {
-            x87_2(sound.race.surface.get(), &system.session.machine.scratch);
+            x87_2(sound.race.surface.get(), &system.machine().scratch);
         }
     }
     let pair = surfaces::set_pair(surface, |n| {

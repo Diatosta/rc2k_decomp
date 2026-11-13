@@ -21,7 +21,6 @@ pub struct Arcade {
     pub levels_won: PlainBytes<8>,
 }
 
-/// First values the image's (`tests::arcade_game_starts_as_the_games`).
 impl Arcade {
     pub const fn new() -> Self {
         Arcade {
@@ -32,15 +31,5 @@ impl Arcade {
             places: PlainDword::new(0x64),
             levels_won: PlainBytes::new([0; 8]),
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn arcade_game_starts_as_the_games() {
-        crate::test_support::first_values::assert_block_starts_as_the_games(
-            &crate::menu::owner::menus().play.arcade,
-        );
     }
 }

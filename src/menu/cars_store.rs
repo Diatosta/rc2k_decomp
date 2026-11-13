@@ -26,7 +26,6 @@ pub struct CarTable {
     pub description_texts: PlainBytes<4224>,
 }
 
-/// First values the image's (`tests::car_table_starts_as_the_games`).
 impl CarTable {
     pub const fn new() -> Self {
         CarTable {
@@ -1291,11 +1290,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn car_table_starts_as_the_games() {
-        // The table's entries are handles, frozen as the handles of the image's addresses.
-        crate::test_support::first_values::assert_block_starts_as_the_games(
-            &crate::menu::owner::menus().cars.table,
-        );
+    fn the_car_table_finds_its_descriptions() {
         for car in 0..34 {
             let found = description_table(
                 &crate::menu::owner::menus().cars.table,

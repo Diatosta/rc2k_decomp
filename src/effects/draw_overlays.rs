@@ -39,7 +39,7 @@ pub fn draw_overlays(
     cheats: &crate::menu::cheats_store::Cheats,
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
-    let buffer = ctx.part.vertices;
+    let buffer = &ctx.part.vertices;
     let (race, scene) = (ctx.race, ctx.scene);
     use crate::scene::set_render_state::set_render_state;
     if let Some(e) = shadow_refuses(effects) {

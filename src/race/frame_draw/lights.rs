@@ -122,9 +122,8 @@ pub(super) fn add_lamp_entry(ctx: &DrawCtx, lamp: u32) -> Result<(), BadInput> {
 /// (`add_lamp_entry`. Refuses (before anything) more than 0x100 lit faces, or a depth list without
 /// room for 16.
 pub fn gather_lamps(ctx: &DrawCtx) -> Result<(), Refused> {
-    let race = ctx.race;
-    let physics = &race.physics;
-    let count: u32 = physics.contact.lit_face_count.get();
+    let contact = ctx.reads.contact;
+    let count: u32 = contact.lit_face_count.get();
     if count > 0x100 {
         return Err(BadInput("more than 0x100 lit faces").into());
     }
@@ -133,7 +132,7 @@ pub fn gather_lamps(ctx: &DrawCtx) -> Result<(), Refused> {
     }
     ctx.view.lamps.lamp_count.set(0u32);
     for k in 0..count {
-        let face = physics.contact.lit_faces[k as usize].get();
+        let face = contact.lit_faces[k as usize].get();
         // Converted: `rc2k_core::race::faces::takes_lamp`.
         let object = face_field::<u8>(ctx.reads.course(), face, 1)? as u32;
         if object != rc2k_core::race::faces::LAMP_OBJECT {

@@ -211,11 +211,8 @@ pub fn acquire_device(input: &Input, system: &System, record: &D) -> Result<(), 
     if crate::input::di_objects::set_data_format(device) != 0 {
         return Err(fatal(0x8023_8312).into());
     }
-    if crate::input::di_objects::set_cooperative_level(
-        device,
-        system.session.machine.window.get(),
-        5,
-    ) != 0
+    if crate::input::di_objects::set_cooperative_level(device, system.session.host.window.get(), 5)
+        != 0
     {
         return Err(fatal(0x8023_8313).into());
     }

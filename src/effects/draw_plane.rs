@@ -60,11 +60,6 @@ pub static PLANE_TUNING: PlaneTuning = PlaneTuning {
     rhw_k: [256.0_f32; 4],
 };
 
-#[cfg(test)]
-impl PlaneTuning {
-    pub const START: usize = 0x934F30;
-}
-
 /// The rate, the place and the first axis from the settings, and the first axis's length over
 /// its divisor into the first of the flakes' `lengths`.
 fn plane_axes(fl: &WindscreenFlakes, m: &EffectsSettings) {
@@ -102,7 +97,7 @@ pub fn draw_plane(
     fl: &WindscreenFlakes,
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
-    let buffer = ctx.part.vertices;
+    let buffer = &ctx.part.vertices;
     let (race, scene) = (ctx.race, ctx.scene);
     use crate::scene::set_render_state::set_render_state;
     let m = effects.settings()?;
@@ -416,6 +411,9 @@ mod reference_vectors {
     use crate::effects::asm_test::{Op, Spec, recorded_writes};
     use crate::effects::typed_sync::{overlay_laid, with_overlays};
 
+    /// Where the plane tuning sat in the 1999 layout.
+    const PLANE_TUNING_START: usize = 0x934F30;
+
     use crate::effects::windscreen_flakes_store::{WindscreenFlakeTables, WindscreenFlakeTiming};
 
     #[test]
@@ -463,7 +461,7 @@ mod reference_vectors {
         recorded_writes("effects.draw_plane.plane_axes_x87", &SPEC, |b| {
             with_laid::<WindscreenFlakeTiming, _>(b[0], |sti| {
                 with_laid::<WindscreenFlakeTables, _>(b[0], |sq| {
-                    with_copy::<PlaneTuning, _>(b[0], PlaneTuning::START, |pt| {
+                    with_copy::<PlaneTuning, _>(b[0], PLANE_TUNING_START, |pt| {
                         with_settings(b[1], |m| super::plane_axes_x87(m, sti, sq, pt));
                     });
                 });
@@ -509,7 +507,7 @@ mod reference_vectors {
         };
         recorded_writes("effects.draw_plane.plane_up_x87", &SPEC, |b| {
             with_laid::<WindscreenFlakeTables, _>(b[0], |sq| {
-                with_copy::<PlaneTuning, _>(b[0], PlaneTuning::START, |pt| {
+                with_copy::<PlaneTuning, _>(b[0], PLANE_TUNING_START, |pt| {
                     with_settings(b[1], |m| super::plane_up_x87(m, sq, pt));
                 });
             });

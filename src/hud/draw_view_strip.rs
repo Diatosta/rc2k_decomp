@@ -87,7 +87,6 @@ fn quad(
     crate::scene::draw_flat_quad::draw_flat_quad(
         polygon,
         part,
-        race,
         &scratch.face,
         course.reads(),
         crate::workers::DrawReads::on_game_thread(crate::workers::LentOwners {

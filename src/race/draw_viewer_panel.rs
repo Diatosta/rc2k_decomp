@@ -13,7 +13,7 @@
 
 use crate::errors::Refused;
 use crate::race::owner::Race;
-use crate::session::Dword;
+use crate::session::PlainDword;
 use crate::text::draw_text::GameCanvas;
 const FONT_A: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::PANEL_A;
 const FONT_B: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::PANEL_B;
@@ -152,12 +152,12 @@ pub fn draw_viewer_panel(
             race.viewer_panel()
                 .texture_rect
                 .each_ref()
-                .map(crate::session::Dword::get),
+                .map(crate::session::PlainDword::get),
             &race.viewer_panel().screen_rect,
             colour,
             race.viewer_panel(),
             system,
-            crate::workers::game_scratch().vertices,
+            &crate::workers::game_scratch().vertices,
         )
     };
     // `texture_rect`: the texture's rectangle; `screen_rect`: the screen's.
@@ -165,12 +165,12 @@ pub fn draw_viewer_panel(
         &race.viewer_panel().texture_rect,
         &race.viewer_panel().screen_rect,
     );
-    let set = |cells: &[Dword; 4], v: [u32; 4]| {
+    let set = |cells: &[PlainDword; 4], v: [u32; 4]| {
         for (cell, x) in cells.iter().zip(v) {
             cell.set(x);
         }
     };
-    let add = |cell: &Dword, v: u32| cell.set(cell.get().wrapping_add(v));
+    let add = |cell: &PlainDword, v: u32| cell.set(cell.get().wrapping_add(v));
     set(uv, [0, 0, 0xC8, 0x32]);
     set(rect, [4, 2, 0x64, 0x19]);
     quad(white)?;

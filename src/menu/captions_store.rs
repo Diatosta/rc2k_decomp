@@ -1,11 +1,10 @@
 //! The screens' string-id tables and a few flags, out of RAL.EXE's image (IDA 0x758806 .. 0x758B72): the "screen left" flag, the stage shown, the nationalities, the duel's labels, the
-//! places' points and the pointers to the results' arrays, the player views, and the lists of
-//! captions' string ids. A `#[repr(C)]` struct with the image's layout, one static. Its dwords lie two bytes past a multiple of four in IDA's addresses.
-//!
+//! places' points, the player views, and the lists of
+//! captions' string ids. A `#[repr(C)]` struct, one static.
 
 use crate::errors::BadInput;
 use crate::menu::owner::Menus;
-use crate::session::{PlainBytes, PlainDword, PlainFlag, with_runs};
+use crate::session::{PlainDword, PlainFlag};
 
 /// The string-id tables (IDA 0x758806 .. 0x758B72).
 #[repr(C)]
@@ -26,17 +25,6 @@ pub struct CaptionTables {
     pub duel_labels: [PlainDword; 22],
     /// `g_placePoints`: The points of each place (0, 20000, ..., -1 ends).
     pub place_points: [PlainDword; 22],
-    /// `off_758982`: The four positions in `Results::positions`, by byte offset, kept as IDA's
-    /// addresses, as names (`CaptionTables::place_of` finds the cell).
-    pub place_pointers: [PlainDword; 4],
-    /// `off_758992`: The four sums in `Results::sums` (names, `CaptionTables::sum_of`).
-    pub sum_pointers: [PlainDword; 4],
-    /// Unreferenced bytes (IDA 0x7589A2 .. 0x7589A6).
-    pub _gap_7589a2: PlainBytes<4>,
-    /// `off_7589A6`: The four totals in `Results::totals` (names, `CaptionTables::total_of`).
-    pub total_pointers: [PlainDword; 4],
-    /// Unreferenced bytes (IDA 0x7589B6 .. 0x7589BA).
-    pub _gap_7589b6: PlainBytes<4>,
     /// `dword_7589BA`: The views' name string ids (`screens::draw_player_details`).
     pub views: [PlainDword; 8],
     /// `dword_7589DA`: The second views' name string ids.
@@ -46,73 +34,37 @@ pub struct CaptionTables {
 }
 
 impl CaptionTables {
-    /// The results' cell a name (an IDA address in `menu::results_store`'s piece) names;
-    /// refused off the piece's dwords.
-    fn result_at<'a>(menus: &'a Menus, name: &PlainDword) -> Result<&'a PlainDword, BadInput> {
-        use crate::menu::results_store::{Results, START};
-        let r = &menus.play.results;
-        use std::mem::offset_of;
-        let at = (name.get() as usize).wrapping_sub(START);
-        let arrays: [(usize, &'a [PlainDword]); 10] = [
-            (offset_of!(Results, round), std::slice::from_ref(&r.round)),
-            (offset_of!(Results, group_titles), &r.group_titles),
-            (offset_of!(Results, order), &r.order),
-            (offset_of!(Results, time_bonus), &r.time_bonus),
-            (offset_of!(Results, positions), &r.positions),
-            (offset_of!(Results, points), &r.points),
-            (offset_of!(Results, extra), &r.extra),
-            (offset_of!(Results, sums), &r.sums),
-            (offset_of!(Results, before), &r.before),
-            (offset_of!(Results, totals), &r.totals),
-        ];
-        arrays
-            .iter()
-            .chain([&(offset_of!(Results, pairs), &r.pairs[..])])
-            .find_map(|&(first, cells)| {
-                let d = at.checked_sub(first)?;
-                if d % 4 != 0 {
-                    return None;
-                }
-                cells.get(d / 4)
-            })
-            .ok_or(BadInput("a results pointer off the results' dwords"))
-    }
-
     /// Position `k` of the results (`Results::positions[k]`).
     pub fn place_of(menus: &Menus, k: usize) -> Result<&PlainDword, BadInput> {
-        let name = menus
-            .tables
-            .captions
-            .place_pointers
+        menus
+            .play
+            .results
+            .positions
             .get(k)
-            .ok_or(BadInput("a place pointer past the four"))?;
-        Self::result_at(menus, name)
+            .ok_or(BadInput("a place pointer past the four"))
     }
 
     /// Sum `k` of the results (`Results::sums[k]`).
     pub fn sum_of(menus: &Menus, k: usize) -> Result<&PlainDword, BadInput> {
-        let name = menus
-            .tables
-            .captions
-            .sum_pointers
+        menus
+            .play
+            .results
+            .sums
             .get(k)
-            .ok_or(BadInput("a sum pointer past the four"))?;
-        Self::result_at(menus, name)
+            .ok_or(BadInput("a sum pointer past the four"))
     }
 
     /// Total `k` of the results (`Results::totals[k]`).
     pub fn total_of(menus: &Menus, k: usize) -> Result<&PlainDword, BadInput> {
-        let name = menus
-            .tables
-            .captions
-            .total_pointers
+        menus
+            .play
+            .results
+            .totals
             .get(k)
-            .ok_or(BadInput("a total pointer past the four"))?;
-        Self::result_at(menus, name)
+            .ok_or(BadInput("a total pointer past the four"))
     }
 }
 
-/// First values the image's (`tests::captions_starts_as_the_games`).
 impl CaptionTables {
     pub const fn new() -> Self {
         CaptionTables {
@@ -217,26 +169,6 @@ impl CaptionTables {
                 PlainDword::new(0x3E8),
                 PlainDword::new(0xFFFFFFFF),
             ],
-            place_pointers: [
-                PlainDword::new(0x758768),
-                PlainDword::new(0x75876C),
-                PlainDword::new(0x758770),
-                PlainDword::new(0x758774),
-            ],
-            sum_pointers: [
-                PlainDword::new(0x758798),
-                PlainDword::new(0x75879C),
-                PlainDword::new(0x7587A0),
-                PlainDword::new(0x7587A4),
-            ],
-            _gap_7589a2: PlainBytes::new(with_runs::<4>(&[(0x0, &[0xff, 0xff, 0xff, 0xff])])),
-            total_pointers: [
-                PlainDword::new(0x7587B8),
-                PlainDword::new(0x7587BC),
-                PlainDword::new(0x7587C0),
-                PlainDword::new(0x7587C4),
-            ],
-            _gap_7589b6: PlainBytes::new(with_runs::<4>(&[(0x0, &[0xff, 0xff, 0xff, 0xff])])),
             views: [
                 PlainDword::new(0x378),
                 PlainDword::new(0x377),
@@ -363,27 +295,25 @@ mod tests {
     use crate::menu::owner::menus;
 
     #[test]
-    fn captions_starts_as_the_games() {
+    fn the_results_cells_are_found_by_player() {
         let play = &menus().play;
-        crate::test_support::first_values::assert_block_starts_as_the_games(
-            &crate::menu::owner::menus().tables.captions,
-        );
-        // The three pointer tables' entries name the results' arrays.
-        for from in 0..3 {
-            for k in 0..4 {
-                let resolved = [
-                    CaptionTables::place_of,
-                    CaptionTables::sum_of,
-                    CaptionTables::total_of,
-                ][from](crate::menu::owner::menus(), k);
-                let cells = [
-                    &play.results.positions,
-                    &play.results.sums,
-                    &play.results.totals,
-                ][from];
-                assert!(std::ptr::eq(resolved.unwrap(), &raw const cells[k]));
-            }
-            assert!(CaptionTables::sum_of(crate::menu::owner::menus(), 4).is_err());
+        for k in 0..4 {
+            let m = menus();
+            assert!(std::ptr::eq(
+                CaptionTables::place_of(m, k).unwrap(),
+                &raw const play.results.positions[k]
+            ));
+            assert!(std::ptr::eq(
+                CaptionTables::sum_of(m, k).unwrap(),
+                &raw const play.results.sums[k]
+            ));
+            assert!(std::ptr::eq(
+                CaptionTables::total_of(m, k).unwrap(),
+                &raw const play.results.totals[k]
+            ));
         }
+        assert!(CaptionTables::place_of(menus(), 4).is_err());
+        assert!(CaptionTables::sum_of(menus(), 4).is_err());
+        assert!(CaptionTables::total_of(menus(), 4).is_err());
     }
 }

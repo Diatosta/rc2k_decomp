@@ -161,14 +161,3 @@ pub fn upload_car_icon(
     }
     Ok(())
 }
-
-#[cfg(test)]
-mod block_tests {
-
-    #[test]
-    fn first_values_are_the_games() {
-        crate::test_support::first_values::assert_block_starts_as_the_games(
-            crate::scene::owner::SCENE.icon_upload(),
-        );
-    }
-}

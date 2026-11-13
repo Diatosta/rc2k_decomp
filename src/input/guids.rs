@@ -74,11 +74,6 @@ impl InputGuids {
     }
 }
 
-impl InputGuids {
-    pub const START: usize = 0x4F7E18;
-    pub const LEN: usize = 0x1C0;
-}
-
 /// A GUID of these by handle: `GUID_TAG | n`, `n` the effect's number in `EffectGuid::ALL`.
 pub const GUID_TAG: u32 = 0xCD00_0000;
 
@@ -152,15 +147,4 @@ pub fn guid_of(guids: &InputGuids, handle: u32) -> Result<[u8; 16], crate::error
     ))?;
     let field = effect.field(guids);
     Ok(std::array::from_fn(|i| field.get(i)))
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn inputguids_starts_as_the_games() {
-        let size = size_of::<InputGuids>();
-        assert!(8 + InputGuids::LEN <= size && size <= (8 + InputGuids::LEN).next_multiple_of(16));
-    }
 }

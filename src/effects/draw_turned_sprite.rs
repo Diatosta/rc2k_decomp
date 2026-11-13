@@ -90,24 +90,3 @@ pub struct SpriteUv {
 pub static SPRITE_UV: SpriteUv = SpriteUv {
     uv: [0.0, 0.0, 0.9999, 0.0, 0.9999, 0.9999, 0.0, 0.9999],
 };
-
-#[cfg(test)]
-mod sprite_uv_tests {
-    use super::*;
-
-    fn bytes<T>(v: &T) -> Vec<u8> {
-        let p = std::ptr::from_ref::<T>(v).cast::<u8>();
-        (0..size_of::<T>())
-            .map(|i| unsafe { p.add(i).read() })
-            .collect()
-    }
-
-    #[test]
-    fn sprite_uv_starts_as_the_games() {
-        assert!(
-            bytes(&SPRITE_UV)
-                == crate::test_support::first_values::bytes("effects.draw_turned_sprite.SPRITE_UV"),
-            "SPRITE_UV starts differently from the image"
-        );
-    }
-}

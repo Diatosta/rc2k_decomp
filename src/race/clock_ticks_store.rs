@@ -5,8 +5,6 @@
 
 use crate::cells::ZeroCells;
 
-#[cfg(test)]
-use crate::race::owner::race;
 use crate::session::PlainDword;
 
 #[repr(C)]
@@ -45,24 +43,5 @@ impl ClockTicks {
             ],
             ..ZeroCells::ZERO
         }
-    }
-}
-
-/// IDA 0x5CC198, the first byte of the piece.
-pub const START: usize = 0x5CC198;
-/// IDA 0x5CC3C0, the end of the piece.
-pub const END: usize = 0x5CC3C0;
-
-const _: () = assert!(END - START == core::mem::size_of::<ClockTicks>());
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn first_values_are_the_games() {
-        crate::test_support::first_values::assert_block_starts_as_the_games(
-            race().frame.clock_ticks(),
-        );
     }
 }

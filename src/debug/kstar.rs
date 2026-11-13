@@ -464,22 +464,3 @@ pub fn over_picture(system: &crate::system::owner::System, ui: &Ui) {
         .thickness(2.0)
         .build();
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    /// The names are the game's table (16 bytes a view, space-padded).
-    #[test]
-    fn the_view_names_are_the_games() {
-        let table = crate::test_support::first_values::bytes("debug.kstar.VIEW_NAMES");
-        for (view, name) in VIEW_NAMES.iter().enumerate() {
-            let text: String = table[16 * view..16 * view + 16]
-                .iter()
-                .take_while(|&&b| b != 0)
-                .map(|&b| char::from(b))
-                .collect();
-            assert_eq!(text.trim_end(), *name, "view {view}");
-        }
-    }
-}

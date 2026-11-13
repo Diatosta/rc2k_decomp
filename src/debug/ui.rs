@@ -107,7 +107,7 @@ static VIEW: std::sync::Mutex<Option<NotedView>> = std::sync::Mutex::new(None);
 /// The first view's scene has been drawn.
 pub fn note_view(frame: &Frame) {
     let view = (
-        std::array::from_fn(|n| frame.matrices.view_matrix[n].get()),
+        std::array::from_fn(|n| frame.matrices.get().view_matrix[n].get()),
         crate::race::view_scratch::main_view(0)
             .polygon
             .window
@@ -139,7 +139,7 @@ pub fn note_view(frame: &Frame) {
 /// ground. Above the window, and behind the eye skipped.
 fn draw_probes(race: &Race, system: &crate::system::owner::System, ui: &Ui) {
     let physics = &race.physics;
-    let wk = &physics.contact;
+    let wk = &physics.contact.get();
     let Some((m, scale, centre)) = *VIEW
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner)
@@ -578,7 +578,6 @@ fn take_readings(system: &crate::system::owner::System, t: &mut Timings) {
 fn profiler(o: &Owners<'static>, ui: &Ui) {
     let race = o.race;
     let course = &race.course;
-    let session = &o.system.session;
     let state = &o.audio.state;
     let shared = &race.shared;
     use crate::debug::timing::Stage;
@@ -740,9 +739,9 @@ fn profiler(o: &Owners<'static>, ui: &Ui) {
             (
                 "Processor has",
                 names([
-                    ("MMX", Some(session.machine.has_mmx.get())),
-                    ("3DNow!", Some(session.machine.has_3dnow.get())),
-                    ("SSE", Some(session.machine.has_sse.get())),
+                    ("MMX", Some(o.system.machine().has_mmx.get())),
+                    ("3DNow!", Some(o.system.machine().has_3dnow.get())),
+                    ("SSE", Some(o.system.machine().has_sse.get())),
                 ]),
             ),
             (
@@ -750,7 +749,10 @@ fn profiler(o: &Owners<'static>, ui: &Ui) {
                 names([
                     ("MMX", Some(o.scene.draw_switches.get().use_mmx.get())),
                     ("3DNow!", Some(o.scene.draw_switches.get().use_3dnow.get())),
-                    ("SSE", Some(o.scene.draw_switches.get().use_sse.get())),
+                    (
+                        "SSE",
+                        Some(u32::from(o.scene.draw_switches.get().use_sse.is_set())),
+                    ),
                 ]),
             ),
             (

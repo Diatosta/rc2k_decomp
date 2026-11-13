@@ -128,11 +128,8 @@ fn clear_stage_flags(sound: &crate::sound::owner::Sound) {
 }
 
 /// `sound::wait_for_commands`: the queue run out (its ends of turn read no register).
-pub fn wait_for_commands(
-    audio: &crate::audio::owner::Audio,
-    system: &crate::system::owner::System,
-) {
-    crate::sound::wait_for_commands::wait_in_game(audio, system);
+pub fn wait_for_commands(o: crate::owners::Owners<'static>) {
+    crate::sound::wait_for_commands::wait_in_game(o);
 }
 
 /// `race::reset_race_sounds` (0x40D378): the sound commands waited for, command 7 (with its end of
@@ -141,14 +138,13 @@ pub fn wait_for_commands(
 /// two more sound flags 0, the EAX environment 1.0; command 2 with the value 3; one more flag 0.
 pub fn reset_race_sounds(
     v: &SoundVars<'_>,
-    sound: &crate::sound::owner::Sound,
-    audio: &crate::audio::owner::Audio,
-    system: &crate::system::owner::System,
+    o: crate::owners::Owners<'static>,
 ) -> Result<(), Refused> {
-    wait_for_commands(audio, system);
+    let (sound, audio) = (o.sound, o.audio);
+    wait_for_commands(o);
     crate::sound::queue::send_command_in(audio, Command::StopAll);
     crate::sound::queue::send_with_eax_in(audio, Command::EndOfTurn, Some(7));
-    wait_for_commands(audio, system);
+    wait_for_commands(o);
     crate::sound::hold_sounds_back::hold_sounds_back(audio);
     crate::sound::race_clock::start_race_clock(crate::system::tick_count::tick_count(), sound);
     for o in &sound.race.sounds.get().objects {
@@ -312,7 +308,7 @@ pub fn tidy_everything(race: &Race, o: crate::owners::Owners<'static>) -> Result
     })?;
     s.log(EVERYTHING_WORDS[5]);
     s.indent(3);
-    reset_race_sounds(&SoundVars::game(sound), sound, o.audio, o.system)?;
+    reset_race_sounds(&SoundVars::game(sound), o)?;
     shared.view.get().view_on[0].set(1u32);
     shared.view.get().view_on[1].set(1u32);
     s.indent(-3);

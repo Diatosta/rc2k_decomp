@@ -9,10 +9,8 @@
 //! Called by `screens::run_frame` for `net::choose_connection`.
 
 use crate::errors::Refused;
-use crate::install::owner::Install;
 use crate::net::connecting::STATUS_FONT;
 use crate::net::lobby::{FONT, copy_picture, draw_string, lock_surface};
-use crate::net::owner::Net;
 use rc2k_core::net::screens;
 
 const LIT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::BUTTON_LIT;
@@ -21,19 +19,24 @@ const LIT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::BUTTON_
 /// name (`name`) of an item below the count, the highlighted one blinking. Shared with
 /// `net::sessions_frame`.
 pub fn list_frame(
-    so: crate::strings::append_string_by_id::StringOwners<'static>,
-    install: &Install,
+    o: crate::owners::Owners<'static>,
     title: u32,
     count: &crate::session::Dword,
     name: impl Fn(u32) -> Result<[u8; 0x40], Refused>,
-    gfx: &'static crate::gfx::owner::Gfx,
-    system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
+    let (install, gfx, system) = (o.install, o.gfx, o.system);
     if !lock_surface(gfx, system) {
         return Ok(());
     }
     copy_picture(gfx, system)?;
-    draw_string(so, title, STATUS_FONT, 0x316, 0x6F, gfx)?;
+    draw_string(
+        crate::strings::append_string_by_id::StringOwners::of(o),
+        title,
+        STATUS_FONT,
+        0x316,
+        0x6F,
+        gfx,
+    )?;
     let mut y: u32 = 0x6F + 0x2C;
     // Converted: `rc2k_core::net::screens` (`LIST_ROWS`, `listed`, `blink_lit`).
     let pages = &install.pages;
@@ -61,23 +64,12 @@ pub fn list_frame(
         )?;
     }
     crate::platform::unlock_surface(gfx);
-    crate::platform::show_frame_now();
+    crate::platform::show_frame_now(o);
     Ok(())
 }
-pub fn connections_frame(
-    so: crate::strings::append_string_by_id::StringOwners<'static>,
-    net: &Net,
-    install: &Install,
-    gfx: &'static crate::gfx::owner::Gfx,
-    system: &crate::system::owner::System,
-) -> Result<(), Refused> {
-    list_frame(
-        so,
-        install,
-        screens::CONNECTIONS_TITLE,
-        &net.vars.connections,
-        |n| crate::net::tables::with_connection(&net.vars, n, |c| c.name),
-        gfx,
-        system,
-    )
+pub fn connections_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
+    let net = o.net;
+    list_frame(o, screens::CONNECTIONS_TITLE, &net.vars.connections, |n| {
+        crate::net::tables::with_connection(&net.vars, n, |c| c.name)
+    })
 }

@@ -11,9 +11,9 @@
 use crate::errors::{BadInput, Refused};
 use crate::net::apply_message::apply_message;
 use crate::net::copy_received::{MOST_PLAYERS, copy_received};
-use crate::net::store::NetVars;
+use crate::net::store::NetShared;
 use crate::race::owner::Race;
-pub fn apply_received(race: &Race, vars: &NetVars) -> Result<(), Refused> {
+pub fn apply_received(race: &Race, vars: &NetShared) -> Result<(), Refused> {
     let count = || vars.players.get();
     if count() == 0 || count() > MOST_PLAYERS {
         return Err(BadInput("no players, or more than the blocks' 8").into());

@@ -27,7 +27,7 @@ use crate::net::dplay_send::dplay_send;
 use crate::net::owner::Net;
 use crate::net::receive_message::ROOM;
 use crate::net::receive_message::receive_message;
-use crate::net::store::NetVars;
+use crate::net::store::NetShared;
 use crate::net::store_received::store_received;
 use crate::net::system_message::system_message;
 use crate::net::{lock_received::lock_received, unlock_received::unlock_received};
@@ -49,7 +49,7 @@ pub fn joined() {
 }
 
 /// The received message's byte `at` (the buffer's `receive_data`).
-fn get8(vars: &NetVars, at: usize) -> Result<u8, BadInput> {
+fn get8(vars: &NetShared, at: usize) -> Result<u8, BadInput> {
     if at >= ROOM as usize {
         return Err(BadInput("a received message past its buffer"));
     }
@@ -57,12 +57,13 @@ fn get8(vars: &NetVars, at: usize) -> Result<u8, BadInput> {
 }
 
 /// The received message from its byte 1 on.
-fn after_first(vars: &NetVars, length: usize) -> Result<Vec<u8>, BadInput> {
+fn after_first(vars: &NetShared, length: usize) -> Result<Vec<u8>, BadInput> {
     vars.receive_data.read_at(1, length, "a received message")
 }
 pub fn take_messages(
     net: &Net,
-    panel: &crate::race::viewer_screen_store::ViewerPanelBlock,
+    gfx: &'static crate::gfx::owner::Gfx,
+    lines: &crate::race::viewer_screen_store::NetTexts,
 ) -> Result<(), Refused> {
     if net.vars.players.get() > MOST_PLAYERS {
         return Err(BadInput("take_messages: more than 8 players").into());
@@ -76,7 +77,7 @@ pub fn take_messages(
             .messages_taken
             .set(net.vars.messages_taken.get().wrapping_add(1));
         if m.from == 0 {
-            system_message(&net.vars, panel)?;
+            system_message(&net.vars, lines)?;
             continue;
         }
         // The sender among the players (the first compared even with none).
@@ -117,7 +118,12 @@ pub fn take_messages(
                 net.vars
                     .receive_data
                     .set((m.size as usize).min(ROOM as usize - 1), 0);
-                chat_line_locked(net, player, &after_first(&net.vars, ROOM as usize - 1)?)?;
+                chat_line_locked(
+                    net,
+                    gfx,
+                    player,
+                    &after_first(&net.vars, ROOM as usize - 1)?,
+                )?;
             }
             Kind::Call { reply, ready } => {
                 if m.size == 2

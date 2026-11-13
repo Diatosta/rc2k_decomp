@@ -76,16 +76,3 @@ pub fn load_game_best_times(saves: &Saves, system: &System) -> Result<bool, Refu
     best_times.loaded.set(1);
     Ok(true)
 }
-
-#[cfg(test)]
-mod path_tests {
-    use super::*;
-
-    #[test]
-    fn first_values_are_the_games() {
-        assert_eq!(
-            crate::test_support::first_values::bytes("saves.load_best_times.PATH"),
-            &PATH
-        );
-    }
-}

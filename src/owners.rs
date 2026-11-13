@@ -1,6 +1,8 @@
 //! The game's owners handed down together: one reference to each module's state, for the
-//! functions that reach several of them (`Owners`), and the fetch a not-yet-converted
-//! subtree starts from (`boundary`).
+//! functions that reach several of them (`Owners`). `Owners::the()` is made once, at the root of
+//! the game's thread; the slot threads have `thread_slot::SlotOwners`. A root that cannot take
+//! owners from a caller (a thread's or a platform callback's) is marked `m6-root`
+//! (`tools/m6_count.py` leaves it out).
 
 use crate::audio::owner::Audio;
 use crate::d3d::owner::D3d;
@@ -21,7 +23,6 @@ use crate::strings::owner::Strings;
 use crate::system::owner::System;
 
 /// A reference to each owner. Copy it down; a function takes the narrowest owner it needs.
-#[allow(dead_code, reason = "the call sites move to it in the M6 rounds")]
 #[derive(Clone, Copy)]
 pub struct Owners<'a> {
     pub race: &'a Race,
@@ -43,7 +44,6 @@ pub struct Owners<'a> {
     pub hud: &'a Hud,
 }
 
-#[allow(dead_code, reason = "the call sites move to it in the M6 rounds")]
 impl Owners<'static> {
     /// The game's owners, as the accessors give them (those held by the game's thread
     /// through that thread's `get()`).
@@ -68,11 +68,4 @@ impl Owners<'static> {
             hud: crate::hud::owner::hud(),
         }
     }
-}
-
-/// The owners fetched at the root of a subtree not yet converted to take them as
-/// parameters. `tools/m6_count.py` counts the calls; there are none at the end.
-#[allow(dead_code, reason = "the call sites move to it in the M6 rounds")]
-pub fn boundary() -> Owners<'static> {
-    Owners::the()
 }

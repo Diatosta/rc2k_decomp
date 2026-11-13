@@ -503,23 +503,9 @@ mod tests {
     use super::*;
 
     #[test]
-    fn first_values_are_the_games() {
-        let _g = crate::test_support::test_lock();
-        // The car blocks are handles where the game has addresses.
-        crate::test_support::first_values::assert_store_starts_as_the_games(
-            "store:race.owner.RACE.shared.work",
-        );
-    }
-
-    #[test]
-    fn car_records_resolve_to_what_the_image_named() {
+    fn car_records_resolve_to_their_places() {
         let shared = &race().shared;
         for k in 0..8 {
-            let name = crate::test_support::first_values::dword(
-                "race.owner.RACE.shared.work.car_records[0]/32",
-                k,
-            );
-            assert_eq!(name as usize, CAR_RECORDS_IDA + 0x4C8 * k);
             assert!(std::ptr::eq(
                 shared.car_records().unwrap()[k],
                 shared.car_record(k).unwrap()

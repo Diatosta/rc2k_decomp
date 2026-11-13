@@ -112,17 +112,22 @@ fn work(
 }
 
 pub fn install_clio(
-    so: crate::strings::append_string_by_id::StringOwners<'static>,
     install: &'static crate::install::owner::Install,
-    system: &crate::system::owner::System,
-    gfx: &'static crate::gfx::owner::Gfx,
-    input: &crate::input::owner::Input,
+    o: crate::owners::Owners<'static>,
 ) -> Result<(), Refused> {
+    let (system, gfx, input) = (o.system, o.gfx, o.input);
     if lock(gfx, system) {
         copy_picture(gfx, system)?;
-        draw_string(so, 0xBE, FONT_BE, 0x1A9, 0x113, gfx)?;
+        draw_string(
+            crate::strings::append_string_by_id::StringOwners::of(o),
+            0xBE,
+            FONT_BE,
+            0x1A9,
+            0x113,
+            gfx,
+        )?;
         unlock(gfx);
-        show();
+        show(o);
         sleep(1000);
     }
     if let Stop::SetBack = work(install, system, input)? {

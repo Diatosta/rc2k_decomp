@@ -7,14 +7,14 @@
 //! Caller: DirectPlay, from `net::join_group` (`callback`, a `stdcall` Rust function).
 
 use crate::errors::Refused;
-use crate::net::store::NetVars;
+use crate::net::store::NetShared;
 
 /// The group's id, type and short name.
-pub fn group_found(vars: &NetVars, id: u32, kind: u32, short: &[u8]) -> Result<u32, Refused> {
+pub fn group_found(vars: &NetShared, id: u32, kind: u32, short: &[u8]) -> Result<u32, Refused> {
     if kind != 0 {
         return Ok(1);
     }
-    let order = crate::strings::same_text::compare_bytes(short, &vars.group_name.read());
+    let order = crate::strings::same_text::compare_bytes(short, &crate::net::store::GROUP_NAME);
     if order != std::cmp::Ordering::Equal {
         return Ok(1);
     }
@@ -22,7 +22,7 @@ pub fn group_found(vars: &NetVars, id: u32, kind: u32, short: &[u8]) -> Result<u
     Ok(0)
 }
 
-pub fn callback(vars: &NetVars, id: u32, kind: u32, short: &[u8]) -> u32 {
+pub fn callback(vars: &NetShared, id: u32, kind: u32, short: &[u8]) -> u32 {
     crate::net::lobby::callback_entry("net::group_found", 0x419391, || {
         group_found(vars, id, kind, short)
     })

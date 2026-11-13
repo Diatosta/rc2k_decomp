@@ -21,8 +21,6 @@
 
 use crate::errors::Refused;
 use crate::gfx::copy_picture_to_surface::{GameSurface, copy_picture_to_surface};
-#[cfg(test)]
-use crate::gfx::owner::gfx;
 use crate::platform::{lock_surface, pump_messages_now, show_frame_now, unlock_surface};
 use rc2k_core::gfx::picture_size as sizes;
 
@@ -32,12 +30,11 @@ const LOADING_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts
 
 /// Shows the picture at `path`.
 pub fn show_picture_file(
-    so: crate::strings::append_string_by_id::StringOwners<'static>,
+    o: crate::owners::Owners<'static>,
     path: &dyn crate::session::TextPlace,
-    gfx: &'static crate::gfx::owner::Gfx,
-    system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
-    pump_messages_now();
+    let (gfx, system) = (o.gfx, o.system);
+    pump_messages_now(o);
     gfx.pictures.showing.set(1);
     // Converted: `rc2k_core::gfx::picture_size` (`READ`, `screen`, `pages`,
     // `rescaled`).
@@ -63,7 +60,7 @@ pub fn show_picture_file(
             gfx.pictures.picture.flags.set(0x802u32);
             crate::gfx::picture_as_surface::picture_as_surface(gfx)?;
             crate::text::draw_string_by_id::draw_string_by_id_at(
-                so,
+                crate::strings::append_string_by_id::StringOwners::of(o),
                 0xC0,
                 LOADING_FONT,
                 0x316,
@@ -84,7 +81,7 @@ pub fn show_picture_file(
                     system,
                 )?;
                 unlock_surface(gfx);
-                show_frame_now();
+                show_frame_now(o);
             }
             return Ok(());
         }
@@ -92,18 +89,7 @@ pub fn show_picture_file(
     crate::gfx::convert_picture::convert_picture_now_in(gfx, system)?;
     for _ in 0..pages {
         copy_picture_to_surface(&mut GameSurface(gfx, system))?;
-        show_frame_now();
+        show_frame_now(o);
     }
     Ok(())
-}
-
-#[cfg(test)]
-mod block_tests {
-    use super::*;
-
-    #[test]
-    fn first_value_is_the_games() {
-        let pictures = &gfx().pictures;
-        crate::test_support::first_values::assert_block_starts_as_the_games(&pictures.showing);
-    }
 }

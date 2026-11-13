@@ -6,9 +6,13 @@
 //! Caller: `net::find_connections`.
 
 use crate::net::lobby::{co_create, log_bytes};
-use crate::net::store::NetVars;
-use crate::race::viewer_screen_store::{ViewerPanelBlock, texts};
-pub fn create_dplay(vars: &NetVars, panel: &ViewerPanelBlock) -> bool {
-    log_bytes(&panel.text(texts::NET_CREATE_DPLAY), true, 2);
-    co_create(&vars.clsid_dplay, &vars.iid_dplay4a, &vars.dplay) == 0
+use crate::net::store::NetShared;
+use crate::race::viewer_screen_store::{NetTexts, texts};
+pub fn create_dplay(vars: &NetShared, lines: &NetTexts) -> bool {
+    log_bytes(&lines.text(texts::NET_CREATE_DPLAY), true, 2);
+    co_create(
+        &crate::net::store::CLSID_DPLAY,
+        &crate::net::store::IID_DPLAY4A,
+        &vars.dplay,
+    ) == 0
 }

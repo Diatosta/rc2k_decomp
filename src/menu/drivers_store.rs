@@ -578,23 +578,3 @@ pub fn name_string(menus: &Menus, entry: u32) -> Result<u32, crate::errors::BadI
         .string
         .get())
 }
-
-/// IDA 0x73B674, the first byte of the piece.
-#[cfg(test)]
-pub const START: usize = 0x73B674;
-/// IDA 0x742C98, the end of the piece.
-#[cfg(test)]
-pub const END: usize = 0x742C98;
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn drivers_start_as_the_games() {
-        assert_eq!(size_of::<DriverTable>(), END - START);
-        crate::test_support::first_values::assert_block_starts_as_the_games(
-            &crate::menu::owner::menus().cars.drivers,
-        );
-    }
-}

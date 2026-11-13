@@ -1,22 +1,119 @@
-//! The network's variables, typed: `NetVars` (IDA 0x52A4B0 .. 0x5AB419): `nonetwork` and
+//! The network's variables, typed: `NetShared` (IDA 0x52A4B0 .. 0x5AB419): `nonetwork` and
 //! `inetport`, the chat lines, the session's state (`session`, 1 while a network game runs,
 //! which the race code reads too) and this machine's player, the send and receive buffers,
 //! the connections and sessions listed, the received message stores (8 `PlayerBlock`s),
 //! DirectPlay's objects, GUIDs and the chat zone's picture; `Button` (0x5AB490),
 //! `net::draw_button`'s; and `NetMain`'s records (the item edited, this machine's settings,
-//! the address being built, the session joined), which only the game's thread reaches. The
+//! the address being built, the session joined, the lobby's `LobbyVars`), which only the
+//! game's thread reaches. The
 //! installer's variables, the build notice and the lobby's registry names are
 //! `install::store`'s.
 //!
-//! `#[repr(C)]` structs of atomic cells (what `Cells` needs). The receiving thread shares
-//! `NetVars`: plain loads and stores (`Relaxed`), as the original's.
+//! `#[repr(C)]` structs of cells (what `Cells` needs), in two kinds, by thread (M3). The
+//! receiving thread (T3, `net::receive_thread`) shares `NetShared`: atomic cells, plain
+//! loads and stores (`Relaxed`), as the original's; the received blocks are written under
+//! the game's mutex (`lock_received`). What only the game's thread (T0) reaches is plain
+//! cells in `NetMain` (`LobbyVars` and the records below), and the DirectPlay and service-
+//! provider GUIDs, never written, are constants.
+//!
+//! The receiving thread's reach, field by field (checked by grep, 2026-11-12):
+//! - T3 writes, T0 reads: `receive_done`, `receiving`, `posted_result`, `posted_answered`,
+//!   `messages_taken`, `sync_answer`, `all_raced`, `race_over`, `synced`, `sync_first`,
+//!   `stage_item` (a host made), `own` (the host bit), `received` (a message stored, a chat
+//!   sender's name), `chat`, `chat_line`, `chat_text` (`add_chat_line`), `receive_data`,
+//!   `received_from` / `_to` / `_size`, `session` (a lost session: `destroy_connection`) and,
+//!   with it, `dplay`, `lobby`, `session_open`, `memory`, `connections`, `sessions`,
+//!   `connection_table`, `session_table`, `player_id`, `sync` (the round of a host's first
+//!   call), and `players` (`close_session`, `release_*`, `free_messages`, `destroy_player`).
+//! - T0 writes, T3 reads: `posting`, `posted_call`, `event`, `mutex`, `host_name`,
+//!   `session_desc`, `send_to`, `players`, `dplay`.
+//! - Read by the drawing threads: `session`, `player` (lights, hud icons).
+//! - T0 only, plain (`LobbyVars`): `mode`, `sequence`, `first_host`, `send_buffer`,
+//!   `show_gaps`, `data_size`, `racing`, `after_race`, `sync_clock`.
+//! - Dead and removed: the `DPNAME`, `dplay_2`, `DPAID_TotalSize`, the chat zone's file name.
 
-use crate::session::{Byte, Bytes, Dword, PlainBytes, PlainDword, Word, with_runs};
+use crate::session::{Byte, Bytes, Dword, PlainByte, PlainBytes, PlainDword, Word, with_runs};
 use rc2k_core::net::inbox::{Inbox, Spill};
 
 const fn zeros<const N: usize>() -> [Dword; N] {
     [const { Dword::new(0) }; N]
 }
+
+/// the game's application GUID (`g_netAppGuid`), IDA 0x5AB300: never written.
+pub const APP_GUID: [u8; 16] = with_runs::<16>(&[
+    (0, b"\x80\xb0\xfa\xb5W\x09\xd1\x11\x91\xc0"),
+    (11, b"\xc0\xf0\x1a\x9f\xb3"),
+]);
+
+/// `IID_IDirectPlay4A`, IDA 0x5AB310: never written.
+pub const IID_DPLAY4A: [u8; 16] = with_runs::<16>(&[
+    (0, b"A\xfe>\x13\xdc2\xd0\x11\x9c\xfb"),
+    (11, b"\xa0\xc9\x0aC\xcb"),
+]);
+
+/// `IID_IDirectPlayLobby2A`, IDA 0x5AB320: never written.
+pub const IID_LOBBY2A: [u8; 16] = with_runs::<16>(&[
+    (0, b"\x80\xaf\xb4\x1b\x03\xa3\xd0\x11\x9cO"),
+    (11, b"\xa0\xc9\x05B^"),
+]);
+
+/// `CLSID_DirectPlay`, IDA 0x5AB330: never written.
+pub const CLSID_DPLAY: [u8; 16] = with_runs::<16>(&[
+    (0, b" m\xeb\xd1#\x89\xd0\x11\x9d\x97"),
+    (11, b"\xa0\xc9\x0aC\xcb"),
+]);
+
+/// `CLSID_DirectPlayLobby`, IDA 0x5AB340: never written.
+pub const CLSID_LOBBY: [u8; 16] = with_runs::<16>(&[
+    (0, b"\x10\xf8\xe8/\xa5\xb2\xd0\x11\xa7\x87"),
+    (12, b"\xf8\x03\xab\xfc"),
+]);
+
+/// `DPSPGUID_IPX`, IDA 0x5AB350: never written.
+pub const SP_IPX: [u8; 16] = with_runs::<16>(&[
+    (1, b"\xc4[h,\x9d\xcf\x11\xa9\xcd"),
+    (11, b"\xaa"),
+    (13, b"h\x86\xe3"),
+]);
+
+/// `DPSPGUID_TCPIP`, IDA 0x5AB360: never written.
+pub const SP_TCPIP: [u8; 16] = with_runs::<16>(&[
+    (0, b"\xe0^\xe96w\x85\xcf\x11\x96\x0c"),
+    (11, b"\x80\xc7SN\x82"),
+]);
+
+/// `DPSPGUID_SERIAL`, IDA 0x5AB370: never written.
+pub const SP_SERIAL: [u8; 16] = with_runs::<16>(&[
+    (0, b"`h\x1d\x0f\xd9\x88\xcf\x11\x9cN"),
+    (11, b"\xa0\xc9\x05B^"),
+]);
+
+/// `DPSPGUID_MODEM`, IDA 0x5AB380: never written.
+pub const SP_MODEM: [u8; 16] = with_runs::<16>(&[
+    (0, b"`\xa7\xeaDh\xcb\xcf\x11\x9cN"),
+    (11, b"\xa0\xc9\x05B^"),
+]);
+
+/// `DPAID_ServiceProvider`, IDA 0x5AB3A0: never written.
+pub const AID_SERVICE_PROVIDER: [u8; 16] = with_runs::<16>(&[
+    (0, b"\xc0\x16\xd9\x07\xaf\xe0\xcf\x11\x9cN"),
+    (11, b"\xa0\xc9\x05B^"),
+]);
+
+/// `DPAID_INet`, IDA 0x5AB3E0: never written.
+pub const AID_INET: [u8; 16] = with_runs::<16>(&[
+    (0, b"\xa0M\xa5\xc4\xaf\xe0\xcf\x11\x9cN"),
+    (11, b"\xa0\xc9\x05B^"),
+]);
+
+/// `DPAID_INetPort`, IDA 0x5AB3F0: never written.
+pub const AID_INET_PORT: [u8; 16] = with_runs::<16>(&[
+    (0, b"AER\xe4\xa5\x8e\xd1\x11\x8a\x96"),
+    (11, b"`\x97\xb0\x14\x11"),
+]);
+
+/// 0x5AB25C: `aSusanivanovafa`: "susanivanovafanclub", the group's name; never written.
+pub const GROUP_NAME: [u8; 20] = with_runs::<20>(&[(0, b"susanivanovafanclub")]);
 
 /// A player's 16 bytes of DirectPlay player data (`NetPlayerRecord`; `g_netOwnRecord` for
 /// this machine).
@@ -166,27 +263,6 @@ impl PlayerBlock {
         }
         self.last_time.set(u32::from_le_bytes(time));
         self.copied_count.set(u32::from_le_bytes(copied_count));
-    }
-}
-
-/// DirectPlay's `DPNAME`.
-#[repr(C)]
-#[derive(rc2k_derive::Cells)]
-pub struct DpName {
-    pub size: Dword,
-    pub flags: Dword,
-    pub short_name: Dword,
-    pub long_name: Dword,
-}
-
-impl DpName {
-    pub const fn zero() -> Self {
-        Self {
-            size: Dword::new(0),
-            flags: Dword::new(0),
-            short_name: Dword::new(0),
-            long_name: Dword::new(0),
-        }
     }
 }
 
@@ -384,14 +460,59 @@ impl JoinedVars {
     }
 }
 
+/// The lobby's variables, the game thread's (IDA 0x52A908 .. 0x52AD88).
+#[repr(C)]
+#[derive(rc2k_derive::Cells)]
+pub struct LobbyVars {
+    /// 0x52A908: `g_netMode`: 0 the settings, 1 host, 2 join, 3 lobby.
+    pub mode: PlainDword,
+    /// 0x52A924: `dword_52A924`: the first player not the host.
+    pub first_host: PlainDword,
+    /// 0x52AA68: `g_netSendBuffer`: the message being sent.
+    pub send_buffer: PlainBytes<256>,
+    /// 0x52AC30: `dword_52AC30`: times shown as gaps.
+    pub show_gaps: PlainDword,
+    /// 0x52AD74: `dword_52AD74`: the size of the player data listed.
+    pub data_size: PlainDword,
+    /// 0x52AD80: `g_netAfterRace`: back in the lobby after a race.
+    pub after_race: PlainDword,
+    /// 0x52AD84: `g_netRacing`: the players are not listed again.
+    pub racing: PlainDword,
+    /// 0x52AD88: `dword_52AD88`: the time of the last sync message.
+    pub sync_clock: PlainDword,
+    /// 0x52A915: `g_netSequence`: the sequence byte of the messages sent.
+    pub sequence: PlainByte,
+    /// Three bytes that fill the record's last dword (`Cells` takes no padding); nothing
+    /// reads or writes them.
+    pub _pad_cells: PlainBytes<3>,
+}
+
+impl LobbyVars {
+    pub const fn new() -> Self {
+        Self {
+            mode: PlainDword::new(0x3),
+            first_host: PlainDword::new(0),
+            send_buffer: PlainBytes::new([0; 256]),
+            show_gaps: PlainDword::new(0),
+            data_size: PlainDword::new(0),
+            after_race: PlainDword::new(0),
+            racing: PlainDword::new(0),
+            sync_clock: PlainDword::new(0),
+            sequence: PlainByte::new(128),
+            _pad_cells: PlainBytes::new([0; 3]),
+        }
+    }
+}
+
 /// The network's variables only the game's thread reaches, in plain cells: what is edited,
-/// this machine's settings, the address being built and the session joined. The receiving
-/// thread reads and writes none of them (it works on `NetVars`).
+/// this machine's settings, the address being built, the session joined and the lobby's.
+/// The receiving thread reads and writes none of them (it works on `NetShared`).
 pub struct NetMain {
     pub edit: EditVars,
     pub setup: SetupVars,
     pub address: AddressVars,
     pub joined: JoinedVars,
+    pub lobby: LobbyVars,
 }
 
 impl NetMain {
@@ -401,6 +522,7 @@ impl NetMain {
             setup: SetupVars::new(),
             address: AddressVars::new(),
             joined: JoinedVars::new(),
+            lobby: LobbyVars::new(),
         }
     }
 }
@@ -408,7 +530,7 @@ impl NetMain {
 /// IDA 0x52A4B0 .. 0x5AB419.
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
-pub struct NetVars {
+pub struct NetShared {
     /// 0x52A4B0: `g_netReceiveDone`: set when the receiving thread has ended; also the `nonetwork` setting's variable (`settings::read_settings`).
     pub receive_done: Dword,
     /// 0x52A508: `g_netChat`: the chat's lines (0x300 bytes).
@@ -417,14 +539,12 @@ pub struct NetVars {
     pub chat_line: Bytes<128>,
     /// 0x52A888: `word_52A888`: a chat message "name> text".
     pub chat_text: Bytes<128>,
-    /// 0x52A908: `g_netMode`: 0 the settings, 1 host, 2 join, 3 lobby.
-    pub mode: Dword,
     /// 0x52A910: `g_netSession`: 1 while a network game runs; the race code reads it as the split screen's switch (one car's view chosen).
     pub session: Dword,
     /// 0x52A914: `g_netSync`: the sync round, counted up at each lobby.
     pub sync: Byte,
-    /// 0x52A915: `g_netSequence`: the sequence byte of the messages sent.
-    pub sequence: Byte,
+    /// One byte that aligns `sync_answer` (`Cells` takes no padding); nothing reads or writes it.
+    pub _pad_cells: Bytes<1>,
     /// 0x52A916: `g_netSyncAnswer`: the race-sync answer sent (0x41 or 0x51, the round).
     pub sync_answer: Word,
     /// 0x52A918: `g_netReceiving`: the receiving thread is busy.
@@ -433,27 +553,25 @@ pub struct NetVars {
     pub messages_taken: Dword,
     /// 0x52A920: `g_netPlayer`: this machine's player (its car's number); the race code reads it as the car chosen.
     pub player: Dword,
-    /// 0x52A924: `dword_52A924`: the first player not the host.
-    pub first_host: Dword,
     /// 0x52A928: `g_netMemory`: the network's memory list (`memory::List`, 16 bytes).
     pub memory: [Dword; 4],
     /// 0x52A968: `unk_52A968`: the bytes of the message `net::receive_message` took.
     pub receive_data: Bytes<256>,
-    /// 0x52AA68: `g_netSendBuffer`: the message being sent.
-    pub send_buffer: Bytes<256>,
     /// 0x52AB68: `g_netEvent`: the receiving thread's event (a handle).
     pub event: Dword,
     /// 0x52AB6C: `g_netMutex`: the mutex of the received messages (a handle).
     pub mutex: Dword,
     /// 0x52AC2C: `g_netStageItem`: the lobby's stage item can be chosen.
     pub stage_item: Dword,
-    /// 0x52AC30: `dword_52AC30`: times shown as gaps.
-    pub show_gaps: Dword,
     /// 0x52AC34: `g_netConnections`: the connections listed.
     pub connections: Dword,
     /// 0x52AC38: `g_netConnectionTable`: the connection records (0x54 bytes each; an address,
     /// 0 now: `net::tables::NET_TABLES`).
     pub connection_table: Dword,
+    /// Not the original's: the machine's name, copied here by `net::host_session` before the
+    /// session is opened on the receiving thread (`posted_open_host`), which may not reach
+    /// the game thread's settings.
+    pub host_name: Bytes<64>,
     /// 0x52ACE4: `g_netPosting`: DirectPlay's calls are made on the receiving thread.
     pub posting: Dword,
     /// 0x52ACE8: `g_netPostedCall`: the call posted to the receiving thread.
@@ -471,18 +589,10 @@ pub struct NetVars {
     pub session_open: Dword,
     /// 0x52AD64: `g_netOwnRecord`: this machine's player record.
     pub own: PlayerRecord,
-    /// 0x52AD74: `dword_52AD74`: the size of the player data listed.
-    pub data_size: Dword,
     /// 0x52AD78: `g_netAllRaced`: every player is ready.
     pub all_raced: Dword,
     /// 0x52AD7C: `g_netRaceOver`: every player has finished.
     pub race_over: Dword,
-    /// 0x52AD80: `g_netAfterRace`: back in the lobby after a race.
-    pub after_race: Dword,
-    /// 0x52AD84: `g_netRacing`: the players are not listed again.
-    pub racing: Dword,
-    /// 0x52AD88: `dword_52AD88`: the time of the last sync message.
-    pub sync_clock: Dword,
     /// 0x52AD8C: `g_netSyncFirst`: the sync table is not cleared yet.
     pub sync_first: Dword,
     /// 0x52AD90: `g_netSynced`: a byte a player, 1 when the player answered the sync.
@@ -491,8 +601,6 @@ pub struct NetVars {
     pub players: Dword,
     /// 0x52AD9C: `g_netReceived`: the players' blocks.
     pub received: [PlayerBlock; 8],
-    /// 0x5AB25C: `aSusanivanovafa`: "susanivanovafanclub", the group's name.
-    pub group_name: Bytes<20>,
     /// 0x5AB270: `g_netPlayerId`: this player's DirectPlay id.
     pub player_id: Dword,
     /// 0x5AB274: `g_netSendTo`: the group the messages go to.
@@ -503,71 +611,36 @@ pub struct NetVars {
     pub received_to: Dword,
     /// 0x5AB280: `g_netReceivedSize`: the size of the buffer / the message taken.
     pub received_size: Dword,
-    /// 0x5AB284: `dword_5AB284`: DirectPlay's second interface (`IDirectPlay4A` asked of the lobby).
-    pub dplay_2: Dword,
     /// 0x5AB288: `g_dplay`: the `IDirectPlay4A` object.
     pub dplay: Dword,
     /// 0x5AB28C: `g_dplayLobby`: the `IDirectPlayLobby2A` object.
     pub lobby: Dword,
-    /// 0x5AB29C: `g_netName`: a `DPNAME`.
-    pub dp_name: DpName,
     /// 0x5AB2AC: `g_netSessionDesc`: a `DPSESSIONDESC2`.
     pub session_desc: SessionDesc,
-    /// 0x5AB300: `g_netAppGuid`: the game's application GUID.
-    pub app_guid: Bytes<16>,
-    /// 0x5AB310: `IID_IDirectPlay4A`.
-    pub iid_dplay4a: Bytes<16>,
-    /// 0x5AB320: `IID_IDirectPlayLobby2A`.
-    pub iid_lobby2a: Bytes<16>,
-    /// 0x5AB330: `CLSID_DirectPlay`.
-    pub clsid_dplay: Bytes<16>,
-    /// 0x5AB340: `CLSID_DirectPlayLobby`.
-    pub clsid_lobby: Bytes<16>,
-    /// 0x5AB350: `DPSPGUID_IPX`.
-    pub sp_ipx: Bytes<16>,
-    /// 0x5AB360: `DPSPGUID_TCPIP`.
-    pub sp_tcpip: Bytes<16>,
-    /// 0x5AB370: `DPSPGUID_SERIAL`.
-    pub sp_serial: Bytes<16>,
-    /// 0x5AB380: `DPSPGUID_MODEM`.
-    pub sp_modem: Bytes<16>,
-    /// 0x5AB390: `DPAID_TotalSize`.
-    pub aid_total_size: Bytes<16>,
-    /// 0x5AB3A0: `DPAID_ServiceProvider`.
-    pub aid_service_provider: Bytes<16>,
-    /// 0x5AB3E0: `DPAID_INet`.
-    pub aid_inet: Bytes<16>,
-    /// 0x5AB3F0: `DPAID_INetPort`.
-    pub aid_inet_port: Bytes<16>,
-    /// 0x5AB400: `aFilesDGfxChatz`: the text `files\d\gfx\chatzone.pcx`.
-    pub chatzone_file: Bytes<28>,
 }
 
-impl NetVars {
+impl NetShared {
     pub const fn new() -> Self {
-        NetVars {
+        NetShared {
             receive_done: Dword::new(0),
             chat: Bytes::new([0; 768]),
             chat_line: Bytes::new([0; 128]),
             chat_text: Bytes::new([0; 128]),
-            mode: Dword::new(0x3),
             session: Dword::new(0),
             sync: Byte::new(0),
-            sequence: Byte::new(128),
+            _pad_cells: Bytes::new([0; 1]),
             sync_answer: Word::new(0),
             receiving: Dword::new(0),
             messages_taken: Dword::new(0),
             player: Dword::new(0),
-            first_host: Dword::new(0),
             memory: zeros(),
             receive_data: Bytes::new([0; 256]),
-            send_buffer: Bytes::new([0; 256]),
             event: Dword::new(0),
             mutex: Dword::new(0),
             stage_item: Dword::new(0x1),
-            show_gaps: Dword::new(0),
             connections: Dword::new(0),
             connection_table: Dword::new(0),
+            host_name: Bytes::new([0; 64]),
             posting: Dword::new(0),
             posted_call: Dword::new(0),
             posted_result: Dword::new(0),
@@ -576,86 +649,25 @@ impl NetVars {
             session_table: Dword::new(0),
             session_open: Dword::new(0),
             own: PlayerRecord::zero(),
-            data_size: Dword::new(0),
             all_raced: Dword::new(0),
             race_over: Dword::new(0),
-            after_race: Dword::new(0),
-            racing: Dword::new(0),
-            sync_clock: Dword::new(0),
             sync_first: Dword::new(0x1),
             synced: Bytes::new([0; 8]),
             players: Dword::new(0),
             received: [const { PlayerBlock::zero() }; 8],
-            group_name: Bytes::new(with_runs::<20>(&[(0, b"susanivanovafanclub")])),
             player_id: Dword::new(0),
             send_to: Dword::new(0),
             received_from: Dword::new(0),
             received_to: Dword::new(0),
             received_size: Dword::new(0),
-            dplay_2: Dword::new(0),
             dplay: Dword::new(0),
             lobby: Dword::new(0),
-            dp_name: DpName::zero(),
             session_desc: SessionDesc::zero(),
-            app_guid: Bytes::new(with_runs::<16>(&[
-                (0, b"\x80\xb0\xfa\xb5W\x09\xd1\x11\x91\xc0"),
-                (11, b"\xc0\xf0\x1a\x9f\xb3"),
-            ])),
-            iid_dplay4a: Bytes::new(with_runs::<16>(&[
-                (0, b"A\xfe>\x13\xdc2\xd0\x11\x9c\xfb"),
-                (11, b"\xa0\xc9\x0aC\xcb"),
-            ])),
-            iid_lobby2a: Bytes::new(with_runs::<16>(&[
-                (0, b"\x80\xaf\xb4\x1b\x03\xa3\xd0\x11\x9cO"),
-                (11, b"\xa0\xc9\x05B^"),
-            ])),
-            clsid_dplay: Bytes::new(with_runs::<16>(&[
-                (0, b" m\xeb\xd1#\x89\xd0\x11\x9d\x97"),
-                (11, b"\xa0\xc9\x0aC\xcb"),
-            ])),
-            clsid_lobby: Bytes::new(with_runs::<16>(&[
-                (0, b"\x10\xf8\xe8/\xa5\xb2\xd0\x11\xa7\x87"),
-                (12, b"\xf8\x03\xab\xfc"),
-            ])),
-            sp_ipx: Bytes::new(with_runs::<16>(&[
-                (1, b"\xc4[h,\x9d\xcf\x11\xa9\xcd"),
-                (11, b"\xaa"),
-                (13, b"h\x86\xe3"),
-            ])),
-            sp_tcpip: Bytes::new(with_runs::<16>(&[
-                (0, b"\xe0^\xe96w\x85\xcf\x11\x96\x0c"),
-                (11, b"\x80\xc7SN\x82"),
-            ])),
-            sp_serial: Bytes::new(with_runs::<16>(&[
-                (0, b"`h\x1d\x0f\xd9\x88\xcf\x11\x9cN"),
-                (11, b"\xa0\xc9\x05B^"),
-            ])),
-            sp_modem: Bytes::new(with_runs::<16>(&[
-                (0, b"`\xa7\xeaDh\xcb\xcf\x11\x9cN"),
-                (11, b"\xa0\xc9\x05B^"),
-            ])),
-            aid_total_size: Bytes::new(with_runs::<16>(&[
-                (0, b"`\xf5\x18\x13,\x91\xd0\x11\x9d\xaa"),
-                (11, b"\xa0\xc9\x0aC\xcb"),
-            ])),
-            aid_service_provider: Bytes::new(with_runs::<16>(&[
-                (0, b"\xc0\x16\xd9\x07\xaf\xe0\xcf\x11\x9cN"),
-                (11, b"\xa0\xc9\x05B^"),
-            ])),
-            aid_inet: Bytes::new(with_runs::<16>(&[
-                (0, b"\xa0M\xa5\xc4\xaf\xe0\xcf\x11\x9cN"),
-                (11, b"\xa0\xc9\x05B^"),
-            ])),
-            aid_inet_port: Bytes::new(with_runs::<16>(&[
-                (0, b"AER\xe4\xa5\x8e\xd1\x11\x8a\x96"),
-                (11, b"`\x97\xb0\x14\x11"),
-            ])),
-            chatzone_file: Bytes::new(with_runs::<28>(&[(0, b"files\\d\\gfx\\chatzone.pcx")])),
         }
     }
 }
 
-impl NetVars {
+impl NetShared {
     /// Player `n`'s block of `received`. `players` never passes 8 (`net::player_found` lists
     /// no more, and is the only one to count it up); a larger number is refused.
     pub fn player_block(&self, n: u32) -> Result<&PlayerBlock, crate::errors::BadInput> {

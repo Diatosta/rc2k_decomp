@@ -73,7 +73,12 @@ pub fn settle_car(c: &ResetInputs<'_>, scene: &crate::scene::owner::Scene) -> Re
     shared.physics_tables.get().settle_steps[1].set(0x2000_0000u32);
     physics.ground_probe.get().settle_mark.set(0x80);
     for _ in 0..8 {
-        let w = matrix_and_wheels(&shared.buffers.engine_tables, &c.ground, c.matrices, scene)?;
+        let w = matrix_and_wheels(
+            &shared.buffers.reads.get().engine_tables,
+            &c.ground,
+            c.matrices,
+            scene,
+        )?;
         settle_step(
             w[0].wrapping_add(w[2]),
             w[1].wrapping_add(w[3]),
@@ -87,7 +92,12 @@ pub fn settle_car(c: &ResetInputs<'_>, scene: &crate::scene::owner::Scene) -> Re
             &shared.physics_tables.get().settle_steps[0],
         );
     }
-    let w = matrix_and_wheels(&shared.buffers.engine_tables, &c.ground, c.matrices, scene)?;
+    let w = matrix_and_wheels(
+        &shared.buffers.reads.get().engine_tables,
+        &c.ground,
+        c.matrices,
+        scene,
+    )?;
     let mut lowest = 0x64_0000u32;
     for &h in &w {
         if (h.wrapping_sub(lowest) as i32) < 0 {
@@ -97,10 +107,10 @@ pub fn settle_car(c: &ResetInputs<'_>, scene: &crate::scene::owner::Scene) -> Re
     shared.car().position[1].set(shared.car().position[1].get().wrapping_sub(lowest));
     // `probe_height` .. 20: the four wheels' heights (made by `physics::probe_ground`).
     for (k, h) in w.iter().enumerate() {
-        physics.contact.probe_height[k].set(h.wrapping_sub(lowest));
+        physics.contact.get().probe_height[k].set(h.wrapping_sub(lowest));
     }
     // `probe_y` .. 20: four more lowered with them.
-    for cell in &physics.contact.probe_y[..4] {
+    for cell in &physics.contact.get().probe_y[..4] {
         cell.set(cell.get().wrapping_sub(lowest));
     }
     Ok(())
@@ -158,7 +168,7 @@ pub fn reset_car_motion(
 /// there is a leftover value; it lands only in `g_scratchY`, which every reader writes first.
 fn move_turned(course: &Course, shared: &RaceShared, x: u32, z: u32) {
     let [x, _, z, _] = crate::math::rotate_point_about_y::rotate_point_about_y(
-        &shared.buffers.engine_tables,
+        &shared.buffers.reads.get().engine_tables,
         x as i32,
         0,
         z as i32,
@@ -234,7 +244,7 @@ pub fn start_car(
     }
     let checks = rc2k_core::race::start::start_checks(
         crate::race::checkpoints_store::check_count(
-            &c.shared.buffers.checkpoints,
+            &c.shared.buffers.reads.get().checkpoints,
             nearest as usize,
         )
         .get(),

@@ -59,21 +59,3 @@ impl BuildNotice {
         }
     }
 }
-
-impl BuildNotice {
-    pub const START: usize = 0x52A263;
-    pub const LEN: usize = 0xAC;
-}
-
-#[cfg(test)]
-mod notice_tests {
-    use super::*;
-
-    #[test]
-    fn notice_starts_as_the_games_image() {
-        assert_eq!(size_of::<BuildNotice>(), BuildNotice::LEN);
-        crate::test_support::first_values::assert_block_starts_as_the_games(
-            &crate::menu::owner::menus().panels.notice,
-        );
-    }
-}

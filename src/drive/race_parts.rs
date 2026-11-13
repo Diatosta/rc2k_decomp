@@ -42,17 +42,8 @@ pub fn players_all_out(race: &Race, net: &crate::net::owner::Net) -> Result<bool
 }
 
 /// `race::stop_race_sounds` (0x45D28E): `race::reset_race_sounds`, its one call.
-pub fn stop_race_sounds(
-    sound: &crate::sound::owner::Sound,
-    audio: &crate::audio::owner::Audio,
-    system: &crate::system::owner::System,
-) -> Result<(), Refused> {
-    crate::race::race_end::reset_race_sounds(
-        &crate::race::race_end::SoundVars::game(sound),
-        sound,
-        audio,
-        system,
-    )
+pub fn stop_race_sounds(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
+    crate::race::race_end::reset_race_sounds(&crate::race::race_end::SoundVars::game(o.sound), o)
 }
 
 /// `race::wake_car_sounds` (its callers keep the registers round it).

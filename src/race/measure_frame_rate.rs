@@ -21,7 +21,7 @@ static LAST: AtomicU64 = AtomicU64::new(0);
 fn frame_rate_plain(race: &Race, cycles: u64, system: &crate::system::owner::System) {
     let course = &race.course;
     let rate = rc2k_core::race::frame_rate::frame_rate(
-        system.session.machine.cpu_mhz.get() as i32,
+        system.machine().cpu_mhz.get() as i32,
         course.numbers.get().thousand.get(),
         course.numbers.get().sixteen.get(),
         cycles,

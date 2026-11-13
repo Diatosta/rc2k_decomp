@@ -16,8 +16,9 @@
 //! Run by `threading::start_slot_thread` (the net slot, `routes.rs`).
 
 use crate::errors::Refused;
-use crate::net::owner::net;
-use crate::system::owner::system;
+use crate::gfx::owner::Gfx;
+use crate::net::owner::Net;
+use crate::system::owner::System;
 
 const START_TEXT: &std::ffi::CStr = c"NETRXTDB:START"; // "NETRXTDB:START"
 const QUIT_TEXT: &std::ffi::CStr = c"NETRXTDB:QUIT"; // "NETRXTDB:QUIT"
@@ -25,9 +26,8 @@ const QUIT_TEXT: &std::ffi::CStr = c"NETRXTDB:QUIT"; // "NETRXTDB:QUIT"
 const WAIT: u32 = 1000;
 
 /// Runs to the `ExitThread`, which does not come back.
-pub fn receive_thread() -> Result<(), Refused> {
-    let net = net();
-    let panel = crate::race::owner::race().viewer_panel();
+pub fn receive_thread(net: &Net, gfx: &'static Gfx, system: &System) -> Result<(), Refused> {
+    let lines = &crate::race::viewer_screen_store::NET_TEXTS;
     let vars = &net.vars;
     let running =
         &crate::threading::thread_slot::slot_ref(crate::threading::thread_slot::NET)?.flag;
@@ -42,17 +42,17 @@ pub fn receive_thread() -> Result<(), Refused> {
                 if !zero {
                     vars.receiving.set(1);
                     if vars.session.get() == 1 {
-                        crate::net::take_messages::take_messages(net, panel)?;
+                        crate::net::take_messages::take_messages(net, gfx, lines)?;
                     }
                 }
                 vars.receiving.set(0);
                 if vars.posting.get() == 1
                     && let Some(call) = crate::net::post_call::take_posted(&net.vars)
                 {
-                    vars.posted_result.set(call(net, panel));
+                    vars.posted_result.set(call(net, lines));
                     vars.posted_answered.set(1);
                 }
-                if system().session.flags.quitting.is_set() {
+                if system.session.flags.quitting.is_set() {
                     break;
                 }
             }

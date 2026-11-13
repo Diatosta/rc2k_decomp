@@ -37,8 +37,8 @@ pub fn converters(has_mmx: u32, has_3dnow: u32) -> [u32; CONVERTER_COUNT] {
 
 pub fn install_converters(converters_store: &Converters, system: &crate::system::owner::System) {
     let table = converters(
-        system.session.machine.has_mmx.get(),
-        system.session.machine.has_3dnow.get(),
+        system.machine().has_mmx.get(),
+        system.machine().has_3dnow.get(),
     );
     for (cell, entry) in converters_store.table.iter().zip(table) {
         cell.set(entry);

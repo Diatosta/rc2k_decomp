@@ -20,7 +20,7 @@
 //! `start`, directly.
 
 use crate::errors::{BadInput, Refused};
-use crate::session::{Dword, Machine};
+use crate::session::{Machine, PlainDword};
 use rc2k_core::system::processor::{Var, test};
 
 // ---- game data ----
@@ -102,20 +102,21 @@ impl Processor for Real {
     }
 }
 
-/// Each variable but the FPU's word (the scratch buffer's first bytes).
-fn cell(m: &Machine, v: Var) -> &Dword {
+/// Each variable but the FPU's word (the scratch buffer's first bytes) and the FPU flag
+/// (`HostShared`, read by the audio thread).
+fn cell(m: &Machine, v: Var) -> &PlainDword {
     match v {
         Var::Family => &m.cpu_family,
         Var::Signature => &m.cpu_signature,
         Var::Vendor(n) => &m.cpu_vendor[n],
         Var::Clock => &m.cpu_mhz,
-        Var::HasFpu => &m.has_fpu,
         Var::HasTsc => &m.has_tsc,
         Var::HasCmov => &m.has_cmov,
         Var::HasMmx => &m.found_mmx,
         Var::HasSse => &m.found_sse,
         Var::Has3dNow => &m.found_3dnow,
         Var::Resume => &m.exception_resume,
+        Var::HasFpu => unreachable!("the FPU flag is in `HostShared`"),
         Var::FpuWord => unreachable!("the FPU's word is in the scratch buffer"),
     }
 }
@@ -130,14 +131,22 @@ pub fn test_processor(
             system.work().files.buffer.set(0, value as u8);
             system.work().files.buffer.set(1, (value >> 8) as u8);
         } else {
-            cell(&system.session.machine, v).set(value);
+            if v == Var::HasFpu {
+                system.session.host.has_fpu.set(value);
+            } else {
+                cell(system.machine(), v).set(value);
+            }
         }
     };
     let get = |v: Var| {
         if v == Var::FpuWord {
             system.work().files.buffer.get_u32(0)
         } else {
-            cell(&system.session.machine, v).get()
+            if v == Var::HasFpu {
+                system.session.host.has_fpu.get()
+            } else {
+                cell(system.machine(), v).get()
+            }
         }
     };
     let answer = test(p, &mut put, &get);

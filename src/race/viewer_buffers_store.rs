@@ -101,13 +101,6 @@ impl ViewerBuffers {
     }
 }
 
-/// IDA 0x960FA0, the first byte of the piece.
-pub const START: usize = 0x960FA0;
-/// IDA 0x975510, the end of the piece.
-pub const END: usize = 0x975510;
-
-const _: () = assert!(END - START == core::mem::size_of::<ViewerBuffers>());
-
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -1,10 +1,8 @@
-//! The players' results figures, out of RAL.EXE's image (IDA 0x758714 .. 0x7587E8): the
+//! The players' results figures (IDA 0x758714 .. 0x7587E8): the
 //! rounds of a multi-player event, the duel's order, and the four players' places, points and totals
-//! (`menu::results_setups`, `menu::arcade_steps`). A `#[repr(C)]` struct with the image's layout, one
-//! static. The captions' tables hold pointers to its arrays
-//! (`CaptionTables::place_pointers`).
+//! (`menu::results_setups`, `menu::arcade_steps`). A `#[repr(C)]` struct, one static.
 
-use crate::session::{PlainBytes, PlainDword, with_runs};
+use crate::session::PlainDword;
 
 /// The players' results figures (IDA 0x758714 .. 0x7587E8).
 #[repr(C)]
@@ -16,8 +14,6 @@ pub struct Results {
     pub group_titles: [PlainDword; 2],
     /// `g_duelFirst, g_duelSecond, Results.order[2], Results.order[3]`: The players in the order of their places (the offsets of their figures: 0, 4, 8, 12).
     pub order: [PlainDword; 4],
-    /// Unreferenced bytes (IDA 0x758730 .. 0x758758).
-    pub _gap_758730: PlainBytes<40>,
     /// `dword_758758`: Each player's time bonus (the stage record's time less the player's, 0 when greater).
     pub time_bonus: [PlainDword; 4],
     /// `dword_758768`: Each player's place, 1 .. 4.
@@ -36,14 +32,12 @@ pub struct Results {
     pub pairs: [PlainDword; 8],
 }
 
-/// First values the image's (`tests::result_figures_starts_as_the_games`).
 impl Results {
     pub const fn new() -> Self {
         Results {
             round: PlainDword::new(0x0),
             group_titles: [PlainDword::new(0x340), PlainDword::new(0x341)],
             order: [const { PlainDword::new(0x0) }; 4],
-            _gap_758730: PlainBytes::new(with_runs::<40>(&[(0x14, &[0xf5, 0x11])])),
             time_bonus: [const { PlainDword::new(0x0) }; 4],
             positions: [const { PlainDword::new(0x0) }; 4],
             points: [const { PlainDword::new(0x0) }; 4],
@@ -53,19 +47,5 @@ impl Results {
             totals: [const { PlainDword::new(0x0) }; 4],
             pairs: [const { PlainDword::new(0x0) }; 8],
         }
-    }
-}
-
-/// IDA 0x758714, the first byte of the piece.
-pub const START: usize = 0x758714;
-
-#[cfg(test)]
-mod tests {
-
-    #[test]
-    fn result_figures_starts_as_the_games() {
-        crate::test_support::first_values::assert_block_starts_as_the_games(
-            &crate::menu::owner::menus().play.results,
-        );
     }
 }

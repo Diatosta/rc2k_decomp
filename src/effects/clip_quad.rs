@@ -16,29 +16,42 @@
 use crate::d3d::vertices_store::Vertex;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
-use crate::session::Float;
-/// A vertex's coordinate the edge is tested on.
-type Axis = fn(&Vertex) -> &Float;
+use crate::session::{CellKind, DwordLike, FloatLike};
 
-fn x_of(v: &Vertex) -> &Float {
-    &v.x
+/// A vertex's coordinate the edge is tested on.
+#[derive(Clone, Copy)]
+enum Axis {
+    X,
+    Y,
 }
 
-fn y_of(v: &Vertex) -> &Float {
-    &v.y
+impl Axis {
+    fn get<K: CellKind>(self, v: &Vertex<K>) -> f32 {
+        match self {
+            Axis::X => v.x.get(),
+            Axis::Y => v.y.get(),
+        }
+    }
+
+    fn set<K: CellKind>(self, v: &Vertex<K>, value: f32) {
+        match self {
+            Axis::X => v.x.set(value),
+            Axis::Y => v.y.set(value),
+        }
+    }
 }
 
 /// Per mode 1 .. 4: the line's variable, its coordinate, the other coordinate, whether
 /// inside is at or below it.
 const EDGES: [(usize, Axis, Axis, bool); 4] = [
-    (3, y_of, x_of, true),  // 1: g_marksScreenMiddleYLess
-    (2, y_of, x_of, false), // 2: g_marksScreenMiddleY
-    (1, x_of, y_of, true),  // 3: g_marksScreenMiddleXLess
-    (0, x_of, y_of, false), // 4: g_marksScreenMiddleX
+    (3, Axis::Y, Axis::X, true),  // 1: g_marksScreenMiddleYLess
+    (2, Axis::Y, Axis::X, false), // 2: g_marksScreenMiddleY
+    (1, Axis::X, Axis::Y, true),  // 3: g_marksScreenMiddleXLess
+    (0, Axis::X, Axis::Y, false), // 4: g_marksScreenMiddleX
 ];
 
 /// Copies a whole vertex, field by field.
-fn copy_vertex(from: &Vertex, to: &Vertex) {
+fn copy_vertex<A: CellKind, B: CellKind>(from: &Vertex<A>, to: &Vertex<B>) {
     to.x.set(from.x.get());
     to.y.set(from.y.get());
     to.z.set(from.z.get());
@@ -72,7 +85,7 @@ pub fn clip_quad(
         let line = effects.clipping.clip.edges[edge].get();
         // The test of vertex k: inside (the floats compared by their bits).
         let t = |k: usize| -> bool {
-            let v = coord(&q[k]).get();
+            let v = coord.get(&q[k]);
             if below {
                 x87::bits_at_or_below(v, line)
             } else {
@@ -126,14 +139,14 @@ pub fn clip_quad(
         for (inside, outside) in [(esi, c), (edi, d)] {
             let (s, o) = (&q[inside], &q[outside]);
             let pairs = [
-                [other(s).get(), other(o).get()],
+                [other.get(s), other.get(o)],
                 [s.u.get(), o.u.get()],
                 [s.v.get(), o.v.get()],
             ];
-            let v = x87::clip_lerp3_floats(line, coord(o).get(), coord(s).get(), pairs);
+            let v = x87::clip_lerp3_floats(line, coord.get(o), coord.get(s), pairs);
             let w = &work[built];
-            coord(w).set(line);
-            other(w).set(v[0]);
+            coord.set(w, line);
+            other.set(w, v[0]);
             w.u.set(v[1]);
             w.v.set(v[2]);
             w.z.set(o.z.get());

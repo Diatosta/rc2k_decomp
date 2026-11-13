@@ -56,11 +56,11 @@ pub fn run_page(
     install
         .pages
         .move_clock
-        .set(system.session.clocks.key_ticks.get());
+        .set(system.session.key_clock.ticks.get());
     install
         .pages
         .key_clock
-        .set(system.session.clocks.key_ticks.get());
+        .set(system.session.key_clock.ticks.get());
     install.pages.choice.set(list.highlight());
     let count = list.count() as u32;
     let round = 2 * count as usize + 2;
@@ -87,7 +87,7 @@ pub fn run_page(
                 install.pages.choice.set(0);
             }
         }
-        i::show_backdrop::show_backdrop(system, o.gfx)?;
+        i::show_backdrop::show_backdrop(o)?;
         loop {
             i::lay_out_pieces::lay_out_pieces(install, list)?;
             i::measure_pieces::measure_pieces(
@@ -97,7 +97,7 @@ pub fn run_page(
                 o.gfx,
             )?;
             i::place_pieces::place_pieces(install)?;
-            run_frame(system, None)?;
+            run_frame(o, None)?;
             if lock(o.gfx, system) {
                 copy_picture(o.gfx, system)?;
                 i::draw_pieces::draw_pieces(
@@ -107,12 +107,12 @@ pub fn run_page(
                     o.gfx,
                 )?;
                 unlock(o.gfx);
-                show();
+                show(o);
             }
             install
                 .pages
                 .frame_clock
-                .set(system.session.clocks.key_ticks.get());
+                .set(system.session.key_clock.ticks.get());
             install.pages.choice_before.set(install.pages.choice.get());
             // The key, as the callees leave it (`install::edit_key` changes it).
             let mut key = list_take_key(install, o.input)? as u32;
@@ -208,7 +208,7 @@ pub fn run_page(
                 break;
             }
         }
-        i::show_backdrop::show_backdrop(system, o.gfx)?;
+        i::show_backdrop::show_backdrop(o)?;
         tell(install, o, list, u32::MAX)?;
     }
     if count != 0 {

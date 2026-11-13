@@ -13,7 +13,7 @@
 
 use crate::errors::Refused;
 use crate::net::lobby::{log_bytes, log_int_nl};
-use crate::net::store::NetVars;
+use crate::net::store::NetShared;
 use crate::race::owner::Race;
 use rc2k_core::net::record;
 
@@ -47,7 +47,7 @@ enum Count {
 }
 pub fn set_up_race(
     race: &'static Race,
-    vars: &NetVars,
+    vars: &NetShared,
     o: crate::owners::Owners<'static>,
 ) -> Result<(), Refused> {
     // Converted: `rc2k_core::net::record` (`race_players`, `seat`).

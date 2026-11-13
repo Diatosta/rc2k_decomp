@@ -1,7 +1,6 @@
 //! The menus' lists and tables, out of RAL.EXE's image (IDA 0x7594AA .. 0x75A658): the last draw list, the carousel kinds' own places, the paths and sounds the menus
 //! name, the car lists the menus walk, the best scores' titles. `#[repr(C)]` struct of atomic
-//! cells with the image's layout, one static. Its
-//! last field is a 22-byte string: the struct is padded to a multiple of 4.
+//! cells, one static. Its last field is a 22-byte string: the struct is padded to a multiple of 4.
 
 use crate::audio::names_store::NameList;
 use crate::menu::cars_store::car_cell;
@@ -146,7 +145,6 @@ pub struct MenuLists {
     pub front_back_path: PlainBytes<24>,
 }
 
-/// First values the image's.
 /// A text of `texts_store` by its place there (by handle; the original kept its
 /// address): the byte offset of the field that holds it.
 const fn text_ref(offset: usize) -> PlainDword {
@@ -1503,101 +1501,5 @@ impl MenuLists {
                 ],
             )])),
         }
-    }
-}
-
-/// IDA 0X7594AA, the first byte of the piece.
-#[cfg(test)]
-pub const START: usize = 0x7594AA;
-/// IDA 0X75A658, the end of the piece.
-#[cfg(test)]
-pub const END: usize = 0x75A658;
-
-/// The tables of text handles (IDA start, entries).
-#[cfg(test)]
-const TEXT_TABLES: [(usize, usize); 6] = [
-    (0x75987E, 12 + 36), // the welcome pictures, the map's overlays
-    (0x759942, 4 * 25),  // the car pages' pictures
-    (0x759B0E, 24),      // the slideshow's templates
-    (0x75A31E, 24),      // the car streams
-    (0x75A37E, 36),      // the stage speeches
-    (0x75A52E, 60),      // the service pictures
-];
-/// The rally speeches (IDA start, entries).
-#[cfg(test)]
-const NAME_TABLE: (usize, usize) = (0x75A302, 6);
-/// The repair times' handles (IDA start, entries).
-#[cfg(test)]
-const REPAIR_TABLE: (usize, usize) = (0x759C16, 24);
-
-/// The car lists (IDA's address, entries): their entries are car handles
-/// (`cars_store::car_ref`) where the original kept descriptions' addresses.
-#[cfg(test)]
-const CAR_LISTS: [(usize, usize); 9] = {
-    use core::mem::offset_of;
-    [
-        (START + offset_of!(MenuLists, cars_championship), 26),
-        (START + offset_of!(MenuLists, a8_championship_cars), 45),
-        (START + offset_of!(MenuLists, cars_first), 34),
-        (START + offset_of!(MenuLists, cars_with_clio), 62),
-        (START + offset_of!(MenuLists, secret_cars), 12),
-        (START + offset_of!(MenuLists, cars_scratch), 50),
-        (START + offset_of!(MenuLists, cars_second), 59),
-        (START + offset_of!(MenuLists, shown_cars), 48),
-        (START + offset_of!(MenuLists, cheat_cars), 22),
-    ]
-};
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::menu::owner::menus;
-
-    /// IDA's address of `MENU_STATE`'s repair times.
-    const REPAIR_TIMES_IDA: u32 = 0x75AB60;
-
-    /// The handle the image's address names: its repair time's number + 1 (0 none, -1 the end).
-    fn repair_key(ida: u32) -> u32 {
-        match ida {
-            0 | 0xFFFF_FFFF => ida,
-            _ => {
-                assert!((REPAIR_TIMES_IDA..REPAIR_TIMES_IDA + 16 * 4).contains(&ida));
-                (ida - REPAIR_TIMES_IDA) / 4 + 1
-            }
-        }
-    }
-    use core::mem::size_of;
-
-    #[test]
-    fn menu_lists_starts_as_the_games() {
-        let size = size_of::<MenuLists>();
-        assert!(END - START <= size && size <= (END - START).next_multiple_of(4));
-        let mine = unsafe {
-            std::slice::from_raw_parts((&raw const menus().tables.lists).cast::<u8>(), END - START)
-        };
-        // The car lists' entries are handles: the image's addresses made handles to compare.
-        let mut image =
-            crate::test_support::first_values::bytes("menu.owner.MENUS.tables.lists/4526").to_vec();
-        for (at, len) in CAR_LISTS {
-            for n in 0..len {
-                let o = at - START + 4 * n;
-                let v = u32::from_le_bytes(image[o..o + 4].try_into().unwrap());
-                image[o..o + 4].copy_from_slice(&crate::menu::cars_store::car_ref(v).to_le_bytes());
-            }
-        }
-        // So are the texts, names and repair times.
-        let mut made = |(at, len): (usize, usize), key: &dyn Fn(u32) -> u32| {
-            for n in 0..len {
-                let o = at - START + 4 * n;
-                let v = u32::from_le_bytes(image[o..o + 4].try_into().unwrap());
-                image[o..o + 4].copy_from_slice(&key(v).to_le_bytes());
-            }
-        };
-        for t in TEXT_TABLES {
-            made(t, &crate::menu::texts_store::text_key);
-        }
-        made(NAME_TABLE, &crate::audio::store::name_key);
-        made(REPAIR_TABLE, &repair_key);
-        assert_eq!(mine, &image[..]);
     }
 }

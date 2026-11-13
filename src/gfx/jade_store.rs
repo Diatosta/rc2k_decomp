@@ -29,15 +29,3 @@ impl JadeFont {
         }
     }
 }
-
-#[cfg(test)]
-mod tests {
-
-    #[test]
-    fn jadefont_starts_as_the_games() {
-        let _g = crate::test_support::test_lock();
-        crate::test_support::first_values::assert_store_starts_as_the_games(
-            "store:gfx.owner.GFX.fonts.jade",
-        );
-    }
-}

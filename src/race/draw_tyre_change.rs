@@ -83,7 +83,7 @@ fn fill(
         cell.set(v);
     }
     crate::gfx::rect::fill_rect(
-        crate::gfx::rect::rect_of(&panel.texture_rect),
+        panel.texture_rect.each_ref().map(|c| c.get() as i32),
         0,
         crate::gfx::rect::Palette::Of(&race.shared.tyre_change().palette),
         gfx,

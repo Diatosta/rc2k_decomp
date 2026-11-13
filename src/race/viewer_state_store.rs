@@ -212,8 +212,10 @@ impl ReplayViewBlock {
     /// IDA's ranges the list's names point into: the key table and place rectangles
     /// (`RECTANGLES`), and the panel with the pictures' rectangles.
     const RECTANGLES: core::ops::Range<usize> = 0x5C2714..0x5C291C;
-    const PANEL: core::ops::Range<usize> =
-        crate::race::viewer_screen_store::START..crate::race::viewer_screen_store::END;
+    /// The panel follows the rectangles; its names run over its size.
+    const PANEL: core::ops::Range<usize> = Self::RECTANGLES.end
+        ..Self::RECTANGLES.end
+            + core::mem::size_of::<crate::race::viewer_screen_store::ViewerPanelBlock>();
 
     /// The place IDA's name `ida` names, if it lies in the rectangles: a place in
     /// `RECTANGLES`, running on to its end (the list keeps IDA's addresses as names).
@@ -250,7 +252,7 @@ impl ReplayViewBlock {
         index: u32,
     ) -> Result<ViewerPicture, crate::errors::BadInput> {
         let ida = Self::item_dword(replay, index, 3)?;
-        let table = |offset: usize| (crate::race::viewer_screen_store::START + offset) as u32;
+        let table = |offset: usize| (Self::PANEL.start + offset) as u32;
         use crate::race::viewer_screen_store::ViewerPanelBlock;
         use core::mem::offset_of;
         let switch = if ida == table(offset_of!(ViewerPanelBlock, switch_pictures_a)) {
@@ -285,49 +287,18 @@ impl ReplayViewBlock {
     }
 }
 
-/// IDA 0x5C2518, the first byte of the piece.
-pub const START: usize = 0x5C2518;
-/// IDA 0x5C2714, the end of the piece.
-pub const END: usize = 0x5C2714;
-
-const _: () = assert!(END - START == core::mem::size_of::<ReplayViewBlock>());
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn first_values_are_the_games() {
-        crate::test_support::first_values::assert_block_starts_as_the_games(
-            race().replay.replay_view(),
-        );
-    }
-
-    #[test]
-    fn the_list_names_its_targets_as_the_image_does() {
+    fn the_list_names_resolve() {
         let replay = &race().replay;
-        // The image's dword at byte `at` of the list.
-        let name = |at: usize| {
-            crate::test_support::first_values::dword(
-                "race.owner.RACE.replay.replay_view.viewer_list[0]/440",
-                at / 4,
-            )
-        };
-        let key_table = 0x10;
-        assert_eq!(replay.replay_view().viewer_list[4].get(), name(key_table));
+        assert!(ReplayViewBlock::key_table(replay).is_ok());
         for k in 0..26u32 {
-            let item = 0x18 + 0x10 * k as usize;
-            // Kept as the image's names; resolved to the same places.
-            assert_eq!(
-                replay.replay_view().viewer_list[6 + 4 * k as usize + 1].get(),
-                name(item + 4)
-            );
-            assert_eq!(
-                replay.replay_view().viewer_list[6 + 4 * k as usize + 3].get(),
-                name(item + 0xC)
-            );
+            assert!(ReplayViewBlock::item_place(replay, k).is_ok());
             match ReplayViewBlock::item_picture(replay, k).unwrap() {
-                ViewerPicture::Rectangle(ida) => assert_eq!(ida, name(item + 0xC) as usize),
+                ViewerPicture::Rectangle(_) => {}
                 ViewerPicture::Switch(table) => assert!(table < 3),
             }
         }

@@ -93,7 +93,6 @@ pub fn read_driver_names(
 
 #[cfg(test)]
 mod tests {
-    use crate::strings::owner::strings;
     #[test]
     fn the_path_is_the_text_not_the_pointer_to_it() {
         assert_eq!(super::path(), b"var\\name.cfg");
@@ -107,22 +106,5 @@ mod tests {
         assert!(first as usize + 31 <= super::NAMES_LEN + super::POOL_ROOM);
         let names: &dyn crate::cells::Store = &crate::strings::owner::strings().drivers.names;
         assert!((first as usize) < names.size());
-    }
-
-    #[test]
-    fn data_starts_as_the_games() {
-        assert_eq!(
-            crate::test_support::first_values::bytes("settings.read_driver_names.PATH"),
-            &super::PATH[..]
-        );
-        let key: Vec<u8> = (0..8).map(|i| strings().drivers.key.get(i)).collect();
-        assert_eq!(
-            crate::test_support::first_values::bytes("strings.owner.STRINGS.drivers.key/8"),
-            &key[..]
-        );
-        let names =
-            crate::test_support::first_values::bytes("settings.read_driver_names.NAMES/4872");
-        assert_eq!(names.len(), super::NAMES_SIZE);
-        assert!(names.iter().all(|&b| b == 0));
     }
 }

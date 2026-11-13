@@ -15,13 +15,13 @@
 //! probe thrown away: section 16); `audio::choose_modes`; "AUD: Using modes" and both;
 //! `audio::close_sound`; the mode 0. One caller, the audio thread.
 
-use crate::audio::owner::Audio;
+use crate::audio::own::AudioThread;
 use crate::errors::Refused;
 
 const USING_MODES_TEXT: &std::ffi::CStr = c"AUD: Using modes"; // "AUD: Using modes"
 
 /// False for the carry (no race mode).
-pub fn start(audio: &Audio, system: &crate::system::owner::System) -> Result<bool, Refused> {
+pub fn start(audio: &AudioThread, system: &crate::system::owner::System) -> Result<bool, Refused> {
     use crate::audio::sound_device as sd;
     use rc2k_core::audio::device::{
         A3D2_MODE, CAPS_EMULATED, Fact, MENU_MODE, modes_kept, probed_race_mode,

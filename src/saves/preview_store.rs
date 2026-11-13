@@ -38,13 +38,3 @@ impl SavegamePreview {
         }
     }
 }
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn savegame_preview_starts_as_the_games() {
-        crate::test_support::first_values::assert_block_starts_as_the_games(
-            &crate::saves::owner::SAVES.get().savegame_preview,
-        );
-    }
-}

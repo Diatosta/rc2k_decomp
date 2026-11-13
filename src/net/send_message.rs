@@ -17,10 +17,10 @@ use rc2k_core::net::inbox;
 pub fn send_message(net: &Net, bytes: &[u8]) -> Result<(), Refused> {
     // Converted: `rc2k_core::net::inbox` (`next_sequence`, `outgoing`: a message too long
     // refused before anything is written).
-    let byte = inbox::next_sequence(net.vars.sequence.get());
+    let byte = inbox::next_sequence(net.lobby().sequence.get());
     let message = inbox::outgoing(byte, bytes)?;
-    net.vars.sequence.set(byte);
-    net.vars
+    net.lobby().sequence.set(byte);
+    net.lobby()
         .send_buffer
         .write_at(0, &message, "the send buffer")?;
     dplay_send(&net.vars, net.vars.send_to.get(), &message);

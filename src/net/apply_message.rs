@@ -18,7 +18,7 @@
 use crate::errors::BadInput;
 use crate::logfile::log_int::log_int;
 use crate::net::send_inputs::fields;
-use crate::net::store::NetVars;
+use crate::net::store::NetShared;
 use crate::physics::car_store::Car;
 use crate::race::owner::Race;
 use crate::session::PlainDword;
@@ -66,7 +66,7 @@ fn word_at(message: &[u8], at: usize) -> Result<u32, BadInput> {
 }
 pub fn apply_message(
     race: &Race,
-    vars: &NetVars,
+    vars: &NetShared,
     player: u32,
     message: &[u8],
 ) -> Result<(), BadInput> {

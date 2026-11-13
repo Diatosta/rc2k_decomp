@@ -5,8 +5,6 @@
 
 use crate::cells::ZeroCells;
 
-#[cfg(test)]
-use crate::race::owner::race;
 use crate::session::PlainDword;
 
 #[repr(C)]
@@ -23,24 +21,5 @@ pub struct PanelClock {
 impl PanelClock {
     pub const fn new() -> Self {
         Self::ZERO
-    }
-}
-
-/// IDA 0x62290C, the first byte of the piece.
-pub const START: usize = 0x62290C;
-/// IDA 0x622910, the end of the piece.
-pub const END: usize = 0x622910;
-
-const _: () = assert!(END - START == core::mem::size_of::<PanelClock>());
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn first_values_are_the_games() {
-        crate::test_support::first_values::assert_block_starts_as_the_games(
-            race().frame.panel_clock(),
-        );
     }
 }

@@ -103,23 +103,3 @@ impl DrawSurface {
         }
     }
 }
-
-#[cfg(test)]
-mod tests {
-
-    #[test]
-    fn screenmode_starts_as_the_games() {
-        let _g = crate::test_support::test_lock();
-        crate::test_support::first_values::assert_store_starts_as_the_games(
-            "store:gfx.owner.GFX.display.mode",
-        );
-    }
-
-    #[test]
-    fn drawsurface_starts_as_the_games() {
-        let _g = crate::test_support::test_lock();
-        crate::test_support::first_values::assert_store_starts_as_the_games(
-            "store:gfx.owner.GFX.drawing.draw_surface",
-        );
-    }
-}

@@ -7,10 +7,10 @@
 //! `QuerySupport` for get and set, the voice manager's mode 2, the log line, `found` 1,
 //! the room's `Set`) is refused where it would be reached.
 
-use crate::audio::store::AudioState;
+use crate::audio::own::AudioOwn;
 use crate::audio::voices::SampleRecord;
 use crate::errors::{BadInput, Refused};
-use crate::session::{Dword, Shared};
+use crate::session::{Dword, PlainDword, Shared};
 
 /// What a property set the platform made would need (it makes none).
 const NO_SETS: &str = "a DirectSound property set (the platform offers none)";
@@ -23,18 +23,18 @@ pub struct Opening<'a> {
     /// The `ignore...` setting.
     pub setting: &'a Dword,
     /// Where the property set goes.
-    pub object: &'a Dword,
+    pub object: &'a PlainDword,
 }
 
 impl<'a> Opening<'a> {
-    pub fn voice_manager(state: &'a AudioState) -> Self {
+    pub fn voice_manager(state: &'a AudioOwn) -> Self {
         Self {
             setting: &state.ignore_dsv_setting,
             object: &state.voice_manager,
         }
     }
 
-    pub fn eax(state: &'a AudioState) -> Self {
+    pub fn eax(state: &'a AudioOwn) -> Self {
         Self {
             setting: &state.ignore_eax_setting,
             object: &state.eax_properties,
@@ -61,7 +61,7 @@ pub enum Holder<'a> {
 impl Holder<'_> {
     /// The dword the original reads through the holder; refuses a number (`Value`): the
     /// original reads where it points, which is no place of the game's.
-    fn read(self, state: &AudioState) -> Result<u32, Refused> {
+    fn read(self, state: &AudioOwn) -> Result<u32, Refused> {
         match self {
             Holder::Record(record) => Ok(record.get().number),
             Holder::Buffer3d(voice) => Ok(crate::audio::voices::voice_of(state, voice).buffer_3d),
@@ -78,7 +78,7 @@ impl Holder<'_> {
 /// both), for the voice manager its mode set to 2; then logged and `found` 1. A failure
 /// leaves the set where it went (it is released at the close). Refuses a holder that is
 /// no pointer (the original reads through it: `make_buffer`'s EAX bug, `notes/bugs.md`).
-pub fn open_property_set(state: &AudioState, o: &Opening, holder: Holder) -> Result<bool, Refused> {
+pub fn open_property_set(state: &AudioOwn, o: &Opening, holder: Holder) -> Result<bool, Refused> {
     if o.setting.is_set() || o.object.is_set() {
         return Ok(false);
     }
@@ -100,7 +100,7 @@ pub fn open_property_set(state: &AudioState, o: &Opening, holder: Holder) -> Res
 
 /// `audio::set_eax_room`: the room's reverb (`g_eaxRooms`) set when EAX is open. Refuses a room
 /// past the table (the original reads past it).
-pub fn set_eax_room(state: &AudioState, room: u32) -> Result<(), Refused> {
+pub fn set_eax_room(state: &AudioOwn, room: u32) -> Result<(), Refused> {
     // Converted: `rc2k_core::audio::levels::eax_room_offset`. The room's entry lies inside
     // the table; a room past it is refused.
     rc2k_core::audio::levels::eax_room_offset(room)?;

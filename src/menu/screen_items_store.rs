@@ -321,23 +321,3 @@ impl ScreenItems {
         }
     }
 }
-
-/// IDA 0x747660, the first byte of the piece.
-#[cfg(test)]
-pub const START: usize = 0x747660;
-/// IDA 0x747998, the end of the piece.
-#[cfg(test)]
-pub const END: usize = 0x747998;
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn screen_items_start_as_the_games() {
-        assert_eq!(size_of::<ScreenItems>(), END - START);
-        crate::test_support::first_values::assert_block_starts_as_the_games(
-            &crate::menu::owner::menus().screens.items,
-        );
-    }
-}

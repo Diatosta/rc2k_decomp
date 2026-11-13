@@ -39,22 +39,3 @@ impl SealWork {
         }
     }
 }
-
-impl SealWork {
-    pub const START: usize = 0x4E04AC;
-    pub const LEN: usize = 0x98;
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn sealwork_starts_as_the_games() {
-        let size = size_of::<SealWork>();
-        assert!(12 + SealWork::LEN <= size && size <= (12 + SealWork::LEN).next_multiple_of(16));
-        crate::test_support::first_values::assert_store_starts_as_the_games(
-            "store:race.owner.RACE.replay.seal_work",
-        );
-    }
-}

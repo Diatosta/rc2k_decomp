@@ -1,9 +1,8 @@
-//! The registry of the game state's stores: each store the game's data lives in, with a name
-//! and the host range it holds, so a host address can be named by store and field path
-//! and the tests can read and put back the game's state by store name (`test_support`).
+//! Test-only: the registry of the game state's stores, each with a name, so tests can read
+//! and put back the game's state by store name (`state::store`, `state::Snapshot`) rather
+//! than by address. Nothing in production uses it.
 //!
-//! The list is the stores' own (`listed_stores`), in the order the golden file's keys number
-//! repeated names in.
+//! The list is the stores' own (`listed_stores`); a repeated name is found at its first entry.
 
 use crate::cells::{CellRun, Cells, Store};
 use crate::errors::BadInput;
@@ -425,6 +424,10 @@ fn listed_stores() -> Vec<Listed> {
             on_game(&crate::net::owner::NET_OWNER.main.get().joined),
         ),
         listed!(
+            "net.owner.NET_OWNER.main.lobby",
+            on_game(&crate::net::owner::NET_OWNER.main.get().lobby),
+        ),
+        listed!(
             "net.owner.NET_OWNER.button",
             on_game(crate::net::owner::NET_OWNER.button.get()),
         ),
@@ -518,12 +521,24 @@ fn listed_stores() -> Vec<Listed> {
             &crate::system::owner::SYSTEM.session.flags,
         ),
         listed!(
-            "system.owner.SYSTEM.session.machine",
-            &crate::system::owner::SYSTEM.session.machine,
+            "system.owner.SYSTEM.session.host",
+            &crate::system::owner::SYSTEM.session.host,
         ),
         listed!(
-            "system.owner.SYSTEM.session.clocks",
-            &crate::system::owner::SYSTEM.session.clocks,
+            "system.owner.SYSTEM.session.key_clock",
+            &crate::system::owner::SYSTEM.session.key_clock,
+        ),
+        listed!(
+            "system.owner.SYSTEM.window_loop",
+            on_game(crate::system::owner::SYSTEM.window_loop()),
+        ),
+        listed!(
+            "system.owner.SYSTEM.machine",
+            on_game(crate::system::owner::SYSTEM.machine()),
+        ),
+        listed!(
+            "system.owner.SYSTEM.clocks",
+            on_game(crate::system::owner::SYSTEM.clocks()),
         ),
         listed!(
             "audio.owner.AUDIO_OWNER.state",
@@ -752,7 +767,11 @@ fn listed_stores() -> Vec<Listed> {
         listed!(
             "sound.owner.SOUND.race.sets",
             &crate::sound::owner::SOUND.race.sets,
-            0x9d4,
+            0x9ac,
+        ),
+        listed!(
+            "sound.owner.SOUND.race.request",
+            on_game(crate::sound::owner::SOUND.race.request.get()),
         ),
         listed!(
             "sound.owner.SOUND.race.cue_lists",
@@ -842,8 +861,16 @@ fn listed_stores() -> Vec<Listed> {
             0x1419,
         ),
         listed!(
-            "race.owner.RACE.shared.buffers",
-            &crate::race::owner::RACE.shared.buffers,
+            "workers.PARTS[0].vertices",
+            on_game(&crate::workers::game_scratch().vertices),
+        ),
+        listed!(
+            "workers.PARTS[0].polygon",
+            on_game(&crate::workers::game_scratch().polygon),
+        ),
+        listed!(
+            "race.owner.RACE.shared.buffers.reads",
+            on_game(crate::race::owner::RACE.shared.buffers.reads.get()),
         ),
         listed!(
             "race.owner.RACE.shared.viewer",
@@ -967,7 +994,7 @@ fn listed_stores() -> Vec<Listed> {
         ),
         listed!(
             "race.owner.RACE.frame.matrices",
-            &crate::race::owner::RACE.frame.matrices,
+            on_game(crate::race::owner::RACE.frame.matrices.get()),
         ),
         listed!(
             "race.owner.RACE.shared.tables",
@@ -1023,7 +1050,7 @@ fn listed_stores() -> Vec<Listed> {
         ),
         listed!(
             "race.owner.RACE.physics.contact",
-            &crate::race::owner::RACE.physics.contact,
+            on_game(crate::race::owner::RACE.physics.contact.get()),
         ),
         listed!(
             "race.owner.RACE.replay.replay_frames",
@@ -1504,7 +1531,6 @@ fn listed_stores() -> Vec<Listed> {
 pub struct Entry {
     pub name: &'static str,
     pub store: &'static (dyn Store + Sync),
-    first: usize,
     pub len: usize,
 }
 
@@ -1517,59 +1543,10 @@ pub fn listed() -> &'static [Entry] {
             .map(|l| Entry {
                 name: l.name,
                 store: l.store,
-                first: l.store.first().addr(),
                 len: l.len.unwrap_or_else(|| l.store.size()),
             })
             .collect()
     })
-}
-
-/// The stores, by the host address of their first byte.
-pub fn all() -> &'static [&'static Entry] {
-    static ALL: std::sync::OnceLock<Vec<&'static Entry>> = std::sync::OnceLock::new();
-    ALL.get_or_init(|| {
-        let mut entries: Vec<&Entry> = listed().iter().collect();
-        entries.sort_unstable_by_key(|e| e.first);
-        entries
-    })
-}
-
-/// A host address found in a store.
-pub struct Found {
-    pub name: &'static str,
-    pub store: &'static (dyn Store + Sync),
-    /// The address's offset in the store.
-    pub offset: usize,
-}
-
-impl Found {
-    /// The field the address is in, as `.a[3].b` (empty where the store names none).
-    pub fn field(&self) -> String {
-        let mut path = String::new();
-        self.store.field_path_at(self.offset, &mut path);
-        path
-    }
-}
-
-/// The store whose range holds the host address `host`.
-pub fn find(host: usize) -> Option<Found> {
-    let entries = all();
-    let i = entries.partition_point(|e| e.first <= host);
-    let e = entries.get(i.checked_sub(1)?)?;
-    (host < e.first + e.len).then(|| Found {
-        name: e.name,
-        store: e.store,
-        offset: host - e.first,
-    })
-}
-
-/// The name of the store that starts at `store`'s first byte, if it is one of the registry's.
-#[cfg(test)]
-pub fn name_of(store: &dyn Store) -> Option<&'static str> {
-    let first = store.first().addr();
-    let entries = all();
-    let i = entries.partition_point(|e| e.first < first);
-    entries.get(i).filter(|e| e.first == first).map(|e| e.name)
 }
 
 #[cfg(test)]
@@ -1581,19 +1558,5 @@ mod tests {
         for e in listed() {
             assert!(e.len > 0 && e.len <= e.store.size(), "{}", e.name);
         }
-        assert_eq!(all().len(), listed().len());
-    }
-
-    #[test]
-    fn every_store_finds_itself_by_its_first_byte() {
-        for e in all() {
-            let found = find(e.first).expect("a store's first byte is in its range");
-            assert_eq!(found.offset, 0);
-            assert!(name_of(e.store).is_some());
-            let _ = found.field();
-            assert!(!e.name.is_empty());
-            assert!(!found.name.is_empty());
-        }
-        assert!(find(0).is_none());
     }
 }

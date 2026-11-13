@@ -145,9 +145,7 @@ pub fn set_up_front_end_scene_in(o: crate::owners::Owners<'static>) -> Result<()
         }
     }
     shared.vars.get().bar_function.set(SHOW_BAR);
-    crate::scene::reload_system_textures::reload_system_textures(
-        race, o.system, o.gfx, o.d3d, o.net, scene,
-    )?;
+    crate::scene::reload_system_textures::reload_system_textures(o)?;
     allocate_point_records_in_game(course)?;
     colours(course, 0);
     fill_scene_light_tables(race, scene)?;

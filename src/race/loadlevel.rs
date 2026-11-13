@@ -86,13 +86,7 @@ impl Steps<'_> {
         if shared.vars.get().bar_function.get() != self.v.bar {
             return Err(BadInput("the loading bar's callback is not the loading bar").into());
         }
-        crate::race::loading_bar_frame::loading_bar_frame(
-            race,
-            self.o.system,
-            self.o.scene,
-            self.o.gfx,
-            self.o.d3d,
-        )
+        crate::race::loading_bar_frame::loading_bar_frame(self.o)
     }
 
     /// A step's usual frame: the word, the indent in, the call, the mark, the indent out.
@@ -208,7 +202,7 @@ pub fn loadlevel_init(
     race.shared.vars.get().bar_span[1].set(0x50); // RaceVars.bar_span[1]
     s.indent(-3);
     s.step(
-        &mut || crate::race::set_all_plates::set_all_plates(race, system, gfx, o.d3d, o.net, scene),
+        &mut || crate::race::set_all_plates::set_all_plates(o),
         Some(0x50),
     )?;
     // loadgamemap.
@@ -288,7 +282,7 @@ pub fn loadlevel_init(
         &mut || {
             stage_prefs::get_mat_crash(
                 race.engine_tables(),
-                &race.frame.matrices,
+                race.frame.matrices.get(),
                 race.shared.car(),
                 scene,
             );

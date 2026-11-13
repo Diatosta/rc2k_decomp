@@ -11,10 +11,5 @@ use crate::gfx::show_picture_file::show_picture_file;
 pub fn show_loading_picture_in(
     o: crate::owners::Owners<'static>,
 ) -> Result<(), crate::errors::Refused> {
-    show_picture_file(
-        crate::strings::append_string_by_id::StringOwners::of(o),
-        &o.menus.tables.texts.loading_pcx,
-        o.gfx,
-        o.system,
-    )
+    show_picture_file(o, &o.menus.tables.texts.loading_pcx)
 }

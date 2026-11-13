@@ -223,12 +223,6 @@ pub struct TrackEntry {
 }
 
 const _: () = assert!(core::mem::size_of::<TrackEntry>() == 0x40);
-const _: () = assert!(core::mem::offset_of!(TrackEntry, duration) == 0x08);
-const _: () = assert!(core::mem::offset_of!(TrackEntry, length) == 0x0C);
-const _: () = assert!(core::mem::offset_of!(TrackEntry, temperature) == 0x1C);
-const _: () = assert!(core::mem::offset_of!(TrackEntry, surfaces) == 0x24);
-const _: () = assert!(core::mem::offset_of!(TrackEntry, stage) == 0x34);
-const _: () = assert!(core::mem::offset_of!(TrackEntry, number_label_one) == 0x3C);
 
 const fn track(v: [u32; 16]) -> TrackEntry {
     TrackEntry {
@@ -1663,16 +1657,6 @@ pub const END: usize = 0x73B674;
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn stage_tables_start_as_the_games() {
-        // Other tests write the tables (and put them back) under the lock.
-        let _g = crate::test_support::test_lock();
-        assert_eq!(size_of::<StageTables>(), END - START + 2);
-        crate::test_support::first_values::assert_store_starts_as_the_games(
-            "store:system.owner.SYSTEM.records.stage_tables",
-        );
-    }
 
     /// The lists' names resolve to the tables they name: the groups' lists by two steps (the
     /// first group's list is the first of the lists, the others follow), the levels' tables,

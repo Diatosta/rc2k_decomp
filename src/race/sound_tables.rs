@@ -3,8 +3,7 @@
 //! sine table) and the race's sounds restarted or silenced. Here the steps.
 
 use crate::errors::{BadInput, Refused};
-use crate::race::owner::Race;
-use crate::session::{Dword, PlainDword, PlainFloat};
+use crate::session::{PlainDword, PlainFloat};
 use crate::sound::sets_store::SoundSet;
 
 /// `race::whole_to_float` (0x40D706): the dword at ebx made a float (`fild` / `fstp`) when it looks
@@ -51,7 +50,7 @@ pub struct TableVars<'a> {
     /// The kinds' records.
     pub kinds: &'a crate::sound::sets_store::SoundKinds,
     /// Machine.scratch: the scratch.
-    pub scratch: &'a Dword,
+    pub scratch: &'a PlainDword,
 }
 
 impl<'a> TableVars<'a> {
@@ -63,7 +62,7 @@ impl<'a> TableVars<'a> {
             done: &sound.race.surface.get().tables_done,
             sines: &sound.race.kinds.get().sines,
             kinds: sound.race.kinds.get(),
-            scratch: &system.session.machine.scratch,
+            scratch: &system.machine().scratch,
         }
     }
 }
@@ -102,14 +101,11 @@ pub fn prepare_sound_tables_plain(v: &TableVars<'_>) -> Result<(), BadInput> {
 
 /// `race::restart_race_sounds`: the commands waited for, the race's sounds reset, let play,
 /// `RaceClock.started` 1.
-pub fn restart_race_sounds(
-    sound: &crate::sound::owner::Sound,
-    audio: &crate::audio::owner::Audio,
-    system: &crate::system::owner::System,
-) -> Result<(), Refused> {
+pub fn restart_race_sounds(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     use crate::race::race_end::{SoundVars, reset_race_sounds, wait_for_commands};
-    wait_for_commands(audio, system);
-    reset_race_sounds(&SoundVars::game(sound), sound, audio, system)?;
+    let (sound, audio) = (o.sound, o.audio);
+    wait_for_commands(o);
+    reset_race_sounds(&SoundVars::game(sound), o)?;
     crate::sound::let_sounds_play::let_sounds_play_in(audio);
     sound.race.clock.get().started.set(1);
     Ok(())
@@ -117,15 +113,12 @@ pub fn restart_race_sounds(
 
 /// `race::silence_race_sounds` (0x40D366): the race's sounds reset, command 4, the commands waited
 /// for.
-pub fn silence_race_sounds(
-    sound: &crate::sound::owner::Sound,
-    audio: &crate::audio::owner::Audio,
-    system: &crate::system::owner::System,
-) -> Result<(), Refused> {
+pub fn silence_race_sounds(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     use crate::race::race_end::{SoundVars, reset_race_sounds, wait_for_commands};
-    reset_race_sounds(&SoundVars::game(sound), sound, audio, system)?;
+    let audio = o.audio;
+    reset_race_sounds(&SoundVars::game(o.sound), o)?;
     crate::sound::queue::send_command_in(audio, rc2k_core::audio::commands::Command::Free);
-    wait_for_commands(audio, system);
+    wait_for_commands(o);
     Ok(())
 }
 
@@ -187,19 +180,16 @@ fn set_up_object(o: &crate::sound::store::SoundObject) {
 /// `race::set_up_race_sound_objects` (0x415C93): `prepare_sound_tables`; the players' count
 /// (`RaceSounds.one_player`: 1, 2 with `RaceState.settings.race_mode` not 1), the objects' count (`RaceSounds.count`: that, 4 in
 /// mode 2 with `RaceSounds.mark_car_voices` 1), the players' objects (`RaceSounds.player_cars[0]` 0 or the chosen car
-/// `NetVars.player` with `NetVars.session` 1, which also gives the count `NetVars.players`; `RaceSounds.player_cars[1]`
+/// `NetShared.player` with `NetShared.session` 1, which also gives the count `NetShared.players`; `RaceSounds.player_cars[1]`
 /// 1); each object's first dword -1 .. -8; the players' objects their number, kind and setting;
 /// each object's place, motion and wheel records and 24 fields reset; `TyreChange.drawn` 0;
 /// `restart_race_sounds`. Refuses, before anything, a chosen car past 7 (the original reads past
 /// the table)
 pub fn set_up_race_sound_objects(
-    race: &Race,
+    o: crate::owners::Owners<'static>,
     v: &ObjectVars<'_>,
-    sound: &crate::sound::owner::Sound,
-    audio: &crate::audio::owner::Audio,
-    net: &crate::net::owner::Net,
-    system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
+    let (race, sound, net, system) = (o.race, o.sound, o.net, o.system);
     let shared = &race.shared;
     let vars = &net.vars;
     {
@@ -254,19 +244,16 @@ pub fn set_up_race_sound_objects(
             set_up_object(o);
         }
         shared.tyre_change().drawn.set(0);
-        restart_race_sounds(sound, audio, system)?;
+        restart_race_sounds(o)?;
     }
     Ok(())
 }
 
 /// `race::clear_race_sound_objects` (0x415C6D): `silence_race_sounds`; `RaceSounds.one_player`,
 /// `RaceSounds.count`, `RaceSounds.mark_car_voices` 0.
-pub fn clear_race_sound_objects(
-    sound: &crate::sound::owner::Sound,
-    audio: &crate::audio::owner::Audio,
-    system: &crate::system::owner::System,
-) -> Result<(), Refused> {
-    silence_race_sounds(sound, audio, system)?;
+pub fn clear_race_sound_objects(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
+    let sound = o.sound;
+    silence_race_sounds(o)?;
     sound.race.shared.one_player.set(0);
     sound.race.shared.count.set(0);
     sound.race.sounds.get().mark_car_voices.set(0);

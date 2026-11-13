@@ -36,12 +36,7 @@ pub trait Outside {
     /// `d3d::draw_fan_unclipped`: Direct3D's result.
     fn draw_fan(&mut self, vertices: &[Vertex]) -> u32;
     /// A vertex is off the screen: "Error" to the log and `scene::show_bad_polygon`.
-    fn bad_vertex(
-        &mut self,
-        poly: &crate::scene::polygon_work::PolygonWork,
-        buffer: &PolygonVertices,
-        screen: &Screen,
-    );
+    fn bad_vertex(&mut self, buffer: &PolygonVertices, screen: &Screen);
     /// Direct3D did not draw: "drawtri" and its result to the log.
     fn not_drawn(&mut self, result: u32);
 }
@@ -79,7 +74,7 @@ pub fn submit_polygon(
     }
     let vertices = polygon(poly, buffer);
     if !vertices_fit(&vertices, screen.width.get(), screen.height.get()) {
-        outside.bad_vertex(poly, buffer, screen);
+        outside.bad_vertex(buffer, screen);
         return;
     }
     if device_on {
@@ -90,8 +85,12 @@ pub fn submit_polygon(
     }
 }
 
-/// The game's Direct3D layer and log, for drawing part `.0`.
-pub struct Game<'a>(pub &'a crate::workers::PartScratch);
+/// The game's Direct3D layer and log, for drawing part `.0` and its view `.1` (a bad polygon's
+/// log names the view's object and face).
+pub struct Game<'a>(
+    pub &'a crate::workers::PartScratch,
+    pub &'a crate::race::view_scratch::ViewScratch,
+);
 
 impl Outside for Game<'_> {
     fn texture(&self) -> u32 {
@@ -105,14 +104,9 @@ impl Outside for Game<'_> {
         crate::platform_3d::draw_fan(self.0, vertices);
         0
     }
-    fn bad_vertex(
-        &mut self,
-        poly: &crate::scene::polygon_work::PolygonWork,
-        buffer: &PolygonVertices,
-        screen: &Screen,
-    ) {
+    fn bad_vertex(&mut self, buffer: &PolygonVertices, screen: &Screen) {
         crate::logfile::log_write::log_nul(&ERROR_TEXT, true, 1);
-        if let Err(e) = crate::scene::show_bad_polygon::show_bad_polygon(poly, buffer, screen) {
+        if let Err(e) = crate::scene::show_bad_polygon::show_bad_polygon(self.1, buffer, screen) {
             crate::fatal::raise::end("scene::show_bad_polygon", e);
         }
     }

@@ -6,7 +6,7 @@
 
 use super::*;
 use crate::race::owner::race;
-use crate::session::DwordLike;
+use crate::session::{Dword, DwordLike};
 use Step::*;
 use std::ffi::{CStr, CString};
 
@@ -424,7 +424,7 @@ pub fn graham_to_shaun() -> Vec<Step<StepOperand>> {
         b.push(Value(place, Kind::Int));
     }
     for car in 0..2 {
-        let settings = |f: fn(&RaceCar) -> &Dword| Cell(f(&shared.state.settings.cars[car]));
+        let settings = |f: SettingWord| Setting(car, f);
         for (field, setting) in SETTING_BRAKES {
             b.push(Brake(CarCell(car, field), settings(setting)));
         }
@@ -438,17 +438,19 @@ pub fn graham_to_shaun() -> Vec<Step<StepOperand>> {
     b.push(SubEax(CarCell(0, |c| &c.brake_balance)));
     b.push(Store(CarCell(0, |c| &c.brake_balance)));
     for (car, colour) in CAR_COLOURS.into_iter().enumerate() {
-        b.push(Load(Cell(&shared.state.settings.cars[car].gearing)));
+        b.push(Load(Cell(
+            &shared.state.settings.cars[car].controls.gearing,
+        )));
         b.push(Store(Var(colour)));
     }
     for car in 0..2 {
         b.push(Copy(
             CarCell(car, |c| &c.start_slot_value),
-            Cell(&shared.state.settings.cars[car].race_number),
+            Setting(car, |r| &r.race_number),
         ));
     }
     for car in 0..2 {
-        b.push(Load(Cell(&shared.state.settings.cars[car].view)));
+        b.push(Load(Setting(car, |r| &r.view)));
         b.push(Store(CarCell(car, |c| &c.camera_view)));
         b.push(Store(CarCell(car, |c| &c.camera_blend_view)));
     }
@@ -467,7 +469,7 @@ pub fn graham_to_shaun() -> Vec<Step<StepOperand>> {
         b.push(JumpIfEaxNot(0xFFFF_FFFF, 0));
         b.push(LoadImm(0));
         for (field, bit) in OPTION_BITS {
-            b.push(BitIf(Cell(field(&shared.state.settings.cars[car])), bit));
+            b.push(BitIf(Setting(car, field), bit));
         }
         b.0[jump] = JumpIfEaxNot(0xFFFF_FFFF, b.here());
         b.push(Store(CarCell(car, |c| &c.option_bits)));
@@ -475,10 +477,7 @@ pub fn graham_to_shaun() -> Vec<Step<StepOperand>> {
     }
     for car in 0..2 {
         for (field, setting) in GAUGES {
-            b.push(IntToFloat(
-                CarBits(car, field),
-                Cell(setting(&shared.state.settings.cars[car])),
-            ));
+            b.push(IntToFloat(CarBits(car, field), Setting(car, setting)));
         }
         for (k, mark) in IMPACT_MARKS.into_iter().enumerate() {
             b.push(Copy(CarBits(car, mark), ResultMark(car, k)));
@@ -547,11 +546,11 @@ static HEAD_IN: [Step<StepOperand>; 21] = [
     ),
     Copy(
         var!(crate::race::owner::RACE.shared.vars.get().car_tyres[0]),
-        Cell(&crate::race::owner::RACE.shared.state.settings.cars[0].tyre),
+        var!(crate::race::owner::RACE.shared.state.settings.cars[0].tyre),
     ),
     Copy(
         var!(crate::race::owner::RACE.shared.vars.get().car_tyres[1]),
-        Cell(&crate::race::owner::RACE.shared.state.settings.cars[1].tyre),
+        var!(crate::race::owner::RACE.shared.state.settings.cars[1].tyre),
     ),
     Copy(
         var!(crate::race::owner::RACE.shared.vars.get().mip_setting),
@@ -638,7 +637,6 @@ static TAIL_OUT: [Step<StepOperand>; 6] = [
 /// The steps of `copy_settings_out` (the race's settings back to the front end's), in the
 /// original's order; skipped while a replay is shown.
 pub fn shaun_to_graham() -> Vec<Step<StepOperand>> {
-    let shared = &race().shared;
     let mut b = Builder(Vec::with_capacity(344));
     b.push(Text(c"-------------------------------------", true));
     b.push(Text(c"COPY SHAUN TO GRAHAM", true));
@@ -658,10 +656,7 @@ pub fn shaun_to_graham() -> Vec<Step<StepOperand>> {
     ));
     for car in 0..2 {
         for (field, setting) in GAUGES {
-            b.push(FloatToInt(
-                Cell(setting(&shared.state.settings.cars[car])),
-                CarBits(car, field),
-            ));
+            b.push(FloatToInt(Setting(car, setting), CarBits(car, field)));
         }
         for (k, mark) in IMPACT_MARKS.into_iter().enumerate() {
             b.push(Copy(ResultMark(car, k), CarBits(car, mark)));

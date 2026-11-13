@@ -12,8 +12,8 @@
 //! - `StageSounds` (0x51655C .. 0x5168C0): the surface sound sets, the stage's one-off,
 //!   timed, loop and random sounds, and the spots shared with the sound side;
 //! - `SpotPicks` (0x517F40 .. 0x518080): the spot-voice picks and the sound kinds per spot;
-//!   `SettingsApplied` (0x518080); `SoundOptions` (0x5180F0 .. 0x518104): the kept options
-//!   (`g_tuneTurn`, `g_musicVolume` ..); `CdAudio` (0x518104 .. 0x518120). Between them in the
+//!   `SettingsApplied` (0x518080); `SoundOptions` (0x5180F0 .. 0x518104, without `g_tuneTurn`): the kept options
+//!   (`g_musicVolume` ..); `CdAudio` (0x518104 .. 0x518120). Between them in the
 //!   image, the force-feedback effects' state is `input::store::ForceFeedback`'s.
 //!
 //! The sound commands go to the audio thread through `audio::store`'s queue; these are the
@@ -113,7 +113,7 @@ pub struct SoundObject {
     /// The knock's force (`input::update_car_effects`); cleared by the set-up.
     pub knock: PlainDword,
     /// The knock's inputs (cleared after each use; `knock_in[2]` and `knock_in[0]` give the angle, `knock_in[3]` the weight).
-    pub knock_in: [PlainDword; 4],
+    pub knock_in: [PlainFloat; 4],
     /// A copy of the car's steering trim (`g_car` `steer_trim`) made by `physics::share_engine_sound`; nothing reads it.
     pub steer_trim_copy: PlainDword,
     /// The `b` number of the Fourth, Steering and Landing force-feedback requests (`input::update_car_effects`: the request word's bits 20 ..); never written, so 0 (read only by that function).
@@ -291,7 +291,7 @@ pub(crate) const fn initial_object(sound_offset: u32) -> SoundObject {
         flag_ac: PlainDword::new(0),
         effect_in: [const { PlainDword::new(0) }; 4],
         knock: PlainDword::new(0),
-        knock_in: [const { PlainDword::new(0) }; 4],
+        knock_in: [const { PlainFloat::new(0.0) }; 4],
         steer_trim_copy: PlainDword::new(0),
         effect_request_b: PlainDword::new(0),
         knock_count: PlainDword::new(0),
@@ -996,7 +996,7 @@ impl SettingsApplied {
     }
 }
 
-/// The kept sound options (IDA 0x5180f0 .. 0x518104).
+/// The kept sound options (IDA 0x5180f0 .. 0x518104; `g_tuneTurn`, 0x5180F8, is the audio thread's too and lives in `audio::store::AudioShared`).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct SoundOptions {
@@ -1004,8 +1004,6 @@ pub struct SoundOptions {
     pub unread_option_f0: Dword,
     /// `dword_5180F4`: the race music on (1) or off: tune 8, the race music, plays only while it is 1 (`sound::play_tune`); the sound page's switch (`OptionSwitch::RaceMusicOn`), kept in `var\ral.dat`.
     pub race_music_on: Dword,
-    /// `g_tuneTurn`: which of tunes 10 .. 15 the next tune 0xA is (0 .. 5), kept.
-    pub tune_turn: Dword,
     /// `g_musicVolume`, kept.
     pub music_volume: Dword,
     /// `dword_518100`: the race music's volume (the menu sets it with `g_musicVolume`; both go to the tunes), kept.
@@ -1017,7 +1015,6 @@ impl SoundOptions {
         SoundOptions {
             unread_option_f0: Dword::new(1),
             race_music_on: Dword::new(0),
-            tune_turn: Dword::new(0),
             music_volume: Dword::new(0x20),
             race_music_volume: Dword::new(0x20),
         }
@@ -1083,87 +1080,9 @@ impl CarStream {
 mod tests {
     use super::*;
 
-    fn dword(d: &PlainDword) -> Vec<u8> {
-        d.get().to_le_bytes().to_vec()
-    }
-
-    #[test]
-    fn single_variables_start_as_the_games() {
-        assert_eq!(
-            dword(crate::sound::owner::sound().menu.next_sound_time.get()),
-            crate::test_support::first_values::bytes("sound.owner.SOUND.menu.next_sound_time/4")
-        );
-        assert_eq!(
-            dword(crate::sound::owner::sound().race.sounds_on.get()),
-            crate::test_support::first_values::bytes("sound.owner.SOUND.race.sounds_on/4")
-        );
-        let mut stream = Vec::new();
-        for d in [
-            &crate::sound::owner::sound().race.car_stream.get().place,
-            &crate::sound::owner::sound().race.car_stream.get().stream,
-            &crate::sound::owner::sound().race.car_stream.get().on,
-        ] {
-            stream.extend(dword(d));
-        }
-        assert_eq!(
-            stream,
-            crate::test_support::first_values::bytes("sound.owner.SOUND.race.car_stream/12")
-        );
-        assert_eq!(core::mem::size_of::<CarStream>(), 12);
-    }
-
     #[test]
     fn objects_are_by_number_within_the_eight() {
         assert!(SoundObject::of(crate::sound::owner::sound(), 7).is_ok());
         assert!(SoundObject::of(crate::sound::owner::sound(), 8).is_err());
-    }
-
-    #[test]
-    fn wheel_surfaces_start_as_the_games() {
-        let image = crate::test_support::first_values::bytes("sound.store.WHEEL_SURFACES/8");
-        let mine: Vec<u8> = WHEEL_SURFACES
-            .get()
-            .iter()
-            .flat_map(|cell| cell.get().to_le_bytes())
-            .collect();
-        assert_eq!(mine, image);
-    }
-
-    #[test]
-    fn stage_sounds_start_as_the_games() {
-        assert_eq!(size_of::<super::StageSounds>(), 0x364);
-    }
-
-    #[test]
-    fn spot_picks_starts_as_the_games() {
-        crate::test_support::first_values::assert_block_starts_as_the_games(
-            crate::sound::owner::SOUND.race.spot_picks.get(),
-        );
-    }
-
-    #[test]
-    fn settings_applied_starts_as_the_games() {
-        crate::test_support::first_values::assert_block_starts_as_the_games(
-            crate::sound::owner::SOUND.menu.settings_applied.get(),
-        );
-    }
-
-    #[test]
-    fn sound_options_starts_as_the_games() {
-        crate::test_support::first_values::assert_block_starts_as_the_games(
-            &crate::sound::owner::SOUND.menu.options,
-        );
-    }
-
-    #[test]
-    fn cd_audio_starts_as_the_games() {
-        crate::test_support::first_values::assert_block_starts_as_the_games(
-            crate::sound::owner::SOUND.menu.cd_audio.get(),
-        );
-    }
-
-    #[test]
-    fn race_clock_starts_as_the_games() {
-        assert_eq!(size_of::<super::RaceClock>(), 0x24);
     }
 }

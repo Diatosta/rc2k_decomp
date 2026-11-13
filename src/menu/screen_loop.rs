@@ -550,25 +550,20 @@ impl Callee {
             Self::ApplyController => ci::apply_controller(menus, input)?,
             Self::ReleaseController => ci::release_controller(input),
             Self::DrawStageMap => crate::menu::stage_choice::draw_stage_map(entry.owners)?,
-            Self::StopStream => crate::sound::stop_stream::stop_stream(audio, entry.system),
+            Self::StopStream => crate::sound::stop_stream::stop_stream(entry.owners),
             Self::PlayTune4 => {
-                crate::sound::play_tune_4::play_tune_4(sound, audio, entry.system);
+                crate::sound::play_tune_4::play_tune_4(entry.owners);
             }
             Self::PlayTune9 => {
-                crate::sound::play_tune_9::play_tune_9(sound, audio, entry.system);
+                crate::sound::play_tune_9::play_tune_9(entry.owners);
             }
-            Self::StopMusic => crate::sound::stop_music::stop_music(audio, entry.system),
+            Self::StopMusic => crate::sound::stop_music::stop_music(entry.owners),
             Self::StepCarStream => {
-                crate::sound::step_car_stream::step_car_stream_in_game(
-                    menus,
-                    sound,
-                    audio,
-                    entry.system,
-                )?;
+                crate::sound::step_car_stream::step_car_stream_in_game(entry.owners)?;
             }
             Self::PlayCarStream => crate::sound::play_car_stream::play_car_stream(
                 &mut |name, volume| {
-                    crate::sound::start_stream::start_stream(audio, entry.system, name, volume);
+                    crate::sound::start_stream::start_stream(entry.owners, name, volume);
                 },
                 menus,
                 sound,
@@ -584,8 +579,8 @@ impl Callee {
             Self::StyleStageItem => v::style_stage_item(menus, false)?,
             Self::StyleChosenStageItem => v::style_stage_item(menus, true)?,
             Self::CountStagePages => v::count_stage_pages(screens, entry.system)?,
-            Self::PlayStageSpeech => v::play_stage_speech(menus, sound, audio, entry.system)?,
-            Self::PlayRallySpeech => v::play_rally_speech(menus, audio, entry.system, input)?,
+            Self::PlayStageSpeech => v::play_stage_speech(entry.owners)?,
+            Self::PlayRallySpeech => v::play_rally_speech(entry.owners)?,
             Self::LoadWelcomePicture => v::load_welcome_picture(entry.owners)?,
             Self::LoadServiceBackground => crate::service::load_background::load_background_in(
                 menus,
@@ -747,7 +742,7 @@ fn run_frame(o: Owners<'static>, callback: FrameRoutine, menu: MenuId) -> Result
         FrameRoutine::Menu => crate::menu::frame_callback::frame_callback(o, menu),
         FrameRoutine::Inspection => crate::menu::inspection_frame::inspection_frame(o, menu),
     };
-    match crate::platform::run_frame_now(o.system, frame) {
+    match crate::platform::run_frame_now(o, frame) {
         Some(made) => made.map(|_| ()),
         None => Ok(()),
     }
@@ -844,7 +839,7 @@ impl ScreenHost for MenuHost<'_> {
     }
 
     fn note_set_up_time(&mut self) {
-        let clocks = &self.entry.system.session.clocks;
+        let clocks = self.entry.system.clocks();
         clocks.setup_time.set(clocks.frame.get());
         self.entry
             .race
@@ -898,7 +893,7 @@ impl ScreenHost for MenuHost<'_> {
     }
 
     fn note_frame_time(&mut self) {
-        let clocks = &self.entry.system.session.clocks;
+        let clocks = self.entry.system.clocks();
         self.entry
             .race
             .shared

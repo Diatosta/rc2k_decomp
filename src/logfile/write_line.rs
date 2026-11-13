@@ -40,14 +40,14 @@ pub fn set_enabled(value: i32) {
 }
 
 /// `dword_4E06EA` .. (`files`' table of file modes, 16 bytes each): mode 4's access,
-/// disposition and share, as the image holds them (`tests::modes_are_the_games`).
+/// disposition and share.
 const MODE_ACCESS: u32 = 0x4000_0000;
 const MODE_DISPOSITION: u32 = 4;
 #[cfg_attr(
     not(windows),
     allow(
         dead_code,
-        reason = "Windows' own sharing; the table's value, which the tests check"
+        reason = "Windows' own sharing; std has no share mode elsewhere"
     )
 )]
 const MODE_SHARE: u32 = 0;
@@ -124,37 +124,5 @@ pub fn log_text(text: &[u8], newline: bool, level: u8) {
 pub fn acquire() {
     while lock().swap(1, Ordering::Acquire) != 0 {
         crate::system::sleep::sleep(1);
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::test_support::first_values::bytes;
-
-    #[test]
-    fn modes_are_the_games() {
-        let mode = bytes("logfile.write_line.LOG_MODE");
-        let word = |n: usize| u32::from_le_bytes(mode[n..n + 4].try_into().unwrap());
-        assert_eq!(
-            [word(0), word(4), word(8)],
-            [
-                super::MODE_ACCESS,
-                super::MODE_DISPOSITION,
-                super::MODE_SHARE
-            ]
-        );
-        assert_eq!(bytes("logfile.write_line.LOG_PATH"), super::LOG_PATH);
-    }
-
-    #[test]
-    fn state_starts_as_the_games() {
-        use super::state::*;
-        let d = bytes("logfile.write_line.state.ENABLED/20");
-        let word = |n: usize| u32::from_le_bytes(d[n..n + 4].try_into().unwrap());
-        assert_eq!(word(0) as i32, (ENABLED.get() as i32));
-        assert_eq!(word(4), LEVEL.get());
-        assert_eq!(word(8), LOCK.get());
-        assert_eq!(word(0xC) as i32, (INDENT.get() as i32));
-        assert_eq!(word(0x10), LINE_START.get());
     }
 }

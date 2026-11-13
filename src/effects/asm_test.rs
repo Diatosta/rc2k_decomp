@@ -3,9 +3,12 @@
 //! assembly wrote (recorded once on i686, `test_support::vectors`) must hold the same bits
 //! afterwards.
 
-use crate::effects::store::START;
 use crate::math::x87;
 use crate::math::x87_float as bh;
+
+/// Where the 1999 layout of the effects' variables begins (the test buffers stand for the
+/// block from here; the x87 reference tests address operands by that layout).
+pub const START: usize = 0x764F40;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Kind {
@@ -492,7 +495,7 @@ fn run_recorded<R: std::fmt::Debug>(
 /// Rust versions read), by the place's offset in the race block.
 fn race_cell(off: usize) -> &'static dyn crate::session::Cell32 {
     let w = &crate::scene::polygon_work::front_end().window;
-    let m = &crate::race::owner::race().frame.matrices;
+    let m = &crate::race::owner::race().frame.matrices.get();
     match off {
         0x224088 => &w.view_scale,
         0x22409C => &w.view_centre[0],
@@ -719,7 +722,7 @@ fn run_writes<R: std::fmt::Debug>(
 
 /// The vertex float at byte `off` of the vertices (x, y, z, u or v of a vertex).
 #[cfg(test)]
-pub fn vertex_cell(off: usize) -> &'static crate::session::Float {
+pub fn vertex_cell(off: usize) -> &'static crate::session::PlainFloat {
     let v = &crate::d3d::vertices_store::VERTICES.vertices[off / 32];
     match off % 32 {
         0x0 => &v.x,

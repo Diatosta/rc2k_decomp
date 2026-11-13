@@ -19,7 +19,7 @@
 //! objects whose methods note their arguments.
 
 use crate::errors::Refused;
-use crate::session::{Bytes, Dword};
+use crate::session::Dword;
 use rc2k_core::fatal::Context;
 
 // ---- game data (IDA addresses) ----
@@ -113,8 +113,8 @@ pub fn zero(at: impl Into<crate::place::BytePlace>, length: u32) -> Result<(), R
 
 /// `CoCreateInstance` (`net::dplay::create_instance`): the object into `out` (0 when none
 /// is made), its result.
-pub fn co_create(class: &Bytes<16>, interface: &Bytes<16>, out: &Dword) -> u32 {
-    match crate::net::dplay::create_instance(&class.read(), &interface.read()) {
+pub fn co_create(class: &[u8; 16], interface: &[u8; 16], out: &Dword) -> u32 {
+    match crate::net::dplay::create_instance(class, interface) {
         Ok(made) => {
             out.set(made);
             0
@@ -129,10 +129,10 @@ pub fn co_create(class: &Bytes<16>, interface: &Bytes<16>, out: &Dword) -> u32 {
 /// `screens::run_frame` with the frame `frame` (`platform::run_frame_now`: the window's
 /// messages, then the frame unless the game is quitting).
 pub fn run_frame<T>(
-    system: &crate::system::owner::System,
+    o: crate::owners::Owners<'static>,
     frame: impl FnOnce() -> Result<T, Refused>,
 ) -> Result<(), Refused> {
-    match crate::platform::run_frame_now(system, frame) {
+    match crate::platform::run_frame_now(o, frame) {
         Some(done) => done.map(|_| ()),
         None => Ok(()),
     }

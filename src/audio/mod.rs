@@ -23,6 +23,7 @@ pub mod names_store;
 pub mod new_voice;
 pub mod open_eax;
 pub mod open_voice_manager;
+pub mod own;
 pub mod owner;
 pub mod primary;
 pub mod property_sets;

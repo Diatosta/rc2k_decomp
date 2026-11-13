@@ -17,14 +17,13 @@
 //! volume or pan changes while its sound has ended: the original then mistakes the pan for
 //! the list's link and writes the link through it (section 16).
 
-use crate::audio::owner::Audio;
-use crate::audio::store::AudioState;
+use crate::audio::own::{AudioOwn, AudioThread};
 use crate::audio::voices::GamePool;
 use crate::errors::Refused;
 use rc2k_core::audio::voices::Lists;
 
 /// The lists as the mixer's turn reads them (no channel count).
-fn lists(state: &AudioState) -> Lists {
+fn lists(state: &AudioOwn) -> Lists {
     Lists {
         playing: state.playing_voices.get(),
         stopping: state.stopping_voices.get(),
@@ -33,7 +32,7 @@ fn lists(state: &AudioState) -> Lists {
     }
 }
 
-fn store(state: &AudioState, l: &Lists) {
+fn store(state: &AudioOwn, l: &Lists) {
     state.playing_voices.set(l.playing);
     state.stopping_voices.set(l.stopping);
     state.channels_used.set(l.channels_used);
@@ -41,7 +40,7 @@ fn store(state: &AudioState, l: &Lists) {
 
 /// `mix`: `audio::mix`.
 pub fn update_mixer_voices(
-    audio: &Audio,
+    audio: &AudioThread,
     mix: &mut dyn FnMut() -> Result<(), Refused>,
 ) -> Result<(), Refused> {
     let state = &audio.state;
@@ -62,7 +61,7 @@ pub fn update_mixer_voices(
 }
 
 /// The voices' turn of the game's own mixer, the mix (`audio::mix`) in it.
-pub fn update_mixer_voices_in_game(audio: &Audio) -> Result<(), Refused> {
+pub fn update_mixer_voices_in_game(audio: &AudioThread) -> Result<(), Refused> {
     let mut mix = || -> Result<(), Refused> {
         crate::audio::mix::mix(&audio.state)?;
         Ok(())

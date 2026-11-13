@@ -34,7 +34,6 @@ use crate::d3d::NO_TEXTURE;
 use crate::d3d::vertices_store::PolygonVertices;
 use crate::errors::BadInput;
 use crate::math::x87;
-use crate::race::owner::Race;
 use crate::scene::polygon_store::PolygonEntry;
 use crate::scene::submit_polygon::{self, submit_polygon};
 
@@ -167,7 +166,7 @@ fn out(buffer: &PolygonVertices, n: usize) -> &crate::d3d::vertices_store::Verte
 }
 
 /// An entry of the polygon: its number in the work table and the entry.
-type Listed = (u32, &'static PolygonEntry);
+type Listed<'w> = (u32, &'w PolygonEntry);
 
 /// The three low bytes of `a` each times the same byte of `b`, over 256.
 fn times(a: u32, b: u32) -> u32 {
@@ -188,9 +187,9 @@ fn faded(from: u32, to: u32, by: u32) -> u32 {
 
 /// The polygon's entries, in the list's order.
 fn entries(
-    polygon_work: &'static crate::scene::polygon_store::PolygonWork,
+    polygon_work: &crate::scene::polygon_store::PolygonWork,
     count: u32,
-) -> Result<smallvec::SmallVec<[Listed; 32]>, BadInput> {
+) -> Result<smallvec::SmallVec<[Listed<'_>; 32]>, BadInput> {
     (0..count as usize)
         .map(|n| {
             let number: u32 = crate::scene::polygon::list_cell(polygon_work, n).get();
@@ -253,13 +252,13 @@ fn place(
     mirrored: bool,
     window: &crate::scene::view_window::ViewWindow,
 ) {
-    let buffer = part.vertices;
+    let buffer = &part.vertices;
     let (x_offset, y_offset) = (
         window.view_offset_float[0].get(),
         window.view_offset_float[1].get(),
     );
     let depth_factor = window.one_over_farthest.get();
-    let sse = reads.draw_switches.use_sse.get() != 0;
+    let sse = reads.draw_switches.use_sse.is_set();
     let mirror_at = window.view_centre[0].get();
     for (n, &(_, entry)) in entries.iter().enumerate() {
         let vertex = entry.record.get();
@@ -400,7 +399,6 @@ fn shade(
 pub fn draw_polygon(
     poly: &crate::scene::polygon_work::PolygonWork,
     part: &crate::workers::PartScratch,
-    race: &crate::race::owner::Race,
     face: &crate::race::face_work::FaceWork,
     outside: &mut dyn Outside,
     reads: crate::workers::DrawReads<'_>,
@@ -410,14 +408,14 @@ pub fn draw_polygon(
     if count == 0 || count > MOST {
         return Err(BadInput("a polygon of no vertices, or of too many"));
     }
-    let buffer = part.vertices;
+    let buffer = &part.vertices;
     if count as usize > buffer.vertices.len() {
         // The original writes the vertices on past the buffer.
         return Err(BadInput(
             "a polygon of more vertices than the vertex buffer holds",
         ));
     }
-    let mut entries = entries(part.polygon, count)?;
+    let mut entries = entries(&part.polygon, count)?;
     // Nothing has been written up to here.
     hit_test(part, &poly.quad_vertices, &poly.sun, &entries);
     let kept: [u32; 3] = [
@@ -431,7 +429,7 @@ pub fn draw_polygon(
         // The list's entries after the first, turned round.
         entries[1..].reverse();
         for (n, &(number, _)) in entries.iter().enumerate().skip(1) {
-            crate::scene::polygon::list_cell(part.polygon, n).set(number);
+            crate::scene::polygon::list_cell(&part.polygon, n).set(number);
         }
     }
     place(
@@ -477,7 +475,7 @@ pub fn draw_polygon(
     // The mode, with its fallbacks.
     let mut mode: u32 = face.polygon_mode.get();
     if mode == 3 && reads.draw_switches.clears_switch.get() != 0 {
-        clear_a_switch(race.polygon_tables(), poly, face, &entries)?;
+        clear_a_switch(&reads.buffers.polygon_tables, poly, face, &entries)?;
     }
     if matches!(mode, 3..=5) {
         let fallback = if poly.polygon_sides[1].get() == 0 {
@@ -537,29 +535,27 @@ pub fn draw_polygon(
     Ok(())
 }
 
-/// The game's Direct3D layer and log, for drawing part `.0`.
-pub struct Game<'a>(pub &'a crate::workers::PartScratch);
+/// The game's Direct3D layer and log, for drawing part `.0` and its view `.1`.
+pub struct Game<'a>(
+    pub &'a crate::workers::PartScratch,
+    pub &'a crate::race::view_scratch::ViewScratch,
+);
 
 impl submit_polygon::Outside for Game<'_> {
     fn texture(&self) -> u32 {
-        submit_polygon::Game(self.0).texture()
+        submit_polygon::Game(self.0, self.1).texture()
     }
     fn set_texture(&mut self, texture: u32) {
-        submit_polygon::Game(self.0).set_texture(texture);
+        submit_polygon::Game(self.0, self.1).set_texture(texture);
     }
     fn draw_fan(&mut self, vertices: &[crate::d3d::Vertex]) -> u32 {
-        submit_polygon::Game(self.0).draw_fan(vertices)
+        submit_polygon::Game(self.0, self.1).draw_fan(vertices)
     }
-    fn bad_vertex(
-        &mut self,
-        poly: &crate::scene::polygon_work::PolygonWork,
-        buffer: &PolygonVertices,
-        screen: &crate::session::Screen,
-    ) {
-        submit_polygon::Game(self.0).bad_vertex(poly, buffer, screen);
+    fn bad_vertex(&mut self, buffer: &PolygonVertices, screen: &crate::session::Screen) {
+        submit_polygon::Game(self.0, self.1).bad_vertex(buffer, screen);
     }
     fn not_drawn(&mut self, result: u32) {
-        submit_polygon::Game(self.0).not_drawn(result);
+        submit_polygon::Game(self.0, self.1).not_drawn(result);
     }
 }
 
@@ -572,12 +568,17 @@ impl Outside for Game<'_> {
 /// `draw_polygon` with the game's Direct3D layer (`scene::submit_polygon`'s), for Rust
 /// callers.
 pub fn draw_polygon_in_game(
-    poly: &crate::scene::polygon_work::PolygonWork,
+    view: &crate::race::view_scratch::ViewScratch,
     part: &crate::workers::PartScratch,
-    race: &Race,
-    face: &crate::race::face_work::FaceWork,
     reads: crate::workers::DrawReads<'_>,
     screen: &crate::session::Screen,
 ) -> Result<(), BadInput> {
-    draw_polygon(poly, part, race, face, &mut Game(part), reads, screen)
+    draw_polygon(
+        &view.polygon,
+        part,
+        &view.face,
+        &mut Game(part, view),
+        reads,
+        screen,
+    )
 }

@@ -1,11 +1,9 @@
-//! What the tests share to read the game's first values and to put the game's state back,
-//! by store name and field path rather than by address: `first_values` (the frozen first
-//! values in `data/first_values.golden`) and `state` (a snapshot of every store).
+//! What the tests share to put the game's state back, by store name and field path rather
+//! than by address: `state` (a snapshot of every store).
 
-pub mod first_values;
-mod freeze;
 pub mod race_places;
 pub mod race_vectors;
+mod registry;
 pub mod state;
 pub mod vectors;
 
@@ -15,4 +13,11 @@ pub fn test_lock() -> std::sync::MutexGuard<'static, ()> {
     static LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
     LOCK.lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner)
+}
+
+/// FNV-1a over `bytes`, 64 bits: the plain hasher the tests' expected values use.
+pub fn hash(bytes: &[u8]) -> u64 {
+    bytes.iter().fold(0xCBF2_9CE4_8422_2325, |h, &b| {
+        (h ^ u64::from(b)).wrapping_mul(0x0000_0100_0000_01B3)
+    })
 }

@@ -143,7 +143,7 @@ pub fn draw_view_backdrop(
     view: &crate::race::view_scratch::ViewScratch,
     part: &crate::workers::PartScratch,
 ) {
-    let buffer = part.vertices;
+    let buffer = &part.vertices;
     view.quad.uv[0].set(0xF8_0000);
     view.quad.uv[4].set(0x8_0000);
     let left = view.polygon.window.view_offset[0].get();

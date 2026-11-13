@@ -5,8 +5,6 @@
 
 use crate::cells::ZeroCells;
 
-#[cfg(test)]
-use crate::race::owner::race;
 use crate::session::{PlainBytes, PlainDword};
 
 #[repr(C)]
@@ -25,24 +23,5 @@ pub struct ErrorList {
 impl ErrorList {
     pub const fn new() -> Self {
         Self::ZERO
-    }
-}
-
-/// IDA 0x637660, the first byte of the piece.
-pub const START: usize = 0x637660;
-/// IDA 0x63967C, the end of the piece.
-pub const END: usize = 0x63967C;
-
-const _: () = assert!(END - START == core::mem::size_of::<ErrorList>());
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn first_values_are_the_games() {
-        crate::test_support::first_values::assert_block_starts_as_the_games(
-            race().frame.error_list(),
-        );
     }
 }

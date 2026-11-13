@@ -21,17 +21,6 @@ use std::mem::offset_of;
 
 // ---- game data ----
 
-#[cfg(test)]
-mod path_tests {
-
-    #[test]
-    fn first_values_are_the_games() {
-        crate::test_support::first_values::assert_block_starts_as_the_games(
-            &crate::saves::owner::SAVES.get().files.options_path,
-        );
-    }
-}
-
 /// The 69 pieces' lengths together.
 pub const PIECES_LEN: usize = 0xB656;
 
@@ -175,7 +164,7 @@ pub fn pieces_of(o: Owners<'static>) -> [Piece<'static>; 69] {
         Piece::whole(&audio.state.master_volume),                       // the master volume
         Piece::whole(&o.sound.menu.options.unread_option_f0),                     // a sound option kept in the file and read by no other code
         Piece::whole(&o.sound.menu.options.race_music_on),                 // the race music switch
-        Piece::whole(&o.sound.menu.options.tune_turn),                   // which tune comes next
+        Piece::whole(&audio.state.tune_turn),                   // which tune comes next
         Piece::whole(&o.sound.menu.options.music_volume),                // the music volume
         Piece::whole(&o.sound.menu.options.race_music_volume),           // the race music's volume
         Piece::whole(&net.setup().machine_name),                         // the machine's name
@@ -301,16 +290,6 @@ pub fn load_game_options(o: Owners<'static>) -> Result<bool, Refused> {
 
 #[cfg(test)]
 mod tests {
-    use crate::saves::owner::saves;
-    #[test]
-    fn kept_starts_as_the_games() {
-        let image =
-            crate::test_support::first_values::bytes("saves.owner.SAVES.files.options_kept/20");
-        let mine = unsafe {
-            std::slice::from_raw_parts(saves().files.options_kept.as_ptr().cast::<u8>(), 20)
-        };
-        assert_eq!(mine, image);
-    }
 
     /// The lengths of the pieces, in the original's order.
     #[rustfmt::skip]

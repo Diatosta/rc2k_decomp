@@ -164,11 +164,7 @@ pub fn with_view<R>(f: impl FnOnce(&View) -> R) -> R {
 
 /// `length` bytes of id `id` kept as a sample of its own (`audio::keep_sample`): its id.
 /// Counted on `list` as `memory::allocate` counts a block.
-pub fn keep(
-    id: u32,
-    length: u32,
-    list: &crate::session::Shared<crate::memory::MemoryList>,
-) -> Result<u32, BadInput> {
+pub fn keep(id: u32, length: u32, list: &crate::memory::ListCells) -> Result<u32, BadInput> {
     let mut kept = vec![0; block_bytes(length)];
     with_data(id, |from| {
         let from = from
@@ -201,7 +197,7 @@ mod tests {
         with_buffer(Buffer::Work, |b| b[4..8].copy_from_slice(&[1, 2, 3, 4]));
         let id = in_buffer(Buffer::Work, 4);
         assert_eq!(with_data(id, |b| b[..4].to_vec()).unwrap(), [1, 2, 3, 4]);
-        let list = crate::session::Shared::new(crate::memory::MemoryList::default());
+        let list = crate::memory::ListCells::empty();
         let kept = keep(id, 4, &list).unwrap();
         with_buffer(Buffer::Work, |b| b[4] = 9);
         assert_eq!(

@@ -8,35 +8,26 @@
 
 use crate::errors::Refused;
 use crate::net::lobby::{lock_surface, run_frame};
-use crate::net::owner::Net;
-use crate::race::viewer_screen_store::ViewerPanelBlock;
+use crate::race::viewer_screen_store::NetTexts;
 
 pub const STATUS_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::STAGE_TITLE;
 
 /// An empty frame, then string `id` shown on the background and a second's sleep (not
 /// when the lock fails). Shared with `net::hosting`, `net::joining`, `net::stopping`.
-pub fn status(
-    so: crate::strings::append_string_by_id::StringOwners<'static>,
-    id: u32,
-    gfx: &'static crate::gfx::owner::Gfx,
-    system: &crate::system::owner::System,
-) -> Result<(), Refused> {
-    run_frame(system, || Ok::<(), Refused>(()))?;
-    if !lock_surface(gfx, system) {
+pub fn status(o: crate::owners::Owners<'static>, id: u32) -> Result<(), Refused> {
+    run_frame(o, || Ok::<(), Refused>(()))?;
+    if !lock_surface(o.gfx, o.system) {
         return Ok(());
     }
-    crate::net::message_frame::string_frame_locked(so, id, STATUS_FONT, 0x316, 0x6F, gfx, system)?;
+    crate::net::message_frame::string_frame_locked(o, id, STATUS_FONT, 0x316, 0x6F)?;
     crate::system::sleep::sleep(1000);
     Ok(())
 }
 pub fn connecting(
-    so: crate::strings::append_string_by_id::StringOwners<'static>,
-    net: &Net,
-    panel: &ViewerPanelBlock,
+    o: crate::owners::Owners<'static>,
+    lines: &NetTexts,
     connection: u32,
-    gfx: &'static crate::gfx::owner::Gfx,
-    system: &crate::system::owner::System,
 ) -> Result<bool, Refused> {
-    status(so, 0x14F, gfx, system)?;
-    crate::net::init_connection::init_connection(net, panel, connection)
+    status(o, 0x14F)?;
+    crate::net::init_connection::init_connection(o.net, lines, connection)
 }

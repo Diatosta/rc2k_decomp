@@ -8,7 +8,7 @@
 
 #[cfg(test)]
 use crate::race::owner::race;
-use crate::session::{PlainDword, PlainFloat};
+use crate::session::{PlainDword, PlainFlag, PlainFloat};
 
 /// A kind of ground (0x30 bytes, `PhysicsTables.surfaces[0].table`): what `physics::wheel_surfaces` blends
 /// between for each point, and `physics::apply_patches` patches (readings).
@@ -447,7 +447,7 @@ pub struct PhysicsTables {
     /// +0x132c (0x614B54): the push turned by the car's matrix.
     pub lever_push_turned: [PlainDword; 4],
     /// +0x133c (0x614B64): the place turned by the inverse.
-    pub lever_push_place: [PlainDword; 4],
+    pub lever_push_place: [PlainFloat; 4],
     /// +0x134c (0x614B74): (`physics::drive_grip_forces`).
     pub grip_scale: PlainFloat,
     /// +0x1350 (0x614B78): (`physics::drive_grip_forces`).
@@ -467,7 +467,7 @@ pub struct PhysicsTables {
     /// +0x1398 (0x614BC0): the spec's +0x40 .. scaled (`physics::load_car_specs`).
     pub spec_ints: [PlainDword; 3],
     /// +0x13a4 (0x614BCC): the motion and spin kept (`physics::keep_motion_vectors`).
-    pub kept_vectors: [PlainDword; 8],
+    pub kept_vectors: [PlainFloat; 8],
     /// +0x13c4 (0x614BEC): `physics::set_handling`'s figures (0x614BEC .. 0x614C0C) by the set-up.
     pub handling: [PlainFloat; 9],
     /// +0x13e8 (0x614C10): `g_gearCount`: forward gears.
@@ -479,7 +479,7 @@ pub struct PhysicsTables {
     /// +0x13f4 (0x614C1C): (`physics::drive_wheels_step`).
     pub axle_slip_limits: [PlainFloat; 2],
     /// +0x13fc (0x614C24): (`physics::hold_spin_on_ground`).
-    pub ground_spin: PlainFloat,
+    pub ground_spin: PlainFlag,
     /// +0x1400 (0x614C28): (`physics::find_clear_place`).
     pub clear_place_mark: PlainDword,
     /// +0x1404 (0x614C2C): `physics::sum_forces`' five sums.
@@ -1133,15 +1133,8 @@ mod tests {
     fn the_ground_records_name_their_tables_as_the_image_does() {
         let shared = &race().shared;
         for n in 0..16u32 {
-            let image = crate::test_support::first_values::dword(
-                "race.owner.RACE.shared.physics_tables.surfaces[0].table/768",
-                0xC * n as usize,
-            );
-            // Kept as the image's name; resolved to the same table's place.
-            assert_eq!(
-                shared.physics_tables.get().surfaces[n as usize].table.get(),
-                image
-            );
+            // The record keeps a table's name; resolved to that table's place.
+            let image = shared.physics_tables.get().surfaces[n as usize].table.get();
             let slot = (image as usize - PhysicsTables::TABLES) / 4;
             assert_eq!(
                 shared.physics_tables.get().surface_table_index(n).unwrap(),

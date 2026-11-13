@@ -10,14 +10,12 @@ use crate::install::installer::{copy_picture, lock, show, unlock};
 
 /// The surface locked, the backdrop drawn, the frame shown; the carry it leaves (the
 /// lock's or the show's).
-pub fn backdrop_frame(
-    gfx: &crate::gfx::owner::Gfx,
-    system: &crate::system::owner::System,
-) -> Result<bool, Refused> {
+pub fn backdrop_frame(o: crate::owners::Owners<'static>) -> Result<bool, Refused> {
+    let (gfx, system) = (o.gfx, o.system);
     if !lock(gfx, system) {
         return Ok(true);
     }
     copy_picture(gfx, system)?;
     unlock(gfx);
-    Ok(!show())
+    Ok(!show(o))
 }

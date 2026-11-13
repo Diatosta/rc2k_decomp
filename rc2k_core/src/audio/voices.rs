@@ -527,7 +527,7 @@ pub enum Step {
 }
 
 /// The EAX room's variables (`g_eaxRoom`, `g_eaxRoomSet`, `dword_6D1DD4` and the one kept,
-/// `AudioState.environment_kept`) and the 3D commit flag.
+/// `AudioOwn::environment_kept`) and the 3D commit flag.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Room {
     pub asked: u32,

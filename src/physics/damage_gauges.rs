@@ -123,7 +123,7 @@ pub fn steps(car: &Car, damage: &DamageModel, work: &RaceWork) {
         });
     }
     part_hit_figures(damage);
-    let part = damage.drive_kind.bits();
+    let part = damage.drive_kind.get();
     fn kind(table: &[PlainFloat; 2], part: u32) -> &PlainFloat {
         table.get(part as usize).unwrap_or_else(|| {
             crate::fatal::raise::end("a kind table", BadInput("the kind is not 0 or 1"))
@@ -328,7 +328,7 @@ pub fn steps(car: &Car, damage: &DamageModel, work: &RaceWork) {
         );
     });
     gauge_totals(car, damage);
-    if damage.drive_kind.bits() == 0 {
+    if damage.drive_kind.get() == 0 {
         car.turbo_damage.set(0.0);
     }
 }

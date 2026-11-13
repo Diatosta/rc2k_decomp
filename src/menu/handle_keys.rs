@@ -69,7 +69,7 @@ pub fn handle_keys(o: Owners<'static>, eax: u32) -> Result<Pressed, Refused> {
         }
         _ => {}
     }
-    let clock: u32 = o.system.session.clocks.frame.get();
+    let clock: u32 = o.system.clocks().frame.get();
     if action == Action::Enter {
         menus.screens.option_work.set_sound(keys::MenuSound::Enter);
         menus.play.champ_view.last_key_time.set(clock);

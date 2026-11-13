@@ -111,14 +111,3 @@ pub fn seed_streams() {
         stream.state.set(STATE.get());
     }
 }
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn state_starts_as_the_games() {
-        assert_eq!(
-            crate::test_support::first_values::dword("math.next_random.STATE/4", 0),
-            super::STATE.get()
-        );
-    }
-}

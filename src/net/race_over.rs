@@ -22,6 +22,6 @@ pub fn race_over(net: &Net, time: u32) -> Result<(), Refused> {
         PlayerRecord::STATE,
         rc2k_core::net::players::raced(net.vars.own.state()),
     );
-    net.vars.after_race.set(1);
-    crate::net::list_players::list_players_regs(&net.vars)
+    net.lobby().after_race.set(1);
+    crate::net::list_players::list_players_regs(net)
 }

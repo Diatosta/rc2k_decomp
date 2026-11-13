@@ -103,11 +103,6 @@ fn pixel(
     }
 }
 
-/// A rectangle (x, y, width, height) kept as four dwords.
-pub fn rect_of(cells: &[crate::session::Dword; 4]) -> [i32; 4] {
-    cells.each_ref().map(|c| c.get() as i32)
-}
-
 /// A rectangle (x, y, width, height) kept in the first 16 bytes of a buffer.
 pub fn rect_in(bytes: &impl crate::session::ByteBuffer) -> [i32; 4] {
     std::array::from_fn(|n| bytes.get_u32_at(4 * n) as i32)

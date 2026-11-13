@@ -41,7 +41,7 @@ pub enum Step {
 }
 
 pub fn draw_clipped_polygon(
-    polygon_work: &'static crate::scene::polygon_store::PolygonWork,
+    polygon_work: &crate::scene::polygon_store::PolygonWork,
     poly: &crate::scene::polygon_work::PolygonWork,
     step: &mut dyn FnMut(Step) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
@@ -87,19 +87,19 @@ pub fn draw_clipped_polygon(
 pub fn draw_clipped_polygon_in_game(
     ctx: &crate::race::view_scratch::DrawCtx<'_>,
 ) -> Result<(), Refused> {
-    let race = ctx.race;
     // The list stays as it is from the projection to the fog: listed once for the three.
     let mut entries = None;
     let poly = &ctx.view.polygon;
-    draw_clipped_polygon(ctx.part.polygon, poly, &mut |step| {
+    draw_clipped_polygon(&ctx.part.polygon, poly, &mut |step| {
         match step {
             Step::Project => {
-                let listed = entries.insert(crate::scene::polygon::listed(ctx.part.polygon, poly)?);
+                let listed =
+                    entries.insert(crate::scene::polygon::listed(&ctx.part.polygon, poly)?);
                 project_entries(ctx.part, poly, listed, ctx.reads, ctx.view)?;
             }
             Step::ScaleTextureCoordinates => match &entries {
                 Some(listed) if !listed.is_empty() => scale_entries(poly, listed)?,
-                _ => scale_texture_coordinates(ctx.part.polygon, poly)?,
+                _ => scale_texture_coordinates(&ctx.part.polygon, poly)?,
             },
             Step::Fog => match entries.take() {
                 Some(listed) => fog_entries(ctx.part, &listed, ctx.view)?,
@@ -120,9 +120,8 @@ pub fn draw_clipped_polygon_in_game(
                 draw_polygon(
                     poly,
                     ctx.part,
-                    race,
                     &ctx.view.face,
-                    &mut Game(ctx.part),
+                    &mut Game(ctx.part, ctx.view),
                     ctx.reads,
                     ctx.reads.screen,
                 )?;

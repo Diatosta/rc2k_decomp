@@ -24,7 +24,7 @@ pub use rc2k_core::menu::blink::blink_states;
 /// What the three variables should be for the clock the game holds now.
 fn states_now(menus: &Menus, system: &System) -> (bool, bool, bool) {
     blink_states(
-        system.session.clocks.frame.get(),
+        system.clocks().frame.get(),
         menus.play.champ_view.last_key_time.get(),
         menus.play.champ_view.cursor_time.get(),
         menus.screens.option_work.redefining_key.is_set(),

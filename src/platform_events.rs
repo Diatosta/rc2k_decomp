@@ -135,8 +135,7 @@ fn end_if_not_left() {
 }
 
 /// SDL's events: the window's closing, and the keys the menus take.
-pub fn pump() {
-    let o = crate::owners::boundary();
+pub fn pump(o: crate::owners::Owners<'static>) {
     let (input, system, course) = (o.input, o.system, &o.race.course);
     restore_if_asked();
     #[cfg(feature = "remote")]

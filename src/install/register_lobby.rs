@@ -17,7 +17,6 @@ pub fn register_lobby(
     install: &'static crate::install::owner::Install,
     registry: &mut dyn Registry,
     strings: &crate::strings::owner::Strings,
-    net: &crate::net::owner::Net,
 ) -> Result<(), Refused> {
     use crate::install::set_lobby_value::set_lobby_value;
     let Ok(key) = registry.create(text_of(&install.lobby_keys.registry_key)) else {
@@ -25,7 +24,7 @@ pub fn register_lobby(
     };
     install.run.reg_key.set(key);
     // Converted: `rc2k_core::install::lobby::guid_text`.
-    let guid = rc2k_core::install::lobby::guid_text(&net.vars.app_guid.read());
+    let guid = rc2k_core::install::lobby::guid_text(&crate::net::store::APP_GUID);
     let mut text = guid.to_vec();
     text.push(0);
     strings

@@ -18,12 +18,12 @@
 //!
 //! Then in 3D: with EAX (bit 0x1000000) the room is set (`audio::set_eax_room`) when the
 //! room asked (`g_eaxRoom`) is not the one set, or `dword_6D1DD4` is not the one kept
-//! (`AudioState.environment_kept`), each then kept; and with `g_commit3d` 1, `audio::commit_3d` and the flag 0.
+//! (`AudioOwn.environment_kept`), each then kept; and with `g_commit3d` 1, `audio::commit_3d` and the flag 0.
 //! Refuses, before anything: a list that does not end within 0x200 voices; a playing voice
 //! that does not loop without its channel or buffer; a voice to stop without its buffer; a
 //! marked voice's volume or pan past the volume table.
 
-use crate::audio::owner::Audio;
+use crate::audio::own::AudioThread;
 use crate::audio::store::ENVIRONMENT;
 use crate::audio::voices::{GamePool, voice_of};
 use crate::errors::{BadInput, Refused};
@@ -32,7 +32,7 @@ const MODE_MIXER: u32 = 0x4_0000;
 
 /// Converted: the own-buffers way is `rc2k_core::audio::voices::update_buffers`, each of
 /// its steps a callee here (given the voice); the A3D and mixer ways stay the game's chunks.
-pub fn update_voices(audio: &Audio) -> Result<(), Refused> {
+pub fn update_voices(audio: &AudioThread) -> Result<(), Refused> {
     use rc2k_core::audio::voices::{Lists, Room, Step, update_buffers};
     if audio.state.use_a3d.get() == 1 {
         return Err(BadInput("A3D (the chunk at 0x40CB2A)").into());

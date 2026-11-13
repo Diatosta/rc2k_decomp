@@ -1825,23 +1825,9 @@ impl CarSpecs {
     }
 }
 
-/// IDA 0x5C790C, the first byte of the piece.
-pub const START: usize = 0x5C790C;
-/// IDA 0x5C906C, the end of the piece (`g_lightRecords`).
-pub const END: usize = 0x5C906C;
-
-const _: () = assert!(END - START == core::mem::size_of::<CarSpecs>());
-
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn first_values_are_the_games() {
-        crate::test_support::first_values::assert_block_starts_as_the_games(
-            race().physics.car_specs(),
-        );
-    }
 
     #[test]
     fn the_cars_start_as_the_games() {

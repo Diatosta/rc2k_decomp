@@ -41,10 +41,10 @@ pub enum Edge {
 }
 
 /// The polygon's entries, each with its record.
-pub fn listed_with_records(
-    polygon_work: &'static crate::scene::polygon_store::PolygonWork,
+pub fn listed_with_records<'w>(
+    polygon_work: &'w crate::scene::polygon_store::PolygonWork,
     poly: &crate::scene::polygon_work::PolygonWork,
-) -> Result<crate::scene::polygon::Listed, BadInput> {
+) -> Result<crate::scene::polygon::Listed<'w>, BadInput> {
     let entries = listed(polygon_work, poly)?;
     if entries.is_empty() {
         return Err(BadInput("a polygon of no vertices"));
@@ -90,7 +90,7 @@ fn cut(
     b: &PolygonEntry,
     mask: u32,
 ) -> Result<u32, BadInput> {
-    let polygon_work = part.polygon;
+    let polygon_work = &part.polygon;
     let number: u32 = poly.polygon_next_entry.get();
     if number >= ENTRIES {
         return Err(BadInput("no entry left for a new vertex"));
@@ -180,16 +180,16 @@ fn cut(
 /// (true) or when it is not (false). `listed`: the polygon's entries as
 /// `listed_with_records` gives them, when the caller has them already. Returns them again
 /// when the pass kept every vertex (the list is as it was), else `None`.
-pub fn clip_pass(
-    part: &crate::workers::PartScratch,
+pub fn clip_pass<'p>(
+    part: &'p crate::workers::PartScratch,
     poly: &crate::scene::polygon_work::PolygonWork,
     course: crate::race::owner_course::CourseReads<'_>,
-    listed: Option<crate::scene::polygon::Listed>,
+    listed: Option<crate::scene::polygon::Listed<'p>>,
     edge: Edge,
     inside_past: bool,
     mask: u32,
-) -> Result<Option<crate::scene::polygon::Listed>, BadInput> {
-    let polygon_work = part.polygon;
+) -> Result<Option<crate::scene::polygon::Listed<'p>>, BadInput> {
+    let polygon_work = &part.polygon;
     let entries = match listed {
         Some(entries) => entries,
         None => listed_with_records(polygon_work, poly)?,

@@ -73,9 +73,9 @@ pub fn input_thread(
             loop {
                 system
                     .session
-                    .clocks
-                    .key_ticks
-                    .set(system.session.clocks.key_ticks.get().wrapping_add(1));
+                    .key_clock
+                    .ticks
+                    .set(system.session.key_clock.ticks.get().wrapping_add(1));
                 gone -= TICK_MS;
                 last = last.wrapping_add(TICK_MS);
                 if gone < TICK_MS {
@@ -104,13 +104,4 @@ pub fn input_thread(
     set_priority(0);
     flag.set(0);
     Ok(())
-}
-
-/// The thread's routine as its slot starts it (by address: `routes.rs`): the work; its end
-/// ends the thread (the original's `ExitThread`).
-pub fn thread_routine(input: &crate::input::owner::Input) -> Result<(), Refused> {
-    let sound = crate::sound::owner::sound();
-    let system = crate::system::owner::system();
-    let race = crate::race::owner::race();
-    input_thread(input, sound, system, race)
 }

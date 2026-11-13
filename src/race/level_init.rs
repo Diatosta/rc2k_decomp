@@ -290,7 +290,7 @@ pub fn init_checkpoints(race: &Race) -> Result<(), Refused> {
             let face = trap.keep_read(
                 table
                     .get(n as usize)
-                    .map(crate::session::Dword::get)
+                    .map(crate::session::PlainDword::get)
                     .ok_or(BadInput("a checkpoint past the checkpoint table")),
             );
             trap.keep_read(crate::race::course_places::face_field::<u8>(

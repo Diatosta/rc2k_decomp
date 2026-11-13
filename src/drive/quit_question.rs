@@ -22,7 +22,7 @@ pub fn quit_question(race: &Race, o: crate::owners::Owners<'static>) -> Result<u
     let input = o.input;
     let shared = &race.shared;
     let replay = &race.replay;
-    stop_race_sounds(o.sound, o.audio, o.system)?;
+    stop_race_sounds(o)?;
     // A button from before the question answers nothing.
     crate::input::menu_pad::take_answer();
     shared.vars.get().scene_switch.set(1);

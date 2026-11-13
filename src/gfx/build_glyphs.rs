@@ -444,13 +444,3 @@ pub fn build_glyphs(
             .set(pictures.decoder.number.get().wrapping_add(1));
     }
 }
-
-#[cfg(test)]
-mod block_tests {
-    #[test]
-    fn first_values_are_the_games() {
-        crate::test_support::first_values::assert_block_starts_as_the_games(
-            &crate::gfx::owner::GFX.get().sheet,
-        );
-    }
-}

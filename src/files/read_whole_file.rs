@@ -41,19 +41,8 @@ pub fn read_whole_file_cells<C: crate::session::DwordLike>(
     Ok(())
 }
 
-/// `read_whole_file` into `bytes` (all of them at most; what the file does not reach is
-/// kept).
-pub fn read_whole_file_bytes<const N: usize>(
-    path: &[u8],
-    bytes: &crate::session::Bytes<N>,
-) -> Result<(), BadInput> {
-    let mut into = bytes.read();
-    read_whole_file_into(path, &mut into)?;
-    bytes.write(&into);
-    Ok(())
-}
-
-/// `read_whole_file_bytes` into a plain buffer.
+/// `read_whole_file` into a plain buffer (all of its bytes at most; what the file does not
+/// reach is kept).
 pub fn read_whole_file_plain_bytes<const N: usize>(
     path: &[u8],
     bytes: &crate::session::PlainBytes<N>,

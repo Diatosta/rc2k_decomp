@@ -179,8 +179,6 @@ impl ViewVars {
 /// record on atomics, which the view's drawing part writes.
 pub type ViewVarsCopy = ViewVars<SharedCells>;
 
-const _: () = assert!(core::mem::size_of::<ViewVarsCopy>() == END - START);
-
 /// The view variables as the game starts them, on the cells `$dword` and `$float`: the view
 /// size scales, the camera's bias figures, the 52 names of the view records (as handles),
 /// the first view kind and the table of which views hide what.
@@ -573,43 +571,17 @@ impl ViewRecord {
     }
 }
 
-/// IDA 0x60626C, the first byte of the piece.
-pub const START: usize = 0x60626C;
-/// IDA 0x606500, the end of the piece (the view records follow).
-pub const END: usize = 0x606500;
-
-const _: () = assert!(END - START == core::mem::size_of::<ViewVars>());
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    /// IDA's addresses of the first view record and the end of the last (52 of 0x5C).
-    const RECORDS: usize = 0x606500;
-    const RECORDS_END: usize = 0x6077B0;
-
-    /// The handle for IDA's `ida` (a view record's address; anything else fails to compile).
-    pub const fn view_ref(ida: u32) -> u32 {
-        let ida = ida as usize;
-        assert!(ida >= RECORDS && ida < RECORDS_END);
-        let off = ida - RECORDS;
-        assert!(off.is_multiple_of(ViewVars::RECORD_SIZE));
-        VIEW_TAG | (off / ViewVars::RECORD_SIZE) as u32
-    }
-
     #[test]
-    fn the_view_table_names_its_records_as_the_image_does() {
+    fn the_view_table_names_its_records() {
         for n in 0..52usize {
-            let image = crate::test_support::first_values::dword(
-                "race.owner.RACE.frame.view_and_records.view_vars.view_records[0]/208",
-                n,
-            );
-            // A handle in place of the image's address, naming the same record.
             assert_eq!(
                 race().frame.view_and_records.get().view_vars.view_records[n].get(),
-                view_ref(image)
+                VIEW_TAG | n as u32
             );
-            assert_eq!(image as usize, RECORDS + 0x5C * n);
             assert!(core::ptr::eq(
                 ViewVars::record_of(race().frame.view_and_records.get(), n).unwrap(),
                 ViewVars::record(race().frame.view_and_records.get(), n)

@@ -4,6 +4,6 @@
 
 /// The frame shown (`gfx::show_frame`, the platform's): false when it was not (the
 /// original's carry set). Every register kept.
-pub fn present_frame() -> bool {
-    crate::platform::show_frame_now()
+pub fn present_frame(o: crate::owners::Owners<'static>) -> bool {
+    crate::platform::show_frame_now(o)
 }

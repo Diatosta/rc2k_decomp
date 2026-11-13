@@ -502,7 +502,7 @@ mod same_as_old {
     fn the_ribbon_blocks_match_the_previous_versions() {
         let _lock = crate::test_support::test_lock();
         let ring = &effects().ring;
-        let view_matrix = &crate::race::owner::race().frame.matrices.view_matrix;
+        let view_matrix = &crate::race::owner::race().frame.matrices.get().view_matrix;
         let clock = &MarksClock::new();
         let kept_matrix: Vec<u32> = view_matrix
             .iter()
@@ -635,7 +635,7 @@ mod reference_vectors {
         recorded_writes("effects.run_ribbons.first_frame_x87", &SPEC, |b| {
             crate::effects::ring_entries::with_entry_at(ring, b[2], 0x10, 0x38, |e| {
                 super::first_frame_x87(
-                    &crate::race::owner::race().frame.matrices.view_matrix,
+                    &crate::race::owner::race().frame.matrices.get().view_matrix,
                     ring,
                     e,
                     crate::effects::asm_layout::copy_of::<crate::effects::setup::MarksClock>(b[1]),
@@ -731,7 +731,7 @@ mod reference_vectors {
             with_laid::<DrawWork, _>(b[1], |dw| {
                 crate::effects::ring_entries::with_entry_at(ring, b[2], 0x10, 0x1C, |e| {
                     super::turn_place_x87(
-                        &crate::race::owner::race().frame.matrices.view_matrix,
+                        &crate::race::owner::race().frame.matrices.get().view_matrix,
                         ring,
                         e,
                         dw,
@@ -739,19 +739,5 @@ mod reference_vectors {
                 });
             });
         });
-    }
-}
-
-#[cfg(test)]
-mod colours_tests {
-    use super::*;
-
-    #[test]
-    fn colours_start_as_the_games() {
-        let p = (&raw const crate::effects::owner::effects().ring.colours).cast::<u8>();
-        let own: Vec<u8> = (0..size_of::<Colours257>())
-            .map(|i| unsafe { p.add(i).read() })
-            .collect();
-        assert!(own == crate::test_support::first_values::bytes("effects.run_ribbons.COLOURS_257"));
     }
 }

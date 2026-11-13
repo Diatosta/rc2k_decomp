@@ -9,13 +9,14 @@
 //! `DSERR_BUFFERLOST` sets `g_soundBufferLost`. (A `GetStatus` at 0x40BE9D is in it but not
 //! reached.) One caller, the mixer's way of the turn.
 
-use crate::audio::store::AudioState;
+use crate::audio::own::AudioOwn;
 use crate::errors::Refused;
+use crate::session::PlainDword;
 
 const BUFFER_LOST: i32 = 0x8878_0096u32 as i32;
 
 /// True for no failure.
-pub fn mix(state: &AudioState) -> Result<bool, Refused> {
+pub fn mix(state: &AudioOwn) -> Result<bool, Refused> {
     use crate::platform_sound as ds;
     {
         let primary = state.primary_buffer.get();
@@ -54,13 +55,7 @@ pub fn mix(state: &AudioState) -> Result<bool, Refused> {
             .write_cursor
             .set(round(bytes.wrapping_add(state.write_cursor.get()), size));
         crate::audio::write_mix::write_mix_in_game(state)?;
-        let r = ds::unlock(
-            primary,
-            state
-                .locked_parts
-                .each_ref()
-                .map(super::super::session::Dword::get),
-        );
+        let r = ds::unlock(primary, state.locked_parts.each_ref().map(PlainDword::get));
         if r != 0 {
             return Ok(failed(r));
         }

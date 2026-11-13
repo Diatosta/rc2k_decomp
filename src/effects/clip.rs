@@ -2,7 +2,7 @@
 //! `ClipScreen` (IDA 0x7687E4 .. 0x7688B4) and `GlowState` (0x93CC70 .. 0x93CCB0).
 
 use crate::d3d::vertices_store::Vertex;
-use crate::session::{Dword, Float, PlainDword, PlainFloat};
+use crate::session::{PlainDword, PlainFloat};
 
 /// The clip's screen edges and work vertices (IDA 0x7687E4 .. 0x7688B4).
 #[repr(C)]
@@ -16,14 +16,14 @@ pub struct ClipScreen {
 
 const fn zero_vertex() -> Vertex {
     Vertex {
-        x: Float::new(0.0),
-        y: Float::new(0.0),
-        z: Float::new(0.0),
-        rhw: Float::new(0.0),
-        colour: Dword::new(0),
-        specular: Dword::new(0),
-        u: Float::new(0.0),
-        v: Float::new(0.0),
+        x: PlainFloat::new(0.0),
+        y: PlainFloat::new(0.0),
+        z: PlainFloat::new(0.0),
+        rhw: PlainFloat::new(0.0),
+        colour: PlainDword::new(0),
+        specular: PlainDword::new(0),
+        u: PlainFloat::new(0.0),
+        v: PlainFloat::new(0.0),
     }
 }
 

@@ -33,7 +33,7 @@ impl Snapshot {
 /// The registry's store named `name` (the first of that name): what a test reads or
 /// writes by offset (`Store::load`, `Store::store`) where it named an address.
 pub fn store(name: &str) -> &'static (dyn crate::cells::Store + Sync) {
-    crate::stores::listed()
+    super::registry::listed()
         .iter()
         .find(|e| e.name == name)
         .unwrap_or_else(|| panic!("no store {name} in the registry"))

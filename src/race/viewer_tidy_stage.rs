@@ -51,7 +51,7 @@ fn run(
             crate::menu::show_loading_picture::show_loading_picture_in(o)?;
         }
         TidyStep::ClearRaceSounds => {
-            sound_tables::clear_race_sound_objects(o.sound, o.audio, o.system)?;
+            sound_tables::clear_race_sound_objects(o)?;
         }
         TidyStep::SoundSettings => crate::sound::apply_settings::apply_settings(o)?,
         TidyStep::FreeFonts => crate::gfx::free_fonts::free_fonts(

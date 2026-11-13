@@ -162,10 +162,10 @@ def inner(args):
     # in any of the games, so all three start alike).
     time.sleep(25)
     shot(f"{game}{replay}_menu")
-    # Options (the fourth item), the replay list (two down), the replay, play.
-    for _ in range(3):
-        key(d, "Right")
-        time.sleep(2.5)
+    # Options (one Left: the menu wraps from the first item to it), the replay list (two
+    # down), the replay, play.
+    key(d, "Left")
+    time.sleep(2.5)
     key(d, "Return")
     time.sleep(5)
     for _ in range(2):

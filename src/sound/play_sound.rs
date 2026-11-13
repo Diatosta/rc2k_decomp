@@ -1,7 +1,7 @@
 //! `sound::play_sound` (0x409B36): sends the audio thread a sound to play (command 1).
 //!
-//! Nothing while sounds are held back (`AudioState.sounds_held_back` is 1; `sound::hold_sounds_back` sets it,
-//! `sound::let_sounds_play` clears it). Unless the sound mode in use (`AudioState.sound_mode`) has bit
+//! Nothing while sounds are held back (`AudioShared.sounds_held_back` is 1; `sound::hold_sounds_back` sets it,
+//! `sound::let_sounds_play` clears it). Unless the sound mode in use (`AudioShared.sound_mode`) has bit
 //! 0x100000 (the 3D modes), the command carries no place (the three place words are
 //! 0xFF800000) and the caller's first place value is the pan; in the 3D modes the three
 //! place values are the sound's place and the pan is 0.

@@ -537,7 +537,7 @@ impl LightRecords {
                     .ok_or(crate::errors::BadInput(PAST))?;
                 gear.test_speeds
                     .get((sample / 4) as usize)
-                    .map(crate::session::Float::bits)
+                    .map(crate::session::PlainFloat::bits)
                     .ok_or(crate::errors::BadInput(PAST))
             }
             Some(_) => Err(crate::errors::BadInput(PAST)),

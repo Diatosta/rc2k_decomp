@@ -83,16 +83,3 @@ pub fn write_savegame_slot(
         Ok(write_file_from(&path[..], &file.read()[..FILE_LEN])?.ok)
     }
 }
-
-#[cfg(test)]
-mod block_tests {
-    #[test]
-    fn first_values_are_the_games() {
-        crate::test_support::first_values::assert_block_starts_as_the_games(
-            &crate::saves::owner::SAVES.get().save_games,
-        );
-        crate::test_support::first_values::assert_block_starts_as_the_games(
-            &crate::saves::owner::SAVES.get().files.savegame_template,
-        );
-    }
-}

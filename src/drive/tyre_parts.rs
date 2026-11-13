@@ -12,7 +12,7 @@ use crate::errors::Refused;
 
 use crate::math::x87_float::{int, ld, st, stf};
 use crate::race::viewer_screen_store::ViewerPanelBlock;
-use crate::session::Dword;
+use crate::session::PlainDword;
 
 /// `d3d::set_texture` (0x41ACF5), on the game's thread (the tyre change is drawn there).
 pub fn set_texture(texture: u32) {
@@ -55,7 +55,7 @@ pub fn quad_tail(
             session.screen.get().width.get(),
             session.screen.get().height.get(),
         ],
-        &session.machine.scratch,
+        &system.machine().scratch,
     );
 }
 
@@ -68,7 +68,7 @@ fn quad_tail_math_in(
     rect: [u32; 4],
     vertices: &[Vertex],
     screen: [u32; 2],
-    scratch: &Dword,
+    scratch: &PlainDword,
 ) {
     let [x, y, width, height] = rect.map(|n| int(n as i32));
     let texel = ld(panel.texel_scale.get());
@@ -96,7 +96,7 @@ fn quad_tail_math_in(
 
 /// The tail's arithmetic on the game's panel (the tests').
 #[cfg(test)]
-fn quad_tail_math(rect: [u32; 4], vertices: &[Vertex], screen: [u32; 2], scratch: &Dword) {
+fn quad_tail_math(rect: [u32; 4], vertices: &[Vertex], screen: [u32; 2], scratch: &PlainDword) {
     quad_tail_math_in(
         crate::race::owner::race().viewer_panel(),
         rect,
@@ -183,7 +183,8 @@ mod reference_vectors {
                         &*(crate::test_support::vectors::block_vectors::at(a[1])
                             as *const [Vertex; 4]),
                         *(crate::test_support::vectors::block_vectors::at(a[2]) as *const [u32; 2]),
-                        &*(crate::test_support::vectors::block_vectors::at(a[3]) as *const Dword),
+                        &*(crate::test_support::vectors::block_vectors::at(a[3])
+                            as *const PlainDword),
                     )
                 };
                 quad_tail_math(rect, verts, screen, scratch);

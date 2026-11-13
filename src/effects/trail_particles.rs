@@ -144,7 +144,10 @@ pub fn trail_particles(
                 0x40,
                 x87::over_int(&effects.kinds.particle_tuning.trail_life_k, LIFE as i32).to_bits(),
             )?;
-            put(0x24, x87::loaded(&frame.matrices.view_place[13]).to_bits())?;
+            put(
+                0x24,
+                x87::loaded(&frame.matrices.get().view_place[13]).to_bits(),
+            )?;
         }
     }
     Ok(())

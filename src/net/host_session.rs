@@ -17,28 +17,25 @@ use crate::errors::Refused;
 use crate::net::find_sessions::{posted_or_called, zeroed_description};
 use crate::net::lobby::{log_bytes, log_hex};
 use crate::net::owner::Net;
-use crate::net::store::{NetVars, put_bytes};
-use crate::race::viewer_screen_store::{ViewerPanelBlock, texts};
+use crate::net::store::{NetShared, put_bytes};
+use crate::race::viewer_screen_store::{NetTexts, texts};
 
 const OPEN_CREATE: u32 = 2; // DPOPEN_CREATE
 pub const OPEN_JOIN: u32 = 1; // DPOPEN_JOIN
 
 /// `Open(description, flags)`.
-pub fn open(vars: &NetVars, flags: u32, name: &[u8]) -> u32 {
+pub fn open(vars: &NetShared, flags: u32, name: &[u8]) -> u32 {
     let d = crate::net::dp_objects::desc(&vars.session_desc, name);
     crate::net::dp_objects::open(vars.dplay.get(), &d, flags)
 }
 
 /// The code at 0x418C5A as the receiving thread calls it when it is posted.
-pub fn posted_open_host(net: &Net, _panel: &ViewerPanelBlock) -> u32 {
-    open(&net.vars, OPEN_CREATE, &net.setup().machine_name.read())
+pub fn posted_open_host(net: &Net, _lines: &NetTexts) -> u32 {
+    open(&net.vars, OPEN_CREATE, &net.vars.host_name.read())
 }
-pub fn host_session(
-    net: &Net,
-    system: &crate::system::owner::System,
-    panel: &ViewerPanelBlock,
-) -> Result<bool, Refused> {
-    log_bytes(&panel.text(texts::NET_HOST), false, 2);
+pub fn host_session(o: crate::owners::Owners<'static>, lines: &NetTexts) -> Result<bool, Refused> {
+    let net = o.net;
+    log_bytes(&lines.text(texts::NET_HOST), false, 2);
     log_bytes(&net.setup().machine_name.read(), true, 2);
     if net.vars.dplay.get() == 0 {
         return Ok(false);
@@ -51,17 +48,18 @@ pub fn host_session(
     net.joined()
         .joined_password
         .write(&net.setup().session_password.read());
+    // For `posted_open_host`, which may run on the receiving thread.
+    net.vars.host_name.write(&net.setup().machine_name.read());
     zeroed_description(&net.vars)?;
     let desc = &net.vars.session_desc;
     desc.flags.set(0x44);
-    put_bytes(&desc.application, &net.vars.app_guid.read());
+    put_bytes(&desc.application, &crate::net::store::APP_GUID);
     desc.max_players.set(net.setup().most_players.get());
     // The name goes to `open` as text (the description's pointer is left 0).
     put_bytes(&desc.user, &net.setup().session_password.read());
     finish(
-        net,
-        system,
-        panel,
+        o,
+        lines,
         posted_open_host,
         crate::net::create_group::create_group,
         texts::NET_HOST_COMPLETE,
@@ -72,24 +70,24 @@ pub fn host_session(
 /// window restored; the session marked made, the player made, then `then` (the group made or
 /// joined) and the text numbered `done` logged. Shared with `net::join_session`. Whether all of it worked.
 pub fn finish(
-    net: &Net,
-    system: &crate::system::owner::System,
-    panel: &ViewerPanelBlock,
+    o: crate::owners::Owners<'static>,
+    lines: &NetTexts,
     posted: crate::net::post_call::PostedCall,
-    then: fn(&crate::net::store::NetVars) -> Result<bool, Refused>,
+    then: fn(&crate::net::store::NetShared) -> Result<bool, Refused>,
     done: usize,
 ) -> Result<bool, Refused> {
-    let result = posted_or_called(net, system, panel, posted);
-    log_bytes(&panel.text(texts::NET_OPEN), false, 2);
+    let net = o.net;
+    let result = posted_or_called(o, lines, posted);
+    log_bytes(&lines.text(texts::NET_OPEN), false, 2);
     log_hex(result, true);
     crate::system::restore_window::restore_window();
     if result != 0 {
         return Ok(false);
     }
     net.vars.session_open.set(1);
-    if !crate::net::create_player::create_player(net, panel)? || !then(&net.vars)? {
+    if !crate::net::create_player::create_player(net, lines)? || !then(&net.vars)? {
         return Ok(false);
     }
-    log_bytes(&panel.text(done), true, 2);
+    log_bytes(&lines.text(done), true, 2);
     Ok(true)
 }

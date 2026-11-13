@@ -5,7 +5,7 @@
 
 use crate::session::{GameThread, PlainDword};
 use crate::sound::sets_store::{
-    CueLists, MenuSounds, RaceSoundSets, SoundKinds, SpotVoices, SurfaceSets,
+    CueLists, MenuSounds, RaceSoundSets, SoundKinds, SoundRequest, SpotVoices, SurfaceSets,
 };
 use crate::sound::store::{
     CarStream, CdAudio, RaceClock, RaceSounds, SettingsApplied, SoundOptions, SoundShared,
@@ -25,6 +25,8 @@ pub struct RaceSoundState {
     pub stage: GameThread<StageSounds>,
     pub spot_picks: GameThread<SpotPicks>,
     pub sets: RaceSoundSets,
+    /// `g_raceSoundRequest` (0x5124BC): the request each sound is sent with (a work area).
+    pub request: GameThread<SoundRequest>,
     pub cue_lists: GameThread<CueLists>,
     pub kinds: GameThread<SoundKinds>,
     pub surface_sets: GameThread<SurfaceSets>,
@@ -44,6 +46,7 @@ impl RaceSoundState {
             stage: GameThread::new(StageSounds::new()),
             spot_picks: GameThread::new(SpotPicks::new()),
             sets: RaceSoundSets::new(),
+            request: GameThread::new(SoundRequest::new()),
             cue_lists: GameThread::new(CueLists::new()),
             kinds: GameThread::new(SoundKinds::new()),
             surface_sets: GameThread::new(SurfaceSets::new()),

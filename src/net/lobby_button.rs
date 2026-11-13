@@ -31,7 +31,8 @@ pub fn lobby_button(
     menus: &crate::menu::owner::Menus,
 ) -> Result<u32, Refused> {
     // Converted: `rc2k_core::net::screens` (`lobby_button_flags`, `next_button_x`).
-    let flags = screens::lobby_button_flags(net.vars.own.state(), item, net.vars.after_race.get());
+    let flags =
+        screens::lobby_button_flags(net.vars.own.state(), item, net.lobby().after_race.get());
     draw_button(so, net, install, string, flags, x, y, item, gfx, menus)?;
     Ok(screens::next_button_x(x, net.button.get().width.get()))
 }

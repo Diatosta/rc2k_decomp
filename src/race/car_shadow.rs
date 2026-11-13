@@ -19,7 +19,7 @@ use crate::race::shadow_skids_store::ShadowPoint;
 use crate::race::trap::Trap;
 use crate::scene::polygon::{list_cell, old_list_cell};
 use crate::scene::polygon_store::PolygonEntry;
-use crate::session::{Byte, Dword, Float};
+use crate::session::{Byte, PlainDword, PlainFloat};
 
 /// The shadow's working state: what `cast_car_shadows` writes and reads within itself, one
 /// for each call, given down to its parts. The original kept it in the race block
@@ -32,37 +32,37 @@ pub struct ShadowWork {
     /// The shadow's points, records of 0x20 bytes (0x40 at most), the hull's records after.
     points: [ShadowPoint; 0x100],
     /// The car's corners (`g_shadowPointCount`; from its block's +0x260).
-    point_count: Dword,
+    point_count: PlainDword,
     /// The length of the farthest point (`shadow_points`).
-    farthest_length: Float,
+    farthest_length: PlainFloat,
     /// The farthest point's number (the original kept its record's address).
-    farthest: Dword,
+    farthest: PlainDword,
     /// The first point's angle (`shadow_angles`).
-    first_angle: Float,
+    first_angle: PlainFloat,
     /// cos(turn) x cot(sun) (`sun_slant`).
-    slant_x: Float,
+    slant_x: PlainFloat,
     /// sin(turn) x cot(sun).
-    slant_z: Float,
+    slant_z: PlainFloat,
     /// The shadow hull's points.
-    hull_count: Dword,
+    hull_count: PlainDword,
     /// What the shadow is raised above the face (0x1999, `cast_car_shadows`).
-    lift: Dword,
+    lift: PlainDword,
     /// The shadow's texture (0xC3).
-    texture: Dword,
+    texture: PlainDword,
     /// The three corners (scene point numbers) of the course face the shadow is cut to.
-    face_corners: [Dword; 3],
+    face_corners: [PlainDword; 3],
     /// The edge cut by: x and z from, x and z to (`clip_to_edge`).
-    edge: [Dword; 4],
+    edge: [PlainDword; 4],
     /// `edge_crossing`'s work dwords (0x641958 .. 0x64198C in the original).
-    crossing: [Dword; 14],
+    crossing: [PlainDword; 14],
     /// The next new scene point (`shadow_on_face`, `edge_crossing`).
-    next_point: Dword,
+    next_point: PlainDword,
     /// The hull's list.
-    list: [Dword; 64],
+    list: [PlainDword; 64],
     /// Its count.
-    list_count: Dword,
+    list_count: PlainDword,
     /// The ground's height under the car.
-    ground: Dword,
+    ground: PlainDword,
     /// The ground searches' fields (the original's were the physics', `GROUND_WORK` ..).
     search: GroundCells,
 }
@@ -71,22 +71,22 @@ impl ShadowWork {
     pub fn new() -> Self {
         Self {
             points: std::array::from_fn(|_| ShadowPoint::new()),
-            point_count: Dword::new(0),
-            farthest_length: Float::new(0.0),
-            farthest: Dword::new(0),
-            first_angle: Float::new(0.0),
-            slant_x: Float::new(0.0),
-            slant_z: Float::new(0.0),
-            hull_count: Dword::new(0),
-            lift: Dword::new(0),
-            texture: Dword::new(0),
-            face_corners: [const { Dword::new(0) }; 3],
-            edge: [const { Dword::new(0) }; 4],
-            crossing: [const { Dword::new(0) }; 14],
-            next_point: Dword::new(0),
-            list: [const { Dword::new(0) }; 64],
-            list_count: Dword::new(0),
-            ground: Dword::new(0),
+            point_count: PlainDword::new(0),
+            farthest_length: PlainFloat::new(0.0),
+            farthest: PlainDword::new(0),
+            first_angle: PlainFloat::new(0.0),
+            slant_x: PlainFloat::new(0.0),
+            slant_z: PlainFloat::new(0.0),
+            hull_count: PlainDword::new(0),
+            lift: PlainDword::new(0),
+            texture: PlainDword::new(0),
+            face_corners: [const { PlainDword::new(0) }; 3],
+            edge: [const { PlainDword::new(0) }; 4],
+            crossing: [const { PlainDword::new(0) }; 14],
+            next_point: PlainDword::new(0),
+            list: [const { PlainDword::new(0) }; 64],
+            list_count: PlainDword::new(0),
+            ground: PlainDword::new(0),
             search: GroundCells::new(),
         }
     }
@@ -228,7 +228,7 @@ fn circle_place(e: &PolygonEntry, k: u32, n: u32, radius: u32, unit: u32) {
 /// `CIRCLE[1]`). Refuses (before anything) a hull of no points (its loop tests at its end) or more
 /// than 0x40.
 pub fn shadow_polygon(
-    polygon_work: &'static crate::scene::polygon_store::PolygonWork,
+    polygon_work: &crate::scene::polygon_store::PolygonWork,
     points: &OwnPoints,
     work: &ShadowWork,
     reads: crate::workers::DrawReads<'_>,
@@ -259,9 +259,9 @@ pub fn shadow_polygon(
 
 /// A polygon work entry's address (`POLYGON_WORK.entries` + 0x44 x n).
 fn work_entry(
-    polygon_work: &'static crate::scene::polygon_store::PolygonWork,
+    polygon_work: &crate::scene::polygon_store::PolygonWork,
     n: u32,
-) -> Result<&'static PolygonEntry, BadInput> {
+) -> Result<&PolygonEntry, BadInput> {
     polygon_work
         .entries
         .get(n as usize)
@@ -327,7 +327,9 @@ fn crossing_block(
     };
     poly.clip_work[2].set_bits(whole(0)? as u32);
     poly.clip_work[4].set_bits(whole(2)? as u32);
-    let float = |a: &Dword, b: &Dword| stf(ld(a.get()) + (ld(b.get()) - ld(a.get())) * share);
+    let float = |a: &dyn crate::session::DwordLike, b: &dyn crate::session::DwordLike| {
+        stf(ld(a.get()) + (ld(b.get()) - ld(a.get())) * share)
+    };
     poly.clip_work[10].set(float(&ea.u2, &eb.u2));
     poly.clip_work[11].set(float(&ea.v2, &eb.v2));
     let byte = |a: &Byte, b: &Byte| {
@@ -354,7 +356,7 @@ fn edge_crossing(
     let (pa, pb) = (ea.point.get(), eb.point.get());
     let c = &work.edge;
     let w = &work.crossing;
-    let rd = |d: &crate::session::Dword| d.get();
+    let rd = |d: &dyn crate::session::DwordLike| d.get();
     let points = &ctx.part.points;
     let ((bx, bz), (ax, az)) = (
         point_xz(ctx.reads.course(), points, pb)?,
@@ -433,7 +435,7 @@ fn clip_to_edge(
     // crossings past 0x40 runs on from the list into the old list, and from the old list
     // into the gap after it, as the original (`list_cell` names the three fields). A hull of
     // at most 0x40 points cut by three edges adds at most as many again as it holds each time.
-    let polygon = ctx.part.polygon;
+    let polygon = &ctx.part.polygon;
     for k in 0..count as usize {
         old_list_cell(polygon, k).set(list_cell(polygon, k).get());
     }
@@ -445,7 +447,7 @@ fn clip_to_edge(
         count,
         |k| old_list_cell(polygon, k as usize).get(),
         |e| {
-            let entry = match work_entry(ctx.part.polygon, e) {
+            let entry = match work_entry(&ctx.part.polygon, e) {
                 Ok(x) => x.point.get(),
                 Err(err) => {
                     trap.keep(err);
@@ -463,9 +465,9 @@ fn clip_to_edge(
                 edge_crossing(
                     ctx,
                     work,
-                    work_entry(ctx.part.polygon, a)?,
-                    work_entry(ctx.part.polygon, b)?,
-                    work_entry(ctx.part.polygon, next)?,
+                    work_entry(&ctx.part.polygon, a)?,
+                    work_entry(&ctx.part.polygon, b)?,
+                    work_entry(&ctx.part.polygon, next)?,
                 )
             })();
             if let Err(err) = crossing {
@@ -530,7 +532,7 @@ pub fn clip_shadow_to_face(
 /// `GROUND_WORK.ground_z`) through `physics::face_shares` and `physics::plane_height`, its y the
 /// height (`GROUND_WORK.ground_height`) plus `work.lift`.
 fn raise_onto_face(
-    polygon_work: &'static crate::scene::polygon_store::PolygonWork,
+    polygon_work: &crate::scene::polygon_store::PolygonWork,
     points: &OwnPoints,
     reads: crate::workers::DrawReads<'_>,
     work: &ShadowWork,
@@ -571,13 +573,12 @@ pub fn shadow_on_face(
     work: &ShadowWork,
     car: &Car,
 ) -> Result<(), Refused> {
-    let race = ctx.race;
     let count: u32 = work.list_count.get();
     if count > 0x40 {
         return Err(BadInput("a shadow list past 0x40").into());
     }
     ctx.view.polygon.polygon_drawn.set(0u32);
-    let polygon = ctx.part.polygon;
+    let polygon = &ctx.part.polygon;
     for k in 0..count as usize {
         list_cell(polygon, k).set(work.list[k].get());
     }
@@ -605,11 +606,11 @@ pub fn shadow_on_face(
     let n: u32 = ctx.view.polygon.polygon_vertex_count.get();
     for k in 0..n {
         raise_onto_face(
-            ctx.part.polygon,
+            &ctx.part.polygon,
             &ctx.part.points,
             ctx.reads,
             work,
-            list_cell(ctx.part.polygon, k as usize).get(),
+            list_cell(&ctx.part.polygon, k as usize).get(),
         )?;
     }
     crate::scene::project_polygon::project_polygon(
@@ -654,10 +655,8 @@ pub fn shadow_on_face(
     ctx.view.polygon.polygon_sides[1].set(1u32);
     ctx.view.face.polygon_mode.set(5u32);
     crate::scene::draw_polygon::draw_polygon_in_game(
-        &ctx.view.polygon,
+        ctx.view,
         ctx.part,
-        race,
-        &ctx.view.face,
         ctx.reads,
         ctx.reads.screen,
     )?;
@@ -866,7 +865,7 @@ pub fn cast_car_shadow(
     if !hull_drawn(work.hull_count.get()) {
         return Ok(());
     }
-    shadow_polygon(ctx.part.polygon, &ctx.part.points, work, ctx.reads)?;
+    shadow_polygon(&ctx.part.polygon, &ctx.part.points, work, ctx.reads)?;
     let n: u32 = work.hull_count.get();
     work.list_count.set(n);
     // The hull has at most 0x40 points (`shadow_hull`), the list's length.
@@ -1186,13 +1185,13 @@ mod vector_tests {
                 sun_slant(&work, sun, turn);
                 let at = [r.float(), r.float(), r.float()];
                 let point = ShadowPoint {
-                    x: Dword::new(at[0]),
-                    y: Dword::new(at[1]),
-                    z: Dword::new(at[2]),
-                    angle: Dword::new(0),
-                    length: Dword::new(0),
-                    zeroed: Dword::new(0),
-                    carried_words: [Dword::new(0), Dword::new(0)],
+                    x: PlainDword::new(at[0]),
+                    y: PlainDword::new(at[1]),
+                    z: PlainDword::new(at[2]),
+                    angle: PlainDword::new(0),
+                    length: PlainDword::new(0),
+                    zeroed: PlainDword::new(0),
+                    carried_words: [PlainDword::new(0), PlainDword::new(0)],
                 };
                 let got = [
                     work.slant_x.get().to_bits(),

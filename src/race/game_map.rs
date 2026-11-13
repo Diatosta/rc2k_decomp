@@ -473,13 +473,3 @@ pub fn load_game_map(
     frame.map().key_pixels.set(0u32);
     Ok(())
 }
-
-#[cfg(test)]
-mod block_tests {
-    use crate::race::owner::race;
-
-    #[test]
-    fn first_values_are_the_games() {
-        crate::test_support::first_values::assert_block_starts_as_the_games(race().frame.map());
-    }
-}

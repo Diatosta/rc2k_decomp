@@ -8,11 +8,11 @@
 //! (twice),
 //! `audio::make_buffer`. Refuses a room past the table's ten (the original reads past it).
 
+use crate::audio::own::AudioOwn;
 use crate::audio::property_sets::set_eax_room;
-use crate::audio::store::AudioState;
 use crate::errors::Refused;
 
 /// On the game's variables.
-pub fn in_game(state: &AudioState) -> Result<(), Refused> {
+pub fn in_game(state: &AudioOwn) -> Result<(), Refused> {
     set_eax_room(state, state.eax_room.get())
 }

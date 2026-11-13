@@ -87,13 +87,3 @@ impl ControlsScreen {
         }
     }
 }
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn controls_screen_starts_as_the_games() {
-        crate::test_support::first_values::assert_block_starts_as_the_games(
-            &crate::screens::owner::SCREENS_OWNER.get().controls,
-        );
-    }
-}

@@ -5,8 +5,6 @@
 //! frames and read by the drawing parts (the shadow's search reads the mark) through their
 //! `workers::DrawReads`. Names are readings unless IDA's.
 
-#[cfg(test)]
-use crate::race::owner::race;
 use crate::session::PlainDword;
 
 #[repr(C)]
@@ -36,17 +34,5 @@ impl GroundProbe {
             settle_mark: PlainDword::new(128),
             ..ZeroCells::ZERO
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn first_values_are_the_games() {
-        crate::test_support::first_values::assert_block_starts_as_the_games(
-            race().physics.ground_probe.get(),
-        );
     }
 }

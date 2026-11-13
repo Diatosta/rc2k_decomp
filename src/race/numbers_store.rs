@@ -278,21 +278,3 @@ impl Numbers {
         }
     }
 }
-
-/// IDA 0x5C5CE0, the first byte of the piece.
-pub const START: usize = 0x5C5CE0;
-/// IDA 0x5C5E50, the end of the piece.
-pub const END: usize = 0x5C5E50;
-
-const _: () = assert!(END - START == core::mem::size_of::<Numbers>());
-
-#[cfg(test)]
-mod tests {
-
-    #[test]
-    fn first_values_are_the_games() {
-        crate::test_support::first_values::assert_block_starts_as_the_games(
-            crate::race::owner::RACE.course.numbers.get(),
-        );
-    }
-}

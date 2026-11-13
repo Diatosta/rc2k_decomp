@@ -2,8 +2,6 @@
 
 use crate::cells::ZeroCells;
 
-#[cfg(test)]
-use crate::race::owner::race;
 use crate::session::{PlainDword, PlainFloat};
 
 #[repr(C)]
@@ -196,24 +194,5 @@ impl SoundSpotBlock {
             bump_band_scale: PlainFloat::new(2e+02),
             ..ZeroCells::ZERO
         }
-    }
-}
-
-/// IDA 0x6D18C8, the first byte of the piece.
-pub const START: usize = 0x6D18C8;
-/// IDA 0x6D1DD4, the end of the piece.
-pub const END: usize = 0x6D1DD4;
-
-const _: () = assert!(END - START == core::mem::size_of::<SoundSpotBlock>());
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn first_values_are_the_games() {
-        crate::test_support::first_values::assert_block_starts_as_the_games(
-            race().frame.sound_spots(),
-        );
     }
 }

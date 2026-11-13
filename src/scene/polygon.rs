@@ -9,7 +9,7 @@ use crate::session::Dword;
 
 /// The work table's entry `n` (the 64 of the polygon, then the 64 kept for the fan) in the
 /// drawing part's work. A number past the table is refused.
-pub fn entry(work: &'static PolygonWork, n: usize) -> Result<&'static PolygonEntry, BadInput> {
+pub fn entry(work: &PolygonWork, n: usize) -> Result<&PolygonEntry, BadInput> {
     work.entries
         .get(n)
         .ok_or(BadInput("a polygon entry past the work table"))
@@ -18,7 +18,7 @@ pub fn entry(work: &'static PolygonWork, n: usize) -> Result<&'static PolygonEnt
 /// The list's cell `n`. The original keeps the list with room for 64 numbers, and a
 /// polygon of more vertices (up to `MOST`, or a clip's up to twice that) goes on into the
 /// old list's place and the gap after it, which the old list's cells share.
-pub fn list_cell(work: &'static PolygonWork, n: usize) -> &'static Dword {
+pub fn list_cell(work: &PolygonWork, n: usize) -> &Dword {
     let after_list = n.wrapping_sub(work.list.len());
     let after_old = after_list.wrapping_sub(work.old_list.len());
     work.list
@@ -34,7 +34,7 @@ pub fn list_cell(work: &'static PolygonWork, n: usize) -> &'static Dword {
 }
 
 /// The list kept before a clip, cell `n`: the list's cell 64 + `n` (as `list_cell`).
-pub fn old_list_cell(work: &'static PolygonWork, n: usize) -> &'static Dword {
+pub fn old_list_cell(work: &PolygonWork, n: usize) -> &Dword {
     list_cell(work, work.list.len() + n)
 }
 
@@ -139,14 +139,14 @@ pub fn material_byte(
 }
 
 /// A polygon's entries: on the stack for all but the largest polygons.
-pub type Listed = smallvec::SmallVec<[&'static PolygonEntry; 32]>;
+pub type Listed<'w> = smallvec::SmallVec<[&'w PolygonEntry; 32]>;
 
 /// The polygon's entries in the list's order. Refuses what the originals go wrong on:
 /// more vertices than the vertex buffer holds, a list entry past the table.
-pub fn listed(
-    work: &'static PolygonWork,
+pub fn listed<'w>(
+    work: &'w PolygonWork,
     poly: &crate::scene::polygon_work::PolygonWork,
-) -> Result<Listed, BadInput> {
+) -> Result<Listed<'w>, BadInput> {
     let count: u32 = poly.polygon_vertex_count.get();
     if count > MOST {
         return Err(BadInput("a polygon of more than 256 vertices"));

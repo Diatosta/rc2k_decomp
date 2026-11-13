@@ -12,7 +12,6 @@
 //! restore the platform's call). a call by address goes through `routes.rs`.
 
 use crate::errors::Refused;
-use crate::race::owner::Race;
 const RESTORE: usize = 0x405B10; // 0x405B10: the surfaces restored (the platform's)
 
 /// A stage is loading (`race::load_stage`). Not the original's: it draws the bar for the
@@ -34,13 +33,7 @@ pub fn shown() -> (u64, u64) {
 }
 
 /// Timed.
-pub fn loading_bar_frame(
-    race: &Race,
-    system: &crate::system::owner::System,
-    scene: &crate::scene::owner::Scene,
-    gfx: &crate::gfx::owner::Gfx,
-    d3d: &crate::d3d::owner::D3d,
-) -> Result<(), Refused> {
+pub fn loading_bar_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     use std::sync::atomic::Ordering::Relaxed;
     // Not the original's: some 30 frames a second at most, and the last. Every step's frame
     // was 3/4 of a load (882 ms of 1231).
@@ -50,26 +43,21 @@ pub fn loading_bar_frame(
         let mut last = LAST_FRAME
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        if race.shared.vars.get().bar_share.get() < 100
+        if o.race.shared.vars.get().bar_share.get() < 100
             && last.is_some_and(|last| begun.duration_since(last) < BAR_FRAME)
         {
             return Ok(());
         }
         *last = Some(begun);
     }
-    let result = frame(race, system, scene, gfx, d3d);
+    let result = frame(o);
     FRAMES[0].fetch_add(1, Relaxed);
     FRAMES[1].fetch_add(begun.elapsed().as_micros() as u64, Relaxed);
     result
 }
 
-fn frame(
-    race: &Race,
-    system: &crate::system::owner::System,
-    scene: &crate::scene::owner::Scene,
-    gfx: &crate::gfx::owner::Gfx,
-    d3d: &crate::d3d::owner::D3d,
-) -> Result<(), Refused> {
+fn frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
+    let (race, system, scene, gfx, d3d) = (o.race, o.system, o.scene, o.gfx, o.d3d);
     let session = &system.session;
     let shared = &race.shared;
     // Converted: `rc2k_core::race::loading::{FRAME_MARK, frame_tried}`.
@@ -86,7 +74,7 @@ fn frame(
     }
     let drawn = 'frame: {
         let active: u32 = session.flags.window_active.get();
-        if active == 0 || !frame_tried(active, session.flags.lost.get()) {
+        if active == 0 || !frame_tried(active, system.window_loop().lost.get()) {
             break 'frame false;
         }
         begin_scene::begin_scene(race, d3d, crate::workers::game_scratch());
@@ -100,7 +88,7 @@ fn frame(
             break 'frame false;
         }
         unlock_frame::unlock_frame(&race.frame, gfx);
-        present_frame::present_frame()
+        present_frame::present_frame(o)
     };
     if drawn || session.flags.quitting.is_set() {
         return Ok(());

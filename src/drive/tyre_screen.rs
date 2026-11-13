@@ -77,7 +77,7 @@ pub fn tyre_screen(
         0xFF_FFFF,
         race.viewer_panel(),
         system,
-        crate::workers::game_scratch().vertices,
+        &crate::workers::game_scratch().vertices,
     )?;
     crate::drive::tyre_quad::quad_of(
         shared
@@ -89,7 +89,7 @@ pub fn tyre_screen(
         0xFF_FFFF,
         race.viewer_panel(),
         system,
-        crate::workers::game_scratch().vertices,
+        &crate::workers::game_scratch().vertices,
     )?;
     crate::drive::tyre_turned_quad::tyre_turned_quad(
         shared,
@@ -103,7 +103,7 @@ pub fn tyre_screen(
         device,
         system,
         race.viewer_panel(),
-        crate::workers::game_scratch().vertices,
+        &crate::workers::game_scratch().vertices,
     )?;
     crate::drive::tyre_screen_parts::tyre_screen_parts(race, system)
 }

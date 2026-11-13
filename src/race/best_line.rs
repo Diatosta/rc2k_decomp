@@ -11,7 +11,7 @@ use crate::race::owner::Race;
 use crate::race::owner_course::Course;
 use crate::race::owner_shared::RaceShared;
 use crate::race::trap::Trap;
-use crate::session::{Dword, PlainDword};
+use crate::session::{PlainDword, PlainFloat};
 
 /// The entries `g_checkpointFaces` and the lists after it have room for.
 pub const MOST_CHECKS: u32 = rc2k_core::race::checkpoints::MOST_CHECKS;
@@ -27,7 +27,7 @@ fn face_field<T: crate::race::course_places::Whole>(
 
 /// Checkpoint n's face (its number).
 fn check_face(shared: &RaceShared, n: u32) -> u32 {
-    crate::race::checkpoints_store::face(&shared.buffers.checkpoints, n as usize).get()
+    crate::race::checkpoints_store::face(&shared.buffers.reads.get().checkpoints, n as usize).get()
 }
 
 fn count(shared: &RaceShared) -> Result<u32, Refused> {
@@ -50,8 +50,8 @@ pub fn set_line_face_kind(shared: &RaceShared) {
 /// `race::add_surface_share` (0x445F7B): with `g_surfaceWeight` not 0, surface `surface` & 0xF's
 /// share gets weight / 256 * 0.25 / `g_checkpointCount` * 100 more (on the x87, the count as a
 /// whole number). The exact x87 version (for `race::surface_shares`, whose whole numbers are
-/// rounded from the shares).
-pub fn add_surface_share(race: &Race, surface: u32) {
+/// rounded from the shares), which `surface_shares` keeps as floats in `shares` while it adds.
+fn add_surface_share(race: &Race, shares: &[PlainFloat; 16], surface: u32) {
     let course = &race.course;
     let shared = &race.shared;
     let weight = shared.vars.get().surface_weight.get() as i32;
@@ -59,7 +59,7 @@ pub fn add_surface_share(race: &Race, surface: u32) {
         return;
     }
     // g_surfaceShares: 16 floats
-    let share = &shared.vars.get().surface_shares[(surface & 0xF) as usize];
+    let share = &shares[(surface & 0xF) as usize];
     // 256, 0.25, 100
     let [a, b, c] = [
         course.numbers.get().k256.get(),
@@ -119,7 +119,8 @@ pub fn count_checks(course: &Course, shared: &RaceShared) -> Result<(), Refused>
     });
     trap.finish()?;
     for (k, &c) in counts.iter().enumerate() {
-        crate::race::checkpoints_store::check_count(&shared.buffers.checkpoints, k).set(c);
+        crate::race::checkpoints_store::check_count(&shared.buffers.reads.get().checkpoints, k)
+            .set(c);
     }
     Ok(())
 }
@@ -131,9 +132,9 @@ const MOST_FACES: u32 = 0x10_0000;
 #[derive(Clone, Copy)]
 pub struct Cameras {
     pub kind: u8,
-    pub list: for<'a> fn(&'a Race) -> &'a [Dword],
+    pub list: for<'a> fn(&'a Race) -> &'a [PlainDword],
     pub count: for<'a> fn(&'a RaceShared) -> &'a PlainDword,
-    pub nearest: for<'a> fn(&'a Race) -> &'a [Dword],
+    pub nearest: for<'a> fn(&'a Race) -> &'a [PlainDword],
 }
 
 /// 0x445BB2 ("replaycam1") and 0x445CF1 ("replaycam2").
@@ -162,14 +163,14 @@ fn work(shared: &RaceShared, o: u32) -> &PlainDword {
 /// Entry `n` of a checkpoint table. Every number here is held below the lists' limits
 /// (`count`, `MOST_CHECKS`, the cameras' `MOST_CAMERAS`), so none leaves its table; one
 /// that did is refused.
-fn read_n(table: &[Dword], n: u32) -> Result<u32, BadInput> {
+fn read_n(table: &[PlainDword], n: u32) -> Result<u32, BadInput> {
     table
         .get(n as usize)
-        .map(Dword::get)
+        .map(PlainDword::get)
         .ok_or(BadInput("a checkpoint number past its table"))
 }
 
-fn write_n(table: &[Dword], n: u32, value: u32) -> Result<(), BadInput> {
+fn write_n(table: &[PlainDword], n: u32, value: u32) -> Result<(), BadInput> {
     table
         .get(n as usize)
         .ok_or(BadInput("a checkpoint number past its table"))?
@@ -487,9 +488,7 @@ pub fn surface_shares(race: &Race) -> Result<(), Refused> {
         return Ok(());
     }
     {
-        for share in &shared.vars.get().surface_shares {
-            share.set(0.0);
-        }
+        let shares: [PlainFloat; 16] = std::array::from_fn(|_| PlainFloat::new(0.0));
         let faces: u32 = course.course.get().course_face_count.get();
         let byte = |info: u32, offset: u32| -> Result<u32, BadInput> {
             Ok(
@@ -499,7 +498,7 @@ pub fn surface_shares(race: &Race) -> Result<(), Refused> {
         };
         let four = |info: u32| -> Result<(), BadInput> {
             for k in 0..4 {
-                add_surface_share(race, byte(info, 0x10 + k)?);
+                add_surface_share(race, &shares, byte(info, 0x10 + k)?);
             }
             Ok(())
         };
@@ -548,9 +547,8 @@ pub fn surface_shares(race: &Race) -> Result<(), Refused> {
                 ));
             four(second)?;
         }
-        for c in 0..16 {
-            let share = &shared.vars.get().surface_shares[c];
-            share.set_bits(x87::to_int(share) as u32);
+        for (c, share) in shares.iter().enumerate() {
+            shared.vars.get().surface_shares[c].set(x87::to_int(share) as u32);
         }
     }
     Ok(())

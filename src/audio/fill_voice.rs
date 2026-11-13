@@ -13,12 +13,12 @@
 //! channel, no list link. One caller, command 3 (`audio::load_sounds`).
 //! Refuses a shared voice for a record without voices, a chain without its end.
 
-use crate::audio::owner::Audio;
+use crate::audio::own::AudioThread;
 use crate::audio::samples::fill_voice;
 use crate::errors::Refused;
 
 pub fn fill_voice_in_game(
-    audio: &Audio,
+    audio: &AudioThread,
     at: u32,
     record: crate::audio::voices::SampleRecord,
     shared: u32,

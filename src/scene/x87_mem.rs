@@ -126,6 +126,29 @@ impl Base for &crate::session::Dword {
     }
 }
 
+/// A game-thread variable as the one dword of an operand.
+impl Base for &crate::session::PlainDword {
+    #[inline(always)]
+    fn dword(self, off: usize) -> u32 {
+        assert!(off == 0);
+        self.get()
+    }
+    #[inline(always)]
+    fn set_dword(self, off: usize, value: u32) {
+        assert!(off == 0);
+        self.set(value);
+    }
+    fn set_word(self, off: usize, value: u16) {
+        set_word_of_dword(self, off, value);
+    }
+    fn tbyte(self, off: usize) -> [u8; 10] {
+        tbyte_of_dwords(self, off)
+    }
+    fn set_tbyte(self, off: usize, value: [u8; 10]) {
+        set_tbyte_of_dwords(self, off, value);
+    }
+}
+
 /// Ten-byte values only read, the operands of `fld tbyte`.
 impl Base for &[[u8; 10]] {
     fn dword(self, _off: usize) -> u32 {

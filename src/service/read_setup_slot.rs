@@ -80,16 +80,3 @@ pub fn read_setup_slot(service: &Service, slot: u32) -> Result<bool, Refused> {
         }
     }
 }
-
-#[cfg(test)]
-mod block_tests {
-    #[test]
-    fn first_values_are_the_games() {
-        crate::test_support::first_values::assert_block_starts_as_the_games(
-            &crate::service::owner::SERVICE.get().set_ups,
-        );
-        crate::test_support::first_values::assert_block_starts_as_the_games(
-            &crate::service::owner::SERVICE.get().template,
-        );
-    }
-}

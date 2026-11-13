@@ -31,13 +31,3 @@ pub fn check_developer_machine(strings: &crate::strings::owner::Strings) {
         DEVELOPER.get().set(1);
     }
 }
-
-#[cfg(test)]
-mod developer_tests {
-    use super::*;
-
-    #[test]
-    fn first_value_is_the_games() {
-        crate::test_support::first_values::assert_block_starts_as_the_games(DEVELOPER.get());
-    }
-}

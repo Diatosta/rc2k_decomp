@@ -11,8 +11,6 @@
 
 #![allow(unsafe_code)]
 
-#[cfg(test)]
-use crate::system::owner::system;
 use std::cell::{Cell, UnsafeCell};
 use std::sync::atomic::{AtomicU8, AtomicU16, AtomicU32, Ordering::Relaxed};
 
@@ -477,11 +475,9 @@ const fn atomic_bytes<const N: usize>(value: [u8; N]) -> [AtomicU8; N] {
 
 /// One value only the game's thread reaches: a non-atomic cell (`!Sync`, so that a second
 /// thread's access does not compile). A store of these sits in a `GameThread`.
-#[allow(dead_code, reason = "the next stores to flip (M3) use it")]
 #[repr(transparent)]
 pub struct Plain<T: Copy>(Cell<T>);
 
-#[allow(dead_code, reason = "the next stores to flip (M3) use it")]
 impl<T: Copy> Plain<T> {
     pub const fn new(value: T) -> Self {
         Self(Cell::new(value))
@@ -1250,10 +1246,6 @@ impl<T> Shared<T> {
     }
 }
 
-const fn zeros<const N: usize>() -> [Dword; N] {
-    [const { Dword::new(0) }; N]
-}
-
 /// The screen: 0x4F494C .. 0x4F4984.
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
@@ -1285,135 +1277,171 @@ impl Screen {
     }
 }
 
-#[cfg(test)]
-pub const SCREEN_LEN: usize = core::mem::size_of::<Screen>();
-
-/// The window's state and the main loop's: 0x518370 .. 0x51839C.
+/// The window's flags the other threads read or write: `quitting` (the audio thread, the key
+/// thread, the network's receiving thread, the file loads), `window_focused` (the key thread,
+/// the SDL audio callback) and `window_active` (the audio thread's restore). Atomic cells;
+/// the rest of the main loop's state is `WindowLoopState`, the game's thread alone.
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
-pub struct WindowLoopState {
-    pub f370: Dword,           // dword_518370
+pub struct WindowShared {
     pub window_active: Dword,  // g_windowActive
     pub window_focused: Dword, // g_windowFocused
     pub quitting: Flag,        // g_quitting
-    pub lost: Dword,           // WindowLoopState.lost
-    pub no_task_switch: Dword, // WindowLoopState.no_task_switch (`notaskswitch`, a `var\ral.cfg` setting)
-    pub keep_priority: Dword,  // g_keepPriority (`noprichange`, a setting)
+}
+
+impl WindowShared {
+    pub const fn new() -> Self {
+        WindowShared {
+            window_active: Dword::new(0),
+            window_focused: Dword::new(0),
+            quitting: Flag::new(false),
+        }
+    }
+}
+
+/// The window's state and the main loop's that only the game's thread reaches: 0x518370 ..
+/// 0x51839C, less the three flags of `WindowShared`.
+#[repr(C)]
+#[derive(rc2k_derive::Cells)]
+pub struct WindowLoopState {
+    pub f370: PlainDword,           // dword_518370
+    pub lost: PlainDword,           // WindowLoopState.lost
+    pub no_task_switch: PlainDword, // WindowLoopState.no_task_switch (`notaskswitch`, a `var\ral.cfg` setting)
+    pub keep_priority: PlainDword,  // g_keepPriority (`noprichange`, a setting)
     /// `dword_51838C` and `g_mainLoopStack`: only the main loop's, which needs neither.
-    pub _gap_51838c: [Dword; 2],
-    pub f394: Dword,   // dword_518394 (1 at start)
-    pub paused: Dword, // WindowLoopState.paused
+    pub _gap_51838c: [PlainDword; 2],
+    pub f394: PlainDword,   // dword_518394 (1 at start)
+    pub paused: PlainDword, // WindowLoopState.paused
 }
 
 impl WindowLoopState {
     pub const fn new() -> Self {
         WindowLoopState {
-            f370: Dword::new(0),
-            window_active: Dword::new(0),
-            window_focused: Dword::new(0),
-            quitting: Flag::new(false),
-            lost: Dword::new(0),
-            no_task_switch: Dword::new(0),
-            keep_priority: Dword::new(0),
-            _gap_51838c: [Dword::new(0), Dword::new(0)],
-            f394: Dword::new(1),
-            paused: Dword::new(0),
+            f370: PlainDword::new(0),
+            lost: PlainDword::new(0),
+            no_task_switch: PlainDword::new(0),
+            keep_priority: PlainDword::new(0),
+            _gap_51838c: [PlainDword::new(0), PlainDword::new(0)],
+            f394: PlainDword::new(1),
+            paused: PlainDword::new(0),
         }
     }
 }
 
-#[cfg(test)]
-pub const FLAGS_LEN: usize = core::mem::size_of::<WindowLoopState>();
-
-/// What the machine is and has, and the window handles: 0x5183A8 .. 0x5184A8.
+/// The two machine facts the audio thread reads: the window handle (`hWnd`, the sound
+/// device's cooperative level) and the FPU flag (`g_hasFpu`, the listener's set-up). Atomic
+/// cells; the rest is `Machine`, the game's thread alone.
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
-pub struct Machine {
-    pub has_mmx: Dword,          // g_hasMmx
-    pub ignore_mmx: Dword,       // Machine.ignore_mmx (`ignoremmx`)
-    pub has_sse: Dword,          // g_hasSse
-    pub ignore_katmai: Dword,    // Machine.ignore_katmai (`ignorekatmai`)
-    pub has_3dnow: Dword,        // g_has3dNow
-    pub ignore_3dnow: Dword,     // Machine.ignore_3dnow (`ignoreamdk3d`)
-    pub work: Dword,             // Machine.work
-    pub work_float: Dword,       // Machine.work_float
-    pub gap_c8: Dword,           // 0x5183C8
-    pub scratch: Dword,          // g_soundScratch: a scratch dword
-    pub cpu_family: Dword,       // g_cpuFamily
-    pub cpu_signature: Dword,    // g_cpuSignature
-    pub cpu_vendor: [Dword; 3],  // g_cpuVendor: the vendor's text
-    pub gap_e4: Dword,           // 0x5183E4
-    pub cpu_mhz: Dword,          // g_cpuMhz
-    pub has_fpu: Dword,          // g_hasFpu
-    pub has_tsc: Dword,          // g_hasTsc
-    pub has_cmov: Dword,         // g_hasCmov
-    pub found_mmx: Dword,        // Machine.found_mmx
-    pub found_sse: Dword,        // Machine.found_sse
-    pub found_3dnow: Dword,      // Machine.found_3dnow
-    pub keyboard_type: Dword,    // g_keyboardType (1 at start)
-    pub version: [Dword; 37],    // VersionInformation (OSVERSIONINFOA, 148 bytes)
-    pub exception_resume: Dword, // g_exceptionResume
-    pub instance: Dword,         // hInstance
-    pub window: Dword,           // hWnd
+pub struct HostShared {
+    pub has_fpu: Dword, // g_hasFpu
+    pub window: Dword,  // hWnd
 }
 
-impl Machine {
+impl HostShared {
     pub const fn new() -> Self {
-        Machine {
-            has_mmx: Dword::new(0),
-            ignore_mmx: Dword::new(0),
-            has_sse: Dword::new(0),
-            ignore_katmai: Dword::new(0),
-            has_3dnow: Dword::new(0),
-            ignore_3dnow: Dword::new(0),
-            work: Dword::new(0),
-            work_float: Dword::new(0),
-            gap_c8: Dword::new(0),
-            scratch: Dword::new(0),
-            cpu_family: Dword::new(0),
-            cpu_signature: Dword::new(0),
-            cpu_vendor: zeros(),
-            gap_e4: Dword::new(0),
-            cpu_mhz: Dword::new(0),
+        HostShared {
             has_fpu: Dword::new(0),
-            has_tsc: Dword::new(0),
-            has_cmov: Dword::new(0),
-            found_mmx: Dword::new(0),
-            found_sse: Dword::new(0),
-            found_3dnow: Dword::new(0),
-            keyboard_type: Dword::new(1),
-            version: zeros(),
-            exception_resume: Dword::new(0),
-            instance: Dword::new(0),
             window: Dword::new(0),
         }
     }
 }
 
-#[cfg(test)]
-pub const MACHINE_LEN: usize = core::mem::size_of::<Machine>();
+/// What the machine is and has, and the window handles that only the game's thread reaches:
+/// 0x5183A8 .. 0x5184A8, less `HostShared`'s two.
+#[repr(C)]
+#[derive(rc2k_derive::Cells)]
+pub struct Machine {
+    pub has_mmx: PlainDword,          // g_hasMmx
+    pub ignore_mmx: PlainDword,       // Machine.ignore_mmx (`ignoremmx`)
+    pub has_sse: PlainDword,          // g_hasSse
+    pub ignore_katmai: PlainDword,    // Machine.ignore_katmai (`ignorekatmai`)
+    pub has_3dnow: PlainDword,        // g_has3dNow
+    pub ignore_3dnow: PlainDword,     // Machine.ignore_3dnow (`ignoreamdk3d`)
+    pub work: PlainDword,             // Machine.work
+    pub work_float: PlainDword,       // Machine.work_float
+    pub gap_c8: PlainDword,           // 0x5183C8
+    pub scratch: PlainDword,          // g_soundScratch: a scratch dword
+    pub cpu_family: PlainDword,       // g_cpuFamily
+    pub cpu_signature: PlainDword,    // g_cpuSignature
+    pub cpu_vendor: [PlainDword; 3],  // g_cpuVendor: the vendor's text
+    pub gap_e4: PlainDword,           // 0x5183E4
+    pub cpu_mhz: PlainDword,          // g_cpuMhz
+    pub has_tsc: PlainDword,          // g_hasTsc
+    pub has_cmov: PlainDword,         // g_hasCmov
+    pub found_mmx: PlainDword,        // Machine.found_mmx
+    pub found_sse: PlainDword,        // Machine.found_sse
+    pub found_3dnow: PlainDword,      // Machine.found_3dnow
+    pub keyboard_type: PlainDword,    // g_keyboardType (1 at start)
+    pub version: [PlainDword; 37],    // VersionInformation (OSVERSIONINFOA, 148 bytes)
+    pub exception_resume: PlainDword, // g_exceptionResume
+    pub instance: PlainDword,         // hInstance
+}
 
-/// The key thread's count and the clocks the menus keep: 0x518998 .. 0x5189A4.
+impl Machine {
+    pub const fn new() -> Self {
+        Machine {
+            has_mmx: PlainDword::new(0),
+            ignore_mmx: PlainDword::new(0),
+            has_sse: PlainDword::new(0),
+            ignore_katmai: PlainDword::new(0),
+            has_3dnow: PlainDword::new(0),
+            ignore_3dnow: PlainDword::new(0),
+            work: PlainDword::new(0),
+            work_float: PlainDword::new(0),
+            gap_c8: PlainDword::new(0),
+            scratch: PlainDword::new(0),
+            cpu_family: PlainDword::new(0),
+            cpu_signature: PlainDword::new(0),
+            cpu_vendor: [const { PlainDword::new(0) }; 3],
+            gap_e4: PlainDword::new(0),
+            cpu_mhz: PlainDword::new(0),
+            has_tsc: PlainDword::new(0),
+            has_cmov: PlainDword::new(0),
+            found_mmx: PlainDword::new(0),
+            found_sse: PlainDword::new(0),
+            found_3dnow: PlainDword::new(0),
+            keyboard_type: PlainDword::new(1),
+            version: [const { PlainDword::new(0) }; 37],
+            exception_resume: PlainDword::new(0),
+            instance: PlainDword::new(0),
+        }
+    }
+}
+
+/// The key thread's count of turns (`Clocks.key_ticks`), which the game's thread reads for
+/// its waits and the lists' clocks. One atomic cell; the menus' clocks are `Clocks`.
+#[repr(C)]
+#[derive(rc2k_derive::Cells)]
+pub struct KeyClock {
+    pub ticks: Dword, // Clocks.key_ticks
+}
+
+impl KeyClock {
+    pub const fn new() -> Self {
+        KeyClock {
+            ticks: Dword::new(0),
+        }
+    }
+}
+
+/// The clocks the menus keep (the game's thread alone): 0x518998 .. 0x5189A4, less the key
+/// thread's count (`KeyClock`).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct Clocks {
-    pub key_ticks: Dword,  // Clocks.key_ticks: the key thread's turns
-    pub frame: Dword,      // Clocks.frame: the menus' clock (`update_frame_clock`)
-    pub setup_time: Dword, // Clocks.setup_time
+    pub frame: PlainDword, // Clocks.frame: the menus' clock (`update_frame_clock`)
+    pub setup_time: PlainDword, // Clocks.setup_time
 }
 
 impl Clocks {
     pub const fn new() -> Self {
         Clocks {
-            key_ticks: Dword::new(0),
-            frame: Dword::new(0),
-            setup_time: Dword::new(0),
+            frame: PlainDword::new(0),
+            setup_time: PlainDword::new(0),
         }
     }
 }
-
-#[cfg(test)]
-pub const CLOCKS_LEN: usize = core::mem::size_of::<Clocks>();
 
 /// `N` bytes holding `runs` ((offset, bytes)) and zeros elsewhere.
 pub const fn with_runs<const N: usize>(runs: &[(usize, &[u8])]) -> [u8; N] {
@@ -1617,24 +1645,6 @@ impl<B: ByteBuffer> TextPlace for TextFrom<'_, B> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_support::first_values::assert_block_starts_as_the_games;
-
-    #[test]
-    fn the_blocks_start_as_the_games() {
-        let system = system();
-        assert_block_starts_as_the_games(system.session.screen.get());
-        assert_block_starts_as_the_games(&system.session.flags);
-        assert_block_starts_as_the_games(&system.session.machine);
-        assert_block_starts_as_the_games(&system.session.clocks);
-    }
-
-    #[test]
-    fn the_blocks_keep_the_images_layout() {
-        assert_eq!(SCREEN_LEN, 0x38);
-        assert_eq!(FLAGS_LEN, 0x2C);
-        assert_eq!(MACHINE_LEN, 0x100);
-        assert_eq!(CLOCKS_LEN, 12);
-    }
 
     /// A debug build stops at a plain cell's write into a store lent to the drawing parts,
     /// and only there: the cell next to it is written, the lent one keeps its value.

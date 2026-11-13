@@ -606,7 +606,7 @@ pub(crate) fn to_argb(pixel: u32, masks: &[u32; 4]) -> u32 {
     out
 }
 
-fn table_for(masks: &[u32; 4]) -> Table {
+pub(crate) fn table_for(masks: &[u32; 4]) -> Table {
     let mut tables = TABLES
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);

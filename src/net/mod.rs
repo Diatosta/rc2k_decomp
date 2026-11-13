@@ -20,7 +20,7 @@
 //! functions calling each other directly; the screens' loops and frames of the lobby too (no
 //! registers, no calls by place). DirectPlay's methods from Rust (`net::dplay`).
 
-use crate::net::store::NetVars;
+use crate::net::store::NetShared;
 use crate::race::owner::Race;
 
 pub mod add_address_element;
@@ -133,7 +133,7 @@ pub mod types;
 pub mod unlock_received;
 
 /// Logs as the send functions do: "send x", the player, the step (`log_int_l1_nl`).
-pub fn log_send(race: &Race, vars: &NetVars, text: &std::ffi::CStr) {
+pub fn log_send(race: &Race, vars: &NetShared, text: &std::ffi::CStr) {
     use crate::logfile::log_int::log_int;
     crate::logfile::log_write::log_nul(&text, false, 1);
     log_int(vars.player.get() as i32, false, 1);

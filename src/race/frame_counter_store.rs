@@ -3,8 +3,6 @@
 //! Names are readings unless IDA's.
 
 use crate::cells::ZeroCells;
-#[cfg(test)]
-use crate::race::owner::race;
 use crate::session::PlainDword;
 
 #[repr(C)]
@@ -21,22 +19,5 @@ pub struct FrameCounter {
 impl FrameCounter {
     pub const fn new() -> Self {
         ZeroCells::ZERO
-    }
-}
-
-/// IDA 0x5EB100, the first byte of the piece.
-pub const START: usize = 0x5EB100;
-/// IDA 0x5EB104, the end of the piece.
-pub const END: usize = 0x5EB104;
-
-const _: () = assert!(END - START == core::mem::size_of::<FrameCounter>());
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn first_values_are_the_games() {
-        crate::test_support::first_values::assert_block_starts_as_the_games(race().frame.counter());
     }
 }

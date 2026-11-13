@@ -88,6 +88,6 @@ pub fn store_picks(
     work.pick_next_distance.set(picks.next_distance);
     work.pick_next.set(voice_or_0(picks.next));
     if let Some(d) = trail.last_distance {
-        system.session.machine.scratch.set(d);
+        system.machine().scratch.set(d);
     }
 }

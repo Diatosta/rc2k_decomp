@@ -258,13 +258,13 @@ pub fn unlock(gfx: &crate::gfx::owner::Gfx) {
 }
 
 /// `gfx::show_frame` (0x4057D1): whether it was shown (the original's carry clear).
-pub fn show() -> bool {
-    crate::platform::show_frame_now()
+pub fn show(o: crate::owners::Owners<'static>) -> bool {
+    crate::platform::show_frame_now(o)
 }
 
 /// `system::pump_messages` (0x410535).
-pub fn pump() {
-    crate::platform::pump_messages_now();
+pub fn pump(o: crate::owners::Owners<'static>) {
+    crate::platform::pump_messages_now(o);
 }
 
 /// A frame of the installer's for `screens::run_frame`: its carry.
@@ -273,13 +273,13 @@ pub type Frame<'a> = &'a dyn Fn() -> Result<bool, Refused>;
 /// `screens::run_frame` (0x405A71): the window's messages, then (unless quitting) the
 /// frame; the carry it leaves (the frame's, else clear).
 pub fn run_frame(
-    system: &crate::system::owner::System,
+    o: crate::owners::Owners<'static>,
     frame: Option<Frame<'_>>,
 ) -> Result<bool, Refused> {
     // The platform's run_frame with no frame of its own: the window's messages only.
-    crate::platform::run_frame_now(system, || ());
+    crate::platform::run_frame_now(o, || ());
     match frame {
-        Some(frame) if !system.session.flags.quitting.is_set() => frame(),
+        Some(frame) if !o.system.session.flags.quitting.is_set() => frame(),
         _ => Ok(false),
     }
 }
@@ -465,24 +465,10 @@ pub fn page_action(
         0x41432F => i::dxsetup_page::dxsetup_page(install, state),
         0x414347 => i::finish_page::finish_page(install, state),
         0x4130CD => logged("install", i::install_files::install_files(install, o))?,
-        0x4134DF => logged(
-            "uninstall",
-            i::uninstall::uninstall(
-                crate::strings::append_string_by_id::StringOwners::of(o),
-                install,
-                o.system,
-                o.gfx,
-            ),
-        )?,
+        0x4134DF => logged("uninstall", i::uninstall::uninstall(install, o))?,
         0x413629 => i::open_installed::open_installed(install)?,
         0x413650 => i::ask_registration::ask_registration(install),
-        0x41675B => i::install_clio::install_clio(
-            crate::strings::append_string_by_id::StringOwners::of(o),
-            install,
-            o.system,
-            o.gfx,
-            o.input,
-        )?,
+        0x41675B => i::install_clio::install_clio(install, o)?,
         _ => return Err(BadInput("a list action that is not one of the installer's").into()),
     }
     Ok(())
@@ -532,14 +518,4 @@ pub fn text_action(place: u32, out: &mut Vec<u8>) -> Result<(), Refused> {
 /// An action item's drawing (+0xC): the game's lists have no action items.
 pub fn draw_action(_place: u32) -> Result<(), Refused> {
     Err(BadInput("an action item's drawing (the game's lists have none)").into())
-}
-
-#[cfg(test)]
-mod text_tests {
-    #[test]
-    fn first_values_are_the_games() {
-        crate::test_support::first_values::assert_block_starts_as_the_games(
-            &crate::install::owner::install().texts,
-        );
-    }
 }

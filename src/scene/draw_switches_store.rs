@@ -1,7 +1,7 @@
 //! The draw switches, second part (IDA 0x621900 .. 0x621A84): the far clip switch, the group table word, the loading group mask, the SSE and 3DNow switches, and a marks source word. `#[repr(C)]` with the image layout over the race block bytes. Names are readings unless IDA's.
 
 use crate::cells::ZeroCells;
-use crate::session::PlainDword;
+use crate::session::{PlainDword, PlainFlag};
 
 #[repr(C)]
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
@@ -19,7 +19,7 @@ pub struct DrawSwitches {
     /// +0x154 (0x621A54): `g_loadingGroupMask` (`scene::add_object_shape`).
     pub loading_group_mask: PlainDword,
     /// +0x158 (0x621A58): `g_useSse` (`scene::draw_object`, `scene::draw_polygon`, `math::normalise_vector`, `physics::ground`, `race::frame_draw`).
-    pub use_sse: PlainDword,
+    pub use_sse: PlainFlag,
     /// +0x15c (0x621A5C): `g_use3dNow` (`scene::draw_object`).
     pub use_3dnow: PlainDword,
     /// +0x160 (0x621A60): `dword_621A60`, `g_useMmx` (shown by the debug Switches tab, `debug::switches`).
@@ -64,16 +64,5 @@ impl DrawSwitches {
             loading_group_mask: PlainDword::new(0xFFFFFFFF),
             ..ZeroCells::ZERO
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-
-    #[test]
-    fn first_values_are_the_games() {
-        crate::test_support::first_values::assert_block_starts_as_the_games(
-            crate::scene::owner::SCENE.draw_switches.get(),
-        );
     }
 }

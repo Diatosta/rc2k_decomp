@@ -57,15 +57,19 @@ pub fn place_car_on_line(
     {
         let (c, n) = line_neighbours(lights.state.get().line_place.get(), count)?;
         let t: u32 = lights.state.get().line_fraction.get();
-        let (face, a) = check_point(&shared.buffers.checkpoints, course, c)?;
+        let (face, a) = check_point(&shared.buffers.reads.get().checkpoints, course, c)?;
         course.course.get().place_face.set(face);
-        let (_, b) = check_point(&shared.buffers.checkpoints, course, n)?;
+        let (_, b) = check_point(&shared.buffers.reads.get().checkpoints, course, n)?;
         let (x, _) = lerp(get(course, a, 0)?, get(course, b, 0)?, t);
         let (y, _) = lerp(get(course, a, 1)?, get(course, b, 1)?, t);
         let y = y.wrapping_add(shared.physics_tables.get().ground_drop.get());
         let (z, _) = lerp(get(course, a, 2)?, get(course, b, 2)?, t);
         let heading_of = |k: u32| -> u32 {
-            crate::race::checkpoints_store::angle(&shared.buffers.checkpoints, k as usize).get()
+            crate::race::checkpoints_store::angle(
+                &shared.buffers.reads.get().checkpoints,
+                k as usize,
+            )
+            .get()
         };
         let (heading, _) = lerp(heading_of(c), heading_of(n), t);
         course.course.get().place_x.set(x);
@@ -155,7 +159,7 @@ pub fn nearest_checkpoint_in(
             distance_to_checkpoint(
                 physics,
                 course,
-                &shared.buffers.checkpoints,
+                &shared.buffers.reads.get().checkpoints,
                 shared.vars.get(),
                 c,
                 scene,
@@ -206,7 +210,7 @@ fn measure_held(
     {
         return Ok(());
     }
-    let (checkpoints, vars) = (&shared.buffers.checkpoints, shared.vars.get());
+    let (checkpoints, vars) = (&shared.buffers.reads.get().checkpoints, shared.vars.get());
     let count: u32 = vars.checkpoint_count.get();
     let (x, z) = (ground.ground_x.get(), ground.ground_z.get());
     // With rounding to nearest the distance is `round(sqrt(dx² + dz²))` in plain doubles,

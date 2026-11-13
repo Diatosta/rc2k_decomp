@@ -91,7 +91,7 @@ pub fn steps(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refus
     ] {
         cell.set(0);
     }
-    race.physics.contact.contact_normal_speed[0].set(0.0);
+    race.physics.contact.get().contact_normal_speed[0].set(0.0);
     for cell in [
         &race.physics.camera().ground_probes,
         &race.physics.camera().ground_found,
@@ -139,13 +139,13 @@ pub fn steps(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refus
     ph::save_car_state::save_car_state(
         race.shared.car(),
         race.shared.physics_tables.get(),
-        &race.physics.contact,
+        race.physics.contact.get(),
     )?;
     ph::clear_forces::clear_forces(race.shared.physics_tables.get())?;
     ph::set_wheel_weights::set_wheel_weights(
         race.shared.car(),
         race.shared.physics_tables.get(),
-        &race.physics.contact,
+        race.physics.contact.get(),
         race.course.numbers.get(),
         scene,
     );
@@ -203,7 +203,7 @@ pub fn steps(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refus
     );
     ph::wheel_springs::wheel_springs(
         race.car_blocks(),
-        &race.physics.contact,
+        race.physics.contact.get(),
         race.course.numbers.get(),
         &race.shared,
         scene,
@@ -216,12 +216,12 @@ pub fn steps(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refus
     )?;
     ph::apply_wheel_torques::apply_wheel_torques(
         race.shared.physics_tables.get(),
-        &race.physics.contact,
+        race.physics.contact.get(),
         race.shared.car(),
     )?;
     motion(
         &race.course,
-        &race.frame.matrices,
+        race.frame.matrices.get(),
         race.shared.switches.get(),
         race.shared.physics_tables.get(),
         race.shared.car(),
@@ -253,7 +253,7 @@ pub fn steps(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refus
         )?;
         ph::apply_contact_torques::apply_contact_torques(
             race.shared.physics_tables.get(),
-            &race.physics.contact,
+            race.physics.contact.get(),
             race.shared.car(),
         )?;
 
@@ -272,7 +272,7 @@ pub fn steps(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refus
 
         motion(
             &race.course,
-            &race.frame.matrices,
+            race.frame.matrices.get(),
             race.shared.switches.get(),
             race.shared.physics_tables.get(),
             race.shared.car(),
@@ -319,7 +319,7 @@ pub fn steps(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refus
     ph::reset_when_stuck::reset_when_stuck(&inputs.reset(), scene)?;
     ph::engine_sound::engine_sound(
         race.course.numbers.get(),
-        &race.frame.matrices,
+        race.frame.matrices.get(),
         &race.shared,
         scene,
         sound,
@@ -348,7 +348,7 @@ pub fn steps(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refus
     )?;
     ph::hit_part_checks::hit_part_checks(
         race.course.numbers.get(),
-        &race.frame.matrices,
+        race.frame.matrices.get(),
         &race.shared,
         race.kind_tables(),
         scene,

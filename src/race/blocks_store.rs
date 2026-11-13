@@ -157,7 +157,5 @@ mod tests {
         assert_eq!(known_block(BLOCK_TAG | BLOCK_COUNT as u32), None);
         assert_eq!(known_block(0), None);
         assert_eq!(block_number(0), None);
-        // The first values: the store `race.owner.RACE.replay.car_blocks`
-        // (`every_store_starts_as_the_games`).
     }
 }

@@ -10,13 +10,13 @@
 //! (before anything) more than the 8 players there are blocks for.
 
 use crate::errors::{BadInput, Refused};
-use crate::net::store::NetVars;
+use crate::net::store::NetShared;
 use crate::net::{lock_received, unlock_received};
 use rc2k_core::net::inbox;
 
 /// The blocks' room: 8 players.
 pub const MOST_PLAYERS: u32 = rc2k_core::net::players::MOST;
-pub fn copy_received(vars: &NetVars) -> Result<(), Refused> {
+pub fn copy_received(vars: &NetShared) -> Result<(), Refused> {
     let count = || vars.players.get();
     if count() > MOST_PLAYERS {
         return Err(BadInput("more than the blocks' 8 players").into());

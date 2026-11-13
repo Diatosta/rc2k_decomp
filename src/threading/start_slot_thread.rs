@@ -39,7 +39,11 @@ pub fn start_slot_thread(slot: usize) -> Result<(), FatalError> {
 /// A slot's thread: its routine (the IDA address the slot holds) run by its Rust version
 /// (`thread_slot::run_routine`). A routine with none, or one that refuses, ends the program.
 fn run_routine(routine: u32) {
-    match crate::threading::thread_slot::run_routine(routine) {
+    match crate::threading::thread_slot::run_routine(
+        routine,
+        // The thread's root: the owners it works with are fetched here.
+        crate::threading::thread_slot::SlotOwners::fetch(),
+    ) {
         Some(Ok(())) => {}
         Some(Err(crate::errors::Refused::Fatal(error))) => {
             log(&format!(

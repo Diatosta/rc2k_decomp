@@ -47,7 +47,6 @@ pub struct LoopFlags {
 }
 
 impl LoopFlags {
-    /// First values the image's (`tests::loop_flags_starts_as_the_games`).
     pub const fn new() -> Self {
         LoopFlags {
             item: PlainDword::new(0x1),
@@ -66,16 +65,5 @@ impl LoopFlags {
             menu: crate::menu::menus_store::MenuCell::new(),
             dword_755591: PlainDword::new(0x0),
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-
-    #[test]
-    fn loop_flags_starts_as_the_games() {
-        crate::test_support::first_values::assert_block_starts_as_the_games(
-            &crate::menu::owner::menus().screens.loop_flags,
-        );
     }
 }

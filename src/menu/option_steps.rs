@@ -45,18 +45,17 @@ pub struct Volume<'a> {
 
 /// One volume step.
 pub fn volume_step(o: Owners<'static>, v: Volume<'_>) {
-    let (screens, audio) = (&o.menus.screens, o.audio);
+    let screens = &o.menus.screens;
     // The logic is in `rc2k_core::menu::steps::volume`.
     let value = rc2k_core::menu::steps::volume(v.value.get() as i32, v.up);
     v.value.set(value as u32);
     match v.then {
         Then::Music => {
             o.sound.menu.options.music_volume.set(value as u32);
-            crate::sound::set_music_volume::set_music_volume(value as u32, audio, o.system);
+            crate::sound::set_music_volume::set_music_volume(value as u32, o);
         }
         Then::Speech => crate::sound::start_stream::start_stream(
-            audio,
-            o.system,
+            o,
             crate::audio::names_store::NameList::MenuSpeech.first_key(),
             value as u32,
         ),

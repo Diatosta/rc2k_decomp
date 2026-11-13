@@ -7,11 +7,11 @@
 //! `audio::make_buffer` with bit 0x1000000, where the holder value is not always a 3D buffer (the game's
 //! bug, `notes/bugs.md`: refused when no pointer).
 
+use crate::audio::own::AudioOwn;
 use crate::audio::property_sets::*;
-use crate::audio::store::AudioState;
 use crate::errors::Refused;
 
 /// True for the carry clear.
-pub fn open_eax(state: &AudioState, holder: Holder) -> Result<bool, Refused> {
+pub fn open_eax(state: &AudioOwn, holder: Holder) -> Result<bool, Refused> {
     open_property_set(state, &Opening::eax(state), holder)
 }

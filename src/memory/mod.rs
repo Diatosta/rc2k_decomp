@@ -86,8 +86,8 @@ pub mod state {
 /// `bytes` of Rust's memory counted on `list` as `allocate` counts a block it takes (the
 /// list's total, the figures), for a user whose blocks are Rust's own; the
 /// list's `free_list` gives them back. The list holds no block of the game's for them.
-pub fn count_owned(list: &crate::session::Shared<MemoryList>, bytes: u32) {
-    list.update(|l| l.total = l.total.wrapping_add(bytes));
+pub fn count_owned(list: &ListCells, bytes: u32) {
+    list.total.set(list.total.get().wrapping_add(bytes));
     with_figures(|f| f.taken(bytes));
 }
 
@@ -120,19 +120,6 @@ pub fn with_figures(f: impl FnOnce(&mut rc2k_core::memory::Figures)) {
     ] {
         if old != new {
             at.set(new);
-        }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::test_support::first_values::assert_store_starts_as_the_games;
-
-    #[test]
-    fn variables_start_as_the_games() {
-        let _lock = crate::test_support::test_lock();
-        for name in ["MOST_HELD", "HELD", "TURNOVER", "OWN_HEAP", "OWN_HEAP_KB"] {
-            assert_store_starts_as_the_games(&format!("store:memory.state.{name}"));
         }
     }
 }

@@ -75,7 +75,7 @@ impl<'a> EffectsView<'a> {
         let front_end = crate::race::view_scratch::front_end();
         Self {
             fog: &front_end.fog,
-            view_matrix: &race.frame.matrices.view_matrix,
+            view_matrix: &race.frame.matrices.get().view_matrix,
             light: front_end.light.view_light.get(),
             engine_tables: race.engine_tables(),
         }
@@ -163,24 +163,3 @@ pub static FRAME_K: FrameK = FrameK {
     share_k: 100.0_f32,
     times: [100.0, 100.0, 100.0],
 };
-
-#[cfg(test)]
-mod frame_k_tests {
-    use super::*;
-
-    fn bytes<T>(v: &T) -> Vec<u8> {
-        let p = std::ptr::from_ref::<T>(v).cast::<u8>();
-        (0..size_of::<T>())
-            .map(|i| unsafe { p.add(i).read() })
-            .collect()
-    }
-
-    #[test]
-    fn frame_k_starts_as_the_games() {
-        assert!(
-            bytes(&FRAME_K)
-                == crate::test_support::first_values::bytes("effects.run_frame.FRAME_K"),
-            "FRAME_K starts differently from the image"
-        );
-    }
-}

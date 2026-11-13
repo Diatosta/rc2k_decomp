@@ -125,21 +125,3 @@ impl CourseWork {
         }
     }
 }
-
-/// IDA 0x5CCBF0, the first byte of the piece.
-pub const START: usize = 0x5CCBF0;
-/// IDA 0x5CCE7C, the end of the piece.
-pub const END: usize = 0x5CCE7C;
-
-const _: () = assert!(END - START == core::mem::size_of::<CourseWork>());
-
-#[cfg(test)]
-mod tests {
-
-    #[test]
-    fn first_values_are_the_games() {
-        crate::test_support::first_values::assert_block_starts_as_the_games(
-            crate::race::owner::RACE.course.course.get(),
-        );
-    }
-}

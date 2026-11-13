@@ -87,11 +87,10 @@ fn remove_whole(folder: &std::path::Path) {
 }
 
 pub fn uninstall(
-    so: crate::strings::append_string_by_id::StringOwners<'static>,
     install: &'static crate::install::owner::Install,
-    system: &crate::system::owner::System,
-    gfx: &'static crate::gfx::owner::Gfx,
+    o: crate::owners::Owners<'static>,
 ) -> Result<(), Refused> {
+    let (system, gfx) = (o.system, o.gfx);
     use crate::install as i;
     if install.names.status.get() == 0 || install.names.source.get(0) == 0 {
         return Ok(());
@@ -99,18 +98,18 @@ pub fn uninstall(
     install.names.status.set(0x80);
     i::write_registry::write_registry(install, &mut crate::install::portable::Portable)?;
     // the "removing" frame
-    run_frame(system, None)?;
+    run_frame(o, None)?;
     if lock(gfx, system) {
         copy_picture(gfx, system)?;
         i::draw_string_list::draw_string_list(
-            so,
+            crate::strings::append_string_by_id::StringOwners::of(o),
             &install.pages.remove_strings.each_ref(),
             0,
             0,
             gfx,
         )?;
         unlock(gfx);
-        show();
+        show(o);
     }
     normalise(&install.names.source, &install.paths.installed)?;
     let whole = whole_folder(install);

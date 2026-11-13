@@ -26,6 +26,5 @@ pub fn hold_spin_on_ground(car: &Car, tables: &PhysicsTables) {
     tables.ground_spin_limit.set(limit);
     car.spin[0].set(x);
     car.spin[2].set(z);
-    // A flag word kept in a float cell.
-    tables.ground_spin.set_bits(flag);
+    tables.ground_spin.set(flag != 0);
 }

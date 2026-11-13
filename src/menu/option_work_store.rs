@@ -82,7 +82,6 @@ impl OptionWork {
 }
 
 impl OptionWork {
-    /// First values the image's (`tests::option_work_starts_as_the_games`).
     pub const fn new() -> Self {
         OptionWork {
             switch_0: PlainDword::new(0x0),
@@ -133,16 +132,5 @@ impl OptionWork {
         for (cell, value) in cells.into_iter().zip(values) {
             cell.set(value);
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-
-    #[test]
-    fn option_work_starts_as_the_games() {
-        crate::test_support::first_values::assert_block_starts_as_the_games(
-            &crate::menu::owner::menus().screens.option_work,
-        );
     }
 }

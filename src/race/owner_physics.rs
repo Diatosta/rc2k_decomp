@@ -38,8 +38,9 @@ impl PhysicsMain {
 
 /// The race's physics state (step 11, owned state: the stores move in as fields).
 pub struct Physics {
-    /// One copy: the drawing's searches have their own (frame plan F4).
-    pub contact: ContactWork,
+    /// One copy, lent to the drawing parts (`workers::DrawReads`): the drawing's searches have
+    /// their own (frame plan F4) and read only the lit faces.
+    pub contact: DrawShared<ContactWork>,
     /// One copy, lent to the drawing parts (`workers::DrawReads`): the drawing's searches
     /// have their own fields (frame plan F4) and read only its mark.
     pub ground_probe: DrawShared<GroundProbe>,
@@ -49,7 +50,7 @@ pub struct Physics {
 impl Physics {
     pub const fn new() -> Self {
         Physics {
-            contact: ContactWork::new(),
+            contact: DrawShared::new(ContactWork::new()),
             ground_probe: DrawShared::new(GroundProbe::new()),
             main: GameThread::new(PhysicsMain::new()),
         }

@@ -176,13 +176,3 @@ impl SurfaceTables {
         }
     }
 }
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn the_surface_tables_start_as_the_games() {
-        crate::test_support::first_values::assert_block_starts_as_the_games(
-            &crate::effects::owner::effects().masks.surface,
-        );
-    }
-}

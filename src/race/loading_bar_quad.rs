@@ -34,7 +34,6 @@ pub fn loading_bar_quad(
     crate::race::frame_draw::draw_screen_quad(
         polygon,
         crate::workers::game_scratch(),
-        race,
         &scratch.face,
         crate::workers::DrawReads::on_game_thread(crate::workers::LentOwners {
             race,

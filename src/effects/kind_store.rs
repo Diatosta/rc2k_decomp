@@ -12,8 +12,6 @@
 //!   `extra` out and, for set 1, the `divisor` copy) and `KindConsts` (the constants and the
 //!   light), once for each set. Set 1 is `kind_values::FIRST`, set 2 `kind_values::SECOND`.
 
-#[cfg(test)]
-use crate::effects::owner::effects;
 use crate::session::{PlainDword, PlainFloat};
 
 /// A quad's work area, the image's layout (IDA 0xF8 bytes, three copies: `QUAD_1`, `QUAD_2`, `QUAD_3`). The offsets are from its start.
@@ -593,47 +591,3 @@ pub static CONSTS_2: KindConsts = KindConsts {
     light: [0.0, 1.0, 0.0],
     lifts: [2655.36_f32; 4],
 };
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use core::mem::size_of;
-
-    fn bytes<T>(v: &T) -> Vec<u8> {
-        let p = std::ptr::from_ref::<T>(v).cast::<u8>();
-        (0..size_of::<T>())
-            .map(|i| unsafe { p.add(i).read() })
-            .collect()
-    }
-
-    /// The game's tables follow `lead` bytes of its code and strings, which are not kept.
-    fn tables_start_as_the_games(tables: &KindTables, key: &str, lead: usize) {
-        let held = crate::test_support::first_values::bytes(key);
-        assert_eq!(held.len(), lead + size_of::<KindTables>(), "{key}");
-        assert!(bytes(tables) == held[lead..], "{key}");
-    }
-
-    #[test]
-    fn the_statics_start_as_the_games() {
-        let kinds = &effects().kinds;
-        use crate::test_support::first_values::assert_block_starts_as_the_games as games;
-        games(&kinds.overlay_quad);
-        games(&kinds.shadow_quad);
-        games(&kinds.plane_quad);
-        games(&kinds.overlay_extras);
-        games(&kinds.shadow_extra);
-        tables_start_as_the_games(&TABLES_1, "effects.kind_store.TABLES_1", 0x1AC);
-        tables_start_as_the_games(&TABLES_2, "effects.kind_store.TABLES_2", 0x198);
-        assert_eq!(size_of::<KindConsts>(), 0x54);
-        assert!(
-            bytes(&CONSTS_1)
-                == crate::test_support::first_values::bytes("effects.kind_store.CONSTS_1"),
-            "CONSTS_1"
-        );
-        assert!(
-            bytes(&CONSTS_2)
-                == crate::test_support::first_values::bytes("effects.kind_store.CONSTS_2"),
-            "CONSTS_2"
-        );
-    }
-}

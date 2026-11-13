@@ -7,7 +7,7 @@
 //! `net::take_messages` twice). `Send` from Rust (`net::dplay`). Refuses nothing
 //! (no check of `g_dplay`, as the original).
 
-use crate::net::store::NetVars;
-pub fn dplay_send(vars: &NetVars, to: u32, data: &[u8]) {
+use crate::net::store::NetShared;
+pub fn dplay_send(vars: &NetShared, to: u32, data: &[u8]) {
     crate::net::dp_objects::send(vars.dplay.get(), vars.player_id.get(), to, data);
 }

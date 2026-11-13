@@ -1,6 +1,10 @@
 //! The cells the game's data lives in: `Cells` (a record of atomics and cells whose runs are
 //! found by byte offset), its runs and references, `Plain` values, `Store` (what a byte offset
 //! resolves to), and the copies between them.
+//!
+//! `Cells::cell_run` and `CellRun` stay: the copies, `load_cells` and `checkpoints_store::run_on`
+//! walk runs. `Cells::field_path` stays for `drive::sim_hash` (the held races' hash, `remote`
+//! and tests); `Store::{cell_run_at, field_path_at}` are tests only (`test_support`).
 
 #![allow(unsafe_code)]
 
@@ -25,7 +29,6 @@ pub unsafe trait Cells {
     /// The path of the field holding byte `offset` (`.a.b[2]`) added to `path`, and the type of
     /// the primitive cell it ends in: the debug pages' rows are named by it.
     #[cfg(any(test, feature = "remote"))]
-    #[cfg_attr(not(debug_ui), allow(dead_code))] // only the debug pages' tests use it
     fn field_path(&self, _offset: usize, _path: &mut String) -> &'static str
     where
         Self: Sized,
@@ -828,13 +831,13 @@ pub unsafe trait Store {
     /// Its first byte: a checked place's bytes are found from it (`place_of`), inside `size()`.
     fn first(&self) -> *const u8;
     /// The run of like cells holding byte `offset`, as references, and the byte it starts at
-    /// (`None`: the reads there take `load` and `store`).
+    /// (`None`: the reads there take `load` and `store`). Tests only (`test_support`).
+    #[cfg(test)]
     fn cell_run_at(&self, _offset: usize) -> Option<(usize, CellRun<'_>)> {
         None
     }
-    /// `Cells::field_path` of the record behind the store, and the record's type.
-    #[cfg(any(test, feature = "remote"))]
-    #[cfg_attr(not(debug_ui), allow(dead_code))] // only the debug pages' tests use it
+    /// `Cells::field_path` of the record behind the store, and the record's type. Tests only.
+    #[cfg(test)]
     fn field_path_at(&self, _offset: usize, _path: &mut String) -> Option<&'static str> {
         None
     }
@@ -848,11 +851,12 @@ unsafe impl<T: Cells> Store for T {
         size_of::<T>()
     }
 
+    #[cfg(test)]
     fn cell_run_at(&self, offset: usize) -> Option<(usize, CellRun<'_>)> {
         Some(Cells::cell_run(self, offset))
     }
 
-    #[cfg(any(test, feature = "remote"))]
+    #[cfg(test)]
     fn field_path_at(&self, offset: usize, path: &mut String) -> Option<&'static str> {
         Some(Cells::field_path(self, offset, path))
     }

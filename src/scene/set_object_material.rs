@@ -98,14 +98,13 @@ fn step_shape(
 }
 
 pub fn set_object_material(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), BadInput> {
-    let race = ctx.race;
     let object: u32 = ctx.view.cars.object_number.get();
     if object >= OBJECTS {
         return Err(BadInput("an object's number past the tables"));
     }
     let kind: u32 = ctx.reads.object_tables.object_kind(object);
     let way = u32::from(crate::scene::polygon::material_run_byte(
-        race.polygon_tables(),
+        &ctx.reads.buffers.polygon_tables,
         kind,
         0x20,
     )?);

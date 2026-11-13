@@ -6,7 +6,7 @@
 
 use crate::effects::asm_layout::{Laid, Run};
 use crate::effects::asm_test::Operand;
-use crate::effects::store::START;
+use crate::effects::asm_test::START;
 
 /// A typed static and where its first byte is in the marks' block (IDA).
 pub struct Overlay {

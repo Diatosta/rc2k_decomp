@@ -28,7 +28,7 @@ pub fn race_wait(net: &Net) -> Result<u32, Refused> {
         >= 0
     {
         net.edit().clock_a.set(now);
-        crate::net::list_players::list_players_regs(&net.vars)?;
+        crate::net::list_players::list_players_regs(net)?;
     }
     if vars.own.state() & players::HOST != 0 {
         if vars.players.get() == 0 {

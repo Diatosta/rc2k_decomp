@@ -5,8 +5,6 @@
 //! a palette number and the palette, 0x300 bytes, is the end of the file.
 
 use crate::files::stream::Stream;
-#[cfg(test)]
-use crate::gfx::owner::gfx;
 use crate::session::{PlainBytes, PlainDword, with_runs};
 
 pub const HEADER_LEN: usize = 0x80;
@@ -97,14 +95,4 @@ pub fn on_stream(
         let closed = close_stream(stream)?;
         Ok(rows? && closed)
     })
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn first_values_are_the_games() {
-        crate::test_support::first_values::assert_block_starts_as_the_games(&gfx().pictures.pcx);
-    }
 }

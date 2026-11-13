@@ -106,7 +106,7 @@ pub static GROUPS: &[Group] = &[
                 "paused",
                 Shown::Whole,
                 0x518398,
-                store_cell!(|o| o.system.session.flags, paused),
+                store_cell!(|o| o.system.window_loop(), paused),
                 false,
                 (0, 0),
             ),

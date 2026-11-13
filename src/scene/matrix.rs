@@ -11,7 +11,7 @@ use crate::math::x87_float as bh;
 use crate::scene::engine_tables_store::EngineTables;
 use crate::scene::project_point::rotate_at;
 use crate::scene::view_matrices::ViewMatrices;
-use crate::session::Float;
+use crate::session::FloatLike;
 
 /// An angle's sine and cosine from the game's tables `tables`: sixteen bits a turn, the low
 /// four dropped.
@@ -26,7 +26,7 @@ fn sine_cosine(tables: &EngineTables, angle: u32) -> (f32, f32) {
 /// `scene::set_turn_x` (0x426FE1): `turn_x` the matrix, `work` its sine and cosine.
 pub fn set_turn_x(
     tables: &EngineTables,
-    turn_x: &[Float; 16],
+    turn_x: &[impl FloatLike; 16],
     work: &[impl crate::session::Cell32; 2],
     angle: u32,
 ) {
@@ -42,7 +42,7 @@ pub fn set_turn_x(
 /// `scene::set_turn_y` (0x42702A).
 pub fn set_turn_y(
     tables: &EngineTables,
-    turn_y: &[Float; 16],
+    turn_y: &[impl FloatLike; 16],
     work: &[impl crate::session::Cell32; 2],
     angle: u32,
 ) {
@@ -59,7 +59,7 @@ pub fn set_turn_y(
 /// the work of `scene::set_turn_z`, whose angle is 32 bits a turn).
 pub fn set_turn_z_16(
     tables: &EngineTables,
-    turn_z: &[Float; 16],
+    turn_z: &[impl FloatLike; 16],
     work: &[impl crate::session::Cell32; 2],
     angle: u32,
 ) {
@@ -75,7 +75,7 @@ pub fn set_turn_z_16(
 /// `scene::set_place` (0x4271AE), on the placed matrix. (The original also left the place's z
 /// in `SceneDraw.scratch`; the drawing never read it, `physics::car_collisions` stores it there
 /// itself.)
-pub fn set_place(placed: &[Float; 16], place: [u32; 3]) {
+pub fn set_place(placed: &[impl FloatLike; 16], place: [u32; 3]) {
     crate::session::write_first(
         &placed[12..15],
         &place.map(|part| x87::from_int(part as i32).to_bits()),
@@ -122,8 +122,8 @@ pub fn copy_matrix_with_place(
 pub fn set_light_direction(
     tables: &EngineTables,
     v: &ViewMatrices,
-    direction: &[Float; 3],
-    view_turn: &[Float; 16],
+    direction: &[impl FloatLike; 3],
+    view_turn: &[impl FloatLike; 16],
     light: &crate::scene::object_light::ObjectLight,
 ) {
     set_turn_x(
@@ -141,7 +141,12 @@ pub fn set_light_direction(
     multiply_matrices(&v.turn_x_matrix, &v.turn_y_matrix, &v.turned_matrix);
     multiply_matrices(&v.turned_matrix, view_turn, &v.lit_matrix);
     // `fld1; fldz; fldz; call scene::rotate_point`, the results popped in turn.
-    let ahead = rotate_at([0, 0, 1], &v.lit_matrix.each_ref().map(Float::get));
+    let ahead = rotate_at(
+        [0, 0, 1],
+        &v.lit_matrix
+            .each_ref()
+            .map(super::super::session::Float::get),
+    );
     for (cell, value) in direction.iter().zip(ahead) {
         cell.set(value);
     }
@@ -151,7 +156,7 @@ pub fn set_light_direction(
 pub fn make_object_matrix(
     tables: &EngineTables,
     v: &ViewMatrices,
-    view_turn: &[Float; 16],
+    view_turn: &[impl FloatLike; 16],
     light: &crate::scene::object_light::ObjectLight,
     object: &crate::scene::object_place::ObjectPlace,
 ) {

@@ -65,7 +65,7 @@ pub fn main_loop(o: Owners<'static>) -> Result<(), Refused> {
             log_line(c"Leaving main loop...");
             return Ok(());
         }
-        if session.flags.window_active.is_set() && session.clocks.key_ticks.is_set() {
+        if session.flags.window_active.is_set() && session.key_clock.ticks.is_set() {
             break;
         }
     }
@@ -100,7 +100,7 @@ pub fn main_loop(o: Owners<'static>) -> Result<(), Refused> {
     // Its answer is not read (this build's nine `nop`s).
     crate::files::is_cd_drive::is_cd_drive(base_drive());
     crate::menu::run_front_end::run_front_end(o)?;
-    crate::sound::stop_music::stop_music(o.audio, o.system);
+    crate::sound::stop_music::stop_music(o);
     if session.flags.quitting.is_set() {
         // The original leaves here without saving: the window closed (or any quit by the
         // switch) lost the options and best times changed since the last save (section 16);

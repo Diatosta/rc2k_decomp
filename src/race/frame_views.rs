@@ -115,7 +115,14 @@ pub fn mirror_view_window(
         &reads.vars.scale_factor,
         MIRROR_REACH,
     );
-    crate::race::frame_draw::set_up_fog(race, reads.stage_prefs, fog, poly, car, part)?;
+    crate::race::frame_draw::set_up_fog(
+        &reads.buffers.engine_tables,
+        reads.stage_prefs,
+        fog,
+        poly,
+        car,
+        part,
+    )?;
     // (The original's 0 into `g_drawMode`: see `full_view_window`.)
     poly.view_mirrored.set(1);
     Ok(())
@@ -125,7 +132,7 @@ pub fn mirror_view_window(
 /// colour 0 (the original's `fld1` / `fldz` stores), `g_polygonVertexCount` 3, drawn
 /// (`scene::draw_fan`). Every register kept.
 pub fn draw_flat_triangle(part: &crate::workers::PartScratch, scene: &crate::scene::owner::Scene) {
-    let buffer = part.vertices;
+    let buffer = &part.vertices;
     // 1.0 at x, y of each of the three vertices; 0.0 at the rest of their floats (z, rhw,
     // u, v) and the specular.
     for vertex in &buffer.vertices[..3] {
@@ -353,7 +360,7 @@ pub fn forget_view_textures(
         ),
     };
     let mirror = mirror_on(
-        frame.frame_work.get().mirror_wanted.get(),
+        u32::from(frame.frame_work.get().mirror_wanted.is_set()),
         frame.frame_work.get().mirror_switch.get(),
     );
     let uploaded = input.devices.keys_now.get(0x18) != 0; // Devices.keys_now
@@ -599,7 +606,7 @@ pub fn run_view_marks(
     race.effects_settings().marks_layout.set(layout);
     crate::math::cells::copy_cells(
         &ctx.reads.car_blocks.cars[ctx.reads.view.view_number(view as usize)?].whole_matrix,
-        &race.frame.matrices.view_place,
+        &race.frame.matrices.get().view_place,
         16,
     );
     crate::drive::share_all_cars::share_all_cars(
@@ -633,7 +640,7 @@ pub fn run_view_marks(
     let done = crate::effects::frame_marks::frame_marks(race, scene, effects).and_then(|_| {
         if race.frame.frame_work.get().drawing.get() == 0 {
             crate::effects::run_frame::run_frame(
-                ctx.part.vertices,
+                &ctx.part.vertices,
                 race,
                 scene,
                 effects,

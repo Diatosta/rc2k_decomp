@@ -10,22 +10,13 @@ use crate::errors::Refused;
 use crate::net::lobby::run_frame;
 
 /// The message shown until a key is pressed.
-pub fn show_message(
-    so: crate::strings::append_string_by_id::StringOwners<'static>,
-    message: u32,
-    gfx: &'static crate::gfx::owner::Gfx,
-    system: &crate::system::owner::System,
-    input: &crate::input::owner::Input,
-) -> Result<(), Refused> {
-    run_frame(system, || {
-        crate::net::message_frame::message_frame(so, message, gfx, system)
-    })?;
+pub fn show_message(o: crate::owners::Owners<'static>, message: u32) -> Result<(), Refused> {
+    let input = o.input;
+    run_frame(o, || crate::net::message_frame::message_frame(o, message))?;
     crate::system::sleep::sleep(250);
     crate::input::take_key::take_key(input);
     loop {
-        run_frame(system, || {
-            crate::net::message_frame::message_frame(so, message, gfx, system)
-        })?;
+        run_frame(o, || crate::net::message_frame::message_frame(o, message))?;
         if crate::input::take_key::take_key(input) != 0 {
             break;
         }

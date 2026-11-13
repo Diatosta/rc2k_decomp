@@ -43,7 +43,8 @@ impl ViewOutput {
     }
 }
 
-/// On `view`'s own working state.
+/// On `view`'s own working state; `filter`, the texture filter's switches it starts from
+/// (`race::view_scratch::filter_input`, taken on the game's thread).
 #[allow(
     clippy::too_many_arguments,
     reason = "the drawing's owners, its view, scratch and reads, as `DrawCtx::new` takes them"
@@ -54,32 +55,25 @@ pub fn draw_view_scene(
     net: &crate::net::owner::Net,
     input: &crate::input::owner::Input,
     view: &ViewScratch,
+    filter: [u32; 3],
     part: &crate::workers::PartScratch,
     reads: crate::workers::DrawReads<'_>,
 ) -> Result<ViewOutput, Refused> {
     use crate::race::frame_draw::*;
     view.begin();
     let ctx = DrawCtx::new(race, scene, net, input, view, part, reads);
-    let _held = view.matrices.hold(&race.frame.matrices, part);
+    let _held = view.matrices.hold(reads.matrices, part);
     // The shine from the stage's, as the frame's first view has it: the original left each
     // later view the previous one's last car's (a slip fixed: `wiki/Fixed-bugs.md`).
     view.course.shine.set(reads.stage_prefs.shine_from.get());
-    let input = crate::race::view_scratch::filter_input(view);
+    let input = filter;
     view.light.car_light.set(view.car.light_colour.get());
     view.polygon.smooth.set(input[0]);
     view.polygon.plain_first.set(input[1]);
     view.polygon.plain_second.set(input[2]);
     let lists = &view.lists;
     if view.car.view_covered.get() != 0 {
-        draw_view_tint(
-            &view.polygon,
-            part,
-            race,
-            &view.face,
-            reads,
-            reads.screen,
-            view,
-        )?;
+        draw_view_tint(&view.polygon, part, &view.face, reads, reads.screen, view)?;
         return Ok(ViewOutput::default());
     }
     // `view_cleared`, ObjectWork.view_cleared[1].
@@ -96,19 +90,19 @@ pub fn draw_view_scene(
     )?;
     clear_point_records(reads, part)?;
     set_up_fog(
-        race,
+        &reads.buffers.engine_tables,
         reads.stage_prefs,
         &view.fog,
         &view.polygon,
         &view.car,
         part,
     )?;
-    camera_view(race, reads, &view.matrices, view)?;
+    camera_view(reads, &view.matrices, view)?;
     draw_sky(&ctx)?;
     view_light(&ctx, reads.has_mmx)?;
     reset_lamps(&ctx)?;
     // (The original's 0 into `g_viewLamps`, 0x63DB6C: read by nothing.)
-    prepare_course_view(race, reads, view, part)?;
+    prepare_course_view(reads, view, part)?;
     gather_visible_faces(&ctx)?;
     let environment = eax_environment(reads.course(), reads.work, &part.points, &view.grid)?;
     gather_lamps(&ctx)?;
@@ -127,10 +121,7 @@ pub fn draw_view_scene(
     crate::debug::timing::stop(crate::debug::timing::Stage::DepthEntries, begun);
     let view_value = view_value(reads.view, &view.polygon.sun, view.drawn_view(race))?;
     // The lamps the next view starts from (`race::lamp_work::PUBLISHED`).
-    {
-        use crate::cells::Cells;
-        crate::race::lamp_work::PUBLISHED.copy_from(&view.lamps);
-    }
+    crate::race::lamp_work::PUBLISHED.publish(&view.lamps);
     Ok(ViewOutput {
         environment: Some(environment),
         view_value: Some(view_value),
