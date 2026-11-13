@@ -63,11 +63,11 @@ fn sub_mul_to_int(a: impl Loadable, b: impl Loadable, c: impl Loadable) -> i32 {
 /// `fld y; fld x; fpatan; fst angle; fabs; fmul s; fsubr full; fmul d; fmul tenth;
 /// fistp`: (the angle's bits, the knock).
 fn knock(
-    y: u32,
-    x: u32,
+    y: impl Loadable,
+    x: impl Loadable,
     s: impl Loadable,
     full: impl Loadable,
-    d: u32,
+    d: impl Loadable,
     tenth: impl Loadable,
 ) -> (u32, i32) {
     let angle = ld(y).atan2(ld(x));
@@ -102,13 +102,13 @@ fn update_car_effects_with(
     o.effect_in[2].set(mul_to_int(&view.local_velocity[0], ten) as u32);
     o.effect_in[3].set(mul_to_int(&view.local_velocity[2], ten) as u32);
     // The knock's force from its inputs (angle from y = `knock_in[2]`, x = `knock_in[0]`).
-    if o.knock_in[3].bits() & 0x7FFF_FFFF != 0 && o.knock_in[0].bits() & 0x7FFF_FFFF != 0 {
+    if o.knock_in[3].get() != 0.0 && o.knock_in[0].get() != 0.0 {
         let (angle, force) = knock(
-            o.knock_in[2].bits(),
-            o.knock_in[0].bits(),
+            o.knock_in[2].get(),
+            o.knock_in[0].get(),
             effects.effect_angle_scale.get(),
             effects.effect_full.get(),
-            o.knock_in[3].bits(),
+            o.knock_in[3].get(),
             effects.effect_tenth.get(),
         );
         scratch.set(angle);
@@ -117,7 +117,7 @@ fn update_car_effects_with(
         o.knock.set(0);
     }
     for d in &o.knock_in {
-        d.set_bits(0);
+        d.set(0.0);
     }
     // The surface effect: the surface's kind and the speed.
     let mut kind = effects.surface_effect_kinds[surface as usize].get();

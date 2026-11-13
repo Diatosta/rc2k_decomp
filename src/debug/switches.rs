@@ -14,10 +14,10 @@ use std::sync::atomic::{AtomicU32, Ordering::Relaxed};
 pub static EXTENSIONS: AtomicU32 = AtomicU32::new(1);
 
 /// A tick box over a switch of 0 and 1, with the key it had and what it does.
-fn tick(ui: &Ui, key: u32, name: &str, cell: &impl crate::session::Cell32, about: &str) {
-    let mut on = cell.bits() != 0;
+fn tick(ui: &Ui, key: u32, name: &str, cell: &crate::session::PlainDword, about: &str) {
+    let mut on = cell.is_set();
     if ui.checkbox(format!("{key}: {name}"), &mut on) {
-        cell.set_bits(u32::from(on));
+        cell.set(u32::from(on));
     }
     ui.same_line();
     ui.text_disabled(about);

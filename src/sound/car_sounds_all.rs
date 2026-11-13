@@ -76,7 +76,7 @@ pub fn car_sounds_all(
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `nearest_distance = (place[0] * place[0]) + ((place[1] * place[1]) + (place[2] * place[2]))`
-fn x87_1(si: &SoundObject, nearest_distance: &impl crate::session::Cell32) {
+fn x87_1(si: &SoundObject, nearest_distance: &crate::session::PlainFloat) {
     let t0 = ld(si.place[0].get());
     let t1 = ld(si.place[0].get());
     let t2 = t0 * t1;
@@ -88,13 +88,12 @@ fn x87_1(si: &SoundObject, nearest_distance: &impl crate::session::Cell32) {
     let t8 = t6 * t7;
     let t9 = t5 + t8;
     let t10 = t2 + t9;
-    nearest_distance.set_bits(stf(t10).to_bits());
+    nearest_distance.set(stf(t10));
 }
 
 #[cfg(test)]
 mod reference_vectors {
     use super::*;
-    use crate::scene::x87_mem::HostCell;
     use crate::sound::asm_layout::{Laid, with_laid};
     use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
 
@@ -115,7 +114,12 @@ mod reference_vectors {
             ulps: 0,
             plain: |a| {
                 // The distance sits at +0x2578 of the race sounds in the image.
-                with_laid::<SoundObject, _>(a[0], |so| x87_1(so, &HostCell(a[1] + 0x2578)));
+                with_laid::<SoundObject, _>(a[0], |so| {
+                    x87_1(
+                        so,
+                        crate::scene::x87_mem::view::<crate::session::PlainFloat>(a[1], 0x2578),
+                    );
+                });
             },
         }]
     }

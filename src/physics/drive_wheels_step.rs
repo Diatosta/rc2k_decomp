@@ -31,7 +31,6 @@ use crate::race::numbers_store::Numbers;
 use crate::race::owner_course::Course;
 use crate::race::vars_store::RaceVars;
 use crate::scene::matrix3::extended;
-use crate::session::Cell32;
 use crate::session::FloatLike;
 use crate::session::PlainFloat;
 
@@ -343,7 +342,7 @@ fn abs_status(v: [u32; 2]) -> u16 {
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[r + 0] = ([d + 0] - [rc + 0x31A184]) / [spec_wheel]`
-fn slip_ratio(car: &Car, tables: &PhysicsTables, d: &impl Cell32, r: &PlainFloat) {
+fn slip_ratio(car: &Car, tables: &PhysicsTables, d: &PlainFloat, r: &PlainFloat) {
     let t0 = d.ld();
     let t1 = car.local_velocity[2].ld();
     let t2 = t0 - t1;
@@ -360,7 +359,7 @@ fn slip_ratio(car: &Car, tables: &PhysicsTables, d: &impl Cell32, r: &PlainFloat
 fn apply_slip_to_drive(
     tables: &PhysicsTables,
     numbers: &Numbers,
-    d: &impl Cell32,
+    d: &PlainFloat,
     s: &PlainFloat,
     f1: &PlainFloat,
     f2: &PlainFloat,
@@ -385,7 +384,7 @@ fn apply_slip_to_drive(
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[r + 0] = |(([d + 0] - [rc + 0x31A184]) / [spec_wheel])|`
-fn slip_ratio_size(car: &Car, tables: &PhysicsTables, d: &impl Cell32, r: &PlainFloat) {
+fn slip_ratio_size(car: &Car, tables: &PhysicsTables, d: &PlainFloat, r: &PlainFloat) {
     let t0 = d.ld();
     let t1 = car.local_velocity[2].ld();
     let t2 = t0 - t1;
@@ -592,11 +591,11 @@ fn handbrake_step_for_b(car: &Car, tables: &PhysicsTables, numbers: &Numbers) {
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `status [s + 0] = status`
 fn handbrake_stop_status(a: impl x87::Flt, b: impl x87::Flt, limit: impl x87::Flt) -> u16 {
-    let t0 = ld(a.bits());
-    let t1 = ld(b.bits());
+    let t0 = ld(a.value());
+    let t1 = ld(b.value());
     let t2 = t0 + t1;
     let t3 = t2.abs();
-    let t4 = ld(limit.bits());
+    let t4 = ld(limit.value());
     compare(t3, t4)
 }
 

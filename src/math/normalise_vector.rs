@@ -52,7 +52,11 @@ pub(crate) fn squares_sum(v: [u32; 3]) -> u32 {
 /// roots kept unrounded (`fld root; fmul exponent_root; fld1; fdivrp`; then `fld v_k;
 /// fmul st, st(1); fstp`). Gives the three components as floats and the inverse as a
 /// float (the last `fstp`).
-pub(crate) fn scaled_by_inverse(v: [u32; 3], root: u32, exponent_root: u32) -> ([u32; 3], u32) {
+pub(crate) fn scaled_by_inverse(
+    v: [u32; 3],
+    root: impl crate::math::x87_float::Loadable,
+    exponent_root: impl crate::math::x87_float::Loadable,
+) -> ([u32; 3], u32) {
     let inverse = ONE / (ld(root) * ld(exponent_root));
     (v.map(|k| st(ld(k) * inverse)), st(inverse))
 }
@@ -88,8 +92,8 @@ pub fn normalise(
         return Ok(None);
     }
     let sum = squares_sum([v[0], v[1], v[2]]);
-    let root: u32 = lists.root_table[((sum >> 15) & 0xFF) as usize].bits();
-    let exponent_root: u32 = lists.exponent_root_table[((sum & 0x7F80_0000) >> 23) as usize].bits();
+    let root: f32 = lists.root_table[((sum >> 15) & 0xFF) as usize].get();
+    let exponent_root: f32 = lists.exponent_root_table[((sum & 0x7F80_0000) >> 23) as usize].get();
     // The product of two floats is exact in a double, as it is in the x87.
     let length = ld(root) * ld(exponent_root);
     if compare(length, ld(NOTHING)) & 0x4000 != 0 {

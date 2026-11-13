@@ -113,27 +113,22 @@ fn torque(race: &Race, scene: &Scene) {
     let shared = &race.shared;
     let course = &race.course;
     engine_torque(&race.course, &race.shared, scene);
-    shared.physics_tables.get().drive_ratio.set_bits(
-        sum_times_int_over_minus(
-            shared.physics_tables.get().engine_force.bits(),
-            shared.physics_tables.get().engine_torque.bits(),
-            shared.car().throttle.get() as i32,
-            course.numbers.get().k256.bits(),
-        )
-        .to_bits(),
-    );
+    let tables = shared.physics_tables.get();
+    tables.drive_ratio.set(sum_times_int_over_minus(
+        &tables.engine_force,
+        &tables.engine_torque,
+        shared.car().throttle.get() as i32,
+        &course.numbers.get().k256,
+    ));
     let gear = shared.car().gear.get();
-    shared.physics_tables.get().drive_torque.set_bits(
-        mul_div2(
-            shared.physics_tables.get().drive_ratio.bits(),
-            race.gear().drive_torque_figure.bits(),
-            shared.physics_tables.get().gear_ratios[(gear + 1) as usize].bits(),
-            course.numbers.get().k10000.bits(),
-        )
-        .to_bits(),
-    );
+    tables.drive_torque.set(mul_div2(
+        &tables.drive_ratio,
+        &race.gear().drive_torque_figure,
+        &tables.gear_ratios[(gear + 1) as usize],
+        &course.numbers.get().k10000,
+    ));
     if shared.car().drive_cut_steps.get() != 0 {
-        shared.physics_tables.get().drive_torque.set_bits(0);
+        tables.drive_torque.set(0.0);
     }
     drive_torque_share(
         race.shared.car(),
@@ -351,9 +346,9 @@ mod tests {
     fn measuring_puts_back_all_it_writes() {
         let shared = &race().shared;
         let _lock = crate::test_support::test_lock();
-        let was_limit = shared.car().engine_speed_limit.bits();
+        let was_limit = shared.car().engine_speed_limit.get();
         let was_count = shared.physics_tables.get().gear_count.get();
-        let was_ratio = shared.physics_tables.get().gear_ratios[2].bits();
+        let was_ratio = shared.physics_tables.get().gear_ratios[2].get();
         shared.car().engine_speed_limit.set(7000.0_f32);
         shared.physics_tables.get().gear_count.set(1);
         shared.physics_tables.get().gear_ratios[2].set(0.01_f32);
@@ -365,18 +360,18 @@ mod tests {
         );
         assert_eq!(m.gears.len(), 1);
         assert!(!m.gears[0].is_empty());
-        shared.car().engine_speed_limit.set_bits(was_limit);
+        shared.car().engine_speed_limit.set(was_limit);
         shared.physics_tables.get().gear_count.set(was_count);
-        shared.physics_tables.get().gear_ratios[2].set_bits(was_ratio);
+        shared.physics_tables.get().gear_ratios[2].set(was_ratio);
     }
 
     #[test]
     fn no_limit_no_measuring() {
         let shared = &race().shared;
         let _lock = crate::test_support::test_lock();
-        let was = shared.car().engine_speed_limit.bits();
-        shared.car().engine_speed_limit.set_bits(0);
+        let was = shared.car().engine_speed_limit.get();
+        shared.car().engine_speed_limit.set(0.0);
         assert!(measure(race(), scene()).is_none());
-        shared.car().engine_speed_limit.set_bits(was);
+        shared.car().engine_speed_limit.set(was);
     }
 }

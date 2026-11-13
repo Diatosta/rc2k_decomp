@@ -835,10 +835,7 @@ fn listed_stores() -> Vec<Listed> {
         ),
         listed!(
             "system.owner.SYSTEM.records.stage_tables",
-            on_game_from(
-                &crate::system::owner::SYSTEM.records().stage_tables,
-                ".trak_pak.link",
-            ),
+            on_game(&crate::system::owner::SYSTEM.records().stage_tables),
         ),
         listed!(
             "menu.owner.MENUS.cars.drivers",

@@ -42,7 +42,7 @@ struct Game<'a> {
     /// The walked drivers.
     drivers: &'a [Driver],
     /// The stage's track pack entry.
-    pack: crate::records::trakpak_entry::Track<'a>,
+    pack: crate::records::trakpak_entry::Track,
     /// The driver `running` last asked about (the one `drop_out` drops).
     asked: Option<&'a Driver>,
     /// A refused read or write of the core's variables (checked at each step and at the end).

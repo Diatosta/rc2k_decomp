@@ -22,16 +22,12 @@ pub fn draw_hud_batch(part: &crate::workers::PartScratch, hud: &crate::hud::owne
             let Some(v) = hud.block.vertices.get(n as usize) else {
                 past("a vertex")
             };
-            [
-                v.x.bits(),
-                v.y.bits(),
-                v.z.bits(),
-                v.rhw.bits(),
+            crate::d3d::wire_vertex(
+                [v.x.get(), v.y.get(), v.z.get(), v.rhw.get()],
                 v.colour.get(),
                 v.specular.get(),
-                v.u.bits(),
-                v.v.bits(),
-            ]
+                [v.u.get(), v.v.get()],
+            )
         },
         |k| match hud.block.indices.get(k) {
             Some(i) => i.get(),

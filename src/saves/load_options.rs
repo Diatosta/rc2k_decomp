@@ -15,10 +15,10 @@ use crate::errors::{BadInput, FatalError, Refused};
 use crate::files::read_file::read_file_to_store;
 use crate::menu::player::Player;
 use crate::owners::Owners;
-use crate::records::stages_store::Record;
+use crate::records::stages_store::{RECORD_LEN, Record};
 use crate::saves::best_times_store::TimeEntry;
 use crate::saves::rebuild_car_lists::rebuild_car_lists;
-use crate::session::{DwordLike, PlainLoose, Shared};
+use crate::session::{DwordLike, Run, Shared};
 use crate::settings::TEXT_ROOM;
 
 // ---- game data ----
@@ -49,7 +49,8 @@ pub enum Field<'a> {
 /// Where a field's values go to, or come from: the file's bytes, in order.
 trait Move {
     fn dword(&mut self, field: &dyn DwordLike) -> Result<(), BadInput>;
-    fn loose(&mut self, field: &PlainLoose) -> Result<(), BadInput>;
+    /// The dwords of a run (a record), each in turn.
+    fn words(&mut self, run: &dyn Run) -> Result<(), BadInput>;
     fn text(&mut self, cells: &dyn Store, from: usize, len: usize) -> Result<(), BadInput>;
     fn player(&mut self, field: &Shared<Player>) -> Result<(), BadInput>;
 }
@@ -63,8 +64,10 @@ impl Move for Put {
         Ok(())
     }
 
-    fn loose(&mut self, field: &PlainLoose) -> Result<(), BadInput> {
-        self.0.extend_from_slice(&field.get().to_le_bytes());
+    fn words(&mut self, run: &dyn Run) -> Result<(), BadInput> {
+        for i in 0..run.count() {
+            self.0.extend_from_slice(&run.bits(i).to_le_bytes());
+        }
         Ok(())
     }
 
@@ -105,8 +108,10 @@ impl Move for Take<'_> {
         Ok(())
     }
 
-    fn loose(&mut self, field: &PlainLoose) -> Result<(), BadInput> {
-        field.set(Take::dword(self)?);
+    fn words(&mut self, run: &dyn Run) -> Result<(), BadInput> {
+        for i in 0..run.count() {
+            run.set_bits(i, Take::dword(self)?);
+        }
         Ok(())
     }
 
@@ -161,7 +166,7 @@ impl Field<'_> {
             Self::Dwords(fields) => 4 * fields.len(),
             Self::Text { len, .. } => *len,
             Self::Player(_) => size_of::<Player>(),
-            Self::Records(records) => size_of_val(*records),
+            Self::Records(records) => records.len() * RECORD_LEN as usize,
             Self::TimeEntries(entries) => size_of_val(*entries),
         }
     }
@@ -172,10 +177,7 @@ impl Field<'_> {
             Self::Dwords(fields) => fields.iter().try_for_each(|field| m.dword(*field)),
             Self::Text { cells, from, len } => m.text(*cells, *from, *len),
             Self::Player(player) => m.player(player),
-            Self::Records(records) => records
-                .iter()
-                .flat_map(|record| &record.words)
-                .try_for_each(|word| m.loose(word)),
+            Self::Records(records) => records.iter().try_for_each(|record| m.words(record)),
             Self::TimeEntries(entries) => entries.iter().try_for_each(|entry| time_entry(entry, m)),
         }
     }

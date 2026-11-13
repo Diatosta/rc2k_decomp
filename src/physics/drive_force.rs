@@ -26,24 +26,22 @@ pub fn drive_force(
         return Err(BadInput("a gear outside g_gearRatios (-1 ..= 7)").into());
     }
     engine_torque_or_cut(course, shared, scene);
-    shared.physics_tables.get().drive_ratio.set_bits(
-        sum_times_int_over_minus(
+    shared
+        .physics_tables
+        .get()
+        .drive_ratio
+        .set(sum_times_int_over_minus(
             &shared.physics_tables.get().engine_force,
             &shared.physics_tables.get().engine_torque,
             shared.car().throttle.get() as i32,
             &course.numbers.get().k256,
-        )
-        .to_bits(),
-    );
-    shared.physics_tables.get().drive_torque.set_bits(
-        mul_div2(
-            &shared.physics_tables.get().drive_ratio,
-            &gear_figures.drive_torque_figure,
-            &shared.physics_tables.get().gear_ratios[(gear + 1) as usize],
-            &course.numbers.get().k10000,
-        )
-        .to_bits(),
-    );
+        ));
+    shared.physics_tables.get().drive_torque.set(mul_div2(
+        &shared.physics_tables.get().drive_ratio,
+        &gear_figures.drive_torque_figure,
+        &shared.physics_tables.get().gear_ratios[(gear + 1) as usize],
+        &course.numbers.get().k10000,
+    ));
     if shared.car().drive_cut_steps.get() != 0 {
         shared.physics_tables.get().drive_torque.set(0.0);
     }

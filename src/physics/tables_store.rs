@@ -276,7 +276,7 @@ pub struct PhysicsTables {
     /// +0x870 (0x614098): 0.05 (`physics::camera_frame`).
     pub camera_frame_scale: PlainFloat,
     /// +0x874 (0x61409C): the motion kept by `physics::keep_motion`.
-    pub kept_motion: [PlainDword; 3],
+    pub kept_motion: [PlainFloat; 3],
     /// +0x880 (0x6140A8): no instruction of the game refers to it (IDA, 2026-11-10); unused.
     pub unused_880: PlainDword,
     /// +0x884 (0x6140AC): `physics::stall_when_still`'s.

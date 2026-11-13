@@ -20,7 +20,7 @@
 //! looked at by the owner. `start` calls it directly.
 
 use crate::errors::BadInput;
-use crate::session::{Cell32, PlainDword};
+use crate::session::PlainDword;
 use crate::system::owner::Start;
 
 // ---- game data ----
@@ -78,14 +78,14 @@ pub fn read_command_line(
     // anything is written (a refused `-i` word now leaves nothing written).
     let sw = rc2k_core::system::command_line::read(line)?;
     start.command_line.program_len.set(sw.program.1 as u32);
-    for (on, cell) in [
-        (sw.u, &install.run.updating as &dyn Cell32),
-        (sw.installing, &install.run.installing),
-        (sw.no_audio, &audio.state.no_audio),
-    ] {
-        if on {
-            cell.set_bits(1u32);
-        }
+    if sw.u {
+        install.run.updating.set(1);
+    }
+    if sw.installing {
+        install.run.installing.set(1);
+    }
+    if sw.no_audio {
+        audio.state.no_audio.set(1);
     }
     for i in &sw.install {
         install.run.from_command.set(1u32);

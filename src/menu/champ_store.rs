@@ -85,8 +85,8 @@ impl ChampView {
 }
 
 /// The variables of the view that held a best-times table (the list the stage pages go
-/// through, `StageTables::result_tables`, names them by their address in the game's data); the
-/// tables are typed now (`saves::best_times`).
+/// through, `records::stages_store::RESULT_TABLES`, names them; the image's list held their
+/// addresses, `image_name`); the tables are typed now (`saves::best_times`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TimesVariable {
     /// `ChampView.stage_best_times`.
@@ -101,7 +101,8 @@ pub enum TimesVariable {
 
 impl TimesVariable {
     /// The variable the game's name `name` (the variable's address in the game's data, as the
-    /// stage tables' list holds it) stands for.
+    /// image's stage tables' list held it) stands for (the tests' oracle of `image_name`).
+    #[cfg(test)]
     pub const fn named(name: u32) -> Option<TimesVariable> {
         match name {
             0x7556D8 => Some(TimesVariable::StageTimes),
@@ -109,6 +110,17 @@ impl TimesVariable {
             0x7556E8 => Some(TimesVariable::TimeTrialTimes),
             0x7556E4 => Some(TimesVariable::StageTimesAlt),
             _ => None,
+        }
+    }
+
+    /// Its name in the game's data: the address the image's stage tables' list held for it,
+    /// what a read on through the tables sees (`records::stages_store::Piece`).
+    pub const fn image_name(self) -> u32 {
+        match self {
+            TimesVariable::StageTimes => 0x7556D8,
+            TimesVariable::CourseTimes => 0x7556E0,
+            TimesVariable::TimeTrialTimes => 0x7556E8,
+            TimesVariable::StageTimesAlt => 0x7556E4,
         }
     }
 }
@@ -128,5 +140,13 @@ mod tests {
             Some(TimesVariable::StageTimesAlt)
         );
         assert_eq!(TimesVariable::named(0x7556DC), None);
+        for v in [
+            TimesVariable::StageTimes,
+            TimesVariable::CourseTimes,
+            TimesVariable::TimeTrialTimes,
+            TimesVariable::StageTimesAlt,
+        ] {
+            assert_eq!(TimesVariable::named(v.image_name()), Some(v));
+        }
     }
 }

@@ -42,15 +42,12 @@ fn hold(v: &impl Cell32, l: &impl Cell32) {
 /// The exact version, for `physics::car_physics_step` and `physics::find_clear_place`.
 pub fn limit_motion(car: &Car, tables: &PhysicsTables, scene: &crate::scene::owner::Scene) {
     let drawing = &scene.drawing;
-    let mut bad = false;
-    for item in car.velocity.iter().take(3usize) {
-        // An integer test on the float's exponent bits (infinity or not a number).
-        let ecx = item.bits() & 0x7F80_0000;
-        if ecx == 0x7F80_0000 {
-            bad = true;
-            break;
-        }
-    }
+    // Infinity or not a number (the original tests the float's exponent bits).
+    let bad = car
+        .velocity
+        .iter()
+        .take(3)
+        .any(|item| !item.get().is_finite());
     if bad {
         crate::logfile::log_write::log_nul(&c"*** INFINITY", false, 1);
         crate::logfile::log_write::log_nul(&c"[car0.newxspd] =", false, 1);

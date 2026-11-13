@@ -30,7 +30,7 @@ pub fn share_engine_sound(
             .chain([&car.contact_depth])
             .enumerate()
         {
-            so.knock_in[k].set_bits(figure.bits());
+            so.knock_in[k].set(figure.get());
         }
     }
     so.steer_trim_copy.set(car.steer_trim.get());

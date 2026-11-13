@@ -426,14 +426,14 @@ pub fn camera_view(
     let vars = &view.vars;
     crate::math::cells::copy_cells(&vars.view_place, &own.view_place, 3);
     crate::math::cells::copy_cells(&vars.view_angles, &own.view_angles, 6);
-    own.view_car_flag_a.set(view.car.camera_switch_share.bits());
+    own.view_car_flag_a.set(view.car.camera_switch_share.get());
     own.view_car_stage.set(view.car.camera_view.get());
     view.vars
         .view_car_flag_b
         .set(view.car.camera_mode_is_2_or_3.get());
     view.vars
         .view_car_flag_a
-        .set(view.car.camera_switch_share.bits());
+        .set(view.car.camera_switch_share.get());
     view.vars.view_car_stage.set(view.car.camera_view.get());
     if reads.switches.scene_set_up.get() == 0 {
         place_view(&reads.buffers.engine_tables, reads.course(), view)?;

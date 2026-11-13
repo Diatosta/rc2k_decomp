@@ -27,7 +27,7 @@ pub fn lever_push(
     scene: &crate::scene::owner::Scene,
 ) {
     for k in 0..3 {
-        tables.lever_push_place[k].set_bits(car.spin[k].bits());
+        tables.lever_push_place[k].set(car.spin[k].get());
     }
     turn_by_inverse(car, &tables.lever_push_place);
     cross_product(

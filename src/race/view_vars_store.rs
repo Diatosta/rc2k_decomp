@@ -16,7 +16,7 @@ use crate::session::{CellKind, PlainCells, PlainDword, PlainFloat};
 #[derive(rc2k_derive::Cells)]
 pub struct ViewVars<K: CellKind = PlainCells> {
     /// +0x0 (0x60626C): the car block's +0x69C copied at the frame start (`race::frame_draw`); `race::car_draw` tests it against the drawn car, so it marks which car the view follows.
-    pub view_car_flag_a: K::Dword,
+    pub view_car_flag_a: K::Float,
     /// +0x4 (0x606270): the car block's +0x684 copied at the frame start; the car's index into the stage records (`race::car_draw`, `race::frame_draw`).
     pub view_car_stage: K::Dword,
     /// +0x8 (0x606274): the car block's +0x6F0 copied at the frame start (`race::frame_draw`); IDA: read by `camera_view` (0x43832A) and written by `race::car_light_modes` (0x455C44).

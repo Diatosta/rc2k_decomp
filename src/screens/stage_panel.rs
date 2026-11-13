@@ -9,7 +9,8 @@ use crate::gfx::owner::Gfx;
 use crate::menu::owner::Screens;
 use crate::race::owner::Race;
 use crate::records::stages_store::RecordRef;
-use crate::records::trakpak_entry::record_entry;
+use crate::records::stages_store::TrackField;
+use crate::records::trakpak_entry::track_of;
 use crate::screens::draw_stage_heading::heading_text;
 use crate::screens::draw_stage_records::draw_stage_records;
 use crate::screens::game_screen::GameScreen;
@@ -127,17 +128,12 @@ pub fn draw_stage_body_in(
         canvas.blit_glyph(call)?;
     }
     let entry = || -> Result<Entry, Refused> {
-        // By offset: past the pack's 36 entries the original's index reads on into what
-        // follows it (`trakpak_entry::Track`), and every field here may be reached so.
+        // By name: past the pack's 36 entries the original's number reads on into what
+        // follows it (`trakpak_entry::Track::get`), and every field here may be reached so.
         let stages = &o.system.records().stage_tables;
-        let entry = record_entry(stages, record)?;
+        let track = track_of(stages, record)?;
         let fault = crate::menu::event_flow::Fault::default();
-        let f = |o: u32| {
-            fault.ok(crate::records::trakpak_entry::run_on(
-                stages,
-                entry + o as usize,
-            ))
-        };
+        let f = |field: TrackField| fault.ok(track.get(stages, field));
         let made = Entry {
             // `MENU_LISTS.durations` (the stage durations) has 37 entries; the original's index
             // has no bound (fixed: refused).
@@ -145,18 +141,18 @@ pub fn draw_stage_body_in(
                 .tables
                 .lists
                 .durations
-                .get(f(8) as usize)
+                .get(f(TrackField::Duration) as usize)
                 .ok_or(BadInput("a stage duration past the 37"))?
                 .get(),
-            length: f(0x0C),
-            description: f(0x10),
-            weather: f(0x14),
-            temperature: f(0x1C) as i32,
-            wind: f(0x20),
-            surfaces: [f(0x24), f(0x28), f(0x2C), f(0x30)],
-            stage_number: f(0x34),
-            number: f(0x38),
-            number_label_one: f(0x3C) == 1,
+            length: f(TrackField::Length),
+            description: f(TrackField::Description),
+            weather: f(TrackField::Weather),
+            temperature: f(TrackField::Temperature) as i32,
+            wind: f(TrackField::Wind),
+            surfaces: TrackField::SURFACES.map(&f),
+            stage_number: f(TrackField::Stage),
+            number: f(TrackField::Number),
+            number_label_one: f(TrackField::NumberLabelOne) == 1,
         };
         fault.check()?;
         Ok(made)

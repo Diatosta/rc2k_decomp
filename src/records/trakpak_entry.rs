@@ -1,20 +1,22 @@
-//! `records::trakpak_entry` (0x473027): returns the entry of the loaded track pack that a
-//! record refers to.
+//! `records::trakpak_entry` (0x473027): the entry of the loaded track pack that a record
+//! refers to.
 //!
-//! Takes the record (dword +4 = entry index, dword +8 = track pack id). Returns the entry, the
-//! index * 0x40, the record's pack id and the loaded pack's id. The entries are 0x40 bytes each and
-//! start 0x34 bytes into the pack header. If the record's pack id is not the loaded pack's, the
-//! original reports "Invalid TrakPak Header" or, when the header's first dword is non-zero, loops
-//! forever (it reloads the header address on every pass instead of following the link): that case
-//! is left to the original.
+//! Takes the record (+4 the entry's number, +8 the track pack's id). The entries are 0x40
+//! bytes each and start 0x34 bytes into the pack header. If the record's pack id is not the
+//! loaded pack's, the original reports "Invalid TrakPak Header" or, when the header's first
+//! dword is non-zero, loops forever (it reloads the header address on every pass instead of
+//! following the link): this version reports it in both cases.
+//!
+//! The entry's number comes from the player's files and has no bound: past the pack's 36
+//! entries the original read on into what follows the pack, and so does `Track::get`, field
+//! by name, along the stage tables' chain (`stages_store::Piece`).
 
-use crate::errors::BadInput;
-use crate::errors::{FatalError, Refused};
-use crate::records::stages_store::{RecordRef, TrackEntry};
+use crate::errors::{BadInput, FatalError, Refused};
+use crate::records::stages_store::{Piece, RecordRef, StageTables, TrackEntry, TrackField};
 
 // ---- game data ----
 
-pub fn loaded_pack_id(stages: &crate::records::stages_store::StageTables) -> u32 {
+pub fn loaded_pack_id(stages: &StageTables) -> u32 {
     stages.trak_pak.pack_id.get()
 }
 
@@ -24,145 +26,111 @@ pub const INVALID_HEADER: FatalError = FatalError {
     message: "Invalid TrakPak Header",
 };
 
-/// Entry `index` in the pack header at byte `header` of the stage tables, as its byte offset
-/// there.
-/// The original loops forever instead of reporting the error when the header's first dword
-/// is non-zero; this version reports it in both cases.
-pub fn trakpak_entry(
-    header: usize,
+/// The entry numbers the original's 32-bit address reaches apart: an entry 0x40 bytes on,
+/// so the address wraps every 2^26 entries (as the 32-bit builds' byte offset did).
+const ENTRIES_IN_ADDRESS_SPACE: u32 = 1 << 26;
+
+/// A record's track: the entry of the loaded pack by its number, in the pack or past it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Track {
+    /// The entry's number, as the original's address reaches it.
     index: u32,
-    pack_id: u32,
-    loaded_pack_id: u32,
-) -> Result<usize, FatalError> {
-    // Converted: `rc2k_core::files::records::pack_entry`.
-    rc2k_core::files::records::pack_entry(index, pack_id, loaded_pack_id)
-        .map(|place| header + place)
-        .ok_or(INVALID_HEADER)
 }
 
-/// The entry for `record`'s track (+4, +8 the pack's id), in the pack the game has loaded.
-///
-/// The offset is bounded to the stage tables as a whole (the original's index has no bound
-/// and reads on past the pack into what follows).
-pub fn record_entry(
-    stages: &crate::records::stages_store::StageTables,
-    record: RecordRef,
-) -> Result<usize, Refused> {
-    let record = record.record(stages)?;
-    Ok(trakpak_entry(
-        core::mem::offset_of!(crate::records::stages_store::StageTables, trak_pak),
-        record.track(),
-        record.pack_id(),
-        loaded_pack_id(stages),
-    )?)
-}
+impl Track {
+    /// The typed entry, when the number is one of the pack's 36.
+    pub fn entry(self, stages: &StageTables) -> Option<&TrackEntry> {
+        stages.trak_pak.tracks.get(self.index as usize)
+    }
 
-/// A record's track entry: typed when it lies in the pack's 36 entries; past them the
-/// original's index runs on into what follows the pack (`record_entry`), read as the words
-/// they are.
-pub enum Track<'a> {
-    InPack(&'a TrackEntry),
-    /// A run-on past the pack, as the original.
-    /// The entry's byte offset in the stage tables.
-    RunOn(usize),
-}
-
-/// The dword at byte `at` of the stage tables, past the pack.
-pub fn run_on(
-    stages: &crate::records::stages_store::StageTables,
-    at: usize,
-) -> Result<u32, BadInput> {
-    let mut bytes = [0; 4];
-    crate::cells::load_cells(stages, at, &mut bytes)?;
-    Ok(u32::from_le_bytes(bytes))
-}
-
-impl Track<'_> {
-    /// +0x00: the track's name (a string id).
-    pub fn name(
-        &self,
-        stages: &crate::records::stages_store::StageTables,
-    ) -> Result<u32, BadInput> {
-        match self {
-            Track::InPack(entry) => Ok(entry.name.get()),
-            Track::RunOn(at) => run_on(stages, *at + core::mem::offset_of!(TrackEntry, name)),
+    /// Field `field`: the entry's own in the pack; past the pack, the dword the original's
+    /// read reached there along the tables (refused only past the tables' end).
+    pub fn get(self, stages: &StageTables, field: TrackField) -> Result<u32, BadInput> {
+        match self.entry(stages) {
+            Some(entry) => Ok(entry.get(field)),
+            None => stages
+                .word_on(
+                    Piece::Tracks,
+                    self.index as usize * TrackEntry::WORDS + field.word(),
+                )
+                .ok_or(BadInput("a track entry's field past the stage tables")),
         }
+    }
+
+    /// +0x00: the track's name (a string id).
+    pub fn name(self, stages: &StageTables) -> Result<u32, BadInput> {
+        self.get(stages, TrackField::Name)
     }
 
     /// +0x0C: the stage's length.
-    pub fn length(
-        &self,
-        stages: &crate::records::stages_store::StageTables,
-    ) -> Result<u32, BadInput> {
-        match self {
-            Track::InPack(entry) => Ok(entry.length.get()),
-            Track::RunOn(at) => run_on(stages, *at + core::mem::offset_of!(TrackEntry, length)),
-        }
+    pub fn length(self, stages: &StageTables) -> Result<u32, BadInput> {
+        self.get(stages, TrackField::Length)
     }
 
     /// +0x34: the stage number.
-    pub fn stage(
-        &self,
-        stages: &crate::records::stages_store::StageTables,
-    ) -> Result<u32, BadInput> {
-        match self {
-            Track::InPack(entry) => Ok(entry.stage.get()),
-            Track::RunOn(at) => run_on(stages, *at + core::mem::offset_of!(TrackEntry, stage)),
-        }
+    pub fn stage(self, stages: &StageTables) -> Result<u32, BadInput> {
+        self.get(stages, TrackField::Stage)
     }
 }
 
-/// The track entry for `record`, with the refusals of `record_entry`.
-pub fn track_of(
-    stages: &crate::records::stages_store::StageTables,
-    record: RecordRef,
-) -> Result<Track<'_>, Refused> {
-    let at = record_entry(stages, record)?;
-    let index = record.record(stages)?.track() as usize;
-    Ok(match stages.trak_pak.tracks.get(index) {
-        Some(entry) => Track::InPack(entry),
-        None => Track::RunOn(at),
+/// The track entry for `record` (+4, +8 the pack's id), in the pack the game has loaded;
+/// refused for the end mark, fatal for a record of another pack.
+pub fn track_of(stages: &StageTables, record: RecordRef) -> Result<Track, Refused> {
+    let record = record.record(stages)?;
+    if record.pack_id() != loaded_pack_id(stages) {
+        return Err(INVALID_HEADER.into());
+    }
+    Ok(Track {
+        index: record.track() % ENTRIES_IN_ADDRESS_SPACE,
     })
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::records::stages_store::{RecordTable, StageTables};
+    use crate::records::stages_store::RecordTable;
 
-    /// The records' track numbers come from the player's files: every number up to the record's
-    /// end reads the dword the byte offset names (in the pack, the typed entry), and the first
-    /// past the end is refused.
+    /// IDA: the pack's entries (0x734BC6 + 0x34) and the end of the stage tables.
+    const ENTRIES: usize = 0x734BFA;
+    const END: usize = 0x73B674;
+
+    /// The records' track numbers come from the player's files: every number reads its
+    /// fields along the tables (in the pack, the typed entry) up to the image's end, where
+    /// the old byte-offset read stopped (a dword ending past 0x73B674), and the first past
+    /// the end is refused.
     #[test]
     fn track_numbers_run_on_to_the_end_of_the_tables() {
         let stages = Box::new(StageTables::new());
         let r = RecordTable::Championship.row(&stages, 2).unwrap();
-        let first = core::mem::offset_of!(StageTables, trak_pak);
-        let size = core::mem::size_of::<StageTables>();
         let mut refused = 0;
-        for index in 0..=(size - first) / 0x40 + 1 {
-            r.record(&stages).unwrap().words[1].set(index as u32);
-            let read = |track: &Track, field: usize| match track {
-                Track::InPack(_) => None,
-                Track::RunOn(at) => Some(run_on(&stages, at + field)),
-            };
-            match track_of(&stages, r) {
-                Ok(track) => {
-                    let at = first + 0x34 + index * 0x40;
-                    let mut bytes = [0; 4];
-                    let old = crate::cells::load_cells(&*stages, at, &mut bytes)
-                        .map(|()| u32::from_le_bytes(bytes));
-                    assert_eq!(track.name(&stages).ok(), old.ok(), "{index}");
-                    refused += usize::from(old.is_err());
-                    if index < 36 {
-                        assert!(matches!(track, Track::InPack(_)));
-                    } else {
-                        assert!(read(&track, 0).is_some());
-                    }
+        for index in 0..=(END - ENTRIES) / 0x40 + 1 {
+            r.record(&stages).unwrap().track.set(index as u32);
+            let track = track_of(&stages, r).expect("the pack's id is the loaded one");
+            for field in [TrackField::Name, TrackField::Length, TrackField::Stage] {
+                let address = ENTRIES + 0x40 * index + 4 * field.word();
+                let read = track.get(&stages, field);
+                assert_eq!(read.is_ok(), address + 4 <= END, "{index} {field:?}");
+                if let Ok(word) = read {
+                    let k = (address - ENTRIES) / 4;
+                    assert_eq!(Some(word), stages.word_on(Piece::Tracks, k));
                 }
-                Err(_) => unreachable!("the offset itself is never refused"),
+                refused += usize::from(read.is_err());
             }
+            assert_eq!(track.entry(&stages).is_some(), index < 36);
         }
         assert!(refused >= 1);
+        // The 32-bit address wraps: 2^26 entries on is the same entry.
+        r.record(&stages)
+            .unwrap()
+            .track
+            .set(ENTRIES_IN_ADDRESS_SPACE + 3);
+        let track = track_of(&stages, r).unwrap();
+        assert_eq!(
+            track.name(&stages),
+            Ok(stages.trak_pak.tracks[3].name.get())
+        );
+        // Another pack's record is the original's fatal error.
+        r.record(&stages).unwrap().pack_id.set(7);
+        assert!(track_of(&stages, r).is_err());
     }
 }

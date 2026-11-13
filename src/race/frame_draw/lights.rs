@@ -54,7 +54,7 @@ pub fn car_light_modes(
             this_car.driver_kind.get() != 0,
             mode,
             me,
-            || this_car.camera_switch_share.bits() == 0 && this_car.camera_view.get() == 0,
+            || this_car.camera_switch_share.get().to_bits() == 0 && this_car.camera_view.get() == 0,
             || mirrored,
         );
         if !drawn {

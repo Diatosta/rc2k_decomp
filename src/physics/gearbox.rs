@@ -22,7 +22,7 @@ use std::cmp::Ordering;
 /// C0 of comparing `a` with `b`: below, or unordered (each a float or its bits).
 pub fn below(a: impl crate::math::x87::Flt, b: impl crate::math::x87::Flt) -> bool {
     !matches!(
-        f32::from_bits(a.bits()).partial_cmp(&f32::from_bits(b.bits())),
+        a.value().partial_cmp(&b.value()),
         Some(Ordering::Greater | Ordering::Equal)
     )
 }

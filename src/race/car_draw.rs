@@ -353,7 +353,9 @@ pub fn draw_car(ctx: &crate::race::view_scratch::DrawCtx<'_>, car: usize) -> Res
     // The original stored the group mask into the car's block +0xF04 here (0x461CD8),
     // which nothing ever reads: dropped (`notes/bugs.md`).
     let view_car = ctx.reads.view.drawn_view_car(ctx.view.drawn_view(race))?;
-    if view_car == ctx.view.state.drawn_car.get() && ctx.view.state.view_car_flag_a.get() != 0 {
+    if view_car == ctx.view.state.drawn_car.get()
+        && ctx.view.state.view_car_flag_a.get().to_bits() != 0
+    {
         ctx.view.cars.group_mask.set(u32::MAX);
     }
     ctx.view.light.light_lowest.set(0);

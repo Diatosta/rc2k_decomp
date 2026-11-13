@@ -24,7 +24,7 @@ pub fn allowed_gear_at(
     eax: i32,
 ) -> Result<i32, Refused> {
     // The game compares the words: the engine damage is exactly 100.0's bits, not a float compare.
-    let locked = locked.bits() == numbers.hundred.bits();
+    let locked = locked.get() == numbers.hundred.get();
     Ok(rc2k_core::physics::gearbox::allowed_gear(
         locked,
         eax,

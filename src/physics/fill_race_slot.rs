@@ -58,34 +58,25 @@ pub fn fill_race_slot(
     for k in 0..16 {
         slot.matrix[k].set(car.crash_matrix[k].get());
     }
-    let k = work.part_fling.bits();
-    slot.motion[0].set_bits(
-        int_mul_add(
-            scene.object_work().object_position[0].get() as i32,
-            k,
-            &car.velocity[0],
-            None,
-        )
-        .to_bits(),
-    );
-    slot.motion[1].set_bits(
-        int_mul_add(
-            scene.object_work().object_position[1].get() as i32,
-            k,
-            car.velocity[1].bits(),
-            Some(numbers.two.bits()),
-        )
-        .to_bits(),
-    );
-    slot.motion[2].set_bits(
-        int_mul_add(
-            scene.object_work().object_position[2].get() as i32,
-            k,
-            &car.velocity[2],
-            None,
-        )
-        .to_bits(),
-    );
+    let k = &work.part_fling;
+    slot.motion[0].set(int_mul_add(
+        scene.object_work().object_position[0].get() as i32,
+        k,
+        &car.velocity[0],
+        None,
+    ));
+    slot.motion[1].set(int_mul_add(
+        scene.object_work().object_position[1].get() as i32,
+        k,
+        &car.velocity[1],
+        Some(numbers.two.bits()),
+    ));
+    slot.motion[2].set(int_mul_add(
+        scene.object_work().object_position[2].get() as i32,
+        k,
+        &car.velocity[2],
+        None,
+    ));
     for k in 0..3 {
         slot.spin[k].set(car.spin[k].get());
     }

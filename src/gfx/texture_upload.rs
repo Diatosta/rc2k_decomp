@@ -112,10 +112,10 @@ impl Run for RecordCell {
         self.0.len()
     }
     fn bits(&self, i: usize) -> u32 {
-        self.0[i].bits()
+        self.0[i].get()
     }
     fn set_bits(&self, i: usize, v: u32) {
-        self.0[i].set_bits(v);
+        self.0[i].set(v);
     }
 }
 
@@ -215,10 +215,10 @@ impl Run for FormatCell {
         self.0.len()
     }
     fn bits(&self, i: usize) -> u32 {
-        self.0[i].bits()
+        self.0[i].get()
     }
     fn set_bits(&self, i: usize, v: u32) {
-        self.0[i].set_bits(v);
+        self.0[i].set(v);
     }
 }
 
