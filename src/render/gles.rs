@@ -253,7 +253,7 @@ pub struct Gpu {
     width: i32,
     height: i32,
     depth_is_new: bool,
-    textures: HashMap<super::TextureId, CachedTexture>,
+    textures: super::TextureMap<CachedTexture>,
 }
 
 pub static GPU: Mutex<Option<Front>> = Mutex::new(None);
@@ -301,7 +301,7 @@ impl Gpu {
             width: 0,
             height: 0,
             depth_is_new: true,
-            textures: HashMap::new(),
+            textures: Default::default(),
             gl,
         };
         gpu.set_up()?;
@@ -939,7 +939,7 @@ enum Job {
 pub struct Front {
     jobs: SyncSender<Job>,
     /// The textures up to date on the GPU, with their sizes.
-    known: HashMap<super::TextureId, (usize, usize)>,
+    known: super::TextureMap<(usize, usize)>,
     size: (i32, i32),
 }
 
@@ -1148,7 +1148,7 @@ pub fn start_if_wanted() {
             log("render: the GPU backend on libmali's OpenGL ES, on its own thread");
             *held = Some(Front {
                 jobs,
-                known: HashMap::new(),
+                known: Default::default(),
                 size: (0, 0),
             });
             super::gpu_started();

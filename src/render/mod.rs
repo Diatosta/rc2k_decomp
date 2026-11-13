@@ -23,6 +23,33 @@ use std::sync::atomic::{AtomicBool, Ordering::Relaxed};
 /// Direct3D's render states a command carries.
 pub const STATES: usize = 0x40;
 
+/// A map keyed by texture ids: the ids are two small integers, which the std hasher's SipHash
+/// costs far more to hash than the lookup is worth (one per run of fans in a flush).
+pub type TextureMap<V> =
+    std::collections::HashMap<TextureId, V, std::hash::BuildHasherDefault<TextureIdHasher>>;
+
+/// Hashes a `TextureId`'s two integers by folding each into the state with a multiply (the Fx
+/// hash); it is for keys of that kind only.
+#[derive(Default)]
+pub struct TextureIdHasher(u64);
+
+impl std::hash::Hasher for TextureIdHasher {
+    fn finish(&self) -> u64 {
+        self.0
+    }
+
+    fn write(&mut self, bytes: &[u8]) {
+        for byte in bytes {
+            self.write_u32(u32::from(*byte));
+        }
+    }
+
+    fn write_u32(&mut self, value: u32) {
+        const SEED: u64 = 0x51_7c_c1_b7_27_22_0a_95;
+        self.0 = (self.0.rotate_left(5) ^ u64::from(value)).wrapping_mul(SEED);
+    }
+}
+
 /// A texture level of the Direct3D layer (`platform_3d`): the number of its surface and a
 /// serial no other level, past or present, has. A level let go and made again under the same
 /// surface number is another id, so what a cache holds under the old one is never taken for it.
@@ -381,7 +408,33 @@ pub static GL_SHOW_MICROS: std::sync::atomic::AtomicU64 = std::sync::atomic::Ato
 
 #[cfg(test)]
 mod tests {
-    use super::{TextureChanges, TextureId};
+    use super::{TextureChanges, TextureId, TextureMap};
+
+    /// Every id of a grid of surfaces and serials is found again under its own value, and
+    /// the same hashes as a std map's lookups give the same answers.
+    #[test]
+    fn texture_map_finds_each_id() {
+        let mut map = TextureMap::default();
+        let mut reference = std::collections::HashMap::new();
+        for surface in 0..0x140u32 {
+            for serial in 0..8u32 {
+                let id = TextureId { surface, serial };
+                map.insert(id, surface * 8 + serial);
+                reference.insert(id, surface * 8 + serial);
+            }
+        }
+        assert_eq!(map.len(), reference.len());
+        for (id, value) in &reference {
+            assert_eq!(map.get(id), Some(value));
+        }
+        assert_eq!(
+            map.get(&TextureId {
+                surface: 0x140,
+                serial: 0
+            }),
+            None
+        );
+    }
 
     /// The upload's conversion gives what `rasteriser::to_argb` gives for every pixel, in
     /// each layout the fast paths take and one they do not.
