@@ -42,29 +42,59 @@ pub fn fog_entries(
     if entries.iter().any(|entry| entry.record.get() == 0) {
         return Err(BadInput("an entry without its record").into());
     }
-    let length: u32 = fog.length.get();
-    if length > TABLE_LEN {
-        return Err(BadInput("a fog table longer than its room").into());
-    }
+    let length = table_length(view)?;
     let fixed = (light.view_kind.get() == 4).then(|| fog.next.get());
     for entry in entries {
-        let record = entry.record.get();
-        let depth = x87::to_int(crate::scene::point_records::vertex(
-            part,
-            &view.polygon.quad_vertices,
-            record,
-            0x18,
-        ));
-        // A place past the length is the last one; with no length (the menus)
-        // that is the byte before the table, as in the original.
-        let place = depth.max(0) as u32 >> 13;
-        let place = if (place.wrapping_sub(length) as i32) < 0 {
-            place
-        } else {
-            length.wrapping_sub(1)
-        };
-        let level = u32::from(fog.level(place));
-        entry.fog.set((fixed.unwrap_or(level) ^ 0xFF) as u8);
+        entry
+            .fog
+            .set(byte(part, view, entry.record.get(), length, fixed));
     }
     Ok(())
+}
+
+/// The view's fog table's length; refused above its room.
+fn table_length(view: &crate::race::view_scratch::ViewScratch) -> Result<u32, BadInput> {
+    let length: u32 = view.fog.length.get();
+    if length > TABLE_LEN {
+        return Err(BadInput("a fog table longer than its room"));
+    }
+    Ok(length)
+}
+
+/// The fog byte of the point whose record is `record`, as `fog_entries` gives an entry: by
+/// the record's depth (`length` the table's), or `fixed`'s low byte, inverted.
+fn byte(
+    part: &crate::workers::PartScratch,
+    view: &crate::race::view_scratch::ViewScratch,
+    record: u32,
+    length: u32,
+    fixed: Option<u32>,
+) -> u8 {
+    let depth = x87::to_int(crate::scene::point_records::vertex(
+        part,
+        &view.polygon.quad_vertices,
+        record,
+        0x18,
+    ));
+    // A place past the length is the last one; with no length (the menus)
+    // that is the byte before the table, as in the original.
+    let place = depth.max(0) as u32 >> 13;
+    let place = if (place.wrapping_sub(length) as i32) < 0 {
+        place
+    } else {
+        length.wrapping_sub(1)
+    };
+    let level = u32::from(view.fog.level(place));
+    (fixed.unwrap_or(level) ^ 0xFF) as u8
+}
+
+/// The fog byte `fog_entries` will give an entry whose record is `record`, outside the view
+/// kind 4 (whose byte is fixed): what a reflective object face's shine is scaled by
+/// (`scene::draw_object_face`). Refuses as `fog_entries` does a table longer than its room.
+pub fn fog_of_record(
+    part: &crate::workers::PartScratch,
+    view: &crate::race::view_scratch::ViewScratch,
+    record: u32,
+) -> Result<u8, BadInput> {
+    Ok(byte(part, view, record, table_length(view)?, None))
 }

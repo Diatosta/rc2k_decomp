@@ -9,7 +9,9 @@
 //! course's `shine` and the second `settings_words` entry not 0, `view_kind` not 4, the
 //! face's own shine not 0) each entry also gets a second pair of coordinates from
 //! `scene::cached_reflection_coordinates` and, in its `amount`, the face's shine times
-//! `shine` times the first entry's fog, over 0x1000, held to 255; `face_any_shine` says
+//! `shine` times the face's first vertex's fog (as `scene::fog_polygon` will give it; the
+//! original read the first entry's before the face was projected, what the polygon drawn
+//! before had left: fixed), over 0x1000, held to 255; `face_any_shine` says
 //! whether any of them was not 0, and the second texture is 0x87. `face_any_shine` is only
 //! cleared when this part runs: a face without reflections goes by what an earlier one left.
 //! Then the first pass's fade (`faded`, when `fade_alpha` is set and the face's five bits are
@@ -129,6 +131,20 @@ pub fn draw_object_face(
     }
     if reflects {
         ctx.view.face.face_any_shine.set(0u32);
+        // The shine is scaled by the face's own fog: its first vertex's, as
+        // `scene::fog_polygon` gives it once the face is projected. The original read the
+        // first entry's fog here, before that, so what the polygon drawn before it had left
+        // (a slip fixed: `wiki/Fixed-bugs.md`).
+        let first = crate::scene::project_point::project_point(
+            ctx.part,
+            fw(0x10).wrapping_neg(),
+            ctx.reads,
+            ctx.view,
+        )?
+        .record;
+        let first_fog = u32::from(crate::scene::fog_polygon::fog_of_record(
+            ctx.part, ctx.view, first,
+        )?);
         for (entry, vertex) in vertices {
             object.reflection_normal_number.set(fw(vertex + 0xC));
             object
@@ -144,7 +160,6 @@ pub fn draw_object_face(
             let coordinates: [u32; 2] = crate::session::read_bits(&object.reflection_coordinates);
             entry.u2.set(coordinates[0]);
             entry.v2.set(coordinates[1]);
-            let first_fog = entries[0].fog.get() as u32;
             let amount = (face_shine.wrapping_mul(shine).wrapping_mul(first_fog) >> 12).min(0xFF);
             if amount != 0 {
                 ctx.view.face.face_any_shine.set(1u32);

@@ -612,3 +612,13 @@ has the same fixed addresses, but its network mode could not be run here to see 
 **Seen or read:** found 2026-11-13 by counting the NaNs the x87 emulation met in held races (Langton, rain, snow) and the four replays: 3,800 to 14,000 a race, all from these places, at a stage's load and in a replay's first seconds (the camera still).
 
 **Fix:** each degenerate case is handled before the division, keeping what the game did: a view that has not moved faces no way (facing 0) and a frame of no ticks keeps its step whole; a view with no level direction keeps its heading; a half of no height has slopes 0; a corner record of no size has slope 0; a line of no length is flat (slope 0); a share of nothing is 0x80000000 without the division. The same races and replays now meet no NaN, and their results are the same as before to the byte.
+
+## A reflective face's shine scaled by the previous polygon's fog
+
+**What it is:** an object's face with a reflection (the cars' paint and glass, shiny scenery) is drawn twice, the second time with the reflection map, whose strength is the face's shine times the stage's shine times the face's fog. The game took that fog from the first slot of the polygon work table before the face's own points were projected and fogged, so it read the fog the previous polygon drawn had left there.
+
+**In game:** the reflection of the first reflective face of an object (the player's car's first one each frame) was a little stronger or weaker depending on what was drawn just before it: on Langton, the car's own light flares or the scenery behind it, whose fog bytes were 201 to 208 of 255. That is about one step of the reflection's 256 levels of alpha on a few of the car's polygons. The faces after the first one read the face drawn just before them on the same car, close to their own fog, so they were nearly right.
+
+**Seen or read:** found 2026-11-13 while drawing the player's car on a thread of its own: the car drawn alone differed from the car drawn after the scenery in one alpha step of one reflection fan, and the cause was narrowed to the work table's entry 0 fog byte (`scene::draw_object_face`, 0x450BDA, reading it before `scene::fog_polygon`). Read in the port; the disassembly was not checked in this step.
+
+**Fix:** the face's shine is scaled by its own fog, the fog `scene::fog_polygon` gives its first vertex once the face is projected (the same table and depth). Nothing else changes: held races keep every tick and sound turn; only the reflection pass's alpha on reflective faces differs.
