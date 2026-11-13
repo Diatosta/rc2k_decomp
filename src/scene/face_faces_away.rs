@@ -75,14 +75,19 @@ impl Triangle {
     }
 }
 
+/// Whether the face (of `count` vertices, the dword at its start) is seen from behind. The
+/// numbers of its points are read once into `points` when it has 3 or more vertices
+/// (`scene::face_sort_key` takes them from there).
 pub fn face_faces_away(
     ctx: &crate::race::view_scratch::DrawCtx<'_>,
     face: usize,
+    count: u32,
+    points: &mut smallvec::SmallVec<[u32; 16]>,
 ) -> Result<bool, Refused> {
     if face == 0 || !crate::scene::point_records::held(ctx.reads.course_lists) {
         return Err(BadInput("no face or no records").into());
     }
-    let count: u32 = crate::scene::object_faces::word(face as u32)?;
+    points.clear();
     ctx.view.polygon.polygon_vertex_count.set(count);
     if count < 3 {
         return Ok(true);
@@ -96,7 +101,19 @@ pub fn face_faces_away(
         )
         .ok_or(BadInput("a face of too many vertices"))?;
     crate::scene::object_faces::array::<0x10>(last)?;
-    let point = |n: u32| crate::scene::object_faces::word(face as u32 + 0x10 + n * 0x10);
+    // Every vertex is in the faces now (the last one is), so reading them all up front
+    // refuses nothing the loop would not.
+    let mut vertices: smallvec::SmallVec<[u8; 0x10 * 16]> =
+        smallvec::smallvec![0; count as usize * 0x10];
+    crate::scene::object_faces::read_into(face as u32 + 0x10, &mut vertices)?;
+    points.extend(
+        vertices
+            .as_chunks::<0x10>()
+            .0
+            .iter()
+            .map(|v| u32::from_le_bytes(v[..4].try_into().unwrap())),
+    );
+    let point = |n: u32| Ok::<u32, Refused>(points[n as usize]);
     let table = crate::scene::reading::PointRecords::new(ctx.reads.course_lists, ctx.part)?;
     for n in 2..count {
         // The original looks at each triangle's numbers as it comes to it.

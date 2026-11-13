@@ -36,7 +36,7 @@ pub struct BufferReads {
 impl BufferReads {
     /// The bytes, zero as in the image.
     pub const fn new() -> Self {
-        crate::cells::cells_of_bytes([0u8; core::mem::size_of::<BufferReads>()])
+        crate::cells::zeroed_cells()
     }
 }
 

@@ -280,7 +280,7 @@ fn read_alpha_sheet(
 pub fn build_glyphs(
     vars: &SheetVars,
     template: &[u8],
-    list: &dyn crate::cells::Store,
+    list: &crate::memory::ListCells,
     gfx: &crate::gfx::owner::Gfx,
     system: &crate::system::owner::System,
     strings: &crate::strings::owner::Strings,

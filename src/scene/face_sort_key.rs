@@ -1,6 +1,7 @@
 //! `scene::face_sort_key` (0x450564): the depth a face is sorted by.
 //!
-//! Takes: the face, the number of its vertices
+//! Takes: the face, the number of its vertices, the point numbers of its vertices (read once by
+//! `scene::face_faces_away`)
 //!
 //! The depths of the face's points (each point's record 0x1000 + (number & 0xFFF), its +0x18)
 //! are added one by one, each sum rounded to a float; the sum times the entry
@@ -24,6 +25,7 @@ pub fn face_sort_key(
     lists: &crate::race::course_lists_store::CourseLists,
     face: usize,
     count: u32,
+    points: &[u32],
 ) -> Result<(), Refused> {
     let vertices: u32 = poly.polygon_vertex_count.get();
     if face == 0
@@ -35,10 +37,8 @@ pub fn face_sort_key(
         return Err(BadInput("no face, no records, or a count the key cannot be made for").into());
     }
     let mut sum = 0f32.to_bits();
-    for n in 0..count as usize {
-        let record = crate::scene::point_records::of_object_point(
-            crate::scene::object_faces::word((face + 0x10 + n * 0x10) as u32)?,
-        );
+    for &point in &points[..count as usize] {
+        let record = crate::scene::point_records::of_object_point(point);
         sum = x87::add(crate::scene::point_records::field(part, record, 0x18)?, sum).to_bits();
     }
     let factor = lists.face_key_factors[vertices as usize].get();

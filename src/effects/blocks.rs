@@ -175,7 +175,7 @@ pub fn reset_settings_blocks(effects: &crate::effects::owner::Effects) -> Result
 #[derive(rc2k_derive::Cells)]
 pub struct PlacesBlock {
     /// 0x8DB570: `stru_8DB570` (`g_marksPlacesList`): the list the places' block is taken on (16 bytes).
-    pub list: [PlainDword; 4],
+    pub list: crate::memory::ListCells,
     /// 0x8DB5B0: `g_marksPlaces`: the places' block (0x7024 bytes; 0 since phase 12: only
     /// counted, `allocate_places`).
     pub places: PlainDword,
@@ -186,12 +186,7 @@ pub struct PlacesBlock {
 impl PlacesBlock {
     pub const fn new() -> Self {
         Self {
-            list: [
-                PlainDword::new(0x0),
-                PlainDword::new(0x0),
-                PlainDword::new(0x0),
-                PlainDword::new(0x0),
-            ],
+            list: crate::memory::ListCells::empty(),
             places: PlainDword::new(0x0),
             start: [
                 PlainFloat::new(0.0),
@@ -207,7 +202,7 @@ impl PlacesBlock {
 #[derive(rc2k_derive::Cells)]
 pub struct MarkLinks {
     /// 0x9206F0: `stru_9206F0` (`g_marksLinksList`): the list the links' block is taken on (16 bytes).
-    pub list: [PlainDword; 4],
+    pub list: crate::memory::ListCells,
     /// 0x920730: `g_marksLinks`: the links' block (0x71020 bytes; 0 since phase 12: only
     /// counted, `allocate_links`).
     pub links: PlainDword,
@@ -216,12 +211,7 @@ pub struct MarkLinks {
 impl MarkLinks {
     pub const fn new() -> Self {
         Self {
-            list: [
-                PlainDword::new(0x0),
-                PlainDword::new(0x0),
-                PlainDword::new(0x0),
-                PlainDword::new(0x0),
-            ],
+            list: crate::memory::ListCells::empty(),
             links: PlainDword::new(0x0),
         }
     }
@@ -301,7 +291,7 @@ impl MarkCorners {
 #[derive(rc2k_derive::Cells)]
 pub struct RingPool {
     /// 0x93A580: `stru_93A580` (`g_marksRingList`): a `memory::List` (head, total, cursor, remaining)
-    pub list: [PlainDword; 4],
+    pub list: crate::memory::ListCells,
     /// 0x93A5C0: `g_marksRingFree`: the first entry of the ring in use
     pub free: PlainDword,
     /// 0x93A5C8: `g_marksRing`: the block taken for the ring
@@ -324,12 +314,7 @@ pub struct RingPool {
 impl RingPool {
     pub const fn new() -> Self {
         RingPool {
-            list: [
-                PlainDword::new(0x0),
-                PlainDword::new(0x0),
-                PlainDword::new(0x0),
-                PlainDword::new(0x0),
-            ],
+            list: crate::memory::ListCells::empty(),
             free: PlainDword::new(0x0),
             ring: PlainDword::new(0x0),
             fireworks_run: PlainDword::new(0x0),

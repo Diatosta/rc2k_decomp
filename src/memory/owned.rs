@@ -7,20 +7,19 @@
 //! and so is a step that reaches the same value again inside its own step (it would wait
 //! for itself). Another thread's step is waited for.
 
-use crate::cells::{load_value, store_value};
 use crate::errors::{BadInput, Refused};
-use crate::memory::{MemoryList, with_figures};
+use crate::memory::{HeldList, ListCells, with_figures};
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicUsize, Ordering::Relaxed};
 
 /// `bytes` counted on `list` as `memory::allocate` counts a block (the list's total, the
 /// memory figures). Refuses what `allocate` refuses: a size that with
 /// the header wraps.
-pub fn count_on(list: &dyn crate::cells::Store, bytes: u32) -> Result<(), Refused> {
+pub fn count_on(list: &impl HeldList, bytes: u32) -> Result<(), Refused> {
     check_count(bytes)?;
-    let mut l = load_value::<MemoryList>(list, 0)?;
+    let mut l = list.get();
     l.total = l.total.wrapping_add(bytes);
-    store_value(list, 0, l)?;
+    list.set(l);
     with_figures(|f| f.taken(bytes));
     Ok(())
 }
@@ -37,7 +36,7 @@ fn check_count(bytes: u32) -> Result<(), Refused> {
 /// only while one function runs. Sized as the game's block was (whole pages less its
 /// header), so a read just past `bytes` gives zeros as it did. Refuses what `count_on`
 /// refuses.
-pub fn counted(list: &dyn crate::cells::Store, bytes: u32) -> Result<Vec<u8>, Refused> {
+pub fn counted(list: &ListCells, bytes: u32) -> Result<Vec<u8>, Refused> {
     count_on(list, bytes)?;
     Ok(vec![0; block_len(bytes)])
 }
@@ -93,12 +92,7 @@ impl<T> Owned<T> {
     }
 
     /// `value` taken, `bytes` (the game's block size) counted on `list`.
-    pub fn take(
-        &self,
-        list: &dyn crate::cells::Store,
-        bytes: u32,
-        value: T,
-    ) -> Result<(), Refused> {
+    pub fn take(&self, list: &impl HeldList, bytes: u32, value: T) -> Result<(), Refused> {
         count_on(list, bytes)?;
         *self.lock() = Some(Box::new(value));
         Ok(())
@@ -141,7 +135,7 @@ mod tests {
     fn taken_counted_lent_and_given_back() {
         let _lock = crate::test_support::test_lock();
         let figures = crate::memory::figures();
-        let l = crate::memory::ListCells::new(MemoryList {
+        let l = crate::memory::ListCells::new(crate::memory::MemoryList {
             head: 0,
             total: 0,
             cursor: 0,

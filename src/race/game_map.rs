@@ -26,11 +26,11 @@ const VERSION: u32 = 0x5_0000;
 #[derive(rc2k_derive::Cells)]
 pub struct MapVars {
     /// `g_mapList` (`0x5BE90D`): the list the tiles' memory is on.
-    pub list: PlainBytes<16>,
+    pub list: crate::memory::ListCells,
     /// `0x5BE91D` .. `0x5BE94D`: nothing reads or writes them (a gap).
     pub _gap_10: PlainBytes<0x30>,
     /// `g_mapKeyList` (`0x5BE94D`): the list the key sheet's memory is on.
-    pub key_list: PlainBytes<16>,
+    pub key_list: crate::memory::ListCells,
     /// `0x5BE95D` .. `0x5BE98D`: nothing reads or writes them (a gap).
     pub _gap_50: PlainBytes<0x30>,
     /// `g_mapKeyPixels` (`0x5BE98D`): the sheet, 16 MB (a picture buffer's number since phase
@@ -65,9 +65,9 @@ pub struct MapVars {
 impl MapVars {
     pub const fn new() -> Self {
         MapVars {
-            list: PlainBytes::new([0; 16]),
+            list: crate::memory::ListCells::empty(),
             _gap_10: PlainBytes::new([0; 0x30]),
-            key_list: PlainBytes::new([0; 16]),
+            key_list: crate::memory::ListCells::empty(),
             _gap_50: PlainBytes::new([0; 0x30]),
             key_pixels: PlainLoose::new(0),
             tiles: PlainLoose::new(0),

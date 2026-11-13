@@ -269,6 +269,19 @@ impl<const N: usize> Run for PlainBytes<N> {
     }
 }
 
+/// The whole dwords of an atomic buffer (a record's filler).
+impl<const N: usize> Run for Bytes<N> {
+    fn count(&self) -> usize {
+        N / 4
+    }
+    fn bits(&self, i: usize) -> u32 {
+        self.get_u32(4 * i)
+    }
+    fn set_bits(&self, i: usize, v: u32) {
+        self.set_u32(4 * i, v);
+    }
+}
+
 /// Where dword `n` of `runs` laid end to end is: a table and the fields after it in the record,
 /// named in the record's order. The original reads a table by an index it does not hold to the
 /// table's end, so the dword is the next field's. Past the last run is refused, and logged.
@@ -297,6 +310,24 @@ fn locate<'a>(
 pub fn read_runs(runs: &[&dyn Run], n: usize, what: &str) -> Result<u32, crate::errors::BadInput> {
     let (run, i) = locate(runs, n, what)?;
     Ok(run.bits(i))
+}
+
+/// The bytes of `runs` laid end to end, from byte `at`, into `to` (little-endian within each
+/// dword, as the game's records are read). A byte past the last run is refused, and logged.
+pub fn read_run_bytes(
+    runs: &[&dyn Run],
+    at: usize,
+    to: &mut [u8],
+    what: &str,
+) -> Result<(), crate::errors::BadInput> {
+    for (k, out) in to.iter_mut().enumerate() {
+        let byte = at.checked_add(k).ok_or(crate::errors::BadInput(
+            "a byte past the fields of its record",
+        ))?;
+        let (run, i) = locate(runs, byte / 4, what)?;
+        *out = run.bits(i).to_le_bytes()[byte % 4];
+    }
+    Ok(())
 }
 
 /// `read_runs`' write.

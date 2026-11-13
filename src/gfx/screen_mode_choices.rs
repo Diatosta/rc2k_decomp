@@ -31,21 +31,20 @@ use crate::errors::{BadInput, Refused};
 use crate::framework::CarryZeroFlags;
 use crate::gfx::modes::Modes;
 use crate::gfx::owner::{Display, Gfx};
-use core::mem::offset_of;
 use rc2k_core::gfx::mode_choices as mc;
 
 // ---- game data (IDA addresses) ----
 
-/// `system::find_entry` as the original uses it (the mode tables are walked as bytes, a
-/// run-on past their last entry as the original): the offset in `Modes` of the entry whose
-/// first dword is `key`, or of the place past the table's `count` entries.
+/// `system::find_entry` as the original uses it (a run-on past a table's last entry goes on
+/// into the field after it): the dword of `Modes` where the entry whose first dword is `key`
+/// starts, or the place past the table's `count` entries.
 fn entry_or_past(modes: &Modes, key: u32, table: usize, count: u32) -> Result<usize, BadInput> {
-    for n in 0..count {
-        if read(modes, table + 8 * n as usize)? == key {
-            return Ok(table + 8 * n as usize);
+    for n in 0..count as usize {
+        if modes.dword(table + 2 * n)? == key {
+            return Ok(table + 2 * n);
         }
     }
-    Ok(table + 8 * count as usize)
+    Ok(table + 2 * count as usize)
 }
 
 /// `entry_or_past` for a key that must be listed: the table of modes (`standalone_modes`, the only
@@ -54,17 +53,12 @@ fn entry_or_past(modes: &Modes, key: u32, table: usize, count: u32) -> Result<us
 /// always among their entries.
 fn entry_of(modes: &Modes, key: u32, table: usize, count: u32) -> Result<usize, BadInput> {
     let at = entry_or_past(modes, key, table, count)?;
-    if at == table + 8 * count as usize {
+    if at == table + 2 * count as usize {
         return Err(BadInput(
             "a listed mode's size or pixel kind key is not in its table",
         ));
     }
     Ok(at)
-}
-
-fn read(modes: &Modes, at: usize) -> Result<u32, BadInput> {
-    crate::cells::load_value(modes, at)
-        .inspect_err(|_| crate::framework::log("a screen mode table's dword: past the block"))
 }
 
 /// The list's mode at `place`, which may lie past the list's end (below `PLACE_LIMIT`).
@@ -75,18 +69,14 @@ fn list_mode(display: &Display, place: u32) -> Result<u32, BadInput> {
         .dword(place, 3, "a screen mode table's dword")
 }
 
-fn read_word(modes: &Modes, at: usize) -> Result<u32, BadInput> {
-    Ok(crate::cells::load_value::<u16>(modes, at)
-        .inspect_err(|_| crate::framework::log("a screen mode table's word: past the block"))?
-        as u32)
-}
-
-/// `system::find_entry_with_bits`: the offset in `Modes` of the first of `count` entries from
+/// `system::find_entry_with_bits`: the dword in `Modes` of the first of `count` entries from
 /// `table` whose first dword has all of `bits`, and the entries left with it.
 fn first_with_bits(modes: &Modes, bits: u32, table: usize, count: u32) -> Option<(usize, u32)> {
     (0..count).find_map(|n| {
-        let at = table + 8 * n as usize;
-        let key = read(modes, at).unwrap_or_else(|e| crate::system::checked_reads::refuse(e));
+        let at = table + 2 * n as usize;
+        let key = modes
+            .dword(at)
+            .unwrap_or_else(|e| crate::system::checked_reads::refuse(e));
         (key & bits == bits).then_some((at, count - n))
     })
 }
@@ -99,8 +89,7 @@ fn modes_of(display: &Display, kind: u32) -> Option<Vec<usize>> {
     }
     let modes = &display.modes;
     let bits = modes.kind_bits[kind as usize].get();
-    let (mut at, mut left) =
-        first_with_bits(modes, bits, offset_of!(Modes, table), modes.count.get())?;
+    let (mut at, mut left) = first_with_bits(modes, bits, Modes::TABLE_AT, modes.count.get())?;
     let mut found = Vec::new();
     loop {
         found.push(at);
@@ -108,8 +97,8 @@ fn modes_of(display: &Display, kind: u32) -> Option<Vec<usize>> {
         if left <= 1 {
             break;
         }
-        // The mode table walked as bytes, its entries 8 bytes each (`Modes::table`).
-        match first_with_bits(modes, bits, at + 8, left - 1) {
+        // The mode table's entries are two dwords each (`Modes::table`).
+        match first_with_bits(modes, bits, at + 2, left - 1) {
             Some(next) => (at, left) = next,
             None => break,
         }
@@ -218,15 +207,16 @@ fn rebuild(
     };
     let mut listed = Vec::new();
     for (n, &at) in modes.iter().enumerate() {
-        let mode = read(&display.modes, at)?;
+        let mode = display.modes.dword(at)?;
         let (size_key, kind_key) = mc::keys(mode);
-        let size = entry_of(&display.modes, size_key, offset_of!(Modes, sizes), 8)?;
-        let kind = entry_of(&display.modes, kind_key, offset_of!(Modes, pixel_kinds), 2)?;
-        // The entries' fields by offset (+4 the size's two halves, the kind's figure).
+        let size = entry_of(&display.modes, size_key, Modes::SIZES_AT, 8)?;
+        let kind = entry_of(&display.modes, kind_key, Modes::PIXEL_KINDS_AT, 2)?;
+        // The entries' second dwords: the size's two halves, the kind's figure.
+        let size_halves = display.modes.dword(size + 1)?;
         let l = mc::Listed {
-            width: read_word(&display.modes, size + 4)?,
-            height: read_word(&display.modes, size + 6)?,
-            figure: read(&display.modes, kind + 4)?,
+            width: size_halves & 0xFFFF,
+            height: size_halves >> 16,
+            figure: display.modes.dword(kind + 1)?,
             mode,
         };
         // `n` is below the list's 16: the room was checked before anything was written.
@@ -250,19 +240,14 @@ fn rebuild(
     let race = display.mode.race_mode.get();
     let failed = std::cell::Cell::new(None);
     let (place, third) = mc::race_place(&listed, race, || {
-        entry_or_past(
-            &display.modes,
-            mc::third_key(race),
-            offset_of!(Modes, kinds),
-            3,
-        )
-        // (a third's entry: the race mode's key may be none of the three, then the place past
-        // `kinds` is `other_tables`' first entry, as the original)
-        .and_then(|e| read(&display.modes, e + 4))
-        .unwrap_or_else(|e| {
-            failed.set(Some(e));
-            0
-        })
+        entry_or_past(&display.modes, mc::third_key(race), Modes::KINDS_AT, 3)
+            // (a third's entry: the race mode's key may be none of the three, then the place past
+            // `kinds` is `other_tables`' first entry, as the original)
+            .and_then(|e| display.modes.dword(e + 1))
+            .unwrap_or_else(|e| {
+                failed.set(Some(e));
+                0
+            })
     });
     if let Some(e) = failed.take() {
         return Err(e.into());

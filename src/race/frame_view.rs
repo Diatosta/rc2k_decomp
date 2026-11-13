@@ -29,7 +29,7 @@ macro_rules! car_view {
         impl CarView {
             const fn new() -> Self {
                 // Every field a cell or an array of cells: zero bits.
-                crate::cells::cells_of_bytes([0u8; core::mem::size_of::<CarView>()])
+                crate::cells::zeroed_cells()
             }
 
             /// Every field from `car`.

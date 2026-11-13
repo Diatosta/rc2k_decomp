@@ -16,7 +16,7 @@ pub fn reset_marks(race: &Race, system: &System) -> Result<(), Refused> {
         // Converted: `rc2k_core::race::viewer::reset_marks`.
         let (block, mark_in, mark_out) = rc2k_core::race::viewer::reset_marks(
             replay.replay_view().replay_block.get(),
-            race.shared.replay_file().index_block_count.get(),
+            race.shared.replay_file().index.block_count.get(),
         );
         replay.replay_view().replay_block.set(block);
         race.viewer_buffers().mark_in.set(mark_in);

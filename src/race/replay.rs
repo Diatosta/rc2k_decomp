@@ -20,7 +20,7 @@ use crate::system::owner::System;
 /// in the saved results depend on the replay it came from, so a time cannot be edited alone.
 /// Kept apart from the sound dwords around it (IDA 0x4F66F9,
 /// `race::owner_replay::Replay::seal_key`).
-// The index (`crate::race::owner::race().shared.replay_file().index()`) is 0x3850 bytes.
+// The index (`crate::race::owner::race().shared.replay_file().index.dwords()`) is 0x3850 bytes.
 const _: () = assert!(crate::race::replay_file_store::INDEX_DWORDS * 4 == 0x3850);
 pub const MOST_BLOCKS: u32 = rc2k_core::race::replay::MOST_BLOCKS;
 pub const BLOCK_LEN: u32 = 0x2810;
@@ -246,6 +246,7 @@ pub fn write_replay_chunk(
 pub fn block_place(race: &Race, k: usize) -> Result<u32, BadInput> {
     race.shared
         .replay_file()
+        .index
         .block_places
         .get(k)
         .map(crate::session::PlainDword::get)
@@ -257,22 +258,23 @@ pub fn block_place(race: &Race, k: usize) -> Result<u32, BadInput> {
 /// block count on. A failed write or the index full (0x708 blocks) closes the replay.
 pub fn write_replay_block(race: &Race, system: &System, replay: &Replay) -> Result<(), Refused> {
     let shared = &race.shared;
-    let n = shared.replay_file().index_block_count.get();
+    let n = shared.replay_file().index.block_count.get();
     if n >= MOST_BLOCKS {
         return Err(BadInput("the replay's index is full already").into());
     }
-    shared.replay_file().block_places[2 * n as usize].set(replay.replay_view().file_offset.get());
+    shared.replay_file().index.block_places[2 * n as usize]
+        .set(replay.replay_view().file_offset.get());
     let (written, failed) =
         write_replay_chunk(race, system, shared.replay_file().replay_handle.get())?;
     let failed = failed || {
-        shared.replay_file().block_places[2 * n as usize + 1].set(written);
+        shared.replay_file().index.block_places[2 * n as usize + 1].set(written);
         // Converted: `rc2k_core::race::replay::block_written`.
         let (size, full) = rc2k_core::race::replay::block_written(written, n);
         replay
             .replay_view()
             .file_offset
             .set(replay.replay_view().file_offset.get().wrapping_add(size));
-        shared.replay_file().index_block_count.set(n + 1);
+        shared.replay_file().index.block_count.set(n + 1);
         full
     };
     if failed {
@@ -304,8 +306,9 @@ pub fn add_replay_frame(race: &Race, system: &System, frame: &[PlainDword]) -> R
     if bytes == FRAME_BYTES {
         shared
             .replay_file()
-            .index_frame_count
-            .set(shared.replay_file().index_frame_count.get().wrapping_add(1));
+            .index
+            .frame_count
+            .set(shared.replay_file().index.frame_count.get().wrapping_add(1));
         replay.replay_view().frames_in_block.set(in_block);
     }
     let first = used as usize / 4;
@@ -337,14 +340,14 @@ pub fn close_replay(race: &Race, system: &System) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::replay::closing_frames`.
     let (frames, _, _) = rc2k_core::race::replay::closing_frames(
         replay.replay_view().replay_block.get(),
-        shared.replay_file().index_block_count.get(),
-        shared.replay_file().index_frame_count.get(),
+        shared.replay_file().index.block_count.get(),
+        shared.replay_file().index.frame_count.get(),
     );
     replay.replay_view().frames_in_block.set(frames);
     crate::race::race_shell::seal_stage_time(race)?;
     crate::files::handle::write_cells(
         shared.replay_file().replay_handle.get(),
-        shared.replay_file().index(),
+        shared.replay_file().index.dwords(),
     );
     crate::files::handle::close(shared.replay_file().replay_handle.get());
     shared.replay_file().replay_open.set(false);
@@ -438,10 +441,10 @@ pub fn open_replay(race: &Race, o: crate::owners::Owners<'static>) -> Result<(),
         .replays()
         .header
         .write_at(0x30, &stage, "the replay header's stage")?;
-    for cell in shared.replay_file().index() {
+    for cell in shared.replay_file().index.dwords() {
         cell.set(0);
     }
-    shared.replay_file().index_magic.set(INDEX_MAGIC);
+    shared.replay_file().index.magic.set(INDEX_MAGIC);
     race.viewer_buffers().block_used.set(0);
     replay.replay_view().frames_in_block.set(0);
     replay.replay_view().file_offset.set(0);

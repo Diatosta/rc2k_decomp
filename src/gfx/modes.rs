@@ -2,12 +2,14 @@
 //! listed), out of RAL.EXE's image: IDA 0x4F4E30 .. 0x4F503C. The thirds table (`thirds`) that
 //! came before it in the image is `THIRDS`.
 //!
-//! The tables are walked by offset (`Modes::entries`: the entry whose first dword is
-//! a key; a key not there gives the place past the table, as the original reads it), so
-//! the struct keeps the image's layout and the tables' addresses come from it (`*_addr`).
+//! The tables are walked by dword (`Modes::entries`: the entry whose first dword is
+//! a key; a key not there gives the place past the table, as the original reads it), through
+//! the fields in the record's order (`Modes::dword`).
 
+use crate::errors::BadInput;
 use crate::gfx::plain_dwords;
-use crate::session::PlainDword;
+use crate::session::{PlainDword, Run};
+#[cfg(test)]
 use core::mem::offset_of;
 
 /// The modes the table holds (32 of 8 bytes).
@@ -60,36 +62,99 @@ impl Modes {
     }
 }
 
+/// Where the tables start, counted in dwords from the first field.
 impl Modes {
-    /// The `count` entries of 8 bytes from byte `table` of the block (the tables are walked
-    /// past their ends, inside the block); a read past the block ends the program.
+    pub const PIXEL_KINDS_AT: usize = 4;
+    pub const SIZES_AT: usize = 8;
+    pub const KINDS_AT: usize = 24;
+    pub const TABLE_AT: usize = 67;
+}
+
+impl Modes {
+    /// The fields in the order of the record, each a run of dwords.
+    fn runs(&self) -> [&dyn Run; 8] {
+        [
+            &self.kind_bits,
+            &self.third_bits,
+            &self.pixel_kinds,
+            &self.sizes,
+            &self.kinds,
+            &self.other_tables,
+            &self.count,
+            &self.table,
+        ]
+    }
+
+    /// Dword `n` of the record. A table that is walked to the key it does not hold (`kinds`)
+    /// goes on into the field after it; past the last field is refused.
+    pub fn dword(&self, n: usize) -> Result<u32, BadInput> {
+        crate::session::read_runs(&self.runs(), n, "a screen mode table's dword")
+    }
+
+    /// The `count` entries of two dwords from dword `at` of the record (the tables are walked
+    /// past their ends, inside the record); a read past the record ends the program.
     pub fn entries(
         &self,
-        table: usize,
+        at: usize,
         count: u32,
     ) -> impl Iterator<Item = rc2k_core::system::tables::Entry> + '_ {
         (0..count as usize).map(move |n| {
-            crate::cells::load_value(self, table.wrapping_add(8 * n))
-                .unwrap_or_else(|e| crate::system::checked_reads::refuse(e))
+            let entry = |k: usize| {
+                self.dword(at.wrapping_add(2 * n + k))
+                    .unwrap_or_else(|e| crate::system::checked_reads::refuse(e))
+            };
+            [entry(0), entry(1)]
         })
     }
 
     /// The second dword of the entry whose first dword is `key`, among the `count` entries
-    /// from byte `table`; None when the key is not there.
-    pub fn value_of(&self, key: u32, table: usize, count: u32) -> Option<u32> {
-        let n = rc2k_core::system::tables::by_key(self.entries(table, count), key)?;
+    /// from dword `at`; None when the key is not there.
+    pub fn value_of(&self, key: u32, at: usize, count: u32) -> Option<u32> {
+        let n = rc2k_core::system::tables::by_key(self.entries(at, count), key)?;
         Some(
-            crate::cells::load_value(self, table + 8 * n + 4)
+            self.dword(at + 2 * n + 1)
                 .unwrap_or_else(|e| crate::fatal::raise::end("a screen mode table", e)),
         )
     }
 
     /// Whether one of the `count` modes listed has all of `bits`.
     pub fn lists_bits(&self, bits: u32) -> bool {
-        rc2k_core::system::tables::with_bits(
-            self.entries(offset_of!(Self, table), self.count.get()),
-            bits,
-        )
-        .is_some()
+        rc2k_core::system::tables::with_bits(self.entries(Self::TABLE_AT, self.count.get()), bits)
+            .is_some()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The tables' places in dwords are the fields' places in the record.
+    #[test]
+    fn places_are_the_fields() {
+        assert_eq!(Modes::PIXEL_KINDS_AT * 4, offset_of!(Modes, pixel_kinds));
+        assert_eq!(Modes::SIZES_AT * 4, offset_of!(Modes, sizes));
+        assert_eq!(Modes::KINDS_AT * 4, offset_of!(Modes, kinds));
+        assert_eq!(Modes::TABLE_AT * 4, offset_of!(Modes, table));
+    }
+
+    /// The old byte read of the record, kept to check the reads by field.
+    fn old_dword(m: &Modes, at: usize) -> Result<u32, BadInput> {
+        crate::cells::load_value(m, at)
+    }
+
+    /// Every dword to the end of the record reads as the byte read did; the first past it is
+    /// refused by both.
+    #[test]
+    fn dwords_read_as_the_byte_read() {
+        let m = Modes::new();
+        for (n, d) in m.table.iter().enumerate() {
+            d.set(0x1000_0001 + n as u32);
+        }
+        m.count.set(7);
+        let total = size_of::<Modes>() / 4;
+        for n in 0..total + 4 {
+            assert_eq!(m.dword(n).ok(), old_dword(&m, 4 * n).ok(), "dword {n}");
+        }
+        assert!(m.dword(total).is_err());
     }
 }

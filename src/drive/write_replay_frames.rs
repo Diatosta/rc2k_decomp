@@ -16,10 +16,11 @@ pub fn write_replay_frames(race: &Race, system: &System) -> Result<(), Refused> 
     if !race.shared.replay_file().replay_open.is_set() {
         return Ok(());
     }
-    race.shared.replay_file().index_frame_count.set(
+    race.shared.replay_file().index.frame_count.set(
         race.shared
             .replay_file()
-            .index_frame_count
+            .index
+            .frame_count
             .get()
             .wrapping_add(0x64),
     );

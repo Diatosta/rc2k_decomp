@@ -9,17 +9,16 @@
 //! blocks removed 2026-11-07): a list holding one is refused.
 //! 38 callers.
 
-use crate::cells::{load_value, store_value};
 use crate::errors::BadInput;
-use crate::memory::{MemoryList, with_figures};
+use crate::memory::{HeldList, with_figures};
 
 /// The list's blocks given back, the list a store (or a field of one).
-pub fn free_list(list: &dyn crate::cells::Store) -> Result<(), BadInput> {
+pub fn free_list(list: &impl HeldList) -> Result<(), BadInput> {
     // Rust's own tables counted on it (`memory::owned`) are given back by their owners
     // (`saves::free_best_times`); its total counts them like the others.
     // The palettes and glyph tables carved off it (`gfx::glyph_store`) go with it.
     crate::gfx::glyph_store::give_back(crate::gfx::glyph_store::key(list));
-    let mut l = load_value::<MemoryList>(list, 0)?;
+    let mut l = list.get();
     // No block of the system's is put on a list any more (every user's memory is Rust's;
     // the original gave each back with `VirtualFree`, or to its own heap): a list
     // holding one is refused.
@@ -31,7 +30,7 @@ pub fn free_list(list: &dyn crate::cells::Store) -> Result<(), BadInput> {
     // Only Rust's memory counted on it (`count_owned`): its total emptied too.
     if l.total != 0 {
         l.emptied();
-        store_value(list, 0, l)?;
+        list.set(l);
     }
     Ok(())
 }

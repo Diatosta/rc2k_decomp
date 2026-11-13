@@ -831,18 +831,42 @@ impl RaceSoundSets {
 
     /// Entry `n` of the list that starts `offset` bytes into the sets. A list is read on
     /// until its -1, through the next fields of the sets in their order where it runs past
-    /// its own (as the original's list did); a read past the sets is none.
+    /// its own (as the original's list did); a read past the sets is none. The list is named
+    /// at run time (a handle the race sound loader is given), so any of the fields can follow.
     pub fn list_entry(
         &self,
         offset: u32,
         n: usize,
     ) -> Result<Option<u32>, crate::errors::BadInput> {
-        let sets = self;
         if offset as usize >= core::mem::size_of::<Self>() {
             return Err(crate::errors::BadInput("a sound list off the race's sets"));
         }
-        let at = (offset as usize).checked_add(4 * n);
-        Ok(at.and_then(|at| crate::cells::load_value::<u32>(sets, at).ok()))
+        let Some(at) = (offset as usize).checked_add(4 * n) else {
+            return Ok(None);
+        };
+        let mut word = [0u8; 4];
+        Ok(
+            crate::session::read_run_bytes(&self.runs(), at, &mut word, "a race sound list")
+                .ok()
+                .map(|()| u32::from_le_bytes(word)),
+        )
+    }
+
+    /// The fields in the record's order, each a run of dwords.
+    fn runs(&self) -> [&dyn crate::session::Run; 11] {
+        [
+            &self.kind_sets_first,
+            &self.first_set_a,
+            &self.first_set_c,
+            &self.kind_sets_second,
+            &self.second_set_a,
+            &self.second_set_b,
+            &self.last_set,
+            &self.first_set_b,
+            &self.replay_set,
+            &self.kinds,
+            &self._tail,
+        ]
     }
 
     const KIND_ENTRIES: usize = 72;
@@ -3152,6 +3176,33 @@ impl SpotVoices {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Every entry of every list start, to the end of the sets and past it, reads as the
+    /// old byte read of the record did.
+    #[test]
+    fn list_entries_read_as_the_byte_read() {
+        let sets = Box::new(RaceSoundSets::new());
+        let total = size_of::<RaceSoundSets>();
+        for k in 0..total / 4 {
+            crate::cells::store_value::<u32>(&*sets, 4 * k, 0x7000_0000 + k as u32).unwrap();
+        }
+        for offset in (0..total as u32 + 8).step_by(4).chain([1, 2, 3, 0x9D1]) {
+            for n in 0..3 {
+                let old = if offset as usize >= total {
+                    Err(crate::errors::BadInput("x"))
+                } else {
+                    Ok((offset as usize)
+                        .checked_add(4 * n)
+                        .and_then(|at| crate::cells::load_value::<u32>(&*sets, at).ok()))
+                };
+                assert_eq!(
+                    sets.list_entry(offset, n).ok(),
+                    old.ok(),
+                    "offset {offset} entry {n}"
+                );
+            }
+        }
+    }
 
     #[test]
     fn racesoundsets_kind_lists_are_their_handles() {

@@ -12,11 +12,11 @@ pub fn keep_undo(race: &Race) {
     // As `rc2k_core::race::viewer_flow::copy_tables`, cell by cell.
     buffers
         .undo_blocks
-        .set(shared.replay_file().index_block_count.get());
+        .set(shared.replay_file().index.block_count.get());
     for (k, (to, from)) in buffers
         .undo_places
         .iter()
-        .zip(&shared.replay_file().block_places)
+        .zip(&shared.replay_file().index.block_places)
         .enumerate()
     {
         to.set(from.get());

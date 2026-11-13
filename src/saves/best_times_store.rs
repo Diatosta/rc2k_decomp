@@ -32,7 +32,7 @@ impl TablePlace {
 #[derive(rc2k_derive::Cells)]
 pub struct BestTimes {
     /// `g_bestTimesMemory` (0x7475D0): the memory list (a `MemoryList`).
-    pub memory: PlainBytes<16>,
+    pub memory: crate::memory::ListCells,
     /// `g_bestTimesAllocated` (0x747610): 1 once the memory is taken.
     pub allocated: PlainDword,
     /// `g_bestTimesLoaded` (0x747614): 1 once the tables hold times (the file's or made up).
@@ -45,7 +45,7 @@ impl BestTimes {
     /// The first values (the image's), for the saves' owner.
     pub const fn new() -> Self {
         BestTimes {
-            memory: PlainBytes::new([0; 16]),
+            memory: crate::memory::ListCells::empty(),
             allocated: PlainDword::new(0),
             loaded: PlainDword::new(0),
             tables: [const { TablePlace::new() }; 9],
@@ -53,7 +53,7 @@ impl BestTimes {
     }
 
     /// The memory list.
-    pub fn list(&self) -> &PlainBytes<16> {
+    pub fn list(&self) -> &crate::memory::ListCells {
         &self.memory
     }
 }

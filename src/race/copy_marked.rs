@@ -26,7 +26,7 @@ pub fn copy_marked(race: &Race) -> Result<Option<u32>, Refused> {
     move_cells(
         &v.clip_places,
         0,
-        &shared.replay_file().block_places,
+        &shared.replay_file().index.block_places,
         first,
         dwords,
     )?;

@@ -55,7 +55,7 @@ pub fn viewer_action(
         Action::Goto(goto) => {
             let block = goto_block(goto, |v| match v {
                 Var::Block => replay.replay_view().replay_block.get(),
-                Var::Blocks => race.shared.replay_file().index_block_count.get(),
+                Var::Blocks => race.shared.replay_file().index.block_count.get(),
                 Var::MarkIn => race.viewer_buffers().mark_in.get(),
                 Var::MarkOut => race.viewer_buffers().mark_out.get(),
             });
@@ -93,7 +93,7 @@ pub fn viewer_action(
             let (block, frame) = frame_on(
                 replay.replay_view().replay_block.get(),
                 replay.replay_view().replay_frame.get(),
-                race.shared.replay_file().index_block_count.get(),
+                race.shared.replay_file().index.block_count.get(),
             );
             read_at(race, o.system, block, frame)?;
         }
@@ -134,7 +134,7 @@ pub fn viewer_action(
         Action::Flip { byte } => {
             crate::race::keep_undo::keep_undo(race);
             let block = replay.replay_view().replay_block.get();
-            if block != race.shared.replay_file().index_block_count.get() {
+            if block != race.shared.replay_file().index.block_count.get() {
                 let at = crate::race::viewer::camera_byte(byte.wrapping_add(block.wrapping_mul(8)));
                 let old: u8 = at.read(race, "a replay block's camera byte")?;
                 at.write(race, old ^ 1, "a replay block's camera byte")?;
@@ -175,7 +175,7 @@ fn cycle_byte(race: &Race, byte: usize) -> Result<(), Refused> {
     let replay = &race.replay;
     crate::race::keep_undo::keep_undo(race);
     let block = replay.replay_view().replay_block.get();
-    if block == race.shared.replay_file().index_block_count.get() {
+    if block == race.shared.replay_file().index.block_count.get() {
         return Ok(());
     }
     let at = crate::race::viewer::camera_byte((byte as u32).wrapping_add(block.wrapping_mul(8)));
@@ -191,7 +191,7 @@ fn cut(race: &Race, system: &System) -> Result<(), Refused> {
     let Some((first, second)) = rc2k_core::race::viewer::cut_marks(
         race.viewer_buffers().mark_in.get(),
         race.viewer_buffers().mark_out.get(),
-        shared.replay_file().index_block_count.get(),
+        shared.replay_file().index.block_count.get(),
     )?
     else {
         return Ok(());
@@ -200,17 +200,18 @@ fn cut(race: &Race, system: &System) -> Result<(), Refused> {
     let Some(count) = crate::race::copy_marked::copy_marked(race)? else {
         return Err(crate::errors::BadInput("a cut whose marks do not copy").into());
     };
-    shared.replay_file().index_block_count.set(
+    shared.replay_file().index.block_count.set(
         shared
             .replay_file()
-            .index_block_count
+            .index
+            .block_count
             .get()
             .wrapping_sub(count),
     );
-    let rest = (shared.replay_file().index_block_count.get() + count) - second;
+    let rest = (shared.replay_file().index.block_count.get() + count) - second;
     use crate::race::viewer::{clear_cells, move_cells};
     for table in [
-        &shared.replay_file().block_places as &dyn crate::math::cells::Cells,
+        &shared.replay_file().index.block_places as &dyn crate::math::cells::Cells,
         &race.viewer_buffers().block_cameras,
     ] {
         let (first, second, rest) = (2 * first as usize, 2 * second as usize, 2 * rest as usize);
@@ -227,7 +228,7 @@ fn paste(race: &Race, system: &System) -> Result<(), Refused> {
     let clip = race.viewer_buffers().clip_blocks.get();
     let (block, blocks) = (
         replay.replay_view().replay_block.get(),
-        shared.replay_file().index_block_count.get(),
+        shared.replay_file().index.block_count.get(),
     );
     if !rc2k_core::race::viewer::pastes(clip, blocks, block)? {
         return Ok(());
@@ -241,7 +242,7 @@ fn paste(race: &Race, system: &System) -> Result<(), Refused> {
     let (at, clip_dwords) = (2 * block as usize, 2 * clip as usize);
     let tables = [
         (
-            &shared.replay_file().block_places as &dyn crate::math::cells::Cells,
+            &shared.replay_file().index.block_places as &dyn crate::math::cells::Cells,
             &v.clip_places,
         ),
         (&v.block_cameras, &v.clip_cameras),
@@ -252,7 +253,7 @@ fn paste(race: &Race, system: &System) -> Result<(), Refused> {
     for (table, clipped) in tables {
         move_cells(table, at, clipped, 0, clip_dwords)?;
     }
-    shared.replay_file().index_block_count.set(blocks + clip);
+    shared.replay_file().index.block_count.set(blocks + clip);
     crate::race::reset_marks::reset_marks(race, system)
 }
 
@@ -286,7 +287,7 @@ fn another_replay(race: &'static Race, o: Owners<'static>) -> Result<(), Refused
 fn save(race: &'static Race, o: Owners<'static>, back: bool) -> Result<(), Refused> {
     let replay = &race.replay;
     let shared = &race.shared;
-    if shared.replay_file().index_block_count.get() == 0 {
+    if shared.replay_file().index.block_count.get() == 0 {
         return Ok(());
     }
     let slot = if back && shared.replay_file().viewer_slot.get() < 100 {

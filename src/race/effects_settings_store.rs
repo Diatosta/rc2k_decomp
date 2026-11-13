@@ -80,7 +80,7 @@ pub struct CarEffects {
     pub face_shares: [PlainDword; 6],
     /// +0x288: the list (16 bytes: a `MemoryList`) the block's point table is counted on
     /// (`effects::lines::BLOCK_POINTS`).
-    pub points_list: [PlainDword; 4],
+    pub points_list: crate::memory::ListCells,
     /// +0x298: not read.
     pub unread_298: [PlainDword; 12],
     /// +0x2c8: the number of the table taken for the block's points (1 + the car's).

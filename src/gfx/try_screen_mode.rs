@@ -33,8 +33,12 @@ pub fn try_screen_mode(
         // Converted: `rc2k_core::gfx::screen_modes::look_up`.
         use rc2k_core::gfx::screen_modes::{Lookup, look_up};
         let count: u32 = display.modes.count.get();
-        let table = core::mem::offset_of!(crate::gfx::modes::Modes, table);
-        match look_up(display.modes.entries(table, count), mode) {
+        match look_up(
+            display
+                .modes
+                .entries(crate::gfx::modes::Modes::TABLE_AT, count),
+            mode,
+        ) {
             Lookup::NoBits => return Ok(Err(true)),
             // A count of 0 gives the first flag state, else the countdown's.
             Lookup::Missing => return Ok(Err(count != 0)),

@@ -54,7 +54,7 @@ pub fn play_from_here(race: &Race, o: crate::owners::Owners<'static>) -> Result<
         rc2k_core::race::viewer_flow::play_from_here(
             replay.replay_view().replay_block.get(),
             replay.replay_view().replay_frame.get(),
-            race.shared.replay_file().index_block_count.get(),
+            race.shared.replay_file().index.block_count.get(),
         ),
     )
 }

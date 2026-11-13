@@ -157,14 +157,18 @@ impl FaceWorld for GameFace<'_> {
 }
 
 /// The face's bytes the tests read.
-fn face_bytes(face: usize) -> Result<Face, BadInput> {
+fn face_bytes(face: usize) -> Result<(Face, u32), BadInput> {
     let b: [u8; 0xC] = crate::scene::object_faces::array(face as u32)?;
-    Ok(Face {
-        kind: b[6],
-        group: b[7],
-        flags: b[8],
-        extra: b[0xB],
-    })
+    let count = u32::from_le_bytes([b[0], b[1], b[2], b[3]]);
+    Ok((
+        Face {
+            kind: b[6],
+            group: b[7],
+            flags: b[8],
+            extra: b[0xB],
+        },
+        count,
+    ))
 }
 
 // Converted: `rc2k_core::scene::face_tests::{dropped, listed_key}`
@@ -182,7 +186,7 @@ pub fn list_object_face(
         return Err(BadInput("no room in the list of faces").into());
     }
     ctx.view.object.see_through.set(0x100u32);
-    let bytes = face_bytes(face)?;
+    let (bytes, count) = face_bytes(face)?;
     let mut world = GameFace(
         race,
         crate::scene::reading::Reading::new(),
@@ -200,10 +204,10 @@ pub fn list_object_face(
         Ok(false) => {}
         Err(why) => return Err(why.into()),
     }
-    if face_faces_away(ctx, face)? {
+    let mut points = smallvec::SmallVec::new();
+    if face_faces_away(ctx, face, count, &mut points)? {
         return Ok(());
     }
-    let count: u32 = crate::scene::object_faces::word(face as u32)?;
     if count as i32 <= 0 {
         return Ok(());
     }
@@ -215,6 +219,7 @@ pub fn list_object_face(
         ctx.reads.course_lists,
         face,
         count,
+        &points,
     )?;
     // The original's room was 0x1000 entries but its list 0x400 long, the rest written over
     // the next tables (fixed: `wiki/Fixed-bugs.md`).

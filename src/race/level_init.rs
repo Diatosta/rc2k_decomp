@@ -34,7 +34,7 @@ const TEXTURES: u32 = 0x100;
 /// list `list`).
 pub fn allocate_course_memory(
     course: &Course,
-    list: &[crate::session::PlainDword; 4],
+    list: &crate::memory::ListCells,
 ) -> Result<(), Refused> {
     course.lists.get().first_part.set(FIRST_PART);
     course.lists.get().course_bytes_total.set(
@@ -73,7 +73,7 @@ pub const COURSE_TAG: u32 = 0xCF00_0000;
 /// `bytes` of course memory counted on `list`, the first `kept` of them held: their handle
 /// (`COURSE_TAG`).
 fn take_course_memory(
-    list: &dyn crate::cells::Store,
+    list: &crate::memory::ListCells,
     bytes: u32,
     kept: u32,
 ) -> Result<u32, Refused> {

@@ -23,7 +23,7 @@ pub fn mark_viewer_items(
     let state = rc2k_core::race::viewer::ViewerState {
         last_race: replay.replay_view().last_race_viewed.is_set(),
         block,
-        blocks: race.shared.replay_file().index_block_count.get(),
+        blocks: race.shared.replay_file().index.block_count.get(),
         mark_in: race.viewer_buffers().mark_in.get(),
         mark_out: race.viewer_buffers().mark_out.get(),
         clip_blocks: race.viewer_buffers().clip_blocks.get(),

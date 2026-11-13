@@ -3,7 +3,7 @@
 //! errors 0x80A61151 and 0x80A61152 (raised as the original). At or past the last frame
 //! (`index_block_count`): the last frame, `replay_at_end` 1, the tenth 0. Else the tenth goes into
 //! `replay_frame`, `replay_at_end` 0, the frame into `replay_block`, the file is put at the frame's
-//! place (`lDistanceToMove[frame]`, `files::seek`) and its bytes (`ReplayFileBlock.block_places[1][frame]`, packed when
+//! place (`lDistanceToMove[frame]`, `files::seek`) and its bytes (`ReplayFileBlock.index.block_places[1][frame]`, packed when
 //! below 0) are read into `block` (`drive::read_packed`).
 //!
 //! Takes: the frame, the tenth
@@ -33,13 +33,13 @@ pub fn read_replay_frame(
     }
     if past_end(
         frame,
-        race_owner.shared.replay_file().index_block_count.get(),
+        race_owner.shared.replay_file().index.block_count.get(),
     ) {
         race_owner.shared.replay_file().replay_at_end.set(true);
         replay
             .replay_view()
             .replay_block
-            .set(race_owner.shared.replay_file().index_block_count.get());
+            .set(race_owner.shared.replay_file().index.block_count.get());
         replay.replay_view().replay_frame.set(0);
         return Ok(false);
     }

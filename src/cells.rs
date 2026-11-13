@@ -17,7 +17,7 @@ use std::sync::atomic::{AtomicU8, AtomicU16, AtomicU32, Ordering::Relaxed};
 ///
 /// # Safety
 /// Every byte of the type is inside an `UnsafeCell` or an atomic, and any bit pattern is a
-/// valid value (`cells_of_bytes` relies on both). `cell_run` is safe to
+/// valid value (`cells_of_bytes` and `zeroed_cells` rely on both). `cell_run` is safe to
 /// get wrong (it hands out references): a wrong run is a wrong read, which the tests of every
 /// store look for (`cells_tests`).
 pub unsafe trait Cells {
@@ -1144,6 +1144,13 @@ fn store_bytes(run: &[AtomicU8], from: &[u8]) {
     for (a, &b) in run.iter().zip(from) {
         a.store(b, std::sync::atomic::Ordering::Relaxed);
     }
+}
+
+/// A record of cells with every byte zero, as a constant (a store's `new()`).
+pub const fn zeroed_cells<T: Cells>() -> T {
+    // SAFETY: `T` is made of cells over plain integers (`Cells`), so all-zero bytes are a valid
+    // value.
+    unsafe { core::mem::MaybeUninit::<T>::zeroed().assume_init() }
 }
 
 /// A record of cells with these bytes as its first values (a static's, at compile time:

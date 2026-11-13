@@ -29,6 +29,6 @@ pub struct TextBuffers {
 impl TextBuffers {
     /// The bytes, zero as in the image.
     pub const fn new() -> Self {
-        crate::cells::cells_of_bytes([0u8; core::mem::size_of::<TextBuffers>()])
+        crate::cells::zeroed_cells()
     }
 }

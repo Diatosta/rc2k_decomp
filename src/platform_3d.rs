@@ -277,12 +277,14 @@ fn draw_noted(part: &crate::workers::PartScratch, pending: &mut Pending) {
 /// A drawing part's drawing noted since the last flush (`workers::PartScratch`): the
 /// first part's is the game's thread's, what is flushed (fans, mode changes, the frame
 /// shown); each other part's holds what it notes in a run until the run's end puts it
-/// after the first's (`take_noted`, `put_noted`). Only its part's thread locks it.
-pub struct Noted(std::sync::Mutex<Pending>);
+/// after the first's (`take_noted`, `put_noted`). Only its part's thread reaches it (a part's
+/// scratch is claimed by one thread at a time, `part_cell`), so it needs no lock: a plain
+/// `RefCell`, which a fan costs no atomic operation on.
+pub struct Noted(std::cell::RefCell<Pending>);
 
 impl Noted {
     pub const fn new() -> Self {
-        Self(std::sync::Mutex::new(Pending {
+        Self(std::cell::RefCell::new(Pending {
             into: None,
             noted: Vec::new(),
             textures: Vec::new(),
@@ -292,10 +294,9 @@ impl Noted {
         }))
     }
 
-    fn lock(&self) -> std::sync::MutexGuard<'_, Pending> {
-        self.0
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
+    /// The noted drawing, borrowed (a borrow held across another `lock` is a bug: it panics).
+    fn lock(&self) -> std::cell::RefMut<'_, Pending> {
+        self.0.borrow_mut()
     }
 }
 

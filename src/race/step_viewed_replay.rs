@@ -32,7 +32,7 @@ pub fn step_viewed_replay(race: &Race, system: &System) -> Result<bool, Refused>
         open,
         block,
         frame,
-        shared.replay_file().index_block_count.get(),
+        shared.replay_file().index.block_count.get(),
         replay.replay_view().play_end.get(),
     ) {
         Step::Closed | Step::AtLast { .. } => return Ok(stop(true)),

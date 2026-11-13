@@ -51,14 +51,23 @@ pub struct ReplayFileBlock {
     pub viewer_stage_loaded: PlainDword,
     /// +0x4c (0x5BECC4): `g_viewerFontsBuilt`: the viewer built the fonts (`race::viewer_load_stage`).
     pub viewer_fonts_built: PlainDword,
-    /// +0x50 (0x5BECC8): `aRcib`: "RCIB", the index's first dword; the index is this dword .. the places, 0x3850 bytes, read and written in place (`race::replay`, `race::open_viewed_replay`).
-    pub index_magic: PlainDword,
+    /// +0x50 (0x5BECC8): the replay index, "RCIB" .. the places, 0x3850 bytes, read and written in place (`race::replay`, `race::open_viewed_replay`).
+    pub index: ReplayIndex,
+}
+
+/// The replay index: "RCIB", the seal, the counts, the places; the dwords of the file's first
+/// 0x3850 bytes in order.
+#[repr(C)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
+pub struct ReplayIndex {
+    /// +0x50 (0x5BECC8): `aRcib`: "RCIB", the index's first dword.
+    pub magic: PlainDword,
     /// +0x54 (0x5BECCC): The dword after "RCIB" (inside IDA's string item): the race record's seal (`race::seal_stage_time`).
-    pub index_seal: PlainDword,
+    pub seal: PlainDword,
     /// +0x58 (0x5BECD0): `dword_5BECD0`: blocks in the replay (`race::replay`, `drive::read_replay_frame`, `race::viewer`).
-    pub index_block_count: PlainDword,
+    pub block_count: PlainDword,
     /// +0x5c (0x5BECD4): `dword_5BECD4`: frames in the replay (`race::replay`, `drive::write_replay_frames`).
-    pub index_frame_count: PlainDword,
+    pub frame_count: PlainDword,
     /// +0x60 (0x5BECD8): `lDistanceToMove` and `dword_5BECDC` (int[3599]): (offset, size) per block, 8 bytes a block, the rest of the index (`race::replay`, `drive::read_replay_frame`).
     pub block_places: [PlainDword; 3600],
 }
@@ -74,19 +83,22 @@ impl ReplayFileBlock {
             viewer_slot: PlainDword::new(0xFFFFFFFF),
             viewer_panel_texture: PlainDword::new(1),
             viewer_device_texture: PlainDword::new(1),
-            index_magic: PlainDword::new(0x42494352),
+            index: ReplayIndex {
+                magic: PlainDword::new(0x42494352),
+                ..ZeroCells::ZERO
+            },
             ..ZeroCells::ZERO
         }
     }
 }
 
-/// The index's dwords: "RCIB" .. the places, 0x3850 bytes.
-pub const INDEX_DWORDS: usize = 4 + 3600;
-
-impl ReplayFileBlock {
-    /// The replay index ("RCIB", the seal, the counts, the places) as its dwords in order,
-    /// read and written in place.
-    pub fn index(&self) -> &[PlainDword; INDEX_DWORDS] {
-        crate::cells::plain_dwords_in(self, core::mem::offset_of!(Self, index_magic))
+impl ReplayIndex {
+    /// The index ("RCIB", the seal, the counts, the places) as its dwords in order, read and
+    /// written in place.
+    pub fn dwords(&self) -> &[PlainDword; INDEX_DWORDS] {
+        crate::cells::plain_dwords_in(self, 0)
     }
 }
+
+/// The index's dwords: "RCIB" .. the places, 0x3850 bytes.
+pub const INDEX_DWORDS: usize = 4 + 3600;

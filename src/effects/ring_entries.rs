@@ -152,7 +152,7 @@ impl Entry {
 }
 
 /// The ring made: each entry linked to its neighbours, counted on `list`.
-pub fn take(ring: &Ring, list: &dyn crate::cells::Store) -> Result<(), crate::errors::Refused> {
+pub fn take(ring: &Ring, list: &crate::memory::ListCells) -> Result<(), crate::errors::Refused> {
     let entries = (0..ENTRIES)
         .map(|i| Entry {
             prev: (i.wrapping_sub(1) & (ENTRIES - 1)) + 1,

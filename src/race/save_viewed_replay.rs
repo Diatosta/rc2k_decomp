@@ -40,7 +40,7 @@ fn save(race: &Race, system: &System, slot: u32) -> Result<bool, Refused> {
         CAMERA_DWORDS, HEADER_LEN, INDEX_HEAD_LEN, NAME_LEN, SAVED_HEADER, has_blocks, name_offset,
         next_offset,
     };
-    if !has_blocks(shared.replay_file().index_block_count.get()) {
+    if !has_blocks(shared.replay_file().index.block_count.get()) {
         return Ok(false);
     }
     let header = &shared.replays().header;
@@ -121,13 +121,13 @@ fn save(race: &Race, system: &System, slot: u32) -> Result<bool, Refused> {
             .file_offset
             .set(next_offset(replay.replay_view().file_offset.get(), written));
         block += 1;
-        if block == shared.replay_file().index_block_count.get() {
+        if block == shared.replay_file().index.block_count.get() {
             break;
         }
     }
     let done = handle::write_cells(
         race.viewer_buffers().to_file.get(),
-        &shared.replay_file().index()[..INDEX_HEAD_LEN as usize / 4],
+        &shared.replay_file().index.dwords()[..INDEX_HEAD_LEN as usize / 4],
     )
     .1 && handle::write_cells(
         race.viewer_buffers().to_file.get(),

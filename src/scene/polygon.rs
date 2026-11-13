@@ -55,11 +55,16 @@ pub fn material_run(
     offset: u32,
     bytes: &mut [u8],
 ) -> Result<(), BadInput> {
-    use crate::scene::polygon_store::PolygonTables;
-    let at = (core::mem::offset_of!(PolygonTables, object_materials) as u32)
+    // The materials follow the texture infos, so kind -1 is the infos' last record.
+    let at = (size_of_val(&tables.texture_infos) as u32)
         .wrapping_add(kind.wrapping_mul(0x80))
         .wrapping_add(offset);
-    crate::cells::load_cells(tables, at as usize, bytes)
+    crate::session::read_run_bytes(
+        &[&tables.texture_infos, &tables.object_materials],
+        at as usize,
+        bytes,
+        "a material record's bytes",
+    )
 }
 
 /// The byte at `offset` of object kind `kind`'s material record (as `material_run`).
@@ -85,22 +90,17 @@ pub fn material_run_word(
     Ok(u16::from_le_bytes(word))
 }
 
-/// The byte `offset` into the polygon tables' field of `len` bytes at `field`; the field's
-/// end is the limit, a read on into the next record inside it as the original's arithmetic
-/// does.
+/// The byte `offset` into the run `field` (one of the polygon tables' arrays of records); the
+/// field's end is the limit, a read on into the next record inside it as the original's
+/// arithmetic does.
 fn field_byte(
-    tables: &crate::scene::polygon_store::PolygonTables,
-    field: usize,
-    len: usize,
+    field: &dyn crate::session::Run,
     offset: u32,
     what: &'static str,
 ) -> Result<u8, BadInput> {
-    let offset = offset as usize;
-    if offset >= len {
-        return Err(BadInput(what));
-    }
     let mut byte = [0u8];
-    crate::cells::load_cells(tables, field + offset, &mut byte)?;
+    crate::session::read_run_bytes(&[field], offset as usize, &mut byte, what)
+        .map_err(|_| BadInput(what))?;
     Ok(byte[0])
 }
 
@@ -111,11 +111,8 @@ pub fn texture_info_byte(
     n: u32,
     offset: u32,
 ) -> Result<u8, BadInput> {
-    use crate::scene::polygon_store::PolygonTables;
     field_byte(
-        tables,
-        core::mem::offset_of!(PolygonTables, texture_infos),
-        core::mem::size_of_val(&tables.texture_infos),
+        &tables.texture_infos,
         n.wrapping_mul(0x40).wrapping_add(offset),
         "a texture info's byte past the table",
     )
@@ -128,11 +125,8 @@ pub fn material_byte(
     kind: u32,
     offset: u32,
 ) -> Result<u8, BadInput> {
-    use crate::scene::polygon_store::PolygonTables;
     field_byte(
-        tables,
-        core::mem::offset_of!(PolygonTables, object_materials),
-        core::mem::size_of_val(&tables.object_materials),
+        &tables.object_materials,
         kind.wrapping_mul(0x80).wrapping_add(offset),
         "an object's material byte past the table",
     )
@@ -160,4 +154,97 @@ pub fn listed<'w>(
             entry(work, number as usize)
         })
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::scene::polygon_store::PolygonTables;
+    use core::mem::{offset_of, size_of};
+
+    fn filled() -> Box<PolygonTables> {
+        let t: Box<PolygonTables> = Box::new(crate::cells::cells_of_bytes(
+            [0u8; size_of::<PolygonTables>()],
+        ));
+        for k in 0..size_of::<PolygonTables>() / 4 {
+            crate::cells::store_value::<u32>(&*t, 4 * k, (k as u32).wrapping_mul(0x9E37_79B1))
+                .unwrap();
+        }
+        t
+    }
+
+    /// The byte readers as they read through the whole tables' bytes.
+    fn old_field_byte(
+        t: &PolygonTables,
+        field: usize,
+        len: usize,
+        offset: u32,
+    ) -> Result<u8, BadInput> {
+        let offset = offset as usize;
+        if offset >= len {
+            return Err(BadInput(""));
+        }
+        let mut byte = [0u8];
+        crate::cells::load_cells(t, field + offset, &mut byte)?;
+        Ok(byte[0])
+    }
+
+    /// Every offset up to the field's end (and past it) reads as the old byte read; an
+    /// offset past the end is refused by both.
+    #[test]
+    fn field_bytes_read_as_the_byte_read() {
+        let t = filled();
+        let infos = size_of_val(&t.texture_infos);
+        for offset in 0..infos as u32 + 8 {
+            assert_eq!(
+                field_byte(&t.texture_infos, offset, "x").ok(),
+                old_field_byte(&t, 0, infos, offset).ok(),
+                "info byte {offset}"
+            );
+        }
+        let materials = size_of_val(&t.object_materials);
+        for offset in (0..materials as u32 + 8).step_by(3) {
+            assert_eq!(
+                field_byte(&t.object_materials, offset, "x").ok(),
+                old_field_byte(
+                    &t,
+                    offset_of!(PolygonTables, object_materials),
+                    materials,
+                    offset
+                )
+                .ok(),
+                "material byte {offset}"
+            );
+        }
+        assert!(texture_info_byte(&t, 255, 0x40).is_err());
+        assert!(material_byte(&t, u32::MAX, 0).is_err());
+    }
+
+    /// A material record's run reads as the old read over the whole tables, kind -1 (the
+    /// infos' last record) and the run-on past the last record included.
+    #[test]
+    fn material_runs_read_as_the_byte_read() {
+        let t = filled();
+        let base = offset_of!(PolygonTables, object_materials) as u32;
+        for kind in [u32::MAX, 0, 1, 1198, 1199, 1200] {
+            for offset in [0u32, 1, 3, 0x1F, 0x7C, 0x7F, 0x80, 0x100] {
+                for len in [1usize, 2, 4, 8] {
+                    let at = base
+                        .wrapping_add(kind.wrapping_mul(0x80))
+                        .wrapping_add(offset);
+                    let (mut old, mut new) = ([0u8; 8], [0u8; 8]);
+                    let o = crate::cells::load_cells(&*t, at as usize, &mut old[..len]);
+                    let n = material_run(&t, kind, offset, &mut new[..len]);
+                    assert_eq!(
+                        o.is_ok(),
+                        n.is_ok(),
+                        "kind {kind} offset {offset} len {len}"
+                    );
+                    if o.is_ok() {
+                        assert_eq!(old, new);
+                    }
+                }
+            }
+        }
+    }
 }

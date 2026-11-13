@@ -10,7 +10,7 @@ use crate::errors::BadInput;
 use crate::memory::free_list::free_list;
 
 pub fn free_fonts(
-    list: &dyn crate::cells::Store,
+    list: &crate::memory::ListCells,
     palettes: &crate::session::PlainDword,
 ) -> Result<(), BadInput> {
     free_list(list)?;

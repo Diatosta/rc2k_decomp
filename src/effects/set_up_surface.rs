@@ -13,7 +13,7 @@ use crate::effects::mask_store::Masks;
 use crate::effects::ring_store::Ring;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
-use crate::session::{PlainBytes, PlainDword};
+use crate::session::PlainBytes;
 
 const MASK_BYTES: u32 = 0x4_0000;
 const PIXELS: u32 = 0x1_0000;
@@ -187,19 +187,14 @@ pub fn set_up_surface(
 #[derive(rc2k_derive::Cells)]
 pub struct MaskList {
     /// 0x93A1DA: `stru_93A1DA`: a `memory::List` (head, total, cursor, remaining)
-    pub list: [PlainDword; 4],
+    pub list: crate::memory::ListCells,
 }
 
 /// MaskList's first values.
 impl MaskList {
     pub const fn new() -> Self {
         MaskList {
-            list: [
-                PlainDword::new(0x0),
-                PlainDword::new(0x0),
-                PlainDword::new(0x0),
-                PlainDword::new(0x0),
-            ],
+            list: crate::memory::ListCells::empty(),
         }
     }
 }

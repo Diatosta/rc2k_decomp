@@ -15,19 +15,19 @@ pub struct CourseLists {
     /// 0x5C6950: `g_faceKeyFactors`: floats for the face sort key (`scene::face_sort_key`, `scene::fill_engine_tables`).
     pub face_key_factors: [PlainFloat; 256],
     /// 0x5C6D50: `g_courseMemoryList`, a MemoryList of 16 bytes (`race::allocate_course_memory`, `race::stage_free`).
-    pub course_memory_list: [PlainDword; 4],
+    pub course_memory_list: crate::memory::ListCells,
     /// 0x5C6D60: no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
     pub unused_414: [PlainDword; 12],
     /// 0x5C6D90: `stru_5C6D90`, a second course MemoryList: set up by `race::allocate_course_memory` (0x41F8FE) and freed by `race::free_course_list_2`; nothing allocates from it (IDA xrefs: only those two).
-    pub second_course_list: [PlainDword; 4],
+    pub second_course_list: crate::memory::ListCells,
     /// 0x5C6DA0: no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
     pub unused_454: [PlainDword; 12],
     /// 0x5C6DD0: `stru_5C6DD0`, a MemoryList (`scene::allocate_object_memory`).
-    pub object_points_list: [PlainDword; 4],
+    pub object_points_list: crate::memory::ListCells,
     /// 0x5C6DE0: no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
     pub unused_494: [PlainDword; 28],
     /// 0x5C6E50: `stru_5C6E50`, a MemoryList (`scene::allocate_point_records`).
-    pub point_records_list: [PlainDword; 4],
+    pub point_records_list: crate::memory::ListCells,
     /// 0x5C6E60: no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
     pub unused_514: [PlainDword; 28],
     /// 0x5C6ED0: `stru_5C6ED0`, a MemoryList used by 0x459764, 0x4599D4 (not used by Rust).
@@ -35,7 +35,7 @@ pub struct CourseLists {
     /// 0x5C6EE0: no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
     pub unused_594: [PlainDword; 28],
     /// 0x5C6F50: `stru_5C6F50`, the mud's MemoryList (`race::mud`).
-    pub mud_list: [PlainDword; 4],
+    pub mud_list: crate::memory::ListCells,
     /// 0x5C6F60: no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
     pub unused_614: [PlainDword; 12],
     /// 0x5C6F90: `dword_5C6F90`: bytes taken from the course lists, added and subtracted by the allocators (`race::stage_free`, `race::mud`, `scene::allocate_object_memory`).

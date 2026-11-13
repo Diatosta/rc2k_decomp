@@ -27,7 +27,9 @@ pub struct MaskVars {
     /// 0x82E342: `g_marksSpansTotal`: the spans made
     pub spans_total: PlainDword,
     /// 0x82E346: `g_marksMaskList`: the work block's memory list
-    pub list: PlainBytes<64>,
+    pub list: crate::memory::ListCells,
+    /// 0x82E356: the 48 bytes after the list (no code reads or writes them).
+    pub list_rest: PlainBytes<48>,
     /// 0x82E386: `g_marksMaskWork`: the 0x80000-byte work block (the game's address; since
     /// phase 12 the block is Rust's, `effects::masks::MASK_WORK`, and this stays 0)
     pub work: PlainDword,
@@ -126,7 +128,8 @@ impl MaskVars {
     pub const fn new() -> Self {
         MaskVars {
             spans_total: PlainDword::new(0x0),
-            list: PlainBytes::new([0; 64]),
+            list: crate::memory::ListCells::empty(),
+            list_rest: PlainBytes::new([0; 48]),
             work: PlainDword::new(0x0),
             count: PlainDword::new(0x0),
             corner_scale: [const { PlainFloat::new(0.0) }; 2],

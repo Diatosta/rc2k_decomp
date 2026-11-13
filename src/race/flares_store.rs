@@ -35,6 +35,6 @@ where
     Self: crate::cells::Cells,
 {
     pub const fn new() -> Self {
-        crate::cells::cells_of_bytes([0u8; core::mem::size_of::<FlareTables>()])
+        crate::cells::zeroed_cells()
     }
 }

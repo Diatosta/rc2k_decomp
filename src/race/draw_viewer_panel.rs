@@ -96,7 +96,7 @@ pub fn draw_viewer_panel(
     ));
     text(FONT_B, 4, 8)?;
     string(0x1A5, FONT_C, 0x60, 0x19)?;
-    append_time(replay_length(shared.replay_file().index_block_count.get()));
+    append_time(replay_length(shared.replay_file().index.block_count.get()));
     text(FONT_D, 0x60, 0x21)?;
     // The two cameras' names, three times each, 0xD lower and 0x78 to the left.
     let mut y = 0x32;

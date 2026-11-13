@@ -9,7 +9,7 @@ use crate::gfx::read_texture_picture::read_texture_picture;
 use crate::gfx::texture_pixels::{
     KEPT, alpha_from_kept, grade_texture, grading, key_texture_colours, least_colour,
 };
-use crate::session::Dword;
+use crate::session::{Dword, Run};
 
 pub const RECORD_LEN: usize = 0x78;
 pub const TEXTURES: u32 = 0x140;
@@ -113,6 +113,19 @@ impl TextureRecord {
 #[derive(rc2k_derive::Cells)]
 pub struct RecordCell([Dword; 30]);
 
+/// A record's dwords as a run.
+impl Run for RecordCell {
+    fn count(&self) -> usize {
+        self.0.len()
+    }
+    fn bits(&self, i: usize) -> u32 {
+        self.0[i].bits()
+    }
+    fn set_bits(&self, i: usize, v: u32) {
+        self.0[i].set_bits(v);
+    }
+}
+
 impl RecordCell {
     pub const fn new(record: TextureRecord) -> Self {
         Self(crate::gfx::dwords(record.words()))
@@ -202,6 +215,19 @@ impl TextureFormat {
 #[repr(transparent)]
 #[derive(rc2k_derive::Cells)]
 pub struct FormatCell([Dword; 16]);
+
+/// A description's dwords as a run.
+impl Run for FormatCell {
+    fn count(&self) -> usize {
+        self.0.len()
+    }
+    fn bits(&self, i: usize) -> u32 {
+        self.0[i].bits()
+    }
+    fn set_bits(&self, i: usize, v: u32) {
+        self.0[i].set_bits(v);
+    }
+}
 
 impl FormatCell {
     pub const fn new(format: TextureFormat) -> Self {
@@ -355,15 +381,30 @@ impl Textures {
     }
 
     /// The kinds table's entry `n`, read where the original reads it (not checked against
-    /// the table: a kind past it reads on into the descriptions' bytes, a raw number that
+    /// the table: a kind past it reads on into the fields after it, a raw number that
     /// is no handle). Inside the table: the description's handle, 0 none.
     pub fn kind_entry(&self, n: usize) -> u32 {
         if n < self.kinds.len() {
             return self.kind_index(n).map_or(0, |k| FORMAT_TAG | k as u32);
         }
-        // Bounded to the whole table (the kinds are followed by the descriptions).
-        crate::cells::load_value::<u32>(self, core::mem::offset_of!(Textures, kinds) + 4 * n)
+        self.dword_from_kinds(n)
             .unwrap_or_else(|e| crate::fatal::raise::end("gfx::texture_upload::kind_entry", e))
+    }
+
+    /// Dword `n` counted from the kinds table, on through the fields after it in the record's
+    /// order (the kind comes from a byte of the caller's value, so it can name any of 256).
+    /// Past the last field is refused.
+    fn dword_from_kinds(&self, n: usize) -> Result<u32, BadInput> {
+        let (video, system) = (&self.video, &self.system);
+        let runs: [&dyn Run; 6] = [
+            &self.kinds,
+            &self.descriptions,
+            &video.count,
+            &video.records,
+            &system.count,
+            &system.records,
+        ];
+        crate::session::read_runs(&runs, n, "gfx::texture_upload::kind_entry")
     }
 }
 
@@ -518,4 +559,26 @@ pub fn keep_second_picture(
         None => record.set_keeps_alpha(0),
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A kind past the kinds table reads the dword the byte read of the whole record gave, to
+    /// the record's end; the first past it is refused by both.
+    #[test]
+    fn kind_entry_reads_on_as_the_byte_read() {
+        let t = Box::new(Textures::new());
+        let from = core::mem::offset_of!(Textures, kinds) / 4;
+        let total = size_of::<Textures>() / 4;
+        for k in from..total {
+            crate::cells::store_value::<u32>(&*t, 4 * k, 0x4000_0000 + k as u32).unwrap();
+        }
+        for n in t.kinds.len()..(total - from) + 2 {
+            let old = crate::cells::load_value::<u32>(&*t, 4 * from + 4 * n);
+            assert_eq!(t.dword_from_kinds(n).ok(), old.ok(), "dword {n}");
+        }
+        assert!(t.dword_from_kinds(total - from).is_err());
+    }
 }

@@ -38,7 +38,7 @@ pub struct PolygonVertices {
 impl PolygonVertices {
     /// The buffer, zeroed as in the image.
     pub const fn new() -> Self {
-        crate::cells::cells_of_bytes([0u8; core::mem::size_of::<PolygonVertices>()])
+        crate::cells::zeroed_cells()
     }
 }
 

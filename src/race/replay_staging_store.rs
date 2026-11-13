@@ -41,7 +41,7 @@ const _: () = assert!(core::mem::size_of::<ReplayStaging>() == FRAME_BYTES);
 impl ReplayStaging {
     /// All zero, as the game's memory starts.
     pub const fn new() -> Self {
-        crate::cells::cells_of_bytes([0u8; FRAME_BYTES])
+        crate::cells::zeroed_cells()
     }
 
     /// The starting state put in (the tape is left).

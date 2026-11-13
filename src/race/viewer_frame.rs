@@ -88,7 +88,7 @@ fn stopped(race: &Race, o: Owners<'static>) -> Result<(), Refused> {
     };
     let v = race.viewer_panel();
     quad(&v.frame_picture_rect, &v.bar_frame_rect, 0xFF_FFFF)?;
-    let blocks = shared.replay_file().index_block_count.get();
+    let blocks = shared.replay_file().index.block_count.get();
     if blocks != 0 {
         let (w, x) = (
             race.viewer_panel().bar_rect[2].get(),

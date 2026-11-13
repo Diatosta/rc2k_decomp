@@ -10,8 +10,8 @@
 //! the polygon work, the point records) are a `PartScratch`: one per part (`part_scratch`),
 //! handed to the part's drawing and passed down to what reaches them. Part 0's is the game's
 //! own thread's, what everything drawn outside the parts works on too (`game_scratch`).
-//! A `PartScratch` is made of plain cells (and the mutex of its noted drawing, which the
-//! game's thread and the part's own both lock, one at a time): it is `Send`, asserted below.
+//! A `PartScratch` is made of plain cells (and the `RefCell` of its noted drawing, which only
+//! the thread that has claimed the part reaches): it is `Send`, asserted below.
 
 use crate::errors::{BadInput, Refused};
 use crate::part_cell::{PartCell, PartTurn};

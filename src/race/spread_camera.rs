@@ -21,7 +21,8 @@ pub fn spread_camera(race: &Race, byte: CameraByte, old: u8) -> Result<(), Refus
     let count = race
         .shared
         .replay_file()
-        .index_block_count
+        .index
+        .block_count
         .get()
         .wrapping_sub(replay.replay_view().replay_block.get());
     // Converted: `rc2k_core::race::viewer::spread` (how far it goes, first).

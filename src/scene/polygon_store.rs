@@ -120,11 +120,37 @@ pub struct TextureInfo {
     pub words: [PlainDword; 16],
 }
 
+/// The record's dwords as a run.
+impl crate::session::Run for TextureInfo {
+    fn count(&self) -> usize {
+        self.words.len()
+    }
+    fn bits(&self, i: usize) -> u32 {
+        self.words[i].get()
+    }
+    fn set_bits(&self, i: usize, v: u32) {
+        self.words[i].set(v);
+    }
+}
+
 /// An object kind's material record (0x80 bytes: `scene::set_object_material`, `physics::face_contact`).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct ObjectMaterial {
     pub words: [PlainDword; 32],
+}
+
+/// The record's dwords as a run.
+impl crate::session::Run for ObjectMaterial {
+    fn count(&self) -> usize {
+        self.words.len()
+    }
+    fn bits(&self, i: usize) -> u32 {
+        self.words[i].get()
+    }
+    fn set_bits(&self, i: usize, v: u32) {
+        self.words[i].set(v);
+    }
 }
 
 #[repr(C)]
@@ -157,9 +183,6 @@ impl PolygonWork {
     /// The work area, zeroed as in the image: one for each drawing part
     /// (`workers::PartScratch::polygon`).
     pub const fn new() -> Self {
-        crate::cells::cells_of_bytes([0u8; WORK_LEN])
+        crate::cells::zeroed_cells()
     }
 }
-
-/// The work's bytes.
-const WORK_LEN: usize = core::mem::size_of::<PolygonWork>();

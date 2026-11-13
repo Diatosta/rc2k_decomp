@@ -13,10 +13,10 @@ pub type MemoryList = rc2k_core::memory::List;
 /// A `MemoryList` kept as four cells (a store's field): the list read and written whole as
 /// `Shared<MemoryList>` was, but through its dwords, so that the record is plain cells.
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct ListCells {
-    head: crate::session::PlainDword,
-    total: crate::session::PlainDword,
+    pub head: crate::session::PlainDword,
+    pub total: crate::session::PlainDword,
     cursor: crate::session::PlainDword,
     remaining: crate::session::PlainDword,
 }
@@ -42,8 +42,15 @@ impl ListCells {
         }
     }
 
-    /// An empty list (tests).
-    #[cfg(test)]
+    /// The list put in whole.
+    pub fn set(&self, list: MemoryList) {
+        self.head.set(list.head);
+        self.total.set(list.total);
+        self.cursor.set(list.cursor);
+        self.remaining.set(list.remaining);
+    }
+
+    /// An empty list.
     pub const fn empty() -> Self {
         Self::new(MemoryList {
             head: 0,
@@ -51,6 +58,41 @@ impl ListCells {
             cursor: 0,
             remaining: 0,
         })
+    }
+}
+
+/// A `MemoryList` held in cells: what the allocator's functions take.
+pub trait HeldList {
+    /// A copy of the list.
+    fn get(&self) -> MemoryList;
+    /// The list put in whole.
+    fn set(&self, list: MemoryList);
+}
+
+impl HeldList for ListCells {
+    fn get(&self) -> MemoryList {
+        ListCells::get(self)
+    }
+    fn set(&self, list: MemoryList) {
+        ListCells::set(self, list);
+    }
+}
+
+/// A list kept in a thread-shared record's four atomic dwords (head, total, cursor, remaining).
+impl HeldList for [crate::session::Dword; 4] {
+    fn get(&self) -> MemoryList {
+        MemoryList {
+            head: self[0].get(),
+            total: self[1].get(),
+            cursor: self[2].get(),
+            remaining: self[3].get(),
+        }
+    }
+    fn set(&self, list: MemoryList) {
+        self[0].set(list.head);
+        self[1].set(list.total);
+        self[2].set(list.cursor);
+        self[3].set(list.remaining);
     }
 }
 

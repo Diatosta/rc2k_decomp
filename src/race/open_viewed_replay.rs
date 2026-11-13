@@ -94,18 +94,18 @@ pub fn open_viewed_replay(
         || !good(
             handle::read_cells(
                 shared.replay_file().replay_handle.get(),
-                shared.replay_file().index(),
+                shared.replay_file().index.dwords(),
             ),
             INDEX_LEN,
-            &|| race.shared.replay_file().index_magic.get(),
+            &|| race.shared.replay_file().index.magic.get(),
             false,
         )
     {
         return failed();
     }
-    match index_blocks(shared.replay_file().index_block_count.get()) {
+    match index_blocks(shared.replay_file().index.block_count.get()) {
         Blocks::Bad => return failed(),
-        Blocks::Held(n) => shared.replay_file().index_block_count.set(n),
+        Blocks::Held(n) => shared.replay_file().index.block_count.set(n),
         Blocks::Kept => {}
     }
     let mut block = 0u32;
@@ -121,11 +121,11 @@ pub fn open_viewed_replay(
             CAMERA_DWORDS,
         )?;
         block += 1;
-        if block == shared.replay_file().index_block_count.get() {
+        if block == shared.replay_file().index.block_count.get() {
             break;
         }
     }
-    let (mark_in, mark_out) = opened_marks(shared.replay_file().index_block_count.get());
+    let (mark_in, mark_out) = opened_marks(shared.replay_file().index.block_count.get());
     race.viewer_buffers().mark_in.set(mark_in);
     race.viewer_buffers().mark_out.set(mark_out);
     race.viewer_buffers().block_used.set(0);

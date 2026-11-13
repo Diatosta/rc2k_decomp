@@ -21,7 +21,7 @@ pub static POINTS: crate::memory::shared_table::SharedTable =
 /// `bytes` of points, zeroed, counted on `list`.
 pub fn take(
     course: &crate::race::owner_course::Course,
-    list: &dyn crate::cells::Store,
+    list: &crate::memory::ListCells,
     bytes: u32,
 ) -> Result<(), Refused> {
     crate::memory::owned::count_on(list, bytes)?;

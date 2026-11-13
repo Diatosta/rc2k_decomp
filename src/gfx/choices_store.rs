@@ -4,7 +4,7 @@
 //! atomic cells with the image's layout, first values the image's (`tests`).
 
 use crate::errors::BadInput;
-use crate::session::{PlainBytes, PlainDword};
+use crate::session::{PlainBytes, PlainDword, Run};
 
 /// The graphics page's choices (IDA 0x4F50C0 .. 0x4F51F0, the image's layout; the rows' texts
 /// in the language file: `tokAVPPrimary` / `tokAVPSecondary`, `tokAVPDoubleBuffer` /
@@ -63,16 +63,26 @@ pub struct ModeList {
     pub spare: PlainBytes<8>,
 }
 
+/// A resolution's four dwords as a run.
+impl Run for ScreenMode {
+    fn count(&self) -> usize {
+        4
+    }
+    fn bits(&self, i: usize) -> u32 {
+        [&self.width, &self.height, &self.figure, &self.mode][i].get()
+    }
+    fn set_bits(&self, i: usize, v: u32) {
+        [&self.width, &self.height, &self.figure, &self.mode][i].set(v);
+    }
+}
+
 impl ModeList {
     /// PlainDword `index` (0 width, 1 height, 2 figure, 3 mode) of the resolution at `place`. A
-    /// place past the 16 reads on past the list, as the original does (`what` names it in a
-    /// refusal there).
+    /// place past the 16 reads on into the 8 bytes after the list, as the original does, and
+    /// past those is refused (`what` names it in the log).
     pub fn dword(&self, place: u32, index: usize, what: &'static str) -> Result<u32, BadInput> {
-        if let Some(m) = self.modes.get(place as usize) {
-            return Ok([&m.width, &m.height, &m.figure, &m.mode][index].get());
-        }
-        crate::cells::load_value(self, (16 * place + 4 * index as u32) as usize)
-            .inspect_err(|_| crate::framework::log(&format!("choices: {what}: past the table")))
+        let n = 4 * place as usize + index;
+        crate::session::read_runs(&[&self.modes, &self.spare], n, what)
     }
 }
 
@@ -101,5 +111,42 @@ impl ScreenChoices {
                 spare: PlainBytes::new([0; 8]),
             },
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The old byte read of the list, kept to check the read by field.
+    fn old_dword(list: &ModeList, place: u32, index: usize) -> Result<u32, BadInput> {
+        crate::cells::load_value(list, (16 * place + 4 * index as u32) as usize)
+    }
+
+    /// Every place and index the byte read allowed (to the end of the list) reads the same,
+    /// and the first past it is refused by both.
+    #[test]
+    fn dword_reads_as_the_byte_read() {
+        let list = ScreenChoices::new().list;
+        for (k, m) in list.modes.iter().enumerate() {
+            for (i, v) in [&m.width, &m.height, &m.figure, &m.mode]
+                .into_iter()
+                .enumerate()
+            {
+                v.set(0x100 * k as u32 + i as u32 + 1);
+            }
+        }
+        list.spare.set_u32(0, 0xAAAA_0001);
+        list.spare.set_u32(4, 0xAAAA_0002);
+        for place in 0..20 {
+            for index in 0..4 {
+                assert_eq!(
+                    list.dword(place, index, "t").ok(),
+                    old_dword(&list, place, index).ok(),
+                    "place {place} index {index}"
+                );
+            }
+        }
+        assert!(list.dword(16, 2, "t").is_err());
     }
 }

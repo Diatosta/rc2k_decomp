@@ -16,7 +16,6 @@
 use crate::errors::{FatalError, Refused};
 use crate::gfx::modes::Modes;
 use crate::gfx::set_clip::set_clip;
-use core::mem::offset_of;
 
 // ---- game data ----
 
@@ -37,8 +36,8 @@ pub fn surface_of(
     // Converted: `rc2k_core::gfx::screen_modes::picture_surface`.
     rc2k_core::gfx::screen_modes::picture_surface(
         flags,
-        modes.entries(offset_of!(Modes, sizes), SIZE_COUNT),
-        modes.entries(offset_of!(Modes, pixel_kinds), PIXEL_KIND_COUNT),
+        modes.entries(Modes::SIZES_AT, SIZE_COUNT),
+        modes.entries(Modes::PIXEL_KINDS_AT, PIXEL_KIND_COUNT),
         crate::gfx::pixel_format::SCREEN_FORMAT,
         pixels,
     )
@@ -72,4 +71,22 @@ pub fn picture_as_surface(gfx: &crate::gfx::owner::Gfx) -> Result<(), Refused> {
     s.row_gap.set(block[9]);
     set_clip([s.x.get(), s.y.get(), s.width.get(), s.height.get()], gfx);
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Every listed size with each listed pixel kind gives a surface of that size.
+    #[test]
+    fn every_listed_size_gives_a_surface() {
+        let modes = Modes::new();
+        for size in 0..SIZE_COUNT {
+            for kind in [0x200, 0x800] {
+                let block = surface_of(&modes, (1 << size) | kind, 0);
+                assert!(block.is_ok(), "size bit {size}, pixels {kind:#x}");
+            }
+        }
+        assert!(surface_of(&modes, 0x100 | 0x200, 0).is_err());
+    }
 }

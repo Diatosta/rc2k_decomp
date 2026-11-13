@@ -12,16 +12,15 @@
 //! until it meets the count), and a list that holds a block (`free_list`'s refusal; no block
 //! is put on a list any more).
 
-use crate::cells::{Store, load_value};
 use crate::effects::owner::Effects;
 use crate::errors::{BadInput, Refused};
-use crate::memory::MemoryList;
+use crate::memory::ListCells;
 use crate::memory::free_list::free_list;
 
 // The cars' loop starts from the settings' +0x29C (car 0).
 const MOST_CARS: i32 = 8;
 /// The six lists, in the order freed.
-fn lists(effects: &Effects) -> [&dyn Store; 6] {
+fn lists(effects: &Effects) -> [&ListCells; 6] {
     let (ring, masks, blocks) = (&effects.ring, &effects.masks, &effects.blocks);
     [
         &ring.pool.list,      // g_marksRingList
@@ -33,21 +32,20 @@ fn lists(effects: &Effects) -> [&dyn Store; 6] {
     ]
 }
 /// Each car's list, worked out without writing (none for a count past the refusals).
-fn car_lists(effects: &Effects) -> Result<Vec<&dyn Store>, BadInput> {
+fn car_lists(effects: &Effects) -> Result<Vec<&ListCells>, BadInput> {
     let marks = effects.settings()?;
     let count = (marks.cars_copy.get() as i32).clamp(0, MOST_CARS) as u32;
     Ok((0..count)
-        .map(|n| &marks.cars[n as usize].points_list as &dyn Store)
+        .map(|n| &marks.cars[n as usize].points_list)
         .collect())
 }
 
 /// Whether any list it frees holds blocks, the cars' first.
 fn any_holds_blocks(effects: &Effects) -> Result<bool, Refused> {
-    Ok(crate::effects::try_any(car_lists(effects)?.iter(), |&l| {
-        Ok(load_value::<MemoryList>(l, 0)?.head != 0)
-    })? || crate::effects::try_any(lists(effects).iter(), |&l| {
-        Ok(load_value::<MemoryList>(l, 0)?.head != 0)
-    })?)
+    Ok(
+        crate::effects::try_any(car_lists(effects)?.iter(), |&l| Ok(l.get().head != 0))?
+            || crate::effects::try_any(lists(effects).iter(), |&l| Ok(l.get().head != 0))?,
+    )
 }
 
 pub fn tidy_marks(effects: &Effects) -> Result<(), Refused> {

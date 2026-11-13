@@ -248,7 +248,7 @@ fn tables(gfx: &Gfx, system: &System, strings: &Strings) -> Result<(), Refused> 
 
 /// 0x400 bytes carved off `list` for a palette: its place in `gfx::glyph_store`, or 0
 /// when the list has no room (the original's cursor would have been none).
-pub fn palette_place(list: &dyn crate::cells::Store) -> Result<u32, Refused> {
+pub fn palette_place(list: &crate::memory::ListCells) -> Result<u32, Refused> {
     Ok(match take_from_list(list, 0x400)? {
         Some(_) => crate::gfx::glyph_store::new_palette(list)?,
         None => 0,

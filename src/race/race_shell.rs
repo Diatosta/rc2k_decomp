@@ -74,7 +74,7 @@ pub fn seal_stage_time(race: &Race) -> Result<(), BadInput> {
             || race.car_blocks().cars[0].stage_time.get(),
             key,
         );
-        race.shared.replay_file().index_seal.set(sealed);
+        race.shared.replay_file().index.seal.set(sealed);
     }
     Ok(())
 }

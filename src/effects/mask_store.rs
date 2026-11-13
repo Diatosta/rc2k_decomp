@@ -53,12 +53,12 @@ pub struct MaskBlocks {
     /// since phase 12 `Mask::Plain` 1 or `Mask::Bordered` 2, 0 none yet)
     pub chosen: PlainDword,
     /// +0x8: `stru_934D76`: the list the first mask block is taken on
-    pub list_a: [PlainDword; 4],
+    pub list_a: crate::memory::ListCells,
     /// +0x48: `g_marksMaskBlock`: the first mask block (0x20000 bytes; the game's
     /// address, unused since the masks are Rust's, `MASK`)
     pub mask: PlainDword,
     /// +0x4C: `g_marksBMaskList`: the list the second mask block is taken on
-    pub list_b: [PlainDword; 4],
+    pub list_b: crate::memory::ListCells,
     /// +0x8C: `g_marksBMaskBlock`: the second mask block (0x20000 bytes; the game's
     /// address, unused since the masks are Rust's, `BMASK`)
     pub bmask: PlainDword,
@@ -72,19 +72,9 @@ impl MaskBlocks {
         MaskBlocks {
             seen: PlainDword::new(0xFFFFFFFF),
             chosen: PlainDword::new(0x0),
-            list_a: [
-                PlainDword::new(0x0),
-                PlainDword::new(0x0),
-                PlainDword::new(0x0),
-                PlainDword::new(0x0),
-            ],
+            list_a: crate::memory::ListCells::empty(),
             mask: PlainDword::new(0x0),
-            list_b: [
-                PlainDword::new(0x0),
-                PlainDword::new(0x0),
-                PlainDword::new(0x0),
-                PlainDword::new(0x0),
-            ],
+            list_b: crate::memory::ListCells::empty(),
             bmask: PlainDword::new(0x0),
             junk: PlainBytes::new([
                 0x72, 0x73, 0x65, 0x20, 0x72, 0x73, 0x65, 0x20, 0x72, 0x73, 0x65, 0x20, 0x72, 0x73,
@@ -162,7 +152,7 @@ impl Mask {
 #[derive(rc2k_derive::Cells)]
 pub struct PictureCopy {
     /// +0x0: the list the 0x80000-byte picture copy is taken on (its head starts inside `aRseRseRseRseRs`: the image's first values are "se" and zeros)
-    pub list: [PlainDword; 4],
+    pub list: crate::memory::ListCells,
     /// +0x40: `g_marksPictureCopy`: the picture copy block (0x80000 bytes; the game's
     /// address, unused since the copy is Rust's, phase 12)
     pub copy: PlainDword,
@@ -174,12 +164,7 @@ pub struct PictureCopy {
 impl PictureCopy {
     pub const fn new() -> Self {
         PictureCopy {
-            list: [
-                PlainDword::new(0x0),
-                PlainDword::new(0x0),
-                PlainDword::new(0x0),
-                PlainDword::new(0x0),
-            ],
+            list: crate::memory::ListCells::empty(),
             copy: PlainDword::new(0x0),
             paths: PlainBytes::new([
                 0x66, 0x69, 0x6C, 0x65, 0x73, 0x5C, 0x6D, 0x5C, 0x6D, 0x61, 0x73, 0x6B, 0x30, 0x30,

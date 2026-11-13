@@ -71,7 +71,9 @@ pub struct InstallerRun {
     /// 0x51BAF8: `g_roomNeededKb`: KB needed.
     pub room_needed: PlainDword,
     /// 0x51BAFC: `stru_51BAFC`: the installer's memory list (a `MemoryList` of 16 bytes, then its work).
-    pub buffers: PlainBytes<64>,
+    pub buffers: crate::memory::ListCells,
+    /// 0x51BB0C: the 48 bytes after the list (no code reads or writes them).
+    pub buffers_rest: PlainBytes<48>,
     /// 0x51BB3C: `g_installBarGlyphs`: the progress bar's glyph table.
     pub bar_glyphs: PlainDword,
     /// 0x51BB40: `g_dirNames`: the folders' names (a 0x10000-byte buffer; 0 now:
@@ -120,7 +122,8 @@ impl InstallerRun {
             copy_spare: PlainDword::new(0x0),
             _gap_51baf4: PlainBytes::new([0; 4]),
             room_needed: PlainDword::new(0x0),
-            buffers: PlainBytes::new([0; 64]),
+            buffers: crate::memory::ListCells::empty(),
+            buffers_rest: PlainBytes::new([0; 48]),
             bar_glyphs: PlainDword::new(0x0),
             dirs: PlainDword::new(0x0),
             files: PlainDword::new(0x0),

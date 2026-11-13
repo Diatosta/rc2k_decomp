@@ -40,7 +40,7 @@ static TAKEN: AtomicBool = AtomicBool::new(false);
 /// The records made, zeroed, counted on `list`.
 pub fn take(
     course: &crate::race::owner_course::Course,
-    list: &dyn crate::cells::Store,
+    list: &crate::memory::ListCells,
 ) -> Result<(), Refused> {
     crate::memory::owned::count_on(list, BYTES)?;
     crate::workers::all_parts_on_game_thread()

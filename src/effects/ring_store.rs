@@ -12,7 +12,7 @@ use crate::session::{PlainBytes, PlainDword, PlainFloat};
 #[derive(rc2k_derive::Cells)]
 pub struct RingWork {
     /// 0x935620: `stru_935620`: the ring's memory list (`memory::List`, 16 bytes: `effects::set_up_surface` takes the 0x25000-byte ring on it).
-    pub list: PlainBytes<16>,
+    pub list: crate::memory::ListCells,
     /// 0x935660: `g_marksRingCursor`: the ring's next entry to take (an entry number + 1, 0 none; see `ring_entries`).
     pub cursor: PlainDword,
     /// 0x935668: `g_marksRingBlock`: the ring's first entry (an entry number + 1, as the entries' links; the original kept the 0x25000-byte block's address).
@@ -48,7 +48,7 @@ pub struct RingWork {
 impl RingWork {
     pub const fn new() -> Self {
         RingWork {
-            list: PlainBytes::new([0; 16]),
+            list: crate::memory::ListCells::empty(),
             cursor: PlainDword::new(0x0),
             block: PlainDword::new(0x0),
             top: PlainFloat::new(-32768.0),

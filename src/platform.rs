@@ -74,7 +74,7 @@ pub fn choose_screen_modes(
         use rc2k_core::gfx::screen_modes::{Lookup, choose, look_up};
         let display = &gfx_display;
         let modes = &display.modes;
-        let table = core::mem::offset_of!(crate::gfx::modes::Modes, table);
+        let table = crate::gfx::modes::Modes::TABLE_AT;
         let works = |mode: u32| {
             let entries = modes.entries(table, modes.count.get());
             matches!(look_up(entries, mode), Lookup::Found(_))
@@ -120,17 +120,16 @@ fn set_screen_mode(
 ) -> Result<(), String> {
     gfx.display.mode.mode_flags.set(mode);
     use crate::gfx::modes::Modes;
-    use core::mem::offset_of;
     let modes = &gfx.display.modes;
     let size = modes
-        .value_of(mode & 0xFF, offset_of!(Modes, sizes), 8)
+        .value_of(mode & 0xFF, Modes::SIZES_AT, 8)
         .ok_or("a screen size that is not known")?;
     let (width, height) = (size & 0xFFFF, size >> 16);
     let bits = modes
-        .value_of(mode & 0xF00, offset_of!(Modes, pixel_kinds), 2)
+        .value_of(mode & 0xF00, Modes::PIXEL_KINDS_AT, 2)
         .ok_or("a kind of pixel that is not known")?;
     let kind = modes
-        .value_of(mode & 0xF_0000, offset_of!(Modes, kinds), 3)
+        .value_of(mode & 0xF_0000, Modes::KINDS_AT, 3)
         .ok_or("a kind that is not known")?;
     let bytes = bits >> 3;
     // As the original: every texture given back before the screen changes;
