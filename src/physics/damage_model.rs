@@ -23,6 +23,12 @@ pub fn store(cell: &PlainFloat, result: f64) {
     cell.set(result as f32);
 }
 
+/// The game's word test on a float cell (`cmp dword, 0`): true unless every bit is zero, so
+/// a -0.0 counts as set and a NaN as set, as a compare of the float would not.
+pub fn is_set(cell: &PlainFloat) -> bool {
+    cell.bits() != 0
+}
+
 /// The same figure for a whole number held in a cell (`fild`).
 pub fn whole(cell: &PlainDword) -> f64 {
     f64::from(cell.get() as i32)

@@ -489,7 +489,7 @@ fn add_rate_to_gauge(gauge: &PlainFloat, rate: &PlainFloat) {
 fn scale_hit_size(work: &RaceWork, m: &DamageModel) {
     store(
         &m.hit_size,
-        value(&m.hit_size) * f64::from(work.patch_factors[1].get()),
+        value(&m.hit_size) * value(&work.patch_factors[1]),
     );
 }
 

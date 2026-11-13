@@ -11,7 +11,7 @@
 //! Caller: `physics::damage_step`.
 
 use crate::physics::car_store::Car;
-use crate::physics::damage_model::{store, value, whole};
+use crate::physics::damage_model::{is_set, store, value, whole};
 use crate::physics::flow::{
     abs_below_or_unordered, below_or_unordered, equal_or_unordered, hold_high, hold_low, table_lerp,
 };
@@ -101,7 +101,7 @@ pub fn steps(car: &Car, damage: &DamageModel) {
     for wheel in 0..4 {
         damage.wheel_loads[wheel].set(0.0);
         // Word tests: a squeeze of -0.0 counts as touching.
-        if car.wheel_squeeze_last[wheel].bits() == 0 && car.wheel_squeeze[wheel].bits() != 0 {
+        if !is_set(&car.wheel_squeeze_last[wheel]) && is_set(&car.wheel_squeeze[wheel]) {
             store(
                 &damage.wheel_loads[wheel],
                 value(&car.wheel_squeeze[wheel]) * value(&damage.scratch),
@@ -109,7 +109,7 @@ pub fn steps(car: &Car, damage: &DamageModel) {
         }
     }
     blend_wheel_loads(damage);
-    if damage.hit_size.bits() != 0 && car.hit_cooldown.get() != 0 {
+    if is_set(&damage.hit_size) && car.hit_cooldown.get() != 0 {
         damage.hit_size.set(0.0);
         car.hit_cooldown.set(0x64);
     }
@@ -117,7 +117,7 @@ pub fn steps(car: &Car, damage: &DamageModel) {
 
 /// Where the car was hit: 0 for no contact, else 1 .. 4 by the side of the contact point.
 fn side_hit(car: &Car, damage: &DamageModel) -> u32 {
-    if car.contact_depth.bits() == 0 {
+    if !is_set(&car.contact_depth) {
         return 0;
     }
     let mut hit = 1;
@@ -291,7 +291,7 @@ fn blend_wheel_loads(m: &DamageModel) {
     // No wheel just landed (the usual step): the four loads are +0.0, so the sum, the mean
     // (`quarter` 0.25) and the half-mean (`half` 0.5, both constants of the model) are +0.0 in
     // every rounding mode, and each load is +0.0 x 0.5 + +0.0 = +0.0: set the results at once.
-    if m.wheel_loads.iter().all(|load| load.bits() == 0) {
+    if m.wheel_loads.iter().all(|load| !is_set(load)) {
         m.wheel_load_mean.set(0.0);
         m.scratch.set(0.0);
         return;
