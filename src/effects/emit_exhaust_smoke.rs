@@ -1,3 +1,5 @@
+//! Emits: the thin smoke trail behind the car's exhaust.
+//!
 //! `effects::emit_exhaust_smoke`: one ring entry of kind 0xD for a car each frame, at its model's
 //! point (the looks table, 12 bytes by the car's +4).
 //!

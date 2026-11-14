@@ -19,15 +19,15 @@ pub struct RingWork {
     pub block: PlainDword,
     /// An entry's +0x14 against it ends the box kinds' draw (`effects::run_ring`).
     pub top: PlainFloat,
-    /// `effects::emit_rolling_particles`'s fade (the strength times a factor).
+    /// `effects::emit_rolling_dust`'s fade (the strength times a factor).
     pub fade: PlainFloat,
-    /// `effects::emit_rolling_particles`'s life.
+    /// `effects::emit_rolling_dust`'s life.
     pub life: PlainDword,
     /// The box's |x| and |z| (`effects::run_ring`, rounded).
     pub extent: [PlainDword; 2],
-    /// `effects::emit_bursts`' direction.
+    /// `effects::emit_wheel_grit_bursts`' direction.
     pub direction: [PlainFloat; 3],
-    /// `effects::emit_bursts`' two halves' strengths.
+    /// `effects::emit_wheel_grit_bursts`' two halves' strengths.
     pub strength: [PlainFloat; 2],
     /// The emitters' rate (`effects::emitters::gate`).
     pub rate: PlainDword,

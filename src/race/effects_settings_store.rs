@@ -116,12 +116,12 @@ pub struct MarkRecord {
     /// +0x0: a flag the body's emitter flips each time (bit 0 the side).
     pub flip: PlainDword,
     /// +0x4: the pace counter the emitters' rate gates keep (an integer count, or a float remainder
-    /// after `emit_rolling_particles`).
+    /// after `emit_rolling_dust`).
     pub pace: PlainDword,
     /// +0x8: read and written by no code.
     pub unused_8: PlainDword,
     /// +0xc: the driven wheels' speed (the block's `drive_speed_a` / `_b` for the front / rear pair
-    /// of wheel records; `emit_rolling_particles`, the bursts, kind 6, kind 21); the body's is
+    /// of wheel records; `emit_rolling_dust`, the bursts, kind 6, kind 21); the body's is
     /// cleared.
     pub driven_speed: PlainFloat,
     /// +0x10: the car's local velocity x, sideways (the body's: `velocity[0]`), copied by

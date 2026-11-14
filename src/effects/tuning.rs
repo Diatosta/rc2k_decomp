@@ -28,8 +28,8 @@ pub struct MarksFrame {
     pub clock6: PlainFloat,
     /// The share the draw took (`effects::run_frame`).
     pub draw_share: PlainFloat,
-    /// A particle's side / size in hand while it is emitted (`effects::emit_rolling_particles`,
-    /// `effects::emit_bursts`; a scratch).
+    /// A particle's side / size in hand while it is emitted (`effects::emit_rolling_dust`,
+    /// `effects::emit_wheel_grit_bursts`; a scratch).
     pub emit_side: PlainDword,
     /// The frame steps counted (cleared at `effects::init_marks`).
     pub steps: PlainDword,
@@ -60,17 +60,17 @@ pub struct MarksFloats {
     /// 0x10000, the ring's pull limit (`effects::run_ring`).
     pub pull_limit: PlainInt,
     /// -65.536, multiplied with a burst's strength and direction factors to make the burst's
-    /// direction vector (`effects::emit_bursts`).
+    /// direction vector (`effects::emit_wheel_grit_bursts`).
     pub burst_direction_k: PlainFloat,
-    /// -0.125, the burst's turn scale (`effects::emit_bursts`).
+    /// -0.125, the burst's turn scale (`effects::emit_wheel_grit_bursts`).
     pub minus_eighth: PlainFloat,
-    /// 0.5 (`effects::emit_bursts`, `effects::emit_car_particles`, `effects::draw_pong_box`).
+    /// 0.5 (`effects::emit_wheel_grit_bursts`, `effects::emit_car_particles`, `effects::draw_pong_box`).
     pub half: PlainFloat,
     /// 0.05, the ring's frame scale (`effects::run_ring`).
     pub twentieth: PlainFloat,
-    /// 0.2 (`effects::emit_rolling_particles`).
+    /// 0.2 (`effects::emit_rolling_dust`).
     pub fifth: PlainFloat,
-    /// 0.3 (`effects::emit_rolling_particles`).
+    /// 0.3 (`effects::emit_rolling_dust`).
     pub three_tenths: PlainFloat,
     /// 1.0.
     pub one: PlainFloat,
@@ -78,7 +78,7 @@ pub struct MarksFloats {
     pub three: PlainFloat,
     /// 16.0 (`effects::draw_snow`).
     pub sixteen: PlainFloat,
-    /// 32.0 (`effects::emit_bursts`).
+    /// 32.0 (`effects::emit_wheel_grit_bursts`).
     pub thirty_two: PlainFloat,
     /// 128.0 (`effects::emit_body_contact_particles`).
     pub hundred_twenty_eight: PlainFloat,
@@ -99,7 +99,7 @@ pub struct MarksFloats {
     /// 1/256, the surface places' pixel value (`effects::set_up_surface`'s `pixel`).
     pub surface_pixel: PlainFloat,
     /// 1/32: the surface places' step (`effects::set_up_surface`), the emitters' size factor
-    /// (`effects::emit_body_contact_particles`, `effects::emit_rolling_particles`'s count) and the
+    /// (`effects::emit_body_contact_particles`, `effects::emit_rolling_dust`'s count) and the
     /// least strength.
     pub thirty_second: PlainFloat,
     /// 65.536, the scale `effects::emit_exhaust_smoke` turns the spline point's place with
@@ -112,9 +112,9 @@ pub struct MarksFloats {
     pub seven_hundred: PlainFloat,
     /// 100.0.
     pub hundred: PlainFloat,
-    /// 2000.0 (`effects::emit_rolling_particles`).
+    /// 2000.0 (`effects::emit_rolling_dust`).
     pub two_thousand: PlainFloat,
-    /// 1/65536 (`effects::emit_bursts`, `effects::emit_exhaust_smoke`).
+    /// 1/65536 (`effects::emit_wheel_grit_bursts`, `effects::emit_exhaust_smoke`).
     pub over_65536: PlainFloat,
     /// A double (low dword, high dword), 2^-31 (`effects::spread_point`).
     pub spread_scale: [PlainDword; 2],

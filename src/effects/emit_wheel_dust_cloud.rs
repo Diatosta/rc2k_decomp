@@ -1,4 +1,6 @@
-//! `effects::emit_wheel_fade_particle`: one ring entry of kind 6 from a wheel, when its flags
+//! Emits: the soft, fading dust (snow powder on snow) cloud that trails behind a wheel.
+//!
+//! `effects::emit_wheel_dust_cloud`: one ring entry of kind 6 from a wheel, when its flags
 //! (+0x20, kept as the wheel flags) have 0xC0 and the rate gate passes (`effects/emitters.rs`, the
 //! wheel's +0xC less +0x18 by the set's rate factors).
 //!
@@ -83,7 +85,7 @@ fn refusal(
     })
 }
 
-pub fn emit_wheel_fade_particle(
+pub fn emit_wheel_dust_cloud(
     masks: &Masks,
     particles: &Particles,
     ring: &Ring,
@@ -203,7 +205,7 @@ pub fn emit_wheel_fade_particle(
     Ok(())
 }
 
-/// Kind 6's emitter variables (`emit_wheel_fade_particle`).
+/// Kind 6's emitter variables (`emit_wheel_dust_cloud`).
 #[derive(rc2k_derive::Cells)]
 pub struct WheelFadeSet {
     /// The rate's factors

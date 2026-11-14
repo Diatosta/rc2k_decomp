@@ -24,14 +24,14 @@
 //! ring).
 
 use crate::effects::blocks::{Particle, particle, set_particle};
-use crate::effects::emit_bursts::BurstTuning;
 use crate::effects::emit_exhaust_smoke::ExhaustSet;
-use crate::effects::emit_rolling_particles::{RollingChoice, RollingSet};
+use crate::effects::emit_rolling_dust::{RollingChoice, RollingSet};
 use crate::effects::emit_rolling_particles_rated::RollingRatedSet;
+use crate::effects::emit_slip_snow_cloud::SlipSprayLongSet;
 use crate::effects::emit_slip_spray::SlipSpraySet;
-use crate::effects::emit_slip_spray_long::SlipSprayLongSet;
 use crate::effects::emit_twin_particle_first::{TwinState, TwinTuning};
-use crate::effects::emit_wheel_fade_particle::WheelFadeSet;
+use crate::effects::emit_wheel_dust_cloud::WheelFadeSet;
+use crate::effects::emit_wheel_grit_bursts::BurstTuning;
 use crate::effects::owner::Effects;
 use crate::effects::ring_store::Ring;
 use crate::errors::{BadInput, Refused};

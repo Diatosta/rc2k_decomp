@@ -1,19 +1,19 @@
-//! `effects::emit_bursts_kind_3`: `effects::emit_bursts` on its own factors and randoms
+//! `effects::emit_bursts_kind_3`: `effects::emit_wheel_grit_bursts` on its own factors and randoms
 //! (`BurstTuning.strength_k`, `BurstTuning.blend_k[0]`, `BurstTuning.blend_k[1]`,
 //! `BurstTuning.first[0]` .. `BurstTuning.second[2]`); the code is the same, the ring-full
 //! end included.
 //!
-//! See `emit_bursts.rs`; no variable of its own is shared but the entries' and the scratch ones.
-//! Refuses as `emit_bursts`.
+//! See `emit_wheel_grit_bursts.rs`; no variable of its own is shared but the entries' and the scratch ones.
+//! Refuses as `emit_wheel_grit_bursts`.
 
-use crate::effects::emit_bursts::BurstTuning;
-use crate::effects::emit_bursts::{BurstSet, emit_bursts_with, halves};
+use crate::effects::emit_wheel_grit_bursts::BurstTuning;
+use crate::effects::emit_wheel_grit_bursts::{BurstSet, emit_bursts_with, halves};
 use crate::effects::owner::Effects;
 use crate::errors::Refused;
 use crate::race::effects_settings_store::{CarEffects, MarkRecord};
 use crate::session::{PlainDword, PlainFloat};
 
-/// `emit_bursts_kind_3`'s: `emit_bursts`' with its own factors and randoms.
+/// `emit_bursts_kind_3`'s: `emit_wheel_grit_bursts`' with its own factors and randoms.
 fn second(effects: &Effects) -> BurstSet<'_> {
     BurstSet {
         halves: halves(effects),

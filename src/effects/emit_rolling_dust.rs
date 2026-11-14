@@ -1,4 +1,6 @@
-//! `effects::emit_rolling_particles`: for the wheel kind 1, `effects::emit_rolling_particles_rated`
+//! Emits: the dust that rolls up behind a wheel on loose ground.
+//!
+//! `effects::emit_rolling_dust`: for the wheel kind 1, `effects::emit_rolling_particles_rated`
 //! when the kind-1 choice is not 0, else `emit_particle_1`: one ring entry of kind 1.
 //!
 //! `emit_particle_1` grows the wheel's +4 (a float here) by |+0x18| + |+0x10| + |+0x18 - +0xC|;
@@ -215,7 +217,7 @@ pub fn emit_particle_1(
     Ok(())
 }
 
-pub fn emit_rolling_particles(
+pub fn emit_rolling_dust(
     masks: &Masks,
     particles: &Particles,
     ring: &Ring,

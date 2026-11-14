@@ -9,7 +9,7 @@ pub struct SurfaceTables {
     /// 0x100 bytes, 4 x 4 sub-cells of 16 bytes per cell). The cell draw reads cell 0x40, the first
     /// sub-cell's place.
     pub places: PlainBytes<17408>,
-    /// The life by a wheel's flags' bits 6, 7 (`effects::emit_wheel_fade_particle`).
+    /// The life by a wheel's flags' bits 6, 7 (`effects::emit_wheel_dust_cloud`).
     pub lives_by_flags: [PlainDword; 4],
     /// The life by the level (`effects::emit_twin`; 9 entries are allowed, the last is the tint).
     pub lives_by_level: [PlainDword; 9],

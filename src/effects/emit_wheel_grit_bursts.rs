@@ -1,4 +1,6 @@
-//! `effects::emit_bursts`: two bursts of ring entries from a wheel (kinds 0x11 and 0x10), when the
+//! Emits: the coarse grit and speckle (dust grains, snow) a wheel throws up in bursts.
+//!
+//! `effects::emit_wheel_grit_bursts`: two bursts of ring entries from a wheel (kinds 0x11 and 0x10), when the
 //! wheel's second flags (+0x24, kept as `wheel_flags2`) >> 6 are not 0.
 //!
 //! Each half has a strength (the first the wheel's +0x10 times a factor; the second a blend of +0xC
@@ -77,7 +79,7 @@ pub fn halves(effects: &Effects) -> [Half<'_>; 2] {
     ]
 }
 
-/// `emit_bursts`'.
+/// `emit_wheel_grit_bursts`'.
 pub fn first(effects: &Effects) -> BurstSet<'_> {
     BurstSet {
         halves: halves(effects),
@@ -158,7 +160,7 @@ pub fn refusal(
     })
 }
 
-pub fn emit_bursts(
+pub fn emit_wheel_grit_bursts(
     effects: &Effects,
     wheel: &MarkRecord,
     object: &CarEffects,
@@ -281,7 +283,7 @@ pub fn emit_bursts_with(
     Ok(())
 }
 
-/// One burst emitter's factors and randoms (`emit_bursts`' and `emit_bursts_kind_3`'s).
+/// One burst emitter's factors and randoms (`emit_wheel_grit_bursts`' and `emit_bursts_kind_3`'s).
 #[derive(rc2k_derive::Cells)]
 pub struct BurstTuning {
     /// The strength's factor

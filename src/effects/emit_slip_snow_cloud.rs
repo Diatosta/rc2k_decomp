@@ -1,4 +1,6 @@
-//! `effects::emit_slip_spray_long`: one ring entry of kind 0xB; `effects::emit_slip_spray`'s
+//! Emits: the long-lived powder cloud a slipping wheel raises on snow.
+//!
+//! `effects::emit_slip_snow_cloud`: one ring entry of kind 0xB; `effects::emit_slip_spray`'s
 //! code on its own variables (`SlipSprayLongSet.place_random`, `SlipSprayLongSet.motion_x`
 //! .. `SlipSprayLongSet.spin`), a life of 2000, and made only when the wheel's |+0x18|
 //! rounded to an integer is over 1 (kind 5: when it is not 0).
@@ -34,7 +36,7 @@ pub fn eleventh(effects: &Effects) -> JitterSet<'_> {
     }
 }
 
-pub fn emit_slip_spray_long(
+pub fn emit_slip_snow_cloud(
     effects: &Effects,
     wheel: &MarkRecord,
     object: &CarEffects,
