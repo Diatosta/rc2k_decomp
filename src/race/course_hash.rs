@@ -121,6 +121,33 @@ pub fn note_texture_row(texture: u32, level: u32, y: u32, row: &[u8]) {
     );
 }
 
+/// The hash of what the marks' masks leave: the picks (with both pixel tables), the mask
+/// variables and the marks' work cells, logged as `course hash masks <store>: <hex>`.
+#[cfg(feature = "remote")]
+pub fn log_mask_hashes(
+    masks: &crate::effects::mask_store::Masks,
+    drops: &crate::effects::windscreen_drop_vars::WindscreenDrops,
+    effects: &crate::effects::owner::Effects,
+) {
+    if !on() {
+        return;
+    }
+    let say = |store: &str, hash: u64| {
+        crate::framework::log(&format!("course hash masks {store}: {hash:016x}"));
+    };
+    say("picks", record_hash(&drops.picks));
+    for (name, table) in [
+        ("pixel_table_a", &drops.picks.pixel_table_a),
+        ("pixel_table_b", &drops.picks.pixel_table_b),
+    ] {
+        if let Ok(bytes) = table.read_at(0, 0x2_0000, "a pixel table") {
+            say(name, bytes_hash(&bytes));
+        }
+    }
+    say("vars", record_hash(&masks.vars));
+    say("work", record_hash(&effects.setup.work));
+}
+
 /// The hash of what the stage's start (the race init after the load) leaves in the checkpoints
 /// and the race variables, logged as `course hash <stage> started <store>: <hex>`.
 #[cfg(feature = "remote")]
