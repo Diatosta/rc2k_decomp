@@ -145,40 +145,123 @@ pub fn number(text: &(impl Bytes + ?Sized), place: usize) -> Result<u32, Invalid
     Ok(if negative { n.wrapping_neg() } else { n })
 }
 
-/// The game's settings table (for each a key, its NUL, then a dword naming its
-/// variable), read up to the empty key; `limit` the bytes it may take (refused past it).
-/// The dword is the caller's to interpret.
-pub fn table(bytes: &(impl Bytes + ?Sized), limit: usize) -> Result<Vec<(Vec<u8>, u32)>, Invalid> {
-    const END: Invalid = Invalid("the settings table has no end");
-    let mut entries = Vec::new();
-    let mut at = 0usize;
-    while bytes.byte(at).ok_or(END)? != 0 {
-        let mut key = Vec::new();
-        while let byte @ 1.. = bytes.byte(at).ok_or(END)? {
-            key.push(byte);
-            at += 1;
-        }
-        entries.push((key, bytes.u32_le(at + 1).ok_or(END)?));
-        at += 5;
-        if at > limit {
-            return Err(END);
-        }
-    }
-    Ok(entries)
+/// How a setting's variable sits in the game's memory.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Kind {
+    /// A whole aligned dword.
+    Dword,
+    /// A dword that straddles two cells, so its owner stores the four bytes itself.
+    Unaligned,
 }
 
-/// What a settings text sets: for each key it has, in the table's order, the key's index and the
-/// number of its value (0 for a value that is no number). A key the text lacks sets nothing; of two
-/// keys with one variable the later one wins, as the caller stores in order.
-pub fn apply(
+/// A setting of `var\ral.cfg`: its place in [`SETTINGS`].
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Setting(pub usize);
+
+impl Setting {
+    /// The key the setting is written under.
+    pub fn name(self) -> &'static [u8] {
+        SETTINGS[self.0].0
+    }
+
+    /// How its variable is stored.
+    pub fn kind(self) -> Kind {
+        SETTINGS[self.0].1
+    }
+}
+
+/// The 77 settings in the order they are applied: key (lower case) and kind. Two keys may name
+/// one variable (`noaudio` / `nosound`, `allsecretcars` / `secretcar`); the later one wins.
+pub const SETTINGS: [(&[u8], Kind); 77] = [
+    (b"notaskswitch", Kind::Dword),
+    (b"noprichange", Kind::Dword),
+    (b"ignoremmx", Kind::Dword),
+    (b"ignorekatmai", Kind::Dword),
+    (b"ignoreamdk3d", Kind::Dword),
+    (b"altmemenable", Kind::Dword),
+    (b"altmemheapsize", Kind::Dword),
+    (b"noaudio", Kind::Dword),
+    (b"nosound", Kind::Dword),
+    (b"nocdaudio", Kind::Dword),
+    (b"nomusic", Kind::Dword),
+    (b"audiobasefreq", Kind::Dword),
+    (b"ignoreds3d", Kind::Dword),
+    (b"ignoredsv", Kind::Dword),
+    (b"ignoreeax", Kind::Dword),
+    (b"ignorea3d", Kind::Dword),
+    (b"wavheapsize", Kind::Dword),
+    (b"bundleheapsize", Kind::Dword),
+    (b"imageheapsize", Kind::Dword),
+    (b"gamegfxheapsize", Kind::Dword),
+    (b"forcedx5", Kind::Dword),
+    (b"forceno3dcard", Kind::Dword),
+    (b"ignoreprimary", Kind::Dword),
+    (b"ignoresecondary", Kind::Dword),
+    (b"agpmode", Kind::Dword),
+    (b"force3dtrans", Kind::Dword),
+    (b"force3dalpha", Kind::Dword),
+    (b"force3dshadow", Kind::Dword),
+    (b"force3dfogging", Kind::Dword),
+    (b"textflashmode", Kind::Dword),
+    (b"videomodemain", Kind::Dword),
+    (b"videomodegame", Kind::Dword),
+    (b"v3driverfix", Kind::Dword),
+    (b"nopngdecode", Kind::Dword),
+    (b"nojoy", Kind::Dword),
+    (b"joymode", Kind::Dword),
+    (b"joycode", Kind::Dword),
+    (b"joylowerdz", Kind::Dword),
+    (b"joyupperdz", Kind::Dword),
+    (b"noforcefeedback", Kind::Dword),
+    (b"joyffgain", Kind::Dword),
+    (b"mergejoy", Kind::Dword),
+    (b"nonetwork", Kind::Dword),
+    (b"inetport", Kind::Dword),
+    (b"screensnapshot", Kind::Dword),
+    (b"framecounter", Kind::Dword),
+    (b"noreplay", Kind::Dword),
+    (b"replaykeys", Kind::Dword),
+    (b"logfile", Kind::Dword),
+    (b"nofmv", Kind::Dword),
+    (b"key", Kind::Dword),
+    (b"allsecretcars", Kind::Dword),
+    (b"secretcar", Kind::Dword),
+    (b"usesavegamekeys", Kind::Dword),
+    (b"sensiblesaving", Kind::Dword),
+    (b"noprecipitation", Kind::Dword),
+    (b"seasoncode", Kind::Dword),
+    (b"noautoneutral", Kind::Dword),
+    (b"nonlinearsteering", Kind::Dword),
+    (b"wrreplayenable", Kind::Unaligned),
+    (b"wrreplayrate", Kind::Unaligned),
+    (b"alt2axcode", Kind::Dword),
+    (b"fizpatch", Kind::Dword),
+    (b"patchmaxdrawdistance", Kind::Dword),
+    (b"patchstickygrass", Kind::Dword),
+    (b"patchgravity", Kind::Dword),
+    (b"patchdamages", Kind::Dword),
+    (b"patchbrakegrip", Kind::Dword),
+    (b"patchaccelgrip", Kind::Dword),
+    (b"patchslidegrip", Kind::Dword),
+    (b"patchgripgrass", Kind::Dword),
+    (b"patchgriptarmac", Kind::Dword),
+    (b"patchgripsnow", Kind::Dword),
+    (b"patchgripmud", Kind::Dword),
+    (b"patchgripgravel", Kind::Dword),
+    (b"lexcontrol", Kind::Dword),
+    (b"sparksmode", Kind::Dword),
+];
+
+/// What a settings text sets: each setting it has, in [`SETTINGS`] order, with the number of its
+/// value (0 for a value that is no number). A key the text lacks sets nothing.
+pub fn parse_settings(
     text: &(impl Bytes + ?Sized),
-    keys: &[&[u8]],
     case: &CaseTable,
-) -> Result<Vec<(usize, u32)>, Invalid> {
+) -> Result<Vec<(Setting, u32)>, Invalid> {
     let mut found = Vec::new();
-    for (n, key) in keys.iter().enumerate() {
+    for (n, (key, _)) in SETTINGS.iter().enumerate() {
         if let Some(place) = find_key(text, key, case)? {
-            found.push((n, number(text, place)?));
+            found.push((Setting(n), number(text, place)?));
         }
     }
     Ok(found)
@@ -210,14 +293,43 @@ mod tests {
     }
 
     #[test]
-    fn tables_and_applying() {
-        let raw = b"one\0\x01\0\0\0two\0\x02\0\0\0\0";
-        let t = table(&raw[..], raw.len()).unwrap();
-        assert_eq!(t, [(b"one".to_vec(), 1), (b"two".to_vec(), 2)]);
-        assert!(table(&raw[..], 4).is_err());
-        let keys: Vec<&[u8]> = t.iter().map(|(k, _)| k.as_slice()).collect();
-        let found = apply(b"two\t5\r\n\0", &keys, &CaseTable::ascii()).unwrap();
-        assert_eq!(found, [(1, 5)]);
+    fn settings_text_is_parsed_in_table_order() {
+        let case = CaseTable::ascii();
+        let name = |s: Setting| String::from_utf8_lossy(s.name()).into_owned();
+        let parsed = |text: &[u8]| {
+            parse_settings(text, &case)
+                .unwrap()
+                .into_iter()
+                .map(|(s, n)| (name(s), n))
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(SETTINGS.len(), 77);
+        // Both forms, a key without a number, an unknown key, lines in any order.
+        assert_eq!(
+            parsed(b"sparksmode 3\r\nbogus=9\r\nIgnoreMMX=7\r\nignorekatmai\r\n\0"),
+            [
+                ("ignoremmx".to_string(), 7),
+                ("ignorekatmai".to_string(), 0),
+                ("sparksmode".to_string(), 3)
+            ]
+        );
+        // Keys sharing a variable are both reported, the later in the table last.
+        assert_eq!(
+            parsed(b"nosound=1\nnoaudio=2\n\0"),
+            [("noaudio".to_string(), 2), ("nosound".to_string(), 1)]
+        );
+        assert_eq!(
+            parsed(b"hex=$1F\nkey = -0x10\n\0")[0],
+            ("key".to_string(), 0x10u32.wrapping_neg())
+        );
+        assert_eq!(parsed(b"\0"), []);
+        assert!(parse_settings(&b"no nul"[..], &case).is_err());
+        assert_eq!(Setting(0).kind(), Kind::Dword);
+        let unaligned: Vec<_> = (0..77)
+            .filter(|&n| Setting(n).kind() == Kind::Unaligned)
+            .map(|n| name(Setting(n)))
+            .collect();
+        assert_eq!(unaligned, ["wrreplayenable", "wrreplayrate"]);
     }
 
     const TEXT: &[u8] = b"; ral.cfg\r\n  LogFile=10\r\nscreen 800\r\nempty\r\nname000 \"A B\"\tx\r\nhex=$1F\r\nneg = -0x10\r\nlast\0";

@@ -1,12 +1,6 @@
-//! `settings::read_settings` (0x4114A6): reads `var\ral.cfg` into the game's settings.
-//!
-//! `read_text` on `var\ral.cfg`; if it reads, `settings::apply_settings` (0x4114FF, one caller,
-//! here as
-//! `apply_settings`): for each of the 77 entries of the table at 0x518C09 (a key, then the address
-//! of its variable), if `find_key` finds the key, the variable becomes `parse_number` of its value.
-//! A key that is not in the file leaves its variable alone; a key without a number makes it 0. Two
-//! keys share a variable twice (`noaudio` and `nosound`, `allsecretcars` and `secretcar`): the
-//! later one in the table wins. Callers: `start` and `system::load_game_data`.
+//! Reads `var\ral.cfg` and stores each setting it names in its variable; this file holds the
+//! table of those variables, the key list and parser are `rc2k_core::files::settings`.
+//! Callers: start-up and `system::load_game_data`.
 
 use crate::errors::BadInput;
 use crate::owners::Owners;
@@ -16,9 +10,8 @@ use crate::strings::same_text::case_table;
 
 // ---- game data ----
 
-/// Where a setting's variable lives now: its store's cell. The table keeps the variable's
-/// IDA address too (the table's bytes are the image's;
-/// `tests::targets_are_the_variables_the_games_table_names` checks each cell).
+/// Where a setting's variable lives: its store's cell
+/// (`tests::targets_are_the_variables_the_games_table_names` checks each cell).
 #[derive(Clone, Copy)]
 enum Target {
     /// A whole aligned dword of a store (`dword!`).
@@ -63,9 +56,8 @@ fn set_picture_rate(o: Owners<'static>, number: u32) {
 
 /// "var\ral.cfg" (0x5295CC in the image).
 static PATH: &[u8; 12] = b"var\\ral.cfg\0";
-/// aNotaskswitch (0x518C09 .. 0x5190F1 in the image): the settings, each a key and the
-/// IDA address of its dword and its store's cell; the table's bytes are the keys and
-/// addresses, key, NUL, address (`tests::table_is_the_games`).
+/// The settings in `rc2k_core::files::settings::SETTINGS` order (`tests::table_matches_the_keys`
+/// checks it): key, address of the variable in the 1999 image, target.
 const ENTRIES: [(&[u8], u32, Target); 77] = [
     (
         b"notaskswitch",
@@ -410,38 +402,12 @@ const ENTRIES: [(&[u8], u32, Target); 77] = [
     ),
 ];
 
-/// The table as the image held it (before relocation): `rc2k_core::files::settings::table`
-/// reads these bytes.
-fn table_bytes() -> Vec<u8> {
-    let mut out = Vec::new();
-    for (key, address, _) in ENTRIES {
-        out.extend_from_slice(key);
-        out.push(0);
-        out.extend_from_slice(&address.to_le_bytes());
-    }
-    out
-}
-
-/// `settings::apply_settings`: the settings a text names. Converted:
-/// `rc2k_core::files::settings::table` and
-/// `apply`; here the variables (the table's dwords are their addresses) are stored.
-fn settings() -> Result<Vec<(Vec<u8>, u32)>, BadInput> {
-    // The empty key that ends it (0x5190F1 in the image).
-    let mut bytes = table_bytes();
-    bytes.push(0);
-    Ok(rc2k_core::files::settings::table(
-        bytes.as_slice(),
-        bytes.len(),
-    )?)
-}
-
+/// The settings of a `var\ral.cfg` text applied to their variables. Everything is parsed
+/// first, so nothing is written if a key is refused.
 pub fn apply_settings(o: Owners<'static>, text: &[u8]) -> Result<(), BadInput> {
-    let table = settings()?;
-    let keys: Vec<&[u8]> = table.iter().map(|(key, _)| key.as_slice()).collect();
-    // Found first, stored after: nothing is written if a key is refused.
-    let found = rc2k_core::files::settings::apply(text, &keys, &case_table())?;
-    for (n, number) in found {
-        ENTRIES[n].2.set(o, number);
+    let parsed = rc2k_core::files::settings::parse_settings(text, &case_table())?;
+    for (setting, number) in parsed {
+        ENTRIES[setting.0].2.set(o, number);
     }
     Ok(())
 }
@@ -760,8 +726,23 @@ mod tests {
 
     #[test]
     fn table_reads_whole() {
-        let table = { super::settings() }.unwrap();
+        let table = rc2k_core::files::settings::SETTINGS;
         assert_eq!(table.len(), super::ENTRIES.len());
+    }
+
+    /// The targets are in the key list's order, with the kinds it names.
+    #[test]
+    fn table_matches_the_keys() {
+        use rc2k_core::files::settings::Kind;
+        for (n, (key, _, target)) in ENTRIES.iter().enumerate() {
+            let setting = rc2k_core::files::settings::Setting(n);
+            assert_eq!(setting.name(), *key);
+            let kind = match target {
+                Target::Dword(_) => Kind::Dword,
+                Target::Unaligned(_) => Kind::Unaligned,
+            };
+            assert_eq!(setting.kind(), kind, "{}", String::from_utf8_lossy(key));
+        }
     }
 
     /// The variables of every setting that is a whole dword, as they are now.
