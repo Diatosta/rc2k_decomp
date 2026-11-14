@@ -44,8 +44,8 @@ pub struct Work {
 /// `out` gets each new pixel's three parts, row by row. `None` for a size of 0 (a division by 0).
 pub fn rescale(
     sizes: &Sizes,
-    at: &dyn Fn(u32, u32) -> u8,
-    out: &mut dyn FnMut([u8; 3]),
+    at: &impl Fn(u32, u32) -> u8,
+    out: &mut impl FnMut([u8; 3]),
 ) -> Option<Work> {
     let Sizes {
         from_width,

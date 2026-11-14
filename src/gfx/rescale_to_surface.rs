@@ -8,7 +8,6 @@
 //! missing pixels or format.
 
 use crate::errors::{BadInput, Refused};
-use crate::gfx::components_to_pixel::components_to_pixel;
 use crate::gfx::fill_row_table::{ROW_TABLE_ROOM, fill_row_table, row_address};
 use crate::gfx::rescale_picture::Rescaler;
 
@@ -44,6 +43,13 @@ pub fn rescale_to_surface(
     let mut column = 0u32;
     #[cfg(feature = "remote")]
     let mut fold = 0u64;
+    // The rows' offsets, read once; a row past the table ends the program as `row_address` does.
+    let rows: Vec<u32> = (0..from_height).map(|row| row_address(row, gfx)).collect();
+    // The components' fourth byte stays as it was; the parts of the last pixel are left in them,
+    // and the scratch bytes of the last bit-by-bit packing in the pixel format's scratch.
+    let alpha = rescaler.components.get_u32(0) & 0xFF00_0000;
+    let mut last_parts = None;
+    let mut last_scratch = None;
     let work = crate::gfx::picture::with_buffer(from, |pixels| {
         rc2k_core::gfx::picture::rescale(
             &rc2k_core::gfx::picture::Sizes {
@@ -52,7 +58,7 @@ pub fn rescale_to_surface(
                 width,
                 height,
             },
-            &|row, byte| match pixels.get(row_address(row, gfx).wrapping_add(byte) as usize) {
+            &|row, byte| match pixels.get(rows[row as usize].wrapping_add(byte) as usize) {
                 Some(&b) => b,
                 None => crate::fatal::raise::end(
                     "gfx::rescale_to_surface",
@@ -60,10 +66,10 @@ pub fn rescale_to_surface(
                 ),
             },
             &mut |parts| {
-                for (part, &byte) in parts.iter().enumerate() {
-                    rescaler.components.set(part, byte);
-                }
-                let pixel = components_to_pixel(&format, rescaler.components.get_u32(0), gfx);
+                last_parts = Some(parts);
+                let components = u32::from_le_bytes([parts[0], parts[1], parts[2], 0]) | alpha;
+                let (pixel, scratch) = rc2k_core::gfx::pixels::pack(&format, components);
+                last_scratch = scratch.or(last_scratch);
                 #[cfg(feature = "remote")]
                 {
                     fold = fold.rotate_left(5).wrapping_mul(0x0100_0000_01B3) ^ u64::from(pixel);
@@ -84,6 +90,14 @@ pub fn rescale_to_surface(
         )
         .expect("the sizes were checked")
     })?;
+    if let Some(parts) = last_parts {
+        for (part, &byte) in parts.iter().enumerate() {
+            rescaler.components.set(part, byte);
+        }
+    }
+    if let Some(scratch) = last_scratch {
+        gfx.pixel.formats.scratch.write(&scratch);
+    }
     #[cfg(feature = "remote")]
     crate::race::course_hash::note_texture_row(u32::MAX, 0, 0, &fold.to_le_bytes());
     rescaler.step_x.set(work.step_x);
