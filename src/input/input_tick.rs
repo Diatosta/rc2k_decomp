@@ -10,10 +10,11 @@ use crate::input::owner::Input;
 use crate::input::types::InputDevice;
 use crate::session::Dword;
 
-/// A tick of the devices (see the header).
+/// A tick of the devices (see the header). `sound` is the only sound state the input thread
+/// reaches: the player count and the sound objects in use.
 pub fn input_tick(
     input: &Input,
-    sound: &crate::sound::owner::Sound,
+    sound: &crate::sound::store::SoundShared,
     system: &crate::system::owner::System,
     race: &crate::race::owner::Race,
 ) -> Result<(), Refused> {
@@ -49,7 +50,7 @@ pub fn input_tick(
 /// For the standalone's input thread.
 pub fn input_tick_in_game(
     input: &Input,
-    sound: &crate::sound::owner::Sound,
+    sound: &crate::sound::store::SoundShared,
     system: &crate::system::owner::System,
     race: &crate::race::owner::Race,
 ) -> Result<(), Refused> {

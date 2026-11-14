@@ -24,7 +24,7 @@ pub fn car_sounds_all(
     system: &crate::system::owner::System,
     audio: &crate::audio::owner::Audio,
 ) -> Result<(), Refused> {
-    let count = sound.race.shared.count.get();
+    let count = sound.threads.shared.count.get();
     if count == 0 {
         return Ok(());
     }

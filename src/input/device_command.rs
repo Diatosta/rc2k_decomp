@@ -24,7 +24,7 @@ fn device(
 pub fn device_command(
     input: &Input,
     command: u32,
-    sound: &crate::sound::owner::Sound,
+    sound: &crate::sound::store::SoundShared,
     system: &System,
     race: &Race,
 ) -> Result<(), Refused> {
@@ -34,7 +34,7 @@ pub fn device_command(
             command as u8,
             (command >> 8) as u8,
             input.devices.two_devices_one_player.get(),
-            sound.race.shared.one_player.get(),
+            sound.one_player.get(),
         )?;
         for step in steps {
             match step {

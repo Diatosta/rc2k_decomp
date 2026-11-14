@@ -2662,7 +2662,7 @@ pub static GROUPS: &[Group] = &[
                 "numlocpl",
                 Shown::Hex,
                 0x514F78,
-                indexed_cell!(|o| o.sound.race.shared, one_player),
+                indexed_cell!(|o| o.sound.threads.shared, one_player),
                 false,
                 (468, 10),
             ),

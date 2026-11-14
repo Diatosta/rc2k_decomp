@@ -7,8 +7,11 @@ use crate::input::owner::Input;
 
 /// The effects started with sound objects in use, and the
 /// effects' clock set.
-pub fn begin_effects(input: &Input, sound: &crate::sound::owner::Sound) -> Result<(), Refused> {
-    if sound.race.shared.count.is_set() {
+pub fn begin_effects(
+    input: &Input,
+    sound: &crate::sound::store::SoundShared,
+) -> Result<(), Refused> {
+    if sound.count.is_set() {
         crate::input::start_effects::start_effects(input)?;
     }
     input

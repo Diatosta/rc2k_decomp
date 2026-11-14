@@ -88,14 +88,17 @@ impl SlotOwners<'static> {
 pub fn run_routine(routine: u32, o: SlotOwners<'_>) -> Option<Result<(), Refused>> {
     match routine {
         0x4078DA => Some(crate::input::input_thread::input_thread(
-            o.input, o.sound, o.system, o.race,
+            o.input,
+            &o.sound.threads.shared,
+            o.system,
+            o.race,
         )),
         0x409CCE => Some(crate::audio::thread::audio_thread(
             crate::audio::thread::AudioInputs {
                 audio: o.audio,
                 system: o.system,
-                sets: &o.sound.race.sets,
-                menu_sounds: &o.sound.menu.menu_sounds,
+                sets: &o.sound.threads.sets,
+                menu_sounds: &o.sound.threads.menu_sounds,
             },
         )),
         0x4183C3 => Some(crate::net::receive_thread::receive_thread(

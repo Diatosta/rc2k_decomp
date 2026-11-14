@@ -14,16 +14,13 @@ use crate::sound::store::{
 /// The race's sounds: the objects, the clock, the surface and stage constants, the sets and
 /// kinds, the spot voices and the car stream.
 ///
-/// `shared` (the input thread's force-feedback effects read the player counts) and `sets` (the
-/// audio thread loads its lists) stay atomic; the rest is the game thread's.
+/// All of it is the game thread's; what other threads read is in `SoundForThreads`.
 pub struct RaceSoundState {
-    pub shared: SoundShared,
     pub sounds: GameThread<RaceSounds>,
     pub clock: GameThread<RaceClock>,
     pub surface: GameThread<SurfaceSounds>,
     pub stage: GameThread<StageSounds>,
     pub spot_picks: GameThread<SpotPicks>,
-    pub sets: SoundSets,
     /// The request each sound is sent with (a work area).
     pub request: GameThread<SoundRequest>,
     pub cue_lists: GameThread<CueLists>,
@@ -38,13 +35,11 @@ pub struct RaceSoundState {
 impl RaceSoundState {
     pub const fn new() -> Self {
         RaceSoundState {
-            shared: SoundShared::new(),
             sounds: GameThread::new(RaceSounds::new()),
             clock: GameThread::new(RaceClock::new()),
             surface: GameThread::new(SurfaceSounds::new()),
             stage: GameThread::new(StageSounds::new()),
             spot_picks: GameThread::new(SpotPicks::new()),
-            sets: SoundSets::new(),
             request: GameThread::new(SoundRequest::new()),
             cue_lists: GameThread::new(CueLists::new()),
             kinds: GameThread::new(SoundKinds::new()),
@@ -56,10 +51,10 @@ impl RaceSoundState {
     }
 }
 
-/// The menus' sounds and the kept sound settings. `menu_sounds` (the audio thread loads its
-/// list) and `options` (it reads the tune turn) stay atomic.
+/// The menus' sound pacing and the kept sound settings: the game thread's alone (`options` keeps
+/// atomic cells because the option tables and the saved file address them as cells; no other
+/// thread reads them).
 pub struct MenuSoundState {
-    pub menu_sounds: MenuSounds,
     /// The clock the next menu sound may be heard at.
     pub next_sound_time: GameThread<PlainDword>,
     pub options: SoundOptions,
@@ -70,7 +65,6 @@ pub struct MenuSoundState {
 impl MenuSoundState {
     pub const fn new() -> Self {
         MenuSoundState {
-            menu_sounds: MenuSounds::new(),
             next_sound_time: GameThread::new(PlainDword::new(0)),
             options: SoundOptions::new(),
             settings_applied: GameThread::new(SettingsApplied::new()),
@@ -79,14 +73,42 @@ impl MenuSoundState {
     }
 }
 
-/// The sound module's state.
+/// What threads other than the game's read of the sound state; the game's thread writes all of
+/// it, and the cells are atomic.
+///
+/// - The input thread (force feedback) reaches `shared` only: whether one player races and how many
+///   sound objects are in use (`input::input_tick` takes `&SoundShared`, nothing else).
+/// - The audio thread reaches `sets` and `menu_sounds` only: the lists a load command names
+///   (`audio::thread::AudioInputs`). The game's thread fills them before it queues that command.
+pub struct SoundForThreads {
+    pub shared: SoundShared,
+    /// The sets of sounds a race loads.
+    pub sets: SoundSets,
+    /// The settings page's menu sounds.
+    pub menu_sounds: MenuSounds,
+}
+
+impl SoundForThreads {
+    pub const fn new() -> Self {
+        SoundForThreads {
+            shared: SoundShared::new(),
+            sets: SoundSets::new(),
+            menu_sounds: MenuSounds::new(),
+        }
+    }
+}
+
+/// The sound module's state: `threads` is what other threads read, `race` and `menu` are the
+/// game thread's.
 pub struct Sound {
+    pub threads: SoundForThreads,
     pub race: RaceSoundState,
     pub menu: MenuSoundState,
 }
 
 /// The one instance, reached through `sound()` by the roots and by tests.
 pub static SOUND: Sound = Sound {
+    threads: SoundForThreads::new(),
     race: RaceSoundState::new(),
     menu: MenuSoundState::new(),
 };

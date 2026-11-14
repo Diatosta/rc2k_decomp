@@ -16,7 +16,7 @@ const QUIT_TEXT: &std::ffi::CStr = c"AUDIOTDB:QUIT"; // "AUDIOTDB:QUIT"
 ///
 /// What crosses threads: `audio` (atomic cells, `Shared` records and the command queue's mutex;
 /// the game's thread writes the modes, volumes, sample keys and `environment`, the audio thread
-/// the voices, streams and device facts), `sets` and `menu_sounds` (atomic cells the game's
+/// the voices, streams and device facts), `sets` and `menu_sounds` (`SoundForThreads`' lists, atomic cells the game's
 /// thread fills before it queues the load command that makes the audio thread read them) and
 /// `system` (only the quitting flag, an atomic cell, is read). No `GameThread` state is
 /// reachable from here, and the thread reads none of the sound options.

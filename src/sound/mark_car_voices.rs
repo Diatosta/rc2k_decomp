@@ -16,7 +16,7 @@ fn pairs<'a>(
     sound: &'a crate::sound::owner::Sound,
     race: &Race,
 ) -> Result<Vec<(&'a SoundObject, usize)>, BadInput> {
-    let count = sound.race.shared.count.get();
+    let count = sound.threads.shared.count.get();
     if count == 0 || count > 8 {
         return Err(BadInput("a sound object count of 0 or over 8"));
     }

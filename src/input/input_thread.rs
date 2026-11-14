@@ -27,7 +27,7 @@ fn log(text: &std::ffi::CStr) {
 /// The thread's work up to its `ExitThread` (see the header).
 pub fn input_thread(
     input: &Input,
-    sound: &crate::sound::owner::Sound,
+    sound: &crate::sound::store::SoundShared,
     system: &System,
     race: &crate::race::owner::Race,
 ) -> Result<(), Refused> {

@@ -35,8 +35,8 @@ impl<'a> Vars<'a> {
         Self {
             // Player A's and B's cars, the one-player flag and the sound object count.
             cars: &sound.race.sounds.get().player_cars,
-            one_player: &sound.race.shared.one_player,
-            count: &sound.race.shared.count,
+            one_player: &sound.threads.shared.one_player,
+            count: &sound.threads.shared.count,
             devices: &input.devices.input_devices,
             views: &race.shared.view.get().view_blocks,
             objects: &sound.race.sounds.get().objects,

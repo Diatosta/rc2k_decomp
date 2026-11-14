@@ -611,7 +611,7 @@ fn listed_stores() -> Vec<Listed> {
         ),
         listed!(
             "sound.owner.SOUND.race.shared",
-            &crate::sound::owner::SOUND.race.shared,
+            &crate::sound::owner::SOUND.threads.shared,
         ),
         listed!(
             "sound.owner.SOUND.race.sounds",
@@ -812,12 +812,12 @@ fn listed_stores() -> Vec<Listed> {
         ),
         listed!(
             "sound.owner.SOUND.menu.menu_sounds",
-            record_from(&crate::sound::owner::SOUND.menu.menu_sounds, ".list"),
+            record_from(&crate::sound::owner::SOUND.threads.menu_sounds, ".list"),
             0x28,
         ),
         listed!(
             "sound.owner.SOUND.race.sets",
-            &crate::sound::owner::SOUND.race.sets,
+            &crate::sound::owner::SOUND.threads.sets,
             0x9ac,
         ),
         listed!(

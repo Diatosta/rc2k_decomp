@@ -388,7 +388,7 @@ pub fn open_replay(race: &Race, o: crate::owners::Owners<'static>) -> Result<(),
     }
     let w = race.replay_work();
     w.header_one_player
-        .set(o.sound.race.shared.one_player.get());
+        .set(o.sound.threads.shared.one_player.get());
     w.header_codriver_sex_0
         .set(shared.state.settings.cars[0].codriver_sex.get());
     w.header_codriver_sex_1

@@ -22,10 +22,10 @@ pub fn start_race_sounds(
     audio: &crate::audio::owner::Audio,
 ) -> Result<(), Refused> {
     crate::sound::race_clock::start_race_clock(crate::system::tick_count::tick_count(), sound);
-    let count: u32 = sound.race.shared.count.get();
+    let count: u32 = sound.threads.shared.count.get();
     if count != 0 {
         let count = count.clamp(1, OBJECTS);
-        sound.race.shared.count.set(count);
+        sound.threads.shared.count.set(count);
         for n in 0..count {
             wake(sound, n)?;
         }

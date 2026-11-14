@@ -77,8 +77,8 @@ pub fn load_race_sounds(
     };
     let replay = race.shared.state.results.finished.is_set();
     let (count, other_count) = (
-        sound.race.shared.one_player.get(),
-        sound.race.shared.count.get(),
+        sound.threads.shared.one_player.get(),
+        sound.threads.shared.count.get(),
     );
     let kinds = if replay {
         None
@@ -133,9 +133,9 @@ pub fn load_race_sounds(
     ) {
         send(match set {
             Set::Replay => NamedSet::Replay.list(),
-            Set::FirstKind(k) => sound.race.sets.kind_list(2 * k as usize)?,
+            Set::FirstKind(k) => sound.threads.sets.kind_list(2 * k as usize)?,
             Set::First(n) => [NamedSet::FirstA, NamedSet::FirstB, NamedSet::FirstC][n].list(),
-            Set::SecondKind(k) => sound.race.sets.kind_list(2 * k as usize + 1)?,
+            Set::SecondKind(k) => sound.threads.sets.kind_list(2 * k as usize + 1)?,
             Set::Second(n) => [NamedSet::SecondA, NamedSet::SecondB][n].list(),
             Set::Last => NamedSet::Last.list(),
         });

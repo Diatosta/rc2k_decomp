@@ -61,7 +61,7 @@ pub fn viewer_load_stage(race: &'static Race, o: Owners<'static>) -> Result<(), 
         }
         // The sound module's `one_player` takes the header's setting too.
         sound
-            .race
+            .threads
             .shared
             .one_player
             .set(race.replay_work().header_one_player.get());
@@ -71,7 +71,7 @@ pub fn viewer_load_stage(race: &'static Race, o: Owners<'static>) -> Result<(), 
             .state
             .settings
             .race_mode
-            .set(sound.race.shared.one_player.get());
+            .set(sound.threads.shared.one_player.get());
         // The door number is the low byte of the first dword of `unknown_7d0`.
         let door = race.replay_work().unknown_7d0[0].get() & 0xFF;
         shared.state.settings.cars[0].race_number.set(door);

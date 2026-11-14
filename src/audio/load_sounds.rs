@@ -172,7 +172,8 @@ mod tests {
         }
         let sound = crate::sound::owner::sound();
         for list in lists {
-            let entry = list_entries(&sound.race.sets, &sound.menu.menu_sounds, list).unwrap();
+            let entry =
+                list_entries(&sound.threads.sets, &sound.threads.menu_sounds, list).unwrap();
             let entries = rc2k_core::audio::load::entries(|n| {
                 entry(n).expect("a list runs out of its field")
             });
@@ -180,8 +181,8 @@ mod tests {
         }
         assert!(
             list_entries(
-                &sound.race.sets,
-                &sound.menu.menu_sounds,
+                &sound.threads.sets,
+                &sound.threads.menu_sounds,
                 SoundList::Race {
                     field: rc2k_core::audio::commands::RaceField::Tail,
                     entry: 1

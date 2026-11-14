@@ -835,7 +835,7 @@ impl SoundSets {
     pub fn kind_list_of(
         n: usize,
     ) -> Result<rc2k_core::audio::commands::SoundList, crate::errors::BadInput> {
-        crate::sound::owner::sound().race.sets.kind_list(n)
+        crate::sound::owner::sound().threads.sets.kind_list(n)
     }
 
     /// The sets of the kind-table entry `n` (two a kind of car), as a handle.
@@ -1680,7 +1680,7 @@ mod tests {
     #[test]
     fn started_lists_keep_their_hash_words_and_end_before_the_kinds() {
         use rc2k_core::audio::commands::{Command, SoundList};
-        let sets = &crate::sound::owner::sound().race.sets;
+        let sets = &crate::sound::owner::sound().threads.sets;
         let flat = flat(sets);
         let kinds_start = OLD_FIELD_OFFSETS[RaceField::Kinds as usize] as usize / 4;
         let mut lists: Vec<(SoundList, Option<u32>)> = (0..72)
@@ -1722,7 +1722,7 @@ mod tests {
     #[test]
     fn racesoundsets_kind_lists_are_their_handles() {
         for n in 0..72 {
-            let handle = crate::sound::owner::sound().race.sets.kinds[n].get();
+            let handle = crate::sound::owner::sound().threads.sets.kinds[n].get();
             let at = SoundSets::kind_list_of(n).unwrap();
             let (field, entry) = race_list_of(handle).unwrap();
             assert_eq!(
