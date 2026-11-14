@@ -72,6 +72,7 @@ pub mod keep_connection;
 pub mod keep_hud_options;
 pub mod lets_race;
 pub mod lets_rally;
+pub mod link;
 pub mod list_players;
 pub mod lobby;
 pub mod lobby_button;

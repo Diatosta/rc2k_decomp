@@ -7,7 +7,7 @@ pub fn shut_down(
     lines: &crate::race::viewer_screen_store::NetTexts,
 ) -> Result<(), Refused> {
     let vars = &o.net.vars;
-    crate::net::stop::stop(o, vars, lines)?;
+    crate::net::stop::stop(o, o.net, lines)?;
     let handle = vars.event.atomic().swap(0, Ordering::SeqCst);
     if handle != 0 {
         crate::sync::close(handle);

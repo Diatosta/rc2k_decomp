@@ -2,16 +2,16 @@
 //! Returns true when joined.
 
 use crate::net::create_group::join;
-use crate::net::store::NetShared;
-pub fn join_group(vars: &NetShared) -> bool {
+use crate::net::link::Link;
+pub fn join_group(link: &Link) -> bool {
     let result = {
         crate::net::dp_objects::enum_groups(
-            vars.dplay.get(),
+            link.dplay(),
             &|id, kind, short, _flags, _context| {
-                crate::net::group_found::callback(vars, id, kind, short)
+                crate::net::group_found::callback(link, id, kind, short)
             },
             0,
         )
     };
-    result == 0 && join(vars)
+    result == 0 && join(link)
 }

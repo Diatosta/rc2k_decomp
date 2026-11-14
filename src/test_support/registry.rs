@@ -453,6 +453,10 @@ fn listed_stores() -> Vec<Listed> {
             &crate::net::owner::NET_OWNER.vars,
         ),
         listed!(
+            "net.owner.NET_OWNER.link",
+            crate::net::owner::NET_OWNER.link.cells(),
+        ),
+        listed!(
             "net.owner.NET_OWNER.main.edit",
             on_game(&crate::net::owner::NET_OWNER.main.get().edit),
         ),

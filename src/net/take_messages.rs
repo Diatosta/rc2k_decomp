@@ -40,7 +40,7 @@ pub fn take_messages(
     if net.vars.players.get() > MOST_PLAYERS {
         return Err(BadInput("take_messages: more than 8 players").into());
     }
-    while net.vars.dplay.get() != 0 {
+    while net.link.has_dplay() {
         let m = receive_message(net);
         if m.size == 0 {
             break;
@@ -50,7 +50,7 @@ pub fn take_messages(
             .messages_taken
             .set(net.vars.receiver.messages_taken.get().wrapping_add(1));
         if m.from == 0 {
-            system_message(&net.vars, lines)?;
+            system_message(net, lines)?;
             continue;
         }
         // The sender among the players (the first compared even with none).
@@ -115,7 +115,7 @@ pub fn take_messages(
                     .sync_answer
                     .set(messages::answer(reply, round));
                 dplay_send(
-                    &net.vars,
+                    &net.link,
                     block.id.get(),
                     &Message::Answer { ready, round }.encode(),
                 );

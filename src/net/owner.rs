@@ -3,6 +3,7 @@
 //! atomic); the players' inboxes sit behind their own lock; `main` (what is edited, the settings, the address, the session joined, the lobby's)
 //! and the button belong to the game thread.
 
+use crate::net::link::Link;
 use crate::net::store::{
     AddressVars, Button, EditVars, Inboxes, JoinedVars, LobbyVars, NetMain, NetShared, SetupVars,
 };
@@ -13,6 +14,9 @@ pub struct Net {
     /// The network's variables the receiving thread shares (sessions, players, DirectPlay
     /// objects, chat).
     pub vars: NetShared,
+    /// The DirectPlay objects, the session being opened and the lists of connections and
+    /// sessions.
+    pub link: Link,
     /// The players' inboxes of race messages, under the received messages' lock.
     pub inboxes: Inboxes,
     /// The variables the game's thread alone reaches.
@@ -25,6 +29,7 @@ impl Net {
     pub const fn new() -> Self {
         Net {
             vars: NetShared::new(),
+            link: Link::new(),
             inboxes: Inboxes::new(),
             main: GameThread::new(NetMain::new()),
             button: GameThread::new(Button::new()),

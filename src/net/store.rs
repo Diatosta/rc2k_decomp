@@ -1,6 +1,5 @@
 //! The network's variables, typed: `NetShared` (session state, this machine's player, chat,
-//! send and receive buffers, connections and sessions listed, the received message stores,
-//! DirectPlay's objects and the chat zone's picture), `Button` (`net::draw_button`'s) and
+//! send and receive buffers, the received message stores and the chat zone's picture), `Button` (`net::draw_button`'s) and
 //! `NetMain`'s records (the item edited, this machine's settings, the address being built, the
 //! session joined, the lobby's `LobbyVars`), which only the game's thread reaches.
 //!
@@ -15,10 +14,9 @@
 //!   `posted_answered`, `messages_taken`, `sync_answer`, `sync`: the round of a host's first
 //!   call), `all_raced`, `race_over`, `synced`, `sync_first`, `stage_item` (a host made), `own`
 //!   (the host bit), `received`, `chat`, `chat_line`, `chat_text`, `session` (a lost session:
-//!   `destroy_connection`) and with it `dplay`, `lobby`, `session_open`, `memory`, `connections`,
-//!   `sessions`, `connection_table`, `session_table`, `player_id` and `players`.
+//!   `destroy_connection`) and with it the `Link`'s objects and lists, and `players`.
 //! - The game thread writes, it reads: `receiver.posting`, `receiver.posted_call`, `event`,
-//!   `host_name`, `session_desc`, `send_to`, `players`, `dplay`.
+//!   `players`; and the `Link`'s `host_name`, `session_desc`, `send_to`, `dplay`.
 //! - Read by the drawing threads: `session`, `player` (lights, HUD icons).
 //! - Game thread only (`LobbyVars`): `mode`, `sequence`, `first_host`, `send_buffer`,
 //!   `show_gaps`, `data_size`, `racing`, `after_race`, `sync_clock`.
@@ -30,7 +28,7 @@ use rc2k_core::net::inbox::Inbox;
 use rc2k_core::net::players::State;
 use rc2k_core::net::record::{self, Record};
 
-const fn zeros<const N: usize>() -> [Dword; N] {
+pub(crate) const fn zeros<const N: usize>() -> [Dword; N] {
     [const { Dword::new(0) }; N]
 }
 
@@ -369,7 +367,7 @@ impl SetupVars {
 pub struct AddressVars {
     /// The address elements added.
     pub elements: PlainDword,
-    /// The compound address (memory of the network's list; 0 now: `net::tables::NET_TABLES`).
+    /// The compound address (0: it is kept in `net::link::Link`'s tables).
     pub address: PlainDword,
     /// The compound address's size.
     pub address_size: PlainDword,
@@ -559,27 +557,12 @@ pub struct NetShared {
     pub session: Dword,
     /// This machine's player (its car's number); the race code reads it as the car chosen.
     pub player: Dword,
-    /// The network's memory list (`memory::List`, 16 bytes).
-    pub memory: [Dword; 4],
     /// What the receiving thread works with.
     pub receiver: ReceiverState,
     /// The receiving thread's event (a handle).
     pub event: Dword,
     /// The lobby's stage item can be chosen.
     pub stage_item: Dword,
-    /// The connections listed.
-    pub connections: Dword,
-    /// The connection records (0x54 bytes each; an address, 0 now: `net::tables::NET_TABLES`).
-    pub connection_table: Dword,
-    /// The machine's name, copied here by `net::host_session` before the session is opened on
-    /// the receiving thread (`posted_open_host`), which may not reach the game thread's settings.
-    pub host_name: Bytes<64>,
-    /// The sessions listed.
-    pub sessions: Dword,
-    /// The session records (0x68 bytes each; an address, 0 now: `net::tables::NET_TABLES`).
-    pub session_table: Dword,
-    /// 1 while a DirectPlay session is open.
-    pub session_open: Dword,
     /// This machine's player record.
     pub own: PlayerRecord,
     /// Every player is ready.
@@ -594,16 +577,6 @@ pub struct NetShared {
     pub players: Dword,
     /// The players' blocks.
     pub received: [PlayerBlock; 8],
-    /// This player's DirectPlay id.
-    pub player_id: Dword,
-    /// The group the messages go to.
-    pub send_to: Dword,
-    /// The `IDirectPlay4A` object.
-    pub dplay: Dword,
-    /// The `IDirectPlayLobby2A` object.
-    pub lobby: Dword,
-    /// A `DPSESSIONDESC2`.
-    pub session_desc: SessionDesc,
 }
 
 impl NetShared {
@@ -615,16 +588,9 @@ impl NetShared {
             chat_text: Bytes::new([0; 128]),
             session: Dword::new(0),
             player: Dword::new(0),
-            memory: zeros(),
             receiver: ReceiverState::new(),
             event: Dword::new(0),
             stage_item: Dword::new(0x1),
-            connections: Dword::new(0),
-            connection_table: Dword::new(0),
-            host_name: Bytes::new([0; 64]),
-            sessions: Dword::new(0),
-            session_table: Dword::new(0),
-            session_open: Dword::new(0),
             own: PlayerRecord::zero(),
             all_raced: Dword::new(0),
             race_over: Dword::new(0),
@@ -632,11 +598,6 @@ impl NetShared {
             synced: [const { Flag::new(false) }; 8],
             players: Dword::new(0),
             received: [const { PlayerBlock::zero() }; 8],
-            player_id: Dword::new(0),
-            send_to: Dword::new(0),
-            dplay: Dword::new(0),
-            lobby: Dword::new(0),
-            session_desc: SessionDesc::zero(),
         }
     }
 }

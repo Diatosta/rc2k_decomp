@@ -7,16 +7,16 @@ use crate::net::lobby::{log_bytes, log_hex, log_int_nl};
 use crate::net::owner::Net;
 use crate::race::viewer_screen_store::{NetTexts, texts};
 pub fn init_connection(net: &Net, lines: &NetTexts, connection: u32) -> Result<bool, Refused> {
-    let vars = &net.vars;
+    let link = &net.link;
     log_bytes(&lines.text(texts::NET_INIT_CONNECTION_INDEX), false, 2);
     log_int_nl(connection, 2);
-    if vars.dplay.get() == 0 || !build_address(net, lines, connection)? {
+    if !link.has_dplay() || !build_address(net, lines, connection)? {
         return Ok(false);
     }
     let result = {
-        let address = crate::net::tables::NET_TABLES.with(|t| t.address.clone())?;
+        let address = link.tables().with(|t| t.address.clone())?;
         crate::net::dp_objects::initialize_connection_with(
-            vars.dplay.get(),
+            link.dplay(),
             (!address.is_empty()).then_some(&address[..]),
         )
     };

@@ -11,11 +11,11 @@ use crate::race::viewer_screen_store::{NetTexts, texts};
 
 /// The `Open` as the receiving thread calls it when it is posted.
 pub fn posted_open_join(net: &Net, _lines: &NetTexts) -> u32 {
-    open(&net.vars, OPEN_JOIN, b"")
+    open(&net.link, OPEN_JOIN, b"")
 }
 
-fn join_group(vars: &crate::net::store::NetShared) -> Result<bool, Refused> {
-    Ok(crate::net::join_group::join_group(vars))
+fn join_group(link: &crate::net::link::Link) -> Result<bool, Refused> {
+    Ok(crate::net::join_group::join_group(link))
 }
 pub fn join_session(
     o: crate::owners::Owners<'static>,
@@ -25,10 +25,10 @@ pub fn join_session(
     let net = o.net;
     log_bytes(&lines.text(texts::NET_JOIN_SESSION), false, 2);
     log_int_nl(number, 1);
-    if net.vars.dplay.get() == 0 {
+    if !net.link.has_dplay() {
         return Ok(false);
     }
-    let s = crate::net::tables::with_session(&net.vars, number, |s| *s)?;
+    let s = crate::net::tables::with_session(&net.link, number, |s| *s)?;
     net.joined()
         .joined
         .write_at(0, &s.instance, "the joined session")?;
@@ -39,9 +39,12 @@ pub fn join_session(
     net.joined()
         .joined_password
         .write_at(0, &s.user, "the joined session")?;
-    net.vars.session_desc.clear();
-    net.vars.session_desc.size.set(0x50);
-    put_bytes(&net.vars.session_desc.instance, &net.joined().joined.read());
+    net.link.session_desc().clear();
+    net.link.session_desc().size.set(0x50);
+    put_bytes(
+        &net.link.session_desc().instance,
+        &net.joined().joined.read(),
+    );
     finish(
         o,
         lines,

@@ -845,8 +845,8 @@ mod tests {
         // player 0 of its table (a box: the game's own state stays as it is).
         let net: Box<Net> = Box::new(Net::new());
         let vars = &net.vars;
-        vars.dplay.set(host);
-        vars.player_id.set(host_player);
+        net.link.set_dplay(host);
+        net.link.set_player_id(host_player);
         vars.players.set(1);
         vars.receiver.sync.set(7);
         vars.received[0].id.set(0xDEAD);
@@ -933,6 +933,6 @@ mod tests {
         let inbox = net.lock_received()[0].clone();
         assert_eq!(inbox.records[0x100..0x103], [0x0E, 1, 9]);
         assert_eq!(release(guest), 0);
-        assert_eq!(release(host), 0);
+        assert_eq!(net.link.release_dplay(), Some(0));
     }
 }

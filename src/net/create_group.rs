@@ -3,21 +3,17 @@
 //! text. Returns true when made and joined.
 
 use crate::errors::Refused;
-use crate::net::store::NetShared;
+use crate::net::link::Link;
 
 /// The player put in the group (`AddPlayerToGroup`): whether it went.
-pub fn join(vars: &NetShared) -> bool {
-    crate::net::dp_objects::add_player_to_group(
-        vars.dplay.get(),
-        vars.send_to.get(),
-        vars.player_id.get(),
-    ) == 0
+pub fn join(link: &Link) -> bool {
+    crate::net::dp_objects::add_player_to_group(link.dplay(), link.send_to(), link.player_id()) == 0
 }
-pub fn create_group(vars: &NetShared) -> Result<bool, Refused> {
+pub fn create_group(link: &Link) -> Result<bool, Refused> {
     let made =
-        crate::net::dp_objects::create_group(vars.dplay.get(), &crate::net::store::GROUP_NAME, &[]);
+        crate::net::dp_objects::create_group(link.dplay(), &crate::net::store::GROUP_NAME, &[]);
     if let Ok(id) = made {
-        vars.send_to.set(id);
+        link.set_send_to(id);
     }
-    Ok(made.is_ok() && join(vars))
+    Ok(made.is_ok() && join(link))
 }

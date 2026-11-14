@@ -1,11 +1,10 @@
 //! The network's connection and session lists and the data hung on them, Rust's: taken counted
 //! on the list (`allocate_lists`, `connection_found`, `build_address`), given back with it
-//! (`free_messages`). The counts stay in the network's variables.
+//! (`free_messages`). The counts stay in `Link`'s cells.
 
 use crate::errors::{BadInput, Refused};
-use crate::memory::owned::Owned;
+use crate::net::link::Link;
 use crate::net::lobby::fatal;
-use crate::net::store::NetShared;
 use crate::net::types::Guid;
 use rc2k_core::net::lists::{
     MOST_LISTED, NO_CONNECTION, NO_CONNECTIONS, NO_SESSION, NO_SESSIONS, TABLES,
@@ -62,30 +61,29 @@ impl NetTables {
     }
 }
 
-pub static NET_TABLES: Owned<NetTables> = Owned::new("no network lists");
-
 /// The network's list.
-pub fn list(vars: &NetShared) -> &[crate::session::Dword; 4] {
-    &vars.memory
+pub fn list(link: &Link) -> &[crate::session::Dword; 4] {
+    link.memory()
 }
 
 /// `allocate_lists`: both tables taken, counted as the game's two blocks.
-pub fn take(vars: &NetShared) -> Result<(), Refused> {
-    NET_TABLES.take(list(vars), TABLES[0].0, NetTables::new())?;
-    crate::memory::owned::count_on(list(vars), TABLES[1].0)
+pub fn take(link: &Link) -> Result<(), Refused> {
+    link.tables()
+        .take(list(link), TABLES[0].0, NetTables::new())?;
+    crate::memory::owned::count_on(list(link), TABLES[1].0)
 }
 
 /// `bytes` more counted on the network's list.
-pub fn count(vars: &NetShared, bytes: u32) -> Result<(), Refused> {
-    crate::memory::owned::count_on(list(vars), bytes)
+pub fn count(link: &Link, bytes: u32) -> Result<(), Refused> {
+    crate::memory::owned::count_on(list(link), bytes)
 }
 
 /// A number not below the count, then no table, are `net::connection_entry`'s fatal errors.
-fn listed(index: u32, count: u32, codes: [u32; 2]) -> Result<(), Refused> {
+fn listed(link: &Link, index: u32, count: u32, codes: [u32; 2]) -> Result<(), Refused> {
     if index >= count {
         return Err(fatal(codes[0]).into());
     }
-    if !NET_TABLES.is_taken() {
+    if !link.tables().is_taken() {
         return Err(fatal(codes[1]).into());
     }
     Ok(())
@@ -93,28 +91,34 @@ fn listed(index: u32, count: u32, codes: [u32; 2]) -> Result<(), Refused> {
 
 /// `f` on connection `index` (`net::connection_entry`'s checks first).
 pub fn with_connection<R>(
-    vars: &NetShared,
+    link: &Link,
     index: u32,
     f: impl FnOnce(&mut Connection) -> R,
 ) -> Result<R, Refused> {
     listed(
+        link,
         index,
-        vars.connections.get(),
+        link.connections().get(),
         [NO_CONNECTION, NO_CONNECTIONS],
     )?;
-    NET_TABLES
+    link.tables()
         .with(|t| t.connections.get_mut(index as usize).map(f))?
         .ok_or(BadInput("a connection past the table").into())
 }
 
 /// `f` on session `index` (`net::session_entry`'s checks first).
 pub fn with_session<R>(
-    vars: &NetShared,
+    link: &Link,
     index: u32,
     f: impl FnOnce(&mut Session) -> R,
 ) -> Result<R, Refused> {
-    listed(index, vars.sessions.get(), [NO_SESSION, NO_SESSIONS])?;
-    NET_TABLES
+    listed(
+        link,
+        index,
+        link.sessions().get(),
+        [NO_SESSION, NO_SESSIONS],
+    )?;
+    link.tables()
         .with(|t| t.sessions.get_mut(index as usize).map(f))?
         .ok_or(BadInput("a session past the table").into())
 }
@@ -149,8 +153,8 @@ mod tests {
         let _lock = crate::test_support::test_lock();
         let figures = crate::memory::figures();
         let kept_list: Vec<u32> = net
-            .vars
-            .memory
+            .link
+            .memory()
             .iter()
             .map(crate::session::Dword::get)
             .collect();
@@ -158,16 +162,16 @@ mod tests {
             |b: &crate::session::PlainBytes<16>| (0..16).map(|k| b.get(k)).collect::<Vec<u8>>();
         let kept_saved = bytes(&net.address().saved_connection);
         let kept_name: Vec<u8> = (0..64).map(|k| net.address().saved_name.get(k)).collect();
-        let kept_count = net.vars.connections.get();
-        net.vars.memory.iter().for_each(|d| d.set(0));
-        take(&net.vars).unwrap();
-        net.vars.connections.set(0);
+        let kept_count = net.link.connections().get();
+        net.link.memory().iter().for_each(|d| d.set(0));
+        take(&net.link).unwrap();
+        net.link.connections().set(0);
         // DirectPlay's arguments: the provider's GUID, the data, the name record (+8 the
         // short name).
         let guid: [u8; 16] = std::array::from_fn(|k| k as u8 + 1);
         let data = vec![7u8; 5];
         let found = crate::net::connection_found::connection_found(
-            &net.vars,
+            &net.link,
             crate::strings::owner::strings(),
             &crate::race::viewer_screen_store::NET_TEXTS,
             &guid,
@@ -176,22 +180,22 @@ mod tests {
         )
         .unwrap();
         assert_eq!(found, 1);
-        assert_eq!(net.vars.connections.get(), 1);
+        assert_eq!(net.link.connections().get(), 1);
         let (name, provider, copied) =
-            with_connection(&net.vars, 0, |c| (c.name, c.provider, c.data.clone())).unwrap();
+            with_connection(&net.link, 0, |c| (c.name, c.provider, c.data.clone())).unwrap();
         assert_eq!(provider[..], guid[..]);
         assert_eq!(copied, data);
         assert!(name_text(&name).unwrap().eq_ignore_ascii_case(b"test link"));
-        assert!(with_connection(&net.vars, 1, |_| ()).is_err());
+        assert!(with_connection(&net.link, 1, |_| ()).is_err());
         crate::net::keep_connection::keep_connection(net, 0).unwrap();
         assert_eq!(
             crate::net::find_saved_connection::find_saved_connection(net).unwrap(),
             Some(0)
         );
-        crate::net::free_messages::free_messages(&net.vars).unwrap();
-        assert!(!NET_TABLES.is_taken());
-        net.vars
-            .memory
+        crate::net::free_messages::free_messages(net).unwrap();
+        assert!(!net.link.tables().is_taken());
+        net.link
+            .memory()
             .iter()
             .zip(kept_list)
             .for_each(|(d, v)| d.set(v));
@@ -203,7 +207,7 @@ mod tests {
             .iter()
             .enumerate()
             .for_each(|(k, &v)| net.address().saved_name.set(k, v));
-        net.vars.connections.set(kept_count);
+        net.link.connections().set(kept_count);
         crate::memory::with_figures(|f| *f = figures);
     }
 }

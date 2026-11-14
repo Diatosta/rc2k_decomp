@@ -5,15 +5,16 @@
 
 use crate::errors::Refused;
 use crate::net::destroy_connection::destroy_connection;
-use crate::net::store::NetShared;
+use crate::net::owner::Net;
 use rc2k_core::net::message::SystemMessage;
 use rc2k_core::net::players::{A_PLAYER, System};
 
 /// The message is in `crate::net::owner::net().vars.receiver.receive_data`.
 pub fn system_message(
-    vars: &NetShared,
+    net: &Net,
     lines: &crate::race::viewer_screen_store::NetTexts,
 ) -> Result<(), Refused> {
+    let (vars, link) = (&net.vars, &net.link);
     let bytes = vars
         .receiver
         .receive_data
@@ -25,13 +26,13 @@ pub fn system_message(
             vars.sync_first.set(1);
             if message.player_type == A_PLAYER {
                 crate::net::dp_objects::delete_player_from_group(
-                    vars.dplay.get(),
-                    vars.send_to.get(),
+                    link.dplay(),
+                    link.send_to(),
                     message.id,
                 );
             }
         }
-        System::SessionLost => destroy_connection(vars, lines)?,
+        System::SessionLost => destroy_connection(net, lines)?,
         System::Host => {
             vars.own.set_state(vars.own.state().made_host());
             vars.sync_first.set(1);

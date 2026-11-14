@@ -9,19 +9,15 @@ use crate::net::owner::Net;
 use crate::net::sort_players::{bubble_blocks, swap_blocks};
 use rc2k_core::net::players;
 pub fn list_players(net: &Net) -> Result<bool, Refused> {
-    let vars = &net.vars;
-    if vars.dplay.get() == 0 {
+    let (vars, link) = (&net.vars, &net.link);
+    if !link.has_dplay() {
         return Ok(false);
     }
-    crate::net::dp_objects::set_player_data(
-        vars.dplay.get(),
-        vars.player_id.get(),
-        &vars.own.bytes(),
-    );
+    crate::net::dp_objects::set_player_data(link.dplay(), link.player_id(), &vars.own.bytes());
     if net.lobby().racing.get() != 1 {
         vars.players.set(0);
         let result = crate::net::dp_objects::enum_players(
-            vars.dplay.get(),
+            link.dplay(),
             &|id, _kind, short, _flags, _context| {
                 crate::net::player_found::callback(vars, id, short)
             },
@@ -40,7 +36,7 @@ pub fn list_players(net: &Net) -> Result<bool, Refused> {
         let player = vars.player_block(n)?;
         let mut data = [0u8; 0x10];
         let (result, size) =
-            crate::net::dp_objects::get_player_data(vars.dplay.get(), player.id.get(), &mut data);
+            crate::net::dp_objects::get_player_data(link.dplay(), player.id.get(), &mut data);
         net.lobby().data_size.set(size);
         if result == 0 {
             player.record.set_bytes(&data[..size as usize]);
@@ -53,7 +49,7 @@ pub fn list_players(net: &Net) -> Result<bool, Refused> {
         |k| id(k) > id(k + 1),
         |k| swap_blocks(vars.player_block(k)?, vars.player_block(k + 1)?),
     )?;
-    match players::find_own(vars.player_id.get(), vars.players.get(), |n| {
+    match players::find_own(link.player_id(), vars.players.get(), |n| {
         vars.player_block_or_end(n).id.get()
     }) {
         Ok(n) => {

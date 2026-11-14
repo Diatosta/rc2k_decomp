@@ -27,7 +27,6 @@ pub fn list_move(install: &crate::install::owner::Install, key: u8, count: u32) 
 }
 pub fn choose_connection(o: crate::owners::Owners<'static>) -> Result<u32, Refused> {
     let (install, net, system) = (o.install, o.net, o.system);
-    let vars = &net.vars;
     let now = system.session.key_clock.ticks.get();
     install.pages.move_clock.set(now);
     install.pages.key_clock.set(now);
@@ -40,7 +39,7 @@ pub fn choose_connection(o: crate::owners::Owners<'static>) -> Result<u32, Refus
             .frame_clock
             .set(system.session.key_clock.ticks.get());
         let key = list_key(install, o.input)?;
-        if list_move(install, key, vars.connections.get()) {
+        if list_move(install, key, net.link.connections().get()) {
             install
                 .pages
                 .move_clock

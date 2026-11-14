@@ -30,7 +30,7 @@ fn link(o: Owners<'static>) -> Result<Way, Refused> {
     let lines = &crate::race::viewer_screen_store::NET_TEXTS;
     let vars = &net.vars;
     use crate::net::*;
-    if !find_connections::find_connections(&net.vars, o.strings, lines)? {
+    if !find_connections::find_connections(net, o.strings, lines)? {
         return Ok(Way::Message(NO_CONNECTION));
     }
     let connection = match find_saved_connection::find_saved_connection(net)? {

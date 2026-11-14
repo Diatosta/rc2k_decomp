@@ -6,8 +6,7 @@ use crate::net::lobby::zero;
 use crate::race::viewer_screen_store::NetTexts;
 pub fn settings_done(o: crate::owners::Owners<'static>, lines: &NetTexts) -> Result<(), Refused> {
     let (net, strings) = (o.net, o.strings);
-    let vars = &net.vars;
-    let saved = if crate::net::find_connections::find_connections(vars, strings, lines)? {
+    let saved = if crate::net::find_connections::find_connections(net, strings, lines)? {
         crate::net::find_saved_connection::find_saved_connection(net)?
     } else {
         None
@@ -19,5 +18,5 @@ pub fn settings_done(o: crate::owners::Owners<'static>, lines: &NetTexts) -> Res
             zero(&net.address().saved_name, 0x40)?;
         }
     }
-    crate::net::stop::stop(o, vars, lines)
+    crate::net::stop::stop(o, net, lines)
 }

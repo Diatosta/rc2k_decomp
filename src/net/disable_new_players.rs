@@ -11,16 +11,16 @@ pub fn disable_new_players(net: &Net, lines: &NetTexts) {
         return;
     }
     log_bytes(&lines.text(texts::NET_DISABLE_NEW_PLAYERS), false, 2);
-    if net.vars.dplay.get() == 0 {
+    if !net.link.has_dplay() {
         return;
     }
-    net.vars
-        .session_desc
+    net.link
+        .session_desc()
         .flags
-        .set(net.vars.session_desc.flags.get() | CLOSED);
+        .set(net.link.session_desc().flags.get() | CLOSED);
     let desc =
-        crate::net::dp_objects::desc(&net.vars.session_desc, &net.setup().machine_name.read());
-    let result = crate::net::dp_objects::set_session_desc(net.vars.dplay.get(), &desc);
+        crate::net::dp_objects::desc(net.link.session_desc(), &net.setup().machine_name.read());
+    let result = crate::net::dp_objects::set_session_desc(net.link.dplay(), &desc);
     log_hex(result, true);
 }
 
@@ -29,13 +29,13 @@ pub fn disable_new_players(net: &Net, lines: &NetTexts) {
 /// Caller: `net::lobby_loop`, each frame no player is still racing (only then: a player let
 /// in while others raced would be sent their race's messages).
 pub fn enable_new_players(net: &Net) {
-    let flags = net.vars.session_desc.flags.get();
-    if !net.vars.own.state().is_host() || flags & CLOSED == 0 || net.vars.dplay.get() == 0 {
+    let flags = net.link.session_desc().flags.get();
+    if !net.vars.own.state().is_host() || flags & CLOSED == 0 || !net.link.has_dplay() {
         return;
     }
-    net.vars.session_desc.flags.set(flags & !CLOSED);
+    net.link.session_desc().flags.set(flags & !CLOSED);
     let desc =
-        crate::net::dp_objects::desc(&net.vars.session_desc, &net.setup().machine_name.read());
-    let result = crate::net::dp_objects::set_session_desc(net.vars.dplay.get(), &desc);
+        crate::net::dp_objects::desc(net.link.session_desc(), &net.setup().machine_name.read());
+    let result = crate::net::dp_objects::set_session_desc(net.link.dplay(), &desc);
     crate::framework::log(&format!("net: new players let in again ({result:#x})"));
 }

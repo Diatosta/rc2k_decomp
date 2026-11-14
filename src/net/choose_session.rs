@@ -13,9 +13,9 @@ use rc2k_core::net::screens::{self, ListKey};
 /// a failed listing.
 fn refresh(o: crate::owners::Owners<'static>, lines: &NetTexts) -> Result<bool, Refused> {
     let (install, net) = (o.install, o.net);
-    let listed = net.vars.sessions.get();
+    let listed = net.link.sessions().get();
     if listed != 0 {
-        let instance = with_session(&net.vars, install.pages.choice.get(), |s| s.instance)?;
+        let instance = with_session(&net.link, install.pages.choice.get(), |s| s.instance)?;
         net.joined()
             .joined
             .write_at(0, &instance, "the joined session")?;
@@ -28,15 +28,15 @@ fn refresh(o: crate::owners::Owners<'static>, lines: &NetTexts) -> Result<bool, 
         return Ok(false);
     }
     let (mut choice, mut top) = (0, 0);
-    if listed != 0 && net.vars.sessions.get() != 0 {
+    if listed != 0 && net.link.sessions().get() != 0 {
         let mut n = 0;
         loop {
             let joined = net.joined().joined.read();
             // `system::same_guid`: the four dwords alike.
-            if with_session(&net.vars, n, |s| s.instance)? == joined {
+            if with_session(&net.link, n, |s| s.instance)? == joined {
                 // The logic is in `rc2k_core::net::screens` (`keeps_top`, `moved_top`).
                 choice = n;
-                top = if screens::keeps_top(net.vars.sessions.get()) {
+                top = if screens::keeps_top(net.link.sessions().get()) {
                     screens::moved_top(
                         n,
                         install.pages.choice_before.get(),
@@ -48,7 +48,7 @@ fn refresh(o: crate::owners::Owners<'static>, lines: &NetTexts) -> Result<bool, 
                 break;
             }
             n = n.wrapping_add(1);
-            if n == net.vars.sessions.get() {
+            if n == net.link.sessions().get() {
                 break;
             }
         }
@@ -86,8 +86,8 @@ pub fn choose_session(o: crate::owners::Owners<'static>, lines: &NetTexts) -> Re
             .frame_clock
             .set(system.session.key_clock.ticks.get());
         let key = list_key(install, o.input)?;
-        let any = net.vars.sessions.get() != 0;
-        if any && list_move(install, key, net.vars.sessions.get()) {
+        let any = net.link.sessions().get() != 0;
+        if any && list_move(install, key, net.link.sessions().get()) {
             install
                 .pages
                 .move_clock

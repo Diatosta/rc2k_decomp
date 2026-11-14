@@ -17,7 +17,7 @@ pub struct Received {
 pub fn receive_message(net: &Net) -> Received {
     net.vars.receiver.received_size.set(ROOM);
     let mut data = [0u8; ROOM as usize];
-    let r = crate::net::dp_objects::receive(net.vars.dplay.get(), &mut data);
+    let r = crate::net::dp_objects::receive(net.link.dplay(), &mut data);
     if let Some((from, to)) = r.from_to {
         net.vars.receiver.received_from.set(from);
         net.vars.receiver.received_to.set(to);

@@ -10,5 +10,5 @@ pub fn stopping(
         crate::net::show_background::show_background(o)?;
         crate::net::connecting::status(o, 0x157)?;
     }
-    crate::net::stop::stop(o, vars, lines)
+    crate::net::stop::stop(o, o.net, lines)
 }

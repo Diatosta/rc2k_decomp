@@ -2,11 +2,11 @@
 //! when the id is 0 already (kept as is): the own player is never destroyed, `DestroyPlayer(0)`
 //! is called instead.
 
-use crate::net::store::NetShared;
-pub fn destroy_player(vars: &NetShared) {
-    let id = vars.player_id.get();
+use crate::net::link::Link;
+pub fn destroy_player(link: &Link) {
+    let id = link.player_id();
     if id == 0 {
-        crate::net::dp_objects::destroy_player(vars.dplay.get(), id);
-        vars.player_id.set(0);
+        crate::net::dp_objects::destroy_player(link.dplay(), id);
+        link.set_player_id(0);
     }
 }

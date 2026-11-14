@@ -53,7 +53,7 @@ pub fn sync(net: &Net, ready: bool) -> Result<bool, Refused> {
                 net.lobby()
                     .send_buffer
                     .write_at(0, &call, "the send buffer")?;
-                crate::net::dplay_send::dplay_send(&net.vars, id, &call);
+                crate::net::dplay_send::dplay_send(&net.link, id, &call);
             }
             n += 1;
             if n >= net.vars.players.get() {

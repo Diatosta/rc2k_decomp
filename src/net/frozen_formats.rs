@@ -16,12 +16,11 @@ fn dwords(words: &[u32]) -> Vec<u8> {
 }
 
 /// A hosted DirectPlay object for `net` to send through (the messages go to its own player).
-fn live(net: &Net) -> (u32, u32) {
+fn live(net: &Net) {
     let (object, player, _) = crate::net::dp_objects::hosted_for_tests();
-    net.vars.dplay.set(object);
-    net.vars.player_id.set(player);
-    net.vars.send_to.set(player);
-    (object, player)
+    net.link.set_dplay(object);
+    net.link.set_player_id(player);
+    net.link.set_send_to(player);
 }
 
 fn sent(net: &Net, len: usize) -> Vec<u8> {
@@ -38,7 +37,7 @@ fn sent(net: &Net, len: usize) -> Vec<u8> {
 fn a_message_is_sent_as_its_sequence_byte_and_its_bytes() {
     let _lock = crate::test_support::test_lock();
     let net: Box<Net> = Box::new(Net::new());
-    let (object, player) = live(&net);
+    live(&net);
     assert!(send_message(&net, b"abc").is_ok());
     assert_eq!(sent(&net, 4), [0x81, b'a', b'b', b'c']);
     assert!(send_message(&net, &[0x22, b'h']).is_ok());
@@ -50,8 +49,7 @@ fn a_message_is_sent_as_its_sequence_byte_and_its_bytes() {
     assert!(send_message(&net, &[9; 0x100]).is_err());
     assert_eq!(sent(&net, 2), [0x80, 7]);
     assert!(send_message(&net, &[9; 0xFF]).is_ok());
-    crate::net::dp_objects::release(object);
-    let _ = player;
+    assert_eq!(net.link.release_dplay(), Some(0));
 }
 
 /// Every cell a message kind reads or writes, with its bits.
@@ -86,7 +84,7 @@ fn the_race_messages_are_built_from_the_car() {
     let _lock = crate::test_support::test_lock();
     let saved = snapshot();
     let net: Box<Net> = Box::new(Net::new());
-    let (object, _) = live(&net);
+    live(&net);
     let mut built = Vec::new();
     for (kind, text) in [
         (Kind::Inputs, c"send j"),
@@ -103,7 +101,7 @@ fn the_race_messages_are_built_from_the_car() {
         built.push(sent(&net, len));
     }
     restore(&saved);
-    crate::net::dp_objects::release(object);
+    assert_eq!(net.link.release_dplay(), Some(0));
     assert_eq!(
         built[0],
         [

@@ -62,7 +62,7 @@ pub fn list_frame(
 }
 pub fn connections_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     let net = o.net;
-    list_frame(o, screens::CONNECTIONS_TITLE, &net.vars.connections, |n| {
-        crate::net::tables::with_connection(&net.vars, n, |c| c.name)
+    list_frame(o, screens::CONNECTIONS_TITLE, net.link.connections(), |n| {
+        crate::net::tables::with_connection(&net.link, n, |c| c.name)
     })
 }

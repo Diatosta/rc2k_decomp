@@ -11,12 +11,12 @@ use crate::net::owner::Net;
 use crate::race::viewer_screen_store::{NetTexts, texts};
 use rc2k_core::net::address::{self, Provider};
 pub fn build_address(net: &Net, lines: &NetTexts, connection_number: u32) -> Result<bool, Refused> {
-    let vars = &net.vars;
+    let (vars, link) = (&net.vars, &net.link);
     log_bytes(&lines.text(texts::NET_DPCA), true, 2);
-    if vars.lobby.get() == 0 {
+    if link.lobby() == 0 {
         return Ok(false);
     }
-    let guid = crate::net::tables::with_connection(vars, connection_number, |c| c.provider)?;
+    let guid = crate::net::tables::with_connection(link, connection_number, |c| c.provider)?;
     elements::clear(net);
     net.address().address.set(0);
     net.address().address_size.set(0);
@@ -65,16 +65,16 @@ pub fn build_address(net: &Net, lines: &NetTexts, connection_number: u32) -> Res
     if address::posts(provider) {
         vars.receiver.posting.set(1);
     }
-    let parts = elements::elements();
+    let parts = elements::elements(net);
     let (result, size) =
         crate::net::dp_objects::create_compound_address(&parts, net.address().address_size.get());
     net.address().address_size.set(size);
     if result != address::BUFFER_TOO_SMALL {
         return Ok(false);
     }
-    crate::net::tables::count(vars, net.address().address_size.get())?;
+    crate::net::tables::count(link, net.address().address_size.get())?;
     let made = crate::net::dp_objects::compound_address(&parts);
     let fits = made.len() as u32 <= net.address().address_size.get();
-    crate::net::tables::NET_TABLES.with(|t| t.address = made)?;
+    link.tables().with(|t| t.address = made)?;
     Ok(fits)
 }

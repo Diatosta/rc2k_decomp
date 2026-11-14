@@ -16,7 +16,7 @@ pub fn send_payload(net: &Net, payload: Payload) -> Result<(), Refused> {
     net.lobby()
         .send_buffer
         .write_at(0, &message, "the send buffer")?;
-    dplay_send(&net.vars, net.vars.send_to.get(), &message);
+    dplay_send(&net.link, net.link.send_to(), &message);
     Ok(())
 }
 

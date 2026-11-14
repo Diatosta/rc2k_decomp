@@ -7,18 +7,18 @@ use crate::net::lobby::log_bytes;
 use crate::net::owner::Net;
 use crate::race::viewer_screen_store::{NetTexts, texts};
 pub fn create_player(net: &Net, lines: &NetTexts) -> Result<bool, Refused> {
-    let vars = &net.vars;
+    let (vars, link) = (&net.vars, &net.link);
     log_bytes(&lines.text(texts::NET_CREATE_PLAYER), false, 2);
     let name = net.setup().player_name.read();
     log_bytes(&name, true, 2);
     let made = crate::net::dp_objects::create_player(
-        vars.dplay.get(),
+        link.dplay(),
         &name,
         vars.event.get(),
         &vars.own.bytes(),
     );
     if let Ok(id) = made {
-        vars.player_id.set(id);
+        link.set_player_id(id);
     }
     Ok(made.is_ok())
 }

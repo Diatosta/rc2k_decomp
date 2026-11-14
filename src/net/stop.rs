@@ -4,13 +4,10 @@
 //! refuses.
 
 use crate::errors::Refused;
-use crate::net::store::NetShared;
+use crate::net::owner::Net;
 use crate::race::viewer_screen_store::NetTexts;
-pub fn stop(
-    o: crate::owners::Owners<'static>,
-    vars: &NetShared,
-    lines: &NetTexts,
-) -> Result<(), Refused> {
+pub fn stop(o: crate::owners::Owners<'static>, net: &Net, lines: &NetTexts) -> Result<(), Refused> {
+    let vars = &net.vars;
     vars.session.set(0);
     while vars.receiver.receiving.get() != 0 {
         crate::system::sleep::sleep(1);
@@ -19,5 +16,5 @@ pub fn stop(
             break;
         }
     }
-    crate::net::destroy_connection::destroy_connection(vars, lines)
+    crate::net::destroy_connection::destroy_connection(net, lines)
 }

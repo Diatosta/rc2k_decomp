@@ -3,10 +3,10 @@
 //! on.
 
 use crate::errors::Refused;
-use crate::net::store::NetShared;
+use crate::net::link::Link;
 
 /// The group's id, type and short name.
-pub fn group_found(vars: &NetShared, id: u32, kind: u32, short: &[u8]) -> Result<u32, Refused> {
+pub fn group_found(link: &Link, id: u32, kind: u32, short: &[u8]) -> Result<u32, Refused> {
     if kind != 0 {
         return Ok(1);
     }
@@ -14,12 +14,12 @@ pub fn group_found(vars: &NetShared, id: u32, kind: u32, short: &[u8]) -> Result
     if order != std::cmp::Ordering::Equal {
         return Ok(1);
     }
-    vars.send_to.set(id);
+    link.set_send_to(id);
     Ok(0)
 }
 
-pub fn callback(vars: &NetShared, id: u32, kind: u32, short: &[u8]) -> u32 {
+pub fn callback(link: &Link, id: u32, kind: u32, short: &[u8]) -> u32 {
     crate::net::lobby::callback_entry("net::group_found", 0x419391, || {
-        group_found(vars, id, kind, short)
+        group_found(link, id, kind, short)
     })
 }

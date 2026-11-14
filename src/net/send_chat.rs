@@ -17,6 +17,6 @@ pub fn send_chat(net: &Net, gfx: &'static Gfx, player: u32, message: &[u8]) -> R
     net.lobby()
         .send_buffer
         .write_at(0, &line, "the send buffer")?;
-    dplay_send(&net.vars, net.vars.send_to.get(), &line);
+    dplay_send(&net.link, net.link.send_to(), &line);
     Ok(())
 }

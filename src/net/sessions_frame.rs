@@ -4,10 +4,10 @@
 use crate::errors::Refused;
 use crate::net::connections_frame::list_frame;
 pub fn sessions_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
-    let vars = &o.net.vars;
+    let link = &o.net.link;
     // The logic is in `rc2k_core::net::screens::sessions_title`.
-    let title = rc2k_core::net::screens::sessions_title(vars.sessions.get());
-    list_frame(o, title, &vars.sessions, |n| {
-        crate::net::tables::with_session(vars, n, |s| s.name)
+    let title = rc2k_core::net::screens::sessions_title(link.sessions().get());
+    list_frame(o, title, link.sessions(), |n| {
+        crate::net::tables::with_session(link, n, |s| s.name)
     })
 }
