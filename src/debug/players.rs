@@ -64,6 +64,9 @@ const PLAYER_ROWS: [(&str, usize); 51] = [
     ("LastLBoardPosA", 0x150),
 ];
 
+/// The cars shown: every car block.
+const CARS: usize = crate::race::blocks_store::BLOCK_COUNT;
+
 /// A car block's cell.
 type CarField = fn(&Car) -> &PlainDword;
 
@@ -119,7 +122,7 @@ fn write_log(menus: &Menus, race: &Race) {
         "shaungmode: {}",
         figure(race.shared.vars.get().run_kind.get())
     ));
-    for car in 0..10 {
+    for car in 0..CARS {
         log(&format!("car {}", car + 1));
         for (label, field) in CAR_ROWS {
             log(&format!("{label}: {}", car_figure(race, car, field)));
@@ -174,12 +177,12 @@ pub fn tab(menus: &Menus, race: &Race, ui: &Ui) {
         table(
             ui,
             "cars",
-            10,
+            CARS,
             "car",
             &mut CAR_ROWS.iter().map(|&(label, field)| {
                 (
                     label.to_owned(),
-                    (0..10).map(|c| car_figure(race, c, field)).collect(),
+                    (0..CARS).map(|c| car_figure(race, c, field)).collect(),
                 )
             }),
         );
