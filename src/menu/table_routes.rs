@@ -221,10 +221,10 @@ pub fn item_fn(o: Owners<'static>, f: ItemFn, c: &table_calls::ItemCall) -> Resu
             controller_items::previous_controller(menus, o.input).map(|_| ())
         }
         ItemFn::KeepPlayerKeys => player_actions::keep_player_keys(menus),
-        ItemFn::LowerPlayer40 => player_actions::lower_end_zone(menus),
-        ItemFn::RaiseDeadZoneA => controller_items::raise_dead_zone(menus, false),
-        ItemFn::LowerPlayer44 => player_actions::lower_centre_dead_zone(menus),
-        ItemFn::RaiseDeadZoneB => controller_items::raise_dead_zone(menus, true),
+        ItemFn::LowerEndZone => player_actions::lower_end_zone(menus),
+        ItemFn::RaiseEndZone => controller_items::raise_dead_zone(menus, false),
+        ItemFn::LowerCentreDeadZone => player_actions::lower_centre_dead_zone(menus),
+        ItemFn::RaiseCentreDeadZone => controller_items::raise_dead_zone(menus, true),
         ItemFn::LowerControllerSensitivity => {
             controller_items::lower_controller_sensitivity(menus, o.input).map(|_| ())
         }
@@ -237,8 +237,8 @@ pub fn item_fn(o: Owners<'static>, f: ItemFn, c: &table_calls::ItemCall) -> Resu
                 .fixed()
                 .links[1],
         ),
-        ItemFn::RaisePlayer48 => player_actions::raise_strength(menus),
-        ItemFn::LowerPlayer48 => player_actions::lower_strength(menus),
+        ItemFn::RaiseStrength => player_actions::raise_strength(menus),
+        ItemFn::LowerStrength => player_actions::lower_strength(menus),
         ItemFn::BeginGearRatioEdit => begin_edits::begin_edit(menus, begin_edits::GEAR_RATIO),
         ItemFn::BeginTyreEdit => begin_edits::begin_edit(menus, begin_edits::TYRE),
         ItemFn::OpenSteeringBox => {
@@ -318,7 +318,7 @@ pub fn item_fn(o: Owners<'static>, f: ItemFn, c: &table_calls::ItemCall) -> Resu
             item_actions::view_stage_details(&menus.screens, &Entry::new(o))
         }
         ItemFn::ApplyScreenMode => apply_screen_mode::apply_screen_mode(o),
-        ItemFn::TogglePlayer3c => player_actions::toggle_controller_mode(menus),
+        ItemFn::ToggleControllerMode => player_actions::toggle_controller_mode(menus),
         ItemFn::ReplayItemC => replay_items::replay_item_c(race, o),
         ItemFn::ReplayItemB => replay_items::replay_item_b(race, o),
         ItemFn::ReplayItemA => replay_items::replay_item_a(race, o),

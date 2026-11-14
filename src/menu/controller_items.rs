@@ -130,8 +130,7 @@ pub fn raise_controller_sensitivity(
     Ok(())
 }
 
-/// `menu::raise_dead_zone_a` (the first) / `raise_dead_zone_b`: the dead zone one more if
-/// the two leave more than 10.
+/// The end zone (or with `second` the centre dead zone) one more if the two leave more than 10.
 pub fn raise_dead_zone(menus: &Menus, second: bool) -> Result<(), Refused> {
     let p = player(menus)?;
     let q = p.get();

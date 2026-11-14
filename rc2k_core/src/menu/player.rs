@@ -42,19 +42,19 @@ pub struct Player {
     /// The learned pedals' axes (+0x3A the second pedal's, +0x3B the first's;
     /// `screens::learning::pedal`), handed to the device's set-up as one dword.
     pub axis_codes: [u8; 4],
-    /// The controller's mode (bit 0; string 0x56D + it; `menu::toggle_player_3c`).
+    /// The controller's mode (bit 0; string 0x56D + it).
     pub controller_mode: u32,
     /// +0x40: the stick's end zone in percent of its travel (0 at start): the share at the
     /// far end that counts as full. The controller page's first slider; with the centre dead
-    /// zone it leaves the rest of 100 (`menu::lower_player_40`, `raise_dead_zone`).
+    /// zone it leaves the rest of 100 (`lower_end_zone`, `raise_dead_zone`).
     /// `input::set_up_device` copies it to the device's `end_zone` (+0x14). Sure: the
     /// device fields' names and the defaults (0 here, 10 below).
     pub end_zone_pct: u32,
     /// +0x44: the stick's centre dead zone in percent (10 at start): the share around the
     /// middle that reads as 0. The second slider; copied to the device's `dead_zone` (+0x18).
     pub centre_dead_zone_pct: u32,
-    /// The device's strength, 0 .. 100 in tens (`menu::raise_player_48`,
-    /// `lower_player_48`; shown for a device that has it).
+    /// The device's strength, 0 .. 100 in tens (`step_strength`;
+    /// shown for a device that has it).
     pub strength: u32,
     /// Record +0x4C: the word between `strength` and the bindings; no page or race
     /// copy reads it (the device set-up reads the car's copy of it as a gap).
@@ -415,21 +415,21 @@ pub enum Setting {
 }
 
 impl Player {
-    /// `menu::lower_player_40`: the first dead zone one less while above 0 (signed).
+    /// The first dead zone one less while above 0 (signed).
     pub fn lower_end_zone(&mut self) {
         if (self.end_zone_pct as i32) > 0 {
             self.end_zone_pct -= 1;
         }
     }
 
-    /// `menu::lower_player_44`: the second dead zone one less unless 0.
+    /// The second dead zone one less unless 0.
     pub fn lower_centre_dead_zone(&mut self) {
         if self.centre_dead_zone_pct != 0 {
             self.centre_dead_zone_pct = self.centre_dead_zone_pct.wrapping_sub(1);
         }
     }
 
-    /// `menu::raise_player_48` / `lower_player_48`: the strength ten more unless 100, ten
+    /// The strength ten more unless 100, ten
     /// less unless 0.
     pub fn step_strength(&mut self, up: bool) {
         if up && self.strength != 100 {
@@ -455,7 +455,7 @@ impl Player {
         self.bindings.set_word(k, v);
     }
 
-    /// `menu::toggle_player_3c`: the controller mode's bit 0 turned over.
+    /// The controller mode's bit 0 turned over.
     pub fn toggle_controller_mode(&mut self) {
         self.controller_mode ^= 1;
     }

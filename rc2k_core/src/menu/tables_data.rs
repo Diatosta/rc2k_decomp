@@ -11,274 +11,162 @@ use super::tables::{DrawList, Menu, MenuItem, MenuLabel};
 /// A function a menu item names (its keys' and its action's).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ItemFn {
-    /// `menu::flip_codriver`
     FlipCodriver,
-    /// `menu::begin_player_name`
     BeginPlayerName,
-    /// `menu::flip_gearing`
     FlipGearing,
-    /// `menu::next_gearing`
     NextGearing,
-    /// `menu::previous_gearing`
     PreviousGearing,
-    /// `menu::previous_car`
     PreviousCar,
-    /// `menu::next_car`
     NextCar,
-    /// `menu::previous_slideshow_car`
     PreviousSlideshowCar,
-    /// `menu::next_slideshow_car`
     NextSlideshowCar,
-    /// `menu::previous_car_page`
     PreviousCarPage,
-    /// `menu::next_car_page`
     NextCarPage,
-    /// `menu::previous_slideshow_picture`
     PreviousSlideshowPicture,
-    /// `menu::next_slideshow_picture`
     NextSlideshowPicture,
-    /// `menu::next_controller`
     NextController,
-    /// `menu::previous_controller`
     PreviousController,
-    /// `menu::keep_player_keys`
     KeepPlayerKeys,
-    /// `menu::lower_player_40`
-    LowerPlayer40,
-    /// `menu::raise_dead_zone_a`
-    RaiseDeadZoneA,
-    /// `menu::lower_player_44`
-    LowerPlayer44,
-    /// `menu::raise_dead_zone_b`
-    RaiseDeadZoneB,
-    /// `menu::lower_controller_sensitivity`
+    /// Runs `player_actions::lower_end_zone`.
+    LowerEndZone,
+    /// Runs `controller_items::raise_dead_zone` for the end zone.
+    RaiseEndZone,
+    /// Runs `player_actions::lower_centre_dead_zone`.
+    LowerCentreDeadZone,
+    /// Runs `controller_items::raise_dead_zone` for the centre dead zone.
+    RaiseCentreDeadZone,
     LowerControllerSensitivity,
-    /// `menu::raise_controller_sensitivity`
     RaiseControllerSensitivity,
-    /// `menu::raise_player_48`
-    RaisePlayer48,
-    /// `menu::lower_player_48`
-    LowerPlayer48,
-    /// `service::begin_gear_ratio_edit`
+    /// Runs `player_actions::raise_strength`.
+    RaiseStrength,
+    /// Runs `player_actions::lower_strength`.
+    LowerStrength,
     BeginGearRatioEdit,
-    /// `service::begin_tyre_edit`
     BeginTyreEdit,
-    /// `service::open_steering_box`
     OpenSteeringBox,
-    /// `service::open_brake_box`
     OpenBrakeBox,
-    /// `service::begin_ride_height_edit`
     BeginRideHeightEdit,
-    /// `service::begin_suspension_stiffness_edit`
     BeginSuspensionStiffnessEdit,
-    /// `service::toggle_repair_choice`
     ToggleRepairChoice,
-    /// `menu::next_scores_page`
     NextScoresPage,
-    /// `menu::previous_scores_page`
     PreviousScoresPage,
-    /// `menu::previous_save_page`
     PreviousSavePage,
-    /// `menu::next_savegame_page`
     NextSavegamePage,
-    /// `menu::previous_replay_range`
     PreviousReplayRange,
-    /// `menu::next_replay_range`
     NextReplayRange,
-    /// `menu::begin_savegame_name`
     BeginSavegameName,
-    /// `saves::load_savegame`
     LoadSavegame,
-    /// `menu::load_championship_table_loop`
     LoadChampionshipTableLoop,
-    /// `menu::save_setup_loop`
     SaveSetupLoop,
-    /// `service::begin_setup_name`
     BeginSetupName,
-    /// `service::load_setup_slot`
     LoadSetupSlot,
-    /// `service::next_setup_page`
     NextSetupPage,
-    /// `menu::begin_replay_name`
     BeginReplayName,
-    /// `menu::flip_yes_no`
     FlipYesNo,
-    /// `menu::previous_stage_page`
     PreviousStagePage,
-    /// `menu::next_stage_page`
     NextStagePage,
-    /// `menu::previous_screen_mode`
     PreviousScreenMode,
-    /// `menu::next_screen_mode`
     NextScreenMode,
-    /// `menu::previous_texture_setting`
     PreviousTextureSetting,
-    /// `menu::next_texture_setting`
     NextTextureSetting,
-    /// `menu::next_audio_quality`
     NextAudioQuality,
-    /// `menu::previous_audio_quality`
     PreviousAudioQuality,
-    /// `menu::view_stage_details`
     ViewStageDetails,
-    /// `menu::apply_screen_mode`
     ApplyScreenMode,
-    /// `menu::toggle_player_3c`
-    TogglePlayer3c,
-    /// `menu::replay_item_c`
+    /// Runs `player_actions::toggle_controller_mode`.
+    ToggleControllerMode,
     ReplayItemC,
-    /// `menu::replay_item_b`
     ReplayItemB,
-    /// `menu::replay_item_a`
     ReplayItemA,
-    /// `menu::toggle_caption_choice`
     ToggleCaptionChoice,
-    /// `menu::show_intro`
     ShowIntro,
-    /// `menu::raise_sensitivity`
     RaiseSensitivity,
-    /// `menu::lower_sensitivity`
     LowerSensitivity,
-    /// `menu::next_colour_a`
     NextColourA,
-    /// `menu::previous_colour_a`
     PreviousColourA,
-    /// `menu::next_colour_b`
     NextColourB,
-    /// `menu::previous_colour_b`
     PreviousColourB,
     /// A function that does nothing.
     Nothing,
-    /// `menu::go_back`
     GoBack,
-    /// `menu::leave_with_carry`
     LeaveWithCarry,
-    /// `menu::next_stage_loop`
     NextStageLoop,
-    /// `menu::start_rally_loop`
     StartRallyLoop,
-    /// `menu::network_rally_loop`
     NetworkRallyLoop,
-    /// `menu::championship_new_simulation_loop`
     ChampionshipNewSimulationLoop,
-    /// `menu::audio_setup_loop`
     AudioSetupLoop,
-    /// `menu::options_loop`
     OptionsLoop,
-    /// `menu::player_details_loop`
     PlayerDetailsLoop,
-    /// `menu::player1_details_loop`
     Player1DetailsLoop,
-    /// `menu::player2_details_loop`
     Player2DetailsLoop,
-    /// `menu::player3_details_loop`
     Player3DetailsLoop,
-    /// `menu::player4_details_loop`
     Player4DetailsLoop,
-    /// `menu::player1_controller_loop`
     Player1ControllerLoop,
-    /// `menu::player1_buttons_loop`
     Player1ButtonsLoop,
-    /// `menu::player2_controller_loop`
     Player2ControllerLoop,
-    /// `menu::player2_buttons_loop`
     Player2ButtonsLoop,
-    /// `menu::player3_controller_loop`
     Player3ControllerLoop,
-    /// `menu::player3_buttons_loop`
     Player3ButtonsLoop,
-    /// `menu::player4_controller_loop`
     Player4ControllerLoop,
-    /// `menu::player4_buttons_loop`
     Player4ButtonsLoop,
-    /// `menu::redefine_keys_player1_loop`
     RedefineKeysPlayer1Loop,
-    /// `menu::redefine_keys_player2_loop`
     RedefineKeysPlayer2Loop,
-    /// `menu::redefine_keys_player3_loop`
     RedefineKeysPlayer3Loop,
-    /// `menu::redefine_keys_player4_loop`
     RedefineKeysPlayer4Loop,
-    /// `menu::visual_preferences_loop`
     VisualPreferencesLoop,
-    /// `menu::car_specification_loop`
     CarSpecificationLoop,
-    /// `menu::slideshow_loop`
     SlideshowLoop,
-    /// `menu::previous_choice_car`
     PreviousChoiceCar,
-    /// `menu::next_choice_car`
     NextChoiceCar,
-    /// `menu::in_game_options_loop`
     InGameOptionsLoop,
-    /// `menu::ask_to_leave`
     AskToLeave,
-    /// `menu::load_championship_loop`
     LoadChampionshipLoop,
-    /// `menu::save_championship_loop`
     SaveChampionshipLoop,
-    /// `menu::visual_options_loop`
     VisualOptionsLoop,
-    /// `menu::advanced_audio_loop`
     AdvancedAudioLoop,
-    /// `menu::simple_select_players_loop`
     SimpleSelectPlayersLoop,
-    /// `menu::switch_stage_group`
     SwitchStageGroup,
-    /// `menu::next_stage_sub`
     NextStageSub,
-    /// `menu::previous_stage_sub`
     PreviousStageSub,
-    /// `menu::next_stage_number`
     NextStageNumber,
-    /// `menu::previous_stage_number`
     PreviousStageNumber,
-    /// `menu::arcade_select_level_loop`
     ArcadeSelectLevelLoop,
-    /// `menu::start_arcade`
     StartArcade,
-    /// `menu::time_trial_select_players_loop`
     TimeTrialSelectPlayersLoop,
-    /// `menu::information_loop`
     InformationLoop,
-    /// `menu::view_best_times_loop`
     ViewBestTimesLoop,
-    /// `menu::view_courses_loop`
     ViewCoursesLoop,
-    /// `menu::view_best_scores_loop`
     ViewBestScoresLoop,
-    /// `menu::previous_stage_rows`
     PreviousStageRows,
-    /// `menu::next_stage_rows`
     NextStageRows,
-    /// `menu::previous_stage_rows_of_90`
     PreviousStageRowsOf90,
-    /// `menu::next_stage_rows_of_90`
     NextStageRowsOf90,
-    /// `menu::rally_results`
     RallyResults,
-    /// `menu::championship_standings`
     ChampionshipStandings,
-    /// `menu::new_simulation_if_unlocked`
     NewSimulationIfUnlocked,
-    /// `menu::new_simulation_loop`
     NewSimulationLoop,
-    /// `menu::network_settings_item`
     NetworkSettingsItem,
-    /// `menu::join_network_game`
     JoinNetworkGame,
-    /// `menu::host_network_game`
     HostNetworkGame,
     /// The current player's setting one step on (`up`) or back: nationality, view, second view, race number.
-    StepSetting { setting: Setting, up: bool },
+    StepSetting {
+        setting: Setting,
+        up: bool,
+    },
     /// The current player's visual preference flipped (the visual preferences page's switches).
     Toggle(Setting),
     /// A volume one step up or down (the sound pages).
-    Volume { which: VolumeKind, up: bool },
+    Volume {
+        which: VolumeKind,
+        up: bool,
+    },
     /// A switch of the options pages (sound names, stage records, visual and audio options).
     OptionSwitch(OptionSwitch),
     /// The stage pages' group or stage shown, one on or back.
-    StageCounter { which: StageCounter, up: bool },
+    StageCounter {
+        which: StageCounter,
+        up: bool,
+    },
     /// The controls page's key chosen to be redefined (the number is its row).
     ChooseKey(u8),
     /// A controller button learned (the number is the button).
@@ -446,14 +334,14 @@ impl ItemFn {
         ItemFn::LearnBinding(8),
         ItemFn::LearnBinding(9),
         ItemFn::LearnBinding(10),
-        ItemFn::LowerPlayer40,
-        ItemFn::RaiseDeadZoneA,
-        ItemFn::LowerPlayer44,
-        ItemFn::RaiseDeadZoneB,
+        ItemFn::LowerEndZone,
+        ItemFn::RaiseEndZone,
+        ItemFn::LowerCentreDeadZone,
+        ItemFn::RaiseCentreDeadZone,
         ItemFn::LowerControllerSensitivity,
         ItemFn::RaiseControllerSensitivity,
-        ItemFn::RaisePlayer48,
-        ItemFn::LowerPlayer48,
+        ItemFn::RaiseStrength,
+        ItemFn::LowerStrength,
         ItemFn::BeginGearRatioEdit,
         ItemFn::BeginTyreEdit,
         ItemFn::OpenSteeringBox,
@@ -502,7 +390,7 @@ impl ItemFn {
         ItemFn::OptionSwitch(OptionSwitch::Channels),
         ItemFn::ViewStageDetails,
         ItemFn::ApplyScreenMode,
-        ItemFn::TogglePlayer3c,
+        ItemFn::ToggleControllerMode,
         ItemFn::ReplayItemC,
         ItemFn::ReplayItemB,
         ItemFn::ReplayItemA,
@@ -766,14 +654,14 @@ impl ItemFn {
             ItemFn::LearnBinding(8) => 0x46B0AD,
             ItemFn::LearnBinding(9) => 0x46B0CE,
             ItemFn::LearnBinding(10) => 0x46B0EF,
-            ItemFn::LowerPlayer40 => 0x46B386,
-            ItemFn::RaiseDeadZoneA => 0x46B3A3,
-            ItemFn::LowerPlayer44 => 0x46B3CB,
-            ItemFn::RaiseDeadZoneB => 0x46B3EA,
+            ItemFn::LowerEndZone => 0x46B386,
+            ItemFn::RaiseEndZone => 0x46B3A3,
+            ItemFn::LowerCentreDeadZone => 0x46B3CB,
+            ItemFn::RaiseCentreDeadZone => 0x46B3EA,
             ItemFn::LowerControllerSensitivity => 0x46B414,
             ItemFn::RaiseControllerSensitivity => 0x46B44F,
-            ItemFn::RaisePlayer48 => 0x46B528,
-            ItemFn::LowerPlayer48 => 0x46B54C,
+            ItemFn::RaiseStrength => 0x46B528,
+            ItemFn::LowerStrength => 0x46B54C,
             ItemFn::BeginGearRatioEdit => 0x46B674,
             ItemFn::BeginTyreEdit => 0x46B6BD,
             ItemFn::OpenSteeringBox => 0x46B706,
@@ -822,7 +710,7 @@ impl ItemFn {
             ItemFn::OptionSwitch(OptionSwitch::Channels) => 0x47021D,
             ItemFn::ViewStageDetails => 0x47037E,
             ItemFn::ApplyScreenMode => 0x4703C2,
-            ItemFn::TogglePlayer3c => 0x4704EC,
+            ItemFn::ToggleControllerMode => 0x4704EC,
             ItemFn::ReplayItemC => 0x470529,
             ItemFn::ReplayItemB => 0x47052F,
             ItemFn::ReplayItemA => 0x47053E,
@@ -1088,14 +976,14 @@ impl ItemFn {
             0x46B0AD => ItemFn::LearnBinding(8),
             0x46B0CE => ItemFn::LearnBinding(9),
             0x46B0EF => ItemFn::LearnBinding(10),
-            0x46B386 => ItemFn::LowerPlayer40,
-            0x46B3A3 => ItemFn::RaiseDeadZoneA,
-            0x46B3CB => ItemFn::LowerPlayer44,
-            0x46B3EA => ItemFn::RaiseDeadZoneB,
+            0x46B386 => ItemFn::LowerEndZone,
+            0x46B3A3 => ItemFn::RaiseEndZone,
+            0x46B3CB => ItemFn::LowerCentreDeadZone,
+            0x46B3EA => ItemFn::RaiseCentreDeadZone,
             0x46B414 => ItemFn::LowerControllerSensitivity,
             0x46B44F => ItemFn::RaiseControllerSensitivity,
-            0x46B528 => ItemFn::RaisePlayer48,
-            0x46B54C => ItemFn::LowerPlayer48,
+            0x46B528 => ItemFn::RaiseStrength,
+            0x46B54C => ItemFn::LowerStrength,
             0x46B674 => ItemFn::BeginGearRatioEdit,
             0x46B6BD => ItemFn::BeginTyreEdit,
             0x46B706 => ItemFn::OpenSteeringBox,
@@ -1144,7 +1032,7 @@ impl ItemFn {
             0x47021D => ItemFn::OptionSwitch(OptionSwitch::Channels),
             0x47037E => ItemFn::ViewStageDetails,
             0x4703C2 => ItemFn::ApplyScreenMode,
-            0x4704EC => ItemFn::TogglePlayer3c,
+            0x4704EC => ItemFn::ToggleControllerMode,
             0x470529 => ItemFn::ReplayItemC,
             0x47052F => ItemFn::ReplayItemB,
             0x47053E => ItemFn::ReplayItemA,
@@ -1259,181 +1147,94 @@ impl ItemFn {
 /// A function a draw list names.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ScreenFn {
-    /// `screens::draw_section_best_times`
     DrawSectionBestTimes,
-    /// `screens::draw_player2_details`
     DrawPlayer2Details,
-    /// `screens::draw_player34_details`
     DrawPlayer34Details,
-    /// `screens__stage_options_texts`
     StageOptionsTexts,
-    /// `screens::set_stage_choice_titles`
     SetStageChoiceTitles,
-    /// `screens__stage_choice_texts`
     StageChoiceTexts,
-    /// `screens::draw_highlighted_caption`
     DrawHighlightedCaption,
-    /// `screens::car_caption_2`
     CarCaption2,
-    /// `menu::step_carousel`
     StepCarousel,
-    /// `screens::draw_background_band`
     DrawBackgroundBand,
-    /// `screens::gearing_text`
     GearingText,
-    /// `screens::car_caption`
     CarCaption,
-    /// `screens::car_page_title`
     CarPageTitle,
-    /// `screens::slideshow_title`
     SlideshowTitle,
-    /// `screens::player_number_text`
     PlayerNumberText,
-    /// `screens__draw_controller_page`
     DrawControllerPage,
-    /// `screens__draw_control_bindings`
     DrawControlBindings,
-    /// `screens__pick_player_1`
     PickPlayer1,
-    /// `screens__pick_player_2`
     PickPlayer2,
-    /// `screens__pick_player_3`
     PickPlayer3,
-    /// `screens__pick_player_4`
     PickPlayer4,
-    /// `screens__learn_axis`
     LearnAxis,
-    /// `service::handle_edit_keys`
     HandleEditKeys,
-    /// `screens__best_scores_caption`
     BestScoresCaption,
-    /// `screens__draw_best_scores_page`
     DrawBestScoresPage,
-    /// `screens::savegame_page_numbers`
     SavegamePageNumbers,
-    /// `screens::draw_savegame_names`
     DrawSavegameNames,
-    /// `screens::draw_savegame_preview`
     DrawSavegamePreview,
-    /// `screens::draw_save_setup_list`
     DrawSaveSetupList,
-    /// `screens::draw_load_setup_list`
     DrawLoadSetupList,
-    /// `screens::draw_replay_slot_names`
     DrawReplaySlotNames,
-    /// `screens::draw_player_details`
     DrawPlayerDetails,
-    /// `screens::yes_no_caption`
     YesNoCaption,
-    /// `screens::draw_leave_question`
     DrawLeaveQuestion,
-    /// `screens__draw_graphics_settings`
     DrawGraphicsSettings,
-    /// `screens__draw_sound_settings`
     DrawSoundSettings,
-    /// `screens__replay_range_caption`
     ReplayRangeCaption,
-    /// `service::load_setup_values`
     LoadSetupValues,
-    /// `screens__load_audio_settings`
     LoadAudioSettings,
-    /// `screens__draw_itinerary`
     DrawItinerary,
-    /// `screens::draw_stage_info`
     DrawStageInfo,
-    /// `screens__draw_volume_settings`
     DrawVolumeSettings,
-    /// `screens::draw_visual_preferences`
     DrawVisualPreferences,
-    /// `screens::draw_class_ranking`
     DrawClassRanking,
-    /// `screens::draw_car_figures`
     DrawCarFigures,
-    /// `screens::draw_redefined_keys`
     DrawRedefinedKeys,
-    /// `menu::redefine_player1_key`
     RedefinePlayer1Key,
-    /// `menu::redefine_key`
     RedefineKey,
-    /// `screens__draw_options_checklist`
     DrawOptionsChecklist,
-    /// `screens::draw_service_stage_info`
     DrawServiceStageInfo,
-    /// `screens::draw_selected_stage_menu`
     DrawSelectedStageMenu,
-    /// `screens__draw_players_results_points`
     DrawPlayersResultsPoints,
-    /// `screens__draw_players_standings`
     DrawPlayersStandings,
-    /// `menu::empty_draw_step`
     EmptyDrawStep,
-    /// `screens__draw_player_stage_result`
     DrawPlayerStageResult,
-    /// `screens__draw_duel_result`
     DrawDuelResult,
-    /// `screens::draw_time_trial_stage_info`
     DrawTimeTrialStageInfo,
-    /// `screens__draw_note_1fd`
     DrawNote1fd,
-    /// `screens::draw_arcade_stage_title`
     DrawArcadeStageTitle,
-    /// `screens__draw_player_rally_result`
     DrawPlayerRallyResult,
-    /// `screens__draw_rally_stage_info`
     DrawRallyStageInfo,
-    /// `screens__draw_rally_stage_times`
     DrawRallyStageTimes,
-    /// `screens__draw_class_times_marked`
     DrawClassTimesMarked,
-    /// `screens__note_locked_stage`
     NoteLockedStage,
-    /// `screens::draw_time_trial_stage_select`
     DrawTimeTrialStageSelect,
-    /// `screens__draw_stage_times`
     DrawStageTimes,
-    /// `screens__draw_players_results`
     DrawPlayersResults,
-    /// `screens__draw_stage_results`
     DrawStageResults,
-    /// `scene::draw_highlighted_object`
     DrawHighlightedObject,
-    /// `scene::draw_main_menu_objects`
     DrawMainMenuObjects,
-    /// `scene::draw_car_object`
     DrawCarObject,
-    /// `menu::clear_choice_marks`
     ClearChoiceMarks,
-    /// `screens::draw_service_boxes`
     DrawServiceBoxes,
-    /// `screens__draw_bottom_panel`
     DrawBottomPanel,
-    /// `screens__draw_two_column_panel`
     DrawTwoColumnPanel,
-    /// `menu::stage_range_caption`
     StageRangeCaption,
-    /// `screens::draw_class_stage_results`
     DrawClassStageResults,
-    /// `screens::draw_overall_stage_results`
     DrawOverallStageResults,
-    /// `screens::draw_class_rally_results`
     DrawClassRallyResults,
-    /// `screens::draw_overall_rally_results`
     DrawOverallRallyResults,
-    /// `screens__draw_record_times`
     DrawRecordTimes,
-    /// `screens__draw_championship_table`
     DrawChampionshipTable,
-    /// `screens::draw_championship_standings`
     DrawChampionshipStandings,
-    /// `screens::draw_service_area`
     DrawServiceArea,
-    /// `screens__draw_event_best_scores`
     DrawEventBestScores,
-    /// `screens__draw_overall_best_scores`
     DrawOverallBestScores,
     /// A function that does nothing.
     Nothing,
-    /// `screens__note_locked_item_3`
     NoteLockedItem3,
 }
 
@@ -3508,8 +3309,8 @@ pub static MENUS: [Menu; 96] = [
                 on_key: [
                     ItemFn::Nothing,
                     ItemFn::Nothing,
-                    ItemFn::TogglePlayer3c,
-                    ItemFn::TogglePlayer3c,
+                    ItemFn::ToggleControllerMode,
+                    ItemFn::ToggleControllerMode,
                 ],
                 action: ItemFn::Nothing,
                 skip_mark: 0xFFFFFC1B,
@@ -3532,8 +3333,8 @@ pub static MENUS: [Menu; 96] = [
                 on_key: [
                     ItemFn::Nothing,
                     ItemFn::Nothing,
-                    ItemFn::LowerPlayer48,
-                    ItemFn::RaisePlayer48,
+                    ItemFn::LowerStrength,
+                    ItemFn::RaiseStrength,
                 ],
                 action: ItemFn::Nothing,
                 skip_mark: 0xFFFFFC1B,
@@ -3580,8 +3381,8 @@ pub static MENUS: [Menu; 96] = [
                 on_key: [
                     ItemFn::Nothing,
                     ItemFn::Nothing,
-                    ItemFn::LowerPlayer44,
-                    ItemFn::RaiseDeadZoneB,
+                    ItemFn::LowerCentreDeadZone,
+                    ItemFn::RaiseCentreDeadZone,
                 ],
                 action: ItemFn::Nothing,
                 skip_mark: 0xFFFFFC1B,
@@ -3604,8 +3405,8 @@ pub static MENUS: [Menu; 96] = [
                 on_key: [
                     ItemFn::Nothing,
                     ItemFn::Nothing,
-                    ItemFn::RaiseDeadZoneA,
-                    ItemFn::LowerPlayer40,
+                    ItemFn::RaiseEndZone,
+                    ItemFn::LowerEndZone,
                 ],
                 action: ItemFn::Nothing,
                 skip_mark: 0xFFFFFC1B,
@@ -4014,8 +3815,8 @@ pub static MENUS: [Menu; 96] = [
                 on_key: [
                     ItemFn::Nothing,
                     ItemFn::Nothing,
-                    ItemFn::TogglePlayer3c,
-                    ItemFn::TogglePlayer3c,
+                    ItemFn::ToggleControllerMode,
+                    ItemFn::ToggleControllerMode,
                 ],
                 action: ItemFn::Nothing,
                 skip_mark: 0xFFFFFC1B,
@@ -4038,8 +3839,8 @@ pub static MENUS: [Menu; 96] = [
                 on_key: [
                     ItemFn::Nothing,
                     ItemFn::Nothing,
-                    ItemFn::LowerPlayer48,
-                    ItemFn::RaisePlayer48,
+                    ItemFn::LowerStrength,
+                    ItemFn::RaiseStrength,
                 ],
                 action: ItemFn::Nothing,
                 skip_mark: 0xFFFFFC1B,
@@ -4086,8 +3887,8 @@ pub static MENUS: [Menu; 96] = [
                 on_key: [
                     ItemFn::Nothing,
                     ItemFn::Nothing,
-                    ItemFn::LowerPlayer44,
-                    ItemFn::RaiseDeadZoneB,
+                    ItemFn::LowerCentreDeadZone,
+                    ItemFn::RaiseCentreDeadZone,
                 ],
                 action: ItemFn::Nothing,
                 skip_mark: 0xFFFFFC1B,
@@ -4110,8 +3911,8 @@ pub static MENUS: [Menu; 96] = [
                 on_key: [
                     ItemFn::Nothing,
                     ItemFn::Nothing,
-                    ItemFn::RaiseDeadZoneA,
-                    ItemFn::LowerPlayer40,
+                    ItemFn::RaiseEndZone,
+                    ItemFn::LowerEndZone,
                 ],
                 action: ItemFn::Nothing,
                 skip_mark: 0xFFFFFC1B,
@@ -4520,8 +4321,8 @@ pub static MENUS: [Menu; 96] = [
                 on_key: [
                     ItemFn::Nothing,
                     ItemFn::Nothing,
-                    ItemFn::TogglePlayer3c,
-                    ItemFn::TogglePlayer3c,
+                    ItemFn::ToggleControllerMode,
+                    ItemFn::ToggleControllerMode,
                 ],
                 action: ItemFn::Nothing,
                 skip_mark: 0xFFFFFC1B,
@@ -4544,8 +4345,8 @@ pub static MENUS: [Menu; 96] = [
                 on_key: [
                     ItemFn::Nothing,
                     ItemFn::Nothing,
-                    ItemFn::LowerPlayer48,
-                    ItemFn::RaisePlayer48,
+                    ItemFn::LowerStrength,
+                    ItemFn::RaiseStrength,
                 ],
                 action: ItemFn::Nothing,
                 skip_mark: 0xFFFFFC1B,
@@ -4592,8 +4393,8 @@ pub static MENUS: [Menu; 96] = [
                 on_key: [
                     ItemFn::Nothing,
                     ItemFn::Nothing,
-                    ItemFn::LowerPlayer44,
-                    ItemFn::RaiseDeadZoneB,
+                    ItemFn::LowerCentreDeadZone,
+                    ItemFn::RaiseCentreDeadZone,
                 ],
                 action: ItemFn::Nothing,
                 skip_mark: 0xFFFFFC1B,
@@ -4616,8 +4417,8 @@ pub static MENUS: [Menu; 96] = [
                 on_key: [
                     ItemFn::Nothing,
                     ItemFn::Nothing,
-                    ItemFn::RaiseDeadZoneA,
-                    ItemFn::LowerPlayer40,
+                    ItemFn::RaiseEndZone,
+                    ItemFn::LowerEndZone,
                 ],
                 action: ItemFn::Nothing,
                 skip_mark: 0xFFFFFC1B,
@@ -5026,8 +4827,8 @@ pub static MENUS: [Menu; 96] = [
                 on_key: [
                     ItemFn::Nothing,
                     ItemFn::Nothing,
-                    ItemFn::TogglePlayer3c,
-                    ItemFn::TogglePlayer3c,
+                    ItemFn::ToggleControllerMode,
+                    ItemFn::ToggleControllerMode,
                 ],
                 action: ItemFn::Nothing,
                 skip_mark: 0xFFFFFC1B,
@@ -5050,8 +4851,8 @@ pub static MENUS: [Menu; 96] = [
                 on_key: [
                     ItemFn::Nothing,
                     ItemFn::Nothing,
-                    ItemFn::LowerPlayer48,
-                    ItemFn::RaisePlayer48,
+                    ItemFn::LowerStrength,
+                    ItemFn::RaiseStrength,
                 ],
                 action: ItemFn::Nothing,
                 skip_mark: 0xFFFFFC1B,
@@ -5098,8 +4899,8 @@ pub static MENUS: [Menu; 96] = [
                 on_key: [
                     ItemFn::Nothing,
                     ItemFn::Nothing,
-                    ItemFn::LowerPlayer44,
-                    ItemFn::RaiseDeadZoneB,
+                    ItemFn::LowerCentreDeadZone,
+                    ItemFn::RaiseCentreDeadZone,
                 ],
                 action: ItemFn::Nothing,
                 skip_mark: 0xFFFFFC1B,
@@ -5122,8 +4923,8 @@ pub static MENUS: [Menu; 96] = [
                 on_key: [
                     ItemFn::Nothing,
                     ItemFn::Nothing,
-                    ItemFn::RaiseDeadZoneA,
-                    ItemFn::LowerPlayer40,
+                    ItemFn::RaiseEndZone,
+                    ItemFn::LowerEndZone,
                 ],
                 action: ItemFn::Nothing,
                 skip_mark: 0xFFFFFC1B,

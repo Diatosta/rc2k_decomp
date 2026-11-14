@@ -43,27 +43,27 @@ pub fn keep_player_keys(menus: &Menus) -> Result<(), Refused> {
     })
 }
 
-/// `menu::lower_player_40`.
+/// The first dead zone one less.
 pub fn lower_end_zone(menus: &Menus) -> Result<(), Refused> {
     with_player(menus, Player::lower_end_zone)
 }
 
-/// `menu::lower_player_44`.
+/// The second dead zone one less.
 pub fn lower_centre_dead_zone(menus: &Menus) -> Result<(), Refused> {
     with_player(menus, Player::lower_centre_dead_zone)
 }
 
-/// `menu::raise_player_48`.
+/// The device's strength ten more.
 pub fn raise_strength(menus: &Menus) -> Result<(), Refused> {
     with_player(menus, |p| p.step_strength(true))
 }
 
-/// `menu::lower_player_48`.
+/// The device's strength ten less.
 pub fn lower_strength(menus: &Menus) -> Result<(), Refused> {
     with_player(menus, |p| p.step_strength(false))
 }
 
-/// `menu::toggle_player_3c`.
+/// The controller's mode flipped.
 pub fn toggle_controller_mode(menus: &Menus) -> Result<(), Refused> {
     with_player(menus, Player::toggle_controller_mode)
 }

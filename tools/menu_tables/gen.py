@@ -16,6 +16,21 @@ functions = {int(k): v for k, v in d['functions'].items()}
 fonts = {int(k): v for k, v in d['fonts'].items()}
 
 
+# IDA's numbered names -> the variant's name and doc (the Rust function it runs). Applied to the
+# variant built from IDA's name, so regenerating keeps these names.
+RENAMES = {
+    'LowerPlayer40': ('LowerEndZone', '`player_actions::lower_end_zone`'),
+    'RaiseDeadZoneA': ('RaiseEndZone', '`controller_items::raise_dead_zone` for the end zone'),
+    'LowerPlayer44': ('LowerCentreDeadZone', '`player_actions::lower_centre_dead_zone`'),
+    'RaiseDeadZoneB': ('RaiseCentreDeadZone',
+                       '`controller_items::raise_dead_zone` for the centre dead zone'),
+    'RaisePlayer48': ('RaiseStrength', '`player_actions::raise_strength`'),
+    'LowerPlayer48': ('LowerStrength', '`player_actions::lower_strength`'),
+    'TogglePlayer3c': ('ToggleControllerMode', '`player_actions::toggle_controller_mode`'),
+}
+RENAMED_DOCS = {new: doc for new, doc in RENAMES.values()}
+
+
 def camel(name):
     return ''.join(p[:1].upper() + p[1:] for p in re.split(r'_+', name) if p)
 
@@ -36,7 +51,8 @@ def variant_names(addresses):
         count.setdefault(v, set()).add(m)
     out = {}
     for a, (m, v) in parts.items():
-        out[a] = v if v == 'Nothing' or len(count[v]) == 1 else camel(m) + v
+        v = v if v == 'Nothing' or len(count[v]) == 1 else camel(m) + v
+        out[a] = RENAMES.get(v, (v,))[0]
     return out
 
 
@@ -50,8 +66,9 @@ def enum(name, doc, addresses, names):
         label = functions.get(a, fonts.get(a))
         if label and label.startswith('nullsub_'):
             lines.append('    /// A function that does nothing.')
-        else:
-            lines.append(f'    /// `{label}`')
+        elif v in RENAMED_DOCS:
+            lines.append(f'    /// Runs {RENAMED_DOCS[v]}.')
+        # Any other variant's name says what it runs: no doc.
         lines.append(f'    {v},')
     lines.append('}')
     lines.append('')
