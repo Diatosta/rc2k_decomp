@@ -5,10 +5,11 @@
 use crate::errors::{BadInput, Refused};
 use crate::net::log_send;
 use crate::net::owner::Net;
-use crate::net::send_message::send_message;
+use crate::net::send_message::send_payload;
 use crate::physics::car_store::Car;
 use crate::race::owner::Race;
 use crate::session::Cell32;
+use rc2k_core::net::message::Payload;
 use rc2k_core::net::race::Limit::{Free, Gauge, Gear, Large, Pedal};
 use rc2k_core::net::race::{Kind, Limit};
 
@@ -109,17 +110,21 @@ pub fn send_fields(race: &Race, net: &Net, m: &Message) -> Result<(), Refused> {
     let car = shared.car();
     let message = &shared.work.get().net_message;
     log_send(race, &net.vars, m.text);
-    // The tag, then the kind's fields' bits.
-    let mut dwords = vec![m.kind.tag()];
-    dwords.extend(fields(m.kind).iter().map(|(field, _)| field(car).bits()));
+    let values: Vec<u32> = fields(m.kind)
+        .iter()
+        .map(|(field, _)| field(car).bits())
+        .collect();
+    // The work area keeps a copy of the message: the tag, then the kind's fields' bits.
     let cells = message
-        .get(..dwords.len())
+        .get(..1 + values.len())
         .ok_or(BadInput("a network message past its buffer"))?;
-    for (cell, &v) in cells.iter().zip(&dwords) {
+    for (cell, &v) in cells
+        .iter()
+        .zip(std::iter::once(&m.kind.tag()).chain(&values))
+    {
         cell.set(v);
     }
-    let bytes: Vec<u8> = dwords.iter().flat_map(|v| v.to_le_bytes()).collect();
-    send_message(net, &bytes)
+    send_payload(net, Payload::of(m.kind, values))
 }
 pub fn send_inputs(race: &Race, net: &Net) -> Result<(), Refused> {
     send_fields(race, net, &INPUTS)

@@ -28,7 +28,7 @@ pub fn race_wait(net: &Net) -> Result<u32, Refused> {
             return Ok(vars.race_over.get());
         }
         if all_states(&net.vars, players::WAITING, vars.players.get()) == players::WAITING
-            && sync(net, b'P')?
+            && sync(net, false)?
         {
             vars.race_over.set(1);
         }

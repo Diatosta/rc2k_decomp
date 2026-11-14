@@ -18,11 +18,11 @@ use crate::net::dplay_send::dplay_send;
 use crate::net::owner::Net;
 use crate::net::receive_message::ROOM;
 use crate::net::receive_message::receive_message;
-use crate::net::store::NetShared;
 use crate::net::store_received::store_received;
 use crate::net::system_message::system_message;
 use crate::net::{lock_received::lock_received, unlock_received::unlock_received};
-use rc2k_core::net::messages::{self, Kind};
+use rc2k_core::net::message::Message;
+use rc2k_core::net::messages;
 
 /// The players the blocks have room for.
 pub const MOST_PLAYERS: u32 = rc2k_core::net::players::MOST;
@@ -39,18 +39,6 @@ pub fn joined() {
     ROUND_UNKNOWN.store(true, std::sync::atomic::Ordering::Relaxed);
 }
 
-/// The received message's byte `at` (the buffer's `receive_data`).
-fn get8(vars: &NetShared, at: usize) -> Result<u8, BadInput> {
-    if at >= ROOM as usize {
-        return Err(BadInput("a received message past its buffer"));
-    }
-    Ok(vars.receive_data.get(at))
-}
-
-/// The received message from its byte 1 on.
-fn after_first(vars: &NetShared, length: usize) -> Result<Vec<u8>, BadInput> {
-    vars.receive_data.read_at(1, length, "a received message")
-}
 pub fn take_messages(
     net: &Net,
     gfx: &'static crate::gfx::owner::Gfx,
@@ -86,52 +74,46 @@ pub fn take_messages(
             continue;
         }
         let block = net.vars.player_block(player)?;
-        let first = get8(&net.vars, 0)?;
-        // The logic is in `rc2k_core::net::messages` (`Kind`, `this_round`, `answers_call`,
-        // `notes_answer`, `answer`, `race_fits`).
+        let bytes = net.vars.receive_data.read_at(
+            0,
+            (m.size as usize).min(ROOM as usize),
+            "a received message",
+        )?;
         let own_state = net.vars.own.state();
-        // The core asks for the second byte only when it needs it: a refusal is kept.
-        let round = || -> Result<bool, BadInput> {
-            let refused = std::cell::Cell::new(None);
-            let answer = messages::this_round(m.size, || {
-                let second = get8(&net.vars, 1).unwrap_or_else(|e| {
-                    refused.set(Some(e));
-                    0
-                });
-                (second, net.vars.sync.get())
-            });
-            refused.take().map_or(Ok(answer), Err)
-        };
-        match Kind::of(first) {
-            Kind::Chat => {
+        // The rules of each kind are in `rc2k_core::net::messages` (`this_round`,
+        // `answers_call`, `notes_answer`, `answer`).
+        match Message::parse(&bytes) {
+            Message::Chat(mut text) => {
                 // A message that fills the buffer gives up its last byte to the NUL (fixed: "A
                 // full-length chat message writes past its buffer" in `wiki/Fixed-bugs.md`).
                 net.vars
                     .receive_data
                     .set((m.size as usize).min(ROOM as usize - 1), 0);
-                chat_line_locked(
-                    net,
-                    gfx,
-                    player,
-                    &after_first(&net.vars, ROOM as usize - 1)?,
-                )?;
+                text.truncate(ROOM as usize - 2);
+                text.push(0);
+                chat_line_locked(net, gfx, player, &text)?;
             }
-            Kind::Call { reply, ready } => {
-                if m.size == 2
-                    && !rc2k_core::net::record::is_host(own_state)
+            Message::Call { ready, round } => {
+                if !rc2k_core::net::record::is_host(own_state)
                     && ROUND_UNKNOWN.swap(false, std::sync::atomic::Ordering::Relaxed)
                 {
-                    net.vars.sync.set(get8(&net.vars, 1)?);
+                    net.vars.sync.set(round);
                 }
-                if !messages::answers_call(round()?, own_state) {
+                let this_round = messages::this_round(2, || (round, net.vars.sync.get()));
+                if !messages::answers_call(this_round, own_state) {
                     continue;
                 }
-                let answer = messages::answer(reply, net.vars.sync.get());
-                net.vars.sync_answer.set(answer);
+                let reply = if ready {
+                    messages::READY_ANSWER
+                } else {
+                    messages::DONE_ANSWER
+                };
+                let round = net.vars.sync.get();
+                net.vars.sync_answer.set(messages::answer(reply, round));
                 dplay_send(
                     &net.vars,
                     block.id.get(),
-                    &net.vars.sync_answer.get().to_le_bytes(),
+                    &Message::Answer { ready, round }.encode(),
                 );
                 (if ready {
                     &net.vars.all_raced
@@ -140,28 +122,20 @@ pub fn take_messages(
                 })
                 .set(1);
             }
-            Kind::Answer => {
-                if !messages::notes_answer(round()?, own_state) {
+            Message::Answer { round, .. } => {
+                let this_round = messages::this_round(2, || (round, net.vars.sync.get()));
+                if !messages::notes_answer(this_round, own_state) {
                     continue;
                 }
                 net.vars.set_synced(player as usize, 1)?;
             }
-            Kind::Race => {
-                let length = m.size.wrapping_sub(1);
-                if !messages::race_fits(length) {
-                    continue;
-                }
+            Message::Race { sequence, payload } => {
                 let time = crate::system::tick_count::tick_count();
                 lock_received(&net.vars);
-                store_received(
-                    first,
-                    block,
-                    time,
-                    &after_first(&net.vars, length as usize)?,
-                )?;
+                store_received(sequence, block, time, &payload.encode())?;
                 unlock_received(&net.vars);
             }
-            Kind::Other => {}
+            Message::Malformed(_) | Message::Unknown(_) => {}
         }
     }
     Ok(())

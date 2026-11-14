@@ -15,6 +15,7 @@ use crate::net::store::NetShared;
 use crate::physics::car_store::Car;
 use crate::race::owner::Race;
 use crate::session::PlainDword;
+use rc2k_core::net::message::Payload;
 use rc2k_core::net::race::{self, Arrival, Kind};
 
 /// The log text before the sender's number.
@@ -50,13 +51,6 @@ fn note_unbelievable(player: u32) {
     }
 }
 
-/// The dword at byte `at` of the message.
-fn word_at(message: &[u8], at: usize) -> Result<u32, BadInput> {
-    let word = message
-        .get(at..at + 4)
-        .ok_or(BadInput("a received message"))?;
-    Ok(u32::from_le_bytes([word[0], word[1], word[2], word[3]]))
-}
 pub fn apply_message(
     race: &Race,
     vars: &NetShared,
@@ -77,14 +71,12 @@ pub fn apply_message(
     }
     // The block is looked up after the message is read and believed: a null one refuses at the
     // first write.
-    let Some(kind) = Kind::of(word_at(message, 0)?) else {
-        return Ok(());
+    let (kind, values) = match Payload::parse(message) {
+        Payload::Fields { kind, values, .. } => (kind, values),
+        Payload::Unknown(_) => return Ok(()),
+        Payload::Truncated(_) => return Err(BadInput("a received message")),
     };
     let table = fields(kind);
-    let mut values = Vec::with_capacity(table.len());
-    for n in 0..table.len() as u32 {
-        values.push(word_at(message, 4 + 4 * n as usize)?);
-    }
     if !race::believable(table.iter().map(|&(_, limit)| limit), &values) {
         note_unbelievable(player);
         return Ok(());

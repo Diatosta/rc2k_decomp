@@ -10,6 +10,5 @@ pub const EXTRA: Message = Message {
     kind: rc2k_core::net::race::Kind::Extra,
 };
 pub fn send_extra(race: &Race, net: &Net) -> Result<(), Refused> {
-    // The logic is in `rc2k_core::net::race::Kind::pack` (in `send_fields`).
     send_fields(race, net, &EXTRA)
 }

@@ -7,6 +7,7 @@ use crate::errors::Refused;
 use crate::net::destroy_connection::destroy_connection;
 use crate::net::store::NetShared;
 use crate::net::store::PlayerRecord;
+use rc2k_core::net::message::SystemMessage;
 use rc2k_core::net::players::{A_PLAYER, System, made_host};
 
 /// The message is in `crate::net::owner::net().vars.receive_data`.
@@ -14,18 +15,17 @@ pub fn system_message(
     vars: &NetShared,
     lines: &crate::race::viewer_screen_store::NetTexts,
 ) -> Result<(), Refused> {
-    let get = |at: usize| vars.receive_data.get_u32(at);
-    let kind = get(0);
-    // The logic is in `rc2k_core::net::players` (`System`, `made_host`).
-    match System::of(kind) {
+    let bytes = vars.receive_data.read_at(0, 12, "a system message")?;
+    let message = SystemMessage::parse(&bytes);
+    match message.kind {
         System::Created => vars.sync_first.set(1),
         System::Destroyed => {
             vars.sync_first.set(1);
-            if get(4) == A_PLAYER {
+            if message.player_type == A_PLAYER {
                 crate::net::dp_objects::delete_player_from_group(
                     vars.dplay.get(),
                     vars.send_to.get(),
-                    get(8),
+                    message.id,
                 );
             }
         }

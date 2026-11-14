@@ -39,6 +39,15 @@ impl Kind {
         }
     }
 
+    /// The dwords after the tag.
+    pub fn dwords(self) -> usize {
+        match self {
+            Kind::Inputs => 4,
+            Kind::Position => 40,
+            Kind::Extra => 9,
+        }
+    }
+
     /// The kind of a message's first dword, if it is one.
     pub fn of(tag: u32) -> Option<Kind> {
         [Kind::Position, Kind::Inputs, Kind::Extra]

@@ -12,6 +12,7 @@ use crate::net::owner::Net;
 use crate::net::store::NetShared;
 use crate::net::store::PlayerRecord;
 use crate::owners::Owners;
+use rc2k_core::net::message::Message;
 
 /// The players' states and-ed together (those with bit 0x80 left out), starting from `bits`,
 /// over `count` players (at least one turn: `count` > 0).
@@ -22,9 +23,10 @@ pub fn all_states(vars: &NetShared, bits: u8, count: u32) -> u8 {
 }
 
 /// The sync with the other players (the host's): the table cleared the first time (this
-/// player answered), once a second message `kind` and the sync counter sent to each player
-/// that has not answered; true when all have. Shared with `net::race_wait`.
-pub fn sync(net: &Net, kind: u8) -> Result<bool, Refused> {
+/// player answered), once a second the host's call (`ready`: everyone ready, else everyone
+/// done) with the sync counter sent to each player that has not answered; true when all have.
+/// Shared with `net::race_wait`.
+pub fn sync(net: &Net, ready: bool) -> Result<bool, Refused> {
     let first = net.vars.sync_first.get();
     net.vars.sync_first.set(0);
     if first != 0 {
@@ -45,13 +47,15 @@ pub fn sync(net: &Net, kind: u8) -> Result<bool, Refused> {
         loop {
             if net.vars.synced(n as usize)? != 1 {
                 let id = net.vars.player_block(n)?.id.get();
-                net.lobby().send_buffer.set(0, kind);
-                net.lobby().send_buffer.set(1, net.vars.sync.get());
-                crate::net::dplay_send::dplay_send(
-                    &net.vars,
-                    id,
-                    &net.lobby().send_buffer.read()[..2],
-                );
+                let call = Message::Call {
+                    ready,
+                    round: net.vars.sync.get(),
+                }
+                .encode();
+                net.lobby()
+                    .send_buffer
+                    .write_at(0, &call, "the send buffer")?;
+                crate::net::dplay_send::dplay_send(&net.vars, id, &call);
             }
             n += 1;
             if n >= net.vars.players.get() {
@@ -192,7 +196,7 @@ pub fn lobby_loop(o: Owners<'static>) -> Result<u32, Refused> {
         if net.vars.own.state() & 0x10 != 0
             && net.vars.players.get() >= 2
             && all_states(&net.vars, 1, net.vars.players.get()) == 1
-            && sync(net, b'@')?
+            && sync(net, true)?
         {
             net.vars.all_raced.set(1);
         }

@@ -5,6 +5,7 @@
 //! and the records copied for the race, the inbox emptied.
 
 use crate::Invalid;
+use crate::net::message::{Message, Payload};
 
 /// The records' room.
 pub const RECORDS: u32 = 0x40;
@@ -128,12 +129,11 @@ pub fn next_sequence(last: u8) -> u8 {
 /// A message as sent: the sequence byte and the bytes. Refused: one that does not fit the
 /// buffer.
 pub fn outgoing(sequence: u8, bytes: &[u8]) -> Result<Vec<u8>, Invalid> {
-    if bytes.len() as u32 >= SEND_ROOM {
-        return Err(Invalid("a message longer than the buffer's 0x100 bytes"));
+    Message::Race {
+        sequence,
+        payload: Payload::parse(bytes),
     }
-    let mut out = vec![sequence];
-    out.extend(bytes);
-    Ok(out)
+    .encode_for_send()
 }
 
 #[cfg(test)]

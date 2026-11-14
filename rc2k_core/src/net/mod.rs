@@ -7,6 +7,7 @@ pub mod editing;
 mod frozen;
 pub mod inbox;
 pub mod lists;
+pub mod message;
 pub mod messages;
 pub mod players;
 pub mod race;
