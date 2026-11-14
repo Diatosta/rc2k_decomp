@@ -155,7 +155,7 @@ pub fn reset_race_sounds(
         voice.sound.set(0xFFFF_FFFE);
     }
     sound.race.stage.get().shared_count.set(0);
-    crate::audio::store::ENVIRONMENT.set(0x3F80_0000u32);
+    audio.environment.set(0x3F80_0000u32);
     crate::sound::queue::send_command_in(audio, Command::Room(3));
     sound.race.clock.get().started.set(0);
     Ok(())

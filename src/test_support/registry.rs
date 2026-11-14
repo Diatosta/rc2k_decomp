@@ -593,7 +593,10 @@ fn listed_stores() -> Vec<Listed> {
             "audio.owner.AUDIO_OWNER.sample_records",
             &crate::audio::owner::AUDIO_OWNER.sample_records,
         ),
-        listed!("audio.store.ENVIRONMENT", &crate::audio::store::ENVIRONMENT),
+        listed!(
+            "audio.owner.AUDIO_OWNER.environment",
+            &crate::audio::owner::AUDIO_OWNER.environment,
+        ),
         listed!(
             "saves.owner.SAVES.files.options_kept",
             on_game(&crate::saves::owner::SAVES.get().files.options_kept),

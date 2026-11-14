@@ -7,8 +7,7 @@
 use crate::audio::own::AudioThread;
 use crate::audio::voices::*;
 use crate::errors::{BadInput, Refused};
-#[cfg(test)]
-use crate::sound::sets_store::RaceSoundSets;
+use crate::sound::sets_store::{MenuSounds, RaceSoundSets};
 use crate::system::owner::System;
 use rc2k_core::audio::commands::SoundList;
 
@@ -112,13 +111,13 @@ impl rc2k_core::audio::load::Loader for GameLoader<'_> {
 /// A list of sounds, read by position up to its -1: a race list may run on through the next fields
 /// of the sets (`RaceSoundSets::list_entry`); a read past the sets is refused.
 fn list_entries<'a>(
-    sound: &'a crate::sound::owner::Sound,
+    sets: &'a RaceSoundSets,
+    menu_sounds: &'a MenuSounds,
     list: SoundList,
 ) -> Result<Box<dyn Fn(usize) -> Option<u32> + 'a>, BadInput> {
     match list {
-        SoundList::Menu => Ok(Box::new(|n| sound.menu.menu_sounds.sound(n))),
+        SoundList::Menu => Ok(Box::new(|n| menu_sounds.sound(n))),
         SoundList::Race { field, entry } => {
-            let sets = &sound.race.sets;
             sets.list_entry(field, entry, 0)?;
             Ok(Box::new(move |n| {
                 sets.list_entry(field, entry, n).ok().flatten()
@@ -130,7 +129,8 @@ fn list_entries<'a>(
 pub fn load_sounds(
     audio: &AudioThread,
     system: &System,
-    sound: &crate::sound::owner::Sound,
+    sets: &RaceSoundSets,
+    menu_sounds: &MenuSounds,
     list: Option<SoundList>,
 ) -> Result<(), Refused> {
     let Some(list) = list else {
@@ -139,7 +139,7 @@ pub fn load_sounds(
     if crate::audio::buffer_settings::a3d(&audio.state) {
         return Err(BadInput("A3D").into());
     }
-    let entry = list_entries(sound, list)?;
+    let entry = list_entries(sets, menu_sounds, list)?;
     let refusal = std::cell::Cell::new(None);
     let entries = rc2k_core::audio::load::entries(|n| {
         entry(n).unwrap_or_else(|| {
@@ -170,8 +170,9 @@ mod tests {
         for set in crate::sound::sets_store::NamedSet::ALL {
             lists.push(set.list());
         }
+        let sound = crate::sound::owner::sound();
         for list in lists {
-            let entry = list_entries(crate::sound::owner::sound(), list).unwrap();
+            let entry = list_entries(&sound.race.sets, &sound.menu.menu_sounds, list).unwrap();
             let entries = rc2k_core::audio::load::entries(|n| {
                 entry(n).expect("a list runs out of its field")
             });
@@ -179,7 +180,8 @@ mod tests {
         }
         assert!(
             list_entries(
-                crate::sound::owner::sound(),
+                &sound.race.sets,
+                &sound.menu.menu_sounds,
                 SoundList::Race {
                     field: rc2k_core::audio::commands::RaceField::Tail,
                     entry: 1

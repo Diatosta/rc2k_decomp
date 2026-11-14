@@ -90,7 +90,12 @@ pub fn run_routine(routine: u32, o: SlotOwners<'_>) -> Option<Result<(), Refused
             o.input, o.sound, o.system, o.race,
         )),
         0x409CCE => Some(crate::audio::thread::audio_thread(
-            o.audio, o.sound, o.system,
+            crate::audio::thread::AudioInputs {
+                audio: o.audio,
+                system: o.system,
+                sets: &o.sound.race.sets,
+                menu_sounds: &o.sound.menu.menu_sounds,
+            },
         )),
         0x4183C3 => Some(crate::net::receive_thread::receive_thread(
             o.net, o.gfx, o.system,

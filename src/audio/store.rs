@@ -19,8 +19,8 @@
 //! `MemoryList`, `AudioOptions`, `SampleFile`) are plain structs held in `Shared`, copied out and
 //! in or borrowed whole; the scalars of `AudioShared` are atomic cells with relaxed loads and
 //! stores. Gaps (bytes the code never names) are kept as `_gap_XXXX` buffers. The commands the game
-//! sends the audio thread wait in a locked queue (`sound::queue`). `ENVIRONMENT` is written by the
-//! game's thread and read by the audio thread, so it is shared.
+//! sends the audio thread wait in a locked queue (`sound::queue`). The race's EAX environment
+//! (`Audio::environment`) is written by the game's thread and read by the audio thread.
 
 use crate::session::{Bytes, Dword, Shared};
 use rc2k_core::audio::modes::AudioOptions;
@@ -1787,7 +1787,3 @@ impl SampleRecords {
         self.first_voices[number].set(voice);
     }
 }
-
-/// The EAX environment the race asks for, read by the audio thread. Set by the game's thread from
-/// the first player's view's output (`race::draw_race_scene`), never by a drawing part.
-pub static ENVIRONMENT: crate::session::Dword = crate::session::Dword::new(0);

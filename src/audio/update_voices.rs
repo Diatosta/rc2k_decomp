@@ -19,7 +19,6 @@
 //! voice's volume or pan past the volume table.
 
 use crate::audio::own::AudioThread;
-use crate::audio::store::ENVIRONMENT;
 use crate::audio::voices::{GamePool, voice_of};
 use crate::errors::{BadInput, Refused};
 
@@ -46,7 +45,7 @@ pub fn update_voices(audio: &AudioThread) -> Result<(), Refused> {
     let mut room = Room {
         asked: audio.state.eax_room.get(),
         set: audio.state.eax_room_set.get(),
-        environment: ENVIRONMENT.get(),
+        environment: audio.environment.get(),
         kept: audio.state.environment_kept.get(),
         commit: audio.state.commit_3d.get(),
     };

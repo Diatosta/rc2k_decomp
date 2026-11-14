@@ -24,11 +24,11 @@ pub struct ViewOutput {
 }
 
 impl ViewOutput {
-    /// The view's EAX weight as the race's environment (`audio::store::ENVIRONMENT`), where the
-    /// audio reads it.
-    pub fn publish_environment(self) {
+    /// The view's EAX weight as the race's environment (`Audio::environment`), where the audio
+    /// thread reads it.
+    pub fn publish_environment(self, audio: &crate::audio::owner::Audio) {
         if let Some(weight) = self.environment {
-            crate::audio::store::ENVIRONMENT.set(weight);
+            audio.environment.set(weight);
         }
     }
 

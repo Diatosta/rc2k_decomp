@@ -11,13 +11,34 @@ use rc2k_core::audio::commands::StreamAction;
 const START_TEXT: &std::ffi::CStr = c"AUDIOTDB:START"; // "AUDIOTDB:START"
 const QUIT_TEXT: &std::ffi::CStr = c"AUDIOTDB:QUIT"; // "AUDIOTDB:QUIT"
 
+/// Everything the audio thread reads from outside its own state, built once where the thread is
+/// started (`threading::thread_slot`).
+///
+/// What crosses threads: `audio` (atomic cells, `Shared` records and the command queue's mutex;
+/// the game's thread writes the modes, volumes, sample keys and `environment`, the audio thread
+/// the voices, streams and device facts), `sets` and `menu_sounds` (atomic cells the game's
+/// thread fills before it queues the load command that makes the audio thread read them) and
+/// `system` (only the quitting flag, an atomic cell, is read). No `GameThread` state is
+/// reachable from here, and the thread reads none of the sound options.
+#[derive(Clone, Copy)]
+pub struct AudioInputs<'a> {
+    pub audio: &'static crate::audio::owner::Audio,
+    pub system: &'a crate::system::owner::System,
+    /// The sets of sounds a race loads (the lists of the load command).
+    pub sets: &'a crate::sound::sets_store::RaceSoundSets,
+    /// The settings page's menu sounds (the menu list of the load command).
+    pub menu_sounds: &'a crate::sound::sets_store::MenuSounds,
+}
+
 /// Runs to the thread's end, which does not come back. Its slot's flag
 /// (`threading::thread_slot::AUDIO`) says it runs.
-pub fn audio_thread(
-    owner: &'static crate::audio::owner::Audio,
-    sound: &crate::sound::owner::Sound,
-    system: &crate::system::owner::System,
-) -> Result<(), Refused> {
+pub fn audio_thread(inputs: AudioInputs<'_>) -> Result<(), Refused> {
+    let AudioInputs {
+        audio: owner,
+        system,
+        sets,
+        menu_sounds,
+    } = inputs;
     use crate::audio::*;
     use crate::system::tick_count::tick_count;
     use crate::threading::set_priority::set_priority;
@@ -49,7 +70,7 @@ pub fn audio_thread(
             // The turn's feeds (action 1, which reads nothing else).
             stream_commands::stream_command(audio, 0, 0, StreamAction::Turn)?;
             stream_commands::music_command(&audio.state, 0, 0, 0, StreamAction::Turn)?;
-            take_commands::take_commands(audio, system, sound)?;
+            take_commands::take_commands(audio, system, sets, menu_sounds)?;
             update_voices::update_voices(audio)?;
             stray_voices::check(&audio.state);
             if begun.is_some() {

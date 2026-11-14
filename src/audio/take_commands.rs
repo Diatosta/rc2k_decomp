@@ -10,7 +10,8 @@ use crate::errors::Refused;
 pub fn take_commands(
     audio: &AudioThread,
     system: &crate::system::owner::System,
-    sound: &crate::sound::owner::Sound,
+    sets: &crate::sound::sets_store::RaceSoundSets,
+    menu_sounds: &crate::sound::sets_store::MenuSounds,
 ) -> Result<(), Refused> {
     use crate::audio::stream_commands::{music_command, stream_command};
     use rc2k_core::audio::commands::Command;
@@ -25,7 +26,7 @@ pub fn take_commands(
             Command::Room(room) => audio.state.eax_room.set(room),
             Command::Load(list) => {
                 audio.state.sound_list_loaded.set(list);
-                crate::audio::load_sounds::load_sounds(audio, system, sound, list)?;
+                crate::audio::load_sounds::load_sounds(audio, system, sets, menu_sounds, list)?;
             }
             Command::Free => {
                 crate::audio::free_voices::free_voices(audio)?;

@@ -50,6 +50,7 @@ struct Owners<'a> {
     scene: &'a crate::scene::owner::Scene,
     system: &'a crate::system::owner::System,
     sound: &'static crate::sound::owner::Sound,
+    audio: &'static crate::audio::owner::Audio,
     net: &'static crate::net::owner::Net,
     input: &'static crate::input::owner::Input,
 }
@@ -190,6 +191,7 @@ fn view_drawn(
     race: &Race,
     scene: &Scene,
     system: &System,
+    audio: &crate::audio::owner::Audio,
     car: usize,
     mirror: bool,
 ) -> Result<(), Refused> {
@@ -215,7 +217,7 @@ fn view_drawn(
     }
     output.store_view_value(race)?;
     if car == 0 && !mirror {
-        output.publish_environment();
+        output.publish_environment(audio);
     }
     Ok(())
 }
@@ -247,7 +249,7 @@ fn draw_view(
     };
     let view = || -> Result<(), Refused> {
         view_scene(o, run(main_view(car)), filter_input(car), reads())?;
-        view_drawn(o.race, o.scene, o.system, car, false)?;
+        view_drawn(o.race, o.scene, o.system, o.audio, car, false)?;
         view_rest(o, gfx, effects, cheats, car, blit)
     };
     let mirror = || view_mirror(o, car, run(mirror_view(car)), reads());
@@ -260,7 +262,7 @@ fn draw_view(
                 &[car],
                 |run, reads| view_scene(o, run, filter, reads),
                 |_| {
-                    view_drawn(o.race, o.scene, o.system, car, false)?;
+                    view_drawn(o.race, o.scene, o.system, o.audio, car, false)?;
                     view_rest(o, gfx, effects, cheats, car, blit)
                 },
             );
@@ -280,15 +282,15 @@ fn draw_view(
             |run, reads| view_scene(o, run, filter, reads),
             |run, reads| view_mirror(o, car, run, reads),
             || {
-                view_drawn(o.race, o.scene, o.system, car, false)?;
+                view_drawn(o.race, o.scene, o.system, o.audio, car, false)?;
                 view_rest(o, gfx, effects, cheats, car, blit)
             },
-            || view_drawn(o.race, o.scene, o.system, car, true),
+            || view_drawn(o.race, o.scene, o.system, o.audio, car, true),
         );
     }
     view()?;
     mirror()?;
-    view_drawn(o.race, o.scene, o.system, car, true)
+    view_drawn(o.race, o.scene, o.system, o.audio, car, true)
 }
 
 /// A piece of the players' views drawn beside each other: a player's scene or its mirror.
@@ -361,10 +363,10 @@ fn draw_players_beside(
             o.race.shared.view.get().drawn_view.set(p as u32);
             own(p, main_view(p), None, o.race.shared.view.get())?;
             main_view(p).hand_off.put(o.race);
-            view_drawn(o.race, o.scene, o.system, p, false)?;
+            view_drawn(o.race, o.scene, o.system, o.audio, p, false)?;
             view_rest(o, gfx, effects, cheats, p, false)
         }
-        Piece::Mirror(p) => view_drawn(o.race, o.scene, o.system, p, true),
+        Piece::Mirror(p) => view_drawn(o.race, o.scene, o.system, o.audio, p, true),
     })
 }
 
@@ -376,6 +378,7 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
         scene,
         system,
         sound: o.sound,
+        audio: o.audio,
         net: o.net,
         input,
     };
