@@ -12,14 +12,15 @@
 //! `RaceVars.car_tyres[0][car]`; with g at 3 or more and the file there, the picture is taken
 //! from `files\b\gravel` instead, and its second name logged.
 //!
-//! Then `gfx::load_picture_to_texture` with the name, the second name and the texture. One
-//! caller, `scene::load_changed_texture_picture`.
+//! Then the picture is read for the texture with the name and the second name
+//! (`gfx::load_picture_to_texture::read_picture_for_texture`) and returned; the one caller,
+//! `scene::load_changed_texture_picture`, uploads it.
 //!
 //! The digits, the names, the folder and the gravel rule are in the core crate
 //! (`rc2k_core::scene::pictures`).
 
 use crate::errors::{BadInput, Refused};
-use crate::gfx::load_picture_to_texture::load_picture_to_texture_in_game;
+use crate::gfx::load_picture_to_texture::{TexturePicture, read_picture_for_texture};
 use crate::logfile::log_int::log_int;
 use crate::place::BytePlace;
 
@@ -39,17 +40,8 @@ fn folders(course: &'static crate::race::owner_course::Course) -> [(BytePlace, B
         ((&p.picture_extra).into(), (&p.second_extra).into(), 0x0F), // files\s\extr
     ]
 }
+use crate::logfile::log_write::log_nul;
 use rc2k_core::scene::pictures::{GRAVEL, folder, names, picture_car, takes_gravel};
-
-/// What the function calls.
-pub enum Call {
-    Text(Vec<u8>),
-    Number(u32),
-    /// Answers whether the file is there.
-    Exists(BytePlace),
-    /// The name, the second name, the texture.
-    Load(BytePlace, BytePlace, u32),
-}
 
 /// The numbers and the names: everything the function writes.
 fn write_names(
@@ -79,92 +71,48 @@ fn write_names(
 // Logic: `rc2k_core::scene::pictures`
 pub fn load_texture_picture(
     race: &'static crate::race::owner::Race,
-    number: u32,
-    texture: u32,
-    call: &mut dyn FnMut(Call) -> bool,
-    scene: &crate::scene::owner::Scene,
-) -> Result<(), BadInput> {
-    let (course, shared) = (&race.course, &race.shared);
-    {
-        write_names(course, number, texture, scene)?;
-        let mut gravel_chosen = false;
-        let car = picture_car(
-            number,
-            texture,
-            || scene.textures.kinds.get().kind_first_textures[0x100].get(), // KindTextureTables.kind_first_textures[256],
-            || shared.view.get().race_cars.get(),
-        );
-        if let Some(car) = car {
-            call(Call::Text(b"carnum".to_vec()));
-            call(Call::Number(car));
-            call(Call::Text(b"grav".to_vec()));
-            // Eight cars' gravel switches; the car is under the race's cars, which every
-            // write holds to eight (`init_texture_levels` holds them again at each stage).
-            let gravel = shared
-                .vars
-                .get()
-                .car_tyres
-                .get(car as usize)
-                .map(crate::session::PlainDword::get)
-                .ok_or(BadInput("a car past the eight tyre switches"))?;
-            call(Call::Number(gravel));
-            if takes_gravel(gravel) && call(Call::Exists(folders(course)[GRAVEL].0)) {
-                gravel_chosen = true;
-                call(Call::Text(
-                    folders(course)[GRAVEL].1.text("a folder's name")?,
-                ));
-            }
-        }
-        let (name, second, _) = folders(course)[folder(number, gravel_chosen)];
-        call(Call::Load(name, second, texture));
-        Ok(())
-    }
-}
-
-/// With the game's log, files and loading.
-pub fn load_texture_picture_in_game(
-    race: &'static crate::race::owner::Race,
     gfx: &crate::gfx::owner::Gfx,
     number: u32,
     texture: u32,
     scene: &crate::scene::owner::Scene,
     system: &crate::system::owner::System,
-) -> Result<(), Refused> {
-    let mut refused = None;
-    load_texture_picture(
-        race,
+) -> Result<TexturePicture, Refused> {
+    let (course, shared) = (&race.course, &race.shared);
+    write_names(course, number, texture, scene)?;
+    let mut gravel_chosen = false;
+    let car = picture_car(
         number,
         texture,
-        &mut |call| {
-            match call {
-                Call::Text(text) => crate::logfile::log_write::log_nul(&text[..], false, 1),
-                Call::Number(number) => log_int(number as i32, false, 1),
-                Call::Exists(path) => {
-                    match path
-                        .text("a texture folder")
-                        .and_then(|p| crate::files::file_exists::file_exists(&p))
-                    {
-                        Ok(exists) => return exists,
-                        Err(e) => {
-                            refused.get_or_insert(e.into());
-                        }
-                    }
-                }
-                Call::Load(name, second, texture) => {
-                    if let Err(e) = load_picture_to_texture_in_game(
-                        Some(&name),
-                        Some(&second),
-                        texture,
-                        gfx,
-                        system,
-                    ) {
-                        refused.get_or_insert(e);
-                    }
-                }
-            }
-            false
-        },
-        scene,
-    )?;
-    refused.map_or(Ok(()), Err)
+        || scene.textures.kinds.get().kind_first_textures[0x100].get(), // KindTextureTables.kind_first_textures[256],
+        || shared.view.get().race_cars.get(),
+    );
+    if let Some(car) = car {
+        log_nul(b"carnum", false, 1);
+        log_int(car as i32, false, 1);
+        log_nul(b"grav", false, 1);
+        // Eight cars' gravel switches; the car is under the race's cars, which every
+        // write holds to eight (`init_texture_levels` holds them again at each stage).
+        let gravel = shared
+            .vars
+            .get()
+            .car_tyres
+            .get(car as usize)
+            .map(crate::session::PlainDword::get)
+            .ok_or(BadInput("a car past the eight tyre switches"))?;
+        log_int(gravel as i32, false, 1);
+        if takes_gravel(gravel)
+            && crate::files::file_exists::file_exists(
+                &folders(course)[GRAVEL].0.text("a texture folder")?,
+            )?
+        {
+            gravel_chosen = true;
+            log_nul(
+                &folders(course)[GRAVEL].1.text("a folder's name")?[..],
+                false,
+                1,
+            );
+        }
+    }
+    let (name, second, _) = folders(course)[folder(number, gravel_chosen)];
+    read_picture_for_texture(Some(&name), Some(&second), texture, gfx, system)
 }

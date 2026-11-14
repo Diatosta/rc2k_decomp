@@ -27,7 +27,6 @@ use crate::math::x87_float as bh;
 
 // ---- game data ----
 const OBJECTS: u32 = 0xFF;
-pub const MATERIAL_LEN: usize = 0x80;
 /// The phases' lengths: four bases, four random parts, and a 0. Neither
 /// `LightWork::phase_lengths` nor `ObjectTables::phase_work` is stored to: nothing reads them.
 const LENGTHS: [u32; 9] = [200, 400, 200, 400, 400, 400, 400, 400, 0];

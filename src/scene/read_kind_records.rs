@@ -1,74 +1,57 @@
-//! `scene::read_kind_records`: reads the four files of the object kinds' records.
+//! `scene::read_kind_records`: reads the four files of the object kinds' records into a
+//! `KindRecords` value.
 //!
-//! A kind's record is 0x80 bytes at `object_materials` + kind * 0x80, and the four files fill
-//! the four ranges of kinds, each with `files::read_whole_file`: `files\a\objsinfo` kinds 0 ..
-//! 0x18F, `files\b\carsinfo` 0x190 .. 0x257, `files\g\frnt\frntinfo` 0x258 .. 0x31F,
-//! `files\s\extr\extrinfo` 0x320 ... They are read in the order a, g, b, s; a file that is
-//! missing leaves its range as it is. One caller, `scene::set_up_object_memory`.
+//! The files are `files\a\objsinfo` (kinds 0 .. 0x18F), `files\b\carsinfo` (0x190 .. 0x257),
+//! `files\g\frnt\frntinfo` (0x258 .. 0x31F) and `files\s\extr\extrinfo` (0x320 ..), read in the
+//! order a, g, b, s. A file that is missing or short leaves its range as the records held it.
+//! The caller stores the result (`scene::set_up_object_memory`).
 
+use crate::cells::Store;
 use crate::errors::Refused;
-use crate::files::read_whole_file::read_whole_file_store;
+use crate::files::read_whole_file::read_whole_file_len;
 use crate::scene::file_numbers_store::texts;
 use crate::scene::polygon_store::PolygonTables;
-use crate::scene::set_object_material::MATERIAL_LEN;
 use crate::session::TextPlace;
+use rc2k_core::scene::kind_records::{KINDS, KindRecords, RANGES, RECORD_LEN};
 
-// ---- game data ----
-
-/// A file of records: its path, the first kind it holds and how many kinds.
-struct KindFile {
-    path: usize,
-    first_kind: usize,
-    kinds: usize,
-}
-
-/// In the order they are read.
-const FILES: [KindFile; 4] = [
-    KindFile {
-        path: texts::OBJECTS_INFO,
-        first_kind: 0,
-        kinds: 0x190,
-    },
-    KindFile {
-        path: texts::FRONT_INFO,
-        first_kind: 0x258,
-        kinds: 0xC8,
-    },
-    KindFile {
-        path: texts::CARS_INFO,
-        first_kind: 0x190,
-        kinds: 0xC8,
-    },
-    KindFile {
-        path: texts::EXTRAS_INFO,
-        first_kind: 0x320,
-        kinds: 0x190,
-    },
+/// The files' path texts, in the order of `RANGES`.
+const PATHS: [usize; 4] = [
+    texts::OBJECTS_INFO,
+    texts::FRONT_INFO,
+    texts::CARS_INFO,
+    texts::EXTRAS_INFO,
 ];
 
-/// Where the file's records lie in the polygon tables, and their length.
-fn records(file: &KindFile) -> (usize, usize) {
-    (
-        core::mem::offset_of!(PolygonTables, object_materials) + file.first_kind * MATERIAL_LEN,
-        file.kinds * MATERIAL_LEN,
-    )
-}
+/// Where the records lie in the polygon tables.
+const RECORDS_AT: usize = core::mem::offset_of!(PolygonTables, object_materials);
 
+/// The records the polygon tables hold, with each file laid over its kinds.
 pub fn read_kind_records(
     race: &crate::race::owner::Race,
     scene: &crate::scene::owner::Scene,
-) -> Result<(), Refused> {
-    for file in &FILES {
-        let (at, room) = records(file);
-        read_whole_file_store(
+) -> Result<KindRecords, Refused> {
+    let mut held = vec![0u8; KINDS * RECORD_LEN];
+    race.polygon_tables().load(RECORDS_AT, &mut held)?;
+    let mut records = KindRecords::from_held(&held)?;
+    for (range, path) in RANGES.into_iter().zip(PATHS) {
+        let mut file = vec![0u8; range.kinds * RECORD_LEN];
+        let read = read_whole_file_len(
             &scene
                 .file_numbers()
-                .text_at(file.path)
+                .text_at(path)
                 .text("a kinds file's path")?,
-            race.polygon_tables(),
-            at,
-            room,
+            &mut file,
         )?;
+        records.overlay(range, &file[..read]);
     }
+    Ok(records)
+}
+
+/// Stores the records in the polygon tables.
+pub fn store_kind_records(
+    race: &crate::race::owner::Race,
+    records: &KindRecords,
+) -> Result<(), Refused> {
+    race.polygon_tables().store(RECORDS_AT, records.bytes())?;
     Ok(())
 }

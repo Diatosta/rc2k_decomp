@@ -92,25 +92,16 @@ const NOT_8BIT: FatalError = FatalError {
     message: "Game mapkey file must be 8bit",
 };
 
-/// Entry 3 of the pixel kinds: (bytes a pixel, the format), into the map's variables.
-fn take_format(
-    frame: &Frame,
-    gfx: &crate::gfx::owner::Gfx,
-) -> Result<(u32, PixelFormat), BadInput> {
+/// Entry 3 of the pixel kinds: (bytes a pixel, the format's handle, the format).
+fn take_format(gfx: &crate::gfx::owner::Gfx) -> Result<(u32, u32, PixelFormat), BadInput> {
     let card = &gfx.card;
     let kind = card
         .texture_tables
         .kind_index(3)
         .ok_or(BadInput("the map's pixel kind has no description"))?;
     let description = card.texture_tables.descriptions[kind].get();
-    let bytes = description.bytes_per_pixel;
-    frame.map().pixel_bytes.set(bytes);
-    frame
-        .map()
-        .format
-        .set(crate::gfx::pixel_format::texture_kind_format(3, gfx));
-    let format = description.format;
-    Ok((bytes, format))
+    let handle = crate::gfx::pixel_format::texture_kind_format(3, gfx);
+    Ok((description.bytes_per_pixel, handle, description.format))
 }
 
 /// Adds a pixel of 24-bit components (the dword read, its top byte replaced) to the bytes going
@@ -158,33 +149,69 @@ pub struct GameMap {
 pub static GAME_MAP: crate::memory::owned::Owned<GameMap> =
     crate::memory::owned::Owned::new("no map tiles");
 
-/// The tile table taken (0x10000 bytes counted on the map's list), no pixels yet.
-fn take_tiles(frame: &Frame) -> Result<(), Refused> {
-    GAME_MAP.take(
-        &frame.map().list,
-        0x1_0000,
-        GameMap {
-            tiles: vec![Tile::None; TILES as usize],
-            pixels: Vec::new(),
-        },
-    )
+/// What a loader makes: the map, and the variables that go with it.
+pub struct LoadedMap {
+    /// The tiles, and the pixels' block (zeroed where the file gave none; empty for none).
+    pub map: GameMap,
+    /// The count of tiles used.
+    pub tile_count: u32,
+    /// Bytes a pixel.
+    pub pixel_bytes: u32,
+    /// The pixel format's handle.
+    pub format: u32,
+    /// The format's opaque black; `None` when the loader ended before it was worked out.
+    pub black: Option<u32>,
 }
 
-/// The pixels' block taken (`bytes` counted on the map's list), zeroed.
-fn take_pixels(frame: &Frame, bytes: u32) -> Result<(), Refused> {
-    crate::memory::owned::count_on(&frame.map().list, bytes)?;
-    GAME_MAP.with(|m| m.pixels = vec![0; bytes as usize])?;
+impl LoadedMap {
+    /// A map of no tiles, none of them used.
+    fn empty(pixel_bytes: u32, format: u32) -> Self {
+        Self {
+            map: GameMap {
+                tiles: vec![Tile::None; TILES as usize],
+                pixels: Vec::new(),
+            },
+            tile_count: 0,
+            pixel_bytes,
+            format,
+            black: None,
+        }
+    }
+}
+
+/// Stores a loaded map: its variables, the tile table (0x10000 bytes counted on the map's list)
+/// and the pixels' block (counted on the list too).
+pub fn store_game_map(frame: &Frame, loaded: LoadedMap) -> Result<(), Refused> {
+    let vars = frame.map();
+    vars.pixel_bytes.set(loaded.pixel_bytes);
+    vars.format.set(loaded.format);
+    if let Some(black) = loaded.black {
+        vars.black.set(black);
+    }
+    let LoadedMap {
+        map: GameMap { tiles, pixels },
+        tile_count,
+        ..
+    } = loaded;
+    GAME_MAP.take(
+        &vars.list,
+        0x1_0000,
+        GameMap {
+            tiles,
+            pixels: Vec::new(),
+        },
+    )?;
+    vars.tile_count.set(tile_count);
+    crate::memory::owned::count_on(&vars.list, pixels.len() as u32)?;
+    GAME_MAP.with(|m| m.pixels = pixels)?;
     Ok(())
 }
 
-/// `bytes` into the map's pixels at byte `at`; refused past them.
-fn put_pixels(at: usize, bytes: &[u8]) -> Result<(), BadInput> {
-    GAME_MAP
-        .with(|m| {
-            m.pixels
-                .get_mut(at..at + bytes.len())
-                .map(|p| p.copy_from_slice(bytes))
-        })?
+/// `bytes` put into the pixels' block at byte `at`; refused past it.
+fn put_pixels(block: &mut [u8], at: usize, bytes: &[u8]) -> Result<(), BadInput> {
+    block
+        .get_mut(at..at + bytes.len())
+        .map(|p| p.copy_from_slice(bytes))
         .ok_or(BadInput("the map's tile pixels past their block"))
 }
 
@@ -205,29 +232,24 @@ pub fn free_game_map(race: &Race) -> Result<(), Refused> {
     Ok(())
 }
 
-/// Loads the map from a packed file. `black` and `tiles` (0x10000 bytes) are set first; a file
-/// that does not open, read, say "SQSM" or have version 0x50000 leaves the tiles as allocated and
-/// the count 0. Each read of the pixels is of 0x40 tiles at most. Refuses a count of 0 or past
-/// 0xFFFF and a short read not of whole pixels. `path` is without its NUL.
+/// Reads the map from a packed file. A file that does not open, read, say "SQSM" or have version
+/// 0x50000 gives no tiles and the count 0. Each read of the pixels is of 0x40 tiles at most.
+/// Refuses a count of 0 or past 0xFFFF and a short read not of whole pixels. `path` is without
+/// its NUL.
 pub fn load_packed_game_map(
-    frame: &Frame,
     path: &[u8],
     system: &crate::system::owner::System,
     gfx: &crate::gfx::owner::Gfx,
-) -> Result<(), Refused> {
+) -> Result<LoadedMap, Refused> {
     let work = &system.work();
     use crate::files::handle::{close, open_by_mode};
-    let (bytes, format) = take_format(frame, gfx)?;
-    frame
-        .map()
-        .black
-        .set(crate::gfx::components_to_pixel::components_to_pixel(
-            &format, OPAQUE, gfx,
-        ));
-    take_tiles(frame)?;
-    frame.map().tile_count.set(0u32);
+    let (bytes, handle, format) = take_format(gfx)?;
+    let mut loaded = LoadedMap::empty(bytes, handle);
+    loaded.black = Some(crate::gfx::components_to_pixel::components_to_pixel(
+        &format, OPAQUE, gfx,
+    ));
     let Some(file) = open_by_mode(path, 0)? else {
-        return Ok(());
+        return Ok(loaded);
     };
     let result = (|| -> Result<(), Refused> {
         let (_, ok) = work
@@ -241,11 +263,11 @@ pub fn load_packed_game_map(
             return Ok(());
         }
         let count = dword_in(&head, 0xC)?;
-        frame.map().tile_count.set(count);
+        loaded.tile_count = count;
         if count == 0 || count > MOST_TILES {
             return Err(BadInput("a packed map of no tiles or more than 0xFFFF").into());
         }
-        take_pixels(frame, (count << 8).wrapping_mul(bytes))?;
+        loaded.map.pixels = vec![0; (count << 8).wrapping_mul(bytes) as usize];
         let (_, ok) = work
             .files
             .read_from(file, 0x8000, "the map's scratch buffer")?;
@@ -256,16 +278,14 @@ pub fn load_packed_game_map(
             .files
             .buffer
             .read_at(0, 2 * TILES as usize, "the map's tile words")?;
-        GAME_MAP.with(|m| {
-            for (n, tile) in m.tiles.iter_mut().enumerate() {
-                let word = u16::from_le_bytes([words[2 * n], words[2 * n + 1]]) as u32;
-                *tile = if word == 0 {
-                    Tile::None
-                } else {
-                    Tile::At(((word - 1) << 8).wrapping_mul(bytes) as usize)
-                };
-            }
-        })?;
+        for (n, tile) in loaded.map.tiles.iter_mut().enumerate() {
+            let word = u16::from_le_bytes([words[2 * n], words[2 * n + 1]]) as u32;
+            *tile = if word == 0 {
+                Tile::None
+            } else {
+                Tile::At(((word - 1) << 8).wrapping_mul(bytes) as usize)
+            };
+        }
         let mut out = 0usize;
         let mut left = count;
         while left != 0 {
@@ -294,24 +314,27 @@ pub fn load_packed_game_map(
                     gfx,
                 );
             }
-            put_pixels(out, &chunk)?;
+            put_pixels(&mut loaded.map.pixels, out, &chunk)?;
             out += chunk.len();
         }
         Ok(())
     })();
     close(file);
-    result
+    result?;
+    Ok(loaded)
 }
 
-/// Loads the map. A key that is not 8-bit is fatal error 0x80E48073. At the end the key's list is
-/// freed and `key_pixels` is 0; the picture limits and buffer are put back.
+/// Reads the map: from the packed file when `use_packed` is 1 and the source picture is not
+/// there, else from the key sheet and the picture. A key that is not 8-bit is fatal error
+/// 0x80E48073. At the end the key's list is freed and `key_pixels` is 0; the picture limits and
+/// buffer are put back.
 pub fn load_game_map(
     frame: &Frame,
     picture: &dyn crate::session::TextPlace,
     key_path: &dyn crate::session::TextPlace,
     system: &crate::system::owner::System,
     gfx: &crate::gfx::owner::Gfx,
-) -> Result<(), Refused> {
+) -> Result<LoadedMap, Refused> {
     let pictures = &gfx.pictures;
     if frame.map().use_packed.get() == 1
         && !crate::files::file_exists::file_exists(&picture.text("a map picture's path")?)?
@@ -331,17 +354,14 @@ pub fn load_game_map(
         )?;
         path.write_at(0, b"files\\", "the packed map's path")?;
         // The packed path is built in the buffer.
-        load_packed_game_map(
-            frame,
+        return load_packed_game_map(
             &crate::files::cstring(path, "the packed map's path")?,
             system,
             gfx,
-        )?;
-        return Ok(());
+        );
     }
-    frame.map().tile_count.set(0u32);
-    let (bytes, format) = take_format(frame, gfx)?;
-    take_tiles(frame)?;
+    let (bytes, handle, format) = take_format(gfx)?;
+    let mut loaded = LoadedMap::empty(bytes, handle);
     // The key sheet is a picture buffer (Rust's, `gfx::picture`), counted on its list; `key_pixels`
     // holds its number.
     let key = crate::gfx::picture::take(
@@ -376,9 +396,7 @@ pub fn load_game_map(
                 .map(|b| u32::from_le_bytes(b.try_into().expect("four bytes")))
                 .ok_or(BadInput("a map key read past its sheet"))
         };
-        // The tile table, worked on here and put back whole.
-        let mut table = GAME_MAP.with(|m| m.tiles.clone())?;
-        let put_table = |table: &[Tile]| GAME_MAP.with(|m| m.tiles.copy_from_slice(table));
+        let table = &mut loaded.map.tiles;
         crate::gfx::picture::with_buffer(key, |sheet| -> Result<(), BadInput> {
             for ty in 0..SIDE {
                 for tx in 0..SIDE {
@@ -408,14 +426,13 @@ pub fn load_game_map(
             }
             Ok(())
         })??;
-        put_table(&table)?;
         let marked = table.iter().filter(|&&v| v != Tile::None).count() as u32;
-        take_pixels(frame, (marked << 8).wrapping_mul(bytes))?;
+        loaded.map.pixels = vec![0; (marked << 8).wrapping_mul(bytes) as usize];
         if !crate::gfx::read_picture_file::read_picture_file(picture, gfx, system)? {
             return Ok(());
         }
-        frame.map().tile_count.set(0u32);
         let row: u32 = pictures.picture.row_bytes.get();
+        let mut tile_count = 0u32;
         // The marked tiles' pixels made from the picture (read into the key's buffer), then put in
         // the map's pixels in one go.
         let pixels =
@@ -428,7 +445,7 @@ pub fn load_game_map(
                             continue;
                         }
                         table[n] = Tile::At(pixels.len());
-                        frame.map().tile_count.set(frame.map().tile_count.get() + 1);
+                        tile_count += 1;
                         let mut from = (ty << 4).wrapping_mul(row).wrapping_add(tx << 6);
                         for _ in 0..16 {
                             for k in 0..16 {
@@ -446,14 +463,11 @@ pub fn load_game_map(
                 }
                 Ok(pixels)
             })??;
-        put_pixels(0, &pixels)?;
-        put_table(&table)?;
-        frame
-            .map()
-            .black
-            .set(crate::gfx::components_to_pixel::components_to_pixel(
-                &format, OPAQUE, gfx,
-            ));
+        put_pixels(&mut loaded.map.pixels, 0, &pixels)?;
+        loaded.tile_count = tile_count;
+        loaded.black = Some(crate::gfx::components_to_pixel::components_to_pixel(
+            &format, OPAQUE, gfx,
+        ));
         Ok(())
     })();
     // A fatal error or a refusal leaves everything as it stood.
@@ -464,5 +478,5 @@ pub fn load_game_map(
     crate::gfx::picture::give_back(crate::gfx::picture::Buffer::Key);
     crate::memory::free_list::free_list(&frame.map().key_list)?;
     frame.map().key_pixels.set(0u32);
-    Ok(())
+    Ok(loaded)
 }

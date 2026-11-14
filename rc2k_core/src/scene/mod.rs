@@ -6,6 +6,7 @@ pub mod distance;
 pub mod face_order;
 pub mod face_tests;
 pub mod fog;
+pub mod kind_records;
 pub mod kinds;
 pub mod lamps;
 pub mod light;

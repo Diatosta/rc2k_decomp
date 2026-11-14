@@ -9,7 +9,8 @@
 //! The rule is in the core crate: `rc2k_core::scene::pictures::changed_picture`.
 
 use crate::errors::{BadInput, Refused};
-use crate::scene::load_texture_picture::load_texture_picture_in_game;
+use crate::gfx::load_picture_to_texture::upload_picture;
+use crate::scene::load_texture_picture::load_texture_picture;
 
 // ---- game data ----
 
@@ -49,7 +50,8 @@ pub fn load_changed_texture_picture_in_game(
     load_changed_texture_picture(
         texture,
         &mut |picture, texture| {
-            load_texture_picture_in_game(race, gfx, picture, texture, scene, system)
+            let loaded = load_texture_picture(race, gfx, picture, texture, scene, system)?;
+            upload_picture(&loaded, gfx)
         },
         scene,
     )

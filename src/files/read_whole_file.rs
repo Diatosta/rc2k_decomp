@@ -5,21 +5,6 @@
 use crate::errors::BadInput;
 use crate::files::state::BYTES_READ;
 
-/// Reads the whole file at `path` into the `count` bytes of `to` from `offset` (what the file
-/// does not reach is kept). The bytes read go to `BYTES_READ` (0 after any failure but a failed
-/// read's own count).
-pub fn read_whole_file_store(
-    path: &[u8],
-    to: &dyn crate::cells::Store,
-    offset: usize,
-    count: usize,
-) -> Result<(), BadInput> {
-    let mut into = vec![0u8; count];
-    to.load(offset, &mut into)?;
-    read_whole_file_into(path, &mut into)?;
-    to.store(offset, &into)
-}
-
 /// `read_whole_file` into `cells` (a typed store's dwords, their bytes in order: `4 *
 /// cells.len()` bytes at most; what the file does not reach is kept).
 pub fn read_whole_file_cells<C: crate::session::DwordLike>(

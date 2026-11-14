@@ -72,13 +72,13 @@ pub fn mud_pixel(
     read_pixel(x, y, gfx, system)
 }
 
-/// Writes the car's file number's two digits (tens and units, each + '0') into the path and reads
-/// the file (0x10000 bytes at most) into the mud.
+/// Writes the car's file number's two digits (tens and units, each + '0') into the path and
+/// reads the file into the mud's `MUD_LEN` bytes (what the file does not reach stays 0).
 pub fn load_mud(
     kinds: &KindTables,
     shared: &RaceShared,
     net_race: Option<NetRace>,
-) -> Result<(), Refused> {
+) -> Result<Vec<u8>, Refused> {
     // Logic in `rc2k_core::race::mud::file_digits`.
     let (tens, units) = rc2k_core::race::mud::file_digits(car_file_number(
         kinds,
@@ -86,10 +86,12 @@ pub fn load_mud(
     ));
     shared.vars.get().mud_path.set(0x11, tens as u8);
     shared.vars.get().mud_path.set(0x12, units as u8);
-    MUD.with(|mud| {
-        crate::files::read_whole_file::read_whole_file_into(&shared.vars.get().mud_path.text(), mud)
-    })??;
-    Ok(())
+    let mut mud = vec![0; MUD_LEN as usize];
+    crate::files::read_whole_file::read_whole_file_into(
+        &shared.vars.get().mud_path.text(),
+        &mut mud,
+    )?;
+    Ok(mud)
 }
 
 /// Zeroes the 18 mud dwords and the two after them.
@@ -138,7 +140,7 @@ pub fn sample_mud_colours(
 /// `CourseLists.mud_list[0]`, given back when the stage is freed.
 pub static MUD: crate::memory::owned::Owned<Vec<u8>> = crate::memory::owned::Owned::new("no mud");
 
-/// Adds 0x10000 to the list's total, takes the mud (`MUD`), then runs `load_mud`,
+/// Adds 0x10000 to the list's total, loads the mud and stores it (`MUD`), then runs
 /// `clear_mud_state` and `sample_mud_colours`.
 pub fn init_mud(
     race: &Race,
@@ -155,12 +157,8 @@ pub fn init_mud(
             .get()
             .wrapping_add(MUD_LEN),
     );
-    MUD.take(
-        &course.lists.get().mud_list,
-        MUD_LEN,
-        vec![0; MUD_LEN as usize],
-    )?;
-    load_mud(race.kind_tables(), &race.shared, race.shared.net_race.get())?;
+    let mud = load_mud(race.kind_tables(), &race.shared, race.shared.net_race.get())?;
+    MUD.take(&course.lists.get().mud_list, MUD_LEN, mud)?;
     clear_mud_state(&race.shared);
     sample_mud_colours(&race.shared, scene, gfx, system)
 }

@@ -207,13 +207,14 @@ pub fn loadlevel_init(
     // loadgamemap.
     s.log();
     s.indent(3);
-    crate::race::game_map::load_game_map(
+    let game_map = crate::race::game_map::load_game_map(
         &race.frame,
         &scene.file_numbers().text_at(texts::MAP_PATH),
         &scene.file_numbers().text_at(texts::MAP_KEY),
         system,
         gfx,
     )?;
+    crate::race::game_map::store_game_map(&race.frame, game_map)?;
     s.progress(0x5A)?;
     s.indent(-3);
     s.step(
