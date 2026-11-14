@@ -642,3 +642,23 @@ has the same fixed addresses, but its network mode could not be run here to see 
 **Seen or read:** read, not seen. The standalone keeps its window flag active and never marks the surfaces lost, so a headless run could not make the case happen; found 2026-11-14 reading `race::loading_bar_frame`.
 
 **Fix:** the frame is skipped (nothing is drawn or presented that frame), the load goes on, and the next frame tries again (`race::loading_bar_frame`). The platform restores the window and its surfaces by itself.
+
+## A race frame that could not be shown ended the game
+
+**What it is:** as with the loading bar, when a race frame could not be drawn or shown (its lock refused, the present failed), the original called its surface restore routine. The Rust version had not ported that routine and ended the program ("not ported") instead.
+
+**In game:** a display hiccup during a race would have ended the game.
+
+**Seen or read:** read, not seen; the same case as the loading bar's, found 2026-11-14. A test switch in remote builds (`RC2K_LOSE_FRAMES=n`) now loses every n-th frame's lock, so the path can be run.
+
+**Fix:** the frame is skipped and the next one tries again (`drive::race_frame`, `race::show_frame`). The race's results never depend on what was drawn: held races with frames lost match normal ones tick for tick.
+
+## The first intro film's pictures late against its sound on the handheld
+
+**What it is:** the film player timed its pictures by the wall clock, counted from before the first picture was shown, and never caught up when late. On the handheld the GPU renderer's start with the first picture took about a second while the sound was already playing.
+
+**In game:** the first intro film (`MFLOGO.MPG`) ran up to a second behind its sound on the handheld; the second film was in step.
+
+**Seen or read:** seen (reported on the handheld, measured: +1,020 .. +573 ms late).
+
+**Fix:** the film's sound starts once the first picture is on the screen, and from then on the pictures follow the sound's played position (`film::Clock`). Both films stay within about 20 ms of their sound, with no frames skipped.
