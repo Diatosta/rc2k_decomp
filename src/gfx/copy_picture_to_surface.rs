@@ -5,11 +5,12 @@
 //! `row_gap` more bytes on the surface. All of these are read after the lock, which sets them. The
 //! lock and the unlock (`gfx::lock_surface`, `gfx::unlock_surface`) are reached through
 //! `PictureSurface`, which is where a build without a display puts its own surface. Refuses a row
-//! count of 0 and null pointers.
+//! count of 0 and null pointers. When the GPU keeps the background (`PictureSurface::
+//! defer_background`) nothing is copied: the picture buffer is noted as the background instead.
 
 use crate::errors::BadInput;
 use crate::gfx::owner::Pictures;
-use crate::gfx::picture::{has_picture, with_picture};
+use crate::gfx::picture::{has_picture, with_buffer_unchanged};
 
 // The surface's height (rows), `row_dwords` and `row_gap` (surface bytes after a row's pixels) are
 // `DRAW_SURFACE`'s.
@@ -26,6 +27,11 @@ pub trait PictureSurface {
     fn row_dwords(&self) -> u32;
     fn row_gap(&self) -> u32;
     fn pictures(&self) -> &Pictures;
+    /// Notes the picture as the frame's background for the GPU to draw under the canvas, if
+    /// this surface is the screen and the GPU keeps it (`render::background`); false: copy it.
+    fn defer_background(&mut self) -> bool {
+        false
+    }
 }
 
 /// The game's own.
@@ -61,6 +67,16 @@ impl PictureSurface for GameSurface<'_> {
     fn pictures(&self) -> &Pictures {
         &self.0.pictures
     }
+    fn defer_background(&mut self) -> bool {
+        let Some(target) = crate::platform_3d::screen(self.1.session.screen.get()) else {
+            return false;
+        };
+        let whole_rows = self.row_gap() == 0 && self.row_dwords() as usize * 4 == target.pitch;
+        self.pixels() == target.pixels
+            && self.rows() as usize == target.height
+            && whole_rows
+            && crate::render::background::defer(&target, self.0.pictures.picture.buffer.get())
+    }
 }
 
 pub fn copy_picture_to_surface(surface: &mut dyn PictureSurface) -> Result<(), BadInput> {
@@ -84,10 +100,16 @@ pub fn copy_picture_to_surface(surface: &mut dyn PictureSurface) -> Result<(), B
         }
         return Err(why);
     }
+    if surface.defer_background() {
+        if !was_locked {
+            surface.unlock();
+        }
+        return Ok(());
+    }
     // The surface's rows: their dwords, then the gap to the next.
     let to = crate::gfx::rows::Rows::new(to, row_bytes as u32 + surface.row_gap(), rows);
     // The picture's rows from its buffer (`gfx::picture`), onto the surface's.
-    let copied = with_picture(surface.pictures(), |from| -> Result<(), BadInput> {
+    let copied = with_buffer_unchanged(surface.pictures().picture.buffer.get(), |from| {
         for y in 0..rows {
             let at = y as usize * row_bytes;
             let row = from
@@ -95,7 +117,7 @@ pub fn copy_picture_to_surface(surface: &mut dyn PictureSurface) -> Result<(), B
                 .ok_or(BadInput("a picture's row past its buffer"))?;
             to.write(y, 0, row, "a picture's row onto the surface")?;
         }
-        Ok(())
+        Ok::<(), BadInput>(())
     })
     .and_then(|r| r);
     if let Err(why) = copied {

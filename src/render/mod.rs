@@ -4,7 +4,10 @@
 
 #![allow(unsafe_code)]
 
+pub mod background;
 pub mod batches;
+#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+pub mod canvas_rows;
 pub mod choice;
 pub mod dump;
 #[cfg(any(test, all(target_os = "linux", target_arch = "aarch64")))]
@@ -312,19 +315,23 @@ pub fn bring_back(target: &Target) {
         #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
         gpu.bring_back(target, canvas);
         #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
-        if let Err(why) = gpu.bring_back(canvas) {
-            crate::framework::log(&format!("render: the frame did not come back: {why}"));
+        {
+            let rows = canvas_rows::written_rows(target, canvas);
+            if let Err(why) = gpu.bring_back(Some(rows), canvas) {
+                crate::framework::log(&format!("render: the frame did not come back: {why}"));
+            }
         }
         // The picture written in place, unnoted.
         target.note_all_rows_written();
     }
 }
 
-/// Whether the frame ending now stays on the GPU: a race's always, a menu's when it drew 3D.
-/// Starts the next frame's count.
+/// Whether the frame ending now stays on the GPU: a race's always, a menu's when it drew 3D or
+/// kept its background on the GPU (`background`). Starts the next frame's count.
 fn frame_stays_on_gpu(course: &Course) -> bool {
     let drew = GPU_DREW_THIS_FRAME.swap(false, Relaxed);
-    drew || course.numbers.get().in_race.is_set()
+    let kept_background = background::recorded_this_frame();
+    drew || kept_background || course.numbers.get().in_race.is_set()
 }
 
 /// The frame back for good: the rasteriser draws from here.
@@ -352,7 +359,9 @@ pub fn finish_frame(
     // SAFETY: `Target::bytes`' promise: on the game's thread, which waits for this call, so
     // nothing else reaches the canvas; no other slice of it lives (the frame's showing takes
     // its own after this returns, `platform::with_frame`); the screen keeps its pixels.
-    if let Err(why) = gpu.finish_frame(unsafe { target.bytes() }) {
+    let canvas = unsafe { target.bytes() };
+    let rows = canvas_rows::written_rows(target, canvas);
+    if let Err(why) = gpu.finish_frame(Some(rows), canvas) {
         crate::framework::log(&format!("render: the frame did not finish: {why}"));
     }
     Some(gpu.colour_texture())
@@ -426,6 +435,7 @@ pub(crate) fn gpu_started() {
 #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
 pub(crate) fn gpu_stopped() {
     GPU_STARTED.store(false, Relaxed);
+    background::clear();
     *CHANGED_TEXTURES.lock().unwrap() = None;
 }
 
@@ -538,8 +548,6 @@ impl Target {
     /// The rows written through the pixels' handle since the last call (`PoolBytes::
     /// take_written_rows`), one flag a row; `None` when the pixels do not note them at the
     /// target's pitch.
-    // Read by the handheld's GPU path only (`render::gles`).
-    #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
     pub fn take_written_rows(&self) -> Option<Vec<bool>> {
         crate::gfx::locked_pixels::bytes_of(self.pixels)?.take_written_rows(self.pitch)
     }
@@ -625,6 +633,10 @@ pub static PIXELS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::
 pub static READ_BACKS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 pub static UPLOADS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 pub static UPLOAD_BYTES: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+/// The bytes of the canvas and of the retained background sent up to the PC's GPU backend.
+pub static CANVAS_UPLOAD_BYTES: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+pub static BACKGROUND_UPLOAD_BYTES: std::sync::atomic::AtomicU64 =
+    std::sync::atomic::AtomicU64::new(0);
 /// The GPU's draw calls (a run of triangles drawn alike each): what the handheld's driver
 /// spends its time on.
 pub static GPU_DRAWS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);

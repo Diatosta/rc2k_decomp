@@ -10,6 +10,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::gfx::owner::Pictures;
 use crate::memory::owned::Owned;
+use std::sync::atomic::{AtomicU64, Ordering::Relaxed};
 
 /// The buffer holds a whole screen: 800 x 600 pixels of four bytes.
 pub const PICTURE_DWORDS: usize = 0x75300;
@@ -35,6 +36,35 @@ pub enum Buffer {
 
 static BUFFERS: [Owned<Vec<u8>>; 3] = [const { Owned::new("no picture buffer") }; 3];
 
+/// Each buffer's change counter: it moves on every access that may write the buffer, so equal
+/// counters mean equal bytes (`generation`).
+static GENERATIONS: [AtomicU64; 3] = [const { AtomicU64::new(0) }; 3];
+
+/// The change counter of buffer `handle`: the bytes are the same as when it last had this value.
+#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+pub fn generation(handle: u32) -> Option<u64> {
+    let counter = GENERATIONS.get((handle as usize).checked_sub(1)?)?;
+    Some(counter.load(Relaxed))
+}
+
+/// The bytes of buffer `handle` as they are now, held for `f`: no write, so no change counted.
+pub fn with_buffer_unchanged<R>(handle: u32, f: impl FnOnce(&[u8]) -> R) -> Result<R, BadInput> {
+    owned(handle)?.with(|b| f(b))
+}
+
+/// Buffer `handle` is about to be written (or taken, or given back): counted as changed, after
+/// the retained background has taken the bytes it still needs (`render::background`).
+fn changing(handle: u32, bytes: Option<&[u8]>) {
+    if let Some(n) = (handle as usize).checked_sub(1)
+        && let Some(counter) = GENERATIONS.get(n)
+    {
+        if let Some(bytes) = bytes {
+            crate::render::background::before_change(handle, bytes);
+        }
+        counter.fetch_add(1, Relaxed);
+    }
+}
+
 fn owned(handle: u32) -> Result<&'static Owned<Vec<u8>>, BadInput> {
     (handle as usize)
         .checked_sub(1)
@@ -46,18 +76,28 @@ fn owned(handle: u32) -> Result<&'static Owned<Vec<u8>>, BadInput> {
 /// pages less its header). Its number.
 pub fn take(which: Buffer, list: &crate::memory::ListCells, bytes: u32) -> Result<u32, Refused> {
     let memory = vec![0u8; crate::memory::owned::block_len(bytes)];
+    changing(which as u32, None);
     BUFFERS[which as usize - 1].take(list, bytes, memory)?;
     Ok(which as u32)
 }
 
 /// Buffer `which` given back (its list's `free_list` counts it down).
 pub fn give_back(which: Buffer) {
+    // A retained background still drawing from it keeps a copy first.
+    let _ = with_buffer_unchanged(which as u32, |b| {
+        crate::render::background::before_change(which as u32, b);
+    });
+    changing(which as u32, None);
     BUFFERS[which as usize - 1].give_back();
 }
 
-/// `f` on the bytes of the buffer `handle` names; refused for none or one not held.
+/// `f` on the bytes of the buffer `handle` names; refused for none or one not held. Counted as a
+/// change of the buffer.
 pub fn with_buffer<R>(handle: u32, f: impl FnOnce(&mut [u8]) -> R) -> Result<R, BadInput> {
-    owned(handle)?.with(|b| f(b))
+    owned(handle)?.with(|b| {
+        changing(handle, Some(b));
+        f(b)
+    })
 }
 
 /// `f` on the picture buffer's bytes (`PICTURE.buffer`).
@@ -72,7 +112,7 @@ pub fn has_picture(pictures: &Pictures) -> bool {
 
 /// `len` bytes of buffer `handle` from byte `at`; refused past its end.
 pub fn read_bytes(handle: u32, at: usize, len: usize) -> Result<Vec<u8>, BadInput> {
-    with_buffer(handle, |b| {
+    with_buffer_unchanged(handle, |b| {
         b.get(at..at.checked_add(len)?).map(<[u8]>::to_vec)
     })?
     .ok_or(BadInput("a read past the picture buffer"))
@@ -122,6 +162,30 @@ mod tests {
         assert!(read_bytes(0, 0, 1).is_err());
         give_back(Buffer::Key);
         assert!(read_bytes(n, 0, 1).is_err());
+        crate::memory::with_figures(|f| *f = figures);
+    }
+
+    #[test]
+    #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+    fn the_change_counter_moves_on_writes_and_not_on_reads() {
+        let _lock = crate::test_support::test_lock();
+        let figures = crate::memory::figures();
+        let memory = crate::memory::ListCells::empty();
+        let n = take(Buffer::Key, &memory, 0x100).unwrap();
+        let before = generation(n).unwrap();
+        read_bytes(n, 0, 4).unwrap();
+        with_buffer_unchanged(n, <[u8]>::len).unwrap();
+        assert_eq!(generation(n), Some(before), "reads leave it");
+        write_bytes(n, 0, &[1]).unwrap();
+        let written = generation(n).unwrap();
+        assert!(written > before, "a write moves it");
+        with_buffer(n, |_| ()).unwrap();
+        assert!(
+            generation(n).unwrap() > written,
+            "a mutable access moves it"
+        );
+        give_back(Buffer::Key);
+        assert_eq!(generation(0), None);
         crate::memory::with_figures(|f| *f = figures);
     }
 

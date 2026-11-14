@@ -4,8 +4,12 @@
 //!
 //! A race's frame is 3D in the GPU's colour target and the game's 2D on the screen's memory (the
 //! canvas), which starts each layer holding `UNWRITTEN` in every pixel. When the two meet, the
-//! pixels the game has written go over the target and the canvas is marked again. Something that
+//! rows the game has written (`canvas_rows`) are uploaded and their pixels go over the target,
+//! and the canvas is marked again. A menu's background picture is not on the canvas: it is kept
+//! as a texture of its own (`background`) and drawn under the canvas's pixels. Something that
 //! wants the true picture in the canvas asks `bring_back`, which is slow on a handheld.
+
+mod check;
 
 use super::batches::{Batch, Batches, PipelineKey};
 use super::{CommandList, Target, TextureNote};
@@ -56,6 +60,8 @@ struct Targets {
     depth: Texture,
     canvas: Texture,
     canvas_transfer: Transfer,
+    background: Texture,
+    background_transfer: Transfer,
 }
 
 impl Default for Targets {
@@ -65,6 +71,8 @@ impl Default for Targets {
             depth: Texture::NONE,
             canvas: Texture::NONE,
             canvas_transfer: Transfer::NONE,
+            background: Texture::NONE,
+            background_transfer: Transfer::NONE,
         }
     }
 }
@@ -75,6 +83,14 @@ pub struct Gpu {
     depth: Texture,
     canvas: Texture,
     canvas_transfer: Transfer,
+    /// The retained background (`background`) and its upload buffer.
+    background: Texture,
+    background_transfer: Transfer,
+    /// What `background` holds: the picture buffer and its change counter.
+    background_holds: Option<(u32, u64)>,
+    /// With `RC2K_BACKGROUND_CHECK`: the frame drawn a second time as the canvas carried the
+    /// background (`check`).
+    check: Option<check::Check>,
     width: u32,
     height: u32,
     /// How many times the targets have been made: names the colour target's set.
@@ -143,6 +159,10 @@ impl Gpu {
             depth: Texture::NONE,
             canvas: Texture::NONE,
             canvas_transfer: Transfer::NONE,
+            background: Texture::NONE,
+            background_transfer: Transfer::NONE,
+            background_holds: None,
+            check: None,
             width: 0,
             height: 0,
             targets_made: 0,
@@ -327,7 +347,13 @@ impl Gpu {
             depth: std::mem::replace(&mut self.depth, made.depth),
             canvas: std::mem::replace(&mut self.canvas, made.canvas),
             canvas_transfer: std::mem::replace(&mut self.canvas_transfer, made.canvas_transfer),
+            background: std::mem::replace(&mut self.background, made.background),
+            background_transfer: std::mem::replace(
+                &mut self.background_transfer,
+                made.background_transfer,
+            ),
         };
+        self.background_holds = None;
         self.release_targets(&old);
         (self.width, self.height) = (width, height);
         self.targets_made += 1;
@@ -351,18 +377,28 @@ impl Gpu {
         made.canvas = self.make_texture(width, height, SDL_GPU_TEXTUREUSAGE_SAMPLER)?;
         made.canvas_transfer =
             self.make_transfer(SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD, width * height * 4)?;
+        made.background = self.make_texture(width, height, SDL_GPU_TEXTUREUSAGE_SAMPLER)?;
+        made.background_transfer =
+            self.make_transfer(SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD, width * height * 4)?;
         Ok(())
     }
 
     /// The targets released, those of them that were made.
     fn release_targets(&self, targets: &Targets) {
-        for texture in [targets.colour, targets.depth, targets.canvas] {
+        for texture in [
+            targets.colour,
+            targets.depth,
+            targets.canvas,
+            targets.background,
+        ] {
             if !texture.is_none() {
                 self.device.release_texture(texture);
             }
         }
-        if !targets.canvas_transfer.is_none() {
-            self.device.release_transfer(targets.canvas_transfer);
+        for transfer in [targets.canvas_transfer, targets.background_transfer] {
+            if !transfer.is_none() {
+                self.device.release_transfer(transfer);
+            }
         }
     }
 
@@ -437,9 +473,89 @@ impl Gpu {
         }
     }
 
-    /// Draws the commands over the target, the canvas's written pixels first.
-    pub fn draw(&mut self, canvas: &mut [u8], commands: &CommandList) -> Result<(), String> {
+    /// The noted background brought up to the GPU if it is not there already: whether the
+    /// background texture is to be drawn under the canvas, and whether its upload is to be sent.
+    fn bring_up_background(
+        &mut self,
+        picture_copy: &mut Option<Vec<u8>>,
+    ) -> Result<(bool, bool), String> {
+        use super::background::Pending;
+        let Some(pending) = super::background::take() else {
+            return Ok((false, false));
+        };
+        let bytes = self.width as usize * self.height as usize * 4;
+        if check::wanted() {
+            *picture_copy = match &pending {
+                Pending::Buffer { handle, .. } => {
+                    crate::gfx::picture::with_buffer_unchanged(*handle, |b| {
+                        b.get(..bytes).map(<[u8]>::to_vec)
+                    })
+                    .ok()
+                    .flatten()
+                }
+                Pending::Copy(picture) => picture.get(..bytes).map(<[u8]>::to_vec),
+            };
+        }
+        let upload = match pending {
+            Pending::Buffer { handle, generation } => {
+                if self.background_holds == Some((handle, generation)) {
+                    false
+                } else {
+                    crate::gfx::picture::with_buffer_unchanged(handle, |picture| {
+                        let picture = picture
+                            .get(..bytes)
+                            .ok_or("the background's picture is smaller than the screen")?;
+                        self.device
+                            .fill_transfer(self.background_transfer, 0, picture, true)
+                    })
+                    .map_err(|e| e.0.to_string())??;
+                    self.background_holds = Some((handle, generation));
+                    true
+                }
+            }
+            Pending::Copy(picture) => {
+                let picture = picture
+                    .get(..bytes)
+                    .ok_or("the background's picture is smaller than the screen")?;
+                self.device
+                    .fill_transfer(self.background_transfer, 0, picture, true)?;
+                self.background_holds = None;
+                true
+            }
+        };
+        if upload {
+            super::BACKGROUND_UPLOAD_BYTES
+                .fetch_add(bytes as u64, std::sync::atomic::Ordering::Relaxed);
+        }
+        Ok((true, upload))
+    }
+
+    /// Draws the commands over the target: the retained background first if one is noted, then
+    /// the canvas's written rows (`rows`, one flag a row; `None` to look at every row).
+    pub fn draw(
+        &mut self,
+        canvas: &mut [u8],
+        rows: Option<Vec<bool>>,
+        commands: &CommandList,
+    ) -> Result<(), String> {
         self.take_changes();
+        let mut background_bytes = None;
+        let (background, upload_background) = self.bring_up_background(&mut background_bytes)?;
+        self.ensure_check()?;
+        let stride = self.width as usize * 4;
+        let rows = rows.unwrap_or_else(|| super::canvas_rows::rows_holding_written(canvas, stride));
+        let runs = super::canvas_rows::written_runs(&rows);
+        // The check's canvas holds every written pixel, noted rows or not, as it did before.
+        let old_canvas = self.check.is_some().then(|| {
+            let scan = super::canvas_rows::rows_holding_written(canvas, stride);
+            check::note_missed_rows(&scan, &rows);
+            let scanned = super::canvas_rows::written_runs(&scan);
+            check::canvas_as_before(canvas, &scanned, stride, background_bytes.as_deref())
+        });
+        if let (Some(check), Some(old)) = (&self.check, &old_canvas) {
+            self.device
+                .fill_transfer(check.canvas_transfer, 0, old, true)?;
+        }
         let batches = Batches::of(commands, self.width, self.height, None);
         let vertex_bytes = batches.vertices.len() as u32 * VERTEX_BYTES;
         let mut uploads: Vec<(TextureNote, Vec<u8>)> = Vec::new();
@@ -495,7 +611,16 @@ impl Gpu {
             placed.push((note, at as u32));
             at += bytes.len();
         }
-        self.fill_transfer(self.canvas_transfer, 0, canvas)?;
+        let parts: Vec<(usize, &[u8])> = runs
+            .iter()
+            .map(|&(first, last)| (first * stride, &canvas[first * stride..(last + 1) * stride]))
+            .collect();
+        if !parts.is_empty() {
+            self.device
+                .fill_transfer_parts(self.canvas_transfer, &parts)?;
+            let sent: usize = parts.iter().map(|(_, bytes)| bytes.len()).sum();
+            super::CANVAS_UPLOAD_BYTES.fetch_add(sent as u64, std::sync::atomic::Ordering::Relaxed);
+        }
         // Every handle is ours and alive; the offsets are within the buffers (the sums above);
         // the command buffer is submitted before the end of this block.
         let buffer = self.device.acquire_command_buffer()?;
@@ -514,87 +639,161 @@ impl Gpu {
             );
             texture.stale = false;
         }
-        copy.upload_texture(
-            self.canvas_transfer,
-            0,
-            self.canvas,
-            self.width,
-            self.height,
-        );
-        copy.end();
-        let pass = buffer.begin_render_pass(self.colour, self.depth, self.depth_is_new);
-        self.depth_is_new = false;
-        self.draw_overlay(&pass);
-        buffer.push_vertex_uniform(0, &[self.width as f32, self.height as f32]);
-        pass.bind_vertex_buffer(self.vertices);
-        let mut last_pipeline = None;
-        let mut last_values = None;
-        let mut last_sampling = None;
-        let mut scissored = false;
-        for (batch, &pipeline) in batches.batches.iter().zip(&pipelines) {
-            if last_pipeline != Some(pipeline) {
-                pass.bind_pipeline(pipeline);
-                last_pipeline = Some(pipeline);
-            }
-            if last_values != Some(batch.values) {
-                buffer.push_fragment_uniform(0, &batch.values.to_words());
-                last_values = Some(batch.values);
-            }
-            let sampling = (batch.texture, batch.linear, batch.clamp);
-            if last_sampling != Some(sampling) {
-                let texture = batch.texture.map_or(self.white, |n| {
-                    self.textures[&batches.textures[n as usize].pixels].texture
-                });
-                pass.bind_fragment_sampler(texture, self.samplers[sampler_number(batch)]);
-                last_sampling = Some(sampling);
-            }
-            if let Some([left, top, right, bottom]) = batch.scissor {
-                pass.set_scissor(
-                    left as i32,
-                    top as i32,
-                    (right - left) as i32,
-                    (bottom - top) as i32,
-                );
-                scissored = true;
-            } else if scissored {
-                pass.set_scissor(0, 0, self.width as i32, self.height as i32);
-                scissored = false;
-            }
-            pass.draw(batch.vertices, batch.first_vertex);
+        if upload_background {
+            copy.upload_texture(
+                self.background_transfer,
+                0,
+                self.background,
+                self.width,
+                self.height,
+            );
         }
+        for &(first, last) in &runs {
+            copy.upload_texture_rows(
+                self.canvas_transfer,
+                (first * stride) as u32,
+                self.canvas,
+                first as u32,
+                self.width,
+                (last + 1 - first) as u32,
+            );
+        }
+        copy.end();
+        let clear_depth = std::mem::replace(&mut self.depth_is_new, false);
+        let check_targets = self.check.as_mut().map(|c| {
+            let clear = std::mem::replace(&mut c.depth_is_new, false);
+            (c.colour, c.depth, c.canvas, c.canvas_transfer, clear)
+        });
+        let draw_batches = |pass: &sdl_gpu::RenderPass| {
+            buffer.push_vertex_uniform(0, &[self.width as f32, self.height as f32]);
+            pass.bind_vertex_buffer(self.vertices);
+            let mut last_pipeline = None;
+            let mut last_values = None;
+            let mut last_sampling = None;
+            let mut scissored = false;
+            for (batch, &pipeline) in batches.batches.iter().zip(&pipelines) {
+                if last_pipeline != Some(pipeline) {
+                    pass.bind_pipeline(pipeline);
+                    last_pipeline = Some(pipeline);
+                }
+                if last_values != Some(batch.values) {
+                    buffer.push_fragment_uniform(0, &batch.values.to_words());
+                    last_values = Some(batch.values);
+                }
+                let sampling = (batch.texture, batch.linear, batch.clamp);
+                if last_sampling != Some(sampling) {
+                    let texture = batch.texture.map_or(self.white, |n| {
+                        self.textures[&batches.textures[n as usize].pixels].texture
+                    });
+                    pass.bind_fragment_sampler(texture, self.samplers[sampler_number(batch)]);
+                    last_sampling = Some(sampling);
+                }
+                if let Some([left, top, right, bottom]) = batch.scissor {
+                    pass.set_scissor(
+                        left as i32,
+                        top as i32,
+                        (right - left) as i32,
+                        (bottom - top) as i32,
+                    );
+                    scissored = true;
+                } else if scissored {
+                    pass.set_scissor(0, 0, self.width as i32, self.height as i32);
+                    scissored = false;
+                }
+                pass.draw(batch.vertices, batch.first_vertex);
+            }
+        };
+        let pass = buffer.begin_render_pass(self.colour, self.depth, clear_depth);
+        if background {
+            self.draw_overlay(&pass, self.background);
+        }
+        for &(first, last) in &runs {
+            pass.set_scissor(
+                0,
+                first as i32,
+                self.width as i32,
+                (last + 1 - first) as i32,
+            );
+            self.draw_overlay(&pass, self.canvas);
+        }
+        if !runs.is_empty() {
+            pass.set_scissor(0, 0, self.width as i32, self.height as i32);
+        }
+        draw_batches(&pass);
         pass.end();
+        if let Some((colour, depth, canvas, transfer, clear)) = check_targets {
+            // The same frame once more, the way the canvas carried the background.
+            let copy = buffer.begin_copy_pass();
+            copy.upload_texture(transfer, 0, canvas, self.width, self.height);
+            copy.end();
+            let pass = buffer.begin_render_pass(colour, depth, clear);
+            if check::same() {
+                // The noise floor: the same overlay as the real pass.
+                if background {
+                    self.draw_overlay(&pass, self.background);
+                }
+                for &(first, last) in &runs {
+                    let rows = (last + 1 - first) as i32;
+                    pass.set_scissor(0, first as i32, self.width as i32, rows);
+                    self.draw_overlay(&pass, self.canvas);
+                }
+                pass.set_scissor(0, 0, self.width as i32, self.height as i32);
+            } else {
+                self.draw_overlay(&pass, canvas);
+            }
+            draw_batches(&pass);
+            pass.end();
+        }
         buffer.submit()?;
-        mark_unwritten(canvas);
+        for &(first, last) in &runs {
+            mark_unwritten(&mut canvas[first * stride..(last + 1) * stride]);
+        }
         Ok(())
     }
 
-    /// The canvas's written pixels over the target (bound in an open pass).
-    fn draw_overlay(&self, pass: &sdl_gpu::RenderPass) {
+    /// The written pixels of `layer` (the canvas, or the background) over the target, in an open
+    /// pass.
+    fn draw_overlay(&self, pass: &sdl_gpu::RenderPass, layer: Texture) {
         pass.bind_pipeline(self.overlay);
-        pass.bind_fragment_sampler(self.canvas, self.nearest);
+        pass.bind_fragment_sampler(layer, self.nearest);
         pass.draw(3, 0);
     }
 
     /// The frame's end: what the canvas has written goes over the target.
-    pub fn finish_frame(&mut self, canvas: &mut [u8]) -> Result<(), String> {
-        self.draw(canvas, &CommandList::new())
+    pub fn finish_frame(
+        &mut self,
+        rows: Option<Vec<bool>>,
+        canvas: &mut [u8],
+    ) -> Result<(), String> {
+        self.draw(canvas, rows, &CommandList::new())?;
+        self.compare_check()
+    }
+
+    /// The colour target's picture (the GPU's end of the frame is waited for).
+    fn read_colour(&mut self) -> Result<Vec<u8>, String> {
+        self.read_texture(self.colour)
+    }
+
+    /// The picture of a texture of the screen's size (the GPU's end of the frame is waited for).
+    fn read_texture(&mut self, texture: Texture) -> Result<Vec<u8>, String> {
+        let bytes = (self.width * self.height * 4) as usize;
+        let transfer = self.make_transfer(SDL_GPU_TRANSFERBUFFERUSAGE_DOWNLOAD, bytes as u32)?;
+        let buffer = self.device.acquire_command_buffer()?;
+        let copy = buffer.begin_copy_pass();
+        copy.download_texture(texture, self.width, self.height, transfer);
+        copy.end();
+        buffer.submit_and_wait(self.device)?;
+        let mut picture = vec![0u8; bytes];
+        self.device.read_transfer(transfer, &mut picture)?;
+        self.device.release_transfer(transfer);
+        Ok(picture)
     }
 
     /// The target's picture, with the canvas's written pixels, into the canvas.
-    pub fn bring_back(&mut self, canvas: &mut [u8]) -> Result<(), String> {
-        self.finish_frame(canvas)?;
-        let bytes = self.width * self.height * 4;
-        let transfer = self.make_transfer(SDL_GPU_TRANSFERBUFFERUSAGE_DOWNLOAD, bytes)?;
-        // The wait ends the GPU's use of the buffer before it is read; the copy is of the
-        // `bytes` the buffer holds, which `canvas` holds too (`Target::bytes`).
-        let buffer = self.device.acquire_command_buffer()?;
-        let copy = buffer.begin_copy_pass();
-        copy.download_texture(self.colour, self.width, self.height, transfer);
-        copy.end();
-        buffer.submit_and_wait(self.device)?;
-        self.device
-            .read_transfer(transfer, &mut canvas[..bytes as usize])?;
-        self.device.release_transfer(transfer);
+    pub fn bring_back(&mut self, rows: Option<Vec<bool>>, canvas: &mut [u8]) -> Result<(), String> {
+        self.finish_frame(rows, canvas)?;
+        let picture = self.read_colour()?;
+        canvas[..picture.len()].copy_from_slice(&picture);
         Ok(())
     }
 }
@@ -644,7 +843,10 @@ impl super::Backend for Gpu {
     fn draw(&mut self, target: &Target, commands: CommandList) {
         let done = target.with_canvas(|canvas| {
             self.set_size(target.width as u32, target.height as u32)
-                .and_then(|()| Gpu::draw(self, canvas, &commands))
+                .and_then(|()| {
+                    let rows = super::canvas_rows::written_rows(target, canvas);
+                    Gpu::draw(self, canvas, Some(rows), &commands)
+                })
         });
         super::give_back(commands);
         if let Err(why) = done {
@@ -774,8 +976,8 @@ mod comparison {
         let mut gpu = Gpu::new(device).unwrap();
         gpu.set_size(width as u32, height as u32).unwrap();
         let mut canvas = vec![0u8; width * height * 4];
-        Gpu::draw(&mut gpu, &mut canvas, &commands).unwrap();
-        gpu.bring_back(&mut canvas).unwrap();
+        Gpu::draw(&mut gpu, &mut canvas, None, &commands).unwrap();
+        gpu.bring_back(None, &mut canvas).unwrap();
 
         let (mut far, mut total) = (0usize, 0u64);
         for (a, b) in soft

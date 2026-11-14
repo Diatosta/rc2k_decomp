@@ -193,11 +193,17 @@ impl PoolBytes {
 
     /// The rows written since the last call (all of them after `note_all_rows_written`), one
     /// flag a row, each cleared; `None` for bytes not noting rows, or rows of another pitch.
-    // Read by the handheld's GPU path only (`render::gles`).
-    #[cfg(any(test, all(target_os = "linux", target_arch = "aarch64")))]
     pub fn take_written_rows(&self, pitch: usize) -> Option<Vec<bool>> {
         let rows = self.rows.as_ref().filter(|r| r.pitch == pitch)?;
         Some(rows.flags.iter().map(|f| f.swap(false, Relaxed)).collect())
+    }
+
+    /// Whether any row is noted as written, the notes left as they are; `None` for bytes not
+    /// noting rows, or rows of another pitch.
+    #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+    pub fn any_row_written(&self, pitch: usize) -> Option<bool> {
+        let rows = self.rows.as_ref().filter(|r| r.pitch == pitch)?;
+        Some(rows.flags.iter().any(|f| f.load(Relaxed)))
     }
 
     /// Every row noted as written: for writes made in place (`as_mut_ptr`), which do not note.

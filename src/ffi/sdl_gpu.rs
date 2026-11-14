@@ -352,6 +352,38 @@ impl Device {
         Ok(())
     }
 
+    /// Each of `parts` (a byte offset and its bytes) into the transfer buffer, in one mapping,
+    /// which cycles the buffer: the bytes between the parts are undefined afterwards.
+    pub fn fill_transfer_parts(
+        self,
+        transfer: Transfer,
+        parts: &[(usize, &[u8])],
+    ) -> Result<(), String> {
+        assert!(
+            parts
+                .iter()
+                .all(|(at, bytes)| at + bytes.len() <= transfer.1 as usize),
+            "past the transfer buffer"
+        );
+        // SAFETY: every part lies within the buffer (checked above); the mapping is made only
+        // here and unmapped before the end.
+        unsafe {
+            let map = SDL_MapGPUTransferBuffer(self.0, transfer.0, true);
+            if map.is_null() {
+                return Err(error());
+            }
+            for (at, bytes) in parts {
+                std::ptr::copy_nonoverlapping(
+                    bytes.as_ptr(),
+                    map.cast::<u8>().add(*at),
+                    bytes.len(),
+                );
+            }
+            SDL_UnmapGPUTransferBuffer(self.0, transfer.0);
+        }
+        Ok(())
+    }
+
     /// The first `out.len()` bytes of a transfer buffer the GPU has written (the caller has
     /// waited for it) into `out`.
     pub fn read_transfer(self, transfer: Transfer, out: &mut [u8]) -> Result<(), String> {
@@ -503,6 +535,40 @@ impl CopyPass {
         // SAFETY: our open pass; the records live through the call; the picture is within the
         // transfer buffer (checked above).
         unsafe { SDL_UploadToGPUTexture(self.0, &raw const from, &raw const to, true) };
+    }
+
+    /// `rows` rows of `width` four-byte pixels from the transfer buffer at `offset` into
+    /// `texture`, from its row `first`; the texture's other rows are kept (it is not cycled).
+    pub fn upload_texture_rows(
+        &self,
+        transfer: Transfer,
+        offset: u32,
+        texture: Texture,
+        first: u32,
+        width: u32,
+        rows: u32,
+    ) {
+        assert!(
+            u64::from(offset) + u64::from(width) * u64::from(rows) * 4 <= u64::from(transfer.1),
+            "past the transfer buffer"
+        );
+        let from = SDL_GPUTextureTransferInfo {
+            transfer_buffer: transfer.0,
+            offset,
+            pixels_per_row: width,
+            rows_per_layer: rows,
+        };
+        let to = SDL_GPUTextureRegion {
+            texture: texture.0,
+            y: first,
+            w: width,
+            h: rows,
+            d: 1,
+            ..Default::default()
+        };
+        // SAFETY: our open pass; the records live through the call; the rows are within the
+        // transfer buffer (checked above).
+        unsafe { SDL_UploadToGPUTexture(self.0, &raw const from, &raw const to, false) };
     }
 
     /// `texture`'s `width` x `height` pixels into the start of the transfer buffer.
