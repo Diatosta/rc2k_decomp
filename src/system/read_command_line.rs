@@ -1,23 +1,17 @@
 //! Takes the switches off the command line: the first word is the program (its length goes to
 //! `COMMAND_LINE`); of the words after it only those of two characters or more count, by their
-//! first two. `-v` shows a message box with the version and leaves; `-u` `run.updating`, `-p`
-//! `run.installing`, `-a` `no_audio`; `-i` takes the next two words as the game and installed
+//! first two. `-v` shows a message box with the version and leaves; `-u` and `-p` are returned in
+//! the `Command`, `-a` sets `no_audio`; `-i` takes the next two words as the game and installed
 //! folder paths and the two after as the display mode and language; `-c` takes `1`
 //! (`cards.ignore_secondary`) or `2` (`cards.not_primary`). Refuses a word for `-i` of 0x100
 //! bytes or more. The `-v` part cannot be run in a test.
 
 use crate::errors::BadInput;
+use crate::install::run_flags::{Command, GivenInstall};
 use crate::session::PlainDword;
 use crate::system::owner::Start;
 
 const EXIT_PATH: usize = 0x401116;
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Asked {
-    Nothing,
-    /// `-v`: the version is to be shown and the game left.
-    Version,
-}
 
 /// The `-v` part: the box, and out through `start`'s exit path. Does not return.
 pub fn show_version_and_leave(start: &Start) -> ! {
@@ -47,29 +41,23 @@ pub fn show_version_and_leave(start: &Start) -> ! {
     crate::standalone::finish(&format!("the game's way out {EXIT_PATH:#x} was reached"), 0)
 }
 
-/// Reads a command line (its text with the NUL; kept for the program's
-/// life, as the game keeps a pointer into it).
+/// Reads a command line (its text with the NUL), keeps the program word's length, sets the
+/// audio and display-card switches and copies the `-i` paths into the installer's folders;
+/// returns what else it asked for.
 pub fn read_command_line(
     start: &Start,
     install: &crate::install::owner::Install,
     d3d: &crate::d3d::owner::D3d,
     audio: &crate::audio::owner::Audio,
     line: &[u8],
-) -> Result<Asked, BadInput> {
+) -> Result<Command, BadInput> {
     let sw = rc2k_core::system::command_line::read(line)?;
     start.command_line.program_len.set(sw.program.1 as u32);
-    if sw.u {
-        install.run.updating.set(1);
-    }
-    if sw.installing {
-        install.run.installing.set(1);
-    }
     if sw.no_audio {
         audio.state.no_audio.set(1);
     }
+    let mut given = None;
     for i in &sw.install {
-        install.run.from_command.set(1u32);
-        install.run.ignore_room.set(1u32);
         for (place, (start, len)) in [&install.paths.game_dir, &install.paths.installed]
             .into_iter()
             .zip(i.words)
@@ -79,8 +67,10 @@ pub fn read_command_line(
                 .ok_or(BadInput("a word past the command line"))?;
             place.write_at(0, word, "an installer path")?;
         }
-        install.run.given_mode.set(i.digits[0]);
-        install.run.given_language.set(i.digits[1]);
+        given = Some(GivenInstall {
+            mode: i.digits[0] as i32,
+            language: i.digits[1] as i32,
+        });
     }
     if sw.ignore_secondary {
         d3d.cards.get().ignore_secondary.set(1u32);
@@ -88,10 +78,11 @@ pub fn read_command_line(
     if sw.ignore_primary {
         d3d.cards.get().not_primary.set(1u32);
     }
-    Ok(if sw.version {
-        Asked::Version
-    } else {
-        Asked::Nothing
+    Ok(Command {
+        show_version: sw.version,
+        updating: sw.u,
+        installing: sw.installing,
+        given,
     })
 }
 
@@ -102,7 +93,9 @@ pub fn read_own_command_line(o: crate::owners::Owners<'static>) -> Result<(), Ba
     let mut line = crate::os::command_line();
     line.push(0);
     let start = o.system.start();
-    if read_command_line(start, o.install, o.d3d, o.audio, &line)? == Asked::Version {
+    let command = read_command_line(start, o.install, o.d3d, o.audio, &line)?;
+    o.install.flags.begin(&command);
+    if command.show_version {
         show_version_and_leave(start);
     }
     Ok(())

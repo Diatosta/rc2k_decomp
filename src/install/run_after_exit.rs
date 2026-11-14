@@ -31,47 +31,41 @@ pub fn run_after_exit(
     system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
     let run_vars = &install.run;
-    let switch = |n: u32| {
-        [
-            &run_vars.add_items,
-            &run_vars.remove_items,
-            &run_vars.run_dxsetup,
-            &run_vars.installing,
-            &run_vars.offer_registration,
-            &run_vars.run_registration,
-        ][n as usize]
-            .get()
-    };
+    let add_items = run_vars.add_items.get() == 1;
+    let remove_items = run_vars.remove_items.get() == 1;
+    let run_dxsetup = run_vars.run_dxsetup.get() == 1;
+    let installing = install.flags.installing.get();
+    let run_registration = run_vars.run_registration.get() == 1;
     if crate::fatal::state::REPORTED.get() == 1 {
         return Ok(());
     }
     // The refusals, before anything.
     let game_dir = install.paths.game_dir.text();
     let game_dir_len = game_dir.len() as u32;
-    if switch(2) != 1 && switch(5) == 1 && game_dir_len + 5 + 1 > ROOM {
+    if !run_dxsetup && run_registration && game_dir_len + 5 + 1 > ROOM {
         return Err(
             BadInput("the game's folder too long for \"ereg\\\" in its 0x100 bytes").into(),
         );
     }
     let from_cd = install.vars.running_from_cd.get();
-    if switch(2) != 1
-        && switch(5) != 1
-        && switch(3) == 1
+    if !run_dxsetup
+        && !run_registration
+        && installing
         && from_cd == 1
         && system.start().command_line.program_len.get() >= ROOM
     {
         return Err(BadInput("a command line's program of 0x100 bytes or more").into());
     }
     // The Start menu items: the standalone's shell shortcuts.
-    if switch(0) == 1 {
+    if add_items {
         crate::install::shortcuts::add_start_menu_items(&crate::files::host_path(
             &install.paths.installed.text(),
         ));
     }
-    if switch(1) == 1 {
+    if remove_items {
         crate::install::shortcuts::remove_start_menu_items();
     }
-    if switch(2) == 1 {
+    if run_dxsetup {
         let other_dir = install.texts.other_dir.text();
         for dir in [&game_dir, &other_dir] {
             if !set_cd(dir) {
@@ -81,7 +75,7 @@ pub fn run_after_exit(
         run(&install.names.dxsetup.text());
         return Ok(());
     }
-    if switch(5) == 1 {
+    if run_registration {
         // "ereg\eregip.exe" (the script's text after its count): its folder after the
         // game's, its name into the program's name buffer.
         let ereg = install.run.ereg.read();
@@ -100,7 +94,7 @@ pub fn run_after_exit(
         run(&scratch_text()?);
         return Ok(());
     }
-    if switch(3) != 1 {
+    if !installing {
         return Ok(());
     }
     let normalised = crate::install::normalise_path::normalised_bytes(

@@ -17,7 +17,7 @@ pub fn list_drives(
 ) {
     // Per letter from 'a', a pair of dwords: how often it was found and its free space.
     let drives = &install.run.drives;
-    let mut letter = install.run.first_drive.get();
+    let mut letter = u32::from(install.flags.first_drive.get());
     loop {
         let kind = crate::files::drive_type::drive_type(letter as u8);
         if drives::offered(kind)

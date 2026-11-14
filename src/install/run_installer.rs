@@ -35,7 +35,7 @@ pub fn run_installer(
     crate::gfx::build_fonts::build_fonts_in(gfx, system, o.strings)?;
     i::open_installer::open_installer(install, o)?;
     // From the command line: the install, and on past the pages.
-    let from_command = install.run.from_command.get() == 1;
+    let from_command = install.flags.from_command.get();
     if from_command {
         i::install_from_command::install_from_command(install, o)?;
     } else {
@@ -57,10 +57,7 @@ pub fn run_installer(
         typed.push(0);
         store_text(&install.paths.typed, &typed);
         if system.machine().keyboard_type.get() == 2 {
-            install
-                .paths
-                .typed
-                .set(0, install.run.first_drive.get() as u8);
+            install.paths.typed.set(0, install.flags.first_drive.get());
         }
         i::read_registry::read_registry_here(install);
         if install.names.source.get(0) != 0 {
@@ -83,14 +80,14 @@ pub fn run_installer(
             set_cd(&install.paths.game_dir);
             load_language(o)?;
         }
-        let pages = if install.run.updating.get() == 1 {
+        let pages = if install.flags.updating.get() {
             crate::install::page_records::PageEntry::update_run()
         } else {
             crate::install::page_records::PageEntry::normal_run()
         };
         i::run_pages::run_pages(install, o, pages)?;
     }
-    if install.run.installing.get() == 1
+    if install.flags.installing.get()
         && install.vars.running_from_cd.get() == 1
         && lock(o.gfx, o.system)
     {

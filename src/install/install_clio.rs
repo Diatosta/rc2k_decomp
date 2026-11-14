@@ -123,9 +123,7 @@ pub fn install_clio(
     if let Stop::SetBack = work(install, system, input)? {
         set_cd(&install.paths.installed);
     }
-    install.run.installing.set(0);
-    install.run.updating.set(0);
-    install.run.from_command.set(0);
+    install.flags.clear_command();
     sleep(1000);
     Ok(())
 }

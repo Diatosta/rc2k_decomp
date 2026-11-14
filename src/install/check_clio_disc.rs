@@ -22,7 +22,7 @@ pub fn check_clio_disc(
         return Ok(());
     }
     install.has_clio.set(1);
-    if g.run.installing.get() == 1
+    if g.flags.installing.get()
         || outside.file_exists(&g.texts.record_path.text())?
         || runs_from_source(g, outside)?
         || g.names.status.get() != 1

@@ -22,20 +22,12 @@ pub struct InstallerRun {
     pub _lead: PlainBytes<8>,
     /// The installation is this version (`install::mark_main_page`).
     pub same_version: PlainDword,
-    /// -u: the update run (`install::install_clio`).
-    pub updating: PlainDword,
-    /// -i: the paths were given on the command line.
-    pub from_command: PlainDword,
     /// The shortcuts are added.
     pub add_items: PlainDword,
     /// The shortcuts are removed (`install::uninstall`).
     pub remove_items: PlainDword,
     /// DirectX's set-up is run at the end.
     pub run_dxsetup: PlainDword,
-    /// -p: installing (`install::check_at_start`).
-    pub installing: PlainDword,
-    /// The registration is offered.
-    pub offer_registration: PlainDword,
     /// The registration program is run at the end.
     pub run_registration: PlainDword,
     /// The registration program's script: a count, "ereg\eregip.exe" from +2
@@ -43,18 +35,10 @@ pub struct InstallerRun {
     pub ereg: PlainBytes<20>,
     /// 1 a bad folder, 2 no room.
     pub path_problem: PlainDword,
-    /// The lack of room is ignored.
-    pub ignore_room: PlainDword,
-    /// -i's first digit.
-    pub given_mode: PlainDword,
-    /// -i's second digit.
-    pub given_language: PlainDword,
     /// 26 of (found, free KB), by drive letter.
     pub drives: [PlainDword; 52],
     /// The drives found.
     pub drive_count: PlainDword,
-    /// The first letter looked at.
-    pub first_drive: PlainDword,
     /// The files copied so far.
     pub files_copied: PlainDword,
     /// The files to copy.
@@ -96,22 +80,14 @@ impl InstallerRun {
         InstallerRun {
             _lead: PlainBytes::new([0; 8]),
             same_version: PlainDword::new(0x0),
-            updating: PlainDword::new(0x0),
-            from_command: PlainDword::new(0x0),
             add_items: PlainDword::new(0x0),
             remove_items: PlainDword::new(0x0),
             run_dxsetup: PlainDword::new(0x0),
-            installing: PlainDword::new(0x0),
-            offer_registration: PlainDword::new(0x0),
             run_registration: PlainDword::new(0x0),
             ereg: PlainBytes::new(with_runs::<20>(&[(0, b";4ereg\\eregip.exe")])),
             path_problem: PlainDword::new(0x0),
-            ignore_room: PlainDword::new(0x0),
-            given_mode: PlainDword::new(0x2),
-            given_language: PlainDword::new(0x0),
             drives: [const { PlainDword::new(0x0) }; 52],
             drive_count: PlainDword::new(0x0),
-            first_drive: PlainDword::new(0x63),
             files_copied: PlainDword::new(0x0),
             files_to_copy: PlainDword::new(0x0),
             copy_spare: PlainDword::new(0x0),
@@ -554,7 +530,7 @@ impl InstallerPages {
     }
 }
 
-/// The installer's path buffers (0x100 bytes each; the network's lobby edits two of them).
+/// The installer's path buffers (0x100 bytes each).
 #[derive(rc2k_derive::Cells)]
 pub struct InstallerPaths {
     /// Padding that keeps every field its alignment (the struct is 16-byte aligned).
@@ -563,11 +539,11 @@ pub struct InstallerPaths {
     pub game_dir: PlainBytes<256>,
     /// The folder installed from (also `-i`'s second path).
     pub installed: PlainBytes<256>,
-    /// A path being built (the lobby's number edited as text).
+    /// A path being built.
     pub path_a: PlainBytes<256>,
     /// Another path being built.
     pub path_b: PlainBytes<256>,
-    /// The script's path; an edit's backup (the lobby's text before editing).
+    /// The script's path; an edit's backup.
     pub script_path: PlainBytes<256>,
     /// The folder typed on the page.
     pub typed: PlainBytes<256>,

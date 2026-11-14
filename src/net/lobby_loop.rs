@@ -98,7 +98,7 @@ fn step_item(
 
 /// 1 when the race is on, -1 (`u32::MAX`) when the lobby was left.
 pub fn lobby_loop(o: Owners<'static>) -> Result<u32, Refused> {
-    let (install, net, system) = (o.install, o.net, o.system);
+    let (net, system) = (o.net, o.system);
     let list_state = &o.menus.list;
     net.vars.players.set(0);
     net.lobby().racing.set(0);
@@ -140,7 +140,7 @@ pub fn lobby_loop(o: Owners<'static>) -> Result<u32, Refused> {
         let key = list_key(list_state, o.input)?;
         let mut moved = false;
         if net.edit().edited.get() != u32::MAX {
-            crate::net::chat_key::chat_key(o.input, net, install, key, o.gfx)?;
+            crate::net::chat_key::chat_key(o.input, net, key, o.gfx)?;
         } else {
             let ready = net.vars.own.state().is_ready();
             if !ready && key == 0x69 {
@@ -175,7 +175,7 @@ pub fn lobby_loop(o: Owners<'static>) -> Result<u32, Refused> {
                         moved = true;
                     }
                     3 => {
-                        crate::net::begin_chat::begin_chat(net, install, list_state)?;
+                        crate::net::begin_chat::begin_chat(net, list_state)?;
                         moved = true;
                     }
                     _ => {}

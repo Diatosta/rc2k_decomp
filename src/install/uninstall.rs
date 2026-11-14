@@ -145,6 +145,6 @@ pub fn uninstall(
     i::write_registry::write_registry(install, &mut crate::install::portable::Portable)?;
     i::unregister_lobby::unregister_lobby(install, &mut crate::install::portable::Portable);
     install.run.remove_items.set(1);
-    install.run.installing.set(0);
+    install.flags.installing.set(false);
     Ok(())
 }

@@ -9,7 +9,7 @@ pub fn open_installed(install: &'static crate::install::owner::Install) -> Resul
     if normalise(&install.names.source, &install.paths.installed)?
         && set_cd(&install.paths.installed)
     {
-        install.run.installing.set(1);
+        install.flags.installing.set(true);
     }
     Ok(())
 }

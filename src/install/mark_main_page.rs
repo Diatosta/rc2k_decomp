@@ -11,7 +11,7 @@ pub fn mark_main_page(install: &crate::install::owner::Install, list: ListMenu) 
     let marks = pages::main_page_marks(
         install.run.same_version.get() == 1,
         install.names.status.get() != 0,
-        install.run.offer_registration.get() == 1,
+        install.flags.offer_registration.get(),
         title,
     );
     for (offset, or, and) in marks {

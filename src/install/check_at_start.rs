@@ -34,7 +34,7 @@ pub fn check_at_start(
     no_audio: &Dword,
 ) -> Result<(), Refused> {
     let record = install.texts.record_path.text();
-    if install.run.installing.get() == 1 || outside.file_exists(&record)? {
+    if install.flags.installing.get() || outside.file_exists(&record)? {
         return Ok(());
     }
     no_audio.set(1);

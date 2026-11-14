@@ -125,7 +125,7 @@ pub fn install_files(
     match <i::folders::Native as i::folders::Folders>::room(&folder, o.system) {
         i::folders::Room::Unreadable => return bad_path(),
         i::folders::Room::Kb(free)
-            if free < install.run.room_needed.get() && install.run.ignore_room.get() != 1 =>
+            if free < install.run.room_needed.get() && !install.flags.ignore_room.get() =>
         {
             install.run.path_problem.set(2);
             list_state.list_answer.set(3);
@@ -233,8 +233,8 @@ pub fn install_files(
     i::write_registry::write_registry(install, &mut crate::install::portable::Portable)?;
     i::register_lobby::register_lobby(install, &mut crate::install::portable::Portable, o.strings)?;
     install.run.add_items.set(1);
-    install.run.installing.set(1);
-    if install.run.offer_registration.get() == 1 {
+    install.flags.installing.set(true);
+    if install.flags.offer_registration.get() {
         install.run.run_registration.set(1);
     }
     Ok(())

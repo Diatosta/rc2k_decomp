@@ -5,7 +5,7 @@ pub fn ignore_room(
     install: &crate::install::owner::Install,
     list_state: &crate::menu::list_state::ListState,
 ) {
-    install.run.ignore_room.set(1);
+    install.flags.ignore_room.set(true);
     list_state.list_answer.set(1);
     list_state.list_leave.set(1);
 }

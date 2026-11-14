@@ -3,6 +3,7 @@
 
 use crate::install::installer::InstallTexts;
 use crate::install::read_sku::Sku;
+use crate::install::run_flags::RunFlags;
 use crate::install::store::{DriveRows, InstallVars, LobbyKeys};
 use crate::install::vars::{
     InstallerNames, InstallerPages, InstallerPalette, InstallerPaths, InstallerRun,
@@ -16,6 +17,7 @@ pub struct Install {
     pub vars: InstallVars,
     pub drive_rows: DriveRows,
     pub run: InstallerRun,
+    pub flags: RunFlags,
     pub names: InstallerNames,
     pub pages: InstallerPages,
     pub paths: InstallerPaths,
@@ -31,6 +33,7 @@ pub static INSTALL: GameThread<Install> = GameThread::new(Install {
     vars: InstallVars::new(),
     drive_rows: DriveRows::new(),
     run: InstallerRun::new(),
+    flags: RunFlags::new(),
     names: InstallerNames::new(),
     pages: InstallerPages::new(),
     paths: InstallerPaths::new(),

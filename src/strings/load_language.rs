@@ -170,7 +170,7 @@ pub fn load_language(
     // The NEC keyboard's head (its layout mode) and layout.
     if o.system.machine().keyboard_type.get() == 2 {
         layouts().use_nec(strings);
-        install.run.first_drive.set(0x61u32);
+        install.flags.first_drive.set(b'a');
     }
 
     let kind = file.notice_kind;
@@ -186,7 +186,7 @@ pub fn load_language(
 
     correct_lexicon()?;
 
-    install.run.offer_registration.set(0u32);
+    install.flags.offer_registration.set(false);
     // The standalone offers no registration.
     Ok(())
 }

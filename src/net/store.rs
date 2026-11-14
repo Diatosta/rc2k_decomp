@@ -311,6 +311,10 @@ pub struct EditVars {
     pub clock_a: PlainDword,
     /// What this player types into the chat.
     pub chat_input: PlainBytes<64>,
+    /// The players' count as text while it is edited.
+    pub most_players_text: PlainBytes<64>,
+    /// The edited text as it was before the edit, put back by Escape.
+    pub text_before_edit: PlainBytes<64>,
 }
 
 impl EditVars {
@@ -325,6 +329,8 @@ impl EditVars {
             ),
             clock_a: PlainDword::new(0),
             chat_input: PlainBytes::new([0; 64]),
+            most_players_text: PlainBytes::new([0; 64]),
+            text_before_edit: PlainBytes::new([0; 64]),
         }
     }
 }

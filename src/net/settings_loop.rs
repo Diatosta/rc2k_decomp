@@ -5,7 +5,7 @@
 use crate::errors::Refused;
 use crate::net::lobby::{list_key, other_key, run_frame};
 pub fn settings_loop(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
-    let (install, net, system) = (o.install, o.net, o.system);
+    let (net, system) = (o.net, o.system);
     let list_state = &o.menus.list;
     net.lobby().mode.set(0);
     crate::net::show_background::show_background(o)?;
@@ -23,9 +23,7 @@ pub fn settings_loop(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
         let key = list_key(list_state, o.input)?;
         let mut moved = false;
         if net.edit().edited.get() != u32::MAX {
-            crate::net::setting_key::setting_key(
-                o.input, o.strings, install, list_state, net, key, o.gfx,
-            )?;
+            crate::net::setting_key::setting_key(o.input, o.strings, list_state, net, key, o.gfx)?;
         } else {
             match key {
                 0x66 => {
@@ -49,9 +47,7 @@ pub fn settings_loop(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
                         )?;
                         list_state.choice.set(0);
                     } else {
-                        crate::net::begin_setting_edit::begin_setting_edit(
-                            net, install, list_state,
-                        )?;
+                        crate::net::begin_setting_edit::begin_setting_edit(net, list_state)?;
                     }
                     moved = true;
                 }

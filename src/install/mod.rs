@@ -14,6 +14,7 @@ pub mod read_record;
 pub mod read_registry;
 pub mod read_sku;
 pub mod run_after_exit;
+pub mod run_flags;
 pub mod runs_from_source;
 
 // The installer (`install::run_installer` and its tree). Helpers:

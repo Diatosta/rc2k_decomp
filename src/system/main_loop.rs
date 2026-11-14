@@ -56,16 +56,16 @@ pub fn main_loop(o: Owners<'static>) -> Result<(), Refused> {
     crate::gfx::load_jade::load_jade_in_game(gfx, o.system)?;
     crate::menu::build_notice::build_notice(menus, o.strings);
     // The standalone in the download folder installs from it (`install::portable`); and with
-    // `-u` (`run.updating`) it uninstalls where it is: its record is in the installed folder, so
+    // `-u` (`flags.updating`) it uninstalls where it is: its record is in the installed folder, so
     // the uninstall runs from there.
     if install.pages.main_menu.items[1].text.get() == INSTALLER_MARK
         || crate::install::portable::is_source_folder()
-        || install.run.updating.get() == 1
+        || install.flags.updating.get()
     {
         crate::install::run_installer::run_installer(install, o)?;
         return quit_and_leave(o.system);
     }
-    if install.run.installing.get() != 1 {
+    if !install.flags.installing.get() {
         crate::install::runs_from_source::source_against_directory(
             install,
             &mut crate::install::outside::Game {
@@ -74,9 +74,7 @@ pub fn main_loop(o: Owners<'static>) -> Result<(), Refused> {
             },
         )?;
     }
-    install.run.installing.set(0);
-    install.run.updating.set(0);
-    install.run.from_command.set(0);
+    install.flags.clear_command();
     crate::sound::stop_cd_audio::stop_cd_audio(sound);
     // Its answer is not read.
     crate::files::is_cd_drive::is_cd_drive(base_drive());
