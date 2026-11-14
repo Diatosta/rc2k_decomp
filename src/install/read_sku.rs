@@ -1,7 +1,7 @@
 //! Reads the edition file `files\d\gfx\sku`: a settings text with the key `sku`. Its value may
 //! start with the marks `oem:` and `dvd:`, in any order and number, each setting a switch to 1;
 //! then a number, after the next `:` a second byte and after the next `.` within 254 characters
-//! a third byte. What is not there keeps its value. One caller, `system::load_game_data`.
+//! a third byte. What is not there keeps its value.
 
 use crate::errors::BadInput;
 use crate::session::{PlainByte, PlainBytes, PlainDword, with_runs};
@@ -9,31 +9,16 @@ use crate::settings::read_text::read_text;
 use crate::strings::same_text::case_table;
 use rc2k_core::install::config;
 
+/// The edition the file names, or `None` without the file or its key;
+/// `install::apply_config::apply_sku` applies it.
 pub fn read_sku(
-    install: &crate::install::owner::Install,
     system: &crate::system::owner::System,
     path: &[u8],
-) -> Result<(), BadInput> {
+) -> Result<Option<config::Sku>, BadInput> {
     let Some(text) = read_text(system, path)? else {
-        return Ok(());
+        return Ok(None);
     };
-    let Some(sku) = config::read_sku(&text, &case_table())? else {
-        return Ok(());
-    };
-    if sku.oem {
-        install.sku.oem.set(1u32);
-    }
-    if sku.dvd {
-        install.sku.dvd.set(1u32);
-    }
-    install.sku.number.set(sku.number);
-    if let Some(second) = sku.second {
-        install.sku.second.set(second);
-    }
-    if let Some(third) = sku.third {
-        install.sku.third.set(third);
-    }
-    Ok(())
+    Ok(config::read_sku(&text, &case_table())?)
 }
 
 /// The edition's markers (`install::read_sku`).

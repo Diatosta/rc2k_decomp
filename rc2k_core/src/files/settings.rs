@@ -257,6 +257,22 @@ pub struct DriverName {
     pub second: Option<u32>,
 }
 
+/// The names file's entries, one per driver (`None` for a driver without its key).
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct DriverNames {
+    pub entries: Vec<Option<DriverName>>,
+}
+
+/// The names file read from its text.
+pub fn read_driver_names(
+    text: &(impl Bytes + ?Sized),
+    case: &CaseTable,
+) -> Result<DriverNames, Invalid> {
+    Ok(DriverNames {
+        entries: driver_names(text, case)?,
+    })
+}
+
 /// The drivers' entries.
 pub const DRIVERS: usize = 180;
 /// The most of a name kept.

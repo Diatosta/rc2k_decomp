@@ -3,7 +3,7 @@
 use crate::errors::BadInput;
 use crate::files::drive_type::drive_type;
 use crate::install::normalise_path::{current_directory, normalised_bytes};
-use crate::install::read_record::read_record;
+use crate::install::read_record::load_record;
 use crate::logfile::write_line::log_text;
 
 pub trait Outside {
@@ -58,7 +58,7 @@ impl Outside for Game<'_> {
     }
 
     fn read_record(&mut self) -> Result<(), BadInput> {
-        read_record(self.system, &self.install.texts.record_path.text()[..])
+        load_record(self.system, &self.install.texts.record_path.text()[..])
     }
 
     fn log(&mut self, text: &[u8]) {

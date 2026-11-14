@@ -1,6 +1,7 @@
 //! What the game reads about its installation: the record `var\ral.zog`, the languages
 //! file `lang.cfg`, the edition file `files\d\gfx\sku`.
 
+pub mod apply_config;
 pub mod check_at_start;
 pub mod check_clio_disc;
 pub mod choose_language;

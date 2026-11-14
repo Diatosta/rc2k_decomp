@@ -31,7 +31,7 @@ pub fn run_installer(
         .set(crate::install::page_links::PageLink::typed(0).raw());
 
     crate::files::state::set_directory_byte(0, 0);
-    i::read_languages::read_languages(install, system, &install.names.lang_cfg.text()[..])?;
+    i::read_languages::load_languages(install, system, &install.names.lang_cfg.text()[..])?;
     crate::gfx::build_fonts::build_fonts_in(gfx, system, o.strings)?;
     i::open_installer::open_installer(install, o)?;
     // From the command line: the install, and on past the pages.
@@ -75,7 +75,7 @@ pub fn run_installer(
         if install.run.same_version.get() == 1 {
             install.pages.main_menu.header.highlight.set(1);
             set_cd(&install.paths.installed);
-            i::read_record::read_record(system, &install.texts.record_path.text()[..])?;
+            i::read_record::load_record(system, &install.texts.record_path.text()[..])?;
             crate::files::state::set_directory_byte(0, 0);
             set_cd(&install.paths.game_dir);
             load_language(o)?;

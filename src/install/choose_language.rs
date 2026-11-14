@@ -23,7 +23,6 @@ pub fn choose_language(
             .add((slot * LANGUAGE_SLOT) as u32)
             .read(LANGUAGE_SLOT, "a language's slot")?;
         let directory = config::language_directory(&slot)?;
-        crate::files::state::write_directory(1, directory, true, "the locale directory")?;
-        Ok(())
+        crate::install::apply_config::apply_locale(directory)
     }
 }

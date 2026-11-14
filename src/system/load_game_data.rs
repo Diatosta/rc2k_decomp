@@ -221,14 +221,20 @@ fn in_game(o: Owners<'static>, call: Call) -> Result<u32, Refused> {
         }
         Call::ReadSettings => crate::settings::read_settings::read_settings(o)?,
         Call::ReadSku => {
-            crate::install::read_sku::read_sku(o.install, o.system, &o.install.sku.path.text())?;
+            if let Some(sku) =
+                crate::install::read_sku::read_sku(o.system, &o.install.sku.path.text())?
+            {
+                crate::install::apply_config::apply_sku(o.install, &sku);
+            }
         }
-        Call::ReadDriverNames => crate::settings::read_driver_names::read_driver_names(
-            menus,
-            o.strings,
-            o.system,
-            crate::settings::read_driver_names::path(),
-        )?,
+        Call::ReadDriverNames => {
+            if let Some(names) = crate::settings::read_driver_names::read_driver_names(
+                o.system,
+                crate::settings::read_driver_names::path(),
+            )? {
+                crate::settings::read_driver_names::apply_driver_names(menus, o.strings, &names)?;
+            }
+        }
         Call::ApplyPatches => crate::physics::apply_patches::apply_patches(
             race.shared.physics_tables.get(),
             race.course.numbers.get(),

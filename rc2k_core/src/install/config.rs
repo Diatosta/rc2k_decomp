@@ -163,6 +163,22 @@ pub fn find_languages(
     Ok(found)
 }
 
+/// The languages the file names: each slot and its `name:directory` value, in key order.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct Languages {
+    pub found: Vec<(usize, Vec<u8>)>,
+}
+
+/// The languages the text names. Refused: a value of `SLOT` bytes or more.
+pub fn read_languages(
+    text: &(impl Bytes + ?Sized),
+    case: &CaseTable,
+) -> Result<Languages, Invalid> {
+    Ok(Languages {
+        found: find_languages(text, case)?,
+    })
+}
+
 /// The slots kept (`SLOTS` x `SLOT` bytes): those that start with a character above a
 /// space other than `:` and have a `:` (anywhere in the slot), the `:` made a NUL, moved
 /// together to the front in order. Their count.

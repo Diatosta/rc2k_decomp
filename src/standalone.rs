@@ -524,7 +524,7 @@ fn read_command_line_and_install_state(o: Owners<'static>, r: &Context) {
     rust("system::check_developer_machine");
     crate::system::check_developer_machine::check_developer_machine(o.strings);
     rust("install::read_languages");
-    if let Err(e) = crate::install::read_languages::read_languages(
+    if let Err(e) = crate::install::read_languages::load_languages(
         o.install,
         o.system,
         &o.install.names.lang_cfg.text(),
@@ -535,7 +535,7 @@ fn read_command_line_and_install_state(o: Owners<'static>, r: &Context) {
     }
     rust("install::read_record");
     if let Err(e) =
-        crate::install::read_record::read_record(o.system, &o.install.texts.record_path.text())
+        crate::install::read_record::load_record(o.system, &o.install.texts.record_path.text())
             .map_err(Refused::from)
     {
         refused("install::read_record", e, r);
