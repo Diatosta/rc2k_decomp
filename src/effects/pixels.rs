@@ -5,12 +5,12 @@
 use crate::effects::mask_store::Masks;
 use crate::effects::mask_vars::Shape;
 use crate::effects::spans::run_get;
-use crate::effects::turns::{scale_rows3, set_line_turn, turn_pair};
+use crate::effects::turns::{scale_rows3, set_line_turn, turn_pair, turn_pair_with};
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::scene::matrix3::{extended, rounded_value};
-use crate::session::{PlainBytes, PlainDword, read_bits, write_bits};
+use crate::session::{PlainBytes, PlainDword, PlainFloat, read_bits, write_bits};
 
 /// The pixel table `n` (0 or 1, the shape's: `MaskPicks.pixel_table_a`, `_b`).
 fn pixel_table(drops: &WindscreenDrops, n: u32) -> Result<&PlainBytes<0x2_0000>, BadInput> {
@@ -56,63 +56,100 @@ fn next_seed(s: u32) -> u32 {
     s.wrapping_mul(0x9D).wrapping_add(0x47)
 }
 
+/// What every pixel of a quad shares in one half of `map_pixel`: the line's turn (forward and
+/// back), the line's start, the other line's ends turned into the line's frame, and the span
+/// and slope between them.
+pub struct HalfPlan {
+    forward: [PlainFloat; 9],
+    back: [PlainFloat; 9],
+    start: [u32; 2],
+    /// The ends in the order a1, a0, b1, b0.
+    ends: [f32; 4],
+    /// The span between the ends, made positive.
+    span: f32,
+    rise: f32,
+    negative: bool,
+}
+
+/// A copy of the turn's nine floats.
+fn turn_copy(masks: &Masks) -> [PlainFloat; 9] {
+    std::array::from_fn(|n| PlainFloat::from_bits(masks.vars.turn[n].bits()))
+}
+
+/// The two halves' plans for the lines now in `MaskVars.lines`: the work `map_pixel` would
+/// repeat for every pixel of a quad. Leaves the turn as the last pixel's second half does.
+fn plan_halves(masks: &Masks, effects: &crate::effects::owner::Effects) -> [HalfPlan; 2] {
+    HALVES.each_ref().map(|half| {
+        let lines = &masks.vars.lines;
+        crate::scene::matrix3::identity_matrix3(&masks.vars.turn);
+        set_line_turn(masks, line(masks, half.line), false);
+        scale_rows3(&masks.vars.turn, effects);
+        let forward = turn_copy(masks);
+        let (lx, ly) = (lines[half.line].get(), lines[half.line + 1].get());
+        let turned = |x: [u8; 10], y: [u8; 10]| turn_pair(masks, [y, x]);
+        let a = turned(
+            x87::sub_80(lines[half.other].get(), lx),
+            x87::sub_80(lines[half.other + 1].get(), ly),
+        );
+        let b = turned(
+            x87::sub_80(lines[half.other + 3].get(), lx),
+            x87::sub_80(lines[half.other + 4].get(), ly),
+        );
+        // The ends in the order a1, a0, b1, b0.
+        let ends = [a[1], a[0], b[1], b[0]].map(rounded_value);
+        let mut span = x87::sub(ends[2], ends[0]);
+        let rise = x87::div(x87::sub(ends[3], ends[1]), span);
+        let negative = span.is_sign_negative();
+        if negative {
+            span = -span;
+        }
+        set_line_turn(masks, line(masks, half.line), true);
+        scale_rows3(&masks.vars.turn, effects);
+        HalfPlan {
+            forward,
+            back: turn_copy(masks),
+            start: [lx, ly],
+            ends,
+            span,
+            rise,
+            negative,
+        }
+    })
+}
+
 /// `effects::map_pixel`: pixel `x`, `MaskVars.pixel[1]` into the pixel table (here its number) at
-/// byte `row + 4 x`, two halves (bytes +2, +3, then +0, +1): the turn of the half's line (identity,
-/// then `set_line_turn`, `scale_rows3`); the other line's two ends and the pixel turned into its
-/// frame (`turn_pair`, 80-bit differences); the slope between the ends; the pixel's y worked out
-/// from its x by a shake of the seed (one draw of 0x3FFF, a second of 0xFFFF when the x is not
-/// below the span: `x87::random_step`); turned back (`set_line_turn` with `back`), rounded with
-/// the line's start added, the low bytes kept.
+/// byte `row + 4 x`, two halves (bytes +2, +3, then +0, +1): the pixel turned into the line's frame
+/// by the half's forward turn (`turn_pair`, 80-bit differences); the pixel's y worked out from its
+/// x by a shake of the seed (one draw of 0x3FFF, a second of 0xFFFF when the x is not below the
+/// span: `x87::random_step`); turned back by the half's back turn, rounded with the line's start
+/// added, the low bytes kept. `plans` are the quad's (`plan_halves`). The variables the work
+/// would leave (`MaskVars.turn`, `ends`, `slope`, `work_pixel`, the seed and status) are set as
+/// the last half leaves them.
 pub fn map_pixel(
     masks: &Masks,
     drops: &WindscreenDrops,
     row: u32,
     x: u32,
+    plans: &[HalfPlan; 2],
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
     let setup = &effects.setup;
     let table = pixel_table(drops, masks.vars.pixel_table.get())?;
-    let f = |o: usize| -> Result<_, Refused> { Ok(masks.vars.lines[o].get()) };
     masks.vars.pixel[0].set(x);
     let pixel: [u32; 2] = read_bits(&masks.vars.pixel);
     let shake = setup.work.shake.get();
-    for half in HALVES {
-        write_bits(&masks.vars.work_pixel, pixel);
-        crate::scene::matrix3::identity_matrix3(&masks.vars.turn);
-        set_line_turn(masks, line(masks, half.line), false);
-        scale_rows3(&masks.vars.turn, effects);
-        let (lx, ly) = (f(half.line)?, f(half.line + 1)?);
-        let turned = |x: [u8; 10], y: [u8; 10]| turn_pair(masks, [y, x]);
-        let a = turned(
-            x87::sub_80(f(half.other)?, lx),
-            x87::sub_80(f(half.other + 1)?, ly),
+    let mut out = [0i32; 2];
+    for (half, plan) in HALVES.iter().zip(plans) {
+        let [lx, ly] = plan.start;
+        let p = turn_pair_with(
+            &plan.forward,
+            [
+                x87::int_sub_80(pixel[1] as i32, ly),
+                x87::int_sub_80(pixel[0] as i32, lx),
+            ],
         );
-        let b = turned(
-            x87::sub_80(f(half.other + 3)?, lx),
-            x87::sub_80(f(half.other + 4)?, ly),
-        );
-        let p = turned(
-            x87::int_sub_80(pixel[0] as i32, lx),
-            x87::int_sub_80(pixel[1] as i32, ly),
-        );
-        // The ends in the order a1, a0, b1, b0.
-        let ends = [a[1], a[0], b[1], b[0]].map(rounded_value);
-        masks.vars.ends[0].set(ends[0]);
-        masks.vars.ends[1].set(ends[1]);
-        masks.vars.ends[3].set(ends[2]);
-        masks.vars.ends[4].set(ends[3]);
-        let (px, py) = (rounded_value(p[1]), rounded_value(p[0]));
-        write_bits(&masks.vars.work_pixel, [px.to_bits(), py.to_bits()]);
-        let mut span = x87::sub(ends[2], ends[0]);
-        let rise = x87::div(x87::sub(ends[3], ends[1]), span);
-        masks.vars.slope[0].set(span);
-        masks.vars.slope[1].set(rise);
-        let negative = span.is_sign_negative();
-        if negative {
-            span = -span;
-            masks.vars.slope[0].set(span);
-        }
-        let status = x87::sub_compare(px, ends[0], negative, span);
+        let px = rounded_value(p[1]);
+        let status = x87::sub_compare(px, plan.ends[0], plan.negative, plan.span);
         setup.work.fpu_status.set(status as u32);
         let mut seed = next_seed(setup.work.seed.get());
         let (mut r, mut c) = (
@@ -128,16 +165,26 @@ pub fn map_pixel(
         }
         setup.work.seed.set(seed);
         let k = setup.mask_constants.pixel_constants[half.constants + 2].get();
-        let y = x87::random_step(r as i32, [shake, c, px, ends[0], rise, ends[1], k]);
-        masks.vars.work_pixel[1].set(y.to_bits());
-        set_line_turn(masks, line(masks, half.line), true);
-        scale_rows3(&masks.vars.turn, effects);
-        let q = turn_pair(masks, [extended(y), extended(px)]);
+        let y = x87::random_step(
+            r as i32,
+            [shake, c, px, plan.ends[0], plan.rise, plan.ends[1], k],
+        );
+        let q = turn_pair_with(&plan.back, [extended(y), extended(px)]);
         let (qx, qy) = (rounded_value(q[1]), rounded_value(q[0]));
-        let out = [x87::add_to_int(qx, lx), x87::add_to_int(qy, ly)];
-        write_bits(&masks.vars.work_pixel, out.map(|v| v as u32));
+        out = [x87::add_to_int(qx, lx), x87::add_to_int(qy, ly)];
         let at = row.wrapping_add(x.wrapping_mul(4)).wrapping_add(half.bytes);
         table.write_at(at as usize, &[out[0] as u8, out[1] as u8], "a mask pixel")?;
+    }
+    write_bits(&masks.vars.work_pixel, out.map(|v| v as u32));
+    if let Some(last) = plans.last() {
+        for (cell, from) in masks.vars.turn.iter().zip(&last.back) {
+            cell.set_bits(from.bits());
+        }
+        for (n, end) in last.ends.iter().enumerate() {
+            masks.vars.ends[[0, 1, 3, 4][n]].set(*end);
+        }
+        masks.vars.slope[0].set(last.span);
+        masks.vars.slope[1].set(last.rise);
     }
     Ok(())
 }
@@ -177,6 +224,7 @@ pub fn map_shape_rows(
     drops: &WindscreenDrops,
     entries: u32,
     index: u32,
+    plans: &mut Option<[HalfPlan; 2]>,
     effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
     {
@@ -201,7 +249,8 @@ pub fn map_shape_rows(
                 &masks.vars.middle[1],
             ));
             for n in 0..(len as i32).max(0) as u32 {
-                map_pixel(masks, drops, at, x.wrapping_add(n), effects)?;
+                let plans = plans.get_or_insert_with(|| plan_halves(masks, effects));
+                map_pixel(masks, drops, at, x.wrapping_add(n), plans, effects)?;
             }
             masks.vars.pixel[1].set(y.wrapping_add(1));
             at = at.wrapping_add(0x400);
@@ -225,8 +274,17 @@ pub fn map_shape(
         rows_fit(masks, entries, first)?;
         rows_fit(masks, entries, first.wrapping_add(1))?;
         masks.vars.mask_value.set(shape);
-        map_shape_rows(masks, drops, entries, first, effects)?;
-        map_shape_rows(masks, drops, entries, first.wrapping_add(1), effects)?;
+        // The quad's plans are made at its first pixel, for both its entries.
+        let mut plans = None;
+        map_shape_rows(masks, drops, entries, first, &mut plans, effects)?;
+        map_shape_rows(
+            masks,
+            drops,
+            entries,
+            first.wrapping_add(1),
+            &mut plans,
+            effects,
+        )?;
     }
     Ok(())
 }

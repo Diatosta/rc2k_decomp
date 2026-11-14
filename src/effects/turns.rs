@@ -71,6 +71,11 @@ pub fn turn_pair(masks: &Masks, inputs: [[u8; 10]; 2]) -> [[u8; 10]; 2] {
     turn_pair_x87(&inputs, &masks.vars.turn)
 }
 
+/// `turn_pair` with a copy of the turn's nine floats.
+pub fn turn_pair_with(turn: &[PlainFloat; 9], inputs: [[u8; 10]; 2]) -> [[u8; 10]; 2] {
+    turn_pair_x87(&inputs, turn)
+}
+
 /// The whole-number scalings of the first and second values.
 fn scaled_ints(inputs: &[[u8; 10]; 2], k0: &PlainFloat, k1: &PlainFloat) -> (i32, i32) {
     scaled_ints_x87(inputs, k0, k1)
