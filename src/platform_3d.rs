@@ -266,7 +266,7 @@ fn draw_noted(part: &crate::workers::PartScratch, pending: &mut Pending) {
     crate::render::dump::hash_if_asked(&commands, crate::workers::in_race(part));
     let (width, height, _) = screen_figures(part);
     let screen = (width as usize, height as usize);
-    crate::render::draw(crate::workers::in_race(part), screen, &target, commands);
+    crate::render::draw(screen, &target, commands);
 }
 
 /// A drawing part's drawing noted since the last flush (`workers::PartScratch`): the

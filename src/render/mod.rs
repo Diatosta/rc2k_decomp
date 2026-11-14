@@ -270,14 +270,19 @@ pub trait Backend: Send {
     fn draw(&mut self, target: &Target, commands: CommandList);
 }
 
-/// Whether the GPU holds the frame: a race's on the GPU backend (the menus stay the rasteriser's:
-/// they draw little 3D, and read the screen's memory).
+/// Whether the GPU holds the frame: the 3D of a race or of a menu on the GPU backend.
 static GPU_HOLDS_FRAME: AtomicBool = AtomicBool::new(false);
 
+/// Whether the GPU drew 3D since the last frame's end. A menu frame with none (a fade, a list
+/// of texts) goes back to the rasteriser's picture at its end, for 2D code that reads the
+/// screen's memory back.
+static GPU_DREW_THIS_FRAME: AtomicBool = AtomicBool::new(false);
+
 /// Draws the commands on the backend that holds the frame; `screen` is the screen's size (the
-/// rasteriser's depth buffer is kept at it).
-pub fn draw(in_race: bool, screen: (usize, usize), target: &Target, commands: CommandList) {
-    if target.bits == 32 && in_race {
+/// rasteriser's depth buffer is kept at it). A menu's 3D goes to the GPU as a race's does: its
+/// 2D before and after the 3D is the canvas's written pixels, put over the target at each flush.
+pub fn draw(screen: (usize, usize), target: &Target, commands: CommandList) {
+    if target.bits == 32 {
         let mut gpu = gpu::GPU.lock().unwrap();
         if let Some(gpu) = gpu.as_mut() {
             // On the first one, the picture so far goes over as written pixels: the canvas is
@@ -286,6 +291,7 @@ pub fn draw(in_race: bool, screen: (usize, usize), target: &Target, commands: Co
                 // The rasteriser's picture, written in place, unnoted.
                 target.note_all_rows_written();
             }
+            GPU_DREW_THIS_FRAME.store(true, Relaxed);
             Backend::draw(gpu, target, commands);
             return;
         }
@@ -314,6 +320,13 @@ pub fn bring_back(target: &Target) {
     }
 }
 
+/// Whether the frame ending now stays on the GPU: a race's always, a menu's when it drew 3D.
+/// Starts the next frame's count.
+fn frame_stays_on_gpu(course: &Course) -> bool {
+    let drew = GPU_DREW_THIS_FRAME.swap(false, Relaxed);
+    drew || course.numbers.get().in_race.is_set()
+}
+
 /// The frame back for good: the rasteriser draws from here.
 fn give_frame_back(target: &Target) {
     bring_back(target);
@@ -330,7 +343,7 @@ pub fn finish_frame(
     if !GPU_HOLDS_FRAME.load(Relaxed) {
         return None;
     }
-    if !course.numbers.get().in_race.is_set() {
+    if !frame_stays_on_gpu(course) {
         give_frame_back(target);
         return None;
     }
@@ -357,7 +370,7 @@ pub fn show_on_panel(
     height: usize,
 ) -> bool {
     gpu::start_if_wanted();
-    if GPU_HOLDS_FRAME.load(Relaxed) && !course.numbers.get().in_race.is_set() {
+    if GPU_HOLDS_FRAME.load(Relaxed) && !frame_stays_on_gpu(course) {
         give_frame_back(target);
     }
     let mut gpu = gpu::GPU.lock().unwrap();
