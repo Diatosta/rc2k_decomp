@@ -17,11 +17,11 @@ fn set_up_first(entry: &Entry) -> Result<(), Refused> {
     entry.set_view(7, 10, 0x100);
     prepare_scene(entry);
     screens.flow.turning.set(0x1u32);
-    screens.state.carousel.menu.set(0x5u32);
+    screens.carousel.menu.set(0x5u32);
     carousel(entry, None)?;
     let item = screens.items.current[slot::ARCADE_SELECT_LEVEL].get();
     screens.loop_flags.item.set(item);
-    screens.state.carousel.front.set(item.wrapping_sub(1));
+    screens.carousel.front.set(item.wrapping_sub(1));
     Ok(())
 }
 

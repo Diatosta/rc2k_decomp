@@ -1167,6 +1167,10 @@ fn listed_stores() -> Vec<Listed> {
             on_game(&crate::menu::owner::MENU_OWNER.get().screens.state),
         ),
         listed!(
+            "menu.owner.MENU_OWNER.screens.carousel",
+            on_game(&crate::menu::owner::MENU_OWNER.get().screens.carousel),
+        ),
+        listed!(
             "race.owner.RACE.shared.state",
             &crate::race::owner::RACE.shared.state,
         ),

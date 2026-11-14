@@ -93,7 +93,7 @@ pub struct Figures {
     pub penalties: [Option<u32>; PARTS],
     /// The inspected parts' high ends added.
     pub total: u32,
-    /// `MenuState.driver_stats.setups[2].chosen`, `ACAC`, `ACB4`, `ACB8`: the player's +0x114
+    /// `Service::setups[2].chosen`, `ACAC`, `ACB4`, `ACB8`: the player's +0x114
     /// twice, +0x118 twice.
     pub kept: [u32; 4],
     /// The last step's figure.

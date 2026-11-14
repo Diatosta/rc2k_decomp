@@ -18,7 +18,7 @@ pub fn find_player_car(menus: &Menus) -> Result<(), Refused> {
         .ok_or(BadInput("a current player past the four"))?
         .get()
         .car_number;
-    let Some(list) = menus.screens.state.carousel.list()? else {
+    let Some(list) = menus.screens.carousel.list()? else {
         return Err(BadInput("no carousel entries").into());
     };
     let entry = |n: u32| lists().car_entry(list, n);
@@ -43,7 +43,7 @@ pub fn find_player_car(menus: &Menus) -> Result<(), Refused> {
         }
     }
     let found = rc2k_core::menu::cars::find_car(&cars, car);
-    menus.screens.state.carousel.front.set(found);
+    menus.screens.carousel.front.set(found);
     menus.screens.event.shown_car.set(found);
 
     Ok(())
@@ -62,19 +62,19 @@ fn turn(menus: &Menus, on: bool) {
     let c = turn_carousel(
         Carousel {
             turn: Turn {
-                count: menus.screens.state.carousel.count.get() as i32,
-                value: menus.screens.state.carousel.front.get() as i32,
-                way: menus.screens.state.carousel.direction.get(),
-                step: menus.screens.state.carousel.angle.get(),
+                count: menus.screens.carousel.count.get() as i32,
+                value: menus.screens.carousel.front.get() as i32,
+                way: menus.screens.carousel.direction.get(),
+                step: menus.screens.carousel.angle.get(),
             },
             shown: menus.screens.event.shown_car.get(),
             last: menus.cars.table.last_car.get(),
         },
         on,
     );
-    menus.screens.state.carousel.front.set(c.turn.value as u32);
-    menus.screens.state.carousel.direction.set(c.turn.way);
-    menus.screens.state.carousel.angle.set(c.turn.step);
+    menus.screens.carousel.front.set(c.turn.value as u32);
+    menus.screens.carousel.direction.set(c.turn.way);
+    menus.screens.carousel.angle.set(c.turn.step);
     menus.screens.event.shown_car.set(c.shown);
     menus.screens.loop_flags.leave_screen.set(false);
 }

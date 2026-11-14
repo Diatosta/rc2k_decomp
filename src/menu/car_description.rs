@@ -15,10 +15,10 @@ const _: () = assert!(std::mem::size_of::<CarDescription>() == 0x78);
 /// The carousels' entries: a table of 0x100 description handles (`cars_store::car_ref`).
 const ENTRIES: u32 = 0x100;
 
-/// The description of the entry shown (`Event.shown_car` through `MenuState.carousel.entries`), by
+/// The description of the entry shown (`Event.shown_car` through `Carousel::entries`), by
 /// handle.
 pub fn shown_description(menus: &Menus) -> Result<u32, Refused> {
-    let table = menus.screens.state.carousel.list()?;
+    let table = menus.screens.carousel.list()?;
     let entry: u32 = menus.screens.event.shown_car.get();
     let (Some(table), true) = (table, entry < ENTRIES) else {
         return Err(BadInput("no carousel records, or an entry past them").into());

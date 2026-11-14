@@ -37,7 +37,7 @@ use rc2k_core::scene::carousel;
 #[derive(Clone, Copy)]
 pub enum Field {
     SetUp,
-    /// `carousel_textures[k]`.
+    /// `Carousel::textures[k]`.
     Texture(usize),
     /// `carousel.kinds[k]`.
     Kind(usize),
@@ -53,10 +53,10 @@ pub enum Field {
 
 impl Field {
     pub fn cell(self, menus: &Menus) -> &dyn DwordLike {
-        let carousel = &menus.screens.state.carousel;
+        let carousel = &menus.screens.carousel;
         match self {
             Field::SetUp => &carousel.set_up,
-            Field::Texture(k) => &lists().carousel_textures[k],
+            Field::Texture(k) => &menus.screens.carousel.textures[k],
             Field::Kind(k) => &carousel.kinds[k],
             Field::Count => &carousel.count,
             Field::Front => &carousel.front,
@@ -159,8 +159,8 @@ fn check_cars(menus: &Menus, list: CarList, from_second: bool) -> Result<(), Ref
 /// The cars' carousels, from the list; `size` the object's size.
 fn cars(menus: &Menus, list: CarList, size: u32) -> Result<(), BadInput> {
     {
-        menus.screens.state.carousel.set_up.set(1);
-        menus.screens.state.carousel.set_list(list);
+        menus.screens.carousel.set_up.set(1);
+        menus.screens.carousel.set_list(list);
         let mut n = 0;
         loop {
             let car = list_entry(list, n)?;
@@ -177,10 +177,10 @@ fn cars(menus: &Menus, list: CarList, size: u32) -> Result<(), BadInput> {
                 .get(first as usize)
                 .ok_or(BadInput("a car past the 35 car kinds"))?
                 .get();
-            menus.screens.state.carousel.kinds[n].set(kind);
+            menus.screens.carousel.kinds[n].set(kind);
             n += 1;
         }
-        menus.screens.state.carousel.count.set(n as u32);
+        menus.screens.carousel.count.set(n as u32);
         let last = (n as u32).wrapping_sub(1);
         menus.cars.table.last_car.set(last);
         crate::race::view_scratch::front_end().object.size.set(size);
@@ -196,7 +196,7 @@ fn cars(menus: &Menus, list: CarList, size: u32) -> Result<(), BadInput> {
 pub fn set_up_carousel(menus: &Menus, list: Option<CarList>) -> Result<(), Refused> {
     let given = || list.ok_or(BadInput("no list of cars"));
     {
-        let menu: u32 = menus.screens.state.carousel.menu.get();
+        let menu: u32 = menus.screens.carousel.menu.get();
         if menu >= MENUS {
             return Ok(());
         }
@@ -206,14 +206,14 @@ pub fn set_up_carousel(menus: &Menus, list: Option<CarList>) -> Result<(), Refus
                 cars(menus, CarList::First, 0xF)?;
             }
             0xC => {
-                menus.screens.state.carousel.set_up.set(1);
-                menus.screens.state.carousel.set_list(CarList::A8);
+                menus.screens.carousel.set_up.set(1);
+                menus.screens.carousel.set_list(CarList::A8);
                 crate::race::view_scratch::front_end()
                     .object
                     .size
                     .set(0xCu32);
-                write_prefix(&menus.screens.state.carousel.kinds, &FIXED_KINDS);
-                menus.screens.state.carousel.count.set(6u32);
+                write_prefix(&menus.screens.carousel.kinds, &FIXED_KINDS);
+                menus.screens.carousel.count.set(6u32);
                 menus.cars.table.last_car.set(5u32);
                 for op in CARS_TAIL {
                     run_op(menus, op);
@@ -227,7 +227,7 @@ pub fn set_up_carousel(menus: &Menus, list: Option<CarList>) -> Result<(), Refus
             0xE => {
                 let list = given()?;
                 check_cars(menus, list, true)?;
-                menus.screens.state.carousel.set_up.set(1);
+                menus.screens.carousel.set_up.set(1);
                 let count = reading(list, |read| carousel::list_end(read, 1).unwrap_or(0))?;
                 if count == 1 {
                     let first = list_entry(list, 0)?;
@@ -241,7 +241,7 @@ pub fn set_up_carousel(menus: &Menus, list: Option<CarList>) -> Result<(), Refus
                     match *op {
                         Op::Set(field, value) => field.cell(menus).set(value),
                         Op::Run(cell, value) => cell().set(value),
-                        Op::Fill => write_all(&lists().carousel_textures, [u32::MAX; 8]),
+                        Op::Fill => write_all(&menus.screens.carousel.textures, [u32::MAX; 8]),
                     }
                 }
             }

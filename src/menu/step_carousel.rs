@@ -20,21 +20,21 @@ pub fn step_carousel(screens: &Screens, race: &Race) -> Result<(), BadInput> {
     // anything is written.
     use rc2k_core::menu::navigation::{Turn, passed, spin};
     let clock: u32 = race.shared.physics_tables.get().scene_clock.get();
-    let passed = passed(clock, screens.state.carousel.last_clock.get());
+    let passed = passed(clock, screens.carousel.last_clock.get());
     let t = Turn {
-        count: screens.state.carousel.count.get() as i32,
-        value: screens.state.carousel.front.get() as i32,
-        way: screens.state.carousel.direction.get(),
-        step: screens.state.carousel.angle.get(),
+        count: screens.carousel.count.get() as i32,
+        value: screens.carousel.front.get() as i32,
+        way: screens.carousel.direction.get(),
+        step: screens.carousel.angle.get(),
     };
     let turned = spin(t, passed)?;
-    screens.state.carousel.last_clock.set(clock);
-    screens.state.carousel.passed.set(passed);
+    screens.carousel.last_clock.set(clock);
+    screens.carousel.passed.set(passed);
     if t.way != 0 {
-        screens.state.carousel.angle.set(turned.step);
-        screens.state.carousel.direction.set(turned.way);
+        screens.carousel.angle.set(turned.step);
+        screens.carousel.direction.set(turned.way);
         if turned.value != t.value {
-            screens.state.carousel.front.set(turned.value as u32);
+            screens.carousel.front.set(turned.value as u32);
         }
     }
     Ok(())

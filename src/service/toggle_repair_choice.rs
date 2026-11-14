@@ -1,7 +1,7 @@
 //! The item action of the service area's repair items: the status and edit mode 0, the
 //! highlighted item's flag flipped, the chosen repairs' time added up into the repairs' total,
 //! and by `budget - total` (signed):
-//!   at least 900:  every mark (`inspection_flags_b`, from entry 0 to the end mark) 0;
+//!   at least 900:  every mark (`Service::repair_marks`, from entry 0 to the end mark) 0;
 //!   0 .. 899:      the item's mark 1;
 //!   below 0:       the flag flipped back and the status 1.
 //! Then the total is added up and stored again.
@@ -11,6 +11,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::owner::Menus;
+use crate::service::owner::service;
 use crate::service::state::flagged_item;
 use crate::service::state::{flags, marks, store_flags, store_marks, time_of};
 
@@ -21,7 +22,7 @@ pub fn toggle_repair_choice(menus: &Menus) -> Result<(), Refused> {
     let budget = screens.event.service_minutes.get() as i32;
     let (total, status) =
         rc2k_core::service::repairs::toggle_choice(&mut f, &mut m, item as usize, budget, |item| {
-            time_of(menus, item)
+            time_of(item)
         })
         .map_err(|e| BadInput(e.0))?;
     store_flags(&f);
@@ -29,7 +30,7 @@ pub fn toggle_repair_choice(menus: &Menus) -> Result<(), Refused> {
     {
         screens.state.service_ui.status.set(status);
         screens.state.service_ui.box_shown.set(false);
-        screens.state.driver_stats.repair_time.set(total as u32);
+        service().repair_time.set(total as u32);
     }
     Ok(())
 }

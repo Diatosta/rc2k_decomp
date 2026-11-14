@@ -7,7 +7,8 @@
 //! `scene::draw_carousel_entry`. One caller, `scene::draw_main_menu_carousel`.
 
 use crate::errors::Refused;
-use crate::menu::owner::{Menus, Screens};
+use crate::menu::carousel_store::Carousel;
+use crate::menu::owner::Menus;
 use crate::scene::draw_carousel_entry::draw_carousel_entry;
 use crate::scene::draw_menu_object::draw_menu_object_in_game;
 
@@ -17,18 +18,14 @@ use crate::scene::draw_menu_object::draw_menu_object_in_game;
 /// place. `lone_row`: the row place a lone entry is drawn at.
 // Logic: `rc2k_core::scene::carousel::drawn`
 pub fn draw_carousel(
-    screens: &Screens,
+    carousel: &Carousel,
     lone_row: u32,
     entry: &mut dyn FnMut(u32, u32) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
     use rc2k_core::scene::carousel::{Drawn, drawn};
     {
-        let count: u32 = screens.state.carousel.count.get();
-        match drawn(
-            count,
-            || screens.state.carousel.front.get(),
-            || screens.state.carousel.angle.get() != 0,
-        ) {
+        let count: u32 = carousel.count.get();
+        match drawn(count, || carousel.front.get(), || carousel.angle.get() != 0) {
             Drawn::Nothing => Ok(()),
             Drawn::Lone => entry(0, lone_row),
             Drawn::Row(entries) => {
@@ -48,7 +45,7 @@ pub fn draw_carousel_in_game(
     lone_row: u32,
 ) -> Result<(), Refused> {
     let race = ctx.race;
-    draw_carousel(&menus.screens, lone_row, &mut |e, place| {
+    draw_carousel(&menus.screens.carousel, lone_row, &mut |e, place| {
         draw_carousel_entry(
             &race.shared,
             ctx.view,

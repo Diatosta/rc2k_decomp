@@ -5,7 +5,7 @@ use crate::scene::set_up_carousel::Field;
 use crate::scene::set_up_carousel::Op::{self, Fill, Run, Set};
 
 /// The stores of one menu, in the order the game makes them: `set_up`, the fill, the
-/// textures (`textures[k]` to `carousel_textures[k]`), the front-end object's size, the
+/// textures (`textures[k]` to `Carousel::textures[k]`), the front-end object's size, the
 /// kinds (`kinds[k]` to `carousel.kinds[k]`), the count, the front, angle and direction (0
 /// in all 17), the spacing, y, z and the forward step. `N` is the number of stores.
 const fn menu_ops<const N: usize>(

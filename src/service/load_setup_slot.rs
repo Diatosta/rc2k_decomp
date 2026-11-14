@@ -68,15 +68,15 @@ pub fn load_setup_slot(
     let in_car = |field: rc2k_core::menu::player::SetupField, v: u32| {
         player.update(|q| *field.of(q) = v);
     };
-    TYRE.change.chosen(menus).set(v.tyre);
+    TYRE.change.chosen().set(v.tyre);
     in_car(BRAKE_BALANCE.in_car, v.brake_balance);
-    RIDE_HEIGHT.change.chosen(menus).set(v.ride_height);
+    RIDE_HEIGHT.change.chosen().set(v.ride_height);
     SUSPENSION_STIFFNESS
         .change
-        .chosen(menus)
+        .chosen()
         .set(v.suspension_stiffness);
     in_car(STEERING_SENSITIVITY.in_car, v.steering_sensitivity);
-    GEAR_RATIO.change.chosen(menus).set(v.gear_ratio);
+    GEAR_RATIO.change.chosen().set(v.gear_ratio);
 
     // Both tables are cleared again; with the end marks in place the flags' second clear
     // changes nothing.
@@ -91,7 +91,7 @@ pub fn load_setup_slot(
             EditPage::RideHeight => (RIDE_HEIGHT, edit_ride_height),
             _ => (SUSPENSION_STIFFNESS, edit_suspension_stiffness),
         };
-        if change.change.chosen(menus).get() != change.change.installed(menus).get() {
+        if change.change.chosen().get() != change.change.installed().get() {
             screens.loop_flags.item.set(change.item);
             edit(menus, system, input, true)?;
         }

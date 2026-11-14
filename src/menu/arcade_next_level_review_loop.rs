@@ -16,11 +16,11 @@ fn set_up_first(entry: &Entry) -> Result<(), Refused> {
     entry.set_view(-156, 39, 0x140);
     prepare_scene(entry);
     screens.flow.turning.set(0x1u32);
-    screens.state.carousel.menu.set(0x10u32);
+    screens.carousel.menu.set(0x10u32);
     carousel(entry, None)?;
     let item = screens.items.current[slot::ARCADE_NEXT_LEVEL_REVIEW].get();
     screens.loop_flags.item.set(item);
-    screens.state.carousel.front.set(item.wrapping_sub(1));
+    screens.carousel.front.set(item.wrapping_sub(1));
     screens.flow.turning.set(0x0u32);
     Ok(())
 }

@@ -5,7 +5,9 @@
 use crate::menu::arcade_store::Arcade;
 use crate::menu::build_notice::BuildNotice;
 use crate::menu::captions_store::CaptionTables;
+use crate::menu::car_lists_store::CarLists;
 use crate::menu::car_numbers_store::CarNumbers;
+use crate::menu::carousel_store::Carousel;
 use crate::menu::cars_store::CarTable;
 use crate::menu::champ_store::ChampView;
 use crate::menu::cheats_store::Cheats;
@@ -33,6 +35,7 @@ pub struct Cars {
     pub table: CarTable,
     pub numbers: CarNumbers,
     pub drivers: DriverTable,
+    pub lists: CarLists,
 }
 
 impl Cars {
@@ -41,6 +44,7 @@ impl Cars {
             table: CarTable::new(),
             numbers: CarNumbers::new(),
             drivers: DriverTable::new(),
+            lists: CarLists::new(),
         }
     }
 }
@@ -66,6 +70,8 @@ pub struct Screens {
     pub flow: ScreenFlow,
     pub loop_flags: LoopFlags,
     pub state: MenuState,
+    /// The menu carousel, shared with the scene that draws it.
+    pub carousel: Carousel,
     pub items: ScreenItems,
     pub event: Event,
     pub entry: EntryState,
@@ -78,6 +84,7 @@ impl Screens {
             flow: ScreenFlow::new(),
             loop_flags: LoopFlags::new(),
             state: MenuState::new(),
+            carousel: Carousel::new(),
             items: ScreenItems::new(),
             event: Event::new(),
             entry: EntryState::new(),

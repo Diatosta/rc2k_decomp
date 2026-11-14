@@ -1,18 +1,18 @@
-//! The menus' lists and tables, out of RAL.EXE's image: the last draw list, the carousel kinds' own
-//! places, the paths and sounds the menus name, the car lists the menus walk, the best scores'
-//! titles. `#[repr(C)]` struct of atomic cells, one static; the lists run on past their fields into
-//! the next (and over the gaps), read by byte offset. Its last field is a 22-byte string: the
-//! struct is padded to a multiple of 4.
+//! The menus' lists and tables: the last draw list, the carousel kinds' own places, the paths and
+//! sounds the menus name, the best scores' titles. `#[repr(C)]` struct of atomic cells, one
+//! static; a list read past its end goes on into the next field (and over the gaps), also into
+//! the lists that live elsewhere (`runs_from_map_overlays`). Its last field is a 22-byte string:
+//! the struct is padded to a multiple of 4.
 
 use crate::audio::names_store::NameList;
 use crate::menu::cars_store::car_cell;
-use crate::menu::owner::Menus;
 use crate::menu::texts_store::{MenuText, SpeechRow};
 use crate::session::{GameThread, PlainBytes, PlainDword};
 pub use rc2k_core::menu::car_lists::CarList;
 
-/// The menus' lists and tables: constants, except the car lists, the inspection's flags and the
-/// carousel's textures, which the menus and the saves write.
+/// The menus' lists and tables: constants, except the inspection's fault flags, which the menus
+/// write. The car lists, the repair flags and the carousel's textures are held by their writers
+/// (`CarLists`, `Service`, `Carousel`).
 pub static MENU_LISTS: GameThread<MenuLists> = GameThread::new(MenuLists::new());
 
 /// The menus' lists and tables, for the game's thread.
@@ -87,31 +87,8 @@ pub struct MenuLists {
     pub car_page_titles: [PlainDword; 5],
     /// The slideshow pictures' path templates (`menu::load_slideshow_picture`).
     pub slideshow_templates: [PlainDword; 24],
-    /// The service boxes' flags, the first set, by item value.
-    pub inspection_flags_a: [PlainDword; 21],
-    /// The service boxes' flags, the second set, by item value.
-    pub inspection_flags_b: [PlainDword; 21],
-    /// Pointers to each repair item's time, by item (`service::state`).
-    pub repair_time_ptrs: [PlainDword; 24],
     /// The inspection's fault flags, 13 items.
     pub inspection_faults: [PlainDword; 14],
-    /// The championship's car list (`menu::event_flow`).
-    pub cars_championship: [PlainDword; 26],
-    /// The A8 rally championship's car list (45 entries ended by -1; `menu::remove_secret_cars`
-    /// edits it with the first list).
-    pub a8_championship_cars: [PlainDword; 45],
-    /// The car list without the Clio, the first.
-    pub cars_first: [PlainDword; 34],
-    /// The car list with the Clio and the extra cars.
-    pub cars_with_clio: [PlainDword; 62],
-    /// The cars won.
-    pub secret_cars: [PlainDword; 12],
-    /// The scratch list `menu::remove_secret_cars` builds.
-    pub cars_scratch: [PlainDword; 50],
-    /// The second car list (arcade events).
-    pub cars_second: [PlainDword; 59],
-    /// The list of the cars shown (`menu::arcade_steps`).
-    pub shown_cars: [PlainDword; 48],
     pub _gap_75a1ee: PlainBytes<16>,
     /// A kind by car number (`scene::set_up_carousel`).
     pub car_kinds: [PlainDword; 35],
@@ -138,8 +115,6 @@ pub struct MenuLists {
     /// The service pictures' paths (`service::load_background`).
     pub service_pictures: [PlainDword; 60],
     pub _gap_75a61e: PlainBytes<4>,
-    /// The eight texture numbers of the carousel's menu (-1 none).
-    pub carousel_textures: [PlainDword; 8],
     /// The path "files\g\frnt\back.pcx" (and two bytes to the record's size, which every
     /// byte of a record of cells is part of).
     pub front_back_path: PlainBytes<24>,
@@ -160,33 +135,6 @@ const fn speech_ref(row: SpeechRow) -> PlainDword {
 const fn name_ref(n: usize) -> PlainDword {
     assert!(n < 6);
     PlainDword::new(NameList::MenuSpeech.first_key() + 0xB4 + 33 * n as u32)
-}
-
-/// The handle of repair time `n` among `MENU_STATE`'s repair times: its number + 1 (0 means
-/// none, -1 ends the list).
-const fn repair_time(n: u32) -> PlainDword {
-    assert!(n < 16);
-    PlainDword::new(n + 1)
-}
-
-/// An item's repair time cell (`repair_time_ptrs`; None: none).
-pub fn repair_time_at(
-    menus: &Menus,
-    key: u32,
-) -> Result<Option<&PlainDword>, crate::errors::BadInput> {
-    match key {
-        0 => Ok(None),
-        _ => menus
-            .screens
-            .state
-            .driver_stats
-            .repair_times
-            .get(key.wrapping_sub(1) as usize)
-            .map(Some)
-            .ok_or(crate::errors::BadInput(
-                "a repair time's handle off the times",
-            )),
-    }
 }
 
 impl MenuLists {
@@ -292,10 +240,18 @@ impl MenuLists {
     }
 }
 
+/// The position in `runs_from_map_overlays` of the first run held outside this record.
+#[cfg(test)]
+const FIRST_MOVED_RUN: usize = 12;
+
 impl MenuLists {
-    /// The record's fields from `map_overlays` to its end, in order (`run_on_tests` checks them
-    /// against the layout): a list read on past its field goes on into the next, over the gaps.
+    /// The fields from `map_overlays` to the end, in order, with the lists that moved out of this
+    /// record in their places: a list read on past its field goes on into the next, over the
+    /// gaps.
     fn runs_from_map_overlays(&self) -> [&dyn crate::session::Run; 41] {
+        let service = crate::service::owner::service();
+        let cars = crate::menu::car_lists_store::car_lists();
+        let carousel = &crate::menu::owner::menus().screens.carousel;
         [
             &self.map_overlays,
             &self._gap_75993e,
@@ -309,18 +265,18 @@ impl MenuLists {
             &self._gap_759af6,
             &self.car_page_titles,
             &self.slideshow_templates,
-            &self.inspection_flags_a,
-            &self.inspection_flags_b,
-            &self.repair_time_ptrs,
+            &service.repair_flags,
+            &service.repair_marks,
+            &service.repair_time_handles,
             &self.inspection_faults,
-            &self.cars_championship,
-            &self.a8_championship_cars,
-            &self.cars_first,
-            &self.cars_with_clio,
-            &self.secret_cars,
-            &self.cars_scratch,
-            &self.cars_second,
-            &self.shown_cars,
+            &cars.cars_championship,
+            &cars.a8_championship_cars,
+            &cars.cars_first,
+            &cars.cars_with_clio,
+            &cars.secret_cars,
+            &cars.cars_scratch,
+            &cars.cars_second,
+            &cars.shown_cars,
             &self._gap_75a1ee,
             &self.car_kinds,
             &self.section_titles,
@@ -336,7 +292,7 @@ impl MenuLists {
             &self.durations,
             &self.service_pictures,
             &self._gap_75a61e,
-            &self.carousel_textures,
+            &carousel.textures,
             &self.front_back_path,
         ]
     }
@@ -967,78 +923,6 @@ impl MenuLists {
                 text_ref(MenuText::oscsl00_png),
                 text_ref(MenuText::rclsl00_png),
             ],
-            inspection_flags_a: [
-                PlainDword::new(0),
-                PlainDword::new(0),
-                PlainDword::new(0),
-                PlainDword::new(0),
-                PlainDword::new(0),
-                PlainDword::new(0),
-                PlainDword::new(0),
-                PlainDword::new(0),
-                PlainDword::new(0),
-                PlainDword::new(0),
-                PlainDword::new(0),
-                PlainDword::new(0),
-                PlainDword::new(0),
-                PlainDword::new(0),
-                PlainDword::new(0),
-                PlainDword::new(0),
-                PlainDword::new(0),
-                PlainDword::new(0),
-                PlainDword::new(0),
-                PlainDword::new(0),
-                PlainDword::new(0xffffffff),
-            ],
-            inspection_flags_b: [
-                PlainDword::new(0),
-                PlainDword::new(0),
-                PlainDword::new(0),
-                PlainDword::new(0),
-                PlainDword::new(0),
-                PlainDword::new(0),
-                PlainDword::new(0),
-                PlainDword::new(0),
-                PlainDword::new(0),
-                PlainDword::new(0),
-                PlainDword::new(0),
-                PlainDword::new(0),
-                PlainDword::new(0),
-                PlainDword::new(0),
-                PlainDword::new(0),
-                PlainDword::new(0),
-                PlainDword::new(0),
-                PlainDword::new(0),
-                PlainDword::new(0),
-                PlainDword::new(0),
-                PlainDword::new(0xffffffff),
-            ],
-            repair_time_ptrs: [
-                PlainDword::new(0),
-                PlainDword::new(0),
-                repair_time(0),
-                repair_time(1),
-                repair_time(2),
-                repair_time(3),
-                repair_time(4),
-                repair_time(5),
-                repair_time(6),
-                repair_time(7),
-                repair_time(8),
-                repair_time(9),
-                repair_time(10),
-                repair_time(11),
-                repair_time(12),
-                repair_time(13),
-                PlainDword::new(0),
-                PlainDword::new(0),
-                repair_time(14),
-                repair_time(15),
-                PlainDword::new(0),
-                PlainDword::new(0),
-                PlainDword::new(0),
-                PlainDword::new(0xffffffff),
-            ],
             inspection_faults: [
                 PlainDword::new(0),
                 PlainDword::new(0),
@@ -1054,307 +938,6 @@ impl MenuLists {
                 PlainDword::new(0),
                 PlainDword::new(0),
                 PlainDword::new(0xffffffff),
-            ],
-            cars_championship: [
-                car_cell(0x756d60),
-                car_cell(0x756dd8),
-                car_cell(0x756e50),
-                car_cell(0x756b08),
-                car_cell(0x756a90),
-                car_cell(0x7567c0),
-                car_cell(0x7569a0),
-                car_cell(0x756c70),
-                car_cell(0x756ce8),
-                car_cell(0x756ec8),
-                car_cell(0x7565e0),
-                car_cell(0x7566d0),
-                car_cell(0x756928),
-                car_cell(0x756568),
-                car_cell(0x756b80),
-                car_cell(0x756f40),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-            ],
-            a8_championship_cars: [
-                car_cell(0x756bf8),
-                car_cell(0x756748),
-                car_cell(0x7568b0),
-                car_cell(0x756658),
-                car_cell(0x756a18),
-                car_cell(0x756fb8),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0x756d60),
-                car_cell(0x7568b0),
-                car_cell(0xffffffff),
-                car_cell(0x756568),
-                car_cell(0x7565e0),
-                car_cell(0x756658),
-                car_cell(0x7566d0),
-                car_cell(0x756748),
-                car_cell(0x7567c0),
-                car_cell(0x756838),
-                car_cell(0x7568b0),
-                car_cell(0x756928),
-                car_cell(0x7569a0),
-                car_cell(0x756a18),
-                car_cell(0x756a90),
-                car_cell(0x756b08),
-                car_cell(0x756b80),
-                car_cell(0x756bf8),
-                car_cell(0x756c70),
-                car_cell(0x756ce8),
-                car_cell(0x756d60),
-                car_cell(0x756dd8),
-                car_cell(0x756e50),
-                car_cell(0x756ec8),
-                car_cell(0x756f40),
-                car_cell(0x756fb8),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-            ],
-            cars_first: [
-                car_cell(0x756b80),
-                car_cell(0x756f40),
-                car_cell(0x756dd8),
-                car_cell(0x756e50),
-                car_cell(0x756b08),
-                car_cell(0x756a90),
-                car_cell(0x7567c0),
-                car_cell(0x7569a0),
-                car_cell(0x756c70),
-                car_cell(0x756ce8),
-                car_cell(0x756ec8),
-                car_cell(0x7565e0),
-                car_cell(0x7566d0),
-                car_cell(0x756928),
-                car_cell(0x756568),
-                car_cell(0x756d60),
-                car_cell(0x756fb8),
-                car_cell(0x756a18),
-                car_cell(0x756658),
-                car_cell(0x7568b0),
-                car_cell(0x756748),
-                car_cell(0x756bf8),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-            ],
-            cars_with_clio: [
-                car_cell(0x756b80),
-                car_cell(0x756f40),
-                car_cell(0x756dd8),
-                car_cell(0x756e50),
-                car_cell(0x756b08),
-                car_cell(0x756a90),
-                car_cell(0x7567c0),
-                car_cell(0x7569a0),
-                car_cell(0x756c70),
-                car_cell(0x756ce8),
-                car_cell(0x756ec8),
-                car_cell(0x7565e0),
-                car_cell(0x7566d0),
-                car_cell(0x756928),
-                car_cell(0x756568),
-                car_cell(0x756d60),
-                car_cell(0x756fb8),
-                car_cell(0x756a18),
-                car_cell(0x756658),
-                car_cell(0x7568b0),
-                car_cell(0x756748),
-                car_cell(0x756bf8),
-                car_cell(0x757030),
-                car_cell(0x7570a8),
-                car_cell(0x757120),
-                car_cell(0x757198),
-                car_cell(0x757210),
-                car_cell(0x757288),
-                car_cell(0x757300),
-                car_cell(0x7573f0),
-                car_cell(0x757468),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-            ],
-            secret_cars: [
-                car_cell(0x757030),
-                car_cell(0x7570a8),
-                car_cell(0x757120),
-                car_cell(0x757198),
-                car_cell(0x757210),
-                car_cell(0x757288),
-                car_cell(0x757300),
-                car_cell(0x757378),
-                car_cell(0x7573f0),
-                car_cell(0x757468),
-                car_cell(0x756838),
-                car_cell(0xffffffff),
-            ],
-            cars_scratch: [const { car_cell(0xffffffff) }; 50],
-            cars_second: [
-                car_cell(0x756b80),
-                car_cell(0x756f40),
-                car_cell(0x756dd8),
-                car_cell(0x756e50),
-                car_cell(0x756b08),
-                car_cell(0x756a90),
-                car_cell(0x7567c0),
-                car_cell(0x7569a0),
-                car_cell(0x756c70),
-                car_cell(0x756ce8),
-                car_cell(0x756ec8),
-                car_cell(0x7565e0),
-                car_cell(0x7566d0),
-                car_cell(0x756928),
-                car_cell(0x756568),
-                car_cell(0x756d60),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-            ],
-            shown_cars: [
-                car_cell(0x756658),
-                car_cell(0x756748),
-                car_cell(0x7568b0),
-                car_cell(0x756a18),
-                car_cell(0x756bf8),
-                car_cell(0x756fb8),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
-                car_cell(0xffffffff),
             ],
             _gap_75a1ee: PlainBytes::new([0xff; 16]),
             car_kinds: [
@@ -1631,7 +1214,6 @@ impl MenuLists {
                 text_ref(MenuText::serv22_png),
             ],
             _gap_75a61e: PlainBytes::new([0xff; 4]),
-            carousel_textures: [const { PlainDword::new(0) }; 8],
             front_back_path: PlainBytes::new(sparse::<24>(&[(
                 0x0,
                 &[
@@ -1715,10 +1297,15 @@ mod run_on_tests {
             }
         }
         assert!(l.page_picture(4, 0).is_err());
-        let room = (core::mem::size_of::<MenuLists>()
-            - core::mem::offset_of!(MenuLists, map_overlays))
-            / 4;
+        // Up to the first run that lives outside this record (the service's repair flags).
+        let room: usize = l.runs_from_map_overlays()[..FIRST_MOVED_RUN]
+            .iter()
+            .map(|run| run.count())
+            .sum();
         for n in 0..room + 4 {
+            if n >= room {
+                continue;
+            }
             assert_eq!(
                 l.map_overlay(n).ok(),
                 old_result(&l.map_overlays, n),
@@ -1727,43 +1314,30 @@ mod run_on_tests {
         }
     }
 
-    /// The fields' order in `runs_from_map_overlays`, and each car list's place in it, are the
-    /// layout's: every dword of the record from `map_overlays` on reads the same both ways,
-    /// and each list of cars runs on into what follows it, gaps included.
+    /// Each car list's place in `runs_from_map_overlays` is its own field's, and a list read on
+    /// runs into what follows it, gaps included, to the end of the runs.
     #[test]
-    fn runs_follow_the_layout() {
-        let l = numbered();
-        let room = (core::mem::size_of::<MenuLists>()
-            - core::mem::offset_of!(MenuLists, map_overlays))
-            / 4;
+    fn car_lists_start_at_their_runs() {
+        let l = MenuLists::new();
+        let cars = crate::menu::car_lists_store::car_lists();
         let all = l.runs_from_map_overlays();
-        assert_eq!(all.iter().map(|r| r.count()).sum::<usize>(), room);
+        let total: usize = all.iter().map(|r| r.count()).sum();
         for (list, table) in [
-            (CarList::First, &l.cars_first[..]),
-            (CarList::Second, &l.cars_second[..]),
-            (CarList::WithClio, &l.cars_with_clio[..]),
-            (CarList::Championship, &l.cars_championship[..]),
-            (CarList::A8, &l.a8_championship_cars[..]),
+            (CarList::First, &cars.cars_first[..]),
+            (CarList::Second, &cars.cars_second[..]),
+            (CarList::WithClio, &cars.cars_with_clio[..]),
+            (CarList::Championship, &cars.cars_championship[..]),
+            (CarList::A8, &cars.a8_championship_cars[..]),
             (CarList::Cheat, &l.cheat_cars[..]),
-            (CarList::Shown, &l.shown_cars[..]),
+            (CarList::Shown, &cars.shown_cars[..]),
         ] {
-            let left = (core::mem::size_of::<MenuLists>()
-                - (table.as_ptr() as usize - std::ptr::from_ref::<MenuLists>(&l) as usize))
-                / 4;
-            for n in 0..left + 2 {
-                assert_eq!(
-                    l.car_entry(list, n as u32).ok(),
-                    crate::session::read_on_in(&*l, table, n, "t").ok(),
-                    "{list:?} {n}"
-                );
-            }
-            let n = table.len() + 1;
-            l.set_car_entry(list, n as u32, 0x1234).unwrap();
-            assert_eq!(
-                crate::session::read_on_in(&*l, table, n, "t").unwrap(),
-                0x1234
-            );
-            assert!(l.set_car_entry(list, left as u32, 1).is_err());
+            let start = MenuLists::car_list_start(list);
+            let run: *const u8 = std::ptr::from_ref(all[start]).cast();
+            assert_eq!(run, table.as_ptr().cast::<u8>(), "{list:?}");
+            let left: usize = all[start..].iter().map(|r| r.count()).sum();
+            assert!(left <= total && left > table.len());
+            assert!(l.car_entry(list, (left - 1) as u32).is_ok(), "{list:?}");
+            assert!(l.car_entry(list, left as u32).is_err(), "{list:?}");
         }
     }
 }

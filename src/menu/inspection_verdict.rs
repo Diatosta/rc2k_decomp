@@ -6,9 +6,9 @@
 //!
 //! Refuses a current player past 3 or missing, before anything.
 use crate::errors::{BadInput, Refused};
-use crate::menu::lists_store::lists;
 use crate::menu::owner::Menus;
 use crate::menu::standings::*;
+use crate::service::owner::service;
 
 pub fn inspection_verdict(menus: &Menus) -> Result<(), Refused> {
     let n: u32 = menus.screens.event.current_player.get();
@@ -20,7 +20,7 @@ pub fn inspection_verdict(menus: &Menus) -> Result<(), Refused> {
     let fault = crate::menu::event_flow::Fault::default();
     let v = rc2k_core::menu::inspection::verdict(
         |k| fault.ok(past_limit(&menus.screens, p, k as u32)),
-        |k| lists().inspection_flags_a[k + 2].get() != 0,
+        |k| service().repair_flags[k + 2].get() != 0,
         |k| menus.screens.state.driver_stats.penalties[k].get(),
     );
     fault.check()?;

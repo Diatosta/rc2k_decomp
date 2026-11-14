@@ -18,15 +18,13 @@ pub fn choose_carousel_pictures(
     let screens = &menus.screens;
     // Logic: `rc2k_core::scene::carousel::{shows_pictures, visible_entries}`.
     use rc2k_core::scene::carousel::{shows_pictures, visible_entries};
-    if !shows_pictures(screens.state.carousel.menu.get()) {
+    if !shows_pictures(screens.carousel.menu.get()) {
         return Ok(());
     }
     update(
-        menus,
+        &screens.carousel,
+        &menus.cars.table,
         scene,
-        visible_entries(
-            screens.state.carousel.front.get(),
-            screens.state.carousel.count.get(),
-        ),
+        visible_entries(screens.carousel.front.get(), screens.carousel.count.get()),
     )
 }

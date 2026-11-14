@@ -27,7 +27,7 @@ pub fn run(o: crate::owners::Owners<'static>) -> Result<(), crate::errors::Refus
     );
     assign_kind_textures(scene)?;
     choose_carousel_pictures(menus, scene)?;
-    assign_menu_textures(scene)?;
+    assign_menu_textures(&menus.screens.carousel, scene)?;
     map_texture_places(scene);
     let count = load_slot_textures_in_game(&race.frame, scene)?;
     // The front end's 3D draws on a slot of its own.

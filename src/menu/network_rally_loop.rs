@@ -15,11 +15,11 @@ use crate::menu::texts_store::texts;
 fn set_up_first(entry: &Entry) -> Result<(), Refused> {
     let screens = &entry.menus.screens;
     screens.flow.turning.set(0x1u32);
-    screens.state.carousel.menu.set(0x6u32);
+    screens.carousel.menu.set(0x6u32);
     carousel(entry, None)?;
     let item = screens.items.current[slot::NETWORK_RALLY].get();
     screens.loop_flags.item.set(item);
-    screens.state.carousel.front.set(item.wrapping_sub(1));
+    screens.carousel.front.set(item.wrapping_sub(1));
 
     Ok(())
 }

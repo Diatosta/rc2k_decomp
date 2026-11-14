@@ -117,7 +117,7 @@ pub fn cell_frame(
 pub fn chosen_frame(
     o: Owners<'static>,
     item: u32,
-    setup: &crate::menu::state_store::SetupItem,
+    setup: &crate::service::owner::SetupItem,
     flag: &dyn DwordLike,
     first_x: u32,
     step: u32,

@@ -3,7 +3,8 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::owner::Menus;
-use crate::menu::state_store::SetupItem;
+use crate::service::owner::SetupItem;
+use crate::service::owner::service;
 use crate::service::state::current_player;
 use crate::session::PlainDword;
 
@@ -32,7 +33,7 @@ fn with_target(
 ) -> Result<(), BadInput> {
     match stepper.target {
         Target::Chosen(setup) => {
-            let cell = &setup_item(menus, setup).chosen;
+            let cell = &setup_item(setup).chosen;
             cell.set(f(cell.get()));
         }
         Target::CarField(field) => {
@@ -63,19 +64,19 @@ pub struct Change {
 }
 
 impl Change {
-    pub fn chosen<'a>(&self, menus: &'a Menus) -> &'a PlainDword {
-        &setup_item(menus, self.setup).chosen
+    pub fn chosen(&self) -> &'static PlainDword {
+        &setup_item(self.setup).chosen
     }
-    pub fn installed<'a>(&self, menus: &'a Menus) -> &'a PlainDword {
-        &setup_item(menus, self.setup).installed
+    pub fn installed(&self) -> &'static PlainDword {
+        &setup_item(self.setup).installed
     }
     /// The chosen value as it was when the item's edit started.
-    pub fn start<'a>(&self, menus: &'a Menus) -> &'a PlainDword {
-        &setup_item(menus, self.setup).start
+    pub fn start(&self) -> &'static PlainDword {
+        &setup_item(self.setup).start
     }
 }
 
 /// The setup items: gear ratio, tyre, ride height, suspension stiffness.
-pub fn setup_item(menus: &Menus, setup: usize) -> &SetupItem {
-    &menus.screens.state.driver_stats.setups[setup]
+pub fn setup_item(setup: usize) -> &'static SetupItem {
+    &service().setups[setup]
 }

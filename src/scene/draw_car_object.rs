@@ -44,15 +44,12 @@ pub fn picked(car: u32, count: u32) -> [u32; 4] {
 /// Picks the carousel's four pictures around the car shown.
 pub fn pick_pictures(menus: &Menus, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let screens = &menus.screens;
-    if screens.state.carousel.menu.get() != 0xB {
+    if screens.carousel.menu.get() != 0xB {
         return Ok(());
     }
-    let entries = picked(
-        screens.event.shown_car.get(),
-        screens.state.carousel.count.get(),
-    );
-    write_all(&screens.state.carousel_pictures.wanted, entries);
-    update(menus, scene, entries)?;
+    let entries = picked(screens.event.shown_car.get(), screens.carousel.count.get());
+    write_all(&screens.carousel.pictures.wanted, entries);
+    update(&screens.carousel, &menus.cars.table, scene, entries)?;
     Ok(())
 }
 
@@ -71,9 +68,9 @@ pub fn draw_shown_car(
     }
     let clock: u32 = shared.physics_tables.get().scene_clock.get();
     object_place.angles[1].set((clock << 3) & 0xFFFF);
-    object_place.place[2].set(screens.state.carousel.z.get());
-    let kind = screens.state.carousel.kinds[car as usize].get();
-    screens.state.carousel.kind.set(kind);
+    object_place.place[2].set(screens.carousel.z.get());
+    let kind = screens.carousel.kinds[car as usize].get();
+    screens.carousel.kind.set(kind);
     let object = find_object_of_kind(kind, scene);
     cars.object_number.set(object);
     draw()

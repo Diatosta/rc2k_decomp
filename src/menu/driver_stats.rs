@@ -15,6 +15,7 @@ use crate::menu::event_flow::Fault;
 use crate::menu::owner::Menus;
 use crate::menu::owner::Screens;
 use crate::menu::standings::*;
+use crate::service::owner::service;
 use crate::session::write_all;
 
 /// The parts' names in the log, by inspected part.
@@ -87,16 +88,16 @@ pub fn driver_stats(menus: &Menus, screens: &Screens) -> Result<(), Refused> {
         short_part_5: screens.state.driver_stats.switch_b.get(),
     };
     let f = figures(&table, &car, &c);
-    write_all(&screens.state.driver_stats.repair_times, f.values);
+    write_all(&service().repair_times, f.values);
     write_all(&screens.state.driver_stats.highs, f.highs);
     write_all(&screens.state.driver_stats.limits, f.limits);
     screens.state.driver_stats.total.set(f.total);
-    let ds = &screens.state.driver_stats;
+    let setups = &service().setups;
     for (cell, value) in [
-        &ds.setups[2].chosen,
-        &ds.setups[2].installed,
-        &ds.setups[3].chosen,
-        &ds.setups[3].installed,
+        &setups[2].chosen,
+        &setups[2].installed,
+        &setups[3].chosen,
+        &setups[3].installed,
     ]
     .into_iter()
     .zip(f.kept)

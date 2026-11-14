@@ -8,6 +8,7 @@
 
 use crate::errors::Refused;
 use crate::menu::owner::Menus;
+use crate::service::owner::service;
 use crate::service::setup_values::setup_item;
 use crate::service::state::{flagged_item, repair_flag_in};
 
@@ -17,7 +18,7 @@ pub struct Edit {
     /// The page number written to `MenuState.service_ui.box_page`.
     pub page: u32,
     /// The setup item (0 .. 3): its service time is
-    /// `MenuState.driver_stats.repair_times[12 + setup]`, its chosen value is copied to the
+    /// `Service::repair_times[12 + setup]`, its chosen value is copied to the
     /// value at the edit's start.
     pub setup: usize,
 }
@@ -28,11 +29,11 @@ pub fn begin_edit(menus: &Menus, e: Edit) -> Result<(), Refused> {
 
     if rc2k_core::service::repairs::may_edit(
         repair_flag_in(item),
-        screens.state.driver_stats.repair_time.get() as i32,
-        screens.state.driver_stats.repair_times[12 + e.setup].get() as i32,
+        service().repair_time.get() as i32,
+        service().repair_times[12 + e.setup].get() as i32,
         screens.event.service_minutes.get() as i32,
     ) {
-        let item = &setup_item(menus, e.setup);
+        let item = &setup_item(e.setup);
         item.start.set(item.chosen.get());
         screens
             .state

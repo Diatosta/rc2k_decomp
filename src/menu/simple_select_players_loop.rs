@@ -17,11 +17,11 @@ use crate::menu::texts_store::texts;
 fn set_up_first(entry: &Entry) -> Result<(), Refused> {
     let screens = &entry.menus.screens;
     screens.flow.turning.set(0x1u32);
-    screens.state.carousel.menu.set(0x2u32);
+    screens.carousel.menu.set(0x2u32);
     carousel(entry, None)?;
     let item = screens.items.current[slot::SIMPLE_SELECT_PLAYERS].get();
     screens.loop_flags.item.set(item);
-    screens.state.carousel.front.set(item.wrapping_sub(1));
+    screens.carousel.front.set(item.wrapping_sub(1));
     entry.set_view(7, 10, 0x100);
     prepare_scene(entry);
     Ok(())

@@ -16,11 +16,11 @@ fn set_up_first(entry: &Entry) -> Result<(), Refused> {
     let menus = entry.menus;
     menus.tables.captions.left_by_key.set(false);
     menus.screens.flow.turning.set(0x1u32);
-    menus.screens.state.carousel.menu.set(0x2u32);
+    menus.screens.carousel.menu.set(0x2u32);
     carousel(entry, None)?;
     let item = menus.screens.items.current[slot::CHAMPIONSHIP_NEW_SIMULATION].get();
     menus.screens.loop_flags.item.set(item);
-    menus.screens.state.carousel.front.set(item.wrapping_sub(1));
+    menus.screens.carousel.front.set(item.wrapping_sub(1));
     entry.set_view(7, 10, 0x100);
     prepare_scene(entry);
     Ok(())

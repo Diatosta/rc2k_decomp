@@ -20,14 +20,14 @@ fn before(entry: &Entry) -> Result<(), Refused> {
 fn set_up_first(entry: &Entry) -> Result<(), Refused> {
     let screens = &entry.menus.screens;
     screens.flow.turning.set(0x1u32);
-    screens.state.carousel.menu.set(0xCu32);
+    screens.carousel.menu.set(0xCu32);
     carousel(entry, None)?;
     screens
         .loop_flags
         .item
         .set(screens.items.current[SLOT].get());
     screens.flow.turning.set(0x0u32);
-    screens.state.carousel.front.set(0x0u32);
+    screens.carousel.front.set(0x0u32);
     screens.event.shown_car.set(0x0u32);
     entry.set_view(7, -50, 0x100);
     prepare_scene(entry);

@@ -16,27 +16,28 @@ use crate::gfx::blit_bar::Bar;
 use crate::gfx::blit_bar_marker::blit_bar_marker;
 use crate::gfx::owner::Gfx;
 use crate::menu::owner::Menus;
+use crate::service::owner::service;
 use crate::service::state::{blink_on, edit_mode, repair_flag};
 use crate::session::PlainDword;
 use crate::text::draw_text::Canvas;
 
 pub use rc2k_core::screens::setup_markers::{BAR_WIDTH, LEFT_X, RIGHT_X};
 
-pub fn lower_left_chosen(menus: &Menus) -> &PlainDword {
-    &menus.screens.state.driver_stats.setups[2].chosen
+pub fn lower_left_chosen() -> &'static PlainDword {
+    &service().setups[2].chosen
 }
-pub fn lower_left_installed(menus: &Menus) -> &PlainDword {
-    &menus.screens.state.driver_stats.setups[2].installed
+pub fn lower_left_installed() -> &'static PlainDword {
+    &service().setups[2].installed
 }
-pub fn lower_right_chosen(menus: &Menus) -> &PlainDword {
-    &menus.screens.state.driver_stats.setups[3].chosen
+pub fn lower_right_chosen() -> &'static PlainDword {
+    &service().setups[3].chosen
 }
-pub fn lower_right_installed(menus: &Menus) -> &PlainDword {
-    &menus.screens.state.driver_stats.setups[3].installed
+pub fn lower_right_installed() -> &'static PlainDword {
+    &service().setups[3].installed
 }
 
 /// A setup value the markers read.
-pub type Setting = fn(&Menus) -> &PlainDword;
+pub type Setting = fn() -> &'static PlainDword;
 
 /// One of the six functions.
 #[derive(Clone, Copy)]
@@ -99,7 +100,7 @@ pub fn draw_marker(
         item: menus.screens.loop_flags.item.get(),
         blink_on: blink_on(menus),
     };
-    let read = |cell: Setting| -> Result<i32, Refused> { Ok(cell(menus).get() as i32) };
+    let read = |cell: Setting| -> Result<i32, Refused> { Ok(cell().get() as i32) };
     let (core, item): (M, u32) = match marker {
         Marker::Always { x, .. } => (M::Always { x }, 0),
         Marker::Lower { item, x, .. } => (M::Lower { item, x }, item),
@@ -113,7 +114,7 @@ pub fn draw_marker(
         }
     };
     let installed = || match marker {
-        Marker::Lower { installed, .. } => installed(menus).get() as i32,
+        Marker::Lower { installed, .. } => installed().get() as i32,
         _ => 0,
     };
     let (plan, _) =

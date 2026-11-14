@@ -11,9 +11,9 @@ pub const CAN_BE_CHOSEN: u32 = 0xFFFF_FC1B;
 /// No menu has more items; a walk past it is refused.
 pub const STEP_LIMIT: u32 = 256;
 
-/// The counter left and right turn while it is on (`MenuState.carousel.count` its count,
-/// `MenuState.carousel.front` the value, `MenuState.carousel.direction` the way,
-/// `MenuState.carousel.angle` the step).
+/// The counter left and right turn while it is on (`Carousel::count` its count,
+/// `Carousel::front` the value, `Carousel::direction` the way,
+/// `Carousel::angle` the step).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Turn {
     pub count: i32,

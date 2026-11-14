@@ -1,6 +1,6 @@
 //! The service area's repair choices.
 //!
-//! Menu items 0 .. 19 each have a flag (`MenuLists.inspection_flags_a[0]`, 1 chosen) and a
+//! Menu items 0 .. 19 each have a flag (`Service::repair_flags[0]`, 1 chosen) and a
 //! mark; both tables end with -1 at entry 20. Items 0, 1, 0x10 and 0x11 have no repair time.
 //! The time budget less the chosen items' time decides what fits: at least 900 is free.
 

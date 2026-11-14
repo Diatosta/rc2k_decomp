@@ -10,6 +10,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::owners::Owners;
+use crate::service::owner::service;
 use crate::service::pages::{GEAR_RATIO, RIDE_HEIGHT, SUSPENSION_STIFFNESS, TYRE};
 use crate::service::reset_tyre_wear::reset_tyre_wear;
 use crate::service::state::{current_player, repair_flag_in, set_repair_flag};
@@ -95,8 +96,8 @@ impl Workshop for Game<'_> {
             Setting::RideHeight => RIDE_HEIGHT,
             Setting::Stiffness => SUSPENSION_STIFFNESS,
         };
-        let value = page.change.chosen(self.menus).get();
-        page.change.installed(self.menus).set(value);
+        let value = page.change.chosen().get();
+        page.change.installed().set(value);
         value
     }
     fn clock(&mut self) -> u32 {
@@ -114,7 +115,7 @@ fn timer(screens: &Screens, t: Timer) -> &dyn DwordLike {
     match t {
         Timer::Start => &screens.state.menus.fade_start,
         Timer::Elapsed => &screens.state.menus.fade_gone,
-        Timer::LastStep => &screens.state.menus.repair_last_step,
+        Timer::LastStep => &service().repair_last_step,
     }
 }
 

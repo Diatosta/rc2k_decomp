@@ -52,10 +52,10 @@ pub fn move_highlight(o: Owners<'static>, direction: Direction) -> Result<(), Re
         let item = item_at(menus, highlighted)?;
         let turned = (sideways && screens.flow.turning.get() == 1).then(|| {
             let t = Turn {
-                count: screens.state.carousel.count.get() as i32,
-                value: screens.state.carousel.front.get() as i32,
-                way: screens.state.carousel.direction.get(),
-                step: screens.state.carousel.angle.get(),
+                count: screens.carousel.count.get() as i32,
+                value: screens.carousel.front.get() as i32,
+                way: screens.carousel.direction.get(),
+                step: screens.carousel.angle.get(),
             };
             turn(t, direction == Direction::Right)
         });
@@ -69,9 +69,9 @@ pub fn move_highlight(o: Owners<'static>, direction: Direction) -> Result<(), Re
             _ => None,
         };
         if let Some(t) = turned {
-            screens.state.carousel.front.set(t.value as u32);
-            screens.state.carousel.direction.set(t.way);
-            screens.state.carousel.angle.set(t.step);
+            screens.carousel.front.set(t.value as u32);
+            screens.carousel.direction.set(t.way);
+            screens.carousel.angle.set(t.step);
         }
         if link(next) == Link::None {
             return Ok(());

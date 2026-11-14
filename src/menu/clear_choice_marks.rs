@@ -6,7 +6,7 @@
 use crate::menu::owner::Screens;
 
 pub fn clear_choice_marks(screens: &Screens) -> Result<(), crate::errors::BadInput> {
-    for held in &screens.state.carousel_pictures.held {
+    for held in &screens.carousel.pictures.held {
         held.set(u32::MAX);
     }
     Ok(())
