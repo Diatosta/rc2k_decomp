@@ -3,6 +3,8 @@ pub mod address;
 pub mod cars;
 pub mod chat;
 pub mod editing;
+#[cfg(test)]
+mod frozen;
 pub mod inbox;
 pub mod lists;
 pub mod messages;

@@ -59,6 +59,8 @@ pub mod find_saved_connection;
 pub mod find_sessions;
 pub mod follow_remote;
 pub mod free_messages;
+#[cfg(test)]
+mod frozen_formats;
 pub mod group_found;
 pub mod host_session;
 pub mod hosting;
