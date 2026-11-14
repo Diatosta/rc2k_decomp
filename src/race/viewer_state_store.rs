@@ -5,6 +5,7 @@
 
 use crate::cells::ZeroCells;
 
+use crate::menu::list_handle::{Item, ListData26, ListHeader};
 use crate::place::BytePlace;
 #[cfg(test)]
 use crate::race::owner::race;
@@ -46,132 +47,63 @@ pub struct ReplayViewBlock {
     pub wait_key_release: PlainDword,
     /// +0x40: Escape twice leaves (`race::viewer`).
     pub escape_count: PlainDword,
-    /// +0x44: the viewer list, taken in place: a header of 0x18 bytes (byte +1 = item count, set at
-    /// run time; +0x10 the name of the key table), then 26 items of 16 bytes (flags, source
-    /// rectangle name, 0, screen rectangle name) (`race::viewer_frame`, `race::mark_viewer_items`,
-    /// `race::draw_viewer_item`).
-    pub viewer_list: [PlainDword; 110],
+    /// +0x44: the viewer's list: 26 items. The header's `neighbours` names the key table; an
+    /// item's `box_link` names its screen rectangle, its `data` its picture (image addresses into
+    /// `RECTANGLES` and the viewer panel); its `count` is the action Enter does.
+    pub viewer_list: ListData26,
 }
 
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
 // them): any bit pattern is a valid value.
 
 impl ReplayViewBlock {
+    /// The viewer's items: kind 1 (a picture), action `n` for item `n`, and the names of its
+    /// screen rectangle and picture.
+    const fn items() -> [Item; 26] {
+        const NAMES: [(u32, u32); 26] = [
+            (0x5C277C, 0x5C2A2C),
+            (0x5C278C, 0x5C2A4C),
+            (0x5C279C, 0x5C2A6C),
+            (0x5C27AC, 0x5C2A8C),
+            (0x5C27BC, 0x5C2AAC),
+            (0x5C27CC, 0x5C2ADC),
+            (0x5C27DC, 0x5C2AEC),
+            (0x5C27EC, 0x5C2AFC),
+            (0x5C27FC, 0x5C2ABC),
+            (0x5C280C, 0x5C2A9C),
+            (0x5C281C, 0x5C2A7C),
+            (0x5C282C, 0x5C2A5C),
+            (0x5C283C, 0x5C2A3C),
+            (0x5C284C, 0x5C2B0C),
+            (0x5C285C, 0x5C2C70),
+            (0x5C286C, 0x5C2C78),
+            (0x5C287C, 0x5C2C88),
+            (0x5C288C, 0x5C2BAC),
+            (0x5C289C, 0x5C2BBC),
+            (0x5C28AC, 0x5C2BCC),
+            (0x5C28BC, 0x5C2BDC),
+            (0x5C28CC, 0x5C2B2C),
+            (0x5C28DC, 0x5C2BEC),
+            (0x5C28EC, 0x5C2BFC),
+            (0x5C28FC, 0x5C2C70),
+            (0x5C290C, 0x5C2C1C),
+        ];
+        let mut items = [const { Item::new(0, 0, 0, 0, 0, 0) }; 26];
+        let mut n = 0;
+        while n < 26 {
+            items[n] = Item::new(1, n as u8, 0, NAMES[n].0, 0, NAMES[n].1);
+            n += 1;
+        }
+        items
+    }
+
     pub const fn new() -> Self {
         Self {
             replay_block: PlainDword::new(0xFFFFFFFF),
-            viewer_list: [
-                PlainDword::new(0x1A00),
-                PlainDword::new(0),
-                PlainDword::new(0),
-                PlainDword::new(0),
-                PlainDword::new(0x5C2714),
-                PlainDword::new(0),
-                PlainDword::new(1),
-                PlainDword::new(0x5C277C),
-                PlainDword::new(0),
-                PlainDword::new(0x5C2A2C),
-                PlainDword::new(0x101),
-                PlainDword::new(0x5C278C),
-                PlainDword::new(0),
-                PlainDword::new(0x5C2A4C),
-                PlainDword::new(0x201),
-                PlainDword::new(0x5C279C),
-                PlainDword::new(0),
-                PlainDword::new(0x5C2A6C),
-                PlainDword::new(0x301),
-                PlainDword::new(0x5C27AC),
-                PlainDword::new(0),
-                PlainDword::new(0x5C2A8C),
-                PlainDword::new(0x401),
-                PlainDword::new(0x5C27BC),
-                PlainDword::new(0),
-                PlainDword::new(0x5C2AAC),
-                PlainDword::new(0x501),
-                PlainDword::new(0x5C27CC),
-                PlainDword::new(0),
-                PlainDword::new(0x5C2ADC),
-                PlainDword::new(0x601),
-                PlainDword::new(0x5C27DC),
-                PlainDword::new(0),
-                PlainDword::new(0x5C2AEC),
-                PlainDword::new(0x701),
-                PlainDword::new(0x5C27EC),
-                PlainDword::new(0),
-                PlainDword::new(0x5C2AFC),
-                PlainDword::new(0x801),
-                PlainDword::new(0x5C27FC),
-                PlainDword::new(0),
-                PlainDword::new(0x5C2ABC),
-                PlainDword::new(0x901),
-                PlainDword::new(0x5C280C),
-                PlainDword::new(0),
-                PlainDword::new(0x5C2A9C),
-                PlainDword::new(0xA01),
-                PlainDword::new(0x5C281C),
-                PlainDword::new(0),
-                PlainDword::new(0x5C2A7C),
-                PlainDword::new(0xB01),
-                PlainDword::new(0x5C282C),
-                PlainDword::new(0),
-                PlainDword::new(0x5C2A5C),
-                PlainDword::new(0xC01),
-                PlainDword::new(0x5C283C),
-                PlainDword::new(0),
-                PlainDword::new(0x5C2A3C),
-                PlainDword::new(0xD01),
-                PlainDword::new(0x5C284C),
-                PlainDword::new(0),
-                PlainDword::new(0x5C2B0C),
-                PlainDword::new(0xE01),
-                PlainDword::new(0x5C285C),
-                PlainDword::new(0),
-                PlainDword::new(0x5C2C70),
-                PlainDword::new(0xF01),
-                PlainDword::new(0x5C286C),
-                PlainDword::new(0),
-                PlainDword::new(0x5C2C78),
-                PlainDword::new(0x1001),
-                PlainDword::new(0x5C287C),
-                PlainDword::new(0),
-                PlainDword::new(0x5C2C88),
-                PlainDword::new(0x1101),
-                PlainDword::new(0x5C288C),
-                PlainDword::new(0),
-                PlainDword::new(0x5C2BAC),
-                PlainDword::new(0x1201),
-                PlainDword::new(0x5C289C),
-                PlainDword::new(0),
-                PlainDword::new(0x5C2BBC),
-                PlainDword::new(0x1301),
-                PlainDword::new(0x5C28AC),
-                PlainDword::new(0),
-                PlainDword::new(0x5C2BCC),
-                PlainDword::new(0x1401),
-                PlainDword::new(0x5C28BC),
-                PlainDword::new(0),
-                PlainDword::new(0x5C2BDC),
-                PlainDword::new(0x1501),
-                PlainDword::new(0x5C28CC),
-                PlainDword::new(0),
-                PlainDword::new(0x5C2B2C),
-                PlainDword::new(0x1601),
-                PlainDword::new(0x5C28DC),
-                PlainDword::new(0),
-                PlainDword::new(0x5C2BEC),
-                PlainDword::new(0x1701),
-                PlainDword::new(0x5C28EC),
-                PlainDword::new(0),
-                PlainDword::new(0x5C2BFC),
-                PlainDword::new(0x1801),
-                PlainDword::new(0x5C28FC),
-                PlainDword::new(0),
-                PlainDword::new(0x5C2C70),
-                PlainDword::new(0x1901),
-                PlainDword::new(0x5C290C),
-                PlainDword::new(0),
-                PlainDword::new(0x5C2C1C),
-            ],
+            viewer_list: ListData26::new(
+                ListHeader::new(0, 26, 0, 0, 0, 0, 0x5C2714, 0),
+                Self::items(),
+            ),
             ..ZeroCells::ZERO
         }
     }
@@ -216,13 +148,6 @@ pub enum ViewerPicture {
 }
 
 impl ReplayViewBlock {
-    /// The viewer's list as a place of bytes (its header, then its items).
-    pub fn viewer_list_place(&'static self) -> BytePlace {
-        BytePlace::in_store(self, core::mem::offset_of!(ReplayViewBlock, viewer_list))
-    }
-
-    /// The count of the viewer's list's items (from 24 bytes in).
-    const ITEMS: u32 = 26;
     /// The image address ranges the list's names point into: the key table and place
     /// rectangles (`RECTANGLES`), and the panel with the pictures' rectangles.
     const RECTANGLES: core::ops::Range<usize> = 0x5C2714..0x5C291C;
@@ -246,7 +171,7 @@ impl ReplayViewBlock {
     /// Where the list's key table (the header's +0x10) is.
     pub fn key_table(replay: &Replay) -> Result<BytePlace, crate::errors::BadInput> {
         Self::named(
-            replay.replay_view().viewer_list[4].get(),
+            replay.replay_view().viewer_list.header.neighbours.get(),
             "the viewer list's key table off its place",
         )
     }
@@ -254,7 +179,7 @@ impl ReplayViewBlock {
     /// Where item `index`'s screen rectangle (its +4) is.
     pub fn item_place(replay: &Replay, index: u32) -> Result<BytePlace, crate::errors::BadInput> {
         Self::named(
-            Self::item_dword(replay, index, 1)?,
+            Self::item(replay, index)?.box_link.get(),
             "a viewer item's place off the rectangles",
         )
     }
@@ -265,7 +190,7 @@ impl ReplayViewBlock {
         replay: &Replay,
         index: u32,
     ) -> Result<ViewerPicture, crate::errors::BadInput> {
-        let ida = Self::item_dword(replay, index, 3)?;
+        let ida = Self::item(replay, index)?.data.get();
         let table = |offset: usize| (Self::PANEL.start + offset) as u32;
         use crate::race::viewer_screen_store::ViewerPanelBlock;
         use core::mem::offset_of;
@@ -289,15 +214,14 @@ impl ReplayViewBlock {
         Ok(ViewerPicture::Rectangle(ida as usize))
     }
 
-    fn item_dword(
-        replay: &Replay,
-        index: u32,
-        field: usize,
-    ) -> Result<u32, crate::errors::BadInput> {
-        if index >= Self::ITEMS {
-            return Err(crate::errors::BadInput("a viewer item past the 26"));
-        }
-        Ok(replay.replay_view().viewer_list[6 + 4 * index as usize + field].get())
+    /// Item `index` of the viewer's list.
+    fn item(replay: &Replay, index: u32) -> Result<&Item, crate::errors::BadInput> {
+        replay
+            .replay_view()
+            .viewer_list
+            .items
+            .get(index as usize)
+            .ok_or(crate::errors::BadInput("a viewer item past the 26"))
     }
 }
 
@@ -317,5 +241,21 @@ mod tests {
             }
         }
         assert!(ReplayViewBlock::item_place(replay, 26).is_err());
+    }
+
+    /// M4 for the viewer's list: the list holds 26 items and its count says so; the key table
+    /// only ever names items of the list (or 255 for none), so no key reaches past it.
+    #[test]
+    fn the_viewer_never_reaches_past_its_items() {
+        let replay = &race().replay;
+        let list = &replay.replay_view().viewer_list;
+        assert_eq!(usize::from(list.header.count.get()), list.items.len());
+        let table = ReplayViewBlock::key_table(replay).unwrap();
+        let bytes = table.read(4 * list.items.len(), "the key table").unwrap();
+        assert!(
+            bytes
+                .iter()
+                .all(|&entry| entry == 0xFF || usize::from(entry) < list.items.len())
+        );
     }
 }

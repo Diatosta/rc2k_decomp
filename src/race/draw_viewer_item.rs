@@ -6,10 +6,10 @@
 
 use crate::errors::BadInput;
 use crate::errors::Refused;
+use crate::menu::list_handle::Item;
 use crate::race::owner::Race;
 use crate::race::owner_replay::Replay;
 use crate::race::viewer_state_store::{ReplayViewBlock, ViewerPicture};
-use crate::session::PlainDword;
 
 fn camera_byte(race: &Race, replay: &Replay, byte: usize) -> Result<u32, BadInput> {
     Ok(crate::race::viewer::camera_byte_at(
@@ -22,19 +22,17 @@ fn camera_byte(race: &Race, replay: &Replay, byte: usize) -> Result<u32, BadInpu
 pub fn draw_viewer_item(
     race: &Race,
     list_state: &crate::menu::list_state::ListState,
-    item: &[PlainDword; 4],
+    item: &Item,
     index: u32,
     system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
     let replay = &race.replay;
     let panel = race.viewer_panel();
-    // Its first dword's low bytes: the flags and the switch.
-    let byte = |n: u32| (item[0].get() >> (8 * n)) as u8;
     use rc2k_core::race::viewer::{centred, item_colour, switch_byte};
     let uv = match ReplayViewBlock::item_picture(replay, index)? {
         ViewerPicture::Rectangle(ida) => panel.rectangle(ida)?,
         ViewerPicture::Switch(0) => {
-            let n = camera_byte(race, replay, switch_byte(byte(1)) as usize)?;
+            let n = camera_byte(race, replay, switch_byte(item.count.get()) as usize)?;
             panel.switch_picture(0, n)?
         }
         ViewerPicture::Switch(1) => panel.switch_picture(1, camera_byte(race, replay, 5)?)?,
@@ -50,7 +48,7 @@ pub fn draw_viewer_item(
     panel.item_place[1].set(place[1]);
     panel.item_place[3].set(place[3]);
     let colour = item_colour(
-        byte(0),
+        item.first.get(),
         index == list_state.choice.get(),
         || race.viewer_buffers().camera_edit.get() != 0,
         || {

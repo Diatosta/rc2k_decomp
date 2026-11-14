@@ -57,17 +57,14 @@ fn stopped(race: &Race, o: Owners<'static>) -> Result<(), Refused> {
     for (value, state) in LIST_STATES {
         crate::d3d::set_render_state::set_render_state(part, value, state);
     }
-    // The list's item count: the second byte of its first dword.
-    let items = (replay.replay_view().viewer_list[0].get() >> 8) as u8;
-    // The items are counted up to that byte from 0, so a count of 0 goes round 256 times. The
-    // items are the list's 16-byte entries from +0x18; one past the 26 there is refused.
+    let list = &replay.replay_view().viewer_list;
+    // The items are counted from 0 up to the header's count; a count of 0 goes round 256 times
+    // and an item past the list is refused.
+    let items = list.header.count.get();
     for index in 0..if items == 0 { 256 } else { u32::from(items) } {
-        let first = 6 + 4 * index as usize;
-        let item = replay
-            .replay_view()
-            .viewer_list
-            .get(first..)
-            .and_then(|rest| rest.first_chunk::<4>())
+        let item = list
+            .items
+            .get(index as usize)
             .ok_or(BadInput("a viewer item past the 26"))?;
         crate::race::draw_viewer_item::draw_viewer_item(race, list_state, item, index, system)?;
     }

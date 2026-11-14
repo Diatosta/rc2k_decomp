@@ -107,12 +107,6 @@ pub fn rd(at: impl Into<BytePlace>) -> u32 {
     u32::from_le_bytes([b[0], b[1], b[2], b[3]])
 }
 
-/// The link (`page_links::PageLink`) the dword at `at` holds.
-#[track_caller]
-pub fn rl(at: impl Into<BytePlace>) -> crate::install::page_links::PageLink {
-    crate::install::page_links::PageLink::from_raw(rd(at))
-}
-
 #[track_caller]
 pub fn wd(at: impl Into<BytePlace>, v: u32) {
     at.into()

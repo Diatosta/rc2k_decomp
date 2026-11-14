@@ -1,4 +1,4 @@
-//! A list menu (`install::run_page`'s pages, the replay viewer's items) and its items by name.
+//! A list menu (`install::run_page`'s pages, the replay viewer's items) and its items.
 //!
 //! A list is a header of 0x18 bytes (+0 flags, +1 the item count, +2 the title's string,
 //! +4 the item highlighted, +8 the list's action, +0x10 the neighbours table for
@@ -10,16 +10,11 @@
 //! The installer's lists are typed records (`ListData`, `Item`, `EditRecord`) in
 //! `install::vars::InstallerPages`, one per `ListId`; their words that name data (boxes,
 //! texts, edit records) are links (`install::page_links::PageLink`) each accessor resolves by
-//! kind, and the words that name code stay as read. An item the list does not hold is refused.
-//!
-//! The replay viewer's list is bytes in the race's data, read through a place inside its own
-//! 0x18 header bytes or 0x10 item bytes; a place outside the record holding the list ends the
-//! program (`install::installer::refuse`). The item count is the list's own and is not checked
-//! against the item asked for (a list of no items goes round 2^32 times), and an item past the
-//! list's items is the bytes that follow it in that record, read as an item.
+//! kind, and the words that name code stay as read. The replay viewer's list is a `ListData26`
+//! in the replay-view block. An item the list does not hold is refused.
 
 use crate::install::installer::refuse;
-use crate::install::installer::{rb, rd, rl, rw, wb, wd};
+use crate::install::installer::{rb, rw, wb};
 use crate::install::page_links::{ListId, PageLink};
 use crate::place::BytePlace;
 use crate::session::{PlainByte, PlainDword, PlainWord};
@@ -31,7 +26,7 @@ const ITEM: u32 = 0x10;
 
 /// A list's header as the installer's pages hold it (see the module: 0x18 bytes).
 #[repr(C)]
-#[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ByteView, rc2k_derive::ZeroCells)]
 pub struct ListHeader {
     /// +0: the flags.
     pub flags: PlainByte,
@@ -79,7 +74,7 @@ impl ListHeader {
 
 /// A list's item as the installer's pages hold it (see the module: 0x10 bytes).
 #[repr(C)]
-#[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
+#[derive(rc2k_derive::Cells, rc2k_derive::ByteView, rc2k_derive::ZeroCells)]
 pub struct Item {
     /// +0: the kind (low nibble) and marks (high bits).
     pub first: PlainByte,
@@ -122,6 +117,7 @@ macro_rules! list_data {
         #[repr(C)]
         #[derive(rc2k_derive::Cells)]
         #[derive(rc2k_derive::ByteView)]
+        #[derive(rc2k_derive::ZeroCells)]
         pub struct $name {
             pub header: ListHeader,
             pub items: [Item; $n],
@@ -203,52 +199,33 @@ impl BoxRect {
     }
 }
 
-/// Where a list menu's header is: one of the installer's lists, typed with its items, or
-/// bytes read as a header.
+/// A list menu: a header and the items it holds (one of the installer's lists, or the replay
+/// viewer's).
 #[derive(Clone, Copy)]
-enum Head {
-    /// A list of the installer's pages: its header and the items it holds.
-    Pages(&'static ListHeader, &'static [Item]),
-    /// The 0x18 header bytes at a place: the replay viewer's list.
-    Bytes(BytePlace),
+pub struct ListMenu {
+    header: &'static ListHeader,
+    items: &'static [Item],
 }
-
-/// A list menu.
-#[derive(Clone, Copy)]
-pub struct ListMenu(Head);
 
 impl core::fmt::Debug for ListMenu {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        match self.0 {
-            Head::Pages(header, _) => write!(f, "ListMenu({:?})", list_of_header(header)),
-            Head::Bytes(at) => write!(f, "ListMenu({at:?})"),
+        match ListId::ALL
+            .into_iter()
+            .find(|&list| core::ptr::eq(list_header(list), self.header))
+        {
+            Some(list) => write!(f, "ListMenu({list:?})"),
+            None => write!(f, "ListMenu(the viewer's)"),
         }
     }
 }
 
 impl PartialEq for ListMenu {
     fn eq(&self, other: &Self) -> bool {
-        match (self.0, other.0) {
-            (Head::Pages(a, _), Head::Pages(b, _)) => core::ptr::eq(a, b),
-            (Head::Bytes(a), Head::Bytes(b)) => a.same_place(b),
-            _ => false,
-        }
+        core::ptr::eq(self.header, other.header)
     }
 }
 
 impl Eq for ListMenu {}
-
-/// Which of the installer's lists `header` is; a header that is none of them is refused.
-fn list_of_header(header: &ListHeader) -> ListId {
-    ListId::ALL
-        .into_iter()
-        .find(|&list| core::ptr::eq(list_header(list), header))
-        .unwrap_or_else(|| {
-            refuse(crate::errors::BadInput(
-                "a list header that is none of the installer's lists",
-            ))
-        })
-}
 
 /// The header and items of one of the installer's lists. The pages that are only an action
 /// have no items.
@@ -297,89 +274,58 @@ impl ListMenu {
     /// One of the installer's lists.
     pub fn installer(list: ListId) -> Self {
         let (header, items) = list_parts(list);
-        Self(Head::Pages(header, items))
+        Self { header, items }
     }
 
-    /// The list at a place in the game's data (the replay viewer's, which is a run of dwords
-    /// and not typed as a list).
-    pub fn of(place: impl Into<BytePlace>) -> Self {
-        Self(Head::Bytes(place.into()))
-    }
-
-    /// A header field's bytes: `len` bytes at `offset`, inside the header.
-    fn head(at: BytePlace, offset: u32, len: u32) -> BytePlace {
-        debug_assert!(offset + len <= HEADER);
-        at.add(offset)
+    /// The replay viewer's list.
+    pub fn viewer(list: &'static ListData26) -> Self {
+        Self {
+            header: &list.header,
+            items: &list.items,
+        }
     }
 
     /// +0: the flags (bit 4 the page stays on Escape, bits 6 and 7 the page hidden).
     pub fn flags(self) -> u8 {
-        match self.0 {
-            Head::Pages(header, _) => header.flags.get(),
-            Head::Bytes(at) => rb(Self::head(at, 0, 1)),
-        }
+        self.header.flags.get()
     }
 
     pub fn set_flags(self, flags: u8) {
-        match self.0 {
-            Head::Pages(header, _) => header.flags.set(flags),
-            Head::Bytes(at) => wb(Self::head(at, 0, 1), flags),
-        }
+        self.header.flags.set(flags);
     }
 
     /// +1: the number of items.
     pub fn count(self) -> u8 {
-        match self.0 {
-            Head::Pages(header, _) => header.count.get(),
-            Head::Bytes(at) => rb(Self::head(at, 1, 1)),
-        }
+        self.header.count.get()
     }
 
     pub fn set_count(self, count: u8) {
-        match self.0 {
-            Head::Pages(header, _) => header.count.set(count),
-            Head::Bytes(at) => wb(Self::head(at, 1, 1), count),
-        }
+        self.header.count.set(count);
     }
 
     /// +2: the title's string.
     pub fn title_text(self) -> u16 {
-        match self.0 {
-            Head::Pages(header, _) => header.title_text.get(),
-            Head::Bytes(at) => rw(Self::head(at, 2, 2)),
-        }
+        self.header.title_text.get()
     }
 
     /// +4: the item highlighted.
     pub fn highlight(self) -> u32 {
-        match self.0 {
-            Head::Pages(header, _) => header.highlight.get(),
-            Head::Bytes(at) => rd(Self::head(at, 4, 4)),
-        }
+        self.header.highlight.get()
     }
 
     pub fn set_highlight(self, highlight: u32) {
-        match self.0 {
-            Head::Pages(header, _) => header.highlight.set(highlight),
-            Head::Bytes(at) => wd(Self::head(at, 4, 4), highlight),
-        }
+        self.header.highlight.set(highlight);
     }
 
     /// +8: the list's action (`install::installer::page_action`).
     pub fn action(self) -> u32 {
-        match self.0 {
-            Head::Pages(header, _) => header.action.get(),
-            Head::Bytes(at) => rd(Self::head(at, 8, 4)),
-        }
+        self.header.action.get()
     }
 
     /// +0x10: the neighbours table for `menu::list_step` (None for none). No list holds one
     /// that a link could name: a list that has one is refused.
     pub fn neighbours(self) -> Option<BytePlace> {
-        let link = match self.0 {
-            Head::Pages(header, _) => PageLink::from_raw(header.neighbours.get()),
-            Head::Bytes(at) => rl(Self::head(at, 0x10, 4)),
-        };
+        let link = PageLink::from_raw(self.header.neighbours.get());
         (!link.is_none()).then(|| {
             refuse(crate::errors::BadInput(
                 "a list with a neighbours table the pages do not hold",
@@ -389,27 +335,15 @@ impl ListMenu {
 
     /// +0x14: the key action (`install::installer::key_action`).
     pub fn key_action(self) -> u32 {
-        match self.0 {
-            Head::Pages(header, _) => header.key_action.get(),
-            Head::Bytes(at) => rd(Self::head(at, 0x14, 4)),
-        }
+        self.header.key_action.get()
     }
 
-    /// Item `n`. An installer list holds the items its record has: an item past them is
-    /// refused (the lists' counts stay within them, `the_counts_stay_within_the_items`). The
-    /// viewer's items are read at `HEADER + ITEM * n` from its header in 32-bit arithmetic
-    /// with no check against its count: an item past the list is the bytes that follow it.
+    /// Item `n`. A list holds the items its record has: an item past them is refused (the
+    /// lists' counts stay within them, `the_counts_stay_within_the_items`).
     pub fn item(self, n: u32) -> ListItem {
-        match self.0 {
-            Head::Pages(_, items) => match items.get(n as usize) {
-                Some(item) => ListItem(Spot::Typed(item)),
-                None => refuse(crate::errors::BadInput(
-                    "an item past the items of an installer list",
-                )),
-            },
-            Head::Bytes(at) => ListItem(Spot::Bytes(
-                at.add(HEADER.wrapping_add(ITEM.wrapping_mul(n))),
-            )),
+        match self.items.get(n as usize) {
+            Some(item) => ListItem(item),
+            None => refuse(crate::errors::BadInput("an item past the items of a list")),
         }
     }
 
@@ -426,38 +360,23 @@ impl ListMenu {
     }
 }
 
-/// Where an item is: typed in one of the installer's lists, or its 0x10 bytes at a place.
+/// One item of a list menu.
 #[derive(Clone, Copy)]
-enum Spot {
-    Typed(&'static Item),
-    /// An item of the viewer's list.
-    Bytes(BytePlace),
-}
-
-/// One item of a list menu (its 0x10 bytes).
-#[derive(Clone, Copy)]
-pub struct ListItem(Spot);
+pub struct ListItem(&'static Item);
 
 impl core::fmt::Debug for ListItem {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        match self.0 {
-            Spot::Typed(item) => match Self::position(item) {
-                Some(ItemPosition::Title) => write!(f, "ListItem(title)"),
-                Some(ItemPosition::In(list, n)) => write!(f, "ListItem({list:?} #{n})"),
-                None => write!(f, "ListItem(unknown)"),
-            },
-            Spot::Bytes(at) => write!(f, "ListItem({at:?})"),
+        match Self::position(self.0) {
+            Some(ItemPosition::Title) => write!(f, "ListItem(title)"),
+            Some(ItemPosition::In(list, n)) => write!(f, "ListItem({list:?} #{n})"),
+            None => write!(f, "ListItem(the viewer's)"),
         }
     }
 }
 
 impl PartialEq for ListItem {
     fn eq(&self, other: &Self) -> bool {
-        match (self.0, other.0) {
-            (Spot::Typed(a), Spot::Typed(b)) => core::ptr::eq(a, b),
-            (Spot::Bytes(a), Spot::Bytes(b)) => a.same_place(b),
-            _ => false,
-        }
+        core::ptr::eq(self.0, other.0)
     }
 }
 
@@ -496,10 +415,7 @@ impl ListItem {
 
     /// Which typed item of the installer's pages this is (none for the viewer's items).
     pub fn installer_position(self) -> Option<ItemPosition> {
-        match self.0 {
-            Spot::Typed(item) => Self::position(item),
-            Spot::Bytes(_) => None,
-        }
+        Self::position(self.0)
     }
 
     /// The item a handle names (`to_handle`): what a piece keeps of its item. A word that
@@ -519,7 +435,7 @@ impl ListItem {
         }
         let list = ListId::ALL.get(list as usize).ok_or_else(refused)?;
         let item = list_items(*list).get(n as usize).ok_or_else(refused)?;
-        Ok(Self(Spot::Typed(item)))
+        Ok(Self(item))
     }
 
     /// The handle a piece keeps for this item; an item that is none of the installer's is
@@ -536,29 +452,16 @@ impl ListItem {
 
     /// The title's item (the pages' `title` record).
     pub fn of_title() -> Self {
-        Self(Spot::Typed(
-            &crate::install::page_links::installer().pages.title,
-        ))
-    }
-
-    fn field(at: BytePlace, offset: u32, len: u32) -> BytePlace {
-        debug_assert!(offset + len <= ITEM);
-        at.add(offset)
+        Self(&crate::install::page_links::installer().pages.title)
     }
 
     /// +0: the kind (low nibble) and marks (high bits), whole.
     pub fn first(self) -> u8 {
-        match self.0 {
-            Spot::Typed(item) => item.first.get(),
-            Spot::Bytes(at) => rb(Self::field(at, 0, 1)),
-        }
+        self.0.first.get()
     }
 
     pub fn set_first(self, first: u8) {
-        match self.0 {
-            Spot::Typed(item) => item.first.set(first),
-            Spot::Bytes(at) => wb(Self::field(at, 0, 1), first),
-        }
+        self.0.first.set(first);
     }
 
     /// The kind: the low nibble of +0.
@@ -568,18 +471,12 @@ impl ListItem {
 
     /// +1: the next list (a link) or the number of choices.
     pub fn count(self) -> u8 {
-        match self.0 {
-            Spot::Typed(item) => item.count.get(),
-            Spot::Bytes(at) => rb(Self::field(at, 1, 1)),
-        }
+        self.0.count.get()
     }
 
     /// +2: the item's text (a string id).
     pub fn text_id(self) -> u16 {
-        match self.0 {
-            Spot::Typed(item) => item.text.get(),
-            Spot::Bytes(at) => rw(Self::field(at, 2, 2)),
-        }
+        self.0.text.get()
     }
 
     /// +1 of the replay viewer's items: the viewer action Enter does there.
@@ -594,18 +491,12 @@ impl ListItem {
 
     /// +4: the box the item's pieces are placed in (none: the title's).
     pub fn box_link(self) -> PageLink {
-        match self.0 {
-            Spot::Typed(item) => PageLink::from_raw(item.box_link.get()),
-            Spot::Bytes(at) => rl(Self::field(at, 4, 4)),
-        }
+        PageLink::from_raw(self.0.box_link.get())
     }
 
     /// +8: the link's or action's address, or where the item's value or text is.
     pub fn target(self) -> u32 {
-        match self.0 {
-            Spot::Typed(item) => item.target.get(),
-            Spot::Bytes(at) => rd(Self::field(at, 8, 4)),
-        }
+        self.0.target.get()
     }
 
     /// +8 as the link.
@@ -630,26 +521,17 @@ impl ListItem {
 
     /// +0xC: the pointer to the choices, the edit record or the text action.
     pub fn data(self) -> u32 {
-        match self.0 {
-            Spot::Typed(item) => item.data.get(),
-            Spot::Bytes(at) => rd(Self::field(at, 0xC, 4)),
-        }
+        self.0.data.get()
     }
 
     /// +0xC as the byte the least value is (a value item).
     pub fn value_least(self) -> u8 {
-        match self.0 {
-            Spot::Typed(item) => item.data.get().to_le_bytes()[0],
-            Spot::Bytes(at) => rb(Self::field(at, 0xC, 1)),
-        }
+        self.0.data.get().to_le_bytes()[0]
     }
 
     /// +0xD: the most value (a value item).
     pub fn value_most(self) -> u8 {
-        match self.0 {
-            Spot::Typed(item) => item.data.get().to_le_bytes()[1],
-            Spot::Bytes(at) => rb(Self::field(at, 0xD, 1)),
-        }
+        self.0.data.get().to_le_bytes()[1]
     }
 
     /// +0xC as the item's choices (a choice item; a link): the table is the place the link
@@ -836,12 +718,7 @@ mod tests {
                 assert_ne!(menu.item(n).kind(), 2, "{list:?} item {n}");
             }
         }
-        let viewer = ListMenu::of(
-            crate::race::owner::race()
-                .replay
-                .replay_view()
-                .viewer_list_place(),
-        );
+        let viewer = ListMenu::viewer(&crate::race::owner::race().replay.replay_view().viewer_list);
         for n in 0..u32::from(viewer.count()) {
             assert_ne!(viewer.item(n).kind(), 2, "viewer item {n}");
         }

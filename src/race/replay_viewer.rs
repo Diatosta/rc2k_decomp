@@ -134,7 +134,7 @@ fn view(race: &'static Race, o: Owners<'static>, mode: Mode) -> Result<(), Refus
     replay.replay_view().last_race_viewed.set(slot == LAST_RACE);
     find_snapshot_number::find_snapshot_number(&race.replay)?;
     viewer_load_stage::viewer_load_stage(race, o)?;
-    let list = ListMenu::of(o.race.replay.replay_view().viewer_list_place());
+    let list = ListMenu::viewer(&o.race.replay.replay_view().viewer_list);
     race.shared.replay_file().viewer_sound.set(0);
     list_state.list_answer.set(1);
     list_state.list_leave.set(0);
