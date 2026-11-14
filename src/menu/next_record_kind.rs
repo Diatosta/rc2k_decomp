@@ -1,6 +1,5 @@
 //! `menu::next_record_kind`: the kind (first dword) of the record after the
-//! current one (the record table, section `section`, index `index` + 1), kept in
-//! `draw_work.figure`.
+//! current one (the record table, section `section`, index `index` + 1).
 //!
 //! Callers: `saves::load_savegame`, the event drivers.
 //! Refuses a section or index past 63 or a section the table does not hold, before anything. Rust
@@ -10,7 +9,7 @@ use crate::errors::Refused;
 use crate::menu::owner::Menus;
 use crate::system::owner::System;
 
-/// The kind, also kept in `DrawWork.figure`.
+/// The kind.
 pub fn next_record_kind(menus: &Menus, system: &System) -> Result<u32, Refused> {
     let screens = &menus.screens;
     let section: u32 = screens.event.section.get();
@@ -20,6 +19,5 @@ pub fn next_record_kind(menus: &Menus, system: &System) -> Result<u32, Refused> 
     let tables = &system.records().stage_tables;
     let table = tables.bytes_on(crate::records::stages_store::Piece::Championship);
     let kind = rc2k_core::menu::record_kinds::next_record_kind(&table, section, index)?;
-    screens.draw_work.figure.set(kind);
     Ok(kind)
 }

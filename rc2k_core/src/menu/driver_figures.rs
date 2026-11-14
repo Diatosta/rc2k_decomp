@@ -96,9 +96,9 @@ pub struct Figures {
     /// `MenuState.driver_stats.setups[2].chosen`, `ACAC`, `ACB4`, `ACB8`: the player's +0x114
     /// twice, +0x118 twice.
     pub kept: [u32; 4],
-    /// `DrawWork.figure` as the last step leaves it.
+    /// The last step's figure.
     pub figure: u32,
-    /// `hhmm`: the last span used, if any.
+    /// The last span used, if any.
     pub span: Option<u32>,
     /// The log lines, by inspected part.
     pub logged: [Logged; 13],

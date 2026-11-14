@@ -17,7 +17,6 @@ use crate::text::draw_text::Canvas;
 // ---- game data ----
 
 // the inspection score
-// `draw_work.figure`: a work variable, here the weights' sum
 
 /// The percentage and the item of the last damaged part looked at. The logic is in
 /// `rc2k_core::screens::inspection::status`.

@@ -252,7 +252,7 @@ fn every_store_s_cells_tile_it_and_copy_as_raw_copies_do() {
     }
     cells_stores! {
         *race.shared.car(),
-        *race.shared.text_buffers(),
+        *crate::screens::text_buffers_store::text_buffers(),
         menus.play.results,
         audio.state,
         audio.sample_records,

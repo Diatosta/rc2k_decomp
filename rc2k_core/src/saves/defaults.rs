@@ -216,9 +216,9 @@ impl Block {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Filled {
     pub blocks: Vec<Block>,
-    /// The `seconds` work variable.
+    /// The made-up times' seconds.
     pub seconds: u32,
-    /// `DrawWork.scratch_b0`, when the function writes it.
+    /// The sum kept in `DrawWork.button_x`, when the function writes it.
     pub sum: Option<u32>,
     /// The last guess, when one was made.
     pub checkpoints: Option<[u32; CHECKPOINTS]>,

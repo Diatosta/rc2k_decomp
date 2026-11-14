@@ -148,7 +148,6 @@ pub fn draw_service_area(
         .chosen
         .get()
         .wrapping_add(SETTING_FIRST_STRING);
-    screens.draw_work.figure.set(setting);
     let (x, y) = TYRE_AT;
     draw_string_by_id_at(
         crate::strings::append_string_by_id::StringOwners::of(o),

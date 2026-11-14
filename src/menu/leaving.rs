@@ -11,7 +11,7 @@ pub fn leaving(menus: &Menus) -> Leaving {
         leave_screen: flags.leave_screen.is_set(),
         left_with_carry: flags.left_with_carry.is_set(),
         ask_leave: flags.ask_leave.is_set(),
-        scratch_0c: screens.draw_work.scratch_0c.get(),
+        result: screens.draw_work.leave_result.get(),
     }
 }
 
@@ -22,7 +22,7 @@ pub fn put_leaving(menus: &Menus, l: &Leaving) {
     flags.leave_screen.set(l.leave_screen);
     flags.left_with_carry.set(l.left_with_carry);
     flags.ask_leave.set(l.ask_leave);
-    screens.draw_work.scratch_0c.set(l.scratch_0c);
+    screens.draw_work.leave_result.set(l.result);
 }
 
 pub fn question(menus: &Menus) -> Question {

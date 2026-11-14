@@ -9,8 +9,8 @@
 //!   by its +0x14 where the others' are by +0x18 (kept as is).
 //! - `draw_class_stage_results`: the heading `screens::draw_record_heading`, the stage's times,
 //!   the class's first time and rows.
-//! - `draw_overall_stage_results`: as the last with the overall first time, also kept in
-//!   `draw_work.overall_first_time` (the gaps' base), and the rows by position alone.
+//! - `draw_overall_stage_results`: as the last with the overall first time (the gaps' base) and
+//!   the rows by position alone.
 //!
 //! Each then draws the column headings and per row the position, name, time (string 0x4FA, or
 //! 0x4FB for a time of 0x36EE8A, when the car did not finish) and, but for position 1, the gap
@@ -46,7 +46,7 @@ pub struct Page {
     /// The first time: true the class's (`find_class_time`), false the first classed
     /// entry's (`first_overall_time`).
     by_class: bool,
-    /// The first time also in `draw_work.overall_first_time`.
+    /// The first time also kept as the overall first time.
     keep_overall: bool,
 }
 

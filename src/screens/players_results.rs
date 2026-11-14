@@ -158,7 +158,7 @@ pub fn draw_players_results(
             stage,
             units_set: crate::strings::units::units() != 0,
             show_hours: crate::strings::append_time::show_hours(),
-            extra_glyph: menus.screens.draw_work.scratch_b4.get(),
+            extra_glyph: menus.screens.draw_work.button_y.get(),
         };
         players_results(
             &mut crate::screens::game_screen::GameScreen::<

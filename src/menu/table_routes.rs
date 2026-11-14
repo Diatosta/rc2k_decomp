@@ -155,6 +155,7 @@ use crate::screens::set_stage_choice_titles;
 use crate::screens::slideshow_title;
 use crate::screens::stage_info;
 use crate::screens::stage_results;
+use crate::screens::text_buffers_store::text_buffers;
 use crate::screens::yes_no_caption;
 use crate::service::begin_edits;
 use crate::service::begin_setup_name;
@@ -194,18 +195,17 @@ pub fn item_fn(o: Owners<'static>, f: ItemFn, c: &table_calls::ItemCall) -> Resu
         ItemFn::FlipGearing => Ok(flip_gearing::flip_gearing(
             crate::strings::append_string_by_id::StringOwners::of(o),
             &menus.screens,
-            o.race,
         )?),
         ItemFn::NextGearing => gearing_text::step_gearing(
             crate::strings::append_string_by_id::StringOwners::of(o),
             menus,
-            o.race.text_buffers(),
+            text_buffers(),
             true,
         ),
         ItemFn::PreviousGearing => gearing_text::step_gearing(
             crate::strings::append_string_by_id::StringOwners::of(o),
             menus,
-            o.race.text_buffers(),
+            text_buffers(),
             false,
         ),
         ItemFn::PreviousCar => step_items::car_button(o, Which::PreviousCar),
@@ -271,11 +271,11 @@ pub fn item_fn(o: Owners<'static>, f: ItemFn, c: &table_calls::ItemCall) -> Resu
             Ok(())
         }
         ItemFn::PreviousReplayRange => {
-            player_actions::previous_replay_range(menus, &menus.tables, o.race.text_buffers())
+            player_actions::previous_replay_range(menus, &menus.tables, text_buffers())
                 .map_err(Into::into)
         }
         ItemFn::NextReplayRange => {
-            player_actions::next_replay_range(menus, &menus.tables, o.race.text_buffers())
+            player_actions::next_replay_range(menus, &menus.tables, text_buffers())
                 .map_err(Into::into)
         }
         ItemFn::BeginSavegameName => Ok(begin_savegame_name::begin_savegame_name(
@@ -325,7 +325,6 @@ pub fn item_fn(o: Owners<'static>, f: ItemFn, c: &table_calls::ItemCall) -> Resu
         ItemFn::ToggleCaptionChoice => player_actions::toggle_caption_choice(
             crate::strings::append_string_by_id::StringOwners::of(o),
             &menus.screens,
-            o.race,
         )
         .map_err(Into::into),
         ItemFn::ShowIntro => item_actions::show_intro(o),
@@ -408,10 +407,10 @@ pub fn item_fn(o: Owners<'static>, f: ItemFn, c: &table_calls::ItemCall) -> Resu
         ItemFn::ViewBestTimesLoop => view_best_times_loop::run(o),
         ItemFn::ViewCoursesLoop => view_courses_loop::run(o),
         ItemFn::ViewBestScoresLoop => view_best_scores_loop::run(o),
-        ItemFn::PreviousStageRows => stage_rows::step_rows(menus, o.race, false, false),
-        ItemFn::NextStageRows => stage_rows::step_rows(menus, o.race, false, true),
-        ItemFn::PreviousStageRowsOf90 => stage_rows::step_rows(menus, o.race, true, false),
-        ItemFn::NextStageRowsOf90 => stage_rows::step_rows(menus, o.race, true, true),
+        ItemFn::PreviousStageRows => stage_rows::step_rows(menus, false, false),
+        ItemFn::NextStageRows => stage_rows::step_rows(menus, false, true),
+        ItemFn::PreviousStageRowsOf90 => stage_rows::step_rows(menus, true, false),
+        ItemFn::NextStageRowsOf90 => stage_rows::step_rows(menus, true, true),
         ItemFn::RallyResults => rally_results::rally_results(menus, &Entry::new(o)),
         ItemFn::ChampionshipStandings => {
             championship_standings::championship_standings(menus, &Entry::new(o))
@@ -427,7 +426,6 @@ pub fn item_fn(o: Owners<'static>, f: ItemFn, c: &table_calls::ItemCall) -> Resu
 /// Runs screen function `f` (the draw lists' and the frames'; it takes nothing).
 pub fn screen_fn(o: Owners<'static>, f: ScreenFn) -> Result<(), Refused> {
     let menus = o.menus;
-    let race = o.race;
     match f {
         ScreenFn::DrawSectionBestTimes => draw_section_best_times::draw_section_best_times(
             o,
@@ -449,7 +447,7 @@ pub fn screen_fn(o: Owners<'static>, f: ScreenFn) -> Result<(), Refused> {
         ),
         ScreenFn::StageOptionsTexts => page_settings::stage_options_texts(o).map(|_| ()),
         ScreenFn::SetStageChoiceTitles => {
-            set_stage_choice_titles::set_stage_choice_titles(o, o.system, o.race).map(|_| ())
+            set_stage_choice_titles::set_stage_choice_titles(o, o.system).map(|_| ())
         }
         ScreenFn::StageChoiceTexts => page_settings::stage_choice_texts(o).map(|_| ()),
         ScreenFn::DrawHighlightedCaption => {
@@ -461,7 +459,7 @@ pub fn screen_fn(o: Owners<'static>, f: ScreenFn) -> Result<(), Refused> {
         ScreenFn::CarCaption2 => car_caption::car_caption(
             crate::strings::append_string_by_id::StringOwners::of(o),
             menus,
-            o.race.text_buffers(),
+            text_buffers(),
         )
         .map(|_| ()),
         ScreenFn::StepCarousel => Ok(step_carousel::step_carousel(&menus.screens, o.race)?),
@@ -471,30 +469,30 @@ pub fn screen_fn(o: Owners<'static>, f: ScreenFn) -> Result<(), Refused> {
         ScreenFn::GearingText => gearing_text::gearing_text(
             crate::strings::append_string_by_id::StringOwners::of(o),
             menus,
-            o.race.text_buffers(),
+            text_buffers(),
         )
         .map(|_| ()),
         ScreenFn::CarCaption => car_caption::car_caption(
             crate::strings::append_string_by_id::StringOwners::of(o),
             menus,
-            o.race.text_buffers(),
+            text_buffers(),
         )
         .map(|_| ()),
         ScreenFn::CarPageTitle => car_page_title::car_page_title(
             crate::strings::append_string_by_id::StringOwners::of(o),
             menus,
-            o.race.text_buffers(),
+            text_buffers(),
         )
         .map(|_| ()),
         ScreenFn::SlideshowTitle => slideshow_title::slideshow_title(
             crate::strings::append_string_by_id::StringOwners::of(o),
-            o.race.text_buffers(),
+            text_buffers(),
         )
         .map(|_| ()),
         ScreenFn::PlayerNumberText => player_number_text::player_number_text(
             crate::strings::append_string_by_id::StringOwners::of(o),
             menus,
-            o.race.text_buffers(),
+            text_buffers(),
         )
         .map(|_| ()),
         ScreenFn::DrawControllerPage => {
@@ -518,14 +516,14 @@ pub fn screen_fn(o: Owners<'static>, f: ScreenFn) -> Result<(), Refused> {
         ScreenFn::BestScoresCaption => best_scores::best_scores_caption(
             crate::strings::append_string_by_id::StringOwners::of(o),
             menus,
-            o.race.text_buffers(),
+            text_buffers(),
         )
         .map(|_| ()),
         ScreenFn::DrawBestScoresPage => {
             best_scores::draw_best_scores_page(o, &mut GameCanvas::new(o.gfx)).map(|_| ())
         }
         ScreenFn::SavegamePageNumbers => {
-            savegame_page_numbers::savegame_page_numbers(menus, o.race.text_buffers()).map(|_| ())
+            savegame_page_numbers::savegame_page_numbers(menus, text_buffers()).map(|_| ())
         }
         ScreenFn::DrawSavegameNames => {
             draw_savegame_names::draw_savegame_names(o, &mut GameCanvas::new(o.gfx)).map(|_| ())
@@ -556,7 +554,7 @@ pub fn screen_fn(o: Owners<'static>, f: ScreenFn) -> Result<(), Refused> {
         ScreenFn::YesNoCaption => yes_no_caption::run(
             crate::strings::append_string_by_id::StringOwners::of(o),
             menus,
-            o.race.text_buffers(),
+            text_buffers(),
         ),
         ScreenFn::DrawLeaveQuestion => {
             draw_leave_question::draw_leave_question(o, &mut GameCanvas::new(o.gfx))
@@ -567,10 +565,9 @@ pub fn screen_fn(o: Owners<'static>, f: ScreenFn) -> Result<(), Refused> {
         ScreenFn::DrawSoundSettings => {
             draw_sound_settings::draw_sound_settings(o, o.audio, &mut GameCanvas::new(o.gfx))
         }
-        ScreenFn::ReplayRangeCaption => Ok(best_scores::replay_range_caption(
-            menus,
-            race.text_buffers(),
-        )?),
+        ScreenFn::ReplayRangeCaption => {
+            Ok(best_scores::replay_range_caption(menus, text_buffers())?)
+        }
         ScreenFn::LoadSetupValues => Ok(load_setup_values::load_setup_values(menus)?),
         ScreenFn::LoadAudioSettings => {
             page_settings::load_audio_settings(menus, o.audio);
@@ -614,7 +611,6 @@ pub fn screen_fn(o: Owners<'static>, f: ScreenFn) -> Result<(), Refused> {
                 o,
                 o.system,
                 o.gfx,
-                o.race,
                 &mut GameCanvas::new(o.gfx),
             )
         }
@@ -703,10 +699,7 @@ pub fn screen_fn(o: Owners<'static>, f: ScreenFn) -> Result<(), Refused> {
         ScreenFn::DrawServiceBoxes => draw_service_boxes::draw_service_boxes(o),
         ScreenFn::DrawBottomPanel => draw_bottom_panel::draw_bottom_panel(o),
         ScreenFn::DrawTwoColumnPanel => draw_two_column_panel::draw_two_column_panel(o),
-        ScreenFn::StageRangeCaption => Ok(stage_range_caption::stage_range_caption(
-            &menus.play,
-            o.race,
-        )?),
+        ScreenFn::StageRangeCaption => Ok(stage_range_caption::stage_range_caption(&menus.play)?),
         ScreenFn::DrawClassStageResults => class_stage::draw(o, o.system, o.gfx),
         ScreenFn::DrawOverallStageResults => overall_stage::draw(o, o.system, o.gfx),
         ScreenFn::DrawClassRallyResults => class_rally::draw(o, o.system, o.gfx),

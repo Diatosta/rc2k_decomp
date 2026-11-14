@@ -13,7 +13,6 @@ use crate::race::viewer_screen_store::ViewerPanelBlock;
 use crate::scene::engine_tables_store::EngineTables;
 use crate::scene::faces_store::Faces;
 use crate::scene::polygon_store::PolygonTables;
-use crate::screens::text_buffers_store::TextBuffers;
 
 #[allow(dead_code, reason = "the call sites move to it in the M6 rounds")]
 impl Race {
@@ -60,11 +59,6 @@ impl Race {
     /// The checkpoints.
     pub fn checkpoints(&self) -> &Checkpoints {
         &self.shared.buffers.reads.get().checkpoints
-    }
-
-    /// The screens' text buffers.
-    pub fn text_buffers(&self) -> &TextBuffers {
-        self.shared.text_buffers()
     }
 
     /// The light records.

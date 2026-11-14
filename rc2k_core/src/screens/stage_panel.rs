@@ -25,7 +25,7 @@ pub enum Font {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Work {
-    /// `DrawWork.figure`, used all over the game.
+    /// A work value nothing reads.
     Scratch,
     /// The finish time.
     Finish,

@@ -51,7 +51,7 @@ pub fn default_stage_times(
             },
             &tables,
             Some(ebp),
-            with_checkpoints(screens),
+            false,
         )?;
         apply(screens, race, &filled, &[Target::Stages(table)])?;
         Ok(())

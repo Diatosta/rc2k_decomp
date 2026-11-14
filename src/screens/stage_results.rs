@@ -7,6 +7,7 @@ use crate::menu::owner::Play;
 use crate::owners::Owners;
 use crate::records::stages_store::{Holder, RecordRef, RecordTable};
 use crate::screens::game_screen::{Held, HeldText};
+use crate::screens::text_buffers_store::text_buffers;
 use crate::text::draw_text::Canvas;
 
 /// The stage's record table and record (by `ChampView.switch_f8`, `CaptionTables.shown_group` and
@@ -163,12 +164,10 @@ pub fn draw_stage_results(o: Owners<'static>, canvas: &mut dyn Canvas) -> Result
         },
     )?;
     set_item(3, base.title(&o.system.records().stage_tables)?)?;
-    o.race
-        .text_buffers()
+    text_buffers()
         .stage_result_value
         .set(record.record(&o.system.records().stage_tables)?.track());
-    o.race
-        .text_buffers()
+    text_buffers()
         .stage_heading
         .write_at(0, &stage, "the stage line")?;
     // The logic is in `rc2k_core::screens::stage_results`.

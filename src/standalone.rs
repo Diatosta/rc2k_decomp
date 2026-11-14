@@ -512,13 +512,9 @@ fn read_command_line_and_install_state(o: Owners<'static>, r: &Context) {
     }
     rust("install::check_at_start");
     let no_audio = &o.audio.state.no_audio;
-    if let Err(e) = crate::install::check_at_start::check_at_start(
-        o.install,
-        system,
-        o.race,
-        &mut outside,
-        no_audio,
-    ) {
+    if let Err(e) =
+        crate::install::check_at_start::check_at_start(o.install, system, &mut outside, no_audio)
+    {
         refused("install::check_at_start", e, r);
     }
     rust("system::check_developer_machine");

@@ -15,7 +15,6 @@ use crate::text::draw_text::Canvas;
 // ---- game data ----
 
 // `event.shown_car`
-// `draw_work.figure`
 const PAGES: u32 = 4;
 
 /// Returns whether the last text drawn was too wide for its box.

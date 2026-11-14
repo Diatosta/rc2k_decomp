@@ -1,7 +1,6 @@
 //! Draws glyphs 0x9C and 0x9D of the sprite table at the two points stored in a stage record
 //! (`Record::markers`: the stage's two ends on the map; first point at +0x44/+0x48, second at
-//! +0x4C/+0x50). Each point is also stored in the marker globals, which are left holding the second
-//! one.
+//! +0x4C/+0x50).
 
 use crate::gfx::blit_glyph::BlitCall;
 use crate::gfx::owner::Gfx;
@@ -23,11 +22,4 @@ pub fn marker_calls(gfx: &Gfx, menus: &Menus, record: &Record) -> [BlitCall; 2] 
         BlitCall::sprite(menus, FIRST_GLYPH, x0, y0, clip(gfx).right),
         BlitCall::sprite(menus, SECOND_GLYPH, x1, y1, clip(gfx).right),
     ]
-}
-
-/// Stores a marker's position in the two globals, before each blit.
-pub fn set_marker_position(menus: &Menus, call: &BlitCall) {
-    let screens = &menus.screens;
-    screens.draw_work.marker_x.set(call.x as u32);
-    screens.draw_work.marker_y.set(call.y as u32);
 }

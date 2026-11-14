@@ -4,33 +4,22 @@
 
 use crate::errors::Refused;
 use crate::owners::Owners;
-use crate::screens::service_boxes::{quad, rd, set};
+use crate::screens::service_boxes::quad;
 
 pub fn draw_column_boxes(o: Owners<'static>) -> Result<(), Refused> {
     let screens = &o.menus.screens;
-    // The logic is in `rc2k_core::screens::panels::row_box`; the row and marker variables
-    // keep the values the loop leaves in them.
+    // The logic is in `rc2k_core::screens::panels::row_box`.
     use rc2k_core::screens::panels::{BOXES_Y, COLUMNS, ROW_STEP, ROWS, row_box};
-    let row = &screens.draw_work.figure;
-    let marker_x = &screens.draw_work.marker_x;
-    let marker_y = &screens.draw_work.marker_y;
-    set(row, 1);
+    let mut row = 1u32;
     for x in COLUMNS {
-        set(marker_x, x);
-        set(marker_y, BOXES_Y);
+        let mut y = BOXES_Y;
         for _ in 0..ROWS {
-            let chosen =
-                screens.loop_flags.item.get() == rd(row) && screens.draw_work.blink.is_set();
-            for a in row_box(
-                rd(marker_x),
-                rd(marker_y),
-                screens.state.service_ui.box_colour_a.get(),
-                chosen,
-            ) {
+            let chosen = screens.loop_flags.item.get() == row && screens.draw_work.blink.is_set();
+            for a in row_box(x, y, screens.state.service_ui.box_colour_a.get(), chosen) {
                 quad(o, a.x, a.y, a.w, a.h, a.colour, a.see)?;
             }
-            set(marker_y, rd(marker_y).wrapping_add(ROW_STEP));
-            set(row, rd(row).wrapping_add(1));
+            y = y.wrapping_add(ROW_STEP);
+            row = row.wrapping_add(1);
         }
     }
     Ok(())

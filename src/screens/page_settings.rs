@@ -5,6 +5,7 @@ use crate::menu::owner::Menus;
 use crate::owners::Owners;
 use crate::records::stages_store::{RecordRef, RecordTable};
 use crate::screens::text_buffers_store::TextBuffers;
+use crate::screens::text_buffers_store::text_buffers;
 
 /// Player `n` (1 to 4) becomes the current one, its controller goes into `event.picked_controller`
 /// and its 0x2C bytes of bindings into the page's copy (`keys.tables.controls`). Refuses a player
@@ -109,7 +110,7 @@ pub fn stage_options_texts(o: Owners<'static>) -> Result<(), Refused> {
         menus.play.champ_view.switch_f8.get(),
         menus.tables.captions.shown_group.get(),
     );
-    let text = o.race.text_buffers();
+    let text = text_buffers();
     let stages = &o.system.records().stage_tables;
     stage_refuses(stages, a, b)?;
     // The logic is in `rc2k_core::screens::page_values` (the items and the caption).
@@ -152,7 +153,7 @@ pub fn stage_choice_texts(o: Owners<'static>) -> Result<(), Refused> {
         menus.screens.event.stage_group.get(),
         menus.screens.event.stage_sub.get(),
     );
-    let text = o.race.text_buffers();
+    let text = text_buffers();
     let stages = &o.system.records().stage_tables;
     stage_refuses(stages, a, b)?;
     // Item 1 of the "menu" the head points to (the labels; kept as is).

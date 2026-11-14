@@ -916,8 +916,8 @@ fn listed_stores() -> Vec<Listed> {
             on_game(crate::race::owner::RACE.shared.viewer_buffers()),
         ),
         listed!(
-            "race.owner.RACE.shared.text",
-            on_game(crate::race::owner::RACE.shared.text_buffers()),
+            "screens.text_buffers_store.TEXT_BUFFERS",
+            on_game(crate::screens::text_buffers_store::text_buffers()),
         ),
         listed!(
             "race.viewer_state_store.RECTANGLES",

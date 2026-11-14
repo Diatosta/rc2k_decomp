@@ -5,15 +5,6 @@ use crate::errors::Refused;
 use crate::owners::Owners;
 use crate::session::DwordLike;
 
-/// A variable of the game.
-pub fn rd(a: &dyn DwordLike) -> u32 {
-    a.get()
-}
-
-pub fn set(a: &dyn DwordLike, v: u32) {
-    a.set(v);
-}
-
 /// One quad: x .. x + w, y .. y + h, the colour and see-through, then `draw_tinted_quad`.
 pub fn quad(
     o: Owners<'static>,

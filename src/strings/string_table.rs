@@ -2,6 +2,7 @@
 
 use crate::errors::BadInput;
 use crate::place::Run;
+use crate::screens::text_buffers_store::text_buffers;
 use rc2k_core::strings::table::StringTable;
 
 // The string table pointer is not kept: the table is always read from `PUBLISHED`.
@@ -79,7 +80,6 @@ impl MadeText {
     /// follow one another: a text runs on past its field into the next.
     fn chain<'a>(
         self,
-        race: &'a crate::race::owner::Race,
         menus: &'a crate::menu::owner::Menus,
         install: &'a crate::install::owner::Install,
     ) -> Vec<&'a dyn Run> {
@@ -89,7 +89,7 @@ impl MadeText {
                 vec![&notice.notice_first, &notice.notice_second]
             }
             MadeText::StageHeading(_) | MadeText::PageNumber(_) => {
-                let text = race.text_buffers();
+                let text = text_buffers();
                 vec![
                     &text.stage_heading,
                     &text.caption,
@@ -131,13 +131,12 @@ impl MadeText {
 
 /// The text of the made text `id`, up to its NUL (left out).
 pub fn made_text(
-    race: &crate::race::owner::Race,
     menus: &crate::menu::owner::Menus,
     install: &crate::install::owner::Install,
     id: u32,
 ) -> Result<Vec<u8>, BadInput> {
     let place = made_place(id)?;
-    let chain = place.chain(race, menus, install);
+    let chain = place.chain(menus, install);
     text_across(&chain, place.offset(&chain))
 }
 
@@ -323,7 +322,7 @@ mod tests {
             MadeText::Language(_) => ('M', 0x38e),
             MadeText::Credit(_) => ('V', 0x13c),
         };
-        let chain = place.chain(o.race, o.menus, o.install);
+        let chain = place.chain(o.menus, o.install);
         (holder, first_byte + place.offset(&chain))
     }
 
@@ -334,9 +333,9 @@ mod tests {
             assert_eq!(place_of(id), place, "{id:#X}");
         }
         let o = crate::owners::Owners::the();
-        let (race, menus, install) = (o.race, o.menus, o.install);
-        assert!(made_text(race, menus, install, 0x1040).is_err());
-        assert!(made_text(race, menus, install, 0x1FFF).is_err());
+        let (menus, install) = (o.menus, o.install);
+        assert!(made_text(menus, install, 0x1040).is_err());
+        assert!(made_text(menus, install, 0x1FFF).is_err());
     }
 
     #[test]
@@ -344,11 +343,11 @@ mod tests {
         let o = crate::owners::Owners::the();
         let place = made_place(0x1004).unwrap();
         assert_eq!(place, MadeText::StageHeading(1));
-        let chain = place.chain(o.race, o.menus, o.install);
+        let chain = place.chain(o.menus, o.install);
         assert_eq!(place.offset(&chain), chain[0].len());
         assert!(std::ptr::addr_eq(
             chain[1],
-            &raw const o.race.text_buffers().caption
+            &raw const text_buffers().caption
         ));
     }
 
@@ -362,7 +361,7 @@ mod tests {
         let mut hash = 0xcbf2_9ce4_8422_2325_u64;
         let mut lines = Vec::new();
         for id in MADE_TEXT_IDS.start + 17..MADE_TEXT_IDS.end {
-            let line = match made_text(o.race, o.menus, o.install, id) {
+            let line = match made_text(o.menus, o.install, id) {
                 Ok(text) => format!("{id:#x}: {text:?}"),
                 Err(e) => format!("{id:#x}: refused {e:?}"),
             };

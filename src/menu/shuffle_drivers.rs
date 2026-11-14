@@ -1,7 +1,7 @@
 //! `menu::shuffle_drivers`: meant to shuffle four driver tables (three menu tables and the
 //! drivers; 0x94 an entry; counts `state.menus.class_counts`), but it never adds the two random
 //! entries' offsets: for each table, count times, two random numbers under the count
-//! (`draw_work.figure`, `hhmm`) and the first entry swapped with itself through the first
+//! and the first entry swapped with itself through the first
 //! shuffle table / the second shuffle table (both left holding it). A 1999 slip kept as is.
 //!
 //! Callers: one of the game's. The random numbers are `math::random_below`'s. Refuses a count
@@ -33,8 +33,10 @@ pub fn shuffle_drivers(menus: &Menus) -> Result<(), Refused> {
         let first = &menus.cars.drivers.drivers[table];
         let n = count.get();
         for _ in 0..n {
-            menus.screens.draw_work.figure.set(random_below(n)?);
-            menus.screens.draw_work.hhmm.set(random_below(n)?);
+            // Two draws nothing uses: they advance the random generator, which later draws
+            // (and so replays) depend on.
+            random_below(n)?;
+            random_below(n)?;
             // The first entry through both scratch records and back (both left holding it).
             let driver = records_to_bytes(std::slice::from_ref(first));
             debug_assert_eq!(driver.len(), DRIVER_LEN);

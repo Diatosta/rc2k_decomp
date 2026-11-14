@@ -28,8 +28,7 @@ pub enum Switch {
     Quitting,
 }
 
-/// The screen loops' leaving switches: four flags in a row from `LoopFlags.event_left`, and
-/// `DrawWork.scratch_0c`. What each means is a reading.
+/// The screen loops' leaving switches: four flags and the value the screen returns.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Leaving {
     /// The event left too (0 when only the screen is).
@@ -40,9 +39,8 @@ pub struct Leaving {
     pub left_with_carry: bool,
     /// The screen loop asks whether to leave.
     pub ask_leave: bool,
-    /// `DrawWork.scratch_0c` (`DrawWork::scratch_0c`, a scratch variable the screens share): -1 on
-    /// going back; the screens after it use it for their own values.
-    pub scratch_0c: u32,
+    /// What the screen being left returns: -1 on going back, or a value the screen picked.
+    pub result: u32,
 }
 
 impl Leaving {
@@ -50,7 +48,7 @@ impl Leaving {
     pub fn go_back(&mut self) {
         self.event_left = false;
         self.leave_screen = true;
-        self.scratch_0c = u32::MAX;
+        self.result = u32::MAX;
     }
 
     /// `menu::ask_to_leave`.
@@ -126,7 +124,7 @@ mod tests {
         };
         l.go_back();
         assert_eq!(
-            (l.event_left, l.leave_screen, l.scratch_0c),
+            (l.event_left, l.leave_screen, l.result),
             (false, true, u32::MAX)
         );
         l.leave_with_carry();

@@ -4,17 +4,17 @@
 //! record rows use.
 
 use crate::errors::{BadInput, Refused};
-use crate::gfx::blit_marker_pair::{marker_calls, set_marker_position};
+use crate::gfx::blit_marker_pair::marker_calls;
 use crate::gfx::owner::Gfx;
 use crate::menu::lists_store::lists;
 use crate::menu::owner::Screens;
-use crate::race::owner::Race;
 use crate::records::stages_store::RecordRef;
 use crate::records::stages_store::TrackField;
 use crate::records::trakpak_entry::track_of;
 use crate::screens::draw_stage_heading::heading_text;
 use crate::screens::draw_stage_records::draw_stage_records;
 use crate::screens::game_screen::GameScreen;
+use crate::screens::text_buffers_store::text_buffers;
 use crate::session::{DwordLike, PlainDword};
 use crate::strings::units::units;
 use crate::text::draw_string_by_id::draw_string_by_id_at;
@@ -22,7 +22,6 @@ use crate::text::draw_text::Canvas;
 
 // ---- game data ----
 
-// `draw_work.figure`: a work variable used all over the game
 // mmss: receives the finish time
 // the summary copy[1]: copy of entry +0x34
 const SECOND_HEADING_STRING: u32 = 0x482;
@@ -79,11 +78,10 @@ pub fn label(
 /// returns, with its NUL).
 pub fn build_second_heading(
     so: crate::strings::append_string_by_id::StringOwners<'_>,
-    race: &Race,
     record: RecordRef,
 ) -> Result<Vec<u8>, Refused> {
     let bytes = heading_text(so, record, SECOND_HEADING_STRING)?;
-    race.text_buffers()
+    text_buffers()
         .stage_heading
         .write_at(0, &bytes, "the second stage heading")?;
     Ok(bytes)
@@ -125,7 +123,6 @@ pub fn draw_stage_body_in(
     use rc2k_core::screens::stage_panel::{Entry, Font};
     // The two markers on the map.
     for call in marker_calls(gfx, menus, record.record(&o.system.records().stage_tables)?) {
-        set_marker_position(menus, &call);
         canvas.blit_glyph(call)?;
     }
     let entry = || -> Result<Entry, Refused> {

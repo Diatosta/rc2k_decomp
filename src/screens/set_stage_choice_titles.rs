@@ -22,7 +22,6 @@ fn item_1_place(tables: &Tables) -> Result<Option<usize>, BadInput> {
 pub fn set_stage_choice_titles(
     o: crate::owners::Owners<'static>,
     system: &crate::system::owner::System,
-    race: &crate::race::owner::Race,
 ) -> Result<(), Refused> {
     let menus = o.menus;
     let tables = &menus.tables;
@@ -34,7 +33,6 @@ pub fn set_stage_choice_titles(
     };
     build_second_heading(
         crate::strings::append_string_by_id::StringOwners::of(o),
-        race,
         s.record,
     )?;
     let group_title = group_title(&menus.play.results, s.group)?;

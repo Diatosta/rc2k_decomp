@@ -256,7 +256,7 @@ pub fn tenth_best_score(group: u32) -> Result<u32, BadInput> {
 const SORTED: u32 = standings::SORTED as u32;
 
 /// Standings table A's first 0xB4 entries sorted by `key` (signed; an exchange sort: an entry
-/// later or equal moves up; `DrawWork.scratch_b4` / `DrawWork.scratch_b8` its counters).
+/// later or equal moves up).
 /// Refused without a table.
 pub fn sort_table_a(menus: &Menus, key: rc2k_core::saves::entries::Field) -> Result<(), BadInput> {
     let screens = &menus.screens;
@@ -266,8 +266,7 @@ pub fn sort_table_a(menus: &Menus, key: rc2k_core::saves::entries::Field) -> Res
         });
     })?;
 
-    screens.draw_work.scratch_b4.set(SORTED - 1);
-    screens.draw_work.scratch_b8.set(SORTED);
+    screens.draw_work.button_y.set(SORTED - 1);
 
     Ok(())
 }
@@ -327,8 +326,7 @@ pub fn sort_table_b(menus: &Menus, key: BKey, down: bool) -> Result<(), BadInput
         });
     })?;
 
-    screens.draw_work.scratch_b4.set(SORTED - 1);
-    screens.draw_work.scratch_b8.set(SORTED);
+    screens.draw_work.button_y.set(SORTED - 1);
 
     Ok(())
 }

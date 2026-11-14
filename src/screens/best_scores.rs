@@ -71,7 +71,7 @@ impl Source {
 /// A scores page: its table and how it is drawn.
 pub struct Table {
     pub at: Source,
-    /// The best scores keep the last row's y in `draw_work.scratch_b0`.
+    /// The best scores leave the last row's y in `DrawWork.button_x`.
     pub keeps_y: bool,
     /// Where the group's number is: a dword, or (None) the page's entry of the group list.
     pub group_at: Option<fn(&Menus) -> &dyn DwordLike>,
@@ -79,7 +79,7 @@ pub struct Table {
     pub group_fixed: Option<u32>,
     /// An entry whose highlight field is 1 is drawn in the highlight fonts.
     pub highlight: bool,
-    /// How far below the rank's y the sprites go (and `draw_work.scratch_b0` with them).
+    /// How far below the rank's y the sprites go (and `DrawWork.button_x` with them).
     pub sprite_dy: i32,
 }
 
@@ -262,8 +262,8 @@ pub struct StageTimes {
     pub record: fn(&Menus) -> &dyn DwordLike,
     /// The times' table (ten for each stage; the record's +0x3C the stage).
     pub table: fn(&Menus) -> &StageTable,
-    /// The rally page keeps the sprites' y (+4) in `draw_work.scratch_b0` and the flag's glyph in
-    /// `draw_work.scratch_b4`.
+    /// The rally page leaves the sprites' y (+4) in `DrawWork.button_x` and the flag's glyph in
+    /// `DrawWork.button_y`.
     pub rally: bool,
 }
 
@@ -487,7 +487,7 @@ pub fn draw_record_heading(
     }
 }
 
-/// The record's heading, its best times (the rows' y kept in `draw_work.scratch_b0`), and, when the
+/// The record's heading, its best times (the rows' y left in `DrawWork.button_x`), and, when the
 /// list ran to ten rows, the fastest line (string 0x1A2, the car's sprite, the name, the flag's
 /// sprite, the speed with its unit; a list that ended early leaves it out, kept as is). Refuses a
 /// section the table lacks, no times table and what `strings::append_speed` refuses.
@@ -546,8 +546,8 @@ pub const OVERALL_BEST_SCORES: Table = Table {
 };
 
 /// The heading in the heading font: in event mode 0x13 the section's name (the section's entry
-/// of the heading list), else string `other` (the first: 0x35E + `event.class`, kept in
-/// `draw_work.figure`; the second 0x362); then the scores as `draw_scores`. Refuses no table.
+/// of the heading list), else string `other` (the first: 0x35E + `event.class`; the second
+/// 0x362); then the scores as `draw_scores`. Refuses no table.
 pub fn draw_scores_with_heading(
     o: crate::owners::Owners<'static>,
     t: &Table,

@@ -1,7 +1,7 @@
 //! Draws the items of a menu, each a picture or a button with a text, the highlighted one with
 //! pulsing colours. Items follow a 4-byte head, are 0x5C bytes each and end with -1; the first is
 //! drawn without being checked for the end. An item is the highlighted one when its type equals
-//! `loop_flags.item`; `draw_work.drawing_highlighted_item` is left at 1 or 0 for the last item.
+//! `loop_flags.item`.
 //!
 //! What goes behind the text depends on the item's kind: nothing, the button the item describes
 //! (`draw_item_button`), a right-aligned button as wide as the text, a centred one, or a sprite of
@@ -17,11 +17,10 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::item_sprites_store::ItemSprite;
+use crate::screens::text_buffers_store::text_buffers;
 use crate::text::draw_text::Canvas;
 
 // ---- game data ----
-
-// `draw_work.drawing_highlighted_item`: 1 while the highlighted item is drawn
 
 // What an item's +0x1C says goes behind its text.
 
@@ -78,7 +77,7 @@ pub fn draw_menu_items(
     };
     let mut screen = MenuScreen::new(canvas, o);
     screen.menu_items = all;
-    let line = &o.race.text_buffers().line;
+    let line = &text_buffers().line;
     rc2k_core::screens::menus::items(
         &mut screen,
         &list,

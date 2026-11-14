@@ -18,7 +18,6 @@ use crate::race::vars_store::RaceVars;
 use crate::race::view_store::RaceView;
 use crate::race::viewer_buffers_store::ViewerBuffers;
 use crate::race::work_store::RaceWork;
-use crate::screens::text_buffers_store::TextBuffers;
 use crate::session::{DrawShared, GameThread};
 use rc2k_core::net::net_race::NetRace;
 
@@ -60,8 +59,6 @@ struct SharedMain {
     replays: Replays,
     /// `race::viewer_buffers_store`: the replay viewer's buffers.
     viewer: ViewerBuffers,
-    /// `screens::text_buffers_store`: the screens' text buffers.
-    text: TextBuffers,
 }
 
 impl RaceShared {
@@ -90,7 +87,6 @@ impl RaceShared {
                 replay_file: ReplayFileBlock::new(),
                 replays: Replays::new(),
                 viewer: ViewerBuffers::new(),
-                text: TextBuffers::new(),
             }),
         }
     }
@@ -124,10 +120,6 @@ impl RaceShared {
 
     pub fn viewer_buffers(&self) -> &ViewerBuffers {
         &self.main.get().viewer
-    }
-
-    pub fn text_buffers(&self) -> &TextBuffers {
-        &self.main.get().text
     }
 
     /// Car `n`'s block (`car_blocks[n]`), refused for a value that names no block (see

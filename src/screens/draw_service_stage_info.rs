@@ -19,7 +19,6 @@ pub fn draw_service_stage_info(
     o: crate::owners::Owners<'static>,
     system: &crate::system::owner::System,
     gfx: &crate::gfx::owner::Gfx,
-    race: &crate::race::owner::Race,
     canvas: &mut dyn Canvas,
 ) -> Result<bool, Refused> {
     let menus = o.menus;
@@ -38,7 +37,6 @@ pub fn draw_service_stage_info(
     }
     build_second_heading(
         crate::strings::append_string_by_id::StringOwners::of(o),
-        race,
         record,
     )?;
     draw_stage_body(o, gfx, record, false, canvas)?;

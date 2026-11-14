@@ -54,7 +54,7 @@ pub fn default_championship_times(
             &records,
             Championship::Times { stage: ebp },
             present,
-            with_checkpoints(screens),
+            false,
         )?;
         apply(screens, race, &filled, &tables)?;
         Ok(())

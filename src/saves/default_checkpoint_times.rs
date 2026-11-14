@@ -47,7 +47,7 @@ pub fn default_checkpoint_times(
             &records,
             Championship::Checkpoints,
             [false; RALLIES],
-            crate::saves::default_times::with_checkpoints(screens),
+            true,
         )?;
         apply(screens, race, &filled, &tables)?;
         Ok(())

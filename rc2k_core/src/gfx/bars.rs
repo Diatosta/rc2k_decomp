@@ -10,8 +10,6 @@ pub trait BarCanvas {
     /// The clip rectangle's right edge (read, and set by `set_clip_right`).
     fn clip_right(&mut self) -> i32;
     fn set_clip_right(&mut self, x: i32);
-    /// The fill's end kept (in `seconds`).
-    fn keep_fill_end(&mut self, x: i32);
     /// The bar's x set: the marker's place.
     fn set_bar_x(&mut self, x: i32);
     /// The fatal error for a bar with no length (`BAR_HAS_NO_LENGTH`).
@@ -37,7 +35,6 @@ pub fn bar<C: BarCanvas>(c: &mut C, bar: &Bar) -> Result<(), C::Error> {
     let end = bar.x.wrapping_add(length);
     let saved = c.clip_right();
     c.set_clip_right(end);
-    c.keep_fill_end(end);
     let fill = c.sprite(bar.fill_glyph, bar.x, bar.y);
     c.set_clip_right(saved);
     fill?;
@@ -77,9 +74,6 @@ mod tests {
         fn set_clip_right(&mut self, x: i32) {
             self.1 = x;
         }
-        fn keep_fill_end(&mut self, x: i32) {
-            self.0.push(format!("end {x}"));
-        }
         fn set_bar_x(&mut self, x: i32) {
             self.0.push(format!("x {x}"));
         }
@@ -100,7 +94,7 @@ mod tests {
         };
         let mut c = Record(Vec::new(), 799);
         bar(&mut c, &b).unwrap();
-        assert_eq!(c.0, ["end 110", "1 10 20 clip 110", "2 110 20 clip 799"]);
+        assert_eq!(c.0, ["1 10 20 clip 110", "2 110 20 clip 799"]);
         let mut c = Record(Vec::new(), 799);
         marker(&mut c, &b).unwrap();
         assert_eq!(c.0, ["x 110", "1 110 20 clip 799"]);

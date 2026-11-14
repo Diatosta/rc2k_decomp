@@ -133,13 +133,11 @@ pub fn calc_cpu_times(menus: &Menus, system: &System, race: &Race) -> Result<(),
             let time = class_time_at(screens, c)?;
             let count = class_count_at(screens, c)?;
             let gap = cpu_gap(time, count);
-            screens.draw_work.hhmm.set(gap);
             let mut spread = Spread {
                 first: screens.event.cpu_spread_first.get(),
                 step: screens.event.cpu_spread_step.get(),
             };
             let own = spread.next(crate::math::random_below::random_below)?;
-            screens.draw_work.figure.set(own);
             screens.event.cpu_spread_first.set(spread.first);
             screens.event.cpu_spread_step.set(spread.step);
             if d.in_event.get() == IN_EVENT {

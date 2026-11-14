@@ -1,6 +1,6 @@
 //! `menu::sealed_player_time`: the current player's (`event.current_player`) time (+0x88)
 //! sealed (`records::seal_time`) with the player's +8, the run kind and a byte given by the
-//! caller; the result also goes into `draw_work.figure` and `hhmm`.
+//! caller.
 //!
 //! Callers: `menu::enter_time_trial_best`, `menu::enter_record_entry`. Refuses a current player
 //! past 3 or missing, before anything.
@@ -29,9 +29,6 @@ pub fn sealed_player_time(menus: &Menus, race: &Race, byte: u32) -> Result<[u32;
             ],
         )
     };
-
-    screens.draw_work.figure.set(sealed[0]);
-    screens.draw_work.hhmm.set(sealed[1]);
 
     Ok(sealed)
 }

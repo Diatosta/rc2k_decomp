@@ -18,7 +18,7 @@ pub fn show_class_rally_results(menus: &Menus, class: u32, entry: &Entry) -> Res
     let count = held_figure(Page::ClassRally { a8 }, found.figure);
     menus.play.champ_view.count.set(count);
     crate::menu::first_page_stage::first_page_stage(&menus.play);
-    crate::menu::stage_range_caption::stage_range_caption(&menus.play, entry.race)?;
+    crate::menu::stage_range_caption::stage_range_caption(&menus.play)?;
     run_screen(&crate::menu::class_rally_results_loop::SCREEN, entry)?;
     Ok(())
 }

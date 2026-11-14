@@ -13,8 +13,6 @@ use crate::text::draw_text::Canvas;
 // ---- game data ----
 
 // the money
-// seconds: a work variable
-// `draw_work.figure`: a work variable
 
 // (label string, font) for the four readouts.
 /// Returns whether the last text drawn was too wide for its box.

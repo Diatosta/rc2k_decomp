@@ -5,7 +5,7 @@
 //! - `saves::allocate_best_times` (the nine tables are typed, `saves::best_times`; the summary's
 //!   variable is set to 1, for the race's rivals);
 //! - unless the best times were loaded: the six fillers of made-up times
-//!   (`draw_work.scratch_0c` set before each, 1 only for `default_checkpoint_times`);
+//!   (the checkpoint times guessed only for `default_checkpoint_times`);
 //! - unless the options were loaded: `records::default_stage_records` on each of the thirteen
 //!   record tables.
 //!
@@ -30,9 +30,9 @@ fn record_tables(system: &System) -> [crate::records::stages_store::RecordTable;
 }
 
 /// The made-up times get a stage and `fit_player_names` an x, neither of which is looked at:
-/// the stage only while `DrawWork.scratch_0c` is 1, which it is only for
-/// `default_checkpoint_times`, which does not read it; the x is where a measuring starts,
-/// which a width does not depend on. The stage passed is 0.
+/// the stage is read only when the checkpoint times are guessed, which
+/// `default_checkpoint_times` does without reading it; the x is where a measuring starts, which
+/// a width does not depend on. The stage passed is 0.
 pub fn set_up_front_end(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     let (menus, sound, system, gfx) = (o.menus, o.sound, o.system, o.gfx);
     let (race, saves) = (o.race, o.saves);
@@ -74,13 +74,11 @@ pub fn set_up_front_end(o: crate::owners::Owners<'static>) -> Result<(), Refused
         .summary
         .set(u32::from(crate::saves::best_times::SUMMARY.is_taken()));
     if best_times.loaded.get() != 1 {
-        menus.screens.draw_work.scratch_0c.set(0u32);
         default_best_scores::default_best_scores(
             crate::strings::append_string_by_id::StringOwners::of(o),
             menus,
             race,
         )?;
-        menus.screens.draw_work.scratch_0c.set(0u32);
         default_championship_times::default_championship_times(
             crate::strings::append_string_by_id::StringOwners::of(o),
             menus,
@@ -90,7 +88,6 @@ pub fn set_up_front_end(o: crate::owners::Owners<'static>) -> Result<(), Refused
             stage,
             &mut to_the_log,
         )?;
-        menus.screens.draw_work.scratch_0c.set(1u32);
         default_checkpoint_times::default_checkpoint_times(
             crate::strings::append_string_by_id::StringOwners::of(o),
             menus,
@@ -99,13 +96,11 @@ pub fn set_up_front_end(o: crate::owners::Owners<'static>) -> Result<(), Refused
             stage,
             &mut to_the_log,
         )?;
-        menus.screens.draw_work.scratch_0c.set(0u32);
         default_class_times::default_class_times(
             crate::strings::append_string_by_id::StringOwners::of(o),
             menus,
             race,
         )?;
-        menus.screens.draw_work.scratch_0c.set(0u32);
         default_stage_times::default_stage_times(
             crate::strings::append_string_by_id::StringOwners::of(o),
             menus,
@@ -114,7 +109,6 @@ pub fn set_up_front_end(o: crate::owners::Owners<'static>) -> Result<(), Refused
             stage,
             &mut to_the_log,
         )?;
-        menus.screens.draw_work.scratch_0c.set(0u32);
         default_stage_times_alt::default_stage_times_alt(
             crate::strings::append_string_by_id::StringOwners::of(o),
             menus,

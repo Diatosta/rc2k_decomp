@@ -19,8 +19,8 @@ pub enum Work {
     /// Where the caption's text went (the marker's x and y).
     MarkerX,
     MarkerY,
-    /// `seconds`, `DrawWork.scratch_b0`, `DrawWork.scratch_b4`, `glyph`, `DrawWork.scratch_c4`: the
-    /// button's width, x, y, left and right sprites.
+    /// The button's width, x, y, left and right sprites (x and y are kept in
+    /// `DrawWork.button_x` / `button_y`).
     Width,
     X,
     Y,

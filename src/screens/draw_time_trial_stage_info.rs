@@ -53,7 +53,6 @@ pub fn draw_time_trial_stage_info(
 
     let heading = build_second_heading(
         crate::strings::append_string_by_id::StringOwners::of(o),
-        race,
         sel.record,
     )?;
     draw_text_at(TITLE_FONT, &heading, TITLE_X, HEADING_Y, canvas)?;

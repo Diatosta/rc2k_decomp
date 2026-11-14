@@ -1,5 +1,5 @@
 //! `menu::enter_time_trial_best`: the current player's time put in the tenth of the chosen
-//! stage's best times and moved up to its place. `draw_work.figure` is the stage's +0x3C; the
+//! stage's best times and moved up to its place. the
 //! tenth entry's +0x14 is the player's time (+0x88), +0x1C its +0x90, +8 the nationality (+4),
 //! +0xC and +0x20 the name pointer (+0x18), +0x10 the car (+8), +4 1, +0x40 1 (the new entry's
 //! mark), +0x50 the cheats, +0x54 / +0x58 the sealed time (`menu::sealed_player_time` for the
@@ -26,7 +26,6 @@ pub fn enter_time_trial_best(
     let p = current_player(menus)?;
     let name = name_address_of(&p.get())?;
     let slot = record.record(&system.records().stage_tables)?.event_slot();
-    set(&menus.screens.draw_work.figure, slot);
     let cheats = menus.play.cheats.cheats.get();
     let sealed = crate::menu::sealed_player_time::sealed_player_time(menus, race, slot)?;
     // The logic is in `rc2k_core::saves::entries::BestTime::enter`, then `rank_time_trial_best`.

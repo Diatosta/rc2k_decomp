@@ -15,7 +15,7 @@ pub fn show_championship_standings(menus: &Menus, entry: &Entry) -> Result<(), R
     let count = held_figure(Page::ChampionshipStandings, found.figure);
     menus.play.champ_view.count.set(count);
     crate::menu::first_page_stage::first_page_stage(play);
-    crate::menu::stage_range_caption::stage_range_caption(play, entry.race)?;
+    crate::menu::stage_range_caption::stage_range_caption(play)?;
     run_screen(&crate::menu::championship_standings_loop::SCREEN, entry)?;
     Ok(())
 }

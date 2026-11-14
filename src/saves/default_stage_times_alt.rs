@@ -54,7 +54,7 @@ pub fn default_stage_times_alt(
             },
             &tables,
             None,
-            with_checkpoints(screens),
+            false,
         )?;
         apply(screens, race, &filled, &[Target::Stages(table)])?;
         Ok(())

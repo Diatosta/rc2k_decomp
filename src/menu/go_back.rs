@@ -1,5 +1,5 @@
 //! `menu::go_back`: sets three variables of the menu system: `loop_flags.event_left` = 0,
-//! `loop_flags.leave_screen` = 1, `draw_work.scratch_0c` = -1.
+//! `loop_flags.leave_screen` = 1, `draw_work.leave_result` = -1.
 //!
 //! It is the action of the back button of several menus and the last step of other actions (seven
 //! callers, ten menu tables), so it is read as "leave this menu"; what each of the three variables

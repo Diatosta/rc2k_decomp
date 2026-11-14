@@ -1,14 +1,11 @@
 //! The names of the 20 replay slots of the current page (`pages.replay_page`) in two columns
-//! of 10: the save and load replay pages' drawer. Leaves its position in the marker
-//! position and its row counter in `draw_work.figure`. Refuses a page past the fifth (the table
+//! of 10: the save and load replay pages' drawer. Refuses a page past the fifth (the table
 //! has 100 names).
 
 use crate::errors::Refused;
 use crate::text::draw_text::Canvas;
 
 // ---- game data ----
-
-// `draw_work.figure`: a work variable, here the row counter
 
 // FontObjects.objects[41].first_char
 pub fn draw_replay_slot_names(

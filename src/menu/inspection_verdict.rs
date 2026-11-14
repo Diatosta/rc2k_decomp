@@ -1,6 +1,6 @@
 //! `menu::inspection_verdict`: the current player's (`event.current_player`) inspection
 //! verdict. The penalties (the penalties ..) of its inspected parts at or past their
-//! limits whose flag in the service box flags (index + 2) is 0 added into `draw_work.figure`; 100
+//! limits whose flag in the service box flags (index + 2) is 0 added up; 100
 //! less that into the inspection score; the player's +0xD0 1 when that is at least 100 (no
 //! penalty), else 2.
 //!
@@ -24,7 +24,6 @@ pub fn inspection_verdict(menus: &Menus) -> Result<(), Refused> {
         |k| menus.screens.state.driver_stats.penalties[k].get(),
     );
     fault.check()?;
-    menus.screens.draw_work.figure.set(v.penalties);
     menus.screens.state.driver_stats.score.set(v.score);
     p.update(|q| q.entry = v.kind);
 

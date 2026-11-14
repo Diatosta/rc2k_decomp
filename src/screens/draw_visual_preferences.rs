@@ -10,7 +10,6 @@ use crate::text::draw_text::Canvas;
 
 // ---- game data ----
 
-// `draw_work.figure`
 const NO: u32 = 0x56B;
 const IMPERIAL: u32 = 0x373;
 

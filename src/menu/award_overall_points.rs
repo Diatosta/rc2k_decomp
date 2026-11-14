@@ -48,13 +48,11 @@ pub fn award_overall_points(menus: &Menus) -> Result<(), Refused> {
         }
         use rc2k_core::menu::points::{Points, total};
         let mut points = Points::default();
-        screens.draw_work.seconds.set(points.0);
         for (e, &o) in all.iter_mut().zip(&owners) {
             if e.group == 0 {
                 continue;
             }
             let given = points.take();
-            screens.draw_work.seconds.set(points.0);
             e.overall[section as usize] = given;
             match o {
                 Owner::Driver(d) => d.overall(section as usize).set(given),

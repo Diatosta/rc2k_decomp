@@ -4,14 +4,12 @@
 //! whose copies pass the 0x100 bytes of the cells text buffer.
 
 use crate::errors::Refused;
-use crate::menu::owner::Screens;
 use crate::text::draw_text::{Canvas, draw_text_at};
 
 const CELLS_LEN: usize = 0x100;
 
 /// The `digits`, the column of the last character at `x` + 0x32.
 pub fn draw_spaced_number(
-    screens: &Screens,
     buffers: &crate::screens::text_buffers_store::TextBuffers,
     font: impl Into<crate::gfx::typefaces::FontRef>,
     digits: &[u8],
@@ -23,7 +21,6 @@ pub fn draw_spaced_number(
     let font = font.into();
     let n = digits.len() as u32;
     let places = rc2k_core::screens::captions::spaced_places(n, x, CELLS_LEN)?;
-    screens.draw_work.scratch_b8.set(n);
     let mut spaced = Vec::with_capacity(2 * digits.len());
     for &digit in digits {
         spaced.extend([digit, 0]);

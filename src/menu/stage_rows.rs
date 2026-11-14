@@ -10,12 +10,7 @@ use crate::errors::Refused;
 use crate::menu::owner::Menus;
 
 /// `of_90` the fixed count, `on` the direction.
-pub fn step_rows(
-    menus: &Menus,
-    race: &crate::race::owner::Race,
-    of_90: bool,
-    on: bool,
-) -> Result<(), Refused> {
+pub fn step_rows(menus: &Menus, of_90: bool, on: bool) -> Result<(), Refused> {
     let count = if of_90 {
         0x5A
     } else {
@@ -25,6 +20,6 @@ pub fn step_rows(
     let row: u32 = menus.play.champ_view.first_row.get();
     let row = rc2k_core::menu::steps::rows(row, count, on);
     menus.play.champ_view.first_row.set(row);
-    crate::menu::stage_range_caption::stage_range_caption(&menus.play, race)?;
+    crate::menu::stage_range_caption::stage_range_caption(&menus.play)?;
     Ok(())
 }

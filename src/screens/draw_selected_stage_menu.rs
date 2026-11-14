@@ -62,7 +62,6 @@ pub fn draw_selected_stage_menu(
 
     build_second_heading(
         crate::strings::append_string_by_id::StringOwners::of(o),
-        race,
         sel.record,
     )?;
     draw_stage_body(o, gfx, sel.record, true, canvas)?;

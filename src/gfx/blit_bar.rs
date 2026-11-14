@@ -2,7 +2,7 @@
 //! in to where the fill ends, then an end piece there.
 //! Nothing is drawn at 0 percent. If width * percent is 0 with a non-zero percent a fatal error is
 //! reported. The blitter is given the fill's end x as its palette, which only works because these
-//! sprites do not use one: kept as is. Also leaves the fill's end x in `seconds`, a work variable.
+//! sprites do not use one: kept as is.
 
 use crate::errors::{FatalError, Refused};
 use crate::gfx::blit_glyph::BlitCall;
@@ -80,9 +80,6 @@ impl rc2k_core::gfx::bars::BarCanvas for GameBar<'_> {
     }
     fn set_clip_right(&mut self, x: i32) {
         self.gfx.drawing.blit.clip.right.set(x as u32);
-    }
-    fn keep_fill_end(&mut self, x: i32) {
-        self.menus.screens.draw_work.seconds.set(x as u32);
     }
     fn set_bar_x(&mut self, x: i32) {
         self.gfx.drawing.bar.x.set(x as u32);

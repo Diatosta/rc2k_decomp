@@ -5,22 +5,14 @@
 use crate::errors::{BadInput, Refused};
 use crate::input::owner::Input;
 use crate::menu::owner::Menus;
-use crate::menu::owner::Screens;
 use crate::screens::controls_store::ControlsScreen;
 
 /// From the controller's four values (x, y, z and the buttons): the button (its number + 1,
 /// when exactly one is down), and each of left (x below 0), right (x above 0), y and z shifted
 /// into its history (`ControlsScreen.history[0]` ..: a 1 for "under 0x80"); a direction held
 /// over 0x1D of the last 32 polls while the others were not (its history empty) gives 0x400 /
-/// 0x800 / 0x100 / 0x200 with the button, else 0; into `DrawWork.figure`.
-pub fn classify_controller(
-    controls: &ControlsScreen,
-    screens: &Screens,
-    z: u32,
-    buttons: u32,
-    x: u32,
-    y: u32,
-) {
+/// 0x800 / 0x100 / 0x200 with the button, else 0, returned.
+pub fn classify_controller(controls: &ControlsScreen, z: u32, buttons: u32, x: u32, y: u32) -> u32 {
     // The logic is in `rc2k_core::input::devices::classify`.
     let (history, found) = rc2k_core::input::devices::classify(
         buttons,
@@ -32,7 +24,7 @@ pub fn classify_controller(
     for (cell, v) in controls.history.iter().zip(history) {
         cell.set(v);
     }
-    screens.draw_work.figure.set(found);
+    found
 }
 
 /// With 3 s gone the learning stops (`ControlsScreen.learned` -1). The chosen item's prompt
@@ -56,7 +48,8 @@ pub fn learn_axis(
     else {
         return Err(crate::errors::BadInput("no current player record").into());
     };
-    screens.draw_work.figure.set(0);
+    // The code the learning found, 0 for none.
+    let mut figure = 0;
     // The logic is in `rc2k_core::screens::learning` (`timed_out`, `by_axis`, `pedal`,
     // `CANCEL_KEY`, `binding`).
     use rc2k_core::screens::learning as l;
@@ -91,26 +84,25 @@ pub fn learn_axis(
             input.devices.records[0]
                 .axis_code
                 .set(u32::from_le_bytes(player.get().axis_codes));
-            screens.draw_work.figure.set(found);
+            figure = found;
             controls.learning.set(0);
             take = false;
         }
     } else {
         let [ecx, edx, eax, ebx] = crate::input::axes::first_device_state(input)?;
-        classify_controller(controls, screens, eax, ebx, ecx, edx);
+        figure = classify_controller(controls, eax, ebx, ecx, edx);
     }
     if take {
         if crate::input::take_key::take_key(input) == l::CANCEL_KEY {
-            screens.draw_work.figure.set(0);
+            figure = 0;
             controls.learning.set(0);
-        } else if screens.draw_work.figure.get() == 0 {
+        } else if figure == 0 {
             return Ok(());
         }
     }
     let Some(slot) = l::binding(controls.learned.get()) else {
         return Err(crate::errors::BadInput("a learned control past the bindings").into());
     };
-    let figure = screens.draw_work.figure.get();
     player.update(|p| p.set_binding(slot, figure));
     Ok(())
 }
@@ -165,7 +157,7 @@ pub fn draw_controller_page(
         };
         let [stick_x, _, _, buttons] = crate::input::axes::first_device_state(input)?;
         let c = Controller {
-            // Kept in `draw_work.scratch_0c`: the record's number among the controllers.
+            // The record's number among the controllers.
             record: device - 1,
             name: crate::screens::game_screen::held_field(&entry.name)?,
             has_strength: entry.force_feedback.get() == 1,

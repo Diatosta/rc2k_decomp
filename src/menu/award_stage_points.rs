@@ -53,7 +53,6 @@ pub fn award_stage_points(menus: &Menus) -> Result<(), Refused> {
     use rc2k_core::menu::points::{Points, kept, total};
     for class in 0..classes {
         let mut points = Points::default();
-        screens.draw_work.seconds.set(points.0);
         for (e, o) in all.iter_mut().zip(&owners) {
             screens.event.class.set(class);
             if e.group != class {
@@ -62,7 +61,6 @@ pub fn award_stage_points(menus: &Menus) -> Result<(), Refused> {
             crate::logfile::log_write::log_nul(&STATUS_TEXT_RVA, false, 1);
             crate::logfile::log_int::log_int(e.status as i32, true, 1);
             let given = points.take();
-            screens.draw_work.seconds.set(points.0);
             let keeps = match *o {
                 Owner::Driver(d) => d.in_event.get() == IN_EVENT,
                 Owner::Player(p) => p.get().entry == 1,

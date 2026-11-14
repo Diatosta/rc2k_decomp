@@ -111,10 +111,6 @@ pub fn driver_stats(menus: &Menus, screens: &Screens) -> Result<(), Refused> {
             screens.state.driver_stats.penalties[k].set(v);
         }
     }
-    screens.draw_work.figure.set(f.figure);
-    if let Some(span) = f.span {
-        screens.draw_work.hhmm.set(span);
-    }
     for (slot, line) in f.logged.iter().enumerate() {
         crate::logfile::log_write::log_nul(&NAMES_RVA[slot], false, 1);
         log_int(line.wear as i32, false, 1);
