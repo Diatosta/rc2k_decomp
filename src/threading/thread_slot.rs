@@ -69,7 +69,8 @@ pub struct SlotOwners<'a> {
 }
 
 impl SlotOwners<'static> {
-    /// The owners as the accessors give them: the root of a slot's thread fetches them.
+    /// The owners as the accessors give them. A slot's thread has no caller to hand it owners, so
+    /// this is the one root for the input, net-receive and audio threads.
     pub fn fetch() -> Self {
         SlotOwners {
             audio: crate::audio::owner::audio(),         // m6-root

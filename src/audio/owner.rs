@@ -1,5 +1,5 @@
-//! The audio stores in one struct, reached through `audio()` by the code that does not take it as
-//! a parameter. The audio thread reads them beside the game thread (atomic cells); what only the
+//! The audio stores in one struct, handed by reference to the code that uses them; only the roots
+//! (`Owners::the`, `SlotOwners::fetch`) call `audio()`. The audio thread reads them beside the game thread (atomic cells); what only the
 //! audio thread touches is in its own record (`audio::own`).
 
 use crate::audio::levels::Levels;
@@ -29,7 +29,7 @@ pub struct Audio {
     pub environment: crate::session::Dword,
 }
 
-/// The one instance. Reached through `audio()`; `moved` registers its stores' places.
+/// The one instance, reached through `audio()` by the roots and by tests.
 pub static AUDIO_OWNER: Audio = Audio {
     state: AudioShared::new(),
     sample_records: SampleRecords::new(),
@@ -40,7 +40,7 @@ pub static AUDIO_OWNER: Audio = Audio {
     environment: crate::session::Dword::new(0),
 };
 
-/// The audio's state, for a caller that does not take it as a parameter yet.
+/// The audio's state, for the roots that hand it down and for tests.
 pub fn audio() -> &'static Audio {
     &AUDIO_OWNER
 }

@@ -1,6 +1,6 @@
 //! The sound module's owner: the sound stores in one struct, grouped by what they serve, handed by
-//! reference to the code that runs them. `sound()` is the boundary for the callers that do not
-//! take a group yet.
+//! reference to the code that runs them; only the roots (`Owners::the`, `SlotOwners::fetch`) call
+//! `sound()`.
 
 use crate::session::{GameThread, PlainDword};
 use crate::sound::sets_store::{
@@ -85,13 +85,13 @@ pub struct Sound {
     pub menu: MenuSoundState,
 }
 
-/// The one instance. Reached through `sound()`; `moved` registers its stores' places.
+/// The one instance, reached through `sound()` by the roots and by tests.
 pub static SOUND: Sound = Sound {
     race: RaceSoundState::new(),
     menu: MenuSoundState::new(),
 };
 
-/// The sound state, for a caller that does not take it as a parameter yet.
+/// The sound state, for the roots that hand it down and for tests.
 pub fn sound() -> &'static Sound {
     &SOUND
 }
