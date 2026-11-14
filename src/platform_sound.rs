@@ -21,7 +21,7 @@
 
 use crate::system::owner::system;
 use rc2k_core::math::portable;
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
 
 const OUT_RATE: u32 = 44100;
@@ -158,9 +158,10 @@ struct Entry {
     kind: Kind,
 }
 
-/// The objects by id (what the game holds of each: never 0).
+/// The objects by id (what the game holds of each: never 0), in id order: the mix adds the playing
+/// buffers in that order, so the same sounds mix to the same samples every run.
 struct State {
-    entries: HashMap<u32, Entry>,
+    entries: BTreeMap<u32, Entry>,
     next: u32,
     primary: Option<u32>,
     /// The listener's roll-off factor (DirectSound's default; the game leaves it).
@@ -175,7 +176,7 @@ fn with<R>(f: impl FnOnce(&mut State) -> R) -> R {
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
     f(s.get_or_insert_with(|| State {
-        entries: HashMap::new(),
+        entries: BTreeMap::new(),
         next: 1,
         primary: None,
         rolloff: 1.0,
