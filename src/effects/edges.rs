@@ -80,6 +80,7 @@ pub fn load_edges(
     gfx.pictures.picture.width.set(0x100u32);
     gfx.pictures.picture.height.set(0x80u32);
     gfx.pictures.picture.row_bytes.set(0xFFFF_FFFEu32);
+    crate::race::load_times::mark("edges: read picture");
     let read =
         crate::gfx::read_picture_file::read_picture_file(&masks.edge_settings.path, gfx, system);
     gfx.pictures.picture.width.set(sizes[0]);
@@ -88,6 +89,7 @@ pub fn load_edges(
     if !read? {
         return Err(BadInput("the edge picture was not read").into());
     }
+    crate::race::load_times::mark("edges: mask");
     let pixels = crate::gfx::picture::read_bytes(
         gfx.pictures.picture.buffer.get(),
         0,
@@ -101,13 +103,16 @@ pub fn load_edges(
         .tilt
         .tilt
         .set(x87::mul(float, masks.edge_settings.tilt_scale.get()));
+    crate::race::load_times::mark("edges: make_masks");
     crate::effects::masks::make_masks(&race.course, race.faces(), masks, drops, scene, effects)?;
+    crate::race::load_times::mark("edges: windscreen drops");
     crate::effects::shapes::set_up_windscreen_drops(
         drops,
         crate::effects::shapes::WINDSCREEN_DROPS_RESUME,
         gfx,
         effects,
     )?;
+    crate::race::load_times::mark("edges: windscreen flakes");
     crate::effects::shapes::set_up_windscreen_flakes(
         &effects.pong,
         &effects.windscreen_flakes,
@@ -131,7 +136,9 @@ pub fn load_kind_data(
         let marks = effects.settings()?;
         let kind = marks.mark_car_file_number.get();
         effects.kinds.marks_kind.kind.set(kind);
+        crate::race::load_times::mark("edges: scale kinds");
         load_edges(race, masks, drops, RESUME, scene, gfx, effects, system)?;
+        crate::race::load_times::mark("splines");
         crate::effects::splines::load_splines(
             &race.course,
             race.faces(),

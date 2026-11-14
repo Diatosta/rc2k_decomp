@@ -48,7 +48,9 @@ pub fn set_all_plates(o: crate::owners::Owners<'static>) -> Result<(), Refused> 
             at += 1;
         }
     }
+    crate::race::load_times::mark("reload_system_textures");
     crate::scene::reload_system_textures::reload_system_textures(o)?;
+    crate::race::load_times::mark("reload_slot_textures");
     crate::scene::reload_slot_textures::reload_slot_textures(&race.frame, scene)?;
     Ok(())
 }

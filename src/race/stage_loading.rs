@@ -29,6 +29,8 @@ const WORDS: [&std::ffi::CStr; 9] = [
 /// of the eight cars), "FINIS", a rule and a line break.
 pub fn load_stage(race: &'static Race, o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     let input = o.input;
+    #[cfg(feature = "remote")]
+    crate::race::course_hash::reset_texture_hash();
     crate::race::load_times::begin("load_stage: loading picture, car sounds");
     let indent = |by: i32| {
         crate::logfile::write_line::state::INDENT
@@ -46,11 +48,13 @@ pub fn load_stage(race: &'static Race, o: crate::owners::Owners<'static>) -> Res
     log();
     log();
     indent(3);
+    crate::race::load_times::mark("show loading picture");
     if !race.shared.work.get().in_credits.is_set() {
         // The same picture as `menu::show_loading_picture` shows.
         crate::gfx::show_picture_file::show_picture_file(o, &o.menus.tables.texts.loading_pcx)?;
     }
     race.replay.replay_frames().last_kept.set(u32::MAX);
+    crate::race::load_times::mark("wake car sounds");
     crate::race::sounds::wake_car_sounds(race, o.sound, o.audio)?;
     indent(-3);
     log();
@@ -127,6 +131,8 @@ pub fn load_stage(race: &'static Race, o: crate::owners::Owners<'static>) -> Res
     log();
     log();
     newline();
+    #[cfg(feature = "remote")]
+    crate::race::course_hash::log_started_hashes(race);
     crate::race::load_times::end();
     Ok(())
 }

@@ -96,6 +96,50 @@ pub fn log_hashes(
     );
 }
 
+/// The running hash of the texture rows uploaded since the stage load began (`RC2K_COURSE_HASH`).
+#[cfg(feature = "remote")]
+static TEXTURE_HASH: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+/// Starts the texture rows' hash anew.
+#[cfg(feature = "remote")]
+pub fn reset_texture_hash() {
+    TEXTURE_HASH.store(0, std::sync::atomic::Ordering::Relaxed);
+}
+
+/// Adds a texture row (its texture, level, row number and bytes) to the texture rows' hash.
+#[cfg(feature = "remote")]
+pub fn note_texture_row(texture: u32, level: u32, y: u32, row: &[u8]) {
+    if !on() {
+        return;
+    }
+    let key = u64::from(texture) << 40 ^ u64::from(level) << 32 ^ u64::from(y);
+    let row_hash = bytes_hash(row) ^ key.wrapping_mul(0x9E37_79B9_7F4A_7C15);
+    let old = TEXTURE_HASH.load(std::sync::atomic::Ordering::Relaxed);
+    TEXTURE_HASH.store(
+        old.rotate_left(5).wrapping_mul(0x0100_0000_01B3) ^ row_hash,
+        std::sync::atomic::Ordering::Relaxed,
+    );
+}
+
+/// The hash of what the stage's start (the race init after the load) leaves in the checkpoints
+/// and the race variables, logged as `course hash <stage> started <store>: <hex>`.
+#[cfg(feature = "remote")]
+pub fn log_started_hashes(race: &crate::race::owner::Race) {
+    if !on() {
+        return;
+    }
+    let stage = race.shared.vars.get().stage_number.get();
+    let say = |store: &str, hash: u64| {
+        crate::framework::log(&format!("course hash {stage} started {store}: {hash:016x}"));
+    };
+    say("checkpoints", record_hash(race.checkpoints()));
+    say("race_vars", record_hash(race.shared.vars.get()));
+    say(
+        "texture_rows",
+        TEXTURE_HASH.load(std::sync::atomic::Ordering::Relaxed),
+    );
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -42,6 +42,8 @@ pub fn rescale_to_surface(
     let mut out = crate::gfx::locked_pixels::Place::start(surface.pixels.get());
     let (width_pixels, gap) = (width, surface.row_gap.get());
     let mut column = 0u32;
+    #[cfg(feature = "remote")]
+    let mut fold = 0u64;
     let work = crate::gfx::picture::with_buffer(from, |pixels| {
         rc2k_core::gfx::picture::rescale(
             &rc2k_core::gfx::picture::Sizes {
@@ -62,6 +64,10 @@ pub fn rescale_to_surface(
                     rescaler.components.set(part, byte);
                 }
                 let pixel = components_to_pixel(&format, rescaler.components.get_u32(0), gfx);
+                #[cfg(feature = "remote")]
+                {
+                    fold = fold.rotate_left(5).wrapping_mul(0x0100_0000_01B3) ^ u64::from(pixel);
+                }
                 if words {
                     out.must_write(pixel as u16, "the surface");
                     out.advance(2);
@@ -78,6 +84,8 @@ pub fn rescale_to_surface(
         )
         .expect("the sizes were checked")
     })?;
+    #[cfg(feature = "remote")]
+    crate::race::course_hash::note_texture_row(u32::MAX, 0, 0, &fold.to_le_bytes());
     rescaler.step_x.set(work.step_x);
     rescaler.step_x_fraction.set(work.step_x_fraction);
     rescaler.step_y.set(work.step_y);

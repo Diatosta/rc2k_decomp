@@ -49,6 +49,7 @@ pub fn init_mark_step(
         } else {
             race.shared.view.get().players.get()
         };
+        crate::race::load_times::mark("car fields");
         let records = race.shared.car_records()?;
         // `check_cars` holds the count to 8 before `record` is asked.
         let record = |n: u32| records[n as usize];
@@ -84,6 +85,7 @@ pub fn init_mark_step(
             }
         }
         // The file number is also `init_marks`' seed.
+        crate::race::load_times::mark("init_marks");
         crate::effects::init_marks::init_marks(race, effects, file, scene, gfx, system)?;
     }
     Ok(())

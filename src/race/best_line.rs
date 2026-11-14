@@ -729,10 +729,20 @@ pub fn build_best_line(race: &Race, scene: &crate::scene::owner::Scene) -> Resul
         |at: &std::ffi::CStr, newline: bool| crate::logfile::log_write::log_nul(&at, newline, 1);
     {
         text(RULE_RVA[0], true);
+        crate::race::load_times::mark("best_line sort_checkpoints");
         sort_checkpoints(race)?;
         if race.shared.vars.get().line_face_total.get() >= 2 {
             for (word, step) in STEP_WORDS {
                 text(word, false);
+                crate::race::load_times::mark(match step {
+                    1 => "best_line angles",
+                    2 => "best_line count_checks",
+                    3 => "best_line speeds",
+                    4 => "best_line distances",
+                    5 => "best_line map",
+                    6 => "best_line replay cameras 1",
+                    _ => "best_line replay cameras 2",
+                });
                 match step {
                     1 => checkpoint_angles(race, scene)?,
                     2 => count_checks(&race.course, &race.shared)?,
@@ -743,8 +753,10 @@ pub fn build_best_line(race: &Race, scene: &crate::scene::owner::Scene) -> Resul
                     _ => replay_cameras(race, scene, &cameras()[1])?,
                 }
             }
+            crate::race::load_times::mark("best_line surface_shares");
             surface_shares(race)?;
         }
+        crate::race::load_times::mark("best_line summary");
         text(COMPLETED_RVA, true);
         for (n, (at, value)) in SUMMARY.into_iter().enumerate() {
             text(at, false);

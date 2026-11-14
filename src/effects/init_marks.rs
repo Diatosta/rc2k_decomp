@@ -41,23 +41,35 @@ pub fn init_marks(
         effects.setup.settings.is_set.set(1);
         effects.setup.work.seed.set(seed);
         effects.setup.clock.started.set(0);
+        crate::race::load_times::mark("load_kind_data");
         edges::load_kind_data(race, effects, scene, gfx, system)?;
+        crate::race::load_times::mark("make_wave_tables");
         setup::make_wave_tables(paths)?;
+        crate::race::load_times::mark("make_profiles");
         profiles::make_profiles(course, paths, profiles::RESUME, effects)?;
+        crate::race::load_times::mark("seed_noise");
         setup::seed_noise(weather, effects);
+        crate::race::load_times::mark("make_noise_curve");
         setup::make_noise_curve(weather, effects)?;
+        crate::race::load_times::mark("allocate_places");
         blocks::allocate_places(effects)?;
+        crate::race::load_times::mark("set_kind_values");
         kind_values::set_kind_values(&kind_values::first(effects), effects)?;
         kind_values::set_kind_values(&kind_values::second(effects), effects)?;
+        crate::race::load_times::mark("load_mask_pictures");
         load_mask_pictures::load_mask_pictures(masks, scene, gfx, effects, system)?;
         setup::clear_slots(effects);
+        crate::race::load_times::mark("set_up_surface");
         set_up_surface::set_up_surface(ring, masks, scene, gfx, effects, system)?;
+        crate::race::load_times::mark("allocate_ring");
         blocks::allocate_ring(&effects.particles, ring)?;
+        crate::race::load_times::mark("set_up_blocks");
         lines::set_up_blocks(course, race.faces(), paths, scene, effects)?;
         marks.fresh_marks_flags[1].set(1);
         for r in &effects.setup.clock.settings_copies {
             r.set(1);
         }
+        crate::race::load_times::mark("tick_clock");
         setup::tick_clock(&race.shared, effects)?;
         effects.setup.frame.steps.set(0);
         let less = effects.setup.floats.one.get();

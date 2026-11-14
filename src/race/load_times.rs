@@ -2,7 +2,8 @@
 //! log line per load step, `load time <step>: <ms> ms (<category> <ms> [<count>], ..)`, then the
 //! total and the time to the first race frame. The categories are exclusive (a file read inside
 //! a picture decode counts as a file read only); what no category covers is the step's own work.
-//! Without the feature, or without the variable, every call here does nothing.
+//! `mark` splits a step into sub-steps (`load time <step> / <sub>: <ms>`, wall time, categories
+//! not separated). Without the feature, or without the variable, every call here does nothing.
 
 /// What a measured scope waits on or works at.
 #[derive(Clone, Copy)]
@@ -15,6 +16,12 @@ pub enum Category {
     TextureConvert,
     /// Unlocking a texture's surface (the upload to the drawing backend).
     SurfaceUnlock,
+    /// Making a picture ready for a texture (alpha, key colours, grading).
+    TexturePrepare,
+    /// Halving a picture to a texture level's size.
+    TextureHalve,
+    /// Locking a texture level's surface.
+    SurfaceLock,
     /// The loading bar's frame, its present excepted.
     BarFrame,
     /// Presenting the loading bar's frame.
@@ -27,11 +34,14 @@ mod active {
     use std::cell::RefCell;
     use std::time::{Duration, Instant};
 
-    const NAMES: [&str; 6] = [
+    const NAMES: [&str; 9] = [
         "file read",
         "picture decode",
         "texture convert",
         "surface unlock",
+        "texture prepare",
+        "texture halve",
+        "surface lock",
         "bar frame",
         "present",
     ];
@@ -41,10 +51,12 @@ mod active {
         begun: Instant,
         phase_name: String,
         phase_begun: Instant,
-        totals: [Duration; 6],
-        counts: [u32; 6],
+        totals: [Duration; 9],
+        counts: [u32; 9],
         /// Each open scope's children's time.
         children: Vec<Duration>,
+        /// The open sub-step of the phase, and when it began.
+        sub: Option<(String, Instant)>,
     }
 
     thread_local! {
@@ -68,14 +80,36 @@ mod active {
                 begun: now,
                 phase_name: name.to_string(),
                 phase_begun: now,
-                totals: [Duration::ZERO; 6],
-                counts: [0; 6],
+                totals: [Duration::ZERO; 9],
+                counts: [0; 9],
                 children: Vec::new(),
+                sub: None,
             });
         });
     }
 
+    fn close_sub(state: &mut State, now: Instant) {
+        if let Some((name, begun)) = state.sub.take() {
+            crate::framework::log(&format!(
+                "load time {} / {name}: {:.1} ms",
+                state.phase_name,
+                now.duration_since(begun).as_secs_f64() * 1000.0
+            ));
+        }
+    }
+
+    pub fn mark(name: &str) {
+        STATE.with(|s| {
+            if let Some(state) = s.borrow_mut().as_mut() {
+                let now = Instant::now();
+                close_sub(state, now);
+                state.sub = Some((name.to_string(), now));
+            }
+        });
+    }
+
     fn close_phase(state: &mut State, now: Instant) {
+        close_sub(state, now);
         let mut line = format!(
             "load time {}: {:.1} ms",
             state.phase_name,
@@ -97,8 +131,8 @@ mod active {
             line += &format!(" ({})", parts.join(", "));
         }
         crate::framework::log(&line);
-        state.totals = [Duration::ZERO; 6];
-        state.counts = [0; 6];
+        state.totals = [Duration::ZERO; 9];
+        state.counts = [0; 9];
     }
 
     pub fn phase(name: &str) {
@@ -174,6 +208,7 @@ mod active {
     use super::Category;
     pub fn begin(_: &str) {}
     pub fn phase(_: &str) {}
+    pub fn mark(_: &str) {}
     pub fn end() {}
     pub fn first_frame() {}
     pub struct Scope;
@@ -182,4 +217,4 @@ mod active {
     }
 }
 
-pub use active::{begin, end, first_frame, phase, scope};
+pub use active::{begin, end, first_frame, mark, phase, scope};

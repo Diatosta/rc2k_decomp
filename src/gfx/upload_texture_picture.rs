@@ -77,7 +77,11 @@ pub fn upload_texture_picture(
     let _timed = crate::race::load_times::scope(crate::race::load_times::Category::TextureConvert);
     let record = Record::of(texture)?;
     let levels = uploads::levels(record.get().levels).map_err(BadInput::from)?;
-    ready_picture(&record, pixels, width, height, gfx)?;
+    {
+        let _preparing =
+            crate::race::load_times::scope(crate::race::load_times::Category::TexturePrepare);
+        ready_picture(&record, pixels, width, height, gfx)?;
+    }
     let apart = halvings_apart(
         gfx,
         &record,
@@ -100,12 +104,18 @@ pub fn upload_texture_picture(
     for level in 0..levels {
         let times = uploads::halvings_before(level, apart);
         if times != 0 {
+            let _halving =
+                crate::race::load_times::scope(crate::race::load_times::Category::TextureHalve);
             (width, height) = halve_texture(pixels, width, height, times)?;
         }
         let surface = record.get().surfaces[level as usize];
-        let (target, pitch) = surfaces
-            .lock(surface)
-            .map_err(|_| direct_draw_failed(0x8021_8772, gfx))?;
+        let (target, pitch) = {
+            let _locking =
+                crate::race::load_times::scope(crate::race::load_times::Category::SurfaceLock);
+            surfaces
+                .lock(surface)
+                .map_err(|_| direct_draw_failed(0x8021_8772, gfx))?
+        };
         // The level's pixels read once; the surface is the platform's.
         let picture =
             crate::gfx::picture::read_bytes(pixels, 0, width as usize * height as usize * 4)?;
@@ -131,6 +141,8 @@ pub fn upload_texture_picture(
                     .collect(),
                 _ => return Err(fatal(0x80A1_8775)),
             };
+            #[cfg(feature = "remote")]
+            crate::race::course_hash::note_texture_row(texture, level, y, &row);
             rows.write(y, 0, &row, "a texture's row")?;
         }
         {

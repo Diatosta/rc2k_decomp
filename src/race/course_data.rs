@@ -197,6 +197,7 @@ pub fn load_level(race: &Race) -> Result<(), Refused> {
         course.lists.get().first_part.get() as usize,
         "the course data",
     )?;
+    crate::race::load_times::mark("read_level_file");
     let read = read_level_file::read_level_file(&course.level_paths().cdat_src.text(), &mut data);
     // What the file's bytes reached stays, also when the unpacking is refused.
     crate::race::level_init::write_course_memory(memory, &data, "the course data")?;
@@ -212,11 +213,14 @@ pub fn load_level(race: &Race) -> Result<(), Refused> {
     }
     load_log(1);
     load_log(2);
+    crate::race::load_times::mark("copy header, scene points");
     copy_course_header(course)?;
     take_scene_points(course)?;
     load_log(3);
+    crate::race::load_times::mark("lay_out_course (in load_level)");
     crate::race::norms::lay_out_course(course);
     load_log(4);
+    crate::race::load_times::mark("reset_face_lights");
     reset_face_lights(race)?;
     load_log(5);
     Ok(())
@@ -230,8 +234,12 @@ pub fn locate_current_course(
 ) -> Result<(), Refused> {
     let course = &race.course;
     course.stage_prefs.get().cdat_number.set(0u32);
+    crate::race::load_times::mark("load_level");
     load_level(race)?;
+    crate::race::load_times::mark("lay_out_course");
     crate::race::norms::lay_out_course(course);
+    crate::race::load_times::mark("group_records_by_kind");
     group_records_by_kind(course)?;
+    crate::race::load_times::mark("build_best_line");
     crate::race::best_line::build_best_line(race, scene)
 }
