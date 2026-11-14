@@ -6,32 +6,16 @@
 
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::owners::Owners;
-use crate::saves::load_options::{load_game_options, pieces_of};
+use crate::saves::load_options::load_game_options;
+use crate::saves::options_state::{self, capture};
 use crate::saves::owner::Saves;
 use crate::saves::rebuild_car_lists::rebuild_car_lists;
 use rc2k_core::options::files::{self, Asked, Paths};
 use rc2k_core::options::{Options, OptionsError};
 
-/// The options as the game's stores hold them now.
-fn capture(o: Owners<'static>) -> Result<Options, Refused> {
-    let mut owned = Vec::new();
-    for piece in pieces_of(o) {
-        owned.push(piece.read()?);
-    }
-    let refs: Vec<&[u8]> = owned.iter().map(Vec::as_slice).collect();
-    let mut options = Options::default();
-    if !options.take_pieces(&refs) {
-        return Err(BadInput("the options' pieces do not fit the model").into());
-    }
-    Ok(options)
-}
-
 /// Puts the options into the game's stores, as reading the old file does.
 fn apply(o: Owners<'static>, options: &Options) -> Result<(), Refused> {
-    let pieces = options.to_pieces();
-    for (place, bytes) in pieces_of(o).iter().zip(&pieces) {
-        place.write(bytes)?;
-    }
+    options_state::apply(o, options)?;
     rebuild_car_lists(o.menus)?;
     o.menus.screens.loop_flags.options_loaded.set(true);
     Ok(())
@@ -137,7 +121,10 @@ mod tests {
         let o = Owners::the();
         let loaded = o.menus.screens.loop_flags.options_loaded.is_set();
         let before = capture(o).unwrap();
-        let saved: Vec<Vec<u8>> = pieces_of(o).iter().map(|p| p.read().unwrap()).collect();
+        let saved: Vec<Vec<u8>> = options_state::pieces()
+            .iter()
+            .map(|p| p.read().unwrap())
+            .collect();
         assert_eq!(before.to_pieces(), saved);
         apply(o, &before).unwrap();
         let after = capture(o).unwrap();
@@ -186,7 +173,10 @@ mod tests {
         let file = varied_old_file();
         let options = old_file::read(&file).unwrap().unwrap();
         let (again, pieces) = with_options_in_stores(&options, |o| {
-            let pieces: Vec<Vec<u8>> = pieces_of(o).iter().map(|p| p.read().unwrap()).collect();
+            let pieces: Vec<Vec<u8>> = options_state::pieces()
+                .iter()
+                .map(|p| p.read().unwrap())
+                .collect();
             (capture(o).unwrap(), pieces)
         });
         assert_eq!(again.to_pieces(), pieces);

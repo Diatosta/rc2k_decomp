@@ -238,7 +238,7 @@ fn the_player_record_is_sixteen_bytes() {
 #[test]
 fn the_options_network_fields_have_their_bytes() {
     let _lock = crate::test_support::test_lock();
-    let pieces = crate::saves::load_options::pieces();
+    let pieces = crate::saves::options_state::pieces();
     let ours = &pieces[12..=16];
     let before: Vec<Vec<u8>> = ours.iter().map(|p| p.read().unwrap()).collect();
     let text = |s: &[u8], n: usize| {
