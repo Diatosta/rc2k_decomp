@@ -47,8 +47,8 @@ impl RaceField {
     }
 
     /// The byte offset of the field's start in the game's data layout of the sets: used only for
-    /// the sound hash and the command word, whose numbers depend on it.
-    pub const fn original_offset(self) -> u32 {
+    /// the command word, whose numbers the sound hash depends on.
+    const fn original_offset(self) -> u32 {
         let mut dwords = 0;
         let mut i = 0;
         while i < self as usize {
@@ -56,6 +56,37 @@ impl RaceField {
             i += 1;
         }
         4 * dwords as u32
+    }
+}
+
+/// Where one entry of a race list lies: the lists run on through the fields after their own.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ListPlace {
+    /// Entry `index` of `field`.
+    At { field: RaceField, index: usize },
+    /// Past the last field: a list that reads this far has no end.
+    PastSets,
+    /// The list itself starts past the last field: no list.
+    StartsPastSets,
+}
+
+impl RaceField {
+    /// Where entry `n` of the list that starts at entry `entry` of `self` lies, reading on through
+    /// the fields after `self` in their order when the list runs past its own.
+    pub fn list_place(self, entry: u32, n: usize) -> ListPlace {
+        let mut left = (entry as usize).saturating_add(n);
+        for field in Self::ALL.into_iter().skip(self as usize) {
+            if left < field.dwords() {
+                return ListPlace::At { field, index: left };
+            }
+            left -= field.dwords();
+        }
+        let after: usize = Self::ALL[self as usize..].iter().map(|f| f.dwords()).sum();
+        if (entry as usize) >= after {
+            ListPlace::StartsPastSets
+        } else {
+            ListPlace::PastSets
+        }
     }
 }
 
@@ -71,7 +102,7 @@ impl SoundList {
     /// The word a command record carries: 0 is no list, 1 the menus', 2 and up a race list's
     /// `original_offset` plus 2. Kept: the sound check (`RC2K_SOUND_HASH`) hashes these words,
     /// so its numbers stay comparable.
-    pub fn word(self) -> u32 {
+    fn word(self) -> u32 {
         match self {
             SoundList::Menu => 1,
             SoundList::Race { field, entry } => field
@@ -83,7 +114,8 @@ impl SoundList {
 
     /// The list a record's word names; none for 0, and for a word that names no dword of the sets
     /// (`word` makes no such word).
-    pub fn from_word(word: u32) -> Option<SoundList> {
+    #[cfg(test)]
+    fn from_word(word: u32) -> Option<SoundList> {
         match word {
             0 => None,
             1 => Some(SoundList::Menu),
@@ -388,6 +420,71 @@ impl Queue {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Frozen: the byte offsets of the fields in the game's data layout of the sets, and its size.
+    const FIELD_OFFSETS: [u32; 11] = [
+        0x0, 0x198, 0x1F4, 0x36C, 0x504, 0x560, 0x6DC, 0x758, 0x830, 0x850, 0x9AC,
+    ];
+    const SETS_BYTES: u32 = 0x9B0;
+
+    #[test]
+    fn fields_keep_their_layout() {
+        for (field, offset) in RaceField::ALL.into_iter().zip(FIELD_OFFSETS) {
+            assert_eq!(field.original_offset(), offset, "{field:?}");
+        }
+        assert_eq!(RaceField::Tail.original_offset() + 4, SETS_BYTES);
+    }
+
+    /// Every list start reads on through the next fields exactly as a read of the flat dwords of
+    /// the layout does, and ends at the sets' end.
+    #[test]
+    fn lists_read_on_as_flat_dwords() {
+        let total = SETS_BYTES as usize / 4;
+        for (k, field) in RaceField::ALL.into_iter().enumerate() {
+            for entry in 0..field.dwords() as u32 {
+                let start = FIELD_OFFSETS[k] as usize / 4 + entry as usize;
+                for n in 0..3 {
+                    let flat = start + n;
+                    let want = if flat < total {
+                        let at = FIELD_OFFSETS.iter().rposition(|&o| o as usize / 4 <= flat);
+                        let at = at.unwrap();
+                        ListPlace::At {
+                            field: RaceField::ALL[at],
+                            index: flat - FIELD_OFFSETS[at] as usize / 4,
+                        }
+                    } else {
+                        ListPlace::PastSets
+                    };
+                    assert_eq!(field.list_place(entry, n), want, "{field:?} {entry} {n}");
+                }
+            }
+        }
+        assert_eq!(RaceField::Tail.list_place(1, 0), ListPlace::StartsPastSets);
+        assert_eq!(
+            RaceField::KindSetsFirst.list_place(u32::MAX, usize::MAX),
+            ListPlace::StartsPastSets
+        );
+    }
+
+    /// A race list's command word is its old offset plus 2, and the word names the list back.
+    #[test]
+    fn race_lists_keep_their_words() {
+        for (k, field) in RaceField::ALL.into_iter().enumerate() {
+            for entry in 0..field.dwords() as u32 {
+                let list = SoundList::Race { field, entry };
+                let word = FIELD_OFFSETS[k] + 4 * entry + 2;
+                assert_eq!(list.word(), word);
+                assert_eq!(SoundList::from_word(word), Some(list));
+                assert_eq!(
+                    Command::Load(Some(list)).record_words(),
+                    (3, [word, 0, 0, 0, 0, 0, 0])
+                );
+            }
+        }
+        assert_eq!(SoundList::from_word(0), None);
+        assert_eq!(SoundList::from_word(1), Some(SoundList::Menu));
+        assert_eq!(SoundList::from_word(SETS_BYTES + 2), None);
+    }
 
     #[test]
     fn sounds_are_signed_words() {

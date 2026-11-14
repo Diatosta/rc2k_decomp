@@ -13,7 +13,7 @@ pub fn take_commands(
     sound: &crate::sound::owner::Sound,
 ) -> Result<(), Refused> {
     use crate::audio::stream_commands::{music_command, stream_command};
-    use rc2k_core::audio::commands::{Command, SoundList};
+    use rc2k_core::audio::commands::Command;
     loop {
         let Some(command) = crate::sound::queue::locked(audio).front() else {
             return Ok(());
@@ -24,15 +24,12 @@ pub fn take_commands(
             }
             Command::Room(room) => audio.state.eax_room.set(room),
             Command::Load(list) => {
-                audio
-                    .state
-                    .sound_list_loaded
-                    .set(list.map_or(0, SoundList::word));
+                audio.state.sound_list_loaded.set(list);
                 crate::audio::load_sounds::load_sounds(audio, system, sound, list)?;
             }
             Command::Free => {
                 crate::audio::free_voices::free_voices(audio)?;
-                audio.state.sound_list_loaded.set(0);
+                audio.state.sound_list_loaded.set(None);
             }
             Command::Mode(mode) => {
                 crate::audio::set_mode::set_mode(audio, system, mode)?;

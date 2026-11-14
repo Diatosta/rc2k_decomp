@@ -14,6 +14,7 @@ use crate::audio::samples::SampleFile;
 use crate::audio::store::{AudioShared, CHANNEL_IDLE};
 use crate::memory::{ListCells, MemoryList};
 use crate::session::{Plain, PlainBytes, PlainDword};
+use rc2k_core::audio::commands::SoundList;
 use rc2k_core::audio::voices::MixerChannel;
 
 /// The variables only the audio thread touches (`AudioThread`'s, made by the thread's own loop).
@@ -66,8 +67,8 @@ pub struct AudioOwn {
     pub sample_file: Plain<SampleFile>,
     /// 0x40, the volume factor a sample record's `volume_factor` points at.
     pub unit_volume_factor: PlainDword,
-    /// The sound list loaded (command 3), 0 after it is freed.
-    pub sound_list_loaded: PlainDword,
+    /// The sound list loaded (command 3), none after it is freed.
+    pub sound_list_loaded: Plain<Option<SoundList>>,
     /// The tune played when the music stops.
     pub next_tune: PlainDword,
     /// `;3files\music\00.wav`, the tune's two digits are put at +0xE.
@@ -181,7 +182,7 @@ impl AudioOwn {
                 frames: 0x0,
             }),
             unit_volume_factor: PlainDword::new(0x40),
-            sound_list_loaded: PlainDword::new(0),
+            sound_list_loaded: Plain::new(None),
             next_tune: PlainDword::new(0),
             music_path: PlainBytes::new([
                 0x3b, 0x33, 0x66, 0x69, 0x6c, 0x65, 0x73, 0x5c, 0x6d, 0x75, 0x73, 0x69, 0x63, 0x5c,

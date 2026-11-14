@@ -878,25 +878,18 @@ impl RaceSoundSets {
         entry: u32,
         n: usize,
     ) -> Result<Option<u32>, crate::errors::BadInput> {
-        let runs = self.runs();
-        let mut left = (entry as usize).saturating_add(n);
-        for (run, own) in runs.iter().zip(RaceField::ALL).skip(field as usize) {
-            debug_assert_eq!(run.count(), own.dwords());
-            if left < run.count() {
-                return Ok(Some(run.bits(left)));
+        use rc2k_core::audio::commands::ListPlace;
+        match field.list_place(entry, n) {
+            ListPlace::At { field, index } => {
+                let run = self.runs()[field as usize];
+                debug_assert_eq!(run.count(), field.dwords());
+                Ok(Some(run.bits(index)))
             }
-            left -= run.count();
+            ListPlace::PastSets => Ok(None),
+            ListPlace::StartsPastSets => {
+                Err(crate::errors::BadInput("a sound list off the race's sets"))
+            }
         }
-        // Past the sets: a list that starts there is refused, a read that runs there is none.
-        if (entry as usize)
-            >= RaceField::ALL[field as usize..]
-                .iter()
-                .map(|f| f.dwords())
-                .sum()
-        {
-            return Err(crate::errors::BadInput("a sound list off the race's sets"));
-        }
-        Ok(None)
     }
 
     /// The fields in the record's order, each a run of dwords.
@@ -1656,20 +1649,8 @@ mod tests {
             .collect()
     }
 
-    #[test]
-    fn field_offsets_are_the_old_layout() {
-        for (field, old) in RaceField::ALL.into_iter().zip(OLD_FIELD_OFFSETS) {
-            assert_eq!(field.original_offset(), old, "{field:?}");
-        }
-        assert_eq!(
-            RaceField::Tail.original_offset() + 4,
-            core::mem::size_of::<RaceSoundSets>() as u32
-        );
-    }
-
     /// Every entry of every list start, to the end of the sets and past it, reads as a read of
-    /// the 1999 layout's bytes does; the word (the hash's input) is the old offset + 2, and
-    /// names the same list back.
+    /// the 1999 layout's bytes does.
     #[test]
     fn list_entries_read_as_the_byte_read() {
         let sets = Box::new(RaceSoundSets::new());
@@ -1681,13 +1662,7 @@ mod tests {
         let filled = flat(&sets);
         for field in RaceField::ALL {
             for entry in 0..field.dwords() as u32 {
-                let offset = field.original_offset() + 4 * entry;
-                let list = rc2k_core::audio::commands::SoundList::Race { field, entry };
-                assert_eq!(list.word(), offset + 2);
-                assert_eq!(
-                    rc2k_core::audio::commands::SoundList::from_word(offset + 2),
-                    Some(list)
-                );
+                let offset = OLD_FIELD_OFFSETS[field as usize] + 4 * entry;
                 for n in 0..3 {
                     let old = filled.get(offset as usize / 4 + n).copied();
                     assert_eq!(
@@ -1708,10 +1683,10 @@ mod tests {
     /// their encoding).
     #[test]
     fn started_lists_keep_their_hash_words_and_end_before_the_kinds() {
-        use rc2k_core::audio::commands::SoundList;
+        use rc2k_core::audio::commands::{Command, SoundList};
         let sets = &crate::sound::owner::sound().race.sets;
         let flat = flat(sets);
-        let kinds_start = RaceField::Kinds.original_offset() as usize / 4;
+        let kinds_start = OLD_FIELD_OFFSETS[RaceField::Kinds as usize] as usize / 4;
         let mut lists: Vec<(SoundList, Option<u32>)> = (0..72)
             .map(|n| (sets.kind_list(n).unwrap(), Some(OLD_KIND_OFFSETS[n])))
             .collect();
@@ -1726,7 +1701,11 @@ mod tests {
         ];
         lists.extend(named_old.map(|(set, old)| (set.list(), Some(old))));
         for (list, old) in lists {
-            assert_eq!(list.word(), old.unwrap() + 2, "{list:?}");
+            assert_eq!(
+                Command::Load(Some(list)).record_words().1[0],
+                old.unwrap() + 2,
+                "{list:?}"
+            );
             let SoundList::Race { field, entry } = list else {
                 panic!()
             };
