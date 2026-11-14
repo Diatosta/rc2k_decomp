@@ -5,20 +5,20 @@
 //! session joined, the lobby's `LobbyVars`), which only the game's thread reaches.
 //!
 //! Two kinds of cell structs, by thread. The receiving thread shares `NetShared`: atomic cells
-//! with plain relaxed loads and stores; the received blocks are written under the game's mutex.
-//! What only the game's thread reaches is plain cells in `NetMain`; the DirectPlay and service
-//! provider GUIDs are never written and are constants.
+//! with plain relaxed loads and stores, the receiving thread's own in `ReceiverState`; the
+//! players' inboxes are behind the received messages' lock (`Inboxes`). What only the game's
+//! thread reaches is plain cells in `NetMain`; the DirectPlay and service provider GUIDs are
+//! never written and are constants.
 //!
 //! The receiving thread's reach, field by field:
-//! - It writes, the game thread reads: `receive_done`, `receiving`, `posted_result`,
-//!   `posted_answered`, `messages_taken`, `sync_answer`, `all_raced`, `race_over`, `synced`,
-//!   `sync_first`, `stage_item` (a host made), `own` (the host bit), `received`, `chat`,
-//!   `chat_line`, `chat_text`, `receive_data`, `received_from` / `_to` / `_size`, `session` (a
-//!   lost session: `destroy_connection`) and with it `dplay`, `lobby`, `session_open`, `memory`,
-//!   `connections`, `sessions`, `connection_table`, `session_table`, `player_id`, `sync` (the
-//!   round of a host's first call) and `players`.
-//! - The game thread writes, it reads: `posting`, `posted_call`, `event`, `mutex`, `host_name`,
-//!   `session_desc`, `send_to`, `players`, `dplay`.
+//! - It writes, the game thread reads: `receive_done`, `receiver` (`receiving`, `posted_result`,
+//!   `posted_answered`, `messages_taken`, `sync_answer`, `sync`: the round of a host's first
+//!   call), `all_raced`, `race_over`, `synced`, `sync_first`, `stage_item` (a host made), `own`
+//!   (the host bit), `received`, `chat`, `chat_line`, `chat_text`, `session` (a lost session:
+//!   `destroy_connection`) and with it `dplay`, `lobby`, `session_open`, `memory`, `connections`,
+//!   `sessions`, `connection_table`, `session_table`, `player_id` and `players`.
+//! - The game thread writes, it reads: `receiver.posting`, `receiver.posted_call`, `event`,
+//!   `host_name`, `session_desc`, `send_to`, `players`, `dplay`.
 //! - Read by the drawing threads: `session`, `player` (lights, HUD icons).
 //! - Game thread only (`LobbyVars`): `mode`, `sequence`, `first_host`, `send_buffer`,
 //!   `show_gaps`, `data_size`, `racing`, `after_race`, `sync_clock`.
@@ -26,7 +26,7 @@
 use crate::session::{
     Byte, Bytes, Dword, Flag, PlainByte, PlainBytes, PlainDword, Word, with_runs,
 };
-use rc2k_core::net::inbox::{Inbox, Spill};
+use rc2k_core::net::inbox::Inbox;
 use rc2k_core::net::players::State;
 use rc2k_core::net::record::{self, Record};
 
@@ -172,7 +172,8 @@ impl PlayerRecord {
     }
 }
 
-/// A player's block of received messages (`NetPlayerBlock`).
+/// A player's block: name, id, record and the copy of the messages taken for the race. The
+/// messages themselves wait in the player's `Inbox`, behind the received messages' lock.
 #[repr(C)]
 #[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
 pub struct PlayerBlock {
@@ -182,20 +183,6 @@ pub struct PlayerBlock {
     pub id: Dword,
     /// Its record.
     pub record: PlayerRecord,
-    /// The messages received (`net::store_received`): the records held.
-    pub count: Dword,
-    /// The 0x40 records of 0x100 bytes (+0 the sequence byte doubled, +1 the length, +2 the
-    /// bytes).
-    pub messages: Bytes<0x4000>,
-    /// The oldest sequence still wanted.
-    pub oldest: Byte,
-    /// The newest sequence seen.
-    pub newest: Byte,
-    /// Two bytes that align `last_time` (`Cells` takes no padding); nothing
-    /// reads or writes them.
-    pub _pad_cells: Bytes<2>,
-    /// The time of the last message.
-    pub last_time: Dword,
     /// The count of their copy for the race (`net::copy_received`).
     pub copied_count: Dword,
     /// Their copy (`net::apply_received`).
@@ -208,60 +195,41 @@ impl PlayerBlock {
             name: Bytes::new([0; 32]),
             id: Dword::new(0),
             record: PlayerRecord::zero(),
-            count: Dword::new(0),
-            messages: Bytes::new([0; 0x4000]),
-            oldest: Byte::new(0),
-            newest: Byte::new(0),
-            _pad_cells: Bytes::new([0; 2]),
-            last_time: Dword::new(0),
             copied_count: Dword::new(0),
             copied: Bytes::new([0; 0x4000]),
         }
     }
+}
 
-    /// The inbox `rc2k_core::net::inbox` works on, read field by field.
-    pub fn inbox(&self) -> Inbox {
-        Inbox {
-            count: self.count.get(),
-            records: self.messages.read().to_vec(),
-            oldest: self.oldest.get(),
-            newest: self.newest.get(),
-            time: self.last_time.get(),
-        }
+/// The players' inboxes: one per block, under one lock that also covers the chat's texts.
+pub struct Inboxes(std::sync::LazyLock<std::sync::Mutex<[Inbox; 8]>>);
+
+impl Inboxes {
+    pub const fn new() -> Self {
+        Self(std::sync::LazyLock::new(|| {
+            std::sync::Mutex::new(std::array::from_fn(|_| Inbox {
+                count: 0,
+                records: vec![0; rc2k_core::net::inbox::RECORDS_LEN],
+                oldest: 0,
+                newest: 0,
+                time: 0,
+            }))
+        }))
     }
 
-    /// `inbox` written back, field by field.
-    pub fn set_inbox(&self, inbox: &Inbox) -> Result<(), crate::errors::BadInput> {
-        self.count.set(inbox.count);
-        self.messages
-            .write_at(0, &inbox.records, "a player's records")?;
-        self.oldest.set(inbox.oldest);
-        self.newest.set(inbox.newest);
-        self.last_time.set(inbox.time);
-        Ok(())
+    /// Takes the lock; it is given back when the guard is dropped.
+    pub fn lock(&self) -> std::sync::MutexGuard<'_, [Inbox; 8]> {
+        self.0
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
     }
+}
 
-    /// What a message put into a full inbox writes past the last record: the sequence byte
-    /// over `oldest`, the length over `newest`, and the bytes on over two that are not kept,
-    /// then `last_time`, `copied_count` and the first of `copied`.
-    pub fn write_spill(&self, spill: &Spill) {
-        self.oldest.set(spill.sequence);
-        self.newest.set(spill.length);
-        let (mut time, mut copied_count) = (
-            self.last_time.get().to_le_bytes(),
-            self.copied_count.get().to_le_bytes(),
-        );
-        for (k, &byte) in spill.bytes.iter().enumerate() {
-            match k {
-                0..=1 => {}
-                2..=5 => time[k - 2] = byte,
-                6..=9 => copied_count[k - 6] = byte,
-                _ => self.copied.set(k - 10, byte),
-            }
-        }
-        self.last_time.set(u32::from_le_bytes(time));
-        self.copied_count.set(u32::from_le_bytes(copied_count));
-    }
+/// Player `n`'s inbox among the locked ones; a number of 8 or more is refused.
+pub fn inbox_of(inboxes: &mut [Inbox; 8], n: u32) -> Result<&mut Inbox, crate::errors::BadInput> {
+    inboxes
+        .get_mut(n as usize)
+        .ok_or(crate::errors::BadInput("a player number of 8 or more"))
 }
 
 /// `bytes` into `cells`' dwords, little-endian (a GUID's 16 bytes into four).
@@ -517,6 +485,63 @@ impl NetMain {
     }
 }
 
+/// What the receiving thread works with and hands to the game thread.
+#[derive(rc2k_derive::Cells)]
+pub struct ReceiverState {
+    /// The receiving thread is busy.
+    pub receiving: Dword,
+    /// The messages the receiving thread took, counted.
+    pub messages_taken: Dword,
+    /// The sync round, counted up at each lobby.
+    pub sync: Byte,
+    /// One byte that aligns `sync_answer` (`Cells` takes no padding); nothing reads or writes it.
+    pub _pad_cells: Bytes<1>,
+    /// The race-sync answer sent (0x41 or 0x51, the round).
+    pub sync_answer: Word,
+    /// This machine has joined a session and not yet heard the host's round. Every machine
+    /// counts the rounds up as it enters the lobby, so one that joins after races (the host
+    /// lets players in again between them, `net::enable_new_players`) is behind the others:
+    /// it takes the round of the host's first call.
+    pub round_unknown: Flag,
+    /// The bytes of the message `net::receive_message` took.
+    pub receive_data: Bytes<256>,
+    /// The sender of the message taken.
+    pub received_from: Dword,
+    /// Its addressee.
+    pub received_to: Dword,
+    /// The size of the buffer / the message taken.
+    pub received_size: Dword,
+    /// DirectPlay's calls are made on the receiving thread.
+    pub posting: Dword,
+    /// The call posted to the receiving thread.
+    pub posted_call: Dword,
+    /// Its result.
+    pub posted_result: Dword,
+    /// The receiving thread has answered.
+    pub posted_answered: Dword,
+}
+
+impl ReceiverState {
+    pub const fn new() -> Self {
+        Self {
+            receiving: Dword::new(0),
+            messages_taken: Dword::new(0),
+            sync: Byte::new(0),
+            _pad_cells: Bytes::new([0; 1]),
+            sync_answer: Word::new(0),
+            round_unknown: Flag::new(false),
+            receive_data: Bytes::new([0; 256]),
+            received_from: Dword::new(0),
+            received_to: Dword::new(0),
+            received_size: Dword::new(0),
+            posting: Dword::new(0),
+            posted_call: Dword::new(0),
+            posted_result: Dword::new(0),
+            posted_answered: Dword::new(0),
+        }
+    }
+}
+
 /// The network's variables the receiving thread shares with the game thread (atomic cells).
 #[derive(rc2k_derive::Cells)]
 pub struct NetShared {
@@ -532,26 +557,14 @@ pub struct NetShared {
     /// 1 while a network game runs; the race code reads it as the split screen's switch (one
     /// car's view chosen).
     pub session: Dword,
-    /// The sync round, counted up at each lobby.
-    pub sync: Byte,
-    /// One byte that aligns `sync_answer` (`Cells` takes no padding); nothing reads or writes it.
-    pub _pad_cells: Bytes<1>,
-    /// The race-sync answer sent (0x41 or 0x51, the round).
-    pub sync_answer: Word,
-    /// The receiving thread is busy.
-    pub receiving: Dword,
-    /// The messages the receiving thread took, counted.
-    pub messages_taken: Dword,
     /// This machine's player (its car's number); the race code reads it as the car chosen.
     pub player: Dword,
     /// The network's memory list (`memory::List`, 16 bytes).
     pub memory: [Dword; 4],
-    /// The bytes of the message `net::receive_message` took.
-    pub receive_data: Bytes<256>,
+    /// What the receiving thread works with.
+    pub receiver: ReceiverState,
     /// The receiving thread's event (a handle).
     pub event: Dword,
-    /// The mutex of the received messages (a handle).
-    pub mutex: Dword,
     /// The lobby's stage item can be chosen.
     pub stage_item: Dword,
     /// The connections listed.
@@ -561,14 +574,6 @@ pub struct NetShared {
     /// The machine's name, copied here by `net::host_session` before the session is opened on
     /// the receiving thread (`posted_open_host`), which may not reach the game thread's settings.
     pub host_name: Bytes<64>,
-    /// DirectPlay's calls are made on the receiving thread.
-    pub posting: Dword,
-    /// The call posted to the receiving thread.
-    pub posted_call: Dword,
-    /// Its result.
-    pub posted_result: Dword,
-    /// The receiving thread has answered.
-    pub posted_answered: Dword,
     /// The sessions listed.
     pub sessions: Dword,
     /// The session records (0x68 bytes each; an address, 0 now: `net::tables::NET_TABLES`).
@@ -593,12 +598,6 @@ pub struct NetShared {
     pub player_id: Dword,
     /// The group the messages go to.
     pub send_to: Dword,
-    /// The sender of the message taken.
-    pub received_from: Dword,
-    /// Its addressee.
-    pub received_to: Dword,
-    /// The size of the buffer / the message taken.
-    pub received_size: Dword,
     /// The `IDirectPlay4A` object.
     pub dplay: Dword,
     /// The `IDirectPlayLobby2A` object.
@@ -615,24 +614,14 @@ impl NetShared {
             chat_line: Bytes::new([0; 128]),
             chat_text: Bytes::new([0; 128]),
             session: Dword::new(0),
-            sync: Byte::new(0),
-            _pad_cells: Bytes::new([0; 1]),
-            sync_answer: Word::new(0),
-            receiving: Dword::new(0),
-            messages_taken: Dword::new(0),
             player: Dword::new(0),
             memory: zeros(),
-            receive_data: Bytes::new([0; 256]),
+            receiver: ReceiverState::new(),
             event: Dword::new(0),
-            mutex: Dword::new(0),
             stage_item: Dword::new(0x1),
             connections: Dword::new(0),
             connection_table: Dword::new(0),
             host_name: Bytes::new([0; 64]),
-            posting: Dword::new(0),
-            posted_call: Dword::new(0),
-            posted_result: Dword::new(0),
-            posted_answered: Dword::new(0),
             sessions: Dword::new(0),
             session_table: Dword::new(0),
             session_open: Dword::new(0),
@@ -645,9 +634,6 @@ impl NetShared {
             received: [const { PlayerBlock::zero() }; 8],
             player_id: Dword::new(0),
             send_to: Dword::new(0),
-            received_from: Dword::new(0),
-            received_to: Dword::new(0),
-            received_size: Dword::new(0),
             dplay: Dword::new(0),
             lobby: Dword::new(0),
             session_desc: SessionDesc::zero(),

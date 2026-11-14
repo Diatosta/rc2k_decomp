@@ -7,8 +7,8 @@
 //!
 //! `net::send_message` puts a sequence byte (top bit set) and the bytes into `send_buffer` and
 //! sends them to everyone through DirectPlay. The receiving thread (`net::receive_thread`) keeps
-//! each player's messages in `received`; `net::copy_received` copies them under the mutex for
-//! `net::apply_received`. `net::shut_down` ends the network at the game's end.
+//! each player's messages in its inbox (`Net::inboxes`); `net::copy_received` copies them under
+//! the lock for `net::apply_received`. `net::shut_down` ends the network at the game's end.
 
 use crate::net::store::NetShared;
 use crate::race::owner::Race;
@@ -77,7 +77,6 @@ pub mod lobby;
 pub mod lobby_button;
 pub mod lobby_frame;
 pub mod lobby_loop;
-pub mod lock_received;
 pub mod message_frame;
 pub mod open_lobby;
 pub mod owner;
@@ -122,7 +121,6 @@ pub mod tables;
 pub mod take_messages;
 pub mod take_player_settings;
 pub mod types;
-pub mod unlock_received;
 
 /// Logs as the send functions do: "send x", the player, the step.
 pub fn log_send(race: &Race, vars: &NetShared, text: &std::ffi::CStr) {

@@ -7,7 +7,7 @@
 //!   race flags set; a machine that has just joined takes the round of the host's first call;
 //! - 0x41 / 0x51 (on the host): the player's synced byte is set;
 //! - bit 0x80 (a race message, 1 to 0xFF bytes): the bytes after the first stored with the time
-//!   in the player's block under the lock;
+//!   in the player's inbox under the lock;
 //! - others dropped.
 //!
 //! Refuses more than 16 players (the blocks' room).
@@ -18,25 +18,18 @@ use crate::net::dplay_send::dplay_send;
 use crate::net::owner::Net;
 use crate::net::receive_message::ROOM;
 use crate::net::receive_message::receive_message;
+use crate::net::store::inbox_of;
 use crate::net::store_received::store_received;
 use crate::net::system_message::system_message;
-use crate::net::{lock_received::lock_received, unlock_received::unlock_received};
 use rc2k_core::net::message::Message;
 use rc2k_core::net::messages;
 
 /// The players the blocks have room for.
 pub const MOST_PLAYERS: u32 = rc2k_core::net::players::MOST;
 
-/// Whether this machine has joined a session and not yet heard the host's round. Every machine
-/// counts the rounds up as it enters the lobby, so one that joins after races (the host lets
-/// players in again between them, `net::enable_new_players`) is behind the others: it takes the
-/// round of the host's first call. A machine there from the start has the host's round already
-/// and takes the same.
-static ROUND_UNKNOWN: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
-
-/// A session joined (`net::start_link`): the round taken from the host's first call.
-pub fn joined() {
-    ROUND_UNKNOWN.store(true, std::sync::atomic::Ordering::Relaxed);
+/// A session joined (`net::start_link`): the round is taken from the host's first call.
+pub fn joined(net: &Net) {
+    net.vars.receiver.round_unknown.set(true);
 }
 
 pub fn take_messages(
@@ -53,8 +46,9 @@ pub fn take_messages(
             break;
         }
         net.vars
+            .receiver
             .messages_taken
-            .set(net.vars.messages_taken.get().wrapping_add(1));
+            .set(net.vars.receiver.messages_taken.get().wrapping_add(1));
         if m.from == 0 {
             system_message(&net.vars, lines)?;
             continue;
@@ -74,7 +68,7 @@ pub fn take_messages(
             continue;
         }
         let block = net.vars.player_block(player)?;
-        let bytes = net.vars.receive_data.read_at(
+        let bytes = net.vars.receiver.receive_data.read_at(
             0,
             (m.size as usize).min(ROOM as usize),
             "a received message",
@@ -87,6 +81,7 @@ pub fn take_messages(
                 // A message that fills the buffer gives up its last byte to the NUL (fixed: "A
                 // full-length chat message writes past its buffer" in `wiki/Fixed-bugs.md`).
                 net.vars
+                    .receiver
                     .receive_data
                     .set((m.size as usize).min(ROOM as usize - 1), 0);
                 text.truncate(ROOM as usize - 2);
@@ -95,11 +90,17 @@ pub fn take_messages(
             }
             Message::Call { ready, round } => {
                 if !own_state.is_host()
-                    && ROUND_UNKNOWN.swap(false, std::sync::atomic::Ordering::Relaxed)
+                    && net
+                        .vars
+                        .receiver
+                        .round_unknown
+                        .atomic()
+                        .swap(0, std::sync::atomic::Ordering::Relaxed)
+                        != 0
                 {
-                    net.vars.sync.set(round);
+                    net.vars.receiver.sync.set(round);
                 }
-                let this_round = messages::this_round(2, || (round, net.vars.sync.get()));
+                let this_round = messages::this_round(2, || (round, net.vars.receiver.sync.get()));
                 if !messages::answers_call(this_round, own_state) {
                     continue;
                 }
@@ -108,8 +109,11 @@ pub fn take_messages(
                 } else {
                     messages::DONE_ANSWER
                 };
-                let round = net.vars.sync.get();
-                net.vars.sync_answer.set(messages::answer(reply, round));
+                let round = net.vars.receiver.sync.get();
+                net.vars
+                    .receiver
+                    .sync_answer
+                    .set(messages::answer(reply, round));
                 dplay_send(
                     &net.vars,
                     block.id.get(),
@@ -123,7 +127,7 @@ pub fn take_messages(
                 .set(1);
             }
             Message::Answer { round, .. } => {
-                let this_round = messages::this_round(2, || (round, net.vars.sync.get()));
+                let this_round = messages::this_round(2, || (round, net.vars.receiver.sync.get()));
                 if !messages::notes_answer(this_round, own_state) {
                     continue;
                 }
@@ -131,9 +135,14 @@ pub fn take_messages(
             }
             Message::Race { sequence, payload } => {
                 let time = crate::system::tick_count::tick_count();
-                lock_received(&net.vars);
-                store_received(sequence, block, time, &payload.encode())?;
-                unlock_received(&net.vars);
+                let mut inboxes = net.lock_received();
+                store_received(
+                    sequence,
+                    inbox_of(&mut inboxes, player)?,
+                    block,
+                    time,
+                    &payload.encode(),
+                )?;
             }
             Message::Malformed(_) | Message::Unknown(_) => {}
         }

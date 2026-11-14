@@ -1,4 +1,4 @@
-//! With `posting` 1, hands the given Rust function to the receiving thread, which calls it,
+//! With `receiver.posting` 1, hands the given Rust function to the receiving thread, which calls it,
 //! and waits (sleeping a tenth of a second and pumping the window's messages) until it has
 //! answered or the game is closing; returns its result. DirectPlay calls that may show a dialog
 //! (modem, serial link) are made on the receiving thread this way. Without posting it just
@@ -18,13 +18,18 @@ pub type PostedCall = fn(&Net, &NetTexts) -> u32;
 static POSTED: Mutex<Option<PostedCall>> = Mutex::new(None);
 pub fn post_call(o: crate::owners::Owners<'static>, code: PostedCall) -> u32 {
     let net = o.net;
-    if net.vars.posting.get() == 1 {
+    if net.vars.receiver.posting.get() == 1 {
         *POSTED
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(code);
-        net.vars.posted_call.set(1);
+        net.vars.receiver.posted_call.set(1);
         loop {
-            let answered = net.vars.posted_answered.atomic().swap(0, Ordering::SeqCst);
+            let answered = net
+                .vars
+                .receiver
+                .posted_answered
+                .atomic()
+                .swap(0, Ordering::SeqCst);
             if answered != 0 {
                 break;
             }
@@ -35,12 +40,12 @@ pub fn post_call(o: crate::owners::Owners<'static>, code: PostedCall) -> u32 {
             }
         }
     }
-    net.vars.posted_result.get()
+    net.vars.receiver.posted_result.get()
 }
 
 /// The call posted, taken by the receiving thread (none waiting: `None`).
 pub fn take_posted(vars: &NetShared) -> Option<PostedCall> {
-    if vars.posted_call.atomic().swap(0, Ordering::SeqCst) == 0 {
+    if vars.receiver.posted_call.atomic().swap(0, Ordering::SeqCst) == 0 {
         return None;
     }
     POSTED

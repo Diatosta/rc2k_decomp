@@ -13,7 +13,7 @@ pub fn race_step(race: &Race, net: &Net) -> Result<(), Refused> {
     }
     if race.shared.work.get().current_car.get() == vars.player.get() {
         send_turn::send_turn(race, net)?;
-        apply_received::apply_received(race, vars)
+        apply_received::apply_received(race, net)
     } else {
         follow_remote::follow_remote(race, vars)?;
         Ok(())

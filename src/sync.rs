@@ -1,4 +1,4 @@
-//! The game's threads, events and mutexes on std.
+//! The game's threads and events on std.
 //!
 //! The game keeps a handle as a 32-bit number in its memory: here a handle is a key in a table of
 //! Rust objects, each a state under a `Mutex` with a `Condvar` for its waiters. The numbers are
@@ -22,7 +22,6 @@ pub const INFINITE: u32 = u32::MAX;
 #[derive(Debug)]
 enum State {
     Event { manual: bool, set: bool },
-    Mutex { owner: u32, count: u32 },
     Thread { done: bool },
 }
 
@@ -95,16 +94,11 @@ pub fn thread_id() -> u32 {
     })
 }
 
-// ---- events and mutexes ----
+// ---- events ----
 
 /// An event (`CreateEventA` with no name): its handle.
 pub fn create_event(manual: bool, set: bool) -> u32 {
     add(Object::new(State::Event { manual, set }))
-}
-
-/// A mutex owned by no one (`CreateMutexA(0, FALSE, 0)`): its handle.
-pub fn create_mutex() -> u32 {
-    add(Object::new(State::Mutex { owner: 0, count: 0 }))
 }
 
 /// The event set and its waiters woken (`SetEvent`); false if `handle` is no event.
@@ -121,30 +115,9 @@ pub fn set_event(handle: u32) -> bool {
     true
 }
 
-/// The mutex let go once by its owner (`ReleaseMutex`); false if `handle` is no mutex or
-/// the running thread does not own it.
-pub fn release_mutex(handle: u32) -> bool {
-    let Some(o) = object(handle) else {
-        return false;
-    };
-    let mut state = o.lock();
-    let State::Mutex { owner, count } = &mut *state else {
-        return false;
-    };
-    if *owner != thread_id() || *count == 0 {
-        return false;
-    }
-    *count -= 1;
-    if *count == 0 {
-        *owner = 0;
-        o.changed.notify_all();
-    }
-    true
-}
-
 /// Whether the object lets the waiter through now; if so it is taken (an auto-reset
-/// event cleared, a mutex owned once more).
-fn take(state: &mut State, me: u32) -> bool {
+/// event cleared).
+fn take(state: &mut State) -> bool {
     match state {
         State::Event { manual, set } => {
             let through = *set;
@@ -152,15 +125,6 @@ fn take(state: &mut State, me: u32) -> bool {
                 *set = false;
             }
             through
-        }
-        State::Mutex { owner, count } => {
-            if *owner == 0 || *owner == me {
-                *owner = me;
-                *count += 1;
-                true
-            } else {
-                false
-            }
         }
         State::Thread { done } => *done,
     }
@@ -173,10 +137,9 @@ fn deadline(milliseconds: u32) -> Option<Instant> {
 
 /// Waits on the object until it lets the thread through or the deadline passes.
 fn wait_on(o: &Object, until: Option<Instant>) -> u32 {
-    let me = thread_id();
     let mut state = o.lock();
     loop {
-        if take(&mut state, me) {
+        if take(&mut state) {
             return WAIT_OBJECT_0;
         }
         state = match until {
@@ -318,21 +281,6 @@ mod tests {
         assert_eq!(wait_all_threads(&[h], 5000), WAIT_OBJECT_0);
         assert!(close(auto) && close(manual) && close(h));
         assert_eq!(wait(auto, 0), WAIT_FAILED);
-    }
-
-    #[test]
-    fn a_mutex_is_owned_by_one_thread() {
-        let m = create_mutex();
-        assert_eq!(wait(m, 0), WAIT_OBJECT_0);
-        assert_eq!(wait(m, 0), WAIT_OBJECT_0, "its owner again");
-        let h = spawn("test", new_thread_id(), move || {
-            assert_eq!(wait(m, 0), WAIT_TIMEOUT);
-            assert!(!release_mutex(m));
-        })
-        .unwrap();
-        assert_eq!(wait_all_threads(&[h], 5000), WAIT_OBJECT_0);
-        assert!(release_mutex(m) && release_mutex(m) && !release_mutex(m));
-        close(m);
     }
 
     #[test]

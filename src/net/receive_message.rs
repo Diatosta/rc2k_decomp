@@ -15,18 +15,19 @@ pub struct Received {
     pub size: u32,
 }
 pub fn receive_message(net: &Net) -> Received {
-    net.vars.received_size.set(ROOM);
+    net.vars.receiver.received_size.set(ROOM);
     let mut data = [0u8; ROOM as usize];
     let r = crate::net::dp_objects::receive(net.vars.dplay.get(), &mut data);
     if let Some((from, to)) = r.from_to {
-        net.vars.received_from.set(from);
-        net.vars.received_to.set(to);
+        net.vars.receiver.received_from.set(from);
+        net.vars.receiver.received_to.set(to);
     }
     if let Some(size) = r.size {
-        net.vars.received_size.set(size);
+        net.vars.receiver.received_size.set(size);
     }
     if r.result == 0 {
         net.vars
+            .receiver
             .receive_data
             .write_at(
                 0,
@@ -37,10 +38,10 @@ pub fn receive_message(net: &Net) -> Received {
     }
     let result = r.result;
     if result != 0 {
-        net.vars.received_size.set(0);
+        net.vars.receiver.received_size.set(0);
     }
     Received {
-        from: net.vars.received_from.get(),
-        size: net.vars.received_size.get(),
+        from: net.vars.receiver.received_from.get(),
+        size: net.vars.receiver.received_size.get(),
     }
 }

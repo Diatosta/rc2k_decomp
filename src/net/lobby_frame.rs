@@ -143,17 +143,16 @@ pub fn lobby_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
         }
     }
     y = 0x158;
-    crate::net::lock_received::lock_received(&net.vars);
     {
+        let _received = net.lock_received();
         crate::text::draw_text::draw_text_at(
             CHAT_FONT,
             &vars.chat.read(),
             0xA,
             y as i32,
             &mut canvas,
-        )
-    }?;
-    crate::net::unlock_received::unlock_received(&net.vars);
+        )?;
+    }
     y = y.wrapping_add(
         CHAT_FONT
             .object(&o.gfx.fonts.typefaces)

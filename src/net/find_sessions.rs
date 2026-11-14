@@ -45,7 +45,7 @@ pub fn posted_or_called(
     lines: &NetTexts,
     code: crate::net::post_call::PostedCall,
 ) -> u32 {
-    if o.net.vars.posting.get() == 1 {
+    if o.net.vars.receiver.posting.get() == 1 {
         crate::net::post_call::post_call(o, code)
     } else {
         code(o.net, lines)

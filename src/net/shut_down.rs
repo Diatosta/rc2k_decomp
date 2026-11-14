@@ -1,5 +1,4 @@
-//! The network at the game's end: stops it, then closes the mutex and the receiving thread's
-//! event. Refuses what `net::stop` refuses.
+//! The network at the game's end: stops it, then closes the receiving thread's event. Refuses what `net::stop` refuses.
 
 use crate::errors::Refused;
 use std::sync::atomic::Ordering;
@@ -9,11 +8,9 @@ pub fn shut_down(
 ) -> Result<(), Refused> {
     let vars = &o.net.vars;
     crate::net::stop::stop(o, vars, lines)?;
-    for cell in [&vars.mutex, &vars.event] {
-        let handle = cell.atomic().swap(0, Ordering::SeqCst);
-        if handle != 0 {
-            crate::sync::close(handle);
-        }
+    let handle = vars.event.atomic().swap(0, Ordering::SeqCst);
+    if handle != 0 {
+        crate::sync::close(handle);
     }
     Ok(())
 }

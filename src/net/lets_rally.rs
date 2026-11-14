@@ -57,7 +57,7 @@ pub fn lets_rally(o: Owners<'static>) -> Result<bool, Refused> {
         }
         if crate::net::race_wait::race_wait(net)? != 0 {
             crate::gfx::clear_front_surface::clear_front_surface(o.gfx, o.system)?;
-            crate::net::copy_received::copy_received(&net.vars)?;
+            crate::net::copy_received::copy_received(&net.vars, &mut net.lock_received())?;
             break crate::net::lets_race::lets_race(o, &net.vars)?;
         }
     };

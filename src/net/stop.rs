@@ -12,7 +12,7 @@ pub fn stop(
     lines: &NetTexts,
 ) -> Result<(), Refused> {
     vars.session.set(0);
-    while vars.receiving.get() != 0 {
+    while vars.receiver.receiving.get() != 0 {
         crate::system::sleep::sleep(1);
         crate::platform::pump_messages_now(o);
         if o.system.session.flags.quitting.is_set() && vars.receive_done.get() == 1 {

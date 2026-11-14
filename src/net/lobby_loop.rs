@@ -47,7 +47,7 @@ pub fn sync(net: &Net, ready: bool) -> Result<bool, Refused> {
                 let id = net.vars.player_block(n)?.id.get();
                 let call = Message::Call {
                     ready,
-                    round: net.vars.sync.get(),
+                    round: net.vars.receiver.sync.get(),
                 }
                 .encode();
                 net.lobby()
@@ -107,7 +107,10 @@ pub fn lobby_loop(o: Owners<'static>) -> Result<u32, Refused> {
     net.edit().clock_a.set(tick);
     net.lobby().sync_clock.set(tick);
     net.vars.sync_first.set(1);
-    net.vars.sync.set(net.vars.sync.get().wrapping_add(1));
+    net.vars
+        .receiver
+        .sync
+        .set(net.vars.receiver.sync.get().wrapping_add(1));
     net.setup().car_item.set(1);
     net.vars.stage_item.set(1);
     if !net.vars.own.state().is_host() {

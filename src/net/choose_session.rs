@@ -20,10 +20,10 @@ fn refresh(o: crate::owners::Owners<'static>, lines: &NetTexts) -> Result<bool, 
             .joined
             .write_at(0, &instance, "the joined session")?;
     }
-    let posting = net.vars.posting.get();
-    net.vars.posting.set(0);
+    let posting = net.vars.receiver.posting.get();
+    net.vars.receiver.posting.set(0);
     let found = crate::net::find_sessions::find_sessions(o, lines)?;
-    net.vars.posting.set(posting);
+    net.vars.receiver.posting.set(posting);
     if !found {
         return Ok(false);
     }

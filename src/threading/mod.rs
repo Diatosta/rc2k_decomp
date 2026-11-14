@@ -1,7 +1,6 @@
 //! The game's threads, events and waits.
 
 pub mod create_event;
-pub mod create_mutex;
 pub mod find_thread_slot;
 pub mod request_quit;
 pub mod set_priority;

@@ -92,12 +92,13 @@ pub fn start_link(o: crate::owners::Owners<'static>, mode: u32) -> Result<(), Re
         Way::On => {
             vars.session.set(1);
             if mode == 2 {
-                take_messages::joined();
+                take_messages::joined(net);
             }
-            lock_received::lock_received(&net.vars);
-            clear_chat::clear_chat(vars);
-            unlock_received::unlock_received(&net.vars);
-            vars.sync.set(0);
+            {
+                let _received = net.lock_received();
+                clear_chat::clear_chat(vars);
+            }
+            vars.receiver.sync.set(0);
             net.lobby().sequence.set(0x80);
             net.lobby().after_race.set(0);
             loop {

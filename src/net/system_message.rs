@@ -9,12 +9,15 @@ use crate::net::store::NetShared;
 use rc2k_core::net::message::SystemMessage;
 use rc2k_core::net::players::{A_PLAYER, System};
 
-/// The message is in `crate::net::owner::net().vars.receive_data`.
+/// The message is in `crate::net::owner::net().vars.receiver.receive_data`.
 pub fn system_message(
     vars: &NetShared,
     lines: &crate::race::viewer_screen_store::NetTexts,
 ) -> Result<(), Refused> {
-    let bytes = vars.receive_data.read_at(0, 12, "a system message")?;
+    let bytes = vars
+        .receiver
+        .receive_data
+        .read_at(0, 12, "a system message")?;
     let message = SystemMessage::parse(&bytes);
     match message.kind {
         System::Created => vars.sync_first.set(1),

@@ -28,17 +28,17 @@ pub fn receive_thread(net: &Net, gfx: &'static Gfx, system: &System) -> Result<(
                     crate::threading::wait_for_object::wait_for_object(vars.event.get(), WAIT)
                         .flags();
                 if !zero {
-                    vars.receiving.set(1);
+                    vars.receiver.receiving.set(1);
                     if vars.session.get() == 1 {
                         crate::net::take_messages::take_messages(net, gfx, lines)?;
                     }
                 }
-                vars.receiving.set(0);
-                if vars.posting.get() == 1
+                vars.receiver.receiving.set(0);
+                if vars.receiver.posting.get() == 1
                     && let Some(call) = crate::net::post_call::take_posted(&net.vars)
                 {
-                    vars.posted_result.set(call(net, lines));
-                    vars.posted_answered.set(1);
+                    vars.receiver.posted_result.set(call(net, lines));
+                    vars.receiver.posted_answered.set(1);
                 }
                 if system.session.flags.quitting.is_set() {
                     break;

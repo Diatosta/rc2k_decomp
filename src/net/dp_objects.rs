@@ -848,7 +848,7 @@ mod tests {
         vars.dplay.set(host);
         vars.player_id.set(host_player);
         vars.players.set(1);
-        vars.sync.set(7);
+        vars.receiver.sync.set(7);
         vars.received[0].id.set(0xDEAD);
         let gfx = crate::gfx::owner::gfx();
         let lines = &crate::race::viewer_screen_store::NET_TEXTS;
@@ -897,7 +897,7 @@ mod tests {
         say(&[0x40, 7]);
         assert!(until(&|| vars.all_raced.get() == 1));
         assert_eq!(from_host(), [0x41, 7]);
-        assert_eq!(vars.sync_answer.get(), 0x0741);
+        assert_eq!(vars.receiver.sync_answer.get(), 0x0741);
         // The call of another round is not.
         say(&[0x50, 8]);
         settle();
@@ -905,7 +905,7 @@ mod tests {
         say(&[0x50, 7]);
         assert!(until(&|| vars.race_over.get() == 1));
         assert_eq!(from_host(), [0x51, 7]);
-        assert_eq!(vars.sync_answer.get(), 0x0751);
+        assert_eq!(vars.receiver.sync_answer.get(), 0x0751);
 
         // On the game's host an answer of this round is noted, one of another is not, and a
         // call is not answered.
@@ -922,15 +922,15 @@ mod tests {
 
         // A race message: stored with the sequence byte doubled, its length and bytes.
         say(&[0x85, 1, 2, 3, 4]);
-        assert!(until(&|| vars.received[0].count.get() == 1));
-        let inbox = vars.received[0].inbox();
+        assert!(until(&|| net.lock_received()[0].count == 1));
+        let inbox = net.lock_received()[0].clone();
         assert_eq!(inbox.records[..6], [0x0A, 4, 1, 2, 3, 4]);
         assert_eq!((inbox.oldest, inbox.newest), (0, 0x0A));
         // One longer than 0xFE bytes after the first is dropped; the next one is stored.
         say(&[vec![0x86], vec![0xEE; 0xFF]].concat());
         say(&[0x87, 9]);
-        assert!(until(&|| vars.received[0].count.get() == 2));
-        let inbox = vars.received[0].inbox();
+        assert!(until(&|| net.lock_received()[0].count == 2));
+        let inbox = net.lock_received()[0].clone();
         assert_eq!(inbox.records[0x100..0x103], [0x0E, 1, 9]);
         assert_eq!(release(guest), 0);
         assert_eq!(release(host), 0);
