@@ -104,26 +104,175 @@ impl SoundList {
     }
 }
 
+/// "As the sample record says" in a command word.
+const OWN_WORD: u32 = 0xFFFF_FF91;
+/// "The voice's own frequency" in a command word.
+const VOICE_FREQUENCY_WORD: u32 = 0xFFFF_FF90;
+/// "As the sample record says" for one coordinate of a place, in a command word.
+const OWN_PLACE_WORD: u32 = 0xFF80_0000;
+
+/// A volume or pan a command sets: the sample record's, or a value.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum Setting {
+    /// As the sample record says.
+    Own,
+    /// The value as the sender gave it (a volume 0 ..= 0x40; a pan whose low byte is signed).
+    Value(u32),
+}
+
+impl Setting {
+    /// The setting a command word names.
+    pub fn from_word(word: u32) -> Setting {
+        if word == OWN_WORD {
+            Setting::Own
+        } else {
+            Setting::Value(word)
+        }
+    }
+
+    /// The command word of the setting.
+    pub fn word(self) -> u32 {
+        match self {
+            Setting::Own => OWN_WORD,
+            Setting::Value(value) => value,
+        }
+    }
+
+    /// The value, or `own` for the sample record's.
+    pub fn resolve(self, own: u32) -> u32 {
+        match self {
+            Setting::Own => own,
+            Setting::Value(value) => value,
+        }
+    }
+}
+
+/// The frequency a command sets.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum Frequency {
+    /// As the sample record says.
+    Own,
+    /// The frequency the voice has.
+    Voice,
+    /// The value as the sender gave it, in Hz.
+    Value(u32),
+}
+
+impl Frequency {
+    /// The frequency a command word names.
+    pub fn from_word(word: u32) -> Frequency {
+        match word {
+            OWN_WORD => Frequency::Own,
+            VOICE_FREQUENCY_WORD => Frequency::Voice,
+            value => Frequency::Value(value),
+        }
+    }
+
+    /// The command word of the frequency.
+    pub fn word(self) -> u32 {
+        match self {
+            Frequency::Own => OWN_WORD,
+            Frequency::Voice => VOICE_FREQUENCY_WORD,
+            Frequency::Value(value) => value,
+        }
+    }
+
+    /// The word the voice is given: `own` for the sample record's (which may itself be
+    /// `VOICE_FREQUENCY_WORD`, the voice's own).
+    pub fn resolve(self, own: u32) -> u32 {
+        match self {
+            Frequency::Own => own,
+            other => other.word(),
+        }
+    }
+}
+
+/// A place's three coordinates as float bits; 0xFF80_0000 in one is the sample record's.
+pub type PlaceBits = [u32; 3];
+
 /// Command 1: a sound started, changed or stopped.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Start {
-    /// The sound: its number in the low word (signed), bit 31 set for "do not start it if it
-    /// is not playing".
-    pub sound_word: u32,
-    /// The volume, or `voices::DEFAULT` for the sound's own.
-    pub volume: u32,
-    /// The pan (its low byte, signed), or `DEFAULT`.
-    pub pan: u32,
-    /// The frequency, or `DEFAULT` / `OWN_FREQUENCY`.
-    pub frequency: u32,
-    /// The place's three floats (bits) in the 3D modes, or `DEFAULT_PLACE`.
-    pub place: [u32; 3],
+    /// The sound's number, negative for none.
+    pub sound: i16,
+    /// Nothing is started when the sound is not playing already (a playing one is changed).
+    pub only_if_playing: bool,
+    pub volume: Setting,
+    pub pan: Setting,
+    pub frequency: Frequency,
+    /// The place's three coordinates (float bits), used in the 3D modes; none: the sample
+    /// record's.
+    pub place: Option<PlaceBits>,
 }
 
 impl Start {
-    /// The sound's number, negative for none.
-    pub fn sound(&self) -> i32 {
-        self.sound_word as u16 as i16 as i32
+    /// The command a sender's words make: `sound_word` holds the number in its low word and bit
+    /// 31 for `only_if_playing`; a place whose three coordinates are all 0xFF80_0000 ("as the
+    /// sample record says") is none.
+    pub fn from_words(
+        sound_word: u32,
+        volume: u32,
+        pan: u32,
+        frequency: u32,
+        place: PlaceBits,
+    ) -> Start {
+        Start {
+            sound: sound_word as u16 as i16,
+            only_if_playing: sound_word & 0x8000_0000 != 0,
+            volume: Setting::from_word(volume),
+            pan: Setting::from_word(pan),
+            frequency: Frequency::from_word(frequency),
+            place: (place != [OWN_PLACE_WORD; 3]).then_some(place),
+        }
+    }
+
+    /// The words a record holds: the inverse of `from_words`.
+    fn words(&self) -> [u32; 7] {
+        let [x, y, z] = self.place.unwrap_or([OWN_PLACE_WORD; 3]);
+        [
+            self.sound as u16 as u32 | (self.only_if_playing as u32) << 31,
+            self.volume.word(),
+            self.pan.word(),
+            self.frequency.word(),
+            x,
+            y,
+            z,
+        ]
+    }
+}
+
+/// What a stream or music command asks.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum StreamAction {
+    /// Stop it.
+    Stop,
+    /// The audio thread's own turn: feed what plays.
+    Turn,
+    /// Play a file or tune.
+    Play,
+    /// Change the volume of what plays.
+    Volume,
+}
+
+impl StreamAction {
+    /// The action a command word names (a word that is none of 0, 1, 3 plays).
+    pub fn from_word(word: u32) -> StreamAction {
+        match word {
+            0 => StreamAction::Stop,
+            1 => StreamAction::Turn,
+            3 => StreamAction::Volume,
+            _ => StreamAction::Play,
+        }
+    }
+
+    /// The command word of the action.
+    pub fn word(self) -> u32 {
+        match self {
+            StreamAction::Stop => 0,
+            StreamAction::Turn => 1,
+            StreamAction::Play => 2,
+            StreamAction::Volume => 3,
+        }
     }
 }
 
@@ -145,7 +294,11 @@ pub enum Command {
     /// 8: the master volume.
     Volume(u32),
     /// 9: the sound stream.
-    Stream { path: u32, volume: u32, action: u32 },
+    Stream {
+        path: u32,
+        volume: u32,
+        action: StreamAction,
+    },
     /// 0xA: the turn's taking ends.
     EndOfTurn,
     /// 0xB: the music.
@@ -153,7 +306,7 @@ pub enum Command {
         tune: u32,
         next: u32,
         volume: u32,
-        action: u32,
+        action: StreamAction,
     },
 }
 
@@ -164,18 +317,7 @@ impl Command {
     /// queued them in.
     pub fn record_words(&self) -> (u32, [u32; 7]) {
         match *self {
-            Command::Start(s) => (
-                1,
-                [
-                    s.sound_word,
-                    s.volume,
-                    s.pan,
-                    s.frequency,
-                    s.place[0],
-                    s.place[1],
-                    s.place[2],
-                ],
-            ),
+            Command::Start(s) => (1, s.words()),
             Command::Room(room) => (2, [room, 0, 0, 0, 0, 0, 0]),
             Command::Load(list) => (3, [list.map_or(0, SoundList::word), 0, 0, 0, 0, 0, 0]),
             Command::Free => (4, [0; 7]),
@@ -186,14 +328,14 @@ impl Command {
                 path,
                 volume,
                 action,
-            } => (9, [path, 0, volume, action, 0, 0, 0]),
+            } => (9, [path, 0, volume, action.word(), 0, 0, 0]),
             Command::EndOfTurn => (0xA, [0; 7]),
             Command::Music {
                 tune,
                 next,
                 volume,
                 action,
-            } => (0xB, [tune, next, volume, action, 0, 0, 0]),
+            } => (0xB, [tune, next, volume, action.word(), 0, 0, 0]),
         }
     }
 }
@@ -249,15 +391,28 @@ mod tests {
 
     #[test]
     fn sounds_are_signed_words() {
-        let start = |sound_word| Start {
-            sound_word,
-            volume: 0,
-            pan: 0,
-            frequency: 0,
-            place: [0; 3],
-        };
-        assert_eq!(start(0x1_FFFE).sound(), -2);
-        assert_eq!(start(0x8000_0005).sound(), 5);
+        let start = |sound_word| Start::from_words(sound_word, 0, 0, 0, [0; 3]);
+        assert_eq!(start(0x1_FFFE).sound, -2);
+        assert_eq!(start(0x8000_0005).sound, 5);
+        assert!(start(0x8000_0005).only_if_playing && !start(0x1_FFFE).only_if_playing);
+    }
+
+    #[test]
+    fn settings_keep_their_words() {
+        for word in [0, 0x40, 0xFFFF_FF90, 0xFFFF_FF91, 0xFFFF_FFC0] {
+            assert_eq!(Setting::from_word(word).word(), word);
+            assert_eq!(Frequency::from_word(word).word(), word);
+        }
+        assert_eq!(Setting::from_word(0xFFFF_FF91), Setting::Own);
+        assert_eq!(Frequency::from_word(0xFFFF_FF90), Frequency::Voice);
+        assert_eq!(Frequency::Voice.resolve(7), 0xFFFF_FF90);
+        assert_eq!(Frequency::Own.resolve(7), 7);
+        assert_eq!(Setting::Value(3).resolve(7), 3);
+        assert_eq!(Start::from_words(1, 2, 3, 4, [0xFF80_0000; 3]).place, None);
+        assert_eq!(
+            Start::from_words(1, 2, 3, 4, [0xFF80_0000, 0, 0]).place,
+            Some([0xFF80_0000, 0, 0])
+        );
     }
 
     #[test]
@@ -285,13 +440,8 @@ mod golden {
     fn heard_text(c: &Command) -> String {
         match c {
             Command::Start(s) => format!(
-                "start sound={} word={:#x} volume={} pan={} frequency={} place={:?}",
-                s.sound(),
-                s.sound_word,
-                s.volume,
-                s.pan,
-                s.frequency,
-                s.place
+                "start sound={} only_if_playing={} volume={:?} pan={:?} frequency={:?} place={:?}",
+                s.sound, s.only_if_playing, s.volume, s.pan, s.frequency, s.place
             ),
             Command::Room(n) => format!("room {n}"),
             Command::Load(list) => format!("load {:?}", list.map(SoundList::word)),
@@ -303,14 +453,14 @@ mod golden {
                 path,
                 volume,
                 action,
-            } => format!("stream {path} {volume} {action}"),
+            } => format!("stream {path} {volume} {}", action.word()),
             Command::EndOfTurn => "end of turn".into(),
             Command::Music {
                 tune,
                 next,
                 volume,
                 action,
-            } => format!("music {tune} {next} {volume} {action}"),
+            } => format!("music {tune} {next} {volume} {}", action.word()),
         }
     }
 
@@ -318,13 +468,13 @@ mod golden {
     /// `record_words`.
     fn command_from(number: u32, r: [u32; 7]) -> Command {
         match number {
-            1 => Command::Start(Start {
-                sound_word: r[0],
-                volume: r[1],
-                pan: r[2],
-                frequency: r[3],
-                place: [r[4], r[5], r[6]],
-            }),
+            1 => Command::Start(Start::from_words(
+                r[0],
+                r[1],
+                r[2],
+                r[3],
+                [r[4], r[5], r[6]],
+            )),
             2 => Command::Room(r[0]),
             3 => Command::Load(SoundList::from_word(r[0])),
             4 => Command::Free,
@@ -334,21 +484,21 @@ mod golden {
             9 => Command::Stream {
                 path: r[0],
                 volume: r[2],
-                action: r[3],
+                action: StreamAction::from_word(r[3]),
             },
             0xA => Command::EndOfTurn,
             0xB => Command::Music {
                 tune: r[0],
                 next: r[1],
                 volume: r[2],
-                action: r[3],
+                action: StreamAction::from_word(r[3]),
             },
             n => panic!("command {n} is not sent"),
         }
     }
 
     const SENT: [(u32, [u32; 7]); 12] = [
-        (1, [0x1_FFFE, 5, 0x7F, 0x2000, 1, 2, 3]),
+        (1, [0xFFFE, 5, 0x7F, 0x2000, 1, 2, 3]),
         (2, [3, 0, 0, 0, 0, 0, 0]),
         (3, [1, 0, 0, 0, 0, 0, 0]),
         (3, [0x7E, 0, 0, 0, 0, 0, 0]),
@@ -363,7 +513,8 @@ mod golden {
     ];
 
     const HEARD: [&str; 12] = [
-        "start sound=-2 word=0x1fffe volume=5 pan=127 frequency=8192 place=[1, 2, 3]",
+        "start sound=-2 only_if_playing=false volume=Value(5) pan=Value(127) \
+         frequency=Value(8192) place=Some([1, 2, 3])",
         "room 3",
         "load Some(1)",
         "load Some(126)",
@@ -438,5 +589,90 @@ mod golden {
     #[test]
     fn the_queue_gives_the_recorded_commands() {
         check_golden(&mut Queue::new());
+    }
+}
+
+#[cfg(test)]
+mod frozen_words {
+    //! The words each command records, as the code before the typed values produced them
+    //! (literals, kept): the sound hash of a run is made of them.
+    use super::*;
+
+    fn start(sound_word: u32, volume: u32, pan: u32, frequency: u32, place: [u32; 3]) -> Command {
+        Command::Start(Start::from_words(sound_word, volume, pan, frequency, place))
+    }
+
+    #[test]
+    fn start_words() {
+        assert_eq!(
+            start(5, 0x20, 0x7F, 0x2000, [1, 2, 3]).record_words(),
+            (1, [5, 0x20, 0x7F, 0x2000, 1, 2, 3])
+        );
+        assert_eq!(
+            start(0x8000_0005, 0, 0, 0, [0xFF80_0000; 3]).record_words(),
+            (
+                1,
+                [0x8000_0005, 0, 0, 0, 0xFF80_0000, 0xFF80_0000, 0xFF80_0000]
+            )
+        );
+        assert_eq!(
+            start(
+                0xFFFE,
+                0xFFFF_FF91,
+                0xFFFF_FF91,
+                0xFFFF_FF91,
+                [0xFF80_0000, 1, 2]
+            )
+            .record_words(),
+            (
+                1,
+                [
+                    0xFFFE,
+                    0xFFFF_FF91,
+                    0xFFFF_FF91,
+                    0xFFFF_FF91,
+                    0xFF80_0000,
+                    1,
+                    2
+                ]
+            )
+        );
+        assert_eq!(
+            start(0x1CB, 0x40, 0xFFFF_FFC0, 0xFFFF_FF90, [0; 3]).record_words(),
+            (1, [0x1CB, 0x40, 0xFFFF_FFC0, 0xFFFF_FF90, 0, 0, 0])
+        );
+    }
+
+    #[test]
+    fn stream_words() {
+        let stream = |path, volume, action| Command::Stream {
+            path,
+            volume,
+            action: StreamAction::from_word(action),
+        };
+        assert_eq!(
+            stream(5, 0x30, 2).record_words(),
+            (9, [5, 0, 0x30, 2, 0, 0, 0])
+        );
+        assert_eq!(stream(0, 0, 0).record_words(), (9, [0; 7]));
+    }
+
+    #[test]
+    fn music_words() {
+        let music = |tune, next, volume, action| Command::Music {
+            tune,
+            next,
+            volume,
+            action: StreamAction::from_word(action),
+        };
+        assert_eq!(
+            music(4, 8, 0x30, 2).record_words(),
+            (0xB, [4, 8, 0x30, 2, 0, 0, 0])
+        );
+        assert_eq!(
+            music(0, 0, 0x20, 3).record_words(),
+            (0xB, [0, 0, 0x20, 3, 0, 0, 0])
+        );
+        assert_eq!(music(0, 0, 0, 0).record_words(), (0xB, [0; 7]));
     }
 }

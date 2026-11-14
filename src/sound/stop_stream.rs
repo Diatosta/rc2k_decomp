@@ -5,7 +5,7 @@ pub fn stop_stream(o: crate::owners::Owners<'static>) {
         rc2k_core::audio::commands::Command::Stream {
             path: 0,
             volume: 0,
-            action: 0,
+            action: rc2k_core::audio::commands::StreamAction::Stop,
         },
     );
 }

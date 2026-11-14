@@ -1,6 +1,8 @@
 //! What the sound senders decide before they queue a command, and the music's command
 //! (`sound::play_music`, `stop_music`, `play_tune_2` .. `_9`).
 
+use crate::audio::commands::StreamAction;
+
 /// The three volume settings the menus' sounds are played at.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum MenuVolume {
@@ -41,22 +43,19 @@ pub fn menu_sound(which: u32, now: u32, next: u32) -> Option<(u32, Option<(u32, 
 
 /// The sound mode bit of the modes that give a sound a place in space.
 pub const MODE_3D: u32 = 0x10_0000;
-/// No place: what the three place coordinates are sent as outside the 3D modes.
-pub const NO_PLACE: u32 = 0xFF80_0000;
 
-/// The four values command 1 carries besides the sound, from the sender's `place` (a volume or
-/// distance value, then two coordinates): None while
-/// sounds are held back; outside the 3D modes no place and the first value in the second slot, else
-/// the place with a zero there.
-pub fn sound_place(held_back: u32, mode: u32, place: [u32; 3]) -> Option<[u32; 4]> {
+/// The pan and place command 1 carries, from the sender's `place` (a pan or a coordinate, then
+/// two coordinates): None while sounds are held back; outside the 3D modes the first value is the
+/// pan and there is no place, else the pan is 0 and the place is the three values.
+pub fn sound_place(held_back: u32, mode: u32, place: [u32; 3]) -> Option<(u32, Option<[u32; 3]>)> {
     if held_back == 1 {
         return None;
     }
     let [first, second, third] = place;
     Some(if mode & MODE_3D == 0 {
-        [NO_PLACE, first, NO_PLACE, NO_PLACE]
+        (first, None)
     } else {
-        [first, 0, second, third]
+        (0, Some([first, second, third]))
     })
 }
 
@@ -78,8 +77,7 @@ pub struct Music {
     /// The tune to go on with when this one ends (the "then" tune of the music command).
     pub then: u32,
     pub volume: u32,
-    /// 2 play, 3 change the volume, 0 stop.
-    pub action: u32,
+    pub action: StreamAction,
 }
 
 impl Music {
@@ -88,7 +86,7 @@ impl Music {
             tune,
             then,
             volume,
-            action: 2,
+            action: StreamAction::Play,
         }
     }
 
@@ -97,7 +95,7 @@ impl Music {
         tune: 0,
         then: 0,
         volume: 0,
-        action: 0,
+        action: StreamAction::Stop,
     };
 }
 
@@ -159,11 +157,11 @@ mod tests {
         );
         assert_eq!((menu_sound(1, 49, 50), menu_sound(0, 100, 0)), (None, None));
         assert_eq!(menu_sound(0x200, 100, 0), Some((225, None)));
-        assert_eq!(sound_place(0, MODE_3D, [1, 2, 3]), Some([1, 0, 2, 3]));
         assert_eq!(
-            sound_place(0, 0, [1, 2, 3]),
-            Some([NO_PLACE, 1, NO_PLACE, NO_PLACE])
+            sound_place(0, MODE_3D, [1, 2, 3]),
+            Some((0, Some([1, 2, 3])))
         );
+        assert_eq!(sound_place(0, 0, [1, 2, 3]), Some((1, None)));
         assert_eq!(
             (sound_place(1, 0, [0; 3]), stopped(0x8001), stopped(5)),
             (None, None, Some(5))

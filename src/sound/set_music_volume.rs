@@ -1,6 +1,6 @@
 /// Sets the music volume.
 use crate::sound::senders::*;
-use rc2k_core::audio::commands::Command;
+use rc2k_core::audio::commands::{Command, StreamAction};
 
 /// Nothing if the volume is the one in use.
 pub fn set_music_volume(volume: u32, o: crate::owners::Owners<'static>) {
@@ -13,7 +13,7 @@ pub fn set_music_volume(volume: u32, o: crate::owners::Owners<'static>) {
                 tune: 0,
                 next: 0,
                 volume,
-                action: 3,
+                action: StreamAction::Volume,
             },
         );
     }

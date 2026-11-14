@@ -5,7 +5,7 @@ pub fn start_stream(o: crate::owners::Owners<'static>, name: u32, volume: u32) {
         rc2k_core::audio::commands::Command::Stream {
             path: name,
             volume,
-            action: 2,
+            action: rc2k_core::audio::commands::StreamAction::Play,
         },
     );
 }

@@ -9,7 +9,7 @@
 //! What a command changes in a voice is marked in its `dirty` bits for the turn.
 
 use crate::Invalid;
-use crate::audio::commands::Start;
+use crate::audio::commands::{Setting, Start};
 
 pub const SAMPLES: u32 = 0x1CD;
 pub const VOICES: u32 = 0x200;
@@ -366,14 +366,14 @@ fn plan<P: Pool>(pool: &mut P, lists: &Lists, sound: i32, cmd: &Start) -> Result
     if first == 0 || pool.voice(first).flags & LOADED == 0 {
         return Ok(Plan::Nothing);
     }
-    let volume = cmd.volume;
-    if volume != 0 && pool.voice(first).kind == 0 {
+    let silent = cmd.volume == Setting::Value(0);
+    if !silent && pool.voice(first).kind == 0 {
         return plan_start(pool, lists, first);
     }
     match find_playing(pool, lists, first)? {
-        None if volume == 0 || cmd.sound_word & 0x8000_0000 != 0 => Ok(Plan::Nothing),
+        None if silent || cmd.only_if_playing => Ok(Plan::Nothing),
         None => plan_start(pool, lists, first),
-        Some(link) if volume == 0 => Ok(Plan::Stop { voice: first, link }),
+        Some(link) if silent => Ok(Plan::Stop { voice: first, link }),
         Some(_) => Ok(Plan::Change { voice: first }),
     }
 }
@@ -388,13 +388,12 @@ fn change<P: Pool>(pool: &mut P, at: u32, cmd: &Start, mode: u32) {
 
 fn change_voice(v: &mut Voice, record: &SampleRecord, cmd: &Start, mode: u32) {
     let mut dirty = v.dirty;
-    let or = |given: u32, default: u32| if given == DEFAULT { default } else { given };
-    let volume = or(cmd.volume, record.volume).min(0x40);
+    let volume = cmd.volume.resolve(record.volume).min(0x40);
     if volume != v.volume {
         dirty |= DIRTY_VOLUME;
         v.volume = volume;
     }
-    let pan = or(cmd.pan, record.pan);
+    let pan = cmd.pan.resolve(record.pan);
     let (low, high) = (pan as u8, (pan >> 8) as u8);
     v.pan_sign = if (low ^ high) & 0x80 != 0 { -1 } else { 0 };
     let pan = (low as i8 as i32).clamp(-0x40, 0x40);
@@ -402,7 +401,7 @@ fn change_voice(v: &mut Voice, record: &SampleRecord, cmd: &Start, mode: u32) {
         dirty |= DIRTY_PAN;
         v.pan = pan;
     }
-    let mut frequency = or(cmd.frequency, record.frequency);
+    let mut frequency = cmd.frequency.resolve(record.frequency);
     if frequency == OWN_FREQUENCY {
         frequency = v.own_frequency;
     }
@@ -413,10 +412,9 @@ fn change_voice(v: &mut Voice, record: &SampleRecord, cmd: &Start, mode: u32) {
     }
     if mode & MODE_3D != 0 {
         for i in 0..3 {
-            let p = if cmd.place[i] == DEFAULT_PLACE {
-                record.place[i]
-            } else {
-                cmd.place[i]
+            let p = match cmd.place {
+                Some(place) if place[i] != DEFAULT_PLACE => place[i],
+                _ => record.place[i],
             };
             if p != v.place[i] {
                 dirty |= DIRTY_PLACE;
@@ -439,7 +437,7 @@ fn start<P: Pool>(pool: &mut P, lists: &mut Lists, at: u32) {
 }
 
 /// Command 1: a sound started, changed or stopped. With a volume and a voice of kind 0
-/// (or, another kind or no volume, a voice not playing, unless the sound word has bit
+/// (or, another kind or no volume, a voice not playing, unless the command is only_if_playing)
 /// 31) its first free copy gets a channel: a free one while fewer are used than there are
 /// (counted), else the channel of the playing voice of the lowest priority below its own
 /// (none: nothing), which goes to the stopping list; the voice to the playing list's
@@ -879,13 +877,7 @@ mod tests {
             channel_count: 1,
             ..Lists::default()
         };
-        let cmd = |volume| Start {
-            sound_word: 0,
-            volume,
-            pan: DEFAULT,
-            frequency: DEFAULT,
-            place: [DEFAULT, 0, 0],
-        };
+        let cmd = |volume| Start::from_words(0, volume, DEFAULT, DEFAULT, [DEFAULT, 0, 0]);
         start_voice(&mut t, &mut lists, 0, 1, &cmd(DEFAULT)).unwrap();
         assert_eq!((lists.playing, lists.channels_used), (v(1), 1));
         assert_eq!(t.voice(v(1)).volume, 0x20);

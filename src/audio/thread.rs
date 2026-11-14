@@ -6,6 +6,7 @@
 //! written, "AUDIOTDB:QUIT".
 
 use crate::errors::Refused;
+use rc2k_core::audio::commands::StreamAction;
 
 const START_TEXT: &std::ffi::CStr = c"AUDIOTDB:START"; // "AUDIOTDB:START"
 const QUIT_TEXT: &std::ffi::CStr = c"AUDIOTDB:QUIT"; // "AUDIOTDB:QUIT"
@@ -46,8 +47,8 @@ pub fn audio_thread(
             crate::system::sleep::sleep(rc2k_core::audio::device::turn_sleep(last, now));
             let begun = crate::debug::timing::start();
             // The turn's feeds (action 1, which reads nothing else).
-            stream_commands::stream_command(audio, 0, 0, 1)?;
-            stream_commands::music_command(&audio.state, 0, 0, 0, 1)?;
+            stream_commands::stream_command(audio, 0, 0, StreamAction::Turn)?;
+            stream_commands::music_command(&audio.state, 0, 0, 0, StreamAction::Turn)?;
             take_commands::take_commands(audio, system, sound)?;
             update_voices::update_voices(audio)?;
             stray_voices::check(&audio.state);

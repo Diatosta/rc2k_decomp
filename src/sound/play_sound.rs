@@ -20,18 +20,11 @@ pub fn play_sound_in(audio: &Audio, sound: u32, volume: u32, rate: u32, place: [
         audio.state.sound_mode.get(),
     );
     // The logic is `rc2k_core::sound::senders::sound_place`.
-    if let Some([place_a, pan, place_b, place_c]) =
-        rc2k_core::sound::senders::sound_place(held_back, mode, place)
-    {
-        send_command_in(
-            audio,
-            Command::Start(Start {
-                sound_word: sound,
-                volume,
-                pan,
-                frequency: rate,
-                place: [place_a, place_b, place_c],
-            }),
-        );
+    if let Some((pan, place)) = rc2k_core::sound::senders::sound_place(held_back, mode, place) {
+        let start = Start {
+            place,
+            ..Start::from_words(sound, volume, pan, rate, [0; 3])
+        };
+        send_command_in(audio, Command::Start(start));
     }
 }

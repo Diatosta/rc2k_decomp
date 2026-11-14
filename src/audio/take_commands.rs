@@ -20,7 +20,7 @@ pub fn take_commands(
         };
         match command {
             Command::Start(start) => {
-                crate::audio::start_voice::start_voice(audio, start.sound(), &start)?;
+                crate::audio::start_voice::start_voice(audio, start.sound as i32, &start)?;
             }
             Command::Room(room) => audio.state.eax_room.set(room),
             Command::Load(list) => {

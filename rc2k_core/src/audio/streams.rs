@@ -9,6 +9,8 @@
 //! for ever and hang the audio thread): a turn past 5 starts from 0, and after `RETRIES` plays in
 //! a row that stop at their first feed the music stops.
 
+use crate::audio::commands::StreamAction;
+
 /// A stream player and what it is told.
 pub trait Player {
     type Error;
@@ -28,23 +30,23 @@ pub fn stream_command<P: Player>(
     p: &mut P,
     has_path: bool,
     volume: i32,
-    action: u32,
+    action: StreamAction,
 ) -> Result<(), P::Error> {
     match action {
-        0 => return p.stop(),
-        1 => {
+        StreamAction::Stop => return p.stop(),
+        StreamAction::Turn => {
             if !p.playing() {
                 return Ok(());
             }
         }
-        3 => {
+        StreamAction::Volume => {
             if p.playing() {
                 p.keep_volume(volume as u32);
                 p.apply_volume()?;
             }
             return Ok(());
         }
-        _ => {
+        StreamAction::Play => {
             if p.playing() {
                 p.stop()?;
             }
@@ -95,7 +97,7 @@ pub fn music_command<P: Tunes>(
     tune: u32,
     next: u32,
     volume: i32,
-    action: u32,
+    action: StreamAction,
 ) -> Result<(), P::Error> {
     let stop_and_forget = |p: &mut P, m: &mut Music| -> Result<(), P::Error> {
         p.stop()?;
@@ -105,21 +107,21 @@ pub fn music_command<P: Tunes>(
     let mut tune = tune;
     let mut feed_first = false;
     match action {
-        0 => return stop_and_forget(p, m),
-        1 => {
+        StreamAction::Stop => return stop_and_forget(p, m),
+        StreamAction::Turn => {
             if !p.playing() {
                 return Ok(());
             }
             feed_first = true;
         }
-        3 => {
+        StreamAction::Volume => {
             if p.playing() {
                 p.keep_volume(volume as u32);
                 p.apply_volume()?;
             }
             return Ok(());
         }
-        _ => {
+        StreamAction::Play => {
             if p.playing() {
                 p.stop()?;
             }
@@ -403,14 +405,14 @@ mod tests {
     fn music_and_streams() {
         let mut p = Test::default();
         let mut m = Music::default();
-        music_command(&mut p, &mut m, 4, 8, 0x30, 2).unwrap();
+        music_command(&mut p, &mut m, 4, 8, 0x30, StreamAction::Play).unwrap();
         assert_eq!(
             (p.log.as_slice(), m.next_tune, p.volume),
             (&["start 4".to_string()][..], 8, 0x30)
         );
         // The tune ends at its turn: the next one.
         p.feeds_stop = 1;
-        music_command(&mut p, &mut m, 0, 0, 0, 1).unwrap();
+        music_command(&mut p, &mut m, 0, 0, 0, StreamAction::Turn).unwrap();
         assert_eq!(p.log[1..], ["stop", "start 8"]);
         // Tune 0xA: turns 2 .. 5 then 0: 0xC is there.
         let mut p = Test {
@@ -421,7 +423,7 @@ mod tests {
             turn: 2,
             ..Music::default()
         };
-        music_command(&mut p, &mut m, 0xA, 0, 1, 2).unwrap();
+        music_command(&mut p, &mut m, 0xA, 0, 1, StreamAction::Play).unwrap();
         assert_eq!(
             (p.log.as_slice(), m.turn),
             (&["start 12".to_string()][..], 3)
@@ -432,12 +434,12 @@ mod tests {
             ..Test::default()
         };
         let mut m = Music::default();
-        music_command(&mut p, &mut m, 4, 4, 1, 2).unwrap();
+        music_command(&mut p, &mut m, 4, 4, 1, StreamAction::Play).unwrap();
         assert_eq!(p.log.last().unwrap(), "stop");
         assert!(p.log.contains(&"gave up".to_string()));
         // The stream: no path, a stop.
         let mut p = Test::default();
-        stream_command(&mut p, false, 5, 2).unwrap();
+        stream_command(&mut p, false, 5, StreamAction::Play).unwrap();
         assert_eq!(p.log, ["stop"]);
     }
 }

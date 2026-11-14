@@ -13,6 +13,7 @@ use crate::audio::own::{AudioOwn, AudioThread};
 use crate::audio::stream::*;
 use crate::errors::Refused;
 use crate::session::Shared;
+use rc2k_core::audio::commands::StreamAction;
 
 fn playing(player: &Shared<AudioStream>) -> bool {
     player.get().playing == 1
@@ -107,7 +108,7 @@ pub fn stream_command(
     audio: &AudioThread,
     name: u32,
     volume: i32,
-    action: u32,
+    action: StreamAction,
 ) -> Result<(), Refused> {
     let text = match name {
         0 => None,
@@ -128,7 +129,7 @@ pub fn music_command(
     tune: u32,
     next: u32,
     volume: i32,
-    action: u32,
+    action: StreamAction,
 ) -> Result<(), Refused> {
     let mut m = rc2k_core::audio::streams::Music {
         next_tune: state.next_tune.get(),
