@@ -1,6 +1,6 @@
 //! The race's variables before the draw state: the race's settings as the race code reads them
 //! (stage, direction, car kinds, tyres, run kind, split, settings words; `race::settings_copy`
-//! fills them), the checkpoints and the best line's work, the loading bar, the mud texture's
+//! fills them), the checkpoints and the best line's work, the mud texture's
 //! state, and the flat quads' corners, colours and vertices. `#[repr(C)]`, laid over the race
 //! block bytes.
 
@@ -31,9 +31,6 @@ pub struct RaceVars {
     pub face_number: PlainDword,
     /// +0x3c: unused; it only keeps the layout.
     pub unused_3c: [PlainDword; 4],
-    /// +0x4c: the loading bar's span, from and to (`scene::step_loading_bar`; `race::loadlevel`'s
-    /// object span).
-    pub bar_span: [PlainDword; 2],
     /// +0x54: the best line's face total (`race::best_line`).
     pub line_face_total: PlainDword,
     /// +0x58: the checkpoint count.
@@ -51,10 +48,6 @@ pub struct RaceVars {
     pub surface_shares: [PlainDword; 16],
     /// +0xcc: the map's anchor count.
     pub map_anchor_count: PlainDword,
-    /// +0x118: the loading bar's share loaded, 0 .. 100.
-    pub bar_share: PlainDword,
-    /// +0x11c: the loading bar's function (0: none).
-    pub bar_function: PlainDword,
     /// +0x120: unused; it only keeps the layout.
     pub unused_120: [PlainDword; 82],
     /// +0x268: the stage number (`settings.stage`).
@@ -190,7 +183,6 @@ impl RaceVars {
     pub const fn new() -> Self {
         Self {
             kept_scale: PlainFloat::new(384.0),
-            bar_span: [PlainDword::new(0), PlainDword::new(0x64)],
             unused_120: {
                 let mut a: [PlainDword; 82] = ZeroCells::ZERO;
                 a[22] = PlainDword::new(0xA);

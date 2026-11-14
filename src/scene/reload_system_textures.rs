@@ -7,7 +7,7 @@
 //! - For each of the `TexturePlaces.totals[3]` system textures: `Grading.reading` = 1 and the
 //!   size pictures are read at (`Grading.saturation`, `Grading.scale`) = the scene's
 //!   (`StagePrefs.scene_size_a`, `StagePrefs.scene_size_b`), or 256 x 256 for picture 0x3DE and
-//!   pictures 0x706 .. 0x7CF; `scene::load_changed_texture_picture`; `scene::step_loading_bar`.
+//!   pictures 0x706 .. 0x7CF; `scene::load_changed_texture_picture`; the loading bar moves on.
 //! - `Grading.reading` = 0 and the size 256 x 256 again; `scene::load_hud_car_icons`; two lines
 //!   in the log.
 //!
@@ -18,7 +18,6 @@
 use crate::errors::{BadInput, Refused};
 use crate::scene::load_changed_texture_picture::{TEXTURES, load_changed_texture_picture_in_game};
 use crate::scene::load_hud_car_icons::load_hud_car_icons;
-use crate::scene::step_loading_bar::step_loading_bar;
 use crate::scene::textures::KINDS;
 use rc2k_core::scene::pictures::{kind_picture, read_size};
 
@@ -33,7 +32,10 @@ const TEXTS: [&std::ffi::CStr; 4] = [
 ];
 
 // Logic: `rc2k_core::scene::pictures::{kind_picture, read_size}`
-pub fn reload_system_textures(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
+pub fn reload_system_textures(
+    o: crate::owners::Owners<'static>,
+    progress: &mut dyn crate::race::loading_bar_frame::Progress,
+) -> Result<(), Refused> {
     let (race, system, gfx, scene) = (o.race, o.system, o.gfx, o.scene);
     let gfx_grading = &gfx.grading;
     let course = &race.course;
@@ -67,7 +69,7 @@ pub fn reload_system_textures(o: crate::owners::Owners<'static>) -> Result<(), R
         grading.scale.set(scale);
         grading.saturation.set(saturation);
         load_changed_texture_picture_in_game(race, gfx, texture, scene, system)?;
-        step_loading_bar(o, texture)?;
+        progress.textures_done(textures, texture)?;
     }
     let grading = &gfx_grading;
     grading.reading.set(0u32);

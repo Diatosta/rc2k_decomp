@@ -11,7 +11,10 @@
 use crate::errors::Refused;
 
 /// Sets the stage's texture pictures and reloads the textures (see the header).
-pub fn set_all_plates(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
+pub fn set_all_plates(
+    o: crate::owners::Owners<'static>,
+    progress: &mut dyn crate::race::loading_bar_frame::Progress,
+) -> Result<(), Refused> {
     let (race, scene) = (o.race, o.scene);
     let course = &race.course;
     let shared = &race.shared;
@@ -49,7 +52,7 @@ pub fn set_all_plates(o: crate::owners::Owners<'static>) -> Result<(), Refused> 
         }
     }
     crate::race::load_times::mark("reload_system_textures");
-    crate::scene::reload_system_textures::reload_system_textures(o)?;
+    crate::scene::reload_system_textures::reload_system_textures(o, progress)?;
     crate::race::load_times::mark("reload_slot_textures");
     crate::scene::reload_slot_textures::reload_slot_textures(&race.frame, scene)?;
     Ok(())

@@ -29,7 +29,7 @@ pub struct TexturePlaces {
     pub slot_loaded: [PlainDword; 1024],
     /// Video k, system k, video textures, system textures (`scene::count_texture_needs`); [2]
     /// and [3] are read alone (`scene::look_up_texture`, `scene::draw_polygon`,
-    /// `scene::reload_system_textures`, `scene::step_loading_bar`).
+    /// `scene::reload_system_textures`).
     pub totals: [PlainDword; 4],
     /// What a kind's slots take (`scene::texture_levels`, `scene::reset_texture_tables`).
     pub kind_slot_bytes: PlainDword,

@@ -1,10 +1,63 @@
-//! One frame of the loading bar while a stage loads (the `bar_function` callback). Outside
-//! a stage's loading and the credits it does nothing; otherwise it sets `scene_state` to the frame
-//! mark and, unless the game is quitting, draws `race::loading_bar_quad` in an unframed view window
-//! and presents the frame. A frame that cannot be drawn (the window inactive, its surfaces lost, or
-//! the lock refused) is skipped: nothing is shown and the load goes on; the next frame tries again.
+//! The loading bar: the `Progress` sink the loaders report to, and the frame it draws. Outside a
+//! stage's loading and the credits a frame does nothing; otherwise it sets `scene_state` to the
+//! frame mark and, unless the game is quitting, draws `race::loading_bar_quad` in an unframed view
+//! window and presents the frame. A frame that cannot be drawn (the window inactive, its surfaces
+//! lost, or the lock refused) is skipped: nothing is shown and the load goes on; the next frame
+//! tries again.
 
 use crate::errors::Refused;
+use rc2k_core::scene::loading::BarEnds;
+
+/// Where a load reports how far it has got.
+pub trait Progress {
+    /// The load is `share` percent done (0 ..= 100): shows a frame.
+    fn mark(&mut self, share: u32) -> Result<(), Refused>;
+
+    /// The share the texture marks (`textures_done`) run between.
+    fn set_span(&mut self, low: u32, high: u32);
+
+    /// `done` of `textures` system textures are loaded: the share moves on within the span (and
+    /// stays where it is with no textures), and a frame is shown.
+    fn textures_done(&mut self, textures: u32, done: u32) -> Result<(), Refused>;
+}
+
+/// The loading bar on the screen: a `Progress` that draws a frame (at most 30 a second) at
+/// each mark.
+pub struct LoadingBar {
+    o: crate::owners::Owners<'static>,
+    share: u32,
+    span: BarEnds,
+}
+
+impl LoadingBar {
+    /// A bar at 0 whose texture span is the whole bar.
+    pub fn new(o: crate::owners::Owners<'static>) -> Self {
+        Self {
+            o,
+            share: 0,
+            span: BarEnds { low: 0, high: 100 },
+        }
+    }
+}
+
+impl Progress for LoadingBar {
+    fn mark(&mut self, share: u32) -> Result<(), Refused> {
+        self.share = share;
+        loading_bar_frame(self.o, share)
+    }
+
+    fn set_span(&mut self, low: u32, high: u32) {
+        self.span = BarEnds { low, high };
+    }
+
+    fn textures_done(&mut self, textures: u32, done: u32) -> Result<(), Refused> {
+        if let Some(share) = self.span.progress(done, textures) {
+            self.share = share;
+        }
+        loading_bar_frame(self.o, self.share)
+    }
+}
+
 /// A stage is loading (`race::load_stage`). The bar is drawn for every stage, over the loading
 /// picture.
 pub static STAGE_LOADING: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
@@ -23,8 +76,8 @@ pub fn shown() -> (u64, u64) {
     (FRAMES[0].swap(0, Relaxed), FRAMES[1].swap(0, Relaxed))
 }
 
-/// Draws a frame, at most one in 33 ms.
-pub fn loading_bar_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
+/// Draws a frame showing `share` percent, at most one in 33 ms (every frame from 100 on).
+fn loading_bar_frame(o: crate::owners::Owners<'static>, share: u32) -> Result<(), Refused> {
     use std::sync::atomic::Ordering::Relaxed;
     // At most some 30 frames a second, and the last: drawing every step's frame took 3/4 of a
     // load (882 ms of 1231).
@@ -34,23 +87,21 @@ pub fn loading_bar_frame(o: crate::owners::Owners<'static>) -> Result<(), Refuse
         let mut last = LAST_FRAME
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        if o.race.shared.vars.get().bar_share.get() < 100
-            && last.is_some_and(|last| begun.duration_since(last) < BAR_FRAME)
-        {
+        if share < 100 && last.is_some_and(|last| begun.duration_since(last) < BAR_FRAME) {
             return Ok(());
         }
         *last = Some(begun);
     }
     let result = {
         let _timed = crate::race::load_times::scope(crate::race::load_times::Category::BarFrame);
-        frame(o)
+        frame(o, share)
     };
     FRAMES[0].fetch_add(1, Relaxed);
     FRAMES[1].fetch_add(begun.elapsed().as_micros() as u64, Relaxed);
     result
 }
 
-fn frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
+fn frame(o: crate::owners::Owners<'static>, share: u32) -> Result<(), Refused> {
     let (race, system, scene, gfx, d3d) = (o.race, o.system, o.scene, o.gfx, o.d3d);
     let session = &system.session;
     let shared = &race.shared;
@@ -77,7 +128,7 @@ fn frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
         shared.switches.get().editor_mode.set(0u32);
         choose_view_window::choose_view_window(race, scene, system);
         shared.switches.get().editor_mode.set(framed);
-        crate::race::loading_bar_quad::loading_bar_quad(race, system, scene)?;
+        crate::race::loading_bar_quad::loading_bar_quad(race, system, scene, share)?;
         end_scene::end_scene(d3d);
         if lock_frame::lock_frame(race, gfx, system).0 < 1 {
             break 'frame;

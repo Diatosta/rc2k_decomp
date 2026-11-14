@@ -149,7 +149,6 @@ pub mod set_up_textures;
 pub mod set_view_window;
 pub mod show_bad_polygon;
 pub mod sort_listed_faces;
-pub mod step_loading_bar;
 pub mod submit_polygon;
 pub mod texture_levels;
 pub mod texture_needs;

@@ -16,7 +16,7 @@
 //!   0x271 the 26 of `MENU_PICTURES`, and eight in a row from kind 0x2BC + 8 * place for each
 //!   of 33 known kinds (`scene::known_kind_picture` of places 0 ..= 0x1D, 0x1F, 0x20, 0x21, and
 //!   the seven numbers after it; place 0x1E's eight are left alone);
-//! - the loading bar's function = `race::loading_bar_frame`, `scene::reload_system_textures`,
+//! - `scene::reload_system_textures` with the loading bar,
 //!   `scene::allocate_point_records`;
 //! - the colours again, `scene::fill_scene_light_tables`, `scene::set_view_matrices`,
 //!   `scene::reload_slot_textures`;
@@ -42,7 +42,6 @@ use crate::scene::view_matrix::set_view_matrices;
 use crate::session::PlainDword;
 
 // ---- game data ----
-const SHOW_BAR: u32 = 0x4467C7; // `race::loading_bar_frame`
 fn system_levels(scene: &Scene) -> &[PlainDword; 1024] {
     &scene.objects.tables.get().system_levels
 }
@@ -84,7 +83,6 @@ pub fn set_up_front_end_scene_in(o: crate::owners::Owners<'static>) -> Result<()
     let shared = &race.shared;
     let frame = &race.frame;
     let course = &race.course;
-    crate::session::write_bits(&shared.vars.get().bar_span, [0u32, 100]);
     crate::menu::show_loading_picture::show_loading_picture_in(o)?;
     reset_texture_tables(scene);
     for (count, first, levels, tag) in NEEDS {
@@ -137,8 +135,10 @@ pub fn set_up_front_end_scene_in(o: crate::owners::Owners<'static>) -> Result<()
             picture = picture.wrapping_add(1);
         }
     }
-    shared.vars.get().bar_function.set(SHOW_BAR);
-    crate::scene::reload_system_textures::reload_system_textures(o)?;
+    crate::scene::reload_system_textures::reload_system_textures(
+        o,
+        &mut crate::race::loading_bar_frame::LoadingBar::new(o),
+    )?;
     allocate_point_records_in_game(course)?;
     colours(course, 0);
     fill_scene_light_tables(race, scene)?;
