@@ -397,13 +397,20 @@ pub fn replay_cameras(
     let faces = face_count(course)?;
     let trap = Trap::new();
     {
-        let (cameras, _) = rc2k_core::race::best_line::camera_faces(faces, |b| {
-            let f = trap.keep_read(crate::race::course_places::face_number(
-                race.course.reads(),
-                b,
-            ));
-            f.kind() == rc2k_core::race::faces::LIT_KIND && f.object() == set.kind
-        });
+        // The last face read whole proves every face before it lies inside the table; the scan
+        // then reads each face's kind and object bytes alone.
+        trap.keep_read(crate::race::course_places::face_number(
+            race.course.reads(),
+            faces - 1,
+        ));
+        trap.finish()?;
+        let (cameras, _) =
+            rc2k_core::race::best_line::camera_faces(faces, |b| {
+                let [kind, object] = trap.keep_read(crate::race::course_places::face_field::<
+                    [u8; 2],
+                >(race.course.reads(), b, 0));
+                kind == rc2k_core::race::faces::LIT_KIND && object == set.kind
+            });
         trap.finish()?;
         for (e, &f) in cameras.iter().enumerate() {
             write_n((set.list)(race), e as u32, f)?;
@@ -413,6 +420,7 @@ pub fn replay_cameras(
         if m == 0 {
             return Ok(());
         }
+        let mut camera_points: Vec<[u32; 2]> = Vec::with_capacity(cameras.len());
         for c in 0..n {
             let p = point_of(&race.course, check_face(&race.shared, c))?;
             let from = [
@@ -430,31 +438,30 @@ pub fn replay_cameras(
                 )?,
             ];
             crate::session::write_bits(&shared.vars.get().line_from, from);
+            // Each camera's first point, read once for all the checkpoints.
+            if camera_points.is_empty() {
+                for &camera in &cameras {
+                    let q = point_of(&race.course, camera)?;
+                    let word = |k: u32| {
+                        crate::race::scene_points::point_word(
+                            race.course.reads(),
+                            &crate::race::scene_points::no_own(),
+                            q,
+                            k,
+                        )
+                    };
+                    camera_points.push([word(0)?, word(2)?]);
+                }
+            }
+            let mut last_distance = 0;
             let nearest = rc2k_core::race::best_line::nearest_camera(m, |e| {
-                let q = match point_of(&race.course, trap.keep_read(read_n((set.list)(race), e))) {
-                    Ok(q) => q,
-                    Err(err) => {
-                        trap.keep(err);
-                        return 0;
-                    }
-                };
-                let w = |n: u32, k: u32| match crate::race::scene_points::point_word(
-                    race.course.reads(),
-                    &crate::race::scene_points::no_own(),
-                    n,
-                    k,
-                ) {
-                    Ok(v) => v,
-                    Err(e) => {
-                        trap.keep(e);
-                        0
-                    }
-                };
-                let dz = w(q, 2).wrapping_sub(from[1]);
-                let d = x87::int_hypot(w(q, 0).wrapping_sub(from[0]) as i32, dz as i32) as u32;
-                scene.drawing.scene.get().scratch.set(d);
+                let [x, z] = camera_points[e as usize];
+                let dz = z.wrapping_sub(from[1]);
+                let d = x87::int_hypot(x.wrapping_sub(from[0]) as i32, dz as i32) as u32;
+                last_distance = d;
                 d
             });
+            scene.drawing.scene.get().scratch.set(last_distance);
             trap.finish()?;
             crate::session::write_bits(&shared.vars.get().line_nearest, [nearest.0, nearest.1]);
             write_n((set.nearest)(race), c, nearest.1)?;
