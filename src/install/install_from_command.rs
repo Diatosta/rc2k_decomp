@@ -12,7 +12,7 @@ pub fn install_from_command(
     o: crate::owners::Owners<'static>,
 ) -> Result<(), Refused> {
     if !set_cd(&install.paths.game_dir)
-        || !normalise(&install.texts.base_b, &install.paths.game_dir)?
+        || !normalise(&crate::files::state::SECOND_BASE, &install.paths.game_dir)?
     {
         return Ok(());
     }

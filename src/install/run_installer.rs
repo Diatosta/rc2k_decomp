@@ -39,7 +39,7 @@ pub fn run_installer(
     if from_command {
         i::install_from_command::install_from_command(install, o)?;
     } else {
-        if !normalise(&install.texts.base_b, &install.paths.game_dir)? {
+        if !normalise(&crate::files::state::SECOND_BASE, &install.paths.game_dir)? {
             return Err(fatal(0x80AF_8101));
         }
         i::list_drives::list_drives(install, o);

@@ -7,7 +7,7 @@ pub fn close_installer(install: &crate::install::owner::Install) -> Result<(), R
     { crate::memory::free_list::free_list(&install.run.buffers) }?;
     install.run.dirs.set(0);
     install.run.files.set(0);
-    crate::install::name_tables::FOLDERS.give_back();
-    crate::install::name_tables::FILES.give_back();
+    install.folders.give_back();
+    install.files.give_back();
     Ok(())
 }

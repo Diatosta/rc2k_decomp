@@ -17,8 +17,7 @@ fn globals() -> Result<Globals, BadInput> {
         mode: crate::files::state::MEDIA_MODE.get(),
         a: crate::files::state::directory_text(0, "the base directory")?,
         b: crate::files::cstring(
-            // The one install store the audio thread's file calls read (atomic, never written).
-            &crate::install::owner::INSTALL.on_any_thread().texts.base_b, // m6-root
+            &crate::files::state::SECOND_BASE,
             "the second base directory",
         )?,
         // The locale directory: replaces each '%'
@@ -71,4 +70,25 @@ pub fn resolve(path: &[u8]) -> Result<Vec<u8>, BadInput> {
     };
     write_out(&resolved)?;
     Ok(resolved[..resolved.len() - 1].to_vec())
+}
+
+#[cfg(test)]
+mod tests {
+    /// Another thread (the audio and network loads) resolves the same paths as the game's
+    /// thread: the second base directory is read from the files layer, not the installer.
+    #[test]
+    fn another_thread_resolves_the_same_paths() {
+        let _lock = crate::test_support::test_lock();
+        let paths: [&[u8]; 4] = [b"files\\d\\gfx\\x.bun", b"var\\ral.cfg", b"%x", b"plain"];
+        let here: Vec<_> = paths.iter().map(|p| super::resolve(p)).collect();
+        let there: Vec<_> =
+            std::thread::spawn(move || paths.iter().map(|p| super::resolve(p)).collect::<Vec<_>>())
+                .join()
+                .unwrap();
+        assert_eq!(here.len(), there.len());
+        for (a, b) in here.iter().zip(&there) {
+            assert_eq!(a.as_ref().ok(), b.as_ref().ok());
+        }
+        assert!(here.iter().all(Result::is_ok));
+    }
 }

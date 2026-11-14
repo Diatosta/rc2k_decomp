@@ -88,7 +88,7 @@ pub fn uninstall(
         return Ok(());
     }
     install.names.status.set(0x80);
-    i::write_registry::write_registry(install, &mut crate::install::portable::Portable)?;
+    i::write_registry::write_registry(install, &mut crate::install::portable::Portable::default())?;
     // the "removing" frame
     run_frame(o, None)?;
     if lock(gfx, system) {
@@ -113,7 +113,7 @@ pub fn uninstall(
     if install.run.file_count.get() != 0 {
         let mut n = 0;
         loop {
-            delete_file(build_path(install, &crate::install::name_tables::FILES, n)?);
+            delete_file(build_path(install, &install.files, n)?);
             n = n.wrapping_add(1);
             if n == install.run.file_count.get() {
                 break;
@@ -123,11 +123,7 @@ pub fn uninstall(
     if install.run.dir_count.get() != 0 {
         let mut n = install.run.dir_count.get().wrapping_sub(1);
         loop {
-            remove_dir(build_path(
-                install,
-                &crate::install::name_tables::FOLDERS,
-                n,
-            )?);
+            remove_dir(build_path(install, &install.folders, n)?);
             n = n.wrapping_sub(1);
             if (n as i32) < 0 {
                 break;
@@ -142,8 +138,11 @@ pub fn uninstall(
     sleep(1000);
     install.names.status.set(0);
     wb(&install.names.source, 0);
-    i::write_registry::write_registry(install, &mut crate::install::portable::Portable)?;
-    i::unregister_lobby::unregister_lobby(install, &mut crate::install::portable::Portable);
+    i::write_registry::write_registry(install, &mut crate::install::portable::Portable::default())?;
+    i::unregister_lobby::unregister_lobby(
+        install,
+        &mut crate::install::portable::Portable::default(),
+    );
     install.run.remove_items.set(1);
     install.flags.installing.set(false);
     Ok(())

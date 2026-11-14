@@ -40,12 +40,12 @@ pub fn open_installer(
         o.gfx,
         o.system,
     );
-    use crate::install::name_tables::{FILES, FOLDERS, NameTable};
+    use crate::install::name_tables::NameTable;
     let list = &install.run.buffers;
-    FOLDERS.take(list, 0x10100, NameTable::default())?;
+    install.folders.take(list, 0x10100, NameTable::default())?;
     install.run.dir_scan.set(0);
     install.run.dir_cursor.set(0);
-    FILES.take(list, 0x40100, NameTable::default())?;
+    install.files.take(list, 0x40100, NameTable::default())?;
     install.run.file_cursor.set(0);
     install.run.dir_count.set(0);
     install.run.file_count.set(0);

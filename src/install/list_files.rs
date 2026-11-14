@@ -4,7 +4,7 @@
 
 use crate::errors::Refused;
 use crate::install::installer::{close_search, fatal, find_first, find_next, resolve_path};
-use crate::install::name_tables::{FILES, found_name};
+use crate::install::name_tables::found_name;
 use rc2k_core::install::script;
 
 /// FindFileData.cFileName (the search record: `files::search`), up to its NUL.
@@ -22,7 +22,7 @@ pub fn list_files(
         loop {
             // `append_directory` of the pattern's path, at the cursor.
             let name = found_name(&pattern, &find_name())?;
-            let used = FILES.with(|t| t.push(name))?;
+            let used = install.files.with(|t| t.push(name))?;
             install.run.file_cursor.set(used);
             install
                 .run

@@ -31,9 +31,8 @@ pub fn check_clio_disc(
     {
         return Ok(());
     }
-    // Base directory B is an empty text whose size is not known (section 13: the
-    // installer writes it elsewhere): read as a text at its place.
-    let base_b = crate::files::cstring(&g.texts.base_b, "the installer's base")?;
+    // The second base directory is an empty text.
+    let base_b = crate::files::cstring(&crate::files::state::SECOND_BASE, "the installer's base")?;
     let Some(a) = outside.normalise_path(&base_b)? else {
         return Ok(());
     };

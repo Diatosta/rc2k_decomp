@@ -16,12 +16,9 @@ use crate::errors::{BadInput, FatalError, Refused};
 use crate::menu::list_handle::ListMenu;
 use crate::place::BytePlace;
 
-/// The texts the installer (and `files::resolve_path`) use. Atomic cells: the audio
-/// thread's file calls resolve paths against `base_b`.
+/// The installer's constant texts.
 #[derive(rc2k_derive::Cells)]
 pub struct InstallTexts {
-    /// Base directory B, an empty text.
-    pub base_b: crate::session::Bytes<1>,
     /// The other directory, "\".
     pub other_dir: crate::session::Bytes<2>,
     /// ".".
@@ -38,7 +35,6 @@ pub struct InstallTexts {
 impl InstallTexts {
     pub const fn new() -> Self {
         InstallTexts {
-            base_b: crate::session::Bytes::new(*b"\0"),
             other_dir: crate::session::Bytes::new(*b"\\\0"),
             dot: crate::session::Bytes::new(*b".\0"),
             dotdot: crate::session::Bytes::new(*b"..\0"),

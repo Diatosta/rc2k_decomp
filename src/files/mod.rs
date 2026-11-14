@@ -211,6 +211,9 @@ pub mod state {
     /// How the game is installed (0 .. 3), as the installer's record says; `resolve_path` looks at
     /// it.
     pub static MEDIA_MODE: crate::session::Dword = crate::session::Dword::new(0);
+    /// The second base directory: an empty text, never written. Any thread's file calls read it
+    /// (`resolve_path`), so it lives here and not in the installer's state.
+    pub static SECOND_BASE: crate::session::Bytes<1> = crate::session::Bytes::new(*b"\0");
     /// The base directory (0x100 bytes) and, after it, the locale directory (0x100 bytes):
     /// strings, empty at the start.
     pub const DIRECTORIES_LEN: usize = 0x200;

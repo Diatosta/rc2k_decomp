@@ -7,7 +7,6 @@
 //! find: the installer offers a new installation.
 
 use crate::install::read_registry::{Query, Registry};
-use std::sync::Mutex;
 
 /// The record, relative to an installation's folder.
 pub const FILE: &str = "var\\install.cfg";
@@ -61,7 +60,14 @@ fn here() -> Option<Vec<u8>> {
 /// The registry's answers, from the record in the current folder; its writes, gathered
 /// for the kept key and written as the record when it is closed (the lobby's key and a
 /// key's removal done without effect, each answering success as the registry would).
-pub struct Portable;
+#[derive(Default)]
+pub struct Portable {
+    /// What the kept key is given until it is closed: its status and the folder it goes to.
+    pending: Pending,
+}
+
+/// A status and the folder of the record it is written to.
+type Pending = (Option<u8>, Option<Vec<u8>>);
 
 impl Registry for Portable {
     fn open(&mut self, name: &[u8]) -> Result<u32, u32> {
@@ -110,11 +116,8 @@ impl Registry for Portable {
     }
 
     fn close(&mut self, key: u32) {
-        let mut pending = PENDING
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
         if key == KEPT
-            && let (Some(status), folder) = std::mem::take(&mut *pending)
+            && let (Some(status), folder) = std::mem::take(&mut self.pending)
         {
             write_record(status, folder);
         }
@@ -123,18 +126,14 @@ impl Registry for Portable {
     fn create(&mut self, name: &[u8]) -> Result<u32, u32> {
         let kept = name.eq_ignore_ascii_case(KEY);
         if kept {
-            *PENDING
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner) = (None, None);
+            self.pending = (None, None);
         }
         Ok(if kept { KEPT } else { OTHER })
     }
 
     fn set_value(&mut self, key: u32, name: &[u8], _kind: u32, data: &[u8]) -> u32 {
         if key == KEPT {
-            let mut pending = PENDING
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            let pending = &mut self.pending;
             match name {
                 b"status" => pending.0 = data.first().copied(),
                 b"source" => {
@@ -151,9 +150,6 @@ impl Registry for Portable {
         0
     }
 }
-
-/// What the kept key is given until it is closed: its status and the folder it goes to.
-static PENDING: Mutex<(Option<u8>, Option<Vec<u8>>)> = Mutex::new((None, None));
 
 /// The record written for the status given, in the folder given (else the current one), if
 /// that folder has a `var\` (an installation's).

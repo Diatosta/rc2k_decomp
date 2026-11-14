@@ -87,5 +87,5 @@ pub fn read_registry(install: &crate::install::owner::Install, registry: &mut dy
 
 /// The registry, or in the standalone the portable record (`install::portable`).
 pub fn read_registry_here(install: &crate::install::owner::Install) {
-    read_registry(install, &mut crate::install::portable::Portable);
+    read_registry(install, &mut crate::install::portable::Portable::default());
 }

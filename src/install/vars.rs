@@ -55,10 +55,10 @@ pub struct InstallerRun {
     /// The progress bar's glyph table.
     pub bar_glyphs: PlainDword,
     /// The folders' names (a 0x10000-byte buffer; 0 now:
-    /// `install::name_tables::FOLDERS`).
+    /// `install::owner::Install::folders`).
     pub dirs: PlainDword,
     /// The files' names (a 0x40000-byte buffer; 0 now:
-    /// `install::name_tables::FILES`).
+    /// `install::owner::Install::files`).
     pub files: PlainDword,
     /// The folders listed.
     pub dir_count: PlainDword,

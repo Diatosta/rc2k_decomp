@@ -22,11 +22,6 @@ impl NameTable {
     }
 }
 
-/// The folders' names (0x10100 bytes).
-pub static FOLDERS: Owned<NameTable> = Owned::new("no installer folders table");
-/// The files' names (0x40100 bytes).
-pub static FILES: Owned<NameTable> = Owned::new("no installer files table");
-
 /// Name `index` of `table` (without a NUL, as `strings::str_append_indexed` appends it)
 /// added to `out`. Refused past the table.
 pub fn push_name(table: &Owned<NameTable>, index: u32, out: &mut Vec<u8>) -> Result<(), Refused> {

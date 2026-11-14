@@ -1147,11 +1147,10 @@ impl<T> GameThread<T> {
         &self.0
     }
 
-    /// The state from a thread other than the game's, for the two readers there: the audio thread's
-    /// file calls read the install texts' second base directory (`files::resolve_path`: atomic
-    /// bytes, written only by the installer on the game's thread), and the network's receiving
-    /// thread measures a chat line with the graphics owner's fonts (`net::add_chat_line`: read
-    /// only). Nothing else may use it: no other thread reaches a `GameThread`.
+    /// The state from a thread other than the game's, for the one reader there: the network's
+    /// receiving thread measures a chat line with the graphics owner's fonts
+    /// (`net::add_chat_line`: read only). Nothing else may use it: no other thread reaches a
+    /// `GameThread`.
     pub(crate) fn on_any_thread(&self) -> &T {
         &self.0
     }

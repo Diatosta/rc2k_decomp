@@ -4,7 +4,6 @@
 
 use crate::errors::Refused;
 use crate::install::installer::{fatal, resolve_path};
-use crate::install::name_tables::FOLDERS;
 use rc2k_core::install::script;
 
 /// The folder `path` added to the folders' table.
@@ -13,7 +12,9 @@ pub fn list_folder(
     path: impl Into<crate::place::BytePlace>,
 ) -> Result<(), Refused> {
     let path = resolve_path(path)?;
-    let (used, scan) = FOLDERS.with(|t| (t.push(path), t.names.len() as u32))?;
+    let (used, scan) = install
+        .folders
+        .with(|t| (t.push(path), t.names.len() as u32))?;
     install.run.dir_cursor.set(used);
     install.run.dir_scan.set(scan);
     install

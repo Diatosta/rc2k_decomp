@@ -437,7 +437,7 @@ fn listed_stores() -> Vec<Listed> {
         ),
         listed!(
             "install.owner.INSTALL.vars",
-            on_game_from(&crate::install::owner::INSTALL.get().vars, "._gap_529dad"),
+            on_game_from(&crate::install::owner::install().vars, "._gap_529dad"),
             0x4b6,
         ),
         listed!(
@@ -446,7 +446,7 @@ fn listed_stores() -> Vec<Listed> {
         ),
         listed!(
             "install.owner.INSTALL.drive_rows",
-            on_game(&crate::install::owner::INSTALL.get().drive_rows),
+            on_game(&crate::install::owner::install().drive_rows),
         ),
         listed!(
             "net.owner.NET_OWNER.vars",
@@ -498,7 +498,7 @@ fn listed_stores() -> Vec<Listed> {
         ),
         listed!(
             "install.owner.INSTALL.texts",
-            &crate::install::owner::INSTALL.get().texts,
+            &crate::install::owner::install().texts,
         ),
         listed!(
             "saves.owner.SAVES.files.options_path",
@@ -851,26 +851,26 @@ fn listed_stores() -> Vec<Listed> {
         ),
         listed!(
             "install.owner.INSTALL.run",
-            on_game_from(&crate::install::owner::INSTALL.get().run, ".same_version"),
+            on_game_from(&crate::install::owner::install().run, ".same_version"),
         ),
         listed!(
             "install.owner.INSTALL.names",
-            on_game(&crate::install::owner::INSTALL.get().names),
+            on_game(&crate::install::owner::install().names),
             0x8a7,
         ),
         listed!(
             "install.owner.INSTALL.pages",
-            on_game_from(&crate::install::owner::INSTALL.get().pages, ".layout"),
+            on_game_from(&crate::install::owner::install().pages, ".layout"),
             0x1a25,
         ),
         listed!(
             "install.owner.INSTALL.paths",
-            on_game_from(&crate::install::owner::INSTALL.get().paths, ".game_dir"),
+            on_game_from(&crate::install::owner::install().paths, ".game_dir"),
             0x600,
         ),
         listed!(
             "install.owner.INSTALL.palette",
-            on_game_from(&crate::install::owner::INSTALL.get().palette, ".palette"),
+            on_game_from(&crate::install::owner::install().palette, ".palette"),
             0x300,
         ),
         listed!(
@@ -879,7 +879,7 @@ fn listed_stores() -> Vec<Listed> {
         ),
         listed!(
             "install.owner.INSTALL.sku",
-            on_game(&crate::install::owner::INSTALL.get().sku),
+            on_game(&crate::install::owner::install().sku),
         ),
         listed!(
             "strings.owner.STRINGS.text.buffer",

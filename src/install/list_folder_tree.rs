@@ -7,7 +7,7 @@ use crate::errors::Refused;
 use crate::install::installer::{
     close_search, fatal, find_first, find_next, resolve_path, text_at,
 };
-use crate::install::name_tables::{FILES, FOLDERS, found_name};
+use crate::install::name_tables::found_name;
 
 /// FindFileData.cFileName (the search record: `files::search`), up to its NUL.
 fn find_name() -> Vec<u8> {
@@ -42,7 +42,9 @@ fn walk(
 ) -> Result<(), Refused> {
     let mut folder = resolve_path(folder)?;
     if !folder.is_empty() {
-        let (used, scan) = FOLDERS.with(|t| (t.push(folder.clone()), t.names.len() as u32))?;
+        let (used, scan) = install
+            .folders
+            .with(|t| (t.push(folder.clone()), t.names.len() as u32))?;
         install.run.dir_cursor.set(used);
         install.run.dir_scan.set(scan);
         install
@@ -73,7 +75,7 @@ fn walk(
                         && !same_name(&install.texts.dotdot, &name);
                     if real {
                         let name = found_path(&search_text)?;
-                        let used = FOLDERS.with(|t| t.push(name))?;
+                        let used = install.folders.with(|t| t.push(name))?;
                         install.run.dir_cursor.set(used);
                         install
                             .run
@@ -86,7 +88,7 @@ fn walk(
                     }
                 } else {
                     let name = found_path(&search_text)?;
-                    let used = FILES.with(|t| t.push(name))?;
+                    let used = install.files.with(|t| t.push(name))?;
                     install.run.file_cursor.set(used);
                     install
                         .run
@@ -105,7 +107,10 @@ fn walk(
         close_search();
         // the next folder from the scan (its number in the folders' table)
         let scan = install.run.dir_scan.get();
-        let Some(next) = FOLDERS.with(|t| t.names.get(scan as usize).cloned())? else {
+        let Some(next) = install
+            .folders
+            .with(|t| t.names.get(scan as usize).cloned())?
+        else {
             break;
         };
         if next.is_empty() {
@@ -134,7 +139,7 @@ pub fn list_folder_tree(
 
 #[cfg(test)]
 mod tests {
-    use crate::install::name_tables::{FILES, FOLDERS, NameTable};
+    use crate::install::name_tables::NameTable;
 
     #[test]
     fn a_tree_is_listed_into_the_tables() {
@@ -160,8 +165,14 @@ mod tests {
         path.push(0);
         let memory = crate::memory::ListCells::empty();
         let list = &memory;
-        FOLDERS.take(list, 0x10100, NameTable::default()).unwrap();
-        FILES.take(list, 0x40100, NameTable::default()).unwrap();
+        crate::install::owner::install()
+            .folders
+            .take(list, 0x10100, NameTable::default())
+            .unwrap();
+        crate::install::owner::install()
+            .files
+            .take(list, 0x40100, NameTable::default())
+            .unwrap();
         for d in [
             &crate::install::owner::install().run.dir_count,
             &crate::install::owner::install().run.file_count,
@@ -185,8 +196,14 @@ mod tests {
             }
             p
         };
-        let (folders, folder_bytes) = FOLDERS.with(|t| (t.names.clone(), t.bytes)).unwrap();
-        let (mut files, file_bytes) = FILES.with(|t| (t.names.clone(), t.bytes)).unwrap();
+        let (folders, folder_bytes) = crate::install::owner::install()
+            .folders
+            .with(|t| (t.names.clone(), t.bytes))
+            .unwrap();
+        let (mut files, file_bytes) = crate::install::owner::install()
+            .files
+            .with(|t| (t.names.clone(), t.bytes))
+            .unwrap();
         files.sort();
         assert_eq!(folders, [root.clone(), joined(&["a"]), joined(&["a", "b"])]);
         let mut want = vec![
@@ -204,8 +221,8 @@ mod tests {
             crate::install::owner::install().run.dir_cursor.get(),
             folder_bytes
         );
-        FOLDERS.give_back();
-        FILES.give_back();
+        crate::install::owner::install().folders.give_back();
+        crate::install::owner::install().files.give_back();
         crate::memory::with_figures(|f| *f = figures);
         for (d, v) in [
             &crate::install::owner::install().run.dir_count,

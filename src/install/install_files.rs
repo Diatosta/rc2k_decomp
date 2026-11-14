@@ -11,7 +11,7 @@ use crate::install::installer::{
     lock, normalise, pump, rb, run_frame, set_cd, show, sleep, store_text, take_key, text_at,
     unlock, wb,
 };
-use crate::install::name_tables::{FILES, FOLDERS};
+
 use crate::install::vars::StringRecord;
 use crate::place::BytePlace;
 
@@ -94,7 +94,7 @@ pub fn install_files(
     let list_state = &o.menus.list;
     use crate::install as i;
     install.names.status.set(0x80);
-    i::write_registry::write_registry(install, &mut crate::install::portable::Portable)?;
+    i::write_registry::write_registry(install, &mut crate::install::portable::Portable::default())?;
     normalise(&install.paths.game_dir, &install.paths.game_dir)?;
     i::run_script::run_script(
         install,
@@ -148,7 +148,7 @@ pub fn install_files(
     // the folders
     if install.run.dir_count.get() != 0 {
         for n in 0..install.run.dir_count.get() {
-            build(installed(install), path_b(install), &FOLDERS, n)?;
+            build(installed(install), path_b(install), &install.folders, n)?;
             if !i::make_folders::make_folders(&install.paths.path_b)? {
                 return message(o, &error_messages(install), 0);
             }
@@ -159,8 +159,8 @@ pub fn install_files(
     if install.run.file_count.get() != 0 {
         let mut n = 0;
         loop {
-            build(game_dir(install), path_a(install), &FILES, n)?;
-            build(installed(install), path_b(install), &FILES, n)?;
+            build(game_dir(install), path_a(install), &install.files, n)?;
+            build(installed(install), path_b(install), &install.files, n)?;
             // A failed copy is the error message.
             if !i::copy_counted::copy_counted(
                 install,
@@ -230,8 +230,12 @@ pub fn install_files(
         }
     }
     install.names.source_size.set(n);
-    i::write_registry::write_registry(install, &mut crate::install::portable::Portable)?;
-    i::register_lobby::register_lobby(install, &mut crate::install::portable::Portable, o.strings)?;
+    i::write_registry::write_registry(install, &mut crate::install::portable::Portable::default())?;
+    i::register_lobby::register_lobby(
+        install,
+        &mut crate::install::portable::Portable::default(),
+        o.strings,
+    )?;
     install.run.add_items.set(1);
     install.flags.installing.set(true);
     if install.flags.offer_registration.get() {

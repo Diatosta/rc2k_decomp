@@ -54,7 +54,7 @@ fn work(
             append_both(
                 &install.paths.installed,
                 &install.paths.path_b,
-                &crate::install::name_tables::FOLDERS,
+                &install.folders,
                 n,
             )?;
             if !i::make_folders::make_folders(&install.paths.path_b)? {
@@ -73,13 +73,13 @@ fn work(
             append_both(
                 &install.paths.game_dir,
                 &install.paths.path_a,
-                &crate::install::name_tables::FILES,
+                &install.files,
                 n,
             )?;
             append_both(
                 &install.paths.installed,
                 &install.paths.path_b,
-                &crate::install::name_tables::FILES,
+                &install.files,
                 n,
             )?;
             // A failed copy stops the install as Escape does.
