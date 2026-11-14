@@ -113,11 +113,6 @@ impl Place {
         }
     }
 
-    /// This place moved `n` bytes on.
-    pub fn advance(&mut self, n: u32) {
-        self.at = self.at.wrapping_add(n);
-    }
-
     pub fn is_null(&self) -> bool {
         self.bytes.is_none()
     }
@@ -190,13 +185,6 @@ impl Place {
             .check(at, size_of::<T>(), what)
             .and_then(|bytes| bytes.write_value(at, value, what))
         {
-            crate::fatal::raise::end(what, e)
-        }
-    }
-
-    /// `write`, ending the program on a refusal.
-    pub fn must_write<T: Plain>(&self, value: T, what: &str) {
-        if let Err(e) = self.write(value, what) {
             crate::fatal::raise::end(what, e)
         }
     }

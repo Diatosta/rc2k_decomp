@@ -63,6 +63,8 @@ pub fn show_picture_file(
             )?;
         }
         if sizes::rescaled(gfx.pictures.decoder.width.get(), width) {
+            // The picture does not change between the pages: its rescale is made once.
+            let mut rescaled = None;
             for _ in 0..pages {
                 crate::race::load_times::mark("picture: rescale");
                 // Not locked.
@@ -74,6 +76,7 @@ pub fn show_picture_file(
                     gfx.drawing.draw_surface,
                     gfx,
                     system,
+                    &mut rescaled,
                 )?;
                 unlock_surface(gfx);
                 crate::race::load_times::mark("picture: show frame");
