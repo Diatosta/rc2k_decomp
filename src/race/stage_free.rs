@@ -22,8 +22,7 @@ pub const COURSE: Freeing = Freeing {
     // course_memory_list
     list: |race| &race.course.lists.get().course_memory_list,
     counted: true,
-    // course_info
-    cleared: &[|race| race.course.lists.get().course_info.set(0)],
+    cleared: &[],
     given_back: || {
         crate::race::scene_points::give_back();
         crate::race::course_places::give_back();

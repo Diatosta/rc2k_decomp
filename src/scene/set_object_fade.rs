@@ -65,8 +65,7 @@ pub fn set_object_fade(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(
         (false, _) => 0,
         (true, None) => return Err(BadInput("no records for the points")),
         (true, Some(record)) => {
-            if field(ctx.part, record, 0)? != place && ctx.reads.course_work.scene_points.get() == 0
-            {
+            if field(ctx.part, record, 0)? != place && !crate::race::scene_points::held() {
                 return Err(BadInput("no points"));
             }
             record

@@ -7,7 +7,6 @@ use crate::errors::Refused;
 use crate::math::x87;
 use crate::race::numbers_store::Numbers;
 use crate::race::owner::Race;
-use crate::race::owner_course::Course;
 use crate::race::scratch_store::FrameScratch;
 
 /// The vector `v` made one long by its 80-bit length (`math::x87::normalise_in_place`); a length
@@ -153,37 +152,12 @@ pub fn face_normals(race: &Race, work_vector: [u32; 3]) -> Result<Normals, Refus
     Ok(out)
 }
 
-/// Names the course's parts in the course store: the records (`course_records`), the faces
-/// (`course_faces`) and the scene points (`scene_points`).
-pub fn lay_out_course(course: &Course) {
-    let c = course.course.get();
-    // The parts are tables of their own (`race::course_places`, `race::scene_points`): their
-    // places are named while they are held, none otherwise.
-    let held = crate::race::course_places::held();
-    c.course_records.set(if held {
-        crate::race::course_places::records_base()
-    } else {
-        0
-    });
-    c.course_faces.set(if held {
-        crate::race::course_places::faces_base()
-    } else {
-        0
-    });
-    c.scene_points.set(if crate::race::scene_points::held() {
-        crate::race::scene_points::base()
-    } else {
-        0
-    });
-}
-
-/// Runs `lay_out_course`, works out the normals (`face_normals`) and stores them in the faces and
+/// Works out the normals (`face_normals`) and stores them in the faces and
 /// the work vector, plane work and scratch word the work leaves.
 /// Refuses no faces or 0x100000 or more.
 pub fn store_norms(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let count: u32 = race.course.course.get().course_face_count.get();
     rc2k_core::race::faces::check_face_count(count)?;
-    lay_out_course(&race.course);
     let work_vector = crate::session::read_first(&race.frame.scratch().work_vector);
     let normals = face_normals(race, work_vector)?;
     for made in &normals.faces {

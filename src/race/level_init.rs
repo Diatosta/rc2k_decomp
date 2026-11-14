@@ -30,7 +30,7 @@ pub fn number_places(
 const TEXTURES: u32 = 0x100;
 
 /// Counts the course's memory (the file's room and the course info) on `list` and takes the course
-/// info (`race::course_places::INFO`).
+/// info (`CourseData::info`).
 pub fn allocate_course_memory(
     course: &Course,
     list: &crate::memory::ListCells,
@@ -44,24 +44,17 @@ pub fn allocate_course_memory(
             .wrapping_add(FIRST_PART + INFO_PART),
     );
     crate::memory::owned::count_on(list, FIRST_PART + INFO_PART)?;
-    course
-        .lists
-        .get()
-        .course_info
-        .set(crate::race::course_places::take_info(INFO_PART)?);
+    crate::race::course_places::take_info(INFO_PART)?;
     Ok(())
 }
 
 /// Reads `files\a\textinfo`, `files\m\markinfo` and `files\b\textinfo` into the course info
 /// (`CourseInfo` lays them out and makes their finish) and takes it into the course info table.
 /// Refuses no course info.
-pub fn load_texture_info(
-    course: &Course,
-    scene: &crate::scene::owner::Scene,
-) -> Result<(), Refused> {
+pub fn load_texture_info(scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     use rc2k_core::race::stage_files::{CourseInfo, MARK_INFO, TEXTURE_INFO_A, TEXTURE_INFO_B};
     let file_numbers = &scene.file_numbers();
-    if course.lists.get().course_info.get() == 0 {
+    if !crate::race::course_places::info_held() {
         return Err(BadInput("no course info to read the info files into").into());
     }
     let mut info = CourseInfo::new();
@@ -125,7 +118,7 @@ pub fn load_error_list(frame: &Frame, scene: &crate::scene::owner::Scene) -> Res
 pub fn build_texture_infos(race: &Race) -> Result<(), Refused> {
     use rc2k_core::race::stage_files::{INFO_SIZE, KIND_RECORD, texture_infos};
     let course = &race.course;
-    if course.lists.get().course_info.get() == 0 {
+    if !crate::race::course_places::info_held() {
         return Ok(());
     }
     let kinds: [u32; TEXTURES as usize] =

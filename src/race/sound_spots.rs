@@ -38,10 +38,7 @@ fn check(course: &Course, grid: &ViewGrid) -> Result<(), Refused> {
         if record >= 0x0FFF_FFFF {
             continue;
         }
-        if course.course.get().course_records.get() == 0
-            || course.course.get().course_faces.get() == 0
-            || course.course.get().scene_points.get() == 0
-        {
+        if !crate::race::course_places::held() || !crate::race::scene_points::held() {
             return Err(BadInput("no course records, faces or points").into());
         }
     }

@@ -38,7 +38,8 @@ pub type Course = rc2k_core::race::pace_notes::Course;
 pub fn game_course(race: &Race) -> Course {
     let shared = &race.shared;
     let len = if crate::race::course_places::held() {
-        crate::race::course_places::FACES
+        crate::race::course_places::data()
+            .faces
             .len()
             .map_or(0, |l| l as u32)
     } else {

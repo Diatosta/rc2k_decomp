@@ -37,16 +37,16 @@ pub fn log_hashes(
     if !on() {
         return;
     }
-    use crate::race::course_places::{FACES, INFO, RECORDS};
+    let data = crate::race::course_places::data();
     let stage = race.shared.vars.get().stage_number.get();
     let say = |store: &str, hash: String| {
         crate::framework::log(&format!("course hash {stage} {after} {store}: {hash}"));
     };
     let reads = race.course.reads();
-    say("faces", table(&FACES));
-    say("records", table(&RECORDS));
-    say("info", table(&INFO));
-    say("scene_points", table(&crate::race::scene_points::POINTS));
+    say("faces", table(&data.faces));
+    say("records", table(&data.records));
+    say("info", table(&data.info));
+    say("scene_points", table(&data.points));
     say("object_points", table(&crate::scene::object_points::POINTS));
     say("object_faces", table(&crate::scene::object_faces::FACES));
     say("course", format!("{:016x}", record_hash(reads.course)));

@@ -745,11 +745,9 @@ pub fn with_course<R>(
         .get()
         .scene_point_count
         .set(points.len() as u32);
-    crate::race::norms::lay_out_course(&race.course);
     let result = check(race);
     race.course.course.get().course_face_count.set(before.0);
     race.course.course.get().scene_point_count.set(before.1);
-    crate::race::norms::lay_out_course(&race.course);
     crate::race::course_places::give_back();
     crate::race::scene_points::give_back();
     result

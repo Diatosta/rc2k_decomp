@@ -37,10 +37,8 @@ pub fn map_tiles(
 
 /// What `scroll_map` reads through the course: refused before anything.
 fn scroll_refuses(race: &Race) -> Result<(), Refused> {
-    let course = &race.course;
     if race.shared.vars.get().checkpoint_count.get() >= 2
-        && (course.course.get().course_faces.get() == 0
-            || course.course.get().scene_points.get() == 0)
+        && (!crate::race::course_places::held() || !crate::race::scene_points::held())
     {
         return Err(BadInput("no course faces or points").into());
     }

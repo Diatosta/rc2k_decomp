@@ -168,8 +168,6 @@ pub fn load_level(race: &Race) -> Result<(), Refused> {
     crate::race::scene_points::take(&parts.points)?;
     crate::race::course_places::take(&parts.faces, &parts.records)?;
     load_log(3);
-    crate::race::load_times::mark("lay_out_course");
-    crate::race::norms::lay_out_course(course);
     load_log(4);
     crate::race::load_times::mark("reset_face_lights");
     reset_face_lights(race)?;

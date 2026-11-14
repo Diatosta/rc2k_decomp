@@ -36,14 +36,6 @@ pub struct CourseWork {
     pub light_kept: PlainDword,
     /// +0xbc: unused; it only keeps the image's layout.
     pub unused_bc: [PlainDword; 3],
-    /// +0xc8: the course records.
-    pub course_records: PlainDword,
-    /// +0xcc: the course faces (0x40 bytes each).
-    pub course_faces: PlainDword,
-    /// +0xd0: the scene points (x, y, z whole numbers, 12 bytes each).
-    pub scene_points: PlainDword,
-    /// +0xd4: unused; it only keeps the image's layout.
-    pub unused_d4: [PlainDword; 2],
     /// +0xdc: unused; it only keeps the image's layout.
     pub unused_dc: PlainDword,
     /// +0xe0: the face number ("polynum"); now each view's

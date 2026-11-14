@@ -22,16 +22,13 @@ pub fn checkpoint_offset(
     checkpoints: &crate::race::checkpoints_store::Checkpoints,
     car: &Car,
 ) -> Result<(), Refused> {
-    let course_store = course;
     let c = car.checkpoint.get();
     if checkpoint_ahead(c, vars.checkpoint_count.get())?.is_none() {
         car.checkpoint_offset[0].set(0);
         car.checkpoint_offset[1].set(0);
         return Ok(());
     }
-    if course_store.course.get().course_faces.get() == 0
-        || course_store.course.get().scene_points.get() == 0
-    {
+    if !crate::race::course_places::held() || !crate::race::scene_points::held() {
         return Err(BadInput("no course faces or points").into());
     }
     let angle = crate::race::checkpoints_store::angle_run_on(checkpoints, c as usize).get();

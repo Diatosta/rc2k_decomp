@@ -208,10 +208,8 @@ fn measure_held(
     nearest: &mut rc2k_core::race::checkpoints::Nearest,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), BadInput> {
-    use crate::race::course_places::{faces_base, points_base, with_faces_and_points};
-    if course_work.course_faces.get() != faces_base()
-        || course_work.scene_points.get() != points_base()
-    {
+    use crate::race::course_places::with_faces_and_points;
+    if !crate::race::course_places::held() || !crate::race::scene_points::held() {
         return Ok(());
     }
     let (checkpoints, vars) = (&shared.buffers.reads.get().checkpoints, shared.vars.get());

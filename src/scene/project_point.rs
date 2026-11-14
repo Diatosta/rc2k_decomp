@@ -168,8 +168,7 @@ pub(crate) fn make_scene_record(
     reads: crate::workers::DrawReads<'_>,
     view: &crate::race::view_scratch::ViewScratch,
 ) -> Result<(), BadInput> {
-    let points: u32 = reads.course_work.scene_points.get();
-    if points == 0 {
+    if !crate::race::scene_points::held() {
         return Err(BadInput("no points"));
     }
     // Made on a copy of the record (`scene::point_records`), then stored.

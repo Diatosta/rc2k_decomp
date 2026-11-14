@@ -64,9 +64,8 @@ fn share_bit(
 }
 
 /// Everything the function reads that the checks need, refused as said.
-fn check(course: &Course, car: &Car) -> Result<(), Refused> {
-    let faces = course.course.get().course_faces.get();
-    if faces == 0 {
+fn check(car: &Car) -> Result<(), Refused> {
+    if !crate::race::course_places::held() {
         return Err(BadInput("no course faces").into());
     }
     if car.tyre_kind.get() > 5 {
@@ -80,7 +79,7 @@ fn check(course: &Course, car: &Car) -> Result<(), Refused> {
 fn steps(c: &WheelInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let drawing = &scene.drawing;
     let contact = c.contact;
-    check(c.course, c.car)?;
+    check(c.car)?;
     for point in 0..5u32 {
         let cc = point as usize;
         let f = c.car.probe_point_face[cc].get();

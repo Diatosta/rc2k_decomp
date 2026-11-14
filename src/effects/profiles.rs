@@ -6,7 +6,6 @@ use crate::effects::paths::Paths;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::math::x87_float as bh;
-use crate::race::owner_course::Course;
 use crate::session::PlainDword;
 
 pub const RESUME: u32 = 0x4C3EA6; // loc_4C3EA6
@@ -97,7 +96,6 @@ fn make_tables(paths: &Paths, effects: &crate::effects::owner::Effects) -> Resul
 /// 0x8000 bytes of corners from the course info + 0x1C2000 (twice), `allocate_links` and
 /// `reset_settings_blocks`. Refuses a mark that is neither 0 nor `resume`.
 pub fn make_profiles(
-    course: &Course,
     paths: &Paths,
     resume: u32,
     effects: &crate::effects::owner::Effects,
@@ -116,8 +114,8 @@ pub fn make_profiles(
             make_tables(paths, effects)?;
             effects.frame.draw_frame.profiles_done.set(resume);
         }
-        if course.lists.get().course_info.get() == 0 {
-            return Err(BadInput("no course info (g_courseInfo 0)").into());
+        if !crate::race::course_places::info_held() {
+            return Err(BadInput("no course info").into());
         }
         let corners = crate::race::course_places::info_bytes(COURSE_CORNERS, CORNERS_LEN)?;
         crate::cells::Store::store(&effects.blocks.corners, 0, &corners)?;

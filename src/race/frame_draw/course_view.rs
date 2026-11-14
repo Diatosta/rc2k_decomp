@@ -64,7 +64,7 @@ pub fn point_record(
 /// What `point_record` needs to make a record: the records and the points.
 pub fn points_there(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refused> {
     if !crate::scene::point_records::held(ctx.reads.course_lists)
-        || ctx.reads.course_work.scene_points.get() == 0
+        || !crate::race::scene_points::held()
     {
         return Err(BadInput("no point records or no points").into());
     }

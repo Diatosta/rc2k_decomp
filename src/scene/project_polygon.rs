@@ -42,7 +42,7 @@ pub fn project_entries(
     // and their objects' points (negative) only need the records.
     let scene_point = entries.iter().any(|entry| entry.point.get() as i32 >= 0);
     if !crate::scene::point_records::held(reads.course_lists)
-        || (scene_point && reads.course_work.scene_points.get() == 0)
+        || (scene_point && !crate::race::scene_points::held())
     {
         return Err(BadInput("no points or no records for them").into());
     }

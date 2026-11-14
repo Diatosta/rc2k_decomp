@@ -90,7 +90,7 @@ fn point(
         }
         .into());
     }
-    if course.course.get().course_faces.get() == 0 || course.course.get().scene_points.get() == 0 {
+    if !crate::race::course_places::held() || !crate::race::scene_points::held() {
         return Err(BadInput("no course faces or points").into());
     }
     let index = crate::race::course_places::face_field::<u32>(course.reads(), face, 4)

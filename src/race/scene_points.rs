@@ -3,10 +3,8 @@
 //! points past the count go: the face corners' copies, the shadow's), and the stage's freeing gives
 //! them back.
 //!
-//! A point is reached by its number (`point_number`, `point_word`, `put_point_word`, `copy_point`).
-//! `COURSE.scene_points` is `base()` while they are held (0 otherwise; a handle of
-//! `race::course_places`, which no host memory backs): the number's byte is 12 n from it, and any
-//! other value of `COURSE.scene_points` reads nothing.
+//! A point is reached by its number (`point_number`, `point_word`, `put_point_word`, `copy_point`):
+//! the number's byte is 12 n. The points are a part of the stage's `CourseData`.
 //!
 //! The points past the count are scratch: each drawing part (`workers::PartScratch`) has its
 //! own while it is drawn in a run of a list drawn by several parts, taken from the shared ones
@@ -14,22 +12,19 @@
 //! points it reads through; outside the parts that is `no_own()`, the shared points throughout.
 
 use crate::errors::BadInput;
-#[cfg(test)]
-use crate::race::owner::race;
 use crate::race::owner_course::CourseReads;
 use std::cell::{Cell, RefCell};
 
-/// `COURSE.scene_points` while the points are held: point 0's place.
-pub fn base() -> u32 {
+/// Point 0's place: the numbering the readers reach points by (a point's place is `base()` +
+/// 12 n; the twelve bytes before it are the last face's tail).
+fn base() -> u32 {
     crate::race::course_places::points_base()
 }
 
-/// The points' most bytes: their part of the course's places.
-pub static POINTS: crate::memory::shared_table::SharedTable =
-    crate::memory::shared_table::SharedTable::new(
-        crate::race::course_places::room() as usize,
-        "no scene points",
-    );
+/// The scene points' table.
+fn table() -> &'static crate::memory::shared_table::SharedTable {
+    &crate::race::course_places::data().points
+}
 
 /// A drawing part's own points past the count (`workers::PartScratch::points`): kept from the
 /// count on while the part is drawn in a run of a list drawn by several parts (the game thread's
@@ -93,7 +88,7 @@ fn with_own<R>(
     len: usize,
     f: impl FnOnce(&mut [u8]) -> R,
 ) -> Result<Option<R>, BadInput> {
-    let all = POINTS.len()?;
+    let all = table().len()?;
     let Some(end) = from.checked_add(len).filter(|&end| end <= all) else {
         return Ok(None);
     };
@@ -102,7 +97,7 @@ fn with_own<R>(
     if tail.len() < end {
         let had = tail.len();
         tail.resize(end, 0);
-        if POINTS.read(own + had, &mut tail[had..])?.is_none() {
+        if table().read(own + had, &mut tail[had..])?.is_none() {
             return Ok(None);
         }
     }
@@ -115,11 +110,11 @@ fn read_at(points: &OwnPoints, start: usize, into: &mut [u8]) -> Result<Option<(
     let own = points.own_from();
     let end = start.saturating_add(into.len());
     if end <= own {
-        return POINTS.read(start, into);
+        return table().read(start, into);
     }
     let split = own.saturating_sub(start).min(into.len());
     let (shared, mine) = into.split_at_mut(split);
-    if POINTS.read(start, shared)?.is_none() {
+    if table().read(start, shared)?.is_none() {
         return Ok(None);
     }
     with_own(points, own, start + split, mine.len(), |t| {
@@ -133,14 +128,14 @@ fn write_at(points: &OwnPoints, start: usize, data: &[u8]) -> Result<Option<()>,
     let own = points.own_from();
     let end = start.saturating_add(data.len());
     if end <= own {
-        return POINTS.write(start, data);
+        return table().write(start, data);
     }
-    if end > POINTS.len()? {
+    if end > table().len()? {
         return Ok(None);
     }
     let split = own.saturating_sub(start).min(data.len());
     let (shared, mine) = data.split_at(split);
-    if POINTS.write(start, shared)?.is_none() {
+    if table().write(start, shared)?.is_none() {
         return Ok(None);
     }
     with_own(points, own, start + split, mine.len(), |t| {
@@ -150,19 +145,19 @@ fn write_at(points: &OwnPoints, start: usize, data: &[u8]) -> Result<Option<()>,
 
 /// Whether the points are held.
 pub fn held() -> bool {
-    POINTS.is_taken()
+    table().is_taken()
 }
 
 /// The points taken from the course file: `bytes` (the points and the room after them).
 pub fn take(bytes: &[u8]) -> Result<(), BadInput> {
-    POINTS.set(bytes)?;
+    table().set(bytes)?;
     crate::race::course_places::first_points_changed();
     Ok(())
 }
 
 /// Given back with the stage's course list.
 pub fn give_back() {
-    POINTS.give_back();
+    table().give_back();
     crate::race::course_places::first_points_changed();
 }
 
@@ -179,7 +174,7 @@ fn outside(
     len: usize,
     caller: &std::panic::Location<'static>,
 ) -> BadInput {
-    let held = POINTS.len().ok();
+    let held = table().len().ok();
     crate::framework::log(&format!(
         "scene points: {what} of {len} bytes at {at:#x}; the points at {:#x}, {held:?} bytes; \
          from {}",
@@ -198,11 +193,12 @@ fn bytes(points: &OwnPoints, at: u32, len: usize) -> Result<Vec<u8>, BadInput> {
     let caller = std::panic::Location::caller();
     let before = base().wrapping_sub(at) as usize;
     if at < base() && len <= before && before <= 12 {
-        let faces_len = crate::race::course_places::FACES.len()?;
+        let faces_len = crate::race::course_places::data().faces.len()?;
         let from = faces_len
             .checked_sub(before)
             .ok_or_else(|| outside("a read before the scene points", at, len, caller))?;
-        return crate::race::course_places::FACES
+        return crate::race::course_places::data()
+            .faces
             .bytes(from, len)?
             .ok_or_else(|| outside("a read before the scene points", at, len, caller));
     }
@@ -248,19 +244,18 @@ fn point(points: &OwnPoints, at: u32) -> Result<[u32; 3], BadInput> {
 }
 
 /// Point `n`'s place.
-fn place(course: CourseReads<'_>, n: u32) -> u32 {
-    n.wrapping_mul(12)
-        .wrapping_add(course.course.scene_points.get())
+fn place(n: u32) -> u32 {
+    n.wrapping_mul(12).wrapping_add(base())
 }
 
 /// Point `n`'s x, y and z (point -1 as `bytes` reads it), through `points`.
 #[track_caller]
 pub fn point_number(
-    course: CourseReads<'_>,
+    _course: CourseReads<'_>,
     points: &OwnPoints,
     n: u32,
 ) -> Result<[u32; 3], BadInput> {
-    point(points, place(course, n))
+    point(points, place(n))
 }
 
 /// Point `n`'s x and z, read as one point.
@@ -281,23 +276,18 @@ pub fn copy_point(
     from: u32,
     to: u32,
 ) -> Result<(), BadInput> {
-    write(
-        course,
-        points,
-        place(course, to),
-        &bytes(points, place(course, from), 12)?,
-    )
+    write(course, points, place(to), &bytes(points, place(from), 12)?)
 }
 
 /// Coordinate `k` (0 x, 1 y, 2 z) of point `n`.
 #[track_caller]
 pub fn point_word(
-    course: CourseReads<'_>,
+    _course: CourseReads<'_>,
     points: &OwnPoints,
     n: u32,
     k: u32,
 ) -> Result<u32, BadInput> {
-    word(points, place(course, n).wrapping_add(4 * k))
+    word(points, place(n).wrapping_add(4 * k))
 }
 
 /// Coordinate `k` (0 x, 1 y, 2 z) of point `n` set to `v`.
@@ -309,7 +299,7 @@ pub fn put_point_word(
     k: u32,
     v: u32,
 ) -> Result<(), BadInput> {
-    put(course, points, place(course, n).wrapping_add(4 * k), v)
+    put(course, points, place(n).wrapping_add(4 * k), v)
 }
 
 /// `data` written at place `at`; refused outside the points.
@@ -341,15 +331,12 @@ fn put(course: CourseReads<'_>, points: &OwnPoints, at: u32, v: u32) -> Result<(
     write(course, points, at, &v.to_le_bytes())
 }
 
-/// `f` with the scene points `words` held (`COURSE.scene_points` at `base()`), the points and
-/// `COURSE.scene_points` as they were afterwards (the differential tests: the reference
-/// reads the same words at their address).
+/// `f` with the scene points `words` held, the points as they were afterwards (the differential
+/// tests: the reference reads the same words at their address).
 #[cfg(test)]
 pub fn with_test_points<R>(words: &[u32], f: impl FnOnce() -> R) -> R {
-    let course = &race().course;
-    let kept = POINTS.all().ok();
-    let kept_at = course.course.get().scene_points.get();
-    POINTS
+    let kept = table().all().ok();
+    table()
         .set(
             &words
                 .iter()
@@ -358,13 +345,11 @@ pub fn with_test_points<R>(words: &[u32], f: impl FnOnce() -> R) -> R {
         )
         .expect("test points in their room");
     crate::race::course_places::first_points_changed();
-    course.course.get().scene_points.set(base());
     let out = f();
     match kept {
-        Some(p) => POINTS.set(&p).expect("the points as they were"),
-        None => POINTS.give_back(),
+        Some(p) => table().set(&p).expect("the points as they were"),
+        None => table().give_back(),
     }
     crate::race::course_places::first_points_changed();
-    course.course.get().scene_points.set(kept_at);
     out
 }
