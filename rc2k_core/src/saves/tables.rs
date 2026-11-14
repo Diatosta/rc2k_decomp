@@ -113,3 +113,57 @@ mod golden {
         );
     }
 }
+
+/// `var\hst.dat` as a whole: a file of the head and the six tables read into typed tables and
+/// written out again is the same bytes, for small and large championships.
+#[cfg(test)]
+mod whole_file {
+    use super::*;
+    use crate::saves::entries::{LevelScores, StageTimes};
+    use crate::saves::kept;
+    use crate::saves::scores::BestScores;
+
+    fn varied(len: u32, salt: u32) -> Vec<u8> {
+        (0..len)
+            .map(|i| (i.wrapping_mul(2_654_435_761).wrapping_add(salt) >> 11) as u8)
+            .collect()
+    }
+
+    fn file(stages: u32) -> Vec<u8> {
+        let mut file = kept::head(kept::BEST_TIMES, 0x0102_0304).to_vec();
+        for (salt, n) in [1, 2, 3, 4, 7, 8].into_iter().enumerate() {
+            file.extend(varied(sizes(stages)[n], salt as u32 + 1));
+        }
+        file
+    }
+
+    /// The tables read out of `file` and written back, with the head in front.
+    fn rewritten(file: &[u8], stages: u32) -> Vec<u8> {
+        assert!(kept::head_ok(file, kept::BEST_TIMES));
+        let size = |n: usize| sizes(stages)[n] as usize;
+        let mut at = kept::HEAD_LEN;
+        let mut next = |n: usize| {
+            let part = &file[at..at + size(n)];
+            at += size(n);
+            part
+        };
+        let mut out = file[..kept::HEAD_LEN].to_vec();
+        out.extend(BestScores::read(next(1)).write());
+        out.extend(StageTimes::read(next(2)).write());
+        out.extend(LevelScores::read(next(3)).write());
+        out.extend(StageTimes::read(next(4)).write());
+        out.extend(StageTimes::read(next(7)).write());
+        out.extend(StageTimes::read(next(8)).write());
+        out
+    }
+
+    #[test]
+    fn a_best_times_file_is_read_and_written_with_the_same_bytes() {
+        for stages in [1, 36, 120] {
+            let file = file(stages);
+            let again = rewritten(&file, stages);
+            assert_eq!(again.len(), file.len(), "{stages} stages");
+            assert!(again == file, "{stages} stages");
+        }
+    }
+}

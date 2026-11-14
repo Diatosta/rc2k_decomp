@@ -763,4 +763,124 @@ mod tests {
         let table = { super::settings() }.unwrap();
         assert_eq!(table.len(), super::ENTRIES.len());
     }
+
+    /// The variables of every setting that is a whole dword, as they are now.
+    fn dword_values(o: Owners<'static>) -> Vec<Option<u32>> {
+        ENTRIES
+            .iter()
+            .map(|(_, _, target)| match target {
+                Target::Dword(cell) => Some(cell(o).get()),
+                Target::Unaligned(_) => None,
+            })
+            .collect()
+    }
+
+    /// The two unaligned settings' variables, as they are now.
+    fn unaligned_values(o: Owners<'static>) -> [u32; 2] {
+        let panel = o.race.viewer_panel();
+        [panel.developer_keys(), panel.picture_rate()]
+    }
+
+    /// A `ral.cfg` line `key=number` (and `key number`) of each of the 77 keys reaches its own
+    /// variable: that one (and the key sharing its variable, `noaudio` / `nosound`,
+    /// `allsecretcars` / `secretcar`) changes to the number and no other variable moves.
+    #[test]
+    fn each_key_reaches_its_own_variable_and_no_other() {
+        let _lock = crate::test_support::test_lock();
+        let o = Owners::the();
+        let start = dword_values(o);
+        let start_unaligned = unaligned_values(o);
+        for form in ["{}={}\r\n", "{} {}\r\n"] {
+            for (n, (key, _, target)) in ENTRIES.iter().enumerate() {
+                let number = 0x0100_0000 + n as u32 * 0x101;
+                let name = String::from_utf8_lossy(key).into_owned();
+                let text = form
+                    .replacen("{}", &name, 1)
+                    .replacen("{}", &number.to_string(), 1);
+                let mut bytes = text.into_bytes();
+                bytes.push(0);
+                super::apply_settings(o, &bytes).unwrap();
+                let now = dword_values(o);
+                let now_unaligned = unaligned_values(o);
+                let mut changed: Vec<String> = Vec::new();
+                for (m, (other, _, _)) in ENTRIES.iter().enumerate() {
+                    if now[m] != start[m] {
+                        assert_eq!(
+                            now[m],
+                            Some(number),
+                            "{name}: {}",
+                            String::from_utf8_lossy(other)
+                        );
+                        changed.push(String::from_utf8_lossy(other).into_owned());
+                    }
+                }
+                match target {
+                    Target::Dword(_) => {
+                        // A key whose number equals the variable's start value changes nothing.
+                        assert!(changed.contains(&name), "{name} did not reach its variable");
+                        assert_eq!(now_unaligned, start_unaligned, "{name}");
+                    }
+                    Target::Unaligned(_) => {
+                        assert!(changed.is_empty(), "{name} moved {changed:?}");
+                        assert_ne!(now_unaligned, start_unaligned, "{name}");
+                    }
+                }
+                // Each of the two keys sharing a variable moves the other's.
+                let shares: Vec<&String> = changed.iter().filter(|k| **k != name).collect();
+                let allowed: &[&str] = match name.as_str() {
+                    "noaudio" => &["nosound"],
+                    "nosound" => &["noaudio"],
+                    "allsecretcars" => &["secretcar"],
+                    "secretcar" => &["allsecretcars"],
+                    _ => &[],
+                };
+                assert!(
+                    shares.iter().all(|k| allowed.contains(&k.as_str())),
+                    "{name} also moved {shares:?}"
+                );
+                for (m, (_, _, other)) in ENTRIES.iter().enumerate() {
+                    if let (Target::Dword(cell), Some(value)) = (other, start[m]) {
+                        cell(o).set(value);
+                    }
+                }
+                let [keys, rate] = start_unaligned;
+                o.race.viewer_panel().set_developer_keys(keys);
+                o.race.viewer_panel().set_picture_rate(rate);
+            }
+        }
+        assert_eq!(dword_values(o), start);
+        assert_eq!(unaligned_values(o), start_unaligned);
+    }
+
+    /// A key a text lacks leaves its variable, a key with no number sets 0, and a text of
+    /// several lines sets each of its keys.
+    #[test]
+    fn absent_keys_stay_and_missing_numbers_are_zero() {
+        let _lock = crate::test_support::test_lock();
+        let o = Owners::the();
+        let start = dword_values(o);
+        let start_unaligned = unaligned_values(o);
+        super::apply_settings(o, b"ignoremmx=7\r\nignorekatmai\r\nsparksmode 3\r\n\0").unwrap();
+        let now = dword_values(o);
+        let find = |key: &[u8]| ENTRIES.iter().position(|(k, _, _)| *k == key).unwrap();
+        assert_eq!(now[find(b"ignoremmx")], Some(7));
+        assert_eq!(now[find(b"ignorekatmai")], Some(0));
+        assert_eq!(now[find(b"sparksmode")], Some(3));
+        let untouched = [b"notaskswitch".as_slice(), b"noprichange", b"ignoreamdk3d"];
+        for key in untouched {
+            assert_eq!(
+                now[find(key)],
+                start[find(key)],
+                "{}",
+                String::from_utf8_lossy(key)
+            );
+        }
+        for (m, (_, _, target)) in ENTRIES.iter().enumerate() {
+            if let (Target::Dword(cell), Some(value)) = (target, start[m]) {
+                cell(o).set(value);
+            }
+        }
+        assert_eq!(dword_values(o), start);
+        assert_eq!(unaligned_values(o), start_unaligned);
+    }
 }

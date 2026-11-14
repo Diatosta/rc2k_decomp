@@ -145,4 +145,112 @@ mod tests {
             crate::menu::player_names::set_name_bytes(crate::menu::owner::menus(), n, name);
         }
     }
+
+    /// A saved game's bytes read back into the menus' state (the way a load does it: the head
+    /// dwords, each car with the game's name pointer kept, the driver records) and gathered
+    /// again are the same bytes; the first gathering of a varied state is frozen by checksum.
+    #[test]
+    fn a_savegame_loaded_and_saved_again_is_the_same_bytes() {
+        use rc2k_core::saves::savegame::RECORDS_AT;
+        let _guard = crate::test_support::test_lock();
+        let menus = menus();
+        let buffer = &saves().save_games.file;
+        let file_before = buffer.read_at(0, LEN, "the file").unwrap();
+        let heads_before: Vec<u32> = head(menus).iter().map(|d| d.get()).collect();
+        let players_before = menus
+            .play
+            .players
+            .players
+            .each_ref()
+            .map(crate::session::Shared::get);
+        let names_before: [_; 4] =
+            std::array::from_fn(|i| crate::menu::player_names::name_bytes(menus, i));
+        let records_before =
+            crate::menu::drivers_store::records_to_bytes(&menus.cars.drivers.drivers);
+        let start_before = [
+            menus.screens.flow.start_section.get(),
+            menus.screens.flow.start_section_a8.get(),
+        ];
+        // A varied state: head values, cars, names, driver records.
+        for (n, d) in head(menus).into_iter().enumerate() {
+            d.set(0x11 * (n as u32 + 1));
+        }
+        for (n, car) in menus.play.players.players.iter().enumerate() {
+            let mut bytes = car.get().to_le_bytes();
+            for (k, b) in bytes.iter_mut().enumerate().skip(0x28) {
+                *b = (k * 5 + 3 * n) as u8;
+            }
+            let mut record = Player::from_le_bytes(bytes);
+            record.set_name_player(n);
+            car.set(record);
+            crate::menu::player_names::set_name_bytes(menus, n, &[b'A' + n as u8; 0x20]);
+        }
+        let varied_records: Vec<u8> = (0..records_before.len())
+            .map(|k| (k.wrapping_mul(2_654_435_761) >> 9) as u8)
+            .collect();
+        crate::menu::drivers_store::records_from_bytes(
+            &menus.cars.drivers.drivers,
+            &varied_records,
+        )
+        .unwrap();
+        let wrote = records_to_vec(menus);
+
+        gather_savegame(menus, buffer, 0).unwrap();
+        let first = buffer.read_at(0, LEN, "the file").unwrap();
+        let sum = crate::test_support::hash(&first[..LEN]);
+
+        // The load half.
+        let mut cursor = 0;
+        for d in head(menus) {
+            d.set(u32::from_le_bytes(
+                first[cursor..cursor + 4].try_into().unwrap(),
+            ));
+            cursor += 4;
+        }
+        for (n, car) in menus.play.players.players.iter().enumerate() {
+            let name = car.get().name_number;
+            let at = car_at(n);
+            let saved: [u8; CAR_LEN] = first[at..at + CAR_LEN].try_into().unwrap();
+            car.set(Player::from_file_bytes(saved));
+            car.update(|p| p.name_number = name);
+            crate::menu::player_names::set_name_bytes(
+                menus,
+                crate::menu::player_names::name_of(&car.get()).unwrap(),
+                &car.get().name_copy,
+            );
+        }
+        crate::menu::drivers_store::records_from_bytes(
+            &menus.cars.drivers.drivers,
+            &first[RECORDS_AT..RECORDS_AT + RECORDS_LEN],
+        )
+        .unwrap();
+        gather_savegame(menus, buffer, 0).unwrap();
+        let second = buffer.read_at(0, LEN, "the file").unwrap();
+        assert_eq!(records_to_vec(menus), wrote);
+
+        buffer.write_at(0, &file_before, "the file").unwrap();
+        for (d, v) in head(menus).into_iter().zip(heads_before) {
+            d.set(v);
+        }
+        for (car, before) in menus.play.players.players.iter().zip(players_before) {
+            car.set(before);
+        }
+        for (n, name) in names_before.iter().enumerate() {
+            crate::menu::player_names::set_name_bytes(menus, n, name);
+        }
+        crate::menu::drivers_store::records_from_bytes(
+            &menus.cars.drivers.drivers,
+            &records_before,
+        )
+        .unwrap();
+        menus.screens.flow.start_section.set(start_before[0]);
+        menus.screens.flow.start_section_a8.set(start_before[1]);
+
+        assert!(second == first, "the saved game changed through a load");
+        assert_eq!((first.len(), sum), (29_276, 13_361_182_919_990_968_310));
+    }
+
+    fn records_to_vec(menus: &Menus) -> Vec<u8> {
+        crate::menu::drivers_store::records_to_bytes(&menus.cars.drivers.drivers)
+    }
 }

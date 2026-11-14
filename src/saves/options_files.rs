@@ -144,4 +144,88 @@ mod tests {
         o.menus.screens.loop_flags.options_loaded.set(loaded);
         assert_eq!(after, before);
     }
+
+    /// A file whose bytes differ by position, with the head and the end mark of a real one.
+    fn varied_old_file() -> Vec<u8> {
+        use rc2k_core::saves::kept;
+        let mut file = kept::head(kept::OPTIONS, 0x0BAD_CAFE).to_vec();
+        file.extend(
+            (0..rc2k_core::options::old_file::FILE_LEN - kept::HEAD_LEN - 4)
+                .map(|n| (n.wrapping_mul(2_654_435_761) >> 13) as u8),
+        );
+        file.extend_from_slice(&kept::END_MARK);
+        // The two lists of car numbers (pieces 44 and 45) must end in -1 for the stores' car
+        // lists to be rebuilt from them: both are empty lists here.
+        let lengths = Options::piece_lengths();
+        let start = kept::HEAD_LEN + lengths[..44].iter().sum::<usize>();
+        let both = lengths[44] + lengths[45];
+        file[start..start + both].fill(0xFF);
+        file
+    }
+
+    /// Runs `body` with the stores holding `options`, then puts the stores' options back.
+    fn with_options_in_stores<T>(options: &Options, body: impl FnOnce(Owners<'static>) -> T) -> T {
+        let _lock = crate::test_support::test_lock();
+        let o = Owners::the();
+        let loaded = o.menus.screens.loop_flags.options_loaded.is_set();
+        let before = capture(o).unwrap();
+        apply(o, options).unwrap();
+        let result = body(o);
+        apply(o, &before).unwrap();
+        o.menus.screens.loop_flags.options_loaded.set(loaded);
+        result
+    }
+
+    /// Options read from an old file of varied bytes, put into the game's stores and taken out
+    /// again, are written to the old file's very bytes: no store changes, drops or reorders a
+    /// piece (the stores are the game's truth between load and save).
+    #[test]
+    fn old_file_through_the_stores_is_the_same_bytes() {
+        use rc2k_core::options::old_file;
+        let file = varied_old_file();
+        let options = old_file::read(&file).unwrap().unwrap();
+        let (again, pieces) = with_options_in_stores(&options, |o| {
+            let pieces: Vec<Vec<u8>> = pieces_of(o).iter().map(|p| p.read().unwrap()).collect();
+            (capture(o).unwrap(), pieces)
+        });
+        assert_eq!(again.to_pieces(), pieces);
+        assert_eq!(old_file::write(&again, 0x0BAD_CAFE), file);
+    }
+
+    /// The options of a real-looking old file, written to `rc2k.toml`'s text and read back,
+    /// are the same options; the text's checksum is frozen (a key renamed or a field moved
+    /// shows here, and makes players' files unreadable).
+    #[test]
+    fn toml_through_the_stores_is_the_same_options_and_text() {
+        use rc2k_core::options::{old_file, toml_file};
+        let options = old_file::read(&varied_old_file()).unwrap().unwrap();
+        let text = with_options_in_stores(&options, |o| {
+            toml_file::write(&capture(o).unwrap(), None).unwrap()
+        });
+        assert_eq!(
+            toml_file::read(&text, &Options::default()).unwrap(),
+            options
+        );
+        let sum = crate::test_support::hash(text.as_bytes());
+        assert_eq!((text.len(), sum), (94_597, 17_957_818_195_669_191_712));
+    }
+
+    /// Loading the new file through the stores leaves the stores holding what it said, with
+    /// keys it lacks kept as they were: a file of one section changes only that section.
+    #[test]
+    fn a_partial_toml_changes_only_what_it_names() {
+        use rc2k_core::options::toml_file;
+        let _lock = crate::test_support::test_lock();
+        let o = Owners::the();
+        let loaded = o.menus.screens.loop_flags.options_loaded.is_set();
+        let before = capture(o).unwrap();
+        let wanted = toml_file::read("[display]\nmenu_mode = 5\n", &before).unwrap();
+        apply(o, &wanted).unwrap();
+        let after = capture(o).unwrap();
+        apply(o, &before).unwrap();
+        o.menus.screens.loop_flags.options_loaded.set(loaded);
+        let mut expected = before;
+        expected.display.menu_mode = 5;
+        assert_eq!(after, expected);
+    }
 }
