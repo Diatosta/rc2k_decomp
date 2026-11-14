@@ -16,10 +16,13 @@
 //! order (a chunk of no bytes shows the frame before again), at the AVI's time a frame; an MPEG-1
 //! program stream (`MFLOGO.MPG`, `INTRO.MPG`) by its own demuxer, its video (stream 0xE0, MPEG-1
 //! video, cut into frames by FFmpeg's parser) at its sequence header's rate and its sound (stream
-//! 0xC0, MPEG audio layer 2) decoded first and played through an SDL audio stream from the first
-//! frame on (stopped by the key or the end). Each frame is converted from YUV (4:1:0 or 4:2:0,
-//! BT.601) to the back surface's format and stretched over it (nearest). Anything else counts as a
-//! film that did not open, and says so in the log.
+//! 0xC0, MPEG audio layer 2) decoded first and played through an SDL audio stream from the moment
+//! the first picture is shown (stopped by the key or the end). The pictures follow the sound's
+//! position (what the device has taken from the stream; the wall clock for a film without sound or
+//! a device that does not start): a picture waits for its time, one more than two frames late is
+//! not converted or shown. The log has the picture's offset from the clock once a second. Each
+//! frame is converted from YUV (4:1:0 or 4:2:0, BT.601) to the back surface's format and stretched
+//! over it (nearest). Anything else counts as a film that did not open, and says so in the log.
 
 use crate::ffi::ffmpeg::{Decoder, Frame, MP2, MPEG1VIDEO};
 use crate::framework::log;
@@ -487,6 +490,53 @@ pub fn play_film(o: crate::owners::Owners<'static>, path: &dyn crate::session::T
     ended
 }
 
+/// A picture more than this many frames behind the film's clock is not converted or shown.
+const DROP_AFTER_FRAMES: u32 = 2;
+
+/// How long a film waits for its sound's device to start pulling before it runs on the wall clock.
+const SOUND_START_WAIT: std::time::Duration = std::time::Duration::from_secs(1);
+
+/// The film's clock: zero until the first picture is on the screen (the sound starts with it, so
+/// a slow first decode delays both); then the sound's position once the device plays it (so
+/// pictures follow what is heard), else the wall clock.
+struct Clock<'a> {
+    sound: Option<&'a crate::ffi::sdl::PlayedSound>,
+    /// When the first picture was shown.
+    start: std::cell::Cell<Option<std::time::Instant>>,
+}
+
+impl Clock<'_> {
+    /// Starts the clock and the sound (the first picture is on the screen).
+    fn begin(&self) {
+        if self.start.get().is_none() {
+            self.start.set(Some(std::time::Instant::now()));
+            if let Some(sound) = self.sound {
+                sound.resume();
+            }
+        }
+    }
+
+    fn now(&self) -> std::time::Duration {
+        let Some(start) = self.start.get() else {
+            return std::time::Duration::ZERO;
+        };
+        let wall = start.elapsed();
+        match self.sound {
+            None => wall,
+            Some(sound) => {
+                let heard = sound.played();
+                if !heard.is_zero() {
+                    heard
+                } else if wall < SOUND_START_WAIT {
+                    std::time::Duration::ZERO
+                } else {
+                    wall
+                }
+            }
+        }
+    }
+}
+
 /// The frames until the end or a key: the key, or 0 at the end.
 fn run(film: &mut Film, o: crate::owners::Owners<'static>) -> u8 {
     let (gfx, system, input) = (o.gfx, o.system, o.input);
@@ -494,14 +544,25 @@ fn run(film: &mut Film, o: crate::owners::Owners<'static>) -> u8 {
         .sound
         .as_ref()
         .and_then(|(pcm, hz, ch)| crate::ffi::sdl::PlayedSound::start(pcm, *hz, *ch));
-    let start = std::time::Instant::now();
+    let clock = Clock {
+        sound: sound.as_ref(),
+        start: std::cell::Cell::new(None),
+    };
+    let frame = film.frame;
+    // The number the next decoded picture has, the next to show, those dropped for being late,
+    // and the frame whose offset is logged next.
+    let mut decoded = 0u32;
     let mut shown = 0u32;
+    let mut dropped = 0u32;
+    let mut next_report = 0u32;
     let mut last: Option<Picture> = None;
-    let mut queue: std::collections::VecDeque<Picture> = Default::default();
+    // None: a picture that was late and not converted.
+    let mut queue: std::collections::VecDeque<Option<Picture>> = Default::default();
     let packets = std::mem::take(&mut film.packets);
     let mut packets = packets.iter().map(Some).chain(std::iter::once(None));
     let mut ended = false;
-    loop {
+    let late = |number: u32| clock.now() > frame * (number + DROP_AFTER_FRAMES);
+    let key = loop {
         // the next picture: decoded until one comes out (an empty packet: the one
         // before again)
         while queue.is_empty() && !ended {
@@ -509,18 +570,22 @@ fn run(film: &mut Film, o: crate::owners::Owners<'static>) -> u8 {
                 None => ended = true,
                 Some(Some(packet)) if packet.is_empty() => {
                     if let Some(p) = &last {
-                        queue.push_back(Picture {
+                        let again = (!late(decoded)).then(|| Picture {
                             rgb: p.rgb.clone(),
                             width: p.width,
                             height: p.height,
                         });
+                        queue.push_back(again);
+                        decoded += 1;
                     }
                 }
                 Some(packet) => {
                     let result =
                         film.decoder
                             .decode(packet.map(std::vec::Vec::as_slice), &mut |f| {
-                                queue.push_back(picture(f)?);
+                                let skip = late(decoded);
+                                decoded += 1;
+                                queue.push_back(if skip { None } else { Some(picture(f)?) });
                                 Ok(())
                             });
                     if let Err(why) = result {
@@ -531,20 +596,38 @@ fn run(film: &mut Film, o: crate::owners::Owners<'static>) -> u8 {
             }
         }
         let Some(next) = queue.pop_front() else {
-            break;
+            break 0;
         };
         crate::platform::pump_messages_now(o);
         // The window closed: the film ends (fixed bug: "Closing the window leaves the game
         // running").
         if system.session.flags.quitting.is_set() {
-            break;
+            break 0;
         }
-        // the frame's time, as the stream's Update waits for it
-        let due = film.frame * shown;
-        if let Some(wait) = due.checked_sub(start.elapsed()) {
-            std::thread::sleep(wait);
+        // the frame's time on the film's clock
+        let due = frame * shown;
+        if next.is_some() {
+            while let Some(wait) = due.checked_sub(clock.now()) {
+                if wait.is_zero() {
+                    break;
+                }
+                std::thread::sleep(wait.min(std::time::Duration::from_millis(4)));
+            }
+        }
+        if shown >= next_report {
+            let behind = clock.now().as_secs_f64() - due.as_secs_f64();
+            log(&format!(
+                "gfx::play_film: at {:.1} s the picture is {:+.0} ms behind the clock, {dropped} dropped",
+                due.as_secs_f64(),
+                behind * 1000.0
+            ));
+            next_report = shown + (1.0 / frame.as_secs_f64()).round().max(1.0) as u32;
         }
         shown += 1;
+        let Some(next) = next else {
+            dropped += 1;
+            continue;
+        };
         // (`gfx::lock_surface` leaves the carry clear for a locked surface, 1.)
         if crate::platform::lock_surface(gfx, system) >= 1 {
             blit(&next, gfx, system);
@@ -552,14 +635,14 @@ fn run(film: &mut Film, o: crate::owners::Owners<'static>) -> u8 {
         }
         last = Some(next);
         crate::platform::show_frame_now(o);
+        clock.begin();
         let key = crate::input::take_key::take_key(input);
         if key != 0 {
-            drop(sound);
-            return key;
+            break key;
         }
-    }
+    };
     drop(sound);
-    0
+    key
 }
 
 /// `gfx::play_film` for its callers (the films' loop): nothing with the setting `nofmv`; else the

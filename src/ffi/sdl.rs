@@ -395,11 +395,17 @@ pub fn show_message_box(
 
 /// A whole sound (the films') playing through SDL (stopped when dropped, and SDL's audio given back:
 /// each start takes it once).
-pub struct PlayedSound(*mut SDL_AudioStream);
+pub struct PlayedSound {
+    stream: *mut SDL_AudioStream,
+    /// The bytes given to the stream.
+    total_bytes: usize,
+    /// The bytes one second of the sound takes.
+    bytes_a_second: f64,
+}
 
 impl PlayedSound {
-    /// `pcm` (16-bit, `channels` interleaved, at `hz`) started on the default device; None
-    /// when SDL's audio or the stream cannot be had.
+    /// `pcm` (16-bit, `channels` interleaved, at `hz`) made ready on the default device, paused
+    /// until `resume`; None when SDL's audio or the stream cannot be had.
     pub fn start(pcm: &[i16], hz: u32, channels: usize) -> Option<Self> {
         // SAFETY: SDL's audio started; a spec SDL copies; the stream checked for null; `pcm`
         // copied into it whole (its bytes and their count).
@@ -424,9 +430,29 @@ impl PlayedSound {
             }
             SDL_PutAudioStreamData(stream, pcm.as_ptr().cast(), (pcm.len() * 2) as i32);
             SDL_FlushAudioStream(stream);
-            SDL_ResumeAudioStreamDevice(stream);
-            Some(Self(stream))
+            Some(Self {
+                stream,
+                total_bytes: pcm.len() * 2,
+                bytes_a_second: hz as f64 * channels as f64 * 2.0,
+            })
         }
+    }
+
+    /// Starts (or goes on with) the sound.
+    pub fn resume(&self) {
+        // SAFETY: the stream `start` opened, alive until this value drops.
+        unsafe {
+            SDL_ResumeAudioStreamDevice(self.stream);
+        }
+    }
+
+    /// How much of the sound the device has taken from the stream so far: the film's clock
+    /// (0 until the device starts pulling).
+    pub fn played(&self) -> std::time::Duration {
+        // SAFETY: the stream `start` opened, alive until this value drops.
+        let queued = unsafe { SDL_GetAudioStreamQueued(self.stream) }.max(0) as usize;
+        let taken = self.total_bytes.saturating_sub(queued);
+        std::time::Duration::from_secs_f64(taken as f64 / self.bytes_a_second)
     }
 }
 
@@ -435,7 +461,7 @@ impl Drop for PlayedSound {
         // SAFETY: the stream `start` opened, destroyed once; the audio it started, given
         // back once.
         unsafe {
-            SDL_DestroyAudioStream(self.0);
+            SDL_DestroyAudioStream(self.stream);
             SDL_QuitSubSystem(SDL_INIT_AUDIO);
         }
     }
