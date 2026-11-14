@@ -1,7 +1,6 @@
-//! The screen quad's inputs, a view's own working values (frame plan F7): the colour, the texture
-//! coordinates and the corners (`RACE_VARS.quad_colour` 0x623DE8, `RACE_VARS.quad_uv` 0x623DF0, `quad_corners` 0x623E10: [0]
-//! left, [1] right, [4] top, [5] bottom), each view's own. One per view slot
-//! (`race::view_scratch::ViewScratch::quad`).
+//! The screen quad's inputs, a view's own working values: the colour, the texture coordinates and
+//! the corners (`quad_corners`: [0] left, [1] right, [4] top, [5] bottom), each view's own. One
+//! per view slot (`race::view_scratch::ViewScratch::quad`).
 
 use crate::session::PlainDword;
 

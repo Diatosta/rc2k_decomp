@@ -1,11 +1,11 @@
-//! `effects::draw_frame` (0x4C3EEE, through its tail): the effects' drawing frame. Three
-//! `points` turned by the view matrix (`scene::rotate_point`) into `turned_points` (z, y, x of
-//! each on the x87 stack as the original loads them); the course's corners (0x8000 bytes of the
-//! course info, from +0x1C2000) into the mark corners table; when the marks' source switch
-//! changed since the last frame (`last_source`) the heading `step` steps on (of 8); the sound
-//! source cell gets it, the sound zero cell 0, `cleared` 0; then `effects::cars_particles`,
-//! `effects::view_heading`, `effects::view_motion`, `effects::begin_quads` (its time, `rdtsc`,
-//! in `quads_share`), an empty time in `empty_share`, and `scene::depth_test_on`.
+//! `effects::draw_frame`: the effects' drawing frame. Three `points` turned by the view
+//! matrix (`scene::rotate_point`) into `turned_points`; the course's corners (0x8000 bytes
+//! of the course info, from +0x1C2000) into the mark corners table; when the marks' source
+//! switch changed since the last frame (`last_source`) the heading `step` steps on (of 8);
+//! the sound source cell gets it, the sound zero cell 0, `cleared` 0; then
+//! `effects::cars_particles`, `effects::view_heading`, `effects::view_motion`,
+//! `effects::begin_quads` (its time, a cycle count, in `quads_share`), an empty time in
+//! `empty_share`, and `scene::depth_test_on`.
 //!
 //! Refuses (before anything) a null course info, and `cars_particles`' refusals (what it
 //! wrote before is put back first).
@@ -19,7 +19,7 @@ use crate::scene::rotate_point::rotate_point;
 use crate::session::{PlainFloat, read_bits};
 const CORNERS_FROM: u32 = 0x1C_2000;
 const CORNERS_LEN: u32 = 0x8000;
-/// (the time kept, where it goes).
+/// The two (time kept, where it goes) pairs.
 fn times(effects: &Effects) -> [(&PlainFloat, &PlainFloat); 2] {
     [
         (
@@ -37,8 +37,8 @@ fn rdtsc() -> u32 {
     crate::arch::rdtsc() as u32
 }
 
-/// `cars_particles`, `view_heading`, `view_motion`,
-/// `begin_quads`, `scene::depth_test_on`.
+/// Draws the frame: `cars_particles`, `view_heading`, `view_motion`, `begin_quads`,
+/// `scene::depth_test_on`.
 pub fn draw_frame(
     buffer: &crate::d3d::vertices_store::PolygonVertices,
     race: &Race,

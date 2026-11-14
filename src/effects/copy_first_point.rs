@@ -1,7 +1,5 @@
-//! `effects::copy_first_point` (0x4C1163): `KeptView.vector[0]` .. `KeptView.vector[2]` into
-//! `ShapeTilt.point[0]` .. `ShapeTilt.point[2]`, and `KeptView.length` into `ShapeTilt.length` (`push`/`pop`).
-//!
-//! Caller: `effects::shapes_frame`.
+//! `effects::copy_first_point`: `KeptView.vector[0]` .. `KeptView.vector[2]` into
+//! `ShapeTilt.point[0]` .. `ShapeTilt.point[2]`, and `KeptView.length` into `ShapeTilt.length`.
 
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
 

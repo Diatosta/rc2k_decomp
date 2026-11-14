@@ -1,5 +1,5 @@
 //! The software backend: the commands drawn by the rasteriser into the target, in tiles over the
-//! processor's threads. Pixel for pixel what the game showed before there were backends.
+//! processor's threads. Pixel for pixel what the rasteriser alone draws.
 
 #![allow(unsafe_code)]
 

@@ -1,4 +1,4 @@
-//! `effects::run_particles` (0x4CFB49, in two pieces): the effects' particle ring's frame.
+//! `effects::run_particles`: the effects' particle ring's frame.
 //! Nothing when the settings' +4 is 0; else `effects::set_quad_uvs`, then the ring's used count
 //! (as it is at the start) entries from the ring's first free one along +4:
 //! - the life (+0x44) less the frame's ticks; the entry dies when that borrows, or when its y
@@ -14,15 +14,14 @@
 //! - a dead entry: the ring's used count less 1, and the entry moved to just before the ring's
 //!   first free one (or that moved on past it when it is the entry).
 //!
-//! Every eighth effects step: a flag is set and a drift puff is made near the view (its place
-//! at +0x30) from two steps of the effects' random by `effects::add_drift_particle`.
+//! Every eighth effects step: a flag is set and a drift puff is made near the view (its place at
+//! +0x30) from two steps of the effects' random by `effects::add_drift_particle`.
 //!
 //! Works on the effects settings.
 //!
-//! Caller: `effects::run_frame`. Refuses, before anything, null settings, a null
-//! entry or link on the way, a kind other than 0, 4, 8, 9 (the original's stack goes wrong:
-//! section 16) and a colour index out of its table; mid-way only its callees' own refusals
-//! (a broken ring). its seven calls relocated), manual patch.
+//! Refuses, before anything, null settings, a null entry or link on the way, a kind other than 0,
+//! 4, 8, 9 and a colour index out of its table; mid-way only its callees' own refusals (a broken
+//! ring).
 
 use crate::effects::blocks::{Particle, particle, set_particle};
 use crate::effects::emit_bursts::BurstTuning;
@@ -46,7 +45,7 @@ const TRAIL_COLOURS: i32 = 298;
 const BURST_COLOURS_LEN: i32 = 0x2000;
 const BIGGER: u32 = 0x386A0;
 
-/// A kind's colour index (life times +0x40, `fistp`) and whether it is in its table.
+/// A kind's colour index (life times +0x40) and whether it is in its table.
 fn colour_index(particles: &Particles, e: u32, life: u32) -> Result<(i32, bool), Refused> {
     Ok({
         let i = x87::int_times_to_int(life as i32, particle(particles, e, 0x40)?);
@@ -61,7 +60,7 @@ fn colour_index(particles: &Particles, e: u32, life: u32) -> Result<(i32, bool),
     })
 }
 
-/// Why it refuses, if it does: the walk as the original makes it, nothing written.
+/// Why it refuses, if it does: the walk worked out first, nothing written.
 fn refusal(
     particles: &Particles,
     ring: &Ring,
@@ -168,7 +167,7 @@ fn step(
             )?;
             Ok(())
         };
-        // The tuning cell holds a whole number (the original loads it with `fild`), so its bits.
+        // The tuning cell holds a whole number, so its bits are read as one.
         let gain_int = |k: &crate::session::PlainFloat| -> Result<_, Refused> {
             let v = x87::int_times_int_plus_int(
                 k.bits() as i32,
@@ -448,9 +447,9 @@ pub fn run_particles(
     Ok(())
 }
 
-/// The trail particles' colours (IDA 0x922B38 .. 0x922FE0).
+/// The trail particles' colours.
 pub struct TrailColours {
-    /// 0x922B38: `dword_922B38`: the trail particles' 298 colours (`effects::run_particles`).
+    /// The trail particles' 298 colours (`effects::run_particles`).
     pub colours: [u32; 298],
 }
 
@@ -493,15 +492,15 @@ pub static TRAIL_PALETTE: TrailColours = TrailColours {
     ],
 };
 
-/// The puff's work values (IDA 0x93A5F0 .. 0x93A618).
+/// The puff's work values.
 #[derive(rc2k_derive::Cells)]
 pub struct PuffWork {
-    /// 0x93A600: `flt_93A600` .. `flt_93A614`: the puff's place, size and motion
+    /// The puff's place, size and motion
     pub puff: [PlainFloat; 6],
 }
 
 impl PuffWork {
-    /// The values the game starts with (the image's bytes).
+    /// The values the game starts with.
     pub const fn new() -> Self {
         PuffWork {
             puff: [
@@ -557,7 +556,8 @@ impl Particles {
     }
 }
 
-/// The ramps' multipliers: ramp `r` holds `step * RAMPS[r]` for the steps 0 .. 255 (the burst particle colours).
+/// The ramps' multipliers: ramp `r` holds `step * RAMPS[r]` for the steps 0 .. 255 (the burst
+/// particle colours).
 const fn burst_colours() -> [u8; 0x2000] {
     const RAMPS: [u32; 8] = [0x10000, 0x10100, 0x100, 0x101, 1, 0x10001, 0x10101, 0x10101];
     let mut table = [0u8; 0x2000];
@@ -574,10 +574,10 @@ const fn burst_colours() -> [u8; 0x2000] {
     table
 }
 
-/// The burst particles' colour ramps (IDA 0x93A618 .. 0x93C618).
+/// The burst particles' colour ramps.
 #[derive(rc2k_derive::Cells)]
 pub struct BurstColours {
-    /// 0x93A618: `dword_93A618`: 8 ramps of 256 dwords (a channel mask times the step)
+    /// 8 ramps of 256 dwords (a channel mask times the step)
     pub table: PlainBytes<8192>,
 }
 
@@ -590,40 +590,41 @@ impl BurstColours {
     }
 }
 
-/// The particle effects' constants (`run_particles`, `trail_particles`, `burst_particles`, `add_drift_particle`) (IDA 0x93C618 .. 0x93C6C8).
+/// The particle effects' constants (`run_particles`, `trail_particles`, `burst_particles`,
+/// `add_drift_particle`).
 #[derive(rc2k_derive::Cells)]
 pub struct ParticleTuning {
-    /// 0x93C618: `flt_93C618` .. `flt_93C620`: the puff's x wave (three factors)
+    /// The puff's x wave (three factors)
     pub puff_x: [PlainFloat; 3],
-    /// 0x93C624: `flt_93C624` .. `flt_93C62C`: the puff's z wave
+    /// The puff's z wave
     pub puff_z: [PlainFloat; 3],
-    /// 0x93C630: `flt_93C630` .. `flt_93C638`: the puff's y (add, factor, add)
+    /// The puff's y (add, factor, add)
     pub puff_y: [PlainFloat; 3],
-    /// 0x93C63C: `flt_93C63C`, `flt_93C640`: the puff's motion factors
+    /// The puff's motion factors
     pub puff_m: [PlainFloat; 2],
-    /// 0x93C644: `flt_93C644`: an added drift particle's last y is less this
+    /// An added drift particle's last y is less this
     pub drift_lower: PlainFloat,
-    /// 0x93C648: `flt_93C648`: the trail's random radius factor
+    /// The trail's random radius factor
     pub trail_random_k: PlainFloat,
-    /// 0x93C64C: `flt_93C64C` .. `flt_93C660`: per axis (x, y, z) the trail's two motion factors
+    /// Per axis (x, y, z) the trail's two motion factors
     pub trail_axes: [PlainFloat; 6],
-    /// 0x93C664: `flt_93C664`: the trail's spread
+    /// The trail's spread
     pub trail_spread: PlainFloat,
-    /// 0x93C668: `flt_93C668`, `flt_93C66C`: the trail's size factor and base
+    /// The trail's size factor and base
     pub trail_size_k: [PlainFloat; 2],
-    /// 0x93C670: `flt_93C670`: the trail's life factor
+    /// The trail's life factor
     pub trail_life_k: PlainFloat,
-    /// 0x93C674: `flt_93C674`, `flt_93C678`: the burst radius' base and scale
+    /// The burst radius' base and scale
     pub burst_scale: [PlainFloat; 2],
-    /// 0x93C67C: `flt_93C67C`: the burst particle's life factor
+    /// The burst particle's life factor
     pub burst_life: PlainFloat,
-    /// 0x93C680: `flt_93C680`, `dword_93C684`, `flt_93C688`: kind 0's gain, int gain and least
+    /// Kind 0's gain, int gain and least
     pub dust: [PlainFloat; 3],
-    /// 0x93C68C: `flt_93C68C`, `dword_93C690`: kind 4's gain and int gain
+    /// Kind 4's gain and int gain
     pub trail: [PlainFloat; 2],
-    /// 0x93C694: `flt_93C694` .. `dword_93C6A4`: kind 8's +0x30 gain, three dampings, +0x3C gain
+    /// Kind 8's +0x30 gain, three dampings, +0x3C gain
     pub burst8: [PlainFloat; 5],
-    /// 0x93C6A8: `flt_93C6A8` .. `dword_93C6B8`: kind 9's, the same
+    /// Kind 9's, the same
     pub burst9: [PlainFloat; 5],
 }
 

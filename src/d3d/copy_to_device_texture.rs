@@ -1,14 +1,9 @@
-//! `d3d::copy_to_device_texture` (0x41A8F9): a system texture's levels into a video
-//! texture.
+//! `d3d::copy_to_device_texture`: a system texture's levels into a video texture. Takes the
+//! system texture and the video texture (record numbers).
 //!
-//! Takes: the system texture, the video texture (record numbers)
-//! The video record's +0x64 is set to the system texture; the device's batch is flushed
-//! (SetRenderState 0x32, FLUSHBATCH); then each level of the system record
-//! (+0x10 of them): its surface page-locked (+0x38, `PageLock`), blitted (`Blt`, waiting)
-//! into the video record's surface of that level where both have one, page-unlocked.
-//! Callers: `scene::load_texture`, `draw_tyre_change`, `race::draw_viewer_panel`.
-//! Platform: the original always runs. In the standalone program the platform's textures
-//! do it (`platform_3d::hold_texture`, as `scene::load_texture` there).
+//! The video record's +0x64 is set to the system texture, and the platform's textures do the
+//! copy (`platform_3d::hold_texture`, as `scene::load_texture`). Callers:
+//! `scene::load_texture`, `draw_tyre_change`, `race::draw_viewer_panel`.
 
 /// System texture `system`'s levels into video texture `video`.
 pub fn copy_to_device_texture(system: u32, video: u32) {

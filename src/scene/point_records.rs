@@ -1,15 +1,14 @@
-//! The scene's point records (0x40000 bytes, taken by `scene::allocate_point_records`),
-//! counted on the list as the game's block was, given back by `race::free_point_records`. 0x2000 records of 0x20 bytes: +0 the point's number, +0xC
-//! the x on the screen, +0x10 .. +0x18 the point in the view, +0x1C the y on the screen. A
-//! scene point n has record n & 0xFFF, an object's point or normal n record
+//! The scene's point records (0x40000 bytes, taken by `scene::allocate_point_records`), counted
+//! on the list, given back by `give_back`. 0x2000 records of 0x20 bytes: +0 the
+//! point's number, +0xC the x on the screen, +0x10 .. +0x18 the point in the view, +0x1C the y
+//! on the screen. A scene point n has record n & 0xFFF, an object's point or normal n record
 //! 0x1000 + (n & 0xFFF).
 //!
-//! A record is named by its number + 1 (1 .. 0x2000), where the original held its
-//! address: in the polygon entries' +4. The two other kinds of record the entries name
-//! follow: the four quad vertices (`PolygonWork::quad_vertices`, the view's own, `of_quad`)
-//! and the clipper's pool (the part's `PolygonWork::record_pool`, `of_pool`; `g_polygonNextRecord`
-//! holds the next one's number where the original held its address).
-//! `COURSE_LISTS.point_records` is `HELD` while the records are taken, 0 otherwise.
+//! A record is named by its number + 1 (1 .. 0x2000), in the polygon entries' +4. The two other
+//! kinds of record the entries name follow: the four quad vertices (`PolygonWork::quad_vertices`,
+//! the view's own, `of_quad`) and the clipper's pool (the part's `PolygonWork::record_pool`,
+//! `of_pool`; `polygon_next_record` holds the next one's number).
+//! `point_records` is `HELD` while the records are taken, 0 otherwise.
 
 use crate::errors::{BadInput, Refused};
 use crate::session::PlainDword;
@@ -19,7 +18,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 pub const COUNT: u32 = 0x2000;
 /// The block's bytes, as counted.
 pub const BYTES: u32 = 0x4_0000;
-/// `COURSE_LISTS.point_records` while the records are taken.
+/// `point_records` while the records are taken.
 pub const HELD: u32 = 1;
 
 pub type Record = [u32; 8];
@@ -140,7 +139,7 @@ pub fn held(lists: &crate::race::course_lists_store::CourseLists) -> bool {
     lists.point_records.get() != 0
 }
 
-/// The record at byte `offset` of the block (the original's `records + offset`).
+/// The record at byte `offset` of the block.
 pub fn at_offset(offset: u32) -> u32 {
     (offset >> 5) + 1
 }
@@ -307,9 +306,8 @@ pub fn put_field_in(
     Ok(())
 }
 
-/// The dword at `offset` of a polygon vertex's record. A refusal ends the game, as the
-/// original's read of a wrong address went wrong (the polygon code's reads cannot carry
-/// one).
+/// The dword at `offset` of a polygon vertex's record. A refusal ends the game (the polygon
+/// code's reads cannot carry one).
 #[inline]
 pub fn vertex(
     part: &crate::workers::PartScratch,

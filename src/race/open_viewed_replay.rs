@@ -1,18 +1,18 @@
-//! `race::open_viewed_replay` (0x41E9FF): a replay opened for the viewer: its file
-//! (`race::replay_path`; the last race's only when one was recorded, `replay_closed`; a saved one,
-//! below 100 after the path's, copied over `var\tmprpl` first, `files::copy_file`) opened (mode 0)
-//! into `h`, `replay_open` 1, block and frame 0; its header (0x430 bytes into `Replays.header`:
-//! "REPL", version 0x50400) and its index (the last 0x3850 bytes into "RCIB": its name, the block
-//! count held to 0x708, more than 0) read; each block read (`drive::read_replay_frame_0`) for its
-//! first 8 bytes, the block's cameras (`block_cameras`); the marks round the whole; the first block
-//! read again, the cars' header (0x400 bytes from `Replays.header`) into `header_stage`, and the
-//! replay's physics patches in force (`race::apply_replay_patches`). Anything failing: the replay
-//! closed (`race::close_viewed_replay`) and carry.
+//! `race::open_viewed_replay`: opens a replay for the viewer. Its file (`race::replay_path`; the
+//! last race's only when one was recorded, `replay_closed`; a saved one, below 100 after the
+//! path's, is copied over `var\tmprpl` first, `files::copy_file`) is opened (mode 0) into `h`,
+//! with `replay_open` 1, block and frame 0. Its header (0x430 bytes into `Replays.header`:
+//! "REPL", version) and its index (the last 0x3850 bytes into "RCIB": its name, the block count
+//! held to 0x708, more than 0) are read; each block is read (`drive::read_replay_frame_0`) for its
+//! first 8 bytes and the block's cameras (`block_cameras`); the marks are set round the whole; the
+//! first block is read again, the cars' header (0x400 bytes from `Replays.header`) goes into
+//! `header_stage`, and the replay's physics patches are put in force
+//! (`race::apply_replay_patches`). When anything fails the replay is closed
+//! (`race::close_viewed_replay`) and carry is set.
 //!
-//! Takes: the replay (`race::replay_path`'s number)
+//! Takes the replay (`race::replay_path`'s number).
 //!
-//! Callers: `race::replay_viewer`, `race::viewer_action` (action 0x14),
-//! `race::save_last_replay`, 0x444014 (`sub_443FxF`'s replay run).
+//! Callers: `race::replay_viewer`, `race::viewer_action` (action 0x14), `race::save_last_replay`.
 
 use crate::errors::Refused;
 use crate::files::handle;
@@ -29,8 +29,8 @@ pub fn open_viewed_replay(
 ) -> Result<bool, Refused> {
     let replay = &race.replay;
     let shared = &race.shared;
-    // Converted: `rc2k_core::race::viewer_flow::{last_race_missing, copied_first,
-    // read_good, version_good, index_blocks, opened_marks}`.
+    // Logic in `rc2k_core::race::viewer_flow::{last_race_missing, copied_first, read_good,
+    // version_good, index_blocks, opened_marks}`.
     use rc2k_core::race::viewer_flow::{
         Blocks, CAMERA_DWORDS, CAR_HEADER_LEN, copied_first, index_blocks, last_race_missing,
         opened_marks, read_good, version_good,
@@ -132,8 +132,7 @@ pub fn open_viewed_replay(
     if { crate::drive::read_replay_frame_0::read_replay_frame_0(race, system, 0) }? {
         return failed();
     }
-    // The file's header is bytes (a byte-level copy of its stage part).
-    // Replays.header
+    // The file's header is bytes (a byte-level copy of its stage part), kept in `Replays.header`.
     let stage =
         shared
             .replays()

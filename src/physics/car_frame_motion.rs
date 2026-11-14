@@ -1,9 +1,8 @@
-//! `physics::car_frame_motion` (0x43DB71): the work car's motion (`velocity` ..,
-//! `g_car` +0x198) turned by `g_carInverseMatrix` (`scene::rotate_point`) into the car's
-//! frame, stored (rounded to floats) at `local_velocity`, `Car.local_velocity[1]`, `g_carSpeed`
-//! (+0x1A4 .. +0x1AC). The tail of `physics::apply_force` on the work car.
+//! Turns the work car's motion by its inverse matrix into the car's frame and stores it, rounded
+//! to floats, as `local_velocity` (the third part is the car speed). The tail of
+//! `physics::apply_force` on the work car.
 //!
-//! Caller: `physics::put_back_motion_vectors` (its tail).
+//! Caller: `physics::put_back_motion_vectors`.
 
 use crate::math::cells::Cells;
 use crate::scene::matrix3::{extended, rounded_value};

@@ -1,7 +1,7 @@
-//! `race::load_stage` (0x444040): "SHAUNINITEVERYTHING": the loading
-//! picture (unless `in_credits`), the cars' sounds woken, `race::loadlevel_init`, the
-//! in-game music, the controls, race init (`drive::race_init`, the game's until ported), the
-//! clock restarted and the race's starting values; each step logged and indented.
+//! `race::load_stage`: "SHAUNINITEVERYTHING": shows the loading picture (unless `in_credits`),
+//! wakes the cars' sounds, runs `race::loadlevel_init`, sets up the in-game music and the
+//! controls, runs race init (`drive::race_init`), restarts the clock and sets the race's starting
+//! values; each step is logged and indented.
 
 use crate::errors::Refused;
 use crate::race::owner::Race;
@@ -20,12 +20,13 @@ const WORDS: [&std::ffi::CStr; 9] = [
     c"----------------------------",
 ];
 
-/// `race::load_stage` (0x444040): a line break, a rule, "START", "loading screen" (indent in): the
-/// loading picture (`menu::show_loading_picture`) unless `in_credits`, `last_kept` -1,
-/// `race::wake_car_sounds`; then each with its word and the indent round it: `loadlevel_init`, the
-/// music (`game_music` with `Finish.no_place`, else `game_music_8`), `create_controls`, race init
-/// (`drive::race_init`) and `scene::restart_clock`; the starting values (`STARTS` with the clock,
-/// the blocks' +0xFB4 3 and +0xFB0 8, `LAST_STARTS`); "FINIS", a rule, a line break.
+/// `race::load_stage`: logs a line break, a rule, "START" and "loading screen" (indenting). Shows
+/// the loading picture (`menu::show_loading_picture`) unless `in_credits`, sets `last_kept` to -1
+/// and wakes the car sounds (`race::wake_car_sounds`). Then, each with its word and the indent
+/// round it: `loadlevel_init`, the music (`game_music` with `Finish.no_place`, else
+/// `game_music_8`), `create_controls`, race init (`drive::race_init`) and `scene::restart_clock`.
+/// Last come the starting values (the clocks, the start lights, and 3 light hold steps for each
+/// of the eight cars), "FINIS", a rule and a line break.
 pub fn load_stage(race: &'static Race, o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     let input = o.input;
     let indent = |by: i32| {
@@ -44,10 +45,8 @@ pub fn load_stage(race: &'static Race, o: crate::owners::Owners<'static>) -> Res
     log();
     log();
     indent(3);
-    if !race.shared.work.get().in_credits.is_set()
-    /* dword_71C3E0 */
-    {
-        // As `menu::show_loading_picture`.
+    if !race.shared.work.get().in_credits.is_set() {
+        // The same picture as `menu::show_loading_picture` shows.
         crate::gfx::show_picture_file::show_picture_file(o, &o.menus.tables.texts.loading_pcx)?;
     }
     race.replay.replay_frames().last_kept.set(u32::MAX);

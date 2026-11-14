@@ -1,12 +1,9 @@
-//! `physics::set_handling` (0x43EB5D): `physics::grade_or_reset`, then nine handling
-//! figures from the car's setup (whole numbers in the work copy, 0 .. 256 by the look of
-//! it): each lo + n / 256 (hi - lo) between two constants of 0x613F1C .. 0x613F88:
-//! `PhysicsTables.handling[8]`, `PhysicsTables.handling[7]` (by `steering_sensitivity`), `PhysicsTables.handling[1]` (`brake_balance`),
-//! `PhysicsTables.handling[2]`, `PhysicsTables.handling[4]` (`ride_height`; the second from the pair for
-//! `g_carDriveKind`, then times `ride_height_handling_scale`), `handling`, `PhysicsTables.handling[3]`, `PhysicsTables.handling[5]`,
-//! `PhysicsTables.handling[6]` (`suspension_stiffness`). What each is, is a reading.
-//!
-//! Returns: `g_carDriveKind`
+//! After `physics::grade_or_reset`, nine handling figures from the car's setup (whole numbers in
+//! the work copy, 0 .. 256 by the look of it): each lo + n / 256 (hi - lo) between two constants:
+//! `PhysicsTables.handling[8]`, `handling[7]` (by `steering_sensitivity`), `handling[1]`
+//! (`brake_balance`), `handling[2]`, `handling[4]` (`ride_height`; the second from the pair for
+//! `drive_kind`, then times `ride_height_handling_scale`), `handling[0]`, `handling[3]`,
+//! `handling[5]`, `handling[6]` (`suspension_stiffness`). What each is, is a reading.
 //!
 //! Callers: `physics::car_physics_step` (every physics step) and `race::settle_car`. Refuses
 //! (before anything) a drive kind above 1 (the cars' records have 0 and 1; the pair tables hold
@@ -23,7 +20,7 @@ use crate::race::numbers_store::Numbers;
 use crate::race::owner_shared::RaceShared;
 use crate::session::{PlainDword, PlainFloat};
 
-/// (out, setting, hi, lo) in the original's order, but the drive kind's.
+/// (out, setting, hi, lo) for each figure, except the drive kind's.
 fn before<'a>(
     car: &'a Car,
     tables: &'a PhysicsTables,

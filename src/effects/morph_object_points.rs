@@ -1,18 +1,15 @@
-//! `effects::morph_object_points` (0x4D08DD, reached through the jumps at 0x4D074D and
-//! 0x4D0815): for each car (the settings' +0x5C, the last first; its block at +0x29C of
-//! its 0x4C8 bytes) the block's +0xC its +8; when its eight factors (+0x90 ..) differ from
-//! the kept ones (+0xB0 ..): +0xC -1, the factors kept (also in `MorphWork.kept[0]` ..), and
-//! for each of its first object's (+0) points the matching point of the second object
-//! (+4) blended toward from the base list (+0x8C) by `effects::blend_corner`, where the
-//! base and the second object's point differ. Then `effects::measure_lines`.
+//! `effects::morph_object_points`: for each car (the settings' +0x5C, the last first; its
+//! block at +0x29C of its 0x4C8 bytes) the block's +0xC its +8; when its eight factors
+//! (+0x90 ..) differ from the kept ones (+0xB0 ..): +0xC -1, the factors kept (also in
+//! `MorphWork.kept[0]` ..), and for each of its first object's (+0) points the matching
+//! point of the second object (+4) blended toward from the base list (+0x8C) by
+//! `effects::blend_corner`, where the base and the second object's point differ. Then
+//! `effects::measure_lines`.
 //!
-//! Works on `g_marksSettings`.
-//!
-//! Caller: `effects::frame_marks`. Refuses (before anything) null settings, more than 8 cars, and
-//! for a car whose factors changed: an object past 0xFF, a null base list or one (`lines::
-//! BLOCK_POINTS`, Rust's since phase 12) shorter than the points, points past the
-//! object points' room, a point count below 0 (the loop runs on); and `measure_lines`'
-//! refusals (all it may write is put back first).
+//! Refuses (before anything) null settings, more than 8 cars, and for a car whose factors changed:
+//! an object past 0xFF, a null base list or one (`Paths::block_points`) shorter than the points,
+//! points past the object points' room, a point count below 0; and `measure_lines`' refusals (all
+//! it may write is put back first).
 
 use crate::effects::blend_corner::blend_corner;
 use crate::effects::lines::measure_lines;
@@ -39,8 +36,8 @@ fn blocks(effects: &crate::effects::owner::Effects) -> Result<Vec<&'static CarEf
     })
 }
 
-/// Whether a block's factors differ from its kept ones (compared by bits, as the original's
-/// integer compare: a NaN or a signed zero counts as it is stored).
+/// Whether a block's factors differ from its kept ones (compared by bits, as an integer
+/// compare: a NaN or a signed zero counts as it is stored).
 fn changed(b: &CarEffects) -> bool {
     b.factors
         .iter()
@@ -48,7 +45,7 @@ fn changed(b: &CarEffects) -> bool {
         .any(|(f, kept)| f.bits() != kept.bits())
 }
 
-/// A block's objects' first points (in `g_objectPoints`) and their count.
+/// A block's objects' first points (in the object points) and their count.
 fn points(course: &Course, scene: &Scene, b: &CarEffects) -> Result<(u32, u32, i32), Refused> {
     Ok({
         let base: u32 = course.lists.get().object_points.get();
@@ -158,17 +155,17 @@ pub fn morph_object_points(
     Ok(())
 }
 
-/// The object morph's work (IDA 0x93C6CC .. 0x93C6F4).
+/// The object morph's work.
 #[derive(rc2k_derive::Cells)]
 pub struct MorphWork {
-    /// 0x93C6CC: `g_marksTaken`: the block last taken for a settings block's points (`lines::set_up_blocks`)
+    /// The block last taken for a settings block's points (`lines::set_up_blocks`)
     pub taken: PlainDword,
-    /// 0x93C6D4: `dword_93C6D4` .. `dword_93C6F0`: the factors kept
+    /// The factors kept
     pub kept: [PlainFloat; 8],
 }
 
 impl MorphWork {
-    /// The values the game starts with (the image's bytes).
+    /// The values the game starts with.
     pub const fn new() -> Self {
         MorphWork {
             taken: PlainDword::new(0x0),

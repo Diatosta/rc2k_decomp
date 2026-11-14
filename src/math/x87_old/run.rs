@@ -1,13 +1,12 @@
 //! More x87 helpers (see `math/x87.rs`), kept apart so that work on the race's run does not
 //! edit the shared file.
 //!
-//! Plain Rust since phase 6 (2026-10-24): what the x87 holds on its stack is an `X` (an
-//! `f64` that rounds as the control word says, `x87_float.rs`), what it stores as a dword
-//! float `st`, `fild` is `int`, `fistp` / `fist` `to_int`. The 80-bit values some
-//! functions carry between steps (`[u8; 10]`, the signatures stay) are `X` inside: at
-//! double precision every step's result has 53 bits, so the conversion at the boundary is
-//! exact. The order of the operations is the original's. Their comparison with the
-//! original's instructions is frozen in `x87_frozen_c.rs`.
+//! What the x87 holds on its stack is an `X` (an `f64` that rounds as the control word
+//! says, `x87_float.rs`), what it stores as a dword float `st`, `fild` is `int`, `fistp` /
+//! `fist` `to_int`. The 80-bit values some functions carry between steps (`[u8; 10]`)
+//! are `X` inside: at double precision every step's result has 53 bits, so the conversion
+//! at the boundary is exact. Their comparison with the x87's instructions is frozen in
+//! `x87_frozen_c.rs`.
 
 use super::{set_chop, set_control};
 use crate::math::x87_float::{ONE, compare, f80, from_f80, int, ld, st, to_int};
@@ -34,11 +33,11 @@ pub fn plane_height(a: i32, b: i32, c: i32, f: u32, g: u32) -> i32 {
     to_int(p + (q + c))
 }
 
-/// `physics::face_shares`' floating point part, the original's operations in its order.
-/// `i`: the differences d738, d73C, d740, d750, d754, d758 (whole numbers) and the scale
-/// `Numbers.k65536` (bits) at [6]. `o` gets f764, f75C, f760, f810, i800, f814, i804, and with
-/// `sse` f768 (`rcpss` of f764) at [7]. (`rcpss` is the SSE approximation, from the tables
-/// of `arch::rcpss`: the processors' own results differ.)
+/// `physics::face_shares`' floating point part. `i`: the six differences (whole numbers:
+/// x[0..3] then z[0..3]) and the scale `Numbers.k65536` (bits) at [6]. `o` gets, in
+/// order, the three cross products, the first quotient, the whole number it gives times the
+/// scale, the second quotient and its whole number, and with `sse` the reciprocal (`rcpss`
+/// of the first cross product, from the tables of `arch::rcpss`) at [7].
 pub fn face_shares(i: &[u32; 7], o: &mut [u32; 8], sse: bool) {
     let n = |k: usize| int(i[k] as i32);
     let scale = ld(i[6]);
@@ -107,9 +106,9 @@ pub fn ext_times(e: [u8; 10], k: u32) -> [u8; 10] {
     f80(from_f80(e) * ld(k))
 }
 
-/// A ramp through (t0, t1) .. (t2, t3) as the original reads it: below t0 (or no number)
-/// t1; not below t2, t3; t2 - t0 equal to `zero` (or no number), t1; else
-/// `(x - t0) / (t2 - t0) (t3 - t1) + t1`. Rounded to a float (the `fstp`).
+/// A ramp through (t0, t1) .. (t2, t3): below t0 (or no number) t1; not below t2, t3;
+/// t2 - t0 equal to `zero` (or no number), t1; else `(x - t0) / (t2 - t0) (t3 - t1) + t1`.
+/// Rounded to a float.
 pub fn ramp(x: u32, t: [u32; 4], zero: u32) -> u32 {
     if compare_full(x, t[0]) & 0x100 != 0 {
         return super::loaded(t[1]);
@@ -236,8 +235,8 @@ pub fn ext_add(a: [u8; 10], b: [u8; 10]) -> [u8; 10] {
     f80(from_f80(a) + from_f80(b))
 }
 
-/// `-((((v - one) a) + one) g m) a`... in the original's order: `(v - one) a + one`, times
-/// `g`, times `m`, negated, times `a`.
+/// `-((((v - one) a) + one) g m) a`, in this order: `(v - one) a + one`, times `g`, times
+/// `m`, negated, times `a`.
 pub fn weight_force(v: u32, one: u32, a: u32, g: u32, m: u32) -> u32 {
     let x = ((ld(v) - ld(one)) * ld(a) + ld(one)) * ld(g) * ld(m);
     st(-x * ld(a))
@@ -248,11 +247,11 @@ pub fn neg_product2_plus(a: u32, b: u32, c: u32, d: u32) -> u32 {
     st(-(ld(a) * ld(b) * ld(c)) + ld(d))
 }
 
-/// `physics::clamped_asin`'s body (0x42120B) on the 80-bit `x`, its scratch float at `s`
-/// and its limit at `l` (negated and put back on the way, as the original does): the
-/// angle whose sine is `x`, by `atan2` of `x` over the root of 1 less the square of `x`
-/// stored as a float and held to -limit ..= limit (`fpatan`: libm's `atan2` within 2 ulp
-/// of the instruction's). A compare that finds the values unordered counts as "below".
+/// `physics::clamped_asin`'s body on the 80-bit `x`, its scratch float at `s` and its limit
+/// at `l` (negated and put back on the way): the angle whose sine is `x`, by `atan2` of `x`
+/// over the root of 1 less the square of `x` stored as a float and held to
+/// -limit ..= limit (libm's `atan2`, within 2 ulp of the x87's `fpatan`). A compare that
+/// finds the values unordered counts as "below".
 pub fn clamped_asin_80(x: [u8; 10], s: &mut u32, l: &mut u32) -> [u8; 10] {
     let x = from_f80(x);
     let limit = ld(*l);
@@ -293,7 +292,7 @@ pub fn neg_rounded(x: [u8; 10]) -> u32 {
     st(-from_f80(x))
 }
 
-/// `physics::lever_pushes`' share (0x43DE23 .. 0x43DEAC): A = |a| + |d|, B = |b| + |c|,
+/// `physics::lever_pushes`' share: A = |a| + |d|, B = |b| + |c|,
 /// their sum B + A compared with `zero`; equal or unordered: returns A rounded and true;
 /// else A / (B + A) rounded and false.
 pub fn lever_share(a: u32, d: u32, b: u32, c: u32, zero: u32) -> (u32, bool) {

@@ -1,9 +1,7 @@
-//! `physics::checkpoint_offset` (0x4415E7): the work car's place against its checkpoint
-//! (`g_car` +0x98). With a checkpoint after it (+0x98 + 1 below `g_checkpointCount`, by
-//! the sign of the difference): the checkpoint's face (`g_checkpointFaces`), that face's
-//! first point (`g_courseFaces` +4, `g_scenePoints`), the car's x and z less the point's,
-//! turned by minus the checkpoint's angle (`Buffers.checkpoints.angles[2]`, `math::rotate_point_about_y`) into
-//! +0x620 and +0x624. Else both 0.
+//! The work car's place against its checkpoint. With a checkpoint after the car's (its number + 1
+//! below the checkpoint count): the checkpoint's face's first point, the car's x and z less the
+//! point's, turned by minus the checkpoint's angle (`math::rotate_point_about_y`) into the two
+//! checkpoint offset fields. Otherwise both are 0.
 //!
 //! Caller: `physics::track_checkpoints`. Refuses (before anything) a checkpoint below 0 or past
 //! 0x1418, or no faces or points.
@@ -15,7 +13,7 @@ use crate::race::owner_course::Course;
 use crate::race::vars_store::RaceVars;
 use rc2k_core::physics::progress::checkpoint_ahead;
 
-// Converted: `rc2k_core::physics::progress::checkpoint_ahead` (the turn stays
+// Core: `rc2k_core::physics::progress::checkpoint_ahead` (the turn stays
 // `math::rotate_point_about_y`'s).
 pub fn checkpoint_offset(
     engine_tables: &crate::scene::engine_tables_store::EngineTables,

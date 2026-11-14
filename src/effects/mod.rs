@@ -1,11 +1,9 @@
 //! The race's effects: the weather (rain, snow), the wheels' spray, dust and mud, the drops
 //! on the windscreen, the lens flare and the surface textures they need (files\m\: masks,
-//! edges, snow, splines, surface data). `effects::init_marks` (0x4D12F7) sets them up as a
-//! stage loads, `effects::run_frame` (0x4D1549) runs them each frame of the race.
+//! edges, snow, splines, surface data). `effects::init_marks` sets them up as a
+//! stage loads, `effects::run_frame` runs them each frame of the race.
 //!
-//! The game's own name for the step is
-//! "init mark" (its loading log), and its data is `g_marks*` in IDA; the functions'
-//! IDA names are `effects::*` like this module's.
+//! The game's own name for the step is "init mark" (its loading log).
 
 pub mod add_drift_particle;
 pub mod add_mark_slot;

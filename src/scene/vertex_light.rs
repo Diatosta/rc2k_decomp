@@ -1,6 +1,5 @@
-//! `scene::vertex_light` (0x450F17): the colour the light gives a vertex of an object.
-//!
-//! Takes: the vertex's fourth dword, the number of its normal
+//! `scene::vertex_light`: the colour the light gives a vertex of an object. Takes the vertex's
+//! fourth dword and the number of its normal.
 //!
 //! By the kind of lighting (`light_kind`):
 //! - with neither `scene_set_up` nor the stage's `lit_b` set, or kind 0 (and not kind 4):
@@ -30,8 +29,6 @@ use crate::scene::light_dot::light_dot;
 
 // ---- game data ----
 const TABLE_LEN: u32 = 0x100;
-
-// ---- Rust version ----
 
 /// Byte by byte without overflow: all four with MMX, the low three without.
 pub fn plus(a: u32, b: u32, mmx: bool) -> u32 {

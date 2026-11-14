@@ -17,8 +17,8 @@ pub fn locked(audio: &Audio) -> MutexGuard<'_, Queue> {
         .unwrap_or_else(PoisonError::into_inner)
 }
 
-/// `sound::send_command` (0x409C45). Without audio the queue is emptied and nothing is
-/// queued; a full queue takes nothing.
+/// `sound::send_command`. Without audio the queue is emptied and nothing is queued; a full queue
+/// takes nothing.
 pub fn send_command_in(audio: &Audio, command: Command) {
     send_with_eax_in(audio, command, None);
 }
@@ -69,7 +69,7 @@ fn hash_if_asked(audio: &Audio, command: u32, registers: [u32; 7]) {
     }
 }
 
-/// 0x409C01: true if commands are still waiting. Without audio the queue is emptied.
+/// True if commands are still waiting. Without audio the queue is emptied.
 pub fn pending(audio: &Audio) -> bool {
     let mut queue = locked(audio);
     if audio.state.no_audio.is_set() {

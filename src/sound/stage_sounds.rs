@@ -1,22 +1,20 @@
-//! `sound::stage_sounds` (0x40E2A9): the stage's own sounds for the turn: three one-off
-//! sounds, a timed one, two that play all the time and two at a random pitch and place.
+//! `sound::stage_sounds`: the stage's own sounds for the turn: three one-off sounds, a timed one,
+//! two that play all the time and two at a random pitch and place.
 //!
-//! The request's pitch and volume factors (+0x20, +0x24) are set to 1.0. Each of
-//! `StageSounds.once[0]`, `StageSounds.once[1]`, `StageSounds.once[2]` at 1 is cleared and sound 0x1AB,
-//! 0x1AC, 0x1AD played (`sound::play_sound`: the sound's own volume and rate, pan 0, a
-//! third place value of -1.0). `StageSounds.timed_arm` at 1 (cleared) arms the timed sound: due (`StageSounds.timed_due`) at
-//! the clock + `StageSounds.timed_delay`, waiting (`StageSounds.timed_waiting`) 1. While it waits and is not due
-//! (`js`) the slot is skipped; once due, its slot (`StageSounds.timed_slot.sound`) is told to start and the
-//! wait ends. Otherwise the slot (`sound::play_timed_slot`) at the place
-//! `StageSounds.timed_place[0]` .. `StageSounds.timed_place[2]`. Then sound 0x1C5 with the volume `StageSounds.loop_volume_a` / 2
-//! (`sar`), second place value 1.0, third -1.0, and 0x1C6 with `StageSounds.loop_volume_b`, second 1.0, third 0. Each of
-//! `StageSounds.random[0]`, `StageSounds.random[1]` at 1 (cleared): one `math::next_random` gives the
-//! volume (0x21 + its low five bits), the rate (the mix rate + its next nine bits less
-//! 0x100 times the mix rate over 4096) and two floats of nine bits less 0x100 and nine
-//! bits, x 0.01 (through `g_soundScratch`), as the first and second place values, the third 1.0: sound 0x1AE / 0x1AF.
-//! One caller, `sound::race_turn`.
-//! Refuses nothing of its own (what the slot refuses puts back what was written; sounds
-//! already sent stay sent).
+//! The request's pitch and volume factors are set to 1.0. Each of `StageSounds.once` at 1 is
+//! cleared and sound 0x1AB, 0x1AC, 0x1AD played (`sound::play_sound`: the sound's own volume and
+//! rate, pan 0, a third place value of -1.0). `StageSounds.timed_arm` at 1 (cleared) arms the timed
+//! sound: due (`StageSounds.timed_due`) at the clock + `StageSounds.timed_delay`, waiting
+//! (`StageSounds.timed_waiting`) 1. While it waits and is not due the slot is skipped; once due,
+//! its slot (`StageSounds.timed_slot.sound`) is told to start and the wait ends. Otherwise the slot
+//! (`sound::play_timed_slot`) is played at `StageSounds.timed_place`. Then sound 0x1C5 with the
+//! volume `StageSounds.loop_volume_a` / 2, second place value 1.0, third -1.0, and 0x1C6 with
+//! `StageSounds.loop_volume_b`, second 1.0, third 0. Each of `StageSounds.random` at 1 (cleared):
+//! one `math::next_random` gives the volume (0x21 + its low five bits), the rate (the mix rate +
+//! its next nine bits less 0x100 times the mix rate over 4096) and two floats of nine bits less
+//! 0x100 and nine bits, x 0.01, as the first and second place values, the third 1.0: sound 0x1AE /
+//! 0x1AF. One caller, `sound::race_turn`. Refuses nothing of its own (what the slot refuses puts
+//! back what was written; sounds already sent stay sent).
 
 use crate::errors::Refused;
 use crate::sound::sample_settings::OWN;
@@ -25,7 +23,7 @@ use crate::sound::sample_settings::OWN;
 const ONE_OFFS: [(usize, u32); 3] = [(0, 0x1AB), (1, 0x1AC), (2, 0x1AD)];
 /// The random sounds: the flag's index in `random` and the sound.
 const RANDOMS: [(usize, u32); 2] = [(0, 0x1AE), (1, 0x1AF)];
-/// g_mixRateSetting.
+/// 1.0 as float bits.
 const ONE: u32 = 0x3F80_0000;
 const MINUS_ONE: u32 = 0xBF80_0000;
 
@@ -48,7 +46,7 @@ pub fn stage_sounds(
             play(sound, OWN, OWN, [0, 0, MINUS_ONE]);
         }
     }
-    // Converted: `rc2k_core::sound::stage::wait_turn`.
+    // The logic is `rc2k_core::sound::stage::wait_turn`.
     let clock = sound.race.clock.get().last.get();
     let mut wait = rc2k_core::sound::stage::Wait {
         arm: stage.timed_arm.get(),
@@ -83,7 +81,7 @@ pub fn stage_sounds(
         }
         stage.random[n].set(0);
         let n = crate::math::next_random::SOUNDS.next();
-        // Converted: `rc2k_core::sound::stage::random`.
+        // The logic is `rc2k_core::sound::stage::random`.
         let r = rc2k_core::sound::stage::random(n, audio.state.mix_rate_setting.get());
         // The scratch dword holds the last float.
         system.machine().scratch.set(r.ahead.to_bits());

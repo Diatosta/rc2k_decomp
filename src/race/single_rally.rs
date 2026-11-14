@@ -1,14 +1,11 @@
-//! `race::single_rally_race` (0x4843EC, `single_rally`'s race): the chosen
-//! track looked up (`g_trakPakHeader`), the settings and the players' records
-//! (`g_players`) copied into the front end's race variables, the race run
-//! (`race::race_from_menu`, with the sound objects and the screen modes round it), and the
-//! results copied back into the players' records.
+//! `race::single_rally_race` (`single_rally`'s race): the chosen track is looked up in the track
+//! list, the settings and the players' records are copied into the race variables, the race runs
+//! (`race::race_from_menu`, with the sound objects and screen modes set round it), and the
+//! results are copied back into the players' records.
 //!
-//! Plain Rust: copies between a record and the game's variables, the calls (`Call`, done
-//! by `step`), the track search as a loop, two divisions by 10 and one float-to-integer
-//! conversion. It was checked against an interpreter of the original's instructions on
-//! synthetic memory and players, with calls that record themselves (`table` and the test at the
-//! end of the file, `cfg(test)` only).
+//! Plain Rust: copies between a record and the race variables, the calls (`Call`, done by
+//! `step`), the track search as a loop, two divisions by 10 and one float-to-integer conversion.
+//! The test at the end of the file compares it with recorded results (`cfg(test)` only).
 
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::menu::owner::Menus;
@@ -21,13 +18,9 @@ use crate::session::PlainDword;
 use crate::system::owner::system;
 use rc2k_core::menu::player::{Player, TAKES_PART};
 
-/// A player's or a track's record: a game address.
+/// A player's record.
 type Record<'a> = crate::menu::standings::PlayerCell<'a>;
 
-// g_trakPakHeader (0x734BC6, `records::stages_store`): +0x34 the entries, 0x40 apart. An
-// entry (at `edi`) holds its track number at +0x34; the list ends at a dword -1 where the
-// next entry would start.
-/// g_players (0x75647C): the players' records, 4 bytes each.
 // The front end's words the race reads and writes (`Menus`):
 // - ChampView.summary: whether the standings summary is taken (1, `saves::best_times::SUMMARY`),
 //   copied to `RaceState.settings.rivals`.
@@ -108,17 +101,17 @@ fn result() -> &'static PlainDword {
 fn result_2() -> &'static PlainDword {
     &crate::race::owner::RACE.shared.state.results.results[1].result
 }
-/// One player's side of the race variables: the car's settings and the results it
-/// leaves. `first_side` is player 1's, `current_side` the current player's.
+/// One player's side of the race variables: the car's settings and the results it leaves.
+/// `first_side` is player 1's, `current_side` the current player's.
 struct Side<'a> {
     car: &'a RaceCar,
-    /// RaceState.settings.car_kind_current / RaceState.settings.car_kind_first: the record's `car_number` (+8).
+    /// `RaceState.settings.car_kind_current` or `car_kind_first`: the record's `car_number`.
     car_kind: &'a dyn DwordLike,
     /// The record's `service_spent`.
     service_spent: &'a dyn DwordLike,
     /// The record's `state_flags`.
     flags: &'a dyn DwordLike,
-    /// RaceState.results.hud_bits_current (the current's): the record's `hud_bits`.
+    /// `RaceState.results.hud_bits_current` or `hud_bits_first`: the record's `hud_bits`.
     hud_bits: &'a dyn DwordLike,
     /// The car's result, and the 0x20 bytes of its `impact_marks`.
     result: &'a RaceResult,
@@ -187,13 +180,13 @@ fn set_field(rec: Record, off: u32, v: u32) -> Result<(), BadInput> {
     Ok(())
 }
 
-/// `g_players`[n].
+/// `players`[n].
 pub fn player(menus: &Menus, n: u32) -> Result<Record<'_>, BadInput> {
     crate::menu::player::player(menus, n).ok_or(BadInput("a player past the four"))
 }
 
-/// A record's controller settings into a car's: the controller, gearing, sensitivity, axes,
-/// mode, dead zones, strength, and the 0x2C bytes of `bindings` as eleven words
+/// A record's controller settings into a car's: the controller, gearing, sensitivity, axes, mode,
+/// dead zones, strength, and the 0x2C bytes of `bindings` as eleven words
 /// (`PlayerControls::recorded_bindings`).
 fn take_controls(p: &Player, car: &PlayerControls) {
     car.controller.set(p.controller);
@@ -216,11 +209,10 @@ fn take_keys(p: &Player, keys: &Bytes<12>) {
     }
 }
 
-/// A record into a side's variables: the car, set-up, HUD choices, state, and (with
-/// `condition`) the damage and wear. The original also writes the car's `wear[9]` from the
-/// record's `damage[12]`, and the first side's `view` from `view` and then `second_view`
-/// (the caller writes the second); each is replaced by the write after it, so only the
-/// last is made.
+/// A record into a side's variables: the car, set-up, HUD choices, state, and (with `condition`)
+/// the damage and wear. The car's `wear[9]` (from `damage[12]`) and the first side's `view` (from
+/// `view`, then `second_view`) are not written here: a later write replaces them, so only that
+/// one is made.
 fn take_player(p: &Player, side: &Side, condition: bool) {
     let car = side.car;
     side.car_kind.set(p.car_number);
@@ -266,9 +258,8 @@ fn take_block(p: &Player, result: &RaceResult) {
     }
 }
 
-/// The total a record keeps in `damage[1]` (+0xD8): a tenth of the sum of the car's four times, and
-/// a tenth of six times the extra word. The original divides with `div ebp`, after a test of the
-/// dividend for 0 that skips the division, so its fatal error 0x80701010 is out of reach.
+/// The total a record keeps in `damage[1]`: a tenth of the sum of the car's four times, and a
+/// tenth of six times the extra word. A division by 10 cannot fail, so there is no error path.
 fn total(car: &RaceCar) -> u32 {
     let sum = car.wear[10]
         .get()
@@ -278,10 +269,10 @@ fn total(car: &RaceCar) -> u32 {
     (sum / 10).wrapping_add(car.wear[14].get().wrapping_mul(6) / 10)
 }
 
-/// A side's variables back into its record. As the original's lists do: the damage words are
-/// written from the car's damage first, then `damage[1]` is replaced by the total and
-/// `damage[5]`, `[9]`, `[11]` and `[13]` by the wear words 22, 27, 30 and 35 (the original's
-/// slip, kept); `damage[12]` takes `wear[9]`.
+/// A side's variables back into its record. The damage words are written from the car's damage
+/// first, then `damage[1]` is replaced by the total and `damage[5]`, `[9]`, `[11]` and `[13]` by
+/// the wear words 22, 27, 30 and 35; `damage[12]` takes `wear[9]`. The earlier writes of `[13]`
+/// are overwritten, as they always were.
 fn give_player(p: &mut Player, side: &Side) {
     let car = side.car;
     p.hud_bits = side.hud_bits.get() as i32;
@@ -307,9 +298,9 @@ fn give_player(p: &mut Player, side: &Side) {
     p.view = car.view.get();
 }
 
-/// A car's outcome into its record: a result of -1 or -2 puts the time at 0x36EE80 and the
-/// entry at 6 (out); any other copies the time, the result word, the seconds rounded times
-/// 10 (`figure`) and the 0x40 bytes of data (`best_line`).
+/// A car's outcome into its record: a result of -1 or -2 sets the time to 0x36EE80 and the entry
+/// to 6 (out); any other copies the time, the result word, the seconds rounded times 10
+/// (`figure`) and the 0x40 bytes of data (`best_line`).
 fn give_outcome(p: &mut Player, result: &RaceResult) {
     let r = result.result.get();
     if r == -2i32 as u32 || r == -1i32 as u32 {
@@ -324,10 +315,9 @@ fn give_outcome(p: &mut Player, result: &RaceResult) {
     }
 }
 
-/// `race::single_rally_race` (0x4843EC): `start` the run's start (1: the loading picture is not
-/// shown again after), `kind` the kind (3: the rally's times copied first). Refuses, before
-/// anything, a missing player record (`g_players`[1] or [`Event.current_player`]; the original reads and
-/// writes through it).
+/// `race::single_rally_race`: `start` the run's start (1: the loading picture is not shown again
+/// after), `kind` the kind (3: the rally's times copied first). Refuses, before anything, a missing
+/// player record (player 1 or `Event.current_player`).
 pub fn single_rally_race(
     o: crate::owners::Owners<'static>,
     start: u32,
@@ -348,7 +338,7 @@ fn guarded(
     single_rally(o, start, kind, step)
 }
 
-/// The last calls of the original (from 0x897 of the table): the kept word back, the tune.
+/// The end of the race: the kept word put back, then the tune.
 fn finish(
     menus: &Menus,
     race: &Race,
@@ -359,8 +349,8 @@ fn finish(
     step(Call::PlayTune3)
 }
 
-/// The debug UI's test races: the players' records into the race's settings as a race does
-/// (the HUD, the keys, the set-up, ...), without their damage and wear.
+/// The debug UI's test races: the players' records into the race's settings as a race does (the
+/// HUD, the keys, the set-up, ...), without their damage and wear.
 #[cfg(debug_ui)]
 pub fn player_settings_in(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     let (menus, race) = (o.menus, o.race);
@@ -378,7 +368,7 @@ pub fn player_settings_in(o: crate::owners::Owners<'static>) -> Result<(), Refus
     Ok(())
 }
 
-/// The original's body; `step(call)` does the call `call`.
+/// The whole race; `step(call)` does the call `call`.
 fn single_rally(
     o: crate::owners::Owners<'static>,
     start: u32,
@@ -393,8 +383,8 @@ fn single_rally(
     let (event, current) = (&menus.screens.event, &menus.screens.event.current_player);
     let switch = &menus.play.arcade.scene_let_go;
     let (first_side, current_side) = (first_side(race), current_side(race));
-    // Closed on a menu whose item leads here (a window's close, MENU + START): the screen is
-    // left as if chosen, with no stage yet. Not the original's, whose close stopped nothing.
+    // Closed on a menu whose item leads here (a window's close, MENU + START): the screen is left
+    // as if chosen, with no stage yet.
     if system.session.flags.quitting.is_set() {
         crate::standalone::leave_on_close(o);
     }
@@ -436,7 +426,7 @@ fn single_rally(
             return Err(UNKNOWN_TRACK.into());
         }
     };
-    // The entry's +0x1C (temperature) and +0x20 (wind) into the race variables.
+    // The entry's temperature and wind into the race variables.
     settings.track_1c.set(entry.temperature.get());
     settings.track_20.set(entry.wind.get());
     for (from, to) in settings_to_race(menus, race) {
@@ -513,8 +503,8 @@ fn single_rally(
     finish(menus, race, step)
 }
 
-/// The calls into the rest of the game that the race makes, in the order they are numbered
-/// in the tests' record of them.
+/// The calls into the rest of the game that the race makes, in the order they are numbered in the
+/// tests' record of them.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Call {
     /// `race::copy_rally_times`.
@@ -582,9 +572,8 @@ pub fn step(o: crate::owners::Owners<'static>, call: Call) -> Result<(), Refused
     Ok(())
 }
 
-/// The plain version against the outputs of the original's instructions (the table an
-/// interpreter ran), recorded (`test_support::race_vectors`): for each case the result,
-/// the calls in order with the memory at each, and the memory left.
+/// The plain version against recorded results (`test_support::race_vectors`): for each case the
+/// result, the calls in order with the memory at each, and the memory left.
 #[cfg(test)]
 mod vector_tests {
     use super::*;
@@ -594,8 +583,8 @@ mod vector_tests {
 
     const STATE: &str = "race.owner.RACE.shared.state";
 
-    /// The memory the function and its calls' stand-ins read and write: (store, field, byte of
-    /// the field's cells to start at, bytes), in the order of the original's addresses.
+    /// The memory the function and its calls' stand-ins read and write: (store, field, byte of the
+    /// field's cells to start at, bytes).
     #[rustfmt::skip]
     const RANGES: [(&str, &str, usize, usize); 247] = [
         ("menu.owner.MENU_OWNER.screens.event", ".sparks_mode", 0, 0x4),
@@ -882,7 +871,7 @@ mod vector_tests {
         current: u32,
         /// The +0xD0 word of each record.
         d0: [u32; 4],
-        /// Records `g_players` has no entry for (0).
+        /// Records `players` has no entry for (0).
         stage: u32,
         /// The entry of the track list holding the stage, or the entry the list ends at.
         entry: usize,
@@ -902,8 +891,8 @@ mod vector_tests {
         seed: u64,
     }
 
-    /// The calls' stand-ins: they log (place, the memory then), may fail, and write what the
-    /// real calls would change that the function reads after.
+    /// The calls' stand-ins: they log (place, the memory then), may fail, and write what the real
+    /// calls would change that the function reads after.
     struct Calls<'a> {
         case: &'a Case,
         log: Vec<(u32, u64)>,
@@ -915,8 +904,8 @@ mod vector_tests {
         crate::test_support::hash(&ranges_bytes())
     }
 
-    /// The ranges' bytes (`g_players`, read by nothing, holds the records' numbers: the
-    /// cases set them so).
+    /// The ranges' bytes (`players`, read by nothing, holds the records' numbers: the cases set
+    /// them so).
     fn ranges_bytes() -> Vec<u8> {
         let mut out = Vec::new();
         for (name, path, skip, len) in RANGES {
@@ -1008,8 +997,8 @@ mod vector_tests {
         event_mode().set(c.mode);
         player_count().set(c.count);
         current().set(c.current);
-        // The track list: the stage's number in its entry; -1 at the start of the entry the
-        // list ends at.
+        // The track list: the stage's number in its entry; -1 at the start of the entry the list
+        // ends at.
         let tracks = &system().records().stage_tables.trak_pak.tracks;
         for (k, track) in tracks.iter().take(6).enumerate() {
             let mut id = rng.next();
@@ -1033,8 +1022,8 @@ mod vector_tests {
     }
 
     /// A case's outcome as words: the result (0 done, 1 a fatal error with its code and its
-    /// message's hash, 2 the injected failure), the calls (their count and a hash of the
-    /// places with the memory at each) and the hash of the memory left.
+    /// message's hash, 2 the injected failure), the calls (their count and a hash of the places
+    /// with the memory at each) and the hash of the memory left.
     fn outcome(result: &Result<(), Refused>, log: &[(u32, u64)]) -> [u32; 8] {
         let (kind, code, message) = match result {
             Ok(()) => (0, 0, 0),
@@ -1154,8 +1143,8 @@ mod vector_tests {
         out
     }
 
-    /// The plain version gives the original's result, calls with the memory at each, and
-    /// memory left, case by case.
+    /// The plain version gives the recorded result, calls with the memory at each, and memory
+    /// left, case by case.
     #[test]
     fn single_rally_is_the_originals() {
         let _g = crate::test_support::test_lock();

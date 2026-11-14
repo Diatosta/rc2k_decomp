@@ -1,14 +1,13 @@
-//! A view's own working state (frame plan F4, `notes/frame_plan.md`): what a view's drawing
-//! writes and reads within itself, one `ViewScratch` per view slot (each player's view and
-//! each one's mirror), set back to its first values as each race view's scene begins
-//! (`ViewScratch::begin`; the front end's slot keeps its values between the menus' draws),
-//! passed down the drawing in a `DrawCtx` rather than reached through statics. Never read by
-//! another step.
+//! A view's own working state: what a view's drawing writes and reads within itself, one
+//! `ViewScratch` per view slot (each player's view and each one's mirror), set back to its first
+//! values as each race view's scene begins (`ViewScratch::begin`; the front end's slot keeps its
+//! values between the menus' draws), passed down the drawing in a `DrawCtx` rather than reached
+//! through statics. Never read by another step.
 //!
 //! The race's four slots (views 0 and 1, mirrors 0 and 1) are `PartCell`s: the parts of a
-//! drawing scope get theirs from `workers::draw_parts` (`workers::PartRun::view`), the game's
+//! drawing scope get theirs from `workers::draw_parts` (`workers::PartRun::view`), the main
 //! thread reaches them by `main_view`, `mirror` and `slot` outside the parts. The front end's
-//! slot belongs to the game's thread alone (`front_end`, a `GameThread`).
+//! slot belongs to the main thread alone (`front_end`, a `GameThread`).
 //!
 //! Every cell in a `ViewScratch` is a plain one (the sort lists, the view's car, the matrices
 //! the effects and the listener read included): the scratch is reached by one thread at a time
@@ -16,13 +15,11 @@
 //! stays atomic beside it is statics (`face_work::LAST_FACE_VIEW`) and the mutex of a part's
 //! noted drawing (`workers::PartScratch::noted`).
 //!
-//! Holds so far the two sort lists the view's drawing fills, sorts and draws (the original's
-//! `g_depthEntries` / `g_sortEntries` at 0x9D3730 in the buffers block, one for every view)
-//! and their counts (the original's `RACE_VIEW.depth_entry_count` / `sort_entry_count`), and
-//! the view's fog (`scene::fog`), its object's placing (`scene::object_place`) and its
-//! object lighting (`scene::object_light`), its face work (`race::face_work`), its cars'
-//! drawing state (`race::car_draw_state`), its matrices (`scene::view_matrices`) and its
-//! polygon pipeline's work (`scene::polygon_work`).
+//! Holds the two sort lists the view's drawing fills, sorts and draws and their counts, the
+//! view's fog (`scene::fog`), its object's placing (`scene::object_place`) and its object lighting
+//! (`scene::object_light`), its face work (`race::face_work`), its cars' drawing state
+//! (`race::car_draw_state`), its matrices (`scene::view_matrices`) and its polygon pipeline's work
+//! (`scene::polygon_work`).
 
 use crate::errors::BadInput;
 use crate::part_cell::{PartCell, PartTurn};
@@ -34,10 +31,10 @@ pub const ENTRIES: usize = 0x1000;
 /// The lists' cells: the depth entries, the sort entries, then the overrun.
 const CELLS: usize = 4 * ENTRIES + 0x10;
 
-/// A view's sort lists, 8-byte entries (+0 the key, +4 the second word): the depth entries
-/// (lamps, flares, cars, faces drawn by depth) and the sort entries (the course faces); then
-/// 0x10 dwords that a flare's entry is read on into as a description of 0x3C bytes
-/// (`scene::draw_described_object`), past the last sort entry as past the original's.
+/// A view's sort lists, 8-byte entries (+0 the key, +4 the second word): the depth entries (lamps,
+/// flares, cars, faces drawn by depth) and the sort entries (the course faces); then 0x10 dwords
+/// that a flare's entry is read on into as a description of 0x3C bytes
+/// (`scene::draw_described_object`), past the last sort entry.
 #[derive(rc2k_derive::Cells)]
 pub struct SortLists {
     cells: [PlainDword; CELLS],
@@ -119,7 +116,7 @@ macro_rules! for_each_part {
 
 /// A view slot's working state.
 pub struct ViewScratch {
-    /// The slot's number (`number`); a copy's the slot it was copied from
+    /// The slot's number (`number`); a copy keeps the slot it was copied from
     /// (`copy_drawing_from`).
     slot: std::cell::Cell<u8>,
     pub lists: SortLists,
@@ -147,17 +144,14 @@ pub struct ViewScratch {
     pub lamps: crate::race::lamp_work::LampWork,
     /// The camera values and the drawn car (`race::view_state`).
     pub state: crate::race::view_state::ViewState,
-    /// The view's car: a copy of its block that the view's camera, matrices, course and lights
-    /// read (`race::frame::load_view_car`). The original loaded it into the work car `g_car`,
-    /// the physics' own, and set `g_currentCar`; neither is touched now. (The drawing's
-    /// headers name its fields as the original's `g_car` +offsets.)
+    /// The view's car: a copy of its block that the view's camera, matrices, course and lights read
+    /// (`race::frame::load_view_car`); the physics' work car and `current_car` are not touched.
     pub car: crate::physics::car_store::ViewCar,
     /// What the view's scene left its overlays (`race::scene_hand_off`).
     pub hand_off: crate::race::scene_hand_off::SceneHandOff,
-    /// The view variables as the view's drawing has them (`race().frame.view_and_records.
-    /// view_vars`, the original's, shared by every view in turn): taken from the shared ones
-    /// as the view's drawing begins (`take_vars`), what it changed handed back on the game's
-    /// thread in the views' order (`hand_on_vars`; frame plan F7).
+    /// The view variables as the view's drawing has them: taken from the shared ones
+    /// (`race().frame.view_and_records.view_vars`) as the view's drawing begins (`take_vars`),
+    /// what it changed handed back on the main thread in the views' order (`hand_on_vars`).
     pub vars: crate::race::view_vars_store::ViewVarsCopy,
     /// `vars` as taken.
     vars_taken: crate::race::view_vars_store::ViewVarsCopy,
@@ -196,8 +190,8 @@ impl ViewScratch {
         self.vars_taken.copy_from(shared);
     }
 
-    /// What the view's drawing changed in its view variables into the shared ones (the game's
-    /// thread, once it is drawn).
+    /// Hands what the view's drawing changed in its view variables into the shared ones (on the
+    /// main thread, once it is drawn).
     pub fn hand_on_vars(&self, race: &crate::race::owner::Race) {
         use crate::cells::Cells;
         race.frame
@@ -208,11 +202,10 @@ impl ViewScratch {
     }
 
     /// Every part but the lamps and the sort lists set back to its first values: a race view's
-    /// drawing starts from nothing a frame or another view before it left (frame plan F7; with
-    /// the parts reset at every race view, held races draw and sound the same as when each kept
-    /// its last). The lamps are the view's own and keep what its last drawing left (its light and
-    /// sky read them before `race::reset_lamps`); the sort lists' counts are set at each view's
-    /// start (`race::reset_lamps`).
+    /// drawing starts from nothing a frame or another view before it left (held races draw and
+    /// sound the same as when each part kept its last values). The lamps are the view's own and
+    /// keep what its last drawing left (its light and sky read them before `race::reset_lamps`);
+    /// the sort lists' counts are set at each view's start (`race::reset_lamps`).
     pub fn begin(&self) {
         use crate::cells::Cells;
         self.fog.copy_from(&crate::scene::fog::Fog::new());
@@ -226,10 +219,11 @@ impl ViewScratch {
             .copy_from(&crate::race::car_draw_state::CarDrawState::new());
         self.matrices
             .copy_from(&crate::scene::view_matrices::ViewMatrices::new());
-        // What the view's set-up gave before its scene, kept: the mirror's flag
+        // What the view's set-up gave before its scene is kept: the mirror's flag
         // (`race::mirror_view_window`), the view's value (`race::fetch_view_value`) and its
-        // window (`scene::view_window`). Made beside and copied in whole, so the window is
-        // never seen reset: the mirror's part reads its view's depth while the view begins.
+        // window (`scene::view_window`). The fresh copy is made beside and copied in whole, so the
+        // window is never seen reset: the mirror's part reads its view's depth while the view
+        // begins.
         let fresh = crate::scene::polygon_work::PolygonWork::new();
         fresh.window.copy_from(&self.polygon.window);
         fresh.view_mirrored.set(self.polygon.view_mirrored.get());
@@ -245,7 +239,7 @@ impl ViewScratch {
             .copy_from(&crate::race::view_state::ViewState::new());
     }
 
-    /// The slot's number (`slot`).
+    /// The slot's number.
     pub fn number(&self) -> usize {
         usize::from(self.slot.get())
     }
@@ -264,9 +258,9 @@ impl ViewScratch {
         for_each_part!(merge_changes, self, now, start);
     }
 
-    /// The view drawn (`RACE_VIEW.drawn_view`, the original's `g_drawnView`): the player
-    /// whose view or mirror the slot is; the front end's slot reads the store, which only the
-    /// game thread writes (the race's views set it before each is drawn, frame plan F7).
+    /// The view drawn (`RaceView::drawn_view`): the player whose view or mirror the slot is; the
+    /// front end's slot reads the store, which only the main thread writes (the race's views set
+    /// it before each is drawn).
     pub fn drawn_view(&self, race: &crate::race::owner::Race) -> u32 {
         match self.number() {
             4 => race.shared.view.get().drawn_view.get(),
@@ -348,8 +342,9 @@ pub fn front_end() -> &'static ViewScratch {
     FRONT_END.get()
 }
 
-/// What a view's drawing works with: the race, the scene, the network session and the keys (read only, by the
-/// lamps' choice), the view's own state, and whether polygons are cut at the far depth.
+/// What a view's drawing works with: the race, the scene, the network session and the keys (read
+/// only, by the lamps' choice), the view's own state, and whether polygons are cut at the far
+/// depth.
 #[derive(Clone, Copy)]
 pub struct DrawCtx<'a> {
     pub race: &'a crate::race::owner::Race,
@@ -362,8 +357,8 @@ pub struct DrawCtx<'a> {
     /// The scene's clock as the frame took it (`restart_clock` in `race::draw_race_scene`,
     /// before any view is drawn), what the animated shapes step by.
     pub clock: u32,
-    /// Off for the own car drawn over the view (`race::draw_view_overlays`; the original
-    /// cleared `far_on` around it): `scene::clip_polygon_by_depth`'s far pass.
+    /// Off for the own car drawn over the view (`race::draw_view_overlays`):
+    /// `scene::clip_polygon_by_depth`'s far pass.
     pub far_clip: bool,
     /// The marks the faces' kinds pick: the car's while one is drawn (`race::draw_car`), none
     /// between cars, the menus' outside a race (`scene::car_marks`).
@@ -409,11 +404,11 @@ impl<'a> DrawCtx<'a> {
 
 /// The texture filter's switches the view in slot `slot` starts from (`scene::polygon_work`'s
 /// `smooth`, `plain_first`, `plain_second`): for the first view (slot 0) the front end's slot's,
-/// where the HUD's overlay left them the frame before (1, 1) or the menus' passes; for the
-/// others 0. In the original one set of variables went from view to view: the mirror and the
-/// second view read what the first view's last list entry left (0, measured), the first view the
-/// HUD's (its sky drawn smooth, the others not). On the game's thread, before the parts
-/// (the front end's slot is not a part's); the view's drawing is handed the values.
+/// where the HUD's overlay left them the frame before (1, 1) or the menus' passes; for the others
+/// 0 (measured: the mirror and the second view always started from what the first view's last list
+/// entry left). The first view's sky is drawn smooth, the others' not. Taken on the main thread,
+/// before the parts (the front end's slot is not a part's); the view's drawing is handed the
+/// values.
 pub fn filter_input(slot: usize) -> [u32; 3] {
     if slot == 0 {
         let from = &front_end().polygon;

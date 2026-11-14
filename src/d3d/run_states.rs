@@ -1,12 +1,12 @@
-//! The render states across the drawing threads' parts (`workers::draw_parts`). The game
-//! sets a state only when it changes and draws on with whatever the last object left: run
-//! n (n > 0) starts from the states as the list began, not as run n - 1 ends, so its fans
-//! up to its own first setting of a state carry a value the game in one run would not
-//! have drawn with (z-writes on after a shadow had turned them off, replay 01). And the
-//! runs each keep their own cache of the states (`d3d::render_cache`), and what they left
-//! is put back in their order. Each run therefore notes where it first sets each state;
-//! when the runs are joined, its fans before that point get the value the earlier runs
-//! left (`patch`), and the states it set go into the store whatever their value (`carry`).
+//! The render states across the drawing threads' parts (`workers::draw_parts`). The game sets a
+//! state only when it changes and draws on with whatever the last object left: run n (n > 0)
+//! starts from the states as the list began, not as run n - 1 ends, so its fans up to its own
+//! first setting of a state would carry a value the game in one run would not have drawn with
+//! (z-writes on after a shadow had turned them off). The runs each keep their own cache of the
+//! states (`d3d::render_cache`), and what they left is put back in their order. Each run
+//! therefore notes where it first sets each state; when the runs are joined, its fans before
+//! that point get the value the earlier runs left (`patch`), and the states it set go into the
+//! store whatever their value (`carry`).
 
 use std::cell::Cell;
 use std::sync::Arc;
@@ -145,8 +145,8 @@ pub fn patch(noted: &mut [Command], run: &RunStates, carried: &[u32; STATES]) {
     }
 }
 
-/// The states a run set, as it left them, into the first part's cache `first`, and its texture if it
-/// changed from `start`'s.
+/// The states a run set, as it left them, into the first part's cache `first`, and its texture
+/// if it changed from `start`'s.
 pub fn carry(
     first: &crate::d3d::render_cache::OwnCache,
     run: &RunStates,

@@ -1,13 +1,12 @@
-//! `physics::spin_matrix` (0x43DD54): the work car's matrix turned by its spin over the
-//! step. The spin's length (`physics::vector_length` of `spin` .., `g_car`
-//! +0x184) is stored in `spin_length`; when its bits are not 0 (`cmp` as a dword): the
-//! spin as a unit vector into the axis `spin_axis` (`scene::unit_vector`), the angle
-//! `spin_angle` = the length times the step `step_time`, the turn's matrix into
-//! `turn_matrix` (`physics::axis_turn_matrix`) and squared (`scene::square_matrix`),
-//! `g_crashMatrix` times it into `g_turnedMatrix` (`scene::multiply_matrices`) and copied
-//! back (16 dwords, `rep movsd`). Then `g_crashMatrix` squared.
+//! Turns the work car's matrix by its spin over the step. The spin's length
+//! (`physics::vector_length` of `spin`) is stored in `spin_length`; when its bits are not 0: the
+//! spin as a unit vector into the axis `spin_axis` (`scene::unit_vector`), the angle `spin_angle` =
+//! the length times the step `step_time`, the turn's matrix into `turn_matrix`
+//! (`physics::axis_turn_matrix`) and squared (`scene::square_matrix`), the crash matrix times it
+//! into `turned_matrix` (`scene::multiply_matrices`) and copied back (16 dwords). Then the crash
+//! matrix is squared.
 //!
-//! Callers: `physics::car_physics_step` (0x43B82C, 0x43B8A5), every physics step.
+//! Caller: `physics::car_physics_step`, twice every physics step.
 
 use crate::math::x87;
 use crate::physics::axis_turn_matrix::axis_turn_matrix;
@@ -44,8 +43,8 @@ pub fn spin_matrix(
             car.crash_matrix[k].set(matrices.turned_matrix[k].get());
         }
     }
-    // `scene::square_matrix` left its last length in `g_scratch` (the ones before are
-    // written over by it).
+    // `scene::square_matrix` leaves its last length in the scene's scratch cell (the ones before
+    // are written over by it).
     let length = square_matrix(course.reads(), &car.crash_matrix);
     scene.drawing.scene.get().scratch.set(length);
 }

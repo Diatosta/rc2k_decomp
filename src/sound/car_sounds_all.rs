@@ -1,18 +1,16 @@
-//! `sound::car_sounds_all` (0x40D7AB): the turn's sounds of every car: the players' cars
-//! each, and of the computer's only the two nearest the listener.
+//! `sound::car_sounds_all`: the turn's sounds of every car: the players' cars each, and of the
+//! computer's only the two nearest the listener.
 //!
-//! Unless `RaceSounds.count` (the objects in use) is 0: for each object whose +8 is 1, a
-//! player's (+0 not negative) gets `sound::car_sounds` (with its number) at once; of the
-//! others the squared distance (+0x2C .. +0x34 squared and added, through `RaceSounds.nearest_distance`)
-//! is compared as an integer (signed, the bits of a float that is not negative) with
-//! the nearest and the next (both starting at the bits of +inf), which keep their
-//! numbers (-1 for none). When the nearest is last turn's second
-//! (`RaceSounds.next`) or the next last turn's nearest (`RaceSounds.nearest`), the two swap, so
-//! that each keeps its voice; they are kept in the two dwords and each gets
-//! `sound::car_sounds` with its +0 set to -2 (the nearest) or -1 for the call and put
-//! back after. One caller, `sound::race_turn`.
-//! Refuses (before anything) a count over 8 and a null object; what the callees refuse
-//! puts back what was written (sounds already sent stay sent).
+//! Unless no object is in use: each object in use that belongs to a player gets `sound::car_sounds`
+//! (with its number) at once. Of the others the squared distance (through
+//! `RaceSounds.nearest_distance`) is compared as an integer (signed, the bits of a float that is
+//! not negative) with the nearest and the next (both starting at the bits of +inf), which keep
+//! their numbers (-1 for none). When the nearest is last turn's second (`RaceSounds.next`) or the
+//! next last turn's nearest (`RaceSounds.nearest`), the two swap, so that each keeps its voice;
+//! they are kept in the two dwords and each gets `sound::car_sounds` with its `sound_offset` set to
+//! -2 (the nearest) or -1 for the call and put back after. One caller, `sound::race_turn`. Refuses
+//! (before anything) a count over 8 and a null object; what the callees refuse puts back what was
+//! written (sounds already sent stay sent).
 
 use crate::errors::{BadInput, Refused};
 use crate::math::x87_float::{ld, stf};
@@ -33,7 +31,7 @@ pub fn car_sounds_all(
     if count > 8 {
         return Err(BadInput("a sound object count over 8").into());
     }
-    // Converted: `rc2k_core::sound::turn::Nearest` (the choice).
+    // The logic is `rc2k_core::sound::turn::Nearest` (the choice).
     use rc2k_core::sound::turn::{NEAREST_MARK, NEXT_MARK, Nearest};
     let mut nearest = Nearest::default();
     for n in 0..count {
@@ -71,10 +69,10 @@ pub fn car_sounds_all(
     Ok(())
 }
 
-// ---- the arithmetic that was x87 assembly ----
+// ---- the x87-precision arithmetic ----
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// An x87-precision run in plain Rust over `X`, written as the expressions it computes
+/// (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `nearest_distance = (place[0] * place[0]) + ((place[1] * place[1]) + (place[2] * place[2]))`
 fn x87_1(si: &SoundObject, nearest_distance: &crate::session::PlainFloat) {
     let t0 = ld(si.place[0].get());
@@ -113,7 +111,7 @@ mod reference_vectors {
             ],
             ulps: 0,
             plain: |a| {
-                // The distance sits at +0x2578 of the race sounds in the image.
+                // The distance sits at +0x2578 of the race sounds' 1999 layout.
                 with_laid::<SoundObject, _>(a[0], |so| {
                     x87_1(
                         so,

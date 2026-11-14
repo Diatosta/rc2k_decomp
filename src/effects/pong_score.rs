@@ -1,9 +1,7 @@
-//! `effects::pong_score` (0x4B8382): the pong score: the best (`PongState.best`) raised to the
-//! hits (`PongState.hits`) when they reach it; the place 0x100, 0x384; the hits (low byte,
-//! kept) as three `effects::pong_digit`s (hundreds, tens, ones), 0x20 on, the best (low
-//! byte, kept) the same.
-//!
-//! Caller: `effects::run_pong`.
+//! `effects::pong_score`: the pong score: the best (`PongState.best`) raised to the hits
+//! (`PongState.hits`) when they reach it; the place 0x100, 0x384; the hits (low byte, kept) as
+//! three `effects::pong_digit`s (hundreds, tens, ones), 0x20 on, the best (low byte, kept) the
+//! same.
 
 use crate::effects::pong::Pong;
 use crate::effects::windscreen_flakes_store::WindscreenFlakes;

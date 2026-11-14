@@ -1,11 +1,11 @@
-//! The turns of the three kept vectors (`KeptView.kept_a.vector[0]` .., `KeptView.kept_c.vector[0]` ..,
-//! `KeptView.kept_b.vector[0]` ..) by two angles: `effects::turn_kept_vectors` (0x4C13CA) and its two
-//! steps `effects::turn_kept_xz` (0x4C1411) and `effects::turn_kept_zy` (0x4C14D2).
+//! The turns of the three kept vectors (`KeptView.kept_a.vector[0]` .., `KeptView.kept_c.vector[0]`
+//! .., `KeptView.kept_b.vector[0]` ..) by two angles: `effects::turn_kept_vectors` and its two
+//! steps `effects::turn_kept_xz` and `effects::turn_kept_zy`.
 
 use crate::math::x87;
 use crate::session::PlainFloat;
 
-/// The kept vectors, in the original's order.
+/// The kept vectors.
 fn vectors(effects: &crate::effects::owner::Effects) -> [&[PlainFloat; 3]; 3] {
     let frame = &effects.frame;
     [

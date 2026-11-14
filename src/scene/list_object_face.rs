@@ -1,7 +1,7 @@
-//! `scene::list_object_face` (0x4504CB): decides whether a face of an object is drawn,
-//! and lists it if so.
+//! `scene::list_object_face`: decides whether a face of an object is drawn, and lists it if
+//! so.
 //!
-//! Takes: the face; its number within the object is the view's `face_number`.
+//! The face's number within the object is the view's `face_number`.
 //!
 //! The face's see-through value starts at 0x100, then five tests (in
 //! `rc2k_core::scene::face_tests::dropped`) can each drop the face ("its group" is the low
@@ -40,8 +40,6 @@ use rc2k_core::scene::face_tests::{Face, FaceWorld, dropped, listed_key};
 
 const BLOCKS: u32 = 8;
 const LIST_ROOM: u32 = 0x1000;
-
-// ---- Rust version ----
 
 /// The game's variables the tests read and write.
 struct GameFace<'a>(
@@ -171,7 +169,7 @@ fn face_bytes(face: usize) -> Result<(Face, u32), BadInput> {
     ))
 }
 
-// Converted: `rc2k_core::scene::face_tests::{dropped, listed_key}`
+// Logic: `rc2k_core::scene::face_tests::{dropped, listed_key}`
 pub fn list_object_face(
     ctx: &crate::race::view_scratch::DrawCtx<'_>,
     face: usize,
@@ -221,8 +219,8 @@ pub fn list_object_face(
         count,
         &points,
     )?;
-    // The original's room was 0x1000 entries but its list 0x400 long, the rest written over
-    // the next tables (fixed: `wiki/Fixed-bugs.md`).
+    // The list has room for all 0x1000 entries the check allows (fixed: "An object with many
+    // faces writes over the object tables" in `wiki/Fixed-bugs.md`).
     let key = listed_key(bytes, ctx.view.polygon.face_sort_key.get());
     list.push([
         ctx.view.face.face_number.get(),

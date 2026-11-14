@@ -1,11 +1,8 @@
-//! `race::copy_marked` (0x41E2F6): the marked blocks (from `mark_in` up to `mark_out`)
-//! onto the clipboard: their count into `clip_blocks`, their places (`lDistanceToMove`) into
-//! `clip_places` and their cameras (`block_cameras`) into `clip_cameras`. Nothing when the marks are not
-//! in order (`jle`, signed).
-//!
-//! Callers: `race::viewer_action` (action 0x1B, and in 0x11 before the cut). Refused, before
-//! anything is written: a first mark below 0 or a second past 0x708 (the original copies from
-//! outside the tables).
+//! Copies the marked blocks (from `mark_in` up to `mark_out`) onto the clipboard: their count into
+//! `clip_blocks`, their places into `clip_places` and their cameras (`block_cameras`) into
+//! `clip_cameras`. Nothing happens when the marks are not in order (signed comparison). Refused,
+//! before anything is written: a first mark below 0 or a second past 0x708. Called by the viewer's
+//! actions 0x1B and 0x11 (before the cut).
 
 use crate::errors::Refused;
 use crate::race::owner::Race;
@@ -15,7 +12,6 @@ use crate::race::viewer::move_cells;
 pub fn copy_marked(race: &Race) -> Result<Option<u32>, Refused> {
     let shared = &race.shared;
     let v = race.viewer_buffers();
-    // Converted: `rc2k_core::race::viewer::clip`.
     let first = v.mark_in.get();
     let Some((_, blocks)) = rc2k_core::race::viewer::clip(first, v.mark_out.get())? else {
         return Ok(None);

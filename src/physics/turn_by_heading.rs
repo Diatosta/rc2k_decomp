@@ -1,8 +1,5 @@
-//! `physics::turn_by_heading` (0x43F136): the x and z floats of a point turned by minus the work
-//! car's heading (`car_heading`) with `math::rotate_float_point_about_y` (y passed through) and stored
-//! back.
-//!
-//! Takes: the point, passed on
+//! Turns the x and z floats of a point by minus the work car's heading (`car_heading`) with
+//! `math::rotate_float_point_about_y` (y passed through) and stores them back.
 //!
 //! Caller: `physics::point_hits_car`.
 

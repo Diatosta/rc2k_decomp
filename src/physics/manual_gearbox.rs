@@ -1,28 +1,27 @@
-//! `physics::manual_gearbox` (0x43C2AE): the gearbox by the keys (`input_gear_up` up,
-//! `input_gear_down` down). +0x238 0. Then, in this order (`g_car` fields):
-//! - grade mode (+0x25C) 2: the start-line rules (below);
-//! - the gear refused by `physics::gear_bit`, or +0x430 set: neutral;
-//! - the hold +0x1CC not 0: it goes down, nothing else;
-//! - +0x42C set: nothing; +0x38 (`gearbox_kind`) set: the start-line rules;
-//! - up: from reverse neutral, from neutral `physics::pick_start_gear`, at the top
-//!   nothing; else `physics::wheels_from_revs`, `physics::higher_free_gear` (none:
-//!   nothing), set, `physics::revs_from_wheels`, settled;
-//! - down: from 1 neutral, from neutral into reverse (unless `gear_bit` refuses -1: the
-//!   engine speed x 0.25, `wheels_from_revs`, settled), in reverse nothing; else
-//!   `wheels_from_revs`, `physics::lower_free_gear` (none: neutral), set,
-//!   `revs_from_wheels`; an engine speed then not below `rev_limit` takes the gear back
-//!   up (`revs_from_wheels`; the hold 20, +0x238 -1, +0x23C 1), else settled.
+//! The gearbox by the keys (`input_gear_up`, `input_gear_down`). `gear_changed` = 0. Then, in this
+//! order:
+//! - `driver_kind` 2: the start-line rules (below);
+//! - the gear refused by `physics::gear_bit`, or `forced_neutral` set: neutral;
+//! - `gear_change_hold` not 0: it goes down, nothing else;
+//! - `gear_change_blocked` set: nothing; `gearbox_kind` set: the start-line rules;
+//! - up: from reverse neutral, from neutral `physics::pick_start_gear`, at the top nothing;
+//!   otherwise `physics::wheels_from_revs`, `physics::higher_free_gear` (none: nothing), set,
+//!   `physics::revs_from_wheels`, settled;
+//! - down: from 1 neutral, from neutral into reverse (unless `gear_bit` refuses -1: the engine
+//!   speed x 0.25, `wheels_from_revs`, settled), in reverse nothing; otherwise `wheels_from_revs`,
+//!   `physics::lower_free_gear` (none: neutral), set, `revs_from_wheels`; an engine speed then not
+//!   below `rev_limit` takes the gear back up (`revs_from_wheels`; `gear_change_hold` 20,
+//!   `gear_changed` -1, `gear_change_pending` 1), else settled.
 //!
-//! The start-line rules: down asked: neutral into reverse, a forward gear to neutral; up
-//! asked: neutral `pick_start_gear`, reverse to neutral; then, with +0x254 clear, the
-//! automatic's tests (in gear 1 or more: the engine over its top by
-//! `physics::revs_from_speed`, the engine speed put back, not below `shift_up_point`: up; in
-//! gear 2 or more: down when the next free lower gear's share is below `shift_ratio_figure` and
-//! the engine over its top below `shift_down_clutch_point` / `shift_down_point` by +0x63C).
+//! The start-line rules: down asked: neutral into reverse, a forward gear to neutral; up asked:
+//! neutral `pick_start_gear`, reverse to neutral; then, with `all_wheels_off` clear, the
+//! automatic's tests (in gear 1 or more: the engine over its top by `physics::revs_from_speed`, the
+//! engine speed put back, not below `shift_up_point`: up; in gear 2 or more: down when the next
+//! free lower gear's share is below `shift_ratio_figure` and the engine over its top is below
+//! `shift_down_clutch_point` / `shift_down_point`, by `brake`).
 //!
-//! Callers: `physics::gearbox_step`, the one-call `physics::manual_gearbox_call`. Refuses
-//! what the calls refuse, and a gear outside -1 ..= 7 where a ratio is read; what was
-//! written is put back.
+//! Caller: `physics::gearbox_step`. Refuses what the calls refuse, and a gear outside -1 ..= 7
+//! where a ratio is read; what was written is put back.
 
 use crate::errors::Refused;
 use crate::math::x87;
@@ -37,7 +36,7 @@ use crate::physics::tables_store::PhysicsTables;
 use crate::race::numbers_store::Numbers;
 use rc2k_core::physics::gear_shifts::{self as shifts, Shift};
 
-/// Up (0x43C340).
+/// Up.
 fn up(car: &Car, tables: &PhysicsTables, numbers: &Numbers) -> Result<Shift, Refused> {
     let gear = car.gear.get();
     if let Some(shift) = shifts::manual_up(gear, || tables.gear_count.get()) {
@@ -53,7 +52,7 @@ fn up(car: &Car, tables: &PhysicsTables, numbers: &Numbers) -> Result<Shift, Ref
     Ok(Shift::Done)
 }
 
-/// Down (0x43C379).
+/// Down.
 fn down(car: &Car, tables: &PhysicsTables, numbers: &Numbers) -> Result<Shift, Refused> {
     let gear = car.gear.get();
     if let Some(shift) = shifts::manual_down(gear) {
@@ -77,8 +76,8 @@ fn down(car: &Car, tables: &PhysicsTables, numbers: &Numbers) -> Result<Shift, R
     Ok(Shift::Done)
 }
 
-/// Into reverse (0x43C433; with `quarter` the engine speed x 0.25 first, as here; the
-/// automatic's 0x43C74E has no such step).
+/// Into reverse (with `quarter` the engine speed x 0.25 first; the automatic's reverse has no such
+/// step).
 pub fn reverse(
     car: &Car,
     tables: &PhysicsTables,
@@ -98,7 +97,7 @@ pub fn reverse(
     Ok(())
 }
 
-/// The start-line rules (0x43C48F).
+/// The start-line rules.
 fn start_line(
     car: &Car,
     tables: &PhysicsTables,
@@ -157,7 +156,7 @@ fn start_line(
 }
 
 /// The steps on `r`.
-// Converted: `rc2k_core::physics::gear_shifts` (the engine's sums and compares stay x87).
+// Core: `rc2k_core::physics::gear_shifts` (the engine's sums and compares stay x87).
 pub fn manual_gearbox(
     car: &Car,
     tables: &PhysicsTables,

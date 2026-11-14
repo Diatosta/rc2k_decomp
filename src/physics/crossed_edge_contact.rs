@@ -1,18 +1,15 @@
-//! `physics::crossed_edge_contact` (0x45DC3E): the contact of the probe point that
-//! crossed a face's edge (`crossed_probe`, into `probe_index`). Its figures from
-//! `saved_probe_x`[n]`, `6D2E14[n]` (x, z before), `6D1E14[n]`, `6D2014[n]` (x, z now) and
-//! the face `saved_probe_faces`[n]` into `crossed_figures` .. `6D31B0`; the face's four corners'
-//! x, z (scene points) into `crossed_corners` .. `6D319C`. Which side of the probe's path
-//! each corner lies (the sign of the 64-bit (now - before) cross product; the first
-//! product kept in `product`) picks the edge crossed: p1 -> p2, p2 -> p4, p4 -> p3,
-//! else p3 -> p1 (corner words +4 .. +0x10), into `crossed_edge`, `6141C0`. The normal
-//! across it (`physics::wall_edge_contact`'s `edge_normal`; the heading also into
-//! `crossed_heading`), the speeds, the probe's point (y x `tenth`), no slide limit;
-//! `physics::contact_force` into contact record 1 (`g_contactRecords` + 0x20),
-//! `physics::place_sound_e1`.
+//! The contact of the probe point that crossed a face's edge (`crossed_probe`, into
+//! `probe_index`). The probe's x, z before and now and its face go into `crossed_figures`; the
+//! face's four corners' x, z (scene points) into `crossed_corners`. The side of the probe's
+//! path each corner lies on (the sign of the 64-bit cross product of the move; the first
+//! product is kept in `product`) picks the edge crossed: p1 -> p2, p2 -> p4, p4 -> p3, else p3
+//! -> p1, into `crossed_edge`. Then the normal across the edge (`physics::wall_edge_contact`'s
+//! `edge_normal`; the heading also into `crossed_heading`), the speeds and the probe's point (y
+//! times `tenth`) are set, with no slide limit; `physics::contact_force` fills contact record
+//! 1, then `physics::place_sound_e1`.
 //!
 //! Caller: `physics::crossed_edge`. Refuses (before anything) a probe point past 0x3F (the
-//! tables' room), and what `place_sound_e1` refuses (what was written put back).
+//! tables' room), and what `place_sound_e1` refuses (what was written is put back).
 
 use crate::errors::Refused;
 use crate::math::x87::mul;
@@ -32,7 +29,7 @@ fn copy3(to: &[impl FloatLike], from: &[impl FloatLike]) {
 }
 
 /// Which side of the probe's path the point (x, z) lies: true for not left of it (the
-/// 64-bit difference not below 0, `jns` / `stc`). `product` the first product.
+/// 64-bit difference not below 0). `product` the first product.
 fn side(contact: &ContactWork, probe: &GroundProbe, x: u32, z: u32) -> bool {
     let (first, difference) = walls::path_side(
         (
@@ -51,7 +48,7 @@ fn side(contact: &ContactWork, probe: &GroundProbe, x: u32, z: u32) -> bool {
 }
 
 /// The steps, not guarded (the probe checked before).
-// Converted: `rc2k_core::physics::walls::{path_side, crossed_edge}`.
+// Core: `rc2k_core::physics::walls::{path_side, crossed_edge}`.
 pub fn steps(c: &ContactInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let n = c.contact.crossed_probe.get();
     c.contact.probe_index.set(n);
@@ -85,7 +82,7 @@ pub fn steps(c: &ContactInputs<'_>, scene: &crate::scene::owner::Scene) -> Resul
             c.contact.crossed_corners[2 * j + 1].get(),
         )
     };
-    // The original's order of tests (each computed, `product` the last one's).
+    // The tests run in this order (each computed, `product` the last one's).
     let (first, second) = walls::crossed_edge(|j| {
         let (x, z) = corner(j);
         side(c.contact, c.ground.probe, x, z)

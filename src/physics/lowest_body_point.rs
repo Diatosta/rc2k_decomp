@@ -1,8 +1,7 @@
-//! `physics::lowest_body_point` (0x45D6DB): with more than four probe points
-//! (`probe_count`), the deepest of the body's (points 4 .., their depths
-//! `probe_height`[n]`, from 0x640000 down by the sign of the difference) into
-//! `lowest_depth` and its number into `lowest_point` (-1 for none); then `wheel_share` =
-//! `lowest_depth` / 65536 (with four or fewer, of what it held).
+//! With more than four probe points (`probe_count`), the deepest of the body's (points 4 on, their
+//! depths `probe_height[n]`, starting from 0x640000) goes into `lowest_depth` and its number into
+//! `lowest_point` (-1 for none); then `wheel_share` = `lowest_depth` / 65536 (with four or fewer,
+//! of what it held).
 //!
 //! Callers: `physics::feel_ground`, `physics::find_clear_place` (twice), `physics::crash_contact`,
 //! `physics::ground_contact`. Refuses (before anything) a count above 0x40 (the depths' room).

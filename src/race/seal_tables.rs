@@ -1,57 +1,55 @@
-//! The record seal cipher's tables (`race::save_seal`), out of RAL.EXE's image: the
-//! initial and final permutations, the key's two selections, the round's expansion and
-//! permutation, the eight S-boxes and the key turns. Each permutation table is the picks the
-//! image's count-and-picks table holds (the count byte n, then n + 1 picks). Read-only: nothing
-//! names them by address, so they are constants and the image's bytes are not kept.
+//! The record seal cipher's tables (`race::save_seal`): the initial and final permutations, the
+//! key's two selections, the round's expansion and permutation, the eight S-boxes and the key
+//! turns. Each permutation table lists the source bit picked for each output bit.
 
-/// the key's first selection (unk_4E015C).
+/// The key's first selection.
 pub const PC1_A: [u8; 28] = [
     6, 14, 22, 30, 38, 46, 54, 62, 5, 13, 21, 29, 37, 45, 53, 61, 4, 12, 20, 28, 36, 44, 52, 60, 3,
     11, 19, 27,
 ];
 
-/// its second (unk_4E0179).
+/// Its second.
 pub const PC1_B: [u8; 28] = [
     0, 8, 16, 24, 32, 40, 48, 56, 1, 9, 17, 25, 33, 41, 49, 57, 2, 10, 18, 26, 34, 42, 50, 58, 35,
     43, 51, 59,
 ];
 
-/// the subkey selection (unk_4E0196).
+/// The subkey selection.
 pub const PC2: [u8; 48] = [
     46, 43, 49, 36, 59, 55, 57, 32, 45, 54, 39, 50, 37, 41, 48, 56, 34, 52, 44, 53, 33, 40, 47, 58,
     15, 4, 25, 19, 9, 1, 26, 16, 5, 11, 23, 8, 12, 7, 17, 0, 22, 3, 10, 14, 6, 20, 27, 24,
 ];
 
-/// the block's initial permutation (unk_4E01D7).
+/// The block's initial permutation.
 pub const INITIAL: [u8; 64] = [
     6, 14, 22, 30, 38, 46, 54, 62, 4, 12, 20, 28, 36, 44, 52, 60, 2, 10, 18, 26, 34, 42, 50, 58, 0,
     8, 16, 24, 32, 40, 48, 56, 7, 15, 23, 31, 39, 47, 55, 63, 5, 13, 21, 29, 37, 45, 53, 61, 3, 11,
     19, 27, 35, 43, 51, 59, 1, 9, 17, 25, 33, 41, 49, 57,
 ];
 
-/// the final permutation (unk_4E0218).
+/// The final permutation.
 pub const LAST: [u8; 64] = [
     24, 56, 16, 48, 8, 40, 0, 32, 25, 57, 17, 49, 9, 41, 1, 33, 26, 58, 18, 50, 10, 42, 2, 34, 27,
     59, 19, 51, 11, 43, 3, 35, 28, 60, 20, 52, 12, 44, 4, 36, 29, 61, 21, 53, 13, 45, 5, 37, 30,
     62, 22, 54, 14, 46, 6, 38, 31, 63, 23, 55, 15, 47, 7, 39,
 ];
 
-/// the round's expansion (unk_4E0259).
+/// The round's expansion.
 pub const EXPANSION: [u8; 48] = [
     0, 31, 30, 29, 28, 27, 28, 27, 26, 25, 24, 23, 24, 23, 22, 21, 20, 19, 20, 19, 18, 17, 16, 15,
     16, 15, 14, 13, 12, 11, 12, 11, 10, 9, 8, 7, 8, 7, 6, 5, 4, 3, 4, 3, 2, 1, 0, 31,
 ];
 
-/// the round's permutation (unk_4E028A).
+/// The round's permutation.
 pub const PERMUTATION: [u8; 32] = [
     16, 25, 12, 11, 3, 20, 4, 15, 31, 17, 9, 6, 27, 14, 1, 22, 30, 24, 8, 18, 0, 5, 29, 23, 13, 19,
     2, 26, 10, 21, 28, 7,
 ];
 
-/// `byte_4E01C7`: whether each of the sixteen rounds turns the key's halves twice.
+/// Whether each of the sixteen rounds turns the key's halves twice.
 pub const SHIFTS: [u8; 16] = [0, 0, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 0];
 
-/// The eight S-boxes of 0x40 entries (unk_4E02AB).
+/// The eight S-boxes of 0x40 entries.
 pub const SBOXES: [u8; 0x200] = [
     14, 0, 4, 15, 13, 7, 1, 4, 2, 14, 15, 2, 11, 13, 8, 1, 3, 10, 10, 6, 6, 12, 12, 11, 5, 9, 9, 5,
     0, 3, 7, 8, 4, 15, 1, 12, 14, 8, 8, 2, 13, 4, 6, 9, 2, 1, 11, 7, 15, 5, 12, 11, 9, 3, 7, 14, 3,

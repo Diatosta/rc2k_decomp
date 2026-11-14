@@ -1,18 +1,13 @@
-//! `effects::windscreen_drops_drift` (0x4BCBE9): the windscreen drops' drift from the view's moves.
-//! The drift is set to 0; unless this is the first time (a flag, then set), and unless it is
-//! the second (another flag, then set), the view's move (the settings' +0x26AC .. less the
-//! kept place, times the clock constant) less the last move (plus the last times the decay)
-//! is turned by the adjugate of the view's turn (the view matrix copied by columns,
-//! `effects::adjugate3`), the matrix made a turn about x by the drift's angle
-//! (`scene::turn_matrix3_x`) and the move turned back by it, negated, into the drops' move
-//! and times the drift's scales into the drift; then the move is kept, and the place kept.
+//! `effects::windscreen_drops_drift`: the windscreen drops' drift from the view's moves. The drift
+//! is 0 on the first two calls; after that the view's move (the settings' +0x26AC .. less the kept
+//! place, times the clock constant) less the decayed last move is turned by the adjugate of the
+//! view's turn and by a turn about x by the drift's angle, then negated into the drops' move and
+//! scaled into the drift; the move and place are kept for the next frame.
 //!
 //! Works on the effects settings.
 //!
-//! Caller: `effects::windscreen_drops_frame` The x87 runs are plain Rust on the x87
-//! model (`math::x87_float`), in the original's order, over the game's variables (the three values
-//! it keeps on the x87 stack across the two calls kept as 80 bits); the calls their Rust versions.
-//! Refuses null settings, before anything.
+//! The x87 runs are plain Rust on the x87 model (`math::x87_float`) (the three values it keeps on
+//! the x87 stack across the two calls kept as 80 bits). Refuses null settings, before anything.
 
 use crate::effects::adjugate3::adjugate3;
 use crate::effects::cell_x87::CellX87;
@@ -68,7 +63,7 @@ pub fn windscreen_drops_drift(
                 }
             }
             adjugate3(&drops.hex.turn, &drops.hex.adjugate);
-            // The two temporaries `[esp]` held and the three 80-bit values kept across the two calls.
+            // Two temporaries and the three 80-bit values kept across the two calls.
             let temps = [PlainFloat::new(0.0), PlainFloat::new(0.0)];
             let kept = PlainBytes::new([0u8; 30]);
             drift_turned_x87(drops, &drops.hex.adjugate, &temps, &kept);
@@ -93,7 +88,7 @@ pub fn windscreen_drops_drift(
 use crate::effects::plain::{ld_cell, ld80_at, st_cell, st80_at};
 use crate::math::x87_float as bh;
 
-/// `view_moved`'s x87 block as plain Rust on the x87 model (33 instructions), same order and memory places.
+/// `view_moved`'s arithmetic as plain Rust on the x87 model, in the same order.
 fn view_moved_x87(drops: &WindscreenDrops, m: &EffectsSettings, c: &MarksClock) {
     let t0 = ld_cell(&m.listener_car_place[0]);
     let t1 = t0 - ld_cell(&drops.hex.kept_place[0]);
@@ -130,7 +125,7 @@ fn view_moved_x87(drops: &WindscreenDrops, m: &EffectsSettings, c: &MarksClock) 
     st_cell(&drops.hex.move_change[2], t23);
 }
 
-/// `drift_turned`'s x87 block as plain Rust on the x87 model (33 instructions), same order and memory places.
+/// The arithmetic before the matrix turn as plain Rust on the x87 model, in the same order.
 fn drift_turned_x87(
     drops: &WindscreenDrops,
     m: &[PlainFloat; 9],
@@ -164,7 +159,7 @@ fn drift_turned_x87(
     st80_at(l, 20, t17);
 }
 
-/// `drift_back`'s x87 block as plain Rust on the x87 model (40 instructions), same order and memory places.
+/// The arithmetic after the matrix turn as plain Rust on the x87 model, in the same order.
 fn drift_back_x87(
     drops: &WindscreenDrops,
     m: &[PlainFloat; 9],
@@ -205,7 +200,7 @@ fn drift_back_x87(
     drops.tilt.point[2].st(t23);
 }
 
-/// `move_kept`'s x87 block as plain Rust on the x87 model (12 instructions), same order and memory places.
+/// `move_kept`'s arithmetic as plain Rust on the x87 model, in the same order.
 fn move_kept_x87(drops: &WindscreenDrops, m: &EffectsSettings, c: &MarksClock) {
     let t0 = ld_cell(&m.listener_car_place[0]);
     let t1 = t0 - ld_cell(&drops.hex.kept_place[0]);
@@ -246,7 +241,8 @@ mod reference_vectors {
     fn floats<const N: usize>(at: crate::effects::asm_test::Operand) -> [PlainFloat; N] {
         std::array::from_fn(|i| {
             // SAFETY: `at` checks that the four bytes lie in the operand's test buffer, which the
-            // recorded run keeps alive and nothing else reaches meanwhile; unaligned, any bits a `u32`.
+            // recorded run keeps alive and nothing else reaches meanwhile; unaligned, any bits a
+            // `u32`.
             let word = unsafe { (at + 4 * i).at(0, 4).cast::<u32>().read_unaligned() };
             PlainFloat::from_bits(word)
         })
@@ -256,7 +252,8 @@ mod reference_vectors {
     fn put_floats(at: crate::effects::asm_test::Operand, cells: &[PlainFloat]) {
         for (i, c) in cells.iter().enumerate() {
             // SAFETY: `at` checks that the four bytes lie in the operand's test buffer, which the
-            // recorded run keeps alive and nothing else reaches meanwhile; unaligned, any bits a `u32`.
+            // recorded run keeps alive and nothing else reaches meanwhile; unaligned, any bits a
+            // `u32`.
             unsafe {
                 (at + 4 * i)
                     .at(0, 4)
@@ -275,8 +272,8 @@ mod reference_vectors {
 
     fn put_kept(at: crate::effects::asm_test::Operand, kept: &PlainBytes<30>) {
         for i in 0..30 {
-            // SAFETY: `host` checks that the byte lies in the operand's test buffer, which the recorded
-            // run keeps alive and nothing else reaches meanwhile.
+            // SAFETY: `host` checks that the byte lies in the operand's test buffer, which the
+            // recorded run keeps alive and nothing else reaches meanwhile.
             unsafe { (at + i).host().write(kept.get(i)) };
         }
     }

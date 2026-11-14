@@ -1,16 +1,14 @@
-//! `physics::point_hits_car` (0x45E800): whether a point of an object lies inside the work car's
-//! box. `point_hits` is incremented; the point (three whole numbers) plus the object's place plus
-//! `object_offset` less the car's `position` goes into `object_point_offset`; that divided by
-//! 65536 (`k65536`) goes into `object_point_scaled` and `object_point_turned`, is turned by the
-//! car's heading (`physics::turn_by_heading`) and back to whole numbers (times 65536, rounded) into
+//! Whether a point of an object lies inside the work car's box. `point_hits` is incremented; the
+//! point (three whole numbers) plus the object's place plus `object_offset` less the car's
+//! `position` goes into `object_point_offset`; that divided by 65536 (`k65536`) goes into
+//! `object_point_scaled` and `object_point_turned`, is turned by the car's heading
+//! (`physics::turn_by_heading`) and back to whole numbers (times 65536, rounded) into
 //! `contact_point`. Inside when x is below `spec_ints[2]` and not below minus it, and z is below
-//! `spec_ints[0]` and not below minus `spec_ints[1]` (each by the sign of the comparison, as the
-//! original). Inside with the contact kind (`contact_kind`) 10, 1, 5 or 6 also: the point's x, 0, z
-//! (/ 65536) go into the car's `contact_point`, the car's speed length (`velocity`,
-//! `physics::vector_length`) into `contact_speed_length`, `contact_depth` is raised to its size,
-//! `contact_flag` = 1, `wall_hit_timer` = 0x32.
-//!
-//! Takes: the point, the object
+//! `spec_ints[0]` and not below minus `spec_ints[1]` (each by the sign of the comparison). Inside
+//! with the contact kind (`contact_kind`) 10, 1, 5 or 6 also: the point's x, 0, z (/ 65536) go into
+//! the car's `contact_point`, the car's speed length (`velocity`, `physics::vector_length`) into
+//! `contact_speed_length`, `contact_depth` is raised to its size, `contact_flag` = 1 and
+//! `wall_hit_timer` = 0x32.
 //!
 //! Callers: `physics::object_hits_car`, `physics::scene_point_hits_car`.
 
@@ -29,9 +27,8 @@ use crate::scene::matrix3::rounded_value;
 use rc2k_core::physics::contacts;
 
 /// Whether the point `point` (its three whole numbers, read by the caller) of the object of course
-/// face `face` (its number; its place at +0x30) is inside.
-// Converted: `rc2k_core::physics::contacts::{point_part, inside_box, kind_hits}` (the x87
-// steps stay).
+/// face `face` (its number) is inside.
+// Core: `rc2k_core::physics::contacts::{point_part, inside_box, kind_hits}` (the x87 steps stay).
 pub fn point_hits_car(c: &ContactInputs<'_>, point: [u32; 3], face: u32) -> Result<bool, Refused> {
     let contact = c.contact;
     let rd =
@@ -93,13 +90,9 @@ pub fn point_hits_car(c: &ContactInputs<'_>, point: [u32; 3], face: u32) -> Resu
     Ok(true)
 }
 
-// ---- the arithmetic that was x87 assembly ----
+// ---- the x87 arithmetic ----
 
-/// The game's x87 arithmetic as plain Rust over `X`, on the variables
-/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[object_point_scaled] = int [object_point_offset] / [k65536]`
-/// `[rc + 0x2D3B7C] = int [rc + 0x2D3B50] / [k65536]`
-/// `[rc + 0x2D3B80] = int [rc + 0x2D3B54] / [k65536]`
+/// One straight x87 run as plain Rust over `X`.
 fn x87_1(contact: &ContactWork, numbers: &Numbers) {
     let t0 = int(contact.object_point_offset[0].get() as i32);
     let t1 = numbers.k65536.ld();
@@ -115,11 +108,7 @@ fn x87_1(contact: &ContactWork, numbers: &Numbers) {
     contact.object_point_scaled[2].st(t8);
 }
 
-/// The game's x87 arithmetic as plain Rust over `X`, on the variables
-/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `int [contact_point] = [object_point_turned] * [k65536]`
-/// `int [rc + 0x2D3094] = [rc + 0x2D3B5C] * [k65536]`
-/// `int [rc + 0x2D3098] = [rc + 0x2D3B60] * [k65536]`
+/// One straight x87 run as plain Rust over `X`.
 fn x87_2(contact: &ContactWork, numbers: &Numbers) {
     let t0 = contact.object_point_turned[0].ld();
     let t1 = numbers.k65536.ld();
@@ -135,11 +124,7 @@ fn x87_2(contact: &ContactWork, numbers: &Numbers) {
     crate::physics::flow::set_whole(&contact.contact_point[2], to_int(t8));
 }
 
-/// The game's x87 arithmetic as plain Rust over `X`, on the variables
-/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[contact_point] = int [contact_point] / [k65536]`
-/// `[rc + 0x31A200] = 0`
-/// `[rc + 0x31A204] = int [rc + 0x2D3098] / [k65536]`
+/// One straight x87 run as plain Rust over `X`.
 fn x87_3(contact: &ContactWork, numbers: &Numbers, car: &Car) {
     let t0 = int(crate::physics::flow::whole(&contact.contact_point[0]));
     let t1 = numbers.k65536.ld();

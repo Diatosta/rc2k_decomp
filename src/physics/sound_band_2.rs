@@ -1,7 +1,5 @@
-//! `physics::sound_band_2` (0x45D097): the car's `speed` x `contact_band_scale`, less 10, held to 0 ..= 0x40.
-//! See `physics/sound_bands.rs` (the core and the test).
-//!
-//! Returns: the band
+//! The car's `speed` x `contact_band_scale`, less 10, held to 0 ..= 0x40. See
+//! `physics/sound_bands.rs` (the core and the test).
 //!
 //! Caller: `physics::place_sound_object`.
 

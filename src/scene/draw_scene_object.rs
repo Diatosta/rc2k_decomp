@@ -1,13 +1,13 @@
-//! `scene::draw_scene_object` (0x451E3E): chooses the set of textures for the object
-//! `g_objectNumber` and draws it the way the scene's mode asks for.
+//! `scene::draw_scene_object`: chooses the set of textures for the current object and
+//! draws it the way the scene's mode asks for.
 //!
-//! An object's number of 0x100 or more is fatal error 0x80600A01. `GroundWork.object_texture_set` (added to
-//! every face's texture number) = 0; then 0x108 for, outside a race, an object of kind 0x23A,
-//! and in a race for objects 0x50 .. 0xEF (the cars, 0x14 objects each) whose car's block has
-//! 0x21 at +0x24. Nothing more for an object without faces (the slots' face counts). Else by
-//! the lights' draw mode: 0 `scene::draw_shown_object`; 1 and 2 `scene::draw_described_object` (it
-//! takes an object's description and comes back here); anything else nothing. Twelve
-//! callers. Refuses a car without its block.
+//! An object's number of 0x100 or more is fatal error 0x80600A01. `GroundWork.object_texture_set`
+//! (added to every face's texture number) = 0; then 0x108 for, outside a race, an object of kind
+//! 0x23A, and in a race for objects 0x50 .. 0xEF (the cars, 0x14 objects each) whose car's block
+//! has 0x21 at +0x24. Nothing more for an object without faces (the slots' face counts). Else
+//! by the lights' draw mode: 0 `scene::draw_shown_object`; 1 and 2
+//! `scene::draw_described_object` (it takes an object's description and comes back here);
+//! anything else nothing. Twelve callers. Refuses a car without its block.
 //!
 //! The logic is in the core crate: the texture set and the way on through
 //! `rc2k_core::scene::shown`.
@@ -17,7 +17,6 @@ use crate::scene::draw_object::draw_object_in_game;
 use crate::scene::draw_shown_object::draw_shown_object;
 
 // ---- game data ----
-// scene::draw_described_object
 
 const TOO_HIGH: FatalError = FatalError {
     code: 0x8060_0A01,
@@ -27,10 +26,8 @@ const TOO_HIGH: FatalError = FatalError {
 /// The two ways on from here.
 pub use rc2k_core::scene::shown::Way;
 
-// ---- Rust version ----
-
-/// The texture set for `g_objectNumber`; the object's number.
-// Converted: `rc2k_core::scene::shown::texture_set`
+/// The texture set for the current object; the object's number.
+// Logic: `rc2k_core::scene::shown::texture_set`
 fn texture_set(
     reads: crate::workers::DrawReads<'_>,
     cars: &crate::race::car_draw_state::CarDrawState,
@@ -65,7 +62,7 @@ fn texture_set(
 }
 
 /// `draw` stands for the two calls.
-// Converted: `rc2k_core::scene::shown::way`
+// Logic: `rc2k_core::scene::shown::way`
 pub fn draw_scene_object(
     draw: &mut dyn FnMut(Way) -> Result<(), Refused>,
     reads: crate::workers::DrawReads<'_>,
@@ -82,9 +79,8 @@ pub fn draw_scene_object(
 }
 
 /// `draw_scene_object` with the game's parts (`scene::draw_shown_object` and its drawing;
-/// `scene::draw_described_object`, given `description`: the
-/// object's description, read only on that way, the scene's mode 1 or 2; `None` where the
-/// original has none).
+/// `scene::draw_described_object`, given `description`: the object's description, read only on
+/// that way, the scene's mode 1 or 2; `None` where there is none).
 pub fn draw_scene_object_in_game(
     ctx: &crate::race::view_scratch::DrawCtx<'_>,
     description: Option<crate::scene::draw_described_object::Description<'_>>,
@@ -92,8 +88,7 @@ pub fn draw_scene_object_in_game(
     draw_scene_object(
         &mut |way| match way {
             Way::Shown => {
-                // Outside a race the faces pick the menus' marks (the original's
-                // `draw_shown_object` set them before every object: `scene::car_marks`).
+                // Outside a race the faces pick the menus' marks (`scene::car_marks`).
                 let ctx = &if ctx.reads.numbers.in_race.is_set() {
                     *ctx
                 } else {

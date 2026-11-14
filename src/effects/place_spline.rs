@@ -1,15 +1,13 @@
-//! `effects::place_spline` (0x4B98FD): spline `n` (of the 8) placed: the spline offset = its
-//! number times 0xE90; the settings' +0x26DC by one constant (unrounded) into its A, B and C
-//! records' +0x24, and that by another into D's; A and D by `effects::place_shape_points`; B's
-//! +0x2C its +0x24 by one constant when under a limit, else by another, the grade flag 0, B by
+//! `effects::place_spline`: spline `n` (of the 8) placed: the spline offset = its number times
+//! 0xE90; the settings' +0x26DC by one constant (unrounded) into its A, B and C records' +0x24, and
+//! that by another into D's; A and D by `effects::place_shape_points`; B's +0x2C its +0x24 by one
+//! constant when under a limit, else by another, the grade flag 0, B by
 //! `effects::place_graded_points`; C's +0x2C its +0x24 by a constant when above a limit (the
 //! compare's status 0), else by another, the grade flag 1, C by `place_graded_points`. Each
 //! compare's status flags go to the shared FPU status cell.
 //!
-//! Takes: `n` the spline (with the effects settings)
-//!
-//! Caller: `effects::run_splines`. Refuses null settings, a spline number of 8 or more (before
-//! anything), and its steps' refusals (all it may write is put back first).
+//! Refuses null settings, a spline number of 8 or more (before anything), and its steps' refusals
+//! (all it may write is put back first).
 
 use crate::effects::paths::Paths;
 use crate::effects::place_graded_points::place_graded_points;
@@ -24,7 +22,8 @@ fn records(n: u32) -> [Spline; 4] {
     [0, 1, 2, 3].map(|t| Spline::record(t, n))
 }
 
-/// `fld a; fmul k; fst` each of three (the first), `fmul k2; fstp` (the second).
+/// The sizes as float bits: `a` times `k` (the first, for A, B and C) and `a` times `k` times
+/// `k2` (the second, for D).
 fn sizes(a: impl Flt + Copy, k: impl Flt + Copy, k2: impl Flt) -> (u32, u32) {
     let abc = x87::mul(a, k);
     let d = x87::mul2(a, k, k2);

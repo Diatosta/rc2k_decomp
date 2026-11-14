@@ -1,12 +1,10 @@
-//! A view's fog (frame plan F4): what `race::set_up_fog` works out for the view and its
-//! drawing reads, one in each view's slot (`race::view_scratch`) and one for the front end.
+//! A view's fog: what `race::set_up_fog` works out for the view and its drawing reads, one in
+//! each view's slot (`race::view_scratch`) and one for the front end.
 //!
-//! The original kept it in the light state for every view at once: the fog table (0x1000
-//! bytes), its length, the next step and the far value (the glare's alpha). Each view set it
-//! up before reading it, and the overlays drawn after a view read that view's own. A length of
-//! 0 (no fog set up since the start) made `scene::fog_polygon` read the byte before the table,
-//! which nothing in the game writes: 0 here. The near value and the noise step were stored
-//! but never read: not kept.
+//! It holds the fog table (0x1000 bytes), its length, the next step and the far value (the
+//! glare's alpha). Each view sets it up before reading it, and the overlays drawn after a view
+//! read that view's own. A length of 0 (no fog set up since the start) makes
+//! `scene::fog_polygon` read the byte before the table, which nothing in the game writes: 0.
 
 use crate::session::{PlainBytes, PlainDword};
 
@@ -19,9 +17,9 @@ pub struct Fog {
     pub far: PlainDword,
     /// The fog's next step, what every point gets with the view kind 4.
     pub next: PlainDword,
-    /// The table's length in bytes (`g_fogTableLength`).
+    /// The table's length in bytes.
     pub length: PlainDword,
-    /// The fog levels by depth (`g_fogTable`).
+    /// The fog levels by depth.
     table: PlainBytes<TABLE_LEN>,
     /// The fog's colour (`DRAW.fog_colour`), each view's own.
     pub colour: PlainDword,
@@ -38,7 +36,7 @@ impl Fog {
         }
     }
 
-    /// The table's first bytes from `levels` (the rest kept, as the original's copy).
+    /// The table's first bytes from `levels` (the rest kept).
     pub fn set_levels(&self, levels: &[u8]) {
         for (n, &b) in levels.iter().take(TABLE_LEN).enumerate() {
             self.table.set(n, b);

@@ -1,10 +1,8 @@
-//! `effects::windscreen_flakes_setup` (0x4BFEAC): the windscreen flakes' frame set up:
-//! `scene::depth_buffer_on`, `scene::set_texture` (the flakes' texture), render states 0x11 =
-//! 2, 0x12 = 2, 0x15 = 4, 0x13 = 5, 0x14 = 6, 0x1C = 0, 0x1B = 1; four polygon vertices with
-//! rhw 0x100, colour -1, specular 0xFF000000, texture places from the flakes' constants
-//! (u a, c, c, a; v b, b, d, d); the polygon's vertex count 4; the flakes' `inverse` 1 over
-//! the farthest depth.//!
-//! Caller: `effects::run_windscreen_flakes`.
+//! `effects::windscreen_flakes_setup`: the windscreen flakes' frame set up:
+//! `scene::depth_buffer_on`, `scene::set_texture` (the flakes' texture), render states 0x11 = 2,
+//! 0x12 = 2, 0x15 = 4, 0x13 = 5, 0x14 = 6, 0x1C = 0, 0x1B = 1; four polygon vertices with rhw
+//! 0x100, colour -1, specular 0xFF000000, texture places from the flakes' constants (u a, c, c, a;
+//! v b, b, d, d); the polygon's vertex count 4; the flakes' `inverse` 1 over the farthest depth.//!
 
 use crate::effects::windscreen_flakes_store::WindscreenFlakes;
 

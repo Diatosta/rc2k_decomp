@@ -1,15 +1,9 @@
-//! `effects::windscreen_flakes_spawn` (0x4C0507): new windscreen flakes this frame. The frame
-//! counter plus 1; with the x87 rounding set to chop throughout (put back at the end): a rate
-//! (the sine of the spawn angle + the shape tilt times the flakes' `rate`, plus -(`rate` times
-//! a constant) times its cosine times a factor) is kept; unless below a limit: its whole part
-//! (held to 0x80) of `effects::pick_windscreen_flake`s, and one more when the windscreen
-//! flakes' random (times 0xC5 plus 0x5D) bits 8 .. 23 are at most its fraction times a
-//! constant. (After the compare the original frees st(0) and moves the stack's top on, with
-//! the stack already empty: kept.)
-//!
-//! Caller: `effects::run_windscreen_flakes` The x87 run is plain Rust on the x87 model
-//! (`math::x87_float`), in the original's order, over the game's variables; the picks their Rust
-//! versions (under the same rounding).
+//! `effects::windscreen_flakes_spawn`: new windscreen flakes this frame, under x87 chop rounding
+//! (restored at the end). A spawn rate worked out from the spawn angle, the shape tilt and the
+//! flakes' `rate` is kept; unless it is below a limit, its whole part (held to 0x80) of
+//! `effects::pick_windscreen_flake`s are made, and one more when bits 8 .. 23 of the flakes' random
+//! (times 0xC5 plus 0x5D) are at most its fraction times a constant. The x87 run is plain Rust on
+//! the x87 model (`math::x87_float`).
 
 use crate::effects::cell_x87::CellX87;
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
@@ -72,7 +66,7 @@ use crate::effects::view_vectors::KeptView;
 use crate::effects::windscreen_flakes_store::{WindscreenFlakeState, WindscreenFlakeTiming};
 use crate::math::x87_float as bh;
 
-/// `rate`'s x87 block as plain Rust on the x87 model (20 instructions), same order and memory places.
+/// `rate`'s arithmetic as plain Rust on the x87 model, in the same order.
 fn rate_x87(
     drops: &WindscreenDrops,
     kv: &KeptView,

@@ -1,12 +1,11 @@
-//! `physics::crossed_edge` (0x45D737): when a probe point crossed a face's edge
-//! (`crossed_probe` not -1): its three floats from `probe_point_x`[n]` .. into `contact_point`
-//! ..; `physics::restore_saved_car`; `physics::crossed_edge_contact`; `contact_depth`
-//! raised to |`contact_speed_length`|, `contact_flag` = 1, `wall_hit_timer` = 0x32;
-//! `physics::feel_ground`.
+//! When a probe point crossed a face's edge (`crossed_probe` not -1): its point
+//! (`probe_point_x` ..) becomes `contact_point`; then `physics::restore_saved_car`,
+//! `physics::crossed_edge_contact`, `contact_depth` raised to |`contact_speed_length`|,
+//! `contact_flag` = 1, `wall_hit_timer` = 0x32 and `physics::feel_ground`.
 //!
-//! Callers: `physics::car_physics_step` (every physics step), `physics::find_clear_place`. Refuses
-//! (before anything) a probe point past 0x3F (the tables' room), and what its calls refuse (what
-//! was written put back).
+//! Callers: `physics::car_physics_step` (every physics step), `physics::find_clear_place`.
+//! Refuses (before anything) a probe point past 0x3F (the tables' room), and what its calls
+//! refuse (what was written is put back).
 
 use crate::errors::Refused;
 use crate::physics::contact_store::ContactWork;
@@ -14,7 +13,7 @@ use crate::physics::crossed_edge_contact::check_probe;
 use crate::physics::step_families::ContactInputs;
 
 /// The steps, not guarded (the probe checked before).
-// Converted: `rc2k_core::physics::walls::{NONE_CROSSED, raised_hit}`.
+// Core: `rc2k_core::physics::walls::{NONE_CROSSED, raised_hit}`.
 pub fn steps(c: &ContactInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let contact = c.contact;
     let n = contact.crossed_probe.get();

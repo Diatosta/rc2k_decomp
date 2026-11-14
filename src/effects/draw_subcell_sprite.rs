@@ -1,16 +1,14 @@
-//! `effects::draw_subcell_sprite` (0x4CBF47): a ring entry's square sprite from a subcell: the
-//! place (st(0) x, st(1) y, st(2) z) turned by the view matrix into the draw work's place (the
-//! depth also whole in the ring's `whole`); unless the depth is at or below the nearest depth
-//! (a signed compare of the bits): the four vertices' specular `scene::fog_at` of the depth,
-//! colour the entry's +0x90 | 0xFF000000, texture places from the subcell's entry in the
-//! subcell places, depth times the depth scale; half the side (the size's bits as a float,
-//! times the view scale / depth); the corners about the projected place; `effects::clip_quad`,
+//! `effects::draw_subcell_sprite`: a ring entry's square sprite from a subcell: the place
+//! (x, y, z) turned by the view matrix into the draw work's place (the depth also whole in
+//! the ring's `whole`); unless the depth is at or below the nearest depth (a signed compare
+//! of the bits): the four vertices' specular `scene::fog_at` of the depth, colour the
+//! entry's +0x90 | 0xFF000000, texture places from the subcell's entry in the subcell
+//! places, depth times the depth scale; half the side (the size's bits as a float, times
+//! the view scale / depth); the corners about the projected place; `effects::clip_quad`,
 //! and unless all is outside `scene::draw_fan` and the polygon's vertex count 4.
 //!
-//! Callers: the ring's kinds 0x10, 0x11 (`effects::run_ring`) and the effects' lines.
-//! The x87 blocks are plain Rust on the x87 model (`math::x87_float`), in the original's order, over the game's variables. Refuses,
-//! before anything, a subcell past the table's 0x400, a null entry, and the fog's and the
-//! clip's refusals.
+//! The x87 blocks are plain Rust on the x87 model (`math::x87_float`). Refuses, before anything, a
+//! subcell past the table's 0x400, a null entry, and the fog's and the clip's refusals.
 
 use crate::effects::cell_x87::CellX87;
 use crate::effects::clip_quad::{clip_quad, draw_fan};
@@ -110,7 +108,7 @@ use crate::effects::plain::st_cell;
 use crate::math::x87_float as bh;
 use crate::math::x87_float::ld;
 
-/// `turn`'s x87 block as plain Rust on the x87 model (37 instructions), same order and memory places.
+/// `turn`'s arithmetic as plain Rust on the x87 model, in the same order.
 fn turn_x87(
     view_matrix: &[crate::session::PlainFloat; 16],
     p: &[[u8; 10]; 3],
@@ -153,7 +151,7 @@ fn turn_x87(
     dw.turned[2].st(t29);
 }
 
-/// `square`'s x87 block as plain Rust on the x87 model (41 instructions), same order and memory places.
+/// `square`'s arithmetic as plain Rust on the x87 model, in the same order.
 fn square_x87(buffer: &crate::d3d::vertices_store::PolygonVertices, dw: &DrawWork) {
     let t0 = ld(crate::scene::polygon_work::front_end()
         .window
@@ -246,8 +244,9 @@ mod reference_vectors {
         recorded_writes("effects.draw_subcell_sprite.turn_x87", &SPEC, |b| {
             with_laid::<RingWork, _>(b[1], |w| {
                 with_laid::<DrawWork, _>(b[1], |dw| {
-                    // SAFETY: `at` checks that the ten bytes lie in the operand's test buffer, which the
-                    // recorded run keeps alive and nothing else reaches meanwhile; unaligned.
+                    // SAFETY: `at` checks that the ten bytes lie in the operand's test buffer,
+                    // which the recorded run keeps alive and nothing else reaches meanwhile;
+                    // unaligned.
                     let place: [[u8; 10]; 3] = std::array::from_fn(|n| unsafe {
                         (b[2] + 10 * n)
                             .at(0, 10)

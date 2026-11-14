@@ -1,8 +1,7 @@
 //! Frozen results: what a test's cases gave, kept as one hash per named case set instead of
-//! a reference to compute them again. The comparisons with the original's instructions
-//! (the x87 reference modules, 2026-11-13) were run one last time and passed; each set's
-//! results were then hashed, and the tests now check that the same inputs still give
-//! results with the same hash.
+//! a reference to compute them again. Each set's results were checked once against the 1999
+//! x87 instructions and then hashed; the tests check that the same inputs still give results
+//! with the same hash.
 //!
 //! A result goes in as its bits, little-endian, a float's (or an 80-bit value's) NaN as one
 //! NaN: which NaN an operation gives is not fixed in Rust (the optimiser may fold it), and

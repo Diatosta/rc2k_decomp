@@ -1,24 +1,19 @@
-//! `scene::add_point_lights` (0x44F471): what the scene's lamps add to the light on an
-//! object.
+//! `scene::add_point_lights`: what the scene's lamps add to the light on an object.
 //!
-//! For each of the scene's lamps (0x10 bytes each: a point of the scene, a strength, a colour;
-//! a strength of 0 is skipped): the strength and the colour kept; the lamp's distance from the
-//! place being lit by `scene::approximate_distance` (the original kept it in the shared work
-//! dword, which nothing read: not kept); (0x200000 less the distance) times the strength over
-//! 0x20000, held to 0 .. 255, in all three colour places, each times the lamp's colour's over
-//! 256; and that added to the light colour byte by byte without overflow (all four bytes with
-//! MMX, the low three without, as in `scene::vertex_light`).
-//! One caller, `scene::gather_lights`.
-//! Refuses more than 0x100 lamps and lamps without the scene's points.
+//! Each lamp (0x10 bytes: a point of the scene, a strength, a colour; strength 0 is skipped)
+//! gives (0x200000 less its distance from the place being lit, by `scene::approximate_distance`)
+//! times the strength over 0x20000, held to 0 ..= 255, in all three colour places, each times
+//! the lamp's colour's over 256. That is added to the light colour byte by byte without
+//! overflow (all four bytes with MMX, the low three without, as in `scene::vertex_light`).
+//! Refuses more than 0x100 lamps and lamps without the
+//! scene's points.
 
 use crate::errors::{BadInput, Refused};
 
 // ---- game data ----
 const MOST: u32 = 0x100;
 
-// ---- Rust version ----
-
-// Converted: `rc2k_core::scene::lamps::add_point_lights`
+// Logic: `rc2k_core::scene::lamps::add_point_lights`
 pub fn add_point_lights(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refused> {
     use rc2k_core::scene::lamps::{self, Lamp};
 

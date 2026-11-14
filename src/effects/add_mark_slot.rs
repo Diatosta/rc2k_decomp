@@ -1,11 +1,11 @@
-//! `effects::add_mark_slot` (0x4C99F4): the last free slot of the mark slots (from 0x1F down,
-//! free when its first dword is 0 or less) taken: 0x3C, the caller's two values, 0, and a float of the
-//! slot's own random (the slots' random times 0xC5 plus 0x5D, its low word, plus a constant). Nothing when none is free.
+//! `effects::add_mark_slot`: the last free slot of the mark slots (from 0x1F down, free
+//! when its life is 0 or less) taken: life 0x3C, the caller's two values, 0, and a float of
+//! the slot's own random (the slots' random times 0xC5 plus 0x5D, its low word, plus a
+//! constant). Nothing when none is free.
 //!
-//! Takes: what the slot holds, the matrix (a handle, `mark_slots::VIEW_PLACE_MATRIX`)
-//!
-//! One caller, `effects::draw_mark_slots` (the marks' frame). The float first gets `SlotTuning.first_float`,
-//! then the random at once: only the second is kept.
+//! `what` is the marks' point the slot sits at and `matrix` its matrix handle
+//! (`mark_slots::VIEW_PLACE_MATRIX`). The float first gets `SlotTuning.first_float`, then the
+//! random at once: only the second is kept.
 
 use crate::math::x87_float as bh;
 

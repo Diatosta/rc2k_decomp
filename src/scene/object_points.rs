@@ -1,17 +1,16 @@
-//! The objects' points and normals (the points' part of `scene::allocate_object_memory`'s
-//! block), counted on the list as the game's block was, given back by
-//! `race::free_object_points`. Twelve bytes each (three whole numbers, or a normal's
-//! three floats), an object's points then its normals (`OBJECT_SLOTS.first_point`).
+//! The objects' points and normals (the points' part of `scene::allocate_object_memory`'s block),
+//! counted on the list, given back by `give_back`. Twelve bytes each (three whole
+//! numbers, or a normal's three floats), an object's points then its normals
+//! (`first_point`).
 //!
-//! `COURSE_LISTS.object_points` is `BASE` while they are taken (0 otherwise), so a point is
-//! named by `BASE` + 12 n where the original held its address (the marks' lists, the
-//! contact walks): the original's arithmetic is kept, and a place is read here.
+//! `object_points` is `BASE` while they are taken (0 otherwise), so a point is named
+//! by `BASE` + 12 n (the marks' lists, the contact walks), and a place is read here.
 
 use crate::errors::{BadInput, Refused};
 #[cfg(test)]
 use crate::race::owner::race;
 
-/// `COURSE_LISTS.object_points` while the points are taken: point 0's place.
+/// `object_points` while the points are taken: point 0's place.
 pub const BASE: u32 = 1;
 
 /// The points' most bytes: `scene::allocate_object_memory`'s room for them out of a race.

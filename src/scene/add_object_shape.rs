@@ -1,37 +1,33 @@
-//! `scene::add_object_shape` (0x426695): takes the faces of the file just read that
-//! belong to the part being loaded, with their points and normals, into the objects'
-//! tables as the slot being loaded (`loading_slot`).
+//! `scene::add_object_shape`: takes the faces of the object file just read that belong to the
+//! part being loaded, with their points and normals, into the objects' tables as the slot being
+//! loaded (`loading_slot`).
 //!
-//! Takes: the file just read (the object file room)
-//!
-//! The file: +4 the number of points, +8 of faces, +0xC of normals; from +0x2C the
-//! points (three whole numbers each); then the faces, each 0x10 bytes (+0 its
-//! vertices' number, +4 its texture as a word, +7 its group in the low five bits,
-//! +0xC its normal) and 0x10 bytes a vertex (+0 its point, +4 and +8 texture
-//! coordinates, +0xC its normal); then the normals, twelve bytes each.
+//! The file: +4 the number of points, +8 of faces, +0xC of normals; from +0x2C the points
+//! (three whole numbers each); then the faces, each 0x10 bytes (+0 its vertices' number, +4 its
+//! texture as a word, +7 its group in the low five bits, +0xC its normal) and 0x10 bytes a
+//! vertex (+0 its point, +4 and +8 texture coordinates, +0xC its normal); then the normals,
+//! twelve bytes each.
 //!
 //! - The lowest texture met is set to -1 and the highest to 0 (two cells of `shape_counts`);
 //!   a file of no points or no faces ends it there.
-//! - A face is taken if bit (its group) of the `loading_group_mask` is set. The points
-//!   and normals of the faces taken are marked; for a slot under 0x50, and for part
-//!   0xB of a car (`loading_car[1]`), every point is. The marks become the numbers the
-//!   points and normals get, in their order (-1 = not taken; the faces have marks too).
-//! - The marked points are added to the points' memory from the object point count on.
-//!   For kinds 0x190 .. 0x257 a point (x, y, z) becomes (z, y - `ground_drop`, -x).
-//!   The largest distance of a point from the y axis (`fsqrt` of x squared plus z
-//!   squared, as a whole number) is the slot's radius (`radii`).
-//! - The faces taken are copied to the faces' memory, each vertex's point and every
-//!   normal renumbered (a file without normals gives normal 0 and counts
-//!   `no_normals` up), and listed in the faces table.
+//! - A face is taken if bit (its group) of the `loading_group_mask` is set. The points and
+//!   normals of the faces taken are marked; for a slot under 0x50, and for part 0xB of a car
+//!   (`loading_car[1]`), every point is. The marks become the numbers the points and normals
+//!   get, in their order (-1 = not taken; the faces have marks too).
+//! - The marked points are added to the points' memory from the object point count on. For
+//!   kinds 0x190 .. 0x257 a point (x, y, z) becomes (z, y - `ground_drop`, -x). The largest
+//!   distance of a point from the y axis (`fsqrt` of x squared plus z squared, as a whole
+//!   number) is the slot's radius (`radii`).
+//! - The faces taken are copied to the faces' memory, each vertex's point and every normal
+//!   renumbered (a file without normals gives normal 0 and counts `no_normals` up), and listed
+//!   in the faces table.
 //! - The marked normals are added after the points.
-//! - The slot's first point and face and its numbers of points, normals and faces are
-//!   set.
+//! - The slot's first point and face and its numbers of points, normals and faces are set.
 //!
-//! 18 call sites in `scene::load_object`. Refuses what would make the original read or write
-//! outside its tables: a file elsewhere than the buffer or running past its room, more than
-//! 0x1000 points, faces or normals, a point's or normal's number of 0x1000 or more, a face
-//! taken that has no vertices; and a shape that does not fit the memory left (the original
-//! writes past it, and `load_object` reports the fatal error afterwards).
+//! 18 call sites in `scene::load_object`. Refuses a file elsewhere than the buffer or running
+//! past its room, more than 0x1000 points, faces or normals, a point's or normal's number of
+//! 0x1000 or more, a face taken that has no vertices, and a shape that does not fit the memory
+//! left (`load_object` reports the fatal error).
 
 use crate::errors::BadInput;
 use crate::math::x87;
@@ -43,8 +39,6 @@ use crate::scene::owner::Scene;
 /// Entries in the marks tables: `face_marks` the faces', `point_marks` the points',
 /// `normal_marks` the normals'.
 const MARKS: usize = 0x1000;
-
-// ---- Rust version ----
 
 /// A face of the file: where it is, its vertices, whether it is taken.
 struct Face {

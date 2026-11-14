@@ -1,12 +1,11 @@
-//! `effects::draw_pong_box` (0x4B8599): one box of the pong game (ball, bat or a score cell)
-//! drawn on the squares' frame: its height (st(0)) along the second axis times the flakes'
-//! second length into the sides (and times a constant into the second pair), its width (st(1))
-//! along the first times the first length (likewise); the texture places from the pong's
-//! constants; its place (st(2) along, st(3) across) on the frame into the corners; unless the
-//! first corner's depth is below the nearest depth: projected, depth times the depth scale,
-//! colour -1, `scene::draw_fan`.//!
-//! Callers: `effects::run_pong` (ball, bat), `effects::pong_cell`. The x87 runs are plain Rust on the x87 model
-//! (`math::x87_float`), in the original's order, over the game's variables.
+//! `effects::draw_pong_box`: one box of the pong game (ball, bat or a score cell) drawn on the
+//! squares' frame: its height along the second axis times the flakes' second length into the sides
+//! (and times a constant into the second pair), its width along the first times the first length
+//! (likewise); the texture places from the pong's constants; its place (along, across) on the frame
+//! into the corners; unless the first corner's depth is below the nearest depth: projected, depth
+//! times the depth scale, colour -1, `scene::draw_fan`.
+//!
+//! The x87 runs are plain Rust on the x87 model (`math::x87_float`).
 
 use crate::effects::cell_x87::CellX87;
 use crate::effects::pong::{Pong, PongState};
@@ -14,8 +13,7 @@ use crate::effects::tuning::MarksFloats;
 use crate::effects::windscreen_flakes_store::WindscreenFlakes;
 use crate::math::x87;
 
-/// The sides, from the four values; the place's two
-/// values (left untouched) popped after.
+/// The sides, from the four values; the place's two values (left untouched) popped after.
 fn sides(
     pong: &Pong,
     fl: &WindscreenFlakes,
@@ -71,7 +69,7 @@ use crate::effects::plain::st_cell;
 use crate::effects::windscreen_flakes_store::WindscreenFlakeTables;
 use crate::math::x87_float as bh;
 
-/// `sides`'s x87 block as plain Rust on the x87 model (42 instructions), same order and memory places.
+/// `sides`'s arithmetic as plain Rust on the x87 model, in the same order.
 fn sides_x87(v: &[[u8; 10]; 4], p: &PongState, f: &MarksFloats, sq: &WindscreenFlakeTables) {
     let _t0 = bh::from_f80(v[3]);
     let _t1 = bh::from_f80(v[2]);
@@ -115,7 +113,7 @@ fn sides_x87(v: &[[u8; 10]; 4], p: &PongState, f: &MarksFloats, sq: &WindscreenF
     p.box_sides[8].st(t27);
 }
 
-/// `corners`'s x87 block as plain Rust on the x87 model (50 instructions), same order and memory places.
+/// `corners`'s arithmetic as plain Rust on the x87 model, in the same order.
 fn corners_x87(v: &[[u8; 10]; 4], p: &PongState, sq: &WindscreenFlakeTables) {
     let t0 = bh::from_f80(v[3]);
     let t1 = bh::from_f80(v[2]);
@@ -162,7 +160,7 @@ fn corners_x87(v: &[[u8; 10]; 4], p: &PongState, sq: &WindscreenFlakeTables) {
     sq.corners[3][2].st(t27);
 }
 
-/// `projected`'s x87 block as plain Rust on the x87 model (60 instructions), same order and memory places.
+/// `projected`'s arithmetic as plain Rust on the x87 model, in the same order.
 fn projected_x87(buffer: &crate::d3d::vertices_store::PolygonVertices, sq: &WindscreenFlakeTables) {
     let t0 = bh::ld(
         crate::scene::polygon_work::front_end()

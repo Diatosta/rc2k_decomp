@@ -1,15 +1,15 @@
-//! `scene::rotate_point` (0x44D110): the point in st(0) .. st(2) turned and placed by the
-//! matrix (rows 0x10 bytes apart, the place at +0x30), left there unrounded.
+//! `scene::rotate_point`: the point (three 80-bit values) turned and placed by the matrix (rows
+//! 0x10 bytes apart, the place at +0x30), left there unrounded.
 //!
-//! Plain Rust: the x87's arithmetic in `X` (`math/x87_float.rs`), the point
-//! and the result as 80-bit values (exact for what `X` holds). The original's instructions
-//! are recorded in the tests' `reference_vectors`. Refuses a null matrix.
+//! Plain Rust: the x87's arithmetic in `X` (`math/x87_float.rs`), the point and the result as
+//! 80-bit values (exact for what `X` holds). The tests compare against recorded vectors
+//! (`reference_vectors`). Refuses a null matrix.
 
 use crate::math::cells::{Cells, load};
 use crate::math::x87_float::{Rounds, at_rounding};
 use crate::scene::x87_mem::{Base, fld_with, fld80_with, fstp80_with};
 
-/// The Rust version: `p` as st(0) .. st(2), the result the same way.
+/// `p` the point's three 80-bit values, the result the same way.
 pub fn rotate_point(m: &(impl Cells + ?Sized), p: [[u8; 10]; 3]) -> [[u8; 10]; 3] {
     let mut out = [[0u8; 10]; 3];
     let m: [u32; 15] = load(m);

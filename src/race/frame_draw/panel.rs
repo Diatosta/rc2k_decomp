@@ -8,25 +8,22 @@ use crate::race::owner_shared::RaceShared;
 use crate::race::tables_store::Listed;
 use crate::session::PlainDword;
 
-/// `race::car_label` (0x45B1B7): the panel's seven-byte label " CAR nn" for the neighbouring car,
-/// `car_number`'s two digits (tens and units, each + '0' as a byte), or seven spaces when
-/// `neighbour` is -1 (no car there). The label's eighth byte is kept.
+/// The panel's seven-byte label " CAR nn" for the neighbouring car: `car_number`'s two digits (tens
+/// and units, each + '0' as a byte), or seven spaces when `neighbour` is -1 (no car there). The
+/// label's eighth byte is kept.
 pub fn car_label(label_at: &[PlainDword; 2], car_number: u32, neighbour: u32) {
-    // Converted: `rc2k_core::race::start::car_label`.
     let label = rc2k_core::race::start::car_label(car_number, neighbour == u32::MAX);
     let kept = label_at[1].get().to_le_bytes()[3];
     label_at[0].set(u32::from_le_bytes([label[0], label[1], label[2], label[3]]));
     label_at[1].set(u32::from_le_bytes([label[4], label[5], label[6], kept]));
 }
 
-/// `race::split_colours` (0x45B16A): the first `count` of the car's `colours` set to 0xC (not
-/// reached); then for each of the car block's split times passed (none when the number passed is 0
-/// or negative) the colour 8 when the time is not above the one before (0x63 before the first; the
-/// sign of the difference), else 4. Refuses (before anything) a count past the buffer's 0x40
-/// dwords, and more splits passed than the block's 16 times (the original reads on into the block's
-/// next fields).
+/// Sets the first `count` of the car's `colours` to 0xC (not reached); then for each of the car
+/// block's split times passed (none when the number passed is 0 or negative) the colour is 8 when
+/// the time is not above the one before (0x63 before the first; the sign of the difference), else
+/// 4 (rather than 8). Refused (before anything): a count past the buffer's 0x40 dwords, and more
+/// splits passed than the block's 16 times.
 pub fn split_colours(car: usize, colours: &[PlainDword; 64], count: u32) -> Result<(), Refused> {
-    // Converted: `rc2k_core::race::frame::{check_split_colours, split_colours}`.
     use rc2k_core::race::frame::{SPLIT_UNREACHED, check_split_colours, split_colours};
     let block = car_view(car)?;
     let n = block.splits_passed.get();
@@ -51,17 +48,12 @@ pub fn split_colours(car: usize, colours: &[PlainDword; 64], count: u32) -> Resu
     Ok(())
 }
 
-/// `race::panel_players` (0x45ACDB): unless `RACE_VARS.run_kind` is set,
-/// `race().frame.panel_and_overlay.panel.view_a.place` and
-/// `race().frame.panel_and_overlay.panel.view_b.place` -1; with more than one player also
-/// `race().frame.panel_and_overlay.panel.view_a.back` and
-/// `race().frame.panel_and_overlay.panel.view_a.front` -1, and
-/// `race().frame.panel_and_overlay.panel.view_a.place` /
-/// `race().frame.panel_and_overlay.panel.view_b.place` the two view blocks' +0xFA4.
+/// Unless `run_kind` is set, sets `race().frame.panel_and_overlay.panel.view_a.place` and
+/// `view_b.place` to -1; with more than one player also `view_a.back` and `view_a.front` to -1, and
+/// `view_a.place` / `view_b.place` to the two view blocks' +0xFA4.
 pub fn panel_players(race: &Race) -> Result<(), BadInput> {
     let shared = &race.shared;
     let frame = &race.frame;
-    // Converted: `rc2k_core::race::frame::panel_players`.
     use rc2k_core::race::frame::{PanelPlayers, panel_players};
     {
         let step = panel_players(shared.vars.get().run_kind.get(), || {
@@ -127,15 +119,13 @@ pub fn panel_players(race: &Race) -> Result<(), BadInput> {
     Ok(())
 }
 
-/// `race::lamps_wanted` (0x4536D7): `RACE_VIEW.lamps_wanted` = `g_lampCount`, with bit 0 set when a
-/// race car has +0x25C and +0x84 both set. Refuses (before anything) more than eight cars (past
-/// `g_carBlocks`).
+/// Sets `lamps_wanted` = `lamp_count`, with bit 0 set when a race car has +0x25C and
+/// +0x84 both set. Refused (before anything): more than eight cars (past `car_blocks`).
 pub fn lamps_wanted(
     work: &crate::race::work_store::RaceWork,
     race_view: &crate::race::view_store::RaceView,
     lamps: &crate::race::lamp_work::LampWork,
 ) -> Result<(), Refused> {
-    // Converted: `rc2k_core::race::frame::{car_lit, lamps_wanted}`.
     use rc2k_core::race::frame::{car_lit, lamps_wanted};
     let cars: u32 = race_view.race_cars.get();
     if cars > 8 {
@@ -152,9 +142,9 @@ pub fn lamps_wanted(
     Ok(())
 }
 
-/// The number of the view block the drawn view `n` names (`view_blocks`[]`; the original read
-/// `RACE_VIEW.drawn_view`, now the view's own: `ViewScratch::drawn_view`); refuses an index
-/// past the two and a view without its block.
+/// The number of the view block the drawn view `n` names (`view_blocks[]`; the view's own
+/// `ViewScratch::drawn_view` is read); refused: an index past the two
+/// and a view without its block.
 pub(super) fn drawn_view(
     race_view: &crate::race::view_store::RaceView,
     n: u32,
@@ -165,9 +155,9 @@ pub(super) fn drawn_view(
     Ok(race_view.view_number(n as usize)?)
 }
 
-/// `race::store_view_value` (0x455528): the drawn view's block +0xFB8 = the view's sun on the
-/// screen (`g_sunOnScreen`). Worked out at the scene's end (the block and the value), stored by the
-/// game's thread in the views' order (`ViewOutput::store_view_value`).
+/// Stores the drawn view's block +0xFB8 = the view's sun on the screen (`sun_on_screen`). The block
+/// and the value are worked out at the scene's end and stored by the game's thread in the views'
+/// order (`ViewOutput::store_view_value`).
 pub fn view_value(
     race_view: &crate::race::view_store::RaceView,
     sun: &crate::scene::polygon_work::ViewSun,
@@ -182,8 +172,7 @@ pub fn store_view_value(race: &Race, block: usize, value: u32) -> Result<(), Ref
     Ok(())
 }
 
-/// `race::fetch_view_value` (0x45550E): the view's value (`ViewSun::view_out`, the original's
-/// `FrameWork.view_out`) = the drawn view's block +0xFBC.
+/// The view's value (`ViewSun::view_out`, `FrameWork.view_out`) = the drawn view's block +0xFBC.
 pub fn fetch_view_value(
     race_view: &crate::race::view_store::RaceView,
     sun: &crate::scene::polygon_work::ViewSun,
@@ -194,13 +183,11 @@ pub fn fetch_view_value(
     Ok(())
 }
 
-/// `race::share_sound_spots` (0x45C7B9): the shared count =
-/// `race().frame.sound_spots().sound_spot_count`, and that many 0x14-byte spots copied from 0x6D1AF4
-/// to 0x5165F0 (read by the sound side, `sound::match_spot_voices`). Refuses (before anything) more
-/// than 36 (past both tables).
+/// Sets the shared count = `race().frame.sound_spots().sound_spot_count` and copies that many
+/// 0x14-byte spots (read by the sound side, `sound::match_spot_voices`). Refused (before anything):
+/// more than 36 (past both tables).
 pub fn share_sound_spots(race: &Race, sound: &crate::sound::owner::Sound) -> Result<(), Refused> {
     let frame = &race.frame;
-    // Converted: `rc2k_core::race::view::shared_spot_bytes`.
     let n: u32 = frame.sound_spots().sound_spot_count.get();
     let bytes = rc2k_core::race::view::shared_spot_bytes(n)?;
     sound.race.stage.get().shared_count.set(n);
@@ -223,10 +210,10 @@ pub fn share_sound_spots(race: &Race, sound: &crate::sound::owner::Sound) -> Res
     Ok(())
 }
 
-/// `race::clear_point_records` (0x4500FF), on its variables: the
-/// 0x1000 point records of 0x20 bytes at `g_pointRecords`: each first dword -1, or with `g_useSse`
-/// set each first 16 bytes `LIGHT_WORK.sse_fill` (`movntps`); `part` the drawing part clearing
-/// them (`scene::point_records::first_records_everywhere`).
+/// Clears the point records, on its variables: the 0x1000 point records of 0x20 bytes at
+/// `point_records`: each first dword -1, or with `use_sse` set each first 16 bytes
+/// `sse_fill`; `part` is the drawing part clearing them
+/// (`scene::point_records::first_records_everywhere`).
 pub fn clear_point_records(
     reads: crate::workers::DrawReads<'_>,
     part: &crate::workers::PartScratch,
@@ -245,17 +232,16 @@ pub fn clear_point_records(
     Ok(())
 }
 
-/// `race::object_bytes` (0x455263): for each of the 0x100 objects (records at each
-/// `POLYGON_WORK.texture_infos` entry's +0x20, its first dword the kind, +0xE bit 0), out0 = the
-/// record's +0xE bit 0, out1 = 1, out2 = the kinds' byte (`TEXTURE_PLACES.place_slot`) of the
-/// record's kind, out3 = 0xFF, or with faces (`OBJECT_SLOTS.face_counts`, first
-/// `OBJECT_SLOTS.first_face` in `g_faces`) the kinds' byte of the first face's +4 word. Outputs:
-/// the view's four face tables (`race::view_course`; the original's `LEVEL_GRID.face_table_a` ...)
+/// For each of the 0x100 objects (records at each `texture_infos` entry's +0x20, its
+/// first dword the kind, +0xE bit 0): out0 = the record's +0xE bit 0, out1 = 1, out2 = the kinds'
+/// byte (`place_slot`) of the record's kind, out3 = 0xFF, or with faces
+/// (`face_counts`, first `first_face` in `faces`) the kinds' byte of the
+/// first face's +4 word. Outputs: the view's four face tables (`race::view_course`;
+/// `face_table_a` ...)
 pub fn object_bytes(
     reads: crate::workers::DrawReads<'_>,
     mine: &crate::race::view_course::ViewCourse,
 ) -> Result<(), BadInput> {
-    // Converted: `rc2k_core::race::frame::object_bytes`.
     let kind = |n: u32| -> Result<u32, BadInput> {
         reads
             .texture_places
@@ -292,10 +278,10 @@ pub fn object_bytes(
     Ok(())
 }
 
-/// One view's half of `race::panel_values`: the car block at `car`'s values into the panel
-/// fields (the rounded engine speed, the engine sound speed, the gear, the distance, the
-/// stage time x 10, the split gaps, and for the first view also its front and back gaps and
-/// the two last ones).
+/// One view's half of `panel_values_plain`: the car block at `car`'s values into the panel fields
+/// (the rounded engine speed, the engine sound speed, the gear, the distance, the stage time x
+/// 10, the split gaps, and for the first view also its front and back gaps and the two last
+/// ones).
 pub(super) fn panel_half(race: &Race, car: usize, first: bool) -> Result<(), BadInput> {
     use rc2k_core::race::panel::{distance_shown, shown_whole, travelled};
     let panel = &race.frame.panel_and_overlay.get().panel;
@@ -349,9 +335,7 @@ pub(super) fn panel_half(race: &Race, car: usize, first: bool) -> Result<(), Bad
     Ok(())
 }
 
-/// `race::panel_values` (0x45AB5A), converted (`set_up_panel`'s too; the exact x87 version went
-/// once its one Rust caller converted): both view blocks' values into the panel (see `panel_half`).
-// Converted: `rc2k_core::race::panel::{shown_whole, travelled, distance_shown}`.
+/// Both view blocks' values into the panel (see `panel_half`).
 pub fn panel_values_plain(race: &Race) -> Result<(), BadInput> {
     {
         panel_half(race, race.shared.view.get().view_number(0)?, true)?;
@@ -360,12 +344,12 @@ pub fn panel_values_plain(race: &Race) -> Result<(), BadInput> {
     Ok(())
 }
 
-/// `race::wake_part_sounds` (0x45D1EA): for each race car (car 0 at least: the loop tests at its
-/// end) and each of its six slots, when +0x48 is 0 and +0x700 at least 10, +0x48 = 1; then, only
-/// when +0x700 was exactly 10, and when `race().frame.frame_work.listed_car_sounds[g_currentCar]`
-/// is not -1, the car's sound object (`g_raceSoundObjects[car & 7]`) +0x264 = 1 and +0x10 = 1.
-/// Refuses (before anything) more than eight cars, a null block or object it would write, and
-/// `g_currentCar` past 7 when it is read.
+/// Wakes the part sounds: for each race car (car 0 at least: the loop tests at its end) and each of
+/// its six slots, when +0x48 is 0 and +0x700 at least 10, +0x48 = 1; then, only when +0x700 was
+/// exactly 10, and when `race().frame.frame_work.listed_car_sounds[current_car]` is not -1, the
+/// car's sound object (`SoundObject` `car & 7`) +0x264 = 1 and +0x10 = 1. Refused (before
+/// anything): more than eight cars, a null block or object it would write, and `current_car` past 7
+/// when it is read.
 pub fn wake_part_sounds(race: &Race, sound: &crate::sound::owner::Sound) -> Result<(), Refused> {
     let shared = &race.shared;
     let cars = shared.view.get().race_cars.get().max(1);
@@ -385,7 +369,6 @@ pub fn wake_part_sounds(race: &Race, sound: &crate::sound::owner::Sound) -> Resu
             continue;
         }
         for slot in 0..6usize {
-            // Converted: `rc2k_core::race::lights::part_wake`.
             use rc2k_core::race::lights::{PartWake, part_wake};
             let count = block.part_wake_counts[slot].get();
             let part = part_wake(block.part_woken[slot].get(), count);
@@ -415,15 +398,12 @@ pub fn wake_part_sounds(race: &Race, sound: &crate::sound::owner::Sound) -> Resu
     Ok(())
 }
 
-/// `race::panel_neighbours` (0x45AD36): in mode 2 (`RACE_VARS.run_kind`), the first view's place
-/// (+0x654) and its neighbours into the panel: `race().frame.panel_and_overlay.panel.view_a.place`
-/// the place, `race().frame.panel_and_overlay.panel.view_a.time` +0x8C x 10,
-/// `race().frame.panel_and_overlay.panel.view_a.back` the car behind's +0x24 (-1 at the last place,
-/// `race().frame.panel_and_overlay.panel.view_a.back`), its label at 0x6D1838 (`car_label` of
-/// `RACE_TABLES.arcade_car_numbers[place]`), `race().frame.panel_and_overlay.panel.view_a.split2`
-/// +0x634, `race().frame.panel_and_overlay.panel.view_a.front` the car ahead's +0x24 (-1 at place
-/// 1), its label at 0x6D1844 (`RACE_TABLES.number_before_first[place]`),
-/// `race().frame.panel_and_overlay.panel.view_a.negated` -(+0x630). Refuses (before anything) a
+/// In mode 2 (`run_kind`), puts the first view's place (+0x654) and its neighbours into
+/// the panel: `view_a.place` the place, `view_a.time` +0x8C x 10, `view_a.back` the car behind's
+/// +0x24 (-1 at the last place), its label (`car_label` of
+/// `arcade_car_numbers[place]`), `view_a.split2` +0x634, `view_a.front` the car ahead's
+/// +0x24 (-1 at place 1), its label (`number_before_first[place]`), `view_a.negated`
+/// -(+0x630); all fields of `race().frame.panel_and_overlay.panel`. Refused (before anything): a
 /// neighbour's car number past 7 or a null block.
 pub fn panel_neighbours(race: &Race) -> Result<(), Refused> {
     let frame = &race.frame;
@@ -433,9 +413,9 @@ pub fn panel_neighbours(race: &Race) -> Result<(), Refused> {
     }
     let a = car_view(shared.view.get().view_number(0)?)?;
     let place = a.mode2_place.get();
-    // The place indexes unchecked, as the original does: the cars by place start at
-    // `computer_ease_speed` (slot 0, the float 30.0) and run on into `arcade_car_kinds`; the
-    // numbers' `number_before_first` is the entry at place -1.
+    // The place indexes unchecked: the cars by place start at `computer_ease_speed` (slot 0, the
+    // float 30.0) and run on into `arcade_car_kinds`; the numbers' `number_before_first` is the
+    // entry at place -1.
     let on = |first: Listed, n: u32| shared.tables().dword_from(first, n as usize);
     let block_of = |car: u32| -> Result<_, Refused> {
         if car > 7 {
@@ -456,8 +436,6 @@ pub fn panel_neighbours(race: &Race) -> Result<(), Refused> {
         .view_a
         .time
         .set(a.time_left.get().wrapping_mul(10));
-    // Converted: `rc2k_core::race::frame::neighbour_number` (and the labels'
-    // `rc2k_core::race::start::car_label`).
     use rc2k_core::race::frame::neighbour_number;
     let number = behind.car_kind.get();
     let back = neighbour_number(place == shared.tables().arcade_cars.get(), number);
@@ -491,13 +469,11 @@ pub fn panel_neighbours(race: &Race) -> Result<(), Refused> {
     Ok(())
 }
 
-/// `race::panel_motion` (0x45AE1D), converted (`set_up_panel`'s too): for each view block, +0xAE8
-/// and +0xAEC x 0.5 / 65536 (floats) and the heading, (-(+0x9C0)) >> 14 x pi x 0.5 / 65536, into
-/// the panel (`race().frame.panel_and_overlay.panel.view_a.motion[0]`.. for the first,
-/// `race().frame.panel_and_overlay.panel.view_b.motion[0]`.. for the second). The original's stores
-/// to `g_scratch` (the heading turn, `g_sceneClock` less the shown-since clock and 800) are not
-/// kept: nothing read them.
-// Converted: `rc2k_core::race::panel::{motion, heading_turn, heading}`.
+/// For each view block, stores +0xAE8 and +0xAEC x 0.5 / 65536 (floats) and the heading,
+/// (-(+0x9C0)) >> 14 x pi x 0.5 / 65536, into the panel
+/// (`race().frame.panel_and_overlay.panel.view_a.motion[0]`.. for the first, `view_b.motion[0]`..
+/// for the second). The heading turn and `scene_clock` less the shown-since clock and 800 are not
+/// stored: nothing reads them.
 pub fn panel_motion_plain(race: &Race) -> Result<(), BadInput> {
     use rc2k_core::race::panel::{heading, heading_turn, motion};
     {
@@ -522,13 +498,11 @@ pub fn panel_motion_plain(race: &Race) -> Result<(), BadInput> {
     Ok(())
 }
 
-/// `race::panel_marks` (0x45AEFE): the eight dwords at 0x6D14A2 .. 0x6D14C2 (but 0x6D14B2) 0; for
-/// each view block, `race().frame.panel_and_overlay.panel.marks[0].base` /
-/// `race().frame.panel_and_overlay.panel.marks[1].base` = 400 + (+0xFA0), and its first +0xF98 (at
-/// most 4) values at +0xF78, each + 1, at 0x6D14A2 / 0x6D14B6.
+/// Sets the eight mark dwords 0; for each view block,
+/// `race().frame.panel_and_overlay.panel.marks[0].base` / `marks[1].base` = 400 + (+0xFA0), and its
+/// first +0xF98 (at most 4) values at +0xF78, each + 1.
 pub fn panel_marks(race: &Race) -> Result<(), BadInput> {
     let frame = &race.frame;
-    // Converted: `rc2k_core::race::frame::view_marks`.
     {
         for view in &frame.panel_and_overlay.get().panel.marks {
             for mark in &view.marks {
@@ -564,8 +538,8 @@ pub fn panel_marks(race: &Race) -> Result<(), BadInput> {
     Ok(())
 }
 
-/// `race::countdown_lights` (0x45B008): one view's start lights: `view` the view's light fields,
-/// `block` the view's car block, `flag` where a "step" flag goes. See the header for the steps.
+/// One view's start lights: `view` the view's light fields, `block` the view's car block, `flag`
+/// where a "step" flag goes.
 pub fn countdown_lights(
     frame: &Frame,
     view: &crate::race::panel_store::Lights,
@@ -580,7 +554,6 @@ pub fn countdown_lights(
         if car_view(block)?.false_start_count.get() != 0 {
             return Ok(());
         }
-        // Converted: `rc2k_core::race::start::lights`.
         use rc2k_core::race::start::lights;
         let Some(l) = lights(
             car_view(block)?
@@ -607,8 +580,8 @@ pub fn countdown_lights(
     Ok(())
 }
 
-/// `race::both_countdown_lights` (0x45AFDB): `countdown_lights` for the first view and the second
-/// (fields 0x10, `race().frame.panel_and_overlay.overlay.forget_flag_1`).
+/// Runs `countdown_lights` for the first view and the second (fields 0x10,
+/// `race().frame.panel_and_overlay.overlay.forget_flag_1`).
 pub fn both_countdown_lights(race: &Race) -> Result<(), BadInput> {
     let frame = &race.frame;
     {
@@ -649,10 +622,9 @@ pub fn check_split_colours(race: &Race) -> Result<(), Refused> {
     Ok(())
 }
 
-/// `race::both_split_colours` (0x45B147): `split_colours` for the first view's block into
+/// Runs `split_colours` for the first view's block into
 /// `race().frame.panel_and_overlay.overlay.overlay_part_kinds_a`, then the second's into
-/// `race().frame.panel_and_overlay.overlay.overlay_part_kinds_b`. Refuses (before anything) as
-/// `split_colours` would for either.
+/// `overlay_part_kinds_b`. Refused (before anything) as `split_colours` would for either.
 pub fn both_split_colours(race: &Race) -> Result<(), Refused> {
     check_split_colours(race)?;
     for (view, buffer) in (0..2).zip(colour_buffers(&race.frame)) {
@@ -673,7 +645,8 @@ pub(super) fn check_panel_neighbours(shared: &RaceShared) -> Result<(), Refused>
     let place = car_view(shared.view.get().view_number(0)?)?
         .mode2_place
         .get();
-    // The cars by place (from `computer_ease_speed`, see `panel_neighbours`) at the place and the one after.
+    // The cars by place (from `computer_ease_speed`, see `panel_neighbours`) at the place and the
+    // one after.
     for n in [place, place.wrapping_add(1)] {
         let car = shared
             .tables()
@@ -685,13 +658,12 @@ pub(super) fn check_panel_neighbours(shared: &RaceShared) -> Result<(), Refused>
     Ok(())
 }
 
-/// `race::set_up_panel` (0x45AB36): `panel_values`, `panel_neighbours`, `panel_players`,
-/// `panel_motion`, `panel_marks`, `both_countdown_lights`, `both_split_colours`. Refuses (before
-/// anything) what `panel_neighbours` or `both_split_colours` would.
+/// Runs `panel_values_plain`, `panel_neighbours`, `panel_players`, `panel_motion_plain`,
+/// `panel_marks`, `both_countdown_lights` and `both_split_colours`. Refused (before anything): what
+/// `panel_neighbours` or `both_split_colours` would refuse.
 pub fn set_up_panel(race: &Race) -> Result<(), Refused> {
     check_panel_neighbours(&race.shared)?;
     check_split_colours(race)?;
-    // Converted: its float callees' `_plain` versions.
     panel_values_plain(race)?;
     panel_neighbours(race)?;
     panel_players(race)?;
@@ -701,8 +673,8 @@ pub fn set_up_panel(race: &Race) -> Result<(), Refused> {
     both_split_colours(race)
 }
 
-/// `race::reset_lamps` (0x45487A): `g_lampCount`, the view's two sort lists' counts and
-/// `race().frame.frame_work.flare_count` 0, then `race::object_bytes`.
+/// Sets `lamp_count`, the view's two sort lists' counts and `race().frame.frame_work.flare_count`
+/// to 0, then runs `object_bytes`.
 pub fn reset_lamps(ctx: &crate::race::view_scratch::DrawCtx) -> Result<(), BadInput> {
     let crate::race::view_scratch::DrawCtx { view, reads, .. } = *ctx;
     view.lamps.lamp_count.set(0);
@@ -712,8 +684,7 @@ pub fn reset_lamps(ctx: &crate::race::view_scratch::DrawCtx) -> Result<(), BadIn
     object_bytes(reads, &view.course)
 }
 
-/// `race::hold_to_limit` (0x4650A9): `value` held to `RACE_WORK.patch_settings` (unsigned).
+/// Holds `value` to `patch_settings` (unsigned).
 pub fn hold_to_limit(work: &crate::race::work_store::RaceWork, value: u32) -> u32 {
-    // Converted: `rc2k_core::race::frame::hold_to_limit`.
     rc2k_core::race::frame::hold_to_limit(value, work.patch_settings()[0].get())
 }

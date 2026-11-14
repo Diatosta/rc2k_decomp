@@ -1,14 +1,11 @@
-//! `physics::find_course_record` (0x4220B6): the course record (0x20 bytes, `g_courseRecords`)
-//! whose first dword is the given key, looked for among its kind's records: kind = (key & 0xF) +
-//! ((key >> 11) & 0xF) * 0x10, records `g_kindFirstRecords[kind]` ..= `g_kindLastRecords[kind]`
-//! (`race/course_data.rs`; a first of -1: none). The key is a grid cell for its callers
-//! ((z >> 21) << 11 + (x >> 21)).
+//! Finds the course record (0x20 bytes) whose first dword is the given key,
+//! among its kind's records: kind = (key & 0xF) + ((key >> 11) & 0xF) * 0x10, records
+//! `first_records[kind]` ..= `last_records[kind]` (`race/course_data.rs`; a first of
+//! -1: none). For its callers the key is a grid cell, (z >> 21) << 11 + (x >> 21).
 //!
-//! Takes: the key
-//!
-//! Callers (2): the ground's search (`physics::ground_search`'s nine cells) and
-//! `physics::cell_face_contacts`. Refuses (before anything) a kind whose last record is at or past
-//! `g_courseRecordCount` while its first is not -1 (a search past the records; not worked out).
+//! Callers: `physics::ground_search` (its nine cells) and `physics::cell_face_contacts`.
+//! Refuses (before anything) a kind whose last record is at or past `course_record_count`
+//! while its first is not -1 (a search past the records; not worked out).
 
 use crate::errors::Refused;
 use crate::physics::cells::Trap;

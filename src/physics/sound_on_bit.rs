@@ -1,9 +1,6 @@
-//! `physics::sound_on_bit` (0x441324): when bit cl of `g_car` +0x298 (`parts_present`) is
-//! set, it is cleared and `physics::place_car_sound` runs.
+//! When the given bit of `parts_present` is set, it is cleared and `physics::place_car_sound` runs.
 //!
-//! Takes: the bit
-//!
-//! Callers: `physics::sound_hit_parts` (four). Refuses what `place_car_sound` refuses (before
+//! Caller: `physics::sound_hit_parts`, four calls. Refuses what `place_car_sound` refuses (before
 //! anything: the bit is cleared after the check).
 
 use crate::errors::Refused;
@@ -13,7 +10,7 @@ use crate::race::numbers_store::Numbers;
 use crate::race::owner_shared::RaceShared;
 use rc2k_core::physics::parts::take_bit;
 
-// Converted: `rc2k_core::physics::parts::take_bit`.
+// Core: `rc2k_core::physics::parts::take_bit`.
 pub fn sound_on_bit(
     numbers: &Numbers,
     matrices: &SceneMatrices,

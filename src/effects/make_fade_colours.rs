@@ -1,9 +1,7 @@
-//! `effects::make_fade_colours` (0x4C37EF): 0x11 colours from `FrameWork.view_light` toward white:
-//! each component's inverse (0xFF less it) times a step that grows from 0 by
-//! `MarksFloats.sixteenth` (`SnowLight.fade_step`, a float), rounded, made a pixel (alpha 0xFF) and added to
-//! the colour (as one dword, carries crossing components), into `SnowLight.fade_colours[0]`.
-//!
-//! One caller, `effects::run_snow`.
+//! `effects::make_fade_colours`: 0x11 colours from `FrameWork.view_light` toward white: each
+//! component's inverse (0xFF less it) times a step that grows from 0 by `MarksFloats.sixteenth`
+//! (`SnowLight.fade_step`, a float), rounded, made a pixel (alpha 0xFF) and added to the colour (as
+//! one dword, carries crossing components), into `SnowLight.fade_colours[0]`.
 
 use crate::effects::rain::Weather;
 use crate::math::x87;

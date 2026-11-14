@@ -1,7 +1,7 @@
-//! `race::loadlevel_init`'s locacurrcourse, its "best line" (`race::build_best_line`): the checkpoint faces (first byte 0xFF, kind `g_lineFaceKind`) listed in
-//! `g_checkpointFaces` (0x9E3738) and chained in order, `g_checkpointCount` of them
-//! (0x623640, "numsorted"); then their angles, checks, distances, the map, the replay
-//! cameras and the surface shares. Here the small steps.
+//! Building a stage's best line: the checkpoint faces (first byte 0xFF, kind `line_face_kind`) are
+//! listed in `checkpoint_faces` and chained in order (`checkpoint_count` of them); then come their
+//! angles, checks, distances, the map, the replay cameras and the surface shares. This file holds
+//! the small steps.
 
 use crate::effects::cell_x87::CellX87;
 use crate::errors::{BadInput, Refused};
@@ -13,7 +13,7 @@ use crate::race::owner_shared::RaceShared;
 use crate::race::trap::Trap;
 use crate::session::{PlainDword, PlainFloat};
 
-/// The entries `g_checkpointFaces` and the lists after it have room for.
+/// The number of entries `checkpoint_faces` and the lists after it have room for.
 pub const MOST_CHECKS: u32 = rc2k_core::race::checkpoints::MOST_CHECKS;
 
 /// Field `offset` of course face `face`.
@@ -38,19 +38,17 @@ fn count(shared: &RaceShared) -> Result<u32, Refused> {
     Ok(n)
 }
 
-/// `race::set_line_face_kind` (0x44574A): `g_lineFaceKind` 0x3E with `g_stageDirection` 0, 0x3D
-/// with 1, else 0.
+/// Sets `line_face_kind`: 0x3E when `stage_direction` is 0, 0x3D when it is 1, else 0.
 pub fn set_line_face_kind(shared: &RaceShared) {
-    // Converted: `rc2k_core::race::checkpoints::line_face_kind`.
     let kind =
         rc2k_core::race::checkpoints::line_face_kind(shared.work.get().stage_direction.get());
     shared.vars.get().line_face_kind.set(kind);
 }
 
-/// `race::add_surface_share` (0x445F7B): with `g_surfaceWeight` not 0, surface `surface` & 0xF's
-/// share gets weight / 256 * 0.25 / `g_checkpointCount` * 100 more (on the x87, the count as a
-/// whole number). The exact x87 version (for `race::surface_shares`, whose whole numbers are
-/// rounded from the shares), which `surface_shares` keeps as floats in `shares` while it adds.
+/// With `surface_weight` not 0, adds to surface `surface & 0xF`'s share: weight / 256 * 0.25 /
+/// `checkpoint_count` * 100, the count as a whole number. Done with the exact x87 arithmetic
+/// because `surface_shares` keeps the shares as floats while it adds and rounds them to whole
+/// numbers last.
 fn add_surface_share(race: &Race, shares: &[PlainFloat; 16], surface: u32) {
     let course = &race.course;
     let shared = &race.shared;
@@ -58,9 +56,9 @@ fn add_surface_share(race: &Race, shares: &[PlainFloat; 16], surface: u32) {
     if weight == 0 {
         return;
     }
-    // g_surfaceShares: 16 floats
+    // `shares` holds the 16 surfaces' shares.
     let share = &shares[(surface & 0xF) as usize];
-    // 256, 0.25, 100
+    // The constants 256, 0.25 and 100.
     let [a, b, c] = [
         course.numbers.get().k256.get(),
         course.numbers.get().quarter.get(),
@@ -70,15 +68,14 @@ fn add_surface_share(race: &Race, shares: &[PlainFloat; 16], surface: u32) {
     share.st(bh::int(weight) / bh::ld(a) * bh::ld(b) / bh::int(count) * bh::ld(c) + share.ld());
 }
 
-/// `race::next_map_anchor` (0x445FEE): from checkpoint `from` on, the first whose face has +0x2C
-/// (the map's x and y words) not 0: `g_mapAnchorCount` + 1, and it; None at `g_checkpointCount`.
-/// Refuses more checkpoints than the lists hold.
+/// From checkpoint `from` on, finds the first whose face has the map's x and y words (+0x2C) not 0:
+/// returns `map_anchor_count` + 1 and that checkpoint, or None at `checkpoint_count`. Refused: more
+/// checkpoints than the lists hold.
 pub fn next_map_anchor(
     course: &Course,
     shared: &RaceShared,
     from: u32,
 ) -> Result<Option<u32>, Refused> {
-    // Converted: `rc2k_core::race::checkpoints::next_map_anchor`.
     let n = count(shared)?;
     let trap = Trap::new();
     let anchor = rc2k_core::race::checkpoints::next_map_anchor(from, n, |c| {
@@ -100,11 +97,9 @@ pub fn next_map_anchor(
     Ok(anchor)
 }
 
-/// `race::count_checks` (0x445AAB): with two checkpoints or more, `g_checkCounts`[n] the
-/// checkpoints up to n whose face's byte +0x26 is neither 0 nor 1. Refuses more checkpoints than
-/// the lists hold.
+/// With two checkpoints or more, `check_counts`[n] counts the checkpoints up to n whose face's byte
+/// +0x26 is neither 0 nor 1. Refused: more checkpoints than the lists hold.
 pub fn count_checks(course: &Course, shared: &RaceShared) -> Result<(), Refused> {
-    // Converted: `rc2k_core::race::checkpoints::check_counts`.
     let n = count(shared)?;
     if n < 2 {
         return Ok(());
@@ -127,8 +122,8 @@ pub fn count_checks(course: &Course, shared: &RaceShared) -> Result<(), Refused>
 
 const MOST_FACES: u32 = 0x10_0000;
 
-/// A replay camera's set: the face kind, the list (0x400) of such faces, its count, and
-/// each checkpoint's nearest.
+/// A replay camera set: the face kind, the list (0x400 entries) of such faces, its count, and each
+/// checkpoint's nearest camera.
 #[derive(Clone, Copy)]
 pub struct Cameras {
     pub kind: u8,
@@ -137,7 +132,7 @@ pub struct Cameras {
     pub nearest: for<'a> fn(&'a Race) -> &'a [PlainDword],
 }
 
-/// 0x445BB2 ("replaycam1") and 0x445CF1 ("replaycam2").
+/// The two sets, "replaycam1" and "replaycam2" in the log.
 pub fn cameras() -> [Cameras; 2] {
     [
         Cameras {
@@ -155,14 +150,13 @@ pub fn cameras() -> [Cameras; 2] {
     ]
 }
 
-/// The map work cell at `o` (the original's offsets, from 0xB8).
+/// The map work cell at byte offset `o`.
 fn work(shared: &RaceShared, o: u32) -> &PlainDword {
     &shared.vars.get().map_work[((o - 0xB8) / 4) as usize]
 }
 
-/// Entry `n` of a checkpoint table. Every number here is held below the lists' limits
-/// (`count`, `MOST_CHECKS`, the cameras' `MOST_CAMERAS`), so none leaves its table; one
-/// that did is refused.
+/// Entry `n` of a checkpoint table. Every number here is held below the lists' limits (`count`,
+/// `MOST_CHECKS`, the cameras' `MOST_CAMERAS`), so none leaves its table; one that did is refused.
 fn read_n(table: &[PlainDword], n: u32) -> Result<u32, BadInput> {
     table
         .get(n as usize)
@@ -178,7 +172,7 @@ fn write_n(table: &[PlainDword], n: u32, value: u32) -> Result<(), BadInput> {
     Ok(())
 }
 
-/// A face's first point (+4): its number.
+/// A face's first point: its number (field +4).
 fn point_of(course: &Course, face: u32) -> Result<u32, BadInput> {
     face_field(course, face, 4)
 }
@@ -191,18 +185,17 @@ fn face_count(course: &Course) -> Result<u32, Refused> {
     Ok(n)
 }
 
-/// `race::sort_checkpoints` (0x4458A7): `set_line_face_kind`; the faces of that kind (first byte
-/// 0xFF) listed in `g_checkpointFaces`, `g_lineFaceTotal` of them; with two or more, the first
-/// whose byte +0x26 is 1 put first (none: no checkpoints), then each next the one the last one's
-/// +0xC names (searched over the whole list, swapped into place) until none is found;
-/// `g_checkpointCount` and `g_lineFaceTotal` the chain's length, `g_lastCheckpoint` it - 1. With
-/// fewer than two, both counts 0. Refuses no faces or 0x100000 or more, and more of the kind than
-/// the list holds.
+/// Chains the checkpoint faces: `set_line_face_kind`; lists the faces of that kind (first byte
+/// 0xFF) in `checkpoint_faces`, `line_face_total` of them. With two or more, the first whose byte
+/// +0x26 is 1 goes first (none: no checkpoints), then each next is the face the last one's +0xC
+/// names (searched over the whole list, swapped into place) until none is found. `checkpoint_count`
+/// and `line_face_total` get the chain's length, `last_checkpoint` that minus 1; with fewer than
+/// two, both counts are 0. Refused: no faces, 0x100000 or more, or more of the kind than the list
+/// holds.
 pub fn sort_checkpoints(race: &Race) -> Result<(), Refused> {
     let course = &race.course;
     let shared = &race.shared;
-    // Converted: `rc2k_core::race::checkpoints::{line_face_kind, chain}`; the faces of the
-    // kind listed here as the original lists them.
+    // Faces of the kind are listed here in the order the faces come.
     use rc2k_core::race::checkpoints::{chain, line_face_kind};
     {
         let n = face_count(course)?;
@@ -266,12 +259,12 @@ pub fn sort_checkpoints(race: &Race) -> Result<(), Refused> {
     }
 }
 
-/// `race::checkpoint_angles` (0x4459DF): with two checkpoints or more, each link's angle (x and z
-/// from the last checkpoint's first point to this one's: the x87's `fpatan` over pi, times 0.5,
-/// 65536 and 65536) into `g_checkpointAngles` + 1 .. n, n + 1 the same as n; then 0 and 1 as 2.
+/// With two checkpoints or more, stores each link's angle (x and z from the last checkpoint's first
+/// point to this one's: arctangent over pi, times 0.5, 65536 and 65536) in `checkpoint_angles` 1 ..
+/// n; n + 1 gets the same as n, and entries 0 and 1 the value of 2.
 pub fn checkpoint_angles(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let course = &race.course;
-    // Converted: `rc2k_core::race::best_line::link_angles`; each link's angle the x87's.
+    // Each link's angle is the x87's.
     let n = count(&race.shared)?;
     let trap = Trap::new();
     {
@@ -322,13 +315,11 @@ pub fn checkpoint_angles(race: &Race, scene: &crate::scene::owner::Scene) -> Res
     Ok(())
 }
 
-/// `race::checkpoint_distances` (0x445AF1): with two checkpoints or more, the distance along the
-/// line (x and z of their first points, each link's length rounded) at each of 0 ..
-/// `g_lastCheckpoint`; the whole at `g_lastCheckpoint` and in `g_lineLength`. Refuses a last
-/// checkpoint of 0 or past the lists (the original counts round), and fewer than two checkpoints:
-/// the original then writes through a stale register (section 16), which its one caller,
-/// `build_best_line`, never reaches (it calls with two line faces or more, and `sort_checkpoints`
-/// makes the checkpoint count the same).
+/// With two checkpoints or more, stores the distance along the line (x and z of the checkpoints'
+/// first points, each link's length rounded) at each of 0 .. `last_checkpoint`; the whole at
+/// `last_checkpoint` and in `line_length`. Refused: a last checkpoint of 0 or past the lists, and
+/// fewer than two checkpoints. Its one caller, `build_best_line`, never reaches that: it needs two
+/// line faces or more, and `sort_checkpoints` makes the checkpoint count the same.
 pub fn checkpoint_distances(
     race: &Race,
     scene: &crate::scene::owner::Scene,
@@ -345,7 +336,6 @@ pub fn checkpoint_distances(
         if last == 0 || last >= MOST_CHECKS {
             return Err(BadInput("a last checkpoint of 0 or past the lists").into());
         }
-        // Converted: `rc2k_core::race::best_line::distances`.
         let sums = rc2k_core::race::best_line::distances(last, |k| {
             let a = match point_of(course, check_face(shared, k + 1)) {
                 Ok(a) => a,
@@ -389,10 +379,10 @@ pub fn checkpoint_distances(
     Ok(())
 }
 
-/// `race::replay_cameras` (0x445BB2, 0x445CF1): with two checkpoints or more, the faces of the
-/// set's kind (first byte 0xFF) listed (0x400 at most); with any, each checkpoint's nearest of them
-/// (x and z of their first points, the length rounded; the last of the nearest when two are as
-/// near). Refuses no faces or 0x100000 or more.
+/// With two checkpoints or more, lists the faces of the set's kind (first byte 0xFF; 0x400 at
+/// most); with any, finds each checkpoint's nearest of them (x and z of their first points, the
+/// length rounded; the last of the nearest when two are as near). Refused: no faces, or 0x100000 or
+/// more.
 pub fn replay_cameras(
     race: &Race,
     scene: &crate::scene::owner::Scene,
@@ -407,7 +397,6 @@ pub fn replay_cameras(
     let faces = face_count(course)?;
     let trap = Trap::new();
     {
-        // Converted: `rc2k_core::race::best_line::{camera_faces, nearest_camera}`.
         let (cameras, _) = rc2k_core::race::best_line::camera_faces(faces, |b| {
             let f = trap.keep_read(crate::race::course_places::face_number(
                 race.course.reads(),
@@ -474,12 +463,11 @@ pub fn replay_cameras(
     Ok(())
 }
 
-/// `race::surface_shares` (0x445E30): with two checkpoints or more, `g_surfaceShares` 0; for each
-/// checkpoint whose face's +0x3C names a face, that face's two textures (+1 and +0x21, each 0x40
-/// bytes of `g_textureInfos`) add their four surfaces (+0x10 .. +0x13, `add_surface_share`):
-/// +0x21's weighted by the face's bytes +0x22 .. +0x25 (a quarter of their sum; 0 without a +0x21,
-/// or with its kind (+0x2C, by `surface_kinds`) 4 or 5), +1's by 0x100 less; then the shares made
-/// whole numbers.
+/// With two checkpoints or more, clears `surface_shares`; for each checkpoint whose face's +0x3C
+/// names a face, that face's two textures (+1 and +0x21, each 0x40 bytes of `texture_infos`) add
+/// their four surfaces (+0x10 .. +0x13, `add_surface_share`): +0x21's weighted by the face's bytes
+/// +0x22 .. +0x25 (a quarter of their sum; 0 without a +0x21, or with its kind (+0x2C, by
+/// `surface_kinds`) 4 or 5), +1's by 0x100 less. The shares are then made whole numbers.
 pub fn surface_shares(race: &Race) -> Result<(), Refused> {
     let course = &race.course;
     let shared = &race.shared;
@@ -511,7 +499,6 @@ pub fn surface_shares(race: &Race) -> Result<(), Refused> {
             let face_byte = |offset| -> Result<u32, BadInput> {
                 Ok(u32::from(face_field::<u8>(&race.course, f, offset)?))
             };
-            // Converted: `rc2k_core::race::best_line::{second_weight, first_weight}`.
             let blend = [
                 face_byte(0x22)?,
                 face_byte(0x23)?,
@@ -520,10 +507,10 @@ pub fn surface_shares(race: &Race) -> Result<(), Refused> {
             ]
             .map(|b| b as u8);
             let second = face_byte(0x21)?;
-            // `surface_kinds`: indexed by the texture info's kind byte, the course info
-            // record's +0x24 (`build_texture_infos`): 0 .. 3 in every record of the texture
-            // info files the game ships (with the marks' file over them), so inside the
-            // four; a byte past them is refused.
+            // `surface_kinds` is indexed by the texture info's kind byte (the course info record's
+            // +0x24, set by `build_texture_infos`): 0 .. 3 in every record of the texture info
+            // files shipped (with the marks' file over them), so inside the four; a byte past them
+            // is refused.
             let kind: u32 = shared
                 .view
                 .get()
@@ -554,13 +541,12 @@ pub fn surface_shares(race: &Race) -> Result<(), Refused> {
     Ok(())
 }
 
-/// `race::map_segment` (0x446036): the checkpoints from `RaceVars.map_work[3]` to `RaceVars.map_work[2]` (both
-/// included) placed on the map: the two anchors' map places (their faces' words +0x2C and +0x2E, <<
-/// 14, y negated) and first points; the stretch's scale (map length over ground length, a float)
-/// and its two angles (`fpatan` / pi * 0.5^3 * 65536^2, << 2); each checkpoint's point from the
-/// first anchor turned by minus the ground angle (`math::rotate_point_about_y`), scaled, turned by the map
-/// angle, moved to the first anchor's place: `g_mapX`, `g_mapY` (negated). Leaves the original's
-/// registers past the last anchor (the last's map x and minus its y). Refuses anchors past the lists.
+/// Places the checkpoints from `RaceVars.map_work[3]` to `RaceVars.map_work[2]` (both included) on
+/// the map. From the two anchors' map places (their faces' words +0x2C and +0x2E, << 14, y negated)
+/// and first points it takes the stretch's scale (map length over ground length, a float) and its
+/// two angles; each checkpoint's point is turned about the first anchor by minus the ground angle
+/// (`math::rotate_point_about_y`), scaled, turned by the map angle and moved to the first anchor's
+/// place, giving `map_x` and `map_y` (negated). Refused: anchors past the lists.
 pub fn map_segment(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let course = &race.course;
     let shared = &race.shared;
@@ -631,7 +617,6 @@ pub fn map_segment(race: &Race, scene: &crate::scene::owner::Scene) -> Result<()
         work(shared, 0xBC).set(ground_angle);
         let mut e = a;
         loop {
-            // The point's number rides along as `rotate_point_about_y`'s y.
             let number = point_of(&race.course, check_face(&race.shared, e))?;
             let p = [
                 crate::race::scene_points::point_word(
@@ -678,11 +663,10 @@ pub fn map_segment(race: &Race, scene: &crate::scene::owner::Scene) -> Result<()
     Ok(())
 }
 
-/// `race::map_checkpoints` (0x445FB4): `g_mapAnchorCount` 0; with two checkpoints or more, from
-/// checkpoint 0, each stretch to the next anchor (`next_map_anchor`) mapped (`map_segment`), until
-/// none is left. Refuses more checkpoints than the lists hold.
+/// Clears `map_anchor_count`; with two checkpoints or more, maps each stretch from checkpoint 0 to
+/// the next anchor (`next_map_anchor`, `map_segment`) until none is left. Refused: more checkpoints
+/// than the lists hold.
 pub fn map_checkpoints(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
-    // Converted: `rc2k_core::race::best_line::map_stretches`.
     let shared = &race.shared;
     let n = count(shared)?;
     {
@@ -693,7 +677,7 @@ pub fn map_checkpoints(race: &Race, scene: &crate::scene::owner::Scene) -> Resul
         rc2k_core::race::best_line::map_stretches(
             |from| next_map_anchor(&race.course, shared, from),
             |from, to| {
-                // The stretch's two anchors (0x6236C4, 0x6236C0 of the map work).
+                // The stretch's two anchors.
                 shared.vars.get().map_work[3].set(from);
                 shared.vars.get().map_work[2].set(to);
                 map_segment(race, scene)
@@ -705,9 +689,9 @@ pub fn map_checkpoints(race: &Race, scene: &crate::scene::owner::Scene) -> Resul
 const RULE_RVA: [&std::ffi::CStr; 2] = [
     c"---------------------------------",
     c"---------------------------------",
-]; // "-----..."
-/// "angles", "checks", "speeds", "dists", "map", "replaycam1", "replaycam2", with the
-/// step each comes before.
+];
+/// The words logged before each step, with the step each comes before: "angles", "checks",
+/// "speeds", "dists", "map", "replaycam1", "replaycam2".
 const STEP_WORDS: [(&std::ffi::CStr, u32); 7] = [
     (c"angles", 1),
     (c"checks", 2),
@@ -717,9 +701,9 @@ const STEP_WORDS: [(&std::ffi::CStr, u32); 7] = [
     (c"replaycam1", 6),
     (c"replaycam2", 7),
 ];
-const COMPLETED_RVA: &std::ffi::CStr = c"best line completed"; // "best line completed"
-/// "dir" `g_stageDirection`, ": numblo" `g_lineFaceTotal`, "numsorted"
-/// `g_checkpointCount`, "numsortedm1" `g_lastCheckpoint` (the last with the line's end).
+const COMPLETED_RVA: &std::ffi::CStr = c"best line completed";
+/// The summary's words and values: "dir" `stage_direction`, ": numblo" `line_face_total`,
+/// "numsorted" `checkpoint_count`, "numsortedm1" `last_checkpoint`.
 type Summary = [(&'static std::ffi::CStr, fn(&RaceShared) -> u32); 4];
 const SUMMARY: Summary = [
     (c"dir", |shared| shared.work.get().stage_direction.get()),
@@ -734,10 +718,10 @@ const SUMMARY: Summary = [
     }),
 ];
 
-/// `race::build_best_line` (0x445772): a rule in the log; `sort_checkpoints`; with two line faces
-/// or more, each step with its word in the log (angles, checks, "speeds" = `nullsub_7`, distances,
-/// the map, the two replay cameras, then the surface shares); "best line completed", the summary
-/// ("dir", ": numblo", "numsorted", "numsortedm1"), a rule; `line_place` and `line_fraction` 0.
+/// Builds the best line, logging as it goes: a rule; `sort_checkpoints`; with two line faces or
+/// more, each step after its word (angles, checks, "speeds" which has no step, distances, the map,
+/// the two replay cameras, then the surface shares); "best line completed", the summary, a rule.
+/// `line_place` and `line_fraction` end at 0.
 pub fn build_best_line(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let lights = &scene.lights;
     use crate::logfile::log_int::log_int;
@@ -752,7 +736,7 @@ pub fn build_best_line(race: &Race, scene: &crate::scene::owner::Scene) -> Resul
                 match step {
                     1 => checkpoint_angles(race, scene)?,
                     2 => count_checks(&race.course, &race.shared)?,
-                    3 => {} // `nullsub_7`
+                    3 => {}
                     4 => checkpoint_distances(race, scene)?,
                     5 => map_checkpoints(race, scene)?,
                     6 => replay_cameras(race, scene, &cameras()[0])?,
@@ -767,7 +751,6 @@ pub fn build_best_line(race: &Race, scene: &crate::scene::owner::Scene) -> Resul
             log_int(value(&race.shared) as i32, n == 3, 1);
         }
         text(RULE_RVA[1], true);
-        // `line_place`, `line_fraction`
         lights.state.get().line_place.set(0);
         lights.state.get().line_fraction.set(0);
     }

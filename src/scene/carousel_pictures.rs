@@ -1,6 +1,6 @@
-//! The pictures the carousel's entries show (the cars, the stages): which four are
-//! wanted, which four are held, and the slots they go to. Shared by
-//! `scene::choose_carousel_pictures` and `scene::update_carousel_pictures`.
+//! The pictures the carousel's entries show (the cars, the stages): which four are wanted, which
+//! four are held, and the slots they go to. Shared by `scene::choose_carousel_pictures` and
+//! `update`.
 
 use crate::errors::BadInput;
 use crate::menu::owner::Menus;
@@ -10,12 +10,12 @@ use crate::session::{read_all, write_all};
 const KIND: usize = 0x2BC;
 const ENTRIES: u32 = 0x100;
 
-/// `scene::update_carousel_pictures` (0x49029C) for the four entries given: each
-/// entry's picture (the first dword of its record) is wanted and shown; the held
-/// pictures that are still wanted stay where they are, the others give their places to
-/// the newly wanted ones (`scene::keep_held_pictures` 0x49036F); and each held
-/// picture's eight textures go to its eight slots (`scene::assign_picture_slots`
-/// 0x4903E3). Nothing is written before a refusal.
+/// Updates the carousel pictures for the four entries given: each entry's picture (the
+/// first dword of its record) is wanted and shown; the held pictures that are still wanted stay
+/// where they are, the others give their places to the newly wanted ones
+/// (`rc2k_core::scene::carousel::keep_held`); and each held picture's eight textures go to its
+/// eight slots (`rc2k_core::scene::carousel::picture_textures`). Nothing is written before a
+/// refusal.
 pub fn update(
     menus: &Menus,
     scene: &crate::scene::owner::Scene,
@@ -47,7 +47,7 @@ pub fn update(
     let first_texture: u32 = scene_textures.kinds.get().kind_first_textures[KIND].get();
     write_all(&menus.screens.state.carousel_pictures.shown, wanted);
 
-    // Converted: `rc2k_core::scene::carousel::{keep_held, picture_textures}`.
+    // Logic: `rc2k_core::scene::carousel::{keep_held, picture_textures}`.
     let (wanted, held) = rc2k_core::scene::carousel::keep_held(
         wanted,
         read_all(&menus.screens.state.carousel_pictures.held),

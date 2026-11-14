@@ -1,19 +1,18 @@
-//! `physics::wheel_springs` (0x43ECD4): the four wheels' springs from their heights. For each
-//! wheel k (0 .. 3):
-//! - the last squeeze (`wheel_squeeze[k]`) is kept in `wheel_squeeze_last[k]` and the scene's
-//!   work dword;
-//! - the new squeeze = -`probe_height[k]` (the wheel's height, as a whole number) over 65536
-//!   and the handling table's scale (`handling[3]`), held to 0 ..= 1;
-//! - its force `spring_forces[k]` = -(squeeze x `spring_force_scale` x the first force record's
-//!   y); the damping `spring_damping[k]` = (squeeze - last) x `handling[5]`, times `handling[0]`
-//!   when below 0 (or unordered), added to the force unless the squeeze is 0 (or unordered).
+//! The four wheels' springs from their heights. For each wheel k (0 .. 3):
+//! - the last squeeze (`wheel_squeeze[k]`) is kept in `wheel_squeeze_last[k]` and the scene's work
+//!   dword;
+//! - the new squeeze = -`probe_height[k]` (the wheel's height, as a whole number) over 65536 and
+//!   the handling table's scale (`handling[3]`), held to 0 ..= 1;
+//! - its force `spring_forces[k]` = -(squeeze x `spring_force_scale` x the first force record's y);
+//!   the damping `spring_damping[k]` = (squeeze - last) x `handling[5]`, times `handling[0]` when
+//!   below 0 (or unordered), added to the force unless the squeeze is 0 (or unordered).
 //!
-//! Then `wheel_spring_force[k]` = the rounded result of the ride-height sum (`handling[2]` -
-//! the first car's probe point y, + `spring_share`, + (squeeze - `probe_share`) x `handling[3]`)
-//! x 65536; the forces go into the y of the wheel force records 6 .. 9; those records' points
-//! come from the wheels' places (`probe_point_x`, `probe_point_y`, `probe_point_z`), copied on
-//! into the records 11 .. 14 and 15 .. 18; the point y of record 10 is 0; minus the
-//! `wheel_spin_push` figures go into the y of records 11 .. 14 and 15 .. 18.
+//! Then `wheel_spring_force[k]` = the rounded result of the ride-height sum (`handling[2]` - the
+//! first car's probe point y, + `spring_share`, + (squeeze - `probe_share`) x `handling[3]`) x
+//! 65536; the forces go into the y of the wheel force records 6 .. 9; those records' points come
+//! from the wheels' places (`probe_point_x`, `probe_point_y`, `probe_point_z`), copied on into the
+//! records 11 .. 14 and 15 .. 18; the point y of record 10 is 0; minus the `wheel_spin_push`
+//! figures go into the y of records 11 .. 14 and 15 .. 18.
 //!
 //! Caller: `physics::car_physics_step`, every physics step.
 
@@ -27,7 +26,7 @@ use crate::race::owner_shared::RaceShared;
 use crate::scene::matrix3::extended;
 use std::cmp::Ordering;
 
-/// `fld b; fld x; fcompp` (or `fld x; fcomp b`), C0: x below b, or unordered.
+/// Whether `x` is below `b`, or unordered.
 fn below(x: f32, b: f32) -> bool {
     !matches!(x.partial_cmp(&b), Some(Ordering::Greater | Ordering::Equal))
 }
@@ -106,8 +105,7 @@ pub fn wheel_springs(
             record.point[row].set(x87::loaded(place));
         }
     }
-    // Their x and z copied on into the records 11 .. 14 and 15 .. 18, in the original's
-    // order.
+    // Their x and z copied on into the records 11 .. 14 and 15 .. 18, in this order.
     for k in 0..4 {
         for row in [0, 2] {
             let v = x87::loaded(&ph.forces[6 + k].point[row]);

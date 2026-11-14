@@ -1,21 +1,18 @@
-//! `effects::draw_plane` (0x4C8F64): a quad laid on the windscreen drops' frame (a reading: the
-//! ground glare): the rate, the place and two axes from the settings (+0x2720 .., +0x272C ..,
-//! +0x2708 .., +0x2740), their lengths' shares, made one long and square
-//! (`scene::normalise_vector3`, `scene::cross_product3`), scaled (`effects::scale_axes`);
-//! nothing more unless the place's way faces the third axis away, or unless a frame switch is
-//! set; `scene::depth_test_off`, render states 0x11 = 2, 0x12 = 2, `scene::set_texture` (the
-//! effects' texture); the four corners; the texture places from the quad's corner in the mark
-//! corners table, then from the plane's `places`; colour the view's light; unless a corner's
-//! depth is at or below the nearest depth (signed compares of the bits): the corners
-//! projected, their depth (plus the kind float and the plane's `lifts`, times the depth scale)
-//! and rhw (1 over the depth times `rhw_k`), `scene::draw_fan`, `scene::depth_test_on`.
+//! `effects::draw_plane`: a quad laid on the windscreen drops' frame (a reading: the ground glare).
+//! The rate, the place and two axes come from the settings (+0x2720 .., +0x272C .., +0x2708 ..,
+//! +0x2740); the axes' lengths take their shares and the axes are made one long and square
+//! (`scene::normalise_vector3`, `scene::cross_product3`) and scaled (`effects::scale_axes`).
+//! Nothing more happens unless the place's way faces the third axis away, or a frame switch is set.
+//! Then, with the depth test off (`scene::depth_test_off`), render states 0x11 = 2, 0x12 = 2 and
+//! the effects' texture, the four corners are laid out; their texture places come from the quad's
+//! corner in the mark corners table, then from the plane's `places`; the colour is the view's
+//! light. Unless a corner's depth is at or below the nearest depth (signed compares of the bits)
+//! the corners are projected (depth plus the kind float and the plane's `lifts`, times the depth
+//! scale; rhw 1 over the depth times `rhw_k`), drawn with `scene::draw_fan`, and the depth test is
+//! switched on again.
 //!
-//! Works on the effects settings.
-//!
-//! Caller: `effects::draw_overlays` The x87 runs are plain Rust on the x87 model
-//! (`math::x87_float`), in the original's order, over the game's variables; the vector helpers and
-//! `scale_axes` their Rust versions. Refuses null settings and a corner past the mark corners table,
-//! before anything.
+//! The x87 runs are plain Rust on the x87 model (`math::x87_float`). Refuses null settings and a
+//! corner past the mark corners table, before anything.
 
 use crate::effects::cell_x87::CellX87;
 use crate::effects::kind_store::QuadWork;
@@ -31,7 +28,7 @@ use crate::scene::vector3::normalise;
 /// Each vertex's texture place: the corner entry's word offsets (u, v).
 const UV_WORDS: [(u32, u32); 4] = [(0xC, 0xE), (8, 0xA), (0, 2), (4, 6)];
 
-/// The plane's constants (IDA 0x934F30 .. 0x934F7C). The offsets are from its start.
+/// The plane's constants. The offsets are from its start.
 pub struct PlaneTuning {
     /// +0x0: what the settings' rate is multiplied by into the first axis' scale
     pub rate_k: f32,
@@ -45,7 +42,7 @@ pub struct PlaneTuning {
     pub rhw_k: [f32; 4],
 }
 
-/// The plane's constants; the first values are the image's.
+/// The plane's constants.
 pub static PLANE_TUNING: PlaneTuning = PlaneTuning {
     rate_k: 1.0_f32,
     shares: [2048.0_f32, 1024.0_f32],
@@ -184,7 +181,7 @@ use crate::effects::plain::{ld_cell, st_cell};
 use crate::effects::windscreen_flakes_store::{WindscreenFlakeTables, WindscreenFlakeTiming};
 use crate::math::x87_float as bh;
 
-/// `plane_axes`'s x87 block as plain Rust on the x87 model (29 instructions), same order and memory places.
+/// `plane_axes`'s arithmetic as plain Rust on the x87 model, in the same order.
 fn plane_axes_x87(
     m: &EffectsSettings,
     sti: &WindscreenFlakeTiming,
@@ -222,7 +219,7 @@ fn plane_axes_x87(
     sq.lengths[0].st(t20);
 }
 
-/// `plane_up`'s x87 block as plain Rust on the x87 model (20 instructions), same order and memory places.
+/// `plane_up`'s arithmetic as plain Rust on the x87 model, in the same order.
 fn plane_up_x87(m: &EffectsSettings, sq: &WindscreenFlakeTables, pt: &PlaneTuning) {
     let t0 = ldi_cell(&m.light_point_a_negated[0]);
     let t1 = t0 - ldi_cell(&m.light_point_b_negated[0]);
@@ -246,7 +243,7 @@ fn plane_up_x87(m: &EffectsSettings, sq: &WindscreenFlakeTables, pt: &PlaneTunin
     sq.lengths[1].st(t15);
 }
 
-/// `plane_place`'s x87 block as plain Rust on the x87 model (6 instructions), same order and memory places.
+/// `plane_place`'s arithmetic as plain Rust on the x87 model, in the same order.
 fn plane_place_x87(drops: &WindscreenDrops, m: &EffectsSettings) {
     let t0 = ldi_cell(&m.light_point_b_negated[0]);
     st_cell(&drops.hex.place[0], t0);
@@ -256,7 +253,7 @@ fn plane_place_x87(drops: &WindscreenDrops, m: &EffectsSettings) {
     st_cell(&drops.hex.place[2], t2);
 }
 
-/// `plane_facing`'s x87 block as plain Rust on the x87 model (9 instructions), same order and memory places.
+/// `plane_facing`'s arithmetic as plain Rust on the x87 model, in the same order.
 fn plane_facing_x87(drops: &WindscreenDrops, sq: &WindscreenFlakeTables) {
     let t0 = ld_cell(&drops.hex.place[0]);
     let t1 = t0 * sq.axes[2][0].ld();
@@ -269,7 +266,7 @@ fn plane_facing_x87(drops: &WindscreenDrops, sq: &WindscreenFlakeTables) {
     drops.state.facing.st(t7);
 }
 
-/// `plane_corners`'s x87 block as plain Rust on the x87 model (47 instructions), same order and memory places.
+/// `plane_corners`'s arithmetic as plain Rust on the x87 model, in the same order.
 fn plane_corners_x87(sq: &WindscreenFlakeTables, q: &QuadWork) {
     let t0 = bh::X(0.0);
     let t1 = bh::X(0.0);
@@ -313,7 +310,7 @@ fn plane_corners_x87(sq: &WindscreenFlakeTables, q: &QuadWork) {
     q.corners[2][2].st(t27);
 }
 
-/// `plane_projected`'s x87 block as plain Rust on the x87 model (40 instructions), same order and memory places.
+/// `plane_projected`'s arithmetic as plain Rust on the x87 model, in the same order.
 fn plane_projected_x87(q: &QuadWork) {
     let t0 = crate::math::x87_float::ld(
         crate::scene::polygon_work::front_end()
@@ -406,7 +403,7 @@ mod reference_vectors {
     use crate::effects::asm_test::{Operand, floats_at, with_settings};
     use crate::effects::typed_sync::{overlay_laid, with_overlays};
 
-    /// Where the plane tuning sat in the 1999 layout.
+    /// Where the plane tuning sat in the recorded layout.
     const PLANE_TUNING_START: usize = 0x934F30;
 
     use crate::effects::windscreen_flakes_store::{WindscreenFlakeTables, WindscreenFlakeTiming};

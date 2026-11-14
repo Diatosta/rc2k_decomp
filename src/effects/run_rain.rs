@@ -1,26 +1,17 @@
-//! `effects::run_rain` (0x4C16F9): the rain's frame. `drops` is the settings' +0x2764 (the
-//! drops; none: `drawn` 0 and back), held to 0x100; the settings' +0x28 .. +0x48 into
-//! `view_matrix`, +0x1C .. +0x24 into `view_place`; `effects::place_rain_view`,
-//! `scene::depth_buffer_off`, render states 0x15 = 4, 0x13 = 5, 0x14 = 6, 0x1C = 0, 0x1B = 1,
-//! `scene::clear_texture`; the four vertices' rhw (`rhw`; loaded as a whole number there, as
-//! a float here: a fixed bug), colours 0xFFFFFF, 0, 0x28000000, 0x28FFFFFF, the rest 0, the
-//! polygon's vertex count 4; `effects::drift_offsets` when the drift switch is set; the
-//! view's entry (the settings' +8, 12 bytes in `moves` and `last_views`): when the settings'
-//! +0xC or the drift switch is set its move since the last frame scaled; the move (`motion`)
-//! held to `move_held` long when longer than `move_limit`; the view's place kept (y plus
-//! `drift`); `drift` the clock's low 20 bits times `drift_k` when drifting. Then each drop k
-//! from the last: its noise place (`noise`[k] plus the view and the drift, wrapped to 0x40000
-//! and centred) as whole numbers to `effects::draw_rain_streak`, and when the settings' +0x10
-//! is set its turned place kept (`kept`[k], rounded). `drawn` 1.
+//! `effects::run_rain`: the rain's frame. The drops (the settings' count, held to 0x100; none
+//! leaves `drawn` 0) are drawn as streaks by `effects::draw_rain_streak` from their noise places
+//! plus the view's place and the drift (wrapped to 0x40000 and centred). Each frame the view's move
+//! since the last frame is scaled and held to a length, the view's place is kept per view entry,
+//! and the drift follows the clock when the drift switch is set; the drops' turned places are kept
+//! when the settings' +0x10 is set. The quad vertices' rhw is the float 256.0.
 //!
-//! Screen: the falling rain, seen from inside and outside the car (confirmed: gone
-//! with `draw_rain_streak`'s draw cut).
+//! Screen: the falling rain, seen from inside and outside the car (confirmed: gone with
+//! `draw_rain_streak`'s draw cut).
 //!
 //! Works on the effects settings.
 //!
-//! Caller: `effects::run_frame` The x87 blocks are plain Rust on the x87 model (`math::x87_float`), in the original's order,
-//! over the game's variables. Refuses null settings and a view entry past the five (the
-//! settings' +8), before anything.
+//! The x87 blocks are plain Rust on the x87 model (`math::x87_float`), over the game's variables.
+//! Refuses null settings and a view entry past the five (the settings' +8), before anything.
 
 use crate::effects::cell_x87::CellX87;
 use crate::effects::rain::{RainRules, RainState, Weather};
@@ -94,8 +85,8 @@ pub fn run_rain(
         }
         // What `clear_texture` returns is read by nothing here.
         crate::scene::clear_texture::clear_texture(part, scene);
-        // Not the original's: it loaded 256.0's bits as a whole number (`fild`), an rhw of
-        // 1132462080.0 that the handheld's GL clipped the streaks away by (`notes/bugs.md`).
+        // The rhw is 256.0 as a float: its bits taken as a whole number made 1132462080.0,
+        // which the handheld's GL clipped the streaks away by.
         let rhw = weather.rain_rules.rhw;
         for (n, colour) in COLOURS.into_iter().enumerate() {
             let v = &buffer.vertices[n];
@@ -164,7 +155,7 @@ pub fn run_rain(
 
 use crate::math::x87_float as bh;
 
-/// `box_moved`'s x87 block as plain Rust on the x87 model (13 instructions), same order and memory places.
+/// `box_moved`'s arithmetic as plain Rust on the x87 model, in the same order.
 fn box_moved_x87(i: usize, r: &RainState, k: &RainRules) {
     {
         let t0 = bh::int(r.view[0].get() as i32);
@@ -183,7 +174,7 @@ fn box_moved_x87(i: usize, r: &RainState, k: &RainRules) {
     }
 }
 
-/// `move_length`'s x87 block as plain Rust on the x87 model (12 instructions), same order and memory places.
+/// `move_length`'s arithmetic as plain Rust on the x87 model, in the same order.
 fn move_length_x87(r: &RainState, k: &RainRules, work: &crate::effects::work_store::MarksWork) {
     let t0 = r.motion[0].ld();
     let t1 = t0 * t0;
@@ -198,7 +189,7 @@ fn move_length_x87(r: &RainState, k: &RainRules, work: &crate::effects::work_sto
     crate::effects::plain::set_status(work, bh::compare(t8, bh::ld(k.move_limit)));
 }
 
-/// `move_held`'s x87 block as plain Rust on the x87 model (13 instructions), same order and memory places.
+/// `move_held`'s arithmetic as plain Rust on the x87 model, in the same order.
 fn move_held_x87(r: &RainState, k: &RainRules) {
     {
         let t0 = r.depth.ld();
@@ -215,7 +206,7 @@ fn move_held_x87(r: &RainState, k: &RainRules) {
     }
 }
 
-/// `keep_y`'s x87 block as plain Rust on the x87 model (3 instructions), same order and memory places.
+/// `keep_y`'s arithmetic as plain Rust on the x87 model, in the same order.
 fn keep_y_x87(i: usize, r: &RainState) {
     {
         let t0 = bh::int(r.view[1].get() as i32);

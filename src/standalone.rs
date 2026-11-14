@@ -1,19 +1,17 @@
-//! The program: the game's `start` (0x401000) gone through as the list of calls it is, in
-//! Rust, without RAL.EXE.
+//! The program: the game's start-up as the list of calls it is, in Rust, without RAL.EXE.
 //!
 //! What happens (`run`):
 //! 1. Every variable and constant of the game's is a Rust static (the owners' fields); the
-//!    game's own pointers in its data are handles or IDA's addresses kept as names.
-//! 2. No code of RAL.EXE runs. Every call the game's data makes by address (menus, draw
-//!    lists, frames, thread routines) and every one Rust still makes goes to its Rust
-//!    version (`menu::table_calls`, `crate::routes`); an address
-//!    with none ends the program, "not ported".
+//!    game's own pointers in its data are handles or the 1999 addresses kept as names.
+//! 2. No code of RAL.EXE runs. Every call the game's data makes by address (menus, draw lists,
+//!    frames, thread routines) and every one Rust still makes goes to its Rust version
+//!    (`menu::table_calls`, `crate::routes`); an address with none ends the program, "not ported".
 //! 3. `on_exception` only reports the fault, with the place and the stack's return
 //!    addresses, and ends the program.
 //!
-//! A refusal (`BadInput`) ends the program with its reason; a fatal error is reported
-//! by `fatal::report` and ends it as the original's. Stand-ins, each to be replaced by a
-//! piece of the platform: see `stand_in`.
+//! A refusal (`BadInput`) ends the program with its reason; a fatal error is reported by
+//! `fatal::report` and ends it. Stand-ins, each to be replaced by a piece of the platform: see
+//! `stand_in`.
 
 use crate::errors::Refused;
 use crate::framework::{LOG_PATH, log};
@@ -25,8 +23,8 @@ use std::sync::atomic::Ordering;
 
 // ---- calls by address that are done or answered by SDL ----
 
-/// The game's empty functions (a lone `retn`; and 0x48558A, `pusha;
-/// popa; retn` in a draw list): a call to one is done.
+/// The 1999 addresses of the game's empty functions (a lone `retn`, and one that saves and
+/// restores the registers in a draw list): a call to one is done.
 const LONE_RETN: [usize; 119] = [
     0x40AC76, 0x40CB09, 0x40CF32, 0x40D27E, 0x41E2F5, 0x428D74, 0x428DB2, 0x429823, 0x429B17,
     0x429B18, 0x436832, 0x436B97, 0x436B98, 0x439329, 0x439593, 0x43DFB0, 0x44326C, 0x443471,
@@ -273,10 +271,9 @@ fn stack_returns(line: &mut FaultLine, own_module: Option<&[NameUnit]>, esp: usi
     }
 }
 
-/// The game closed (`g_quitting`), in a race or on a menu: what the original's way out does
-/// (0x4154B5 back into the main loop, which asks for the shutdown, logs "Leaving main
-/// loop..." and returns to `start`), the program ended as `start` ends it. The data is saved
-/// first, once the front end has its tables: before that a save would write blanks.
+/// The game closed, in a race or on a menu: the program is ended as the game's start ends it
+/// (the shutdown asked for, "Leaving main loop..." logged). The data is saved first, once the
+/// front end has its tables: before that a save would write blanks.
 pub fn leave_on_close(o: Owners<'static>) -> ! {
     let saves = o.saves;
     let tables = &saves.best_times;
@@ -328,10 +325,8 @@ const SDL_DOES: [(usize, &str); 5] = [
     (0x410509, "system::drain_messages"),
 ];
 
-/// For calls by address of a function that needs nothing done here
-/// (`menu::table_calls`): the ones SDL does and the lone `retn`s.
-/// `at` is the address as IDA shows it. (SDL's leave the carry clear, which a menu
-/// item's caller does not read.)
+/// For calls by address of a function that needs nothing done here (`menu::table_calls`): the ones
+/// SDL does and the lone `retn`s. `at` is the function's 1999 address.
 pub fn answers(at: usize) -> bool {
     SDL_DOES.iter().any(|w| w.0 == at) || LONE_RETN.contains(&at)
 }
@@ -363,7 +358,7 @@ pub(crate) fn report_fault(host: usize, data: usize, write: bool, sp: usize) -> 
     end(1)
 }
 
-// ---- `start` (0x401000) ----
+// ---- `start` ----
 
 /// Logs that `start` calls the Rust function `name`.
 fn rust(name: &str) {
@@ -384,8 +379,8 @@ fn stand_in(what: &str, variable: &crate::session::Dword, value: u32) {
 /// The game's `start`, call for call, in its steps. The checks it makes after calls of the
 /// platform (already running, no screen mode) cannot fail here.
 ///
-/// Once, on the main thread, after the image is built: the start-up functions it calls write
-/// the game's state before any thread of the game's runs.
+/// Once, on the main thread: the start-up functions it calls write the game's state before
+/// any thread of the game's runs.
 fn start(o: Owners<'static>) {
     let r = Context::default();
     set_up_fixed_objects(o);
@@ -403,11 +398,10 @@ fn start(o: Owners<'static>) {
     shut_down(o, &r);
 }
 
-/// The objects the image pointed at each other: the players' records, font 56's palette (the
-/// image names the palette sheet: its place in `gfx::glyph_store`; `gfx::build_fonts` hangs
-/// the rest) and `g_surface.format`
-/// (the image points it at the format record, `session::SCREEN`'s, named by its handle; the
-/// platform sets it again at every lock).
+/// The objects that point at each other: the players' records, font 56's palette (its place in
+/// `gfx::glyph_store`; `gfx::build_fonts` hangs the rest) and the surface's pixel format (the
+/// format record of `session::SCREEN`, named by its handle; the platform sets it again at every
+/// lock).
 fn set_up_fixed_objects(o: Owners<'static>) {
     crate::menu::players_store::point_players(o.menus);
     o.gfx.fonts.typefaces.objects[56]
@@ -429,8 +423,7 @@ fn seed_clock_and_random(o: Owners<'static>) {
     crate::math::seed_random::seed_random(o.system);
     rust("system::read_volume_serial");
     crate::system::read_volume_serial::read_volume_serial(system);
-    // eax: what `system::read_volume_serial` leaves there, `start`'s esi at entry (its
-    // `pop eax`; the serial is lost: `notes/bugs.md`), 0 here.
+    // The volume serial is lost (a slip kept as is): the random state is stirred with 0.
     rust("math::stir_random");
     crate::math::stir_random::stir_random(0);
 }
@@ -438,7 +431,7 @@ fn seed_clock_and_random(o: Owners<'static>) {
 /// The processor, keyboard and Windows version tests, and the error mode.
 fn check_machine(o: Owners<'static>, r: &Context) {
     let system = o.system;
-    // `system::set_exception_filter` (0x410D4C) sets nothing in the standalone.
+    // `system::set_exception_filter` sets nothing in the standalone.
     rust("system::test_processor");
     if let Err(e) =
         crate::system::test_processor::test_processor(&crate::system::test_processor::Real, system)
@@ -449,8 +442,8 @@ fn check_machine(o: Owners<'static>, r: &Context) {
     crate::system::read_keyboard_type::read_keyboard_type(system);
     rust("system::read_windows_version");
     crate::system::read_windows_version::read_windows_version(system);
-    // `CoInitialize` (no COM is used on this thread).
-    // `memory::open_own_heap` (0x40298A): the game's own heap is not used.
+    // `CoInitialize` (no COM is used on this thread). `memory::open_own_heap`: the game's own heap
+    // is not used.
     rust("system::set_error_mode");
     crate::system::set_error_mode::set_error_mode(system);
 }
@@ -469,10 +462,9 @@ fn read_settings_and_start_log(o: Owners<'static>, r: &Context) {
     }
 }
 
-/// The folders the game saves into but never makes (`notes`: `install::make_folders` makes
-/// them only from the installer's script): made here when missing, in the game's folder, as
-/// the path templates at 0x5296FB .. 0x52974B name them; not in the download folder, where the
-/// program is the installer.
+/// The folders the game saves into but never makes (`install::make_folders` makes them only
+/// from the installer's script): made here when missing, in the game's folder, as the game's
+/// path templates name them; not in the download folder, where the program is the installer.
 fn make_save_folders() {
     let folders: &[&str] = if crate::install::portable::is_source_folder() {
         &[]
@@ -501,7 +493,7 @@ fn make_save_folders() {
 /// start check, the developer machine, the languages and the install record.
 fn read_command_line_and_install_state(o: Owners<'static>, r: &Context) {
     let system = o.system;
-    // `system::test_processor` (0x410883, called above) has set it from `cpuid`.
+    // `system::test_processor` (called above) has set it from `cpuid`.
     if system.session.host.has_fpu.get() != 1 {
         finish("fatal error 0x900010FF, FPU is required", 1);
     }
@@ -549,8 +541,8 @@ fn read_command_line_and_install_state(o: Owners<'static>, r: &Context) {
     }
 }
 
-/// The language's texts (`strings::load_language`, 0x40331F), the game's data files, and the
-/// check that no other copy of the game runs.
+/// The language's texts (`strings::load_language`), the game's data files, and the check that
+/// no other copy of the game runs.
 fn load_language_and_game_data(o: Owners<'static>, r: &Context) {
     rust("strings::load_language");
     let compile = &mut || crate::strings::compile_lexicon::compile_lexicon(o.strings, o.system);
@@ -567,8 +559,8 @@ fn load_language_and_game_data(o: Owners<'static>, r: &Context) {
     }
 }
 
-/// The 3D cards and the display modes the screen can take. `system::open_window` (0x4103DE)
-/// and `gfx::probe_exclusive_mode` (0x404981) are SDL's (`SDL_DOES`).
+/// The 3D cards and the display modes the screen can take. `system::open_window` and
+/// `gfx::probe_exclusive_mode` are SDL's (`SDL_DOES`).
 fn probe_display(o: Owners<'static>, r: &Context) {
     let gfx = o.gfx;
     rust("gfx::find_3d_cards");
@@ -605,9 +597,8 @@ fn start_workers(o: Owners<'static>, r: &Context) {
     crate::system::sleep::sleep(1000);
 }
 
-/// The screen modes, the picture buffer and the pixel converters.
-/// `sound::open_cd_audio` (0x40F9DE) is cut out of this build (`pusha; jmp` to its end), so
-/// not called.
+/// The screen modes, the picture buffer and the pixel converters. `sound::open_cd_audio` is not
+/// called: there is no CD audio here.
 fn choose_screen_modes(o: Owners<'static>, r: &Context) {
     let gfx = o.gfx;
     rust("gfx::choose_screen_modes");
@@ -628,7 +619,8 @@ fn choose_screen_modes(o: Owners<'static>, r: &Context) {
     crate::gfx::install_converters::install_converters(&gfx.pixel.converters, o.system);
 }
 
-/// What the window's procedure and the key thread tell the main loop (the films play from `film.rs`).
+/// What the window's procedure and the key thread tell the main loop (the films play from
+/// `film.rs`).
 fn stand_in_window_state(o: Owners<'static>) {
     let flags = &o.system.session.flags;
     stand_in("the window is the active one", &flags.window_active, 1);
@@ -647,10 +639,9 @@ fn run_main_loop(o: Owners<'static>, r: &Context) {
     }
 }
 
-/// What follows the main loop: the network, the picture buffer, the priority class, the
-/// installer's after-exit script, the error mode and the fatal report. `gfx::release_screens`
-/// (0x404CD6), `sound::close_cd_audio` (0x40FA8B) and `system::drain_messages` (0x410509) are
-/// SDL's (`SDL_DOES`).
+/// What follows the main loop: the network, the picture buffer, the priority class, the installer's
+/// after-exit script, the error mode and the fatal report. `gfx::release_screens`,
+/// `sound::close_cd_audio` and `system::drain_messages` are SDL's (`SDL_DOES`).
 fn shut_down(o: Owners<'static>, r: &Context) {
     rust("net::shut_down");
     if let Err(e) =
@@ -670,8 +661,8 @@ fn shut_down(o: Owners<'static>, r: &Context) {
     }
     rust("system::restore_error_mode");
     crate::system::restore_error_mode::restore_error_mode(o.system);
-    // `memory::free_own_heap` (0x4029DB): the game's own heap is not used.
-    // `CoUninitialize` (see `CoInitialize`).
+    // `memory::free_own_heap`: the game's own heap is not used. `CoUninitialize` (see
+    // `CoInitialize`).
     rust("fatal::show_report_at_exit");
     crate::fatal::show_report_at_exit::show_report_at_exit();
 }

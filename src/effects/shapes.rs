@@ -1,7 +1,7 @@
-//! Two of `effects::load_edges`'s steps (IDA): the shape tables of two kinds of marks'
-//! items, named here by their shapes (what draws them is not read yet). Each clears its
-//! 0x800 items, makes a quarter-circle curve of 0x100 floats and 8 circles of points (by
-//! the radii after the curve), and sets up what follows.
+//! Two of `effects::load_edges`'s steps: the shape tables of two kinds of marks' items, named here
+//! by their shapes (what draws them is not read yet). Each clears its 0x800 items, makes a
+//! quarter-circle curve of 0x100 floats and 8 circles of points (by the radii after the curve), and
+//! sets up what follows.
 
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::effects::windscreen_flakes_store::WindscreenFlakes;
@@ -51,13 +51,13 @@ impl<'a> Shapes<'a> {
     }
 }
 
-/// Where `effects::set_up_windscreen_drops` goes on once done: `loc_4BAAC5`.
+/// The `resume` mark of `effects::set_up_windscreen_drops`: set once done.
 pub const WINDSCREEN_DROPS_RESUME: u32 = 0x4BAAC5;
 
-/// Where `effects::set_up_windscreen_flakes` goes on once done: `loc_4BF545`.
+/// The `resume` mark of `effects::set_up_windscreen_flakes`: set once done.
 pub const WINDSCREEN_FLAKES_RESUME: u32 = 0x4BF545;
 
-/// The squares' side of `Shapes` (0x4BF529's): the same steps over the squares' typed
+/// The squares' side of `Shapes`: the same steps over the squares' typed
 /// variables (`effects::windscreen_flakes_store`), four points to a circle.
 mod squares {
     use super::{CURVE, RADII};
@@ -218,10 +218,11 @@ fn circle_cells(r: f32, out: &[PlainFloat], count: u32, c: i32, d: f32) {
     }
 }
 
-/// `effects::set_up_windscreen_drops` (0x4BAA55): once (`g_marksWindscreenDropsDone`, then `resume`) four
-/// floats at 0x816192 scaled; then the windscreen drop items cleared, their curve and circles (6
-/// points); 0x40 fans of four triangles (words: n6, n6+1 .. n6+5); 0x40 records of six
-/// parts (+0xC `MarksFloats.two_fifty_six`, +0x10 -1, +0x14 0xFF000000, 0x20 apart); `WindscreenDropVars.started` ..
+/// `effects::set_up_windscreen_drops`: once (the done mark, then `resume`) four floats scaled;
+/// then the windscreen drop items cleared, their curve and circles (6 points); 0x40 fans of
+/// four triangles (words: n6, n6+1 .. n6+5); 0x40 records of six parts (+0xC
+/// `MarksFloats.two_fifty_six`, +0x10 -1, +0x14 0xFF000000, 0x20 apart);
+/// `WindscreenDropVars.started` ..
 /// `WindscreenDropVars.spare[1]` 0. Refuses a mark neither 0 nor `resume`.
 fn windscreen_drops_with(
     drops: &WindscreenDrops,
@@ -298,8 +299,8 @@ pub fn set_up_windscreen_drops(
     windscreen_drops_with(drops, resume, false, gfx, effects)
 }
 
-/// `effects::set_up_windscreen_flakes` (0x4BF529): its once-only mark set (`g_marksWindscreenFlakesDone`, then
-/// `resume`; nothing else is done once); the square items cleared, their curve and circles
+/// `effects::set_up_windscreen_flakes`: its once-only mark set (then `resume`; nothing else
+/// is done once); the square items cleared, their curve and circles
 /// (4 points); then `effects::reset_pong`. Refuses a mark neither 0 nor `resume`.
 fn windscreen_flakes_with(
     pong: &crate::effects::pong::Pong,

@@ -1,17 +1,15 @@
-//! `effects::draw_rain_streak` (0x4C1DCD): a streak (a point and where it was) drawn as a quad
-//! facing the viewer. The point (the three values on the x87 stack, scaled by `point_scale`
-//! into `second`) turned by `matrix_copy` plus the whole numbers in `point` into `turned`
-//! (its depth also `depth`); the point less `motion` turned the same into `second`. Unless
-//! the first depth is at or below 0x20000 or the second at or below 0x48000000 (signed
-//! compares of the bits), or `drawn` is 0: both projected (the view scale over the depth;
-//! scales `view_scale`, the view's centre) into `ends`, the half width over the screen length
-//! across the line, the four vertices' x, y and depth (times `depth_scale`),
-//! `effects::clip_quad`, and unless all is outside `scene::draw_fan` and the polygon's vertex
-//! count 4. Rain: its caller is `effects::run_rain`.
+//! `effects::draw_rain_streak`: a streak (a point and where it was) drawn as a quad facing the
+//! viewer. The point (its three values, scaled by `point_scale` into `second`) turned by
+//! `matrix_copy` plus the whole numbers in `point` into `turned` (its depth also `depth`); the
+//! point less `motion` turned the same into `second`. Unless the first depth is at or below 0x20000
+//! or the second at or below 0x48000000 (signed compares of the bits), or `drawn` is 0: both
+//! projected (the view scale over the depth; scales `view_scale`, the view's centre) into `ends`,
+//! the half width over the screen length across the line, the four vertices' x, y and depth (times
+//! `depth_scale`), `effects::clip_quad`, and unless all is outside `scene::draw_fan` and the
+//! polygon's vertex count 4.
 //!
-//! Caller: `effects::run_rain` The arithmetic is plain Rust on the x87 model
-//! (`math::x87_float`), in the original's order, over the game's variables. Refuses null marks
-//! settings (`clip_quad`'s refusal), before anything.
+//! The arithmetic is plain Rust on the x87 model (`math::x87_float`). Refuses null marks settings
+//! (`clip_quad`'s refusal), before anything.
 
 use crate::effects::cell_x87::CellX87;
 use crate::effects::clip_quad::{clip_quad, draw_fan};
@@ -42,8 +40,8 @@ pub fn draw_rain_streak(
             return Err(BadInput("no marks settings").into());
         }
         turn(weather, &place);
-        // The depths compared by their bits: 0x20000 is a tiny subnormal (the original's
-        // whole number), 0x48000000 is 131072.
+        // The depths compared by their bits: 0x20000 is a tiny subnormal (the whole
+        // number as a float), 0x48000000 is 131072.
         if x87::bits_at_or_below(rain.depth.get(), f32::from_bits(0x2_0000))
             || rain.drawn.get() == 0
             || x87::bits_at_or_below(rain.second[2].get(), 131_072.0)
@@ -65,7 +63,7 @@ pub fn draw_rain_streak(
 use crate::effects::plain::st_cell;
 use crate::math::x87_float as bh;
 
-/// `turn`'s x87 block as plain Rust on the x87 model (79 instructions), same order and memory places.
+/// `turn`'s arithmetic as plain Rust on the x87 model, in the same order.
 fn turn_x87(p: &[[u8; 10]; 3], r: &RainState) {
     let t0 = bh::from_f80(p[2]);
     let t1 = bh::from_f80(p[1]);
@@ -127,7 +125,7 @@ fn turn_x87(p: &[[u8; 10]; 3], r: &RainState) {
     r.second[2].st(t47);
 }
 
-/// `project`'s x87 block as plain Rust on the x87 model (85 instructions), same order and memory places.
+/// `project`'s arithmetic as plain Rust on the x87 model, in the same order.
 fn project_x87(buffer: &crate::d3d::vertices_store::PolygonVertices, r: &RainState, k: &RainRules) {
     let t0 = r.second[2].ld();
     let t1 = bh::ld(

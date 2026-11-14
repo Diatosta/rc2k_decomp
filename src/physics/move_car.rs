@@ -1,18 +1,17 @@
-//! `physics::move_car` (0x43CCB0): the work car's place (`position` .. `114`, whole
-//! numbers) moved by its motion (`velocity` .. `178`, floats) times 65536 and the step
-//! `step_time` (`fistp` through `scratch`), x, z, then y.
+//! Moves the work car's place (`position`, whole numbers) by its motion (`velocity`, floats) times
+//! 65536 and the step `step_time`, rounded through `scratch`: x, z, then y.
 //!
-//! Returns: y's move
+//! Returns y's move.
 //!
-//! Callers: `physics::car_physics_step` (0x43B827, 0x43B8A0), every physics step.
+//! Caller: `physics::car_physics_step`, twice every physics step.
 
 use crate::math::x87::mul2_to_int;
 use crate::physics::car_store::Car;
 use crate::physics::tables_store::PhysicsTables;
 use crate::race::numbers_store::Numbers;
 
-/// The exact version, for `physics::car_physics_step` and `physics::apply_wheel_torques`: the
-/// last move (it is also left in the scene's scratch dword, as the original's `fistp` did).
+/// The exact version, for `physics::car_physics_step` and `physics::apply_wheel_torques`: the last
+/// move (it is also left in the scene's scratch dword).
 pub fn move_car(
     car: &Car,
     tables: &PhysicsTables,

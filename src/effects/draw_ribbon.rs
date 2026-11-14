@@ -1,18 +1,13 @@
-//! `effects::draw_ribbon` (0x4C5E63): a ribbon piece between two places already in the
-//! view's frame: half the width (the width shifted right once, whole) kept, the four
-//! vertices' colour (alpha << 24) | colour and texture places from the cell's entry in the
-//! cell places table; unless either depth is at or below the nearest depth (a signed compare
-//! of the bits): both projected (each with its own scale), the way between them made one long
-//! and turned a quarter, the sides that times the half width and each scale, the four
-//! corners, the depths times the depth scale; `effects::clip_quad`, and unless all is outside
-//! `scene::draw_fan` and the polygon's vertex count 4.
+//! `effects::draw_ribbon`: a ribbon piece between two places already in the view's frame: half the
+//! width (the width shifted right once, whole) kept, the four vertices' colour (alpha << 24) |
+//! colour and texture places from the cell's entry in the cell places table; unless either depth is
+//! at or below the nearest depth (a signed compare of the bits): both projected (each with its own
+//! scale), the way between them made one long and turned a quarter, the sides that times the half
+//! width and each scale, the four corners, the depths times the depth scale; `effects::clip_quad`,
+//! and unless all is outside `scene::draw_fan` and the polygon's vertex count 4.
 //!
-//! Takes: the cell, the alpha, the width, the colour (and the two places)
-//!
-//! Callers: the effects' lines and `effects::run_ribbons`. The x87 block is
-//! plain Rust on the x87 model (`math::x87_float`), in the original's order, over the game's
-//! variables. Refuses, before anything, a cell past 0x40 and null marks settings (the clip's
-//! refusal).
+//! The x87 block is plain Rust on the x87 model (`math::x87_float`). Refuses, before anything, a
+//! cell past 0x40 and null marks settings (the clip's refusal).
 
 use crate::effects::cell_x87::CellX87;
 use crate::effects::clip_quad::{clip_quad, draw_fan};
@@ -54,7 +49,7 @@ pub fn draw_ribbon(
         if effects.setup.settings.is_set.get() == 0 {
             return Err(BadInput("no marks settings").into());
         }
-        // A whole number in the float cell (`ribbon` loads it with `fild`).
+        // A whole number in the float cell.
         effects.frame.draw_work.half[0].set_bits(width >> 1);
         let colour = (alpha << 24) | colour;
         for item in buffer.vertices.iter().take(4) {
@@ -95,7 +90,7 @@ use crate::effects::plain::st_cell;
 use crate::math::x87_float as bh;
 use crate::math::x87_float::ld;
 
-/// `ribbon`'s x87 block as plain Rust on the x87 model (93 instructions), same order and memory places.
+/// `ribbon`'s arithmetic as plain Rust on the x87 model, in the same order.
 fn ribbon_x87(buffer: &crate::d3d::vertices_store::PolygonVertices, dw: &DrawWork, vv: &ViewVars) {
     let t0 = ld(crate::scene::polygon_work::front_end()
         .window

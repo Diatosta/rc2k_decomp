@@ -1,13 +1,10 @@
-//! `math::next_random` (0x4018B4): the game's random numbers.
+//! `math::next_random`: the game's random numbers.
 //!
-//! One step of the generator on its state `dword_4E0140` (`math::random_step`, 0x4018C8,
-//! with 0 mixed in): the low byte is changed by three bits of the number (bit 22, then
-//! bit 2 and bit 1 of the byte as it then is, each flipping bit 0), the whole is turned
-//! right by one, and what is mixed in is `xor`ed on. 23 callers, and
-//! `math::random_below` (73 more).
+//! One step of the generator on its state: the low byte is changed by three bits of the
+//! number (bit 22, then bit 2 and bit 1 of the byte as it then is, each flipping bit 0),
+//! the whole is turned right by one, and what is mixed in is `xor`ed on.
 
-/// The generator's state: out of the image since 2026-10-24 (phase 5; it was
-/// `g_randomState`, 0x4E0140, whose first value it keeps until `seed_random`).
+/// The generator's state, starting at the game's first value until `seed_random`.
 pub static STATE: crate::session::Dword = crate::session::Dword::new(0x9570_1114);
 
 /// The generator loaded from `STATE`, `f` run on it, its state stored back.
@@ -49,10 +46,10 @@ pub fn next_random() -> u32 {
     with_random(rc2k_core::math::random::Random::draw)
 }
 
-/// A generator of its own for one part of the game (not the original's: it drew everything
-/// from `STATE`, so how many numbers one part took shifted every number the others drew after
-/// it; `notes/bugs.md`). The same generator as `STATE`'s, started from the game's state
-/// (`seed_streams`).
+/// A generator of its own for one part of the game, so how many numbers one part takes no
+/// longer shifts every number the others draw (wiki: "The race's sounds steer the race's
+/// random numbers", "The pictures steer the race's random numbers"). The same generator
+/// as `STATE`'s, started from the game's state (`seed_streams`).
 pub struct Stream {
     state: crate::session::Dword,
 }
@@ -73,12 +70,12 @@ impl Stream {
         value
     }
 
-    /// The next number (`next_random` on this stream).
+    /// The next number, as `next_random` on this stream.
     pub fn next(&self) -> u32 {
         self.with(rc2k_core::math::random::Random::draw)
     }
 
-    /// A number below `limit` (`math::random_below` on this stream).
+    /// A number below `limit`, as `math::random_below` on this stream.
     pub fn below(&self, limit: u32) -> Result<u32, crate::errors::BadInput> {
         if limit == 0 {
             return Err(crate::errors::BadInput(

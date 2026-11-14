@@ -1,8 +1,8 @@
-//! `race::play_movie_loop` (0x4607A5): the viewer's replay played as a race: the skid marks set up
+//! `race::play_movie_loop`: the viewer's replay played as a race: the skid marks set up
 //! (`race::init_skidmarks`), "dpg replay", the block played from (`replay_block`) and the one it
 //! stops at (`play_end`) logged; the race's state 2 (`replay_mode`), the clock restarted
-//! (`scene::restart_clock`, `g_sceneClock` into `race_clock_base`); then each frame the input
-//! (`input::update`), a key pressed (`g_keysPressed + 1`) ending it, the race's step
+//! (`scene::restart_clock`, `scene_clock` into `race_clock_base`); then each frame the input
+//! (`input::update`), a key pressed (`keys_pressed + 1`) ending it, the race's step
 //! (`drive::race_step`) and frame (`drive::race_frame`), until the block played is the one to stop
 //! at; "dpg replay exit".
 //!
@@ -16,7 +16,7 @@ const TEXTS: [&std::ffi::CStr; 4] = [
     c"[replaycurchunk]",
     c"[replayplaystop]",
     c"dpg replay exit",
-]; // "dpg replay" ..
+];
 
 fn log_text(text: &std::ffi::CStr, newline: bool) {
     crate::logfile::log_write::log_nul(&text, newline, 1);
@@ -35,7 +35,7 @@ pub fn play_movie_loop(race: &Race, o: crate::owners::Owners<'static>) -> Result
     log_number(race.replay.replay_view().replay_block.get());
     log_text(TEXTS[2], false);
     log_number(race.replay.replay_view().play_end.get());
-    race.course.numbers.get().replay_mode.set(2); // Numbers.replay_mode
+    race.course.numbers.get().replay_mode.set(2);
     race_parts::restart_clock(race);
     race.shared
         .physics_tables

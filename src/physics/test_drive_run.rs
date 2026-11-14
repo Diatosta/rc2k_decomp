@@ -1,17 +1,16 @@
-//! `physics::test_drive_run` (0x421848): the car's acceleration measured for its
-//! figures: from standing (the drive speeds 0, gear 1, the engine 0, `gearbox_kind` 1), 5000
-//! steps of the engine and gearbox alone (in `pusha` / `popa`: the car's speed the drive
-//! speed, `physics::count_down_timers`, `physics::gearbox_step`,
-//! `physics::engine_torque`, the drive force `engine_force` x `drive_torque_figure` / the gear's ratio
-//! / `k10000` into `drive_torque`, `physics::drive_torque_share`, the drag (`fst` into
-//! `scratch`) and the drive force step the drive speeds, `physics::revs_from_wheels`);
-//! the steps at which the speed first reaches `test_limits` and `LightsAndGear.gear.test_limits[1]` into
-//! `test_marks`, `LightsAndGear.gear.test_marks[1]`; every twentieth step the speed x `two_and_a_quarter` and the
-//! gear into `test_speeds`[k]`, `test_gears`[k]`; at the end the speed x `two_and_a_quarter` into
-//! `LightsAndGear.gear.test_marks[2]` and the two steps / `hundred` (times) back into theirs.
+//! Measures the car's acceleration for its figures: from standing (the drive speeds 0, gear 1, the
+//! engine 0, `gearbox_kind` 1), 5000 steps of the engine and gearbox alone (the car's speed is the
+//! drive speed; `physics::count_down_timers`, `physics::gearbox_step`, `physics::engine_torque`,
+//! the drive force `engine_force` x `drive_torque_figure` / the gear's ratio / `k10000` into
+//! `drive_torque`, `physics::drive_torque_share`, the drag (through `scratch`) and the drive force
+//! step the drive speeds, `physics::revs_from_wheels`); the steps at which the speed first reaches
+//! `test_limits` and `LightsAndGear.gear.test_limits[1]` go into `test_marks` and
+//! `LightsAndGear.gear.test_marks[1]`; every twentieth step the speed x `two_and_a_quarter` and the
+//! gear go into `test_speeds[k]`, `test_gears[k]`; at the end the speed x `two_and_a_quarter` goes
+//! into `LightsAndGear.gear.test_marks[2]` and the two steps / `hundred` (times) back into theirs.
 //!
-//! Caller: `physics::test_drive`. Refuses a gear outside -1 ..= 7 (past `g_gearRatios`) and
-//! what its calls refuse; everything written put back.
+//! Caller: `physics::test_drive`. Refuses a gear outside -1 ..= 7 (past `gear_ratios`) and what its
+//! calls refuse; everything written is put back.
 
 use crate::effects::cell_x87::CellX87;
 use crate::errors::{BadInput, Refused};
@@ -27,7 +26,7 @@ use crate::session::PlainFloat;
 
 pub const STEPS: u32 = 0x1388;
 
-/// One step (0x42189D ..).
+/// One step.
 fn step(
     course: &Course,
     shared: &RaceShared,
@@ -118,7 +117,7 @@ pub fn test_drive_run(
     steps(course, shared, figures, scene)
 }
 
-// ---- the arithmetic that was x87 assembly ----
+// ---- the x87 arithmetic ----
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
@@ -136,9 +135,8 @@ fn x87_1(tables: &PhysicsTables, figures: &GearFigures, numbers: &Numbers, r: &P
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[scratch] = -(((([drive_speed_a] * [drive_speed_a]) * [air_drag]) / [k10000]) + [rolling_drag])`
-/// (a long formula: checked by the tests' `reference_vectors`)
-/// (a long formula: checked by the tests' `reference_vectors`)
+/// `[scratch] = -(((([drive_speed_a] * [drive_speed_a]) * [air_drag]) / [k10000]) +
+///  [rolling_drag])` (a long formula: checked by the tests' `reference_vectors`)
 fn x87_2(car: &Car, tables: &PhysicsTables, numbers: &Numbers, scene: &crate::scene::owner::Scene) {
     let t0 = car.drive_speed_a.ld();
     let t1 = t0 * t0;
@@ -160,11 +158,7 @@ fn x87_2(car: &Car, tables: &PhysicsTables, numbers: &Numbers, scene: &crate::sc
     car.drive_speed_b.st(t14);
 }
 
-/// The game's x87 arithmetic as plain Rust over `X`, on the variables
-/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[rc + 0x1CB984] = [drive_speed_a] * [two_and_a_quarter]`
-/// `[test_marks] = int [test_marks] / [hundred]`
-/// `[rc + 0x1CB980] = int [rc + 0x1CB980] / [hundred]`
+/// One straight x87 run as plain Rust over `X`.
 fn x87_3(car: &Car, figures: &GearFigures, numbers: &Numbers) {
     let t0 = car.drive_speed_a.ld();
     let t1 = numbers.two_and_a_quarter.ld();

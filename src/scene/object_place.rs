@@ -1,29 +1,27 @@
-//! The fading, listing and reflecting of the object being drawn (frame plan F4): the object's
-//! position and turned place, its faces' first and count, the fade, the see-through value, the
-//! reflection being worked out and the reflections kept, one in each view's slot
-//! (`race::view_scratch`, `ctx.view.object`) and one for the front end.
+//! The fading, listing and reflecting of the object being drawn: the object's position and turned
+//! place, its faces' first and count, the fade, the see-through value, the reflection being worked
+//! out and the reflections kept, one in each view's slot (`race::view_scratch`, `ctx.view.object`)
+//! and one for the front end.
 //!
-//! The original kept them in two stores for every view at once: the object work
-//! (`ObjectWork`, 0x634FA0) and the ground work (`GroundWork`, 0x63967C). Their fields stay
-//! there (the stores keep the 1999 layout); the ones listed under each field's name below
-//! are now these.
+//! They stand for two stores shared by every view in turn: the object work (`ObjectWork`) and the
+//! ground work (`GroundWork`). Their fields stay there (the stores keep their layout); the ones
+//! listed under each field's name below are now these.
 //!
 //! Left in `ObjectWork` because a drawing reads them before the same view has written them:
-//! `object_place` and `only_object` (the first shown object of a view reads what the last
-//! described object left).
+//! `object_place` and `only_object` (the first shown object of a view reads what the last described
+//! object left).
 //!
-//! `place`, `size` and `light_strength` are here too since F6: every reading of a view's
-//! drawing finds them written by the same view's drawing first (the sky, the slot objects,
-//! the flares, the described objects and the cars each set them before the matrix and the
-//! light read them), and the front end's menu draws all go through the front end's slot
-//! (`view_scratch::front_end()`), so what its set-ups leave (`set_up_carousel`,
-//! `prepare_menu_scene`, `set_up_lit_engine`, the main menu's loop) is what its shown car
-//! and highlighted object read. The physics' contact tests keep `ObjectWork.size` as their
-//! own (`face_contact` writes it before `object_turn_matrix` reads it); `ObjectWork.place`
-//! and `ObjectWork.light_strength` are read by none now. `angles` too (F6 step 5): measured
-//! with a copy beside the store's (three held races, nine menu flows), no reading of the
-//! drawing found other than the same view's last write; `ObjectWork.angles` stays the
-//! physics' own (`physics::face_contact`, `race::get_mat_crash`, `physics::object_turn_matrix`).
+//! `place`, `size` and `light_strength` are here too: every reading of a view's drawing finds them
+//! written by the same view's drawing first (the sky, the slot objects, the flares, the described
+//! objects and the cars each set them before the matrix and the light read them), and the front
+//! end's menu draws all go through the front end's slot (`view_scratch::front_end()`), so what its
+//! set-ups leave (`set_up_carousel`, `prepare_menu_scene`, `set_up_lit_engine`, the main menu's
+//! loop) is what its shown car and highlighted object read. The physics' contact tests keep
+//! `ObjectWork.size` as their own (`face_contact` writes it before `object_turn_matrix` reads it);
+//! `ObjectWork.place` and `ObjectWork.light_strength` are read by none now. `angles` too: no
+//! reading of the drawing found other than the same view's last write; `ObjectWork.angles` stays
+//! the physics' own (`physics::face_contact`, `race::get_mat_crash`,
+//! `physics::object_turn_matrix`).
 
 use crate::session::{PlainDword, PlainFloat};
 
@@ -32,68 +30,68 @@ pub const KEPT_REFLECTIONS: usize = 4096;
 
 #[derive(rc2k_derive::Cells)]
 pub struct ObjectPlace {
-    /// `ObjectWork.object_position` (0x635004): the object's x, y, depth.
+    /// `ObjectWork.object_position`: the object's x, y, depth.
     pub position: [PlainDword; 3],
-    /// `ObjectWork.face_depth` (0x635010).
+    /// `ObjectWork.face_depth`.
     pub face_depth: PlainDword,
-    /// `ObjectWork.car_switches` (0x635028).
+    /// `ObjectWork.car_switches`.
     pub car_switches: PlainDword,
-    /// `ObjectWork.turned_place` (0x63502C): the place turned.
+    /// `ObjectWork.turned_place`: the place turned.
     pub turned_place: [PlainDword; 3],
-    /// `ObjectWork.place` (0x63501C): the matrix's place, x y z.
+    /// `ObjectWork.place`: the matrix's place, x y z.
     pub place: [PlainDword; 3],
-    /// `ObjectWork.size` (0x635038): the object's size (16 = natural).
+    /// `ObjectWork.size`: the object's size (16 = natural).
     pub size: PlainDword,
-    /// `ObjectWork.light_strength` (`g_lightStrength`, 0x635090).
+    /// `ObjectWork.light_strength`: the light's strength.
     pub light_strength: PlainDword,
-    /// `ObjectWork.angles` (0x63503C): the object's x, y and z turns.
+    /// `ObjectWork.angles`: the object's x, y and z turns.
     pub angles: [PlainDword; 3],
-    /// `ObjectWork.object_place` (`g_objectPlace`, 0x634FFC): the scene point of the object
+    /// `ObjectWork.object_place`: the scene point of the object
     /// being drawn, -1 none, each view's own.
     pub object_place: PlainDword,
-    /// `ObjectWork.only_object` (0x635058): the described object's mode bits, each view's own.
+    /// `ObjectWork.only_object`: the described object's mode bits, each view's own.
     pub only_object: PlainDword,
-    /// `ObjectWork.object_first_face` (`g_objectFirstFace`, 0x6350BC).
+    /// `ObjectWork.object_first_face`.
     pub first_face: PlainDword,
-    /// `ObjectWork.object_face_count` (`g_objectFaceCount`, 0x6350C0).
+    /// `ObjectWork.object_face_count`.
     pub face_count: PlainDword,
-    /// `GroundWork.normal_work` (0x6396A0): `face_normal`'s work: three points and six
+    /// `GroundWork.normal_work`: `face_normal`'s work: three points and six
     /// differences.
     pub normal_work: [PlainDword; 15],
-    /// `GroundWork.whole_polygon_count` (0x639960): polygons drawn whole (read by none).
+    /// `GroundWork.whole_polygon_count`: polygons drawn whole (read by none).
     pub whole_polygon_count: PlainDword,
-    /// `GroundWork.split_polygon_count` (0x639964): polygons drawn split (read by none).
+    /// `GroundWork.split_polygon_count`: polygons drawn split (read by none).
     pub split_polygon_count: PlainDword,
-    /// `GroundWork.object_fading` (`g_objectFading`, 0x63996C): the object fades.
+    /// `GroundWork.object_fading`: the object fades.
     pub fading: PlainDword,
-    /// `GroundWork.object_see_through` (`g_objectSeeThrough`, 0x639970).
+    /// `GroundWork.object_see_through`.
     pub see_through: PlainDword,
-    /// `GroundWork.object_fade` (0x639974): the fade value (0x100 = none), twice.
+    /// `GroundWork.object_fade`: the fade value (0x100 = none), twice.
     pub fade: [PlainDword; 2],
-    /// `GroundWork.reflection_normal_number` (0x6399A8): the normal's number asked for.
+    /// `GroundWork.reflection_normal_number`: the normal's number asked for.
     pub reflection_normal_number: PlainDword,
-    /// `GroundWork.reflection_point_number` (0x6399AC): the point's number asked for.
+    /// `GroundWork.reflection_point_number`: the point's number asked for.
     pub reflection_point_number: PlainDword,
-    /// `GroundWork.reflection_coordinates` (0x6399B0): the two coordinates worked out.
+    /// `GroundWork.reflection_coordinates`: the two coordinates worked out.
     pub reflection_coordinates: [PlainDword; 2],
-    /// `GroundWork.kept_reflections` (0x6399B8): four caches of 1024 by point number: the
+    /// `GroundWork.kept_reflections`: four caches of 1024 by point number: the
     /// normals (cleared to -999 by `race::start_kept_reflections`), the points, u and v.
     pub kept_reflections: [PlainDword; KEPT_REFLECTIONS],
-    /// `LightWork.drawing_object` (`g_drawingObject`, 0x62DA44): 1 while an object is drawn
+    /// `LightWork.drawing_object`: 1 while an object is drawn
     /// (`scene::draw_shown_object`), read by `scene::log_bad_polygon`.
     pub drawing_object: PlainDword,
-    /// `RaceVars.move_by` (0x623DD0): a moving object's points' step to their other places
+    /// `RaceVars.move_by`: a moving object's points' step to their other places
     /// (bytes; 0 when it does not move), set by `scene::set_object_material`.
     pub move_by: PlainDword,
-    /// `RaceVars.move_fraction` (0x623DD4): how far the moving object has gone (a float).
+    /// `RaceVars.move_fraction`: how far the moving object has gone (a float).
     pub move_fraction: PlainFloat,
-    /// `GroundWork.object_texture_set` (`g_objectTextureSet`, 0x639954): added to the
+    /// `GroundWork.object_texture_set`: added to the
     /// object's face texture numbers (`scene::draw_scene_object`, `scene::draw_object_faces`).
     pub texture_set: PlainDword,
-    /// `ObjectWork.view_cleared` (0x635014, 0x635018): 0 at each race view's scene's start
+    /// `ObjectWork.view_cleared`: 0 at each race view's scene's start
     /// (`race::draw_view_scene`), the first read by its cars' drawing (`clears_depth`).
     pub view_cleared: [PlainDword; 2],
-    /// `ObjectWork.described_cleared` (0x63505C ..): a described object's three extra turns
+    /// `ObjectWork.described_cleared`: a described object's three extra turns
     /// (`scene::draw_described_object`; 0 unless its description has them), read as its
     /// matrix is made (`race::frame_draw`).
     pub described_turns: [PlainDword; 3],

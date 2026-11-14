@@ -1,10 +1,7 @@
-//! `effects::draw_glow` (0x4D2DED): unless the glow switch is 1, render states 0x15 = 4, 0x13 =
-//! 5, 0x14 = 6, 0x1C = 0, 0x1B = 1 (`scene::set_render_state`), `scene::set_texture` with the
-//! glow texture, and `effects::draw_turned_sprite` at the glow's place plus its offsets (st(0)
-//! first, the sums unrounded), its angle, colour -1, size 0x10000. A glow over the scene, by the
-//! look of it (a reading). (Its first lines, a developer's key for the switch, are jumped
-//! over.)//!
-//! Caller: `effects::run_frame`.
+//! `effects::draw_glow`: unless the glow switch is 1, render states 0x15 = 4, 0x13 = 5, 0x14 = 6,
+//! 0x1C = 0, 0x1B = 1 (`scene::set_render_state`), `scene::set_texture` with the glow texture, and
+//! `effects::draw_turned_sprite` at the glow's place plus its offsets (the sums unrounded), its
+//! angle, colour -1, size 0x10000. A glow over the scene, by the look of it (a reading).
 
 use crate::errors::Refused;
 use crate::math::x87;
@@ -12,8 +9,8 @@ use crate::scene::matrix3::extended;
 /// The render states set (value, state).
 const STATES: [(u32, u32); 5] = [(4, 0x15), (5, 0x13), (6, 0x14), (0, 0x1C), (1, 0x1B)];
 
-/// The render states (`scene::set_render_state`), the
-/// texture (`scene::set_texture`), `draw_turned_sprite`.
+/// The render states (`scene::set_render_state`), the texture (`scene::set_texture`),
+/// `draw_turned_sprite`.
 pub fn draw_glow(
     engine_tables: &crate::scene::engine_tables_store::EngineTables,
     buffer: &crate::d3d::vertices_store::PolygonVertices,

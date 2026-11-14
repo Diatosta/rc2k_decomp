@@ -1,10 +1,10 @@
-//! The polygon vertex buffer (IDA 0x9605A0 .. 0x960DA0): 64 transformed and lit vertices (`TLVertex`, 0x20 bytes), one buffer
-//! for each drawing part (`workers::PartScratch::vertices`). The polygon about to be drawn stands in its first vertices
-//! (`DRAW.polygon_vertex_count` says how many).
+//! The polygon vertex buffer: 64 transformed and lit vertices (`Vertex`, 0x20 bytes), one
+//! buffer for each drawing part (`workers::PartScratch::vertices`). The polygon about to be
+//! drawn stands in its first vertices (`polygon_vertex_count` says how many).
 
 use crate::session::{CellKind, PlainCells};
 
-/// One `TLVertex` of IDA: a Direct3D transformed and lit vertex.
+/// One vertex: a Direct3D transformed and lit vertex.
 #[repr(C)]
 #[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
 pub struct Vertex<K: CellKind = PlainCells> {
@@ -31,7 +31,8 @@ pub struct Vertex<K: CellKind = PlainCells> {
 #[cfg_attr(test, repr(C))]
 #[derive(rc2k_derive::Cells)]
 pub struct PolygonVertices {
-    /// +0x0 (0x9605A0): `g_polygonVertices`: `TLVertex[64]` (`d3d::draw_fan_unclipped`, `scene::draw_polygon`, `effects::`, `hud::`, `drive::tyre_parts`).
+    /// The 64 vertices (`d3d::draw_fan_unclipped`, `scene::draw_polygon`, `effects::`, `hud::`,
+    /// `drive::tyre_parts`).
     pub vertices: [Vertex; 64],
 }
 

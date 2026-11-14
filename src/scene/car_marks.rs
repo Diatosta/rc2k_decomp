@@ -1,15 +1,11 @@
-//! A car's marks (frame plan F4): the textures of its number, digits, plates and decals
-//! that its faces' kinds pick (`scene::list_object_face`), set for each car as it is drawn
+//! A car's marks: the textures of its number, digits, plates and decals that its faces' kinds
+//! pick (`scene::list_object_face`), set for each car as it is drawn
 //! (`race::car_number_textures`) and carried in the drawing's context.
 //!
-//! The original kept them in `g_carMarkTextures` (0x5CD688, 0x100 dwords) for every drawing
-//! at once: each car set them, drew, and cleared the first 0x40 after (`race::clear_car_marks`,
-//! 0x46202A), and outside a race `scene::draw_shown_object` set all 0x100 to the menus' kind
-//! bytes before every object. Entries 0x40 .. 0xFF were never anything but 0 (the image's
-//! and the menus' value). So: a car's own marks while it is drawn, none between cars, the
-//! menus' outside a race. One case differs: in a race, what is drawn before its first car's
-//! clear read the menus' 999 in entries 6, 7 and 9 (none here); a face's byte cannot be 999,
-//! so such a face of those kinds was dropped, kept here if its byte is 0.
+//! A car's own marks apply while it is drawn, none between cars, and the menus' outside a race.
+//! Entries 0x40 .. 0xFF are always 0. In a race, what is drawn before its first car's marks
+//! are set sees none: a face of the kinds that read the menus' 999 in entries 6, 7 and 9 is kept
+//! if its byte is 0 (a face's byte cannot be 999).
 
 use crate::session::Dword;
 

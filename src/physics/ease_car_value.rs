@@ -1,11 +1,9 @@
-//! `physics::ease_car_value` (0x4554CA): unless `scene_switch` is set, `eased_value`
-//! follows `eased_target` << 8: set to it when `value_jump_steps` is set, else stepped by 4
-//! towards it (up when the difference's sign is clear, `jns`). What the values are is
-//! not known.
+//! Unless `scene_switch` is set, `eased_value` follows `eased_target` << 8: set to it when
+//! `value_jump_steps` is set, else stepped by 4 towards it. What the values are is not known.
 //!
-//! Returns: `eased_target` << 8 (when `scene_switch` is 0)
+//! Returns `eased_target` << 8 (when `scene_switch` is 0).
 //!
-//! Caller: `physics::car_physics_step` (0x43B705), every physics step.
+//! Caller: `physics::car_physics_step`, every physics step.
 
 use crate::physics::car_store::Car;
 use crate::physics::cells::set_changed;

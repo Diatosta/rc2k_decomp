@@ -1,15 +1,12 @@
-//! `race::show_replay_still` (0x46062E): the viewer's still frame, the block read and the frame
-//! shown (`replay_frame`) drawn: `still` and `replay_still_on` 1 (a still); the block
-//! (`block`, 0x2810 bytes) into the replay's frame (`race::replay_staging_store`), its state loaded
-//! (`drive::load_replay_cars`) and its cameras (`drive::replay_cameras`); the cars stepped to the
-//! frame (`race::step_replay_cars` per frame, `step_frame` the frame, `step_block` the block);
-//! at frame 0 one step with `ReplayFrames.step_first` 1 and the block's state loaded again; then each car
-//! (`g_currentCar`) loaded (`drive::load_car`), its camera worked out when it runs and is not 2
-//! (`physics::camera_frame`, `ReplayFrames.step_first` 1), stored (`drive::store_car`); `view_on`,
-//! `RaceView.view_on[1]` 0, `drawing` 1, the race's scene drawn (0x454229: `race::draw_race_scene`)
-//! with `scene_switch` 1 (put back after), the three switches 0.
+//! `race::show_replay_still`: draws the viewer's still frame. The frame's block (0x2810 bytes) is
+//! copied into the replay's staging area and its cars and cameras are loaded
+//! (`drive::load_replay_cars`, `drive::replay_cameras`). The cars are stepped up to the shown
+//! frame (`race::step_replay_cars`), with one extra step at frame 0. Each car is then loaded,
+//! its camera worked out when it runs and its driver kind is neither 0 nor 2
+//! (`physics::camera_frame`), and stored again. The race scene is drawn
+//! (`race::draw_race_scene`) with `scene_switch` set to 1 and put back after.
 //!
-//! Caller: `race::viewer_frame`. Refuses (before anything) a cars' count of 0 or past 8.
+//! Called by `race::viewer_frame`. Refuses (before anything) a cars' count of 0 or past 8.
 
 use crate::cells::copy_cells;
 use crate::errors::{BadInput, Refused};
@@ -79,7 +76,6 @@ pub fn show_replay_still(race: &Race, o: crate::owners::Owners<'static>) -> Resu
     race.frame.frame_work.get().drawing.set(1);
     let kept = race.shared.vars.get().scene_switch.get();
     race.shared.vars.get().scene_switch.set(1);
-    // The scene (it reads no register).
     crate::race::draw_race_scene::draw_race_scene(race, o)?;
     race.shared.vars.get().scene_switch.set(kept);
     race.frame.frame_work.get().drawing.set(0);

@@ -1,10 +1,9 @@
-//! `physics::add_drive_forces` (0x440C7B): a factor (`drive_force_factor`, or with
-//! `g_carDriveKind` set `PhysicsTables.drive_force_factor[1]`, the first then stored in `scratch`) times the
-//! sum of the four floats at `wheel_loads` (80 bits) into `drive_force_scale`; then
-//! `drive_forces` += `wheel_slips` x it x `PhysicsTables.drive_shares[2]` and `PhysicsTables.drive_forces[1]` += `PhysicsTables.wheel_slips[1]` x it
-//! x `PhysicsTables.drive_shares[2]`.
+//! Adds the drive forces: a factor (`drive_force_factor`, or its second entry when
+//! the car's drive kind is set) times the sum of the four wheel loads becomes `drive_force_scale`;
+//! then `drive_forces[0]` and `drive_forces[1]` gain `wheel_slips[0]` and `wheel_slips[1]` times
+//! that scale times `drive_shares[2]`.
 //!
-//! Caller: `physics::drive_wheels_step` (0x43E51E).
+//! Caller: `physics::drive_wheels_step`.
 
 use crate::math::x87;
 use crate::math::x87::mul2_plus;

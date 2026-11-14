@@ -1,9 +1,9 @@
-//! `physics::sound_cue_e5` (0x45D028): when the current car's entry in `listed_car_sounds` is
-//! not -1, its sound object (`g_raceSoundObjects[g_currentCar & 7]`) gets +0x24C 0xE5,
-//! +0x250 0 and +0x10 1 (a reading: a sound to play).
+//! When the current car's entry in `listed_car_sounds` is not -1, its sound object (in the race's
+//! sound objects) gets the cue 0xE5, a cue count of 0 and its update flag set (a reading: a sound
+//! to play).
 //!
-//! Caller: `physics::crash_contact` (its tail). Refuses (before anything) a current car past 7, or
-//! a null sound object when written.
+//! Caller: `physics::crash_contact`. Refuses (before anything) a current car past 7, or a null
+//! sound object when written.
 
 use crate::errors::Refused;
 use crate::race::frame_store::FrameWork;
@@ -12,9 +12,9 @@ use crate::session::PlainDword;
 use crate::sound::store::SoundObject;
 use rc2k_core::physics::listed_cars::{CUE_E5, cue_e5_object};
 
-/// The core: the car number and the listed table; the object is the car's number
-/// (`g_raceSoundObjects[car & 7]`).
-// Converted: `rc2k_core::physics::listed_cars::{cue_e5_object, CUE_E5}`.
+/// The core: the car number and the listed table; the object is the car's sound object (by car
+/// number & 7).
+// Core: `rc2k_core::physics::listed_cars::{cue_e5_object, CUE_E5}`.
 pub fn sound_cue_e5_at(
     current: &impl crate::session::DwordLike,
     listed: &[PlainDword; 8],
@@ -27,7 +27,7 @@ pub fn sound_cue_e5_at(
         let [(_, sound), (_, volume), (_, play)] = CUE_E5;
         o.cue_sound.set(sound);
         o.cue_volume.set(volume);
-        // +0x10: the play switch, the cell the revs' new reading flag shares.
+        // The play switch, the cell the revs' new reading flag shares.
         o.new_revs.set(play);
     }
     Ok(())

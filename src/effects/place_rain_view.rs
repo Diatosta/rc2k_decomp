@@ -1,10 +1,9 @@
-//! `effects::place_rain_view` (0x4C1CC8): the point (0, 0, 0x20000) turned by the 3 x 3 matrix at
-//! `RainState.view_matrix[0]` (`scene::transform_int_points`, in place at `RainState.point[0]`); the place
-//! `RainState.view_place[0]` .. less it into `RainState.view[0]`, `RainState.view[1]`, and `flt_8C5FE1` less
-//! its z plus `RainState.view_place[2]` into `RainState.view[2]` (each rounded); the matrix's nine
-//! dwords copied to `RainState.matrix_copy[0]`; the point put back to (0, 0, 0x20000).
-//!
-//! One caller, `effects::run_rain` (the marks' frame).
+//! `effects::place_rain_view`: the point (0, 0, 0x20000) turned by the 3 x 3 matrix at
+//! `RainState.view_matrix[0]` (`scene::transform_int_points`, in place at `RainState.point[0]`);
+//! the place `RainState.view_place[0]` .. less it into `RainState.view[0]`, `RainState.view[1]`,
+//! and the rain's height less its z plus `RainState.view_place[2]` into `RainState.view[2]` (each
+//! rounded); the matrix's nine dwords copied to `RainState.matrix_copy[0]`; the point put back to
+//! (0, 0, 0x20000).
 
 use crate::effects::rain::Weather;
 use crate::errors::Refused;
@@ -12,7 +11,8 @@ use crate::math::x87;
 use crate::math::x87_float as bh;
 use crate::session::{PlainDword, PlainFloat};
 
-/// One of the two near-copies' variables (`place_rain_view`'s and `place_snow_view`'s), as addresses.
+/// One of the two near-copies' variables (`place_rain_view`'s and `place_snow_view`'s), as
+/// addresses.
 pub struct ViewPlace<'a> {
     pub point: &'a [PlainDword; 3],
     pub start_z: u32,

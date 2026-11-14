@@ -1,21 +1,14 @@
-//! `effects::run_snow` (0x4C25F6): the snow's frame. `kept` is the settings' +0x58; the
-//! light's place (`light_source`) turned by the view's place and the view matrix into
-//! `light_place`, its way (`light_source_way`) turned without the places into `light_way`;
-//! `effects::make_fade_colours`. `flakes` is the settings' +0x2760 (the flakes; none: `flag`
-//! 0 and back), held to 0x800; the settings' +0x28 .. +0x48 into `view_matrix`, +0x1C .. +0x24
-//! into `view_place`; `effects::place_snow_view`, `scene::set_texture` (the snow's texture),
-//! `scene::depth_buffer_on`, `scene::depth_test_off`, render states 0x15 = 4, 0x13 = 5,
-//! 0x14 = 6, 0x1C = 0, 0x1B = 1; the four vertices' rhw (`rhw`), colour the view's light |
-//! 0xFF000000, specular 0, texture places from `uv`; the polygon's vertex count 4; 1 over
-//! the farthest depth into `inverses` and `inverse`; when the settings' +0x10 is set the
-//! fall (`fall`) gains the clock's step (since `last_clock`) times `fall_k` (rounded), kept
-//! to 28 bits, `last_clock` the clock; the turn's nine floats and the focal length each four
-//! times into `wide_turn` and `wide_focal`; `effects::draw_snow`; `scene::depth_test_on`.
+//! `effects::run_snow`: the snow's frame. The light's place and way are turned by the view into the
+//! snow's light, then the fade colours are made. The flakes (the settings' +0x2760, held to 0x800;
+//! none leaves `flag` 0) are drawn by `effects::draw_snow` from the view's place and matrix (the
+//! settings' +0x1C .. +0x48), with the four vertices' rhw, the view's light as colour and the
+//! texture places from `uv`. When the settings' +0x10 is set the fall gains the clock's step times
+//! `fall_k`, kept to 28 bits.
 //!
 //! Works on the effects settings.
 //!
-//! Caller: `effects::run_frame`. The two turns are plain Rust on the x87 model (`math::x87_float`), in the original's order,
-//! over the game's variables. Refuses null settings, before anything.
+//! The two turns are plain Rust on the x87 model (`math::x87_float`), over the game's variables.
+//! Refuses null settings, before anything.
 
 use crate::effects::cell_x87::CellX87;
 use crate::effects::rain::Weather;
@@ -131,7 +124,7 @@ pub fn run_snow(
     Ok(())
 }
 
-/// `turn_light`'s x87 block as plain Rust on the x87 model (126 instructions), same order and memory places.
+/// `turn_light`'s arithmetic as plain Rust on the x87 model, in the same order.
 fn turn_light_x87(frame: &Frame, view_matrix: &[crate::session::PlainFloat; 16], l: &SnowLight) {
     let t0 = l.light_source[0].ld();
     let t1 = l.light_source[1].ld();

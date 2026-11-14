@@ -1,13 +1,11 @@
-//! `physics::race_timers` (0x436790): the race's timers for the work car, every physics
-//! step. `weight` 1.0, or `timer_factor` once finished (+0xA8). Then by the race mode
-//! (`run_kind`): 2: `physics::count_start_second`, `physics::count_down_start`,
-//! `physics::take_split_counted`, `physics::start_go_notice`,
-//! `physics::count_stop_timers`, `physics::mark_car_started`; 0, 1, 3:
-//! `count_start_second`, `physics::take_split`, `count_stop_timers`, `mark_car_started`;
-//! else nothing.
+//! The race's timers for the work car, every physics step. `weight` 1.0, or `timer_factor` once
+//! finished. Then by the race mode (`run_kind`): 2: `physics::count_start_second`,
+//! `physics::count_down_start`, `physics::take_split_counted`, `physics::start_go_notice`,
+//! `physics::count_stop_timers`, `physics::mark_car_started`; 0, 1, 3: `count_start_second`,
+//! `physics::take_split`, `count_stop_timers`, `mark_car_started`; otherwise nothing.
 //!
-//! Caller: `physics::car_physics_step` (0x43B64E). Refuses what the steps refuse; what was written
-//! is put back.
+//! Caller: `physics::car_physics_step`. Refuses what the steps refuse; what was written is put
+//! back.
 use crate::errors::Refused;
 use crate::physics::count_down_start::count_down_start;
 use crate::physics::count_start_second::count_start_second;
@@ -18,7 +16,7 @@ use crate::physics::take_split::take_split;
 use crate::physics::take_split_counted::take_split_counted;
 use crate::race::owner::Race;
 
-// Converted: `rc2k_core::physics::splits::{timer_rate, timer_run}`.
+// Core: `rc2k_core::physics::splits::{timer_rate, timer_run}`.
 pub fn race_timers(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refused> {
     let sound = o.sound;
     let (physics, numbers, league) = (

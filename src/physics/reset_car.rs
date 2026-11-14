@@ -1,13 +1,11 @@
-//! `physics::reset_car` (0x43EFEF): the work car put back on the line. Its checkpoint
-//! (`reset_checkpoint`, `g_car` +0x94) into `line_place`, `line_fraction` 0. With
-//! `run_kind` 2 a free checkpoint is looked for: offsets d = 0, 1, .. 0x3F
-//! (`reset_offset`), each tried as +d then -d (`reset_candidate` = the checkpoint + it), a
-//! try failing when `physics::reset_point_blocked` gives CF for any of the blocks at
-//! 0x7103CC, 0x7113AC, 0x71238C (tried in that order, the first CF ends it). The first
-//! free one goes into `line_place`; with none, "cant reset car anywhere - waiting a sec"
-//! is logged (`log_write_l1_nl`), +0x1E8 (`stuck_count`, the
-//! stuck count) less 100, and it returns. Else `race::place_car_on_line`,
-//! `physics::reset_car_on_line`, and +0xFAC (`reset_marker`) 10.
+//! Puts the work car back on the line. Its checkpoint (`reset_checkpoint`) goes into `line_place`,
+//! `line_fraction` = 0. With `run_kind` 2 a free checkpoint is looked for: offsets d = 0, 1, ..
+//! 0x3F (`reset_offset`), each tried as +d then -d (`reset_candidate` = the checkpoint + it), a try
+//! failing when `physics::reset_point_blocked` is true for any of the three other car blocks (tried
+//! in that order, the first true ends it). The first free one goes into `line_place`; with none,
+//! "cant reset car anywhere - waiting a sec" is logged (through `logfile::log_write`),
+//! `stuck_count` is reduced by 100 and it returns. Otherwise `race::place_car_on_line`,
+//! `physics::reset_car_on_line` and `reset_marker` = 10.
 //!
 //! Callers: `physics::reset_when_stuck`, `drive::reset_request`, `physics::find_clear_place`.
 //! Refuses what the calls refuse.
@@ -18,9 +16,9 @@ use crate::physics::tables_store::PhysicsTables;
 use crate::race::vars_store::RaceVars;
 use rc2k_core::physics::line_places::{RESET_TRIES, reset_offsets};
 
-const NOWHERE_TEXT: &std::ffi::CStr = c"cant reset car anywhere - waiting a second"; // "cant reset car anywhere - waiting a sec"
+const NOWHERE_TEXT: &std::ffi::CStr = c"cant reset car anywhere - waiting a second";
 
-/// One try: the candidate set; true when a block is in the way (CF).
+/// One try: the candidate set; true when a block is in the way.
 fn blocked(
     vars: &RaceVars,
     physics_tables: &PhysicsTables,
@@ -46,7 +44,7 @@ fn blocked(
     })
 }
 
-// Converted: `rc2k_core::physics::line_places::reset_offsets`.
+// Core: `rc2k_core::physics::line_places::reset_offsets`.
 pub fn reset_car(c: &ResetInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let lights = &scene.lights;
     lights
@@ -66,7 +64,7 @@ pub fn reset_car(c: &ResetInputs<'_>, scene: &crate::scene::owner::Scene) -> Res
         }
         if !free {
             c.tables.reset_offset.set(RESET_TRIES);
-            // `log_write_l1_nl`.
+            // The log line, level 1.
             crate::logfile::log_write::log_nul(&NOWHERE_TEXT, true, 1);
             c.car
                 .stuck_count

@@ -1,14 +1,13 @@
-//! `physics::pick_start_gear` (0x43C8AC): from neutral, the gear to start in.
-//! `physics::copy_step_clock_to_mark` runs; the engine speed is kept; `physics::revs_from_speed`
-//! runs; `start_gear_figures` get 0 and 100.0; then gears 1 .. 6 in turn: one `physics::gear_bit`
-//! does not refuse is set, `revs_from_speed` runs, and the engine speed over its limit
+//! From neutral, the gear to start in. the engine speed is kept; `physics::revs_from_speed` runs;
+//! `start_gear_figures` get 0 and 100.0; then gears 1 .. 6 in turn: one `physics::gear_bit` does
+//! not refuse is set, `revs_from_speed` runs, and the engine speed over its limit
 //! (`engine_speed_limit`) is stored; the first below `shift_up_point` is taken: set,
 //! `revs_from_speed`, the engine speed moved back toward the kept one by `start_gear_share`
 //! ((kept - e) x k + e), `physics::wheels_from_revs`, and the change settled (`drive_cut_steps`,
 //! the hold 20, `gear_changed` and `gear_change_pending` 1). None taken: the last tried stays.
 //!
-//! Callers: `physics::manual_gearbox`, `physics::auto_gearbox`. Refuses what the calls
-//! refuse; what was written is put back.
+//! Callers: `physics::manual_gearbox`, `physics::auto_gearbox`. Refuses what the calls refuse; what
+//! was written is put back.
 
 use crate::errors::Refused;
 use crate::math::x87;
@@ -21,8 +20,7 @@ use crate::race::numbers_store::Numbers;
 use rc2k_core::physics::gear_shifts as shifts;
 
 /// The steps on `r`.
-// Converted: `rc2k_core::physics::gear_shifts::pick_start` (the engine's sums and compares
-// stay x87).
+// Core: `rc2k_core::physics::gear_shifts::pick_start` (the engine's sums and compares stay x87).
 pub fn pick_start_gear(
     car: &Car,
     tables: &PhysicsTables,

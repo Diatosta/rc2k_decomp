@@ -1,6 +1,5 @@
-//! `effects::make_profiles` (0x4C3B01), the body of `init_marks`' step 3 (0x4C4E1C is
-//! only its call): two rings of 0x100 indexes, once the 13 profile
-//! tables (0x100 whole numbers and their 0x100 differences each), then the corners from
+//! `effects::make_profiles`, the body of `init_marks`' step 3: two rings of 0x100 indexes, once the
+//! 13 profile tables (0x100 whole numbers and their 0x100 differences each), then the corners from
 //! the course and `allocate_links`, `reset_settings_blocks`.
 
 use crate::effects::paths::Paths;
@@ -91,13 +90,12 @@ fn make_tables(paths: &Paths, effects: &crate::effects::owner::Effects) -> Resul
     Ok(())
 }
 
-/// `effects::make_profiles` (0x4C3B01): `ProfileRings.zero` 0, the rings' before and after (of
-/// 0x100); unless done (`dword_91FF3E` = `resume`): the 3 ramps (start to end over 256
-/// steps), 8 sines (base + amplitude sin, the angle stepped), 2 curves (top - x² scale),
-/// each table's differences after it (a fourth list is of no tables), the mark `resume`;
-/// then 0x8000 bytes of corners from `g_courseInfo` + 0x1C2000 (twice, as the original),
-/// `allocate_links` and `reset_settings_blocks`. Refuses a mark that is neither 0 nor
-/// `resume` (the original jumps to it). `resume` is `loc_4C3EA6`.
+/// `effects::make_profiles`: `ProfileRings.zero` 0, the rings' before and after (of 0x100);
+/// unless done (the done mark is `resume`): the 3 ramps (start to end over 256 steps), 8
+/// sines (base + amplitude sin, the angle stepped), 2 curves (top - x² scale), each table's
+/// differences after it (a fourth list is of no tables), the done mark `resume`; then
+/// 0x8000 bytes of corners from the course info + 0x1C2000 (twice), `allocate_links` and
+/// `reset_settings_blocks`. Refuses a mark that is neither 0 nor `resume`.
 pub fn make_profiles(
     course: &Course,
     paths: &Paths,
@@ -129,19 +127,19 @@ pub fn make_profiles(
     Ok(())
 }
 
-/// The profiles' rings of indexes (IDA 0x8DD061 .. 0x8DD865).
+/// The profiles' rings of indexes.
 #[derive(rc2k_derive::Cells)]
 pub struct ProfileRings {
-    /// 0x8DD061: `g_marksRingBefore`: each of the 0x100 indexes' one before it (`effects::make_profiles`).
+    /// Each of the 0x100 indexes' one before it (`effects::make_profiles`).
     pub before: [PlainDword; 256],
-    /// 0x8DD461: `g_marksRingAfter`: each index's one after it.
+    /// Each index's one after it.
     pub after: [PlainDword; 256],
-    /// 0x8DD861: `dword_8DD861`: 0 (`effects::make_profiles` writes it).
+    /// 0 (`effects::make_profiles` writes it).
     pub zero: PlainDword,
 }
 
 impl ProfileRings {
-    /// The values the game starts with (the image's bytes).
+    /// The values the game starts with.
     pub const fn new() -> Self {
         ProfileRings {
             before: [const { PlainDword::new(0x0) }; 256],
@@ -166,15 +164,16 @@ const fn table(first: &[(usize, u32)]) -> ProfileTable {
     t
 }
 
-/// The profile tables (13 of 0x800 bytes, in this order of memory: ramp 0, curves 0 and 1, ramps 1 and 2, sines 0 .. 7) (IDA 0x8E506D .. 0x8EB86D).
+/// The profile tables (13 of 0x800 bytes, in this order of memory: ramp 0, curves 0 and 1, ramps 1
+/// and 2, sines 0 .. 7).
 #[derive(rc2k_derive::Cells)]
 pub struct ProfileTables {
-    /// 0x8E506D: ramp 0, curve 0, curve 1, ramp 1, ramp 2, then sines 0 .. 7 (`RAMPS`, `CURVES`, `SINES`).
+    /// Ramp 0, curve 0, curve 1, ramp 1, ramp 2, then sines 0 .. 7 (`RAMPS`, `CURVES`, `SINES`).
     pub tables: [ProfileTable; 13],
 }
 
 impl ProfileTables {
-    /// The values the game starts with (the image's bytes).
+    /// The values the game starts with.
     pub const fn new() -> Self {
         ProfileTables {
             tables: [
@@ -200,7 +199,7 @@ impl ProfileTables {
 mod typed_tests {
     use super::*;
 
-    /// The tables the image's pointer lists (0x9152F6) named, by address.
+    /// The tables the image's pointer lists named, by address.
     #[test]
     fn table_numbers_name_the_tables_the_addresses_did() {
         let named = |ida: usize| (ida - 0x8E506D) / 0x800;

@@ -1,26 +1,25 @@
-//! The flares' tables (IDA 0x63F58C .. 0x64098C; phase 7, typed): five of the six flare
-//! tables (the first, the places' x, is `LEVEL_GRID.flare_place_x`, 0x63F18C): the places'
-//! y and z, the other light, the size and the object number, each 0x400 bytes. The tables
-//! hold 0x100 flares but `race::frame_draw::add_flare` runs on to 0x400 (a slip of the
-//! original's: it writes into the tables that follow, so its code reaches them by address).
+//! The flares' tables: five of the six flare tables (the first, the places' x, is
+//! `flare_place_x`): the places' y and z, the other light, the size and the object
+//! number, each 0x400 bytes. The tables hold 0x100 flares but `race::frame_draw::add_flare` runs
+//! on to 0x400 (a slip kept as is: it writes into the tables that follow, so its code reaches them
+//! by address).
 //!
-//! Names are readings unless IDA's.
-//! The race's own copy is unused (plain cells, the game's thread's): each view draws its flares
-//! in its own (`race::lamp_work::LampWork::flares`, `ViewFlares`).
+//! The race's own copy is unused (plain cells, the game's thread's): each view draws its flares in
+//! its own (`race::lamp_work::LampWork::flares`, `ViewFlares`).
 
 use crate::session::{CellKind, PlainCells};
 
 #[derive(rc2k_derive::Cells)]
 pub struct FlareTables<K: CellKind = PlainCells> {
-    /// 0x63F58C: `dword_63F58C`: the flares' y (`race::frame_draw::add_flare`, `draw_flare`).
+    /// The flares' y (`race::frame_draw::add_flare`, `draw_flare`).
     pub place_y: [K::Dword; 256],
-    /// 0x63F98C: `dword_63F98C`: the flares' z.
+    /// The flares' z.
     pub place_z: [K::Dword; 256],
-    /// 0x63FD8C: `dword_63FD8C`: the flares' colour (`g_otherLight`).
+    /// The flares' colour (`other_light`).
     pub other_light: [K::Dword; 256],
-    /// 0x64018C: `dword_64018C`: the flares' size.
+    /// The flares' size.
     pub size: [K::Dword; 256],
-    /// 0x64058C: `dword_64058C`: the flares' object number.
+    /// The flares' object number.
     pub object_number: [K::Dword; 256],
 }
 

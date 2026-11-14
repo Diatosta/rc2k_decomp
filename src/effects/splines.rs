@@ -1,8 +1,8 @@
-//! `init_marks`' step 1 (IDA): the splines. `effects::load_splines` reads
-//! `files\m\spline.dat` once and, for each of the settings' objects, `effects::make_spline` fills
-//! the next of 8 places in four tables of `MarkSpline` records (0xE90 bytes): the points of the
-//! object's faces of one kind, centred, turned, graded by height and ordered. These are the
-//! leaves; every function takes the record.
+//! `init_marks`' step 1: the splines. `effects::load_splines` reads `files\m\spline.dat` once and,
+//! for each of the settings' objects, `effects::make_spline` fills the next of 8 places in four
+//! tables of spline records (0xE90 bytes): the points of the object's faces of one kind,
+//! centred, turned, graded by height and ordered. These are the leaves; every function takes the
+//! record.
 
 #[cfg(test)]
 use crate::effects::owner::effects;
@@ -27,13 +27,12 @@ const GRADES: u32 = 0xC90;
 
 /// The bytes of one of the four tables (A .. D).
 const TABLE_LEN: u32 = 29824;
-/// The four tables' bytes, end to end as in the image.
+/// The four tables' bytes, end to end.
 const TABLES_LEN: u32 = 4 * TABLE_LEN;
 
-/// A spline record: its first byte's place in the four tables taken end to end, as the
-/// original's ebp. Fields are read by offset from it; a read past the record goes on into
-/// the next ones, as the original's (`find_spline_ends`, section 16), and one past the
-/// tables is refused.
+/// A spline record: its first byte's place in the four tables taken end to end. Fields are
+/// read by offset from it; a read past the record goes on into the next ones (in
+/// `find_spline_ends`, kept as is), and one past the tables is refused.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Spline(u32);
 
@@ -150,7 +149,7 @@ mod spline_handle_tests {
     }
 }
 
-/// `effects::centre_spline_points` (0x4B9F95): record `s`'s points (+0x654, 12 bytes, the
+/// `effects::centre_spline_points`: record `s`'s points (+0x654, 12 bytes, the
 /// last first) less its centre (+0xC54). Refuses more than 0x80 points. Converted:
 /// `rc2k_core::effects::splines::centre`.
 pub fn centre_spline_points(paths: &Paths, s: Spline) -> Result<(), Refused> {
@@ -163,7 +162,7 @@ pub fn centre_spline_points(paths: &Paths, s: Spline) -> Result<(), Refused> {
     Ok(())
 }
 
-/// `effects::grade_spline_points` (0x4BA316): record `s`'s points' grades (+0xC90, the last
+/// `effects::grade_spline_points`: record `s`'s points' grades (+0xC90, the last
 /// first) by their heights (+0x658): 0 below 0x3830, 1 below 0x6720, else 2. Refuses more
 /// than 0x80 points. Converted: `rc2k_core::effects::splines::grade`.
 pub fn grade_spline_points(paths: &Paths, s: Spline) -> Result<(), Refused> {
@@ -179,10 +178,10 @@ pub fn grade_spline_points(paths: &Paths, s: Spline) -> Result<(), Refused> {
     Ok(())
 }
 
-/// `effects::find_spline_ends` (0x4BA4F1): of record `s`'s +0xC points from +0 the last
-/// with the highest third value, into +0x30; of the +0x10 from +4 the last with the
-/// lowest, into +0x34. The value is read at +0x65C + 0x30 a point, not 12 (section 16):
-/// read as the original does. Refuses a negative start or count, or points past 0x80.
+/// `effects::find_spline_ends`: of record `s`'s +0xC points from +0 the last with the
+/// highest third value, into +0x30; of the +0x10 from +4 the last with the lowest, into
+/// +0x34. The value is read at +0x65C + 0x30 a point, not 12 (a slip kept as is).
+/// Refuses a negative start or count, or points past 0x80.
 /// Converted: `rc2k_core::effects::splines::find_end`.
 pub fn find_spline_ends(paths: &Paths, s: Spline) -> Result<(), Refused> {
     use rc2k_core::effects::splines::{find_end, run_fits};
@@ -203,7 +202,7 @@ pub fn find_spline_ends(paths: &Paths, s: Spline) -> Result<(), Refused> {
     Ok(())
 }
 
-/// `effects::add_face_points` (0x4B9E29): face `face`'s points (+0 the count, from +0x10, 16
+/// `effects::add_face_points`: face `face`'s points (+0 the count, from +0x10, 16
 /// bytes each: the point and two values) added to record `s`'s (+0x50 the count, ids
 /// +0x454, values +0x54 and +0x254) unless there already, up to 0x80. Refuses a record of
 /// more than 0x80 points. Converted: `rc2k_core::effects::splines::FacePoints::add_face`.
@@ -245,22 +244,21 @@ pub fn add_face_points(paths: &Paths, s: Spline, face: u32) -> Result<(), Refuse
     Ok(())
 }
 
-/// `effects::reset_pong` (0x4B7E64): the eight floats from `PongRules.start[0]` to four (x, y)
-/// pairs from `PongState.ball[0]`, `PongState.steps` 5, `PongState.hits` 0. Every register kept.
-/// Converted: `rc2k_core::effects::pong::Court::reset` (exact at every precision: `fld;
-/// fstp` of a float only makes a signalling NaN quiet).
+/// `effects::reset_pong`: the eight floats from `PongRules.start[0]` to four (x, y)
+/// pairs from `PongState.ball[0]`, `PongState.steps` 5, `PongState.hits` 0.
+/// Converted: `rc2k_core::effects::pong::Court::reset` (exact at every precision: copying a
+/// float only makes a signalling NaN quiet).
 pub fn reset_pong(pong: &crate::effects::pong::Pong, effects: &crate::effects::owner::Effects) {
     let rules = crate::effects::pong::rules(pong, effects);
     crate::effects::pong::with_court(pong, |c| c.reset(&rules));
 }
 
-/// `effects::gather_spline_points` (0x4B9D5F): record `s` emptied, then the points of object
+/// `effects::gather_spline_points`: record `s` emptied, then the points of object
 /// `object`'s faces of kind `kind` (+7, low five bits) added (`add_face_points`; the faces
-/// counted in `g_marksSplineFaces`); the ids made pointers into `g_objectPoints` and the
-/// points copied to +0x654 (both the last first). Its last call,
-/// `effects::find_farthest_points` (0x4BA578), works inside a `pusha` .. `popa` and keeps
-/// nothing (section 16): not made. Refuses an object past 0xFF, a negative face count or
-/// faces past `g_faces`.
+/// counted); the ids made pointers into the object points and the points copied to +0x654
+/// (both the last first). Its last step, finding the farthest points, keeps nothing (a
+/// slip kept as is): not made. Refuses an object past 0xFF, a negative face count or faces
+/// past the course's faces.
 pub fn gather_spline_points(
     course: &Course,
     faces_table: &crate::scene::faces_store::Faces,
@@ -335,10 +333,10 @@ fn multiply_turns(paths: &Paths) {
     }
 }
 
-/// `effects::turn_spline_points` (0x4B9FE6): the turns about X, Y, Z by minus record `s`'s
-/// +0x20, +0x24, +0x28 into `g_marksTurnX` .. `Z`, X x Y into `g_marksTurnXY`, that x Z
-/// into `g_marksTurn`, and the record's points turned by it in place. Refuses more than
-/// 0x80 points or an angle `fsincos` cannot take, before writing anything.
+/// `effects::turn_spline_points`: the turns about X, Y, Z by minus record `s`'s +0x20, +0x24,
+/// +0x28 into the work turns, X x Y into the XY turn, that x Z into the turn, and the
+/// record's points turned by it in place. Refuses more than 0x80 points or an angle with
+/// no sine and cosine, before writing anything.
 pub fn turn_spline_points(paths: &Paths, s: Spline) -> Result<(), Refused> {
     use crate::scene::matrix3::{Axis, turn_matrix3, turnable};
     s.count(paths)?;
@@ -376,12 +374,12 @@ pub fn turn_spline_points(paths: &Paths, s: Spline) -> Result<(), Refused> {
     Ok(())
 }
 
-/// `effects::place_shape_points` (0x4BA0AE): the turns about X, Y, Z by record `s`'s +0x20,
-/// +0x24, +0x28 (not negated, as `turn_spline_points` does) into `g_marksTurnX` .. `Z`, X x
-/// Y into `g_marksTurnXY`, that x Z into `g_marksTurn`; the record's points turned by it
-/// into `g_marksOrderedCoords`; then, from the last, each written plus the record's +0xC54
-/// .. through the record's pointer at +0x454. Refuses more than 0x80 points, an angle
-/// `fsincos` cannot take, and a null pointer among the points', before writing anything.
+/// `effects::place_shape_points`: the turns about X, Y, Z by record `s`'s +0x20, +0x24,
+/// +0x28 (not negated, as `turn_spline_points` does) into the work turns, X x Y into the XY
+/// turn, that x Z into the turn; the record's points turned by it into the ordered
+/// coordinates; then, from the last, each written plus the record's +0xC54 .. through the
+/// record's pointer at +0x454. Refuses more than 0x80 points, an angle with no sine and
+/// cosine, and a null pointer among the points', before writing anything.
 pub fn place_shape_points(paths: &Paths, s: Spline) -> Result<(), Refused> {
     {
         let n = s.count(paths)?;
@@ -409,8 +407,8 @@ pub fn turnable_record(paths: &Paths, s: Spline, offsets: [u32; 3]) -> Result<()
     Ok(())
 }
 
-/// The turns about X, Y, Z by the record's floats at `offsets` (not negated) into
-/// `g_marksTurnX` .. `Z`, X x Y into `g_marksTurnXY`, that x Z into `g_marksTurn`, as
+/// The turns about X, Y, Z by the record's floats at `offsets` (not negated) into the work
+/// turns, X x Y into the XY turn, that x Z into the turn, as
 /// `effects::place_shape_points` and `effects::place_graded_points` do.
 pub fn turn_record(paths: &Paths, s: Spline, offsets: [u32; 3]) -> Result<(), Refused> {
     use crate::scene::matrix3::{Axis, extended, turn_matrix3};
@@ -428,8 +426,8 @@ pub fn turn_record(paths: &Paths, s: Spline, offsets: [u32; 3]) -> Result<(), Re
     Ok(())
 }
 
-/// Record `s`'s `count` points from point `first` turned by `g_marksTurn` into
-/// `g_marksOrderedCoords` (`scene::transform_int_points`). Refuses points past the
+/// Record `s`'s `count` points from point `first` turned by the turn into the ordered
+/// coordinates (`scene::transform_int_points`). Refuses points past the
 /// record's 0x80.
 pub fn transform_int_points_from(
     paths: &Paths,
@@ -459,7 +457,7 @@ pub fn write_point(paths: &Paths, s: Spline, k: u32, pointer: u32) -> Result<(),
             let from = ordered
                 .get((3 * k + c) as usize)
                 .ok_or(BadInput("an ordered point past 0x80"))?;
-            // `to` is a place of `scene::object_points` (phase 13).
+            // `to` is a place of `scene::object_points`.
             let v = from.get().wrapping_add(s.get(paths, CENTRE + 4 * c)?);
             crate::scene::object_points::write(to + 4 * c, &v.to_le_bytes())?;
         }
@@ -467,11 +465,11 @@ pub fn write_point(paths: &Paths, s: Spline, k: u32, pointer: u32) -> Result<(),
     Ok(())
 }
 
-/// `effects::order_spline_points` (0x4BA388): record `s`'s ids and points put in grade
-/// order (each grade's the last first) through `g_marksOrderedIds` and
-/// `g_marksOrderedCoords`; +0 .. +8 each grade's start, +0xC .. +0x14 its count; then the
-/// count's ids and points moved back (as `memory::move_bytes` would, as many as the count,
-/// whatever their grade). Refuses more than 0x80 points or a negative count. Converted:
+/// `effects::order_spline_points`: record `s`'s ids and points put in grade order (each
+/// grade's the last first) through the ordered ids and coordinates; +0 .. +8 each grade's
+/// start, +0xC .. +0x14 its count; then the count's ids and points moved back (as a
+/// byte move would, as many as the count, whatever their grade). Refuses more
+/// than 0x80 points or a negative count. Converted:
 /// `rc2k_core::effects::splines::order`.
 pub fn order_spline_points(paths: &Paths, s: Spline) -> Result<(), Refused> {
     {
@@ -516,10 +514,10 @@ pub fn order_spline_points(paths: &Paths, s: Spline) -> Result<(), Refused> {
     Ok(())
 }
 
-/// `effects::bound_spline_points` (0x4B9E7D): record `s`'s points' smallest and largest in
-/// each part; the y and z sizes as floats into `g_marksSplineSize` + 4, + 8 (its x is
-/// left as it was: section 16); the box's middle (half the size, `sar`, plus the smallest)
-/// into the centre (+0xC54); the angle between `g_marksSplineUp` and the size
+/// `effects::bound_spline_points`: record `s`'s points' smallest and largest in each part;
+/// the y and z sizes as floats into the spline size + 4, + 8 (its x is left as it was: a
+/// slip kept as is); the box's middle (half the size, shifted right, plus the smallest) into the
+/// centre (+0xC54); the angle between the spline's up vector and the size
 /// (`scene::angle_between_vectors`, both normalised) into +0x20. Refuses more than 0x80
 /// points. Converted: `rc2k_core::effects::splines::bounds` (the floats, the sizes made
 /// floats and the angle, stay the x87's: the first round as its control word says).
@@ -543,7 +541,7 @@ pub fn bound_spline_points(
 }
 
 /// What `make_spline` refuses for an object: past 0xFF, a negative face count or faces past
-/// `g_faces`, an angle of its tables `fsincos` cannot take.
+/// the course's faces, an angle of its tables with no sine and cosine.
 fn spline_checks(
     paths: &Paths,
     object: u32,
@@ -564,14 +562,14 @@ fn spline_checks(
     Ok(())
 }
 
-/// `effects::make_spline` (0x4B9A32): `object` into `g_marksSplineObject`; unless 8 are
-/// made (`g_marksSplinePlace`), the next record of each table for it: of the faces of that
-/// table's kind gathered, bounded, centred, given the table's angles and turned; the second
-/// and third also given the first table's record 0's centre and +0x20 first (record 0's
-/// whatever the place: section 16) and then graded (+0x18, +0x1C 0x58F0, 0x6F78), ordered
-/// and their ends found; the third's +0x44 .. the highest point plus `g_marksSplineShift`.
-/// Then the place counted. Refuses a negative place, an object past 0xFF or faces past
-/// `g_faces`, an angle `fsincos` cannot take, before writing anything else.
+/// `effects::make_spline`: `object` kept as the spline object; unless 8 are made, the next
+/// record of each table for it: of the faces of that table's kind gathered, bounded,
+/// centred, given the table's angles and turned; the second and third also given the first
+/// table's record 0's centre and +0x20 first (record 0's whatever the place: a slip kept as
+/// is) and then graded (+0x18, +0x1C 0x58F0, 0x6F78), ordered and their ends found; the
+/// third's +0x44 .. the highest point plus the spline shift. Then the place counted.
+/// Refuses a negative place, an object past 0xFF or faces past the course's faces, an angle
+/// with no sine and cosine, before writing anything else.
 pub fn make_spline(
     course: &Course,
     faces_table: &crate::scene::faces_store::Faces,
@@ -642,11 +640,10 @@ pub const RESUME: u32 = 0x4B9706; // loc_4B9706
 const KINDS: u32 = 0x22;
 const MOST_OBJECTS: u32 = (0x2708 - 0x26BC) / 4;
 
-/// `effects::load_splines` (0x4B96CD), in step 1: once (`g_marksSplinesLoaded`, then
-/// `resume`) `files\m\spline.dat` (0xC00 bytes at most, `files::read_whole_file`) into
-/// `g_marksSplineFile`; the five values of `g_marksKind` into 0x788BB2 ..;
-/// `g_marksSplinePlace` 0; `make_spline` for each of the settings' objects (+0x26BC, the last
-/// first); `dword_7695CE` 0. Refuses a mark neither 0 nor `resume`, a kind of 0x22 or
+/// `effects::load_splines`, in step 1: once (then `resume`) `files\m\spline.dat` (0xC00
+/// bytes at most, `files::read_whole_file`) into the spline file; the five values of the
+/// marks' kind kept; the place count 0; `make_spline` for each of the settings' objects
+/// (+0x26BC, the last first). Refuses a mark neither 0 nor `resume`, a kind of 0x22 or
 /// more, more than 19 objects, and what `make_spline` would refuse for any of them, before
 /// writing anything.
 pub fn load_splines(
@@ -697,31 +694,35 @@ pub fn load_splines(
     Ok(())
 }
 
-/// The car models' tables and the splines' head: the points and looks by car model (`effects::emit_exhaust_smoke`, `effects::draw_mark_slots`, `effects::cars_particles`), then the spline variables the looks table runs into (the original reads two dwords past it) and the spline file (IDA 0x769312 .. 0x76A1D2).
+/// The car models' tables and the splines' head: the points and looks by car model
+/// (`effects::emit_exhaust_smoke`, `effects::draw_mark_slots`, `effects::cars_particles`), then the
+/// spline variables the looks table runs into (two dwords past it are read) and the spline file.
 #[derive(rc2k_derive::Cells)]
 pub struct SplineHead {
-    /// 0x769312: `g_marksPoints`: three floats by car model (34 models), a mark slot's point is an index into it (12 bytes each).
+    /// Three floats by car model (34 models), a mark slot's point is an index into it (12 bytes
+    /// each).
     pub points: [PlainFloat; 102],
-    /// 0x7694AA: `dword_7694AA`, `dword_7694B2` ..: the looks by the car's model (two dwords 8 bytes apart, 33 pairs; models 32 and 33 read past the end: `found`, `wave`).
+    /// The looks by the car's model (two dwords 8 bytes apart, 33 pairs; models 32 and 33 read past
+    /// the end: `found`, `wave`).
     pub looks: [PlainDword; 66],
-    /// 0x7695B2: `g_marksSplineFaces`: how many faces of the kind `gather_spline_points` found.
+    /// How many faces of the kind `gather_spline_points` found.
     pub found: PlainDword,
-    /// 0x7695B6: `flt_7695B6`: the wave's angle (`effects::run_splines`).
+    /// The wave's angle (`effects::run_splines`).
     pub angle: PlainFloat,
-    /// 0x7695BA: `flt_7695BA`: the wave (`effects::run_splines`).
+    /// The wave (`effects::run_splines`).
     pub wave: PlainFloat,
-    /// 0x7695BE: `g_marksSplineShift`: added to the third table's highest point for its +0x44.
+    /// Added to the third table's highest point for its +0x44.
     pub shift: [PlainDword; 3],
-    /// 0x7695CA: `dword_7695CA`: 0 or 1, which of the two graded records is being placed.
+    /// 0 or 1, which of the two graded records is being placed.
     pub switch: PlainDword,
-    /// 0x7695CE: `g_marksSplinesMade`: the splines' fade-in counter, 0 .. 0xFF.
+    /// The splines' fade-in counter, 0 .. 0xFF.
     pub made: PlainDword,
-    /// 0x7695D2: `g_marksSplineFile`: `files\m\spline.dat` (0xC00 bytes at most): 12 bytes an entry, the blend weights.
+    /// `files\m\spline.dat` (0xC00 bytes at most): 12 bytes an entry, the blend weights.
     pub file: PlainBytes<3072>,
 }
 
 impl SplineHead {
-    /// The values the game starts with (the image's bytes).
+    /// The values the game starts with.
     pub const fn new() -> Self {
         SplineHead {
             points: [
@@ -911,39 +912,39 @@ impl SplineHead {
     }
 }
 
-/// The splines' work places (`effects::bend_points`, `effects::splines`, `effects::place_spline`) (IDA 0x76A1D2 .. 0x76B9B2).
+/// The splines' work places (`effects::bend_points`, `effects::splines`, `effects::place_spline`).
 #[derive(rc2k_derive::Cells)]
 pub struct SplineWork {
-    /// 0x76A1D2: `dword_76A1D2` ..: four points of three whole numbers: A, B, C and D (`effects::bend_points`).
+    /// Four points of three whole numbers: A, B, C and D (`effects::bend_points`).
     pub bend: [PlainDword; 12],
-    /// 0x76A202: `g_marksSplineObject`: the object being made.
+    /// The object being made.
     pub object: PlainDword,
-    /// 0x76A206: `g_marksSplinePlace`: the next of 8 places.
+    /// The next of 8 places.
     pub place: PlainDword,
-    /// 0x76A20A: `g_marksSplineOffset`: the place times 0xE90.
+    /// The place times 0xE90.
     pub offset: PlainDword,
-    /// 0x76A216: `g_marksSplineUp`: the vector the angle is measured from.
+    /// The vector the angle is measured from.
     pub up: [PlainFloat; 3],
-    /// 0x76A222: `g_marksSplineSize`: the points' size, as floats.
+    /// The points' size, as floats.
     pub size: [PlainFloat; 3],
-    /// 0x76A22E: `g_marksTurnXY`: the X turn times the Y turn (a matrix of 12 floats).
+    /// The X turn times the Y turn (a matrix of 12 floats).
     pub turn_xy: [PlainFloat; 12],
-    /// 0x76A25E: `g_marksTurn`: all three turns.
+    /// All three turns.
     pub turn: [PlainFloat; 12],
-    /// 0x76A28E: `g_marksTurnX`.
+    /// The turn about X.
     pub turn_x: [PlainFloat; 12],
-    /// 0x76A2BE: `g_marksTurnY`.
+    /// The turn about Y.
     pub turn_y: [PlainFloat; 12],
-    /// 0x76A2EE: `g_marksTurnZ`.
+    /// The turn about Z.
     pub turn_z: [PlainFloat; 12],
-    /// 0x76A31E: `g_marksOrderedIds`: `order_spline_points`' work, one id a point (at most 0x80 points).
+    /// `order_spline_points`' work, one id a point (at most 0x80 points).
     pub ordered_ids: [PlainDword; 128],
-    /// 0x76A51E: `g_marksOrderedCoords`: the ordered points, three whole numbers each.
+    /// The ordered points, three whole numbers each.
     pub ordered_coords: [PlainDword; 384],
 }
 
 impl SplineWork {
-    /// The values the game starts with (the image's bytes).
+    /// The values the game starts with.
     pub const fn new() -> Self {
         SplineWork {
             bend: [const { PlainDword::new(0x0) }; 12],
@@ -971,21 +972,21 @@ impl SplineWork {
     }
 }
 
-/// The four tables of eight spline records of 0xE90 bytes (`effects::splines`) (IDA 0x76B9B2 .. 0x788BB2).
+/// The four tables of eight spline records of 0xE90 bytes (`effects::splines`).
 #[derive(rc2k_derive::Cells)]
 pub struct SplineTables {
-    /// 0x76B9B2: `g_marksSplinesA`: eight `MarkSpline` records.
+    /// Eight spline records.
     pub a: PlainBytes<29824>,
-    /// 0x772E32: `g_marksSplinesB`.
+    /// Eight spline records, table B.
     pub b: PlainBytes<29824>,
-    /// 0x77A2B2: `g_marksSplinesC`.
+    /// Eight spline records, table C.
     pub c: PlainBytes<29824>,
-    /// 0x781732: `g_marksSplinesD`.
+    /// Eight spline records, table D.
     pub d: PlainBytes<29824>,
 }
 
 impl SplineTables {
-    /// The values the game starts with (the image's bytes).
+    /// The values the game starts with.
     pub const fn new() -> Self {
         SplineTables {
             a: PlainBytes::new(crate::session::with_runs::<29824>(&[
@@ -1224,19 +1225,19 @@ impl SplineTables {
     }
 }
 
-/// The splines' values by kind (`effects::splines`) (IDA 0x788BB2 .. 0x788EFA).
+/// The splines' values by kind (`effects::splines`).
 #[derive(rc2k_derive::Cells)]
 pub struct SplineKinds {
-    /// 0x788BB2: `g_marksSplineChosen`, then `g_marksSplineKinds` (four): the five values of `g_marksKind`.
+    /// The chosen kind, then the four kinds: the five values of the marks' kind.
     pub chosen: [PlainDword; 5],
-    /// 0x788BC6: `dword_788BC6` .. `dword_788DE6`: five tables of 0x22 values by kind.
+    /// Five tables of 0x22 values by kind.
     pub by_kind: [PlainDword; 170],
-    /// 0x788EF6: `g_marksSplinesLoaded`: 0, or where to go on.
+    /// 0, or the `resume` mark once done.
     pub loaded: PlainDword,
 }
 
 impl SplineKinds {
-    /// The values the game starts with (the image's bytes).
+    /// The values the game starts with.
     pub const fn new() -> Self {
         SplineKinds {
             chosen: [
@@ -1423,15 +1424,15 @@ impl SplineKinds {
     }
 }
 
-/// The splines' file name (`effects::splines`) (IDA 0x788EFA .. 0x788F0D).
+/// The splines' file name (`effects::splines`).
 #[derive(rc2k_derive::Cells)]
 pub struct SplinePath {
-    /// 0x788EFA: `files\m\spline.dat`, the file's name.
+    /// `files\m\spline.dat`, the file's name.
     pub path: PlainBytes<19>,
 }
 
 impl SplinePath {
-    /// The values the game starts with (the image's bytes).
+    /// The values the game starts with.
     pub const fn new() -> Self {
         SplinePath {
             path: PlainBytes::new([
@@ -1442,19 +1443,19 @@ impl SplinePath {
     }
 }
 
-/// The splines' constants (`effects::run_splines`, `effects::place_spline`, `effects::splines`) (IDA 0x788F0D .. 0x788F69).
+/// The splines' constants (`effects::run_splines`, `effects::place_spline`, `effects::splines`).
 #[derive(rc2k_derive::Cells)]
 pub struct SplineConstants {
-    /// 0x788F0D: `flt_788F0D`, `flt_788F11`, `flt_788F15`: the wave's constants.
+    /// The wave's constants.
     pub wave_k: [PlainFloat; 3],
-    /// 0x788F19: `flt_788F19` .. `flt_788F35`: `place_spline`'s factors and limits.
+    /// `place_spline`'s factors and limits.
     pub place_k: [PlainFloat; 8],
-    /// 0x788F39: `g_marksSplineAngles`: each table's +0x24, +0x2C, +0x28 (four times three).
+    /// Each table's +0x24, +0x2C, +0x28 (four times three).
     pub angles: [PlainFloat; 12],
 }
 
 impl SplineConstants {
-    /// The values the game starts with (the image's bytes).
+    /// The values the game starts with.
     pub const fn new() -> Self {
         SplineConstants {
             wave_k: [
@@ -1478,9 +1479,9 @@ impl SplineConstants {
 }
 
 impl SplineHead {
-    /// Dword `i` of the looks table, read as the original reads it: model 32 and 33 of the
-    /// cars (34 models, pairs 8 bytes apart) run two and three dwords past the table's end
-    /// into `found`, `angle` and `wave` (`notes/bugs.md`).
+    /// Dword `i` of the looks table: model 32 and 33 of the cars (34 models, pairs 8 bytes
+    /// apart) run two and three dwords past the table's end into `found`, `angle` and `wave`
+    /// (a slip kept as is).
     pub fn look(&self, i: usize) -> u32 {
         match i {
             0..66 => self.looks[i].get(),

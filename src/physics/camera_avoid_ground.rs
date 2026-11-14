@@ -1,23 +1,17 @@
-//! `physics::camera_avoid_ground` (0x43907F): the camera kept out of the ground.
-//! `physics::ease_view_turn`; `camera_ground_flag` = 0, `camera_turn_step` = -1, the heading
-//! (`camera_heading`) kept in `camera_heading_kept`; `physics::place_camera`. With the mode's record's
-//! +0x4C set and the camera not over ground (`physics::camera_over_ground`): turned to face
-//! from the checkpoint before (`checkpoint` - 1, its face's first scene point,
-//! `scene::angle_between` << 16), then the one before that, each placed and tried; none
-//! clear: the heading put back. One clear: turned back toward the kept heading in steps of
-//! `camera_turn_step` (0x4000000, then each an eighth of the last while above 0x1000), each
-//! step placed and tried and undone (the heading and the five last faces `camera_ground_faces` ..
-//! kept in `camera_heading_saved` ..) when it leaves the ground. Then `camera_ground_flag` = -1, placed;
-//! while not clear of the ground (`physics::camera_clear_of_ground`): the pitch eased up
-//! (`physics::ease_pitch_up`, `pitch_floor` the pitch, `pitch_ceiling` 0x40000000 first)
-//! or, once clear, down (`ease_pitch_down`, `pitch_ceiling` the pitch), placed and tried,
-//! until `pitch_step` is 0.
+//! Keeps the camera out of the ground. After `physics::ease_view_turn` and `place_camera`: when
+//! the mode's record flag is set and the camera is not over ground
+//! (`physics::camera_over_ground`), the camera is turned to face from the checkpoint before, then
+//! the one before that, each placed and tried; with none clear the heading is put back. With one
+//! clear it is turned back toward the kept heading in steps of `camera_turn_step` (0x4000000,
+//! then an eighth of the last while above 0x1000), each step placed, tried and undone when it
+//! leaves the ground. Then, while not clear of the ground (`physics::camera_clear_of_ground`),
+//! the pitch is eased up (`ease_pitch_up`) or, once clear, down (`ease_pitch_down`), placed and
+//! tried, until `pitch_step` is 0.
 //!
 //! Caller: `physics::update_camera`. Refuses what the ground checks refuse.
 //!
-//! Seen in play: the camera checks serve the hood camera; when the car
-//! flips over, the view changes to chase 1 for a while so the camera does not clip into
-//! the ground. (Which mode's record holds +0x4C, and where the switch is made, not read.)
+//! Seen in play: the camera checks serve the hood camera; when the car flips over the view
+//! changes to chase 1 for a while so the camera does not clip into the ground.
 
 use crate::errors::Refused;
 use crate::physics::camera_clear_of_ground::camera_clear_of_ground;
@@ -82,19 +76,19 @@ fn face_checkpoint(
     let first = shared.car().position[0].get().wrapping_sub(coordinate(0));
     let second = shared.car().position[2].get().wrapping_sub(coordinate(2));
     let angle = crate::scene::angle_between::angle_of(course, first, second);
-    // `scene::angle_between` left the angle in `g_scratch`.
+    // `scene::angle_between` leaves the angle in the scene's scratch cell.
     scene.drawing.scene.get().scratch.set(angle);
     shared.car().camera_heading.set(angle << 16);
     true
 }
 
-/// The five ground faces from 0x71AEC8 the loop below saves.
+/// The five ground faces the loop below saves.
 fn ground_faces(car: &Car) -> [&PlainDword; 5] {
     let f = &car.camera_ground_faces;
     [&f[0], &f[1], &f[2], &f[3], &f[4]]
 }
 
-/// The turn back toward the kept heading (0x43919D ..).
+/// The turn back toward the kept heading.
 fn turn_back(c: &CameraInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let drawing = &scene.drawing;
     c.race_tables
@@ -153,7 +147,7 @@ fn turn_back(c: &CameraInputs<'_>, scene: &crate::scene::owner::Scene) -> Result
 }
 
 /// The steps.
-// Converted: `rc2k_core::physics::camera_ground::{back_checkpoint, turn_step,
+// Core: `rc2k_core::physics::camera_ground::{back_checkpoint, turn_step,
 // next_turn_step}`.
 pub fn steps(c: &CameraInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let drawing = &scene.drawing;
@@ -213,7 +207,7 @@ pub fn steps(c: &CameraInputs<'_>, scene: &crate::scene::owner::Scene) -> Result
                 .set(drawing.scene.get().camera_heading_kept.get());
         }
     }
-    // 0x4392A3: clear of the ground by the pitch.
+    // Clear of the ground by the pitch.
     c.race_tables.camera_ground_flag.set(u32::MAX);
     place(
         c.camera,

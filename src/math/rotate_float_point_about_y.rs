@@ -1,19 +1,13 @@
-//! `math::rotate_float_point_about_y` (0x41FE74): a point of three floats in eax, ebx, ecx (as
-//! dwords) turned in x and z: stored in the scratch point (`g_scratchX`, `Y`, `Z`),
-//! `math::rotate_scratch_about_y` by edx, and loaded back. A sibling of `math::rotate_point_about_y`
-//! without the whole numbers.
-//!
-//! Takes: x, y, z (floats), the angle
-//!
-//! Callers: `physics::turn_by_heading`, `physics::wall_edge_contact`,
-//! `physics::crossed_edge_contact`, `hud::turned_vertex`.
+//! `math::rotate_float_point_about_y`: a point of three floats turned in x and z through
+//! the scratch point by an angle. A sibling of `math::rotate_point_about_y` without the
+//! whole numbers.
 
 use crate::math::rotate_scratch_about_y::{
     Scratch, rotate_scratch_about_y, rotate_scratch_about_y_plain,
 };
 use crate::math::x87::Flt;
 
-/// The Rust version: x', y, z' (the first) and the entry left in edx (the second).
+/// x', y, z' (the first) and the angle table's entry (the second).
 pub fn rotate_float_point_about_y(
     tables: &crate::scene::engine_tables_store::EngineTables,
     x: impl Flt,
@@ -29,7 +23,7 @@ pub fn rotate_float_point_about_y(
     )
 }
 
-/// The converted version (`rotate_scratch_about_y_plain`).
+/// The converted version, on `rotate_scratch_about_y_plain`.
 pub fn rotate_float_point_about_y_plain(
     tables: &crate::scene::engine_tables_store::EngineTables,
     x: impl Flt,

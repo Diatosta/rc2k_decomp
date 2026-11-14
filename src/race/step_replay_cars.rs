@@ -1,13 +1,14 @@
-//! `race::step_replay_cars` (0x460835): one step of the replay's cars, for the viewer's still
-//! frame: the cars shown (`drive::choose_shown_cars`); for each car (`g_currentCar` from 0) its
-//! input words (`drive::car_input_words`, `drive::play_inputs`), its block into `work_block`, the
-//! work car loaded (`drive::load_car`); running (`driver_kind`): controls, gear rules, steering,
-//! pedals, the reset key, `physics::car_physics_step` and the work car's clocks (`step_clock`,
-//! `run_ticks`) one more; `drive::store_car`. Then `drive::race_mode_cars`.
+//! `race::step_replay_cars`: one step of the replay's cars, for the viewer's still frame. The
+//! cars shown are chosen (`drive::choose_shown_cars`). For each car (`current_car` from 0) its
+//! input words are made (`drive::car_input_words`, `drive::play_inputs`), its block goes into
+//! `work_block` and the work car is loaded (`drive::load_car`). A running car (`driver_kind`) then
+//! gets controls, gear rules, steering, pedals, the reset key, `physics::car_physics_step` and
+//! its clocks (`step_clock`, `run_ticks`) one more; `drive::store_car` follows. Last comes
+//! `drive::race_mode_cars`.
 //!
-//! Caller: `race::show_replay_still` (two). Unlike `drive::replay_step` the clocks count only
-//! for a running car, and nothing is recorded or sent. Refuses (before anything) a cars' count
-//! of 0 or past 8 (0 goes round 2^32 times).
+//! Called by `race::show_replay_still`. Unlike `drive::replay_step` the clocks count only for a
+//! running car, and nothing is recorded or sent. Refuses (before anything) a cars' count of 0 or
+//! past 8 (a count of 0 would loop 2^32 times).
 
 use crate::errors::Refused;
 use crate::race::owner::Race;
@@ -16,8 +17,6 @@ pub fn step_replay_cars(o: crate::owners::Owners<'static>, race: &Race) -> Resul
     let (input, scene, net) = (o.input, o.scene, o.net);
     let shared = &race.shared;
     use crate::drive::*;
-    // Converted: `rc2k_core::race::viewer_flow::{check_replay_cars, car_block, car_runs,
-    // RUN_STEPS, next_car}`.
     use rc2k_core::race::viewer_flow::{
         RUN_STEPS, RunStep, car_block, car_runs, check_replay_cars, next_car,
     };

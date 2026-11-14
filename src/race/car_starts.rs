@@ -1,9 +1,8 @@
-//! Race init's first step, the cars' starts (`race::start_cars`, 0x446463): each car of the race loaded into the work copy (`g_car`), set at its start
-//! (`race::start_car`: its checkpoint, its place on the line and to the side, the nearest
-//! checkpoint, then `race::reset_car_motion`: settled on the ground by
-//! `race::settle_car`, its matrix undone, its motion cleared), two blocks cleared, stored
-//! back. 0x43EB5D and `physics::probe_ground` are `physics::set_handling` and
-//! `physics::probe_ground`.
+//! Race initialisation's first step, the cars' starts (`start_cars`): each car of the race is
+//! loaded into the work copy (`car`), set at its start (`start_car`: its checkpoint, its place on
+//! the line and to the side, the nearest checkpoint, then `reset_car_motion`: settled on the ground
+//! by `settle_car`, its matrix undone, its motion cleared), two blocks cleared, and stored back.
+//! Uses `physics::set_handling` and `physics::probe_ground`.
 
 use crate::errors::{BadInput, Refused};
 use crate::physics::contact_store::ContactWork;
@@ -16,7 +15,7 @@ use crate::race::owner_shared::RaceShared;
 use crate::session::DwordLike;
 use crate::session::PlainDword;
 
-/// The most cars `g_carBlocks` has.
+/// The most cars `car_blocks` has.
 pub const MOST_CARS: u32 = 8;
 
 fn add(cell: &impl DwordLike, by: u32) {
@@ -33,8 +32,8 @@ fn wheels(contact: &ContactWork) -> [u32; 4] {
     crate::session::read_first(&contact.probe_height)
 }
 
-/// One bisection step of `settle_car`: `angle` moved by `step` towards the higher pair
-/// (down when `low` - `high` is negative), the step halved (`shr`).
+/// One bisection step of `settle_car`: `angle` moved by `step` towards the higher pair (down when
+/// `low` - `high` is negative), the step halved.
 fn settle_step(low: u32, high: u32, angle: &impl DwordLike, step: &impl DwordLike) {
     let s = step.get();
     if (low.wrapping_sub(high) as i32) < 0 {
@@ -57,12 +56,12 @@ fn matrix_and_wheels(
     Ok(wheels(ground.contact))
 }
 
-/// `race::settle_car` (0x43FC32): 0x43EB5D (`physics::set_handling`); the work car's pitch and roll
+/// Settles the work car on the ground: `physics::set_handling`; the work car's pitch and roll
 /// (+0x9C4, +0x9C8) 0, both steps 0x20000000, `settle_mark` 0x80; eight times the matrix
 /// (`get_mat_crash`) and the wheels (`physics::probe_ground`), the roll moved by the step towards
 /// wheels 0 + 2 against 1 + 3, the pitch towards 0 + 1 against 2 + 3, each step halved; once more
-/// the matrix and the wheels, then the car's y, the four wheels and the four at 0x6D1F14 lowered by
-/// the lowest wheel (from 0x640000).
+/// the matrix and the wheels, then the car's y and the four wheels and the four after them are
+/// lowered by the lowest wheel.
 pub fn settle_car(c: &ResetInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let physics = c.physics;
     let shared = c.shared;
@@ -116,11 +115,11 @@ pub fn settle_car(c: &ResetInputs<'_>, scene: &crate::scene::owner::Scene) -> Re
     Ok(())
 }
 
-/// `race::reset_car_motion` (0x43FB47): `settle_car`, `invert_car_matrix`; the work car's +0x198 ..
-/// +0x1A0 0, +0x1A4 1.0, +0x1A8 0, `g_carSpeed` (+0x1AC) 0, +0x184 .. +0x18C 0; heading, pitch and
-/// roll copied to `start_heading` / `58` / `54` and +0x6B0 / +0x6B8 / +0x6B4; +0x1E8,
-/// `g_carDriveSpeed`, `g_carDriveSpeed2`, `g_carGear`, +0x200, +0x204, +0x1C4, +0x1F4 0; with
-/// +0x68C not 0, +0x688 and +0x684 it less one and +0x68C 0.
+/// Settles the car (`settle_car`), undoes its matrix (`invert_car_matrix`) and clears its motion:
+/// the work car's +0x198 .. +0x1A0 0, +0x1A4 1.0, +0x1A8 0, `speed` (+0x1AC) 0, +0x184 ..
+/// +0x18C 0; heading, pitch and roll copied to `start_heading` / `58` / `54` and +0x6B0 / +0x6B8 /
+/// +0x6B4; +0x1E8, `drive_speed_a`, `drive_speed_b`, `gear`, +0x200, +0x204, +0x1C4,
+/// +0x1F4 0; with +0x68C not 0, +0x688 and +0x684 get it less one and +0x68C 0.
 pub fn reset_car_motion(
     c: &ResetInputs<'_>,
     scene: &crate::scene::owner::Scene,
@@ -164,8 +163,9 @@ pub fn reset_car_motion(
     Ok(())
 }
 
-/// `math::rotate_point_about_y` of (x, 0, z) by the start place's heading: x and z moved. The original's y
-/// there is a leftover value; it lands only in `g_scratchY`, which every reader writes first.
+/// Rotates (x, 0, z) by the start place's heading with `math::rotate_point_about_y`: x and z are
+/// moved. The y it works on is a leftover value; it lands only in `scratch_y`, which every reader
+/// writes first.
 fn move_turned(course: &Course, shared: &RaceShared, x: u32, z: u32) {
     let [x, _, z, _] = crate::math::rotate_point_about_y::rotate_point_about_y(
         &shared.buffers.reads.get().engine_tables,
@@ -178,15 +178,15 @@ fn move_turned(course: &Course, shared: &RaceShared, x: u32, z: u32) {
     add(&shared.car().position[2], z);
 }
 
-/// `race::start_car` (0x4464AD): the work car's +0x478, +0x694 0, +0xAD4/+0xAD8 0x80000000, +0x1E4,
-/// +0x1D8, +0x1D4 0, +0x644 .. +0x650 and +0x638 .. +0x640 0. Unless `run_kind` is 4: its
-/// checkpoint `first_check_checkpoint` (less the car's number / 2 but with `run_kind` 1 or 3)
-/// into `line_place`, `line_fraction` 0 (both 0 with `Finish.no_place`); `place_car_on_line`; without
-/// `Finish.no_place` moved back (0, -0x20000 turned by `place_heading`) and, with `session` or
-/// (`run_kind` 0 and `players` not 1), to the side (+-0x14000 by the car's number's low
-/// bit). Then `nearest_checkpoint` into +0x98, +0x94, +0x9C; its check count less one held to 0 ..
-/// 100 into +0x90 and +0xAC; `reset_car_motion`; +0x264 .. +0x26C 0. Refuses a nearest checkpoint
-/// past the lists (when met).
+/// Sets the work car's start: +0x478, +0x694 0, +0xAD4/+0xAD8 0x80000000, +0x1E4, +0x1D8, +0x1D4 0,
+/// +0x644 .. +0x650 and +0x638 .. +0x640 0. Unless `run_kind` is 4: its checkpoint is
+/// `first_check_checkpoint` (less the car's number / 2 but with `run_kind` 1 or 3) into
+/// `line_place`, `line_fraction` 0 (both 0 with `Finish.no_place`); `place_car_on_line`; without
+/// `Finish.no_place` the car is moved back (0, -0x20000 turned by `place_heading`) and, with
+/// `session` or (`run_kind` 0 and `players` not 1), to the side (+-0x14000 by the car's number's
+/// low bit). Then `nearest_checkpoint` goes into +0x98, +0x94, +0x9C; its check count less one held
+/// to 0 .. 100 into +0x90 and +0xAC; `reset_car_motion`; +0x264 .. +0x26C 0. Refused: a nearest
+/// checkpoint past the lists (when met).
 pub fn start_car(
     c: &ResetInputs<'_>,
     scene: &crate::scene::owner::Scene,
@@ -209,8 +209,7 @@ pub fn start_car(
     ]);
     zero(&[&c.car.throttle, &c.car.brake, &c.car.handbrake]);
     if c.vars.run_kind.get() != 4 || crate::debug::screens::free_play_placed() {
-        // Converted: `rc2k_core::race::start::{start_checkpoint, starts_aside,
-        // side_offset, start_checks}`.
+        // The start's pure parts are in `rc2k_core::race::start`.
         use rc2k_core::race::start::{side_offset, start_checkpoint, starts_aside};
         let first = crate::race::race_init::first_check_checkpoint(c.course, c.shared)?;
         let mode: u32 = c.vars.run_kind.get();
@@ -260,10 +259,9 @@ pub fn start_car(
     Ok(())
 }
 
-/// `race::start_cars` (0x446463): for each car of the race (`g_raceCars`), `g_currentCar` it,
-/// `drive::load_car`, `start_car`, the work car's +0xA3C (8 dwords) and +0xA5C (0x11) 0,
-/// `drive::store_car`; Refuses no cars (the original's `jnz` runs on) or more than 8, before
-/// anything.
+/// For each car of the race (`race_cars`): `current_car`, `drive::load_car`, `start_car`, the work
+/// car's +0xA3C (8 dwords) and +0xA5C (0x11) cleared, `drive::store_car`. Refused (before
+/// anything): no cars or more than 8.
 pub fn start_cars(
     race: &Race,
     scene: &crate::scene::owner::Scene,
@@ -282,7 +280,7 @@ pub fn start_cars(
             scene,
             net,
         )?;
-        // +0xA3C (8 dwords) and +0xA5C (0x11) 0.
+        // Clears +0xA3C (8 dwords) and +0xA5C (0x11).
         for cell in shared
             .car()
             .part_damage_limits

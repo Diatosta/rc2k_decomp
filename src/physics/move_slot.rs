@@ -1,28 +1,24 @@
-//! `physics::move_slot` (0x462485): one step of a loose object's slot (0x78 bytes of
-//! `g_raceSlots`; +4 .. +0xC its place, whole numbers; +0x10 its matrix; +0x50 .. +0x58 its
-//! speed; +0x68 .. +0x70 its spin; +0x60 its last face):
-//! - the place kept (`slot_place`); +0x74 = the spin's length; when not 0, the matrix is turned
-//!   by it: the axis (`scene::unit_vector` of +0x74 .. +0x7C, so two dwords past the slot, as
-//!   the original has it) and angle (+0x74 times the step `step_time`) go through
-//!   `physics::axis_turn_matrix` (`turn_matrix`), `scene::square_matrix`, then
-//!   `scene::multiply_matrices` with the matrix into `g_turnedMatrix`, copied back;
-//! - the place moved by the speed (times the step and 65536, rounded); y's speed less gravity
+//! One step of a loose object's slot (0x78 bytes of `race_slots`: place as whole numbers, matrix,
+//! speed, spin, last face):
+//! - the place is kept (`slot_place`); the spin's length is stored; when not 0, the matrix is
+//!   turned by it: the axis (`scene::unit_vector` read two dwords past the slot's spin) and angle
+//!   (the length times the step `step_time`) go through `physics::axis_turn_matrix`
+//!   (`turn_matrix`), `scene::square_matrix`, then `scene::multiply_matrices` with the matrix into
+//!   `turned_matrix`, copied back;
+//! - the place is moved by the speed (times the step and 65536, rounded); y's speed less gravity
 //!   (`gravity`) times the step;
-//! - the ground under it (`physics::find_ground`, mask 0x80, last face +0x60): none, the place
-//!   put back and the speed and spin cleared; else the face kept, and when below the ground
-//!   (the sign of the difference) the slot is set on it, the speed halved (y's turned round),
-//!   the spin halved and turned round; then, with |y's speed| below 1, the matrix from
-//!   `part_matrix_flat` (12 dwords), or from `part_matrix_still` when the slot's part number
-//!   mod 20 is 5 .. 8; else the scratch float = |y's speed| (and a call to an empty function).
+//! - the ground under it (`physics::find_ground`, mask 0x80, last face from the slot): none, the
+//!   place is put back and the speed and spin cleared; otherwise the face is kept, and when below
+//!   the ground the slot is set on it, the speed halved (y's turned round), the spin halved and
+//!   turned round; then, with |y's speed| below 1, the matrix from `part_matrix_flat` (12 dwords),
+//!   or from `part_matrix_still` when the slot's part number mod 20 is 5 .. 8; otherwise the
+//!   scratch float = |y's speed|.
 //!
 //! The slots (`race_slots`, eight) are loose objects that move on their own, fall, bounce on the
 //! ground and spin; probably debris thrown off in a crash (the code does not say which object).
 //!
-//! Refuses (before anything) what `find_ground` would refuse where the slot moves to.
-//!
-//! Takes: the slot
-//!
-//! Caller: `physics::move_slots`.
+//! Caller: `physics::move_slots`. Refuses (before anything) what `find_ground` would refuse where
+//! the slot moves to.
 
 use crate::effects::cell_x87::CellX87;
 use crate::errors::Refused;
@@ -70,9 +66,9 @@ impl crate::math::cells::Cells for SpinAxis {
     }
 }
 
-/// The spin's axis for slot `number`: its spin's length and the two dwords the original reads
-/// on after it, which are the next slot's `part` and first place number, or after the last
-/// slot `slot_count` and `part_fling`.
+/// The spin's axis for slot `number`: its spin's length and the two dwords read on after it, which
+/// are the next slot's `part` and first place number, or after the last slot `slot_count` and
+/// `part_fling`.
 fn spin_axis(work: &RaceWork, number: usize) -> SpinAxis {
     let slot = &work.race_slots[number];
     let (second, third) = match work.race_slots.get(number + 1) {
@@ -82,7 +78,7 @@ fn spin_axis(work: &RaceWork, number: usize) -> SpinAxis {
     SpinAxis([slot.spin_length.get().to_bits(), second, third])
 }
 
-/// The slot `s`, number `number` of the table (the registers it leaves are dropped by its caller's `popa`).
+/// The slot `s`, number `number` of the table.
 pub fn move_slot(
     c: &SlotInputs<'_>,
     s: &RaceSlot,

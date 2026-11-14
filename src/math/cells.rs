@@ -1,7 +1,6 @@
-//! A run of 32-bit cells a helper reads and writes, in place of an address (phase 13, the
-//! `Game` context: helpers that took a matrix's or a vector's address take its cells):
-//! a typed store's array (`&MATRICES.turned_matrix`, `&CAR.velocity`, a slice of one from
-//! a cell on), or `Off` (a run from its cell `n` on).
+//! A run of 32-bit cells a helper reads and writes in place of an address: a typed store's
+//! array (a matrix's cells, a car's velocity, a slice of one from a cell on), or
+//! `Off` (a run from its cell `n` on).
 
 use crate::session::Cell32;
 
@@ -91,7 +90,7 @@ pub fn load<const N: usize>(cells: &(impl Cells + ?Sized)) -> [u32; N] {
     std::array::from_fn(|n| cells.bits(n))
 }
 
-/// The first `n` cells of `from` into `to`, in order (a `rep movsd`).
+/// The first `n` cells of `from` into `to`, in order.
 pub fn copy_cells(from: &(impl Cells + ?Sized), to: &(impl Cells + ?Sized), n: usize) {
     for k in 0..n {
         to.set_bits(k, from.bits(k));

@@ -1,4 +1,4 @@
-//! `sound::surface_sound` (0x40E068): one of a car's sounds of what its wheels run on.
+//! `sound::surface_sound`: one of a car's sounds of what its wheels run on.
 //!
 //! Takes: the car's sound object, the surface's sound set, the request
 //! The set: +0 1 for a set of eight (+4 ..; the sound by the object's +0 & 3 and, 4
@@ -26,7 +26,7 @@ pub fn surface_sound(
     owner: &crate::sound::owner::Sound,
     audio: &crate::audio::owner::Audio,
 ) -> Result<(), Refused> {
-    // Converted: `rc2k_core::sound::surfaces::pick`.
+    // The logic is `rc2k_core::sound::surfaces::pick`.
     let eight = set.get(0)? == 1;
     let (n, slot) = surfaces::pick(eight, o.sound_offset.get(), || o.view_flag.get())
         .map_err(BadInput::from)?;
@@ -56,10 +56,10 @@ pub fn surface_sound(
     crate::sound::turn_parts::placed(request, owner, audio)
 }
 
-// ---- the arithmetic that was x87 assembly ----
+// ---- the x87-precision arithmetic ----
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// An x87-precision run in plain Rust over `X`, written as the expressions it computes
+/// (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `volume = [sf + 0x40]` (the request's +8)
 fn x87_1(sf: &crate::sound::store::SurfaceSounds, volume: &impl Cell32) {
     let t0 = ld(sf.volume.get());

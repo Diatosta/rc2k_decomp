@@ -1,6 +1,6 @@
-//! The outputs of the original's assembly blocks that the race tests compare the plain
-//! versions with, recorded once on i686 (`data/vectors/<name>.bin`): a test draws its inputs
-//! from a seeded generator, so the outputs alone, in order, are the vectors.
+//! The outputs of the 1999 assembly blocks that the race tests compare the plain versions with,
+//! recorded once on i686 (`data/vectors/<name>.bin`): a test draws its inputs from a seeded
+//! generator, so the outputs alone, in order, are the vectors.
 //!
 //! A test opens its vectors, hands each step's output words to `check` and calls `finish`.
 //! The first `FULL` steps are kept whole (compared word by word with the test's own
@@ -8,8 +8,8 @@
 //! (a chunk named when it differs). Tests whose sameness allows a difference
 //! (`Kind::Close`) keep every step whole and no hashes.
 //!
-//! With `RC2K_RECORD_VECTORS` set, `finish` writes the file from what the test saw: run
-//! so only where the words come from the original's blocks, or the test checks itself.
+//! With `RC2K_RECORD_VECTORS` set, `finish` writes the file from what the test saw: run so only
+//! where the words come from the recorded blocks, or the test checks itself.
 //!
 //! The file: `RC2KVEC1`, then little-endian dwords: the steps, the words a step, the steps
 //! kept whole, their words, the chunks, and each chunk's hash (two dwords, low first).
@@ -52,7 +52,7 @@ fn path(name: &str) -> std::path::PathBuf {
     crate::test_support::vectors::vectors_dir().join(format!("{name}.bin"))
 }
 
-/// A NaN's bits as one NaN's: the original's NaNs and the plain versions' may differ in
+/// A NaN's bits as one NaN's: the recorded blocks' NaNs and the plain versions' may differ in
 /// their payload, which no test compares.
 fn canonical(word: u32) -> u32 {
     if f32::from_bits(word).is_nan() {

@@ -1,7 +1,7 @@
 //! The 1999 byte layout of the work car record, for the tests whose subject is where a field sat
-//! in the original (`(field, offset, length)`; the places no code read are not in it). The
-//! record itself keeps no layout: the offsets of the original's code, the replay file's and the
-//! recorded vectors' are mapped to fields here, and nowhere else.
+//! in the original (`(field, offset, length)`; places no code read are not in it). The record
+//! itself keeps no layout: the offsets of the original's code, the replay file's and the recorded
+//! vectors' are mapped to fields here, and nowhere else.
 
 use crate::physics::car_store::Car;
 use crate::test_support::paths::{bytes, first_addr, get_u32, set_bytes, set_u32};
@@ -333,8 +333,8 @@ fn run_on(car: &Car, cells: &[impl crate::session::Cell32], n: usize) -> usize {
     offset
 }
 
-/// Cell `n` of the table `cells` of `car` as the original read it, running on past the table's
-/// end into the fields that follow it (`run_on`).
+/// Cell `n` of the table `cells` of `car` as the 1999 layout reads it, running on past the
+/// table's end into the fields that follow it (`run_on`).
 pub fn read_on_1999<C: crate::session::Cell32>(car: &Car, cells: &[C], n: usize) -> u32 {
     load_1999(car, run_on(car, cells, n))
 }

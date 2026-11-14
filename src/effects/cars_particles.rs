@@ -1,23 +1,16 @@
-//! `effects::cars_particles` (0x4C9AF6): the effects' frame for each car, when the settings'
-//! +0x10 is 1: for each of the settings' +0x5C cars (from the last; each 0x4C8 bytes from
-//! the settings' +0x60), its number multiplied by a constant, the emitting car set to it, its
-//! matrix's adjugate at +0x94 (`scene::adjugate_matrix`); its motion history moved on (+0x58
-//! .. +0x60 into +0x64, into +0x70, into +0x7C), the new one the matrix's place less the last
-//! (+0x40 ..), the mean of the four by a constant at +0x4C .., the place kept; the mean's
-//! length (+0x88, rounded) and a rate from it (+0x90: 1 - 1 / (length by a factor plus a
-//! base), by a constant); while +0x30 counts down, the mean and length 0. Then the side
-//! factors: the first set the cross product of the up vector and the vector at +0x28, made
-//! of length 1 (`x87::normalised3`); the second that crossed with the vector again, turned by
-//! the matrix transposed (`x87::crossed_turned`); the third the cross product of the two; two
-//! more values from the looks table by the car's +4; then `effects::emit_car_particles`
-//! (unless +0x30 counts down, by one) and `effects::emit_exhaust_smoke`, `emit_twin_particle_first`,
-//! `emit_twin_particle_second`.
+//! `effects::cars_particles`: the effects' frame for each car, when the settings' +0x10 is 1. For
+//! each of the settings' +0x5C cars (from the last; each 0x4C8 bytes from the settings' +0x60) it
+//! sets the emitting car, the matrix's adjugate (+0x94, `scene::adjugate_matrix`), the motion
+//! history (+0x58 .. +0x7C), the mean of the last four motions (+0x4C ..) with its length (+0x88,
+//! rounded) and a rate from it (+0x90), the side factors (from the up vector and the vector at
+//! +0x28, `x87::normalised3`, `x87::crossed_turned`) and two more values from the looks table by
+//! the car's +4. While +0x30 counts down the mean and its length are 0. Then it runs
+//! `effects::emit_car_particles` (unless +0x30 counts down, by one), `effects::emit_exhaust_smoke`,
+//! `emit_twin_particle_first` and `emit_twin_particle_second`.
 //!
-//! Works on the effects settings.
-//!
-//! Caller: `effects::draw_frame` Refuses null settings, more than 8 cars, a car's null
-//! matrix or vector, a car model (+4) of 34 or more, and the emitters' refusals; on a
-//! refusal nothing stays written (all it may write is put back).
+//! Refuses null settings, more than 8 cars, a car's null matrix or vector, a car model (+4) of 34
+//! or more, and the emitters' refusals; on a refusal nothing stays written (all it may write is put
+//! back).
 
 use crate::effects::emit_car_particles::emit_car_particles;
 use crate::effects::emitters::*;
@@ -31,10 +24,10 @@ use crate::scene::adjugate_matrix::adjugate_matrix;
 use crate::session::{read_bits, write_bits};
 
 const MOST_CARS: u32 = 8;
-// The looks by the car's model are `SPLINE_HEAD.looks` (33 pairs of dwords, 8 bytes
+// The looks by the car's model are `SplineHead.looks` (33 pairs of dwords, 8 bytes
 // apart). The cars have 34 models: model 32's second dword is the spline faces' count,
-// model 33 (the Clio's) reads that and the float after it, as the original does
-// (`notes/bugs.md`): `SplineHead::look` reads past the table's end.
+// model 33 (the Clio's) reads that and the float after it (a slip kept as is):
+// `SplineHead::look` reads past the table's end.
 const MODELS: u32 = 34;
 
 /// The cars' numbers, last first, worked out without writing: none when the settings' +0x10

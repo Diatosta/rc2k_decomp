@@ -1,4 +1,4 @@
-//! `race::mud_frame` (0x44A054): each frame drawn, the mud's frame count `mud_frames` one more;
+//! `race::mud_frame`: each frame drawn, the mud's frame count `mud_frames` one more;
 //! at 0xE it is 0 again and the next of the four mud textures is worked on (`mud_texture`, kept to
 //! 0 .. 3: `race::mud_texture_turn`, then one more, `and 3`).
 //!
@@ -13,7 +13,7 @@ pub fn mud_frame(
     gfx: &crate::gfx::owner::Gfx,
     system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
-    // Converted: `rc2k_core::race::mud::{count_frame, texture_turn, next_texture}`.
+    // Logic in `rc2k_core::race::mud::{count_frame, texture_turn, next_texture}`.
     use crate::race::mud_texture_turn::mud_texture_turn;
     use rc2k_core::race::mud::{count_frame, next_texture, texture_turn};
     let (frames, due) = count_frame(race.shared.vars.get().mud_frames.get());

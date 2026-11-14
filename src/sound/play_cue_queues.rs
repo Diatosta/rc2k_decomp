@@ -1,10 +1,10 @@
-//! `sound::play_cue_queues` (0x40ED13): the spoken cues of the two players' cars.
+//! `sound::play_cue_queues`: the spoken cues of the two players' cars.
 //!
-//! Unless no sound object is in use (`g_raceSoundObjectCount` 0): `sound::play_cue_queue`
-//! for the object of car `RaceSounds.player_cars[0]`, then unless `RaceSounds.one_player` is 1 (one player) for
-//! that of `RaceSounds.player_cars[1]`. One caller, `sound::race_turn`.
-//! Refuses (before anything) a car past 7 or a null object; what the queues refuse puts
-//! back what was written (a sound already sent stays sent).
+//! Unless no sound object is in use: `sound::play_cue_queue` for the object of car
+//! `RaceSounds.player_cars[0]`, then unless `RaceSounds.one_player` is 1 for that of
+//! `RaceSounds.player_cars[1]`. One caller, `sound::race_turn`. Refuses (before anything) a car
+//! past 7 or a null object; what the queues refuse puts back what was written (a sound already sent
+//! stays sent).
 
 use crate::errors::{BadInput, Refused};
 
@@ -16,7 +16,7 @@ pub fn play_cue_queues(
     if sound.race.shared.count.get() == 0 {
         return Ok(());
     }
-    // Converted: `rc2k_core::sound::turn::cue_cars`.
+    // The logic is `rc2k_core::sound::turn::cue_cars`.
     let cars = rc2k_core::sound::turn::cue_cars(
         sound.race.sounds.get().player_cars[0].get(),
         || sound.race.sounds.get().player_cars[1].get(),

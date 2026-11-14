@@ -1,25 +1,23 @@
-//! The game's 3 x 3 matrix helpers at 0x46574E .. 0x46587C (IDA), used by the
-//! marks: floats, rows of 12 bytes. The three that make a turn (0x465783, 0x4657A6, 0x4657C9)
-//! take their angle in st(0) and pop it.
+//! The 3 x 3 matrix helpers used by the marks: floats, rows of 12 bytes. The three that make a
+//! turn take their angle as an 80-bit extended value.
 //!
-//! Plain Rust (the x87's arithmetic in `X`, `math/x87_float.rs`); the
-//! original's instructions' results are recorded vectors in the tests (`data/vectors`).
+//! Plain Rust (the x87's arithmetic in `X`, `math/x87_float.rs`); the tests compare against
+//! recorded vectors (`data/vectors`).
 
 use crate::errors::{BadInput, Refused};
 use crate::math::cells::{Cells, Off};
 use crate::math::x87_float::{self as bh, ONE, Rounds, X, f80, from_f80, ld, st, stf};
 
-/// `scene::identity_matrix3` (0x46574E): the matrix `m` the identity (1.0 from `fld1`).
-/// Every register kept.
+/// `scene::identity_matrix3`: the matrix `m` the identity.
 pub fn identity_matrix3(m: &(impl Cells + ?Sized)) {
     for (n, &v) in rc2k_core::math::vector::IDENTITY.iter().enumerate() {
         m.set_float(n, v);
     }
 }
 
-/// `scene::multiply_matrices3` (0x4657EC): `out` = `a` x `b`, column by column, each written
-/// as made (so an `out` that is one of the two behaves as there): a's row times b's
-/// column, p1 + (p2 + p3) (`math::x87::row_times_column_3`).
+/// `scene::multiply_matrices3`: `out` = `a` x `b`, column by column, each written as made (so
+/// an `out` that is one of the two behaves as written in place): a's row times b's column,
+/// p1 + (p2 + p3) (`math::x87::row_times_column_3`).
 pub fn multiply_matrices3(
     a: &(impl Cells + ?Sized),
     b: &(impl Cells + ?Sized),
@@ -89,7 +87,7 @@ pub(crate) fn turn_int_point(
     });
 }
 
-/// `scene::transform_int_points` (0x465829): `count` points of three whole numbers from
+/// `scene::transform_int_points`: `count` points of three whole numbers from
 /// `from` turned by the matrix `m` into `to`. Refuses a count of 0x80000000 (the count would
 /// run away) and one past either run's cells.
 pub fn transform_int_points(
@@ -119,8 +117,8 @@ pub enum Axis {
     Z,
 }
 
-/// Refuses an angle `fsincos` leaves alone (finite, 2^63 or more): the original's stack
-/// would then come out one short. Infinities and NaNs give NaNs, pushed as usual.
+/// Refuses an angle `fsincos` leaves alone (finite, 2^63 or more). Infinities and NaNs give
+/// NaNs.
 pub fn turnable(angle: &[u8; 10]) -> Result<(), Refused> {
     let exponent = u16::from_le_bytes([angle[8], angle[9]]) & 0x7FFF;
     if (0x3FFF + 63..0x7FFF).contains(&exponent) {
@@ -129,9 +127,8 @@ pub fn turnable(angle: &[u8; 10]) -> Result<(), Refused> {
     Ok(())
 }
 
-/// `scene::turn_matrix3_x` (0x465783), `_y` (0x4657A6), `_z` (0x4657C9): the matrix `m` a
-/// turn by the angle about that axis (the original's `fsincos` and stores, in its order).
-/// Every register kept. Refuses an angle `fsincos` cannot take.
+/// The matrix `m` a turn by the angle about `axis`.
+/// Refuses an angle `fsincos` cannot take.
 pub fn turn_matrix3(axis: Axis, m: &(impl Cells + ?Sized), angle: [u8; 10]) -> Result<(), Refused> {
     turnable(&angle)?;
     let order = match axis {
@@ -147,8 +144,8 @@ pub fn turn_matrix3(axis: Axis, m: &(impl Cells + ?Sized), angle: [u8; 10]) -> R
 /// minus the sine.
 type Stores = [usize; 9];
 
-/// `fld tbyte; fsincos; fld1; fstp ..; fldz; fst ..` for the turn about x: the identity's
-/// row and column of x, the cosine on the diagonal, the sine and minus the sine across.
+/// The turn about x: the identity's row and column of x, the cosine on the diagonal, the sine
+/// and minus the sine across.
 const TURN_X: Stores = [0, 1, 2, 3, 6, 4, 8, 5, 7];
 /// The turn about y (see `TURN_X`).
 const TURN_Y: Stores = [4, 1, 3, 5, 7, 0, 8, 2, 6];

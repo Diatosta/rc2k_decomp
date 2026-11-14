@@ -1,19 +1,15 @@
-//! `scene::light_dot` (0x44EC18): how much a light falls on a point, as a whole number.
+//! `scene::light_dot`: how much a light falls on a point, as a whole number.
 //!
-//! Returns: the number
+//! The three floats at `LightWork.light_dot_point` times the three at
+//! `LightWork.light_dot_light`, added (the second and third products first), times
+//! `LightWork.light_dot_factor`, rounded as the x87 is set to. Callers: the two lighting
+//! functions, which put a point's place in the first three, a light's direction in the second
+//! and its strength in the factor.
 //!
-//! The three floats at `LightWork.light_dot_point[0]` times the three at `LightWork.light_dot_light[0]`, added (the second and
-//! third products first), times `LightWork.light_dot_factor`, rounded as the x87 is set to (`fistp`). The original's store to `g_scratch`
-//! (nothing read it) is not kept. Callers: the two lighting functions 0x4511F1 and 0x451296, which
-//! put a point's place in the first three, a light's direction in the second and its strength
-//! in the factor.
-//!
-//! Plain Rust (the x87's arithmetic in `X`, `math/x87_float.rs`); the
-//! original's instructions' results are recorded vectors in the tests (`data/vectors`).
+//! Plain Rust (the x87's arithmetic in `X`, `math/x87_float.rs`); the tests compare against
+//! recorded vectors (`data/vectors`).
 
 use crate::math::x87_float::{Rounds, at_rounding};
-
-// ---- Rust version ----
 
 pub fn light_dot(light: &crate::scene::object_light::ObjectLight) -> i32 {
     let [p0, p1, p2] = light

@@ -1,21 +1,21 @@
-//! `race::update_mud_texture` (0x44A12E): the mud thrown and splashed since the last turn
-//! put onto the texture worked on (`mud_texture`, n). The texture's slot (kind 0x100's
-//! first slot + n) forgotten (`scene::forget_slot_texture`), `texture_changes` + 0x10000; the
-//! texture (kind 0x100's first texture + n, into `mud_locked`; none: nothing more)
-//! locked (`d3d::lock_texture`, the platform's; carry: nothing more). Then:
-//! - the throws: `mud_thrown_in`[n]` (the wheels' thrown mud, a float) rounded (`fistp`)
-//!   into `mud_throws`, which read back as a float (sic) and below 0.0 becomes 0.0's
-//!   bits: negative counts are 0. Unless the texture's count `mud_thrown_counts`[n]` is past
-//!   0x60000: held so that its low word plus the throws stays below 0x1000000, taken off
-//!   `mud_thrown_in`[n]` (`fisub`), and above 0 that many `race::throw_mud_texel`;
-//! - the splashes: the same from `mud_splashes_in`[n]` into `mud_splashes`, unless the count
-//!   `mud_splash_counts`[n]` has reached 0x1000 (also checked before each): `race::splash_mud`;
+//! `race::update_mud_texture`: puts the mud thrown and splashed since the last turn onto the
+//! texture worked on (`mud_texture`, number `n`). The texture's slot (kind 0x100's first slot +
+//! `n`) is forgotten (`scene::forget_slot_texture`), `texture_changes` goes up by 0x10000, and
+//! the texture (kind 0x100's first texture + `n`, kept in `mud_locked`; none: nothing more) is
+//! locked (`d3d::lock_texture`; a failed lock: nothing more). Then:
+//! - the throws: `mud_thrown_in[n]` (the wheels' thrown mud, a float) is rounded into
+//!   `mud_throws`, which is then read back as a float and, when below 0.0, becomes 0.0's bits
+//!   (negative counts are 0). Unless the texture's count `mud_thrown_counts[n]` is past 0x60000,
+//!   the throws are held so that its low word plus the throws stays below 0x1000000, taken off
+//!   `mud_thrown_in[n]`, and when above 0 that many `race::throw_mud_texel` run;
+//! - the splashes: the same from `mud_splashes_in[n]` into `mud_splashes`, unless the count
+//!   `mud_splash_counts[n]` has reached 0x1000 (also checked before each): `race::splash_mud`.
 //!
 //! Then the texture is unlocked (`d3d::unlock_texture`).
 //!
-//! See `race/mud.rs`. One caller, `race::mud_texture_turn`. Refuses (before anything) a texture
-//! past 3 and no mud, and its callees' refusals (what the counts, the throws and the random
-//! state were put back).
+//! See `race/mud.rs`. Called by `race::mud_texture_turn`. Refuses (before anything) a texture
+//! past 3 and no mud, and its callees' refusals (the counts, the throws and the random state
+//! are put back).
 
 use crate::effects::cell_x87::CellX87;
 use crate::errors::Refused;
@@ -28,19 +28,18 @@ use crate::race::splash_mud::{LAST_SPLASHED, splash_mud};
 use crate::race::throw_mud_texel::{LAST_THROWN, throw_mud_texel};
 use crate::session::{PlainDword, PlainFloat};
 
-/// `fld dword [f]; fistp dword [t]`.
+/// `f` rounded to a whole number into `t`.
 fn round_units(f: &PlainFloat, t: &PlainDword) {
     t.set(to_int(f.ld()) as u32);
 }
 
-/// `fld dword [a]; fisub dword [u]; fstp dword [a]`.
+/// `u` whole units taken off the float `a`.
 fn subtract_units(a: &PlainFloat, u: &PlainDword) {
     a.st(a.ld() - int(u.get() as i32));
 }
 
-/// `fld [from]; fistp [to]`, then `fld zero; fld [to]; fcompp` and, with C0, `fld zero;
-/// fstp [to]`: the units of a float count, negatives 0 (as the original: the whole number's
-/// bits compared as a float).
+/// The units of a float count: `from` rounded into `to`, which is then read back as a float
+/// and set to 0 when negative. Returns it.
 fn whole_units(course: &Course, from: &PlainFloat, to: &PlainDword) -> i32 {
     round_units(from, to);
     let zero = course.numbers.get().zero.get();
@@ -50,7 +49,7 @@ fn whole_units(course: &Course, from: &PlainFloat, to: &PlainDword) -> i32 {
     to.get() as i32
 }
 
-/// `fld [at]; fisub [units]; fstp [at]`.
+/// `units` taken off the float `at`.
 fn take_units(at: &PlainFloat, units: &PlainDword) {
     subtract_units(at, units);
 }
@@ -157,8 +156,6 @@ pub fn update_mud_texture(
 mod reference_vectors {
     use super::*;
     use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse};
-
-    // The original's instructions.
 
     #[test]
     fn mud_texture_matches_the_assembly() {

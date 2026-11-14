@@ -1,12 +1,10 @@
-//! `effects::draw_particle` (0x4CFDD5): one particle of the effects' ring drawn as a square
-//! sprite. Its place (st(0) x, st(1) y, st(2) z) turned by the view matrix read by columns
-//! into the draw work's place; unless the turned depth is at or below the nearest depth (a
-//! signed compare of the bits): the four vertices' colour and depth (times the depth scale),
-//! half the square (the size times the view scale / depth), the corners around the projected
-//! place (centre the view's centre), and `scene::draw_fan`. The vertices' rhw and texture
-//! places are left as they are (`effects::set_quad_uvs` sets the places once a frame).
-//!
-//! Callers: the ring's update.
+//! `effects::draw_particle`: one particle of the effects' ring drawn as a square sprite. Its place
+//! (x, y, z) turned by the view matrix read by columns into the draw work's place; unless the
+//! turned depth is at or below the nearest depth (a signed compare of the bits): the four vertices'
+//! colour and depth (times the depth scale), half the square (the size times the view scale /
+//! depth), the corners around the projected place (centre the view's centre), and
+//! `scene::draw_fan`. The vertices' rhw and texture places are left as they are
+//! (`effects::set_quad_uvs` sets the places once a frame).
 
 use crate::math::x87;
 

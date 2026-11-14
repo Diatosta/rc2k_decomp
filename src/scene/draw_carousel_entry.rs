@@ -1,21 +1,20 @@
-//! `scene::draw_carousel_entry` (0x4906D5): one entry of the main menu's carousel at
-//! its place in the row.
+//! `scene::draw_carousel_entry`: one entry of the main menu's carousel at its place in the row.
 //!
 //! The object's variables for `scene::draw_menu_object`:
-//! - x = the carousel's spacing times (place - 1), plus the high half of the spacing times
-//!   the carousel's turn inverted (the turn as a fraction of 2^32);
+//! - x = the carousel's spacing times (place - 1), plus the high half of the spacing times the
+//!   carousel's turn inverted (the turn as a fraction of 2^32);
 //! - the angle about y from the clock: its low sixteen bits times 8, as sixteen bits; the
 //!   angle about x = 0;
-//! - y and z = the carousel's y and z; the front entry (place 0) is brought forward by the
-//!   high half of the carousel's depth step times the turn inverted, the next one (place 1)
-//!   by that of the turn itself: the one leaving the front goes back as the one arriving
-//!   comes forward;
+//! - y and z = the carousel's y and z; the front entry (place 0) is brought forward by the high
+//!   half of the carousel's depth step times the turn inverted, the next one (place 1) by that
+//!   of the turn itself: the one leaving the front goes back as the one arriving comes
+//!   forward;
 //! - the view window's offsets = 0;
 //! - the entry's kind from the carousel's kinds, kept as the shown kind; a kind above 0x258
 //!   has a size, a y and an angle about x of its own in the records of twelve bytes (by the
 //!   kind less 0x259);
 //! - the current object = the first object of that kind (`scene::find_object_of_kind`:
-//!   objects 1 .. 0xFF, else 0).
+//!   objects 1 ..= 0xFF, else 0).
 //!
 //! Then `scene::draw_menu_object`. Five call sites in `scene::draw_carousel`. Refuses an entry
 //! of 0x100 or more and a kind past the records.
@@ -27,11 +26,9 @@ use crate::race::owner_shared::RaceShared;
 // ---- game data ----
 
 pub(crate) const ENTRIES: u32 = 0x100;
-/// The kinds' own places the original allows (`MENU_LISTS.own_places` holds 73: past them it
-/// reads the lists that follow in the image, as the original does).
+/// The kinds that have their own places (`own_places` holds 73 records: a kind
+/// below this limit but past them is refused).
 pub(crate) const OWN: u32 = 0x88;
-
-// ---- Rust version ----
 
 /// What the function sets before it draws.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -47,8 +44,8 @@ pub struct Settings {
 
 pub(crate) use crate::scene::find_object_of_kind::find_object_of_kind;
 
-/// A kind's own place: its size, y and angle (12 bytes each in the menu lists' own places). The original
-/// reads on past the table's 73 for a kind below `OWN` (fixed: refused).
+/// A kind's own place: its size, y and angle (12 bytes each in the menu lists' own places).
+/// A kind below `OWN` but past the table's 73 records is refused.
 pub(crate) fn own_place(tables: &Tables, own: u32) -> Result<[u32; 3], BadInput> {
     let place = tables
         .lists

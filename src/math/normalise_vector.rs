@@ -1,22 +1,20 @@
-//! `math::normalise_vector` (0x45C3FE): the work vector made one long.
+//! `math::normalise_vector`: the work vector made one long.
 //!
-//! The vector is the three floats at `xmmword_5C5F60`; the original leaves its length in
-//! `SoundSpotBlock.work_vector_length` (not kept here: nothing reached reads it). Two ways, by the switch `DrawSwitches.use_sse` (a key's toggle and the
-//! processor's SSE together, set at 0x43B471; 0 as the game starts, so the x87 way is
-//! the one in use):
+//! The vector is three floats; its length is left in `SoundSpotBlock.work_vector_length`
+//! (not kept here: nothing reached reads it). Two ways, by the switch
+//! `DrawSwitches.use_sse` (a key's toggle and the processor's SSE together; 0 as the game
+//! starts, so the x87 way is the one in use):
 //! - x87: the squares' sum as a float; its square root from two tables (the float's
 //!   bits 15 .. 22 pick one of 0x100 at `CourseLists.root_table[0]`, its exponent one at
-//!   `CourseLists.exponent_root_table[0]`), the two multiplied; each of the three times 1 over that;
-//!   1 over the length (the original also left it in `SceneDraw.scratch`, which its one caller,
-//!   the drawing, never read: not kept); a component that comes out as minus zero is
-//!   made zero. A length that compares equal to `Numbers.zero` (0.0), or is no number,
-//!   ends the original at once with the length left on the x87's stack: refused.
-//! - SSE: the four floats squared to `xmmword_5C5F70`, the first three added,
-//!   `rsqrtss`, `rcpss` of that to `SoundSpotBlock.work_vector_length`, and all four (the fourth too) times
-//!   the `rsqrtss`. Both instructions are approximations that differ between
-//!   processors: one processor's results, as tables (`arch::rsqrtss`), on every machine.
+//!   `CourseLists.exponent_root_table[0]`), the two multiplied; each of the three times 1
+//!   over that; a component that comes out as minus zero is made zero. A length that
+//!   compares equal to `Numbers.zero` (0.0), or is no number, is refused.
+//! - SSE: the four floats squared, the first three added, `rsqrtss`, `rcpss` of that to
+//!   `SoundSpotBlock.work_vector_length`, and all four (the fourth too) times the
+//!   `rsqrtss`. Both instructions are approximations that differ between processors: one
+//!   processor's results, as tables (`arch::rsqrtss`), on every machine.
 //!
-//! Three callers. In two pieces in the image (the entry lies after the bodies).
+//! Three callers.
 
 use crate::errors::BadInput;
 use crate::math::x87_float::{ONE, compare, ld, st};
@@ -24,20 +22,15 @@ use crate::race::course_lists_store::CourseLists;
 use crate::scene::draw_switches_store::DrawSwitches;
 use crate::session::PlainDword;
 
-// ---- game data ----
-
-// Still the image's: the work vector and the SSE switch (the race's), the root tables
-// (`scene::fill_engine_tables` makes them).
-// The squares (`xmmword_5C5F70`) and the length (`g_workVectorLength`, 0x6D18C8) are no
-// longer stored (2026-10-24, phase 5): no function the game reaches reads them (IDA: the
-// length's one reader, 0x4517F3, is unreached).
+// The work vector and the SSE switch (the race's) and the root tables
+// (`scene::fill_engine_tables` makes them) are the game's; the squares and the length are
+// not stored, as nothing reads them.
 /// `Numbers.zero`: 0.0.
 const NOTHING: u32 = 0;
 
 // ---- Rust version ----
 
-/// The squares' sum as a float (`fld v0; fmul st, st; fld v1; fmul st, st; fld v2; fmul
-/// st, st; faddp; faddp; fstp`): `v0 v0 + (v1 v1 + v2 v2)` at double precision, stored
+/// The squares' sum as a float (`v0 v0 + (v1 v1 + v2 v2)` at double precision), stored
 /// as a float, rounded as the control word says.
 pub(crate) fn squares_sum(v: [u32; 3]) -> u32 {
     let (a, b, c) = (
@@ -49,9 +42,7 @@ pub(crate) fn squares_sum(v: [u32; 3]) -> u32 {
 }
 
 /// Each component times 1 over the length, the length being the product of the two
-/// roots kept unrounded (`fld root; fmul exponent_root; fld1; fdivrp`; then `fld v_k;
-/// fmul st, st(1); fstp`). Gives the three components as floats and the inverse as a
-/// float (the last `fstp`).
+/// roots kept unrounded. Gives the three components as floats and the inverse as a float.
 pub(crate) fn scaled_by_inverse(
     v: [u32; 3],
     root: impl crate::math::x87_float::Loadable,
@@ -61,7 +52,8 @@ pub(crate) fn scaled_by_inverse(
     (v.map(|k| st(ld(k) * inverse)), st(inverse))
 }
 
-/// Returns what the function leaves in eax, if it changes it.
+/// Normalises the work vector. The x87 way gives `Some` of the squares' sum (the bits of a
+/// float); the SSE way gives `None`.
 pub fn normalise_vector(
     lists: &CourseLists,
     switches: &DrawSwitches,
@@ -70,8 +62,8 @@ pub fn normalise_vector(
     normalise(lists, work, switches.use_sse.is_set())
 }
 
-/// The original's SSE path: each component times the approximate reciprocal root of the
-/// squares' sum, in single precision. The fourth component is scaled too, as `mulps` does.
+/// The SSE path: each component times the approximate reciprocal root of the squares'
+/// sum, in single precision. The fourth component is scaled too.
 fn sse_normalise(v: [u32; 4]) -> [u32; 4] {
     let v = v.map(f32::from_bits);
     let sum = (v[0] * v[0] + v[1] * v[1]) + v[2] * v[2];
@@ -79,8 +71,8 @@ fn sse_normalise(v: [u32; 4]) -> [u32; 4] {
     v.map(|k| (root * k).to_bits())
 }
 
-/// Exactly as the original (the x87 at its precision, the SSE instructions): what the
-/// Rust callers in modules not yet converted use.
+/// The x87 at its precision and the SSE instructions: what the callers in modules not yet
+/// converted use.
 pub fn normalise(
     lists: &CourseLists,
     work: &[PlainDword; 4],
@@ -111,9 +103,7 @@ mod tests {
     use crate::test_support::frozen::{Canon, Digest, check_one};
 
     /// The SSE path (`sse_normalise`: `mulps`, `rsqrtss`, `rcpss` from the tables of
-    /// `arch`) over seeded vectors. Until 2026-11-13 it was compared with the original's
-    /// instructions run on the processor (where its estimates are the tables'); the last
-    /// run passed, and the results' hash is kept.
+    /// `arch`) over seeded vectors, against a frozen hash of the results.
     #[test]
     fn the_sse_path_as_the_instructions_gave() {
         let mut x = 0x9E37_79B9u32;
@@ -132,6 +122,6 @@ mod tests {
         check_one("normalise_vector", "sse_normalise", digest, FROZEN);
     }
 
-    /// The results' hash, frozen on 2026-11-13 (`RC2K_FREEZE_OUT` to make it again).
+    /// The results' hash (`RC2K_FREEZE_OUT` makes it again).
     const FROZEN: &[(&str, u64)] = &[("normalise_vector::sse_normalise", 0x9e32f6b98da9268e)];
 }

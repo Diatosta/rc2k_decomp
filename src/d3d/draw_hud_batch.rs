@@ -1,16 +1,11 @@
-//! `d3d::draw_hud_batch` (0x45A869): draws the HUD's batch, an indexed list of triangles.
-//!
-//! In:  nothing: the HUD block's vertices and their count, and its indices (16 bits) and
-//!      their count
-//! The device's DrawIndexedPrimitive with a triangle list (4) of transformed and lit
-//! vertices (3) and the flags 0x1C. One caller, `hud::flush_batch`.
-//! Platform: the original always runs. In the standalone program the rasteriser draws
-//! each triangle (`platform_3d::draw_triangles`) and the result is 0.
+//! `d3d::draw_hud_batch`: draws the HUD's batch, an indexed list of triangles of transformed
+//! and lit vertices. The HUD block's vertices and indices (16 bits) and their counts are the
+//! input. One caller, `hud::flush_batch`. The rasteriser draws each triangle
+//! (`platform_3d::draw_triangles`); the result is 0.
 
 /// Draws the HUD's batch.
 pub fn draw_hud_batch(part: &crate::workers::PartScratch, hud: &crate::hud::owner::Hud) {
-    // The vertices and indices are the HUD block's (`hud::store`); the original's two
-    // pointers to them are not kept.
+    // The vertices and indices are the HUD block's (`hud::store`).
     let past = |what: &str| -> ! {
         crate::fatal::raise::end(what, crate::errors::BadInput("past the HUD's batch"))
     };

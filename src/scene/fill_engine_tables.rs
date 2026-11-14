@@ -1,26 +1,26 @@
-//! `scene::fill_engine_tables` (0x41F6BA): the tables the 3D code looks things up in.
+//! `scene::fill_engine_tables`: the tables the 3D code looks things up in.
 //!
-//! Eight parts, each a function with this one caller, all inlined:
+//! Eight parts:
 //! - the two root tables `math::normalise_vector` reads: `root_table`[n] = the root of
 //!   (n + 0x100) over `k256` (256), `exponent_root_table`[n] = the root of the float whose
 //!   bits are n << 23;
 //! - the 0x10000 `shuffled_words` = 0 .. 0xFFFF, then each in turn exchanged with the one
 //!   `scene::next_noise`'s low sixteen bits name, the generator started from 0x12D687;
-//! - the 0x1070 `noise_bytes`, each bits 12 .. 19 of a number of the generator, started
-//!   from 0x12D687 again;
+//! - the 0x1070 `noise_bytes`, each bits 12 .. 19 of a number of the generator, started from
+//!   0x12D687 again;
 //! - `face_key_factors`[n] = 1 / n, and 1 for n = 0;
 //! - `sines`[n] = the sine of n times pi over 0x800, 0x1400 of them (a turn is 0x1000; the
 //!   cosines are the same table from 0x400 on);
-//! - the 0x1000 `arctangents`: for the tangent t = n << 20, the angle found by halving
-//!   twelve times from 0x1000, each try's tangent being sine over cosine times 65536 times
-//!   32768 as a whole number, doubled, compared unsigned; the angle's low four bits and its
-//!   bits from 13 up dropped;
+//! - the 0x1000 `arctangents`: for the tangent t = n << 20, the angle found by halving twelve
+//!   times from 0x1000, each try's tangent being sine over cosine times 65536 times 32768 as a
+//!   whole number, doubled, compared unsigned; the angle's low four bits and its bits from 13
+//!   up dropped;
 //! - the tangent for every 0x40th angle up to 0x2000 and `scene::angle_between` for 0x100
 //!   places: nothing kept of either but the work variables' last values.
 //!
 //! Everything is worked out the same on every call (the generator's state is set first), but
-//! for `fsin` being the processor's. One caller, `scene::set_up_engine` (itself called around the
-//! front end's 3D set-up and at the ends of events).
+//! for `fsin` being the processor's. One caller, `scene::set_up_engine` (itself called around
+//! the front end's 3D set-up and at the ends of events).
 
 use crate::math::x87;
 use crate::math::x87_float as bh;
@@ -33,8 +33,6 @@ use crate::scene::owner::Scene;
 const NOISE_LEN: usize = 0x1070;
 const SINES: usize = 0x1400;
 const SEED: u32 = 0x0012_D687;
-
-// ---- Rust version ----
 
 /// The tangent of an angle (0x2000 a turn here, its low four bits dropped), also kept in
 /// the frame's `tangent_scratch`.
@@ -55,7 +53,7 @@ fn tangent(race: &crate::race::owner::Race, scene: &Scene, angle: u32) -> u32 {
     }
 }
 
-/// Fills the tables; the register leftovers of the original are read by no caller.
+/// Fills the tables.
 pub fn fill_engine_tables(race: &crate::race::owner::Race, scene: &Scene) {
     let course = &race.course;
     let tables = race.engine_tables();

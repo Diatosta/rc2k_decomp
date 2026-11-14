@@ -1,19 +1,17 @@
-//! The car's damage and wear model under `physics::damage_step`:
-//! `physics::damage_factors` (0x4AB5E6), `physics::damage_wear` (0x4ABEDF),
-//! `physics::damage_gauges` (0x4AC817). Their figures: the work car's (`g_car`,
-//! 0x719FD8 ..: the damage gauges `brake_heat` .. `tyre_wear`, the handling factors
-//! `wheel_ride_height` ..), the model's own (`DamageModel.chance_scale` .. 0x75B940: shares, tables of four
-//! (x0, y0, x1, y1) for `physics::flow::table_lerp`, rates). What each figure is, is
-//! worked out from its uses (the docs in `physics/store.rs`). The three are long straight runs: their Rust was generated from the
-//! disassembly by idiom (x87 runs as blocks, the clamps as `hold_low` / `hold_high`, the
-//! table lerps, the compares as `if`), the rest written by hand.
+//! The car's damage and wear model under `physics::damage_step`: `physics::damage_factors`,
+//! `physics::damage_wear` and `physics::damage_gauges`. Their figures are the work car's (the
+//! damage gauges `brake_heat` .. `tyre_wear`, the handling factors `wheel_ride_height` ..) and
+//! the model's own (`DamageModel.chance_scale` ..: shares, tables of four (x0, y0, x1, y1) for
+//! `physics::flow::table_lerp`, rates). What each figure is was worked out from its uses (see
+//! the docs in `physics/store.rs`). The three steps are long straight runs: x87 runs as blocks,
+//! the clamps as `hold_low` / `hold_high`, the table lerps and compares as `if`.
 //!
-//! This file: the regions and the shared test.
+//! This file holds the regions and the shared test.
 
 use crate::session::{PlainDword, PlainFloat};
 
-/// The value of a float cell as the model's arithmetic holds it: the game's code loads a
-/// float and works at double precision.
+/// The value of a float cell as the model's arithmetic holds it: a float loaded and worked at
+/// double precision.
 pub fn value(cell: &PlainFloat) -> f64 {
     f64::from(cell.get())
 }
@@ -23,21 +21,19 @@ pub fn store(cell: &PlainFloat, result: f64) {
     cell.set(result as f32);
 }
 
-/// The game's word test on a float cell (`cmp dword, 0`): true unless every bit is zero, so
-/// a -0.0 counts as set and a NaN as set, as a compare of the float would not.
+/// A word test on a float cell: true unless every bit is zero, so a -0.0 counts as set and a
+/// NaN as set, as a compare of the float would not.
 pub fn is_set(cell: &PlainFloat) -> bool {
     cell.bits() != 0
 }
 
-/// The same figure for a whole number held in a cell (`fild`).
+/// The same figure for a whole number held in a cell.
 pub fn whole(cell: &PlainDword) -> f64 {
     f64::from(cell.get() as i32)
 }
 
-/// Proofs that the plain versions of the model's arithmetic give what the versions over
-/// `X` gave (the x87 runs as converted from the original's listing; until 2026-11-13
-/// kept in `damage_model/x87_reference`): the same random state in, the same bytes out.
-/// The last comparison passed; each proof's results are now kept as a hash
+/// Proofs that the plain versions of the model's arithmetic give what the versions over `X`
+/// gave: the same random state in, the same bytes out. Each proof's results are kept as a hash
 /// (`test_support::frozen`, table `FROZEN` at the end).
 #[cfg(test)]
 pub(super) mod proof {
@@ -139,8 +135,8 @@ pub(super) mod proof {
     /// car, the model and the work afterwards (a NaN as one NaN: which NaN an operation
     /// gives is not fixed in Rust, and the comparison counted any NaN as any other).
     ///
-    /// The runs are split over threads, each with its own state (2026-11-13: the tests are
-    /// bound by the processor). The cases are the ones a single thread made: every run's
+    /// The runs are split over threads, each with its own state (the tests are bound by the
+    /// processor). The cases are the ones a single thread made: every run's
     /// state is drawn from where the last run's draws ended, so the generator is first run
     /// through all the runs' draws (as many `random_bits` as the three records have cells)
     /// to find where each part's first run begins. Each part runs at the caller's x87
@@ -215,7 +211,7 @@ pub(super) mod proof {
         .collect()
     }
 
-    /// The proofs' hashes, frozen on 2026-11-13 (`RC2K_FREEZE_OUT` to make them again).
+    /// The proofs' hashes, frozen (`RC2K_FREEZE_OUT` to make them again).
     const FROZEN: &[(&str, u64)] = &[
         ("damage_model::add_hit_to_gear_gauge", 0xdc5a49e3da27fefa),
         ("damage_model::add_product", 0xacf7f98bf1b70004),

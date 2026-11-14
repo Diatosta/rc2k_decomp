@@ -1,14 +1,14 @@
-//! `effects::draw_flare_part` (0x4C4FFB): one part of the lens flare drawn as a screen square.
-//! Its centre (x, y) rounded into the polygon vertex buffer's fifth vertex (+0x80, +0x84); the
-//! four vertices' colour (alpha << 24) | colour; their texture places from the mark corner
-//! (its words times `uv_k`: 0/2, 4/6, 0xC/0xE, 8/0xA); the side: the size (`half`) by the size
-//! times the corner's height over its width (the words' differences, 16-bit, made positive),
-//! times two constants into `sides`; the corners (0, side) less those, turned by the sine and
-//! cosine tables at (angle >> 20) about the centre; depth `near` (as a float) times `z_k`;
-//! `cleared` plus 1; `effects::clip_quad`, and unless all is outside `scene::draw_fan`.
+//! `effects::draw_flare_part`: one part of the lens flare drawn as a screen square. Its centre (x,
+//! y) rounded into the polygon vertex buffer's fifth vertex (+0x80, +0x84); the four vertices'
+//! colour (alpha << 24) | colour; their texture places from the mark corner (its words times
+//! `uv_k`: 0/2, 4/6, 0xC/0xE, 8/0xA); the side: the size (`half`) by the size times the corner's
+//! height over its width (the words' differences, 16-bit, made positive), times two constants into
+//! `sides`; the corners (0, side) less those, turned by the sine and cosine tables at (angle >> 20)
+//! about the centre; depth `near` (as a float) times `z_k`; `cleared` plus 1; `effects::clip_quad`,
+//! and unless all is outside `scene::draw_fan`.
 //!
-//! Caller: `effects::draw_lens_flare`. Refuses a corner past the mark corners table
-//! (0x100 or more) and null marks settings (`clip_quad`'s refusal), before anything.
+//! Refuses a corner past the mark corners table (0x100 or more) and null marks settings
+//! (`clip_quad`'s refusal), before anything.
 
 use crate::effects::clip_quad::{clip_quad, draw_fan};
 use crate::errors::{BadInput, Refused};
@@ -19,14 +19,14 @@ const CORNERS: u32 = 0x100;
 /// Each vertex's texture place: the corner entry's word offsets (u, v).
 const UV_WORDS: [(u32, u32); 4] = [(0, 2), (4, 6), (0xC, 0xE), (8, 0xA)];
 
-/// A 16-bit difference made positive (`sub bp, ..; jns; neg bp`), the high half 0.
+/// A 16-bit difference made positive, the high half 0.
 fn abs16(a: u32, b: u32) -> u32 {
     let d = (a as u16).wrapping_sub(b as u16);
     (if (d as i16) < 0 { d.wrapping_neg() } else { d }) as u32
 }
 
 /// `corner` is the mark corner's number, `angle` the turn (<< 20), `alpha` and `colour` the
-/// vertices' colour, `size` the side, `centre` the square's centre (st(0) x, st(1) y).
+/// vertices' colour, `size` the side, `centre` the square's centre (x, y).
 #[allow(
     clippy::too_many_arguments,
     reason = "the original's registers, the effects' groups and the owners"

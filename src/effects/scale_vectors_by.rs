@@ -1,10 +1,7 @@
-//! `effects::scale_vectors_by` (0x4D16A3): two vectors scaled: `ViewSources.sources[0].scaled[0]` .. =
-//! `ViewSources.sources[0].vector[0]` .. by `ViewSources.sources[0].factor`, `ViewSources.sources[1].scaled[0]` .. = `ViewSources.sources[1].vector[0]` .. by
+//! `effects::scale_vectors_by`: two vectors scaled: `ViewSources.sources[0].scaled[0]` .. =
+//! `ViewSources.sources[0].vector[0]` .. by `ViewSources.sources[0].factor`,
+//! `ViewSources.sources[1].scaled[0]` .. = `ViewSources.sources[1].vector[0]` .. by
 //! `ViewSources.sources[1].factor` (`fld; fmul`, three on the stack, stored last first).
-//!
-//! Caller: `effects::frame_marks`.
-//!
-//! the x87 version stays for the Rust callers in unconverted code).
 
 use crate::effects::view_vectors::VectorSource;
 use crate::math::x87;

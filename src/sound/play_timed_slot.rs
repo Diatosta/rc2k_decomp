@@ -1,20 +1,18 @@
-//! `sound::play_timed_slot` (0x40E59E): a sound slot of the race's sounds started when
-//! asked, and marked done when its time is up.
+//! `sound::play_timed_slot`: a sound slot of the race's sounds started when asked, and marked done
+//! when its time is up.
 //!
-//! +4 at 1 is cleared; then it starts unless it is playing (sound 0xE9 starts even
-//! then): the
-//! request's sound, volume (+8) and rate (+4, floats by `fild`) set, the end = the
-//! clock + `sound::sample_duration`, +8 1, and `sound::play_placed_sound` (a tail jump).
-//! Else, playing: +8 cleared once the clock is at or past the end (`js` on the
-//! difference). 14 callers.
-//! Refuses what the two leaves refuse, before writing.
+//! A start flag of 1 is cleared; then the slot starts unless it is playing (sound 0xE9 starts even
+//! then): the request's sound, volume and rate (floats) are set, the end is the clock +
+//! `sound::sample_duration`, the slot is playing, and `sound::play_placed_sound` plays it. Else, if
+//! playing: the playing flag is cleared once the clock is at or past the end. 14 callers. Refuses
+//! what the two leaves refuse, before writing.
 
 use crate::errors::Refused;
 use crate::sound::sample_duration::sample_duration;
 use crate::sound::sample_settings::sample_settings;
 use crate::sound::sets_store::SoundRequest;
 
-/// Converted: `rc2k_core::sound::cars::slot_turn`.
+/// The logic is `rc2k_core::sound::cars::slot_turn`.
 pub fn play_timed_slot(
     slot: &impl crate::sound::store::TimedCells,
     request: &SoundRequest,

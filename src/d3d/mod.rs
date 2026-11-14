@@ -1,9 +1,8 @@
-//! The game's Direct3D layer (0x418400 .. 0x41AE40): platform, so not ported, but the
-//! place where what the 3D code above it draws can be seen.
+//! The Direct3D layer: the place where what the 3D code above it draws can be seen.
 //!
-//! Direct3D is used as a rasteriser only: every vertex comes transformed and lit
-//! (`Vertex`, the `D3DTLVERTEX` of DirectX 5). The standalone program draws them with the
-//! renderers in `render/`; the recorders here note what the 3D code asks for.
+//! Direct3D is used as a rasteriser only: every vertex comes transformed and lit (`Vertex`).
+//! The standalone program draws them with the renderers in `render/`; the recorders here note
+//! what the 3D code asks for.
 
 pub mod cards_store;
 pub mod copy_screen_to_texture;

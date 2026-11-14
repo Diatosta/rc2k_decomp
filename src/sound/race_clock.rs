@@ -1,7 +1,7 @@
 //! The clock of the race's sounds: `RaceClock.last` the time of the last turn,
 //! `RaceClock.turns_a_second` the turns a second as a float, `RaceClock.step` the last turn's
-//! milliseconds, `RaceClock.turns` the turns counted. `sound::start_race_clock` (0x40F1E9)
-//! sets it going and `sound::step_race_clock` (0x40F20E) says whether a turn is due.
+//! milliseconds, `RaceClock.turns` the turns counted. `sound::start_race_clock` sets it going and
+//! `sound::step_race_clock` says whether a turn is due.
 
 use crate::sound::store::RaceClock;
 
@@ -21,7 +21,7 @@ fn store(clock: &RaceClock, c: &rc2k_core::sound::clock::RaceClock) {
     clock.turns.set(c.turns);
 }
 
-/// `sound::start_race_clock` (0x40F1E9). Converted: `rc2k_core::sound::clock`.
+/// `sound::start_race_clock`. The logic is `rc2k_core::sound::clock`.
 pub fn start_race_clock(now: u32, sound: &crate::sound::owner::Sound) {
     let clock = sound.race.clock.get();
     let mut c = load(clock);
@@ -29,9 +29,8 @@ pub fn start_race_clock(now: u32, sound: &crate::sound::owner::Sound) {
     store(clock, &c);
 }
 
-/// `sound::step_race_clock` (0x40F20E): true if 20 ms or more have passed since the last
-/// turn, which then becomes this one. Converted: `rc2k_core::sound::clock`; nothing is
-/// stored when no turn is due.
+/// `sound::step_race_clock`: true if 20 ms or more have passed since the last turn, which then
+/// becomes this one. The logic is `rc2k_core::sound::clock`; nothing is stored when no turn is due.
 pub fn step_race_clock(now: u32, sound: &crate::sound::owner::Sound) -> bool {
     let clock = sound.race.clock.get();
     let mut c = load(clock);

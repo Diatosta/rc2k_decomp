@@ -1,15 +1,16 @@
-//! `physics::start_skid_mark` (0x43F272): when either of the two qwords at
-//! `wheel_squeeze`, `Car.wheel_squeeze[2]` is not 0 and `camera_view_return` is: `camera_blend_view` = it less
-//! 1, `camera_switch_active` 1, `camera_switch_share` 0, `camera_switch_length` 10, `camera_switch_clock` the step count
-//! `step_clock`; then `camera_view_return` 0. This starts a skid mark (the start's place, a count of 10, the step it began).
+//! When either of the two qwords `wheel_squeeze`, `Car.wheel_squeeze[2]` is not 0 and
+//! `camera_view_return` is: `camera_blend_view` = it less 1, `camera_switch_active` 1,
+//! `camera_switch_share` 0, `camera_switch_length` 10, `camera_switch_clock` the step count
+//! `step_clock`; then `camera_view_return` 0. This starts a skid mark (the start's place, a count
+//! of 10, the step it began).
 //!
-//! Caller: `physics::car_physics_step` (0x43B6FB), every physics step.
+//! Caller: `physics::car_physics_step`, every physics step.
 
 use crate::physics::car_store::Car;
 use crate::physics::cells::set_changed;
 use rc2k_core::physics::ground::SkidStart;
 
-// Converted: `rc2k_core::physics::ground::SkidStart::start`.
+// Core: `rc2k_core::physics::ground::SkidStart::start`.
 pub fn start_skid_mark(car: &Car) {
     // The squeezes are tested as two qwords: any bit set counts (a -0.0 too).
     let wheels = car.wheel_squeeze.each_ref().map(|w| w.get().to_bits());

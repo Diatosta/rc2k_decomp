@@ -1,15 +1,14 @@
-//! `race::draw_viewer_panel` (0x41DA25): the replay viewer's panel: its texture (`viewer_panel_texture`)
-//! locked (`d3d::lock_texture`; failing, nothing), cleared, and written on: text 0x1A4 and the time
-//! at the frame shown (block * 100 + frame, `strings::append_time`), text 0x1A5 and the replay's
-//! length, the names of the block's two cameras (`ViewerAndKinds.viewer_panel.camera_name_ids[0]` by its bytes 0 and 1, at most 0x2E;
-//! `strings::append_string_by_id`), each three times 0x78 to the left and 0xD down, texts 0x560 and
-//! 0x561 (the fonts at `FontObjects.objects[58].first_char` ..; `text::draw_text_keep_regs`, 0x402368); unlocked
-//! (`d3d::unlock_texture`), copied to its device texture (`viewer_device_texture`,
-//! `d3d::copy_to_device_texture`), made the texture (`d3d::set_texture`) and drawn as ten quads
-//! (`drive::tyre_quad`, the texture's and the screen's rectangles `texture_rect`, `screen_rect`),
-//! the switch lights dimmed (0x555555) by the block's camera byte 5 (0: the second, 1: the first).
-//!
-//! Caller: `race::viewer_frame`.
+//! Draws the replay viewer's panel: its texture (`viewer_panel_texture`) is locked
+//! (`d3d::lock_texture`; failing, nothing is drawn), cleared, and written on: text 0x1A4 and the
+//! time at the frame shown (block * 100 + frame, `strings::append_time`), text 0x1A5 and the
+//! replay's length, the names of the block's two cameras (`camera_name_ids[0]`
+//! by its bytes 0 and 1, at most 0x2E; `strings::append_string_by_id`), each
+//! three times 0x78 to the left and 0xD down, and texts 0x560 and 0x561
+//! (`text::draw_text_keep_regs`). The texture is then unlocked (`d3d::unlock_texture`), copied to
+//! its device texture (`viewer_device_texture`, `d3d::copy_to_device_texture`), made the texture
+//! (`d3d::set_texture`) and drawn as ten quads (`drive::tyre_quad`, the texture's and the screen's
+//! rectangles `texture_rect`, `screen_rect`), the switch lights dimmed by the block's camera byte 5
+//! (0: the second, 1: the first). Called by `viewer_frame`.
 
 use crate::errors::Refused;
 use crate::race::owner::Race;
@@ -31,8 +30,6 @@ pub fn draw_viewer_panel(
     let replay = &race.replay;
     let text_stores = &strings.text;
     let shared = &race.shared;
-    // Converted: `rc2k_core::race::viewer_flow::{shown_time, replay_length, camera_name,
-    // switch_lights}`.
     use rc2k_core::race::viewer_flow::{camera_name, replay_length, shown_time, switch_lights};
     if crate::d3d::lock_texture::lock_texture_in(
         gfx,
@@ -42,8 +39,7 @@ pub fn draw_viewer_panel(
     {
         return Ok(());
     }
-    // The surface cleared (as `rep stosd` row by row). A height of 0 is refused: the
-    // original goes round 2^32 times.
+    // The surface is cleared row by row. A height of 0 is refused (the loop would run 2^32 times).
     let height = gfx.drawing.draw_surface.height.get();
     if height == 0 {
         return Err(crate::errors::BadInput("a panel texture of no rows").into());

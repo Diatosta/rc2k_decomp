@@ -1,77 +1,79 @@
-//! The windscreen drops' variables: the item table, the view's moves kept and the drift, the shape constants.
+//! The windscreen drops' variables: the item table, the view's moves kept and the drift, the shape
+//! constants.
 
 use crate::session::{PlainBytes, PlainDword, PlainFloat, PlainInt};
 
-/// The windscreen drops' variables (IDA 0x816192 .. 0x82E342).
+/// The windscreen drops' variables.
 #[derive(rc2k_derive::Cells)]
 pub struct WindscreenDropVars {
-    /// 0x816192: `flt_816192` .. `flt_81619E`: four floats `set_up_windscreen_drops` scales once
+    /// Four floats `set_up_windscreen_drops` scales once
     pub scale: [PlainFloat; 4],
-    /// 0x8161A2: `flt_8161A2` ..: the item's place as floats (`draw_plane`, `windscreen_drops_top`, `windscreen_flakes_frame`)
+    /// The item's place as floats (`draw_plane`, `windscreen_drops_top`, `windscreen_flakes_frame`)
     pub place: [PlainFloat; 3],
-    /// 0x8161AE: `dword_8161AE`: the drift has run once (`windscreen_drops_drift`)
+    /// The drift has run once (`windscreen_drops_drift`)
     pub started: PlainDword,
-    /// 0x8161B2: `dword_8161B2`: a move has been kept (`windscreen_drops_drift`)
+    /// A move has been kept (`windscreen_drops_drift`)
     pub moved: PlainDword,
-    /// 0x8161B6: `dword_8161B6`, `dword_8161BA`: cleared with the two above by `set_up_windscreen_drops`
+    /// Cleared with the two above by `set_up_windscreen_drops`
     pub spare: [PlainDword; 2],
-    /// 0x8161D6: `flt_8161D6` ..: the view's place kept
+    /// The view's place kept
     pub kept_place: [PlainFloat; 3],
-    /// 0x8161E2: `flt_8161E2` ..: the view's move kept
+    /// The view's move kept
     pub kept_move: [PlainFloat; 3],
-    /// 0x8161EE: `flt_8161EE` ..: the view's move (its place less the kept place, times `flt_764FE0`)
+    /// The view's move (its place less the kept place, times a constant)
     pub view_move: [PlainFloat; 3],
-    /// 0x8161FA: `flt_8161FA` ..: the move less the last, plus the last times `flt_82E326` ..
+    /// The move less the last, plus the last times a constant
     pub move_change: [PlainFloat; 3],
-    /// 0x81621E: `flt_81621E` ..: the drift turned back by the view's turn, negated
+    /// The drift turned back by the view's turn, negated
     pub drift: [PlainFloat; 3],
-    /// 0x81622A: `flt_81622A`: the ease by the ticks (`windscreen_drops_top`)
+    /// The ease by the ticks (`windscreen_drops_top`)
     pub ease: PlainFloat,
-    /// 0x81622E: `dword_81622E`: the steps since the last look (`windscreen_drops_step`)
+    /// The steps since the last look (`windscreen_drops_step`)
     pub steps: PlainDword,
-    /// 0x816232: `dword_816232`: where the next sprite goes: its byte offset in the batch's records (the original kept the address; `windscreen_drops_frame`)
+    /// Where the next sprite goes: its byte offset in the batch's records
+    /// (`windscreen_drops_frame`)
     pub buffer: PlainDword,
-    /// 0x81623A: `dword_81623A`: 0 at each `windscreen_flakes_step`
+    /// 0 at each `windscreen_flakes_step`
     pub windscreen_flakes_cleared: PlainDword,
-    /// 0x81623E: `g_marksWindscreenDropItems`: 0x800 items of 0x30 bytes (+0 1 live)
+    /// 0x800 items of 0x30 bytes (+0 1 live)
     pub items: PlainBytes<98304>,
-    /// 0x82E23E: `g_marksWindscreenDropsDone`: the once-only mark of `set_up_windscreen_drops`
+    /// The once-only mark of `set_up_windscreen_drops`
     pub done: PlainDword,
-    /// 0x82E242: `flt_82E242` .. `flt_82E256`: the factors the four scale floats are scaled by (1, 1, 2, 2)
+    /// The factors the four scale floats are scaled by (1, 1, 2, 2)
     pub factors: [PlainFloat; 6],
-    /// 0x82E25A: `flt_82E25A`: the quarter-circle curve's first constant
+    /// The quarter-circle curve's first constant
     pub curve_a: PlainFloat,
-    /// 0x82E25E: `flt_82E25E`: its second
+    /// Its second
     pub curve_b: PlainFloat,
-    /// 0x82E262: `dword_82E262`: the circles' step count
+    /// The circles' step count
     pub step_c: PlainInt,
-    /// 0x82E266: `flt_82E266`: the circles' step
+    /// The circles' step
     pub step_d: PlainFloat,
-    /// 0x82E26A: `flt_82E26A` .. `flt_82E276`: constants of `windscreen_drops_top` (the last is the length it divides by)
+    /// Constants of `windscreen_drops_top` (the last is the length it divides by)
     pub top_k: [PlainFloat; 4],
-    /// 0x82E27A: `dword_82E27A`: a count per vertex (`windscreen_drops_top`)
+    /// A count per vertex (`windscreen_drops_top`)
     pub per_vertex: PlainInt,
-    /// 0x82E286: `flt_82E286` ..: what `windscreen_drops_setup` scales the two axes by
+    /// What `windscreen_drops_setup` scales the two axes by
     pub axes_k: [PlainFloat; 6],
-    /// 0x82E2A2: `dword_82E2A2`: the texture square's side
+    /// The texture square's side
     pub side: PlainFloat,
-    /// 0x82E2A6: `flt_82E2A6`: a constant of `windscreen_drops_frame`
+    /// A constant of `windscreen_drops_frame`
     pub frame_k: PlainFloat,
-    /// 0x82E2AA: `flt_82E2AA`, `flt_82E2AE`: constants of `windscreen_drops_spawn`
+    /// Constants of `windscreen_drops_spawn`
     pub spawn_k: [PlainFloat; 2],
-    /// 0x82E2B2: `flt_82E2B2`: the share constant of `windscreen_drops_spawn`
+    /// The share constant of `windscreen_drops_spawn`
     pub share_k: PlainFloat,
-    /// 0x82E2B6: `dword_82E2B6`: the windscreen drops' random (times 0xC5 plus 0x5D)
+    /// The windscreen drops' random (times 0xC5 plus 0x5D)
     pub random: PlainDword,
-    /// 0x82E2C6: `dword_82E2C6` ..: the view's turn copied by columns (3 x 3)
+    /// The view's turn copied by columns (3 x 3)
     pub turn: [PlainFloat; 9],
-    /// 0x82E2F6: `unk_82E2F6`: its adjugate (3 x 3)
+    /// Its adjugate (3 x 3)
     pub adjugate: [PlainFloat; 9],
-    /// 0x82E326: `flt_82E326` ..: what the last move is multiplied by
+    /// What the last move is multiplied by
     pub decay: [PlainFloat; 3],
-    /// 0x82E332: `flt_82E332`: the turn about x
+    /// The turn about x
     pub angle: PlainFloat,
-    /// 0x82E336: `flt_82E336` ..: what the drift is multiplied by into `flt_811BDF` ..
+    /// What the drift is multiplied by into the result
     pub result_k: [PlainFloat; 3],
 }
 

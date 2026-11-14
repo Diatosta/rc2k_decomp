@@ -1,14 +1,14 @@
-//! `effects::emit_wheel_particles` (0x4CA085): one wheel's particles. With the chance
-//! the wheel's +0x34 by `MarksFloats.fixed_16_scale` (rounded, into `RingWork.whole`) out of 0x10000 (a
-//! random's low word, `EmitterVars.wheel_random`, under it) the wheel's +0x28 .. +0x30 (the kind and
-//! two flags of the surface under it) become its +0x1C .. +0x24; then by the kind (+0x1C):
-//! 1 `effects::emit_rolling_particles`; 2, 4, 6 .. 9, 0xC `effects::emit_bursts` and
-//! `effects::emit_wheel_fade_particle`; 3 `effects::emit_bursts_kind_3` and `emit_wheel_fade_particle`; 5
-//! `effects::emit_slip_spray`; 0xB `effects::emit_slip_spray_long`; 0 and the rest nothing.
+//! `effects::emit_wheel_particles`: one wheel's particles. With the chance the wheel's +0x34 by
+//! `MarksFloats.fixed_16_scale` (rounded, into `RingWork.whole`) out of 0x10000 (a random's low
+//! word, `EmitterVars.wheel_random`, under it) the wheel's +0x28 .. +0x30 (the kind and two flags
+//! of the surface under it) become its +0x1C .. +0x24; then by the kind (+0x1C): 1
+//! `effects::emit_rolling_particles`; 2, 4, 6 .. 9, 0xC `effects::emit_bursts` and
+//! `effects::emit_wheel_fade_particle`; 3 `effects::emit_bursts_kind_3` and
+//! `emit_wheel_fade_particle`; 5 `effects::emit_slip_spray`; 0xB `effects::emit_slip_spray_long`; 0
+//! and the rest nothing.
 //!
-//! Callers: `effects::emit_car_particles`, four times. The original EXE the owner had patched
-//! turned this into a `ret` (section 16, the burst loops' ring-full slip). Refuses a null wheel and
-//! the emitters' refusals; on a refusal nothing stays written (all it may write is put back).
+//! Refuses a null wheel and the emitters' refusals; on a refusal nothing stays written (all it may
+//! write is put back).
 
 use crate::effects::emitters::*;
 use crate::effects::owner::Effects;
@@ -40,8 +40,9 @@ fn copies(chance: i32, r: u32) -> bool {
     ((r & 0xFFFF) as i32) < chance
 }
 
-/// Whose switch: this one's, or `effects::emit_body_particles`' (its kind 1
-/// `effects::emit_body_contact_particles`, its kind 3 the bursts of kind 2: section 16).
+/// Whose emitters: the wheels' or `effects::emit_body_particles`'. The body's kind 1 is
+/// `effects::emit_body_contact_particles` and its kind 3 the bursts of kind 2 (a slip kept as
+/// is).
 #[derive(Clone, Copy, PartialEq)]
 pub enum Table {
     Wheel,
@@ -82,8 +83,7 @@ pub fn emit(
     }
 }
 
-/// `wheel` is the wheel's record,
-/// `object` the car's object.
+/// `wheel` is the wheel's record, `object` the car's object.
 pub fn emit_wheel_particles(
     effects: &Effects,
     wheel: &MarkRecord,

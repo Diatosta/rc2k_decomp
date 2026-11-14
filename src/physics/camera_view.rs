@@ -1,11 +1,10 @@
-//! The camera's view steps under `physics::update_camera`: the mode record
-//! (`view_records`[mode]`, the mode `camera_view` held to 0 ..= 0x33), the share of a
-//! change done (`step_clock` - `camera_switch_clock` held to 0 ..= the record's +0x3C, over it,
-//! into `view_share`), and the tests' frame of `physics::take_first_view`, `take_second_view`,
-//! `ease_view_angles`, `ease_view_blend`, `camera_height_bias`, `ease_view_turn`,
-//! `place_camera`. The converted ones run `share_done_plain`, `record_plain` and
-//! `view_test_floats` (`rc2k_core::physics::camera_view`). What the variables are (the
-//! camera's mode, place, turns, a view's figures) is a reading.
+//! The camera's view steps under `physics::update_camera`: the mode record (`view_records`, the
+//! mode `camera_view` held to 0 ..= 0x33), the share of a change done (`step_clock` less
+//! `camera_switch_clock`, held to 0 ..= the record's length and divided by it into `view_share`),
+//! and the tests' frame of `physics::take_first_view`, `take_second_view`, `ease_view_angles`,
+//! `ease_view_blend`, `camera_height_bias`, `ease_view_turn` and `place_camera`. The converted
+//! steps `share_done` and `record` run on plain floats (`rc2k_core::physics::camera_view`). The
+//! names of the variables (mode, place, turns, a view's figures) are a reading.
 
 use crate::effects::cell_x87::CellX87;
 use crate::math::x87_float::int;
@@ -46,12 +45,11 @@ pub fn share_done(
     eax
 }
 
-// ---- the arithmetic that was x87 assembly ----
+// ---- the x87 arithmetic ----
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[view_share] = int [scratch] / int [s + 0x3C]` (`s + 0x3C` the record's
-/// `change_time`, passed by value)
+/// `[view_share] = int [scratch] / int [change_time]` (the record's `change_time`, passed by value)
 fn x87_1(shared: &RaceShared, change_time: u32, scene: &crate::scene::owner::Scene) {
     let t0 = int(scene.drawing.scene.get().scratch.get() as i32);
     let t1 = int(change_time as i32);

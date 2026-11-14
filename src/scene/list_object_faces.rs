@@ -1,19 +1,16 @@
-//! `scene::list_object_faces` (0x45048C): goes through an object's faces and lists the
-//! ones to draw.
+//! `scene::list_object_faces`: goes through an object's faces and lists the ones to draw.
 //!
-//! The list emptied (the original's `g_listedFaceCount` = 0; its -1 into `RaceVars.face_mark`, read by nothing, not kept); then for each of the
-//! object's `ObjectWork.object_face_count` faces, from `ObjectWork.object_first_face` on in `g_faces`: its number within the
-//! object to `RaceVars.face_number` and `scene::list_object_face`. One caller, `scene::draw_object`.
-//! Refuses an object of no faces (the original goes through 2^32) or of more than the list holds, a
-//! face's number past the table and a face that is not there.
+//! The list is emptied; then for each of the object's `ObjectWork.object_face_count` faces,
+//! from `ObjectWork.object_first_face` on in the faces table: its number within the object to
+//! `RaceVars.face_number` and `scene::list_object_face`. One caller, `scene::draw_object`.
+//! Refuses an object of no faces or of more than the list holds, a face's number past the
+//! table and a face that is not there.
 
 use crate::errors::Refused;
 
 // ---- game data ----
 
-// ---- Rust version ----
-
-// Converted: `rc2k_core::scene::objects::object_faces`
+// Logic: `rc2k_core::scene::objects::object_faces`
 pub fn list_object_faces(
     faces_table: &crate::scene::faces_store::Faces,
     object: &crate::scene::object_place::ObjectPlace,
@@ -30,7 +27,6 @@ pub fn list_object_faces(
         faces_list.clear();
         // Room for every face at once: the list grows from nothing for each object otherwise.
         faces_list.reserve(faces.len());
-        // (The original's -1 into `g_faceMark`, 0x62361C: read by nothing.)
         for (n, &face) in faces.iter().enumerate() {
             work.face_number.set(n as u32);
             list(faces_list, face as usize)?;

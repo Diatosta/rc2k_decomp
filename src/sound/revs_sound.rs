@@ -1,5 +1,5 @@
-//! `sound::revs_sound` (0x40DD19): a car's engine sound by its revs, placed ahead of the
-//! car; and the request filling it shares with `sound::throttle_sound`.
+//! `sound::revs_sound`: a car's engine sound by its revs, placed ahead of the car; and the request
+//! filling it shares with `sound::throttle_sound`.
 //!
 //! The sound is the set's first sound plus the object's `sound_offset` (a computer's car,
 //! offset negative: its bit 0, from the computers' set). With the engine stopped (state 0
@@ -105,9 +105,9 @@ pub(super) fn fill_request(
 }
 
 /// The request's pitch (the set's curve over `pitch_input`) and volume (its curve over
-/// `volume_input`, times the surface's `gain` when the view is not the car's own). Each
-/// value is rounded to 32 bits as the original's x87 does. Shared by the car's engine
-/// sounds (`sound::speed_sound` too).
+/// `volume_input`, times the surface's `gain` when the view is not the car's own). Each value is
+/// rounded to 32 bits as the x87 does. Shared by the car's engine sounds (`sound::speed_sound`
+/// too).
 pub fn fill_pitch_and_volume(
     so: &SoundObject,
     set: &SoundSet,
@@ -141,7 +141,7 @@ mod reference_vectors {
     use crate::sound::store::{SoundObject, SurfaceSounds};
     use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse_locked};
 
-    // The original's instructions: the pitch, the volume (on the road: times the surface's gain), the place.
+    // The blocks: the pitch, the volume (on the road: times the surface's gain), the place.
     fn blocks() -> Vec<Block> {
         vec![
             Block {

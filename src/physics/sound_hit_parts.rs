@@ -1,6 +1,6 @@
-//! `physics::sound_hit_parts` (0x4411EC): for kinds with a `kind_hit_sounds` entry (below
-//! 0x22), the same four tests as `physics::drop_hit_parts` on the timers +0x354 ..
-//! +0x360 and the bits 1 .. 4 of +0x298, by `physics::sound_on_bit` (the timer 256).
+//! For kinds with a `kind_hit_sounds` entry (below 0x22), the same four tests as
+//! `physics::drop_hit_parts` on the hit timers and the bits 1 .. 4 of `parts_present`, by
+//! `physics::sound_on_bit` (the timer 256).
 //!
 //! Caller: `physics::hit_part_checks`. Refuses what `sound_on_bit` refuses.
 
@@ -13,7 +13,7 @@ use crate::race::numbers_store::Numbers;
 use crate::race::owner_shared::RaceShared;
 use rc2k_core::physics::parts::{SOUND_TESTS, has_hit_sounds};
 
-// Converted: `rc2k_core::physics::parts::{has_hit_sounds, hit_tests, SOUND_TESTS}`.
+// Core: `rc2k_core::physics::parts::{has_hit_sounds, hit_tests, SOUND_TESTS}`.
 pub fn sound_hit_parts(
     numbers: &Numbers,
     matrices: &SceneMatrices,

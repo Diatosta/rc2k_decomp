@@ -1,10 +1,6 @@
-//! `effects::view_step` (0x4C1593): the view's step since the last frame, negated: for each
-//! of x, y, z `KeptView.step[0]` .. = -(`KeptView.kept_a.scaled[0]` .. less `KeptView.last[0]` ..) (`fld; fsub;
-//! fchs; fstp`), then `KeptView.last[0]` .. = `KeptView.kept_a.scaled[0]` .. (`push`/`pop`).
-//!
-//! Caller: `effects::view_frame`.
-//!
-//! the x87 version stays for the Rust callers in unconverted code).
+//! `effects::view_step`: the view's step since the last frame, negated: for each of x, y, z
+//! `KeptView.step[0]` .. = -(`KeptView.kept_a.scaled[0]` .. less `KeptView.last[0]` ..), then
+//! `KeptView.last[0]` .. = `KeptView.kept_a.scaled[0]` ..
 
 use crate::math::x87;
 

@@ -1,26 +1,22 @@
-//! `scene::load_texture_picture` (0x42578E): loads a numbered picture into a system
-//! texture.
+//! `scene::load_texture_picture`: loads a numbered picture into a system texture.
 //!
-//! Takes: the picture's number, the texture
+//! A picture is `tx<number>.pcx`, four decimal digits, and with it goes the picture numbered
+//! one higher (by the look of it its transparency). The folder is by the number: `files\a`
+//! under 900, `files\m` for 900 and 901, `files\a` up to 999, `files\b` up to 1999,
+//! `files\g\frnt` up to 2999, else `files\s\extr`. The digits are written into all six names
+//! and into five of the six second names (the `files\s\extr` one keeps its `xxxx`; and the
+//! `files\m` name gets its third digit twice: slips of the 1999 code, kept).
 //!
-//! A picture is `tx<number>.pcx`, four decimal digits, and with it goes the picture
-//! numbered one higher (by the look of it its transparency). The folder is by the
-//! number: `files\a` under 900, `files\m` for 900 and 901, `files\a` up to 999,
-//! `files\b` up to 1999, `files\g\frnt` up to 2999, else `files\s\extr`. The digits
-//! are written into all six names and into five of the six second names (the
-//! `files\s\extr` one keeps its `xxxx`; and the `files\m` name gets its third digit
-//! twice: the original's slips, kept).
+//! For a picture 1000 .. 1999 of a car (the texture less kind 0x100's first texture, over 8, is
+//! a car's number under `RaceView.race_cars`): "carnum `<n>` grav `<g>`" is logged, g being
+//! `RaceVars.car_tyres[0][car]`; with g at 3 or more and the file there, the picture is taken
+//! from `files\b\gravel` instead, and its second name logged.
 //!
-//! For a picture 1000 .. 1999 of a car (the texture less kind 0x100's first texture,
-//! over 8, is a car's number under `RaceView.race_cars`): "carnum <n> grav <g>" is logged,
-//! g being `RaceVars.car_tyres[0][car]`; with g at 3 or more and the file there, the picture
-//! is taken from `files\b\gravel` instead, and its second name logged.
+//! Then `gfx::load_picture_to_texture` with the name, the second name and the texture. One
+//! caller, `scene::load_changed_texture_picture`.
 //!
-//! Then `gfx::load_picture_to_texture` with the name, the second name and the
-//! texture. One caller, `scene::load_changed_texture_picture`.
-//!
-//! The logic is in the core crate: the digits, the names, the folder and the gravel rule through
-//! `rc2k_core::scene::pictures`.
+//! The digits, the names, the folder and the gravel rule are in the core crate
+//! (`rc2k_core::scene::pictures`).
 
 use crate::errors::{BadInput, Refused};
 use crate::gfx::load_picture_to_texture::load_picture_to_texture_in_game;
@@ -29,9 +25,9 @@ use crate::place::BytePlace;
 
 // ---- game data ----
 
-/// `ObjectFileNumbers.picture_number` the picture's number, `ObjectFileNumbers.picture_texture` the texture, then the twelve
-/// names up to the end of `files\s\extr\txxxxx.pcx`.
-/// The six folders' names and second names, and where the number is in the name.
+/// `ObjectFileNumbers.picture_number` the picture's number, `ObjectFileNumbers.picture_texture` the
+/// texture, then the twelve names up to the end of `files\s\extr\txxxxx.pcx`. The six folders'
+/// names and second names, and where the number is in the name.
 fn folders(course: &'static crate::race::owner_course::Course) -> [(BytePlace, BytePlace, u32); 6] {
     let p = course.level_paths();
     [
@@ -44,7 +40,6 @@ fn folders(course: &'static crate::race::owner_course::Course) -> [(BytePlace, B
     ]
 }
 use rc2k_core::scene::pictures::{GRAVEL, folder, names, picture_car, takes_gravel};
-// gfx::load_picture_to_texture
 
 /// What the function calls.
 pub enum Call {
@@ -55,8 +50,6 @@ pub enum Call {
     /// The name, the second name, the texture.
     Load(BytePlace, BytePlace, u32),
 }
-
-// ---- Rust version ----
 
 /// The numbers and the names: everything the function writes.
 fn write_names(
@@ -83,7 +76,7 @@ fn write_names(
     }
 }
 
-// Converted: `rc2k_core::scene::pictures`
+// Logic: `rc2k_core::scene::pictures`
 pub fn load_texture_picture(
     race: &'static crate::race::owner::Race,
     number: u32,

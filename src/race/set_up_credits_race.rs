@@ -1,10 +1,10 @@
-//! `race::set_up_credits_race` (0x463711): the credits' race (the demonstration between the films)
-//! set up: a stage drawn from the 36 of `credit_stages` (`math::next_random` x 36, the high dword,
-//! held to 0 .. 0x23 by the sign) into `g_stageNumber`, a car kind from the 23 of `credit_car_kinds` (x
-//! 23, 0 .. 0x16) into `g_raceCarKinds`; `direction` 0, `run_kind` 3, and 72 more stores
-//! (`WRITES`: the first car block's settings, the race's switches, -1 into +0x298).
+//! `race::set_up_credits_race`: sets up the credits' race (the demonstration between the films).
+//! A stage is drawn from the 36 of `credit_stages` (`math::next_random` x 36, the high dword, held
+//! to 0 .. 0x23 by the sign) into `stage_number`, and a car kind from the 23 of `credit_car_kinds`
+//! (0 .. 0x16) into `race_car_kinds`; `direction` is 0, `run_kind` 3, and 72 more stores follow
+//! (`WRITES`: the first car block's settings, the race's switches).
 //!
-//! Caller: `race::credits_race`, which calls it directly. Refuses nothing.
+//! Called by `race::credits_race`. Refuses nothing.
 
 use crate::errors::Refused;
 use crate::math::next_random::next_random;
@@ -90,24 +90,23 @@ pub const WRITES: [(StepOperand, u32); 74] = [
     (car!(0, parts_present), 0xFFFF_FFFF),
 ];
 
-/// A draw (`math::next_random`) as a place among n.
+/// A draw (`math::next_random`) as an index among `n`.
 fn drawn_index(n: u32) -> u32 {
     rc2k_core::race::credits::drawn_place(next_random(), n)
 }
 
 pub fn set_up_credits_race(race: &Race, o: &crate::owners::Owners<'static>) -> Result<(), Refused> {
     let shared = &race.shared;
-    // Converted: `rc2k_core::race::credits::drawn_place`.
     use rc2k_core::race::credits::{RACE_KINDS, RACE_STAGES};
     let stage = drawn_index(RACE_STAGES);
     shared
         .vars
         .get()
         .stage_number
-        .set(shared.work.get().credit_stages[stage as usize].get()); // g_stageNumber
+        .set(shared.work.get().credit_stages[stage as usize].get());
     let kind = drawn_index(RACE_KINDS);
     shared.vars.get().race_car_kinds[0]
-        .set(shared.work.get().credit_car_kinds[kind as usize].get()); // g_raceCarKinds
+        .set(shared.work.get().credit_car_kinds[kind as usize].get());
     for (at, v) in WRITES {
         at.set_with(o, v);
     }

@@ -1,14 +1,11 @@
-//! `physics::queue_car_event` (0x4419EB): an entry added to the work car's queue of up to 7
-//! (`car_event_count` the count): the time is `g_sceneClock` plus the delay; unless the count is 7,
-//! the time goes into `car_event_times[count]`, the event into `car_event_codes[count]`, the count
-//! goes up by one; then `car_event_limit` and `car_event_position` are 0 for the first entry,
-//! else `car_event_limit` is reduced by 0x20. The events are the pace-note symbols the HUD stacks
+//! Adds an entry to the work car's queue of up to 7 (`car_event_count` the count): the time is
+//! `scene_clock` plus the delay; unless the count is 7, the time goes into
+//! `car_event_times[count]`, the event into `car_event_codes[count]` and the count goes up by one;
+//! then `car_event_limit` and `car_event_position` are 0 for the first entry, else
+//! `car_event_limit` is reduced by 0x20. The events are the pace-note symbols the HUD stacks
 //! (`race::panel_marks`), each shown for 3000 of the scene clock.
 //!
-//! Takes: a delay, the event
-//!
-//! Caller: `physics::queue_listed_event`. Refuses (before anything) a count above 7 (the original
-//! writes past the queue).
+//! Caller: `physics::queue_listed_event`. Refuses (before anything) a count above 7.
 
 use crate::errors::Refused;
 use crate::physics::car_store::Car;

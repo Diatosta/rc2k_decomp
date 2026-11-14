@@ -1,12 +1,9 @@
-//! `effects::spread_point` (0x4C61AB): the three values in st(1) .. st(3) each grown by
-//! itself times st(0) times a random times `MarksFloats.spread_scale` (`x87::grown`), left as st(0) ..
-//! st(2).
+//! `effects::spread_point`: three values each grown by itself times a factor (the first of the four
+//! inputs) times a random times `MarksFloats.spread_scale` (`x87::grown`).
 //!
-//! The random (`g_marksSpreadRandom`): times 0x9D plus 0x47, then rotated right 12 twice,
-//! each of the three a whole number (signed) of it: the third for st(3), the second for
-//! st(2), the first for st(1). Callers: four in the marks' particles.
-//!
-//! the x87 version stays for the Rust callers in unconverted code).
+//! The random: times 0x9D plus 0x47 (the marks' seed), then rotated right 12 twice, each of the
+//! three a whole number (signed) of it: the third for the last value, the second for the middle
+//! one, the first for the first.
 
 use crate::effects::paths::Paths;
 use crate::math::x87;
@@ -39,15 +36,15 @@ pub fn spread_point(
     ([extended(b), extended(c), extended(d)], third)
 }
 
-/// The spread point's random (IDA 0x923004 .. 0x923008).
+/// The spread point's random.
 #[derive(rc2k_derive::Cells)]
 pub struct SpreadRandom {
-    /// 0x923004: `g_marksSpreadRandom`: the random (times 0x9D plus 0x47) of `effects::spread_point`.
+    /// The random (times 0x9D plus 0x47) of `effects::spread_point`.
     pub random: PlainDword,
 }
 
 impl SpreadRandom {
-    /// The values the game starts with (the image's bytes).
+    /// The values the game starts with.
     pub const fn new() -> Self {
         SpreadRandom {
             random: PlainDword::new(0x0),

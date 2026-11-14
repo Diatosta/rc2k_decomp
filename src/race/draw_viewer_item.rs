@@ -1,12 +1,8 @@
-//! `race::draw_viewer_item` (0x41D94A): one item of the replay viewer's list drawn, unless hidden
-//! (bit 6): its picture as a quad (`drive::tyre_quad`) on the item's place at the picture's width
-//! (its absolute value), centred (`item_place`); grey (0x666666) when marked unusable (bit 7),
-//! else white, or for the highlighted item red while a camera is edited, else yellow and red by
-//! turns (bit 3 of `frame_clock` - `move_clock`).
-//!
-//! Takes: the item (16 bytes), its number
-//!
-//! Caller: `race::viewer_frame` (each item).
+//! Draws one item of the replay viewer's list, unless hidden (bit 6): its picture as a quad
+//! (`drive::tyre_quad`) on the item's place at the picture's width (its absolute value), centred
+//! (`item_place`). The colour is grey when the item is marked unusable (bit 7), else white, or for
+//! the highlighted item red while a camera is edited, else yellow and red by turns (bit 3 of
+//! `frame_clock` - `move_clock`). Called by `viewer_frame` for each item.
 
 use crate::errors::BadInput;
 use crate::errors::Refused;
@@ -35,7 +31,6 @@ pub fn draw_viewer_item(
     let panel = race.viewer_panel();
     // Its first dword's low bytes: the flags and the switch.
     let byte = |n: u32| (item[0].get() >> (8 * n)) as u8;
-    // Converted: `rc2k_core::race::viewer::{switch_byte, centred, item_colour}`.
     use rc2k_core::race::viewer::{centred, item_colour, switch_byte};
     let uv = match ReplayViewBlock::item_picture(replay, index)? {
         ViewerPicture::Rectangle(ida) => panel.rectangle(ida)?,
@@ -51,7 +46,7 @@ pub fn draw_viewer_item(
     let place: [u32; 4] =
         std::array::from_fn(|k| u32::from_le_bytes(bytes[4 * k..4 * k + 4].try_into().unwrap()));
     let width = (uv[2] as i32).unsigned_abs();
-    panel.item_place[2].set(width); // ViewerAndKinds.viewer_panel.item_place[0]: the quad's place
+    panel.item_place[2].set(width);
     panel.item_place[0].set(centred(place[0], place[2], width));
     panel.item_place[1].set(place[1]);
     panel.item_place[3].set(place[3]);

@@ -108,11 +108,10 @@ pub fn hold_quit(system: &crate::system::owner::System, on: bool) {
     }
 }
 
-/// After the window's closing: the menus, races and films look at the quit switch and leave
-/// (the original's window procedure only shut the screens down and posted `WM_QUIT`, which
-/// `system::pump_messages` swallowed: nothing stopped). A safety net for a
-/// loop that still does not: if the program is running `LEAVING_GRACE` after the first
-/// close, it ends, saving nothing: the game's thread may be in the tables a save reads.
+/// After the window's closing: the menus, races and films look at the quit switch and leave (fixed
+/// bug: "Closing the window leaves the game running"). A safety net for a loop that still does not:
+/// if the program is running `LEAVING_GRACE` after the first close, it ends, saving nothing: the
+/// game's thread may be in the tables a save reads.
 fn end_if_not_left() {
     static WATCHING: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
     if NO_CLOSE_WATCH.load(std::sync::atomic::Ordering::Relaxed)
@@ -159,9 +158,9 @@ pub fn pump(o: crate::owners::Owners<'static>) {
                 if key == 0 {
                     continue;
                 }
-                // The key-down table starts at the pending key and is indexed by the game's
-                // key code (0xFF down, as `sar al, 7` leaves it); a key that goes down, or
-                // repeats, is the pending key, as the key thread makes it.
+                // The key-down table starts at the pending key and is indexed by the game's key
+                // code (0xFF: down); a key that goes down, or repeats, is the pending key, as the
+                // key thread makes it.
                 if down {
                     input.devices.set_key_state(key, 0xFF);
                     crate::input::take_key::pending_key(input)

@@ -2,34 +2,34 @@
 
 use crate::session::{PlainBytes, PlainDword};
 
-/// The masks' shape picks and pixel tables (IDA 0x844604 .. 0x884E5C).
+/// The masks' shape picks and pixel tables.
 #[derive(rc2k_derive::Cells)]
 pub struct MaskPicks {
-    /// 0x844604: `dword_844604`, `dword_844608`: 2 or 0 by the shape picked (A, B)
+    /// 2 or 0 by the shape picked (A, B)
     pub flags: [PlainDword; 2],
-    /// 0x84460C: `dword_84460C`: the shape index / the clock of the steps
+    /// The shape index / the clock of the steps
     pub index: PlainDword,
-    /// 0x844610: `dword_844610`: the shape entries
+    /// The shape entries
     pub table: [PlainDword; 256],
-    /// 0x844A10: `dword_844A10`: the steps' values
+    /// The steps' values
     pub values: [PlainDword; 256],
-    /// 0x844E10: `g_marksMaskShapes`: the shape whose mask is being drawn (its number; the original kept its address)
+    /// The shape whose mask is being drawn
     pub shapes: PlainDword,
-    /// 0x844E14: `g_marksMask`: the mask being drawn (its shape's number; the original kept its address)
+    /// The mask being drawn (its shape's number)
     pub mask: PlainDword,
-    /// 0x844E18: `dword_844E18`: the pixel table `map_shapes` was given (its shape's number; the original kept its address)
+    /// The pixel table `map_shapes` was given (its shape's number)
     pub table_in_use: PlainDword,
-    /// 0x844E1C: `dword_844E1C`: the corner table `map_shapes` was given (its shape's number; the original kept its address)
+    /// The corner table `map_shapes` was given (its shape's number)
     pub corners: PlainDword,
-    /// 0x844E2C: `dword_844E2C`: the shapes move
+    /// The shapes move
     pub moving: PlainDword,
-    /// 0x844E30: `dword_844E30`: the clock at which to choose again
+    /// The clock at which to choose again
     pub next: PlainDword,
-    /// 0x844E34: `dword_844E34`: 9 masks (1, 3, 7 .. ) by the settings' +0x2748
+    /// 9 masks (1, 3, 7 .. ) by the settings' +0x2748
     pub masks: [PlainDword; 9],
-    /// 0x844E58: `g_marksPixelTableA`: 0x80 rows of 0x400
+    /// 0x80 rows of 0x400
     pub pixel_table_a: PlainBytes<131072>,
-    /// 0x864E58: `g_marksPixelTableB`
+    /// The second pixel table
     pub pixel_table_b: PlainBytes<131072>,
 }
 

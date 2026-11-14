@@ -1,8 +1,7 @@
-//! `scene::set_object_light` (0x45143A): the light that falls on the object as a whole,
-//! to be added to each of its vertices.
+//! `scene::set_object_light`: the light that falls on the object as a whole, to be added to
+//! each of its vertices.
 //!
-//! The object's `light_added` (what `scene::vertex_light` adds) = 0, then by the light
-//! kind:
+//! The object's `light_added` (what `scene::vertex_light` adds) = 0, then by the light kind:
 //! - 5: plain white;
 //! - 1: the light strength = 0; the lamps gathered; the light colour plus `other_light`;
 //! - 2: the same, with the strength = 0 only while the key (a debugging key) is down;
@@ -25,10 +24,8 @@ use crate::scene::vertex_light::plus;
 
 // ---- game data ----
 
-// ---- Rust version ----
-
 /// `gather`: what stands for `scene::add_car_lights` and `scene::add_point_lights`.
-// Converted: `rc2k_core::scene::lamps::object_light`
+// Logic: `rc2k_core::scene::lamps::object_light`
 pub fn set_object_light(
     gather: &mut dyn FnMut() -> Result<(), Refused>,
     input: &crate::input::owner::Input,

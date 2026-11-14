@@ -1,14 +1,12 @@
-//! `effects::frame_marks` (0x4D14B4): the effects' frame step. The time stamp counter read at
-//! its start (kept on the stack) and again: the cycles since the last frame kept (with the
-//! last count); the settings' +0x50 / +0x4C / +0x10 / +0x18 copied to the frame's switches;
-//! `effects::scale_vectors_by`, `effects::morph_object_points`, `effects::view_frame`; the
-//! settings' +0x18 0, the step counter plus 1; the cycles this step took over the frame's,
-//! by a constant, kept as the step's share.
+//! `effects::frame_marks`: the effects' frame step. The cycle counter read at its start and
+//! again: the cycles since the last frame kept (with the last count); the settings' +0x50 /
+//! +0x4C / +0x10 / +0x18 copied to the frame's switches; `effects::scale_vectors_by`,
+//! `effects::morph_object_points`, `effects::view_frame`; the settings' +0x18 0, the step
+//! counter plus 1; the cycles this step took over the frame's, by a constant, kept as the
+//! step's share.
 //!
-//! Works on the effects settings.
-//!
-//! Callers: race init (`drive::race_init`) and `race::run_view_marks`. Refuses
-//! null settings before anything, and its steps' refusals (all it may write is put back first).
+//! Refuses null settings before anything, and its steps' refusals (all it may write is put back
+//! first).
 
 use crate::effects::owner::Effects;
 use crate::effects::run_frame::FRAME_K;

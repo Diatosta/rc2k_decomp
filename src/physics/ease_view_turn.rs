@@ -1,9 +1,9 @@
-//! `physics::ease_view_turn` (0x438B4F): the camera's three turns (`camera_heading`,
-//! `71A690`, `71A68C`) each moved toward its target (`start_heading`, `608B58`,
-//! `608B54`) by its share (`view_share_heading`, `608BE4`, `608BEC`; all 1 first when
-//! `ReplayFrames.step_first` is set): the difference `fild`ed, times the share, `fistp`ed, added.
+//! Moves the camera's three turns (`camera_heading` and the two after it) each toward its
+//! target (`start_heading` and the two after it) by its share (`view_share_heading` and the two
+//! after it; all 1 first when `ReplayFrames.step_first` is set): the difference times the
+//! share, rounded, is added.
 //!
-//! Returns: the last step
+//! Returns the last step.
 //!
 //! Caller: `physics::camera_avoid_ground`.
 
@@ -59,7 +59,7 @@ pub fn ease_view_turn(
     }
 }
 
-// ---- the arithmetic that was x87 assembly ----
+// ---- the x87 arithmetic ----
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):

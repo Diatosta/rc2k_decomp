@@ -1,13 +1,13 @@
-//! A float cell read and written as the x87 does: `fld dword` of the cell, `fstp dword` into it.
+//! A float cell read and written as the x87 does: loaded and stored as a dword float.
 
 use crate::math::x87_float::{self as bh, X};
 use crate::session::Cell32;
 
 /// Loads and stores for the cells (`Float`, `Dword`) the float code works on.
 pub trait CellX87 {
-    /// `fld dword ptr`: the cell's float.
+    /// The cell's float.
     fn ld(&self) -> X;
-    /// `fstp dword ptr`: `x` rounded to a float as the control word says.
+    /// `x` rounded to a float as the control word says, stored in the cell.
     fn st(&self, x: X);
 }
 

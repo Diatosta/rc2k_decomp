@@ -1,7 +1,6 @@
-//! `sound::car_engine_state` (0x40D8E2): a car's sound object brought up to date for the
-//! turn: the revs eased between the physics' readings, the pitch and volume inputs of
-//! the engine sounds, the engine's state, the gear-change and back-fire cues, the
-//! listener's distance and the Doppler-like factors.
+//! `sound::car_engine_state`: a car's sound object brought up to date for the turn: the revs eased
+//! between the physics' readings, the pitch and volume inputs of the engine sounds, the engine's
+//! state, the gear-change and back-fire cues, the listener's distance and the Doppler-like factors.
 //!
 //! Per turn it:
 //! - takes a new revs reading in (the last two readings' times and revs kept), or else
@@ -13,9 +12,8 @@
 //! - works out the listener's distance, how fast it changes, and the Doppler-like pitch
 //!   and volume factors.
 //!
-//! Returns the object's sound kind number. One caller, `sound::car_sounds`.
-//! Refuses (before writing) a kind past the 36 of the table and a revs extrapolation
-//! whose quotient does not fit (the original's `idiv` traps).
+//! Returns the object's sound kind number. One caller, `sound::car_sounds`. Refuses (before
+//! writing) a kind past the 36 of the table and a revs extrapolation whose quotient does not fit.
 
 use crate::errors::{BadInput, Refused};
 use crate::math::x87::from_int;
@@ -73,8 +71,7 @@ fn load(o: &crate::sound::store::SoundObject) -> Engine {
     }
 }
 
-/// The dwords `now` has changed from `before` put back in the object (the others are left
-/// alone, as the original never wrote them).
+/// The dwords `now` has changed from `before` put back in the object (the others are left alone).
 fn store(o: &crate::sound::store::SoundObject, before: &Engine, now: &Engine) {
     use crate::session::PlainDword;
     let put = |cell: &PlainDword, was: u32, is: u32| {
@@ -142,14 +139,14 @@ pub fn car_engine_state(
     race: &Race,
     system: &System,
 ) -> Result<u32, Refused> {
-    // Converted: `rc2k_core::sound::engine` (`extrapolation`, `readings`, `state`,
-    // `over_256`); the floats are the original's x87 still.
+    // The logic is `rc2k_core::sound::engine` (`extrapolation`, `readings`, `state`, `over_256`);
+    // the floats go through the x87 helpers.
     let kind = kind_of(so, sound.race.kinds.get())?;
     let record = sound.race.kinds.get().record(kind)?;
     let before = load(so);
     let mut object = before;
     let clock = sound.race.clock.get().last.get();
-    // The revs extrapolated, worked out first: its `idiv` may trap.
+    // The revs extrapolated, worked out first: its division may trap.
     let change = extrapolation(&object, clock, || {
         race.shared.replay_file().hold_car_revs.get()
     })
@@ -196,9 +193,8 @@ fn speed_input(so: &SoundObject, surface: &SurfaceSounds) {
         .set(stf(speed * ld(surface.speed_scale.get())));
 }
 
-/// The gear-change cue's pitch from the clock's low four bits `low`: `low / 60 + 0.75`
-/// (the factors as the game's float constants). The original worked in the machine's
-/// scratch dword and left 0.75 there.
+/// The gear-change cue's pitch from the clock's low four bits `low`: `low / 60 + 0.75` (the factors
+/// as the game's float constants). The machine's scratch dword is left holding 0.75.
 fn gear_pitch(so: &SoundObject, low: u32, system: &System) {
     system.machine().scratch.set(low);
     let pitch = gear_pitch_value(low);

@@ -1,5 +1,4 @@
-//! `scene::draw_car_object` (0x49017B): the 3D part of a frame of the car
-//! specification screen.
+//! `scene::draw_car_object`: the 3D part of a frame of the car specification screen.
 //!
 //! Only with the shown page at 0: `scene::clear_depth_buffer`, `scene::assign_kind_textures`,
 //! `pick_pictures`, `scene::map_texture_places`, `scene::load_slot_textures`,
@@ -27,8 +26,6 @@ use crate::scene::map_texture_places::map_texture_places;
 use crate::session::write_all;
 
 // ---- game data ----
-
-// ---- Rust version ----
 
 /// The four carousel entries around the car shown.
 pub fn picked(car: u32, count: u32) -> [u32; 4] {
@@ -100,7 +97,7 @@ pub fn run(o: crate::owners::Owners<'static>) -> Result<(), crate::errors::Refus
     map_texture_places(scene);
     load_slot_textures_in_game(&race.frame, scene)?;
     scene.lights.state.get().draw_mode.set(0u32);
-    // The front end's 3D draws on a slot of its own (frame plan F4).
+    // The front end's 3D draws on a slot of its own.
     let ctx = crate::race::view_scratch::DrawCtx::new(
         race,
         scene,

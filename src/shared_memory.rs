@@ -1,9 +1,9 @@
-//! Copies in and out of memory the game's threads share. The game keeps its state in memory
-//! every thread reaches, so a plain or volatile copy that meets another thread's write is a
-//! data race: undefined behaviour in Rust (found by ThreadSanitizer: the key table, the sound
-//! options). These copy through relaxed atomics byte by byte (2026-11-05: wider moves over
-//! the same bytes mixed sizes), so a dword copied here may be seen half written by another
-//! thread; the cells that need a dword whole are `Dword`s, read at their own width.
+//! Copies in and out of memory the game's threads share. The game keeps its state in memory every
+//! thread reaches, so a plain or volatile copy that meets another thread's write is a data race:
+//! undefined behaviour in Rust (found by ThreadSanitizer: the key table, the sound options). These
+//! copy through relaxed atomics byte by byte (wider moves over the same bytes mixed sizes), so a
+//! dword copied here may be seen half written by another thread; the cells that need a dword whole
+//! are `Dword`s, read at their own width.
 
 #![allow(unsafe_code)]
 
@@ -118,11 +118,10 @@ pub unsafe fn copy(from: *const u8, to: *mut u8, len: usize) {
     }
 }
 
-/// The bytes from `offset` of an object of `size` bytes at `base`, which is 4-aligned, copied
-/// into `to`: each whole dword of the object (`size` rounded down to 4) read as one
-/// `AtomicU32` (whole, as the processor read the original's dwords), the bytes past them as
-/// `AtomicU8`. Every access to the object takes these widths, whatever its offset and length,
-/// so none mixes sizes.
+/// The bytes from `offset` of an object of `size` bytes at `base`, which is 4-aligned, copied into
+/// `to`: each whole dword of the object (`size` rounded down to 4) read as one `AtomicU32` (whole,
+/// as a dword is read), the bytes past them as `AtomicU8`. Every access to the object takes these
+/// widths, whatever its offset and length, so none mixes sizes.
 ///
 /// # Safety
 /// `base` is 4-aligned and starts `size` live bytes that are reached only through

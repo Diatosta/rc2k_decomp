@@ -1,7 +1,7 @@
-//! `race::save_last_replay` (0x41ECFF): the last race's replay saved as a replay slot: opened
+//! `race::save_last_replay`: the last race's replay saved as a replay slot: opened
 //! (`race::open_viewed_replay`, 222), saved and closed (`race::close_viewed_replay`).
 //!
-//! Takes: the slot
+//! Takes the slot.
 //!
 //! Caller: `race::replay_viewer` (mode 3, the slot from `menu::save_replay_loop`; no flags
 //! read).

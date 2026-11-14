@@ -1,16 +1,13 @@
-//! `scene::add_car_lights` (0x44F1FE): which cars' lamps light an object.
+//! `scene::add_car_lights`: which cars' lamps light an object.
 //!
-//! Returns: the number of cars, the last car's block
-//!
-//! Goes through the race's cars (`race_cars`) and calls `scene::add_car_light` for:
+//! Returns the number of cars and the last car's block. Calls `scene::add_car_light` for:
 //! - in a network session: the network player's car, or every car while the split-screen
 //!   setting is 1;
 //! - else: the cars under the player count (every car while the split-screen setting is 1),
 //!   but not the car being drawn (the drawn-car light cell), and of those all of them if
 //!   the player count is 1 or the run kind is 0 or 2, else only the drawn view's car.
 //!
-//! One caller, `scene::gather_lights`. Refuses no cars (the original goes through 2^32) or more
-//! than the eight blocks.
+//! Refuses no cars or more than the eight blocks.
 
 use crate::errors::{BadInput, Refused};
 use crate::net::owner::Net;
@@ -18,8 +15,6 @@ use crate::race::frame_view::CarView;
 
 // ---- game data ----
 const BLOCKS: u32 = 8;
-
-// ---- Rust version ----
 
 /// The game's variables the choice reads.
 struct GameCars<'a>(
@@ -56,7 +51,7 @@ impl rc2k_core::scene::lamps::CarLights for GameCars<'_> {
     }
 }
 
-// Converted: `rc2k_core::scene::lamps::car_lights`
+// Logic: `rc2k_core::scene::lamps::car_lights`
 /// `drawn`: the car whose lights are skipped, or -1 (`ObjectLight::drawn_car_light`).
 pub fn add_car_lights(
     reads: crate::workers::DrawReads<'_>,

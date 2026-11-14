@@ -1,26 +1,23 @@
-//! The viewer plays a replay from `var\tmprpl` (the last race's, or a saved one copied
-//! there first), block by block (`replay_block`, 0 .. `index_block_count`; 100 frames a block,
-//! the frame in `replay_frame`), and edits it: two marks (`mark_in`, `mark_out`),
-//! cut, copy and paste of blocks (the clipboard `clip_places`, `clip_cameras`), one undo
-//! (`undo_blocks` ..), the cameras of each block (`block_cameras`: 8 bytes a block, the
-//! first 8 of the block's data), and saving the result as a replay slot.
-//!
-//! The tests: a copy of the original whose calls go to `install::stand_ins` (`copy`), noted by
-//! `note` with the call's four register values and answered by the test's `answer`; the Rust side calls
-//! `test_part`, which does the same.
+//! The viewer plays a replay from `var\tmprpl` (the last race's, or a saved one copied there
+//! first), block by block (`replay_block`, 0 .. `index.block_count`; 100 frames a block, the
+//! frame in `replay_frame`), and edits it: two marks (`mark_in`, `mark_out`), cut, copy and paste
+//! of blocks (the clipboard `clip_places`, `clip_cameras`), one undo (`undo_blocks` and the tables
+//! after it), the cameras of each block (`block_cameras`: 8 bytes a block, the first 8 of the
+//! block's data), and saving the result as a replay slot. This module holds the table helpers the
+//! viewer's actions share.
 
 use crate::errors::BadInput;
 use crate::math::cells::Cells;
 use crate::race::owner::Race;
 
-// ---- the replay being viewed ----
-
-pub const LAST_RACE: u32 = 0xDE; // the slot of `var\tmprpl` as it is
-pub const TABLE_LEN: usize = 0x3840; // 0x708 blocks of 8 bytes
+/// The slot number of `var\tmprpl` as it is.
+pub const LAST_RACE: u32 = 0xDE;
+/// The length of a camera table: 0x708 blocks of 8 bytes.
+pub const TABLE_LEN: usize = 0x3840;
 /// A byte of the blocks' cameras (8 bytes a block), met by its offset from the first block's
-/// cameras. The original does not check the offset against the table: a camera step from
-/// camera 0 reads the byte before it, the last byte of the replay block read (`block`, which
-/// ends where the cameras begin). Any other offset past the table is refused.
+/// cameras. The offset is not checked against the table: a camera step from camera 0 reads the
+/// byte before it, the last byte of the replay block read (`block`, which ends where the cameras
+/// begin). Any other offset past the table is refused.
 #[derive(Clone, Copy)]
 pub struct CameraByte(u32);
 
@@ -65,13 +62,11 @@ impl CameraByte {
 /// The last dword of the replay block read.
 const BLOCK_LAST: usize = 0xA03;
 
-/// The byte `offset` on from the first block's cameras (8 bytes a block; the original does not
-/// check the offset).
+/// The byte `offset` on from the first block's cameras (8 bytes a block); the offset is not
+/// checked against the table, see `CameraByte`.
 pub fn camera_byte_at(race: &Race, offset: usize) -> Result<u8, BadInput> {
     camera_byte(offset as u32).read(race, "a replay camera byte")
 }
-
-// ---- the list menu (`menu::list_*`) ----
 
 /// Whether `n` cells from `at` lie in `table`.
 fn inside(table: &dyn Cells, at: usize, n: usize) -> Result<(), BadInput> {
@@ -81,8 +76,8 @@ fn inside(table: &dyn Cells, at: usize, n: usize) -> Result<(), BadInput> {
     }
 }
 
-/// `rep movsd` of `dwords` from `from`'s cell `from_at` on to `to`'s cell `to_at` on,
-/// forwards; past either table refused before anything is written.
+/// Copies `dwords` cells from `from`'s cell `from_at` on to `to`'s cell `to_at` on, forwards;
+/// past either table is refused before anything is written.
 pub fn move_cells(
     to: &dyn Cells,
     to_at: usize,
@@ -98,7 +93,7 @@ pub fn move_cells(
     Ok(())
 }
 
-/// `std; rep movsd`: the same move from the last dword down (an overlapping move up).
+/// The same move within one table from the last dword down (for an overlapping move up).
 pub fn move_cells_back(
     table: &dyn Cells,
     to_at: usize,
@@ -113,7 +108,7 @@ pub fn move_cells_back(
     Ok(())
 }
 
-/// `dwords` cells of `table` from `at` on set to 0.
+/// Sets `dwords` cells of `table` from `at` on to 0.
 pub fn clear_cells(table: &dyn Cells, at: usize, dwords: usize) -> Result<(), BadInput> {
     inside(table, at, dwords)?;
     for n in 0..dwords {

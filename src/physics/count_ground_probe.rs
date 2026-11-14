@@ -1,12 +1,11 @@
-//! `physics::count_ground_probe` (0x438E22): one ground probe, counted: the face mask
-//! `settle_mark` 0x40, `ground_probes` up by one, `physics::find_ground`; when found
-//! `ground_found` up by one, and when the face is the last one again (`ground_face_last` =
-//! `ground_slot`) `ground_same` too. A reading: the camera's (or a test drive's) ground
-//! statistics.
+//! Counts one ground probe: the face mask `settle_mark` is 0x40, `ground_probes` goes up by one
+//! and `physics::find_ground` runs; when found `ground_found` goes up by one, and when the face is
+//! the last one again (`ground_face_last` = `ground_slot`) `ground_same` too. A reading: the
+//! camera's (or a test drive's) ground statistics.
 //!
-//! Takes: the point (`ground_x`, `ground_z`; the callers set it)
+//! Takes: the point (`ground_x`, `ground_z`; the callers set it).
 //!
-//! Callers: `physics::camera_low_switch`, `physics::camera_over_ground` (three). Refuses what
+//! Callers: `physics::camera_low_switch`, `physics::camera_over_ground`. Refuses what
 //! `find_ground` refuses.
 
 use crate::errors::Refused;
@@ -16,7 +15,7 @@ use crate::physics::ground_store::GroundWork;
 use crate::race::owner_course::Course;
 use rc2k_core::physics::walls::ProbeCounts;
 
-// Converted: `rc2k_core::physics::walls::ProbeCounts`.
+// Core: `rc2k_core::physics::walls::ProbeCounts`.
 pub fn count_ground_probe(
     camera: &CameraWork,
     ground_probe: &GroundProbe,

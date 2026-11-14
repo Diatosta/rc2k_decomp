@@ -1,6 +1,6 @@
-//! `race::loadlevel_init`'s "store norms": the course memory laid out
-//! (faces of 0x40 bytes, points of 12), and each face's two normals (of its first three
-//! points and of its last three) stored in it.
+//! The stage load's "store norms" step: the course memory laid out (faces of 0x40 bytes, points
+//! of 12), and each face's two normals (of its first three points and of its last three) stored
+//! in it.
 
 use crate::errors::BadInput;
 use crate::errors::Refused;
@@ -10,9 +10,8 @@ use crate::race::owner::Race;
 use crate::race::owner_course::Course;
 use crate::race::scratch_store::FrameScratch;
 
-/// `race::normalise_work_vector` (0x41FC4D): `g_workVector` made one long by its 80-bit length
-/// (`math::x87::normalise_in_place`); a length equal to 0 makes it 0; -0.0 parts become 0. The
-/// length rounded into `scratch`.
+/// Makes `work_vector` one long by its 80-bit length (`math::x87::normalise_in_place`); a length
+/// of 0 makes it 0; -0.0 parts become 0. The length, rounded, goes into `scratch`.
 pub fn normalise_work_vector(
     numbers: &Numbers,
     scratch: &FrameScratch,
@@ -35,9 +34,9 @@ pub fn normalise_work_vector(
     }
 }
 
-/// `race::face_normal` (0x422144): the points `a`, `b`, `c` of `g_scenePoints` kept, the
-/// differences b - a and c - a (whole numbers), their cross product into `g_workVector` (each part
-/// as `math::x87::int_product_difference`), normalised.
+/// Takes the points `a`, `b`, `c` of `scene_points`, makes the differences b - a and c - a (whole
+/// numbers) and puts their cross product into `work_vector` (each part as
+/// `math::x87::int_product_difference`), normalised.
 pub fn face_normal(
     race: &Race,
     scene: &crate::scene::owner::Scene,
@@ -69,7 +68,7 @@ pub fn face_normal(
         work[6..9].copy_from_slice(&c);
         work[9..].copy_from_slice(&d);
         crate::session::write_bits(&race.physics.ground().normal_work, work.map(|v| v as u32));
-        // c4 = d[0], c8 = d[1], cc = d[2], d0 = d[3], d4 = d[4], d8 = d[5]
+
         let normal = [
             x87::int_product_difference(d[5], d[2], d[3], d[4]),
             x87::int_product_difference(d[1], d[4], d[5], d[0]),
@@ -82,18 +81,18 @@ pub fn face_normal(
     Ok(())
 }
 
-/// `race::store_face_normal` (0x421F72): a face. Nothing for a face whose first byte is 0x10 or
-/// more; else bit 0x200 of its word +2 set when two of its points (+4, +8, +0xC, and +0x10 unless
-/// the view scratch's fourth corner is -1) are the same in their low twelve bits, cleared otherwise; then, when all
-/// three are below `g_scenePointCount`, the normal of +4, +8, +0xC (else `g_workVector` as it was)
-/// into +0x18, +0x30, +0x38, and of +0x10, +0xC, +8 into +0x1C, +0x34, +0x3C.
+/// Stores a face's normals. Nothing for a face whose first byte is 0x10 or more; else bit 0x200
+/// of its word +2 is set when two of its points (+4, +8, +0xC, and +0x10 unless the view
+/// scratch's fourth corner is -1) are the same in their low twelve bits, cleared otherwise; then,
+/// when all three are below `scene_point_count`, the normal of +4, +8, +0xC (else `work_vector` as
+/// it was) goes into +0x18, +0x30, +0x38, and that of +0x10, +0xC, +8 into +0x1C, +0x34, +0x3C.
 pub fn store_face_normal(
     race: &Race,
     face_number: u32,
     normal: &mut dyn FnMut(u32, u32, u32) -> Result<(), BadInput>,
 ) -> Result<(), BadInput> {
     {
-        // Converted: `rc2k_core::race::faces::{takes_normals, repeated_points,
+        // Logic in `rc2k_core::race::faces::{takes_normals, repeated_points,
         // with_repeated, normal_made}`.
         use rc2k_core::race::faces::{
             NORMAL_TRIANGLES, normal_made, repeated_points, takes_normals, with_repeated,
@@ -131,13 +130,13 @@ pub fn store_face_normal(
     Ok(())
 }
 
-/// `race::lay_out_course` (0x421BE3): from `g_courseMemory` + 0x100, `course_record_count` records of
-/// 0x20, the faces (`course_faces`, `course_face_count` of 0x40), the points (`g_scenePoints`,
-/// `g_scenePointCount` of 12), and what follows (`course_tail`, and its offset in `CourseWork.course_tail[1]`);
-/// the first at `course_records`.
+/// Lays out the course memory from `course_memory` + 0x100: `course_record_count` records of 0x20
+/// (the first at `course_records`), the faces (`course_faces`, `course_face_count` of 0x40), the
+/// points (`scene_points`, `scene_point_count` of 12), and what follows (`course_tail`, and its
+/// offset in `CourseWork.course_tail[1]`).
 pub fn lay_out_course(course: &Course) {
     {
-        // Converted: `rc2k_core::race::faces::CourseLayout`.
+        // Logic in `rc2k_core::race::faces::CourseLayout`.
         let layout = rc2k_core::race::faces::CourseLayout::of(
             course.lists.get().course_memory.get(),
             course.course.get().course_record_count.get(),
@@ -168,14 +167,14 @@ pub fn lay_out_course(course: &Course) {
     }
 }
 
-/// `race::store_norms` (0x421F02): `lay_out_course`, then `store_face_normal` for every face.
-/// Refuses no faces (the original counts round) or 0x100000 or more.
+/// Runs `lay_out_course`, then `store_face_normal` for every face.
+/// Refuses no faces or 0x100000 or more.
 pub fn store_norms(
     race: &Race,
     normal: &mut dyn FnMut(u32, u32, u32) -> Result<(), BadInput>,
 ) -> Result<(), Refused> {
     {
-        // Converted: `rc2k_core::race::faces::check_face_count`.
+        // Logic in `rc2k_core::race::faces::check_face_count`.
         let count: u32 = race.course.course.get().course_face_count.get();
         rc2k_core::race::faces::check_face_count(count)?;
         lay_out_course(&race.course);

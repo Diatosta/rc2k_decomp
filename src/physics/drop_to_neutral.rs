@@ -1,17 +1,16 @@
-//! `physics::drop_to_neutral` (0x43FD71): with `contact_flag` set, in gear, the engine
-//! speed below `stall_engine_speed` (`fcomp`, C0: also when unordered) and `no_auto_neutral` 0: gear
-//! 0, `drive_cut_steps` = `drive_cut_steps`, `gear_change_hold` = 0x14, `gear_changed` and
-//! `gear_change_pending` 1 (as the gear changes of `physics::change_gear` set them). Probably the engine
-//! stalling into neutral: the engine speed below the stall limit, the gear dropped to 0.
+//! With `contact_flag` set, in gear, the engine speed below `stall_engine_speed` (also when
+//! unordered) and `no_auto_neutral` 0: gear 0, `drive_cut_steps` from the tables,
+//! `gear_change_hold` = 0x14, `gear_changed` and `gear_change_pending` 1 (as the gear changes of
+//! `physics::change_gear` set them). Probably the engine stalling into neutral.
 //!
-//! Caller: `physics::car_physics_step` (0x43B966), every physics step.
+//! Caller: `physics::car_physics_step`, every physics step.
 
 use crate::physics::car_store::Car;
 use crate::physics::tables_store::PhysicsTables;
 use rc2k_core::physics::gearing::drops_to_neutral;
 
 /// A compare of floats only: the same at any precision.
-// Converted: `rc2k_core::physics::gearing::drops_to_neutral`.
+// Core: `rc2k_core::physics::gearing::drops_to_neutral`.
 pub fn drop_to_neutral(car: &Car, tables: &PhysicsTables) {
     if !drops_to_neutral(
         car.contact_flag.get(),

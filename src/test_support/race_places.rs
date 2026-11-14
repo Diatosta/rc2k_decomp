@@ -1,8 +1,8 @@
-//! Where the race block's places the recorded blocks read and write live in the registry's
-//! stores: the block's offset (the original instruction's displacement), the store's
-//! registry name and the field in the store, by its path (`ByteView::field_path`). The blocks'
-//! tests (`vectors::block_vectors`) reach the places through the stores by name, a field
-//! through `paths` and not by its byte in the record.
+//! Where the race block's places the recorded blocks read and write live in the registry's stores:
+//! the block's offset (the recorded instruction's displacement), the store's registry name and the
+//! field in the store, by its path (`ByteView::field_path`). The blocks' tests
+//! (`vectors::block_vectors`) reach the places through the stores by name, a field through `paths`
+//! and not by its byte in the record.
 
 use std::sync::OnceLock;
 

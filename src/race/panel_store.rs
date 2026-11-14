@@ -1,57 +1,57 @@
-//! The race panel: the HUD record the race frame fills for the HUD (`g_hudRecord`, IDA 0x6D13FE;
-//! the original's HUD walks it by offset, the `hud::` drawers read its fields) and the variables
-//! around it: the two views' values (place, times, split gaps, motion), the overlay's miles and
-//! parts, the start lights, the marks, the HUD flags and the texture counter. Names are readings
-//! unless IDA's.
+//! The race panel: the HUD record the race frame fills for the HUD (read by the `hud::` drawers
+//! by field) and the variables around it: the two views' values (place, times, split gaps,
+//! motion), the overlay's miles and parts, the start lights, the marks, the HUD flags and the
+//! texture counter.
 
 use crate::cells::ZeroCells;
 use crate::session::{PlainBytes, PlainDword};
 
-/// The first view's values for the panel (0x30 bytes from 0x6D140E; `race::panel_values`, `race::panel_motion`).
+/// The first view's values for the panel (0x30 bytes; `panel_values_plain`,
+/// `panel_motion_plain`).
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct ViewA {
-    /// The speed shown, rounded (`flt_6D140E`; the car's +0x718).
+    /// The speed shown, rounded (the car's +0x718).
     pub whole: PlainDword,
     /// The engine sound's speed (the car's +0xAB0).
     pub speed: PlainDword,
     /// The gear (the car's +0x1D4).
     pub gear: PlainDword,
-    /// The place (`dword_6D141A`; `race::panel_players` and `race::panel_neighbours` set it, `race::panel_values` the car's split gap 0).
+    /// The place (`race::panel_players` and `race::panel_neighbours` set it, `panel_values_plain`
+    /// the car's split gap 0).
     pub place: PlainDword,
     /// The stage time in tenths (the car's +0x88 x 10).
     pub time: PlainDword,
     /// The car's +0xA14 (split gap 2; `race::panel_neighbours`: its +0x634).
     pub split2: PlainDword,
-    /// The car behind's number (`dword_6D1426`; the car's split gap 4 in `race::panel_values`).
+    /// The car behind's number (the car's split gap 4 in `panel_values_plain`).
     pub back: PlainDword,
-    /// Minus the car's split gap 1 (`dword_6D142A`).
+    /// Minus the car's split gap 1.
     pub negated: PlainDword,
-    /// The car ahead's number (`dword_6D142E`; the car's split gap 3 in `race::panel_values`).
+    /// The car ahead's number (the car's split gap 3 in `panel_values_plain`).
     pub front: PlainDword,
-    /// `flt_6D1432` ..: the map picture's two shifts and the heading (`race::panel_motion`).
+    /// The map picture's two shifts and the heading (`panel_motion_plain`).
     pub motion: [PlainDword; 3],
 }
 
-/// The second view's values for the panel (0x28 bytes from 0x6D143E).
+/// The second view's values for the panel (0x28 bytes).
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct ViewB {
     pub whole: PlainDword,
     pub speed: PlainDword,
     pub gear: PlainDword,
-    /// `dword_6D144A`.
     pub place: PlainDword,
     pub time: PlainDword,
     pub split2: PlainDword,
-    /// Minus the car's split gap 1 (`dword_6D1456`).
+    /// Minus the car's split gap 1.
     pub negated: PlainDword,
-    /// `flt_6D145A` ..: as the first view's.
+    /// As the first view's.
     pub motion: [PlainDword; 3],
 }
 
-/// One view's start lights (0x10 bytes from 0x6D1482 and 0x6D1492; `race::countdown_lights`, `drive::countdown_beep`).
+/// One view's start lights (0x10 bytes; `race::countdown_lights`, `drive::countdown_beep`).
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct Lights {
-    /// The lit count (`unk_6D1482`; -1 before the race: no extra texture).
+    /// The lit count (-1 before the race: no extra texture).
     pub lit: PlainDword,
     /// The start-lights icon's width (`hud::draw_icon`).
     pub width: PlainDword,
@@ -61,7 +61,7 @@ pub struct Lights {
     pub drop: PlainDword,
 }
 
-/// One view's marks (0x14 bytes from 0x6D14A2 and 0x6D14B6; `race::panel_marks`).
+/// One view's marks (0x14 bytes; `race::panel_marks`).
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct Marks {
     /// The first (at most 4) marks, each + 1.
@@ -72,51 +72,50 @@ pub struct Marks {
 
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct Panel {
-    /// +0x0 (0x6D13FE): `g_hudRecord`: the HUD record's first dword (the first car's split gap 6,
-    /// `race::panel_values`).
+    /// The HUD record's first dword (the first car's split gap 6, `panel_values_plain`).
     pub split_6: PlainDword,
-    /// +0x4 (0x6D1402): `unk_6D1402`: the first car's split gap 5.
+    /// The first car's split gap 5.
     pub split_5: PlainDword,
-    /// +0x8 (0x6D1406): not named or used (a gap of 0x8 bytes).
+    /// Unused (a gap of 0x8 bytes).
     pub unused_8: PlainBytes<8>,
-    /// +0x10 (0x6D140E): `unk_6D140E` .. : the first view's values.
+    /// The first view's values.
     pub view_a: ViewA,
-    /// +0x40 (0x6D143E): `unk_6D143E` .. : the second view's values.
+    /// The second view's values.
     pub view_b: ViewB,
-    /// +0x68 (0x6D1466): `g_overlayMiles`: the stage's length in miles (`race::init_overlay`).
+    /// The stage's length in miles (`race::init_overlay`).
     pub overlay_miles: PlainDword,
-    /// +0x6c (0x6D146A): `unk_6D146A`, `unk_6D146E`: each view's distance shown (`race::panel_values`; cleared by `race::init_overlay`).
+    /// Each view's distance shown (`panel_values_plain`; cleared by `race::init_overlay`).
     pub distance: [PlainDword; 2],
-    /// +0x74 (0x6D1472): `g_overlayParts`: the number of parts of the stage bar (`race::init_overlay`).
+    /// The number of parts of the stage bar (`race::init_overlay`).
     pub overlay_parts: PlainDword,
-    /// +0x78 (0x6D1476): not named or used (a gap of 0xc bytes): the three arrays' places of the
-    /// overlay (`g_overlayPartMiles`, `g_overlayPartKindsA`, `g_overlayPartKindsB`), kept as
-    /// IDA's addresses, as names (nothing reads them).
+    /// Unused (a gap of 0xc bytes): the places of the overlay's three arrays
+    /// (`overlay_part_miles`, `overlay_part_kinds_a`, `overlay_part_kinds_b`); nothing reads them.
     pub unused_78: PlainBytes<12>,
-    /// +0x84 (0x6D1482): `unk_6D1482`, `unk_6D1492`: the two views' start lights.
+    /// The two views' start lights.
     pub lights: [Lights; 2],
-    /// +0xa4 (0x6D14A2): `unk_6D14A2` .. `unk_6D14C6`: the two views' marks.
+    /// The two views' marks.
     pub marks: [Marks; 2],
-    /// +0xcc (0x6D14CA): `dword_6D14CA`, `dword_6D14CE`: each view's start value (`race::race_shell`).
+    /// Each view's start value (`race::race_shell`).
     pub start_values: [PlainDword; 2],
-    /// +0xd4 (0x6D14D2): not named or used (a gap of 0x20 bytes).
+    /// Unused (a gap of 0x20 bytes).
     pub unused_d4: PlainBytes<32>,
-    /// +0xf4 (0x6D14F2): `dword_6D14F2`: the HUD's layout (the record's +0xF4; `hud::overlay_pass`).
+    /// The HUD's layout (`hud::overlay_pass`).
     pub players: PlainDword,
-    /// +0xf8 (0x6D14F6): `dword_6D14F6`, `dword_6D14FA`: each view's HUD flags (the car block's +0x220; bit 0x40 flat, 8 the mirror).
+    /// Each view's HUD flags (the car block's +0x220; bit 0x40 flat, 8 the mirror).
     pub hud_flags: [PlainDword; 2],
-    /// +0x100 (0x6D14FE): `dword_6D14FE`: the HUD batch's texture (`hud::add_polygon`, `hud::set_batch_texture`).
+    /// The HUD batch's texture (`hud::add_polygon`, `hud::set_batch_texture`).
     pub shown_texture: PlainDword,
-    /// +0x104 (0x6D1502): `dword_6D1502`: the first view's HUD flags' bit 0x40, the flat layout (`race::draw_race_scene`).
+    /// The first view's HUD flags' bit 0x40, the flat layout (`race::draw_race_scene`).
     pub flat: PlainDword,
-    /// +0x108 (0x6D1506): not named or used (a gap of 0x2 bytes).
+    /// Unused (a gap of 0x2 bytes).
     pub unused_108: PlainBytes<2>,
-    /// +0x10a (0x6D1508): `dword_6D1508`: the texture changes counted this frame (`race::frame_views`, `race::update_mud_texture`).
+    /// The texture changes counted this frame (`race::frame_views`,
+    /// `race::update_mud_texture`).
     pub texture_changes: PlainDword,
 }
 
 impl Panel {
-    /// The hud's panel as the game starts.
+    /// The hud's panel at the start.
     pub const fn new() -> Self {
         Panel {
             overlay_miles: PlainDword::new(0x42700000),

@@ -1,7 +1,7 @@
 use crate::scene::owner::Scene;
 const DRAWTRI_RVA: &std::ffi::CStr = c"drawtri"; // aDrawtri_0
 
-/// The device's result and the flags the original leaves are read by none of its callers.
+/// The device's result is read by none of its callers.
 pub fn draw_fan(
     part: &crate::workers::PartScratch,
     scene: &Scene,

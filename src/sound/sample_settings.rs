@@ -1,13 +1,11 @@
-//! `sound::sample_settings` (0x40BA71): a sound's volume and rate, the sample's own where
-//! asked for and held to what the mixer takes.
+//! `sound::sample_settings`: a sound's volume and rate, the sample's own where asked for and held
+//! to what the mixer takes.
 //!
-//! Returns: the volume, the rate
-//! A sample without a buffer (+8 null): volume 0, rate 44100. Else a volume of -0x6F (the
-//! sample's own) takes the record's +0x28, then is held to 0 .. 0x40 (signed); a rate of -0x6F takes the record's
-//! +0x30, then (so a record's -0x70 chains) -0x70 the buffer's +0x24, then is held to
-//! 100 .. 200000 (signed).
-//! Five callers (the race sounds' turn). Refuses a sample past the 0x1CD records (the
-//! original reads past them, into the next table; refused).
+//! Returns the volume and the rate. A sample without a buffer: volume 0, rate 44100. Else a volume
+//! of -0x6F (the sample's own) takes the record's volume, then is held to 0 .. 0x40 (signed); a
+//! rate of -0x6F takes the record's rate, then (so a record's -0x70 chains) -0x70 the buffer's
+//! rate, then is held to 100 .. 200000 (signed). Five callers (the race sounds' turn). Refuses a
+//! sample past the 0x1CD records.
 
 use crate::audio::owner::Audio;
 use crate::audio::voices::{SampleRecord, voice_of};
@@ -51,7 +49,7 @@ pub fn sample_settings(
     volume: u32,
     rate: u32,
 ) -> Result<(u32, u32), BadInput> {
-    // Converted: `rc2k_core::audio::samples::settings`.
+    // The logic is `rc2k_core::audio::samples::settings`.
     let record = record(audio, sample)?;
     Ok(rc2k_core::audio::samples::settings(
         volume,

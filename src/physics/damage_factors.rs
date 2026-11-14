@@ -1,11 +1,11 @@
-//! `physics::damage_factors` (0x4AB5E6): the damage model's figures for this step
-//! (`physics/damage_model.rs`).
+//! The damage model's figures for this step (`physics/damage_model.rs`).
 //!
-//! From the car block it works out, in `DAMAGE`: the ride-height, stiffness and brake
-//! shares; per wheel the stiffness and ride height that follow the suspension damage (a
-//! wheel at the top of the gauge is worn out); the engine's and the car's speed shares
-//! against their limits; the switches `wheels_down`, `brake_share` and `DamageModel.engine_over_limit` (the
-//! engine past its limit); the copies of the gear, tyre kind and surface; the side hit
+//! From the car block it works out, in the damage model: the ride-height, stiffness and brake
+//! shares; per wheel the stiffness and ride height that follow the suspension damage (a wheel
+//! at the top of the gauge is worn out); the engine's and the car's speed shares against their
+//! limits;
+//! the switches `wheels_down`, `brake_share` and `DamageModel.engine_over_limit` (the engine
+//! past its limit); the copies of the gear, tyre kind and surface; the side hit
 //! (`DamageModel.hit_side`, 1 .. 4) and its size; the four wheels' loads; and the hit time.
 //!
 //! Caller: `physics::damage_step`.
@@ -178,8 +178,7 @@ fn means_and_engine_speed(car: &Car, m: &DamageModel) {
         &car.stiffness_mean,
         (value(s0) + value(s1) + value(s2) + value(s3)) * quarter,
     );
-    // The original passed the car's whole number through the x87 as a float (`fld` / `fstp`),
-    // which gives back the same bits.
+    // The car's whole number passes through the x87 as a float, which gives back the same bits.
     m.drive_kind.set(car.drive_kind.get());
     store(&m.scratch, value(&car.engine_speed).abs());
 }
@@ -323,8 +322,7 @@ mod reference_vectors {
         )
     }
 
-    /// The damage model as the test's buffer holds it (the buffer's base plus the RVA of
-    /// 0x75B340).
+    /// The damage model as the test's buffer holds it.
     fn dm(base: usize) -> &'static DamageModel {
         crate::physics::store::model_in_test_buffer(base)
     }
@@ -877,7 +875,7 @@ mod reference_vectors {
 
     #[test]
     fn x87_blocks_matches_the_assembly() {
-        // The plain code rounds to nearest, as the game always runs the damage model.
+        // The plain code rounds to nearest, the mode the damage model always runs in.
         sparse_at("physics.damage_factors", &blocks(), 1200, 100, &[0x027F]);
     }
 }

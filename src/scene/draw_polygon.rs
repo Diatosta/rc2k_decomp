@@ -1,34 +1,32 @@
-//! `scene::draw_polygon` (0x44BA2C): shades one polygon and draws it, in one or two
-//! passes by its material.
+//! `scene::draw_polygon`: shades one polygon and draws it, in one or two passes by its
+//! material.
 //!
-//! In:  nothing, all in variables (below)
-//!
-//! The polygon is `polygon_vertex_count` entries of the work table (0x44 bytes each),
-//! picked through the entry list. An entry: +4 the projected vertex (its +0xC x, +0x1C y,
-//! +0x18 depth), +8 and +0x10 two pairs of texture coordinates, +0x18 the vertex's light as
-//! a colour, +0x20 a byte (fog or alpha by the pass) and +0x21 another, +0x24 and +0x2C two
-//! pairs of colour and specular that this function fills.
+//! The polygon is `polygon_vertex_count` entries of the work table (0x44 bytes each), picked
+//! through the entry list. An entry: +4 the projected vertex (its +0xC x, +0x1C y, +0x18
+//! depth), +8 and +0x10 two pairs of texture coordinates, +0x18 the vertex's light as a colour,
+//! +0x20 a byte (fog or alpha by the pass) and +0x21 another, +0x24 and +0x2C two pairs of
+//! colour and specular that this function fills.
 //!
 //! What it does, in order:
-//! 1. While the sun's `on_screen` switch is set and the polygon has three vertices or
-//!    more, tests whether the sun's hit point lies inside it (each edge by a 64-bit cross
-//!    product of whole numbers) and clears the switch if it does.
+//! 1. While the sun's `on_screen` switch is set and the polygon has three vertices or more,
+//!    tests whether the sun's hit point lies inside it (each edge by a 64-bit cross product of
+//!    whole numbers) and clears the switch if it does.
 //! 2. Keeps the two material switches and the mode, put back at the end.
-//! 3. With `view_mirrored` set: the list's entries after the first are reversed, and after
-//!    4 every x is mirrored.
-//! 4. The positions into the vertex buffer: x and y plus an offset, the depth times a
-//!    factor, and 1/w as 0.01 / that, or with SSE `rcpss` of the depth times 65536.
+//! 3. With `view_mirrored` set: the list's entries after the first are reversed, and after 4
+//!    every x is mirrored.
+//! 4. The positions into the vertex buffer: x and y plus an offset, the depth times a factor,
+//!    and 1/w as 0.01 / that, or with SSE `rcpss` of the depth times 65536.
 //! 5. With `faded` set: a first pass in a colour faded from `fade_from` towards 0x10 by each
 //!    entry's byte +0x20 (`gfx::fade_colour`), with texture 0xC0.
-//! 6. The pass or two of the polygon mode (0, 2 .. 6, 8, 9, 0xA; anything else draws
-//!    nothing): the entries' colours (`Shade`), which texture and coordinates, five or six
-//!    render states, `scene::submit_polygon`. `PASSES` has the table. Modes 3, 4 and 5 fall
-//!    back to 2, and to 8, 9 and 0xA, when one of the two material switches is 0; mode 3
-//!    first lets `clear_a_switch` clear a switch by the entries' bytes +0x21.
+//! 6. The pass or two of the polygon mode (0, 2 .. 6, 8, 9, 0xA; anything else draws nothing):
+//!    the entries' colours (`Shade`), which texture and coordinates, five or six render
+//!    states, `scene::submit_polygon`. `passes` has the table. Modes 3, 4 and 5 fall back to 2,
+//!    and to 8, 9 and 0xA, when one of the two material switches is 0; mode 3 first lets
+//!    `clear_a_switch` clear a switch by the entries' bytes +0x21.
 //!
-//! The x87 and `rcpss` are used with the original's own rounding. Refuses a polygon of no
-//! vertices (the original then goes through 2^32) or of more than 256, a list entry past the
-//! work table and an entry without its vertex.
+//! The x87 and `rcpss` are used with the processor's own rounding. Refuses a polygon of no
+//! vertices or of more than 256, a list entry past the work table and an entry without its
+//! vertex.
 
 use crate::d3d::NO_TEXTURE;
 use crate::d3d::vertices_store::PolygonVertices;
@@ -153,8 +151,6 @@ fn passes(mode: u32) -> Option<(Shade, smallvec::SmallVec<[Pass; 2]>)> {
     })
 }
 
-// ---- Rust version ----
-
 /// What the function asks of the code around it.
 pub trait Outside: submit_polygon::Outside {
     /// `d3d::set_render_state`.
@@ -217,7 +213,6 @@ fn hit_test(
         return;
     }
     let point = crate::session::read_bits(&sun.hit).map(|v| v as i32);
-    // (The original kept the point and each edge in `LightState.hit_work`, read by nothing.)
     if entries.len() < 3 {
         return;
     }
@@ -413,7 +408,6 @@ pub fn draw_polygon(
     }
     let buffer = &part.vertices;
     if count as usize > buffer.vertices.len() {
-        // The original writes the vertices on past the buffer.
         return Err(BadInput(
             "a polygon of more vertices than the vertex buffer holds",
         ));

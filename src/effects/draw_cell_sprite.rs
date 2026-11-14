@@ -1,17 +1,14 @@
-//! `effects::draw_cell_sprite` (0x4CB796): a ring entry's sprite: the place (st(0) x, st(1) y,
-//! st(2) z) turned by the view matrix into the draw work's place (the depth also whole in the
-//! ring's `whole`); unless the depth is at or below the nearest depth (a signed compare of the
-//! bits): the four vertices' specular `scene::fog_at` of the depth, colour (the alpha's top
-//! byte | the entry's +0x90), texture places from the cell's entry in the cell places, depth
-//! times the depth scale; half the side (the size times the view scale / depth, and that
-//! times the cell's corner slope) turned by the sine and cosine tables at the angle; the
-//! corners about the projected place; `effects::clip_quad`, and unless all is outside
-//! `scene::draw_fan` and the polygon's vertex count 4.
+//! `effects::draw_cell_sprite`: a ring entry's sprite: the place (x, y, z) turned by the view
+//! matrix into the draw work's place (the depth also whole in the ring's `whole`); unless the depth
+//! is at or below the nearest depth (a signed compare of the bits): the four vertices' specular
+//! `scene::fog_at` of the depth, colour (the alpha's top byte | the entry's +0x90), texture places
+//! from the cell's entry in the cell places, depth times the depth scale; half the side (the size
+//! times the view scale / depth, and that times the cell's corner slope) turned by the sine and
+//! cosine tables at the angle; the corners about the projected place; `effects::clip_quad`, and
+//! unless all is outside `scene::draw_fan` and the polygon's vertex count 4.
 //!
-//! Callers: the ring's kinds 1, 5, 6, 0xD, 0x13, 0x15, 0x16 (`effects::run_ring`) and one more caller.
-//! The x87 blocks are plain Rust on the x87 model (`math::x87_float`), in the original's order, over the game's variables. Refuses,
-//! before anything, a cell past 0x40, an angle of 0x1000 or more, a null entry, and the
-//! fog's and the clip's refusals.
+//! The x87 blocks are plain Rust on the x87 model (`math::x87_float`). Refuses, before anything, a
+//! cell past 0x40, an angle of 0x1000 or more, a null entry, and the fog's and the clip's refusals.
 
 use crate::effects::cell_x87::CellX87;
 use crate::effects::clip_quad::{clip_quad, draw_fan};
@@ -34,8 +31,8 @@ fn turn(
     turn_x87(view_matrix, p, &ring.work, &effects.frame.draw_work);
 }
 
-/// The square, turned, about the projected place. Gives a value the original keeps in a
-/// register: the draw work's `DrawWork.sprite_half[1]` cell between its two stores.
+/// The square, turned, about the projected place. Gives a value kept in the draw work's
+/// `DrawWork.sprite_half[1]` cell between its two stores.
 fn square(
     engine_tables: &crate::scene::engine_tables_store::EngineTables,
     buffer: &crate::d3d::vertices_store::PolygonVertices,
@@ -129,7 +126,7 @@ use crate::math::x87_float as bh;
 use crate::scene::engine_tables_store::{cosine, sine};
 use crate::session::PlainFloat;
 
-/// `turn`'s x87 block as plain Rust on the x87 model (37 instructions), same order and memory places.
+/// `turn`'s arithmetic as plain Rust on the x87 model, in the same order.
 fn turn_x87(
     view_matrix: &[crate::session::PlainFloat; 16],
     p: &[[u8; 10]; 3],
@@ -181,11 +178,11 @@ fn slope_at(cs: &CornerSlopes, k: usize) -> &PlainFloat {
     }
 }
 
-/// `square`'s x87 block as plain Rust on the x87 model (77 instructions), same order and memory places.
-/// `k` is the cell's offset in the cell table (16 bytes a cell), which the original also
-/// adds to the corner slopes table (records of 0x24: it reads the float at that byte, whatever
-/// field it falls on: section 16), so that read goes through `slope_at`. `angle` is the
-/// sine table's cell (the original's `s` is four times it; the cosine is the cell 0x400 on).
+/// `square`'s arithmetic as plain Rust on the x87 model, in the same order. `k` is the
+/// cell's offset in the cell table (16 bytes a cell), which is also added to the corner
+/// slopes table (records of 0x24: the float at that byte is read, whatever field it falls
+/// on; a slip kept as is), so that read goes through `slope_at`. `angle` is the sine
+/// table's cell (the cosine is the cell 0x400 on).
 fn square_x87(
     engine_tables: &crate::scene::engine_tables_store::EngineTables,
     buffer: &crate::d3d::vertices_store::PolygonVertices,
@@ -294,13 +291,15 @@ mod reference_vectors {
         let saved: Vec<u32> = cells.iter().map(|(c, _)| c.bits()).collect();
         for &(c, a) in cells {
             // SAFETY: `at` checks that the four bytes lie in the operand's test buffer, which the
-            // recorded run keeps alive and nothing else reaches meanwhile; unaligned, any bits a `u32`.
+            // recorded run keeps alive and nothing else reaches meanwhile; unaligned, any bits a
+            // `u32`.
             c.set_bits(unsafe { host(a).read_unaligned() });
         }
         let out = f();
         for (&(c, a), &old) in cells.iter().zip(&saved) {
             // SAFETY: `at` checks that the four bytes lie in the operand's test buffer, which the
-            // recorded run keeps alive and nothing else reaches meanwhile; unaligned, any bits a `u32`.
+            // recorded run keeps alive and nothing else reaches meanwhile; unaligned, any bits a
+            // `u32`.
             unsafe { host(a).write_unaligned(c.bits()) };
             c.set_bits(old);
         }

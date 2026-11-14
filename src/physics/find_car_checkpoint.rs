@@ -1,8 +1,8 @@
-//! `physics::find_car_checkpoint` (0x44139D): the work car's checkpoint looked for near the last
-//! one. The car's x and z go into `ground_x` / `ground_z`; with no checkpoints the result is 0.
-//! Else `race::nearest_checkpoint_in` runs over the car's `checkpoint` - 1 ..= + 1; its distance
-//! (/ 65536) goes into `g_nearestCheckpointDistance`; above 0xA0000 (unsigned)
-//! `race::nearest_checkpoint` runs over them all, else the nearest of the three is the result.
+//! Looks for the work car's checkpoint near the last one. The car's x and z go into `ground_x`
+//! and `ground_z`; with no checkpoints the result is 0. Otherwise `race::nearest_checkpoint_in`
+//! runs over the car's `checkpoint` - 1 ..= + 1; its distance (/ 65536) goes into
+//! `nearest_checkpoint_distance`; above 0xA0000 (unsigned) `race::nearest_checkpoint` runs over
+//! all of them, otherwise the nearest of the three is the result.
 //!
 //! Caller: `physics::track_checkpoints`. Refuses what the two calls refuse.
 
@@ -16,7 +16,7 @@ use rc2k_core::physics::progress;
 /// The car's checkpoint: the nearest within the window about the one it had
 /// (`race::nearest_checkpoint_in`), or, when that is too far, of them all
 /// (`race::nearest_checkpoint`).
-// Converted: `rc2k_core::physics::progress::{near_window, search_all}`.
+// Core: `rc2k_core::physics::progress::{near_window, search_all}`.
 pub fn find_car_checkpoint(
     physics: &Physics,
     course: &Course,
@@ -38,7 +38,7 @@ pub fn find_car_checkpoint(
     let near =
         crate::race::start_place::nearest_checkpoint_in(physics, course, shared, from, to, scene)?;
     scene.drawing.scene.get().scratch.set(near.distance);
-    // g_nearestCheckpointDistance
+    // The nearest checkpoint's distance.
     shared
         .physics_tables
         .get()

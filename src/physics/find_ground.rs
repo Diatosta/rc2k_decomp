@@ -1,12 +1,12 @@
-//! `physics::find_ground` (0x441E29): `call physics::ground_search; retn`.
+//! Searches for the ground under a point (`physics::ground_search`; see `physics/ground.rs`).
 //!
-//! In:  the point (`ground_x`, `ground_z`), the face mask `settle_mark`, the
-//!      last face `ground_face_last`
+//! Takes: the point (`ground_x`, `ground_z`), the face mask `settle_mark` and the last face
+//! `ground_face_last`.
 //!
-//! See `physics/ground.rs`. Callers (7): `physics::probe_ground` (the car's ground points),
-//! `physics::move_slot`, `drive::animate_lit_faces`, `race::shadow_points`,
-//! `physics::car_lighting`, `drive::simple_car_step`, `physics::count_ground_probe`. Refuses what
-//! `ground_search` refuses.
+//! Callers: `physics::probe_ground` (the car's ground points), `physics::move_slot`,
+//! `drive::animate_lit_faces`, `race::shadow_points`, `physics::car_lighting`,
+//! `drive::simple_car_step`, `physics::count_ground_probe`. Refuses what `ground_search`
+//! refuses.
 
 use crate::errors::Refused;
 use crate::physics::ground_probe_store::GroundProbe;
@@ -14,7 +14,7 @@ use crate::physics::ground_search::ground_search;
 use crate::physics::ground_store::GroundWork;
 use crate::race::owner_course::Course;
 
-/// The carry (the registers are kept).
+/// Whether the face under the point was found.
 pub fn find_ground(
     ground_probe: &GroundProbe,
     ground: &GroundWork,

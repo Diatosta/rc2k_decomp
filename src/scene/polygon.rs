@@ -1,6 +1,5 @@
-//! The polygon being worked on, as the functions of `scene` share it: entries of the work
-//! table `g_polygonEntries` picked through the list `g_polygonList`
-//! (`draw_polygon.rs` has an entry's layout).
+//! The polygon being worked on, as the functions of `scene` share it: entries of the work table
+//! picked through the list (`draw_polygon.rs` has an entry's layout).
 
 use crate::errors::BadInput;
 pub use crate::scene::draw_polygon::{ENTRIES, ENTRY_LEN, MOST};
@@ -15,9 +14,9 @@ pub fn entry(work: &PolygonWork, n: usize) -> Result<&PolygonEntry, BadInput> {
         .ok_or(BadInput("a polygon entry past the work table"))
 }
 
-/// The list's cell `n`. The original keeps the list with room for 64 numbers, and a
-/// polygon of more vertices (up to `MOST`, or a clip's up to twice that) goes on into the
-/// old list's place and the gap after it, which the old list's cells share.
+/// The list's cell `n`. The list has room for 64 numbers, and a polygon of more vertices (up to
+/// `MOST`, or a clip's up to twice that) goes on into the old list's place and the gap after
+/// it, which the old list's cells share.
 pub fn list_cell(work: &PolygonWork, n: usize) -> &PlainDword {
     let after_list = n.wrapping_sub(work.list.len());
     let after_old = after_list.wrapping_sub(work.old_list.len());
@@ -38,17 +37,17 @@ pub fn old_list_cell(work: &PolygonWork, n: usize) -> &PlainDword {
     list_cell(work, work.list.len() + n)
 }
 
-/// The first record of the pool the clip makes its records in (`g_polygonNextRecord`
-/// starts at it).
+/// The first record of the pool the clip makes its records in (`polygon_next_record` starts at
+/// it).
 pub fn pool_start() -> u32 {
     crate::scene::point_records::of_pool(0)
 }
 
-/// The `bytes` from byte `offset` of object kind `kind`'s material record (0x80 bytes
-/// each), read with the bound of the polygon tables around the records, not the records
-/// alone: `scene::set_object_material` is given kind -1 and reads the record before the
-/// first (the texture infos' tail), and a read can run on into the next record, as the
-/// original does. A read past the tables is refused.
+/// The `bytes` from byte `offset` of object kind `kind`'s material record (0x80 bytes each),
+/// read with the bound of the polygon tables around the records, not the records alone:
+/// `scene::set_object_material` is given kind -1 and reads the record before the first (the
+/// texture infos' tail), and a read can run on into the next record. A read past the tables is
+/// refused.
 pub fn material_run(
     tables: &crate::scene::polygon_store::PolygonTables,
     kind: u32,
@@ -91,8 +90,7 @@ pub fn material_run_word(
 }
 
 /// The byte `offset` into the run `field` (one of the polygon tables' arrays of records); the
-/// field's end is the limit, a read on into the next record inside it as the original's
-/// arithmetic does.
+/// field's end is the limit, a read on into the next record inside it.
 fn field_byte(
     field: &dyn crate::session::Run,
     offset: u32,
@@ -104,8 +102,7 @@ fn field_byte(
     Ok(byte[0])
 }
 
-/// Byte `offset` of texture info `n` (`g_textureInfos` + 0x40 n): an offset past the
-/// record reads on into the next, as the original's arithmetic does.
+/// Byte `offset` of texture info `n`: an offset past the record reads on into the next.
 pub fn texture_info_byte(
     tables: &crate::scene::polygon_store::PolygonTables,
     n: u32,
@@ -118,8 +115,7 @@ pub fn texture_info_byte(
     )
 }
 
-/// Byte `offset` of object kind `kind`'s material record (`g_objectMaterials` + 0x80 kind;
-/// kind -1 the record before the first, as the original reads it).
+/// Byte `offset` of object kind `kind`'s material record (kind -1 the record before the first).
 pub fn material_byte(
     tables: &crate::scene::polygon_store::PolygonTables,
     kind: u32,
@@ -135,8 +131,8 @@ pub fn material_byte(
 /// A polygon's entries: on the stack for all but the largest polygons.
 pub type Listed<'w> = smallvec::SmallVec<[&'w PolygonEntry; 32]>;
 
-/// The polygon's entries in the list's order. Refuses what the originals go wrong on:
-/// more vertices than the vertex buffer holds, a list entry past the table.
+/// The polygon's entries in the list's order. Refuses more vertices than the vertex buffer
+/// holds and a list entry past the table.
 pub fn listed<'w>(
     work: &'w PolygonWork,
     poly: &crate::scene::polygon_work::PolygonWork,

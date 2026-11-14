@@ -1,18 +1,17 @@
-//! `physics::touch_face` (0x45E9E0): the course face touched (`face_number`, in
-//! `g_courseFaces`, 0x40 bytes each) marked and listed. A face whose byte +0x11 is not 0,
-//! or a full list (`g_litFaceCount` at 0x100), is left alone. Else its number goes into
-//! `g_litFaces[count]` and by the contact kind `contact_kind`:
-//! - 9 and 1, unless `speed` is below `eight` (or unordered; then nothing more),
-//!   and 2, 3, 8: bytes +9 = 0, +0x11 = 1, +0x13 = 0, +0x12 = `face_angle`'s low byte;
-//! - 4: +0x11 = `face_speed` >> 14 held to 0x40, +0x13 = 0, +0x12 as above;
-//! - 0xFF: one in about 85 (`math::next_random` & 0xFF below 3) +0x11 = 0xF, counted, no
-//!   sound; else nothing more;
+//! Marks and lists the course face touched (`face_number`, in the course faces, 0x40 bytes each). A
+//! face whose mark byte is not 0, or a full list (`lit_face_count` at 0x100), is left alone.
+//! Otherwise its number goes into `lit_faces[count]` and by the contact kind `contact_kind`:
+//! - 9 and 1, unless `speed` is below `eight` (or unordered; then nothing more), and 2, 3, 8:
+//!   `Face::touch` with the mark 1 and byte 9 cleared;
+//! - 4: `Face::touch` with the mark = `face_speed` >> 14 held to 0x40, byte 9 kept;
+//! - 0xFF: one in about 85 (`math::next_random` & 0xFF below 3) the mark = 0xF, counted, no sound;
+//!   otherwise nothing more;
 //! - the rest (10, 5, 6, 7, ...): nothing to the face.
 //!
 //! Then `physics::place_sound_object` and the count + 1.
 //!
-//! Callers: `physics::face_contact` (six). Refuses (before anything) a count past 0x100 (the list's
-//! room); what `place_sound_object` refuses (its writes put back).
+//! Callers: `physics::face_contact`, six calls. Refuses (before anything) a count past 0x100 (the
+//! list's room); what `place_sound_object` refuses (its writes are put back).
 
 use crate::errors::{BadInput, Refused};
 use crate::physics::contact_store::ContactWork;
@@ -24,7 +23,8 @@ use crate::physics::flow::c0;
 use crate::physics::place_sound_object::place_sound_object;
 use rc2k_core::drive::lit_faces::{LIST_ROOM, Touch, fall_mark, lucky, touch};
 
-/// The usual marks: +9 = 0, +0x11 = `mark`, +0x13 = 0, +0x12 `face_angle`'s low byte.
+/// The usual marks on the face (`Face::touch`): the mark = `mark`, byte 0x13 = 0 and the angle
+/// byte = `face_angle`'s low byte; `clear_9` also clears byte 9.
 fn mark(
     course: &Course,
     contact: &ContactWork,
@@ -38,7 +38,7 @@ fn mark(
     })
 }
 
-// Converted: `rc2k_core::drive::lit_faces::{touch, fall_mark, lucky}`.
+// Core: `rc2k_core::drive::lit_faces::{touch, fall_mark, lucky}`.
 pub fn touch_face(
     c: &ContactInputs<'_>,
     scene: &crate::scene::owner::Scene,

@@ -1,30 +1,27 @@
-//! The polygon pipeline's working values, a view's own (frame plan F4): the polygon being
-//! set up, clipped, projected and drawn (its colour, textures, sides, vertex count,
-//! entry and record numbers, clip planes and flags, the clip's work runs), the texture page,
-//! the object face's word and shine, and the sort key. One per view slot
-//! (`race::view_scratch::ViewScratch::polygon`); the HUD, the loading bar and the menus use
-//! the front end's. In the original these were `SceneDraw`'s `polygon_*`, `texture_page`,
-//! `face_word`, `face_shine`, `clip_work`, `clip_out_words`, `clip_kept_mask`, `clip_plane`,
-//! `screen_clipped`, `depth_clipped`, `entry_third` and `face_sort_key`, `quad_vertices`, written and read by every view in turn. Not here:
-//! `LevelGrid`'s `smooth`, `plain_first` and `plain_second` (the HUD sets the plain switches
-//! and leaves them set into the next frame's views until their first face resets them) and
-//! `polygon_alpha` (set by the HUD's strips only, read by every view's drawing).
+//! The polygon pipeline's working values, a view's own: the polygon being set up, clipped,
+//! projected and drawn (its colour, textures, sides, vertex count, entry and record numbers, clip
+//! planes and flags, the clip's work runs), the texture page, the object face's word and shine, and
+//! the sort key. One per view slot (`race::view_scratch::ViewScratch::polygon`); the HUD, the
+//! loading bar and the menus use the front end's. Not here: `LevelGrid`'s `smooth`, `plain_first`
+//! and `plain_second` (the HUD sets the plain switches and leaves them set into the next frame's
+//! views until their first face resets them) and `polygon_alpha` (set by the HUD's strips only,
+//! read by every view's drawing).
 
 use crate::session::{PlainDword, PlainFloat};
 
 #[derive(rc2k_derive::Cells)]
 pub struct PolygonWork {
-    /// `g_polygonNextRecord`.
+    /// The next free record of the pool.
     pub polygon_next_record: PlainDword,
     /// The polygon's two texture words (`scene::draw_polygon`).
     pub polygon_textures: [PlainDword; 2],
     /// The texture page ("tpage"; `scene::look_up_texture`; the loading bar's switch).
     pub texture_page: PlainDword,
-    /// `g_polygonColour`.
+    /// The polygon's colour.
     pub polygon_colour: PlainDword,
-    /// `g_polygonTexture`.
+    /// The polygon's texture.
     pub polygon_texture: PlainDword,
-    /// `g_faceShine` (`scene::draw_object_face`).
+    /// The face's shine (`scene::draw_object_face`).
     pub face_shine: PlainDword,
     /// A face's word (`scene::draw_object_face`).
     pub face_word: PlainDword,
@@ -32,13 +29,13 @@ pub struct PolygonWork {
     pub polygon_sides: [PlainDword; 2],
     /// Kept by `scene::draw_polygon`.
     pub polygon_kept: [PlainDword; 3],
-    /// `g_polygonOutsideCount`.
+    /// The polygon's count of points outside.
     pub polygon_outside_count: PlainDword,
-    /// `g_polygonVertexCount`.
+    /// The polygon's vertex count.
     pub polygon_vertex_count: PlainDword,
-    /// `g_polygonNextEntry`.
+    /// The next free entry of the work table.
     pub polygon_next_entry: PlainDword,
-    /// `g_polygonClipMask` ("cuttest").
+    /// The polygon's clip mask.
     pub polygon_clip_mask: PlainDword,
     /// The clip's plane (`scene::clip`).
     pub clip_plane: PlainDword,
@@ -48,40 +45,39 @@ pub struct PolygonWork {
     pub depth_clipped: PlainDword,
     /// A list entry's third word (`scene::list_object_face`).
     pub entry_third: PlainDword,
-    /// `g_polygonDrawn`.
+    /// Whether the polygon was drawn.
     pub polygon_drawn: PlainDword,
-    /// `g_faceSortKey` (`scene::face_sort_key`).
+    /// The face's sort key (`scene::face_sort_key`).
     pub face_sort_key: PlainDword,
     /// The clip's kept mask (`scene::clip`).
     pub clip_kept_mask: PlainDword,
-    /// `scene::clip`'s work (`SceneDraw.clip_work[0]` ..); `race::car_shadow` keeps a vertex's pieces in
-    /// [2], [4], [10], [11].
+    /// `scene::clip`'s work; `race::car_shadow` keeps a vertex's pieces in [2], [4], [10],
+    /// [11].
     pub clip_work: [PlainFloat; 12],
-    /// `scene::clip`'s second output run (five words written back from its work); `race::car_shadow` keeps the new crossing vertex's fog byte (+0x20) in [0].
+    /// `scene::clip`'s second output run (five words written back from its work);
+    /// `race::car_shadow` keeps the new crossing vertex's fog byte (+0x20) in [0].
     pub clip_out_words: [PlainDword; 5],
     /// The four quad vertices (8 dwords each; `scene::point_records::of_quad`): the screen
-    /// quads', the halfway vertices' and the skidmarks' own. In the original
-    /// `RaceVars.quad_vertices`; every writer sets dwords 3, 6, 7 of the vertices it names
-    /// just before the polygon is clipped and drawn.
+    /// quads', the halfway vertices' and the skidmarks' own. Every writer sets dwords 3, 6, 7
+    /// of the vertices it names just before the polygon is clipped and drawn.
     pub quad_vertices: [PlainDword; 32],
-    /// The texture filter's switches (`LEVEL_GRID.smooth`, `plain_first`, `plain_second`:
-    /// `LevelGrid.smooth` .. `LevelGrid.plain_second`): `smooth` the pass being drawn's (render state 3:
-    /// 3 smooth, 1 not), set from the pass's set's `plain`, 1 when its texture's mapping is 0.
-    /// A view starts from `race::view_scratch::filter_input`; the HUD sets the front end's
-    /// slot's `plain` 1, 1 (`hud::overlay_pass`).
+    /// The texture filter's switches (`LevelGrid.smooth` .. `LevelGrid.plain_second`): `smooth`
+    /// the pass being drawn's (render state 3: 3 smooth, 1 not), set from the pass's set's
+    /// `plain`, 1 when its texture's mapping is 0. A view starts from
+    /// `race::view_scratch::filter_input`; the HUD sets the front end's slot's `plain` 1, 1
+    /// (`hud::overlay_pass`).
     pub smooth: PlainDword,
     pub plain_first: PlainDword,
     pub plain_second: PlainDword,
-    /// The clear's rectangle (`DRAW.cleared_rectangle`, 0x624138: left, top, right, bottom),
-    /// each view's own.
+    /// The clear's rectangle (left, top, right, bottom), each view's own.
     pub cleared_rectangle: [PlainDword; 4],
-    /// The amount (alpha) byte of the vertex a clip crossing makes, blended between its two ends, as a dword (`DRAW.crossing_amount`, `race::car_shadow`),
-    /// each view's own.
+    /// The amount (alpha) byte of the vertex a clip crossing makes, blended between its two
+    /// ends, as a dword (`race::car_shadow`), each view's own.
     pub crossing_amount: PlainDword,
     /// The colour the faded polygons fade from (`d3d().cards.fade_from`, the fog colour
     /// `scene::set_fog_colour` was given), each view's own.
     pub fade_from: PlainDword,
-    /// `GroundWork.view_mirrored` (0x63993C): 1 while the rear-view mirror is drawn (set by
+    /// `GroundWork.view_mirrored`: 1 while the rear-view mirror is drawn (set by
     /// `race::mirror_view_window`; a main view's stays 0): its polygons' vertices turned
     /// round, its car lights and turn the mirror's.
     pub view_mirrored: PlainDword,
@@ -92,12 +88,10 @@ pub struct PolygonWork {
     pub window: crate::scene::view_window::ViewWindow,
 }
 
-/// A view's sun (`FrameWork`'s sun words in the original, written by every view in turn):
-/// on the screen and not covered (`g_sunOnScreen`, 0x6415C4: `race::place_sun` sets it, the
-/// polygons' hit test, `scene::draw_polygon`, clears it), its size (`g_sunSize`, 0x6415DC),
-/// its place on the screen as whole numbers and as floats' bits (0x6415C8, 0x6415D0), and the
-/// view's value fetched from its block (0x6415D8, `race::fetch_view_value`), which scales the
-/// fog with the size.
+/// A view's sun: on the screen and not covered (`race::place_sun` sets it, the polygons' hit test,
+/// `scene::draw_polygon`, clears it), its size, its place on the screen as whole numbers and as
+/// floats' bits, and the view's value fetched from its block (`race::fetch_view_value`), which
+/// scales the fog with the size.
 #[derive(rc2k_derive::Cells)]
 pub struct ViewSun {
     pub on_screen: PlainDword,

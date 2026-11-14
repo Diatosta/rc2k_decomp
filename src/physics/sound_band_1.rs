@@ -1,7 +1,5 @@
-//! `physics::sound_band_1` (0x45D067): `contact_speed_length` x `contact_band_scale`, less 1,
-//! held to 0 ..= 0x40. See `physics/sound_bands.rs` (the core and the test).
-//!
-//! Returns: the band
+//! `contact_speed_length` x `contact_band_scale`, less 1, held to 0 ..= 0x40. See
+//! `physics/sound_bands.rs` (the core and the test).
 //!
 //! Caller: `physics::place_sound_e1`.
 

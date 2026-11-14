@@ -1,19 +1,17 @@
-//! `effects::begin_quads` (0x4C4453): the render set up for the effects' quads and a quad's
-//! four vertices made ready. `scene::set_texture` with the effects' texture,
-//! `scene::depth_buffer_on`, `scene::depth_test_off`, render states 0x15 = 4, 0x13 = 5,
-//! 0x14 = 6, 0x1C = 0, 0x1B = 1 (`scene::set_render_state`); then each of the four polygon
-//! vertices gets +0xC the quad's value, +0x10 -1, +0x14 0, and its texture place from the
-//! quad's constants (u: a, b, b, a; v: c, c, d, d); the polygon's vertex count 4, the depth
-//! scale 1 / the farthest depth, the quad's last cell 0.//!
-//! Caller: `effects::draw_frame`.
+//! `effects::begin_quads`: the render set up for the effects' quads and a quad's four vertices made
+//! ready: `scene::set_texture` with the effects' texture, `scene::depth_buffer_on`,
+//! `scene::depth_test_off`, render states 0x15 = 4, 0x13 = 5, 0x14 = 6, 0x1C = 0, 0x1B = 1
+//! (`scene::set_render_state`); then each of the four polygon vertices gets +0xC the quad's value,
+//! +0x10 -1, +0x14 0, and its texture place from the quad's constants (u: a, b, b, a; v: c, c, d,
+//! d); the polygon's vertex count 4, the depth scale 1 / the farthest depth, the quad's last cell
+//! 0.
 
 use crate::session::PlainFloat;
 
 /// The render states set (value, state).
 const STATES: [(u32, u32); 5] = [(4, 0x15), (5, 0x13), (6, 0x14), (0, 0x1C), (1, 0x1B)];
 
-/// `scene::set_texture`, `scene::depth_buffer_on`,
-/// `scene::depth_test_off`, the render states (`scene::set_render_state`).
+/// Sets the texture, the depth state and the render states, then readies the four vertices.
 pub fn begin_quads(
     buffer: &crate::d3d::vertices_store::PolygonVertices,
     effects: &crate::effects::owner::Effects,

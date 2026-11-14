@@ -1,10 +1,9 @@
-//! `sound::play_car_stream` (0x469AA1): the car shown's sound stream started.
+//! `sound::play_car_stream`: the car shown's sound stream started.
 //!
-//! The car (as `menu::load_car_background` finds it, 0x21 counting as 0x17):
-//! `CarStream.on` = 1, `CarStream.stream` = `MenuLists.car_streams[0][car]`, `CarStream.place` = 0, and
-//! `sound::start_stream` with the name (the first dword there) and the volume `OptionWork.speech_level`.
-//! Five call sites, next to `load_car_background`'s.
-//! Refuses what the record's lookup refuses.
+//! The car (as `menu::load_car_background` finds it, 0x21 counting as 0x17): `CarStream.on` is 1,
+//! `CarStream.stream` is `MenuLists.car_streams[0][car]`, `CarStream.place` is 0, and
+//! `sound::start_stream` is called with the name and the volume `OptionWork.speech_level`. Five
+//! call sites, next to `load_car_background`'s. Refuses what the record's lookup refuses.
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::load_car_background::shown_car;
@@ -13,13 +12,10 @@ use crate::session::PlainDword;
 
 // ---- game data ----
 
-// Event.shown_car
-
-/// The stream dword of car `car`. `car_streams` holds cars 0 .. 0x17; the original indexes
-/// it with any car's number, so the cars past them read on into the next field,
-/// `stage_speeches`. The numbers come from the 34 car descriptions, which nothing writes
-/// during play: 0 .. 0x20 (the Clio's 0x21 counts as 0x17), so cars 0x18 .. 0x20 read
-/// `stage_speeches[0 .. 8]`; anything further is refused.
+/// The stream dword of car `car`. `car_streams` holds cars 0 .. 0x17; any car's number may index
+/// it, so the cars past them read on into the next field, `stage_speeches`. The numbers come from
+/// the 34 car descriptions, which nothing writes during play: 0 .. 0x20 (the Clio's 0x21 counts as
+/// 0x17), so cars 0x18 .. 0x20 read `stage_speeches[0 .. 8]`; anything further is refused.
 fn car_stream(lists: &crate::menu::lists_store::MenuLists, car: u32) -> Result<u32, BadInput> {
     let car = car as usize;
     let streams = &lists.car_streams;
@@ -40,7 +36,7 @@ pub fn play_car_stream(
     sound: &crate::sound::owner::Sound,
     names: &crate::audio::names_store::SampleNames,
 ) -> Result<(), Refused> {
-    // Converted: `rc2k_core::sound::set_up::car_stream`.
+    // The logic is `rc2k_core::sound::set_up::car_stream`.
     let car = shown_car(menus)?;
     let failed = std::cell::Cell::new(None);
     let s = rc2k_core::sound::set_up::car_stream(

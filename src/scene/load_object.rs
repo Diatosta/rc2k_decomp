@@ -1,7 +1,5 @@
-//! `scene::load_object` (0x425D87): loads the shape of one object slot from its
-//! kind's file.
-//!
-//! In:  nothing (`loading_slot` is the slot, `loading_kind` its kind)
+//! `scene::load_object`: loads the shape of one object slot from its kind's file
+//! (`loading_slot` is the slot, `loading_kind` its kind).
 //!
 //! For a kind that is not 0: the slot's kind is noted (`object_kinds`); the file's names are
 //! made (`scene::set_object_file_names`) and the `.ro3` one read into the object file room
@@ -14,16 +12,15 @@
 //!   kept as `known_object`) picks a light record of 0x134 bytes whose eleven group numbers
 //!   become eleven masks of one bit (`PARTS`; -1 = no such group = mask 0); the rest mask =
 //!   every group but the first four.
-//!   - part 0, the car's first slot, loads the whole car: slots +0 .. +4 take the
-//!     rest and the first four groups, and eleven more slots a group each, every one
-//!     of those measured (`scene::measure_object`) and its middle and half extents
-//!     kept in six tables by slot (`part_extents`). The slot's number is left at
-//!     the car's first + 0xF.
-//!   - part 0xA takes the rest again, part 0xB the whole file; the other parts
-//!     nothing (part 0 loaded them).
+//!   - part 0, the car's first slot, loads the whole car: slots +0 .. +4 take the rest and the
+//!     first four groups, and eleven more slots a group each, every one of those measured
+//!     (`scene::measure_object`) and its middle and half extents kept in six tables by slot
+//!     (`part_extents`). The slot's number is left at the car's first + 0xF.
+//!   - part 0xA takes the rest again, part 0xB the whole file; the other parts nothing (part 0
+//!     loaded them).
 //!
-//! At the end three fatal errors: the faces' memory used up (0x80600011), the points'
-//! (0x80600010), 0xC000 faces or more (0x80600012). One caller,
+//! At the end three fatal errors: the faces' memory used up (0x80600011), the points' memory
+//! used up (0x80600010), and 0xC000 faces or more (0x80600012). One caller,
 //! `scene::load_front_end_objects`.
 
 use crate::errors::{FatalError, Refused};
@@ -127,8 +124,6 @@ const NO_FACE_ROOM: FatalError = FatalError {
     code: 0x8060_0012,
     message: "out of poly ptr space - max 40960",
 };
-
-// ---- Rust version ----
 
 /// `scene::find_object_kind`: the place of a kind, or of the kind before
 /// it, among the known ones; 0x22 if it is none of them.
@@ -255,7 +250,7 @@ fn shape(
     Ok({ add_object_shape(race, scene) }?)
 }
 
-/// The three fatal errors at the end, in the original's order.
+/// The three fatal errors at the end.
 fn check(
     race: &crate::race::owner::Race,
     scene: &crate::scene::owner::Scene,

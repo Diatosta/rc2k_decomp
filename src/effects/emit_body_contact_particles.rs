@@ -1,7 +1,7 @@
-//! `effects::emit_body_contact_particles` (0x4CDF3A, a chunk of `effects::emit_body_particles` entered
-//! for the record's kind 1): ring entries of kind 0x12.
+//! `effects::emit_body_contact_particles`: ring entries of kind 0x12, for the record's kind
+//! 1 (entered from `effects::emit_body_particles`).
 //!
-//! Takes: the record (the car object's +0x1F4), the car object
+//! Takes: the record (the car object's +0x1F4), the car object.
 //!
 //! The wheel flags get the record's +0x20; the count (`whole`): the record's +0x38 by a
 //! constant (held to 1 unless under another constant) times four times the flags >> 6,
@@ -10,8 +10,8 @@
 //! (a spread constant), y made positive; its place the record's (+0x3C ..), less a lift in y
 //! at +0x28; +0x1C .. +0x24 0; a life of 300 (+0x78 a constant over it); +0x68 the emitting
 //! car. The first entry's tag (+0x90) is the object's +0x1C, the later ones the previous
-//! entry's (0; section 16). Refuses (before anything) a null record, and a null object when an
-//! entry is made.
+//! entry's (0: a slip kept as is). Refuses (before anything) a null record, and a null
+//! object when an entry is made.
 
 use crate::effects::emitters::*;
 use crate::effects::jitter_point::jitter_point;
@@ -68,8 +68,8 @@ pub fn emit_body_contact_particles(
             }
             let tag = match before {
                 None => object.tag.get(),
-                // (The original leaves a register here holding the entry before's last x,
-                // which is 0.)
+                // The later tags are the entry before's last x, which is 0 (a slip kept as
+                // is).
                 Some(b) => crate::effects::ring_entries::entry(ring, b)?.last_place[0].to_bits(),
             };
             let e = take_entry(ring, effects, tag & 0xFF_FFFF, 0x12)?;

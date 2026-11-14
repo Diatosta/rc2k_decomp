@@ -1,17 +1,18 @@
-//! `race::step_viewed_replay` (0x41EC47): the viewed replay one frame on while it plays: the frame
-//! (`replay_frame`) one more; past 99 the next block from frame 0, which past the end of the play
-//! (`play_end`) stops it, and is read (`drive::read_replay_frame`). Not open (`replay_open`),
-//! at or past the last block, or the read failing: `replay_at_end` 1 and carry. Else the block and
-//! frame stored and the frame's inputs located (`block` + 0x2000 + frame * 16`).
+//! `race::step_viewed_replay`: moves the viewed replay one frame on while it plays. The frame
+//! (`replay_frame`) goes up by one; past 99 the next block starts from frame 0, which past the
+//! end of the play (`play_end`) stops it, and is read (`drive::read_replay_frame`). A replay that
+//! is not open (`replay_open`), a position at or past the last block, or a failed read sets
+//! `replay_at_end` and reports a stop. Otherwise the block and frame are stored and the frame's
+//! inputs located (`block` + 0x2000 + frame * 16).
 //!
-//! Caller: `race::replay_viewer` (each frame played; it reads carry). Refuses what
-//! `read_replay_frame` refuses (the fatal errors of a block past 0x708).
+//! Called by `race::replay_viewer` for each frame played. Refuses what `read_replay_frame`
+//! refuses (a block past 0x708).
 
 use crate::errors::Refused;
 use crate::race::owner::Race;
 use crate::system::owner::System;
 
-/// Whether it stopped.
+/// Steps one frame; returns whether the replay stopped.
 pub fn step_viewed_replay(race: &Race, system: &System) -> Result<bool, Refused> {
     let replay = &race.replay;
     let shared = &race.shared;
@@ -21,7 +22,6 @@ pub fn step_viewed_replay(race: &Race, system: &System) -> Result<bool, Refused>
         }
         true
     };
-    // Converted: `rc2k_core::race::viewer::step`.
     use rc2k_core::race::viewer::{Step, step};
     let open = shared.replay_file().replay_open.is_set();
     let (block, frame) = (

@@ -1,11 +1,13 @@
-//! `physics::damage_wear` (0x4ABEDF): the wear of this step (`physics/damage_model.rs`).
+//! The wear of this step (`physics/damage_model.rs`).
 //!
-//! The clock into `DamageModel.clock`; table lerps of the speed shares into `DamageModel.engine_speed_wear_factor` ..; the
-//! heat, damper, brake-fade and engine-heat gauges raised and lowered by their rates times
-//! the shares and `wear_step`, each held 0 ..= `gauge_top`; the hit figures `DamageModel.roughness_wear_base` ..
-//! `DamageModel.suspension_roughness_wear`; and `DamageModel.wear_figure` from the table `DamageModel.wear_table[0]` (row `DamageModel.tyre_kind`, two
-//! columns through `DamageModel.wear_columns`, as the original indexes them) blended by
-//! `DamageModel.surface_blend`, times `DamageModel.wear_figure_scale`.
+//! The clock goes into `DamageModel.clock`; table lerps of the speed shares give
+//! `DamageModel.engine_speed_wear_factor` ..; the heat, damper, brake-fade and engine-heat
+//! gauges are raised and lowered by their rates times the shares and `wear_step`, each held 0
+//! ..= `gauge_top`; then the hit figures `DamageModel.roughness_wear_base` ..
+//! `DamageModel.suspension_roughness_wear`; and `DamageModel.wear_figure` from the table
+//! `DamageModel.wear_table[0]` (row `DamageModel.tyre_kind`, two columns through
+//! `DamageModel.wear_columns`) blended by `DamageModel.surface_blend`, times
+//! `DamageModel.wear_figure_scale`.
 //!
 //! Caller: `physics::damage_step`.
 
@@ -117,10 +119,11 @@ pub fn steps(car: &Car, damage: &DamageModel) -> Result<(), BadInput> {
         &damage.rear_slip_wear_factor,
     );
     hit_figures(damage);
-    // 0x4AC7C9: two figures of the table `DamageModel.wear_table` (row `DamageModel.tyre_kind`), blended by
-    // `DamageModel.surface_blend`, x `DamageModel.wear_figure_scale`. Their columns are the surface's pair of
-    // `DamageModel.wear_columns`: the first column, then the second. The original reads
-    // the second at the first column's pair instead of the surface's (fixed: see
+    // Two figures of the table `DamageModel.wear_table` (row `DamageModel.tyre_kind`), blended by
+    // `DamageModel.surface_blend`, x `DamageModel.wear_figure_scale`. Their columns are the
+    // surface's pair of `DamageModel.wear_columns`: the first column, then the second. The 1999
+    // code read the second at the first column's pair instead of the surface's (fixed: "Tyre
+    // wear on snow, ice, water, dust and grass taken from the wrong surface" in
     // wiki/Fixed-bugs.md); its weight, `surface_blend`, is 0 on every shipped stage.
     let tyre_kind = damage.tyre_kind.get();
     let pair = &damage.wear_columns[(damage.surface.get() & 0xF) as usize];
@@ -212,8 +215,7 @@ mod reference_vectors {
     use super::*;
     use crate::physics::store::laid;
 
-    /// The damage model as the test's buffer holds it (the buffer's base plus the RVA of
-    /// 0x75B340).
+    /// The damage model as the test's buffer holds it.
     fn dm(base: usize) -> &'static DamageModel {
         crate::physics::store::model_in_test_buffer(base)
     }
@@ -668,7 +670,7 @@ mod reference_vectors {
 
     #[test]
     fn x87_blocks_matches_the_assembly() {
-        // The plain code rounds to nearest, as the game always runs the damage model.
+        // The plain code rounds to nearest, the mode the damage model always runs in.
         sparse_at("physics.damage_wear", &blocks(), 1200, 100, &[0x027F]);
     }
 }

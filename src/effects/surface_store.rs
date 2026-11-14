@@ -1,21 +1,23 @@
-//! The surface's texture places and the emitters' lives and colours (IDA 0x935766 .. 0x939DB2).
+//! The surface's texture places and the emitters' lives and colours.
 
 use crate::session::{PlainBytes, PlainDword};
 
-/// The surface's texture places and the emitters' lives and colours (IDA 0x935766 .. 0x939DB2).
+/// The surface's texture places and the emitters' lives and colours.
 #[derive(rc2k_derive::Cells)]
 pub struct SurfaceTables {
-    /// 0x935766: `g_marksCellPlaces` (0x40 cells of four floats, 16 bytes each, then `g_marksSubcellPlaces` at 0x935B66: 0x40 x 0x100 bytes, 4 x 4 sub-cells of 16 bytes per cell). The cell draw reads cell 0x40, the first sub-cell's place, as the original does.
+    /// The cell places (0x40 cells of four floats, 16 bytes each), then the sub-cell places (0x40 x
+    /// 0x100 bytes, 4 x 4 sub-cells of 16 bytes per cell). The cell draw reads cell 0x40, the first
+    /// sub-cell's place.
     pub places: PlainBytes<17408>,
-    /// 0x939B76: `g_marksParticleLives`: the life by a wheel's flags' bits 6, 7 (`effects::emit_wheel_fade_particle`).
+    /// The life by a wheel's flags' bits 6, 7 (`effects::emit_wheel_fade_particle`).
     pub lives_by_flags: [PlainDword; 4],
-    /// 0x939B86: `dword_939B86`: the life by the level (`effects::emit_twin`; 9 entries are allowed, the last is `dword_939BA6`, the tint).
+    /// The life by the level (`effects::emit_twin`; 9 entries are allowed, the last is the tint).
     pub lives_by_level: [PlainDword; 9],
-    /// 0x939BAA: `g_marksWheelFlags2`: the wheel's +0x24 kept.
+    /// The wheel's +0x24 kept.
     pub wheel_flags2: PlainDword,
-    /// 0x939BAE: `g_marksWheelFlags`: the wheel's +0x20 kept.
+    /// The wheel's +0x20 kept.
     pub wheel_flags: PlainDword,
-    /// 0x939BB2: `dword_939BB2`: the 128 colours a streak takes by its age (the other table, 257 of them, follows at 0x939DB2).
+    /// The 128 colours a streak takes by its age (the other table has 257).
     pub colours: [PlainDword; 128],
 }
 

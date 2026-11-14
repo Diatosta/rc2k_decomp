@@ -1,10 +1,9 @@
-//! `race::single_rally_race` (0x4843EC): a single rally's (and the other menus') race: the track
-//! looked up, the settings and the players' records copied into the race's variables, the race run
-//! (`race::race_from_menu`, the sound objects and the screen modes round it), the results copied
-//! back. See `race/single_rally.rs`.
+//! `race::single_rally_race`: a single rally's (and the other menus') race: the track is looked
+//! up, the settings and the players' records are copied into the race's variables, the race runs
+//! (`race::race_from_menu`, with the sound objects and screen modes set round it) and the results
+//! are copied back. See `race/single_rally.rs`.
 //!
-//! About 50 callers. Raises fatal 0x80739281 "Unknown Shaun TrakNum" (a track not in
-//! `g_trakPakHeader`) from Rust; refuses a player's record missing (first). a call by address goes
-//! through `routes.rs`.
+//! Raises fatal 0x80739281 "Unknown Shaun TrakNum" (a track not in the stage tables' `trak_pak`);
+//! refuses first a player's record that is missing.
 
 pub use crate::race::single_rally::single_rally_race;

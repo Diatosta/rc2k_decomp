@@ -1,22 +1,16 @@
-//! `effects::emit_rolling_particles` (0x4CCCD7, a chunk of `effects::emit_wheel_particles` entered from
-//! it for the wheel kind 1): `effects::emit_rolling_particles_rated` when the kind-1 choice is not 0,
-//! else `emit_particle_1`: one ring entry of kind 1.
+//! `effects::emit_rolling_particles`: for the wheel kind 1, `effects::emit_rolling_particles_rated`
+//! when the kind-1 choice is not 0, else `emit_particle_1`: one ring entry of kind 1.
 //!
-//! Takes: the wheel record, the car object
+//! `emit_particle_1` grows the wheel's +4 (a float here) by |+0x18| + |+0x10| + |+0x18 - +0xC|;
+//! when that rounded is 0x18 or more it is kept as its remainder by 0x18 (as a float) and an entry
+//! may be made if the strength (|+0x10| by one factor plus |+0xC - +0x18|, by another; held to at
+//! most 1) is not under the least strength (compared unrounded). The entry sits at the wheel's
+//! place (+0x3C ..) plus a random side, less a lift in y at +0x28; its motion is the car matrix's
+//! first row by +0x10, its third by +0x18 and the side factors by +0xC, each by a factor, moved by
+//! `effects::jitter_point`; its life and fade come from the strength.
 //!
-//! `emit_particle_1`: the wheel flags get the wheel's +0x20; the wheel's +4 (a float here)
-//! grows by |+0x18| + |+0x10| + |+0x18 - +0xC|; when that rounded is 0x18 or more it is kept
-//! as its remainder by 0x18 (as a float) and an entry may be made: the strength (a float:
-//! |+0x10| by one factor plus |+0xC - +0x18|, by another) must not be under the least
-//! strength (compared unrounded), and is held to at most 1; the life is the strength times a
-//! factor plus a base, rounded; the fade is the strength times the fade constant. The entry:
-//! its place the wheel's (+0x3C ..) plus a random side times the side factors, less a lift
-//! in y at +0x28; its motion the car matrix's first row by +0x10, its third by +0x18 and the
-//! side factors by +0xC, each by a factor, moved by `effects::jitter_point` (the set's
-//! spread), y plus a constant; a random spin and turn; the flags' low 6 bits; the life and
-//! fade (+0x78 fade over life, +0x74 fade); the car and its +0x88; +0x70 0x10000 and +0x60
-//! the strength times a size factor; +0x64 0. Refuses (before anything) a null wheel, a null
-//! object where read, a null car or matrix when an entry is made, and `emit_rolling_particles_rated`'s.
+//! Refuses (before anything) a null wheel, a null object where read, a null car or matrix when an
+//! entry is made, and `emit_rolling_particles_rated`'s.
 
 use crate::effects::emit_rolling_particles_rated::emit_rolling_particles_rated;
 use crate::effects::emitters::car_with_matrix;
@@ -51,7 +45,7 @@ const SIZE: u32 = 0x1_0000;
 const STEP: i32 = 0x18;
 
 /// The first part of `emit_particle_1`, worked out without writing: the wheel's +4 grown
-/// (as `fist` and as a float), and, when an entry may be made, the strength (the float
+/// (rounded and as a float), and, when an entry may be made, the strength (the float
 /// kept, before the hold to 1).
 struct Pace {
     grown: (i32, f32),
@@ -236,15 +230,15 @@ pub fn emit_rolling_particles(
     }
 }
 
-/// The wheel kind 1's choice (IDA 0x93A1D6 .. 0x93A1DA).
+/// The wheel kind 1's choice.
 #[derive(rc2k_derive::Cells)]
 pub struct RollingChoice {
-    /// 0x93A1D6: `g_marksKind1Choice`: `emit_rolling_particles_rated` when not 0 (`ring_frame` sets it from the rain's drops)
+    /// `emit_rolling_particles_rated` when not 0 (`ring_frame` sets it from the rain's drops)
     pub choice: PlainDword,
 }
 
 impl RollingChoice {
-    /// The values the game starts with (the image's bytes).
+    /// The values the game starts with.
     pub const fn new() -> Self {
         RollingChoice {
             choice: PlainDword::new(0x0),
@@ -252,25 +246,25 @@ impl RollingChoice {
     }
 }
 
-/// Kind 1's emitter variables (`emit_particle_1`) (IDA 0x93A39A .. 0x93A3D2).
+/// Kind 1's emitter variables (`emit_particle_1`).
 #[derive(rc2k_derive::Cells)]
 pub struct RollingSet {
-    /// 0x93A39A: `dword_93A39A`: the side's random
+    /// The side's random
     pub side_random: PlainDword,
-    /// 0x93A39E: `flt_93A39E` .. `flt_93A3BE`: per axis (x, y, z) the factors of the first row, the third row and the side
+    /// Per axis (x, y, z) the factors of the first row, the third row and the side
     pub motion_k: [PlainFloat; 9],
-    /// 0x93A3C2: `flt_93A3C2`: the spread `jitter_point` takes
+    /// The spread `jitter_point` takes
     pub spread: PlainFloat,
-    /// 0x93A3C6: `flt_93A3C6`: added to y
+    /// Added to y
     pub lift: PlainFloat,
-    /// 0x93A3CA: `dword_93A3CA`: the spin's random
+    /// The spin's random
     pub spin_random: PlainDword,
-    /// 0x93A3CE: `flt_93A3CE`: the size's factor
+    /// The size's factor
     pub size_k: PlainFloat,
 }
 
 impl RollingSet {
-    /// The values the game starts with (the image's bytes).
+    /// The values the game starts with.
     pub const fn new() -> Self {
         RollingSet {
             side_random: PlainDword::new(0x0),

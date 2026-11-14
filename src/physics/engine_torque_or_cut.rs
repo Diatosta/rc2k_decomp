@@ -1,7 +1,6 @@
-//! `physics::engine_torque_or_cut` (0x43CB7D): at or past the engine's top the cut:
-//! `rev_cut_count` 5 and the torque `engine_force` 0; below it (an unordered compare
-//! counts as below), while `rev_cut_count` counts down the torque stays
-//! 0; else `physics::engine_torque`.
+//! At or past the engine's top speed the cut: `rev_cut_count` = 5 and the torque `engine_force`
+//! = 0; below it (an unordered compare counts as below), while `rev_cut_count` counts down the
+//! torque stays 0; otherwise `physics::engine_torque`.
 //!
 //! Caller: `physics::drive_force`.
 

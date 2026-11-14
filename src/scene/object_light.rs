@@ -1,22 +1,19 @@
-//! A view's object lighting (frame plan F4): what the lighting of the objects and faces drawn
-//! in the view works out and reads again, one in each view's slot (`race::view_scratch`) and
-//! one for the front end.
+//! A view's object lighting: what the lighting of the objects and faces drawn in the view works
+//! out and reads again, one in each view's slot (`race::view_scratch`) and one for the front
+//! end.
 //!
-//! The original kept it in three shared pieces for every view at once: the light work
-//! (`scene::light_work_store`: the lamp's tint, the point's place, the inputs of
-//! `scene::light_dot`, the light's colour, the kind and its extra), the light state
-//! (`scene::light_store`: the lit place, the turned car light, the view kind, the face's bits)
-//! and the object work (`scene::object_store`: the light added to the object, the lowest,
-//! highest and level of the lit colour, the sun's turns). Each is written before it is read
-//! within a view: the sky writes the view kind, the lowest, highest, level, turns and the kind
-//! at the start of every race view, and the lit place, the colour and the added light are set
-//! by whoever gathers the lamps before they are used.
+//! It stands for three pieces: the light work (`scene::light_work_store`: the lamp's tint, the
+//! point's place, the inputs of `scene::light_dot`, the light's colour, the kind and its
+//! extra), the light state (`scene::light_store`: the lit place, the turned car light, the view
+//! kind, the face's bits) and the object work (`scene::object_store`: the light added to the
+//! object, the lowest, highest and level of the lit colour, the sun's turns). Each is written
+//! before it is read within a view: the sky writes the view kind, the lowest, highest, level,
+//! turns and the kind at the start of every race view, and the lit place, the colour and the
+//! added light are set by whoever gathers the lamps before they are used.
 //!
-//! Here too since F6: the car's base light (`view_light_base`, as `car_light`), the other
-//! light (`OBJECT_WORK.other_light`) and the light's direction (`g_lightDirection`): each
-//! measured with the shared one kept beside, no reading saw another value (three held races,
-//! nine menu flows). The sky sets the other light 0 and, by placing its object, the
-//! direction, at every view's start.
+//! The car's base light (`view_light_base`, as `car_light`), the other light
+//! (`other_light`) and the light's direction are each view's own too. The sky sets
+//! the other light 0 and, by placing its object, the direction, at every view's start.
 
 use crate::session::{PlainDword, PlainFloat};
 
@@ -32,47 +29,48 @@ pub struct ObjectLight {
     pub light_dot_light: [PlainFloat; 3],
     /// The factor in `scene::light_dot`'s inputs (`LightWork.light_dot_factor`).
     pub light_dot_factor: PlainFloat,
-    /// The light's colour (`g_lightColour`).
+    /// The light's colour.
     pub light_colour: PlainDword,
-    /// The base light of the car being drawn (`LIGHT_WORK.view_light_base`, `LightWork.view_light_base`):
+    /// The base light of the car being drawn (`LightWork.view_light_base`):
     /// the view's car's light colour at the view's start (`race::draw_view_scene`), each car's
     /// as it is drawn (`race::draw_car_entry`, `race::draw_own_car`); read by the light kind 3
     /// (`scene::vertex_light`).
     pub car_light: PlainDword,
-    /// The view's light colour (`FRAME_WORK.view_light`, `g_viewLight`, 0x6415E4): the view's
+    /// The view's light colour (`view_light`): the view's
     /// car's light colour plus the light (`race::view_light`), each view's own; its effects
     /// (snow, windscreen flakes, the plane) are given it.
     pub view_light: PlainDword,
-    /// The other light of the object being drawn (`OBJECT_WORK.other_light`, 0x635054):
+    /// The other light of the object being drawn (`other_light`):
     /// 0 from the sky on, a described object's or lamp's or flare's own; added to the light
     /// (`scene::set_object_light`) or the faces' light in the material way 2.
     pub other_light: PlainDword,
-    /// The light's direction (`g_lightDirection`, 0x6240A8 ..), set with the
+    /// The light's direction, set with the
     /// object's turned matrix (`scene::matrix::set_light_direction`).
     pub light_direction: [PlainFloat; 3],
-    /// The kind of light being set (`g_lightKind`).
+    /// The kind of light being set.
     pub light_kind: PlainDword,
     /// Set with the light kind, 0 for a car (`LightWork.light_kind_extra`).
     pub light_kind_extra: PlainDword,
-    /// The place (x, y, z) being lit, a car or a point (`g_litPlace`).
+    /// The place (x, y, z) being lit, a car or a point.
     pub lit_place: [PlainDword; 3],
     /// The turned light direction seen by the car lights (`LightState.turned_light[0]` ..).
     pub turned_light: [PlainDword; 3],
-    /// The view kind (`LightState.view_kind`): 4 for the sky, 1 and 2 for objects, 5 for the menus'.
+    /// The view kind (`LightState.view_kind`): 4 for the sky, 1 and 2 for objects, 5 for the
+    /// menus'.
     pub view_kind: PlainDword,
     /// The face's bits (`LightState.face_bits`).
     pub face_bits: PlainDword,
     /// The light added to each vertex of the object (`ObjectWork.light_added`).
     pub light_added: PlainDword,
-    /// The lit colour's lowest place (`g_lightLowest`).
+    /// The lit colour's lowest place.
     pub light_lowest: PlainDword,
-    /// The lit colour's highest place (`g_lightHighest`).
+    /// The lit colour's highest place.
     pub light_highest: PlainDword,
-    /// The lit colour's level (`g_lightLevel`).
+    /// The lit colour's level.
     pub light_level: PlainDword,
     /// The light direction's two turns (`ObjectWork.light_turns[0]`, `ObjectWork.light_turns[1]`).
     pub light_turns: [PlainDword; 2],
-    /// `GroundWork.drawn_car_light` (0x639968): the car whose object is being lit, or -1
+    /// `GroundWork.drawn_car_light`: the car whose object is being lit, or -1
     /// (`scene::set_object_light`); `scene::add_car_lights` skips its lights.
     pub drawn_car_light: PlainDword,
 }

@@ -1,26 +1,26 @@
-//! A view's own camera values and the car it draws (frame plan F7): what a race view's
-//! drawing writes and then reads in `ViewVars` (`race::view_vars_store`). One per view slot
-//! (`race::view_scratch::ViewScratch::state`). The shared fields are still written beside
-//! them for what reads them outside the drawing (the effects, the front end).
+//! A view's own camera values and the car it draws: what a race view's drawing writes and then
+//! reads in `ViewVars` (`race::view_vars_store`). One per view slot
+//! (`race::view_scratch::ViewScratch::state`). The shared fields are still written beside them
+//! for what reads them outside the drawing (the effects, the front end).
 
 use crate::session::{PlainDword, PlainFloat};
 
 #[derive(rc2k_derive::Cells)]
 pub struct ViewState {
-    /// `g_drawnCar` (0x60627C): the car being drawn, each view's own.
+    /// The car being drawn.
     pub drawn_car: PlainDword,
-    /// `view_car_flag_a` (0x60626C): the car's switch share, each view's own.
+    /// The car's switch share.
     pub view_car_flag_a: PlainFloat,
-    /// `view_car_stage` (0x606270): the car's camera view, each view's own.
+    /// The car's camera view.
     pub view_car_stage: PlainDword,
-    /// `g_viewPlace` (0x606298) x, y, z, each view's own.
+    /// The view's place: x, y, z.
     pub view_place: [PlainDword; 3],
-    /// `g_viewAngles` (0x6062B8): two triples, each view's own.
+    /// The view's angles: two triples.
     pub view_angles: [PlainDword; 6],
 }
 
 impl ViewState {
-    /// With the stores' first values.
+    /// The shared stores' starting values.
     pub const fn new() -> Self {
         let crate::race::view_vars_store::ViewVars {
             drawn_car,

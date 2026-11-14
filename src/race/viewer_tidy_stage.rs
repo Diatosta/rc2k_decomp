@@ -1,14 +1,13 @@
-//! `race::viewer_tidy_stage` (0x41CEB4): the viewer's stage, if loaded (`viewer_stage_loaded` 1, then 0),
-//! tidied away and the front end back: `race::tidy_everything`, the menus' screen mode
+//! `race::viewer_tidy_stage`: tidies away the viewer's stage, if loaded (`viewer_stage_loaded` 1,
+//! then set to 0), and brings the front end back: `race::tidy_everything`, the menus' screen mode
 //! (`gfx::set_menu_screen_mode`), the loading picture (`menu::show_loading_picture`),
-//! `race::clear_race_sound_objects`, `sound::apply_settings`; the fonts freed (`gfx::free_fonts`)
-//! when the viewer built them (`viewer_fonts_built` 1); `scene::set_up_engine`,
-//! `scene::set_up_front_end_scene`, `scene::set_up_engine`. Then (always) the pending key taken
-//! (`input::take_key`).
+//! `race::clear_race_sound_objects` and `sound::apply_settings`; the fonts are freed
+//! (`gfx::free_fonts`) when the viewer built them (`viewer_fonts_built` 1); then
+//! `scene::set_up_engine`, `scene::set_up_front_end_scene` and `scene::set_up_engine`. In every
+//! case the pending key is taken last (`input::take_key`).
 //!
-//! `viewer_fonts_built` is never cleared: where `mov` was meant the original has `cmp `viewer_fonts_built`, 0`
-//! (0x41CEEA). Kept (section 16). Callers: `race::replay_viewer`, `race::viewer_action` (0x14),
-//! `race::choose_save_slot`.
+//! `viewer_fonts_built` is never cleared: a 1999 slip kept as is. Called by
+//! `race::replay_viewer`, `race::viewer_action` (0x14) and `race::choose_save_slot`.
 
 use crate::errors::Refused;
 use crate::owners::Owners;
@@ -16,8 +15,7 @@ use crate::race::owner::Race;
 
 pub fn viewer_tidy_stage(race: &Race, o: Owners<'static>) -> Result<(), Refused> {
     let shared = &race.shared;
-    // Converted: `rc2k_core::race::viewer_flow::{tidies, TIDY_FIRST, frees_fonts,
-    // TIDY_AFTER}` (the fonts' switch read after the first steps, as the original).
+    // The fonts' switch is read after the first steps.
     use rc2k_core::race::viewer_flow::{TIDY_AFTER, TIDY_FIRST, TidyStep, frees_fonts, tidies};
     if tidies(shared.replay_file().viewer_stage_loaded.get()) {
         shared.replay_file().viewer_stage_loaded.set(0);

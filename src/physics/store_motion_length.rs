@@ -1,10 +1,8 @@
-//! `physics::store_motion_length` (0x43BD2D): `speed` = the length of the three
-//! floats at `velocity` (`physics::vector_length`, then `fstp`: rounded to a float).
-//! Both are the work copy's (+0x198, +0x1C4); that the vector is the car's motion is a
-//! reading (it sits next to `g_carSpeed`), not seen.
+//! `speed` = the length of the three floats at `velocity` (`physics::vector_length`, rounded to a
+//! float). Both are the work copy's; that the vector is the car's motion is a reading (it sits next
+//! to the car speed), not seen.
 //!
-//! Callers (2): `physics::car_physics_step` (0x43B644, 0x43B94D), the car's physics step under
-//! `drive::race_step`.
+//! Caller: `physics::car_physics_step`, twice, under `drive::race_step`.
 
 use crate::physics::car_store::Car;
 use crate::physics::vector_length::vector_length;

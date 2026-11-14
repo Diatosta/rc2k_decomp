@@ -1,27 +1,33 @@
-//! The object and picture loaders' file numbers (IDA 0x60AD20 .. 0x60AF0C): the
-//! .ro3 / .lwo name numbers and paths, the picture number and texture. The path strings between
-//! them stay unknown_* bytes, reached by address. Names are readings unless IDA's.
+//! The object and picture loaders' file numbers: the .ro3 / .lwo name numbers and paths, the
+//! picture number and texture. The path strings between them stay unknown_* bytes, reached by
+//! address.
 
 use crate::cells::ZeroCells;
 use crate::session::PlainDword;
 
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct ObjectFileNumbers {
-    /// +0x0 (0x60AD20): the dword before the file numbers; nothing reads or writes it (a gap).
+    /// The dword before the file numbers; nothing reads or writes it (a gap).
     pub unknown_0: PlainDword,
-    /// +0x4 (0x60AD24): `dword_60AD24`: .ro3 name number, kept as the text's IDA address within `path_texts` (the original kept its address; `scene::set_object_file_names`).
+    /// .ro3 name number, kept as the text's game address within `path_texts`
+    /// (`scene::set_object_file_names`).
     pub object_ro3_number: PlainDword,
-    /// +0x8 (0x60AD28): `dword_60AD28`: .ro3 path, kept as the text's IDA address within `path_texts` (the original kept its address; `scene::set_object_file_names`).
+    /// .ro3 path, kept as the text's game address within `path_texts`
+    /// (`scene::set_object_file_names`).
     pub object_ro3_path: PlainDword,
-    /// +0xc (0x60AD2C): `dword_60AD2C`: .lwo path, kept as the text's IDA address within `path_texts` (the original kept its address; `scene::set_object_file_names`).
+    /// .lwo path, kept as the text's game address within `path_texts`
+    /// (`scene::set_object_file_names`).
     pub object_lwo_path: PlainDword,
-    /// +0x10 (0x60AD30): `dword_60AD30`: .lwo name number, kept as the text's IDA address within `path_texts` (the original kept its address; `scene::set_object_file_names`).
+    /// .lwo name number, kept as the text's game address within `path_texts`
+    /// (`scene::set_object_file_names`).
     pub object_lwo_number: PlainDword,
-    /// +0x14 (0x60AD34): the path texts the stored text addresses above point into: the folder, map, info and car-icon file names (`texts`, reached by IDA address through `text_at`; the dwords are only the storage, 464 bytes of NUL-ended strings).
+    /// The path texts the stored text addresses above point into: the folder, map, info and
+    /// car-icon file names (`texts`, reached by game address through `text_at`; the dwords are
+    /// only the storage, 464 bytes of NUL-ended strings).
     pub path_texts: [PlainDword; 116],
-    /// +0x1e4 (0x60AF04): `dword_60AF04`: the picture number (`scene::load_texture_picture`).
+    /// The picture number (`scene::load_texture_picture`).
     pub picture_number: PlainDword,
-    /// +0x1e8 (0x60AF08): `dword_60AF08`: the texture (`scene::load_texture_picture`).
+    /// The texture (`scene::load_texture_picture`).
     pub picture_texture: PlainDword,
 }
 
@@ -62,7 +68,7 @@ impl ObjectFileNumbers {
     }
 }
 
-/// The path texts in `path_texts`, by IDA's address (for `ObjectFileNumbers::text_at`).
+/// The path texts in `path_texts`, by game address (for `ObjectFileNumbers::text_at`).
 pub mod texts {
     pub const FOLDER_0_RO3: usize = 0x60AD4E;
     pub const FOLDER_0_LWO: usize = 0x60AD62;
@@ -100,7 +106,7 @@ pub struct PathText<'a> {
 }
 
 impl ObjectFileNumbers {
-    /// The text at IDA address `ida`.
+    /// The text at game address `ida`.
     pub fn text_at(&self, ida: usize) -> PathText<'_> {
         assert!((0x60AD34..0x60AF04).contains(&ida));
         PathText {

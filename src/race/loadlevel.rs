@@ -1,13 +1,13 @@
-//! `race::loadlevel_init` (0x44426F: the stage's loading proper, step by step,
-//! each step's word logged ("LOADLEVEL_INIT : ...") with the log indented round it and the
-//! loading bar moved on (the step's mark, then the callback `race::loading_bar_frame`, called with the mark).
-//! The pace notes are set up by `race::init_pace_notes`. A step's refusal is the function's.
+//! `race::loadlevel_init`: the stage's loading proper, step by step. Each step's word is logged
+//! ("LOADLEVEL_INIT : ...") with the log indented round it, and the loading bar is moved on (the
+//! step's mark, then the callback `race::loading_bar_frame`, called with the mark). The pace notes
+//! are set up by `race::init_pace_notes`. A step's refusal is the function's.
 
 use crate::errors::{BadInput, Refused};
 use crate::race::owner::Race;
 use crate::scene::file_numbers_store::texts;
-const BAR: u32 = 0x4467C7; // `race::loading_bar_frame`: the loading bar's 3D frame
-const BAR_DONE: u32 = 0x4467C6; // nullsub_8
+const BAR: u32 = 0x4467C7;
+const BAR_DONE: u32 = 0x4467C6;
 
 /// The step words ("LOADLEVEL_INIT : start" .. "finis"), in order.
 const WORDS: [&std::ffi::CStr; 28] = [
@@ -41,8 +41,8 @@ const WORDS: [&std::ffi::CStr; 28] = [
     c"LOADLEVEL_INIT : finis",
 ];
 
-/// Where the variables kept apart are: the log's indent and switch,
-/// `g_inRace`, and the loading bar's callback.
+/// Where the variables kept apart are: the log's indent and switch, `in_race`, and the loading
+/// bar's callback.
 #[derive(Clone, Copy)]
 pub struct LoadVars {
     pub bar: u32,
@@ -54,7 +54,7 @@ impl LoadVars {
     }
 }
 
-/// The original's `loadlevel_init`, step by step.
+/// The stage's loading, step by step.
 struct Steps<'a> {
     race: &'a Race,
     o: crate::owners::Owners<'static>,
@@ -69,16 +69,15 @@ impl Steps<'_> {
         self.word += 1;
     }
 
-    /// `pushf`; `g_logIndent` +- 3; `popf`.
+    /// Moves the log's indent by `by`.
     fn indent(&mut self, by: i32) {
         crate::logfile::write_line::state::INDENT
             .atomic()
             .fetch_add(by as u32, std::sync::atomic::Ordering::Relaxed);
     }
 
-    /// `pusha`; `bar_share` the mark; `call [`bar_function`]`; `popa`. The callback is the
-    /// loading bar `loadlevel_init` puts there before its first mark (it is put away after
-    /// the last).
+    /// Sets `bar_share` to the mark and runs the loading bar's callback, which `loadlevel_init`
+    /// puts in `bar_function` before its first mark (and takes away after the last).
     fn progress(&mut self, mark: u32) -> Result<(), Refused> {
         let race = self.race;
         let shared = &race.shared;
@@ -106,17 +105,17 @@ impl Steps<'_> {
     }
 }
 
-/// `race::loadlevel_init` (0x44426F): "start"; `g_usePackedMaps` 1, `MapVars.packed_unless_editor` 1 but with
-/// `editor_mode`; `g_stageDirection` `direction` (flipped for stages 0x1F, 0x22, 0x51);
-/// `g_inRace` 1; the loading bar's callback `race::loading_bar_frame` (mark 0); then the steps
-/// (`CALLEES` in order, each with its word and mark: objects, course memory (2, 4), texture info
-/// and the course number (6), prefs (7), error list (8), ed textures (0xA), textures (0xE), texture
-/// infos (0xF), the course (0x13), plates cleared (0x14), objects (0x1E; `bar_span`/`38`
-/// 0x1E/0x50), plates (0x50), the map (0x5A), fonts (0x5C), init mark with the log off (0x5E),
+/// Loads the stage: logs "start"; sets `packed_unless_editor` 1
+/// (but 0 with `editor_mode`), `stage_direction` from `direction` (flipped for stages 0x1F, 0x22,
+/// 0x51) and `in_race` 1; installs the loading bar's callback `race::loading_bar_frame` (mark 0);
+/// then runs the steps, each with its word and mark: objects, course memory (2, 4), texture info
+/// and the course number (6), prefs (7), error list (8), ed textures (0xA), textures (0xE),
+/// texture infos (0xF), the course (0x13), plates cleared (0x14), objects (0x1E; `bar_span` / 38
+/// 0x1E / 0x50), plates (0x50), the map (0x5A), fonts (0x5C), init mark with the log off (0x5E),
 /// refresh, skid marks (0x5F), render3d (0x60), colours (0x62), lights (0x63), mud (0x64 twice);
-/// the callback `nullsub_8`; the crash matrix, the norms; without `Finish.no_place` checkpoints, pace
-/// notes, overlay; `marker_object` the object of kind 0x7A (else 0x79); `camera_last_frame`/`D4` 0;
-/// "finis".
+/// takes the callback away; the crash matrix, the norms; without `Finish.no_place` checkpoints,
+/// pace notes, overlay; `marker_object` the object of kind 0x7A (else 0x79);
+/// `camera_last_frame` 0; "finis".
 pub fn loadlevel_init(
     race: &'static Race,
     o: crate::owners::Owners<'static>,
@@ -155,8 +154,7 @@ pub fn loadlevel_init(
         },
         None,
     )?;
-    // alloc coursemem: marks 2 and 4 (the `cmp `editor_mode`, 0 / jz $+2` between
-    // them changes nothing).
+    // The course memory: marks 2 and 4.
     s.log();
     s.indent(3);
     // CourseLists.course_memory_list[0]: the course's MemoryList.
@@ -316,7 +314,7 @@ pub fn loadlevel_init(
         marker = find_object_of_kind(0x79, scene);
         race.shared.switches.get().marker_object.set(marker);
     }
-    // `camera_last_frame` / D4.
+    // `camera_last_frame` cleared.
     for cell in &race.replay_work().camera_last_frame {
         cell.set(0);
     }

@@ -1,8 +1,7 @@
-//! What a ground search (`physics::ground`) reads and writes, as references: the physics'
-//! own fields (`GroundQuery::of_physics`, scattered over the ground work, the ground probe
-//! and the course work as the original had them) or a drawing's cells (`GroundCells`, frame
-//! plan F4: the shadow's and the course view's searches no longer write the physics' work;
-//! held races showed that nothing in the physics read what they left there).
+//! What a ground search (`physics::ground`) reads and writes, as references: the physics' own
+//! fields (`GroundQuery::of_physics`, scattered over the ground work, the ground probe and the
+//! course work) or a drawing's cells (`GroundCells`: the shadow's and the course view's searches do
+//! not write the physics' work, since nothing in the physics reads what they leave there).
 
 use crate::physics::ground_probe_store::GroundProbe;
 use crate::physics::ground_store::GroundWork;

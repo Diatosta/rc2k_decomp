@@ -34,9 +34,9 @@ struct Finder<'a> {
     path: String,
     /// The path's length before each part entered.
     marks: Vec<usize>,
-    /// How deep the walk is below the last part that could still lead to a target: no run
-    /// under it is one (2026-11-13: the walk skips building their paths, as the race-block
-    /// vectors walk whole stores per place and case).
+    /// How deep the walk is below the last part that could still lead to a target: no run under it
+    /// is one (the walk skips building their paths, as the race-block vectors walk whole stores per
+    /// place and case).
     away: usize,
     task: Task<'a>,
     done: bool,
@@ -317,11 +317,11 @@ impl Under<'_> {
     }
 }
 
-// The walk builds only the paths that can matter (2026-11-13: the vectors copy records of up to
-// 2 MB this way in every case). The whole record (an empty `prefix`) needs none: every run is
-// inside it (`inside`) and none is a cell of a run it names (`cell_of_run`). Otherwise a part
-// whose path is neither a start of `prefix` (or of the run `cell_of_run` looks for) nor under
-// `prefix` has no run under it that is either: it is counted in `away` and not written out.
+// The walk builds only the paths that can matter (the vectors copy records of up to 2 MB this way
+// in every case). The whole record (an empty `prefix`) needs none: every run is inside it
+// (`inside`) and none is a cell of a run it names (`cell_of_run`). Otherwise a part whose path is
+// neither a start of `prefix` (or of the run `cell_of_run` looks for) nor under `prefix` has no run
+// under it that is either: it is counted in `away` and not written out.
 impl CellVisitor for Under<'_> {
     fn enter(&mut self, name: &'static str) {
         self.enter_part(|path| {

@@ -1,14 +1,12 @@
-//! `physics::restore_saved_car` (0x43DC25): puts a saved state back into the work copy:
-//! `clear_place_count` + 1; the three dwords `saved_place` .. `E8` into `position` ..
-//! `114`; the 0x40 bytes at `saved_matrix` into `g_crashMatrix` (0x71A08C); and
-//! `probe_count` dwords from `probe_saved_faces` into `probe_point_face` (the copy's +0xDF0).
-//! What the pieces are (a place, the car's matrix, a list) is a reading.
+//! Puts a saved state back into the work copy: `clear_place_count` + 1; the three dwords
+//! `saved_place` into `position`; the 0x40 bytes at `saved_matrix` into the crash matrix; and
+//! `probe_count` dwords from `probe_saved_faces` into `probe_point_face`. What the pieces are (a
+//! place, the car's matrix, a list) is a reading.
 //!
-//! Callers (7): `physics::find_clear_place`, `physics::crossed_edge`, `physics::wall_contacts`
-//! (twice), `physics::face_contact`,
-//! `physics::ground_contact`, `physics::corner_hits_car`, under `drive::race_step` (most followed
-//! by `physics::feel_ground`). Refuses a count above 0x7C (unsigned: the list would run past the
-//! work copy's end, 0x71AFB8), before writing.
+//! Callers: `physics::find_clear_place`, `physics::crossed_edge`, `physics::wall_contacts` (twice),
+//! `physics::face_contact`, `physics::ground_contact`, `physics::corner_hits_car`, under
+//! `drive::race_step` (most followed by `physics::feel_ground`). Refuses (before writing) a count
+//! above 0x7C (unsigned: the list would run past the work copy's end).
 
 use crate::errors::Refused;
 use crate::physics::car_store::Car;
@@ -51,7 +49,7 @@ fn faces_and_after(car: &Car) -> [&dyn Run; 28] {
     ]
 }
 
-/// Converted: `rc2k_core::physics::saved_car::{restore_count, restored}`.
+/// Core: `rc2k_core::physics::saved_car::{restore_count, restored}`.
 pub fn restore_saved_car(
     car: &Car,
     tables: &PhysicsTables,

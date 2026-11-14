@@ -1,21 +1,17 @@
-//! `effects::draw_snow` (0x4C2E36): the snowflakes, `flakes` of them (also into
-//! `count_copy`; the walk's `first` is 0, then plus the count; `drawn` counts the drawn).
-//! For each flake k: its place from `randoms`[k], y plus the fall, x and z moved by `curve`
-//! at (the fall's bits 11 .. 19) plus `remainders`[k], plus the view's place less the point
-//! (`view`), wrapped to 0x100000 and centred; turned by `matrix_copy` plus `point` into
-//! `turned` (the depth also whole, in `depth`); unless that is at or below 0x10000: when the
-//! light is on, the colour `fade_colours`[the square of the light's dot with the way from
-//! `light_place`, times the fade step, 0 when the dot is below 0]; the projected square
-//! (side `side` over the depth), depth times `inverse`, texture u `spreads`[k] (plus
-//! `u_offset`), v `v`; `effects::clip_quad`, and unless all is outside `scene::draw_fan`, the
-//! drawn count plus 1 and the polygon's vertex count 4.
+//! `effects::draw_snow`: the snowflakes, `flakes` of them (also into `count_copy`; the walk's
+//! `first` is 0, then plus the count; `drawn` counts the drawn). Each flake k: its place from
+//! `randoms`[k], y plus the fall, x and z moved by `curve` at (the fall's bits 11 .. 19) plus
+//! `remainders`[k], plus the view's place less the point (`view`), wrapped to 0x100000 and centred;
+//! turned by `matrix_copy` plus `point` into `turned` (the depth also whole, in `depth`). Unless
+//! the depth is at or below 0x10000 the flake is drawn as a square (side `side` over the depth,
+//! depth times `inverse`, texture u `spreads`[k] plus `u_offset`, v `v`) through
+//! `effects::clip_quad` and `scene::draw_fan`; with the light on its colour is `fade_colours`[the
+//! square of the light's dot with the way from `light_place`, times the fade step, 0 when the dot
+//! is below 0].
 //!
-//! Works on the snow state.
-//!
-//! Caller: `effects::run_snow`. The x87 blocks are plain Rust on the x87 model (`math::x87_float`), in the original's order,
-//! over the game's variables. Refuses, before anything (a dry pass, its scratch put back),
-//! more than 0x800 flakes, null marks settings with a flake, a curve index past the 4095
-//! entries and a fade index past the 17.
+//! The x87 blocks are plain Rust on the x87 model (`math::x87_float`). Refuses, before anything (a
+//! dry pass, its scratch put back), more than 0x800 flakes, null marks settings with a flake, a
+//! curve index past the 4095 entries and a fade index past the 17.
 
 use crate::effects::cell_x87::CellX87;
 use crate::effects::clip_quad::{clip_quad, draw_fan};
@@ -161,7 +157,7 @@ pub fn draw_snow(
 use crate::math::x87_float as bh;
 use crate::scene::x87_mem::{Base, fild as ldi, fld as ld, fstp as st};
 
-/// `turn`'s x87 block as plain Rust on the x87 model (34 instructions), same order and memory places.
+/// `turn`'s arithmetic as plain Rust on the x87 model, in the same order.
 fn turn_x87(v: impl Base, s: &SnowState) {
     let t0 = ldi(v, 0);
     let t1 = ldi(v, 0x4);
@@ -190,7 +186,7 @@ fn turn_x87(v: impl Base, s: &SnowState) {
     s.turned[2].st(t20);
 }
 
-/// `fade`'s x87 block as plain Rust on the x87 model (34 instructions), same order and memory places.
+/// `fade`'s arithmetic as plain Rust on the x87 model, in the same order.
 fn fade_x87(s: &SnowState, l: &SnowLight, f: &MarksFloats) {
     {
         let t0 = s.turned[0].ld();
@@ -227,7 +223,7 @@ fn fade_x87(s: &SnowState, l: &SnowLight, f: &MarksFloats) {
     }
 }
 
-/// `square`'s x87 block as plain Rust on the x87 model (38 instructions), same order and memory places.
+/// `square`'s arithmetic as plain Rust on the x87 model, in the same order.
 fn square_x87(vt: impl Base, i: usize, t: &SnowTables, s: &SnowState, l: &SnowLight) {
     let t0 = s.turned[2].ld();
     let t1 = crate::math::x87_float::ld(

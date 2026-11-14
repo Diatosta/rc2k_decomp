@@ -1,11 +1,9 @@
-//! `scene::begin_scene` (0x44E8A1): the 3D part of a frame begins.
+//! `scene::begin_scene`: the 3D part of a frame begins.
 //!
-//! `d3d::begin_scene` (0x41ABC7: Direct3D's BeginScene and the layer's own states, platform),
-//! then, whatever it says, `scene::set_filters` and render states 0x15 = 4 (the texture's
-//! blending), 0x1C = 1 (fog on), 0x13 = 5 and 0x14 = 6 (the source and destination blend), 0x1B
-//! = 1 (blending on), all between `pusha` / `pushf` and `popf` / `popa`. Nine callers,
-//! `menu::frame_callback` among them. The registers above are the original's; a call by address
-//! goes through `routes.rs`, which maps them.
+//! `d3d::begin_scene` (Direct3D's BeginScene and the layer's own states), then, whatever it
+//! says, `scene::set_filters` and render states 0x15 = 4 (the texture's blending), 0x1C = 1
+//! (fog on), 0x13 = 5 and 0x14 = 6 (the source and destination blend), 0x1B = 1 (blending on).
+//! Nine callers, `menu::frame_callback` among them.
 
 use crate::scene::set_filters::set_filters;
 use crate::scene::set_render_state::set_render_state;

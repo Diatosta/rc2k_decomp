@@ -1,7 +1,7 @@
-//! `race::muddy_texel` (0x44A2E1): one texel of the mud texture being worked on (`mud_texture`, 0
-//! .. 3) brought toward the mud's colour: the place is the word `g_shuffledWords[n & 0xFFFF]` (x
+//! `race::muddy_texel`: one texel of the mud texture being worked on (`mud_texture`, 0
+//! .. 3) brought toward the mud's colour: the place is the word `shuffled_words[n & 0xFFFF]` (x
 //! its low byte, y its high one), the strength the mud map's byte at (x / 2, y / 2) of the
-//! texture's 128 x 128 (`g_mud` + 0x4000 n), kept in the scratch dword. When `race::mud_texel` there
+//! texture's 128 x 128 (`mud` + 0x4000 n), kept in the scratch dword. When `race::mud_texel` there
 //! has its top bit set, it is tinted by `race::tint_to_mud_colour`, the top byte set, and put back
 //! (`race::put_mud_texel`).
 //!
@@ -15,8 +15,6 @@ use crate::race::owner::Race;
 use crate::race::owner_shared::RaceShared;
 use crate::race::put_mud_texel::put_mud_texel;
 use crate::race::tint_to_mud_colour::tint_to_mud_colour;
-
-// g_surface.format
 
 /// The place (x, y) of number `n` (its low 16 bits).
 pub fn shuffled_place(race: &Race, n: u32) -> (u32, u32) {
@@ -54,7 +52,7 @@ pub fn muddy_texel(
     system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
     let course = &race.course;
-    // Converted: `rc2k_core::race::mud::{shuffled_place, strength_index, muddy,
+    // Logic in `rc2k_core::race::mud::{shuffled_place, strength_index, muddy,
     // tint_amount}`.
     use rc2k_core::race::mud::{MUD_TOP, muddy, strength_row, tint_amount};
     let n = texture_and_mud(&race.shared)?;

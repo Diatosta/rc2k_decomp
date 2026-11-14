@@ -1,11 +1,8 @@
-//! `physics::take_second_view` (0x438024): `physics::take_first_view` for the second view: the
-//! offset plus `camera_shake_x` .. into `view_b_offset`; +0x10 .. +0x24 into `view_b_turn` and
-//! `view_b_point`; +0x28 .. +0x38 into `view_b_shares`; the heading into `view_b_heading`; the next
-//! two halved (arithmetic shift) unless the mode before (`camera_blend_view`) is 1, 2 or 3, into
-//! `view_b_pitch` and `view_b_roll`.
-//!
-//! Takes: the view's record
-//! Returns: the two
+//! `physics::take_first_view` for the second view: the offset plus `camera_shake_x` into
+//! `view_b_offset`; the turn and point figures into `view_b_turn` and `view_b_point`; the shares
+//! into `view_b_shares`; the heading into `view_b_heading`; the next two halved (arithmetic shift)
+//! unless the mode before (`camera_blend_view`) is 1, 2 or 3, into `view_b_pitch` and
+//! `view_b_roll`.
 //!
 //! Caller: `physics::update_camera`.
 
@@ -42,14 +39,10 @@ pub fn take_second_view(
     camera.view_b_roll.set(ebx as i32);
 }
 
-// ---- the arithmetic that was x87 assembly ----
+// ---- the x87 arithmetic ----
 
-/// The game's x87 arithmetic as plain Rust over `X`, on the variables
-/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// (`[s + 4]` .. `[s + 0xC]` the record's offset, passed by value)
-/// `[view_b_offset] = [s + 4] + [camera_shake_x]`
-/// `[rc + 0x208BB4] = [s + 8] + [camera_shake_y]`
-/// `[rc + 0x208BB8] = [s + 0xC] + [camera_shake_z]`
+/// (`[s + 4]` .. `[s + 0xC]` the record's offset, passed by value) `[view_b_offset] = [s + 4] +
+/// [camera_shake_x]`
 fn x87_1(camera: &CameraWork, offset: [u32; 3], scene: &crate::scene::owner::Scene) {
     let lights = &scene.lights;
     let t0 = ld(offset[0]);

@@ -1,11 +1,10 @@
-//! `race::viewer_snapshot` (0x41EFAB): the viewer's frame saved as a picture: the three digits of
-//! `savedata\snapshot\000.pcx` one more (999 round to 000; the number found by
-//! `race::find_snapshot_number`), the name as `Picture.name` while the surface is locked
-//! (`gfx::lock_surface`; failing, nothing), written (`gfx::write_screen_pcx`) and unlocked
-//! (`gfx::unlock_surface`); `Picture.name` put back.
+//! `race::viewer_snapshot`: saves the viewer's frame as a picture. The three digits of
+//! `savedata\snapshot\000.pcx` go up by one (999 rounds to 000; the number is found by
+//! `race::find_snapshot_number`), and the name is used as `Picture.name` while the surface is
+//! locked (`gfx::lock_surface`; if that fails, nothing is saved), written
+//! (`gfx::write_screen_pcx`) and unlocked (`gfx::unlock_surface`); `Picture.name` is put back.
 //!
-//! Caller: `race::viewer_frame` (when `snapshot_asked` asks), which calls it directly; the
-//! lock and unlock (the platform's) and the writer are called directly.
+//! Called by `race::viewer_frame` when `snapshot_asked` asks.
 
 use crate::errors::Refused;
 use crate::race::find_snapshot_number::DIGITS_AT;
@@ -16,7 +15,6 @@ pub fn viewer_snapshot(
     gfx: &crate::gfx::owner::Gfx,
     system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
-    // Converted: `rc2k_core::race::viewer::next_snapshot`.
     let what = "the snapshot's digits";
     let digits: [u8; 3] = replay
         .snapshot()
@@ -29,7 +27,7 @@ pub fn viewer_snapshot(
         .snapshot()
         .write_at(DIGITS_AT, &next, what)
         .unwrap_or_else(|e| crate::fatal::raise::end(what, e));
-    // `cmp g_surfaceLocked, 1`'s carry: not locked.
+    // Only when the surface could be locked.
     if crate::platform::lock_surface(gfx, system) >= 1 {
         crate::gfx::write_screen_pcx::write_screen_pcx(
             &gfx.shots,

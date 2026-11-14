@@ -1,12 +1,10 @@
-//! The car's shadow (the tree under `cast_car_shadows`; a dark polygon under
-//! each car, the hull of its corners on the ground, cut by the course's faces; drawn per car whose
-//! +0x6FC is set, once for the "reduced" car shadows option and twice for "full" (strings 0x396 /
-//! 0x397, `settings_words[2]`): once cast along the stage's sun height, once with the sun straight
-//! above at height 0x40. Settled from `cast_car_shadows` and the options page). Its
-//! leaves and shared code. Its working values are a `ShadowWork` of its own (frame plan F4):
-//! the point records of 0x20 bytes at `work.points` (+0 x, +4 y, +8 z as whole numbers, +0xC
-//! the angle, +0x10 the distance, +0x14 0), their count `work.point_count`, the hull's
-//! `work.hull_count`, ...
+//! The car's shadow (the tree under `cast_car_shadows`): a dark polygon under each car, the hull of
+//! its corners on the ground, cut by the course's faces. It is drawn for each car whose +0x6FC is
+//! set, once for the "reduced" car shadows option and twice for "full" (`settings_words[2]`): once
+//! cast along the stage's sun height, once with the sun straight above at height 0x40. This file
+//! holds its leaves and shared code. The working values are a `ShadowWork` of its own: the point
+//! records of 0x20 bytes at `work.points` (+0 x, +4 y, +8 z as whole numbers, +0xC the angle, +0x10
+//! the distance, +0x14 0), their count `work.point_count`, the hull's `work.hull_count`, ...
 
 use crate::effects::cell_x87::CellX87;
 use crate::errors::{BadInput, Refused};
@@ -21,26 +19,24 @@ use crate::scene::polygon::{list_cell, old_list_cell};
 use crate::scene::polygon_store::PolygonEntry;
 use crate::session::{PlainByte, PlainDword, PlainFloat};
 
-/// The shadow's working state: what `cast_car_shadows` writes and reads within itself, one
-/// for each call, given down to its parts. The original kept it in the race block
-/// (`g_shadowPoints` and after at 0x641AA4 .. 0x643ACC, `g_shadowPointCount` and its
-/// neighbours at 0x641928 .. 0x641AA0), left from view to view; nothing else read it, and
-/// each call wrote every value before reading it.
+/// The shadow's working state: what `cast_car_shadows` writes and reads within itself, one for each
+/// call, given down to its parts. Every value is written before it is read, so nothing carries over
+/// from one call to the next.
 #[derive(rc2k_derive::Cells)]
 pub struct ShadowWork {
     /// The shadow's points, records of 0x20 bytes (0x40 at most), the hull's records after.
     points: [ShadowPoint; 0x100],
-    /// The car's corners (`g_shadowPointCount`; from its block's +0x260).
+    /// The car's corners (`shadow_point_count`; from its block's +0x260).
     point_count: PlainDword,
     /// The length of the farthest point (`shadow_points`).
     farthest_length: PlainFloat,
-    /// The farthest point's number (the original kept its record's address).
+    /// The farthest point's number.
     farthest: PlainDword,
     /// The first point's angle (`shadow_angles`).
     first_angle: PlainFloat,
-    /// cos(turn) x cot(sun) (`sun_slant`).
+    /// Cos(turn) x cot(sun) (`sun_slant`).
     slant_x: PlainFloat,
-    /// sin(turn) x cot(sun).
+    /// Sin(turn) x cot(sun).
     slant_z: PlainFloat,
     /// The shadow hull's points.
     hull_count: PlainDword,
@@ -52,7 +48,7 @@ pub struct ShadowWork {
     face_corners: [PlainDword; 3],
     /// The edge cut by: x and z from, x and z to (`clip_to_edge`).
     edge: [PlainDword; 4],
-    /// `edge_crossing`'s work dwords (0x641958 .. 0x64198C in the original).
+    /// `edge_crossing`'s work dwords.
     crossing: [PlainDword; 14],
     /// The next new scene point (`shadow_on_face`, `edge_crossing`).
     next_point: PlainDword,
@@ -62,7 +58,7 @@ pub struct ShadowWork {
     list_count: PlainDword,
     /// The ground's height under the car.
     ground: PlainDword,
-    /// The ground searches' fields (the original's were the physics', `GROUND_WORK` ..).
+    /// The ground searches' fields.
     search: GroundCells,
 }
 
@@ -91,8 +87,8 @@ impl ShadowWork {
     }
 
     /// The ground search on the shadow's own fields, the scene points through `points`; the
-    /// caller's mark (`settle_mark`), which the search only reads, is the physics' (`probe`)
-    /// as the last search there left it.
+    /// caller's mark (`settle_mark`), which the search only reads, is the physics' (`probe`) as the
+    /// last search there left it.
     fn query<'a>(&'a self, probe: &'a GroundProbe, points: &'a OwnPoints) -> GroundQuery<'a> {
         GroundQuery {
             settle_mark: &probe.settle_mark,
@@ -101,23 +97,24 @@ impl ShadowWork {
     }
 }
 
-/// The circle's radius and unit (`g_shadowCircle`, `FrameWork.shadow_circle[1]`: 2^23 and 2^24, never written).
+/// The circle's radius and unit (`shadow_circle`, `FrameWork.shadow_circle[1]`): 2^23 and 2^24,
+/// never written.
 const CIRCLE: [u32; 2] = [0x4B00_0000, 0x4B80_0000];
 
-/// Point `n` (0x20 bytes each; `work.farthest` keeps the farthest one's number), bounded by
-/// the table (`work.points`).
+/// Point `n` (0x20 bytes each; `work.farthest` keeps the farthest one's number), bounded by the
+/// table (`work.points`).
 fn point_at(work: &ShadowWork, n: u32) -> Result<&'_ ShadowPoint, BadInput> {
     work.points
         .get(n as usize)
         .ok_or(BadInput("a shadow point"))
 }
 
-/// `fldpi; fadd st, st; fadd v; fstp`: 2 pi plus a float.
+/// 2 pi plus a float, as the x87 adds them.
 fn two_pi_plus(v: u32) -> u32 {
     use crate::math::x87::{Rounding, rounding};
     use crate::math::x87_float::{X, ld, st};
-    // 2 x `fldpi`'s 64-bit pi plus v, rounded once: the f64 pi's double, plus what the
-    // 64-bit pi has above it (565 units of 2^-62, one less rounding down or chop).
+    // Twice the 64-bit pi plus v, rounded once: the f64 pi's double, plus what the 64-bit pi has
+    // above it (565 units of 2^-62, one less rounding down or chop).
     let low = match rounding() {
         Rounding::Down | Rounding::Chop => 564.0,
         _ => 565.0,
@@ -130,11 +127,10 @@ fn two_pi_plus(v: u32) -> u32 {
     st(X(sum) + X(error + low))
 }
 
-/// `race::shadow_angles` (0x4581F3): the farthest point (`work.farthest`) swapped into the first
-/// record; each record's angle made relative to the first's (`work.first_angle`; below 0 plus 2
-/// pi), times 65536 as a whole number, +0x14 0; with two records or more sorted by angle
-/// (`sorting::sort_records`). Refuses (before anything) no points (its loop tests at its end) or
-/// more than 0x40.
+/// Moves the farthest point (`work.farthest`) into the first record and makes each record's angle
+/// relative to the first's (`work.first_angle`; below 0 plus 2 pi), times 65536 as a whole number,
+/// +0x14 0; with two records or more they are sorted by angle (`sorting::sort_records`). Refused
+/// (before anything): no points or more than 0x40.
 pub fn shadow_angles(
     numbers: &crate::race::numbers_store::Numbers,
     work: &ShadowWork,
@@ -165,7 +161,7 @@ pub fn shadow_angles(
         record.zeroed.set(0);
     }
     if count >= 2 {
-        // Converted: `rc2k_core::race::quick_sort::quick_sort`.
+        // The sort is `rc2k_core::race::quick_sort::quick_sort`.
         crate::race::sorting::sort_records::<8>(
             &work.points,
             count,
@@ -176,13 +172,12 @@ pub fn shadow_angles(
     Ok(())
 }
 
-/// `race::shadow_hull` (0x45836F): the first record copied after the last; then, walking the
-/// points, each one where the turn from the one before to the one after is not to the left (the
-/// 64-bit cross product of whole numbers, `GROUND_PROBE.product` its first half, not negative) is
-/// taken out (the rest moved down, starting again), until none is; `work.hull_count` the points
-/// left. Refuses (before anything) fewer than two points or more than 0x40.
+/// Copies the first record after the last, then walks the points and takes out each one where the
+/// turn from the one before to the one after is not to the left (the 64-bit cross product of whole
+/// numbers, `product` its first half, not negative), moving the rest down and starting
+/// again, until none is; `work.hull_count` is the points left. Refused (before anything): fewer
+/// than two points or more than 0x40.
 pub fn shadow_hull(work: &ShadowWork) -> Result<(), Refused> {
-    // Converted: `rc2k_core::race::shadow::hull`.
     use rc2k_core::race::shadow::{Record, hull, hull_records};
     let count: u32 = work.point_count.get();
     if !(2..=0x40).contains(&count) {
@@ -206,9 +201,8 @@ pub fn shadow_hull(work: &ShadowWork) -> Result<(), Refused> {
     Ok(())
 }
 
-/// The circle's texture place of corner `k` of `n` into the work entry `e` (+0x10, +0x14):
-/// cos and sin of 2 pi k / n times `radius` plus `radius`, rounded to whole numbers, over
-/// `unit`.
+/// The circle's texture place of corner `k` of `n` into the work entry `e` (+0x10, +0x14): cos and
+/// sin of 2 pi k / n times `radius` plus `radius`, rounded to whole numbers, over `unit`.
 fn circle_place(e: &PolygonEntry, k: u32, n: u32, radius: u32, unit: u32) {
     use crate::math::x87_float::{int, ld, st, to_int};
     let angle = (int(k as i32) / int(n as i32)).times_pi();
@@ -220,12 +214,11 @@ fn circle_place(e: &PolygonEntry, k: u32, n: u32, radius: u32, unit: u32) {
     e.v2.set(st(int(down) / unit));
 }
 
-/// `race::shadow_polygon` (0x45787F): the hull's points as new scene points (after the scene's,
-/// from `g_scenePointCount` + 0x10: x and z the record's, y `work.ground`) and as the polygon's
-/// work entries (+0 the point, +0x18 white, +0x21 `stage_prefs.shadow_alpha` / 2, +0x10 / +0x14 a
-/// circle's texture place: cos / sin of 2 pi k / n times `CIRCLE[0]` plus it, rounded, over
-/// `CIRCLE[1]`). Refuses (before anything) a hull of no points (its loop tests at its end) or more
-/// than 0x40.
+/// Makes the hull's points new scene points (after the scene's, from `scene_point_count` + 0x10: x
+/// and z the record's, y `work.ground`) and the polygon's work entries (+0 the point, +0x18 white,
+/// +0x21 `stage_prefs.shadow_alpha` / 2, +0x10 / +0x14 a circle's texture place: cos / sin of 2 pi
+/// k / n times `CIRCLE[0]` plus it, rounded, over `CIRCLE[1]`). Refused (before anything): a hull
+/// of no points or more than 0x40.
 pub fn shadow_polygon(
     polygon_work: &crate::scene::polygon_store::PolygonWork,
     points: &OwnPoints,
@@ -256,7 +249,7 @@ pub fn shadow_polygon(
     Ok(())
 }
 
-/// A polygon work entry's address (`POLYGON_WORK.entries` + 0x44 x n).
+/// A polygon work entry's place: `entries` + 0x44 x n.
 fn work_entry(
     polygon_work: &crate::scene::polygon_store::PolygonWork,
     n: u32,
@@ -267,10 +260,9 @@ fn work_entry(
         .ok_or(BadInput("a polygon work entry past 0x80"))
 }
 
-/// `inside_edge`: whether scene point `n` is on the inner side of the edge from
-/// (`work.edge`, `work.edge[1]`) to (`work.edge[2]`, `work.edge[3]`): the cross product
-/// of whole numbers on the x87 (the original's instructions) above 0, or not a number
-/// (`fldz; fcompp`, C0). The point's x and z into `GROUND_WORK.ground_x` / `GROUND_WORK.ground_z`.
+/// Whether scene point `n` is on the inner side of the edge from (`work.edge`, `work.edge[1]`) to
+/// (`work.edge[2]`, `work.edge[3]`): the cross product of whole numbers, on the x87, above 0 or not
+/// a number. The point's x and z go into `ground_x` / `ground_z`.
 fn inside_edge(
     course: CourseReads<'_>,
     points: &OwnPoints,
@@ -287,17 +279,18 @@ fn inside_edge(
     let c = &work.edge;
     let first = (word(x) - word(&c[0])) * (word(&c[3]) - word(&c[1]));
     let second = (word(z) - word(&c[1])) * (word(&c[2]) - word(&c[0]));
-    // `fldz; fcompp`: above 0, or not a number (C0)
+    // Above 0, or not a number.
     Ok(compare(X(0.0), first - second) & 0x0100 != 0)
 }
 
 /// `edge_crossing`'s arithmetic: the share of the edge's crossing (-(`work.crossing[8]` x
-/// `work.crossing[11]` - `work.crossing[10]` x `work.crossing[9]`) over the difference of the two cross
-/// products, rounded to a float into `GROUND_WORK.plane_f` and used as read back), the crossing's
-/// place (x and z whole numbers into `DRAW.clip_work[2]` / `DRAW.clip_work[4]`) and the entry's
-/// texture floats (`DRAW.clip_work[10]`, `DRAW.clip_work[11]`) and two bytes (`DRAW.crossing_amount`, `DRAW.clip_out_words`)
-/// shared the same way between the scene points numbered `pa`, `pb` and the entries `ea`, `eb`;
-/// The original's store of the share's bits to `g_scratch` is not kept (nothing read it).
+/// `work.crossing[11]` - `work.crossing[10]` x `work.crossing[9]`) over the difference of the two
+/// cross products, rounded to a float into `plane_f` and used as read back), the
+/// crossing's place (x and z whole numbers into `clip_work[2]` / `clip_work[4]`) and the
+/// entry's texture floats (`clip_work[10]`, `clip_work[11]`) and two bytes
+/// (`crossing_amount`, `clip_out_words`), shared the same way between the scene points
+/// numbered `pa`, `pb` and the entries `ea`, `eb`. The share's bits are not stored to `scratch`:
+/// nothing reads them.
 fn crossing_block(
     course: CourseReads<'_>,
     points: &OwnPoints,
@@ -314,7 +307,7 @@ fn crossing_block(
     let share = stf(-(first / (second - first)));
     work.search.plane_f().set(share);
     let share = ld(share);
-    // a + (b - a) x share
+    // a + (b - a) x share.
     let whole = |k: u32| -> Result<i32, BadInput> {
         let (a, b) = (
             point_word(course, points, pa, k)?,
@@ -340,11 +333,10 @@ fn crossing_block(
     Ok(())
 }
 
-/// `edge_crossing`: the edge's crossing between work entries `ea` and `eb` as a new scene
-/// point (`work.next_point`, then counted on: x and z from the share `GROUND_WORK.plane_f`, y 0) and
-/// the new work entry `ed` (its point, texture places +0x10 / +0x14 and the two bytes
-/// +0x20 / +0x21 shared the same way); the original's work dwords (0x641958 .. 0x64198C,
-/// `DRAW.clip_work[2]` ..) kept as it leaves them.
+/// The edge's crossing between work entries `ea` and `eb` as a new scene point (`work.next_point`,
+/// then counted on: x and z from the share `plane_f`, y 0) and the new work entry `ed`
+/// (its point, texture places +0x10 / +0x14 and the two bytes +0x20 / +0x21 shared the same way).
+/// The work dwords (`clip_work[2]` ..) are left as `edge_crossing` leaves them.
 fn edge_crossing(
     ctx: &crate::race::view_scratch::DrawCtx<'_>,
     work: &ShadowWork,
@@ -409,8 +401,8 @@ fn edge_crossing(
     Ok(())
 }
 
-/// `clip_to_edge`: the polygon cut by the edge from scene point `from` to scene point `to`
-/// (kept: those on the inner side, and the crossings), with three vertices or more.
+/// Cuts the polygon by the edge from scene point `from` to scene point `to` (kept: those on the
+/// inner side, and the crossings), with three vertices or more.
 fn clip_to_edge(
     ctx: &crate::race::view_scratch::DrawCtx<'_>,
     work: &ShadowWork,
@@ -430,16 +422,16 @@ fn clip_to_edge(
     work.edge[3].set(tz);
     work.edge[0].set(fx);
     work.edge[1].set(fz);
-    // The polygon list holds 0x40 numbers and the old list follows it: a cut that adds
-    // crossings past 0x40 runs on from the list into the old list, and from the old list
-    // into the gap after it, as the original (`list_cell` names the three fields). A hull of
-    // at most 0x40 points cut by three edges adds at most as many again as it holds each time.
+    // The polygon list holds 0x40 numbers and the old list follows it: a cut that adds crossings
+    // past 0x40 runs on from the list into the old list, and from the old list into the gap after
+    // it (`list_cell` names the three fields). A hull of at most 0x40 points cut by three edges
+    // adds at most as many again as it holds each time.
     let polygon = &ctx.part.polygon;
     for k in 0..count as usize {
         old_list_cell(polygon, k).set(list_cell(polygon, k).get());
     }
     old_list_cell(polygon, count as usize).set(list_cell(polygon, 0).get());
-    // Converted: `rc2k_core::race::shadow::clip_by_edge`.
+    // The cut is `rc2k_core::race::shadow::clip_by_edge`.
     let mut added = 0u32;
     let trap = Trap::new();
     rc2k_core::race::shadow::clip_by_edge(
@@ -488,11 +480,11 @@ fn clip_to_edge(
     Ok(())
 }
 
-/// `race::clip_shadow_to_face` (0x457960): the shadow's polygon cut to the course face whose
-/// corners are `work.face_corners` .. `work.face_corners[2]` (scene points): none (count 0) when a
-/// corner is more than 0x100000 off the work car in x before one within 0x100000 in z is met (or
-/// none is); else cut by its three edges in turn while three vertices are left (`clip_to_edge`,
-/// with `inside_edge` the side test and `edge_crossing` the crossing).
+/// Cuts the shadow's polygon to the course face whose corners are `work.face_corners` ..
+/// `work.face_corners[2]` (scene points): none (count 0) when a corner is more than 0x100000 off
+/// the work car in x before one within 0x100000 in z is met (or none is); else cut by its three
+/// edges in turn while three vertices are left (`clip_to_edge`, with `inside_edge` the side test
+/// and `edge_crossing` the crossing).
 pub fn clip_shadow_to_face(
     ctx: &crate::race::view_scratch::DrawCtx<'_>,
     work: &ShadowWork,
@@ -503,7 +495,6 @@ pub fn clip_shadow_to_face(
         work.face_corners[1].get(),
         work.face_corners[2].get(),
     ];
-    // Converted: `rc2k_core::race::shadow::face_near`.
     let trap = Trap::new();
     let found =
         rc2k_core::race::shadow::face_near((car.position[0].get(), car.position[2].get()), |n| {
@@ -526,10 +517,10 @@ pub fn clip_shadow_to_face(
     Ok(())
 }
 
-/// `raise_onto_face`: work entry `index`'s scene point raised onto the face (`work.face_corners` ..):
-/// the face's corners (into `GROUND_WORK.face_corner_numbers` ..) and the point (into `GROUND_WORK.ground_x` /
-/// `GROUND_WORK.ground_z`) through `physics::face_shares` and `physics::plane_height`, its y the
-/// height (`GROUND_WORK.ground_height`) plus `work.lift`.
+/// Raises work entry `index`'s scene point onto the face (`work.face_corners` ..): the face's
+/// corners (into `face_corner_numbers` ..) and the point (into `ground_x` /
+/// `ground_z`) go through `physics::face_shares` and `physics::plane_height`, its y the
+/// height (`ground_height`) plus `work.lift`.
 fn raise_onto_face(
     polygon_work: &crate::scene::polygon_store::PolygonWork,
     points: &OwnPoints,
@@ -559,14 +550,14 @@ fn raise_onto_face(
     Ok(())
 }
 
-/// `race::shadow_on_face` (0x45773C): the shadow's polygon (the hull's list at `work.list`, its
-/// count `work.list_count`) cut to the face `work.face_corners` .. and drawn on it: new points from
-/// `g_scenePointCount` + 0x30 (`work.next_point`), entries from 0x20, the 0x40 point records after
-/// the scene's marked unmade; `clip_shadow_to_face`; with three vertices or more each raised onto
-/// the face, projected (`scene::project_polygon`, `scene::fog_polygon`), cut by depth (unless all
-/// or none are outside) and to the screen and drawn (`scene::draw_polygon_in_game`) in mode 5 with
-/// texture `work.texture`. Refuses what the projection and the clips refuse (after the work is set;
-/// not met with a hull's few vertices) and a hull list past 0x40.
+/// Cuts the shadow's polygon (the hull's list at `work.list`, its count `work.list_count`) to the
+/// face `work.face_corners` .. and draws it there: new points from `scene_point_count` + 0x30
+/// (`work.next_point`), entries from 0x20, the 0x40 point records after the scene's marked unmade;
+/// `clip_shadow_to_face`; with three vertices or more each is raised onto the face, projected
+/// (`scene::project_polygon`, `scene::fog_polygon`), cut by depth (unless all or none are outside)
+/// and to the screen and drawn (`scene::draw_polygon_in_game`) in mode 5 with texture
+/// `work.texture`. Refused: what the projection and the clips refuse (after the work is set; not
+/// met with a hull's few vertices) and a hull list past 0x40.
 pub fn shadow_on_face(
     ctx: &crate::race::view_scratch::DrawCtx<'_>,
     work: &ShadowWork,
@@ -663,10 +654,9 @@ pub fn shadow_on_face(
     Ok(())
 }
 
-/// `shadow_on_record`: each face of course record number `record` (its
-/// address; +8 .. +0xC) with a kind below 0x10 and
-/// without bit 7 of its +2 word gets the shadow (`shadow_on_face`) on its two triangles
-/// (corners +4, +8, +0xC and +0x10, +0xC, +8); `g_currentCourseFace` each face.
+/// Each face of course record number `record` (its address; +8 .. +0xC) with a kind below 0x10 and
+/// without bit 7 of its +2 word gets the shadow (`shadow_on_face`) on its two triangles (corners
+/// +4, +8, +0xC and +0x10, +0xC, +8); `current_course_face` follows each face.
 fn shadow_on_record(
     ctx: &crate::race::view_scratch::DrawCtx<'_>,
     work: &ShadowWork,
@@ -674,8 +664,6 @@ fn shadow_on_record(
     record: u32,
 ) -> Result<(), Refused> {
     use crate::race::course_places::{face_number, record_field};
-    // Converted: `rc2k_core::race::shadow::{takes_shadow, SHADOW_TRIANGLES}`,
-    // `rc2k_core::race::view::record_faces`.
     use rc2k_core::race::shadow::{SHADOW_TRIANGLES, takes_shadow};
     let Some((first, last)) = rc2k_core::race::view::record_faces(
         record_field(ctx.reads.course(), record, 8)?,
@@ -699,8 +687,8 @@ fn shadow_on_record(
     Ok(())
 }
 
-/// `race::shadow_faces` (0x457618): the shadow (`shadow_on_face`) on the last course record's
-/// faces, then on every record in the 3 x 3 cells round the work car (`shadow_on_record` each).
+/// Puts the shadow (`shadow_on_face`) on the last course record's faces, then on every record in
+/// the 3 x 3 cells round the work car (`shadow_on_record` each).
 pub fn shadow_faces(
     ctx: &crate::race::view_scratch::DrawCtx<'_>,
     work: &ShadowWork,
@@ -711,7 +699,6 @@ pub fn shadow_faces(
     if count == 0 {
         return Ok(());
     }
-    // Converted: `rc2k_core::race::shadow::{record_cell, cell_near_car}`.
     use rc2k_core::race::shadow::{cell_near_car, record_cell};
     // Every record of the course is looked at each frame: the run is resolved once.
     let all = crate::race::course_places::records_table(ctx.reads.course(), count)?;
@@ -732,14 +719,13 @@ pub fn shadow_faces(
     Ok(())
 }
 
-/// `fld tbyte; fstp dword`: 80 bits as a float.
+/// 80 bits as a float.
 fn tbyte_to_float(t: [u8; 10]) -> u32 {
     crate::math::x87_float::st(crate::math::x87_float::from_f80(t))
 }
 
-/// The sun's slant from `sun` and `turn` (the angles as 128ths of a half turn): `work.slant_x`
-/// = cos(turn) x cot(sun), `work.slant_z` = sin(turn) x cot(sun)
-/// (the original's store of 0x80 to `g_scratch` is not kept, nothing read it).
+/// The sun's slant from `sun` and `turn` (the angles as 128ths of a half turn): `work.slant_x` =
+/// cos(turn) x cot(sun), `work.slant_z` = sin(turn) x cot(sun).
 fn sun_slant(work: &ShadowWork, sun: u32, turn: u32) {
     use crate::math::x87_float::int;
     let cot = {
@@ -751,20 +737,19 @@ fn sun_slant(work: &ShadowWork, sun: u32, turn: u32) {
     work.slant_z.st(cot * sin);
 }
 
-/// `fld x; fld z; fpatan; fstp`: the angle of the corner at `at` (x at +0, z at +8).
+/// The angle of the corner at `at` (x at +0, z at +8): arctangent of x over z.
 fn angle_of(at: &ShadowPoint) -> u32 {
     use crate::math::x87_float::{ld, st};
     st(ld(at.x.get()).atan2(ld(at.z.get())))
 }
 
-/// `race::shadow_points` (0x458078): the shadow's points: the ground under the work car
-/// (`physics::find_ground`, its height to `work.ground`); the sun's slant from the sun's height
-/// `sun` (at least 0x10) and -`stage_prefs.sun_turn` - 0x40 (`work.slant_x`, `work.slant_z`); each
-/// of the car's `work.point_count` corners (`g_car` +0xAF0 .. +0xCF0 by axis) turned by its matrix
-/// (+0x840), moved along the slant by its height plus 0.7, its angle (`fpatan`) and distance, the
-/// farthest kept (`work.farthest_length`, `work.farthest`), as whole numbers (x 65536) plus the
-/// car's place. Refuses what `find_ground` refuses (before anything), and no corners or more than
-/// 0x40.
+/// Works out the shadow's points: the ground under the work car (`physics::find_ground`, its height
+/// to `work.ground`); the sun's slant from the sun's height `sun` (at least 0x10) and
+/// -`stage_prefs.sun_turn` - 0x40 (`work.slant_x`, `work.slant_z`); each of the car's
+/// `work.point_count` corners (`car` +0xAF0 .. +0xCF0 by axis) is turned by its matrix (+0x840),
+/// moved along the slant by its height plus 0.7, and given its angle and distance, the farthest
+/// kept (`work.farthest_length`, `work.farthest`), as whole numbers (x 65536) plus the car's place.
+/// Refused: what `find_ground` refuses (before anything), and no corners or more than 0x40.
 #[allow(
     clippy::too_many_arguments,
     reason = "the drawing's stores the part reads, as they are lent"
@@ -830,8 +815,7 @@ pub fn shadow_points(
     Ok(())
 }
 
-/// `fld y; fadd lift; fmul slant; fadd base; fstp`: a corner moved along the sun's slant,
-/// rounded once.
+/// A corner moved along the sun's slant: (y + lift) x slant + base, rounded once.
 fn lifted(
     y: u32,
     lift: impl crate::math::x87_float::Loadable,
@@ -842,18 +826,16 @@ fn lifted(
     st((ld(y) + ld(lift)) * ld(slant) + ld(base))
 }
 
-/// `race::cast_car_shadow` (0x4575C1): with three corners or more, the shadow's points, their
-/// order, hull and polygon, the hull's list (`work.list`, `work.list_count`), texture 0xC3
-/// (`work.texture`), and the shadow on the faces round the car (`shadow_faces`), with the sun at
-/// height `sun`. Refuses what its parts refuse (before anything for the points and the counts).
+/// With three corners or more, makes the shadow's points, their order, hull and polygon, the hull's
+/// list (`work.list`, `work.list_count`) and texture 0xC3 (`work.texture`), and puts the shadow on
+/// the faces round the car (`shadow_faces`), with the sun at height `sun`. Refused: what its parts
+/// refuse (before anything for the points and the counts).
 pub fn cast_car_shadow(
     ctx: &crate::race::view_scratch::DrawCtx<'_>,
     work: &ShadowWork,
     car: &Car,
     sun: u32,
 ) -> Result<(), Refused> {
-    // Converted: `rc2k_core::race::shadow::{casts, hull_drawn, hull_list,
-    // SHADOW_TEXTURE}`.
     use rc2k_core::race::shadow::{SHADOW_TEXTURE, casts, hull_drawn, hull_list};
     if !casts(work.point_count.get()) {
         return Ok(());
@@ -878,15 +860,11 @@ pub fn cast_car_shadow(
     shadow_faces(ctx, work, car)
 }
 
-/// `race::cast_car_shadows` (0x45754C): the depth test off, `work.lift` 0x1999, then for each race
-/// car with +0x6FC not 0: its block read directly (the original loaded it into the work copy,
-/// `drive::load_car`), its corner count from its +0x260, `cast_car_shadow` once with
-/// `RACE_VARS.settings_words[2]` set, then once more with the sun at height 0x40 (the original set
-/// `stage_prefs.sun_height` to it and put it back after: an argument here); the depth test on.
-/// Refuses (before anything) no cars or more than eight, or a null block.
+/// Turns the depth test off and sets `work.lift` to 0x1999; then for each race car with +0x6FC not
+/// 0 reads its block directly and its corner count from its +0x260, and calls `cast_car_shadow`
+/// once with `settings_words[2]` set, then once more with the sun at height 0x40; the
+/// depth test goes back on. Refused (before anything): no cars or more than eight, or a null block.
 pub fn cast_car_shadows(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refused> {
-    // Converted: `rc2k_core::race::shadow::{check_shadow_cars, casts_shadow, first_pass,
-    // SHADOW_STRENGTH, SUN_PASS}`.
     use rc2k_core::race::shadow::{
         SHADOW_STRENGTH, SUN_PASS, casts_shadow, check_shadow_cars, first_pass,
     };
@@ -898,9 +876,7 @@ pub fn cast_car_shadows(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<
     crate::scene::depth_test_off::depth_test_off(ctx.part);
     work.lift.set(SHADOW_STRENGTH);
     for n in 0..cars {
-        // Each car's shadow from its own block (the original loaded it into the work car,
-        // `drive::load_car`, and left the last one there for the rest of the view:
-        // `notes/bugs.md`).
+        // Each car's shadow from its own block.
         let car = crate::race::owner_shared::RaceShared::race_car_or_in(
             ctx.reads.work,
             ctx.reads.car_blocks,
@@ -941,7 +917,7 @@ mod reference_vectors {
         at_each_control_word(|| {
             for n in 0..40000 {
                 let v = if n % 2 == 0 {
-                    // the angles it is used for: below 0, above -2 pi
+                    // The angles it is used for: below 0, above -2 pi.
                     (-(f64::from(r.u32()) / 4294967296.0 * std::f64::consts::TAU) as f32).to_bits()
                 } else {
                     r.float()
@@ -1004,7 +980,7 @@ mod reference_vectors {
                 );
                 let entry = super::vector_tests::entry_of([0xAAAA_AAAA; 17]);
                 let cells = crate::cells::dwords_in::<_, 17>(&entry, 0);
-                // The original writes the entry's dwords 4 and 5 only.
+                // Only the entry's dwords 4 and 5 are written.
                 let a: [u32; 2] = words(&mut file);
                 circle_place(&entry, k, n, radius, unit);
                 let b: [u32; 17] = std::array::from_fn(|w| cells[w].get());
@@ -1024,7 +1000,7 @@ mod reference_vectors {
     }
 }
 
-/// The blocks that read the race's state against the original's outputs, recorded
+/// The blocks that read the race's state against the recorded outputs
 /// (`test_support::race_vectors`).
 #[cfg(test)]
 mod vector_tests {
@@ -1075,8 +1051,8 @@ mod vector_tests {
                     )
                 })
                 .expect("the test's memory is registered");
-                // The point the original left in the ground work, the shadow's own search in
-                // the shadow's own search fields.
+                // The point the recorded run left in the ground work, here the shadow's own search
+                // in the shadow's own search fields.
                 let none = crate::race::scene_points::no_own();
                 let q = work.search.query(&none);
                 let got = [inside as u32, q.x.get(), q.z.get()];
@@ -1102,8 +1078,8 @@ mod vector_tests {
         at_each_control_word(|| {
             for _ in 0..20000 {
                 let small = r.below(2) == 0;
-                // The work dwords the original read from its frame work, the shadow's own in
-                // its work.
+                // The work dwords the recorded run read from its frame work, here the shadow's own
+                // in its work.
                 let inputs: [u32; 6] = std::array::from_fn(|_| {
                     let v = if small {
                         r.below(200) as i32 - 100
@@ -1145,8 +1121,8 @@ mod vector_tests {
                     )
                 })
                 .expect("the test's memory is registered");
-                // The inputs, `plane_f` (kept in the shadow's own search fields) and the
-                // view's work the block writes.
+                // The inputs, `plane_f` (kept in the shadow's own search fields) and the view's
+                // work the block writes.
                 let mut got = inputs.to_vec();
                 got.push(work.search.plane_f().get().to_bits());
                 for k in [2, 4, 10, 11] {
@@ -1174,10 +1150,9 @@ mod vector_tests {
             for _ in 0..4096 {
                 let sun = 0x10 + r.below(0x400);
                 let turn = (r.below(0x800) as i32 - 0x400) as u32;
-                // At a multiple of a quarter turn (sun 0x40, ...) the sine or the cosine is
-                // about 1e-16: the x87 reduces by a 66-bit pi, libm exactly, so those few
-                // digits differ (the slants are then about 1e-17 or 1e16 in the original,
-                // whatever the processor). Left out here.
+                // At a multiple of a quarter turn (sun 0x40, ...) the sine or the cosine is about
+                // 1e-16: the x87 reduces by a 66-bit pi, libm exactly, so those few digits differ
+                // (the slants are then about 1e-17 or 1e16, whatever the processor). Left out here.
                 if sun.is_multiple_of(64) || turn.is_multiple_of(64) {
                     continue;
                 }

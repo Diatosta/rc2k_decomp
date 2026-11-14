@@ -1,27 +1,26 @@
-//! `race::replay_path` (0x41EF27): a replay's file by its number: 222 the last race's
-//! (`var\tmprpl`); below 100 a saved one (`savedata\replay\replay00` numbered); else one of the
-//! game's own (`files\replay\replay00` numbered by the number less 100), both through
-//! `files::numbered_path`.
+//! `race::replay_path`: a replay's file by its number: 222 the last race's (`var\tmprpl`); below
+//! 100 a saved one (`savedata\replay\replay00` numbered); else one of the game's own
+//! (`files\replay\replay00` numbered by the number less 100), both through `files::numbered_path`.
 //!
-//! Takes: the number
+//! Takes the number.
 //!
-//! Callers: `race::open_viewed_replay` (reads ZF), `race::save_viewed_replay`. Refuses what
-//! `numbered_path` refuses.
+//! Callers: `race::open_viewed_replay`, `race::save_viewed_replay`. Refuses what `numbered_path`
+//! refuses.
 
 use crate::errors::Refused;
 use crate::race::owner::Race;
 use crate::race::owner_replay::Replay;
 
-/// IDA's address of the last race's replay file's name.
+/// The game's address of the last race's replay file's name.
 pub const LAST_RACE_START: usize = 0x5295F0;
 /// Its room.
 pub const LAST_RACE_LEN: usize = 0x5296FB - LAST_RACE_START;
 
 /// The replay files' names, the number's two digits last.
 pub struct Templates {
-    /// `aSavedataReplay`: "savedata\replay\replay00".
+    /// "savedata\replay\replay00".
     pub saved: [u8; 25],
-    /// `aFilesReplayRep`: "files\replay\replay00".
+    /// "files\replay\replay00".
     pub own: [u8; 22],
 }
 
@@ -33,7 +32,6 @@ impl Templates {
         }
     }
 }
-// `numbered_path`'s buffer
 
 /// The last race's file's name (without its NUL).
 pub fn last_race(replay: &Replay) -> Vec<u8> {
@@ -41,8 +39,8 @@ pub fn last_race(replay: &Replay) -> Vec<u8> {
     bytes[..bytes.iter().position(|&b| b == 0).unwrap_or(bytes.len())].to_vec()
 }
 
-/// Here the path's bytes (without the NUL); the original returns the last race's name or
-/// `numbered_path`'s buffer, which this still fills.
+/// The path's bytes (without the NUL), and whether it is the last race's name; `numbered_path`'s
+/// buffer is still filled.
 #[derive(Clone, Debug)]
 pub struct ReplayPath {
     pub path: Vec<u8>,
@@ -50,11 +48,11 @@ pub struct ReplayPath {
     pub last_race: bool,
 }
 
-/// `slot` the replay.
+/// The path of replay `slot`.
 pub fn replay_path(race: &Race, slot: u32) -> Result<ReplayPath, Refused> {
     let replay = &race.replay;
     let shared = &race.shared;
-    // Converted: `rc2k_core::race::viewer::ReplayFile`.
+    // Logic in `rc2k_core::race::viewer::ReplayFile`.
     use rc2k_core::race::viewer::ReplayFile;
     let mut number = slot;
     let template = match ReplayFile::of(slot) {

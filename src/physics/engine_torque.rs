@@ -1,11 +1,11 @@
-//! `physics::engine_torque` (0x43CBBB): the engine's torque from its speed. s = engine speed /
-//! `engine_speed_limit`; for s in 0 ..= below 1 (unordered counts as out) the curve's entry
-//! i = s x 8 (rounding set to chop), and `engine_force` is the line between (`torque_curve[i]`,
-//! `spec_torque[i]`) and (`torque_curve[i + 1]`, `spec_torque[i + 1]`) at s; else `spec_torque[0]`.
-//! Then `engine_torque` = engine speed / limit x `torque_ease` (0.25), and `engine_force` is
-//! multiplied by `engine_power_factor` (as a float).
+//! The engine's torque from its speed. s = engine speed / `engine_speed_limit`; for s in 0 ..<
+//! 1 (unordered counts as out) the curve's entry i = s x 8 (rounded down), and `engine_force`
+//! is the line between (`torque_curve[i]`, `spec_torque[i]`) and (`torque_curve[i + 1]`,
+//! `spec_torque[i + 1]`) at s; otherwise `spec_torque[0]`. Then `engine_torque` = engine speed
+//! / limit x `torque_ease` (0.25), and `engine_force` is multiplied by `engine_power_factor`
+//! (as a float).
 //!
-//! Returns: i on the curve's path
+//! Returns i on the curve's path.
 //!
 //! Callers: `physics::engine_torque_or_cut`, `physics::test_drive_run`, `physics::free_rev`.
 

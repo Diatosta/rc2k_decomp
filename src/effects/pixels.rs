@@ -1,7 +1,6 @@
-//! `make_masks`' second picture (IDA): for each pixel of a shape's rows, its
-//! place against the line pair at 0x82E3DA (two lines: 0x82E3DA -> 0x82E3E6 and 0x82E3F2
-//! -> 0x82E3FE) worked out, shaken by the marks' seed, and kept as four bytes in a table
-//! of 0x400 a row (`MaskVars.pixel_table`).
+//! `make_masks`' second picture: for each pixel of a shape's rows, its place against the line pair
+//! (two lines) worked out, shaken by the marks' seed, and kept as four bytes in a table of 0x400 a
+//! row (`MaskVars.pixel_table`).
 
 use crate::effects::mask_store::Masks;
 use crate::effects::mask_vars::Shape;
@@ -13,7 +12,7 @@ use crate::math::x87;
 use crate::scene::matrix3::{extended, rounded_value};
 use crate::session::{PlainBytes, PlainDword, read_bits, write_bits};
 
-/// The pixel table `n` (0 or 1, the shape's: `PICKS.pixel_table_a`, `_b`).
+/// The pixel table `n` (0 or 1, the shape's: `MaskPicks.pixel_table_a`, `_b`).
 fn pixel_table(drops: &WindscreenDrops, n: u32) -> Result<&PlainBytes<0x2_0000>, BadInput> {
     [&drops.picks.pixel_table_a, &drops.picks.pixel_table_b]
         .get(n as usize)
@@ -21,13 +20,13 @@ fn pixel_table(drops: &WindscreenDrops, n: u32) -> Result<&PlainBytes<0x2_0000>,
         .ok_or(BadInput("a pixel table's number that names none"))
 }
 
-/// The line of `g_marksLines` from dword `at` (0 or 6): its two ends, 3 dwords apart.
+/// The line of `MaskVars.lines` from dword `at` (0 or 6): its two ends, 3 dwords apart.
 fn line(masks: &Masks, at: usize) -> &[PlainDword; 6] {
     let (lines, _) = masks.vars.lines.as_chunks::<6>();
     &lines[at / 6]
 }
 
-/// One half of `map_pixel`: against the line from dword `line` of `g_marksLines` (its
+/// One half of `map_pixel`: against the line from dword `line` of `MaskVars.lines` (its
 /// other end 3 dwords on), the two points of the other line (`other`, `other` + 3), the
 /// three constants, the two bytes.
 struct Half {
@@ -57,14 +56,13 @@ fn next_seed(s: u32) -> u32 {
     s.wrapping_mul(0x9D).wrapping_add(0x47)
 }
 
-/// `effects::map_pixel` (0x4BEFD2): pixel `x`, `MaskVars.pixel[1]` into the pixel table
-/// (`g_marksPixelTable`, here its number) at byte `row + 4 x`, two
-/// halves (bytes +2, +3, then +0, +1): the turn of the half's line (identity, then
-/// `set_line_turn`, `scale_rows3`); the other line's two ends and the pixel turned into
-/// its frame (`turn_pair`, 80-bit differences); the slope between the ends; the pixel's y
-/// worked out from its x by a shake of the seed (one draw of 0x3FFF, a second of 0xFFFF
-/// when the x is not below the span: `x87::random_step`); turned back
-/// (`set_line_turn_back`), rounded with the line's start added, the low bytes kept.
+/// `effects::map_pixel`: pixel `x`, `MaskVars.pixel[1]` into the pixel table (here its number) at
+/// byte `row + 4 x`, two halves (bytes +2, +3, then +0, +1): the turn of the half's line (identity,
+/// then `set_line_turn`, `scale_rows3`); the other line's two ends and the pixel turned into its
+/// frame (`turn_pair`, 80-bit differences); the slope between the ends; the pixel's y worked out
+/// from its x by a shake of the seed (one draw of 0x3FFF, a second of 0xFFFF when the x is not
+/// below the span: `x87::random_step`); turned back (`set_line_turn` with `back`), rounded with
+/// the line's start added, the low bytes kept.
 pub fn map_pixel(
     masks: &Masks,
     drops: &WindscreenDrops,
@@ -97,7 +95,7 @@ pub fn map_pixel(
             x87::int_sub_80(pixel[0] as i32, lx),
             x87::int_sub_80(pixel[1] as i32, ly),
         );
-        // 0x82E40A, _40E, then _416, _41A (0x82E412 is left).
+        // The ends in the order a1, a0, b1, b0.
         let ends = [a[1], a[0], b[1], b[0]].map(rounded_value);
         masks.vars.ends[0].set(ends[0]);
         masks.vars.ends[1].set(ends[1]);
@@ -169,12 +167,11 @@ fn rows_fit(masks: &Masks, entries: u32, index: u32) -> Result<(), Refused> {
     Ok(())
 }
 
-/// `effects::map_shape_rows` (0x4BE855): entry `index` of the list at `entries`: for each
-/// of its rows (`MaskVars.pixel[1]` the row, from the table's row in `MaskVars.pixel_table`, here its
-/// byte offset in the table)
-/// `MaskVars.row_distance` the row's squared distance (`x87::int_plus_less_squared`) and `map_pixel`
-/// for each of its span's pixels. Refuses rows or spans outside the 0x100 x 0x80 table,
-/// before writing.
+/// `effects::map_shape_rows`: entry `index` of the list at `entries`: for each of its rows
+/// (`MaskVars.pixel[1]` the row, from the table's row in `MaskVars.pixel_table`, here its byte
+/// offset in the table) `MaskVars.row_distance` the row's squared distance
+/// (`x87::int_plus_less_squared`) and `map_pixel` for each of its span's pixels. Refuses rows or
+/// spans outside the 0x100 x 0x80 table, before writing.
 pub fn map_shape_rows(
     masks: &Masks,
     drops: &WindscreenDrops,
@@ -213,9 +210,8 @@ pub fn map_shape_rows(
     Ok(())
 }
 
-/// `effects::map_shape` (0x4BE83E): quad `shape` of the shape `shapes`:
-/// `g_marksMaskValue` the quad, its two entries (2 n, 2 n + 1) of the rows at +8 mapped
-/// (`map_shape_rows`). Refuses as `map_shape_rows`, before writing.
+/// `effects::map_shape`: quad `shape` of the shape `shapes`:
+/// `MaskVars.mask_value` the quad, its two entries (2 n, 2 n + 1) of the rows at +8 mapped
 pub fn map_shape(
     masks: &Masks,
     drops: &WindscreenDrops,
@@ -247,14 +243,12 @@ const LINE_FROM: [(u32, u32); 8] = [
     (0x28, 0x28),
 ];
 
-/// `effects::map_shapes` (0x4BE752): with the x87 rounding toward zero (its word put back
-/// after), shape `n`'s pixel table (0x8000 dwords) cleared and made `g_marksPixelTable`,
-/// its corner table kept, the shape's middle (+0xC, +0x10) into 0x8445D6; for each of its
-/// +4 quads the line pair from corner entries k and k + 1 into `g_marksLines` and
-/// `map_shape`. The kept tables (`MaskPicks.table_in_use`, `MaskPicks.corners`, `g_marksPixelTable`,
-/// `dword_8445DE`) hold the shape's number where the original kept addresses. Refuses a
-/// count of 0 or less or past 0x80 (its loop tests after counting), and rows or spans
-/// outside the table, before writing.
+/// `effects::map_shapes`: with the x87 rounding toward zero (its word put back after),
+/// shape `n`'s pixel table (0x8000 dwords) cleared and made the table in use, its corner
+/// table kept, the shape's middle (+0xC, +0x10) kept; for each of its +4 quads the line pair
+/// from corner entries k and k + 1 into `MaskVars.lines` and `map_shape`. The kept tables
+/// (`MaskPicks.table_in_use`, `MaskPicks.corners`) hold the shape's number. Refuses a
+/// count of 0 or less or past 0x80, and rows or spans outside the table, before writing.
 pub fn map_shapes(
     masks: &Masks,
     drops: &WindscreenDrops,

@@ -1,10 +1,8 @@
-//! `physics::apply_forces` (0x43F566): applies a table of force records (0x20 bytes each) to the
-//! work car (`g_car`), each by `physics::apply_force`.
+//! Applies a table of force records (0x20 bytes each) to the work car, one `physics::apply_force`
+//! each.
 //!
-//! Takes: the records
-//!
-//! Callers: `physics::apply_wheel_forces`, `physics::apply_contact_forces`. Refuses a
-//! table of no records or of more than 0x100 (the original would loop 2^32 times).
+//! Callers: `physics::apply_wheel_forces`, `physics::apply_contact_forces`. Refuses no records,
+//! or more than 0x100.
 
 use crate::errors::Refused;
 use crate::physics::apply_force::apply_force;

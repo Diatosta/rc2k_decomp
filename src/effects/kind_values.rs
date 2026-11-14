@@ -1,7 +1,6 @@
-//! `effects::init_marks`' steps 8 and 9 (IDA): `effects::set_kind_values_1`
-//! (0x4C7322) and `effects::set_kind_values_2` (0x4C7FA4), the same code on two sets of
-//! tables: the values of the marks' kind (`g_marksKind`) from tables of 0x22 floats and
-//! of 0x22 three-float entries.
+//! `effects::init_marks`' steps 8 and 9: `set_kind_values` on the two sets of tables (`first`,
+//! `second`): the values of the marks' kind from tables of 0x22 floats and of 0x22 three-float
+//! entries.
 
 use crate::effects::kind_store::{CONSTS_1, CONSTS_2, KindConsts, QuadWork, TABLES_1, TABLES_2};
 use crate::effects::owner::Effects;
@@ -26,7 +25,7 @@ pub struct KindSet<'a> {
     pub consts: &'a KindConsts,
     /// The quad the values are put in.
     pub quad: &'a QuadWork,
-    /// Out: `extra`.
+    /// Where the kind's `extra` goes (the lift along the up).
     pub extra: &'a PlainFloat,
     /// `divisor` copied here too (the first set only).
     pub divisor_copy: Option<&'a PlainFloat>,
@@ -101,9 +100,9 @@ pub fn set_kind_values(k: &KindSet<'_>, effects: &Effects) -> Result<(), Refused
     q.middle.set(x87::mul(middle, c.middle_k));
     // The angle's line above the split runs from `low` to `high`. In the kinds where the two
     // are the same it has no length (and its two ends, `middle` and `end`, are the same in
-    // every such kind that is drawn): the original divided by 0 all the same (0 / 0 a NaN,
-    // a 1999 slip) and kept that as the slope, which `draw_shadow` reads only for a value
-    // at or above the split, which none of the runs reached. Here such a line is flat: 0.
+    // every such kind that is drawn): such a line is flat, with slope 0 (the 1999 code
+    // divided 0 by 0 and kept a NaN; `draw_shadow` reads the slope only at or above the
+    // split, which no checked run reached).
     let slope = if high == low {
         0.0
     } else {
@@ -129,7 +128,7 @@ pub fn set_kind_values(k: &KindSet<'_>, effects: &Effects) -> Result<(), Refused
     q.place[1].set(lerp(1, Some(c.place_less)));
     q.place[2].set(lerp(0, None));
     // The first side is the kind's `copied` triple; the second side's first float is the 0
-    // that goes with it (the original wrote the four as one), then the two differences.
+    // that goes with it, then the two differences.
     q.sides[0][0].set(triple(2, 0));
     q.sides[0][1].set(triple(2, 1));
     q.sides[0][2].set(triple(2, 2));
@@ -139,10 +138,10 @@ pub fn set_kind_values(k: &KindSet<'_>, effects: &Effects) -> Result<(), Refused
     Ok(())
 }
 
-/// The marks' kind (`effects::kind_values`) (IDA 0x769232 .. 0x769236).
+/// The marks' kind (`effects::kind_values`).
 #[derive(rc2k_derive::Cells)]
 pub struct MarksKind {
-    /// 0x769232: `g_marksKind`: the kind of the marks (the surface / weather: 0 .. 0x21), set at `effects::init_marks`.
+    /// The kind of the marks (the surface / weather: 0 .. 0x21), set at `effects::init_marks`.
     pub kind: PlainDword,
 }
 

@@ -1,17 +1,16 @@
-//! `effects::clip_quad` (0x4B8A0B): a quad (four vertices of 0x20 bytes: +0 x, +4 y,
-//! +8 .. +0x14 kept, +0x18 / +0x1C texture) clipped against one screen edge by the
-//! settings' +8: 4 x at least `g_marksScreenMiddleX`, 3 x at most `g_marksScreenMiddleXLess`,
-//! 2 y at least `g_marksScreenMiddleY`, 1 y at most `g_marksScreenMiddleYLess` (each test a
-//! signed compare of the floats' bits, as the original's `sub; jl`). All in: CF clear,
-//! nothing changed. All out: CF set. Else the run of inside vertices (from the first after
-//! an outside one to the last) and the two crossings (the far edge's, then the near
-//! edge's: the edge's coordinate the line, the other and the texture interpolated on the
-//! x87, +8 .. +0x14 the outside vertex's) are built in `g_marksClipVertices` (`TLVertex`s) and copied over
-//! the quad; `g_polygonVertexCount` and `GlowState.clip_count` their number; CF clear. Other
-//! settings: CF clear, nothing changed.
+//! `effects::clip_quad`: a quad (four vertices of 0x20 bytes: +0 x, +4 y, +8 .. +0x14 kept,
+//! +0x18 / +0x1C texture) clipped against one screen edge chosen by the settings' +8: 4 x
+//! at least the screen's middle x, 3 x at most its middle x less one, 2 y at least the
+//! middle y, 1 y at most the middle y less one (each test a signed compare of the floats'
+//! bits). All in: returns false, nothing changed. All out: returns true. Else the run of
+//! inside vertices (from the first after an outside one to the last) and the two crossings
+//! (the far edge's, then the near edge's: the edge's coordinate the line, the other and the
+//! texture interpolated on the x87, +8 .. +0x14 the outside vertex's) are built in the
+//! clip's work vertices and copied over the quad; the polygon's vertex count and
+//! `GlowState.clip_count` are their number; returns false. Other settings: returns false,
+//! nothing changed.
 //!
-//! Eight callers, each `jb` after it. Refuses null settings (a null quad, refused before,
-//! cannot come: the quad is the vertices' own).
+//! Refuses null settings (a null quad cannot come: the quad is the vertices' own).
 
 use crate::d3d::vertices_store::Vertex;
 use crate::errors::{BadInput, Refused};
@@ -44,10 +43,10 @@ impl Axis {
 /// Per mode 1 .. 4: the line's variable, its coordinate, the other coordinate, whether
 /// inside is at or below it.
 const EDGES: [(usize, Axis, Axis, bool); 4] = [
-    (3, Axis::Y, Axis::X, true),  // 1: g_marksScreenMiddleYLess
-    (2, Axis::Y, Axis::X, false), // 2: g_marksScreenMiddleY
-    (1, Axis::X, Axis::Y, true),  // 3: g_marksScreenMiddleXLess
-    (0, Axis::X, Axis::Y, false), // 4: g_marksScreenMiddleX
+    (3, Axis::Y, Axis::X, true),  // 1: the middle y less one
+    (2, Axis::Y, Axis::X, false), // 2: the middle y
+    (1, Axis::X, Axis::Y, true),  // 3: the middle x less one
+    (0, Axis::X, Axis::Y, false), // 4: the middle x
 ];
 
 /// Copies a whole vertex, field by field.
@@ -62,10 +61,8 @@ fn copy_vertex<A: CellKind, B: CellKind>(from: &Vertex<A>, to: &Vertex<B>) {
     to.v.set(from.v.get());
 }
 
-/// Whether all the quad is outside (the original's CF).
-/// The quad is the polygon vertices' first four (`g_polygonVertices`, every caller's);
-/// the original stepped its vertex offsets by 0x20 and masked them with 0x7F, here the
-/// vertex numbers wrap at 4.
+/// Whether all the quad is outside. The quad is the polygon vertices' first four; vertex
+/// numbers wrap at 4.
 pub fn clip_quad(
     buffer: &crate::d3d::vertices_store::PolygonVertices,
     effects: &crate::effects::owner::Effects,
@@ -167,7 +164,7 @@ pub fn clip_quad(
     Ok(false)
 }
 
-/// `scene::draw_fan` (0x44EB32) of `g_polygonVertices` .
+/// `scene::draw_fan` of the polygon vertices.
 pub fn draw_fan(
     buffer: &crate::d3d::vertices_store::PolygonVertices,
     scene: &crate::scene::owner::Scene,

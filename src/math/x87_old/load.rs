@@ -1,29 +1,27 @@
-//! More x87 helpers (see `math/x87.rs`), kept apart so that work on the race's loading does not
-//! edit the shared file.
+//! More x87 helpers (see `math/x87.rs`), kept apart so that work on the race's loading does
+//! not edit the shared file.
 //!
-//! Plain Rust since phase 6 (2026-10-24): what the x87 holds on its stack is an `X` (an
-//! `f64` that rounds as the control word says, `x87_float.rs`), what it stores as a dword
-//! float `st`, `fild` is `int`, `fistp` / `fist` `to_int`. The order of the operations is
-//! the original's. Their comparison with the original's instructions is frozen in
+//! What the x87 holds on its stack is an `X` (an `f64` that rounds as the control word
+//! says, `x87_float.rs`), what it stores as a dword float `st`, `fild` is `int`, `fistp` /
+//! `fist` `to_int`. Their comparison with the x87's instructions is frozen in
 //! `x87_frozen_c.rs`.
 
 use crate::math::x87_float::{X, compare, f80, from_f80, int, ld, st, to_int};
 
-/// `sqrt(a a + b b)` as a float (`fld a; fmul st, st; fld b; fmul st, st; faddp; fsqrt;
-/// fstp`): the length of two floats at right angles.
+/// `sqrt(a a + b b)` as a float: the length of two floats at right angles.
 pub fn float_hypot(a: u32, b: u32) -> u32 {
     let a2 = ld(a) * ld(a);
     let b2 = ld(b) * ld(b);
     st((a2 + b2).sqrt())
 }
 
-/// C0 of `fld a; fcomp b; fnstsw ax` (`shr ah, 1; jb`): a below b, or one is no number.
+/// C0 of the compare of `a` with `b`: a below b, or one is no number.
 pub fn below_or_unordered(a: u32, b: u32) -> bool {
     compare(ld(a), ld(b)) & 0x0100 != 0
 }
 
-/// C0 of `fld a; fmul h; fabs; fsub k; fcomp b`: |a h| - k below b (kept at the x87's
-/// precision), or one is no number.
+/// C0 of the compare of `|a h| - k` (kept at the x87's precision) with `b`: below, or one
+/// is no number.
 pub fn scaled_abs_less_below(a: u32, h: u32, k: u32, b: u32) -> bool {
     let x = (ld(a) * ld(h)).abs() - ld(k);
     compare(x, ld(b)) & 0x0100 != 0
@@ -31,8 +29,8 @@ pub fn scaled_abs_less_below(a: u32, h: u32, k: u32, b: u32) -> bool {
 
 /// The point (three whole numbers) through `matrix` (16 floats; the 12 used are the
 /// columns' at 0, 4, 8 / 0x10, 0x14, 0x18 / 0x20, 0x24, 0x28 and the translation at 0x30,
-/// 0x34, 0x38), as the original adds them: m0 x + (m4 y + m8 z) and so on, then the
-/// translation. Left at double precision.
+/// 0x34, 0x38): m0 x + (m4 y + m8 z) and so on, then the translation. Left at double
+/// precision.
 fn rotated(point: [i32; 3], matrix: &[u32]) -> [X; 3] {
     let [x, y, z] = point.map(int);
     let m = |i: usize| ld(matrix[i]);
@@ -44,33 +42,31 @@ fn rotated(point: [i32; 3], matrix: &[u32]) -> [X; 3] {
 
 /// `scene::project_point::rotate` with its third store a `fistp`: the point (three whole
 /// numbers) through `matrix`, x and y stored as floats at `out[0]`, `out[1]`, z rounded
-/// into the third from the x87's precision (0x4573FA).
+/// into the third from the x87's precision.
 pub fn rotate_rounding_z(point: [i32; 3], matrix: &[u32]) -> [u32; 3] {
     let s = rotated(point, matrix);
     [st(s[0]), st(s[1]), to_int(s[2]) as u32]
 }
 
-/// `a a + b b` of two whole numbers, as a float (`fild a; fmul st, st; fild b; fmul st,
-/// st; faddp; fstp`).
+/// `a a + b b` of two whole numbers, as a float.
 pub fn int_square_sum(a: i32, b: i32) -> u32 {
     let (a, b) = (int(a), int(b));
     st(a * a + b * b)
 }
 
-/// `a a + b b` of two floats (`fld a; fmul st, st; fld b; fmul st, st; faddp; fstp`).
+/// `a a + b b` of two floats.
 pub fn float_square_sum(a: u32, b: u32) -> u32 {
     let a2 = ld(a) * ld(a);
     let b2 = ld(b) * ld(b);
     st(a2 + b2)
 }
 
-/// `(a + b) c`, a whole number plus a float, times a float (`fild a; fadd b; fmul c;
-/// fstp`).
+/// `(a + b) c`, a whole number plus a float, times a float.
 pub fn int_plus_times(a: i32, b: u32, c: u32) -> u32 {
     st((int(a) + ld(b)) * ld(c))
 }
 
-/// C0 of `fld a; fabs; fcomp k`: |a| below k, or one is no number.
+/// C0 of the compare of `|a|` with `k`: |a| below k, or one is no number.
 pub fn abs_below_or_unordered(a: u32, k: u32) -> bool {
     compare(ld(a).abs(), ld(k)) & 0x0100 != 0
 }
@@ -81,8 +77,7 @@ pub fn rotate_rounding(point: [i32; 3], matrix: &[u32]) -> [u32; 3] {
     rotated(point, matrix).map(|part| to_int(part) as u32)
 }
 
-/// `(a a + b b) k` (`times` = 1) or `(a a + b b) k k` (`times` = 2) as a whole number
-/// (`fild a; fmul st, st; fild b; fmul st, st; faddp; fmul k; [fmul k;] fistp`).
+/// `(a a + b b) k` (`times` = 1) or `(a a + b b) k k` (`times` = 2) as a whole number.
 pub fn int_square_sum_scaled_to_int(a: i32, b: i32, k: u32, times: u32) -> u32 {
     let (a, b) = (int(a), int(b));
     let mut x = (a * a + b * b) * ld(k);
@@ -119,12 +114,12 @@ pub fn sun_direction(a: i32, k: u32, s: u32, b: i32, m: u32) -> [u32; 3] {
     [st(cos_cos * ld(m)), st(sin_q * ld(m)), st(sin_cos * ld(m))]
 }
 
-/// A float as the x87's 80 bits (`fld dword; fstp tbyte`).
+/// A float as the x87's 80 bits.
 pub fn to_tbyte(a: u32) -> [u8; 10] {
     f80(ld(a))
 }
 
-/// 80 bits rounded to a whole number as the x87 is set to round (`fld tbyte; fistp`).
+/// 80 bits rounded to a whole number as the x87 is set to round.
 pub fn tbyte_to_int(a: [u8; 10]) -> u32 {
     to_int(from_f80(a)) as u32
 }

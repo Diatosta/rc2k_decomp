@@ -1,19 +1,18 @@
-//! `physics::spin_wheels` (0x43CD1A): the driven wheels' turns (`driven_wheel_turns`,
-//! `Car.driven_wheel_turns[1]`) on by `g_carDriveSpeed` / `g_carDriveSpeed2` over `wheel_spin_share`, times
-//! the step `step_time`, 65536 and `one_over_pi` (`fistp` through `scratch`). These are the
-//! driven wheels' turn angles (`driven_wheel_turns`, for the drawing).
+//! Turns the driven wheels (`driven_wheel_turns`) on by `drive_speed_a` / `drive_speed_b` over
+//! `wheel_spin_share`, times the step `step_time`, 65536 and `one_over_pi` (rounded through
+//! `scratch`). These are the driven wheels' turn angles, for the drawing.
 //!
-//! Returns: the second's turn
+//! Returns the second driven wheel's turn.
 //!
-//! Caller: `physics::car_physics_step` (0x43B90A), every physics step.
+//! Caller: `physics::car_physics_step`, every physics step.
 
 use crate::math::x87::div_mul3_to_int;
 use crate::physics::car_store::Car;
 use crate::physics::tables_store::PhysicsTables;
 use crate::race::numbers_store::Numbers;
 
-/// The exact version, for `physics::car_physics_step`: the last turn added (it is also left
-/// in the scene's scratch dword, as the original's `fistp` did).
+/// The exact version, for `physics::car_physics_step`: the last turn added (it is also left in the
+/// scene's scratch dword).
 pub fn spin_wheels(
     car: &Car,
     tables: &PhysicsTables,

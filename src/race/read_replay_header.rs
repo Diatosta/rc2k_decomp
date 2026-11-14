@@ -1,18 +1,18 @@
-//! `race::read_replay_header` (0x460428): "READREPLAYHEADER" logged; the replay's header
-//! (`header_stage` ..) into the race's variables: the arcade's noise seed, start place and cars,
-//! the stage, the game mode, the players, the cars and their kinds (into the car blocks too), the
-//! two game-over flags (`targets`); then twelve of them logged, each as its name and its value
+//! `race::read_replay_header`: logs "READREPLAYHEADER", then copies the replay's header (from
+//! `header_stage` on) into the race's variables: the arcade's noise seed, start place and cars, the
+//! stage, the game mode, the players, the cars and their kinds (into the car blocks too), the two
+//! game-over flags (`targets`); then twelve of them are logged, each as its name and its value
 //! (`NAMES`).
 //!
-//! Callers: `race::viewer_load_stage`, 0x44401B (the replay run of `sub_443FxF`).
+//! Callers: `race::viewer_load_stage`.
 
 use crate::race::owner::Race;
 use crate::race::race_end::{header_cell, setting_cell};
 use crate::session::DwordLike;
 use rc2k_core::race::replay::{HEADER_SETTINGS, Setting, read_logged};
 
-/// The race's places a header setting goes back to, in the original's order (a kind
-/// into its block and into `g_raceCarKinds`).
+/// The race's places a header setting goes back to, in order (a kind into its block and into
+/// `race_car_kinds`).
 fn targets(race: &Race, s: Setting) -> Vec<&dyn DwordLike> {
     match s {
         Setting::Kind(n) => vec![
@@ -38,15 +38,15 @@ const NAMES: [&std::ffi::CStr; 12] = [
     c"[replayheader.gameoverflag1]",
     c"[replayheader.gameoverflag2]",
 ];
-const TITLE: &std::ffi::CStr = c"READREPLAYHEADER"; // "READREPLAYHEADER"
+const TITLE: &std::ffi::CStr = c"READREPLAYHEADER";
 
-/// `log_write_l1` (with a line break for the title) of a text.
+/// Logs a text, with a line break for the title.
 fn log_text(text: &std::ffi::CStr, newline: bool) {
     crate::logfile::log_write::log_nul(text.to_bytes(), newline, 1);
 }
 
 pub fn read_replay_header(race: &Race) {
-    // Converted: `rc2k_core::race::replay::{HEADER_SETTINGS, read_logged}`.
+    // Logic in `rc2k_core::race::replay::{HEADER_SETTINGS, read_logged}`.
     log_text(TITLE, true);
     for s in HEADER_SETTINGS {
         for to in targets(race, s) {

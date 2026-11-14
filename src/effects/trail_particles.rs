@@ -1,17 +1,10 @@
-//! `effects::trail_particles` (0x4CFFE3): eight entries of the effects' particle ring (the
-//! ring's first free entry, each while the used count is not 0xFFF) started along the way
-//! the particle came: for each, kind 4; the burst radius = the effects' random's low word times
-//! a constant times the trail's random factor; the place (+0xC .. +0x14) the particle's place
-//! moved that share toward its last place (+0x18 .. +0x20); the motion (+0x28, +0x2C, +0x34)
-//! (last - place) times the trail's first axis factors plus the particle's motion times its
-//! second, moved by `effects::jitter_point` (the trail's spread); +0x38 the particle's +0x2C
-//! times the size factor plus the size base (rounded), +0x3C 0xFF000000, +0x44 300, +0x40
-//! the life factor / 300, +0x24 the view's +0x34.
+//! `effects::trail_particles`: eight kind-4 entries of the effects' particle ring (taken from the
+//! ring's first free entry while the used count is not 0xFFF), started along the way the particle
+//! came: each place is the particle's place moved a random share toward its last place, its motion
+//! the (last - place) and the particle's own motion times the trail's factors, moved by
+//! `effects::jitter_point`; size from the particle's +0x2C, life 300.
 //!
-//! Takes: the particle
-//!
-//! Caller: the ring's update (kind 0 particles moving up). Refuses a null
-//! particle or ring (an entry to take), before anything.
+//! Refuses a null particle or ring (an entry to take), before anything.
 
 use crate::effects::blocks::{particle, set_particle};
 use crate::effects::jitter_point::jitter_point;
@@ -30,7 +23,7 @@ const COUNT: u32 = 8;
 const AXES: [(u32, u32, u32); 3] = [(0xC, 0x18, 0x28), (0x10, 0x1C, 0x2C), (0x14, 0x20, 0x34)];
 const LIFE: u32 = 300;
 
-/// The entries it takes, from `g_marksRingFree` along +0.
+/// The entries it takes, from the ring's first free one along +0.
 fn entries_taken(particles: &Particles, ring: &Ring) -> Result<Vec<u32>, Refused> {
     Ok({
         let used: u32 = ring.pool.used.get();

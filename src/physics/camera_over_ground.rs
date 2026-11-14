@@ -1,10 +1,8 @@
-//! `physics::camera_over_ground` (0x438CEC): whether there is ground under the camera and
-//! under a point half a unit (0x8000) to either side of it across its heading
-//! (`camera_heading`, `math::rotate_point_about_y` of (-0x8000, y, 0) and (0x8000, y, 0)), each probe
-//! starting from its own last face (`camera_ground_faces`; `physics/camera_ground.rs`). Reports
-//! that ground is found when all three are; the first not found ends it.
+//! Whether there is ground under the camera and under points half a unit (0x8000) to either side
+//! of it across its heading; each probe starts from its own last face (`camera_ground_faces`).
+//! True only when all three are found; the first one not found ends it.
 //!
-//! Caller: `physics::camera_avoid_ground` (four). Refuses what `count_ground_probe` refuses.
+//! Caller: `physics::camera_avoid_ground`. Refuses what `count_ground_probe` refuses.
 
 use crate::errors::Refused;
 use crate::math::rotate_point_about_y::rotate_point_about_y;
@@ -12,8 +10,8 @@ use crate::physics::camera_ground::probe_at;
 use crate::physics::step_families::CameraGroundInputs;
 use rc2k_core::physics::camera_ground::SIDES;
 
-/// Whether the camera and both sides are over ground (CF clear).
-// Converted: `rc2k_core::physics::camera_ground::SIDES`.
+/// Whether the camera and both sides are over ground.
+// Core: `rc2k_core::physics::camera_ground::SIDES`.
 pub fn camera_over_ground(
     engine_tables: &crate::scene::engine_tables_store::EngineTables,
     c: &CameraGroundInputs<'_>,
@@ -30,8 +28,7 @@ pub fn camera_over_ground(
     }
     for (side, slot) in SIDES.into_iter().zip(&c.car.camera_ground_faces[1..]) {
         c.course.course.get().ground_face_last.set(slot.get());
-        // The y (a leftover value in the original) only goes through the scratch point,
-        // which nothing reads after: 0 here.
+        // The y only goes through the scratch point, which nothing reads after: 0 here.
         let [x, _, z, _] =
             rotate_point_about_y(engine_tables, side as i32, 0, 0, c.car.camera_heading.get());
         if !probe_at(

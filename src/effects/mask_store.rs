@@ -1,24 +1,23 @@
-//! The marks' mask pictures' variables, IDA
-//! 0x934CC8 .. 0x934F30: which ground picture (`load_mask_pictures`), the lists the mask blocks
-//! are taken on, the pointers to the blocks, the paths of the mask pictures, and the number of
-//! the picture of each kind. Four statics, because the image keeps its cells on three different
-//! alignments (`MaskBlocks` on 2 more than a multiple of 4, `PictureCopy` on 1 more): each
-//! struct starts at its first cell, so that offsets inside stay as in the image.
+//! The marks' mask pictures' variables: which ground picture (`load_mask_pictures`), the
+//! lists the mask blocks are taken on, the blocks, the paths of the mask pictures, and the
+//! number of the picture of each kind. Four statics, so that each struct starts at its first
+//! cell and its offsets stay as listed.
 
 use crate::session::{PlainBytes, PlainDword};
 
-/// The ground picture's name (IDA 0x934CC8 .. 0x934D6E). The offsets are from its start.
+/// The ground picture's name. The offsets are from its start.
 #[derive(rc2k_derive::Cells)]
 pub struct GroundNames {
-    /// +0x0: `g_marksGround`: which of the six names (0 .. 5)
+    /// +0x0: which of the six names (0 .. 5)
     pub ground: PlainDword,
-    /// +0x4: `g_marksGroundPath`: the offset of the chosen name in `names` (the original kept its address; set by `load_mask_pictures`)
+    /// +0x4: the offset of the chosen name in `names` (set by `load_mask_pictures`)
     pub ground_path: PlainDword,
-    /// +0x8: `aFilesMSnow1Pcx` ..: `files\m\snow1.pcx`, `mud1`, `dust1`, `mud1`, `mud1`, `gumbo0`, each NUL-ended, then zeros
+    /// +0x8: `files\m\snow1.pcx`, `mud1`, `dust1`, `mud1`, `mud1`, `gumbo0`, each NUL-ended, then
+    /// zeros
     pub names: PlainBytes<160>,
 }
 
-/// The ground picture's names; the first values are the image's.
+/// The ground picture's names.
 impl GroundNames {
     pub const fn new() -> Self {
         GroundNames {
@@ -42,29 +41,27 @@ impl GroundNames {
     }
 }
 
-/// The mask blocks' lists and pointers (IDA 0x934D6E .. 0x934E29, on an address 2 more than a multiple of 4 in the image). The offsets are from its start.
+/// The mask blocks' lists and pointers. The offsets are from its start.
 #[derive(rc2k_derive::Cells)]
 pub struct MaskBlocks {
-    /// +0x0: `dword_934D6E`: the last mask switch seen by `swap_mask` (-1 once the masks are loaded)
+    /// +0x0: the last mask switch seen by `swap_mask` (-1 once the masks are loaded)
     pub seen: PlainDword,
-    /// +0x4: `dword_934D72`: the block `swap_mask` last drew from (the game's address;
-    /// since phase 12 `Mask::Plain` 1 or `Mask::Bordered` 2, 0 none yet)
+    /// +0x4: the block `swap_mask` last drew from (`Mask::Plain` 1 or `Mask::Bordered` 2, 0
+    /// none yet)
     pub chosen: PlainDword,
-    /// +0x8: `stru_934D76`: the list the first mask block is taken on
+    /// +0x8: the list the first mask block is taken on
     pub list_a: crate::memory::ListCells,
-    /// +0x48: `g_marksMaskBlock`: the first mask block (0x20000 bytes; the game's
-    /// address, unused since the masks are Rust's, `MASK`)
+    /// +0x48: the first mask block (0x20000 bytes; unused: the pixels are `Masks::mask`)
     pub mask: PlainDword,
-    /// +0x4C: `g_marksBMaskList`: the list the second mask block is taken on
+    /// +0x4C: the list the second mask block is taken on
     pub list_b: crate::memory::ListCells,
-    /// +0x8C: `g_marksBMaskBlock`: the second mask block (0x20000 bytes; the game's
-    /// address, unused since the masks are Rust's, `BMASK`)
+    /// +0x8C: the second mask block (0x20000 bytes; unused: the pixels are `Masks::bmask`)
     pub bmask: PlainDword,
-    /// +0x90: `aRseRseRseRseRs`: "rse " repeated, then a NUL (unreferenced; the next list's head starts inside it)
+    /// +0x90: "rse " repeated, then a NUL (unreferenced)
     pub junk: PlainBytes<44>,
 }
 
-/// The mask blocks' lists; the first values are the image's.
+/// The mask blocks' lists.
 impl MaskBlocks {
     pub const fn new() -> Self {
         MaskBlocks {
@@ -89,12 +86,12 @@ impl MaskBlocks {
 pub struct Masks {
     pub ground_names: GroundNames,
     pub blocks: MaskBlocks,
-    /// `g_marksMaskBlock`'s pixels, on `blocks.list_a`.
+    /// The first mask's pixels, on `blocks.list_a`.
     pub mask: crate::memory::owned::Owned<MaskPixels>,
-    /// `g_marksBMaskBlock`'s pixels, on `blocks.list_b`.
+    /// The second mask's pixels, on `blocks.list_b`.
     pub bmask: crate::memory::owned::Owned<MaskPixels>,
     pub picture_copy: PictureCopy,
-    /// The masks' work block (`masks::MASK_WORK` before).
+    /// The masks' work block.
     pub work: crate::memory::owned::Owned<Vec<u32>>,
     pub list: crate::effects::set_up_surface::MaskList,
     pub surface: crate::effects::surface_store::SurfaceTables,
@@ -123,13 +120,13 @@ impl Masks {
     }
 }
 
-/// A mask's pixels (the game's 0x20000-byte block: 256 x 128 dwords), Rust's since phase
-/// 12; taken counted on its list (`load_mask_pictures`), given back by `tidy_marks`.
+/// A mask's pixels (256 x 128 dwords); taken counted on its list (`load_mask_pictures`),
+/// given back by `tidy_marks`.
 pub type MaskPixels = Vec<u32>;
 /// The dwords of a mask block.
 pub const MASK_PIXELS: usize = 0x8000;
 
-/// Which mask `swap_mask` draws from (`MASK_BLOCKS.chosen`).
+/// Which mask `swap_mask` draws from (`MaskBlocks.chosen`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Mask {
     Plain = 1,
@@ -145,19 +142,19 @@ impl Mask {
     }
 }
 
-/// The picture copy's list and pointer, and the mask paths (IDA 0x934E29 .. 0x934EA8, on an address 1 more than a multiple of 4 in the image). The offsets are from its start.
+/// The picture copy's list and pointer, and the mask paths. The offsets are from its start.
 #[derive(rc2k_derive::Cells)]
 pub struct PictureCopy {
-    /// +0x0: the list the 0x80000-byte picture copy is taken on (its head starts inside `aRseRseRseRseRs`: the image's first values are "se" and zeros)
+    /// +0x0: the list the 0x80000-byte picture copy is taken on
     pub list: crate::memory::ListCells,
-    /// +0x40: `g_marksPictureCopy`: the picture copy block (0x80000 bytes; the game's
-    /// address, unused since the copy is Rust's, phase 12)
+    /// +0x40: the picture copy block (0x80000 bytes; unused, the copy is Rust's)
     pub copy: PlainDword,
-    /// +0x44: `files\m\mask00.pcx` at +0, `files\m\bmask00.pcx` at +0x13, `files\m\bdata00.pcx` at +0x25 (`byte_934E79` .. the digits: +0xC, +0x20, +0x34)
+    /// +0x44: `files\m\mask00.pcx` at +0, `files\m\bmask00.pcx` at +0x13, `files\m\bdata00.pcx` at
+    /// +0x25 (the digits: +0xC, +0x20, +0x34)
     pub paths: PlainBytes<60>,
 }
 
-/// The picture copy's list; the first values are the image's.
+/// The picture copy's list.
 impl PictureCopy {
     pub const fn new() -> Self {
         PictureCopy {
@@ -174,13 +171,13 @@ impl PictureCopy {
     }
 }
 
-/// The picture number of each kind (IDA 0x934EA8 .. 0x934F30). The offsets are from its start.
+/// The picture number of each kind. The offsets are from its start.
 pub struct KindPictures {
-    /// +0x0: `g_marksKindPictureNumbers`: per kind, the number in the mask and picture paths' two digits
+    /// +0x0: per kind, the number in the mask and picture paths' two digits
     pub numbers: [u32; 34],
 }
 
-/// The pictures' numbers; the first values are the image's.
+/// The pictures' numbers.
 pub static KIND_PICTURES: KindPictures = KindPictures {
     numbers: [
         0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0xA, 0xB, 0xC, 0xD, 0xE, 0xF, 0x10, 0x11,

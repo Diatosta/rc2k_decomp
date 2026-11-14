@@ -1,18 +1,17 @@
-//! `race::loadlevel_init`'s "init ed textures" (`scene::init_texture_levels`, 0x424001,
-//! IDA): which texture slots are wanted at which level (`g_textureSystemLevels`,
-//! `g_textureVideoLevels`) and tagged how (`g_textureTags`), 0x400 slots each, for the
-//! stage: each car's runs, each kind's slots by the stage prefs, then fixed runs. With
-//! `ObjectTables.other_levels` set every level is another (it is set to 0 here first, and nothing sets
-//! it otherwise).
+//! The texture levels set up at a stage's load (`scene::init_texture_levels`): which texture
+//! slots are wanted at which level and tagged how (the system levels, video levels and tags),
+//! 0x400 slots each, for the stage: each car's runs, each kind's slots by the stage prefs, then
+//! fixed runs. With `ObjectTables.other_levels` set every level is another (it is set to 0
+//! here first, and nothing sets it otherwise).
 
 use crate::errors::Refused;
 use crate::race::owner::Race;
 use crate::race::owner_course::Course;
 
-/// A kind's block: its first-texture variable (an index in `kind_first_textures`; only its place in `g_textureWantedPictures`
-/// is worked out, and not used: section 16), its prefs entries, the first slot, how many,
-/// the tag, the level, the other level, and what `TexturePlaces.kind_slot_bytes` gets a slot (4, or 1 for
-/// the kinds of slots 0x40 .. 0x6F).
+/// A kind's block: its first-texture variable (an index in `kind_first_textures`; only its
+/// place in the wanted pictures is worked out, and not used), its prefs entries, the first
+/// slot, how many, the tag, the level, the other level, and what `TexturePlaces.kind_slot_bytes`
+/// gets a slot (4, or 1 for the kinds of slots 0x40 .. 0x6F).
 type Block = (usize, Prefs, usize, u32, u32, u32, u32, u32, u32);
 #[derive(Clone, Copy)]
 enum Prefs {
@@ -66,17 +65,17 @@ fn other(scene: &crate::scene::owner::Scene) -> bool {
 
 const COUNT_TEXT_RVA: &std::ffi::CStr = c"NUM DIFFERENT CARS/OBJECTS/TEXTURE SETS "; // "NUM DIFFERENT CARS/OBJECTS/TEXTURE SETS "
 
-/// `scene::init_texture_levels` (0x424001), see the header: `g_raceCars` held to 1 .. 8
-/// (by the signs of the differences, as the original); the tables reset, the count in the
-/// log; `ObjectTables.other_levels` 0 and `input::update`; the first car's two runs (slots 0x100,
-/// 0x104; the second's level by `dword_63DB94`), each further car's two (0x108 + 8 a car,
-/// tag 0x28 + the car); each kind's slots (its prefs entry not 0 or -1: tag, level, and
-/// `TexturePlaces.kind_slot_bytes` + 4, or + 1 for slots 0x40 .. 0x6F); the fixed runs, two loops at slot 0xDC (the system level of six,
-/// the video level of two), and with `FrameSwitches.editor_mode` three more.
+/// `scene::init_texture_levels`, see the header: the number of cars held to 1 ..= 8 (by the
+/// signs of the differences); the tables reset, the count in the log; `ObjectTables.other_levels`
+/// 0 and `input::update`; the first car's two runs (slots 0x100, 0x104), each further car's
+/// two (0x108 + 8 a car, tag 0x28 + the car); each kind's slots (its prefs entry not 0 or -1:
+/// tag, level, and `TexturePlaces.kind_slot_bytes` + 4, or + 1 for slots 0x40 .. 0x6F); the
+/// fixed runs, two loops at slot 0xDC (the system level of six, the video level of two), and
+/// with `FrameSwitches.editor_mode` three more.
 pub fn init_texture_levels(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     let scene = o.scene;
     let shared = &race.shared;
-    // Converted: `rc2k_core::scene::texture_levels::{held_cars, set_levels}`.
+    // Logic: `rc2k_core::scene::texture_levels::{held_cars, set_levels}`.
     use crate::logfile::log_int::log_int;
     use crate::scene::textures::with_cells;
     use rc2k_core::scene::texture_levels::{KindSlots, held_cars, set_levels};
@@ -132,7 +131,7 @@ pub fn init_texture_levels(race: &Race, o: crate::owners::Owners<'static>) -> Re
             )
         },
     )?;
-    // `g_kindSlotBytes`: + 4 (or 1) a kind's slot.
+    // `kind_slot_bytes`: + 4 (or 1) a kind's slot.
     scene.textures.places.get().kind_slot_bytes.set(
         scene
             .textures

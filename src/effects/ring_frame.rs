@@ -1,13 +1,13 @@
-//! `effects::ring_frame` (0x4CB5B9): the emitters' ring drawn: render states 0x15 = 4, 0x13 =
-//! 5, 0x14 = 6, 0x1C = 1, 0x1B = 1, `scene::set_texture` (the ring's texture),
-//! `scene::depth_test_off`; the ring's colour = the settings' +0x7C's low 24 bits, the kind-1
-//! choice = the rain's drop count; `effects::run_ring`; render state 0x14 = 2;
-//! `effects::run_ribbons`.//!
+//! `effects::ring_frame`: the emitters' ring drawn: render states 0x15 = 4, 0x13 = 5, 0x14 = 6,
+//! 0x1C = 1, 0x1B = 1, `scene::set_texture` (the ring's texture), `scene::depth_test_off`; the
+//! ring's colour = the settings' +0x7C's low 24 bits, the kind-1 choice = the rain's drop count;
+//! `effects::run_ring`; render state 0x14 = 2; `effects::run_ribbons`.
+//!
 //! Screen: the dust and the water splashes (confirmed: both gone with the ring's sprites cut).
 //!
 //! Works on the effects settings.
 //!
-//! Caller: `effects::run_frame` Refuses null settings, before anything.
+//! Refuses null settings, before anything.
 
 use crate::effects::mask_store::Masks;
 use crate::effects::ring_store::Ring;

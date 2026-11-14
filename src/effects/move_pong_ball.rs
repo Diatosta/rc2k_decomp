@@ -1,15 +1,9 @@
-//! `effects::move_pong_ball` (0x4B7F4F): one step of the pong ball: its place plus its way,
-//! `effects::pong_ball_hits`; at or left of the left wall it is put at the wall's reset place
-//! and its across way turned (the sign bit flipped); at or right of the right wall less its
-//! width less a margin the game starts again (`effects::reset_pong`, the pong's reset); at or
-//! above the top wall put at its reset place, at or below the bottom wall less its height put at
-//! the bottom reset place less its height, its along way turned each time. ("At or" includes an
-//! unordered compare, as the original's tests of C0, C2, C3 together.)
-//!
-//! Caller: `effects::run_pong` (the pong's steps a frame). The calls are their Rust
-//! versions.
-//!
-//! the x87 version stays for the Rust callers in unconverted code).
+//! `effects::move_pong_ball`: one step of the pong ball: its place plus its way,
+//! `effects::pong_ball_hits`; at or left of the left wall it is put at the wall's reset place and
+//! its across way turned (the sign bit flipped); at or right of the right wall less its width less
+//! a margin the game starts again (`effects::reset_pong`, the pong's reset); at or above the top
+//! wall put at its reset place, at or below the bottom wall less its height put at the bottom reset
+//! place less its height, its along way turned each time. ("At or" includes an unordered compare.)
 
 use crate::effects::pong::{self, Pong};
 use crate::effects::pong_ball_hits::pong_ball_hits;

@@ -1,13 +1,14 @@
-//! `physics::lever_pushes` (0x43DDDF): `lever_pushes` and `PhysicsTables.lever_pushes[1]` 0; then, only
-//! with `levers_on` 1 and `all_wheels_off` 0: the lever `lever_push_vector`, `B48` 0 and
-//! `lever_share_start` 0; a share A / (B + A) of A = |+0x210| + |+0x21C| and B = |+0x214| +
-//! |+0x218| (`g_car`, `grip_forces` .. `Car.grip_forces[3]`; a reading: the wheels' loads)
-//! into `lever_share_start`, held to `zero` (0) ..= `one` (1). If B + A is 0 (or no
-//! number) the share is A itself and it ends there. Else `PhysicsTables.lever_push_vector[2]` = `Car.probe_point_z[3]` and
-//! `lever_share_left` the share, `physics::lever_push`; `PhysicsTables.lever_push_vector[2]` = `probe_point_z` and
-//! `lever_share_left` 1 less it, `physics::lever_push`. It ends through the `retn` at 0x43DFB0.
+//! `lever_pushes` and `PhysicsTables.lever_pushes[1]` = 0; then, only with `levers_on` 1 and
+//! the wheels on the ground: the lever `lever_push_vector` and `lever_share_start` = 0; a share
+//! A / (B + A) of A = |grip_forces[0]| + |grip_forces[3]| and B = |grip_forces[1]| +
+//! |grip_forces[2]| (a reading: the wheels' loads) goes into `lever_share_start`, held to
+//! `zero` (0) ..= `one` (1). If B + A is 0 (or no number) the share is A itself and it ends
+//! there. Otherwise `PhysicsTables.lever_push_vector[2]` = `Car.probe_point_z[3]` and
+//! `lever_share_left` is the share for `physics::lever_push`; then
+//! `PhysicsTables.lever_push_vector[2]` = `probe_point_z` and `lever_share_left` 1 less it for
+//! a second `lever_push`.
 //!
-//! Callers: `physics::car_physics_step` (0x43B831, 0x43B8AA), every physics step.
+//! Caller: `physics::car_physics_step`, twice every physics step.
 
 use crate::math::x87;
 use crate::math::x87::{lever_share, one_less};
@@ -18,7 +19,7 @@ use crate::race::numbers_store::Numbers;
 use crate::race::switches_store::FrameSwitches;
 use std::cmp::Ordering;
 
-/// `fld limit; fld share; fcompp` and its C0: share below limit, or unordered.
+/// Whether `share` is below `limit`, or unordered.
 fn below(share: f32, limit: f32) -> bool {
     !matches!(
         share.partial_cmp(&limit),

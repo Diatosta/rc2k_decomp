@@ -1,28 +1,15 @@
-//! `scene::add_car_light` (0x44F29F): what one car's lamps add to the light on an
-//! object.
+//! `scene::add_car_light`: what one car's lamps add to the light on an object.
 //!
-//! Takes: the car's block
-//!
-//! Nothing unless the block's dword +0x84 is set. The place being lit
-//! (`LightState.lit_place[0]` ..) less the car's (+0x134 ..), through the car's matrix (+0x9CC;
-//! `scene::rotate_point`), as whole numbers in `LightState.turned_light[0]` ..: the place as the
-//! car sees it, x across, y up, z ahead. Then three amounts, each held to 0 .. 255:
-//! - 0x100 less a quarter of ((z - 0x200000) squared + (2x) squared) times
-//!   `Numbers.one_over_65536` twice: a cone ahead of the car;
-//! - one the original works out and then overwrites (((z - 0x100000) squared + x
-//!   squared) times `Numbers.one_over_65536`, stored to `g_scratch`, which nothing read: not kept);
-//! - (0x100000 less y without its sign) over 0x1000: how near the car's height.
-//!
-//! The third times twice the first over 256, times the block's dword +0xABC over 256, held to
-//! 255, picks a colour from the table `LightTables.car_light_table[0]`, which is added to `g_lightColour` byte by
-//! byte without overflow. The x87's arithmetic in `X` (plain Rust; the
-//! original's instructions' results are recorded vectors in the tests (`data/vectors`)). Callers: `scene::add_car_lights`,
-//! twice. Takes the car's block as a typed reference.
+//! Does nothing unless the car's lamp flag is set. The place being lit, relative to the car and
+//! turned through the car's matrix, is the place as the car sees it (x across, y up, z ahead).
+//! Two amounts, each held to 0 ..= 255, come from it: a cone ahead of the car, and how near the
+//! place is to the car's height. Their product, scaled by the car's light strength, picks a
+//! colour from `LightTables.car_light_table`, added to the light colour byte by byte without
+//! overflow. The arithmetic runs on `X`, the x87's double-precision stand-in. Callers:
+//! `scene::add_car_lights`, twice.
 
 use crate::scene::vertex_light::plus;
 use crate::scene::x87_mem::{Base, cells, fild, fistp, fld};
-
-// ---- Rust version ----
 
 /// Three whole numbers through a matrix and back to whole numbers: `fild` three times,
 /// `scene::rotate_point`, `fistp` three times.
@@ -141,8 +128,6 @@ pub fn add_car_light(
     let factor = course.numbers.one_over_65536.get();
     let ahead = squares(z.wrapping_sub(0x20_0000), x.wrapping_add(x), factor, true);
     let cone = held(0x100i32.wrapping_sub((ahead >> 2) as i32));
-    // The original also worked out a second sum of squares, stored to `g_scratch` and
-    // never read: not kept.
     let height = if (y as i32) < 0 { y.wrapping_neg() } else { y };
     let level = held((0x10_0000u32.wrapping_sub(height) as i32) >> 12);
     let amount = (level.wrapping_mul(cone * 2) >> 8).wrapping_mul(marks_count) >> 8;

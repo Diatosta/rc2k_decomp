@@ -1,12 +1,9 @@
-//! `effects::windscreen_drops_setup` (0x4BBE62): the windscreen drops' frame set up: their two
-//! axes times a scale into two more, and those times the setup's scales into two more;
-//! `scene::depth_buffer_on`, `scene::set_texture` (the drops' texture), render states 0x11 =
-//! 1, 0x12 = 1, 0x15 = 4, 0x13 = 5, 0x14 = 6, 0x1C = 0, 0x1B = 1, 3 = 1; six polygon vertices
-//! with rhw 0x100, colour -1, specular 0xFF000000, texture places 0 / a (u 0, a, a, 0; v 0, 0,
-//! a, a); the polygon's vertex count 6; the drops' depth scale 1 over the farthest depth.
+//! `effects::windscreen_drops_setup`: the windscreen drops' frame set up: their two axes scaled
+//! into two more, and those by the setup's scales into two more; the render states, the drops'
+//! texture, six polygon vertices (rhw 0x100, colour -1, specular 0xFF000000, texture places 0 / a)
+//! and the drops' depth scale (1 over the farthest depth).
 //!
-//! Caller: `effects::windscreen_drops_frame` The x87 run is plain Rust on the x87 model
-//! (`math::x87_float`), in the original's order, over the game's variables.
+//! The x87 run is plain Rust on the x87 model (`math::x87_float`).
 
 use crate::effects::cell_x87::CellX87;
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
@@ -73,7 +70,7 @@ pub fn windscreen_drops_setup(
 
 use crate::effects::plain::ld_cell;
 
-/// `axes`'s x87 block as plain Rust on the x87 model (36 instructions), same order and memory places.
+/// `axes`'s arithmetic as plain Rust on the x87 model, in the same order.
 fn axes_x87(drops: &WindscreenDrops) {
     let t0 = drops.work.axes[0].ld();
     let t1 = t0 * drops.work.radii[0].ld();

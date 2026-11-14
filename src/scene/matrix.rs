@@ -3,7 +3,7 @@
 //!
 //! A matrix is sixteen floats, rows 0x10 apart; a point is turned by the first three
 //! rows and columns and moved by the fourth row's first three floats.
-//! The two turning matrices keep their other floats (an identity's) from the image.
+//! The two turning matrices keep their other floats (an identity's).
 
 use crate::math::cells::Cells;
 use crate::math::x87;
@@ -23,7 +23,7 @@ fn sine_cosine(tables: &EngineTables, angle: u32) -> (f32, f32) {
     )
 }
 
-/// `scene::set_turn_x` (0x426FE1): `turn_x` the matrix, `work` its sine and cosine.
+/// `scene::set_turn_x`: `turn_x` the matrix, `work` its sine and cosine.
 pub fn set_turn_x(
     tables: &EngineTables,
     turn_x: &[impl FloatLike; 16],
@@ -39,7 +39,7 @@ pub fn set_turn_x(
     turn_x[10].set(cosine);
 }
 
-/// `scene::set_turn_y` (0x42702A).
+/// `scene::set_turn_y`.
 pub fn set_turn_y(
     tables: &EngineTables,
     turn_y: &[impl FloatLike; 16],
@@ -55,8 +55,8 @@ pub fn set_turn_y(
     turn_y[10].set(cosine);
 }
 
-/// `scene::set_turn_z_16` (0x427072): as `set_turn_x`, about the z axis (the matrix and
-/// the work of `scene::set_turn_z`, whose angle is 32 bits a turn).
+/// `scene::set_turn_z_16`: as `set_turn_x`, about the z axis (the matrix and
+/// the work of `scene::view_matrix::set_fine_turn`, whose angle is 32 bits a turn).
 pub fn set_turn_z_16(
     tables: &EngineTables,
     turn_z: &[impl FloatLike; 16],
@@ -72,9 +72,7 @@ pub fn set_turn_z_16(
     turn_z[5].set(cosine);
 }
 
-/// `scene::set_place` (0x4271AE), on the placed matrix. (The original also left the place's z
-/// in `SceneDraw.scratch`; the drawing never read it, `physics::car_collisions` stores it there
-/// itself.)
+/// `scene::set_place`, on the placed matrix.
 pub fn set_place(placed: &[impl FloatLike; 16], place: [u32; 3]) {
     crate::session::write_first(
         &placed[12..15],
@@ -82,10 +80,9 @@ pub fn set_place(placed: &[impl FloatLike; 16], place: [u32; 3]) {
     );
 }
 
-/// `scene::multiply_matrices` (0x42720D): the first three columns of `out`, column by
-/// column, each row of `a` times that column of `b`; `b`'s fourth row added to the
-/// fourth. Written straight to `out`, in the original's order, so that an `out` that
-/// is one of the two behaves as there.
+/// `scene::multiply_matrices`: the first three columns of `out`, column by column, each row of
+/// `a` times that column of `b`; `b`'s fourth row added to the fourth. Written straight to
+/// `out`, in order, so that an `out` that is one of the two behaves as written in place.
 pub fn multiply_matrices(
     a: &(impl Cells + ?Sized),
     b: &(impl Cells + ?Sized),
@@ -113,7 +110,7 @@ fn multiply_matrices_with<R: bh::Rounds>(
     }
 }
 
-/// `scene::copy_matrix_with_place` (0x4271E4): `out` = `from`, dword by dword upwards,
+/// `scene::copy_matrix_with_place`: `out` = `from`, dword by dword upwards,
 /// then the first three floats of `other`'s fourth row added to `out`'s.
 pub fn copy_matrix_with_place(
     from: &(impl Cells + ?Sized),
@@ -127,7 +124,7 @@ pub fn copy_matrix_with_place(
     }
 }
 
-/// `scene::set_light_direction` (0x427326): in the view's matrices `v`, turned by the view's
+/// `scene::set_light_direction`: in the view's matrices `v`, turned by the view's
 /// turn `view_turn` (the view's parameter, kept in the shared pieces).
 pub fn set_light_direction(
     tables: &EngineTables,
@@ -162,7 +159,7 @@ pub fn set_light_direction(
     }
 }
 
-/// `scene::make_object_matrix` (0x427812).
+/// `scene::make_object_matrix`.
 pub fn make_object_matrix(
     tables: &EngineTables,
     v: &ViewMatrices,

@@ -1,13 +1,11 @@
-//! `race::measure_frame_rate` (0x42009E): every 16th call (`frame_rate_count` counting, back to 0 at
-//! 0x10) the time-stamp counter (`rdtsc`) into `frame_now`; with the cycles since the last time
-//! (`frame_last`, into `scratch`) above 0 (signed), the frame rate `frame_rate` = the CPU's
-//! clock `Machine.cpu_mhz` x `thousand` x `thousand` x `sixteen` / the cycles (x87, as the
-//! original); the time kept for the next.
+//! `race::measure_frame_rate`: every 16th call (`frame_rate_count` counting, back to 0 at 0x10)
+//! reads the time-stamp counter (`rdtsc`) into `frame_now`; with the cycles since the last time
+//! (`frame_last`, into `scratch`) above 0 (signed), the frame rate `frame_rate` is the CPU's
+//! clock `Machine.cpu_mhz` x `thousand` x `thousand` x `sixteen` / the cycles; the time is kept
+//! for the next.
 //!
-//! Returns: unchanged but on the 16th: and the counter, the cycles
-//!
-//! Caller: 0x4547AE (0x4547FD, `race::show_frame`); `frame_rate` is shown by
-//! `race::draw_frame_rate`. The rate is worked out in plain floats. Fixed (see
+//! Caller: `race::show_frame`; `frame_rate` is shown by `race::draw_frame_rate`. The rate is worked
+//! out in plain floats. Fixed ("The frame rate never measured below some 28 frames a second" in
 //! `wiki/Fixed-bugs.md`): the cycles from the whole counter, not its signed low halves.
 
 use crate::race::owner::Race;
@@ -17,7 +15,7 @@ use std::sync::atomic::{AtomicU64, Ordering::Relaxed};
 static LAST: AtomicU64 = AtomicU64::new(0);
 
 /// The rate worked out in plain floats.
-// Converted: `rc2k_core::race::frame_rate::frame_rate`.
+// Logic in `rc2k_core::race::frame_rate::frame_rate`.
 fn frame_rate_plain(race: &Race, cycles: u64, system: &crate::system::owner::System) {
     let course = &race.course;
     let rate = rc2k_core::race::frame_rate::frame_rate(
@@ -35,7 +33,7 @@ pub fn measure_frame_rate(
     system: &crate::system::owner::System,
 ) -> Option<u32> {
     let shared = &race.shared;
-    // Converted: `rc2k_core::race::frame_rate::{count_frame, cycles_since}`.
+    // Logic in `rc2k_core::race::frame_rate::{count_frame, cycles_since}`.
     use rc2k_core::race::frame_rate::{count_frame, cycles_since};
     let (count, due) = count_frame(shared.physics_tables.get().frame_rate_count.get());
     shared.physics_tables.get().frame_rate_count.set(count);

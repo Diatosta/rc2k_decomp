@@ -1,26 +1,20 @@
-//! `race::set_all_plates` (0x42518B): the texture kinds' pictures for the stage (`LOADLEVEL_INIT :
-//! setplatesall`), then the system and slot textures reloaded.
+//! `race::set_all_plates`: sets the texture kinds' pictures for the stage, then reloads the
+//! system and slot textures.
 //!
-//! - The stage prefs' (`localdat`) picture lists copied to `g_kindPictures` (0x5D7968), 0x32C14
-//!   bytes below: 0x60A57C .. 0x60A64C, 0x60A67C .. 0x60A73C, 0x60A77C .. 0x60A79C (the
-//!   original in 4-dword `rep movsd` pieces).
-//! - 23 kinds' pictures fixed (`FIXED_PICTURES`).
-//! - With cars, each car's eight from 0x5D7D68: its kind's picture
-//!   (`scene::known_kind_picture` of `race_car_kinds`[car]) and the seven after it.
-//! - `scene::reload_system_textures`, `scene::reload_slot_textures`.
+//! - The stage prefs' picture lists are copied into `kind_pictures` in 4-dword pieces.
+//! - 23 kinds' pictures are fixed (`FIXED_PICTURES`).
+//! - Each car gets eight pictures: its kind's picture (`scene::known_kind_picture` of
+//!   `race_car_kinds`[car]) and the seven after it.
 //!
-//! Callers: `race::loadlevel_init` (loadlevel_init) and the code at 0x425B29. Refuses more than 8
-//! cars.
+//! Called by `race::loadlevel_init`. Refuses more than 8 cars.
 
 use crate::errors::Refused;
 
-/// `race::set_all_plates` (see the header).
+/// Sets the stage's texture pictures and reloads the textures (see the header).
 pub fn set_all_plates(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     let (race, scene) = (o.race, o.scene);
     let course = &race.course;
     let shared = &race.shared;
-    // Converted: `rc2k_core::race::stage_objects::{check_picture_cars, PREF_PIECES,
-    // FIXED_PICTURES, car_pictures}`.
     use rc2k_core::race::stage_objects::{
         CAR_PICTURE_KINDS, FIXED_PICTURES, PREF_PIECES, car_pictures, check_picture_cars,
     };
@@ -29,8 +23,8 @@ pub fn set_all_plates(o: crate::owners::Owners<'static>) -> Result<(), Refused> 
     let pictures = &scene.textures.places.get().kind_pictures;
     let prefs = course.stage_prefs.get();
     for (kind, dwords) in PREF_PIECES {
-        // The prefs' picture lists (`PREF_PIECES`' kinds) lie one after the other (`picture_lists_a`,
-        // `_b`, `_c`, 64 kinds each): a piece starts in the list its first kind falls in.
+        // The prefs hold three picture lists of 64 kinds each (`picture_lists_a`, `_b`, `_c`):
+        // a piece is read from the list its first kind falls in.
         let list = match kind / 64 {
             0 => &prefs.picture_lists_a,
             1 => &prefs.picture_lists_b,
@@ -47,7 +41,7 @@ pub fn set_all_plates(o: crate::owners::Owners<'static>) -> Result<(), Refused> 
     for car in 0..cars {
         let first = crate::scene::known_kind_picture::known_kind_picture(
             race.kind_tables(),
-            shared.vars.get().race_car_kinds[car as usize].get(), // g_raceCarKinds
+            shared.vars.get().race_car_kinds[car as usize].get(),
         );
         for picture in car_pictures(first) {
             pictures[at].set(picture);

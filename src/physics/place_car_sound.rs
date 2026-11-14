@@ -1,11 +1,9 @@
-//! `physics::place_car_sound` (0x45CC5C): the current car's sound object
-//! (`g_raceSoundObjects[g_currentCar & 7]`) placed: +0x224 1; the car's place (`g_car`
-//! +0x134 x, +0x138 y, +0x13C z) less +0x6A4 .. +0x6AC (`fild` / `fisub`, exact), turned
-//! by `g_viewTurnMatrix` (`scene::rotate_point`), each part times `one_over_65536` (1/65536)
-//! into +0x214, +0x218, +0x21C; +0x10 1. A reading: the car's
-//! sound placed against the view (+0x6A4 .. the listener's place).
+//! Places the current car's sound object (in the race's sound objects): active flag 1; the car's
+//! place less the listener's (exact integer arithmetic), turned by the view's turn matrix
+//! (`scene::rotate_point`), each part times `one_over_65536` into the object's place; update
+//! flag 1. A reading: the car's sound placed against the view.
 //!
-//! Caller: `physics::sound_on_bit` (its tail). Refuses (before anything) a null sound object.
+//! Caller: `physics::sound_on_bit`. Refuses (before anything) a null sound object.
 
 use crate::errors::Refused;
 use crate::math::x87::{ext_times, ints_diff_80};

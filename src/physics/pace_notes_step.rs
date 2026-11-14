@@ -1,15 +1,14 @@
-//! `physics::pace_notes_step` (0x4417EC): the work car's pace notes, each physics step. Only
-//! with `finish_flag`, `go_stand_timer`, `started_stand_timer`, `g_holdCarRevs`, `in_credits`,
-//! `false_start_count` and the car's `all_wheels_off` all 0, `driver_kind` 1 and `run_ticks` 1000 or
-//! more (unsigned). Then the checkpoints ahead: `g_carSpeed` x `pace_scale` / eight, rounded;
-//! the target is the car's checkpoint (`reset_checkpoint`) plus that when not negative, 0 when
-//! at or past the count (by the sign). Past the last called (`last_pace_call`, unsigned): more than
-//! 16 past moves it up to the target first, then every checkpoint after it up to the target (at
-//! least one) has its group called (`physics::queue_pace_note`), and `last_pace_call` becomes the
-//! target. Then (unless it left at the start) `physics::expire_car_events`.
+//! The work car's pace notes, each physics step. Only with `finish_flag`, `go_stand_timer`,
+//! `started_stand_timer`, `hold_car_revs`, `in_credits`, `false_start_count` and the car's
+//! `all_wheels_off` all 0, `driver_kind` 1 and `run_ticks` 1000 or more (unsigned). Then the
+//! checkpoints ahead: the car speed x `pace_scale` / eight, rounded; the target is the car's
+//! checkpoint (`reset_checkpoint`) plus that when not negative, 0 when at or past the count. Past
+//! the last called (`last_pace_call`, unsigned): more than 16 past moves it up to the target first,
+//! then every checkpoint after it up to the target (at least one) has its group called
+//! (`physics::queue_pace_note`), and `last_pace_call` becomes the target. Then (unless it left at
+//! the start) `physics::expire_car_events`.
 //!
-//! Caller: `physics::car_physics_step`. Its calls by `physics/queue_pace_note.rs`' places
-//! (5 the group, 6 the expiry). Refuses what its calls refuse.
+//! Caller: `physics::car_physics_step`. Refuses what its calls refuse.
 
 use crate::errors::Refused;
 use crate::physics::car_store::Car;
@@ -32,7 +31,7 @@ fn gates(work: &RaceWork, replay_file: &ReplayFileBlock, car: &Car) -> [u32; 7] 
 }
 const ONE_F32: u32 = 0x3F80_0000;
 
-// Converted: `rc2k_core::physics::pace_calls::{calling, call_target, calls}`.
+// Core: `rc2k_core::physics::pace_calls::{calling, call_target, calls}`.
 pub fn pace_notes_step(
     c: &CheckpointInputs<'_>,
     scene: &crate::scene::owner::Scene,
@@ -49,7 +48,7 @@ pub fn pace_notes_step(
     ) {
         return Ok(());
     }
-    // `fld; fmul; fdiv; fistp` (the extra division by 1.0 is exact).
+    // Multiply, divide, round (the extra division by 1.0 is exact).
     let ahead = crate::math::x87::mul_div_div_to_int(
         &car.local_velocity[2],
         &physics_tables.pace_scale,

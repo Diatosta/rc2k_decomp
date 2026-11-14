@@ -1,12 +1,12 @@
-//! The scene's points (`g_scenePoints`, a part of the course memory: twelve bytes each,
-//! three whole numbers): Rust's. `race::load_level` moves them
-//! out of the course memory once its data is read, with the room after them up to the
-//! course info (where the game puts new points past the count: the face corners' copies,
-//! the shadow's), and `race::free_course_memory` gives them back.
+//! The scene's points (`scene_points`, a part of the course memory: twelve bytes each, three
+//! whole numbers): Rust's. `race::load_level` moves them out of the course memory once its data is
+//! read, with the room after them up to the course info (where new points past the count go: the
+//! face corners' copies, the shadow's), and the stage's freeing gives them back.
 //!
-//! A point is reached by its number (`point_number`, `point_word`, `put_point_word`,
-//! `copy_point`). `COURSE.scene_points` is `base()` while they are held (0 otherwise; a handle of `race::course_places`, which no host memory backs): the number's
-//! byte is 12 n from it, and any other value of `COURSE.scene_points` reads nothing.
+//! A point is reached by its number (`point_number`, `point_word`, `put_point_word`, `copy_point`).
+//! `COURSE.scene_points` is `base()` while they are held (0 otherwise; a handle of
+//! `race::course_places`, which no host memory backs): the number's byte is 12 n from it, and any
+//! other value of `COURSE.scene_points` reads nothing.
 //!
 //! The points past the count are scratch: each drawing part (`workers::PartScratch`) has its
 //! own while it is drawn in a run of a list drawn by several parts, taken from the shared ones
@@ -31,10 +31,10 @@ pub static POINTS: crate::memory::shared_table::SharedTable =
         "no scene points",
     );
 
-/// A drawing part's own points past the count (`workers::PartScratch::points`): kept from
-/// the count on while the part is drawn in a run of a list drawn by several parts (the game's
-/// thread's first part too), none otherwise (see the header). Plain cells: only the thread
-/// that draws the part reaches it (`part_cell::PartCell`).
+/// A drawing part's own points past the count (`workers::PartScratch::points`): kept from the
+/// count on while the part is drawn in a run of a list drawn by several parts (the game thread's
+/// first part too), none otherwise (see the header). Plain cells: only the thread that draws the
+/// part reaches it (`part_cell::PartCell`).
 pub struct OwnPoints {
     /// The byte from which the points are these own ones while the part is being drawn in a
     /// run (the count's), `usize::MAX` outside one.
@@ -194,11 +194,10 @@ fn outside(
     BadInput(what)
 }
 
-/// `len` bytes at place `at`; refused outside the points, but for a read wholly in the
-/// twelve bytes before them (point -1, which `race::face_texture_coordinates` reads for a
-/// triangle's missing fourth corner: `notes/bugs.md`). The original's course memory had
-/// the faces right before the points (`CourseLayout`: records, faces, points), so those
-/// bytes are the last face's tail, read from the faces.
+/// `len` bytes at place `at`; refused outside the points, but for a read wholly in the twelve bytes
+/// before them (point -1, which `race::face_texture_coordinates` reads for a triangle's missing
+/// fourth corner). The faces lie right before the points in the course memory (`CourseLayout`:
+/// records, faces, points), so those bytes are the last face's tail, read from the faces.
 #[track_caller]
 fn bytes(points: &OwnPoints, at: u32, len: usize) -> Result<Vec<u8>, BadInput> {
     let caller = std::panic::Location::caller();

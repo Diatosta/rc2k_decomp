@@ -1,20 +1,11 @@
-//! `effects::emit_slip_spray` (0x4CC15D, a chunk of `effects::emit_wheel_particles` entered
-//! from it and from another chunk): one ring entry of kind 5 from a wheel whose +0x18 is not
-//! 0.
+//! One ring entry of kind 5 from a wheel whose +0x18 is not 0 (spray from a slipping wheel).
 //!
-//! Takes: the wheel record, the car object
-//!
-//! The strength: |the wheel's +0x18|, then less (wheel number even, sign -1) or plus (odd,
-//! sign 1) its +0x10. The entry: its place the wheel's (+0x3C ..) less the car matrix's
-//! (+0x30 ..) plus a random side (the matrix's first and third rows by a random's low 14
-//! bits, the first less 0x2000); its motion the matrix's first row by the set's factors and
-//! the sign, by the strength (the y plus a constant), moved by `effects::jitter_point` (the
-//! set's spread), plus the third row by the set's factors and the wheel's +0x18; +0x54 the
-//! set's spin factor times the sign; +0x58 the wheel's flags' low 6 bits; +0x60 the integer
-//! ((`jitter_point`'s third result >> 2) & 0xFFF) + 0x7800 (section 16); +0x74 0xFF000000; a
-//! life of 5000; +0x68 the car. Refuses (before anything) a null wheel, object, car or matrix
-//! where read. The body is shared with kind 0xB's (`JitterSet`, `emit_slip_spray_with`,
-//! `test_with`).
+//! The strength is |the wheel's +0x18| less its +0x10 on even wheels and plus it on odd ones. The
+//! entry starts at the wheel's place less the car matrix's, plus a random side, and moves along the
+//! matrix's first and third rows by the set's factors, jittered by `effects::jitter_point`. +0x60
+//! is ((`jitter_point`'s third result >> 2) & 0xFFF) + 0x7800 (a slip kept as is); the life is
+//! 5000. The body is shared with kind 0xB (`JitterSet`, `emit_slip_spray_with`). Refuses (before
+//! anything) a null wheel, object, car or matrix where read.
 
 use crate::effects::emitters::car_with_matrix;
 use crate::effects::emitters::emitting_car;
@@ -192,29 +183,29 @@ pub fn emit_slip_spray_with(
     Ok(())
 }
 
-/// Kind 5's emitter variables (`emit_slip_spray::FIFTH`) (IDA 0x93A23A .. 0x93A262).
+/// Kind 5's emitter variables.
 #[derive(rc2k_derive::Cells)]
 pub struct SlipSpraySet {
-    /// 0x93A23A: `dword_93A23A`: the place's random
+    /// The place's random
     pub place_random: PlainDword,
-    /// 0x93A23E: `flt_93A23E`: the motion's x factor
+    /// The motion's x factor
     pub motion_x: PlainFloat,
-    /// 0x93A242: `flt_93A242`: the motion's y factor
+    /// The motion's y factor
     pub motion_y: PlainFloat,
-    /// 0x93A246: `flt_93A246`: added to the motion's y
+    /// Added to the motion's y
     pub lift: PlainFloat,
-    /// 0x93A24A: `flt_93A24A`: the motion's z factor
+    /// The motion's z factor
     pub motion_z: PlainFloat,
-    /// 0x93A24E: `flt_93A24E`: the spread `jitter_point` takes
+    /// The spread `jitter_point` takes
     pub spread: PlainFloat,
-    /// 0x93A252: `flt_93A252` .. `flt_93A25A`: the third row's factors (z, y, x)
+    /// The third row's factors (z, y, x)
     pub roll_k: [PlainFloat; 3],
-    /// 0x93A25E: `flt_93A25E`: the spin's factor
+    /// The spin's factor
     pub spin: PlainFloat,
 }
 
 impl SlipSpraySet {
-    /// The values the game starts with (the image's bytes).
+    /// The values the game starts with.
     pub const fn new() -> Self {
         SlipSpraySet {
             place_random: PlainDword::new(0x0),

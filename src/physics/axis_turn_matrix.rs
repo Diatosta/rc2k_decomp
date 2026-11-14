@@ -1,12 +1,10 @@
-//! `physics::axis_turn_matrix` (0x421019): fills a matrix with a turn by `spin_angle` about the
-//! axis `spin_axis` (Rodrigues' form, with |x| square-rooted for the diagonal's x x, as the
-//! original has it). The work values (sine `turn_sine` .. `turn_sine_z`: sine, cosine, 1 - cosine,
-//! three products of two axis parts and three of one with the sine) are left in the course
-//! lists store; the fourth row is 0, 0, 0, 1 and the fourth column's three are left as they were.
+//! Fills a matrix with a turn by `spin_angle` about the axis `spin_axis` (Rodrigues' form, with
+//! the diagonal's x x square-rooted from its absolute value). The work values (sine, cosine,
+//! 1 - cosine, three products of two axis parts and three of one with the sine) are left in
+//! `turn_sine` .. `turn_sine_z`; the fourth row is 0, 0, 0, 1 and the fourth column is left as
+//! it was.
 //!
-//! Takes: the matrix (0x40 bytes)
-//!
-//! Callers: `physics::move_slot` and `physics::spin_matrix`.
+//! Callers: `physics::move_slot`, `physics::spin_matrix`.
 
 use crate::math::cells::Cells;
 use crate::math::x87;

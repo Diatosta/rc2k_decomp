@@ -1,22 +1,18 @@
-//! `physics::load_car_specs` (0x421482): the work car's handling figures from its kind's
-//! record (`g_car` +0x24, at most 0x21; records of 0xB0 at 0x5C790C, "00 renault maxi
-//! megane" ..): the drive kind; four whole figures as floats into `figures` .. (each at
-//! least 8.0) and the engine's top (+0x1DC, at least `thousand`); the shift points
-//! `LightsAndGear.gear.shift_up_point` .. `shift_ratio_figure`; `drive_torque_figure`; `rev_limit`; the torque curve (nine
-//! dwords) at `spec_torque`; the gear count (3 ..= 7, by the sign) and nine more words;
-//! three whole figures x 65536 / `thousand` `fistp` into `spec_ints` .. (for kinds
-//! below 0x17 from `spec_default_bc0` .. instead); `spec_grip` .. from `spec_default_ba0`,
-//! `613F00`, `613F14` (the record's first written, then these); two floats x
-//! `gravity`; `scratch`, `downforce_spec`; and by the drive kind `idle_engine_speed` and
-//! it + 100 into `stall_engine_speed`.
+//! The work car's handling figures from its kind's record (kind at most 0x21; records of 0xB0
+//! bytes, the first named "00 renault maxi megane"): the drive kind; four whole figures as floats
+//! into `figures` (each at least 8.0) and the engine's top (at least `thousand`); the shift points
+//! `LightsAndGear.gear.shift_up_point` .. `shift_ratio_figure`; `drive_torque_figure`; `rev_limit`;
+//! the torque curve (nine dwords) at `spec_torque`; the gear count (3 ..= 7) and nine more words;
+//! three whole figures x 65536 / `thousand`, rounded, into `spec_ints` (for kinds below 0x17 from
+//! `spec_default_bc0` instead); `spec_grip` from `spec_default_ba0` and two more defaults (the
+//! record's first written, then these); two floats x `gravity`; `scratch`, `downforce_spec`; and by
+//! the drive kind `idle_engine_speed` and it + 100 into `stall_engine_speed`.
 //!
-//! The x87 runs are plain Rust over `X` (`math/x87_float.rs`), the original's instructions
-//! (from IDA) being recorded in the tests' `reference_vectors`; the compares and the integer
-//! steps in Rust.
+//! The x87 runs are plain Rust over `X` (`math/x87_float.rs`); the compares and the integer steps
+//! are Rust.
 //!
-//! Callers: `physics::car_physics_step` (0x43B63A), `physics::test_drive`. Refuses (before
-//! anything) a drive kind past 3 (`rev_limits` holds two floats; kinds 0 ..= 2 are read as the original does, kind 2 into
-//! `camera_drop`).
+//! Callers: `physics::car_physics_step`, `physics::test_drive`. Refuses (before anything) a drive
+//! kind past 3 (`rev_limits` holds two floats; kinds 0 ..= 2 are read, kind 2 into `camera_drop`).
 
 use crate::effects::cell_x87::CellX87;
 use crate::errors::Refused;
@@ -74,7 +70,6 @@ pub fn load_car_specs(
     let spec = record(car_specs, car);
     let drive = check_drive(spec.drive_kind.get())?;
     car.drive_kind.set(drive);
-    // 0x4214A7 .. 0x421543
     load_figures_and_shift_points(
         car,
         physics_tables,
@@ -95,10 +90,8 @@ pub fn load_car_specs(
         }
     }
     words(physics_tables, spec);
-    // 0x4216C5 .. 0x421704
     scale_record_ratios(physics_tables, course.numbers.get(), spec);
     if kind < OWN_FIGURES_FROM {
-        // 0x42170D .. 0x421755
         scale_default_ratios(physics_tables, course.numbers.get());
     }
     physics_tables
@@ -110,7 +103,6 @@ pub fn load_car_specs(
     physics_tables
         .spec_wheel
         .set(physics_tables.spec_default_ba8.get());
-    // 0x421794 .. 0x4217B2
     scale_record_grips(physics_tables, spec);
     scene
         .drawing
@@ -119,27 +111,13 @@ pub fn load_car_specs(
         .scratch
         .set(spec.scratch_value.get());
     physics_tables.downforce_spec.set(spec.downforce.get());
-    // 0x4217CA .. 0x4217E3
     set_rev_limits(physics_tables, course.numbers.get(), drive as usize);
     Ok(())
 }
 
-// ---- the arithmetic that was x87 assembly ----
+// ---- the x87 arithmetic ----
 
-/// The game's x87 arithmetic as plain Rust over `X`, on the variables
-/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[figures] = int [s + 0x64]`
-/// `[rc + 0x1CB970] = int [s + 0x68]`
-/// `[rc + 0x1CB974] = int [s + 0x6C]`
-/// `[rc + 0x1CB978] = int [s + 0x70]`
-/// `[engine_speed_limit] = int [s + 0x74]`
-/// `[spec_scale_copy] = [spec_scale_1b8]`
-/// `[rc + 0x1CB958] = [s + 0xA4]`
-/// `[shift_ratio_figure] = [s + 0xA4] * [spec_scale_a4]`
-/// `[shift_down_point] = [s + 0xA8] + [tenths]`
-/// `[shift_down_clutch_point] = [s + 0xAC] + [tenths]`
-/// `[drive_torque_figure] = (int [s + 0x78] * [rev_limit_scale]) / [engine_speed_limit]`
-/// `[rev_limit] = [engine_speed_limit] * [rev_top_scale]`
+/// One straight x87 run as plain Rust over `X`.
 fn load_figures_and_shift_points(
     car: &Car,
     tables: &PhysicsTables,
@@ -184,11 +162,7 @@ fn load_figures_and_shift_points(
     tables.rev_limit.st(t22);
 }
 
-/// The game's x87 arithmetic as plain Rust over `X`, on the variables
-/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `int [spec_ints] = (int [s + 0x40] * [k65536]) / [thousand]`
-/// `int [rc + 0x214BC4] = (int [s + 0x44] * [k65536]) / [thousand]`
-/// `int [rc + 0x214BC8] = (int [s + 0x48] * [k65536]) / [thousand]`
+/// One straight x87 run as plain Rust over `X`.
 fn scale_record_ratios(tables: &PhysicsTables, numbers: &Numbers, s: &CarSpec) {
     let t0 = int(s.whole_figures[0].get() as i32);
     let t1 = numbers.k65536.ld();
@@ -210,11 +184,7 @@ fn scale_record_ratios(tables: &PhysicsTables, numbers: &Numbers, s: &CarSpec) {
     tables.spec_ints[2].set(to_int(t14) as u32);
 }
 
-/// The game's x87 arithmetic as plain Rust over `X`, on the variables
-/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `int [spec_ints] = (int [spec_default_bc0] * [k65536]) / [thousand]`
-/// `int [rc + 0x214BC4] = (int [rc + 0x213F08] * [k65536]) / [thousand]`
-/// `int [rc + 0x214BC8] = (int [rc + 0x213F0C] * [k65536]) / [thousand]`
+/// One straight x87 run as plain Rust over `X`.
 fn scale_default_ratios(tables: &PhysicsTables, numbers: &Numbers) {
     let t0 = int(tables.spec_default_bc0[0].get() as i32);
     let t1 = numbers.k65536.ld();
@@ -236,10 +206,7 @@ fn scale_default_ratios(tables: &PhysicsTables, numbers: &Numbers) {
     tables.spec_ints[2].set(to_int(t14) as u32);
 }
 
-/// The game's x87 arithmetic as plain Rust over `X`, on the variables
-/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[spec_drive] = [s + 0x38] * [gravity]`
-/// `[rc + 0x214BB0] = [s + 0x3C] * [gravity]`
+/// One straight x87 run as plain Rust over `X`.
 fn scale_record_grips(tables: &PhysicsTables, s: &CarSpec) {
     let t0 = s.weights[0].ld();
     let t1 = tables.gravity.ld();
@@ -251,12 +218,8 @@ fn scale_record_grips(tables: &PhysicsTables, s: &CarSpec) {
     tables.spec_drive[1].st(t5);
 }
 
-/// The game's x87 arithmetic as plain Rust over `X`, on the variables
-/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[idle_engine_speed] = [rc + k * 4 + 0x213FB8]`
-/// `[stall_engine_speed] = [rc + k * 4 + 0x213FB8] + [hundred]`
-/// `k` is the drive kind (0 .. 2): kind 2 reads past the two rev limits into `camera_drop`,
-/// as the original (`notes/bugs.md`).
+/// `k` is the drive kind (0 .. 2): kind 2 reads past the two rev limits into `camera_drop` (a slip
+/// kept as is).
 fn set_rev_limits(tables: &PhysicsTables, numbers: &Numbers, k: usize) {
     let limit = [
         &tables.rev_limits[0],

@@ -1,10 +1,9 @@
-//! `scene::draw_menu_object` (0x4907E7): draws the object `g_objectNumber` the way the
-//! menus show theirs.
+//! `scene::draw_menu_object`: draws the current object the way the menus show theirs.
 //!
-//! `g_shine` = 0x200 (`scene::set_shine` 0x422292, inlined); `scene::make_object_matrix` from
-//! the angles, place and size the caller set; `LightState.view_kind` = 5; `g_lightKind` = 4;
-//! `scene::draw_scene_object`; `g_shine` = 0x100. 14 callers: the carousel's entry and thirteen
-//! menus' objects.
+//! Sets the shine to 0x200, makes the matrix from the angles, place and size the caller set
+//! (`scene::make_object_matrix`), sets `LightState.view_kind` = 5 and the light kind = 4, draws
+//! (`scene::draw_scene_object`), then sets the shine to 0x100. 14 callers: the carousel's entry
+//! and thirteen menus' objects.
 
 use crate::errors::Refused;
 use crate::scene::matrix::make_object_matrix;
@@ -17,8 +16,6 @@ pub enum Step {
     Matrix,
     Draw,
 }
-
-// ---- Rust version ----
 
 /// `step` stands for the two calls.
 pub fn draw_menu_object(

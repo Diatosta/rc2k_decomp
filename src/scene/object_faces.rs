@@ -1,18 +1,17 @@
 //! The objects' faces (the faces' part of `scene::allocate_object_memory`'s block), counted on
-//! the list as the game's bytes were, given back by `race::free_object_points`. The faces are written one
-//! after another by `scene::add_object_shape` (+0 the number of vertices, +4 the texture
-//! word, +6 the kind, +7, +0xB bytes, +0xC the normal, then 0x10 bytes a vertex).
+//! the list, given back by `give_back`. The faces are written one after another
+//! by `scene::add_object_shape` (+0 the number of vertices, +4 the texture word, +6 the kind,
+//! +7, +0xB bytes, +0xC the normal, then 0x10 bytes a vertex).
 //!
-//! `COURSE_LISTS.face_memory` is `BASE` while the faces are taken (0 otherwise), so a face
-//! is named by `BASE` + its offset, where the original held its address (`g_faces`' cells,
-//! the marks' point lists): the original's arithmetic (`face + 7`, the faces' memory plus
-//! the cursor) is kept, and a place is read here.
+//! `face_memory` is `BASE` while the faces are taken (0 otherwise), so a face is
+//! named by `BASE` + its offset (`face + 7`, the faces' memory plus the cursor), and a place
+//! is read here.
 
 use crate::errors::{BadInput, Refused};
 #[cfg(test)]
 use crate::race::owner::race;
 
-/// `COURSE_LISTS.face_memory` while the faces are taken: the first face's place.
+/// `face_memory` while the faces are taken: the first face's place.
 pub const BASE: u32 = 1;
 
 /// The faces' most bytes: `scene::allocate_object_memory`'s room for them out of a race.

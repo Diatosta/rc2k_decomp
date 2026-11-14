@@ -100,9 +100,10 @@ pub fn race_mode(mode: u32) -> u32 {
     mode & !0xFF | 1
 }
 
-/// The built-in pad as a gamepad, for SDL's GUID of it (hex). It is read through its joystick
-/// node (`/dev/input/js0`): the kernel's button order (A 304 .. R3 316), the sticks' four axes,
-/// and the cross as a hat (SDL makes one of the node's two hat axes). The buttons by their printed names, so A enters as labelled.
+/// The built-in pad as a gamepad, for SDL's GUID of it (hex). It is read through its joystick node
+/// (`/dev/input/js0`): the kernel's button order (A 304 .. R3 316), the sticks' four axes, and the
+/// cross as a hat (SDL makes one of the node's two hat axes). The buttons by their printed names,
+/// so A enters as labelled.
 pub fn pad_mapping(guid: &str) -> String {
     format!(
         "{guid},ANBERNIC-keys,a:b0,b:b1,x:b2,y:b3,leftshoulder:b4,rightshoulder:b5,back:b6,\
@@ -184,7 +185,7 @@ impl Small {
     }
 }
 
-// ---- a sampling profiler, while the handheld's speed is being worked out (the OS has no perf) ----
+// ---- a sampling profiler for the handheld (the OS has no perf) ----
 
 use crate::race::owner::race;
 use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering::Relaxed};

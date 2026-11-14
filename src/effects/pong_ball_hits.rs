@@ -1,24 +1,22 @@
-//! `effects::pong_ball_hits` (0x4B8040): when the pong ball overlaps the bat (`effects::pong`'s
-//! four compares): a hit (`PongState.hits` plus 1), four more steps a frame
-//! (`g_pongSteps`), the ball a step back, and its new way: from the bat's centre to
-//! the ball's (`PongState.ball_centre[0]` .. `PongState.difference[1]`; an across of exactly 0 bits less
-//! `PongRules.nudge`), made one long times `MarksFloats.one`, times `PongRules.way_scale[0]` / `PongRules.way_scale[1]`.
+//! `effects::pong_ball_hits`: when the pong ball overlaps the bat (`effects::pong`'s four
+//! compares): a hit (`PongState.hits` plus 1), four more steps a frame (`PongState.steps`), the
+//! ball a step back, and its new way: from the bat's centre to the ball's
+//! (`PongState.ball_centre[0]` .. `PongState.difference[1]`; an across of exactly 0 bits less
+//! `PongRules.nudge`), made one long times `MarksFloats.one`, times `PongRules.way_scale[0]` /
+//! `PongRules.way_scale[1]`.
 //!
-//! Caller: `effects::move_pong_ball`. The x87 runs are plain Rust on the x87 model (`math::x87_float`), in the original's order, over the
-//! game's variables.
-//!
-//! the x87 version stays for the Rust callers in unconverted code).
+//! The x87 runs are plain Rust on the x87 model (`math::x87_float`).
 
 use crate::effects::cell_x87::CellX87;
 use crate::effects::pong::{self, Pong, PongRules, PongState};
 use crate::math::x87;
 
-/// The original's 0x4B8105 .. 0x4B8189: the centres and their difference.
+/// The centres and their difference.
 fn centres(pong: &Pong) {
     centres_x87(&pong.state, &pong.rules);
 }
 
-/// The original's 0x4B81A4 .. 0x4B81FE: the difference made one long, scaled.
+/// The difference made one long, scaled.
 fn new_way(pong: &Pong, effects: &crate::effects::owner::Effects) {
     new_way_x87(&pong.state, &pong.rules, effects.setup.floats.one.get());
 }
@@ -46,7 +44,7 @@ pub fn pong_ball_hits(pong: &Pong, effects: &crate::effects::owner::Effects) {
 
 use crate::math::x87_float::ld;
 
-/// `centres`'s x87 block as plain Rust on the x87 model (22 instructions), same order and memory places.
+/// `centres`'s arithmetic as plain Rust on the x87 model, in the same order.
 fn centres_x87(p: &PongState, r: &PongRules) {
     let t0 = p.ball_size[0].ld();
     let t1 = t0 * r.centre[0].ld();
@@ -164,8 +162,9 @@ mod reference_vectors {
         };
         recorded("effects.pong_ball_hits.new_way_x87", &SPEC, |b| {
             let length =
-                // SAFETY: `at` checks that the four bytes lie in the operand's test buffer, which the
-                // recorded run keeps alive and nothing else reaches meanwhile; unaligned, any bits a `u32`.
+                // SAFETY: `at` checks that the four bytes lie in the operand's test buffer, which
+                // the recorded run keeps alive and nothing else reaches meanwhile; unaligned, any
+                // bits a `u32`.
                 f32::from_bits(unsafe { ((b[0] + 0x22C).at(0, 4) as *const u32).read_unaligned() });
             with_laid::<PongState, _>(b[0], |state| {
                 with_laid::<PongRules, _>(b[0], |rules| super::new_way_x87(state, rules, length));

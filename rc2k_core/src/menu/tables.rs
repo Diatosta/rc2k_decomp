@@ -1,34 +1,31 @@
-//! The game's menus and its screens' draw lists as Rust data (typed tables):
-//! what RAL.EXE keeps at 0x747000 .. 0x755200 (menus, their labels) and 0x758B00 ..
-//! 0x7594B0 (draw lists), with the code addresses in them replaced by enums
-//! (`ItemFn`, `ScreenFn`) and the fonts they name by `MenuFont`. The data is generated
-//! (`tables_data.rs`, `tools/menu_tables`).
+//! The game's menus and its screens' draw lists as Rust data: functions are the enums `ItemFn` and
+//! `ScreenFn`, fonts are `MenuFont`. The data is generated (`tables_data.rs`, `tools/menu_tables`).
 //!
-//! These tables are the one source of the menus and the lists: the game's crate keeps, per
-//! item, only the fields the game changes in play (an item's string id, font, +0x1C, sprite,
-//! skip mark and highlight font: `menu::menus_store::MenuItem`, starting as the table has
-//! them) and names a menu or list by its number here. Each menu and list keeps its RAL
-//! address (`at`) for the test that checks the tables against RAL.EXE's (frozen) data.
+//! These tables are the one source of the menus and the lists: the game's crate keeps, per item,
+//! only the fields that change in play (string id, font, `behind`, sprite, skip mark and highlight
+//! font: `menu::menus_store::MenuItem`, starting as the table has them) and names a menu or list by
+//! its number here. Each menu and list keeps the address RAL.EXE stores it at (`at`), for the test
+//! that checks the tables against RAL.EXE's data.
 
 pub use super::item_params::{EventStart, OptionSwitch, StageCounter, VolumeKind};
 pub use super::tables_data::{ItemFn, LISTS, MENUS, MenuFont, ScreenFn};
 
-/// A menu: its labels (texts that are not items) and its items, without the -1 dwords
-/// that end both lists in RAL.EXE.
+/// A menu: its labels (texts that are not items) and its items, without the -1 dwords that end both
+/// lists in RAL.EXE's layout.
 #[derive(Debug)]
 pub struct Menu {
-    /// Where RAL.EXE keeps it.
+    /// The address RAL.EXE stores it at.
     pub at: u32,
-    /// Whether anything in RAL.EXE names it (eight menus follow another's end mark and are
-    /// named by nothing).
+    /// Whether anything names it (eight menus follow another's end mark and nothing refers
+    /// to them).
     pub referenced: bool,
-    /// Where RAL.EXE keeps its labels (0: none).
+    /// The address RAL.EXE stores its labels at (0: none).
     pub labels_at: u32,
     pub labels: &'static [MenuLabel],
     pub items: &'static [MenuItem],
 }
 
-/// A label: 0x10 bytes in RAL.EXE.
+/// A label: 0x10 bytes in RAL.EXE's layout.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct MenuLabel {
     pub x: i32,
@@ -37,29 +34,29 @@ pub struct MenuLabel {
     pub string: u32,
 }
 
-/// An item: 0x5C bytes in RAL.EXE (IDA's `MenuItem`).
+/// An item: 0x5C bytes in RAL.EXE's layout.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct MenuItem {
     pub x: i32,
     pub y: i32,
     pub width_or_text_x: i32,
     pub alignment_or_text_y: i32,
-    /// IDA's `type`: the number highlights and links name the item by.
+    /// The number that highlights and links name the item by.
     pub id: u32,
-    /// The string id (+0x14), as the game starts; changed in play.
+    /// The string id as the game starts; changed in play.
     pub string: u32,
-    /// +0x18, as the game starts; changed in play (`menu::disable_item` / `enable_item`).
+    /// The font as the game starts; changed in play (`menu::disable_item` / `enable_item`).
     pub font: MenuFont,
-    /// +0x1C, as the game starts; changed in play.
+    /// The item's backdrop (+0x1C in RAL.EXE's layout) as the game starts; changed in play.
     pub behind: u32,
     pub sprites: u32,
     /// The items up, down, left and right of this one, by `id`.
     pub links: [u32; 4],
-    /// What a key does on it: up, down, left, right (+0x34 .. +0x40).
+    /// What a key does on it: up, down, left, right.
     pub on_key: [ItemFn; 4],
-    /// What choosing it does (+0x44).
+    /// What choosing it does.
     pub action: ItemFn,
-    /// +0x48, as the game starts; changed in play.
+    /// The skip mark as the game starts; changed in play.
     pub skip_mark: u32,
     pub measuring_font: MenuFont,
     pub highlight_font: MenuFont,
@@ -68,12 +65,12 @@ pub struct MenuItem {
     pub spaced: u32,
 }
 
-/// A screen's list of functions, run in order (`menu::run_list`): RAL.EXE's dwords
-/// without the -1 that ends them.
+/// A screen's list of functions, run in order (`menu::run_list`): RAL.EXE's dwords without the -1
+/// that ends them in RAL.EXE.
 #[derive(Debug)]
 pub struct DrawList {
     pub at: u32,
-    /// Whether anything in RAL.EXE names it (ten follow another's end mark).
+    /// Whether anything names it (ten follow another's end mark and nothing refers to them).
     pub referenced: bool,
     pub functions: &'static [ScreenFn],
 }
@@ -97,9 +94,9 @@ mod tests {
         assert_eq!(LISTS.iter().filter(|l| !l.referenced).count(), 10);
     }
 
-    /// Every dword the tables stand for, as RAL.EXE lays them out: `(IDA address, dword)` for
-    /// each menu's label pointer, label, item and end mark, and each list's functions and end
-    /// mark, the enums turned back into the addresses they replace.
+    /// Every dword the tables stand for, as RAL.EXE lays them out: `(address, dword)` for each
+    /// menu's label pointer, label, item and end mark, and each list's functions and end mark, the
+    /// enums turned back into the addresses they replace.
     fn ral_dwords() -> Vec<(u32, u32)> {
         let mut out = Vec::new();
         for m in MENUS.iter() {
@@ -166,12 +163,10 @@ mod tests {
             })
     }
 
-    /// The tables are the game's data: every dword of every menu, label, item and list, at
-    /// its RAL.EXE address, is what RAL.EXE holds there. Frozen on 2026-11-13 from the
-    /// comparison with RAL.EXE's bytes (then `data/menu_tables.bin`, 14,196 dwords, every
-    /// one covered): their count and hash. The one difference the enums make: RAL.EXE's
-    /// 194 item functions at 0x471C81 (a second empty function next to `nullsub_87`) read
-    /// as `ItemFn::Nothing`, which stands for 0x471C80.
+    /// Every dword of every menu, label, item and list, at its RAL.EXE address, equals what RAL.EXE
+    /// holds there: checked by count and hash, frozen from a comparison with RAL.EXE's bytes that
+    /// covered every dword. The one difference the enums make: the 194 item functions at 0x471C81
+    /// (a second empty function) read as `ItemFn::Nothing`, which stands for 0x471C80.
     #[test]
     fn tables_are_the_games() {
         let dwords = ral_dwords();

@@ -1,21 +1,20 @@
-//! `scene::build_texture_catalogue` (0x42274B): gets memory for every texture that is
-//! needed, making the textures smaller group by group until it is had.
+//! `scene::build_texture_catalogue`: gets memory for every texture that is needed, making the
+//! textures smaller group by group until it is had.
 //!
-//! The listing is one list of 432 steps of a few kinds, which
-//! `scene/texture_steps.rs` holds as a table (made by `tools/texture_catalogue`):
-//! log a text or a number; count a reduction in the counters (0x100 of them);
-//! raise the level a tag's textures are needed at (`scene::raise_texture_needs`: a
-//! higher level is a smaller texture); try (`scene::try_allocate_textures`), which
-//! ends the list when it succeeds; release what a failed try took
-//! (`gfx::release_all_textures`, Direct3D: not ported); and a group of steps
-//! skipped when a flag is set.
+//! The listing is one list of 432 steps of a few kinds, which `scene/texture_steps.rs` holds
+//! as a table (made by `tools/texture_catalogue`): log a text or a number; count a reduction in
+//! the counters (0x100 of them); raise the level a tag's textures are needed at
+//! (`scene::raise_texture_needs`: a higher level is a smaller texture); try
+//! (`scene::try_allocate_textures`), which ends the list when it succeeds; release what a
+//! failed try took (`gfx::release_all_textures`); and a group of steps skipped when a flag is
+//! set.
 //!
-//! Before the list the counters are zeroed and the eight step flags set: 1 for the
-//! first, 0 for the others. So the list reads: try as things are; else your cars 2 .. 8 down
-//! from 256 to 128, try; and so on through the other cars, the scenery, the sky, the front end,
-//! each time one group one step smaller. After a successful try: "Allocated textures OK -", the
-//! needs counted once more for the log, a rule. After the last failed one: "Cant allocate
-//! enough textures" and fatal error 0x80600403. One caller, `scene::set_up_textures`.
+//! Before the list the counters are zeroed and the eight step flags set: 1 for the first, 0
+//! for the others. So the list reads: try as things are; else your cars 2 .. 8 down from 256 to
+//! 128, try; and so on through the other cars, the scenery, the sky, the front end, each time
+//! one group one step smaller. After a successful try: "Allocated textures OK -", the needs
+//! counted once more for the log, a rule. After the last failed one: "Cant allocate enough
+//! textures" and fatal error 0x80600403. One caller, `scene::set_up_textures`.
 
 use crate::errors::{FatalError, Refused};
 use crate::logfile::log_int::log_int;
@@ -64,8 +63,6 @@ pub enum Call {
     Release,
     CountNeeds,
 }
-
-// ---- Rust version ----
 
 /// True when a try succeeded.
 fn run(
@@ -119,8 +116,6 @@ pub fn build_texture_catalogue(
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
     let textures = &scene.textures;
-    // The original does this after the first two log lines and the count, which
-    // touch neither.
     for counter in &textures.places.get().counters {
         counter.set(0);
     }

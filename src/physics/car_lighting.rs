@@ -1,18 +1,16 @@
-//! `physics::car_lighting` (0x44ECE4): the light on the work car from the face under it.
-//! The car's x / z into the probe point, the old light (+0x244) into `light_kept`,
-//! `car_light_colour` / `62DB00` 0, the last face (+0xE00) into `ground_face_last`;
-//! `physics::find_ground`; no face: done. With `ground_half` 1 the shares
-//! (`share_s`, `804`) taken from 0x10000; kept in `ground_texture_s` / `0C`. The face's
-//! four corner lights (+0x14 ..; with its texture's +0x2C 1 each scaled by
-//! ((byte +0x22 + k) >> 1 ^ 0x7F) + 0x80, `mul`, >> 8) blended by the shares (`imul`,
-//! `shrd` 16) into +0x244; with +0xFB4 set the change held to 10 a step (or none with
-//! `scene_switch`); `g_lightTable[it]` into `car_light_colour` and +0x240. With bit 2 of the
-//! face's +2 also two colour blends (+0x28 .., +0x2C ..) through `lamp_table_a`[]` /
-//! `lamp_table_b`[]` into `lamp_a_colour` / `62DB04`, each added to +0x240 byte by byte
-//! with saturation (four bytes with `g_hasMmx`, else the low three).
+//! The light on the work car from the face under it. The car's x and z become the probe point, the
+//! old light is kept in `light_kept`, `car_light_colour` is 0 and the last face goes into
+//! `ground_face_last`; then `physics::find_ground`; no face: done. With `ground_half` 1 the shares
+//! are taken from 0x10000 and kept in `ground_texture_s`. The face's four corner lights (each
+//! scaled by a texture byte when its texture asks for it) are blended by the shares into the car's
+//! light; with the car's hold set the change is held to 10 a step (or none with `scene_switch`);
+//! the light table's entry goes into `car_light_colour`. With bit 2 of the face's flags also two
+//! colour blends (`lamp_table_a`, `lamp_table_b`) go into `lamp_a_colour`, each added to the car's
+//! lamp colour byte by byte with saturation (four bytes with the machine's MMX flag, else the low
+//! three).
 //!
-//! Caller: `physics::car_physics_step` (0x43B990), every physics step. Refuses a light index past
-//! 0xFF (the tables are 256) and no faces; what was written is put back.
+//! Caller: `physics::car_physics_step`, every physics step. Refuses a light index past 0xFF (the
+//! tables hold 256) and no faces; what was written is put back.
 
 use crate::errors::{BadInput, Refused};
 use crate::physics::ground_store::GroundWork;
@@ -30,7 +28,7 @@ fn corners(ground: &GroundWork, course_work: &CourseWork) -> u32 {
     v
 }
 
-// Converted: `rc2k_core::physics::lighting`.
+// Core: `rc2k_core::physics::lighting`.
 pub fn car_lighting(
     c: &LightingInputs<'_>,
     scene: &crate::scene::owner::Scene,

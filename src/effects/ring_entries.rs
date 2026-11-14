@@ -1,8 +1,8 @@
 //! The effects' ring of 0x400 entries of 0x94 bytes (0x25000 bytes, taken by
-//! `effects::set_up_surface`), counted on the ring list as the game's block was, given back
-//! by `effects::tidy_marks`. An entry is named by its number + 1 (0 none), in `RING_WORK.cursor`
-//! / `block` and in the entries' links (+0 the one before, +4 the one after) as the
-//! original held their addresses. Each field keeps its offset in the original's record.
+//! `effects::set_up_surface`), counted on the ring list as the game's block was, given back by
+//! `effects::tidy_marks`. An entry is named by its number + 1 (0 none), in `RingWork.cursor` /
+//! `block` and in the entries' links (+0 the one before, +4 the one after). Each field keeps its
+//! offset in the record.
 
 #[cfg(test)]
 use crate::effects::owner::effects;
@@ -18,8 +18,8 @@ pub const ENTRY_LEN: u32 = 0x94;
 /// The block's bytes, as counted.
 pub const RING_BYTES: u32 = 0x2_5000;
 
-/// One ring entry: 37 dwords in the order of the original's record (the size, alpha and
-/// pull fields stay dwords: kinds differ in whether they hold a float or a whole number). The three-axis fields are arrays x, y, z.
+/// One ring entry: 37 dwords (the size, alpha and pull fields stay dwords: kinds differ in
+/// whether they hold a float or a whole number). The three-axis fields are arrays x, y, z.
 /// Fields no code reads or writes by name are `unknown_<offset>`.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct Entry {
@@ -74,7 +74,8 @@ pub struct Entry {
     pub box_limit: [u32; 2],
     /// 0x84: The ticks of life left.
     pub life: u32,
-    /// 0x88: no emitter writes it and no ring step reads it (only the tests' word copies touch it); an unused word.
+    /// 0x88: no emitter writes it and no ring step reads it (only the tests' word copies touch it);
+    /// an unused word.
     pub unused_88: u32,
     /// 0x8C: as 0x88, an unused word.
     pub unused_8c: u32,
@@ -230,7 +231,7 @@ pub fn retire_entry(ring: &Ring, e: u32) -> Result<(), BadInput> {
 
 /// The ring walked once: `visit` is called with each entry, from the cursor along `next`, as
 /// many times as the count held at the start; an entry it says has died is retired
-/// (`retire_entry`). The next entry is read before the visit, as the original does.
+/// (`retire_entry`). The next entry is read before the visit.
 pub fn walk_ring(
     ring: &Ring,
     mut visit: impl FnMut(u32) -> Result<bool, crate::errors::Refused>,

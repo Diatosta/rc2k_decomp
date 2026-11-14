@@ -1,11 +1,10 @@
-//! The gearing's sums between the engine's speed and the driven wheels' (fields of the
-//! current car's work copy, `drive/car.rs`): `physics::revs_from_wheels` (0x43C0C9),
-//! `physics::wheels_from_revs` (0x43C124). Both do nothing in gear 0 (neutral); else they
-//! divide or multiply by the gear's ratio, `g_gearRatios[gear]` (0x6140C0; gear -1, the
-//! reverse, at 0x6140BC; seven forward gears by `physics::make_gear_ratios`). With `g_carDriveKind`
-//! 1 the two driven speeds are averaged / both set: by the look of it four-wheel drive (a
-//! reading, not seen in a race). The exact x87 versions (`*_at`) serve the Rust callers in
-//! the gearbox.
+//! The gearing's sums between the engine's speed and the driven wheels' (fields of the current
+//! car's work copy, `drive/car.rs`): `physics::revs_from_wheels`, `physics::wheels_from_revs`.
+//! Both do nothing in gear 0 (neutral); otherwise they divide or multiply by the gear's ratio,
+//! `gear_ratios[gear + 1]` (gear -1, the reverse, just before it; seven forward gears made by
+//! `physics::make_gear_ratios`). With the drive kind 1 the two driven speeds are averaged or
+//! both set: by the look of it four-wheel drive (a reading, not seen in a race). The exact x87
+//! versions (`*_at`) serve the Rust callers in the gearbox.
 
 use crate::effects::cell_x87::CellX87;
 use crate::errors::{BadInput, Refused};
@@ -54,7 +53,7 @@ fn gear_ratio(p: &GearPlaces<'_>) -> Result<Option<(i32, f32)>, Refused> {
     Ok(Some((gear, p.ratios[(gear + 1) as usize].get())))
 }
 
-/// `physics::revs_from_wheels` (0x43C0C9): in gear, engine speed = the driven speed (with
+/// `physics::revs_from_wheels`: in gear, engine speed = the driven speed (with
 /// drive kind 1 the two driven speeds' sum times 0.5) over the gear's ratio.
 pub fn revs_from_wheels_at(numbers: &Numbers, p: &GearPlaces<'_>) -> Result<(), Refused> {
     let Some((_, ratio)) = gear_ratio(p)? else {
@@ -69,9 +68,8 @@ pub fn revs_from_wheels_at(numbers: &Numbers, p: &GearPlaces<'_>) -> Result<(), 
     Ok(())
 }
 
-/// `physics::wheels_from_revs` (0x43C124): in gear, driven speed = engine speed times the
-/// gear's ratio; with drive kind 1 the second driven speed the same (reloaded: `fld;
-/// fstp`).
+/// `physics::wheels_from_revs`: in gear, driven speed = engine speed times the
+/// gear's ratio; with drive kind 1 the second driven speed the same (reloaded first).
 pub fn wheels_from_revs_at(p: &GearPlaces<'_>) -> Result<(), Refused> {
     let Some((_, ratio)) = gear_ratio(p)? else {
         return Ok(());
@@ -84,8 +82,7 @@ pub fn wheels_from_revs_at(p: &GearPlaces<'_>) -> Result<(), Refused> {
     Ok(())
 }
 
-/// `physics::revs_from_speed` (0x43C101): in gear, engine speed = `g_carSpeed` over the
-/// gear's ratio.
+/// `physics::revs_from_speed`: in gear, engine speed = the car speed over the gear's ratio.
 pub fn revs_from_speed_at(p: &GearPlaces<'_>) -> Result<(), Refused> {
     let Some((_, ratio)) = gear_ratio(p)? else {
         return Ok(());

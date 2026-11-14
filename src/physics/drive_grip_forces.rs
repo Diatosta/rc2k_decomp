@@ -1,23 +1,21 @@
-//! `physics::drive_grip_forces` (0x43CD79): the driven wheels' grip forces for the step. In
-//! order: `lever_share` = -(`wall_hit_timer` / 50 - 1) held to 0 ..= 1; `grip_forces[0]` the steer's
-//! sine (`steer_angle` >> 20 into `g_sines`) x speed / `spec_grip` (twice over, as the original);
-//! when moving: the slip limit `grip_limit` (a grip figure x `gravity` x a drive-kind factor x
-//! `grip_scale` / speed, absolute value), `grip_forces[0]` held to ±it, 0 below `grip_slow_speed`
-//! speed with the drive speed not; with bit 12 of `input_keys` the `steering` scaled by
-//! `grip_forces[0]`'s share of what it was (held 0 ..= 1), or 0; `grip_forces[0]` x
-//! `grip_rear_drive` / the next table figure with `parts_state` 1; the drive-kind 0 lean force
-//! `grip_forces[3]`; the engine braking `grip_forces[1]` (by drive kind, the counts at `brake`,
-//! `throttle` and `handbrake`, scaled, x `side_grip_share` against `grip_forces[0]`'s sign,
-//! x `grip_front_drive` / the next with `parts_state` -1); the drive-kind 1 yaw force
-//! `grip_forces[2]` (speed's share of `grip_slip_limit`, `drive_slip_speed` held to
-//! ±`grip_force_limit`, negated in place and put back); `grip_force_sum` the sum of the four;
-//! force records 19 and 20 (`g_forceRecords`) 0, or with `all_wheels_off` clear the yaw twist eased
-//! toward `grip_force_sum` by `grip_ease_step` (`grip_change`) and split over the rear wheels'
-//! places (`probe_point_z` ..).
+//! The driven wheels' grip forces for the step. In order: `lever_share` = 1 - `wall_hit_timer`
+//! / 50, held to 0 ..= 1; `grip_forces[0]` = the steer's sine (`steer_angle` >> 20 into
+//! the sine table) x speed / `spec_grip` (applied twice); when moving: the slip limit `grip_limit`
+//! (a grip figure x `gravity` x a drive-kind factor x `grip_scale` / speed, absolute value),
+//! `grip_forces[0]` held to its limit, 0 below `grip_slow_speed` with the drive speed not; with
+//! bit 12 of `input_keys` the `steering` scaled by `grip_forces[0]`'s share of what it was (held
+//! 0 ..= 1), or 0; `grip_forces[0]` x `grip_rear_drive` / the next table figure with
+//! `parts_state` 1; the drive-kind 0 lean force `grip_forces[3]`; the engine braking
+//! `grip_forces[1]` (by drive kind, the counts at `brake`, `throttle` and `handbrake`, scaled,
+//! x `side_grip_share` against `grip_forces[0]`'s sign, x `grip_front_drive` / the next with
+//! `parts_state` -1); the drive-kind 1 yaw force `grip_forces[2]` (speed's share of
+//! `grip_slip_limit`, `drive_slip_speed` held to +-`grip_force_limit`); `grip_force_sum` the sum
+//! of the four; force records 19 and 20 are 0, or with the wheels on the ground the yaw twist is
+//! eased toward `grip_force_sum` by `grip_ease_step` (`grip_change`) and split over the rear
+//! wheels' places (`probe_point_z`).
 //!
-//! The flow, the compares and the integer steps are Rust; each straight x87 run is plain
-//! Rust over `X` (`math/x87_float.rs`) in the named helpers below, the original's
-//! instructions being recorded in the tests' `reference_vectors`.
+//! The flow, the compares and the integer steps are Rust; each straight x87 run is plain Rust
+//! over `X` in the named helpers below.
 //!
 //! Caller: `physics::car_physics_step`, every physics step.
 
@@ -58,7 +56,7 @@ pub fn drive_grip_forces(
 ) {
     let drawing = &scene.drawing;
     let kind = car.drive_kind.get();
-    // 0x43CD79: the share of +0x1F4 out of 50, from 1, held 0 ..= 1.
+    // The share of `wall_hit_timer` out of 50, from 1, held 0 ..= 1.
     drawing.scene.get().scratch.set(0x32);
     lever_share_from_timer(car, tables, numbers, scene);
     hold_low_bits(&tables.lever_share, ZERO);
@@ -67,10 +65,10 @@ pub fn drive_grip_forces(
     if car.front_wheels_off.get() == 0 {
         steer_sine_force(car, tables, engine_tables, steer_index(car) as usize);
     }
-    // The original takes the force a second time over.
+    // The force is taken a second time over.
     steer_sine_force(car, tables, engine_tables, steer_index(car) as usize);
     if !c3(&car.local_velocity[2], ZERO) {
-        // 0x43CE53: the slip limit, by the drive kind's factor.
+        // The slip limit, by the drive kind's factor.
         let factor = if kind == 1 {
             &tables.grip_factor[1]
         } else {
@@ -82,7 +80,7 @@ pub fn drive_grip_forces(
             .get()
             .scratch
             .set_float(car.grip_forces[0].get());
-        // +0x210 held to ±the limit (the value negated in place between).
+        // The first grip force held to +-the limit (the value negated in place between).
         hold_high(&car.grip_forces[0], &tables.grip_limit);
         negate(&car.grip_forces[0]);
         hold_high(&car.grip_forces[0], &tables.grip_limit);
@@ -102,7 +100,6 @@ pub fn drive_grip_forces(
             }
         }
     }
-    // 0x43CFB7
     if car.parts_state.get() == 1 {
         let k = if kind == 1 {
             &tables.grip_rear_drive[0]
@@ -124,7 +121,7 @@ pub fn drive_grip_forces(
             scene,
         );
     }
-    // 0x43D08E: the engine braking.
+    // The engine braking.
     let braking_word = if kind != 0 {
         braking_count_geared(car, tables, numbers, scene);
         ((car.brake.get().wrapping_sub(car.throttle.get()) as i32 >> 1) as u32)
@@ -180,7 +177,7 @@ pub fn drive_grip_forces(
             scene,
         );
     }
-    // 0x43D2C9: the sum, and the yaw twist on the rear wheels.
+    // The sum, and the yaw twist on the rear wheels.
     sum_grip_forces(car);
     tables.forces[19].force[0].set(0.0);
     tables.forces[20].force[0].set(0.0);
@@ -194,11 +191,9 @@ pub fn drive_grip_forces(
     ease_yaw_twist(car, tables, numbers, old, scene);
 }
 
-// ---- the arithmetic that was x87 assembly ----
+// ---- the x87 arithmetic ----
 
-/// The game's x87 arithmetic as plain Rust over `X`, on the variables
-/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[grip_forces] = ([bf + e * 4 + 0x223AE4] * [rc + 0x31A184]) / [spec_grip]`
+/// One straight x87 run as plain Rust over `X`.
 fn steer_sine_force(car: &Car, tables: &PhysicsTables, engine_tables: &EngineTables, e: usize) {
     let t0 = engine_tables.sines[e].ld();
     let t1 = car.local_velocity[2].ld();
@@ -226,9 +221,7 @@ fn lever_share_from_timer(
     tables.lever_share.st(t5);
 }
 
-/// The game's x87 arithmetic as plain Rust over `X`, on the variables
-/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[grip_limit] = |(((([rc + 0x2142A8] * [gravity]) * [f + 0]) * [grip_scale]) / [rc + 0x31A184])|`
+/// One straight x87 run as plain Rust over `X`.
 fn grip_limit_for(car: &Car, tables: &PhysicsTables, f: &PlainFloat) {
     let t0 = tables.wheel_grips[4].ld();
     let t1 = tables.gravity.ld();
@@ -267,9 +260,7 @@ fn scale_steering(car: &Car, scene: &crate::scene::owner::Scene) {
     car.steering.set(to_int(t2) as u32);
 }
 
-/// The game's x87 arithmetic as plain Rust over `X`, on the variables
-/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[scratch] = sqrt((([local_velocity] * [local_velocity]) + ([rc + 0x31A184] * [rc + 0x31A184])))`
+/// One straight x87 run as plain Rust over `X`.
 fn ground_speed_into_scratch(car: &Car, scene: &crate::scene::owner::Scene) {
     let t0 = car.local_velocity[0].ld();
     let t1 = t0 * t0;
@@ -282,7 +273,7 @@ fn ground_speed_into_scratch(car: &Car, scene: &crate::scene::owner::Scene) {
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// (a long formula: checked by the tests' `reference_vectors`)
+/// A long formula, covered by the tests.
 fn lean_force(
     car: &Car,
     tables: &PhysicsTables,
@@ -313,9 +304,7 @@ fn lean_force(
     car.grip_forces[3].st(t18);
 }
 
-/// The game's x87 arithmetic as plain Rust over `X`, on the variables
-/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `int [scratch] = ([rc + 0x214BF0] * int [brake]) * [one_and_a_half]`
+/// One straight x87 run as plain Rust over `X`.
 fn braking_count_geared(
     car: &Car,
     tables: &PhysicsTables,
@@ -330,9 +319,7 @@ fn braking_count_geared(
     scene.drawing.scene.get().scratch.set(to_int(t4) as u32);
 }
 
-/// The game's x87 arithmetic as plain Rust over `X`, on the variables
-/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `int [scratch] = ([rc + 0x214BF0] * int [brake]) + ([rc + 0x214BF0] * int [brake])`
+/// One straight x87 run as plain Rust over `X`.
 fn braking_count_neutral(car: &Car, tables: &PhysicsTables, scene: &crate::scene::owner::Scene) {
     let t0 = tables.handling[1].ld();
     let t1 = int(car.brake.get() as i32);
@@ -341,9 +328,7 @@ fn braking_count_neutral(car: &Car, tables: &PhysicsTables, scene: &crate::scene
     scene.drawing.scene.get().scratch.set(to_int(t3) as u32);
 }
 
-/// The game's x87 arithmetic as plain Rust over `X`, on the variables
-/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[rc + 0x31A1EC] = (-((int [grip_drive_word] / [k256]) * [side_speed_held]) * [side_force_scale]) * [side_grip_scale]`
+/// One straight x87 run as plain Rust over `X`.
 fn engine_braking_force(car: &Car, tables: &PhysicsTables, numbers: &Numbers) {
     let t0 = int(tables.grip_drive_word.get());
     let t1 = numbers.k256.ld();
@@ -358,9 +343,7 @@ fn engine_braking_force(car: &Car, tables: &PhysicsTables, numbers: &Numbers) {
     car.grip_forces[1].st(t9);
 }
 
-/// The game's x87 arithmetic as plain Rust over `X`, on the variables
-/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[work_float_a] = |[rc + 0x31A184]|`
+/// One straight x87 run as plain Rust over `X`.
 fn abs_speed_into_work(car: &Car, scene: &crate::scene::owner::Scene) {
     let t0 = car.local_velocity[2].ld();
     let t1 = t0.abs();
@@ -382,7 +365,7 @@ fn yaw_share_from_limit(tables: &PhysicsTables, scene: &crate::scene::owner::Sce
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// (a long formula: checked by the tests' `reference_vectors`)
+/// A long formula, covered by the tests.
 fn yaw_force(
     car: &Car,
     tables: &PhysicsTables,
@@ -408,9 +391,7 @@ fn yaw_force(
     car.grip_forces[2].st(t12);
 }
 
-/// The game's x87 arithmetic as plain Rust over `X`, on the variables
-/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[grip_force_sum] = (([grip_forces] + [rc + 0x31A1EC]) + [rc + 0x31A1F0]) + [rc + 0x31A1F4]`
+/// One straight x87 run as plain Rust over `X`.
 fn sum_grip_forces(car: &Car) {
     let t0 = car.grip_forces[0].ld();
     let t1 = car.grip_forces[1].ld();
@@ -422,18 +403,7 @@ fn sum_grip_forces(car: &Car) {
     car.grip_force_sum.st(t6);
 }
 
-/// The game's x87 arithmetic as plain Rust over `X`, on the variables
-/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[eased_yaw_spin] = [grip_change] + [grip_force_sum]`
-/// `[scratch] = -([o + 0] - [eased_yaw_spin])`
-/// `[rc + 0x2149D0] = (([scratch] / [step_time]) * [half]) / [rc + 0x213FAC]`
-/// `[rc + 0x2149F0] = -((([scratch] / [step_time]) * [half]) / [rc + 0x213FAC])`
-/// `[rc + 0x2149E4] = 1`
-/// `[rc + 0x214A04] = -1`
-/// `[rc + 0x2149D0] = [rc + 0x2149D0] / [probe_point_z]`
-/// `[rc + 0x2149E4] = [rc + 0x2149E4] * [probe_point_z]`
-/// `[rc + 0x2149F0] = -([rc + 0x2149F0] / [rc + 0x31ACD4])`
-/// `[rc + 0x214A04] = -([rc + 0x214A04] * [rc + 0x31ACD4])`
+/// One straight x87 run as plain Rust over `X`.
 fn ease_yaw_twist(
     car: &Car,
     tables: &PhysicsTables,

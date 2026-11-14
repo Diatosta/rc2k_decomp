@@ -1,13 +1,12 @@
-//! The session core: the variables many modules and the game's threads share,
-//! moved out of RAL.EXE's image (`moved.rs`). The screen's size and format, the window's
-//! state (`g_windowActive`, `g_quitting`, ...), what the processor is and has, the window
-//! handles, and the clocks the key thread and the menus keep.
+//! The session core: the variables many modules and the game's threads share. The screen's size
+//! and format, the window's state, what the processor is and has, the window handles, and the
+//! clocks the key thread and the menus keep.
 //!
-//! Each dword is an atomic (`Dword`, plain loads and stores as the game's code did: the
-//! audio, key and network threads read them without a lock). The blocks keep the image's
-//! layout, so that an address taken of a field is the field's place and a walk from one
-//! variable to its neighbour reads the same neighbour (the vendor text of the processor,
-//! three dwords; the surface format, six dwords; the Windows version record).
+//! Each dword is an atomic (`Dword`, plain loads and stores: the audio, key and network threads
+//! read them without a lock). The blocks keep a fixed field order, so that an address taken of a
+//! field is the field's place and a walk from one variable to its neighbour reads the same
+//! neighbour (the vendor text of the processor, three dwords; the surface format, six dwords; the
+//! Windows version record).
 
 #![allow(unsafe_code)]
 
@@ -64,7 +63,7 @@ pub fn write_all<C: Cell32, const N: usize>(cells: &[C; N], values: [u32; N]) {
     }
 }
 
-/// The bits of a run of dwords or floats (`Cell32`), as the image's bytes read whole.
+/// The bits of a run of dwords or floats (`Cell32`), as the bytes read whole.
 pub fn read_bits<C: Cell32, const N: usize>(cells: &[C; N]) -> [u32; N] {
     std::array::from_fn(|k| cells[k].bits())
 }
@@ -76,7 +75,7 @@ pub fn write_bits<C: Cell32, const N: usize>(cells: &[C; N], values: [u32; N]) {
     }
 }
 
-/// The bits of the first `N` cells of a longer run (the original reads part of a table whole).
+/// The bits of the first `N` cells of a longer run (part of a table read whole).
 pub fn read_first<C: Cell32, const N: usize>(cells: &[C]) -> [u32; N] {
     assert!(N <= cells.len());
     std::array::from_fn(|k| cells[k].bits())
@@ -108,7 +107,7 @@ impl Float {
         Self(AtomicU32::new(value.to_bits()))
     }
 
-    /// From the float's bits (the image's first values are bits).
+    /// From the float's bits (the starting values are given as bits).
     pub const fn from_bits(bits: u32) -> Self {
         Self(AtomicU32::new(bits))
     }
@@ -161,9 +160,9 @@ impl Int {
     }
 }
 
-/// Cell `n` of `cells`, or the dword the original reads there: past the table's end it reads what
-/// follows only inside `holder`, the store or record holding the table. The original reads
-/// on anywhere; here the next thing in memory is another static, so that is refused.
+/// Cell `n` of `cells`. Past the table's end it gives what follows, but only inside `holder`, the
+/// store or record holding the table; beyond that the next thing in memory is another static, so
+/// that is refused.
 #[cfg(test)]
 pub fn read_on_in<H: crate::cells::ByteView, C: Cell32>(
     holder: &H,
@@ -286,8 +285,8 @@ impl<const N: usize> Run for Bytes<N> {
 }
 
 /// Where dword `n` of `runs` laid end to end is: a table and the fields after it in the record,
-/// named in the record's order. The original reads a table by an index it does not hold to the
-/// table's end, so the dword is the next field's. Past the last run is refused, and logged.
+/// named in the record's order. A table read by an index past its end gives the next field's
+/// dword. Past the last run is refused, and logged.
 fn locate<'a>(
     runs: &[&'a dyn Run],
     n: usize,
@@ -455,9 +454,9 @@ impl Byte {
     }
 }
 
-/// A buffer of the game's bytes (a table, a record handed on by address), shared between the
-/// game's threads as the image's bytes were: each byte an atomic of its own, reached at that
-/// width only (`shared_memory` copies byte by byte too), so no access mixes sizes.
+/// A buffer of the game's bytes (a table, a record handed on by address), shared between the game's
+/// threads as plain bytes are: each byte an atomic of its own, reached at that width only
+/// (`shared_memory` copies byte by byte too), so no access mixes sizes.
 #[repr(transparent)]
 pub struct Bytes<const N: usize>([AtomicU8; N]);
 
@@ -484,7 +483,7 @@ impl<const N: usize> Bytes<N> {
         self.0[index].store(value, Relaxed);
     }
 
-    /// The byte at `index` as an atomic (an `xchg` on a key).
+    /// The byte at `index` as an atomic.
     pub fn atomic(&self, index: usize) -> &AtomicU8 {
         &self.0[index]
     }
@@ -563,7 +562,7 @@ impl<const N: usize> Bytes<N> {
     }
 }
 
-/// A dword at an address that is not a multiple of 4 (the audio block's `g_has3d`): four
+/// A dword at an address that is not a multiple of 4 (the audio block's has-3D flag): four
 /// byte atomics, as `Bytes`.
 #[repr(transparent)]
 pub struct Loose([AtomicU8; 4]);
@@ -682,7 +681,7 @@ impl PlainFloat {
         Self(Cell::new(value.to_bits()))
     }
 
-    /// From the float's bits (the image's first values are bits).
+    /// From the float's bits (the starting values are given as bits).
     pub const fn from_bits(bits: u32) -> Self {
         Self(Cell::new(bits))
     }
@@ -1115,13 +1114,13 @@ pub(crate) fn assert_game_thread() {
 /// A static owner of state only the game's thread reaches (cells of `Plain` kinds, which are
 /// `!Sync`).
 ///
-/// The one `unsafe impl Sync` for them. The safety argument is the thread census
-/// (`notes/w10_census.md`, section 1): the stores held here (service, records, saves,
-/// install, ..) are read and written by the game's main thread alone; the audio, key,
-/// network and drawing threads reach none of them. `get` checks it in debug builds
-/// (`set_game_thread`). Anything a second thread must see stays in atomic cells, outside.
-/// One exception, argued where it is made: a `DrawShared` store is held in a `GameThread`
-/// and lent, read only, to the drawing threads for one drawing scope (`PhaseRead`).
+/// The one `unsafe impl Sync` for them. The safety argument is the thread census (an audit of which
+/// thread reaches which store): the stores held here (service, records, saves, install, ..) are
+/// read and written by the game's main thread alone; the audio, key, network and drawing threads
+/// reach none of them. `get` checks it in debug builds (`set_game_thread`). Anything a second
+/// thread must see stays in atomic cells, outside. One exception, argued where it is made: a
+/// `DrawShared` store is held in a `GameThread` and lent, read only, to the drawing threads for one
+/// drawing scope (`PhaseRead`).
 #[repr(transparent)]
 pub struct GameThread<T>(T);
 
@@ -1148,22 +1147,21 @@ impl<T> GameThread<T> {
         &self.0
     }
 
-    /// The state from a thread other than the game's, for the two readers the original had
-    /// there: the audio thread's file calls read the install texts' second base directory
-    /// (`files::resolve_path`: atomic bytes, written only by the installer on the game's
-    /// thread), and the network's receiving thread measures a chat line with the
-    /// graphics owner's fonts (`net::add_chat_line`: read only, as the original's thread
-    /// read them). Nothing else may use it: no other thread reaches a `GameThread`.
+    /// The state from a thread other than the game's, for the two readers there: the audio thread's
+    /// file calls read the install texts' second base directory (`files::resolve_path`: atomic
+    /// bytes, written only by the installer on the game's thread), and the network's receiving
+    /// thread measures a chat line with the graphics owner's fonts (`net::add_chat_line`: read
+    /// only). Nothing else may use it: no other thread reaches a `GameThread`.
     pub(crate) fn on_any_thread(&self) -> &T {
         &self.0
     }
 }
 
-// ---- the drawing phase's stores (class D of `notes/m3_census.md`, section 2b) ----
+// ---- the drawing phase's stores ----
 
-/// A store of plain cells the game's thread writes between frames and every drawing part
-/// reads while a frame's parts are drawn beside each other (`workers::draw_parts`): the
-/// census' class D (the light tables, the course's and the frame's read groups, ..).
+/// A store of plain cells the game's thread writes between frames and every drawing part reads
+/// while a frame's parts are drawn beside each other (`workers::draw_parts`): the light tables, the
+/// course's and the frame's read groups, ..
 ///
 /// Outside a drawing scope it is a `GameThread` store: `get`, on the game's thread, is where
 /// every write starts from. Inside one the parts (part 0 on the game's thread among them)
@@ -1220,47 +1218,45 @@ impl<T> std::ops::Deref for PhaseRead<'_, T> {
     }
 }
 
-// SAFETY: sharing a `PhaseRead` between threads shares `&T` of a store of non-atomic cells
-// (`T: !Sync`), which is sound when no thread writes the store while any thread may read
-// it through the token. That holds for these reasons:
+// SAFETY: sharing a `PhaseRead` between threads shares `&T` of a store of non-atomic cells (`T:
+// !Sync`), which is sound when no thread writes the store while any thread may read it through the
+// token. That holds for these reasons:
 //
-// 1. No writer inside the scope. A token exists only between `workers::DrawScope::open` and
-//    the scope's end, both in `workers::draw_parts`: the parts' runs are spawned and joined
-//    (rayon's `in_place_scope`, or one after another on the game's thread) within it, and
-//    nothing else runs on the game's thread meanwhile, which is drawing part 0, a part like
-//    the others. The parts write only their own state (`PartScratch`, their view's
-//    `ViewScratch`, their own render cache) and never a class D store: the write census of
-//    frame plan F7 and W10 M0b (the audit build, held races with one and two players and the
-//    mirror beside its view), whose shared writes were removed or moved before the parts
-//    (the scene clock per frame, the fog values, the dead stores). Every write to a class D
-//    store happens on the game's thread through `DrawShared::get`, outside a scope. The
-//    scope's start and end order them: the parts are started after the game's thread's last
-//    write and joined before its next (rayon's spawn and join, or the same thread), so every
-//    read sees the writes before it and none overlaps a later one.
-// 2. The token cannot outlive the scope. It borrows the `DrawScope` (`'s`), which
-//    `draw_parts` drops before anything runs after the parts (`after(0)`); and the parts are
-//    handed only `&`-references made from it for the length of their call
-//    (`workers::DrawReads`, a higher-ranked lifetime in `draw_parts`' part type), so a part
-//    can keep none past its run. `PhaseRead` is neither `Clone` nor `Send`: it stays in the
-//    `Lent` `draw_parts` holds. The one part handed the `Lent` itself (part 0's
-//    `workers::Helper`, for a piece of its drawing on another thread, `workers::draw_aside`)
-//    uses it only inside `draw_aside`, which joins the piece (rayon's `in_place_scope`) before
-//    it returns, inside the part's call.
-// 3. `T: Cells` (records of the crate's cells): reading one is a plain load of each cell
-//    read, never a write (no borrow counts, no lazy set-up), so the parts' reads at once do
-//    not race each other.
+// 1. No writer inside the scope. A token exists only between `workers::DrawScope::open` and the
+//    scope's end, both in `workers::draw_parts`: the parts' runs are spawned and joined (rayon's
+//    `in_place_scope`, or one after another on the game's thread) within it, and nothing else runs
+//    on the game's thread meanwhile, which is drawing part 0, a part like the others. The parts
+//    write only their own state (`PartScratch`, their view's `ViewScratch`, their own render
+//    cache) and never a draw-shared store: an audit build run on held races with one and two
+//    players and the mirror beside its view found the shared writes, which were removed or moved
+//    before the parts (the scene clock per frame, the fog values, the dead stores). Every write to
+//    a draw-shared store happens on the game's thread through `DrawShared::get`, outside a scope.
+//    The scope's start and end order them: the parts are started after the game's thread's last
+//    write and joined before its next (rayon's spawn and join, or the same thread), so every read
+//    sees the writes before it and none overlaps a later one.
+// 2. The token cannot outlive the scope. It borrows the `DrawScope` (`'s`), which `draw_parts`
+//    drops before anything runs after the parts (`after(0)`); and the parts are handed only
+//    `&`-references made from it for the length of their call (`workers::DrawReads`, a
+//    higher-ranked lifetime in `draw_parts`' part type), so a part can keep none past its run.
+//    `PhaseRead` is neither `Clone` nor `Send`: it stays in the `Lent` `draw_parts` holds. The one
+//    part handed the `Lent` itself (part 0's `workers::Helper`, for a piece of its drawing on
+//    another thread, `workers::draw_aside`) uses it only inside `draw_aside`, which joins the
+//    piece (rayon's `in_place_scope`) before it returns, inside the part's call.
+// 3. `T: Cells` (records of the crate's cells): reading one is a plain load of each cell read,
+//    never a write (no borrow counts, no lazy set-up), so the parts' reads at once do not race
+//    each other.
 //
-// Checked in debug builds: `DrawShared::get` panics inside a scope or off the game's
-// thread (a part reaching the store by its owner, or the game's thread writing it while
-// drawing part 0); every plain cell's write (`plain_written`: `set`, `set_bits`, `update`,
-// the byte cells, the cells' copies and merges) panics when the cell is in a lent store's
-// bytes, whichever thread writes it. Release builds keep neither check and cost nothing.
+// Checked in debug builds: `DrawShared::get` panics inside a scope or off the game's thread (a
+// part reaching the store by its owner, or the game's thread writing it while drawing part 0);
+// every plain cell's write (`plain_written`: `set`, `set_bits`, `update`, the byte cells, the
+// cells' copies and merges) panics when the cell is in a lent store's bytes, whichever thread
+// writes it. Release builds keep neither check and cost nothing.
 //
-// What would break it: a part (or code reached from one) writing a lent store, which the
-// debug check catches at the write (the debug-build two-player race at each merge is the
-// check); a store with a field another thread reads outside the scope (class S) made
-// `DrawShared`; a part spawning work that outlives its run; a `get` taken before the scope
-// and held into it (it is a plain `&T`: the scope's code takes none).
+// What would break it: a part (or code reached from one) writing a lent store, which the debug
+// check catches at the write (the debug-build two-player race at each merge is the check); a store
+// with a field another thread reads outside the scope made `DrawShared`; a part spawning work that
+// outlives its run; a `get` taken before the scope and held into it (it is a plain `&T`: the
+// scope's code takes none).
 unsafe impl<T: crate::cells::Cells> Sync for PhaseRead<'_, T> {}
 
 /// Debug builds: the byte ranges lent to the open drawing scope (`PhaseRead::lend`). One
@@ -1321,10 +1317,9 @@ pub(crate) fn plain_written<T>(cell: &Cell<T>) {
     let _ = cell;
 }
 
-/// A record the game keeps as a plain struct (a voice, a mixer channel, a stream player, a
-/// list of memory blocks, a caps record): copied out and in whole, or borrowed for the
-/// code that works on it as the core's struct. Raw access under the original's discipline
-/// (the audio thread's turn and the game thread's), as the image's bytes were shared.
+/// A record the game keeps as a plain struct (a voice, a mixer channel, a stream player, a list of
+/// memory blocks, a caps record): copied out and in whole, or borrowed for the code that works on
+/// it as the core's struct. The audio thread's turn and the game thread's share it by raw access.
 #[repr(transparent)]
 pub struct Shared<T>(UnsafeCell<T>);
 
@@ -1340,12 +1335,12 @@ impl<T: crate::cells::Plain> Shared<T> {
         Self(UnsafeCell::new(value))
     }
 
-    /// Whether the record is reached by dwords (4-aligned: each whole dword one atomic, as
-    /// the original's dwords were whole) or byte by byte (a packed record).
+    /// Whether the record is reached by dwords (4-aligned: each whole dword one atomic) or
+    /// byte by byte (a packed record).
     pub const WORDS: bool = align_of::<T>() >= 4;
 
-    /// A copy of the record (a record's fields may be read half changed, as the original's;
-    /// a 4-aligned record's dwords are each read whole).
+    /// A copy of the record (a record's fields may be read half changed; a 4-aligned record's
+    /// dwords are each read whole).
     pub fn get(&self) -> T {
         let mut value = std::mem::MaybeUninit::<T>::uninit();
         // SAFETY: the record's own `size_of::<T>()` bytes, 4-aligned when `WORDS` (its
@@ -1419,18 +1414,18 @@ impl<T> Shared<T> {
     }
 }
 
-/// The screen: 0x4F494C .. 0x4F4984.
+/// The screen's size and pixel format.
 #[derive(rc2k_derive::Cells)]
 pub struct Screen {
-    pub width: PlainDword,       // g_screenWidth
-    pub height: PlainDword,      // g_screenHeight
-    pub bits: PlainDword,        // g_screenBits
-    pub bytes: PlainDword,       // g_screenBytesPerPixel
-    pub row_bytes: PlainDword,   // g_screenRowBytes
-    pub row_dwords: PlainDword,  // g_screenRowDwords
-    pub depth_bits: PlainDword,  // Screen.depth_bits
-    pub kind: PlainDword,        // Screen.kind
-    pub format: [PlainDword; 6], // g_surfaceFormat (a pixel format record, 24 bytes)
+    pub width: PlainDword,
+    pub height: PlainDword,
+    pub bits: PlainDword,
+    pub bytes: PlainDword,
+    pub row_bytes: PlainDword,
+    pub row_dwords: PlainDword,
+    pub depth_bits: PlainDword,
+    pub kind: PlainDword,
+    pub format: [PlainDword; 6], // a pixel format record, 24 bytes
 }
 
 impl Screen {
@@ -1455,9 +1450,9 @@ impl Screen {
 /// the rest of the main loop's state is `WindowLoopState`, the game's thread alone.
 #[derive(rc2k_derive::Cells)]
 pub struct WindowShared {
-    pub window_active: Dword,  // g_windowActive
-    pub window_focused: Dword, // g_windowFocused
-    pub quitting: Flag,        // g_quitting
+    pub window_active: Dword,
+    pub window_focused: Dword,
+    pub quitting: Flag,
 }
 
 impl WindowShared {
@@ -1470,18 +1465,18 @@ impl WindowShared {
     }
 }
 
-/// The window's state and the main loop's that only the game's thread reaches: 0x518370 ..
-/// 0x51839C, less the three flags of `WindowShared`.
+/// The window's state and the main loop's that only the game's thread reaches, less the three
+/// flags of `WindowShared`.
 #[derive(rc2k_derive::Cells)]
 pub struct WindowLoopState {
-    pub f370: PlainDword,           // dword_518370
-    pub lost: PlainDword,           // WindowLoopState.lost
-    pub no_task_switch: PlainDword, // WindowLoopState.no_task_switch (`notaskswitch`, a `var\ral.cfg` setting)
-    pub keep_priority: PlainDword,  // g_keepPriority (`noprichange`, a setting)
-    /// `dword_51838C` and `g_mainLoopStack`: only the main loop's, which needs neither.
+    pub f370: PlainDword,
+    pub lost: PlainDword,
+    pub no_task_switch: PlainDword, // `notaskswitch`, a `var\ral.cfg` setting
+    pub keep_priority: PlainDword,  // `noprichange`, a setting
+    /// Only the main loop's, which needs neither.
     pub _gap_51838c: [PlainDword; 2],
-    pub f394: PlainDword,   // dword_518394 (1 at start)
-    pub paused: PlainDword, // WindowLoopState.paused
+    pub f394: PlainDword, // 1 at start
+    pub paused: PlainDword,
 }
 
 impl WindowLoopState {
@@ -1498,13 +1493,13 @@ impl WindowLoopState {
     }
 }
 
-/// The two machine facts the audio thread reads: the window handle (`hWnd`, the sound
-/// device's cooperative level) and the FPU flag (`g_hasFpu`, the listener's set-up). Atomic
-/// cells; the rest is `Machine`, the game's thread alone.
+/// The two machine facts the audio thread reads: the window handle (`hWnd`, the sound device's
+/// cooperative level) and the FPU flag (the listener's set-up). Atomic cells; the rest is
+/// `Machine`, the game's thread alone.
 #[derive(rc2k_derive::Cells)]
 pub struct HostShared {
-    pub has_fpu: Dword, // g_hasFpu
-    pub window: Dword,  // hWnd
+    pub has_fpu: Dword,
+    pub window: Dword,
 }
 
 impl HostShared {
@@ -1517,33 +1512,33 @@ impl HostShared {
 }
 
 /// What the machine is and has, and the window handles that only the game's thread reaches:
-/// 0x5183A8 .. 0x5184A8, less `HostShared`'s two.
+/// less `HostShared`'s two.
 #[derive(rc2k_derive::Cells)]
 pub struct Machine {
-    pub has_mmx: PlainDword,          // g_hasMmx
-    pub ignore_mmx: PlainDword,       // Machine.ignore_mmx (`ignoremmx`)
-    pub has_sse: PlainDword,          // g_hasSse
-    pub ignore_katmai: PlainDword,    // Machine.ignore_katmai (`ignorekatmai`)
-    pub has_3dnow: PlainDword,        // g_has3dNow
-    pub ignore_3dnow: PlainDword,     // Machine.ignore_3dnow (`ignoreamdk3d`)
-    pub work: PlainDword,             // Machine.work
-    pub work_float: PlainDword,       // Machine.work_float
-    pub gap_c8: PlainDword,           // 0x5183C8
-    pub scratch: PlainDword,          // g_soundScratch: a scratch dword
-    pub cpu_family: PlainDword,       // g_cpuFamily
-    pub cpu_signature: PlainDword,    // g_cpuSignature
-    pub cpu_vendor: [PlainDword; 3],  // g_cpuVendor: the vendor's text
-    pub gap_e4: PlainDword,           // 0x5183E4
-    pub cpu_mhz: PlainDword,          // g_cpuMhz
-    pub has_tsc: PlainDword,          // g_hasTsc
-    pub has_cmov: PlainDword,         // g_hasCmov
-    pub found_mmx: PlainDword,        // Machine.found_mmx
-    pub found_sse: PlainDword,        // Machine.found_sse
-    pub found_3dnow: PlainDword,      // Machine.found_3dnow
-    pub keyboard_type: PlainDword,    // g_keyboardType (1 at start)
-    pub version: [PlainDword; 37],    // VersionInformation (OSVERSIONINFOA, 148 bytes)
-    pub exception_resume: PlainDword, // g_exceptionResume
-    pub instance: PlainDword,         // hInstance
+    pub has_mmx: PlainDword,
+    pub ignore_mmx: PlainDword, // `ignoremmx`
+    pub has_sse: PlainDword,
+    pub ignore_katmai: PlainDword, // `ignorekatmai`
+    pub has_3dnow: PlainDword,
+    pub ignore_3dnow: PlainDword, // `ignoreamdk3d`
+    pub work: PlainDword,
+    pub work_float: PlainDword,
+    pub gap_c8: PlainDword,
+    pub scratch: PlainDword, // a scratch dword
+    pub cpu_family: PlainDword,
+    pub cpu_signature: PlainDword,
+    pub cpu_vendor: [PlainDword; 3], // the vendor's text
+    pub gap_e4: PlainDword,
+    pub cpu_mhz: PlainDword,
+    pub has_tsc: PlainDword,
+    pub has_cmov: PlainDword,
+    pub found_mmx: PlainDword,
+    pub found_sse: PlainDword,
+    pub found_3dnow: PlainDword,
+    pub keyboard_type: PlainDword, // 1 at start
+    pub version: [PlainDword; 37], // OSVERSIONINFOA, 148 bytes
+    pub exception_resume: PlainDword,
+    pub instance: PlainDword,
 }
 
 impl Machine {
@@ -1581,7 +1576,7 @@ impl Machine {
 /// its waits and the lists' clocks. One atomic cell; the menus' clocks are `Clocks`.
 #[derive(rc2k_derive::Cells)]
 pub struct KeyClock {
-    pub ticks: Dword, // Clocks.key_ticks
+    pub ticks: Dword,
 }
 
 impl KeyClock {
@@ -1592,12 +1587,11 @@ impl KeyClock {
     }
 }
 
-/// The clocks the menus keep (the game's thread alone): 0x518998 .. 0x5189A4, less the key
-/// thread's count (`KeyClock`).
+/// The clocks the menus keep (the game's thread alone), less the key thread's count (`KeyClock`).
 #[derive(rc2k_derive::Cells)]
 pub struct Clocks {
-    pub frame: PlainDword, // Clocks.frame: the menus' clock (`update_frame_clock`)
-    pub setup_time: PlainDword, // Clocks.setup_time
+    pub frame: PlainDword, // the menus' clock (`update_frame_clock`)
+    pub setup_time: PlainDword,
 }
 
 impl Clocks {
@@ -1658,9 +1652,8 @@ impl<const N: usize> TextPlace for Bytes<N> {
     }
 }
 
-/// A text of the program's own (a literal with its NUL): read only. The writes the
-/// original could make into its copy in the image (a missing `.png`'s ending swapped) are
-/// refused.
+/// A text of the program's own (a literal with its NUL): read only. Writes into it (a missing
+/// `.png`'s ending swapped) are refused.
 impl<const N: usize> TextPlace for [u8; N] {
     fn text(&self, _what: &str) -> Result<Vec<u8>, crate::errors::BadInput> {
         match self.iter().position(|&c| c == 0) {

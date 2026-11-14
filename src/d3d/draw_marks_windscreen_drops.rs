@@ -1,13 +1,9 @@
-//! `d3d::draw_marks_windscreen_drops` (0x41ADB9): draws the marks' windscreen drops, an indexed list of
-//! triangles.
-//!
-//! In:  nothing: the vertices at `WindscreenDrops.records`, their number in `WindscreenDrops.vertex_count`, the indices
-//!      (16 bits) at `g_marksWindscreenDropFans`, their number in `WindscreenDrops.index_count`
-//! The device's (`g_d3dDevice`, an `IDirect3DDevice2`) DrawIndexedPrimitive (+0x78) with
-//! a triangle list (4) of transformed and lit vertices (3) and no flags. Callers:
-//! `effects::windscreen_drops_top`, `effects::windscreen_drops_frame`.
-//! Platform: the original always runs. In the standalone program the rasteriser draws
-//! each triangle (`platform_3d::draw_triangles`) and the result is 0.
+//! `d3d::draw_marks_windscreen_drops`: draws the marks' windscreen drops, an indexed list of
+//! triangles of transformed and lit vertices with no flags. The vertices are at
+//! `WindscreenDrops.records`, their number in `WindscreenDrops.vertex_count`, the indices (16
+//! bits) in the drops' fan table, their number in `WindscreenDrops.index_count`. Callers:
+//! `effects::windscreen_drops_top`, `effects::windscreen_drops_frame`. The rasteriser draws
+//! each triangle (`platform_3d::draw_triangles`); the result is 0.
 
 /// The windscreen drops drawn: Direct3D's result, always 0 here.
 pub fn draw_marks_windscreen_drops(

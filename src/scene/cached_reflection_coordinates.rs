@@ -1,15 +1,12 @@
-//! `scene::cached_reflection_coordinates` (0x451908): `scene::reflection_coordinates`
-//! behind a table of results kept.
+//! `scene::cached_reflection_coordinates`: `scene::reflection_coordinates` behind a table of
+//! results kept.
 //!
-//! In:  nothing; the two numbers: the normal's and the point's (the object's reflection
-//! cells)
-//!
-//! With the reflection cache switch at 0 the original jumps straight on into the working
-//! out. Else the normal's number & 0x3FF is a place in four tables of 0x400 dwords (the
-//! normal's number, the point's, and the two coordinates): if both numbers there are the ones
-//! asked for, the coordinates come from the table; else they are worked out and all four
-//! kept.
-//! //! One caller, `scene::draw_object_face`.
+//! Takes the normal's and the point's numbers (the object's reflection cells). With the
+//! reflection cache switch at 0 the coordinates are worked out each time. Else the normal's
+//! number & 0x3FF is a place in four tables of 0x400 dwords (the normal's number, the point's,
+//! and the two coordinates): if both numbers there are the ones asked for, the coordinates come
+//! from the table; else they are worked out and all four kept. One caller,
+//! `scene::draw_object_face`.
 
 use crate::errors::Refused;
 use crate::scene::reflection_coordinates::reflection_coordinates;
@@ -19,9 +16,7 @@ use crate::scene::reflection_coordinates::reflection_coordinates;
 /// number, the point's, the two coordinates.
 const TABLE_CELLS: usize = 0x400;
 
-// ---- Rust version ----
-
-// Converted: `rc2k_core::scene::reflection::{cache_place, cached}`
+// Logic: `rc2k_core::scene::reflection::{cache_place, cached}`
 pub fn cached_reflection_coordinates(
     part: &crate::workers::PartScratch,
     reads: crate::workers::DrawReads<'_>,

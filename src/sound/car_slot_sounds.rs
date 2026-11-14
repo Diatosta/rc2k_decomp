@@ -1,12 +1,11 @@
-//! `sound::car_slot_sounds` (0x40E0F6): a player's car's timed sounds (the slots of
-//! `sound::play_timed_slot` in its object).
+//! `sound::car_slot_sounds`: a player's car's timed sounds (the slots of `sound::play_timed_slot`
+//! in its object).
 //!
-//! Takes: the car's sound object, the request
-//! Nothing for a computer's car (+0 negative). The request's place = +0x2C .. +0x34;
-//! the slots at +0x164, +0x14C, +0x17C, +0x194 (only with +0xC 0), +0x260 and +0x1AC;
-//! then the place = +0x214 .. +0x21C and the slot at +0x220. One caller, `sound::car_sounds`.
-//! Refuses (before anything) a null object; what the slots refuse puts back
-//! what was written (sounds already sent stay sent).
+//! Takes the car's sound object and the request. Nothing for a computer's car (negative
+//! `sound_offset`). The car's timed slots are played at the car's place (the fourth only when
+//! `view_flag` is 0), then `slot_b` at `place_b`. One caller, `sound::car_sounds`. Refuses (before
+//! anything) a null object; what the slots refuse puts back what was written (sounds already sent
+//! stay sent).
 
 use crate::errors::Refused;
 use crate::sound::sets_store::SoundRequest;
@@ -19,7 +18,7 @@ pub fn car_slot_sounds(
     sound: &crate::sound::owner::Sound,
     audio: &crate::audio::owner::Audio,
 ) -> Result<(), Refused> {
-    // Converted: `rc2k_core::sound::engine` (`computers`, `placed_slots`).
+    // The logic is `rc2k_core::sound::engine` (`computers`, `placed_slots`).
     if computers(so.sound_offset.get()) {
         return Ok(());
     }

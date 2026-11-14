@@ -1,11 +1,10 @@
-//! `physics::free_rev` (0x43EA80): the engine revving free. `physics::engine_torque`;
-//! `drive_torque` = `drive_ratio` x `drive_torque_figure` / gear 0's ratio / 10000 x +0x638 (`fild`) /
-//! 256; the engine speed + it x the step / the ratio; the drag `scratch` = engine
-//! speed x `free_rev_scale` + `free_rev_add`; then the engine speed brought toward 0 by the drag
-//! (not past it; at 0 or unordered left alone).
+//! The engine revving free. `physics::engine_torque`; `drive_torque` = `drive_ratio` x
+//! `drive_torque_figure` / gear 0's ratio / 10000 x throttle / 256; the engine speed + it x the
+//! step / the ratio; the drag `scratch` = engine speed x `free_rev_scale` + `free_rev_add`;
+//! then the engine speed is brought toward 0 by the drag (not past it; at 0 or unordered left
+//! alone).
 //!
-//! The x87 run is plain Rust over `X` (`math/x87_float.rs`) over the game's variables; the
-//! original's instructions (from IDA) are recorded in the tests' `reference_vectors`.
+//! The x87 run is plain Rust over `X` (`math/x87_float.rs`).
 //!
 //! Callers: `physics::free_rev_in_neutral`, `physics::free_rev_clutch`.
 
@@ -20,7 +19,7 @@ use crate::race::numbers_store::Numbers;
 use crate::race::owner_course::Course;
 use crate::race::owner_shared::RaceShared;
 
-/// 0x43EA85 .. 0x43EAE7, as the original.
+/// The drag and the engine speed's step.
 fn run(
     numbers: &Numbers,
     physics_tables: &PhysicsTables,
@@ -68,13 +67,9 @@ pub fn free_rev(
     }
 }
 
-// ---- the arithmetic that was x87 assembly ----
+// ---- the x87 arithmetic ----
 
-/// The game's x87 arithmetic as plain Rust over `X`, on the variables
-/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[drive_torque] = (((([drive_ratio] * [drive_torque_figure]) / [rc + 0x2140C0]) / [k10000]) * int [throttle]) / [k256]`
-/// `[engine_speed] = (([drive_torque] * [step_time]) / [rc + 0x2140C0]) + [engine_speed]`
-/// `[scratch] = ([engine_speed] * [free_rev_scale]) + [free_rev_add]`
+/// One straight x87 run as plain Rust over `X`.
 fn x87_1(
     numbers: &Numbers,
     physics_tables: &PhysicsTables,

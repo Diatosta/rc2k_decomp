@@ -1,8 +1,6 @@
-//! The race's owner (step 11, owned state): the race's state in one struct, in groups by
-//! part, handed by reference to the code that runs a race in place of global stores.
-//! `race()` is the boundary: code that does not take the owner yet fetches it there; the
-//! climb from `drive::play_race` down passes `&Race` instead (`notes/memory_layer_plan.md`,
-//! step 11, the race owner's design).
+//! The race's owner: the race's state in one struct, in groups by part, handed by reference to the
+//! code that runs a race. `race()` is the boundary: code that does not take the owner yet fetches
+//! it there; the climb from `drive::play_race` down passes `&Race` instead.
 
 use crate::race::owner_course::Course;
 use crate::race::owner_frame::Frame;

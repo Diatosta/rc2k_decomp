@@ -1,25 +1,21 @@
-//! The Direct3D the game's 3D code stands on, for the standalone program: textures of
-//! our own, the scene's beginning and end, the depth buffer's clearing. Not ports, as
-//! in `platform.rs`: each takes the place of a function of the game's Direct3D layer,
-//! keeps what that function leaves for the game's own code, and does the rest itself.
-//! There is no original to compare with.
+//! The 3D layer the game's 3D code stands on, for the standalone program: textures of our own, the
+//! scene's beginning and end, the depth buffer's clearing. As in `platform.rs`, each function takes
+//! the place of a piece of the game's 3D layer, keeps what that piece leaves for the game's own
+//! code, and does the rest itself.
 //!
-//! The textures. The game keeps two pools of records, up to 0x140 each: system textures,
-//! into which pictures are put, and video textures, which are drawn with. A record
-//! (`TextureRecord`): +0 its kind (1 system, 2 video), +4 width, +8 height, +0xC its pixel
-//! kind's description, +0x10 levels, +0x14 a surface a level, +0x38 a texture a level,
-//! +0x5C (system) the alpha from a second picture, +0x60 locked, +0x64 (video) the system
-//! texture it holds, +0x68 its texture, +0x6C its handle, +0x70 a material. Here a
-//! surface is a number (the level's place in `LEVELS_MEMORY`, plus 1), whose `Lock` hands
-//! out memory of ours (`lock_surface`): so `gfx::upload_texture_picture` fills it unchanged.
+//! The textures. The game keeps two pools of records, up to 0x140 each: system textures, into which
+//! pictures are put, and video textures, which are drawn with. A record (`TextureRecord`) holds its
+//! kind (system or video), width, height, its pixel kind's description, its levels, a surface and a
+//! texture a level, (system) the alpha from a second picture and whether it is locked, and (video)
+//! the system texture it holds, its texture, handle and material. Here a surface is a number (the
+//! level's place in `LEVELS_MEMORY`, plus 1), whose lock hands out memory of ours (`lock_surface`):
+//! so `gfx::upload_texture_picture` fills it unchanged.
 //!
-//! - `d3d::find_texture_formats` (under Direct3D's start-up; called here when the
-//!   screen mode is set): the four descriptions as the device would have
-//!   found its formats, 555, 1555, 4444 and 8888, and the three kinds pointed at them
-//!   the original's way.
+//! - `d3d::find_texture_formats` (called here when the screen mode is set): the four descriptions a
+//!   device would have found for its formats, 555, 1555, 4444 and 8888, and the three kinds pointed
+//!   at them.
 //! - `gfx::allocate_textures`, `gfx::release_all_textures`.
-//! - `scene::load_texture`: a system texture into a video texture, level
-//!   for level (the original's `Blt`).
+//! - `scene::load_texture`: a system texture into a video texture, level for level.
 //! - `d3d::begin_scene`, `d3d::end_scene`: the layer's own
 //!   states and its "in a scene" switch.
 //! - `d3d::clear_viewport`: the depth buffer.
@@ -534,11 +530,10 @@ fn level_of(pending: &mut Pending, surface: usize) -> Option<(TextureId, usize, 
     level
 }
 
-/// The texture format a record's or a kind's handle names. The textures are made with
-/// kinds 2 .. 4 only (`allocate_textures`' callers), whose entries are always handles
-/// (`describe_texture_formats`, the first values), and a record's format is one of those
-/// or 0, which the fans and the screen's copy test first. One that names none ends the
-/// program, as the original's read there would go wrong.
+/// The texture format a record's or a kind's handle names. The textures are made with kinds 2 .. 4
+/// only (`allocate_textures`' callers), whose entries are always handles
+/// (`describe_texture_formats`, the first values), and a record's format is one of those or 0,
+/// which the fans and the screen's copy test first. One that names none ends the program.
 fn format_at(format: u32) -> TextureFormat {
     match crate::gfx::owner::textures().description(format) {
         Some(d) => d.get(),
@@ -649,8 +644,7 @@ pub fn draw_triangles(
     }
 }
 
-/// `draw_triangles` on a batch's own buffers. A count past them ends the game (the
-/// original read on into what follows).
+/// `draw_triangles` on a batch's own buffers. A count past them ends the game.
 pub fn draw_indexed_bytes(
     part: &crate::workers::PartScratch,
     vertices: &impl crate::session::ByteBuffer,
@@ -698,7 +692,7 @@ pub fn draw_indexed<const V: usize, const I: usize>(
     0
 }
 
-// ---- gfx::allocate_textures (0x4051ED) ----
+// ---- gfx::allocate_textures ----
 
 fn fatal(code: u32) -> FatalError {
     FatalError { code, message: "" }
@@ -814,9 +808,9 @@ fn allocate_textures(
     Ok(())
 }
 
-/// `gfx::allocate_textures` for Rust callers: the first new video and system textures'
-/// numbers; a failure raises its fatal error (a fatal error that returns leaves the two
-/// counts as they were handed in, as the original's registers did).
+/// `gfx::allocate_textures` for Rust callers: the first new video and system textures' numbers; a
+/// failure raises its fatal error (a fatal error that returns leaves the two counts as they were
+/// handed in).
 pub fn allocate_textures_for(
     video: u32,
     system: u32,
@@ -829,7 +823,7 @@ pub fn allocate_textures_for(
     match allocate_textures_now(video, system, sizes, kind, mips, gfx, d3d) {
         Ok(first) => first,
         Err(e) => {
-            // The registers the report shows: the original's at the call.
+            // What the report shows: the counts as they were at the call.
             let r = Context {
                 eax: video,
                 ebx: system,
@@ -869,7 +863,7 @@ pub fn allocate_textures_now(
     ))
 }
 
-// ---- gfx::release_all_textures (0x4051D3) ----
+// ---- gfx::release_all_textures ----
 
 /// Every texture of a pool released, and the count 0.
 fn release_pool(pool: usize, gfx: &crate::gfx::owner::Gfx) {
@@ -908,7 +902,7 @@ pub fn release_all_textures(gfx: &crate::gfx::owner::Gfx) {
     release_pool(0, gfx);
 }
 
-// ---- scene::load_texture (0x44E778) ----
+// ---- scene::load_texture ----
 
 /// `scene::load_texture` for Rust callers: video texture `video` holds system texture
 /// `system`. Every register kept.
@@ -947,7 +941,7 @@ pub fn hold_texture(caller: &str, system: u32, video: u32) {
     }
 }
 
-// ---- d3d::begin_scene (0x41ABC7), d3d::end_scene (0x41AB8A) ----
+// ---- d3d::begin_scene, d3d::end_scene ----
 
 /// The layer's own states at a scene's beginning: (value, state).
 const BEGIN_STATES: [(u32, u32); 12] = [
@@ -992,7 +986,7 @@ pub fn end_layer(d3d: &crate::d3d::owner::D3d) -> bool {
     false
 }
 
-// ---- d3d::clear_viewport (0x44E9D9) ----
+// ---- d3d::clear_viewport ----
 
 /// `d3d::clear_viewport` for Rust callers: the depth buffer cleared over the rectangle
 /// `DRAW.cleared_rectangle` holds, noted in drawing part `part`'s drawing.

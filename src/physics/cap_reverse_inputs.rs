@@ -1,9 +1,7 @@
-//! `physics::cap_reverse_inputs` (0x46514A): in reverse (`g_carGear` -1) while the car's
-//! speed (`g_carSpeed`) is not below 0 (an unordered compare counts as below), the two
-//! floats `wheel_slips` and `PhysicsTables.wheel_slips[1]` held to at most `two` (2.0; one that is
-//! below it, or unordered, is left).
+//! In reverse while the car's speed is not below 0 (an unordered compare counts as below), the
+//! two `wheel_slips` floats are held to at most `two` (2.0; a lower or unordered one is left).
 //!
-//! Caller: `physics::drive_wheels_step` (0x43E519).
+//! Caller: `physics::drive_wheels_step`.
 
 use crate::physics::car_store::Car;
 use crate::physics::flow::ZERO_BITS as ZERO;
@@ -17,7 +15,7 @@ use rc2k_core::physics::drive_forces::cap_reverse;
 pub fn cap_reverse_inputs(car: &Car, tables: &PhysicsTables, numbers: &Numbers) {
     let gear = car.gear.get();
     if gear != -1 {
-        return; // the speed and the values not read, as the original
+        return; // the speed and the values are not read
     }
     let values = &tables.wheel_slips;
     let zero = f32::from_bits(ZERO);

@@ -1,16 +1,14 @@
-//! `scene::reflection_coordinates` (0x45198C): where on the reflection's picture a
-//! vertex of a shiny surface looks.
+//! `scene::reflection_coordinates`: where on the reflection's picture a vertex of a shiny
+//! surface looks.
 //!
-//! In:  nothing; the object's reflection normal number is the number of the vertex's normal,
-//!      its reflection point number the number of its point
-//!
-//! The normal's place in the view (record 0x1000 + (number & 0xFFF), +0x10 .. +0x18) goes to
-//! the reflection work; the point's, negated, to the work vector, which is made one long and
-//! copied: the direction from the point to the eye. `scene::reflect_vector`; the result, with
-//! 1.0 added to its second part, is made one long; then each of its first and third parts,
-//! times 0.5 plus the same, times 65536 times 256, rounded, is a coordinate.
-//! Callers: `scene::cached_reflection_coordinates`.
-//! Refuses when there are no records and what `math::normalise_vector` refuses.
+//! The object's reflection normal number is the number of the vertex's normal, its reflection
+//! point number the number of its point. The normal's place in the view (record
+//! 0x1000 + (number & 0xFFF), +0x10 .. +0x18) goes to the reflection work; the point's, negated,
+//! to the work vector, which is made one long and copied: the direction from the point to the
+//! eye. `scene::reflect_vector`; the result, with 1.0 added to its second part, is made one
+//! long; then each of its first and third parts, times 0.5 plus the same, times 65536 times
+//! 256, rounded, is a coordinate. Callers: `scene::cached_reflection_coordinates`. Refuses when
+//! there are no records and what `math::normalise_vector` refuses.
 
 use crate::errors::BadInput;
 use crate::math::normalise_vector::normalise_vector;
@@ -18,9 +16,7 @@ use crate::math::x87;
 use crate::scene::reflect_vector::reflect_vector;
 use crate::scene::x87_mem::{Base, cells, fistp, fld, fstp};
 
-// ---- Rust version ----
-
-/// `fld a; fmul half; fadd half; fmul scale_a; fmul scale_b; fistp`.
+/// One coordinate: `a` times `half` plus `half`, times both scales, rounded.
 fn coordinate(a: u32, half: f32, scales: [f32; 2]) -> i32 {
     let (v, mut out) = (
         [a, half.to_bits(), scales[0].to_bits(), scales[1].to_bits()],

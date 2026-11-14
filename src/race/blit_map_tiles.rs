@@ -1,13 +1,10 @@
-//! `race::blit_map_tiles` (0x41B931): the map's tiles into its picture: the given texture is locked,
-//! then 8 x 8 tiles of 16 x 16 pixels from the given tile on: each the tile's pixels (`g_mapTiles`,
-//! 0x80 x 0x80 pointers, 16 x 16 pixels each) or, for a tile without them or outside the 0x80 x
-//! 0x80, the colour `g_mapBlack`, as words on a surface of 2 bytes a pixel and as dwords on any
-//! other, at the tile's place on the locked surface (`g_surface`); the gap between a tile's rows is
-//! kept in a scratch dword; the texture is unlocked.
-//!
-//! Callers: `race::map_tiles_stub`, so `race::map_tiles` (the map's scroll). Refuses (after the
-//! lock, unlocking first) a null surface, and a null tile table with a tile inside the 0x80 x
-//! 0x80.
+//! Draws the map's tiles into its picture: locks the given texture, then fills 8 x 8 tiles of 16 x
+//! 16 pixels from the given tile on. A tile is the pixels `map_tiles` holds for it (0x80 x 0x80
+//! pointers, 16 x 16 pixels each) or, for a tile without them or outside the 0x80 x 0x80, the
+//! the map's black colour; the pixels are written as words on a surface of 2 bytes a pixel and as
+//! dwords on any other, at the tile's place on the locked surface (`surface`). The texture is
+//! unlocked at the end. Called by the map's scroll (`map_tiles`). Refused (after the lock,
+//! unlocking first): a null surface, and a null tile table with a tile inside the 0x80 x 0x80.
 
 use crate::errors::BadInput;
 use crate::errors::Refused;
@@ -24,8 +21,6 @@ pub fn blit_map_tiles(
 ) -> Result<(), Refused> {
     let drawing = &gfx.drawing;
     use crate::d3d::{lock_texture::lock_texture_in, unlock_texture::unlock_texture};
-    // Converted: `rc2k_core::race::map::{any_inside, check_tiles, row_gap, tile_row,
-    // tile_index, pixel_width}`.
     use rc2k_core::race::map::{
         BLITTED, any_inside, check_tiles, pixel_width, row_gap, tile_index, tile_row,
     };
@@ -49,9 +44,8 @@ pub fn blit_map_tiles(
         for col in 0..BLITTED {
             let (x, y) = (first_x.wrapping_add(col), first_y.wrapping_add(row));
             let wide = pixel_width(bytes);
-            // The tile's pixels, copied out whole once (16 x 16 of them, contiguous); none
-            // drawn black. A tile marked but never filled holds 1 in the original's table:
-            // read there, refused.
+            // The tile's pixels, copied out whole once (16 x 16 of them, contiguous); none drawn
+            // black. A tile marked but never filled holds 1 in the table: read there, refused.
             let len = (TILE * TILE) as usize * wide as usize;
             let source = match tile_index(x, y) {
                 Some(n) => GAME_MAP.with(|m| match m.tiles.get(n as usize) {
@@ -77,11 +71,11 @@ pub fn blit_map_tiles(
             let source = source.unwrap_or_default();
             let mut at = 0usize;
             for r in 0..TILE {
-                // The original steps a tile's rows by its pixels' bytes and the gap: the
-                // texture's pitch, and `wide` - `bytes` more a pixel when they differ.
+                // A tile's rows step by its pixels' bytes and the gap: the texture's pitch, and
+                // `wide` - `bytes` more a pixel when they differ.
                 let (y, along) = tile_row(col, row, r, bytes, wide);
-                // The row's pixels, `wide` bytes each, written at once (the locked texture
-                // is the platform's memory).
+                // The row's pixels, `wide` bytes each, written at once (the locked texture is the
+                // platform's memory).
                 let mut row = Vec::with_capacity(TILE as usize * wide as usize);
                 for _ in 0..TILE {
                     if wide == 2 {

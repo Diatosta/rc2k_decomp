@@ -1,17 +1,16 @@
-//! `physics::queue_notice` (0x4B1BD0): queues a damage notice (`notice` id, 0xCF on; `rank`, its
-//! level 1 .. 4; `value`, a gauge value) in the work car's queue of up to 0x20 entries
-//! (`notice_count`, `notice_ids`, `notice_values`, `notice_ranks`), when `option_bits` has bit 2
-//! and the queue is not full. With a rank other than 0, an entry of the same value and a non-zero
-//! rank is kept at the largest rank (its id with it), unsigned; else (rank 0, or no such entry) a
-//! new entry is added. `physics::take_notice` takes entries off; `race::start_car` empties the
-//! queue. The only caller is `physics::damage_notices` (76 calls), run every physics step from
-//! `physics::car_physics_step`; each call is behind a state variable whose value passes a threshold
-//! of a car figure, so a call comes only when such a figure rises to a new level: damage warnings.
-//! Notices are the messages shown for a car (GO, reset, finish, false start, the quit question,
-//! and these warnings: the id picks the text, `notice_id`). A stage driven cleanly gives none.
+//! Queues a damage notice (`notice` id, 0xCF on; `rank`, its level 1 .. 4; `value`, a gauge value)
+//! in the work car's queue of up to 0x20 entries (`notice_count`, `notice_ids`, `notice_values`,
+//! `notice_ranks`), when `option_bits` has bit 2 and the queue is not full. With a rank other than
+//! 0, an entry of the same value and a non-zero rank is kept at the largest rank (its id with it),
+//! unsigned; otherwise (rank 0, or no such entry) a new entry is added. `physics::take_notice`
+//! takes entries off; `race::start_car` empties the queue. The only caller is
+//! `physics::damage_notices` (76 calls), run every physics step from `physics::car_physics_step`;
+//! each call is behind a state variable whose value passes a threshold of a car figure, so a call
+//! comes only when such a figure rises to a new level: damage warnings. Notices are the messages
+//! shown for a car (GO, reset, finish, false start, the quit question, and these warnings: the id
+//! picks the text, `notice_id`). A stage driven cleanly gives none.
 //!
-//! Refuses a count above 0x20 (the original only stops at 0x20 exactly, and would write
-//! past the lists), before writing.
+//! Refuses (before writing) a count above 0x20.
 
 use crate::errors::Refused;
 use crate::physics::car_store::Car;

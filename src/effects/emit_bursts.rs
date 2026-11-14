@@ -1,20 +1,13 @@
-//! `effects::emit_bursts` (0x4CD21A): two bursts of ring entries from a wheel (kinds 0x11
-//! and 0x10), when the wheel's second flags (+0x24, kept as `wheel_flags2`) >> 6 are not 0.
-//! Each half: a strength (the first the wheel's +0x10 times a factor; the second a blend of
-//! +0xC and +0x18) and its rate; when the half's random's bits 16 .. 23 are under the rate, a
-//! direction and a count (a random's low 12 bits modulo (flags >> 6) times 4); then that many
-//! entries: their motion the direction spread (`effects::spread_point`), a size, a look
-//! (+0x58), a turn from the car's +0x4C .. (+0x38 ..), a place at the wheel less the car
-//! matrix's place plus a random side, a fade (+0x5C), a life of 2000, +0x7C / +0x80 the
-//! `looks` values.
+//! `effects::emit_bursts`: two bursts of ring entries from a wheel (kinds 0x11 and 0x10), when the
+//! wheel's second flags (+0x24, kept as `wheel_flags2`) >> 6 are not 0.
 //!
-//! Takes: the wheel record, the car object
-//!
-//! Callers: `effects::emit_wheel_particles`' kinds 2 .. 4, 6 .. 9, 0xC. In the original, when
-//! the ring is full (0x3FE taken) inside a loop the exit leaves the stack shifted: `popa`
-//! restores shifted registers and `retn` returns to a register's value, the crash over mud
-//! (section 16). Here the bursts simply end at a full ring. Refuses (before anything) a null
-//! wheel, a null object, car or matrix where read.
+//! Each half has a strength (the first the wheel's +0x10 times a factor; the second a blend of +0xC
+//! and +0x18) and a rate; when the half's random's bits 16 .. 23 are under the rate, a direction
+//! and a count (a random's low 12 bits modulo (flags >> 6) times 4) are drawn and that many entries
+//! made: their motion the direction spread (`effects::spread_point`), their place at the wheel less
+//! the car matrix's place plus a random side, a life of 2000. When the ring is full (0x3FE taken)
+//! inside a loop the bursts end (wiki/Fixed-bugs.md: "Crash driving over mud (particle ring
+//! full)"). Refuses (before anything) a null wheel, a null object, car or matrix where read.
 
 use crate::effects::emitters::car_with_matrix;
 use crate::effects::emitters::emitting_car;
@@ -210,8 +203,8 @@ pub fn emit_bursts_with(
             write_bits(&ring.work.direction, direction.map(f32::to_bits));
             let count = (next_c5(&set.tuning.randoms(n)[1]) & 0xFFF) % ((flags2 >> 6) << 2);
             for _ in 0..count {
-                // The ring is full (0x3FE taken): the original's exit from here slips on its
-                // stack and crashed the game (section 16). The bursts end here instead.
+                // The ring is full (0x3FE taken): the bursts end here (wiki/Fixed-bugs.md:
+                // "Crash driving over mud (particle ring full)").
                 if ring.work.count.get() == MOST_TAKEN {
                     return Ok(());
                 }
@@ -288,21 +281,21 @@ pub fn emit_bursts_with(
     Ok(())
 }
 
-/// One burst emitter's factors and randoms (`emit_bursts`' at 0x93A3D2, `emit_bursts_kind_3`'s at 0x93A3F6).
+/// One burst emitter's factors and randoms (`emit_bursts`' and `emit_bursts_kind_3`'s).
 #[derive(rc2k_derive::Cells)]
 pub struct BurstTuning {
-    /// 0x93A3D2: the strength's factor
+    /// The strength's factor
     pub strength_k: PlainFloat,
-    /// 0x93A3D6: the first half's rate, count and entry randoms
+    /// The first half's rate, count and entry randoms
     pub first: [PlainDword; 3],
-    /// 0x93A3E2: the blend's two factors
+    /// The blend's two factors
     pub blend_k: [PlainFloat; 2],
-    /// 0x93A3EA: the second half's rate, count and entry randoms
+    /// The second half's rate, count and entry randoms
     pub second: [PlainDword; 3],
 }
 
 impl BurstTuning {
-    /// The values the game starts with (the image's bytes).
+    /// The values the game starts with.
     pub const fn first() -> Self {
         BurstTuning {
             strength_k: PlainFloat::new(-0.25),

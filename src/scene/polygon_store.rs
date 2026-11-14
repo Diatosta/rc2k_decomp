@@ -1,12 +1,11 @@
-//! The polygon work area (IDA 0x975510 .. 0x9A3730, in the image's zeroed tail,
-//! `race::buffers_store`): the 64 work entries a polygon is built in, the entries kept
-//! for the fan, the two number lists (the polygon's vertices by entry and the list before a
-//! clip), the pool of point records the clip makes, the textures' records and the objects'
-//! materials. Names are readings unless IDA's.
+//! The polygon work area (in the image's zeroed tail, `race::buffers_store`): the 64 work entries a
+//! polygon is built in, the entries kept for the fan, the two number lists (the polygon's vertices
+//! by entry and the list before a clip), the pool of point records the clip makes, the textures'
+//! records and the objects' materials.
 
 use crate::session::{PlainByte, PlainBytes, PlainDword};
 
-/// A polygon work entry (IDA's `PolygonEntry`, 0x44 bytes).
+/// A polygon work entry (0x44 bytes).
 #[cfg_attr(test, repr(C))]
 #[derive(rc2k_derive::Cells)]
 pub struct PolygonEntry {
@@ -31,15 +30,16 @@ pub struct PolygonEntry {
     pub fog: PlainByte,
     /// +0x21: the amount (alpha) byte.
     pub amount: PlainByte,
-    /// +0x22: the two top bytes of the dword holding `fog` and `amount`; copied along with the entry, never given a meaning (padding).
+    /// +0x22: the two top bytes of the dword holding `fog` and `amount`; copied along with the
+    /// entry, never given a meaning (padding).
     pub pad_22: PlainBytes<2>,
     /// +0x24: work space of the clip (`scene::clip`).
     pub work: PlainBytes<32>,
 }
 
 impl PolygonEntry {
-    /// The dword at `offset` (a multiple of 4 below 0x44), for the callers that pick a
-    /// field by an offset (the original's `[entry + reg]`).
+    /// The dword at `offset` (a multiple of 4 below 0x44), for the callers that pick a field by
+    /// an offset.
     pub fn word(&self, offset: usize) -> u32 {
         match offset {
             0x0 => self.point.get(),
@@ -113,7 +113,8 @@ impl PolygonEntry {
     }
 }
 
-/// A texture's record (0x40 bytes: `scene::draw_polygon`, `race::course_faces`, `race::level_init`).
+/// A texture's record (0x40 bytes: `scene::draw_polygon`, `race::course_faces`,
+/// `race::level_init`).
 #[repr(C)]
 #[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
 pub struct TextureInfo {
@@ -133,7 +134,8 @@ impl crate::session::Run for TextureInfo {
     }
 }
 
-/// An object kind's material record (0x80 bytes: `scene::set_object_material`, `physics::face_contact`).
+/// An object kind's material record (0x80 bytes: `scene::set_object_material`,
+/// `physics::face_contact`).
 #[repr(C)]
 #[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
 pub struct ObjectMaterial {
@@ -155,26 +157,32 @@ impl crate::session::Run for ObjectMaterial {
 
 #[derive(rc2k_derive::Cells)]
 pub struct PolygonWork {
-    /// +0x0 (0x975510): `g_polygonEntries`: `PolygonEntry[64]`, and from entry 64 (0x976610, `g_polygonKeptEntries`) the 64 entries kept for the fan: the table `scene::draw_polygon` takes room for 0x80 (`scene::clip`, `scene::draw_object_polygon`, `race::car_shadow`, `race::skidmarks`).
+    /// The 64 work entries, then from entry 64 the 64 entries kept for the fan: the table
+    /// `scene::draw_polygon` takes room for 0x80 (`scene::clip`, `scene::draw_object_polygon`,
+    /// `race::car_shadow`, `race::skidmarks`).
     pub entries: [PolygonEntry; 0x80],
-    /// +0x2200 (0x977710): `g_polygonList`: the entries' numbers in drawing order (`scene::draw_polygon`, `scene::clip`).
+    /// The entries' numbers in drawing order (`scene::draw_polygon`, `scene::clip`).
     pub list: [PlainDword; 64],
-    /// +0x2300 (0x977810): `g_polygonOldList`: the list before a clip (`scene::clip`, `race::car_shadow`).
+    /// The list before a clip (`scene::clip`, `race::car_shadow`).
     pub old_list: [PlainDword; 64],
-    /// +0x2400 (0x977910): 0x600 bytes between the old list and the record pool: a polygon of more than 128 vertices lists on into them (`scene::polygon::list_cell`).
+    /// 0x600 bytes between the old list and the record pool: a polygon of more than 128
+    /// vertices lists on into them (`scene::polygon::list_cell`).
     pub unknown_2400: [PlainDword; 0x180],
-    /// +0x2a00 (0x977F10): `g_polygonRecordPool`: the point records a clip makes, 0x2020 bytes (`scene::clip`, `scene::draw_flat_quad`).
+    /// The point records a clip makes, 0x2020 bytes (`scene::clip`, `scene::draw_flat_quad`).
     pub record_pool: [PlainDword; 0x808],
 }
 
-/// The textures' records and the objects' materials, after the work (IDA 0x979F30 ..
-/// 0x9A3730): shared by every drawing thread, unlike the work.
+/// The textures' records and the objects' materials, after the work: shared by every drawing
+/// thread, unlike the work.
 #[repr(C)]
 #[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
 pub struct PolygonTables {
-    /// +0x0 (0x979F30): `g_textureInfos`: 256 records of 0x40 bytes (`scene::draw_polygon`, `race::course_faces`, `physics::wheel_surfaces`, `race::level_init`; `dword_979F50` is the kind of the object whose record it is, +0x20).
+    /// 256 records of 0x40 bytes (`scene::draw_polygon`, `race::course_faces`,
+    /// `physics::wheel_surfaces`, `race::level_init`); +0x20 of a record is the kind of the
+    /// object whose record it is.
     pub texture_infos: [TextureInfo; 256],
-    /// +0x4000 (0x97DF30): `g_objectMaterials`: by object kind, 0x80 bytes each, 1200 of them (`scene::set_object_material`, `scene::draw_described_object`, `physics::face_contact`, `drive::animate_lit_faces`).
+    /// By object kind, 0x80 bytes each, 1200 of them (`scene::set_object_material`,
+    /// `scene::draw_described_object`, `physics::face_contact`, `drive::animate_lit_faces`).
     pub object_materials: [ObjectMaterial; 1200],
 }
 

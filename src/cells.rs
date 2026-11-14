@@ -243,10 +243,10 @@ macro_rules! merged {
     }};
 }
 
-/// `len` bytes copied from byte `from.1` of one record of cells to byte `to.1` of another
-/// (two different records, forwards as a `rep movsd`), for two places known by their
-/// records, so no store is searched. Runs of like cells at aligned offsets are copied cell by cell (a
-/// float by its bits); any other pair of runs through bytes.
+/// `len` bytes copied from byte `from.1` of one record of cells to byte `to.1` of another (two
+/// different records, forwards), for two places known by their records, so no store is searched.
+/// Runs of like cells at aligned offsets are copied cell by cell (a float by its bits); any other
+/// pair of runs through bytes.
 ///
 /// # Panics
 /// When a range lies outside its record.
@@ -1405,8 +1405,8 @@ pub fn boxed_zeroed_cells<T: Cells>() -> Box<T> {
 }
 
 #[cfg(test)]
-/// A record of cells with these bytes as its first values (a static's, at compile time:
-/// a race-block piece that left the block takes the image's bytes).
+/// A record of cells with these bytes as its first values (a static's, at compile time: a
+/// race-block piece that left the block takes the starting bytes).
 pub const fn cells_of_bytes<T: ByteView, const N: usize>(bytes: [u8; N]) -> T {
     assert!(core::mem::size_of::<T>() == N, "the record's size");
     union Bits<T, const N: usize> {

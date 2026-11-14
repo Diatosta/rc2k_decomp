@@ -1,18 +1,17 @@
-//! The x87 arithmetic of the clippers, in plain Rust over `X` (`math/x87_float.rs`), converted
-//! by hand from the original's listing. Every operation is the
-//! original's, in its order, with its operands in a `Work` block instead of the game's
-//! entries, records and work variables (a store that a later one overwrites unread is
-//! left out). A byte the original loads through `SceneDraw.scratch` is in the block as a
-//! whole number already. The original's instructions' results are recorded vectors in the tests (`data/vectors`).
+//! The x87 arithmetic of the clippers, in plain Rust over `X` (`math/x87_float.rs`). The
+//! operations keep their order, with their operands in a `Work` block instead of the game's
+//! entries, records and work variables (a store that a later one overwrites unread is left
+//! out). A byte loaded through `SceneDraw.scratch` is in the block as a whole number already.
+//! The tests compare against recorded vectors (`data/vectors`).
 
 use crate::math::x87_float::X;
 use crate::scene::x87_mem::{Base, cells, fild, fistp, fld, fstp};
 
-/// The block the arithmetic works in, in dwords. Offsets: 0 the first point's record,
-/// 0x20 the second's, 0x40 and 0x88 their entries, 0xD0 and 0xE4 the entries' five
-/// bytes (+0x18, +0x19, +0x1A, +0x20, +0x21) as dwords, 0xF8 the work variables
-/// `SceneDraw.clip_work[0]` .. `SceneDraw.clip_work[11]`, 0x128 `SceneDraw.clip_out_words[0]` .. `SceneDraw.clip_out_words[4]`, 0x13C
-/// `SceneDraw.scratch`, 0x140 `SceneDraw.clip_plane`.
+/// The block the arithmetic works in, in dwords. Offsets: 0 the first point's record, 0x20 the
+/// second's, 0x40 and 0x88 their entries, 0xD0 and 0xE4 the entries' five bytes (+0x18, +0x19,
+/// +0x1A, +0x20, +0x21) as dwords, 0xF8 the work variables `SceneDraw.clip_work[0]` ..
+/// `SceneDraw.clip_work[11]`, 0x128 `SceneDraw.clip_out_words[0]` .. `SceneDraw.clip_out_words[4]`,
+/// 0x13C `SceneDraw.scratch`, 0x140 `SceneDraw.clip_plane`.
 pub type Work = [u32; 0x51];
 pub const RECORD_A: usize = 0x00;
 pub const RECORD_B: usize = 0x20;
@@ -25,12 +24,12 @@ pub const OUT_2: usize = 0x128;
 pub const CHECKED: usize = 0x13C;
 pub const PLANE: usize = 0x140;
 
-/// 0x44D247 from after its `fstp flt_623F80` (the edge is in the block already) to its `call`.
+/// Cuts at a screen x edge.
 pub fn cut_at_x(w: &mut Work) {
     cut_axis(cells(w), X_AXIS);
 }
 
-/// 0x44D532, likewise with `flt_623F84`.
+/// Cuts at a screen y edge.
 pub fn cut_at_y(w: &mut Work) {
     cut_axis(cells(w), Y_AXIS);
 }
@@ -139,7 +138,7 @@ fn interpolate_cut(w: impl Base, fraction: X) {
     fistp(w, 0x13C, fraction);
 }
 
-/// 0x44DB93 from 0x44DC37 to 0x44DD9A (0x44DEAA has the same there).
+/// Cuts at a depth edge.
 pub fn cut_at_depth(w: &mut Work) {
     cut_depth(cells(w));
 }
@@ -227,9 +226,8 @@ fn cut_depth(w: impl Base) {
 mod reference_vectors {
     use super::*;
     use crate::test_support::vectors::{Differential, Kind, Rng, differential};
-
-    /// A block: the whole numbers where the original reads them with `fild` (the records'
-    /// first three, the entries' five bytes and the plane), floats elsewhere.
+    /// A block: the records' first three, the entries' five bytes and the plane are whole
+    /// numbers, floats elsewhere.
     fn fill(rng: &mut Rng, m: &mut [u32; 0x51]) {
         let moderate = rng.below(2) == 0;
         for d in m.iter_mut() {

@@ -1,10 +1,7 @@
-//! `scene::choose_view_window` (0x44FE1A): the view's window, then `scene::set_view_window`:
-//! without the front-end switch the screen's size at 0, 0; with it 800 x 600 at 0, 0 when
-//! `scene_set_up` is set or the screen mode word is 2, else 720 x 540 at 0x50, 0; the view's
-//! zoom 0x100 either way.
-//!
-//! Callers: `scene::full_view_window`, `race::loading_bar_frame`.
-//! //! `set_view_window` does the rest.
+//! `scene::choose_view_window`: the view's window, then `scene::set_view_window`: without the
+//! front-end switch the screen's size at 0, 0; with it 800 x 600 at 0, 0 when `scene_set_up`
+//! is set or the screen mode word is 2, else 720 x 540 at 0x50, 0; the view's zoom 0x100 either
+//! way. Callers: `scene::full_view_window`, `race::loading_bar_frame`.
 
 use crate::race::owner::Race;
 
@@ -16,7 +13,7 @@ pub fn choose_view_window(
 ) {
     let session = &system.session;
     let shared = &race.shared;
-    // Converted: `rc2k_core::scene::view_window::choose`.
+    // Logic: `rc2k_core::scene::view_window::choose`.
     use rc2k_core::scene::view_window::{ViewSettings, choose};
     let settings = ViewSettings {
         framed: shared.switches.get().editor_mode.get() != 0,

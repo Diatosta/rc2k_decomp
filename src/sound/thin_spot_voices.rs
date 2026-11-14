@@ -1,17 +1,15 @@
-//! `sound::thin_spot_voices` (0x40E9F8): of the voices heard with one sound, the nearest
-//! two found and one of them, by a random bit, kept heard; unless one is playing.
+//! `sound::thin_spot_voices`: of the voices heard with one sound, the nearest two found and one of
+//! them, by a random bit, kept heard; unless one is playing.
 //!
-//! Takes: the sound
-//! The pickers' work cleared. For each voice heard with the sound: one already playing
-//! ends it at once (nothing more changes). Else its distance x 1000 (`fistp`) against
-//! the nearest's and the next's (unsigned): a new nearest moves the old one to next and
-//! stays heard; a new next, and every other, is silenced (+4 0). A nearest displaced
-//! stays heard (the code that would silence it, 0x40EA9B, is never reached: notes'
-//! bugs). With a next found: `math::next_random` & 1 for the nearest's +4, the other bit
-//! for the next's. Twelve callers, `sound::thin_spot_voices_all`.
+//! Takes the sound. The pickers' work is cleared. For each voice heard with the sound: one already
+//! playing ends it at once (nothing more changes). Else its distance x 1000 against the nearest's
+//! and the next's (unsigned): a new nearest moves the old one to next and stays heard; a new next,
+//! and every other, is silenced. A nearest displaced stays heard (a slip kept as is). With a next
+//! found: `math::next_random` & 1 for the nearest's heard flag, the other bit for the next's.
+//! Twelve callers, `sound::thin_spot_voices_all`.
 
-/// Converted: `rc2k_core::sound::spot_voices::thin` and `thin_choose`. The voices of
-/// `sound` thinned.
+/// The logic is `rc2k_core::sound::spot_voices::thin` and `thin_choose`. The voices of `sound`
+/// thinned.
 pub fn thin_spot_voices(
     sound: u32,
     owner: &crate::sound::owner::Sound,

@@ -1,10 +1,9 @@
-//! The drawing's threads (the optimisation phase's multi-core drawing, `notes/conversion.md`):
-//! parts of a frame (the players' views and their mirrors) drawn by several threads at once,
-//! so the frame is what one thread draws. Each view draws on its own working state
+//! The drawing's threads. Parts of a frame (the players' views and their mirrors) drawn by several
+//! threads at once, so the frame is what one thread draws. Each view draws on its own working state
 //! (`race::view_scratch`); what a view hands on to the shared stores is applied on the game's
-//! thread in the views' order (`race::draw_race_scene`'s `view_drawn`), and the render
-//! states' cache and the held matrix columns a part keeps are put back in the parts' order
-//! (frame plan F7: no drawing part writes a shared store).
+//! thread in the views' order (`race::draw_race_scene`'s `view_drawn`), and the render states'
+//! cache and the held matrix columns a part keeps are put back in the parts' order (frame plan F7:
+//! no drawing part writes a shared store).
 //!
 //! The scratch stores each part makes for itself before reading (the polygon vertex buffer,
 //! the polygon work, the point records) are a `PartScratch`: one per part (`part_scratch`),
@@ -78,8 +77,8 @@ pub struct PartScratch {
 }
 
 impl PartScratch {
-    /// The scratch of part 0 (`first`: its render cache in use from the start) or another
-    /// part, zeroed as the image's tail was.
+    /// The scratch of part 0 (`first`: its render cache in use from the start) or another part,
+    /// zeroed.
     const fn new(first: bool) -> Self {
         Self {
             vertices: crate::d3d::vertices_store::PolygonVertices::new(),
@@ -199,7 +198,7 @@ impl Drop for DrawScope {
     }
 }
 
-/// The owners whose class D stores a drawing reads: lent to the parts of a drawing scope
+/// The owners whose draw-shared stores a drawing reads: lent to the parts of a drawing scope
 /// (`draw_parts`), or read from on the game's thread (`DrawReads::on_game_thread`).
 #[derive(Clone, Copy)]
 pub struct LentOwners<'a> {
@@ -219,9 +218,8 @@ impl<'a> LentOwners<'a> {
     }
 }
 
-/// The class D stores (`notes/m3_census.md`, section 2b) lent to the parts of one drawing
-/// scope: what every part reads and none writes. Shared by reference with every part's run;
-/// a part reads them through `reads`.
+/// The stores lent to the parts of one drawing scope: what every part reads and none writes.
+/// Shared by reference with every part's run; a part reads them through `reads`.
 pub struct Lent<'s> {
     light_tables: crate::session::PhaseRead<'s, crate::scene::light_tables_store::LightTables>,
     // The scene's other drawing stores.
@@ -381,7 +379,7 @@ impl<'s> Lent<'s> {
     }
 }
 
-/// The class D stores as a drawing reads them: a part's from the scope's `Lent` (handed to
+/// The draw-shared stores as a drawing reads them: a part's from the scope's `Lent` (handed to
 /// it by `draw_parts`), or the game's thread's from their owners outside a drawing scope
 /// (`on_game_thread`). Read only: no drawing writes them.
 #[derive(Clone, Copy)]
@@ -677,15 +675,15 @@ pub struct PartRun<'a> {
     pub helper: Option<Helper<'a>>,
 }
 
-/// Parts 0 .. `slots.len()` (`part(run, reads)`, at most `COUNT`, each on its own scratch and
-/// the view slot `slots[n]`, which are distinct, reading
-/// the class D stores of `owners` through `reads`) drawn beside
-/// each other as `draw_beside` draws two: the first on the game's thread, each other on a drawing thread, each from the working
-/// state as it is now; their drawing put together and their changes put back in their order.
-/// `after(n)` runs on the game's thread once part `n` is put back (part 0: once every part
-/// has ended), before the next is: what the drawing does there goes after part `n`'s, on the
-/// working state as the parts so far left it, and no part runs meanwhile (what it writes that
-/// has no copy per part, the cars' crumpled points, no part reads while it changes).
+/// Parts 0 .. `slots.len()` (`part(run, reads)`, at most `COUNT`, each on its own scratch and the
+/// view slot `slots[n]`, which are distinct, reading the draw-shared stores of `owners` through
+/// `reads`) drawn beside each other as `draw_beside` draws two: the first on the game's thread,
+/// each other on a drawing thread, each from the working state as it is now; their drawing put
+/// together and their changes put back in their order. `after(n)` runs on the game's thread once
+/// part `n` is put back (part 0: once every part has ended), before the next is: what the drawing
+/// does there goes after part `n`'s, on the working state as the parts so far left it, and no part
+/// runs meanwhile (what it writes that has no copy per part, the cars' crumpled points, no part
+/// reads while it changes).
 pub fn draw_side_by_side(
     owners: LentOwners<'_>,
     slots: &[usize],
@@ -724,7 +722,7 @@ pub fn players_beside() -> bool {
 /// drawing thread with its own copy of the working state, all set from the game's own at the
 /// start; the other parts' noted drawing put after part 0's in their order, and each copy's
 /// changes put into the game's own in that order, `after(n)` run after part `n`'s (part 0's
-/// once all have ended). While the parts are drawn (a `DrawScope`) the class D stores are lent
+/// once all have ended). While the parts are drawn (a `DrawScope`) the draw-shared stores are lent
 /// to them (`Lent`): each part reads them through the `DrawReads` it is handed, which lives
 /// only for its call.
 fn draw_parts(
@@ -761,8 +759,8 @@ fn draw_parts(
             cell.set(figure);
         }
     }
-    // end r40course
-    // The parts are drawn from here until every one has ended: the class D stores lent.
+    // end r40course The parts are drawn from here until every one has ended: the draw-shared stores
+    // lent.
     let scope = DrawScope::open();
     let lent = Lent::new(&scope, owners);
     let lent = &lent;

@@ -1,5 +1,4 @@
-//! `scene::fill_light_tables` (0x44F0AB): the five tables of colours the lighting
-//! picks from.
+//! `scene::fill_light_tables`: the five tables of colours the lighting picks from.
 //!
 //! With `scene_set_up` and the stage's `lit_b` both 0 (the plain way): the light table a ramp
 //! between the two `plain_light_colours`, and the four lamp tables that first colour scaled.
@@ -8,11 +7,9 @@
 
 use crate::scene::light_tables::{fill_light_ramp, fill_light_scale};
 
-// ---- Rust version ----
-
-// Converted: `rc2k_core::scene::lamps::plain_light`
-/// `N` dwords of the stage's prefs from byte `offset` on (a colour read on into the
-/// fields after it, as the original's pointers do).
+// Logic: `rc2k_core::scene::lamps::plain_light`
+/// `N` dwords of the stage's prefs from byte `offset` on (a colour read on into the fields
+/// after it).
 fn prefs_dwords<const N: usize>(
     course: &crate::race::owner_course::Course,
     offset: usize,

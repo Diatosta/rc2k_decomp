@@ -1,4 +1,7 @@
-//! The replay writer's and the viewer's state (IDA 0x5C2518 .. 0x5C2714; phase 7, typed): the padding frame, the file offset and frames in the block, the replay block and frame, the play end and the viewer's switches, then the viewer's list (header and 26 items of 16 bytes). `#[repr(C)]` with the image's layout, over the race block's bytes. The list's pointers are relocated addresses into the untyped rectangles and key table at 0x5C2714 .. 0x5C291C. Names are readings unless IDA's.
+//! The replay writer's and the viewer's state: the padding frame, the file offset and frames in the
+//! block, the replay block and frame, the play end and the viewer's switches, then the viewer's
+//! list (header and 26 items of 16 bytes). `#[repr(C)]`, laid over the race block's bytes. The
+//! list's names are image addresses into the untyped rectangles and key table.
 
 use crate::cells::ZeroCells;
 
@@ -11,42 +14,48 @@ use crate::session::{PlainDword, PlainFlag};
 #[repr(C)]
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells, rc2k_derive::ByteView)]
 pub struct ReplayViewBlock {
-    /// +0x0 (0x5C2518): the 16-byte frame that pads a block's end, zeros (`race::replay`, `race::add_replay_frame`).
+    /// +0x0: the 16-byte frame that pads a block's end, zeros (`race::replay`,
+    /// `race::add_replay_frame`).
     pub pad_frame: [PlainDword; 4],
-    /// +0x10 (0x5C2528): `dword_5C2528`: the new replay file's length so far (`race::save_viewed_replay`, `race::replay`).
+    /// +0x10: the new replay file's length so far (`race::save_viewed_replay`, `race::replay`).
     pub file_offset: PlainDword,
-    /// +0x14 (0x5C252C): `dword_5C252C`: frames in the block being written, 0 .. 100 (`race::replay`, `drive::write_replay_frames`).
+    /// +0x14: frames in the block being written, 0 .. 100 (`race::replay`,
+    /// `drive::write_replay_frames`).
     pub frames_in_block: PlainDword,
-    /// +0x18 (0x5C2530): `g_replayBlock`: the block shown/played (`race::viewer`, `drive::replay_clock_tick`, `drive::read_replay_frame`).
+    /// +0x18: the block shown/played (`race::viewer`, `drive::replay_clock_tick`,
+    /// `drive::read_replay_frame`).
     pub replay_block: PlainDword,
-    /// +0x1c (0x5C2534): `g_replayFrame`: its frame in the block, 0 .. 99 (`race::viewer`, `drive::replay_clock_tick`).
+    /// +0x1c: its frame in the block, 0 .. 99 (`race::viewer`, `drive::replay_clock_tick`).
     pub replay_frame: PlainDword,
-    /// +0x20 (0x5C2538): `g_playEnd`: playing stops before this block, -1 none (`race::viewer`, `drive::race_loop`, `drive::finish_run`).
+    /// +0x20: playing stops before this block, -1 none (`race::viewer`, `drive::race_loop`,
+    /// `drive::finish_run`).
     pub play_end: PlainDword,
-    /// +0x24 (0x5C253C): `g_playFromHere` (`race::viewer`).
+    /// +0x24: play from here (`race::viewer`).
     pub play_from_here: PlainDword,
-    /// +0x28 (0x5C2540): `g_snapshotAsked`: a picture of the next frame asked (`race::viewer_frame`).
+    /// +0x28: a picture of the next frame asked (`race::viewer_frame`).
     pub snapshot_asked: PlainDword,
-    /// +0x2c (0x5C2544): `g_lastRaceViewed`: the slot is 222 (`race::viewer`).
+    /// +0x2c: the slot is 222 (`race::viewer`).
     pub last_race_viewed: PlainFlag,
-    /// +0x30 (0x5C2548): `g_viewerOnlyShown`: modes 4 and 5 (`race::viewer`).
+    /// +0x30: modes 4 and 5 (`race::viewer`).
     pub viewer_only_shown: PlainDword,
-    /// +0x34 (0x5C254C): `g_viewerKeysIgnored`: mode 5 (`race::viewer`).
+    /// +0x34: mode 5 (`race::viewer`).
     pub viewer_keys_ignored: PlainDword,
-    /// +0x38 (0x5C2550): `g_keyAfterPlay`; image value -1 (`race::viewer`).
+    /// +0x38: the key after a play; starts at -1 (`race::viewer`).
     pub key_after_play: PlainDword,
-    /// +0x3c (0x5C2554): `g_waitKeyRelease`: keys held after playing (`race::viewer`).
+    /// +0x3c: keys held after playing (`race::viewer`).
     pub wait_key_release: PlainDword,
-    /// +0x40 (0x5C2558): `g_escapeCount`: Escape twice leaves (`race::viewer`).
+    /// +0x40: Escape twice leaves (`race::viewer`).
     pub escape_count: PlainDword,
-    /// +0x44 (0x5C255C): `g_viewerList`, taken in place: header 0x18 bytes (byte +1 = item count, set at run time; +0x10 a pointer to the key table), then 26 items of 16 bytes (flags, source rectangle pointer, 0, screen rectangle pointer; relocated pointers) (`race::viewer_frame`, `race::mark_viewer_items`, `race::draw_viewer_item`).
+    /// +0x44: the viewer list, taken in place: a header of 0x18 bytes (byte +1 = item count, set at
+    /// run time; +0x10 the name of the key table), then 26 items of 16 bytes (flags, source
+    /// rectangle name, 0, screen rectangle name) (`race::viewer_frame`, `race::mark_viewer_items`,
+    /// `race::draw_viewer_item`).
     pub viewer_list: [PlainDword; 110],
 }
 
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
 // them): any bit pattern is a valid value.
 
-/// The piece, with the image's first values.
 impl ReplayViewBlock {
     pub const fn new() -> Self {
         Self {
@@ -168,8 +177,8 @@ impl ReplayViewBlock {
     }
 }
 
-/// The viewer list's key table and place rectangles (IDA 0x5C2714 .. 0x5C291C, untyped), with
-/// the image's first values: the list's names point into them, and nothing writes them.
+/// The viewer list's key table and place rectangles: the list's names point into them, and
+/// nothing writes them.
 pub static RECTANGLES: crate::session::Bytes<0x208> = crate::session::Bytes::new([
     0xFF, 0x0D, 0xFF, 1, 0xFF, 0x0E, 0, 2, 0xFF, 0x0F, 1, 3, 0xFF, 0x10, 2, 4, 0xFF, 0x11, 3, 5,
     0xFF, 0x12, 4, 6, 0xFF, 0x13, 5, 7, 0xFF, 0x14, 6, 8, 0xFF, 0x15, 7, 9, 0xFF, 0x16, 8, 0x0A,
@@ -196,12 +205,12 @@ pub static RECTANGLES: crate::session::Bytes<0x208> = crate::session::Bytes::new
     0, 0, 0,
 ]);
 
-/// What a viewer item shows: a texture rectangle, or the picture a camera byte picks from one
-/// of the three switch tables (0 `ViewerAndKinds.viewer_panel.switch_pictures_a[0]`, 1 `ViewerAndKinds.viewer_panel.switch_pictures_b[0]`, 2 `ViewerAndKinds.viewer_panel.switch_pictures_c[0]`; the original
-/// kept the table's address).
+/// What a viewer item shows: a texture rectangle, or the picture a camera byte picks from one of
+/// the three switch tables (0 `switch_pictures_a`, 1 `switch_pictures_b`, 2 `switch_pictures_c`
+/// of the viewer panel; the list names a table by its image address).
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum ViewerPicture {
-    /// The rectangle's IDA address in the viewer panel.
+    /// The rectangle's image address in the viewer panel.
     Rectangle(usize),
     Switch(usize),
 }
@@ -214,16 +223,16 @@ impl ReplayViewBlock {
 
     /// The count of the viewer's list's items (from 24 bytes in).
     const ITEMS: u32 = 26;
-    /// IDA's ranges the list's names point into: the key table and place rectangles
-    /// (`RECTANGLES`), and the panel with the pictures' rectangles.
+    /// The image address ranges the list's names point into: the key table and place
+    /// rectangles (`RECTANGLES`), and the panel with the pictures' rectangles.
     const RECTANGLES: core::ops::Range<usize> = 0x5C2714..0x5C291C;
     /// The panel follows the rectangles; its names run over its size.
     const PANEL: core::ops::Range<usize> = Self::RECTANGLES.end
         ..Self::RECTANGLES.end
             + core::mem::size_of::<crate::race::viewer_screen_store::ViewerPanelBlock>();
 
-    /// The place IDA's name `ida` names, if it lies in the rectangles: a place in
-    /// `RECTANGLES`, running on to its end (the list keeps IDA's addresses as names).
+    /// The place the name `ida` (an image address) names, if it lies in the rectangles: a place
+    /// in `RECTANGLES`, running on to its end.
     fn named(ida: u32, what: &'static str) -> Result<BytePlace, crate::errors::BadInput> {
         if !Self::RECTANGLES.contains(&(ida as usize)) {
             return Err(crate::errors::BadInput(what));
@@ -250,8 +259,8 @@ impl ReplayViewBlock {
         )
     }
 
-    /// What item `index`'s picture (its +0xC: a rectangle, or one of the switch tables) is.
-    /// The original compared the picture's address with the three tables' addresses.
+    /// What item `index`'s picture (its +0xC: a rectangle, or one of the switch tables) is: the
+    /// picture's name is compared with the three tables' addresses.
     pub fn item_picture(
         replay: &Replay,
         index: u32,

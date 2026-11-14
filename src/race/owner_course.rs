@@ -1,4 +1,6 @@
-//! The race owner's course group (`race::owner::Race::course`): the course and the stage: course data and lists, level grid and paths, kind and light records, flares, marks settings, stage preferences, numbers, league.
+//! The race owner's course group (`race::owner::Race::course`): the course and the stage: course
+//! data and lists, level grid and paths, kind and light records, flares, marks settings, stage
+//! preferences, numbers, league.
 
 use crate::race::course_lists_store::CourseLists;
 use crate::race::course_store::CourseWork;
@@ -12,7 +14,7 @@ use crate::race::numbers_store::Numbers;
 use crate::race::prefs_store::StagePrefs;
 use crate::session::{DrawShared, GameThread};
 
-/// The race's course state (step 11, owned state: the stores move in as fields).
+/// The race's course state.
 pub struct Course {
     /// One copy, lent to the drawing parts (`workers::DrawReads`): no part writes it.
     pub course: DrawShared<CourseWork>,

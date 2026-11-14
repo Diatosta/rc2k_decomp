@@ -1,18 +1,11 @@
-//! `physics::queue_pace_note` (0x4418B3): the pace notes group called at a checkpoint (see
-//! `race/pace_notes.rs`): with groups, the first group whose checkpoint is the given one; its text
-//! is read code by code up to a NUL: each code below 0x54 is cued
-//! (`physics::cue_listed_car_sound_last`) and queued as a car event
-//! (`physics::queue_listed_event`); a code of 0x54 or more ends it with the log lines
-//! "!!! invalid pace data", "data", the code, "ecx", the group, "pointer", its place (level 1).
+//! Calls the pace notes group of a checkpoint (see `race/pace_notes.rs`): with groups, the first
+//! group whose checkpoint is the given one; its text is read code by code up to a NUL: each code
+//! below 0x54 is cued (`physics::cue_listed_car_sound_last`) and queued as a car event
+//! (`physics::queue_listed_event`); a code of 0x54 or more ends it with the log lines "!!! invalid
+//! pace data", "data", the code, "ecx", the group, "pointer", its place (level 1).
 //!
-//! Takes: the checkpoint
-//!
-//! Caller: `physics::pace_notes_step`. Its calls by place (this file's `pace_part`): 0
-//! `logfile::log_write_l1`, 1 `logfile::log_int_l1`, 2 `logfile::log_int_l1_nl`, 3
-//! `physics::cue_listed_car_sound_last`, 4 `physics::queue_listed_event`, 5 this function, 6
-//! `physics::expire_car_events`. Refuses (before anything) more than 0x400 groups (the scan reads
-//! past the group checkpoints) and a text place past the 0x4000 bytes (read past the text; checked
-//! at each code).
+//! Caller: `physics::pace_notes_step`. Refuses (before anything) more than 0x400 groups (the scan
+//! reads past the group checkpoints) and a text place past the 0x4000 bytes (checked at each code).
 
 use crate::errors::Refused;
 use crate::physics::car_store::Car;
@@ -22,12 +15,12 @@ use crate::race::owner_physics::Physics;
 use crate::race::work_store::RaceWork;
 use rc2k_core::physics::pace_calls::{Code, code, find_group, text_place};
 
-/// "!!! invalid pace data", "data", "ecx", "pointer".
+/// The log words: "!!! invalid pace data", "data", "ecx", "pointer".
 const WORDS: [&std::ffi::CStr; 4] = [c"!!! invalid pace data", c"data", c"ecx", c"pointer"];
 
-/// The pace notes of checkpoint `checkpoint` , each cued
-/// (`physics::cue_listed_car_sound_last`) and queued (`physics::queue_listed_event`).
-// Converted: `rc2k_core::physics::pace_calls::{find_group, code, text_place}`.
+/// The pace notes of checkpoint `checkpoint`, each cued (`physics::cue_listed_car_sound_last`) and
+/// queued (`physics::queue_listed_event`).
+// Core: `rc2k_core::physics::pace_calls::{find_group, code, text_place}`.
 #[allow(
     clippy::too_many_arguments,
     reason = "the race's tables the note reads, and the owners"

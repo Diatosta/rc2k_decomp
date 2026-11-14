@@ -1,13 +1,13 @@
-//! `sound::car_sounds` (0x40D893): one car's sounds for the turn.
+//! `sound::car_sounds`: one car's sounds for the turn.
 //!
-//! Takes the car's number (`g_raceSoundObjects[]`); the request is `RaceSoundSets.request.sound`.
-//! Runs `sound::car_engine_state` on the object, sets the request's +0x20 and +0x24 (the
-//! pitch and volume factors) to the object's +0x13C and +0x140, then `sound::revs_sound`, `sound::throttle_sound`,
-//! `sound::speed_sound`, `sound::surface_sounds`, `sound::car_slot_sounds`,
-//! `sound::car_hit_sound`, `sound::car_cue_sound`, `sound::car_gear_sounds`
-//! (the engine state's result, the car's sound kind, goes to the next three). Three calls, from `sound::car_sounds_all`.
-//! Refuses (before anything) a number over 7 and a null object; what the callees refuse
-//! puts back what was written (sounds already sent stay sent).
+//! Takes the car's number; the request is `RaceSoundSets.request`. Runs `sound::car_engine_state`
+//! on the object, sets the request's pitch and volume factors from the object's, then plays
+//! `sound::revs_sound`, `sound::throttle_sound`, `sound::speed_sound`, `sound::surface_sounds`,
+//! `sound::car_slot_sounds`, `sound::car_hit_sound`, `sound::car_cue_sound` and
+//! `sound::car_gear_sounds` (the engine state's result, the car's sound kind, goes to the next
+//! three). Three calls, from `sound::car_sounds_all`. Refuses (before anything) a number over 7 and
+//! a null object; what the callees refuse puts back what was written (sounds already sent stay
+//! sent).
 
 use crate::errors::{BadInput, Refused};
 

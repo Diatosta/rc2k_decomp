@@ -1,8 +1,7 @@
-//! The image's zeroed tail (IDA 0x960000 .. 0xA8C180) past the drawing parts' scratch (the
-//! polygon vertices and the polygon work, each part's own: `workers::PartScratch`): the read
-//! tables (`BufferReads`). One static and not seven: the checkpoint tables are read by a
-//! number held to the count (`race::checkpoints_store::nth`), and the pieces of the read
-//! tables stay together.
+//! The image's zeroed tail past the drawing parts' scratch (the polygon vertices and the polygon
+//! work, each part's own: `workers::PartScratch`): the read tables (`BufferReads`). One static and
+//! not seven: the checkpoint tables are read by a number held to the count
+//! (`race::checkpoints_store::nth`), and the pieces of the read tables stay together.
 
 use crate::race::checkpoints_store::Checkpoints;
 use crate::scene::engine_tables_store::EngineTables;

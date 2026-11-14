@@ -1,24 +1,13 @@
-//! `effects::run_ring` (0x4CB64D, in two pieces): the emitters' ring's frame. Each of the
-//! ring's entries from its cursor along +4 stepped by its kind (+0xC; others nothing): the
-//! life (+0x84) less the frame's ticks (dies when that borrows) and, but for the boxed kinds'
-//! own test, death below its ground (+0x28). When the settings' entry flag (the settings + the
-//! entry's +8 + 0x60) is set it is drawn: kinds 5, 0xD with their place on the object's
-//! (`[[+0x68] + 0x24] + 0x30` .., the sums unrounded), 6, 0x15, 1, 0x13, 0x16 at their place,
-//! by `effects::draw_cell_sprite` (0xB by its twin `draw_cell_sprite_2`; cell +0x58, angle
-//! +0x50, alpha +0x74, size +0x60 as whole numbers or as they are); 0x10, 0x11 by
-//! `effects::draw_subcell_sprite` (subcell +0x58 plus the life's frame of four). Then the
-//! angle on (+0x54 times a constant, kept to 12 bits), the place moved by the motion, the
-//! kind's gains, dampings (a part that changes sign stops at 0), the size pulled toward
-//! +0x70 (kinds 6, 0x15 only while outside the object's box and not facing it; kind 1 also
-//! its +0x64 pulled toward a constant when near and facing), the alpha faded by +0x78; kinds
-//! 0x10, 0x11 die inside the object's box above a height. A dead entry is moved to just
-//! before the cursor (or that moved on past it).//!
-//! In:  nothing (the effects settings)
+//! `effects::run_ring`: the emitters' ring's frame. Each entry from the ring's cursor along its
+//! links is stepped by its kind: the life runs down by the frame's ticks (dead when it borrows, or
+//! below the ground), kinds are drawn as cell or subcell sprites when the settings' flag for the
+//! entry's car is set, then the angle, place, motion, dampings, size and alpha are advanced (kinds
+//! differ in their gains and in how the size is pulled toward the object). A dead entry is moved to
+//! just before the cursor.
 //!
-//! Caller: `effects::run_frame` (after `run_ribbons`' set-up). The longer x87 runs
-//! are plain Rust on the x87 model (`math::x87_float`), in the original's order, over the entries and the game's variables. Refuses,
-//! before anything, null settings, a null entry or link on the way, a null object where one
-//! is read, and the draws' own refusals for an entry that may be drawn.
+//! The longer x87 runs are plain Rust on the x87 model (`math::x87_float`), over the entries and
+//! the game's variables. Refuses, before anything, null settings, a null entry or link on the way,
+//! a null object where one is read, and the draws' own refusals for an entry that may be drawn.
 
 use crate::effects::cell_x87::CellX87;
 use crate::effects::emitters::matrix_float;
@@ -51,7 +40,6 @@ fn k(cell: &f32) -> u32 {
     cell.to_bits()
 }
 
-/// The original's 0x4CE9AF .. 0x4CEA40 (and 0x4CEC77 ..): the place less the object's (`[p + 0x30]` ..) into `RingWork.away[0]` .., turned by the object's matrix (`m`), |x| and |z| `fistp`ed into `RingWork.extent[0]` / `RingWork.extent[1]`.
 /// The car a ring entry is on (its +0x68, a `effects_settings_store::car_handle`).
 fn entry_car(
     ring: &Ring,
@@ -63,11 +51,13 @@ fn entry_car(
         .ok_or_else(|| BadInput("a ring entry without its car").into())
 }
 
+/// The place less the object's (`[p + 0x30]` ..) into `RingWork.away[0]` .., turned by the object's
+/// matrix (`m`), |x| and |z| rounded into `RingWork.extent[0]` / `RingWork.extent[1]`.
 fn box_(ring: &Ring, e: u32, whole: &[crate::session::PlainFloat; 16], car: &CarEffects) {
     box_x87(ring, &ring.work, e, whole, car);
 }
 
-/// The car's whole matrix (its block's), refused where the original would read address 0.
+/// The car's whole matrix (its block's); refused when there is none.
 fn whole_of(
     car: &CarEffects,
     effects: &crate::effects::owner::Effects,
@@ -80,12 +70,14 @@ fn whole_of(
         .ok_or(BadInput("a ring entry without its object"))
 }
 
-/// The original's 0x4CEA5E .. 0x4CEAD4 (and 0x4CED26 ..): that way made one long (`MarksFloats.one` over its length), dotted with the object's +0x4C .. into `RingWork.facing`.
+/// That way made one long (`MarksFloats.one` over its length), dotted with the object's +0x4C ..
+/// into `RingWork.facing`.
 fn facing(ring: &Ring, car: &CarEffects, effects: &crate::effects::owner::Effects) {
     facing_x87(car, &effects.setup.floats, &ring.work);
 }
 
-/// The original's 0x4CEF8A .. 0x4CEFDA: the place less the object's into `RingWork.away[0]` .., its length (kept, 80 bits, at `l`) less `flt_93A526` into `RingWork.near`.
+/// The place less the object's into `RingWork.away[0]` .., its length (kept, 80 bits, at `l`)
+/// less a constant into `RingWork.near`.
 fn pull_length(
     ring: &Ring,
     e: u32,
@@ -95,7 +87,8 @@ fn pull_length(
     pull_length_x87(ring, e, whole, length, &ring.work, &ring.kinds);
 }
 
-/// The original's 0x4CEFEC .. 0x4CF07F: the way made one long by the kept length, the object's +0x4C .. over its +0x88, minus their dot into `RingWork.facing`.
+/// The way made one long by the kept length, the object's +0x4C .. over its +0x88, minus their dot
+/// into `RingWork.facing`.
 fn pull_facing(
     ring: &Ring,
     car: &CarEffects,
@@ -105,7 +98,7 @@ fn pull_facing(
     pull_facing_x87(car, length, &effects.setup.floats, &ring.work);
 }
 
-/// The original's 0x4CF08B .. 0x4CF0D8: the entry's +0x64 pulled toward `MarksFloats.fixed_16_scale` (`fist` into `RingWork.whole`).
+/// The entry's +0x64 pulled toward `MarksFloats.fixed_16_scale` (rounded into `RingWork.whole`).
 fn pull_strength(ring: &Ring, e: u32, car: &CarEffects, effects: &crate::effects::owner::Effects) {
     let setup = &effects.setup;
     pull_strength_x87(
@@ -119,7 +112,8 @@ fn pull_strength(ring: &Ring, e: u32, car: &CarEffects, effects: &crate::effects
     );
 }
 
-/// The original's 0x4CF65C .. 0x4CF6B7 (and 0x4CF7C4 ..): the place turned by the object's matrix (`m`), |x| and |z| into `RingWork.extent[0]` / `RingWork.extent[1]`.
+/// The place turned by the object's matrix (`m`), |x| and |z| into `RingWork.extent[0]` /
+/// `RingWork.extent[1]`.
 fn box_place(ring: &Ring, e: u32, car: &CarEffects) {
     box_place_x87(ring, &ring.work, e, car);
 }
@@ -132,8 +126,7 @@ struct Kind<'a> {
 }
 
 impl<'a> Kind<'a> {
-    /// The size's rate (the kinds that pull the size have one; the original would read
-    /// address 0 for one that has none: refused).
+    /// The size's rate (the kinds that pull the size have one); refused for one that has none.
     fn pull(&self) -> Result<&'a f32, BadInput> {
         self.pull
             .ok_or(BadInput("a ring kind that pulls the size without a rate"))
@@ -255,7 +248,7 @@ fn aged(
     })
 }
 
-/// The place on the object's (unrounded sums), st(0) first.
+/// The place on the object's (unrounded sums).
 fn on_object(
     ring: &Ring,
     e: u32,
@@ -286,7 +279,7 @@ fn shown(effects: &crate::effects::owner::Effects, ring: &Ring, e: u32) -> Resul
     Ok(entry_flag(effects.settings()?, entry(ring, e)?.emitter_tag)? != 0)
 }
 
-/// The alpha (top byte) as a whole number (`fistp` through `RingWork.whole`).
+/// The alpha (top byte) as a whole number (through `RingWork.whole`).
 fn whole_alpha(ring: &Ring, e: u32) -> Result<u32, Refused> {
     Ok({
         let a = x87::to_int(entry(ring, e)?.alpha);
@@ -882,7 +875,7 @@ fn turn(car: &CarEffects, n: usize) -> bh::X {
     car_float(&car.matrix[n])
 }
 
-/// `box_`'s x87 block as plain Rust on the x87 model (45 instructions), same order and memory places.
+/// `box_`'s arithmetic as plain Rust on the x87 model, in the same order.
 fn box_x87(
     ring: &Ring,
     w: &RingWork,
@@ -932,7 +925,7 @@ fn box_x87(
     w.extent[1].set(bh::to_int(t34) as u32);
 }
 
-/// `facing`'s x87 block as plain Rust on the x87 model (28 instructions), same order and memory places.
+/// `facing`'s arithmetic as plain Rust on the x87 model, in the same order.
 fn facing_x87(car: &CarEffects, f: &MarksFloats, w: &RingWork) {
     let t0 = w.away[0].ld();
     let t1 = t0 * t0;
@@ -964,7 +957,7 @@ fn facing_x87(car: &CarEffects, f: &MarksFloats, w: &RingWork) {
     w.facing.st(t23);
 }
 
-/// `pull_length`'s x87 block as plain Rust on the x87 model (22 instructions), same order and memory places.
+/// `pull_length`'s arithmetic as plain Rust on the x87 model, in the same order.
 /// `rk` the ring kinds' constants (`RingKinds`).
 fn pull_length_x87(
     ring: &Ring,
@@ -997,7 +990,7 @@ fn pull_length_x87(
     *l = bh::f80(t14);
 }
 
-/// `pull_facing`'s x87 block as plain Rust on the x87 model (32 instructions), same order and memory places.
+/// `pull_facing`'s arithmetic as plain Rust on the x87 model, in the same order.
 fn pull_facing_x87(car: &CarEffects, l: &[u8; 10], f: &MarksFloats, w: &RingWork) {
     let t0 = bh::from_f80(*l);
     let t1 = f.one.ld() / t0;
@@ -1033,7 +1026,7 @@ fn pull_facing_x87(car: &CarEffects, l: &[u8; 10], f: &MarksFloats, w: &RingWork
     w.facing.st(t24);
 }
 
-/// `pull_strength`'s x87 block as plain Rust on the x87 model (15 instructions), same order and memory places.
+/// `pull_strength`'s arithmetic as plain Rust on the x87 model, in the same order.
 /// `rk` the ring kinds' constants (`RingKinds`).
 fn pull_strength_x87(
     ring: &Ring,
@@ -1061,7 +1054,7 @@ fn pull_strength_x87(
     st(ring, e, t11, |en| &mut en.size_factor);
 }
 
-/// `box_place`'s x87 block as plain Rust on the x87 model (36 instructions), same order and memory places.
+/// `box_place`'s arithmetic as plain Rust on the x87 model, in the same order.
 fn box_place_x87(ring: &Ring, w: &RingWork, e: u32, car: &CarEffects) {
     let t0 = ld(ring, e, |en| en.place[2]);
     let t1 = ld(ring, e, |en| en.place[1]);
@@ -1096,54 +1089,54 @@ fn box_place_x87(ring: &Ring, w: &RingWork, e: u32, car: &CarEffects) {
     w.extent[1].set(bh::to_int(t28) as u32);
 }
 
-/// The ring kinds' constants (`run_ring`, and the ribbons' two) (IDA 0x93A4DA .. 0x93A576).
+/// The ring kinds' constants (`run_ring`, and the ribbons' two).
 #[derive(Clone, Copy)]
 pub struct RingKinds {
-    /// 0x93A4DA: `flt_93A4DA`, `flt_93A4DE`, `dword_93A4E2`: kind 5's drift factors
+    /// Kind 5's drift factors
     pub drift5: [f32; 3],
-    /// 0x93A4E6: `flt_93A4E6`, `flt_93A4EA`, `dword_93A4EE`: kind 0xB's drift factors
+    /// Kind 0xB's drift factors
     pub drift_b: [f32; 3],
-    /// 0x93A4F2: `flt_93A4F2` .. `flt_93A4FA`: kind 6's three dampings
+    /// Kind 6's three dampings
     pub k6_damp: [f32; 3],
-    /// 0x93A4FE: `flt_93A4FE`: kind 6's size rate
+    /// Kind 6's size rate
     pub k6_pull: f32,
-    /// 0x93A502: `flt_93A502` .. `flt_93A50A`: kind 0x15's three dampings
+    /// Kind 0x15's three dampings
     pub k15_damp: [f32; 3],
-    /// 0x93A50E: `flt_93A50E`: kind 0x15's size rate
+    /// Kind 0x15's size rate
     pub k15_pull: f32,
-    /// 0x93A512: `flt_93A512`: kind 1's size factor (+0x64 times it)
+    /// Kind 1's size factor (+0x64 times it)
     pub k1_size: f32,
-    /// 0x93A516: `flt_93A516` .. `flt_93A51E`: kind 1's three dampings
+    /// Kind 1's three dampings
     pub k1_damp: [f32; 3],
-    /// 0x93A522: `flt_93A522`: kind 1's size rate
+    /// Kind 1's size rate
     pub k1_pull: f32,
-    /// 0x93A526: `flt_93A526`: less this from the length to the object (`pull_length`)
+    /// Less this from the length to the object (`pull_length`)
     pub near_less: f32,
-    /// 0x93A52A: `flt_93A52A`: the strength's pull scale (`pull_strength`)
+    /// The strength's pull scale (`pull_strength`)
     pub near_scale: f32,
-    /// 0x93A52E: `flt_93A52E`: the strength's pull rate (`pull_strength`)
+    /// The strength's pull rate (`pull_strength`)
     pub near_rate: f32,
-    /// 0x93A532: `flt_93A532`: kind 0xD's y gain
+    /// Kind 0xD's y gain
     pub kd_gain: f32,
-    /// 0x93A536: `flt_93A536` .. `flt_93A53E`: kind 0xD's three dampings
+    /// Kind 0xD's three dampings
     pub kd_damp: [f32; 3],
-    /// 0x93A542: `flt_93A542`: kind 0xD's size rate
+    /// Kind 0xD's size rate
     pub kd_pull: f32,
-    /// 0x93A546: `flt_93A546` .. `flt_93A54E`: kind 0x13's three dampings
+    /// Kind 0x13's three dampings
     pub k13_damp: [f32; 3],
-    /// 0x93A552: `flt_93A552`: kind 0x13's y gain
+    /// Kind 0x13's y gain
     pub k13_gain: f32,
-    /// 0x93A556: `flt_93A556` .. `flt_93A55E`: kind 0x16's three dampings
+    /// Kind 0x16's three dampings
     pub k16_damp: [f32; 3],
-    /// 0x93A562: `flt_93A562`: kind 0x16's y gain
+    /// Kind 0x16's y gain
     pub k16_gain: f32,
-    /// 0x93A566: `flt_93A566`: kind 0x10's y gain
+    /// Kind 0x10's y gain
     pub k10_gain: f32,
-    /// 0x93A56A: `flt_93A56A`: kind 0x11's y gain
+    /// Kind 0x11's y gain
     pub k11_gain: f32,
-    /// 0x93A56E: `flt_93A56E`: a ribbon's y gain (`run_ribbons::first_frame`)
+    /// A ribbon's y gain (`run_ribbons::first_frame`)
     pub ribbon_a: f32,
-    /// 0x93A572: `flt_93A572`: a ribbon's y gain per frame (`run_ribbons::move_`)
+    /// A ribbon's y gain per frame (`run_ribbons::move_`)
     pub ribbon_b: f32,
 }
 
@@ -1194,7 +1187,8 @@ mod reference_vectors {
         unsafe { at.at(0, 4).cast::<u32>().read_unaligned() }
     }
 
-    /// A car record whose words at the record `offsets` hold the test buffer's dwords at `at + offset - base`.
+    /// A car record whose words at the record `offsets` hold the test buffer's dwords at `at +
+    /// offset - base`.
     fn car_with(
         at: crate::effects::asm_test::Operand,
         base: usize,
@@ -1217,7 +1211,7 @@ mod reference_vectors {
     }
 
     /// A whole matrix whose translation (+0x30 ..) is the buffer's at `at` + 0x30 (`at` the
-    /// matrix's place, as the original reads it).
+    /// matrix's place).
     fn whole_at(at: crate::effects::asm_test::Operand) -> [crate::session::Float; 16] {
         std::array::from_fn(|i| {
             crate::session::Float::from_bits(if (12..15).contains(&i) {
@@ -1376,8 +1370,8 @@ mod reference_vectors {
                         ..crate::effects::owner::effects().ring.kinds
                     };
                     super::pull_length_x87(ring, e, &whole_at(b[2]), &mut length, w, &kinds);
-                    // SAFETY: `at` checks that the ten bytes lie in the operand's test buffer, which
-                    // the recorded run keeps alive; `length` is this closure's own.
+                    // SAFETY: `at` checks that the ten bytes lie in the operand's test buffer,
+                    // which the recorded run keeps alive; `length` is this closure's own.
                     unsafe {
                         b[3].at(0, 10).copy_from_nonoverlapping(length.as_ptr(), 10);
                     }
@@ -1432,8 +1426,8 @@ mod reference_vectors {
                 with_laid::<RingWork, _>(b[0], |w| {
                     let car = car_with(b[1], 0, &[0x4C, 0x50, 0x54, 0x88]);
                     let length: [u8; 10] =
-                        // SAFETY: `host` checks that the byte lies in the operand's test buffer, which the recorded
-                        // run keeps alive and nothing else reaches meanwhile.
+                        // SAFETY: `host` checks that the byte lies in the operand's test buffer,
+                        // which the recorded run keeps alive and nothing else reaches meanwhile.
                         std::array::from_fn(|i| unsafe { (b[2] + i).host().read() });
                     super::pull_facing_x87(&car, &length, f, w);
                 });

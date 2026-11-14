@@ -1,23 +1,21 @@
-//! `scene::project_polygon` (0x44E1F7): finds or makes the record of each of the
-//! polygon's points and counts those outside the depths that can be drawn.
+//! `scene::project_polygon`: finds or makes the record of each of the polygon's points and
+//! counts those outside the depths that can be drawn.
 //!
 //! For each entry of the polygon: its point (+0) through `scene::project_point`, the record
-//! (`scene::point_records`' number since phase 13; the original's address) to its +4; `SceneDraw.polygon_outside_count`, 0 at the start, counts the points whose depth is under
-//! 4096 (or is no number) or is `SceneDraw.farthest` or more. The callers compare the count with the
-//! number of vertices (all outside: nothing to draw) and with 0 (none: no clipping by depth).
-//! Eight callers. A polygon of no vertices is refused (the original goes through 2^32).
+//! (its number in `scene::point_records`) to its +4; `SceneDraw.polygon_outside_count`, 0 at
+//! the start, counts the points whose depth is under 4096 (or is no number) or is
+//! `SceneDraw.farthest` or more. The callers compare the count with the number of vertices
+//! (all outside: nothing to draw) and with 0 (none: no clipping by depth). Eight callers.
+//! Refuses a polygon of no vertices.
 //!
-//! The plain version is `project_polygon_plain`, on
-//! `scene::project_point_plain` and `rc2k_core::scene::projection::outside_depths` (the x87
-//! version stays for the Rust callers in unconverted code).
+//! It runs on `scene::project_point` and
+//! `rc2k_core::scene::projection::outside_depths`.
 
 use crate::errors::{BadInput, Refused};
 use crate::scene::polygon::{Listed, listed};
 use crate::scene::project_point::{NEAR, project_point};
 
 // ---- game data ----
-
-// ---- Rust version ----
 
 pub fn project_polygon(
     part: &crate::workers::PartScratch,

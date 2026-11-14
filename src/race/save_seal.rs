@@ -1,20 +1,19 @@
-//! The race's results file (`race::open_replay` / `race::close_replay`): its bytes
-//! packed by runs (`race::pack_runs`) and a block sealed by a DES-like cipher of the game's
-//! tables (`race::seal_block`, with `race::permute_bits`).
+//! The race's results file (`race::open_replay` / `race::close_replay`): its bytes packed by runs
+//! (`race::pack_runs`) and a block sealed by a DES-like cipher (`race::seal_block`, with
+//! `race::permute_bits`).
 
 use crate::errors::BadInput;
 use crate::race::seal_store::SealWork;
 
-/// `race::pack_runs` (0x41EFEC): a run of bytes packed into another buffer: runs of 2 .. 0x80 equal bytes as
+/// Packs `source` by runs into the shared scratch: runs of 2 .. 0x80 equal bytes as
 /// (length - 1, byte), other stretches of up to 0x80 as (-length, bytes); fewer than three bytes,
-/// or one left, as one literal; then a dword 0 of which one byte counts. Returns the bytes written.
-/// Here: `source` packed into the shared scratch; the packing (end mark included) is returned with
-/// the count.
+/// or one left, as one literal; then a dword 0 of which one byte counts. Returns the packing (end
+/// mark included) with the count of bytes written.
 pub fn pack_runs(
     source: &[u8],
     system: &crate::system::owner::System,
 ) -> Result<(Vec<u8>, u32), BadInput> {
-    // Converted: `rc2k_core::race::seal::pack_runs`.
+    // Logic in `rc2k_core::race::seal::pack_runs`.
     let mut packed = rc2k_core::race::seal::pack_runs(source);
     let len = packed.len() as u32;
     // The end mark is the first byte of a dword 0.
@@ -27,15 +26,12 @@ pub fn pack_runs(
     Ok((packed, len))
 }
 
-// The cipher's tables and variables (`key` .. as IDA shows them).
-
-/// `race::seal_block` (0x402735): the block (`block` / `38`) enciphered with the key
-/// (`key` / `30`) by the game's tables: the key's two halves (PC1), sixteen subkeys (turns
-/// by `byte_4E01C7`, PC2) into `subkeys` ..; the block's initial permutation, sixteen rounds
+/// Enciphers the block (`SealWork`'s block) with its key: the key's two halves (PC1), sixteen
+/// subkeys (turns by, PC2) into the subkeys; the block's initial permutation, sixteen rounds
 /// (expansion, the subkey, eight S-boxes, the permutation, the halves swapped), the final
-/// permutation into `value` (0x4E053C) and `dword_4E0540`.
+/// permutation into the value.
 pub fn seal_block(w: &SealWork) {
-    // Converted: `rc2k_core::race::seal::seal_block`.
+    // Logic in `rc2k_core::race::seal::seal_block`.
     {
         use crate::race::seal_tables::*;
         let cipher = rc2k_core::race::seal::Cipher {

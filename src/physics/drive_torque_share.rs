@@ -1,7 +1,7 @@
-//! `physics::drive_torque_share` (0x440D56): a share of the drive by speed. n is `torque_share_a`
-//! (8) with `g_carDriveKind` 1, else `torque_share_b` (32); s = |`g_carSpeed`| / `torque_share_c`
-//! held to at most 1.0 (a value below it, or unordered, is left); d = (n - the car's
-//! `gear_ratio_setting`) / n; `torque_share` = d + (1 - d) s, and `drive_torque` is multiplied by it.
+//! A share of the drive by speed. n is `torque_share_a` (8) with the drive kind 1, else
+//! `torque_share_b` (32); s = |car speed| / `torque_share_c` held to at most 1.0 (a lower or
+//! unordered value is left); d = (n - the car's `gear_ratio_setting`) / n; `torque_share` = d +
+//! (1 - d) s, and `drive_torque` is multiplied by it.
 //!
 //! Callers: `physics::test_drive_run`, `physics::drive_force`.
 
@@ -46,8 +46,8 @@ pub fn drive_torque_share(
     if !below {
         speed_share.set(x87::loaded(one));
     }
-    // The gears left go through the cell as a whole number (`mov`, `fild`), then their
-    // share of the count replaces it.
+    // The gears left go through the cell as a whole number, then their share of the count
+    // replaces it.
     let eax = count.get().wrapping_sub(car.gear_ratio_setting.get());
     gears_share.set(x87::int_ratio(eax as i32, count.get() as i32));
     tables

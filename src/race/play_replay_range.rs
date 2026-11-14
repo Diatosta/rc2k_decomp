@@ -1,9 +1,10 @@
-//! `race::play_replay_range` (0x41D846): the viewer plays from the block read: its cameras into the
-//! block (`drive::replay_frame_marks`), the race's sounds started unless the frames are being saved
-//! as pictures (`race::start_race_sounds`, not with `g_replayRecording` 1), the replay played
+//! `race::play_replay_range`: the viewer plays from the block read: its cameras into the block
+//! (`drive::replay_frame_marks`), the race's sounds started unless the frames are being saved as
+//! pictures (`race::start_race_sounds`, not with `replay_recording` 1), the replay played
 //! (`race::play_movie`), the sounds reset (`race::reset_race_sounds`), the key that ended it
-//! (`input::take_key`) into `key_after_play`, `wait_key_release` 1 (keys held), the block shown held to
-//! the last (`index_block_count` at most, unsigned; then frame 0), `viewer_stopped` 1 (stopped).
+//! (`input::take_key`) into `key_after_play`, `wait_key_release` 1 (keys held), the block shown
+//! held to the last (the index's `block_count` at most, unsigned; then frame 0), `viewer_stopped` 1
+//! (stopped).
 //!
 //! Caller: `race::play_marked`.
 

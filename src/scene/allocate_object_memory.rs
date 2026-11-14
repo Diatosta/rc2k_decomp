@@ -1,10 +1,10 @@
-//! `scene::allocate_object_memory` (0x41F814): takes the memory the objects' points
-//! and faces are loaded into.
+//! `scene::allocate_object_memory`: takes the memory the objects' points and faces are loaded
+//! into.
 //!
 //! One block on the memory list, counted: in a race 0x300000 bytes, 0xC0000 of them for the
 //! points and 0x240000 for the faces; else 0x580000, 0x180000 and 0x400000. The object points
-//! = the block, the faces' memory = what follows the points' part, and the two rooms kept. One
-//! caller, `scene::set_up_object_memory`.
+//! are the block, the faces' memory what follows the points' part, and the two rooms are kept.
+//! One caller, `scene::set_up_object_memory`.
 
 use crate::errors::Refused;
 
@@ -12,11 +12,9 @@ use crate::errors::Refused;
 
 use rc2k_core::scene::objects::object_rooms as rooms;
 
-// ---- Rust version ----
-
-/// The points and the faces Rust's (`scene::object_points`, `scene::object_faces`, phase
-/// 13), counted on the list as the game's block was.
-// Converted: `rc2k_core::scene::objects::object_rooms`
+/// The points and the faces are Rust's (`scene::object_points`, `scene::object_faces`),
+/// counted on the list.
+// Logic: `rc2k_core::scene::objects::object_rooms`
 pub fn allocate_object_memory_in_game(
     course: &crate::race::owner_course::Course,
 ) -> Result<(), Refused> {

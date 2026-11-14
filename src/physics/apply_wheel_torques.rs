@@ -1,10 +1,7 @@
-//! `physics::apply_wheel_torques` (0x43F694): `physics::apply_torques` on the 0x17
-//! records at `forces` (the ones `physics::apply_wheel_forces` pushes with).
+//! Applies the same 0x17 records as torques (`physics::apply_torques`).
 //!
-//! Returns: the count, the first record
-//!
-//! Caller: `physics::car_physics_step` (0x43B822, after `physics::apply_wheel_forces`, before
-//! `physics::move_car`), every physics step.
+//! Caller: `physics::car_physics_step`, after `physics::apply_wheel_forces` and before
+//! `physics::move_car`, every physics step.
 
 use crate::errors::Refused;
 use crate::physics::apply_torques::apply_torques;

@@ -1,25 +1,22 @@
-//! `physics::auto_gearbox` (0x43C5C2): the automatic gearbox. `gear_changed` is cleared first. Then:
-//! - the gear refused by `physics::gear_bit`, or in gear with the engine speed below
+//! The automatic gearbox. `gear_changed` is cleared first. Then:
+//! - a gear refused by `physics::gear_bit`, or any gear with the engine speed below
 //!   `idle_engine_speed`: neutral;
-//! - in neutral: unless the engine's limit (`engine_speed_limit`) times `auto_gear_engine_share`
-//!   is below the engine speed, nothing; else, with `input_gear_wanted` -1, into reverse,
-//!   else `physics::pick_start_gear`;
-//! - `forced_neutral` set: neutral; `gear_change_hold` not 0: it goes down;
+//! - in neutral: nothing unless the engine's limit times `auto_gear_engine_share` is below the
+//!   engine speed; then reverse when `input_gear_wanted` is -1, else `physics::pick_start_gear`;
+//! - `forced_neutral` set: neutral; `gear_change_hold` not 0: it counts down;
 //!   `gear_change_blocked` set: nothing;
-//! - else the engine over its limit is found by `physics::revs_from_speed` (the engine speed put
-//!   back): in gear 1 or more with `all_wheels_off` clear and the share not below
-//!   `shift_up_point`: up (at the top nothing, from reverse `pick_start_gear`, else
-//!   `physics::wheels_from_revs`, the gear up, `physics::revs_from_wheels`, settled);
-//!   in reverse with `brake` set and the speed not below `auto_gear_speed_down`:
-//!   `pick_start_gear`; in gear 2 or more, the share to the gear below under
-//!   `shift_ratio_figure` and the engine over its limit under `shift_down_clutch_point` /
-//!   `shift_down_point` (by `brake`): down (`wheels_from_revs`, the gear down,
-//!   `revs_from_wheels`; an engine speed then not below `rev_limit` takes it back up and
-//!   ends in neutral, else settled); in gear 1 with `brake` set and the speed below
-//!   `auto_gear_speed_up`: into reverse.
+//! - otherwise the engine's share of its limit decides: in gear 1 or more with the wheels on the
+//!   ground and the share not below `shift_up_point`, up (nothing at the top; from reverse
+//!   `pick_start_gear`); in reverse with `brake` set and the speed not below
+//!   `auto_gear_speed_down`, `pick_start_gear`; in gear 2 or more with the share under
+//!   `shift_ratio_figure` and the engine under the down point (`shift_down_clutch_point` or
+//!   `shift_down_point`, by `brake`), down (an engine speed then not below `rev_limit` takes it
+//!   back up and ends in neutral); in gear 1 with `brake` set and the speed below
+//!   `auto_gear_speed_up`, reverse.
+//!   Shifts go through `physics::revs_from_speed`, `wheels_from_revs` and `revs_from_wheels`.
 //!
-//! Caller: `physics::gearbox_step`. Refuses what the calls refuse, and a gear outside -1
-//! ..= 7 where a ratio is read; what was written is put back.
+//! Caller: `physics::gearbox_step`. Refuses what the calls refuse, and a gear outside -1 ..= 7
+//! where a ratio is read; what was written is put back.
 
 use crate::errors::Refused;
 use crate::math::x87::{mul_div_status, mul_status};
@@ -32,7 +29,7 @@ use crate::physics::tables_store::PhysicsTables;
 use crate::race::numbers_store::Numbers;
 use rc2k_core::physics::gear_shifts::{self as shifts, Shift};
 
-/// Up (0x43C66D).
+/// Up.
 fn up(car: &Car, tables: &PhysicsTables, numbers: &Numbers) -> Result<Shift, Refused> {
     if let Some(shift) = shifts::auto_up(car.gear.get(), tables.gear_count.get()) {
         return Ok(shift);
@@ -44,7 +41,7 @@ fn up(car: &Car, tables: &PhysicsTables, numbers: &Numbers) -> Result<Shift, Ref
     Ok(Shift::Done)
 }
 
-/// Down (0x43C6B7).
+/// Down.
 fn down(car: &Car, tables: &PhysicsTables, numbers: &Numbers) -> Result<Shift, Refused> {
     wheels(car, tables)?;
     car.gear.set(car.gear.get().wrapping_sub(1));
@@ -58,7 +55,7 @@ fn down(car: &Car, tables: &PhysicsTables, numbers: &Numbers) -> Result<Shift, R
     Ok(Shift::Neutral)
 }
 
-/// The automatic's tests (0x43C798).
+/// The automatic's tests.
 fn tests(
     car: &Car,
     tables: &PhysicsTables,
@@ -116,7 +113,7 @@ fn tests(
 }
 
 /// The steps on `r`.
-// Converted: `rc2k_core::physics::gear_shifts` (the engine's sums and compares stay x87).
+// Core: `rc2k_core::physics::gear_shifts` (the engine's sums and compares stay x87).
 pub fn auto_gearbox(
     car: &Car,
     tables: &PhysicsTables,

@@ -1,6 +1,5 @@
-//! The reference vectors: what the original's x87 blocks made of the tests' inputs, recorded
-//! once on i686 (where the blocks' instructions could run) and replayed against the Rust
-//! versions on every target.
+//! The reference vectors: what the 1999 x87 blocks made of the tests' inputs, recorded once on i686
+//! (where the blocks' instructions could run) and replayed against the Rust codes on every target.
 //!
 //! The inputs are not stored: each test makes them again from its seed with `Rng`, and the
 //! file holds a hash of the whole input stream, so a test whose inputs changed is told so
@@ -12,11 +11,10 @@
 //! stream's FNV-1a (u64), the number of result bytes (u32), the result bytes; all little
 //! endian.
 //!
-//! `differential` replays a test over blocks of dwords, `sparse` over a few places of
-//! operand buffers; `Recorder` is the general form. The original's instructions the files
-//! were recorded from are gone from the tests (2026-11-13): the files are replayed only.
-//! (`Recorder::record` still writes a file, with `RC2K_RECORD_VECTORS=1`, from whatever
-//! results its caller gives.)
+//! `differential` replays a test over blocks of dwords, `sparse` over a few places of operand
+//! buffers; `Recorder` is the general form. The instructions the files were recorded from are gone
+//! from the tests: the files are replayed only. (`Recorder::record` still writes a file, with
+//! `RC2K_RECORD_VECTORS=1`, from whatever results its caller gives.)
 
 // reason: each target uses part of the helpers.
 #![allow(dead_code)]
@@ -181,8 +179,7 @@ pub fn put_t80<const N: usize>(m: &mut [u32; N], at: usize, bits: u32) {
     }
 }
 
-/// A dword of a test's block as a game variable's cell (what the Rust versions' `Cells`
-/// take).
+/// A dword of a test's block as a game variable's cell (what the Rust codes' `Cells` take).
 impl crate::session::Cell32 for Cell<u32> {
     fn bits(&self) -> u32 {
         self.get()
@@ -382,8 +379,8 @@ pub enum Kind {
     Ulp1,
 }
 
-/// One test over blocks of `N` dwords: `cases` seeded random blocks at each control word,
-/// `fill` writing one case's input, `plain` the Rust version over the block.
+/// One test over blocks of `N` dwords: `cases` seeded random blocks at each control word, `fill`
+/// writing one case's input, `plain` the Rust code over the block.
 pub struct Differential<'a, const N: usize> {
     pub name: &'a str,
     pub cases: u32,
@@ -393,8 +390,8 @@ pub struct Differential<'a, const N: usize> {
     pub plain: &'a dyn Fn(&[Cell<u32>]),
 }
 
-/// Replays the test's vectors: each block through the Rust version, compared dword by dword
-/// with the reference's results as `kinds` say.
+/// Replays the test's vectors: each block through the Rust code, compared dword by dword with the
+/// reference's results as `kinds` say.
 pub fn differential<const N: usize>(test: Differential<N>) {
     run_differential(test, Recorder::replay(test.name));
 }
@@ -410,18 +407,18 @@ fn bytes_of<const N: usize>(m: &[u32; N]) -> Vec<u8> {
     m.iter().flat_map(|d| d.to_le_bytes()).collect()
 }
 
-// The lock (2026-11-13): a replay holds no `test_support::test_lock`: the lock is for the tests
-// that write the game's statics or read their first values, and a replay reaches none. The
-// control word it sets (`set_control_word`) is this thread's: the emulated one is a
-// `thread_local` (`math::x87`). The inputs, the Rust version's operands and the results are the test's own
-// buffers; the file is read only. And every caller's Rust version (`plain`) works on its
-// operands only: checked for every caller of `differential` (`input::update_car_effects`,
-// `scene::{add_car_light, clip_asm, cross_product3, face_faces_away, light_dot, matrix3,
-// place_object_points, project_point, reflection_coordinates, reflect_vector, rotate_point,
-// vector3}`) and of `sparse` (`hud::{disc_vertex, draw_disc, draw_needle}`): the blocks are
-// x87 arithmetic over the cells given, records laid over the test's buffers (`Arg::view`),
-// no owner, store or other static. A new caller whose Rust version reaches a static needs
-// a locked variant, as `block_vectors::sparse_locked`.
+// The lock: a replay holds no `test_support::test_lock`: the lock is for the tests that write the
+// game's statics or read their first values, and a replay reaches none. The control word it sets
+// (`set_control_word`) is this thread's: the emulated one is a `thread_local` (`math::x87`). The
+// inputs, the Rust code's operands and the results are the test's own buffers; the file is read
+// only. And every caller's Rust version (`plain`) works on its operands only: checked for every
+// caller of `differential` (`input::update_car_effects`, `scene::{add_car_light, clip_asm,
+// cross_product3, face_faces_away, light_dot, matrix3, place_object_points, project_point,
+// reflection_coordinates, reflect_vector, rotate_point, vector3}`) and of `sparse`
+// (`hud::{disc_vertex, draw_disc, draw_needle}`): the blocks are x87 arithmetic over the cells
+// given, records laid over the test's buffers (`Arg::view`), no owner, store or other static. A new
+// caller whose Rust version reaches a static needs a locked variant, as
+// `block_vectors::sparse_locked`.
 
 fn run_differential<const N: usize>(test: Differential<N>, mut file: Recorder) {
     // No lock ("The lock" above).
@@ -508,7 +505,7 @@ pub enum Operand {
     },
 }
 
-/// An operand as the Rust version gets it.
+/// An operand as the Rust code gets it.
 pub enum Arg<'a> {
     Buffer(&'a [Cell<u32>]),
     Value(usize),
@@ -549,7 +546,7 @@ impl<'a> Arg<'a> {
 }
 
 /// A block of a sparse test: its operands, how many float ulps apart a result may be (a
-/// transcendental's: libm's, not the x87's) and the Rust version.
+/// transcendental's: libm's, not the x87's) and the Rust code.
 pub struct Block {
     pub name: &'static str,
     pub operands: Vec<Operand>,
@@ -767,9 +764,9 @@ fn run_sparse(mut file: Recorder, blocks: &[Block], cases: u32, seed: u64, words
 
 // ---- blocks over the race block's places (lane t5rest) ----
 
-/// Blocks that read and write places of the race block (by their offsets from its start) and
-/// of buffers of the test's own, the Rust version run on the typed stores: the original's
-/// results recorded once, replayed against `plain`.
+/// Blocks that read and write places of the race block (by their offsets from its start) and of
+/// buffers of the test's own, the Rust code run on the typed stores: the 1999 results recorded
+/// once, replayed against `plain`.
 pub mod block_vectors {
     use super::{CONTROL_WORDS, Recorder, Restore, Rng, close_float, put_t80};
     use crate::math::x87::{control_word, set_control_word};
@@ -783,8 +780,8 @@ pub mod block_vectors {
             reads: &'static [(usize, In)],
             writes: &'static [(usize, Out)],
         },
-        /// A buffer of at least `len` bytes, for a record the Rust version holds in its own
-        /// layout (`sound::asm_layout`): it reads the whole 1999 extent from the buffer.
+        /// A buffer of at least `len` bytes, for a record the Rust code holds in its own layout
+        /// (`sound::asm_layout`): it reads the whole 1999 extent from the buffer.
         Sized {
             len: usize,
             reads: &'static [(usize, In)],
@@ -797,7 +794,7 @@ pub mod block_vectors {
             reads: &'static [(usize, In)],
             writes: &'static [(usize, Out)],
         },
-        /// The tail of the image that held the race's buffers, as `RaceBlock`.
+        /// A buffer of the test's own standing for the race's buffers, as `RaceBlock`.
         Buffers {
             reads: &'static [(usize, In)],
             writes: &'static [(usize, Out)],
@@ -819,7 +816,7 @@ pub mod block_vectors {
     }
 
     /// A block: its operands, how many float ulps apart a result may be (a transcendental's:
-    /// libm's, not the x87's) and the Rust version, given the operands' values.
+    /// libm's, not the x87's) and the Rust code, given the operands' values.
     pub struct Block {
         pub name: &'static str,
         pub operands: Vec<Operand>,
@@ -832,8 +829,8 @@ pub mod block_vectors {
     /// (`physics::store::model_in_test_buffer`, `physics::load_car_specs`' records).
     pub const LAID_ROOM: usize = 0x600;
 
-    /// The memory at a buffer operand's value (the buffer's address) as the Rust versions'
-    /// test closures reach it: the one place the tests turn such a value into a pointer.
+    /// The memory at a buffer operand's value (the buffer's address) as the Rust codes' test
+    /// closures reach it: the one place the tests turn such a value into a pointer.
     pub fn at(address: usize) -> *mut u8 {
         assert!(address >= 0x1000, "no test buffer is at {address:#x}");
         address as *mut u8
@@ -891,10 +888,10 @@ pub mod block_vectors {
         }
     }
 
-    /// Replays the vectors `name`: each block `cases` times at every control word on seeded
-    /// random inputs at the places it reads, the Rust version compared at every place it
-    /// writes with the original's results (floats within the block's ulps or both NaN,
-    /// whole numbers and 80-bit values bit for bit, the status words' condition bits).
+    /// Replays the vectors `name`: each block `cases` times at every control word on seeded random
+    /// inputs at the places it reads, the Rust code compared at every place it writes with the
+    /// recorded results (floats within the block's ulps or both NaN, whole numbers and 80-bit
+    /// values bit for bit, the status words' condition bits).
     pub fn sparse(name: &str, blocks: &[Block], cases: u32, seed: u64) {
         sparse_at(name, blocks, cases, seed, &CONTROL_WORDS);
     }

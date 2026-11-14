@@ -1,8 +1,7 @@
-//! `physics::grade_or_reset` (0x43BA8E): with `driver_kind` 2, `physics::reset_current_car`
-//! (the work copy's grades reset); else `physics::rate_current_car` (its damage made into
-//! grades and failures).
+//! With `driver_kind` 2, `reset_grades_at` (the work copy's grades reset); otherwise
+//! `rate_damage` (its damage made into grades and failures).
 //!
-//! Caller: `physics::set_handling` (0x43EB5D), first.
+//! Caller: `physics::set_handling`, first.
 
 use crate::physics::rate_damage::rate_damage;
 use crate::physics::reset_car_grades::reset_grades_at;

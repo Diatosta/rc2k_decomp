@@ -1,15 +1,13 @@
-//! `effects::draw_turned_sprite` (0x4CBD12): a square sprite at a place already in the
-//! view's frame (st(0) x, st(1) y, st(2) z, rounded into the draw work's place), turned by
-//! the angle. Unless the depth is at or below the nearest depth (a signed compare of the
-//! bits): the four vertices' colour | 0xFFFFFF, texture places from the sprite's four (u, v)
-//! pairs, depth times the depth scale; half the side (the size times the view scale / depth)
-//! and its turned corners (the sine and cosine tables at the angle); the corners around the
-//! projected place; `effects::clip_quad` on the polygon vertices, and unless all is outside
-//! `scene::draw_fan` and the polygon's vertex count 4.
+//! `effects::draw_turned_sprite`: a square sprite at a place already in the view's frame (x, y, z,
+//! rounded into the draw work's place), turned by the angle. Unless the depth is at or below the
+//! nearest depth (a signed compare of the bits): the four vertices' colour | 0xFFFFFF, texture
+//! places from the sprite's four (u, v) pairs, depth times the depth scale; half the side (the size
+//! times the view scale / depth) and its turned corners (the sine and cosine tables at the angle);
+//! the corners around the projected place; `effects::clip_quad` on the polygon vertices, and unless
+//! all is outside `scene::draw_fan` and the polygon's vertex count 4.
 //!
-//! Callers: `effects::draw_glow` and its two siblings. Refuses an angle of
-//! 0x1000 or more (the tables' size) and null marks settings (`clip_quad`'s refusal),
-//! before anything.
+//! Refuses an angle of 0x1000 or more (the tables' size) and null marks settings (`clip_quad`'s
+//! refusal), before anything.
 
 use crate::effects::clip_quad::{clip_quad, draw_fan};
 use crate::errors::{BadInput, Refused};
@@ -19,7 +17,7 @@ use crate::scene::matrix3::rounded_value;
 const ANGLES: u32 = 0x1000;
 
 /// `angle` turns the sprite, `colour` has its low three bytes made 0xFF, `size` is the
-/// side, `place` the place (st(0) .. st(2)), `engine_tables` the sine tables it turns by.
+/// side, `place` the place (x, y, z), `engine_tables` the sine tables it turns by.
 #[allow(
     clippy::too_many_arguments,
     reason = "the original's registers, the sine tables and the owners"
@@ -79,13 +77,13 @@ pub fn draw_turned_sprite(
     Ok(())
 }
 
-/// The turned sprite's texture places (IDA 0x93A21A .. 0x93A23A).
+/// The turned sprite's texture places.
 pub struct SpriteUv {
-    /// 0x93A21A: `flt_93A21A` .. `flt_93A236`: four (u, v) pairs, one per corner
+    /// Four (u, v) pairs, one per corner
     pub uv: [f32; 8],
 }
 
-/// SpriteUv's first values.
+/// The turned sprite's first texture places.
 pub static SPRITE_UV: SpriteUv = SpriteUv {
     uv: [0.0, 0.0, 0.9999, 0.0, 0.9999, 0.9999, 0.0, 0.9999],
 };

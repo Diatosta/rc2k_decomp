@@ -1,6 +1,6 @@
-//! `make_masks`' rings (IDA): a shape's ring of `n` quads, each from two
-//! entries of a corner table (here the table's number: 0x18 bytes an entry), spanned into the mask's
-//! runs; its angles kept in a second table.
+//! `make_masks`' rings: a shape's ring of `n` quads, each from two entries of a corner table (here
+//! the table's number: 0x18 bytes an entry), spanned into the mask's runs; its angles kept in a
+//! second table.
 
 use crate::effects::mask_store::Masks;
 use crate::effects::mask_vars::Shape;
@@ -12,11 +12,11 @@ use crate::session::PlainBytes;
 use crate::math::x87;
 use crate::session::{read_bits, write_bits};
 
-/// The ring's floats are `MASKS.ring_*` (0x833D82 the two angles' ends .. 0x833DAE the step).
+/// The ring's floats are `MASKS.ring_*` (from the two angles' ends to the step).
 pub const MOST_QUADS: u32 = 0x80;
 const ENTRY: u32 = 0x18;
 
-/// The corner table in use (`g_marksRingCorners` holds its number, 0 for A and 1 for B).
+/// The corner table in use (its number is held: 0 for A and 1 for B).
 fn ring_corners(masks: &Masks) -> Result<&PlainBytes<3096>, BadInput> {
     crate::effects::corners::tables(masks)
         .get(masks.vars.ring_corners.get() as usize)
@@ -47,11 +47,11 @@ fn quad(corners: &PlainBytes<3096>, k: u32) -> Result<[u32; 8], Refused> {
     })
 }
 
-/// `effects::span_ring_quad` (0x4BE592; it takes the quad's number from its
-/// caller's stack): the two angles' sines and minus cosines into 0x833D9A .., the quad they
-/// give by the shape's radii (+0x1C, +0x20) and middle (+0xC, +0x10) into
-/// `g_marksRingQuad`, then all eight of its floats replaced by corner entries k and k + 1
-/// (section 16), and that spanned (`span_quad`). `s` the shape.
+/// `effects::span_ring_quad`: the two angles' sines and minus cosines into the ring's
+/// floats, the quad they give by the shape's radii (+0x1C, +0x20) and middle (+0xC, +0x10)
+/// into the ring's quad, then all eight of its floats overwritten by corner entries k and
+/// k + 1 (so the computed quad is lost: a slip kept as is), and that spanned (`span_quad`).
+/// `s` the shape.
 fn span_ring_quad(
     masks: &Masks,
     s: &Shape,
@@ -94,13 +94,12 @@ fn span_ring_quad(
     Ok(())
 }
 
-/// `effects::span_ring` (0x4BE469): shape `s`'s ring (+4 quads): a run counted, the runs'
-/// place into +8; the angles' ends (+0x14, +0x18 times 0.0175), their half and middle; for
-/// each quad its two angles (the middle less the half times the cosine of the step's
-/// angle, and of the next), sines and cosines into the table `angles` (then the angles
-/// over the sines), and `span_ring_quad`; the angle on by pi over the count. Refuses a
-/// count of 0 or less or past 0x80 (the original's loop tests after counting), and runs or
-/// spans past their room, before writing.
+/// `effects::span_ring`: shape `s`'s ring (+4 quads): a run counted, the runs' place into +8;
+/// the angles' ends (+0x14, +0x18 times 0.0175), their half and middle; for each quad its two
+/// angles (the middle less the half times the cosine of the step's angle, and of the next),
+/// sines and cosines into the table `angles` (then the angles over the sines), and
+/// `span_ring_quad`; the angle on by pi over the count. Refuses a count of 0 or less or past
+/// 0x80, and runs or spans past their room, before writing.
 pub fn span_ring(
     masks: &Masks,
     s: &Shape,

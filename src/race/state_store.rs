@@ -1,7 +1,7 @@
-//! The race's settings and results as the front end keeps them, out of RAL.EXE's image (IDA
-//! 0x75ACCC .. 0x75B340; phase 7, typed): the mode, the stage, the direction, the two
-//! players' settings (`RaceCar`) and the two cars' results (`RaceResult`). `#[repr(C)]`
-//! structs of atomic cells with the image's layout, one static. Ends in unreferenced bytes up to the damage model.
+//! The race's settings and results as the front end keeps them: the mode, the stage, the
+//! direction, the two players' settings (`RaceCar`) and the two cars' results (`RaceResult`).
+//! `#[repr(C)]` structs of atomic cells, one static. Ends in unreferenced bytes up to the damage
+//! model.
 
 use crate::session::{Bytes, Dword, GameThread, PlainBytes, PlainDword, PlainFloat};
 
@@ -21,15 +21,14 @@ const fn sparse<const N: usize>(runs: &[(usize, &[u8])]) -> [u8; N] {
     out
 }
 
-/// The binding of `RaceCar::bindings` no word of the player's record goes to: the ninth
-/// device binding's (key byte 0x5C), left as the store's start value (0) and read as it is.
+/// The binding of `RaceCar::bindings` no word of the player's record goes to: the ninth device
+/// binding's (key byte 0x5C), left as the store's start value (0) and read as it is.
 pub const UNSET_BINDING: usize = 9;
 
-/// The first part of one player's settings as the race variables keep them (IDA 0x75AD1C and
-/// 0x75AE88, 0x16C bytes each, the controls (`PlayerControls`) the last 0x6C of them): copies of
-/// fields of the player's record (`Player`), at the record's order less the words the race
-/// does not take. Only the game's thread reaches it. Field docs name the record's field and
-/// offset.
+/// The first part of one player's settings as the race variables keep them (0x16C bytes each, the
+/// controls (`PlayerControls`) the last 0x6C of them): copies of fields of the player's record
+/// (`Player`), in the record's order less the words the race does not take. Only the game's
+/// thread reaches it. Field docs name the record's field and offset.
 #[derive(rc2k_derive::Cells)]
 pub struct RaceCarOwn {
     /// `Player.tyre` (+0x10C).
@@ -44,8 +43,8 @@ pub struct RaceCarOwn {
     pub steering_sensitivity: PlainDword,
     /// `Player.gear_ratio` (+0x120).
     pub gear_ratio: PlainDword,
-    /// `Player.damage` words +0xD4 .. +0x100 and +0x108 (+0x104 goes into
-    /// `wear[9]`, whose own +0x1A0 follows it).
+    /// `Player.damage` words +0xD4 .. +0x100 and +0x108 (+0x104 goes into `wear[9]`, whose own
+    /// +0x1A0 follows it).
     pub damage: [PlainDword; 13],
     /// `Player.parts_wear` and `tyre_wear` (+0x17C .. +0x208, one word each).
     pub wear: [PlainDword; 36],
@@ -77,8 +76,8 @@ pub struct RaceCarOwn {
 
 /// The controls of one player's settings (the last 0x6C bytes of the record, from
 /// `Player.controller`): the input thread reads them to set a device up and makes the second
-/// player's controller none when it is the first's (`input::device_command`), so they are
-/// atomic cells beside the game thread's own part.
+/// player's controller none when it is the first's (`input::device_command`), so they are atomic
+/// cells beside the game thread's own part.
 #[cfg_attr(test, repr(C))]
 #[derive(rc2k_derive::Cells)]
 pub struct PlayerControls {
@@ -101,26 +100,23 @@ pub struct PlayerControls {
     /// The record's +0x4C: not taken.
     pub _unused_4c: Dword,
     /// The twelve bindings' controller words (`input::set_up_device`, by
-    /// `rc2k_core::input::devices::DEVICE_BINDINGS`): `Player.bindings`' eleven words go to
-    /// all but `UNSET_BINDING` (`race::single_rally`, `net::take_player_settings`, as the
-    /// original).
+    /// `rc2k_core::input::devices::DEVICE_BINDINGS`): `Player.bindings`' eleven words go to all but
+    /// `UNSET_BINDING` (`race::single_rally`, `net::take_player_settings`).
     pub bindings: [Dword; 12],
     /// `Player.keys` (+0x1C .. +0x27): the 12 bytes of the controls.
     pub keys: Bytes<12>,
 }
 
 impl PlayerControls {
-    /// The binding words the player's record's eleven go to, in order: all but
-    /// `UNSET_BINDING`.
+    /// The binding words the player's record's eleven go to, in order: all but `UNSET_BINDING`.
     pub fn recorded_bindings(&self) -> impl Iterator<Item = &Dword> {
         let (head, tail) = self.bindings.split_at(UNSET_BINDING);
         head.iter().chain(&tail[1..])
     }
 }
 
-/// One player's settings as the race variables keep them (IDA 0x75AD1C and 0x75AE88, 0x16C
-/// bytes each): the game thread's own fields and the controls both threads reach. The own
-/// fields read through the record (`car.tyre`).
+/// One player's settings as the race variables keep them: the game thread's own fields and the
+/// controls both threads reach. The own fields read through the record (`car.tyre`).
 #[derive(rc2k_derive::Cells)]
 pub struct RaceCar {
     /// The fields only the game's thread reaches.
@@ -136,81 +132,84 @@ impl core::ops::Deref for RaceCar {
     }
 }
 
-/// A car's result as the race leaves it (IDA 0x75B01C and 0x75B08C, 0x70 bytes each).
+/// A car's result as the race leaves it.
 #[repr(C)]
 #[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
 pub struct RaceResult {
-    /// The car's time (`RaceState.results.results[0].time` / `RaceState.results.results[1].time`).
+    /// The car's time.
     pub time: PlainDword,
-    /// One more word (`RaceState.results.results[0].word` / `RaceState.results.results[1].word`).
+    /// One more word.
     pub word: PlainDword,
-    /// The seconds, a float (`RaceState.results.results[0].secs` / `RaceState.results.results[1].secs`).
+    /// The seconds, a float.
     pub secs: PlainFloat,
-    /// The result (`g_raceResult` / `g_raceResult2`): -1 none, -2 left.
+    /// The result: -1 none, -2 left.
     pub result: PlainDword,
-    /// The 0x40 bytes of data (`RaceState.results.results[0].data` / `RaceState.results.results[1].data`; the best line's text).
+    /// The 0x40 bytes of data (the best line's text).
     pub data: PlainBytes<64>,
     /// The car's eight impact marks, from and back to `Player::impact_marks`.
     pub impact_marks: [PlainDword; 8],
 }
 
-/// The first twenty words of the race's settings (IDA 0x75ACCC ..): the mode, the stage, the
-/// direction and the options, which only the game's thread reaches.
+/// The first twenty words of the race's settings: the mode, the stage, the direction and the
+/// options, which only the game's thread reaches.
 #[derive(rc2k_derive::Cells)]
 pub struct SettingsHead {
-    /// `g_newSimulationUnlocked`: 1 in the A8 game (`menu::apply_cheats`).
+    /// 1 in the A8 game, the new simulation unlocked (`menu::apply_cheats`).
     pub a8_game: PlainDword,
-    /// `RaceState.settings.rivals`: a copy of the standings summary (`ChampView.summary`, the game held its
-    /// address): 1 while the summary (`saves::best_times::SUMMARY`) is taken, or 0.
+    /// A copy of the standings summary (`ChampView.summary`): 1 while the summary
+    /// (`saves::best_times::SUMMARY`) is taken, or 0.
     pub rivals: PlainDword,
-    /// `RaceState.settings.stage`: the stage chosen.
+    /// The stage chosen.
     pub stage: PlainDword,
-    /// `RaceState.settings.run_kind`: the run's kind argument.
+    /// The run's kind argument.
     pub run_kind: PlainDword,
-    /// `RaceState.settings.no_replay`: 1 when the race is not an event's and has more than one player.
+    /// 1 when the race is not an event's and has more than one
+    /// player.
     pub no_replay: PlainDword,
-    /// `RaceState.settings.race_mode`: 1, or 2 in the events' one-car modes.
+    /// 1, or 2 in the events' one-car modes.
     pub race_mode: PlainDword,
-    /// `RaceState.settings.kept`: a copy of `ScreenFlow.kept`, put back after the race.
+    /// A copy of `ScreenFlow.kept`, put back after the race.
     pub kept: PlainDword,
-    /// `RaceState.settings.car_kind_current` (Shaun's `g_raceCarKinds`): the current player's record word at +8.
+    /// The current player's car kind (Shaun's `race_car_kinds`): the record word at +8.
     pub car_kind_current: PlainDword,
-    /// `RaceState.settings.car_kind_first`: player 1's record word at +8.
+    /// Player 1's record word at +8.
     pub car_kind_first: PlainDword,
-    /// `RaceState.settings.direction`: the stage's direction (the selected group's copy).
+    /// The stage's direction (the selected group's copy).
     pub direction: PlainDword,
-    /// `RaceState.settings.unk_75acf4`: no IDA xref and no Rust use; 0 at start.
+    /// Never used; 0 at start.
     pub unk_75acf4: PlainDword,
-    /// `RaceState.settings.track_1c`: the track entry's +0x1C.
+    /// The track entry's +0x1C.
     pub track_1c: PlainDword,
-    /// `RaceState.settings.track_20`: the track entry's +0x20.
+    /// The track entry's +0x20.
     pub track_20: PlainDword,
-    /// `RaceState.settings.lens_flare`: the lens flare option, copied from `OptionWork.lens_flare`.
+    /// The lens flare option, copied from `OptionWork.lens_flare`.
     pub lens_flare: PlainDword,
-    /// `RaceState.settings.unused_percent_a`: read only in dead code outside any function (0x470060 .. 0x4700A1, beside the options toggles); 100 (0x64) at start.
+    /// Unused; 100 (0x64) at start.
     pub unused_percent_a: PlainDword,
-    /// `RaceState.settings.unused_percent_b`: read only in dead code outside any function (0x4700C0 ..); 100 (0x64) at start.
+    /// Unused; 100 (0x64) at start.
     pub unused_percent_b: PlainDword,
-    /// `RaceState.settings.reflections`: the reflections option (graphics page), copied from `OptionWork.reflections`.
+    /// The reflections option (graphics page), copied from
+    /// `OptionWork.reflections`.
     pub reflections: PlainDword,
-    /// `RaceState.settings.car_shadows`: the car shadows option, copied from `OptionWork.car_shadows`.
+    /// The car shadows option, copied from
+    /// `OptionWork.car_shadows`.
     pub car_shadows: PlainDword,
-    /// `RaceState.settings.car_detail`: the car detail option, copied from `OptionWork.car_detail`.
+    /// The car detail option, copied from `OptionWork.car_detail`.
     pub car_detail: PlainDword,
-    /// `RaceState.settings.headlights`: the headlights option (all cars' lamps), copied from `OptionWork.headlights`.
+    /// The headlights option (all cars' lamps), copied from
+    /// `OptionWork.headlights`.
     pub headlights: PlainDword,
 }
 
-/// The race's settings as the front end keeps them (IDA 0x75ACCC .. 0x75AFF4; "Graham's"
-/// variables, which `race::copy_settings_in` copies to the race's ("Shaun's")): the mode,
-/// the stage, the direction, the two players' settings. The head's fields read through the
-/// record (`settings.stage`).
+/// The race's settings as the front end keeps them ("Graham's" variables, which
+/// `race::copy_settings_in` copies to the race's ("Shaun's")): the mode, the stage, the direction,
+/// the two players' settings. The head's fields read through the record (`settings.stage`).
 #[derive(rc2k_derive::Cells)]
 pub struct RaceSettings {
     /// The mode, the stage, the direction and the options.
     pub inline: GameThread<SettingsHead>,
-    /// The two players' settings: [0] the current player's (the "second set", 0x75AD1C),
-    /// [1] player 1's (the "first set", 0x75AE88).
+    /// The two players' settings: [0] the current player's (the "second set"), [1] player 1's (the
+    /// "first set").
     pub cars: [RaceCar; 2],
 }
 
@@ -221,54 +220,57 @@ impl core::ops::Deref for RaceSettings {
     }
 }
 
-/// The race's results (IDA 0x75AFF4 .. 0x75B10C).
+/// The race's results.
 #[derive(rc2k_derive::Cells)]
 pub struct RaceResults {
-    /// `RaceState.results.race_stage`: the arcade race's stage (Shaun's `RaceVars.race_stage`).
+    /// The arcade race's stage (Shaun's `RaceVars.race_stage`).
     pub race_stage: PlainDword,
-    /// `RaceState.results.race_level`: the arcade race's level (Shaun's `RaceVars.race_level`).
+    /// The arcade race's level (Shaun's `RaceVars.race_level`).
     pub race_level: PlainDword,
-    /// `RaceState.results.figure_ffc`: a figure of the race (the record's +0x654 side; `race::race_shell`).
+    /// A figure of the race (the record's +0x654 side;
+    /// `race::race_shell`).
     pub figure_ffc: PlainDword,
-    /// `RaceState.results.figure_000`: a figure of the race (Shaun's `RaceTables.start_place`).
+    /// A figure of the race (Shaun's `RaceTables.start_place`).
     pub figure_000: PlainDword,
-    /// `RaceState.results.service_spent_current`: the current player's record +0x288.
+    /// The current player's record +0x288.
     pub service_spent_current: PlainDword,
-    /// `RaceState.results.service_spent_first`: player 1's record +0x288.
+    /// Player 1's record +0x288.
     pub service_spent_first: PlainDword,
-    /// `RaceState.results.hud_bits_current`: the current player's record +0x284 (the HUD's bits); goes back to it.
+    /// The current player's record +0x284 (the HUD's bits);
+    /// goes back to it.
     pub hud_bits_current: PlainDword,
-    /// `RaceState.results.hud_bits_first`: player 1's record +0x284.
+    /// Player 1's record +0x284.
     pub hud_bits_first: PlainDword,
-    /// `RaceState.results.flags_current`: the current player's record +0x278.
+    /// The current player's record +0x278.
     pub flags_current: PlainDword,
-    /// `RaceState.results.flags_first`: player 1's record +0x278.
+    /// Player 1's record +0x278.
     pub flags_first: PlainDword,
-    /// The two cars' results: [0] the current car's (0x75B01C), [1] the first car's (0x75B08C).
+    /// The two cars' results: [0] the current car's, [1] the first car's.
     pub results: [RaceResult; 2],
-    /// `RaceState.results.stage_index`: the arcade race's index into the stage table (`drive::finish_race`).
+    /// The arcade race's index into the stage table
+    /// (`drive::finish_race`).
     pub stage_index: PlainDword,
-    /// `RaceState.results.finish_player`: the finishing player (+0xAA8 of the car block).
+    /// The finishing player (+0xAA8 of the car block).
     pub finish_player: PlainDword,
-    /// `RaceState.results.finish_kind`: the cars' kind (into `g_raceCarKinds`).
+    /// The cars' kind (into `race_car_kinds`).
     pub finish_kind: PlainDword,
-    /// `RaceState.results.finished`: 1 at the championship's finish / the arcade final.
+    /// 1 at the championship's finish / the arcade final.
     pub finished: PlainDword,
 }
 
 /// The race's settings and results.
 #[derive(rc2k_derive::Cells)]
 pub struct RaceState {
-    /// The race's settings as the front end keeps them (IDA 0x75ACCC .. 0x75AFF4; "Graham's"
+    /// The race's settings as the front end keeps them ("Graham's" variables).
     pub settings: RaceSettings,
-    /// The race's results (IDA 0x75AFF4 .. 0x75B10C).
+    /// The race's results.
     pub results: GameThread<RaceResults>,
-    /// Unreferenced bytes (IDA 0X75B10C .. 0X75B340).
+    /// Unreferenced bytes.
     pub _gap_75b10c: Bytes<564>,
 }
 
 impl RaceState {
-    /// First values the image's.
+    /// The starting values.
     pub const fn new() -> Self {
         RaceState {
             settings: RaceSettings {

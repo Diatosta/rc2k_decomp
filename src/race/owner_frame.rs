@@ -1,4 +1,6 @@
-//! The race owner's frame group (`race::owner::Race::frame`): the frame drawn: frame work, matrices, view vars, scratch, batches, panel, overlay, text, shadows and skids, sound spots, map.
+//! The race owner's frame group (`race::owner::Race::frame`): the frame drawn: frame work,
+//! matrices, view vars, scratch, batches, panel, overlay, text, shadows and skids, sound spots,
+//! map.
 
 use crate::race::clock_ticks_store::ClockTicks;
 use crate::race::draw_batches_store::DrawBatches;
@@ -16,7 +18,7 @@ use crate::race::sound_spots_store::SoundSpotBlock;
 use crate::race::text_state_store::TextState;
 use crate::session::{DrawShared, GameThread};
 
-/// The race's frame state (step 11, owned state: the stores move in as fields). The view
+/// The race's frame state. The view
 /// variables, the panel and the overlay are fields of `view_and_records` and
 /// `panel_and_overlay` (`view_vars_store`, `panel_store`, `overlay_store` read them there).
 pub struct Frame {
@@ -26,8 +28,7 @@ pub struct Frame {
     /// One copy, lent to the drawing parts (`workers::DrawReads`): no part writes it (the held
     /// columns are each part's own, `scene::view_matrices::Held`, merged in the parts' order).
     pub matrices: DrawShared<SceneMatrices>,
-    /// One copy, lent to the drawing parts (`workers::DrawReads`): the drawing only reads it
-    /// (frame plan F4).
+    /// One copy, lent to the drawing parts (`workers::DrawReads`): the drawing only reads it.
     pub shadow_skids: DrawShared<ShadowSkids>,
     /// One copy, lent to the drawing parts (`workers::DrawReads`): the mirror's window and the
     /// polygon drawing read it; the hud and the race write it on the game's thread.

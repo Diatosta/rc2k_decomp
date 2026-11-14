@@ -1,6 +1,6 @@
-//! `sound::race_turn_if` (0x421BCF): `sound::race_turn` while the race's sounds are on.
+//! `sound::race_turn_if`: `sound::race_turn` while the race's sounds are on.
 //!
-//! Only with `dword_6218F0` not 0. One caller, `sound::race_sound_tick`.
+//! One caller, `sound::race_sound_tick`.
 
 use crate::errors::Refused;
 

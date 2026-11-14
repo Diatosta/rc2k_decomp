@@ -81,8 +81,10 @@ impl FrameState {
     }
 }
 
-/// The kinds' values and quads, the emitters and the particles' colours and tuning.
-/// The three quads are the three kind sets: the overlays' (`effects::draw_overlays`, `kind_values::FIRST`), the car's ground shadow's (`effects::draw_shadow`) and the plane's (`effects::draw_plane`); `overlay_extras` / `shadow_extra` hold the lift of the first two along the up vector.
+/// The kinds' values and quads, the emitters and the particles' colours and tuning. The three quads
+/// are the three kind sets: the overlays' (`effects::draw_overlays`, `kind_values::first`), the
+/// car's ground shadow's (`effects::draw_shadow`) and the plane's (`effects::draw_plane`);
+/// `overlay_extras` / `shadow_extra` hold the lift of the first two along the up vector.
 pub struct Kinds {
     pub marks_kind: MarksKind,
     pub overlay_quad: QuadWork,

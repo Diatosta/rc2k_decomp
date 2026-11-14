@@ -1,53 +1,52 @@
 //! The 3D cards' and the Direct3D device's state (`gfx::find_3d_cards`, `platform_3d`,
-//! `d3d::set_render_state`, `d3d::set_texture`, the 3D switches of `var\ral.cfg`).
-//! `#[repr(C)]` struct of plain cells (the game's thread alone reaches it: `D3d::cards`),
-//! first values the image's (`tests`); the settings table names the switches by IDA address.
+//! `d3d::set_render_state`, `d3d::set_texture`, the 3D switches of `var\ral.cfg`). A `#[repr(C)]`
+//! struct of plain cells (the game's thread alone reaches it: `D3d::cards`), first values the
+//! image's (`tests`).
 
 use crate::session::{PlainBytes, PlainDword};
 
-/// The 3D cards, the device's render states and the 3D switches (IDA 0x5AB4B4 ..).
+/// The 3D cards, the device's render states and the 3D switches.
 #[derive(rc2k_derive::Cells)]
 pub struct Cards3d {
-    /// 0x5AB4B4: `g_secondaryCardGuid`: the secondary card's GUID.
+    /// The secondary card's GUID.
     pub secondary_card_guid: PlainBytes<16>,
-    /// 0x5AB678: `g_d3dDevice`: the Direct3D device (a pointer).
+    /// The Direct3D device (a pointer).
     pub d3d_device: PlainDword,
-    /// 0x5AB6BC: `dword_5AB6BC`: each render state's last value (`d3d::set_render_state`); the
-    /// drawing parts keep it in their own caches now (`d3d::render_cache`), this is the image's
-    /// place for it.
+    /// Each render state's last value (`d3d::set_render_state`); the drawing parts keep it in
+    /// their own caches now (`d3d::render_cache`), this is the image's place for it.
     pub _kept_states: [PlainDword; 160],
-    /// 0x5AB93C: `g_currentTexture`: the texture set last (`d3d::set_texture`); in
-    /// `d3d::render_cache` likewise.
+    /// The texture set last (`d3d::set_texture`); in `d3d::render_cache` likewise.
     pub _current_texture: PlainDword,
-    /// 0x5AB94C: `g_no3dSearch`: not 0, no search for 3D cards (`forceno3dcard`).
+    /// Not 0, no search for 3D cards (`forceno3dcard`).
     pub no_search: PlainDword,
-    /// 0x5AB950: `dword_5AB950`: no 3D primary card (`ignoreprimary`).
+    /// No 3D primary card (`ignoreprimary`).
     pub not_primary: PlainDword,
-    /// 0x5AB954: `dword_5AB954`: `ignoresecondary`.
+    /// The `ignoresecondary` setting.
     pub ignore_secondary: PlainDword,
-    /// 0x5AB958: `dword_5AB958`: `forcedx5`.
+    /// The `forcedx5` setting.
     pub force_dx5: PlainDword,
-    /// 0x5AB95C: `dword_5AB95C`: `agpmode`.
+    /// The `agpmode` setting.
     pub agp_mode: PlainDword,
-    /// 0x5AB960: `dword_5AB960`: the 3D scene is begun.
+    /// The 3D scene is begun.
     pub in_scene: PlainDword,
-    /// 0x5AB964: `dword_5AB964`: the fade's start (`scene::draw_polygon`); now each view's (`scene::polygon_work::PolygonWork`); unused.
+    /// The fade's start (`scene::draw_polygon`). Unused: each view has its own in
+    /// `scene::polygon_work::PolygonWork`.
     pub fade_from: PlainDword,
-    /// 0x5AB97C: `dword_5AB97C`: `force3dtrans`.
+    /// The `force3dtrans` setting.
     pub force_trans: PlainDword,
-    /// 0x5AB980: `dword_5AB980`: `force3dshadow`.
+    /// The `force3dshadow` setting.
     pub force_shadow: PlainDword,
-    /// 0x5AB984: `dword_5AB984`: `force3dalpha`.
+    /// The `force3dalpha` setting.
     pub force_alpha: PlainDword,
-    /// 0x5AB988: `dword_5AB988`: `force3dfogging`.
+    /// The `force3dfogging` setting.
     pub force_fogging: PlainDword,
-    /// 0x5AB98C: `dword_5AB98C` ..: the switches the graphics options read, set by `gfx::mark_3d_modes`.
+    /// The switches the graphics options read, set by `gfx::mark_3d_modes`.
     pub mode_switches: [PlainDword; 5],
-    /// 0x5AB9A0: `dword_5AB9A0`: render state 0x1A's value.
+    /// Render state 0x1A's value.
     pub fog_state: PlainDword,
-    /// 0x5AB9A4: `dword_5AB9A4`: the texture figure (`gfx::screen_mode_choices`).
+    /// The texture figure (`gfx::screen_mode_choices`).
     pub mips: PlainDword,
-    /// 0x5AB9A8: `dword_5AB9A8`, `dword_5AB9AC`: the last two switches `gfx::mark_3d_modes` sets.
+    /// The last two switches `gfx::mark_3d_modes` sets.
     pub mode_switches_end: [PlainDword; 2],
 }
 

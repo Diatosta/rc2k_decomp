@@ -1,23 +1,19 @@
-//! `scene::draw_object_faces` (0x450A4B): draws the faces of an object that were listed
-//! for drawing.
+//! `scene::draw_object_faces`: draws the faces of an object that were listed for drawing.
 //!
 //! The list: the view's listed faces, entries of 0x10 bytes: +0 the face's number within the
-//! object, +0xC how see-through it is (to the object's `see_through`). For each: the number
-//! to the view's face number; the face is entry number + the object's first face of the faces
-//! table; from the face's head the first texture (the word +4 plus the object's texture
-//! base, with the top bit set), its kind (byte +6) and byte +0xB; the polygon's colour is
-//! white, or with a byte +0xA not 0 that byte in all three places; `scene::draw_object_face`;
-//! the colour white again. At the end a clip work cell is 0. One
-//! //! caller, `scene::draw_object`. Refuses a face's number past the table and a face that is not
-//! there.
+//! object, +0xC how see-through it is (to the object's `see_through`). For each: the number to
+//! the view's face number; the face is entry number + the object's first face of the faces
+//! table; from the face's head the first texture (the word +4 plus the object's texture base,
+//! with the top bit set), its kind (byte +6) and byte +0xB; the polygon's colour is white, or
+//! with a byte +0xA not 0 that byte in all three places; `scene::draw_object_face`; the colour
+//! white again. At the end a clip work cell is 0. One caller, `scene::draw_object`. Refuses a
+//! face's number past the table and a face that is not there.
 
 use crate::errors::{BadInput, Refused};
 
 // ---- game data ----
 
 const FACES: u32 = 0xC000;
-
-// ---- Rust version ----
 
 pub fn draw_object_faces(
     faces_table: &crate::scene::faces_store::Faces,
@@ -31,7 +27,7 @@ pub fn draw_object_faces(
         return Ok(());
     }
     let first: u32 = object.first_face.get();
-    // A face not there ends the game (a refusal), as the original went wrong on it.
+    // A face not there is a refusal.
     for listed in list {
         let number = listed[0].wrapping_add(first);
         if number >= FACES {

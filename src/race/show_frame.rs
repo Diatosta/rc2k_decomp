@@ -1,17 +1,15 @@
-//! `race::show_frame` (0x4547AE): the race frame's end, after its 3D scene: the frame locked, the
-//! race's sound tick, the credits rolled while `in_credits` is set, the frame rate drawn
-//! (`race::draw_frame_rate`), the frame unlocked and shown; the sound tick, the clock restarted
-//! (`scene::restart_clock`) and its time less `clock_base` into `frame_time`, the frame rate
-//! measured (`race::measure_frame_rate`); carry clear.
+//! `race::show_frame`: the race frame's end, after its 3D scene. The frame is locked, the race's
+//! sound tick runs, the credits roll while `in_credits` is set, the frame rate is drawn
+//! (`race::draw_frame_rate`), and the frame is unlocked and shown. Then the sound tick runs, the
+//! clock restarts (`scene::restart_clock`) and its time less `clock_base` goes into
+//! `frame_time`, and the frame rate is measured (`race::measure_frame_rate`).
 //!
-//! Caller: `drive::race_frame`. Its calls are the Rust versions: `scene::lock_frame`,
-//! `sound::race_sound_tick`, `race::roll_credits`, `race::draw_frame_rate`, `scene::unlock_frame`,
-//! `scene::present_frame`, `scene::restart_clock`, `race::measure_frame_rate`.
+//! Called by `drive::race_frame`.
 
 use crate::errors::Refused;
 use crate::race::owner::Race;
 
-/// What `show_frame` leaves: whether the frame was lost (the carry) and the original's leftover value.
+/// What `show_frame` leaves: whether the frame was lost, and a leftover value the caller passes on.
 pub struct Shown {
     pub lost: bool,
     pub eax: u32,
@@ -46,7 +44,7 @@ pub fn show_frame(race: &Race, o: crate::owners::Owners<'static>) -> Result<Show
             o.gfx,
         )
     }?;
-    // `scene::unlock_frame` leaves 0 as the leftover value (its carry is `present_frame`'s next).
+    // The leftover value after the unlock is 0.
     crate::scene::unlock_frame::unlock_frame(&race.frame, o.gfx);
     if !crate::scene::present_frame::present_frame(o) {
         return Ok(Shown { lost: true, eax: 0 });
@@ -57,7 +55,8 @@ pub fn show_frame(race: &Race, o: crate::owners::Owners<'static>) -> Result<Show
     );
     let time = clock.wrapping_sub(race.shared.view.get().clock_base.get());
     race.shared.view.get().frame_time.set(time);
-    // The measuring leaves the counter's low half as the leftover value on the 16th call, else as it was.
+    // The measuring leaves the counter's low half as the leftover value on the 16th call, else as
+    // it was.
     let eax = { crate::race::measure_frame_rate::measure_frame_rate(race, scene, system) }
         .unwrap_or(time);
     Ok(Shown { lost: false, eax })

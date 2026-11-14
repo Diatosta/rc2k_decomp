@@ -1,18 +1,14 @@
-//! `scene::log_bad_polygon` (0x443AF8): a polygon Direct3D was not given, dumped to the
-//! log at level 1: "videox" `g_screenWidth`, "videoy" `g_screenHeight` (twice), "r" "l" "b"
-//! "t" the clip edges (`g_clipScreenRight` .. `g_clipScreenTop`, two decimals), "donezcut"
-//! `SceneDraw.depth_clipped`, "donesuth" `SceneDraw.screen_clipped`, "cuttest" `g_polygonClipMask` (with a line's
-//! end; then the mask 0), "tpage" the texture page (hex8), "points" the polygon's vertex count;
-//! "polynum" the current course face, or with the drawing-object flag 1 "objdraw" the
-//! current object and "objfaced" the face number; a line's end. Then with vertices, each
-//! (0x20 bytes): "pt" its number, "x" +0, "yzuwv" +4, "zuwv" +8, "uwv" +0x18,
-//! "wv" +0xC, "v" +0x1C (floats, two decimals; the labels are the tails of one string),
-//! "co" +0x10 and "sp" +0x14 (hex8), a line's end; and a last line's end.
-//!
-//! Takes: the vertices
-//!
-//! Caller: `scene::show_bad_polygon` (0x443AEC). Refuses (before anything) more than 64
-//! vertices (the original's loop would run through memory).
+//! `scene::log_bad_polygon`: a polygon Direct3D was not given, dumped to the log at level 1:
+//! "videox" the screen's width, "videoy" the screen's height (twice), "r" "l" "b" "t" the clip
+//! edges (two decimals), "donezcut" `PolygonWork.depth_clipped`, "donesuth"
+//! `PolygonWork.screen_clipped`, "cuttest" `PolygonWork.polygon_clip_mask` (with a line's end;
+//! then the mask 0), "tpage" the texture page (hex8), "points" the polygon's vertex count;
+//! "polynum" the current course face, or with the drawing-object flag 1 "objdraw" the current
+//! object and "objfaced" the face number; a line's end. Then with vertices, each (0x20 bytes):
+//! "pt" its number, "x" +0, "yzuwv" +4, "zuwv" +8, "uwv" +0x18, "wv" +0xC, "v" +0x1C (floats,
+//! two decimals; the labels are the tails of one string), "co" +0x10 and "sp" +0x14 (hex8), a
+//! line's end; and a last line's end. Caller: `scene::show_bad_polygon`. Refuses (before
+//! anything) more than 64 vertices.
 
 use crate::cells::Store;
 use crate::errors::BadInput;
@@ -38,50 +34,50 @@ const MOST: u32 = 64;
 
 /// (label, value): the head's lines before the mask's clearing, and after.
 const HEAD: [(&std::ffi::CStr, Value); 10] = [
-    (c"videox", |_, screen| Shown::Hex8(screen.width.get())), // "videox" g_screenWidth
-    (c"videoy", |_, screen| Shown::Hex8(screen.height.get())), // "videoy" g_screenHeight
-    (c"videoy", |_, screen| Shown::Hex8(screen.height.get())), // "videoy" g_screenHeight
+    (c"videox", |_, screen| Shown::Hex8(screen.width.get())), // "videox"
+    (c"videoy", |_, screen| Shown::Hex8(screen.height.get())), // "videoy"
+    (c"videoy", |_, screen| Shown::Hex8(screen.height.get())), // "videoy"
     (c"r", |view, _| {
         Shown::Float(view.polygon.window.clip_screen[3].get())
-    }), // "r" g_clipScreenRight
+    }),
     (c"l", |view, _| {
         Shown::Float(view.polygon.window.clip_screen[2].get())
-    }), // "l" g_clipScreenLeft
+    }),
     (c"b", |view, _| {
         Shown::Float(view.polygon.window.clip_screen[1].get())
-    }), // "b" g_clipScreenBottom
+    }),
     (c"t", |view, _| {
         Shown::Float(view.polygon.window.clip_screen[0].get())
-    }), // "t" g_clipScreenTop
+    }),
     (c"donezcut", |view, _| {
         Shown::Int(view.polygon.depth_clipped.get() as i32)
-    }), // "donezcut"
+    }),
     (c"donesuth", |view, _| {
         Shown::Int(view.polygon.screen_clipped.get() as i32)
-    }), // "donesuth"
+    }),
     (c"cuttest", |view, _| {
         Shown::IntNewline(view.polygon.polygon_clip_mask.get() as i32)
-    }), // "cuttest" g_polygonClipMask
+    }),
 ];
 const AFTER: [(&std::ffi::CStr, Value); 2] = [
     (c"tpage", |view, _| {
         Shown::Hex8(view.polygon.texture_page.get())
-    }), // "tpage"
+    }),
     (c"points", |view, _| {
         Shown::Int(view.polygon.polygon_vertex_count.get() as i32)
-    }), // "points" g_polygonVertexCount
+    }),
 ];
 const POLYGON_NUMBER: [(&std::ffi::CStr, Value); 1] = [(c"polynum", |view, _| {
     Shown::Int(view.face.course_face.get() as i32)
-})]; // "polynum"
+})];
 const OBJECT: [(&std::ffi::CStr, Value); 2] = [
     // The view's whose polygon this is (every polygon work is a view slot's).
     (c"objdraw", |view, _| {
         Shown::Int(view.cars.object_number.get() as i32)
-    }), // "objdraw" g_objectNumber
+    }),
     (c"objfaced", |view, _| {
         Shown::Int(view.face.face_number.get() as i32)
-    }), // "objfaced" g_faceNumber
+    }),
 ];
 /// How a vertex's dword is shown.
 #[derive(Clone, Copy)]
@@ -103,8 +99,8 @@ const VERTEX: [(&std::ffi::CStr, Part, u32); 8] = [
 ];
 const PT: &std::ffi::CStr = c"pt"; // "pt"
 
-/// The Rust version: the dump of the `g_polygonVertexCount` vertices at `vertices` (at most 64,
-/// held to the vertex buffer: the longest read is the last vertex's 0x20 bytes of its 0x800).
+/// The dump of the `polygon_vertex_count` vertices at `vertices` (at most 64, held to the
+/// vertex buffer: the longest read is the last vertex's 0x20 bytes of its 0x800).
 pub fn log_bad_polygon(
     view: &crate::race::view_scratch::ViewScratch,
     screen: &crate::session::Screen,

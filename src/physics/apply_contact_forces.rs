@@ -1,8 +1,6 @@
-//! `physics::apply_contact_forces` (0x43F555): `physics::apply_forces` on the 7 records at `contacts` (`physics::clear_contacts`').
+//! Applies the 7 contact force records (`contacts`) to the work car with `physics::apply_forces`.
 //!
-//! Returns: the first record, the count
-//!
-//! Caller: `physics::car_physics_step` (0x43B883), every physics step.
+//! Caller: `physics::car_physics_step`, every physics step.
 
 use crate::errors::Refused;
 use crate::physics::apply_forces::apply_forces;

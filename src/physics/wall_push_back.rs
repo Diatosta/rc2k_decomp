@@ -1,12 +1,11 @@
-//! `physics::wall_push_back` (0x45D8FB): the work car pushed back off a wall against its
-//! motion: minus its speed (`velocity` ..) in `g_workVector` (0 when its length is 0,
-//! `physics::vector_length`), made one long (`race::normalise_work_vector`) as the
-//! normal; the speed and the turn speed taken, the point 0, no slide limit;
-//! `physics::contact_force` into contact record 4 (`g_contactRecords` + 0x80),
-//! `physics::place_sound_e1`; `wall_heading` = -1.
+//! Pushes the work car back off a wall against its motion: minus its speed (`velocity`) goes into
+//! `work_vector` (0 when its length, `physics::vector_length`, is 0), made one long
+//! (`race::normalise_work_vector`) as the normal; the speed and the turn speed taken, the point 0,
+//! no slide limit; `physics::contact_force` into contact record 4, `physics::place_sound_e1`;
+//! `wall_heading` = -1.
 //!
-//! Callers: `physics::wall_contacts`, `physics::wall_edge_contact`. Refuses what
-//! `place_sound_e1` refuses (what was written put back).
+//! Callers: `physics::wall_contacts`, `physics::wall_edge_contact`. Refuses what `place_sound_e1`
+//! refuses (what was written is put back).
 
 use crate::errors::Refused;
 use crate::math::x87::compare_80;

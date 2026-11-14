@@ -1,29 +1,30 @@
-//! `physics::probe_ground` (0x45D305): the ground under each of the car's `probe_count` probe
-//! points (the work car's lists `probe_point_x`, `probe_point_y`, `probe_point_z`, 0x40 each; the
-//! first four are the wheels' points: they alone get their y replaced below, and they feed
-//! `wheel_ground_x / height / z` and `wheel_lifted`). Nothing when the count is 0. Else
-//! `crossed_probe` = -1 and for each point b:
-//! - for b < 4 its y is replaced: the list's seventh y less `handling[4]`, plus `probe_lift`
-//!   unless bit b + 5 of `parts_present` is set and then unless bit b + 1 is; less
-//!   `probe_share` times `handling[3]` (the point's own y only goes to the scratch dword);
-//! - the point is turned by `g_crashMatrix` (`scene::rotate_point`), its x y z kept as floats
-//!   (`probe_turned_x`, `probe_turned_y`, `probe_turned_z` [b]; x and z also in
-//!   `probe_turned_x_last` and `probe_turned_z_last`), and as whole numbers times 65536 plus the
-//!   car's `position` in `probe_x`, `probe_y`, `probe_z` [b];
+//! The ground under each of the car's `probe_count` probe points (the work car's lists
+//! `probe_point_x`, `probe_point_y`, `probe_point_z`, 0x40 each; the first four are the wheels'
+//! points: they alone get their y replaced below, and they feed `wheel_ground_x / height / z` and
+//! `wheel_lifted`). Nothing when the count is 0. Otherwise `crossed_probe` = -1 and for each point
+//! b:
+//! - for b < 4 its y is replaced: the list's seventh y less `handling[4]`, plus `probe_lift` unless
+//!   bit b + 5 of `parts_present` is set and then unless bit b + 1 is; less `probe_share` times
+//!   `handling[3]` (the point's own y only goes to the scratch dword);
+//! - the point is turned by the crash matrix (`scene::rotate_point`), its x y z kept as floats
+//!   (`probe_turned_x`, `probe_turned_y`, `probe_turned_z`; x and z also in `probe_turned_x_last`
+//!   and `probe_turned_z_last`), and as whole numbers times 65536 plus the car's `position` in
+//!   `probe_x`, `probe_y`, `probe_z`;
 //! - the ground under (x, z) comes from `physics::find_ground`, with the mask `settle_mark` 0x80
 //!   and the last face `probe_point_face[b]`; `probe_found[b]` records the result;
-//! - not found: `probe_ground_height[b]` 0, `crossed_probe` = b;
+//! - not found: `probe_ground_height[b]` = 0, `crossed_probe` = b;
 //! - found: `probe_ground_height[b]` is the height (`ground_height`) plus a bump: the noise bytes
-//!   (`g_noiseBytes`, 64 x 64) at (x >> 14, z >> 14) mixed by the low 14 bits
+//!   (`noise_bytes`, 64 x 64) at (x >> 14, z >> 14) mixed by the low 14 bits
 //!   (`ground_noise_corners` the steps), times `ground_bump_scale`, 256, over 100; the face's half
-//!   and shares (`probe_face_flip`, `probe_share_u`, `probe_share_v` [b]); `probe_height[b]` = y less
-//!   that ground; for b < 4 that also into `wheel_height_raw[b]` and `probe_height[b]` times
-//!   the car's wheel-load figure (held to at least 0); `probe_point_face[b]` = the face found.
+//!   and shares (`probe_face_flip`, `probe_share_u`, `probe_share_v`); `probe_height[b]` = y less
+//!   that ground; for b < 4 that also goes into `wheel_height_raw[b]` and `probe_height[b]` is
+//!   multiplied by the car's wheel-load figure (held to at least 0); `probe_point_face[b]` = the
+//!   face found.
 //!
 //! Then the first four of `probe_x`, `probe_ground_height`, `probe_z` go into the car's
 //! `wheel_ground_x`, `wheel_ground_height`, `wheel_ground_z`.
 //!
-//! Callers (6): `physics::find_clear_place`, `physics::feel_ground`, `race::settle_car` (twice),
+//! Callers: `physics::find_clear_place`, `physics::feel_ground`, `race::settle_car` (twice),
 //! `race::face_hide_mask`, `physics::probe_and_keep`. Refuses (before anything: what it wrote is
 //! put back) a count above 0x40 (the lists' room), and what `find_ground` refuses on any point.
 
@@ -67,9 +68,9 @@ impl<'a> ProbeInputs<'a> {
 }
 
 /// The steps.
-// Converted: `rc2k_core::physics::ground::{wheel_lifted, noise_cell, bump_noise}` (the
-// turns and the bump's scaling stay x87).
-/// `scratch` is the dword the original spills its work values to (`g_scratch`).
+// Core: `rc2k_core::physics::ground::{wheel_lifted, noise_cell, bump_noise}` (the turns and the
+// bump's scaling stay x87).
+/// `scratch` is the dword the work values are spilled to (the scene's scratch cell).
 pub fn probe_ground_at(
     c: &ProbeInputs<'_>,
     car: &Car<impl CellKind>,
@@ -227,8 +228,8 @@ pub fn probe_ground(
     )
 }
 
-/// The same for the drawing (`race::face_hide_mask`): its ground search, its probe lists and
-/// its work values on fields of its own, not the physics' work and `g_scratch` (nothing the
+/// The same for the drawing (`race::face_hide_mask`): its ground search, its probe lists and its
+/// work values on fields of its own, not the physics' work and the scene's scratch (nothing the
 /// drawing does reads them after), the scene points through the drawing part's `points`.
 pub fn probe_ground_in_view(
     c: &ProbeInputs<'_>,

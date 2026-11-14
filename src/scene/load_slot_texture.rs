@@ -1,20 +1,14 @@
-//! `scene::load_slot_texture` (0x425ADE): gives a texture slot the texture it wants,
-//! if it holds another.
+//! `scene::load_slot_texture`: gives a texture slot the texture it wants, if it holds another.
 //!
-//! Takes: the slot
-//!
-//! Nothing if the slot wants none (its wanted entry is -1) or holds what it wants
-//! (its loaded entry). Else `scene::load_texture` (which is only `d3d::copy_to_device_texture` of
-//! the Direct3D layer) with the texture and the slot, the loads counter + 1, and the slot holds
-//! it. One caller, `scene::load_slot_textures`.
-//! Refuses a slot past the table.
+//! Nothing if the slot wants none (its wanted entry is -1) or holds what it wants (its loaded
+//! entry). Else `scene::load_texture` (which is only `d3d::copy_to_device_texture` of the
+//! Direct3D layer) with the texture and the slot, the loads counter + 1, and the slot holds
+//! it. One caller, `scene::load_slot_textures`. Refuses a slot past the table.
 
 use crate::errors::BadInput;
 
-// ---- Rust version ----
-
 /// `load`: what stands for `scene::load_texture`, given the texture and the slot.
-// Converted: `rc2k_core::scene::textures::slot_load`
+// Logic: `rc2k_core::scene::textures::slot_load`
 pub fn load_slot_texture(
     frame: &crate::race::owner_frame::Frame,
     slot: u32,

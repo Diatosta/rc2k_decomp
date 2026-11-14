@@ -1,24 +1,25 @@
-//! The camera's two place records and the lights' data (IDA 0x6077B0 .. 0x608B08; phase 7,
-//! typed): the seven dwords `physics::place_camera` copies for a record mode other than the
-//! second and the seven for the second, then `files\s\data\ldata` (0x1320 bytes). Names are readings.
+//! The camera's two place records and the lights' data: the seven dwords `physics::place_camera`
+//! copies for a record mode other than the second and the seven for the second, then
+//! `files\s\data\ldata` (0x1320 bytes).
 
 use crate::cells::ZeroCells;
 use crate::session::{PlainBytes, PlainDword};
 
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct LightsData {
-    /// 0x6077B0: `unk_6077B0`: seven dwords of the camera's place (`physics::place_camera`, the usual mode).
+    /// Seven dwords of the camera's place (`physics::place_camera`, the usual mode).
     pub place_usual: [PlainDword; 7],
-    /// 0x6077CC: `unk_6077CC`: seven dwords of the camera's place (`physics::place_camera`, the second record mode).
+    /// Seven dwords of the camera's place (`physics::place_camera`, the second record mode).
     pub place_second: [PlainDword; 7],
-    /// 0x6077E8: `g_lightsData`: the lights' data, 0x22 records of 0x90 bytes (`race::load_lights_data`, `race::copy_lights_data`).
+    /// The lights' data, 0x22 records of 0x90 bytes (`race::load_lights_data`,
+    /// `race::copy_lights_data`).
     pub lights: PlainBytes<0x1320>,
 }
 
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
 // them): any bit pattern is a valid value.
 
-/// The piece (a field of `race::owner::Race::course`), with the image's first values.
+/// The piece (a field of `race::owner::Race::course`), with its first values.
 impl LightsData {
     pub const fn new() -> Self {
         Self {

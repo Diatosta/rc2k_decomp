@@ -1,12 +1,10 @@
-//! The gearbox: `physics::gearbox_step` (0x43C15C) and what it runs,
-//! `physics::manual_gearbox` (0x43C2AE, and its one-call twin 0x43C2A8),
-//! `physics::auto_gearbox` (0x43C5C2), `physics::pick_start_gear` (0x43C8AC). This file:
-//! the steps they share, on the game's variables (the work car's gear fields,
-//! `physics/gearing.rs`). The steps return only what the flow uses (`physics::car_physics_step`,
-//! `physics::test_drive_run`).
+//! The gearbox: `physics::gearbox_step` and what it runs, `physics::manual_gearbox`,
+//! `physics::auto_gearbox`, `physics::pick_start_gear`. This file holds the steps they share,
+//! on the work car's gear fields (`physics/gearing.rs`). The steps return only what the flow
+//! uses (`physics::car_physics_step`, `physics::test_drive_run`).
 //!
-//! The shift points `LightsAndGear.gear.shift_up_point` .. `shift_ratio_figure`, `rev_limit` and `idle_engine_speed` are set at
-//! run time (0 in the file); the tests set them.
+//! The shift points `LightsAndGear.gear.shift_up_point` .. `shift_ratio_figure`, `rev_limit`
+//! and `idle_engine_speed` are set at run time (0 in the file); the tests set them.
 
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
@@ -27,7 +25,7 @@ pub fn below(a: impl crate::math::x87::Flt, b: impl crate::math::x87::Flt) -> bo
     )
 }
 
-/// The common end of a change: +0x1D0 = `drive_cut_steps`, the hold 20, both words 1.
+/// The common end of a change: `drive_cut_steps` from the tables, the hold 20, both change words 1.
 pub fn settle(car: &Car, tables: &PhysicsTables) {
     car.drive_cut_steps.set(tables.drive_cut_steps.get());
     car.gear_change_hold
@@ -42,7 +40,7 @@ pub fn neutral(car: &Car, tables: &PhysicsTables) {
     settle(car, tables);
 }
 
-/// `gear_bit`: true for CF (the gear cannot be taken).
+/// `gear_bit`: true when the gear cannot be taken.
 pub fn bit(car: &Car, gear: i32) -> Result<bool, Refused> {
     Ok({ gear_bit(car, gear) }?.carry)
 }
@@ -65,7 +63,7 @@ pub fn revs_speed(car: &Car, tables: &PhysicsTables) -> Result<(), Refused> {
     Ok(())
 }
 
-/// The engine speed over its top (`fld; fdiv; fstp`).
+/// The engine speed over its top .
 pub fn over_top(car: &Car) -> f32 {
     x87::div(&car.engine_speed, &car.engine_speed_limit)
 }

@@ -1,4 +1,5 @@
-//! The race owner's shared group (`race::owner::Race::shared`): the race's stores the menus, the network and the audio side read too.
+//! The race owner's shared group (`race::owner::Race::shared`): the race's stores the menus, the
+//! network and the audio side read too.
 
 use crate::errors::BadInput;
 use crate::physics::car_store::Car;
@@ -22,34 +23,27 @@ use crate::session::{DrawShared, GameThread};
 
 /// The race's stores the menus, the network and the audio side read too.
 pub struct RaceShared {
-    /// `RACE_WORK` (`race`).
-    /// One copy: no drawing part writes it (the write watch's carried census, frame plan F7).
+    /// One copy: no drawing part writes it.
     pub work: DrawShared<RaceWork>,
-    /// `RACE_STATE` (`race`).
     pub state: RaceState,
-    /// `BUFFERS` (`race`).
     pub buffers: Buffers,
-    /// `RACE_VARS` (`race`).
-    /// One copy: no drawing part writes it (the write watch's carried census, frame plan F7).
+    /// One copy: no drawing part writes it.
     pub vars: DrawShared<RaceVars>,
-    /// `RACE_VIEW` (`race`).
-    /// One copy: no drawing part writes it (the write watch's carried census, frame plan F7).
+    /// One copy: no drawing part writes it.
     pub view: DrawShared<RaceView>,
-    /// `FRAME_SWITCHES` (`race`).
-    /// One copy: no drawing part writes it (the write watch's carried census, frame plan F7).
+    /// One copy: no drawing part writes it.
     pub switches: DrawShared<FrameSwitches>,
-    /// `PHYSICS` (`physics`).
-    /// One copy: the drawing only reads it (frame plan F4).
+    /// One copy: the drawing only reads it.
     pub physics_tables: DrawShared<PhysicsTables>,
-    /// `CAR` (`physics`): the work car. One copy: the drawing no longer reads it (frame plan
-    /// F3), so the drawing threads need none of their own.
+    /// The work car. One copy: the drawing does not read it, so the drawing threads need none of
+    /// their own.
     car: GameThread<Car>,
     /// The cars' blocks (`Race::replay`'s), for the code that holds only this group
     /// (`car_blocks`).
     car_blocks: &'static DrawShared<CarBlocks>,
     /// The effects' settings with the cars' records (`Race::replay`'s), as `car_blocks`.
     pub effects_settings: &'static GameThread<EffectsSettings>,
-    /// `TEMPLATES` (`race`): the replay files' names.
+    /// The replay files' names.
     pub replay_templates: Templates,
     main: GameThread<SharedMain>,
 }
@@ -132,7 +126,7 @@ impl RaceShared {
         &self.main.get().text
     }
 
-    /// Car `n`'s block (`g_carBlocks[n]`), refused for a value that names no block (see
+    /// Car `n`'s block (`car_blocks[n]`), refused for a value that names no block (see
     /// `RaceWork::car_block` for the read past the eight).
     pub fn race_car(&self, n: usize) -> Result<&'static Car, BadInput> {
         Self::race_car_in(self.work.get(), self.car_blocks(), n)
@@ -154,8 +148,8 @@ impl RaceShared {
         blocks.named(work.car_block(n))
     }
 
-    /// Car `n`'s block, or the refusal `what` for none (the original's read at a small offset
-    /// from 0 fails). A handle that names no block ends the program, as `RaceWork::car_block`.
+    /// Car `n`'s block, or the refusal `what` for none. A handle that names no block ends the
+    /// program, as `RaceWork::car_block`.
     pub fn race_car_or(&self, n: usize, what: &'static str) -> Result<&'static Car, BadInput> {
         Self::race_car_or_in(self.work.get(), self.car_blocks(), n, what)
     }
@@ -189,8 +183,8 @@ impl RaceShared {
         .unwrap_or_else(|e| crate::fatal::raise::end("physics::Car::at", e))
     }
 
-    /// Car record `n` (`g_carRecords[n]`, the name of one of the effects' car records).
-    /// Refused past the eight (the original reads on into the next variables) and for a name
+    /// Car record `n` (`car_records[n]`, the name of one of the effects' car records).
+    /// Refused past the eight and for a name
     /// that is not a record's start.
     pub fn car_record(&self, n: usize) -> Result<&'static CarEffects, BadInput> {
         self.work
@@ -224,10 +218,9 @@ impl RaceShared {
         })
     }
 
-    /// The car this machine plays: the first, but in a network race (`session` 1) its own.
-    /// The original has the first block's address wherever it means the player's car, so on
-    /// a joined machine the cockpit's effects, the mud and the listener followed the host's
-    /// car.
+    /// The car this machine plays: the first, but in a network race (`session` 1) its own. (The
+    /// first block used to stand for the player's car everywhere, so on a joined machine the
+    /// cockpit's effects, the mud and the listener followed the host's car.)
     pub fn own_car_number(&self, session: u32) -> usize {
         if session == 1 {
             let local = self.view.get().local_car.get() as usize;

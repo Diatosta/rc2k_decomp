@@ -1,22 +1,19 @@
-//! `scene::clip_polygon_to_screen` (0x44D15A): cuts the polygon to the screen's four
-//! edges.
+//! `scene::clip_polygon_to_screen`: cuts the polygon to the screen's four edges.
 //!
-//! `SceneDraw.screen_clipped` = 1. Each vertex's place on the screen (its record's +0xC and +0x1C) against
-//! the edges `SceneDraw.clip_screen[2]` (left), `SceneDraw.clip_screen[3]` (right), `SceneDraw.clip_screen[0]` (top) and `SceneDraw.clip_screen[1]`
-//! (bottom) gives the bits 1, 2, 4, 8 of a mask: right is looked at first and left only if the
-//! vertex is not past it, bottom first and top only if not past that. A mask of 0: nothing
-//! more. Else the mask to `SceneDraw.polygon_clip_mask`, and for each of its bits in that order one pass of
-//! `scene/clip.rs`, ending as soon as fewer than three vertices are left. 14 callers. Refuses a
-//! polygon of no vertices, an entry without its record, and a clipping that runs out of entries
-//! (what it had written is put back first).
+//! `SceneDraw.screen_clipped` = 1. Each vertex's place on the screen (its record's +0xC and
+//! +0x1C) against the edges `SceneDraw.clip_screen[2]` (left), `[3]` (right), `[0]` (top) and
+//! `[1]` (bottom) gives the bits 1, 2, 4, 8 of a mask: right is looked at first and left only
+//! if the vertex is not past it, bottom first and top only if not past that. A mask of 0:
+//! nothing more. Else the mask goes to `SceneDraw.polygon_clip_mask`, and for each of its bits
+//! in that order one pass of `scene/clip.rs`, ending as soon as fewer than three vertices are
+//! left. 14 callers. Refuses a polygon of no vertices, an entry without its record, and a
+//! clipping that runs out of entries (what it had written is put back first).
 
 use crate::errors::BadInput;
 use crate::scene::clip::{Edge, below, clip_pass, listed_with_records, or_undone};
 use crate::session::PlainFloat;
 
 // ---- game data ----
-
-// ---- Rust version ----
 
 /// The polygon's entries and the mask of the edges some vertex is past.
 fn outside_mask<'p>(

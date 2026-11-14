@@ -1,11 +1,11 @@
-//! `effects::view_frame` (0x4C1270): `effects::keep_vectors`, `effects::turn_kept_vectors`,
+//! `effects::view_frame`: `effects::keep_vectors`, `effects::turn_kept_vectors`,
 //! `effects::scale_kept_vectors`, `effects::view_step`, `effects::aim_vector`,
 //! `effects::shapes_frame`, `effects::run_splines`.
 //!
-//! Works on `g_marksSettings`.
+//! Works on the effects settings.
 //!
-//! Caller: `effects::frame_marks`. Refuses null settings before anything, and its steps' refusals
-//! (all it may write is put back first).
+//! Refuses null settings before anything, and its steps' refusals (all it may write is put back
+//! first).
 
 use crate::effects::owner::Effects;
 use crate::effects::{

@@ -1,15 +1,12 @@
 //! Four twins that make a band 0 ..= 0x40 out of a float: value x factor (rounded through
-//! `band_scratch`), less a step, held to 0 ..= 0x40 (by the sign):
-//! - `physics::sound_band_1` (0x45D067): `contact_speed_length` x `contact_band_scale`, less 1;
-//! - `physics::sound_band_2` (0x45D097): the car's `speed` x `contact_band_scale`, less 10;
-//! - `physics::sound_band_3` (0x45D0F1): `bump_speed_length` x `bump_band_scale`, less 10;
-//! - `physics::sound_band_4` (0x45D121): the car's `speed` x `crash_band_scale`, less 1.
+//! `band_scratch`), less a step, held to 0 ..= 0x40:
+//! - `physics::sound_band_1`: `contact_speed_length` x `contact_band_scale`, less 1;
+//! - `physics::sound_band_2`: the car's `speed` x `contact_band_scale`, less 10;
+//! - `physics::sound_band_3`: `bump_speed_length` x `bump_band_scale`, less 10;
+//! - `physics::sound_band_4`: the car's `speed` x `crash_band_scale`, less 1.
 //!
 //! A reading: volume or pitch steps for the car's sounds (their callers
-//! `physics::place_sound_object` ..
-//! `physics::place_sound_e5` drive the sound objects).
-//!
-//! Returns: the band
+//! `physics::place_sound_object` .. `physics::place_sound_e5` drive the sound objects).
 
 use crate::math::x87;
 use crate::physics::step_families::SoundInputs;
@@ -24,7 +21,7 @@ pub type Twin = (
     u32,
 );
 
-/// The exact x87 version on the value and the factor, the scratch keeps the number of `fistp`.
+/// The exact x87 version on the value and the factor; the scratch keeps the rounded number.
 pub fn band_at(value: f32, factor: f32, scratch: &PlainDword, step: u32) -> u32 {
     let n = x87::mul_to_int(value, factor) as u32;
     scratch.set(n);
@@ -44,7 +41,7 @@ pub fn band_value(c: &SoundInputs<'_>, twin: Twin) -> u32 {
 }
 
 /// The converted version (`rc2k_core::physics::sound_bands`, plain floats).
-// Converted: `rc2k_core::physics::sound_bands::sound_band`.
+// Core: `rc2k_core::physics::sound_bands::sound_band`.
 pub fn band_at_plain(value: f32, factor: f32, scratch: &PlainDword, step: u32) -> u32 {
     let (n, b) = sound_band(value, factor, step);
     scratch.set(n as u32);

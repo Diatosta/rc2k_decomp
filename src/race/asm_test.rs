@@ -1,7 +1,7 @@
-//! Helpers of the differential tests that compare the plain-float versions with the
-//! original assembly blocks kept as references (`asm_reference` modules of this
-//! directory's files): one lock for all of them (they write shared statics and the
-//! control word), a seeded generator, and the two control words the tests run at.
+//! Helpers of the differential tests that compare the plain-float versions with the assembly
+//! reference blocks kept (the `asm_reference` modules of the files here): one lock for all of
+//! them (they write shared statics and the control word), a seeded generator, and the two control
+//! words the tests run at.
 
 use std::sync::MutexGuard;
 
@@ -28,8 +28,8 @@ impl Rng {
         self.u32() % n
     }
 
-    /// The bits of a float: mostly normal values in the game's ranges, now and then
-    /// zeros, small, large, whole numbers and halves.
+    /// The bits of a float: mostly normal values in the game's ranges, now and then zeros, small,
+    /// large, whole numbers and halves.
     pub(crate) fn float(&mut self) -> u32 {
         let unit = f64::from(self.u32()) / 4294967296.0;
         let sign = if self.u32() & 1 == 0 { 1.0 } else { -1.0 };

@@ -1,12 +1,11 @@
-//! `physics::object_hits_car` (0x45E755): whether any point of the object hit (`face_object`)
-//! lies inside the work car's box. `object_hits` is incremented; `physics::object_turn_matrix`
-//! runs; then each of the object's points (`g_objectFirstPoint[n]` on, `g_objectPointCount2[n]` of
-//! them, in `g_objectPoints`, three whole numbers each) is turned by `object_turn_matrix`
+//! Whether any point of the object hit (`face_object`) lies inside the work car's box.
+//! `object_hits` is incremented; `physics::object_turn_matrix` runs; then each of the object's
+//! points (in `object_points`, three whole numbers each) is turned by `object_turn_matrix`
 //! (`scene::rotate_point`) and rounded into the offset `object_offset`, then
 //! `physics::point_hits_car` runs with the caller's object; the first inside ends it.
 //!
-//! Caller: `physics::face_contact`. Refuses (before anything) an object past 0xFF
-//! (the tables' room; `object_turn_matrix` refuses it too).
+//! Caller: `physics::face_contact`. Refuses (before anything) an object past 0xFF (the tables'
+//! room; `object_turn_matrix` refuses it too).
 
 use crate::errors::Refused;
 use crate::math::x87::{ext_to_int, int_80};
@@ -18,8 +17,7 @@ use rc2k_core::physics::contacts;
 
 /// Whether one of the object's points is inside the car ; `point` and `object` are
 /// `point_hits_car`'s arguments.
-// Converted: `rc2k_core::physics::contacts::{check_object, walk_points}` (the turns stay
-// x87).
+// Core: `rc2k_core::physics::contacts::{check_object, walk_points}` (the turns stay x87).
 pub fn object_hits_car(
     c: &ContactInputs<'_>,
     point: u32,
@@ -41,8 +39,7 @@ pub fn object_hits_car(
         .object_hits
         .set(c.tables.object_hits.get().wrapping_add(1));
     let count = objects.slots.get().point_counts[number as usize].get();
-    // With no points the original skips to `clc` before it sets the result register; the
-    // points' table is read only when there are some.
+    // The points' table is read only when there are some.
     let points = if count == 0 {
         0
     } else {

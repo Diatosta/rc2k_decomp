@@ -1,21 +1,15 @@
-//! `physics::bump_cars` (0x45F7B1): the work car and another (`other_car_block`, its number
-//! `other_car_number`) bumped. The corner met (`corner_turned` ..) into `contact_point` ..; a
-//! note of the meeting at `bump_note` .. (the current car, the other, the corner, the
-//! point; two parts 0, as `zero`); contact record 6's force 0, the work car's contact
-//! flag = 1, the other's contact flag = 1; the speed between them into
-//! `bump_relative_speed` and its length into `bump_speed_length`; the speeds shared out
-//! (each axis a x `bump_share_a` + b x `bump_share_b` and the other way); the places'
-//! difference / 65536 x the push scale into `bump_push`, times `three`
-//! (`physics::scale_vector`), added to the work car's speed and taken from the other's;
-//! both speeds turned into the cars' frames (`scene::rotate_point`);
-//! `physics::place_sound_e1_other`.
+//! Bumps the work car against another (`other_car_block`, number `other_car_number`): the corner
+//! met goes into `contact_point`, a note of the meeting into `bump_note`; contact record 6's
+//! force is zeroed and both cars' contact flags set; the relative speed goes into
+//! `bump_relative_speed` (its length into `bump_speed_length`); the speeds are shared out
+//! (`bump_share_a` / `bump_share_b`), the places' difference / 65536 times the push scale becomes
+//! `bump_push`, times `three`, added to the work car's speed and taken from the other's; both
+//! speeds are turned into the cars' frames; finally `physics::place_sound_e1_other`.
 //!
-//! The flow and the calls are Rust; the straight x87 runs are plain Rust over `X`
-//! (`math/x87_float.rs`) in the named helpers below, the original's instructions being
-//! recorded in the tests' `reference_vectors`.
+//! The straight float runs are plain Rust over `X` in the named helpers below.
 //!
-//! Caller: `physics::corner_hits_car` (its tail). Refuses a null block (before anything)
-//! and what `place_sound_e1_other` refuses (what was written put back).
+//! Caller: `physics::corner_hits_car`. Refuses a null block (before anything), and what
+//! `place_sound_e1_other` refuses (what was written is put back).
 
 use crate::effects::cell_x87::CellX87;
 use crate::errors::{BadInput, Refused};
@@ -33,7 +27,7 @@ use crate::scene::matrix3::{extended, rounded, rounded_value};
 use crate::scene::rotate_point::rotate_point;
 use crate::session::{DwordLike, FloatLike};
 
-/// The block's speed (+0x198 ..) turned by its matrix (+0x9CC) into +0x1A4 ...
+/// The block's speed turned by its matrix into its car-frame speed.
 fn turn_speed(block: &Car) {
     let turned = rotate_point(
         &block.car_inverse_matrix,
@@ -77,7 +71,7 @@ fn steps(
         .set(rounded_value(vector_length(&c.contact.bump_relative_speed)));
     // The car `other_car_block` names is `other_car`.
     share_out_speeds(c.car, c.contact, &other_car.velocity);
-    // 0x45F98C: pushed apart by the places' difference.
+    // Pushed apart by the places' difference.
     push_apart(c.car, c.contact, c.numbers, &other_car.position);
     let factor = extended(c.numbers.three.get());
     scale_vector(&c.contact.bump_push, factor);
@@ -101,10 +95,8 @@ pub fn bump_cars(
     steps(c, other_car, scene)
 }
 
-// ---- the arithmetic that was x87 assembly ----
+// ---- the x87 arithmetic ----
 
-/// The game's x87 arithmetic as plain Rust over `X`, on the variables
-/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// the work car's speed less `d` (the other car's), on each axis, into the relative speed.
 fn relative_speed(car: &Car, contact: &ContactWork, d: &[impl FloatLike; 3]) {
     for (k, other) in d.iter().enumerate() {
@@ -115,10 +107,8 @@ fn relative_speed(car: &Car, contact: &ContactWork, d: &[impl FloatLike; 3]) {
     }
 }
 
-/// The game's x87 arithmetic as plain Rust over `X`, on the variables
-/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// the two cars' speeds shared out on each axis, with a the work car's speed and b the
-/// other's (`s`): `a' = a x share_a + b x share_b`, `b' = a x share_b + b x share_a`.
+/// the two cars' speeds shared out on each axis, with a the work car's speed and b the other's
+/// (`s`): `a' = a x share_a + b x share_b`, `b' = a x share_b + b x share_a`.
 fn share_out_speeds(car: &Car, contact: &ContactWork, s: &[impl FloatLike; 3]) {
     for (k, other) in s.iter().enumerate() {
         let t0 = car.velocity[k].ld();
@@ -140,10 +130,8 @@ fn share_out_speeds(car: &Car, contact: &ContactWork, s: &[impl FloatLike; 3]) {
     }
 }
 
-/// The game's x87 arithmetic as plain Rust over `X`, on the variables
-/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// the push on each axis: the places' difference (the work car's less `d`'s) over 65536
-/// times the push scale.
+/// the push on each axis: the places' difference (the work car's less `d`'s) over 65536 times the
+/// push scale.
 fn push_apart(car: &Car, contact: &ContactWork, numbers: &Numbers, d: &[impl DwordLike; 3]) {
     for (k, other) in d.iter().enumerate() {
         let t0 = int(car.position[k].get() as i32);
@@ -157,8 +145,6 @@ fn push_apart(car: &Car, contact: &ContactWork, numbers: &Numbers, d: &[impl Dwo
     }
 }
 
-/// The game's x87 arithmetic as plain Rust over `X`, on the variables
-/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// the push added to the work car's speed on each axis, then taken from `d`'s.
 fn add_push(car: &Car, contact: &ContactWork, d: &[impl FloatLike; 3]) {
     for k in 0..3 {

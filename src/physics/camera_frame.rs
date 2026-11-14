@@ -1,12 +1,11 @@
-//! `physics::camera_frame` (0x44FF1B): the camera's shake, then its step. The shake
-//! (`camera_shake_listener`) and the offset `camera_shake_x` .. 0; in modes 1 .. 3 (`camera_view`) with
-//! `all_wheels_off` 0: `vertical_speed_change` x `camera_frame_scale` held within ± `camera_frame_limit` (the limit
-//! negated and back, `fchs`) into `camera_shake_y`, and the shake a random number
-//! (`math::next_random`) / 65536 / `k4096` x `three` x it; both 0 again with
-//! `still` set. Then `physics::update_camera`.
+//! The camera's shake, then its step. The shake offsets start at 0; in modes 1 .. 3 with the
+//! wheels on the ground, the vertical speed change times `camera_frame_scale`, held within
+//! `camera_frame_limit`, becomes `camera_shake_y`, and the shake is a random number / 65536 /
+//! `k4096` times `three` times it. Both are 0 again with `still` set. Then
+//! `physics::update_camera`.
 //!
-//! Callers: `physics::car_physics_step`, `drive::finish_run`, `race::show_replay_still`. Refuses
-//! what `update_camera` refuses (everything written put back).
+//! Callers: `physics::car_physics_step`, `drive::finish_run`, `race::show_replay_still`.
+//! Refuses what `update_camera` refuses (everything written is put back).
 
 use crate::effects::cell_x87::CellX87;
 use crate::errors::Refused;
@@ -16,7 +15,7 @@ use crate::physics::step_families::CameraInputs;
 use crate::race::numbers_store::Numbers;
 use crate::race::owner_shared::RaceShared;
 
-// Converted: `rc2k_core::physics::camera_view::shakes` (the x87 steps stay).
+// Core: `rc2k_core::physics::camera_view::shakes` (the x87 steps stay).
 fn steps(c: &CameraInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     scene.lights.state.get().camera_shake_listener.set(0.0);
     scene.lights.state.get().camera_shake_y.set(0);
@@ -55,7 +54,7 @@ pub fn camera_frame(
     steps(c, scene)
 }
 
-// ---- the arithmetic that was x87 assembly ----
+// ---- the x87 arithmetic ----
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
@@ -69,7 +68,8 @@ fn x87_1(shared: &RaceShared, scene: &crate::scene::owner::Scene) {
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[camera_shake_listener] = (((int [scratch] / [k65536]) / [k4096]) * [three]) * [camera_shake_y]`
+/// `[camera_shake_listener] = (((int [scratch] / [k65536]) / [k4096]) * [three]) *
+///  [camera_shake_y]`
 fn x87_2(numbers: &Numbers, scene: &crate::scene::owner::Scene) {
     let t0 = int(scene.drawing.scene.get().scratch.get() as i32);
     let t1 = numbers.k65536.ld();

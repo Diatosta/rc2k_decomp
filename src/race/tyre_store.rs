@@ -1,65 +1,68 @@
 //! The roadside tyre change's variables (`race::tyre_change_gauge`, `race::draw_tyre_change`,
-//! `drive::tyre_screen` and its parts), out of RAL.EXE's image (phase 5), typed (phase 7): the
-//! timing's constants, the screen's layouts and the work the screen leaves for the next frame.
-//!
-//! A struct of cells with the image's first values
-//! (`tests`).
+//! `drive::tyre_screen` and its parts): the timing's constants, the screen's layouts and the work
+//! the screen leaves for the next frame.
 
 use crate::session::{PlainBytes, PlainDword, PlainFloat};
 
-/// The tyre change's constants, layouts and work (IDA 0x5BEAC0 .. 0x5BEC30, the image's layout).
+/// The tyre change's constants, layouts and work.
 #[cfg_attr(test, repr(C))]
 #[derive(rc2k_derive::Cells)]
 pub struct TyreChange {
-    /// 0x5BEAC0: `flt_5BEAC0` (150.0): added to the press time (ms, before the scaling to hundredths) (`race::tyre_change_gauge::press_time`).
+    /// (150.0): added to the press time (ms, before the scaling to hundredths)
+    /// (`race::tyre_change_gauge::press_time`).
     pub time_base: PlainFloat,
-    /// 0x5BEAC4: `flt_5BEAC4` (150.0): the press time's logarithm is multiplied by it.
+    /// (150.0): the press time's logarithm is multiplied by it.
     pub time_scale: PlainFloat,
-    /// 0x5BEAC8: `flt_5BEAC8` (1 / 65536): a gauge step in turns (the press time's square root takes the gauge's shortfall times it; the wheel's quad turns the device's gauge times it times 2 pi).
+    /// (1 / 65536): a gauge step in turns (the press time's square root takes the gauge's shortfall
+    /// times it; the wheel's quad turns the device's gauge times it times 2 pi).
     pub gauge_unit: PlainFloat,
-    /// 0x5BEACC: `flt_5BEACC` (log2 10 = 3.3219): the press time's logarithm is taken in tens and brought back by it.
+    /// (log2 10 = 3.3219): the press time's logarithm is taken in tens and brought back by it.
     pub log_two_ten: PlainFloat,
-    /// 0x5BEAD0: `dword_5BEAD0` ..: the panel's rectangle on the screen (x, y, w, h), copied from the layout in use (`drive::tyre_screen`).
+    /// The panel's rectangle on the screen (x, y, w, h), copied from the layout in use
+    /// (`drive::tyre_screen`).
     pub panel: [PlainDword; 4],
-    /// 0x5BEAE0: `dword_5BEAE0` ..: the wheel's rectangle (x, y, w, h): its place (the panel's middle less the wheel's half, worked out by `drive::tyre_screen`) and its size (0xDE, 0xDE).
+    /// The wheel's rectangle (x, y, w, h): its place (the panel's middle less the wheel's half,
+    /// worked out by `drive::tyre_screen`) and its size (0xDE, 0xDE).
     pub wheel: [PlainDword; 4],
-    /// 0x5BEAF0: `unk_5BEAF0`: the turning wheel's rectangle (x, y, w, h; 109.5, 109.5, 11, 109), `drive::tyre_turned_quad`'s `d`.
+    /// The turning wheel's rectangle (x, y, w, h; 109.5, 109.5, 11, 109),
+    /// `drive::tyre_turned_quad`'s `d`.
     pub turning_rect: [PlainFloat; 4],
-    /// 0x5BEB00: `unk_5BEB00`: the panel's texture rectangle.
+    /// The panel's texture rectangle.
     pub panel_texture: [PlainDword; 4],
-    /// 0x5BEB10: `unk_5BEB10`: the wheel's quad's texture rectangle.
+    /// The wheel's quad's texture rectangle.
     pub wheel_texture: [PlainDword; 4],
-    /// 0x5BEB20: `unk_5BEB20`: the turning part's texture rectangle.
+    /// The turning part's texture rectangle.
     pub turning_texture: [PlainDword; 4],
-    /// 0x5BEB30: `unk_5BEB30` .. `unk_5BEBB0`: five layouts of 0x20 bytes: the panel's rectangle then the fixed parts' rectangle (`rc2k_core::drive::tyre_screen::layout`).
+    /// Five layouts of 0x20 bytes: the panel's rectangle then the fixed parts' rectangle
+    /// (`rc2k_core::drive::tyre_screen::layout`).
     pub layouts: [PlainDword; 40],
-    /// 0x5BEBD0: `dword_5BEBD0` ..: the fixed parts' rectangle of the layout in use (`drive::tyre_screen_parts`).
+    /// The fixed parts' rectangle of the layout in use (`drive::tyre_screen_parts`).
     pub parts: [PlainDword; 4],
-    /// 0x5BEBE0: `g_tyreChangeTexture`: the texture the screen is drawn into (`race::draw_tyre_change`).
+    /// The texture the screen is drawn into (`race::draw_tyre_change`).
     pub texture: PlainDword,
-    /// 0x5BEBE4: `g_tyreChangeDeviceTexture`: its copy on the device (`d3d::copy_to_device_texture`).
+    /// Its copy on the device (`d3d::copy_to_device_texture`).
     pub device_texture: PlainDword,
-    /// 0x5BEBE8: `g_tyreChangeDrawn`: 1 once the texture's fixed texts have been drawn.
+    /// 1 once the texture's fixed texts have been drawn.
     pub drawn: PlainDword,
-    /// 0x5BEBEC: `g_tyreChangePlayer`: the player (car) whose change it is.
+    /// The player (car) whose change it is.
     pub player: PlainDword,
-    /// 0x5BEBF0: `flt_5BEBF0`: the sine of the wheel's turn (`drive::tyre_turned_quad`).
+    /// The sine of the wheel's turn (`drive::tyre_turned_quad`).
     pub turn_sin: PlainFloat,
-    /// 0x5BEBF4: `flt_5BEBF4`: its cosine.
+    /// Its cosine.
     pub turn_cos: PlainFloat,
-    /// 0x5BEBF8: `flt_5BEBF8`: the wheel rectangle's h times the sine.
+    /// The wheel rectangle's h times the sine.
     pub half_h_sin: PlainFloat,
-    /// 0x5BEBFC: `flt_5BEBFC`: minus its h times the cosine.
+    /// Minus its h times the cosine.
     pub neg_half_h_cos: PlainFloat,
-    /// 0x5BEC00: `flt_5BEC00`: its w times the cosine.
+    /// Its w times the cosine.
     pub half_w_cos: PlainFloat,
-    /// 0x5BEC04: `flt_5BEC04`: its w times the sine.
+    /// Its w times the sine.
     pub half_w_sin: PlainFloat,
-    /// 0x5BEC08: `g_tyreChangeRecordName`: the record holder's name (30 bytes used).
+    /// The record holder's name (30 bytes used).
     pub record_name: PlainBytes<32>,
-    /// 0x5BEC28: `g_tyreChangeRecord` (21000): the record time (ms / 10).
+    /// The record time (ms / 10); starts at 21000.
     pub record: PlainDword,
-    /// 0x5BEC2C: `unk_5BEC2C`: the fill's palette (`gfx::fill_rect`).
+    /// The fill's palette (`gfx::fill_rect`).
     pub palette: PlainBytes<4>,
 }
 

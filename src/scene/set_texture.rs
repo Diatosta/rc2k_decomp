@@ -1,8 +1,5 @@
-//! `scene::set_texture` (0x44E77E): `d3d::set_texture` with the texture, unless the draw switch is 0.
-//!
-//! Takes: the texture's number
-//!
-//! 21 callers, none reading flags. `d3d::set_texture` is the platform's.
+//! `scene::set_texture`: `d3d::set_texture` with the texture, unless the draw switch is 0. 21
+//! callers.
 
 use crate::scene::owner::Scene;
 

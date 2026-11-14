@@ -1,18 +1,17 @@
-//! `physics::wall_contacts` (0x45D7B6): the probe points (`probe_count` of them) against
-//! walls. For each point k, its face now (`probe_point_face`[k]`, into `wall_face_now`) and before
-//! (`probe_saved_faces`[k]`, into `wall_face_before` when they differ): their words +2 or-ed
-//! together; when they differ and the pair's has both 0x400 and 0x800, the wall met:
-//! `probe_index` = k, the point's three floats from `probe_point_x`[k]` .. into
-//! `contact_point` .., `physics::wall_edge_contact`, `contact_depth` raised to |`contact_speed_length`|,
-//! `contact_flag` = 1, `wall_hit_timer` = 0x32, `physics::restore_saved_car`,
-//! `physics::feel_ground`. None met: `wall_face_now` = `wall_face_before`, the faces' words
-//! or-ed & 0xC00 into `wall_bits`; at 0xC00, the car-frame speed (`local_velocity` ..)
-//! into `contact_point` .., `physics::wall_push_back`, the same two words,
-//! `restore_saved_car`, `feel_ground`.
+//! The probe points (`probe_count` of them) against walls. For each point k, its face now
+//! (`probe_point_face[k]`, into `wall_face_now`) and before (`probe_saved_faces[k]`, into
+//! `wall_face_before` when they differ): their flag words are or-ed together; when they differ and
+//! the pair's has both 0x400 and 0x800, the wall is met: `probe_index` = k, the point goes from
+//! `probe_point_x` into `contact_point`, then `physics::wall_edge_contact`, `contact_depth` raised
+//! to |`contact_speed_length`|, `contact_flag` = 1, `wall_hit_timer` = 0x32,
+//! `physics::restore_saved_car`, `physics::feel_ground`. None met: `wall_face_now` =
+//! `wall_face_before`, the faces' words or-ed & 0xC00 into `wall_bits`; at 0xC00, the car-frame
+//! speed (`local_velocity`) goes into `contact_point`, then `physics::wall_push_back`, the same two
+//! words, `restore_saved_car`, `feel_ground`.
 //!
 //! Callers: `physics::car_physics_step` (every physics step), `physics::find_clear_place`. Refuses
-//! (before anything) a count of 0 or past 0x40 (the original's loop runs on, or past the tables),
-//! and what its calls refuse (what was written put back).
+//! (before anything) a count of 0 or past 0x40, and what its calls refuse (what was written is put
+//! back).
 
 use crate::errors::Refused;
 use crate::physics::car_store::Car;
@@ -36,7 +35,7 @@ fn after(c: &ContactInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<()
 }
 
 /// The steps, not guarded (`check` before).
-// Converted: `rc2k_core::physics::walls::walk`.
+// Core: `rc2k_core::physics::walls::walk`.
 pub fn steps(c: &ContactInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let contact = c.contact;
     let walked = walls::walk(c.car.probe_count.get(), |k| {
@@ -58,7 +57,7 @@ pub fn steps(c: &ContactInputs<'_>, scene: &crate::scene::owner::Scene) -> Resul
     })?;
     match walked {
         walls::Walk::Met { probe, .. } => {
-            // 0x45D83E: a wall met.
+            // A wall met.
             let k = probe as usize;
             contact.probe_index.set(probe);
             c.car.contact_point[0].set(c.car.probe_point_x[k].get());

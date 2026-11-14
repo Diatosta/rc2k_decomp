@@ -1,17 +1,15 @@
-//! `sound::play_spot_voices` (0x40EB9E): each voice heard this turn sent: started when
-//! told to, else kept going while it plays, and stopped once its time is up.
+//! `sound::play_spot_voices`: each voice heard this turn sent: started when told to, else kept
+//! going while it plays, and stopped once its time is up.
 //!
-//! Takes: the request
-//! For each voice heard (+4 1, cleared): the request's sound = +0x14. Told to start
-//! (+0x24 1, cleared): its volume and rate (`sound::sample_settings`, the sample's own)
-//! as floats into +0x3C / +0x38, the end (+0x34) = `sound::sample_duration` plus the
-//! clock plus its delay (+0x30), playing (+0x28) 1. Else only a playing one goes on, its sound
-//! with bit 31 set unless the sample loops (record +0x14 is 1). Then the request: +8
-//! the volume, +4 the rate, +0x20 / +0x24 the factors (+0x48 / +0x4C), the place, and
-//! `sound::play_placed_sound`; once the clock is at or past the end (`js`), the sound
-//! stopped (`sound::stop_sound`) and playing 0. One caller, `sound::spot_sounds`.
-//! A sound past the sample records and the
-//! two leaves' refusals put back what was written (sounds already sent stay sent).
+//! Takes the request. For each voice heard (the flag is cleared): the request's sound is the
+//! voice's. Told to start (the restart flag is cleared): its volume and rate
+//! (`sound::sample_settings`, the sample's own) become the voice's floats, the end is
+//! `sound::sample_duration` plus the clock plus its delay, and it is playing. Else only a playing
+//! one goes on, its sound with bit 31 set unless the sample loops. Then the request gets the
+//! volume, the rate, the pitch and volume factors and the place, and `sound::play_placed_sound`
+//! plays it; once the clock is at or past the end, the sound is stopped (`sound::stop_sound`) and
+//! the voice is no longer playing. One caller, `sound::spot_sounds`. A sound past the sample
+//! records and the two leaves' refusals put back what was written (sounds already sent stay sent).
 
 use crate::errors::{BadInput, Refused};
 use crate::math::x87::from_int;
@@ -36,8 +34,8 @@ pub fn play_spot_voices(
         v.heard.set(0);
         let sound = v.sound.get();
         request.sound.set(sound);
-        // Converted: `rc2k_core::sound::spot_voices` (`played`, `end_time`,
-        // `going_on`, `time_up`).
+        // The logic is `rc2k_core::sound::spot_voices` (`played`, `end_time`, `going_on`,
+        // `time_up`).
         let kind = played(v.restart.get(), || v.playing.get());
         match kind {
             Played::Start => {
@@ -61,7 +59,7 @@ pub fn play_spot_voices(
                 request.sound.set(going_on(request.sound.get(), looping));
             }
         }
-        // The request's dwords the voice fills (request words 2, 1, 8, 9, 3 .. 5): the volume, the rate,
+        // The request's words the voice fills (words 2, 1, 8, 9, 3 .. 5): the volume, the rate,
         // the two factors, the place; the request holds them as dwords.
         let filled = [
             (2, v.volume.bits()),

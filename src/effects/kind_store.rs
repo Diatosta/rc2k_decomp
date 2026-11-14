@@ -1,60 +1,63 @@
-//! The marks' kind work, IDA 0x9331B4 ..
-//! 0x934CC8: `kind_values` (`init_marks`' steps 8 and 9) works out, for the marks' kind
-//! (`g_marksKind`), the values of two quads from two sets of tables, and `draw_shadow` and
+//! The marks' kind work. `kind_values` (`init_marks`' steps 8 and 9) works out, for the
+//! marks' kind, the values of two quads from two sets of tables, and `draw_shadow` and
 //! `draw_plane` draw the three quads from them:
 //!
-//! - `QuadWork` (0xF8 bytes), three times: set 1 (`QUAD_1`, 0x9331B4: `draw_shadow`'s
-//!   `SECOND`, the second shadow, drawn by `draw_overlays`), set 2 (`QUAD_2`, 0x933ED0:
-//!   `draw_shadow`'s `FIRST`) and the plane's (`QUAD_3`, 0x934BD0: `draw_plane`, whose values
-//!   a third set of tables would have made; nothing in the port writes but the corner and the
-//!   corners);
+//! - `QuadWork` (0xF8 bytes), three times: set 1 (`overlay_quad`: `draw_shadow::second`, the
+//!   second shadow, drawn by `draw_overlays`), set 2 (`shadow_quad`: `draw_shadow::first`) and
+//!   the plane's (`plane_quad`: `draw_plane`, whose values a third set of tables would have
+//!   made; only the corner and the corners are written);
 //! - `KindTables` (the per-kind tables of 0x22 entries), `KindExtras1` / `KindExtra2` (the
 //!   `extra` out and, for set 1, the `divisor` copy) and `KindConsts` (the constants and the
-//!   light), once for each set. Set 1 is `kind_values::FIRST`, set 2 `kind_values::SECOND`.
+//!   light), once for each set. Set 1 is `kind_values::first`, set 2 `kind_values::second`.
 
 use crate::session::{PlainDword, PlainFloat};
 
-/// A quad's work area, the image's layout (IDA 0xF8 bytes, three copies: `QUAD_1`, `QUAD_2`, `QUAD_3`). The offsets are from its start.
+/// A quad's work area (0xF8 bytes, three copies: `overlay_quad`, `shadow_quad`, `plane_quad`). The
+/// offsets are from its start.
 #[derive(rc2k_derive::Cells)]
 pub struct QuadWork {
-    /// +0x0: the quad's place (z, y, x as `kind_values` writes it, a reading): the kind's two triples blended (set 1 `flt_9331B4`, `flt_9331B8` ..; set 2 `flt_9331B4`, `flt_9331B8` ..; plane `flt_9331B4`, `flt_9331B8` ..)
+    /// +0x0: the quad's place (z, y, x as `kind_values` writes it, a reading): the kind's two
+    /// triples blended
     pub place: [PlainFloat; 3],
-    /// +0x10: the light's way turned by the matrix (`draw_shadow`), a reading (set 1 `flt_9331C4`, `flt_9331C8` ..; set 2 `flt_9331C4`, `flt_9331C8` ..; plane `flt_9331C4`, `flt_9331C8` ..)
+    /// +0x10: the light's way turned by the matrix (`draw_shadow`), a reading
     pub light_turned: [PlainFloat; 3],
-    /// +0x1C: the matrix turned about z by the angle (`turn_matrix3`); its rows are made the frame's (set 1 `dword_9331D0`, `dword_9331D4` ..; set 2 `dword_9331D0`, `dword_9331D4` ..; plane `dword_9331D0`, `dword_9331D4` ..)
+    /// +0x1C: the matrix turned about z by the angle (`turn_matrix3`); its rows are made the
+    /// frame's
     pub matrix: [PlainFloat; 9],
-    /// +0x4C: the quad's two sides: the kind's triple (`copied`), then (0, difference y, minus difference x) (set 1 `dword_933200`, `dword_933204` ..; set 2 `dword_933200`, `dword_933204` ..; plane `dword_933200`, `dword_933204` ..)
+    /// +0x4C: the quad's two sides: the kind's triple (`copied`), then (0, difference y, minus
+    /// difference x)
     pub sides: [[PlainFloat; 3]; 2],
-    /// +0x70: the sides made one long and square (`normalise_vector3`, `cross_product3`); the light turned is stored in the third (set 1 `dword_933224`, `dword_933228` ..; set 2 `dword_933224`, `dword_933228` ..; plane `dword_933224`, `dword_933228` ..)
+    /// +0x70: the sides made one long and square (`normalise_vector3`, `cross_product3`); the light
+    /// turned is stored in the third
     pub frame: [[PlainFloat; 3]; 3],
-    /// +0x94: the corner of `g_marksCorners` (-1: none), the kind's `count` (set 1 `dword_933248`; set 2 `dword_933248`; plane `dword_933248`)
+    /// +0x94: the corner of the mark corners table (-1: none), the kind's `count`
     pub corner: PlainDword,
-    /// +0x98: the kind's size over its divisor (`kind_values`) (set 1 `flt_93324C`; set 2 `flt_93324C`; plane `flt_93324C`)
+    /// +0x98: the kind's size over its divisor (`kind_values`)
     pub ratio: PlainFloat,
-    /// +0x9C: the kind's size times its constant (`kind_values`) (set 1 `flt_933250`; set 2 `flt_933250`; plane `flt_933250`)
+    /// +0x9C: the kind's size times its constant (`kind_values`)
     pub size: PlainFloat,
-    /// +0xA0: the kind's start times its constant (set 1 `flt_933254`; set 2 `flt_933254`; plane `flt_933254`)
+    /// +0xA0: the kind's start times its constant
     pub start: PlainFloat,
-    /// +0xA4: the angle line below the split: the factor (set 1 `flt_933258`; set 2 `flt_933258`; plane `flt_933258`)
+    /// +0xA4: the angle line below the split: the factor
     pub step: PlainFloat,
-    /// +0xA8: the split of the angle's two lines: the kind's `low` (signed compare of the bits) (set 1 `dword_93325C`; set 2 `dword_93325C`; plane `dword_93325C`)
+    /// +0xA8: the split of the angle's two lines: the kind's `low` (signed compare of the bits)
     pub low: PlainFloat,
-    /// +0xAC: the kind's `high` (set 1 `dword_933260`; set 2 `dword_933260`; plane `dword_933260`)
+    /// +0xAC: the kind's `high`
     pub high: PlainFloat,
-    /// +0xB0: the angle line above the split: its base (set 1 `flt_933264`; set 2 `flt_933264`; plane `flt_933264`)
+    /// +0xB0: the angle line above the split: its base
     pub middle: PlainFloat,
-    /// +0xB4: the angle line above the split: its factor (set 1 `flt_933268`; set 2 `flt_933268`; plane `flt_933268`)
+    /// +0xB4: the angle line above the split: its factor
     pub slope: PlainFloat,
-    /// +0xB8: the factor the quad is drawn in by (`corners_in`) (set 1 `flt_93326C`; set 2 `flt_93326C`; plane `flt_93326C`)
+    /// +0xB8: the factor the quad is drawn in by (`corners_in`)
     pub spread: PlainFloat,
-    /// +0xBC: the way between two corners, made one long (`normalise_vector3`) (set 1 `flt_933270`, `flt_933274` ..; set 2 `flt_933270`, `flt_933274` ..; plane `flt_933270`, `flt_933274` ..)
+    /// +0xBC: the way between two corners, made one long (`normalise_vector3`)
     pub way: [PlainFloat; 3],
-    /// +0xC8: the quad's four corners (z, y, x), turned to the view then projected (set 1 `flt_93327C`, `flt_933280` ..; set 2 `flt_93327C`, `flt_933280` ..; plane `flt_93327C`, `flt_933280` ..)
+    /// +0xC8: the quad's four corners (z, y, x), turned to the view then projected
     pub corners: [[PlainFloat; 3]; 4],
 }
 
 impl QuadWork {
-    /// The second shadow's (`draw_shadow::SECOND`) quad (IDA 0x9331B4 .. 0x9332AC); the first values are the image's.
+    /// The second shadow's (`draw_shadow::second`) quad.
     pub const fn new_1() -> Self {
         Self {
             place: [
@@ -106,7 +109,7 @@ impl QuadWork {
 }
 
 impl QuadWork {
-    /// The first shadow's (`draw_shadow::FIRST`) quad (IDA 0x933ED0 .. 0x933FC8); the first values are the image's.
+    /// The first shadow's (`draw_shadow::first`) quad.
     pub const fn new_2() -> Self {
         Self {
             place: [
@@ -158,7 +161,7 @@ impl QuadWork {
 }
 
 impl QuadWork {
-    /// The plane's (`draw_plane`) quad (IDA 0x934BD0 .. 0x934CC8); the first values are the image's.
+    /// The plane's (`draw_plane`) quad.
     pub const fn new_3() -> Self {
         Self {
             place: [
@@ -211,35 +214,35 @@ impl QuadWork {
 
 /// The per-kind tables of one set: 3 tables of 0x22 triples, then 10 of 0x22 values.
 pub struct KindTables {
-    /// `copied`: per kind, the triple copied into the quad's first side (`dword_933458`, `dword_93345C` ..)
+    /// `copied`: per kind, the triple copied into the quad's first side
     pub copied: [[f32; 3]; 34],
-    /// `from`: per kind, the triple the place and the second side start from (`flt_9335F0`, `flt_9335F4` ..)
+    /// `from`: per kind, the triple the place and the second side start from
     pub from: [[f32; 3]; 34],
-    /// `to`: per kind, the triple they end at (`flt_933788`, `flt_93378C` ..)
+    /// `to`: per kind, the triple they end at
     pub to: [[f32; 3]; 34],
-    /// `extra`: per kind (times `extra_k` into the lift along the up) (`flt_933920`, `flt_933924` ..)
+    /// `extra`: per kind (times `extra_k` into the lift along the up)
     pub extra: [f32; 34],
-    /// `size`: per kind (`flt_9339A8`, `flt_9339AC` ..)
+    /// `size`: per kind
     pub size: [f32; 34],
-    /// `divisor`: per kind (`flt_933A30`, `flt_933A34` ..)
+    /// `divisor`: per kind
     pub divisor: [f32; 34],
-    /// `spread`: per kind (`flt_933AB8`, `flt_933ABC` ..)
+    /// `spread`: per kind
     pub spread: [f32; 34],
-    /// `count`: per kind, the corner of `g_marksCorners` (-1: none) (`dword_933B40`, `dword_933B44` ..)
+    /// `count`: per kind, the corner of the mark corners table (-1: none)
     pub count: [u32; 34],
-    /// `start`: per kind (`flt_933BC8`, `flt_933BCC` ..)
+    /// `start`: per kind
     pub start: [f32; 34],
-    /// `middle`: per kind (`flt_933C50`, `flt_933C54` ..)
+    /// `middle`: per kind
     pub middle: [f32; 34],
-    /// `end`: per kind (`flt_933CD8`, `flt_933CDC` ..)
+    /// `end`: per kind
     pub end: [f32; 34],
-    /// `high`: per kind (`dword_933D60`, `flt_933D64` ..)
+    /// `high`: per kind
     pub high: [f32; 34],
-    /// `low`: per kind (`dword_933DE8`, `flt_933DEC` ..)
+    /// `low`: per kind
     pub low: [f32; 34],
 }
 
-/// Set 1's tables (IDA 0x9332AC .. 0x933E70); the first values are the image's.
+/// Set 1's tables.
 pub static TABLES_1: KindTables = KindTables {
     copied: [const { [1.0, 0.0, 0.0] }; 34],
     from: [
@@ -368,7 +371,7 @@ pub static TABLES_1: KindTables = KindTables {
     ],
 };
 
-/// Set 2's tables (IDA 0x933FC8 .. 0x934B78); the first values are the image's.
+/// Set 2's tables.
 pub static TABLES_2: KindTables = KindTables {
     copied: [const { [1.0, 0.0, 0.0] }; 34],
     from: [
@@ -496,17 +499,17 @@ pub static TABLES_2: KindTables = KindTables {
     ],
 };
 
-/// Set 1's two outs after its quad (IDA 0x933E70 .. 0x933E7C).
+/// Set 1's two outs after its quad.
 #[derive(rc2k_derive::Cells)]
 pub struct KindExtras1 {
-    /// +0x0: the kind's `extra` times `extra_k` (`flt_933E70`), the lift along the up
+    /// +0x0: the kind's `extra` times `extra_k`, the lift along the up
     pub extra: PlainFloat,
-    /// +0x4: `divisor` copied (`dword_933E74`; the first set only)
+    /// +4: `divisor` copied (the first set only)
     pub divisor_copy: PlainFloat,
 }
 
 impl KindExtras1 {
-    /// Set 1's outs; the first values are the image's.
+    /// Set 1's outs.
     pub const fn new() -> Self {
         Self {
             extra: PlainFloat::new(0.0),
@@ -515,15 +518,15 @@ impl KindExtras1 {
     }
 }
 
-/// Set 2's out after its quad (IDA 0x934B78 .. 0x934B7C).
+/// Set 2's out after its quad.
 #[derive(rc2k_derive::Cells)]
 pub struct KindExtra2 {
-    /// +0x0: the kind's `extra` times `extra_k` (`flt_934B78`), the lift along the up
+    /// +0x0: the kind's `extra` times `extra_k`, the lift along the up
     pub extra: PlainFloat,
 }
 
 impl KindExtra2 {
-    /// Set 2's out; the first values are the image's.
+    /// Set 2's out.
     pub const fn new() -> Self {
         Self {
             extra: PlainFloat::new(0.0),
@@ -531,33 +534,33 @@ impl KindExtra2 {
     }
 }
 
-/// A set's constants and light (IDA 0x54 bytes). The offsets are from its start.
+/// A set's constants and light (0x54 bytes). The offsets are from its start.
 pub struct KindConsts {
-    /// +0x0: the kind's size is multiplied by it (`kind_values` c0) (`flt_933E7C`)
+    /// +0x0: the kind's size is multiplied by it (`kind_values` c0)
     pub size_k: f32,
-    /// +0x4: the kind's `start` is multiplied by it (c1) (`flt_933E80`)
+    /// +0x4: the kind's `start` is multiplied by it (c1)
     pub start_k: f32,
-    /// +0x8: the step's last factor (c2) (`flt_933E84`)
+    /// +0x8: the step's last factor (c2)
     pub step_k: f32,
-    /// +0xC: the kind's `middle` is multiplied by it (c3) (`flt_933E88`)
+    /// +0xC: the kind's `middle` is multiplied by it (c3)
     pub middle_k: f32,
-    /// +0x10: the slope's last factor (c4) (`flt_933E8C`)
+    /// +0x10: the slope's last factor (c4)
     pub slope_k: f32,
-    /// +0x14: the kind's `spread` is multiplied by it (c5) (`flt_933E90`)
+    /// +0x14: the kind's `spread` is multiplied by it (c5)
     pub spread_k: f32,
-    /// +0x18: the kind's `extra` is multiplied by it (c6) (`flt_933E94`)
+    /// +0x18: the kind's `extra` is multiplied by it (c6)
     pub extra_k: f32,
-    /// +0x1C: the place's blends: for each of the triple's three parts, two factors (c7 .. c12) (`flt_933E98`, `flt_933E9C` ..)
+    /// +0x1C: the place's blends: for each of the triple's three parts, two factors (c7 .. c12)
     pub place_k: [f32; 6],
-    /// +0x34: what the y part is taken from after the blend (c13) (`flt_933EB0`)
+    /// +0x34: what the y part is taken from after the blend (c13)
     pub place_less: f32,
-    /// +0x38: the light's way, turned by the matrix into `light_turned` (`draw_shadow`) (`flt_933EB4`, `flt_933EB8` ..)
+    /// +0x38: the light's way, turned by the matrix into `light_turned` (`draw_shadow`)
     pub light: [f32; 3],
-    /// +0x44: what each corner's depth is lowered by (`draw_shadow`) (`flt_933EC0`, `flt_933EC4` ..)
+    /// +0x44: what each corner's depth is lowered by (`draw_shadow`)
     pub lifts: [f32; 4],
 }
 
-/// Set 1's constants (IDA 0x933E7C .. 0x933ED0); the first values are the image's.
+/// Set 1's constants.
 pub static CONSTS_1: KindConsts = KindConsts {
     size_k: 65.536_f32,
     start_k: 0.017453292_f32,
@@ -572,7 +575,7 @@ pub static CONSTS_1: KindConsts = KindConsts {
     lifts: [3655.36_f32; 4],
 };
 
-/// Set 2's constants (IDA 0x934B7C .. 0x934BD0); the first values are the image's.
+/// Set 2's constants.
 pub static CONSTS_2: KindConsts = KindConsts {
     size_k: 65.536_f32,
     start_k: 0.017453292_f32,

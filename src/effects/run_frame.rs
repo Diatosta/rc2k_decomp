@@ -1,13 +1,10 @@
-//! `effects::run_frame` (0x4D1549): the effects' frame drawn: `effects::swap_mask`,
-//! `effects::tick_clock`; render states 0x15 = 4, 0x1C = 0, 0x13 = 5, 0x14 = 6, 0x1B = 1,
-//! 3 = 1; `effects::run_rain`, `effects::run_snow`; `effects::draw_frame`;
-//! `effects::ring_frame`; render state 0x14 = 2; `effects::flare_frame`; render state 3 = 1;
-//! `effects::draw_mark_slots`, `effects::run_particles`; `effects::stage_record`,
-//! `effects::draw_glow`, `scene::depth_buffer_on`, `scene::depth_test_on`. Three shares of the
-//! frame's time (`rdtsc` over the frame's cycles, times three constants) into the draw's, the
-//! ring's and the whole's shares.//!
-//! Caller: the race's frame (`race::run_view_marks`). Its calls are in
-//! the order above.
+//! `effects::run_frame`: the effects' frame drawn, in this order: `effects::swap_mask`,
+//! `effects::tick_clock`, the render states, `effects::run_rain`, `effects::run_snow`,
+//! `effects::draw_frame`, `effects::ring_frame`, `effects::flare_frame`,
+//! `effects::draw_mark_slots`, `effects::run_particles`, `effects::stage_record`,
+//! `effects::draw_glow`, then the depth buffer and test on. Three shares of the frame's time (the
+//! cycle count over the frame's cycles, times three constants) go into the draw's, the ring's and
+//! the whole's shares.
 
 use crate::effects::owner::Effects;
 use crate::errors::Refused;
@@ -46,8 +43,7 @@ fn share(at: usize, start: u32, effects: &crate::effects::owner::Effects) {
 }
 
 /// The view the effects are drawn for (a player's main view, from its overlays): its fog, its
-/// matrix (the original's `g_viewMatrix`) and its light (`g_viewLight`), which the original
-/// read from what the last view drawn left; and the race's sine tables the sprites turn by.
+/// matrix and its light; and the race's sine tables the sprites turn by.
 #[derive(Clone, Copy)]
 pub struct EffectsView<'a> {
     pub fog: &'a crate::scene::fog::Fog,
@@ -68,8 +64,8 @@ impl<'a> EffectsView<'a> {
     }
 
     /// Before any view of the race (`drive::race_init`'s settling steps): the matrix the last
-    /// view drawn left, as the original read; the front end's fog and light (frame plan F4; the
-    /// snow's fades worked out from the light are worked out again at every frame before they
+    /// view drawn left; the front end's fog and light (the snow's fades worked out from the
+    /// light are worked out again at every frame before they are drawn).
     /// are drawn).
     pub fn before_any_view(race: &'a Race) -> Self {
         let front_end = crate::race::view_scratch::front_end();
@@ -149,11 +145,11 @@ pub fn run_frame(
     Ok(())
 }
 
-/// The frame's time constants (IDA 0x93C8C0 .. 0x93C8D0).
+/// The frame's time constants.
 pub struct FrameK {
-    /// 0x93C8C0: `flt_93C8C0`: the marks' share factor (`frame_marks`)
+    /// The marks' share factor (`frame_marks`)
     pub share_k: f32,
-    /// 0x93C8C4: `flt_93C8C4`, `flt_93C8C8`, `flt_93C8CC`: the frame's time factors (`run_frame`)
+    /// The frame's time factors (`run_frame`)
     pub times: [f32; 3],
 }
 

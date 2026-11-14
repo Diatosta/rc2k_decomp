@@ -1,20 +1,18 @@
-//! `sound::car_hit_sound` (0x40E182): a car's sound of a hit, sent once (+0x238, which
-//! the physics' contacts set: `physics::place_sound_object` and the like).
+//! `sound::car_hit_sound`: a car's sound of a hit, sent once (`hit_sound`, which the physics'
+//! contacts set: `physics::place_sound_object` and the like).
 //!
-//! Takes: the car's sound object, the request
-//! Nothing when +0x238 is -2 (none); else it is taken (+0x238 = -2) into the
-//! request, with its volume +0x23C and the sample's own rate through
-//! `sound::sample_settings`; a volume under 4: nothing; else the request's +8 and +4 the volume and rate
-//! as floats, the place +0x240 .. +0x248, and `sound::play_placed_sound`.
-//! One caller, `sound::car_sounds`.
-//! Refuses (before anything) a null object and a sound past the sample
+//! Takes the car's sound object and the request. Nothing when the sound is -2 (none); else it is
+//! taken (set to -2) into the request, with its volume and the sample's own rate through
+//! `sound::sample_settings`. A volume under 4 plays nothing; else the volume and rate go into the
+//! request as floats, with the place, and `sound::play_placed_sound` plays it. One caller,
+//! `sound::car_sounds`. Refuses (before anything) a null object and a sound past the sample
 //! records.
 
 use crate::errors::Refused;
 use crate::sound::sample_settings::{record, sample_settings};
 use crate::sound::sets_store::SoundRequest;
 
-/// Converted: `rc2k_core::sound::cars::one_off`.
+/// The logic is `rc2k_core::sound::cars::one_off`.
 ///
 /// The waiting hit sound of object `so`, through `request`.
 pub fn car_hit_sound(

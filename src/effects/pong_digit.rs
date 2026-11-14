@@ -1,11 +1,7 @@
-//! `effects::pong_digit` (0x4B8418): one score digit: `effects::pong_cell` for its 4 x 5
-//! pattern (the digit patterns, 0x14 bytes a digit; walking the cells by column and row), then
-//! the score's x on 0x40.
+//! `effects::pong_digit`: one score digit: `effects::pong_cell` for its 4 x 5 pattern (the digit
+//! patterns, 0x14 bytes a digit; walking the cells by column and row), then the score's x on 0x40.
 //!
-//! Takes: the digit
-//!
-//! Caller: `effects::pong_score` (six times). Refuses a digit past 9 (the patterns' end),
-//! before anything.
+//! Refuses a digit past 9 (the patterns' end), before anything.
 
 use crate::effects::pong::Pong;
 use crate::effects::windscreen_flakes_store::WindscreenFlakes;

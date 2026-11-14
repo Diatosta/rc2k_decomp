@@ -1,16 +1,14 @@
-//! `sound::wait_for_commands` (0x409C1E): waits until the audio thread has taken every
-//! command.
+//! `sound::wait_for_commands`: waits until the audio thread has taken every command.
 //!
-//! Two "end of turn" commands (0xA) are queued; then, while commands are waiting
-//! (0x409C01): a millisecond's sleep, the window's messages (`system::pump_messages`),
-//! and the quit switch at 1 ends the wait.
+//! Two "end of turn" commands (0xA) are queued; then, while commands are waiting: a millisecond's
+//! sleep, the window's messages (`system::pump_messages`), and the quit switch at 1 ends the wait.
 //! Fourteen callers.
 
 use crate::sound::queue::{END_OF_TURN, pending, send_command_in};
 
 // ---- game data ----
 
-// Converted: `rc2k_core::sound::set_up::wait_for_commands` (its parts the trait `Waiting`).
+// The logic is `rc2k_core::sound::set_up::wait_for_commands` (its parts the trait `Waiting`).
 pub use rc2k_core::sound::set_up::{Waiting as Parts, wait_for_commands};
 
 /// The parts in the game: the queue's by the Rust functions, the window's messages by

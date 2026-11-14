@@ -1,11 +1,9 @@
-//! `physics::take_notice` (0x4B1C56): when no notice is shown (`notice_shown` and
-//! `notice_id` both 0) and the queue (`physics::queue_notice`) is not empty: the first
-//! entry's id into `notice_id`, `notice_time_b` = 0x32, `notice_time` = 0x12C (by the
-//! look of them, times to show it), the count less 1, and the three lists moved down one
-//! (0x1F dwords each, `rep movsd`).
+//! When no notice is shown (`notice_shown` and `notice_id` both 0) and the queue
+//! (`physics::queue_notice`) is not empty: the first entry's id goes into `notice_id`,
+//! `notice_time_b` = 0x32, `notice_time` = 0x12C (by the look of them, times to show it), the count
+//! goes down by 1, and the three lists move down one (0x1F dwords each).
 //!
-//! Caller: `physics::car_physics_step` (0x43B961), every physics step, right after
-//! `physics::damage_notices`.
+//! Caller: `physics::car_physics_step`, right after `physics::damage_notices`, every physics step.
 
 use crate::physics::car_store::Car;
 use crate::physics::cells::set_changed;

@@ -1,28 +1,23 @@
-//! `scene::set_up_front_end_scene` (0x474E04): the front end's 3D set-up: which
-//! textures and objects the menus need, and everything loaded.
+//! `scene::set_up_front_end_scene`: the front end's 3D set-up: which textures and objects the
+//! menus need, and everything loaded.
 //!
 //! One list of stores and 50 calls, in this order:
-//! - the loading bar's range 0 .. 100; the loading
-//!   picture; `scene::reset_texture_tables`;
-//! - the textures needed (`NEEDS`): level 0 and a tag for the menus' own 42 system and
-//!   8 video textures from 0x258, the carousel pictures' 0x110 and 0x20 from 0x2BC, and
-//!   texture 0x87. (Each store of the level is there twice, the second under another switch: the same
-//!   value either way.)
+//! - the loading bar's range 0 .. 100; the loading picture; `scene::reset_texture_tables`;
+//! - the textures needed (`NEEDS`): level 0 and a tag for the menus' own 42 system and 8 video
+//!   textures from 0x258, the carousel pictures' 0x110 and 0x20 from 0x2BC, and texture 0x87;
 //! - `scene::set_up_textures`, `scene::set_up_object_memory`, `scene::clear_slot_kinds`;
-//! - the scene's colours and sizes (`FIRST_STORES`), `scene::clear_fog` (the front end's own fog: `scene::fog`), the `scene_set_up`
+//! - the scene's colours and sizes, the front end's own fog (`scene::fog`), the `scene_set_up`
 //!   switch = 1, `scene::fill_light_tables`;
-//! - the slots' kinds: slot 0 kind 1, slots 1 .. 0x28 kinds 0x259 .. 0x280, slots 0x29
-//!   .. 0x2C kinds 0x28B .. 0x28E, slots 0x2D .. 0x4E the 0x22 known kinds
-//!   (`scene::known_kind`);
-//! - `scene::load_front_end_objects` and nine lines in the game's log with the points
-//!   and faces loaded (the stub `scene::load_front_end_objects_logged`, inlined);
-//!   `scene::reset_texture_places`;
+//! - the slots' kinds: slot 0 kind 1, slots 1 ..= 0x28 kinds 0x259 .. 0x280, slots 0x29 ..= 0x2C
+//!   kinds 0x28B .. 0x28E, slots 0x2D ..= 0x4E the 0x22 known kinds (`scene::known_kind`);
+//! - `scene::load_front_end_objects` and nine lines in the game's log with the points and faces
+//!   loaded (`scene::load_front_end_objects_logged`); `scene::reset_texture_places`;
 //! - the kinds' pictures (the kind pictures table): kind 0x87 picture 0x82A, kinds 0x258 ..
-//!   0x271 the 26 of `MENU_PICTURES`, and eight in a row from kind 0x2BC + 8 * place for
-//!   each of 33 known kinds (`scene::known_kind_picture` of places 0 .. 0x1D, 0x1F,
-//!   0x20, 0x21, and the seven numbers after it; place 0x1E's eight are left alone);
-//! - the loading bar's function = `race::loading_bar_frame`,
-//!   `scene::reload_system_textures`, `scene::allocate_point_records`;
+//!   0x271 the 26 of `MENU_PICTURES`, and eight in a row from kind 0x2BC + 8 * place for each
+//!   of 33 known kinds (`scene::known_kind_picture` of places 0 ..= 0x1D, 0x1F, 0x20, 0x21, and
+//!   the seven numbers after it; place 0x1E's eight are left alone);
+//! - the loading bar's function = `race::loading_bar_frame`, `scene::reload_system_textures`,
+//!   `scene::allocate_point_records`;
 //! - the colours again, `scene::fill_scene_light_tables`, `scene::set_view_matrices`,
 //!   `scene::reload_slot_textures`;
 //! - the colours a third time with the stage's lamp level = 0x7F, `scene_set_up` = 1,
@@ -75,8 +70,6 @@ const MENU_PICTURES: [u32; 26] = [
 fn picture_places() -> impl Iterator<Item = u32> {
     (0..0x22).filter(|&place| place != 0x1E)
 }
-
-// ---- Rust version ----
 
 fn colours(course: &crate::race::owner_course::Course, dark_third: u32) {
     {

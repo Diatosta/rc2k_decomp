@@ -1,5 +1,4 @@
-//! `scene::depth_test_off` (0x44E3D1): Direct3D render state 14 (writing to the depth buffer)
-//! 0.
+//! `scene::depth_test_off`: Direct3D render state 14 (writing to the depth buffer) 0.
 //!
 //! One call of `scene::set_render_state`. 14 callers.
 

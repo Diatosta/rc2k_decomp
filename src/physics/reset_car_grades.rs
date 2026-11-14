@@ -1,15 +1,11 @@
-//! `physics::reset_car_grades` (0x440A22): resets a car block (0xFE0 bytes, the work copy's
-//! layout): `damage_failed` .. +0x367 zeroed; `engine_power_factor` .. +0x404 = 1.0; the
-//! wheel stiffness fields (+0x448 .. +0x458) = `suspension_stiffness` / 256 x 100 and the wheel
-//! ride heights (`wheel_ride_height` .. +0x444, +0x45C) = `ride_height` / 256 x 100 (both read from
-//! the work copy `g_car`, whatever block is reset: the setup's percentages, by the look of it);
-//! `steering_efficiency` .. `lost_gear_bits` and +0x64 .. +0x80 zeroed; `parts_present` = -1.
-//! Stream A's reading: the block's grades and values.
+//! Resets a car block (0xFE0 bytes, the work copy's layout): `damage_failed` and the run of fields
+//! after it are zeroed; `engine_power_factor` and the run after it = 1.0; the wheel stiffness
+//! fields = `suspension_stiffness` / 256 x 100 and the wheel ride heights (`wheel_ride_height`
+//! ..) = `ride_height` / 256 x 100 (both read from the work copy, whatever block is reset: the
+//! setup's percentages, by the look of it); `steering_efficiency` .. `lost_gear_bits` and one more
+//! run zeroed; `parts_present` = -1. A reading: the block's grades and values.
 //!
-//! Takes: the block
-//!
-//! Callers: `physics::reset_current_car` (the work car `g_car`), and unreferenced code that
-//! runs it over every car before `race::grade_all_cars`.
+//! Caller: `physics::grade_or_reset`.
 
 use core::slice::from_ref;
 
@@ -86,7 +82,7 @@ fn write_all(car: &Car, writes: Vec<(Field, u32)>) {
 }
 
 /// The block `car`, the two settings read at `s0c`, `s08` (the same at any precision).
-// Converted: `rc2k_core::physics::grades::{percentage, reset_writes}`.
+// Core: `rc2k_core::physics::grades::{percentage, reset_writes}`.
 pub fn reset_grades_at(numbers: &Numbers, car: &Car, s0c: &PlainDword, s08: &PlainDword) {
     let (k256, k100) = (numbers.k256.get(), numbers.hundred.get());
     let a = percentage(s0c.get() as i32, k256, k100);

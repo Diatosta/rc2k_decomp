@@ -1,36 +1,25 @@
-//! The films in the standalone program: `gfx::play_film` (0x41AE39), the platform's in
-//! the game (DirectShow's multimedia stream, `IAMMultiMediaStream`, into a DirectDraw
-//! surface), here an AVI reader of its own and FFmpeg's decoder (`libavcodec`, built by
-//! `tools/build_ffmpeg.sh` with the Indeo 4 decoder only; owner, 2026-10-19).
+//! The films: `gfx::play_film`, here an AVI reader of its own and FFmpeg's decoder (`libavcodec`,
+//! built by `tools/build_ffmpeg.sh` with the Indeo 4 decoder only).
 //!
-//! What the original does (0x41AE39, its three helpers 0x41AE92 open,
-//! 0x41B0A4 a frame, 0x41B0DF close):
-//! - with `g_noFmv` set: nothing (the flags of `cmp g_noFmv, 0`);
-//! - the reports (`Reports.on`) off while it plays, a pending key thrown away
-//!   (`input::take_key`);
-//! - the file (eax) resolved (`files::resolve_path`) and looked for
-//!   (`files::file_exists`), opened as a stream (failing: straight to the close);
-//! - then each frame: the messages (`system::pump_messages`), the stream's next frame
-//!   (its sample's `Update`, which waits for the frame's time; the end or a failure:
-//!   to the close), stretched over the whole back surface (`Blt`), the caller's function
-//!   (ebx, if any: every caller gives 0), shown (`gfx::show_frame`), and a key
-//!   (`input::take_key`) ends it;
-//! - the close, `test eax, eax` (eax: the key when one ended it, 0 at the film's end, the
-//!   path when it did not open), the reports back.
+//! A film: nothing with the setting `nofmv`; otherwise the reports (`Reports.on`) are off while it
+//! plays and a pending key is thrown away (`input::take_key`). The path is resolved
+//! (`files::resolve_path`), looked for (`files::file_exists`) and opened (failing: straight to the
+//! close). Then each frame: the messages (`system::pump_messages`), the stream's next frame at its
+//! time (the end or a failure: to the close), stretched over the whole back surface, shown
+//! (`gfx::show_frame`), and a key (`input::take_key`) ends it. The close puts the reports back.
 //!
-//! Here `play_film_now(path)` (its one caller `menu::play_films`, which gives no callback):
-//! true at the film's end, false when a key ended it or it did not open (the original's
-//! zero flag; `play_films` stops its round on false).
+//! `play_film_now(path)` (its one caller `menu::play_films`, which gives no callback) is true at
+//! the film's end, false when a key ended it or it did not open (`play_films` stops its round on
+//! false).
 //!
-//! Here: an AVI (`ALLOGO.AVI`: Indeo 4) by its own reader, its first video stream's chunks
-//! in order (a chunk of no bytes shows the frame before again), at the AVI's time a frame;
-//! or an MPEG-1 program stream (`MFLOGO.MPG`, `INTRO.MPG`) by its own demuxer, its video
-//! (stream 0xE0, MPEG-1 video, cut into frames by FFmpeg's parser) at its sequence
-//! header's rate and its sound (stream 0xC0, MPEG audio layer 2) decoded first and played
-//! through an SDL audio stream from the first frame on (stopped by the key or the end).
-//! Each frame converted from YUV (4:1:0 or 4:2:0, BT.601) to the back surface's format and
-//! stretched over it (nearest, as `Blt`). Anything else counts as a film that did not open,
-//! and says so in the log.
+//! An AVI (`ALLOGO.AVI`: Indeo 4) is read by its own reader, its first video stream's chunks in
+//! order (a chunk of no bytes shows the frame before again), at the AVI's time a frame; an MPEG-1
+//! program stream (`MFLOGO.MPG`, `INTRO.MPG`) by its own demuxer, its video (stream 0xE0, MPEG-1
+//! video, cut into frames by FFmpeg's parser) at its sequence header's rate and its sound (stream
+//! 0xC0, MPEG audio layer 2) decoded first and played through an SDL audio stream from the first
+//! frame on (stopped by the key or the end). Each frame is converted from YUV (4:1:0 or 4:2:0,
+//! BT.601) to the back surface's format and stretched over it (nearest). Anything else counts as a
+//! film that did not open, and says so in the log.
 
 use crate::ffi::ffmpeg::{Decoder, Frame, MP2, MPEG1VIDEO};
 use crate::framework::log;
@@ -38,7 +27,7 @@ use crate::gfx::owner::Gfx;
 use crate::system::owner::System;
 use std::ffi::CStr;
 
-/// `g_noFmv` (`dword_5BE870`, `nofmv`, a `var\ral.cfg` setting): 1 = no films.
+/// 1 = no films.
 pub static NO_FMV: crate::session::GameThread<crate::session::PlainDword> =
     crate::session::GameThread::new(crate::session::PlainDword::new(0));
 
@@ -333,7 +322,7 @@ fn pack(value: u32, mask: u32) -> u32 {
     ((value * most + 127) / 255) << shift
 }
 
-/// The picture stretched over the locked surface (`g_surface`), a checked row at a time.
+/// The picture stretched over the locked surface, a checked row at a time.
 fn blit(p: &Picture, gfx: &Gfx, system: &System) {
     let (rgb, w, h) = (&p.rgb, p.width, p.height);
     let s = &gfx.drawing.draw_surface;
@@ -454,8 +443,8 @@ fn decoded_sound(audio: &[u8], channels: usize) -> Result<Vec<i16>, String> {
     Ok(pcm)
 }
 
-/// The Rust version (see the header) for the path at `path`: the zero flag it leaves
-/// (true: the film's end, false for a key or a film that does not play).
+/// Plays the film at `path` (see the header): true at the film's end, false for a key or a film
+/// that does not play.
 pub fn play_film(o: crate::owners::Owners<'static>, path: &dyn crate::session::TextPlace) -> bool {
     let gfx_reports = &o.gfx.reports;
     let reports: u32 = gfx_reports.on.get();
@@ -483,9 +472,8 @@ pub fn play_film(o: crate::owners::Owners<'static>, path: &dyn crate::session::T
             None
         }
     };
-    // The original's eax is the path (the zero flag clear when it does not open), else
-    // the key that ended the film (0 at its end): whether it is 0.
-    let mut ended = false; // (the path is a field, never null)
+    // Whether the film ended by itself (false: a key ended it, or it did not open).
+    let mut ended = false;
     if let Some(name) = name {
         match open(&name) {
             Err(why) => log(&format!("gfx::play_film: {name} not played: {why}")),
@@ -546,8 +534,8 @@ fn run(film: &mut Film, o: crate::owners::Owners<'static>) -> u8 {
             break;
         };
         crate::platform::pump_messages_now(o);
-        // The window closed: the film ends (the original played on without a window; its
-        // pump's carry for `WM_QUIT` is not looked at here). Fixed bug.
+        // The window closed: the film ends (fixed bug: "Closing the window leaves the game
+        // running").
         if system.session.flags.quitting.is_set() {
             break;
         }
@@ -574,8 +562,8 @@ fn run(film: &mut Film, o: crate::owners::Owners<'static>) -> u8 {
     0
 }
 
-/// `gfx::play_film` for its callers (the films' loop): nothing with the setting `nofmv`
-/// (the zero flag clear); else the film at `path`, true at its end.
+/// `gfx::play_film` for its callers (the films' loop): nothing with the setting `nofmv`; else the
+/// film at `path`, true at its end.
 pub fn play_film_now(
     o: crate::owners::Owners<'static>,
     path: &dyn crate::session::TextPlace,

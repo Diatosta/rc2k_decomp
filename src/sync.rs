@@ -1,13 +1,9 @@
-//! The game's threads, events and mutexes on std (they
-//! were Win32's `CreateThread`, `CreateEventA`, `CreateMutexA`, `WaitForSingleObject`,
-//! `WaitForMultipleObjects`, `SetEvent`, `ReleaseMutex`, `CloseHandle`, `ExitThread`,
-//! `GetCurrentThreadId`, `SetThreadPriority`).
+//! The game's threads, events and mutexes on std.
 //!
-//! The game keeps a handle as a 32-bit number in its memory: here a handle is a key in a
-//! table of Rust objects, each a state under a `Mutex` with a `Condvar` for its waiters.
-//! The numbers are never 0 or 1 (the game tests a handle with `cmp eax, 1`). Thread ids are
-//! numbers given by this module, 1 up, one per thread for its life; a slot's thread gets
-//! its id before it starts, as `CreateThread` wrote it into the slot.
+//! The game keeps a handle as a 32-bit number in its memory: here a handle is a key in a table of
+//! Rust objects, each a state under a `Mutex` with a `Condvar` for its waiters. The numbers are
+//! never 0 or 1 (the game tests a handle against 1). Thread ids are numbers given by this module, 1
+//! up, one per thread for its life; a slot's thread gets its id before it starts.
 
 #![allow(unsafe_code)]
 

@@ -1,4 +1,4 @@
-//! `race::mud_texture_turn` (0x44A087): the mud's colour packed into `mud_packed`, `mud_turn_a`
+//! `race::mud_texture_turn`: the mud's colour packed into `mud_packed`, `mud_turn_a`
 //! into `RaceVars.mud_turn_a[1]` and `mud_turn_b` into `RaceVars.mud_turn_b[1]`, both 0, and
 //! `race::update_mud_texture`.
 //!
@@ -18,7 +18,7 @@ pub fn mud_texture_turn(
 ) -> Result<(), Refused> {
     texture_and_mud(&race.shared)?;
     let [red, green, blue] = mud_colour(&race.course);
-    // Converted: `rc2k_core::race::mud::packed_colour`.
+    // Logic in `rc2k_core::race::mud::packed_colour`.
     race.shared
         .vars
         .get()

@@ -1,8 +1,7 @@
-//! `physics::apply_wheel_forces` (0x43F544): `physics::apply_forces` on the 0x17 records at `forces` (`physics::clear_forces`', the wheels' among them).
+//! Applies the 0x17 force records (`forces`, the wheels' among them) to the work car with
+//! `physics::apply_forces`.
 //!
-//! Returns: the first record, the count
-//!
-//! Caller: `physics::car_physics_step` (0x43B81D), every physics step.
+//! Caller: `physics::car_physics_step`, every physics step.
 
 use crate::errors::Refused;
 use crate::physics::apply_forces::apply_forces;

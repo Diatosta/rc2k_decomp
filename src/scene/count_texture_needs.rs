@@ -1,13 +1,12 @@
-//! `scene::count_texture_needs` (0x423EB1): how many textures are needed and how much
-//! memory they take, for the log.
+//! `scene::count_texture_needs`: how many textures are needed and how much memory they take,
+//! for the log.
 //!
 //! Over the 0x400 textures: those needed in system memory (the system need not -1) are counted
 //! in the system textures total and their levels' sizes added to the system k total; those
-//! needed in video memory in the video textures total and the video k total. Then one line
-//! in the game's log: "VID <k> k in <n> texs - SYS <k> k in <n> texs". The video textures
-//! total is also
-//! what `scene::load_slot_textures` takes for the slots' number. Two call sites in
-//! `scene::build_texture_catalogue`. Refuses a level past the sizes' table.
+//! needed in video memory in the video textures total and the video k total. Then one line in
+//! the game's log: "VID `<k>` k in `<n>` texs - SYS `<k>` k in `<n>` texs". The video textures
+//! total is also what `scene::load_slot_textures` takes for the slots' number. Two call sites
+//! in `scene::build_texture_catalogue`. Refuses a level past the sizes' table.
 
 use crate::errors::BadInput;
 use crate::logfile::log_int::log_int;
@@ -16,12 +15,10 @@ use crate::logfile::log_int::log_int;
 
 // `TEXTURE_PLACES.totals`: video k, system k, video textures, system textures.
 
-// ---- Rust version ----
-
 /// The four totals. Reads only.
 fn totals(scene: &crate::scene::owner::Scene) -> Result<[u32; 4], BadInput> {
     let objects = &scene.objects;
-    // Converted: `rc2k_core::scene::textures::count_needs`.
+    // Logic: `rc2k_core::scene::textures::count_needs`.
     let (totals, _) = crate::scene::textures::with_cells(
         [
             &objects.tables.get().system_levels,

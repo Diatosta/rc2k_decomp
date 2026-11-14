@@ -3,7 +3,7 @@
 //!
 //! `effects()` is the boundary: the callers that do not take the owner yet fetch it there
 //! and pass it down. It rises as their callers take the owner, until the program's top holds
-//! it (`notes/memory_layer_plan.md`, step 11).
+//! it.
 
 use crate::effects::mask_store::Masks;
 use crate::effects::owner_groups::{Blocks, Clipping, FrameState, Kinds, Setup};

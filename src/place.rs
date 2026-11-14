@@ -54,7 +54,7 @@ impl Run for PlainDword {
 
 /// Bytes reached by offset through a record's fields in their order (the installer's pages,
 /// `install::pages_map::PagesChain`): a read or write that runs on past one field goes on into
-/// the next, as the image's bytes did, with no memory layout of the record assumed.
+/// the next, as one run of bytes would, with no memory layout of the record assumed.
 pub trait Chain {
     /// The bytes of all the fields.
     fn size(&self) -> usize;
@@ -144,8 +144,8 @@ impl BytePlace {
         Ok(u32::from_le_bytes(self.read_array::<4>(what)?))
     }
 
-    /// `n` bytes on, in the original's 32-bit arithmetic for both kinds (a "negative" `n`
-    /// goes back), so 32- and 64-bit builds reach the same byte.
+    /// `n` bytes on, in 32-bit arithmetic for both kinds (a "negative" `n` goes back), so 32- and
+    /// 64-bit builds reach the same byte.
     pub fn add(self, n: u32) -> BytePlace {
         match self {
             BytePlace::Store(s, at) => BytePlace::Store(s, (at as u32).wrapping_add(n) as usize),

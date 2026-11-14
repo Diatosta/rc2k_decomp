@@ -4,19 +4,18 @@ use super::*;
 use crate::errors::BadInput;
 use crate::race::owner_course::CourseReads;
 
-/// The game's table root of a float (`sqrt` by `g_rootTable` x `g_exponentRootTable`),
-/// times 1/65536 (`race().course.numbers.one_over_65536`), as stored.
+/// The table root of a float (`sqrt` by `root_table` x `exponent_root_table`), times 1/65536
+/// (`race().course.numbers.one_over_65536`), as stored.
 pub(super) fn table_root(course: CourseReads<'_>, v: f32) -> f32 {
     let v = v.to_bits();
-    // g_rootTable: 256 floats by mantissa bits; g_exponentRootTable: by exponent
+    // `root_table` holds 256 floats by mantissa bits; `exponent_root_table` is by exponent.
     let root = &course.lists.root_table[((v >> 15) & 0xFF) as usize];
     let scale = &course.lists.exponent_root_table[((v & 0x7F80_0000) >> 23) as usize];
     crate::math::x87::mul2(root, scale, &course.numbers.one_over_65536)
 }
 
-/// A point's x and z less car 0's (`g_carBlockStore` +0x134, +0x13C), and its y. (The
-/// original also kept x and z in `CONTACT_WORK.eax_point_x` / `eax_point_z`, which nothing
-/// read: locals here.)
+/// A point's x and z less car 0's place (the car block's +0x134, +0x13C), and its y, as
+/// locals.
 pub(super) fn point_from_car(
     course: CourseReads<'_>,
     points: &crate::race::scene_points::OwnPoints,
@@ -28,9 +27,8 @@ pub(super) fn point_from_car(
     Ok((x, py, z))
 }
 
-/// The weight's end: `v` held to 16.0 (`race().course.numbers.sixteen`; kept when below or
-/// not a number), added to `sum` (the original's `g_eaxEnvironment`; it also counted the
-/// faces in `g_eaxFaceCount`, which nothing read).
+/// The weight's end: `v` held to 16.0 (`race().course.numbers.sixteen`; kept when below or not a
+/// number), added to `sum`.
 pub(super) fn add_eax_weight(course: CourseReads<'_>, sum: &mut u32, v: f32) {
     let sixteen = course.numbers.sixteen.get();
     let w = if crate::math::x87::below_or_unordered(v, sixteen) {
@@ -41,13 +39,11 @@ pub(super) fn add_eax_weight(course: CourseReads<'_>, sum: &mut u32, v: f32) {
     *sum = crate::math::x87::add(w, *sum).to_bits();
 }
 
-/// `race::eax_face_weight` (0x45C881): the weight of `face` in the EAX sound environment
-/// (`g_eaxEnvironment`), by its distance from car 0 (x and z): kind 0xFF with an object (+1) below
-/// 0x38: its +0x18 byte over the distance to its first point; kinds below 0x10 with |+0x30| below
-/// 0.25: 3.0 over the distance to the middle of its second and third points; each held to 16 (see
-/// `add_eax_weight`). Distances by the game's root tables. (The original kept the middle and the
-/// distance in `CONTACT_WORK.eax_mid_x` / `eax_mid_z` / `eax_distance`, which nothing read: locals
-/// here.)
+/// The weight of `face` in the EAX sound environment (`eax_environment`), by its distance from car
+/// 0 (x and z): kind 0xFF with an object (+1) below 0x38: its +0x18 byte over the distance to its
+/// first point; kinds below 0x10 with |+0x30| below 0.25: 3.0 over the distance to the middle of
+/// its second and third points; each held to 16 (see `add_eax_weight`). Distances come from the
+/// root tables. The middle and the distance are locals.
 pub fn eax_face_weight(
     course: CourseReads<'_>,
     points: &crate::race::scene_points::OwnPoints,
@@ -93,12 +89,11 @@ pub fn eax_face_weight(
     Ok(())
 }
 
-/// `race::eax_environment` (0x45C7EE): the view's EAX weight, returned (the view's output:
-/// `race::draw_view_scene`): from 0.0, the 3 x 3 grid cells around the middle (from
-/// `hold_to_limit(race().course.stage_prefs.grid_reach)` - 1 on each axis; 0x45C84C each): every
-/// face of each cell's course record (numbers below 0x0FFFFFFF) weighed by `eax_face_weight`. The
-/// original summed straight into `g_eaxEnvironment`, which the audio thread reads at its own pace
-/// (`audio::update_voices`): it could take a sum half made (`notes/bugs.md`).
+/// The view's EAX weight, returned (the view's output: `race::draw_view_scene`): from 0.0, the 3 x
+/// 3 grid cells around the middle (from `hold_to_limit(race().course.stage_prefs.grid_reach)` - 1
+/// on each axis): every face of each cell's course record (numbers below) weighed by
+/// `eax_face_weight`. The sum is local: summing straight into `eax_environment`, which the audio
+/// thread reads at its own pace (`audio::update_voices`), could be heard half made.
 pub fn eax_environment(
     course: CourseReads<'_>,
     work: &crate::race::work_store::RaceWork,
@@ -107,13 +102,11 @@ pub fn eax_environment(
 ) -> Result<u32, BadInput> {
     let mut sum = 0u32;
     {
-        // Converted: `rc2k_core::race::view::{cells_from, record_faces}`.
         use rc2k_core::race::view::{NO_RECORD, cells_from, record_faces};
         for cell in cells_from(
             hold_to_limit(work, course.stage_prefs.grid_reach.get()).wrapping_sub(1),
             3,
         ) {
-            // 0x45C84C.
             let record = view.cell(cell)?.get();
             if record >= NO_RECORD {
                 continue;

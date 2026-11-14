@@ -1,30 +1,28 @@
-//! More x87 helpers (see `math/x87.rs`), kept apart so that work on the race's loading does not
-//! edit the shared file.
+//! More x87 helpers (see `math/x87.rs`), kept apart so that work on the race's loading does
+//! not edit the shared file.
 //!
-//! Plain Rust since phase 6 (2026-10-24): what the x87 holds on its stack is an `X` (an
-//! `f64` that rounds as the control word says, `x87_float.rs`), what it stores as a dword
-//! float `st`, `fild` is `int`, `fistp` / `fist` `to_int`. The order of the operations is
-//! the original's. Their comparison with the original's instructions is frozen in
+//! What the x87 holds on its stack is an `X` (an `f64` that rounds as the control word
+//! says, `x87_float.rs`), what it stores as a dword float `st`, `fild` is `int`, `fistp` /
+//! `fist` `to_int`. Their comparison with the x87's instructions is frozen in
 //! `x87_frozen_c.rs`.
 
 use super::{Flt, out};
 use crate::math::x87_float::{Rounds, X, at_rounding, compare, f80, from_f80, int, ld, st, to_int};
 
-/// `(a * b) / c`, rounded once at the end as the x87 is set to round
-/// (`fild a; fimul b; fdiv c; fistp`): a whole number times a whole number over a float.
+/// `(a * b) / c`, rounded once at the end as the x87 is set to round: a whole number times
+/// a whole number over a float.
 #[cfg(test)] // inlined at its caller; the frozen comparison keeps it
 pub fn int_times_int_over_to_int(a: i32, b: i32, c: u32) -> i32 {
     to_int(int(a) * int(b) / ld(c))
 }
 
-/// `|a|` as a whole number (`fld a; fabs; fistp`): the size of a float.
+/// `|a|` as a whole number: the size of a float.
 #[cfg(test)] // inlined at its caller; the frozen comparison keeps it
 pub fn abs_to_int(a: u32) -> i32 {
     to_int(ld(a).abs())
 }
 
-/// `sqrt(a a + b b)` as a float (`fld a; fmul st, st; fld b; fmul st, st; faddp; fsqrt;
-/// fstp`): the length of two floats at right angles.
+/// `sqrt(a a + b b)` as a float: the length of two floats at right angles.
 pub fn float_hypot(a: impl Flt, b: impl Flt) -> f32 {
     at_rounding!(|r| float_hypot_with(r, a, b))
 }
@@ -38,15 +36,15 @@ pub(crate) fn float_hypot_with<R: Rounds>(r: R, a: impl Flt, b: impl Flt) -> f32
     r.stf(r.sqrt(a2 + b2))
 }
 
-/// C0 of `fld a; fcomp b; fnstsw ax` (`shr ah, 1; jb`): a below b, or one is no number.
+/// C0 of the compare of `a` with `b`: a below b, or one is no number.
 pub fn below_or_unordered(a: impl Flt, b: impl Flt) -> bool {
     let a = a.value();
     let b = b.value();
     compare(ld(a), ld(b)) & 0x0100 != 0
 }
 
-/// C0 of `fld a; fmul h; fabs; fsub k; fcomp b`: |a h| - k below b (kept at the x87's
-/// precision), or one is no number.
+/// C0 of the compare of `|a h| - k` (kept at the x87's precision) with `b`: below, or one
+/// is no number.
 #[cfg(test)] // the callers use the `_with` form; the tests compare this one
 pub fn scaled_abs_less_below(a: impl Flt, h: impl Flt, k: impl Flt, b: impl Flt) -> bool {
     at_rounding!(|r| scaled_abs_less_below_with(r, a, h, k, b))
@@ -70,7 +68,7 @@ pub(crate) fn scaled_abs_less_below_with<R: Rounds>(
 
 /// The point (three whole numbers) through `matrix` (16 floats; the 12 used are the
 /// columns' at 0, 4, 8 / 0x10, 0x14, 0x18 / 0x20, 0x24, 0x28 and the translation at 0x30,
-/// 0x34, 0x38), as the original adds them: m0 x + (m4 y + m8 z) and so on, then the
+/// 0x34, 0x38): m0 x + (m4 y + m8 z) and so on, then the
 /// translation. Left at double precision.
 fn rotated<R: Rounds>(r: R, point: [i32; 3], matrix: &[u32]) -> [R::Reg; 3] {
     let [x, y, z] = point.map(|v| r.int(v));
@@ -81,9 +79,9 @@ fn rotated<R: Rounds>(r: R, point: [i32; 3], matrix: &[u32]) -> [R::Reg; 3] {
     [s0, s1, s2]
 }
 
-/// `scene::project_point::rotate` with its third store a `fistp`: the point (three whole
+/// `scene::project_point::rotate` with its third store a whole number: the point (three whole
 /// numbers) through `matrix`, x and y stored as floats at `out[0]`, `out[1]`, z rounded
-/// into the third from the x87's precision (0x4573FA).
+/// into the third from the x87's precision.
 pub fn rotate_rounding_z(point: [i32; 3], matrix: &[u32]) -> [u32; 3] {
     at_rounding!(|r| {
         let s = rotated(r, point, matrix);
@@ -91,14 +89,13 @@ pub fn rotate_rounding_z(point: [i32; 3], matrix: &[u32]) -> [u32; 3] {
     })
 }
 
-/// `a a + b b` of two whole numbers, as a float (`fild a; fmul st, st; fild b; fmul st,
-/// st; faddp; fstp`).
+/// `a a + b b` of two whole numbers, as a float.
 pub fn int_square_sum(a: i32, b: i32) -> f32 {
     let (a, b) = (int(a), int(b));
     out(a * a + b * b)
 }
 
-/// `a a + b b` of two floats (`fld a; fmul st, st; fld b; fmul st, st; faddp; fstp`).
+/// `a a + b b` of two floats.
 pub fn float_square_sum(a: impl Flt, b: impl Flt) -> f32 {
     let a = a.value();
     let b = b.value();
@@ -107,29 +104,27 @@ pub fn float_square_sum(a: impl Flt, b: impl Flt) -> f32 {
     out(a2 + b2)
 }
 
-/// `(a + b) c`, a whole number plus a float, times a float (`fild a; fadd b; fmul c;
-/// fstp`).
+/// `(a + b) c`, a whole number plus a float, times a float.
 pub fn int_plus_times(a: i32, b: impl Flt, c: impl Flt) -> f32 {
     let b = b.value();
     let c = c.value();
     out((int(a) + ld(b)) * ld(c))
 }
 
-/// C0 of `fld a; fabs; fcomp k`: |a| below k, or one is no number.
+/// C0 of the compare of `|a|` with `k`: |a| below k, or one is no number.
 pub fn abs_below_or_unordered(a: impl Flt, k: impl Flt) -> bool {
     let a = a.value();
     let k = k.value();
     compare(ld(a).abs(), ld(k)) & 0x0100 != 0
 }
 
-/// `scene::project_point::rotate` with all three stores `fistp`: the point (three whole
+/// `scene::project_point::rotate` with all three stores whole numbers: the point (three whole
 /// numbers) through `matrix`, each part rounded from the x87's precision.
 pub fn rotate_rounding(point: [i32; 3], matrix: &[u32]) -> [u32; 3] {
     at_rounding!(|r| rotated(r, point, matrix).map(|part| r.to_int(part) as u32))
 }
 
-/// `(a a + b b) k` (`times` = 1) or `(a a + b b) k k` (`times` = 2) as a whole number
-/// (`fild a; fmul st, st; fild b; fmul st, st; faddp; fmul k; [fmul k;] fistp`).
+/// `(a a + b b) k` (`times` = 1) or `(a a + b b) k k` (`times` = 2) as a whole number.
 pub fn int_square_sum_scaled_to_int(a: i32, b: i32, k: impl Flt, times: u32) -> u32 {
     let k = k.value();
     let (a, b) = (int(a), int(b));
@@ -184,13 +179,13 @@ pub fn sun_direction(a: i32, k: impl Flt, s: impl Flt, b: i32, m: impl Flt) -> [
     [st(cos_cos * ld(m)), st(sin_q * ld(m)), st(sin_cos * ld(m))]
 }
 
-/// A float as the x87's 80 bits (`fld dword; fstp tbyte`).
+/// A float as the x87's 80 bits.
 pub fn to_tbyte(a: impl Flt) -> [u8; 10] {
     let a = a.value();
     f80(ld(a))
 }
 
-/// 80 bits rounded to a whole number as the x87 is set to round (`fld tbyte; fistp`).
+/// 80 bits rounded to a whole number as the x87 is set to round.
 pub fn tbyte_to_int(a: [u8; 10]) -> u32 {
     to_int(from_f80(a)) as u32
 }
@@ -222,7 +217,7 @@ pub fn sun_on_screen(
 }
 
 /// `k` less half the distance from the centre, rounded, as a whole number: `-(sqrt((x -
-/// cx)^2 + (y - cy)^2) h - k)` (`fistp`).
+/// cx)^2 + (y - cy)^2) h - k)`.
 pub fn sun_size(
     x: impl Flt,
     cx: impl Flt,

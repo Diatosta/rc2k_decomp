@@ -1,14 +1,9 @@
-//! `physics::apply_torque` (0x45FB82): one force record (the force, and the point it acts at)
-//! turning a car block. The car's spin is copied to `contact_turn_speed` and turned into the
-//! car's frame (`physics::turn_by_inverse_at`); the cross product of the record's two vectors
-//! is taken (`scene::cross_product`, into `torque_cross`); each part of the spin is reduced by
-//! that part of the cross product times the physics step times the car's inverse inertia, and the
-//! result is turned back into the world (`physics::turn_by_matrix_at`) and stored as the spin.
-//! A reading: the force's twist on the car.
+//! Applies one force record (the force and the point it acts at) as a torque on a car block. The
+//! spin is turned into the car's frame; each part is reduced by the matching part of the cross
+//! product of the record's two vectors times the physics step times the car's inverse inertia;
+//! the result is turned back into the world and stored as the spin.
 //!
-//! Takes: the record, the car block
-//!
-//! Caller: `physics::apply_torques` (in a loop over records).
+//! Caller: `physics::apply_torques`, once per record.
 
 use crate::math::x87::neg_product2_plus;
 use crate::physics::car_store::Car;

@@ -1,11 +1,10 @@
-//! The 1999 layout of the sound stores, as the differential tests of the kept x87 assembly
-//! need it. The stores hold their fields in a natural order with nothing between them; the
-//! assembly was recorded against RAL.EXE's own bytes, where unnamed dwords sit between some
-//! of the fields. Here each store's runs of fields are listed with the offset (`at`) the
-//! assembly reads them at, so a test copies the fields in from a buffer laid out as the image
-//! was, runs the Rust version on them, and copies them back. The bytes between the runs stay
-//! as the buffer had them: nothing typed reads them. Test code only; it goes with the
-//! recorded vectors.
+//! The 1999 layout of the sound stores, as the differential tests of the kept x87 assembly need it.
+//! The stores hold their fields in a natural order with nothing between them; the assembly was
+//! recorded against RAL.EXE's own bytes, where unnamed dwords sit between some of the fields. Here
+//! each store's runs of fields are listed with the offset (`at`) the assembly reads them at, so a
+//! test copies the fields in from a buffer laid out as the 1999 variables was, runs the Rust
+//! version on them, and copies them back. The bytes between the runs stay as the buffer had them:
+//! nothing typed reads them. Test code only; it goes with the recorded vectors.
 
 use crate::cells::Cells;
 use crate::sound::store::{SoundObject, SurfaceSounds};

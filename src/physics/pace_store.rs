@@ -1,33 +1,33 @@
-//! The pace notes' work (IDA 0x614D38 .. 0x61FE18; phase 7, typed): the distance words, the
-//! notes' starts, ends, end codes and gaps, the groups' checkpoints and texts, and the texts'
-//! codes. Names
-//! are readings unless IDA's.
+//! The pace notes' work: the distance words, the notes' starts, ends, end codes and gaps, the
+//! groups' checkpoints and texts, and the texts' codes. Names are readings unless taken from the
+//! game's own.
 
 use crate::session::{PlainBytes, PlainDword};
 
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct PaceNotes {
-    /// +0x0 (0X614D38): `g_paceDistanceWords`: the distance's word by tens, the first 41 bytes used (`race::pace_notes`); IDA names its first byte only.
+    /// The distance's word by tens, the first 41 bytes used (`race::pace_notes`).
     pub distance_words: PlainBytes<0x1034>,
-    /// +0x1034 (0X615D6C): `dword_615D6C`: a table indexed by a distance word, read once at 0x441CA8 (`race::pace_distance_word`) with its result thrown away; no other use.
+    /// A table indexed by a distance word, read once (`race::pace_notes`) with its result thrown
+    /// away; no other use.
     pub discarded_distance_table: [PlainDword; 41],
-    /// +0x10d8 (0X615E10): `g_paceNoteCount`.
+    /// How many pace notes there are.
     pub note_count: PlainDword,
-    /// +0x10dc (0X615E14): `g_paceGroupCount`: the pace note groups (`physics::queue_pace_note`).
+    /// The pace note groups (`physics::queue_pace_note`).
     pub group_count: PlainDword,
-    /// +0x10e0 (0X615E18): `g_paceNoteStarts`.
+    /// Each note's start.
     pub note_starts: [PlainDword; 1024],
-    /// +0x20e0 (0X616E18): `g_paceNoteEnds`.
+    /// Each note's end.
     pub note_ends: [PlainDword; 1024],
-    /// +0x30e0 (0X617E18): `g_paceNoteEndCodes`.
+    /// Each note's end code.
     pub note_end_codes: [PlainDword; 1024],
-    /// +0x40e0 (0X618E18): `g_paceNoteGaps`.
+    /// Each note's gap.
     pub note_gaps: [PlainDword; 1024],
-    /// +0x50e0 (0X619E18): `g_paceGroupCheckpoints` (`physics::queue_pace_note`).
+    /// Each group's checkpoint (`physics::queue_pace_note`).
     pub group_checkpoints: [PlainDword; 1024],
-    /// +0x60e0 (0X61AE18): `g_paceGroupTexts`: each group's place in `text` (`physics::queue_pace_note`; IDA's `int[1023]` stops short of the last).
+    /// Each group's place in `text` (`physics::queue_pace_note`).
     pub group_texts: [PlainDword; 1024],
-    /// +0x70e0 (0X61BE18): `g_paceText`: the groups' codes (`physics::queue_pace_note`).
+    /// The groups' codes (`physics::queue_pace_note`).
     pub text: PlainBytes<0x4000>,
 }
 

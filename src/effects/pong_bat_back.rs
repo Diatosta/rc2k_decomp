@@ -1,10 +1,6 @@
-//! `effects::pong_bat_back` (0x4B8215): the pong bat put back where it was before its move
-//! (`PongState.saved_bat[0]`, `PongState.saved_bat[1]`) when it overlaps the ball (`effects::pong`'s four
-//! compares).
-//!
-//! Caller: `effects::move_pong_bat`.
-//!
-//! the x87 version stays for the Rust callers in unconverted code).
+//! `effects::pong_bat_back`: the pong bat put back where it was before its move
+//! (`PongState.saved_bat[0]`, `PongState.saved_bat[1]`) when it overlaps the ball
+//! (`effects::pong`'s four compares).
 
 use crate::effects::pong::{self, Pong};
 

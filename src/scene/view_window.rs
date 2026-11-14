@@ -1,16 +1,15 @@
-//! A view's window, scale and depths, the view's own (frame plan F7): the size, offsets, zoom
-//! and middle `scene::set_view_window` is given and the scale, clip rectangle, depths and
-//! offsets as floats it derives from them. One per view slot
-//! (`race::view_scratch::ViewScratch::window`; `ViewScratch::begin` keeps it, as the window
-//! is set before a view's scene begins); the menus and the front end's 3D use the front end's.
-//! In the original these were `SceneDraw`'s `view_*`, `farthest`, `clip_*`, `faces_done` and
-//! `depth_divisor` and `RaceView`'s `view_depth`, written by every view in turn.
+//! A view's window, scale and depths, the view's own: the size, offsets, zoom and middle
+//! `scene::set_view_window` is given and the scale, clip rectangle, depths and offsets as floats it
+//! derives from them. One per view slot (`race::view_scratch::ViewScratch::window`;
+//! `ViewScratch::begin` keeps it, as the window is set before a view's scene begins); the menus and
+//! the front end's 3D use the front end's.
 
 use crate::session::{PlainDword, PlainFloat};
 
 #[derive(rc2k_derive::Cells)]
 pub struct ViewWindow {
-    /// The window's offsets x, y (`scene::set_view_window`; the menus and `race::frame_views` set them).
+    /// The window's offsets x, y (`scene::set_view_window`; the menus and `race::frame_views`
+    /// set them).
     pub view_offset: [PlainDword; 2],
     /// The zoom, a whole number (0x100; the menus set it), in the scale.
     pub view_zoom: PlainDword,
@@ -32,18 +31,17 @@ pub struct ViewWindow {
     pub farthest_scaled: PlainDword,
     /// The clip rectangle as whole numbers: top, bottom, left, right.
     pub clip_edges: [PlainDword; 4],
-    /// The same as floats (`g_clipScreenTop` .. `Right`).
+    /// The same as floats.
     pub clip_screen: [PlainFloat; 4],
     /// `view_offset` as floats.
     pub view_offset_float: [PlainFloat; 2],
-    /// (`scene::draw_object_faces`).
+    /// The count of faces done (`scene::draw_object_faces`).
     pub faces_done: PlainDword,
-    /// (100 less `StagePrefs.nearer`, held) times `Numbers.hundredth_a`.
+    /// The depth divisor: (100 less `StagePrefs.nearer`, held) times `Numbers.hundredth_a`.
     pub depth_divisor: PlainFloat,
-    /// `g_clipFarthest`, rounded.
+    /// The farthest depth times `SceneDraw.clip_factor`, rounded.
     pub clip_farthest: PlainDword,
-    /// How far is seen times 0x20, twice (`scene::set_view_window`; the original's
-    /// `RACE_VIEW.view_depth`, 0x63DC54).
+    /// How far is seen times 0x20, twice (`scene::set_view_window`).
     pub view_depth: [PlainDword; 2],
 }
 

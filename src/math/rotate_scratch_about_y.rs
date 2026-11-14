@@ -1,14 +1,10 @@
-//! `math::rotate_scratch_about_y` (0x41FEF8): the scratch point's x and z (floats at
-//! `FrameScratch.scratch_x` and `FrameScratch.scratch_z`) turned by an angle.
+//! `math::rotate_scratch_about_y`: the scratch point's x and z (floats) turned by an angle.
 //!
-//! Returns: the entry
-//!
-//! x' = x cos + z sin, z' = z cos - x sin, on the x87 as the original (`math::x87::
-//! turn_in_place`). Six callers, `math::rotate_point_about_y` and its three siblings.
+//! x' = x cos + z sin, z' = z cos - x sin, on the x87 (`math::x87::turn_in_place`). Used by
+//! `math::rotate_point_about_y` and its three siblings.
 
-/// The scratch point (`g_scratchZ`, `X`, `Y`: 0x5C5F4C .. in the image until 2026-10-24):
-/// written and read back by each of the four that turn a point (their other users,
-/// 0x41FEA2 .. 0x41FEF0, are unreached), so now each one's local.
+/// The scratch point, written and read back by each of the four that turn a point, so each
+/// one's local.
 #[derive(Clone, Copy, Default)]
 pub struct Scratch {
     pub z: f32,
@@ -16,9 +12,9 @@ pub struct Scratch {
     pub y: f32,
 }
 
-/// `math::rotate_scratch_about_y` exactly as the original (the x87, at whatever precision it is
-/// set to): what the Rust callers in modules not yet converted use, so that their own
-/// comparisons stay exact. The entry left in edx.
+/// `math::rotate_scratch_about_y` on the x87 at whatever precision it is set to: what the
+/// callers in modules not yet converted use, so that their own comparisons stay exact.
+/// Also returns the angle table's entry.
 pub fn rotate_scratch_about_y(
     tables: &crate::scene::engine_tables_store::EngineTables,
     point: &mut Scratch,
@@ -46,8 +42,8 @@ fn x87_turn(
     point.z = f32::from_bits(z);
 }
 
-/// The converted version (`rc2k_core::math::geometry`, plain floats): the one
-/// its callers use. The entry left in edx.
+/// The converted version (`rc2k_core::math::geometry`, plain floats): the one its callers
+/// use. Also returns the angle table's entry.
 pub fn rotate_scratch_about_y_plain(
     tables: &crate::scene::engine_tables_store::EngineTables,
     point: &mut Scratch,

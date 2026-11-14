@@ -1,11 +1,8 @@
-//! `physics::edge_side` (0x4425EF): which side of the edge between two points (whole-number x
-//! at +0, z at +8) the ground point (`ground_x`, `ground_z`) lies on: (X - x0)(z1 - z0) -
-//! (Z - z0)(x1 - x0) in 64 bits, the second product kept in `product`.
+//! Which side of the edge between two points (whole-number x and z) the ground point
+//! (`ground_x`, `ground_z`) lies on: (X - x0)(z1 - z0) - (Z - z0)(x1 - x0) in 64 bits, the
+//! second product kept in `product`.
 //!
-//! Takes: the edge's ends
-//!
-//! Callers (8): `physics::face_under_point`, the face under a point (each edge of a triangle or a
-//! quad).
+//! Callers: `physics::face_under_point`, for each edge of a triangle or quad.
 
 use crate::physics::flag_result::FlagResult;
 use crate::physics::ground_query::GroundQuery;

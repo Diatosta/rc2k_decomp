@@ -1,13 +1,11 @@
-//! The car's sound objects placed: four functions under the sound
-//! drive that, when the current car is listed (`listed_car_sounds`[g_currentCar]` not -1), take
-//! a band (`physics::sound_band_1` .. `_4`), set two words of the car's sound object
-//! (`g_raceSoundObjects[g_currentCar & 7]`) and its place: the car's place (`g_car`
-//! +0x134 .. +0x13C, with an offset for one) less the listener's (+0x6A4 ..), `fild` /
-//! `fiadd` / `fisub` (exact), turned by `g_viewTurnMatrix`, each part x `one_over_65536`
-//! (1/65536); then +0x10 1.
+//! The car's sound objects placed: four functions under the sound drive that, when the current car
+//! is listed (`listed_car_sounds` entry not -1), take a band (`physics::sound_band_1` .. `_4`), set
+//! two words of the car's sound object and its place: the car's place (with an offset for one) less
+//! the listener's, turned by the heard turn (`race::heard_turn::turn`), each part times
+//! `one_over_65536`.
 //!
-//! This file: the shared steps and the test of the four. `place` is the exact x87 one, for
-//! `place_sound_e1`'s exact version (its Rust callers).
+//! This file holds the shared steps and the test of the four. `place` is the exact x87 version,
+//! used by `place_sound_e1`'s exact version (its Rust callers).
 
 use crate::errors::{BadInput, Refused};
 use crate::math::x87::ext_times;
@@ -45,9 +43,9 @@ pub fn place(
     into: &[PlainFloat; 3],
     offset: Option<[u32; 3]>,
 ) {
-    // The original's own steps (`fild` the offset, `fiadd` the car's, `fisub` the
-    // listener's; without an offset `fild` the car's, `fisub`): each rounds to the
-    // control word's precision, so a big difference keeps fewer bits at 24.
+    // The steps are the x87's (load the offset, add the car's, subtract the listener's; without
+    // an offset load the car's, subtract): each rounds to the control word's precision, so a
+    // big difference keeps fewer bits at 24.
     let part = |k: usize| {
         let here = car.position[k].get();
         let listener = car.camera_position[k].get();
@@ -103,7 +101,7 @@ fn one_off(
 
 /// The converted steps' end: the sound and the band in the object's `slot`, the place
 /// (with `offset`), the object told to play.
-// Converted: `rc2k_core::physics::sound_places`.
+// Core: `rc2k_core::physics::sound_places`.
 pub fn cue_plain(
     c: &SoundInputs<'_>,
     o: &SoundObject,
@@ -116,22 +114,22 @@ pub fn cue_plain(
     sound_cell.set(sound);
     band_cell.set(band);
     place_plain(c.numbers, c.matrices, c.car, place_cells, offset);
-    // +0x10 (`PLAYING`): the play switch, the cell the revs' new reading flag shares.
+    // `PLAYING`: the play switch, the cell the revs' new reading flag shares.
     o.new_revs.set(PLAY);
     Ok(())
 }
 
-/// `fild car; fisub listener`, as an 80-bit value.
+/// The car's place less the listener's, as an 80-bit value.
 fn car_part(car: u32, listener: u32) -> [u8; 10] {
     x87_1([car, listener])
 }
 
-/// `fild offset; fiadd car; fisub listener`, as an 80-bit value.
+/// The offset plus the car's place less the listener's, as an 80-bit value.
 fn offset_part(offset: u32, car: u32, listener: u32) -> [u8; 10] {
     x87_2([offset, car, listener])
 }
 
-// ---- the arithmetic that was x87 assembly ----
+// ---- the x87 arithmetic ----
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):

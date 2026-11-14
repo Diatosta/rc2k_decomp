@@ -1,28 +1,23 @@
-//! `physics::contact_force` (0x45F17E): the force of one contact into the record that
-//! `contact_record` names. From the contact's point (`contact_point`, car frame), the car's speed
-//! (`contact_car_speed`), its turn speed (`contact_turn_speed`) and the surface's normal
-//! (`contact_normal`): the point's speed (turn x point + speed) goes into `contact_point_speed`; its
-//! depth along the normal, held at least 1 - |normal y| + `hundredth_a`, into `contact_depth`; the push
-//! the turn would give (point x normal turned by the inverse matrix, times `inertia`, turned back,
-//! x point) along the normal goes into `contact_turn_push` and the share `contact_share_numerator` /
-//! (it + 1) into `contact_share`; the normal push (`contact_normal_push`), the speed along the normal
-//! and across it (`contact_normal_speed`, `contact_side_speed`; their lengths `contact_speed_length`,
-//! `contact_value`), with `contact_step` a part of the normal x `contact_normal_factor` x it /
-//! `contact_steps` added; the slide against the motion (`contact_slide`) held to
-//! `contact_slide_limit` long; their sum (`contact_total`) turned by the inverse matrix and divided
-//! by `step_time` goes into the record's force, the point turned into its point (+0xC ..). The turns
-//! are `physics::turn_by_inverse` / `turn_by_car_matrix`, the products `scene::cross_product`,
-//! `physics::dot_product`, `multiply_parts`, `scale_vector`, `vector_length`.
+//! The force of one contact, into the record `contact_record` names. From the contact's point
+//! (`contact_point`, car frame), the car's speed, its turn speed and the surface's normal: the
+//! point's speed (turn x point + speed) goes into `contact_point_speed`; its depth along the
+//! normal, held at least 1 - |normal y| + `hundredth_a`, into `contact_depth`; the push the turn
+//! would give along the normal into `contact_turn_push` and the share `contact_share_numerator` /
+//! (it + 1) into `contact_share`; the normal push, the speed along and across the normal, with
+//! `contact_step` a part of the normal x `contact_normal_factor` x it / `contact_steps` added;
+//! the slide against the motion (`contact_slide`) held to `contact_slide_limit` long; their sum
+//! (`contact_total`) turned by the inverse matrix and divided by `step_time` becomes the record's
+//! force, and the point turned becomes its point. The helpers are `physics::turn_by_inverse`,
+//! `turn_by_car_matrix`, `scene::cross_product`, `physics::dot_product`, `multiply_parts`,
+//! `scale_vector` and `vector_length`.
 //!
-//! The flow and the calls are Rust; each straight x87 run is plain Rust over `X`
-//! (`math/x87_float.rs`) in the `x87_N` functions below, the original's instructions
-//! being recorded in the tests' `reference_vectors`.
+//! The flow and the calls are Rust; each straight float run is plain Rust over `X` in the
+//! `x87_1` .. `x87_8` functions below.
 //!
-//! Takes: the record the force goes to (`contact_record`, set by each caller just before)
+//! Takes: the record the force goes to (`contact_record`, set by each caller just before).
 //!
-//! Callers: `physics::wall_push_back`, `physics::wall_edge_contact`,
-//! `physics::crossed_edge_contact`, `physics::face_contact`,
-//! `physics::crash_contact`, `physics::ground_contact`.
+//! Callers: `physics::wall_push_back`, `wall_edge_contact`, `crossed_edge_contact`,
+//! `face_contact`, `crash_contact` and `ground_contact`.
 
 use crate::effects::cell_x87::CellX87;
 use crate::math::x87::{compare_80, neg_rounded};
@@ -90,7 +85,7 @@ pub fn contact_force(
     );
     x87_2(contact, numbers, scene);
     hold_low(&contact.contact_depth, &drawing.scene.get().scratch);
-    // 0x45F222: the push the turn would give.
+    // The push the turn would give.
     cross_product(
         &contact.contact_point,
         &contact.contact_normal,
@@ -117,7 +112,7 @@ pub fn contact_force(
         .to_bits(),
     );
     x87_3(contact, numbers);
-    // 0x45F2C2: the normal push, the speed along the normal and across it.
+    // The normal push, the speed along the normal and across it.
     copy3(&contact.contact_normal_push, &contact.contact_normal);
     let factor = extended(contact.contact_factor.get());
     scale_vector(&contact.contact_normal_push, factor);
@@ -151,7 +146,7 @@ pub fn contact_force(
     contact
         .contact_slide_limit_held
         .set(crate::math::x87::loaded(&contact.contact_slide_limit));
-    // 0x45F48D: the slide against the motion, held to `contact_slide_limit_held` long.
+    // The slide against the motion, held to `contact_slide_limit_held` long.
     copy3(&contact.contact_slide, &contact.contact_side_speed);
     negate(&contact.contact_slide[0]);
     negate(&contact.contact_slide[1]);
@@ -163,7 +158,7 @@ pub fn contact_force(
     if status & 0x4100 == 0 {
         x87_7(contact, scene);
     }
-    // 0x45F57E: the sum into the record.
+    // The sum into the record.
     x87_1(
         &contact.contact_slide,
         &contact.contact_normal_push,
@@ -177,19 +172,17 @@ pub fn contact_force(
     }
 }
 
-// ---- the arithmetic that was x87 assembly ----
+// ---- the x87 arithmetic ----
 
-/// An x87 run of the original, in plain Rust over `X`: three floats added, `out[k] = a[k] +
-/// b[k]` (each stored as made, so `out` may be one of the two).
+/// An x87 run in plain Rust over `X`: three floats added, `out[k] = a[k] + b[k]` (each stored as
+/// made, so `out` may be one of the two).
 fn x87_1(a: &[PlainFloat; 3], b: &[PlainFloat; 3], out: &[PlainFloat; 3]) {
     for k in 0..3 {
         out[k].st(a[k].ld() + b[k].ld());
     }
 }
 
-/// The game's x87 arithmetic as plain Rust over `X`, on the variables
-/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[scratch] = (1 - |[rc + 0x2D307C]|) + [hundredth_a]`
+/// One straight x87 run as plain Rust over `X`.
 fn x87_2(contact: &ContactWork, numbers: &Numbers, scene: &crate::scene::owner::Scene) {
     let t0 = X(1.0);
     let t1 = contact.contact_normal[1].ld();
@@ -217,11 +210,7 @@ fn x87_3(contact: &ContactWork, numbers: &Numbers) {
     contact.contact_factor.st(t7);
 }
 
-/// The game's x87 arithmetic as plain Rust over `X`, on the variables
-/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[contact_side_speed] = [contact_side_speed] - [contact_normal_speed]`
-/// `[rc + 0x2D30F4] = [rc + 0x2D30F4] - [rc + 0x2D30E8]`
-/// `[rc + 0x2D30F8] = [rc + 0x2D30F8] - [rc + 0x2D30EC]`
+/// One straight x87 run as plain Rust over `X`.
 fn x87_4(contact: &ContactWork) {
     let t0 = contact.contact_side_speed[0].ld();
     let t1 = contact.contact_normal_speed[0].ld();
@@ -249,10 +238,7 @@ fn x87_5(contact: &ContactWork, tables: &PhysicsTables) -> [u8; 10] {
     f80(t4)
 }
 
-/// The game's x87 arithmetic as plain Rust over `X`, on the variables
-/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[scratch] = sqrt((([contact_slide] * [contact_slide]) + (([rc + 0x2D3144] * [rc + 0x2D3144]) + ([rc + 0x2D3148] * [rc + 0x2D3148]))))`
-/// `status [s + 0] = status`
+/// One straight x87 run as plain Rust over `X`.
 fn x87_6(contact: &ContactWork, scene: &crate::scene::owner::Scene) -> u16 {
     let t0 = contact.contact_slide[0].ld();
     let t1 = t0 * t0;
@@ -268,12 +254,7 @@ fn x87_6(contact: &ContactWork, scene: &crate::scene::owner::Scene) -> u16 {
     compare(t8, t9)
 }
 
-/// The game's x87 arithmetic as plain Rust over `X`, on the variables
-/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[contact_slide] = [contact_slide] * ([contact_slide_limit_held] / [scratch])`
-/// `[rc + 0x2D3144] = [rc + 0x2D3144] * ([contact_slide_limit_held] / [scratch])`
-/// `[rc + 0x2D3148] = [rc + 0x2D3148] * ([contact_slide_limit_held] / [scratch])`
-/// `[scratch] = [contact_slide_limit_held] / [scratch]`
+/// One straight x87 run as plain Rust over `X`.
 fn x87_7(contact: &ContactWork, scene: &crate::scene::owner::Scene) {
     let drawing = &scene.drawing;
     let t0 = contact.contact_slide_limit_held.ld();
@@ -291,11 +272,7 @@ fn x87_7(contact: &ContactWork, scene: &crate::scene::owner::Scene) {
     drawing.scene.get().scratch.st(t2);
 }
 
-/// The game's x87 arithmetic as plain Rust over `X`, on the variables
-/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[d + 0] = [contact_total] / [step_time]`
-/// `[d + 4] = [rc + 0x2D3154] / [step_time]`
-/// `[d + 8] = [rc + 0x2D3158] / [step_time]`
+/// One straight x87 run as plain Rust over `X`.
 fn x87_8(contact: &ContactWork, tables: &PhysicsTables, d: &[PlainFloat; 3]) {
     let t0 = contact.contact_total[0].ld();
     let t1 = tables.step_time.ld();

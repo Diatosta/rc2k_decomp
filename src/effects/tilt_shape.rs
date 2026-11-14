@@ -1,11 +1,7 @@
-//! `effects::tilt_shape` (0x4C1194): the sine and cosine of `g_marksShapeTilt` into
-//! `ShapeTilt.sine` / `ShapeTilt.cosine`; the point's y and z (`ShapeTilt.point[1]`, `ShapeTilt.point[2]`) turned by
+//! `effects::tilt_shape`: the sine and cosine of the shape tilt into `ShapeTilt.sine` /
+//! `ShapeTilt.cosine`; the point's y and z (`ShapeTilt.point[1]`, `ShapeTilt.point[2]`) turned by
 //! them (`x87::turn_yz`); then the point `ShapeTilt.point[0]` .. made of length 1 into
 //! `ShapeTilt.unit[0]` .., its length in `ShapeTilt.length` (`x87::unit_and_length`).
-//!
-//! Caller: `effects::shapes_frame`.
-//!
-//! the x87 version stays for the Rust callers in unconverted code).
 
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::math::x87;
@@ -24,20 +20,22 @@ pub fn tilt_shape(drops: &WindscreenDrops) {
     write_bits(&t.unit, unit.map(f32::to_bits));
 }
 
-/// The shape tilt and the first view point (`effects::tilt_shape`, `effects::copy_first_point`, `effects::edges`) (IDA 0x811BC3 .. 0x811BEB).
+/// The shape tilt and the first view point (`effects::tilt_shape`, `effects::copy_first_point`,
+/// `effects::edges`).
 #[derive(rc2k_derive::Cells)]
 pub struct ShapeTilt {
-    /// 0x811BC3: `g_marksShapeTilt`: the kind's float times 0.0175.
+    /// The kind's float times 0.0175.
     pub tilt: PlainFloat,
-    /// 0x811BC7: `flt_811BC7`: the sine of the tilt.
+    /// The sine of the tilt.
     pub sine: PlainFloat,
-    /// 0x811BCB: `flt_811BCB`: the cosine of the tilt.
+    /// The cosine of the tilt.
     pub cosine: PlainFloat,
-    /// 0x811BCF: `dword_811BCF`: the point's length.
+    /// The point's length.
     pub length: PlainFloat,
-    /// 0x811BD3: `unk_811BD3` ..: the point made of length 1.
+    /// The point made of length 1.
     pub unit: [PlainFloat; 3],
-    /// 0x811BDF: `flt_811BDF` .. `flt_811BE7`: the first kept view point (copied by `effects::copy_first_point`, turned by the tilt, then also set to 0 by `effects::windscreen_drops_drift` and moved by the drift).
+    /// The first kept view point (copied by `effects::copy_first_point`, turned by the tilt, then
+    /// also set to 0 by `effects::windscreen_drops_drift` and moved by the drift).
     pub point: [PlainFloat; 3],
 }
 

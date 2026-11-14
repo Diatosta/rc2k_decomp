@@ -1,7 +1,7 @@
-//! `physics::multiply_parts` (0x420FD5): the three floats of one vector times those of another,
-//! part by part, into a third (each stored before the next is read).
+//! The three floats of one vector times those of another, part by part, into a third (each stored
+//! before the next is read).
 //!
-//! Takes: the two vectors, where the result goes (may be either)
+//! The result may go into either source vector.
 //!
 //! Caller: `physics::contact_force`.
 

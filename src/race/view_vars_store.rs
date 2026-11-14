@@ -1,8 +1,7 @@
-//! The view/camera variables of the race block at 0x60626C .. 0x606500: the drawn car, face group mask,
-//! fade alpha, view place and angles (int and float), the 52 view-record names at 0x606320 and the
-//! per-view hide table; then the 52 view records (`ViewRecord`, 0x606500 .. 0x6077B0). Gaps are
-//! unknown bytes. Names are readings unless IDA's; the records' are the developers' own (the
-//! kstar camera page's labels: `xoff`, `xfoc`, `xang`, `mspx`, `fish`).
+//! The view and camera variables of the race block: the drawn car, face group mask, fade alpha,
+//! view place and angles (int and float), the 52 view-record names (as handles) and the per-view
+//! hide table; then the 52 view records (`ViewRecord`). Gaps are unknown bytes. The record fields'
+//! short names are the ones on the kstar camera page: `xoff`, `xfoc`, `xang`, `mspx`, `fish`.
 
 use crate::cells::ZeroCells;
 use crate::race::groups_store::ViewAndRecords;
@@ -11,83 +10,92 @@ use crate::race::owner::race;
 use crate::session::{CellKind, PlainCells, PlainDword, PlainFloat};
 
 /// The view variables, on the cells of kind `K`: plain for the shared ones
-/// (`ViewAndRecords::view_vars`, which only the game's thread writes) and for a view's copy
+/// (`ViewAndRecords::view_vars`, which only the main thread writes) and for a view's copy
 /// (`ViewVarsCopy`), which only the view's drawing part reaches.
 #[derive(rc2k_derive::Cells)]
 pub struct ViewVars<K: CellKind = PlainCells> {
-    /// +0x0 (0x60626C): the car block's +0x69C copied at the frame start (`race::frame_draw`); `race::car_draw` tests it against the drawn car, so it marks which car the view follows.
+    /// +0x0: the car block's `camera_switch_share` copied at the frame start (`race::frame_draw`);
+    /// `race::car_draw` tests it against the drawn car, so it marks which car the view follows.
     pub view_car_flag_a: K::Float,
-    /// +0x4 (0x606270): the car block's +0x684 copied at the frame start; the car's index into the stage records (`race::car_draw`, `race::frame_draw`).
+    /// +0x4: the car block's `camera_view` copied at the frame start; the car's index into the
+    /// stage records (`race::car_draw`, `race::frame_draw`).
     pub view_car_stage: K::Dword,
-    /// +0x8 (0x606274): the car block's +0x6F0 copied at the frame start (`race::frame_draw`); IDA: read by `camera_view` (0x43832A) and written by `race::car_light_modes` (0x455C44).
+    /// +0x8: the car block's `camera_mode_is_2_or_3` copied at the frame start
+    /// (`race::frame_draw`); read by `camera_view` and written by `race::car_light_modes`.
     pub view_car_flag_b: K::Dword,
-    /// +0xc (0x606278): `dword_606278`: copied to `view_scale` by `race::frame_draw` (the view's size scale).
+    /// +0xc: copied to `view_scale` by `race::frame_draw` (the view's size scale).
     pub view_scale_kept: K::Float,
-    /// +0x10 (0x60627C): `g_drawnCar`: the car being drawn (`race::car_draw`, `scene::set_object_light`, `scene::list_object_face`).
+    /// +0x10: the car being drawn (`race::car_draw`, `scene::set_object_light`,
+    /// `scene::list_object_face`).
     pub drawn_car: K::Dword,
-    /// +0x14 (0x606280): `g_groupMask`: face group mask for the drawn car; the drawing's is the
-    /// view's (`race::car_draw_state`), this one not used.
+    /// +0x14: face group mask for the drawn car; the drawing's is the view's
+    /// (`race::car_draw_state`), this one not used.
     pub group_mask: K::Dword,
-    /// +0x18 (0x606284): `dword_606284`: the car's fade alpha, now the view's (`race::face_work`):
-    /// this place is no longer reached.
+    /// +0x18: the car's fade alpha, now the view's (`race::face_work`); no longer reached.
     pub fade_alpha_moved: K::Dword,
-    /// +0x1c (0x606288): `dword_606288`: camera height bias (`physics::camera_height_bias`).
+    /// +0x1c: camera height bias (`physics::camera_height_bias`).
     pub camera_height_bias: K::Dword,
-    /// +0x20 (0x60628C): `flt_60628C` (`physics::camera_height_bias`).
+    /// +0x20: the camera height bias's scale (`physics::camera_height_bias`).
     pub camera_bias_scale: K::Float,
-    /// +0x24 (0x606290): `flt_606290`: held to 0 ..= 1 (`physics::camera_height_bias`).
+    /// +0x24: held to 0 ..= 1 (`physics::camera_height_bias`).
     pub camera_bias_limit: K::Float,
-    /// +0x28 (0x606294): `dword_606294`: a float, the far/scale (`scene::set_view_window`, `race::draw_mirror_view`, `race::race_end`).
+    /// +0x28: a float, the far/scale (`scene::set_view_window`, `race::draw_mirror_view`,
+    /// `race::race_end`).
     pub view_scale: K::Float,
-    /// +0x2c (0x606298): `g_viewPlace`, `dword_60629C`, `dword_6062A0`: the view place x, y, z (`scene::view_matrix`, `race::frame_draw`, `drive::set_listener`). The original writes the run at once.
+    /// +0x2c: `view_place`: the view place x, y, z (`scene::view_matrix`, `race::frame_draw`,
+    /// `drive::set_listener`). The three are written as a run.
     pub view_place: [K::Dword; 3],
-    /// +0x38 (0x6062A4): `flt_6062A4` ..: the place as floats (`race::course_faces`, `race::frame_draw`).
+    /// +0x38: the place as floats (`race::course_faces`, `race::frame_draw`).
     pub view_place_f: [K::Float; 3],
-    /// +0x44 (0x6062B0): `dword_6062B0`: view x (`race::frame_draw`).
+    /// +0x44: view x (`race::frame_draw`).
     pub view_x: K::Dword,
-    /// +0x48 (0x6062B4): `dword_6062B4`: view z (`race::frame_draw`).
+    /// +0x48: view z (`race::frame_draw`).
     pub view_z: K::Dword,
-    /// +0x4c (0x6062B8): `g_viewAngles` y, x, z then a second triple at `dword_6062C4` ..; (`scene::view_matrix`, `race::frame_draw`).
+    /// +0x4c: `view_angles`: y, x, z then a second triple (`scene::view_matrix`,
+    /// `race::frame_draw`).
     pub view_angles: [K::Dword; 6],
-    /// +0x64 (0x6062D0): `flt_6062D0` (`physics::update_camera`).
+    /// +0x64: the camera's zoom hold (`physics::update_camera`).
     pub camera_zoom_hold: K::Float,
-    /// +0x68 (0x6062D4): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
+    /// +0x68: unused; it only keeps the layout.
     pub unused_68: K::Dword,
-    /// +0x6c (0x6062D8): `flt_6062D8` ..: the camera vector (three floats) whose length `physics::update_camera` takes.
+    /// +0x6c: the camera vector (three floats) whose length `physics::update_camera` takes.
     pub camera_vector: [K::Float; 3],
-    /// +0x78 (0x6062E4): used only by the unported `sub_427DB4` and `sub_43B177` (0x6062E4: compared with 0 and cleared); the port never reaches it.
+    /// +0x78: unused.
     pub unknown_78: [K::Dword; 14],
-    /// +0xb0 (0x60631C): `flt_60631C`: held to 0 ..= 1 (`physics::camera_height_bias`, `physics::update_camera`).
+    /// +0xb0: held to 0 ..= 1 (`physics::camera_height_bias`, `physics::update_camera`).
     pub camera_distance: K::Float,
-    /// +0xb4 (0x606320): `off_606320`: 0x34 pointers to view records (`physics::camera_view`, `drive::pick_replay_camera`, `effects::stage_record`, `race::car_draw`).
+    /// +0xb4: 0x34 pointers to view records (`physics::camera_view`, `drive::pick_replay_camera`,
+    /// `effects::stage_record`, `race::car_draw`).
     pub view_records: [K::Dword; 52],
-    /// +0x184 (0x6063F0): `dword_6063F0`: the view kind, the camera mode number (`drive::set_camera_view`; `race::frame_draw::scene_objects` and `car_draw` branch on it).
+    /// +0x184: the view kind, the camera mode number (`drive::set_camera_view`;
+    /// `race::frame_draw::scene_objects` and `car_draw` branch on it).
     pub view_kind: K::Dword,
-    /// +0x188 (0x6063F4): no code reads or writes it (the field's name nowhere in Rust, and no IDA xref to any of its bytes, 2026-11-10); it only keeps the image's layout.
+    /// +0x188: unused; it only keeps the layout.
     pub unused_188: [K::Dword; 33],
-    /// +0x20c (0x606478): `dword_606478[]`: by camera view (`race::frame_draw`).
+    /// +0x20c: the table of which views hide what, by camera view (`race::frame_draw`).
     pub view_hides: [K::Dword; 34],
 }
 
-/// A view record (0x5C bytes; 52 of them at 0x606500, named by `ViewAndRecords.view_vars.view_records[0]`): one camera
-/// mode's figures. The three-letter names are the developers' (the kstar camera page).
-/// Records 1 .. 3 are refilled from the car's light record (`physics::update_camera`),
-/// 4 .. 6 placed by `physics::place_camera`, 6 by the finish camera too.
+/// A view record (0x5C bytes; 52 of them, named by `ViewAndRecords.view_vars.view_records[0]`): one
+/// camera mode's figures. The three-letter names are the developers' (the kstar camera page).
+/// Records 1 .. 3 are refilled from the car's light record (`physics::update_camera`), 4 .. 6
+/// placed by `physics::place_camera`, 6 by the finish camera too.
 #[derive(rc2k_derive::Cells)]
 pub struct ViewRecord {
     /// +0x0: the mode's kind (what a replay camera wish stops at: `drive::pick_replay_camera`).
     pub kind: PlainDword,
-    /// +0x4: `xoff`, `yoff`, `zoff`: the camera's offset (floats; `take_first_view` / `take_second_view` add the
-    /// camera frame to it).
+    /// +0x4: `xoff`, `yoff`, `zoff`: the camera's offset (floats; `take_first_view` /
+    /// `take_second_view` add the camera frame to it).
     pub offset: [PlainDword; 3],
-    /// +0x10: `xfoc`, `yfoc`, `zfoc`: the focus (floats). +0x10 .. +0x38 are the eleven
-    /// figures the views take whole (`take_first_view` / `take_second_view`).
+    /// +0x10: `xfoc`, `yfoc`, `zfoc`: the focus (floats). +0x10 .. +0x38 are the eleven figures the
+    /// views take whole (`take_first_view` / `take_second_view`).
     pub focus: [PlainDword; 3],
     /// +0x1C: `xang`, `yang`, `zang`: the angles.
     pub angles: [PlainDword; 3],
     /// +0x28: `mspx`, `mspy`, `mspz` (floats; the views' shares).
     pub speeds: [PlainDword; 3],
-    /// +0x34: the camera mode record's dword before `fish`; copied with the rest of the record and named nowhere else (the code shows no use).
+    /// +0x34: the record's dword before `fish`; copied with the rest of the record and never
+    /// used otherwise.
     pub unknown_34: PlainDword,
     /// +0x38: `fish` (a whole number).
     pub fish: PlainDword,
@@ -112,8 +120,7 @@ impl ViewRecord {
         self.offset.each_ref().map(PlainDword::get)
     }
 
-    /// The eleven dwords the views take whole (+0x10 .. +0x38): focus, angles, speeds,
-    /// +0x34, fish.
+    /// The eleven dwords the views take whole (+0x10 .. +0x38): focus, angles, speeds, +0x34, fish.
     pub fn taken(&self) -> [u32; 11] {
         let [f, a, s] =
             [&self.focus, &self.angles, &self.speeds].map(|t| t.each_ref().map(PlainDword::get));
@@ -134,14 +141,13 @@ impl ViewRecord {
 }
 
 impl ViewVars {
-    /// View record `n` by its place among the 52 (the records the code names by IDA
-    /// address: 1 .. 3 refilled from the car, 4 .. 6 placed).
+    /// View record `n` by its place among the 52 (records 1 .. 3 are refilled from the car, 4 .. 6
+    /// placed).
     pub fn record(view_records: &ViewAndRecords, n: usize) -> &ViewRecord {
         &view_records.records[n]
     }
 
-    /// View record `n` (phase 13: the table holds handles, `VIEW_TAG | k` for the k-th
-    /// record). A view past the 52, or a value that is no handle, is refused.
+    /// View record `n`. A view past the 52, or a value that is no handle, is refused.
     pub fn record_of(
         view_records: &ViewAndRecords,
         n: usize,
@@ -166,15 +172,13 @@ impl ViewVars {
     }
 }
 
-/// A view record by handle (phase 13): `VIEW_TAG | k` for the record `k` of the 52, in
-/// place of the record's address in `ViewAndRecords.view_vars.view_records[0]` (0xC3 of the tags 0xC3 .. 0xC6 given).
 /// A view's copy of the view variables (`race::view_scratch::ViewScratch::vars`): the same
-/// record, which only the view's drawing part reaches.
+/// fields, which only the view's drawing part reaches.
 pub type ViewVarsCopy = ViewVars;
 
-/// The view variables as the game starts them, on the cells `$dword` and `$float`: the view
-/// size scales, the camera's bias figures, the 52 names of the view records (as handles),
-/// the first view kind and the table of which views hide what.
+/// The view variables at the start, on the cells `$dword` and `$float`: the view size
+/// scales, the camera's bias figures, the 52 names of the view records (as handles), the first view
+/// kind and the table of which views hide what.
 macro_rules! first_view_vars {
     ($dword:ident, $float:ident) => {
         Self {
@@ -285,15 +289,16 @@ macro_rules! first_view_vars {
 }
 
 impl ViewVars<PlainCells> {
-    /// The view variables' first values.
+    /// The view variables' starting values.
     pub const fn new() -> Self {
         first_view_vars!(PlainDword, PlainFloat)
     }
 }
 
+/// A view record's handle in `view_records` is `VIEW_TAG | k` for the record `k` of the 52.
 pub const VIEW_TAG: u32 = 0xC300_0000;
 
-/// The 52 view records as the game starts them, each as its 23 dwords (floats as their bits).
+/// The 52 view records at the start, each as its 23 dwords (floats as their bits).
 const FIRST_RECORDS: [[u32; 23]; 52] = [
     [
         0x1, 0x0, 0x0, 0x0, 0x0, 0x3D4CCCCD, 0x3FE00000, 0x0, 0x0, 0x0, 0x3D23D70A, 0x3CA3D70A,
@@ -545,7 +550,7 @@ impl ViewRecord {
         }
     }
 
-    /// The 52 view records as the game starts.
+    /// The 52 view records at the start.
     pub const fn first_records() -> [ViewRecord; 52] {
         let mut records = [const { ViewRecord::from_words([0; 23]) }; 52];
         let mut k = 0;

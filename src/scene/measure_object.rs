@@ -1,13 +1,11 @@
-//! `scene::measure_object` (0x4222B8): finds the middle of the object being loaded
-//! and moves its points so that the middle is at 0.
-//!
-//! In:  nothing (`loading_slot` is the object's slot)
+//! `scene::measure_object`: finds the middle of the object being loaded and moves its points
+//! so that the middle is at 0 (`loading_slot` is the object's slot).
 //!
 //! The middle = 0; the lowest of each of x, y, z from 0x640000 down and the highest from
 //! -0x640000 up over the slot's points; half the extent of each = (highest - lowest) halved,
-//! the middle = that plus the lowest; then the middle is taken off every point. Eleven call sites in
-//! `scene::load_object` (the parts of a car). Refuses a slot past the tables and points without
-//! their memory.
+//! the middle = that plus the lowest; then the middle is taken off every point. Eleven call
+//! sites in `scene::load_object` (the parts of a car). Refuses a slot past the tables and
+//! points without their memory.
 
 use crate::errors::BadInput;
 use crate::scene::objects::SLOTS;
@@ -16,8 +14,6 @@ use crate::scene::objects::SLOTS;
 
 /// More points than this are not an object's (the test and the regions' guard).
 const MOST: u32 = 0x10_0000;
-
-// ---- Rust version ----
 
 fn points_of(
     course: &crate::race::owner_course::Course,
@@ -37,7 +33,7 @@ fn points_of(
     Ok((memory.wrapping_add(first.wrapping_mul(12)) as usize, count))
 }
 
-// Converted: `rc2k_core::scene::objects::measure`
+// Logic: `rc2k_core::scene::objects::measure`
 pub fn measure_object(
     course: &crate::race::owner_course::Course,
     scene: &crate::scene::owner::Scene,

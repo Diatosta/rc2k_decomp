@@ -1,9 +1,8 @@
-//! `physics::surface_noise` (0x43BC68): the ground's roughness under the work car from two noise
-//! maps (`race::sample_noise`): each sample is scaled into its range (lo + (hi - lo) x it >> 16:
-//! `blit_cleared` and `surface_scale`) and held to 0 ..= 0xFF (by the sign). The first goes into
-//! `surface_noise_a` and `surface_noise_b`; the second into `surface_noise_second`, and at least
-//! `surface_floor` (unsigned), / 256, into `surface_blend`. Then with `noise_pick` set
-//! `surface_noise_a` becomes 0, else `surface_noise_b`.
+//! The ground's roughness under the work car from two noise maps (`race::sample_noise`): each
+//! sample is scaled into its range (lo + (hi - lo) x it >> 16: `blit_cleared` and `surface_scale`)
+//! and held to 0 ..= 0xFF. The first goes into `surface_noise_a` and `surface_noise_b`; the second
+//! into `surface_noise_second`, and at least `surface_floor` (unsigned), / 256, into
+//! `surface_blend`. Then with `noise_pick` set `surface_noise_a` becomes 0, else `surface_noise_b`.
 //!
 //! Caller: `physics::car_physics_step`, every physics step.
 
@@ -19,7 +18,7 @@ fn scaled(sample: u32, lo: u32, hi: u32) -> u32 {
     noise_level(sample, lo, hi).0
 }
 
-/// The noise map `x` bytes into `g_noiseBytes`: its sample under the work car (what
+/// The noise map `x` bytes into the noise bytes: its sample under the work car (what
 /// `race::sample_noise` returns).
 fn sample(
     shared: &crate::race::owner_shared::RaceShared,
@@ -28,8 +27,7 @@ fn sample(
     sample_noise(&shared.buffers.reads.get().engine_tables, shared.car(), x)
 }
 
-// Converted: `rc2k_core::physics::ground::{noise_level, rough_floor}` (the share / 256
-// stays x87).
+// Core: `rc2k_core::physics::ground::{noise_level, rough_floor}` (the share / 256 stays x87).
 pub fn surface_noise(
     stage_prefs: &StagePrefs,
     numbers: &Numbers,

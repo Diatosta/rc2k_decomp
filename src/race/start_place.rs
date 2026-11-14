@@ -1,8 +1,8 @@
-//! Race init's first step (`race::start_cars` -> `race::start_car`): the current
-//! car (the work copy `g_car`, 0x719FD8) set at its start on the best line. Here its steps:
-//! the place on the line between two checkpoints (`race::place_car_on_line`), the nearest
-//! checkpoint to the car (`race::nearest_checkpoint` and its two helpers), and the car's
-//! matrix undone (`race::invert_car_matrix`).
+//! Race init's first step (`race::start_cars` -> `race::start_car`): sets the current car (the
+//! work copy `car`) at its start on the best line. The steps here are the place on the line
+//! between two checkpoints (`race::place_car_on_line`), the nearest checkpoint to the car
+//! (`race::nearest_checkpoint` and its two helpers), and the car's matrix undone
+//! (`race::invert_car_matrix`).
 
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
@@ -23,7 +23,6 @@ fn count(shared: &RaceShared) -> Result<u32, Refused> {
     Ok(n)
 }
 
-/// Checkpoint n's face (number, address) and its first point's (+4) number and address.
 /// Checkpoint `n`'s face and its first point (their numbers).
 fn check_point(
     checkpoints: &crate::race::checkpoints_store::Checkpoints,
@@ -45,18 +44,18 @@ fn get(course: &Course, n: u32, k: u32) -> Result<u32, BadInput> {
     )
 }
 
-/// `race::place_car_on_line` (0x44666F): checkpoint `line_place` (held below `g_checkpointCount`)
-/// and the next (held so too); their faces' first points and their headings (`Buffers.checkpoints.angles[2]`)
-/// blended by `line_fraction` / 65536 into `place_x` / `C0` (+ `ground_drop`) / `E0` and
-/// `place_heading`, then into the work car's place and heading; the first face's number in
-/// `place_face`. Refuses no checkpoints (the original reads entry -1) or more than the lists.
+/// `race::place_car_on_line`: blends the first points of checkpoint `line_place` (held below
+/// `checkpoint_count`) and the next one (held so too) and their headings
+/// (`Buffers.checkpoints.angles`) by `line_fraction` / 65536. The result goes into `place_x`,
+/// `place_y` (plus `ground_drop`), `place_z` and `place_heading`, then into the work car's place
+/// and heading; the first face's number goes into `place_face`. Refuses no checkpoints or more
+/// than the lists.
 pub fn place_car_on_line(
     shared: &RaceShared,
     course: &Course,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
     let lights = &scene.lights;
-    // Converted: `rc2k_core::race::checkpoints::{line_neighbours, lerp}`.
     use rc2k_core::race::checkpoints::{lerp, line_neighbours};
     let count = count(shared)?;
     {
@@ -89,9 +88,9 @@ pub fn place_car_on_line(
     }
 }
 
-/// `race::distance_to_checkpoint` (0x44141D): with `c` a checkpoint (0 .. count - 1, by sign
-/// tests), `scratch` the distance in x and z (`x87::int_hypot`) from (`ground_x`,
-/// `ground_z`) to its face's first point; else -1. Refuses a checkpoint past the list.
+/// `race::distance_to_checkpoint`: for `c` a checkpoint (0 .. count - 1, a signed test), sets
+/// `scratch` to the distance in x and z (`x87::int_hypot`) from (`ground_x`, `ground_z`) to its
+/// face's first point; else to -1. Refuses a checkpoint past the list.
 pub fn distance_to_checkpoint(
     physics: &Physics,
     course: &Course,
@@ -101,7 +100,7 @@ pub fn distance_to_checkpoint(
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
     let drawing = &scene.drawing;
-    // Converted: `rc2k_core::race::checkpoints::on_line`; the distance the x87's.
+    // The distance is the x87's.
     let count: u32 = vars.checkpoint_count.get();
     if !rc2k_core::race::checkpoints::on_line(c, count) {
         drawing.scene.get().scratch.set(u32::MAX);
@@ -129,9 +128,10 @@ pub struct Nearest {
     pub distance: u32,
 }
 
-/// `race::nearest_checkpoint_in` (0x4413F8): checkpoints `from` up to `to` (once at least, `jb`)
-/// measured by `distance_to_checkpoint`; the nearest (unsigned, the later of equals) and its
-/// distance (-1 and 0 for none). Refuses more than 0x1418 measures or checkpoints, before anything.
+/// `race::nearest_checkpoint_in`: measures checkpoints `from` up to `to` (once at least, whatever
+/// `to`) with `distance_to_checkpoint` and returns the nearest (unsigned, the later of equals)
+/// and its distance (-1 and 0 for none). Refuses more than 0x1418 measures or checkpoints, before
+/// anything.
 pub fn nearest_checkpoint_in(
     physics: &Physics,
     course: &Course,
@@ -145,7 +145,6 @@ pub fn nearest_checkpoint_in(
     if steps > MOST_CHECKS {
         return Err(BadInput("more measures than checkpoints").into());
     }
-    // Converted: `rc2k_core::race::checkpoints::Nearest`.
     let mut nearest = rc2k_core::race::checkpoints::Nearest::default();
     let mut c = from;
     loop {
@@ -181,8 +180,6 @@ pub fn nearest_checkpoint_in(
     }
 }
 
-/// Checkpoints from `c` up to `to` measured as `distance_to_checkpoint` does, until one is
-/// off the line or its reads leave the stores (`c` is then that one).
 /// The checkpoints' places as last read: for each, its face and its first point's x and z.
 /// Kept while the faces' first points and the course's scene points are unchanged
 /// (`course_places::first_points_changes`) and the scene point count is the same; each
@@ -200,6 +197,8 @@ thread_local! {
     };
 }
 
+/// Measures checkpoints from `c` up to `to` as `distance_to_checkpoint` does, until one is off the
+/// line or its reads leave the stores (`c` is then that one).
 fn measure_held(
     ground: &GroundWork,
     course_work: &CourseWork,
@@ -238,7 +237,7 @@ fn measure_held(
                 let (px, pz) = match kept.places.get(slot).copied().flatten() {
                     Some((f, px, pz)) if f == face => (px, pz),
                     _ => {
-                        // As the original's u32 arithmetic on the places.
+                        // The place arithmetic wraps as u32.
                         let Some(point) = faces((face << 6).wrapping_add(4) as usize) else {
                             return;
                         };
@@ -272,7 +271,7 @@ fn measure_held(
             }
         })
     });
-    // The last one measured leaves its distance, as `distance_to_checkpoint` does.
+    // The last one measured leaves its distance in `scratch`, as `distance_to_checkpoint` does.
     if let Some((dx, dz)) = last {
         scene
             .drawing
@@ -284,10 +283,10 @@ fn measure_held(
     measured
 }
 
-/// `race::nearest_checkpoint` (0x44134F): the work car's x and z into `ground_x` /
-/// `ground_z`; with checkpoints, the nearest of them all (`nearest_checkpoint_in` 0 .. count),
-/// its distance in `scratch` and / 65536 in `nearest_checkpoint_distance`; else 0. Refuses more checkpoints
-/// than the lists, before anything.
+/// `race::nearest_checkpoint`: copies the work car's x and z into `ground_x` / `ground_z`. With
+/// checkpoints it returns the nearest of them all (`nearest_checkpoint_in` 0 .. count), its
+/// distance going into `scratch` and / 65536 into `nearest_checkpoint_distance`; else 0. Refuses
+/// more checkpoints than the lists, before anything.
 pub fn nearest_checkpoint(
     physics: &Physics,
     course: &Course,
@@ -309,7 +308,6 @@ pub fn nearest_checkpoint(
         }
         let near = nearest_checkpoint_in(physics, course, shared, 0, count, scene)?;
         scene.drawing.scene.get().scratch.set(near.distance);
-        // Converted: `rc2k_core::race::checkpoints::distance_units`.
         let units = rc2k_core::race::checkpoints::distance_units(
             near.distance,
             course.numbers.get().k65536.get(),
@@ -323,12 +321,13 @@ pub fn nearest_checkpoint(
     }
 }
 
+/// `race::invert_car_matrix`: the car's inverse matrix from its crash matrix.
 pub fn invert_car_matrix(course: &Course, car: &Car, scene: &crate::scene::owner::Scene) {
     let length = crate::scene::view_matrix::invert_turn(
         course.reads(),
         &car.crash_matrix,
         &car.car_inverse_matrix,
     );
-    // `scene::square_matrix` left its last length in `g_scratch`.
+    // The matrix's last length is left in `scratch`.
     scene.drawing.scene.get().scratch.set(length);
 }

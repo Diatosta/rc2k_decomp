@@ -1,6 +1,6 @@
-//! `init_marks`' step 1, its second half (`effects::load_edges`): the kinds'
-//! records scaled once, the kind's edge picture (`files\m\edgeNN.pcx`, 256 x 128) packed to
-//! a byte a pixel, the shape tilt of the kind, then the masks and the two item kinds.
+//! `init_marks`' step 1, its second half (`effects::load_edges`): the kinds' records scaled
+//! once, the kind's edge picture (`files\m\edgeNN.pcx`, 256 x 128) packed to a byte a
+//! pixel, the shape tilt of the kind, then the masks and the two item kinds.
 
 use crate::effects::mask_store::Masks;
 use crate::effects::owner::Effects;
@@ -21,15 +21,13 @@ fn clamped(kind: u32) -> u32 {
     (kind as i32).clamp(0, MOST_KIND) as u32
 }
 
-/// `effects::load_edges` (0x4C0F2E): once (`g_marksEdgesDone`, then `resume`) each kind's
-/// record (`x87::scale_record` by 65536 / 1000) and its float less from 90; the settings'
-/// +0x2708 0xFFFF7B2E; the kind (held to 0 .. 0x16) written as two digits into the edge
-/// picture's path; that read (`gfx::read_picture_file`, at 256 x 128, the picture's sizes
-/// kept round it); its pixels packed (the four bytes or'd, inverted) into
-/// `g_marksEdgeMask`; the shape tilt the kind's float times 0.0175; then `make_masks`,
-/// `set_up_windscreen_drops`, `set_up_windscreen_flakes` (and `nullsub_17`). Refuses a mark neither 0 nor
-/// `resume`, before writing; a picture that is not read (the original then counts
-/// 0x1FFFFFFF down and leaves with its stack one off), after the path is written.
+/// `effects::load_edges`: once (then `resume`) each kind's record (`x87::scale_record` by 65536 /
+/// 1000) and its float less from 90; the settings' +0x2708 0xFFFF7B2E; the kind (held to 0 .. 0x16)
+/// written as two digits into the edge picture's path; that read (`gfx::read_picture_file`, at 256
+/// x 128, the picture's sizes kept round it); its pixels packed (the four bytes or'd, inverted)
+/// into the edge mask; the shape tilt the kind's float times 0.0175; then `make_masks`,
+/// `set_up_windscreen_drops`, `set_up_windscreen_flakes`. Refuses a mark neither 0 nor `resume`,
+/// before writing; a picture that is not read, after the path is written.
 #[allow(
     clippy::too_many_arguments,
     reason = "the edges' inputs and the owners they are read from"
@@ -119,9 +117,8 @@ pub fn load_edges(
     Ok(())
 }
 
-/// `effects::load_kind_data` (0x4C1235), `init_marks`' step 1: `g_marksKind` the settings'
-/// +0x26A8; `nullsub_1` (twice, between them), `load_edges`, `load_splines`. Refuses as
-/// its steps do.
+/// `effects::load_kind_data`, `init_marks`' step 1: the kind taken from the settings'
+/// +0x26A8; then `load_edges`, `load_splines`. Refuses as its steps do.
 pub fn load_kind_data(
     race: &crate::race::owner::Race,
     effects: &Effects,
@@ -147,10 +144,10 @@ pub fn load_kind_data(
     Ok(())
 }
 
-/// The edge picture packed to a byte a pixel (`effects::edges`, `effects::run_windscreen_flakes`, `effects::windscreen_drops_frame`) (IDA 0x809BC3 .. 0x811BC3).
+/// The edge picture packed to a byte a pixel.
 #[derive(rc2k_derive::Cells)]
 pub struct EdgeMask {
-    /// 0x809BC3: `g_marksEdgeMask`: 256 x 128 cells, a byte set where an item dies.
+    /// 256 x 128 cells, a byte set where an item dies.
     pub mask: PlainBytes<32768>,
 }
 
@@ -162,12 +159,12 @@ impl EdgeMask {
     }
 }
 
-/// The kinds' boxes and floats (`effects::edges`, `effects::corners`) (IDA 0x811BEB .. 0x8122D3).
+/// The kinds' boxes and floats (`effects::edges`, `effects::corners`).
 #[derive(rc2k_derive::Cells)]
 pub struct KindBoxes {
-    /// 0x811BEB: `g_marksKindBoxes`: 0x22 records of 0x30 bytes, scaled once at `effects::load_edges`.
+    /// 0x22 records of 0x30 bytes, scaled once at `effects::load_edges`.
     pub boxes: PlainBytes<1632>,
-    /// 0x81224B: `g_marksKindFloats`: 0x22 floats, one a kind (less from 90 once).
+    /// 0x22 floats, one a kind (less from 90 once).
     pub kind_floats: [PlainFloat; 34],
 }
 
@@ -358,18 +355,20 @@ impl KindBoxes {
     }
 }
 
-/// The edges' scales, once-only mark and picture path (IDA 0x8BC39E .. 0x8BC3FD).
+/// The edges' scales, once-only mark and picture path.
 #[derive(rc2k_derive::Cells)]
 pub struct EdgeSettings {
-    /// 0x8BC39E: `flt_8BC39E`: what the settings' +0x2750 is multiplied by (`effects::scale_setting`; 1.0).
+    /// What the settings' +0x2750 is multiplied by (`effects::scale_setting`; 1.0).
     pub factor: PlainFloat,
-    /// 0x8BC3D6: `g_marksEdgesDone`: 0, or where `effects::load_edges` goes on.
+    /// 0, or where `effects::load_edges` goes on.
     pub done: PlainDword,
-    /// 0x8BC3DA: `flt_8BC3DA`, `flt_8BC3DE`, `flt_8BC3E2`: 65536.0, 1000.0, 90.0: the kinds' records are scaled by the first over the second, and their floats taken from the third.
+    /// 65536.0, 1000.0, 90.0: the kinds' records are scaled by the first over the second,
+    /// and their floats taken from the third.
     pub scale: [PlainFloat; 3],
-    /// 0x8BC3E6: `files\m\edge00.pcx` and its NUL: the edge picture's path (the kind's two digits at +12, +13).
+    /// `files\m\edge00.pcx` and its NUL: the edge picture's path (the kind's two digits at +12,
+    /// +13).
     pub path: PlainBytes<20>,
-    /// 0x8BC3F9: `flt_8BC3F9`: 0.0175 (degrees to radians), the shape tilt's scale (a float's bits).
+    /// 0.0175 (degrees to radians), the shape tilt's scale (a float's bits).
     pub tilt_scale: PlainDword,
 }
 

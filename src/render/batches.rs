@@ -88,8 +88,8 @@ pub struct Batches {
     pub vertices: Vec<Vertex>,
     pub batches: Vec<Batch>,
     pub textures: Vec<TextureNote>,
-    /// With second passes joined (`of`), each vertex's second pass's colour, specular and texture place
-    /// (vertices of batches without one: zeros).
+    /// With second passes joined (`of`), each vertex's second pass's colour, specular and
+    /// texture place (vertices of batches without one: zeros).
     pub seconds: Vec<[u32; 4]>,
     /// Layered (`of_layered`): each vertex's first and second pass's texture, by number in
     /// `textures` (`NO_TEXTURE` for none).

@@ -1,13 +1,10 @@
-//! `sound::race_turn` (0x40D5F3): the race's sounds, once a frame.
+//! `sound::race_turn`: the race's sounds, once a frame.
 //!
-//! Quitting (`g_quitting` 1, the game closing): the program is ended as `start` ends it
-//! (`standalone::leave_on_close`); the original jumped out of the loop (chunk 0x4154B5).
-//! Else, once the sounds are
-//! started (`RaceClock.started` 1): `sound::step_race_clock`; with a turn due (carry clear)
-//! `sound::mark_car_voices`, `car_sounds_all`, `play_cue_queues`, `stage_sounds`,
-//! `spot_sounds`, `send_end_of_turn`; and either way `input::step_effects_clock`.
-//! One caller, 0x421BCF (`sound::race_turn_if`).
-//! Refuses what its callees refuse.
+//! Quitting (the game closing): the program is ended (`standalone::leave_on_close`). Else, once the
+//! sounds are started (`RaceClock.started` 1): `sound::step_race_clock`; with a turn due
+//! `sound::mark_car_voices`, `car_sounds_all`, `play_cue_queues`, `stage_sounds`, `spot_sounds` and
+//! `send_end_of_turn`; and either way `input::step_effects_clock`. One caller,
+//! `sound::race_turn_if`. Refuses what its callees refuse.
 
 use crate::errors::Refused;
 
@@ -18,8 +15,7 @@ pub fn race_turn(
 ) -> Result<(), Refused> {
     let (sound, input, audio, system) = (o.sound, o.input, o.audio, o.system);
     if system.session.flags.quitting.is_set() {
-        // The original's quit jump (into `system::main_loop`'s way out): the program
-        // ended as `start` ends it.
+        // The program ends here, as the game's start ends it.
         crate::standalone::leave_on_close(o);
     }
     if sound.race.clock.get().started.get() != 1 {

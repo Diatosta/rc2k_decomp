@@ -1,14 +1,12 @@
-//! The sound module's sets and tables that sit between `sound::store`'s pieces in the image
-//! (the settings page's menu sounds, the race's sets of sounds and the commands that name
-//! them, the cues' lists, the car sound kinds' records, the surface sound sets and the spot
-//! voices), out of RAL.EXE's image, typed. The sets are lists of sound
-//! numbers ending in -1 that the audio thread reads; the tables of pointers name them by
-//! handle: the race's sets by `RACE_LIST_TAG` and an offset in the table they lie in; the cues'
-//! and surface sets' lists by their byte offset in the block of lists after the table, the
-//! kinds' records by their number.
+//! The sound module's sets and tables (the settings page's menu sounds, the race's sets of sounds
+//! and the commands that name them, the cues' lists, the car sound kinds' records, the surface
+//! sound sets and the spot voices), typed. The sets are lists of sound numbers ending in -1 that
+//! the audio thread reads; the tables of pointers name them by handle: the race's sets by
+//! `RACE_LIST_TAG` and an offset in the table they lie in; the cues' and surface sets' lists by
+//! their byte offset in the block of lists after the table, the kinds' records by their number.
 //!
-//! Structs of atomic cells, first values the image's (`tests`); the race's sets keep the
-//! image's layout, as their lists' handles are offsets in it.
+//! Structs of atomic cells with the game's starting values (`tests`); the race's sets keep
+//! the 1999 layout, as their lists' handles are offsets in it.
 
 use crate::session::{Bytes, Cell32, Dword, PlainBytes, PlainDword, PlainFloat, with_runs};
 use rc2k_core::audio::commands::RaceField;
@@ -33,12 +31,12 @@ fn race_list_of(handle: u32) -> Option<(RaceField, u32)> {
     ((entry as usize) < field.dwords()).then_some((field, entry))
 }
 
-/// The settings page's menu sounds list (IDA 0x511AE4 .. 0x511B0C).
+/// The settings page's menu sounds list.
 #[derive(rc2k_derive::Cells)]
 pub struct MenuSounds {
-    /// Not in the image: the bytes that keep every field the alignment its IDA address has (the struct is 16-byte aligned).
+    /// Padding that keeps every field's 1999 alignment (the struct is 16-byte aligned).
     pub _lead: Bytes<4>,
-    /// 0x511AE4: `unk_511AE4`: the list `sound::apply_settings` passes as the menu sounds' third argument.
+    /// The list `sound::apply_settings` passes as the menu sounds' third argument.
     pub list: Bytes<40>,
     /// Up to the record's alignment (no byte of a record of cells outside a field).
     pub _tail: Bytes<4>,
@@ -61,58 +59,58 @@ impl MenuSounds {
     }
 }
 
-/// The sets of sounds a race loads (`sound::load_race_sounds`) and the request it sends (IDA 0x511B10 .. 0x5124E4).
-/// The fields are in the image's order: a list runs on into the fields after it
-/// (`list_entry`, `RaceField`).
+/// The sets of sounds a race loads (`sound::load_race_sounds`) and the request it sends. The fields
+/// are in the 1999 order: a list runs on into the fields after it (`list_entry`, `RaceField`).
 #[derive(rc2k_derive::Cells)]
 pub struct RaceSoundSets {
-    /// 0x511B10: `unk_511B10` ..: the first car's sets by kind of car, three dwords each (two sounds, -1).
+    /// The first car's sets by kind of car, three dwords each (two sounds, -1).
     pub kind_sets_first: [Dword; 102],
-    /// 0x511CA8: `unk_511CA8`: a set of the first car (sound numbers ending in -1).
+    /// A set of the first car (sound numbers ending in -1).
     pub first_set_a: [Dword; 23],
-    /// 0x511D04: `unk_511D04`: another of the first car.
+    /// Another of the first car.
     pub first_set_c: [Dword; 94],
-    /// 0x511E7C: `unk_511E7C` ..: the second car's sets by kind of car, three dwords each.
+    /// The second car's sets by kind of car, three dwords each.
     pub kind_sets_second: [Dword; 102],
-    /// 0x512014: `unk_512014`: a set of the second car.
+    /// A set of the second car.
     pub second_set_a: [Dword; 23],
-    /// 0x512070: `unk_512070`: another of the second car.
+    /// Another of the second car.
     pub second_set_b: [Dword; 95],
-    /// 0x5121EC: `unk_5121EC`: the set loaded when the two cars differ.
+    /// The set loaded when the two cars differ.
     pub last_set: [Dword; 31],
-    /// 0x512268: `unk_512268`: another of the first car.
+    /// Another of the first car.
     pub first_set_b: [Dword; 54],
-    /// 0x512340: `unk_512340`: the only set of a replay.
+    /// The only set of a replay.
     pub replay_set: [Dword; 8],
-    /// 0x512360: `off_512360`: two sets (pointers) a kind of car.
+    /// Two sets (pointers) a kind of car.
     pub kinds: [Dword; 87],
-    /// Not in the image: the bytes that fill the record to its 16-byte alignment (the
-    /// image's `g_raceSoundRequest` followed here: it is the game thread's now, `SoundRequest`).
+    /// Padding that fills the record to its 16-byte alignment (the sound request follows it in
+    /// the 1999 layout; it is the game thread's now, `SoundRequest`).
     pub _tail: Bytes<4>,
 }
 
-/// `g_raceSoundRequest` (0x5124BC): the ten dwords the race's sounds are sent with
-/// (`sound::play_placed_sound`, `sound::stop_sound`); a work area each turn fills again. The game
-/// thread's (`sound::owner::RaceSoundState::request`).
-/// Laid out as the image: the recorded assembly's tests lay it over raw bytes.
+/// The ten dwords the race's sounds are sent with (`sound::play_placed_sound`,
+/// `sound::stop_sound`); a work area each turn fills again. The game thread's
+/// (`sound::owner::RaceSoundState::request`). Laid out as the 1999 variables: the recorded
+/// assembly's tests lay it over raw bytes.
 #[cfg_attr(test, repr(C))]
 #[derive(rc2k_derive::Cells)]
 pub struct SoundRequest {
-    /// +0: the sound (bit 0x8000: none).
+    /// The sound (bit 0x8000: none).
     pub sound: PlainDword,
-    /// +4: the pitch, a float (`sound::revs_sound::fill_pitch_and_volume`), then the whole number sent.
+    /// The pitch, a float (`sound::revs_sound::fill_pitch_and_volume`), then the whole number
+    /// sent.
     pub pitch: PlainDword,
-    /// +8: the volume, a float, then (without 3D) the whole number sent.
+    /// The volume, a float, then (without 3D) the whole number sent.
     pub volume: PlainDword,
-    /// +0xC .. +0x14: where the sound is, three floats.
+    /// Where the sound is, three floats.
     pub place: [PlainFloat; 3],
-    /// +0x18: without 3D, the angle (`fpatan` of +0x14 over +0xC).
+    /// Without 3D, the angle (the arctangent of the place's third float over its first).
     pub angle: PlainDword,
-    /// +0x1C: without 3D, the place between left and right (a whole number).
+    /// Without 3D, the place between left and right (a whole number).
     pub pan: PlainDword,
-    /// +0x20: the pitch's factor, a float.
+    /// The pitch's factor, a float.
     pub pitch_factor: PlainFloat,
-    /// +0x24: the volume's factor, a float.
+    /// The volume's factor, a float.
     pub volume_factor: PlainFloat,
 }
 
@@ -135,8 +133,8 @@ impl SoundRequest {
         }
     }
 
-    /// Stores `bits` in dword `n` (the original's +4n), for the cores that name the words by
-    /// number; None past the ten.
+    /// Stores `bits` in dword `n` (+4n bytes in the 1999 layout), for the cores that name the words
+    /// by number; None past the ten.
     pub fn set_word(&self, n: usize, bits: u32) -> Option<()> {
         let cell: &dyn Cell32 = match n {
             0 => &self.sound,
@@ -870,10 +868,10 @@ impl RaceSoundSets {
         }
     }
 
-    /// Entry `n` of the list that starts at entry `entry` of `field`. A list is read on
-    /// until its -1, through the next fields of the sets in their order where it runs past
-    /// its own (as the original's list did); a read past the sets is none. The list is named
-    /// at run time (a handle the race sound loader is given), so any of the fields can follow.
+    /// Entry `n` of the list that starts at entry `entry` of `field`. A list is read on until its
+    /// -1, through the next fields of the sets in their order where it runs past its own; a read
+    /// past the sets is none. The list is named at run time (a handle the race sound loader is
+    /// given), so any of the fields can follow.
     pub fn list_entry(
         &self,
         field: RaceField,
@@ -921,14 +919,15 @@ impl RaceSoundSets {
     const KIND_ENTRIES: usize = 72;
 }
 
-/// The cues' lists (IDA 0x512508 .. 0x512A10).
+/// The cues' lists.
 #[derive(rc2k_derive::Cells)]
 pub struct CueLists {
-    /// Not in the image: the bytes that keep every field the alignment its IDA address has (the struct is 16-byte aligned).
+    /// Padding that keeps every field's 1999 alignment (the struct is 16-byte aligned).
     pub _lead: PlainBytes<8>,
-    /// 0x512508: `off_512508`: where each cue's list of sounds starts, as a byte offset in `lists` (`physics::queue_sound_cue`).
+    /// Where each cue's list of sounds starts, as a byte offset in `lists`
+    /// (`physics::queue_sound_cue`).
     pub table: [PlainDword; 113],
-    /// 0x5126CC: `unk_5126CC` ..: the lists.
+    /// The lists.
     pub lists: PlainBytes<836>,
 }
 
@@ -977,34 +976,34 @@ impl CueLists {
 }
 
 /// One sound set of a kind's record (0x28 bytes; `sound::revs_sound`, `throttle_sound`,
-/// `speed_sound`): a sound number, three more values, and a pitch and a volume as a
-/// start, an end and the span between them (`race::sound_tables` makes the whole numbers
-/// floats and the spans once). The sound at the object's pitch is `input * scale + low`.
-/// The values are kept as bits: a whole number in the image until the tables are made ready.
-/// Laid out as the image: the recorded assembly's tests lay it over raw bytes.
+/// `speed_sound`): a sound number, three more values, and a pitch and a volume as a start, an end
+/// and the span between them (`race::sound_tables` makes the whole numbers floats and the spans
+/// once). The sound at the object's pitch is `input * scale + low`. The values are kept as bits: a
+/// whole number until the tables are made ready. Laid out as the 1999 variables: the recorded
+/// assembly's tests lay it over raw bytes.
 #[cfg_attr(test, repr(C))]
 #[derive(rc2k_derive::Cells)]
 pub struct SoundSet {
-    /// +0: the sound's number, added to the object's `sound_offset`.
+    /// The sound's number, added to the object's `sound_offset`.
     pub sound: PlainDword,
-    /// +4: the original's `race::sound_tables::sound_row` made it a float; read by no
-    /// sound code and 0 in every set of the shipped data, so no longer converted (a spare word, probably an input range's start).
+    /// Read by no sound code and 0 in every set of the shipped data, so not converted to a
+    /// float (a spare word, probably an input range's start).
     pub unused_float_04: PlainDword,
-    /// +8: as +4 (probably the range's end).
+    /// As `unused_float_04` (probably the range's end).
     pub unused_float_08: PlainDword,
-    /// +0xC: as +4 (probably the range's span).
+    /// As `unused_float_04` (probably the range's span).
     pub unused_float_0c: PlainDword,
-    /// +0x10: the pitch at input 0.
+    /// The pitch at input 0.
     pub pitch_low: PlainDword,
-    /// +0x14: the pitch's end (the span's second value).
+    /// The pitch's end (the span's second value).
     pub pitch_high: PlainDword,
-    /// +0x18: the pitch span, `pitch_high - pitch_low`: the pitch's slope.
+    /// The pitch span, `pitch_high - pitch_low`: the pitch's slope.
     pub pitch_scale: PlainDword,
-    /// +0x1C: the volume at input 0.
+    /// The volume at input 0.
     pub volume_low: PlainDword,
-    /// +0x20: the volume's end.
+    /// The volume's end.
     pub volume_high: PlainDword,
-    /// +0x24: the volume span: the volume's slope.
+    /// The volume span: the volume's slope.
     pub volume_scale: PlainDword,
 }
 
@@ -1036,26 +1035,25 @@ impl SoundSet {
     }
 }
 
-/// A sound kind's record (0x88 bytes, `g_carSoundKinds`' entries): the revs' range and
-/// slope, then the engine's three sets.
-/// Laid out as the image: the recorded assembly's tests lay it over raw bytes.
+/// A sound kind's record (0x88 bytes): the revs' range and slope, then the engine's three sets.
+/// Laid out as the 1999 variables: the recorded assembly's tests lay it over raw bytes.
 #[cfg_attr(test, repr(C))]
 #[derive(rc2k_derive::Cells)]
 pub struct KindRecord {
-    /// +0: the kind's flags (`sound::car_engine_state`'s `state` reads them).
+    /// The kind's flags (`sound::car_engine_state`'s `state` reads them).
     pub flags: PlainDword,
-    /// +4: the revs the engine's input starts from (a whole number made a float).
+    /// The revs the engine's input starts from (a whole number made a float).
     pub revs_low: PlainDword,
-    /// +8: the revs' end.
+    /// The revs' end.
     pub revs_high: PlainDword,
-    /// +0xC: first the span (`revs_high - revs_low`), then its reciprocal
-    /// (`race::sound_tables`): the engine input's slope.
+    /// First the span (`revs_high - revs_low`), then its reciprocal (`race::sound_tables`): the
+    /// engine input's slope.
     pub revs_scale: PlainDword,
-    /// +0x10: the engine's revs sound (`sound::revs_sound`).
+    /// The engine's revs sound (`sound::revs_sound`).
     pub revs: SoundSet,
-    /// +0x38: the throttle sound (`sound::throttle_sound`).
+    /// The throttle sound (`sound::throttle_sound`).
     pub throttle: SoundSet,
-    /// +0x60: the speed sound (`sound::speed_sound`).
+    /// The speed sound (`sound::speed_sound`).
     pub speed: SoundSet,
 }
 
@@ -1080,18 +1078,18 @@ impl KindRecord {
     }
 }
 
-/// The car sound kinds'' records, the computer cars' set and the sine table (IDA 0x514F90 .. 0x516358).
+/// The car sound kinds' records, the computer cars' set and the sine table.
 #[derive(rc2k_derive::Cells)]
 pub struct SoundKinds {
-    /// 0x514F90: `g_carSoundKinds`: each sound kind's record, by its number (`sound::car_engine_state`).
+    /// Each sound kind's record, by its number (`sound::car_engine_state`).
     pub kinds: [PlainDword; 36],
-    /// 0x515020: `unk_515020` ..: the sound kinds' records of 0x88 bytes (`race::sound_tables` works the floats out).
+    /// The sound kinds' records of 0x88 bytes (`race::sound_tables` works the floats out).
     pub records: [KindRecord; 34],
-    /// 0x516230: `g_computerCarSoundSet`: the computer's cars' set (`sound::revs_sound`).
+    /// The computer's cars' set (`sound::revs_sound`).
     pub computers: SoundSet,
-    /// 0x516258: `unk_516258`: 0x40 floats, 1 + 0.05 sin x (`race::sound_tables`).
+    /// 0x40 floats, 1 + 0.05 sin x (`race::sound_tables`).
     pub sines: [PlainFloat; 64],
-    /// Not in the image: the bytes that fill the record to its 16-byte alignment.
+    /// Padding that fills the record to its 16-byte alignment.
     pub _tail: PlainBytes<8>,
 }
 
@@ -1578,14 +1576,15 @@ impl SoundKinds {
     }
 }
 
-/// The surface sound sets (IDA 0x51639C .. 0x51655C).
+/// The surface sound sets.
 #[derive(rc2k_derive::Cells)]
 pub struct SurfaceSets {
-    /// Not in the image: the bytes that keep every field the alignment its IDA address has (the struct is 16-byte aligned).
+    /// Padding that keeps every field's 1999 alignment (the struct is 16-byte aligned).
     pub _lead: PlainBytes<12>,
-    /// 0x51639C: `g_surfaceSoundSetsA`: the sets (seven pairs; each is the byte offset in `lists` where its set starts; `sound::surface_sounds`).
+    /// The sets (seven pairs; each is the byte offset in `lists` where its set starts;
+    /// `sound::surface_sounds`).
     pub sets: [PlainDword; 14],
-    /// 0x5163D4: `unk_5163D4` ..: the lists.
+    /// The lists.
     pub lists: PlainBytes<392>,
     /// Up to the record's alignment (no byte of a record of cells outside a field).
     pub _tail: PlainBytes<4>,
@@ -1617,11 +1616,11 @@ impl SurfaceSets {
     }
 }
 
-/// The spot voices (IDA 0x5168C0 .. 0x517F40).
+/// The spot voices.
 #[repr(align(16))]
 #[derive(rc2k_derive::Cells)]
 pub struct SpotVoices {
-    /// 0x5168C0: `g_spotVoices`: 0x48 records of 0x50 bytes (`sound::spot_voices`).
+    /// 0x48 records of 0x50 bytes (`sound::spot_voices`).
     pub voices: [crate::sound::spot_voices::SpotVoice; 72],
 }
 
@@ -1637,8 +1636,7 @@ impl SpotVoices {
 mod tests {
     use super::*;
 
-    /// The original's offsets in the sets (IDA address less 0x511B10) of the fields, and of
-    /// the 72 lists the kinds table names, as the race_list literals gave them.
+    /// Byte offsets in the 1999 layout of the fields, and of the 72 lists the kinds table names.
     const OLD_FIELD_OFFSETS: [u32; 11] = [
         0x0, 0x198, 0x1F4, 0x36C, 0x504, 0x560, 0x6DC, 0x758, 0x830, 0x850, 0x9AC,
     ];
@@ -1650,7 +1648,7 @@ mod tests {
         1080, 204, 1080,
     ];
 
-    /// The old layout's flat dwords: every field in order.
+    /// The flat dwords of the 1999 layout: every field in order.
     fn flat(sets: &RaceSoundSets) -> Vec<u32> {
         sets.runs()
             .iter()
@@ -1669,9 +1667,9 @@ mod tests {
         );
     }
 
-    /// Every entry of every list start, to the end of the sets and past it, reads as the
-    /// old byte read of the record did; the word (the hash's input) is the old offset + 2,
-    /// and names the same list back.
+    /// Every entry of every list start, to the end of the sets and past it, reads as a read of
+    /// the 1999 layout's bytes does; the word (the hash's input) is the old offset + 2, and
+    /// names the same list back.
     #[test]
     fn list_entries_read_as_the_byte_read() {
         let sets = Box::new(RaceSoundSets::new());
@@ -1705,7 +1703,7 @@ mod tests {
         assert_eq!(sets.list_entry(RaceField::Tail, 0, 1).unwrap(), None);
     }
 
-    /// The lists the kinds table and the named sets start: same words as the old offsets, and
+    /// The lists the kinds table and the named sets start: the same words as the 1999 offsets, and
     /// the lists read to their -1 without reaching the kinds table (whose values changed with
     /// their encoding).
     #[test]

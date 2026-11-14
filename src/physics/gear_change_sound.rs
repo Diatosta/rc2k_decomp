@@ -1,12 +1,12 @@
-//! `physics::gear_change_sound` (0x45C551): the current car's sound object
-//! (`g_raceSoundObjects[g_currentCar & 7]`) told of the car's `gear_changed`: at 1 its
-//! `drive_slip_speed`-side flag (+0x180) and the car flags (+0x10) are set to 1; at -1 its
-//! `velocity`-side flag (+0x198) and +0x10 are set to 1. A reading: a gear change up or down heard.
+//! Tells the current car's sound object of the car's `gear_changed`:
+//! at 1 two of its flags are set to 1 (the `drive_slip_speed` side and the car flags); at -1
+//! the `velocity` side flag and the car flags are set to 1. A reading: a gear change up or down
+//! heard.
 //!
-//! Returns: the sound object
+//! Returns the sound object.
 //!
-//! Caller: `physics::engine_sound` (its tail). Refuses (before anything) a null sound object when
-//! it would be written (the original writes near address 0).
+//! Caller: `physics::engine_sound`. Refuses (before anything) a null sound object when it
+//! would be written.
 
 use crate::errors::Refused;
 use crate::physics::car_store::Car;
@@ -14,7 +14,7 @@ use crate::session::PlainInt;
 use rc2k_core::physics::gearbox::{GearChange, gear_change};
 
 /// On the current car's sound object and the word at this place.
-// Converted: `rc2k_core::physics::gearbox::gear_change`.
+// Core: `rc2k_core::physics::gearbox::gear_change`.
 pub fn gear_change_sound_at(
     o: &crate::sound::store::SoundObject,
     word: &PlainInt,

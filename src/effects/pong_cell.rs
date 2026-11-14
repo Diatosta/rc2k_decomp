@@ -1,14 +1,11 @@
-//! `effects::pong_cell` (0x4B8557): one cell of a score digit: unless the pattern byte is 0, `effects::draw_pong_box` at (the column times a cell width plus the score's x, the
-//! row times a cell height plus the score's y) sized by the cell's width and height; the
-//! pattern pointer then moves on one.
+//! `effects::pong_cell`: one cell of a score digit: unless the pattern byte is 0,
+//! `effects::draw_pong_box` at (the column times a cell width plus the score's x, the row times a
+//! cell height plus the score's y) sized by the cell's width and height; the pattern pointer then
+//! moves on one.
 //!
-//! Takes: the pattern byte, the column, the row
-//!
-//! Caller: `effects::pong_digit` (twenty times).
-//!
-//! The box's place is `rc2k_core::effects::pong::cell_place` (a
-//! whole number times a float plus a whole number: exact in `f64`, as the x87's at double
-//! precision; at extended too while the product fits 53 bits, as the score's cells do).
+//! The box's place is `rc2k_core::effects::pong::cell_place` (a whole number times a float plus a
+//! whole number: exact in `f64`, as the x87's at double precision; at extended too while the
+//! product fits 53 bits, as the score's cells do).
 
 use crate::effects::pong::Pong;
 use crate::effects::windscreen_flakes_store::WindscreenFlakes;

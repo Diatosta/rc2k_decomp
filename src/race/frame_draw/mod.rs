@@ -1,5 +1,6 @@
-//! The race's drawing (`drive::race_frame`'s tree): its leaves that are game logic,
-//! not platform. The panel's fields at 0x6D14xx are the HUD record the frame fills for the HUD drawers (`g_hudRecord`, `race::panel_store`).
+//! The race's drawing (`drive::race_frame`'s tree): its leaves that are game logic, not platform.
+//! The panel's fields are the HUD record the frame fills for the HUD drawers
+//! (`race::panel_store`).
 
 use crate::errors::BadInput;
 use crate::race::owner_course::CourseReads;

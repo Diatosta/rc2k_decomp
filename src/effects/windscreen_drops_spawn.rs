@@ -1,13 +1,11 @@
-//! `effects::windscreen_drops_spawn` (0x4BC5D9): new windscreen drops this frame. The frame
-//! counter plus 1; with the x87 rounding set to chop throughout (put back at the end): a rate
-//! (the sine of the spawn angle + the shape tilt times the drops' `rate`, plus -(`rate` times
-//! a constant) times its cosine times a factor) is kept; unless below a limit: its whole part
-//! (held to 0x80) of `effects::pick_windscreen_drop`s, and one more when the effects' random's
-//! bits 8 .. 23 are at most its fraction times a constant.
+//! `effects::windscreen_drops_spawn`: new windscreen drops this frame, under x87 chop rounding
+//! (restored at the end). A spawn rate worked out from the spawn angle, the shape tilt and the
+//! drops' `rate` is kept; unless it is below a limit, its whole part (held to 0x80) of
+//! `effects::pick_windscreen_drop`s are made, and one more when the effects' random's bits 8 .. 23
+//! are at most its fraction times a constant.
 //!
-//! Caller: `effects::windscreen_drops_frame` The x87 run is plain Rust on the x87 model
-//! (`math::x87_float`), in the original's order, over the game's variables; the picks their Rust
-//! versions (under the same rounding).
+//! The x87 run is plain Rust on the x87 model (`math::x87_float`); the picks run under the same
+//! rounding.
 
 use crate::effects::cell_x87::CellX87;
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
@@ -58,7 +56,7 @@ use crate::effects::plain::ld_cell;
 use crate::effects::view_vectors::KeptView;
 use crate::math::x87_float as bh;
 
-/// `rate`'s x87 block as plain Rust on the x87 model (18 instructions), same order and memory places.
+/// `rate`'s arithmetic as plain Rust on the x87 model, in the same order.
 fn rate_x87(drops: &WindscreenDrops, kv: &KeptView, work: &crate::effects::work_store::MarksWork) {
     let t0 = kv.first_angle.ld();
     let t1 = t0 + drops.tilt.tilt.ld();

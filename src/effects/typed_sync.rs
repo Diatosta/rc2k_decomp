@@ -1,7 +1,7 @@
 //! Test support for the marks' x87 blocks that work on typed statics: the differential tests
-//! (`asm_test`) run the original assembly over a test buffer standing for the marks' block at
-//! the test buffer `mk` and the plain Rust version over the typed statics; around the Rust
-//! version the statics hold the buffer's bytes, and the bytes it leaves go back to the buffer
+//! (`asm_test`) run the recorded x87 assembly over a test buffer standing for the marks' block at
+//! the test buffer `mk` and the plain Rust version over the typed statics; around the Rust version
+//! the statics hold the buffer's bytes, and the bytes it leaves go back to the buffer
 //! (`test_support::test_lock` is held by `differential`).
 
 use crate::effects::asm_layout::Laid;
@@ -12,11 +12,11 @@ use crate::test_support::paths::{field_bytes, field_range, set_field_range};
 type Reader = Box<dyn Fn(&str, usize) -> Vec<u8>>;
 type Writer = Box<dyn Fn(&str, &[u8]) -> bool>;
 
-/// A typed static with a 1999 layout (`Laid`) and where its first byte is in the marks' block
-/// (IDA). Its cells are read and written by field path, whatever the static's own layout.
+/// A typed static with a recorded layout (`Laid`) and where its first byte is in the marks'
+/// block. Its cells are read and written by field path, whatever the static's own layout.
 pub struct Overlay {
     start: usize,
-    /// The runs of the static's fields that were in the 1999 layout.
+    /// The runs of the static's fields that were in the recorded layout.
     runs: &'static [crate::effects::asm_layout::Run],
     /// The bytes of the static's cells from a field on, a given length.
     get: Reader,
@@ -24,8 +24,8 @@ pub struct Overlay {
     set: Writer,
 }
 
-/// The overlay of `st`, a typed static with a 1999 layout (`Laid`): its fields hold the
-/// bytes the buffer has at their 1999 places.
+/// The overlay of `st`, a typed static with a recorded layout (`Laid`): its fields hold the
+/// bytes the buffer has at their places.
 pub fn overlay_laid<T: Laid>(st: &'static T) -> Overlay {
     Overlay {
         start: T::START,

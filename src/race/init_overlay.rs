@@ -1,17 +1,16 @@
-//! `race::init_overlay` (0x45A9DE): the overlay's stage parts (`initoverlay`).
+//! `race::init_overlay`: sets up the overlay's stage parts.
 //!
 //! The parts are the stretches between the checkpoints `race::init_checkpoints` listed
-//! (`checkpoints`, `split_colour_count` of them): each one's length, the difference of its two
-//! checkpoints' `g_checkpointDistances` halved (`shr`, so a negative one comes out huge) /
-//! 65536 / 1609.344 (metres in a mile) and doubled, into `g_overlayPartMiles` (floats, 0x40),
-//! their sum into `g_overlayMiles`, `g_overlayParts` their count, the two dwords of each
-//! part at `overlay_part_kinds_a` and `overlay_part_kinds_b` 0. With fewer than two checkpoint kinds or no
-//! parts, one part of 1.0. Then six sizes (0x40, 0x80, 0x50, twice), each car block's
-//! +0xF78 .. +0xF98 and +0xFA0 0, `distance` and `flt_6D146E` 0. The x87 steps through
-//! `math::x87`; `scratch` left as the original's `fild` leaves it.
+//! (`checkpoints`, `split_colour_count` of them): each one's length is the difference of its two
+//! checkpoints' `checkpoint_distances`, halved with a logical shift (so a negative difference comes
+//! out huge), / 65536 / 1609.344 (metres in a mile) and doubled. The lengths go into
+//! `overlay_part_miles` (floats, at most 0x40), their sum into `overlay_miles`, their count into
+//! `overlay_parts`, and the two part-kind dwords of each part are set to 0. With fewer than two
+//! checkpoint kinds or no parts, there is one part of 1.0. Then six sizes (0x40, 0x80, 0x50,
+//! twice) are set and each car block's +0xF78 ..= +0xF98 and +0xFA0 are cleared. The x87 steps go
+//! through `math::x87`; `scratch` is left as the `fild` leaves it.
 //!
-//! One caller, `race::loadlevel_init` ("loadlevel_init : initoverlay"; no `pusha`). Refuses more
-//! than 0x40 parts (the original writes past its three lists).
+//! One caller, `race::loadlevel_init`. Refuses more than 0x40 parts.
 
 use crate::errors::Refused;
 use crate::math::x87;
@@ -19,11 +18,11 @@ use crate::race::owner::Race;
 
 const ONE: u32 = 0x3F80_0000;
 
-/// `race::init_overlay` (see the header).
+/// Sets up the overlay's stage parts (see the module header).
 pub fn init_overlay(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     crate::hud::layout_common::start_gear_log();
     {
-        // Converted: `rc2k_core::race::panel::{overlay_parts, half_length, OVERLAY_SIZES,
+        // Logic in `rc2k_core::race::panel::{overlay_parts, half_length, OVERLAY_SIZES,
         // OVERLAY_CLEARED}`; the miles the x87's.
         use rc2k_core::race::panel::{OVERLAY_CLEARED, OVERLAY_SIZES, half_length, overlay_parts};
         let (found, parts) = overlay_parts(race.shared.vars.get().checkpoint_count.get(), || {
@@ -49,9 +48,9 @@ pub fn init_overlay(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(
                     race.course.numbers.get().k65536.get(),
                     race.course.numbers.get().metres_in_mile.get(),
                 );
-                // The list's entries 0 .. count (at most 0x40, `overlay_parts`) are the ones
-                // `race::init_checkpoints` wrote (`split_colour_count` is their count - 1),
-                // each a checkpoint number below `last_checkpoint`, inside the distances.
+                // The list's entries 0 .. count (at most 0x40) were written by
+                // `race::init_checkpoints` (`split_colour_count` is their count - 1), each a
+                // checkpoint number below `last_checkpoint`, inside the distances.
                 let list = &race.physics.split_tables().checkpoints;
                 let distances = &race.checkpoints().distances;
                 let distance = |k: usize| -> Result<u32, crate::errors::BadInput> {
@@ -79,7 +78,7 @@ pub fn init_overlay(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(
                         .get()
                         .overlay
                         .overlay_part_miles[n as usize]
-                        .set(miles); // g_overlayPartMiles
+                        .set(miles);
                     race.frame.panel_and_overlay.get().panel.overlay_miles.set(
                         x87::add(
                             miles,
@@ -92,13 +91,13 @@ pub fn init_overlay(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(
                         .get()
                         .overlay
                         .overlay_part_kinds_a[n as usize]
-                        .set(0); // dword_6D160C
+                        .set(0);
                     race.frame
                         .panel_and_overlay
                         .get()
                         .overlay
                         .overlay_part_kinds_b[n as usize]
-                        .set(0); // dword_6D170C
+                        .set(0);
                 }
             }
             None => {
@@ -134,7 +133,7 @@ pub fn init_overlay(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(
                     .set(0);
             }
         }
-        // The sizes (`rc2k_core::race::panel::OVERLAY_SIZES`): dword_6D1486 .. dword_6D149E.
+        // The sizes (`rc2k_core::race::panel::OVERLAY_SIZES`).
         let sizes = [
             &race.frame.panel_and_overlay.get().panel.lights[0].width,
             &race.frame.panel_and_overlay.get().panel.lights[0].alpha,

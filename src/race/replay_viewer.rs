@@ -1,34 +1,32 @@
-//! `race::replay_viewer` (0x41CF0C): the replay viewer, by mode: 1 the last race's replay (222); 2
+//! `race::replay_viewer`: the replay viewer, by mode: 1 the last race's replay (222); 2
 //! a saved one chosen (`menu::replay_slot_loop` 0; none: nothing); 3 the last race's saved into a
 //! slot chosen (`replay_slot_loop` 1, `race::save_last_replay`) and nothing else. `viewer_mode`
-//! the mode, `viewer_slot` the replay, `g_holdCarRevs` 1 while it runs.
+//! the mode, `viewer_slot` the replay, `hold_car_revs` 1 while it runs.
 //!
-//! Then the replay opened (`race::open_viewed_replay`; failing: the end), no camera edit,
+//! Then the replay is opened (`race::open_viewed_replay`; failing: the end), with no camera edit,
 //! `last_race_viewed` whether it is the last race's, the snapshots' number found
-//! (`race::find_snapshot_number`), the stage loaded (`race::viewer_load_stage`), the list
-//! set up (`viewer_list`: no sound, shown, not leaving, the clocks, item 6), the pending key
-//! dropped, the items marked (`race::mark_viewer_items`). Each frame after (shown by
-//! `screens::run_frame` with 0x41D5FB, `race::viewer_frame`): the clocks, a key
-//! (`menu::list_take_key`); the game quitting ends it; keys
-//! held after a play (`wait_key_release`, until `Devices.keys_down` and `Devices.keys_down` are up) do
-//! nothing; Escape twice in a row ends it. Playing (`viewer_stopped` 0): a frame on
-//! (`race::step_viewed_replay`); its end or any key stops. Stopped: key 0x52 (Numpad 0) a screenshot
-//! (`gfx::take_screenshot`, with screenshots on); while a camera is edited 0x68, 0x69,
-//! Escape, Enter are actions 0x1E, 0x1F, 0x20, 0x21; else the arrows move the highlight
-//! (`menu::list_step`), Enter does the item's action (its byte 1), 0x3B and 0x3C actions 6
-//! and 0x22, the developer's keys (`ViewerAndKinds.viewer_panel.untyped_tail[0]`) '?', '@', 'A', 'B' 0x26, 0x27, 0x28,
-//! 0x25, and with editing (`viewer_editing`) the keys of `KEYS`. After an action or a move
-//! the items are marked again and a highlight that cannot be chosen
-//! (`menu::list_item_unusable`) moved on the way it went, else back, else to item 6 (or
-//! 0x13 when item 6 is marked); the menu sound asked (`viewer_sound`) played
-//! (`sound::play_menu_sound`); `list_leave` 1 ends it. At the end the replay closed
-//! (`race::close_viewed_replay`), the front end back (`race::viewer_tidy_stage`),
-//! `viewer_stopped` and `g_holdCarRevs` 0.
+//! (`race::find_snapshot_number`), the stage loaded (`race::viewer_load_stage`), the list set up
+//! (`viewer_list`: no sound, shown, not leaving, the clocks, item 6), the pending key dropped and
+//! the items marked (`race::mark_viewer_items`). Each frame after (shown by `screens::run_frame`
+//! with `race::viewer_frame`): the clocks, a key (`menu::list_take_key`); the game quitting ends
+//! it; keys held after a play (`wait_key_release`, until `Devices.keys_down` and
+//! `Devices.keys_down` are up) do nothing; Escape twice in a row ends it. Playing (`viewer_stopped`
+//! 0): a frame on (`race::step_viewed_replay`); its end or any key stops. Stopped: key 0x52 (Numpad
+//! 0) a screenshot (`gfx::take_screenshot`, with screenshots on); while a camera is edited 0x68,
+//! 0x69, Escape, Enter are actions 0x1E, 0x1F, 0x20, 0x21; else the arrows move the highlight
+//! (`menu::list_step`), Enter does the item's action (its byte 1), 0x3B and 0x3C actions 6 and
+//! 0x22, the developer's keys (`ViewerAndKinds.viewer_panel.untyped_tail[0]`) '?', '@', 'A', 'B'
+//! 0x26, 0x27, 0x28, 0x25, and with editing (`viewer_editing`) the keys of `KEYS`. After an action
+//! or a move the items are marked again and a highlight that cannot be chosen
+//! (`menu::list_item_unusable`) moved on the way it went, else back, else to item 6 (or 0x13 when
+//! item 6 is marked); the menu sound asked (`viewer_sound`) played (`sound::play_menu_sound`);
+//! `list_leave` 1 ends it. At the end the replay closed (`race::close_viewed_replay`), the front
+//! end back (`race::viewer_tidy_stage`), `viewer_stopped` and `hold_car_revs` 0.
 //!
-//! Takes: the mode
+//! Takes the mode.
 //!
-//! Callers: `race::replay_mode_1`, `race::replay_mode_3`, `race::replay_mode_2`. Key 0x26
-//! is in `KEYS` twice (0x1D, then 0x14 never reached; kept, section 16).
+//! Callers: the three replay modes (`race::replay_mode_2` and its siblings). Key 0x26
+//! is in `KEYS` twice (0x1D, then 0x14 never reached; a slip kept as is).
 
 use crate::errors::Refused;
 use crate::menu::list_handle::ListMenu;
@@ -37,7 +35,7 @@ use crate::race::owner::Race;
 use crate::race::viewer::LAST_RACE;
 use crate::race::viewer_state_store::ReplayViewBlock;
 
-/// (key, action) with editing on, in the original's order (0x26 twice: the first wins).
+/// (key, action) with editing on, in order (0x26 twice: the first wins).
 pub const KEYS: [(u8, u32); 30] = [
     (0x39, 6),
     (0x64, 0x1A),
@@ -73,7 +71,7 @@ pub const KEYS: [(u8, u32); 30] = [
 const DEVELOPER: [(u8, u32); 4] = [(b'?', 0x26), (b'@', 0x27), (b'A', 0x28), (b'B', 0x25)];
 const MOVES: [u8; 4] = [0x66, 0x6B, 0x68, 0x69];
 
-/// What the viewer is started for .
+/// What the viewer is started for.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Mode {
     /// The last race's replay.
@@ -93,7 +91,7 @@ enum Next {
 
 pub fn replay_viewer(race: &'static Race, o: Owners<'static>, mode: Mode) -> Result<(), Refused> {
     view(race, o, mode)?;
-    // The end (0x41D436).
+    // The end.
     crate::race::close_viewed_replay::close_viewed_replay(race)?;
     crate::race::viewer_tidy_stage::viewer_tidy_stage(race, o)?;
     race.shared.replay_file().viewer_stopped.set(false);
@@ -154,7 +152,7 @@ fn view(race: &'static Race, o: Owners<'static>, mode: Mode) -> Result<(), Refus
         action_next(race, o, u32::from(chosen.viewer_action()))?;
     }
     loop {
-        // `screens::run_frame` with `race::viewer_frame` (0x41D5FB).
+        // `screens::run_frame` with `race::viewer_frame`.
         if let Some(lost) = crate::platform::run_frame_now(o, || viewer_frame::viewer_frame(o)) {
             lost?;
         }
@@ -203,7 +201,7 @@ fn view(race: &'static Race, o: Owners<'static>, mode: Mode) -> Result<(), Refus
         if let Next::Mark = next {
             mark(race, install, list, key)?;
         }
-        // The menu sound asked for (0x41D41C).
+        // The menu sound asked for.
         let sound = race.shared.replay_file().viewer_sound.get();
         race.shared.replay_file().viewer_sound.set(0);
         crate::sound::play_menu_sound::play_menu_sound_in_game(o, sound);
@@ -224,7 +222,7 @@ fn action_next(race: &'static Race, o: Owners<'static>, action: u32) -> Result<N
     )
 }
 
-/// A key while stopped (0x41D139 ..): where it leads.
+/// A key while stopped: where it leads.
 fn stopped_key(
     race: &'static Race,
     o: Owners<'static>,
@@ -278,7 +276,7 @@ fn stopped_key(
         .map_or(Next::Sound, |&(_, action)| Next::Action(action)))
 }
 
-/// After a move or an action (0x41D3B0): the items marked again, the highlight put where
+/// After a move or an action: the items marked again, the highlight put where
 /// it can be chosen, the key's clock.
 fn mark(
     race: &Race,

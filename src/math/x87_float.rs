@@ -6,8 +6,8 @@
 //! transformation: two-sum, an fma, the remainder of a division or a root) tells which
 //! way the result steps. `st` is `fstp dword`, `to_int` is `fistp`, `ld` and `int` are
 //! `fld dword` and `fild`. Every helper of `x87.rs`, `x87/run.rs`, `x87/load.rs` and
-//! `normalise_vector.rs` is written with these, so it rounds as the original does under
-//! whatever control word the game has set.
+//! `normalise_vector.rs` is written with these, so it rounds as the x87 does under
+//! whatever control word is set.
 //!
 //! Limits: the precision bits are not modelled (53, the game's threads' start; after the
 //! game's `finit` the x87 would use 64 bits), the exponent range is the double's, an

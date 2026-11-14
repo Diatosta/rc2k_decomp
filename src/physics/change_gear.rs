@@ -1,11 +1,11 @@
-//! `physics::change_gear` (0x43C20D): the gear changed to the one asked for (`gear_asked`).
-//! Nothing when it is the gear already. From neutral: the gear is set and
-//! `physics::wheels_from_revs` runs. To neutral, or when `physics::gear_bit` refuses the new gear:
-//! the gear becomes 0. Else `wheels_from_revs` (old gear), the gear set, `physics::revs_from_wheels`.
-//! Every change sets the car's `gear_changed` and `gear_change_pending` to 1.
+//! Changes the gear to the one asked for (`gear_asked`); nothing when it is the gear already.
+//! From neutral: the gear is set and `physics::wheels_from_revs` runs. To neutral, or when
+//! `physics::gear_bit` refuses the new gear: the gear becomes 0. Otherwise `wheels_from_revs`
+//! (old gear), the gear set, `physics::revs_from_wheels`. Every change sets the car's
+//! `gear_changed` and `gear_change_pending` to 1.
 //!
-//! Caller: `physics::take_asked_gear` (its tail). Refuses (before anything) a gear or a new gear
-//! outside -1 ..= 7 where the gearing reads its ratio, and what `gear_bit` refuses.
+//! Caller: `physics::take_asked_gear`. Refuses (before anything) a gear or new gear outside
+//! -1 ..= 7 where the gearing reads its ratio, and what `gear_bit` refuses.
 
 use crate::errors::{BadInput, Refused};
 use crate::physics::gear_bit::gear_bit_at;
@@ -45,7 +45,7 @@ fn ratio_gear(g: i32) -> Result<(), Refused> {
 }
 
 /// The core.
-// Converted: `rc2k_core::physics::gear_shifts::change`.
+// Core: `rc2k_core::physics::gear_shifts::change`.
 pub fn change_gear_at(
     numbers: &Numbers,
     gp: &GearPlaces<'_>,

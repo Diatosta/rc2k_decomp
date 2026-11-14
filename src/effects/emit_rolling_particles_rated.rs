@@ -1,19 +1,13 @@
-//! `effects::emit_rolling_particles_rated` (0x4CCA58, a chunk of `effects::emit_wheel_particles` entered
-//! from the kind 1 chunk when the kind-1 choice is not 0): one ring entry of kind 0x15 for the
-//! wheel kind 1, when the rate gate passes.
+//! `effects::emit_rolling_particles_rated`: one ring entry of kind 0x15 for the wheel kind 1, when
+//! the kind-1 choice is not 0 and the rate gate passes.
 //!
-//! Takes: the wheel record, the car object
-//!
-//! The rate (`rate` in the ring's work): (1 - 1 / (the wheel's +0xC by the set's first two
-//! factors, plus its third)) by its fourth; then the gate of `effects/emitters.rs`. The entry:
-//! its place the wheel's (+0x3C ..) plus a random side (-1 or 0 times the car matrix's first
-//! row, 0 or 1 times its third), less the set's `lift` in y at +0x28; its motion per axis the
-//! matrix's first row by the wheel's +0x10, its third by +0x18 and by +0xC, each by a
-//! factor (`motion_k`); a random spin and turn (+0x54, +0x50); +0x58 0x34; a life of 1000
-//! (+0x78 a constant over it); +0x74 the fade constant; the car (+0x68) and its +0x88, +0x90
-//! plus the rate; +0x60 that sum by `size_k` (after a first value by the effects' random,
-//! which still steps). Refuses (before anything) a null wheel, a null object, and a null car
-//! or matrix when an entry is made.
+//! The rate (`rate` in the ring's work) is (1 - 1 / (the wheel's +0xC by the set's first two
+//! factors, plus its third)) by its fourth; then the gate of `effects/emitters.rs`. The entry's
+//! place is the wheel's (+0x3C ..) plus a random side, less the set's `lift` in y at +0x28; its
+//! motion per axis the matrix's first row by the wheel's +0x10, its third by +0x18 and by +0xC,
+//! each by a factor (`motion_k`); its life is 1000; +0x60 is the rate sum by `size_k` (after a
+//! first value by the effects' random, which still steps). Refuses (before anything) a null wheel,
+//! a null object, and a null car or matrix when an entry is made.
 
 use crate::effects::emitters::car_with_matrix;
 use crate::effects::emitters::emitting_car;
@@ -168,25 +162,25 @@ pub fn emit_rolling_particles_rated(
     Ok(())
 }
 
-/// Kind 0x15's emitter variables (`emit_rolling_particles_rated`) (IDA 0x93A312 .. 0x93A39A).
+/// Kind 0x15's emitter variables (`emit_rolling_particles_rated`).
 #[derive(rc2k_derive::Cells)]
 pub struct RollingRatedSet {
-    /// 0x93A312: `flt_93A312` .. `flt_93A31E`: the rate's factors
+    /// The rate's factors
     pub rate_k: [PlainFloat; 4],
-    /// 0x93A322: `dword_93A322`: the side's random
+    /// The side's random
     pub side_random: PlainDword,
-    /// 0x93A326: `flt_93A326`: the place's drop in y
+    /// The place's drop in y
     pub lift: PlainFloat,
-    /// 0x93A32A: `flt_93A32A` .. `flt_93A34A`: per axis (x, y, z) the factors of the first row, the third row and the side
+    /// Per axis (x, y, z) the factors of the first row, the third row and the side
     pub motion_k: [PlainFloat; 9],
-    /// 0x93A34E: `dword_93A34E`: the spin's random
+    /// The spin's random
     pub spin_random: PlainDword,
-    /// 0x93A352: `flt_93A352`: the size's factor
+    /// The size's factor
     pub size_k: PlainFloat,
 }
 
 impl RollingRatedSet {
-    /// The values the game starts with (the image's bytes).
+    /// The values the game starts with.
     pub const fn new() -> Self {
         RollingRatedSet {
             rate_k: [

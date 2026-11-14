@@ -1,4 +1,4 @@
-//! `effects::draw_windscreen_flake` (0x4BF80F): one windscreen flake item drawn on the windscreen
+//! `effects::draw_windscreen_flake`: one windscreen flake item drawn on the windscreen
 //! flakes' frame. The four vertices' texture places from `places` (u a, c, c, a; v b, b, d, d)
 //! plus the item's +0xC / +0x10; its place (the across share times `lengths[0]`, the along
 //! share times `lengths[1]`) along the two axes from the frame's place into `corners`; less
@@ -7,8 +7,7 @@
 //! scale over each depth, the view's centre), depth (plus the kind float, times `inverse`),
 //! colour, `scene::draw_fan`.
 //!
-//! Caller: `effects::run_windscreen_flakes` The x87 runs are plain Rust on the x87
-//! model (`math::x87_float`), in the original's order, over the game's variables.
+//! The x87 runs are plain Rust on the x87 model (`math::x87_float`).
 
 use crate::effects::cell_x87::CellX87;
 use crate::effects::tuning::MarksKindFloats;
@@ -70,7 +69,7 @@ use crate::effects::plain::{ld_cell, st_cell};
 use crate::effects::windscreen_flakes_store::{WindscreenFlakeItem, WindscreenFlakeTables};
 use crate::math::x87_float as bh;
 
-/// `shifted_places`'s x87 block as plain Rust on the x87 model (24 instructions), same order and memory places.
+/// `shifted_places`'s arithmetic as plain Rust on the x87 model, in the same order.
 fn shifted_places_x87(
     buffer: &crate::d3d::vertices_store::PolygonVertices,
     item: &WindscreenFlakeItem,
@@ -101,7 +100,7 @@ fn shifted_places_x87(
     st_cell(&buffer.vertices[3].v, t15);
 }
 
-/// `corners`'s x87 block as plain Rust on the x87 model (56 instructions), same order and memory places.
+/// `corners`'s arithmetic as plain Rust on the x87 model, in the same order.
 fn corners_x87(v: &[[u8; 10]; 2], sq: &WindscreenFlakeTables) {
     let t0 = bh::from_f80(v[1]);
     let t1 = bh::from_f80(v[0]);
@@ -154,7 +153,7 @@ fn corners_x87(v: &[[u8; 10]; 2], sq: &WindscreenFlakeTables) {
     sq.corners[3][2].st(t33);
 }
 
-/// `projected`'s x87 block as plain Rust on the x87 model (64 instructions), same order and memory places.
+/// `projected`'s arithmetic as plain Rust on the x87 model, in the same order.
 fn projected_x87(
     buffer: &crate::d3d::vertices_store::PolygonVertices,
     k: &MarksKindFloats,
@@ -314,8 +313,9 @@ mod reference_vectors {
             &SPEC,
             |b| {
                 let word =
-                    // SAFETY: `at` checks that the four bytes lie in the operand's test buffer, which the
-                    // recorded run keeps alive and nothing else reaches meanwhile; unaligned, any bits a `u32`.
+                    // SAFETY: `at` checks that the four bytes lie in the operand's test buffer,
+                    // which the recorded run keeps alive and nothing else reaches meanwhile;
+                    // unaligned, any bits a `u32`.
                     |off: usize| unsafe { (b[0] + off).at(0, 4).cast::<u32>().read_unaligned() };
                 let item = WindscreenFlakeItem::new();
                 item.texture_u.set_bits(word(0xC));
@@ -391,8 +391,8 @@ mod reference_vectors {
         recorded_writes("effects.draw_windscreen_flake.corners_x87", &SPEC, |b| {
             with_laid::<WindscreenFlakeTables, _>(b[0], |sq| {
                 let v: [[u8; 10]; 2] = std::array::from_fn(|n| {
-                    // SAFETY: `host` checks that the byte lies in the operand's test buffer, which the recorded
-                    // run keeps alive and nothing else reaches meanwhile.
+                    // SAFETY: `host` checks that the byte lies in the operand's test buffer, which
+                    // the recorded run keeps alive and nothing else reaches meanwhile.
                     std::array::from_fn(|i| unsafe { (b[1] + 10 * n + i).host().read() })
                 });
                 super::corners_x87(&v, sq);

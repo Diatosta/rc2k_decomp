@@ -1,9 +1,8 @@
-//! The models' light records, 0x5C906C .. 0x5CB954: `g_lightRecords`, 34 records of 0x134 bytes
-//! (IDA struct `ModelRecord`), one per model (car) kind: its axle figures, the groups'
-//! numbers and the lights' data (`race::copy_lights_data` lays the last in from `ldata`).
-//! Plain cells: part of a drawing store (`race::groups_store::LightsAndGear`), written on the
-//! game's thread at a stage's load and read by the drawing parts. Names are readings unless
-//! IDA's.
+//! The models' light records: `light_records`, 34 records of 0x134 bytes, one per model (car) kind:
+//! its axle figures, the groups' numbers and the lights' data (`race::copy_lights_data` lays the
+//! last in from `ldata`). Plain cells: part of a drawing store
+//! (`race::groups_store::LightsAndGear`), written on the game's thread at a stage's load and read
+//! by the drawing parts.
 
 use crate::cells::ZeroCells;
 use crate::race::first_cells::plain_dwords;
@@ -11,28 +10,27 @@ use crate::race::first_cells::plain_dwords;
 use crate::race::owner::race;
 use crate::session::PlainDword;
 
-/// One model's record (IDA struct `ModelRecord`, 0x134 bytes).
+/// One model's record.
 #[repr(C)]
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells, rc2k_derive::ByteView)]
 pub struct LightRecord {
-    /// +0x0: `field_0`: eleven dwords (read at +0xC, +0x10 .. +0x28 by `physics::update_camera`,
-    /// `race::car_draw`, `drive::share_car_state`).
+    /// +0x0: eleven dwords (read at +0xC, +0x10 ..= +0x28 by `physics::update_camera`,
+    /// `race::car_draw` and `drive::share_car_state`).
     pub head: [PlainDword; 11],
-    /// +0x2C: `axles`: the five axle values (`race::car_parts`) and the six listener figures
-    /// from +0x40 (`drive::set_listener`).
+    /// +0x2C: the five axle values (`race::car_parts`) and, from +0x40, the six listener figures
+    /// (`drive::set_listener`).
     pub axles: [PlainDword; 11],
-    /// +0x58: `groups`: the group numbers of the model's parts (`scene::load_object`,
+    /// +0x58: the group numbers of the model's parts (`scene::load_object`,
     /// `scene::list_object_face`, `effects::init_mark_step`, `race::car_draw`).
     pub groups: [PlainDword; 19],
-    /// +0xA4: `lights`: 0x90 bytes of the lights' data (`race::copy_lights_data`,
-    /// `race::frame_draw`).
+    /// +0xA4: 0x90 bytes of the lights' data (`race::copy_lights_data`, `race::frame_draw`).
     pub lights: [PlainDword; 36],
 }
 
 const _: () = assert!(core::mem::size_of::<LightRecord>() == 0x134);
 
-/// The records as the game starts: the head, the axle values and the part groups of each
-/// model (the lights' data, which the stage loads, starts at zero).
+/// The records at the start: the head, the axle values and the part groups of each model (the
+/// lights' data, which the stage loads, starts at zero).
 const FIRST_RECORDS: [([u32; 11], [u32; 11], [u32; 19]); 34] = [
     (
         [
@@ -511,10 +509,10 @@ impl LightRecords {
 }
 
 impl LightRecords {
-    /// The group number at byte `offset` (of the groups, a multiple of 4) of the record of
-    /// model `index`. The original does not bound the index: the place after the 34 records
-    /// (the one a kind none of the known ones gets) reads on into the gear figures, where the
-    /// record's groups fall on the test drive's speed samples; anything further is refused.
+    /// The group number at byte `offset` (of the groups, a multiple of 4) of the record of model
+    /// `index`. The index is not bounded: the place after the 34 records (the one a kind none of
+    /// the known ones gets) reads on into the gear figures, where the record's groups fall on the
+    /// test drive's speed samples; anything further is refused.
     pub fn group_at(
         &self,
         gear: &crate::physics::gear_store::GearFigures,
@@ -530,8 +528,8 @@ impl LightRecords {
                 .map(crate::session::PlainDword::get)
                 .ok_or(crate::errors::BadInput(PAST)),
             Some(0) => {
-                // The groups start 0x58 into the record; the one dword between the records
-                // and the gear figures is skipped, and the figures' samples start at +0x38.
+                // The groups start 0x58 into the record; the one dword between the records and
+                // the gear figures is skipped, and the figures' samples start at +0x38.
                 let sample = (0x58 + offset - 4)
                     .checked_sub(0x38)
                     .ok_or(crate::errors::BadInput(PAST))?;
@@ -545,8 +543,7 @@ impl LightRecords {
     }
 }
 
-/// The piece: a field of `Frame::lights_and_gear` since 2026-10-29 (it left the race
-/// block with its group, phase 13).
+/// The records as a field of `Frame::lights_and_gear` (tests).
 #[cfg(test)]
 pub struct InGroup;
 
@@ -567,7 +564,7 @@ mod tests {
 
     #[test]
     fn a_record_past_the_last_reads_on_into_the_gear_figures_and_no_further() {
-        // The longest read: a group number of the kind past the 34 (load_object).
+        // The longest read: a group number of the kind past the 34 (`scene::load_object`).
         let gear = &race().frame.lights_and_gear.get().gear;
         assert!(LIGHT_RECORDS.group_at(gear, 34, 0x3C).is_ok());
         assert_eq!(

@@ -1,13 +1,11 @@
-//! A view's course grid (frame plan F6): the 32 x 32 course records around the view, with the
-//! corner and size it was made for, one in each view's slot (`race::view_scratch`).
+//! A view's course grid: the 32 x 32 course records around the view, with the corner and size it
+//! was made for, one in each view's slot (`race::view_scratch`).
 //!
-//! The original kept it in the level grid (`race::level_grid_store`: `g_courseGrid`,
-//! `grid_half` .. `grid_z`), made again by every view whose corner moved and read
-//! after the views by `race::find_sound_spots` as the last view left it. Its contents
-//! depend only on the corner, the span, the course's records and the view's own marks
-//! (`race::frame_draw::mark_far_cells` clears them first), so a grid per view holds what the
-//! shared one held while that view drew. The views' last one (`last_drawn`) is the one the
-//! sound spots read.
+//! A grid is made again by every view whose corner moved, and `race::find_sound_spots` reads the
+//! last view's after the views are drawn. Its contents depend only on the corner, the span, the
+//! course's records and the view's own marks (`race::frame_draw::mark_far_cells` clears them
+//! first), so a grid per view holds what a shared one would hold while that view drew. The views'
+//! last one drawn is the one the sound spots read.
 
 use crate::cells::ZeroCells;
 use crate::errors::BadInput;
@@ -15,21 +13,20 @@ use crate::session::PlainDword;
 
 #[derive(rc2k_derive::Cells)]
 pub struct ViewGrid {
-    /// The course records by cell (`g_courseGrid`), 0x0FFFFFFF where none; bit 31 a far
-    /// cell's mark.
+    /// The course records by cell, 0x0FFFFFFF where none; bit 31 is a far cell's mark.
     pub cells: [PlainDword; 1024],
-    /// The grid's half size (`grid_half`).
+    /// The grid's half size.
     pub half: PlainDword,
-    /// Its span (`grid_span`).
+    /// Its span.
     pub span: PlainDword,
-    /// The corner cell it was made for (`grid_x`, `grid_z`): made again when the
-    /// view's moves; 0x80000000 at a stage's start (`race::reset_refresh`).
+    /// The corner cell it was made for (x and z): the grid is made again when the view's corner
+    /// moves; 0x80000000 at a stage's start (`race::reset_refresh`).
     pub x: PlainDword,
     pub z: PlainDword,
 }
 
 impl ViewGrid {
-    /// The grid as the game starts it: every record 0, the corner 0.
+    /// The grid at the start: every record 0, the corner 0.
     pub const fn new() -> Self {
         Self {
             cells: ZeroCells::ZERO,
@@ -40,7 +37,7 @@ impl ViewGrid {
         }
     }
 
-    /// Cell `n`; one past the grid refused.
+    /// Cell `n`; one past the grid is refused.
     pub fn cell(&self, n: u32) -> Result<&PlainDword, BadInput> {
         self.cells
             .get(n as usize)

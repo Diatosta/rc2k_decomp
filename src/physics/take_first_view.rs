@@ -1,11 +1,8 @@
-//! `physics::take_first_view` (0x437F53): a view's figures (a record) copied into the first
-//! view: the offset (+4 .. +0xC) plus `camera_shake_x` .. into `view_a_offset`; +0x10 .. +0x24
-//! into `view_a_turn` and `view_a_point`; +0x28 .. +0x38 into `view_a_shares`; the heading
-//! (`car_heading`) into `view_a_heading`; the next two (`car_pitch`, `car_roll`), halved
-//! (arithmetic shift) when the mode's record has +0x4C set, into `view_a_pitch` and `view_a_roll`.
-//!
-//! Takes: the view's record
-//! Returns: the two, the mode's record
+//! Copies a view's figures (a record) into the first view: the offset plus `camera_shake_x` into
+//! `view_a_offset`; the turn and point figures into `view_a_turn` and `view_a_point`; the shares
+//! into `view_a_shares`; the heading (`car_heading`) into `view_a_heading`; the next two
+//! (`car_pitch`, `car_roll`), halved (arithmetic shift) when the mode's record has `halve_tilt`
+//! set, into `view_a_pitch` and `view_a_roll`.
 //!
 //! Caller: `physics::update_camera`.
 
@@ -47,8 +44,8 @@ pub fn take_first_view(
     Ok(())
 }
 
-/// The record's +0x10 .. +0x38 into a view: three vectors of floats (held in the record's
-/// dwords), then two dwords.
+/// The record's turn, point and share figures into a view: three vectors of floats (held in the
+/// record's dwords), then two dwords.
 pub fn take_figures(s: &ViewRecord, floats: [&[PlainFloat; 3]; 3], dwords: [&PlainDword; 2]) {
     let v = s.taken();
     for (n, cell) in floats.into_iter().flatten().enumerate() {
@@ -59,14 +56,10 @@ pub fn take_figures(s: &ViewRecord, floats: [&[PlainFloat; 3]; 3], dwords: [&Pla
     }
 }
 
-// ---- the arithmetic that was x87 assembly ----
+// ---- the x87 arithmetic ----
 
-/// The game's x87 arithmetic as plain Rust over `X`, on the variables
-/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// (`[s + 4]` .. `[s + 0xC]` the record's offset, passed by value)
-/// `[view_a_offset] = [s + 4] + [camera_shake_x]`
-/// `[rc + 0x208B9C] = [s + 8] + [camera_shake_y]`
-/// `[rc + 0x208BA0] = [s + 0xC] + [camera_shake_z]`
+/// (`[s + 4]` .. `[s + 0xC]` the record's offset, passed by value) `[view_a_offset] = [s + 4] +
+/// [camera_shake_x]`
 fn x87_1(camera: &CameraWork, offset: [u32; 3], scene: &crate::scene::owner::Scene) {
     let lights = &scene.lights;
     let t0 = ld(offset[0]);

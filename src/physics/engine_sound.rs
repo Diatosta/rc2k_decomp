@@ -1,19 +1,16 @@
-//! `physics::engine_sound` (0x43DC72): the work car's sound figures. +0xF08
-//! (`engine_speed_scaled`) = speed x `two_and_a_quarter`, and that (x `kilometres_in_mile` with bit 8 of +0x220)
-//! `fistp` into +0xAB0; +0x294 = the motion's length (`fsqrt` of z² + x² + y², as the
-//! original adds them) x `two_and_a_quarter`; the revs +0x1E4 eased toward the engine speed (at
-//! least `idle_engine_speed`, `fistp`, through `scratch`) by 50/256 of the gap (`imul`,
-//! `sar`), held to 2000 ..= 12000 (by the sign); then `physics::car_sound_state` and
-//! `physics::gear_change_sound`.
+//! The work car's sound figures. `engine_speed_scaled` = speed x `two_and_a_quarter`, and that
+//! (times `kilometres_in_mile` with bit 8 of the car's flags) rounded into its integer figure;
+//! the motion's length (the square root of z² + x² + y², added in that order) times
+//! `two_and_a_quarter`; the revs eased toward the engine speed (at least `idle_engine_speed`,
+//! rounded, through `scratch`) by 50/256 of the gap and held to 2000 ..= 12000; then
+//! `physics::car_sound_state` and `physics::gear_change_sound`.
 //!
-//! The x87 run is the arithmetic of the original's instructions over the game's variables
-//! (from IDA), in plain Rust over `X` (`math/x87_float.rs`); the instructions are
-//! recorded in the tests' `reference_vectors`.
+//! The x87 run is plain Rust over `X` (`math/x87_float.rs`).
 //!
-//! Returns: the gap's step, the sound object (`gear_change_sound`)
+//! Returns the gap's step, the sound object (`gear_change_sound`).
 //!
-//! Caller: `physics::car_physics_step` (0x43B905), every physics step. Refuses (before anything)
-//! what the two calls refuse.
+//! Caller: `physics::car_physics_step`, every physics step. Refuses (before anything) what the
+//! two calls refuse.
 
 use crate::effects::cell_x87::CellX87;
 use crate::errors::Refused;
@@ -31,15 +28,15 @@ use crate::scene::matrix3::extended;
 use rc2k_core::physics::engine::ease_revs;
 use rc2k_core::physics::x87::hold_low;
 
-/// 0x43DC72 .. 0x43DCC6: the speed figures (the original's `test` / `jz` is the `if`).
+/// The speed figures.
 fn run(car: &Car, numbers: &Numbers) {
     run_at(car, numbers);
 }
 
 /// The run over the work car's figures:
-/// +0x31AEE0 the speed x `two_and_a_quarter`; +0x31AA88 that (x `kilometres_in_mile` with bit 8 of
-/// +0x31A1F8) as a whole number; +0x31A26C the length of the motion (+0x31A170 ..) x
-/// `two_and_a_quarter`, the squares added as the original adds them (z, then x and y).
+/// `engine_speed_scaled` = the speed x `two_and_a_quarter`; its whole-number figure = that (x
+/// `kilometres_in_mile` with bit 8 of the car's flags); the length of the motion x
+/// `two_and_a_quarter`, the squares added in the order z, then x and y.
 fn run_at(car: &Car, numbers: &Numbers) {
     car.engine_speed_scaled
         .st(car.local_velocity[2].ld() * numbers.two_and_a_quarter.ld());
@@ -61,7 +58,7 @@ fn run_at(car: &Car, numbers: &Numbers) {
         .set(stf(sum.sqrt() * numbers.two_and_a_quarter.ld()));
 }
 
-// Converted: `rc2k_core::physics::engine::ease_revs` and `x87::hold_low` (the speed figures
+// Core: `rc2k_core::physics::engine::ease_revs` and `x87::hold_low` (the speed figures
 // and the rounding stay x87).
 pub fn engine_sound(
     numbers: &Numbers,

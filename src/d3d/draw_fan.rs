@@ -1,13 +1,8 @@
-//! `d3d::draw_fan` (0x41AD7F): draws the polygon in the vertex buffer, clipped by the
-//! device.
-//!
-//! In:  the polygon vertex buffer (the drawing part's, `workers::PartScratch`), the number of
-//!      vertices in the polygon's vertex count
-//! The device's DrawPrimitive with a triangle fan (6) of transformed and lit vertices
-//! (3) and no flags (clipped). One caller, `scene::draw_fan`.
-//! Platform: the original always runs, here the fan is only noted (`d3d::recorder`). In
-//! the standalone program the rasteriser draws it (`platform_3d::draw_fan`, held to the
-//! screen) and the result is 0.
+//! `d3d::draw_fan`: draws the polygon in the vertex buffer, clipped by the device: a triangle
+//! fan of transformed and lit vertices, with no flags. The polygon vertex buffer is the drawing
+//! part's (`workers::PartScratch`), the number of vertices the polygon's vertex count. One
+//! caller, `scene::draw_fan`. The fan is only noted (`d3d::recorder`) and the rasteriser draws
+//! it (`platform_3d::draw_fan`, held to the screen); the result is 0.
 
 use crate::d3d::draw_fan_unclipped::polygon;
 

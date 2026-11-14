@@ -1,6 +1,6 @@
-//! The renderer's boundary (GPU plan, `notes/improvements.md`): the frame's 3D as commands the
-//! game's Direct3D layer (`platform_3d`) notes, and a `Backend` that draws them. Everything the
-//! backends must agree on is here; each one's own way of drawing is in its file.
+//! The renderer's boundary: the frame's 3D as commands the game's Direct3D layer (`platform_3d`)
+//! notes, and a `Backend` that draws them. Everything the backends must agree on is here; each
+//! one's own way of drawing is in its file.
 
 #![allow(unsafe_code)]
 
@@ -615,8 +615,7 @@ mod tests {
     use super::{Command, CommandList, TestCommand, TextureChanges, TextureId, TextureMap, list};
 
     /// A scene of `count` commands as the game notes them: fans of 3 to 12 corners (most past
-    /// six, which spilled out of a fan's own room before the vertices were the list's), runs of
-    /// shared states, textures and clears between, from a fixed seed.
+    /// six), runs of shared states, textures and clears between, from a fixed seed.
     fn scene(count: usize) -> Vec<TestCommand> {
         let mut state = 0x2468_ACE1u32;
         let mut next = move || {

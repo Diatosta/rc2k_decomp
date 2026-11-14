@@ -1,15 +1,14 @@
-//! `math::seed_random` (0x401864): how the random numbers start.
+//! `math::seed_random`: how the random numbers start.
 //!
-//! One step of the generator on the start's time (`dword_5183A4`: hour, minute, second,
-//! hundredths) with its date mixed in (`dword_5183A0`: day, month, year); unless that is
-//! 0, it is turned left by the day of the week (`byte_51839F`) plus 8 and becomes the
-//! state. One caller, `start`, right after the time is taken.
+//! One step of the generator on the start's time (hour, minute, second, hundredths) with
+//! its date (day, month, year) mixed in; unless that is 0, it is turned left by the day of
+//! the week plus 8 and becomes the state. Run right after the start time is taken.
 
 // ---- game data ----
 
 pub fn seed_random(system: &crate::system::owner::System) {
     crate::math::next_random::wait_for_random();
-    // `byte_51839F`, `dword_5183A0`, `dword_5183A4` (`system::keep_start_time`).
+    // The start time kept by `system::keep_start_time`.
     let kept = crate::system::keep_start_time::start_time(system);
     let clock = rc2k_core::math::random::StartClock {
         time: u32::from_le_bytes([kept[5], kept[6], kept[7], kept[8]]),

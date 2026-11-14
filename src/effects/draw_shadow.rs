@@ -1,20 +1,19 @@
-//! `effects::draw_shadow` (0x4C8168): the car's ground shadow (probably: the quad is drawn
-//! flat on the ground under the car), unless the quad's `corner` is -1: `scene::depth_buffer_on`,
-//! `scene::depth_test_on`, render states 0x15 = 4, 0x13 = 5, 0x14 = 6, 0x1C = 0, 0x1B = 1; two
-//! `sides` made one long and square (`scene::cross_product3`, `scene::normalise_vector3`); the
-//! quad's `matrix` turned about z by an angle from the settings' +0x26A4 (two lines, by the
-//! quad's `ratio`); the light's way turned by it, the sides made its columns, the way turned
-//! again and the sides crossed once more; the quad's `corners` about its `place` (the
-//! `frame`), drawn in a little, turned to the view (`scene::rotate_point`); texture places
-//! from the mark corner the quad's `corner` names; the shadow colour | 0xFF000000 brought
-//! halfway to white; unless a corner's depth is at or below the nearest depth (signed compares
-//! of the bits): the corners projected, their depths less the quad's lift times a depth
-//! scale, and `scene::draw_fan`.
+//! `effects::draw_shadow`: the car's ground shadow (probably: the quad is drawn flat on the ground
+//! under the car), unless the quad's `corner` is -1. The depth buffer and test are switched on
+//! (`scene::depth_buffer_on`, `scene::depth_test_on`) with render states 0x15 = 4, 0x13 = 5, 0x14 =
+//! 6, 0x1C = 0, 0x1B = 1. The quad's two `sides` are made one long and square
+//! (`scene::cross_product3`, `scene::normalise_vector3`); its `matrix` is turned about z by an
+//! angle from the settings' +0x26A4 (two lines, by the quad's `ratio`) and the light's way turned
+//! by it; the quad's `corners` about its `place` (the `frame`) are drawn in a little and turned to
+//! the view (`scene::rotate_point`); the texture places come from the mark corner the quad's
+//! `corner` names and the colour is the shadow colour | 0xFF000000 brought halfway to white. Unless
+//! a corner's depth is at or below the nearest depth (signed compares of the bits) the corners are
+//! projected, their depths less the quad's lift times a depth scale, and drawn with
+//! `scene::draw_fan`.
 //!
-//! Caller: the race's frame (`race::draw_marks_overlays`). The long x87 runs are plain
-//! Rust on the x87 model (`math::x87_float`), in the original's order, over the game's variables;
-//! the vector helpers their Rust versions. Refuses, before anything, a corner past the mark corners table
-//! and an angle `fsincos` cannot take.
+//! The long x87 runs are plain Rust on the x87 model (`math::x87_float`); the vector helpers are
+//! Rust too. Refuses, before anything, a corner past the mark corners table and an angle with no
+//! sine and cosine.
 
 use crate::effects::cell_x87::CellX87;
 use crate::effects::kind_store::{CONSTS_1, CONSTS_2, KindConsts, QuadWork};
@@ -201,7 +200,8 @@ use crate::effects::plain::{ld_cell, st_cell};
 use crate::math::x87_float as bh;
 use crate::race::effects_settings_store::EffectsSettings;
 
-/// `light_turned`'s x87 block as plain Rust on the x87 model (33 instructions), same order and memory places, on either shadow's variables.
+/// `light_turned`'s arithmetic as plain Rust on the x87 model, in the same order, on either
+/// shadow's variables.
 fn light_turned_x87(s: &Shadow, m: &[PlainFloat; 9], t: &[PlainFloat; 2]) {
     let t0 = bh::ld(s.consts.light[0]);
     let t1 = bh::ld(s.consts.light[1]);
@@ -230,7 +230,8 @@ fn light_turned_x87(s: &Shadow, m: &[PlainFloat; 9], t: &[PlainFloat; 2]) {
     s.quad.light_turned[2].st(t17);
 }
 
-/// `second_turned`'s x87 block as plain Rust on the x87 model (33 instructions), same order and memory places, on either shadow's variables.
+/// The second light turn's arithmetic as plain Rust on the x87 model, in the same order, on
+/// either shadow's variables.
 fn second_turned_x87(s: &Shadow, m: &[PlainFloat; 9], t: &[PlainFloat; 2]) {
     let t0 = s.quad.light_turned[2].ld();
     let t1 = s.quad.light_turned[1].ld();
@@ -259,7 +260,8 @@ fn second_turned_x87(s: &Shadow, m: &[PlainFloat; 9], t: &[PlainFloat; 2]) {
     s.quad.frame[1][2].st(t17);
 }
 
-/// `corners`'s x87 block as plain Rust on the x87 model (117 instructions), same order and memory places, on either shadow's variables.
+/// `corners`'s arithmetic as plain Rust on the x87 model, in the same order, on either shadow's
+/// variables.
 fn corners_x87(s: &Shadow) {
     let t0 = s.quad.frame[0][0].ld();
     let t1 = t0 * s.quad.ratio.ld();
@@ -380,7 +382,8 @@ fn corners_x87(s: &Shadow) {
     s.quad.way[2].st(t83);
 }
 
-/// `corners_in`'s x87 block as plain Rust on the x87 model (45 instructions), same order and memory places, on either shadow's variables.
+/// The arithmetic on the corners, after the way is normalised, as plain Rust on the x87 model, in
+/// the same order, on either shadow's variables.
 fn corners_in_x87(s: &Shadow) {
     let t0 = s.quad.way[0].ld();
     let t1 = t0 * s.quad.spread.ld();
@@ -429,7 +432,8 @@ fn corners_in_x87(s: &Shadow) {
     s.quad.corners[3][2].st(t29);
 }
 
-/// `projected`'s x87 block as plain Rust on the x87 model (40 instructions), same order and memory places, on either shadow's variables.
+/// `projected`'s arithmetic as plain Rust on the x87 model, in the same order, on either shadow's
+/// variables.
 fn projected_x87(s: &Shadow) {
     let t0 = crate::math::x87_float::ld(
         crate::scene::polygon_work::front_end()

@@ -1,13 +1,13 @@
 # IDAPython, run through the IDA MCP `py_eval`:
 #   g = {'OUT': '<a scratch folder>/menu_tables.json'}
 #   exec(open('<repo>/tools/menu_tables/extract.py').read(), g); print(g['run']())
-# Reads RAL.EXE's menus and its screens' draw lists (typed tables, conversion phase 5
-# pulled ahead, 2026-10-22) into JSON for `gen.py`: every menu (a labels pointer, items of
-# 0x5C bytes ended by a -1 dword; the menus found from their names in 0x747000 .. 0x755200
-# and from each end mark, as eight unnamed ones follow another's end), its labels (16
-# bytes each, ended by a -1 dword), the draw lists (dwords ended by -1, from their names
-# in 0x758B00 .. 0x7594B0 and every place there something points at), and the names of every function and font they point at. The
-# output is derived from the game's data: keep it out of the repository.
+# Reads RAL.EXE's menus and its screens' draw lists into JSON for `gen.py`: every menu (a
+# labels pointer, items of 0x5C bytes ended by a -1 dword; the menus found from their names
+# in 0x747000 .. 0x755200 and from each end mark, as eight unnamed ones follow another's
+# end), its labels (16 bytes each, ended by a -1 dword), the draw lists (dwords ended by -1,
+# from their names in 0x758B00 .. 0x7594B0 and every place there something points at), and
+# the names of every function and font they point at. The output is derived from the game's
+# data: keep it out of the repository.
 import idc, ida_name, ida_bytes, idautils, ida_funcs, json
 
 MENU_AREA = (0x747000, 0x755200)

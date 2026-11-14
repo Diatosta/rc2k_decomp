@@ -1,38 +1,40 @@
-//! The scene objects' tables (IDA 0x62DB5C .. 0x634FA0): the listed faces,
-//! the material phase work, the textures listed, and the per-slot tables the objects' shapes
-//! are loaded into (first point, point count, normal count, first face, face count, the
-//! parts' middles and half extents, the radii). Names are readings unless IDA's.
+//! The scene objects' tables: the listed faces, the material phase work, the textures listed, and
+//! the per-slot tables the objects' shapes are loaded into (first point, point count, normal count,
+//! first face, face count, the parts' middles and half extents, the radii).
 
 use crate::cells::ZeroCells;
 use crate::session::PlainDword;
 
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct ObjectTables {
-    /// +0x0 (0x62DB5C): `g_listedFaces`: the original's faces listed for drawing, no longer used: each object's drawing has its own (`scene::face_list`). Kept for the store's layout.
+    /// The faces listed for drawing, no longer used: each object's drawing has its own
+    /// (`scene::face_list`). Kept for the store's layout.
     pub listed_faces: [PlainDword; 4096],
-    /// +0x4000 (0x631B5C): `dword_631B5C` .. `dword_631B64`: the material's length, time and phase, which the original's `scene::set_object_material` stored on each call; nothing reads them and nothing writes them.
+    /// The material's length, time and phase; nothing reads them and nothing writes them.
     pub phase_work: [PlainDword; 3],
-    /// +0x400c (0x631B68): `dword_631B68`: the textures listed (`scene::list_object_textures`, `scene::load_front_end_objects`).
+    /// The textures listed (`scene::list_object_textures`, `scene::load_front_end_objects`).
     pub texture_count: PlainDword,
-    /// +0x4010 (0x631B6C): `dword_631B6C`: the listed textures.
+    /// The listed textures.
     pub texture_list: [PlainDword; 256],
-    /// +0x4410 (0x631F6C): `dword_631F6C`: faces without normals (`scene::add_object_shape`, `scene::load_front_end_objects`).
+    /// Faces without normals (`scene::add_object_shape`, `scene::load_front_end_objects`).
     pub no_normals: PlainDword,
-    /// +0x4414 (0x631F70): `g_objectFirstPoint` (and `g_slotFirstPoints` from slot 11): each slot's first point.
+    /// Each slot's first point.
     pub first_point: [PlainDword; 256],
-    /// +0x4814 (0x632370): `g_objectPointCount2` (and `g_slotPointCounts` from slot 11): each slot's points.
+    /// Each slot's points.
     pub point_counts: [PlainDword; 256],
-    /// +0x4c14 (0x632770): `g_objectNormalCount`: each slot's normals.
+    /// Each slot's normals.
     pub normal_counts: [PlainDword; 256],
-    /// +0x5014 (0x632B70): `dword_632B70`: each slot's first face.
+    /// Each slot's first face.
     pub first_face: [PlainDword; 256],
-    /// +0x5414 (0x632F70): `dword_632F70`: each slot's faces.
+    /// Each slot's faces.
     pub face_counts: [PlainDword; 256],
-    /// +0x5814 (0x633370): `g_partMiddleX/Y/Z`, `g_partHalfX/Y/Z`: six tables of a dword a slot, the middles' x, y, z then the half extents' x, y, z (`scene::load_object`, `physics::fill_race_slot`).
+    /// Six tables of a dword a slot, the middles' x, y, z then the half extents' x, y, z
+    /// (`scene::load_object`, `physics::fill_race_slot`).
     pub part_extents: [[PlainDword; 256]; 6],
-    /// +0x7014 (0x634B70): `dword_634B70` .. `dword_634B9C`: the middle, half the extent, the lowest and the highest, three dwords each (`scene::measure_object`).
+    /// The middle, half the extent, the lowest and the highest, three dwords each
+    /// (`scene::measure_object`).
     pub measures: [PlainDword; 12],
-    /// +0x7044 (0x634BA0): `dword_634BA0`: each slot's reach (`scene::add_object_shape`, `physics::face_contact`).
+    /// Each slot's reach (`scene::add_object_shape`, `physics::face_contact`).
     pub radii: [PlainDword; 256],
 }
 

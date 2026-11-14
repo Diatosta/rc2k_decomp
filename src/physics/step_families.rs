@@ -1,7 +1,7 @@
-//! The smaller views of `StepInputs` that one family of steps reads, each built by a method
-//! of `StepInputs` and handed down in its place: the sound cues of a contact, the ground
-//! search and probe, the contact steps (which hold the other two), the camera, the reset
-//! chain and the clear-place search, the checkpoints, the lighting and the moving slots.
+//! The smaller views of `StepInputs` that one family of steps reads, each built by a method of
+//! `StepInputs` and handed down in its place: the sound cues of a contact, the ground search and
+//! probe, the contact steps (which hold the other two), the camera, the reset chain and the
+//! clear-place search, the checkpoints, the lighting and the moving slots.
 
 use crate::drive::finish_store::Finish;
 use crate::drive::replay_frames_store::ReplayFrames;

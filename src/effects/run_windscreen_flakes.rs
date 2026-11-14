@@ -1,14 +1,8 @@
-//! `effects::run_windscreen_flakes` (0x4BFFEC): the windscreen flakes' frame, with the x87
-//! rounding set to chop throughout (put back at the end): `effects::windscreen_flakes_setup`;
-//! the vertices' texture places from the flakes' constants; with the drift switch
-//! `effects::windscreen_flakes_spawn`; then each live flake item: with the drift switch its age
-//! (+8) plus the frame's ticks, ended at 0xFA0 or more; ended when its cell's byte in the edge
-//! mask is set (the cell from its place, chopped, shifted right 3); else drawn by
-//! `effects::draw_windscreen_flake` (st(1) its x, st(0) a constant less its z; colour the
-//! view light's low 24 bits under the alpha: not (age over a limit), shifted left 24). Last
-//! `scene::depth_buffer_on`.
-//!
-//! Caller: `effects::windscreen_flakes_frame` The spawning is `windscreen_flakes_spawn`.
+//! `effects::run_windscreen_flakes`: the windscreen flakes' frame, with the x87 rounding set to
+//! chop throughout (put back at the end). After the set-up (and, with the drift switch, the
+//! spawning), each live flake item ages by the frame's ticks (ended at 0xFA0 or more) and ends when
+//! its cell's byte in the edge mask is set; else it is drawn by `effects::draw_windscreen_flake`,
+//! coloured by the view light under an alpha that fades with age.
 
 use crate::effects::mask_store::Masks;
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
@@ -144,12 +138,13 @@ mod reference_vectors {
         };
         recorded("effects.run_windscreen_flakes.less_x87", &SPEC, |b| {
             // SAFETY: `at` checks that the four bytes lie in the operand's test buffer, which the
-            // recorded run keeps alive and nothing else reaches meanwhile; unaligned, any bits a `u32`.
+            // recorded run keeps alive and nothing else reaches meanwhile; unaligned, any bits a
+            // `u32`.
             let word = |off: usize| unsafe { (b[0] + off).at(0, 4).cast::<u32>().read_unaligned() };
             let out = super::less_x87(f32::from_bits(word(0)), f32::from_bits(word(4)));
             for (i, byte) in out.into_iter().enumerate() {
-                // SAFETY: `host` checks that the byte lies in the operand's test buffer, which the recorded
-                // run keeps alive and nothing else reaches meanwhile.
+                // SAFETY: `host` checks that the byte lies in the operand's test buffer, which the
+                // recorded run keeps alive and nothing else reaches meanwhile.
                 unsafe { (b[1] + i).host().write(byte) };
             }
         });

@@ -1,7 +1,5 @@
-//! `physics::clear_records` (0x43F3A6): clears the first six dwords of each of a table of records
-//! of 0x20 bytes: the force and the point of each force record.
-//!
-//! Takes: the table
+//! Clears the first six dwords (the force and the point) of each record of a table of 0x20-byte
+//! records.
 //!
 //! Callers: `physics::clear_forces` (`forces`, 0x17 records), `physics::clear_contacts`
 //! (`contacts`, 7).

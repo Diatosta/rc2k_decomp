@@ -1,19 +1,19 @@
-//! `physics::track_checkpoints` (0x44157B): the work car's checkpoints followed.
-//! `physics::find_car_checkpoint` into +0x98 and `line_place`;
-//! `physics::checkpoint_offset`; `physics::off_line_warnings`; at the last checkpoint
-//! of the current split (`g_checkCounts[+0x98]` - 1 equal to +0x90) +0x94 = +0x98; then,
-//! below `g_splitColourCount` and when `physics::passed_split_point` gives CF, +0x94 and
-//! +0x98 the split's checkpoint (`SplitTables.checkpoints[1][+0x90]`) and +0x90 up by one.
+//! Follows the work car's checkpoints. `physics::find_car_checkpoint` into the car's checkpoint and
+//! `line_place`; `physics::checkpoint_offset`; `physics::off_line_warnings`; at the last checkpoint
+//! of the current split (the checkpoint's check count - 1 equal to `splits_passed`)
+//! `reset_checkpoint` = `checkpoint`; then, below `split_colour_count` and when
+//! `physics::passed_split_point` is true, `reset_checkpoint` and `checkpoint` become the split's
+//! checkpoint (`SplitTables.checkpoints[1][splits_passed]`) and `splits_passed` goes up by one.
 //!
-//! Caller: `physics::car_physics_step` (0x43B90F), every physics step. Refuses (before writing) a
-//! checkpoint past 0x1418 or a split past 0x40, and what the calls refuse.
+//! Caller: `physics::car_physics_step`, every physics step. Refuses (before writing) a checkpoint
+//! past 0x1418 or a split past 0x40, and what the calls refuse.
 
 use crate::errors::Refused;
 use crate::physics::step_families::CheckpointInputs;
 use rc2k_core::physics::splits::{at_split_end, check_tracked, split_ahead};
 
 /// The steps.
-// Converted: `rc2k_core::physics::splits::{check_tracked, at_split_end, split_ahead}`.
+// Core: `rc2k_core::physics::splits::{check_tracked, at_split_end, split_ahead}`.
 pub fn track_checkpoints(
     c: &CheckpointInputs<'_>,
     scene: &crate::scene::owner::Scene,

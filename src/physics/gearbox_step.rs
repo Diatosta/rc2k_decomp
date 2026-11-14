@@ -1,13 +1,11 @@
-//! `physics::gearbox_step` (0x43C15C): the gearbox's turn. Unless `g_car` +0xA8 is set,
-//! or (with `run_kind` not 1) the start timer +0x14 is below 0x320 (by its sign): in
-//! grade mode 2 `physics::manual_gearbox`; with a gear asked for (+0x468 bits 8 .. 11
-//! not 0xE) `physics::take_asked_gear` and it ends there; else by +0x38 (`gearbox_kind`)
-//! 1 `manual_gearbox`, 2 `physics::auto_gearbox`, other `manual_gearbox` (by
-//! `physics::manual_gearbox_call`). Then, after a change (+0x238 1), the engine speed x
-//! `engine_ease`; `physics::wheels_from_revs`.
+//! The gearbox's turn. Unless the car's `finish_flag` is set, or (with `run_kind` not 1) the
+//! start timer is below 0x320: in grade mode 2 `physics::manual_gearbox`; with a gear asked for
+//! (`gear_asked` bits not 0xE) `physics::take_asked_gear` and it ends there; otherwise by
+//! `gearbox_kind`: 1 `manual_gearbox`, 2 `physics::auto_gearbox`, other `manual_gearbox`. Then,
+//! after a change, the engine speed x `engine_ease` and `physics::wheels_from_revs`.
 //!
-//! Callers: `physics::drive_force` (under `physics::car_physics_step`), `physics::test_drive_run`.
-//! Refuses what the steps refuse; what was written is put back.
+//! Callers: `physics::drive_force` (under `physics::car_physics_step`),
+//! `physics::test_drive_run`. Refuses what the steps refuse; what was written is put back.
 
 use crate::errors::Refused;
 use crate::math::x87;
@@ -19,7 +17,7 @@ use crate::race::numbers_store::Numbers;
 use crate::race::owner_shared::RaceShared;
 
 /// The steps on `r`.
-// Converted: `rc2k_core::physics::gearbox::gearbox_turn`.
+// Core: `rc2k_core::physics::gearbox::gearbox_turn`.
 pub fn gearbox_step(
     numbers: &Numbers,
     shared: &RaceShared,

@@ -1,8 +1,6 @@
-//! `math::random_below` (0x4018A2): a random number under a limit.
+//! `math::random_below`: a random number under a limit.
 //!
-//! Takes: the limit
-//! Returns: `next_random` modulo the limit
-//! 73 callers. A limit of 0 makes the original's `div` trap: refused.
+//! `next_random` modulo the limit. A limit of 0 is refused.
 
 use crate::errors::BadInput;
 

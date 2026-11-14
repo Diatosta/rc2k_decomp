@@ -2,7 +2,7 @@
 //!
 //! An object slot (0 .. 0xFF) has a first point and a number of points in the points'
 //! memory (twelve bytes a point, three whole numbers), its normals after them, and a
-//! first face and a number of faces in `g_faces`, whose entries point into the faces'
+//! first face and a number of faces in the faces table, whose entries point into the faces'
 //! memory.
 
 pub const SLOTS: u32 = 0x100;

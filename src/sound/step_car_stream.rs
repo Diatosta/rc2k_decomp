@@ -1,11 +1,10 @@
-//! `sound::step_car_stream` (0x46F7AD): the car's sound stream goes on to its next part
-//! when one has ended.
+//! `sound::step_car_stream`: the car's sound stream goes on to its next part when one has ended.
 //!
 //! Only with `ChampView.event_mode` at 2 and `CarStream.on` at 1, and while the stream is not
-//! playing (`sound::stream_playing`: `AudioShared.sound_stream` is not 1; one other caller): `CarStream.place` + 1
-//! and the part at that place of the list `CarStream.stream`; -1 ends it
-//! (`CarStream.on` = 0), else `sound::start_stream` with it and `OptionWork.speech_level`. Once a
-//! frame on four screens (the car specification, the slideshow, two stage screens).
+//! playing (`sound::stream_playing`: `AudioShared.sound_stream` is not 1): `CarStream.place` + 1
+//! and the part at that place of the list `CarStream.stream`; -1 ends it (`CarStream.on` = 0), else
+//! `sound::start_stream` with it and `OptionWork.speech_level`. Once a frame on four screens (the
+//! car specification, the slideshow, two stage screens).
 
 use crate::errors::BadInput;
 use crate::menu::owner::Menus;
@@ -23,7 +22,7 @@ pub fn step_car_stream(
     sound: &crate::sound::owner::Sound,
     names: &crate::audio::names_store::SampleNames,
 ) -> Result<(), BadInput> {
-    // Converted: `rc2k_core::sound::race::stream_step`.
+    // The logic is `rc2k_core::sound::race::stream_step`.
     use rc2k_core::sound::race::{StreamStep, stream_step};
     let list: u32 = sound.race.car_stream.get().stream.get();
     let failed = std::cell::Cell::new(None);

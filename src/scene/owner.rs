@@ -1,10 +1,9 @@
-//! Module scene's owner (step 11, owned state): the scene's state in one struct, handed by
-//! reference to the code that runs it in place of global stores. The file numbers of the
-//! object loaders, the draw switches, the light tables and the car icon upload join it first;
-//! the other stores follow one by one.
+//! Module scene's owner: the scene's state in one struct, handed by reference to the code that runs
+//! it in place of global stores. The file numbers of the object loaders, the draw switches, the
+//! light tables and the car icon upload join it first; the other stores follow one by one.
 //!
-//! `scene()` is the boundary: the callers outside the module that do not take the owner fetch
-//! it there. It rises as their callers take the owner (`notes/memory_layer_plan.md`, step 11).
+//! `scene()` is the boundary: the callers outside the module that do not take the owner fetch it
+//! there.
 
 use crate::scene::draw_store::SceneDraw;
 use crate::scene::draw_switches_store::DrawSwitches;
@@ -92,8 +91,8 @@ pub struct Textures {
     /// The texture places (`TEXTURE_PLACES`): written between frames, read by the drawing parts
     /// through their reads (`workers::DrawReads`).
     pub places: DrawShared<TexturePlaces>,
-    /// The kinds' texture tables (`KIND_TEXTURES`): written between frames, read by the drawing parts
-    /// through their reads (`workers::DrawReads`).
+    /// The kinds' texture tables: written between frames, read by the drawing
+    /// parts through their reads (`workers::DrawReads`).
     pub kinds: DrawShared<KindTextureTables>,
 }
 

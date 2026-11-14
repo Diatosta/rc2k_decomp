@@ -1,5 +1,4 @@
-//! The race (part P): the stage's loading (`race::load_stage`, 0x444040) and, later, the
-//! race's run, ported bottom-up.
+//! The race: the stage's loading (`race::load_stage`) and the race's run.
 
 #[cfg(test)]
 pub(crate) mod asm_test;

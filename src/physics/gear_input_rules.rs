@@ -1,18 +1,16 @@
-//! `physics::gear_input_rules` (0x439BF6): the gearbox's input state (0x613890 ..
-//! 0x6138A8) by the car's state (the work copy's `tyre_change_state`, `gearbox_kind`,
-//! `run_ticks`, `go_stand_timer`, `started_stand_timer`, `finish_flag`): with `tyre_change_state`
-//! neither 0 nor -1 all cleared, 0x61389C = 500 and `g_carGear` 0 (nothing else); with
-//! `gearbox_kind` 2 the two inputs 0x613894 / 0x613898 joined into the first (in neutral,
-//! `input_gear_wanted` = 1, or -1 when the second is the larger) or swapped (in reverse);
-//! with `run_ticks` below 800 (the sign of the difference) 0x61389C = 500 and, unless
-//! `run_kind` is 1, four cleared; each of three switches clears them and the gear.
-//! What they are is a reading at best (an automatic box's held inputs?).
+//! The gearbox's input state by the car's state (the work copy's `tyre_change_state`,
+//! `gearbox_kind`, `run_ticks`, `go_stand_timer`, `started_stand_timer`, `finish_flag`): with
+//! `tyre_change_state` neither 0 nor -1 all are cleared, the hold word = 500 and the gear is 0
+//! (nothing else); with `gearbox_kind` 2 the two inputs are joined into the first (in neutral,
+//! `input_gear_wanted` = 1, or -1 when the second is the larger) or swapped (in reverse); with
+//! `run_ticks` below 800 the hold word = 500 and, unless `run_kind` is 1, four are cleared;
+//! each of three switches clears them and the gear. What they are is a reading at best (an
+//! automatic box's held inputs?).
 //!
-//! Returns: the joined input when they were joined
+//! Returns the joined input when they were joined.
 //!
 //! Callers: race init's loop (`drive::race_cars_step`), `race::step_replay_cars`,
-//! `drive::replay_step` (each calls
-//! `physics::car_physics_step` or `drive::steer_inputs` next).
+//! `drive::replay_step` (each calls `physics::car_physics_step` or `drive::steer_inputs` next).
 
 use crate::physics::car_store::Car;
 use crate::physics::tables_store::PhysicsTables;
@@ -21,7 +19,7 @@ use crate::session::DwordLike;
 use rc2k_core::physics::gearbox::{GearCar, GearInputs};
 
 /// The rules change what they change; only the words that differ are written back.
-// Converted: `rc2k_core::physics::gearbox::GearInputs::apply_rules`.
+// Core: `rc2k_core::physics::gearbox::GearInputs::apply_rules`.
 pub fn gear_input_rules(car: &Car, tables: &PhysicsTables, vars: &RaceVars) {
     let state = GearCar {
         state: car.tyre_change_state.get(),

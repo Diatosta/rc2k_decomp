@@ -1,14 +1,12 @@
-//! `physics::accumulate_mud` (0x449EE9): the mud amounts moved on by the speed:
-//! floats at `mud_thrown_in` / `mud_splashes_in` (per car texture, read and emptied by
-//! `race::update_mud_texture`). Only when the car's kind (`g_car`
-//! +0x24, `car_kind`) is below 0x22 and its entry in `kind_gets_mud` is not 0 (else CF
-//! and nothing). Then, with `all_wheels_off` 0, s = `g_carDriveSpeed` (else 0), held at
-//! 0 or more (`zero`), times `mud_scale_a[0]` and `mud_scale_b[0]`, added to the four
-//! floats at `mud_thrown_in`; and s = `g_carDriveSpeed` less `g_carSpeed` (else 0), held
-//! the same, times `mud_scale_a[1]` and `mud_scale_b[1]`, added to the four at `mud_splashes_in`.
-//! Each s goes through `scratch`.
+//! Mud thrown up by the car's speed: adds to the per-texture mud amounts (`mud_thrown_in`,
+//! `mud_splashes_in`) that `race::update_mud_texture` reads and empties.
 //!
-//! Caller: `physics::car_physics_step` (0x43B91E), every physics step.
+//! Only cars whose kind is below 0x22 and flagged in `kind_gets_mud` take part. With no wheel off
+//! the ground, the drive speed (clamped at 0) times the scale pair is added to the four thrown
+//! amounts; the drive speed less the car speed (clamped at 0) times the second pair is added to
+//! the four splash amounts.
+//!
+//! Caller: `physics::car_physics_step`, every physics step.
 
 use crate::math::x87;
 use crate::physics::car_store::Car;
@@ -18,7 +16,7 @@ use crate::race::vars_store::RaceVars;
 use crate::session::PlainFloat;
 use std::cmp::Ordering;
 
-/// `fld zero; fld s; fcompp`, C0: s below zero or unordered.
+/// Whether `s` is below zero or unordered.
 fn below(s: u32, zero: u32) -> bool {
     !matches!(
         f32::from_bits(s).partial_cmp(&f32::from_bits(zero)),

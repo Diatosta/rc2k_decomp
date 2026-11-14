@@ -1,12 +1,11 @@
-//! `physics::stall_when_still` (0x440B9D): the length of the motion kept by
-//! `physics::keep_motion` (0x61409C .., `physics::vector_length`, rounded into
-//! `scratch`); when not 0 (C3 clear), `stall_figure` = the motion (0x71A17C ..) dot it
-//! (`physics::dot_product`) over the length twice. Then, unless the length's size is
-//! below `stall_speed`, with `stall_figure` below `stall_share` and `no_auto_neutral` 0: gear 0
-//! and both drive speeds 0. Probably the engine stalling when the car is
-//! stopped or turned back on itself: the motion's dot product against its own length.
+//! The length of the motion kept by `physics::keep_motion` (`physics::vector_length`, rounded into
+//! `scratch`); when not 0, `stall_figure` = the motion dot it (`physics::dot_product`) over the
+//! length twice. Then, unless the length's size is below `stall_speed`, with `stall_figure` below
+//! `stall_share` and `no_auto_neutral` 0: gear 0 and both drive speeds 0. Probably the engine
+//! stalling when the car is stopped or turned back on itself: the motion's dot product against its
+//! own length.
 //!
-//! Caller: `physics::car_physics_step` (0x43B896), every physics step.
+//! Caller: `physics::car_physics_step`, every physics step.
 
 use crate::math::x87::{abs_compare, compare_full, ext_div2};
 use crate::physics::car_store::Car;

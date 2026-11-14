@@ -1,10 +1,9 @@
-//! The replay file (`var\tmprpl`): opened with its header at the race's
-//! start (`race::open_replay`, the header sealed by `race::seal_replay_header`), frames
-//! gathered (`race::add_replay_frame`), written block by block (`race::write_replay_block`
-//! through `race::write_replay_chunk`, which packs by runs), and closed with its index
-//! ("RCIB", `race::close_replay`). The steps call each other (a failed block closes the
-//! file, which writes the last frames as a block); the file primitives are
-//! `files::handle`'s.
+//! The replay file (`var\tmprpl`): opened with its header at the race's start (`race::open_replay`,
+//! the header sealed by `race::seal_replay_header`), frames gathered (`race::add_replay_frame`),
+//! written block by block (`race::write_replay_block` through `race::write_replay_chunk`, which
+//! packs by runs), and closed with its index ("RCIB", `race::close_replay`). The steps call each
+//! other (a failed block closes the file, which writes the last frames as a block); the file
+//! primitives are `files::handle`'s.
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::owner::Menus;
@@ -16,10 +15,9 @@ use crate::session::{PlainBytes, PlainDword};
 use crate::system::owner::System;
 
 /// The race record's seal key (the replay header's checksum, `race::seal_replay_header`;
-/// `race::seal_stage_time` turns the first car's time by it). It is what makes a stage time
-/// in the saved results depend on the replay it came from, so a time cannot be edited alone.
-/// Kept apart from the sound dwords around it (IDA 0x4F66F9,
-/// `race::owner_replay::Replay::seal_key`).
+/// `race::seal_stage_time` turns the first car's time by it). It is what makes a stage time in the
+/// saved results depend on the replay it came from, so a time cannot be edited alone. Kept apart
+/// from the sound dwords around it.
 // The index (`crate::race::owner::race().shared.replay_file().index.dwords()`) is 0x3850 bytes.
 const _: () = assert!(crate::race::replay_file_store::INDEX_DWORDS * 4 == 0x3850);
 pub const MOST_BLOCKS: u32 = rc2k_core::race::replay::MOST_BLOCKS;
@@ -34,9 +32,9 @@ pub const SLOTS: usize = 100;
 /// The replays' buffers.
 #[derive(rc2k_derive::Cells)]
 pub struct Replays {
-    /// `dword_528504`: the file's header (a dword array, `HEADER_LEN` bytes).
+    /// The file's header (a dword array, `HEADER_LEN` bytes).
     pub header: PlainBytes<{ HEADER_LEN as usize }>,
-    /// `byte_528934`: the saved replays' names, 100 of 0x20 bytes (twenty to a page).
+    /// The saved replays' names, 100 of 0x20 bytes (twenty to a page).
     pub names: PlainBytes<{ SLOTS * NAME_BYTES }>,
 }
 
@@ -50,20 +48,19 @@ impl Replays {
     }
 }
 
-/// `race::seal_replay_header` (0x41F0A3): the replay's sealed header part (`sealed_header`, 0x40
-/// dwords): version byte 6, the player's name (`strings::copy_printable`, 0x20), the settings and
-/// options copied (`copy_header_settings`), a checksum (from dword 1: add, `rol` 5) into dword 0 and
-/// `dword_4F66F9`; then its 32 blocks of 8 chained through `race::seal_block` with the key
-/// "halfmoon" (the game's key put back after).
+/// Seals the replay's header part (`sealed_header`, 0x40 dwords): version byte 6, the player's
+/// name (`strings::copy_printable`, 0x20), the settings and options copied
+/// (`copy_header_settings`), a checksum (from dword 1: add, rotate left 5) into dword 0; then its
+/// 32 blocks of 8 chained through `race::seal_block` with the key "halfmoon" (the cipher's key is
+/// put back after).
 pub fn seal_replay_header(
     race: &Race,
     menus: &Menus,
     strings: &crate::strings::owner::Strings,
 ) -> Result<(), Refused> {
-    // Converted: `rc2k_core::race::replay::{seal_checksum, chained, SEAL_KEY}`.
+    // Logic in `rc2k_core::race::replay::{seal_checksum, chained, SEAL_KEY}`.
     use rc2k_core::race::replay::{SEAL_KEY, SEAL_VERSION, chained, seal_checksum};
-    // The sealed header is the file's bytes: the version byte and the name sit inside its
-    // dwords.
+    // The sealed header is the file's bytes: the version byte and the name sit inside its dwords.
     let replay = &race.replay;
     let sealed = &race.replay_work().sealed_header;
     put_header(sealed, 0x719B58 - 0x719B54, &[SEAL_VERSION])?;
@@ -91,7 +88,7 @@ pub fn seal_replay_header(
         );
         w.block[0].set(x);
         w.block[1].set(y);
-        // `seal_block` works on the dwords at 0x4E052C .. (no register read).
+        // `seal_block` works on the cipher's dwords.
         crate::race::save_seal::seal_block(w);
         a = w.sealed[0].get();
         sealed_dwords[at].set(a);
@@ -103,8 +100,8 @@ pub fn seal_replay_header(
     Ok(())
 }
 
-/// `bytes` written into the sealed header from byte `at` (the file's bytes: the dwords hold
-/// them little-endian, whatever the alignment).
+/// `bytes` written into the sealed header from byte `at` (the file's bytes: the dwords hold them
+/// little-endian, whatever the alignment).
 fn put_header(sealed: &[PlainDword; 64], at: usize, bytes: &[u8]) -> Result<(), BadInput> {
     if at + bytes.len() > sealed.len() * 4 {
         return Err(BadInput("past the replay's sealed header"));
@@ -117,9 +114,9 @@ fn put_header(sealed: &[PlainDword; 64], at: usize, bytes: &[u8]) -> Result<(), 
     Ok(())
 }
 
-/// The settings the sealed header copies, in the original's order: the low `size` bytes of
-/// each setting go to `at` (an offset from the header's first byte, 0x138 and more past the
-/// end of its 0x100 bytes are the first dword of `unknown_7d0`: the original's slip).
+/// The settings the sealed header copies, in order: the low `size` bytes of each setting go to `at`
+/// (an offset from the header's first byte; 0x138 and more, past the end of its 0x100 bytes, are
+/// the first dword of `unknown_7d0`: a slip kept as is).
 #[cfg(test)]
 fn copy_header_settings(sealed: &[PlainDword; 64]) -> Result<(), BadInput> {
     copy_header_settings_of(
@@ -194,7 +191,7 @@ fn copy_header_settings_of(
         if to < 0x719B54 + 0x100 {
             put_header(sealed, to - 0x719B54, bytes)?;
         } else {
-            // 0x719C8C: the viewer's first car number, past the header.
+            // The viewer's first car number, past the header.
             let door = &race.replay_work().unknown_7d0[0];
             door.set(door.get() & !0xFF | u32::from(bytes[0]));
         }
@@ -207,10 +204,9 @@ fn write(handle: u32, bytes: &[u8]) -> (u32, bool) {
     (n, !ok)
 }
 
-/// `race::write_replay_chunk` (0x41EEE4): `count` bytes at `from` written to file `handle`; unless
-/// `chunks_plain` is 1 they are packed (`race::pack_runs` into `g_pngInfo`, rounded up to a dword)
-/// and the packing written when smaller. Both callers write the whole replay block (`block`,
-/// 0x2810 bytes): here it is that block.
+/// Writes `count` bytes at `from` to file `handle`; unless `chunks_plain` is 1 they are packed
+/// (`race::pack_runs`, rounded up to a dword) and the packing is written when smaller. Both
+/// callers write the whole replay block (`block`, 0x2810 bytes): here it is that block.
 pub fn write_replay_chunk(
     race: &Race,
     system: &System,
@@ -222,7 +218,7 @@ pub fn write_replay_chunk(
         return Ok(write(handle, &block));
     }
     let (packing, packed) = crate::race::save_seal::pack_runs(&block, system)?;
-    // Converted: `rc2k_core::race::replay::packed_size`.
+    // Logic in `rc2k_core::race::replay::packed_size`.
     Ok(
         match rc2k_core::race::replay::packed_size(packed, BLOCK_LEN) {
             Some(size) => {
@@ -239,9 +235,9 @@ pub fn write_replay_chunk(
     )
 }
 
-/// The replay index's dword `k` (`lDistanceToMove` ..: offset and size a block). A block
-/// count past the index's 1800 (a broken file) reads on past it, as the original does: the index
-/// ends the file block's record, so there is nothing to read and it is refused.
+/// The replay index's dword `k` (offset and size a block). A block count past
+/// the index's 1800 (a broken file) reads on past it: the index ends the file block's record, so
+/// there is nothing to read and it is refused.
 pub fn block_place(race: &Race, k: usize) -> Result<u32, BadInput> {
     race.shared
         .replay_file()
@@ -252,9 +248,9 @@ pub fn block_place(race: &Race, k: usize) -> Result<u32, BadInput> {
         .ok_or(BadInput("the replay index: a block past the 1800"))
 }
 
-/// `race::write_replay_block` (0x41E9A3): the block (`block`, 0x2810 bytes) written as a
-/// chunk; its offset and size (negative when packed) into the index; the file's length on; the
-/// block count on. A failed write or the index full (0x708 blocks) closes the replay.
+/// Writes the block (`block`, 0x2810 bytes) as a chunk; its offset and size (negative when packed)
+/// go into the index, and the file's length and the block count move on. A failed write or the
+/// index full (0x708 blocks) closes the replay.
 pub fn write_replay_block(race: &Race, system: &System, replay: &Replay) -> Result<(), Refused> {
     let shared = &race.shared;
     let n = shared.replay_file().index.block_count.get();
@@ -267,7 +263,7 @@ pub fn write_replay_block(race: &Race, system: &System, replay: &Replay) -> Resu
         write_replay_chunk(race, system, shared.replay_file().replay_handle.get())?;
     let failed = failed || {
         shared.replay_file().index.block_places[2 * n as usize + 1].set(written);
-        // Converted: `rc2k_core::race::replay::block_written`.
+        // Logic in `rc2k_core::race::replay::block_written`.
         let (size, full) = rc2k_core::race::replay::block_written(written, n);
         replay
             .replay_view()
@@ -282,18 +278,18 @@ pub fn write_replay_block(race: &Race, system: &System, replay: &Replay) -> Resu
     Ok(())
 }
 
-/// `race::add_replay_frame` (0x41E8DE): with the replay open, `bytes` bytes at `from` (a frame when
-/// 0x10: the frame counts on) put at the cursor (`rep movsd`, `bytes` / 4 dwords); at 100 frames
-/// the block written (`race::write_replay_block`) and the cursor and count back. Refuses frames
-/// past the block's room (before anything). Its one caller adds the padding frame
-/// (`REPLAY_VIEW.pad_frame`): here the frame's cells, `bytes` their size.
+/// With the replay open, puts `bytes` bytes at `from` (a frame when 0x10: the frame count moves
+/// on) at the cursor (`bytes` / 4 dwords); at 100 frames the block is written
+/// (`race::write_replay_block`) and the cursor and count go back. Refuses frames past the block's
+/// room (before anything). Its one caller adds the padding frame (the replay view's
+/// `pad_frame`): here the frame's cells, `bytes` their size.
 pub fn add_replay_frame(race: &Race, system: &System, frame: &[PlainDword]) -> Result<(), Refused> {
     let replay = &race.replay;
     let shared = &race.shared;
     if !shared.replay_file().replay_open.is_set() {
         return Ok(());
     }
-    // Converted: `rc2k_core::race::replay::{fits, frame_added}`.
+    // Logic in `rc2k_core::race::replay::{fits, frame_added}`.
     use rc2k_core::race::replay::{FRAME_BYTES, fits, frame_added};
     let bytes = 4 * frame.len() as u32;
     let used = race.viewer_buffers().block_used.get();
@@ -323,10 +319,10 @@ pub fn add_replay_frame(race: &Race, system: &System, frame: &[PlainDword]) -> R
     Ok(())
 }
 
-/// `race::close_replay` (0x41E85A): with the replay open, the block filled up with the padding
-/// frame (`race::add_replay_frame`, which writes it at 100); the last block's frame count
-/// (`frames_in_block`: 100, or for the last block the frames modulo 100 plus one); the time sealed;
-/// the index ("RCIB", 0x3850 bytes) written; the file closed; `replay_open` 0, `replay_closed` 1.
+/// With the replay open, fills the block up with the padding frame (`race::add_replay_frame`,
+/// which writes it at 100), sets the last block's frame count (`frames_in_block`: 100, or for the
+/// last block the frames modulo 100 plus one), seals the time, writes the index ("RCIB", 0x3850
+/// bytes), closes the file and sets `replay_open` 0 and `replay_closed` 1.
 pub fn close_replay(race: &Race, system: &System) -> Result<(), Refused> {
     let shared = &race.shared;
     let replay = &race.replay;
@@ -336,7 +332,7 @@ pub fn close_replay(race: &Race, system: &System) -> Result<(), Refused> {
     while replay.replay_view().frames_in_block.get() != 0 {
         add_replay_frame(race, system, &replay.replay_view().pad_frame)?;
     }
-    // Converted: `rc2k_core::race::replay::closing_frames`.
+    // Logic in `rc2k_core::race::replay::closing_frames`.
     let (frames, _, _) = rc2k_core::race::replay::closing_frames(
         replay.replay_view().replay_block.get(),
         shared.replay_file().index.block_count.get(),
@@ -354,17 +350,17 @@ pub fn close_replay(race: &Race, system: &System) -> Result<(), Refused> {
     Ok(())
 }
 
-/// `race::open_replay` (0x41E6EC): `replay_closed` 0; with replays on (`replays_on` 1,
-/// `no_replay_switch` 0, `session` not 1, `RaceState.settings.no_replay` not 1) and 30 MB free: the header
-/// ("REPL", version 0x50400, the date, "tmpreplay", the race's settings), the car's header
-/// (`seal_replay_header`) copied into it, the index "RCIB" cleared, the cursor, counts and length
-/// 0; `var\tmprpl` created; the header written. A failed open or write closes it
+/// Opens the replay: `replay_closed` 0; with replays on (`replays_on` 1, `no_replay_switch` 0,
+/// `session` not 1, `RaceState.settings.no_replay` not 1) and 30 MB free it makes the header
+/// ("REPL", version 0x50400, the date, "tmpreplay", the race's settings), copies the car's header
+/// (`seal_replay_header`) into it, clears the index "RCIB", sets the cursor, counts and length to
+/// 0, creates `var\tmprpl` and writes the header. A failed open or write closes it
 /// (`race::close_replay`).
 pub fn open_replay(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     let shared = &race.shared;
     let replay = &race.replay;
-    // Converted: `rc2k_core::race::replay::{replays_on, room_for_replay}` and the
-    // header's and the index's words.
+    // Logic in `rc2k_core::race::replay::{replays_on, room_for_replay}` and the header's and the
+    // index's words.
     use rc2k_core::race::replay::{
         HEADER_MAGIC, HEADER_NAME, HEADER_VERSION, INDEX_MAGIC, replays_on, room_for_replay,
     };
@@ -406,9 +402,8 @@ pub fn open_replay(race: &Race, o: crate::owners::Owners<'static>) -> Result<(),
         to.set(from.get());
     }
     seal_replay_header(race, o.menus, o.strings)?;
-    // The car header (0x400 bytes from the stage setting on through the sealed part, the
-    // patch switches and the door: all the dwords of the stretch) copied into the file's
-    // header at +0x30.
+    // The car header (0x400 bytes from the stage setting on through the sealed part, the patch
+    // switches and the door: all the dwords of the stretch) copied into the file's header at +0x30.
     let w = race.replay_work();
     let stage: Vec<u8> = [
         &w.header_stage,
@@ -515,9 +510,8 @@ mod header_tests {
     }
     use Source::{Bytes, Cell};
 
-    /// The header's copies as the first by-address version did them: (bytes, where they are
-    /// written, the store read and the field in it). The header's own layout is the file's, so
-    /// the destinations stay byte positions.
+    /// The header's copies: (bytes, where they are written, the store read and the field in it).
+    /// The header's own layout is the file's, so the destinations stay byte positions.
     const HEADER_MOVES: [(usize, Dest, &str, Source); 31] = [
         (1, Sealed(0x2D), LOCALE, Bytes("", 8)),
         (4, Sealed(0x5), REPLAYS, Bytes(".header", 0xC)),
@@ -605,7 +599,7 @@ mod header_tests {
         Ok(())
     }
 
-    /// splitmix64.
+    /// Splitmix64.
     fn next(state: &mut u64) -> u64 {
         *state = state.wrapping_add(0x9E37_79B9_7F4A_7C15);
         let mut z = *state;

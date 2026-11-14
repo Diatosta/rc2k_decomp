@@ -1,7 +1,6 @@
-//! `physics::ease_view_angles` (0x43846D): with the mode's record's change time (+0x3C)
-//! not 0: the share done (`physics/camera_view.rs`) times the record's three angle
-//! changes (+0x40 .. +0x48) x `k65536` (`fistp`) << 16 added to `camera_offset_turns`,
-//! `Car.camera_offset_turns[1]`, `Car.camera_offset_turns[2]`.
+//! With the mode record's change time not 0: the share done (`physics/camera_view.rs`) times
+//! the record's three angle changes, times `k65536`, rounded and shifted left 16, is added to
+//! `camera_offset_turns`.
 //!
 //! Caller: `physics::update_camera`.
 
@@ -36,12 +35,12 @@ pub fn ease_view_angles(
     Ok(())
 }
 
-// ---- the arithmetic that was x87 assembly ----
+// ---- the x87 arithmetic ----
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `int [scratch] = ([s + 0] * [view_share]) * [k65536]` (`[s + 0]` a
-/// record's turn rate, passed by value)
+/// `int [scratch] = ([s + 0] * [view_share]) * [k65536]` (`[s + 0]` a record's turn rate, passed by
+///  value)
 fn x87_1(numbers: &Numbers, tables: &RaceTables, rate: u32, scene: &crate::scene::owner::Scene) {
     let t0 = ld(rate);
     let t1 = tables.view_share.ld();

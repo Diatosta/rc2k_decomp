@@ -1,16 +1,13 @@
-//! `effects::draw_lens_flare` (0x4C4ED3): the lens flare, 0x11 parts along the line from the
-//! glow's place on the screen (the settings' +0x2758, +0x275C) through the screen's
-//! centre. The way out (x, -y) also goes into the flare's work vector (z 0) and is made one
-//! long there (`scene::normalise_vector3`); its length is kept; the alpha = the base alpha
-//! less the length times a factor (rounded, at least 0) times the settings' +0x2754, >> 8.
-//! Then for each part k from 0x10 down to 0: its centre (-x, y times the wave level k plus the
-//! centre, unrounded), `effects::draw_flare_part` with the part's corner and size (times a
-//! factor, rounded), angle 0, colour 0xFFFFFF, that alpha.
+//! `effects::draw_lens_flare`: the lens flare, 0x11 parts along the line from the glow's place on
+//! the screen (the settings' +0x2758, +0x275C) through the screen's centre. The way out (x, -y)
+//! also goes into the flare's work vector (z 0) and is made one long there
+//! (`scene::vector3::normalise`); its length is kept; the alpha = the base alpha less the length
+//! times a factor (rounded, at least 0) times the settings' +0x2754, >> 8. Then for each part k
+//! from 0x10 down to 0: its centre (-x, y times the wave level k plus the centre, unrounded),
+//! `effects::draw_flare_part` with the part's corner and size (times a factor, rounded), angle 0,
+//! colour 0xFFFFFF, that alpha.
 //!
-//! Works on the effects settings.
-//!
-//! Caller: `effects::flare_frame`. Refuses null settings and a part's corner past the mark corners table,
-//! before anything.
+//! Refuses null settings and a part's corner past the mark corners table, before anything.
 
 use crate::effects::draw_flare_part::draw_flare_part;
 use crate::effects::paths::Paths;

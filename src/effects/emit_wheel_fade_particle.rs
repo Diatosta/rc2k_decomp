@@ -1,19 +1,12 @@
-//! `effects::emit_wheel_fade_particle` (0x4CDC74): one ring entry of kind 6 from a wheel, when its
-//! flags (+0x20, kept as the wheel flags) have 0xC0 and the rate gate passes
-//! (`effects/emitters.rs`, the wheel's +0xC less +0x18 by the set's rate factors).
+//! `effects::emit_wheel_fade_particle`: one ring entry of kind 6 from a wheel, when its flags
+//! (+0x20, kept as the wheel flags) have 0xC0 and the rate gate passes (`effects/emitters.rs`, the
+//! wheel's +0xC less +0x18 by the set's rate factors).
 //!
-//! Takes: the wheel record, the car object
-//!
-//! The entry: its place the wheel's (+0x3C ..) plus a random side (-1 or 0 times the
-//! object's matrix's first row, 0 or 1 times its third) less the set's lift in y at +0x28; its
-//! motion three sums of products of the wheel's speeds; a random spin and turn (+0x54,
-//! +0x50), the flags' low 6 bits (+0x58), a size by the effects' random (+0x60, then
-//! replaced), a life from the lives table by the flags' bits 6 and 7 (+0x84; +0x78 a constant
-//! over it), +0x74 the fade constant, the object (+0x68) and its +0x88, +0x90.
-//! Callers: `effects::emit_wheel_particles`' kinds 2 .. 4, 6 .. 9, 0xC (after
-//! `effects::emit_bursts` or
-//! `effects::emit_bursts_kind_3`). Refuses (before anything) a null wheel, object or matrix where read,
-//! and flags of 0x100 or more when an entry is made (the life read past the lives table's four).
+//! The entry sits at the wheel's place (+0x3C ..) plus a random side, less the set's lift in y at
+//! +0x28; its motion is three sums of products of the wheel's speeds; its life comes from the lives
+//! table by the flags' bits 6 and 7 (+0x84; +0x78 a constant over it) and +0x74 is the fade
+//! constant. Refuses (before anything) a null wheel, object or matrix where read, and flags of
+//! 0x100 or more when an entry is made (the life would be read past the lives table's four).
 
 use crate::effects::emitters::car_with_matrix;
 use crate::effects::emitters::emitting_car;
@@ -28,7 +21,7 @@ use crate::scene::matrix3::rounded_value;
 use crate::session::{PlainDword, PlainFloat};
 
 /// The motion: per axis (x, y, z) the three (factor, wheel speed) pairs; the scales are
-/// `KIND6_SET.motion_k[3 * axis + n]`.
+/// `WheelFadeSet.motion_k[3 * axis + n]`.
 /// A wheel record's speed figure.
 type Speed = fn(&MarkRecord) -> &PlainFloat;
 
@@ -210,25 +203,25 @@ pub fn emit_wheel_fade_particle(
     Ok(())
 }
 
-/// Kind 6's emitter variables (`emit_wheel_fade_particle`) (IDA 0x93A41A .. 0x93A462).
+/// Kind 6's emitter variables (`emit_wheel_fade_particle`).
 #[derive(rc2k_derive::Cells)]
 pub struct WheelFadeSet {
-    /// 0x93A41A: `flt_93A41A` .. `flt_93A426`: the rate's factors
+    /// The rate's factors
     pub rate_k: [PlainFloat; 4],
-    /// 0x93A42A: `dword_93A42A`: the side's random
+    /// The side's random
     pub side_random: PlainDword,
-    /// 0x93A42E: `flt_93A42E`: the place's drop in y
+    /// The place's drop in y
     pub lift: PlainFloat,
-    /// 0x93A432: `flt_93A432` .. `flt_93A452`: per axis (x, y, z) the scales of the three products (wheel +0x10, +0x18, +0xC)
+    /// Per axis (x, y, z) the scales of the three products (wheel +0x10, +0x18, +0xC)
     pub motion_k: [PlainFloat; 9],
-    /// 0x93A456: `dword_93A456`: the spin's random
+    /// The spin's random
     pub spin_random: PlainDword,
-    /// 0x93A45A: `flt_93A45A`, `flt_93A45E`: the size's factors
+    /// The size's factors
     pub size_k: [PlainFloat; 2],
 }
 
 impl WheelFadeSet {
-    /// The values the game starts with (the image's bytes).
+    /// The values the game starts with.
     pub const fn new() -> Self {
         WheelFadeSet {
             rate_k: [

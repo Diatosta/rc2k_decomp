@@ -1,13 +1,8 @@
-//! `physics::apply_force` (0x45FAE1): applies one force record (its first three floats) to a
-//! car block. The force is copied to `push_record`, multiplied by the physics step
-//! (`physics::scale_vector`), turned into the world by `g_crashMatrix`
-//! (`physics::turn_by_car_matrix`) and added to the car's motion; the motion is then turned by
-//! the car's inverse matrix (`scene::rotate_point`) into the car-frame speed (the last of which is
-//! `g_carSpeed`). A reading: a force's push on the car.
+//! Applies one force record (its first three floats) to a car block. The force is scaled by the
+//! physics step, turned into the world by the crash matrix and added to the car's motion; the
+//! motion is then turned by the car's inverse matrix into the car-frame speed.
 //!
-//! Takes: the record, the car block
-//!
-//! Caller: `physics::apply_forces` (in a loop over records).
+//! Caller: `physics::apply_forces`, once per record.
 
 use crate::math::x87;
 use crate::physics::car_store::Car;
@@ -33,7 +28,7 @@ pub fn apply_force(
     let dt = extended(tables.step_time.get());
     scale_vector(work, dt);
     scene.drawing.scene.get().scratch.set(rounded(dt));
-    // The work car's matrix (`g_crashMatrix`), whichever block it is: the original's.
+    // The work car's crash matrix, whichever block it is.
     turn_by_car_matrix(car, work);
     for (v, w) in car.velocity.iter().zip(work) {
         v.set(x87::add(w, v));

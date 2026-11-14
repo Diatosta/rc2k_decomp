@@ -1,7 +1,7 @@
-//! `physics::flag_current_car_listed` (0x45D151): `StageSounds.once[0]` 1 when the current car's entry in
-//! `listed_car_sounds` is not -1. See `physics/listed_car_flags.rs` (the core, the test).
+//! Sets `StageSounds.once[0]` to 1 when the current car's entry in `listed_car_sounds` is not
+//! -1. See `physics/listed_car_flags.rs` (the core, the test).
 //!
-//! Returns: the entry
+//! Returns the entry.
 //!
 //! Caller: `physics::take_split_counted`. Refuses (before anything) a current car past 7.
 

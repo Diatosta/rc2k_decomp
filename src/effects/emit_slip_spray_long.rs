@@ -1,10 +1,7 @@
-//! `effects::emit_slip_spray_long` (0x4CC35A, a chunk of `effects::emit_wheel_particles` entered
-//! by `jz` from it and from 0x4CA215, left by `popa; retn`): one ring entry of kind 0xB;
-//! `effects::emit_slip_spray`'s code on its own variables (`SlipSprayLongSet.place_random`, `SlipSprayLongSet.motion_x` ..
-//! `SlipSprayLongSet.spin`), a life of 2000, and made only when the wheel's |+0x18| rounded to an
-//! integer (`fist`, the x87's rounding) is over 1 (kind 5: when it is not 0).
-//!
-//! Takes: the wheel record, the car object
+//! `effects::emit_slip_spray_long`: one ring entry of kind 0xB; `effects::emit_slip_spray`'s
+//! code on its own variables (`SlipSprayLongSet.place_random`, `SlipSprayLongSet.motion_x`
+//! .. `SlipSprayLongSet.spin`), a life of 2000, and made only when the wheel's |+0x18|
+//! rounded to an integer is over 1 (kind 5: when it is not 0).
 //!
 //! Refuses as `emit_slip_spray`.
 
@@ -45,29 +42,29 @@ pub fn emit_slip_spray_long(
     emit_slip_spray_with(effects, &eleventh(effects), wheel, object)
 }
 
-/// Kind 0xB's emitter variables (`emit_slip_spray::ELEVENTH`), and the constants of code that is in no function (IDA 0x93A262 .. 0x93A312).
+/// Kind 0xB's emitter variables (`eleventh`).
 #[derive(rc2k_derive::Cells)]
 pub struct SlipSprayLongSet {
-    /// 0x93A262: `dword_93A262`: the place's random
+    /// The place's random
     pub place_random: PlainDword,
-    /// 0x93A266: `flt_93A266`: the motion's x factor
+    /// The motion's x factor
     pub motion_x: PlainFloat,
-    /// 0x93A26A: `flt_93A26A`: the motion's y factor
+    /// The motion's y factor
     pub motion_y: PlainFloat,
-    /// 0x93A26E: `flt_93A26E`: added to the motion's y
+    /// Added to the motion's y
     pub lift: PlainFloat,
-    /// 0x93A272: `flt_93A272`: the motion's z factor
+    /// The motion's z factor
     pub motion_z: PlainFloat,
-    /// 0x93A276: `flt_93A276`: the spread `jitter_point` takes
+    /// The spread `jitter_point` takes
     pub spread: PlainFloat,
-    /// 0x93A27A: `flt_93A27A` .. `flt_93A282`: the third row's factors (z, y, x)
+    /// The third row's factors (z, y, x)
     pub roll_k: [PlainFloat; 3],
-    /// 0x93A286: `flt_93A286`: the spin's factor
+    /// The spin's factor
     pub spin: PlainFloat,
 }
 
 impl SlipSprayLongSet {
-    /// The values the game starts with (the image's bytes).
+    /// The values the game starts with.
     pub const fn new() -> Self {
         SlipSprayLongSet {
             place_random: PlainDword::new(0x0),

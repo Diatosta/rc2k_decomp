@@ -1,17 +1,16 @@
-//! The race's split times and timers under `physics::car_physics_step`:
-//! `physics::race_timers` (0x436790) by the race mode (`run_kind`) runs the start's
-//! counters and, at each new checkpoint split, `physics::take_split` (0x436900) or for
-//! mode 2 `physics::take_split_counted` (0x436833); those ask `physics::split_by_mode`
-//! (0x436B99) for the split's figure: mode 2 the car's place, mode 1
-//! `physics::rank_split_time` (0x436C4F, against the 90 rival times of
-//! `physics::fill_rival_table`, 0x436BD6), mode 3 `physics::compare_split_times` (0x436E11,
-//! against ten times kept per split). This file: the shared names and the test.
+//! The race's split times and timers under `physics::car_physics_step`: `physics::race_timers` by
+//! the race mode (`run_kind`) runs the start's counters and, at each new checkpoint split,
+//! `physics::take_split` or for mode 2 `physics::take_split_counted`; those ask
+//! `physics::split_by_mode` for the split's figure: mode 2 the car's place, mode 1
+//! `physics::rank_split_time` (against the 90 rival times of `physics::fill_rival_table`), mode 3
+//! `physics::compare_split_times` (against ten times kept per split). This file holds the shared
+//! names and the test.
 
 use crate::physics::car_store::Car;
 
-/// Split `split`'s time into the car. The splits run to 0x3F (`split_due` refuses a later
-/// one), past the sixteen figures of `split_times`: the original writes them into the car's next
-/// fields, named here in the car's order (a split past the 64 is refused).
+/// Split `split`'s time into the car. The splits run to 0x3F (`split_due` refuses a later one),
+/// past the sixteen figures of `split_times`: they go into the car's next fields, named here in the
+/// car's order (a split past the 64 is refused).
 pub fn put_split_time(car: &Car, split: usize, v: u32) -> Result<(), crate::errors::BadInput> {
     if let Some(time) = car.split_times.get(split) {
         time.set(v);
@@ -67,7 +66,7 @@ pub fn put_split_time(car: &Car, split: usize, v: u32) -> Result<(), crate::erro
 mod tests {
     use super::*;
 
-    /// Each split to the last one the game takes writes the dword the byte-offset write did.
+    /// Each split to the last one takes writes the dword the old byte-offset write did.
     #[test]
     fn split_times_run_on_as_the_old_write() {
         let (new, old) = (Car::new(), Car::new());

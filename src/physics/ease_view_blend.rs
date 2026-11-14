@@ -1,8 +1,7 @@
-//! `physics::ease_view_blend` (0x4385EB): with the mode's record's blend (+0x58) and
-//! change time (+0x3C) not 0: the share done (`physics/camera_view.rs`; 1 less it for a
-//! blend below 0) between `view_shift_a` and `view_shift_b` into `camera_zoom`, and between
-//! `view_shift_c` and `view_shift_d`, x `k65536`, negated, `fistp`ed into
-//! `camera_offset_z`.
+//! With the mode record's blend and change time not 0: the share done
+//! (`physics/camera_view.rs`; 1 less it for a blend below 0) between `view_shift_a` and
+//! `view_shift_b` goes into `camera_zoom`, and between `view_shift_c` and `view_shift_d`, times
+//! `k65536`, negated and rounded, into `camera_offset_z`.
 //!
 //! Caller: `physics::update_camera`.
 
@@ -30,7 +29,7 @@ pub fn ease_view_blend(
     Ok(())
 }
 
-// ---- the arithmetic that was x87 assembly ----
+// ---- the x87 arithmetic ----
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
@@ -45,7 +44,8 @@ fn x87_1(shared: &RaceShared) {
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[camera_zoom] = (([view_shift_b] - [view_shift_a]) * [view_share]) + [view_shift_a]`
-/// `int [camera_offset_z] = -(((([view_shift_d] - [view_shift_c]) * [view_share]) + [view_shift_c]) * [k65536])`
+/// `int [camera_offset_z] = -(((([view_shift_d] - [view_shift_c]) * [view_share]) + [view_shift_c])
+///  * [k65536])`
 fn x87_2(c: &CameraInputs<'_>) {
     let t0 = c.camera.view_shift_b.ld();
     let t1 = c.camera.view_shift_a.ld();

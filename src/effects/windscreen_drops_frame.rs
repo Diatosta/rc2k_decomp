@@ -1,16 +1,14 @@
-//! `effects::windscreen_drops_frame` (0x4BC0B1, in two pieces): the windscreen drops' frame.
-//! With the drift on `effects::windscreen_drops_drift`; `effects::windscreen_drops_setup`;
-//! then each live item (counted): with the drift on, its motion eased toward the drift at its
-//! cell and its place moved; it dies off the map (x or z past 0x7FF, as `(x | z << 1) & 0x800`)
-//! or on the edge mask; else its sprite: the place turned, unless the depth is below 4096.0
-//! the six corners (its kind's offsets) projected into the vertex ring (0xC0 bytes each; the
-//! ring wraps back to its start, and the batch is drawn by `d3d::draw_marks_windscreen_drops`,
-//! the platform's). Then, with fewer live than the settings' +0x273C and the drift on,
-//! `effects::windscreen_drops_spawn`.//!
+//! `effects::windscreen_drops_frame`: the windscreen drops' frame: the drift and set-up first, then
+//! each live item (with the drift on, its motion eased toward the drift at its cell and its place
+//! moved). An item dies off the map (x or z past 0x7FF) or on the edge mask; else its place is
+//! turned and its six corners projected into the vertex ring (0xC0 bytes each; the ring wraps back
+//! to its start, and the batch is drawn by `d3d::draw_marks_windscreen_drops`, the platform's).
+//! Then, with fewer live than the settings' +0x273C and the drift on, new drops are spawned.
+//!
 //! Works on the effects settings.
 //!
-//! The float steps run on the x87 model (`math::x87_float`), in the original's order and
-//! rounding. Refuses, before anything, null settings and a live item of a kind past 7.
+//! The float steps run on the x87 model (`math::x87_float`), rounding as the control word says.
+//! Refuses, before anything, null settings and a live item of a kind past 7.
 
 use crate::effects::cell_x87::CellX87;
 use crate::effects::mask_store::Masks;
@@ -19,7 +17,7 @@ use crate::effects::windscreen_drops::{ITEM_LEN, ITEMS};
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::race::owner_frame::Frame;
-/// `unk_628A44`, past the 0x40 records of 0xC0 bytes.
+/// The vertex batch's bytes, past the 0x40 records of 0xC0 bytes.
 const BUFFER_BYTES: usize = 0x3000;
 const KINDS: u32 = 8;
 
@@ -40,27 +38,32 @@ fn put(drops: &WindscreenDrops, e: u32, v: u32) {
     drops.hex.items.set_u32(e as usize, v);
 }
 
-/// The original's 0x4BC107 .. 0x4BC12E: the drift at the item's cell (`g_marksWindscreenDropCurve`[k]) into `WindscreenDropWork.drift[0]`, `WindscreenDropWork.drift[1]`.
+/// The drift at the item's cell (the drift curve at k) into `WindscreenDropWork.drift[0]`,
+/// `WindscreenDropWork.drift[1]`.
 fn drift_cell(drops: &WindscreenDrops, k: u32) {
     drift_cell_x87(drops, k as usize);
 }
 
-/// The original's 0x4BC131 .. 0x4BC17B: the item's motion (+0x1C, +0x20) eased toward the drift times its kind's `WindscreenDropWork.radii[0]`[k] by `WindscreenDropVars.ease`, its place moved by it.
+/// The item's motion (+0x1C, +0x20) eased toward the drift times its kind's
+/// `WindscreenDropWork.radii[0]`[k] by `WindscreenDropVars.ease`, its place moved by it.
 fn drift_move(drops: &WindscreenDrops, k: u32, s: u32) {
     drift_move_x87(drops, k as usize, s as usize);
 }
 
-/// The original's 0x4BC1DD .. 0x4BC1EF and 0x4BB94D .. 0x4BB9BE: the cell place scaled and turned into `WindscreenDropWork.cell[0]` .., the depth also in `WindscreenDropState.depth`.
+/// The cell place scaled and turned into `WindscreenDropWork.cell[0]` .., the depth also in
+/// `WindscreenDropState.depth`.
 fn sprite_depth(drops: &WindscreenDrops) {
     sprite_depth_x87(drops);
 }
 
-/// The original's 0x4BB9CE .. 0x4BBB1E: the six corners (the kind's offsets at `WindscreenDropWork.scaled[0]`[c] ..) into `WindscreenDropWork.corners[0]` .., the depth's inverse (left on the x87 stack, so returned).
+/// The six corners (the kind's offsets at `WindscreenDropWork.scaled[0]`[c] ..) into
+/// `WindscreenDropWork.corners[0]` .., the depth's inverse (left on the x87 stack, so returned).
 fn sprite_corners(drops: &WindscreenDrops, c: u32) -> bh::X {
     sprite_corners_x87(drops, c as usize)
 }
 
-/// The original's 0x4BBB24 .. 0x4BBE28: the centre and corners projected into the buffer at e (six vertices), drawn in by `WindscreenDropVars.scale[2]` / `E`, their depth.
+/// The centre and corners projected into the buffer at e (six vertices), drawn in by
+/// `WindscreenDropVars.scale[2]` / `E`, their depth.
 fn sprite_project(
     drops: &WindscreenDrops,
     gfx: &crate::gfx::owner::Gfx,
@@ -204,7 +207,7 @@ fn ld_record(offset: usize, gfx: &crate::gfx::owner::Gfx) -> bh::X {
 }
 
 /// `sprite_depth`: the item's whole-number place turned by the view into `cell` (and the
-/// depth, which is `cell[2]` too). Same order and rounding as the original's x87 block.
+/// depth, which is `cell[2]` too). Same order and rounding as the x87.
 fn sprite_depth_x87(drops: &WindscreenDrops) {
     let work = &drops.work;
     let x = bh::int(work.whole[0].get() as i32);
@@ -212,7 +215,7 @@ fn sprite_depth_x87(drops: &WindscreenDrops) {
     let z = z * work.shares[1].ld();
     let x = x * work.shares[0].ld();
     // Output i: x times the first axes row, z times the second, plus the view's place. The
-    // last one adds the products the other way round (the original's order) and is also
+    // last one adds the products the other way round and is also
     // the depth.
     for i in 0..3 {
         let from_x = x * work.axes[i].ld();
@@ -254,7 +257,7 @@ fn sprite_corners_x87(drops: &WindscreenDrops, c: usize) -> bh::X {
 
 /// `sprite_project`: the centre and the six corners projected to the screen into the six
 /// vertices at `e` of the batch's records (0x20 bytes each; the depth at +8), `inverse_depth`
-/// being `view_scale / depth`. Same order and rounding as the original's x87 block.
+/// being `view_scale / depth`. Same order and rounding as the x87.
 fn sprite_project_x87(
     drops: &WindscreenDrops,
     gfx: &crate::gfx::owner::Gfx,
@@ -339,7 +342,7 @@ mod reference_vectors {
     }
 
     /// The test buffer's `len` bytes at `at` run through `f` as `bytes` (a stand-in for the
-    /// item or record the original found by address): `bytes` holds them from offset 0 and
+    /// item or record found by address): `bytes` holds them from offset 0 and
     /// what `f` leaves goes back to the buffer, the stand-in as it was.
     fn staged<R>(
         at: crate::effects::asm_test::Operand,
@@ -351,15 +354,15 @@ mod reference_vectors {
         let host = (at + from).at(0, len);
         let saved: Vec<u8> = (from..from + len).map(|i| bytes.get_byte(i)).collect();
         for i in 0..len {
-            // SAFETY: byte `i < len` of the `len` that `at` checked lie in the operand's test buffer,
-            // which the recorded run keeps alive and nothing else reaches meanwhile.
+            // SAFETY: byte `i < len` of the `len` that `at` checked lie in the operand's test
+            // buffer, which the recorded run keeps alive and nothing else reaches meanwhile.
             let b = unsafe { host.add(i).read() };
             bytes.write_bytes_at(from + i, &[b], "a test byte").unwrap();
         }
         let out = f();
         for (i, &b) in saved.iter().enumerate() {
-            // SAFETY: byte `i < len` of the `len` that `at` checked lie in the operand's test buffer,
-            // which the recorded run keeps alive and nothing else reaches meanwhile.
+            // SAFETY: byte `i < len` of the `len` that `at` checked lie in the operand's test
+            // buffer, which the recorded run keeps alive and nothing else reaches meanwhile.
             unsafe { host.add(i).write(bytes.get_byte(from + i)) };
             bytes.write_bytes_at(from + i, &[b], "a test byte").unwrap();
         }

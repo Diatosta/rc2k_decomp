@@ -1,20 +1,15 @@
-//! `scene::reflect_vector` (0x451A9D): a direction mirrored at a surface and turned by
-//! a matrix.
+//! `scene::reflect_vector`: a direction mirrored at a surface and turned by a matrix. Returns
+//! the matrix `SceneMatrices.view_back_matrix`.
 //!
-//! Returns: the matrix `SceneMatrices.view_back_matrix[0]`
-//!
-//! v = the three floats at `SceneMatrices.reflect_vector[0]`, n = the three at `SceneMatrices.reflect_normal[0]`:
-//! d = v . n (the first and second products added first, then the third); v = v * d, each rounded to a
-//! float; v = v + v - n; then v through the matrix `SceneMatrices.view_back_matrix[0]`
-//! (`scene::rotate_point`, inlined) and back to its place. d stays unrounded between its uses. The original's store of d to `g_scratch` (nothing read it)
-//! is not kept.
-//! Plain Rust (the x87's arithmetic in `X`, `math/x87_float.rs`); the
-//! original's instructions' results are recorded vectors in the tests (`data/vectors`).
-//! One caller, `scene::reflection_coordinates` (the reflection's texture coordinates).
+//! v = the three floats at `SceneMatrices.reflect_vector`, n = the three at
+//! `SceneMatrices.reflect_normal`: d = v . n (the first and second products added first, then
+//! the third); v = v * d, each rounded to a float; v = v + v - n; then v through the matrix
+//! `SceneMatrices.view_back_matrix` (`scene::rotate_point`, inlined) and back to its place. d
+//! stays unrounded between its uses. Plain Rust (the x87's arithmetic in `X`,
+//! `math/x87_float.rs`); the tests compare against recorded vectors (`data/vectors`). One
+//! caller, `scene::reflection_coordinates` (the reflection's texture coordinates).
 use crate::math::x87_float::{Rounds, at_rounding};
 use crate::scene::x87_mem::{Base, cells, fld_with, fstp_with};
-
-// ---- Rust version ----
 
 pub fn reflect_vector(
     m: &crate::scene::view_matrices::ViewMatrices,

@@ -1,21 +1,13 @@
-//! `effects::run_ribbons` (0x4CB71A, in two pieces): the effects' ring walked for its streaks
-//! (kind 0x12) when the settings' +0x60 is set: each entry of the ring's count from its cursor
-//! along +4; a streak's life (+0x84) less the frame's ticks (dies when that borrows, or when
-//! its y is below its ground +0x28); a new one (x 0: no place yet) has its place turned by the
-//! view into its last (+0x1C ..) and is moved once; then moved (the motion's y gains a
-//! constant a tick), its last place and its place turned kept in the draw work (the place kept
-//! as the last when the settings' +0xC is set or +0x10 is 1); the first vertex's specular
-//! `scene::fog_at` of the last depth's bits; `effects::draw_ribbon` (cell 0x20, width 0x800,
-//! the alpha the colour's index, the colour from the streak colours by the life times +0x78,
-//! or from the second ramp when the effects' kind switch is set). A dead entry is moved to
-//! just before the cursor (or that moved on past it).
+//! `effects::run_ribbons`: the effects' ring walked for its streaks (kind 0x12) when the settings'
+//! +0x60 is set. Each streak's life runs down by the frame's ticks (dead when it borrows or its y
+//! is below its ground); a new one has its place turned by the view into its last place and is
+//! moved once, then moved each frame (the motion's y gains a constant a tick). Each is drawn by
+//! `effects::draw_ribbon` with a colour from the streak colours (or the second ramp when the
+//! effects' kind switch is set). A dead entry is moved to just before the cursor.
 //!
-//! In:  nothing (the effects settings)
-//!
-//! Caller: `effects::run_frame` (after `effects::run_ring`). The x87 blocks are plain
-//! Rust on the x87 model
-//! (`math::x87_float`), in the original's order, over the entries and the game's variables; the fog likewise. Refuses, before anything (the walk simulated), null settings, a null entry or
-//! link on the way, and a colour index out of its table.
+//! The x87 blocks are plain Rust on the x87 model (`math::x87_float`), over the entries and the
+//! game's variables; the fog likewise. Refuses, before anything (the walk simulated), null
+//! settings, a null entry or link on the way, and a colour index out of its table.
 
 use crate::effects::cell_x87::CellX87;
 use crate::effects::mask_store::Masks;
@@ -28,10 +20,10 @@ use crate::scene::fog_at::fog_at;
 
 const STREAK: u32 = 0x12;
 
-/// The colour table used while `MARKS_KIND_FLOATS.other` is 0: 257 colours (past `SURFACE`'s
-/// 128: the table `SURFACE.colours` is the one in use while it is not).
+/// The colour table used while the kind floats' `other` is 0: 257 colours (the surface's own
+/// 128 colours are the ones in use while it is not).
 pub struct Colours257 {
-    /// 0x939DB2 .. 0x93A1B6: the 257 colours
+    /// The 257 colours
     pub colours: [u32; 257],
 }
 
@@ -56,7 +48,7 @@ impl Colours257 {
     }
 }
 
-/// The original's 0x4CF890 .. 0x4CF94D: a new streak's place turned into its last (+0x1C ..), and a first move.
+/// A new streak's place turned into its last (+0x1C ..), and a first move.
 fn first_frame(
     view_matrix: &[crate::session::PlainFloat; 16],
     ring: &Ring,
@@ -72,12 +64,12 @@ fn first_frame(
     );
 }
 
-/// The original's 0x4CF94D .. 0x4CF98C: the place moved by the motion, the motion's y by `flt_93A572`.
+/// The place moved by the motion, the motion's y by a constant.
 fn move_(ring: &Ring, e: u32, effects: &crate::effects::owner::Effects) {
     move_x87(ring, e, &effects.setup.clock, ring.kinds.ribbon_b);
 }
 
-/// The original's 0x4CF9A6 .. 0x4CFA2D: the place turned by the view into `DrawWork.turned[0]` ...
+/// The place turned by the view into `DrawWork.turned[0]` ...
 fn turn_place(
     view_matrix: &[crate::session::PlainFloat; 16],
     ring: &Ring,
@@ -87,8 +79,8 @@ fn turn_place(
     turn_place_x87(view_matrix, ring, e, &effects.frame.draw_work);
 }
 
-/// The size of the colour table in use: 128 colours (`SURFACE.colours`) while
-/// `MARKS_KIND_FLOATS.other` is not 0, else the 257 at 0x939DB2.
+/// The size of the colour table in use: 128 colours (the surface's) while the kind floats'
+/// `other` is not 0, else 257.
 fn colour_count(effects: &crate::effects::owner::Effects) -> i32 {
     if effects.setup.kind_floats.other.get() != 0 {
         128
@@ -111,7 +103,7 @@ fn colour_at(
     }
 }
 
-/// Why it refuses, if it does: the walk as the original makes it, nothing written.
+/// Why it refuses, if it does: the walk worked out first, nothing written.
 fn refusal(
     ring: &Ring,
     effects: &crate::effects::owner::Effects,
@@ -276,7 +268,7 @@ fn view_turned(view_matrix: &[crate::session::PlainFloat; 16], ring: &Ring, e: u
     [t11, t20, t29]
 }
 
-/// `first_frame`'s x87 block as plain Rust on the x87 model (52 instructions), same order and memory places.
+/// `first_frame`'s arithmetic as plain Rust on the x87 model, in the same order.
 fn first_frame_x87(
     view_matrix: &[crate::session::PlainFloat; 16],
     ring: &Ring,
@@ -292,7 +284,8 @@ fn first_frame_x87(
 }
 
 /// `move_`'s x87 block as plain Rust on the x87 model (16 instructions), same order and memory
-/// places: the place gains the motion times the ticks, then the motion's y gains `y_gain` times the ticks.
+/// places: the place gains the motion times the ticks, then the motion's y gains `y_gain` times the
+/// ticks.
 fn move_x87(ring: &Ring, e: u32, c: &MarksClock, y_gain: f32) {
     let ticks = int(c.frame_ticks.get() as i32);
     for axis in 0..3 {
@@ -311,7 +304,7 @@ fn move_x87(ring: &Ring, e: u32, c: &MarksClock, y_gain: f32) {
     );
 }
 
-/// `turn_place`'s x87 block as plain Rust on the x87 model (36 instructions), same order and memory places.
+/// `turn_place`'s arithmetic as plain Rust on the x87 model, in the same order.
 fn turn_place_x87(
     view_matrix: &[crate::session::PlainFloat; 16],
     ring: &Ring,
@@ -331,7 +324,8 @@ mod old {
     use super::*;
     use crate::effects::ring_entries::{ld, st};
     use crate::math::x87_float::int;
-    /// The previous version of `first_frame`'s x87 block as plain Rust on the x87 model (52 instructions), same order and memory places.
+    /// The previous version of `first_frame`'s arithmetic as plain Rust on the x87 model, in the
+    /// same order.
     pub(super) fn first_frame_x87(
         view_matrix: &[crate::session::PlainFloat; 16],
         ring: &Ring,
@@ -390,7 +384,8 @@ mod old {
         st(ring, e, t41, |en| &mut en.motion[1]);
     }
 
-    /// The previous version of `move_`'s x87 block as plain Rust on the x87 model (16 instructions), same order and memory places.
+    /// The previous version of `move_`'s arithmetic as plain Rust on the x87 model, in the same
+    /// order.
     pub(super) fn move_x87(ring: &Ring, e: u32, c: &MarksClock, ribbon_b: f32) {
         let t0 = ld(ring, e, |en| en.motion[0]);
         let t1 = t0 * int(c.frame_ticks.get() as i32);
@@ -410,7 +405,8 @@ mod old {
         st(ring, e, t11, |en| &mut en.motion[1]);
     }
 
-    /// The previous version of `turn_place`'s x87 block as plain Rust on the x87 model (36 instructions), same order and memory places.
+    /// The previous version of `turn_place`'s arithmetic as plain Rust on the x87 model, in the
+    /// same order.
     pub(super) fn turn_place_x87(
         view_matrix: &[crate::session::PlainFloat; 16],
         ring: &Ring,

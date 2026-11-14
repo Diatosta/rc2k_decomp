@@ -23,11 +23,11 @@ const WORDS: [&std::ffi::CStr; 14] = [
     c"%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%",
 ];
 
-/// Where `copy_rally_times` takes its ten records from: the rally's times (by
-/// `Event.stage_group`'s table `off_735512`, the rally `Event.stage_sub`, the stage
-/// `Event.stage_number` x 0xA4, its +0x3C the stage in `g_stageBestTimesAlt` when
-/// `Event.stage_group` is 1, else in `ChampView.time_trial_best_times`). None for a null pointer, or a table or
-/// the summary they go to (`saves::best_times::SUMMARY`) not taken.
+/// Where `copy_rally_times` takes its ten records from: the rally's times (by `Event.stage_group`'s
+/// table, the rally `Event.stage_sub`, the stage `Event.stage_number` x 0xA4, its dword at +0x3C
+/// the stage in `stage_best_times_alt` when `Event.stage_group` is 1, else in
+/// `ChampView.time_trial_best_times`). None when a table or the summary they go to
+/// (`saves::best_times::SUMMARY`) is not taken.
 pub fn rally_times_places(
     system: &crate::system::owner::System,
     menus: &crate::menu::owner::Menus,
@@ -58,12 +58,11 @@ pub fn rally_times_places(
     }
 }
 
-/// `race::copy_rally_times` (0x48C997): the stage's ten best times into the summary's first ten
-/// rows (`saves::best_times::SUMMARY`): the time, nationality, car and name id from the key,
-/// nationality, car and name id, and the sixteen checkpoints; each logged (the count, "GB_Timed",
-/// the sixteen "CTs", "GB_Shaun", the name, the sixteen again, rules). Refuses, before anything, a
-/// null pointer on the way (the original reads through it) and a stage past its table. The logs
-/// read only their text or number.
+/// Copies the stage's ten best times into the summary's first ten rows
+/// (`saves::best_times::SUMMARY`): the time, nationality, car and name id from the key,
+/// nationality, car and name id, and the sixteen checkpoints; each is logged (the count,
+/// "GB_Timed", the sixteen "CTs", "GB_Shaun", the name, the sixteen again, rules). Refuses, before
+/// anything, a missing table on the way and a stage past its table.
 pub fn copy_rally_times(
     system: &crate::system::owner::System,
     menus: &crate::menu::owner::Menus,
@@ -88,11 +87,11 @@ pub fn copy_rally_times(
     let summary = &crate::saves::best_times::SUMMARY;
     for (row, (esi, ecx)) in ten.iter().zip((1..=10u32).rev()).enumerate() {
         let from = |off: u32| u32::from_le_bytes(esi[off as usize..][..4].try_into().unwrap());
-        // Converted: `rc2k_core::race::results::race_time`.
+        // Logic in `rc2k_core::race::results::race_time`.
         let time = rc2k_core::race::results::race_time(from);
         let rival = Rival::from_dwords(time);
-        // The row's text as the log reads it: from its start to a NUL, on into the rows
-        // after (and the block's zeros past the summary).
+        // The row's text as the log shows it: from its start to a NUL, on into the rows after (and
+        // the block's zeros past the summary).
         let row_text = summary.with(|t| {
             t.rows[row] = rival;
             let bytes = rc2k_core::saves::tables::FileTable::write(t);
@@ -114,7 +113,7 @@ pub fn copy_rally_times(
         text(word(7), true);
         text(word(8), false);
         int(rival.time, false);
-        // The record's text: its bytes from its start, read as the original's log reads.
+        // The record's text: its bytes from its start, as logged.
         text(&row_text, true);
         text(word(9), false);
         for k in 0..16u32 {

@@ -1,32 +1,28 @@
-//! `race::draw_race_scene` (0x45429B): the race frame's drawing, between the scene's begin
-//! and end (`drive::race_frame` part 3). In turn:
-//! - the cars shown chosen (`drive::choose_shown_cars`), 0x20 dwords of `view_cleared` 0; the
-//!   two view blocks' option bits (+0x220) into `hud_flags` and the next dword (each 0 while
-//!   its `view_on` flag is 0); the batches' counts, `whole_polygon_count` and the next,
-//!   `g_carsDrawn` and `g_carsCulled` 0; bit 1 of `refresh_flags_a` into `marks_mask`, bit 0 of
-//!   `refresh_flags_b` into `lamps_mask`, bit 6 of the first view's flags into `flat`;
-//!   `mirror_wanted` the first view block's flag (+0x6F0) when `blit_cleared` is not 0, else 0;
-//!   `d3d_drawing_on` 1;
-//! - the sound tick 0xA, `g_shine` from `shine_from`; the filters and five render states (0x15 =
-//!   4, 0x1C = 1, 0x13 = 5, 0x14 = 6, 0x1B = 1) set with the caller's registers saved;
-//! - the sound tick 0xB, `frames_drawn` one more, the clock restarted into `clock_base`, the full
-//!   view's window, the cars' parts readied, the maps scrolled; `texture_changes` 0, the views'
-//!   textures forgotten, the mud's frame; `kind_textures_done` 0, the kinds' textures assigned,
-//!   the two textures of the panel's `lights` entries (unless -1) wanted in kind 0xDC's first
-//!   slot and the next; the places mapped, the slots' textures loaded; the sound tick 0xC; the
-//!   panel set up unless `no_place`;
-//! - the views: one (`views` 1: car A's, the scene, ticks 0xD and 0xE around
-//!   `d3d::copy_screen_to_texture`, the overlays, tick 0xF, the mirror if the view's flags have bit
-//!   3), or two halves (`split` 1 side by side, else one above the other), each with its window
-//!   (`view_size`, `view_zoom`, `scene::set_view_window`), its car, the scene, tick 0xD, the
-//!   overlays, tick 0xF and its mirror;
-//! - the first car loaded, both batches flushed, the sound spots found and shared, the parts'
-//!   sounds woken, the sound tick 0x10, render states 0x11 and 0x12 = 2; the HUD's pass unless
-//!   `in_credits` or `no_place`; the sound tick 0x11, the skidmarks laid, the name plates; the
-//!   tyre change screen unless `replay_mode` is 2.
+//! Draws the race frame, between the scene's begin and end. In turn: the cars shown are chosen
+//! (`drive::choose_shown_cars`), `view_cleared` cleared and the two view blocks' option bits
+//! (+0x220) copied into `hud_flags` and the next dword (each 0 while its `view_on` flag is 0); the
+//! batches' counts, `whole_polygon_count` and the next, `cars_drawn` and `cars_culled` are set to
+//! 0; bit 1 of `refresh_flags_a` goes into `marks_mask`, bit 0 of `refresh_flags_b` into
+//! `lamps_mask`, bit 6 of the first view's flags into `flat`; `mirror_wanted` is the first view
+//! block's flag (+0x6F0) when `blit_cleared` is not 0, else 0; `d3d_drawing_on` is 1. Then the
+//! sound tick 0xA, `shine` from `shine_from`, the filters and five render states (0x15 = 4, 0x1C =
+//! 1, 0x13 = 5, 0x14 = 6, 0x1B = 1). Then the sound tick 0xB, one more `frames_drawn`, the clock
+//! restarted into `clock_base`, the full view's window, the cars' parts readied, the maps
+//! scrolled; `texture_changes` 0, the views' textures forgotten, the mud's frame; the kinds'
+//! textures assigned (`kind_textures_done` 0), the two textures of the panel's `lights` entries
+//! (unless -1) wanted in kind 0xDC's first slot and the next; the places mapped, the slots'
+//! textures loaded; the sound tick 0xC; the panel set up unless `no_place`. Then the views: one
+//! (`views` 1: car A's, the scene, ticks 0xD and 0xE around `d3d::copy_screen_to_texture`, the
+//! overlays, tick 0xF, the mirror if the view's flags have bit 3), or two halves (`split` 1 side
+//! by side, else one above the other), each with its window (`view_size`, `view_zoom`,
+//! `scene::set_view_window`), its car, the scene, tick 0xD, the overlays, tick 0xF and its mirror.
+//! Last: the first car loaded, both batches flushed, the sound spots found and shared, the parts'
+//! sounds woken, the sound tick 0x10, render states 0x11 and 0x12 = 2; the HUD's pass unless
+//! `in_credits` or `no_place`; the sound tick 0x11, the skidmarks laid, the name plates; the tyre
+//! change screen unless `replay_mode` is 2.
 //!
-//! Refuses (before anything) a null view block, and a wanted texture's slot past
-//! `g_slotWantedTextures`' 0x400; then what its steps refuse.
+//! Refused (before anything): a null view block, and a wanted texture's slot past
+//! the 0x400 slots; then what its steps refuse.
 
 use crate::errors::{BadInput, Refused};
 use crate::race::owner::Race;
@@ -73,7 +69,7 @@ fn mirrored(race: &Race, flags: usize) -> bool {
         || crate::race::draw_mirror_view::always()
 }
 
-/// View `car`'s car loaded into its own state (`race::load_car_a` / `_b`).
+/// View `car`'s car loaded into its own state (`frame::load_view_car`).
 fn load_car(o: Owners<'_>, car: usize) -> Result<(), Refused> {
     crate::race::frame::load_view_car(
         o.race.shared.work.get(),
@@ -84,8 +80,8 @@ fn load_car(o: Owners<'_>, car: usize) -> Result<(), Refused> {
     )
 }
 
-/// A view's value fetched (`race().frame.frame_work.view_out`, the drawn view's): into the
-/// polygon work of `view`, a player's scene's slot or its mirror's.
+/// A view's value fetched (`race().frame.frame_work.view_out`, the drawn view's): into the polygon
+/// work of `view`, a player's scene's slot or its mirror's.
 fn fetch_value(
     o: Owners<'_>,
     race_view: &crate::race::view_store::RaceView,
@@ -94,9 +90,9 @@ fn fetch_value(
     crate::race::frame_draw::fetch_view_value(race_view, &view.polygon.sun, view.drawn_view(o.race))
 }
 
-/// A player's scene on `run`'s view (its slot's state) and part, with the texture filter's
-/// switches it starts from (`filter_input`, taken before the parts), and what it leaves its
-/// overlays kept (`race::scene_hand_off`).
+/// A player's scene on `run`'s view (its slot's state) and part, with the texture filter's switches
+/// it starts from (`filter_input`, taken before the parts), and what it leaves its overlays kept
+/// (`race::scene_hand_off`).
 fn view_scene(
     o: Owners<'_>,
     run: crate::workers::PartRun<'_>,
@@ -115,11 +111,9 @@ fn view_scene(
     Ok(())
 }
 
-/// What follows view `car`'s scene: the platform's blit (`blit`, the full view only), the
-/// overlays; for the first view its sound spots, from its own camera and grid, and its turn
-/// for the race's placed sounds (not the original's: both came from what the last view drawn
-/// left, the mirror's when there was one; `notes/bugs.md`; the race's sounds are heard around
-/// the first car).
+/// What follows view `car`'s scene: the platform's blit (`blit`, the full view only), the overlays;
+/// for the first view its sound spots, from its own camera and grid, and its turn for the race's
+/// placed sounds.
 fn view_rest(
     o: Owners<'_>,
     gfx: &crate::gfx::owner::Gfx,
@@ -136,7 +130,7 @@ fn view_rest(
             .window
             .copy_from(&view.polygon.window);
     }
-    // Not the original's: the debug UI's probe points need this view.
+    // The debug UI's probe points need this view.
     if car == 0 {
         crate::debug::imgui_sdl::view_drawn(&o.race.frame);
     }
@@ -187,10 +181,9 @@ fn view_mirror(
     Ok(())
 }
 
-/// What view `car`'s scene (or with `mirror` its mirror) hands on, applied on the game's
-/// thread once it is drawn, in the views' order: its value into its block, and for the first
-/// player's scene the race's reverb (not the original's: every view drawn set it, the
-/// mirror's or the second player's last; `notes/bugs.md`).
+/// What view `car`'s scene (or with `mirror` its mirror) hands on, applied on the game's thread
+/// once it is drawn, in the views' order: its value into its block, and for the first player's
+/// scene the race's reverb.
 fn view_drawn(o: Owners<'_>, car: usize, mirror: bool) -> Result<(), Refused> {
     let view = if mirror {
         mirror_view(car)
@@ -203,7 +196,7 @@ fn view_drawn(o: Owners<'_>, car: usize, mirror: bool) -> Result<(), Refused> {
         crate::race::frame_draw::hand_on_view_matrices(o.race, &view.matrices);
     }
     // After a mirror that was drawn the front end's window (what the HUD, the effects and the
-    // loading bar draw in) is the full screen again, as the original's single window was.
+    // loading bar draw in) is the full screen again.
     if mirror && view.hand_off.mirror_drawn() {
         crate::race::frame_views::full_view_window(
             o.race,
@@ -219,9 +212,9 @@ fn view_drawn(o: Owners<'_>, car: usize, mirror: bool) -> Result<(), Refused> {
     Ok(())
 }
 
-/// One view drawn: `car` (0 or 1: `race::load_car_a` / `_b`), its value fetched, its scene,
-/// the sound tick (0xD), the platform's blit (the full view only), the tick (0xE, the full
-/// view only), the overlays, the tick (0xF), and with the view's flags' bit 3 its mirror.
+/// One view drawn: `car` (0 or 1: `frame::load_view_car`), its value fetched, its scene, the
+/// sound tick (0xD), the platform's blit (the full view only), the tick (0xE, the full view only),
+/// the overlays, the tick (0xF), and with the view's flags' bit 3 its mirror.
 fn draw_view(
     o: Owners<'_>,
     gfx: &crate::gfx::owner::Gfx,
@@ -234,8 +227,8 @@ fn draw_view(
     load_car(o, car)?;
     fetch_value(o, o.race.shared.view.get(), main_view(car))?;
     fetch_value(o, o.race.shared.view.get(), mirror_view(car))?;
-    // One after another on the game's thread: on its part's scratch, the stores read from
-    // their owners.
+    // One after another on the game's thread: on its part's scratch, the stores read from their
+    // owners.
     let part = crate::workers::game_scratch();
     let reads = || crate::workers::DrawReads::on_game_thread(o.lent());
     let run = |view: &'static ViewScratch| crate::workers::PartRun {
@@ -266,10 +259,10 @@ fn draw_view(
         }
         return view();
     }
-    // The mirror drawn beside its view's scene (`workers::draw_beside`,
-    // `workers::mirror_beside`), each on its own state (`race::view_scratch`), the view's
-    // overlays once both have ended (they crumple the cars' points, which the mirror reads),
-    // the mirror's changes to the stores they share put over theirs as when drawn after them.
+    // The mirror drawn beside its view's scene (`workers::draw_beside`, `workers::mirror_beside`),
+    // each on its own state (`race::view_scratch`), the view's overlays once both have ended (they
+    // crumple the cars' points, which the mirror reads), the mirror's changes to the stores they
+    // share put over theirs as when drawn after them.
     if crate::workers::mirror_beside() {
         // (The front end's filter switches are read before the parts, on the game's thread.)
         let filter = filter_input(car);
@@ -297,17 +290,15 @@ enum Piece {
     Mirror(usize),
 }
 
-/// The `players` players' views and their mirrors beside each other
-/// (`workers::draw_side_by_side`): the first player's scene on the game's thread, its mirror
-/// and every other player's scene and mirror each on a drawing thread, every part from the
-/// frame's state with its player's part of the screen set up (`player`). Then, once all have
-/// ended, in the order the views are drawn in, the parts' changes put back and each player's
-/// overlays drawn between its scene and its mirror, on its scene's window and what the scene
-/// left (`race::scene_hand_off`): no overlays while a scene draws (they crumple the cars'
-/// points). So every view's scene starts from the frame's
-/// state, not from what the views before it left (the wake counts, the cars' crumpling and the
-/// sun the overlays work out reach the other views a frame later than in the original),
-/// however many threads draw.
+/// The `players` players' views and their mirrors beside each other (`workers::draw_side_by_side`):
+/// the first player's scene on the game's thread, its mirror and every other player's scene and
+/// mirror each on a drawing thread, every part from the frame's state with its player's part of the
+/// screen set up (`player`). Then, once all have ended, in the order the views are drawn in, the
+/// parts' changes put back and each player's overlays drawn between its scene and its mirror, on
+/// its scene's window and what the scene left (`race::scene_hand_off`): no overlays while a scene
+/// draws (they crumple the cars' points). So every view's scene starts from the frame's state, not
+/// from what the views before it left (the wake counts, the cars' crumpling and the sun the
+/// overlays work out reach the other views a frame later, however many threads draw).
 fn draw_players_beside(
     o: Owners<'_>,
     gfx: &crate::gfx::owner::Gfx,
@@ -333,8 +324,8 @@ fn draw_players_beside(
             pieces.push(Piece::Mirror(p));
         }
     }
-    // The view slot each piece draws, and the filter switches each scene starts from (the
-    // front end's, read here on the game's thread, before the parts).
+    // The view slot each piece draws, and the filter switches each scene starts from (the front
+    // end's, read here on the game's thread, before the parts).
     let slots: Vec<usize> = pieces
         .iter()
         .map(|piece| match *piece {
@@ -442,7 +433,7 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
     ] {
         cell.set(0);
     }
-    // `g_carsDrawn`, now counted in each view's own state.
+    // `cars_drawn`, now counted in each view's own state.
     for slot in [main_view(0), main_view(1), mirror_view(0), mirror_view(1)] {
         slot.cars.cars_drawn.set(0);
     }
@@ -464,7 +455,7 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
         .panel
         .flat
         .set(race.frame.panel_and_overlay.get().panel.hud_flags[0].get() & 0x40);
-    race.frame.frame_work.get().mirror_wanted.set(false); // FrameWork.mirror_wanted
+    race.frame.frame_work.get().mirror_wanted.set(false);
     if race.course.stage_prefs.get().blit_cleared[0].get()
         | race.course.stage_prefs.get().blit_cleared[1].get()
         != 0
@@ -477,15 +468,13 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
         );
     }
     scene.objects.tables.get().d3d_drawing_on.set(1);
-    // The frame's one sound turn (`sound::race_turn`, when 20 ms of the scene clock have
-    // passed since the last): the original polled 28 places through the frame, but the clock
-    // moves only here before (`restart_clock` above and in `show_frame` after the present),
-    // so only this one ever found it due. It hears the previous frame's sound spots.
+    // The frame's one sound turn (`sound::race_turn`, when 20 ms of the scene clock have passed
+    // since the last): the clock moves only here (`restart_clock` above and in `show_frame` after
+    // the present), so it is due at most once a frame. It hears the previous frame's sound spots.
     let begun = crate::debug::timing::start();
     race_sound_tick(frame, o)?;
     crate::debug::timing::stop(crate::debug::timing::Stage::SoundTick, begun);
-    // `g_shine` from `shine_from`: each view's from it now (`race::draw_view_scene`).
-    // pusha; pushf .. popf; popa
+    // `shine` from `shine_from`: each view's from it now (`race::draw_view_scene`).
     crate::scene::set_filters::set_filters(race, part);
     for (value, state) in [(4, 0x15), (1, 0x1C), (5, 0x13), (6, 0x14), (1, 0x1B)] {
         set_render_state(part, value, state);
@@ -502,8 +491,8 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
             &race.shared,
             crate::system::tick_count::tick_count(),
         ));
-    // The window of the whole screen: the front end's (the loading bar, the HUD, the effects)
-    // and the views' (a view's own is set again before it is drawn).
+    // The window of the whole screen: the front end's (the loading bar, the HUD, the effects) and
+    // the views' (a view's own is set again before it is drawn).
     for window in [
         &crate::scene::polygon_work::front_end().window,
         &main_view(0).polygon.window,
@@ -511,8 +500,8 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
     ] {
         crate::race::frame_views::full_view_window(race, scene, system, window);
     }
-    // The level's draw distance and fog settings, once for the frame: the views and the
-    // mirrors only read them (the original set them again at each view's fog).
+    // The level's draw distance and fog settings, once for the frame: the views and the mirrors
+    // only read them.
     crate::race::frame_draw::draw_distance_settings(&race.course);
     crate::race::car_parts::ready_car_parts(race, scene)?;
     crate::race::map_scroll::scroll_maps(race, scene, o.net, o.gfx)?;
@@ -557,15 +546,13 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
         draw_view(owners, o.gfx, o.effects, &o.menus.play.cheats, 0, 0, true)?;
     } else {
         let side_by_side = race.shared.vars.get().split.get() == 1;
-        // A player's half of the screen.
-        // (The store's drawn view is set on the game thread only: the parts read their
-        // slot's, `ViewScratch::drawn_view`.)
-        // With `reads` (the drawing stores as the caller reads them) the view's window set;
-        // without, nothing.
+        // A player's half of the screen. (The store's drawn view is set on the game thread only:
+        // the parts read their slot's, `ViewScratch::drawn_view`.) With `reads` (the drawing stores
+        // as the caller reads them) the view's window set; without, nothing.
         let player =
             |view: u32, scratch: &ViewScratch, reads: Option<crate::workers::DrawReads<'_>>| {
-                // Only the view's own scene sets its window: its mirror and its overlays only
-                // read it.
+                // Only the view's own scene sets its window: its mirror and its overlays only read
+                // it.
                 let Some(reads) = reads else {
                     return;
                 };

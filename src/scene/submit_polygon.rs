@@ -1,17 +1,15 @@
-//! `scene::submit_polygon` (0x44CCC0): hands the polygon in the vertex buffer to
-//! Direct3D with its texture.
+//! `scene::submit_polygon`: hands the polygon in the vertex buffer to Direct3D with its texture.
 //!
-//! In:  nothing: the vertices are in the polygon vertex buffer, their number in the
-//!      polygon's vertex count, the texture's number in `polygon_texture`
-//! With `scene::draw_polygon_fan`, `scene::check_polygon_vertices`, `scene::set_texture` and
-//! `scene::clear_texture` inlined, each of which has this as its only caller on the way here.
+//! The vertices are in the polygon vertex buffer, their number in the polygon's vertex count,
+//! the texture's number in `polygon_texture`. With `scene::draw_fan`, the vertex check,
+//! `scene::set_texture` and `scene::clear_texture` inlined.
 //! The texture: 0xFFFFFC43 means none; a number of 0x400 or more counts as 0; one that is not
 //! the current texture is set first. Both go to Direct3D only if there is 3D (the draw switch
-//! is not 0: the device is drawing, set by `race::draw_race_scene`).
-//! The vertices: each must have x in 0 .. the screen's width, y in 0 .. its height
-//! and z in 0 .. 1 (compared on the x87; one that is not a number fails), else "Error"
-//! is logged, the buffer shown by `scene::show_bad_polygon` and nothing drawn. Then, with 3D, the
-//! fan; a result other than 0 is logged as "drawtri" and the number.
+//! is not 0: the device is drawing, set by `race::draw_race_scene`). The vertices: each must
+//! have x in 0 .. the screen's width, y in 0 .. its height and z in 0 .. 1 (compared on the
+//! x87; one that is not a number fails), else "Error" is logged, the buffer shown by
+//! `scene::show_bad_polygon` and nothing drawn. Then, with 3D, the fan; a result other than 0
+//! is logged as "drawtri" and the number.
 
 use crate::d3d::draw_fan_unclipped::polygon;
 use crate::d3d::vertices_store::PolygonVertices;
@@ -24,8 +22,6 @@ const TEXTURES: u32 = 0x400;
 
 const ERROR_TEXT: &std::ffi::CStr = c"Error"; // "Error"
 const DRAWTRI_TEXT: &std::ffi::CStr = c"drawtri"; // "drawtri"
-
-// ---- Rust version ----
 
 /// What the function asks of the code around it.
 pub trait Outside {

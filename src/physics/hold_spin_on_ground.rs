@@ -1,17 +1,15 @@
-//! `physics::hold_spin_on_ground` (0x43BAA4): with all four wheels down (the four dwords
-//! from `wheel_squeeze` not 0), the spin's x and z (`spin`, `Car.spin[2]`) held
-//! to -`ground_spin_limit` .. `ground_spin_limit` (by negating that limit in place, twice for each, so
-//! it comes back), and `ground_spin` = whether either now has the limit's size (C3: also
-//! when no number). A reading: no tumbling on the ground.
+//! With all four wheels down (the four `wheel_squeeze` dwords not 0), the spin's x and z are held
+//! to -`ground_spin_limit` .. `ground_spin_limit`, and `ground_spin` = whether either now has the
+//! limit's size (also when no number). A reading: no tumbling on the ground.
 //!
-//! Caller: `physics::car_physics_step` (0x43B986), every physics step.
+//! Caller: `physics::car_physics_step`, every physics step.
 
 use crate::physics::car_store::Car;
 use crate::physics::tables_store::PhysicsTables;
 use rc2k_core::physics::motion::hold_spin;
 
 /// Compares and copies of floats only: the same at any precision.
-// Converted: `rc2k_core::physics::motion::hold_spin`.
+// Core: `rc2k_core::physics::motion::hold_spin`.
 pub fn hold_spin_on_ground(car: &Car, tables: &PhysicsTables) {
     // Wheels down: all four squeeze words (integers in float cells, tested as words) are not 0.
     if car.wheel_squeeze.iter().any(|w| w.bits() == 0) {

@@ -1,22 +1,18 @@
-//! `effects::windscreen_drops_top` (0x4BAC87): the windscreen drops' frame from the settings:
-//! the vertex ring from its start (`buffer`); the ease and the rate; the place (the settings'
-//! +0x2720 ..) and two axes (+0x272C .. and +0x2708 .. less it), their lengths' shares
-//! (`shares`), made one long and square (`scene::normalise_vector3`,
-//! `scene::cross_product3`); nothing more unless the place's way faces the third axis away
-//! (a negative `facing` dot); the 0x30 windscreen drop points scaled into `scaled` and turned
-//! onto the axes; unless the rate is 0: `effects::windscreen_drops_frame`, the vertices left
-//! in the ring drawn (their count by `per_vertex`, `d3d::draw_marks_windscreen_drops`, the
-//! platform's), and with the settings' +0x2744 and the drift on
-//! `effects::windscreen_drops_step`; then `scene::set_texture` (the marks' texture) and the
-//! polygon's vertex count 4.
+//! `effects::windscreen_drops_top`: the windscreen drops' frame from the settings: the vertex ring
+//! from its start, the ease and the rate, the place (the settings' +0x2720 ..) and two axes made
+//! one long and square, then (only when the place's way faces away from the third axis) the 0x30
+//! windscreen drop points scaled and turned onto the axes. Unless the rate is 0, the drops' frame
+//! runs, the vertices left in the ring are drawn (`d3d::draw_marks_windscreen_drops`, the
+//! platform's), and with the settings' +0x2744 and the drift on the drops step. Finally the marks'
+//! texture and a polygon vertex count of 4 are set.
 //!
-//! Screen: the rain drops on the windscreen in the in-car view (confirmed: gone with `d3d::draw_marks_windscreen_drops` cut). Drawn as hexagons.
+//! Screen: the rain drops on the windscreen in the in-car view (confirmed: gone with
+//! `d3d::draw_marks_windscreen_drops` cut). Drawn as hexagons.
 //!
 //! Works on the effects settings.
 //!
-//! Caller: `effects::draw_overlays` The x87 runs are plain Rust on the x87 model
-//! (`math::x87_float`), in the original's order, over the game's variables; the vector helpers
-//! their Rust versions. Refuses null settings, before anything.
+//! The x87 runs are plain Rust on the x87 model (`math::x87_float`). Refuses null settings, before
+//! anything.
 
 use crate::effects::cell_x87::CellX87;
 use crate::effects::mask_store::Masks;
@@ -139,7 +135,7 @@ pub fn windscreen_drops_top(
     Ok(())
 }
 
-/// `frame_axes`'s x87 block as plain Rust on the x87 model (32 instructions), same order and memory places.
+/// `frame_axes`'s arithmetic as plain Rust on the x87 model, in the same order.
 fn frame_axes_x87(drops: &WindscreenDrops, m: &EffectsSettings, c: &MarksClock) {
     let t0 = ld_cell(&drops.hex.top_k[0]);
     let t1 = t0 * crate::math::x87_float::int(c.frame_ticks.get() as i32);
@@ -175,7 +171,7 @@ fn frame_axes_x87(drops: &WindscreenDrops, m: &EffectsSettings, c: &MarksClock) 
     drops.work.shares[0].st(t22);
 }
 
-/// `frame_up`'s x87 block as plain Rust on the x87 model (20 instructions), same order and memory places.
+/// `frame_up`'s arithmetic as plain Rust on the x87 model, in the same order.
 fn frame_up_x87(drops: &WindscreenDrops, m: &EffectsSettings) {
     let t0 = ldi_cell(&m.light_point_a_negated[0]);
     let t1 = t0 - ldi_cell(&m.light_point_b_negated[0]);
@@ -199,7 +195,7 @@ fn frame_up_x87(drops: &WindscreenDrops, m: &EffectsSettings) {
     drops.work.shares[1].st(t15);
 }
 
-/// `frame_place`'s x87 block as plain Rust on the x87 model (6 instructions), same order and memory places.
+/// `frame_place`'s arithmetic as plain Rust on the x87 model, in the same order.
 fn frame_place_x87(drops: &WindscreenDrops, m: &EffectsSettings) {
     let t0 = ldi_cell(&m.light_point_b_negated[0]);
     st_cell(&drops.hex.place[0], t0);
@@ -209,7 +205,7 @@ fn frame_place_x87(drops: &WindscreenDrops, m: &EffectsSettings) {
     st_cell(&drops.hex.place[2], t2);
 }
 
-/// `frame_facing`'s x87 block as plain Rust on the x87 model (9 instructions), same order and memory places.
+/// `frame_facing`'s arithmetic as plain Rust on the x87 model, in the same order.
 fn frame_facing_x87(drops: &WindscreenDrops) {
     let t0 = ld_cell(&drops.hex.place[0]);
     let t1 = t0 * drops.work.axes[6].ld();
@@ -222,7 +218,7 @@ fn frame_facing_x87(drops: &WindscreenDrops) {
     drops.state.facing.st(t7);
 }
 
-/// `point_turned`'s x87 block as plain Rust on the x87 model (19 instructions), same order and memory places.
+/// `point_turned`'s arithmetic as plain Rust on the x87 model, in the same order.
 fn point_turned_x87(drops: &WindscreenDrops, p: &[PlainFloat; 3]) {
     let t0 = ld_cell(&p[0]);
     let t1 = ld_cell(&p[1]);
@@ -480,8 +476,9 @@ mod reference_vectors {
                         // The point's three floats, as the buffer holds them at b[1].
                         let host = |n: usize| (b[1] + 4 * n).at(0, 4).cast::<u32>();
                         let p: [PlainFloat; 3] = std::array::from_fn(|n| {
-                            // SAFETY: `at` checks that the four bytes lie in the operand's test buffer, which the
-                            // recorded run keeps alive and nothing else reaches meanwhile; unaligned, any bits a `u32`.
+                            // SAFETY: `at` checks that the four bytes lie in the operand's test
+                            // buffer, which the recorded run keeps alive and nothing else reaches
+                            // meanwhile; unaligned, any bits a `u32`.
                             PlainFloat::from_bits(unsafe { host(n).read_unaligned() })
                         });
                         super::point_turned_x87(
@@ -489,8 +486,9 @@ mod reference_vectors {
                             &p,
                         );
                         for (n, cell) in p.iter().enumerate() {
-                            // SAFETY: `at` checks that the four bytes lie in the operand's test buffer, which the
-                            // recorded run keeps alive and nothing else reaches meanwhile; unaligned, any bits a `u32`.
+                            // SAFETY: `at` checks that the four bytes lie in the operand's test
+                            // buffer, which the recorded run keeps alive and nothing else reaches
+                            // meanwhile; unaligned, any bits a `u32`.
                             unsafe { host(n).write_unaligned(cell.bits()) };
                         }
                     },

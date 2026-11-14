@@ -1,16 +1,14 @@
-//! `scene::face_faces_away` (0x45205B): whether a face of an object is seen from behind.
-//!
-//! Takes: the face
+//! `scene::face_faces_away`: whether a face of an object is seen from behind.
 //!
 //! The polygon's vertex count = the face's number of vertices. Then, for the triangles of the
 //! face's first point with each two that follow one another: the three points' places in the
 //! view (their records 0x1000 + (number & 0xFFF), +0x10 .. +0x18) kept in the work area; the
 //! two sides from the first point; their cross product to the work vector; and the first
 //! point's place times that. A product above 0 (or no number) says this triangle faces away;
-//! the first one that does not ends it with 0. The x87's arithmetic in `X` (plain Rust; the original's instructions' results are recorded vectors in the tests (`data/vectors`)).
-//! A point's number below 0 is fatal error 0x80600314.
-//! One caller, `scene::list_object_face`, which turns the answer into the carry flag.
-//! Refuses when there is no face or no records.
+//! the first one that does not ends it with 0. The x87's arithmetic runs in `X` (plain Rust;
+//! the tests compare against recorded vectors in `data/vectors`). A point's number below 0 is
+//! fatal error 0x80600314. One caller, `scene::list_object_face`. Refuses when there is no
+//! face or no records.
 
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::math::x87_float::{Rounds, at_rounding};
@@ -22,12 +20,9 @@ const BAD_POINT: FatalError = FatalError {
     message: "illegal point num in object",
 };
 
-// ---- Rust version ----
-
-/// The work on one triangle, as the original leaves it: the three
-/// points' places, the sides from the first point to the second and to the third, their
-/// cross product, and the x87's condition bits after comparing 0 with the first point's place
-/// times that product.
+/// The work on one triangle: the three points' places, the sides from the first point to the
+/// second and to the third, their cross product, and the x87's condition bits after comparing
+/// 0 with the first point's place times that product.
 struct Triangle {
     /// The places (x, y, z of each point), then the sides by axis: x to the second point, x
     /// to the third, y to the second, ...
@@ -37,8 +32,8 @@ struct Triangle {
 }
 
 impl Triangle {
-    /// The x87's arithmetic in its order, each value stored as a float where the original
-    /// stores it (`fstp dword`) and read back from there.
+    /// The x87's arithmetic in its order, each value stored as a float where the x87 code
+    /// stores it and read back from there.
     fn of(places: [[u32; 3]; 3]) -> Triangle {
         at_rounding!(|r| Triangle::of_with(r, places))
     }
@@ -121,7 +116,7 @@ pub fn face_faces_away(
     let point = |n: u32| Ok::<u32, Refused>(points[n as usize]);
     let table = crate::scene::reading::PointRecords::new(ctx.reads.course_lists, ctx.part)?;
     for n in 2..count {
-        // The original looks at each triangle's numbers as it comes to it.
+        // Each triangle's numbers are looked at as it comes to it.
         let points = [point(0)?, point(n - 1)?, point(n)?];
         if points.iter().any(|&p| (p as i32) < 0) {
             return Err(BAD_POINT.into());

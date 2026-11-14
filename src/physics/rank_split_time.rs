@@ -1,17 +1,14 @@
-//! `physics::rank_split_time` (0x436C4F, race mode 1): the car's place among the 90
-//! rivals at this split. `physics::fill_rival_table`; the figures +0xA0C .. +0xA1C -1 and
-//! the two name fields (`label_behind` .., `label_ahead` ..) blanks; each rival's time
-//! scaled to the split: `rival_times`[c]` x (`SplitTables.checkpoints[1][split]` x 1000 /
-//! `checkpoints`[g_splitColourCount]`) / 1000 into `rival_scaled`[c]` (`mul` / `div`); the
-//! place (+0xA0C) one past the first not below the car's time (90 at most);
-//! `car_time` the time; but for first place the gap to the one ahead (x10) into
-//! +0xA10, its car +0xA18 and name id +0xA20, the name (`strings::append_string_by_id`
-//! into `text`) into `label_ahead` ..; but for last place the gap to the one behind into
-//! +0xA14, its car +0xA1C, name id +0xA24 and name into `label_behind` ...
+//! Race mode 1: the car's place among the 90 rivals at this split. `physics::fill_rival_table`; the
+//! place figures are -1 and the two name fields (`label_behind`, `label_ahead`) blanks; each
+//! rival's time is scaled to the split: `rival_times[c]` x (`SplitTables.checkpoints[1][split]` x
+//! 1000 / `checkpoints[split_colour_count]`) / 1000 into `rival_scaled[c]`; the place is one past
+//! the first not below the car's time (90 at most); `car_time` is the time; but for first place the
+//! gap to the one ahead (x10), its car and name id go to their fields and the name
+//! (`strings::append_string_by_id` into `text`) into `label_ahead`; but for last place the gap to
+//! the one behind, its car, name id and name into `label_behind`.
 //!
-//! Caller: `physics::split_by_mode`. Refuses a split or a split count past 0x40, a divisor
-//! of 0 or a quotient past a dword (the original's `div` would fault); what was written is
-//! put back.
+//! Caller: `physics::split_by_mode`. Refuses a split or a split count past 0x40, a divisor of 0 or
+//! a quotient past a dword; what was written is put back.
 use crate::errors::{BadInput, Refused};
 use crate::physics::fill_rival_table::fill_rival_table;
 use crate::physics::split_tables_store::SplitTables;
@@ -48,7 +45,7 @@ fn name(
     Ok(())
 }
 
-// Converted: `rc2k_core::physics::splits::{split_scale, scaled_time, rank, gap}`.
+// Core: `rc2k_core::physics::splits::{split_scale, scaled_time, rank, gap}`.
 pub fn rank_split_time(
     o: crate::owners::Owners<'static>,
     split_tables: &SplitTables,

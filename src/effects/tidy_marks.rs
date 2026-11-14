@@ -1,16 +1,12 @@
-//! `effects::tidy_marks` (0x4D146D): the effects' memory given back at a stage's unload. Its
-//! steps, each a call (the nullsubs left out): for each of the settings' +0x5C cars from the
-//! first, its list at +0x2E8 freed and its +0x328 made the taken cell, then `memory::free_list`
-//! of the ring list, the surface list, the two mask lists, the places list and the links list.
+//! `effects::tidy_marks`: the effects' memory given back at a stage's unload. Its steps: for each
+//! of the settings' +0x5C cars from the first, its list at +0x2E8 freed and its +0x328 made the
+//! taken cell, then `memory::free_list` of the ring list, the surface list, the two mask lists, the
+//! places list and the links list.
 //!
 //! Works on the effects settings.
 //!
-//! The cars' step tests `memory::free_list`'s carry, which is always clear (its last
-//! flag-setting instruction is a `test`), so its other path (a `push` left on the stack and
-//! a count of 0x1FFFFFFF: section 16) is never taken. Caller: the stage's unload. Refuses
-//! (before anything) null settings, a cars' count below 0 or above 8 (the original's loop runs
-//! until it meets the count), and a list that holds a block (`free_list`'s refusal; no block
-//! is put on a list any more).
+//! Refuses (before anything) null settings, a cars' count below 0 or above 8, and a list that holds
+//! a block (`free_list`'s refusal; no block is put on a list any more).
 
 use crate::effects::owner::Effects;
 use crate::errors::{BadInput, Refused};

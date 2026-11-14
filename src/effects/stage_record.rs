@@ -1,5 +1,5 @@
-//! `effects::stage_record` (0x4D2DE0): `effects::run_frame`'s pick of the record of
-//! `FrameWork.lead_kept[0]` among `ViewAndRecords.view_vars.view_records[0]`'s 0x34 (0x5C bytes each; by their count and
+//! `effects::stage_record`: `effects::run_frame`'s pick of the record of `FrameWork.lead_kept[0]`
+//! among `ViewAndRecords.view_vars.view_records[0]`'s 0x34 (0x5C bytes each; by their count and
 //! `race::draw_car`'s clamp to 0x33, the stages: a reading).
 //!
 //! One caller, `effects::run_frame`. Refuses a number past the table (unsigned).

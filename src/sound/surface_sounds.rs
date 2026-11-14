@@ -1,21 +1,21 @@
-//! `sound::surface_sounds` (0x40DE9B): a car's two sounds of what its wheels run on.
+//! `sound::surface_sounds`: a car's two sounds of what its wheels run on.
 //!
-//! Takes: the car's sound object, the request
-//! The four wheels are records of five dwords at +0x44, +0x58, +0x6C, +0x80 (+8 and +0xC
-//! floats, +0x10 the surface). From the floats at +8: `SurfaceSounds.across` (front less back,
-//! by the signs), `SurfaceSounds.along` (left less right), +0x284 = the sum of the four +0
-//! floats x 0.4 and +0x28C = the sum at +8 x 64 (`fistp`), `SurfaceSounds.volume` = the products'
-//! sum x 0.1: a reading. The wheel whose surface counts is the front or back pair by
-//! the sign bit of the first (negative: +0x44 / +0x6C), then the second of the pair when
-//! the other is negative; its surface goes to +0x294 and `dword_4F66F1`; on 7 and 8 the
-//! volume (`SurfaceSounds.volume`) x 0.25. The surface's sound set is `off_51639C[2 x
-//! StageSounds.surface_sets[0][surface]]`, and `sound::surface_sound` (with the set and
-//! the other wheel of the pair). Then the same from the floats at +0xC (+0x290 = their sum x 64, the volume
-//! their sum x 0.1, the surface into `dword_4F66F5`, x 0.1 on 7 and 8) with the sets
-//! of `off_5163A0`. The x87 code is plain Rust over `X` (`math/x87_float.rs`; the original's instructions
-//! are recorded in the tests' `reference_vectors`; `Machine.scratch` is the scratch dword for the constants). One caller, `sound::car_sounds`.
-//! Refuses a null object, a surface past the 16 of `StageSounds.surface_sets[0]` and a set
-//! past the seven pairs: what was written is put back (a sound already sent stays).
+//! Takes the car's sound object and the request. The four wheels are records of five dwords (two
+//! floats, then the surface). From the second float of each: `SurfaceSounds.across` (front less
+//! back, by the signs), `SurfaceSounds.along` (left less right), the first wheel sum (the sum of
+//! the four first floats x 0.4) and the second (the sum of the second floats x 64),
+//! `SurfaceSounds.volume` = the products' sum x 0.1: a reading. The wheel whose surface counts is
+//! the front or back pair by the sign bit of the first (negative: the first or third), then the
+//! second of the pair when the other is negative; its surface goes to `surface` and
+//! `WHEEL_SURFACES`; on 7 and 8 the volume (`SurfaceSounds.volume`) x 0.25. The surface's sound set
+//! is the first sound sets' pair at 2 x `StageSounds.surface_sets[surface]`, and
+//! `sound::surface_sound` plays it (with the set and the other wheel of the pair). Then the same
+//! from the first floats (the third wheel sum = their sum x 64, the volume their sum x 0.1, the
+//! surface into the second of `WHEEL_SURFACES`, x 0.1 on 7 and 8) with the second sound sets. The
+//! x87 code is plain Rust over `X` (`math/x87_float.rs`; checked in the tests' `reference_vectors`;
+//! `Machine.scratch` is the scratch dword for the constants). One caller, `sound::car_sounds`.
+//! Refuses a null object, a surface past the 16 of `StageSounds.surface_sets` and a set past the
+//! seven pairs: what was written is put back (a sound already sent stays).
 
 use crate::errors::{BadInput, Refused};
 use crate::math::x87_float::X;
@@ -36,7 +36,7 @@ fn one(
     system: &System,
     audio: &crate::audio::owner::Audio,
 ) -> Result<(), Refused> {
-    // Converted: `rc2k_core::sound::surfaces` (`wheel`, `quieter`, `set_pair`).
+    // The logic is `rc2k_core::sound::surfaces` (`wheel`, `quieter`, `set_pair`).
     let (first, _) = surfaces::wheel(
         sound.race.surface.get().across.get(),
         sound.race.surface.get().along.get(),
@@ -79,10 +79,10 @@ pub fn surface_sounds(
     one(so, request, 1, sound, system, audio)
 }
 
-// ---- the arithmetic that was x87 assembly ----
+// ---- the x87-precision arithmetic ----
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// An x87-precision run in plain Rust over `X`, written as the expressions it computes
+/// (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `int [t + 0] = 0x3E800000`
 /// `[sf + 0x40] = [sf + 0x40] * [t + 0]`
 fn x87_1(sf: &crate::sound::store::SurfaceSounds, t: impl Base) {
@@ -93,8 +93,8 @@ fn x87_1(sf: &crate::sound::store::SurfaceSounds, t: impl Base) {
     sf.volume.set(stf(t2));
 }
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// An x87-precision run in plain Rust over `X`, written as the expressions it computes
+/// (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `int [t + 0] = 0x3DCCCCCD`
 /// `[sf + 0x40] = [sf + 0x40] * [t + 0]`
 fn x87_2(sf: &crate::sound::store::SurfaceSounds, t: impl Base) {
@@ -105,8 +105,8 @@ fn x87_2(sf: &crate::sound::store::SurfaceSounds, t: impl Base) {
     sf.volume.set(stf(t2));
 }
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// An x87-precision run in plain Rust over `X`, written as the expressions it computes
+/// (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[sf + 0x34] = (((0 - [bx + 0x4C]) + [bx + 0x60]) - [bx + 0x74]) + [bx + 0x88]`
 /// `[sf + 0x3C] = (((0 + [bx + 0x4C]) + [bx + 0x60]) - [bx + 0x74]) - [bx + 0x88]`
 /// `int [bx + 0x284] = ((([bx + 0x44] + [bx + 0x58]) + [bx + 0x6C]) + [bx + 0x80]) * [sf + 0xC]`
@@ -175,8 +175,8 @@ fn x87_3(bx: &crate::sound::store::SoundObject, sf: &crate::sound::store::Surfac
     sf.volume.set(stf(t54));
 }
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// An x87-precision run in plain Rust over `X`, written as the expressions it computes
+/// (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[sf + 0x34] = (((0 - [bx + 0x50]) + [bx + 0x64]) - [bx + 0x78]) + [bx + 0x8C]`
 /// `[sf + 0x3C] = (((0 + [bx + 0x50]) + [bx + 0x64]) - [bx + 0x78]) - [bx + 0x8C]`
 /// `int [bx + 0x290] = ((([bx + 0x50] + [bx + 0x64]) + [bx + 0x78]) + [bx + 0x8C]) * [sf + 0x10]`

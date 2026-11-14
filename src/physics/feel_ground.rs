@@ -1,23 +1,20 @@
-//! `physics::feel_ground` (0x43F1A8): the work car's ground this step:
-//! `physics::note_surface_mode`, `physics::probe_ground`, `physics::lowest_body_point`;
-//! then which wheels are off the ground: `front_wheels_off` 1 when the first two (the qword
-//! at 0x71A5D8) are both 0, `rear_wheels_off` the same for the last two (0x71A5E0),
-//! `all_wheels_off` 1 when all four are; `driven_wheels_off` the driven ones' (the first pair's,
-//! or all four's with `g_carDriveKind` not 0), and `stuck_count` 0 when they are not off;
-//! `feel_word` the word at +0x26 of the face under probe point 4 (`Car.probe_point_face[4]`). A
-//! reading: the wheels in the air, the ground's kind.
+//! The work car's ground this step: `physics::note_surface_mode`, `physics::probe_ground`,
+//! `physics::lowest_body_point`; then which wheels are off the ground: `front_wheels_off` 1
+//! when the first two are both 0, `rear_wheels_off` the same for the last two, `all_wheels_off`
+//! 1 when all four are; `driven_wheels_off` the driven ones' (the first pair's, or all four's
+//! with the drive kind not 0), and `stuck_count` 0 when they are not off; `feel_word` the
+//! face word under probe point 4 (`Car.probe_point_face[4]`). A reading: the wheels in the air,
+//! the ground's kind.
 //!
-//! Callers: `physics::car_physics_step` (0x43B6F6, 0x43B860, 0x43B8FB), `physics::crossed_edge`,
-//! `physics::wall_contacts`
-//! (twice), `physics::face_contact`, `physics::ground_contact`. Refuses (before anything) more than
-//! 0x40 probe points; `probe_ground`'s refusals mid-way (it puts back what it wrote; `camera_mode_is_2_or_3`
-//! is the original's to write again).
+//! Callers: `physics::car_physics_step`, `physics::crossed_edge`, `physics::wall_contacts`,
+//! `physics::face_contact`, `physics::ground_contact`. Refuses (before anything) more than
+//! 0x40 probe points; `probe_ground`'s refusals mid-way (it puts back what it wrote).
 
 use crate::errors::{BadInput, Refused};
 use crate::physics::step_families::GroundInputs;
 use rc2k_core::physics::walls::WheelsOff;
 
-// Converted: `rc2k_core::physics::walls::WheelsOff`.
+// Core: `rc2k_core::physics::walls::WheelsOff`.
 pub fn feel_ground(
     c: &GroundInputs<'_>,
     scene: &crate::scene::owner::Scene,

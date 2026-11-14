@@ -1,9 +1,8 @@
-//! `race::put_mud_texel` (0x44A5A9): a texel of the locked mud texture (`g_surface`) set by its
-//! place on a 256 x 256 square, the place halved as `race::mud_texel`'s; skipped when an odd place
-//! is halved, or outside the surface; else `gfx::put_surface_pixel`.
+//! `race::put_mud_texel`: sets a texel of the locked mud texture (`surface`) by its place on a
+//! 256 x 256 square, the place halved as in `race::mud_texel`; skipped when an odd place is
+//! halved, or outside the surface; else `gfx::put_surface_pixel`.
 //!
-//! Takes: the components, x, y (0 .. 0xFF)
-//! Returns: the pixel put, or as it came
+//! Takes the components and x, y (0 .. 0xFF); gives the pixel put, or the one passed in.
 //!
 //! See `race/mud.rs`. Callers: `race::muddy_texel`, `race::splash_mud`. Refuses what
 //! `put_surface_pixel` refuses (no format, no surface), before anything.
@@ -12,7 +11,6 @@ use crate::errors::Refused;
 use crate::gfx::put_surface_pixel::put_surface_pixel;
 use crate::race::mud_texel::texel_place;
 
-/// Eax as it leaves it.
 pub fn put_mud_texel(
     components: u32,
     x: u32,
@@ -25,7 +23,7 @@ pub fn put_mud_texel(
     let Some((x, y)) = texel_place(x, y, scene) else {
         return Ok(components);
     };
-    // Converted: `rc2k_core::race::mud::inside` (the place by `texel_place`).
+    // Logic in `rc2k_core::race::mud::inside` (the place by `texel_place`).
     if !rc2k_core::race::mud::inside(
         x,
         y,

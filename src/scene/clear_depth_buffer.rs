@@ -1,13 +1,11 @@
-//! `scene::clear_depth_buffer` (0x44E967): clears the depth buffer over the whole
-//! screen.
+//! `scene::clear_depth_buffer`: clears the depth buffer over the whole screen.
 //!
-//! Only with `ObjectTables.d3d_drawing_on` not 0: the rectangle `SceneDraw.cleared_rectangle[0]` .. = 0, 0, the screen's width
-//! and height, and `d3d::clear_viewport` (0x44E9D9: the viewport's Clear with that one
-//! rectangle and flag 2, the depth buffer; Direct3D, not ported). Three callers.
+//! Only with `ObjectTables.d3d_drawing_on` not 0: the rectangle
+//! `SceneDraw.cleared_rectangle` = 0, 0, the screen's width and height, and
+//! `d3d::clear_viewport` (the viewport's depth-buffer clear over that one rectangle). Three
+//! callers.
 
 // ---- game data ----
-
-// ---- Rust version ----
 
 /// The depth buffer cleared over the whole screen (`d3d::clear_viewport`), unless there
 /// is no 3D.

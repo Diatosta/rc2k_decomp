@@ -1,50 +1,50 @@
-//! `race::viewer_action` (0x41DE6F): one of the replay viewer's actions:
+//! `race::viewer_action`: one of the replay viewer's actions, by number:
 //!
-//! | action | what |
-//! | --- | --- |
-//! | 0, 1, 0xB, 0xC | to the start, the first mark, the second mark, the end (`drive::read_replay_frame_0`) |
-//! | 3, 4, 8, 9 | 10 back, 1 back, 1 on, 10 on (held to 0 .. the count, signed) |
-//! | 5, 7 | a frame back, a frame on (`drive::read_replay_frame`) |
-//! | 2, 0xA | the first mark here (not past the second), the second here (not before the first) |
-//! | 6, 0x22 | play from here (`race::play_from_here`; 0x22 with `play_from_here` 1) |
-//! | 0x1A | play between the marks (`race::play_marked`) |
-//! | 0x23 | play from the start again and again until a key ends a play |
-//! | 0x11 | cut the marked blocks (`race::keep_undo`, `race::copy_marked`, the rest moved down, the end zeroed; `race::reset_marks`) |
-//! | 0x1B | copy them (`race::copy_marked`) |
-//! | 0x12 | paste the clipboard here (if it fits in 0x708 blocks; the rest moved up) |
-//! | 0x13, 0x20 | undo (`race::undo_edit`; 0x20 also ends a camera edit) |
-//! | 0x14 | another replay (not for the last race's): tidied, the loading screen (`menu::replay_slot_loop`), the old closed, the new opened (or chosen again), loaded; none chosen: the old reloaded if open, else the viewer left (`list_leave` 1) |
-//! | 0x15 | saved back (a saved slot below 100, else as 0x16) |
-//! | 0x16 | saved as a slot chosen (`race::choose_save_slot`, `race::save_viewed_replay`) |
-//! | 0x17 | a picture of the next frame (`snapshot_asked` 1) |
-//! | 0xE, 0x18 | the block's camera byte 2 / 3 flipped (`xor 1`), spread on (`race::spread_camera`) |
-//! | 0xF | byte 5 one on (0 .. 3, past 3 back to 2) unless one player's; 0x10: byte 4 (0 .. 2) |
-//! | 0xD, 0x19 | camera 1 / 2 edited (`race::edit_camera_1`, `_2`) |
-//! | 0x1C, 0x24, 0x1D | camera 1 on / back, camera 2 on, the edit ended |
-//! | 0x1E, 0x1F | the camera edited back / on; 0x21: the edit ended (`camera_edit` 0) |
-//! | 0x25 .. 0x28 | play between the marks saving pictures (`race::start_frame_pictures` 0, 0xA0, 0x50, 0x28 ms; `race::stop_frame_pictures`) |
+//! - 0, 1, 0xB, 0xC: to the start, the first mark, the second mark, the end
+//!   (`drive::read_replay_frame_0`).
+//! - 3, 4, 8, 9: 10 back, 1 back, 1 on, 10 on (held to 0 .. the count, signed).
+//! - 5, 7: a frame back, a frame on (`drive::read_replay_frame`).
+//! - 2, 0xA: the first mark here (not past the second), the second here (not before the first).
+//! - 6, 0x22: play from here (`race::play_from_here`; 0x22 with `play_from_here` 1).
+//! - 0x1A: play between the marks (`race::play_marked`).
+//! - 0x23: play from the start again and again until a key ends a play.
+//! - 0x11: cut the marked blocks (`race::keep_undo`, `race::copy_marked`, the rest moved down,
+//!   the end zeroed; `race::reset_marks`).
+//! - 0x1B: copy them (`race::copy_marked`).
+//! - 0x12: paste the clipboard here (if it fits in 0x708 blocks; the rest moved up).
+//! - 0x13, 0x20: undo (`race::undo_edit`; 0x20 also ends a camera edit).
+//! - 0x14: another replay (not for the last race's): the stage is tidied, the loading screen
+//!   shows (`menu::replay_slot_loop`), the old replay is closed and the new one opened (or chosen
+//!   again) and loaded; if none is chosen the old one is reloaded if open, else the viewer is
+//!   left (`list_leave` 1).
+//! - 0x15: saved back (a saved slot below 100, else as 0x16).
+//! - 0x16: saved as a slot chosen (`race::choose_save_slot`, `race::save_viewed_replay`).
+//! - 0x17: a picture of the next frame (`snapshot_asked` 1).
+//! - 0xE, 0x18: the block's camera byte 2 / 3 flipped, spread on (`race::spread_camera`).
+//! - 0xF: byte 5 one on (0 .. 3, past 3 back to 2) unless one player's; 0x10: byte 4 (0 .. 2).
+//! - 0xD, 0x19: camera 1 / 2 edited (`race::edit_camera`).
+//! - 0x1C, 0x24, 0x1D: camera 1 on / back, camera 2 on, the edit ended.
+//! - 0x1E, 0x1F: the camera edited back / on; 0x21: the edit ended (`camera_edit` 0).
+//! - 0x25 .. 0x28: play between the marks saving pictures (`race::start_frame_pictures` 0, 0xA0,
+//!   0x50, 0x28 ms; `race::stop_frame_pictures`).
 //!
-//! Takes: the action
-//!
-//! Callers: `race::replay_viewer` (three). The camera bytes' edits (0xE .. 0x10, 0x18) keep the
-//! undo before they look at the block; nothing is checked of the table's room for a cut or a
-//! paste beyond what the original checks (a block shown past the count is refused for a paste:
-//! the original moves memory by a negative count).
+//! Called by `race::replay_viewer`. The camera bytes' edits (0xE .. 0x10, 0x18) keep the undo
+//! before they look at the block. Nothing is checked of the table's room for a cut or a paste
+//! beyond the 0x708 blocks, except that a block shown past the count is refused for a paste (it
+//! would move memory by a negative count).
 
 use crate::errors::Refused;
 use crate::owners::Owners;
 use crate::race::owner::Race;
 use crate::system::owner::System;
 
-/// Whether the action is one. `action` the action.
+/// Does viewer action `action`; returns whether it is an action.
 pub fn viewer_action(
     race: &'static Race,
     o: Owners<'static>,
     action: u32,
 ) -> Result<bool, Refused> {
     let replay = &race.replay;
-    // Converted: `rc2k_core::race::viewer::{Action, goto_block, frame_back, frame_on,
-    // mark_in_here, mark_out_here}`.
     use rc2k_core::race::viewer::{
         Action, Var, frame_back, frame_on, goto_block, mark_in_here, mark_out_here,
     };
@@ -160,8 +160,8 @@ pub fn viewer_action(
     Ok(true)
 }
 
-/// A frame read (`drive::read_replay_frame`) after the block and frame are stored (whether
-/// it could be read is not looked at).
+/// Stores the block and frame, then reads that frame (`drive::read_replay_frame`); whether it
+/// could be read is not looked at.
 fn read_at(race: &Race, system: &System, block: u32, frame: u32) -> Result<(), Refused> {
     let replay = &race.replay;
     replay.replay_view().replay_block.set(block);
@@ -234,9 +234,8 @@ fn paste(race: &Race, system: &System) -> Result<(), Refused> {
         return Ok(());
     }
     crate::race::keep_undo::keep_undo(race);
-    // The blocks from the one shown up by the clipboard's count, from the top down.
-    // (The original's `std; rep movsd` from the last dword, `index_frame_count` and
-    // `Buffers.viewer.block[2563]` + count * 8, down: a move that may overlap.)
+    // The blocks from the one shown are moved up by the clipboard's count, from the top down:
+    // the move may overlap itself.
     use crate::race::viewer::{move_cells, move_cells_back};
     let v = race.viewer_buffers();
     let (at, clip_dwords) = (2 * block as usize, 2 * clip as usize);

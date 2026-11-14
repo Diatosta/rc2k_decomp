@@ -1,10 +1,8 @@
-//! `effects::run_pong` (0x4B7EDA): the pong game over the race (an Easter egg: a ball, a bat and a score; seen on the windscreen), with cheat bit
-//! 0x8000 (`g_cheats`) and `FrameWork.lead_kept[7]` only: `effects::pong_setup`, `effects::move_pong_bat`,
-//! `effects::move_pong_ball` `g_pongSteps` times (read once), `effects::draw_pong_box`
-//! for the ball and for the bat (st(0) height, st(1) width, st(2) y, st(3) x), then
+//! `effects::run_pong`: the pong game over the race (an Easter egg: a ball, a bat and a score; seen
+//! on the windscreen), with cheat bit 0x8000 and `FrameWork.lead_kept[7]` only:
+//! `effects::pong_setup`, `effects::move_pong_bat`, `effects::move_pong_ball` once for each of the
+//! ball's steps (read once), `effects::draw_pong_box` for the ball and for the bat, then
 //! `effects::pong_score`.
-//!
-//! Caller: `effects::windscreen_flakes_frame` (0x4BF7CB). The moves are their Rust versions.
 
 use crate::effects::move_pong_ball::move_pong_ball;
 use crate::effects::move_pong_bat::move_pong_bat;

@@ -1,16 +1,15 @@
-//! `physics::wall_edge_contact` (0x45DA14, two chunks): the wall met between two faces,
-//! `wall_face_before` (the wall) and `wall_face_now`. The wall's four edges ((p1, p2), (p3, p1),
-//! (p4, p3), (p2, p4) of its corner words +4 .. +0x10) are looked for in the other face
-//! (`physics::face_has_edge`); none shared: `physics::wall_push_back`. The first shared, its ends
-//! swapped, goes into `wall_edge_from`, `wall_edge_to`; their scene points' x, z into
-//! `edge_points`; the edge's heading (arctangent of the differences, x `one_over_two_pi` x 65536,
-//! & 0xFFFF) << 16 + 0x40000000 into `wall_heading`; the normal (0, 0, 1) turned by it
+//! The wall met between two faces, `wall_face_before` (the wall) and `wall_face_now`. The wall's
+//! four edges ((p1, p2), (p3, p1), (p4, p3), (p2, p4) of its corner words) are looked for in the
+//! other face (`rc2k_core::physics::faces::has_edge`); none shared: `physics::wall_push_back`. The
+//! first shared, its ends swapped, goes into `wall_edge_from`, `wall_edge_to`; their scene points'
+//! x, z into `edge_points`; the edge's heading (arctangent of the differences, x `one_over_two_pi`
+//! x 65536, & 0xFFFF) << 16 + 0x40000000 into `wall_heading`; the normal (0, 0, 1) turned by it
 //! (`math::rotate_float_point_about_y`) into `contact_normal`; the speeds taken, the point of probe
-//! `probe_index` (its y x `tenth`), no slide limit; `physics::contact_force` into contact record
-//! 4, `physics::place_sound_e1`.
+//! `probe_index` (its y x `tenth`), no slide limit; `physics::contact_force` into contact record 4,
+//! `physics::place_sound_e1`.
 //!
-//! Caller: `physics::wall_contacts`. Refuses a probe point past 0x3F on the edge path (the
-//! tables' room), and what its calls refuse (what was written put back).
+//! Caller: `physics::wall_contacts`. Refuses a probe point past 0x3F on the edge path (the tables'
+//! room), and what its calls refuse (what was written is put back).
 
 use crate::effects::cell_x87::CellX87;
 use crate::errors::Refused;
@@ -90,7 +89,7 @@ pub fn edge_normal(
 }
 
 /// The steps, not guarded.
-// Converted: `rc2k_core::physics::walls::shared_edge` (the edge's heading stays x87).
+// Core: `rc2k_core::physics::walls::shared_edge` (the edge's heading stays x87).
 pub fn steps(c: &ContactInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let face_corners = corners(c.course, c.contact.wall_face_now.get())?;
     let wall_corners = corners(c.course, c.contact.wall_face_before.get())?;
@@ -98,7 +97,7 @@ pub fn steps(c: &ContactInputs<'_>, scene: &crate::scene::owner::Scene) -> Resul
     if !shared {
         return crate::physics::wall_push_back::steps(c, scene);
     }
-    // 0x45DA9E: along the edge.
+    // Along the edge.
     let n = c.contact.probe_index.get();
     walls::check_probe(n)?;
     c.contact.wall_edge_from.set(from);
@@ -132,7 +131,7 @@ pub fn steps(c: &ContactInputs<'_>, scene: &crate::scene::owner::Scene) -> Resul
     Ok(())
 }
 
-// ---- the arithmetic that was x87 assembly ----
+// ---- the x87 arithmetic ----
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):

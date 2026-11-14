@@ -1,9 +1,7 @@
-//! `scene::depth_buffer_on` (0x44E41F): the depth buffer used and written, compared with
-//! less-or-equal (Direct3D render states 7 = 1, 14 = 1, 23 = 4).
+//! `scene::depth_buffer_on`: the depth buffer used and written, compared with less-or-equal
+//! (Direct3D render states 7 = 1, 14 = 1, 23 = 4).
 //!
-//! Three calls of `scene::set_render_state`. 22 callers (the marks, the race's drawing). The
-//! registers above are the original's; a call by address goes through `routes.rs`, which maps
-//! them.
+//! Three calls of `scene::set_render_state`. 22 callers (the marks, the race's drawing).
 
 use crate::scene::set_render_state::set_render_state;
 

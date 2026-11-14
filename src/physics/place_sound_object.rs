@@ -1,9 +1,8 @@
-//! `physics::place_sound_object` (0x45CD60): when the current car is listed: a sound is picked by
-//! the kind of the object `face_object` (`g_objectKinds`, its material record's byte +0x24 & 0xF,
-//! then `object_kind_sounds[]`), and `physics::sound_band_2` gives a band; a band not 0 goes to
-//! the car's sound object with that sound and band, the place offset by `object_point_offset`
-//! and the update flag set (see `physics/car_sounds.rs`). A reading: the sound of a roadside
-//! object hit.
+//! When the current car is listed: a sound is picked by the kind of the object `face_object` (its
+//! material record's kind bits, then `object_kind_sounds`), and `physics::sound_band_2` gives a
+//! band; a band not 0 goes to the car's sound object with that sound and band, the place offset by
+//! `object_point_offset` and the update flag set (see `physics/car_sounds.rs`). A reading: the
+//! sound of a roadside object hit.
 //!
 //! Caller: `physics::touch_face`. Refuses (before anything) a car number past 7, a null sound
 //! object when it is written, an object past 0x100 or a kind past the 0x4B0 records.
@@ -15,7 +14,7 @@ use crate::physics::sound_bands::band_value_plain;
 use crate::physics::step_families::SoundInputs;
 use rc2k_core::physics::sound_places::{FIRST, object_sound};
 
-// Converted: `rc2k_core::physics::sound_places::{object_sound, place}`.
+// Core: `rc2k_core::physics::sound_places::{object_sound, place}`.
 pub fn place_sound_object(
     c: &SoundInputs<'_>,
     scene: &crate::scene::owner::Scene,
@@ -29,7 +28,7 @@ pub fn place_sound_object(
         contact.face_object.get(),
         |thing| scene.objects.tables.get().object_kind(thing),
         |kind| {
-            // The material's byte +0x24 (the low byte of its tenth word).
+            // The material's kind byte (the low byte of its tenth word).
             trap.keep(
                 c.polygon_tables
                     .object_materials

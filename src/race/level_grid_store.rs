@@ -1,63 +1,68 @@
-//! The race's grid and scene work, 0x63DC5C .. 0x63F58C: four 256-byte face tables that `object_bytes` fills,
-//! the 16 lamps, the course grid's sizes and view cell, the 32 x 32 course grid (`g_courseGrid`), the far cell
-//! limit, the turned view position and depth shift, and the flares' place-x table.
-//! Used by `race::frame_draw`, `scene::add_point_lights`, `scene::draw_polygon`, `race::course_faces`, `hud::overlay_pass`.
-//! Plain cells: a drawing store (`session::DrawShared`), written on the game's thread between
-//! frames and read by the drawing parts through their `workers::DrawReads`. Names are readings
-//! unless IDA's.
+//! The race's grid and scene work: four 256-byte face tables that `object_bytes` fills, the 16
+//! lamps, the course grid's sizes and view cell, the 32 x 32 course grid (`course_grid`), the far
+//! cell limit, the turned view position and depth shift, and the flares' place-x table. Used by
+//! `race::frame_draw`, `scene::add_point_lights`, `scene::draw_polygon`, `race::course_faces`,
+//! `hud::overlay_pass`. Plain cells: a drawing store (`session::DrawShared`), written on the game's
+//! thread between frames and read by the drawing parts through their `workers::DrawReads`.
 
 use crate::cells::ZeroCells;
 use crate::session::{PlainBytes, PlainDword, PlainFloat};
 
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct LevelGrid {
-    /// +0x0 (0x63DC5C): the first of four 256-byte tables `object_bytes` fills (`race::frame_draw` `FACE_TABLES`); used in place (`byte_63DC5C`); now each view's (`race::view_course::ViewCourse`); unused.
+    /// The first of four 256-byte face tables (`object_bytes` fills them). Unused: each view keeps
+    /// its own (`race::view_course::ViewCourse`).
     pub face_table_a: PlainBytes<256>,
-    /// +0x100 (0x63DD5C): the second face table (`byte_63DD5C`); now each view's (`race::view_course::ViewCourse`); unused.
+    /// The second face table. Unused: each view keeps its own (`race::view_course::ViewCourse`).
     pub face_table_b: PlainBytes<256>,
-    /// +0x200 (0x63DE5C): the third face table (`byte_63DE5C`); now each view's (`race::view_course::ViewCourse`); unused.
+    /// The third face table. Unused: each view keeps its own (`race::view_course::ViewCourse`).
     pub face_table_c: PlainBytes<256>,
-    /// +0x300 (0x63DF5C): the fourth face table (`byte_63DF5C`); now each view's (`race::view_course::ViewCourse`); unused.
+    /// The fourth face table. Unused: each view keeps its own (`race::view_course::ViewCourse`).
     pub face_table_d: PlainBytes<256>,
-    /// +0x400 (0x63E05C): `g_lamps`: 16 lamps of 0x10 bytes (`race::frame_draw`, `scene::add_point_lights`); IDA splits `dword_63E060` / `dword_63E064` out of it; now each view's (`race::lamp_work::LampWork`); unused.
+    /// 16 lamps of 0x10 bytes. Unused: each view keeps its own (`race::lamp_work::LampWork`).
     pub lamps: [PlainDword; 64],
-    /// +0x500 (0x63E15C): the course grid's half size; now each view's (`race::view_grid`); unused.
+    /// The course grid's half size. Unused: each view keeps its own (`race::view_grid`).
     pub grid_half: PlainDword,
-    /// +0x504 (0x63E160): the course grid's span; now each view's (`race::view_grid`); unused.
+    /// The course grid's span. Unused: each view keeps its own (`race::view_grid`).
     pub grid_span: PlainDword,
-    /// +0x508 (0x63E164): the polygon smoothing switch; now each view's
-    /// (`scene::polygon_work`), this one not used.
+    /// The polygon smoothing switch. Unused: each view keeps its own (`scene::polygon_work`).
     pub smooth: PlainDword,
-    /// +0x50c (0x63E168): "plain" flag of the first triangle's texture set; now each view's
-    /// (`scene::polygon_work`), this one not used.
+    /// "Plain" flag of the first triangle's texture set. Unused: each view keeps its own
+    /// (`scene::polygon_work`).
     pub plain_first: PlainDword,
-    /// +0x510 (0x63E16C): "plain" flag of the second triangle's set; now each view's
-    /// (`scene::polygon_work`), this one not used.
+    /// "Plain" flag of the second triangle's set. Unused: each view keeps its own
+    /// (`scene::polygon_work`).
     pub plain_second: PlainDword,
-    /// +0x514 (0x63E170): the view value kept by `race::draw_mirror_view` (pushed and popped around it; `dword_63E170`); now each view's (`race::view_course::ViewCourse`); unused.
+    /// The view value kept by `race::draw_mirror_view` around its drawing. Unused: each view keeps
+    /// its own (`race::view_course::ViewCourse`).
     pub view_value_kept: PlainDword,
-    /// +0x518 (0x63E174): grid cell x of the view, a refresh value; now each view's (`race::view_grid`); unused.
+    /// Grid cell x of the view, a refresh value. Unused: each view keeps its own
+    /// (`race::view_grid`).
     pub grid_x: PlainDword,
-    /// +0x51c (0x63E178): grid cell z of the view, a refresh value; now each view's (`race::view_grid`); unused.
+    /// Grid cell z of the view, a refresh value. Unused: each view keeps its own
+    /// (`race::view_grid`).
     pub grid_z: PlainDword,
-    /// +0x520 (0x63E17C): `g_courseGrid`: 32 x 32 course records; now each view's (`race::view_grid`); unused (`race::find_sound_spots`' reads past a view's grid go on into the fields after this one).
+    /// 32 x 32 course records. Unused: each view keeps its own (`race::view_grid`);
+    /// `race::find_sound_spots` reads past a view's grid on into the fields after this one.
     pub course_grid: [PlainDword; 1024],
-    /// +0x1520 (0x63F17C): `g_farCellLimit`: how many cells out are drawn; now a value in `race::frame_draw::prepare_course_view`; unused.
+    /// How many cells out are drawn. Unused: now a value in
+    /// `race::frame_draw::prepare_course_view`.
     pub far_cell_limit: PlainDword,
-    /// +0x1524 (0x63F180): the view-turned x (`flt_63F180`), never read; unused.
+    /// The view-turned x; never read.
     pub turned_x: PlainFloat,
-    /// +0x1528 (0x63F184): the view-turned z (`flt_63F184`), never read; unused.
+    /// The view-turned z; never read.
     pub turned_z: PlainFloat,
-    /// +0x152c (0x63F188): the depth shift (`race::frame_draw`, `flt_63F188`).
+    /// The depth shift used by `race::frame_draw`.
     pub depth_shift: PlainFloat,
-    /// +0x1530 (0x63F18C): `dword_63F18C`: per-flare x place (`race::frame_draw` flare list, indexed by flare number; 0x400 bytes, a table of its own); now each view's (`race::lamp_work::LampWork`); unused.
+    /// Per-flare x place (`race::frame_draw`'s flare list, indexed by flare number). Unused: each
+    /// view keeps its own (`race::lamp_work::LampWork`).
     pub flare_place_x: [PlainDword; 256],
 }
 
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
 // them): any bit pattern is a valid value.
 
-/// The piece (a field of `race::owner::Race::course`), with the image's first values.
+/// The piece (a field of `race::owner::Race::course`), with its first values.
 impl LevelGrid {
     pub const fn new() -> Self {
         Self {

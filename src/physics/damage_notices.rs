@@ -1,13 +1,13 @@
-//! `physics::damage_notices` (0x4B0241): the work car's damage warnings. Each damage gauge (the
-//! floats from `brake_heat` to `tyre_wear`) has a level (`damage_levels` ..) moved by thresholds, in
-//! the original's order of 82 steps (`STEPS`, read from the disassembly). A step for level `from`
-//! puts the threshold (a whole number) into the threshold scratch float and compares the gauge
-//! with it (below or unordered counts as below): rising steps, when the gauge is not below, set the
-//! level to `to` and queue a notice (`physics::queue_notice` with the notice, the gauge and the
-//! rank); falling steps (the hysteresis of some gauges), when below, set it back.
+//! The work car's damage warnings. Each damage gauge (the floats from `brake_heat` to
+//! `tyre_wear`) has a level (`damage_levels`) moved by thresholds, in the order of 82 steps
+//! (`STEPS`). A step for level `from` puts the threshold (a whole number) into the threshold
+//! scratch float and compares the gauge with it (below or unordered counts as below): rising
+//! steps, when the gauge is not below, set the level to `to` and queue a notice
+//! (`physics::queue_notice` with the notice, the gauge and the rank); falling steps (the
+//! hysteresis of some gauges), when below, set it back.
 //!
 //! Caller: `physics::car_physics_step`, every physics step. Refuses what `queue_notice`
-//! refuses (everything written put back).
+//! refuses (everything written is put back).
 
 use crate::errors::Refused;
 use crate::math::x87::from_int;
@@ -58,7 +58,7 @@ fn gauge(car: &Car, mut k: usize) -> u32 {
     )
 }
 
-// Converted: `rc2k_core::physics::damage_notices::damage_notices`.
+// Core: `rc2k_core::physics::damage_notices::damage_notices`.
 fn steps(car: &Car, damage: &DamageModel) -> Result<(), Refused> {
     let mut levels: [u32; LEVELS] = std::array::from_fn(|k| car.damage_levels[k].get());
     let result = damage_notices_core(

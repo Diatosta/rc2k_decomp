@@ -1,13 +1,12 @@
-//! `physics::place_camera` (0x438E5A): the camera placed. Seven figures from
-//! `place_second` (with `split` at 2) or `place_usual` into `ViewAndRecords.records[4].offset[1]`,
-//! `60667C`, `6066D4`, `6066D8`, `606730`, `606734` and the last into `ViewAndRecords.records[4].angles[0]`,
-//! `6066E8`, `606744`; the offset (`camera_offset_x` ..) turned by `Car.camera_offset_turns[2]`,
-//! `71A694`, `71A698` then `71A68C`, `71A690`, `71A688` (`math::rotate_point_about_y_ebx`,
-//! `_ecx`, `rotate_point_about_y`) into the place `camera_position`
-//! ..; then the second offset (`view_turn_x` .., / 65536) turned by `g_crashMatrix`
-//! (`scene::rotate_point`), x 65536 (`fistp`), plus `camera_car` .., added to it.
+//! Places the camera. Seven figures from `place_second` (with `split` at 2) or `place_usual` go
+//! into the mode record `ViewAndRecords.records[4]` and the view's other fields; the offset
+//! (`camera_offset_x` ..) is turned by the camera's turns
+//! (`math::rotate_point_about_y_ebx`, `rotate_point_about_y_ecx`, `rotate_point_about_y`)
+//! into the place `camera_position`; then the second offset (`view_turn_x` .., / 65536) is
+//! turned by the crash matrix (`scene::rotate_point`), times 65536 and
+//! rounded, plus `camera_car`, and added to it.
 //!
-//! Callers: `physics::camera_avoid_ground` (seven).
+//! Caller: `physics::camera_avoid_ground`, seven times.
 
 use crate::math::x87_float::{f80, int, ld};
 use crate::physics::camera_store::CameraWork;
@@ -121,7 +120,7 @@ fn place_with(
     shared.car().camera_position[0].set(x);
     shared.car().camera_position[1].set(y);
     shared.car().camera_position[2].set(z);
-    // 0x438F14: the second offset, turned with the car.
+    // The second offset, turned with the car.
     let whole = second();
     scene.drawing.scene.get().scratch.set(whole[2] as u32);
     let car = [
@@ -179,7 +178,7 @@ pub fn place_camera(
     );
 }
 
-// ---- the arithmetic that was x87 assembly ----
+// ---- the x87 arithmetic ----
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):

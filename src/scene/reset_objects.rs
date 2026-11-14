@@ -1,15 +1,12 @@
-//! `scene::reset_objects` (0x425CFF): empties the objects' tables before they are
-//! loaded.
+//! `scene::reset_objects`: empties the objects' tables before they are loaded.
 //!
-//! The points' memory zeroed (its room `CourseLists.object_points_room`, in dwords); the slots' first points,
-//! numbers of points and normals, first faces and numbers of faces zeroed; `g_objectPointCount`
-//! = 1 (point 0 is never an object's), the faces' number and the faces' memory used = 0; every
-//! slot's kind = -1. One caller, `scene::load_front_end_objects`. Refuses points' room without
-//! memory.
+//! The points' memory zeroed (its room `CourseLists.object_points_room`, in dwords); the slots'
+//! first points, numbers of points and normals, first faces and numbers of faces zeroed; the
+//! object point count = 1 (point 0 is never an object's), the faces' number and the faces'
+//! memory used = 0; every slot's kind = -1. One caller, `scene::load_front_end_objects`.
+//! Refuses points' room without memory.
 
 use crate::errors::BadInput;
-
-// ---- Rust version ----
 
 pub fn reset_objects(
     course: &crate::race::owner_course::Course,

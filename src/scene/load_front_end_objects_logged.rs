@@ -1,9 +1,8 @@
-//! `scene::load_front_end_objects_logged` (0x4433DA): `scene::load_front_end_objects`,
-//! then its log: a rule, "Front end objects loaded", "total points" `g_objectPointCount`,
-//! "total pointmem" `ObjectWork.point_memory_total`, "total faces" `ObjectTables.face_count`, "total facemem"
-//! `ObjectWork.face_memory_total` (each label without a line's end, its value in hex8 with one), a rule.
-//!
-//! Caller: `scene::set_up_front_end_scene`.
+//! `scene::load_front_end_objects_logged`: `scene::load_front_end_objects`, then its log: a
+//! rule, "Front end objects loaded", "total points" the object point count, "total pointmem"
+//! `ObjectWork.point_memory_total`, "total faces" `ObjectTables.face_count`, "total facemem"
+//! `ObjectWork.face_memory_total` (each label without a line's end, its value in hex8 with
+//! one), a rule. Caller: `scene::set_up_front_end_scene`.
 
 use crate::errors::Refused;
 use crate::logfile::log_hex8::log_hex8;
@@ -15,7 +14,6 @@ const RULE_2: &std::ffi::CStr = c"===========================";
 /// (label, value)
 type Total = (&'static std::ffi::CStr, fn(&Scene) -> u32);
 const TOTALS: [Total; 4] = [
-    // "total points", g_objectPointCount
     (c"total points", |scene| {
         scene.objects.tables.get().point_count.get()
     }),
@@ -30,7 +28,6 @@ const TOTALS: [Total; 4] = [
     }),
 ];
 
-/// The Rust version.
 pub fn load_front_end_objects_logged(
     race: &crate::race::owner::Race,
     scene: &crate::scene::owner::Scene,

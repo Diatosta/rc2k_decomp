@@ -1,4 +1,4 @@
-//! `scene::set_view_window` (0x44E47B): the view's window, scale and depths from its
+//! `scene::set_view_window`: the view's window, scale and depths from its
 //! size and the scene's settings.
 //!
 //! From the window's `view_size` and `view_offset`, the stage's `grid_reach` (how far the
@@ -17,7 +17,6 @@
 //! - as floats: the offsets (`view_offset_float`), the clip rectangle (`clip_screen`) and
 //!   the middle (`view_centre`).
 //!
-//! The original also stored the low half to `scratch`; nothing read it, so it is not kept.
 //! Twelve callers.
 
 use crate::math::x87;
@@ -26,8 +25,6 @@ use crate::race::view_vars_store::ViewVars;
 use crate::scene::draw_store::SceneDraw;
 use crate::scene::view_window::ViewWindow;
 use crate::session::{CellKind, FloatLike};
-
-// ---- Rust version ----
 
 /// `vars`: the view variables the window's scale is read from (`view_scale`: a view's own,
 /// `ViewScratch::vars`, or the shared ones); `draw`: the scene's draw variables (the fade and
@@ -118,12 +115,11 @@ pub fn set_view_window_reaching(
     );
     crate::session::write_bits(&window.clip_screen, edges.map(float).map(f32::to_bits));
     crate::session::write_bits(&window.view_centre, middle.map(float).map(f32::to_bits));
-    // The original also kept the size less one; only unreachable code reads it, so it is not kept.
 }
 
-/// `set_view_window` in plain floats. The x87 version above stays for the callers that
-/// have not been converted (race, `choose_view_window`, `prepare_menu_scene`).
-// Converted: `rc2k_core::scene::view_window::window_settings`
+/// `set_view_window` in plain floats. The x87 version above stays for the callers that have not
+/// been converted (race, `choose_view_window`, `prepare_menu_scene`).
+// Logic: `rc2k_core::scene::view_window::window_settings`
 pub fn set_view_window_plain(
     course: crate::race::owner_course::CourseReads<'_>,
     draw: &SceneDraw,

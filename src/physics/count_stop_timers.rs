@@ -1,11 +1,10 @@
-//! `physics::count_stop_timers` (0x436978): three counters of the work car (`g_car`
-//! +0xA0, +0xA4, +0xA8: `started_stand_timer` .. `finish_flag`) in turn. One that is not 0: at 300
-//! `stop_state` (+0xB0) is set (-1 for the first two, 2 for the third) and it returns;
-//! else while +0x1C4 (`speed`) is below `one` (1.0; unordered counts as
-//! below) it goes up, and on reaching 300 (unsigned) the same. A reading: the car has
-//! stood still too long after a start or a finish.
+//! Counts three counters of the work car (`started_stand_timer` .. `finish_flag`) in turn. One
+//! that is not 0: at 300 `stop_state` is set (-1 for the first two, 2 for the third) and it
+//! returns; otherwise while `speed` is below `one` (1.0; unordered counts as below) it goes up,
+//! and on reaching 300 (unsigned) the same. A reading: the car has stood still too long after a
+//! start or a finish.
 //!
-//! Caller: `physics::race_timers` (four calls).
+//! Caller: `physics::race_timers`.
 
 use crate::physics::car_store::Car;
 use crate::race::numbers_store::Numbers;
@@ -14,7 +13,7 @@ use rc2k_core::physics::motion::stop_timers;
 
 /// The stand timers and the finish flag counted on while the car stands (a compare of
 /// floats only: the same at any precision).
-// Converted: `rc2k_core::physics::motion::stop_timers`.
+// Core: `rc2k_core::physics::motion::stop_timers`.
 pub fn count_stop_timers(car: &Car, numbers: &Numbers) {
     let one = numbers.one.get();
     let cells = [

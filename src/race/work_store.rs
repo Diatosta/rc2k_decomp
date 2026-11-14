@@ -1,10 +1,8 @@
-//! The race's work variables after the work car (IDA 0x71AFB8 .. 0x71C814; phase 7, typed):
-//! the cars' blocks and the current car, the stage's direction, the cars' number textures,
-//! the loose parts' slots, the computer driver's state, the credits' race, the network's
-//! message, the `patch*` settings, the stages' checkpoint counts. Named from the code's uses
-//! (2026-10-25); most names are readings, `unknown_*` runs are places no ported code names.
-//! `#[repr(C)]` with the image's order of fields (the unused runs at either end and in the
-//! middle left out).
+//! The race's work variables after the work car: the cars' blocks and the current car, the stage's
+//! direction, the cars' number textures, the loose parts' slots, the computer driver's state, the
+//! credits' race, the network's message, the `patch*` settings, the stages' checkpoint counts.
+//! Named from the code's uses; most names are readings, and `unknown_*` runs are places no code
+//! names. `#[repr(C)]`, the unused runs at either end and in the middle left out.
 
 use crate::cells::ZeroCells;
 use crate::errors::BadInput;
@@ -12,7 +10,7 @@ use crate::errors::BadInput;
 use crate::race::owner::race;
 use crate::session::{PlainDword, PlainFlag, PlainFloat};
 
-/// A loose part flying off a car (0x78 bytes, `physics::fill_race_slot`; readings).
+/// A loose part flying off a car (0x78 bytes, `physics::fill_race_slot`; field names are readings).
 #[cfg_attr(test, repr(C))]
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct RaceSlot {
@@ -24,9 +22,10 @@ pub struct RaceSlot {
     pub matrix: [PlainFloat; 16],
     /// +0x50: its motion.
     pub motion: [PlainFloat; 3],
-    /// +0x5c: added to the part's height when it is drawn (`race::frame_draw::scene_objects`); no ported code writes it (0 from the start).
+    /// +0x5c: added to the part's height when it is drawn (`race::frame_draw::scene_objects`); no
+    /// ported code writes it (0 from the start).
     pub draw_height_offset: PlainDword,
-    /// +0x60: the car's +0xE00 when it broke off.
+    /// +0x60: the car's `car_word` when it broke off.
     pub car_word: PlainDword,
     /// +0x64: the car's step clock when it broke off (the lowest is reused).
     pub age: PlainDword,
@@ -41,156 +40,158 @@ const _: () = assert!(core::mem::size_of::<RaceSlot>() == 0x78);
 #[cfg_attr(test, repr(C))]
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct RaceWork {
-    /// +0x400 (0x71B3B8): `g_carBlocks`: the eight cars' blocks (`CarBlock`, by handle:
+    /// +0x400: the eight cars' blocks (`Car`, by handle:
     /// `blocks_store::block_ref`).
     pub car_blocks: [PlainDword; 8],
-    /// +0x420 (0x71B3D8): `g_carRecords`: a word for each car's view marks (`race::frame_views`),
-    /// kept as IDA's addresses, as names (phase 13; `RaceShared::car_record` makes one real).
+    /// +0x420: a name for each car's view marks record (`race::frame_views`), an image address
+    /// (see `car_record_number`).
     pub car_records: [PlainDword; 8],
-    /// +0x440 (0x71B3F8): `g_currentCar`: the car being stepped.
+    /// +0x440: the car being stepped.
     pub current_car: PlainDword,
-    /// +0x448 (0x71B400): `g_stageDirection`: the stage run forwards or backwards ("dir").
+    /// +0x448: the stage run forwards or backwards ("dir").
     pub stage_direction: PlainDword,
-    /// +0x44c (0x71B404): the current car's block by handle (`drive::race_cars_step`, the
+    /// +0x44c: the current car's block by handle (`drive::race_cars_step`, the
     /// replay; `blocks_store::block_ref`).
     pub work_block: PlainDword,
-    /// +0x450 (0x71B408): 32 names of 0x30 bytes by car kind: the cars' number textures (`race::car_draw`).
+    /// +0x450: 32 names of 0x30 bytes by car kind: the cars' number textures (`race::car_draw`).
     pub number_texture_names: [PlainDword; 384],
-    /// +0xa50 (0x71BA08): the drawn car's nearness (`race::car_draw`); now each view's (`ctx.view.cars.car_nearness`); unused.
+    /// +0xa50: the drawn car's nearness (`race::car_draw`); now each view's
+    /// (`ctx.view.cars.car_nearness`); unused.
     pub car_nearness: PlainFloat,
-    /// +0xa54 (0x71BA0C): (`race::car_draw`); now each view's (`ctx.view.cars.car_draw_word`); unused.
+    /// +0xa54: a word of the drawn car (`race::car_draw`); now each view's
+    /// (`ctx.view.cars.car_draw_word`); unused.
     pub car_draw_word: PlainDword,
-    /// +0xa58 (0x71BA10): the number's tens' textures (`race::car_draw`).
+    /// +0xa58: the number's tens' textures (`race::car_draw`).
     pub number_tens_textures: [PlainDword; 7],
-    /// +0xa74 (0x71BA2C): the parts' break limits (`physics::drop_broken_parts`).
+    /// +0xa74: the parts' break limits (`physics::drop_broken_parts`).
     pub part_break_limits: [PlainDword; 7],
-    /// +0xa90 (0x71BA48): the matrix a part at rest takes (`physics::move_slot`).
+    /// +0xa90: the matrix a part at rest takes (`physics::move_slot`).
     pub part_matrix_still: [PlainDword; 16],
-    /// +0xad0 (0x71BA88): the matrix a part lying flat takes (`physics::move_slot`).
+    /// +0xad0: the matrix a part lying flat takes (`physics::move_slot`).
     pub part_matrix_flat: [PlainDword; 16],
-    /// +0xb10 (0x71BAC8): `g_raceSlots`: the loose parts flying off the cars (`physics::fill_race_slot`).
+    /// +0xb10: the loose parts flying off the cars (`physics::fill_race_slot`).
     pub race_slots: [RaceSlot; 8],
-    /// +0xed0 (0x71BE88): (`physics::move_slots`).
+    /// +0xed0: the slot count (`physics::move_slots`).
     pub slot_count: PlainDword,
-    /// +0xed4 (0x71BE8C): the parts' throw (`physics::fill_race_slot`).
+    /// +0xed4: the parts' throw (`physics::fill_race_slot`).
     pub part_fling: PlainFloat,
-    /// +0xed8 (0x71BE90): the place kept (`physics::move_slot`).
+    /// +0xed8: the place kept (`physics::move_slot`).
     pub slot_place: [PlainDword; 3],
-    /// +0xee4 (0x71BE9C): the computer driver's speed by bend (`drive::drive_computer_car`).
+    /// +0xee4: the computer driver's speed by bend (`drive::drive_computer_car`).
     pub bend_speeds: [PlainFloat; 32],
-    /// +0xf64 (0x71BF1C): three tables of seven: a wanted speed by the bend's turn.
+    /// +0xf64: three tables of seven: a wanted speed by the bend's turn.
     pub wanted_speeds: [PlainDword; 21],
-    /// +0xfb8 (0x71BF70): (`drive::drive_computer_car`, `drive::read_car_controls`).
+    /// +0xfb8: the driver's tilt limit (`drive::drive_computer_car`, `drive::read_car_controls`).
     pub driver_tilt_limit: PlainFloat,
-    /// +0xfbc (0x71BF74): (`drive::drive_computer_car`).
+    /// +0xfbc: the driver's vector (`drive::drive_computer_car`).
     pub driver_vector: [PlainFloat; 4],
-    /// +0xfcc (0x71BF84): the replay's extra start piece (`drive::save_replay_cars`).
+    /// +0xfcc: the replay's extra start piece (`drive::save_replay_cars`).
     pub replay_extra: PlainDword,
-    /// +0xfd0 (0x71BF88): the computer driver's steering.
+    /// +0xfd0: the computer driver's steering.
     pub driver_steer: PlainDword,
-    /// +0xfd4 (0x71BF8C): its throttle (0x100 full).
+    /// +0xfd4: its throttle (0x100 full).
     pub driver_throttle: PlainDword,
-    /// +0xfd8 (0x71BF90): its brake.
+    /// +0xfd8: its brake.
     pub driver_brake: PlainDword,
-    /// +0xfdc (0x71BF94): its other controls (1 on).
+    /// +0xfdc: its other controls (1 on).
     pub driver_flags: [PlainDword; 4],
-    /// +0xfec (0x71BFA4): (`drive::read_car_controls`).
+    /// +0xfec: the driver's start blend (`drive::read_car_controls`).
     pub driver_start_blend: PlainFloat,
-    /// +0xff0 (0x71BFA8): steps by car (`drive::drive_computer_car`).
+    /// +0xff0: steps by car (`drive::drive_computer_car`).
     pub driver_steps: [PlainDword; 10],
-    /// +0x1018 (0x71BFD0): reversing steps left by car.
+    /// +0x1018: reversing steps left by car.
     pub driver_reverse_left: [PlainDword; 10],
-    /// +0x1040 (0x71BFF8): the distance moved.
+    /// +0x1040: the distance moved.
     pub driver_moved: PlainDword,
-    /// +0x1044 (0x71BFFC): the bend's turn.
+    /// +0x1044: the bend's turn.
     pub driver_turn: PlainDword,
-    /// +0x1048 (0x71C000): the bend's index.
+    /// +0x1048: the bend's index.
     pub driver_bend_index: PlainDword,
-    /// +0x1050 (0x71C008): the speed wanted.
+    /// +0x1050: the speed wanted.
     pub driver_wanted_speed: PlainDword,
-    /// +0x1054 (0x71C00C): the speed.
+    /// +0x1054: the speed.
     pub driver_speed: PlainDword,
-    /// +0x1058 (0x71C010): a bend noted by car: where it ends.
+    /// +0x1058: a bend noted by car: where it ends.
     pub driver_bend_to: [PlainDword; 10],
-    /// +0x1080 (0x71C038): a bend noted by car.
+    /// +0x1080: a bend noted by car.
     pub driver_bend_noted: [PlainDword; 10],
-    /// +0x10a8 (0x71C060): reversing tries by car.
+    /// +0x10a8: reversing tries by car.
     pub driver_reverse_tries: [PlainDword; 10],
-    /// +0x10d0 (0x71C088): the noted bend's turn by car.
+    /// +0x10d0: the noted bend's turn by car.
     pub driver_bend_turn: [PlainDword; 10],
-    /// +0x1104 (0x71C0BC): (`drive::drive_computer_car`).
+    /// +0x1104: a driver flag (`drive::drive_computer_car`).
     pub driver_flag_bc: PlainDword,
-    /// +0x1108 (0x71C0C0): the step along x.
+    /// +0x1108: the step along x.
     pub driver_step_x: PlainDword,
-    /// +0x110c (0x71C0C4): the step along z.
+    /// +0x110c: the step along z.
     pub driver_step_z: PlainDword,
-    /// +0x1110 (0x71C0C8): from `bend_speeds`.
+    /// +0x1110: from `bend_speeds`.
     pub driver_speed_scale: PlainFloat,
-    /// +0x1114 (0x71C0CC): the car driven (`g_currentCar` copied).
+    /// +0x1114: the car driven (`current_car` copied).
     pub driver_slot: PlainDword,
-    /// +0x1118 (0x71C0D0): 1 when looking ahead.
+    /// +0x1118: 1 when looking ahead.
     pub driver_lookahead: PlainDword,
-    /// +0x111c (0x71C0D4): (`drive::drive_computer_car`).
+    /// +0x111c: a bend value (`drive::drive_computer_car`).
     pub driver_bend_a: PlainDword,
-    /// +0x1120 (0x71C0D8): (`drive::drive_computer_car`).
+    /// +0x1120: another bend value (`drive::drive_computer_car`).
     pub driver_bend_b: PlainDword,
-    /// +0x1124 (0x71C0DC): its point in `driver_points_now` (a byte offset; the original kept the address).
+    /// +0x1124: its point in `driver_points_now` (a byte offset).
     pub driver_point_now: PlainDword,
-    /// +0x1128 (0x71C0E0): its point in `driver_points_then` (a byte offset; the original kept the address).
+    /// +0x1128: its point in `driver_points_then` (a byte offset).
     pub driver_point_then: PlainDword,
-    /// +0x112c (0x71C0E4): 1: aim ahead.
+    /// +0x112c: 1: aim ahead.
     pub driver_aim: PlainDword,
-    /// +0x1130 (0x71C0E8): ten cars' points of 16 bytes.
+    /// +0x1130: ten cars' points of 16 bytes.
     pub driver_points_now: [PlainDword; 40],
-    /// +0x11d0 (0x71C188): ten cars' points of 16 bytes, the step before.
+    /// +0x11d0: ten cars' points of 16 bytes, the step before.
     pub driver_points_then: [PlainDword; 40],
-    /// +0x1270 (0x71C228): (x, 0, z).
+    /// +0x1270: the driver's start point (x, 0, z).
     pub driver_from: [PlainDword; 4],
-    /// +0x1280 (0x71C238): (x, 0, z).
+    /// +0x1280: the driver's target point (x, 0, z).
     pub driver_to: [PlainDword; 4],
-    /// +0x12a0 (0x71C258): the way from here to `driver_to` on the flat.
+    /// +0x12a0: the way from here to `driver_to` on the flat.
     pub driver_way: [PlainFloat; 4],
-    /// +0x12b0 (0x71C268): it normalised.
+    /// +0x12b0: it normalised.
     pub driver_way_unit: [PlainFloat; 4],
-    /// +0x12c0 (0x71C278): the way ahead normalised.
+    /// +0x12c0: the way ahead normalised.
     pub driver_ahead: [PlainFloat; 4],
-    /// +0x12e0 (0x71C298): `driver_from` to `driver_to` on the flat.
+    /// +0x12e0: `driver_from` to `driver_to` on the flat.
     pub driver_flat: [PlainFloat; 4],
-    /// +0x12f0 (0x71C2A8): it normalised.
+    /// +0x12f0: it normalised.
     pub driver_flat_unit: [PlainFloat; 4],
-    /// +0x1300 (0x71C2B8): the car's side.
+    /// +0x1300: the car's side.
     pub driver_side: [PlainFloat; 4],
-    /// +0x1310 (0x71C2C8): (`drive::drive_computer_car`).
+    /// +0x1310: the driver's work values (`drive::drive_computer_car`).
     pub driver_work: [PlainDword; 47],
-    /// +0x1420 (0x71C3D8): kept by `menu::scale_stage_times`.
+    /// +0x1420: kept by `menu::scale_stage_times`.
     pub stage_time_scales: [PlainFloat; 2],
-    /// +0x1428 (0x71C3E0): `g_inCredits`: the credits' race on.
+    /// +0x1428: the credits' race on.
     pub in_credits: PlainFlag,
-    /// +0x142c (0x71C3E4): `g_creditStages`: the credits' stages.
+    /// +0x142c: the credits' stages.
     pub credit_stages: [PlainDword; 36],
-    /// +0x14bc (0x71C474): `g_creditCarKinds`: the credits' car kinds.
+    /// +0x14bc: the credits' car kinds.
     pub credit_car_kinds: [PlainDword; 23],
-    /// +0x1518 (0x71C4D0): the network's message built (`net::send_inputs`).
+    /// +0x1518: the network's message built (`net::send_inputs`).
     pub net_message: [PlainDword; 128],
-    /// +0x1718 (0x71C6D0): the physics patches as the settings file gives them: `g_patchSwitch`
+    /// +0x1718: the physics patches as the settings file gives them: `patch_switch`
     /// (`fizpatch`), then `patchmaxdrawdistance`, `patchstickygrass`, `patchgravity`,
     /// `patchdamages`, `patchbrakegrip`, `patchaccelgrip`, `patchslidegrip`, `patchgripgrass`,
     /// `patchgriptarmac`, `patchgripsnow`, `patchgripmud`, `patchgripgravel`.
     pub patches: [PlainDword; 13],
-    /// +0x174c (0x71C704): the last ten settings / 100 (`physics::apply_patches`).
+    /// +0x174c: the last ten settings / 100 (`physics::apply_patches`).
     pub patch_factors: [PlainFloat; 10],
-    /// +0x1774 (0x71C72C): `g_patchesApplied`.
+    /// +0x1774: whether the patches are applied.
     pub patches_applied: PlainDword,
-    /// +0x1778 (0x71C730): `g_checkpointCounts`: by stage (`saves::default_times`).
+    /// +0x1778: the checkpoint counts by stage (`saves::default_times`).
     pub checkpoint_counts: [PlainDword; 36],
-    /// +0x1808 (0x71C7C0): `g_guessedCheckpoints`.
+    /// +0x1808: the guessed checkpoint counts.
     pub guessed_checkpoints: [PlainDword; 16],
-    /// +0x1848 (0x71C800): the `noprecipitation` setting.
+    /// +0x1848: the `noprecipitation` setting.
     pub no_precipitation: PlainDword,
 }
 
 impl RaceWork {
-    /// `g_patchSwitch`: the first of the patches.
+    /// The first of the patches.
     pub fn patch_switch(&self) -> &PlainDword {
         &self.patches[0]
     }
@@ -200,10 +201,9 @@ impl RaceWork {
         &self.patches[1..]
     }
 
-    /// Car `n`'s block by handle (`g_carBlocks[n]`: `blocks_store::block_ref`, 0 for none),
-    /// read as the original reads it: past the eight without a check, on through the variables
-    /// that follow the table (`past_the_eight`). A handle among the eight that names no block
-    /// ends the program.
+    /// Car `n`'s block by handle (`car_blocks[n]`: `blocks_store::block_ref`, 0 for none). A number
+    /// past the eight is read on through the variables that follow the table (`past_the_eight`).
+    /// A handle among the eight that names no block ends the program.
     pub fn car_block(&self, n: usize) -> u32 {
         if let Some(cell) = self.car_blocks.get(n) {
             let handle = cell.get();
@@ -214,7 +214,7 @@ impl RaceWork {
             .unwrap_or_else(|e| crate::fatal::raise::end("a car block's pointer", e))
     }
 
-    /// The dword `k` places after the table of car blocks, which is what `g_carBlocks[8 + k]`
+    /// The dword `k` places after the table of car blocks, which is what `car_blocks[8 + k]`
     /// reads: the eight car records' names, `current_car`, a dword nothing uses (0), the stage's
     /// direction, the current car's block (a handle too), then the number texture names. A
     /// number past those would be a car number of nearly 400.
@@ -235,7 +235,7 @@ impl RaceWork {
         Ok(value)
     }
 
-    /// Car `n`'s block as `g_carBlocks[n]` keeps it: its handle (0 for none), the value other
+    /// Car `n`'s block as `car_blocks[n]` keeps it: its handle (0 for none), the value other
     /// places keep for "that car" (`block_ref`).
     pub fn car_handle(&self, n: usize) -> u32 {
         self.car_blocks
@@ -243,8 +243,7 @@ impl RaceWork {
             .map_or_else(|| self.car_block(n), PlainDword::get)
     }
 
-    /// The number of the block car `n` has, refused for none (as `frame_view::car_at` on its
-    /// address).
+    /// The number of the block car `n` has, refused for none (as `frame_view::car_at`).
     pub fn block_number(&self, n: usize) -> Result<usize, BadInput> {
         use crate::race::blocks_store::{BLOCK_COUNT, BLOCK_TAG};
         if let Some(cell) = self.car_blocks.get(n) {
@@ -257,8 +256,8 @@ impl RaceWork {
             .ok_or(BadInput("no car block's place for a snapshot"))
     }
 
-    /// Whether car `n` has a block (`car_block(n) != 0`, ending the program on a handle that
-    /// names none as it does).
+    /// Whether car `n` has a block (`car_block(n) != 0`; a handle that names none ends the
+    /// program).
     pub fn has_car_block(&self, n: usize) -> bool {
         use crate::race::blocks_store::{BLOCK_COUNT, BLOCK_TAG};
         match self.car_blocks.get(n).map(PlainDword::get) {
@@ -268,10 +267,9 @@ impl RaceWork {
         }
     }
 
-    /// The number of car record `n` (`g_carRecords[n]`, the name of one of the effects' car
-    /// records, `race::effects_settings_store`; `RaceShared::car_record`). Refused past the
-    /// eight (the original reads on into the next variables) and for a name that is not a
-    /// record's start.
+    /// The number of car record `n` (`car_records[n]`, the name of one of the effects' car
+    /// records, `race::effects_settings_store`; `RaceShared::car_record`). Refused past the eight
+    /// and for a name that is not a record's start.
     pub fn car_record_number(&self, n: usize) -> Result<usize, BadInput> {
         let name = self
             .car_records
@@ -288,7 +286,7 @@ impl RaceWork {
     }
 }
 
-/// IDA 0x5C2FE4, where the eight car records (0x4C8 bytes each, in
+/// Where the eight car records (0x4C8 bytes each, in
 /// `effects_settings_store::EffectsSettings::cars`) begin, and their length.
 pub const CAR_RECORDS_IDA: usize = 0x5C2FE4;
 pub const CAR_RECORDS_LEN: usize = 8 * 0x4C8;
@@ -297,9 +295,9 @@ pub const CAR_RECORDS_LEN: usize = 8 * 0x4C8;
 // them): any bit pattern is a valid value.
 
 impl RaceWork {
-    /// The piece as the game starts it: the car blocks named, the computer driver's tables,
-    /// the credits' race, the `patch*` settings at their defaults and the stages' checkpoint
-    /// counts; the rest is zero.
+    /// The starting state: the car blocks named, the computer driver's tables, the credits' race,
+    /// the `patch*` settings at their defaults and the stages' checkpoint counts; the rest is
+    /// zero.
     pub const fn new() -> Self {
         RaceWork {
             car_blocks: block_handles(),
@@ -337,7 +335,7 @@ impl RaceWork {
                 0.9, 1.0, 0.9, 0.8, 0.7, 0.5, 0.3, 0.2, 0.1, 0.0, -0.1, -0.2, -0.3, -0.5, -0.7,
                 -0.8, -0.9,
             ]),
-            // Three tables of seven speeds (four to a word, as the game packs them).
+            // Three tables of seven speeds (four to a word).
             wanted_speeds: dwords([
                 0xfafafafa, 0xfafafafa, 0xc8fafafa, 0x5a646496, 0x46464646, 0x323c3c3c, 0x1e283232,
                 0xfafafafa, 0xfafafafa, 0xfafafafa, 0x323c4664, 0x32323232, 0x28282832, 0x1414141e,
@@ -365,7 +363,7 @@ impl RaceWork {
     }
 }
 
-/// `g_carBlocks` at the start: the eight cars' blocks, by handle.
+/// `car_blocks` at the start: the eight cars' blocks, by handle.
 const fn block_handles() -> [PlainDword; 8] {
     let mut out = [const { PlainDword::new(0) }; 8];
     let mut k = 0;
@@ -376,7 +374,7 @@ const fn block_handles() -> [PlainDword; 8] {
     out
 }
 
-/// `g_carRecords` at the start: the names of the eight car records, which follow each other.
+/// `car_records` at the start: the names of the eight car records, which follow each other.
 const fn car_record_names() -> [PlainDword; 8] {
     let mut out = [const { PlainDword::new(0) }; 8];
     let mut k = 0;

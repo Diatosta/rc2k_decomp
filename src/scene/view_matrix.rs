@@ -20,8 +20,7 @@ pub enum Axis {
     Z,
 }
 
-/// `scene::set_fine_turn_x` (0x4270BA), `scene::set_fine_turn_y` (0x42710C),
-/// `scene::set_turn_z` (0x42715D).
+/// The fine turn (32 bits a turn) about `axis`.
 pub fn set_fine_turn(course: CourseReads<'_>, matrices: &ViewMatrices, axis: Axis, angle: u32) {
     let (sine, cosine) = x87::sine_cosine(
         angle as i32,
@@ -52,10 +51,8 @@ pub fn set_fine_turn(course: CourseReads<'_>, matrices: &ViewMatrices, axis: Axi
     }
 }
 
-/// `scene::unit_vector` (0x420EF8): three floats made one long, into `out`; all 0 when
-/// their length compares equal to `Numbers.zero` (0, or no number). Minus zero made zero.
-/// Returns the length (the original left it in `SceneDraw.scratch`: the physics' callers store it
-/// there, the drawing's never read it).
+/// `scene::unit_vector`: three floats made one long, into `out`; all 0 when their length compares
+/// equal to `Numbers.zero` (0, or no number). Minus zero made zero. Returns the length.
 pub fn unit_vector(
     course: CourseReads<'_>,
     from: &(impl Cells + ?Sized),
@@ -86,7 +83,7 @@ pub fn unit_vector(
     length
 }
 
-/// `scene::cross_product` (0x420F8D): `out` = `b` x `c`, written part
+/// `scene::cross_product`: `out` = `b` x `c`, written part
 /// by part.
 pub fn cross_product(
     b: &(impl Cells + ?Sized),
@@ -101,11 +98,9 @@ pub fn cross_product(
     out.set_float(2, part(1, 0));
 }
 
-/// `scene::square_matrix` (0x420E94): a turning's three rows made one long and at right
-/// angles again, from its third row and its second. Returns the second `unit_vector`'s length.
-/// The original worked in `CourseLists.squared_row_0[0]` .. (16 floats, the last four never made: zeros, as the
-/// image has them, copied back); here a local, so that views drawn beside each other do not
-/// work in each other's rows.
+/// `scene::square_matrix`: a turning's three rows made one long and at right angles again, from its
+/// third row and its second. Returns the second `unit_vector`'s length. The work is a local, so
+/// that views drawn beside each other do not work in each other's rows.
 pub fn square_matrix(course: CourseReads<'_>, at: &(impl Cells + ?Sized)) -> u32 {
     let squared = [const { PlainFloat::new(0.0) }; 0x10];
     let (first, second, third) = (Off(&squared, 0), Off(&squared, 4), Off(&squared, 8));
@@ -117,7 +112,7 @@ pub fn square_matrix(course: CourseReads<'_>, at: &(impl Cells + ?Sized)) -> u32
     length
 }
 
-/// `scene::invert_turn` (0x420CC2): the turning at `from` undone, into `out`: its nine
+/// `scene::invert_turn`: the turning at `from` undone, into `out`: its nine
 /// floats' cofactors laid out the other way round, then squared. Returns `square_matrix`'s length.
 pub fn invert_turn(
     course: CourseReads<'_>,
@@ -148,7 +143,7 @@ pub fn invert_turn(
     square_matrix(course, out)
 }
 
-/// `scene::set_view_matrices` (0x438FBF), working in `scratch` (the front end's).
+/// `scene::set_view_matrices`, working in `scratch` (the front end's).
 pub fn set_view_matrices(
     course: CourseReads<'_>,
     frame: &crate::race::owner_frame::Frame,

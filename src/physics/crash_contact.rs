@@ -1,19 +1,18 @@
-//! `physics::crash_contact` (0x45EDB5): the body's deepest point against the ground.
-//! `contact_found` = 0; `physics::lowest_body_point` runs; unless the depth (`lowest_depth`) is
-//! below `crash_depth` and, with `all_wheels_off` at 0, below 0 (each by the sign of the
-//! comparison), only `physics::sound_cue_e5` runs. Else, for the point n (`lowest_point`): its
-//! three floats from `probe_x[n]`, `probe_ground_height[n]`, `probe_z[n]` go into the car's contact
-//! point (`contact_point_x` ..), `contact_found` = 1; the contact is taken (`take_contact`: the
-//! car's speed, the face's normal, the turn speed, the point); the car's up (0, 1, 0 turned by
-//! `g_crashMatrix`, `scene::rotate_point`) goes into `crash_car_up`, minus its dot with the normal
-//! into `crash_up_dot`, and from that the slide limit `contact_slide_limit`; `physics::contact_force`
-//! runs into force record 21 (`g_forceRecords` +0x2A0), `physics::place_sound_e5`; the force goes into
-//! `ground_force`, the record's point 0; `crash_ground_scale` = (wheel-load figure + 64) / 64 held
-//! at most 1, times the car's spin figure; the car's `contact_value` = `contact_value` of the
-//! contact work.
+//! The body's deepest point against the ground. `contact_found` = 0 and
+//! `physics::lowest_body_point` runs; unless the depth (`lowest_depth`) is below `crash_depth`
+//! and, with the wheels on the ground, below 0, only `physics::sound_cue_e5` runs. Otherwise
+//! the point `lowest_point` gives (from `probe_x`, `probe_ground_height`, `probe_z`) becomes
+//! the car's contact point and `contact_found` = 1; the contact is taken (`take_contact`: the
+//! car's speed, the face's normal, the turn speed, the point); the car's up vector (0, 1, 0
+//! turned by the crash matrix) goes into `crash_car_up`, minus its dot with the normal into
+//! `crash_up_dot`, and from that the slide limit `contact_slide_limit`;
+//! `physics::contact_force` runs into force record 21, then `physics::place_sound_e5`; the
+//! force goes into `ground_force` and the record's point is 0; `crash_ground_scale` =
+//! (wheel-load figure + 64) / 64 held at most 1, times the car's spin figure; the car's
+//! `contact_value` is the contact work's.
 //!
-//! Caller: `physics::car_physics_step`, every physics step. Refuses a point past 0x3F on the long
-//! path (the tables' room), and what its calls refuse; what was written is put back.
+//! Caller: `physics::car_physics_step`, every physics step. Refuses a point past 0x3F on the
+//! long path (the tables' room), and what its calls refuse; what was written is put back.
 
 use crate::effects::cell_x87::CellX87;
 use crate::errors::Refused;
@@ -50,8 +49,8 @@ pub fn sign(v: u32) -> bool {
 }
 
 /// The contact of point `n` taken: the car's `velocity` goes into `contact_car_speed`; the
-/// normal of its face (`probe_point_face[n]` in `g_courseFaces`: +0x18, +0x30, +0x38, or with
-/// `probe_face_flip[n]` at 1 +0x1C, +0x34, +0x3C) into `contact_normal`; the car's `spin` into
+/// normal of its face (`probe_point_face[n]` in the course faces: its first normal, or with
+/// `probe_face_flip[n]` at 1 its second) into `contact_normal`; the car's `spin` into
 /// `contact_turn_speed`; the point (`probe_turned_x[n]`, `probe_turned_y[n]`, `probe_turned_z[n]`)
 /// into `contact_point`.
 pub fn take_contact(
@@ -81,7 +80,7 @@ pub fn point_number(contact: &ContactWork) -> Result<usize, Refused> {
     Ok(n as usize)
 }
 
-// Converted: `rc2k_core::physics::contacts::{touches, normal_offsets, check_body_point}`
+// Core: `rc2k_core::physics::contacts::{touches, normal_offsets, check_body_point}`
 // (the x87 steps stay).
 fn steps(c: &ContactInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     c.car.contact_found.set(0);
@@ -146,11 +145,11 @@ pub fn crash_contact(
     steps(c, scene)
 }
 
-// ---- the arithmetic that was x87 assembly ----
+// ---- the x87 arithmetic ----
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// (a long formula: checked by the tests' `reference_vectors`)
+/// A long formula, covered by the tests.
 fn x87_1(contact: &ContactWork, tables: &PhysicsTables, numbers: &Numbers) {
     let t0 = contact.crash_up_dot.ld();
     let t1 = numbers.one.ld();
@@ -170,9 +169,7 @@ fn x87_1(contact: &ContactWork, tables: &PhysicsTables, numbers: &Numbers) {
     contact.contact_slide_limit.st(t14);
 }
 
-/// The game's x87 arithmetic as plain Rust over `X`, on the variables
-/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[crash_ground_scale] = ([rc + 0x31A0A0] + [sixty_four]) / [sixty_four]`
+/// One straight x87 run as plain Rust over `X`.
 fn x87_2(contact: &ContactWork, car: &Car, numbers: &Numbers) {
     let t0 = car.crash_matrix[5].ld();
     let t1 = numbers.sixty_four.ld();

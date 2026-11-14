@@ -1,5 +1,6 @@
-//! The race owner's physics group (`race::owner::Race::physics`): the physics work: camera, contact, gear, ground, pace, split tables, damage, car specs, checkpoints.
-//! `GEAR` and `CHECKPOINTS` stay views over their group statics (`LIGHTS_AND_GEAR`, `BUFFERS`).
+//! The race owner's physics group (`race::owner::Race::physics`): the physics work: camera,
+//! contact, gear, ground, pace, split tables, damage, car specs, checkpoints. The gear figures and
+//! the checkpoints stay views over their group statics (`groups_store::LightsAndGear`, `BUFFERS`).
 
 use crate::physics::camera_store::CameraWork;
 use crate::physics::contact_store::ContactWork;
@@ -13,7 +14,7 @@ use crate::session::{DrawShared, GameThread};
 
 /// What only the game's thread reaches: the camera, the ground, the pace notes, the split
 /// tables, the damage model and the car specs (no drawing part, audio, key or network thread
-/// touches them; the drawing's searches have their own copies, frame plan F4).
+/// touches them; the drawing's searches have their own copies).
 pub struct PhysicsMain {
     pub camera: CameraWork,
     pub ground: GroundWork,
@@ -36,13 +37,13 @@ impl PhysicsMain {
     }
 }
 
-/// The race's physics state (step 11, owned state: the stores move in as fields).
+/// The race's physics state.
 pub struct Physics {
     /// One copy, lent to the drawing parts (`workers::DrawReads`): the drawing's searches have
-    /// their own (frame plan F4) and read only the lit faces.
+    /// their own and read only the lit faces.
     pub contact: DrawShared<ContactWork>,
     /// One copy, lent to the drawing parts (`workers::DrawReads`): the drawing's searches
-    /// have their own fields (frame plan F4) and read only its mark.
+    /// have their own fields and read only its mark.
     pub ground_probe: DrawShared<GroundProbe>,
     main: GameThread<PhysicsMain>,
 }

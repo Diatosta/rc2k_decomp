@@ -1,27 +1,22 @@
-//! `scene::project_point` (0x44D004): a point's place in the view and on the screen,
-//! worked out once and kept.
-//!
-//! Takes: the point's number
+//! `scene::project_point`: a point's place in the view and on the screen, worked out once and
+//! kept.
 //!
 //! The records are 0x20 bytes each in the scene's point records: +0 the point's number, +0xC
-//! the x on the screen, +0x10, +0x14, +0x18 the point in the view, +0x1C the y on the
-//! screen. A point n of the scene has record n & 0xFFF; a point -n of an object has record
-//! 0x1000 + (n & 0xFFF), which is made elsewhere and only found here.
-//! A record whose number is not the point's is made anew: the point's three whole numbers
-//! (12 bytes each in the course's point table) through the view matrix (`scene::rotate_point`:
-//! three rows of x, y, z factors and a fourth to add; x87, inlined here with its own
-//! instructions), the screen's two set to 0, and, unless the depth is under 4096:
+//! the x on the screen, +0x10, +0x14, +0x18 the point in the view, +0x1C the y on the screen. A
+//! point n of the scene has record n & 0xFFF; a point -n of an object has record
+//! 0x1000 + (n & 0xFFF), which is made elsewhere and only found here. A record whose number is
+//! not the point's is made anew: the point's three whole numbers (12 bytes each in the course's
+//! point table) through the view matrix (`scene::rotate_point`: three rows of x, y, z factors
+//! and a fourth to add), the screen's two set to 0, and, unless the depth is under 4096:
 //! x = x' * (view scale / depth) + the view's centre x, y = the centre y - y' * (the same).
-//! With the stage's flat-depth switch set the depth divided by is a fixed depth + 1 instead
-//! (the real one went to the shared work dword, which nothing read: not kept). With the
-//! lights' draw mode at 1 the record's depth is then lowered by 262144.
-//! Fatal errors 0x80600902 and 0x80600903 for a number past the object's or the scene's
-//! points.
-//! One caller, `scene::project_polygon`.
+//! With the stage's flat-depth switch set the depth divided by is a fixed depth + 1 instead.
+//! With the lights' draw mode at 1 the record's depth is then lowered by 262144. Fatal errors
+//! 0x80600902 and 0x80600903 for a number past the object's or the scene's points. One caller,
+//! `scene::project_polygon`.
 //!
 //! `record_offset` is the core's (`rc2k_core::scene::projection`); the arithmetic is the
-//! x87's, in plain Rust over `X` (`math/x87_float.rs`), as the original's instructions
-//! are kept as recorded in the tests' `reference_vectors`.
+//! x87's, in plain Rust over `X` (`math/x87_float.rs`); the tests compare against recorded
+//! vectors (`reference_vectors`).
 
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::math::x87;
@@ -45,8 +40,6 @@ const TOO_HIGH: FatalError = FatalError {
     code: 0x8060_0903,
     message: "CRSPNTROT : point eax is too high",
 };
-
-// ---- Rust version ----
 
 /// `scene::rotate_point` as `project_point` uses it: the point's three whole numbers through the
 /// matrix, into the record's +0x10, +0x14, +0x18.
@@ -90,8 +83,8 @@ struct Screen {
     flat_depth: i32,
 }
 
-/// The record's place on the screen from its place in the view (`checked` gets the depth
-/// on the flat way, a work value).
+/// The record's place on the screen from its place in the view (`checked` gets the depth on
+/// the flat way).
 pub(crate) fn to_screen(
     record: &mut [u32],
     window: &crate::scene::view_window::ViewWindow,
@@ -146,7 +139,7 @@ fn screen_plain_with<R: Rounds>(r: R, view: [f32; 3], s: Screen) -> [u32; 2] {
 }
 
 /// The offset of a point's record, or the fatal error for a number too high.
-// Converted: `rc2k_core::scene::projection::record_offset`
+// Logic: `rc2k_core::scene::projection::record_offset`
 pub fn record_offset(point: u32, reads: crate::workers::DrawReads<'_>) -> Result<u32, FatalError> {
     use rc2k_core::scene::projection::TooHigh;
     rc2k_core::scene::projection::record_offset(
@@ -167,7 +160,7 @@ pub struct Projected {
     pub record: u32,
 }
 
-/// A scene point's record made anew (the same code as in `project_point`): the point through the view's matrix and onto the screen.
+/// A scene point's record made anew: the point through the view's matrix and onto the screen.
 pub(crate) fn make_scene_record(
     part: &crate::workers::PartScratch,
     point: u32,

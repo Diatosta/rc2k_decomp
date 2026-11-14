@@ -1,10 +1,9 @@
 //! The handheld GPU's jobs, and the step between the game's thread and the GL's: each part's
 //! commands made into batches (`Batches::of_layered`) on a thread of their own, one part ahead
-//! of the GL's drawing, so the GL's thread only brings textures up, binds and draws (the
-//! batching was about a third of its time). The batches are made from the same commands by
-//! the same function as when the GL's thread made them, and the one fact they need from the
-//! GL's texture cache, whether a texture is opaque, is kept here from the same jobs in the
-//! same order (`Opacity`): the batches, and so the picture, are the same.
+//! of the GL's drawing, so the GL's thread only brings textures up, binds and draws (batching
+//! took about a third of its time). The one fact the batches need from the GL's texture cache,
+//! whether a texture is opaque, is kept here from the same jobs in the same order (`Opacity`):
+//! the batches, and so the picture, are the same as the GL's thread would make.
 
 use super::batches::Batches;
 use super::{CommandList, TextureId, TextureMap, TextureNote};

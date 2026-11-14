@@ -1,13 +1,13 @@
-//! The course's faces (`g_courseFaces`, 0x40 bytes each) and records (`course_records`,
-//! 0x20 bytes each): parts of the course memory, Rust's.
-//! `race::load_level` moves them out once the course is read (with the scene points,
-//! `race::scene_points`), and `race::free_course_memory` gives them back.
+//! The course's faces (`course_faces`, 0x40 bytes each) and records (`course_records`, 0x20 bytes
+//! each): parts of the course memory, held in Rust's memory. `race::load_level` moves them out
+//! once the course is read (with the scene points, `race::scene_points`), and `give_back` gives
+//! them back.
 //!
 //! While held, the faces and records are entries of their tables, reached by number
-//! (`face_number`, `face_field`, `record_field`, ..; a field past its entry reads on into
-//! the next, as the original's arithmetic did) and the course info by offset
-//! (`info_bytes`, `info_field`). `COURSE.course_faces` and `COURSE.course_records` hold the
-//! tables' bases, handles (`PLACES_TAG`): nothing reads through them.
+//! (`face_number`, `face_field`, `record_field`, ..; a field past its entry reads on into the
+//! next, kept as is) and the course info by offset (`info_bytes`, `info_field`).
+//! `COURSE.course_faces` and `COURSE.course_records` hold the tables' bases, handles
+//! (`PLACES_TAG`): nothing reads through them.
 
 use crate::errors::BadInput;
 use crate::race::owner_course::Course;
@@ -51,7 +51,7 @@ use crate::memory::shared_table::SharedTable;
 
 pub static FACES: SharedTable = SharedTable::new(ROOM as usize, "no course faces");
 pub static RECORDS: SharedTable = SharedTable::new(ROOM as usize, "no course records");
-/// The course info (`g_courseInfo`, 0x400000 bytes: the texture infos `files\a\textinfo`
+/// The course info (`course_info`, 0x400000 bytes: the texture infos `files\a\textinfo`
 /// and `files\b\textinfo`, the mark corners `files\m\markinfo` at +0x1C2000): taken with
 /// the course memory (`level_init::allocate_course_memory`), filled by
 /// `level_init::load_texture_info`.
@@ -195,20 +195,14 @@ impl<const N: usize> Whole for [u8; N] {
 }
 
 // ---- by number ----
-//
-// What the original reaches as `g_courseFaces + 0x40 n + offset` (and the records' `+ 0x20 n`):
-// a face or record by its number, an entry of the store's table. `COURSE.course_faces` and
-// `COURSE.course_records` hold the tables' bases while the course is held; any other value
-// (0 before a course, or after its free) has no faces or records, and a read is refused.
 
 const FACE: u32 = 0x40;
 const RECORD: u32 = 0x20;
 
 type Table = SharedTable;
 
-/// Where byte `offset` of entry `n` (entries of `size` bytes) lies in its table, the base the
-/// game holds being `base`; a field reaching past the entry reads on into the next, as the
-/// original's.
+/// Where byte `offset` of entry `n` (entries of `size` bytes) lies in its table, the base held
+/// being `base`; a field reaching past the entry reads on into the next, kept as is.
 #[inline]
 fn index(own_base: u32, base: u32, size: u32, n: u32, offset: u32) -> Result<usize, BadInput> {
     if base != own_base || own_base == 0 {

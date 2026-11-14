@@ -1,16 +1,15 @@
-//! `scene::look_up_texture` (0x44E668): `g_polygonTexture` for the texture word
-//! `SceneDraw.texture_page` (stream A, part R3): -1 none; with the top bit a place
-//! (`TexturePlaces.place_slot[0][]`, below 0xFA0); else a kind's first slot (`g_kindFirstSlots[]`, below
-//! 0x400); a slot not below `g_textureSlotCount` (or none loaded) none (0xFFFFFC43).
-//!
-//! Callers: `scene::choose_texture` (0x44CCB8), `race::flush_texture_batch`.
+//! `scene::look_up_texture`: the polygon's texture for the texture word
+//! `SceneDraw.texture_page`: -1 none; with the top bit a place
+//! (`TexturePlaces.place_slot`, below 0xFA0); else a kind's first slot (below 0x400); a slot not
+//! below the texture slot count (or none loaded) none (0xFFFFFC43). Callers:
+//! `scene::choose_texture`, `race::frame_flush::flush_batch`.
 
 /// Looks up the polygon's texture.
 pub fn look_up_texture(
     poly: &crate::scene::polygon_work::PolygonWork,
     scene: &crate::scene::owner::Scene,
 ) -> u32 {
-    // Converted: `rc2k_core::scene::textures::look_up`.
+    // Logic: `rc2k_core::scene::textures::look_up`.
     let found = rc2k_core::scene::textures::look_up(
         poly.texture_page.get(),
         |p| scene.textures.places.get().place_slot[p].get(),

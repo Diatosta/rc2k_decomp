@@ -1,44 +1,47 @@
-//! The pong game over the race (a reading: cheat bit 0x8000 and `FrameWork.lead_kept[7]`. The ball at
-//! `PongState.ball[0]` (x, y), its way `PongState.ball_way[0]`, its size `PongState.ball_size[0]`; the bat at
-//! `PongState.bat[0]`, its size `PongState.bat_size[0]`, its place before the move `PongState.saved_bat[0]`; the hits
-//! `PongState.hits`, the best `PongState.best`, the ball's steps a frame `g_pongSteps` (named
-//! before the game was seen), the score's place `PongState.digit_at[0]` / `PongState.digit_at[1]`, the
-//! digits' 4 x 5 patterns `PongState.digit_patterns` (0x14 each).
+//! The pong game over the race (a reading: cheat bit 0x8000 and `FrameWork.lead_kept[7]`). The ball
+//! at `PongState.ball[0]` (x, y), its way `PongState.ball_way[0]`, its size
+//! `PongState.ball_size[0]`; the bat at `PongState.bat[0]`, its size `PongState.bat_size[0]`, its
+//! place before the move `PongState.saved_bat[0]`; the hits `PongState.hits`, the best
+//! `PongState.best`, the ball's steps a frame `PongState.steps`, the score's place
+//! `PongState.digit_at[0]` / `PongState.digit_at[1]`, the digits' 4 x 5 patterns
+//! `PongState.digit_patterns` (0x14 each).
 
 use crate::session::{PlainByte, PlainDword, PlainFloat};
 
-/// The pong game over the race: the box scratch, the ball, the bat, the score (IDA 0x768658 .. 0x7687DC).
+/// The pong game over the race: the box scratch, the ball, the bat, the score.
 #[derive(rc2k_derive::Cells)]
 pub struct PongState {
-    /// 0x768658: `flt_768658` .. `flt_768684`: the box drawn last (`effects::draw_pong_box`): the offsets of its corners from the place, twice (a reading: six, then the same plus the second shift).
+    /// The box drawn last (`effects::draw_pong_box`): the offsets of its corners from the place,
+    /// twice (a reading: six, then the same plus the second shift).
     pub box_sides: [PlainFloat; 12],
-    /// 0x768688: `g_pongBall`, `flt_76868C`: the ball's place (x, y).
+    /// The ball's place (x, y).
     pub ball: [PlainFloat; 2],
-    /// 0x768694: `flt_768694`, `flt_768698`: the ball's way, added to its place at each step (starts 1, 1).
+    /// The ball's way, added to its place at each step (starts 1, 1).
     pub ball_way: [PlainFloat; 2],
-    /// 0x7686A0: `flt_7686A0`, `flt_7686A4`: the ball's size (width, height).
+    /// The ball's size (width, height).
     pub ball_size: [PlainFloat; 2],
-    /// 0x7686AC: `dword_7686AC`, `dword_7686B0`: the bat's place before the move (put back when the bat overlaps the ball).
+    /// The bat's place before the move (put back when the bat overlaps the ball).
     pub saved_bat: [PlainFloat; 2],
-    /// 0x7686B8: `g_pongBat`, `flt_7686BC`: the bat's place (x, y).
+    /// The bat's place (x, y).
     pub bat: [PlainFloat; 2],
-    /// 0x7686D0: `flt_7686D0`, `flt_7686D4`: the bat's size.
+    /// The bat's size.
     pub bat_size: [PlainFloat; 2],
-    /// 0x7686DC: `flt_7686DC`, `flt_7686E0`: the ball's centre, worked out by the court's steps (`effects::pong_ball_hits`).
+    /// The ball's centre, worked out by the court's steps (`effects::pong_ball_hits`).
     pub ball_centre: [PlainFloat; 2],
-    /// 0x7686E8: `flt_7686E8`, `flt_7686EC`: the bat's centre (`effects::pong_ball_hits`).
+    /// The bat's centre (`effects::pong_ball_hits`).
     pub bat_centre: [PlainFloat; 2],
-    /// 0x7686F4: `flt_7686F4`, `flt_7686F8`: the ball's centre less the bat's (`effects::pong_ball_hits`); it becomes the ball's way after a hit.
+    /// The ball's centre less the bat's (`effects::pong_ball_hits`); it becomes the ball's way
+    /// after a hit.
     pub difference: [PlainFloat; 2],
-    /// 0x768700: `g_pongSteps`: the ball's steps a frame (5 at the start, 4 more with each hit).
+    /// The ball's steps a frame (5 at the start, 4 more with each hit).
     pub steps: PlainDword,
-    /// 0x768704: `g_pongDigitPatterns`: the digits' 4 x 5 patterns, 10 of 0x14 bytes (a byte a cell, 0 for empty).
+    /// The digits' 4 x 5 patterns, 10 of 0x14 bytes (a byte a cell, 0 for empty).
     pub digit_patterns: [[PlainByte; 20]; 10],
-    /// 0x7687CC: `g_pongBest`: the best score (hits).
+    /// The best score (hits).
     pub best: PlainDword,
-    /// 0x7687D0: `g_pongHits`: the hits of this game.
+    /// The hits of this game.
     pub hits: PlainDword,
-    /// 0x7687D4: `dword_7687D4`, `dword_7687D8`: where the next score digit is drawn (x, y).
+    /// Where the next score digit is drawn (x, y).
     pub digit_at: [PlainDword; 2],
 }
 
@@ -285,28 +288,31 @@ impl PongState {
     }
 }
 
-/// The pong game's constants (IDA 0x769182 .. 0x769232).
+/// The pong game's constants.
 #[derive(rc2k_derive::Cells)]
 pub struct PongRules {
-    /// 0x769182: `flt_769182` .. `flt_76919E`: the court at the start of a game (`Court::reset`), as bits: four (x, y) pairs, the ball, its size, the bat, its size.
+    /// The court at the start of a game (`Court::reset`), as bits: four (x, y) pairs, the ball, its
+    /// size, the bat, its size.
     pub start: [PlainFloat; 8],
-    /// 0x7691A6: `flt_7691A6` .. `flt_7691C2`: the court's walls the ball turns at and the places it is put back at (a reading, `effects::move_pong_ball`).
+    /// The court's walls the ball turns at and the places it is put back at (a reading,
+    /// `effects::move_pong_ball`).
     pub walls: [PlainFloat; 8],
-    /// 0x7691C6: `flt_7691C6` .. `flt_7691D2`: a half, four times: a place plus its size times it is the centre (`Court` centres).
+    /// A half, four times: a place plus its size times it is the centre (`Court` centres).
     pub centre: [PlainFloat; 4],
-    /// 0x7691D6: `flt_7691D6`: 1, what a hit changes the way by.
+    /// 1, what a hit changes the way by.
     pub nudge: PlainFloat,
-    /// 0x7691DA: `flt_7691DA`, `flt_7691DE`: 4, 4: the way after a hit is the difference over them (`effects::pong_ball_hits`).
+    /// 4, 4: the way after a hit is the difference over them (`effects::pong_ball_hits`).
     pub way_scale: [PlainFloat; 2],
-    /// 0x7691FA: `flt_7691FA`, `flt_7691FE`: 16 and -16: a score cell's step across and down (`effects::pong_cell`).
+    /// 16 and -16: a score cell's step across and down (`effects::pong_cell`).
     pub cell_step: [PlainFloat; 2],
-    /// 0x769202: `flt_769202`, `flt_769206`: 16, 16: a score cell's size.
+    /// 16, 16: a score cell's size.
     pub cell_size: [PlainFloat; 2],
-    /// 0x76920A: `dword_76920A` .. `dword_769216`: the texture places of a pong box (`effects::draw_pong_box`; 0.99 four times, as bits).
+    /// The texture places of a pong box (`effects::draw_pong_box`; 0.99 four times, as bits).
     pub box_places: [PlainFloat; 4],
-    /// 0x76921A: `flt_76921A`: 16384: `effects::draw_pong_box` draws nothing when the first corner's third value (its depth) compares below it.
+    /// 16384: `effects::draw_pong_box` draws nothing when the first corner's third value (its
+    /// depth) compares below it.
     pub near: PlainFloat,
-    /// 0x769222: `dword_769222` .. `dword_76922E`: the texture places the pong frame's set-up uses (`effects::pong_setup`).
+    /// The texture places the pong frame's set-up uses (`effects::pong_setup`).
     pub setup_places: [PlainFloat; 4],
 }
 
@@ -375,23 +381,22 @@ impl Pong {
     }
 }
 
-/// `fld a; fadd b; fcomp c; fstsw ax; and eax, 700h`.
+/// The status bits (0x700 mask) of `a + b` compared with `c`.
 pub fn sum_compare(a: f32, b: f32, c: f32) -> u32 {
     u32::from(sum_status(a, b, c)) & 0x700
 }
 
-/// `fld x; fld k; fsub w [; fsub m]; fcompp; fstsw ax; and eax, 700h` (`m` with `Some`).
+/// The status bits (0x700 mask) of `x - k - w` (less `m` with `Some`) compared.
 pub fn less_compare(x: f32, k: f32, w: f32, m: Option<f32>) -> u32 {
     u32::from(less_status(x, k, w, m)) & 0x700
 }
 
-/// `fld a; fadd b; fcomp c; fnstsw`: a + b against c, the status word's condition bits.
+/// `a + b` compared with `c`: the status word's condition bits.
 fn sum_status(a: f32, b: f32, c: f32) -> u16 {
     bh::compare(bh::ld(a) + bh::ld(b), bh::ld(c))
 }
 
-/// `fld x; fld k; fsub w [; fsub m]; fcompp; fnstsw`: k - w [- m] against x, the status
-/// word's condition bits.
+/// `k - w` (less `m` with `Some`) compared with `x`: the status word's condition bits.
 fn less_status(x: f32, k: f32, w: f32, m: Option<f32>) -> u16 {
     let mut t = bh::ld(k) - bh::ld(w);
     if let Some(m) = m {

@@ -1,4 +1,4 @@
-//! `effects::drift_offsets` (0x4C1BA9): two whole-number offsets drifting by a wandering pace.
+//! `effects::drift_offsets`: two whole-number offsets drifting by a wandering pace.
 //! When `drift_wait` ticks of the scene clock have passed since `drift_since` (unsigned), new
 //! targets (`drift_target`) by the effects' random (its low 12 bits and the next 12, less
 //! 0x7FF, times the `target_scale`s), a new wait ((its top byte + 0x40) times 5), the time
@@ -6,10 +6,7 @@
 //! (`drift_pace`) eased toward its target (`x87::ease`, by `ease`) and added to its offset
 //! (the view's x and z, rounded).
 //!
-//! One caller, `effects::run_rain` (the effects' frame).
-//!
-//! the x87 version stays for the Rust callers in unconverted code; the offsets' `fistp`
-//! stays the x87's).
+//! The offsets are rounded as the x87 rounds.
 
 use crate::effects::rain::Weather;
 use crate::math::x87;

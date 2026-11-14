@@ -1,5 +1,4 @@
-//! `physics::keep_motion` (0x440B7C): copies the car's `local_velocity` and `g_carSpeed` (three
-//! dwords) into `kept_motion`.
+//! Copies the car's `local_velocity` and car speed (three dwords) into `kept_motion`.
 //!
 //! Caller: `physics::car_physics_step`, every physics step.
 

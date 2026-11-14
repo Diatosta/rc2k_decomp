@@ -1,15 +1,15 @@
 //! The standalone program's joysticks and wheels: the backend of DirectInput's objects made
 //! in Rust (`input::di_objects`) on SDL's joysticks and haptics.
 //!
-//! - The devices: SDL's joysticks in the order first seen (a device unplugged keeps its
-//!   place and reads at rest, its handles closed), each opened when seen: its name, a product GUID (SDL's), an
-//!   instance GUID made from SDL's and its instance number, force feedback when SDL opens a
-//!   haptic device for it. A gamepad SDL knows (an Xbox pad and the like) as Windows'
-//!   DirectInput shows an XInput pad, which is what the game was made for: x, y the left
-//!   stick, z both triggers on one axis (the left one up, the right one down, at rest in the
-//!   middle), rx, ry the right stick; ten buttons (A, B, X, Y, the shoulders, back, start,
-//!   the sticks' presses), the pad's cross as a hat. Another joystick as SDL has it: its
-//!   first six axes as x, y, z, rx, ry, rz, its buttons (up to 32) and hats (up to 4).
+//! - The devices: SDL's joysticks in the order first seen (a device unplugged keeps its place and
+//!   reads at rest, its handles closed), each opened when seen: its name, a product GUID (SDL's),
+//!   an instance GUID made from SDL's and its instance number, force feedback when SDL opens a
+//!   haptic device for it. A gamepad SDL knows (an Xbox pad and the like) as Windows' DirectInput
+//!   shows an XInput pad, which is what the game was made for: x, y the left stick, z both triggers
+//!   on one axis (the left one up, the right one down, at rest in the middle), rx, ry the right
+//!   stick; ten buttons (A, B, X, Y, the shoulders, back, start, the sticks' presses), the pad's
+//!   cross as a hat. Another joystick as SDL has it: its first six axes as x, y, z, rx, ry, rz, its
+//!   buttons (up to 32) and hats (up to 4).
 //! - A reading: SDL's axes (-32768 .. 32767), buttons and hats (as DirectInput's
 //!   hundredths of degrees, clockwise from up; centred `u32::MAX`). SDL updates them on the
 //!   main thread's event pump.

@@ -1,15 +1,15 @@
-//! `effects::run_splines` (0x4B978A): the splines' frame. `g_marksSplinesMade` stepped by
-//! half `g_marksFrameTicks`: toward 0x80 while the settings' +0x2700 is set (+0x26FC then
-//! 0); else up to 0xFF and back to 0 while +0x26FC is set (cleared there); else on away
-//! from 0x80 (up when at or above it, to 0 past 0xFF; down below it, to 0 under 1). Then
-//! the wave: `SplineHead.angle` plus (the marks' random's low byte less 0x80) / `SplineConstants.wave_k[0]` by
-//! `SplineConstants.wave_k[1]`, and `SplineHead.wave` its sine by `SplineConstants.wave_k[2]`; then `effects::place_spline` for
-//! each of `g_marksSplinePlace` splines, the last first.
+//! `effects::run_splines`: the splines' frame. The splines made stepped by half the frame ticks:
+//! toward 0x80 while the settings' +0x2700 is set (+0x26FC then 0); else up to 0xFF and back to 0
+//! while +0x26FC is set (cleared there); else on away from 0x80 (up when at or above it, to 0 past
+//! 0xFF; down below it, to 0 under 1). Then the wave: `SplineHead.angle` plus (the marks' random's
+//! low byte less 0x80) / `SplineConstants.wave_k[0]` by `SplineConstants.wave_k[1]`, and
+//! `SplineHead.wave` its sine by `SplineConstants.wave_k[2]`; then `effects::place_spline` for each
+//! of the splines placed, the last first.
 //!
-//! Works on `g_marksSettings`.
+//! Works on the effects settings.
 //!
-//! Caller: `effects::view_frame`. Refuses null settings and more than 8 splines (before anything),
-//! and `place_spline`'s refusals (all it may write is put back first).
+//! Refuses null settings and more than 8 splines (before anything), and `place_spline`'s refusals
+//! (all it may write is put back first).
 
 use crate::effects::paths::Paths;
 use crate::effects::place_spline::place_spline;

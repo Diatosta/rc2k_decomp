@@ -1,15 +1,11 @@
-//! `physics::limit_motion` (0x43F7AC): the work car's motion held to its limits. A motion
-//! part that is no number or infinite (its exponent all ones) logs "*** INFINITY",
-//! "[car0.newxspd] =" and the three (5 decimals) and zeroes the motion (+0x198), its car
-//! frame copy (+0x1A4) and the spin (+0x184). Then the spin's parts held to
-//! ±`spin_limit` and the motion's (x, z, y) to ±`velocity_limit` (the limit negated in place
-//! for the second compare and put back); its length (`physics::vector_length`) into
-//! `motion_length`, and past `top_speed` the motion and its copy scaled down to it
-//! (`physics::scale_vector`, the factor then in `scratch`).
+//! Holds the work car's motion to its limits. A motion part that is no number or infinite (its
+//! exponent all ones) logs "*** INFINITY", "[car0.newxspd] =" and the three (5 decimals) and zeroes
+//! the motion, its car-frame copy and the spin. Then the spin's parts are held to +-`spin_limit`
+//! and the motion's (x, z, y) to +-`velocity_limit`; its length (`physics::vector_length`) goes
+//! into `motion_length`, and past `top_speed` the motion and its copy are scaled down to it
+//! (`physics::scale_vector`).
 //!
-//! The x87 compares are the arithmetic of the original's instructions over the game's
-//! variables (from IDA), in plain Rust over `X` (`math/x87_float.rs`); the instructions are
-//! recorded in the tests' `reference_vectors`.
+//! The x87 compares are plain Rust over `X` (`math/x87_float.rs`).
 //!
 //! Callers: `physics::car_physics_step` (twice), `physics::find_clear_place`.
 
@@ -24,8 +20,8 @@ use crate::scene::matrix3::{rounded, rounded_value};
 use crate::session::Cell32;
 use std::cmp::Ordering;
 
-/// The value at `v` held to ±(the limit at `l`), as the original: `fld l; fld v;
-/// fcompp`, the limit negated in place for the second compare and put back.
+/// The value at `v` held to +-(the limit at `l`): the limit is negated in place for the second
+/// compare and put back.
 fn hold(v: &impl Cell32, l: &impl Cell32) {
     let limit = l.ld();
     if compare(v.ld(), limit) & 0x100 == 0 {
@@ -42,7 +38,7 @@ fn hold(v: &impl Cell32, l: &impl Cell32) {
 /// The exact version, for `physics::car_physics_step` and `physics::find_clear_place`.
 pub fn limit_motion(car: &Car, tables: &PhysicsTables, scene: &crate::scene::owner::Scene) {
     let drawing = &scene.drawing;
-    // Infinity or not a number (the original tests the float's exponent bits).
+    // Infinity or not a number (the float's exponent bits are tested).
     let bad = car
         .velocity
         .iter()

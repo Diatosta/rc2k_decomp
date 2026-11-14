@@ -1,9 +1,8 @@
-//! The frozen comparisons of the helpers in `math/x87.rs` from its "part B" line: until
-//! 2026-11-13 each plain version ran against the original's x87 instructions on seeded
-//! inputs at the four rounding modes (bit for bit, any NaN equal to any NaN, a status word's
-//! C3 / C2 / C0; a few within an ulp or two). The last run passed; the plain versions'
-//! results on the same inputs are now kept as one hash per function and control word
-//! (`test_support::frozen`, table `FROZEN` at the end).
+//! The frozen comparisons of the helpers in `math/x87.rs` from its "part B" line: the plain
+//! versions' results on seeded inputs at the four rounding modes are kept as one hash per
+//! function and control word (`test_support::frozen`, table `FROZEN` at the end). The
+//! hashes were taken from versions that matched the x87's instructions (bit for bit, any
+//! NaN equal to any NaN, a status word's C3 / C2 / C0; a few within an ulp or two).
 
 mod diff {
     use crate::test_support::frozen::Digests;
@@ -172,7 +171,7 @@ mod diff {
         fn ofl(&mut self) -> Option<u32> {
             if self.bl() { Some(self.fl()) } else { None }
         }
-        /// A double's bits (a constant of the original).
+        /// A double's bits (a constant).
         fn d64(&mut self) -> u64 {
             match self.below(3) {
                 0 => (self.below(2_000_000) as f64 / 1000.0 - 1000.0).to_bits(),
@@ -252,8 +251,7 @@ mod diff {
         }
     }
 
-    /// `fld qword; fstp tbyte`: a double as the 80-bit format (`x87_float::f80`, itself
-    /// frozen against the instructions in `x87_frozen_a`).
+    /// A double as the 80-bit format (`x87_float::f80`, itself frozen in `x87_frozen_a`).
     fn to_f80(x: f64) -> [u8; 10] {
         crate::math::x87_float::f80(crate::math::x87_float::X(x))
     }
@@ -485,7 +483,7 @@ mod diff {
         run(0x0A7F, 0x5EED_0B04);
     }
 
-    /// The results' hashes, frozen on 2026-11-13 (`RC2K_FREEZE_OUT` to make them again).
+    /// The results' hashes (`RC2K_FREEZE_OUT` makes them again).
     const FROZEN: &[(&str, u64)] = &[
         ("cw_027f::abs_blend_compare", 0x2bca21cfb6a3adcf),
         ("cw_027f::abs_sum_times_to_int", 0x4f304e81048bc274),

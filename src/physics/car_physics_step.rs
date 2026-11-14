@@ -1,31 +1,31 @@
-//! `physics::car_physics_step` (0x43B635): one physics step of the work car (the copy at `g_car`,
-//! loaded by `drive::load_car`). In order: the car's word stirred, its specs, gear ratios, motion
-//! length, handling, the race timers; the step's notes cleared (sounds `sound_scratch_a` .., the
-//! camera's probe counts, the car's contact fields, the hit counters `scene_point_hits` ..), the
-//! height before (`vertical_speed`); the inverse matrix, the ground, skid marks, the probes, the
-//! timers, the surfaces and their noise, the state saved, the forces cleared, wheel weights,
-//! downforce, the gearbox, the drive force; the side speed into `side_speed_held` held within ±
-//! `side_speed_limit`; the driven wheels (grip, step, speeds, the free revs); the engine's speed
+//! One physics step of the work car (the copy loaded by `drive::load_car`). In order: the car's
+//! word stirred, its specs, gear ratios, motion length, handling and the race timers; the step's
+//! notes cleared (sounds, the camera's probe counts, the car's contact fields, the hit counters)
+//! and the height before (`vertical_speed`); the inverse matrix, the ground, skid marks, the
+//! probes, the timers, the surfaces and their noise, the state saved, the forces cleared, wheel
+//! weights, downforce, the gearbox and the drive force; the side speed held within
+//! `side_speed_limit`; the driven wheels (grip, step, speeds, the free revs); the engine speed
 //! held between `idle_engine_speed` (only off the clutch, `brake` 0) and `rev_limit`; wheels from
-//! revs, air drag, springs, the body against the ground, the wheels' forces and torques, the motion
-//! (move, spin, levers, matrix, angles); the speed's length into `top_speed`. Then the contacts, up
-//! to `contact_steps` rounds (`contact_step` the count): contacts cleared, the ground, the crossed
-//! edge, the walls, the probes, the other cars, the faces, the motion kept, the contacts' forces and
-//! torques; a round that restored nothing (`clear_place_count` 0) ends it, else the car stalled when
-//! still, its motion redone and the round counted; all rounds used: `physics::limit_motion`,
-//! `physics::find_clear_place`, `step_count` + 1. With rounds done, the motion put back and
-//! limited. Then the ground, the stuck reset, the engine sound, the wheels' spin, the checkpoints,
-//! the pace notes (`physics::pace_notes_step`), the count down, the wheel angles, the mean drive
-//! speed (`mean_drive_speed`) and the height change (`vertical_speed_change`), the motion length,
-//! the damage model and its parts and notices, the notices, neutral, the `contact_flag`, the camera
-//! (`physics::camera_frame`, when the current car is listed in `listed_car_sounds`), the spin on
-//! the ground, broken parts, lights, the forces' sum, the wheel load, the engine sound's share, the
-//! time mark, a false start, the value notice. The holds are `physics/flow.rs`'s.
+//! revs, air drag, springs, the body against the ground, the wheels' forces and torques, the
+//! motion (move, spin, levers, matrix, angles); the speed's length into `top_speed`. Then the
+//! contacts, up to `contact_steps` rounds (`contact_step` the count): contacts cleared, the
+//! ground, the crossed edge, the walls, the probes, the other cars, the faces, the motion kept,
+//! the contacts' forces and torques; a round that restored nothing (`clear_place_count` 0) ends
+//! it, else the car stalls when still, its motion is redone and the round counted; with all
+//! rounds used: `physics::limit_motion`, `physics::find_clear_place`, `step_count` + 1. With
+//! rounds done, the motion is put back and limited. Then the ground, the stuck reset, the engine
+//! sound, the wheels' spin, the checkpoints, the pace notes (`physics::pace_notes_step`), the
+//! count down, the wheel angles, the mean drive speed and the height change
+//! (`vertical_speed_change`), the motion length, the damage model with its parts and notices,
+//! neutral, `contact_flag`, the camera (`physics::camera_frame`, when the current car is in
+//! `listed_car_sounds`), the spin on the ground, broken parts, lights, the forces' sum, the wheel
+//! load, the engine sound's share, the time mark, a false start and the value notice. The holds
+//! are in `physics/flow.rs`.
 //!
 //! Callers: `physics::race_cars_step`, `race::step_replay_cars`, `drive::replay_step`.
-//! Refuses (before anything) a current car past 7 (`listed_car_sounds` is read by it), and what its
-//! calls refuse; the work car and the physics' variables (`step_regions`) are put back then
-//! (the callees put back their own other writes).
+//! Refuses (before anything) a current car past 7, and what its calls refuse; the work car and
+//! the physics' variables are put back then (the callees put back their own
+//! other writes).
 
 use crate::effects::cell_x87::CellX87;
 use crate::errors::{BadInput, Refused};
@@ -152,7 +152,7 @@ pub fn steps(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refus
     ph::set_downforce::set_downforce(race.shared.car(), race.shared.physics_tables.get());
     ph::gearbox_step::gearbox_step(race.course.numbers.get(), &race.shared, race.gear(), scene)?;
     { ph::drive_force::drive_force(&race.course, &race.shared, race.gear(), scene) }?;
-    // 0x43B737: the side speed held within the limit.
+    // The side speed held within the limit.
     race.shared
         .car()
         .side_speed_held
@@ -184,7 +184,7 @@ pub fn steps(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refus
     ph::settle_drive_speeds::settle_drive_speeds(race.course.numbers.get(), &race.shared, scene)?;
     ph::free_rev_in_neutral::free_rev_in_neutral(&race.course, &race.shared, race.gear(), scene);
     ph::free_rev_clutch::free_rev_clutch(&race.course, &race.shared, race.gear(), scene)?;
-    // 0x43B7BC: the engine's speed held.
+    // The engine's speed held.
     if race.shared.car().brake.get() == 0 {
         hold_low(
             &race.shared.car().engine_speed,
@@ -234,7 +234,7 @@ pub fn steps(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refus
         .set(rounded_value(ph::vector_length::vector_length(
             &race.shared.car().velocity,
         )));
-    // 0x43B851: the contacts' rounds.
+    // The contacts' rounds.
     race.shared.physics_tables.get().contact_step.set(0);
     loop {
         ph::clear_contacts::clear_contacts(race.shared.physics_tables.get())?;
@@ -357,7 +357,7 @@ pub fn steps(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refus
     ph::damage_notices::damage_notices(race.shared.car(), race.physics.damage())?;
     ph::take_notice::take_notice(race.shared.car());
     ph::drop_to_neutral::drop_to_neutral(race.shared.car(), race.shared.physics_tables.get());
-    // 0x43B96B: `physics::test_car_word_234` set only flags nobody reads: left out.
+    // A step that set only flags nobody reads is left out.
     // The step's three callers run it for the cars from 0 up to the race's car count, at most 8.
     let car = race.shared.work.get().current_car.get() as usize;
     let listed = race
@@ -402,12 +402,12 @@ pub fn car_physics_step(o: crate::owners::Owners<'static>, race: &Race) -> Resul
     steps(o, race)
 }
 
-// ---- the arithmetic that was x87 assembly ----
+// ---- the x87 arithmetic ----
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[mean_drive_speed] = ([drive_speed_a] + [drive_speed_b]) * [half]`
-/// `[vertical_speed_change] = [rc + 0x31A174] - [vertical_speed]`
+/// `[vertical_speed_change] = [car vertical velocity] - [vertical_speed]`
 fn x87_1(race: &Race) {
     let t0 = race.shared.car().drive_speed_a.ld();
     let t1 = race.shared.car().drive_speed_b.ld();

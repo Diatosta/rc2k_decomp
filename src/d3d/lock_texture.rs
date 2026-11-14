@@ -1,28 +1,23 @@
-//! `d3d::lock_texture` (0x41AA4B): a system texture locked, made the blitters' surface.
-//! With no surface (+0x14 0) nothing; locked already (+0x60 1): fatal error 0x8021A171;
-//! else its surface's `Lock` (no rectangle, the surface description, flags 1): a
-//! failure is fatal error 0x8021A172; +0x60 1 and `d3d::texture_surface_info`.
+//! `d3d::lock_texture`: a system texture locked, made the blitters' surface. Takes the texture.
+//! With no surface nothing; locked already: fatal error 0x8021A171; a failure to lock is fatal
+//! error 0x8021A172.
 //!
-//! Takes: the texture
-//!
-//! Callers: the name and time plates, the mud, the mirror, the marks' masks, ... (most
-//! `jb`). The lock is the surface's own method (`d3d::texture_lock`): DirectDraw in the
-//! game, `platform_3d`'s in the standalone. Refuses a texture past the pool's 0x140,
-//! before anything.
+//! Callers: the name and time plates, the mud, the mirror, the marks' masks, ... The lock is the
+//! surface's own method (`d3d::texture_lock`, `platform_3d`'s). Refuses a texture past the
+//! pool's 0x140, before anything.
 
 use crate::d3d::texture_lock::*;
 use crate::errors::{BadInput, Refused};
 use crate::framework::CarryZeroFlags;
 use crate::gfx::texture_upload::RecordCell;
 
-/// Texture `texture` locked; the flags it leaves
-/// (every register is kept).
+/// Texture `texture` locked.
 pub fn lock_texture_in(
     gfx: &crate::gfx::owner::Gfx,
     texture: u32,
 ) -> Result<CarryZeroFlags, Refused> {
     use rc2k_core::d3d::textures::{LOCK_FAILED, LOCKED_TWICE, Lock, lock};
-    // Converted: `rc2k_core::d3d::textures::lock`.
+    // Logic: `rc2k_core::d3d::textures::lock`.
     let r = record(texture);
     let surface = r.map_or(0, RecordCell::first_surface);
     match lock(texture, surface, || r.map_or(0, RecordCell::locked)).map_err(BadInput::from)? {

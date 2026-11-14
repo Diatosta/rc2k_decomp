@@ -1,6 +1,5 @@
-//! `sound::spot_voice_distances` (0x40E733): each voice heard this turn: its distance,
-//! the distance's change and the pitch and volume factors, as `sound::car_engine_state`
-//! does for a car.
+//! `sound::spot_voice_distances`: each voice heard this turn: its distance, the distance's change
+//! and the pitch and volume factors, as `sound::car_engine_state` does for a car.
 //!
 //! For each voice heard (+4 1): +0x40 the root of +8 .. +0x10 squared, +0x44 its change
 //! x the turns a second (`RaceClock.turns_a_second`); +0x4C 0 and +0x48 1.0, then unless the voice
@@ -13,7 +12,7 @@ use crate::math::x87_float::{ld, stf};
 use crate::sound::spot_voices::{VOICE_COUNT, voice};
 
 /// The distance, as the float's bits compared as whole numbers: over 1.0 (a negative or a
-/// not-a-number distance is as the original's integer compare has it).
+/// not-a-number distance counts as the integer compare has it).
 fn over_one(distance: f32) -> bool {
     distance.to_bits() as i32 > 0x3F80_0000
 }
@@ -49,9 +48,9 @@ pub fn spot_voice_distances(sound: &crate::sound::owner::Sound) {
     }
 }
 
-// ---- the arithmetic that was x87 assembly ----
+// ---- the x87-precision arithmetic ----
 
-/// An x87 run of the original, in plain Rust over `X`: the new distance and its change a
+/// An x87-precision run in plain Rust over `X`: the new distance and its change a
 /// second:
 /// `distance = sqrt(((x * x) + ((y * y) + (z * z))))`
 /// `change = (distance - old_distance) * turns_a_second`
@@ -75,7 +74,7 @@ fn distance_and_change(place: [f32; 3], old_distance: f32, turns_a_second: f32) 
     (stf(t12), stf(t15))
 }
 
-/// An x87 run of the original, in plain Rust over `X`: the pitch factor eased toward the
+/// An x87-precision run in plain Rust over `X`: the pitch factor eased toward the
 /// change's pitch:
 /// `factor = (((change + sound_speed) * over_sound_speed) - factor) * pitch_blend + factor`
 fn eased_pitch_factor(
@@ -98,7 +97,7 @@ fn eased_pitch_factor(
     stf(t10)
 }
 
-/// An x87 run of the original, in plain Rust over `X`: `1 / distance`.
+/// An x87-precision run in plain Rust over `X`: `1 / distance`.
 fn inverse(distance: f32) -> f32 {
     let t0 = X(1.0);
     let t1 = ld(distance);

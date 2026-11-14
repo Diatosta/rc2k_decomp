@@ -1,14 +1,12 @@
-//! `physics::corner_hits_car` (0x45F703): whether a corner of another car (`corner_in`
-//! .., floats) lies inside the work car. In `pusha` / `popa`: the corner x 65536
-//! (`k65536`, unrounded) turned by `corner_matrix` (`scene::rotate_point`) and / 65536
-//! into `corner_turned` ... Inside when each part's size is below the box's (`box_size`
-//! ..; unordered counts as below, as `fcomp` / `jnb`): `corner_inside` = 1,
-//! `physics::restore_saved_car`, `physics::bump_cars`.
+//! Whether a corner of another car (`corner_in`, floats) lies inside the work car: the corner
+//! times 65536 (`k65536`, unrounded) turned by `corner_matrix` and divided by 65536 into
+//! `corner_turned`. Inside when each part's size is below the box's (`box_size`; unordered counts
+//! as below): `corner_inside` = 1, then `physics::restore_saved_car` and `physics::bump_cars`.
 //!
-//! Takes: the other car's block (passed to `bump_cars`)
+//! Takes: the other car's block (passed to `bump_cars`).
 //!
-//! Caller: `physics::car_collisions` (eight corners a car). Refuses what
-//! `restore_saved_car` and `bump_cars` refuse (what was written put back).
+//! Caller: `physics::car_collisions`, eight corners a car. Refuses what `restore_saved_car` and
+//! `bump_cars` refuse (what was written is put back).
 
 use crate::effects::cell_x87::CellX87;
 use crate::errors::Refused;
@@ -50,7 +48,7 @@ pub fn corner_hits_car(
     Ok(())
 }
 
-// ---- the arithmetic that was x87 assembly ----
+// ---- the x87 arithmetic ----
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):

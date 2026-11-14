@@ -1,13 +1,12 @@
-//! `effects::draw_overlays` (0x4C74DA): the race frame's layer of marks drawn before the car's
-//! shadow (the windscreen effects' overlay layer): `scene::depth_buffer_on`, `scene::depth_test_on`, render states
-//! 0x15 = 4, 0x13 = 5, 0x14 = 6, 0x1C = 1, 0x1B = 1; `effects::draw_plane`,
-//! `effects::windscreen_flakes_frame`, `effects::windscreen_drops_top`; then the second shadow, the twin of
-//! `effects::draw_shadow` without its depth calls (`draw_shadow`'s `second`).
+//! `effects::draw_overlays`: the race frame's layer of marks drawn before the car's shadow (the
+//! windscreen effects' overlay layer): `scene::depth_buffer_on`, `scene::depth_test_on`, render
+//! states 0x15 = 4, 0x13 = 5, 0x14 = 6, 0x1C = 1, 0x1B = 1; `effects::draw_plane`,
+//! `effects::windscreen_flakes_frame`, `effects::windscreen_drops_top`; then the second shadow, the
+//! twin of `effects::draw_shadow` without its depth calls (`draw_shadow`'s `second`).
 //!
-//! Caller: the race's frame (`race::draw_marks_overlays`, 0x45632B, just before `draw_shadow`). the
-//! shadow's vector helpers their Rust versions. Refuses the shadow's refusals (null settings, a
-//! corner past
-//! `g_marksCorners`, an angle `fsincos` cannot take), before anything.
+//! Caller: the race's frame (`race::draw_marks_overlays`, just before `draw_shadow`).
+//! Refuses the shadow's refusals (null settings, a corner past the mark corners table, an
+//! angle with no sine and cosine), before anything.
 
 use crate::effects::draw_shadow::{draw_shadow_with, second};
 use crate::effects::mask_store::Masks;

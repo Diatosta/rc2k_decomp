@@ -1,11 +1,8 @@
-//! `effects::scale_kept_vectors` (0x4C15F4): three kept vectors scaled by their kept factors
-//! (`effects::scale_vectors_by`' pattern): `KeptView.kept_a.scaled[0]` .. = `KeptView.kept_a.vector[0]` .. by
-//! `KeptView.kept_a.factor`, `KeptView.kept_c.scaled[0]` .. = `KeptView.kept_c.vector[0]` .. by `KeptView.kept_c.factor`, `KeptView.kept_b.scaled[0]` ..
-//! = `KeptView.kept_b.vector[0]` .. by `KeptView.kept_b.factor`.
-//!
-//! Caller: `effects::view_frame`.
-//!
-//! the x87 version stays for the Rust callers in unconverted code).
+//! `effects::scale_kept_vectors`: three kept vectors scaled by their kept factors
+//! (`effects::scale_vectors_by`' pattern): `KeptView.kept_a.scaled[0]` .. =
+//! `KeptView.kept_a.vector[0]` .. by `KeptView.kept_a.factor`, `KeptView.kept_c.scaled[0]` .. =
+//! `KeptView.kept_c.vector[0]` .. by `KeptView.kept_c.factor`, `KeptView.kept_b.scaled[0]` .. =
+//! `KeptView.kept_b.vector[0]` .. by `KeptView.kept_b.factor`.
 
 use crate::effects::scale_vectors_by::scale_triples;
 

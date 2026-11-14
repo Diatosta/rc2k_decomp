@@ -1,14 +1,8 @@
-//! The shared spots' voices: `SpotVoices.voices[0][0]`, 0x48 voices of 0x50
-//! bytes, which `sound::spot_sounds` (0x40E611) keeps in step with the spots the race
-//! frame shares each frame (`g_sharedSoundSpots`, 0x14 bytes: +0 an id, +4 .. +0xC the
-//! place, +0x10 the kind 1 .. 0x15; `race::share_sound_spots`).
+//! The shared spots' voices: `SpotVoices.voices[0][0]`, 0x48 voices of 0x50 bytes, which
+//! `sound::spot_sounds` keeps in step with the spots the race frame shares each frame (0x14 bytes
+//! each: an id, the place, the kind 1 .. 0x15; `race::share_sound_spots`).
 //!
-//! A voice by offset (names by use): +0 the spot's id (0x1888FFFF: free), +4 heard this
-//! turn, +8 .. +0x10 the place, +0x14 the sound (`SpotPicks.kind_sounds[0][kind]`; -2 freed), +0x18
-//! the kind, +0x1C 1 << kind, +0x20 new, +0x24 (re)start it, +0x28 playing, +0x2C the
-//! repeats, +0x30 the delay before the next, +0x34 when it ends, +0x38 the rate and
-//! +0x3C the volume (floats), +0x40 the distance, +0x44 its change, +0x48 and +0x4C the
-//! pitch and volume factors.
+//! A voice's fields are named in `SpotVoice`.
 
 use crate::session::{Cell32, PlainDword, PlainFloat};
 
@@ -16,47 +10,41 @@ pub const VOICE_COUNT: u32 = 0x48;
 pub const MOST_SPOTS: u32 = 36;
 pub const MOST_KIND: u32 = 0x15;
 
-/// A voice: 0x50 bytes, the fields in the game's order (the offsets are in the header). The
-/// whole numbers (ids, flags, counts, the clock's turns) are dwords; the place, the rate, the
-/// volume, the distance, its change and the two factors are floats.
+/// A voice: 0x50 bytes in the 1999 layout, the fields in the game's order. The whole numbers (ids,
+/// flags, counts, the clock's turns) are dwords; the place, the rate, the volume, the distance, its
+/// change and the two factors are floats.
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct SpotVoice {
-    /// +0: the spot's id (`FREE_ID`: free).
+    /// The spot's id (`FREE_ID`: free).
     pub id: PlainDword,
-    /// +4: 1 when heard this turn.
+    /// 1 when heard this turn.
     pub heard: PlainDword,
-    /// +8 .. +0x10: where the spot is.
+    /// Where the spot is.
     pub place: [PlainFloat; 3],
-    /// +0x14: the kind's sound (-2: freed).
+    /// The kind's sound (-2: freed).
     pub sound: PlainDword,
-    /// +0x18
     pub kind: PlainDword,
-    /// +0x1C: 1 << kind.
+    /// 1 << kind.
     pub kind_bit: PlainDword,
-    /// +0x20: 1 until its first turn.
+    /// 1 until its first turn.
     pub new: PlainDword,
-    /// +0x24: 1 to (re)start it.
+    /// 1 to (re)start it.
     pub restart: PlainDword,
-    /// +0x28
     pub playing: PlainDword,
-    /// +0x2C
     pub repeats: PlainDword,
-    /// +0x30: the delay before the next start.
+    /// The delay before the next start.
     pub delay: PlainDword,
-    /// +0x34: when it ends (the clock's turns).
+    /// When it ends (the clock's turns).
     pub ends: PlainDword,
-    /// +0x38
     pub rate: PlainFloat,
-    /// +0x3C
     pub volume: PlainFloat,
-    /// +0x40
     pub distance: PlainFloat,
-    /// +0x44: the distance's change a second.
+    /// The distance's change a second.
     pub distance_change: PlainFloat,
-    /// +0x48: the pitch factor.
+    /// The pitch factor.
     pub pitch_factor: PlainFloat,
-    /// +0x4C: the volume factor.
+    /// The volume factor.
     pub volume_factor: PlainFloat,
 }
 
@@ -64,7 +52,7 @@ impl SpotVoice {
     /// The id of a free voice.
     pub const FREE_ID: u32 = 0x1888_FFFF;
 
-    /// A free voice, as the image starts: the id free, the sound -2, the pitch factor 1.0.
+    /// A free voice, as the game starts: the id free, the sound -2, the pitch factor 1.0.
     pub const fn free() -> SpotVoice {
         SpotVoice {
             id: PlainDword::new(Self::FREE_ID),
@@ -145,14 +133,14 @@ pub fn store_voices(
     }
 }
 
-/// A voice as the pickers' work holds it: its number + 1, or 0 for none (the original held
-/// the voice's address; nothing reads it back).
+/// A voice as the pickers' work holds it: its number + 1, or 0 for none (nothing reads the voice
+/// back by address).
 pub fn voice_or_0(n: Option<usize>) -> u32 {
     n.map_or(0, |n| n as u32 + 1)
 }
 
-/// The pickers' work stored as the original leaves it, and the scratch dword (1000.0,
-/// then the last distance x 1000) when a distance was worked out.
+/// The pickers' work stored, and the scratch dword (1000.0, then the last distance x 1000) when a
+/// distance was worked out.
 pub fn store_picks(
     sound: &crate::sound::owner::Sound,
     picks: &rc2k_core::sound::spot_voices::Picks,

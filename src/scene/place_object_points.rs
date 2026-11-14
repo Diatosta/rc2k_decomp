@@ -1,28 +1,22 @@
-//! `scene::place_object_points` (0x45BE05): an object's points and normals into the
-//! view, the points onto the screen.
-//!
-//! Takes: only matter for an object with normals and no points (refused)
+//! `scene::place_object_points`: an object's points and normals into the view, the points onto
+//! the screen.
 //!
 //! The object (the car state's `object_number`) has `point_counts[n]` points and then
 //! `normal_counts[n]` normals, numbered from `first_point[n]`, twelve bytes each in the
-//! course's `object_points` table: a point three whole numbers, a normal three floats.
-//! Each gets the point record 0x1000 + (number & 0xFFF) (its +0 = the number). A point goes
-//! through the object matrix (`made_object_matrix`; the same arithmetic as
-//! `scene::rotate_point`) and onto the screen as `scene::project_point` does it (not if it
-//! is nearer than 4096). With the object's `move_by` not 0 the point is first moved towards
-//! the one that many bytes further on in the table, by `move_fraction` of the way, rounded
-//! to whole numbers (the original stored them to the course work's `point_moved` and the two
-//! group masks after it, read back at once and written again before any other reader; here
-//! they are the drawing's own values, and its store of the fraction to its shared work dword
-//! is not kept). A normal goes through the matrix without its fourth row.
-//! One caller, `scene::place_object_points_any`, which takes this way unless the 3DNow or
-//! the SSE switch is set: `place_object_points_sse` is the SSE way; the 3DNow way is not
-//! ported. Refuses an object's number of 0x100 or more, no records, no points' table, no
-//! matrix, and normals without points (the original goes on from whatever its registers
-//! hold).
+//! course's `object_points` table: a point three whole numbers, a normal three floats. Each
+//! gets the point record 0x1000 + (number & 0xFFF) (its +0 = the number). A point goes through
+//! the object matrix (`made_object_matrix`; the same arithmetic as `scene::rotate_point`) and
+//! onto the screen as `scene::project_point` does it (not if it is nearer than 4096). With the
+//! object's `move_by` not 0 the point is first moved towards the one that many bytes further on
+//! in the table, by `move_fraction` of the way, rounded to whole numbers (the moved point and
+//! the fraction are the drawing's own values). A normal goes through the matrix without its
+//! fourth row. One caller, `scene::place_object_points_any`, which takes this way unless the
+//! 3DNow or the SSE switch is set: `place_object_points_sse` is the SSE way; the 3DNow way is
+//! not ported. Refuses an object's number of 0x100 or more, no records, no points' table, no
+//! matrix, and normals without points.
 //!
-//! The arithmetic (the moved point, the rotation, the normals) is the x87's, in plain Rust
-//! over `X` (`math/x87_float.rs`), rounding as the control word says.
+//! The arithmetic (the moved point, the rotation, the normals) is the x87's, in plain Rust over
+//! `X` (`math/x87_float.rs`), rounding as the control word says.
 
 use crate::errors::{BadInput, Refused};
 use crate::math::x87_float::{Rounds, at_rounding, int, ld, st, to_int};
@@ -32,8 +26,6 @@ use crate::scene::project_point::{NEAR, rotate, to_screen};
 // ---- game data ----
 const OBJECTS: u32 = 0x100;
 
-// ---- Rust version ----
-
 /// The point at `from` moved towards the one `by` bytes on, as whole numbers.
 fn moved(from: usize, by: u32, fraction: f32) -> Result<[u32; 3], BadInput> {
     let other = from.wrapping_add(by as usize);
@@ -41,14 +33,13 @@ fn moved(from: usize, by: u32, fraction: f32) -> Result<[u32; 3], BadInput> {
     let (a, b) = (read(from)?, read(other)?);
     let whole = |p: [u32; 3]| p.map(|v| v as i32);
     let ([x, y, z], _) = moved_at(fraction, whole(a), whole(b));
-    // The original stores the three from `point_moved` on: y and z land over the first two
-    // group masks (`notes/bugs.md`), which `scene::load_object` writes before it reads them.
+    // The three are stored from `point_moved` on: y and z land over the first two group masks,
+    // which `scene::load_object` writes before it reads them.
     Ok([x as u32, y as u32, z as u32])
 }
 
-/// The block of `moved`: the two points' whole numbers, each `a + (b - a) fraction` rounded
-/// to a whole number (z worked out first, then y, then x), and the fraction as it is
-/// stored (the original's work dword's, which nothing reads).
+/// The block of `moved`: the two points' whole numbers, each `a + (b - a) fraction` rounded to
+/// a whole number (z worked out first, then y, then x), and the fraction as it is stored.
 fn moved_at(fraction: f32, a: [i32; 3], b: [i32; 3]) -> ([i32; 3], u32) {
     let t0 = ld(fraction);
     let along = |k: usize| {
@@ -112,8 +103,7 @@ fn object(
     Ok(object)
 }
 
-/// The object's points placed and projected, its normals turned. What the original
-/// leaves in the registers its one caller's callers never read (`draw_object`).
+/// The object's points placed and projected, its normals turned.
 pub fn place_object_points(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refused> {
     let object = object(
         ctx.reads.course_lists,
@@ -245,7 +235,7 @@ mod sse_tests {
     #[cfg(target_arch = "x86_64")]
     use std::arch::x86_64::*;
 
-    /// The lanes as the original's instructions make them.
+    /// The lanes as the SSE instructions make them.
     #[test]
     fn lanes_match_the_instructions() {
         let m: [f32; 16] = std::array::from_fn(|n| (n as f32 * 1.37 - 7.1).powi(3));

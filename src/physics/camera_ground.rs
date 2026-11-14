@@ -1,12 +1,10 @@
-//! The camera's ground checks: `physics::camera_low_switch`
-//! (0x438BF4), `physics::camera_over_ground` (0x438CEC), `physics::camera_clear_of_ground`
-//! (0x438DD2). Each probes the ground under a point through `physics::count_ground_probe`
-//! (called directly), starting from the face it found there last
-//! (`CarBlock::camera_ground_faces`, into `ground_face_last`) and keeping the face found (`ground_slot`).
-//! What the camera variables (`camera_view` .. `kept_focus_point`) are is a reading: the mode,
-//! the place (`camera_position` ..), the turns (`camera_heading` ..).
+//! The camera's ground checks: `physics::camera_low_switch`, `physics::camera_over_ground` and
+//! `physics::camera_clear_of_ground`. Each probes the ground under a point through
+//! `physics::count_ground_probe`, starting from the face found there last
+//! (`CarBlock::camera_ground_faces`) and keeping the face found (`ground_slot`). The names of the
+//! camera variables (`camera_view` .. `kept_focus_point`: mode, place, turns) are a reading.
 //!
-//! This file: the shared steps.
+//! This file holds the shared steps.
 
 use crate::errors::Refused;
 use crate::physics::step_families::CameraGroundInputs;

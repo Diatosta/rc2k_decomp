@@ -1,51 +1,61 @@
-//! The object slots' kinds and the texture level tables, 0x5CCE7C .. 0x5D0AE0: `g_slotKinds`,
-//! `g_objectKinds`, the object and point totals, the car's mark textures, the 3D switch, the
-//! level sizes and the three 0x400-entry tables of texture tags and levels. The kind texture
-//! tables follow (`scene::kind_texture_store`).
-//! Names are readings unless IDA's.
+//! The object slots' kinds and the texture level tables: the slots' kinds, the objects' kinds, the
+//! object and point totals, the car's mark textures, the 3D switch, the level sizes and the three
+//! 0x400-entry tables of texture tags and levels. The kind texture tables follow
+//! (`scene::kind_texture_store`).
 
 use crate::cells::ZeroCells;
 use crate::session::PlainDword;
 
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct ObjectTables {
-    /// +0x0 (0x5CCE7C): `g_slotKinds`: each object slot's kind (`scene::load_front_end_objects`, `scene::set_up_front_end_scene`, `race::objects`; cleared by `scene::clear_slot_kinds`). [64] is `dword_5CCF7C`, the kind kept by `race::objects` (`scene::draw_object_polygon`).
+    /// Each object slot's kind (`scene::load_front_end_objects`,
+    /// `scene::set_up_front_end_scene`, `race::objects`; cleared by `scene::clear_slot_kinds`).
+    /// [64] is the kind kept by `race::objects` (`scene::draw_object_polygon`).
     pub slot_kinds: [PlainDword; 256],
-    /// +0x400 (0x5CD27C): `g_objectKinds`: each loaded object's kind (`scene::load_object`, `scene::objects`, `scene::list_object_face`, `physics::face_contact`, `drive::animate_lit_faces`).
+    /// Each loaded object's kind (`scene::load_object`, `scene::objects`,
+    /// `scene::list_object_face`, `physics::face_contact`, `drive::animate_lit_faces`).
     pub object_kinds: [PlainDword; 256],
-    /// +0x800 (0x5CD67C): `dword_5CD67C`: the faces loaded so far (`scene::add_object_shape`, `scene::load_object`).
+    /// The faces loaded so far (`scene::add_object_shape`, `scene::load_object`).
     pub face_count: PlainDword,
-    /// +0x804 (0x5CD680): `g_objectPointCount`: the points loaded so far (`scene::add_object_shape`, `scene::project_point`, `scene::place_object_points`).
+    /// The points loaded so far (`scene::add_object_shape`, `scene::project_point`,
+    /// `scene::place_object_points`).
     pub point_count: PlainDword,
-    /// +0x808 (0x5CD684): `dword_5CD684`: where the shape's normals are in its file (`scene::add_object_shape`). Not used: nothing
+    /// Where the shape's normals are in its file (`scene::add_object_shape`). Not used: nothing
     /// reads it, so the address is not kept here.
     pub normals_at: PlainDword,
-    /// +0x80c (0x5CD688): `g_carMarkTextures`: the textures of the car's marks and the menus' kind bytes; now the drawing's own (`scene::car_marks`); unused.
+    /// The textures of the car's marks and the menus' kind bytes. Unused: the drawing has its
+    /// own in `scene::car_marks`.
     pub car_mark_textures: [PlainDword; 256],
-    /// +0xc0c (0x5CDA88): `dword_5CDA88`: the car's letter number, a second copy, never read; unused.
+    /// The car's letter number, a second copy, never read; unused.
     pub car_letter_b: PlainDword,
-    /// +0xc10 (0x5CDA8C): `dword_5CDA8C`: whether the Direct3D device is drawing: 0 until `race::draw_race_scene` first sets it to 1 (nothing sets it back); while 0 the texture, depth-clear and polygon functions skip the device. The switch the texture and polygon functions test (`scene::clear_depth_buffer`, `scene::submit_polygon`, `race::draw_race_scene`, `race::frame_views`).
+    /// Whether the Direct3D device is drawing: 0 until `race::draw_race_scene` first sets it to
+    /// 1 (nothing sets it back); while 0 the texture, depth-clear and polygon functions skip
+    /// the device. The switch the texture and polygon functions test
+    /// (`scene::clear_depth_buffer`, `scene::submit_polygon`, `race::draw_race_scene`,
+    /// `race::frame_views`).
     pub d3d_drawing_on: PlainDword,
-    /// +0xc14 (0x5CDA90): seven dwords between the 3D switch and the level sizes; nothing reads or writes them (a gap).
+    /// Seven dwords between the 3D switch and the level sizes; nothing reads or writes them (a
+    /// gap).
     pub unknown_c14: [PlainDword; 7],
-    /// +0xc30 (0x5CDAAC): `g_textureLevelSizes`: what a texture of each level takes, in k (`scene::texture_needs`).
+    /// What a texture of each level takes, in k (`scene::texture_needs`).
     pub level_sizes: [PlainDword; 4],
-    /// +0xc40 (0x5CDABC): `dword_5CDABC`: the levels' mip figures (`scene::try_allocate_textures`).
+    /// The levels' mip figures (`scene::try_allocate_textures`).
     pub level_mips: [PlainDword; 8],
-    /// +0xc60 (0x5CDADC): `g_otherTextureLevels`: set when the other levels are in use (`scene::texture_levels`).
+    /// Set when the other levels are in use (`scene::texture_levels`).
     pub other_levels: PlainDword,
-    /// +0xc64 (0x5CDAE0): `g_textureTags`: each texture's tag (`scene::texture_needs`, `scene::texture_levels`).
+    /// Each texture's tag (`scene::texture_needs`, `scene::texture_levels`).
     pub texture_tags: [PlainDword; 1024],
-    /// +0x1c64 (0x5CEAE0): `g_textureSystemLevels`: the level each texture is needed at in the system memory (-1 for none; reset to 0xFF by `scene::reset_texture_tables`). [256] is `g_mudTextureHalvings` (`race::mud_texel`).
+    /// The level each texture is needed at in the system memory (-1 for none; reset to 0xFF by
+    /// `scene::reset_texture_tables`). [256] is the mud texture's halvings (`race::mud_texel`).
     pub system_levels: [PlainDword; 1024],
-    /// +0x2c64 (0x5CFAE0): `g_textureVideoLevels`: the same for the video memory.
+    /// The same for the video memory.
     pub video_levels: [PlainDword; 1024],
 }
 
 impl ObjectTables {
-    /// `g_objectKinds[object]`: the object numbers the game's code passes are not all bounded by
-    /// the table, so a number past it reads on into the fields after it, in order, to the end of
-    /// the record (a number past that ends the program).
+    /// The kind of `object`: the object numbers the game's code passes are not all bounded
+    /// by the table, so a number past it reads on into the fields after it, in order, to the
+    /// end of the record (a number past that ends the program).
     pub fn object_kind(&self, object: u32) -> u32 {
         if let Some(kind) = self.object_kinds.get(object as usize) {
             return kind.get();

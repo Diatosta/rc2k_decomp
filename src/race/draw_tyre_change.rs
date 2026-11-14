@@ -1,25 +1,17 @@
-//! `race::draw_tyre_change` (0x41C38C): the tyre change's texture (`texture`, then copied to
-//! the device's `device_texture`), for the given device. The clip's left and right are kept
-//! round it. Its lock (`d3d::lock_texture`); unless that failed or the texture was drawn before
-//! (`drawn` 1), strings 0x129 (font `FontBlock.game_fonts[2].first_char`, its +0x1C 0xF8, at 4, 0x80), then with
-//! the clip's left 0x80 0x12A (`FontBlock.game_fonts[1].first_char`, at 0xFC, 0) and 0x12B (`game_fonts`, at 0x84, a line
-//! down: `FontBlock.game_fonts[0].line_height`), each by `text::draw_string_by_id`. Then (also after a failed lock:
-//! section 16) the clip's left 0x80; the rectangle (0x80, 0x32, 0x80, 0x4B) filled with colour 0
-//! (`gfx::fill_rect`, `texture_rect`, palette `palette`); string 0x12E and the record's time
-//! (`g_tyreChangeRecord`) in the text buffer, drawn three times (font +0x1C 0x168, at 0x84, 0x32;
-//! each 0x78 left and a line down: `text::draw_text_keep_regs`); the clip's left 0; (0, 0x99,
-//! 0x100, 0x19) filled; the record's name (`g_tyreChangeRecordName`, +0x1C 0xF8, at 4, 0x99); for
-//! player 0 (`player`) the clip's right 0x7F and x 0, else its left 0x80 and x 0x80; (x,
-//! 0xB2, 0x80, 0x4B) filled; with the device's +0x4F0 1 string 0x12D and the time (+0x4F4), else
-//! 0x12C, drawn three times (+0x1C 0x168, at x + 4, 0xB2, as before); the unlock
-//! (`d3d::unlock_texture`), the copy to the device (`d3d::copy_to_device_texture` 0x41A8F9: the
-//! platform's, called in the game), `drawn` 1.
-//!
-//! Takes: the device
-//!
-//! Callers: `race::tyre_change_gauge` (twice), which calls it directly. The text
-//! is built with `strings::append_string_by_id` and `append_time`. Refuses
-//! a text longer than the text buffer, and what its calls refuse.
+//! Draws the tyre change's texture (`texture`, then copied to the device's `device_texture`) for
+//! the given device, the clip's left and right being kept round it. The texture is locked
+//! (`d3d::lock_texture`); unless that failed or the texture was drawn before (`drawn` 1), the
+//! strings 0x129, 0x12A and 0x12B are drawn in the game fonts (`FontBlock.game_fonts`) with
+//! `text::draw_string_by_id`. Then (also after a failed lock) the best time's panels are filled
+//! (`gfx::fill_rect`, `texture_rect`, palette `palette`) and drawn: string 0x12E and the record's
+//! time (the tyre change's `record`) in the text buffer, three times, each 0x78 left and a line
+//! down (`text::draw_text_keep_regs`), and the record's name (`record_name`); then the
+//! device's own panel for player 0 (`player`) or the other half, with string 0x12D and the time
+//! (+0x4F4) when the device's +0x4F0 is 1, else 0x12C. The texture is unlocked
+//! (`d3d::unlock_texture`), copied to the device (`d3d::copy_to_device_texture`, the platform's)
+//! and `drawn` set to 1. The text is built with `strings::append_string_by_id` and `append_time`.
+//! Called twice by `tyre_change_gauge`. Refused: a text longer than the text buffer, and what its
+//! calls refuse.
 
 use crate::errors::{BadInput, Refused};
 use crate::input::types::InputDevice;
@@ -68,8 +60,7 @@ fn build_text(
     Ok(())
 }
 
-/// The rectangle at `texture_rect` filled with colour 0 (`gfx::fill_rect`, palette
-/// `palette`).
+/// The rectangle at `texture_rect` filled with colour 0 (`gfx::fill_rect`, palette `palette`).
 fn fill(
     race: &Race,
     x: u32,
@@ -121,7 +112,7 @@ fn three_times(
     Ok(())
 }
 
-/// For the device `device`.
+/// Draws the tyre change's texture for the device `device`.
 pub fn draw_tyre_change(
     so: crate::strings::append_string_by_id::StringOwners<'static>,
     race: &'static Race,

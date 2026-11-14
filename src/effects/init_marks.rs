@@ -1,11 +1,9 @@
-//! `effects::init_marks` (0x4D12F7): the marks set up for a stage: the settings and the
-//! seed kept, then the fifteen steps (each after an empty call with its number), the
-//! screen's middle and the kind's float.
+//! `effects::init_marks`: the marks set up for a stage: the settings and the seed kept, then
+//! the fifteen steps, the screen's middle and the kind's float.
 //!
-//! One caller, the end of the "init mark" step. Refuses a kind (the settings'
-//! +0x26A8, which step 1 makes the effects kind) of 0x22 or more (the kinds' tables); both
-//! before anything. Kinds 0x17 .. 0x21 are past the kind float table's 0x17 entries:
-//! fixed (section 16), they get 18240.0.
+//! Refuses a kind (the settings' +0x26A8, which step 1 makes the effects kind) of 0x22 or more (the
+//! kinds' tables); both before anything. Kinds 0x17 .. 0x21 are past the kind float table's 0x17
+//! entries: they get 18240.0 (wiki/Fixed-bugs.md: "Some cars' marks lose their depth bias").
 
 use crate::effects::owner::Effects;
 use crate::errors::{BadInput, Refused};
@@ -15,12 +13,10 @@ use crate::race::owner::Race;
 /// The table's entries; the kinds go to 0x21 (the other kinds' tables have 0x22).
 const KIND_FLOATS: u32 = 0x17;
 const KINDS: u32 = rc2k_core::effects::kind_values::KINDS;
-/// 18240.0, the value of most of the table's kinds: the kinds past it get it (section 16).
+/// 18240.0, the value of most of the table's kinds: the kinds past it get it.
 const KIND_FLOAT_PAST: f32 = 18240.0;
 
-/// `seed` the seed (eax). The original took the settings'
-/// address in esi; the race hands its one record (`race::effects_settings_store`), so none is
-/// passed. The steps (`nullsub_1` before each, `nullsub_26` for step 7: nothing).
+/// `seed` is the seed. The race hands its one settings record (`race::effects_settings_store`).
 pub fn init_marks(
     race: &'static Race,
     effects: &Effects,
@@ -35,7 +31,7 @@ pub fn init_marks(
     let weather = &effects.weather;
     let paths = &effects.paths;
     {
-        // Every read through `g_marksSettings` is a field of the race's record.
+        // Every read of the settings is a field of the race's record.
         let marks = race.effects_settings();
         if marks.mark_car_file_number.get() >= KINDS {
             return Err(BadInput("a marks kind of 0x22 or more").into());
@@ -78,9 +74,8 @@ pub fn init_marks(
             effects.clipping.clip.edges[2 * n + 1].set(x87::int_less(half as i32, less));
         }
         let kind: u32 = effects.kinds.marks_kind.kind.get();
-        // Fixed (section 16): the original reads past the table for kinds
-        // 0x17 .. 0x21 (the next variables: `g_marksKindFloat` itself, a 0/1 flag, 9, ..),
-        // so those cars' marks lose their depth bias.
+        // Kinds 0x17 .. 0x21 are past the table and get `KIND_FLOAT_PAST` (wiki/Fixed-bugs.md:
+        // "Some cars' marks lose their depth bias").
         let float = if kind < KIND_FLOATS {
             effects.setup.kind_floats.kind_floats[kind as usize].get()
         } else {

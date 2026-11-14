@@ -1,7 +1,7 @@
-//! `effects::init_marks`' step 14, its measuring (IDA): the lengths of the
-//! lines between two objects' faces (each face's points against the other object's same
-//! face's), summed into the eight settings blocks (at `g_marksSettings` + 0x29C, 0x4C8
-//! apart) by the face's kind, and then made shares of what they were.
+//! `effects::init_marks`' step 14, its measuring: the lengths of the lines between two
+//! objects' faces (each face's points against the other object's same face's), summed into
+//! the eight settings blocks (0x4C8 apart) by the face's kind, and then made shares of what
+//! they were.
 
 #[cfg(test)]
 use crate::effects::owner::effects;
@@ -72,7 +72,7 @@ fn lines_with(
     Ok(())
 }
 
-/// `effects::measure_slot_lines` (0x4D1167): faces `from` and `to`, block `block`: for each
+/// `effects::measure_slot_lines`: faces `from` and `to`, block `block`: for each
 /// of the block's 8 slots whose kind (the low byte of +0xD0 ..) is the face's +7, its
 /// lines into the slot's sum (+0xF0 ..). The x87's, for `measure_lines`.
 pub fn measure_slot_lines(
@@ -102,7 +102,7 @@ pub fn measure_slot_lines(
     Ok(())
 }
 
-/// `effects::measure_kind_lines` (0x4D1225): faces `from` and `to`, block `block`: for each
+/// `effects::measure_kind_lines`: faces `from` and `to`, block `block`: for each
 /// of the block's 0x11 kinds (the low byte of +0x130 ..) that is the face's +6, with the
 /// face's +0xB 1: its point count added to +0x240 .., its lines into +0x1B8 ... The x87's,
 /// for `measure_lines`.
@@ -198,16 +198,16 @@ fn measured(
         .collect())
 }
 
-/// `effects::measure_lines` (0x4D0EB4): `LinesWork.any` 0; for the blocks (+0x5C of the
+/// `effects::measure_lines`: `LinesWork.any` 0; for the blocks (+0x5C of the
 /// settings, the last first), every one with `LinesWork.every` 1 or else those with +0xC set
 /// (then `LinesWork.any` 1): the block in `LinesWork.current`, its sums cleared (+0x1C .. +0x30,
 /// +0xF0 .., +0x1B8 .., +0x240 ..); for each face of its first object (+0) with the other's
 /// (+4) same: a face of kind 0x1C (+6) with a line kind (+0xB) 1 .. 6 has its lines summed
 /// into +0x18 + 4 kind; then `measure_slot_lines`, `measure_kind_lines`. With
 /// `LinesWork.shares` 1 each sum then becomes 100 less its share of 100 of what it was
-/// (+0x34 .., +0x110 .., +0x1FC ..), with a `finit` after the first six (as the original); a
-/// share of 0 gives 0x80000000, the integer indefinite of the original's division by 0.
-/// Refuses more than 8 blocks, an object past 0xFF, faces past `g_faces`.
+/// (+0x34 .., +0x110 .., +0x1FC ..), with a `finit` after the first six; a share of 0 gives
+/// 0x80000000, the integer indefinite of the x87's division by 0.
+/// Refuses more than 8 blocks, an object past 0xFF, faces past the course's faces.
 // Converted: `rc2k_core::effects::lines::{measured, block_at}` (the lengths and shares
 // stay x87: its `finit` between)
 pub fn measure_lines(
@@ -263,10 +263,9 @@ pub fn measure_lines(
             if paths.lines_work.shares.get() == 1 {
                 let hundred = effects.setup.floats.hundred.get();
                 let share = |at: &PlainDword, of: &PlainDword| {
-                    // A share of nothing (no line of that kind measured): the original
-                    // divided by 0 all the same (0 / 0 a NaN, the rest infinities) and
-                    // `fistp` stored the x87's integer indefinite, 0x80000000, which the
-                    // marks then read as the sum. Kept, without the division (section 16).
+                    // A share of nothing (no line of that kind measured) is the x87's
+                    // integer indefinite, 0x80000000, which the marks then read as the sum
+                    // (no division is made: it would give a NaN).
                     let left = if of.get() == 0 {
                         i32::MIN
                     } else {
@@ -290,10 +289,10 @@ pub fn measure_lines(
     Ok(())
 }
 
-/// `effects::measure_starting_sums` (0x4D0DB5): `measure_lines` with every block and no
+/// `effects::measure_starting_sums`: `measure_lines` with every block and no
 /// shares; then for each block (the last first) its sums moved to where the shares are made
 /// from (+0x1C .. +0x30 to +0x34 .., +0xF0 .. to +0x110 .., +0x1B8 .. to +0x1FC ..) and
-/// cleared; then `g_marksMeasureEvery` 0 and `g_marksMakeShares` 1. Refuses as
+/// cleared; then the measure-every flag 0 and the make-shares flag 1. Refuses as
 /// `measure_lines` with every block, before writing anything.
 // Converted: `rc2k_core::effects::lines::{measured, block_at}`
 pub fn measure_starting_sums(
@@ -332,10 +331,9 @@ pub fn measure_starting_sums(
     Ok(())
 }
 
-/// The settings blocks' base points (each block's +0x8C; `g_marksTaken` the last taken):
-/// 12 bytes a point of the block's object, blocks counted on the block's +0x4C list as the original's were. A block's
-/// +0x8C (and `MORPH_WORK.taken`) holds its table's number + 1; `effects::tidy_marks` gives
-/// them back with the lists.
+/// The settings blocks' base points (each block's +0x8C): 12 bytes a point of the block's
+/// object, counted on the block's +0x4C list. A block's +0x8C (and `MorphWork.taken`)
+/// holds its table's number + 1; `effects::tidy_marks` gives them back with the lists.
 /// (`Paths::block_points`.)
 ///
 /// The table `+0x8C` names (its number + 1).
@@ -353,9 +351,9 @@ pub fn block_point(paths: &Paths, handle: u32, n: u32) -> Result<[u32; 3], BadIn
         .ok_or(BadInput("a base point past its table"))
 }
 
-/// `effects::copy_block_points` (0x4D0A82): the points of block `block`'s object (+0):
-/// `g_objectPointCount2` of 12 bytes from `g_objectFirstPoint` in `g_objectPoints`, to the
-/// table the block's +0x8C names. Refuses an object past 0xFF.
+/// `effects::copy_block_points`: the points of block `block`'s object (+0): the object's
+/// point count of 12 bytes from its first point, to the table the block's +0x8C names.
+/// Refuses an object past 0xFF.
 // Converted: `rc2k_core::effects::lines::check_object`
 pub fn copy_block_points(
     course: &Course,
@@ -382,11 +380,11 @@ pub fn copy_block_points(
     Ok(())
 }
 
-/// `effects::set_up_blocks` (0x4D05BD), step 14: `measure_starting_sums`; then for each
-/// block (the last first) +0x90 .. +0xCC -1, a block of 12 bytes a point of its object
-/// taken on its +0x4C (`BLOCK_POINTS`, its number + 1 into `g_marksTaken` and +0x8C),
-/// `copy_block_points`, and +0x90 .. +0xAC the eight floats of `g_marksBlockStart`. Refuses
-/// as `measure_starting_sums`, before anything is taken.
+/// `effects::set_up_blocks`, step 14: `measure_starting_sums`; then for each block (the last
+/// first) +0x90 .. +0xCC -1, a block of 12 bytes a point of its object taken on its +0x4C
+/// (`Paths::block_points`, its number + 1 into the taken count and +0x8C), `copy_block_points`,
+/// and +0x90 .. +0xAC the eight floats of `LinesWork.block_start`. Refuses as
+/// `measure_starting_sums`, before anything is taken.
 // Converted: `rc2k_core::effects::lines::{measured, block_at}`
 pub fn set_up_blocks(
     course: &Course,
@@ -402,7 +400,7 @@ pub fn set_up_blocks(
     for k in (0..count.max(0) as u32).rev() {
         let block = &marks.cars[k as usize];
         for cell in block.factors.iter().chain(&block.kept_factors) {
-            // All ones: the stored image the original fills the factors with (a NaN).
+            // All ones: a NaN fills the factors.
             cell.set_bits(u32::MAX);
         }
         let points: u32 = scene
@@ -430,25 +428,25 @@ pub fn set_up_blocks(
     Ok(())
 }
 
-/// The block lines' work (`lines`) (IDA 0x93C738 .. 0x93C8C0).
+/// The block lines' work (`lines`).
 #[derive(rc2k_derive::Cells)]
 pub struct LinesWork {
-    /// 0x93C738: `g_marksBlockStart`: the eight values a block's +0x90 .. starts with
+    /// The eight values a block's +0x90 .. starts with
     pub block_start: [PlainFloat; 8],
-    /// 0x93C870: `dword_93C870` .. `dword_93C878`: the last line's x, y, z differences
+    /// The last line's x, y, z differences
     pub difference: [PlainDword; 3],
-    /// 0x93C8A8: `g_marksMeasuredBlock`: the block being measured. Not used: nothing reads it (the original kept the block's address)
+    /// The block being measured. Not used: nothing reads it
     pub current: PlainDword,
-    /// 0x93C8B4: `g_marksMeasureEvery`: measure every block
+    /// Measure every block
     pub every: PlainDword,
-    /// 0x93C8B8: `g_marksMakeShares`: make the shares
+    /// Make the shares
     pub shares: PlainDword,
-    /// 0x93C8BC: `g_marksAnyMeasured`: a marked block was measured
+    /// A marked block was measured
     pub any: PlainDword,
 }
 
 impl LinesWork {
-    /// The values the game starts with (the image's bytes).
+    /// The values the game starts with.
     pub const fn new() -> Self {
         LinesWork {
             block_start: [

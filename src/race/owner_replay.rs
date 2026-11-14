@@ -1,4 +1,5 @@
-//! The race owner's replay group (`race::owner::Race::replay`): the replay and the viewer: finish, replay frames and work, viewer buffers and state, snapshot, seal, last race, cars and replay.
+//! The race owner's replay group (`race::owner::Race::replay`): the replay and the viewer: finish,
+//! replay frames and work, viewer buffers and state, snapshot, seal, last race, cars and replay.
 
 use crate::drive::finish_store::Finish;
 use crate::drive::replay_frames_store::ReplayFrames;
@@ -11,18 +12,18 @@ use crate::race::seal_store::SealWork;
 use crate::race::viewer_state_store::ReplayViewBlock;
 use crate::session::{DrawShared, GameThread, PlainBytes, PlainDword, with_runs};
 
-/// The race's replay state (step 11, owned state: the stores move in as fields).
+/// The race's replay state.
 pub struct Replay {
-    /// 0x64BB18 .. 0x64BB88 (`drive::finish_store`); lent to the drawing parts
+    /// The finish state (`drive::finish_store`); lent to the drawing parts
     /// (`workers::DrawReads`): no part writes it.
     pub finish: DrawShared<Finish>,
-    /// `aVarTmprpl`: the last race's replay file's name (`race::replay_path`).
+    /// The last race's replay file's name (`race::replay_path`).
     pub last_race: [u8; LAST_RACE_LEN],
     /// The cars' blocks (`race::blocks_store`); lent to the drawing parts
     /// (`workers::DrawReads`): no part writes them (each view draws its own copy of its car,
     /// `ViewScratch::car`).
     pub car_blocks: DrawShared<CarBlocks>,
-    /// The viewer's panel .. the kinds' tables (`race::groups_store`).
+    /// The viewer's panel through the kinds' tables (`race::groups_store`).
     pub viewer_and_kinds: ViewerAndKinds,
     main: GameThread<ReplayMain>,
 }

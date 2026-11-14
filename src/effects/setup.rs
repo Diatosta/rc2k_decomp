@@ -1,6 +1,5 @@
-//! `effects::init_marks`' (0x4D12F7) first leaves (IDA): the noise tables, the
-//! wave tables (made once), the slots cleared, and the marks' clock (also run each frame by
-//! `effects::run_frame`, 0x4D1549).
+//! `effects::init_marks`' first leaves: the noise tables, the wave tables (made once), the slots
+//! cleared, and the marks' clock (also run each frame by `effects::run_frame`).
 
 use crate::effects::paths::Paths;
 use crate::effects::rain::Weather;
@@ -10,30 +9,31 @@ use crate::math::x87_float as bh;
 use crate::race::owner_shared::RaceShared;
 use crate::session::{PlainDword, PlainFloat};
 
-/// The marks' clock (`effects::tick_clock`) (IDA 0x764FC8 .. 0x764FFC).
+/// The marks' clock (`effects::tick_clock`).
 #[derive(rc2k_derive::Cells)]
 pub struct MarksClock {
-    /// 0x764FC8: `g_marksClockStarted`: 0 until `effects::tick_clock` has run once (`init_marks` clears it).
+    /// 0 until `effects::tick_clock` has run once (`init_marks` clears it).
     pub started: PlainDword,
-    /// 0x764FCC: `g_marksLastClock`: the scene clock at the last tick.
+    /// The scene clock at the last tick.
     pub last: PlainDword,
-    /// 0x764FD0: `g_marksFrameTicks`: the clock's ticks since the last frame (0 unless the settings' +0x10 is 1).
+    /// The clock's ticks since the last frame (0 unless the settings' +0x10 is 1).
     pub frame_ticks: PlainDword,
-    /// 0x764FD4: `flt_764FD4`: the ticks' bits taken as a float, times `flt_93CC14` (a game bug, section 16).
+    /// The ticks' bits taken as a float, times a constant (a game bug, kept as is).
     pub ticks_scaled: PlainFloat,
-    /// 0x764FD8: `dword_764FD8`: the ticks shifted right 4.
+    /// The ticks shifted right 4.
     pub sixteenth: PlainDword,
-    /// 0x764FDC: `dword_764FDC`: the ticks shifted right 2.
+    /// The ticks shifted right 2.
     pub quarter: PlainDword,
-    /// 0x764FE0: `flt_764FE0`: one over the ticks (`fidiv`); the first tick's `flt_93CC10`.
+    /// One over the ticks; the first tick's value is a constant.
     pub reciprocal: PlainFloat,
-    /// 0x764FE4: `flt_764FE4`: `reciprocal` times `flt_7651BC`.
+    /// `reciprocal` times a constant.
     pub reciprocal_scaled: PlainFloat,
-    /// 0x764FE8: `g_marksClockNow`: the scene clock now.
+    /// The scene clock now.
     pub now: PlainDword,
-    /// 0x764FEC: `g_marksClockBefore`: the clock at the tick before.
+    /// The clock at the tick before.
     pub before: PlainDword,
-    /// 0x764FF0: `dword_764FF0`: a copy of the settings' +0x18 (`effects::frame_marks`), 1 from `init_marks`; `dword_764FF4`: 1 from `init_marks` (nothing ported reads it).
+    /// A copy of the settings' +0x18 (`effects::frame_marks`), 1 from `init_marks`; the second is 1
+    /// from `init_marks` (nothing reads it).
     pub settings_copies: [PlainDword; 2],
 }
 
@@ -59,9 +59,9 @@ const WAVE_DONE_TARGET: u32 = 0x4C4EA0; // nullsub_23
 pub const WAVE_LEVELS: u32 = 0x11;
 pub const SINES: u32 = 0x140;
 
-/// `effects::seed_noise` (0x4C1697): 0x100 steps of `g_marksSeed` (times 0x9D plus 0x47),
-/// each giving entry 0xFF .. 0 of the three noise tables its low 18 bits, its low 18 bits
-/// turned right 10 and turned right 20; `RainState.drawn` 0.
+/// `effects::seed_noise`: 0x100 steps of the marks' seed (times 0x9D plus 0x47), each giving
+/// entry 0xFF .. 0 of the three noise tables its low 18 bits, its low 18 bits turned right
+/// 10 and turned right 20; `RainState.drawn` 0.
 pub fn seed_noise(weather: &Weather, effects: &crate::effects::owner::Effects) {
     let setup = &effects.setup;
     // Converted: `rc2k_core::effects::noise::seed_noise`.
@@ -75,11 +75,10 @@ pub fn seed_noise(weather: &Weather, effects: &crate::effects::owner::Effects) {
     weather.rain.drawn.set(0);
 }
 
-/// `effects::make_wave_tables` (0x4C4E2F): once (`g_marksWaveDone` 0): the 0x11 levels,
-/// whole numbers, become floats (over `WaveState.scale`, less `WaveState.less`), the 0x140 sines of
-/// 0, step, 2 step .. (`math::x87::sine_table`); then `g_marksWaveDone` = `nullsub_23`.
-/// Done before: nothing. Refuses a mark that is neither 0 nor `nullsub_23` (the original
-/// jumps to it).
+/// `effects::make_wave_tables`: once (the done mark 0): the 0x11 levels, whole numbers,
+/// become floats (over `WaveState.scale`, less `WaveState.less`), the 0x140 sines of 0,
+/// step, 2 step .. (`math::x87::sine_table`); then the done mark is set. Done before:
+/// nothing. Refuses a done mark that is neither 0 nor the set value.
 pub fn make_wave_tables(paths: &Paths) -> Result<(), Refused> {
     let done = paths.wave.done.get();
     let target = WAVE_DONE_TARGET;
@@ -110,19 +109,19 @@ pub fn make_wave_tables(paths: &Paths) -> Result<(), Refused> {
     Ok(())
 }
 
-/// `effects::clear_slots` (0x4C967B): the first dword of the 0x20 slots 0.
+/// `effects::clear_slots`: the first dword of the 0x20 slots 0.
 pub fn clear_slots(effects: &crate::effects::owner::Effects) {
     for slot in &effects.blocks.slots.slots {
         slot.life.set(0);
     }
 }
 
-/// `effects::tick_clock` (0x4D2BDC). The first time (`g_marksClockStarted` 0): started, the
-/// last, now and before `g_sceneClock`, the ticks 0, the reciprocal `ClockK.first_reciprocal`. Then:
-/// before the last, now and the last the clock, the ticks the difference (0 unless
-/// `g_marksSettings` +0x10 is 1), a quarter and a sixteenth of them (shifted), the
-/// reciprocal one over them (`fidiv`) and that times `MarksFloats.quarter`, and the ticks' bits
-/// taken as a float (section 16) times `ClockK.ticks_scale`.
+/// `effects::tick_clock`. The first time (not started yet): started, the last, now and
+/// before the scene clock, the ticks 0, the reciprocal `ClockK.first_reciprocal`. Then:
+/// before the last, now and the last the clock, the ticks the difference (0 unless the
+/// settings' +0x10 is 1), a quarter and a sixteenth of them (shifted), the reciprocal one
+/// over them and that times `MarksFloats.quarter`, and the ticks' bits taken as a float
+/// (a slip kept as is) times `ClockK.ticks_scale`.
 pub fn tick_clock(
     shared: &RaceShared,
     effects: &crate::effects::owner::Effects,
@@ -167,9 +166,9 @@ pub fn tick_clock(
 pub const CURVE_LEN: u32 = 0x1000;
 pub const CURVE_RECORDS: u32 = 0x20;
 
-/// `effects::make_noise_curve` (0x4C2247), `init_marks`' step 5, with `g_marksSeed` started
+/// `effects::make_noise_curve`, `init_marks`' step 5, with the marks' seed started
 /// at 0x7FFFFFF:
-/// - a walk of 0x1000 steps into `g_marksCurve` (each the value << 4 times 8.5; the step
+/// - a walk of 0x1000 steps into the curve (each the value << 4 times 8.5; the step
 ///   moved by 2 up, or down when the running seed sum carries, held to -0x1000 .. 0x1000;
 ///   the value plus the step times 0.9);
 /// - 0xA0 times: the curve copied, and each of 1 .. 0xFFD made 0.3, 0.4, 0.3 of its
@@ -179,7 +178,7 @@ pub const CURVE_RECORDS: u32 = 0x20;
 ///   `SnowLight.spread_base`; then 0x800 times two remainders (`idiv` by 0xC00);
 /// - `SnowState.flag` 0, the 0x20 records' four quarters, the three quads.
 ///
-/// Refuses a divisor that is 0 or 1 or -1 (the original's `idiv` traps).
+/// Refuses a divisor that is 0 or 1 or -1 (the division would trap).
 // Converted: `rc2k_core::effects::noise::{walk, smooth, random_tables, record_values}`
 pub fn make_noise_curve(
     weather: &Weather,
@@ -307,13 +306,12 @@ pub fn make_noise_curve(
     Ok(())
 }
 
-/// The marks' settings flag (IDA 0x767A28, phase 7, typed state): `g_marksSettings`, which
-/// held the address of the settings the game hands `effects::init_marks`; it is 1 once they are
-/// handed over and 0 before (nothing runs without them). The settings are the race's one
-/// record, `EFFECTS_SETTINGS` (the original kept its address).
+/// The marks' settings flag: it is 1 once the game has handed `effects::init_marks` the
+/// settings, and 0 before (nothing runs without them). The settings are the race's one
+/// record, `EFFECTS_SETTINGS`.
 #[derive(rc2k_derive::Cells)]
 pub struct SettingsPointer {
-    /// 0x767A28: `g_marksSettings`: 1 when the settings are set, else 0.
+    /// 1 when the settings are set, else 0.
     pub is_set: PlainDword,
 }
 
@@ -326,20 +324,19 @@ impl SettingsPointer {
 }
 
 /// The marks' settings the race handed `effects::init_marks` (`race::effects_settings_store`,
-/// the one record `g_marksSettings` points at); refused while it points at none, where the
-/// original's reads through it would fault.
+/// the one record the settings flag stands for); refused while it is not set.
 pub fn effects_settings(
     effects: &crate::effects::owner::Effects,
 ) -> Result<&'static crate::race::effects_settings_store::EffectsSettings, BadInput> {
     effects.settings()
 }
 
-/// The marks' clock constants (IDA 0x93CC10 .. 0x93CC18).
+/// The marks' clock constants.
 #[derive(rc2k_derive::Cells)]
 pub struct ClockK {
-    /// 0x93CC10: `flt_93CC10`: the reciprocal the first tick starts with
+    /// The reciprocal the first tick starts with
     pub first_reciprocal: PlainFloat,
-    /// 0x93CC14: `flt_93CC14`: the ticks' scale
+    /// The ticks' scale
     pub ticks_scale: PlainFloat,
 }
 

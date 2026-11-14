@@ -1,9 +1,8 @@
-//! The frozen comparisons of the helpers in `math/x87.rs` up to its "part B" line: until
-//! 2026-11-13 each plain version ran against the original's x87 instructions at the four
-//! rounding modes (bit for bit, any NaN equal to any NaN; the sines and cosines within an
-//! ulp or the error of `fsin` / `fcos`'s 66-bit pi). The last run passed; the plain
-//! versions' results on the same inputs are now kept as one hash per function
-//! (`test_support::frozen`, table `FROZEN` at the end).
+//! The frozen comparisons of the helpers in `math/x87.rs` up to its "part B" line: the
+//! plain versions' results on seeded inputs at the four rounding modes are kept as one hash
+//! per function (`test_support::frozen`, table `FROZEN` at the end). The hashes were taken
+//! from versions that matched the x87's instructions bit for bit (any NaN equal to any
+//! NaN; the sines and cosines within an ulp or the error of `fsin` / `fcos`'s 66-bit pi).
 
 use crate::math::x87 as plain;
 use crate::math::x87::set_control_word;
@@ -479,7 +478,8 @@ fn pointer_functions_to_int() {
 }
 
 /// The 80-bit conversions: a double there and back is the same double, and both ways give
-/// what `fld qword; fstp tbyte` and `fld tbyte; fstp qword` (rounding to nearest even) gave.
+/// what the x87's double-to-extended and extended-to-double conversions (rounding to
+/// nearest even) gave.
 #[test]
 fn eighty_bit_conversions() {
     let mut g = G::new(6);
@@ -507,7 +507,7 @@ fn eighty_bit_conversions() {
     sets.check("eighty_bit_conversions", FROZEN);
 }
 
-/// The results' hashes, frozen on 2026-11-13 (`RC2K_FREEZE_OUT` to make them again).
+/// The results' hashes (`RC2K_FREEZE_OUT` makes them again).
 const FROZEN: &[(&str, u64)] = &[
     ("comparisons_with_nan::compare_status", 0x9b16fe6ad7bcbf5a),
     (

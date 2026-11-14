@@ -1,7 +1,7 @@
-//! `make_masks`' corner tables (`g_marksCornersA` / `B`, 0x81 entries of two corners):
-//! shape set 0 turned at 0x81 eased steps, each list's farthest pair
-//! taken as an entry's two corners, ordered, scaled into the kind's box, flipped and held
-//! (`clamp_pair`); `span_ring` makes the rings of them.
+//! `make_masks`' corner tables (0x81 entries of two corners): shape set 0 turned at 0x81
+//! eased steps, each list's farthest pair taken as an entry's two corners, ordered, scaled
+//! into the kind's box, flipped and held (`clamp_pair`); `span_ring` makes the rings of
+//! them.
 
 use crate::effects::mask_store::Masks;
 use crate::effects::shape_points::{farthest_pair, turn_shape_checks, turn_shape_points, turned};
@@ -12,7 +12,7 @@ use crate::math::x87;
 use crate::scene::matrix3::{extended, rounded};
 use crate::session::{PlainBytes, PlainDword, read_bits, read_first, write_bits};
 
-/// The two corner tables (`g_marksCornersA`, `_B`).
+/// The two corner tables.
 pub fn tables(masks: &Masks) -> [&PlainBytes<3096>; 2] {
     [&masks.vars.corners_a, &masks.vars.corners_b]
 }
@@ -81,15 +81,14 @@ fn turns(
     )
 }
 
-/// `effects::make_corners` (0x4BEB25): for each table and each of 0x81 steps k, shape set 0
-/// turned (`turn_shape_points`) by the second results of two eased steps (`smooth_steps`),
-/// the list's farthest pair copied in as the entry's two corners, y lifted by 0xB2A7; then
-/// in each entry the corners swapped (x, y) unless the second is farther from the middle
-/// (`fcompp`, `g_fpuStatus`); the scales of the kind's box (its +0x24 - +0x18 over 0x100,
-/// +4 - +0x1C over 0x80); each corner (x, y plus the list's lowest point, less the box's
-/// +0x18, +0x1C) over them as floats; y from 0x80; and `clamp_pair`. Refuses a kind of
-/// 0x22 or more, a farthest pair past 0x3F, what `turn_shape_points` refuses at any step,
-/// before writing.
+/// `effects::make_corners`: for each table and each of 0x81 steps k, shape set 0 turned
+/// (`turn_shape_points`) by the second results of two eased steps (`smooth_steps`), the
+/// list's farthest pair copied in as the entry's two corners, y lifted by 0xB2A7; then in
+/// each entry the corners swapped (x, y) unless the second is farther from the middle; the
+/// scales of the kind's box (its +0x24 - +0x18 over 0x100, +4 - +0x1C over 0x80); each
+/// corner (x, y plus the list's lowest point, less the box's +0x18, +0x1C) over them as
+/// floats; y from 0x80; and `clamp_pair`. Refuses a kind of 0x22 or more, a farthest pair
+/// past 0x3F, what `turn_shape_points` refuses at any step, before writing.
 pub fn make_corners(
     masks: &Masks,
     drops: &WindscreenDrops,

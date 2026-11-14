@@ -1,9 +1,7 @@
-//! `physics::face_contacts` (0x45E190): `physics::face_contacts_around` (its only code,
-//! `call` and `retn`): the course faces about the work car tried against it.
+//! Tries the course faces about the work car against it (`physics::face_contacts_around`).
 //!
-//! Callers: `physics::car_physics_step` (every physics step), `physics::find_clear_place`. Refuses
-//! what
-//! `face_contacts_around` refuses (everything written put back).
+//! Callers: `physics::car_physics_step` (every physics step), `physics::find_clear_place`.
+//! Refuses what `face_contacts_around` refuses (everything written is put back).
 
 use crate::errors::Refused;
 use crate::physics::face_contacts_around::face_contacts_around;

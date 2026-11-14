@@ -1,13 +1,11 @@
-//! `physics::compare_split_times` (0x436E11, race mode 3): the car's time (+0x88) against
-//! the ten kept for this split (`rows` + 0x28 x the split +0xAC): the place
-//! +0xA0C counts down from 11 for each faster one (11 or more becomes -1); the nearest
-//! gap behind (x10, the largest below 0) into +0xA14 with its name `names`[c]` in
-//! +0xA1C; the nearest ahead (x10, the smallest) negated into +0xA10, its name in +0xA18;
-//! `car_time` the time; for car 0 or 1 the time kept in `RaceState.results.results[0].data` / `RaceState.results.results[1].data`
-//! [split].
+//! Race mode 3: the car's time against the ten kept for this split. The place counts down from 11
+//! for each faster time (11 or more becomes -1); the nearest gap behind (times 10, the largest
+//! below 0) goes to one field with its name in another; the nearest ahead (times 10, the smallest)
+//! negated goes to the next pair; `car_time` is the time; for car 0 or 1 the time is kept in the
+//! results' data for the split.
 //!
-//! Caller: `physics::split_by_mode`. Refuses (before anything) a split past 27 (each kept
-//! table is 0x70 bytes: `RaceState.results.results[0].data` .. `RaceState.results.results[1].data`, 28 dwords, IDA).
+//! Caller: `physics::split_by_mode`. Refuses (before anything) a split past 27 (each kept table
+//! is 28 dwords).
 use crate::errors::{BadInput, Refused};
 use crate::physics::car_store::Car;
 use crate::race::league_store::League;
@@ -15,7 +13,7 @@ use crate::race::state_store::RaceState;
 use crate::race::work_store::RaceWork;
 use rc2k_core::physics::splits::{LAST_COMPARED_SPLIT, compare_split};
 
-// Converted: `rc2k_core::physics::splits::compare_split`.
+// Core: `rc2k_core::physics::splits::compare_split`.
 pub fn compare_split_times(
     league: &League,
     work: &RaceWork,
@@ -27,7 +25,7 @@ pub fn compare_split_times(
     }
     let time = car.stage_time.get();
     league.car_time.set(time);
-    // Splits 16 .. 27 read past the sixteen rows (a slip of the original, kept).
+    // Splits 16 .. 27 read past the sixteen rows (a slip kept as is).
     let first = car.splits_recorded.get().wrapping_mul(10) as usize;
     let mut kept = [0u32; 10];
     for (k, part) in kept.iter_mut().enumerate() {

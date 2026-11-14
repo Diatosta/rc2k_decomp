@@ -1,5 +1,4 @@
-//! `sound::throttle_sound` (0x40DD96): a player's car's engine sound by its throttle,
-//! placed behind the car.
+//! `sound::throttle_sound`: a player's car's engine sound by its throttle, placed behind the car.
 //!
 //! Nothing for a computer's car (sound offset negative). Else as `sound::revs_sound`
 //! (whose `send_engine_sound` it shares) with the throttle's set, the volume from the
@@ -50,7 +49,7 @@ mod reference_vectors {
     use crate::scene::x87_mem::view;
     use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse_locked};
 
-    // The original's instructions: the pitch, the volume (on the road: times the surface's gain), the place.
+    // The blocks: the pitch, the volume (on the road: times the surface's gain), the place.
     fn blocks() -> Vec<Block> {
         vec![
             Block {

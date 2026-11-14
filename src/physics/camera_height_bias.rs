@@ -1,7 +1,6 @@
-//! `physics::camera_height_bias` (0x43852D): with the mode's record's +0x54 not 0:
-//! `camera_distance` / `camera_bias_limit` held to 0 ..= 1 (1 less it for +0x54 below 0), x
-//! `k65536` x `camera_bias_scale` (`fistp`) into `camera_height_bias` and added to the camera's
-//! height `Car.camera_position[1]`.
+//! With the mode's bias flag not 0: `camera_distance` / `camera_bias_limit`, held to 0 ..= 1
+//! (1 less it for a negative flag), times `k65536` times `camera_bias_scale`, rounded to an
+//! integer into `camera_height_bias` and added to the camera's height.
 //!
 //! Caller: `physics::update_camera`.
 
@@ -39,7 +38,7 @@ pub fn camera_height_bias(
     Ok(())
 }
 
-// ---- the arithmetic that was x87 assembly ----
+// ---- the x87 arithmetic ----
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):

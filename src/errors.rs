@@ -1,19 +1,18 @@
 //! How the Rust code says "not here". A fatal error or a refused input ends the program with
 //! its report (`fatal::raise::refused`).
 
-/// A condition the original reports through its fatal-error reporter (0x40763C): it stores
-/// `code` in 0x4F52A4 and a pointer to `message` (or null) in 0x4F52A8. It is raised through
-/// `fatal::raise`, which ends the game with the report.
+/// A fatal error of the game: `code` is the number the report shows and `message` the text with
+/// it. It is raised through `fatal::raise`, which ends the game with the report.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct FatalError {
     pub code: u32,
-    /// Empty where the original stores a null pointer.
+    /// Empty where the report has no text.
     pub message: &'static str,
 }
 
-/// An input the Rust code refuses: the original itself goes wrong there (a division that
-/// traps, a write past a buffer, a loop that never ends) or its behaviour there has not been
-/// worked out. The program ends with the reason.
+/// An input the Rust code refuses: the game itself goes wrong there (a division that traps, a
+/// write past a buffer, a loop that never ends) or its behaviour there has not been worked out.
+/// The program ends with the reason.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct BadInput(pub &'static str);
 

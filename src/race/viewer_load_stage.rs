@@ -1,26 +1,30 @@
-//! `race::viewer_load_stage` (0x41CDC2): with a replay open (`replay_open` 1), its stage loaded
-//! for the viewer: the front end's 3D tidied (`race::render3d_tidy`, `race::objects_tidy`,
-//! `nullsub_6`, `race::release_textures`), the race's screen mode (`race::set_race_screen_mode`),
-//! the loading picture (`menu::show_loading_picture`); from the replay's header the game mode,
-//! players, cars and options (`header_mode` .. into `RaceState.settings.run_kind`, `g_onePlayer`, `RaceState.settings.car_kind_current`,
-//! `RaceState.settings.car_kind_first`, `RaceState.settings.cars[0].codriver_sex`, `RaceState.settings.cars[1].codriver_sex`; `RaceState.settings.cars[0].controller`, `RaceState.settings.cars[1].controller` 0; `RaceState.settings.race_mode`
-//! the players; the co-driver's door `byte_719C8C` into `RaceState.settings.cars[0].race_number` and the cars' block, logged
-//! "doornr="); the race's sounds (`race::set_up_race_sound_objects`, `sound::set_up_race_sounds`);
-//! the fonts unless there are some (`gfx::build_fonts`, `viewer_fonts_built` 1); the header read in
-//! (`race::read_replay_header`), the stage (`race::load_stage`), the sounds reset
-//! (`race::reset_race_sounds`), the page's palettes (`race::viewer_palettes`), `viewer_stage_loaded` 1.
-//! Then (always) the pending key taken (`input::take_key`).
+//! `race::viewer_load_stage`: with a replay open (`replay_open` 1), loads its stage for the
+//! viewer. The front end's 3D is tidied (`race::render3d_tidy`, `race::objects_tidy`,
+//! `race::release_textures`), the race's screen mode is set (`race::set_race_screen_mode`) and
+//! the loading picture shown (`menu::show_loading_picture`). From the replay's header come the
+//! game mode, players, cars and options (`header_mode` and the words after it go into
+//! `RaceState.settings.run_kind`, `one_player`, `car_kind_current`, `car_kind_first` and both
+//! cars' `codriver_sex`; both cars' `controller` are set to 0 and `race_mode` to the players'
+//! count; the co-driver's door goes into `RaceState.settings.cars[0].race_number` and the cars'
+//! block, logged as "doornr="). Then the race's sounds are set up
+//! (`race::set_up_race_sound_objects`, `sound::set_up_race_sounds`), the fonts built unless there
+//! are some (`gfx::build_fonts`, `viewer_fonts_built` 1), the header read in
+//! (`race::read_replay_header`), the stage loaded (`race::load_stage`), the sounds reset
+//! (`race::reset_race_sounds`), the page's palettes made (`race::viewer_palettes`) and
+//! `viewer_stage_loaded` set to 1. In every case the pending key is taken last
+//! (`input::take_key`).
 //!
-//! Callers: `race::replay_viewer`, `race::viewer_action` (0x14, after another replay is opened),
-//! `race::choose_save_slot`.
+//! Called by `race::replay_viewer`, `race::viewer_action` (0x14, after another replay is opened)
+//! and `race::choose_save_slot`.
 
 use crate::errors::Refused;
 use crate::owners::Owners;
 use crate::race::owner::Race;
 use crate::session::DwordLike;
 
-const DOOR_TEXT: &std::ffi::CStr = c"doornr="; // "doornr="
-/// (to, from): the header's settings.
+const DOOR_TEXT: &std::ffi::CStr = c"doornr=";
+
+/// The header's settings as (to, from).
 fn settings(race: &Race) -> [(&dyn DwordLike, &crate::session::PlainDword); 5] {
     let shared = &race.shared;
     let work = race.replay_work();
@@ -48,7 +52,6 @@ pub fn viewer_load_stage(race: &'static Race, o: Owners<'static>) -> Result<(), 
     if shared.replay_file().replay_open.is_set() {
         stage_free::render3d_tidy(race)?;
         stage_free::objects_tidy(race)?;
-        // nullsub_6
         race_end::release_textures(o.scene, o.gfx);
         race_shell::set_race_screen_mode(gfx, o.system);
 
@@ -56,7 +59,7 @@ pub fn viewer_load_stage(race: &'static Race, o: Owners<'static>) -> Result<(), 
         for (to, from) in settings(race) {
             to.set(from.get());
         }
-        // g_onePlayer (the sound module's) takes the header's setting too.
+        // The sound module's `one_player` takes the header's setting too.
         sound
             .race
             .shared
@@ -69,7 +72,7 @@ pub fn viewer_load_stage(race: &'static Race, o: Owners<'static>) -> Result<(), 
             .settings
             .race_mode
             .set(sound.race.shared.one_player.get());
-        // byte_719C8C: the low byte of the first dword of `unknown_7d0`.
+        // The door number is the low byte of the first dword of `unknown_7d0`.
         let door = race.replay_work().unknown_7d0[0].get() & 0xFF;
         shared.state.settings.cars[0].race_number.set(door);
         race.car_blocks().cars[0].start_slot_value.set(door);

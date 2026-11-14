@@ -1,20 +1,16 @@
-//! `scene::cross_product3` (0x465551): the cross product of the two vectors of three floats into
-//! a third: x = a.y b.z - a.z b.y, y = a.z b.x - a.x b.z, z = a.x b.y - a.y b.x, each
-//! rounded as it is written (so an output over an input is read back as the original
-//! does).
+//! `scene::cross_product3`: the cross product of the two vectors of three floats into a third:
+//! x = a.y b.z - a.z b.y, y = a.z b.x - a.x b.z, z = a.x b.y - a.y b.x, each rounded as it is
+//! written (so an output over an input is read back as it then is).
 //!
-//! Takes: a, b, the result
-//!
-//! See `scene/vector3.rs`. 16 callers (the marks' tyre marks and their kin).
-//!
-//! Plain Rust (no assembly): the arithmetic is the x87's, in `X`
-//! (`math/x87_float.rs`); the original's instructions' results are recorded vectors in the tests (`data/vectors`).
+//! See `scene/vector3.rs`. 16 callers (the marks' tyre marks and their kin). Plain Rust: the
+//! arithmetic is the x87's, in `X` (`math/x87_float.rs`); the tests compare against recorded
+//! vectors (`data/vectors`).
 
 use crate::math::cells::Cells;
 use crate::math::x87_float::{ld, stf};
 
-/// The Rust version: the three products-differences, each stored as made (`fld; fmul; fld; fmul; fsubp; fstp`):
-/// an output over an input is read back as the original does.
+/// The three products-differences, each stored as made: an output over an input is read back
+/// as it then is.
 pub fn cross(a: &(impl Cells + ?Sized), b: &(impl Cells + ?Sized), o: &(impl Cells + ?Sized)) {
     let (a, b) = (|k| ld(a.float(k)), |k| ld(b.float(k)));
     o.set_float(0, stf(a(1) * b(2) - a(2) * b(1)));

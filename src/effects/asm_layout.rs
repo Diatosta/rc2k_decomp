@@ -1,20 +1,19 @@
-//! The 1999 layout of the marks' stores, as the differential tests of the kept x87 assembly
-//! need it. The stores hold their fields in a natural order with nothing between them; the
-//! assembly was recorded against RAL.EXE's own bytes, where unnamed bytes sit between the
+//! The recorded layout of the marks' stores, as the differential tests of the kept x87
+//! assembly need it. The stores hold their fields in a natural order with nothing between
+//! them; the assembly was recorded against a layout with unnamed bytes between the
 //! fields. Here each store's runs of fields are listed with the address (`START` plus `at`)
 //! the assembly reads them at, so a test copies the fields in from the buffer standing for
-//! the marks' block, runs the Rust version on them, and copies them back. The bytes between the
-//! runs stay as the buffer had them: nothing typed reads them. Test code only; it goes with the
-//! recorded vectors.
+//! the marks' block, runs the Rust version on them, and copies them back. The bytes between
+//! the runs stay as the buffer had them: nothing typed reads them. Test code only.
 
 use crate::cells::Cells;
 use crate::effects::asm_test::Operand;
 use crate::effects::asm_test::START as BLOCK;
 use crate::test_support::paths::{field_range, field_start, set_field_range};
 
-/// A run of fields that were next to each other in the 1999 layout.
+/// A run of fields that were next to each other in the recorded layout.
 pub struct Run {
-    /// Its offset from the store's first byte in the 1999 layout.
+    /// Its offset from the store's first byte in the recorded layout.
     pub at: usize,
     /// The path of the field it begins with in the typed store; the run takes this field's
     /// cells and the next fields' until `len` bytes of cells are covered.
@@ -23,9 +22,9 @@ pub struct Run {
     pub len: usize,
 }
 
-/// A store with a 1999 layout.
+/// A store with a recorded layout.
 pub trait Laid: Cells + Sized {
-    /// RAL.EXE's address of the store's first byte.
+    /// The address of the store's first byte in the recorded layout.
     const START: usize;
     /// The runs of fields, in order.
     const RUNS: &'static [Run];
@@ -56,13 +55,13 @@ fn zeroed<T: Cells>() -> Box<T> {
 }
 
 /// Runs `f` on a copy of the store `T` made from the bytes the test buffer `mk` (standing
-/// for the marks' block) holds at the 1999 places of its fields, and puts the copy's fields
+/// for the marks' block) holds at the recorded places of its fields, and puts the copy's fields
 /// back into the buffer afterwards. Cells no run covers are 0.
 pub fn with_laid<T: Laid, R>(mk: Operand, f: impl FnOnce(&T) -> R) -> R {
     with_laid_at(mk, T::START, f)
 }
 
-/// `with_laid` for a store that has several copies in the 1999 layout, the one at `start`.
+/// `with_laid` for a store that has several copies in the recorded layout, the one at `start`.
 pub fn with_laid_at<T: Laid, R>(mk: Operand, start: usize, f: impl FnOnce(&T) -> R) -> R {
     let place = |r: &Run| (start + r.at).wrapping_sub(BLOCK);
     let local = zeroed::<T>();
@@ -98,7 +97,7 @@ impl Laid for CornerSlopes {
     }];
 }
 
-/// The first of the three quads; the others are at 0x933ED0 and 0x934BD0 (`with_laid_at`).
+/// The first of the three quads; the others are reached by `with_laid_at`.
 impl Laid for QuadWork {
     const START: usize = 0x9331B4;
     const RUNS: &'static [Run] = &[

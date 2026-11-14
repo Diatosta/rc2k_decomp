@@ -1,15 +1,14 @@
-//! `race::loadlevel_init`'s "loadgamemap": the in-race map, 128 x 128
-//! tiles of 16 x 16 pixels, only the tiles the course touches kept. `g_mapTiles` (0x4000
-//! dwords) points each kept tile at its pixels in `g_mapTilePixels` (0 for none), in the
-//! pixel format of entry 3 of `Textures.kinds[0]` (`g_mapPixelBytes` a pixel); `g_mapBlack` that
-//! format's opaque black.
+//! The in-race map: 128 x 128 tiles of 16 x 16 pixels, only the tiles the course touches kept.
+//! `MapVars::tiles` (0x4000 dwords) points each kept tile at its pixels in `tile_pixels` (0 for
+//! none), in the pixel format of entry 3 of `Textures.kinds[0]` (`pixel_bytes` a pixel); `black`
+//! is that format's opaque black.
 //!
-//! The game reads `files\maps\mapxx.sq` ("SQSM", version 0x50000, the tile count, then a
-//! word a tile, 0 or the tile's number from 1, then each tile's pixels as 24-bit
-//! components). With `g_usePackedMaps` 0, or `srcmaps\mapxx.pcx` there, it builds the
-//! same from the source pictures: the map key (`srcmaps\keyxx.pcx`, a 2048 x 2048 sheet
-//! that must be 8-bit) marks the tiles within three of a used one (a 4 x 16 block's four
-//! dwords not all 0), and the map picture gives their pixels.
+//! The packed map is `files\maps\mapxx.sq` ("SQSM", version 0x50000, the tile count, then a word a
+//! tile, 0 or the tile's number from 1, then each tile's pixels as 24-bit components). With
+//! `use_packed` 0, or `srcmaps\mapxx.pcx` there, the map is built from the source pictures: the
+//! map key (`srcmaps\keyxx.pcx`, a 2048 x 2048 sheet that must be 8-bit) marks the tiles within
+//! three of a used one (a 4 x 16 block's four dwords not all 0), and the map picture gives their
+//! pixels.
 
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::gfx::pixel_format::PixelFormat;
@@ -23,43 +22,42 @@ const VERSION: u32 = 0x5_0000;
 /// The in-race map's variables.
 #[derive(rc2k_derive::Cells)]
 pub struct MapVars {
-    /// `g_mapList` (`0x5BE90D`): the list the tiles' memory is on.
+    /// The list the tiles' memory is on.
     pub list: crate::memory::ListCells,
-    /// `0x5BE91D` .. `0x5BE94D`: nothing reads or writes them (a gap).
+    /// Unused (a gap).
     pub _gap_10: PlainBytes<0x30>,
-    /// `g_mapKeyList` (`0x5BE94D`): the list the key sheet's memory is on.
+    /// The list the key sheet's memory is on.
     pub key_list: crate::memory::ListCells,
-    /// `0x5BE95D` .. `0x5BE98D`: nothing reads or writes them (a gap).
+    /// Unused (a gap).
     pub _gap_50: PlainBytes<0x30>,
-    /// `g_mapKeyPixels` (`0x5BE98D`): the sheet, 16 MB (a picture buffer's number since phase
-    /// 12, `gfx::picture::Buffer::Key`).
+    /// The key sheet, 16 MB.
     pub key_pixels: PlainDword,
-    /// `g_mapTiles` (`0x5BE991`): each tile's place in the pixels (128 x 128 dwords; the
-    /// game's address, 0 since the map is Rust's, `GAME_MAP`).
+    /// Each tile's place in the pixels (128 x 128 dwords); 0 since the map is Rust's (`GAME_MAP`).
     pub tiles: PlainDword,
-    /// `g_mapTilePixels` (`0x5BE995`; 0 as `tiles`).
+    /// The pixels' place (0 as `tiles`).
     pub tile_pixels: PlainDword,
-    /// `g_mapTileCount` (`0x5BE999`).
+    /// The count of tiles used.
     pub tile_count: PlainDword,
-    /// `g_mapPicturePath` (`0x5BE99D`). Not used: nothing reads it (the paths are arguments).
+    /// Not used: the paths are arguments.
     pub picture_path: PlainDword,
-    /// `g_mapKeyPath` (`0x5BE9A1`). Not used: nothing reads it (the paths are arguments).
+    /// Not used: the paths are arguments.
     pub key_path: PlainDword,
-    /// `g_mapPixelBytes` (`0x5BE9A5`): bytes a pixel.
+    /// Bytes a pixel.
     pub pixel_bytes: PlainDword,
-    /// `g_mapPixelFormat` (`0x5BE9A9`): the pixel format, by handle (`gfx::pixel_format::layout`).
+    /// The pixel format, by handle (`gfx::pixel_format::layout`).
     pub format: PlainDword,
-    /// `dword_5BE9AD`: the surface's gap after a row (`blit_map_tiles`).
+    /// The surface's gap after a row (`blit_map_tiles`).
     pub row_gap: PlainDword,
-    /// `g_mapBlack` (`0x5BE9B1`): the format's opaque black.
+    /// The format's opaque black.
     pub black: PlainDword,
-    /// `g_usePackedMaps` (`0x5BE9B5`).
+    /// 1 to read the packed map file.
     pub use_packed: PlainDword,
-    /// `dword_5BE9B9`: set by `race::loadlevel` to 1 outside the editor (0 in it) next to `use_packed`; IDA reads it at 0x44428F / 0x4442A2 (outside the ported path), no ported code does.
+    /// Set to 1 outside the editor (0 in it) by `race::loadlevel`, next to `use_packed`; nothing
+    /// reads it.
     pub packed_unless_editor: PlainDword,
 }
 
-/// The map's variables; the first values are the image's.
+/// The map's variables with their first values.
 impl MapVars {
     pub const fn new() -> Self {
         MapVars {
@@ -115,8 +113,8 @@ fn take_format(
     Ok((bytes, format))
 }
 
-/// A pixel of 24-bit components (the dword read: its top byte replaced) added to the bytes
-/// going into the tiles.
+/// Adds a pixel of 24-bit components (the dword read, its top byte replaced) to the bytes going
+/// into the tiles.
 fn store_pixel(
     out: &mut Vec<u8>,
     bytes: u32,
@@ -133,16 +131,15 @@ fn store_pixel(
     }
 }
 
-/// The dword at `at` in bytes read from the game's memory (the 4th byte may be the next
-/// pixel's, as in the original).
+/// The dword at `at` in bytes read from the game's memory (its 4th byte may be the next pixel's).
 fn dword_in(data: &[u8], at: usize) -> Result<u32, BadInput> {
     data.get(at..at + 4)
         .map(|b| u32::from_le_bytes([b[0], b[1], b[2], b[3]]))
         .ok_or(BadInput("a map read past the bytes it was given"))
 }
 
-/// A tile of the map: none (drawn black), marked as used but not filled (the original's
-/// table holds 1 there until the picture is read), or its pixels' byte offset.
+/// A tile of the map: none (drawn black), marked as used but not filled, or its pixels' byte
+/// offset.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Tile {
     None,
@@ -150,9 +147,8 @@ pub enum Tile {
     At(usize),
 }
 
-/// The in-race map (`g_mapTiles` and `g_mapTilePixels`, two blocks of the game's on
-/// `g_mapList`), Rust's: the 128 x 128 tiles and the pixels of those used,
-/// 16 x 16 a tile, `g_mapPixelBytes` a pixel.
+/// The in-race map (`tiles` and `tile_pixels`, on `list`): the 128 x 128 tiles and the pixels of
+/// those used, 16 x 16 a tile, `pixel_bytes` a pixel.
 pub struct GameMap {
     pub tiles: Vec<Tile>,
     pub pixels: Vec<u8>,
@@ -192,7 +188,7 @@ fn put_pixels(at: usize, bytes: &[u8]) -> Result<(), BadInput> {
         .ok_or(BadInput("the map's tile pixels past their block"))
 }
 
-/// `race::free_game_map` (0x41B907): both map lists freed, the sheet, tiles and pixels 0.
+/// Frees both map lists and zeroes the sheet, tiles and pixels.
 pub fn free_game_map(race: &Race) -> Result<(), Refused> {
     let frame = &race.frame;
     crate::gfx::picture::give_back(crate::gfx::picture::Buffer::Key);
@@ -209,11 +205,10 @@ pub fn free_game_map(race: &Race) -> Result<(), Refused> {
     Ok(())
 }
 
-/// `race::load_packed_game_map` (0x41B785): the map from a packed file. `g_mapBlack` and
-/// `g_mapTiles` (0x10000 bytes) first; a file that does not open, read, say "SQSM" or have version
-/// 0x50000 leaves the tiles as allocated and the count 0. Each read of the pixels is of 0x40 tiles
-/// at most. Refuses a count of 0 or past 0xFFFF and a short read not of whole pixels (the original
-/// counts round). `path` without its NUL.
+/// Loads the map from a packed file. `black` and `tiles` (0x10000 bytes) are set first; a file
+/// that does not open, read, say "SQSM" or have version 0x50000 leaves the tiles as allocated and
+/// the count 0. Each read of the pixels is of 0x40 tiles at most. Refuses a count of 0 or past
+/// 0xFFFF and a short read not of whole pixels. `path` is without its NUL.
 pub fn load_packed_game_map(
     frame: &Frame,
     path: &[u8],
@@ -308,8 +303,8 @@ pub fn load_packed_game_map(
     result
 }
 
-/// `race::load_game_map` (0x41B480): the map. A key not 8-bit is fatal error 0x80E48073. The key's
-/// list freed and `g_mapKeyPixels` 0 at the end; the picture limits and buffer put back.
+/// Loads the map. A key that is not 8-bit is fatal error 0x80E48073. At the end the key's list is
+/// freed and `key_pixels` is 0; the picture limits and buffer are put back.
 pub fn load_game_map(
     frame: &Frame,
     picture: &dyn crate::session::TextPlace,
@@ -321,13 +316,13 @@ pub fn load_game_map(
     if frame.map().use_packed.get() == 1
         && !crate::files::file_exists::file_exists(&picture.text("a map picture's path")?)?
     {
-        // The picture's path after 3 bytes, its last four made ".sq" and a NUL, then
-        // "files\" at the start (`str_append` and the two writes of the original).
+        // The packed path: "files\" at the start, the picture's path after 3 bytes with its last
+        // four bytes made ".sq" and a NUL.
         let path = &crate::files::state::PACKED_PATH;
         let text = picture.text("a text to append")?;
         let len = text.len() as u32;
         path.write_at(3, &text, "a text to append")?;
-        // At `3 + len - 4`: before the buffer when the path is empty, as the original's.
+        // At `3 + len - 4`: before the buffer when the path is empty, so refused.
         let tail = (3 + len as usize).checked_sub(4);
         path.write_at(
             tail.ok_or(crate::errors::BadInput("past the end of a buffer"))?,
@@ -335,7 +330,7 @@ pub fn load_game_map(
             "the packed map's path",
         )?;
         path.write_at(0, b"files\\", "the packed map's path")?;
-        // The packed path as built in the buffer.
+        // The packed path is built in the buffer.
         load_packed_game_map(
             frame,
             &crate::files::cstring(path, "the packed map's path")?,
@@ -347,8 +342,8 @@ pub fn load_game_map(
     frame.map().tile_count.set(0u32);
     let (bytes, format) = take_format(frame, gfx)?;
     take_tiles(frame)?;
-    // The key sheet is a picture buffer (Rust's, `gfx::picture`), counted on
-    // its list as the game's block was; `key_pixels` holds its number.
+    // The key sheet is a picture buffer (Rust's, `gfx::picture`), counted on its list; `key_pixels`
+    // holds its number.
     let key = crate::gfx::picture::take(
         crate::gfx::picture::Buffer::Key,
         &frame.map().key_list,
@@ -421,8 +416,8 @@ pub fn load_game_map(
         }
         frame.map().tile_count.set(0u32);
         let row: u32 = pictures.picture.row_bytes.get();
-        // The marked tiles' pixels made from the picture (read into the key's buffer), then
-        // put in the map's pixels in one go.
+        // The marked tiles' pixels made from the picture (read into the key's buffer), then put in
+        // the map's pixels in one go.
         let pixels =
             crate::gfx::picture::with_buffer(key, |sheet| -> Result<Vec<u8>, BadInput> {
                 let mut pixels = Vec::new();

@@ -1,6 +1,5 @@
-//! The steps the physics' long functions share once their flow is in Rust the game's variables by IDA address, the x87 compares as the originals
-//! read them (`fld; fcomp` / `fcompp` and the status word's C0 / C3), the holds and
-//! eases their patterns repeat.
+//! The steps the physics' long functions share: the x87 compares (the status word's C0 / C3)
+//! and the holds and eases whose patterns repeat.
 
 use crate::effects::cell_x87::CellX87;
 use crate::math::x87;
@@ -37,7 +36,7 @@ impl FloatView for PlainFloat {
     }
 }
 
-/// A dword cell the game uses for a float as well as for whole numbers (the scratch
+/// A dword cell used for a float as well as for whole numbers (the scratch
 /// cells, the work vectors): its bits read and written as the float.
 impl FloatView for Dword {
     fn float(&self) -> f32 {
@@ -71,28 +70,27 @@ pub fn g(x: &impl crate::session::Cell32) -> u32 {
     x.bits()
 }
 
-/// Writes the game's dword into the cell `x`.
+/// Writes the dword `v` into the cell `x`.
 pub fn p(x: &impl crate::session::Cell32, v: u32) {
     x.set_bits(v);
 }
 
-/// The whole number held in the cell `x` (what `fild` loads from a float variable that holds a
-/// count).
+/// The whole number held in the cell `x` (a float variable that holds a count).
 pub fn whole(x: &impl crate::session::Cell32) -> i32 {
     x.bits() as i32
 }
 
-/// Stores the whole number `v` into the cell `x` (`fistp`).
+/// Stores the whole number `v` into the cell `x`.
 pub fn set_whole(x: &impl crate::session::Cell32, v: i32) {
     x.set_bits(v as u32);
 }
 
-/// `fld a; fcomp b`: C0, a below b or unordered.
+/// The x87's C0 after comparing `a` with `b`: `a` below `b` or unordered.
 pub fn c0(a: impl x87::Flt, b: impl x87::Flt) -> bool {
     compare_full(a.bits(), b.bits()) & 0x100 != 0
 }
 
-/// `fld a; fcomp b`: C3, a equal to b or unordered.
+/// The x87's C3 after comparing `a` with `b`: `a` equal to `b` or unordered.
 pub fn c3(a: impl x87::Flt, b: impl x87::Flt) -> bool {
     compare_full(a.bits(), b.bits()) & 0x4000 != 0
 }
@@ -109,14 +107,12 @@ pub fn equal_or_unordered(a: impl x87::Flt, b: impl x87::Flt) -> bool {
     c3(a, b)
 }
 
-/// The size of the float `a` is below `b`, or one of them is not a number (`fabs` then
-/// the comparison's C0).
+/// The size of the float `a` is below `b`, or one of them is not a number.
 pub fn abs_below_or_unordered(a: impl x87::Flt, b: impl x87::Flt) -> bool {
     crate::math::x87::abs_compare(a, b) & 0x100 != 0
 }
 
-/// `fld lim; fld v; fcompp; jnb skip; fld lim; fstp v`: v raised to lim when below it
-/// (or unordered).
+/// `v` raised to `lim` when below it (or unordered).
 pub fn hold_low(v: &impl FloatView, lim: &impl FloatView) {
     hold_low_to(v, lim.float());
 }
@@ -133,15 +129,14 @@ pub fn hold_low_bits(v: &impl FloatView, lim: u32) {
     hold_low_to(v, f32::from_bits(lim));
 }
 
-/// `fld lim; fld v; fcompp; jb skip; fld lim; fstp v`: v lowered to lim unless below it
-/// (or unordered).
+/// `v` lowered to `lim` unless below it (or unordered).
 pub fn hold_high(v: &impl FloatView, lim: &impl FloatView) {
     if !c0(v.float(), lim.float()) {
         v.set_float(x87::loaded(lim.float()));
     }
 }
 
-/// `fld v; fchs; fstp v`.
+/// `v` negated in place.
 pub fn negate(v: &impl FloatView) {
     v.set_float(crate::math::x87::neg_rounded(
         crate::scene::matrix3::extended(v.float()),
@@ -149,7 +144,7 @@ pub fn negate(v: &impl FloatView) {
 }
 
 /// The value at `v` brought toward 0 by the step at `step`, never past it; 0 (either
-/// sign) or unordered left alone (`fldz; fld v; fcompp`, C3 then C0, as the originals).
+/// sign) or unordered left alone.
 pub fn ease_zero(v: &impl FloatView, step: &impl FloatView) {
     let x = v.float();
     if c3(x, 0.0) {
@@ -170,10 +165,10 @@ pub fn ease_zero(v: &impl FloatView, step: &impl FloatView) {
     }
 }
 
-/// A clamped table lerp (the damage model's, e.g. 0x4AB61C .. 0x4AB680): the table at
+/// A clamped table lerp (the damage model's): the table at
 /// `t` is (x0, y0, x1, y1); the value at `x` below x0 (or unordered) gives y0, below x1
 /// gives y0 + (x - x0) / (x1 - x0) x (y1 - y0) (y0 when x1 - x0, unrounded, equals the
-/// value at `zero`), else y1; into `out` (`fstp`).
+/// value at `zero`), else y1; into `out`.
 pub fn table_lerp(
     x: &impl FloatView,
     t: &[PlainFloat; 4],
@@ -195,7 +190,7 @@ pub fn table_lerp(
     out.set_float(x87_2(x.float(), t));
 }
 
-// ---- the arithmetic that was x87 assembly ----
+// ---- the x87 arithmetic ----
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
@@ -208,9 +203,7 @@ fn x87_1(t: &[PlainFloat; 4], z: f32) -> u16 {
     compare(t2, t3)
 }
 
-/// The game's x87 arithmetic as plain Rust over `X`, on the variables
-/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[o + 0] = ((([x + 0] - [t + 0]) / ([t + 8] - [t + 0])) * ([t + 0xC] - [t + 4])) + [t + 4]`
+/// One straight x87 run as plain Rust over `X`.
 fn x87_2(x: f32, t: &[PlainFloat; 4]) -> f32 {
     let t0 = ld(x);
     let t1 = t[0].ld();

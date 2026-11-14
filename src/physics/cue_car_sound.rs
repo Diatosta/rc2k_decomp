@@ -1,18 +1,16 @@
-//! `physics::cue_car_sound` (0x40ECE7): for a car number 0 or 1, the sound object of that car
-//! (`g_raceSoundObjects`); when its state word (+8) is 1, `physics::queue_sound_cue` puts the cue
-//! first in its queue, using the object's `parts_present` (+0x298).
+//! For car number 0 or 1, the sound object of that car: when its state word is 1,
+//! `physics::queue_sound_cue` puts the cue first in its queue, using the object's
+//! `parts_present`.
 //!
-//! Takes: which, the cue
-//!
-//! Caller: `physics::cue_listed_car_sound`. Refuses (before anything) a car past 7 or a
-//! null sound object.
+//! Caller: `physics::cue_listed_car_sound`. Refuses (before anything) a car past 7 or a null
+//! sound object.
 
 use crate::errors::Refused;
 use crate::sound::store::SoundObject;
 use rc2k_core::physics::listed_cars::cue_object;
 
 /// `cue` queued first for the car `which` (0 or 1: a player's), if it sounds.
-// Converted: `rc2k_core::physics::listed_cars::cue_object`.
+// Core: `rc2k_core::physics::listed_cars::cue_object`.
 pub fn cue_car_sound(
     which: u32,
     cue: u32,

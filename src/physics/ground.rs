@@ -1,12 +1,12 @@
-//! The ground's search: which course face lies under the point (`ground_x`,
-//! `ground_z`, whole-number x and z), and the shares and height there. `physics::ground_search` tries the last face found (`physics::try_last_face`), then
-//! the nine grid cells around the point (`physics::search_cell`: the cell's course record,
-//! `physics::find_course_record`, then its faces, `physics::search_record_faces`), each
-//! face by `physics::face_under_point` (its edges by `physics::edge_side`; when inside,
-//! `physics::face_shares` and `physics::plane_height`).
+//! The ground's search: which course face lies under the point (`ground_x`, `ground_z`,
+//! whole-number x and z), and the shares and height there. `physics::ground_search` tries the
+//! last face found (`try_last_face_at`), then the nine grid cells around the point
+//! (`physics::search_cell`: the cell's course record, `physics::find_course_record`, then its
+//! faces, `search_record_faces_at`), each face by `physics::face_under_point` (its edges
+//! by `physics::edge_side`; when inside, `physics::face_shares` and `physics::plane_height`).
 //!
-//! The cores take what they read (the face, the record, the point) and return whether the
-//! point was found.
+//! The cores take what they read (the face, the record, the point) and return whether the point
+//! was found.
 
 use crate::errors::{BadInput, Refused};
 use crate::physics::cells::Trap;
@@ -23,8 +23,8 @@ fn record_faces(course: CourseReads<'_>, record: u32) -> Result<(u32, u32), BadI
     Ok((face(8)?, face(0xC)?))
 }
 
-/// `physics::face_shares` (0x442323): the three corners named by `face_corner_numbers` .. `98` copied
-/// (0x639708 ..), the point (0x6396FC, 0x639704), the differences, and the shares by the x87
+/// `physics::face_shares`: the three corners named by `face_corner_numbers` copied, the point,
+/// the differences, and the shares by the x87
 /// (`math::x87::face_shares`; the `rcpss` way with the SSE switch).
 pub fn face_shares_at(
     course: CourseReads<'_>,
@@ -83,9 +83,9 @@ pub fn face_refusal(course: CourseReads<'_>, face: u32) -> Option<&'static str> 
         .map(|e| e.0)
 }
 
-/// `physics::face_under_point` (0x442006): whether the point is inside face `number` (see
-/// `physics/face_under_point.rs`): the carry.
-// Converted: `rc2k_core::physics::ground_search::face_under_point`.
+/// `physics::face_under_point`: whether the point is inside face `number` (see
+/// `physics/face_under_point.rs`).
+// Core: `rc2k_core::physics::ground_search::face_under_point`.
 pub fn face_under_point_at(
     course: CourseReads<'_>,
     q: &GroundQuery<'_>,
@@ -155,9 +155,9 @@ pub fn record_refusal(course: CourseReads<'_>, record: u32) -> Option<&'static s
     }
 }
 
-/// `physics::search_record_faces` (0x441FD9): faces +8 ..= +0xC of course record
-/// `record`, each by `face_under_point`; the carry when one has the point.
-// Converted: `rc2k_core::physics::ground_search::search_faces`.
+/// `physics::search_record_faces`: faces +8 ..= +0xC of course record
+/// `record`, each by `face_under_point`; true when one has the point.
+// Core: `rc2k_core::physics::ground_search::search_faces`.
 pub fn search_record_faces_at(
     course: CourseReads<'_>,
     q: &GroundQuery<'_>,
@@ -174,10 +174,9 @@ pub fn search_record_faces_at(
     Ok(found)
 }
 
-/// `physics::search_cell` (0x441FBA): the cell of (`x`, `z`) (each >> 21; key
-/// z << 11 + x), its record by `find_course_record`, then its faces. The carry when
-/// found.
-// Converted: `rc2k_core::physics::ground_search::cell_key`.
+/// `physics::search_cell`: the cell of (`x`, `z`) (each >> 21; key
+/// z << 11 + x), its record by `find_course_record`, then its faces. True when found.
+// Core: `rc2k_core::physics::ground_search::cell_key`.
 pub fn search_cell_at(
     course: CourseReads<'_>,
     q: &GroundQuery<'_>,
@@ -192,9 +191,9 @@ pub fn search_cell_at(
     search_record_faces_at(course, q, record, switches)
 }
 
-/// `physics::try_last_face` (0x441E0C): the saved last face (`last_face`); when it is a face (not -1,
-/// below the count) `face_under_point` on it. The carry when found.
-// Converted: `rc2k_core::physics::ground_search::last_face`.
+/// `physics::try_last_face`: the saved last face (`last_face`); when it is a face (not -1,
+/// below the count) `face_under_point` on it. True when found.
+// Core: `rc2k_core::physics::ground_search::last_face`.
 pub fn try_last_face_at(
     course: CourseReads<'_>,
     q: &GroundQuery<'_>,
@@ -207,10 +206,10 @@ pub fn try_last_face_at(
     face_under_point_at(course, q, last, switches)
 }
 
-/// `physics::ground_search` (0x441E2F), inside `pusha` / `popa`: `try_last_face`; else
-/// `ground_slot` = -1 and `search_cell` on the point plus each of `CELLS` until one
-/// finds it. `g_groundFound` 1 when found, else 0. Registers kept; the carry the found.
-// Converted: `rc2k_core::physics::ground_search::ground_search`.
+/// `physics::ground_search`: `try_last_face_at`; else `ground_slot` = -1 and `search_cell` on the
+/// point plus each of `CELLS` until one finds it. `ground_found` is 1 when found, else 0; the
+/// result says whether it was found.
+// Core: `rc2k_core::physics::ground_search::ground_search`.
 pub fn ground_search_at(
     course: CourseReads<'_>,
     q: &GroundQuery<'_>,

@@ -1,18 +1,15 @@
-//! The race's frame outside the physics (`drive::race_loop`'s callees): the
-//! players' states, the cars' counters, the view cars loaded into the work copy. Here
-//! its leaves.
+//! The race's frame outside the physics (`drive::race_loop`'s callees): the players' states, the
+//! cars' counters, the view cars loaded into the work copy. This file holds its leaves.
 
 use crate::errors::Refused;
 use crate::physics::car_store::Car;
 use crate::race::owner::Race;
 
-/// `race::players_all_out` (0x445506): carry when every player is out (+0xB0 not 0): the chosen
-/// car's with `session` 1, else each of the `players` players'. Refuses, before anything,
-/// a chosen car past 7 or more than 8 players (the original reads past the table).
+/// Carry when every player is out (+0xB0 not 0): the chosen car's with `session` 1, else each of
+/// the `players` players'. Refused, before anything: a chosen car past 7 or more than 8 players.
 pub fn players_all_out(race: &Race, net: &crate::net::owner::Net) -> Result<bool, Refused> {
     let vars = &net.vars;
     let shared = &race.shared;
-    // Converted: `rc2k_core::race::cars::players_all_out`.
     use rc2k_core::race::cars::{Players, players_all_out};
     {
         let trap = crate::race::trap::Trap::new();
@@ -30,20 +27,16 @@ pub fn players_all_out(race: &Race, net: &crate::net::owner::Net) -> Result<bool
     }
 }
 
-/// `race::set_car_counter` (0x43A96C): a car block's message, written in the original's order
-/// (+0x71C, +0x730, +0x72C).
+/// Writes a car block's message in the order +0x71C, +0x730, +0x72C.
 pub fn set_car_counter(car: &Car, value: u32) {
-    // Converted: `rc2k_core::race::cars::Message::new`.
     let m = rc2k_core::race::cars::Message::new(value);
     car.notice_id.set(m.id);
     car.notice_time_b.set(m.age);
     car.notice_time.set(m.time_left);
 }
 
-/// `race::set_both_counters` (0x43A987): `set_car_counter` of the first two blocks (by their fixed
-/// addresses), each with the same value.
+/// Calls `set_car_counter` on the first two blocks, each with the same value.
 pub fn set_both_counters(race: &Race, value: u32) {
-    // Converted: through `set_car_counter` (`rc2k_core::race::cars::Message`).
     for car in &race.car_blocks().cars[..2] {
         set_car_counter(car, value);
     }
@@ -59,9 +52,8 @@ pub fn view_car(view: &crate::race::view_store::RaceView, n: usize) -> &crate::s
     }
 }
 
-/// `race::load_car_a` / `_b` / `_c` (0x45422F, 0x454241, 0x454277): the view car `n`'s
-/// block (of `blocks`: the game thread's, or a drawing part's reads) copied into `view`'s car
-/// (`ViewScratch::car`). Refuses a null block (the original's copy faults) before anything.
+/// Copies view car `n`'s block (of `blocks`: the game thread's, or a drawing part's reads) into
+/// `view`'s car (`ViewScratch::car`). Refused: a null block, before anything.
 pub fn load_view_car(
     work: &crate::race::work_store::RaceWork,
     blocks: &crate::race::blocks_store::CarBlocks,
@@ -82,23 +74,23 @@ pub fn load_view_car(
     Ok(())
 }
 
-// The race keys, by PC scan code (set 1) in `g_keysPressed`: F1 .. F5 (0x3B ..), F6 .. F12 for the
-// view block's option bits; `g_keysNow`'s 0x1D (`Devices.keys_now`, the Left Ctrl scan code) held makes
-// them act on the second view's block (`second` below).
+// The race keys, by PC scan code (set 1) in `keys_pressed`: F1 .. F5 (0x3B ..), F6 .. F12 for the
+// view block's option bits; `keys_now`'s 0x1D (`Devices.keys_now`, the Left Ctrl scan code) held
+// makes them act on the second view's block (`second` below).
 const VIEW_MODE_KEY: usize = 0x1D;
-const NEXT_VIEW_KEY: usize = 0x3B; // Devices.keys_pressed
-const SPLIT_KEY: usize = 0x3C; // Devices.keys_pressed
-const DOWN_KEY: usize = 0x3D; // Devices.keys_pressed
-const UP_KEY: usize = 0x3E; // Devices.keys_pressed
-const SHARED_KEY: usize = 0x3F; // Devices.keys_pressed
-/// The keys that flip a bit of the view block's +0x220 (`rc2k_core::race::keys::BIT_KEYS`
-/// by place): their key bytes, in the order tested.
-pub const BIT_KEYS: [usize; 7] = [0x58, 0x42, 0x41, 0x44, 0x43, 0x40, 0x57]; // 4F6D34, 4F6D1E, 4F6D1D, 4F6D20, 4F6D1F, 4F6D1C, 4F6D33
+const NEXT_VIEW_KEY: usize = 0x3B;
+const SPLIT_KEY: usize = 0x3C;
+const DOWN_KEY: usize = 0x3D;
+const UP_KEY: usize = 0x3E;
+const SHARED_KEY: usize = 0x3F;
+/// The keys that flip a bit of the view block's +0x220 (`rc2k_core::race::keys::BIT_KEYS` by
+/// place): their key bytes, in the order tested.
+pub const BIT_KEYS: [usize; 7] = [0x58, 0x42, 0x41, 0x44, 0x43, 0x40, 0x57];
 fn pressed(devices: &crate::input::store::Devices, key: usize) -> bool {
     devices.keys_pressed.get(key) != 0
 }
 
-/// `race::race_keys` (0x43A649): the race's view and sound keys (see its header).
+/// The race's view and sound keys.
 pub fn race_keys(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     let (audio, sound) = (o.audio, o.sound);
     let devices = &o.input.devices;
@@ -107,8 +99,6 @@ pub fn race_keys(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), R
     crate::drive::choose_shown_cars::choose_shown_cars_in(race, o.net)?;
     let second = devices.keys_now.get(VIEW_MODE_KEY) != 0;
     let view = shared.view_car_or_end(usize::from(second));
-    // Converted: `rc2k_core::race::keys::{first_key, split_flip, volume_key,
-    // volume_step, flip_bit}`.
     use rc2k_core::race::keys::{
         BIT_KEYS as BITS, COUNTED_VIEWS, Key, SHARED_BIT, first_key, flip_bit, split_flip,
         volume_key, volume_step,
@@ -156,7 +146,7 @@ pub fn race_keys(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), R
             let (step, counter) = volume_key(up, second);
             set_both_counters(race, counter);
             if second {
-                // The "up" step reads `OptionWork.other_volume`, not the music's volume (see bugs).
+                // The "up" step reads `OptionWork.other_volume`, not the music's volume.
                 let from: u32 = if up {
                     o.menus.screens.option_work.other_volume.get()
                 } else {
@@ -185,11 +175,12 @@ pub fn race_keys(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), R
     Ok(())
 }
 
-/// `race::tyre_change` (0x444F7A): the textures copied (`TyreChange::texture` / `device_texture`
-/// from `KindTextureTables.kind_first_textures[599]` / `KindTextureTables.kind_first_slots[599]`); for car 0 (block at 0x70F3EC: +0x268 "c1 tyrec" count
-/// `CarBlocks.cars[0].stopped_steps`, +0x26C the change's state `CarBlocks.cars[0].tyre_change_state`, +0x298 the tyre bits `CarBlocks.cars[0].parts_present`,
-/// +0x88 the time `CarBlocks.cars[0].stage_time`, +0x354 .. +0x360 `CarBlocks.cars[0].tyre_wears[0]` .. `CarBlocks.cars[0].tyre_wears[3]`, one per bit 1
-/// .. 4) `race::tyre_change_gauge` started, then run, its time when done added.
+/// Copies the textures (`TyreChange::texture` / `device_texture` from
+/// `KindTextureTables.kind_first_textures[599]` / `KindTextureTables.kind_first_slots[599]`); for
+/// car 0 (block: +0x268 the count `CarBlocks.cars[0].stopped_steps`, +0x26C the change's state
+/// `tyre_change_state`, +0x298 the tyre bits `parts_present`, +0x88 the time `stage_time`, +0x354
+/// .. +0x360 `tyre_wears[0]` .. `tyre_wears[3]`, one per bit 1 .. 4) starts `tyre_change_gauge`,
+/// then runs it, adding its time when done.
 pub fn tyre_change(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     let (race, scene) = (o.race, o.scene);
     let shared = &race.shared;

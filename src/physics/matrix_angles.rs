@@ -1,12 +1,10 @@
-//! `physics::matrix_angles` (0x4212C3): three angles of a turn matrix. The matrix turns (0, 0, 1)
-//! (`scene::rotate_point`, stored as floats in `turned_x` ..): `car_heading` is the `fpatan` of
-//! the x over the z; the same turn again, and `car_pitch` is minus `physics::clamped_asin` of the
-//! y; then (1, 0, 0) is turned, and `car_roll` is `clamped_asin` of the y over the cosine of the
-//! pitch (80 bits). A reading: the car's heading, pitch and roll.
+//! Three angles of a turn matrix. The matrix turns (0, 0, 1) (`scene::rotate_point`, stored as
+//! floats in `turned_x` ..): `car_heading` is the arctangent of the x over the z; the same turn
+//! again, and `car_pitch` is minus `physics::clamped_asin` of the y; then (1, 0, 0) is turned, and
+//! `car_roll` is `clamped_asin` of the y over the cosine of the pitch (80 bits). A reading: the
+//! car's heading, pitch and roll.
 //!
-//! Takes: the matrix
-//!
-//! Callers: `physics::car_angles` (`g_crashMatrix`).
+//! Caller: `physics::car_angles`, with the crash matrix.
 
 use crate::math::cells::Cells;
 use crate::math::x87::{neg_rounded, over_cos_80, patan};
@@ -24,7 +22,7 @@ fn turn_unit(m: &(impl Cells + ?Sized), turned: &[&PlainFloat; 3], unit: [f32; 3
     }
 }
 
-/// On the matrix `m`; the angles in `COURSE_LISTS`.
+/// On the matrix `m`; the angles go into the course lists (`car_heading`, `car_pitch`, `car_roll`).
 pub fn matrix_angles(
     course: &Course,
     m: &(impl Cells + ?Sized),

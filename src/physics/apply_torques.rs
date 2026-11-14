@@ -1,10 +1,8 @@
-//! `physics::apply_torques` (0x43F6BF): applies a table of force records (0x20 bytes each) as
-//! torques to the work car (`g_car`), each by `physics::apply_torque`.
+//! Applies a table of force records (0x20 bytes each) as torques to the work car, one
+//! `physics::apply_torque` each.
 //!
-//! Takes: the records
-//!
-//! Callers: `physics::apply_wheel_torques`, `physics::apply_contact_torques`. Refuses a
-//! table of no records or of more than 0x100 (the original would loop 2^32 times).
+//! Callers: `physics::apply_wheel_torques`, `physics::apply_contact_torques`. Refuses no records,
+//! or more than 0x100.
 
 use crate::errors::Refused;
 use crate::physics::apply_torque::apply_torque;

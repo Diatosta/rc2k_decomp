@@ -1,15 +1,9 @@
-//! `math::rotate_point_about_y_ebx` (0x41FDFE): `math::rotate_point_about_y` with other registers: x in ebx, y in
-//! ecx, z in eax (whole numbers), through the scratch point (`fild`/`fstp` in,
-//! `math::rotate_scratch_about_y` by edx, `fld`/`fistp` out); ecx is pushed around, so it comes
-//! back as it was.
-//!
-//! Takes: x, y, z, the angle
-//!
-//! Callers: `physics::place_camera` (twice).
+//! `math::rotate_point_about_y_ebx`: `math::rotate_point_about_y` returning only x', z' and
+//! the angle table's entry (whole numbers, through the scratch point).
 
 use crate::math::rotate_point_about_y::rotate_point_about_y;
 
-/// The Rust version: x', z' and the entry left in edx.
+/// x', z' and the angle table's entry.
 pub fn rotate_point_about_y_ebx(
     tables: &crate::scene::engine_tables_store::EngineTables,
     x: i32,

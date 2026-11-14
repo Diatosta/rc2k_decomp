@@ -1,8 +1,7 @@
 //! The skidmarks laid (`race::lay_skidmarks_if_on` -> `race::lay_skidmarks` ->
-//! `race::add_skid_point`): each car's skidding wheels add a point to the
-//! ring of 0x400 skid points (`g_skidPoints`, 0x18 bytes: the mark's left and right edges) linked
-//! in strips (`g_skidLinks`, 8 bytes: +0 the next, +2 the previous, +4 the angle, +6 the car's
-//! bit).
+//! `race::add_skid_point`): each car's skidding wheels add a point to the ring of 0x400 skid
+//! points (`skid_points`, 0x18 bytes: the mark's left and right edges) linked in strips
+//! (`skid_links`, 8 bytes: +0 the next, +2 the previous, +4 the angle, +6 the car's bit).
 
 use crate::errors::{BadInput, Refused};
 use crate::race::owner::Race;
@@ -25,19 +24,17 @@ fn offsets(
     (x, z)
 }
 
-/// `race::add_skid_point` (0x45860C): a wheel's next skid point: across the wheel's place
-/// (`skid_place` ..) at the angle from the last point's middle (`scene::angle_between`; 0 for
-/// none), the point's old links cut, linked after the last; the last point turned to the new angle
-/// (its own when it starts the strip, else halfway between its previous one and this); the ring's
-/// next moved on (0x400 points). Refuses (before anything) a point or a link outside the ring (the
-/// original reads and writes past its tables).
+/// `race::add_skid_point`: lays a wheel's next skid point across the wheel's place (`skid_place`),
+/// at the angle from the last point's middle (`scene::angle_between`; 0 for none). The point's old
+/// links are cut and it is linked after the last point, which is turned to the new angle (its
+/// own when it starts the strip, else halfway between its previous one and this). The ring's next
+/// point moves on (0x400 points). Refuses (before anything) a point or link outside the ring.
 pub fn add_skid_point(race: &Race, slot: &PlainDword) -> Result<(), Refused> {
-    // Converted: `rc2k_core::race::skids::add_skid_point`.
     use rc2k_core::race::skids::{Link, POINTS, Point, Ring, add_skid_point, next_point};
     let skids = race.frame.shadow_skids.get();
     let n = skids.skid_next.get();
     let last = slot.get();
-    // The ring read out of its tables (and written back after, what changed).
+    // The ring is read out of its tables and what changed is written back after.
     let word = |b: &[u8], k: usize| u32::from_le_bytes([b[k], b[k + 1], b[k + 2], b[k + 3]]);
     let half = |b: &[u8], k: usize| u16::from_le_bytes([b[k], b[k + 1]]);
     let point_bytes = skids.skid_points.read();
@@ -126,12 +123,11 @@ fn cars_refuse(shared: &RaceShared) -> Result<(), Refused> {
     Ok(())
 }
 
-/// `race::lay_skidmarks` (0x4588DE): for each race car (its bit in `skid_cars`) and each of its
-/// four wheels (slot +0xF48 ..): when the wheel skids (+0x600 ..), its axle's grip (+0xF40 front,
-/// +0xF44 rear) is not below `skid_grip` and its mark is on (+0x298 bits 5 .. 8), its place
-/// (+0xF10 / +0xF20 / +0xF30 ..) plus (+-0x1555, 0, 0) turned by the car's matrix (+0xB4;
-/// `scene::rotate_point`, rounded; the original's stores to `scratch` are not kept) gets a
-/// point; else the slot -1. Refuses (before anything) a car without its block.
+/// `race::lay_skidmarks`: for each race car (its bit in `skid_cars`) and each of its four wheels,
+/// a point is laid when the wheel skids, its axle's grip is not below `skid_grip` and its mark is
+/// on (`parts_present` bits 5 .. 8). The point is the wheel's ground place plus (+-0x1555, 0, 0)
+/// turned by the car's crash matrix (`scene::rotate_point`, rounded). Otherwise the wheel's skid
+/// slot is set to -1. Refuses (before anything) a car without its block.
 pub fn lay_skidmarks(race: &Race) -> Result<(), Refused> {
     let skids = race.frame.shadow_skids.get();
     let shared = &race.shared;
@@ -184,7 +180,7 @@ pub fn lay_skidmarks(race: &Race) -> Result<(), Refused> {
     Ok(())
 }
 
-/// `race::lay_skidmarks_if_on` (0x4585F3): `lay_skidmarks` unless `scene_switch` or `replay_still_on`
+/// `race::lay_skidmarks_if_on`: `lay_skidmarks` unless `scene_switch` or `replay_still_on`
 /// is set.
 pub fn lay_skidmarks_if_on(race: &Race) -> Result<(), Refused> {
     let frame = &race.frame;

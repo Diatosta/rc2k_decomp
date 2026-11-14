@@ -1,30 +1,31 @@
-//! `race::viewer_frame` (0x41D5FB): one frame of the replay viewer (`screens::run_frame`'s
-//! function): at the replay's end (`replay_at_end`) the screen cleared (`gfx::clear_back_surface`);
-//! the scene begun; unless at the end, the block's cameras into it (`drive::replay_frame_marks`)
-//! and the frame drawn (`race::show_replay_still`). A picture asked (`snapshot_asked`): asked no
-//! more, the scene ended (`d3d::end_scene`), the picture saved (`race::viewer_snapshot`), shown.
-//! Else, stopped (`viewer_stopped` 1): the list's texture (`viewer_list_texture`, `d3d::set_texture`), eight
-//! render states, each item, the bar's quads (`drive::tyre_quad`: the frame, with blocks the bar,
-//! the two marks and the place shown along it, the four buttons) and the panel
-//! (`race::draw_viewer_panel`); the scene ended and the frame shown (`gfx::show_frame`).
+//! `race::viewer_frame`: one frame of the replay viewer (`screens::run_frame`'s function). At the
+//! replay's end (`replay_at_end`) the screen is cleared (`gfx::clear_back_surface`); the scene
+//! begins; unless at the end, the block's cameras are put into it (`drive::replay_frame_marks`)
+//! and the frame is drawn (`race::show_replay_still`). When a picture is asked
+//! (`snapshot_asked`), the request is cleared, the scene ends (`d3d::end_scene`), the picture is
+//! saved (`race::viewer_snapshot`) and shown. Else, when stopped (`viewer_stopped` 1), the list's
+//! texture (`viewer_list_texture`, `d3d::set_texture`), eight render states, each item, the bar's
+//! quads (`drive::tyre_quad`: the frame, with blocks the bar, the two marks and the place shown
+//! along it, the four buttons) and the panel (`race::draw_viewer_panel`) are drawn; the scene
+//! ends and the frame is shown (`gfx::show_frame`).
 //!
-//! The marks' and the place's positions are `mark * w / blocks` (`mul` / `div`): a quotient
-//! past 32 bits (the original's divide error) is refused, before the bar is drawn. Caller:
-//! `screens::run_frame` (called from `race::replay_viewer`).
+//! The marks' and the place's positions are `mark * w / blocks`: a quotient past 32 bits is
+//! refused, before the bar is drawn. Called by `screens::run_frame` (from
+//! `race::replay_viewer`).
 
 use crate::errors::{BadInput, Refused};
 use crate::owners::Owners;
 use crate::race::owner::Race;
 use crate::session::PlainDword;
 
-/// Whether the frame was lost.
+/// Draws one viewer frame; returns whether the frame was lost.
 pub fn viewer_frame(o: Owners<'static>) -> Result<bool, Refused> {
     let (system, gfx, race) = (o.system, o.gfx, o.race);
     let replay = &race.replay;
     if race.shared.replay_file().replay_at_end.is_set() {
         crate::gfx::clear_back_surface::clear_back_surface(gfx, system)?;
     }
-    // `d3d::begin_scene` cannot fail (its carry is clear).
+    // Beginning the scene cannot fail.
     crate::platform_3d::begin_layer(o.d3d, crate::workers::game_scratch());
     if !race.shared.replay_file().replay_at_end.is_set() {
         crate::drive::replay_frame_marks::replay_frame_marks(race)?;
@@ -32,7 +33,7 @@ pub fn viewer_frame(o: Owners<'static>) -> Result<bool, Refused> {
     }
     if replay.replay_view().snapshot_asked.get() == 1 {
         replay.replay_view().snapshot_asked.set(0);
-        // `d3d::end_scene` cannot fail either.
+        // Nor can ending it.
         crate::platform_3d::end_layer(o.d3d);
         crate::race::viewer_snapshot::viewer_snapshot(replay, gfx, o.system)?;
     } else {
@@ -41,7 +42,7 @@ pub fn viewer_frame(o: Owners<'static>) -> Result<bool, Refused> {
         }
         crate::platform_3d::end_layer(o.d3d);
     }
-    // `gfx::show_frame`'s carry says nothing was shown.
+    // Not shown: the frame is lost.
     Ok(!crate::platform::show_frame_now(o))
 }
 
@@ -50,18 +51,16 @@ fn stopped(race: &Race, o: Owners<'static>) -> Result<(), Refused> {
     let (install, system) = (o.install, o.system);
     let replay = &race.replay;
     let shared = &race.shared;
-    // Converted: `rc2k_core::race::viewer_flow::{LIST_STATES, bar_places, mark_x, place_x}`.
     use rc2k_core::race::viewer_flow::{LIST_STATES, bar_places, mark_x, place_x};
     let part = crate::workers::game_scratch();
     crate::d3d::set_texture::set_texture(part, shared.replay_file().viewer_list_texture.get());
     for (value, state) in LIST_STATES {
         crate::d3d::set_render_state::set_render_state(part, value, state);
     }
-    // The list's item count: the byte at +1 of its first dword.
+    // The list's item count: the second byte of its first dword.
     let items = (replay.replay_view().viewer_list[0].get() >> 8) as u8;
-    // The original counts up to the byte at +1 after each item, from 0: a count of 0
-    // goes round 256 times. The items are the list's 16-byte entries from +0x18; one past
-    // the 26 there is refused.
+    // The items are counted up to that byte from 0, so a count of 0 goes round 256 times. The
+    // items are the list's 16-byte entries from +0x18; one past the 26 there is refused.
     for index in 0..if items == 0 { 256 } else { u32::from(items) } {
         let first = 6 + 4 * index as usize;
         let item = replay

@@ -1,5 +1,4 @@
-//! `sound::send_end_of_turn` (0x409BE0): tells the audio thread a turn is over
-//! (command 0xA).
+//! `sound::send_end_of_turn`: tells the audio thread a turn is over (command 0xA).
 //!
 //! Sends command 0xA through `sound::send_command`. Callers:
 //! `sound::race_turn`, `sound::wait_for_commands` (twice), `sound::send_command_7`.

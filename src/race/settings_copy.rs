@@ -1,12 +1,10 @@
-//! The race's settings copied between the front end's ("Graham's", 0x75ACxx ..) and the
-//! race's ("Shaun's") variables and car blocks, and logged: `race::copy_settings_in`
-//! (0x446EBE, "COPY GRAHAM TO SHAUN", before a race) and `race::copy_settings_out`
-//! (0x4486FB, "COPY SHAUN TO GRAHAM", after it). The original's code is two long runs of
-//! the same few kinds of step; here each is a plain function that loops over the two cars
-//! and the `GAUGES` table and does the few steps that differ by hand, in the original's
-//! order (the log's lines are in that order too). The old step-list machine is kept as a
-//! test reference (`old_machine`), against which `new_copies_match_the_machine` compares
-//! the cells written and the log text.
+//! The race's settings copied between the front end's ("Graham's") and the race's ("Shaun's")
+//! variables and car blocks, and logged: `race::copy_settings_in` ("COPY GRAHAM TO SHAUN", before
+//! a race) and `race::copy_settings_out` ("COPY SHAUN TO GRAHAM", after it). Each is a plain
+//! function that loops over the two cars and the `GAUGES` table and does the few steps that
+//! differ by hand, in a fixed order (the log's lines are in that order too). A step-list machine
+//! is kept as a test reference (`old_machine`), against which `new_copies_match_the_machine`
+//! compares the cells written and the log text.
 
 use crate::errors::Refused;
 use crate::gfx::owner::Gfx;
@@ -39,14 +37,14 @@ pub enum StepOperand {
     /// A car's result impact mark (`results[n].impact_marks[k]`).
     #[cfg(test)]
     ResultMark(usize, usize),
-    /// A dword of car block n (`CAR_BLOCKS.cars[n]`), by field (`car!`).
+    /// A dword of car block n, by field (`car!`).
     CarCell(usize, fn(&Car) -> &PlainDword),
     /// A float of car block n, by its bits (`car_bits!`).
     CarBits(usize, fn(&Car) -> &PlainFloat),
-    /// A dword of an overlay store on the race block (`var!`: `RACE_VARS.stage_number`).
+    /// A dword of a race store, reached by `var!`.
     #[cfg(test)]
     Var(fn() -> &'static dyn DwordLike),
-    /// A dword of one of the owners (`var!(@o menus.screens.option_work.eax)`).
+    /// A dword of one of the owners (`var!(@o menus.screens.option_work.lens_flare)`).
     Owned(for<'a> fn(&'a Owners<'a>) -> &'a dyn DwordLike),
     /// A dword of the race's (`var!(@race shared.vars.direction)`).
     RaceVar(fn(&Race) -> &dyn DwordLike),
@@ -59,13 +57,13 @@ use StepOperand::{CarBits, CarCell, Owned, RaceVar};
 use StepOperand::{Cell, ResultMark, ResultSecs, Setting};
 
 impl StepOperand {
-    /// Its dword (a float's bits), in the game's owners (the tests').
+    /// Its dword (a float's bits), in the live owners (for tests).
     #[cfg(test)]
     pub fn get(self) -> u32 {
         self.get_with(&Owners::the())
     }
 
-    /// Its dword set (a float's bits), in the game's owners (the tests').
+    /// Sets its dword (a float's bits), in the live owners (for tests).
     #[cfg(test)]
     pub fn set(self, v: u32) {
         self.set_with(&Owners::the(), v);
@@ -91,7 +89,7 @@ impl StepOperand {
         }
     }
 
-    /// Its dword set (a float's bits), the owners' being `o`'s.
+    /// Sets its dword (a float's bits), in the owners `o`.
     pub fn set_with(self, o: &Owners<'static>, v: u32) {
         match self {
             #[cfg(test)]
@@ -176,7 +174,7 @@ macro_rules! var {
 pub(crate) use {car, car_bits, var};
 
 /// The effects of the copies besides moving cells: the log and the three routines the
-/// end of a copy runs. The game's is `GameEffects`; the test captures them.
+/// end of a copy runs. The live one is `GameEffects`; the test captures them.
 trait Effects {
     /// A log text (`log_write`), with a line break after it if `newline`.
     fn text(&mut self, text: &str, newline: bool);
@@ -186,15 +184,15 @@ trait Effects {
     fn hex8(&mut self, value: u32);
     /// A float with two decimals and a line break (`log_float`).
     fn float(&mut self, value: f32);
-    /// `race::clear_player_absences` (0x449D44).
+    /// `race::clear_player_absences`.
     fn clear_player_absences(&mut self, race: &Race);
-    /// `race::copy_league_table` (0x4650B7).
+    /// `race::copy_league_table`.
     fn copy_league_table(&mut self, race: &Race) -> Result<(), Refused>;
-    /// `race::store_results_by_mode` (0x449957).
+    /// `race::store_results_by_mode`.
     fn store_results_by_mode(&mut self, race: &Race);
 }
 
-/// The game's log and routines.
+/// The log and routines of the running game.
 struct GameEffects;
 
 impl Effects for GameEffects {
@@ -221,12 +219,12 @@ impl Effects for GameEffects {
     }
 }
 
-/// `race::copy_settings_in` (0x446EBE): "COPY GRAHAM TO SHAUN".
+/// `race::copy_settings_in`: "COPY GRAHAM TO SHAUN".
 pub fn copy_settings_in(race: &Race, gfx: &Gfx) -> Result<(), Refused> {
     copy_in(race, gfx, &mut GameEffects)
 }
 
-/// `race::copy_settings_out` (0x4486FB): "COPY SHAUN TO GRAHAM"; skipped (and logged so)
+/// `race::copy_settings_out`: "COPY SHAUN TO GRAHAM"; skipped (and logged so)
 /// while a replay is shown.
 pub fn copy_settings_out(race: &Race) -> Result<(), Refused> {
     copy_out(race, &mut GameEffects)
@@ -259,7 +257,7 @@ fn log_cars(race: &Race, fx: &mut impl Effects) {
             fx.text(&label(&format!("caroctdamage{n}")), false);
             fx.float(mark.get());
         }
-        // The original jumps over car 2's lines unless the race has exactly two players.
+        // Car 2's lines are logged only when the race has exactly two players.
         if car == 0 && shared.view.get().players.get() != 2 {
             break;
         }
@@ -286,7 +284,7 @@ fn log_arcade_positions(race: &Race, fx: &mut impl Effects) {
     );
 }
 
-/// The front end's settings into the race's (`copy_settings_in`), in the original's order.
+/// The front end's settings into the race's (`copy_settings_in`), in the log's order.
 fn copy_in(race: &Race, gfx: &Gfx, fx: &mut impl Effects) -> Result<(), Refused> {
     let shared = &race.shared;
     let (settings, results, vars, view) = (
@@ -387,8 +385,8 @@ fn copy_in(race: &Race, gfx: &Gfx, fx: &mut impl Effects) -> Result<(), Refused>
         view.player_options[car].set(bits);
     }
 
-    // The gauges: the front end keeps them as whole numbers, the cars as floats (`fild`,
-    // `fstp`: the x87's exact conversion, so large numbers round as the original's do).
+    // The gauges: the front end keeps them as whole numbers, the cars as floats (converted exactly
+    // as the x87 does, so large numbers round as they always did).
     for (car, (c, s)) in race
         .car_blocks()
         .cars
@@ -429,8 +427,8 @@ fn copy_in(race: &Race, gfx: &Gfx, fx: &mut impl Effects) -> Result<(), Refused>
     Ok(())
 }
 
-/// The race's settings back to the front end's (`copy_settings_out`), in the original's
-/// order; while a replay is shown (`hold_car_revs` not 0) nothing is copied.
+/// The race's settings back to the front end's (`copy_settings_out`), in the log's order; while a
+/// replay is shown (`hold_car_revs` not 0) nothing is copied.
 fn copy_out(race: &Race, fx: &mut impl Effects) -> Result<(), Refused> {
     let shared = &race.shared;
     let (settings, results) = (&shared.state.settings, &shared.state.results);
@@ -445,7 +443,7 @@ fn copy_out(race: &Race, fx: &mut impl Effects) -> Result<(), Refused> {
         results
             .hud_bits_first
             .set(race.car_blocks().cars[1].option_bits.get());
-        // The gauges back to whole numbers (`fld`, `fistp`: rounded as the x87's control
+        // The gauges back to whole numbers (rounded as the x87's control
         // word says, to the nearest by default), the impact marks' bits as they are.
         for (car, (c, s)) in race
             .car_blocks()
@@ -646,7 +644,7 @@ mod tests {
         }
     }
 
-    /// xorshift64*: a seeded generator, no crates.
+    /// Xorshift64*: a seeded generator, no crates.
     struct Rng(u64);
 
     impl Rng {

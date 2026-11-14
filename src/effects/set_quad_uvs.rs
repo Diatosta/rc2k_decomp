@@ -1,11 +1,11 @@
-//! `effects::set_quad_uvs` (0x4CFD6A): writing to the depth buffer off, and the four texture
-//! places of the 0x20-byte set at `CornerSlopes.slopes[0].values[0]` + 0xC60 put into the four vertices'
-//! texture places at `Buffers.vertices.vertices[0].u` (0x20 bytes apart: +0x18 of Direct3D vertices from
-//! 0x9605A0: the u, v of a transformed-and-lit Direct3D vertex, 0x20 bytes each).
+//! `effects::set_quad_uvs`: writing to the depth buffer off, and the four texture places of the
+//! 0x20-byte set at `CornerSlopes.slopes[0].values[0]` + 0xC60 put into the four vertices' texture
+//! places at `Buffers.vertices.vertices[0].u` (the u, v of a transformed-and-lit Direct3D vertex;
+//! the vertices are 0x20 bytes apart).
 //!
 //! One caller, `effects::run_particles` (the marks' frame).
 
-/// The record of `g_marksCornerSlopes` whose eight values are the set (0xC60 bytes on).
+/// The record of the corners' slopes whose eight values are the set (0xC60 bytes on).
 const SET_RECORD: usize = 0xC60 / 0x24;
 
 pub fn set_quad_uvs(

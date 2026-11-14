@@ -1,22 +1,19 @@
-//! Race-block pieces that left the block together (2026-10-29, phase 13): the census of
-//! accesses by address saw the original reach across them, so each group keeps its
-//! pieces and the bytes between them in the image's layout, one static with the image's
-//! first values. Each piece's store is a field here.
+//! Race-block pieces that sit together because code reads across them by address: each group keeps
+//! its pieces and the bytes between them in a fixed layout, as one static with its first values.
+//! Each piece's store is a field here.
 //!
-//! - `VIEWER_AND_KINDS` (IDA 0x5C291C .. 0x5C5CE0): the viewer's panel, the block's bytes
-//!   after it, the kinds' tables. The effects read the marks' settings as one record from
-//!   `ViewerAndKinds.marks_settings.settings_text` (in the panel) to +0x26A8 (in the kinds' tables: `effects::init_marks`).
-//! - `LIGHTS_AND_GEAR` (IDA 0x5C906C .. 0x5CC198): the light records, a dword, the gear
-//!   figures. `scene::load_object` reads a kind's record past the 34 (an unbounded kind,
-//!   as the original) into the gear figures.
-//! - `PANEL_AND_OVERLAY` (IDA 0x6D13FE .. 0x6D1870): the hud's panel and the race's
-//!   overlay. The hud reads its records from `PANEL.split_6` on (+0xF4 at the panel's end:
-//!   `hud::draw_hud`'s layouts). Two lead bytes come before the panel.
-//! - `VIEW_AND_RECORDS` (IDA 0x60626C .. 0x6077B0): the view variables and the 52 view
-//!   records of 0x5C after them (0x606500 .., `ViewAndRecords.view_vars.view_records[0]`'s targets). Until 2026-11-05 the
-//!   variables ran on to 0x60674C over the first records' fields, and record 6 (0x606728)
-//!   crossed their end (seen 2026-10-29: the third chase view read half its record from the
-//!   wrong memory while the variables had moved alone); the records are now one array.
+//! - `ViewerAndKinds`: the viewer's panel, the bytes after it, the kinds' tables. The effects read
+//!   the marks' settings as one record from `ViewerAndKinds.marks_settings.settings_text` (in the
+//!   panel) to +0x26A8 (in the kinds' tables: `effects::init_marks`).
+//! - `LightsAndGear`: the light records, a dword, the gear figures. `scene::load_object` reads a
+//!   kind's record past the 34 (an unbounded kind) into the gear figures.
+//! - `PanelAndOverlay`: the hud's panel and the race's overlay. The hud reads its records from
+//!   `PANEL.split_6` on (+0xF4 at the panel's end: `hud::draw_hud`'s layouts). Two lead bytes
+//!   come before the panel.
+//! - `ViewAndRecords`: the view variables and the 52 view records of 0x5C after them
+//!   (`ViewAndRecords.view_vars.view_records[0]`'s targets). The records are one array: with the
+//!   variables overrunning onto the first records' fields, the third chase view read half of
+//!   record 6 from the wrong memory.
 
 use crate::physics::gear_store::GearFigures;
 use crate::race::effects_settings_store::EffectsSettings;
@@ -30,47 +27,47 @@ use crate::race::view_vars_store::{ViewRecord, ViewVars};
 use crate::race::viewer_screen_store::ViewerPanelBlock;
 use crate::session::{GameThread, PlainBytes, PlainCells, PlainDword};
 
-/// IDA 0x5C291C .. 0x5C5CE0.
+/// The viewer's panel, the bytes after it and the kinds' tables.
 #[derive(rc2k_derive::Cells)]
 pub struct ViewerAndKinds {
-    /// +0x0 (0x5C291C): `race::viewer_screen_store`.
+    /// +0x0: `race::viewer_screen_store`.
     pub viewer_panel: GameThread<ViewerPanelBlock>,
-    /// +0x668 (0x5C2F84): `race::effects_settings_store`.
+    /// +0x668: `race::effects_settings_store`.
     pub marks_settings: GameThread<EffectsSettings>,
-    /// +0x2DD0 (0x5C5708): `race::kind_store`.
+    /// +0x2DD0: `race::kind_store`.
     pub kind_tables: KindTables,
 }
 
-/// IDA 0x5C906C .. 0x5CC198. A drawing store (`session::DrawShared`): the light records and
-/// the dword between on plain cells; the gear figures, which the drawing reaches only by
-/// reading on past the records, on the physics' cells.
+/// The light records, a dword and the gear figures. A drawing store (`session::DrawShared`): the
+/// light records and the dword between on plain cells; the gear figures, which the drawing reaches
+/// only by reading on past the records, on the physics' cells.
 #[derive(rc2k_derive::Cells)]
 pub struct LightsAndGear {
-    /// +0x0 (0x5C906C): `race::light_records_store`.
+    /// +0x0: `race::light_records_store`.
     pub light_records: LightRecords,
-    /// +0x28E8 (0x5CB954): a dword between them, by IDA address.
+    /// +0x28E8: a dword between them, by game address.
     pub between: PlainDword,
-    /// +0x28EC (0x5CB958): `physics::gear_store`.
+    /// +0x28EC: `physics::gear_store`.
     pub gear: GearFigures,
 }
 
-/// IDA 0x6D13FE .. 0x6D1870, two bytes in.
+/// The hud's panel and the race's overlay.
 #[derive(rc2k_derive::Cells)]
 pub struct PanelAndOverlay {
-    /// Two lead bytes (not the game's) before the panel.
+    /// Two lead bytes before the panel.
     pub lead: PlainBytes<2>,
-    /// +0x0 (0x6D13FE): `race::panel_store`.
+    /// +0x0: `race::panel_store`.
     pub panel: Panel,
-    /// +0x10E (0x6D150C): `race::overlay_store`.
+    /// +0x10E: `race::overlay_store`.
     pub overlay: OverlayBlock,
 }
 
-/// IDA 0x60626C .. 0x6077B0.
+/// The view variables and the 52 view records after them.
 #[derive(rc2k_derive::Cells)]
 pub struct ViewAndRecords {
-    /// +0x0 (0x60626C): `race::view_vars_store`.
+    /// +0x0: `race::view_vars_store`.
     pub view_vars: ViewVars,
-    /// +0x294 (0x606500): the 52 view records (named through `off_606320`).
+    /// +0x294: the 52 view records (named through `ViewerAndKinds` handles).
     pub records: [ViewRecord; 52],
 }
 

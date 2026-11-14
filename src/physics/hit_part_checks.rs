@@ -1,9 +1,9 @@
-//! `physics::hit_part_checks` (0x441046): +0x284 (`parts_state`) 1; with bits 5, 6, 1, 2
-//! of +0x298 all set -1; with bits 7, 8, 3, 4 also set 0 (a reading: which parts are
-//! left); then, with +0x26C 0, `physics::drop_hit_parts` and `physics::sound_hit_parts`.
+//! `parts_state` = 1; with bits 5, 6, 1, 2 of `parts_present` all set, -1; with bits 7, 8, 3, 4
+//! also set, 0 (a reading: which parts are left); then, with `tyre_change_state` 0,
+//! `physics::drop_hit_parts` and `physics::sound_hit_parts`.
 //!
-//! Caller: `physics::car_physics_step` (0x43B957), every physics step. Refuses what the calls
-//! refuse; what was written is put back.
+//! Caller: `physics::car_physics_step`, every physics step. Refuses what the calls refuse; what was
+//! written is put back.
 
 use crate::errors::Refused;
 use crate::physics::drop_hit_parts::drop_hit_parts;
@@ -13,7 +13,7 @@ use crate::race::numbers_store::Numbers;
 use crate::race::owner_shared::RaceShared;
 use rc2k_core::physics::parts::parts_left;
 
-// Converted: `rc2k_core::physics::parts::parts_left`.
+// Core: `rc2k_core::physics::parts::parts_left`.
 pub fn hit_part_checks(
     numbers: &Numbers,
     matrices: &SceneMatrices,

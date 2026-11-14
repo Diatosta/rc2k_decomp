@@ -1,10 +1,10 @@
-//! `physics::drive_force` (0x43CB14): the engine's drive. `physics::engine_torque_or_cut`;
-//! `drive_ratio` = (torque + `engine_torque`) x +0x638 (`throttle`, `fild`) / 256 -
-//! `engine_torque`; `drive_torque` = it x `drive_torque_figure` / the gear's ratio / 10000, or 0 with
-//! +0x1D0 (`drive_cut_steps`) set; `physics::drive_torque_share`.
+//! The engine's drive. After `physics::engine_torque_or_cut`: `drive_ratio` = (torque +
+//! `engine_torque`) x `throttle` / 256 - `engine_torque`; `drive_torque` = it x
+//! `drive_torque_figure` / the gear's ratio / 10000, or 0 with `drive_cut_steps` set; then
+//! `physics::drive_torque_share`.
 //!
-//! Caller: `physics::car_physics_step` (0x43B732), every physics step. Refuses (before anything) a
-//! gear outside -1 ..= 7.
+//! Caller: `physics::car_physics_step`, every physics step. Refuses (before anything) a gear
+//! outside -1 ..= 7.
 
 use crate::errors::{BadInput, Refused};
 use crate::math::x87::{mul_div2, sum_times_int_over_minus};

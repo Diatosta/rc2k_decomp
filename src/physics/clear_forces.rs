@@ -1,7 +1,7 @@
-//! `physics::clear_forces` (0x43F395): `physics::clear_records` on 0x17 records of 0x20 bytes at `forces` (`g_forceRecords`, the
-//! step's forces).
+//! Clears the 0x17 force records of 0x20 bytes (`forces`, the step's forces) with
+//! `physics::clear_records`.
 //!
-//! Caller: `physics::car_physics_step` (0x43B71E), every physics step.
+//! Caller: `physics::car_physics_step`, every physics step.
 
 use crate::errors::Refused;
 use crate::physics::clear_records::clear_records;

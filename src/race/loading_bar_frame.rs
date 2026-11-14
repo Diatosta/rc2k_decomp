@@ -1,21 +1,14 @@
-//! `race::loading_bar_frame` (0x4467C7): one frame of the loading bar while a stage loads (the
-//! loading's callback `bar_function`), with `in_credits` only: `scene_state` 8; nothing while
-//! quitting; with the window active and the surfaces not lost (`WindowLoopState.lost` not 1):
-//! `scene::begin_scene`, the view window chosen as unframed (`editor_mode` 0 for
-//! `scene::choose_view_window`, put back), `race::loading_bar_quad`, `scene::end_scene`,
-//! `scene::lock_frame`, an empty function, `scene::unlock_frame`, `scene::present_frame`, carry
-//! clear. A failed step (or the window inactive, or the surfaces lost) instead, unless quitting,
-//! restores the surfaces (0x405B10, the platform's) and leaves carry set when they were neither
-//! lost before nor after.
-//!
-//! Caller: the stage's loading (through `bar_function`). Its calls are the Rust versions (the
-//! restore the platform's call). a call by address goes through `routes.rs`.
+//! One frame of the loading bar while a stage loads (the `bar_function` callback). Outside
+//! a stage's loading and the credits it does nothing; otherwise it sets `scene_state` to the frame
+//! mark and, unless the game is quitting, draws `race::loading_bar_quad` in an unframed view window
+//! and presents the frame. A frame that cannot be drawn (the window inactive, its surfaces lost, or
+//! the lock refused) goes to the platform's surface restore, which is not ported: it ends the game.
 
 use crate::errors::Refused;
-const RESTORE: usize = 0x405B10; // 0x405B10: the surfaces restored (the platform's)
+const RESTORE: usize = 0x405B10;
 
-/// A stage is loading (`race::load_stage`). Not the original's: it draws the bar for the
-/// credits' race only; here for every stage, over the loading picture.
+/// A stage is loading (`race::load_stage`). The bar is drawn for every stage, over the loading
+/// picture.
 pub static STAGE_LOADING: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
 /// The bar's frames and their microseconds since last asked (the load's log line).
@@ -32,11 +25,11 @@ pub fn shown() -> (u64, u64) {
     (FRAMES[0].swap(0, Relaxed), FRAMES[1].swap(0, Relaxed))
 }
 
-/// Timed.
+/// Draws a frame, at most one in 33 ms.
 pub fn loading_bar_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     use std::sync::atomic::Ordering::Relaxed;
-    // Not the original's: some 30 frames a second at most, and the last. Every step's frame
-    // was 3/4 of a load (882 ms of 1231).
+    // At most some 30 frames a second, and the last: drawing every step's frame took 3/4 of a
+    // load (882 ms of 1231).
 
     let begun = std::time::Instant::now();
     {
@@ -60,7 +53,7 @@ fn frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     let (race, system, scene, gfx, d3d) = (o.race, o.system, o.scene, o.gfx, o.d3d);
     let session = &system.session;
     let shared = &race.shared;
-    // Converted: `rc2k_core::race::loading::{FRAME_MARK, frame_tried}`.
+    // Logic in `rc2k_core::race::loading::{FRAME_MARK, frame_tried}`.
     use crate::scene::*;
     use rc2k_core::race::loading::{FRAME_MARK, frame_tried};
     if !shared.work.get().in_credits.is_set()
@@ -93,7 +86,6 @@ fn frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     if drawn || session.flags.quitting.is_set() {
         return Ok(());
     }
-    // The platform's restore, (with a local scratch value; the flags it
-    // leaves were read by no caller).
+    // The platform's restore (with a local scratch value; no caller reads the flags it leaves).
     crate::standalone::not_ported(RESTORE, "race::loading_bar_frame")
 }

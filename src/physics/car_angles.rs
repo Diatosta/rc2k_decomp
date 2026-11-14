@@ -1,10 +1,9 @@
-//! `physics::car_angles` (0x43BEF4): `physics::matrix_angles` of `g_crashMatrix`, then
-//! each angle times 65536 (`k65536`), 4096 (`k4096`) and 1 / 2pi (`one_over_two_pi`),
-//! `fistp`, shifted left 4: `car_pitch` into `car_pitch`, `D8` into `car_heading`,
-//! `DC` into `car_roll` (`g_car` +0x9C4, +0x9C0, +0x9C8): the car's heading, pitch and
-//! roll (`car_heading`, `car_pitch`, `car_roll`) in the game's whole-number units (<< 4).
+//! The car's heading, pitch and roll from its crash matrix (`physics::matrix_angles`): each angle
+//! times 65536, 4096 and 1 / 2pi (`k65536`, `k4096`, `one_over_two_pi`), rounded to an integer
+//! and shifted left 4, into `car_heading`, `car_pitch` and `car_roll`: whole-number angle units
+//! (<< 4).
 //!
-//! Returns: `g_crashMatrix`
+//! Returns the crash matrix.
 //!
 //! Caller: `physics::update_car_angles`.
 

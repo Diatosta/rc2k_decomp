@@ -1,7 +1,7 @@
-//! `race::stop_frame_pictures` (0x41F3C6): the replay's frames no longer saved as pictures
-//! (`g_replayRecording` and `pictures_started` 0; see `race::replay_screenshot`).
+//! `race::stop_frame_pictures`: stops saving the replay's frames as pictures (`replay_recording`
+//! and the picture clock's `started` flag are set to 0; see `race::replay_screenshot`).
 //!
-//! Caller: `race::viewer_action` (actions 0x25 .. 0x28).
+//! Called by `race::viewer_action` (actions 0x25 .. 0x28).
 
 use crate::race::owner::Race;
 

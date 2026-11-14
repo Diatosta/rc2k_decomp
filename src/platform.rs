@@ -1,23 +1,21 @@
 //! The platform under the game, on SDL3, for the standalone program (`standalone.rs`).
 //!
-//! These are not ports: each takes the place of a function of the game that is
-//! DirectDraw, the window or the message pump, keeps what that function means to the
-//! game's own code (the variables it leaves, the flags it returns with) and does the
-//! rest with SDL. There is no original to compare them with.
+//! Each function takes the place of a piece of the game's platform (the screen, the window or
+//! the message pump), keeps what that piece means to the game's own code (the variables it
+//! leaves, the flags it returns with) and does the rest with SDL.
 //!
 //! The screen: the game draws into a locked surface in the screen mode's own pixel
 //! layout. Here that surface is memory of ours (`Screen::pixels`, rows without a gap),
 //! and `show_frame` copies it to the window, 16-bit pixels made 32-bit on the way.
 //!
-//! - `gfx::choose_screen_modes`: the original tries the kept modes and, if
-//!   they do not work, a list of others, through DirectDraw. Here the kept modes are
-//!   taken as they are, 800 x 600 in 32 bits when there is none.
-//! - `gfx::set_screen_mode`: the mode's size and pixel kind
-//!   looked up as the original does and its variables set; the surface made; its pixel
-//!   format described; the texture formats too (`platform_3d.rs`).
+//! - `gfx::choose_screen_modes`: the kept modes are taken as they are, 800 x 600 in 32 bits
+//!   when there is none.
+//! - `gfx::set_screen_mode`: the mode's size and pixel kind looked up and its variables set; the
+//!   surface made; its pixel format described; the texture formats too (`platform_3d.rs`).
 //!   `gfx::set_menu_screen_mode` is it with the menus' mode.
 //! - `gfx::lock_surface`, `gfx::unlock_surface`, `gfx::show_frame`.
-//! - `screens::run_frame` (given the frame's function) and `system::pump_messages`: SDL's events (`platform_events`).
+//! - `screens::run_frame` (given the frame's function) and `system::pump_messages`: SDL's events
+//!   (`platform_events`).
 //!
 //! Where the time goes: `platform_timing`.
 
@@ -58,19 +56,20 @@ pub(crate) static SHOWN: AtomicU32 = AtomicU32::new(0);
 pub static FRAMES_TO_SHOW: AtomicU32 = AtomicU32::new(0);
 static LAST_SHOWN: AtomicUsize = AtomicUsize::new(0);
 
-// ---- gfx::choose_screen_modes (0x404481) ----
+// ---- gfx::choose_screen_modes ----
 
-/// `gfx::choose_screen_modes`: the menus' and the race's modes (the kept ones, else the
-/// original's choices in order) and the graphics options' choices. Fails (the error the caller makes fatal error 0x90201101) when no mode works.
+/// `gfx::choose_screen_modes`: the menus' and the race's modes (the kept ones, else the defaults)
+/// and the graphics options' choices. Fails (the error the caller makes fatal error 0x90201101)
+/// when no mode works.
 pub fn choose_screen_modes(
     o: crate::owners::Owners<'static>,
 ) -> Result<(), crate::errors::FatalError> {
     let gfx = o.gfx;
     let gfx_display = &gfx.display;
     {
-        // Converted: `rc2k_core::gfx::screen_modes::choose`. A mode works here when the
-        // mode table lists it: the window takes any listed mode, and every listed mode
-        // passes the 3D check (`gfx::mark_3d_modes`).
+        // The logic is `rc2k_core::gfx::screen_modes::choose`. A mode works here when the mode
+        // table lists it: the window takes any listed mode, and every listed mode passes the 3D
+        // check (`gfx::mark_3d_modes`).
         use rc2k_core::gfx::screen_modes::{Lookup, choose, look_up};
         let display = &gfx_display;
         let modes = &display.modes;
@@ -99,9 +98,8 @@ pub fn choose_screen_modes(
             }
         }
     }
-    // The graphics options' choices made, as the original ends (`loc_4045CA`): the list
-    // the options page shows its resolution from (not made yet at the start, so made
-    // whatever the caller holds).
+    // The graphics options' choices made: the list the options page shows its resolution from (not
+    // made yet at the start, so made whatever the caller holds).
     let made = crate::gfx::screen_mode_choices::screen_mode_choices(gfx, o.d3d, o.system, false);
     if let Err(e) = made {
         log(&format!(
@@ -111,7 +109,7 @@ pub fn choose_screen_modes(
     Ok(())
 }
 
-// ---- gfx::set_screen_mode (0x404B63) ----
+// ---- gfx::set_screen_mode ----
 
 fn set_screen_mode(
     mode: u32,
@@ -132,8 +130,8 @@ fn set_screen_mode(
         .value_of(mode & 0xF_0000, Modes::KINDS_AT, 3)
         .ok_or("a kind that is not known")?;
     let bytes = bits >> 3;
-    // As the original: every texture given back before the screen changes;
-    // the game loads again what it needs (a trial's 0x40 more found the pool full).
+    // Every texture is given back before the screen changes; the game loads again what it needs (a
+    // trial's 0x40 more found the pool full).
     crate::platform_3d::release_all_textures(gfx);
     system.session.screen.get().width.set(width);
     system.session.screen.get().height.set(height);
@@ -147,7 +145,7 @@ fn set_screen_mode(
         .row_dwords
         .set((bytes * width) >> 2);
     system.session.screen.get().kind.set(kind);
-    // The z-buffer's depth, which the original picks by the 3D device: none here.
+    // The z-buffer's depth: none here (there is no 3D device to pick it).
     system.session.screen.get().depth_bits.set(0x10u32);
 
     // The surface's pixel format, as DirectDraw would report it: +4 blue, +8 green,
@@ -283,7 +281,7 @@ pub fn set_mode_now(
     done.is_ok()
 }
 
-// ---- gfx::set_menu_screen_mode (0x404823) ----
+// ---- gfx::set_menu_screen_mode ----
 
 /// `gfx::set_menu_screen_mode`: `gfx::set_screen_mode` with the menus' mode; false (and
 /// logged) if it cannot be.
@@ -301,7 +299,7 @@ pub fn set_menu_mode_now(
     done.is_ok()
 }
 
-// ---- gfx::lock_surface (0x4058AD), gfx::unlock_surface (0x405949) ----
+// ---- gfx::lock_surface, gfx::unlock_surface ----
 
 /// `gfx::lock_surface`: the surface locked for drawing (unless quitting or there is no
 /// screen); the locked flag is 1 after it.
@@ -346,7 +344,7 @@ pub fn unlock_surface(gfx: &crate::gfx::owner::Gfx) -> u32 {
     locked
 }
 
-// ---- gfx::show_frame (0x4057D1) ----
+// ---- gfx::show_frame ----
 
 /// The GPU's colour target as a texture of the window's renderer: made once for a set of
 /// targets (`targets_made`, their number), in `GPU_VIEW`.
@@ -462,7 +460,7 @@ fn show_frame(o: &crate::owners::Owners<'static>, screen: &Screen) -> Result<(),
         } else {
             renderer.draw_whole(&screen.texture);
         }
-        // Not the original's: the debug UI over the frame.
+        // The debug UI over the frame.
         crate::debug::imgui_sdl::draw(o, renderer, screen.window);
         renderer.present();
         Ok(())
@@ -572,14 +570,15 @@ pub fn show_frame_now(o: crate::owners::Owners<'static>) -> bool {
     true
 }
 
-// ---- system::pump_messages (0x410535), screens::run_frame (0x405A71) ----
+// ---- system::pump_messages, screens::run_frame ----
 
 /// `system::pump_messages`: the window's events (SDL's).
 pub fn pump_messages_now(o: crate::owners::Owners<'static>) {
     crate::platform_events::pump(o);
 }
 
-/// `screens::run_frame` for Rust callers with a frame of their own (the screen loops): the messages, then the frame unless quitting (None then).
+/// `screens::run_frame` for Rust callers with a frame of their own (the screen loops): the
+/// messages, then the frame unless quitting (None then).
 pub fn run_frame_now<T>(o: crate::owners::Owners<'static>, frame: impl FnOnce() -> T) -> Option<T> {
     crate::platform_events::pump(o);
     if o.system.session.flags.quitting.is_set() {

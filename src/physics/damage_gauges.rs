@@ -1,11 +1,11 @@
-//! `physics::damage_gauges` (0x4AC817): the damage gauges' step (`physics/damage_model.rs`).
+//! The damage gauges' step (`physics/damage_model.rs`).
 //!
 //! Each gauge of the car block (engine, exhaust, cooling, clutch, differential, electrics,
-//! lights, steering, suspension, turbo, brakes, the gearbox's gears, the body and part
-//! hits) is raised by its rate (`gauge_rates`, `wear_rates`) times this step's shares and
-//! hit figures, then held 0 ..= `gauge_top`. The hit's side (`DamageModel.hit_side`, 1 .. 4)
-//! chooses the gauges a hit wears, its size (`DamageModel.hit_size`) is scaled past `gauge_rates[22]`,
-//! and the direction `DamageModel.gear_changed` (1 or -1) adds fixed steps.
+//! lights, steering, suspension, turbo, brakes, the gearbox's gears, the body and part hits) is
+//! raised by its rate (`gauge_rates`, `wear_rates`) times this step's shares and hit figures,
+//! then held 0 ..= `gauge_top`. The hit's side (`DamageModel.hit_side`, 1 .. 4) chooses the
+//! gauges a hit wears, its size (`DamageModel.hit_size`) is scaled past `gauge_rates[22]`, and
+//! the direction `DamageModel.gear_changed` (1 or -1) adds fixed steps.
 //!
 //! Caller: `physics::damage_step`.
 
@@ -17,7 +17,7 @@ use crate::physics::store::DamageModel;
 use crate::race::work_store::RaceWork;
 use crate::session::PlainFloat;
 
-/// `Car.gear_wear[1][gear]` (the gear -1 .. 7 as the original indexes it, `gear_wear` by gear + 1).
+/// `Car.gear_wear[1][gear]` (the gear is -1 .. 7; `gear_wear` is indexed by gear + 1).
 fn gear_gauge(car: &Car, gear: i32) -> &PlainFloat {
     car.gear_wear
         .get(gear.wrapping_add(1) as usize)
@@ -26,7 +26,7 @@ fn gear_gauge(car: &Car, gear: i32) -> &PlainFloat {
         })
 }
 
-/// The gauge at `at` held 0 ..= `DamageModel.gauge_top` (the two `fcompp` holds).
+/// The gauge at `at` held 0 ..= `DamageModel.gauge_top`.
 fn hold_at(damage: &DamageModel, at: &PlainFloat) {
     if c0(at, &damage.gauge_low) {
         store(at, value(&damage.gauge_low));
@@ -564,8 +564,7 @@ mod reference_vectors {
     use crate::race::owner::race;
     use crate::scene::x87_mem::view;
 
-    /// The damage model as the test's buffer holds it (the buffer's base plus the RVA of
-    /// 0x75B340).
+    /// The damage model as the test's buffer holds it.
     fn dm(base: usize) -> &'static DamageModel {
         crate::physics::store::model_in_test_buffer(base)
     }
@@ -3237,7 +3236,7 @@ mod reference_vectors {
 
     #[test]
     fn x87_blocks_matches_the_assembly() {
-        // The plain code rounds to nearest, as the game always runs the damage model.
+        // The plain code rounds to nearest, the mode the damage model always runs in.
         sparse_at("physics.damage_gauges", &blocks(), 900, 100, &[0x027F]);
     }
 }

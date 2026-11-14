@@ -1,8 +1,13 @@
-//! `effects::scale_axes` (0x4BFD73): the two axes at `WindscreenFlakeTables.axes[0][0]` and `WindscreenFlakeTables.axes[1][0]` scaled: by `WindscreenFlakeTables.radii[0]` into `WindscreenFlakeTables.scaled_by_radius[0][0]` / `WindscreenFlakeTables.scaled_by_radius[1][0]`, by `WindscreenFlakeTables.lengths[0]` / `WindscreenFlakeTables.lengths[1]` and the per-part factors `WindscreenFlakeState.axis_factors[0]` .. into `WindscreenFlakeTables.scaled_axes[0][0]` / `WindscreenFlakeTables.scaled_axes[1][0]`, and the first two times `WindscreenFlakeState.halves[0]` .. into `WindscreenFlakeTables.half_axes[0][0]` / `WindscreenFlakeTables.half_axes[1][0]`.
+//! `effects::scale_axes`: the two axes at `WindscreenFlakeTables.axes[0][0]` and
+//! `WindscreenFlakeTables.axes[1][0]` scaled: by `WindscreenFlakeTables.radii[0]` into
+//! `WindscreenFlakeTables.scaled_by_radius[0][0]` / `WindscreenFlakeTables.scaled_by_radius[1][0]`,
+//! by `WindscreenFlakeTables.lengths[0]` / `WindscreenFlakeTables.lengths[1]` and the per-part
+//! factors `WindscreenFlakeState.axis_factors[0]` .. into `WindscreenFlakeTables.scaled_axes[0][0]`
+//! / `WindscreenFlakeTables.scaled_axes[1][0]`, and the first two times
+//! `WindscreenFlakeState.halves[0]` .. into `WindscreenFlakeTables.half_axes[0][0]` /
+//! `WindscreenFlakeTables.half_axes[1][0]`.
 //!
-//! Callers: `effects::windscreen_flakes_frame` (0x4bf75e), `effects::draw_plane` (0x4c90b3). The
-//! arithmetic is plain Rust on the x87 model (`math::x87_float`), in the original's order, over the
-//! game's variables.
+//! The arithmetic is plain Rust on the x87 model (`math::x87_float`), over the game's variables.
 
 pub fn scale_axes(fl: &WindscreenFlakes) {
     scale_axes_x87(&fl.tables, &fl.state);
@@ -12,7 +17,7 @@ use crate::effects::cell_x87::CellX87;
 use crate::effects::windscreen_flakes_store::WindscreenFlakes;
 use crate::effects::windscreen_flakes_store::{WindscreenFlakeState, WindscreenFlakeTables};
 
-/// `scale_axes`'s x87 block as plain Rust on the x87 model (60 instructions), same order and memory places.
+/// `scale_axes`'s arithmetic as plain Rust on the x87 model, in the same order.
 fn scale_axes_x87(sq: &WindscreenFlakeTables, ss: &WindscreenFlakeState) {
     {
         let t0 = sq.axes[0][0].ld();

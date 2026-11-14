@@ -1,28 +1,27 @@
-//! `physics::find_clear_place` (0x43BDD1): the work car moved to a place where nothing
-//! touches it, after a reset. `clear_place_mark` = 0x5A; its speed times `clear_place_share`
-//! (`physics::scale_vector`); `physics::restore_saved_car`;
-//! `physics::lowest_body_point`, the depth into `clear_place_face`. Then tries n = 0x70 +
-//! (`step_clock` & 0xF) .. 0xFF: `clear_place_count` (counted by `restore_saved_car`) = 0, the
-//! place moved by 2^((n >> 4) + 1) x (`clear_place_steps_a`[n & 0xF]`, `clear_place_steps_b`[n & 0xF]`)
-//! (x, z; `imul`, low dwords), `physics::probe_ground`, `physics::crossed_edge`,
-//! `physics::wall_contacts`, `physics::car_collisions`, `physics::face_contacts`; a try
-//! that restored nothing ends it. None: `physics::reset_car`. Found:
-//! `lowest_body_point`, a depth below 0 taken off the height (+0x800); "porky", n, the
-//! first depth and the last logged (level 1); `clear_place_tries` + 1;
-//! `physics::limit_motion`.
+//! Moves the work car, after a reset, to a place where nothing touches it. `clear_place_mark` =
+//! 0x5A; its speed times `clear_place_share` (`physics::scale_vector`);
+//! `physics::restore_saved_car`; `physics::lowest_body_point`, the depth into
+//! `clear_place_face`. Then tries n = 0x70 + (`step_clock` & 0xF) .. 0xFF: `clear_place_count`
+//! (counted by `restore_saved_car`) = 0, the place moved by 2^((n >> 4) + 1) x
+//! (`clear_place_steps_a`[n & 0xF], `clear_place_steps_b`[n & 0xF]) (x, z),
+//! `physics::probe_ground`, `physics::crossed_edge`, `physics::wall_contacts`,
+//! `physics::car_collisions`, `physics::face_contacts`; a try that restored nothing ends it.
+//! None: `physics::reset_car`. Found: `lowest_body_point`, a depth below 0 taken off the
+//! height; the log line "porky" with n, the first depth and the last (level 1);
+//! `clear_place_tries` + 1; `physics::limit_motion`.
 //!
-//! Caller: `physics::car_physics_step` (0x43B8DB). Refuses (before anything) a probe count of 0 or
-//! past 0x40; what its calls refuse.
+//! Caller: `physics::car_physics_step`. Refuses (before anything) a probe count of 0 or past
+//! 0x40; what its calls refuse.
 
 use crate::errors::Refused;
 use crate::physics::step_families::ClearPlaceInputs;
 use crate::scene::matrix3::{extended, rounded};
 use rc2k_core::physics::clear_place;
 
-// g_logEnabled
-const PORKY: &std::ffi::CStr = c"porky"; // aPorky
+/// The log line's text.
+const PORKY: &std::ffi::CStr = c"porky";
 
-/// One try's calls (0x43BE4D .. 0x43BE61).
+/// One try's calls.
 fn try_place(c: &ClearPlaceInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let contact = &c.collisions.contact;
     { crate::physics::probe_ground::probe_ground(&c.reset.ground, c.reset.car, scene) }?;
@@ -35,7 +34,7 @@ fn try_place(c: &ClearPlaceInputs<'_>, scene: &crate::scene::owner::Scene) -> Re
 }
 
 /// The steps, not guarded.
-// Converted: `rc2k_core::physics::clear_place`.
+// Core: `rc2k_core::physics::clear_place`.
 pub fn steps(c: &ClearPlaceInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let (car, tables, numbers) = (c.reset.car, c.reset.tables, c.reset.numbers);
     let contact = c.collisions.contact.contact;

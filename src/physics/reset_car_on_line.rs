@@ -1,10 +1,9 @@
-//! `physics::reset_car_on_line` (0x43FB00): the work car put back on the line at the
-//! checkpoint nearest it: `race::nearest_checkpoint` into `checkpoint`, `6C`, `74`
-//! (`g_car` +0x98, +0x94, +0x9C), `line_place` and `line_fraction`;
-//! `race::place_car_on_line`, `race::reset_car_motion`; then +0xFB0 and +0xFB4
-//! (`value_jump_steps`, `8C`) 8 and +0xFAC (`reset_marker`) 10.
+//! Puts the work car back on the line at the checkpoint nearest it: `race::nearest_checkpoint` into
+//! `checkpoint`, `reset_checkpoint`, `last_pace_call`, `line_place` and `line_fraction`;
+//! `race::place_car_on_line`, `race::reset_car_motion`; then `value_jump_steps` and
+//! `light_hold_steps` = 8 and `reset_marker` = 10.
 //!
-//! Caller: `physics::reset_car` (its end). Refuses what the three calls refuse.
+//! Caller: `physics::reset_car`. Refuses what the three calls refuse.
 
 use crate::errors::Refused;
 use crate::physics::step_families::ResetInputs;

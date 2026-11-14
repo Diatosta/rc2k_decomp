@@ -1,15 +1,13 @@
-//! `sound::drop_cue` (0x40EE32): one cue taken out of a sound object's queue.
+//! `sound::drop_cue`: one cue taken out of a sound object's queue.
 //!
-//! Nothing for a place at or past the count; else the count goes down by one and the
-//! cues after the place move up (`rep movsd`). One caller, `sound::play_cue_queue`
-//! (place 0: the cue played out).
-//! Refuses (before anything) a null queue and a count over 16 (the move would run past
-//! the object).
+//! Nothing for a place at or past the count; else the count goes down by one and the cues after the
+//! place move up. One caller, `sound::play_cue_queue` (place 0: the cue played out). Refuses
+//! (before anything) a null queue and a count over 16 (the move would run past the object).
 
 use crate::errors::{BadInput, Refused};
 
-/// Converted: `rc2k_core::sound::cars::drop_cue`. The cue at `place` dropped from the
-/// queue at `queue`.
+/// The logic is `rc2k_core::sound::cars::drop_cue`. The cue at `place` dropped from the queue at
+/// `queue`.
 pub fn drop_cue(q: &crate::sound::store::CueQueue, place: u32) -> Result<(), Refused> {
     use rc2k_core::sound::cars::{CueQueue, drop_cue};
     let mut cues = CueQueue::from_words(&read_words(q)?);

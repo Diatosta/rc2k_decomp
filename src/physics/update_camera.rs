@@ -1,27 +1,26 @@
-//! `physics::update_camera` (0x437A53, two chunks): the camera's step. `physics::camera_low_switch`
-//! runs; the car's place goes into `camera_car`; then the car kind's light record (`g_lightRecords`, 0x134 bytes each: places x 1/65536, two of them less `camera_drop`, into the camera's light places;
-//! the words +0xC then +0x1C into the light colour figure; +0x24 into the light strength; +0x20 x 1/65536,
-//! kept for the cars marked in `kind_has_views` (n below 0x22), else +0x28, into the second
-//! strength). With no switch under way and a fixed mode (0x2A .. 0x2D, 9, 10:
-//! `g_nearestCamera2` / `g_replayCameras2` of the car's `checkpoint`; 0x2E .. 0x31, 7, 8: the first
-//! two) the second chunk runs: the camera is put at that face's first scene point,
+//! The camera's step. `physics::camera_low_switch` runs; the car's place goes into `camera_car`;
+//! then the car kind's light record (`light_records`, 0x134 bytes each): places x 1/65536, two of
+//! them less `camera_drop`, into the camera's light places; two words into the light colour figure;
+//! one into the light strength; another x 1/65536, kept for the cars marked in `kind_has_views` (n
+//! below 0x22), else the next, into the second strength. With no switch under way and a fixed mode
+//! (0x2A .. 0x2D, 9, 10: `nearest_camera_2` / `replay_cameras_2` of the car's `checkpoint`; 0x2E ..
+//! 0x31, 7, 8: the first two) the camera is put at that face's first scene point,
 //! `physics::camera_height_bias` runs, and the camera is aimed at the car (arctangent heading and
 //! pitch, x 65536 x `k4096` x `one_over_two_pi`, << 4, the pitch negated); the distance
 //! (`physics::vector_length`) goes into `camera_distance`; the zoom `camera_zoom` is
 //! `camera_zoom_kept`, or 0x180 x the distance / `five` held at least `k384` with the record's
-//! +0x50; the roll and turns are 0. Else the camera is put at the car (also into `place_x` ..,
-//! the heading into `place_heading`); a switch under way ends after `camera_switch_length` steps
-//! (the mode back, `value_jump_steps` = 8, modes 7 on to 0) or its share (held 0 ..= 1) goes
-//! into `camera_switch_share`; `physics::take_first_view` of the mode and `take_second_view` of the
-//! mode before run; their figures are blended by the share into the turn targets (`start_heading`
-//! ..), the offsets (`camera_offset_x` ..) and the turns (`camera_offset_turns` .., << 16); the
-//! shares (`view_blend_aux` ..); the zoom held at least `camera_zoom_hold`;
+//! `fixed_zoom`; the roll and turns are 0. Otherwise the camera is put at the car (also into
+//! `place_x`, the heading into `place_heading`); a switch under way ends after
+//! `camera_switch_length` steps (the mode back, `value_jump_steps` = 8, modes 7 on to 0) or its
+//! share (held 0 ..= 1) goes into `camera_switch_share`; `physics::take_first_view` of the mode and
+//! `take_second_view` of the mode before run; their figures are blended by the share into the turn
+//! targets (`start_heading`), the offsets (`camera_offset_x`) and the turns (`camera_offset_turns`,
+//! << 16); the shares (`view_blend_aux`); the zoom held at least `camera_zoom_hold`;
 //! `physics::ease_view_angles`, `ease_view_blend` and `physics::camera_avoid_ground` run; the
 //! offset's length goes into `flat_depth` and the first camera figure into `camera_first`.
 //!
-//! Caller: `physics::camera_frame`. Refuses a mode past 0x33 on the blending path (the
-//! original reads past `view_records`), and what the ground checks refuse; everything written
-//! put back.
+//! Caller: `physics::camera_frame`. Refuses a mode past 0x33 on the blending path (past
+//! `view_records`), and what the ground checks refuse; everything written is put back.
 
 use crate::effects::cell_x87::CellX87;
 use crate::errors::Refused;
@@ -44,7 +43,7 @@ use crate::session::DwordLike;
 use crate::session::PlainFloat;
 use rc2k_core::physics::camera_view;
 
-/// The fixed camera (the second chunk, 0x4380E9 ..): `second` the second tables.
+/// The fixed camera: `second` picks the second tables.
 fn fixed_camera(
     c: &CameraInputs<'_>,
     second: bool,
@@ -123,16 +122,16 @@ fn fixed_camera(
 }
 
 /// The steps.
-// Converted: `rc2k_core::physics::camera_view::{fixed_camera, keeps_light_figure,
-// switch_over, mode_after_switch, check_modes}` (the x87 sums stay).
+// Core: `rc2k_core::physics::camera_view::{fixed_camera, keeps_light_figure, switch_over,
+// mode_after_switch, check_modes}` (the x87 sums stay).
 pub fn steps(c: &CameraInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     crate::physics::camera_low_switch::camera_low_switch(&c.ground, scene)?;
     for k in 0..3 {
         c.frame_work.camera_car[k].set(c.car.position[k].get());
     }
     let car = c.car.car_kind.get();
-    // The car kind's light record (the original does not bound the kind; one past the 34
-    // would read on into the gear figures, refused here).
+    // The car kind's light record (a kind one past the 34 would read on into the gear figures:
+    // refused).
     let head = c
         .light_records
         .records
@@ -156,7 +155,7 @@ pub fn steps(c: &CameraInputs<'_>, scene: &crate::scene::owner::Scene) -> Result
         fixed_camera(c, second, scene)?;
         return Ok(());
     }
-    // 0x437BE4: the camera at the car, the views blended.
+    // The camera at the car, the views blended.
     for (k, copy) in [
         &c.course.course.get().place_x,
         &c.course.course.get().place_y,
@@ -293,12 +292,12 @@ pub fn steps(c: &CameraInputs<'_>, scene: &crate::scene::owner::Scene) -> Result
     Ok(())
 }
 
-// ---- the arithmetic that was x87 assembly ----
+// ---- the x87 arithmetic ----
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `int [camera_heading] = ((atan2(int [v + 0], int [v + 4]) * [k65536]) * [k4096]) * [one_over_two_pi]`
-/// (a long formula: checked by the tests' `reference_vectors`)
+/// `int [camera_heading] = ((atan2(int [v + 0], int [v + 4]) * [k65536]) * [k4096]) *
+///  [one_over_two_pi]` (a long formula: checked by the tests' `reference_vectors`)
 fn x87_1(car: &Car, numbers: &Numbers, v: [u32; 3]) {
     let t0 = int(v[0] as i32);
     let t1 = int(v[1] as i32);
@@ -327,11 +326,7 @@ fn x87_1(car: &Car, numbers: &Numbers, v: [u32; 3]) {
     car.camera_pitch.set(to_int(t22) as u32);
 }
 
-/// The game's x87 arithmetic as plain Rust over `X`, on the variables
-/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[camera_vector] = int [v + 0] / [k65536]`
-/// `[rc + 0x2062DC] = int [v + 4] / [k65536]`
-/// `[rc + 0x2062E0] = int [v + 8] / [k65536]`
+/// One straight x87 run as plain Rust over `X`.
 fn x87_2(numbers: &Numbers, view_records: &ViewAndRecords, v: [u32; 3]) {
     let t0 = int(v[0] as i32);
     let t1 = numbers.k65536.ld();
@@ -359,16 +354,7 @@ fn x87_3(car: &Car, numbers: &Numbers, view_records: &ViewAndRecords, zoom: i32)
     car.camera_zoom.st(t4);
 }
 
-/// The game's x87 arithmetic as plain Rust over `X`, on the variables
-/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[rc + 0x2065C8] = int [d + 0] * [one_over_65536]`
-/// `[rc + 0x2065CC] = (int [d + 4] * [one_over_65536]) - [camera_drop]`
-/// `[rc + 0x2065D0] = int [d + 8] * [one_over_65536]`
-/// `[rc + 0x206624] = int [d + 0x10] * [one_over_65536]`
-/// `[rc + 0x206628] = (int [d + 0x14] * [one_over_65536]) - [camera_drop]`
-/// `[rc + 0x20662C] = int [d + 0x18] * [one_over_65536]`
-/// `[rc + 0x206570] = [d + 0x24]`
-/// `[rc + 0x206574] = int [d + 0x20] * [one_over_65536]`
+/// One straight x87 run as plain Rust over `X`.
 fn x87_4(tables: &PhysicsTables, numbers: &Numbers, view_records: &ViewAndRecords, d: &[u32; 11]) {
     let t0 = int(d[0] as i32);
     let t1 = numbers.one_over_65536.ld();
@@ -408,7 +394,8 @@ fn x87_4(tables: &PhysicsTables, numbers: &Numbers, view_records: &ViewAndRecord
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[camera_switch_share] = (int [step_clock] - int [camera_switch_clock]) / int [camera_switch_length]`
+/// `[camera_switch_share] = (int [step_clock] - int [camera_switch_clock]) / int
+///  [camera_switch_length]`
 fn x87_5(car: &Car) {
     let t0 = int(car.step_clock.get() as i32);
     let t1 = int(car.camera_switch_clock.get() as i32);
@@ -420,9 +407,12 @@ fn x87_5(car: &Car) {
 
 /// The game's x87 arithmetic as plain Rust over `X`, on the variables
 /// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `int [start_pitch] = ((int [view_b_pitch] - int [view_a_pitch]) * [camera_switch_share]) + int [view_a_pitch]`
-/// `int [start_heading] = ((int [view_b_heading] - int [view_a_heading]) * [camera_switch_share]) + int [view_a_heading]`
-/// `int [start_roll] = ((int [view_b_roll] - int [view_a_roll]) * [camera_switch_share]) + int [view_a_roll]`
+/// `int [start_pitch] = ((int [view_b_pitch] - int [view_a_pitch]) * [camera_switch_share]) + int
+///  [view_a_pitch]`
+/// `int [start_heading] = ((int [view_b_heading] - int [view_a_heading]) * [camera_switch_share]) +
+///  int [view_a_heading]`
+/// `int [start_roll] = ((int [view_b_roll] - int [view_a_roll]) * [camera_switch_share]) + int
+///  [view_a_roll]`
 fn x87_6(camera: &CameraWork, car: &Car) {
     let t0 = int(camera.view_b_pitch.get());
     let t1 = int(camera.view_a_pitch.get());
@@ -474,9 +464,8 @@ fn x87_8(camera: &CameraWork, car: &Car) {
     car.camera_zoom.st(t0);
 }
 
-/// The game's x87 arithmetic as plain Rust over `X`, on the variables
-/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// (a long formula: checked by the tests' `reference_vectors`)
+/// The game's x87 arithmetic as plain Rust over `X`, on the variables named below (`[name]`: a
+/// float; `int [..]`: a whole number; `ext [..]`: 80 bits): A long formula, covered by the tests.
 fn x87_9(camera: &CameraWork, course_work: &CourseWork) {
     let t0 = int(camera.camera_offset_x.get() as i32);
     let t1 = t0 * t0;

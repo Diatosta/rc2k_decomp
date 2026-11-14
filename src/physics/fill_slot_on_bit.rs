@@ -1,10 +1,7 @@
-//! `physics::fill_slot_on_bit` (0x462237): when bit cl of `g_car` +0x298 is set, it is
-//! cleared and part 0x50 + 0x14 x `g_currentCar` + cl goes into a race slot
-//! (`physics::fill_race_slot`).
+//! When the given bit of the car's `parts_present` is set, it is cleared and part 0x50 + 0x14 x
+//! `current_car` + bit goes into a race slot (`physics::fill_race_slot`).
 //!
-//! Takes: the bit (passed on)
-//!
-//! Callers: `physics::drop_broken_parts` (seven), `physics::drop_hit_parts` (four). Refuses what
+//! Callers: `physics::drop_broken_parts`, `physics::drop_hit_parts`. Refuses what
 //! `fill_race_slot` refuses (before anything: the bit is cleared after).
 
 use crate::errors::{BadInput, Refused};
@@ -15,7 +12,7 @@ use crate::race::work_store::RaceWork;
 use rc2k_core::physics::parts::{part_number, take_bit};
 
 /// Bit `bit` (cl) of the car's parts taken and its part put in a race slot.
-// Converted: `rc2k_core::physics::parts::{take_bit, part_number}`.
+// Core: `rc2k_core::physics::parts::{take_bit, part_number}`.
 pub fn fill_slot_on_bit(
     numbers: &Numbers,
     work: &RaceWork,

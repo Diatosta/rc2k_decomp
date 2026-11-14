@@ -1,19 +1,18 @@
-//! `physics::count_down_timers` (0x43D4B5): the work car's step counters:
-//! `light_hold_steps`, `value_jump_steps`, `wall_hit_timer`, `drive_cut_steps`, `hit_cooldown` less 1
-//! when not 0; `stopped_steps` counts the steps standing in neutral in mode 1 (0 below 1000
-//! steps, with a switch of 0x71A078 .. 0x71A080 set, with bits 1 .. 4 of `parts_present` all
-//! set, or in gear; kept in other modes); `tyre_change_state` on by one unless 0, -1 or 1;
-//! `top_speed` raised to `engine_speed_scaled` (the highest so far). Readings, all.
+//! The work car's step counters: `light_hold_steps`, `value_jump_steps`, `wall_hit_timer`,
+//! `drive_cut_steps` and `hit_cooldown` count down by 1 when not 0; `stopped_steps` counts the
+//! steps standing in neutral in mode 1 (reset to 0 below 1000 steps, with a switch set, with bits
+//! 1 .. 4 of `parts_present` all set, or in gear; kept in other modes); `tyre_change_state` goes
+//! up by one unless 0, -1 or 1; `top_speed` is raised to `engine_speed_scaled` (the highest so
+//! far). Readings, all.
 //!
-//! Callers: `physics::car_physics_step` (0x43B70A) and `physics::test_drive_run` (the car
-//! specification's run).
+//! Callers: `physics::car_physics_step`, `physics::test_drive_run`.
 
 use crate::physics::car_store::Car;
 use crate::race::vars_store::RaceVars;
 use rc2k_core::physics::motion::{StepCounters, StepFacts, count_down};
 
 /// One compare and copy of floats: the same at any precision.
-// Converted: `rc2k_core::physics::motion::count_down`.
+// Core: `rc2k_core::physics::motion::count_down`.
 pub fn count_down_timers(car: &Car, vars: &RaceVars) {
     let mut c = StepCounters {
         first: [car.light_hold_steps.get(), car.value_jump_steps.get()],

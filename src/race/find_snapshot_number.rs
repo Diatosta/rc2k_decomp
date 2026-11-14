@@ -1,12 +1,9 @@
-//! `race::find_snapshot_number` (0x41EF51): the viewer's pictures' name
-//! (`savedata\snapshot\000.pcx`) given the highest number of the pictures there: its digits made
-//! `???` and searched for (`files::find_first`, `files::find_next_wanted`, `files::close_search`:
-//! `FindFirstFileA` and on in the game's search record `FindFileData` and handle `hFindFile`, the
-//! path not resolved, `g_lastFilePath` the pattern); of each name found whose first three
-//! characters are digits the number, the highest (0 for none) written back over the `???`.
-//! `race::viewer_snapshot` counts on from it.
-//!
-//! Caller: `race::replay_viewer`.
+//! Finds the highest number of the viewer's pictures (`savedata\snapshot\000.pcx`): the name's
+//! digits are made `???` and searched for (`files::find_first`, `files::find_next_wanted`,
+//! `files::close_search`, the path not resolved, `last_file_path` the pattern); of each name found
+//! whose first three characters are digits the number is taken, and the highest (0 for none) is
+//! written back over the `???`. `race::viewer_snapshot` counts on from it. Called by
+//! `race::replay_viewer`.
 
 use crate::errors::BadInput;
 use crate::files::state::{SKIPPED_ATTRIBUTES, set_last_file_path};
@@ -15,14 +12,14 @@ use crate::race::owner_replay::Replay;
 /// The three digits' place in the name.
 pub const DIGITS_AT: usize = 0x12;
 
-/// `files::find_next_wanted` (0x402FF6): the next name not of the skipped attributes; false when
+/// `files::find_next_wanted`: the next name not of the skipped attributes; false when
 /// there is none.
 pub fn find_next_wanted() -> bool {
     crate::files::search::next(SKIPPED_ATTRIBUTES.get())
 }
 
-/// `files::find_first` (0x402FC2): the first name matching `pattern` (without its NUL; not
-/// resolved; it becomes `g_lastFilePath`) not of the skipped attributes; false when none.
+/// `files::find_first`: the first name matching `pattern` (without its NUL; not
+/// resolved; it becomes `last_file_path`) not of the skipped attributes; false when none.
 pub fn find_first(pattern: &[u8]) -> bool {
     set_last_file_path(Some(pattern));
     crate::files::search::first(pattern, SKIPPED_ATTRIBUTES.get())
@@ -45,7 +42,6 @@ pub fn find_snapshot_number(replay: &Replay) -> Result<(), BadInput> {
     };
     if found {
         loop {
-            // Converted: `rc2k_core::race::viewer::snapshot_number`.
             let name = crate::files::search::found_name();
             if let Some(number) =
                 rc2k_core::race::viewer::snapshot_number(|n| name.get(n).copied().unwrap_or(0))

@@ -1,7 +1,6 @@
-//! The sound module's owner (step 11, owned state): the sound stores in one struct, grouped
-//! by what they serve, handed by reference to the code that runs them in place of global
-//! stores. `sound()` is the boundary for the callers that do not take a group yet
-//! (`notes/memory_layer_plan.md`, step 11).
+//! The sound module's owner: the sound stores in one struct, grouped by what they serve, handed by
+//! reference to the code that runs them. `sound()` is the boundary for the callers that do not
+//! take a group yet.
 
 use crate::session::{GameThread, PlainDword};
 use crate::sound::sets_store::{
@@ -15,8 +14,8 @@ use crate::sound::store::{
 /// The race's sounds: the objects, the clock, the surface and stage constants, the sets and
 /// kinds, the spot voices and the car stream.
 ///
-/// `shared` (the input thread's force-feedback effects read the player counts) and `sets` (the audio thread loads its lists) stay atomic; the rest is the game
-/// thread's.
+/// `shared` (the input thread's force-feedback effects read the player counts) and `sets` (the
+/// audio thread loads its lists) stay atomic; the rest is the game thread's.
 pub struct RaceSoundState {
     pub shared: SoundShared,
     pub sounds: GameThread<RaceSounds>,
@@ -25,14 +24,14 @@ pub struct RaceSoundState {
     pub stage: GameThread<StageSounds>,
     pub spot_picks: GameThread<SpotPicks>,
     pub sets: RaceSoundSets,
-    /// `g_raceSoundRequest` (0x5124BC): the request each sound is sent with (a work area).
+    /// The request each sound is sent with (a work area).
     pub request: GameThread<SoundRequest>,
     pub cue_lists: GameThread<CueLists>,
     pub kinds: GameThread<SoundKinds>,
     pub surface_sets: GameThread<SurfaceSets>,
     pub spot_voices: GameThread<SpotVoices>,
     pub car_stream: GameThread<CarStream>,
-    /// `g_raceSoundsOn` (0x6218F0): 1 at start; the race's sounds switched.
+    /// 1 at start; the race's sounds switched.
     pub sounds_on: GameThread<PlainDword>,
 }
 
@@ -61,7 +60,7 @@ impl RaceSoundState {
 /// list) and `options` (it reads the tune turn) stay atomic.
 pub struct MenuSoundState {
     pub menu_sounds: MenuSounds,
-    /// `g_nextMenuSoundTime` (IDA 0x511B0C): the clock the next menu sound may be heard at.
+    /// The clock the next menu sound may be heard at.
     pub next_sound_time: GameThread<PlainDword>,
     pub options: SoundOptions,
     pub settings_applied: GameThread<SettingsApplied>,

@@ -1,8 +1,8 @@
-//! `physics::drop_hit_parts` (0x4410C8): for cars of kind (`car_kind`) below 0x17, four parts in
-//! turn (`physics::test_car_word` bits 5, 9, 0xE, 0x19 of the car flags; their timers from
-//! `wheel_hit_damage`): the first whose bit is set and timer not below 100 loses its part when its
-//! bit of `parts_present` (5, 6, 7, 8) is still set (`physics::fill_slot_on_bit`, the timer 256) and
-//! it ends there; a bit of `parts_present` already clear ends it too. A reading: hit parts coming off.
+//! For cars of kind (`car_kind`) below 0x17, four parts in turn (`physics::test_car_word` bits
+//! 5, 9, 0xE, 0x19 of the car flags; their timers from `wheel_hit_damage`): the first whose bit
+//! is set and timer not below 100 loses its part when its bit of `parts_present` (5, 6, 7, 8)
+//! is still set (`physics::fill_slot_on_bit`, the timer 256) and it ends there; a bit of
+//! `parts_present` already clear ends it too. A reading: hit parts coming off.
 //!
 //! Caller: `physics::hit_part_checks`. Refuses what `fill_slot_on_bit` refuses; what was
 //! written is put back.
@@ -41,7 +41,7 @@ pub fn hit_tests(
     Ok(())
 }
 
-// Converted: `rc2k_core::physics::parts::{hit_tests, DROP_TESTS}`.
+// Core: `rc2k_core::physics::parts::{hit_tests, DROP_TESTS}`.
 pub fn drop_hit_parts(
     numbers: &Numbers,
     work: &RaceWork,

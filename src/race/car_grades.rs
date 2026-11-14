@@ -1,21 +1,21 @@
-//! Race init's last step (`race::grade_all_cars`): each car block's values (floats,
-//! 0 .. 100 by their use) graded against thresholds into whole numbers: `race::grade_car_values`
-//! for one block, `race::grade_all_cars` for the eight.
+//! Grades each car block's values (floats, 0 .. 100 by their use) against thresholds into whole
+//! numbers, as the last step of race initialisation: `grade_car_values` for one block,
+//! `grade_all_cars` for the eight.
 
 use crate::errors::BadInput;
 use crate::physics::car_store::Car;
 use crate::race::owner_shared::RaceShared;
 use crate::session::{PlainDword, PlainFloat};
 
-/// A car's grade: the block's value (a float), where its grade goes, the thresholds, in the
-/// original's order (`race::grade_car_values`).
+/// A car's grade: the block's value (a float), where its grade goes, and the thresholds, in the
+/// order `grade_car_values` tries them.
 pub type Grade = (
     fn(&Car) -> &PlainFloat,
     fn(&Car) -> &PlainDword,
     &'static [u32],
 );
 
-/// The grades `race::grade_car_values` works out.
+/// The grades `grade_car_values` works out.
 pub const GRADES: [Grade; 34] = [
     (
         |c| &c.engine_heat,
@@ -109,13 +109,12 @@ pub const GRADES: [Grade; 34] = [
     (|c| &c.gear_wear[8], |c| &c.damage_levels[21], &[100]),
 ];
 
-/// `race::grade_car_values` (0x43FE24): for each of `GRADES`, the grade (+the second offset) the
-/// number of its thresholds, taken in order, that lie below the block's value (+the first; a NaN
-/// passes them all); each threshold tried goes through `scratch`. its one caller reads nothing
-/// of it.
+/// For each of `GRADES`, stores as the grade the number of its thresholds, taken in order, that lie
+/// below the block's value (a NaN passes them all). Each threshold tried goes through `scratch`;
+/// its one caller reads nothing of it.
 pub fn grade_car_values(car: &Car, scene: &crate::scene::owner::Scene) -> Result<(), BadInput> {
-    // Converted: `rc2k_core::race::cars::grade`; `scratch` gets the last threshold
-    // tried (the ones before it are written over at once).
+    // `scratch` gets the last threshold tried (the ones before it are written over at once); the
+    // core is `rc2k_core::race::cars::grade`.
     for &(from, to, thresholds) in &GRADES {
         let x = from(car).get();
         let (grade, tried) = rc2k_core::race::cars::grade(x, thresholds);
@@ -125,7 +124,7 @@ pub fn grade_car_values(car: &Car, scene: &crate::scene::owner::Scene) -> Result
     Ok(())
 }
 
-/// `race::grade_all_cars` (0x43FDFE): `grade_car_values` of the eight blocks (`g_carBlocks`).
+/// Grades the eight blocks (`car_blocks`) with `grade_car_values`.
 pub fn grade_all_cars(
     shared: &RaceShared,
     scene: &crate::scene::owner::Scene,

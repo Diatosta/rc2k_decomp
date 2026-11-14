@@ -1,15 +1,16 @@
 //! The clip's and the glow's variables:
-//! `ClipScreen` (IDA 0x7687E4 .. 0x7688B4) and `GlowState` (0x93CC70 .. 0x93CCB0).
+//! `ClipScreen` and `GlowState`.
 
 use crate::d3d::vertices_store::Vertex;
 use crate::session::{PlainDword, PlainFloat};
 
-/// The clip's screen edges and work vertices (IDA 0x7687E4 .. 0x7688B4).
+/// The clip's screen edges and work vertices.
 #[derive(rc2k_derive::Cells)]
 pub struct ClipScreen {
-    /// 0x7687E4: `g_marksScreenMiddleX`, `g_marksScreenMiddleXLess`, `g_marksScreenMiddleY`, `g_marksScreenMiddleYLess`: the screen's middle and one less (`effects::init_marks` sets them; `effects::clip_quad` clips against the settings' edge).
+    /// The screen's middle x, middle x less one, middle y and middle y less one
+    /// (`effects::init_marks` sets them; `effects::clip_quad` clips against the settings' edge).
     pub edges: [PlainFloat; 4],
-    /// 0x7687F4: `g_marksClipVertices`: six `TLVertex`s (0x20 bytes each) `effects::clip_quad` builds the clipped quad in.
+    /// Six vertices (0x20 bytes each) `effects::clip_quad` builds the clipped quad in.
     pub vertices: [Vertex; 6],
 }
 
@@ -40,18 +41,18 @@ impl ClipScreen {
     }
 }
 
-/// The glow's variables (and the clip's count) (IDA 0x93CC70 .. 0x93CCB0).
+/// The glow's variables (and the clip's count).
 #[derive(rc2k_derive::Cells)]
 pub struct GlowState {
-    /// 0x93CC70: `dword_93CC70`: 1 = no glow (initially 1).
+    /// 1 = no glow (initially 1).
     pub off: PlainDword,
-    /// 0x93CC74: `flt_93CC74`, `flt_93CC78`, `flt_93CC7C`: the glow's place (as the sprite's x, y, z are taken: z, y, x).
+    /// The glow's place (as the sprite's x, y, z are taken: z, y, x).
     pub place: [PlainFloat; 3],
-    /// 0x93CC94: `dword_93CC94`: the vertex count `effects::clip_quad` leaves (nothing ported reads it; it sits in the glow's block).
+    /// The vertex count `effects::clip_quad` leaves (nothing reads it).
     pub clip_count: PlainDword,
-    /// 0x93CCA4: `dword_93CCA4`: the glow sprite's angle.
+    /// The glow sprite's angle.
     pub angle: PlainDword,
-    /// 0x93CCA8: `flt_93CCA8`, `flt_93CCAC`: added to the place's z and y.
+    /// Added to the place's z and y.
     pub offset: [PlainFloat; 2],
 }
 

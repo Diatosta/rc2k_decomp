@@ -1,12 +1,11 @@
-//! `effects::set_up_surface` (0x4CB0BC): `init_marks`' step 12: the surface picture
-//! (`files\m\surfdata.pcx`, its alpha the inverted third byte of `files\m\surfmask.pcx`)
-//! drawn into a 256 x 256 texture surface; a ring of 0x400 records of 0x94 bytes; two
-//! tables of texture places (0x40 cells of an 8 x 8 grid, and 0x40 of 4 x 4 sub-cells).
+//! `effects::set_up_surface`: `init_marks`' step 12: the surface picture (`files\m\surfdata.pcx`,
+//! its alpha the inverted third byte of `files\m\surfmask.pcx`) drawn into a 256 x 256 texture
+//! surface; a ring of 0x400 records of 0x94 bytes; two tables of texture places (0x40 cells of an 8
+//! x 8 grid, and 0x40 of 4 x 4 sub-cells).
 //!
-//! The surface's lock and unlock are the game's (`d3d::lock_texture` / `d3d::unlock_texture`,
-//! DirectDraw). Callers: `effects::init_marks` and code at 0x4D1BC8 (not in a function). Refuses
-//! memory not had; a surface under 256 x 256 or a picture not read, after the lock (unlocked
-//! again, the 0x40000 block left taken).
+//! The surface's lock and unlock are `d3d::lock_texture` / `d3d::unlock_texture`. Refuses memory
+//! not had; a surface under 256 x 256 or a picture not read, after the lock (unlocked again, the
+//! 0x40000 block left taken).
 
 use crate::effects::load_mask_pictures::{lock, put_pixel};
 use crate::effects::mask_store::Masks;
@@ -55,9 +54,8 @@ fn unlock_refusing(
     Err(BadInput(why).into())
 }
 
-/// `memory::allocate`, `d3d::lock_texture` /
-/// `unlock_texture`, `gfx::read_picture_file`, `gfx::put_surface_pixel`,
-/// `scene::forget_slot_texture`, `memory::free_list`, `nullsub_33` (nothing).
+/// `memory::allocate`, `d3d::lock_texture` / `unlock_texture`, `gfx::read_picture_file`,
+/// `gfx::put_surface_pixel`, `scene::forget_slot_texture`, `memory::free_list`.
 pub fn set_up_surface(
     ring: &Ring,
     masks: &Masks,
@@ -67,8 +65,7 @@ pub fn set_up_surface(
     system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
     let setup = &effects.setup;
-    // The mask's copy is Rust's memory (phase 12), counted on the list as the game's
-    // block was.
+    // The mask's copy is Rust's memory, counted on the list.
     let mut mask = crate::memory::owned::counted(&masks.list.list, MASK_BYTES)?;
     lock(
         gfx,
@@ -182,10 +179,10 @@ pub fn set_up_surface(
     Ok(())
 }
 
-/// The surface masks' memory list and the bytes after it (IDA 0x93A1DA .. 0x93A21A).
+/// The surface masks' memory list and the bytes after it.
 #[derive(rc2k_derive::Cells)]
 pub struct MaskList {
-    /// 0x93A1DA: `stru_93A1DA`: a `memory::List` (head, total, cursor, remaining)
+    /// A `memory::List` (head, total, cursor, remaining)
     pub list: crate::memory::ListCells,
 }
 

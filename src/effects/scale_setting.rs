@@ -1,11 +1,9 @@
-//! `effects::scale_setting` (0x4C08BB): `WindscreenFlakeState.scaled_setting` = the settings' whole number +0x2750 by
-//! `EdgeSettings.factor` (`fild; fmul; fstp`).
+//! `effects::scale_setting`: `WindscreenFlakeState.scaled_setting` = the settings' whole number
+//! +0x2750 by `EdgeSettings.factor`.
 //!
-//! Works on `g_marksSettings`.
+//! Works on the effects settings.
 //!
-//! Caller: `effects::shapes_frame`. Refuses null settings (the original reads through 0).
-//!
-//! the x87 version stays for the Rust callers in unconverted code).
+//! Refuses null settings.
 
 use crate::effects::mask_store::Masks;
 use crate::effects::windscreen_flakes_store::WindscreenFlakes;

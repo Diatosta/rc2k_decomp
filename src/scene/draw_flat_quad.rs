@@ -1,19 +1,16 @@
-//! `scene::draw_flat_quad` (0x44AF85): a flat quad on the screen through the polygon
-//! pipeline: the polygon-drawn flag 0; the four polygon records' vertex pointers
-//! (`quad_vertices`, 0x20 apart), texture places (`quad_uv`), the corners' x (left, right)
-//! and y (top, bottom) from `quad_corners` as floats (the original passed them through its
-//! shared work dword, not kept), the fixed depth; the entries -1, colour `quad_colour`'s low
-//! 24 bits, the records' +0x18 0; four vertices, the record pool, the list 0 .. 3; then
-//! `scene::scale_texture_coordinates`, `scene::clip_polygon_to_screen` and, with three
-//! vertices or more left, mode 6, both `polygon_sides` switches set (1, 0),
-//! `scene::depth_buffer_off`, `scene::draw_polygon`, the polygon-drawn flag 1,
-//! `scene::depth_buffer_on`; the colour back to white.
+//! `scene::draw_flat_quad`: a flat quad on the screen through the polygon pipeline: the
+//! polygon-drawn flag 0; the four polygon records' vertex pointers (`quad_vertices`, 0x20
+//! apart), texture places (`quad_uv`), the corners' x (left, right) and y (top, bottom) from
+//! `quad_corners` as floats, the fixed depth; the entries -1, colour `quad_colour`'s low 24
+//! bits, the records' +0x18 0; four vertices, the record pool, the list 0 .. 3; then
+//! `scene::scale_texture_coordinates`, `scene::clip_polygon_to_screen` and, with three vertices
+//! or more left, mode 6, both `polygon_sides` switches set (1, 0), the depth buffer off
+//! (`scene::depth_buffer_on::depth_buffer`), `scene::draw_polygon`, the polygon-drawn flag 1,
+//! the depth buffer on; the colour back to white. The quad's cells are in the race variables, set
+//! by the caller.
 //!
-//! In:  nothing (the quad's cells in the race variables, set by the caller)
-//!
-//! Callers: `hud::draw_view_strip` (three), and four more places in the HUD and the
-//! viewer. The calls (the scale, the clip, the depth buffer off, the draw, the depth buffer
-//! on) are the plain functions; a refusal of theirs comes after the writes.
+//! Callers: `hud::draw_view_strip` (three), and four more places in the HUD and the viewer. A
+//! refusal from the scale, the clip, the depth buffer calls or the draw comes after the writes.
 
 use crate::errors::Refused;
 use crate::math::x87;

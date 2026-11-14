@@ -1,25 +1,15 @@
-//! `effects::draw_mark_slots` (0x4C969A): the mark slots drawn, one square sprite each. When
-//! the settings' +0x8C is set, `effects::add_mark_slot` first (with the settings' +0x64 and
-//! the view place); `scene::set_texture` with the marks' texture. Then for each slot of the
-//! mark slots from 0x20 down to 0 (one past the 0x20 that `add_mark_slot` fills: section 16)
-//! whose life (+0) is above 0:
-//! - the life less the frame's ticks;
-//! - its point (+4, 12 bytes each) as z, y, -x (z times a scale, (y - a lift) times a scale,
-//!   -x times a scale), turned by the slot's matrix (+8) and the view (`scene::rotate_point`
-//!   twice);
-//! - one of eight corners by the slots' random (the random times 0xC5 plus 0x5D; entry 0x50
-//!   plus its low three bits): the four vertices' texture places (its words, times a
-//!   constant), colours -1;
-//! - unless the turned z is at or below the nearest depth (a signed compare of the bits): the
-//!   point projected (the view scale over z; centre the view's middle), half the square q
-//!   times a size factor (slot 0's +0x10 for every slot: section 16), the four vertices
-//!   around it, their z and rhw (1 / z times a constant), and `scene::draw_fan` (the vertex
-//!   count as it is).
+//! `effects::draw_mark_slots`: the mark slots drawn, one square sprite each. When the settings'
+//! +0x8C is set, `effects::add_mark_slot` first takes a slot (with the settings' +0x64 and the view
+//! place); `scene::set_texture` sets the marks' texture. Then each of the 0x20 slots, the last
+//! first, whose life (+0) is above 0 loses the frame's ticks and is drawn: its point (+4, 12 bytes
+//! each, as z, y, -x, each scaled) is turned by the slot's matrix (+8) and the view
+//! (`scene::rotate_point` twice); one of eight corner pictures is chosen by the slots' random
+//! (entry 0x50 plus its low three bits) for the texture places; unless the turned z is at or below
+//! the nearest depth (a signed compare of the bits), the point is projected and the square drawn
+//! around it with `scene::draw_fan`. Its half side comes from slot 0's +0x10 for every slot (a slip
+//! kept as is).
 //!
-//! Works on the effects settings.
-//!
-//! Caller: `effects::run_frame` Refuses (before anything) null settings and a
-//! live slot with a null matrix.
+//! Refuses (before anything) null settings and a live slot with a null matrix.
 
 use crate::effects::mark_slots::slot_matrix;
 use crate::effects::paths::Paths;
@@ -47,8 +37,7 @@ fn refusal(effects: &crate::effects::owner::Effects) -> Option<&'static str> {
     }
 }
 
-/// `add_mark_slot`, `scene::set_texture`,
-/// `scene::draw_fan`.
+/// `add_mark_slot`, `scene::set_texture`, `scene::draw_fan`.
 pub fn draw_mark_slots(
     buffer: &crate::d3d::vertices_store::PolygonVertices,
     race: &Race,

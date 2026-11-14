@@ -1,17 +1,14 @@
-//! `physics::make_gear_ratios` (0x4219E6): the car's gear ratios (`g_gearRatios`, by gear,
-//! `physics/gearing.rs`) from its setup: the top gear's (`g_gearRatios[g_gearCount]`) and
-//! the first's (`PhysicsTables.gear_ratios[2]`) each lo + (hi - lo) `quarter` `gear_ratio_setting` (the
-//! setup's gearing, a whole number) over `two_and_a_quarter` and `engine_speed_limit` (hi / lo
-//! `LightsAndGear.gear.figures[3]` / `LightsAndGear.gear.figures[1]` and `LightsAndGear.gear.figures[2]` / `figures`); the gears between in
-//! even steps ((top - first) / (count - 1), kept at 80 bits on the stack and added on:
-//! gears 2 .. 5 always, 6 and 7 one more step each only past five and six gears; the
-//! step itself rounded into `scratch`); reverse (`gear_ratios`) the first's negative;
-//! neutral (`g_gearRatios[0]`) `gear_ratio_step`.
+//! The car's gear ratios (`gear_ratios`, by gear, `physics/gearing.rs`) from its setup: the top
+//! gear's (`gear_ratios[gear_count]`) and the first's (`PhysicsTables.gear_ratios[2]`) each lo +
+//! (hi - lo) `quarter` `gear_ratio_setting` (the setup's gearing, a whole number) over
+//! `two_and_a_quarter` and `engine_speed_limit` (hi / lo are `LightsAndGear.gear.figures[3]` /
+//! `figures[1]` and `figures[2]` / `figures`); the gears between in even steps ((top - first) /
+//! (count - 1), kept at 80 bits and added on: gears 2 .. 5 always, 6 and 7 one more step each only
+//! past five and six gears; the step itself rounded into `scratch`); reverse (`gear_ratios`) is the
+//! first's negative; neutral (`gear_ratios[0]`) is `gear_ratio_step`.
 //!
-//! Returns: `g_gearCount`
-//!
-//! Callers: `physics::car_physics_step` (0x43B63F) and `physics::test_drive` (the car
-//! specification's). Refuses (before anything) a gear count above 7 (past `g_gearRatios`).
+//! Callers: `physics::car_physics_step`, `physics::test_drive`. Refuses (before anything) a gear
+//! count above 7 (past `gear_ratios`).
 
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;

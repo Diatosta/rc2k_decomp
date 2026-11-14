@@ -1,9 +1,8 @@
-//! `physics::start_go_notice` (0x436A4B): the start's "go". With the grades' mode
-//! (`g_car` +0x25C) 1, the count +0x8C, +0xA4 (`go_stand_timer`) and +0xA8 all 0, and cheat
-//! bit 16 of `g_cheats` clear (`bt`): `physics::set_flag_5165a4`, then +0xA4 1, the
-//! notice +0x71C 0xC7, +0x730 0x32 and +0x72C -1.
+//! The start's "go". With the grades' mode 1, the start count, `go_stand_timer` and `finish_flag`
+//! all 0, and cheat bit 16 clear: `set_flag` on `StageSounds.once[2]`, then `go_stand_timer` = 1,
+//! `notice_id` 0xC7, `notice_time_b` 0x32 and `notice_time` -1.
 //!
-//! Caller: `physics::race_timers` (0x4367E3). Refuses what `set_flag_5165a4` refuses.
+//! Caller: `physics::race_timers`. Refuses what `set_flag` refuses.
 
 use crate::errors::Refused;
 use crate::menu::owner::Menus;

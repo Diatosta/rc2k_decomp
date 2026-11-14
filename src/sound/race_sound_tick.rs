@@ -1,23 +1,19 @@
-//! `sound::race_sound_tick` (0x421BA9): the race frame's sound tick: every 20 ms of the
-//! scene clock, `sound::race_turn_if`.
+//! `sound::race_sound_tick`: the race frame's sound tick: every 20 ms of the scene clock,
+//! `sound::race_turn_if`.
 //!
-//! `g_sceneClock` less `ClockTicks.sound_tick_last` under 0x14 (unsigned): nothing. Else
-//! `ClockTicks.sound_tick_last` = the clock, `sound::race_turn_if`, `ClockTicks.sound_ticks` counts up.
-//! 28 callers, all in the race's frame (`drive::race_frame`, `race::draw_race_scene`,
-//! `race::show_frame`,
-//! `race::draw_view_scene`, `race::draw_view_overlays`, 0x442D49): for the Rust ones, the Rust
-//! version (`race_sound_tick`); `race_turn`'s quit jump then
-//! skips their frames (held for the owner: notes/open_items_full.md).
+//! Less than 0x14 (unsigned) since `ClockTicks.sound_tick_last`: nothing. Else
+//! `ClockTicks.sound_tick_last` is set to the clock, `sound::race_turn_if` runs and
+//! `ClockTicks.sound_ticks` counts up. 28 callers, all in the race's frame (`drive::race_frame`,
+//! `race::draw_race_scene`, `race::show_frame`, `race::draw_view_scene`,
+//! `race::draw_view_overlays`).
 
 use crate::errors::Refused;
 use crate::race::owner_frame::Frame;
 
-// g_sceneClock, ClockTicks.sound_tick_last the last tick, ClockTicks.sound_ticks the ticks counted.
-
 /// Plays the race sounds once the sound clock says a tick is due.
 pub fn race_sound_tick(frame: &Frame, o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     let race = o.race;
-    // Converted: `rc2k_core::sound::turn::tick_due`.
+    // The logic is `rc2k_core::sound::turn::tick_due`.
     if !rc2k_core::sound::turn::tick_due(
         race.shared.physics_tables.get().scene_clock.get(),
         frame.clock_ticks().sound_tick_last.get(),

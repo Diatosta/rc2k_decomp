@@ -1,12 +1,9 @@
-//! `scene::scale_texture_coordinates` (0x44E2FB): the polygon's texture coordinates
-//! from whole numbers to floats.
+//! `scene::scale_texture_coordinates`: the polygon's texture coordinates from whole numbers to
+//! floats.
 //!
-//! For each entry of the polygon, with the switch `SceneDraw.polygon_sides[0]` its first pair of
-//! coordinates (+8, +0xC) and with `SceneDraw.polygon_sides[1]` its second (+0x10, +0x14): a value
-//! that is not 0 becomes a float (`fild`, `fstp`) whose bits then lose 0x0C000000: the
-//! number over 2^24. (The original also leaves the last value and its float in the work
-//! variables `Machine.work` and `Machine.work_float`, which nothing reads: not kept, so that threads
-//! drawing at once share no write.)
+//! For each entry of the polygon, with the switch `SceneDraw.polygon_sides[0]` its first pair
+//! of coordinates (+8, +0xC) and with `SceneDraw.polygon_sides[1]` its second (+0x10, +0x14): a
+//! value that is not 0 becomes a float whose bits then lose 0x0C000000: the number over 2^24.
 //! Eight callers.
 
 use crate::errors::Refused;
@@ -14,9 +11,7 @@ use crate::scene::polygon::{Listed, listed};
 
 // ---- game data ----
 
-// ---- Rust version ----
-
-// Converted: `rc2k_core::scene::texture_coordinates`
+// Logic: `rc2k_core::scene::texture_coordinates`
 pub fn scale_texture_coordinates(
     polygon_work: &crate::scene::polygon_store::PolygonWork,
     poly: &crate::scene::polygon_work::PolygonWork,

@@ -1,6 +1,6 @@
-//! `make_masks`' shape set (`g_marksShapeSet`, a `MarkShapes` of 0xAAC bytes): two lists of points (the masks' points lists A and B), turned by two
-//! matrices into `g_marksTurnedA` / `B` and, offset, into the points their targets name;
-//! and the two farthest apart of each list on one face.
+//! `make_masks`' shape set (a `MarkShapes` of 0xAAC bytes): two lists of points (the masks' points
+//! lists A and B), turned by two matrices into the turned lists A and B and, offset, into the
+//! points their targets name; and the two farthest apart of each list on one face.
 
 use crate::effects::mask_store::Masks;
 use crate::effects::masks::PointList;
@@ -40,17 +40,17 @@ impl MarkShapes {
     }
 }
 
-/// The working block's farthest pair of list `n` (`g_marksFarthestA`, `_B`).
+/// The working block's farthest pair of list `n`.
 pub fn farthest_pair(drops: &WindscreenDrops, n: usize) -> &[PlainDword; 2] {
     drops.shape_work.work.farthest(n)
 }
 
-/// The working block's turned points of list `n` (`g_marksTurnedA`, `_B`).
+/// The working block's turned points of list `n`.
 pub fn turned(drops: &WindscreenDrops, n: usize) -> &PlainBytes<0x300> {
     drops.shape_work.work.turned(n)
 }
 
-/// The shape set the turns use (`g_marksShapeSet`: the first of the sets).
+/// The shape set the turns use (the first of the sets).
 fn set(drops: &WindscreenDrops) -> &MarkShapes {
     &drops.shape_work.sets[0]
 }
@@ -78,11 +78,10 @@ fn listed(count: &PlainDword) -> Result<u32, BadInput> {
     Ok(n)
 }
 
-/// `effects::find_farthest_pairs` (0x4BDD1D): for points lists A and B, of the pairs of
-/// their points on one face (`g_marksPointsAFaces`), the farthest apart by
-/// `g_marksTurnedA` / `B` (the length rounded; a later pair as far wins) into
-/// `g_marksFarthestA` / `B` (the inner then the outer number). Refuses a list of more
-/// than 0x40.
+/// `effects::find_farthest_pairs`: for points lists A and B, of the pairs of their points on
+/// one face, the farthest apart by the turned lists A / B (the length rounded; a later
+/// pair as far wins) into the farthest pairs A / B (the inner then the outer number).
+/// Refuses a list of more than 0x40.
 pub fn find_farthest_pairs(drops: &WindscreenDrops) -> Result<(), Refused> {
     {
         let lists: [PointList; 2] = [PointList::a(drops), PointList::b(drops)];
@@ -128,11 +127,11 @@ pub fn turn_shape_checks(drops: &WindscreenDrops, a: u32, b: u32) -> Result<(), 
     Ok(())
 }
 
-/// `effects::turn_shape_points` (0x4BD5ED): the turn about X by the shape tilt and about
-/// Z by `a` and by `b` (floats); X times each into the shape set's two matrices; its two lists of points turned by
-/// them into the turned lists A and B, and each turned point plus the list's offset
-/// (`fiadd`) into the point its target names (the last first). Refuses a list of more than
-/// 0x40 or of 0x80000000, or an angle `fsincos` cannot take, before writing.
+/// `effects::turn_shape_points`: the turn about X by the shape tilt and about Z by `a` and by `b`
+/// (floats); X times each into the shape set's two matrices; its two lists of points turned by them
+/// into the turned lists A and B, and each turned point plus the list's whole-number offset into
+/// the point its target names (the last first). Refuses a list of more than 0x40 or of
+/// 0x80000000, or an angle with no sine and cosine, before writing.
 pub fn turn_shape_points(drops: &WindscreenDrops, a: u32, b: u32) -> Result<(), Refused> {
     use crate::scene::matrix3::{multiply_matrices3, transform_int_points};
     turn_shape_checks(drops, a, b)?;
@@ -163,7 +162,7 @@ pub fn turn_shape_points(drops: &WindscreenDrops, a: u32, b: u32) -> Result<(), 
                     bh::int(part(turned, k, c) as i32)
                         + bh::int(set.low(n)[c as usize].get() as i32),
                 );
-                // `target` is a place of `scene::object_points` (phase 13).
+                // `target` is a place of `scene::object_points`.
                 crate::scene::object_points::write(target + 4 * c, &(v as u32).to_le_bytes())?;
             }
         }
@@ -193,12 +192,12 @@ fn all_steps<'a>(
     ]
 }
 
-/// `effects::turn_all_shapes` (0x4BD122): for each of the settings' objects (the last
-/// first) the two shapes' eased steps (`smooth_steps` from `ShapeSetTuning.turn_angles[0]` / `_7C` to
-/// `ShapeWork.work.steps[0]` / `_C8` by each shape's +0), the second result of each unless its switch
-/// (`MaskPicks.flags[0]` / `_08`) is 0, and `turn_shape_points` with them. The object's offset
-/// (times 0xAB8) is worked out and not used: the one set is turned every time (section
-/// 16). Refuses what `turn_shape_points` would, before writing.
+/// `effects::turn_all_shapes`: for each of the settings' objects (the last first) the two shapes'
+/// eased steps (`smooth_steps` from `ShapeSetTuning.turn_angles[0]` / `_7C` to
+/// `ShapeWork.work.steps[0]` / `_C8` by each shape's +0), the second result of each unless its
+/// switch (`MaskPicks.flags[0]` / `_08`) is 0, and `turn_shape_points` with them. The object's
+/// offset (times 0xAB8) is worked out and not used: the one set is turned every time (a slip kept
+/// as is). Refuses what `turn_shape_points` would, before writing.
 pub fn turn_all_shapes(
     masks: &Masks,
     drops: &WindscreenDrops,
@@ -250,15 +249,14 @@ pub fn turn_all_shapes(
     }
     Ok(())
 }
-/// The working block a shape set is made in (`g_marksFarthestA` .. 0x885A6C, a
-/// `MarkShapes` image) and the sets it is copied to.
+/// The working block a shape set is made in and the sets it is copied to.
 pub const SETS: u32 = 0x22;
 /// The sets held (`SHAPE_WORK.sets`): the game makes at most 19 (it refuses more objects);
-/// the nominal 0x22nd would run past the range this port types (0x89C000).
+/// the nominal 0x22nd would run past the range this port types.
 const SETS_HELD: u32 = 33;
 
 /// What `make_shape_set` refuses for object `object`: a set count past 0x22 (or below 0),
-/// an object past 0xFF or its faces past `g_faces`, a tilt `fsincos` cannot take.
+/// an object past 0xFF or its faces past the course's faces, a tilt with no sine and cosine.
 fn shape_set_checks(
     drops: &WindscreenDrops,
     object: u32,
@@ -289,15 +287,15 @@ fn shape_set_checks(
     Ok(())
 }
 
-/// `effects::make_shape_set` (0x4BD1A1): unless 0x22 are made, in the working block: the
-/// inputs (0x764F60 ..) copied, four scaled; points lists A and B emptied and filled from
-/// the object's faces of the two kinds (+7: two kind numbers; `collect_points_a` /
-/// `_b`); their ids made pointers into the object points, the points copied to
-/// the turned lists A and B, each list's lowest point (y, the first found lowest) taken from
-/// all of it (kept at +0xA40 / +0xA4C), all 0x40 turned about X by minus the tilts
-/// (`turn_matrix3_x`, `transform_int_points`); `find_farthest_pairs`; the block copied to
-/// set n (`memory::move_bytes`), n counted. Refuses a set count past 0x22, an object past
-/// 0xFF or faces past `g_faces`, a tilt `fsincos` cannot take, before writing.
+/// `effects::make_shape_set`: unless 0x22 are made, in the working block: the inputs copied,
+/// four scaled; points lists A and B emptied and filled from the object's faces of the two
+/// kinds (+7: two kind numbers; `collect_points`); their ids made pointers into
+/// the object points, the points copied to the turned lists A and B, each list's lowest
+/// point (y, the first found lowest) taken from all of it (kept at +0xA40 / +0xA4C), all
+/// 0x40 turned about X by minus the tilts (`turn_matrix3`, `transform_int_points`);
+/// `find_farthest_pairs`; the block copied to set n, n counted.
+/// Refuses a set count past 0x22, an object past 0xFF or faces past the course's faces, a
+/// tilt with no sine and cosine, before writing.
 pub fn make_shape_set(
     course: &Course,
     faces_table: &crate::scene::faces_store::Faces,
@@ -325,7 +323,7 @@ pub fn make_shape_set(
         ends[3],
     ];
     let scales: [u32; 4] = read_bits(&drops.tuning.step_scales);
-    // 0x884FC4 .. : a, b (0x764F6C, _74), c, d (_70, _78) scaled, the tilts, two zeros.
+    // The steps: a, b, c, d scaled, the tilts, two zeros.
     let steps = [
         x87::mul(inputs[2], scales[0]).to_bits(),
         x87::mul(inputs[4], scales[1]).to_bits(),
@@ -414,11 +412,11 @@ pub fn make_shape_set(
     Ok(())
 }
 
-/// `effects::make_shape_sets` (0x4BD019): no sets made; the two face kinds of `g_marksKind`
-/// into `ShapeSetTuning.face_kinds[0]`, `_28`; for each of the settings' objects (the last first) the set's
-/// inputs (the tilt twice into 0x764F60, _64; the kind's two values and two floats into
-/// 0x764F6C .. _78) and `make_shape_set`. Refuses a kind of 0x22 or more, more than 19
-/// objects, what `make_shape_set` refuses for any of them, before writing.
+/// `effects::make_shape_sets`: no sets made; the two face kinds of the marks' kind into
+/// `ShapeSetTuning.face_kinds[0]`, `_28`; for each of the settings' objects (the last
+/// first) the set's inputs (the tilt twice; the kind's two values and two floats) and
+/// `make_shape_set`. Refuses a kind of 0x22 or more, more than 19 objects, what
+/// `make_shape_set` refuses for any of them, before writing.
 pub fn make_shape_sets(
     course: &Course,
     faces_table: &crate::scene::faces_store::Faces,
@@ -442,7 +440,8 @@ pub fn make_shape_sets(
             .collect::<Result<_, _>>()?;
         let t = &drops.tuning;
         let k = kind as usize; // under 0x22, checked above
-        // The kind's two face kinds and the set's two ends (`ShapeSetTuning.first_face_kind[0]`, `_7B4`, `_8C4`, `_83C`).
+        // The kind's two face kinds and its two ends (`ShapeSetTuning`'s `first_face_kind`,
+        // `second_face_kind`, `end_a`, `end_b`).
         let by_kind = [
             t.first_face_kind[k].get(),
             t.second_face_kind[k].get(),
@@ -482,14 +481,17 @@ pub fn make_shape_sets(
     Ok(())
 }
 
-/// The shape sets' inputs (`effects::shape_points`, `effects::turns`) (IDA 0x764F40 .. 0x764F7C).
+/// The shape sets' inputs (`effects::shape_points`, `effects::turns`).
 #[derive(rc2k_derive::Cells)]
 pub struct ShapeInputs {
-    /// 0x764F40: `dword_764F40`: the angle in hand while a turn matrix is made (`turn_shape_points`, `smooth_steps`; a scratch, nothing reads it back).
+    /// The angle in hand while a turn matrix is made (`turn_shape_points`, `smooth_steps`; a
+    /// scratch, nothing reads it back).
     pub scratch: PlainDword,
-    /// 0x764F60: `g_marksShapeInputs`, `dword_764F64`: the tilts a shape set is made with (`make_shape_set`: copied into the working block; `make_shape_sets` writes both).
+    /// The tilts a shape set is made with (`make_shape_set`: copied into the working block;
+    /// `make_shape_sets` writes both).
     pub tilts: [PlainDword; 2],
-    /// 0x764F6C: `flt_764F6C` .. `flt_764F78`: the set's four ends (`make_shape_sets` writes them, `make_shape_set` scales them into the working block).
+    /// The set's four ends (`make_shape_sets` writes them, `make_shape_set` scales them into the
+    /// working block).
     pub ends: [PlainFloat; 4],
 }
 
@@ -508,26 +510,31 @@ impl ShapeInputs {
     }
 }
 
-/// The shape sets' tables and constants (`effects::make_shape_sets`, `make_shape_set`, `turn_all_shapes`) (IDA 0x89C724 .. 0x89C994).
+/// The shape sets' tables and constants (`effects::make_shape_sets`, `make_shape_set`,
+/// `turn_all_shapes`).
 #[derive(rc2k_derive::Cells)]
 pub struct ShapeSetTuning {
-    /// 0x89C724: `g_marksShapeKinds`, `dword_89C728`: the two face kinds the shape sets are made for (set by `effects::make_shape_sets` from the kind's entries of the two tables that follow).
+    /// The two face kinds the shape sets are made for (set by `effects::make_shape_sets` from the
+    /// kind's entries of the two tables that follow).
     pub face_kinds: [PlainDword; 2],
-    /// 0x89C72C: `dword_89C72C` ..: the kind's first face kind, by `g_marksKind` (0x22 entries).
+    /// The kind's first face kind, by the marks' kind (0x22 entries).
     pub first_face_kind: [PlainDword; 34],
-    /// 0x89C7B4: `dword_89C7B4` ..: the kind's second face kind, by `g_marksKind` (0x22 entries).
+    /// The kind's second face kind, by the marks' kind (0x22 entries).
     pub second_face_kind: [PlainDword; 34],
-    /// 0x89C83C: `dword_89C83C` ..: the second shape's end by `g_marksKind` (floats: -80, -90 .. as bits; 0x22 entries), put into the set's inputs (`flt_764F74`).
+    /// The second shape's end by the marks' kind (floats: -80, -90 .. as bits; 0x22 entries), put
+    /// into the set's inputs.
     pub end_b: [PlainFloat; 34],
-    /// 0x89C8C4: `dword_89C8C4` ..: the first shape's end by `g_marksKind` (floats as bits; 0x22 entries), put into the set's inputs (`flt_764F6C`).
+    /// The first shape's end by the marks' kind (floats as bits; 0x22 entries), put into the set's
+    /// inputs.
     pub end_a: [PlainFloat; 34],
-    /// 0x89C94C: `flt_89C94C` .. `flt_89C968`: four (end, 0) pairs, -90, -80, 80, 90 (read by the original `make_shape_sets`, which overwrites what it takes; the port reads none of them).
+    /// Four (end, 0) pairs, -90, -80, 80, 90 (nothing reads them).
     pub end_pairs: [PlainFloat; 8],
-    /// 0x89C96C: `flt_89C96C`, `flt_89C970`: the sets' second ends of the first and second shape (0 at first).
+    /// The sets' second ends of the first and second shape (0 at first).
     pub set_ends: [PlainFloat; 2],
-    /// 0x89C974: `dword_89C974`, `dword_89C978`, `dword_89C97C`, `dword_89C980`: each shape's eased turn from its first angle (0) and a second (-pi / 2, which the port does not read), as bits (`effects::turn_all_shapes`).
+    /// Each shape's eased turn from its first angle (0) and a second (-pi / 2; the second
+    /// is not read), as bits (`effects::turn_all_shapes`).
     pub turn_angles: [PlainFloat; 4],
-    /// 0x89C984: `flt_89C984` .. `flt_89C990`: 0.0175 (degrees to radians) four times, the set's step scales (`effects::make_shape_set`).
+    /// 0.0175 (degrees to radians) four times, the set's step scales (`effects::make_shape_set`).
     pub step_scales: [PlainFloat; 4],
 }
 

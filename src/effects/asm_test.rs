@@ -1,13 +1,13 @@
 //! The tests of the marks' converted x87 blocks: each block's plain Rust version runs over
-//! random memory, at the default control word and at chop, and every place the original's
-//! assembly wrote (recorded once on i686, `test_support::vectors`) must hold the same bits
-//! afterwards.
+//! random memory, at the default control word and at chop, and every place the recorded
+//! x87 assembly wrote (recorded once on i686, `test_support::vectors`) must hold the same
+//! bits afterwards.
 
 use crate::math::x87;
 use crate::math::x87_float as bh;
 
-/// Where the 1999 layout of the effects' variables begins (the test buffers stand for the
-/// block from here; the x87 reference tests address operands by that layout).
+/// Where the recorded layout of the effects' variables begins (the test buffers stand for
+/// the block from here; the x87 reference tests address operands by that layout).
 pub const START: usize = 0x764F40;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -49,7 +49,7 @@ pub struct Spec {
 }
 
 /// One operand of a recorded block, as the plain version gets it: a test buffer addressed by
-/// the coordinates the original's instructions used (the buffer's first byte stands for
+/// the coordinates the recorded instructions used (the buffer's first byte stands for
 /// coordinate `lo`), or a value (an index, a float's bits). Adding to a buffer operand moves
 /// its coordinate, as adding to the address did; every access is checked against the buffer.
 #[derive(Clone, Copy, Debug)]
@@ -119,8 +119,8 @@ impl Operand {
         p >= self.start && p.checked_add(len).is_some_and(|e| e <= self.end)
     }
 
-    /// The `len` bytes at `off`, the ones outside the buffer 0 (a block the original
-    /// reads only part of).
+    /// The `len` bytes at `off`, the ones outside the buffer 0 (a block that reads only part
+    /// of it).
     pub fn bytes_or_zero(self, off: usize, len: usize) -> Vec<u8> {
         (0..len)
             .map(|i| {
@@ -233,7 +233,7 @@ impl PartialEq for Buf {
 
 /// Runs `f` on a record of cells that lives at offset `start` of the marks' block in the test
 /// buffer `mk` (the buffer stands for the marks' block): the record's cells are made from the
-/// bytes there, one after another in field order (no gaps in the 1999 layout), and put back
+/// bytes there, one after another in field order (no gaps in the recorded layout), and put back
 /// afterwards. The buffer must hold the whole record.
 pub fn with_copy<T: crate::cells::Cells, R>(
     mk: Operand,
@@ -381,7 +381,7 @@ const SIZE: fn(Kind) -> usize = |k| match k {
 };
 
 /// A block over test buffers only (no race block operand): `plain` compared with the results
-/// the original's instructions made, recorded under `name` (see `test_support::vectors`):
+/// the recorded instructions made, recorded under `name` (see `test_support::vectors`):
 /// every listed write, the buffers' other bytes, the returned value's printed form.
 pub fn recorded<R: std::fmt::Debug>(name: &str, spec: &Spec, plain: impl Fn(&[Operand]) -> R) {
     use crate::test_support::vectors::Recorder;
@@ -400,10 +400,10 @@ fn run_recorded<R: std::fmt::Debug>(
             .any(|op| matches!(op, Op::RaceBlock { .. })),
         "a recorded block reads only its test buffers"
     );
-    // No `test_support::test_lock` (2026-11-13): the run reaches no static. The control word
-    // it sets is this thread's (`math::x87`'s thread-local one, and in the i686 tests the
-    // x87's own, a thread's register), the operands are the run's own buffers, the file is
-    // read only, and every caller's `plain` works on its operands only: checked for each
+    // No `test_support::test_lock`: the run reaches no static. The control word it sets is
+    // this thread's (`math::x87`'s thread-local one, and in the i686 tests the x87's own, a
+    // thread's register), the operands are the run's own buffers, the file is read only, and
+    // every caller's `plain` works on its operands only: checked for each
     // (`effects::{adjugate3, pong_ball_hits, run_windscreen_flakes, turns}`): x87 arithmetic
     // over the buffers' bytes and over records laid over them (`asm_layout::with_laid`, a
     // fresh copy filled from the buffer). A new caller whose `plain` reaches a static takes
@@ -563,7 +563,7 @@ impl Drop for CellsBack {
 }
 
 /// A block over test buffers and race block places: `plain` compared with the results the
-/// original's instructions made, recorded under `name` (see `test_support::vectors`): every
+/// recorded instructions made, recorded under `name` (see `test_support::vectors`): every
 /// listed write (the buffers' and the race block's) and the returned value's printed form.
 /// The inputs are laid into the typed cells of the places (`race_cell`); the bytes outside
 /// the listed writes must be left as they were.

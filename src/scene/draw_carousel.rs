@@ -1,11 +1,10 @@
-//! `scene::draw_carousel` (0x490649): the entries of the main menu's carousel that
-//! can be seen.
+//! `scene::draw_carousel`: the entries of the main menu's carousel that can be seen.
 //!
 //! With one entry (the carousel's count = 1): entry 0, at the row place the caller gives
-//! (`lone_row`). With none or fewer: nothing. Else the entry before the front one (the carousel's front, going round) at
-//! place -1, the front one at 0, the next at 1, and while the carousel turns (the carousel's angle
-//! is not 0) the one after at 2; each through `scene::draw_carousel_entry`. One caller,
-//! `scene::draw_main_menu_carousel`.
+//! (`lone_row`). With none or fewer: nothing. Else the entry before the front one (the
+//! carousel's front, going round) at place -1, the front one at 0, the next at 1, and while the
+//! carousel turns (the carousel's angle is not 0) the one after at 2; each through
+//! `scene::draw_carousel_entry`. One caller, `scene::draw_main_menu_carousel`.
 
 use crate::errors::Refused;
 use crate::menu::owner::{Menus, Screens};
@@ -14,11 +13,9 @@ use crate::scene::draw_menu_object::draw_menu_object_in_game;
 
 // ---- game data ----
 
-// ---- Rust version ----
-
 /// `entry`: what stands for `scene::draw_carousel_entry`, given the entry and its row
 /// place. `lone_row`: the row place a lone entry is drawn at.
-// Converted: `rc2k_core::scene::carousel::drawn`
+// Logic: `rc2k_core::scene::carousel::drawn`
 pub fn draw_carousel(
     screens: &Screens,
     lone_row: u32,

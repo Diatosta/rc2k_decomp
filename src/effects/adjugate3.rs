@@ -1,11 +1,8 @@
-//! `effects::adjugate3` (0x4BCED6): the adjugate of the 3 x 3 matrix (rows 12 bytes
-//! apart) into the result: each entry a difference of two products (`fsubp`), rounded as written
-//! (so an output over the input is read back as the original does).
+//! `effects::adjugate3`: the adjugate of the 3 x 3 matrix (rows 12 bytes apart) into the
+//! result: each entry a difference of two products, rounded as written (so an output over
+//! the input reads back what was written).
 //!
-//! Takes: the matrix, the result (here two arrays of nine floats)
-//!
-//! Caller: `effects::expire_windscreen_drops` (0x4BCD63). The arithmetic is plain Rust on the x87
-//! model (`math::x87_float`), in the original's order.
+//! The arithmetic is plain Rust on the x87 model (`math::x87_float`).
 
 use crate::session::PlainFloat;
 
@@ -16,7 +13,8 @@ pub fn adjugate3(s: &[PlainFloat; 9], d: &[PlainFloat; 9]) {
 
 use crate::effects::plain::{ld_cell, st_cell};
 
-/// `adjugate3`'s x87 block as plain Rust on the x87 model (54 instructions), same order and memory places.
+/// `adjugate3`'s x87 block as plain Rust on the x87 model, in the same order and over the
+/// same memory places.
 fn adjugate3_x87(s: &[PlainFloat; 9], d: &[PlainFloat; 9]) {
     let t0 = ld_cell(&s[4]);
     let t1 = t0 * ld_cell(&s[8]);
@@ -84,7 +82,8 @@ mod reference_vectors {
     fn staged(at: crate::effects::asm_test::Operand) -> [PlainFloat; 9] {
         std::array::from_fn(|n| {
             // SAFETY: `at` checks that the four bytes lie in the operand's test buffer, which the
-            // recorded run keeps alive and nothing else reaches meanwhile; unaligned, any bits a `u32`.
+            // recorded run keeps alive and nothing else reaches meanwhile; unaligned, any bits a
+            // `u32`.
             PlainFloat::from_bits(unsafe { (at + 4 * n).at(0, 4).cast::<u32>().read_unaligned() })
         })
     }
@@ -93,7 +92,8 @@ mod reference_vectors {
     fn put_back(at: crate::effects::asm_test::Operand, cells: &[PlainFloat; 9]) {
         for (n, cell) in cells.iter().enumerate() {
             // SAFETY: `at` checks that the four bytes lie in the operand's test buffer, which the
-            // recorded run keeps alive and nothing else reaches meanwhile; unaligned, any bits a `u32`.
+            // recorded run keeps alive and nothing else reaches meanwhile; unaligned, any bits a
+            // `u32`.
             unsafe {
                 (at + 4 * n)
                     .at(0, 4)

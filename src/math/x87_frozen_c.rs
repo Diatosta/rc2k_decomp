@@ -1,9 +1,9 @@
 //! The frozen comparisons of the helpers in `math/x87/run.rs`, `math/x87/load.rs` and
-//! `math/normalise_vector.rs`: until 2026-11-13 each ran against the original's x87
-//! instructions on seeded inputs at the four control words (bit for bit, any NaN equal to
-//! any NaN; the transcendental ones within an ulp of a float, two of a double). The last
-//! run passed; the plain versions' results on the same inputs are now kept as one hash
-//! per function (`test_support::frozen`, table `FROZEN` at the end).
+//! `math/normalise_vector.rs`: the plain versions' results on seeded inputs at the four
+//! control words are kept as one hash per function (`test_support::frozen`, table `FROZEN`
+//! at the end). The hashes were taken from versions that matched the x87's instructions
+//! (bit for bit, any NaN equal to any NaN; the transcendental ones within an ulp of a
+//! float, two of a double).
 
 mod tests {
     use crate::math::x87::set_control_word;
@@ -16,11 +16,11 @@ mod tests {
     /// up.
     const ROUNDING: [u16; 4] = [0x027F, 0x0E7F, 0x067F, 0x0A7F];
 
-    /// `fld qword; fstp tbyte`.
+    /// A double as the 80-bit format.
     fn f64_to_f80(x: f64) -> [u8; 10] {
         f80(X(x))
     }
-    /// `fld tbyte; fstp qword` (to nearest even).
+    /// An 80-bit value as a double (to nearest even).
     fn f80_to_f64(b: [u8; 10]) -> f64 {
         from_f80(b).0
     }
@@ -213,8 +213,8 @@ mod tests {
 
     // ---- the boundary: 80 bits and doubles ----
 
-    /// `f64_to_f80`, frozen from its comparison with `fld qword; fstp tbyte` (a NaN keeps
-    /// its payload, its quiet bit set).
+    /// `f64_to_f80`, frozen from its comparison with the x87's conversion (a NaN keeps its
+    /// payload, its quiet bit set).
     #[test]
     fn f64_to_f80_as_fld_qword_fstp_tbyte() {
         let mut rng = Rng::new("f64_to_f80");
@@ -233,7 +233,7 @@ mod tests {
         check_one("c", "f64_to_f80", digest, FROZEN);
     }
 
-    /// `f80_to_f64`, frozen from its comparison with `fld tbyte; fstp qword`.
+    /// `f80_to_f64`, frozen from its comparison with the x87's conversion.
     #[test]
     fn f80_to_f64_as_fld_tbyte_fstp_qword() {
         let mut rng = Rng::new("f80_to_f64");
@@ -901,7 +901,7 @@ mod tests {
         }
     }
 
-    // ---- the transcendental ones (against the x87: within an ulp of a float, two of a double) ----
+    // ---- the transcendental ones (within an ulp of a float against the x87, two of a double)
 
     #[test]
     fn run_sine_cosine_of() {
@@ -920,9 +920,9 @@ mod tests {
         );
     }
 
-    /// `a / cos b`, over the angles the game gives it (the pitch, within +-pi/2). (Against
-    /// `fcos`, which reduces the argument with a 66-bit pi, it was within 2 ulp or that
-    /// reduction's error; libm's cosine is the true one.)
+    /// `a / cos b`, over the angles the game gives it (the pitch, within +-pi/2). (The x87's
+    /// `fcos` reduces the argument with a 66-bit pi, so it differed from libm's true cosine
+    /// by up to 2 ulp or that reduction's error.)
     #[test]
     fn run_over_cos_80() {
         check(
@@ -985,7 +985,7 @@ mod tests {
         );
     }
 
-    /// The results' hashes, frozen on 2026-11-13 (`RC2K_FREEZE_OUT` to make them again).
+    /// The results' hashes (`RC2K_FREEZE_OUT` makes them again).
     const FROZEN: &[(&str, u64)] = &[
         ("c::abs_below_or_unordered", 0xefdcf7ed1d52f617),
         ("c::abs_compare", 0xa57d27a8a3d8d0a2),

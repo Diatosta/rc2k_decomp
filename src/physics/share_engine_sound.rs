@@ -1,22 +1,19 @@
-//! `physics::share_engine_sound` (0x45D294): the current car's sound object
-//! (`g_raceSoundObjects[g_currentCar & 7]`): when `contact_depth` is above its +0xD0 (`fcomp`:
-//! not equal, not below, not unordered), the work car's 0x71A1FC .. 0x71A208 into its
-//! +0xC4 .. +0xD0; always `steer_trim` into +0xD4 and +0x10 = 1. So it is not the
-//! engine's figures but the car's contact (its place and size, kept in `knock_in` while it is
-//! the deepest so far) and the steering pull (`knock_d4`, from `steer_trim`) that the sounds read
-//! (the name is the original's).
+//! For the current car's sound object (in the race's sound objects): when `contact_depth` is above
+//! the object's stored depth (not equal, not below, not unordered), the work car's contact place
+//! and size go into the object; always `steer_trim` goes into its steering field and its update
+//! flag is 1. So it is not the engine's figures but the car's contact (its place and size, kept in
+//! `knock_in` while it is the deepest so far) and the steering pull (from `steer_trim`) that the
+//! sounds read.
 //!
-//! Returns: the sound object
-//!
-//! Caller: `physics::car_physics_step` (0x43B99F), every physics step. Refuses (before anything) a
-//! null sound object.
+//! Caller: `physics::car_physics_step`, every physics step. Refuses (before anything) a null sound
+//! object.
 
 use crate::errors::Refused;
 use crate::physics::car_store::Car;
 use rc2k_core::physics::engine::shares_figures;
 
 /// A compare of floats only: the same at any precision.
-// Converted: `rc2k_core::physics::engine::shares_figures`.
+// Core: `rc2k_core::physics::engine::shares_figures`.
 pub fn share_engine_sound(
     car: &Car,
     sound: &crate::sound::owner::Sound,

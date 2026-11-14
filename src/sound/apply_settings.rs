@@ -1,11 +1,9 @@
-//! `sound::apply_settings` (0x40EFF3): sends the kept sound settings to the audio thread.
+//! `sound::apply_settings`: sends the kept sound settings to the audio thread.
 //!
-//! `SettingsApplied.done` = 1; `sound::stop_music`; command 5 with `AudioShared.menu_sound_mode`; command 3 with the
-//! menus' list (`unk_511AE4`, by handle); command 8 with `dword_755684`; `sound::wait_for_commands`;
-//! `AudioShared.sounds_held_back` = 0 (`sound::let_sounds_play`).
-//! What the two numbers are is a reading: volumes, the second the one the options screen
-//! steps between 0 and 0x40 (0x467F00, 0x467F24).
-//! Five callers; `system::main_loop` calls it once the window is there.
+//! Marks the settings applied, stops the music, sends the menu sound mode, the menus' sound list
+//! and the options screen's volume, waits for the commands, then lets sounds play. What the two
+//! numbers are is a reading: volumes, the second the one the options screen steps between 0 and
+//! 0x40. Five callers; `system::main_loop` calls it once the window is there.
 
 use crate::owners::Owners;
 use rc2k_core::audio::commands::SoundList;
@@ -27,7 +25,6 @@ pub fn run_step(step: Step, o: Owners<'static>) -> Result<(), crate::errors::Ref
 }
 
 pub fn apply_settings(o: Owners<'static>) -> Result<(), crate::errors::Refused> {
-    // Converted: `rc2k_core::sound::set_up::menus`.
     use rc2k_core::sound::set_up::{MENUS, menus};
 
     o.sound.menu.settings_applied.get().done.set(MENUS);

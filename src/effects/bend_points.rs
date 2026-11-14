@@ -1,14 +1,11 @@
-//! `effects::bend_points` (0x4BA646): unless the grade flag is the chosen spline, the
-//! first record's +0xC ordered points bent: A the record's point
-//! +0x30 (into `SplineWork.bend[0]` ..), C (+0x44 made 0x2EE0, or -16000 unless `SplineHead.switch` is
-//! 1; +0x48, +0x4C) into `SplineWork.bend[6]` .., B (C's x, A's y, C's z) into `SplineWork.bend[3]` ..;
-//! D their blend by `g_marksSplinesMade`'s weights (`effects::blend_points`), rounded
-//! (`fistp`, z first) into `SplineWork.bend[9]` ..; each point less A plus D.
+//! `effects::bend_points`: unless the grade flag is the chosen spline, the first record's
+//! +0xC ordered points bent: A the record's point +0x30 (into `SplineWork.bend[0]` ..), C
+//! (+0x44 made 0x2EE0, or -16000 unless `SplineHead.switch` is 1; +0x48, +0x4C) into
+//! `SplineWork.bend[6]` .., B (C's x, A's y, C's z) into `SplineWork.bend[3]` ..; D their
+//! blend by the splines' weights (`effects::blend_points`), rounded (z first) into
+//! `SplineWork.bend[9]` ..; each point less A plus D.
 //!
-//! Takes: `s` a spline record
-//!
-//! Caller: `effects::place_graded_points`. Refuses (before anything) a point number of 0x80 or more
-//! and a count above 0x80.
+//! Refuses (before anything) a point number of 0x80 or more and a count above 0x80.
 
 use crate::effects::blend_points::blend_points;
 use crate::effects::paths::Paths;

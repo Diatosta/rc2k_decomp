@@ -1,17 +1,15 @@
-//! `physics::car_collisions` (0x45F615): the work car against the other cars, in race modes 0
-//! and 2 (`run_kind`; else nothing). For each car n below `g_raceCars` but the current one
-//! (`g_currentCar`) whose block (`g_carBlocks[n]`, kept in `other_car_block`, n in
-//! `other_car_number`) has `driver_kind` set: the difference of the places becomes the place
-//! (`scene::set_place`), `g_crashMatrix` times that goes into `g_turnedMatrix`, and that times
-//! the block's `car_inverse_matrix` goes into `corner_matrix` (`scene::multiply_matrices`); then
-//! each of its eight corners (`corner_x`, `corner_y`, `corner_z`, into `corner_in`) goes through
-//! `physics::corner_hits_car`; `corner_inside` starts at 0.
+//! The work car against the other cars, in race modes 0 and 2 (`run_kind`; else nothing). For
+//! each car below the race's car count but the current one whose block has `driver_kind` set (the
+//! block goes to `other_car_block`, its number to `other_car_number`): the difference of the
+//! places becomes the place, the crash matrix times it goes into the turned matrix, and that times
+//! the block's `car_inverse_matrix` goes into `corner_matrix`; then each of its eight corners
+//! goes through `physics::corner_hits_car`. `corner_inside` starts at 0.
 //!
-//! Returns: the cars' count (at least 1) in modes 0 and 2
+//! Returns the cars' count (at least 1) in modes 0 and 2.
 //!
-//! Callers: `physics::car_physics_step` (every physics step), `physics::find_clear_place`. Refuses
-//! (before anything) more than eight cars or a null block among them (the original reads past
-//! `g_carBlocks` or through null), and what `corner_hits_car` refuses (what was written put back).
+//! Callers: `physics::car_physics_step` (every physics step), `physics::find_clear_place`.
+//! Refuses (before anything) more than eight cars or a null block among them, and what
+//! `corner_hits_car` refuses (what was written is put back).
 
 use crate::errors::{BadInput, Refused};
 use crate::physics::corner_hits_car::corner_hits_car;
@@ -19,7 +17,7 @@ use crate::physics::step_families::CollisionInputs;
 use crate::race::view_store::RaceView;
 use crate::scene::matrix::{multiply_matrices, set_place};
 
-/// The cars looked at: `g_raceCars`, at least one (the loop runs once).
+/// The cars looked at: the race's car count, at least one (the loop runs once).
 fn cars(view: &RaceView) -> u32 {
     view.race_cars.get().max(1)
 }
@@ -47,7 +45,7 @@ pub fn car_collisions(
             }
             physics.other_car_number.set(car);
             physics.other_car_block.set(work.car_handle(car as usize));
-            // A `g_carBlocks` entry of the eight, not null (both checked above).
+            // A car block of the eight, not null (both checked above).
             let block = c.contact.shared.race_car_or_end(car as usize);
             if block.driver_kind.get() == 0 {
                 continue;
@@ -58,7 +56,7 @@ pub fn car_collisions(
                     .wrapping_sub(block.position[k].get())
             });
             set_place(&c.matrices.placed_matrix, place);
-            // `scene::set_place` left the z in `g_scratch`.
+            // `scene::set_place` leaves the z in the scene's scratch cell.
             scene.drawing.scene.get().scratch.set(place[2]);
             multiply_matrices(
                 &car_now.crash_matrix,

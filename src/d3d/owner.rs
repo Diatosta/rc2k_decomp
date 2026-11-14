@@ -1,5 +1,5 @@
-//! Module d3d's owner (step 11, owned state): the 3D cards' store in one struct, reached
-//! through `d3d()` by the code that does not take it as a parameter.
+//! Module d3d's owner: the 3D cards' store in one struct, reached through `d3d()` by the code
+//! that does not take it as a parameter.
 
 use crate::d3d::cards_store::Cards3d;
 use crate::session::GameThread;

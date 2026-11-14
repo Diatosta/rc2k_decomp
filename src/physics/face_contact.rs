@@ -1,25 +1,22 @@
-//! `physics::face_contact` (0x45E3BF): one course face (`g_courseFaces` + 0x40 n) tried against the
-//! work car. `face_number` = n. Faces hidden by kind (`scene::kind_hidden_at`) and faces whose first
-//! byte is not 0xFF (not an object's) are left. An object byte (+1) of 0x3B: the kind 0xFF,
-//! `physics::touch_face`. Else the object (`face_object`) and its contact kind (`contact_kind`) from
-//! its material record (`g_objectMaterials` + 0x80 `g_objectKinds[n]`, byte +0x1C); left when byte
-//! +0x25 bit 0 is set, when its bits 1 .. 2 (a direction + 1) are not 0 and not
-//! `g_stageDirection` + 1, or when the object is 0x38 or more but for 0x3A. Its turn (+8, +0xC, +0x10
-//! bytes << 8, into the object store's `angles`) and scale (+0x18, into `size`) are set up and
-//! `physics::scene_point_hits_car` runs. Not inside: for kinds 9, 8, 6, 5, when the point's distance
-//! from the car (x, z) is within the object's reach (`radii[n]` x the scale >> 4, + 0x28000, by the
-//! sign of the comparison), `physics::object_hits_car` runs. Inside either way: the contact's angle
-//! (`face_angle`: the arctangent, + 0x80 & 0xFF), the car's speed x 65536 (`face_speed`) and the
-//! point / 65536 (`object_point_turned` ..); then by kind: 2, 7, 3, 8, 4 `touch_face`; 6, 9, 5, 1,
-//! 10 `physics::restore_saved_car`, `physics::feel_ground`, `touch_face` and the push back: minus the
-//! car's speed, level (y 0), made one long (`race::normalise_work_vector`) as the normal, the speeds
-//! and the point (y 0) taken, no slide limit, `physics::contact_force` into contact record 0.
-//!
-//! Takes: the face
+//! Tries one course face against the work car. `face_number` = n. Faces hidden by kind
+//! (`scene::kind_hidden_at`) and faces whose first byte is not 0xFF (not an object's) are left.
+//! An object byte of 0x3B: the kind 0xFF, `physics::touch_face`. Otherwise the object
+//! (`face_object`) and its contact kind (`contact_kind`) come from its material record; the
+//! face is left when the record's flag bit 0 is set, when its direction bits are not 0 and not
+//! the stage direction + 1, or when the object is 0x38 or more but for 0x3A. Its turn and scale
+//! are set up and `physics::scene_point_hits_car` runs. Not inside: for kinds 9, 8, 6, 5, when
+//! the point's distance from the car (x, z) is within the object's reach (`radii[n]` x the
+//! scale >> 4, + 0x28000), `physics::object_hits_car` runs. Inside either way: the contact's
+//! angle (`face_angle`: the arctangent, + 0x80 & 0xFF), the car's speed x 65536 (`face_speed`)
+//! and the point / 65536 (`object_point_turned`); then by kind: 2, 7, 3, 8, 4 `touch_face`; 6,
+//! 9, 5, 1, 10 `physics::restore_saved_car`, `physics::feel_ground`, `touch_face` and the push
+//! back: minus the car's speed, level (y 0), made one long (`race::normalise_work_vector`) as
+//! the normal, with the speeds and the point (y 0) taken, no slide limit, and
+//! `physics::contact_force` into contact record 0.
 //!
 //! Caller: `physics::record_face_contacts`. Refuses a kind past the 0x4B0 material records
-//! (but for an unloaded slot's, `contacts::UNSET_KIND`: stage 22 has such a face),
-//! and what its calls refuse.
+//! (but for an unloaded slot's, `contacts::UNSET_KIND`: stage 22 has such a face), and what its
+//! calls refuse.
 
 use crate::effects::cell_x87::CellX87;
 use crate::errors::Refused;
@@ -44,7 +41,7 @@ fn touch(c: &ContactInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<()
 }
 
 /// The steps for face `number` .
-// Converted: `rc2k_core::physics::face_contacts` (the x87 steps stay).
+// Core: `rc2k_core::physics::face_contacts` (the x87 steps stay).
 pub fn steps(
     c: &ContactInputs<'_>,
     number: u32,
@@ -102,7 +99,7 @@ pub fn steps(
         ));
         return Err(e.into());
     }
-    // An unset kind wraps to the record before the first, as the original reads it.
+    // An unset kind wraps to the record before the first.
     c.contact.contact_kind.set(
         crate::scene::polygon::material_byte(
             &c.shared.buffers.reads.get().polygon_tables,
@@ -154,7 +151,7 @@ pub fn steps(
             return Ok(());
         }
     }
-    // 0x45E523: inside.
+    // Inside.
     x87_1(c.contact, c.numbers);
     c.contact
         .face_angle
@@ -168,7 +165,7 @@ pub fn steps(
     { crate::physics::restore_saved_car::restore_saved_car(c.car, c.tables, c.contact) }?;
     { crate::physics::feel_ground::feel_ground(&c.ground, scene) }?;
     touch(c, scene)?;
-    // 0x45E62A: pushed back against the motion, level.
+    // Pushed back against the motion, level.
     copy_cells(&c.scratch.work_vector, &c.car.velocity);
     negate(&c.scratch.work_vector[0]);
     negate(&c.scratch.work_vector[1]);
@@ -195,11 +192,9 @@ pub fn steps(
     Ok(())
 }
 
-// ---- the arithmetic that was x87 assembly ----
+// ---- the x87 arithmetic ----
 
-/// The game's x87 arithmetic as plain Rust over `X`, on the variables
-/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `int [face_angle] = (atan2(int [object_point_offset], int [rc + 0x2D3B54]) * [k256]) * [one_over_two_pi]`
+/// One straight x87 run as plain Rust over `X`.
 fn x87_1(contact: &ContactWork, numbers: &Numbers) {
     let t0 = int(contact.object_point_offset[0].get() as i32);
     let t1 = int(contact.object_point_offset[2].get() as i32);
@@ -211,12 +206,7 @@ fn x87_1(contact: &ContactWork, numbers: &Numbers) {
     contact.face_angle.set(to_int(t6) as u32);
 }
 
-/// The game's x87 arithmetic as plain Rust over `X`, on the variables
-/// named below (`[name]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// (a long formula: checked by the tests' `reference_vectors`)
-/// `[object_point_turned] = int [contact_point] / [k65536]`
-/// `[rc + 0x2D3B5C] = int [rc + 0x2D3094] / [k65536]`
-/// `[rc + 0x2D3B60] = int [rc + 0x2D3098] / [k65536]`
+/// One straight x87 run as plain Rust over `X`.
 fn x87_2(contact: &ContactWork, car: &Car, numbers: &Numbers) {
     let t0 = car.velocity[0].ld();
     let t1 = t0 * t0;

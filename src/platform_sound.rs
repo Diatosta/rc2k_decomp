@@ -1,27 +1,23 @@
 //! A stand-in for DirectSound for the standalone program, on one SDL3 audio stream.
 //!
-//! The ported audio code calls DirectSound's methods as the functions here (the original went
-//! through COM method tables), on objects held as ids: a device, its
-//! buffers (the primary one and the secondary ones, with duplicates sharing their data),
-//! the buffers' 3D interfaces and the 3D listener. Results are DirectSound's codes, which
-//! the game checks and logs. A small
-//! software mixer in SDL's audio callback plays every playing buffer: its data (8 or 16
-//! bits, mono or stereo) at its frequency, with its volume and pan, into 44100 Hz 16-bit
-//! stereo; the primary buffer too, which in the Dolby mode is where the game's own mixer
-//! writes, so the music (a secondary buffer) is heard there as well (section 16's Dolby
-//! bug does not happen here). The primary buffer's volume is the whole output's. The
-//! secondary buffers play at `SECONDARY_GAIN`: the game's own mixer
-//! leaves 12 dB of headroom, which would put the effects of the Dolby mode 12 dB below the
-//! other modes'; the gain makes every mode, and the music beside the Dolby mode's effects,
-//! sound alike.
-//! 3D placing: a buffer's 3D interface keeps its place, its least and greatest distances and
-//! its mode; the listener stays where the game leaves it (at the origin, facing +z: the
-//! game places the sounds around the listener itself) with its roll-off factor. A placed
-//! buffer is heard at DirectSound 3D's distance (the least distance over the distance,
-//! to the roll-off's power, held at the greatest distance) and panned by its direction
-//! (equal power); its own pan is not used then, as in DirectSound.
-//! Not done: Doppler, cones, EAX and the voice manager (their property sets are not
-//! offered: `query_interface` answers `E_NOINTERFACE`, as a DirectSound without them).
+//! The audio code calls DirectSound's methods as the functions here, on objects held as ids: a
+//! device, its buffers (the primary one and the secondary ones, with duplicates sharing their
+//! data), the buffers' 3D interfaces and the 3D listener. Results are DirectSound's codes, which
+//! the game checks and logs. A small software mixer in SDL's audio callback plays every playing
+//! buffer: its data (8 or 16 bits, mono or stereo) at its frequency, with its volume and pan, into
+//! 44100 Hz 16-bit stereo; the primary buffer too, which in the Dolby mode is where the game's own
+//! mixer writes, so the music (a secondary buffer) is heard there as well (fixed bug: "No music in
+//! races with the Dolby mode, and the Dolby mode's quieter, harsher effects"). The primary buffer's
+//! volume is the whole output's. The secondary buffers play at `SECONDARY_GAIN`: the game's own
+//! mixer leaves 12 dB of headroom, which would put the effects of the Dolby mode 12 dB below the
+//! other modes'; the gain makes every mode, and the music beside the Dolby mode's effects, sound
+//! alike. 3D placing: a buffer's 3D interface keeps its place, its least and greatest distances and
+//! its mode; the listener stays where the game leaves it (at the origin, facing +z: the game places
+//! the sounds around the listener itself) with its roll-off factor. A placed buffer is heard at
+//! DirectSound 3D's distance (the least distance over the distance, to the roll-off's power, held
+//! at the greatest distance) and panned by its direction (equal power); its own pan is not used
+//! then, as in DirectSound. Not done: Doppler, cones, EAX and the voice manager (their property
+//! sets are not offered: `query_interface` answers `E_NOINTERFACE`, as a DirectSound without them).
 
 use crate::system::owner::system;
 use rc2k_core::math::portable;
@@ -532,8 +528,7 @@ pub fn restore(_id: u32) -> i32 {
 
 // ---- 3D (IDirectSound3DBuffer, IDirectSound3DListener) ----
 
-/// `SetPosition(x, y, z, apply)`: deferred or not, taken at once (the game commits each
-/// turn).
+/// `SetPosition(x, y, z, apply)`: deferred or not, taken at once (the game commits each turn).
 pub fn set_place(id: u32, place: [f32; 3]) -> i32 {
     with_space(id, |p| p.place = place)
 }

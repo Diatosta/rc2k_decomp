@@ -1,10 +1,9 @@
-//! `physics::count_down_notice` (0x440F08): while a notice is shown (`notice_shown` set)
-//! and its time `notice_time` is not 0, the time less 1; at 0 the notice is cleared
-//! (`notice_shown` 0). `physics::take_notice` sets them.
+//! While a notice is shown (`notice_shown` set) and its time `notice_time` is not 0, the time
+//! counts down by 1; at 0 the notice is cleared. `physics::take_notice` sets them.
 //!
-//! Returns: the time before (when `notice_shown` is set)
+//! Returns the time before (when `notice_shown` is set).
 //!
-//! Caller: `physics::car_physics_step` (0x43B919), every physics step.
+//! Caller: `physics::car_physics_step`, every physics step.
 
 use crate::physics::car_store::Car;
 use crate::physics::cells::set_changed;

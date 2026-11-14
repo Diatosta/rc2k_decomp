@@ -1,35 +1,34 @@
-//! The skidmarks' drawing (`race::draw_skidmarks_if_on` / `race::draw_skidmarks`).
-//! A skidmark is a chain of up to 0x400 links (`skid_links`, 8 bytes each: +0 the link before, -1
-//! none; +6 the views it shows in, a bit each) with two points each (`skid_points`, 0xC bytes a
-//! point: x, y, z whole numbers); each link and the one before give a quad.
+//! The skidmarks' drawing (`race::draw_skidmarks_if_on` / `race::draw_skidmarks`). A skidmark is a
+//! chain of up to 0x400 links (`skid_links`, 8 bytes each: +0 the link before, -1 none; +6 the
+//! views it shows in, a bit each) with two points each (`skid_points`, 0xC bytes a point: x, y, z
+//! whole numbers); each link and the one before it give a quad.
 
 use crate::effects::cell_x87::CellX87;
 use crate::errors::BadInput;
 use crate::errors::Refused;
 
-/// `fild i; fadd f; fstp tbyte`: a whole number plus a float in the x87's 80 bits.
+/// A whole number plus a float, as an 80-bit extended value.
 #[cfg(test)]
 fn int_plus_float_80(i: u32, f: u32) -> [u8; 10] {
     use crate::math::x87_float::{f80, int, ld};
     f80(int(i as i32) + ld(f))
 }
 
-/// `fild i; fstp tbyte`.
+/// A whole number as an 80-bit extended value.
 pub fn int_80(i: u32) -> [u8; 10] {
     crate::math::x87_float::f80(crate::math::x87_float::int(i as i32))
 }
 
-/// `fld tbyte; fstp dword`.
+/// An 80-bit extended value rounded to a float's bits.
 #[cfg(test)]
 fn float_of_80(t: [u8; 10]) -> u32 {
     crate::math::x87_float::st(crate::math::x87_float::from_f80(t))
 }
 
-/// The projection of a turned vertex record (`v` +0x10 x, +0x14 y, +0x18 depth, floats)
-/// onto the screen (+0xC, +0x1C): flat (`flat_depth`) by `flat_depth` + 1, else by the
-/// depth (the original's `fdivrp st(1), st` is `view_scale` over that). x is
-/// x times that scale plus `view_centre`, y is `SceneDraw.view_centre[1]` less y times it. When flat,
-/// the original also stored the depth at `scratch`; nothing read it, so it is not kept.
+/// The projection of a turned vertex record (words 4, 5, 6: x, y, depth, floats) onto the screen
+/// (words 3 and 7). The scale is `view_scale` over `flat_depth` + 1 when the stage is flat
+/// (`flat_depth`), else over the depth. x is x times that scale plus `view_centre`, y is
+/// `view_centre[1]` less y times it.
 pub(crate) fn project_record(
     prefs: &crate::race::prefs_store::StagePrefs,
     work: &crate::race::course_store::CourseWork,
@@ -48,15 +47,15 @@ pub(crate) fn project_record(
     v[7] = st(-(y * scale) + window.view_centre[1].ld());
 }
 
-/// A skidmark point turned and projected: its vertex record's +0xC .. +0x20.
+/// A skidmark point turned and projected: words 3 .. 8 of its vertex record.
 #[derive(Clone, Copy)]
 struct Turned {
     words: [u32; 5],
 }
 
-/// One skidmark point (`skid_points` + 0xC x n) into the vertex record `v`: raised by
-/// `skid_lift`, turned by `g_viewMatrix` (`scene::rotate_point`), +0xC / +0x1C 0, and
-/// projected when its depth is not below 4096.0.
+/// One skidmark point (`skid_points`, 0xC bytes each, number `n`) into the vertex record `v`:
+/// raised by `skid_lift`, turned by `view_matrix` (`scene::rotate_point`), and projected when its
+/// depth is not below 4096.0. The projected x and y start at 0.
 fn skid_vertex(
     ctx: &crate::race::view_scratch::DrawCtx<'_>,
     matrix: &[u32; 15],
@@ -68,7 +67,7 @@ fn skid_vertex(
     Ok(turned)
 }
 
-/// A point as `skid_vertex` turns it, put into the vertex record `v` again.
+/// A point as `skid_vertex` turned it, put into the vertex record `v`.
 fn put_turned(
     part: &crate::workers::PartScratch,
     quad: &[crate::session::PlainDword; 32],
@@ -80,7 +79,7 @@ fn put_turned(
     crate::scene::point_records::set_in(part, Some(quad), v, made)
 }
 
-/// Skidmark point `n` turned and projected, as `skid_vertex` does it.
+/// Skidmark point `n` turned and projected.
 fn turn_skid_point(
     ctx: &crate::race::view_scratch::DrawCtx<'_>,
     matrix: &[u32; 15],
@@ -102,7 +101,7 @@ fn turn_skid_point(
             ];
             crate::scene::rotate_point::turned(r, &matrix[..], point).map(|v| r.st(v))
         });
-        // Only +0xC .. +0x20 are written; the projection reads +0x10 .. +0x18.
+        // Only words 3 .. 8 are written; the projection reads words 4 .. 6.
         let mut made = [0u32; 8];
         made[4..7].copy_from_slice(&turned);
         if !crate::math::x87::below_or_unordered(made[6], &ctx.reads.numbers.k4096_a) {
@@ -119,13 +118,12 @@ fn turn_skid_point(
     }
 }
 
-/// `race::draw_skidmarks` (0x458C03): the skidmarks shown in the drawn view (all in modes 0 and 2,
-/// else those with the view's bit): the polygon's four work entries set once
-/// (vertices 0x623E40 .., texture places `fade_uv` / `RaceVars.fade_uv[1]`, bytes 0 and 0x60,
-/// textures 0xC0); then for each link with a link before, its two points and the two before as a
-/// quad (vertices 3, 2, 0, 1), `scene::fog_polygon`, cut by depth and to the screen and drawn in
-/// black in mode 3 without the depth test. Refuses what the scene's functions refuse (mid-way; not
-/// met with four vertices).
+/// `race::draw_skidmarks`: draws the skidmarks shown in the drawn view (all in modes 0 and 2, else
+/// those with the view's bit). The polygon's four work entries are set once (texture places
+/// `fade_uv`, amount 0x60, textures 0xC0). Then each link with a link before gives a quad of its
+/// two points and the two before (vertices 3, 2, 0, 1), fogged (`scene::fog_polygon`), cut by
+/// depth and to the screen and drawn in black in mode 3 without the depth test. Refuses what the
+/// scene's functions refuse (mid-way; not met with four vertices).
 pub fn draw_skidmarks(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refused> {
     let race = ctx.race;
     let mut views = u32::MAX;
@@ -155,17 +153,17 @@ pub fn draw_skidmarks(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<()
     ctx.view.polygon.polygon_textures[0].set(0xC0u32);
     ctx.view.polygon.polygon_textures[1].set(0xC0u32);
     let matrix: [u32; 15] = crate::math::cells::load(&ctx.view.matrices.view_matrix);
-    // The last quad's two points (its link's number and the points as turned): a skidmark's
-    // next quad has them as its two before, and nothing it is drawn with changes what they
+    // The last quad's two points (its link's number and the points as turned): the next quad of
+    // the skidmark has them as its two before, and nothing it is drawn with changes what they
     // are turned from.
     let mut last: Option<(u32, Turned, Turned)> = None;
     for n in 0..0x400u32 {
         let link = |at: u32| -> Result<u16, BadInput> {
             let table = &ctx.reads.shadow_skids.skid_links;
             let at = at as usize;
-            // A link is -1 (the table's start values) or a point of the ring: the links are
-            // written only by `init_skidmarks` and `add_skid_point`, which refuses one outside
-            // the 0x400 points, so `before * 8 + 6` ends inside the table's 0x2000 bytes.
+            // A link is -1 (the table's start values) or a point of the ring: the links are written
+            // only by `init_skidmarks` and `add_skid_point`, which refuses one outside the 0x400
+            // points, so `before * 8 + 6` ends inside the table's 0x2000 bytes.
             if at + 2 <= size_of_val(table) {
                 Ok(u16::from_le_bytes([table.get(at), table.get(at + 1)]))
             } else {
@@ -219,7 +217,6 @@ pub fn draw_skidmarks(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<()
             ctx.far_clip,
             ctx.view,
         )?;
-        // Each quad inside the original's `pusha` .. `popa`.
         if ctx.view.polygon.polygon_vertex_count.get() < 3 {
             continue;
         }
@@ -249,7 +246,7 @@ pub fn draw_skidmarks(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<()
     Ok(())
 }
 
-/// `race::draw_skidmarks_if_on` (0x4585E3): `draw_skidmarks` unless `drawing` is set.
+/// `race::draw_skidmarks_if_on`: `draw_skidmarks` unless `drawing` is set.
 pub fn draw_skidmarks_if_on(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refused> {
     if ctx.reads.frame_work.drawing.get() != 0 {
         return Ok(());
@@ -294,7 +291,7 @@ mod reference_vectors {
     }
 }
 
-/// The projection against the original's outputs, recorded (`test_support::race_vectors`).
+/// The projection against recorded results (`test_support::race_vectors`).
 #[cfg(test)]
 mod vector_tests {
     use super::*;
@@ -325,7 +322,7 @@ mod vector_tests {
                 let flat = n % 2 == 0;
                 course.stage_prefs.get().flat_depth.set(flat as u32);
                 course.course.get().flat_depth.set(r.int() as u32);
-                // The original read the scene's window; this code the window it is given.
+                // The recorded run read the scene's window; this code reads the window it is given.
                 for (old, own) in [
                     (&drawing.scene.get().view_scale, &win.view_scale),
                     (&drawing.scene.get().view_centre[1], &win.view_centre[1]),

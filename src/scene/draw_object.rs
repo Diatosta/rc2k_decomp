@@ -1,13 +1,11 @@
-//! `scene::draw_object` (0x45045D): draws one object, in seven steps.
-//!
-//! In:  nothing (the current object number is the object)
+//! `scene::draw_object`: draws one object (the current object number), in seven steps.
 //!
 //! The steps: `scene::set_object_light`; `scene::set_object_material`; `scene::set_object_fade`
 //! (which may make the current object another object); `scene::place_object_points_any`
-//! (inlined: with the 3DNow switch on its way, not ported; with SSE on its way; else
-//! `scene::place_object_points`); `scene::list_object_faces`; `scene::sort_listed_faces`;
-//! `scene::draw_object_faces`. One caller, `scene::draw_shown_object`. A refusal of a later step
-//! comes with the earlier ones done; the original then does them again.
+//! (inlined: the 3DNow way is refused, with SSE on its way; else `scene::place_object_points`);
+//! `scene::list_object_faces`; `scene::sort_listed_faces`; `scene::draw_object_faces`. One
+//! caller, `scene::draw_shown_object`. A refusal of a later step comes with the earlier ones
+//! done.
 
 use crate::errors::BadInput;
 use crate::errors::Refused;
@@ -35,10 +33,8 @@ pub enum Step {
     Faces,
 }
 
-// ---- Rust version ----
-
-/// `step`: what stands for each call. The registers between the calls carry nothing
-/// a later call reads (the object's number goes to each through `g_objectNumber`).
+/// `step`: what stands for each call. The object's number goes to each through
+/// the current object.
 pub fn draw_object(step: &mut dyn FnMut(Step) -> Result<(), Refused>) -> Result<(), Refused> {
     for s in [
         Step::Light,
@@ -54,8 +50,7 @@ pub fn draw_object(step: &mut dyn FnMut(Step) -> Result<(), Refused>) -> Result<
     Ok(())
 }
 
-/// `scene::place_object_points_any` (0x45BDE1). The 3DNow way (0x45BF89) is not ported:
-/// a refusal ends the program.
+/// `scene::place_object_points_any`. The 3DNow way is refused: a refusal ends the program.
 fn place_object_points_any(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refused> {
     let draw_switches = ctx.reads.draw_switches;
     if draw_switches.use_3dnow.get() != 0 {
@@ -70,8 +65,7 @@ fn place_object_points_any(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Resu
 
 /// With the steps' Rust versions.
 pub fn draw_object_in_game(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refused> {
-    // The object's listed faces: filled, sorted and drawn here alone (the original's
-    // `g_listedFaces`, one for every drawing).
+    // The object's listed faces: filled, sorted and drawn here alone.
     let mut faces = crate::scene::face_list::FaceList::new();
     draw_object(&mut |step| {
         match step {

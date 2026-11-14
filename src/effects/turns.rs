@@ -1,12 +1,12 @@
-//! Small float steps of `make_masks`' tree (IDA): the 2 x 2 turn a line gives,
-//! three rows scaled to set lengths, and two cosine-eased steps.
+//! Small float steps of `make_masks`' tree: the 2 x 2 turn a line gives, three rows scaled to set
+//! lengths, and two cosine-eased steps.
 
 use crate::effects::mask_store::Masks;
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::math::x87;
 use crate::session::{PlainDword, PlainFloat};
 
-/// `effects::set_line_turn` (0x4BF432) and, `back`, `effects::set_line_turn_back` (0x4BF466):
+/// `effects::set_line_turn` (and with `back`, the turn back):
 /// from the line (+0, +4 to +0xC, +0x10: here `line`'s dwords 0, 1 to 3, 4) dx into
 /// +0x396 and +0x3A6, minus dy (dy when `back`) into +0x3A2, its negation into +0x39A.
 pub fn set_line_turn(masks: &Masks, line: &[PlainDword; 6], back: bool) {
@@ -22,7 +22,7 @@ pub fn set_line_turn(masks: &Masks, line: &[PlainDword; 6], back: bool) {
     masks.vars.turn[4].set(x87::loaded(dx));
 }
 
-/// `effects::scale_rows3` (0x4BF498): the three rows of three floats each made the
+/// `effects::scale_rows3`: the three rows of three floats each made the
 /// length the effects' row lengths say (`x87::scale_row`).
 pub fn scale_rows3(rows: &[PlainFloat; 9], effects: &crate::effects::owner::Effects) {
     for (n, row) in rows.as_chunks::<3>().0.iter().enumerate() {
@@ -34,7 +34,7 @@ pub fn scale_rows3(rows: &[PlainFloat; 9], effects: &crate::effects::owner::Effe
     }
 }
 
-/// `effects::smooth_steps` (0x4BE928): from a to b as floats, step n: t (b - a) times
+/// `effects::smooth_steps`: from a to b as floats, step n: t (b - a) times
 /// a step factor (a float), then the first result a + t - t cos(pi (n plus 1) / the step count)
 /// and the second the same with n over the second count.
 pub fn smooth_steps(
@@ -65,26 +65,26 @@ pub fn smooth_pair(n: u32, a: f32, b: u32, effects: &crate::effects::owner::Effe
     }
 }
 
-/// `effects::turn_pair` (0x4BF409): st(0) a, st(1) b turned by `g_marksLineTurn` (m0 .. m3):
-/// st(0) a m3 + b m2, st(1) b m0 + a m1, unrounded (the original's `fld st(1)`, `fxch`s
-/// and `faddp`s). Every register kept.
+/// `effects::turn_pair`: the pair (a, b) turned by the line turn (m0 .. m3): a m3 + b m2,
+/// b m0 + a m1, unrounded.
 pub fn turn_pair(masks: &Masks, inputs: [[u8; 10]; 2]) -> [[u8; 10]; 2] {
     turn_pair_x87(&inputs, &masks.vars.turn)
 }
 
-/// `fld tbyte; fmul; fistp` for st(0) then st(1): their whole-number scalings.
+/// The whole-number scalings of the first and second values.
 fn scaled_ints(inputs: &[[u8; 10]; 2], k0: &PlainFloat, k1: &PlainFloat) -> (i32, i32) {
     scaled_ints_x87(inputs, k0, k1)
 }
 
-/// `fild v; fdiv k; fstp tbyte`.
+/// A whole number over `k`, as an 80-bit value.
 fn int_over_80(v: i32, k: &PlainFloat) -> [u8; 10] {
     int_over_80_x87(v, k)
 }
 
-/// `effects::clamp_pair` (0x4BEF22): st(0) times `MaskConstants.pair_scales[0]` rounded (b), st(1) times
-/// `MaskConstants.pair_scales[1]` (a); a held to 0 .. 0xFFFF and b to 0 .. 0x7FFF; then st(1) a over
-/// `MaskConstants.pair_scales[2]` and st(0) b over `MaskConstants.pair_scales[3]`, unrounded.
+/// `effects::clamp_pair`: the first value times `MaskConstants.pair_scales[0]` rounded (b),
+/// the second times `MaskConstants.pair_scales[1]` (a); a held to 0 .. 0xFFFF and b to
+/// 0 .. 0x7FFF; then a over `MaskConstants.pair_scales[2]` and b over
+/// `MaskConstants.pair_scales[3]`, unrounded.
 pub fn clamp_pair(
     inputs: [[u8; 10]; 2],
     effects: &crate::effects::owner::Effects,
@@ -100,7 +100,7 @@ pub fn clamp_pair(
 use crate::effects::plain::ld_cell;
 use crate::math::x87_float as bh;
 
-/// `turn_pair`'s x87 block as plain Rust on the x87 model (16 instructions), same order and memory places
+/// `turn_pair`'s arithmetic as plain Rust on the x87 model, in the same order
 /// (`i` the two inputs, `m` the turn: the block reads its floats 0, 1, 3 and 4).
 fn turn_pair_x87(i: &[[u8; 10]; 2], m: &[PlainFloat; 9]) -> [[u8; 10]; 2] {
     let t0 = bh::from_f80(i[1]);
@@ -114,7 +114,7 @@ fn turn_pair_x87(i: &[[u8; 10]; 2], m: &[PlainFloat; 9]) -> [[u8; 10]; 2] {
     [bh::f80(t4), bh::f80(t7)]
 }
 
-/// `scaled_ints`'s x87 block as plain Rust on the x87 model (6 instructions), same order and memory places
+/// `scaled_ints`'s arithmetic as plain Rust on the x87 model, in the same order
 /// (the two whole numbers it stores).
 fn scaled_ints_x87(i: &[[u8; 10]; 2], k0: &PlainFloat, k1: &PlainFloat) -> (i32, i32) {
     let t0 = bh::from_f80(i[1]);
@@ -126,7 +126,7 @@ fn scaled_ints_x87(i: &[[u8; 10]; 2], k0: &PlainFloat, k1: &PlainFloat) -> (i32,
     (v0, v1)
 }
 
-/// `int_over_80`'s x87 block as plain Rust on the x87 model (3 instructions), same order and memory places.
+/// `int_over_80`'s arithmetic as plain Rust on the x87 model, in the same order.
 fn int_over_80_x87(v: i32, k: &PlainFloat) -> [u8; 10] {
     let t0 = bh::int(v);
     let t1 = t0 / ld_cell(k);
@@ -154,8 +154,8 @@ mod reference_vectors {
     /// `data` into the test buffer at `at`.
     fn put(at: crate::effects::asm_test::Operand, data: &[u8]) {
         for (n, &b) in data.iter().enumerate() {
-            // SAFETY: `host` checks that the byte lies in the operand's test buffer, which the recorded
-            // run keeps alive and nothing else reaches meanwhile.
+            // SAFETY: `host` checks that the byte lies in the operand's test buffer, which the
+            // recorded run keeps alive and nothing else reaches meanwhile.
             unsafe { (at + n).host().write(b) };
         }
     }

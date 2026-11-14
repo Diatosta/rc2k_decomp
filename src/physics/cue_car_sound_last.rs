@@ -1,18 +1,15 @@
-//! `physics::cue_car_sound_last` (0x40ECBB): `physics::cue_car_sound`'s twin for the pace notes:
-//! the cue goes last in the queue of the sound object of car 0 or 1 (`g_playerCarA`,
-//! `g_raceSoundObjects`), when its state word (+8) is 1.
+//! `physics::cue_car_sound`'s twin for the pace notes: the cue goes last in the queue of the
+//! sound object of car 0 or 1, when the object's state word is 1.
 //!
-//! Takes: which, the cue
-//!
-//! Caller: `physics::cue_listed_car_sound_last`. Refuses (before anything) a car past 7 or
-//! a null sound object.
+//! Caller: `physics::cue_listed_car_sound_last`. Refuses (before anything) a car past 7 or a
+//! null sound object.
 
 use crate::errors::Refused;
 use crate::sound::store::SoundObject;
 use rc2k_core::physics::listed_cars::cue_object;
 
 /// `cue` queued last for the car `which` (0 or 1: a player's), if it sounds.
-// Converted: `rc2k_core::physics::listed_cars::cue_object`.
+// Core: `rc2k_core::physics::listed_cars::cue_object`.
 pub fn cue_car_sound_last(
     which: u32,
     cue: u32,

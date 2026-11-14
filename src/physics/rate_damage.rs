@@ -1,24 +1,26 @@
-//! `physics::rate_damage` (0x4AF1EC): the current car's damage figures (the work copy's
-//! 0x71A278 .. 0x71A328) made into its working grades and failures (what each figure
-//! is, is in `physics/store.rs`). In the original's order:
-//! - `engine_power_factor` = 1 - `engine_damage` k k694 - `exhaust_damage` k k698 (k = `DamageModel.grade_k`;
-//!   80 bits), times `DamageModel.wear_rates[10]` when `DamageModel.drive_kind`'s bits are not 0 and `turbo_damage` is
-//!   not below `DamageModel.gauge_top`; held to `DamageModel.gauge_low` .. `DamageModel.grade_high`;
-//! - `brake_efficiency`, `Car.brake_efficiency[1]`: 1 less four products each (`brake_heat` / `Car.brake_heat[1]`,
-//!   `brake_wear_a` / `brake_wear_b`, `brake_fade`, `DamageModel.surface_blend`), held the same way;
-//! - 23 ramps (`math::x87::ramp`, tables of (x0, y0, x1, y1) at 0x75B4E8 .. 0x75B568)
-//!   into 0x71A3D8 .. 0x71A3E0 and the model's failure chances (0x75B404 .. 0x75B438, 0x75B490 .. 0x75B49C), two of them times
-//!   `DamageModel.brake_balance_complement` k k, one squared;
-//! - failures by chance: a figure times `DamageModel.chance_scale` (`fistp` into `DamageModel.scratch`) against
-//!   the random `DamageModel.clock` turned right by 4 .. 0x19, low word (the sign of the
-//!   difference): `handbrake_failed` (set once), `electrical_failures` .. `Car.electrical_failures[6]` (set from
-//!   0x75B404 .., cleared again from 0x75B420 ..), `gear_change_blocked`, `forced_neutral`;
-//! - `Car.gear_wear[1]` = 0, and `g_carGearBits` = the gears (9 figures from 0x71A2A8) equal to
-//!   `DamageModel.gauge_top` (C3: also no number);
+//! Makes the current car's damage figures (the work copy's gauges; what each figure is, is in
+//! `physics/store.rs`) into its working grades and failures:
+//! - `engine_power_factor` = 1 - `engine_damage` x k x `figures[7]` - `exhaust_damage` x k x
+//!   `figures[8]` (k = `DamageModel.grade_k`; 80 bits), times `DamageModel.wear_rates[10]` when
+//!   `DamageModel.drive_kind`'s bits are not 0 and `turbo_damage` is not below
+//!   `DamageModel.gauge_top`; held to `DamageModel.gauge_low` .. `DamageModel.grade_high`;
+//! - `brake_efficiency`, `Car.brake_efficiency[1]`: 1 less four products each (`brake_heat` /
+//!   `Car.brake_heat[1]`, `brake_wear_a` / `brake_wear_b`, `brake_fade`,
+//!   `DamageModel.surface_blend`), held the same way;
+//! - 23 ramps (`math::x87::ramp`, tables of (x0, y0, x1, y1)) into the car's grade fields and the
+//!   model's failure chances, two of them times `DamageModel.brake_balance_complement` x k x k, one
+//!   squared;
+//! - failures by chance: a figure times `DamageModel.chance_scale` (rounded into
+//!   `DamageModel.scratch`) against the random `DamageModel.clock` turned right by 4 .. 0x19, low
+//!   word: `handbrake_failed` (set once), `electrical_failures` .. `Car.electrical_failures[6]`
+//!   (set from one run of chances, cleared again from another), `gear_change_blocked`,
+//!   `forced_neutral`;
+//! - `Car.gear_wear[1]` = 0, and `lost_gear_bits` = the gears (nine figures) equal to
+//!   `DamageModel.gauge_top` (also when no number);
 //! - `damage_failed` = 0 when five figures are all below `DamageModel.gauge_top`, else 1, and then
 //!   `engine_power_factor` = 0 unless `electrics_damage` is below it.
 //!
-//! Caller: `physics::rate_current_car` (0x4AB5D0), its only one.
+//! Caller: `physics::grade_or_reset`.
 
 use crate::effects::cell_x87::CellX87;
 use crate::math::x87;
@@ -196,7 +198,7 @@ fn failures<'a>(
     ]
 }
 
-/// The exact version, for `physics::grade_or_reset` and `physics::rate_current_car`.
+/// The exact version, for `physics::grade_or_reset`.
 pub fn rate_damage(car: &Car, damage: &DamageModel) {
     let d = &damage;
     let c = &car;

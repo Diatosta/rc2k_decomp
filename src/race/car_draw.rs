@@ -1,9 +1,7 @@
-//! The cars drawn (`race::draw_list_entry` place 5: `race::draw_car_entry` ->
-//! `race::draw_car_shined` ->
-//! `race::draw_car`). A car is a block (`g_carBlocks`, `CarBlock`):
-//! +0x24 its model, +0x134 .. +0x13C its place, +0x298 its parts' switches, +0x6FC its
-//! state bits, +0x740 .. +0x8BF six matrices (four parts', the body's, the turn), +0xF04 the
-//! shown parts' mask.
+//! Drawing the cars: a car is a block (`CarBlock`) whose +0x24 holds its model,
+//! +0x134 .. +0x13C its place, +0x298 its parts' switches, +0x6FC its state bits, +0x740 .. +0x8BF
+//! six matrices (four parts', the body's, the turn) and +0xF04 the shown parts' mask. The entry
+//! points are `draw_car_entry`, `draw_car_shined` and `draw_car`.
 
 use crate::effects::cell_x87::CellX87;
 use crate::errors::{BadInput, Refused};
@@ -28,21 +26,21 @@ pub fn part_matrices(cars: &CarDrawState) -> [&'_ [PlainFloat]; 4] {
     [0, 16, 32, 48].map(|k| &cars.part_matrices[k..k + 16])
 }
 
-/// `race::car_part_matrix_1` .. `_4` (0x461F12, 0x461F58, 0x461F9E, 0x461FE4): matrix `a` times the
-/// body's turn (`body_turn_matrix`) into `g_turnedMatrix`, times the car's turn (`placed_matrices`) into
-/// `g_litMatrix`, times `g_viewMatrix` into `g_madeObjectMatrix`.
+/// Car part matrix: matrix `a` times the body's turn (`body_turn_matrix`) into `turned_matrix`,
+/// times the car's turn (`placed_matrices`) into `lit_matrix`, times `view_matrix` into
+/// `made_object_matrix`. There is one such function for each of the four parts.
 pub fn car_part_matrix(cars: &CarDrawState, m: &ViewMatrices, a: &(impl Cells + ?Sized)) {
     multiply_matrices(a, &m.body_turn_matrix, &m.turned_matrix);
     multiply_matrices(&m.turned_matrix, car_turn(cars), &m.lit_matrix);
     multiply_matrices(
         &m.lit_matrix,
-        &m.view_matrix, // g_viewMatrix
+        &m.view_matrix, // the view's matrix
         &m.made_object_matrix,
     );
 }
 
-/// `race::car_body_matrix` (0x461EA1): the turns about x and z by 0 (`scene::set_fine_turn_x`,
-/// `scene::set_turn_z`) multiplied into `g_litMatrix`, then as `car_part_matrix` on it.
+/// Car body matrix: the turns about x and z by 0 (`set_fine_turn`)
+/// multiplied into `lit_matrix`, then as a part's matrix on it.
 pub fn car_body_matrix(course: CourseReads<'_>, cars: &CarDrawState, m: &ViewMatrices) {
     use crate::scene::view_matrix::{Axis, set_fine_turn};
     set_fine_turn(course, m, Axis::X, 0);
@@ -51,10 +49,9 @@ pub fn car_body_matrix(course: CourseReads<'_>, cars: &CarDrawState, m: &ViewMat
     car_part_matrix(cars, m, &m.lit_matrix);
 }
 
-/// The byte at `offset` of the number texture names. The table holds 32 names of 0x30 bytes;
-/// kinds 32 and 33 read on into the fields after it, in their order: the drawn
-/// car's nearness and word, the tens' textures, the parts' break limits, the still matrix.
-/// Past those is refused.
+/// The byte at `offset` of the number texture names. The table holds 32 names of 0x30 bytes; kinds
+/// 32 and 33 read on into the fields after it, in their order: the drawn car's nearness and word,
+/// the tens' textures, the parts' break limits, the still matrix. Past those is refused.
 fn number_name_byte(work: &RaceWork, offset: u32) -> Result<u8, BadInput> {
     let dword = (offset / 4) as usize;
     let bits = match dword.checked_sub(work.number_texture_names.len()) {
@@ -69,15 +66,14 @@ fn number_name_byte(work: &RaceWork, offset: u32) -> Result<u8, BadInput> {
     Ok(bits.to_le_bytes()[(offset % 4) as usize])
 }
 
-/// `race::car_number_textures` (0x46203D): car `car`'s marks' textures into `marks` (the original's
-/// `car_mark_textures` ..: `scene::car_marks`): +0x1B8 / +0x1BC (|x| not below `decal_limit`: 1) into
-/// `ObjectTables.car_mark_textures[1]`, `ObjectTables.car_mark_textures[4]` / `ObjectTables.car_mark_textures[2]`, `ObjectTables.car_mark_textures[3]`; the letter of its model's name
-/// (`number_texture_names` + 0x30 x model) at +0x718 (rounded, held to 0 .. 0x2EDF) / 250, as a digit or
-/// letter number, into `ObjectTables.car_mark_textures[5]` (and `car_letter_b`, which nothing read: not kept); its
-/// number +0xAA8 as tens and units (`ObjectTables.car_mark_textures[6]`, `ObjectTables.car_mark_textures[7]`, 999 for none; `ObjectTables.car_mark_textures[9]`
-/// the units alone below ten); the stage's (held to 11 .. 0x50) tens' plate `number_tens_textures`[]` into
-/// `ObjectTables.car_mark_textures[8]`; and while +0x310 is below `hundred` its 17 bytes +0xAC0 .. into the places
-/// `car_decal_places`[]` names (marks 0xA .. 0x1B; one past the marks is refused).
+/// Sets car `car`'s marks' textures into `marks` (`ObjectTables.car_mark_textures`). [1] and [4] /
+/// [2] and [3] come from +0x1B8 / +0x1BC (1 when |x| is not below `decal_limit`). [5] is the letter
+/// of its model's name (`number_texture_names` + 0x30 x model) at +0x718 (rounded, held to 0 ..
+/// 0x2EDF) / 250, as a digit or letter number. [6] and [7] are its number +0xAA8 as tens and units
+/// (999 for none) and [9] the units alone below ten. [8] is the stage's tens' plate
+/// (`number_tens_textures`, held to 11 .. 0x50). While +0x310 is below `hundred` its 17 bytes
+/// +0xAC0 .. go into the places `car_decal_places` names (marks 0xA .. 0x1B; one past the marks is
+/// refused).
 pub fn car_number_textures(
     blocks: &crate::race::blocks_store::CarBlocks,
     car: usize,
@@ -87,8 +83,7 @@ pub fn car_number_textures(
     vars: &crate::race::vars_store::RaceVars,
     work: &crate::race::work_store::RaceWork,
 ) -> Result<(), BadInput> {
-    // Converted: `rc2k_core::race::car_marks` (the rounding of +0x718 the x87's, under the
-    // game's control word).
+    // The rounding of +0x718 is the x87's, under the game's control word.
     use rc2k_core::race::car_marks::{
         decals_shown, lamp_side, letter_number, letter_place, number_digits, stage_plate,
     };
@@ -129,8 +124,7 @@ pub fn car_number_textures(
     Ok(())
 }
 
-/// The group number at byte `offset` of model `model`'s groups (the original does not
-/// bound the model: one past the 34 records is refused).
+/// The group number at byte `offset` of model `model`'s groups.
 fn model_field(lights: &LightRecords, model: u32, offset: u32) -> Result<u32, BadInput> {
     lights
         .records
@@ -140,7 +134,8 @@ fn model_field(lights: &LightRecords, model: u32, offset: u32) -> Result<u32, Ba
         .ok_or(BadInput("a model's record"))
 }
 
-/// The model's bit at +`offset` of its groups (`LightsAndGear.light_records.records[0].groups[0]` ..): 1 << it, 0 for -1.
+/// The model's bit at +`offset` of its groups (`LightsAndGear.light_records.records[0].groups[0]`
+/// ..): 1 << it, 0 for -1.
 fn model_bit(lights: &LightRecords, model: u32, offset: u32) -> Result<u32, BadInput> {
     let c = model_field(lights, model, offset)?;
     Ok(if c == u32::MAX { 0 } else { 1u32 << (c & 31) })
@@ -150,13 +145,13 @@ fn below(a: u32, b: u32) -> bool {
     (a.wrapping_sub(b) as i32) < 0
 }
 
-/// `bts value, bit` (bit mod 32).
+/// Sets bit `bit` (mod 32) of `value`.
 fn with_bit(value: u32, bit: u32) -> u32 {
     value | 1u32 << (bit & 31)
 }
 
-/// A mask slot of the view's group masks (`CarDrawState::group_masks`) and the index into the model's `groups` whose bit it
-/// takes, in the order they are set.
+/// A mask slot of the view's group masks (`CarDrawState::group_masks`) and the index into the
+/// model's `groups` whose bit it takes, in the order they are set.
 const BODY_GROUPS: [(usize, usize); 5] = [(0, 0), (1, 1), (2, 2), (3, 3), (6, 5)];
 
 /// The mask slot of the lamps and the model's group they come from.
@@ -168,8 +163,8 @@ const EXTRA_LAMP_BITS: [(&[u32], u32); 2] = [(&[4, 7], 0x600_0000), (&[0xD], 0x3
 /// The mask slots set after the lamps, as `BODY_GROUPS`.
 const OTHER_GROUPS: [(usize, usize); 5] = [(10, 0xE), (7, 0xB), (8, 0xC), (11, 0xA), (12, 0xF)];
 
-/// A part's switch bit (`parts_present`): when it is clear the part's group, in this mask
-/// slot, is not shown.
+/// A part's switch bit (`parts_present`): when it is clear the part's group, in this mask slot, is
+/// not shown.
 const PART_SWITCHES: [(u32, usize); 7] = [
     (9, 6),
     (12, 11),
@@ -216,27 +211,25 @@ fn shown_groups(masks: &[crate::session::PlainDword; 18], switches: u32) -> u32 
     shown
 }
 
-/// `race::draw_car` (0x4616AA): car `car` drawn: its marks' textures (`race::car_number_textures`);
-/// its six matrices (+0x740 ..) to `part_matrices` .. / `body_turn_matrix` / `placed_matrices`; its model's
-/// parts' bits (`group_masks` ..; the shown mask `group_mask` by +0x298, `group_mask` by
-/// +0x6FC, the view's depth `car_depth` and the stage's fog, `car_nearness` the nearness (0 .. 1)
-/// dimming `g_shine`), `fade_alpha_moved`, +0xF04; all parts for the drawn view's own car when
-/// `ViewAndRecords.view_vars.view_car_flag_a`; the light and place; `scene::set_light_direction`; the body (`g_objectNumber`
-/// 0x50 + 0x14 x car, `race::car_body_matrix`, `scene::draw_scene_object` between the kept
-/// reflections), and nearer than 0x3C0000 its four parts by +0x298's bits 5 .. 8 (each
-/// `car_part_matrix`, `scene::draw_scene_object`); then `race::clear_car_marks` (here the marks are
-/// the drawing's own: `scene::car_marks`). Each drawing gets `g_litMatrix`, as the matrices
-/// leave it (the object's description, read only on the described way). Refuses (before anything)
-/// what `scene::draw_scene_object` would for the car's objects: in a race (`g_inRace`) car
-/// `drawn_car` (below eight) without its block.
+/// Draws car `car`: its marks' textures (`car_number_textures`); its six matrices (+0x740 ..) into
+/// `part_matrices`, `body_turn_matrix` and `placed_matrices`; the course's group masks from its
+/// model's part groups (the shown mask by +0x298, the state bits' mask by +0x6FC, the view's depth
+/// `car_depth` and the stage's fog, `car_nearness` (0 .. 1) dimming `shine`) and
+/// `fade_alpha_moved`; all parts for the drawn view's own car when
+/// `ViewAndRecords.view_vars.view_car_flag_a`; then the light and place,
+/// `scene::set_light_direction`, the body (`object_number` 0x50 + 0x14 x car, `car_body_matrix`,
+/// `scene::draw_scene_object` between the kept reflections) and, nearer than 0x3C0000, its four
+/// parts by +0x298's bits 5 .. 8 (each `car_part_matrix`, `scene::draw_scene_object`). The marks
+/// are the drawing's own (`scene::car_marks`). Each drawing gets `lit_matrix`, as the matrices
+/// leave it. Refused (before anything): what `scene::draw_scene_object` refuses for the car's
+/// objects, and in a race (`in_race`) car `drawn_car` (below eight) without its block.
 pub fn draw_car(ctx: &crate::race::view_scratch::DrawCtx<'_>, car: usize) -> Result<(), Refused> {
     let race = ctx.race;
     let n: u32 = ctx.view.state.drawn_car.get();
     if ctx.reads.numbers.in_race.is_set() && n < 8 && !ctx.reads.work.has_car_block(n as usize) {
         return Err(BadInput("the drawn car without its block").into());
     }
-    // The car's marks, its own while it is drawn (the original's, cleared after it by
-    // `race::clear_car_marks`: `scene::car_marks`).
+    // The car's marks, its own while it is drawn.
     let marks = crate::scene::car_marks::CarMarks::new();
     car_number_textures(
         ctx.reads.car_blocks,
@@ -350,8 +343,7 @@ pub fn draw_car(ctx: &crate::race::view_scratch::DrawCtx<'_>, car: usize) -> Res
         ecx = 0xF0;
     }
     ctx.view.face.fade_alpha.set(ecx);
-    // The original stored the group mask into the car's block +0xF04 here (0x461CD8),
-    // which nothing ever reads: dropped (`notes/bugs.md`).
+    // The car's block +0xF04 is not written with the group mask: nothing reads it.
     let view_car = ctx.reads.view.drawn_view_car(ctx.view.drawn_view(race))?;
     if view_car == ctx.view.state.drawn_car.get()
         && ctx.view.state.view_car_flag_a.get().to_bits() != 0
@@ -430,9 +422,8 @@ pub fn draw_car(ctx: &crate::race::view_scratch::DrawCtx<'_>, car: usize) -> Res
     Ok(())
 }
 
-/// `race::draw_car`'s nearness: `car_nearness` = (`car_depth` - 0xA0000) / 0x140000 held to 0 ..
-/// 1 (`zero`, `one`), `g_shine` (and `shine_whole`) times 1 less it (the
-/// original's stores to `scratch` are not kept).
+/// The car's nearness: `car_nearness` = (`car_depth` - 0xA0000) / 0x140000 held to 0 .. 1 (`zero`,
+/// `one`); `shine` (and `shine_whole`) is multiplied by 1 less it.
 fn nearness(
     numbers: &crate::race::numbers_store::Numbers,
     cars: &CarDrawState,
@@ -445,7 +436,7 @@ fn nearness(
         cars.car_nearness
             .st((depth - int(0xA_0000)) / int(0x14_0000));
         let near = cars.car_nearness.get();
-        // `fld zero; fld near; fcompp`: near below 0 (or no number) -> 0.
+        // Near below 0 (or no number) gives 0.
         if below_or_unordered(near, numbers.zero.get()) {
             cars.car_nearness.set(numbers.zero.get());
         }
@@ -459,8 +450,7 @@ fn nearness(
     }
 }
 
-/// `race::draw_car`'s size: 0x90 times `car_nearness`, rounded (the original's stores to
-/// `scratch` are not kept).
+/// The car's size: 0x90 times `car_nearness`, rounded.
 fn near_size(cars: &CarDrawState) -> u32 {
     use crate::math::x87_float::{int, to_int};
     {
@@ -469,9 +459,8 @@ fn near_size(cars: &CarDrawState) -> u32 {
     }
 }
 
-/// `race::draw_car_shined` (0x461669): `g_shine` for the car (0x3FCE0 less `mud_thrown_counts`, held to
-/// 0 .. 0x40000, times `shine_scale`, >> 18), the car `car` drawn (`race::draw_car`), `g_shine`
-/// put back.
+/// Sets `shine` for the car (0x3FCE0 less `mud_thrown_counts`, held to 0 .. 0x40000, times
+/// `shine_scale`, >> 18), draws the car `car` (`draw_car`) and puts `shine` back.
 pub fn draw_car_shined(
     ctx: &crate::race::view_scratch::DrawCtx<'_>,
     car: usize,
@@ -491,11 +480,11 @@ pub fn draw_car_shined(
     done
 }
 
-/// `race::draw_car_entry` (0x455105): car `entry` & 7 (into `drawn_car`; `view_light_base` its
-/// +0x240): its place turned by `g_viewMatrix` (`scene::rotate_point`) into `car_kept` ..
-/// `car_depth`; drawn (`race::draw_car_shined`, counted in `cars_drawn`) unless behind
-/// (depth + 0x40000 below 0) or aside (|x| - 0x80000 not below the depth), those not counted
-/// (the original counted them in a variable nothing read). Refuses (before anything) a car without its block.
+/// Draws car `entry` & 7 (into `drawn_car`; `view_light_base` gets its +0x240): its place is turned
+/// by `view_matrix` (`scene::rotate_point`) into `car_kept` .. `car_depth`. It is drawn
+/// (`draw_car_shined`, counted in `cars_drawn`) unless behind (depth + 0x40000 below 0) or aside
+/// (|x| - 0x80000 not below the depth), and those are not counted. Refused (before anything): a car
+/// without its block.
 pub fn draw_car_entry(
     ctx: &crate::race::view_scratch::DrawCtx<'_>,
     entry: u32,
@@ -544,7 +533,7 @@ pub fn draw_car_entry(
     draw_car_shined(ctx, car)
 }
 
-/// The blocks against the original's outputs, recorded (`test_support::race_vectors`).
+/// The blocks against the recorded outputs, recorded (`test_support::race_vectors`).
 #[cfg(test)]
 mod vector_tests {
     use super::*;
@@ -563,9 +552,9 @@ mod vector_tests {
         "race.owner.RACE.course.numbers",
     ];
 
-    /// The values the blocks read and write, without `scratch` (the assembly's spill dword)
-    /// and `shine_whole` (the shine as a whole number, read by nothing): neither kept by the
-    /// plain versions.
+    /// The values the blocks read and write, without `scratch` (the assembly's spill dword) and
+    /// `shine_whole` (the shine as a whole number, read by nothing): neither kept by the plain
+    /// versions.
     fn state() -> [u32; 5] {
         let race = race();
         [

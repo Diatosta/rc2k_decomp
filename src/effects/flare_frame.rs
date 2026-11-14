@@ -1,16 +1,13 @@
-//! `effects::flare_frame` (0x4C4EA2): `scene::set_texture` with `KindTextureTables.kind_first_slots[202]`,
+//! `effects::flare_frame`: `scene::set_texture` with `KindTextureTables.kind_first_slots[202]`,
 //! `scene::depth_test_off`, and when the settings' +0x2754 (the flare's strength) is set
 //! `effects::draw_lens_flare`.
 //!
-//! Works on `g_marksSettings`.
-//!
-//! Caller: `effects::run_frame` (0x4D1645). Refuses null settings, before anything.
+//! Refuses null settings, before anything.
 
 use crate::effects::paths::Paths;
 use crate::errors::{BadInput, Refused};
 
-/// `scene::set_texture`, `scene::depth_test_off`, and
-/// with the settings' +0x2754 `draw_lens_flare`.
+/// `scene::set_texture`, `scene::depth_test_off`, and with the settings' +0x2754 `draw_lens_flare`.
 pub fn flare_frame(
     engine_tables: &crate::scene::engine_tables_store::EngineTables,
     buffer: &crate::d3d::vertices_store::PolygonVertices,

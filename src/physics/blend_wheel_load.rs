@@ -1,9 +1,9 @@
-//! `physics::blend_wheel_load` (0x440F70): unless `contact_depth` is below `wheel_load_limit`
-//! (C0): a slot by the signs of 0x71A1FC, 0x71A200, 0x71A204 (4 + 2 + 1 for each below 0)
-//! and `impact_octant_marks`[slot]` moved towards 1 by `contact_depth` / `sixty_four` held to 0 .. 1
-//! (through `scratch`): a + (1 - a) share. What the eight are is a reading at best.
+//! Unless `contact_depth` is below `wheel_load_limit`: a slot chosen by the signs of three
+//! impact values (4 + 2 + 1 for each below 0) has its `impact_octant_marks` entry moved towards 1
+//! by `contact_depth` / `sixty_four` held to 0 .. 1 (a + (1 - a) share). What the eight slots
+//! mean is a reading at best.
 //!
-//! Caller: `physics::car_physics_step` (0x43B99A), every physics step.
+//! Caller: `physics::car_physics_step`, every physics step.
 
 use crate::math::x87;
 use crate::math::x87::{compare_full, toward_one};

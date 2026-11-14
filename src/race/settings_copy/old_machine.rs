@@ -1,8 +1,8 @@
 //! Test-only reference: the step-list machine (`Step`, `Machine`, `run_steps`, the step tables of
-//! `graham_to_shaun` and `shaun_to_graham`) that `copy_settings_in` / `copy_settings_out` were
-//! before they became plain loops, kept verbatim (the log and the three routines go through
-//! `Effects` so a test can capture them; the routine operands are marker cells). The test
-//! `new_copies_match_the_machine` runs both over randomised states.
+//! `graham_to_shaun` and `shaun_to_graham`) that `copy_settings_in` / `copy_settings_out` replace
+//! with plain loops. The log and the three routines go through `Effects` so a test can capture
+//! them; the routine operands are marker cells. The test `new_copies_match_the_machine` runs both
+//! over randomised states.
 
 use super::*;
 use crate::race::owner::race;
@@ -10,7 +10,7 @@ use crate::session::{Dword, DwordLike};
 use Step::*;
 use std::ffi::{CStr, CString};
 
-/// How a value is logged after its word (each a `log_..._nl`).
+/// How a value is logged after its word: as a decimal or as eight hex digits.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Kind {
     Int,
@@ -20,38 +20,38 @@ pub enum Kind {
 /// One step; jump targets are step numbers.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Step<A = usize> {
-    /// The text logged (`log_write_l1`, `_nl` with true).
+    /// The text logged; the flag asks for a newline after it.
     Text(&'static core::ffi::CStr, bool),
-    /// The dword logged (`log_int_l1_nl` / `log_hex8_l1_nl`).
+    /// The dword logged, with a newline.
     Value(A, Kind),
-    /// The float logged (`log_float_l1_nl`, two decimals).
+    /// The float logged with two decimals and a newline.
     Float(A),
-    /// `push from` / `pop to`.
+    /// A dword copied from `from` to `to`.
     Copy(A, A),
-    /// `dec` of the dword.
+    /// The dword decremented.
     Dec(A),
-    /// `fild from` / `fstp to`.
+    /// A whole number turned into a float.
     IntToFloat(A, A),
-    /// `fld from` / `fistp to`.
+    /// A float turned into a whole number (the control word's rounding).
     FloatToInt(A, A),
-    /// `fld from` / `fstp to`.
+    /// A float copied through the x87.
     FloatCopy(A, A),
-    /// The dword from held: below 0 is 0, 100 or more 0x100, else x 2.56 rounded, into
-    /// to.
+    /// The dword from `from` held to a brake value: below 0 is 0, 100 or more 0x100, else x 2.56
+    /// rounded, into `to`.
     Brake(A, A),
-    /// `mov ebx, [var]`; `cmp ebx, 0`; `jz`; `or eax, bit`.
+    /// Ors `bit` into the accumulator when the variable is not 0.
     BitIf(A, u32),
-    /// eax the dword.
+    /// Loads the dword into the accumulator.
     Load(A),
-    /// eax the value.
+    /// Loads the value into the accumulator.
     LoadImm(u32),
-    /// The dword eax.
+    /// Stores the accumulator into the dword.
     Store(A),
-    /// eax less the dword.
+    /// Subtracts the dword from the accumulator.
     SubEax(A),
-    /// `cmp eax, value` / `jnz`.
+    /// Jump when the accumulator is not `value`.
     JumpIfEaxNot(u32, usize),
-    /// `cmp [var], value` / `jnz`.
+    /// Jump when the variable is not `value`.
     JumpIfNot(A, u32, usize),
     Jump(usize),
     /// A call.
@@ -67,22 +67,22 @@ pub trait Machine<A> {
     fn eax(&self) -> u32;
     fn set_eax(&mut self, value: u32);
     fn set_ebx(&mut self, value: u32);
-    /// `fild` / `fstp` of a whole number.
+    /// A whole number turned into a float.
     fn int_to_float(&mut self, value: u32) -> u32;
-    /// `fld` / `fistp` of a float (the control word's rounding).
+    /// A float turned into a whole number (the control word's rounding).
     fn float_to_int(&mut self, value: u32) -> u32;
-    /// `fld` / `fstp` of a float.
+    /// A float copied through the x87.
     fn float_copy(&mut self, value: u32) -> u32;
-    /// A brake value 0 .. 99 x 2.56, rounded (`fild` / `fmul` / `fistp`).
+    /// A brake value 0 .. 99 x 2.56, rounded.
     fn scaled_brake(&mut self, value: i32) -> u32;
-    /// The logs (inside `pusha` / `popa`: the registers kept).
+    /// The logs.
     fn text(&mut self, text: &core::ffi::CStr, newline: bool) -> Result<(), Self::Error>;
     fn value(&mut self, value: u32, kind: Kind) -> Result<(), Self::Error>;
     fn float(&mut self, bits: u32) -> Result<(), Self::Error>;
     fn call(&mut self, at: A) -> Result<(), Self::Error>;
 }
 
-/// The steps from the first, as the original runs them, up to the `Return`.
+/// Runs the steps from the first up to the `Return`.
 pub fn run_steps<A: std::marker::Copy, M: Machine<A>>(
     steps: &[Step<A>],
     m: &mut M,
@@ -168,7 +168,7 @@ pub fn run_steps<A: std::marker::Copy, M: Machine<A>>(
     }
 }
 
-/// A routine a `Call` step runs (the original's `call` at its address).
+/// A routine a `Call` step runs.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Routine {
     ClearPlayerAbsences,
@@ -198,9 +198,8 @@ fn routine_of(a: StepOperand) -> Routine {
     unreachable!("a call of a variable");
 }
 
-/// The game as the steps' machine: its dwords at IDA addresses, the steps' own eax and ebx
-/// (the original reads no register at entry: they start from nothing), the x87's
-/// conversions, and the logs and calls.
+/// The steps' machine over the live state: the settings' cells, the x87 conversions, the logs and
+/// the routine calls.
 struct Game<'a, E: Effects> {
     race: &'a Race,
     fx: &'a mut E,
@@ -263,7 +262,7 @@ impl<E: Effects> Machine<StepOperand> for Game<'_, E> {
     }
 }
 
-/// The steps from the first, in the original's order.
+/// Runs the steps on the live state.
 pub fn run(race: &Race, fx: &mut impl Effects, steps: &[Step<StepOperand>]) -> Result<(), Refused> {
     run_steps(
         steps,
@@ -367,8 +366,8 @@ impl Builder {
         Box::leak(text.into_boxed_c_str())
     }
 
-    /// Both cars' logged values: the three identity words, the 43 gauges, the eight impact
-    /// marks; after car 1's, a jump over car 2's unless there are two players.
+    /// Both cars' logged values: the three identity words, the 43 gauges, the eight impact marks;
+    /// after car 1's, a jump over car 2's unless there are two players.
     fn car_logs(&mut self) {
         let mut skip = None;
         for car in 0..2 {
@@ -408,8 +407,7 @@ impl Builder {
     }
 }
 
-/// The steps of `copy_settings_in` (the front end's settings into the race's), in the
-/// original's order.
+/// The steps of `copy_settings_in` (the front end's settings into the race's).
 pub fn graham_to_shaun() -> Vec<Step<StepOperand>> {
     let shared = &race().shared;
     let mut b = Builder(Vec::with_capacity(446));
@@ -493,7 +491,7 @@ pub fn graham_to_shaun() -> Vec<Step<StepOperand>> {
     b.0
 }
 
-/// The front end's settings that the race's variables overwrite first (`GRAHAM_TO_SHAUN`).
+/// The front end's settings that the race's variables overwrite first (`graham_to_shaun`).
 static HEAD_IN: [Step<StepOperand>; 21] = [
     Copy(
         var!(crate::race::owner::RACE.shared.vars.get().no_replay),
@@ -598,8 +596,8 @@ static FLAGS_IN: [Step<StepOperand>; 4] = [
     ),
 ];
 
-/// The end of the copy: the players' absences cleared, the results into the cars' stop
-/// states, the arcade positions logged, the league table copied.
+/// The end of the copy: the players' absences cleared, the results into the cars' stop states, the
+/// arcade positions logged, the league table copied.
 static TAIL_IN: [Step<StepOperand>; 15] = [
     Call(routine(Routine::ClearPlayerAbsences)),
     Load(var!(@race shared.state.results.results[0].result)),
@@ -634,8 +632,8 @@ static TAIL_OUT: [Step<StepOperand>; 6] = [
     Value(var!(@race shared.state.results.figure_000), Kind::Int),
 ];
 
-/// The steps of `copy_settings_out` (the race's settings back to the front end's), in the
-/// original's order; skipped while a replay is shown.
+/// The steps of `copy_settings_out` (the race's settings back to the front end's); skipped while
+/// a replay is shown.
 pub fn shaun_to_graham() -> Vec<Step<StepOperand>> {
     let mut b = Builder(Vec::with_capacity(344));
     b.push(Text(c"-------------------------------------", true));

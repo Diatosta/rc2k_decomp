@@ -1,9 +1,7 @@
-//! `physics::apply_contact_torques` (0x43F6A5): when `contact_step` is 0,
-//! `physics::apply_torques` on the 7 records at `contacts` (the ones
-//! `physics::apply_contact_forces` pushes with); else nothing.
+//! Applies the 7 contact records as torques (`physics::apply_torques`), only when `contact_step`
+//! is 0.
 //!
-//! Caller: `physics::car_physics_step` (0x43B888, after `physics::apply_contact_forces`), every
-//! physics step.
+//! Caller: `physics::car_physics_step`, after `physics::apply_contact_forces`, every physics step.
 
 use crate::errors::Refused;
 use crate::physics::apply_torques::apply_torques;

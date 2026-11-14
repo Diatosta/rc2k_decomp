@@ -1,13 +1,12 @@
-//! `effects::load_mask_pictures` (0x4C8BD8): `init_marks`' step 10: the kind's two mask
+//! `effects::load_mask_pictures`: `init_marks`' step 10: the kind's two mask
 //! pictures made 256 x 128 blocks of white with the mask as alpha, and drawn into a
 //! texture surface.
 //!
 //! The ground picture's name is the `GroundNames.ground`-th of six (`files\m\snow1.pcx`, `mud1`,
-//! `dust1`, `mud1`, `mud1`, `gumbo0`); it is read twice and never used (section 16). The
-//! surface's lock and unlock are the game's (`d3d::lock_texture` / `d3d::unlock_texture`,
-//! DirectDraw). One caller, `effects::init_marks`. Refuses a ground past the six names (before
-//! anything), a surface wider than 256 (after the lock, unlocked again; the three blocks are left
-//! taken), memory or a picture not had, as its steps do.
+//! `dust1`, `mud1`, `mud1`, `gumbo0`); it is read twice and never used (a slip kept as is). The
+//! surface's lock and unlock are `d3d::lock_texture` / `d3d::unlock_texture`. Refuses a ground past
+//! the six names (before anything), a surface wider than 256 (after the lock, unlocked again; the
+//! three blocks are left taken), memory or a picture not had, as its steps do.
 
 use crate::effects::mask_store::{KIND_PICTURES, MASK_PIXELS, Mask, Masks};
 use crate::errors::{BadInput, Refused};
@@ -26,9 +25,8 @@ const MOST_WIDTH: u32 = 0x100;
 const COPIED: u32 = 0x8000; // dwords
 const ROWS: u32 = 0x7E;
 
-/// `gfx::read_picture_file` at 256 x 128 (the picture's sizes kept round it); refused
-/// when not read (the original then counts 0x1FFFFFFF down and leaves with its stack one
-/// off).
+/// `gfx::read_picture_file` at 256 x 128 (the picture's sizes kept round it); refused when
+/// not read.
 fn read(
     path: &dyn crate::session::TextPlace,
     gfx: &crate::gfx::owner::Gfx,
@@ -117,12 +115,11 @@ fn mask(
     Ok(())
 }
 
-/// The Rust version: the ground's name skipped to (`g_marksGroundPath`); the three blocks
-/// taken (`memory::allocate`); the surface locked (`d3d::lock_texture`); the kind (held
-/// to 0 .. 0x21) its picture number's two digits in the three paths; each mask
-/// (`gfx::read_picture_file`) into its block and drawn (`gfx::put_surface_pixel`);
-/// unlocked, the texture slot forgotten (`scene::forget_slot_texture`), the 0x80000
-/// block's list freed, `MaskBlocks.seen` -1.
+/// The ground's name skipped to; the three blocks taken; the surface locked (`d3d::lock_texture`);
+/// the kind (held to 0 .. 0x21) its picture number's two digits in the three paths; each mask
+/// (`gfx::read_picture_file`) into its block and drawn (`gfx::put_surface_pixel`); unlocked, the
+/// texture slot forgotten (`scene::forget_slot_texture`), the 0x80000 block's list freed,
+/// `MaskBlocks.seen` -1.
 pub fn load_mask_pictures(
     masks: &Masks,
     scene: &crate::scene::owner::Scene,
@@ -149,8 +146,7 @@ pub fn load_mask_pictures(
         name += 1;
     }
     masks.ground_names.ground_path.set(name as u32);
-    // The masks and the picture copy are Rust's (phase 12), counted on their lists
-    // as the game's blocks were.
+    // The masks and the picture copy are Rust's, counted on their lists.
     for (mask, list) in [
         (Mask::Plain, &masks.blocks.list_a),
         (Mask::Bordered, &masks.blocks.list_b),

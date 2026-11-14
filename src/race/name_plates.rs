@@ -1,8 +1,7 @@
 //! The name plates: texts drawn into the views' plate textures (`race::update_name_plates` ->
-//! `race::draw_name_plate` / `race::draw_plate_by_id` / `race::draw_time_plate`). A plate's surface is locked (the platform's `d3d::lock_texture`, carry when it
-//! failed), cleared and written with
-//! `text::draw_text_keep_regs`, then unlocked (`d3d::unlock_texture`). Parts: 1 lock (the
-//! slot), 2 unlock (the slot), 3 a text (font, text, x, y).
+//! `race::draw_name_plate` / `race::draw_plate_by_id` / `race::draw_time_plate`). A plate's surface
+//! is locked (`d3d::lock_texture`), cleared and written with `text::draw_text_keep_regs`, then
+//! unlocked (`d3d::unlock_texture`).
 
 use crate::errors::Refused;
 use crate::gfx::owner::Gfx;
@@ -10,10 +9,10 @@ use crate::race::owner::Race;
 use crate::race::owner_frame::Frame;
 use crate::strings::owner::Strings;
 
-/// `race::draw_name_plate` (0x45B695): slot `slot`'s surface, locked and unlocked
-/// (`d3d::lock_texture`, nothing when it fails): three lines' height cleared, text `text` drawn
-/// three times in the name font (box 0x168 wide) at x 4, -0x74, -0xEC and y 0, a line, two lines (a
-/// long name wrapped over the plate's three rows).
+/// Draws a name on slot `slot`'s surface, locked and unlocked (`d3d::lock_texture`; nothing is
+/// drawn when it fails): three lines' height is cleared and text `text` is drawn three times in
+/// the name font (box 0x168 wide) at x 4, -0x74, -0xEC and y 0, a line, two lines (a long name
+/// wrapped over the plate's three rows).
 pub fn draw_name_plate(
     slot: u32,
     text: impl Into<crate::place::BytePlace>,
@@ -25,9 +24,9 @@ pub fn draw_name_plate(
     if lock_texture_in(gfx, slot)?.carry {
         return Ok(());
     }
-    // Converted: `rc2k_core::race::plates::{name_rows, NAME_BOX, name_places}`.
+    // Logic in `rc2k_core::race::plates::{name_rows, NAME_BOX, name_places}`.
     use rc2k_core::race::plates::{NAME_BOX, name_places, name_rows};
-    let line = fonts.font_block.game_fonts[0].get().line_height as u32; // a line's height
+    let line = fonts.font_block.game_fonts[0].get().line_height as u32;
     crate::gfx::rows::clear_surface_rows(0, name_rows(line), gfx)?;
     fonts.font_block.game_fonts[2].update(|f| f.box_width = NAME_BOX);
     for (x, y) in name_places(line) {
@@ -37,8 +36,8 @@ pub fn draw_name_plate(
     Ok(())
 }
 
-/// `race::draw_plate_by_id` (0x41B2D4): string id `id` into the text buffer (`text`, with its NUL)
-/// and drawn on slot `slot`'s plate (`draw_name_plate`).
+/// Writes string id `id` into the text buffer (`text`, with its NUL) and draws it on slot
+/// `slot`'s plate (`draw_name_plate`).
 pub fn draw_plate_by_id(
     so: crate::strings::append_string_by_id::StringOwners<'static>,
     slot: u32,
@@ -58,16 +57,15 @@ pub fn draw_plate_by_id(
     draw_name_plate(slot, &text.buffer.text, gfx)
 }
 
-/// `race::draw_time_plate` (0x45B70A): slot `slot`'s surface, locked and unlocked as
-/// `draw_name_plate`'s, below the name's three lines: two lines and three rows cleared, the texts
-/// at `label_behind` and `label_ahead` in the time font (box 0x80 wide) at x 4, y three and four
-/// lines.
+/// Draws the times on slot `slot`'s surface, locked and unlocked as in `draw_name_plate`, below
+/// the name's three lines: two lines and three rows are cleared, and the texts at `label_behind`
+/// and `label_ahead` are drawn in the time font (box 0x80 wide) at x 4, y three and four lines.
 pub fn draw_time_plate(frame: &Frame, slot: u32, gfx: &'static Gfx) -> Result<(), Refused> {
     use crate::d3d::{lock_texture::lock_texture_in, unlock_texture::unlock_texture};
     if lock_texture_in(gfx, slot)?.carry {
         return Ok(());
     }
-    // Converted: `rc2k_core::race::plates::{time_start, time_rows, TIME_BOX,
+    // Logic in `rc2k_core::race::plates::{time_start, time_rows, TIME_BOX,
     // time_places}`.
     use rc2k_core::race::plates::{TIME_BOX, time_places, time_rows, time_start};
     let line = gfx.fonts.font_block.game_fonts[0].get().line_height as u32;
@@ -95,14 +93,14 @@ pub fn draw_time_plate(frame: &Frame, slot: u32, gfx: &'static Gfx) -> Result<()
     Ok(())
 }
 
-/// `race::update_name_plates` (0x45B3B9): when the two time texts (8 bytes each at `label_behind` /
-/// `label_ahead`) differ from their last copies (`kept_behind` / `kept_ahead`): the time plate
-/// drawn (`race::draw_time_plate`, slot `KindTextureTables.kind_first_textures[196]`), the copies made and both views' cars'
-/// +0x720 1. Then for each view (slots `KindTextureTables.kind_first_textures[196]` / `KindTextureTables.kind_first_textures[197]`) with a name asked for at
-/// its car's +0x71C: drawn by string id below 0x10000 (`race::draw_plate_by_id`), into +0x724,
-/// +0x71C 0, +0x720 and +0x728 1. Refuses (before anything) a null view block; and a word from
-/// 0x10000 up (the original's text pointer for `race::draw_name_plate`), which no writer of
-/// +0x71C gives.
+/// When the two time texts (8 bytes each at `label_behind` / `label_ahead`) differ from their last
+/// copies (`kept_behind` / `kept_ahead`), draws the time plate (`race::draw_time_plate`, slot
+/// `KindTextureTables.kind_first_textures[196]`), makes the copies and sets both views' cars'
+/// `notice_counter` to 1. Then for each view (slots `kind_first_textures[196]` / `[197]`) with a
+/// name asked for in its car's `notice_id`, draws it by string id below 0x10000
+/// (`race::draw_plate_by_id`) and sets `notice_last` to it, `notice_id` 0, `notice_counter` and
+/// `notice_shown` 1. Refuses (before anything) a null view block; and a word from 0x10000 up,
+/// which nothing writes to `notice_id`.
 pub fn update_name_plates(
     so: crate::strings::append_string_by_id::StringOwners<'static>,
     race: &Race,
@@ -116,9 +114,10 @@ pub fn update_name_plates(
     let (Some(a), Some(b)) = (shared.view_car(0), shared.view_car(1)) else {
         return Err(crate::errors::BadInput("a view without its car block").into());
     };
-    // Their notice fields: +0x71C asked, +0x720 the plate flag, +0x724 the last, +0x728 shown.
+    // Their notice fields: `notice_id` asked, `notice_counter` the plate flag, `notice_last` the
+    // last, `notice_shown` shown.
     let blocks = [a, b];
-    // Converted: `rc2k_core::race::plates::{times_changed, NameAsk}`.
+    // Logic in `rc2k_core::race::plates::{times_changed, NameAsk}`.
     use rc2k_core::race::plates::{NameAsk, times_changed};
     let now = [
         frame.panel_and_overlay.get().overlay.label_behind[0].get(),
@@ -176,7 +175,7 @@ pub fn update_name_plates(
                 )?;
             }
             NameAsk::Text(_) => {
-                // Every writer of +0x71C gives a string id: the notices' constants, the view
+                // Every writer of `notice_id` gives a string id: the notices' constants, the view
                 // keys' counters, the race state's 0xCA.
                 return Err(crate::errors::BadInput(
                     "a name plate asked for by a text's address (no writer gives one)",
@@ -193,9 +192,8 @@ pub fn update_name_plates(
     Ok(())
 }
 
-/// A text drawn in the game: `text::draw_text_keep_regs`'s Rust version on the game's
-/// surface, the font at `font`, the text at `text`, at (`x`, `y`); whether it was too wide
-/// (the original's carry).
+/// Draws `text` in `font` at (`x`, `y`) on the plate's surface (as `text::draw_text_keep_regs`);
+/// returns whether it was too wide.
 pub fn draw_text_in_game(
     font: &crate::gfx::typefaces::FontObject,
     text: impl Into<crate::place::BytePlace>,

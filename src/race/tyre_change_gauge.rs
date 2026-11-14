@@ -1,30 +1,27 @@
-//! `race::tyre_change_gauge` (0x41C1D6): the roadside tyre change's gauge, timed by a button (a
-//! reading: the low byte of the input device's read, the device's +0x4E8). The state is the
-//! device's (`g_inputDevices[player]`): +0x4EC the gauge (0 .. 0xFFFF), +0x4F0 the stage (-1 waiting
-//! for the button to be let go, 0 running, 1 done, 2 a developer's press), +0x4F4 the start's clock,
-//! then the time.
-//! - Mode 0 starts it: the clock (`system::tick_count`) into +0x4F4, +0x4EC 0, +0x4F0 -1,
-//!   `race::draw_tyre_change`; then as -1.
-//! - -1: the button read; let go, +0x4F0 0. Result 0.
-//! - 0: the button read; pressed: on the developer's machine (`g_developerMachine` 1) +0x4F0 2 and
-//!   as 2, else done. Not pressed: running.
-//! - 2: with the gauge at 0xF618 or more running, else done.
-//! - running: the clock less the start: 60000 or more, the gauge 0 and done; else the gauge
-//!   (that x 0x10000 / 500, low 16 bits). Result 0.
-//! - done: the time from 0x10000 less the gauge (a logarithm of the square root of the gauge
-//!   times `gauge_unit`, scaled with `time_scale`, `log_two_ten` and `time_base`, x 1000 / 10,
-//!   rounded) into +0x4F4; below `g_tyreChangeRecord` (unsigned) it is the record, with the
-//!   player's name (30 bytes of `g_playerNames`, or of the second player's for player 1) into
-//!   `g_tyreChangeRecordName`; +0x4F0 1, `race::draw_tyre_change`. Result the time.
-//! - 1: result the time (+0x4F4).
+//! `race::tyre_change_gauge`: the roadside tyre change's gauge, timed by a button (the low byte
+//! of the input device's `bits`). The state is the device's (`input_devices[player]`): `gauge`
+//! (0 .. 0xFFFF), `stage` (-1 waiting for the button to be let go, 0 running, 1 done, 2 a
+//! developer's press) and `clock` (the start's clock, then the time).
+//! - Mode 0 starts it: the clock (`system::tick_count`) goes into `clock`, `gauge` is 0, `stage`
+//!   -1 and `race::draw_tyre_change` draws; then as -1.
+//! - -1: the button is read; let go, `stage` becomes 0. Result 0.
+//! - 0: the button is read; pressed: on the developer's machine `stage`
+//!   becomes 2 and it goes on as 2, else it is done. Not pressed: running.
+//! - 2: with the gauge at 0xF618 or more it is running, else done.
+//! - running: if the clock less the start is 60000 or more, the gauge is 0 and it is done; else
+//!   the gauge is that x 0x10000 / 500, low 16 bits. Result 0.
+//! - done: the time is worked out from 0x10000 less the gauge (a logarithm of the square root of
+//!   the gauge times `gauge_unit`, scaled with `time_scale`, `log_two_ten` and `time_base`, x 1000
+//!   / 10, rounded) and goes into `clock`. Below `TyreChange::record` (unsigned) it is the new
+//!   record, with the player's name (30 bytes of `player_names`, or of the second player's for
+//!   player 1) going into `TyreChange::record_name`; `stage` becomes 1 and
+//!   `race::draw_tyre_change` draws. Result the time.
+//! - 1: result the time (`clock`).
 //!
-//! The result also goes into `g_soundScratch` (which the original uses as its scratch).
+//! The result also goes into the machine's scratch dword.
 //!
-//! Returns: the result
-//!
-//! Caller: `race::tyre_change` (twice), which calls it directly and reads only the
-//! result. Its calls: `system::tick_count`, `race::draw_tyre_change`, and the input device's
-//! read (inlined). Refuses (before anything) a player past 7 or a null device.
+//! Called by `race::tyre_change` (twice), which reads only the result. Refuses (before anything)
+//! a player past 7 or a missing device.
 
 use crate::errors::{BadInput, Refused};
 use crate::input::types::InputDevice;
@@ -32,8 +29,8 @@ use crate::owners::Owners;
 use crate::race::owner::Race;
 use rc2k_core::race::tyre_change::{Gauge, Io, turn};
 
-/// The press time's constants: `TyreChange::{time_base, time_scale, gauge_unit,
-/// log_two_ten}` and `one`.
+/// The press time's constants: `TyreChange::{time_base, time_scale, gauge_unit, log_two_ten}` and
+/// `one`.
 fn constants(race: &Race) -> [f32; 5] {
     let shared = &race.shared;
     [
@@ -45,19 +42,19 @@ fn constants(race: &Race) -> [f32; 5] {
     ]
 }
 
-/// 0x41C2C7 .. 0x41C320: the time of a press, from s = 0x10000 less the gauge.
+/// The time of a press, from s = 0x10000 less the gauge.
 pub fn press_time(race: &Race, s: i32) -> i32 {
     use crate::math::x87_float::{X, int, ld, to_int};
     let f = constants(race).map(ld);
-    // `fyl2x` (libm's log2): the product and the sum are the x87's
+    // The product and the sum are the x87's; the logarithm is libm's log2.
     let log = (int(s) * f[2]).sqrt() + f[4];
     let r = f[1] * f[3] * X(rc2k_core::math::portable::log2(log.0));
     let t = (r / f[3] + f[0]) * ld(0x447A_0000) / ld(0x4120_0000);
     to_int(t)
 }
 
-/// The gauge's dealings with the game: the device's state written into it before each
-/// drawing.
+/// The gauge's connections to the rest of the game: the device's state is written into it before
+/// each drawing.
 struct GameIo {
     o: Owners<'static>,
     race: &'static Race,
@@ -78,14 +75,14 @@ impl Io for GameIo {
         Ok(crate::system::tick_count::tick_count())
     }
     fn pressed(&mut self) -> Result<bool, Refused> {
-        // The input device's read (inlined): the device's +0x4E8 word.
+        // The button is the low byte of the device's `bits`.
         Ok(self.device.bits.get() & 0xFF != 0)
     }
     fn draw(&mut self, g: &Gauge) -> Result<(), Refused> {
         let race = self.race;
         let shared = &race.shared;
         self.store(g);
-        // The drawing takes the device by address (its x87 turn reads the gauge).
+        // The drawing takes the device itself (its x87 turn reads the gauge).
         crate::race::draw_tyre_change::draw_tyre_change(
             crate::strings::append_string_by_id::StringOwners::of(self.o),
             race,
@@ -110,7 +107,8 @@ impl Io for GameIo {
     fn beaten(&mut self, time: u32) {
         let shared = &self.race.shared;
         shared.tyre_change().record.set(time);
-        // g_playerNames, or the second name, Names.player_names: 30 bytes.
+        // The 30 bytes of the player's name in `Names.player_names`: the first player's, or the
+        // second's for player 1.
         let from = 0x20 * (shared.tyre_change().player.get() != 0) as usize;
         for n in 0..30 {
             shared
@@ -121,10 +119,9 @@ impl Io for GameIo {
     }
 }
 
-/// `start` starts the gauge, else runs it, for player `player`; gives the result.
+/// Starts the gauge when `start` is set, else runs it, for player `player`; gives the result.
 pub fn tyre_change_gauge(o: Owners<'static>, start: bool, player: u32) -> Result<u32, Refused> {
     let (race, input, system) = (o.race, o.input, o.system);
-    // Converted: `rc2k_core::race::tyre_change::turn`.
     if player > 7 {
         return Err(BadInput("a tyre change player past 7").into());
     }
@@ -186,9 +183,9 @@ mod reference_vectors {
         }
     }
 
-    /// With the game's own constants, over the whole range of the gauge, then with other
-    /// constants. `fyl2x` is libm's here: a result may differ by one where the x87's log2
-    /// and libm's disagree at the last bit and the sum falls on a whole number; counted.
+    /// With the stored constants, over the whole range of the gauge, then with other constants.
+    /// The logarithm is libm's here: a result may differ by one where the x87's log2 and libm's
+    /// disagree at the last bit and the sum falls on a whole number; counted.
     #[test]
     fn press_time_matches() {
         let _l = lock();

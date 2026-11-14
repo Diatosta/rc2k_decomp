@@ -1,4 +1,4 @@
-//! `sound::spot_sounds` (0x40E611): the shared spots' sounds for the turn.
+//! `sound::spot_sounds`: the shared spots' sounds for the turn.
 //!
 //! Takes the request (the sound request being worked on). Runs `sound::match_spot_voices`,
 //! `free_spot_voices`, `spot_voice_distances`, `merge_spot_voices_all`,

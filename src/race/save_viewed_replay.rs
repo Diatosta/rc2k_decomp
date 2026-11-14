@@ -1,19 +1,18 @@
-//! `race::save_viewed_replay` (0x41ED1C): the viewed (and edited) replay saved as a replay slot: with
-//! blocks to save, the header made ("REPL", 0, version 0x50400, the date
-//! `system::packed_local_time`, the slot's name: 32 bytes of the slot-name table); the last race's file
-//! (`var\tmprpl`) opened to read (mode 0, `from_file`) and the slot's (`race::replay_path`) made
-//! (mode 1, `to_file`); the undo emptied (`undo_blocks` 0, its places zeroed: they become the
-//! new index); the header written, then each block in the viewer's order: read from its place
-//! (`files::seek`, `drive::read_packed` into `block`, neither checked), its first 8 bytes
-//! the block's cameras, written packed (`race::write_replay_chunk`), its offset and size (negative
-//! when packed) into the new index; then "RCIB" and the count (16 bytes) and the new index (0x3840
-//! bytes). Both closed; the undo emptied again.
+//! `race::save_viewed_replay`: the viewed (and edited) replay saved as a replay slot: with blocks
+//! to save, the header made ("REPL", 0, version 0x50400, the date `system::packed_local_time`, the
+//! slot's name: 32 bytes of the slot-name table); the last race's file (`var\tmprpl`) opened to
+//! read (mode 0, `from_file`) and the slot's (`race::replay_path`) made (mode 1, `to_file`); the
+//! undo emptied (`undo_blocks` 0, its places zeroed: they become the new index); the header
+//! written, then each block in the viewer's order: read from its place (`files::seek`,
+//! `drive::read_packed` into `block`, neither checked), its first 8 bytes the block's cameras,
+//! written packed (`race::write_replay_chunk`), its offset and size (negative when packed) into the
+//! new index; then "RCIB" and the count (16 bytes) and the new index (0x3840 bytes). Both closed;
+//! the undo emptied again.
 //!
-//! Takes: the slot (`race::replay_path`'s number)
+//! Takes the slot (`race::replay_path`'s number).
 //!
 //! Callers: `race::viewer_action` (0x15 back into a saved slot, 0x16 into a chosen one),
-//! `race::save_last_replay`. Saving into slot 222 would make the file it reads from anew (the
-//! original's way, kept).
+//! `race::save_last_replay`. Saving into slot 222 would make the file it reads from anew.
 
 use crate::errors::Refused;
 use crate::files::handle;
@@ -34,7 +33,7 @@ pub fn save_viewed_replay(race: &Race, system: &System, slot: u32) -> Result<boo
 fn save(race: &Race, system: &System, slot: u32) -> Result<bool, Refused> {
     let replay = &race.replay;
     let shared = &race.shared;
-    // Converted: `rc2k_core::race::viewer_flow::{has_blocks, SAVED_HEADER, name_offset,
+    // Logic in `rc2k_core::race::viewer_flow::{has_blocks, SAVED_HEADER, name_offset,
     // next_offset}`.
     use rc2k_core::race::viewer_flow::{
         CAMERA_DWORDS, HEADER_LEN, INDEX_HEAD_LEN, NAME_LEN, SAVED_HEADER, has_blocks, name_offset,
@@ -138,7 +137,7 @@ fn save(race: &Race, system: &System, slot: u32) -> Result<bool, Refused> {
     Ok(done)
 }
 
-/// The undo's block place `n` (`g_undoPlaces`, 0x3840 bytes). The viewer holds a replay's
+/// The undo's block place `n` (`undo_places`, 0x3840 bytes). The viewer holds a replay's
 /// block count to 0x708 (`open_viewed_replay` clamps what the file says, the recorder stops at
 /// the full index, a paste is refused past it, a cut only lowers it), so `n`, 2 a block and one
 /// more, stays inside the 0xE10 places.

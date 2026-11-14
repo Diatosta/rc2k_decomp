@@ -1,22 +1,20 @@
-//! `scene::sort_listed_faces` (0x45098C): puts an object's listed faces in the order
-//! they are drawn in, the largest key first.
+//! `scene::sort_listed_faces`: puts an object's listed faces in the order they are drawn in,
+//! the largest key first.
 //!
 //! Nothing with fewer than two faces listed. Else the list's entries (0x10 bytes; the key is
-//! the dword +4, compared unsigned) are sorted by 0x4509BF, a quicksort written out here
-//! step for step, since which of two equal keys comes first is its doing: the key in the middle
-//! is the pivot; the left place moves on one entry if its key is above the pivot, the right
-//! place moves back while its key is below; if the two places are not the same the entries
-//! change places, and the left one moves on once more if their keys are now equal; when they
-//! meet, the part before and the part after are sorted the same way. One caller,
-//! `scene::draw_object`. Refuses a list longer than 0x1000 entries, and a sort that would go past
-//! the list (never met in the core's tests), before changing anything.
+//! the dword +4, compared unsigned) are sorted by a quicksort written out here step for step,
+//! since which of two equal keys comes first is its doing: the key in the middle is the pivot;
+//! the left place moves on one entry if its key is above the pivot, the right place moves back
+//! while its key is below; if the two places are not the same the entries change places, and
+//! the left one moves on once more if their keys are now equal; when they meet, the part before
+//! and the part after are sorted the same way. One caller, `scene::draw_object`. Refuses a list
+//! longer than 0x1000 entries, and a sort that would go past the list (never met in the core's
+//! tests), before changing anything.
 
 use crate::errors::BadInput;
 use crate::scene::face_list::FaceList;
 
-// ---- Rust version ----
-
-/// Converted: `rc2k_core::scene::face_order::sort_listed_faces`.
+/// Logic: `rc2k_core::scene::face_order::sort_listed_faces`.
 pub fn sort_listed_faces(list: &mut FaceList) -> Result<(), BadInput> {
     Ok(rc2k_core::scene::face_order::sort_listed_faces(list)?)
 }
@@ -25,8 +23,7 @@ pub fn sort_listed_faces(list: &mut FaceList) -> Result<(), BadInput> {
 mod tests {
     use super::*;
 
-    /// A list longer than the original's 0x400 entries (it ran on into the next tables there)
-    /// is sorted whole.
+    /// A list longer than 0x400 entries is sorted whole.
     #[test]
     fn sorts_a_long_list() {
         const LISTED: u32 = 0x408;

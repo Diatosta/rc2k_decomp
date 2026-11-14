@@ -1,5 +1,5 @@
-//! `sound::speed_sound` (0x40DE09): a player's car's sound by its speed (`speed_input`,
-//! from `sound::car_engine_state`), at the car.
+//! `sound::speed_sound`: a player's car's sound by its speed (`speed_input`, from
+//! `sound::car_engine_state`), at the car.
 //!
 //! Nothing for a computer's car (sound offset negative). The sound is the speed set's
 //! first sound plus the object's `sound_offset`. It is stopped in engine state 0 or 1, in
@@ -61,7 +61,7 @@ mod reference_vectors {
     use crate::scene::x87_mem::view;
     use crate::test_support::vectors::block_vectors::{Block, In, Operand, Out, sparse_locked};
 
-    // The original's instructions: the pitch, the volume (on the road: times the surface's gain).
+    // The blocks: the pitch, the volume (on the road: times the surface's gain).
     fn blocks() -> Vec<Block> {
         vec![
             Block {

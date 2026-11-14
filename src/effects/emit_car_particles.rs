@@ -1,18 +1,14 @@
-//! `effects::emit_car_particles` (0x4C9E2E): a car's particles for the frame. First the
-//! places of its four wheel records (+0x3C .. of the records at +0xD4, +0x11C, +0x164,
-//! +0x1AC): from the object's whole numbers +0xC (z, by a factor; front +0x118, rear +0x160),
-//! +0x10 (the other z, by a factor: +0x1A8, +0x1F0), +0x14 (x, by a factor plus an offset:
-//! right +0x158, +0x1E8, negated left +0x110, +0x1A0) and +0x18 (y, by a factor less two
-//! offsets: all four), each turned and placed by the car's matrix (`scene::rotate_point`);
-//! the first x's size and the two z's sizes kept, by a factor, rounded. Then
-//! `effects::emit_wheel_particles` for each wheel (numbered 0 .. 3; before the rear ones the
-//! side factors are the matrix's first row and its third negated), the factors set from the
-//! constants, and `effects::emit_body_particles` for the record at +0x1F4.
+//! `effects::emit_car_particles`: a car's particles for the frame. First the places of its four
+//! wheel records (+0x3C .. of the records at +0xD4, +0x11C, +0x164, +0x1AC) are worked out from the
+//! object's whole numbers +0xC .. +0x18 (z, the other z, x and y, each by a factor and offsets),
+//! turned and placed by the car's matrix (`scene::rotate_point`), and the first x's size and the
+//! two z's sizes are kept, by a factor, rounded. Then `effects::emit_wheel_particles` runs for each
+//! wheel (numbered 0 .. 3; before the rear ones the side factors are the matrix's first row and its
+//! third negated) with the factors set from the constants, and `effects::emit_body_particles` for
+//! the record at +0x1F4.
 //!
-//! Takes: the car object
-//!
-//! Caller: `effects::cars_particles` Refuses a null object or matrix and the emitters'
-//! refusals; on a refusal nothing stays written (all it may write is put back).
+//! Refuses a null object or matrix and the emitters' refusals; on a refusal nothing stays written
+//! (all it may write is put back).
 
 use crate::effects::emit_body_particles::emit_body_particles;
 use crate::effects::emit_wheel_particles::emit_wheel_particles;

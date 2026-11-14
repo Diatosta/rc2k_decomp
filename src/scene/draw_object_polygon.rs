@@ -1,7 +1,6 @@
-//! `scene::draw_object_polygon` (0x451F69): draws a polygon of an object, as it is if
-//! it lies on the screen and as triangles if it has to be clipped.
-//!
-//! In:  nothing; the polygon's entries are the work table's first, in order
+//! `scene::draw_object_polygon`: draws a polygon of an object, as it is if it lies on the
+//! screen and as triangles if it has to be clipped. The polygon's entries are the work table's
+//! first, in order.
 //!
 //! The pool of records, the list (0, 1, 2 .. and a 0) and the next free entry are set as
 //! `scene::draw_clipped_polygon` sets them; `scene::project_polygon`; then
@@ -20,8 +19,6 @@
 use crate::errors::{BadInput, Refused};
 
 // ---- game data ----
-
-// ---- Rust version ----
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Step {
@@ -67,7 +64,7 @@ fn needs_clipping(
     })
 }
 
-// Converted: `rc2k_core::scene::polygons`
+// Logic: `rc2k_core::scene::polygons`
 pub fn draw_object_polygon(
     part: &crate::workers::PartScratch,
     poly: &crate::scene::polygon_work::PolygonWork,

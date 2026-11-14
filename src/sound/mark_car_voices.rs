@@ -1,12 +1,11 @@
-//! `sound::mark_car_voices` (0x40D75A): each car's sound object told whether the car
-//! sounds and whose voice it has.
+//! `sound::mark_car_voices`: each car's sound object told whether the car sounds and whose voice it
+//! has.
 //!
-//! Only while `RaceSounds.mark_car_voices` is 1: for each of the `RaceSounds.count` objects in use
-//! (`g_raceSoundObjects[n]`), +8 = 0; when its car (`g_carBlocks[n]`) has +0x25C not 0,
-//! +8 = 1 and +0 = 0, and unless +0x25C is 1, +0 = !n (a negative number: a car of the
-//! computer's, by the callers' reading). One caller, `sound::race_turn`.
-//! Refuses (before writing) a count of 0 (the original's loop would not end) or over 8,
-//! and a null object or car.
+//! Only while `RaceSounds.mark_car_voices` is 1: for each of the `RaceSounds.count` objects in use,
+//! `in_use` is set to 0; when its car's block has the voice field not 0, `in_use` is 1 and
+//! `sound_offset` 0, and unless the field is 1, `sound_offset` is !n (a negative number: a
+//! computer's car, by the callers' reading). One caller, `sound::race_turn`. Refuses (before
+//! writing) a count of 0 or over 8, and a null object or car.
 
 use crate::errors::{BadInput, Refused};
 use crate::race::owner::Race;
@@ -33,7 +32,7 @@ fn pairs<'a>(
     Ok(pairs)
 }
 
-/// Converted: `rc2k_core::sound::cars::voice_mark`.
+/// The logic is `rc2k_core::sound::cars::voice_mark`.
 pub fn mark_car_voices(sound: &crate::sound::owner::Sound, race: &Race) -> Result<(), Refused> {
     if sound.race.sounds.get().mark_car_voices.get() != 1 {
         return Ok(());

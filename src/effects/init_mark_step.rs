@@ -1,15 +1,13 @@
-//! `effects::init_mark_step` (0x456EA7): the stage loading's "init mark" step: the race's cars
-//! go into the effects settings' car list, the own car's object (0x50 but in a network race),
-//! a switch 1, and the work car's file number (`race::car_file_number` of the work car's kind);
-//! for each of the player-count cars (in a network race every car) its record's places +0x23C
-//! (0x50 + 0x14 a car) and +0x240 (0xA more), seven values from its kind's row of the light
-//! records (the kind its block's +0x24 held to 0 .. 0x16, rows of 0x134) and the seventeen
-//! fixed numbers +0x36C .. +0x3AC; then `effects::init_marks` with the settings.
+//! `effects::init_mark_step`: the stage loading's "init mark" step: the race's cars go into the
+//! effects settings' car list, the own car's object (0x50 but in a network race), a switch 1, and
+//! the work car's file number (`race::car_file_number` of the work car's kind); for each of the
+//! player-count cars (in a network race every car) its record's places +0x23C (0x50 + 0x14 a car)
+//! and +0x240 (0xA more), seven values from its kind's row of the light records (the kind its
+//! block's +0x24 held to 0 .. 0x16, rows of 0x134) and the seventeen fixed numbers +0x36C ..
+//! +0x3AC; then `effects::init_marks` with the settings.
 //!
-//! Caller: `race::loadlevel_init` (with the log off round it). The file number is
-//! worked out by `race::car_file_number`, also `init_marks`' seed; then `init_marks`. Refuses a car count of 0
-//! or past 8 (the original's loop would run on) and a missing block or record, before
-//! anything.
+//! The file number is worked out by `race::car_file_number` and is also `init_marks`' seed. Refuses
+//! a car count of 0 or past 8 and a missing block or record, before anything.
 
 use crate::effects::owner::Effects;
 use crate::errors::BadInput;
@@ -44,8 +42,8 @@ pub fn init_mark_step(
 ) -> Result<(), Refused> {
     use rc2k_core::effects::race;
     {
-        // In a network race `g_players` is 1 but this machine's car may be any: every car's
-        // record is needed, or a joined machine's own has no marks (the original's slip).
+        // In a network race the session's car count is 1 but this machine's car may be any:
+        // every car's record is needed, or a joined machine's own has no marks.
         let count: u32 = if net.vars.session.get() == 1 {
             race.shared.view.get().race_cars.get()
         } else {
@@ -58,8 +56,8 @@ pub fn init_mark_step(
         race.effects_settings()
             .cars_copy
             .set(race.shared.view.get().race_cars.get());
-        // The one object the effects' shapes are made from: the player's car (the original's
-        // fixed 0x50 is the first car, not a joined machine's).
+        // The one object the effects' shapes are made from: the player's car (the first car,
+        // not a joined machine's).
         let own = race.shared.own_car_number(net.vars.session.get()) as u32;
         race.effects_settings().first_object.set(0x50 + 0x14 * own);
         race.effects_settings().object_count.set(1);

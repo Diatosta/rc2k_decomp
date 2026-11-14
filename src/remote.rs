@@ -495,7 +495,7 @@ pub fn held_clock() -> Option<u32> {
     (held != 0).then_some(held)
 }
 
-/// Both random generators (the game's and the effects' `g_marksSeed`) from one state.
+/// Both random generators (the game's and the effects') from one state.
 fn reseed(effects: &crate::effects::owner::Effects) {
     crate::math::next_random::with_random(|r| r.state = 0x1234_5678);
     crate::math::next_random::seed_streams();

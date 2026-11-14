@@ -1,10 +1,9 @@
-//! `physics::probe_and_keep` (0x45DC12): `physics::probe_ground`, then its three
-//! whole-number lists (x, y, z at 0x6D1E14, 0xC0 dwords) copied to 0x6D2C14 and the probe
-//! points' faces (`probe_point_face`, 0x40 dwords) to 0x6D2F14 (`rep movsd`): the probe lists
-//! as they were before the step (`saved_probe_x` ..., read by `crossed_edge_contact`).
+//! `physics::probe_ground`, then its three whole-number lists (x, y, z; 0xC0 dwords) and the probe
+//! points' faces (`probe_point_face`, 0x40 dwords) are copied: the probe lists as they were before
+//! the step (`saved_probe_x` ..), read by `crossed_edge_contact`.
 //!
-//! Caller: `physics::car_physics_step` (0x43B700), every physics step; next a call (no flags read).
-//! Refuses what `probe_ground` refuses (nothing written).
+//! Caller: `physics::car_physics_step`, every physics step. Refuses what `probe_ground` refuses
+//! (nothing written).
 
 use crate::errors::Refused;
 use crate::physics::probe_ground::probe_ground_at;

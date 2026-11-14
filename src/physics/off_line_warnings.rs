@@ -1,11 +1,11 @@
-//! `physics::off_line_warnings` (0x44148F): unless the car has finished (`finish_flag`) or
-//! `go_stand_timer` is set, two counters with their next cue times: `off_line_steps` counts the
-//! steps the car is far from the checkpoints (`g_nearestCheckpointDistance` not below
-//! `off_line_distance`, or `checkpoint` four or more from `reset_checkpoint`), else 0 with its
-//! time `off_line_cue_time` 300; `turned_steps` counts the steps its heading is `off_line_word` or
-//! more (unsigned) from the checkpoint's heading, else 0 with `turned_cue_time` 300. Then, unless
-//! `hold_car_revs` is set, each counter at or past its time (by the sign) moves the time on 3000
-//! and cues a sound (`physics::cue_listed_car_sound`: 0x50 turned, 0x52 off the line).
+//! Unless the car has finished (`finish_flag`) or `go_stand_timer` is set, two counters with their
+//! next cue times: `off_line_steps` counts the steps the car is far from the checkpoints
+//! (`nearest_checkpoint_distance` not below `off_line_distance`, or `checkpoint` four or more from
+//! `reset_checkpoint`), else 0 with its time `off_line_cue_time` = 300; `turned_steps` counts the
+//! steps its heading is `off_line_word` or more (unsigned) from the checkpoint's heading, else 0
+//! with `turned_cue_time` = 300. Then, unless `hold_car_revs` is set, each counter at or past its
+//! time moves the time on by 3000 and cues a sound (`physics::cue_listed_car_sound`: 0x50 turned,
+//! 0x52 off the line).
 //!
 //! Caller: `physics::track_checkpoints`. Refuses (before anything) a checkpoint past 0x1418.
 
@@ -50,7 +50,7 @@ fn store(car: &Car, w: &Warnings) {
 }
 
 /// The steps.
-// Converted: `rc2k_core::physics::progress::{Warnings, off_line, cue_due}`.
+// Core: `rc2k_core::physics::progress::{Warnings, off_line, cue_due}`.
 #[allow(
     clippy::too_many_arguments,
     reason = "the race's tables the warnings read, and the owners"

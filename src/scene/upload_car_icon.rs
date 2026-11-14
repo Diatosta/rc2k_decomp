@@ -1,26 +1,26 @@
-//! `scene::upload_car_icon` (0x41B2F2): one car icon painted into a texture (the HUD's, kind 0xC1).
-//! The game's log calls every texture a "plate".
+//! `scene::upload_car_icon`: one car icon painted into a texture (the HUD's, kind 0xC1). The
+//! game's log calls every texture a "plate".
 //!
-//! - The texture, the icon's place on the texture and on the sheet are kept in the icon
-//!   upload cell, and the icon's size 0x52 x 0x2A with them.
-//! - With the texture's record (0x78 bytes) +0x5C at 1: the second
-//!   picture read (`gfx::read_texture_picture`) and copied 0x40000 bytes on, or, if
-//!   there is none or it cannot be read, +0x5C made 0.
+//! - The texture, the icon's place on the texture and on the sheet are kept in the icon upload
+//!   cell, and the icon's size 0x52 x 0x2A with them.
+//! - With the texture's record (0x78 bytes) +0x5C at 1: the second picture read
+//!   (`gfx::read_texture_picture`) and copied 0x40000 bytes on, or, if there is none or it
+//!   cannot be read, +0x5C made 0.
 //! - The first picture read; `least_colour` of the texture's format (record +0xC, +8);
 //!   `alpha_from_kept` or `key_texture_colours` by +0x5C; `grade_texture`.
-//! - The picture and the texture must be the same number of halvings from 256 (the
-//!   card's sizes table: 256, 128, 64, 32, and 1024 as 4), in width and in height;
-//!   a size not in it, or two different numbers, is a fatal error (0x80A18761 ..
-//!   0x80A18767). The picture is halved that many times (`halve_texture`) and the six
-//!   places and sizes stored are shifted right by it.
-//! - The texture locked (`d3d::lock_texture`, which makes it the blitters' surface); if it locked, the
-//!   icon's piece blitted (`gfx::blit_components`, the picture's row bytes being its
-//!   height times 4: the original's, a square sheet makes it right) and the texture
-//!   unlocked (`d3d::unlock_texture`). Those two are Direct3D and stay the game's.
+//! - The picture and the texture must be the same number of halvings from 256 (the card's
+//!   sizes table: 256, 128, 64, 32, and 1024 as 4), in width and in height; a size not in it,
+//!   or two different numbers, is a fatal error (0x80A18761 .. 0x80A18767). The picture is
+//!   halved that many times (`halve_texture`) and the six places and sizes stored are shifted
+//!   right by it.
+//! - The texture locked (`d3d::lock_texture`, which makes it the blitters' surface); if it
+//!   locked, the icon's piece blitted (`gfx::blit_components`, the picture's row bytes being
+//!   its height times 4: right for a square sheet) and the texture unlocked
+//!   (`d3d::unlock_texture`).
 //!
 //! Two call sites in `scene::load_hud_car_icons`. Refuses a texture of 0x140 or more, a record
 //! without its format, and what the pixel functions refuse; a refusal after the pictures are
-//! read hands the original the call from the start.
+//! read leaves the call to be made again from the start.
 
 use crate::errors::{BadInput, Refused};
 use crate::gfx::blit_components::{Piece, blit_components, game_target};
@@ -45,9 +45,8 @@ pub struct IconUpload {
 
 const _: () = assert!(STORED_LEN == 0x1C);
 
-/// `IconUploadCell.0` (`IconUpload` in IDA, unaligned): what the upload keeps while it works.
-/// The record as bytes (it lies at an address that is no multiple of 4): `get` and `set` turn
-/// them to and from an `IconUpload`.
+/// What the upload keeps while it works: a record as bytes (it lies at an address that is no
+/// multiple of 4): `get` and `set` turn them to and from an `IconUpload`.
 #[repr(transparent)]
 #[derive(rc2k_derive::Cells)]
 pub struct IconUploadCell(crate::session::PlainBytes<STORED_LEN>);
@@ -102,9 +101,7 @@ pub struct CarIcon<'a> {
     pub target_y: u32,
 }
 
-// ---- Rust version ----
-
-/// The Rust version. The original keeps every register.
+/// The upload.
 pub fn upload_car_icon(
     upload: &IconUploadCell,
     icon: &CarIcon<'_>,

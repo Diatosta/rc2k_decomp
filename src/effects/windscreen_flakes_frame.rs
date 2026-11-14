@@ -1,18 +1,16 @@
-//! `effects::windscreen_flakes_frame` (0x4BF60F): the windscreen flakes' frame (as
-//! `effects::draw_plane`'s, with the rate times one constant and the lengths over two more):
-//! the rate, the place and two axes from the settings, made one long and square, scaled
-//! (`effects::scale_axes`); nothing more unless the place's way faces the third axis away;
-//! then `effects::run_pong`; unless the rate times a constant comes to 0 (rounded, as the x87
-//! is set) `effects::run_windscreen_flakes`, and with the settings' +0x2744 and the drift
-//! switch `effects::windscreen_flakes_step`.//!
-//! Screen: the snow settling on the windscreen in the in-car view (confirmed: gone with `draw_windscreen_flake` cut). Drawn as squares.
+//! `effects::windscreen_flakes_frame`: the windscreen flakes' frame (as `effects::draw_plane`'s,
+//! with the rate times one constant and the lengths over two more): the rate, the place and two
+//! axes from the settings, made one long and square, scaled (`effects::scale_axes`). Nothing more
+//! happens unless the place's way faces away from the third axis; then `effects::run_pong` runs;
+//! unless the rate times a constant comes to 0 (rounded as the x87 is set),
+//! `effects::run_windscreen_flakes` runs, and with the settings' +0x2744 and the drift switch
+//! `effects::windscreen_flakes_step`.
 //!
-//! Works on the effects settings.
+//! Screen: the snow settling on the windscreen in the in-car view (confirmed: gone with
+//! `draw_windscreen_flake` cut). Drawn as squares.
 //!
-//! Caller: `effects::draw_overlays` The x87 runs are plain Rust on the x87 model
-//! (`math::x87_float`), in the original's order, over the game's variables; the vector helpers,
-//! `scale_axes` and `windscreen_flakes_step` their Rust versions. Refuses null settings and
-//! `windscreen_flakes_step`'s refusals.
+//! Works on the effects settings. The x87 runs are plain Rust on the x87 model
+//! (`math::x87_float`). Refuses null settings and `windscreen_flakes_step`'s refusals.
 
 use crate::effects::cell_x87::CellX87;
 use crate::effects::mask_store::Masks;
@@ -26,22 +24,24 @@ use crate::race::effects_settings_store::EffectsSettings;
 use crate::scene::cross_product3::cross;
 use crate::scene::vector3::normalise;
 
-/// The original's 0x4BF615 .. 0x4BF6AB: the rate (`WindscreenFlakeTiming.rate`), the place and the first axis from the settings, its length over `WindscreenFlakeState.length_divisors[0]` into `WindscreenFlakeTables.lengths[0]`.
+/// The rate (`WindscreenFlakeTiming.rate`), the place and the first axis from the settings, its
+/// length over `WindscreenFlakeState.length_divisors[0]` into `WindscreenFlakeTables.lengths[0]`.
 fn frame_axes(fl: &WindscreenFlakes, m: &EffectsSettings) {
     frame_axes_x87(m, &fl.timing, &fl.tables, &fl.state);
 }
 
-/// The original's 0x4BF6B8 .. 0x4BF718: the second axis, its length over `WindscreenFlakeState.length_divisors[1]` into `WindscreenFlakeTables.lengths[1]`.
+/// The second axis, its length over `WindscreenFlakeState.length_divisors[1]` into
+/// `WindscreenFlakeTables.lengths[1]`.
 fn frame_up(fl: &WindscreenFlakes, m: &EffectsSettings) {
     frame_up_x87(m, &fl.tables, &fl.state);
 }
 
-/// The original's 0x4BF769 .. 0x4BF78D: the place as floats into `WindscreenDropVars.place[0]` ...
+/// The place as floats into `WindscreenDropVars.place[0]` ...
 fn frame_place(drops: &WindscreenDrops, m: &EffectsSettings) {
     frame_place_x87(drops, m);
 }
 
-/// The original's 0x4BF7A4 .. 0x4BF7BE: the place's way dotted with the third axis into `WindscreenDropState.facing`.
+/// The place's way dotted with the third axis into `WindscreenDropState.facing`.
 fn frame_facing(drops: &WindscreenDrops, fl: &WindscreenFlakes) {
     frame_facing_x87(drops, &fl.tables);
 }
@@ -104,7 +104,7 @@ use crate::effects::windscreen_flakes_store::{
     WindscreenFlakeState, WindscreenFlakeTables, WindscreenFlakeTiming,
 };
 
-/// `frame_axes`'s x87 block as plain Rust on the x87 model (29 instructions), same order and memory places.
+/// `frame_axes`'s arithmetic as plain Rust on the x87 model, in the same order.
 fn frame_axes_x87(
     m: &EffectsSettings,
     sti: &WindscreenFlakeTiming,
@@ -142,7 +142,7 @@ fn frame_axes_x87(
     sq.lengths[0].st(t20);
 }
 
-/// `frame_up`'s x87 block as plain Rust on the x87 model (20 instructions), same order and memory places.
+/// `frame_up`'s arithmetic as plain Rust on the x87 model, in the same order.
 fn frame_up_x87(m: &EffectsSettings, sq: &WindscreenFlakeTables, ss: &WindscreenFlakeState) {
     let t0 = ldi_cell(&m.light_point_a_negated[0]);
     let t1 = t0 - ldi_cell(&m.light_point_b_negated[0]);
@@ -166,7 +166,7 @@ fn frame_up_x87(m: &EffectsSettings, sq: &WindscreenFlakeTables, ss: &Windscreen
     sq.lengths[1].st(t15);
 }
 
-/// `frame_place`'s x87 block as plain Rust on the x87 model (6 instructions), same order and memory places.
+/// `frame_place`'s arithmetic as plain Rust on the x87 model, in the same order.
 fn frame_place_x87(drops: &WindscreenDrops, m: &EffectsSettings) {
     let t0 = ldi_cell(&m.light_point_b_negated[0]);
     st_cell(&drops.hex.place[0], t0);
@@ -176,7 +176,7 @@ fn frame_place_x87(drops: &WindscreenDrops, m: &EffectsSettings) {
     st_cell(&drops.hex.place[2], t2);
 }
 
-/// `frame_facing`'s x87 block as plain Rust on the x87 model (9 instructions), same order and memory places.
+/// `frame_facing`'s arithmetic as plain Rust on the x87 model, in the same order.
 fn frame_facing_x87(drops: &WindscreenDrops, sq: &WindscreenFlakeTables) {
     let t0 = ld_cell(&drops.hex.place[0]);
     let t1 = t0 * sq.axes[2][0].ld();

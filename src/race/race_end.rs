@@ -1,6 +1,5 @@
 //! The race's end and tidying (`race::tidy_everything` "SHAUNTIDYEVERYTHING", `race::tidy_stage`
-//! "LOADLEVEL_TIDY"), and the replay header's record
-//! (`race::record_replay_header`). Here their steps.
+//! "LOADLEVEL_TIDY"), and the replay header's record (`race::record_replay_header`).
 
 use crate::effects::owner::Effects;
 use crate::errors::Refused;
@@ -27,7 +26,7 @@ pub fn setting_cell(
     }
 }
 
-/// Where a header setting lives in the replay's car header (`header_stage` ..).
+/// Where a header setting lives in the replay's car header (from `header_stage` on).
 pub fn header_cell(
     race: &Race,
     s: rc2k_core::race::replay::Setting,
@@ -69,12 +68,11 @@ const REPLAY_WORDS: [&std::ffi::CStr; 13] = [
     c"[replayheader.gameoverflag1]",
     c"[replayheader.gameoverflag2]",
 ];
-/// `race::record_replay_header` (0x460246): the race's settings (the arcade's seed, start place and
-/// count, the stage, the mode, the players, the cars, the first four kinds, the two players'
-/// absences) into the car header (`header_stage` ..), each logged as "[replayheader.x]"
-/// (`log_write_l1`) and its value (`log_int_l1_nl`). it reads none.
+/// Copies the race's settings (the arcade's seed, start place and count, the stage, the mode, the
+/// players, the cars, the first four kinds, the two players' absences) into the car header (from
+/// `header_stage` on), each logged as "[replayheader.x]" followed by its value.
 pub fn record_replay_header(race: &Race) {
-    // Converted: `rc2k_core::race::replay::HEADER_SETTINGS`.
+    // Logic in `rc2k_core::race::replay::HEADER_SETTINGS`.
     use rc2k_core::race::replay::HEADER_SETTINGS;
     for s in HEADER_SETTINGS {
         header_cell(race, s).set(setting_cell(race, s).get());
@@ -85,9 +83,9 @@ pub fn record_replay_header(race: &Race) {
     }
 }
 
-/// An object's variables reset for a race: the six timed slots' start and playing flags
-/// and the other slots', the hit and cue sounds none (-2), the cue queue's place none,
-/// the object not in use, the revs, throttle, speed and the wheels' first shares 0.
+/// An object's variables reset for a race: the six timed slots' start and playing flags and the
+/// other slots', the hit and cue sounds none (-2), the cue queue's place none, the object not in
+/// use, the revs, throttle, speed and the wheels' first shares 0.
 fn reset_object(o: &crate::sound::store::SoundObject) {
     for slot in o.slots.iter().chain([&o.gear_slot, &o.slot_b, &o.slot_c]) {
         slot.start.set(0);
@@ -127,15 +125,16 @@ fn clear_stage_flags(sound: &crate::sound::owner::Sound) {
     }
 }
 
-/// `sound::wait_for_commands`: the queue run out (its ends of turn read no register).
+/// Waits until the sound command queue has run out.
 pub fn wait_for_commands(o: crate::owners::Owners<'static>) {
     crate::sound::wait_for_commands::wait_in_game(o);
 }
 
-/// `race::reset_race_sounds` (0x40D378): the sound commands waited for, command 7 (with its end of
-/// turn), waited again, sounds held back, the race clock started; the eight race sound objects' 32
-/// fields reset (`OBJECT_VALUES`); eleven variables 0; the 0x48 voices' +0 0x1888FFFF and +0x14 -2;
-/// two more sound flags 0, the EAX environment 1.0; command 2 with the value 3; one more flag 0.
+/// Resets the race's sounds: waits for the sound commands, sends command 7 and waits again, holds
+/// the sounds back and starts the race clock; resets the eight race sound objects' 32 fields
+/// and eleven variables to 0; sets the 0x48 voices' first dword to 0x1888FFFF and
+/// their dword at +0x14 to -2; clears two more sound flags, sets the EAX environment to 1.0, sends
+/// command 2 with the value 3 and clears one more flag.
 pub fn reset_race_sounds(
     v: &SoundVars<'_>,
     o: crate::owners::Owners<'static>,
@@ -162,8 +161,7 @@ pub fn reset_race_sounds(
     Ok(())
 }
 
-/// Where `reset_race_sounds` finds the voices (the game's,
-/// or a test's: the audio thread reads the game's).
+/// Where `reset_race_sounds` finds the voices (the game's, or a test's).
 pub struct SoundVars<'a> {
     pub voices: &'a [crate::sound::spot_voices::SpotVoice; 72],
 }
@@ -206,12 +204,12 @@ const EVERYTHING_WORDS: [&std::ffi::CStr; 8] = [
 struct Tidy;
 
 impl Tidy {
-    /// `log_write_l1_nl` of a word.
+    /// Logs a word and a line break.
     fn log(&self, word: &std::ffi::CStr) {
         crate::logfile::log_write::log_nul(&word, true, 1);
     }
 
-    /// `log_write_l1_nl` of the empty text (0x4E00B7).
+    /// Logs an empty line.
     fn newline(&self) {
         self.log(c"");
     }
@@ -236,10 +234,9 @@ impl Tidy {
     }
 }
 
-/// `race::tidy_stage` (0x444940, "LOADLEVEL_TIDY"): each step with its word and the log indented
-/// round it: the mud, the point records, the marks' tidy (the log off), the fonts, the map, the
-/// textures, the course's two memories, the objects (then `g_inRace` 0, `view_scale`
-/// `kept_scale`); "finis".
+/// Tidies the stage ("LOADLEVEL_TIDY"), each step with its word and the log indented round it: the
+/// mud, the point records, the marks' tidy (the log off), the fonts, the map, the textures, the
+/// course's two memories, the objects (then `in_race` 0, `view_scale` `kept_scale`); "finis".
 pub fn tidy_stage(
     race: &Race,
     effects: &Effects,
@@ -286,9 +283,9 @@ pub fn tidy_stage(
     Ok(())
 }
 
-/// `race::tidy_everything` (0x444AC7, "SHAUNTIDYEVERYTHING"): a line break, a rule, "START" (an
-/// empty indent), then each step with its word: the controls, the game mode, `tidy_stage`, the
-/// sounds (then `view_on` and the second view's flag 1); "finis", a rule, a line break.
+/// Tidies everything ("SHAUNTIDYEVERYTHING"): a line break, a rule, "START" (an empty indent), then
+/// each step with its word: the controls, the game mode, `tidy_stage`, the sounds (then `view_on`
+/// and the second view's flag 1); "finis", a rule, a line break.
 pub fn tidy_everything(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     let (input, sound) = (o.input, o.sound);
     let shared = &race.shared;
@@ -320,12 +317,12 @@ pub fn tidy_everything(race: &Race, o: crate::owners::Owners<'static>) -> Result
 
 // ---- the race ----
 
-/// `race::run_race` (0x443F0B): a race: `arcade_kind` 1, the log's indent 0; for an arcade race's
-/// first stage (the rally-stage flag 0, the mode flag 2) a new noise seed (`math::next_random` into
-/// `noise_seed`); `editor_mode` 0, `replay_mode` 1; the settings in, the arcade's cars,
-/// the next race flag 1, the start states, the stage loaded, the replay's header and file,
-/// `after_credits` 0, the race run (`drive::play_race`), the replay closed, everything tidied, the
-/// settings out. `indent` is `g_logIndent`'s address.
+/// Runs a race: sets `arcade_kind` 1 and the log's indent 0; for an arcade race's first stage
+/// (the rally-stage flag 0, the mode flag 2) takes a new noise seed (`math::next_random` into
+/// `noise_seed`); sets `editor_mode` 0 and `replay_mode` 1; then takes the settings in, sets up the
+/// arcade's cars, sets the next race flag 1, the start states, loads the stage, opens the replay's
+/// header and file, sets `after_credits` 0, runs the race (`drive::play_race`), closes the replay,
+/// tidies everything and takes the settings out.
 pub fn run_race(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     let race = o.race;
     race.physics.split_tables().arcade_kind.set(1);
@@ -357,21 +354,20 @@ pub fn run_race(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
 
 // ---- above the race ----
 
-/// `race::release_textures` (0x443396): `race::release_stage_textures`,
-/// `scene::reset_texture_tables`.
+/// Runs `race::release_stage_textures` and `scene::reset_texture_tables`.
 pub fn release_textures(scene: &crate::scene::owner::Scene, gfx: &crate::gfx::owner::Gfx) {
     crate::race::race_shell::release_stage_textures(gfx);
     crate::scene::reset_texture_tables::reset_texture_tables(scene);
 }
 
-/// `race::start_race` (0x4278B7): `mask_kind` 0, `race::run_race`.
+/// Sets `mask_kind` 0 and runs `race::run_race`.
 pub fn start_race(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     o.race.shared.switches.get().mask_kind.set(0u32);
     run_race(o)
 }
 
-/// `race::race_from_menu` (0x485570): `race::render3d_tidy`, `race::objects_tidy`, `nullsub_6`,
-/// `race::release_textures`, `race::start_race`.
+/// Runs `race::render3d_tidy`, `race::objects_tidy`, `race::release_textures` and
+/// `race::start_race`.
 pub fn race_from_menu(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     crate::race::stage_free::render3d_tidy(o.race)?;
     crate::race::stage_free::objects_tidy(o.race)?;

@@ -1,9 +1,7 @@
-//! `sound::stop_cd_audio` (0x40FCAA): `CdAudio.track` (the track playing) 0 and the CD
-//! audio stopped five times: three calls of `sound::stop_cd_track`, then `call $+5` into
-//! it, whose return lands on it once more, and from there back to the caller.
+//! `sound::stop_cd_audio`: `CdAudio.track` (the track playing) set to 0 and the CD audio stopped
+//! five times through `sound::stop_cd_track`.
 //!
-//! Six callers: the CD audio's functions (0x40F8BB .. 0x40FDB9) and `system::main_loop`
-//! (0x415439).
+//! Six callers: the CD audio's functions and `system::main_loop`.
 
 // ---- game data ----
 

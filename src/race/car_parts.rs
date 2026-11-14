@@ -1,7 +1,7 @@
-//! The cars' parts made ready to draw (`race::ready_car_parts` -> `race::car_part_matrices`, part
-//! R3): each car's marks' switches (+0xAB4 .. +0xAD0) from its state, and its four
-//! parts' matrices (the wheels: turned about their axles' places) into `part_matrices` .., then
-//! kept in the block (+0x740 .. +0x8FF) for `race::draw_car`.
+//! Makes the cars' parts ready to draw (`ready_car_parts`, `car_part_matrices`): each car's marks'
+//! switches (+0xAB4 .. +0xAD0) from its state, and its four parts' matrices (the wheels, turned
+//! about their axles' places) into `part_matrices`, then kept in the block (+0x740 .. +0x8FF) for
+//! `draw_car`.
 
 use crate::errors::{BadInput, Refused};
 use crate::math::cells::copy_cells;
@@ -25,27 +25,26 @@ fn axles(race: &Race, model: u32) -> Result<Option<[u32; 5]>, BadInput> {
     ))
 }
 
-/// `race::car_part_matrices` (0x460E7C): a car's marks' switches and its parts' matrices: +0x718
-/// the size from +0x1D8 (not below `idle_engine_speed`); the switch bytes from +0x84, `marks_mask` /
-/// `lamps_mask`, +0x63C, +0x684, +0x1D4, each cut by its broken part (+0x410 .. +0x424; the
-/// original cuts them twice); +0xABC the marks' count x 0x20 (0 when +0x310 is not below
-/// `hundred` or +0x84 is 0); +0xAAC the steering; the axles from the model's record; the light
-/// and place; the car's turn (+0xB4) and place into `body_turn_matrix` / `placed_matrices`; each wheel placed
-/// at minus its axle, turned about x by its spin (+0x1F8 front, +0x1FC rear) and about y by the
-/// steering (front only), placed at its axle with its height (+0x910 ..), into `part_matrices` ..
-/// `FrameWork.part_matrices[48]`. Refuses (before anything) axle values whose scaling would fault.
+/// For a car: +0x718 the size from +0x1D8 (not below `idle_engine_speed`); the switch bytes from
+/// +0x84, `marks_mask` / `lamps_mask`, +0x63C, +0x684, +0x1D4, each cut by its broken part (+0x410
+/// .. +0x424; they are cut twice); +0xABC the marks' count x 0x20 (0 when +0x310 is not below
+/// `hundred` or +0x84 is 0); +0xAAC the steering; the axles from the model's record; the light and
+/// place; the car's turn (+0xB4) and place into `body_turn_matrix` / `placed_matrices`; each wheel
+/// placed at minus its axle, turned about x by its spin (+0x1F8 front, +0x1FC rear) and about y by
+/// the steering (front only), placed at its axle with its height (+0x910 ..), into `part_matrices`
+/// (`FrameWork.part_matrices[48]`). Refused (before anything): axle values whose scaling would
+/// fault.
 pub fn car_part_matrices(
     race: &Race,
     car: usize,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
-    // Converted: `rc2k_core::race::car_parts::{axles, mark_switches, marks_bytes,
-    // steering}` (the size's and the speed's floats the x87's).
+    // The size's and the speed's floats are the x87's; the rest is in `rc2k_core::race::car_parts`.
     use crate::math::x87::below_or_unordered;
     use crate::math::x87::loaded;
     use rc2k_core::race::car_parts::{PartState, mark_switches, marks_bytes, steering};
-    // `c` the block (what the drawing keeps there: the shown speed and steering, the switches,
-    // the marks), `p` the car as the drawing sees it (`race::frame_view`).
+    // `c` is the block (what the drawing keeps there: the shown speed and steering, the switches,
+    // the marks), `p` the car as the drawing sees it (`frame_view`).
     let c = race.shared.race_car(car)?;
     let p = crate::race::frame_view::car(race.shared.work.get().block_number(car)?)?;
     let Some(ax) = axles(race, p.car_kind.get())? else {
@@ -192,20 +191,17 @@ pub fn car_part_matrices(
     Ok(())
 }
 
-/// `race::ready_car_parts` (0x460D5C): for each race car with its parts shown (+0x25C):
-/// `car_part_matrices`, then the six matrices kept in the block (+0x740 .. +0x8BF) and the body's
-/// turn times the car's (`view_place`) at +0x8C0. Refuses (before anything) no race cars (the
-/// original's loop would run away), more than eight, or one without its block.
+/// For each race car with its parts shown (+0x25C): `car_part_matrices`, then the six matrices kept
+/// in the block (+0x740 .. +0x8BF) and the body's turn times the car's (`view_place`) at +0x8C0.
+/// Refused (before anything): no race cars, more than eight, or one without its block.
 pub fn ready_car_parts(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let frame = &race.frame;
-    // Converted: `rc2k_core::race::car_parts::{check_part_cars, parts_shown,
-    // KEPT_MATRICES}`.
     use rc2k_core::race::car_parts::{KEPT_MATRICES, check_part_cars, parts_shown};
     let count = race.shared.view.get().race_cars.get();
     check_part_cars(count, |n| {
         u32::from(race.shared.work.get().has_car_block(n as usize))
     })?;
-    // The loop's test is at its end: no cars still looks at car 0.
+    // With no cars the loop still looks at car 0.
     let mut c = 0u32;
     loop {
         let car = c as usize;

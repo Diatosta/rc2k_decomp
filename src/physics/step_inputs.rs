@@ -1,5 +1,5 @@
-//! What the contact, wall, ground-touch, camera and checkpoint steps read of the race, borrowed once at the
-//! step's entry (`car_physics_step`) and handed down in place of the whole race.
+//! What the contact, wall, ground-touch, camera and checkpoint steps read of the race, borrowed
+//! once at the step's entry (`car_physics_step`) and handed down in place of the whole race.
 
 use crate::drive::replay_frames_store::ReplayFrames;
 use crate::physics::car_store::Car;

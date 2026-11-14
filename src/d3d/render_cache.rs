@@ -129,7 +129,7 @@ pub fn put_texture(first: &OwnCache, run: &Cache) {
 }
 
 /// A part left `run`: its texture goes into the first part's cache (`first`) if it changed
-/// from `start` (as the copies' byte merge did).
+/// from `start`.
 pub fn merge_texture(first: &OwnCache, run: &Cache, start: &Cache) {
     if run.texture != start.texture {
         first.texture.set(run.texture);

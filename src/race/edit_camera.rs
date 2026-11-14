@@ -1,23 +1,19 @@
-//! The two "edit a camera" actions of the replay viewer, and the camera changes they lead
-//! to:
-//! - `race::edit_camera_1` (0x41E599), `race::edit_camera_2` (0x41E5BA): the replay kept
-//!   for an undo (`race::keep_undo`); unless the block shown (`replay_block`) is the last
-//!   (`index_block_count`), `camera_edit` 1 or 2: the keys then change that camera.
-//! - `race::next_camera` (0x41E5EB), `race::previous_camera` (0x41E654): unless the block
-//!   shown is the last, its camera byte `camera_edit` - 1` (`Buffers.viewer.block[2563][edit + block * 8]`)
-//!   one on (past 0x2E back to 0) or back (below 0 to 0x2E), skipping the cameras whose
-//!   name (`ViewerAndKinds.viewer_panel.camera_name_ids[0]`) is 0x1C1 or 0x1C2 unless the replay is one player's
-//!   (`header_one_player` 1) with a first car outside 0x17 .. 0x20; then the change spread on
-//!   (`race::spread_camera`, dh the old value).
+//! The two "edit a camera" actions of the replay viewer, and the camera changes they lead to.
+//! `edit_camera` keeps the replay for an undo (`race::keep_undo`) and, unless the block shown
+//! (`replay_block`) is the last (the replay index's `block_count`), sets `camera_edit` to 1 or 2:
+//! the keys then change that camera. `step_camera`, unless the block shown is the last, moves
+//! its camera byte (`camera_edit` - 1; `Buffers.viewer.block[2563][edit + block * 8]`) one on
+//! (past 0x2E back to 0) or back (below 0 to 0x2E), skipping the cameras whose name
+//! (`ViewerAndKinds.viewer_panel.camera_name_ids[0]`) is 0x1C1 or 0x1C2 unless the replay is one
+//! player's (`header_one_player` 1) with a first car outside 0x17 .. 0x20; then the change is
+//! spread on (`race::spread_camera`).
 
 use crate::errors::Refused;
 use crate::race::owner::Race;
 
-/// `edit_camera_1` / `_2` (the block shown is left in the original's result; its caller, `viewer_action`,
-/// ignores it).
+/// Edits camera `camera` (1 or 2).
 pub fn edit_camera(race: &Race, camera: u32) {
     let replay = &race.replay;
-    // Converted: `rc2k_core::race::viewer_flow::edits_camera`.
     crate::race::keep_undo::keep_undo(race);
     if rc2k_core::race::viewer_flow::edits_camera(
         replay.replay_view().replay_block.get(),
@@ -31,8 +27,7 @@ fn name_of(race: &Race, camera: u8) -> u16 {
     race.viewer_panel().camera_name(camera as usize)
 }
 
-/// `next_camera` (`step` 1) and `previous_camera` (-1). What they leave their caller,
-/// `viewer_action` (which keeps every register), does not read.
+/// Moves the camera forward (`step` 1) or back (-1).
 pub fn step_camera(race: &Race, step: i8) -> Result<(), Refused> {
     let replay = &race.replay;
     let block = replay.replay_view().replay_block.get();
@@ -45,7 +40,6 @@ pub fn step_camera(race: &Race, step: i8) -> Result<(), Refused> {
             .wrapping_add(block.wrapping_mul(8)),
     );
     let old: u8 = at.read(race, "a replay camera byte")?;
-    // Converted: `rc2k_core::race::viewer::{every_camera, step_camera}`.
     use rc2k_core::race::viewer::{camera_skipped, every_camera, step_camera};
     let every = every_camera(
         race.replay_work().header_one_player.get() == 1,
@@ -55,7 +49,8 @@ pub fn step_camera(race: &Race, step: i8) -> Result<(), Refused> {
     at.write(race, dl, "a replay camera byte")?;
     let spread = crate::race::spread_camera::spread_camera(race, at, old);
     if spread.is_err() {
-        at.write(race, old, "a replay camera byte")?; // refused before it wrote: nothing left written
+        // A refusal comes before anything is written: nothing is left written.
+        at.write(race, old, "a replay camera byte")?;
     }
     spread
 }

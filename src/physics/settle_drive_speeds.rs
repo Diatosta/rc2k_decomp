@@ -1,14 +1,11 @@
-//! `physics::settle_drive_speeds` (0x43BF6F): driven speeds brought toward 0 by a step
-//! (`settle_fast_step`, 1.0, when `brake` is set, else `settle_slow_step`, 0.01; stored in
-//! `scratch`), never past it: `g_carDriveSpeed` when `front_wheels_off` is set and the car
-//! is in neutral, `g_carDriveSpeed2` when `rear_wheels_off` is set (whatever the gear). A
-//! speed of 0 (or NaN) is left; one that reaches or crosses 0 becomes +0 (a NaN after the
-//! step too). Then, in gear, `physics::revs_from_wheels`.
+//! Brings driven speeds toward 0 by a step (`settle_fast_step`, 1.0, when `brake` is set, else
+//! `settle_slow_step`, 0.01; stored in `scratch`), never past it: `drive_speed_a` when
+//! `front_wheels_off` is set and the car is in neutral, `drive_speed_b` when `rear_wheels_off` is
+//! set (whatever the gear). A speed of 0 (or NaN) is left; one that reaches or crosses 0 becomes +0
+//! (a NaN after the step too). Then, in gear, `physics::revs_from_wheels`.
 //!
-//! Returns: in gear, `g_carGear` (`revs_from_wheels`)
-//!
-//! Caller: `physics::car_physics_step` (0x43B7AD, before `physics::free_rev_in_neutral`), every
-//! physics step. Refuses (before anything) a gear outside -1 ..= 7 (`revs_from_wheels`' table).
+//! Caller: `physics::car_physics_step`, before `physics::free_rev_in_neutral`, every physics step.
+//! Refuses (before anything) a gear outside -1 ..= 7 (`revs_from_wheels`' table).
 
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;

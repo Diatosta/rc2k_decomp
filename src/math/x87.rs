@@ -1,11 +1,9 @@
-//! Arithmetic the original did with the x87, where a result has to be the original's to
-//! the last bit: plain Rust on `X` (`x87_float.rs`), an `f64` that rounds as the control
-//! word says, in the original's order of operations; `rcpss` is an approximation that
-//! differs between processors, taken from one processor's tables (`arch::rcpss`). No x87
-//! instruction runs outside the tests (2026-10-25).
+//! Arithmetic that has to match the x87 to the last bit: plain Rust on `X`
+//! (`x87_float.rs`), an `f64` that rounds as the control word says, in the x87's order of
+//! operations; `rcpss` is an approximation that differs between processors, taken from one
+//! processor's tables (`arch::rcpss`). No x87 instruction runs outside the tests.
 //! Floats are given as `impl Flt` (bits, an `f32` or the cell holding it); a result is the
-//! `f32` the original stored, or whole number, status word or bits where the original
-//! kept those.
+//! `f32` stored, or the whole number, status word or bits the x87 would have kept.
 
 use super::x87_float as bh;
 use bh::Rounds;
@@ -170,8 +168,8 @@ pub fn one_less_int_ratio(a: i32, b: i32) -> u32 {
     bh::st(bh::ONE - bh::int(a) / bh::int(b))
 }
 
-/// `rcpss xmm0, a; mulss xmm0, b` (`rcpss` an SSE approximation, from the tables of
-/// `arch::rcpss`: the processors' own results differ).
+/// `rcpss` of `a` times `b`: `rcpss` is an SSE approximation taken from the tables of
+/// `arch::rcpss`, as the processors' own results differ.
 pub fn rcpss_times(a: impl Flt, b: impl Flt) -> f32 {
     crate::arch::rcpss(a.value()) * b.value()
 }
@@ -572,11 +570,10 @@ pub fn share_left_to_int(a: i32, b: i32, c: impl Flt) -> i32 {
     bh::to_int(c - bh::int(a) / bh::int(b) * c)
 }
 
-// The control word as this thread's float code sees it (phase 6, 2026-10-24): the plain
-// Rust helpers read its rounding (bits 10 .. 11) where the x87 would round to a whole
-// number. The precision bits are not modelled: plain `f64` steps are the x87's at
-// double precision (0x027F, a 32-bit Windows thread's start), within the last bit at
-// extended (0x037F, after the game's `finit`).
+// The control word as this thread's float code sees it: the plain Rust helpers read its
+// rounding (bits 10 .. 11) where the x87 would round to a whole number. The precision bits
+// are not modelled: plain `f64` steps are the x87's at double precision (0x027F, a 32-bit
+// Windows thread's start), within the last bit at extended (0x037F, after `finit`).
 thread_local! {
     static CONTROL: std::cell::Cell<u16> = const { std::cell::Cell::new(0x027F) };
 }
@@ -634,8 +631,8 @@ fn whole_to_int(r: f64) -> i32 {
     }
 }
 
-/// `finit` (9B DB E3): the x87 reset, its control word 0x37F (every exception masked,
-/// 64-bit precision, rounding to nearest), as the original does it.
+/// `finit`: the x87 reset, its control word 0x37F (every exception masked, 64-bit
+/// precision, rounding to nearest).
 pub fn finit() {
     CONTROL.with(|c| c.set(0x037F));
 }
@@ -669,9 +666,8 @@ pub fn circle_curve(i: i32, a: impl Flt, b: impl Flt, negate: bool) -> f32 {
 
 /// `count` points round a circle of radius `r`, three dwords apart: sin(angle) r then
 /// cos(angle) r, the dword between left alone. The angle starts at 0 and grows by
-/// `pi / c * d` each time, kept as a double. `count` at least 1 (the original would run 2^32
-/// times on 0; here nothing is done).
-/// (`out` holds at least `3 (count - 1) + 2` dwords: the slice's index check.)
+/// `pi / c * d` each time, kept as a double. `count` is at least 1 (0 does nothing).
+/// `out` holds at least `3 (count - 1) + 2` dwords (the slice's index check).
 pub fn circle_points(r: impl Flt, out: &mut [impl Slot], count: u32, c: i32, d: impl Flt) {
     let r = r.value();
     let d = d.value();
@@ -865,14 +861,13 @@ pub fn round_f64(x: f64) -> f64 {
 
 // ---- part B (the helpers from here to the end) ----
 //
-// Plain Rust (phase 6, 2026-10-24), as part A: a value on the x87 stack is an `X`
-// (`x87_float.rs`: an `f64` rounding as the control word says), a dword float stored is
-// `bh::st`, a whole number loaded is `bh::int`, stored `bh::to_int`, an 80-bit value kept
-// is converted at the boundary (`bh::f80`, `bh::from_f80`). The order of the operations is
-// the original's. Their comparison with the original's instructions is frozen in
+// As part A: a value on the x87 stack is an `X` (`x87_float.rs`: an `f64` rounding as the
+// control word says), a dword float stored is `bh::st`, a whole number loaded is
+// `bh::int`, stored `bh::to_int`, an 80-bit value kept is converted at the boundary
+// (`bh::f80`, `bh::from_f80`). Their comparison with the x87's instructions is frozen in
 // `x87_frozen_b.rs`.
 
-/// `fld a; fsub b; [fchs;] fcomp c; fstsw`: the status word's C0 .. C2.
+/// The status word's C0 .. C2 of `a - b` (negated when asked) compared with `c`.
 pub fn sub_compare(a: impl Flt, b: impl Flt, negate: bool, c: impl Flt) -> u16 {
     let a = a.value();
     let b = b.value();
@@ -1009,9 +1004,9 @@ pub fn zero_times_plus_times(
 }
 
 /// `v` plus the remainder of `r` by `m` (`fprem`: the quotient truncated, the sign of
-/// `r`). The x87 reduces by 63 bits at most in one step and the original ignores that it
-/// stopped short, so for a `m` below 2^-33 (exponents 64 or more apart) its result is a
-/// partial remainder that this does not reproduce: this is the complete remainder.
+/// `r`). The x87 reduces by 63 bits at most in one step, so for an `m` below 2^-33
+/// (exponents 64 or more apart) its result is a partial remainder that this does not
+/// reproduce: this is the complete remainder.
 pub fn prem_plus(r: i32, m: impl Flt, v: impl Flt) -> f32 {
     let m = m.value();
     let v = v.value();
@@ -1286,8 +1281,8 @@ fn matrix_turn(m: &[u32; 15], a: bh::X, b: bh::X, c: bh::X, translate: bool) -> 
     out
 }
 
-/// `effects::emit_exhaust_smoke`'s point: (-t0 k, (t1 - d) k, t2 k) turned by the matrix at `m` (its
-/// rows 0x10 apart), placed by +0x30 .. and the place taken off again; then x, y, y less
+/// `effects::emit_exhaust_smoke`'s point: (-t0 k, (t1 - d) k, t2 k) turned by the matrix at `m`
+/// (its rows 0x10 apart), placed by +0x30 .. and the place taken off again; then x, y, y less
 /// `lift`, z.
 pub fn turned_place_less_f32(
     t: [f32; 3],

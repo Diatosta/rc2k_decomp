@@ -1,20 +1,15 @@
-//! `effects::emit_twin_particle_first` (0x4CE283): by a chance one ring entry of kind 0x13 for a
-//! car each frame; `effects::emit_twin_particle_second` is the same code on its own
-//! variables (`TwinSet`).
+//! `effects::emit_twin_particle_first`: by a chance one ring entry of kind 0x13 for a car each
+//! frame; `effects::emit_twin_particle_second` is the same code on its own variables (`TwinSet`).
 //!
-//! Takes: the car object
-//!
-//! The level (the twin set's `level`) is the car's +0x4C0 (+0x4C4); a random's bits 16 .. 18
-//! must be under it (signed). The wheel flags get 0x3E (0x33); the set's copy of the car's
-//! +0x4C .. +0x54 is kept. The entry: its place (the set's start point) turned and placed by
+//! The level (the twin set's `level`) is the car's +0x4C0 (+0x4C4 for the second); a random's bits
+//! 16 .. 18 must be under it (signed). The wheel flags get 0x3E (0x33) and the set's copy of the
+//! car's +0x4C .. +0x54 is kept. The entry's place is the set's start point turned and placed by
 //! the emitting car's matrix (`x87::turned_place_f32`), less the set's lift in y at +0x28; its
-//! motion the matrix's second row by the set's factors, moved by `effects::jitter_point`
-//! (the set's spread) plus the kept car values by two more factors; a random spin and turn;
-//! the flags' low 6 bits; a size 0x4000 or 0x8000 by the random's bit 6 (the strength, +0x60
-//! as a float); a life from the lives table by the level (+0x78 a constant over it); +0x74
-//! the fade constant; +0x68 the emitting car. Caller: `effects::cars_particles` (the cars'
-//! loop). Refuses (before anything) a null object, and when an entry is made a null car or
-//! matrix and a level past the lives table's 9 entries (the original reads on).
+//! motion the matrix's second row by the set's factors, moved by `effects::jitter_point`, plus the
+//! kept car values; its life comes from the lives table by the level.
+//!
+//! Refuses (before anything) a null object, and when an entry is made a null car or matrix and a
+//! level past the lives table's 9 entries (the life would be read past the table).
 
 use crate::effects::emitters::car_with_matrix;
 use crate::effects::emitters::emitting_car;
@@ -166,19 +161,19 @@ pub fn emit_twin(effects: &Effects, set: &TwinSet<'_>, object: &CarEffects) -> R
     Ok(())
 }
 
-/// The twin car emitters' shared work (`emit_twin_particle_first`, `emit_twin_particle_second`) (IDA 0x93A1B6 .. 0x93A1D6).
+/// The twin car emitters' shared work (`emit_twin_particle_first`, `emit_twin_particle_second`).
 #[derive(rc2k_derive::Cells)]
 pub struct TwinState {
-    /// 0x93A1B6: `flt_93A1B6` .. `flt_93A1BE`: the point the entry's place starts at (turned and placed by the car's matrix)
+    /// The point the entry's place starts at (turned and placed by the car's matrix)
     pub point: [PlainFloat; 3],
-    /// 0x93A1C2: `dword_93A1C2` .. `dword_93A1CA`: the car's +0x4C .. +0x54, kept
+    /// The car's +0x4C .. +0x54, kept
     pub motion: [PlainDword; 3],
-    /// 0x93A1CE: `dword_93A1CE`: the car's level (its +0x4C0 or +0x4C4)
+    /// The car's level (its +0x4C0 or +0x4C4)
     pub level: PlainDword,
 }
 
 impl TwinState {
-    /// The values the game starts with (the image's bytes).
+    /// The values the game starts with.
     pub const fn new() -> Self {
         TwinState {
             point: [
@@ -196,25 +191,26 @@ impl TwinState {
     }
 }
 
-/// One twin car emitter's variables (`emit_twin_particle_first`'s at 0x93A48A, `emit_twin_particle_second`'s at 0x93A4B2) (IDA 0x93A48A .. 0x93A4B2).
+/// One twin car emitter's variables (`emit_twin_particle_first`'s and
+/// `emit_twin_particle_second`'s).
 #[derive(rc2k_derive::Cells)]
 pub struct TwinTuning {
-    /// 0x93A48A: the chance's random
+    /// The chance's random
     pub chance_random: PlainDword,
-    /// 0x93A48E: the place's lift
+    /// The place's lift
     pub lift: PlainFloat,
-    /// 0x93A492: the second row's factors (z, y, x)
+    /// The second row's factors (z, y, x)
     pub row_k: [PlainFloat; 3],
-    /// 0x93A49E: the spread `jitter_point` takes
+    /// The spread `jitter_point` takes
     pub spread: PlainFloat,
-    /// 0x93A4A2: the motion's factors (x, y, z)
+    /// The motion's factors (x, y, z)
     pub motion_k: [PlainFloat; 3],
-    /// 0x93A4AE: the spin's random
+    /// The spin's random
     pub spin_random: PlainDword,
 }
 
 impl TwinTuning {
-    /// The values the game starts with (the image's bytes).
+    /// The values the game starts with.
     pub const fn nineteenth() -> Self {
         TwinTuning {
             chance_random: PlainDword::new(0x0),

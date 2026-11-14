@@ -1,48 +1,51 @@
-//! The race's split tables (IDA 0x60101C .. 0x60230C; phase 7, typed): the arcade kind, the
-//! replay still flag, the timer factor, the checkpoint list of the splits, the stage's car
-//! numbers, the split count and the dwords after it, the stage's car total and extra time,
-//! the kind factor, the kept split times and the 90 rivals' tables (names, times, cars, times
-//! scaled to a split). Names are readings unless IDA's.
+//! The race's split tables: the arcade kind, the replay still flag, the timer factor, the
+//! checkpoint list of the splits, the stage's car numbers, the split count and the dwords after it,
+//! the stage's car total and extra time, the kind factor, the kept split times and the 90 rivals'
+//! tables (names, times, cars, times scaled to a split). Names are readings unless taken from the
+//! game's own.
 
 use crate::session::{PlainDword, PlainFloat};
 
 #[derive(rc2k_derive::Cells, rc2k_derive::ZeroCells)]
 pub struct SplitTables {
-    /// +0x0 (0x60101C): `dword_60101C`: the arcade kind (1 or 2: `race::race_end`, `race::credits_race`, `race::race_cars`).
+    /// The arcade kind (1 or 2: `race::race_end`, `race::credits_race`, `race::race_cars`).
     pub arcade_kind: PlainDword,
-    /// +0x4 (0x601020): no instruction of the game refers to it (IDA, 2026-11-10); unused.
+    /// Unused.
     pub unused_4: PlainDword,
-    /// +0x8 (0x601024): `dword_601024`: the replay still / marks flag (`race::show_replay_still`, `race::frame_views`, `physics::camera_frame`, `drive::set_listener`).
+    /// The replay still / marks flag (`race::show_replay_still`, `race::frame_views`,
+    /// `physics::camera_frame`, `drive::set_listener`).
     pub still: PlainDword,
-    /// +0xc (0x601028): `flt_601028`: the timer's factor once finished (`physics::race_timers`).
+    /// The timer's factor once finished (`physics::race_timers`).
     pub timer_factor: PlainFloat,
-    /// +0x10 (0x60102C): `dword_60102C`: the splits' checkpoint list; [0] is the start's checkpoint, [1 + split] the split's (`physics::passed_split_point`, `physics::rank_split_time`, `race::level_init`; `dword_601030` is [1]).
+    /// The splits' checkpoint list; [0] is the start's checkpoint, [1 + split] the split's
+    /// (`physics::passed_split_point`, `physics::rank_split_time`, `race::level_init`).
     pub checkpoints: [PlainDword; 257],
-    /// +0x414 (0x601430): `g_stageCarNumbers` (and `dword_601434` ..): the stage's numbers from the file (`race::race_cars`, `physics::take_split_counted`).
+    /// The stage's car numbers from the file (`race::race_cars`, `physics::take_split_counted`).
     pub stage_numbers: [PlainDword; 256],
-    /// +0x814 (0x601830): `g_splitColourCount`: the splits' count ("numcheckposits"; `physics::splits`, `race::frame_draw`, `race::level_init`).
+    /// The splits' count ("numcheckposits"; `physics::splits`, `race::frame_draw`,
+    /// `race::level_init`).
     pub split_colour_count: PlainDword,
-    /// +0x818 (0x601834): no instruction of the game refers to it (IDA, 2026-11-10); unused.
+    /// Unused.
     pub unused_818: [PlainDword; 262],
-    /// +0xc30 (0x601C4C): `g_stageCarTotal`: the sum of the stage's numbers (`race::race_cars`, `race::race_shell`).
+    /// The sum of the stage's numbers (`race::race_cars`, `race::race_shell`).
     pub stage_car_total: PlainDword,
-    /// +0xc34 (0x601C50): `dword_601C50`: the extra time (`race::race_cars::set_car_times`).
+    /// The extra time (`race::race_cars::set_car_times`).
     pub extra_time: PlainDword,
-    /// +0xc38 (0x601C54): no instruction of the game refers to it (IDA, 2026-11-10); unused.
+    /// Unused.
     pub unused_c38: [PlainDword; 4],
-    /// +0xc48 (0x601C64): `flt_601C64`: the kind's time factor (`race::race_cars::set_car_times`).
+    /// The kind's time factor (`race::race_cars::set_car_times`).
     pub kind_factor: PlainFloat,
-    /// +0xc4c (0x601C68): `dword_601C68`: the kept split times, 64 of them (IDA's `int[62]` is short: `physics::keep_split_time` and `race::race_cars` write 0x40, over `dword_601D60` and `dword_601D64`).
+    /// The kept split times, 64 of them.
     pub kept_times: [PlainDword; 64],
-    /// +0xd4c (0x601D68): `id` (`dword_601D68`): the 90 rivals' name ids (`physics::fill_rival_table`, `physics::rank_split_time`).
+    /// The 90 rivals' name ids (`physics::fill_rival_table`, `physics::rank_split_time`).
     pub rival_names: [PlainDword; 90],
-    /// +0xeb4 (0x601ED0): `dword_601ED0`: the rivals' times.
+    /// The rivals' times.
     pub rival_times: [PlainDword; 90],
-    /// +0x101c (0x602038): `dword_602038`: the rivals' cars.
+    /// The rivals' cars.
     pub rival_cars: [PlainDword; 90],
-    /// +0x1184 (0x6021A0): `dword_6021A0`: the rivals' times scaled to the split.
+    /// The rivals' times scaled to the split.
     pub rival_scaled: [PlainDword; 90],
-    /// +0x12ec (0x602308): `dword_602308`: the car's time at the split (`physics::rank_split_time`).
+    /// The car's time at the split (`physics::rank_split_time`).
     pub car_time: PlainDword,
 }
 
