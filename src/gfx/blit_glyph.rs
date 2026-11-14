@@ -215,6 +215,26 @@ pub fn blit_glyph_on_surface(
     };
     let recording = crate::gfx::draw2d::enabled() && crate::gfx::draw2d::is_screen(Some(target));
     let clip = clip(gfx);
+    // On the screen, a glyph the atlas holds is noted as a quad for the GPU to draw: the canvas is
+    // not written (the work variables are what the clip leaves).
+    let call = crate::gfx::draw2d::quads::Call {
+        glyph,
+        table,
+        x,
+        y,
+        palette,
+    };
+    let by_quad = if crate::gfx::draw2d::is_screen(Some(target)) {
+        crate::gfx::draw2d::quads::note_glyph(&gfx.fonts, &record, call, &surface, &clip, before)
+    } else {
+        None
+    };
+    if let Some(after) = by_quad
+        && !recording
+    {
+        write_scratch(&after, gfx);
+        return Ok(());
+    }
     blit_glyph(
         &gfx.fonts,
         &record,
@@ -226,7 +246,10 @@ pub fn blit_glyph_on_surface(
         &mut scratch,
         &mut |offset, bytes| match target {
             Target::Locked(_) => {
-                surface_window.must_write_bytes_at(offset, bytes, "the surface");
+                // With the quad check the canvas is left to the quad.
+                if by_quad.is_none() {
+                    surface_window.must_write_bytes_at(offset, bytes, "the surface");
+                }
                 if recording {
                     crate::gfx::draw2d::mirror(offset, bytes);
                 }
@@ -238,6 +261,9 @@ pub fn blit_glyph_on_surface(
             }
         },
     )?;
+    if let Some(after) = by_quad {
+        crate::gfx::draw2d::quads::check_scratch(after, scratch, call);
+    }
     write_scratch(&scratch, gfx);
     if recording {
         note_glyph(

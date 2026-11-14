@@ -146,6 +146,8 @@ pub struct PoolBytes {
     /// The rows written since they were last taken, for bytes made with `noting_rows` (the
     /// screen's): what the GPU's path uploads of the canvas, in place of looking at every row.
     rows: Option<WrittenRows>,
+    /// Called before every write through `write_at` / `write_value` (`with_write_hook`).
+    before_write: Option<fn()>,
 }
 
 /// One flag per row of `pitch` bytes: set by every write through `write_at` / `write_value`
@@ -176,7 +178,15 @@ impl PoolBytes {
             block,
             len: bytes.len(),
             rows: None,
+            before_write: None,
         }
+    }
+
+    /// The same bytes, `hook` called before each write through `write_at` or `write_value` (a
+    /// write in place through `as_mut_ptr` does not call it). It may itself write.
+    pub fn with_write_hook(mut self, hook: fn()) -> Self {
+        self.before_write = Some(hook);
+        self
     }
 
     /// As `from_vec`, the rows of `pitch` bytes written noted (`take_written_rows`), all of
@@ -247,6 +257,9 @@ impl PoolBytes {
             ));
             return Err(BadInput("past the end of a field"));
         }
+        if let Some(hook) = self.before_write {
+            hook();
+        }
         if let Some(rows) = &self.rows {
             rows.note(offset as usize, data.len());
         }
@@ -268,6 +281,9 @@ impl PoolBytes {
     /// `value` written at byte `offset`; a write past the bytes' end is refused.
     pub fn write_value<T: Plain>(&self, offset: u32, value: T, what: &str) -> Result<(), BadInput> {
         self.within(offset, size_of::<T>(), what)?;
+        if let Some(hook) = self.before_write {
+            hook();
+        }
         if let Some(rows) = &self.rows {
             rows.note(offset as usize, size_of::<T>());
         }

@@ -35,6 +35,11 @@ pub fn defer(target: &Target, handle: u32) -> bool {
     if !super::gpu_running() || target.bits != 32 || target.pitch != target.width * 4 {
         return false;
     }
+    // A background is drawn under what is noted for the frame: glyphs noted as quads were drawn
+    // before it, so it is copied onto the canvas (whose write draws them there first).
+    if crate::gfx::draw2d::quads::pending() {
+        return false;
+    }
     let Some(held) = crate::gfx::locked_pixels::bytes_of(target.pixels) else {
         return false;
     };

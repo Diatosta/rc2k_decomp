@@ -571,6 +571,39 @@ impl CopyPass {
         unsafe { SDL_UploadToGPUTexture(self.0, &raw const from, &raw const to, false) };
     }
 
+    /// The `width` x `height` four-byte pixels from the transfer buffer at `offset` into
+    /// `texture` at (`x`, `y`); the texture's other pixels are kept (it is not cycled).
+    pub fn upload_texture_region(
+        &self,
+        transfer: Transfer,
+        offset: u32,
+        texture: Texture,
+        [x, y, width, height]: [u32; 4],
+    ) {
+        assert!(
+            u64::from(offset) + u64::from(width) * u64::from(height) * 4 <= u64::from(transfer.1),
+            "past the transfer buffer"
+        );
+        let from = SDL_GPUTextureTransferInfo {
+            transfer_buffer: transfer.0,
+            offset,
+            pixels_per_row: width,
+            rows_per_layer: height,
+        };
+        let to = SDL_GPUTextureRegion {
+            texture: texture.0,
+            x,
+            y,
+            w: width,
+            h: height,
+            d: 1,
+            ..Default::default()
+        };
+        // SAFETY: our open pass; the records live through the call; the pixels are within the
+        // transfer buffer (checked above).
+        unsafe { SDL_UploadToGPUTexture(self.0, &raw const from, &raw const to, false) };
+    }
+
     /// `texture`'s `width` x `height` pixels into the start of the transfer buffer.
     pub fn download_texture(&self, texture: Texture, width: u32, height: u32, transfer: Transfer) {
         assert!(

@@ -1,0 +1,32 @@
+#include <metal_stdlib>
+#include <simd/simd.h>
+
+using namespace metal;
+
+struct Screen
+{
+    float2 size;
+};
+
+struct main0_out
+{
+    float2 out_texel [[user(locn0)]];
+    float2 out_palette [[user(locn1)]];
+    float4 gl_Position [[position]];
+};
+
+struct main0_in
+{
+    float4 corner [[attribute(0)]];
+    float2 palette [[attribute(1)]];
+};
+
+vertex main0_out main0(main0_in in [[stage_in]], constant Screen& screen [[buffer(0)]])
+{
+    main0_out out = {};
+    out.gl_Position = float4(((in.corner.x / screen.size.x) * 2.0) - 1.0, 1.0 - ((in.corner.y / screen.size.y) * 2.0), 0.0, 1.0);
+    out.out_texel = in.corner.zw;
+    out.out_palette = in.palette;
+    return out;
+}
+

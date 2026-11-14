@@ -1,0 +1,33 @@
+#include <metal_stdlib>
+#include <simd/simd.h>
+
+using namespace metal;
+
+struct main0_out
+{
+    float4 result [[color(0)]];
+};
+
+struct main0_in
+{
+    float2 texel [[user(locn0)]];
+    float2 palette [[user(locn1), flat]];
+};
+
+fragment main0_out main0(main0_in in [[stage_in]], texture2d<float> atlas [[texture(0)]], sampler atlasSmplr [[sampler(0)]])
+{
+    main0_out out = {};
+    float4 value = atlas.read(uint2(int2(floor(in.texel))), 0);
+    if (value.w < 0.5)
+    {
+        discard_fragment();
+    }
+    if (in.palette.x >= 0.0)
+    {
+        int index = int((value.x * 255.0) + 0.5);
+        value = atlas.read(uint2(int2(int(in.palette.x) + index, int(in.palette.y))), 0);
+    }
+    out.result = float4(value.xyz, 1.0);
+    return out;
+}
+

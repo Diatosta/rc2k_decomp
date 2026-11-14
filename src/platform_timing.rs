@@ -229,6 +229,20 @@ pub fn report_timing(system: &System) {
                 crate::render::GL_SHOW_MICROS.load(Relaxed) / 1000,
                 crate::render::GL_WAIT_MICROS.load(Relaxed) / 1000,
             ));
+            {
+                use crate::gfx::draw2d::quads;
+                log(&format!(
+                    "platform: so far {} glyph quads drawn, {} drawn on the canvas after being noted, {} left to the canvas (not in the atlas {}, no palette {}, atlas full {}), {} KB sent to the atlas, the atlas cleared {} times",
+                    quads::QUADS.load(Relaxed),
+                    quads::DEMOTED.load(Relaxed),
+                    quads::REFUSED.load(Relaxed),
+                    quads::REFUSED_BY[0].load(Relaxed),
+                    quads::REFUSED_BY[1].load(Relaxed),
+                    quads::REFUSED_BY[2].load(Relaxed),
+                    quads::ATLAS_BYTES.load(Relaxed) / 1024,
+                    quads::ATLAS_CLEARS.load(Relaxed),
+                ));
+            }
             // The handheld's: where the time goes, and the samples so far.
             #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
             {

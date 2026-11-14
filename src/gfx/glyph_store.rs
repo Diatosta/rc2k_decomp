@@ -55,6 +55,16 @@ struct Held {
     /// The list it is counted on (`give_back`'s key); none for the store's own palettes.
     list: Option<usize>,
     bytes: Arc<Vec<u8>>,
+    /// Which state of the bytes this is: a number no other table state, past or present, has
+    /// (`generation`).
+    generation: u64,
+}
+
+/// The states handed out so far (`Held::generation`).
+static GENERATIONS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
+
+fn next_generation() -> u64 {
+    GENERATIONS.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
 }
 
 struct Store {
@@ -74,11 +84,11 @@ fn store() -> std::sync::MutexGuard<'static, Store> {
 }
 
 /// The held bytes and the offset `place` names in them.
-fn slot(s: &mut Store, place: u32) -> Option<(&mut Arc<Vec<u8>>, usize)> {
+fn slot(s: &mut Store, place: u32) -> Option<(&mut Held, usize)> {
     if place >= TABLE_FIRST {
         let id = (place - TABLE_FIRST) as usize;
         let held = s.tables.get_mut(id)?.as_mut()?;
-        Some((&mut held.bytes, 0))
+        Some((held, 0))
     } else {
         let id = (place >> 10) as usize;
         let cell = s.palettes.get_mut(id)?;
@@ -86,10 +96,21 @@ fn slot(s: &mut Store, place: u32) -> Option<(&mut Arc<Vec<u8>>, usize)> {
             *cell = Some(Held {
                 list: None,
                 bytes: Arc::new(vec![0; PALETTE_BYTES]),
+                generation: next_generation(),
             });
         }
-        Some((&mut cell.as_mut()?.bytes, (place & 0x3FF) as usize))
+        Some((cell.as_mut()?, (place & 0x3FF) as usize))
     }
+}
+
+/// Which state of the held glyph table `place` names its bytes are in: it changes with every
+/// write to the table and with the table's being given back and another made at its place. A
+/// cache of what a table decodes to is good while this is the number it was made at. `None`
+/// for a place that is not a held glyph table (a palette, the jade font).
+pub fn table_generation(place: u32) -> Option<u64> {
+    (TABLE_FIRST..JADE).contains(&place).then_some(())?;
+    let mut s = store();
+    slot(&mut s, place).map(|(held, _)| held.generation)
 }
 
 /// A new palette, zeroed, counted on nothing (the caller has carved its bytes off `list`): its
@@ -102,6 +123,7 @@ pub fn new_palette(list: &crate::memory::ListCells) -> Result<u32, BadInput> {
     s.palettes[id] = Some(Held {
         list: Some(key(list)),
         bytes: Arc::new(vec![0; PALETTE_BYTES]),
+        generation: next_generation(),
     });
     Ok((id as u32) << 10)
 }
@@ -112,6 +134,7 @@ pub fn new_table(list: &crate::memory::ListCells) -> Result<u32, BadInput> {
     let held = Some(Held {
         list: Some(key(list)),
         bytes: Arc::new(Vec::new()),
+        generation: next_generation(),
     });
     let id = match s.tables.iter().position(Option::is_none) {
         Some(id) => {
@@ -259,8 +282,8 @@ pub fn bytes<'a>(fonts: &'a FontStores, place: u32, _what: &str) -> Result<Glyph
         return Ok(Glyphs::Cells(which, which.cells(fonts), from));
     }
     let mut s = store();
-    let (b, from) = slot(&mut s, place).ok_or(BadInput("no palette or glyph table there"))?;
-    Ok(Glyphs::Held(Arc::clone(b), from))
+    let (held, from) = slot(&mut s, place).ok_or(BadInput("no palette or glyph table there"))?;
+    Ok(Glyphs::Held(Arc::clone(&held.bytes), from))
 }
 
 /// `len` bytes from `place` + `at`.
@@ -284,7 +307,8 @@ pub fn read_bytes(
         return Ok(out);
     }
     let mut s = store();
-    let (b, from) = slot(&mut s, place).ok_or(BadInput("no palette or glyph table there"))?;
+    let (held, from) = slot(&mut s, place).ok_or(BadInput("no palette or glyph table there"))?;
+    let b = &held.bytes;
     let start = from + at as usize;
     b.get(start..start + len)
         .map(<[u8]>::to_vec)
@@ -320,10 +344,11 @@ pub fn write_bytes(
     }
     let table = place >= TABLE_FIRST;
     let mut s = store();
-    let (b, from) = slot(&mut s, place).ok_or(BadInput("no palette or glyph table there"))?;
+    let (held, from) = slot(&mut s, place).ok_or(BadInput("no palette or glyph table there"))?;
     let start = from + at as usize;
     let end = start + bytes.len();
-    let b = Arc::make_mut(b);
+    held.generation = next_generation();
+    let b = Arc::make_mut(&mut held.bytes);
     if end > b.len() {
         if !table {
             return Err(BadInput("a write past a palette"));

@@ -300,7 +300,15 @@ pub fn draw(screen: (usize, usize), target: &Target, commands: CommandList) {
         }
     }
     give_frame_back(target);
+    // Whatever was noted for a GPU is on the canvas before the rasteriser draws.
+    crate::gfx::draw2d::quads::before_canvas_write();
     software::Software { screen }.draw(target, commands);
+}
+
+/// Whether the GPU holds the frame now (the canvas is then only what the game wrote since the
+/// last flush).
+pub fn frame_on_gpu() -> bool {
+    GPU_HOLDS_FRAME.load(Relaxed)
 }
 
 /// The GPU's picture back in the canvas, if it holds the frame and something wants the true one.
@@ -427,6 +435,7 @@ static GPU_STARTED: AtomicBool = AtomicBool::new(false);
 
 /// A GPU backend has started and keeps textures: their changes are kept from now on.
 pub(crate) fn gpu_started() {
+    crate::gfx::draw2d::quads::gpu_changed();
     GPU_STARTED.store(true, Relaxed);
 }
 
@@ -435,6 +444,7 @@ pub(crate) fn gpu_started() {
 #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
 pub(crate) fn gpu_stopped() {
     GPU_STARTED.store(false, Relaxed);
+    crate::gfx::draw2d::quads::gpu_changed();
     background::clear();
     *CHANGED_TEXTURES.lock().unwrap() = None;
 }

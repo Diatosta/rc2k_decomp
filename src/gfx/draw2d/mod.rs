@@ -2,11 +2,13 @@
 //! (`gfx::blit_glyph::blit_glyph_on_surface`, `gfx::rect`, `gfx::copy_picture_to_surface`,
 //! `gfx::rescale_to_surface`, `gfx::clear_back_surface`) note what they draw as a `Command` while
 //! recording is on, and `replay` draws a frame's commands into a canvas through the same drawing
-//! code. Recording is off unless `RC2K_2D_CHECK` is set or a test turns it on: nothing consumes the
-//! list yet except the check (`check`), which replays each frame and compares it with what the
-//! funnels wrote.
+//! code. Recording is off unless `RC2K_2D_CHECK` or `RC2K_QUAD_CHECK` is set or a test turns it
+//! on: only the checks consume the list (`check` replays each frame and compares it with what the
+//! funnels wrote; the quad check compares the GPU's two ways of drawing it). Glyphs drawn on the
+//! screen are also noted as quads for the GPU (`quads`), which needs no recording.
 
 pub mod check;
+pub mod quads;
 pub mod replay;
 
 use crate::gfx::blit_glyph::{BlitCall, Scratch};
@@ -103,6 +105,10 @@ struct Recorder {
     written: Vec<u8>,
     /// A write past the screen's bytes.
     outside: bool,
+    /// With the quad check: what the funnels wrote since the GPU last took it, as the pixels
+    /// the canvas would hold, the overlay's "unwritten" pixel where nothing.
+    #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+    interval: Vec<u8>,
 }
 
 /// What `written` holds where nothing was written.
@@ -118,6 +124,8 @@ static RECORDER: Mutex<Recorder> = Mutex::new(Recorder {
     latest: std::collections::BTreeMap::new(),
     written: Vec::new(),
     outside: false,
+    #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+    interval: Vec::new(),
 });
 
 fn recorder() -> std::sync::MutexGuard<'static, Recorder> {
@@ -147,9 +155,10 @@ pub fn set_enabled(on: bool) {
     ENABLED.store(on, Relaxed);
 }
 
-/// Turns recording on when `RC2K_2D_CHECK` is set.
+/// Turns recording on when `RC2K_2D_CHECK` or `RC2K_QUAD_CHECK` is set.
 pub fn enable_from_environment() {
-    if std::env::var_os("RC2K_2D_CHECK").is_some() {
+    if std::env::var_os("RC2K_2D_CHECK").is_some() || std::env::var_os("RC2K_QUAD_CHECK").is_some()
+    {
         set_enabled(true);
     }
 }
@@ -183,6 +192,29 @@ pub fn mirror(offset: u32, bytes: &[u8]) {
         Some(place) => place.copy_from_slice(bytes),
         None => rec.outside = true,
     }
+    #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+    if quads::check_wanted() {
+        if rec.interval.is_empty() {
+            let len = rec.written.len();
+            let mut blank = vec![0u8; len];
+            blank
+                .as_chunks_mut::<4>()
+                .0
+                .fill(rc2k_core::gfx::atlas::UNWRITTEN_PIXEL.to_le_bytes());
+            rec.interval = blank;
+        }
+        if let Some(place) = rec.interval.get_mut(at..at.wrapping_add(bytes.len())) {
+            place.copy_from_slice(bytes);
+        }
+    }
+}
+
+/// What the funnels wrote since the last call, as the canvas would hold it (the overlay's
+/// "unwritten" pixel where nothing was written); `None` when nothing was.
+#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+pub fn take_interval() -> Option<Vec<u8>> {
+    let interval = std::mem::take(&mut recorder().interval);
+    (!interval.is_empty()).then_some(interval)
 }
 
 /// Notes a command.

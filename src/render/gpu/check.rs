@@ -12,6 +12,7 @@ use sdl3_sys::everything::*;
 pub fn wanted() -> bool {
     static WANTED: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
     *WANTED.get_or_init(|| std::env::var_os("RC2K_BACKGROUND_CHECK").is_some())
+        || crate::gfx::draw2d::quads::check_wanted()
 }
 
 /// Whether `RC2K_CHECK_SAME` is set: the second pass draws as the first does, so the check

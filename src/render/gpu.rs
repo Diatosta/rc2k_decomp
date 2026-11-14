@@ -10,6 +10,7 @@
 //! wants the true picture in the canvas asks `bring_back`, which is slow on a handheld.
 
 mod check;
+mod quads;
 
 use super::batches::{Batch, Batches, PipelineKey};
 use super::{CommandList, Target, TextureNote};
@@ -91,6 +92,8 @@ pub struct Gpu {
     /// With `RC2K_BACKGROUND_CHECK`: the frame drawn a second time as the canvas carried the
     /// background (`check`).
     check: Option<check::Check>,
+    /// The 2D quads' atlas and buffers (`quads`), made when first needed.
+    quads: Option<quads::Quads>,
     width: u32,
     height: u32,
     /// How many times the targets have been made: names the colour target's set.
@@ -163,6 +166,7 @@ impl Gpu {
             background_transfer: Transfer::NONE,
             background_holds: None,
             check: None,
+            quads: None,
             width: 0,
             height: 0,
             targets_made: 0,
@@ -539,6 +543,7 @@ impl Gpu {
         commands: &CommandList,
     ) -> Result<(), String> {
         self.take_changes();
+        let two_d = self.prepare_2d(crate::gfx::draw2d::quads::take())?;
         let mut background_bytes = None;
         let (background, upload_background) = self.bring_up_background(&mut background_bytes)?;
         self.ensure_check()?;
@@ -547,6 +552,11 @@ impl Gpu {
         let runs = super::canvas_rows::written_runs(&rows);
         // The check's canvas holds every written pixel, noted rows or not, as it did before.
         let old_canvas = self.check.is_some().then(|| {
+            if crate::gfx::draw2d::quads::check_wanted() {
+                // The canvas the old way would hold: everything the funnels wrote.
+                return crate::gfx::draw2d::take_interval()
+                    .unwrap_or_else(|| check::canvas_as_before(canvas, &[], stride, None));
+            }
             let scan = super::canvas_rows::rows_holding_written(canvas, stride);
             check::note_missed_rows(&scan, &rows);
             let scanned = super::canvas_rows::written_runs(&scan);
@@ -658,6 +668,7 @@ impl Gpu {
                 (last + 1 - first) as u32,
             );
         }
+        self.copy_2d(&copy, &two_d);
         copy.end();
         let clear_depth = std::mem::replace(&mut self.depth_is_new, false);
         let check_targets = self.check.as_mut().map(|c| {
@@ -719,7 +730,10 @@ impl Gpu {
         if !runs.is_empty() {
             pass.set_scissor(0, 0, self.width as i32, self.height as i32);
         }
-        draw_batches(&pass);
+        self.draw_2d(&buffer, &pass, &two_d);
+        if !crate::gfx::draw2d::quads::check_2d_only() {
+            draw_batches(&pass);
+        }
         pass.end();
         if let Some((colour, depth, canvas, transfer, clear)) = check_targets {
             // The same frame once more, the way the canvas carried the background.
@@ -738,10 +752,13 @@ impl Gpu {
                     self.draw_overlay(&pass, self.canvas);
                 }
                 pass.set_scissor(0, 0, self.width as i32, self.height as i32);
+                self.draw_2d(&buffer, &pass, &two_d);
             } else {
                 self.draw_overlay(&pass, canvas);
             }
-            draw_batches(&pass);
+            if !crate::gfx::draw2d::quads::check_2d_only() {
+                draw_batches(&pass);
+            }
             pass.end();
         }
         buffer.submit()?;

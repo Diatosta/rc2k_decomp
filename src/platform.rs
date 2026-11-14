@@ -250,11 +250,17 @@ fn set_screen_mode(
             crate::render::gpu_stopped();
         }
     }
-    // Its written rows noted: what the GPU's path uploads of the canvas (`render::gles`).
-    let pixels = std::sync::Arc::new(crate::pool::PoolBytes::noting_rows(
-        vec![0u8; (bytes * width * height) as usize],
-        (bytes * width) as usize,
-    ));
+    // What was noted for the old screen is drawn on it before it goes.
+    crate::gfx::draw2d::quads::before_canvas_write();
+    // Its written rows noted: what the GPU's path uploads of the canvas (`render::gles`). A
+    // write to it first draws the glyphs noted as quads (`gfx::draw2d::quads`).
+    let pixels = std::sync::Arc::new(
+        crate::pool::PoolBytes::noting_rows(
+            vec![0u8; (bytes * width * height) as usize],
+            (bytes * width) as usize,
+        )
+        .with_write_hook(crate::gfx::draw2d::quads::before_canvas_write),
+    );
     crate::gfx::locked_pixels::register(crate::gfx::locked_pixels::SCREEN, &pixels);
     gfx.drawing
         .draw_surface
