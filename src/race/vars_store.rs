@@ -44,22 +44,13 @@ pub struct RaceVars {
     pub unused_60: [PlainDword; 3],
     /// +0x6c: the best line's face kind.
     pub line_face_kind: PlainDword,
-    /// +0x70: a point's x, z (`race::best_line`).
-    pub line_from: [PlainDword; 2],
     /// +0x78: the replay's camera counts, 1 and 2.
     pub replay_camera_counts: [PlainDword; 2],
-    /// +0x80: the nearest distance, then the one (`race::best_line`).
-    pub line_nearest: [PlainDword; 2],
     /// +0x88: the surface shares, as the whole numbers `race::surface_shares` leaves (it adds them
     /// as floats on its own).
     pub surface_shares: [PlainDword; 16],
-    /// +0xc8: the surface weight, a whole number.
-    pub surface_weight: PlainDword,
     /// +0xcc: the map's anchor count.
     pub map_anchor_count: PlainDword,
-    /// +0xd0: the map: the stretch's two anchors and what is made of them
-    /// (`race::best_line`).
-    pub map_work: [PlainDword; 18],
     /// +0x118: the loading bar's share loaded, 0 .. 100.
     pub bar_share: PlainDword,
     /// +0x11c: the loading bar's function (0: none).

@@ -39,8 +39,8 @@ pub struct Record {
     pub class_times: [PlainDword; 4],
     /// +0x28: read by no code by name (a read on through the tables reaches it).
     pub unread_28: PlainDword,
-    /// +0x2C: the second record holder's speed (or figure).
-    pub second_speed: PlainDword,
+    /// +0x2C: the time trial's record holder's top speed (or figure).
+    pub time_trial_speed: PlainDword,
     /// +0x30: the fastest record holder's speed (or figure, signed: `menu::bests::takes_record`).
     pub fastest_speed: PlainDword,
     /// +0x34: the race's stage (`RACE_STATE.settings.stage`), the time a bonus counts from.
@@ -60,19 +60,21 @@ pub struct Record {
     pub fastest_nation: PlainDword,
     /// +0x78: the fastest record holder's car.
     pub fastest_car: PlainDword,
-    /// +0x7C: the second record holder's name (the time trial's and `menu::keep_stage_best`'s).
-    pub second_name: PlainBytes<HOLDER_NAME_LEN>,
-    /// +0x9C: the second record holder's nationality.
-    pub second_nation: PlainDword,
-    /// +0xA0: the second record holder's car.
-    pub second_car: PlainDword,
+    /// +0x7C: the time trial's record holder's name (set by `menu::keep_stage_best`).
+    pub time_trial_name: PlainBytes<HOLDER_NAME_LEN>,
+    /// +0x9C: the time trial's record holder's nationality.
+    pub time_trial_nation: PlainDword,
+    /// +0xA0: the time trial's record holder's car.
+    pub time_trial_car: PlainDword,
 }
 
-/// A record's two record holders: the stage's fastest and the second.
+/// A record's two record holders.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Holder {
+    /// The stage's fastest holder (arcade, championship and stage panels).
     Fastest,
-    Second,
+    /// The time trial's holder: the top speed (figure) `menu::keep_stage_best` keeps.
+    TimeTrial,
 }
 
 impl Holder {
@@ -81,7 +83,7 @@ impl Holder {
     pub const fn name_at(self) -> u32 {
         match self {
             Holder::Fastest => 0x54,
-            Holder::Second => 0x7C,
+            Holder::TimeTrial => 0x7C,
         }
     }
 }
@@ -187,11 +189,11 @@ impl Record {
                 &self.fastest_speed,
                 &self.fastest_name,
             ),
-            Holder::Second => (
-                &self.second_nation,
-                &self.second_car,
-                &self.second_speed,
-                &self.second_name,
+            Holder::TimeTrial => (
+                &self.time_trial_nation,
+                &self.time_trial_car,
+                &self.time_trial_speed,
+                &self.time_trial_name,
             ),
         }
     }
@@ -236,7 +238,7 @@ impl Record {
         use RecordWord::{Dword as D, Int as I, Name as N};
         let [[x0, y0], [x1, y1]] = &self.markers;
         let [t0, t1, t2, t3] = &self.class_times;
-        let (fastest, second) = (&self.fastest_name, &self.second_name);
+        let (fastest, time_trial) = (&self.fastest_name, &self.time_trial_name);
         [
             D(&self.tag),
             D(&self.track),
@@ -249,7 +251,7 @@ impl Record {
             D(t2),
             D(t3),
             D(&self.unread_28),
-            D(&self.second_speed),
+            D(&self.time_trial_speed),
             D(&self.fastest_speed),
             D(&self.race_stage),
             D(&self.name),
@@ -269,16 +271,16 @@ impl Record {
             N(fastest, 28),
             D(&self.fastest_nation),
             D(&self.fastest_car),
-            N(second, 0),
-            N(second, 4),
-            N(second, 8),
-            N(second, 12),
-            N(second, 16),
-            N(second, 20),
-            N(second, 24),
-            N(second, 28),
-            D(&self.second_nation),
-            D(&self.second_car),
+            N(time_trial, 0),
+            N(time_trial, 4),
+            N(time_trial, 8),
+            N(time_trial, 12),
+            N(time_trial, 16),
+            N(time_trial, 20),
+            N(time_trial, 24),
+            N(time_trial, 28),
+            D(&self.time_trial_nation),
+            D(&self.time_trial_car),
         ]
     }
 
@@ -325,7 +327,7 @@ impl Record {
             service_time: d(&v, 5),
             class_times: [d(&v, 6), d(&v, 7), d(&v, 8), d(&v, 9)],
             unread_28: d(&v, 10),
-            second_speed: d(&v, 11),
+            time_trial_speed: d(&v, 11),
             fastest_speed: d(&v, 12),
             race_stage: d(&v, 13),
             name: d(&v, 14),
@@ -335,9 +337,9 @@ impl Record {
             fastest_name: name(&v, 21),
             fastest_nation: d(&v, 29),
             fastest_car: d(&v, 30),
-            second_name: name(&v, 31),
-            second_nation: d(&v, 39),
-            second_car: d(&v, 40),
+            time_trial_name: name(&v, 31),
+            time_trial_nation: d(&v, 39),
+            time_trial_car: d(&v, 40),
         }
     }
 }
@@ -2140,13 +2142,13 @@ mod tests {
             car: 2,
             speed: 8,
         };
-        record.set_holder(Holder::Second, &row, b"Jill");
-        let held = record.holder(Holder::Second);
+        record.set_holder(Holder::TimeTrial, &row, b"Jill");
+        let held = record.holder(Holder::TimeTrial);
         assert_eq!((held.nation, held.car, held.speed), (1, 2, 8));
         assert_eq!(record.word_at(0x2C), Ok(8));
         assert_eq!(record.word_at(0xA0), Ok(2));
         // No NUL written: the bytes after the name stay.
-        let name = record.holder_name(Holder::Second);
+        let name = record.holder_name(Holder::TimeTrial);
         assert_eq!((&name[..4], name[4]), (&b"Jill"[..], 0x55));
         assert_eq!(record.word_at(0x7C), Ok(u32::from_le_bytes(*b"Jill")));
         // The other holder untouched.
@@ -2176,7 +2178,7 @@ mod tests {
         );
         for (h, [nation, car, speed], name) in [
             (Holder::Fastest, [29, 30, 12], 21),
-            (Holder::Second, [39, 40, 11], 31),
+            (Holder::TimeTrial, [39, 40, 11], 31),
         ] {
             let row = r.holder(h);
             assert_eq!(

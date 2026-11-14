@@ -1,5 +1,5 @@
 //! The race's start after the stage is loaded ("RACEINIT : ..." logged before each part): the
-//! best line (`race::build_best_line`; with fewer than two checkpoints the fatal error
+//! best line (`race::store_loaded_best_line`; with fewer than two checkpoints the fatal error
 //! 0x80600D1E, unless `editor_mode` is set), the cars' places, objects, game mode, messages, car
 //! parts and timers, fifty settling steps (`drive::race_cars_step`, `drive::share_all_cars`,
 //! `effects::frame_marks`, `effects::run_frame`), the slots again and the damage messages. Not
@@ -35,7 +35,7 @@ pub fn race_init(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), R
     crate::race::load_times::mark("setbestline");
     log(c"RACEINIT : setbestline");
     indent_by(race_steps::LOG_INDENT);
-    crate::race::best_line::build_best_line(race, scene)?;
+    crate::race::best_line::store_loaded_best_line(race, scene)?;
     if race_steps::no_best_line(race_owner.shared.vars.get().checkpoint_count.get()) {
         if race_owner.shared.switches.get().editor_mode.get() != 0 {
             return Ok(());

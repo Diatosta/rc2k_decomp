@@ -99,7 +99,7 @@ pub fn draw_stage_results(o: Owners<'static>, canvas: &mut dyn Canvas) -> Result
         record
     };
     let holder = if both_off != 1 && menus.play.champ_view.switch_fc.get() == 1 {
-        Holder::Second
+        Holder::TimeTrial
     } else {
         Holder::Fastest
     };

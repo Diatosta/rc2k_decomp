@@ -18,16 +18,16 @@ pub fn is_folder_field(
 }
 
 /// An edit field's most bytes: the folder field's by the system's rules, any other's its
-/// record's (`original`).
+/// record's (`record_most`).
 pub fn field_most(
     install: &'static crate::install::owner::Install,
     text: crate::place::BytePlace,
-    original: u8,
+    record_most: u8,
 ) -> u8 {
     if is_folder_field(install, text) {
-        <Native as Folders>::field_most(original)
+        <Native as Folders>::field_most(record_most)
     } else {
-        original
+        record_most
     }
 }
 
@@ -72,25 +72,25 @@ pub trait Folders {
     /// A folder in that form as the folder page shows it.
     fn shown(folder: &[u8]) -> Vec<u8>;
 
-    /// The folder field's width in pixels, given the default (its record's +6).
-    fn field_width(original: u16) -> u16;
+    /// The folder field's width in pixels, given the field record's own width (its +6).
+    fn field_width(record_width: u16) -> u16;
 
-    /// The folder field's most bytes, given the default (its record's +1). The buffers hold
+    /// The folder field's most bytes, given the field record's own most (its +1). The buffers hold
     /// 256, with the game's folders still to go after it.
-    fn field_most(original: u8) -> u8;
+    fn field_most(record_most: u8) -> u8;
 }
 
 /// An edit field's width: the folder field's by the system's rules, any other's its
-/// record's (`original`). `text` is the field's text.
+/// record's (`record_width`). `text` is the field's text.
 pub fn field_width(
     install: &'static crate::install::owner::Install,
     text: crate::place::BytePlace,
-    original: u16,
+    record_width: u16,
 ) -> u16 {
     if is_folder_field(install, text) {
-        <Native as Folders>::field_width(original)
+        <Native as Folders>::field_width(record_width)
     } else {
-        original
+        record_width
     }
 }
 

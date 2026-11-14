@@ -14,5 +14,6 @@ pub fn item_action(
     if rc2k_core::install::items::has_action(action) {
         return item_action_at(install, list_state, action);
     }
-    Ok(action == 1)
+    // No action to run (the item's target is 0): nothing is taken.
+    Ok(false)
 }

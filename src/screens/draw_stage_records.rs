@@ -69,7 +69,7 @@ pub const STAGE_ROWS: Rows = Rows {
 };
 
 pub const TIME_TRIAL_ROWS: Rows = Rows {
-    holder: RecordHolder::Second,
+    holder: RecordHolder::TimeTrial,
     car_y: ROW_1_Y,
 };
 

@@ -20,7 +20,7 @@
 //! the first picture is shown (stopped by the key or the end). The pictures follow the sound's
 //! position (what the device has taken from the stream; the wall clock for a film without sound or
 //! a device that does not start): a picture waits for its time, one more than two frames late is
-//! not converted or shown. The log has the picture's offset from the clock once a second. Each
+//! not converted or shown. Each
 //! frame is converted from YUV (4:1:0 or 4:2:0, BT.601) to the back surface's format and stretched
 //! over it (nearest). Anything else counts as a film that did not open, and says so in the log.
 
@@ -549,12 +549,9 @@ fn run(film: &mut Film, o: crate::owners::Owners<'static>) -> u8 {
         start: std::cell::Cell::new(None),
     };
     let frame = film.frame;
-    // The number the next decoded picture has, the next to show, those dropped for being late,
-    // and the frame whose offset is logged next.
+    // The number the next decoded picture has, and the next to show.
     let mut decoded = 0u32;
     let mut shown = 0u32;
-    let mut dropped = 0u32;
-    let mut next_report = 0u32;
     let mut last: Option<Picture> = None;
     // None: a picture that was late and not converted.
     let mut queue: std::collections::VecDeque<Option<Picture>> = Default::default();
@@ -614,18 +611,8 @@ fn run(film: &mut Film, o: crate::owners::Owners<'static>) -> u8 {
                 std::thread::sleep(wait.min(std::time::Duration::from_millis(4)));
             }
         }
-        if shown >= next_report {
-            let behind = clock.now().as_secs_f64() - due.as_secs_f64();
-            log(&format!(
-                "gfx::play_film: at {:.1} s the picture is {:+.0} ms behind the clock, {dropped} dropped",
-                due.as_secs_f64(),
-                behind * 1000.0
-            ));
-            next_report = shown + (1.0 / frame.as_secs_f64()).round().max(1.0) as u32;
-        }
         shown += 1;
         let Some(next) = next else {
-            dropped += 1;
             continue;
         };
         // (`gfx::lock_surface` leaves the carry clear for a locked surface, 1.)

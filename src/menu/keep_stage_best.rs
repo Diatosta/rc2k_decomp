@@ -26,7 +26,7 @@ pub fn keep_stage_best(
         figure,
         record
             .record(&system.records().stage_tables)?
-            .holder(Holder::Second)
+            .holder(Holder::TimeTrial)
             .speed,
     ) {
         return Ok(());
@@ -35,6 +35,6 @@ pub fn keep_stage_best(
     let (row, name) = crate::menu::standings::as_holder(menus, &p.get())?;
     record
         .record(&system.records().stage_tables)?
-        .set_holder(Holder::Second, &row, &name);
+        .set_holder(Holder::TimeTrial, &row, &name);
     Ok(())
 }

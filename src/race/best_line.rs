@@ -72,20 +72,11 @@ pub struct CameraSet {
     pub nearest: Vec<u32>,
 }
 
-/// What the work leaves in variables nothing else reads: the race variables' hash covers them, so
-/// they are written as the work last wrote them (None: never written).
+/// What the work leaves in the variables others read (None: never written).
 #[derive(Clone, Default, PartialEq, Eq, Debug)]
 pub struct Leftovers {
     /// The scene's scratch word.
     pub scratch: Option<u32>,
-    /// The last point's x and z the distances or the cameras used.
-    pub line_from: Option<[u32; 2]>,
-    /// The last nearest camera's distance and number.
-    pub line_nearest: Option<[u32; 2]>,
-    /// The map's work cells (the race variables' `map_work`).
-    pub map_work: [Option<u32>; 18],
-    /// The last surface weight.
-    pub surface_weight: Option<u32>,
 }
 
 /// A checkpoint's place on the map.
@@ -233,7 +224,6 @@ fn checkpoint_distances(
         let d = [a[0].wrapping_sub(b[0]), a[1].wrapping_sub(b[1])];
         let length = x87::int_hypot(d[0] as i32, d[1] as i32) as u32;
         let mut left = left.borrow_mut();
-        left.line_from = Some(d);
         left.scratch = Some(length);
         length
     });
@@ -264,12 +254,6 @@ fn map_segment(
     };
     let (place_a, point_a) = anchor(from)?;
     let (place_b, point_b) = anchor(to)?;
-    // The map's work cells keep the stretch's values (indexes: byte offset - 0xB8, over 4).
-    let set_work = |index: usize, value: u32| left.borrow_mut().map_work[index] = Some(value);
-    set_work(13, place_a[0]);
-    set_work(14, place_a[1]);
-    set_work(7, point_a[0]);
-    set_work(8, point_a[1]);
     let ground = [
         point_b[0].wrapping_sub(point_a[0]),
         point_b[1].wrapping_sub(point_a[1]),
@@ -278,30 +262,21 @@ fn map_segment(
         place_b[0].wrapping_sub(place_a[0]),
         place_b[1].wrapping_sub(place_a[1]),
     ];
-    set_work(15, on_map[0]);
-    set_work(16, on_map[1]);
-    set_work(9, ground[0]);
-    set_work(10, ground[1]);
     let scale = x87::hypot_ratio(
         on_map[0] as i32,
         on_map[1] as i32,
         ground[0] as i32,
         ground[1] as i32,
     );
-    set_work(4, scale.to_bits());
     let numbers = race.course.numbers.get();
     let (half, unit) = (numbers.half.get(), numbers.k65536.get());
     let map_angle =
         (x87::angle_scaled5_to_int(on_map[0] as i32, on_map[1] as i32, half, unit) as u32) << 2;
     let ground_angle =
         (x87::angle_scaled5_to_int(ground[0] as i32, ground[1] as i32, half, unit) as u32) << 2;
-    set_work(0, map_angle);
-    set_work(1, ground_angle);
     for e in from..=to {
         let number = point_of(race, faces[e as usize])?;
         let p = point_xz(race, number)?;
-        set_work(5, p[0]);
-        set_work(6, p[1]);
         let [x, _, z, _] = rotate_point_about_y(
             race.engine_tables(),
             p[0].wrapping_sub(point_a[0]) as i32,
@@ -350,13 +325,7 @@ fn map_checkpoints(
             }
             Ok::<_, Refused>(anchor)
         },
-        |from, to| {
-            let mut work = left.borrow_mut();
-            work.map_work[3] = Some(from);
-            work.map_work[2] = Some(to);
-            drop(work);
-            map_segment(race, faces, from, to, left, &mut map)
-        },
+        |from, to| map_segment(race, faces, from, to, left, &mut map),
     )?;
     Ok((anchors, map))
 }
@@ -415,7 +384,6 @@ fn replay_cameras(
     let mut nearest_cameras = Vec::with_capacity(faces.len());
     for &face in faces {
         let from = point_xz(race, point_of(race, face)?)?;
-        left.borrow_mut().line_from = Some(from);
         let mut last_distance = 0;
         let nearest = rc2k_core::race::best_line::nearest_camera(count, |e| {
             let [x, z] = camera_points[e as usize];
@@ -426,7 +394,6 @@ fn replay_cameras(
         });
         let mut left = left.borrow_mut();
         left.scratch = Some(last_distance);
-        left.line_nearest = Some([nearest.0, nearest.1]);
         nearest_cameras.push(nearest.1);
     }
     Ok(CameraSet {
@@ -463,11 +430,7 @@ fn add_surface_share(
 /// The share of the line on each surface (whole numbers): for each checkpoint whose face's +0x3C
 /// names a face, that face's two textures add their four surfaces, the second weighted by the
 /// face's blend bytes (+0x22 .. +0x25) and the first by what is left of 0x100.
-fn surface_shares(
-    race: &Race,
-    faces: &[u32],
-    left: &RefCell<Leftovers>,
-) -> Result<[u32; 16], Refused> {
+fn surface_shares(race: &Race, faces: &[u32]) -> Result<[u32; 16], Refused> {
     let course = &race.course;
     let count = faces.len() as i32;
     let shares: [PlainFloat; 16] = std::array::from_fn(|_| PlainFloat::new(0.0));
@@ -515,7 +478,6 @@ fn surface_shares(
         let first_weight = rc2k_core::race::best_line::first_weight(second_weight);
         add_four(face_byte(1)?, first_weight)?;
         add_four(second, second_weight)?;
-        left.borrow_mut().surface_weight = Some(second_weight);
     }
     Ok(shares.each_ref().map(|share| x87::to_int(share) as u32))
 }
@@ -556,7 +518,7 @@ pub fn best_line(race: &Race, step: &mut dyn FnMut(Step)) -> Result<BestLine, Re
     step(Step::CamerasTwo);
     let cameras_two = replay_cameras(race, chain, 0x38, &left)?;
     step(Step::SurfaceShares);
-    let surface_shares = surface_shares(race, chain, &left)?;
+    let surface_shares = surface_shares(race, chain)?;
     Ok(BestLine {
         line_face_kind,
         checkpoint_count: count,
@@ -636,20 +598,6 @@ pub fn store_best_line(
     if let Some(scratch) = left.scratch {
         scene.drawing.scene.get().scratch.set(scratch);
     }
-    if let Some(from) = left.line_from {
-        crate::session::write_bits(&vars.line_from, from);
-    }
-    if let Some(nearest) = left.line_nearest {
-        crate::session::write_bits(&vars.line_nearest, nearest);
-    }
-    for (cell, value) in vars.map_work.iter().zip(left.map_work) {
-        if let Some(value) = value {
-            cell.set(value);
-        }
-    }
-    if let Some(weight) = left.surface_weight {
-        vars.surface_weight.set(weight);
-    }
     Ok(())
 }
 
@@ -679,8 +627,12 @@ fn cameras() -> [Cameras; 2] {
 
 const RULE: &std::ffi::CStr = c"---------------------------------";
 
-/// Builds the stage's best line and stores it, logging as it goes: a rule, each step's word, "best
-/// line completed", the summary and a rule. `line_place` and `line_fraction` end at 0.
+/// The line `build_best_line` last worked out, kept for the race set-up to store again.
+static LOADED: std::sync::Mutex<Option<BestLine>> = std::sync::Mutex::new(None);
+
+/// Builds the stage's best line, stores it and keeps it for `store_loaded_best_line`, logging as
+/// it goes: a rule, each step's word, "best line completed", the summary and a rule.
+/// `line_place` and `line_fraction` end at 0.
 pub fn build_best_line(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     use crate::logfile::log_int::log_int;
     let text =
@@ -694,6 +646,9 @@ pub fn build_best_line(race: &Race, scene: &crate::scene::owner::Scene) -> Resul
     })?;
     crate::race::load_times::mark("best_line store");
     store_best_line(race, scene, &line)?;
+    *LOADED
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(line);
     crate::race::load_times::mark("best_line summary");
     text(c"best line completed", true);
     let summary = [
@@ -707,10 +662,34 @@ pub fn build_best_line(race: &Race, scene: &crate::scene::owner::Scene) -> Resul
         log_int(value as i32, n == 3, 1);
     }
     text(RULE, true);
+    reset_line_lights(scene);
+    Ok(())
+}
+
+/// The race set-up's best line: the line the stage's load worked out is stored again (the course
+/// has not changed since, so working it out again would give the same line), logging nothing. A
+/// line not worked out yet is built as `build_best_line` does.
+pub fn store_loaded_best_line(
+    race: &Race,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
+    let kept = LOADED
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .take();
+    let Some(line) = kept else {
+        return build_best_line(race, scene);
+    };
+    store_best_line(race, scene, &line)?;
+    reset_line_lights(scene);
+    Ok(())
+}
+
+/// `line_place` and `line_fraction` end at 0 after a line is built.
+fn reset_line_lights(scene: &crate::scene::owner::Scene) {
     let lights = &scene.lights;
     lights.state.get().line_place.set(0);
     lights.state.get().line_fraction.set(0);
-    Ok(())
 }
 
 /// Runs `check` with a synthetic course held: `faces` and `points` (x, y, z words), the stage's
