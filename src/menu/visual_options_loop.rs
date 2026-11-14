@@ -26,11 +26,12 @@ pub const SCREEN: Screen = Screen {
         &m.tables.texts.visual_options_picture
     }))],
     ..Screen::new(
+        module_path!(),
         |m| m.tables.menus.visual_options.id(),
         |m| &m.screens.items.current[slot::VISUAL_OPTIONS],
     )
 };
 
 pub fn run(o: crate::owners::Owners<'static>) -> Result<(), crate::errors::Refused> {
-    screen_entry(o, "menu::visual_options_loop", &SCREEN)
+    screen_entry(o, &SCREEN)
 }

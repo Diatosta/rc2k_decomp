@@ -64,11 +64,12 @@ pub const SCREEN: Screen = Screen {
         Step::Call(Callee::PrepareScene),
     ],
     ..Screen::new(
+        module_path!(),
         |m| m.tables.menus.new_simulation.id(),
         |m| &m.screens.items.current[slot::NEW_SIMULATION],
     )
 };
 
 pub fn run(o: crate::owners::Owners<'static>) -> Result<(), crate::errors::Refused> {
-    screen_entry(o, "menu::new_simulation_loop", &SCREEN)
+    screen_entry(o, &SCREEN)
 }

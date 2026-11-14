@@ -69,11 +69,12 @@ pub const SCREEN: Screen = Screen {
         ..Frames::DEFAULT
     },
     ..Screen::new(
+        module_path!(),
         |m| m.tables.menus.network_rally.id(),
         |m| &m.screens.items.current[slot::NETWORK_RALLY],
     )
 };
 
 pub fn run(o: crate::owners::Owners<'static>) -> Result<(), crate::errors::Refused> {
-    screen_entry(o, "menu::network_rally_loop", &SCREEN)
+    screen_entry(o, &SCREEN)
 }

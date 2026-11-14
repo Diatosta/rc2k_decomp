@@ -103,6 +103,7 @@ pub const SCREEN: Screen = Screen {
         ..Asking::DEFAULT
     }),
     ..Screen::new(
+        module_path!(),
         |m| m.tables.menus.service_area.id(),
         |m| &m.screens.items.current[slot::SERVICE_AREA],
     )

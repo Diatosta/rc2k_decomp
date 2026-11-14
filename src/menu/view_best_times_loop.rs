@@ -40,11 +40,12 @@ pub const SCREEN: Screen = Screen {
         &m.tables.texts.view_best_times_picture
     }))],
     ..Screen::new(
+        module_path!(),
         |m| m.tables.menus.view_best_times.id(),
         |m| &m.screens.items.current[slot::VIEW_BEST_TIMES],
     )
 };
 
 pub fn run(o: crate::owners::Owners<'static>) -> Result<(), crate::errors::Refused> {
-    screen_entry(o, "menu::view_best_times_loop", &SCREEN)
+    screen_entry(o, &SCREEN)
 }

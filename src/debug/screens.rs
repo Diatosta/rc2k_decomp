@@ -72,20 +72,13 @@ pub fn serve(o: Owners<'static>) -> Result<bool, Refused> {
         return Ok(false);
     }
     if wanted == CSPECS {
-        crate::menu::screen_loop::screen_entry(
-            o,
-            "menu::cspecs_loop",
-            &crate::menu::cspecs_loop::SCREEN,
-        )?;
+        crate::menu::screen_loop::screen_entry(o, &crate::menu::cspecs_loop::SCREEN)?;
         return Ok(true);
     }
     let section = screens.event.section.get();
     screens.event.section.set(wanted - 1);
-    let result = crate::menu::screen_loop::screen_entry(
-        o,
-        "menu::section_times_loop",
-        &crate::menu::section_times_loop::SCREEN,
-    );
+    let result =
+        crate::menu::screen_loop::screen_entry(o, &crate::menu::section_times_loop::SCREEN);
     screens.event.section.set(section);
     result?;
     Ok(true)

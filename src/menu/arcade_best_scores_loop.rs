@@ -50,6 +50,7 @@ pub const SCREEN: Screen = Screen {
         ..Frames::DEFAULT
     },
     ..Screen::new(
+        module_path!(),
         |m| m.tables.menus.arcade_best_scores.id(),
         |m| &m.screens.items.current[slot::ARCADE_BEST_SCORES],
     )

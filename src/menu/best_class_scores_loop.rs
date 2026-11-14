@@ -47,6 +47,7 @@ pub const SCREEN: Screen = Screen {
         ..Frames::DEFAULT
     },
     ..Screen::new(
+        module_path!(),
         |m| m.tables.menus.best_class_scores.id(),
         |m| &m.screens.items.current[slot::BEST_CLASS_SCORES],
     )

@@ -224,9 +224,11 @@ impl Frames {
     };
 }
 
-/// What one screen is. A screen is `Screen::new(menu, saved_item)` and the fields that differ.
+/// What one screen is. A screen is `Screen::new(module_path!(), menu, saved_item)` and the fields that differ.
 #[derive(Clone, Copy)]
 pub struct Screen {
+    /// The module path of the screen's file (`module_path!()`), the name its log lines carry.
+    pub module_path: &'static str,
     /// The screen's menu.
     pub menu: fn(&Menus) -> MenuId,
     /// The variable the highlight is kept in between visits.
@@ -281,9 +283,14 @@ impl Screen {
     }
 
     /// A screen with its menu and the variable its highlight is kept in, and every other
-    /// field off or empty; a screen writes what differs with `..Screen::new(..)`.
-    pub const fn new(menu: fn(&Menus) -> MenuId, saved_item: Cell) -> Screen {
+    /// field off or empty; a screen writes what differs with `..Screen::new(module_path!(), ..)`.
+    pub const fn new(
+        module_path: &'static str,
+        menu: fn(&Menus) -> MenuId,
+        saved_item: Cell,
+    ) -> Screen {
         Screen {
+            module_path,
             menu,
             saved_item,
             lists: &[],
@@ -1005,8 +1012,12 @@ pub fn confirm_leaving(o: Owners<'static>) -> Result<u32, Refused> {
 
 /// Runs a screen from the menus' tables, starting with nothing carried in. Rust callers use
 /// `run_screen`.
-pub fn screen_entry(o: Owners<'static>, name: &str, screen: &Screen) -> Result<(), Refused> {
+pub fn screen_entry(o: Owners<'static>, screen: &Screen) -> Result<(), Refused> {
     let screens = &o.menus.screens;
+    let name = screen
+        .module_path
+        .strip_prefix("rc2k_decomp::")
+        .unwrap_or(screen.module_path);
     log(&format!("{name}: runs"));
     let exit = screen_loop(screens, screen, &Entry::new(o))?;
     log(&format!("{name}: has left the screen ({exit})"));

@@ -55,11 +55,12 @@ pub const SCREEN: Screen = Screen {
         ..Frames::DEFAULT
     },
     ..Screen::new(
+        module_path!(),
         |m| m.tables.menus.player1_controller.id(),
         |m| &m.screens.items.current[slot::PLAYER1_CONTROLLER],
     )
 };
 
 pub fn run(o: crate::owners::Owners<'static>) -> Result<(), crate::errors::Refused> {
-    screen_entry(o, "menu::player1_controller_loop", &SCREEN)
+    screen_entry(o, &SCREEN)
 }

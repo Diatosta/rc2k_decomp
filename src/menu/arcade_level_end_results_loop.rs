@@ -27,6 +27,7 @@ pub const SCREEN: Screen = Screen {
     }))],
     after: &[Step::Sound(MenuSound::None)],
     ..Screen::new(
+        module_path!(),
         |m| m.tables.menus.arcade_level_end_results.id(),
         |m| &m.screens.items.current[slot::ARCADE_LEVEL_END_RESULTS],
     )

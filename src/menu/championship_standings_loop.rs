@@ -55,6 +55,7 @@ pub const SCREEN: Screen = Screen {
         ..Frames::DEFAULT
     },
     ..Screen::new(
+        module_path!(),
         |m| m.tables.menus.championship_standings.id(),
         |m| &m.screens.items.current[slot::CHAMPIONSHIP_STANDINGS],
     )

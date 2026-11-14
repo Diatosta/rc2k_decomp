@@ -60,11 +60,12 @@ pub const SCREEN: Screen = Screen {
         ..Frames::DEFAULT
     },
     ..Screen::new(
+        module_path!(),
         |m| m.tables.menus.championship_new_simulation.id(),
         |m| &m.screens.items.current[slot::CHAMPIONSHIP_NEW_SIMULATION],
     )
 };
 
 pub fn run(o: crate::owners::Owners<'static>) -> Result<(), crate::errors::Refused> {
-    screen_entry(o, "menu::championship_new_simulation_loop", &SCREEN)
+    screen_entry(o, &SCREEN)
 }

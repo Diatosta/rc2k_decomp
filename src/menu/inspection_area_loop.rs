@@ -34,6 +34,7 @@ pub const SCREEN: Screen = Screen {
         ..Frames::DEFAULT
     },
     ..Screen::new(
+        module_path!(),
         |m| m.tables.menus.inspection_area.id(),
         |m| &m.screens.items.current[slot::INSPECTION_AREA],
     )

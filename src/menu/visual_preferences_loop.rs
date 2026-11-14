@@ -56,11 +56,12 @@ pub const SCREEN: Screen = Screen {
         ..Frames::DEFAULT
     },
     ..Screen::new(
+        module_path!(),
         |m| m.tables.menus.visual_preferences.id(),
         |m| &m.screens.items.current[slot::VISUAL_PREFERENCES],
     )
 };
 
 pub fn run(o: crate::owners::Owners<'static>) -> Result<(), crate::errors::Refused> {
-    screen_entry(o, "menu::visual_preferences_loop", &SCREEN)
+    screen_entry(o, &SCREEN)
 }

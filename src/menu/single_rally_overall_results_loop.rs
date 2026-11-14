@@ -59,6 +59,7 @@ pub const SCREEN: Screen = Screen {
         ..Frames::DEFAULT
     },
     ..Screen::new(
+        module_path!(),
         |m| m.tables.menus.single_rally_overall_results.id(),
         |m| &m.screens.items.current[slot::SINGLE_RALLY_OVERALL_RESULTS],
     )

@@ -51,6 +51,7 @@ pub const SCREEN: Screen = Screen {
         ..Frames::DEFAULT
     },
     ..Screen::new(
+        module_path!(),
         |m| m.tables.menus.time_trial_best_times.id(),
         |m| &m.screens.items.current[slot::TIME_TRIAL_BEST_TIMES],
     )

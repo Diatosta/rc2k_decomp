@@ -34,6 +34,7 @@ pub const SCREEN: Screen = Screen {
         ..Asking::DEFAULT
     }),
     ..Screen::new(
+        module_path!(),
         |m| m.tables.menus.welcome.id(),
         |m| &m.screens.items.current[slot::WELCOME],
     )

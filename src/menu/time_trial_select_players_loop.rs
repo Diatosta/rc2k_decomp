@@ -46,11 +46,12 @@ pub const SCREEN: Screen = Screen {
     }))],
     after: &[Step::Sound(MenuSound::None)],
     ..Screen::new(
+        module_path!(),
         |m| m.tables.menus.time_trial_select_players.id(),
         |m| &m.screens.items.current[slot::TIME_TRIAL_SELECT_PLAYERS],
     )
 };
 
 pub fn run(o: crate::owners::Owners<'static>) -> Result<(), crate::errors::Refused> {
-    screen_entry(o, "menu::time_trial_select_players_loop", &SCREEN)
+    screen_entry(o, &SCREEN)
 }

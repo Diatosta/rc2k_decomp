@@ -62,6 +62,7 @@ pub const SCREEN: Screen = Screen {
     }))],
     after_first_frame: &[Step::DoFlow(after_first_frame)],
     ..Screen::new(
+        module_path!(),
         |m| m.tables.menus.car_specs_display.id(),
         |m| &m.screens.items.current[slot::CAR_SPECS_DISPLAY],
     )

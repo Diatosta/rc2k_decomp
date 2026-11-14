@@ -53,11 +53,12 @@ pub const SCREEN: Screen = Screen {
         ..Keys::DEFAULT
     },
     ..Screen::new(
+        module_path!(),
         |m| m.tables.menus.in_game_options.id(),
         |m| &m.screens.items.current[slot::IN_GAME_OPTIONS],
     )
 };
 
 pub fn run(o: crate::owners::Owners<'static>) -> Result<(), crate::errors::Refused> {
-    screen_entry(o, "menu::in_game_options_loop", &SCREEN)
+    screen_entry(o, &SCREEN)
 }

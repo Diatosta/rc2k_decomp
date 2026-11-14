@@ -54,6 +54,7 @@ pub const SCREEN: Screen = Screen {
     leave_at_once: Some(|m| &m.screens.state.menus.standings_shown),
     asking: Some(Asking { ..Asking::DEFAULT }),
     ..Screen::new(
+        module_path!(),
         |m| m.tables.menus.overall_rally_results.id(),
         |m| &m.screens.items.current[slot::OVERALL_RALLY_RESULTS],
     )

@@ -30,11 +30,12 @@ pub const SCREEN: Screen = Screen {
         &m.tables.texts.advanced_audio_picture
     }))],
     ..Screen::new(
+        module_path!(),
         |m| m.tables.menus.advanced_audio.id(),
         |m| &m.screens.items.current[slot::ADVANCED_AUDIO],
     )
 };
 
 pub fn run(o: crate::owners::Owners<'static>) -> Result<(), crate::errors::Refused> {
-    screen_entry(o, "menu::advanced_audio_loop", &SCREEN)
+    screen_entry(o, &SCREEN)
 }

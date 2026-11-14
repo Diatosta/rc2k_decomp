@@ -33,6 +33,7 @@ pub const SCREEN: Screen = Screen {
     leave_at_once: Some(|m| &m.screens.state.menus.standings_shown),
     asking: Some(Asking { ..Asking::DEFAULT }),
     ..Screen::new(
+        module_path!(),
         |m| m.tables.menus.class_championship_standings.id(),
         |m| &m.screens.items.current[slot::CLASS_CHAMPIONSHIP_STANDINGS],
     )

@@ -32,6 +32,7 @@ pub const SCREEN: Screen = Screen {
     }))],
     asking: Some(Asking { ..Asking::DEFAULT }),
     ..Screen::new(
+        module_path!(),
         |m| m.tables.menus.best_times.id(),
         |m| &m.screens.items.current[slot::BEST_TIMES],
     )

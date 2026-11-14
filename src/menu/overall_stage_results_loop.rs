@@ -53,6 +53,7 @@ pub const SCREEN: Screen = Screen {
     }))],
     asking: Some(Asking { ..Asking::DEFAULT }),
     ..Screen::new(
+        module_path!(),
         |m| m.tables.menus.overall_stage_results.id(),
         |m| &m.screens.items.current[slot::OVERALL_STAGE_RESULTS],
     )

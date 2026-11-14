@@ -29,6 +29,7 @@ pub const SCREEN: Screen = Screen {
         &m.tables.texts.section_times_png
     }))],
     ..Screen::new(
+        module_path!(),
         |m| m.tables.menus.section_times_menu.id(),
         |m| &m.screens.items.current[SLOT],
     )

@@ -150,6 +150,7 @@ pub const SCREEN: Screen = Screen {
         ..Frames::DEFAULT
     },
     ..Screen::new(
+        module_path!(),
         |m| m.tables.menus.main_menu.id(),
         |m| &m.screens.items.current[slot::MAIN_MENU],
     )

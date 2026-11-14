@@ -38,6 +38,7 @@ pub const SCREEN: Screen = Screen {
     }))],
     asking: Some(Asking { ..Asking::DEFAULT }),
     ..Screen::new(
+        module_path!(),
         |m| m.tables.menus.rally_stages.id(),
         |m| &m.screens.items.current[slot::RALLY_STAGES],
     )

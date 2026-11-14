@@ -60,6 +60,7 @@ pub const SCREEN: Screen = Screen {
         ..Frames::DEFAULT
     },
     ..Screen::new(
+        module_path!(),
         |m| m.tables.menus.single_rally_review.id(),
         |m| &m.screens.items.current[slot::SINGLE_RALLY_REVIEW],
     )

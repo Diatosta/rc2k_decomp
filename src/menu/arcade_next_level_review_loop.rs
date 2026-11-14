@@ -56,6 +56,7 @@ pub const SCREEN: Screen = Screen {
         ..Asking::DEFAULT
     }),
     ..Screen::new(
+        module_path!(),
         |m| m.tables.menus.arcade_next_level_review.id(),
         |m| &m.screens.items.current[slot::ARCADE_NEXT_LEVEL_REVIEW],
     )

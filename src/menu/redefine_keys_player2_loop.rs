@@ -81,11 +81,12 @@ pub const SCREEN: Screen = Screen {
         ..Frames::DEFAULT
     },
     ..Screen::new(
+        module_path!(),
         |m| m.tables.menus.redefine_keys_player2.id(),
         |m| &m.screens.items.current[slot::REDEFINE_KEYS_PLAYER2],
     )
 };
 
 pub fn run(o: crate::owners::Owners<'static>) -> Result<(), crate::errors::Refused> {
-    screen_entry(o, "menu::redefine_keys_player2_loop", &SCREEN)
+    screen_entry(o, &SCREEN)
 }

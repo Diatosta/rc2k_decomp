@@ -86,6 +86,7 @@ pub const SCREEN: Screen = Screen {
         ..Frames::DEFAULT
     },
     ..Screen::new(
+        module_path!(),
         |m| m.tables.menus.load_replay.id(),
         |m| &m.screens.items.current[slot::LOAD_REPLAY],
     )

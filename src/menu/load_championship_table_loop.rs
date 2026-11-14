@@ -36,11 +36,12 @@ pub const SCREEN: Screen = Screen {
     after: &[Step::Write(|m| &m.screens.flow.left_service, 0x1)],
     leave_saved_item: Some(|m| &m.screens.items.current[slot::SAVE_SETUP]),
     ..Screen::new(
+        module_path!(),
         |m| m.tables.menus.load_championship_table.id(),
         |m| &m.screens.items.current[slot::LOAD_CHAMPIONSHIP_TABLE],
     )
 };
 
 pub fn run(o: crate::owners::Owners<'static>) -> Result<(), crate::errors::Refused> {
-    screen_entry(o, "menu::load_championship_table_loop", &SCREEN)
+    screen_entry(o, &SCREEN)
 }

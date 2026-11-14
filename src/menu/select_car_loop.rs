@@ -79,6 +79,7 @@ pub const SCREEN: Screen = Screen {
     after_first_frame: &[Step::DoFlow(after_first_frame)],
     leaving: &[Step::Do(leaving)],
     ..Screen::new(
+        module_path!(),
         |m| m.tables.menus.select_car.id(),
         |m| &m.screens.items.current[slot::SELECT_CAR],
     )

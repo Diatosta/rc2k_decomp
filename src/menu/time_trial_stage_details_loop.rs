@@ -25,6 +25,7 @@ pub const SCREEN: Screen = Screen {
     before: &[Step::Write(|m| &m.play.champ_view.stage_mode, 0x1)],
     background: &[Step::Call(Callee::DrawStageMap)],
     ..Screen::new(
+        module_path!(),
         |m| m.tables.menus.time_trial_stage_details.id(),
         |m| &m.screens.items.current[slot::TIME_TRIAL_STAGE_DETAILS],
     )

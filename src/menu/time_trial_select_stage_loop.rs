@@ -36,6 +36,7 @@ pub const SCREEN: Screen = Screen {
         ..Asking::DEFAULT
     }),
     ..Screen::new(
+        module_path!(),
         |m| m.tables.menus.time_trial_select_stage.id(),
         |m| &m.screens.items.current[slot::TIME_TRIAL_SELECT_STAGE],
     )

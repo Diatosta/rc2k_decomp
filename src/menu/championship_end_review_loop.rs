@@ -68,6 +68,7 @@ pub const SCREEN: Screen = Screen {
         ..Keys::DEFAULT
     },
     ..Screen::new(
+        module_path!(),
         |m| m.tables.menus.championship_end_review.id(),
         |m| &m.screens.items.current[slot::CHAMPIONSHIP_END_REVIEW],
     )

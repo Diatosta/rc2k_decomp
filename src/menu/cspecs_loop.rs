@@ -61,6 +61,7 @@ pub const SCREEN: Screen = Screen {
         &m.tables.texts.cspecs_png
     }))],
     ..Screen::new(
+        module_path!(),
         |m| m.tables.menus.cspecs_menu.id(),
         |m| &m.screens.items.current[SLOT],
     )
