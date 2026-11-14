@@ -1801,14 +1801,14 @@ impl<B: ByteBuffer> TextPlace for TextFrom<'_, B> {
     }
 }
 
-#[cfg(test)]
+// The lending checks exist only in debug builds.
+#[cfg(all(test, debug_assertions))]
 mod tests {
     use super::*;
 
     /// A debug build stops at a plain cell's write into a store lent to the drawing parts,
     /// and only there: the cell next to it is written, the lent one keeps its value.
     #[test]
-    #[cfg(debug_assertions)]
     fn a_write_into_a_lent_store_stops_a_debug_build() {
         let _g = crate::test_support::test_lock();
         let cells = [PlainDword::new(1), PlainDword::new(2)];
