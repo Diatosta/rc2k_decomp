@@ -29,6 +29,7 @@ pub mod skids;
 pub mod sound_objects;
 pub mod sound_tables;
 pub mod stage;
+pub mod stage_files;
 pub mod stage_objects;
 pub mod start;
 pub mod tyre_change;

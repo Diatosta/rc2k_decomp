@@ -196,19 +196,32 @@ impl StagePrefs {
     }
 }
 
-impl StagePrefs {
-    /// Reads the stage's `localdat` over all the fields in order, as many bytes as the file has
-    /// (what it does not reach is kept).
-    pub fn read_file(&self, path: &[u8]) -> Result<(), crate::errors::BadInput> {
-        let mut bytes = crate::cells::flatten(self);
-        crate::files::read_whole_file::read_whole_file_into(path, &mut bytes)?;
-        crate::cells::store_cells(self, 0, &bytes)
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rc2k_core::race::stage_files as files;
+
+    /// The offsets the core parses the file by are the fields'.
+    #[test]
+    fn the_cores_offsets_are_the_fields() {
+        assert_eq!(size_of::<StagePrefs>(), files::PREFS_SIZE);
+        assert_eq!(
+            std::mem::offset_of!(StagePrefs, texture_kinds),
+            files::TEXTURE_KINDS_AT
+        );
+        assert_eq!(
+            std::mem::offset_of!(StagePrefs, blit_cleared),
+            files::BLIT_CLEARED_AT
+        );
+        assert_eq!(
+            std::mem::offset_of!(StagePrefs, car_light_table),
+            files::CAR_LIGHT_TABLE_AT
+        );
+        assert_eq!(
+            std::mem::offset_of!(StagePrefs, picture_lists_b),
+            files::PICTURE_LISTS_B_AT
+        );
+    }
 
     /// The fields in order are the whole piece, dword for dword.
     #[test]

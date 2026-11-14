@@ -4,7 +4,7 @@
 //!
 //! While held, the faces and records are entries of their tables, reached by number
 //! (`face_number`, `face_field`, `record_field`, ..; a field past its entry reads on into the
-//! next, kept as is) and the course info by offset (`info_bytes`, `info_field`).
+//! next, kept as is) and the course info by offset (`info_bytes`).
 //! `COURSE.course_faces` and `COURSE.course_records` hold the tables' bases, handles
 //! (`PLACES_TAG`): nothing reads through them.
 
@@ -65,36 +65,16 @@ pub fn take_info(len: u32) -> Result<u32, BadInput> {
     Ok(info_base())
 }
 
-/// The file at game address `path` read whole into the course info from byte `offset`
-/// (`count` bytes at most).
-pub fn read_file_into_info(path: &[u8], offset: u32, count: u32) -> Result<(), BadInput> {
-    let start = offset as usize;
-    let mut into = INFO
-        .bytes(start, count as usize)?
-        .ok_or(BadInput("a file read outside the course info"))?;
-    let read = crate::files::read_whole_file::read_whole_file_into(path, &mut into);
-    INFO.write(start, &into)?;
-    read
+/// The whole course info set to `bytes` (the same length as the table taken).
+pub fn set_info(bytes: &[u8]) -> Result<(), BadInput> {
+    INFO.write(0, bytes)?
+        .ok_or(BadInput("an info larger than the course info"))
 }
 
 /// `len` bytes of the course info from byte `offset`.
 pub fn info_bytes(offset: u32, len: usize) -> Result<Vec<u8>, BadInput> {
     INFO.bytes(offset as usize, len)?
         .ok_or(BadInput("a read outside the course info"))
-}
-
-/// `data` written into the course info from byte `offset`.
-pub fn write_info(offset: u32, data: &[u8]) -> Result<(), BadInput> {
-    INFO.write(offset as usize, data)?
-        .ok_or(BadInput("a write outside the course info"))
-}
-
-/// The whole number at byte `offset` of the course info.
-pub fn info_field<T: Whole>(offset: u32) -> Result<T, BadInput> {
-    let mut bytes = [0u8; 64];
-    let len = size_of::<T>();
-    bytes[..len].copy_from_slice(&info_bytes(offset, len)?);
-    Ok(T::from_bytes(&bytes))
 }
 
 /// Bumped when a face's first point (+4) or a scene point below the count may have

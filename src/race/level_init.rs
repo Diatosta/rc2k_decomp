@@ -52,33 +52,31 @@ pub fn allocate_course_memory(
     Ok(())
 }
 
-/// Copies 0x800 bytes of the course info from +0x17E800 to +0x17F000.
-pub fn copy_texture_info_tail() -> Result<(), BadInput> {
-    use crate::race::course_places::{info_bytes, write_info};
-    write_info(0x17_F000, &info_bytes(0x17_E800, 0x800)?)
-}
-
-/// Reads `files\a\textinfo` (0x1F4000 bytes at most) into the course info, `files\m\markinfo`
-/// (0x8000) at +0x1C2000 and `files\b\textinfo` at +0x1F4000, puts three line feeds at +0x5BD21,
-/// then `copy_texture_info_tail`. Refuses no course info.
+/// Reads `files\a\textinfo`, `files\m\markinfo` and `files\b\textinfo` into the course info
+/// (`CourseInfo` lays them out and makes their finish) and takes it into the course info table.
+/// Refuses no course info.
 pub fn load_texture_info(
     course: &Course,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
+    use rc2k_core::race::stage_files::{CourseInfo, MARK_INFO, TEXTURE_INFO_A, TEXTURE_INFO_B};
     let file_numbers = &scene.file_numbers();
-    let info = course.lists.get().course_info.get();
-    if info == 0 {
-        return Err(BadInput("no course memory: the original reads into 0").into());
+    if course.lists.get().course_info.get() == 0 {
+        return Err(BadInput("no course info to read the info files into").into());
     }
-    let read = |texts_at: usize, offset: u32, count: u32| {
+    let mut info = CourseInfo::new();
+    for (texts_at, part) in [
+        (texts::TEXTURE_INFO_A, TEXTURE_INFO_A),
+        (texts::MARK_INFO, MARK_INFO),
+        (texts::TEXTURE_INFO_B, TEXTURE_INFO_B),
+    ] {
         let path = file_numbers.text_at(texts_at).text("a course info path")?;
-        crate::race::course_places::read_file_into_info(&path, offset, count)
-    };
-    read(texts::TEXTURE_INFO_A, 0, 0x1F_4000)?;
-    read(texts::MARK_INFO, 0x1C_2000, 0x8000)?;
-    read(texts::TEXTURE_INFO_B, 0x1F_4000, 0x1F_4000)?;
-    crate::race::course_places::write_info(0x5_BD21, &[0x0A; 3])?;
-    copy_texture_info_tail()?;
+        let mut file = vec![0u8; part.1];
+        let read = crate::files::read_whole_file::read_whole_file_len(&path, &mut file)?;
+        info.lay_file(part, &file[..read])?;
+    }
+    info.finish_texture_info();
+    crate::race::course_places::set_info(info.bytes())?;
     Ok(())
 }
 
@@ -121,48 +119,42 @@ pub fn load_error_list(frame: &Frame, scene: &crate::scene::owner::Scene) -> Res
 }
 
 /// Builds the texture infos: nothing without course info; else for each of the 256 textures, from
-/// its kind k (`texture_kinds`) and the info's record at k * 0x80, a record of 0x40: +0x24 k & 0xF,
-/// +0x20 k >> 4, +0x28 that | 0x80000000, +0x10 / +0x14 / +0x18 the record's +0x20 / +0x10 /
-/// +0x14, +0x1C its byte +0x18, +0x2C ..= +0x2E its bytes +0x24 ..= +0x26, +0 ..= +0xC its first
-/// four. Refuses a kind whose record lies past the info.
+/// its kind k (`texture_kinds`) and the info's record at k * 0x80, a record of 0x40
+/// (`rc2k_core::race::stage_files::texture_infos`). Refuses a kind whose record lies past the
+/// info, before any is written.
 pub fn build_texture_infos(race: &Race) -> Result<(), Refused> {
+    use rc2k_core::race::stage_files::{INFO_SIZE, KIND_RECORD, texture_infos};
     let course = &race.course;
-    {
-        let info = course.lists.get().course_info.get();
-        if info == 0 {
-            return Ok(());
+    if course.lists.get().course_info.get() == 0 {
+        return Ok(());
+    }
+    let kinds: [u32; TEXTURES as usize] =
+        std::array::from_fn(|n| course.stage_prefs.get().texture_kinds[n].get());
+    let trap = Trap::new();
+    let infos = texture_infos(&kinds, |kind| {
+        if kind as usize >= INFO_SIZE / KIND_RECORD {
+            return None;
         }
-        for n in 0..TEXTURES {
-            if course.stage_prefs.get().texture_kinds[n as usize].get() >= INFO_PART / 0x80 {
-                return Err(BadInput("a texture kind past the course info").into());
-            }
+        trap.keep_read(
+            crate::race::course_places::info_bytes(kind * KIND_RECORD as u32, KIND_RECORD)
+                .map(Some),
+        )
+    });
+    trap.finish()?;
+    for (n, t) in infos?.iter().enumerate() {
+        let out = &race.polygon_tables().texture_infos[n].words;
+        out[9].set(t.row);
+        out[8].set(t.group);
+        for (k, &value) in t.values.iter().enumerate() {
+            out[4 + k].set(value);
         }
-        // Logic in `rc2k_core::race::stage::texture_info`.
-        for n in 0..TEXTURES {
-            let out = &race.polygon_tables().texture_infos[n as usize].words;
-            let kind = course.stage_prefs.get().texture_kinds[n as usize].get();
-            let rec = kind * 0x80;
-            let trap = Trap::new();
-            use crate::race::course_places::info_field as field;
-            let t = rc2k_core::race::stage::texture_info(
-                kind,
-                |o| trap.keep_read(field::<u32>(rec + o)),
-                |o| trap.keep_read(field::<u8>(rec + o)),
-            );
-            trap.finish()?;
-            out[9].set(t.row);
-            out[8].set(t.group);
-            for (k, &value) in t.values.iter().enumerate() {
-                out[4 + k].set(value);
-            }
-            // The record's byte at +0x1C and three at +0x2C are bytes inside their dwords.
-            out[7].store(0, &[t.byte])?;
-            out[11].store(0, &t.bytes)?;
-            for (k, &value) in t.first.iter().enumerate() {
-                out[k].set(value);
-            }
-            out[10].set(t.marked);
+        // The record's byte at +0x1C and three at +0x2C are bytes inside their dwords.
+        out[7].store(0, &[t.byte])?;
+        out[11].store(0, &t.bytes)?;
+        for (k, &value) in t.first.iter().enumerate() {
+            out[k].set(value);
         }
+        out[10].set(t.marked);
     }
     Ok(())
 }

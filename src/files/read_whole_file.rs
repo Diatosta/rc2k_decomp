@@ -48,17 +48,21 @@ pub fn read_whole_file_plain_bytes<const N: usize>(
 
 /// `read_whole_file` into Rust's memory (`into.len()` bytes at most).
 pub fn read_whole_file_into(path: &[u8], into: &mut [u8]) -> Result<(), BadInput> {
-    {
-        let w = rc2k_core::files::io::read_whole_file(
-            &mut crate::files::handle::GameFiles::new(),
-            path,
-            into,
-        )?;
-        if !w.opened {
-            BYTES_READ.set(0);
-            return Ok(());
-        }
-        BYTES_READ.set(if w.closed { w.bytes } else { 0 });
-        Ok(())
+    read_whole_file_len(path, into).map(|_| ())
+}
+
+/// `read_whole_file_into`, giving how many bytes of `into` the file replaced (0 when it could
+/// not be opened or read).
+pub fn read_whole_file_len(path: &[u8], into: &mut [u8]) -> Result<usize, BadInput> {
+    let w = rc2k_core::files::io::read_whole_file(
+        &mut crate::files::handle::GameFiles::new(),
+        path,
+        into,
+    )?;
+    if !w.opened {
+        BYTES_READ.set(0);
+        return Ok(0);
     }
+    BYTES_READ.set(if w.closed { w.bytes } else { 0 });
+    Ok(if w.read_ok { w.bytes as usize } else { 0 })
 }
