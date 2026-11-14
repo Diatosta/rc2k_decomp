@@ -632,3 +632,13 @@ has the same fixed addresses, but its network mode could not be run here to see 
 **Seen or read:** read in the port (2026-11-12) while bounding the HUD's tables; not seen in the original.
 
 **Fix:** the gear is clamped to -1 ..= 7 where its rectangle is chosen (`hud::layout_common::gear_rect`), and the game log says once a race which gear was read and which one is shown ("hud: gear 40 outside -1 ..= 7 (a damaged replay?), shown as 7"). Gears in range draw exactly as before.
+
+## A loading-bar frame that could not be drawn ended the game
+
+**What it is:** while a stage loads, the game draws a loading bar frame over the loading picture. When a frame could not be drawn (the window not the active one, its surfaces lost, or the frame's lock refused), the original called its surface restore routine and went on from there. The Rust version had not ported that routine and ended the program ("not ported") instead.
+
+**In game:** switching away from the window or losing the display surfaces during a stage load would have ended the game instead of only pausing the bar.
+
+**Seen or read:** read, not seen. The standalone keeps its window flag active and never marks the surfaces lost, so a headless run could not make the case happen; found 2026-11-14 reading `race::loading_bar_frame`.
+
+**Fix:** the frame is skipped (nothing is drawn or presented that frame), the load goes on, and the next frame tries again (`race::loading_bar_frame`). The platform restores the window and its surfaces by itself.

@@ -2,11 +2,9 @@
 //! a stage's loading and the credits it does nothing; otherwise it sets `scene_state` to the frame
 //! mark and, unless the game is quitting, draws `race::loading_bar_quad` in an unframed view window
 //! and presents the frame. A frame that cannot be drawn (the window inactive, its surfaces lost, or
-//! the lock refused) goes to the platform's surface restore, which is not ported: it ends the game.
+//! the lock refused) is skipped: nothing is shown and the load goes on; the next frame tries again.
 
 use crate::errors::Refused;
-const RESTORE: usize = 0x405B10;
-
 /// A stage is loading (`race::load_stage`). The bar is drawn for every stage, over the loading
 /// picture.
 pub static STAGE_LOADING: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
@@ -65,10 +63,11 @@ fn frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     if session.flags.quitting.is_set() {
         return Ok(());
     }
-    let drawn = 'frame: {
+    // A frame that cannot be drawn is skipped: the load goes on and the next frame tries again.
+    'frame: {
         let active: u32 = session.flags.window_active.get();
         if active == 0 || !frame_tried(active, system.window_loop().lost.get()) {
-            break 'frame false;
+            break 'frame;
         }
         begin_scene::begin_scene(race, d3d, crate::workers::game_scratch());
         let framed: u32 = shared.switches.get().editor_mode.get();
@@ -78,14 +77,11 @@ fn frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
         crate::race::loading_bar_quad::loading_bar_quad(race, system, scene)?;
         end_scene::end_scene(d3d);
         if lock_frame::lock_frame(race, gfx, system).0 < 1 {
-            break 'frame false;
+            break 'frame;
         }
         unlock_frame::unlock_frame(&race.frame, gfx);
-        present_frame::present_frame(o)
-    };
-    if drawn || session.flags.quitting.is_set() {
-        return Ok(());
+        // A refused present is skipped as well.
+        present_frame::present_frame(o);
     }
-    // The platform's restore (with a local scratch value; no caller reads the flags it leaves).
-    crate::standalone::not_ported(RESTORE, "race::loading_bar_frame")
+    Ok(())
 }
