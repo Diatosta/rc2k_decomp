@@ -51,7 +51,7 @@ pub fn service_pass(menus: &Menus, entry: &Entry) -> Result<(), Refused> {
             crate::menu::driver_stats::driver_stats(menus, screens)?;
             menus.screens.state.menus.service_flag.set(false);
             crate::menu::reset_driver_condition::reset_driver_condition(menus)?;
-            crate::service::clear_repair_flags::clear_repair_flags(menus)?;
+            crate::service::clear_repair_flags::clear_repair_flags()?;
             for _ in 0..passes::DROPPED_KEYS {
                 crate::input::take_key::take_key(entry.input);
             }

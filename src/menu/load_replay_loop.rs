@@ -4,9 +4,11 @@
 //! returns a value.
 
 use crate::errors::Refused;
+use crate::menu::draw_lists_store::DRAW_LISTS;
 use crate::menu::owner::Menus;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Callee, Entry, Frames, Keys, List, Screen, Step};
+use crate::menu::texts_store::texts;
 
 fn before(entry: &Entry) -> Result<(), Refused> {
     let screens = &entry.menus.screens;
@@ -37,28 +39,28 @@ pub const SCREEN: Screen = Screen {
     lists: &[
         List {
             pointer: |m| &m.screens.flow.unread_list,
-            table: |m| m.tables.draw_lists.unread_draw_list.id(),
+            table: |_| DRAW_LISTS.unread_draw_list.id(),
             run: false,
         },
         List {
             pointer: |m| &m.screens.flow.draw_list,
-            table: |m| m.tables.draw_lists.load_replay_draw.id(),
+            table: |_| DRAW_LISTS.load_replay_draw.id(),
             run: false,
         },
         List {
             pointer: |m| &m.screens.flow.setup_list,
-            table: |m| m.tables.draw_lists.load_replay_setup.id(),
+            table: |_| DRAW_LISTS.load_replay_setup.id(),
             run: true,
         },
         List {
             pointer: |m| &m.screens.flow.overlay_list,
-            table: |m| m.tables.draw_lists.load_replay_overlay.id(),
+            table: |_| DRAW_LISTS.load_replay_overlay.id(),
             run: false,
         },
     ],
     before: &[Step::Do(before)],
-    background: &[Step::Call(Callee::LoadBackground(|m| {
-        &m.tables.texts.load_replay_picture
+    background: &[Step::Call(Callee::LoadBackground(|_| {
+        &texts().load_replay_picture
     }))],
     result: Some(result),
     keys: Keys {
@@ -69,17 +71,17 @@ pub const SCREEN: Screen = Screen {
         first_frame_lists: Some(&[
             List {
                 pointer: |m| &m.screens.flow.scene_list,
-                table: |m| m.tables.draw_lists.load_replay_scene.id(),
+                table: |_| DRAW_LISTS.load_replay_scene.id(),
                 run: false,
             },
             List {
                 pointer: |m| &m.screens.flow.draw_list,
-                table: |m| m.tables.draw_lists.load_replay_draw.id(),
+                table: |_| DRAW_LISTS.load_replay_draw.id(),
                 run: false,
             },
             List {
                 pointer: |m| &m.screens.flow.overlay_list,
-                table: |m| m.tables.draw_lists.load_replay_overlay.id(),
+                table: |_| DRAW_LISTS.load_replay_overlay.id(),
                 run: false,
             },
         ]),

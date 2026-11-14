@@ -118,7 +118,7 @@ pub fn draw_marker(
     };
     let (plan, _) =
         rc2k_core::screens::setup_markers::plan(core, menu, &percent, &installed, &|| {
-            repair_flag(menus, item)
+            repair_flag(item)
         })?;
     match plan {
         Plan::Hidden { .. } => Ok(()),

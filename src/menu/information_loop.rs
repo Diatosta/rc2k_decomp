@@ -2,10 +2,12 @@
 //! `info.png`; leaving is not asked about.
 
 use crate::errors::Refused;
+use crate::menu::draw_lists_store::DRAW_LISTS;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{
     Callee, Entry, List, Screen, Step, carousel, log_line, prepare_scene, screen_entry,
 };
+use crate::menu::texts_store::texts;
 
 fn set_up_first(entry: &Entry) -> Result<(), Refused> {
     let screens = &entry.menus.screens;
@@ -31,26 +33,24 @@ pub const SCREEN: Screen = Screen {
     lists: &[
         List {
             pointer: |m| &m.screens.flow.scene_list,
-            table: |m| m.tables.draw_lists.information_scene.id(),
+            table: |_| DRAW_LISTS.information_scene.id(),
             run: false,
         },
         List {
             pointer: |m| &m.screens.flow.draw_list,
-            table: |m| m.tables.draw_lists.information_draw.id(),
+            table: |_| DRAW_LISTS.information_draw.id(),
             run: false,
         },
         List {
             pointer: |m| &m.screens.flow.overlay_list,
-            table: |m| m.tables.draw_lists.information_overlay.id(),
+            table: |_| DRAW_LISTS.information_overlay.id(),
             run: false,
         },
     ],
     set_up_first: &[Step::Do(set_up_first)],
     background: &[
         Step::Write(|m| &m.screens.event.clears_escape_flag, 0x1),
-        Step::Call(Callee::LoadBackground(|m| {
-            &m.tables.texts.information_picture
-        })),
+        Step::Call(Callee::LoadBackground(|_| &texts().information_picture)),
     ],
     after: &[Step::Do(after)],
     ..Screen::new(

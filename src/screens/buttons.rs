@@ -11,7 +11,7 @@
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::gfx::blit_bar::BAR_HAS_NO_LENGTH;
 use crate::gfx::blit_glyph::BlitCall;
-use crate::menu::item_sprites_store::ItemSprite;
+use crate::menu::item_sprites_store::{ITEM_SPRITES, ItemSprite};
 use crate::menu::owner::Menus;
 use crate::session::DwordLike;
 use crate::text::draw_text::Canvas;
@@ -125,16 +125,12 @@ pub fn draw_button(
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
     let list = match set {
-        ItemSprite::List(n) => &menus.panels.item_sprites.lists[n],
+        ItemSprite::List(n) => &ITEM_SPRITES[n],
         ItemSprite::Sprite(0) => return Err(BadInput("a button without sprites").into()),
         // A sprite number where the item should point at a list of five is refused.
         ItemSprite::Sprite(_) => return Err(BadInput("a button's sprites at no list").into()),
     };
-    let sprites = [
-        list[kind.left_at].get(),
-        list[kind.right_at].get(),
-        list[4].get(),
-    ];
+    let sprites = [list[kind.left_at], list[kind.right_at], list[4]];
     let work = (kind.work)(menus);
     work.width.set(width);
     work.x.set(x as u32);

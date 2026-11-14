@@ -2,6 +2,7 @@
 //! is not asked about.
 
 use crate::errors::Refused;
+use crate::menu::draw_lists_store::DRAW_LISTS;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Callee, Entry, List, Screen, Step, log_line, screen_entry};
 
@@ -19,22 +20,22 @@ pub const SCREEN: Screen = Screen {
     lists: &[
         List {
             pointer: |m| &m.screens.flow.scene_list,
-            table: |m| m.tables.draw_lists.view_courses_scene.id(),
+            table: |_| DRAW_LISTS.view_courses_scene.id(),
             run: false,
         },
         List {
             pointer: |m| &m.screens.flow.draw_list,
-            table: |m| m.tables.draw_lists.view_courses_draw.id(),
+            table: |_| DRAW_LISTS.view_courses_draw.id(),
             run: false,
         },
         List {
             pointer: |m| &m.screens.flow.setup_list,
-            table: |m| m.tables.draw_lists.view_courses_setup.id(),
+            table: |_| DRAW_LISTS.view_courses_setup.id(),
             run: true,
         },
         List {
             pointer: |m| &m.screens.flow.overlay_list,
-            table: |m| m.tables.draw_lists.view_courses_overlay.id(),
+            table: |_| DRAW_LISTS.view_courses_overlay.id(),
             run: false,
         },
     ],

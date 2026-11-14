@@ -8,24 +8,26 @@
 //! its background comes from `menu::load_background` (a failed load is fatal error
 //! 0x80712345); leaving is asked about, and a "no" sets the screen up again.
 //! Callers: the event loops `menu::run_championship`.
+use crate::menu::draw_lists_store::DRAW_LISTS;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Asking, Callee, List, Screen, Step};
+use crate::menu::texts_store::texts;
 
 pub const SCREEN: Screen = Screen {
     lists: &[
         List {
             pointer: |m| &m.screens.flow.scene_list,
-            table: |m| m.tables.draw_lists.rally_stages_scene.id(),
+            table: |_| DRAW_LISTS.rally_stages_scene.id(),
             run: false,
         },
         List {
             pointer: |m| &m.screens.flow.draw_list,
-            table: |m| m.tables.draw_lists.rally_stages_list.id(),
+            table: |_| DRAW_LISTS.rally_stages_list.id(),
             run: false,
         },
         List {
             pointer: |m| &m.screens.flow.overlay_list,
-            table: |m| m.tables.draw_lists.rally_stages_overlay.id(),
+            table: |_| DRAW_LISTS.rally_stages_overlay.id(),
             run: false,
         },
     ],
@@ -33,8 +35,8 @@ pub const SCREEN: Screen = Screen {
         |m| &m.screens.draw_work.escape_pressed,
         false,
     )],
-    background: &[Step::Call(Callee::LoadBackground(|m| {
-        &m.tables.texts.rally_stages_picture
+    background: &[Step::Call(Callee::LoadBackground(|_| {
+        &texts().rally_stages_picture
     }))],
     asking: Some(Asking { ..Asking::DEFAULT }),
     ..Screen::new(

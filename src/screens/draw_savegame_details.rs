@@ -14,7 +14,7 @@
 //! worked out.
 
 use crate::errors::Refused;
-use crate::menu::owner::Tables;
+use crate::menu::lists_store::lists;
 use crate::records::find_record::find_record_in;
 use crate::saves::gather_savegame::CAR_LEN;
 use crate::saves::owner::Saves;
@@ -29,7 +29,6 @@ const PAYLOAD_OFFSET: usize = 0x30;
 /// Returns whether the last text drawn was too wide for its box.
 pub fn draw_savegame_details(
     o: crate::owners::Owners<'static>,
-    tables: &Tables,
     saves: &Saves,
     system: &System,
     canvas: &mut dyn Canvas,
@@ -56,7 +55,7 @@ pub fn draw_savegame_details(
         let title = Title {
             a8_mode,
             section: if a8_mode {
-                section_title(&tables.lists, section)?
+                section_title(lists(), section)?
             } else {
                 find_record_in(&system.records().stage_tables, table, 0, section)?
                     .record(&system.records().stage_tables)?

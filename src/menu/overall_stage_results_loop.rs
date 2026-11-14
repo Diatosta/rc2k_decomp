@@ -7,8 +7,10 @@
 //! fatal error 0x80712345; leaving is asked about, and a "no" sets the screen up again. One caller.
 
 use crate::errors::Refused;
+use crate::menu::draw_lists_store::DRAW_LISTS;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Asking, Callee, Entry, List, Screen, Step};
+use crate::menu::texts_store::texts;
 
 fn set_first_item(entry: &Entry) -> Result<(), Refused> {
     let menus = entry.menus;
@@ -33,23 +35,23 @@ pub const SCREEN: Screen = Screen {
     lists: &[
         List {
             pointer: |m| &m.screens.flow.scene_list,
-            table: |m| m.tables.draw_lists.overall_stage_results_scene.id(),
+            table: |_| DRAW_LISTS.overall_stage_results_scene.id(),
             run: false,
         },
         List {
             pointer: |m| &m.screens.flow.draw_list,
-            table: |m| m.tables.draw_lists.overall_stage_results_list.id(),
+            table: |_| DRAW_LISTS.overall_stage_results_list.id(),
             run: false,
         },
         List {
             pointer: |m| &m.screens.flow.overlay_list,
-            table: |m| m.tables.draw_lists.overall_stage_results_overlay.id(),
+            table: |_| DRAW_LISTS.overall_stage_results_overlay.id(),
             run: false,
         },
     ],
     before: &[Step::Do(set_first_item)],
-    background: &[Step::Call(Callee::LoadBackground(|m| {
-        &m.tables.texts.overall_stage_results_picture
+    background: &[Step::Call(Callee::LoadBackground(|_| {
+        &texts().overall_stage_results_picture
     }))],
     asking: Some(Asking { ..Asking::DEFAULT }),
     ..Screen::new(

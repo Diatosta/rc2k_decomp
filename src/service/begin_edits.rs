@@ -27,7 +27,7 @@ pub fn begin_edit(menus: &Menus, e: Edit) -> Result<(), Refused> {
     let item = flagged_item(screens)?;
 
     if rc2k_core::service::repairs::may_edit(
-        repair_flag_in(&menus.tables, item),
+        repair_flag_in(item),
         screens.state.driver_stats.repair_time.get() as i32,
         screens.state.driver_stats.repair_times[12 + e.setup].get() as i32,
         screens.event.service_minutes.get() as i32,

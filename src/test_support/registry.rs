@@ -750,21 +750,6 @@ fn listed_stores() -> Vec<Listed> {
             on_game(&crate::menu::owner::MENU_OWNER.get().screens.draw_work),
         ),
         listed!(
-            "menu.owner.MENU_OWNER.tables.texts",
-            on_game_from(
-                &crate::menu::owner::MENU_OWNER.get().tables.texts,
-                ".no_point_text"
-            ),
-            0x2ce4,
-        ),
-        listed!(
-            "menu.owner.MENU_OWNER.tables.texts",
-            on_game_from(
-                &crate::menu::owner::MENU_OWNER.get().tables.texts,
-                ".car_speech[0][0]",
-            ),
-        ),
-        listed!(
             "system.owner.SYSTEM.records.stage_tables",
             on_game(&crate::system::owner::SYSTEM.records().stage_tables),
         ),
@@ -783,10 +768,6 @@ fn listed_stores() -> Vec<Listed> {
         listed!(
             "menu.owner.MENU_OWNER.screens.items",
             on_game(&crate::menu::owner::MENU_OWNER.get().screens.items),
-        ),
-        listed!(
-            "menu.owner.MENU_OWNER.panels.item_sprites",
-            on_game(&crate::menu::owner::MENU_OWNER.get().panels.item_sprites),
         ),
         listed!(
             "menu.owner.MENU_OWNER.tables.menus.labels",
@@ -1176,11 +1157,6 @@ fn listed_stores() -> Vec<Listed> {
         listed!(
             "effects.owner.EFFECTS.setup.work",
             on_game(&crate::effects::owner::EFFECTS.get().setup.work),
-        ),
-        listed!(
-            "menu.owner.MENU_OWNER.tables.lists",
-            on_game(&crate::menu::owner::MENU_OWNER.get().tables.lists),
-            0x11ae,
         ),
         listed!(
             "menu.owner.MENU_OWNER.screens.state",

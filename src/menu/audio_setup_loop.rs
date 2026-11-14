@@ -3,8 +3,10 @@
 //! only.
 
 use crate::errors::Refused;
+use crate::menu::draw_lists_store::DRAW_LISTS;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Callee, Entry, Frames, List, Screen, Step, screen_entry};
+use crate::menu::texts_store::texts;
 
 fn before(entry: &Entry) -> Result<(), Refused> {
     let screens = &entry.menus.screens;
@@ -16,41 +18,41 @@ pub const SCREEN: Screen = Screen {
     lists: &[
         List {
             pointer: |m| &m.screens.flow.unread_list,
-            table: |m| m.tables.draw_lists.unread_draw_list.id(),
+            table: |_| DRAW_LISTS.unread_draw_list.id(),
             run: false,
         },
         List {
             pointer: |m| &m.screens.flow.draw_list,
-            table: |m| m.tables.draw_lists.audio_setup_draw.id(),
+            table: |_| DRAW_LISTS.audio_setup_draw.id(),
             run: false,
         },
         List {
             pointer: |m| &m.screens.flow.overlay_list,
-            table: |m| m.tables.draw_lists.audio_setup_overlay.id(),
+            table: |_| DRAW_LISTS.audio_setup_overlay.id(),
             run: false,
         },
     ],
     before: &[Step::Do(before)],
     set_up_first: &[Step::Write(|m| &m.screens.flow.quiet, 0x1)],
-    background: &[Step::Call(Callee::LoadBackground(|m| {
-        &m.tables.texts.audio_setup_picture
+    background: &[Step::Call(Callee::LoadBackground(|_| {
+        &texts().audio_setup_picture
     }))],
     after: &[Step::Write(|m| &m.screens.flow.quiet, 0x0)],
     frames: Frames {
         first_frame_lists: Some(&[
             List {
                 pointer: |m| &m.screens.flow.scene_list,
-                table: |m| m.tables.draw_lists.audio_setup_scene.id(),
+                table: |_| DRAW_LISTS.audio_setup_scene.id(),
                 run: false,
             },
             List {
                 pointer: |m| &m.screens.flow.draw_list,
-                table: |m| m.tables.draw_lists.audio_setup_draw.id(),
+                table: |_| DRAW_LISTS.audio_setup_draw.id(),
                 run: false,
             },
             List {
                 pointer: |m| &m.screens.flow.overlay_list,
-                table: |m| m.tables.draw_lists.audio_setup_overlay.id(),
+                table: |_| DRAW_LISTS.audio_setup_overlay.id(),
                 run: false,
             },
         ]),

@@ -46,7 +46,7 @@ pub fn load_setup_slot(
     system: &System,
     input: &crate::input::owner::Input,
 ) -> Result<(), Refused> {
-    let (screens, tables) = (&menus.screens, &menus.tables);
+    let screens = &menus.screens;
     let slot = highlighted_slot(menus);
     let Some(player) = current_player(menus) else {
         return Err(BadInput("no current player object: the original writes through null").into());
@@ -54,14 +54,14 @@ pub fn load_setup_slot(
     if slot >= SLOT_COUNT {
         return Err(BadInput("slot past the name table").into());
     }
-    if repair_flag_in(tables, ITEM_COUNT) != u32::MAX || !marks_ended(tables) {
+    if repair_flag_in(ITEM_COUNT) != u32::MAX || !marks_ended() {
         return Err(BadInput("a flag table has lost its end mark").into());
     }
 
     if !read_setup_slot(service, slot)? {
         return Ok(());
     }
-    clear_repair_flags(menus)?;
+    clear_repair_flags()?;
 
     use rc2k_core::service::setups::{CONFIRM_ORDER, EditPage, SetupValues};
     let v = SetupValues::from_file(&service.set_ups.file.read());
@@ -80,8 +80,8 @@ pub fn load_setup_slot(
 
     // Both tables are cleared again; with the end marks in place the flags' second clear
     // changes nothing.
-    clear_repair_flags(menus)?;
-    clear_repair_marks(tables)?;
+    clear_repair_flags()?;
+    clear_repair_marks()?;
 
     let highlighted = screens.loop_flags.item.get();
     for page in CONFIRM_ORDER {

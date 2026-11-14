@@ -22,7 +22,6 @@ pub fn draw_savegame_preview(
 ) -> Result<bool, Refused> {
     let menus = o.menus;
     let savegame_preview = &saves.savegame_preview;
-    let tables = &menus.tables;
     // The logic is in `rc2k_core::screens::savegame_preview::preview` (the slot); the panels
     // are converted in their own functions.
     use rc2k_core::screens::savegame_preview::{NO_SLOT, Preview, preview};
@@ -48,6 +47,6 @@ pub fn draw_savegame_preview(
     if savegame_preview.nothing_to_show.get() == 1 {
         draw_empty_savegame(o, canvas)
     } else {
-        draw_savegame_details(o, tables, saves, system, canvas)
+        draw_savegame_details(o, saves, system, canvas)
     }
 }

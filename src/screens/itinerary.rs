@@ -3,6 +3,7 @@
 //! hhmm) listed row by row, with the rows, stages and services counted in the draw work.
 
 use crate::errors::{FatalError, Refused};
+use crate::menu::lists_store::lists;
 use crate::screens::best_scores::{record_at, section_there};
 use crate::screens::game_screen::GameScreen;
 use crate::text::draw_text::Canvas;
@@ -33,10 +34,7 @@ pub fn draw_itinerary(
         let stages = &system.records().stage_tables;
         let first = record_at(menus, system, 0)?;
         let heading = if menus.play.champ_view.event_mode.get() == 0x13 {
-            crate::screens::stage_panel::section_title(
-                &menus.tables.lists,
-                menus.screens.event.section.get(),
-            )?
+            crate::screens::stage_panel::section_title(lists(), menus.screens.event.section.get())?
         } else {
             first.record(stages)?.name()
         };

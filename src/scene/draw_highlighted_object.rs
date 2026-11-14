@@ -52,7 +52,7 @@ pub fn draw_highlighted(
     object_place.place[2].set(screens.state.carousel.z.get());
     object_place.place[0].set(0u32);
     if let Some(own) = own {
-        let [size, y, angle] = own_place(&menus.tables, own)?;
+        let [size, y, angle] = own_place(own)?;
         object_place.size.set(size);
         if y != u32::MAX {
             object_place.place[1].set(y);
@@ -78,7 +78,7 @@ pub fn run(o: crate::owners::Owners<'static>) -> Result<(), crate::errors::Refus
         &scratch.polygon,
     );
     assign_kind_textures(scene)?;
-    assign_menu_textures(&menus.tables, scene)?;
+    assign_menu_textures(scene)?;
     map_texture_places(scene);
     load_slot_textures_in_game(&race.frame, scene)?;
     scene.lights.state.get().draw_mode.set(0u32);

@@ -3,6 +3,7 @@
 //! cross per option.
 
 use crate::errors::Refused;
+use crate::menu::lists_store::lists;
 use crate::session::PlainDword;
 use crate::text::draw_text::Canvas;
 
@@ -16,7 +17,7 @@ pub fn draw_options_checklist(
     {
         // The fault flags end with their field's -1: `menu::inspection_faults` writes only
         // the thirteen before it, each 0 or 1.
-        let faults = &menus.tables.lists.inspection_faults;
+        let faults = &lists().inspection_faults;
         let end = faults
             .iter()
             .position(|f| f.get() == u32::MAX)

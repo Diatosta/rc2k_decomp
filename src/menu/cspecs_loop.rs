@@ -3,7 +3,9 @@
 //! debug UI's "Screens" tab (`debug::screens`). What it was for is not known; a reading.
 
 use crate::errors::Refused;
+use crate::menu::draw_lists_store::DRAW_LISTS;
 use crate::menu::screen_loop::{Callee, Entry, List, Screen, Step, carousel, prepare_scene};
+use crate::menu::texts_store::texts;
 
 /// `ScreenItems.current[33]`'s slot, the item kept between visits.
 const SLOT: usize = (0x7476E4 - 0x747660) / 4;
@@ -36,30 +38,28 @@ pub const SCREEN: Screen = Screen {
     lists: &[
         List {
             pointer: |m| &m.screens.flow.scene_list,
-            table: |m| m.tables.draw_lists.cspecs_scene_list.id(),
+            table: |_| DRAW_LISTS.cspecs_scene_list.id(),
             run: false,
         },
         List {
             pointer: |m| &m.screens.flow.draw_list,
-            table: |m| m.tables.draw_lists.cspecs_draw_list.id(),
+            table: |_| DRAW_LISTS.cspecs_draw_list.id(),
             run: false,
         },
         List {
             pointer: |m| &m.screens.flow.setup_list,
-            table: |m| m.tables.draw_lists.cspecs_setup_list.id(),
+            table: |_| DRAW_LISTS.cspecs_setup_list.id(),
             run: true,
         },
         List {
             pointer: |m| &m.screens.flow.overlay_list,
-            table: |m| m.tables.draw_lists.cspecs_overlay_list.id(),
+            table: |_| DRAW_LISTS.cspecs_overlay_list.id(),
             run: false,
         },
     ],
     before: &[Step::Do(before)],
     set_up_first: &[Step::Do(set_up_first)],
-    background: &[Step::Call(Callee::LoadBackground(|m| {
-        &m.tables.texts.cspecs_png
-    }))],
+    background: &[Step::Call(Callee::LoadBackground(|_| &texts().cspecs_png))],
     ..Screen::new(
         module_path!(),
         |m| m.tables.menus.cspecs_menu.id(),

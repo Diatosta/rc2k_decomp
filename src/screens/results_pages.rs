@@ -20,6 +20,7 @@
 //! line past the line buffer and what the look-ups refuse.
 
 use crate::errors::{BadInput, Refused};
+use crate::menu::lists_store::lists;
 use crate::menu::ranked_lookups::{find_ranked_entry, find_ranked_position, first_overall_time};
 use crate::screens::best_scores::{record_at, section_there};
 use crate::screens::game_screen::{HeldText, held_name};
@@ -127,7 +128,7 @@ pub fn draw_results_page(
                 },
                 name: if menus.play.champ_view.event_mode.get() == 0x13 {
                     crate::screens::stage_panel::section_title(
-                        &menus.tables.lists,
+                        lists(),
                         menus.screens.event.section.get(),
                     )?
                 } else {

@@ -65,10 +65,10 @@ struct Game<'a> {
 impl Workshop for Game<'_> {
     type Error = Refused;
     fn flag(&mut self, item: u32) -> u32 {
-        repair_flag_in(&self.menus.tables, item)
+        repair_flag_in(item)
     }
     fn set_flag(&mut self, item: u32, value: u32) {
-        set_repair_flag(&self.menus.tables, item, value);
+        set_repair_flag(item, value);
     }
     fn car(&mut self) -> rc2k_core::menu::player::Player {
         self.player.get()

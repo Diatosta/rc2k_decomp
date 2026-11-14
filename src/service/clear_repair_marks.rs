@@ -5,12 +5,11 @@
 //! mark is not where it belongs.
 
 use crate::errors::BadInput;
-use crate::menu::owner::Tables;
 use crate::service::state::{marks, store_marks};
 
-pub fn clear_repair_marks(tables: &Tables) -> Result<(), BadInput> {
-    let mut t = marks(tables);
+pub fn clear_repair_marks() -> Result<(), BadInput> {
+    let mut t = marks();
     rc2k_core::service::repairs::clear(&mut t)?;
-    store_marks(tables, &t);
+    store_marks(&t);
     Ok(())
 }

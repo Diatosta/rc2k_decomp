@@ -6,6 +6,7 @@
 use super::*;
 use crate::audio::owner::audio;
 use crate::effects::owner::effects;
+use crate::menu::lists_store::lists;
 use crate::menu::owner::menus;
 use crate::race::owner::race;
 use crate::scene::owner::scene;
@@ -245,7 +246,7 @@ fn every_store_s_cells_tile_it_and_copy_as_raw_copies_do() {
     let race = race();
     let _lock = crate::test_support::test_lock();
     byte_view_stores! {
-        menus.tables.lists,
+        *lists(),
         *race.course.stage_prefs.get(),
         *race.replay.replay_view(),
     }

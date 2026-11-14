@@ -8,8 +8,17 @@ use crate::audio::names_store::NameList;
 use crate::menu::cars_store::car_cell;
 use crate::menu::owner::Menus;
 use crate::menu::texts_store::{MenuText, SpeechRow};
-use crate::session::{PlainBytes, PlainDword};
+use crate::session::{GameThread, PlainBytes, PlainDword};
 pub use rc2k_core::menu::car_lists::CarList;
+
+/// The menus' lists and tables: constants, except the car lists, the inspection's flags and the
+/// carousel's textures, which the menus and the saves write.
+pub static MENU_LISTS: GameThread<MenuLists> = GameThread::new(MenuLists::new());
+
+/// The menus' lists and tables, for the game's thread.
+pub fn lists() -> &'static MenuLists {
+    MENU_LISTS.get()
+}
 
 /// A gap's first bytes: `runs` are (offset, bytes) of the non-zero ones.
 const fn sparse<const N: usize>(runs: &[(usize, &[u8])]) -> [u8; N] {

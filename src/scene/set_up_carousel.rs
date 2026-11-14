@@ -23,13 +23,14 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::lists_store::CarList;
+use crate::menu::lists_store::lists;
 use crate::scene::carousel_set_ups::PLAIN;
 use crate::session::DwordLike;
 use crate::session::{write_all, write_prefix};
 
 // ---- game data ----
 const MENUS: u32 = 0x15;
-use crate::menu::owner::{Menus, Tables};
+use crate::menu::owner::Menus;
 use rc2k_core::scene::carousel;
 
 /// A dword of the menus' carousel or of its list of textures.
@@ -55,7 +56,7 @@ impl Field {
         let carousel = &menus.screens.state.carousel;
         match self {
             Field::SetUp => &carousel.set_up,
-            Field::Texture(k) => &menus.tables.lists.carousel_textures[k],
+            Field::Texture(k) => &lists().carousel_textures[k],
             Field::Kind(k) => &carousel.kinds[k],
             Field::Count => &carousel.count,
             Field::Front => &carousel.front,
@@ -114,13 +115,9 @@ fn run_op(menus: &Menus, op: Op) {
 /// Runs `f` with a reader of the list's entries (by number) that answers the list's end
 /// where an entry is past the lists, and refuses afterwards: the core's checks take
 /// readers that cannot fail.
-fn reading<R>(
-    tables: &Tables,
-    list: CarList,
-    f: impl FnOnce(&dyn Fn(usize) -> u32) -> R,
-) -> Result<R, BadInput> {
+fn reading<R>(list: CarList, f: impl FnOnce(&dyn Fn(usize) -> u32) -> R) -> Result<R, BadInput> {
     let failed = std::cell::Cell::new(None);
-    let read = |n: usize| match list_entry(tables, list, n) {
+    let read = |n: usize| match list_entry(list, n) {
         Ok(word) => word,
         Err(e) => {
             failed.set(Some(e));
@@ -134,14 +131,14 @@ fn reading<R>(
     }
 }
 
-fn list_entry(tables: &Tables, list: CarList, n: usize) -> Result<u32, BadInput> {
-    tables.lists.car_entry(list, n as u32)
+fn list_entry(list: CarList, n: usize) -> Result<u32, BadInput> {
+    lists().car_entry(list, n as u32)
 }
 
 /// The checks of a list of cars, before anything is written (see
 /// `rc2k_core::scene::carousel::check_cars`).
 fn check_cars(menus: &Menus, list: CarList, from_second: bool) -> Result<(), Refused> {
-    reading(&menus.tables, list, |read| {
+    reading(list, |read| {
         let failed = std::cell::Cell::new(None);
         // A car's number: the first dword of the description its handle names.
         let number = |car: u32| match crate::menu::cars_store::description(&menus.cars.table, car)
@@ -166,7 +163,7 @@ fn cars(menus: &Menus, list: CarList, size: u32) -> Result<(), BadInput> {
         menus.screens.state.carousel.set_list(list);
         let mut n = 0;
         loop {
-            let car = list_entry(&menus.tables, list, n)?;
+            let car = list_entry(list, n)?;
             if car == u32::MAX {
                 break;
             }
@@ -175,9 +172,7 @@ fn cars(menus: &Menus, list: CarList, size: u32) -> Result<(), BadInput> {
                 .car;
             // `car_kinds` has 35 entries; a number past them is refused (fixed: "Four tables
             // read past their end" in `wiki/Fixed-bugs.md`).
-            let kind = menus
-                .tables
-                .lists
+            let kind = lists()
                 .car_kinds
                 .get(first as usize)
                 .ok_or(BadInput("a car past the 35 car kinds"))?
@@ -233,12 +228,10 @@ pub fn set_up_carousel(menus: &Menus, list: Option<CarList>) -> Result<(), Refus
                 let list = given()?;
                 check_cars(menus, list, true)?;
                 menus.screens.state.carousel.set_up.set(1);
-                let count = reading(&menus.tables, list, |read| {
-                    carousel::list_end(read, 1).unwrap_or(0)
-                })?;
+                let count = reading(list, |read| carousel::list_end(read, 1).unwrap_or(0))?;
                 if count == 1 {
-                    let first = list_entry(&menus.tables, list, 0)?;
-                    menus.tables.lists.set_car_entry(list, 1, first)?;
+                    let first = list_entry(list, 0)?;
+                    lists().set_car_entry(list, 1, first)?;
                 }
                 cars(menus, list, 0xC)?;
             }
@@ -248,7 +241,7 @@ pub fn set_up_carousel(menus: &Menus, list: Option<CarList>) -> Result<(), Refus
                     match *op {
                         Op::Set(field, value) => field.cell(menus).set(value),
                         Op::Run(cell, value) => cell().set(value),
-                        Op::Fill => write_all(&menus.tables.lists.carousel_textures, [u32::MAX; 8]),
+                        Op::Fill => write_all(&lists().carousel_textures, [u32::MAX; 8]),
                     }
                 }
             }

@@ -3,6 +3,7 @@
 //! highlight, not in the variable it is taken from (a 1999 slip kept as is).
 
 use crate::errors::Refused;
+use crate::menu::draw_lists_store::DRAW_LISTS;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Entry, List, Screen, Step, prepare_scene, screen_entry};
 
@@ -17,17 +18,17 @@ pub const SCREEN: Screen = Screen {
     lists: &[
         List {
             pointer: |m| &m.screens.flow.scene_list,
-            table: |m| m.tables.draw_lists.load_championship_table_scene.id(),
+            table: |_| DRAW_LISTS.load_championship_table_scene.id(),
             run: false,
         },
         List {
             pointer: |m| &m.screens.flow.draw_list,
-            table: |m| m.tables.draw_lists.load_championship_table_draw.id(),
+            table: |_| DRAW_LISTS.load_championship_table_draw.id(),
             run: false,
         },
         List {
             pointer: |m| &m.screens.flow.overlay_list,
-            table: |m| m.tables.draw_lists.load_championship_table_overlay.id(),
+            table: |_| DRAW_LISTS.load_championship_table_overlay.id(),
             run: false,
         },
     ],

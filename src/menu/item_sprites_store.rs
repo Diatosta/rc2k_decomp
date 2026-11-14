@@ -1,135 +1,27 @@
 //! The menu items' sprite lists: 16 lists of five sprite numbers (the item's look in each
 //! state), which a menu item names (`menus_store::MenuItem::sprites`, a `SpriteCell`). The
 //! first eight are the menus' (sprites 0xA ..), the last eight the in-race menus' (0x11 ..).
-//! Nothing changes them.
+//! Read-only data.
 
-use crate::session::PlainDword;
-
-#[derive(rc2k_derive::Cells)]
-pub struct ItemSprites {
-    pub lists: [[PlainDword; 5]; 16],
-}
-
-impl ItemSprites {
-    pub const fn new() -> Self {
-        ItemSprites {
-            lists: [
-                [
-                    PlainDword::new(0xa),
-                    PlainDword::new(0xc),
-                    PlainDword::new(0xa),
-                    PlainDword::new(0xc),
-                    PlainDword::new(0xb),
-                ],
-                [
-                    PlainDword::new(0xa),
-                    PlainDword::new(0xc),
-                    PlainDword::new(0xf),
-                    PlainDword::new(0x10),
-                    PlainDword::new(0xb),
-                ],
-                [
-                    PlainDword::new(0xa),
-                    PlainDword::new(0xc),
-                    PlainDword::new(0xf),
-                    PlainDword::new(0xe),
-                    PlainDword::new(0xb),
-                ],
-                [
-                    PlainDword::new(0xa),
-                    PlainDword::new(0xc),
-                    PlainDword::new(0xd),
-                    PlainDword::new(0x10),
-                    PlainDword::new(0xb),
-                ],
-                [
-                    PlainDword::new(0xa),
-                    PlainDword::new(0xc),
-                    PlainDword::new(0xa),
-                    PlainDword::new(0xe),
-                    PlainDword::new(0xb),
-                ],
-                [
-                    PlainDword::new(0xa),
-                    PlainDword::new(0xc),
-                    PlainDword::new(0xd),
-                    PlainDword::new(0xc),
-                    PlainDword::new(0xb),
-                ],
-                [
-                    PlainDword::new(0xa),
-                    PlainDword::new(0xc),
-                    PlainDword::new(0xf),
-                    PlainDword::new(0xc),
-                    PlainDword::new(0xb),
-                ],
-                [
-                    PlainDword::new(0xa),
-                    PlainDword::new(0xc),
-                    PlainDword::new(0xa),
-                    PlainDword::new(0x10),
-                    PlainDword::new(0xb),
-                ],
-                [
-                    PlainDword::new(0x11),
-                    PlainDword::new(0x13),
-                    PlainDword::new(0x11),
-                    PlainDword::new(0x13),
-                    PlainDword::new(0x12),
-                ],
-                [
-                    PlainDword::new(0x11),
-                    PlainDword::new(0x13),
-                    PlainDword::new(0x16),
-                    PlainDword::new(0x17),
-                    PlainDword::new(0x12),
-                ],
-                [
-                    PlainDword::new(0x11),
-                    PlainDword::new(0x13),
-                    PlainDword::new(0x16),
-                    PlainDword::new(0x15),
-                    PlainDword::new(0x12),
-                ],
-                [
-                    PlainDword::new(0x11),
-                    PlainDword::new(0x13),
-                    PlainDword::new(0x14),
-                    PlainDword::new(0x17),
-                    PlainDword::new(0x12),
-                ],
-                [
-                    PlainDword::new(0x11),
-                    PlainDword::new(0x13),
-                    PlainDword::new(0x11),
-                    PlainDword::new(0x15),
-                    PlainDword::new(0x12),
-                ],
-                [
-                    PlainDword::new(0x11),
-                    PlainDword::new(0x13),
-                    PlainDword::new(0x14),
-                    PlainDword::new(0x13),
-                    PlainDword::new(0x12),
-                ],
-                [
-                    PlainDword::new(0x11),
-                    PlainDword::new(0x13),
-                    PlainDword::new(0x16),
-                    PlainDword::new(0x13),
-                    PlainDword::new(0x12),
-                ],
-                [
-                    PlainDword::new(0x11),
-                    PlainDword::new(0x13),
-                    PlainDword::new(0x11),
-                    PlainDword::new(0x17),
-                    PlainDword::new(0x12),
-                ],
-            ],
-        }
-    }
-}
+/// The sprite lists: 16 lists of five sprite numbers each, by list number (`ItemSprite::List`).
+pub static ITEM_SPRITES: [[u32; 5]; 16] = [
+    [0xa, 0xc, 0xa, 0xc, 0xb],
+    [0xa, 0xc, 0xf, 0x10, 0xb],
+    [0xa, 0xc, 0xf, 0xe, 0xb],
+    [0xa, 0xc, 0xd, 0x10, 0xb],
+    [0xa, 0xc, 0xa, 0xe, 0xb],
+    [0xa, 0xc, 0xd, 0xc, 0xb],
+    [0xa, 0xc, 0xf, 0xc, 0xb],
+    [0xa, 0xc, 0xa, 0x10, 0xb],
+    [0x11, 0x13, 0x11, 0x13, 0x12],
+    [0x11, 0x13, 0x16, 0x17, 0x12],
+    [0x11, 0x13, 0x16, 0x15, 0x12],
+    [0x11, 0x13, 0x14, 0x17, 0x12],
+    [0x11, 0x13, 0x11, 0x15, 0x12],
+    [0x11, 0x13, 0x14, 0x13, 0x12],
+    [0x11, 0x13, 0x16, 0x13, 0x12],
+    [0x11, 0x13, 0x11, 0x17, 0x12],
+];
 
 /// What a menu item's +0x20 holds: a sprite number (the glyph drawn behind an item that is no
 /// button, and its palette), or for a button one of the lists.

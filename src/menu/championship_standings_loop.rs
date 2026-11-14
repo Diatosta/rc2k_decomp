@@ -8,29 +8,31 @@
 //! error 0x80712345); leaving is asked about, and a "no" sets the screen up again. If
 //! `state.menus.standings_shown` is set when the screen is left, nothing more is done: no question,
 //! and the highlight is not saved. One caller.
+use crate::menu::draw_lists_store::DRAW_LISTS;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Asking, Callee, Frames, List, Screen, Step};
+use crate::menu::texts_store::texts;
 
 pub const SCREEN: Screen = Screen {
     lists: &[
         List {
             pointer: |m| &m.screens.flow.unread_list,
-            table: |m| m.tables.draw_lists.unread_draw_list.id(),
+            table: |_| DRAW_LISTS.unread_draw_list.id(),
             run: false,
         },
         List {
             pointer: |m| &m.screens.flow.draw_list,
-            table: |m| m.tables.draw_lists.championship_standings_list.id(),
+            table: |_| DRAW_LISTS.championship_standings_list.id(),
             run: false,
         },
         List {
             pointer: |m| &m.screens.flow.overlay_list,
-            table: |m| m.tables.draw_lists.championship_standings_overlay.id(),
+            table: |_| DRAW_LISTS.championship_standings_overlay.id(),
             run: false,
         },
     ],
-    background: &[Step::Call(Callee::LoadBackground(|m| {
-        &m.tables.texts.championship_standings_picture
+    background: &[Step::Call(Callee::LoadBackground(|_| {
+        &texts().championship_standings_picture
     }))],
     leave_at_once: Some(|m| &m.screens.state.menus.standings_shown),
     asking: Some(Asking { ..Asking::DEFAULT }),
@@ -38,17 +40,17 @@ pub const SCREEN: Screen = Screen {
         first_frame_lists: Some(&[
             List {
                 pointer: |m| &m.screens.flow.scene_list,
-                table: |m| m.tables.draw_lists.championship_standings_scene.id(),
+                table: |_| DRAW_LISTS.championship_standings_scene.id(),
                 run: false,
             },
             List {
                 pointer: |m| &m.screens.flow.draw_list,
-                table: |m| m.tables.draw_lists.championship_standings_list.id(),
+                table: |_| DRAW_LISTS.championship_standings_list.id(),
                 run: false,
             },
             List {
                 pointer: |m| &m.screens.flow.overlay_list,
-                table: |m| m.tables.draw_lists.championship_standings_overlay.id(),
+                table: |_| DRAW_LISTS.championship_standings_overlay.id(),
                 run: false,
             },
         ]),

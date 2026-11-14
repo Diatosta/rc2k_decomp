@@ -20,6 +20,7 @@
 //! list.
 
 use crate::errors::{BadInput, Refused};
+use crate::menu::lists_store::lists;
 use crate::menu::owner::Menus;
 use crate::menu::owner::Play;
 use crate::menu::standings::{name_address_of, name_of, name_player, with_kept_name};
@@ -238,12 +239,9 @@ pub fn add_shown_car(menus: &Menus) -> Result<(), Refused> {
     use rc2k_core::menu::car_lists::{entries, shown_car};
     let list = |cells: &[PlainDword], len: u32| entries(len as usize, |k| cells[k].get());
     let shown = menus.screens.event.shown_car.get();
-    let car = shown_car(
-        &list(&menus.tables.lists.shown_cars, SHOWN_LIST_LEN)?,
-        shown,
-    )?;
-    let end = list(&menus.tables.lists.cars_second, CARS_LEN)?.len();
-    menus.tables.lists.cars_second[end].set(car);
+    let car = shown_car(&list(&lists().shown_cars, SHOWN_LIST_LEN)?, shown)?;
+    let end = list(&lists().cars_second, CARS_LEN)?.len();
+    lists().cars_second[end].set(car);
     Ok(())
 }
 
@@ -254,12 +252,12 @@ pub fn remove_shown_car(
     then: &mut dyn FnMut() -> Result<(), Refused>,
 ) -> Result<(), Refused> {
     let shown = menus.screens.event.shown_car.get();
-    let end = end_of(&menus.tables.lists.shown_cars, SHOWN_LIST_LEN)?;
+    let end = end_of(&lists().shown_cars, SHOWN_LIST_LEN)?;
     if shown >= end {
         return Err(BadInput("a shown car past the list").into());
     }
-    let mut cars: [u32; SHOWN_LIST_LEN as usize] = read_all(&menus.tables.lists.shown_cars);
+    let mut cars: [u32; SHOWN_LIST_LEN as usize] = read_all(&lists().shown_cars);
     standings::remove_at(&mut cars, shown as usize, end as usize);
-    write_all(&menus.tables.lists.shown_cars, cars);
+    write_all(&lists().shown_cars, cars);
     then()
 }

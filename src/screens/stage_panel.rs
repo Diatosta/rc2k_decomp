@@ -6,6 +6,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::gfx::blit_marker_pair::{marker_calls, set_marker_position};
 use crate::gfx::owner::Gfx;
+use crate::menu::lists_store::lists;
 use crate::menu::owner::Screens;
 use crate::race::owner::Race;
 use crate::records::stages_store::RecordRef;
@@ -137,9 +138,7 @@ pub fn draw_stage_body_in(
         let made = Entry {
             // `MENU_LISTS.durations` (the stage durations) has 37 entries; a duration index past it
             // is refused.
-            duration: menus
-                .tables
-                .lists
+            duration: lists()
                 .durations
                 .get(f(TrackField::Duration) as usize)
                 .ok_or(BadInput("a stage duration past the 37"))?

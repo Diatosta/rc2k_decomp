@@ -3,10 +3,12 @@
 //! frame; it has steps of its own first on leaving; the quit switch is not looked at.
 
 use crate::errors::Refused;
+use crate::menu::draw_lists_store::DRAW_LISTS;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{
     Callee, Entry, Flow, Frames, List, Screen, Step, carousel, prepare_scene, screen_entry,
 };
+use crate::menu::texts_store::texts;
 
 fn set_up_first(entry: &Entry) -> Result<(), Refused> {
     let screens = &entry.menus.screens;
@@ -41,26 +43,24 @@ pub const SCREEN: Screen = Screen {
     lists: &[
         List {
             pointer: |m| &m.screens.flow.scene_list,
-            table: |m| m.tables.draw_lists.start_rally_scene.id(),
+            table: |_| DRAW_LISTS.start_rally_scene.id(),
             run: false,
         },
         List {
             pointer: |m| &m.screens.flow.draw_list,
-            table: |m| m.tables.draw_lists.start_rally_draw.id(),
+            table: |_| DRAW_LISTS.start_rally_draw.id(),
             run: false,
         },
         List {
             pointer: |m| &m.screens.flow.overlay_list,
-            table: |m| m.tables.draw_lists.start_rally_overlay.id(),
+            table: |_| DRAW_LISTS.start_rally_overlay.id(),
             run: false,
         },
     ],
     set_up_first: &[Step::Do(set_up_first)],
     background: &[
         Step::Write(|m| &m.screens.event.clears_escape_flag, 0x1),
-        Step::Call(Callee::LoadBackground(|m| {
-            &m.tables.texts.start_rally_picture
-        })),
+        Step::Call(Callee::LoadBackground(|_| &texts().start_rally_picture)),
     ],
     after_first_frame: &[Step::DoFlow(after_first_frame)],
     leaving: &[Step::Do(leaving)],

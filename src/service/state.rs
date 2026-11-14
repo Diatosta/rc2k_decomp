@@ -1,8 +1,9 @@
 //! Game variables the service area's functions share.
 
 use crate::errors::BadInput;
+use crate::menu::lists_store::lists;
 use crate::menu::owner::Menus;
-use crate::menu::owner::{Screens, Tables};
+use crate::menu::owner::Screens;
 use crate::session::{read_all, write_all};
 use crate::system::checked_reads::refuse;
 
@@ -14,14 +15,13 @@ pub fn current_player(menus: &Menus) -> Option<crate::menu::standings::PlayerCel
 /// The flag of menu item `item` in the repair flag table. The items are the workshop's and the
 /// markers' constants and the highlighted item held below `ITEM_COUNT`: 0 ..= 20, the table's
 /// 20 flags and its end mark.
-pub fn repair_flag(menus: &Menus, item: u32) -> u32 {
-    repair_flag_in(&menus.tables, item)
+pub fn repair_flag(item: u32) -> u32 {
+    repair_flag_in(item)
 }
 
 /// `repair_flag` for a caller that holds the tables group.
-pub fn repair_flag_in(tables: &Tables, item: u32) -> u32 {
-    tables
-        .lists
+pub fn repair_flag_in(item: u32) -> u32 {
+    lists()
         .inspection_flags_a
         .get(item as usize)
         .unwrap_or_else(|| refuse(BadInput("a repair item past the flag table")))
@@ -54,9 +54,8 @@ pub fn flagged_item(screens: &Screens) -> Result<u32, BadInput> {
     }
 }
 
-pub fn set_repair_flag(tables: &Tables, item: u32, value: u32) {
-    tables
-        .lists
+pub fn set_repair_flag(item: u32, value: u32) {
+    lists()
         .inspection_flags_a
         .get(item as usize)
         .unwrap_or_else(|| refuse(BadInput("a repair item past the flag table")))
@@ -64,27 +63,26 @@ pub fn set_repair_flag(tables: &Tables, item: u32, value: u32) {
 }
 
 /// The flag table, with its end mark.
-pub fn flags(tables: &Tables) -> rc2k_core::service::repairs::Table {
-    read_all(&tables.lists.inspection_flags_a)
+pub fn flags() -> rc2k_core::service::repairs::Table {
+    read_all(&lists().inspection_flags_a)
 }
 
-pub fn store_flags(tables: &Tables, t: &rc2k_core::service::repairs::Table) {
-    write_all(&tables.lists.inspection_flags_a, *t);
+pub fn store_flags(t: &rc2k_core::service::repairs::Table) {
+    write_all(&lists().inspection_flags_a, *t);
 }
 
 /// The mark table, with its end mark.
-pub fn marks(tables: &Tables) -> rc2k_core::service::repairs::Table {
-    read_all(&tables.lists.inspection_flags_b)
+pub fn marks() -> rc2k_core::service::repairs::Table {
+    read_all(&lists().inspection_flags_b)
 }
 
-pub fn store_marks(tables: &Tables, t: &rc2k_core::service::repairs::Table) {
-    write_all(&tables.lists.inspection_flags_b, *t);
+pub fn store_marks(t: &rc2k_core::service::repairs::Table) {
+    write_all(&lists().inspection_flags_b, *t);
 }
 
 /// An item's repair time, through its pointer (None: null).
-pub fn time_of(menus: &Menus, tables: &Tables, item: usize) -> Option<i32> {
-    let key: u32 = tables
-        .lists
+pub fn time_of(menus: &Menus, item: usize) -> Option<i32> {
+    let key: u32 = lists()
         .repair_time_ptrs
         .get(item)
         .map(crate::session::DwordLike::get)
@@ -95,10 +93,10 @@ pub fn time_of(menus: &Menus, tables: &Tables, item: usize) -> Option<i32> {
 }
 
 /// The time of every item whose flag is not 0.
-pub fn chosen_repairs_time(menus: &Menus, tables: &Tables) -> Result<i32, BadInput> {
+pub fn chosen_repairs_time(menus: &Menus) -> Result<i32, BadInput> {
     Ok(rc2k_core::service::repairs::chosen_time(
-        &flags(tables),
-        |item| time_of(menus, tables, item),
+        &flags(),
+        |item| time_of(menus, item),
     )?)
 }
 
@@ -107,11 +105,11 @@ pub fn leave_edit_mode(screens: &Screens) {
 }
 
 /// True if menu item `item` has a repair time (a non-null pointer in the table).
-pub fn has_repair_time(tables: &Tables, item: u32) -> bool {
-    item < ITEM_COUNT && tables.lists.repair_time_ptrs[item as usize].is_set()
+pub fn has_repair_time(item: u32) -> bool {
+    item < ITEM_COUNT && lists().repair_time_ptrs[item as usize].is_set()
 }
 
 /// True if the second flag table has its end mark where it belongs.
-pub fn marks_ended(tables: &Tables) -> bool {
-    rc2k_core::service::repairs::end_of(&marks(tables)).is_some()
+pub fn marks_ended() -> bool {
+    rc2k_core::service::repairs::end_of(&marks()).is_some()
 }

@@ -21,8 +21,10 @@
 
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::menu::event_flow::Fault;
+use crate::menu::lists_store::lists;
 use crate::menu::owner::Menus;
 use crate::menu::owner::Screens;
+use crate::menu::texts_store::texts;
 use crate::owners::Owners;
 use crate::records::find_record::{find_record_in, has_section};
 use crate::records::stages_store::RecordRef;
@@ -76,14 +78,10 @@ pub fn play_stage_speech(o: crate::owners::Owners<'static>) -> Result<(), Refuse
         let at = stage_screens::stage_speech(
             record.record(&system.records().stage_tables)?.track(),
             |n| {
-                menus
-                    .tables
-                    .lists
-                    .stage_speech(n as usize)
-                    .unwrap_or_else(|e| {
-                        fault.set(Some(e));
-                        0
-                    })
+                lists().stage_speech(n as usize).unwrap_or_else(|e| {
+                    fault.set(Some(e));
+                    0
+                })
             },
         );
         if let Some(e) = fault.take() {
@@ -95,12 +93,7 @@ pub fn play_stage_speech(o: crate::owners::Owners<'static>) -> Result<(), Refuse
         sound.race.car_stream.get().place.set(0);
         crate::sound::start_stream::start_stream(
             o,
-            crate::menu::texts_store::speech_entry(
-                &menus.tables.texts,
-                &audio.sample_names,
-                at,
-                0,
-            )?,
+            crate::menu::texts_store::speech_entry(&audio.sample_names, at, 0)?,
             menus.screens.option_work.speech_level.get(),
         );
     }
@@ -118,7 +111,7 @@ pub fn play_rally_speech(o: crate::owners::Owners<'static>) -> Result<(), Refuse
     if championship(menus) {
         crate::sound::start_stream::start_stream(
             o,
-            menus.tables.lists.rally_speech(section as usize)?,
+            lists().rally_speech(section as usize)?,
             menus.screens.option_work.speech_level.get(),
         );
     }
@@ -135,15 +128,11 @@ pub fn load_welcome_picture(o: Owners<'static>) -> Result<(), Refused> {
         stage_screens::Welcome::Championship
     );
     let path = crate::menu::texts_store::text_at(
-        &menus.tables.texts,
-        menus
-            .tables
-            .lists
-            .welcome_picture(championship, section as usize)?,
+        lists().welcome_picture(championship, section as usize)?,
     )?;
     if crate::gfx::load_picture_with_overlay::load_picture_with_overlay_in(
         &path,
-        &menus.tables.texts.titlebar_png,
+        &texts().titlebar_png,
         o.gfx,
         o.system,
         o.strings,

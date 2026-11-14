@@ -5,13 +5,11 @@
 //! mark is not where it belongs.
 
 use crate::errors::BadInput;
-use crate::menu::owner::Menus;
 use crate::service::state::{flags, store_flags};
 
-pub fn clear_repair_flags(menus: &Menus) -> Result<(), BadInput> {
-    let tables = &menus.tables;
-    let mut t = flags(tables);
+pub fn clear_repair_flags() -> Result<(), BadInput> {
+    let mut t = flags();
     rc2k_core::service::repairs::clear(&mut t)?;
-    store_flags(tables, &t);
+    store_flags(&t);
     Ok(())
 }

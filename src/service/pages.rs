@@ -151,15 +151,15 @@ pub fn change_page(
     page: ChangePage,
     confirm: bool,
 ) -> Result<(), Refused> {
-    let (screens, tables) = (&menus.screens, &menus.tables);
+    let screens = &menus.screens;
     // Everything the steps below could refuse is checked first, so that an error never
     // leaves half of the work done.
     let item = flagged_item(screens)?;
-    if !has_repair_time(tables, item) {
+    if !has_repair_time(item) {
         return Err(BadInput("the highlighted item has no repair time").into());
     }
-    chosen_repairs_time(menus, tables)?;
-    if !marks_ended(tables) {
+    chosen_repairs_time(menus)?;
+    if !marks_ended() {
         return Err(BadInput("the second flag table has lost its end mark").into());
     }
     let installed_in_car = match page.in_car {
@@ -172,7 +172,7 @@ pub fn change_page(
     }
 
     use crate::service::state::{flags, marks, store_flags, store_marks, time_of};
-    let (mut f, mut m) = (flags(tables), marks(tables));
+    let (mut f, mut m) = (flags(), marks());
     let v = rc2k_core::service::repairs::Value {
         chosen: page.change.chosen(menus).get(),
         installed: page.change.installed(menus).get(),
@@ -185,11 +185,11 @@ pub fn change_page(
         item as usize,
         screens.event.service_minutes.get() as i32,
         v,
-        |item| time_of(menus, tables, item),
+        |item| time_of(menus, item),
     )
     .map_err(|e| BadInput(e.0))?;
-    store_flags(tables, &f);
-    store_marks(tables, &m);
+    store_flags(&f);
+    store_marks(&m);
     page.change.chosen(menus).set(c.chosen);
     if let Some(status) = c.status {
         screens.state.service_ui.status.set(status);

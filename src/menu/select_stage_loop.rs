@@ -4,6 +4,7 @@
 //! frame; the question is not put while the lamps flag is 1.
 
 use crate::errors::Refused;
+use crate::menu::draw_lists_store::DRAW_LISTS;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{
     Asking, Callee, Entry, Flow, Frames, List, MenuSound, Screen, Step,
@@ -22,22 +23,22 @@ pub const SCREEN: Screen = Screen {
     lists: &[
         List {
             pointer: |m| &m.screens.flow.scene_list,
-            table: |m| m.tables.draw_lists.select_stage_scene.id(),
+            table: |_| DRAW_LISTS.select_stage_scene.id(),
             run: false,
         },
         List {
             pointer: |m| &m.screens.flow.draw_list,
-            table: |m| m.tables.draw_lists.select_stage_draw.id(),
+            table: |_| DRAW_LISTS.select_stage_draw.id(),
             run: false,
         },
         List {
             pointer: |m| &m.screens.flow.setup_list,
-            table: |m| m.tables.draw_lists.select_stage_setup.id(),
+            table: |_| DRAW_LISTS.select_stage_setup.id(),
             run: true,
         },
         List {
             pointer: |m| &m.screens.flow.overlay_list,
-            table: |m| m.tables.draw_lists.select_stage_overlay.id(),
+            table: |_| DRAW_LISTS.select_stage_overlay.id(),
             run: false,
         },
     ],

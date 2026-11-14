@@ -25,6 +25,9 @@ impl DrawList {
     }
 }
 
+/// The screens' draw lists, read-only.
+pub static DRAW_LISTS: DrawLists = DrawLists::new();
+
 /// The screens' draw lists.
 pub struct DrawLists {
     pub unread_draw_list: DrawList,
@@ -600,11 +603,12 @@ impl DrawLists {
 
 #[cfg(test)]
 mod tests {
+    use super::DRAW_LISTS;
     use rc2k_core::menu::tables::LISTS;
 
     #[test]
     fn lists_are_the_tables_lists() {
-        let lists = &crate::menu::owner::menus().tables.draw_lists;
+        let lists = &DRAW_LISTS;
         assert_eq!(LISTS[lists.unread_draw_list.0 as usize].at, 0x758B72);
         assert_eq!(lists.in_game_options_list.id().functions().len(), 2);
     }

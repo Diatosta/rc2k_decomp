@@ -8,16 +8,16 @@
 //! end within its room.
 
 use crate::errors::BadInput;
-use crate::menu::owner::Menus;
+use crate::menu::lists_store::lists;
 use crate::menu::remove_secret_cars::{List, first, read_list};
 use rc2k_core::menu::car_lists::place_if_missing;
 
 /// The three lists, with the room each has before the next variable.
-pub fn add_clio_car(menus: &Menus) -> Result<(), BadInput> {
+pub fn add_clio_car() -> Result<(), BadInput> {
     let lists: [List<'_>; 3] = [
-        (&menus.tables.lists.cars_first, 0x22),
-        first(menus),
-        (&menus.tables.lists.cars_with_clio, 0x3E),
+        (&lists().cars_first, 0x22),
+        first(),
+        (&lists().cars_with_clio, 0x3E),
     ];
     let clio = crate::menu::cars_store::car_handle(33);
     let mut ends = Vec::new();

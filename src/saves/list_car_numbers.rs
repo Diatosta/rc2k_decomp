@@ -20,11 +20,11 @@ fn lists(menus: &Menus) -> [(&[PlainDword], &[PlainDword]); 2] {
     [
         (
             &menus.cars.numbers.first_numbers,
-            &menus.tables.lists.cars_second,
+            &crate::menu::lists_store::lists().cars_second,
         ),
         (
             &menus.cars.numbers.second_numbers,
-            &menus.tables.lists.shown_cars,
+            &crate::menu::lists_store::lists().shown_cars,
         ),
     ]
 }

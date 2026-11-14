@@ -10,7 +10,6 @@
 //! by `draw_service_area`) and a red to green bar between "REPROV." and "PASSAR".
 
 use crate::errors::{BadInput, Refused};
-use crate::menu::owner::Menus;
 use crate::menu::owner::Screens;
 use crate::service::state::{current_player, repair_flag};
 use crate::text::draw_text::Canvas;
@@ -23,7 +22,6 @@ use crate::text::draw_text::Canvas;
 /// The percentage and the item of the last damaged part looked at. The logic is in
 /// `rc2k_core::screens::inspection::status`.
 pub fn inspection_status(
-    menus: &Menus,
     screens: &Screens,
     player: crate::menu::standings::PlayerCell,
 ) -> Result<(i32, Option<u32>), crate::errors::BadInput> {
@@ -34,7 +32,7 @@ pub fn inspection_status(
             damage: player.get().damage[item as usize - 2] as i32,
             threshold: screens.state.driver_stats.limits[item as usize - 2].get() as i32,
             weight: screens.state.driver_stats.penalties[item as usize - 2].get() as i32,
-            repairing: repair_flag(menus, item) != 0,
+            repairing: repair_flag(item) != 0,
         }
     });
     let (condition, last) = status(&parts);
@@ -52,7 +50,7 @@ pub fn draw_inspection_status(
     let Some(player) = current_player(menus) else {
         return Err(BadInput("no current player object: the original reads through null").into());
     };
-    let (condition, _) = inspection_status(menus, screens, player)?;
+    let (condition, _) = inspection_status(screens, player)?;
     // The logic is in `rc2k_core::screens::inspection::inspection_status`.
     let out = rc2k_core::screens::inspection::inspection_status(
         &mut crate::screens::game_screen::GameScreen::<

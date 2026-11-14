@@ -9,15 +9,12 @@ use crate::menu::car_numbers_store::CarNumbers;
 use crate::menu::cars_store::CarTable;
 use crate::menu::champ_store::ChampView;
 use crate::menu::cheats_store::Cheats;
-use crate::menu::draw_lists_store::DrawLists;
 use crate::menu::draw_work_store::DrawWork;
 use crate::menu::drivers_store::DriverTable;
 use crate::menu::event_store::Event;
 use crate::menu::flow_store::ScreenFlow;
-use crate::menu::item_sprites_store::ItemSprites;
 use crate::menu::keys_store::KeyTables;
 use crate::menu::list_state::ListState;
-use crate::menu::lists_store::MenuLists;
 use crate::menu::loop_store::LoopFlags;
 use crate::menu::menus_store::MenuTables;
 use crate::menu::names_store::Names;
@@ -28,7 +25,6 @@ use crate::menu::players_store::PlayerTable;
 use crate::menu::results_store::Results;
 use crate::menu::screen_items_store::ScreenItems;
 use crate::menu::state_store::MenuState;
-use crate::menu::texts_store::MenuTexts;
 use crate::session::GameThread;
 
 /// The cars, their numbers and the drivers.
@@ -48,9 +44,8 @@ impl Cars {
     }
 }
 
-/// The fixed pieces the menus show: item sprites, film names and the build notice.
+/// The fixed pieces the menus show: film names and the build notice.
 pub struct Panels {
-    pub item_sprites: ItemSprites,
     pub films: Films,
     pub notice: BuildNotice,
 }
@@ -58,7 +53,6 @@ pub struct Panels {
 impl Panels {
     pub const fn new() -> Self {
         Panels {
-            item_sprites: ItemSprites::new(),
             films: Films::new(),
             notice: BuildNotice::new(),
         }
@@ -91,13 +85,10 @@ impl Screens {
     }
 }
 
-/// The menus' tables: the menu records, the draw lists, the texts, the lists, the captions
+/// The menus' tables: the menu records, the captions
 /// and the pages.
 pub struct Tables {
     pub menus: MenuTables,
-    pub draw_lists: DrawLists,
-    pub texts: MenuTexts,
-    pub lists: MenuLists,
     pub captions: CaptionTables,
     pub pages: MenuPages,
 }
@@ -106,9 +97,6 @@ impl Tables {
     pub const fn new() -> Self {
         Tables {
             menus: MenuTables::new(),
-            draw_lists: DrawLists::new(),
-            texts: MenuTexts::new(),
-            lists: MenuLists::new(),
             captions: CaptionTables::new(),
             pages: MenuPages::new(),
         }

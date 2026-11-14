@@ -3,6 +3,7 @@
 //! (the shown car kept for the cheats).
 
 use crate::errors::Refused;
+use crate::menu::draw_lists_store::DRAW_LISTS;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{
     Callee, Entry, Frames, List, Screen, Step, carousel, prepare_scene, screen_entry,
@@ -54,22 +55,22 @@ pub const SCREEN: Screen = Screen {
     lists: &[
         List {
             pointer: |m| &m.screens.flow.scene_list,
-            table: |m| m.tables.draw_lists.car_specification_scene.id(),
+            table: |_| DRAW_LISTS.car_specification_scene.id(),
             run: false,
         },
         List {
             pointer: |m| &m.screens.flow.draw_list,
-            table: |m| m.tables.draw_lists.car_specification_draw.id(),
+            table: |_| DRAW_LISTS.car_specification_draw.id(),
             run: false,
         },
         List {
             pointer: |m| &m.screens.flow.setup_list,
-            table: |m| m.tables.draw_lists.car_specification_setup.id(),
+            table: |_| DRAW_LISTS.car_specification_setup.id(),
             run: true,
         },
         List {
             pointer: |m| &m.screens.flow.overlay_list,
-            table: |m| m.tables.draw_lists.car_specification_overlay.id(),
+            table: |_| DRAW_LISTS.car_specification_overlay.id(),
             run: false,
         },
     ],

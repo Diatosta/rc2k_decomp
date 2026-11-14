@@ -1,5 +1,6 @@
 //! The loop of the slideshow screen. Screen-specific part of `menu::screen_loop`: leaving is not
 //! asked about; it has a step of its own once a frame.
+use crate::menu::draw_lists_store::DRAW_LISTS;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Callee, Frames, List, Screen, Step, screen_entry};
 
@@ -7,22 +8,22 @@ pub const SCREEN: Screen = Screen {
     lists: &[
         List {
             pointer: |m| &m.screens.flow.scene_list,
-            table: |m| m.tables.draw_lists.slideshow_scene.id(),
+            table: |_| DRAW_LISTS.slideshow_scene.id(),
             run: false,
         },
         List {
             pointer: |m| &m.screens.flow.draw_list,
-            table: |m| m.tables.draw_lists.slideshow_draw.id(),
+            table: |_| DRAW_LISTS.slideshow_draw.id(),
             run: false,
         },
         List {
             pointer: |m| &m.screens.flow.setup_list,
-            table: |m| m.tables.draw_lists.slideshow_setup.id(),
+            table: |_| DRAW_LISTS.slideshow_setup.id(),
             run: true,
         },
         List {
             pointer: |m| &m.screens.flow.overlay_list,
-            table: |m| m.tables.draw_lists.slideshow_overlay.id(),
+            table: |_| DRAW_LISTS.slideshow_overlay.id(),
             run: false,
         },
     ],

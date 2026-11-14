@@ -32,11 +32,10 @@ pub fn step_car_stream(
         playing,
         sound.race.car_stream.get().place.get(),
         |place| {
-            crate::menu::texts_store::speech_entry(&menus.tables.texts, names, list, place)
-                .unwrap_or_else(|e| {
-                    failed.set(Some(e));
-                    0
-                })
+            crate::menu::texts_store::speech_entry(names, list, place).unwrap_or_else(|e| {
+                failed.set(Some(e));
+                0
+            })
         },
     );
     if let Some(e) = failed.take() {

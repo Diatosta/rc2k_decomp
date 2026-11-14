@@ -7,6 +7,7 @@
 //! the four bars at the bottom, and 0x63 the headers and the bottom panel.
 
 use crate::errors::Refused;
+use crate::menu::lists_store::lists;
 use crate::menu::owner::Menus;
 use crate::menu::owner::Screens;
 use crate::owners::Owners;
@@ -86,9 +87,9 @@ fn dark(o: Owners<'static>, x: u32, y: u32, w: u32, h: u32) -> Result<(), Refuse
 
 /// Sets the colour of an item's boxes from its two inspection flags.
 fn set_item_colour(menus: &Menus, item: u32) {
-    let colour = if menus.tables.lists.inspection_flags_a[item as usize].get() != 1 {
+    let colour = if lists().inspection_flags_a[item as usize].get() != 1 {
         BLUE
-    } else if menus.tables.lists.inspection_flags_b[item as usize].get() != 1 {
+    } else if lists().inspection_flags_b[item as usize].get() != 1 {
         GREEN
     } else {
         RED

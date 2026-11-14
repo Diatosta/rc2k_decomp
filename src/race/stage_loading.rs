@@ -4,6 +4,7 @@
 //! values; each step is logged and indented.
 
 use crate::errors::Refused;
+use crate::menu::texts_store::texts;
 use crate::race::owner::Race;
 
 /// "------", "SHAUNINITEVERYTHING - START", ": loading screen / ..", ": loadlevel_init",
@@ -51,7 +52,7 @@ pub fn load_stage(race: &'static Race, o: crate::owners::Owners<'static>) -> Res
     crate::race::load_times::mark("show loading picture");
     if !race.shared.work.get().in_credits.is_set() {
         // The same picture as `menu::show_loading_picture` shows.
-        crate::gfx::show_picture_file::show_picture_file(o, &o.menus.tables.texts.loading_pcx)?;
+        crate::gfx::show_picture_file::show_picture_file(o, &texts().loading_pcx)?;
     }
     race.replay.replay_frames().last_kept.set(u32::MAX);
     crate::race::load_times::mark("wake car sounds");

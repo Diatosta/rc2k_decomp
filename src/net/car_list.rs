@@ -5,7 +5,7 @@
 
 use crate::errors::Refused;
 use crate::menu::lists_store::CarList;
-use crate::menu::owner::Tables;
+use crate::menu::lists_store::lists;
 
 /// Whether one of the cars in `won` is in the list `secret`, each read to its end mark.
 /// Both lists end inside their fields: the won cars (`secret_cars`, 12 entries) are the
@@ -41,12 +41,10 @@ pub fn any_won(
     }
     Ok(answer?)
 }
-pub fn car_list(tables: &Tables) -> Result<CarList, Refused> {
-    Ok(
-        if any_won(&tables.lists.cars_second, &tables.lists.secret_cars)? {
-            CarList::WithClio
-        } else {
-            CarList::First
-        },
-    )
+pub fn car_list() -> Result<CarList, Refused> {
+    Ok(if any_won(&lists().cars_second, &lists().secret_cars)? {
+        CarList::WithClio
+    } else {
+        CarList::First
+    })
 }

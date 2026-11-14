@@ -15,17 +15,17 @@ use crate::service::state::flagged_item;
 use crate::service::state::{flags, marks, store_flags, store_marks, time_of};
 
 pub fn toggle_repair_choice(menus: &Menus) -> Result<(), Refused> {
-    let (screens, tables) = (&menus.screens, &menus.tables);
+    let screens = &menus.screens;
     let item = flagged_item(screens)?;
-    let (mut f, mut m) = (flags(tables), marks(tables));
+    let (mut f, mut m) = (flags(), marks());
     let budget = screens.event.service_minutes.get() as i32;
     let (total, status) =
         rc2k_core::service::repairs::toggle_choice(&mut f, &mut m, item as usize, budget, |item| {
-            time_of(menus, tables, item)
+            time_of(menus, item)
         })
         .map_err(|e| BadInput(e.0))?;
-    store_flags(tables, &f);
-    store_marks(tables, &m);
+    store_flags(&f);
+    store_marks(&m);
     {
         screens.state.service_ui.status.set(status);
         screens.state.service_ui.box_shown.set(false);

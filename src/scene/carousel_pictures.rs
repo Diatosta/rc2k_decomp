@@ -3,6 +3,7 @@
 //! `update`.
 
 use crate::errors::BadInput;
+use crate::menu::lists_store::lists;
 use crate::menu::owner::Menus;
 use crate::scene::textures::SLOTS;
 use crate::session::{read_all, write_all};
@@ -32,7 +33,7 @@ pub fn update(
             return Err(BadInput("a carousel entry past the records"));
         }
         // The list is a run of record pointers, one dword per entry.
-        record = menus.tables.lists.car_entry(table, entry)?;
+        record = lists().car_entry(table, entry)?;
         if record == 0 {
             return Err(BadInput("a carousel entry without its record"));
         }

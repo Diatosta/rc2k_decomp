@@ -13,18 +13,20 @@
 
 use crate::errors::Refused;
 use crate::framework::log;
+use crate::menu::draw_lists_store::DRAW_LISTS;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{
     ActionCheck, Asking, Callee, Entry, Flow, Frames, Keys, List, MenuSound, Screen, Step,
     carousel, prepare_scene,
 };
+use crate::menu::texts_store::texts;
 use crate::menu::update_blink::update_blink;
 
 fn set_up_first(entry: &Entry) -> Result<(), Refused> {
     let menus = entry.menus;
     menus.screens.event.event_over.set(false);
     // menu::load_background (whether it failed is not looked at)
-    Callee::LoadBackground(|m| &m.tables.texts.main_menu_picture).run(entry)?;
+    Callee::LoadBackground(|_| &texts().main_menu_picture).run(entry)?;
     entry.front_end.window.view_offset[0].set(7u32);
     entry.front_end.window.view_offset[1].set(0xAu32);
     entry.front_end.window.view_zoom.set(0x100u32);
@@ -86,22 +88,22 @@ pub const SCREEN: Screen = Screen {
     lists: &[
         List {
             pointer: |m| &m.screens.flow.scene_list,
-            table: |m| m.tables.draw_lists.main_menu_scene.id(),
+            table: |_| DRAW_LISTS.main_menu_scene.id(),
             run: false,
         },
         List {
             pointer: |m| &m.screens.flow.draw_list,
-            table: |m| m.tables.draw_lists.main_menu_draw.id(),
+            table: |_| DRAW_LISTS.main_menu_draw.id(),
             run: false,
         },
         List {
             pointer: |m| &m.screens.flow.setup_list,
-            table: |m| m.tables.draw_lists.main_menu_setup.id(),
+            table: |_| DRAW_LISTS.main_menu_setup.id(),
             run: true,
         },
         List {
             pointer: |m| &m.screens.flow.overlay_list,
-            table: |m| m.tables.draw_lists.main_menu_overlay.id(),
+            table: |_| DRAW_LISTS.main_menu_overlay.id(),
             run: false,
         },
     ],

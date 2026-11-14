@@ -3,10 +3,12 @@
 //! is set before the first frame only; it has a step of its own once a frame.
 
 use crate::errors::Refused;
+use crate::menu::draw_lists_store::DRAW_LISTS;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{
     Callee, Entry, Flow, Frames, List, Screen, Step, quitting, screen_entry,
 };
+use crate::menu::texts_store::texts;
 
 fn before(entry: &Entry) -> Result<(), Refused> {
     let menus = entry.menus;
@@ -40,40 +42,40 @@ pub const SCREEN: Screen = Screen {
     lists: &[
         List {
             pointer: |m| &m.screens.flow.unread_list,
-            table: |m| m.tables.draw_lists.unread_draw_list.id(),
+            table: |_| DRAW_LISTS.unread_draw_list.id(),
             run: false,
         },
         List {
             pointer: |m| &m.screens.flow.draw_list,
-            table: |m| m.tables.draw_lists.redefine_keys_player3_draw.id(),
+            table: |_| DRAW_LISTS.redefine_keys_player3_draw.id(),
             run: false,
         },
         List {
             pointer: |m| &m.screens.flow.overlay_list,
-            table: |m| m.tables.draw_lists.redefine_keys_player3_overlay.id(),
+            table: |_| DRAW_LISTS.redefine_keys_player3_overlay.id(),
             run: false,
         },
     ],
     before: &[Step::Do(before)],
-    background: &[Step::Call(Callee::LoadBackground(|m| {
-        &m.tables.texts.redefine_keys_player3_picture
+    background: &[Step::Call(Callee::LoadBackground(|_| {
+        &texts().redefine_keys_player3_picture
     }))],
     after_first_frame: &[Step::DoFlow(after_first_frame)],
     frames: Frames {
         first_frame_lists: Some(&[
             List {
                 pointer: |m| &m.screens.flow.scene_list,
-                table: |m| m.tables.draw_lists.redefine_keys_player3_scene.id(),
+                table: |_| DRAW_LISTS.redefine_keys_player3_scene.id(),
                 run: false,
             },
             List {
                 pointer: |m| &m.screens.flow.draw_list,
-                table: |m| m.tables.draw_lists.redefine_keys_player3_draw.id(),
+                table: |_| DRAW_LISTS.redefine_keys_player3_draw.id(),
                 run: false,
             },
             List {
                 pointer: |m| &m.screens.flow.overlay_list,
-                table: |m| m.tables.draw_lists.redefine_keys_player3_overlay.id(),
+                table: |_| DRAW_LISTS.redefine_keys_player3_overlay.id(),
                 run: false,
             },
         ]),

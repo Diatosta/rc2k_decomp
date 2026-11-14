@@ -81,22 +81,13 @@ impl Default for ListCell {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::menu::owner::menus;
+    use crate::menu::draw_lists_store::DRAW_LISTS;
 
     #[test]
     fn lists_by_handle() {
-        let tables = &menus().tables;
-        let l = tables.draw_lists.in_game_options_list.from(2);
+        let l = DRAW_LISTS.in_game_options_list.from(2);
         assert!(l.functions().is_empty());
-        assert_eq!(
-            tables
-                .draw_lists
-                .in_game_options_list
-                .id()
-                .functions()
-                .len(),
-            2
-        );
+        assert_eq!(DRAW_LISTS.in_game_options_list.id().functions().len(), 2);
         let c = ListCell::new();
         assert!(c.get().is_err());
         c.set(l);

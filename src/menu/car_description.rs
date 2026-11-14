@@ -5,6 +5,7 @@
 //! `menu::load_car_background`, `sound::play_car_stream`) and the carousels.
 
 use crate::errors::{BadInput, Refused};
+use crate::menu::lists_store::lists;
 use crate::menu::owner::Menus;
 
 pub use rc2k_core::screens::car_pages::CarDescription;
@@ -22,7 +23,7 @@ pub fn shown_description(menus: &Menus) -> Result<u32, Refused> {
     let (Some(table), true) = (table, entry < ENTRIES) else {
         return Err(BadInput("no carousel records, or an entry past them").into());
     };
-    let record = menus.tables.lists.car_entry(table, entry)?;
+    let record = lists().car_entry(table, entry)?;
     if record == 0 {
         return Err(BadInput("an entry without its record").into());
     }

@@ -153,9 +153,6 @@ pub use rc2k_core::menu::screen_loop::ActionCheck;
 /// What differs in how a screen takes its keys and their actions.
 #[derive(Clone, Copy)]
 pub struct Keys {
-    /// The menu stored in `menu_texts.keys_menu` before `menu::handle_keys`, where it is not
-    /// `menu`.
-    pub menu: Option<fn(&Menus) -> MenuId>,
     /// The Escape flag `draw_work.escape_pressed` is looked at at the top of every frame, before
     /// the quit switch, and the screen is left when it is 1.
     pub escape_leaves: bool,
@@ -172,7 +169,6 @@ pub struct Keys {
 impl Keys {
     /// The screen's own menu everywhere, Escape not looked at, the standard action check.
     pub const DEFAULT: Keys = Keys {
-        menu: None,
         escape_leaves: false,
         action_check: ActionCheck::Standard,
         action_saved_item: None,
@@ -725,7 +721,6 @@ struct MenuHost<'a> {
     screen: &'a Screen,
     entry: &'a Entry,
     menu: MenuId,
-    keys_menu: MenuId,
     action_menu: MenuId,
 }
 
@@ -875,8 +870,6 @@ impl ScreenHost for MenuHost<'_> {
     }
 
     fn handle_keys(&mut self) -> Result<Pressed, Refused> {
-        let menus = self.entry.menus;
-        menus.tables.texts.keys_menu.set(self.keys_menu.code());
         // The handler is handed the time since set-up, as noted for this frame.
         handle_keys(
             self.entry.owners,
@@ -985,7 +978,6 @@ pub fn screen_loop(_screens: &Screens, screen: &Screen, entry: &Entry) -> Result
         screen,
         entry,
         menu,
-        keys_menu: screen.keys.menu.map_or(menu, |other| other(menus)),
         action_menu: screen.keys.action_menu.map_or(menu, |other| other(menus)),
     };
     core_loop(&screen.shape(), &mut host)

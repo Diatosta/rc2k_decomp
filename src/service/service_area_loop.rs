@@ -19,6 +19,7 @@
 //!
 //! Called by `menu::time_trial_service` (time trial) and `menu::service_pass` (championship).
 
+use crate::menu::draw_lists_store::DRAW_LISTS;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Asking, Callee, List, Screen, Step};
 
@@ -26,22 +27,22 @@ pub const SCREEN: Screen = Screen {
     lists: &[
         List {
             pointer: |m| &m.screens.flow.scene_list,
-            table: |m| m.tables.draw_lists.service_area_scene.id(), // the scene list
+            table: |_| DRAW_LISTS.service_area_scene.id(), // the scene list
             run: false,
         },
         List {
             pointer: |m| &m.screens.flow.draw_list,
-            table: |m| m.tables.draw_lists.service_area_draw.id(), // `handle_edit_keys`
+            table: |_| DRAW_LISTS.service_area_draw.id(), // `handle_edit_keys`
             run: false,
         },
         List {
             pointer: |m| &m.screens.flow.setup_list,
-            table: |m| m.tables.draw_lists.service_area_setup.id(), // `load_setup_values`
+            table: |_| DRAW_LISTS.service_area_setup.id(), // `load_setup_values`
             run: true,
         },
         List {
             pointer: |m| &m.screens.flow.overlay_list,
-            table: |m| m.tables.draw_lists.service_area_overlay.id(), // `draw_service_area`
+            table: |_| DRAW_LISTS.service_area_overlay.id(), // `draw_service_area`
             run: false,
         },
     ],

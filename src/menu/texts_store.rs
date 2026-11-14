@@ -1,17 +1,21 @@
-//! The menus' texts, laid out as in RAL.EXE's image: two log texts of the map's polygon code,
-//! the keys menu (`MenuTexts.keys_menu`), each menu screen's picture path (one copy per screen,
-//! named for the screen that loads it; the others by their file), the stage maps', car
+//! The menus' texts: two log texts of the map's polygon code, each menu screen's picture path
+//! (one copy per screen, named for the screen that loads it; the others by their file), the stage maps', car
 //! specifications' and slides' paths (which `menu::lists_store`'s tables name by
 //! `MenuText::key`), and two tables of speech samples' names (`car_speech`, `stage_speech`: keys
 //! of `audio::names_store`'s names, `speech_entry`). Each text's value is in `MenuTexts::new`
-//! under its field's name. Nothing writes the texts.
-//!
-//! The texts sit where the image's would, 2 past a multiple of 4 before the keys menu's
-//! dword (a two-byte lead and `align(4)`); the dword is aligned by a byte of padding, so the
-//! texts after it are one byte later. The speech tables after the texts sit on dword
-//! boundaries (a byte of padding before them).
+//! under its field's name. The one static `MENU_TEXTS` holds them, apart from the menus' state:
+//! the only writes are the picture loaders', which may swap a path's extension in place
+//! (`files::swap_missing_extension`).
 
-use crate::session::{PlainBytes, PlainDword, with_runs};
+use crate::session::{GameThread, PlainBytes, PlainDword, with_runs};
+
+/// The menus' texts.
+pub static MENU_TEXTS: GameThread<MenuTexts> = GameThread::new(MenuTexts::new());
+
+/// The menus' texts, for the game's thread.
+pub fn texts() -> &'static MenuTexts {
+    MENU_TEXTS.get()
+}
 
 #[cfg_attr(test, repr(C, align(4)))]
 #[derive(rc2k_derive::Cells)]
@@ -20,12 +24,6 @@ pub struct MenuTexts {
     pub _lead: PlainBytes<2>,
     pub no_point_text: PlainBytes<17>,
     pub no_second_point_text: PlainBytes<40>,
-    /// Not in the image: one byte so that the keys menu's dword is aligned (the texts after
-    /// it sit one byte later than the image's).
-    pub _keys_menu_pad: PlainBytes<1>,
-    /// The code of the keys menu (`MenuId::code`; `menu::handle_keys`, `screen_loop`). Written,
-    /// never read.
-    pub keys_menu: PlainDword,
     pub loading_pcx: PlainBytes<37>,
     pub leave_question_picture: PlainBytes<37>,
     pub mob_welc_png: PlainBytes<38>,
@@ -327,7 +325,7 @@ pub struct MenuTexts {
     pub oscsl00_png: PlainBytes<29>,
     pub rclsl00_png: PlainBytes<29>,
     /// Not in the image: two bytes that put the speech tables on a dword boundary.
-    pub _speech_pad: PlainBytes<1>,
+    pub _speech_pad: PlainBytes<2>,
     /// Per car, its two speech samples' names and a 0.
     pub car_speech: [[PlainDword; 3]; 24],
     /// Per stage, three speech samples' names and a 0.
@@ -343,8 +341,6 @@ impl MenuTexts {
                 0,
                 b"While scanning right didnt find point 2",
             )])),
-            _keys_menu_pad: PlainBytes::new([0; 1]),
-            keys_menu: PlainDword::new(0),
             loading_pcx: PlainBytes::new(with_runs::<37>(&[(
                 0,
                 b"files\\g\\graphics\\screens\\loading.pcx",
@@ -1541,7 +1537,7 @@ impl MenuTexts {
                 0,
                 b";3files\\g\\slides\\rclsl00.png",
             )])),
-            _speech_pad: PlainBytes::new([0; 1]),
+            _speech_pad: PlainBytes::new([0; 2]),
             car_speech: [
                 [
                     PlainDword::new(speech_key(0x50a15d)),
@@ -2177,7 +2173,6 @@ fn speech_dword(texts: &MenuTexts, n: usize) -> Option<u32> {
 /// The entry at `place` of the speech row `row` (its key): the sample name's key
 /// (`audio::store::name_key`), or `SPEECH_END`.
 pub fn speech_entry(
-    texts: &MenuTexts,
     names: &crate::audio::names_store::SampleNames,
     row: u32,
     place: u32,
@@ -2187,7 +2182,7 @@ pub fn speech_entry(
         .ok_or(crate::errors::BadInput(
             "a speech row's key off the speech rows",
         ))?;
-    let entry = speech_dword(texts, first as usize + place as usize).ok_or(
+    let entry = speech_dword(texts(), first as usize + place as usize).ok_or(
         crate::errors::BadInput("a speech entry off the speech rows"),
     )?;
     // 0: none.
@@ -2199,15 +2194,12 @@ pub fn speech_entry(
 }
 
 /// Where the text of `key` is (`MenuText::key`).
-pub fn text_at(
-    texts: &'static MenuTexts,
-    key: u32,
-) -> Result<crate::place::BytePlace, crate::errors::BadInput> {
+pub fn text_at(key: u32) -> Result<crate::place::BytePlace, crate::errors::BadInput> {
     let text = key
         .checked_sub(1)
         .and_then(|n| MenuText::ALL.get(n as usize))
         .ok_or(crate::errors::BadInput("a text's key off the menus' texts"))?;
-    Ok(text.place(texts))
+    Ok(text.place(texts()))
 }
 
 #[cfg(test)]
@@ -2222,14 +2214,14 @@ mod tests {
 
     #[test]
     fn every_key_names_its_text_and_every_speech_row_its_entries() {
-        let texts: &'static MenuTexts = Box::leak(Box::new(MenuTexts::new()));
+        let texts = texts();
         for (n, text) in MenuText::ALL.iter().enumerate() {
             assert_eq!(text.key() as usize, n + 1);
-            let at = text_at(texts, text.key()).unwrap();
+            let at = text_at(text.key()).unwrap();
             assert!(!at.text("a test text").unwrap().is_empty());
         }
-        assert!(text_at(texts, 0).is_err());
-        assert!(text_at(texts, MenuText::ALL.len() as u32 + 1).is_err());
+        assert!(text_at(0).is_err());
+        assert!(text_at(MenuText::ALL.len() as u32 + 1).is_err());
         assert_eq!(SpeechRow::Car(1).key(), SPEECH_KEY_BASE + 3);
         assert_eq!(SpeechRow::Stage(0).key(), SPEECH_KEY_BASE + 72);
         assert_eq!(speech_dword(texts, CAR_ENTRIES + STAGE_ENTRIES), None);

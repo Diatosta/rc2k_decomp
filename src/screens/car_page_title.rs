@@ -2,6 +2,7 @@
 //! four and a title longer than 0x100 bytes.
 
 use crate::errors::{BadInput, Refused};
+use crate::menu::lists_store::lists;
 use crate::menu::owner::Menus;
 use crate::screens::car_caption::put_string;
 
@@ -21,7 +22,7 @@ pub fn car_page_title(
     }
     put_string(
         so,
-        menus.tables.lists.car_page_titles[page as usize].get(),
+        lists().car_page_titles[page as usize].get(),
         &text.title,
         TITLE_LEN,
     )

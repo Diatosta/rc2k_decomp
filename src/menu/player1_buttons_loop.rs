@@ -3,29 +3,31 @@
 //! to buttons and axes). Screen-specific part of `menu::screen_loop`: background `control.png`
 //! through `menu::load_background` (a failed load is fatal error 0x80712345); leaving is not asked
 //! about; its own 3D scene list is set before the first frame only.
+use crate::menu::draw_lists_store::DRAW_LISTS;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Callee, Frames, List, Screen, Step, screen_entry};
+use crate::menu::texts_store::texts;
 
 pub const SCREEN: Screen = Screen {
     lists: &[
         List {
             pointer: |m| &m.screens.flow.unread_list,
-            table: |m| m.tables.draw_lists.unread_draw_list.id(),
+            table: |_| DRAW_LISTS.unread_draw_list.id(),
             run: false,
         },
         List {
             pointer: |m| &m.screens.flow.draw_list,
-            table: |m| m.tables.draw_lists.player1_buttons_draw.id(),
+            table: |_| DRAW_LISTS.player1_buttons_draw.id(),
             run: false,
         },
         List {
             pointer: |m| &m.screens.flow.setup_list,
-            table: |m| m.tables.draw_lists.player1_buttons_setup.id(),
+            table: |_| DRAW_LISTS.player1_buttons_setup.id(),
             run: true,
         },
         List {
             pointer: |m| &m.screens.flow.overlay_list,
-            table: |m| m.tables.draw_lists.player1_buttons_overlay.id(),
+            table: |_| DRAW_LISTS.player1_buttons_overlay.id(),
             run: false,
         },
     ],
@@ -33,25 +35,25 @@ pub const SCREEN: Screen = Screen {
         Step::Call(Callee::ApplyController),
         Step::Call(Callee::AxisMoved(0x0)),
     ],
-    background: &[Step::Call(Callee::LoadBackground(|m| {
-        &m.tables.texts.player1_buttons_picture
+    background: &[Step::Call(Callee::LoadBackground(|_| {
+        &texts().player1_buttons_picture
     }))],
     after: &[Step::Call(Callee::ReleaseController)],
     frames: Frames {
         first_frame_lists: Some(&[
             List {
                 pointer: |m| &m.screens.flow.scene_list,
-                table: |m| m.tables.draw_lists.player1_buttons_scene.id(),
+                table: |_| DRAW_LISTS.player1_buttons_scene.id(),
                 run: false,
             },
             List {
                 pointer: |m| &m.screens.flow.draw_list,
-                table: |m| m.tables.draw_lists.player1_buttons_draw.id(),
+                table: |_| DRAW_LISTS.player1_buttons_draw.id(),
                 run: false,
             },
             List {
                 pointer: |m| &m.screens.flow.overlay_list,
-                table: |m| m.tables.draw_lists.player1_buttons_overlay.id(),
+                table: |_| DRAW_LISTS.player1_buttons_overlay.id(),
                 run: false,
             },
         ]),

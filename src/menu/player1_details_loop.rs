@@ -3,8 +3,10 @@
 //! first frame only; it has a step of its own once a frame.
 
 use crate::errors::Refused;
+use crate::menu::draw_lists_store::DRAW_LISTS;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Callee, Entry, Flow, Frames, List, Screen, Step, screen_entry};
+use crate::menu::texts_store::texts;
 
 fn each_frame(entry: &Entry) -> Result<Flow, Refused> {
     let screens = &entry.menus.screens;
@@ -21,17 +23,17 @@ pub const SCREEN: Screen = Screen {
     lists: &[
         List {
             pointer: |m| &m.screens.flow.unread_list,
-            table: |m| m.tables.draw_lists.unread_draw_list.id(),
+            table: |_| DRAW_LISTS.unread_draw_list.id(),
             run: false,
         },
         List {
             pointer: |m| &m.screens.flow.draw_list,
-            table: |m| m.tables.draw_lists.player1_details_draw.id(),
+            table: |_| DRAW_LISTS.player1_details_draw.id(),
             run: false,
         },
         List {
             pointer: |m| &m.screens.flow.overlay_list,
-            table: |m| m.tables.draw_lists.player1_details_overlay.id(),
+            table: |_| DRAW_LISTS.player1_details_overlay.id(),
             run: false,
         },
     ],
@@ -41,26 +43,24 @@ pub const SCREEN: Screen = Screen {
     ],
     background: &[
         Step::Write(|m| &m.screens.event.clears_escape_flag, 0x1),
-        Step::Call(Callee::LoadBackground(|m| {
-            &m.tables.texts.player1_details_picture
-        })),
+        Step::Call(Callee::LoadBackground(|_| &texts().player1_details_picture)),
     ],
     after_first_frame: &[Step::Write(|m| &m.screens.event.current_player, 0x0)],
     frames: Frames {
         first_frame_lists: Some(&[
             List {
                 pointer: |m| &m.screens.flow.scene_list,
-                table: |m| m.tables.draw_lists.player1_details_scene.id(),
+                table: |_| DRAW_LISTS.player1_details_scene.id(),
                 run: false,
             },
             List {
                 pointer: |m| &m.screens.flow.draw_list,
-                table: |m| m.tables.draw_lists.player1_details_draw.id(),
+                table: |_| DRAW_LISTS.player1_details_draw.id(),
                 run: false,
             },
             List {
                 pointer: |m| &m.screens.flow.overlay_list,
-                table: |m| m.tables.draw_lists.player1_details_overlay.id(),
+                table: |_| DRAW_LISTS.player1_details_overlay.id(),
                 run: false,
             },
         ]),

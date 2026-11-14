@@ -6,6 +6,7 @@
 //! layout but is drawn by another function.
 
 use crate::errors::Refused;
+use crate::menu::lists_store::lists;
 use crate::menu::owner::Menus;
 use crate::menu::owner::Screens;
 use crate::records::find_record::find_record_in;
@@ -43,7 +44,7 @@ pub fn event_title(menus: &Menus, system: &System) -> Result<u32, crate::errors:
     let section: u32 = menus.screens.event.section.get();
     let first = find_record_in(&system.records().stage_tables, table, 0, section)?;
     if menus.play.champ_view.event_mode.get() == 0x13 {
-        section_title(&menus.tables.lists, section)
+        section_title(lists(), section)
     } else {
         Ok(first.record(&system.records().stage_tables)?.name())
     }

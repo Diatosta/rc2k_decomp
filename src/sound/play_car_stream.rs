@@ -6,6 +6,7 @@
 //! call sites, next to `load_car_background`'s. Refuses what the record's lookup refuses.
 
 use crate::errors::{BadInput, Refused};
+use crate::menu::lists_store::lists;
 use crate::menu::load_car_background::shown_car;
 use crate::menu::owner::Menus;
 use crate::session::PlainDword;
@@ -40,13 +41,12 @@ pub fn play_car_stream(
     let car = shown_car(menus)?;
     let failed = std::cell::Cell::new(None);
     let s = rc2k_core::sound::set_up::car_stream(
-        car_stream(&menus.tables.lists, car)?,
+        car_stream(lists(), car)?,
         |list| {
-            crate::menu::texts_store::speech_entry(&menus.tables.texts, names, list, 0)
-                .unwrap_or_else(|e| {
-                    failed.set(Some(e));
-                    0
-                })
+            crate::menu::texts_store::speech_entry(names, list, 0).unwrap_or_else(|e| {
+                failed.set(Some(e));
+                0
+            })
         },
         menus.screens.option_work.speech_level.get(),
     );
