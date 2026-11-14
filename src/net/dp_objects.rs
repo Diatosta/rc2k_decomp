@@ -622,8 +622,12 @@ mod tests {
 
     static FOUND: Mutex<Vec<Guid>> = Mutex::new(Vec::new());
 
+    /// Only this test's sessions (named "test"): another test's session of the same application
+    /// may still be listed.
     fn session_found(desc: Option<&Desc>, flags: u32, _context: u32) -> u32 {
-        if let (0, Some(d)) = (flags & DPESC_TIMEDOUT, desc) {
+        if let (0, Some(d)) = (flags & DPESC_TIMEDOUT, desc)
+            && d.name == "test"
+        {
             FOUND.lock().unwrap().push(d.instance);
         }
         1
