@@ -766,4 +766,142 @@ mod tests {
         assert_eq!(status(b), Err(E_INVALIDARG));
         assert_eq!(release(copy), 0);
     }
+
+    const FROZEN_FRAMES: usize = 119262;
+    const FROZEN_HASH: u64 = 10_094_763_369_305_457_242;
+
+    /// Serialises the tests that play buffers: the mixer pulls every playing buffer there is.
+    static PLAYING: Mutex<()> = Mutex::new(());
+
+    /// FNV-1a over a stream's bytes.
+    fn fnv(hash: u64, bytes: &[u8]) -> u64 {
+        bytes.iter().fold(hash, |h, &b| {
+            (h ^ u64::from(b)).wrapping_mul(0x0000_0100_0000_01b3)
+        })
+    }
+
+    /// A buffer of `bytes` filled with a fixed pseudo-random pattern (`seed`), made as the game
+    /// does: created, locked, written, unlocked.
+    fn filled_buffer(flags: u32, bytes: u32, format: Format, seed: u32) -> u32 {
+        let id = create_sound_buffer(flags, bytes, Some(format));
+        let parts = lock(id, 0, bytes, 2).unwrap();
+        with_parts(id, parts, |first, _| {
+            let mut x = seed;
+            for byte in first.iter_mut() {
+                x = x.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
+                *byte = (x >> 24) as u8;
+            }
+        })
+        .unwrap();
+        assert_eq!(unlock(id, parts), OK);
+        id
+    }
+
+    /// Pulls the device mix in an odd schedule from six buffers (looped, resampled, panned, placed
+    /// in 3D, one ending part-way through a pull, one stopped, the primary one with its volume
+    /// as the master), of which `only` (or all) play. Returns the samples of each pull.
+    fn pulled(only: Option<usize>) -> Vec<Vec<i16>> {
+        let stereo16 = Format {
+            channels: 2,
+            bits: 16,
+            rate: 22050,
+        };
+        let mono8 = Format {
+            channels: 1,
+            bits: 8,
+            rate: 11025,
+        };
+        let mono16 = Format {
+            channels: 1,
+            bits: 16,
+            rate: 8000,
+        };
+        let looped = filled_buffer(GLOBAL_FOCUS, 4000, stereo16, 1);
+        assert_eq!(set_volume(looped, -600), OK);
+        let resampled = filled_buffer(GLOBAL_FOCUS, 300, mono8, 2);
+        assert_eq!(set_frequency(resampled, 33075), OK);
+        assert_eq!(set_pan(resampled, -1500), OK);
+        assert_eq!(set_volume(resampled, -200), OK);
+        let placed = filled_buffer(GLOBAL_FOCUS, 1600, mono16, 3);
+        let space = query_interface(placed, IID_3D_BUFFER).unwrap();
+        assert_eq!(set_place(space, [3.0, 0.0, 4.0]), OK);
+        assert_eq!(set_min_distance(space, 2.0), OK);
+        let panned = filled_buffer(GLOBAL_FOCUS, 2000, stereo16, 4);
+        assert_eq!(set_pan(panned, 2500), OK);
+        assert_eq!(set_current_position(panned, 400), OK);
+        let stopped = filled_buffer(GLOBAL_FOCUS, 800, stereo16, 5);
+        let primary = filled_buffer(PRIMARY | GLOBAL_FOCUS, 0, stereo16, 6);
+        assert_eq!(set_volume(primary, -300), OK);
+        let all = [looped, resampled, placed, panned, stopped, primary];
+        for (n, id) in all.into_iter().enumerate() {
+            // The stopped one is played and stopped again; the others play looping or once.
+            let flags = if matches!(n, 0 | 2 | 4) { LOOPING } else { 0 };
+            assert_eq!(play(id, flags), OK);
+            if n == 4 || only.is_some_and(|only| only != n) {
+                assert_eq!(stop(id), OK);
+            }
+        }
+        let out = [1usize, 7, 64, 1023, 333, 4096, 5, 2000, 12345, 3]
+            .map(mixed_frames)
+            .to_vec();
+        for id in all {
+            release(id);
+        }
+        release(space);
+        out
+    }
+
+    /// Guards the sound the player hears. Each of six buffers (looped, resampled, panned, placed
+    /// in 3D, ending part-way through a pull, stopped, the primary one as master volume) played
+    /// alone and pulled in an odd schedule gives the frozen samples; all six together give the
+    /// sum of the six, to within the rounding of the order they are added in (the buffers are
+    /// visited in a hash map's order, which changes from run to run, so only the single-buffer
+    /// samples are frozen exactly).
+    #[test]
+    fn the_device_mix_of_playing_buffers_is_frozen() {
+        let _held = PLAYING
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        // Other tests may leave buffers playing in the one global state: they are paused for
+        // the length of this test and set going again after it.
+        let foreign: Vec<u32> = with(|s| {
+            let mut paused = Vec::new();
+            for (id, e) in &mut s.entries {
+                if let Kind::Buffer(b) = &mut e.kind
+                    && b.playing
+                {
+                    b.playing = false;
+                    paused.push(*id);
+                }
+            }
+            paused
+        });
+        let solo: Vec<Vec<Vec<i16>>> = (0..6).map(|n| pulled(Some(n))).collect();
+        let together = pulled(None);
+        for id in foreign {
+            with_buffer(id, |b| b.playing = true);
+        }
+        let mut hash = 0xcbf2_9ce4_8422_2325u64;
+        let mut frames = 0;
+        for run in &solo {
+            for pull in run {
+                frames += pull.len() / 2;
+                let bytes: Vec<u8> = pull.iter().flat_map(|s| s.to_le_bytes()).collect();
+                hash = fnv(hash, &bytes);
+            }
+        }
+        assert_eq!((frames, hash), (FROZEN_FRAMES, FROZEN_HASH));
+        // The mix of all of them is what the six give alone (every sample off a clip's edge).
+        let mut compared = 0;
+        for (n, pull) in together.iter().enumerate() {
+            for (at, &mixed) in pull.iter().enumerate() {
+                let sum: i32 = solo.iter().map(|run| i32::from(run[n][at])).sum();
+                if sum.abs() < 30000 {
+                    assert!((i32::from(mixed) - sum).abs() <= 6, "pull {n} sample {at}");
+                    compared += 1;
+                }
+            }
+        }
+        assert!(compared > 30000, "{compared} samples compared");
+    }
 }

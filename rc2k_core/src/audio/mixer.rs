@@ -256,4 +256,93 @@ mod tests {
         mix_channels(4, &mut c, &byte, &mut mix).unwrap();
         assert_eq!(mix, [100, 100, 150, 150, 200, 200, 150, 150]);
     }
+
+    /// FNV-1a over bytes, folded into `hash`.
+    fn fnv(hash: u64, bytes: &[u8]) -> u64 {
+        bytes.iter().fold(hash, |h, &b| {
+            (h ^ u64::from(b)).wrapping_mul(0x0000_0100_0000_01b3)
+        })
+    }
+
+    const FROZEN_MIX: u64 = 2_630_935_495_345_432_356;
+
+    /// Guards the game's own mixer (the Dolby mode's path): five channels of mixed formats (a
+    /// looped one, a resampled one, one that ends part-way, a stopped one) mixed in an odd
+    /// schedule of pulls, each pull clipped into all three buffer formats, give the same bytes
+    /// and the same channel positions as before.
+    #[test]
+    fn the_game_mix_of_channels_is_frozen() {
+        let pattern = |seed: u32, len: usize| -> Vec<u8> {
+            let mut x = seed;
+            (0..len)
+                .map(|_| {
+                    x = x.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
+                    (x >> 24) as u8
+                })
+                .collect()
+        };
+        let data = [
+            pattern(1, 4000),
+            pattern(2, 300),
+            pattern(3, 1600),
+            pattern(4, 2000),
+            pattern(5, 800),
+        ];
+        let channel = |format, length, kind, step, step_fraction, left, right, used| Channel {
+            used,
+            format,
+            length,
+            kind,
+            step,
+            step_fraction,
+            left,
+            right,
+            ..Channel::default()
+        };
+        let mut channels = [
+            channel(0, 1000, LOOPING, 1, 0, 0x800, 0x800, 1),
+            channel(EIGHT_BITS | MONO, 300, 0, 0, 0xC000_0000, 0xC00, 0x400, 1),
+            channel(MONO, 800, LOOPING, 0, 0x5555_5555, 0x600, 0xA00, 1),
+            channel(0, 500, 0, 1, 0x2000_0000, 0x200, 0xE00, 1),
+            channel(0, 200, LOOPING, 1, 0, 0x800, 0x800, 0),
+        ];
+        let byte = |n: usize, at: u32| data[n][at as usize % data[n].len()];
+        let mut hash = 0xcbf2_9ce4_8422_2325u64;
+        let mut mix = [0i32; 0x3C00 / 4];
+        let mut frames = 0u32;
+        for (round, pull) in [1u32, 7, 64, 1023, 333, 1500, 5, 1200, 3]
+            .into_iter()
+            .enumerate()
+        {
+            mix_channels(pull, &mut channels, &byte, &mut mix).unwrap();
+            frames += pull;
+            let used = &mix[..pull as usize * 2];
+            hash = fnv(
+                hash,
+                &used
+                    .iter()
+                    .flat_map(|v| v.to_le_bytes())
+                    .collect::<Vec<u8>>(),
+            );
+            // Clipped into each format, the part sizes cut at odd places.
+            for mode in [0, EIGHT_BITS, EIGHT_BITS | MONO] {
+                let size = frame_bytes(mode);
+                let total = pull as usize * size;
+                let cut = (round * 3 + 1) % pull as usize * size;
+                let mut out = vec![0xAAu8; total];
+                let (a, b) = out.split_at_mut(cut);
+                // A mono mix writes one value a frame from both: only the clipped sixteen-bit
+                // right sample can be refused, and these volumes never reach it.
+                write_mix(mode, used, &mut [a, b]).unwrap();
+                hash = fnv(hash, &out);
+            }
+        }
+        for c in &channels {
+            hash = fnv(hash, &[c.used as u8]);
+            hash = fnv(hash, &c.position.to_le_bytes());
+            hash = fnv(hash, &c.fraction.to_le_bytes());
+        }
+        assert_eq!(frames, 4136);
+        assert_eq!(hash, FROZEN_MIX);
+    }
 }
