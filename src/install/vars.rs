@@ -3,9 +3,8 @@
 //!
 //! Structs of cells, with the old layout's fields in its order and its gaps. The pages' tables
 //! hold handles (`install::page_links`) in place of addresses. The pages' lists,
-//! handler records, edit record and boxes are typed records (`menu::list_handle`); the pages
-//! are read by place through their fields in order (`install::pages_map`), which runs on into
-//! the bytes after a record.
+//! handler records, edit record and boxes are typed records (`menu::list_handle`), each reached
+//! by the handle that names it.
 
 use crate::gfx::typefaces::{FontId, fonts};
 use crate::install::page_links::{LinkCell, ListId, PageLink};
@@ -202,7 +201,7 @@ impl InstallerNames {
 
 /// A record of a drawing list on the pages (`install::draw_string_list`): 16 bytes, the
 /// offsets from the list's place, the font's link and the text's string id (the dwords in this
-/// order are its bytes in the pages' run, `install::pages_map`).
+/// order are its bytes).
 #[repr(C)]
 #[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
 pub struct StringRecord {
@@ -231,8 +230,7 @@ impl StringRecord {
 }
 
 /// A record of a glyph list on the pages (`install::blit_glyph_list`): 16 bytes, the offsets
-/// from the list's place, the glyph's number and the palette's link (the dwords in this order
-/// are its bytes in the pages' run, `install::pages_map`).
+/// from the list's place, the glyph's number and the palette's link.
 #[repr(C)]
 #[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
 pub struct GlyphRecord {
@@ -263,19 +261,11 @@ impl GlyphRecord {
 /// save and settings folders removed too), 5 ends the script there (`install::finish_page`).
 pub const SCRIPT_MARK: usize = 17;
 
-/// The page: its pieces, the fonts and the pages' tables. The pages'
-/// bytes are run on through the fields in declaration order (`install::pages_map::PagesChain`,
-/// its frozen table `NAMED_PLACES`), not through the record's memory layout.
+/// The page: its pieces, the fonts and the pages' tables.
 #[derive(rc2k_derive::Cells)]
 pub struct InstallerPages {
-    /// Padding before the pages' run starts: the offsets the pieces keep for items count from it.
-    pub _lead: PlainBytes<7>,
     /// The page's pieces: a count, then 0x30 bytes each.
     pub layout: PlainBytes<4096>,
-    /// The run's 0x2C bytes between the pieces and the copying page's texts. They keep the
-    /// offsets of everything after them and the bytes a read on past the pieces reaches; the
-    /// lists' run-time state is `menu::list_state::ListState`.
-    pub _list_state_run: PlainBytes<44>,
     /// The copying page's two texts.
     pub texts: [StringRecord; 2],
     /// The error message.
@@ -334,16 +324,12 @@ pub struct InstallerPages {
     pub boxes: [BoxRect; 9],
     /// The characters a folder name may not hold.
     pub bad_folder_chars: PlainBytes<20>,
-    /// Four bytes after the characters (a read on past them reaches these).
-    pub _tail: PlainBytes<4>,
 }
 
 impl InstallerPages {
     pub const fn new() -> Self {
         InstallerPages {
-    _lead: PlainBytes::new([0; 7]),
     layout: PlainBytes::new([0; 4096]),
-    _list_state_run: PlainBytes::new(with_runs::<44>(&[(8, b"\x01")])),
     texts: [StringRecord::new(0x1A9, 0xAF, fonts::TITLE, 0xAF), StringRecord::new(0x1A9, 0xFA, fonts::CAPTION_A, 0xB0)],
     msg_error: [StringRecord::new(0x1A9, 0x15E, fonts::TITLE, 0xB1)],
     msg_cancel: [StringRecord::new(0x1A9, 0x190, fonts::TITLE, 0xB3)],
@@ -496,7 +482,6 @@ impl InstallerPages {
             title: Item::new(0x05, 0x09, 0x0000, PageLink::box_at(0).raw(), 0x0, 0x0),
             boxes: [BoxRect::new(50, 150, 750, 44), BoxRect::new(50, 150, 750, 400), BoxRect::new(125, 150, 200, 400), BoxRect::new(325, 150, 200, 400), BoxRect::new(525, 150, 200, 400), BoxRect::new(225, 150, 200, 400), BoxRect::new(425, 150, 200, 400), BoxRect::new(50, 200, 750, 30), BoxRect::new(50, 495, 750, 30)],
     bad_folder_chars: PlainBytes::new(with_runs::<20>(&[(0, b"\"+*,;=/:<>?\\{}[]|\x7f")])),
-    _tail: PlainBytes::new([0; 4]),
         }
     }
 }

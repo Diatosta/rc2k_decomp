@@ -7,31 +7,36 @@
 //! - A piece (`Piece`): the layout `InstallerPages::layout` holds a count (a dword) and 0x30
 //!   bytes a piece, made by `install::lay_out_pieces`: +0 the item's kind and marks, +1 the
 //!   piece's kind, +2 its text, +4 its item, +8 x, +0xC y, +0x10 width, +0x14 height.
-//! - A box (`BoxRecord`): four dwords `{x, y, width, height}`, an item's (+4) or the title's.
+//! - A box (`BoxRecord`): `{x, y, width, height}`, an item's (+4) or the title's.
 //!
 //! Reads and writes are checked: a place outside its buffer ends the program.
 
 use crate::errors::BadInput;
 use crate::install::installer::{rb, rd, refuse, rw, wb, wd, ww};
-use crate::install::page_links::PageLink;
-use crate::install::pages_map::PagesAt;
-use crate::menu::list_handle::{ListItem, ListMenu};
+use crate::install::page_links::{PageLink, TABLE_LEN};
+use crate::menu::list_handle::{BoxRect, ListItem, ListMenu};
 use crate::place::BytePlace;
 
 /// The page table's index of the update run's first entry.
 const UPDATE_RUN: u32 = 17;
 
+/// A page entry: its index in the pages' table.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-/// A page entry: its place in the installer pages (a table entry, or a byte the pages run on to).
-pub struct PageEntry(PagesAt);
+pub struct PageEntry(u32);
 
 impl PageEntry {
+    /// The entry's index in the pages' table.
+    #[cfg(test)]
+    pub fn index(self) -> u32 {
+        self.0
+    }
+
     pub fn normal_run() -> Self {
-        Self::at(PageLink::table(0))
+        Self(0)
     }
 
     pub fn update_run() -> Self {
-        Self::at(PageLink::table(UPDATE_RUN))
+        Self(UPDATE_RUN)
     }
 
     /// The entry a link from another entry names: a link to a table entry. The links of the
@@ -39,11 +44,7 @@ impl PageEntry {
     /// anything else is refused.
     pub fn at(link: PageLink) -> Self {
         match link.table_index() {
-            Some(_) => Self(link.pages_at().unwrap_or_else(|| {
-                refuse(BadInput(
-                    "a page link that is no place in the installer's pages",
-                ))
-            })),
+            Some(index) => Self(index),
             None => refuse(BadInput("a page link that is no page entry")),
         }
     }
@@ -68,17 +69,13 @@ impl PageEntry {
 
     /// How many answers the entry holds: the table words after its list's that link to an
     /// entry or to none, up to the next entry's list (the table's last word, 9, is no link).
-    /// An answer past them reads the next entry's word as a link; no page leaves with such an
-    /// answer (`answers_stay_inside_their_entry`).
+    /// An answer past them is refused; no page leaves with such an answer
+    /// (`answers_stay_inside_their_entry`).
     pub fn answers(self) -> u32 {
-        let first = self.0.table_index().unwrap_or_else(|| {
-            refuse(BadInput(
-                "a page entry that is no entry of the pages' table",
-            ))
-        });
+        let first = self.0;
         let mut end = first + 1;
-        while end < crate::install::page_links::TABLE_LEN
-            && let word = Self::word(PagesAt::table(end))
+        while end < TABLE_LEN
+            && let word = Self::word(end)
             && (word.is_none() || word.table_index().is_some())
         {
             end += 1;
@@ -92,12 +89,20 @@ impl PageEntry {
         if offset < 4 || !offset.is_multiple_of(4) || (offset - 4) / 4 >= self.answers() {
             refuse(BadInput("a page answer past the answers its entry holds"));
         }
-        let link = Self::word(self.0.plus_wide(offset));
+        let link = Self::word(self.0 + offset / 4);
         (!link.is_none()).then(|| PageEntry::at(link))
     }
 
-    fn word(at: PagesAt) -> PageLink {
-        PageLink::from_raw(at.dword().unwrap_or_else(|e| refuse(e)))
+    /// Table word `index` as a link; an index off the table is refused.
+    fn word(index: u32) -> PageLink {
+        match crate::install::page_links::installer()
+            .pages
+            .page_table
+            .get(index as usize)
+        {
+            Some(word) => PageLink::from_raw(word.get()),
+            None => refuse(BadInput("a page table index past the table")),
+        }
     }
 }
 
@@ -125,7 +130,7 @@ enum Field {
     Kind = 1,
     /// The piece's text (a string id).
     Text = 2,
-    /// The piece's item: its offset in the installer's pages (`ListItem::in_pages`).
+    /// The piece's item, as the handle `ListItem::to_handle` makes.
     Item = 4,
     X = 8,
     Y = 0xC,
@@ -168,13 +173,13 @@ impl Piece {
     }
 
     pub fn item(self) -> ListItem {
-        ListItem::in_pages(rd(self.at(Field::Item))).unwrap_or_else(|e| refuse(e))
+        ListItem::from_handle(rd(self.at(Field::Item))).unwrap_or_else(|e| refuse(e))
     }
 
     pub fn set_item(self, item: ListItem) {
         wd(
             self.at(Field::Item),
-            item.pages_offset().unwrap_or_else(|e| refuse(e)),
+            item.to_handle().unwrap_or_else(|e| refuse(e)),
         );
     }
 
@@ -213,35 +218,31 @@ impl Piece {
 
 /// A box `{x, y, width, height}` of dwords.
 #[derive(Clone, Copy)]
-pub struct BoxRecord(PagesAt);
+pub struct BoxRecord(&'static BoxRect);
 
 impl BoxRecord {
     /// The box a link names; none is the title's box.
     pub fn linked(link: PageLink) -> Self {
         if link.is_none() {
-            return Self(PagesAt::box_at(1));
+            return Self(&crate::install::page_links::installer().pages.boxes[1]);
         }
-        Self(link.box_position().unwrap_or_else(|e| refuse(e)))
-    }
-
-    fn word(self, at: u32) -> u32 {
-        self.0.plus_wide(at).dword().unwrap_or_else(|e| refuse(e))
+        Self(link.box_rect().unwrap_or_else(|e| refuse(e)))
     }
 
     pub fn x(self) -> u32 {
-        self.word(0)
+        self.0.x.get()
     }
 
     pub fn y(self) -> u32 {
-        self.word(4)
+        self.0.y.get()
     }
 
     pub fn width(self) -> u32 {
-        self.word(8)
+        self.0.width.get()
     }
 
     pub fn height(self) -> u32 {
-        self.word(0xC)
+        self.0.height.get()
     }
 }
 
@@ -286,6 +287,37 @@ mod tests {
         assert!(seen > 5);
     }
 
+    /// A page laid out keeps each piece's item as a handle that names the list's item (or the
+    /// title) it was made from.
+    #[test]
+    fn a_piece_names_the_item_it_was_made_from() {
+        let _lock = crate::test_support::test_lock();
+        let install = crate::install::owner::install();
+        let saved: Vec<u8> = (0..4096).map(|n| install.pages.layout.get(n)).collect();
+        for id in [
+            crate::install::page_links::ListId::Main,
+            crate::install::page_links::ListId::Room,
+            crate::install::page_links::ListId::Folder,
+        ] {
+            let list = ListMenu::installer(id);
+            crate::install::lay_out_pieces::lay_out_pieces(install, list).unwrap();
+            let pieces = piece_count(install);
+            assert!(pieces > 1, "{id:?}");
+            for n in 0..pieces {
+                let item = Piece::nth(install, n).item();
+                let made_from = item.installer_position().unwrap();
+                assert!(
+                    made_from == crate::menu::list_handle::ItemPosition::Title
+                        || matches!(made_from, crate::menu::list_handle::ItemPosition::In(l, _) if l == id),
+                    "{id:?} piece {n}: {made_from:?}"
+                );
+            }
+        }
+        for (n, &byte) in saved.iter().enumerate() {
+            install.pages.layout.set(n, byte);
+        }
+    }
+
     /// M4 proof for `PageEntry::next`: every answer a page can leave with is a slot of its
     /// entry. A page leaves with 1 (the start value, the folder page's Escape, `ignore_room`),
     /// 0 (Escape, the folder page's Enter) or the next-list byte of a link item without an
@@ -296,7 +328,7 @@ mod tests {
         let mut checked = 0;
         for index in 0..crate::install::page_links::TABLE_LEN {
             let link = PageLink::table(index);
-            let word = PageEntry::word(PagesAt::table(index));
+            let word = PageEntry::word(index);
             if word.list_id().is_none() {
                 continue;
             }

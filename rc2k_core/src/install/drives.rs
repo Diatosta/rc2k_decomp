@@ -22,6 +22,16 @@ pub fn offered(drive_type: u32) -> bool {
 /// The letters listed on the page: 'a' to 'y' (a drive Z is never listed: the game's slip, kept).
 pub const LISTED: RangeInclusive<u8> = b'a'..=b'y';
 
+/// The most drives the page lists: the largest drive menu holds the drives after its two fixed
+/// items in 26 items.
+pub const MOST_LISTED: usize = 24;
+
+/// The drives the page lists out of the `found` letters (in order): the first `MOST_LISTED`; a
+/// 25th drive is left out so that the menu never holds more items than its record.
+pub fn kept(found: &[u8]) -> &[u8] {
+    &found[..found.len().min(MOST_LISTED)]
+}
+
 /// Free space as the page shows it: the number, its unit's string id, and whether ">="
 /// goes before it (in GB).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -96,6 +106,20 @@ pub fn items(count: u32) -> u8 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_page_lists_no_more_drives_than_its_menu_holds() {
+        let all: Vec<u8> = LISTED.collect();
+        assert_eq!(all.len(), 25);
+        // 25 drives: the last one, y, drops out; 26 (never found: z is not listed) the same.
+        assert_eq!(kept(&all), &all[..24]);
+        let mut more = all.clone();
+        more.push(b'z');
+        assert_eq!(kept(&more), &all[..24]);
+        assert_eq!(kept(&all[..24]), &all[..24]);
+        assert_eq!(kept(&all[..3]), b"abc");
+        assert_eq!(items(kept(&all).len() as u32), 26);
+    }
 
     #[test]
     fn drives() {

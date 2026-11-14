@@ -3,10 +3,15 @@
 //! asked for every index it can be given, run-ons included, and what it returns, or that it
 //! refuses, is compared with `page_readers.golden` (the readable lines, and per sweep a count
 //! and a hash of every line). `RC2K_BLESS=1 cargo test page_readers` writes the golden again.
+//!
+//! The golden still names things by the byte offsets they had when the installer's pages were
+//! read as one run of bytes (`legacy`), so its lines for everything inside the data read as
+//! they always did. What the typed pages no longer read, a run on past a list's items, a table
+//! or a record into the bytes that follow, is refused and shows as `!`.
 
 use crate::install::page_links::{ListId, PageLink};
 use crate::install::page_records::{BoxRecord, PageEntry, Piece};
-use crate::menu::list_handle::{ListItem, ListMenu};
+use crate::menu::list_handle::{ItemPosition, ListItem, ListMenu};
 use std::fmt::Debug;
 use std::panic::{AssertUnwindSafe, catch_unwind};
 
@@ -70,6 +75,115 @@ impl Sweep {
     }
 }
 
+/// The offsets the installer's pages' records had in the one run of bytes they were read as:
+/// the names the golden still uses.
+mod legacy {
+    use super::*;
+
+    /// The run's length.
+    pub const SIZE: usize = 0x1A30;
+    const TABLE: usize = 0x1194;
+    const ACTION_PAGES: usize = 0x1910;
+    const EDIT: usize = 0x1970;
+    const TITLE: usize = 0x1978;
+    const BOXES: usize = 0x1988;
+
+    pub fn entry(index: u32) -> usize {
+        TABLE + 4 * index as usize
+    }
+
+    pub fn list(list: ListId) -> usize {
+        match list {
+            ListId::Language => 0x1270,
+            ListId::Main => 0x1328,
+            ListId::Mode => 0x1390,
+            ListId::Drives8 => 0x13F8,
+            ListId::Drives16 => 0x14B0,
+            ListId::DrivesMore => 0x15E8,
+            ListId::Folder => 0x17A0,
+            ListId::Room => 0x1818,
+            ListId::Dxsetup => 0x1860,
+            ListId::Finish => 0x18B8,
+            ListId::InstallFiles => ACTION_PAGES,
+            ListId::Uninstall => ACTION_PAGES + 0x18,
+            ListId::OpenInstalled => ACTION_PAGES + 0x30,
+            ListId::AskRegistration => ACTION_PAGES + 0x48,
+        }
+    }
+
+    pub fn item(position: ItemPosition) -> usize {
+        match position {
+            ItemPosition::Title => TITLE,
+            ItemPosition::In(l, n) => list(l) + 0x18 + 0x10 * n as usize,
+        }
+    }
+
+    pub fn edit() -> usize {
+        EDIT
+    }
+
+    /// The offset of the box `rect` is, if it is one of the pages' boxes.
+    pub fn box_of(rect: &crate::menu::list_handle::BoxRect) -> usize {
+        let boxes = &crate::install::page_links::installer().pages.boxes;
+        BOXES + 16 * boxes.iter().position(|b| core::ptr::eq(b, rect)).unwrap()
+    }
+}
+
+/// A text printed as it is, for what the golden names by a legacy offset.
+struct Named(String);
+
+impl Debug for Named {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.0)
+    }
+}
+
+fn list_name(list: ListMenu) -> Named {
+    let id = ListId::ALL
+        .into_iter()
+        .find(|&id| ListMenu::installer(id) == list)
+        .unwrap();
+    Named(format!("ListMenu(pages +{:#x})", legacy::list(id)))
+}
+
+fn item_name(item: ListItem) -> Named {
+    Named(format!(
+        "ListItem(pages +{:#x})",
+        legacy::item(item.installer_position().unwrap())
+    ))
+}
+
+fn entry_name(entry: PageEntry) -> Named {
+    Named(format!("PageEntry({})", legacy::entry(entry.index())))
+}
+
+/// The line of item `n` of `list`, or `!` for an item the list does not hold.
+fn item_at(list: ListMenu, n: u32) -> (Named, String) {
+    match catch_unwind(AssertUnwindSafe(|| list.item(n))) {
+        Ok(item) => (item_name(item), item_line(item)),
+        Err(_) => (Named("!".into()), "!".into()),
+    }
+}
+
+/// The legacy offset of the box a link names.
+fn box_offset(link: PageLink) -> Result<usize, crate::errors::BadInput> {
+    link.box_rect().map(legacy::box_of)
+}
+
+/// The legacy offset of the thing a link names (a table entry, a list, a box, the edit record).
+fn link_offset(link: PageLink) -> Option<usize> {
+    if let Some(index) = link.table_index() {
+        return Some(legacy::entry(index));
+    }
+    if let Some(list) = link.list_id() {
+        return Some(legacy::list(list));
+    }
+    if let Ok(offset) = box_offset(link) {
+        return Some(offset);
+    }
+    link.edit_record().ok().map(|_| legacy::edit())
+}
+
 fn item_line(item: ListItem) -> String {
     let choices = |item: ListItem| {
         let c = item.choices();
@@ -99,7 +213,9 @@ fn item_line(item: ListItem) -> String {
                 e.width(),
             )
         }),
-        probe(|| item.pages_offset()),
+        probe(|| item
+            .to_handle()
+            .map(|_| legacy::item(item.installer_position().unwrap()))),
     )
 }
 
@@ -120,12 +236,8 @@ fn entry_line(entry: PageEntry) -> String {
     format!(
         "has_list={} list={}",
         probe(|| entry.has_list()),
-        probe(|| entry.list()),
+        probe(|| list_name(entry.list())),
     )
-}
-
-fn pages_size() -> usize {
-    crate::place::Chain::size(&crate::install::pages_map::PagesChain)
 }
 
 /// Every probe, as the golden's lines.
@@ -133,7 +245,7 @@ fn characterise() -> Vec<String> {
     quiet();
     let install = crate::install::owner::install();
     let mut out: Vec<String> = Vec::new();
-    let size = pages_size();
+    let size = legacy::SIZE;
 
     // The links: every kind, with numbers at and past the edges.
     let mut links = Sweep::new("links");
@@ -145,16 +257,12 @@ fn characterise() -> Vec<String> {
             let line = format!(
                 "link {:#x}: offset={} place_byte={} font={} edit={} list={} box={} blended={}",
                 link.raw(),
-                probe(|| link
-                    .pages_at()
-                    .map(crate::install::pages_map::PagesAt::offset)),
+                probe(|| link_offset(link)),
                 probe(|| link.place().map(|p| p.read(1, "link").unwrap())),
                 probe(|| link.font()),
                 probe(|| link.edit_record().is_ok()),
                 probe(|| link.list_id()),
-                probe(|| link
-                    .box_position()
-                    .map(crate::install::pages_map::PagesAt::offset)),
+                probe(|| box_offset(link)),
                 link.is_blended_palette(),
             );
             if number <= 2 || number == 55 || number == 56 {
@@ -178,37 +286,12 @@ fn characterise() -> Vec<String> {
             let link = PageLink::from_raw(kind << 24 | number);
             links.add(&format!(
                 "{kind}/{number}: {} {}",
-                probe(|| link
-                    .pages_at()
-                    .map(crate::install::pages_map::PagesAt::offset)),
-                probe(|| link.in_pages().map(|p| p.read(1, "link").unwrap())),
+                probe(|| link_offset(link)),
+                probe(|| link.place().map(|p| p.read(1, "link").unwrap())),
             ));
         }
     }
     out.push(links.line());
-
-    // Words of the pages at every byte, in and past the end.
-    let mut words = Sweep::new("pages_dword");
-    for at in 0..size + 8 {
-        words.add(&format!(
-            "{at}: {}",
-            probe(|| crate::install::pages_map::PagesAt::at_offset(at).dword())
-        ));
-    }
-    // The far probes by name, so that 32- and 64-bit builds write the same line.
-    for (at, name) in [
-        (usize::MAX, "usize::MAX".to_string()),
-        (usize::MAX - 3, "usize::MAX - 3".to_string()),
-        (size, size.to_string()),
-        (size - 3, (size - 3).to_string()),
-        (size - 4, (size - 4).to_string()),
-    ] {
-        out.push(format!(
-            "pages_dword({name}) = {}",
-            probe(|| crate::install::pages_map::PagesAt::at_offset(at).dword())
-        ));
-    }
-    out.push(words.line());
 
     // The page entries: both runs, every table entry, any thing of the pages as an entry.
     let mut entries = Sweep::new("entries");
@@ -226,11 +309,15 @@ fn characterise() -> Vec<String> {
             entries.add(&head);
             continue;
         };
-        let head = format!("{name}: {} entry={entry:?}", entry_line(entry));
+        let head = format!(
+            "{name}: {} entry={:?}",
+            entry_line(entry),
+            entry_name(entry)
+        );
         out.push(head.clone());
         entries.add(&head);
         for offset in 0..0xC0u32 {
-            let next = probe(|| entry.next(offset));
+            let next = probe(|| entry.next(offset).map(entry_name));
             if offset % 4 == 0 && offset < 0x20 {
                 out.push(format!("  {name} next({offset:#x}) = {next}"));
             }
@@ -244,7 +331,7 @@ fn characterise() -> Vec<String> {
             u32::MAX,
             0x8000_0000,
         ] {
-            let next = probe(|| entry.next(offset));
+            let next = probe(|| entry.next(offset).map(entry_name));
             out.push(format!("  {name} next({offset:#x}) = {next}"));
             entries.add(&format!("{name} {offset}: {next}"));
         }
@@ -253,7 +340,11 @@ fn characterise() -> Vec<String> {
         ("normal", PageEntry::normal_run()),
         ("update", PageEntry::update_run()),
     ] {
-        out.push(format!("{name} run: {entry:?} {}", entry_line(entry)));
+        out.push(format!(
+            "{name} run: {:?} {}",
+            entry_name(entry),
+            entry_line(entry)
+        ));
     }
     out.push(entries.line());
 
@@ -264,20 +355,20 @@ fn characterise() -> Vec<String> {
         let count = u32::from(list.count());
         out.push(format!(
             "list {list_id:?}: {:?} {}",
-            list,
+            list_name(list),
             header_line(list)
         ));
         let mut sweep = Sweep::new(format!("items of {list_id:?}"));
         let mut reach = None;
         for n in 0..limit {
-            let line = item_line(list.item(n));
+            let (name, line) = item_at(list, n);
             if n < count + 3 || n + 1 == limit {
-                out.push(format!("  {list_id:?} item {n}: {:?} {line}", list.item(n)));
+                out.push(format!("  {list_id:?} item {n}: {name:?} {line}"));
             }
             if reach.is_none() && line.contains("!") && n >= count {
                 reach = Some(n);
             }
-            sweep.add(&format!("{n}: {:?} {line}", list.item(n)));
+            sweep.add(&format!("{n}: {name:?} {line}"));
         }
         for n in [
             u32::MAX,
@@ -288,11 +379,8 @@ fn characterise() -> Vec<String> {
             0x1000_0000 - 1,
             0x0800_0000,
         ] {
-            let line = format!(
-                "{:?} {}",
-                probe(|| list.item(n)),
-                probe(|| item_line(list.item(n)))
-            );
+            let (name, line) = item_at(list, n);
+            let line = format!("{name:?} {line}");
             out.push(format!("  {list_id:?} item {n:#x}: {line}"));
             sweep.add(&format!("{n:#x}: {line}"));
         }
@@ -301,11 +389,14 @@ fn characterise() -> Vec<String> {
         ));
         // The items by their offset from the list (the pages' tables of marks).
         for k in 0..40u32 {
-            let line = probe(|| item_line(list.item_at_offset(0x18 + 0x10 * k)));
+            let line = catch_unwind(AssertUnwindSafe(|| {
+                item_line(list.item_at_offset(0x18 + 0x10 * k))
+            }))
+            .unwrap_or_else(|_| "!".into());
             sweep.add(&format!("at_offset {k}: {line}"));
         }
         for offset in [0x19u32, 0x10, 0, 0x17, 0x28 + 1] {
-            let line = probe(|| list.item_at_offset(offset));
+            let line = probe(|| item_name(list.item_at_offset(offset)));
             out.push(format!(
                 "  {list_id:?} item_at_offset({offset:#x}) = {line}"
             ));
@@ -347,43 +438,15 @@ fn characterise() -> Vec<String> {
             walk.add(&line);
             continue;
         };
-        let line = format!("{name}: {:?} {}", list, header_line(list));
+        let line = format!("{name}: {:?} {}", list_name(list), header_line(list));
         out.push(line.clone());
         walk.add(&line);
         for n in 0..6 {
-            walk.add(&format!(
-                "{name} item {n}: {:?} {}",
-                list.item(n),
-                item_line(list.item(n))
-            ));
+            let (item, line) = item_at(list, n);
+            walk.add(&format!("{name} item {n}: {item:?} {line}"));
         }
     }
     out.push(walk.line());
-
-    // The items by their offset in the pages (a piece keeps this).
-    let mut items = Sweep::new("items in pages");
-    for offset in 0..=(size as u32 + 16) {
-        let line = match ListItem::in_pages(offset) {
-            Ok(item) => format!("{offset}: {item:?} {}", item_line(item)),
-            Err(_) => format!("{offset}: err"),
-        };
-        items.add(&line);
-    }
-    for offset in [
-        0u32,
-        0x10,
-        0x18,
-        size as u32 - 16,
-        size as u32 - 15,
-        u32::MAX,
-    ] {
-        let line = match ListItem::in_pages(offset) {
-            Ok(item) => format!("{item:?} {}", item_line(item)),
-            Err(_) => "err".into(),
-        };
-        out.push(format!("in_pages({offset:#x}) = {line}"));
-    }
-    out.push(items.line());
 
     // The boxes, and the title's for none.
     for link in [PageLink::from_raw(0)]
@@ -415,7 +478,7 @@ fn characterise() -> Vec<String> {
             probe(|| piece.marks()),
             probe(|| piece.kind()),
             probe(|| piece.text_id()),
-            probe(|| piece.item()),
+            probe(|| item_name(piece.item())),
             probe(|| piece.x()),
             probe(|| piece.y()),
             probe(|| piece.width()),
@@ -428,60 +491,6 @@ fn characterise() -> Vec<String> {
     }
     out.push(pieces.line());
 
-    // Choice items: none of the starting data is one, so the room list's first item is made
-    // one for a while, its table named by each kind of link (and put back).
-    let item = &install.pages.room_menu.items[0];
-    let saved = (item.first.get(), item.data.get());
-    item.first.set(2);
-    let tables = [
-        PageLink::table(0),
-        PageLink::table(54),
-        PageLink::list(ListId::Main),
-        PageLink::list(ListId::Finish),
-        PageLink::list(ListId::AskRegistration),
-        PageLink::box_at(8),
-        PageLink::folder_edit(),
-        PageLink::of_font(crate::gfx::typefaces::fonts::TITLE),
-        PageLink::from_raw(0),
-        PageLink::from_raw(5 << 24 | 99),
-    ];
-    for link in tables {
-        item.data.set(link.raw());
-        let list = ListMenu::installer(ListId::Room);
-        let it = list.item(0);
-        let mut sweep = Sweep::new(format!("choices at {:#x}", link.raw()));
-        out.push(format!("choice item {:#x}: {}", link.raw(), item_line(it)));
-        for n in (0..0x2000u32).chain([
-            0x7FFF_FFFF,
-            0x8000_0000,
-            0x8000_0001,
-            0xFFFF_FFFF,
-            0xFFFF_FFFE,
-            0x4000_0000,
-            0x1000_0000,
-        ]) {
-            let line = probe(|| {
-                let c = it.choices();
-                (c.word(n), c.marks(n))
-            });
-            if n < 4 || n == 0x1FFF || n > 0x2000 {
-                out.push(format!("  choice {n:#x} = {line}"));
-            }
-            sweep.add(&format!("{n:#x}: {line}"));
-        }
-        // The table's first bytes, as a count the item gives.
-        for len in [0usize, 1, 8, 100, 6704, 6705] {
-            let line = probe(|| {
-                it.choices()
-                    .bytes(len, "test")
-                    .map(|b| b.iter().map(|&x| u64::from(x)).sum::<u64>())
-            });
-            sweep.add(&format!("bytes {len}: {line}"));
-        }
-        out.push(sweep.line());
-    }
-    item.first.set(saved.0);
-    item.data.set(saved.1);
     out
 }
 

@@ -1,31 +1,26 @@
-//! A list menu (`install::run_page`'s pages, the replay viewer's items) and its items by name, in
-//! place of `list + 0x18 + 0x10 * n` sums on game addresses.
+//! A list menu (`install::run_page`'s pages, the replay viewer's items) and its items by name.
 //!
 //! A list is a header of 0x18 bytes (+0 flags, +1 the item count, +2 the title's string,
 //! +4 the item highlighted, +8 the list's action, +0x10 the neighbours table for
 //! `menu::list_step`, +0x14 a key action) and its items of 0x10 bytes from +0x18 (+0 kind in
 //! the low nibble and marks in the high, +1 the next list or the number of choices, +2 the
 //! text, +4 the item's box, +8 the byte or text it edits or the link's action, +0xC the
-//! choices, the edit record or the least value). Every accessor reads or writes inside its
-//! own 0x18 header bytes or 0x10 item bytes; a place outside the bytes it is read from (the
-//! installer's pages, or the record holding the replay viewer's list) ends the program
-//! (`install::installer::refuse`). The words that name data
-//! (boxes, tables, texts, values) are links (`install::page_links::PageLink`), handles the
-//! installer's pages hold in place of addresses and each accessor resolves with bounds; the
-//! words that name code stay as read.
+//! choices, the edit record or the least value).
 //!
-//! The item count is the list's own and is not checked against the item asked for (a list of
-//! no items goes round 2^32 times). An item past the list's items is the bytes that follow the
-//! list in the installer's pages (the next list, table or record), read as an item: `item` and
-//! `Choices` reach them through a place bounded by the whole of the pages, not by the list.
+//! The installer's lists are typed records (`ListData`, `Item`, `EditRecord`) in
+//! `install::vars::InstallerPages`, one per `ListId`; their words that name data (boxes,
+//! texts, edit records) are links (`install::page_links::PageLink`) each accessor resolves by
+//! kind, and the words that name code stay as read. An item the list does not hold is refused.
 //!
-//! The installer's own lists are typed records (`ListData`, `Item`, `EditRecord`) in
-//! `install::vars::InstallerPages`, with the layout of these bytes.
+//! The replay viewer's list is bytes in the race's data, read through a place inside its own
+//! 0x18 header bytes or 0x10 item bytes; a place outside the record holding the list ends the
+//! program (`install::installer::refuse`). The item count is the list's own and is not checked
+//! against the item asked for (a list of no items goes round 2^32 times), and an item past the
+//! list's items is the bytes that follow it in that record, read as an item.
 
 use crate::install::installer::refuse;
 use crate::install::installer::{rb, rd, rl, rw, wb, wd};
 use crate::install::page_links::{ListId, PageLink};
-use crate::install::pages_map::PagesAt;
 use crate::place::BytePlace;
 use crate::session::{PlainByte, PlainDword, PlainWord};
 
@@ -214,59 +209,8 @@ impl BoxRect {
 enum Head {
     /// A list of the installer's pages: its header and the items it holds.
     Pages(&'static ListHeader, &'static [Item]),
-    /// The 0x18 header bytes at a place: the replay viewer's list, or a thing of the
-    /// installer's pages that is no list (the page walk looks at what a link names).
-    Bytes(Raw),
-}
-
-/// Bytes read as a header or an item: at an offset of the installer's pages, or at a place.
-#[derive(Clone, Copy)]
-enum Raw {
-    /// A position in the installer's pages (wrapping on overflow, as an address sum).
-    Pages(PagesAt),
-    Place(BytePlace),
-}
-
-impl Raw {
-    fn place(self) -> BytePlace {
-        match self {
-            Raw::Pages(at) => at.place(),
-            Raw::Place(at) => at,
-        }
-    }
-
-    /// `n` bytes on.
-    fn add(self, n: u32) -> Raw {
-        match self {
-            Raw::Pages(at) => Raw::Pages(at.plus(n)),
-            Raw::Place(at) => Raw::Place(at.add(n)),
-        }
-    }
-
-    /// The `len` bytes at `offset` from here, inside a header or an item.
-    fn field(self, offset: u32, len: u32) -> BytePlace {
-        debug_assert!(offset + len <= HEADER);
-        self.add(offset).place()
-    }
-}
-
-impl core::fmt::Debug for Raw {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        match self {
-            Raw::Pages(at) => write!(f, "pages +{at:#x}"),
-            Raw::Place(at) => write!(f, "{at:?}"),
-        }
-    }
-}
-
-impl PartialEq for Raw {
-    fn eq(&self, other: &Self) -> bool {
-        match (self, other) {
-            (Raw::Pages(a), Raw::Pages(b)) => a == b,
-            (Raw::Place(a), Raw::Place(b)) => a.same_place(*b),
-            _ => false,
-        }
-    }
+    /// The 0x18 header bytes at a place: the replay viewer's list.
+    Bytes(BytePlace),
 }
 
 /// A list menu.
@@ -276,9 +220,7 @@ pub struct ListMenu(Head);
 impl core::fmt::Debug for ListMenu {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self.0 {
-            Head::Pages(header, _) => {
-                write!(f, "ListMenu(pages +{:#x})", PagesAt::of_header(header))
-            }
+            Head::Pages(header, _) => write!(f, "ListMenu({:?})", list_of_header(header)),
             Head::Bytes(at) => write!(f, "ListMenu({at:?})"),
         }
     }
@@ -288,13 +230,25 @@ impl PartialEq for ListMenu {
     fn eq(&self, other: &Self) -> bool {
         match (self.0, other.0) {
             (Head::Pages(a, _), Head::Pages(b, _)) => core::ptr::eq(a, b),
-            (Head::Bytes(a), Head::Bytes(b)) => a == b,
+            (Head::Bytes(a), Head::Bytes(b)) => a.same_place(b),
             _ => false,
         }
     }
 }
 
 impl Eq for ListMenu {}
+
+/// Which of the installer's lists `header` is; a header that is none of them is refused.
+fn list_of_header(header: &ListHeader) -> ListId {
+    ListId::ALL
+        .into_iter()
+        .find(|&list| core::ptr::eq(list_header(list), header))
+        .unwrap_or_else(|| {
+            refuse(crate::errors::BadInput(
+                "a list header that is none of the installer's lists",
+            ))
+        })
+}
 
 /// The header and items of one of the installer's lists. The pages that are only an action
 /// have no items.
@@ -349,12 +303,13 @@ impl ListMenu {
     /// The list at a place in the game's data (the replay viewer's, which is a run of dwords
     /// and not typed as a list).
     pub fn of(place: impl Into<BytePlace>) -> Self {
-        Self(Head::Bytes(Raw::Place(place.into())))
+        Self(Head::Bytes(place.into()))
     }
 
     /// A header field's bytes: `len` bytes at `offset`, inside the header.
-    fn head(at: Raw, offset: u32, len: u32) -> BytePlace {
-        at.field(offset, len)
+    fn head(at: BytePlace, offset: u32, len: u32) -> BytePlace {
+        debug_assert!(offset + len <= HEADER);
+        at.add(offset)
     }
 
     /// +0: the flags (bit 4 the page stays on Escape, bits 6 and 7 the page hidden).
@@ -418,13 +373,18 @@ impl ListMenu {
         }
     }
 
-    /// +0x10: the neighbours table for `menu::list_step` (None for none).
+    /// +0x10: the neighbours table for `menu::list_step` (None for none). No list holds one
+    /// that a link could name: a list that has one is refused.
     pub fn neighbours(self) -> Option<BytePlace> {
         let link = match self.0 {
             Head::Pages(header, _) => PageLink::from_raw(header.neighbours.get()),
             Head::Bytes(at) => rl(Self::head(at, 0x10, 4)),
         };
-        (!link.is_none()).then(|| link.in_pages().unwrap_or_else(|e| refuse(e)))
+        (!link.is_none()).then(|| {
+            refuse(crate::errors::BadInput(
+                "a list with a neighbours table the pages do not hold",
+            ))
+        })
     }
 
     /// +0x14: the key action (`install::installer::key_action`).
@@ -435,21 +395,22 @@ impl ListMenu {
         }
     }
 
-    /// Item `n`, from +0x18, 0x10 bytes each (the sum wraps). The item count is not checked: an
-    /// item past the list's items is the bytes that follow the list in the installer's pages,
-    /// read as an item (the next list's header; `pages_map` tests name each neighbour). The
-    /// installer's counts stay within their items, so no page reaches it.
+    /// Item `n`. An installer list holds the items its record has: an item past them is
+    /// refused (the lists' counts stay within them, `the_counts_stay_within_the_items`). The
+    /// viewer's items are read at `HEADER + ITEM * n` from its header in 32-bit arithmetic
+    /// with no check against its count: an item past the list is the bytes that follow it.
     pub fn item(self, n: u32) -> ListItem {
-        let start = match self.0 {
-            Head::Pages(_, items) if (n as usize) < items.len() => {
-                return ListItem(Spot::Typed(&items[n as usize]));
-            }
-            Head::Pages(header, _) => Raw::Pages(PagesAt::of_header(header)),
-            Head::Bytes(at) => at,
-        };
-        ListItem(Spot::Bytes(
-            start.add(HEADER.wrapping_add(ITEM.wrapping_mul(n))),
-        ))
+        match self.0 {
+            Head::Pages(_, items) => match items.get(n as usize) {
+                Some(item) => ListItem(Spot::Typed(item)),
+                None => refuse(crate::errors::BadInput(
+                    "an item past the items of an installer list",
+                )),
+            },
+            Head::Bytes(at) => ListItem(Spot::Bytes(
+                at.add(HEADER.wrapping_add(ITEM.wrapping_mul(n))),
+            )),
+        }
     }
 
     /// The item whose first byte is `offset` from the list (the pages' tables of marks
@@ -457,7 +418,7 @@ impl ListMenu {
     pub fn item_at_offset(self, offset: u32) -> ListItem {
         let past = offset.wrapping_sub(HEADER);
         if !past.is_multiple_of(ITEM) {
-            crate::install::installer::refuse(crate::errors::BadInput(
+            refuse(crate::errors::BadInput(
                 "an offset in a list that is no item's start",
             ));
         }
@@ -469,9 +430,8 @@ impl ListMenu {
 #[derive(Clone, Copy)]
 enum Spot {
     Typed(&'static Item),
-    /// An item read past a list's items, or at an offset of the installer's pages that holds
-    /// no typed item.
-    Bytes(Raw),
+    /// An item of the viewer's list.
+    Bytes(BytePlace),
 }
 
 /// One item of a list menu (its 0x10 bytes).
@@ -481,7 +441,11 @@ pub struct ListItem(Spot);
 impl core::fmt::Debug for ListItem {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self.0 {
-            Spot::Typed(item) => write!(f, "ListItem(pages +{:#x})", PagesAt::of_item(item)),
+            Spot::Typed(item) => match Self::position(item) {
+                Some(ItemPosition::Title) => write!(f, "ListItem(title)"),
+                Some(ItemPosition::In(list, n)) => write!(f, "ListItem({list:?} #{n})"),
+                None => write!(f, "ListItem(unknown)"),
+            },
             Spot::Bytes(at) => write!(f, "ListItem({at:?})"),
         }
     }
@@ -491,7 +455,7 @@ impl PartialEq for ListItem {
     fn eq(&self, other: &Self) -> bool {
         match (self.0, other.0) {
             (Spot::Typed(a), Spot::Typed(b)) => core::ptr::eq(a, b),
-            (Spot::Bytes(a), Spot::Bytes(b)) => a == b,
+            (Spot::Bytes(a), Spot::Bytes(b)) => a.same_place(b),
             _ => false,
         }
     }
@@ -499,23 +463,75 @@ impl PartialEq for ListItem {
 
 impl Eq for ListItem {}
 
+/// Which typed item of the installer's pages an item is.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ItemPosition {
+    /// The title's item.
+    Title,
+    /// Item `.1` of list `.0`.
+    In(ListId, u32),
+}
+
+/// The kind of the handle a piece keeps for its item (the high byte; 0 is no item).
+const ITEM_HANDLE: u32 = 7;
+/// The list number the title's item is kept under (no list has it).
+const TITLE_LIST: u32 = 0xFF;
+
 impl ListItem {
-    /// The item `offset` bytes into the installer's pages (`crate::install::vars::
-    /// InstallerPages`), where every list of the installer lives: what a piece keeps of its
-    /// item. An offset with no item's room before the pages' end is refused.
-    pub fn in_pages(offset: u32) -> Result<Self, crate::errors::BadInput> {
-        let Some(at) = PagesAt::of_item_word(offset) else {
-            return Err(crate::errors::BadInput(
-                "an item outside the installer's pages",
-            ));
-        };
-        Ok(match at {
-            PagesAt::Title => Self::of_title(),
-            PagesAt::Item(list, n) => Self(Spot::Typed(&list_items(list)[n as usize])),
-            // The bytes of the pages that are no typed item (a table, a record, a list's
-            // header).
-            _ => Self(Spot::Bytes(Raw::Pages(at))),
+    /// Where `item`, one of the pages' typed items, is.
+    fn position(item: &Item) -> Option<ItemPosition> {
+        if core::ptr::eq(
+            item,
+            &raw const crate::install::page_links::installer().pages.title,
+        ) {
+            return Some(ItemPosition::Title);
+        }
+        ListId::ALL.into_iter().find_map(|list| {
+            list_items(list)
+                .iter()
+                .position(|typed| core::ptr::eq(typed, item))
+                .map(|n| ItemPosition::In(list, n as u32))
         })
+    }
+
+    /// Which typed item of the installer's pages this is (none for the viewer's items).
+    pub fn installer_position(self) -> Option<ItemPosition> {
+        match self.0 {
+            Spot::Typed(item) => Self::position(item),
+            Spot::Bytes(_) => None,
+        }
+    }
+
+    /// The item a handle names (`to_handle`): what a piece keeps of its item. A word that
+    /// names no item of the installer's pages is refused.
+    pub fn from_handle(handle: u32) -> Result<Self, crate::errors::BadInput> {
+        let refused = || crate::errors::BadInput("an item that is none of the installer's items");
+        if handle >> 24 != ITEM_HANDLE {
+            return Err(refused());
+        }
+        let (list, n) = ((handle >> 8) & 0xFFFF, handle & 0xFF);
+        if list == TITLE_LIST {
+            return if n == 0 {
+                Ok(Self::of_title())
+            } else {
+                Err(refused())
+            };
+        }
+        let list = ListId::ALL.get(list as usize).ok_or_else(refused)?;
+        let item = list_items(*list).get(n as usize).ok_or_else(refused)?;
+        Ok(Self(Spot::Typed(item)))
+    }
+
+    /// The handle a piece keeps for this item; an item that is none of the installer's is
+    /// refused.
+    pub fn to_handle(self) -> Result<u32, crate::errors::BadInput> {
+        match self.installer_position() {
+            Some(ItemPosition::Title) => Ok(ITEM_HANDLE << 24 | TITLE_LIST << 8),
+            Some(ItemPosition::In(list, n)) => Ok(ITEM_HANDLE << 24 | (list as u32) << 8 | n),
+            None => Err(crate::errors::BadInput(
+                "an item that is none of the installer's items",
+            )),
+        }
     }
 
     /// The title's item (the pages' `title` record).
@@ -525,29 +541,9 @@ impl ListItem {
         ))
     }
 
-    /// Where this item is in the installer's pages (see `in_pages`); an item outside them is
-    /// refused.
-    pub fn pages_offset(self) -> Result<u32, crate::errors::BadInput> {
-        let at = match self.0 {
-            Spot::Typed(item) => PagesAt::of_item(item),
-            Spot::Bytes(Raw::Pages(at)) => at,
-            Spot::Bytes(Raw::Place(_)) => {
-                return Err(crate::errors::BadInput(
-                    "an item outside the installer's pages",
-                ));
-            }
-        };
-        if !at.item_fits() {
-            return Err(crate::errors::BadInput(
-                "an item outside the installer's pages",
-            ));
-        }
-        Ok(at.item_word())
-    }
-
-    fn field(at: Raw, offset: u32, len: u32) -> BytePlace {
+    fn field(at: BytePlace, offset: u32, len: u32) -> BytePlace {
         debug_assert!(offset + len <= ITEM);
-        at.field(offset, len)
+        at.add(offset)
     }
 
     /// +0: the kind (low nibble) and marks (high bits), whole.
@@ -627,7 +623,7 @@ impl ListItem {
         ItemByte(self.link_place())
     }
 
-    /// The place the link at +8 names, in the pages or the folder typed.
+    /// The place the link at +8 names: the folder typed.
     fn link_place(self) -> BytePlace {
         self.target_link().place().unwrap_or_else(|e| refuse(e))
     }
@@ -656,12 +652,12 @@ impl ListItem {
         }
     }
 
-    /// +0xC as the item's choices (a choice item; a link): the table is bytes of the
-    /// installer's pages, read on past the table (see `Choices`).
+    /// +0xC as the item's choices (a choice item; a link): the table is the place the link
+    /// names (`PageLink::place`), read on past the table (see `Choices`).
     pub fn choices(self) -> Choices {
         Choices(
             PageLink::from_raw(self.data())
-                .pages_start()
+                .place()
                 .unwrap_or_else(|e| refuse(e)),
         )
     }
@@ -691,19 +687,20 @@ impl ItemByte {
 }
 
 /// A choice item's table: two bytes a choice, the second (at +1, +3, ...) its marks. Its
-/// length is the item's own count, which an index is not checked against.
+/// length is the item's own count, which an index is not checked against: a read past it is
+/// bounded by the place's buffer.
 #[derive(Clone, Copy, Debug)]
-pub struct Choices(PagesAt);
+pub struct Choices(BytePlace);
 
 impl Choices {
     /// Where choice `n`'s marks byte is.
     fn marks_at(self, n: u32) -> BytePlace {
-        self.0.plus(n.wrapping_mul(2).wrapping_add(1)).place()
+        self.0.add(n.wrapping_mul(2).wrapping_add(1))
     }
 
     /// Choice `n`'s word: its string, its high bits marks.
     pub fn word(self, n: u32) -> u16 {
-        rw(self.0.plus(n.wrapping_mul(2)).place())
+        rw(self.0.add(n.wrapping_mul(2)))
     }
 
     /// Choice `n`'s byte at +1.
@@ -717,11 +714,11 @@ impl Choices {
 
     /// The table's first `len` bytes (a `len` the item's count gives).
     pub fn bytes(self, len: usize, what: &str) -> Result<Vec<u8>, crate::errors::BadInput> {
-        self.0.place().read(len, what)
+        self.0.read(len, what)
     }
 
     pub fn write_bytes(self, bytes: &[u8], what: &str) -> Result<(), crate::errors::BadInput> {
-        self.0.place().write(bytes, what)
+        self.0.write(bytes, what)
     }
 }
 
@@ -732,7 +729,7 @@ pub struct EditField(&'static EditRecord);
 
 impl core::fmt::Debug for EditField {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(f, "EditField(pages +{:#x})", PagesAt::of_edit(self.0))
+        write!(f, "EditField(the folder's)")
     }
 }
 
@@ -765,21 +762,127 @@ impl EditField {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::panic::AssertUnwindSafe;
 
-    #[test]
-    fn a_pieces_item_is_kept_as_an_offset_in_the_pages() {
-        let title = ListItem::of_title();
-        let offset = title.pages_offset().unwrap();
-        assert_eq!(ListItem::in_pages(offset).unwrap(), title);
-        // The title's record is at the pages' first byte.
-        assert_eq!(PagesAt::of_item_word(offset), Some(PagesAt::title()));
+    /// The most items each installer list's record holds.
+    fn held(list: ListId) -> u32 {
+        match list {
+            ListId::Language | ListId::Drives8 => 10,
+            ListId::Main | ListId::Mode => 5,
+            ListId::Drives16 => 18,
+            ListId::DrivesMore => 26,
+            ListId::Folder => 6,
+            ListId::Room => 3,
+            ListId::Dxsetup | ListId::Finish => 4,
+            _ => 0,
+        }
     }
 
     #[test]
-    fn an_item_outside_the_pages_is_refused() {
-        let size = size_of::<crate::install::vars::InstallerPages>() as u32;
-        assert!(ListItem::in_pages(size - ITEM).is_ok());
-        assert!(ListItem::in_pages(size - ITEM + 1).is_err());
-        assert!(ListItem::in_pages(u32::MAX).is_err());
+    fn a_pieces_item_is_kept_as_a_handle() {
+        let _lock = crate::test_support::test_lock();
+        let title = ListItem::of_title();
+        assert_eq!(
+            ListItem::from_handle(title.to_handle().unwrap()).unwrap(),
+            title
+        );
+        for list in ListId::ALL {
+            for n in 0..held(list) {
+                let item = ListMenu::installer(list).item(n);
+                assert_eq!(item.installer_position(), Some(ItemPosition::In(list, n)));
+                assert_eq!(
+                    ListItem::from_handle(item.to_handle().unwrap()).unwrap(),
+                    item
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn a_handle_that_names_no_item_is_refused() {
+        let _lock = crate::test_support::test_lock();
+        assert!(ListItem::from_handle(0).is_err());
+        assert!(ListItem::from_handle(u32::MAX).is_err());
+        assert!(ListItem::from_handle(ITEM_HANDLE << 24 | 14 << 8).is_err());
+        assert!(ListItem::from_handle(ITEM_HANDLE << 24 | TITLE_LIST << 8 | 1).is_err());
+        let past = ITEM_HANDLE << 24 | (ListId::Room as u32) << 8 | held(ListId::Room);
+        assert!(ListItem::from_handle(past).is_err());
+    }
+
+    /// M4 for the installer's lists: every list's count starts within the items its record
+    /// holds, so no page asks for an item past them, which is refused. The drive lists' counts
+    /// are set by `list_drives` (the drives and two more, at most 24 drives: `drives::kept`).
+    #[test]
+    fn the_counts_stay_within_the_items() {
+        let _lock = crate::test_support::test_lock();
+        for list in ListId::ALL {
+            let menu = ListMenu::installer(list);
+            assert!(u32::from(menu.count()) <= held(list), "{list:?}");
+            assert_eq!(list_items(list).len() as u32, held(list), "{list:?}");
+        }
+    }
+
+    /// M4 for the choice items: no item of the installer's lists is a choice item (kind 2),
+    /// and the only run-time write of an item's kind is the main page's first item, made
+    /// kind 5 (`check_at_start::set_script_entry`). The viewer's items are kind 1 or 5 in
+    /// their starting data and only their marks (the high bits) change. The pages hold no
+    /// table a choice link could name either: only the typed folder's link is a place.
+    #[test]
+    fn the_lists_hold_no_choice_items() {
+        let _lock = crate::test_support::test_lock();
+        for list in ListId::ALL {
+            let menu = ListMenu::installer(list);
+            for n in 0..u32::from(menu.count()) {
+                assert_ne!(menu.item(n).kind(), 2, "{list:?} item {n}");
+            }
+        }
+        let viewer = ListMenu::of(
+            crate::race::owner::race()
+                .replay
+                .replay_view()
+                .viewer_list_place(),
+        );
+        for n in 0..u32::from(viewer.count()) {
+            assert_ne!(viewer.item(n).kind(), 2, "viewer item {n}");
+        }
+    }
+
+    #[test]
+    fn a_choice_link_names_a_place_or_is_refused() {
+        let _lock = crate::test_support::test_lock();
+        let room = &crate::install::page_links::installer()
+            .pages
+            .room_menu
+            .items[0];
+        let saved = (room.first.get(), room.data.get());
+        room.first.set(2);
+        for link in [
+            PageLink::table(0),
+            PageLink::list(ListId::Main),
+            PageLink::box_at(8),
+            PageLink::folder_edit(),
+            PageLink::from_raw(0),
+        ] {
+            room.data.set(link.raw());
+            let item = ListMenu::installer(ListId::Room).item(0);
+            assert!(
+                std::panic::catch_unwind(AssertUnwindSafe(|| item.choices())).is_err(),
+                "{link:?}"
+            );
+        }
+        room.data.set(PageLink::typed(2).raw());
+        let item = ListMenu::installer(ListId::Room).item(0);
+        assert!(std::panic::catch_unwind(AssertUnwindSafe(|| item.choices().marks(0))).is_ok());
+        room.first.set(saved.0);
+        room.data.set(saved.1);
+    }
+
+    #[test]
+    fn an_installer_item_past_the_list_is_refused() {
+        let _lock = crate::test_support::test_lock();
+        let past = std::panic::catch_unwind(AssertUnwindSafe(|| {
+            ListMenu::installer(ListId::Room).item(3)
+        }));
+        assert!(past.is_err());
     }
 }

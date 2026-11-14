@@ -662,3 +662,11 @@ has the same fixed addresses, but its network mode could not be run here to see 
 **Seen or read:** seen (reported on the handheld, measured: +1,020 .. +573 ms late).
 
 **Fix:** the film's sound starts once the first picture is on the screen, and from then on the pictures follow the sound's played position (`film::Clock`). Both films stay within about 20 ms of their sound, with no frames skipped.
+
+## The drive page with 25 drives lists an item that is not a drive
+
+**What it is:** the drive page's largest menu holds 26 items: two fixed ones and 24 drives. The page counted every drive from `a` to `y`, so with 25 drives (letter `a` among them) it counted 27 items, one more than the menu holds, and read the 27th item from the bytes that follow the menu.
+
+**In game:** a garbage item at the end of the drive list, with text that is not a drive. Not seen; found by reading the code (a PC with 25 installable drives is very unlikely).
+
+**Fix:** the page lists at most 24 drives, the first 24 in letter order, so with 25 drives `y` is left out (`drives::kept`, `install::list_drives`).

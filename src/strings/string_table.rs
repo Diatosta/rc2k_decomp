@@ -237,6 +237,10 @@ pub fn table() -> Option<StringTable<'static>> {
 mod tests {
     use super::*;
 
+    /// How many ids `the_installers_made_texts_read_as_before` resolves, and their hash.
+    const INSTALL_TEXTS_COUNT: usize = 47;
+    const INSTALL_TEXTS_HASH: u64 = 0xa852_4ba6_54d7_42e9;
+
     /// Where each made text, ids 0x1000 .. 0x103F, lives: the holder (N the notice text, B the
     /// screens' text buffers, D the drive rows, M the installer's names, V its variables) and the
     /// text's offset in the holder.
@@ -346,5 +350,34 @@ mod tests {
             chain[1],
             &raw const o.race.text_buffers().caption
         ));
+    }
+
+    /// Every made text of the installer's stores (the drive rows, the languages, the credits),
+    /// resolved on the stores' starting values: a hash of the ids' texts, held against the
+    /// build before the installer's pages were typed (`RC2K_PRINT=1` prints it).
+    #[test]
+    fn the_installers_made_texts_read_as_before() {
+        let _lock = crate::test_support::test_lock();
+        let o = crate::owners::Owners::the();
+        let mut hash = 0xcbf2_9ce4_8422_2325_u64;
+        let mut lines = Vec::new();
+        for id in MADE_TEXT_IDS.start + 17..MADE_TEXT_IDS.end {
+            let line = match made_text(o.race, o.menus, o.install, id) {
+                Ok(text) => format!("{id:#x}: {text:?}"),
+                Err(e) => format!("{id:#x}: refused {e:?}"),
+            };
+            for b in line.bytes().chain(std::iter::once(b'\n')) {
+                hash = (hash ^ u64::from(b)).wrapping_mul(0x100_0000_01b3);
+            }
+            lines.push(line);
+        }
+        if std::env::var_os("RC2K_PRINT").is_some() {
+            eprintln!("INSTALL_TEXTS_HASH {hash:016x} over {} ids", lines.len());
+        }
+        assert_eq!(
+            (lines.len(), hash),
+            (INSTALL_TEXTS_COUNT, INSTALL_TEXTS_HASH),
+            "{lines:?}"
+        );
     }
 }

@@ -1,7 +1,7 @@
-//! The links in the installer pages' data, as handles: a page entry names its list, an item its
-//! box, its choices, its edit record, its value or its text, a list its neighbours table, a
-//! drawing list's record its font or palette. Each dword holds a handle, made once where the
-//! data is built (`vars::InstallerPages::new`) and resolved with bounds by every reader. A
+//! The links in the installer pages' data, as handles: a page entry names its list, an item
+//! its box, its edit record, its value or its text, a drawing list's record its font or
+//! palette. Each dword holds a handle, made once where the data is built
+//! (`vars::InstallerPages::new`) and resolved by its kind, with bounds, by every reader. A
 //! handle is a kind in the high byte and a number below:
 //!
 //! - `TABLE`: a dword of `InstallerPages::page_table` (the page entries), by index;
@@ -12,14 +12,12 @@
 //! - `BLENDED_PALETTE`: the blended palette (the install bar's glyphs);
 //! - `TYPED_PATH`: a byte offset in `InstallerPaths::typed`.
 //!
-//! 0 is no link. A thing of the pages resolves to its place in `InstallerPages` (`in_pages`),
-//! bounded by the whole of the pages: a read that runs past a list's items or a table's end
-//! reads the bytes that follow.
+//! 0 is no link. A kind resolves only as itself: a box link is no table entry, a list link no
+//! text.
 
 use crate::errors::BadInput;
 use crate::gfx::typefaces::FontId;
-use crate::install::pages_map::PagesAt;
-use crate::menu::list_handle::EditRecord;
+use crate::menu::list_handle::{BoxRect, EditRecord};
 use crate::place::BytePlace;
 
 const KIND_SHIFT: u32 = 24;
@@ -165,32 +163,10 @@ impl PageLink {
         (self.kind() == TABLE && self.number() < TABLE_LEN).then_some(self.number())
     }
 
-    pub fn pages_at(self) -> Option<PagesAt> {
-        let number = self.number();
-        match self.kind() {
-            TABLE if number < TABLE_LEN => Some(PagesAt::table(number)),
-            LIST => ListId::from_number(number).map(PagesAt::list),
-            BOX if number < BOXES => Some(PagesAt::box_at(number)),
-            EDIT if number == 0 => Some(PagesAt::edit()),
-            _ => None,
-        }
-    }
-
-    /// The place in the installer pages the link names (a table entry, a list, a box, a
-    /// handler or the edit record), bounded by the pages.
-    pub fn in_pages(self) -> Result<BytePlace, BadInput> {
-        Ok(self.pages_start()?.place())
-    }
-
-    pub fn pages_start(self) -> Result<PagesAt, BadInput> {
-        self.pages_at().ok_or(BadInput(
-            "a page link that is no place in the installer's pages",
-        ))
-    }
-
-    pub fn box_position(self) -> Result<PagesAt, BadInput> {
-        match self.pages_at() {
-            Some(at) if self.kind() == BOX => Ok(at),
+    /// The box a link of the `BOX` kind names.
+    pub fn box_rect(self) -> Result<&'static BoxRect, BadInput> {
+        match (self.kind(), self.number()) {
+            (BOX, number) if number < BOXES => Ok(&installer().pages.boxes[number as usize]),
             _ => Err(BadInput("a page link that is no box")),
         }
     }
@@ -210,13 +186,18 @@ impl PageLink {
         }
     }
 
-    /// The place a text or a byte link names: in the pages, or the folder typed (bounded by
-    /// the installer's path buffers).
+    /// The place a text or a byte link names: the folder typed (bounded by the installer's path
+    /// buffers); the pages hold no other text or byte an item sets.
     pub fn place(self) -> Result<BytePlace, BadInput> {
         if self.kind() == TYPED_PATH && self.number() < TYPED_LEN {
-            return Ok(crate::install::pages_map::typed_folder(self.number()));
+            return Ok(BytePlace::In(
+                &installer().paths.typed,
+                self.number() as usize,
+            ));
         }
-        self.in_pages()
+        Err(BadInput(
+            "a page link that is no place in the installer's pages",
+        ))
     }
 
     pub fn font(self) -> Result<FontId, BadInput> {
@@ -233,7 +214,7 @@ impl PageLink {
 }
 
 /// A dword of the pages' data that holds a link (a drawing list record's font or palette):
-/// the link's raw dword is its four bytes in the pages' run.
+/// the link's raw dword is its value.
 #[repr(transparent)]
 #[derive(rc2k_derive::Cells, rc2k_derive::ByteView)]
 pub struct LinkCell(crate::session::PlainDword);
@@ -254,8 +235,11 @@ mod tests {
 
     #[test]
     fn the_handles_resolve_as_their_own_kind() {
-        let title_box = PageLink::box_at(1);
-        assert_eq!(title_box.box_position().unwrap(), PagesAt::box_at(1));
+        let pages = &installer().pages;
+        assert!(core::ptr::eq(
+            PageLink::box_at(1).box_rect().unwrap(),
+            &raw const pages.boxes[1]
+        ));
         assert_eq!(
             PageLink::table(25).table_index().unwrap(),
             25,
@@ -282,30 +266,36 @@ mod tests {
 
     #[test]
     fn a_link_is_resolved_only_as_its_own_kind() {
-        assert!(PageLink::from_raw(0).in_pages().is_err());
+        assert!(PageLink::from_raw(0).box_rect().is_err());
+        assert!(PageLink::from_raw(0).place().is_err());
         assert!(
             PageLink::of_font(crate::gfx::typefaces::fonts::TITLE)
-                .in_pages()
+                .box_rect()
                 .is_err()
         );
         assert!(PageLink::folder_edit().font().is_err());
-        assert!(PageLink::table(11).box_position().is_err());
+        assert!(PageLink::table(11).box_rect().is_err());
+        assert!(PageLink::box_at(3).place().is_err());
+        assert!(PageLink::list(ListId::Main).place().is_err());
         assert!(
-            PageLink::from_raw(TABLE << KIND_SHIFT | TABLE_LEN)
-                .in_pages()
+            PageLink::from_raw(BOX << KIND_SHIFT | BOXES)
+                .box_rect()
                 .is_err()
         );
         assert!(
-            PageLink::from_raw(BOX << KIND_SHIFT | BOXES)
-                .in_pages()
+            PageLink::from_raw(TYPED_PATH << KIND_SHIFT | TYPED_LEN)
+                .place()
                 .is_err()
         );
         assert!(
             PageLink::from_raw(LIST << KIND_SHIFT | 14)
-                .in_pages()
-                .is_err()
+                .list_id()
+                .is_none()
         );
         assert!(PageLink::folder_edit().edit_record().is_ok());
-        assert!(PageLink::list(ListId::OpenInstalled).in_pages().is_ok());
+        assert_eq!(
+            PageLink::list(ListId::OpenInstalled).list_id(),
+            Some(ListId::OpenInstalled)
+        );
     }
 }
