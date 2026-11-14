@@ -10,10 +10,9 @@ pub const VOICE_COUNT: u32 = 0x48;
 pub const MOST_SPOTS: u32 = 36;
 pub const MOST_KIND: u32 = 0x15;
 
-/// A voice: 0x50 bytes in the 1999 layout, the fields in the game's order. The whole numbers (ids,
+/// A voice: the fields in the game's order. The whole numbers (ids,
 /// flags, counts, the clock's turns) are dwords; the place, the rate, the volume, the distance, its
 /// change and the two factors are floats.
-#[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct SpotVoice {
     /// The spot's id (`FREE_ID`: free).
