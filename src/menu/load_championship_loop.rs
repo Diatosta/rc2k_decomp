@@ -4,8 +4,11 @@
 
 use crate::errors::Refused;
 use crate::menu::draw_lists_store::DRAW_LISTS;
+use crate::menu::screen_id::ScreenId;
 use crate::menu::screen_items_store::slot;
-use crate::menu::screen_loop::{Callee, Entry, Frames, Keys, List, Screen, Step, screen_entry};
+use crate::menu::screen_loop::{
+    Callee, Entry, Frames, Keys, List, Screen, ScreenFlag, Step, screen_entry,
+};
 use crate::menu::texts_store::texts;
 
 fn before(entry: &Entry) -> Result<(), Refused> {
@@ -43,7 +46,7 @@ pub const SCREEN: Screen = Screen {
     background: &[Step::Call(Callee::LoadBackground(|_| {
         &texts().load_championship_picture
     }))],
-    after: &[Step::WriteFlag(|m| &m.tables.captions.left_by_key, false)],
+    after: &[Step::WriteFlag(ScreenFlag::LeftByKey, false)],
     keys: Keys {
         escape_leaves: true,
         ..Keys::DEFAULT
@@ -71,10 +74,10 @@ pub const SCREEN: Screen = Screen {
     ..Screen::new(
         module_path!(),
         |m| m.tables.menus.load_championship.id(),
-        |m| &m.screens.items.current[slot::LOAD_CHAMPIONSHIP],
+        slot::LOAD_CHAMPIONSHIP,
     )
 };
 
 pub fn run(o: crate::owners::Owners<'static>) -> Result<(), crate::errors::Refused> {
-    screen_entry(o, &SCREEN)
+    screen_entry(o, ScreenId::LoadChampionship)
 }

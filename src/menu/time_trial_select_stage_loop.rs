@@ -3,7 +3,7 @@
 //! question, the highlight is not saved.
 use crate::menu::draw_lists_store::DRAW_LISTS;
 use crate::menu::screen_items_store::slot;
-use crate::menu::screen_loop::{Asking, Callee, List, MenuSound, Screen, Step};
+use crate::menu::screen_loop::{Asking, Callee, List, MenuSound, Screen, ScreenVar, Step};
 
 pub const SCREEN: Screen = Screen {
     lists: &[
@@ -28,8 +28,8 @@ pub const SCREEN: Screen = Screen {
             run: false,
         },
     ],
-    before: &[Step::Write(|m| &m.tables.pages.yes_no_answer, 0x0)],
-    after_lists: &[Step::Write(|m| &m.play.champ_view.stage_mode, 0x1)],
+    before: &[Step::Write(ScreenVar::YesNoAnswer, 0x0)],
+    after_lists: &[Step::Write(ScreenVar::StageMode, 0x1)],
     background: &[Step::Call(Callee::DrawStageMap)],
     after: &[Step::Sound(MenuSound::None)],
     asking: Some(Asking {
@@ -39,6 +39,6 @@ pub const SCREEN: Screen = Screen {
     ..Screen::new(
         module_path!(),
         |m| m.tables.menus.time_trial_select_stage.id(),
-        |m| &m.screens.items.current[slot::TIME_TRIAL_SELECT_STAGE],
+        slot::TIME_TRIAL_SELECT_STAGE,
     )
 };

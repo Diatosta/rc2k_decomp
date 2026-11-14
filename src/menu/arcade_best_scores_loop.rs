@@ -54,6 +54,6 @@ pub const SCREEN: Screen = Screen {
     ..Screen::new(
         module_path!(),
         |m| m.tables.menus.arcade_best_scores.id(),
-        |m| &m.screens.items.current[slot::ARCADE_BEST_SCORES],
+        slot::ARCADE_BEST_SCORES,
     )
 };

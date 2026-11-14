@@ -4,7 +4,7 @@
 //! before the first frame only.
 use crate::menu::draw_lists_store::DRAW_LISTS;
 use crate::menu::screen_items_store::slot;
-use crate::menu::screen_loop::{Asking, Callee, Frames, List, MenuSound, Screen, Step};
+use crate::menu::screen_loop::{Asking, Callee, Frames, List, MenuSound, Screen, ScreenFlag, Step};
 use crate::menu::texts_store::texts;
 
 pub const SCREEN: Screen = Screen {
@@ -25,7 +25,7 @@ pub const SCREEN: Screen = Screen {
             run: false,
         },
     ],
-    before: &[Step::WriteFlag(|m| &m.screens.event.event_over, false)],
+    before: &[Step::WriteFlag(ScreenFlag::EventOver, false)],
     set_up_first: &[
         Step::Call(Callee::RankStageTimes),
         Step::Call(Callee::ScoreFourPlayers),
@@ -61,6 +61,6 @@ pub const SCREEN: Screen = Screen {
     ..Screen::new(
         module_path!(),
         |m| m.tables.menus.time_trial_results.id(),
-        |m| &m.screens.items.current[slot::TIME_TRIAL_RESULTS],
+        slot::TIME_TRIAL_RESULTS,
     )
 };

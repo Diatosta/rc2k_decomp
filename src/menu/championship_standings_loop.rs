@@ -10,7 +10,7 @@
 //! and the highlight is not saved. One caller.
 use crate::menu::draw_lists_store::DRAW_LISTS;
 use crate::menu::screen_items_store::slot;
-use crate::menu::screen_loop::{Asking, Callee, Frames, List, Screen, Step};
+use crate::menu::screen_loop::{Asking, Callee, Frames, List, Screen, ScreenFlag, Step};
 use crate::menu::texts_store::texts;
 
 pub const SCREEN: Screen = Screen {
@@ -34,7 +34,7 @@ pub const SCREEN: Screen = Screen {
     background: &[Step::Call(Callee::LoadBackground(|_| {
         &texts().championship_standings_picture
     }))],
-    leave_at_once: Some(|m| &m.screens.state.menus.standings_shown),
+    leave_at_once: Some(ScreenFlag::StandingsShown),
     asking: Some(Asking { ..Asking::DEFAULT }),
     frames: Frames {
         first_frame_lists: Some(&[
@@ -59,6 +59,6 @@ pub const SCREEN: Screen = Screen {
     ..Screen::new(
         module_path!(),
         |m| m.tables.menus.championship_standings.id(),
-        |m| &m.screens.items.current[slot::CHAMPIONSHIP_STANDINGS],
+        slot::CHAMPIONSHIP_STANDINGS,
     )
 };

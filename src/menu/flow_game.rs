@@ -6,7 +6,8 @@ use crate::errors::{BadInput, FatalError, Refused};
 use crate::menu::event_flow::*;
 use crate::menu::lists_store::CarList;
 use crate::menu::owner::Menus;
-use crate::menu::screen_loop::{Entry, Screen, run_screen};
+use crate::menu::screen_id::ScreenId;
+use crate::menu::screen_loop::{Entry, run_screen};
 use crate::menu::standings::Which;
 use crate::menu::texts_store::texts;
 use crate::race::owner::Race;
@@ -121,7 +122,7 @@ fn place<'a>(menus: &'a Menus, race: &'a Race, v: Var) -> Place<'a> {
 impl Game<'_> {
     /// A screen, entered with the car list handed (the only value a screen reads from its
     /// caller).
-    fn screen(&self, screen: &Screen) -> Result<(), Refused> {
+    fn screen(&self, screen: ScreenId) -> Result<(), Refused> {
         run_screen(screen, &Entry::with_cars(self.owners, self.cars))?;
         Ok(())
     }
@@ -198,9 +199,9 @@ impl flow::Game for Game<'_> {
                 }
                 self.record = Some(find_record_in(stages, table, index as i32, section)?);
             }
-            C::WelcomeLoop => self.screen(&m::welcome_loop::SCREEN)?,
-            C::RallyStagesLoop => self.screen(&m::rally_stages_loop::SCREEN)?,
-            C::NextStageLoop => self.screen(&m::next_stage_loop::SCREEN)?,
+            C::WelcomeLoop => self.screen(ScreenId::Welcome)?,
+            C::RallyStagesLoop => self.screen(ScreenId::RallyStages)?,
+            C::NextStageLoop => self.screen(ScreenId::NextStage)?,
             C::ServicePass => m::service_pass::service_pass(menus, entry)?,
             C::StandingsBFromAll => m::standings_b_from_all::standings_b_from_all(
                 crate::strings::append_string_by_id::StringOwners::of(entry.owners),
@@ -225,7 +226,7 @@ impl flow::Game for Game<'_> {
             }
             C::SectionFinish => m::section_finish::section_finish(self.owners)?,
             C::ChampionshipStandingsReview => {
-                self.screen(&m::championship_standings_review_loop::SCREEN)?;
+                self.screen(ScreenId::ChampionshipStandingsReview)?;
             }
             C::WalkSectionRecords => m::walk_section_records::walk_section_records(
                 menus,
@@ -260,19 +261,19 @@ impl flow::Game for Game<'_> {
                 self.owners.system,
                 self.owners.race,
             )?,
-            C::BestTimesLoop => self.screen(&m::best_times_loop::SCREEN)?,
+            C::BestTimesLoop => self.screen(ScreenId::BestTimes)?,
             C::InspectionPass => m::inspection_pass::inspection_pass(menus, entry)?,
             C::ChampionshipServiceReview => {
-                self.screen(&m::championship_service_review_loop::SCREEN)?;
+                self.screen(ScreenId::ChampionshipServiceReview)?;
             }
             C::ChampionshipRacesReview => {
-                self.screen(&m::championship_races_review_loop::SCREEN)?;
+                self.screen(ScreenId::ChampionshipRacesReview)?;
             }
             C::ChampionshipFinish => m::championship_finish::championship_finish(self.owners)?,
             C::ClearScoreMarks => m::clear_score_marks::clear_score_marks()?,
             C::BestClassScores => m::best_class_scores::best_class_scores(menus, entry)?,
             C::BestOverallScores => m::best_overall_scores::best_overall_scores(menus, entry)?,
-            C::ChampionshipEndReview => self.screen(&m::championship_end_review_loop::SCREEN)?,
+            C::ChampionshipEndReview => self.screen(ScreenId::ChampionshipEndReview)?,
             C::ShowInGameOptions => m::in_game_options_items::show_in_game_options(menus)?,
             C::HideInGameOptions { players } => {
                 m::in_game_options_items::hide_in_game_options(menus, players)?;
@@ -285,10 +286,10 @@ impl flow::Game for Game<'_> {
                     self.cars = Some(list);
                 }
             }
-            C::SelectCarLoop => self.screen(&m::select_car_loop::SCREEN)?,
+            C::SelectCarLoop => self.screen(ScreenId::SelectCar)?,
             C::TakeShownCar => m::take_shown_car::take_shown_car(menus, self.cars)?,
-            C::SelectStageLoop => self.screen(&m::select_stage_loop::SCREEN)?,
-            C::TimeTrialSelectStage => self.screen(&m::time_trial_select_stage_loop::SCREEN)?,
+            C::SelectStageLoop => self.screen(ScreenId::SelectStage)?,
+            C::TimeTrialSelectStage => self.screen(ScreenId::TimeTrialSelectStage)?,
             C::TimeTrialService => m::time_trial_service::time_trial_service(menus, entry)?,
             C::Race { next, kind } => {
                 crate::race::single_rally_race::single_rally_race(
@@ -297,14 +298,14 @@ impl flow::Game for Game<'_> {
                     kind,
                 )?;
             }
-            C::StageResultLoop => self.screen(&m::stage_result_loop::SCREEN)?,
-            C::TimeTrialResultsLoop => self.screen(&m::time_trial_results_loop::SCREEN)?,
-            C::SingleRallyTwoResults => self.screen(&m::single_rally_two_results_loop::SCREEN)?,
+            C::StageResultLoop => self.screen(ScreenId::StageResult)?,
+            C::TimeTrialResultsLoop => self.screen(ScreenId::TimeTrialResults)?,
+            C::SingleRallyTwoResults => self.screen(ScreenId::SingleRallyTwoResults)?,
             C::SingleRallyThreeFourResults => {
-                self.screen(&m::single_rally_three_four_results_loop::SCREEN)?;
+                self.screen(ScreenId::SingleRallyThreeFourResults)?;
             }
             C::SingleRallyOverallResults => {
-                self.screen(&m::single_rally_overall_results_loop::SCREEN)?;
+                self.screen(ScreenId::SingleRallyOverallResults)?;
             }
             C::KeepStageBest => m::keep_stage_best::keep_stage_best(menus, self.owners.system)?,
             C::TimeTrialQualifies => {
@@ -320,8 +321,8 @@ impl flow::Game for Game<'_> {
                     self.owners.system,
                 )?;
             }
-            C::TimeTrialBestTimesLoop => self.screen(&m::time_trial_best_times_loop::SCREEN)?,
-            C::SingleRallyReview => self.screen(&m::single_rally_review_loop::SCREEN)?,
+            C::TimeTrialBestTimesLoop => self.screen(ScreenId::TimeTrialBestTimes)?,
+            C::SingleRallyReview => self.screen(ScreenId::SingleRallyReview)?,
             C::StartStream { channel } => {
                 // ";3files\%speech\rally\rally0.wav"
                 let name = crate::audio::names_store::NameList::RallySpeech.first_key();

@@ -16,8 +16,8 @@ use crate::framework::log;
 use crate::menu::draw_lists_store::DRAW_LISTS;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{
-    ActionCheck, Asking, Callee, Entry, Flow, Frames, Keys, List, MenuSound, Screen, Step,
-    carousel, prepare_scene,
+    ActionCheck, Asking, Callee, Entry, Flow, Frames, Keys, List, MenuSound, SceneVar, Screen,
+    ScreenFlag, ScreenVar, Step, carousel, prepare_scene,
 };
 use crate::menu::texts_store::texts;
 use crate::menu::update_blink::update_blink;
@@ -108,35 +108,35 @@ pub const SCREEN: Screen = Screen {
         },
     ],
     before: &[
-        Step::WriteFlag(|m| &m.screens.loop_flags.event_left, false),
-        Step::WriteFlag(|m| &m.screens.loop_flags.leave_screen, false),
-        Step::WriteFlag(|m| &m.screens.loop_flags.left_with_carry, false),
-        Step::WriteFlag(|m| &m.screens.event.event_over, false),
+        Step::WriteFlag(ScreenFlag::EventLeft, false),
+        Step::WriteFlag(ScreenFlag::LeaveScreen, false),
+        Step::WriteFlag(ScreenFlag::LeftWithCarry, false),
+        Step::WriteFlag(ScreenFlag::EventOver, false),
         Step::Sound(MenuSound::None),
-        Step::WriteFlag(|m| &m.screens.draw_work.escape_pressed, false),
-        Step::Write(|m| &m.screens.items.current[slot::MAIN_MENU], 1),
-        Step::Write(|m| &m.screens.loop_flags.item, 1),
+        Step::WriteFlag(ScreenFlag::EscapePressed, false),
+        Step::Write(ScreenVar::SavedItem(slot::MAIN_MENU), 1),
+        Step::Write(ScreenVar::Highlight, 1),
         Step::Call(Callee::SetUpFrontEnd),
         Step::Call(Callee::TakeKey), // input::take_key
         Step::Call(Callee::SetUpEngine),
         Step::Call(Callee::SetUpFrontEndScene),
         Step::Call(Callee::SetUpEngine),
-        Step::WriteLight(|l| &l.light_lowest, 0x50),
-        Step::WriteLight(|l| &l.light_highest, 0xFF),
-        Step::WriteLight(|l| &l.light_level, 0),
-        Step::WriteObject(|o| &o.light_strength, 0xFF),
-        Step::WriteLight(|l| &l.light_turns[0], 0x6E),
-        Step::WriteLight(|l| &l.light_turns[1], 0x1E),
+        Step::WriteScene(SceneVar::LightLowest, 0x50),
+        Step::WriteScene(SceneVar::LightHighest, 0xFF),
+        Step::WriteScene(SceneVar::LightLevel, 0),
+        Step::WriteScene(SceneVar::ObjectLightStrength, 0xFF),
+        Step::WriteScene(SceneVar::LightTurn0, 0x6E),
+        Step::WriteScene(SceneVar::LightTurn1, 0x1E),
         Step::Call(Callee::PlayTune4),
     ],
     set_up_first: &[Step::Do(set_up_first)],
     late_highlight: true,
     asking: Some(Asking {
         on_refusal: &[
-            Step::WriteFlag(|m| &m.screens.loop_flags.ask_leave, false),
-            Step::WriteFlag(|m| &m.screens.draw_work.escape_pressed, false),
+            Step::WriteFlag(ScreenFlag::AskLeave, false),
+            Step::WriteFlag(ScreenFlag::EscapePressed, false),
             Step::Sound(MenuSound::None),
-            Step::WriteFlag(|m| &m.screens.loop_flags.leave_screen, false),
+            Step::WriteFlag(ScreenFlag::LeaveScreen, false),
         ],
         always: true,
         ..Asking::DEFAULT
@@ -147,13 +147,13 @@ pub const SCREEN: Screen = Screen {
     },
     frames: Frames {
         before_first_frame: &[Step::Do(before_first_frame)],
-        before_frame: &[Step::Write(|m| &m.play.cheats.notice_due, 1)],
+        before_frame: &[Step::Write(ScreenVar::NoticeDue, 1)],
         after_blink: &[Step::DoFlow(idle)],
         ..Frames::DEFAULT
     },
     ..Screen::new(
         module_path!(),
         |m| m.tables.menus.main_menu.id(),
-        |m| &m.screens.items.current[slot::MAIN_MENU],
+        slot::MAIN_MENU,
     )
 };

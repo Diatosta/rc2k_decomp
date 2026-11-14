@@ -4,8 +4,11 @@
 
 use crate::errors::Refused;
 use crate::menu::draw_lists_store::DRAW_LISTS;
+use crate::menu::screen_id::ScreenId;
 use crate::menu::screen_items_store::slot;
-use crate::menu::screen_loop::{Callee, Entry, Flow, Frames, List, Screen, Step, screen_entry};
+use crate::menu::screen_loop::{
+    Callee, Entry, Flow, Frames, List, Screen, ScreenFlag, ScreenVar, Step, screen_entry,
+};
 use crate::menu::texts_store::texts;
 
 fn each_frame(entry: &Entry) -> Result<Flow, Refused> {
@@ -38,14 +41,14 @@ pub const SCREEN: Screen = Screen {
         },
     ],
     before: &[
-        Step::WriteFlag(|m| &m.screens.event.event_over, false),
-        Step::Write(|m| &m.screens.event.current_player, 0x0),
+        Step::WriteFlag(ScreenFlag::EventOver, false),
+        Step::Write(ScreenVar::CurrentPlayer, 0x0),
     ],
     background: &[
-        Step::Write(|m| &m.screens.event.clears_escape_flag, 0x1),
+        Step::Write(ScreenVar::ClearsEscapeFlag, 0x1),
         Step::Call(Callee::LoadBackground(|_| &texts().player1_details_picture)),
     ],
-    after_first_frame: &[Step::Write(|m| &m.screens.event.current_player, 0x0)],
+    after_first_frame: &[Step::Write(ScreenVar::CurrentPlayer, 0x0)],
     frames: Frames {
         first_frame_lists: Some(&[
             List {
@@ -70,10 +73,10 @@ pub const SCREEN: Screen = Screen {
     ..Screen::new(
         module_path!(),
         |m| m.tables.menus.player1_details.id(),
-        |m| &m.screens.items.current[slot::PLAYER1_DETAILS],
+        slot::PLAYER1_DETAILS,
     )
 };
 
 pub fn run(o: crate::owners::Owners<'static>) -> Result<(), crate::errors::Refused> {
-    screen_entry(o, &SCREEN)
+    screen_entry(o, ScreenId::Player1Details)
 }

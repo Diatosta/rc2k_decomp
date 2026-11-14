@@ -57,6 +57,6 @@ pub const SCREEN: Screen = Screen {
     ..Screen::new(
         module_path!(),
         |m| m.tables.menus.overall_stage_results.id(),
-        |m| &m.screens.items.current[slot::OVERALL_STAGE_RESULTS],
+        slot::OVERALL_STAGE_RESULTS,
     )
 };

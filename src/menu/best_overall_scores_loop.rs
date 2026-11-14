@@ -51,6 +51,6 @@ pub const SCREEN: Screen = Screen {
     ..Screen::new(
         module_path!(),
         |m| m.tables.menus.best_overall_scores.id(),
-        |m| &m.screens.items.current[slot::BEST_OVERALL_SCORES],
+        slot::BEST_OVERALL_SCORES,
     )
 };

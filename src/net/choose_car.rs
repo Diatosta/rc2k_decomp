@@ -2,6 +2,7 @@
 //! chosen car and its colours go into the player's record. The background is drawn again after.
 
 use crate::errors::Refused;
+use crate::menu::screen_id::ScreenId;
 use crate::menu::screen_loop::{Entry, run_screen};
 use crate::net::store::NetShared;
 use crate::owners::Owners;
@@ -19,7 +20,7 @@ pub fn choose_car(o: Owners<'static>, vars: &NetShared) -> Result<(), Refused> {
     let cars = crate::net::car_list::car_list()?;
     escape_pressed.set(false);
     let entry = Entry::with_cars(o, Some(cars));
-    { run_screen(&crate::menu::select_car_loop::SCREEN, &entry) }?;
+    { run_screen(ScreenId::SelectCar, &entry) }?;
     if !escape_pressed.is_set() {
         crate::menu::take_shown_car::take_shown_car(menus, Some(cars))?;
         vars.own

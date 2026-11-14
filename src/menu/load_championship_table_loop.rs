@@ -4,8 +4,9 @@
 
 use crate::errors::Refused;
 use crate::menu::draw_lists_store::DRAW_LISTS;
+use crate::menu::screen_id::ScreenId;
 use crate::menu::screen_items_store::slot;
-use crate::menu::screen_loop::{Entry, List, Screen, Step, prepare_scene, screen_entry};
+use crate::menu::screen_loop::{Entry, List, Screen, ScreenVar, Step, prepare_scene, screen_entry};
 
 fn prepare(entry: &Entry) -> Result<(), Refused> {
     entry.set_view(0, 0, 0x100);
@@ -32,17 +33,17 @@ pub const SCREEN: Screen = Screen {
             run: false,
         },
     ],
-    set_up_first: &[Step::Write(|m| &m.screens.flow.left_service, 0x0)],
+    set_up_first: &[Step::Write(ScreenVar::LeftService, 0x0)],
     prepare: &[Step::Do(prepare)],
-    after: &[Step::Write(|m| &m.screens.flow.left_service, 0x1)],
-    leave_saved_item: Some(|m| &m.screens.items.current[slot::SAVE_SETUP]),
+    after: &[Step::Write(ScreenVar::LeftService, 0x1)],
+    leave_saved_item: Some(slot::SAVE_SETUP),
     ..Screen::new(
         module_path!(),
         |m| m.tables.menus.load_championship_table.id(),
-        |m| &m.screens.items.current[slot::LOAD_CHAMPIONSHIP_TABLE],
+        slot::LOAD_CHAMPIONSHIP_TABLE,
     )
 };
 
 pub fn run(o: crate::owners::Owners<'static>) -> Result<(), crate::errors::Refused> {
-    screen_entry(o, &SCREEN)
+    screen_entry(o, ScreenId::LoadChampionshipTable)
 }

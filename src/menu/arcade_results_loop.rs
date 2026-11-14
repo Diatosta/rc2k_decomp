@@ -3,7 +3,7 @@
 //! not saved; its own 3D scene list is set before the first frame only.
 use crate::menu::draw_lists_store::DRAW_LISTS;
 use crate::menu::screen_items_store::slot;
-use crate::menu::screen_loop::{Asking, Callee, Frames, List, MenuSound, Screen, Step};
+use crate::menu::screen_loop::{Asking, Callee, Frames, List, MenuSound, Screen, ScreenFlag, Step};
 use crate::menu::texts_store::texts;
 
 pub const SCREEN: Screen = Screen {
@@ -24,7 +24,7 @@ pub const SCREEN: Screen = Screen {
             run: false,
         },
     ],
-    before: &[Step::WriteFlag(|m| &m.screens.event.event_over, false)],
+    before: &[Step::WriteFlag(ScreenFlag::EventOver, false)],
     background: &[Step::Call(Callee::LoadBackground(|_| {
         &texts().arcade_results_picture
     }))],
@@ -56,6 +56,6 @@ pub const SCREEN: Screen = Screen {
     ..Screen::new(
         module_path!(),
         |m| m.tables.menus.arcade_results.id(),
-        |m| &m.screens.items.current[slot::ARCADE_RESULTS],
+        slot::ARCADE_RESULTS,
     )
 };

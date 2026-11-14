@@ -1,4 +1,4 @@
-//! The loop every menu screen runs, from entering the screen to leaving it. The 83 screens
+//! The loop every menu screen runs, from entering the screen to leaving it. The screens
 //! differ only in what their `Screen` describes; each has a file of its own that holds it.
 //!
 //! On entry the screen's `before` steps run. Set-up (again after every action that does not
@@ -34,6 +34,7 @@ use crate::menu::owner::Menus;
 use crate::menu::owner::Screens;
 use crate::menu::run_item_action::run_item_action;
 use crate::menu::run_list::run_list;
+use crate::menu::screen_id::ScreenId;
 use crate::menu::update_blink::update_blink;
 use crate::owners::Owners;
 use crate::race::owner::Race;
@@ -55,12 +56,188 @@ pub enum FrameRoutine {
     Inspection,
 }
 
-/// A variable of the game that a screen's description names, found when asked (a description
-/// is a constant, and a constant cannot hold a reference to a static).
-pub type Cell = fn(&Menus) -> &dyn DwordLike;
+/// A game variable that a screen's steps write, named as data.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum ScreenVar {
+    /// `play.arcade.level`.
+    ArcadeLevel,
+    /// `play.arcade.stage`.
+    ArcadeStage,
+    /// `play.champ_view.stage_mode`.
+    StageMode,
+    /// `play.cheats.notice_due`.
+    NoticeDue,
+    /// `screens.draw_work.action_mode`.
+    ActionMode,
+    /// `screens.event.clears_escape_flag`.
+    ClearsEscapeFlag,
+    /// `screens.event.current_player`.
+    CurrentPlayer,
+    /// `screens.event.index`.
+    EventIndex,
+    /// `screens.event.section`.
+    EventSection,
+    /// `screens.event.service_next`.
+    ServiceNext,
+    /// `screens.event.stage_group`.
+    StageGroup,
+    /// `screens.event.stage_number`.
+    StageNumber,
+    /// `screens.event.stage_sub`.
+    StageSub,
+    /// `screens.flow.left_service`.
+    LeftService,
+    /// `screens.flow.quiet`.
+    Quiet,
+    /// The highlighted item, `screens.loop_flags.item`.
+    Highlight,
+    /// The highlight a screen keeps between visits: `screens.items.current[slot]`.
+    SavedItem(usize),
+    /// `tables.pages.yes_no_answer`.
+    YesNoAnswer,
+}
 
-/// A flag of the game that a screen's description names.
-pub type FlagCell = fn(&Menus) -> &dyn FlagLike;
+impl ScreenVar {
+    /// The variable in `menus`.
+    pub fn cell(self, menus: &Menus) -> &dyn DwordLike {
+        let screens = &menus.screens;
+        match self {
+            ScreenVar::ArcadeLevel => &menus.play.arcade.level,
+            ScreenVar::ArcadeStage => &menus.play.arcade.stage,
+            ScreenVar::StageMode => &menus.play.champ_view.stage_mode,
+            ScreenVar::NoticeDue => &menus.play.cheats.notice_due,
+            ScreenVar::ActionMode => &screens.draw_work.action_mode,
+            ScreenVar::ClearsEscapeFlag => &screens.event.clears_escape_flag,
+            ScreenVar::CurrentPlayer => &screens.event.current_player,
+            ScreenVar::EventIndex => &screens.event.index,
+            ScreenVar::EventSection => &screens.event.section,
+            ScreenVar::ServiceNext => &screens.event.service_next,
+            ScreenVar::StageGroup => &screens.event.stage_group,
+            ScreenVar::StageNumber => &screens.event.stage_number,
+            ScreenVar::StageSub => &screens.event.stage_sub,
+            ScreenVar::LeftService => &screens.flow.left_service,
+            ScreenVar::Quiet => &screens.flow.quiet,
+            ScreenVar::Highlight => &screens.loop_flags.item,
+            ScreenVar::SavedItem(slot) => &screens.items.current[slot],
+            ScreenVar::YesNoAnswer => &menus.tables.pages.yes_no_answer,
+        }
+    }
+}
+
+/// A game flag that a screen's steps write or its leaving reads, named as data.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum ScreenFlag {
+    /// `screens.draw_work.escape_pressed`.
+    EscapePressed,
+    /// `screens.event.event_over`.
+    EventOver,
+    /// `screens.flow.asking`: the "leave?" question is on.
+    Asking,
+    /// `screens.loop_flags.ask_leave`.
+    AskLeave,
+    /// `screens.loop_flags.event_left`.
+    EventLeft,
+    /// `screens.loop_flags.leave_screen`.
+    LeaveScreen,
+    /// `screens.loop_flags.left_with_carry`.
+    LeftWithCarry,
+    /// `screens.state.menus.skip_edit_values`.
+    SkipEditValues,
+    /// `screens.state.menus.standings_shown`.
+    StandingsShown,
+    /// `tables.captions.left_by_key`.
+    LeftByKey,
+}
+
+impl ScreenFlag {
+    /// The flag in `menus`.
+    pub fn cell(self, menus: &Menus) -> &dyn FlagLike {
+        let screens = &menus.screens;
+        match self {
+            ScreenFlag::EscapePressed => &screens.draw_work.escape_pressed,
+            ScreenFlag::EventOver => &screens.event.event_over,
+            ScreenFlag::Asking => &screens.flow.asking,
+            ScreenFlag::AskLeave => &screens.loop_flags.ask_leave,
+            ScreenFlag::EventLeft => &screens.loop_flags.event_left,
+            ScreenFlag::LeaveScreen => &screens.loop_flags.leave_screen,
+            ScreenFlag::LeftWithCarry => &screens.loop_flags.left_with_carry,
+            ScreenFlag::SkipEditValues => &screens.state.menus.skip_edit_values,
+            ScreenFlag::StandingsShown => &screens.state.menus.standings_shown,
+            ScreenFlag::LeftByKey => &menus.tables.captions.left_by_key,
+        }
+    }
+}
+
+/// An integer variable of the front end's scene that a screen's steps write: its view, its
+/// clip edges, its object lighting.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum SceneVar {
+    /// The view's x offset.
+    ViewOffsetX,
+    /// The view's y offset.
+    ViewOffsetY,
+    /// The view's zoom.
+    ViewZoom,
+    /// The clip's left edge.
+    ClipLeft,
+    /// The clip's right edge.
+    ClipRight,
+    /// The lowest light.
+    LightLowest,
+    /// The highest light.
+    LightHighest,
+    /// The light's level.
+    LightLevel,
+    /// The light's first turn.
+    LightTurn0,
+    /// The light's second turn.
+    LightTurn1,
+    /// The strength of the object's light.
+    ObjectLightStrength,
+}
+
+impl SceneVar {
+    /// The variable in the front end's scene.
+    pub fn cell(self) -> &'static dyn DwordLike {
+        let window = &crate::scene::polygon_work::front_end().window;
+        let light = &crate::race::view_scratch::front_end().light;
+        match self {
+            SceneVar::ViewOffsetX => &window.view_offset[0],
+            SceneVar::ViewOffsetY => &window.view_offset[1],
+            SceneVar::ViewZoom => &window.view_zoom,
+            SceneVar::ClipLeft => &window.clip_edges[2],
+            SceneVar::ClipRight => &window.clip_edges[3],
+            SceneVar::LightLowest => &light.light_lowest,
+            SceneVar::LightHighest => &light.light_highest,
+            SceneVar::LightLevel => &light.light_level,
+            SceneVar::LightTurn0 => &light.light_turns[0],
+            SceneVar::LightTurn1 => &light.light_turns[1],
+            SceneVar::ObjectLightStrength => {
+                &crate::race::view_scratch::front_end().object.light_strength
+            }
+        }
+    }
+}
+
+/// A float variable of the front end's scene that a screen's steps write.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum SceneFloat {
+    /// The clip's left edge as the clipper reads it.
+    ClipLeft,
+    /// The clip's right edge as the clipper reads it.
+    ClipRight,
+}
+
+impl SceneFloat {
+    /// The variable in the front end's scene.
+    pub fn cell(self) -> &'static PlainFloat {
+        let window = &crate::scene::polygon_work::front_end().window;
+        match self {
+            SceneFloat::ClipLeft => &window.clip_screen[2],
+            SceneFloat::ClipRight => &window.clip_screen[3],
+        }
+    }
+}
 
 /// A text of the game that a screen's description names (a picture's path), found when
 /// asked.
@@ -72,24 +249,15 @@ pub enum Step {
     /// Calls the game function at this RVA (one of `call`'s).
     Call(Callee),
     /// Writes a game variable.
-    Write(Cell, u32),
+    Write(ScreenVar, u32),
     /// Sets or clears a game flag.
-    WriteFlag(FlagCell, bool),
+    WriteFlag(ScreenFlag, bool),
     /// Sets the menu's sound variable.
     Sound(MenuSound),
-    /// Writes a scene variable.
-    WriteScene(fn(&Scene) -> &dyn DwordLike, u32),
-    WriteSceneF32(fn(&Scene) -> &PlainFloat, f32),
-    /// Writes a variable of the front end's object lighting.
-    WriteLight(
-        fn(&crate::scene::object_light::ObjectLight) -> &dyn DwordLike,
-        u32,
-    ),
-    /// A cell of the front end's slot's object placing.
-    WriteObject(
-        fn(&crate::scene::object_place::ObjectPlace) -> &dyn DwordLike,
-        u32,
-    ),
+    /// Writes an integer variable of the front end's scene.
+    WriteScene(SceneVar, u32),
+    /// Writes a float variable of the front end's scene.
+    WriteSceneF32(SceneFloat, f32),
     /// Calls the game function, and if it fails, that is the fatal error with this code (and no
     /// message).
     CallOrFatal(Callee, u32),
@@ -99,6 +267,21 @@ pub enum Step {
     /// a frame that keeps the keys from the menu while a name is typed. Only looked at in
     /// `each_frame`.
     DoFlow(fn(&Entry) -> Result<Flow, Refused>),
+}
+impl Step {
+    /// Runs the step if it only writes a variable (to `menus`, or the front end's scene):
+    /// whether it did.
+    pub fn write(&self, menus: &Menus) -> bool {
+        match *self {
+            Step::Write(variable, value) => variable.cell(menus).set(value),
+            Step::WriteFlag(flag, on) => flag.cell(menus).set(on),
+            Step::Sound(sound) => menus.screens.option_work.set_sound(sound),
+            Step::WriteScene(variable, value) => variable.cell().set(value),
+            Step::WriteSceneF32(variable, value) => variable.cell().set(value),
+            Step::Call(_) | Step::CallOrFatal(..) | Step::Do(_) | Step::DoFlow(_) => return false,
+        }
+        true
+    }
 }
 pub use rc2k_core::menu::screen_loop::Flow;
 
@@ -119,7 +302,7 @@ pub struct Asking {
     pub on_refusal: &'static [Step],
     /// A variable that, when it is 1, has the question put as well (`loop_flags.ask_leave` in the
     /// menus after the results screens).
-    pub also_if: Option<FlagCell>,
+    pub also_if: Option<ScreenFlag>,
     /// A variable that, when it is 1, keeps the question from being put although
     /// `captions.left_by_key` is set.
     pub unless: Option<fn(&Entry) -> u32>,
@@ -160,7 +343,8 @@ pub struct Keys {
     pub action_check: ActionCheck,
     /// The variable the highlight is kept in around an item's action, where it is not
     /// `saved_item`.
-    pub action_saved_item: Option<Cell>,
+    /// The slot of `screens.items.current` it is kept in.
+    pub action_saved_item: Option<usize>,
     /// The menu whose item's action is run, where it is not `menu`: three loops name a
     /// neighbouring screen's menu there (a 1999 slip kept as is).
     pub action_menu: Option<fn(&Menus) -> MenuId>,
@@ -220,7 +404,8 @@ impl Frames {
     };
 }
 
-/// What one screen is. A screen is `Screen::new(module_path!(), menu, saved_item)` and the fields that differ.
+/// What one screen is: data. A screen is `Screen::new(module_path!(), menu, saved_item)` and the
+/// fields that differ; `ScreenId` names it.
 #[derive(Clone, Copy)]
 pub struct Screen {
     /// The module path of the screen's file (`module_path!()`), the name its log lines carry.
@@ -228,7 +413,8 @@ pub struct Screen {
     /// The screen's menu.
     pub menu: fn(&Menus) -> MenuId,
     /// The variable the highlight is kept in between visits.
-    pub saved_item: Cell,
+    /// The slot of `screens.items.current` it is kept in.
+    pub saved_item: usize,
     pub lists: &'static [List],
     /// Steps run once, on entering the screen.
     pub before: &'static [Step],
@@ -243,12 +429,12 @@ pub struct Screen {
     pub after: &'static [Step],
     /// A variable that, when it is 1 at the moment of leaving, makes the loop return at once:
     /// no question, the highlight not saved, no `after` steps.
-    pub leave_at_once: Option<FlagCell>,
+    pub leave_at_once: Option<ScreenFlag>,
     /// On a screen that does not ask: what runs first on leaving, before the highlight is
     /// saved (the mode menu calls `menu::go_back` there when `captions.left_by_key` is set).
     pub leaving: &'static [Step],
     /// The variable the highlight is saved in on leaving, where it is not `saved_item`.
-    pub leave_saved_item: Option<Cell>,
+    pub leave_saved_item: Option<usize>,
     /// What runs last of all, with the carried values back as they were at entry.
     pub after_restored: &'static [Step],
     /// What the loop returns, where it returns something: read from the game's
@@ -283,7 +469,7 @@ impl Screen {
     pub const fn new(
         module_path: &'static str,
         menu: fn(&Menus) -> MenuId,
-        saved_item: Cell,
+        saved_item: usize,
     ) -> Screen {
         Screen {
             module_path,
@@ -667,6 +853,9 @@ pub fn call_or_fatal(entry: &Entry, function: Callee, code: u32) -> Result<(), R
 fn run(steps: &[Step], entry: &Entry) -> Result<Flow, Refused> {
     let menus = entry.menus;
     for step in steps {
+        if step.write(menus) {
+            continue;
+        }
         match *step {
             Step::DoFlow(what) => match what(entry)? {
                 Flow::On => {}
@@ -675,22 +864,39 @@ fn run(steps: &[Step], entry: &Entry) -> Result<Flow, Refused> {
             Step::Call(function) => {
                 function.run(entry)?;
             }
-            Step::Write(variable, value) => variable(menus).set(value),
-            Step::WriteFlag(flag, on) => flag(menus).set(on),
-            Step::Sound(sound) => menus.screens.option_work.set_sound(sound),
-            Step::WriteScene(variable, value) => variable(entry.scene).set(value),
-            Step::WriteObject(variable, value) => {
-                variable(&crate::race::view_scratch::front_end().object).set(value);
-            }
-            Step::WriteSceneF32(variable, value) => variable(entry.scene).set(value),
-            Step::WriteLight(variable, value) => {
-                variable(&crate::race::view_scratch::front_end().light).set(value);
-            }
             Step::CallOrFatal(function, code) => call_or_fatal(entry, function, code)?,
             Step::Do(what) => what(entry)?,
+            Step::Write(..)
+            | Step::WriteFlag(..)
+            | Step::Sound(_)
+            | Step::WriteScene(..)
+            | Step::WriteSceneF32(..) => {}
         }
     }
     Ok(Flow::On)
+}
+
+/// The steps the screen runs at one place of the loop.
+fn steps_at(screen: &Screen, place: Place) -> &'static [Step] {
+    let asking = screen.asking.as_ref();
+    match place {
+        Place::Before => screen.before,
+        Place::SetUpFirst => screen.set_up_first,
+        Place::Prepare => screen.prepare,
+        Place::AfterLists => screen.after_lists,
+        Place::Background => screen.background,
+        Place::BeforeFirstFrame => screen.frames.before_first_frame,
+        Place::AfterFirstFrame => screen.after_first_frame,
+        Place::AfterBlink => screen.frames.after_blink,
+        Place::BeforeFrame => screen.frames.before_frame,
+        Place::EachFrame => screen.frames.each_frame,
+        Place::AskBefore => asking.map_or(&[][..], |asking| asking.before),
+        Place::OnRefusal => asking.map_or(&[][..], |asking| asking.on_refusal),
+        Place::Confirmed => asking.map_or(&[][..], |asking| asking.confirmed),
+        Place::Leaving => screen.leaving,
+        Place::After => screen.after,
+        Place::AfterRestored => screen.after_restored,
+    }
 }
 
 /// Puts the menu and the lists in place before a frame.
@@ -731,11 +937,13 @@ impl MenuHost<'_> {
 
     /// The variable the highlight is kept in around an item's action.
     fn action_item(&self) -> &dyn DwordLike {
-        (self
-            .screen
-            .keys
-            .action_saved_item
-            .unwrap_or(self.screen.saved_item))(self.entry.menus)
+        ScreenVar::SavedItem(
+            self.screen
+                .keys
+                .action_saved_item
+                .unwrap_or(self.screen.saved_item),
+        )
+        .cell(self.entry.menus)
     }
 }
 
@@ -743,36 +951,17 @@ impl ScreenHost for MenuHost<'_> {
     type Error = Refused;
 
     fn run(&mut self, place: Place) -> Result<Flow, Refused> {
-        let screen = self.screen;
-        let asking = screen.asking.as_ref();
-        let steps = match place {
-            Place::Before => screen.before,
-            Place::SetUpFirst => screen.set_up_first,
-            Place::Prepare => screen.prepare,
-            Place::AfterLists => screen.after_lists,
-            Place::Background => screen.background,
-            Place::BeforeFirstFrame => screen.frames.before_first_frame,
-            Place::AfterFirstFrame => screen.after_first_frame,
-            Place::AfterBlink => screen.frames.after_blink,
-            Place::BeforeFrame => screen.frames.before_frame,
-            Place::EachFrame => screen.frames.each_frame,
-            Place::AskBefore => asking.map_or(&[][..], |asking| asking.before),
-            Place::OnRefusal => asking.map_or(&[][..], |asking| asking.on_refusal),
-            Place::Confirmed => asking.map_or(&[][..], |asking| asking.confirmed),
-            Place::Leaving => screen.leaving,
-            Place::After => screen.after,
-            Place::AfterRestored => screen.after_restored,
-        };
-        run(steps, self.entry)
+        run(steps_at(self.screen, place), self.entry)
     }
 
     fn restore_highlight(&mut self) {
         let menus = self.entry.menus;
         menus.tables.captions.left_by_key.set(false);
-        self.screens()
-            .loop_flags
-            .item
-            .set((self.screen.saved_item)(menus).get());
+        self.screens().loop_flags.item.set(
+            ScreenVar::SavedItem(self.screen.saved_item)
+                .cell(menus)
+                .get(),
+        );
         clear_escape(self.screens());
     }
 
@@ -925,7 +1114,7 @@ impl ScreenHost for MenuHost<'_> {
         let menus = self.entry.menus;
         self.screen
             .leave_at_once
-            .is_some_and(|flag| flag(menus).is_set())
+            .is_some_and(|flag| flag.cell(menus).is_set())
     }
 
     fn left_by_key(&self) -> bool {
@@ -947,7 +1136,7 @@ impl ScreenHost for MenuHost<'_> {
             .asking
             .as_ref()
             .and_then(|asking| asking.also_if)
-            .is_some_and(|flag| flag(menus).is_set())
+            .is_some_and(|flag| flag.cell(menus).is_set())
     }
 
     fn confirm_leaving(&mut self) -> Result<(), Refused> {
@@ -965,7 +1154,9 @@ impl ScreenHost for MenuHost<'_> {
             .screen
             .leave_saved_item
             .unwrap_or(self.screen.saved_item);
-        kept(menus).set(self.screens().loop_flags.item.get());
+        ScreenVar::SavedItem(kept)
+            .cell(menus)
+            .set(self.screens().loop_flags.item.get());
     }
 }
 
@@ -995,8 +1186,7 @@ pub fn confirm_leaving(o: Owners<'static>) -> Result<u32, Refused> {
                 o.menus.tables.pages.yes_no_answer.set(1u32);
                 return;
             }
-            asked =
-                run_screen(&crate::menu::leave_question_loop::SCREEN, &Entry::new(o)).map(|_| ());
+            asked = run_screen(ScreenId::LeaveQuestion, &Entry::new(o)).map(|_| ());
         })
     };
     asked.map(|()| answer)
@@ -1004,8 +1194,9 @@ pub fn confirm_leaving(o: Owners<'static>) -> Result<u32, Refused> {
 
 /// Runs a screen from the menus' tables, starting with nothing carried in. Rust callers use
 /// `run_screen`.
-pub fn screen_entry(o: Owners<'static>, screen: &Screen) -> Result<(), Refused> {
+pub fn screen_entry(o: Owners<'static>, id: ScreenId) -> Result<(), Refused> {
     let screens = &o.menus.screens;
+    let screen = id.screen();
     let name = screen
         .module_path
         .strip_prefix("rc2k_decomp::")
@@ -1019,9 +1210,13 @@ pub fn screen_entry(o: Owners<'static>, screen: &Screen) -> Result<(), Refused> 
 /// A screen loop run from Rust (the event flows, `confirm_leaving`), entered with what the
 /// screen reads from its caller (`Entry`: the list of cars of `select_car_loop` and
 /// `car_specs_display_loop`). Returns the screen's result where it has one.
-pub fn run_screen(screen: &Screen, entry: &Entry) -> Result<Option<u32>, Refused> {
+pub fn run_screen(id: ScreenId, entry: &Entry) -> Result<Option<u32>, Refused> {
+    let screen = id.screen();
     let menus = entry.menus;
     let screens = &menus.screens;
     { screen_loop(screens, screen, entry) }?;
     Ok(screen.result.map(|result| result(menus)))
 }
+
+#[cfg(test)]
+mod tests;

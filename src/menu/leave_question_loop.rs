@@ -3,7 +3,7 @@
 //! asked about; its own 3D scene list is set before the first frame only.
 use crate::menu::draw_lists_store::DRAW_LISTS;
 use crate::menu::screen_items_store::slot;
-use crate::menu::screen_loop::{Callee, Frames, List, Screen, Step};
+use crate::menu::screen_loop::{Callee, Frames, List, Screen, ScreenFlag, Step};
 use crate::menu::texts_store::texts;
 
 pub const SCREEN: Screen = Screen {
@@ -24,11 +24,11 @@ pub const SCREEN: Screen = Screen {
             run: false,
         },
     ],
-    set_up_first: &[Step::WriteFlag(|m| &m.screens.flow.asking, true)],
+    set_up_first: &[Step::WriteFlag(ScreenFlag::Asking, true)],
     background: &[Step::Call(Callee::LoadBackground(|_| {
         &texts().leave_question_picture
     }))],
-    after: &[Step::WriteFlag(|m| &m.screens.flow.asking, false)],
+    after: &[Step::WriteFlag(ScreenFlag::Asking, false)],
     frames: Frames {
         first_frame_lists: Some(&[
             List {
@@ -52,6 +52,6 @@ pub const SCREEN: Screen = Screen {
     ..Screen::new(
         module_path!(),
         |m| m.tables.menus.leave_question.id(),
-        |m| &m.screens.items.current[slot::LEAVE_QUESTION],
+        slot::LEAVE_QUESTION,
     )
 };

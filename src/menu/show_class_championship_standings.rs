@@ -8,6 +8,7 @@
 
 use crate::errors::Refused;
 use crate::menu::owner::Menus;
+use crate::menu::screen_id::ScreenId;
 use crate::menu::screen_loop::{Entry, run_screen};
 use rc2k_core::menu::results_pages::{Page, held_figure};
 
@@ -22,9 +23,6 @@ pub fn show_class_championship_standings(
     menus.play.champ_view.count.set(count);
     crate::menu::first_page_stage::first_page_stage(&menus.play);
     crate::menu::stage_range_caption::stage_range_caption(&menus.play)?;
-    run_screen(
-        &crate::menu::class_championship_standings_loop::SCREEN,
-        entry,
-    )?;
+    run_screen(ScreenId::ClassChampionshipStandings, entry)?;
     Ok(())
 }

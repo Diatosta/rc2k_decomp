@@ -56,6 +56,6 @@ pub const SCREEN: Screen = Screen {
     ..Screen::new(
         module_path!(),
         |m| m.tables.menus.class_rally_results.id(),
-        |m| &m.screens.items.current[slot::CLASS_RALLY_RESULTS],
+        slot::CLASS_RALLY_RESULTS,
     )
 };

@@ -8,6 +8,7 @@
 use crate::errors::Refused;
 use crate::menu::owner::Screens;
 use crate::menu::owner::Tables;
+use crate::menu::screen_id::ScreenId;
 use crate::menu::screen_loop::{Entry, run_screen};
 use crate::owners::Owners;
 
@@ -43,9 +44,9 @@ pub fn view_stage_details(screens: &Screens, entry: &Entry) -> Result<(), Refuse
     let time_trial =
         rc2k_core::menu::stage_screens::time_trial_details(screens.event.event_type.get());
     if time_trial {
-        run_screen(&crate::menu::time_trial_stage_details_loop::SCREEN, entry)?;
+        run_screen(ScreenId::TimeTrialStageDetails, entry)?;
     } else {
-        run_screen(&crate::menu::view_stage_loop::SCREEN, entry)?;
+        run_screen(ScreenId::ViewStage, entry)?;
     }
     Ok(())
 }

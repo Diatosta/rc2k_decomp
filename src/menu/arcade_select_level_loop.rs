@@ -4,10 +4,11 @@
 
 use crate::errors::Refused;
 use crate::menu::draw_lists_store::DRAW_LISTS;
+use crate::menu::screen_id::ScreenId;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{
-    Callee, Entry, Flow, Frames, List, MenuSound, Screen, Step, carousel, prepare_scene,
-    screen_entry,
+    Callee, Entry, Flow, Frames, List, MenuSound, Screen, ScreenFlag, Step, carousel,
+    prepare_scene, screen_entry,
 };
 use crate::menu::texts_store::texts;
 
@@ -52,8 +53,8 @@ pub const SCREEN: Screen = Screen {
         },
     ],
     before: &[
-        Step::WriteFlag(|m| &m.tables.captions.left_by_key, false),
-        Step::WriteFlag(|m| &m.screens.event.event_over, false),
+        Step::WriteFlag(ScreenFlag::LeftByKey, false),
+        Step::WriteFlag(ScreenFlag::EventOver, false),
     ],
     set_up_first: &[Step::Do(set_up_first)],
     background: &[Step::Call(Callee::LoadBackground(|_| {
@@ -68,10 +69,10 @@ pub const SCREEN: Screen = Screen {
     ..Screen::new(
         module_path!(),
         |m| m.tables.menus.arcade_select_level.id(),
-        |m| &m.screens.items.current[slot::ARCADE_SELECT_LEVEL],
+        slot::ARCADE_SELECT_LEVEL,
     )
 };
 
 pub fn run(o: crate::owners::Owners<'static>) -> Result<(), crate::errors::Refused> {
-    screen_entry(o, &SCREEN)
+    screen_entry(o, ScreenId::ArcadeSelectLevel)
 }

@@ -10,7 +10,7 @@
 //! Callers: the event loops `menu::run_championship`.
 use crate::menu::draw_lists_store::DRAW_LISTS;
 use crate::menu::screen_items_store::slot;
-use crate::menu::screen_loop::{Asking, Callee, List, Screen, Step};
+use crate::menu::screen_loop::{Asking, Callee, List, Screen, ScreenFlag, Step};
 use crate::menu::texts_store::texts;
 
 pub const SCREEN: Screen = Screen {
@@ -31,10 +31,7 @@ pub const SCREEN: Screen = Screen {
             run: false,
         },
     ],
-    before: &[Step::WriteFlag(
-        |m| &m.screens.draw_work.escape_pressed,
-        false,
-    )],
+    before: &[Step::WriteFlag(ScreenFlag::EscapePressed, false)],
     background: &[Step::Call(Callee::LoadBackground(|_| {
         &texts().rally_stages_picture
     }))],
@@ -42,6 +39,6 @@ pub const SCREEN: Screen = Screen {
     ..Screen::new(
         module_path!(),
         |m| m.tables.menus.rally_stages.id(),
-        |m| &m.screens.items.current[slot::RALLY_STAGES],
+        slot::RALLY_STAGES,
     )
 };

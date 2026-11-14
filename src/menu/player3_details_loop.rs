@@ -5,9 +5,10 @@
 
 use crate::errors::Refused;
 use crate::menu::draw_lists_store::DRAW_LISTS;
+use crate::menu::screen_id::ScreenId;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{
-    ActionCheck, Callee, Entry, Flow, Frames, Keys, List, Screen, Step, screen_entry,
+    ActionCheck, Callee, Entry, Flow, Frames, Keys, List, Screen, ScreenVar, Step, screen_entry,
 };
 use crate::menu::texts_store::texts;
 
@@ -43,7 +44,7 @@ pub const SCREEN: Screen = Screen {
     background: &[Step::Call(Callee::LoadBackground(|_| {
         &texts().player3_details_picture
     }))],
-    after_first_frame: &[Step::Write(|m| &m.screens.event.current_player, 0x2)],
+    after_first_frame: &[Step::Write(ScreenVar::CurrentPlayer, 0x2)],
     keys: Keys {
         action_check: ActionCheck::Short,
         ..Keys::DEFAULT
@@ -72,10 +73,10 @@ pub const SCREEN: Screen = Screen {
     ..Screen::new(
         module_path!(),
         |m| m.tables.menus.player3_details.id(),
-        |m| &m.screens.items.current[slot::PLAYER3_DETAILS],
+        slot::PLAYER3_DETAILS,
     )
 };
 
 pub fn run(o: crate::owners::Owners<'static>) -> Result<(), crate::errors::Refused> {
-    screen_entry(o, &SCREEN)
+    screen_entry(o, ScreenId::Player3Details)
 }

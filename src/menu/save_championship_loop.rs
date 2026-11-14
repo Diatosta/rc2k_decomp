@@ -5,6 +5,7 @@
 
 use crate::errors::Refused;
 use crate::menu::draw_lists_store::DRAW_LISTS;
+use crate::menu::screen_id::ScreenId;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{
     Callee, Entry, Flow, Frames, Keys, List, Screen, Step, screen_entry,
@@ -85,10 +86,10 @@ pub const SCREEN: Screen = Screen {
     ..Screen::new(
         module_path!(),
         |m| m.tables.menus.save_championship.id(),
-        |m| &m.screens.items.current[slot::SAVE_CHAMPIONSHIP],
+        slot::SAVE_CHAMPIONSHIP,
     )
 };
 
 pub fn run(o: crate::owners::Owners<'static>) -> Result<(), crate::errors::Refused> {
-    screen_entry(o, &SCREEN)
+    screen_entry(o, ScreenId::SaveChampionship)
 }

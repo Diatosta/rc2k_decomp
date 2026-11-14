@@ -4,8 +4,11 @@
 
 use crate::errors::Refused;
 use crate::menu::draw_lists_store::DRAW_LISTS;
+use crate::menu::screen_id::ScreenId;
 use crate::menu::screen_items_store::slot;
-use crate::menu::screen_loop::{Asking, Callee, Entry, Frames, List, Screen, Step, screen_entry};
+use crate::menu::screen_loop::{
+    Asking, Callee, Entry, Frames, List, Screen, ScreenVar, Step, screen_entry,
+};
 
 fn before(entry: &Entry) -> Result<(), Refused> {
     let screens = &entry.menus.screens;
@@ -32,7 +35,7 @@ pub const SCREEN: Screen = Screen {
         },
     ],
     before: &[Step::Do(before)],
-    after_lists: &[Step::Write(|m| &m.play.champ_view.stage_mode, 0x3)],
+    after_lists: &[Step::Write(ScreenVar::StageMode, 0x3)],
     background: &[Step::Call(Callee::DrawStageMap)],
     after_first_frame: &[Step::Call(Callee::PlayStageSpeech)],
     after: &[Step::Call(Callee::StopStream)],
@@ -44,10 +47,10 @@ pub const SCREEN: Screen = Screen {
     ..Screen::new(
         module_path!(),
         |m| m.tables.menus.next_stage.id(),
-        |m| &m.screens.items.current[slot::NEXT_STAGE],
+        slot::NEXT_STAGE,
     )
 };
 
 pub fn run(o: crate::owners::Owners<'static>) -> Result<(), crate::errors::Refused> {
-    screen_entry(o, &SCREEN)
+    screen_entry(o, ScreenId::NextStage)
 }

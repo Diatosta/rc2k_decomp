@@ -10,6 +10,7 @@
 
 use crate::errors::Refused;
 use crate::framework::log;
+use crate::menu::screen_id::ScreenId;
 use crate::menu::screen_loop::{Entry, run_screen};
 use crate::owners::Owners;
 
@@ -32,7 +33,7 @@ pub fn run_front_end(o: Owners<'static>) -> Result<(), Refused> {
     // The films, at the game's start.
     crate::menu::play_films::play_films(o, false)?;
     crate::logfile::log_write::log_nul(STARTING_RVA, true, 1);
-    run_screen(&crate::menu::main_menu_loop::SCREEN, &Entry::new(o))?;
+    run_screen(ScreenId::MainMenu, &Entry::new(o))?;
     crate::logfile::log_write::log_nul(FINISHED_RVA, true, 1);
     crate::menu::store_player_names::store_player_names(menus, play, &mut |line| {
         crate::logfile::log_write::log_nul(line, true, 1);

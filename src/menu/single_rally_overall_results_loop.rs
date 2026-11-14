@@ -3,7 +3,7 @@
 //! asked about; its own 3D scene list is set before the first frame only.
 use crate::menu::draw_lists_store::DRAW_LISTS;
 use crate::menu::screen_items_store::slot;
-use crate::menu::screen_loop::{Callee, Frames, List, MenuSound, Screen, Step};
+use crate::menu::screen_loop::{Callee, Frames, List, MenuSound, Screen, ScreenFlag, Step};
 use crate::menu::texts_store::texts;
 
 pub const SCREEN: Screen = Screen {
@@ -24,7 +24,7 @@ pub const SCREEN: Screen = Screen {
             run: false,
         },
     ],
-    before: &[Step::WriteFlag(|m| &m.screens.event.event_over, false)],
+    before: &[Step::WriteFlag(ScreenFlag::EventOver, false)],
     set_up_first: &[Step::Call(Callee::RankTotals)],
     background: &[Step::Call(Callee::LoadBackground(|_| {
         &texts().single_rally_overall_results_picture
@@ -53,6 +53,6 @@ pub const SCREEN: Screen = Screen {
     ..Screen::new(
         module_path!(),
         |m| m.tables.menus.single_rally_overall_results.id(),
-        |m| &m.screens.items.current[slot::SINGLE_RALLY_OVERALL_RESULTS],
+        slot::SINGLE_RALLY_OVERALL_RESULTS,
     )
 };

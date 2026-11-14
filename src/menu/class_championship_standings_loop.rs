@@ -3,7 +3,7 @@
 //! about; returns at once on leaving if `state.menus.standings_shown` is set.
 use crate::menu::draw_lists_store::DRAW_LISTS;
 use crate::menu::screen_items_store::slot;
-use crate::menu::screen_loop::{Asking, Callee, List, Screen, Step};
+use crate::menu::screen_loop::{Asking, Callee, List, Screen, ScreenFlag, Step};
 use crate::menu::texts_store::texts;
 
 pub const SCREEN: Screen = Screen {
@@ -27,11 +27,11 @@ pub const SCREEN: Screen = Screen {
     background: &[Step::Call(Callee::LoadBackground(|_| {
         &texts().class_championship_standings_picture
     }))],
-    leave_at_once: Some(|m| &m.screens.state.menus.standings_shown),
+    leave_at_once: Some(ScreenFlag::StandingsShown),
     asking: Some(Asking { ..Asking::DEFAULT }),
     ..Screen::new(
         module_path!(),
         |m| m.tables.menus.class_championship_standings.id(),
-        |m| &m.screens.items.current[slot::CLASS_CHAMPIONSHIP_STANDINGS],
+        slot::CLASS_CHAMPIONSHIP_STANDINGS,
     )
 };

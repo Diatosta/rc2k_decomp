@@ -4,6 +4,7 @@
 //! `menu::load_background`; leaving is not asked about; its own 3D scene list is set before the
 //! first frame only.
 use crate::menu::draw_lists_store::DRAW_LISTS;
+use crate::menu::screen_id::ScreenId;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Callee, Frames, List, Screen, Step, screen_entry};
 use crate::menu::texts_store::texts;
@@ -59,10 +60,10 @@ pub const SCREEN: Screen = Screen {
     ..Screen::new(
         module_path!(),
         |m| m.tables.menus.player2_controller.id(),
-        |m| &m.screens.items.current[slot::PLAYER2_CONTROLLER],
+        slot::PLAYER2_CONTROLLER,
     )
 };
 
 pub fn run(o: crate::owners::Owners<'static>) -> Result<(), crate::errors::Refused> {
-    screen_entry(o, &SCREEN)
+    screen_entry(o, ScreenId::Player2Controller)
 }

@@ -5,7 +5,7 @@
 //! then "piloto", "tempo" and "velocidade máxima".
 use crate::menu::draw_lists_store::DRAW_LISTS;
 use crate::menu::screen_items_store::slot;
-use crate::menu::screen_loop::{Asking, Callee, Frames, List, MenuSound, Screen, Step};
+use crate::menu::screen_loop::{Asking, Callee, Frames, List, MenuSound, Screen, ScreenFlag, Step};
 use crate::menu::texts_store::texts;
 
 pub const SCREEN: Screen = Screen {
@@ -26,7 +26,7 @@ pub const SCREEN: Screen = Screen {
             run: false,
         },
     ],
-    before: &[Step::WriteFlag(|m| &m.screens.event.event_over, false)],
+    before: &[Step::WriteFlag(ScreenFlag::EventOver, false)],
     background: &[Step::Call(Callee::LoadBackground(|_| {
         &texts().stage_result_picture
     }))],
@@ -55,6 +55,6 @@ pub const SCREEN: Screen = Screen {
     ..Screen::new(
         module_path!(),
         |m| m.tables.menus.stage_result.id(),
-        |m| &m.screens.items.current[slot::STAGE_RESULT],
+        slot::STAGE_RESULT,
     )
 };

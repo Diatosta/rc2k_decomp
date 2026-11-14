@@ -3,6 +3,7 @@
 //! screen is entered as from a menu item.
 
 use crate::errors::Refused;
+use crate::menu::screen_id::ScreenId;
 use crate::owners::Owners;
 #[cfg(debug_ui)]
 use crate::saves::owner::Saves;
@@ -72,13 +73,12 @@ pub fn serve(o: Owners<'static>) -> Result<bool, Refused> {
         return Ok(false);
     }
     if wanted == CSPECS {
-        crate::menu::screen_loop::screen_entry(o, &crate::menu::cspecs_loop::SCREEN)?;
+        crate::menu::screen_loop::screen_entry(o, ScreenId::Cspecs)?;
         return Ok(true);
     }
     let section = screens.event.section.get();
     screens.event.section.set(wanted - 1);
-    let result =
-        crate::menu::screen_loop::screen_entry(o, &crate::menu::section_times_loop::SCREEN);
+    let result = crate::menu::screen_loop::screen_entry(o, ScreenId::SectionTimes);
     screens.event.section.set(section);
     result?;
     Ok(true)

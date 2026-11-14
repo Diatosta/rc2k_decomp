@@ -33,6 +33,6 @@ pub const SCREEN: Screen = Screen {
     ..Screen::new(
         module_path!(),
         |m| m.tables.menus.section_times_menu.id(),
-        |m| &m.screens.items.current[SLOT],
+        SLOT,
     )
 };

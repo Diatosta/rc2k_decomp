@@ -7,7 +7,7 @@ use crate::errors::Refused;
 use crate::menu::draw_lists_store::DRAW_LISTS;
 use crate::menu::owner::Menus;
 use crate::menu::screen_items_store::slot;
-use crate::menu::screen_loop::{Callee, Entry, Flow, Frames, Keys, List, Screen, Step};
+use crate::menu::screen_loop::{Callee, Entry, Flow, Frames, Keys, List, Screen, ScreenFlag, Step};
 use crate::menu::texts_store::texts;
 
 fn each_frame(entry: &Entry) -> Result<Flow, Refused> {
@@ -65,10 +65,7 @@ pub const SCREEN: Screen = Screen {
             run: false,
         },
     ],
-    before: &[Step::WriteFlag(
-        |m| &m.screens.draw_work.escape_pressed,
-        false,
-    )],
+    before: &[Step::WriteFlag(ScreenFlag::EscapePressed, false)],
     background: &[Step::Call(Callee::LoadBackground(|_| {
         &texts().save_replay_picture
     }))],
@@ -101,6 +98,6 @@ pub const SCREEN: Screen = Screen {
     ..Screen::new(
         module_path!(),
         |m| m.tables.menus.save_replay.id(),
-        |m| &m.screens.items.current[slot::SAVE_REPLAY],
+        slot::SAVE_REPLAY,
     )
 };

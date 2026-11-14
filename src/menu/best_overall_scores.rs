@@ -6,6 +6,7 @@
 //! before anything.
 
 use crate::errors::Refused;
+use crate::menu::screen_id::ScreenId;
 use crate::menu::screen_loop::{Entry, run_screen};
 use crate::menu::standings::*;
 pub fn best_overall_scores(
@@ -25,7 +26,7 @@ pub fn best_overall_scores(
         }
     }
     if screens.event.any_time_qualified.is_set() {
-        run_screen(&crate::menu::best_overall_scores_loop::SCREEN, entry)?;
+        run_screen(ScreenId::BestOverallScores, entry)?;
     }
     Ok(())
 }

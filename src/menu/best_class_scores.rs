@@ -8,6 +8,7 @@
 //! before anything.
 
 use crate::errors::{BadInput, Refused};
+use crate::menu::screen_id::ScreenId;
 use crate::menu::screen_loop::{Entry, run_screen};
 use crate::menu::standings::*;
 
@@ -35,7 +36,7 @@ pub fn best_class_scores(menus: &crate::menu::owner::Menus, entry: &Entry) -> Re
         }
         if menus.screens.event.any_time_qualified.is_set() {
             menus.screens.event.class.set(class);
-            run_screen(&crate::menu::best_class_scores_loop::SCREEN, entry)?;
+            run_screen(ScreenId::BestClassScores, entry)?;
             if menus.tables.pages.yes_no_answer.get() == 1 {
                 break;
             }

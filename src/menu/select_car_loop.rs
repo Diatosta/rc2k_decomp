@@ -83,6 +83,6 @@ pub const SCREEN: Screen = Screen {
     ..Screen::new(
         module_path!(),
         |m| m.tables.menus.select_car.id(),
-        |m| &m.screens.items.current[slot::SELECT_CAR],
+        slot::SELECT_CAR,
     )
 };

@@ -4,9 +4,11 @@
 
 use crate::errors::Refused;
 use crate::menu::draw_lists_store::DRAW_LISTS;
+use crate::menu::screen_id::ScreenId;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{
-    Callee, Entry, Frames, List, MenuSound, Screen, Step, carousel, screen_entry,
+    Callee, Entry, Frames, List, MenuSound, SceneVar, Screen, ScreenFlag, Step, carousel,
+    screen_entry,
 };
 use crate::menu::texts_store::texts;
 
@@ -45,26 +47,17 @@ pub const SCREEN: Screen = Screen {
         &texts().network_rally_picture
     }))],
     after_first_frame: &[
-        Step::WriteScene(
-            |_| &crate::scene::polygon_work::front_end().window.view_offset[0],
-            0x7,
-        ),
-        Step::WriteScene(
-            |_| &crate::scene::polygon_work::front_end().window.view_offset[1],
-            0xA,
-        ),
-        Step::WriteScene(
-            |_| &crate::scene::polygon_work::front_end().window.view_zoom,
-            0x100,
-        ),
+        Step::WriteScene(SceneVar::ViewOffsetX, 0x7),
+        Step::WriteScene(SceneVar::ViewOffsetY, 0xA),
+        Step::WriteScene(SceneVar::ViewZoom, 0x100),
         Step::Call(Callee::PrepareScene),
     ],
     after: &[
-        Step::WriteFlag(|m| &m.tables.captions.left_by_key, false),
-        Step::WriteFlag(|m| &m.screens.loop_flags.ask_leave, false),
-        Step::WriteFlag(|m| &m.screens.draw_work.escape_pressed, false),
+        Step::WriteFlag(ScreenFlag::LeftByKey, false),
+        Step::WriteFlag(ScreenFlag::AskLeave, false),
+        Step::WriteFlag(ScreenFlag::EscapePressed, false),
         Step::Sound(MenuSound::None),
-        Step::WriteFlag(|m| &m.screens.loop_flags.leave_screen, false),
+        Step::WriteFlag(ScreenFlag::LeaveScreen, false),
     ],
     frames: Frames {
         no_quit_check: true,
@@ -73,10 +66,10 @@ pub const SCREEN: Screen = Screen {
     ..Screen::new(
         module_path!(),
         |m| m.tables.menus.network_rally.id(),
-        |m| &m.screens.items.current[slot::NETWORK_RALLY],
+        slot::NETWORK_RALLY,
     )
 };
 
 pub fn run(o: crate::owners::Owners<'static>) -> Result<(), crate::errors::Refused> {
-    screen_entry(o, &SCREEN)
+    screen_entry(o, ScreenId::NetworkRally)
 }

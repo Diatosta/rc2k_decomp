@@ -6,7 +6,7 @@ use crate::errors::Refused;
 use crate::menu::draw_lists_store::DRAW_LISTS;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{
-    Asking, Callee, Entry, List, MenuSound, Screen, Step, carousel, prepare_scene,
+    Asking, Callee, Entry, List, MenuSound, Screen, ScreenFlag, Step, carousel, prepare_scene,
 };
 use crate::menu::texts_store::texts;
 
@@ -44,8 +44,8 @@ pub const SCREEN: Screen = Screen {
         },
     ],
     before: &[
-        Step::WriteFlag(|m| &m.screens.loop_flags.event_left, false),
-        Step::WriteFlag(|m| &m.screens.event.event_over, false),
+        Step::WriteFlag(ScreenFlag::EventLeft, false),
+        Step::WriteFlag(ScreenFlag::EventOver, false),
     ],
     set_up_first: &[Step::Do(set_up_first)],
     background: &[Step::Call(Callee::LoadBackground(|_| {
@@ -53,12 +53,12 @@ pub const SCREEN: Screen = Screen {
     }))],
     after: &[Step::Sound(MenuSound::None)],
     asking: Some(Asking {
-        also_if: Some(|m| &m.screens.loop_flags.ask_leave),
+        also_if: Some(ScreenFlag::AskLeave),
         ..Asking::DEFAULT
     }),
     ..Screen::new(
         module_path!(),
         |m| m.tables.menus.arcade_review_options.id(),
-        |m| &m.screens.items.current[slot::ARCADE_REVIEW_OPTIONS],
+        slot::ARCADE_REVIEW_OPTIONS,
     )
 };

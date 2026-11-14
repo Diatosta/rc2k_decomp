@@ -6,7 +6,7 @@ use crate::errors::Refused;
 use crate::menu::draw_lists_store::DRAW_LISTS;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{
-    Asking, Callee, Entry, Keys, List, Screen, Step, carousel, prepare_scene,
+    Asking, Callee, Entry, Keys, List, Screen, ScreenFlag, ScreenVar, Step, carousel, prepare_scene,
 };
 use crate::menu::texts_store::texts;
 
@@ -44,23 +44,20 @@ pub const SCREEN: Screen = Screen {
             run: false,
         },
     ],
-    before: &[Step::WriteFlag(
-        |m| &m.screens.draw_work.escape_pressed,
-        false,
-    )],
+    before: &[Step::WriteFlag(ScreenFlag::EscapePressed, false)],
     set_up_first: &[Step::Do(set_up_first)],
     background: &[Step::Call(Callee::LoadBackground(|_| {
         &texts().championship_service_review_picture
     }))],
     after: &[
         Step::Call(Callee::NoOp),
-        Step::Write(|m| &m.screens.event.service_next, 0x0),
+        Step::Write(ScreenVar::ServiceNext, 0x0),
     ],
     asking: Some(Asking {
-        also_if: Some(|m| &m.screens.loop_flags.ask_leave),
+        also_if: Some(ScreenFlag::AskLeave),
         confirmed: &[
-            Step::WriteFlag(|m| &m.screens.loop_flags.ask_leave, false),
-            Step::WriteFlag(|m| &m.tables.captions.left_by_key, false),
+            Step::WriteFlag(ScreenFlag::AskLeave, false),
+            Step::WriteFlag(ScreenFlag::LeftByKey, false),
         ],
         ..Asking::DEFAULT
     }),
@@ -71,6 +68,6 @@ pub const SCREEN: Screen = Screen {
     ..Screen::new(
         module_path!(),
         |m| m.tables.menus.championship_service_review.id(),
-        |m| &m.screens.items.current[slot::CHAMPIONSHIP_SERVICE_REVIEW],
+        slot::CHAMPIONSHIP_SERVICE_REVIEW,
     )
 };

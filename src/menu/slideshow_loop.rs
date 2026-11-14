@@ -1,6 +1,7 @@
 //! The loop of the slideshow screen. Screen-specific part of `menu::screen_loop`: leaving is not
 //! asked about; it has a step of its own once a frame.
 use crate::menu::draw_lists_store::DRAW_LISTS;
+use crate::menu::screen_id::ScreenId;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Callee, Frames, List, Screen, Step, screen_entry};
 
@@ -35,10 +36,10 @@ pub const SCREEN: Screen = Screen {
     ..Screen::new(
         module_path!(),
         |m| m.tables.menus.slideshow.id(),
-        |m| &m.screens.items.current[slot::SLIDESHOW],
+        slot::SLIDESHOW,
     )
 };
 
 pub fn run(o: crate::owners::Owners<'static>) -> Result<(), crate::errors::Refused> {
-    screen_entry(o, &SCREEN)
+    screen_entry(o, ScreenId::Slideshow)
 }

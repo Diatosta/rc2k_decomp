@@ -66,6 +66,6 @@ pub const SCREEN: Screen = Screen {
     ..Screen::new(
         module_path!(),
         |m| m.tables.menus.car_specs_display.id(),
-        |m| &m.screens.items.current[slot::CAR_SPECS_DISPLAY],
+        slot::CAR_SPECS_DISPLAY,
     )
 };

@@ -3,9 +3,10 @@
 
 use crate::errors::Refused;
 use crate::menu::draw_lists_store::DRAW_LISTS;
+use crate::menu::screen_id::ScreenId;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{
-    Callee, Entry, List, Screen, Step, carousel, log_line, prepare_scene, screen_entry,
+    Callee, Entry, List, Screen, ScreenVar, Step, carousel, log_line, prepare_scene, screen_entry,
 };
 use crate::menu::texts_store::texts;
 
@@ -49,17 +50,17 @@ pub const SCREEN: Screen = Screen {
     ],
     set_up_first: &[Step::Do(set_up_first)],
     background: &[
-        Step::Write(|m| &m.screens.event.clears_escape_flag, 0x1),
+        Step::Write(ScreenVar::ClearsEscapeFlag, 0x1),
         Step::Call(Callee::LoadBackground(|_| &texts().information_picture)),
     ],
     after: &[Step::Do(after)],
     ..Screen::new(
         module_path!(),
         |m| m.tables.menus.information.id(),
-        |m| &m.screens.items.current[slot::INFORMATION],
+        slot::INFORMATION,
     )
 };
 
 pub fn run(o: crate::owners::Owners<'static>) -> Result<(), crate::errors::Refused> {
-    screen_entry(o, &SCREEN)
+    screen_entry(o, ScreenId::Information)
 }

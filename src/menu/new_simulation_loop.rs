@@ -3,8 +3,11 @@
 
 use crate::errors::Refused;
 use crate::menu::draw_lists_store::DRAW_LISTS;
+use crate::menu::screen_id::ScreenId;
 use crate::menu::screen_items_store::slot;
-use crate::menu::screen_loop::{Callee, Entry, List, Screen, Step, carousel, screen_entry};
+use crate::menu::screen_loop::{
+    Callee, Entry, List, SceneVar, Screen, Step, carousel, screen_entry,
+};
 use crate::menu::texts_store::texts;
 
 fn before(entry: &Entry) -> Result<(), Refused> {
@@ -51,27 +54,18 @@ pub const SCREEN: Screen = Screen {
         &texts().new_simulation_picture
     }))],
     after_first_frame: &[
-        Step::WriteScene(
-            |_| &crate::scene::polygon_work::front_end().window.view_offset[0],
-            0x7,
-        ),
-        Step::WriteScene(
-            |_| &crate::scene::polygon_work::front_end().window.view_offset[1],
-            0xA,
-        ),
-        Step::WriteScene(
-            |_| &crate::scene::polygon_work::front_end().window.view_zoom,
-            0x100,
-        ),
+        Step::WriteScene(SceneVar::ViewOffsetX, 0x7),
+        Step::WriteScene(SceneVar::ViewOffsetY, 0xA),
+        Step::WriteScene(SceneVar::ViewZoom, 0x100),
         Step::Call(Callee::PrepareScene),
     ],
     ..Screen::new(
         module_path!(),
         |m| m.tables.menus.new_simulation.id(),
-        |m| &m.screens.items.current[slot::NEW_SIMULATION],
+        slot::NEW_SIMULATION,
     )
 };
 
 pub fn run(o: crate::owners::Owners<'static>) -> Result<(), crate::errors::Refused> {
-    screen_entry(o, &SCREEN)
+    screen_entry(o, ScreenId::NewSimulation)
 }

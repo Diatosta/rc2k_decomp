@@ -3,9 +3,10 @@
 
 use crate::errors::Refused;
 use crate::menu::draw_lists_store::DRAW_LISTS;
+use crate::menu::screen_id::ScreenId;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{
-    Callee, Entry, Flow, Frames, List, Screen, Step, prepare_scene, screen_entry,
+    Callee, Entry, Flow, Frames, List, Screen, ScreenVar, Step, prepare_scene, screen_entry,
 };
 
 fn prepare(entry: &Entry) -> Result<(), Refused> {
@@ -46,9 +47,9 @@ pub const SCREEN: Screen = Screen {
             run: false,
         },
     ],
-    set_up_first: &[Step::Write(|m| &m.screens.flow.left_service, 0x0)],
+    set_up_first: &[Step::Write(ScreenVar::LeftService, 0x0)],
     prepare: &[Step::Do(prepare)],
-    after: &[Step::Write(|m| &m.screens.flow.left_service, 0x1)],
+    after: &[Step::Write(ScreenVar::LeftService, 0x1)],
     frames: Frames {
         each_frame: &[Step::DoFlow(each_frame)],
         ..Frames::DEFAULT
@@ -56,10 +57,10 @@ pub const SCREEN: Screen = Screen {
     ..Screen::new(
         module_path!(),
         |m| m.tables.menus.save_setup.id(),
-        |m| &m.screens.items.current[slot::SAVE_SETUP],
+        slot::SAVE_SETUP,
     )
 };
 
 pub fn run(o: crate::owners::Owners<'static>) -> Result<(), crate::errors::Refused> {
-    screen_entry(o, &SCREEN)
+    screen_entry(o, ScreenId::SaveSetup)
 }

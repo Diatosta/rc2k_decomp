@@ -227,6 +227,7 @@ pub mod save_championship_loop;
 pub mod save_replay_loop;
 pub mod save_setup_loop;
 pub mod scale_stage_times;
+pub mod screen_id;
 pub mod screen_items_store;
 pub mod screen_loop;
 pub mod sealed_player_time;

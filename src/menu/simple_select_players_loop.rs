@@ -6,10 +6,11 @@
 
 use crate::errors::Refused;
 use crate::menu::draw_lists_store::DRAW_LISTS;
+use crate::menu::screen_id::ScreenId;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{
-    Callee, Entry, Flow, Frames, List, MenuSound, Screen, Step, carousel, prepare_scene,
-    screen_entry,
+    Callee, Entry, Flow, Frames, List, MenuSound, Screen, ScreenFlag, Step, carousel,
+    prepare_scene, screen_entry,
 };
 use crate::menu::texts_store::texts;
 
@@ -53,7 +54,7 @@ pub const SCREEN: Screen = Screen {
             run: false,
         },
     ],
-    before: &[Step::WriteFlag(|m| &m.screens.event.event_over, false)],
+    before: &[Step::WriteFlag(ScreenFlag::EventOver, false)],
     set_up_first: &[Step::Do(set_up_first)],
     background: &[Step::Call(Callee::LoadBackground(|_| {
         &texts().simple_select_players_picture
@@ -67,10 +68,10 @@ pub const SCREEN: Screen = Screen {
     ..Screen::new(
         module_path!(),
         |m| m.tables.menus.simple_select_players.id(),
-        |m| &m.screens.items.current[slot::SIMPLE_SELECT_PLAYERS],
+        slot::SIMPLE_SELECT_PLAYERS,
     )
 };
 
 pub fn run(o: crate::owners::Owners<'static>) -> Result<(), crate::errors::Refused> {
-    screen_entry(o, &SCREEN)
+    screen_entry(o, ScreenId::SimpleSelectPlayers)
 }

@@ -6,7 +6,8 @@ use crate::errors::Refused;
 use crate::menu::draw_lists_store::DRAW_LISTS;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{
-    Asking, Callee, Entry, Frames, List, MenuSound, Screen, Step, carousel, prepare_scene,
+    Asking, Callee, Entry, Frames, List, MenuSound, Screen, ScreenFlag, ScreenVar, Step, carousel,
+    prepare_scene,
 };
 use crate::menu::texts_store::texts;
 
@@ -44,17 +45,17 @@ pub const SCREEN: Screen = Screen {
         },
     ],
     before: &[
-        Step::WriteFlag(|m| &m.screens.loop_flags.event_left, false),
-        Step::WriteFlag(|m| &m.screens.event.event_over, false),
+        Step::WriteFlag(ScreenFlag::EventLeft, false),
+        Step::WriteFlag(ScreenFlag::EventOver, false),
     ],
     set_up_first: &[Step::Do(set_up_first)],
     background: &[Step::Call(Callee::LoadBackground(|_| {
         &texts().single_rally_review_picture
     }))],
-    after_first_frame: &[Step::Write(|m| &m.screens.draw_work.action_mode, 0x0)],
+    after_first_frame: &[Step::Write(ScreenVar::ActionMode, 0x0)],
     after: &[Step::Sound(MenuSound::None)],
     asking: Some(Asking {
-        also_if: Some(|m| &m.screens.loop_flags.ask_leave),
+        also_if: Some(ScreenFlag::AskLeave),
         ..Asking::DEFAULT
     }),
     frames: Frames {
@@ -64,6 +65,6 @@ pub const SCREEN: Screen = Screen {
     ..Screen::new(
         module_path!(),
         |m| m.tables.menus.single_rally_review.id(),
-        |m| &m.screens.items.current[slot::SINGLE_RALLY_REVIEW],
+        slot::SINGLE_RALLY_REVIEW,
     )
 };

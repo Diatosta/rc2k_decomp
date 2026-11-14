@@ -2,7 +2,8 @@ use crate::errors::Refused;
 use crate::menu::event_flow::switch_cell;
 use crate::menu::lists_store::CarList;
 use crate::menu::owner::Menus;
-use crate::menu::screen_loop::{Entry, Screen, run_screen};
+use crate::menu::screen_id::ScreenId;
+use crate::menu::screen_loop::{Entry, run_screen};
 use crate::race::owner::Race;
 use crate::session::DwordLike;
 use crate::session::PlainDword;
@@ -102,9 +103,9 @@ impl arcade::Arcade for Game<'_> {
                 self.cars =
                     Some(m::cheat_car_list::cheat_car_list(menus).unwrap_or(CarList::Second));
             }
-            Step::SelectCarLoop => self.screen(&m::select_car_loop::SCREEN)?,
+            Step::SelectCarLoop => self.screen(ScreenId::SelectCar)?,
             Step::TakeShownCar => m::take_shown_car::take_shown_car(menus, self.cars)?,
-            Step::NextStageLoop => self.screen(&m::arcade_next_stage_loop::SCREEN)?,
+            Step::NextStageLoop => self.screen(ScreenId::ArcadeNextStage)?,
             Step::TakeStageBest => {
                 a::take_arcade_stage_best(play, self.owners.system, self.owners.race)?;
             }
@@ -112,7 +113,7 @@ impl arcade::Arcade for Game<'_> {
             // The repair's result is not used: the race starts from 0.
             Step::Race => crate::race::single_rally_race::single_rally_race(self.owners, 0, 2)?,
             Step::ScoreStage => a::score_arcade_stage(menus)?,
-            Step::ResultsLoop => self.screen(&m::arcade_results_loop::SCREEN)?,
+            Step::ResultsLoop => self.screen(ScreenId::ArcadeResults)?,
             Step::KeepStageBest => {
                 // The stage's record in the level's table.
                 let stages = &self.owners.system.records().stage_tables;
@@ -128,17 +129,17 @@ impl arcade::Arcade for Game<'_> {
             Step::EnterStageTime => {
                 a::enter_arcade_stage_time(menus, self.owners.system, self.owners.race)?;
             }
-            Step::BestTimesLoop => self.screen(&m::arcade_best_times_loop::SCREEN)?,
+            Step::BestTimesLoop => self.screen(ScreenId::ArcadeBestTimes)?,
             Step::CheckLevelScore => a::check_arcade_level_score(menus)?,
             Step::ClearScoreMarks => a::clear_arcade_score_marks(play)?,
             Step::EnterLevelScore => a::enter_arcade_level_score(menus)?,
-            Step::BestScoresLoop => self.screen(&m::arcade_best_scores_loop::SCREEN)?,
+            Step::BestScoresLoop => self.screen(ScreenId::ArcadeBestScores)?,
             Step::LevelEnd => {
                 m::arcade_level_end::arcade_level_end(menus, sound, &Entry::new(self.owners))?;
             }
-            Step::NextLevelReview => self.screen(&m::arcade_next_level_review_loop::SCREEN)?,
-            Step::RetryReview => self.screen(&m::arcade_retry_review_loop::SCREEN)?,
-            Step::StageReview => self.screen(&m::arcade_review_options_loop::SCREEN)?,
+            Step::NextLevelReview => self.screen(ScreenId::ArcadeNextLevelReview)?,
+            Step::RetryReview => self.screen(ScreenId::ArcadeRetryReview)?,
+            Step::StageReview => self.screen(ScreenId::ArcadeReviewOptions)?,
             Step::ShowInGameOptions => m::in_game_options_items::show_in_game_options(menus)?,
         }
         Ok(())
@@ -147,7 +148,7 @@ impl arcade::Arcade for Game<'_> {
 
 impl Game<'_> {
     /// A screen, entered with the car list (the only value a screen reads from its caller).
-    fn screen(&self, screen: &Screen) -> Result<(), Refused> {
+    fn screen(&self, screen: ScreenId) -> Result<(), Refused> {
         run_screen(screen, &Entry::with_cars(self.owners, self.cars))?;
         Ok(())
     }

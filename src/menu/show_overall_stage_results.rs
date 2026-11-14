@@ -7,6 +7,7 @@
 
 use crate::errors::Refused;
 use crate::menu::owner::Menus;
+use crate::menu::screen_id::ScreenId;
 use crate::menu::screen_loop::{Entry, run_screen};
 use crate::menu::standings::*;
 use rc2k_core::menu::results_pages::{Page, held_figure};
@@ -17,6 +18,6 @@ pub fn show_overall_stage_results(menus: &Menus, entry: &Entry) -> Result<(), Re
     menus.play.champ_view.count.set(count);
     crate::menu::first_page_stage::first_page_stage(play);
     crate::menu::stage_range_caption::stage_range_caption(play)?;
-    run_screen(&crate::menu::overall_stage_results_loop::SCREEN, entry)?;
+    run_screen(ScreenId::OverallStageResults, entry)?;
     Ok(())
 }

@@ -5,7 +5,9 @@
 //! 1999 slip kept as is).
 use crate::menu::draw_lists_store::DRAW_LISTS;
 use crate::menu::screen_items_store::slot;
-use crate::menu::screen_loop::{Asking, Callee, Frames, Keys, List, MenuSound, Screen, Step};
+use crate::menu::screen_loop::{
+    Asking, Callee, Frames, Keys, List, MenuSound, Screen, ScreenFlag, Step,
+};
 use crate::menu::texts_store::texts;
 
 pub const SCREEN: Screen = Screen {
@@ -26,7 +28,7 @@ pub const SCREEN: Screen = Screen {
             run: false,
         },
     ],
-    before: &[Step::WriteFlag(|m| &m.screens.event.event_over, false)],
+    before: &[Step::WriteFlag(ScreenFlag::EventOver, false)],
     set_up_first: &[Step::Call(Callee::ScoreTwoPlayers)],
     background: &[Step::Call(Callee::LoadBackground(|_| {
         &texts().single_rally_two_results_picture
@@ -37,7 +39,7 @@ pub const SCREEN: Screen = Screen {
         ..Asking::DEFAULT
     }),
     keys: Keys {
-        action_saved_item: Some(|m| &m.screens.items.current[slot::STAGE_RESULT]),
+        action_saved_item: Some(slot::STAGE_RESULT),
         action_menu: Some(|m| m.tables.menus.stage_result.id()),
         ..Keys::DEFAULT
     },
@@ -64,6 +66,6 @@ pub const SCREEN: Screen = Screen {
     ..Screen::new(
         module_path!(),
         |m| m.tables.menus.single_rally_two_results.id(),
-        |m| &m.screens.items.current[slot::SINGLE_RALLY_TWO_RESULTS],
+        slot::SINGLE_RALLY_TWO_RESULTS,
     )
 };

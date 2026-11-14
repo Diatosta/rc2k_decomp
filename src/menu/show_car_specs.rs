@@ -10,6 +10,7 @@
 use crate::errors::{FatalError, Refused};
 use crate::menu::lists_store::CarList;
 use crate::menu::owner::Menus;
+use crate::menu::screen_id::ScreenId;
 use crate::menu::screen_loop::{Entry, run_screen};
 
 pub fn show_car_specs(menus: &Menus, entry: &Entry) -> Result<(), Refused> {
@@ -27,7 +28,7 @@ pub fn show_car_specs(menus: &Menus, entry: &Entry) -> Result<(), Refused> {
         SpecsList::Kind4 => CarList::Championship,
         SpecsList::Kind5 => CarList::A8,
     };
-    let screen = &crate::menu::car_specs_display_loop::SCREEN;
+    let screen = ScreenId::CarSpecsDisplay;
     if !choice {
         { run_screen(screen, &entry.with_list(Some(cars))) }?;
         return Ok(());

@@ -12,6 +12,7 @@
 
 use crate::errors::Refused;
 use crate::menu::owner::Menus;
+use crate::menu::screen_id::ScreenId;
 use crate::menu::screen_loop::{Entry, run_screen};
 use crate::menu::standings::*;
 
@@ -44,7 +45,7 @@ pub fn inspection_pass(menus: &Menus, entry: &Entry) -> Result<(), Refused> {
         crate::menu::inspection_screen::inspection_screen(entry.owners)?;
         crate::system::sleep::sleep(passes::SCREEN_PAUSE);
         crate::menu::fade_in::fade_in(entry.owners)?;
-        run_screen(&crate::menu::inspection_area_loop::SCREEN, entry)?;
+        run_screen(ScreenId::InspectionArea, entry)?;
         if menus.tables.pages.yes_no_answer.get() == 1 {
             return Ok(());
         }

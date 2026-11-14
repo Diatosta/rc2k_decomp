@@ -2,7 +2,7 @@
 //! `menu::screen_loop`: leaving is asked about; something runs before the question is put.
 use crate::menu::draw_lists_store::DRAW_LISTS;
 use crate::menu::screen_items_store::slot;
-use crate::menu::screen_loop::{Asking, Callee, List, Screen, Step};
+use crate::menu::screen_loop::{Asking, Callee, List, Screen, ScreenFlag, ScreenVar, Step};
 
 pub const SCREEN: Screen = Screen {
     lists: &[
@@ -22,11 +22,8 @@ pub const SCREEN: Screen = Screen {
             run: false,
         },
     ],
-    before: &[Step::WriteFlag(
-        |m| &m.screens.draw_work.escape_pressed,
-        false,
-    )],
-    set_up_first: &[Step::Write(|m| &m.tables.pages.yes_no_answer, 0x0)],
+    before: &[Step::WriteFlag(ScreenFlag::EscapePressed, false)],
+    set_up_first: &[Step::Write(ScreenVar::YesNoAnswer, 0x0)],
     background: &[Step::Call(Callee::LoadWelcomePicture)],
     after_first_frame: &[Step::Call(Callee::PlayRallySpeech)],
     after: &[Step::Call(Callee::StopStream)],
@@ -37,6 +34,6 @@ pub const SCREEN: Screen = Screen {
     ..Screen::new(
         module_path!(),
         |m| m.tables.menus.welcome.id(),
-        |m| &m.screens.items.current[slot::WELCOME],
+        slot::WELCOME,
     )
 };

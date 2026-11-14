@@ -16,6 +16,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::menu::event_flow::*;
 use crate::menu::owner::Menus;
+use crate::menu::screen_id::ScreenId;
 use crate::menu::screen_loop::{Entry, run_screen};
 
 pub fn time_trial_service(menus: &Menus, entry: &Entry) -> Result<(), Refused> {
@@ -38,7 +39,7 @@ pub fn time_trial_service(menus: &Menus, entry: &Entry) -> Result<(), Refused> {
             screens.state.driver_stats.repair_time.set(0);
             { crate::menu::driver_stats::driver_stats(menus, screens) }?;
             screens.state.menus.service_flag.set(false);
-            { run_screen(&crate::service::service_area_loop::SCREEN, entry) }?;
+            { run_screen(ScreenId::ServiceArea, entry) }?;
             if yes(menus) {
                 break 'all;
             }
@@ -52,7 +53,7 @@ pub fn time_trial_service(menus: &Menus, entry: &Entry) -> Result<(), Refused> {
             let record = player(menus, serviced);
             if passes::is_out(record.get().entry) {
                 crate::menu::inspection_faults::inspection_faults(menus)?;
-                { run_screen(&crate::menu::inspection_area_loop::SCREEN, entry) }?;
+                { run_screen(ScreenId::InspectionArea, entry) }?;
                 if yes(menus) {
                     break 'all;
                 }

@@ -4,8 +4,11 @@
 
 use crate::errors::Refused;
 use crate::menu::draw_lists_store::DRAW_LISTS;
+use crate::menu::screen_id::ScreenId;
 use crate::menu::screen_items_store::slot;
-use crate::menu::screen_loop::{Callee, Entry, Frames, List, Screen, Step, screen_entry};
+use crate::menu::screen_loop::{
+    Callee, Entry, Frames, List, Screen, ScreenVar, Step, screen_entry,
+};
 use crate::menu::texts_store::texts;
 
 fn before(entry: &Entry) -> Result<(), Refused> {
@@ -33,11 +36,11 @@ pub const SCREEN: Screen = Screen {
         },
     ],
     before: &[Step::Do(before)],
-    set_up_first: &[Step::Write(|m| &m.screens.flow.quiet, 0x1)],
+    set_up_first: &[Step::Write(ScreenVar::Quiet, 0x1)],
     background: &[Step::Call(Callee::LoadBackground(|_| {
         &texts().audio_setup_picture
     }))],
-    after: &[Step::Write(|m| &m.screens.flow.quiet, 0x0)],
+    after: &[Step::Write(ScreenVar::Quiet, 0x0)],
     frames: Frames {
         first_frame_lists: Some(&[
             List {
@@ -61,10 +64,10 @@ pub const SCREEN: Screen = Screen {
     ..Screen::new(
         module_path!(),
         |m| m.tables.menus.audio_setup.id(),
-        |m| &m.screens.items.current[slot::AUDIO_SETUP],
+        slot::AUDIO_SETUP,
     )
 };
 
 pub fn run(o: crate::owners::Owners<'static>) -> Result<(), crate::errors::Refused> {
-    screen_entry(o, &SCREEN)
+    screen_entry(o, ScreenId::AudioSetup)
 }

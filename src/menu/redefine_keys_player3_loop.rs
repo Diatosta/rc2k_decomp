@@ -4,6 +4,7 @@
 
 use crate::errors::Refused;
 use crate::menu::draw_lists_store::DRAW_LISTS;
+use crate::menu::screen_id::ScreenId;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{
     Callee, Entry, Flow, Frames, List, Screen, Step, quitting, screen_entry,
@@ -85,10 +86,10 @@ pub const SCREEN: Screen = Screen {
     ..Screen::new(
         module_path!(),
         |m| m.tables.menus.redefine_keys_player3.id(),
-        |m| &m.screens.items.current[slot::REDEFINE_KEYS_PLAYER3],
+        slot::REDEFINE_KEYS_PLAYER3,
     )
 };
 
 pub fn run(o: crate::owners::Owners<'static>) -> Result<(), crate::errors::Refused> {
-    screen_entry(o, &SCREEN)
+    screen_entry(o, ScreenId::RedefineKeysPlayer3)
 }

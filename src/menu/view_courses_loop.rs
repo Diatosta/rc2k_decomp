@@ -3,8 +3,11 @@
 
 use crate::errors::Refused;
 use crate::menu::draw_lists_store::DRAW_LISTS;
+use crate::menu::screen_id::ScreenId;
 use crate::menu::screen_items_store::slot;
-use crate::menu::screen_loop::{Callee, Entry, List, Screen, Step, log_line, screen_entry};
+use crate::menu::screen_loop::{
+    Callee, Entry, List, Screen, ScreenVar, Step, log_line, screen_entry,
+};
 
 fn set_up_first(_: &Entry) -> Result<(), Refused> {
     log_line(c"VCoursesScr: Start");
@@ -40,14 +43,14 @@ pub const SCREEN: Screen = Screen {
         },
     ],
     before: &[
-        Step::Write(|m| &m.play.champ_view.stage_mode, 0x1),
-        Step::Write(|m| &m.screens.event.stage_group, 0x0),
-        Step::Write(|m| &m.screens.event.stage_number, 0x1),
-        Step::Write(|m| &m.screens.event.stage_sub, 0x0),
-        Step::Write(|m| &m.play.arcade.level, 0x0),
-        Step::Write(|m| &m.play.arcade.stage, 0x1),
-        Step::Write(|m| &m.screens.event.section, 0x0),
-        Step::Write(|m| &m.screens.event.index, 0x0),
+        Step::Write(ScreenVar::StageMode, 0x1),
+        Step::Write(ScreenVar::StageGroup, 0x0),
+        Step::Write(ScreenVar::StageNumber, 0x1),
+        Step::Write(ScreenVar::StageSub, 0x0),
+        Step::Write(ScreenVar::ArcadeLevel, 0x0),
+        Step::Write(ScreenVar::ArcadeStage, 0x1),
+        Step::Write(ScreenVar::EventSection, 0x0),
+        Step::Write(ScreenVar::EventIndex, 0x0),
     ],
     set_up_first: &[Step::Do(set_up_first)],
     background: &[Step::Call(Callee::DrawStageMap)],
@@ -55,10 +58,10 @@ pub const SCREEN: Screen = Screen {
     ..Screen::new(
         module_path!(),
         |m| m.tables.menus.view_courses.id(),
-        |m| &m.screens.items.current[slot::VIEW_COURSES],
+        slot::VIEW_COURSES,
     )
 };
 
 pub fn run(o: crate::owners::Owners<'static>) -> Result<(), crate::errors::Refused> {
-    screen_entry(o, &SCREEN)
+    screen_entry(o, ScreenId::ViewCourses)
 }

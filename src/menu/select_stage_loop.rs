@@ -7,7 +7,7 @@ use crate::errors::Refused;
 use crate::menu::draw_lists_store::DRAW_LISTS;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{
-    Asking, Callee, Entry, Flow, Frames, List, MenuSound, Screen, Step,
+    Asking, Callee, Entry, Flow, Frames, List, MenuSound, Screen, ScreenVar, Step,
 };
 
 fn after_first_frame(entry: &Entry) -> Result<Flow, Refused> {
@@ -42,7 +42,7 @@ pub const SCREEN: Screen = Screen {
             run: false,
         },
     ],
-    before: &[Step::Write(|m| &m.tables.pages.yes_no_answer, 0x0)],
+    before: &[Step::Write(ScreenVar::YesNoAnswer, 0x0)],
     set_up_first: &[Step::Call(Callee::MarkStageChoice)],
     background: &[Step::Call(Callee::DrawStageMap)],
     after_first_frame: &[Step::DoFlow(after_first_frame)],
@@ -59,6 +59,6 @@ pub const SCREEN: Screen = Screen {
     ..Screen::new(
         module_path!(),
         |m| m.tables.menus.select_stage.id(),
-        |m| &m.screens.items.current[slot::SELECT_STAGE],
+        slot::SELECT_STAGE,
     )
 };

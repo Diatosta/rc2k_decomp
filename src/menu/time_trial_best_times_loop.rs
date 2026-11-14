@@ -55,6 +55,6 @@ pub const SCREEN: Screen = Screen {
     ..Screen::new(
         module_path!(),
         |m| m.tables.menus.time_trial_best_times.id(),
-        |m| &m.screens.items.current[slot::TIME_TRIAL_BEST_TIMES],
+        slot::TIME_TRIAL_BEST_TIMES,
     )
 };

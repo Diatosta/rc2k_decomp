@@ -2,6 +2,7 @@
 //! chosen stage and its direction go into the player's record. The background is drawn again.
 
 use crate::errors::Refused;
+use crate::menu::screen_id::ScreenId;
 use crate::menu::screen_loop::{Entry, run_screen};
 use crate::net::store::NetShared;
 use crate::owners::Owners;
@@ -13,7 +14,7 @@ pub fn choose_stage(o: Owners<'static>, vars: &NetShared) -> Result<(), Refused>
     let race = o.race;
     let escape_pressed = &o.menus.screens.draw_work.escape_pressed;
     escape_pressed.set(false);
-    { run_screen(&crate::menu::select_stage_loop::SCREEN, &Entry::new(o)) }?;
+    { run_screen(ScreenId::SelectStage, &Entry::new(o)) }?;
     if !escape_pressed.is_set() {
         vars.own
             .head

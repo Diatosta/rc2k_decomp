@@ -9,7 +9,7 @@
 use crate::errors::Refused;
 use crate::menu::draw_lists_store::DRAW_LISTS;
 use crate::menu::screen_items_store::slot;
-use crate::menu::screen_loop::{Asking, Callee, Entry, List, Screen, Step};
+use crate::menu::screen_loop::{Asking, Callee, Entry, List, Screen, ScreenFlag, Step};
 use crate::menu::texts_store::texts;
 
 fn set_first_item(entry: &Entry) -> Result<(), Refused> {
@@ -53,11 +53,11 @@ pub const SCREEN: Screen = Screen {
     background: &[Step::Call(Callee::LoadBackground(|_| {
         &texts().overall_rally_results_picture
     }))],
-    leave_at_once: Some(|m| &m.screens.state.menus.standings_shown),
+    leave_at_once: Some(ScreenFlag::StandingsShown),
     asking: Some(Asking { ..Asking::DEFAULT }),
     ..Screen::new(
         module_path!(),
         |m| m.tables.menus.overall_rally_results.id(),
-        |m| &m.screens.items.current[slot::OVERALL_RALLY_RESULTS],
+        slot::OVERALL_RALLY_RESULTS,
     )
 };

@@ -12,6 +12,7 @@
 
 use crate::errors::Refused;
 use crate::menu::owner::Menus;
+use crate::menu::screen_id::ScreenId;
 use crate::menu::screen_loop::{Entry, run_screen};
 use crate::menu::standings::*;
 // service::service_area_loop
@@ -55,7 +56,7 @@ pub fn service_pass(menus: &Menus, entry: &Entry) -> Result<(), Refused> {
             for _ in 0..passes::DROPPED_KEYS {
                 crate::input::take_key::take_key(entry.input);
             }
-            run_screen(&crate::service::service_area_loop::SCREEN, entry)?;
+            run_screen(ScreenId::ServiceArea, entry)?;
             if menus.tables.pages.yes_no_answer.get() == 1 {
                 break 'all;
             }
@@ -63,7 +64,7 @@ pub fn service_pass(menus: &Menus, entry: &Entry) -> Result<(), Refused> {
             crate::menu::set_player_entry_kind::set_player_entry_kind(menus)?;
             if passes::is_out(p.get().entry) {
                 crate::menu::inspection_faults::inspection_faults(menus)?;
-                run_screen(&crate::menu::inspection_area_loop::SCREEN, entry)?;
+                run_screen(ScreenId::InspectionArea, entry)?;
                 if menus.tables.pages.yes_no_answer.get() == 1 {
                     break 'all;
                 }

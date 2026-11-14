@@ -21,7 +21,9 @@
 
 use crate::menu::draw_lists_store::DRAW_LISTS;
 use crate::menu::screen_items_store::slot;
-use crate::menu::screen_loop::{Asking, Callee, List, Screen, Step};
+use crate::menu::screen_loop::{
+    Asking, Callee, List, SceneFloat, SceneVar, Screen, ScreenFlag, ScreenVar, Step,
+};
 
 pub const SCREEN: Screen = Screen {
     lists: &[
@@ -54,50 +56,26 @@ pub const SCREEN: Screen = Screen {
         Step::Call(Callee::TakeKey),
         Step::Call(Callee::TakeKey),
         Step::Call(Callee::TakeKey),
-        Step::WriteFlag(|m| &m.screens.state.menus.skip_edit_values, false),
+        Step::WriteFlag(ScreenFlag::SkipEditValues, false),
     ],
-    set_up_first: &[Step::Write(|m| &m.screens.flow.left_service, 0)],
+    set_up_first: &[Step::Write(ScreenVar::LeftService, 0)],
     prepare: &[
-        Step::WriteScene(
-            |_| &crate::scene::polygon_work::front_end().window.view_offset[0],
-            0,
-        ),
-        Step::WriteScene(
-            |_| &crate::scene::polygon_work::front_end().window.view_offset[1],
-            0,
-        ),
-        Step::WriteScene(
-            |_| &crate::scene::polygon_work::front_end().window.view_zoom,
-            0x100,
-        ),
+        Step::WriteScene(SceneVar::ViewOffsetX, 0),
+        Step::WriteScene(SceneVar::ViewOffsetY, 0),
+        Step::WriteScene(SceneVar::ViewZoom, 0x100),
         Step::Call(Callee::PrepareScene),
-        Step::WriteScene(
-            |_| &crate::scene::polygon_work::front_end().window.clip_edges[2],
-            0,
-        ),
-        Step::WriteScene(
-            |_| &crate::scene::polygon_work::front_end().window.clip_edges[3],
-            800,
-        ),
-        Step::WriteSceneF32(
-            |_| &crate::scene::polygon_work::front_end().window.clip_screen[2],
-            0.0,
-        ),
-        Step::WriteSceneF32(
-            |_| &crate::scene::polygon_work::front_end().window.clip_screen[3],
-            800.0,
-        ),
+        Step::WriteScene(SceneVar::ClipLeft, 0),
+        Step::WriteScene(SceneVar::ClipRight, 800),
+        Step::WriteSceneF32(SceneFloat::ClipLeft, 0.0),
+        Step::WriteSceneF32(SceneFloat::ClipRight, 800.0),
         Step::Call(Callee::PlayTune9),
     ],
     background: &[Step::Call(Callee::LoadServiceBackground)],
-    after_first_frame: &[Step::WriteFlag(
-        |m| &m.screens.state.menus.skip_edit_values,
-        true,
-    )],
+    after_first_frame: &[Step::WriteFlag(ScreenFlag::SkipEditValues, true)],
     after: &[
-        Step::Write(|m| &m.screens.flow.left_service, 1),
+        Step::Write(ScreenVar::LeftService, 1),
         Step::Call(Callee::StopMusic),
-        Step::WriteFlag(|m| &m.screens.state.menus.skip_edit_values, false),
+        Step::WriteFlag(ScreenFlag::SkipEditValues, false),
     ],
     asking: Some(Asking {
         on_refusal: &[Step::Call(Callee::LoadServiceBackground)],
@@ -106,6 +84,6 @@ pub const SCREEN: Screen = Screen {
     ..Screen::new(
         module_path!(),
         |m| m.tables.menus.service_area.id(),
-        |m| &m.screens.items.current[slot::SERVICE_AREA],
+        slot::SERVICE_AREA,
     )
 };

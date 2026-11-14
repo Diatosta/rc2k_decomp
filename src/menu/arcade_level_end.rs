@@ -10,6 +10,7 @@
 use crate::errors::Refused;
 use crate::menu::lists_store::CarList;
 use crate::menu::owner::Menus;
+use crate::menu::screen_id::ScreenId;
 use crate::menu::screen_loop::{Entry, run_screen};
 
 pub fn arcade_level_end(
@@ -21,7 +22,7 @@ pub fn arcade_level_end(
     use rc2k_core::menu::arcade::{first_win, won, won_level};
     if !won(play.results.positions[0].get()) {
         crate::sound::play_tune_7::play_tune_7(entry.owners);
-        run_screen(&crate::menu::arcade_level_end_results_loop::SCREEN, entry)?;
+        run_screen(ScreenId::ArcadeLevelEndResults, entry)?;
         play.arcade.retry.set(1u32);
         return Ok(());
     }
@@ -31,7 +32,7 @@ pub fn arcade_level_end(
     if first_win(play.arcade.levels_won.get(level as usize)) {
         play.arcade.levels_won.set(level as usize, 1);
         let shown = entry.with_list(Some(CarList::Shown));
-        run_screen(&crate::menu::car_specs_display_loop::SCREEN, &shown)?;
+        run_screen(ScreenId::CarSpecsDisplay, &shown)?;
         crate::menu::arcade_steps::add_shown_car(menus)?;
         crate::menu::arcade_steps::remove_shown_car(menus, &mut || {
             crate::saves::list_car_numbers::list_car_numbers_in(menus).map_err(Refused::from)

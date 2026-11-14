@@ -60,9 +60,5 @@ pub const SCREEN: Screen = Screen {
     before: &[Step::Do(before)],
     set_up_first: &[Step::Do(set_up_first)],
     background: &[Step::Call(Callee::LoadBackground(|_| &texts().cspecs_png))],
-    ..Screen::new(
-        module_path!(),
-        |m| m.tables.menus.cspecs_menu.id(),
-        |m| &m.screens.items.current[SLOT],
-    )
+    ..Screen::new(module_path!(), |m| m.tables.menus.cspecs_menu.id(), SLOT)
 };

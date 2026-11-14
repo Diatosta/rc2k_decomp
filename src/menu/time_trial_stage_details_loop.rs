@@ -3,7 +3,7 @@
 //! Its draw list is that of `screens::draw_time_trial_stage_info`.
 use crate::menu::draw_lists_store::DRAW_LISTS;
 use crate::menu::screen_items_store::slot;
-use crate::menu::screen_loop::{Callee, List, Screen, Step};
+use crate::menu::screen_loop::{Callee, List, Screen, ScreenVar, Step};
 
 pub const SCREEN: Screen = Screen {
     lists: &[
@@ -23,11 +23,11 @@ pub const SCREEN: Screen = Screen {
             run: false,
         },
     ],
-    before: &[Step::Write(|m| &m.play.champ_view.stage_mode, 0x1)],
+    before: &[Step::Write(ScreenVar::StageMode, 0x1)],
     background: &[Step::Call(Callee::DrawStageMap)],
     ..Screen::new(
         module_path!(),
         |m| m.tables.menus.time_trial_stage_details.id(),
-        |m| &m.screens.items.current[slot::TIME_TRIAL_STAGE_DETAILS],
+        slot::TIME_TRIAL_STAGE_DETAILS,
     )
 };
