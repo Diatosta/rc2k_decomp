@@ -65,6 +65,7 @@ struct Steps<'a> {
 impl Steps<'_> {
     /// Logs the next word.
     fn log(&mut self) {
+        crate::race::load_times::phase(WORDS[self.word].to_str().unwrap_or("?"));
         crate::logfile::log_write::log_nul(&WORDS[self.word], true, 1);
         self.word += 1;
     }

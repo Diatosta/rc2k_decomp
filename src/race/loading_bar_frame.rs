@@ -41,7 +41,10 @@ pub fn loading_bar_frame(o: crate::owners::Owners<'static>) -> Result<(), Refuse
         }
         *last = Some(begun);
     }
-    let result = frame(o);
+    let result = {
+        let _timed = crate::race::load_times::scope(crate::race::load_times::Category::BarFrame);
+        frame(o)
+    };
     FRAMES[0].fetch_add(1, Relaxed);
     FRAMES[1].fetch_add(begun.elapsed().as_micros() as u64, Relaxed);
     result
@@ -81,6 +84,7 @@ fn frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
         }
         unlock_frame::unlock_frame(&race.frame, gfx);
         // A refused present is skipped as well.
+        let _timed = crate::race::load_times::scope(crate::race::load_times::Category::Present);
         present_frame::present_frame(o);
     }
     Ok(())

@@ -29,6 +29,7 @@ const WORDS: [&std::ffi::CStr; 9] = [
 /// of the eight cars), "FINIS", a rule and a line break.
 pub fn load_stage(race: &'static Race, o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     let input = o.input;
+    crate::race::load_times::begin("load_stage: loading picture, car sounds");
     let indent = |by: i32| {
         crate::logfile::write_line::state::INDENT
             .atomic()
@@ -73,6 +74,7 @@ pub fn load_stage(race: &'static Race, o: crate::owners::Owners<'static>) -> Res
     indent(-3);
     log();
     indent(3);
+    crate::race::load_times::phase("load_stage: music");
     if race.replay.finish.get().no_place.get() != 0 {
         crate::race::music::game_music(&race.shared, o);
     } else {
@@ -81,11 +83,14 @@ pub fn load_stage(race: &'static Race, o: crate::owners::Owners<'static>) -> Res
     indent(-3);
     log();
     indent(3);
+    crate::race::load_times::phase("load_stage: create controls");
     crate::race::create_controls::create_controls(input);
     indent(-3);
     log();
     indent(3);
+    crate::race::load_times::phase("load_stage: race init");
     crate::drive::race_init::race_init(o, race)?;
+    crate::race::load_times::phase("load_stage: starting values");
     crate::scene::restart_clock::restart_clock(
         &race.shared,
         crate::system::tick_count::tick_count(),
@@ -122,5 +127,6 @@ pub fn load_stage(race: &'static Race, o: crate::owners::Owners<'static>) -> Res
     log();
     log();
     newline();
+    crate::race::load_times::end();
     Ok(())
 }

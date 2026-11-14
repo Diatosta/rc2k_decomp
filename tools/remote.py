@@ -217,6 +217,8 @@ def start(software, fresh, profile=False):
     for switch in ('RC2K_MIRROR_BESIDE', 'RC2K_MIRROR_ALWAYS', 'RC2K_DRAW_SERIAL', 'RC2K_PLAYERS_BESIDE', 'RC2K_CAR_PART', 'RC2K_CANVAS_CHECK'):  # the mirror beside (0: after), shown, parts serial, the players' views beside, the car on a helper, the canvas rows' check
         if os.environ.get(switch):
             renderer += f'{switch}={int(os.environ[switch] != "0")} '
+    if os.environ.get('RC2K_LOAD_TIMES'):  # a stage load's step times in the log (src/race/load_times.rs)
+        renderer += 'RC2K_LOAD_TIMES=1 '
     if HOST:
         ssh(f'rm -rf {FOLDER}; mkdir -p {FOLDER}; cd {DEVICE_GAME}; '
             '[ -d .remote_kept ] || { mkdir .remote_kept; cp -r var savedata .remote_kept/; }; '

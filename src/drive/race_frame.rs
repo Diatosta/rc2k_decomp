@@ -30,6 +30,7 @@ pub fn race_frame(
         stop(Stage::Scene, begun);
         // The frame's sound tick is in `draw_race_scene`.
         { crate::race::replay_screenshot::replay_screenshot(race, o.gfx, o.system) }?;
+        crate::race::load_times::first_frame();
         #[cfg(feature = "remote")]
         crate::remote::shot_frame_drawn(race);
         let shown = { crate::race::show_frame::show_frame(race, o) }?;

@@ -19,6 +19,7 @@ pub fn read_picture_file(
     system: &crate::system::owner::System,
 ) -> Result<bool, Refused> {
     use rc2k_core::gfx::loading::{Reader, ending, reader};
+    let _timed = crate::race::load_times::scope(crate::race::load_times::Category::PictureDecode);
     let png = &gfx.png;
     let text = path.text("a picture's path")?;
     if &ending(&text)? == b".pcx" {
