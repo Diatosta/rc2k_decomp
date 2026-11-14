@@ -9,9 +9,9 @@ use crate::drive::race_parts::{
     input_update, players_all_out, race_frame, race_keys, restart_clock, tyre_change,
 };
 use crate::errors::{BadInput, Refused};
-use crate::net::owner::Net;
 use crate::race::owner::Race;
 use crate::race::owner_shared::RaceShared;
+use rc2k_core::net::net_race::NetRace;
 
 fn view_bit(shared: &RaceShared, view: &crate::session::PlainDword) -> Result<bool, BadInput> {
     let car = shared
@@ -22,14 +22,14 @@ fn view_bit(shared: &RaceShared, view: &crate::session::PlainDword) -> Result<bo
 }
 
 fn net_player_car(
-    net: &Net,
+    net_race: NetRace,
     shared: &RaceShared,
 ) -> Result<&'static crate::physics::car_store::Car, BadInput> {
     let handle = shared
         .work
         .get()
         .car_blocks
-        .get(net.vars.player.get() as usize)
+        .get(net_race.player as usize)
         .ok_or(BadInput("the network player's car"))?;
     shared
         .car_blocks()
@@ -37,10 +37,10 @@ fn net_player_car(
         .ok_or(BadInput("the network player's car"))
 }
 
-fn put_answer(race: &Race, net: &Net, answer: u32) -> Result<(), BadInput> {
+fn put_answer(race: &Race, answer: u32) -> Result<(), BadInput> {
     let shared = &race.shared;
-    if net.vars.session.get() != 0 {
-        net_player_car(net, shared)?.stop_state.set(answer);
+    if let Some(net_race) = shared.net_race.get() {
+        net_player_car(net_race, shared)?.stop_state.set(answer);
         return Ok(());
     }
     race.car_blocks().cars[0].stop_state.set(answer);
@@ -58,7 +58,7 @@ fn put_answer(race: &Race, net: &Net, answer: u32) -> Result<(), BadInput> {
 }
 
 pub fn race_loop(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), Refused> {
-    let (input, system, net) = (o.input, o.system, o.net);
+    let (input, system) = (o.input, o.system);
     let devices = &input.devices;
     for c in 0..8 {
         race.car_blocks().cars[c as usize].reset_marker.set(10);
@@ -132,7 +132,7 @@ pub fn race_loop(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), R
                         race.shared.physics_tables.get().scene_clock.get()
                     ));
                 }
-                put_answer(race, net, answer)?;
+                put_answer(race, answer)?;
                 return Ok(());
             }
             if race.shared.vars.get().hold_count.get() == 0 {
@@ -153,7 +153,7 @@ pub fn race_loop(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), R
             { crate::drive::race_step::race_step(o, race) }?;
             crate::debug::timing::stop(crate::debug::timing::Stage::Physics, begun);
             tyre_change(o)?;
-            if players_all_out(race, net)? {
+            if players_all_out(race)? {
                 if race.shared.work.get().in_credits.is_set() {
                     crate::framework::log(&format!(
                         "drive::race_loop: the credits race ends: every player out, frame {}",
@@ -167,8 +167,8 @@ pub fn race_loop(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), R
         if !paused {
             continue;
         }
-        if net.vars.session.get() != 0 {
-            net_player_car(net, &race.shared)?.input_keys.set(0);
+        if let Some(net_race) = race.shared.net_race.get() {
+            net_player_car(net_race, &race.shared)?.input_keys.set(0);
         } else {
             { crate::drive::pause_until_key::pause_until_key(race, o) }?;
         }

@@ -4,6 +4,7 @@
 
 use crate::cells::Store;
 use crate::errors::{BadInput, Refused};
+use crate::net::owner::net_race;
 use crate::net::store::NetShared;
 use crate::net::store::PlayerBlock;
 use rc2k_core::net::players::{self, Standing};
@@ -51,7 +52,7 @@ pub fn bubble_blocks(
 
 /// The players' blocks sorted for the lobby's table (the first `players` of them).
 pub fn sort_players(vars: &NetShared) -> Result<[PlayerBlock; 8], Refused> {
-    let players = vars.players.get();
+    let players = net_race().players();
     if players > players::MOST {
         return Err(BadInput("more than eight players").into());
     }
@@ -82,8 +83,9 @@ mod tests {
     /// they were.
     #[test]
     fn sorts_a_copy_and_leaves_the_received_blocks() {
+        let _lock = crate::test_support::test_lock();
         let vars = Box::new(NetShared::new());
-        vars.players.set(3);
+        let _players = crate::net::owner::PlayersSetForTest::to(3);
         for (n, (total, id)) in [(30u32, 7u32), (10, 9), (20, 8)].into_iter().enumerate() {
             vars.received[n].record.total.set(total);
             vars.received[n].record.race_time.set(5);

@@ -103,7 +103,6 @@ pub fn draw_with_car_aside<'a, R>(
     let DrawCtx {
         race,
         scene,
-        net,
         input,
         clock,
         far_clip,
@@ -116,7 +115,6 @@ pub fn draw_with_car_aside<'a, R>(
         let ctx = DrawCtx {
             race,
             scene,
-            net,
             input,
             view: &view,
             clock,

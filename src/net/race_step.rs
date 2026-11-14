@@ -4,18 +4,18 @@
 
 use crate::errors::Refused;
 use crate::net::owner::Net;
+use crate::net::owner::net_race;
 use crate::net::{apply_received, follow_remote, send_turn};
 use crate::race::owner::Race;
 pub fn race_step(race: &Race, net: &Net) -> Result<(), Refused> {
-    let vars = &net.vars;
-    if vars.session.get() == 0 {
+    if !net_race().is_on() {
         return Ok(());
     }
-    if race.shared.work.get().current_car.get() == vars.player.get() {
+    if race.shared.work.get().current_car.get() == net_race().player() {
         send_turn::send_turn(race, net)?;
         apply_received::apply_received(race, net)
     } else {
-        follow_remote::follow_remote(race, vars)?;
+        follow_remote::follow_remote(race)?;
         Ok(())
     }
 }

@@ -51,7 +51,6 @@ struct Owners<'a> {
     system: &'a crate::system::owner::System,
     sound: &'static crate::sound::owner::Sound,
     audio: &'static crate::audio::owner::Audio,
-    net: &'static crate::net::owner::Net,
     input: &'static crate::input::owner::Input,
 }
 
@@ -107,7 +106,7 @@ fn view_scene(
     } = run;
     view.take_vars(reads);
     let output = crate::race::draw_view_scene::draw_view_scene(
-        o.race, o.scene, o.net, o.input, view, filter, part, reads, helper,
+        o.race, o.scene, o.input, view, filter, part, reads, helper,
     )?;
     view.hand_off.keep_output(output);
     view.hand_off.keep(reads.matrices, part);
@@ -147,7 +146,6 @@ fn view_rest(
     let ctx = crate::race::view_scratch::DrawCtx::new(
         o.race,
         o.scene,
-        o.net,
         o.input,
         view,
         crate::workers::game_scratch(),
@@ -176,7 +174,7 @@ fn view_mirror(
     crate::race::frame::load_view_car(reads.work, reads.car_blocks, reads.view, car, mirror)?;
     let begun = crate::debug::timing::start();
     let output = crate::race::draw_mirror_view::draw_mirror_view(
-        o.race, o.scene, o.net, o.input, mirror, part, reads,
+        o.race, o.scene, o.input, mirror, part, reads,
     )?;
     mirror.hand_off.keep_mirror_drawn(output.is_some());
     mirror.hand_off.keep_output(output.unwrap_or_default());
@@ -379,7 +377,6 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
         system,
         sound: o.sound,
         audio: o.audio,
-        net: o.net,
         input,
     };
     let frame = &race.frame;
@@ -405,7 +402,7 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
             return Err(BadInput("a wanted texture's slot past g_slotWantedTextures").into());
         }
     }
-    crate::drive::choose_shown_cars::choose_shown_cars_in(race, o.net)?;
+    crate::drive::choose_shown_cars::choose_shown_cars_in(race)?;
     crate::session::write_bits(&race.shared.view.get().view_cleared, [0u32; 0x20]);
     for (flags, block) in race
         .frame
@@ -515,7 +512,7 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
     // only read them.
     crate::race::frame_draw::draw_distance_settings(&race.course);
     crate::race::car_parts::ready_car_parts(race, scene)?;
-    crate::race::map_scroll::scroll_maps(race, scene, o.net, o.gfx)?;
+    crate::race::map_scroll::scroll_maps(race, scene, o.gfx)?;
     race.frame
         .panel_and_overlay
         .get()

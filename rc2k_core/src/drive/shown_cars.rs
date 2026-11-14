@@ -13,7 +13,7 @@ pub struct ShownSetup {
     /// The playing replay's layout (1 .. 3), the replay frame head's byte +5: 1 one
     /// view of car 1, 2 two views with split 1 (side by side), 3 two views with split 2.
     pub layout: u32,
-    /// `NetVars.session`: a network game on (only this machine's car is shown).
+    /// A network game on (non-zero) (only this machine's car is shown).
     pub network: u32,
     /// This machine's car in a network game.
     pub local_car: u32,

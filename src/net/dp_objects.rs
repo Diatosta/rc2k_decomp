@@ -847,7 +847,7 @@ mod tests {
         let vars = &net.vars;
         net.link.set_dplay(host);
         net.link.set_player_id(host_player);
-        vars.players.set(1);
+        let _players = crate::net::owner::PlayersSetForTest::to(1);
         vars.receiver.sync.set(7);
         vars.received[0].id.set(0xDEAD);
         let gfx = crate::gfx::owner::gfx();

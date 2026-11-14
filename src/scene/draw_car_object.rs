@@ -101,7 +101,6 @@ pub fn run(o: crate::owners::Owners<'static>) -> Result<(), crate::errors::Refus
     let ctx = crate::race::view_scratch::DrawCtx::new(
         race,
         scene,
-        o.net,
         o.input,
         scratch,
         crate::workers::game_scratch(),

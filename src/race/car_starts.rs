@@ -187,11 +187,7 @@ fn move_turned(course: &Course, shared: &RaceShared, x: u32, z: u32) {
 /// low bit). Then `nearest_checkpoint` goes into +0x98, +0x94, +0x9C; its check count less one held
 /// to 0 .. 100 into +0x90 and +0xAC; `reset_car_motion`; +0x264 .. +0x26C 0. Refused: a nearest
 /// checkpoint past the lists (when met).
-pub fn start_car(
-    c: &ResetInputs<'_>,
-    scene: &crate::scene::owner::Scene,
-    net: &crate::net::owner::Net,
-) -> Result<(), Refused> {
+pub fn start_car(c: &ResetInputs<'_>, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let lights = &scene.lights;
     let course = &c.course;
     c.car.notice_count.set(0);
@@ -224,7 +220,7 @@ pub fn start_car(
         if c.finish.no_place.get() == 0 {
             move_turned(c.course, c.shared, 0, 0xFFFE_0000);
             let side = starts_aside(
-                net.vars.session.get(),
+                u32::from(c.shared.net_race.is_on()),
                 || c.vars.run_kind.get(),
                 || c.view.players.get(),
             );
@@ -262,11 +258,7 @@ pub fn start_car(
 /// For each car of the race (`race_cars`): `current_car`, `drive::load_car`, `start_car`, the work
 /// car's +0xA3C (8 dwords) and +0xA5C (0x11) cleared, `drive::store_car`. Refused (before
 /// anything): no cars or more than 8.
-pub fn start_cars(
-    race: &Race,
-    scene: &crate::scene::owner::Scene,
-    net: &crate::net::owner::Net,
-) -> Result<(), Refused> {
+pub fn start_cars(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let shared = &race.shared;
     let cars: u32 = shared.view.get().race_cars.get();
     if cars == 0 || cars > MOST_CARS {
@@ -278,7 +270,6 @@ pub fn start_cars(
         start_car(
             &crate::physics::step_inputs::StepInputs::of(race).reset(),
             scene,
-            net,
         )?;
         // Clears +0xA3C (8 dwords) and +0xA5C (0x11).
         for cell in shared

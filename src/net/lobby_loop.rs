@@ -9,6 +9,7 @@
 use crate::errors::Refused;
 use crate::net::lobby::{list_key, other_key, run_frame};
 use crate::net::owner::Net;
+use crate::net::owner::net_race;
 use crate::net::store::NetShared;
 use crate::owners::Owners;
 use rc2k_core::net::message::Message;
@@ -31,7 +32,7 @@ pub fn sync(net: &Net, ready: bool) -> Result<bool, Refused> {
     net.vars.sync_first.set(0);
     if first != 0 {
         net.vars.clear_synced();
-        net.vars.set_synced(net.vars.player.get() as usize, true)?;
+        net.vars.set_synced(net_race().player() as usize, true)?;
     }
     let now = crate::system::tick_count::tick_count();
     if (now
@@ -56,7 +57,7 @@ pub fn sync(net: &Net, ready: bool) -> Result<bool, Refused> {
                 crate::net::dplay_send::dplay_send(&net.link, id, &call);
             }
             n += 1;
-            if n >= net.vars.players.get() {
+            if n >= net_race().players() {
                 break;
             }
         }
@@ -67,7 +68,7 @@ pub fn sync(net: &Net, ready: bool) -> Result<bool, Refused> {
     loop {
         all_answered &= net.vars.synced(n as usize)?;
         n += 1;
-        if n >= net.vars.players.get() {
+        if n >= net_race().players() {
             break;
         }
     }
@@ -100,7 +101,7 @@ fn step_item(
 pub fn lobby_loop(o: Owners<'static>) -> Result<u32, Refused> {
     let (net, system) = (o.net, o.system);
     let list_state = &o.menus.list;
-    net.vars.players.set(0);
+    net_race().set_players(0);
     net.lobby().racing.set(0);
     crate::net::show_background::show_background(o)?;
     let now = system.session.key_clock.ticks.get();
@@ -194,8 +195,8 @@ pub fn lobby_loop(o: Owners<'static>) -> Result<u32, Refused> {
             list_state.move_clock.set(list_state.frame_clock.get());
         }
         if net.vars.own.state().is_host()
-            && net.vars.players.get() >= 2
-            && all_states(&net.vars, State::READY, net.vars.players.get()) == State::READY
+            && net_race().players() >= 2
+            && all_states(&net.vars, State::READY, net_race().players()) == State::READY
             && sync(net, true)?
         {
             net.vars.all_raced.set(1);
@@ -206,8 +207,8 @@ pub fn lobby_loop(o: Owners<'static>) -> Result<u32, Refused> {
         }
         // Waits for no player to be still racing: a player who joined since the race never has
         // the raced bit.
-        if net.vars.players.get() >= 1
-            && rc2k_core::net::players::none_racing(net.vars.players.get(), |n| {
+        if net_race().players() >= 1
+            && rc2k_core::net::players::none_racing(net_race().players(), |n| {
                 net.vars.player_block_or_end(n).record.state()
             })
         {

@@ -5,6 +5,7 @@
 use crate::errors::Refused;
 use crate::net::lobby_loop::{all_states, sync};
 use crate::net::owner::Net;
+use crate::net::owner::net_race;
 use rc2k_core::net::players::State;
 pub fn race_wait(net: &Net) -> Result<u32, Refused> {
     let vars = &net.vars;
@@ -20,10 +21,10 @@ pub fn race_wait(net: &Net) -> Result<u32, Refused> {
         crate::net::list_players::list_players_regs(net)?;
     }
     if vars.own.state().is_host() {
-        if vars.players.get() == 0 {
+        if net_race().players() == 0 {
             return Ok(vars.race_over.get());
         }
-        if all_states(&net.vars, State::WAITING, vars.players.get()) == State::WAITING
+        if all_states(&net.vars, State::WAITING, net_race().players()) == State::WAITING
             && sync(net, false)?
         {
             vars.race_over.set(1);

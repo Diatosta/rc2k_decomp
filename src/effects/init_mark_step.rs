@@ -38,13 +38,12 @@ pub fn init_mark_step(
     scene: &crate::scene::owner::Scene,
     gfx: &crate::gfx::owner::Gfx,
     system: &crate::system::owner::System,
-    net: &crate::net::owner::Net,
 ) -> Result<(), Refused> {
     use rc2k_core::effects::race;
     {
         // In a network race the session's car count is 1 but this machine's car may be any:
         // every car's record is needed, or a joined machine's own has no marks.
-        let count: u32 = if net.vars.session.get() == 1 {
+        let count: u32 = if race.shared.net_race.is_on() {
             race.shared.view.get().race_cars.get()
         } else {
             race.shared.view.get().players.get()
@@ -59,12 +58,15 @@ pub fn init_mark_step(
             .set(race.shared.view.get().race_cars.get());
         // The one object the effects' shapes are made from: the player's car (the first car,
         // not a joined machine's).
-        let own = race.shared.own_car_number(net.vars.session.get()) as u32;
+        let own = race.shared.own_car_number(race.shared.net_race.get()) as u32;
         race.effects_settings().first_object.set(0x50 + 0x14 * own);
         race.effects_settings().object_count.set(1);
         let file = crate::race::mud::car_file_number(
             race.kind_tables(),
-            race.shared.own_car(net.vars.session.get()).car_kind.get(),
+            race.shared
+                .own_car(race.shared.net_race.get())
+                .car_kind
+                .get(),
         );
         race.effects_settings().mark_car_file_number.set(file);
         for n in 0..count {

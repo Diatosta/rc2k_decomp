@@ -50,7 +50,6 @@ impl ViewOutput {
 pub fn draw_view_scene(
     race: &Race,
     scene: &crate::scene::owner::Scene,
-    net: &crate::net::owner::Net,
     input: &crate::input::owner::Input,
     view: &ViewScratch,
     filter: [u32; 3],
@@ -60,7 +59,7 @@ pub fn draw_view_scene(
 ) -> Result<ViewOutput, Refused> {
     use crate::race::frame_draw::*;
     view.begin();
-    let ctx = DrawCtx::new(race, scene, net, input, view, part, reads);
+    let ctx = DrawCtx::new(race, scene, input, view, part, reads);
     let _held = view.matrices.hold(reads.matrices, part);
     // The shine is the stage's, as the frame's first view has it; each later view used to get the
     // previous one's last car's (fixed: "Each view lit by what the view before it left" in

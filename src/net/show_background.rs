@@ -3,11 +3,11 @@
 
 use crate::errors::Refused;
 use crate::net::lobby::{copy_picture, draw_string};
+use crate::net::owner::net_race;
 
 pub const TITLE_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::HEAD;
 pub fn show_background(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     let (gfx, system, net) = (o.gfx, o.system, o.net);
-    let vars = &net.vars;
     crate::gfx::load_picture::load_picture_with(&crate::gfx::texts::CHATZONE, gfx, system)?;
     crate::gfx::convert_picture::convert_picture_now_in(gfx, system)?;
     gfx.pictures
@@ -15,7 +15,7 @@ pub fn show_background(o: crate::owners::Owners<'static>) -> Result<(), Refused>
         .flags
         .set(gfx.display.mode.mode_flags.get() & 0xFFF);
     crate::gfx::picture_as_surface::picture_as_surface(gfx)?;
-    let title = if vars.session.get() == 1 {
+    let title = if net_race().is_on() {
         0x15A
     } else {
         match net.lobby().mode.get() {

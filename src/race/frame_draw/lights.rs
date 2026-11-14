@@ -195,18 +195,16 @@ pub(super) fn car_light_on_point(
     Ok(())
 }
 
-/// The cars' headlights on the lit place: with `crate::net::owner::net().vars.session` the chosen
-/// car (`crate::net::owner::net().vars.player`) or all with
-/// `crate::race::owner::race().shared.vars.settings_words[4]` 1; else the players' cars (all with
-/// `crate::race::owner::race().shared.vars.settings_words[4]` 1), only the drawn view's car outside
-/// one player and modes 0 and 2.
+/// The cars' headlights on the lit place: in a network game the chosen car or all (when
+/// `settings_words[4]` is 1); else the players' cars (all with `settings_words[4]` 1), only the
+/// drawn view's car outside one player and modes 0 and 2.
 #[allow(
     clippy::too_many_arguments,
     reason = "the drawing's stores the part reads, as they are lent"
 )]
 pub(super) fn car_lights_on_point(
     reads: crate::workers::DrawReads<'_>,
-    net: &crate::net::owner::Net,
+    net_race: Option<rc2k_core::net::net_race::NetRace>,
     object_light: &crate::scene::object_light::ObjectLight,
     drawn_view: u32,
     mmx: bool,
@@ -214,16 +212,15 @@ pub(super) fn car_lights_on_point(
     let light_tables = reads.light_tables;
     let blocks = &reads.car_blocks;
     let (race_work, race_vars, race_view) = (reads.work, reads.vars, reads.view);
-    let vars = &net.vars;
     let cars: u32 = race_view.race_cars.get();
     let all = race_vars.settings_words[4].get() == 1;
-    let one = vars.session.get() != 0;
+    let one = net_race.is_some();
     for n in 0..cars {
         let trap = Trap::new();
         let lit = rc2k_core::race::lights::headlights_light(
             n,
             one,
-            || vars.player.get(),
+            || net_race.map_or(0, |n| n.player),
             all,
             || race_view.players.get(),
             || race_vars.run_kind.get(),
@@ -311,7 +308,7 @@ pub fn check_light_colour(
 /// `check_light_colour`. `reads`: the drawing's light tables and cars' blocks.
 pub fn light_colour_at(
     reads: crate::workers::DrawReads<'_>,
-    net: &crate::net::owner::Net,
+    net_race: Option<rc2k_core::net::net_race::NetRace>,
     points: &crate::race::scene_points::OwnPoints,
     lamps: &crate::race::lamp_work::LampWork,
     object_light: &crate::scene::object_light::ObjectLight,
@@ -321,7 +318,7 @@ pub fn light_colour_at(
     // The turned place, the spreads and the lamps' distances are the x87's and the scene's.
     check_light_colour(reads.work, reads.view, lamps)?;
     object_light.light_colour.set(0u32);
-    car_lights_on_point(reads, net, object_light, drawn_view, mmx)?;
+    car_lights_on_point(reads, net_race, object_light, drawn_view, mmx)?;
     lamp_lights_on_point(reads.course(), points, lamps, object_light, mmx)?;
     Ok(())
 }
@@ -342,7 +339,7 @@ pub fn view_light(ctx: &DrawCtx<'_>, mmx: bool) -> Result<(), Refused> {
     );
     light_colour_at(
         ctx.reads,
-        ctx.net,
+        ctx.race.shared.net_race.get(),
         &ctx.part.points,
         lamps,
         object_light,

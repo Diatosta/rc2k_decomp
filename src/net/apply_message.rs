@@ -10,8 +10,8 @@
 
 use crate::errors::BadInput;
 use crate::logfile::log_int::log_int;
+use crate::net::owner::net_race;
 use crate::net::send_inputs::fields;
-use crate::net::store::NetShared;
 use crate::physics::car_store::Car;
 use crate::race::owner::Race;
 use crate::session::PlainDword;
@@ -51,13 +51,8 @@ fn note_unbelievable(player: u32) {
     }
 }
 
-pub fn apply_message(
-    race: &Race,
-    vars: &NetShared,
-    player: u32,
-    message: &[u8],
-) -> Result<(), BadInput> {
-    log_int(vars.player.get() as i32, false, 1);
+pub fn apply_message(race: &Race, player: u32, message: &[u8]) -> Result<(), BadInput> {
+    log_int(net_race().player() as i32, false, 1);
     log_int(race.shared.view.get().local_car.get() as i32, false, 1);
     log_int(
         *message.first().ok_or(BadInput("a received message"))? as i32,

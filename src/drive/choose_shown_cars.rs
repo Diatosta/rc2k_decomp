@@ -55,7 +55,7 @@ pub fn choose_at(v: &[&dyn DwordLike], listed: &[PlainDword]) -> Result<(), Refu
 }
 
 /// The variables, in the order the core uses them (`listed_car_sounds` apart).
-fn game<'a>(race: &'a Race, net: &'a crate::net::owner::Net) -> Vec<&'a dyn DwordLike> {
+fn game<'a>(race: &'a Race, network: &'a PlainDword) -> Vec<&'a dyn DwordLike> {
     let shared = &race.shared;
     let cells: [&dyn DwordLike; 11] = [
         &shared.view.get().view_cars[0],
@@ -65,7 +65,7 @@ fn game<'a>(race: &'a Race, net: &'a crate::net::owner::Net) -> Vec<&'a dyn Dwor
         &race.course.numbers.get().replay_mode,
         &shared.view.get().view_switch,
         &shared.vars.get().split,
-        &net.vars.session, // NetShared.session: in the network's variables
+        network,
         &shared.view.get().local_car,
         &shared.view.get().view_blocks[0],
         &shared.view.get().view_blocks[1],
@@ -73,10 +73,11 @@ fn game<'a>(race: &'a Race, net: &'a crate::net::owner::Net) -> Vec<&'a dyn Dwor
     cells.to_vec()
 }
 
-/// `choose_shown_cars` with the network's owner given.
-pub fn choose_shown_cars_in(race: &Race, net: &crate::net::owner::Net) -> Result<(), Refused> {
+/// Chooses the shown cars from the race's players, replay layout and network game.
+pub fn choose_shown_cars_in(race: &Race) -> Result<(), Refused> {
+    let network = PlainDword::new(u32::from(race.shared.net_race.is_on()));
     choose_at(
-        &game(race, net),
+        &game(race, &network),
         &race.frame.frame_work.get().listed_car_sounds,
     )
 }

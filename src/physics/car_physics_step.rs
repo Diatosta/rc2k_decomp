@@ -59,7 +59,7 @@ fn motion(
 
 /// The steps. Each callee reads what it needs from memory.
 pub fn steps(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refused> {
-    let (system, sound, scene, net) = (o.system, o.sound, o.scene, o.net);
+    let (system, sound, scene) = (o.system, o.sound, o.scene);
     let inputs = crate::physics::step_inputs::StepInputs::of(race);
     ph::stir_car_word::stir_car_word(race.shared.car());
     ph::load_car_specs::load_car_specs(
@@ -390,7 +390,7 @@ pub fn steps(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refus
         scene,
     );
     ph::share_engine_sound::share_engine_sound(race.shared.car(), sound, race.shared.work.get())?;
-    ph::false_start::false_start(&inputs.reset(), scene, net)?;
+    ph::false_start::false_start(&inputs.reset(), scene)?;
     ph::value_notice::value_notice(race.shared.car());
     Ok(())
 }

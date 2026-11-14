@@ -226,7 +226,7 @@ pub fn loadlevel_init(
     let enabled = crate::logfile::write_line::state::ENABLED
         .atomic()
         .swap(0, std::sync::atomic::Ordering::Relaxed);
-    crate::effects::init_mark_step::init_mark_step(race, o.effects, scene, gfx, system, o.net)?;
+    crate::effects::init_mark_step::init_mark_step(race, o.effects, scene, gfx, system)?;
     crate::logfile::write_line::state::ENABLED.set(enabled);
     s.progress(0x5E)?;
     s.indent(-3);
@@ -272,7 +272,7 @@ pub fn loadlevel_init(
     // initmud: mark 0x64 twice, then the callback put away.
     s.log();
     s.indent(3);
-    crate::race::mud::init_mud(race, scene, gfx, o.net, system)?;
+    crate::race::mud::init_mud(race, scene, gfx, system)?;
     s.progress(0x64)?;
     s.progress(0x64)?;
     race.shared.vars.get().bar_function.set(BAR_DONE);

@@ -368,7 +368,7 @@ pub fn open_replay(race: &Race, o: crate::owners::Owners<'static>) -> Result<(),
     if !replays_on(
         shared.replay_file().replays_on.get(),
         shared.replay_file().no_replay_switch.get(),
-        o.net.vars.session.get(),
+        u32::from(o.race.shared.net_race.is_on()),
         shared.state.settings.no_replay.get(),
     ) {
         return Ok(());

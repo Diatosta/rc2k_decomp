@@ -34,7 +34,7 @@ const TEXTS: [&std::ffi::CStr; 4] = [
 
 // Logic: `rc2k_core::scene::pictures::{kind_picture, read_size}`
 pub fn reload_system_textures(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
-    let (race, system, gfx, net, scene) = (o.race, o.system, o.gfx, o.net, o.scene);
+    let (race, system, gfx, scene) = (o.race, o.system, o.gfx, o.scene);
     let gfx_grading = &gfx.grading;
     let course = &race.course;
     let textures: u32 = scene.textures.places.get().totals[3].get();
@@ -74,7 +74,7 @@ pub fn reload_system_textures(o: crate::owners::Owners<'static>) -> Result<(), R
     grading.scale.set(0x100);
     grading.saturation.set(0x100);
     crate::race::load_times::mark("load_hud_car_icons");
-    load_hud_car_icons(scene, race, net, gfx, system)?;
+    load_hud_car_icons(scene, race, gfx, system)?;
     crate::logfile::log_write::log_nul(&TEXTS[2], true, 1);
     crate::logfile::log_write::log_nul(&TEXTS[3], true, 1);
     Ok(())

@@ -5,10 +5,11 @@ use crate::errors::{BadInput, Refused};
 use crate::net::apply_message::apply_message;
 use crate::net::copy_received::{MOST_PLAYERS, copy_received};
 use crate::net::owner::Net;
+use crate::net::owner::net_race;
 use crate::race::owner::Race;
 pub fn apply_received(race: &Race, net: &Net) -> Result<(), Refused> {
     let vars = &net.vars;
-    let count = || vars.players.get();
+    let count = || net_race().players();
     if count() == 0 || count() > MOST_PLAYERS {
         return Err(BadInput("no players, or more than the blocks' 8").into());
     }
@@ -22,7 +23,7 @@ pub fn apply_received(race: &Race, net: &Net) -> Result<(), Refused> {
             loop {
                 // The inbox records are 0x100 bytes each, message bytes from +2.
                 let message = block.copied.read_at(at + 2, 0xFE, "a received message")?;
-                apply_message(race, vars, player, &message)?;
+                apply_message(race, player, &message)?;
                 at += 0x100;
                 left = left.wrapping_sub(1);
                 if left == 0 {

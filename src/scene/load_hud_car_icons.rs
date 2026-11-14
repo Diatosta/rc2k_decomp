@@ -34,19 +34,17 @@ const NAMES: [usize; 4] = [
 pub fn load_hud_car_icons(
     scene: &crate::scene::owner::Scene,
     race: &crate::race::owner::Race,
-    net: &crate::net::owner::Net,
     gfx: &crate::gfx::owner::Gfx,
     system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
     let shared = &race.shared;
-    let vars = &net.vars;
     use rc2k_core::scene::car_icons;
     let texture: u32 = scene.textures.kinds.get().kind_first_textures[193].get();
     if texture == u32::MAX {
         return Ok(());
     }
-    let player = if vars.session.get() != 0 {
-        let car = car_icons::one_car(vars.player.get())?;
+    let player = if let Some(net_race) = race.shared.net_race.get() {
+        let car = car_icons::one_car(net_race.player)?;
         shared
             .race_car_or(car, "a car without its block")?
             .car_kind

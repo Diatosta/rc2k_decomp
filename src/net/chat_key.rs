@@ -3,6 +3,7 @@
 
 use crate::errors::Refused;
 use crate::net::owner::Net;
+use crate::net::owner::net_race;
 
 /// The key `key` for the chat message being typed; once it ends the
 /// editing, a message typed is sent and the input cleared.
@@ -12,7 +13,6 @@ pub fn chat_key(
     key: u8,
     gfx: &'static crate::gfx::owner::Gfx,
 ) -> Result<(), Refused> {
-    let vars = &net.vars;
     if !crate::net::edit_key::edit_key(input, net, key, gfx)? {
         return Ok(());
     }
@@ -20,7 +20,7 @@ pub fn chat_key(
         crate::net::send_chat::send_chat(
             net,
             gfx,
-            vars.player.get(),
+            net_race().player(),
             &net.edit().chat_input.read(),
         )?;
         net.edit().chat_input.set(0, 0);

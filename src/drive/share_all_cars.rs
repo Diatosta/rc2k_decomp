@@ -56,7 +56,6 @@ pub fn share_all_cars(
     race: &Race,
     sound: &'static Sound,
     scene: &crate::scene::owner::Scene,
-    net: &crate::net::owner::Net,
     view: crate::drive::set_listener::ListenerView<'_>,
 ) -> Result<(), Refused> {
     if let Some(why) = refusal(race, sound)? {
@@ -64,25 +63,28 @@ pub fn share_all_cars(
     }
     // `set_listener` refuses before writing; nothing is written before it but the lead car's
     // values, which are kept again.
-    set_listener(race, scene, net, view)?;
-    keep_lead_car_values(race.shared.own_car(net.vars.session.get()), &race.frame);
+    set_listener(race, scene, view)?;
+    keep_lead_car_values(race.shared.own_car(race.shared.net_race.get()), &race.frame);
     for (n, (block, record, sound)) in cars(&race.shared, sound)?.into_iter().enumerate() {
         race.shared.work.get().current_car.set(n as u32);
         share_car_state(race, race.shared.race_car_or_end(block), record, sound)?;
     }
     let first_record = race
         .shared
-        .car_record(race.shared.own_car_number(net.vars.session.get()))?;
+        .car_record(race.shared.own_car_number(race.shared.net_race.get()))?;
     race.effects_settings().sound_objects_shown.set(0u32);
     let reading = crate::scene::reading::Reading::new();
     let (shown, _) = sharing::cars_shown(
-        race.shared.own_car(net.vars.session.get()).car_kind.get(),
+        race.shared
+            .own_car(race.shared.net_race.get())
+            .car_kind
+            .get(),
         || reading.keep(Ok(first_record.face_sums[0].get())),
     );
     reading.finish()?;
     if shown {
         race.effects_settings().sound_objects_shown.set(1u32);
     }
-    put_back_lead_car_values(race.shared.own_car(net.vars.session.get()), &race.frame);
+    put_back_lead_car_values(race.shared.own_car(race.shared.net_race.get()), &race.frame);
     Ok(())
 }

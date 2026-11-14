@@ -6,6 +6,7 @@
 use crate::errors::Refused;
 use crate::gfx::owner::Gfx;
 use crate::net::owner::Net;
+use crate::net::owner::net_race;
 use crate::system::owner::System;
 
 const START_TEXT: &std::ffi::CStr = c"NETRXTDB:START"; // "NETRXTDB:START"
@@ -29,7 +30,7 @@ pub fn receive_thread(net: &Net, gfx: &'static Gfx, system: &System) -> Result<(
                         .flags();
                 if !zero {
                     vars.receiver.receiving.set(1);
-                    if vars.session.get() == 1 {
+                    if net_race().is_on() {
                         crate::net::take_messages::take_messages(net, gfx, lines)?;
                     }
                 }

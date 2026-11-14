@@ -29,11 +29,7 @@ fn computer(shared: &RaceShared) -> bool {
     )
 }
 
-pub fn read_car_controls(
-    race: &Race,
-    net: &crate::net::owner::Net,
-    scene: &crate::scene::owner::Scene,
-) -> Result<(), Refused> {
+pub fn read_car_controls(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let race_owner = race;
 
     let course = &race.course;
@@ -122,7 +118,7 @@ pub fn read_car_controls(
         .get()
         .input_gear_down
         .set(keys.down);
-    let replay = net.vars.session.get() != 0;
+    let replay = race_owner.shared.net_race.is_on();
     if replay
         || race_owner.shared.work.get().current_car.get()
             < race_owner.shared.view.get().players.get()

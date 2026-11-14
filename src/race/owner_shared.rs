@@ -20,6 +20,7 @@ use crate::race::viewer_buffers_store::ViewerBuffers;
 use crate::race::work_store::RaceWork;
 use crate::screens::text_buffers_store::TextBuffers;
 use crate::session::{DrawShared, GameThread};
+use rc2k_core::net::net_race::NetRace;
 
 /// The race's stores the menus, the network and the audio side read too.
 pub struct RaceShared {
@@ -45,6 +46,8 @@ pub struct RaceShared {
     pub effects_settings: &'static GameThread<EffectsSettings>,
     /// The replay files' names.
     pub replay_templates: Templates,
+    /// The network game on, if any (set and cleared by the network).
+    pub net_race: rc2k_core::net::net_race::NetRaceSlot,
     main: GameThread<SharedMain>,
 }
 
@@ -80,6 +83,7 @@ impl RaceShared {
             car_blocks,
             effects_settings,
             replay_templates: Templates::new(),
+            net_race: rc2k_core::net::net_race::NetRaceSlot::new(),
             main: GameThread::new(SharedMain {
                 tables: RaceTables::new(),
                 tyre_change: TyreChange::new(),
@@ -218,11 +222,10 @@ impl RaceShared {
         })
     }
 
-    /// The car this machine plays: the first, but in a network race (`session` 1) its own. (The
-    /// first block used to stand for the player's car everywhere, so on a joined machine the
-    /// cockpit's effects, the mud and the listener followed the host's car.)
-    pub fn own_car_number(&self, session: u32) -> usize {
-        if session == 1 {
+    /// The car this machine plays: the first, but in a network race its own (so on a joined
+    /// machine the cockpit's effects, the mud and the listener follow its car, not the host's).
+    pub fn own_car_number(&self, net_race: Option<NetRace>) -> usize {
+        if net_race.is_some() {
             let local = self.view.get().local_car.get() as usize;
             if local < 8 { local } else { 0 }
         } else {
@@ -231,7 +234,7 @@ impl RaceShared {
     }
 
     /// `own_car_number`'s block.
-    pub fn own_car(&self, session: u32) -> &'static Car {
-        &self.car_blocks().cars[self.own_car_number(session)]
+    pub fn own_car(&self, net_race: Option<NetRace>) -> &'static Car {
+        &self.car_blocks().cars[self.own_car_number(net_race)]
     }
 }

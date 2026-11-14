@@ -32,7 +32,6 @@ pub fn always() -> bool {
 pub fn draw_mirror_view(
     race: &Race,
     scene: &crate::scene::owner::Scene,
-    net: &crate::net::owner::Net,
     input: &crate::input::owner::Input,
     view: &crate::race::view_scratch::ViewScratch,
     part: &crate::workers::PartScratch,
@@ -60,7 +59,7 @@ pub fn draw_mirror_view(
         // A mirror starts from no filter switches (`race::view_scratch::filter_input`: only the
         // first view's slot reads the front end's).
         crate::race::draw_view_scene::draw_view_scene(
-            race, scene, net, input, view, [0; 3], part, reads, None,
+            race, scene, input, view, [0; 3], part, reads, None,
         )
     })();
     view.vars.view_scale.set(saved);

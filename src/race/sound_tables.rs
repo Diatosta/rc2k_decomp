@@ -182,12 +182,11 @@ pub fn set_up_race_sound_objects(
     o: crate::owners::Owners<'static>,
     v: &ObjectVars<'_>,
 ) -> Result<(), Refused> {
-    let (race, sound, net, system) = (o.race, o.sound, o.net, o.system);
+    let (race, sound, system) = (o.race, o.sound, o.system);
     let shared = &race.shared;
-    let vars = &net.vars;
     {
-        let one = vars.session.get() == 1;
-        if one && vars.player.get() > 7 {
+        let net_race = shared.net_race.get();
+        if net_race.is_some_and(|n| n.player > 7) {
             return Err(crate::errors::BadInput("a chosen car past the eight").into());
         }
         use rc2k_core::race::sound_objects::{object_mark, sound_objects, sound_players};
@@ -201,9 +200,9 @@ pub fn set_up_race_sound_objects(
         sound.threads.shared.count.set(count);
         sound.race.sounds.get().player_cars[0].set(0);
         sound.race.sounds.get().player_cars[1].set(1);
-        if one {
-            sound.race.sounds.get().player_cars[0].set(vars.player.get());
-            sound.threads.shared.count.set(vars.players.get());
+        if let Some(net_race) = net_race {
+            sound.race.sounds.get().player_cars[0].set(net_race.player);
+            sound.threads.shared.count.set(net_race.players);
         }
         for (n, o) in v.objects.iter().enumerate() {
             o.sound_offset.set(object_mark(n as u32));

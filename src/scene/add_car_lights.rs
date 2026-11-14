@@ -10,8 +10,8 @@
 //! Refuses no cars or more than the eight blocks.
 
 use crate::errors::{BadInput, Refused};
-use crate::net::owner::Net;
 use crate::race::frame_view::CarView;
+use rc2k_core::net::net_race::NetRace;
 
 // ---- game data ----
 const BLOCKS: u32 = 8;
@@ -21,16 +21,16 @@ struct GameCars<'a>(
     crate::scene::reading::Reading,
     u32,
     u32,
-    &'a Net,
+    Option<NetRace>,
     crate::workers::DrawReads<'a>,
 );
 
 impl rc2k_core::scene::lamps::CarLights for GameCars<'_> {
     fn one_car(&self) -> bool {
-        self.3.vars.session.get() != 0
+        self.3.is_some()
     }
     fn the_car(&self) -> u32 {
-        self.3.vars.player.get()
+        self.3.map_or(0, |net_race| net_race.player)
     }
     fn all_cars(&self) -> bool {
         self.4.vars.settings_words[4].get() == 1
@@ -55,7 +55,7 @@ impl rc2k_core::scene::lamps::CarLights for GameCars<'_> {
 /// `drawn`: the car whose lights are skipped, or -1 (`ObjectLight::drawn_car_light`).
 pub fn add_car_lights(
     reads: crate::workers::DrawReads<'_>,
-    net: &Net,
+    net_race: Option<NetRace>,
     drawn: u32,
     view: u32,
     add: &mut dyn FnMut(&CarView, u32) -> Result<(), Refused>,
@@ -69,7 +69,7 @@ pub fn add_car_lights(
             crate::scene::reading::Reading::new(),
             drawn,
             view,
-            net,
+            net_race,
             reads,
         );
         for car in 0..cars {

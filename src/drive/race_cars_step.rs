@@ -12,7 +12,7 @@ use crate::race::owner::Race;
 use rc2k_core::drive::race_steps;
 
 fn car_step(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refused> {
-    let (scene, net) = (o.scene, o.net);
+    let scene = o.scene;
     for word in &race.shared.physics_tables.get().input_words {
         word.set(0);
     }
@@ -24,7 +24,7 @@ fn car_step(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refuse
         .set(race.shared.work.get().car_block(slot));
     crate::drive::load_car::load_car(&race.shared)?;
     if race.shared.car().driver_kind.get() != 0 {
-        crate::drive::read_car_controls::read_car_controls(race, net, scene)?;
+        crate::drive::read_car_controls::read_car_controls(race, scene)?;
         crate::physics::gear_input_rules::gear_input_rules(
             race.shared.car(),
             race.shared.physics_tables.get(),
@@ -37,10 +37,10 @@ fn car_step(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refuse
 }
 
 pub fn race_cars_step(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refused> {
-    let (scene, net) = (o.scene, o.net);
+    let scene = o.scene;
     let shared = &race.shared;
     race_steps::check_cars(shared.view.get().race_cars.get())?;
-    crate::drive::choose_shown_cars::choose_shown_cars_in(race, net)?;
+    crate::drive::choose_shown_cars::choose_shown_cars_in(race)?;
     race_steps::each_car(
         || shared.work.get().current_car.get(),
         || shared.view.get().race_cars.get(),

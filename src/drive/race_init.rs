@@ -30,7 +30,7 @@ fn indented(part: &mut dyn FnMut() -> Result<(), Refused>) -> Result<(), Refused
 /// A value handed on to `race::checkpoint_distances` is never read there: that function is
 /// reached only with two checkpoints or more.
 pub fn race_init(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refused> {
-    let (sound, scene, effects, net) = (o.sound, o.scene, o.effects, o.net);
+    let (sound, scene, effects) = (o.sound, o.scene, o.effects);
     let race_owner = race;
     crate::race::load_times::mark("setbestline");
     log(c"RACEINIT : setbestline");
@@ -49,13 +49,13 @@ pub fn race_init(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), R
     indent_by(race_steps::LOG_INDENT.wrapping_neg());
     crate::race::load_times::mark("initcarpositions");
     log(c"RACEINIT : initcarpositions");
-    indented(&mut || crate::race::car_starts::start_cars(race, scene, net))?;
+    indented(&mut || crate::race::car_starts::start_cars(race, scene))?;
     crate::race::load_times::mark("initobjectsoncourse");
     log(c"RACEINIT : initobjectsoncourse");
     indented(&mut || crate::race::course_data::reset_face_lights(race))?;
     crate::race::load_times::mark("gamemodestuff_init");
     log(c"RACEINIT : gamemodestuff_init");
-    indented(&mut || { crate::race::race_cars::set_up_cars(race, scene, net) }.map(drop))?;
+    indented(&mut || { crate::race::race_cars::set_up_cars(race, scene) }.map(drop))?;
     crate::race::load_times::mark("messagesystem_init");
     log(c"RACEINIT : messagesystem_init");
     indented(&mut || {
@@ -85,7 +85,7 @@ pub fn race_init(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), R
         race.effects_settings().other_marks_shown.set(1);
         {
             let view = crate::drive::set_listener::ListenerView::before_any_view(race);
-            crate::drive::share_all_cars::share_all_cars(race, sound, scene, net, view)
+            crate::drive::share_all_cars::share_all_cars(race, sound, scene, view)
         }?;
         race.effects_settings().other_marks_shown.set(0);
         crate::effects::frame_marks::frame_marks(race, scene, effects)?;

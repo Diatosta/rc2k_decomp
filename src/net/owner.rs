@@ -75,3 +75,30 @@ pub static NET_OWNER: Net = Net::new();
 pub fn net() -> &'static Net {
     &NET_OWNER
 }
+
+/// The network game's state kept on the race side (on or off, this machine's car, the players'
+/// count), for the network's code that has no reference to the race.
+pub fn net_race() -> &'static rc2k_core::net::net_race::NetRaceSlot {
+    &crate::race::owner::race().shared.net_race
+}
+
+/// A test's hold on the players' count: sets it, puts the old one back when dropped. Hold
+/// `test_support::test_lock` as well.
+#[cfg(test)]
+pub struct PlayersSetForTest(u32);
+
+#[cfg(test)]
+impl PlayersSetForTest {
+    pub fn to(players: u32) -> Self {
+        let held = Self(net_race().players());
+        net_race().set_players(players);
+        held
+    }
+}
+
+#[cfg(test)]
+impl Drop for PlayersSetForTest {
+    fn drop(&mut self) {
+        net_race().set_players(self.0);
+    }
+}

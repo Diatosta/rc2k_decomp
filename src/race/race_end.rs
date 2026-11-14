@@ -342,7 +342,7 @@ pub fn run_race(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     crate::race::settings_copy::copy_settings_in(race, o.gfx)?;
     crate::race::race_cars::set_up_arcade_cars(race)?;
     race.shared.vars.get().settings_words[1].set(1u32);
-    crate::race::race_shell::set_start_states(race, &o.net.vars)?;
+    crate::race::race_shell::set_start_states(race)?;
     crate::race::stage_loading::load_stage(race, o)?;
     record_replay_header(race);
     crate::race::replay::open_replay(race, o)?;

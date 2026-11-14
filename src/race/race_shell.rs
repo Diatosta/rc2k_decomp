@@ -1,6 +1,5 @@
 //! The race's shell (`race::single_rally_race`, `single_rally`'s race, and `race::run_race`): what
 //! runs round a stage's loading and its run.
-use crate::net::store::NetShared;
 use crate::race::owner::Race;
 use crate::race::owner_physics::Physics;
 use crate::race::owner_shared::RaceShared;
@@ -136,15 +135,16 @@ fn settle_state(view: &PlainDword) {
 /// (one player) or held to 1 .. 2 (two), and, when the first car's kind is not flagged or there
 /// are two players, the first two blocks' camera view 2 or 3 made 4. Refuses, with `session` 1, a
 /// chosen car past 7, before anything.
-pub fn set_start_states(race: &Race, vars: &NetShared) -> Result<(), Refused> {
+pub fn set_start_states(race: &Race) -> Result<(), Refused> {
     let shared = &race.shared;
     let frame = &race.frame;
     let physics = &race.physics;
     // Logic in `rc2k_core::race::cars::{start_record, start_state_value, held_split,
     // settled_state}`.
     {
-        let one = vars.session.get() == 1;
-        let chosen: u32 = vars.player.get();
+        let net_race = shared.net_race.get();
+        let one = net_race.is_some();
+        let chosen: u32 = net_race.map_or(0, |n| n.player);
         if one && chosen > 7 {
             return Err(BadInput("a chosen car past the eight").into());
         }

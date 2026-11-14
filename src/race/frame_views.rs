@@ -595,7 +595,6 @@ pub fn run_view_marks(
         race,
         sound,
         scene,
-        ctx.net,
         crate::drive::set_listener::ListenerView::of(ctx.view, race),
     )?;
     let first = first_word(ctx.reads.vars.run_kind.get());

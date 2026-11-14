@@ -1,12 +1,12 @@
 //! With a session on, shows "stopping" on the background, then stops the network.
 
 use crate::errors::Refused;
+use crate::net::owner::net_race;
 pub fn stopping(
     o: crate::owners::Owners<'static>,
     lines: &crate::race::viewer_screen_store::NetTexts,
 ) -> Result<(), Refused> {
-    let vars = &o.net.vars;
-    if vars.session.get() == 1 {
+    if net_race().is_on() {
         crate::net::show_background::show_background(o)?;
         crate::net::connecting::status(o, 0x157)?;
     }

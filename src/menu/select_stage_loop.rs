@@ -47,7 +47,7 @@ pub const SCREEN: Screen = Screen {
     after_first_frame: &[Step::DoFlow(after_first_frame)],
     after: &[Step::Sound(MenuSound::None)],
     asking: Some(Asking {
-        unless: Some(|entry| entry.owners.net.vars.session.get()),
+        unless: Some(|entry| u32::from(entry.owners.race.shared.net_race.is_on())),
         unasked_skips_save: true,
         ..Asking::DEFAULT
     }),

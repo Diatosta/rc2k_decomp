@@ -1,4 +1,4 @@
-//! The network's variables, typed: `NetShared` (session state, this machine's player, chat,
+//! The network's variables, typed: `NetShared` (chat,
 //! send and receive buffers, the received message stores and the chat zone's picture), `Button` (`net::draw_button`'s) and
 //! `NetMain`'s records (the item edited, this machine's settings, the address being built, the
 //! session joined, the lobby's `LobbyVars`), which only the game's thread reaches.
@@ -13,11 +13,12 @@
 //! - It writes, the game thread reads: `receive_done`, `receiver` (`receiving`, `posted_result`,
 //!   `posted_answered`, `messages_taken`, `sync_answer`, `sync`: the round of a host's first
 //!   call), `all_raced`, `race_over`, `synced`, `sync_first`, `stage_item` (a host made), `own`
-//!   (the host bit), `received`, `chat`, `chat_line`, `chat_text`, `session` (a lost session:
-//!   `destroy_connection`) and with it the `Link`'s objects and lists, and `players`.
-//! - The game thread writes, it reads: `receiver.posting`, `receiver.posted_call`, `event`,
-//!   `players`; and the `Link`'s `host_name`, `session_desc`, `send_to`, `dplay`.
-//! - Read by the drawing threads: `session`, `player` (lights, HUD icons).
+//!   (the host bit), `received`, `chat`, `chat_line`, `chat_text`, and with a lost session
+//!   (`destroy_connection`) the `Link`'s objects and lists.
+//! - The game thread writes, it reads: `receiver.posting`, `receiver.posted_call`, `event`; and
+//!   the `Link`'s `host_name`, `session_desc`, `send_to`, `dplay`.
+//! - The network game's on / off, this machine's player and the players' count are the race
+//!   side's (`rc2k_core::net::net_race`), read by the drawing threads too (lights, HUD icons).
 //! - Game thread only (`LobbyVars`): `mode`, `sequence`, `first_host`, `send_buffer`,
 //!   `show_gaps`, `data_size`, `racing`, `after_race`, `sync_clock`.
 
@@ -558,11 +559,6 @@ pub struct NetShared {
     pub chat_line: Bytes<128>,
     /// A chat message "name> text".
     pub chat_text: Bytes<128>,
-    /// 1 while a network game runs; the race code reads it as the split screen's switch (one
-    /// car's view chosen).
-    pub session: Dword,
-    /// This machine's player (its car's number); the race code reads it as the car chosen.
-    pub player: Dword,
     /// What the receiving thread works with.
     pub receiver: ReceiverState,
     /// The receiving thread's event (a handle).
@@ -579,8 +575,6 @@ pub struct NetShared {
     pub sync_first: Dword,
     /// Whether each player has answered the sync.
     pub synced: [Flag; 8],
-    /// The players.
-    pub players: Dword,
     /// The players' blocks.
     pub received: [PlayerBlock; 8],
 }
@@ -592,8 +586,6 @@ impl NetShared {
             chat: Bytes::new([0; 768]),
             chat_line: Bytes::new([0; 128]),
             chat_text: Bytes::new([0; 128]),
-            session: Dword::new(0),
-            player: Dword::new(0),
             receiver: ReceiverState::new(),
             event: Dword::new(0),
             stage_item: Dword::new(0x1),
@@ -602,7 +594,6 @@ impl NetShared {
             race_over: Dword::new(0),
             sync_first: Dword::new(0x1),
             synced: [const { Flag::new(false) }; 8],
-            players: Dword::new(0),
             received: [const { PlayerBlock::zero() }; 8],
         }
     }

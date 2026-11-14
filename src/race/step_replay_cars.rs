@@ -14,17 +14,17 @@ use crate::errors::Refused;
 use crate::race::owner::Race;
 
 pub fn step_replay_cars(o: crate::owners::Owners<'static>, race: &Race) -> Result<(), Refused> {
-    let (input, scene, net) = (o.input, o.scene, o.net);
+    let (input, scene) = (o.input, o.scene);
     let shared = &race.shared;
     use crate::drive::*;
     use rc2k_core::race::viewer_flow::{
         RUN_STEPS, RunStep, car_block, car_runs, check_replay_cars, next_car,
     };
     check_replay_cars(shared.view.get().race_cars.get())?;
-    choose_shown_cars::choose_shown_cars_in(race, net)?;
+    choose_shown_cars::choose_shown_cars_in(race)?;
     shared.work.get().current_car.set(0);
     loop {
-        car_input_words::car_input_words(race, input, net)?;
+        car_input_words::car_input_words(race, input)?;
         play_inputs::play_inputs(race)?;
         shared.work.get().work_block.set(
             shared
@@ -36,7 +36,7 @@ pub fn step_replay_cars(o: crate::owners::Owners<'static>, race: &Race) -> Resul
         if car_runs(shared.car().driver_kind.get()) {
             for step in RUN_STEPS {
                 match step {
-                    RunStep::Controls => read_car_controls::read_car_controls(race, net, scene)?,
+                    RunStep::Controls => read_car_controls::read_car_controls(race, scene)?,
                     RunStep::GearRules => crate::physics::gear_input_rules::gear_input_rules(
                         race.shared.car(),
                         race.shared.physics_tables.get(),

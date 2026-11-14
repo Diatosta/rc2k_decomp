@@ -9,6 +9,7 @@ use crate::errors::Refused;
 use crate::race::kind_store::KindTables;
 use crate::race::owner::Race;
 use crate::race::owner_shared::RaceShared;
+use rc2k_core::net::net_race::NetRace;
 
 pub const MUD_LEN: u32 = 0x1_0000;
 
@@ -73,11 +74,15 @@ pub fn mud_pixel(
 
 /// Writes the car's file number's two digits (tens and units, each + '0') into the path and reads
 /// the file (0x10000 bytes at most) into the mud.
-pub fn load_mud(kinds: &KindTables, shared: &RaceShared, session: u32) -> Result<(), Refused> {
+pub fn load_mud(
+    kinds: &KindTables,
+    shared: &RaceShared,
+    net_race: Option<NetRace>,
+) -> Result<(), Refused> {
     // Logic in `rc2k_core::race::mud::file_digits`.
     let (tens, units) = rc2k_core::race::mud::file_digits(car_file_number(
         kinds,
-        shared.own_car(session).car_kind.get(),
+        shared.own_car(net_race).car_kind.get(),
     ));
     shared.vars.get().mud_path.set(0x11, tens as u8);
     shared.vars.get().mud_path.set(0x12, units as u8);
@@ -139,7 +144,6 @@ pub fn init_mud(
     race: &Race,
     scene: &crate::scene::owner::Scene,
     gfx: &crate::gfx::owner::Gfx,
-    net: &crate::net::owner::Net,
     system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
     let course = &race.course;
@@ -156,7 +160,7 @@ pub fn init_mud(
         MUD_LEN,
         vec![0; MUD_LEN as usize],
     )?;
-    load_mud(race.kind_tables(), &race.shared, net.vars.session.get())?;
+    load_mud(race.kind_tables(), &race.shared, race.shared.net_race.get())?;
     clear_mud_state(&race.shared);
     sample_mud_colours(&race.shared, scene, gfx, system)
 }

@@ -349,8 +349,6 @@ pub fn front_end() -> &'static ViewScratch {
 pub struct DrawCtx<'a> {
     pub race: &'a crate::race::owner::Race,
     pub scene: &'a crate::scene::owner::Scene,
-    /// Read only: the session and the network player (`scene::add_car_lights`).
-    pub net: &'a crate::net::owner::Net,
     /// Read only: the keys held (`scene::set_object_light`).
     pub input: &'a crate::input::owner::Input,
     pub view: &'a ViewScratch,
@@ -381,7 +379,6 @@ impl<'a> DrawCtx<'a> {
     pub fn new(
         race: &'a crate::race::owner::Race,
         scene: &'a crate::scene::owner::Scene,
-        net: &'a crate::net::owner::Net,
         input: &'a crate::input::owner::Input,
         view: &'a ViewScratch,
         part: &'a crate::workers::PartScratch,
@@ -390,7 +387,6 @@ impl<'a> DrawCtx<'a> {
         Self {
             race,
             scene,
-            net,
             input,
             view,
             clock: reads.physics_tables.scene_clock.get(),
