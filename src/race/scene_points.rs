@@ -1,7 +1,7 @@
-//! The scene's points (`scene_points`, a part of the course memory: twelve bytes each, three
-//! whole numbers): Rust's. `race::load_level` moves them out of the course memory once its data is
-//! read, with the room after them up to the course info (where new points past the count go: the
-//! face corners' copies, the shadow's), and the stage's freeing gives them back.
+//! The scene's points (`scene_points`: twelve bytes each, three whole numbers). `race::load_level`
+//! takes them from the course file, with the room after them up to the file's room (where new
+//! points past the count go: the face corners' copies, the shadow's), and the stage's freeing gives
+//! them back.
 //!
 //! A point is reached by its number (`point_number`, `point_word`, `put_point_word`, `copy_point`).
 //! `COURSE.scene_points` is `base()` while they are held (0 otherwise; a handle of
@@ -153,19 +153,14 @@ pub fn held() -> bool {
     POINTS.is_taken()
 }
 
-/// The points moved out of the course memory: `len` bytes at game address `from`.
-pub fn take_from(from: u32, len: u32) -> Result<(), BadInput> {
-    if len > crate::race::course_places::room() {
-        return Err(BadInput("more scene points than their places hold"));
-    }
-    let bytes =
-        crate::race::level_init::read_course_memory(from, len as usize, "the scene points")?;
-    POINTS.set(&bytes)?;
+/// The points taken from the course file: `bytes` (the points and the room after them).
+pub fn take(bytes: &[u8]) -> Result<(), BadInput> {
+    POINTS.set(bytes)?;
     crate::race::course_places::first_points_changed();
     Ok(())
 }
 
-/// Given back with the course memory.
+/// Given back with the stage's course list.
 pub fn give_back() {
     POINTS.give_back();
     crate::race::course_places::first_points_changed();

@@ -1,7 +1,6 @@
-//! The small steps of a stage's level initialisation (`race::loadlevel_init`). The course memory:
-//! 0x1300000 bytes from `memory::allocate` on `CourseLists.course_memory_list[0]`, `course_memory`
-//! its start and `course_info` its last 0x400000 bytes, where the texture and mark info files are
-//! read.
+//! The small steps of a stage's level initialisation (`race::loadlevel_init`). The course's memory
+//! is counted as 0x1300000 bytes on `CourseLists.course_memory_list`: the course file's room
+//! and, as `course_info`, 0x400000 bytes where the texture and mark info files are read.
 
 use crate::cells::Store;
 use crate::errors::{BadInput, Refused};
@@ -12,7 +11,7 @@ use crate::race::trap::Trap;
 use crate::scene::file_numbers_store::texts;
 use crate::session::TextPlace;
 
-const FIRST_PART: u32 = 0xF0_0000;
+const FIRST_PART: u32 = rc2k_core::race::loading::FIRST_PART as u32;
 const INFO_PART: u32 = 0x40_0000;
 /// The path strings the course's number is written into: the tens' and the units' places.
 pub fn number_places(
@@ -30,12 +29,12 @@ pub fn number_places(
 }
 const TEXTURES: u32 = 0x100;
 
-/// Takes the course memory (`memory::allocate` on the list `list`).
+/// Counts the course's memory (the file's room and the course info) on `list` and takes the course
+/// info (`race::course_places::INFO`).
 pub fn allocate_course_memory(
     course: &Course,
     list: &crate::memory::ListCells,
 ) -> Result<(), Refused> {
-    course.lists.get().first_part.set(FIRST_PART);
     course.lists.get().course_bytes_total.set(
         course
             .lists
@@ -44,100 +43,13 @@ pub fn allocate_course_memory(
             .get()
             .wrapping_add(FIRST_PART + INFO_PART),
     );
-    // Counted whole as one block; the info part is Rust's own store (`race::course_places::INFO`),
-    // named by its place.
-    let memory = take_course_memory(list, FIRST_PART + INFO_PART, FIRST_PART)?;
-    course.lists.get().course_memory.set(memory);
+    crate::memory::owned::count_on(list, FIRST_PART + INFO_PART)?;
     course
         .lists
         .get()
         .course_info
         .set(crate::race::course_places::take_info(INFO_PART)?);
     Ok(())
-}
-
-/// The course memory (`memory::allocate` on the course's list): Rust's bytes, counted on the list.
-/// The stage's files are read into it and parsed in place; its faces, records and scene points
-/// then move out (`race::course_places`). Given back with the list (`stage_free::COURSE`).
-static COURSE_MEMORY: std::sync::Mutex<Option<Vec<u8>>> = std::sync::Mutex::new(None);
-
-/// The course memory by handle: `COURSE_TAG | offset` names the byte at `offset` of the course
-/// memory, 0 none. `course_memory` holds `COURSE_TAG` (offset 0), and the layout's addresses
-/// (`lay_out_course`) are `COURSE_TAG` plus their offset from the block's start;
-/// `course_memory_offset` turns one back into an offset. No host address is kept.
-pub const COURSE_TAG: u32 = 0xCF00_0000;
-
-/// `bytes` of course memory counted on `list`, the first `kept` of them held: their handle
-/// (`COURSE_TAG`).
-fn take_course_memory(
-    list: &crate::memory::ListCells,
-    bytes: u32,
-    kept: u32,
-) -> Result<u32, Refused> {
-    let mut memory = crate::memory::owned::counted(list, bytes)?;
-    memory.truncate(kept as usize);
-    memory.shrink_to_fit();
-    *COURSE_MEMORY
-        .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(memory);
-    Ok(COURSE_TAG)
-}
-
-/// The course memory's offset of handle `at` (`COURSE_TAG | offset`); one before the memory is
-/// refused.
-fn course_memory_offset(at: u32) -> Result<u32, BadInput> {
-    at.checked_sub(COURSE_TAG)
-        .ok_or(BadInput("a place before the course memory"))
-}
-
-/// `len` bytes of the course memory from handle `at` (`what` names them in a refusal); a handle
-/// outside the memory, or no course memory, is refused.
-pub fn read_course_memory(at: u32, len: usize, what: &str) -> Result<Vec<u8>, BadInput> {
-    let guard = COURSE_MEMORY
-        .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner);
-    let memory = guard.as_ref().ok_or(BadInput("no course memory"))?;
-    let offset = course_memory_offset(at)?;
-    let range = within(memory, offset, len, what)?;
-    Ok(memory[range].to_vec())
-}
-
-/// The range of `len` bytes from `offset` in `memory`; one past its end is refused.
-fn within(
-    memory: &[u8],
-    offset: u32,
-    len: usize,
-    what: &str,
-) -> Result<std::ops::Range<usize>, BadInput> {
-    let start = offset as usize;
-    match start.checked_add(len).filter(|&end| end <= memory.len()) {
-        Some(end) => Ok(start..end),
-        None => {
-            crate::framework::log(&format!(
-                "pointers: {what}: {len} bytes at offset {offset:#x}, past the {:#x} bytes",
-                memory.len()
-            ));
-            Err(BadInput("past the end of a field"))
-        }
-    }
-}
-
-/// `data` written into the course memory from handle `at`.
-pub fn write_course_memory(at: u32, data: &[u8], what: &str) -> Result<(), BadInput> {
-    let mut guard = COURSE_MEMORY
-        .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner);
-    let memory = guard.as_mut().ok_or(BadInput("no course memory"))?;
-    let range = within(memory, course_memory_offset(at)?, data.len(), what)?;
-    memory[range].copy_from_slice(data);
-    Ok(())
-}
-
-/// The course memory given back (the list's `free_list` counts it down).
-pub fn give_back_course_memory() {
-    *COURSE_MEMORY
-        .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner) = None;
 }
 
 /// Copies 0x800 bytes of the course info from +0x17E800 to +0x17F000.

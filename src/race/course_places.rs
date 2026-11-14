@@ -1,7 +1,6 @@
 //! The course's faces (`course_faces`, 0x40 bytes each) and records (`course_records`, 0x20 bytes
-//! each): parts of the course memory, held in Rust's memory. `race::load_level` moves them out
-//! once the course is read (with the scene points, `race::scene_points`), and `give_back` gives
-//! them back.
+//! each): `race::load_level` takes them from the course file (with the scene points,
+//! `race::scene_points`), and `give_back` gives them back.
 //!
 //! While held, the faces and records are entries of their tables, reached by number
 //! (`face_number`, `face_field`, `record_field`, ..; a field past its entry reads on into the
@@ -14,7 +13,7 @@ use crate::race::owner_course::Course;
 use rc2k_core::race::faces::Face;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-/// Each part's room: the course memory's first part (`level_init::FIRST_PART`) holds both.
+/// Each part's room; a course file's room (`rc2k_core::race::loading::FIRST_PART`) is smaller.
 const ROOM: u32 = 0x100_0000;
 
 /// The handle of face 0 (`COURSE.course_faces` while held); the records' come `ROOM` on, the
@@ -53,7 +52,7 @@ pub static FACES: SharedTable = SharedTable::new(ROOM as usize, "no course faces
 pub static RECORDS: SharedTable = SharedTable::new(ROOM as usize, "no course records");
 /// The course info (`course_info`, 0x400000 bytes: the texture infos `files\a\textinfo`
 /// and `files\b\textinfo`, the mark corners `files\m\markinfo` at +0x1C2000): taken with
-/// the course memory (`level_init::allocate_course_memory`), filled by
+/// the course memory's info part (`level_init::allocate_course_memory`), filled by
 /// `level_init::load_texture_info`.
 pub static INFO: SharedTable = SharedTable::new(ROOM as usize, "no course info");
 
@@ -119,28 +118,15 @@ pub fn held() -> bool {
     FACES.is_taken()
 }
 
-/// The faces (`faces` bytes at game address `faces_at`) and records moved out of the
-/// course memory.
-pub fn take_from(faces_at: u32, faces: u32, records_at: u32, records: u32) -> Result<(), BadInput> {
-    if faces > ROOM || records > ROOM {
-        return Err(BadInput(
-            "more course faces or records than their places hold",
-        ));
-    }
-    let f =
-        crate::race::level_init::read_course_memory(faces_at, faces as usize, "the course faces")?;
-    let r = crate::race::level_init::read_course_memory(
-        records_at,
-        records as usize,
-        "the course records",
-    )?;
-    FACES.set(&f)?;
-    RECORDS.set(&r)?;
+/// The faces and records taken from the course file.
+pub fn take(faces: &[u8], records: &[u8]) -> Result<(), BadInput> {
+    FACES.set(faces)?;
+    RECORDS.set(records)?;
     first_points_changed();
     Ok(())
 }
 
-/// Given back with the course memory.
+/// Given back with the stage's course list.
 pub fn give_back() {
     FACES.give_back();
     RECORDS.give_back();

@@ -130,41 +130,28 @@ pub fn store_face_normal(
     Ok(())
 }
 
-/// Lays out the course memory from `course_memory` + 0x100: `course_record_count` records of 0x20
-/// (the first at `course_records`), the faces (`course_faces`, `course_face_count` of 0x40), the
-/// points (`scene_points`, `scene_point_count` of 12), and what follows (`course_tail`, and its
-/// offset in `CourseWork.course_tail[1]`).
+/// Names the course's parts in the course store: the records (`course_records`), the faces
+/// (`course_faces`) and the scene points (`scene_points`).
 pub fn lay_out_course(course: &Course) {
-    {
-        // Logic in `rc2k_core::race::faces::CourseLayout`.
-        let layout = rc2k_core::race::faces::CourseLayout::of(
-            course.lists.get().course_memory.get(),
-            course.course.get().course_record_count.get(),
-            course.course.get().course_face_count.get(),
-            course.course.get().scene_point_count.get(),
-        );
-        let [records, faces, points, after, after_offset] = layout.dwords();
-        let c = course.course.get();
-        // The faces and records are Rust's too (`race::course_places`).
-        if crate::race::course_places::held() {
-            c.course_records
-                .set(crate::race::course_places::records_base());
-            c.course_faces.set(crate::race::course_places::faces_base());
-        } else {
-            c.course_records.set(records);
-            c.course_faces.set(faces);
-        }
-        // The points are Rust's (`race::scene_points`, moved out by `load_level`): their
-        // place, not the address the layout gives.
-        let _ = points;
-        c.scene_points.set(if crate::race::scene_points::held() {
-            crate::race::scene_points::base()
-        } else {
-            0
-        });
-        c.course_tail[0].set(after);
-        c.course_tail[1].set(after_offset);
-    }
+    let c = course.course.get();
+    // The parts are tables of their own (`race::course_places`, `race::scene_points`): their
+    // places are named while they are held, none otherwise.
+    let held = crate::race::course_places::held();
+    c.course_records.set(if held {
+        crate::race::course_places::records_base()
+    } else {
+        0
+    });
+    c.course_faces.set(if held {
+        crate::race::course_places::faces_base()
+    } else {
+        0
+    });
+    c.scene_points.set(if crate::race::scene_points::held() {
+        crate::race::scene_points::base()
+    } else {
+        0
+    });
 }
 
 /// Runs `lay_out_course`, then `store_face_normal` for every face.

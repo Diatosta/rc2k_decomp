@@ -42,8 +42,8 @@ pub struct CourseWork {
     pub course_faces: PlainDword,
     /// +0xd0: the scene points (x, y, z whole numbers, 12 bytes each).
     pub scene_points: PlainDword,
-    /// +0xd4: the last two dwords of the course's layout (`race::norms`).
-    pub course_tail: [PlainDword; 2],
+    /// +0xd4: unused; it only keeps the image's layout.
+    pub unused_d4: [PlainDword; 2],
     /// +0xdc: unused; it only keeps the image's layout.
     pub unused_dc: PlainDword,
     /// +0xe0: the face number ("polynum"); now each view's

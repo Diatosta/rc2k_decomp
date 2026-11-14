@@ -22,15 +22,11 @@ pub const COURSE: Freeing = Freeing {
     // course_memory_list
     list: |race| &race.course.lists.get().course_memory_list,
     counted: true,
-    // course_memory, course_info
-    cleared: &[
-        |race| race.course.lists.get().course_memory.set(0),
-        |race| race.course.lists.get().course_info.set(0),
-    ],
+    // course_info
+    cleared: &[|race| race.course.lists.get().course_info.set(0)],
     given_back: || {
         crate::race::scene_points::give_back();
         crate::race::course_places::give_back();
-        crate::race::level_init::give_back_course_memory();
     },
 };
 /// Frees the second course list.

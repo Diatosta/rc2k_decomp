@@ -42,9 +42,8 @@ pub struct CourseLists {
     /// Bytes taken from the course lists, added and subtracted by the allocators
     /// (`race::stage_free`, `race::mud`, `scene::allocate_object_memory`).
     pub course_bytes_total: PlainDword,
-    /// Handle of the course's memory, `level_init::COURSE_TAG` while taken (`race::course_data`,
-    /// `race::norms`, `race::pace_notes`).
-    pub course_memory: PlainDword,
+    /// Unused; it only keeps the image's layout.
+    pub unused_course_memory: PlainDword,
     /// Set when the second course list is freed (cleared by `race::stage_free`).
     pub second_course_list_a: PlainDword,
     /// As its neighbour (cleared by `race::stage_free`).
@@ -70,8 +69,8 @@ pub struct CourseLists {
     pub unused_670: [PlainDword; 2],
     /// Not read or written by any code; it only keeps the image's layout.
     pub unused_678: PlainDword,
-    /// The course memory's first part (`race::course_data`, `race::level_init`).
-    pub first_part: PlainDword,
+    /// Unused; it only keeps the image's layout.
+    pub unused_first_part: PlainDword,
     /// Unused; it only keeps the image's layout.
     pub unused_680: PlainDword,
     /// Work of `scene::square_matrix`, row 0 (`scene::view_matrix`); now a local there; unused.
