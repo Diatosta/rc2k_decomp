@@ -1,10 +1,10 @@
 //! The helpers whose results are floats in tuples and arrays (`(f32, f32)`, `[f32; 3]`),
 //! each against its old body (`x87_old`, results as bits), over seeded random inputs of
 //! every kind of float (`x87_typed_tests`) at each of the four rounding modes. Inputs go in
-//! as bits and as `f32` where the helper takes `impl Flt`; results compare bit for bit.
+//! as bits and as `f32` where the helper takes `impl Flt`; results compare bit for bit (any two NaNs count as equal).
 
 use super::x87;
-use super::x87_merged_tests::Rng;
+use super::x87_merged_tests::{Rng, assert_same};
 use super::x87_old as old;
 use crate::session::Dword;
 
@@ -40,13 +40,13 @@ fn reciprocal_int_and_times() {
     each(201, |rng| {
         let (a, b) = (rng.whole(), rng.float());
         let old = old::reciprocal_int_and_times(a, b);
-        assert_eq!(
+        assert_same!(
             pair(x87::reciprocal_int_and_times(a, b)),
             old,
             "{:x?}",
             (a, b)
         );
-        assert_eq!(
+        assert_same!(
             pair(x87::reciprocal_int_and_times(a, f(b))),
             old,
             "{:x?}",
@@ -60,8 +60,8 @@ fn mul_and_div() {
     each(202, |rng| {
         let (a, b, c) = (rng.float(), rng.float(), rng.float());
         let old = old::mul_and_div(a, b, c);
-        assert_eq!(pair(x87::mul_and_div(a, b, c)), old, "{:x?}", (a, b, c));
-        assert_eq!(
+        assert_same!(pair(x87::mul_and_div(a, b, c)), old, "{:x?}", (a, b, c));
+        assert_same!(
             pair(x87::mul_and_div(f(a), f(b), f(c))),
             old,
             "{:x?}",
@@ -75,8 +75,8 @@ fn half_and_middle() {
     each(203, |rng| {
         let (b, a, k) = (rng.float(), rng.float(), rng.float());
         let old = old::half_and_middle(b, a, k);
-        assert_eq!(pair(x87::half_and_middle(b, a, k)), old, "{:x?}", (b, a, k));
-        assert_eq!(
+        assert_same!(pair(x87::half_and_middle(b, a, k)), old, "{:x?}", (b, a, k));
+        assert_same!(
             pair(x87::half_and_middle(f(b), f(a), f(k))),
             old,
             "{:x?}",
@@ -92,12 +92,12 @@ fn int_times_plus_on() {
         let (m, c, d, e) = (rng.float(), rng.float(), rng.float(), rng.float());
         let old = old::int_times_plus_on(a, m, c, d, e);
         let args = (a, m, c, d, e);
-        assert_eq!(
+        assert_same!(
             pair(x87::int_times_plus_on(a, m, c, d, e)),
             old,
             "{args:x?}"
         );
-        assert_eq!(
+        assert_same!(
             pair(x87::int_times_plus_on(a, f(m), f(c), f(d), f(e))),
             old,
             "{args:x?}"
@@ -110,13 +110,13 @@ fn int_times_plus_and_negated() {
     each(205, |rng| {
         let (a, b, c) = (rng.whole(), rng.float(), rng.float());
         let old = old::int_times_plus_and_negated(a, b, c);
-        assert_eq!(
+        assert_same!(
             pair(x87::int_times_plus_and_negated(a, b, c)),
             old,
             "{:x?}",
             (a, b, c)
         );
-        assert_eq!(
+        assert_same!(
             pair(x87::int_times_plus_and_negated(a, f(b), f(c))),
             old,
             "{:x?}",
@@ -130,8 +130,8 @@ fn sine_and_cosine() {
     each(206, |rng| {
         let t = rng.float();
         let old = old::sine_and_cosine(t);
-        assert_eq!(pair(x87::sine_and_cosine(t)), old, "{t:x}");
-        assert_eq!(pair(x87::sine_and_cosine(f(t))), old, "{t:x}");
+        assert_same!(pair(x87::sine_and_cosine(t)), old, "{t:x}");
+        assert_same!(pair(x87::sine_and_cosine(f(t))), old, "{t:x}");
     });
 }
 
@@ -140,8 +140,8 @@ fn turn_yz() {
     each(207, |rng| {
         let (y, z, s, c) = (rng.float(), rng.float(), rng.float(), rng.float());
         let old = old::turn_yz(y, z, s, c);
-        assert_eq!(pair(x87::turn_yz(y, z, s, c)), old, "{:x?}", (y, z, s, c));
-        assert_eq!(
+        assert_same!(pair(x87::turn_yz(y, z, s, c)), old, "{:x?}", (y, z, s, c));
+        assert_same!(
             pair(x87::turn_yz(f(y), f(z), f(s), f(c))),
             old,
             "{:x?}",
@@ -157,12 +157,12 @@ fn angle_and_wave() {
         let (kd, km, ks) = (rng.float(), rng.float(), rng.float());
         let old = old::angle_and_wave(a, v, kd, km, ks);
         let args = (a, v, kd, km, ks);
-        assert_eq!(
+        assert_same!(
             pair(x87::angle_and_wave(a, v, kd, km, ks)),
             old,
             "{args:x?}"
         );
-        assert_eq!(
+        assert_same!(
             pair(x87::angle_and_wave(f(a), v, f(kd), f(km), f(ks))),
             old,
             "{args:x?}"
@@ -178,13 +178,13 @@ fn normalise_in_place() {
         let (mut want_v, mut got_v, mut got_f) = (v, v, v);
         let (want, want_equal) = old::normalise_in_place(&mut want_v, zero);
         let (got, equal) = x87::normalise_in_place(&mut got_v, zero);
-        assert_eq!(
+        assert_same!(
             (got.to_bits(), equal, got_v),
             (want, want_equal, want_v),
             "{v:x?}"
         );
         let (got, equal) = x87::normalise_in_place(&mut got_f, f(zero));
-        assert_eq!(
+        assert_same!(
             (got.to_bits(), equal, got_f),
             (want, want_equal, want_v),
             "{v:x?}"
@@ -198,9 +198,9 @@ fn times_kept_abs_to_int() {
         let (a, b, c) = (rng.float(), rng.float(), rng.float());
         let old = old::times_kept_abs_to_int(a, b, c);
         let got = x87::times_kept_abs_to_int(a, b, c);
-        assert_eq!((got.0.to_bits(), got.1), old, "{:x?}", (a, b, c));
+        assert_same!((got.0.to_bits(), got.1), old, "{:x?}", (a, b, c));
         let got = x87::times_kept_abs_to_int(f(a), f(b), f(c));
-        assert_eq!((got.0.to_bits(), got.1), old, "{:x?}", (a, b, c));
+        assert_same!((got.0.to_bits(), got.1), old, "{:x?}", (a, b, c));
     });
 }
 
@@ -216,9 +216,9 @@ fn blend_kept_abs_to_int() {
         );
         let old = old::blend_kept_abs_to_int(a, b, k1, k2, c);
         let got = x87::blend_kept_abs_to_int(a, b, k1, k2, c);
-        assert_eq!((got.0.to_bits(), got.1), old, "{:x?}", (a, b, k1, k2, c));
+        assert_same!((got.0.to_bits(), got.1), old, "{:x?}", (a, b, k1, k2, c));
         let got = x87::blend_kept_abs_to_int(f(a), f(b), f(k1), f(k2), f(c));
-        assert_eq!((got.0.to_bits(), got.1), old, "{:x?}", (a, b, k1, k2, c));
+        assert_same!((got.0.to_bits(), got.1), old, "{:x?}", (a, b, k1, k2, c));
     });
 }
 
@@ -228,9 +228,9 @@ fn frac_step() {
         let (y, k, s, x) = (rng.float(), rng.float(), rng.float(), rng.float());
         let old = old::frac_step(y, k, s, x);
         let got = x87::frac_step(y, k, s, x);
-        assert_eq!((got.0, got.1.to_bits()), old, "{:x?}", (y, k, s, x));
+        assert_same!((got.0, got.1.to_bits()), old, "{:x?}", (y, k, s, x));
         let got = x87::frac_step(f(y), f(k), f(s), f(x));
-        assert_eq!((got.0, got.1.to_bits()), old, "{:x?}", (y, k, s, x));
+        assert_same!((got.0, got.1.to_bits()), old, "{:x?}", (y, k, s, x));
     });
 }
 
@@ -240,9 +240,9 @@ fn abs_sum_to_int_kept() {
         let (a, b, c, d) = (rng.float(), rng.float(), rng.float(), rng.float());
         let old = old::abs_sum_to_int_kept(a, b, c, d);
         let got = x87::abs_sum_to_int_kept(a, b, c, d);
-        assert_eq!((got.0, got.1.to_bits()), old, "{:x?}", (a, b, c, d));
+        assert_same!((got.0, got.1.to_bits()), old, "{:x?}", (a, b, c, d));
         let got = x87::abs_sum_to_int_kept(f(a), f(b), f(c), f(d));
-        assert_eq!((got.0, got.1.to_bits()), old, "{:x?}", (a, b, c, d));
+        assert_same!((got.0, got.1.to_bits()), old, "{:x?}", (a, b, c, d));
     });
 }
 
@@ -252,9 +252,9 @@ fn approach() {
         let (i, v, k, t) = (rng.whole(), rng.float(), rng.float(), rng.whole());
         let old = old::approach(i, v, k, t);
         let got = x87::approach(i, v, k, t);
-        assert_eq!((got.0, got.1.to_bits()), old, "{:x?}", (i, v, k, t));
+        assert_same!((got.0, got.1.to_bits()), old, "{:x?}", (i, v, k, t));
         let got = x87::approach(i, f(v), f(k), t);
-        assert_eq!((got.0, got.1.to_bits()), old, "{:x?}", (i, v, k, t));
+        assert_same!((got.0, got.1.to_bits()), old, "{:x?}", (i, v, k, t));
     });
 }
 
@@ -264,7 +264,7 @@ fn unit_and_length() {
         let p = [rng.float(), rng.float(), rng.float()];
         let (unit, length) = old::unit_and_length(p);
         let got = x87::unit_and_length(p);
-        assert_eq!((triple(got.0), got.1.to_bits()), (unit, length), "{p:x?}");
+        assert_same!((triple(got.0), got.1.to_bits()), (unit, length), "{p:x?}");
     });
 }
 
@@ -274,8 +274,8 @@ fn scale_row_bits() {
         let row = [rng.float(), rng.float(), rng.float()];
         let c = rng.float();
         let old = old::scale_row_bits(row, c);
-        assert_eq!(triple(x87::scale_row(row, c)), old, "{:x?}", (row, c));
-        assert_eq!(triple(x87::scale_row(row, f(c))), old, "{:x?}", (row, c));
+        assert_same!(triple(x87::scale_row(row, c)), old, "{:x?}", (row, c));
+        assert_same!(triple(x87::scale_row(row, f(c))), old, "{:x?}", (row, c));
     });
 }
 
@@ -289,8 +289,8 @@ fn drifted() {
         let at = [rng.float(), rng.float(), rng.float()];
         let old = old::drifted(r, k, p, ticks, at);
         let args = (r, k, p, ticks, at);
-        assert_eq!(triple(x87::drifted(r, k, p, ticks, at)), old, "{args:x?}");
-        assert_eq!(
+        assert_same!(triple(x87::drifted(r, k, p, ticks, at)), old, "{args:x?}");
+        assert_same!(
             triple(x87::drifted(r, f(k), p, ticks, at)),
             old,
             "{args:x?}"
@@ -304,8 +304,8 @@ fn normalised3() {
         let p = [rng.float(), rng.float(), rng.float()];
         let one = rng.float();
         let old = old::normalised3(p, one);
-        assert_eq!(triple(x87::normalised3(p, one)), old, "{:x?}", (p, one));
-        assert_eq!(triple(x87::normalised3(p, f(one))), old, "{:x?}", (p, one));
+        assert_same!(triple(x87::normalised3(p, one)), old, "{:x?}", (p, one));
+        assert_same!(triple(x87::normalised3(p, f(one))), old, "{:x?}", (p, one));
     });
 }
 
@@ -316,8 +316,8 @@ fn clip_lerp3() {
         let pairs = [0; 3].map(|_| [rng.float(), rng.float()]);
         let old = old::clip_lerp3(m, fc, fs, pairs);
         let args = (m, fc, fs, pairs);
-        assert_eq!(triple(x87::clip_lerp3(m, fc, fs, pairs)), old, "{args:x?}");
-        assert_eq!(
+        assert_same!(triple(x87::clip_lerp3(m, fc, fs, pairs)), old, "{args:x?}");
+        assert_same!(
             triple(x87::clip_lerp3(f(m), f(fc), f(fs), pairs)),
             old,
             "{args:x?}"
@@ -332,7 +332,7 @@ fn column_turn() {
         let matrix: [u32; 16] = std::array::from_fn(|_| rng.float());
         let cells = matrix.map(Dword::new);
         let old = old::column_turn(&p, &cells);
-        assert_eq!(
+        assert_same!(
             triple(x87::column_turn(&p, &cells)),
             old,
             "{p:x?} {matrix:x?}"
@@ -348,12 +348,12 @@ fn particle_square() {
         let size = rng.whole();
         let old = old::particle_square(a, b, c, k, size);
         let args = (a, b, c, k, size);
-        assert_eq!(
+        assert_same!(
             x87::particle_square(a, b, c, k, size).map(f32::to_bits),
             old,
             "{args:x?}"
         );
-        assert_eq!(
+        assert_same!(
             x87::particle_square(f(a), f(b), f(c), k, size).map(f32::to_bits),
             old,
             "{args:x?}"

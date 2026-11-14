@@ -74,7 +74,7 @@ fn each(seed: u64, mut check: impl FnMut(&mut Rng)) {
 fn from_int_and_int_to_float() {
     each(1, |r| {
         let a = r.whole();
-        assert_eq!(x87::from_int(a).to_bits(), st(int(a)));
+        assert_same!(x87::from_int(a).to_bits(), st(int(a)));
     });
 }
 
@@ -83,7 +83,7 @@ fn int_ratio_for_the_three_old_names() {
     each(2, |r| {
         let (a, b) = (r.whole(), r.whole());
         let old = st(int(a) / int(b));
-        assert_eq!(x87::int_ratio(a, b).to_bits(), old, "{a} {b}");
+        assert_same!(x87::int_ratio(a, b).to_bits(), old, "{a} {b}");
     });
 }
 
@@ -91,7 +91,7 @@ fn int_ratio_for_the_three_old_names() {
 fn int_over_for_the_old_int_div_and_int_over_float() {
     each(3, |r| {
         let (a, b) = (r.whole(), r.float());
-        assert_eq!(
+        assert_same!(
             x87::int_over(a, b).to_bits(),
             st(int(a) / ld(b)),
             "{a} {b:x}"
@@ -104,7 +104,7 @@ fn ext_less_for_the_old_ext_sub() {
     each(4, |r| {
         let (v, k) = (r.float(), r.float());
         let e = crate::math::x87_float::f80(ld(v));
-        assert_eq!(
+        assert_same!(
             x87::ext_less(e, k).to_bits(),
             st(crate::math::x87_float::from_f80(e) - ld(k))
         );
@@ -116,7 +116,7 @@ fn toward_one_for_the_old_one_less_times_plus() {
     each(5, |r| {
         let (d, s) = (r.float(), r.float());
         let old = st((ONE - ld(d)) * ld(s) + ld(d));
-        assert_eq!(x87::toward_one(d, s).to_bits(), old, "{d:x} {s:x}");
+        assert_same!(x87::toward_one(d, s).to_bits(), old, "{d:x} {s:x}");
     });
 }
 
@@ -133,7 +133,7 @@ fn sub_mul_of_the_two_old_modules() {
     each(7, |r| {
         let (a, b, c) = (r.float(), r.float(), r.float());
         let old = st((ld(a) - ld(b)) * ld(c));
-        assert_eq!(x87::sub_mul(a, b, c).to_bits(), old);
+        assert_same!(x87::sub_mul(a, b, c).to_bits(), old);
     });
 }
 
@@ -141,7 +141,7 @@ fn sub_mul_of_the_two_old_modules() {
 fn mul_for_the_old_square() {
     each(8, |r| {
         let a = r.float();
-        assert_eq!(x87::mul(a, a).to_bits(), st(ld(a) * ld(a)));
+        assert_same!(x87::mul(a, a).to_bits(), st(ld(a) * ld(a)));
     });
 }
 
@@ -149,7 +149,7 @@ fn mul_for_the_old_square() {
 fn mul2_for_the_old_product3() {
     each(9, |r| {
         let (a, b, c) = (r.float(), r.float(), r.float());
-        assert_eq!(x87::mul2(a, b, c).to_bits(), st(ld(a) * ld(b) * ld(c)));
+        assert_same!(x87::mul2(a, b, c).to_bits(), st(ld(a) * ld(b) * ld(c)));
     });
 }
 
@@ -164,20 +164,20 @@ fn mul3_to_int_for_the_old_product4_to_int() {
 
 #[test]
 fn minus_one_literal() {
-    assert_eq!((-1.0f32).to_bits(), st(crate::math::x87_float::X(-1.0)));
+    assert_same!((-1.0f32).to_bits(), st(crate::math::x87_float::X(-1.0)));
 }
 
 #[test]
 fn negated_steps_for_the_old_negated_helpers() {
     each(11, |r| {
         let (a, b, c, d) = (r.float(), r.float(), r.float(), r.float());
-        assert_eq!(x87::negated(x87::sub(a, b)).to_bits(), st(-(ld(a) - ld(b))));
-        assert_eq!(x87::negated(x87::mul(a, b)).to_bits(), st(-(ld(a) * ld(b))));
-        assert_eq!(
+        assert_same!(x87::negated(x87::sub(a, b)).to_bits(), st(-(ld(a) - ld(b))));
+        assert_same!(x87::negated(x87::mul(a, b)).to_bits(), st(-(ld(a) * ld(b))));
+        assert_same!(
             x87::negated(x87::mul2(a, b, c)).to_bits(),
             st(-(ld(a) * ld(b) * ld(c)))
         );
-        assert_eq!(
+        assert_same!(
             x87::negated(x87::product_difference(a, b, c, d)).to_bits(),
             st(-(ld(a) * ld(b) - ld(c) * ld(d)))
         );
@@ -192,7 +192,7 @@ fn same(a: f32, b: f32) {
     if a.is_nan() && b.is_nan() {
         return;
     }
-    assert_eq!(a.to_bits(), b.to_bits());
+    assert_same!(a.to_bits(), b.to_bits());
 }
 
 /// The typed operands: a float, a cell and bits give the same bits.
@@ -231,3 +231,66 @@ fn operands_as_bits_floats_and_cells_agree() {
         let _ = (cd, fd);
     });
 }
+
+/// Results that compare equal when every float in them is bit for bit the same, except that
+/// two NaNs of any sign and payload count as equal: the payload a NaN result carries is left
+/// to the compiler (after a NaN already exists), so only that a NaN came out is checked.
+pub(super) trait SameResult {
+    fn same_result(&self, other: &Self) -> bool;
+}
+
+/// Float bits: equal, or both NaN.
+impl SameResult for u32 {
+    fn same_result(&self, other: &Self) -> bool {
+        self == other || (f32::from_bits(*self).is_nan() && f32::from_bits(*other).is_nan())
+    }
+}
+
+/// Whole numbers and flags: exactly equal.
+impl SameResult for i32 {
+    fn same_result(&self, other: &Self) -> bool {
+        self == other
+    }
+}
+
+impl SameResult for bool {
+    fn same_result(&self, other: &Self) -> bool {
+        self == other
+    }
+}
+
+impl<T: SameResult, const N: usize> SameResult for [T; N] {
+    fn same_result(&self, other: &Self) -> bool {
+        self.iter().zip(other).all(|(a, b)| a.same_result(b))
+    }
+}
+
+/// Tuples: every element on its own.
+macro_rules! same_result_tuple {
+    ($($name:ident $index:tt),+) => {
+        impl<$($name: SameResult),+> SameResult for ($($name,)+) {
+            fn same_result(&self, other: &Self) -> bool {
+                $(self.$index.same_result(&other.$index))&&+
+            }
+        }
+    };
+}
+same_result_tuple!(A 0, B 1);
+same_result_tuple!(A 0, B 1, C 2);
+same_result_tuple!(A 0, B 1, C 2, D 3);
+
+/// `assert_eq!` for results made of float bits (see `SameResult`).
+macro_rules! assert_same {
+    ($left:expr, $right:expr $(,)?) => {
+        assert_same!($left, $right, "")
+    };
+    ($left:expr, $right:expr, $($message:tt)+) => {{
+        let (left, right) = ($left, $right);
+        assert!(
+            $crate::math::x87_merged_tests::SameResult::same_result(&left, &right),
+            "{}\n  left: {left:x?}\n right: {right:x?}",
+            format_args!($($message)+)
+        );
+    }};
+}
+pub(super) use assert_same;
