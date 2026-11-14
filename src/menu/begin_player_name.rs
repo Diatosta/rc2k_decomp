@@ -2,7 +2,7 @@
 //!
 //! Unless the Enter came as the key that skips name entry: the current player's name is kept
 //! (`menu/player_name.rs`), cleared (`menu::clear_text`), and the entry goes on
-//! (`option_work.typing` = 1); then, either way, the length typed
+//! (`entry.typing` = 1); then, either way, the length typed
 //! (`loop_flags.text_length`) is set to 0. The action of the name's item of the four players'
 //! details pages. Refuses no current player or a player without a name. The menus and draw
 //! lists run its `entry` (`menu::table_calls`).

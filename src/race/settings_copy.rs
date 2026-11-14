@@ -44,7 +44,7 @@ pub enum StepOperand {
     /// A dword of a race store, reached by `var!`.
     #[cfg(test)]
     Var(fn() -> &'static dyn DwordLike),
-    /// A dword of one of the owners (`var!(@o menus.screens.option_work.lens_flare)`).
+    /// A dword of one of the owners (`var!(@o menus.options.lens_flare)`).
     Owned(for<'a> fn(&'a Owners<'a>) -> &'a dyn DwordLike),
     /// A dword of the race's (`var!(@race shared.vars.direction)`).
     RaceVar(fn(&Race) -> &dyn DwordLike),

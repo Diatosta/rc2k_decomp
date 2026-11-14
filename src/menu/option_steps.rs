@@ -4,8 +4,8 @@
 //!   speech's is heard (`sound::start_stream`), two of the menu sounds' go into
 //!   `screen_flow.menu_sounds_volume` and are played.
 //! - `menu::next_screen_mode`: the chosen screen mode one more, 0 past the last (signed);
-//!   `option_work.mode_changed` flipped.
-//! - the texture steps cycle `option_work.car_detail` through 0 .. 2 into the texture setting;
+//!   `options.mode_changed` flipped.
+//! - the texture steps cycle `options.car_detail` through 0 .. 2 into the texture setting;
 //!   the colour steps cycle `screen_flow.start_section` (or `start_section_a8`) through 0 .. 6
 //!   and put the entry of the colour list it picks into a caption list slot.
 //! - `menu::apply_audio_choices`: the advanced audio page's six work values into the audio
@@ -15,8 +15,9 @@
 
 use crate::errors::Refused;
 use crate::gfx::owner::Gfx;
+use crate::menu::options_store::MenuOptions;
+use crate::menu::owner::Menus;
 use crate::menu::owner::Tables;
-use crate::menu::owner::{Menus, Screens};
 use crate::owners::Owners;
 use crate::session::{DwordLike, PlainDword};
 
@@ -60,22 +61,22 @@ pub fn volume_step(o: Owners<'static>, v: Volume<'_>) {
 }
 
 /// `menu::next_screen_mode`: the next screen mode chosen, the changed flag flipped.
-pub fn next_screen_mode(screens: &Screens, gfx: &Gfx) {
+pub fn next_screen_mode(options: &MenuOptions, gfx: &Gfx) {
     let display = &gfx.display;
     let mode = rc2k_core::menu::steps::next_mode(
         display.choices.resolution.get(),
         display.choices.resolutions.get(),
     );
     display.choices.resolution.set(mode);
-    let changed = screens.option_work.mode_changed.get() ^ 1;
-    screens.option_work.mode_changed.set(changed);
+    let changed = options.mode_changed.get() ^ 1;
+    options.mode_changed.set(changed);
 }
 
 /// `menu::previous_texture_setting` / `next_texture_setting`: the texture setting one
 /// step down or up.
-pub fn step_texture_setting(screens: &Screens, up: bool, race: &crate::race::owner::Race) {
-    let v = rc2k_core::menu::steps::texture(screens.option_work.car_detail.get(), up);
-    screens.option_work.car_detail.set(v);
+pub fn step_texture_setting(options: &MenuOptions, up: bool, race: &crate::race::owner::Race) {
+    let v = rc2k_core::menu::steps::texture(options.car_detail.get(), up);
+    options.car_detail.set(v);
     race.shared.state.settings.car_detail.set(v);
 }
 
@@ -125,7 +126,7 @@ pub fn step_start_pick(tables: &Tables, c: StartPick<'_>, up: bool) {
 
 /// (the work value, its place among the audio options' six choices and six applied).
 fn choices(menus: &Menus) -> [(&PlainDword, usize); 6] {
-    let work = &menus.screens.option_work;
+    let work = &menus.options;
     [
         (&work.audio_quality, 0), // quality
         (&work.channels, 1),      // channels

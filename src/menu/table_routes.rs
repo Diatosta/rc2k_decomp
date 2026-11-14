@@ -301,15 +301,15 @@ pub fn item_fn(o: Owners<'static>, f: ItemFn, c: &table_calls::ItemCall) -> Resu
         ItemFn::NextStagePage => stage_view_steps::step_stage_page(o, true),
         ItemFn::PreviousScreenMode => previous_screen_mode::run(o),
         ItemFn::NextScreenMode => {
-            next_screen_mode(&menus.screens, o.gfx);
+            next_screen_mode(&menus.options, o.gfx);
             Ok(())
         }
         ItemFn::PreviousTextureSetting => {
-            step_texture_setting(&menus.screens, false, race);
+            step_texture_setting(&menus.options, false, race);
             Ok(())
         }
         ItemFn::NextTextureSetting => {
-            step_texture_setting(&menus.screens, true, race);
+            step_texture_setting(&menus.options, true, race);
             Ok(())
         }
         ItemFn::NextAudioQuality => next_audio_quality::run(o),

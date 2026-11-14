@@ -23,7 +23,7 @@ pub fn backup(menus: &'static Menus) -> crate::place::BytePlace {
 pub fn entry(menus: &Menus) -> Entry {
     Entry {
         length: menus.screens.loop_flags.text_length.get() as i32,
-        entering: menus.screens.option_work.typing.is_set(),
+        entering: menus.screens.entry.typing.is_set(),
         backup: std::array::from_fn(|i| menus.play.names.text_backup.get(i)),
     }
 }
@@ -31,7 +31,7 @@ pub fn entry(menus: &Menus) -> Entry {
 /// The entry's state stored back.
 pub fn put_entry(menus: &Menus, e: &Entry) {
     set_length(menus, e.length);
-    menus.screens.option_work.typing.set(e.entering);
+    menus.screens.entry.typing.set(e.entering);
     for (i, &byte) in e.backup.iter().enumerate() {
         menus.play.names.text_backup.set(i, byte);
     }

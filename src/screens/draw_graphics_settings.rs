@@ -16,31 +16,11 @@ const NAMES: [Name; 8] = [
     (|_, gfx| gfx.display.choices.card.get(), 0x38F, 0),
     (|_, gfx| gfx.display.choices.buffering.get(), 0x391, 2),
     (|_, gfx| gfx.display.choices.mipmapping.get(), 0x56D, 3),
-    (
-        |menus, _| menus.screens.option_work.lens_flare.get(),
-        0x56D,
-        4,
-    ),
-    (
-        |menus, _| menus.screens.option_work.reflections.get(),
-        0x56D,
-        5,
-    ),
-    (
-        |menus, _| menus.screens.option_work.car_shadows.get(),
-        0x396,
-        6,
-    ),
-    (
-        |menus, _| menus.screens.option_work.car_detail.get(),
-        0x393,
-        7,
-    ),
-    (
-        |menus, _| menus.screens.option_work.headlights.get(),
-        0x394,
-        8,
-    ),
+    (|menus, _| menus.options.lens_flare.get(), 0x56D, 4),
+    (|menus, _| menus.options.reflections.get(), 0x56D, 5),
+    (|menus, _| menus.options.car_shadows.get(), 0x396, 6),
+    (|menus, _| menus.options.car_detail.get(), 0x393, 7),
+    (|menus, _| menus.options.headlights.get(), 0x394, 8),
 ];
 
 pub fn draw_graphics_settings(

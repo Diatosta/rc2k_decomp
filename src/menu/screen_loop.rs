@@ -275,7 +275,7 @@ impl Step {
         match *self {
             Step::Write(variable, value) => variable.cell(menus).set(value),
             Step::WriteFlag(flag, on) => flag.cell(menus).set(on),
-            Step::Sound(sound) => menus.screens.option_work.set_sound(sound),
+            Step::Sound(sound) => menus.screens.entry.set_sound(sound),
             Step::WriteScene(variable, value) => variable.cell().set(value),
             Step::WriteSceneF32(variable, value) => variable.cell().set(value),
             Step::Call(_) | Step::CallOrFatal(..) | Step::Do(_) | Step::DoFlow(_) => return false,
@@ -383,7 +383,7 @@ pub struct Frames {
     pub after_blink: &'static [Step],
     /// Steps of the screen's own once a frame, after the frame and before the keys.
     pub each_frame: &'static [Step],
-    /// The quit switch is not looked at; `option_work.menu_sound` = 0x6F is stored once a frame in
+    /// The quit switch is not looked at; `entry.menu_sound` = 0x6F is stored once a frame in
     /// that place.
     pub no_quit_check: bool,
 }
@@ -442,7 +442,7 @@ pub struct Screen {
     pub result: Option<fn(&Menus) -> u32>,
     /// `captions.left_by_key` is cleared and the highlight put in place (with the Escape check)
     /// after the first frame, not at the start of set-up, and set-up stores neither
-    /// `option_work.menu_sound` nor `loop_flags.leave_screen` after the lists: the main menu.
+    /// `entry.menu_sound` nor `loop_flags.leave_screen` after the lists: the main menu.
     pub late_highlight: bool,
     pub keys: Keys,
     pub frames: Frames,
@@ -979,7 +979,7 @@ impl ScreenHost for MenuHost<'_> {
     }
 
     fn clear_menu_sound(&mut self) {
-        self.screens().option_work.set_sound(MenuSound::None);
+        self.screens().entry.set_sound(MenuSound::None);
     }
 
     fn clear_leave_screen(&mut self) {
@@ -1073,7 +1073,7 @@ impl ScreenHost for MenuHost<'_> {
     }
 
     fn action_pending(&self) -> bool {
-        self.screens().option_work.sound() == MenuSound::Enter
+        self.screens().entry.sound() == MenuSound::Enter
     }
 
     fn highlight(&self) -> u32 {

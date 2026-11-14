@@ -13,9 +13,9 @@ use crate::menu::texts_store::texts;
 
 fn each_frame(entry: &Entry) -> Result<Flow, Refused> {
     let screens = &entry.menus.screens;
-    if screens.option_work.typing.is_set() {
+    if screens.entry.typing.is_set() {
         Callee::EditPlayerName.run(entry)?;
-        if screens.option_work.typing.is_set() {
+        if screens.entry.typing.is_set() {
             return Ok(Flow::NextFrame);
         }
         Callee::CheckCheatName.run(entry)?;

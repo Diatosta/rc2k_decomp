@@ -3,7 +3,7 @@
 //! Only with `ChampView.event_mode` at 2 and `CarStream.on` at 1, and while the stream is not
 //! playing (`sound::stream_playing`: `AudioShared.sound_stream` is not 1): `CarStream.place` + 1
 //! and the part at that place of the list `CarStream.stream`; -1 ends it (`CarStream.on` = 0), else
-//! `sound::start_stream` with it and `OptionWork.speech_level`. Once a frame on four screens (the
+//! `sound::start_stream` with it and `MenuOptions.speech_level`. Once a frame on four screens (the
 //! car specification, the slideshow, two stage screens).
 
 use crate::errors::BadInput;
@@ -51,7 +51,7 @@ pub fn step_car_stream(
         StreamStep::Start { place, part } => (place, part),
     };
     sound.race.car_stream.get().place.set(place);
-    start(part, menus.screens.option_work.speech_level.get());
+    start(part, menus.options.snapshot().speech_level);
     Ok(())
 }
 

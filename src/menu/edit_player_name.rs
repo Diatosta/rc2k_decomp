@@ -8,7 +8,7 @@
 //! signed), and taken off again if the name then measures 0xEC pixels or more in the font
 //! (measured from the x that is the length before the character). No cursor is written: the
 //! page draws it (`screens::draw_name_cursor`). Called from the four `player*_details_loop`s
-//! while `option_work.typing` is set. Refuses, before the key is taken: no current player, a
+//! while `entry.typing` is set. Refuses, before the key is taken: no current player, a
 //! player without a name, a length outside 0 .. 0x1F, no keyboard layout.
 
 use crate::errors::{BadInput, Refused};
@@ -47,13 +47,13 @@ pub fn edit_player_name(
         Key::None => {}
         Key::Escape => {
             bring_back_name(menus, name)?;
-            screens.option_work.typing.set(false);
+            screens.entry.typing.set(false);
         }
         Key::Enter => {
             if len == 0 {
                 bring_back_name(menus, name)?;
             }
-            screens.option_work.typing.set(false);
+            screens.entry.typing.set(false);
         }
         Key::Clear => clear_text(menus, name)?,
         Key::Backspace => backspace_name(menus, name)?,

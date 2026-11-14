@@ -17,6 +17,7 @@ use crate::menu::standings::*;
 use crate::race::owner::Race;
 use crate::records::stages_store::RecordRef;
 use crate::system::owner::System;
+use rc2k_core::saves::defaults::CLASS_DRIVER_COUNTS;
 
 use crate::menu::scale_stage_times::{held_section, scaled};
 
@@ -31,11 +32,11 @@ fn class_time_at(screens: &Screens, c: u32) -> Result<u32, BadInput> {
     }
 }
 
-/// The drivers of class `c`, `class_counts`[c], the same way.
-fn class_count_at(screens: &Screens, c: u32) -> Result<u32, BadInput> {
-    match screens.state.menus.class_counts.get(c as usize) {
-        Some(count) => Ok(count.get()),
-        None => Err(BadInput("a class past the four (class_counts)")),
+/// The drivers of class `c`, the same way.
+fn class_count_at(c: u32) -> Result<u32, BadInput> {
+    match CLASS_DRIVER_COUNTS.get(c as usize) {
+        Some(&count) => Ok(count),
+        None => Err(BadInput("a class past the four (class counts)")),
     }
 }
 
@@ -95,7 +96,7 @@ pub fn check<'a>(
         if class_time(c)? >> 1 == 0 {
             return Err(DIVIDE_BY_ZERO.into());
         }
-        if class_count_at(screens, c)? == 0 {
+        if class_count_at(c)? == 0 {
             return Err(BadInput("a class's driver count of 0: the original divides by it").into());
         }
     }
@@ -131,7 +132,7 @@ pub fn calc_cpu_times(menus: &Menus, system: &System, race: &Race) -> Result<(),
                 continue;
             }
             let time = class_time_at(screens, c)?;
-            let count = class_count_at(screens, c)?;
+            let count = class_count_at(c)?;
             let gap = cpu_gap(time, count);
             let mut spread = Spread {
                 first: screens.event.cpu_spread_first.get(),

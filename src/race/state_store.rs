@@ -182,23 +182,34 @@ pub struct SettingsHead {
     pub track_1c: PlainDword,
     /// The track entry's +0x20.
     pub track_20: PlainDword,
-    /// The lens flare option, copied from `OptionWork.lens_flare`.
+    /// The lens flare option, copied from `MenuOptions.lens_flare`.
     pub lens_flare: PlainDword,
     /// Unused; 100 (0x64) at start.
     pub unused_percent_a: PlainDword,
     /// Unused; 100 (0x64) at start.
     pub unused_percent_b: PlainDword,
     /// The reflections option (graphics page), copied from
-    /// `OptionWork.reflections`.
+    /// `MenuOptions.reflections`.
     pub reflections: PlainDword,
     /// The car shadows option, copied from
-    /// `OptionWork.car_shadows`.
+    /// `MenuOptions.car_shadows`.
     pub car_shadows: PlainDword,
-    /// The car detail option, copied from `OptionWork.car_detail`.
+    /// The car detail option, copied from `MenuOptions.car_detail`.
     pub car_detail: PlainDword,
     /// The headlights option (all cars' lamps), copied from
-    /// `OptionWork.headlights`.
+    /// `MenuOptions.headlights`.
     pub headlights: PlainDword,
+}
+
+impl SettingsHead {
+    /// Takes the visual options the player chose on the options pages.
+    pub fn set_visual_options(&self, options: &crate::menu::options_store::OptionsSnapshot) {
+        self.lens_flare.set(options.lens_flare);
+        self.reflections.set(options.reflections);
+        self.car_shadows.set(options.car_shadows);
+        self.car_detail.set(options.car_detail);
+        self.headlights.set(options.headlights);
+    }
 }
 
 /// The race's settings as the front end keeps them ("Graham's" variables, which

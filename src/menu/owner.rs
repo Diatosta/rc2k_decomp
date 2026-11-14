@@ -11,6 +11,7 @@ use crate::menu::champ_store::ChampView;
 use crate::menu::cheats_store::Cheats;
 use crate::menu::draw_work_store::DrawWork;
 use crate::menu::drivers_store::DriverTable;
+use crate::menu::entry_store::EntryState;
 use crate::menu::event_store::Event;
 use crate::menu::flow_store::ScreenFlow;
 use crate::menu::keys_store::KeyTables;
@@ -18,7 +19,7 @@ use crate::menu::list_state::ListState;
 use crate::menu::loop_store::LoopFlags;
 use crate::menu::menus_store::MenuTables;
 use crate::menu::names_store::Names;
-use crate::menu::option_work_store::OptionWork;
+use crate::menu::options_store::MenuOptions;
 use crate::menu::pages_store::MenuPages;
 use crate::menu::play_films::Films;
 use crate::menu::players_store::PlayerTable;
@@ -60,14 +61,14 @@ impl Panels {
 }
 
 /// The screens' running state: the flow between screens, the loop's flags, the menu
-/// state, the shown items, the event, the options' and the drawing's work.
+/// state, the shown items, the event, the key entry and the drawing's work.
 pub struct Screens {
     pub flow: ScreenFlow,
     pub loop_flags: LoopFlags,
     pub state: MenuState,
     pub items: ScreenItems,
     pub event: Event,
-    pub option_work: OptionWork,
+    pub entry: EntryState,
     pub draw_work: DrawWork,
 }
 
@@ -79,7 +80,7 @@ impl Screens {
             state: MenuState::new(),
             items: ScreenItems::new(),
             event: Event::new(),
-            option_work: OptionWork::new(),
+            entry: EntryState::new(),
             draw_work: DrawWork::new(),
         }
     }
@@ -132,6 +133,7 @@ pub struct Menus {
     pub cars: Cars,
     pub panels: Panels,
     pub keys: Keys,
+    pub options: MenuOptions,
     pub screens: Screens,
     pub tables: Tables,
     pub play: Play,
@@ -162,6 +164,7 @@ impl Menus {
             cars: Cars::new(),
             panels: Panels::new(),
             keys: Keys::new(),
+            options: MenuOptions::new(),
             screens: Screens::new(),
             tables: Tables::new(),
             play: Play::new(),

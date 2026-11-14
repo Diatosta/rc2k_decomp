@@ -7,19 +7,19 @@
 pub enum VolumeKind {
     /// The general volume, sent to the audio thread.
     Master,
-    /// The music's volume (`option_work.music_level`).
+    /// The music's volume (`options.music_level`).
     Music,
-    /// The race music's volume (`option_work.other_volume`), kept for the race.
+    /// The race music's volume (`options.race_music_level`), kept for the race.
     RaceMusic,
     /// The race sounds' volume (`audio::levels::Levels::menu_sounds_a`), heard with a race sound.
     RaceSounds,
-    /// The speech's volume (`option_work.speech_level`).
+    /// The speech's volume (`options.speech_level`).
     Speech,
     /// The first of the other menu sounds' volumes (`audio::levels::Levels::sounds_a`).
     MenuSoundsA,
     /// The second of the other menu sounds' volumes (`audio::levels::Levels::sounds_b`).
     MenuSoundsB,
-    /// The menu sounds' volume (`option_work.menu_sounds_c`), heard with a menu sound.
+    /// The menu sounds' volume (`options.menu_sounds_level`), heard with a menu sound.
     MenuSounds,
 }
 

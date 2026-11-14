@@ -12,7 +12,7 @@ use crate::text::draw_text::Canvas;
 
 /// (the setting, its first string).
 fn names(menus: &Menus) -> [(&dyn DwordLike, u32); 6] {
-    let work = &menus.screens.option_work;
+    let work = &menus.options;
     [
         (&work.audio_quality, 0x54B),
         (&work.channels, 0x554),

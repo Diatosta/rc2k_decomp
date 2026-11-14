@@ -22,9 +22,9 @@ fn before(entry: &Entry) -> Result<(), Refused> {
 
 fn each_frame(entry: &Entry) -> Result<Flow, Refused> {
     let screens = &entry.menus.screens;
-    if screens.option_work.typing.is_set() {
+    if screens.entry.typing.is_set() {
         Callee::EditSavegameName.run(entry)?;
-        if screens.option_work.typing.is_set() {
+        if screens.entry.typing.is_set() {
             return Ok(Flow::NextFrame);
         }
     }

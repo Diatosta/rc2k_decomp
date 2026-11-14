@@ -13,7 +13,7 @@
 //!
 //! After anything but Escape and Enter the cursor (string 4) is written after the name if
 //! `draw_work.cursor_on` is set, then a NUL. Called from the screen loop
-//! `menu::save_championship_loop` while `option_work.typing` is set. Refuses, before the key is
+//! `menu::save_championship_loop` while `entry.typing` is set. Refuses, before the key is
 //! taken: a name past the list, a length outside 0 .. 0x1F, no keyboard layout.
 
 use crate::errors::{BadInput, Refused};
@@ -87,7 +87,7 @@ pub fn edit_savegame_name(
         Key::None => {}
         Key::Escape => {
             restore_text(menus, name)?;
-            screens.option_work.typing.set(false);
+            screens.entry.typing.set(false);
             return Ok(());
         }
         Key::Enter => {
@@ -95,11 +95,11 @@ pub fn edit_savegame_name(
                 restore_text(menus, name)?;
                 add_text_length(menus, name)?;
             }
-            screens.option_work.typing.set(false);
+            screens.entry.typing.set(false);
             end_name(menus, name)?;
             save(highlighted_slot(menus));
             end_name(menus, name)?;
-            screens.option_work.typing.set(false);
+            screens.entry.typing.set(false);
             return Ok(());
         }
         Key::Clear => clear_text(menus, name)?,

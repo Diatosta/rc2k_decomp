@@ -13,6 +13,7 @@ use crate::race::owner::Race;
 use crate::race::state_store::{PlayerControls, RaceCar, RaceResult};
 use crate::session::Bytes;
 use crate::session::DwordLike;
+#[cfg(test)]
 use crate::session::PlainDword;
 #[cfg(test)]
 use crate::system::owner::system;
@@ -161,18 +162,6 @@ const UNKNOWN_TRACK: FatalError = FatalError {
     code: 0x8073_9281,
     message: "Unknown Shaun TrakNum",
 };
-
-/// Five settings words copied to the race variables (from, to).
-fn settings_to_race<'a>(menus: &'a Menus, race: &'a Race) -> [(&'a PlainDword, &'a PlainDword); 5] {
-    let (from, to) = (&menus.screens.option_work, &race.shared.state.settings);
-    [
-        (&from.lens_flare, &to.lens_flare),
-        (&from.reflections, &to.reflections),
-        (&from.car_shadows, &to.car_shadows),
-        (&from.car_detail, &to.car_detail),
-        (&from.headlights, &to.headlights),
-    ]
-}
 
 #[cfg(test)]
 fn set_field(rec: Record, off: u32, v: u32) -> Result<(), BadInput> {
@@ -428,9 +417,7 @@ fn single_rally(
     // The entry's temperature and wind into the race variables.
     settings.track_1c.set(entry.temperature.get());
     settings.track_20.set(entry.wind.get());
-    for (from, to) in settings_to_race(menus, race) {
-        to.set(from.get());
-    }
+    settings.set_visual_options(&menus.options.snapshot());
     let first = player(menus, 1)?.get();
     take_controls(&first, &first_side.car.controls);
     take_keys(&first, &first_side.car.controls.keys);
@@ -591,11 +578,11 @@ mod vector_tests {
         ("menu.owner.MENU_OWNER.screens.event", ".event_kind", 0, 0x4),
         ("menu.owner.MENU_OWNER.screens.event", ".current_player", 0, 0x4),
         ("menu.owner.MENU_OWNER.screens.flow", ".kept", 0, 0x4),
-        ("menu.owner.MENU_OWNER.screens.option_work", ".lens_flare", 0, 0x4),
-        ("menu.owner.MENU_OWNER.screens.option_work", ".reflections", 0, 0x4),
-        ("menu.owner.MENU_OWNER.screens.option_work", ".car_shadows", 0, 0x4),
-        ("menu.owner.MENU_OWNER.screens.option_work", ".car_detail", 0, 0x4),
-        ("menu.owner.MENU_OWNER.screens.option_work", ".headlights", 0, 0x4),
+        ("menu.owner.MENU_OWNER.options", ".lens_flare", 0, 0x4),
+        ("menu.owner.MENU_OWNER.options", ".reflections", 0, 0x4),
+        ("menu.owner.MENU_OWNER.options", ".car_shadows", 0, 0x4),
+        ("menu.owner.MENU_OWNER.options", ".car_detail", 0, 0x4),
+        ("menu.owner.MENU_OWNER.options", ".headlights", 0, 0x4),
         ("menu.owner.MENU_OWNER.play.players", ".players[0]", 0, 0x28c),
         ("menu.owner.MENU_OWNER.play.players", ".players[1]", 0, 0x28c),
         ("menu.owner.MENU_OWNER.play.players", ".players[2]", 0, 0x28c),
@@ -842,7 +829,7 @@ mod vector_tests {
         "menu.owner.MENU_OWNER.play.players",
         "menu.owner.MENU_OWNER.screens.event",
         "menu.owner.MENU_OWNER.screens.flow",
-        "menu.owner.MENU_OWNER.screens.option_work",
+        "menu.owner.MENU_OWNER.options",
         "race.owner.RACE.replay.viewer_and_kinds",
         "race.owner.RACE.shared.state",
         "system.owner.SYSTEM.records.stage_tables",

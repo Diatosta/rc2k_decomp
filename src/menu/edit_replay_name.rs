@@ -11,7 +11,7 @@
 //!
 //! A 1999 slip kept as is: the clear key, the backspace key and the "too wide" case act on the
 //! highlighted name of the SAVED GAME list, not the replay list, while the length they change
-//! is the replay entry's. Called from `menu::save_replay_loop` while `option_work.typing` is
+//! is the replay entry's. Called from `menu::save_replay_loop` while `entry.typing` is
 //! set. Refuses, before the key is taken: a name past either list, a length outside 0 .. 0x1F,
 //! no keyboard layout.
 
@@ -64,7 +64,7 @@ pub fn edit_replay_name(
         Key::None => {}
         Key::Escape => {
             restore_text(menus, name)?;
-            menus.screens.option_work.typing.set(false);
+            menus.screens.entry.typing.set(false);
             menus.tables.captions.left_by_key.set(true);
             return Ok(true);
         }
@@ -73,7 +73,7 @@ pub fn edit_replay_name(
                 restore_text(menus, name)?;
                 add_text_length(menus, name)?;
             }
-            menus.screens.option_work.typing.set(false);
+            menus.screens.entry.typing.set(false);
             end_name(menus, name)?;
             return Ok(false);
         }

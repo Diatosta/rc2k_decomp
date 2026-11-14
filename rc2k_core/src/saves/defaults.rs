@@ -359,6 +359,12 @@ pub fn class_times(src: &mut dyn Source) -> Result<Vec<(u32, Driver)>, Invalid> 
     Ok(entries)
 }
 
+/// The drivers of each of the four classes. Fixed: the 180 drivers are 90, 50, 30 and 10.
+pub const CLASS_DRIVER_COUNTS: [u32; 4] = [0x5A, 0x32, 0x1E, 0x0A];
+
+/// The first driver of each class in the drivers table.
+pub const CLASS_FIRST_DRIVERS: [u32; 4] = [0, 0x5A, 0x8C, 0xAA];
+
 /// Five groups of ten, scores 50 down to 41. Each entry draws a number under 0xB3; in groups
 /// 0 .. 3 it is thrown away and the driver is one of the group's `counts[group]` from
 /// `firsts[group]` on. Refused (before any draw): a group without drivers.

@@ -3,7 +3,8 @@
 //! The level scores table (0xBB8 bytes) is five groups of ten entries of 0x3C bytes. In each
 //! group the entries get 50, 49, .. 41 at +0x38 and a driver each: a random number under 0xB3
 //! is drawn; for the groups 0 .. 3 it is thrown away and the driver is a random number under
-//! `class_counts[group]` plus `firsts[group]`, for group 4 it is the driver. From the driver's
+//! `CLASS_DRIVER_COUNTS[group]` plus `CLASS_FIRST_DRIVERS[group]`, for group 4 it is the driver.
+//! From the driver's
 //! record: its class to the entry's +0x10, nationality to +8, car to +0xC, and the name
 //! (without a NUL) to +0x18.
 //! One caller, `menu::set_up_front_end`, when `var\hst.dat` was not loaded. Refuses a missing
@@ -21,12 +22,11 @@ pub fn default_best_scores(
     menus: &Menus,
     race: &Race,
 ) -> Result<(), Refused> {
-    let screens = &menus.screens;
     if !SCORES.is_taken() {
         return Err(crate::errors::BadInput("no table of best scores").into());
     }
-    let counts = std::array::from_fn(|g| screens.state.menus.class_counts[g].get());
-    let firsts = std::array::from_fn(|g| screens.state.menus.firsts[g].get());
+    let counts = rc2k_core::saves::defaults::CLASS_DRIVER_COUNTS;
+    let firsts = rc2k_core::saves::defaults::CLASS_FIRST_DRIVERS;
     let entries = best_scores(
         &mut GameSource {
             log: &mut to_nowhere,

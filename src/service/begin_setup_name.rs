@@ -21,7 +21,7 @@ pub fn begin_setup_name(menus: &Menus, service: &'static Service) -> Result<(), 
     {
         backup_text(menus, slot_name(service, slot))?;
         clear_text(menus, slot_name(service, slot))?;
-        menus.screens.option_work.typing.set(true);
+        menus.screens.entry.typing.set(true);
     }
     set_length(menus, 0);
     Ok(())

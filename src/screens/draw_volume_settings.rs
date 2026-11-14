@@ -8,20 +8,20 @@ use crate::text::draw_text::Canvas;
 
 pub fn draw_volume_settings(o: Owners<'static>, canvas: &mut dyn Canvas) -> Result<(), Refused> {
     let menus = o.menus;
-    let screens = &menus.screens;
+    let options = &menus.options;
     let levels = &o.audio.levels;
     // The logic is in `rc2k_core::screens::settings_pages::volume`.
 
     let id = o.sound.menu.options.race_music_on.get().wrapping_add(0x56D);
-    // The volumes: the master volume shown, then `option_work.music_level` to
-    // `option_work.sounds_b`.
+    // The volumes: the master volume shown, then `options.music_level` to
+    // `audio.levels.sounds_b`.
     let volumes: [u32; 8] = [
         levels.master_volume_shown.get(),
-        screens.option_work.music_level.get(),
-        screens.option_work.other_volume.get(),
-        screens.option_work.menu_sounds_c.get(),
+        options.music_level.get(),
+        options.race_music_level.get(),
+        options.menu_sounds_level.get(),
         levels.menu_sounds_a.get(),
-        screens.option_work.speech_level.get(),
+        options.speech_level.get(),
         levels.sounds_a.get(),
         levels.sounds_b.get(),
     ];

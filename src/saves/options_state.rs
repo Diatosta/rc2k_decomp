@@ -219,7 +219,7 @@ fn pieces_of(o: Owners<'static>) -> [Field<'static>; 69] {
     let menus = o.menus;
 
     let text = |cells: &'static dyn Store, len: usize| Field::Text { cells, from: 0, len };
-    let work = &menus.screens.option_work;
+    let work = &menus.options;
     let numbers = &menus.cars.numbers;
     let tables = &system.records().stage_tables;
     let names = |n: usize| Field::Text {
@@ -260,14 +260,14 @@ fn pieces_of(o: Owners<'static>) -> [Field<'static>; 69] {
         Field::Player(&menus.play.players.players[3]),
         Field::Dword(&audio.levels.master_volume_shown),           // the master volume shown
         Field::Dword(&work.music_level),                   // the music level
-        Field::Dword(&work.other_volume),                  // read by the music "up" step
-        Field::Dword(&work.menu_sounds_c),                 // the menu sounds' third volume
+        Field::Dword(&work.race_music_level),                  // read by the music "up" step
+        Field::Dword(&work.menu_sounds_level),                 // the menu sounds' third volume
         Field::Dword(&audio.levels.menu_sounds_a),                 // the menu sounds' first volume
         Field::Dword(&work.speech_level),                  // the speech level
         Field::Dword(&audio.levels.sounds_a),                      // the sounds' first level
         Field::Dword(&audio.levels.sounds_b),                      // the sounds' second level
-        Field::Dwords(vec![                                        // the options pages' work copies, switch_0 .. headlights
-            &work.switch_0, &work.switch_1, &work.mode_changed, &work.modes_switch,
+        Field::Dwords(vec![                                        // the options pages' work copies, mipmapping .. headlights
+            &work.mipmapping, &work.buffering, &work.mode_changed, &work.modes_switch,
             &work.lens_flare, &work.unused_percent_a, &work.unused_percent_b,
             &work.reflections, &work.car_shadows, &work.car_detail, &work.headlights,
         ]),

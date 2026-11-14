@@ -23,13 +23,12 @@ pub fn pick_player(menus: &Menus, n: u32) -> Result<(), Refused> {
 }
 
 /// The audio options (quality, channels, Dolby, A3D, EAX, DS3D) into the sound page's work
-/// variables (`option_work`).
+/// variables (the options).
 pub fn load_audio_settings(menus: &Menus, audio: &crate::audio::owner::Audio) {
     // The logic is in `rc2k_core::screens::page_values::audio_page`.
     let options: rc2k_core::audio::modes::AudioOptions = audio.state.audio_options.get();
     menus
-        .screens
-        .option_work
+        .options
         .set_audio_page(rc2k_core::screens::page_values::audio_page(&options));
 }
 

@@ -26,7 +26,7 @@ pub struct Details<T> {
     pub controller_item: u32,
     pub controllers: bool,
     pub name: T,
-    /// A name is being typed (`OptionWork.typing` not 0): the cursor after it.
+    /// A name is being typed (`EntryState.typing` not 0): the cursor after it.
     pub typing: bool,
     /// The cursor's blink: drawn while 1.
     pub blink: bool,

@@ -176,7 +176,7 @@ fn snapshot(menus: &Menus) -> Snapshot {
         slots: (0..SLOTS)
             .map(|slot| ScreenVar::SavedItem(slot).cell(menus).get())
             .collect(),
-        sound: menus.screens.option_work.sound(),
+        sound: menus.screens.entry.sound(),
         scene: SCENE_VARS.iter().map(|v| v.cell().get()).collect(),
         floats: SCENE_FLOATS
             .iter()
@@ -204,7 +204,7 @@ fn fill(menus: &Menus) {
     for flag in FLAGS {
         flag.cell(menus).set(false);
     }
-    menus.screens.option_work.set_sound(MenuSound::Enter);
+    menus.screens.entry.set_sound(MenuSound::Enter);
 }
 
 #[test]
@@ -357,14 +357,11 @@ impl ScreenHost for ScriptedHost<'_> {
     fn handle_keys(&mut self) -> Result<Pressed, Refused> {
         let key = self.keys.remove(0);
         let menus = self.real.entry.menus;
-        menus
-            .screens
-            .option_work
-            .set_sound(if key == Pressed::Enter {
-                MenuSound::Enter
-            } else {
-                MenuSound::None
-            });
+        menus.screens.entry.set_sound(if key == Pressed::Enter {
+            MenuSound::Enter
+        } else {
+            MenuSound::None
+        });
         Ok(key)
     }
     fn action_pending(&self) -> bool {

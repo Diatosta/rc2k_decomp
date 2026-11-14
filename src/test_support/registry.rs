@@ -730,8 +730,12 @@ fn listed_stores() -> Vec<Listed> {
             on_game(&crate::menu::owner::MENU_OWNER.get().keys.tables),
         ),
         listed!(
-            "menu.owner.MENU_OWNER.screens.option_work",
-            on_game(&crate::menu::owner::MENU_OWNER.get().screens.option_work),
+            "menu.owner.MENU_OWNER.options",
+            on_game(&crate::menu::owner::MENU_OWNER.get().options),
+        ),
+        listed!(
+            "menu.owner.MENU_OWNER.screens.entry",
+            on_game(&crate::menu::owner::MENU_OWNER.get().screens.entry),
         ),
         listed!(
             "menu.owner.MENU_OWNER.play.champ_view",

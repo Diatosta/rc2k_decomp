@@ -39,7 +39,7 @@ pub fn handle_keys(o: Owners<'static>, eax: u32) -> Result<Pressed, Refused> {
     if menus.screens.flow.asking.is_set() && !has_layout() {
         return Err(BadInput("no keyboard layout").into());
     }
-    menus.screens.option_work.set_sound(keys::MenuSound::None);
+    menus.screens.entry.set_sound(keys::MenuSound::None);
     menus.screens.loop_flags.leave_screen.set(false);
     let key = take_key(o.input);
     if key == 0 {
@@ -65,7 +65,7 @@ pub fn handle_keys(o: Owners<'static>, eax: u32) -> Result<Pressed, Refused> {
     }
     let clock: u32 = o.system.clocks().frame.get();
     if action == Action::Enter {
-        menus.screens.option_work.set_sound(keys::MenuSound::Enter);
+        menus.screens.entry.set_sound(keys::MenuSound::Enter);
         menus.play.champ_view.last_key_time.set(clock);
         menus
             .screens

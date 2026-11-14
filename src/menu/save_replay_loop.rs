@@ -12,10 +12,10 @@ use crate::menu::texts_store::texts;
 
 fn each_frame(entry: &Entry) -> Result<Flow, Refused> {
     let menus = entry.menus;
-    if menus.screens.option_work.typing.is_set() {
+    if menus.screens.entry.typing.is_set() {
         let failed = Callee::EditReplayName.run(entry)?;
         if !failed {
-            if menus.screens.option_work.typing.is_set() {
+            if menus.screens.entry.typing.is_set() {
                 return Ok(Flow::NextFrame);
             }
             if menus.tables.captions.left_by_key.is_set() {

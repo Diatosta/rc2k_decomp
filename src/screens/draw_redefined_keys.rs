@@ -22,7 +22,7 @@ pub fn draw_redefined_keys(
     let menus = o.menus;
     let screens = &menus.screens;
     let keys = current(menus)?.get().keys;
-    let redefined: u32 = screens.option_work.redefined_key_place.get();
+    let redefined: u32 = screens.entry.redefined_key_place.get();
     // The logic is in `rc2k_core::screens::controls::redefined_keys`; the names are made first
     // (none at the place being redefined).
     use rc2k_core::screens::controls::KEY_PLACES;

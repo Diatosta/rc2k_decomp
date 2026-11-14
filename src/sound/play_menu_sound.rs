@@ -5,12 +5,11 @@
 //! first bit set of these, in this order, picks the sound and the volume it is played at: 0x80
 //! sound 0xE4 at `levels.menu_sounds_a`; 0x10, 0x20, 0x40 sounds 0x163, 0x197, 0x1CB at
 //! `ScreenFlow.menu_sounds_volume`; 0x100, 8, 2, 4, 1 sounds 0x1CC, 0x1CA, 0x1C8, 0x1C9, 0x1C7 at
-//! `OptionWork.menu_sounds_c`. Then `sound::play_sound` with the sample's own rate and no place. 25
+//! `MenuOptions.menu_sounds_level`. Then `sound::play_sound` with the sample's own rate and no place. 25
 //! callers (1 is the highlight's click, 2 Enter's sound: `menu::handle_keys`).
 
 use crate::audio::owner::Audio;
 use crate::menu::owner::Menus;
-use crate::session::DwordLike;
 use crate::sound::owner::Sound;
 use crate::system::tick_count::tick_count;
 
@@ -35,12 +34,12 @@ pub fn play_menu_sound(
     let Some((sound, volume)) = pick else {
         return;
     };
-    let volume: &dyn DwordLike = match volume {
-        MenuVolume::A => &audio.levels.menu_sounds_a,
-        MenuVolume::B => &menus.screens.flow.menu_sounds_volume,
-        MenuVolume::C => &menus.screens.option_work.menu_sounds_c,
+    let volume: u32 = match volume {
+        MenuVolume::A => audio.levels.menu_sounds_a.get(),
+        MenuVolume::B => menus.screens.flow.menu_sounds_volume.get(),
+        MenuVolume::C => menus.options.snapshot().menu_sounds_level,
     };
-    crate::sound::play_sound::play_sound_in(audio, sound, volume.get(), 0xFFFF_FF91, [0; 3]);
+    crate::sound::play_sound::play_sound_in(audio, sound, volume, 0xFFFF_FF91, [0; 3]);
 }
 
 /// With the game's clock: what other Rust code calls.

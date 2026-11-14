@@ -78,7 +78,7 @@ pub fn edit_setup_name(
         Key::None => {}
         Key::Escape => {
             restore_text(menus, name)?;
-            screens.option_work.typing.set(false);
+            screens.entry.typing.set(false);
             return Ok(());
         }
         Key::Enter => {
@@ -86,11 +86,11 @@ pub fn edit_setup_name(
                 restore_text(menus, name)?;
                 add_text_length(menus, name)?;
             }
-            screens.option_work.typing.set(false);
+            screens.entry.typing.set(false);
             end_name(screens, name)?;
             write_setup_slot(menus, service, slot)?;
             end_name(screens, name)?;
-            screens.option_work.typing.set(false);
+            screens.entry.typing.set(false);
             return Ok(());
         }
         Key::Clear => clear_text(menus, name)?,

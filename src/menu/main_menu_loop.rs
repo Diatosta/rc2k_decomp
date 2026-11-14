@@ -36,7 +36,7 @@ fn set_up_first(entry: &Entry) -> Result<(), Refused> {
     menus.screens.draw_work.escape_pressed.set(false);
     menus
         .screens
-        .option_work
+        .entry
         .set_sound(rc2k_core::menu::keys::MenuSound::None);
     menus.screens.flow.turning.set(1u32);
     menus.screens.state.carousel.menu.set(0u32);

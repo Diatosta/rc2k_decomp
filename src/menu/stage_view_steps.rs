@@ -94,7 +94,7 @@ pub fn play_stage_speech(o: crate::owners::Owners<'static>) -> Result<(), Refuse
         crate::sound::start_stream::start_stream(
             o,
             crate::menu::texts_store::speech_entry(&audio.sample_names, at, 0)?,
-            menus.screens.option_work.speech_level.get(),
+            menus.options.snapshot().speech_level,
         );
     }
     Ok(())
@@ -112,7 +112,7 @@ pub fn play_rally_speech(o: crate::owners::Owners<'static>) -> Result<(), Refuse
         crate::sound::start_stream::start_stream(
             o,
             lists().rally_speech(section as usize)?,
-            menus.screens.option_work.speech_level.get(),
+            menus.options.snapshot().speech_level,
         );
     }
     Ok(())

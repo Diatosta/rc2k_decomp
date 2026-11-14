@@ -1,7 +1,7 @@
 //! `menu::set_up_front_end`: what the main menu's loop does first, in this order:
 //! - `menu::add_clio_car` if the Clio update is there; `menu::link_player_names`; the loading
 //!   picture; `gfx::build_menu_sprites`; `menu::fit_player_names`;
-//! - the music and other volume settings from `option_work`;
+//! - the music and other volume settings from the options;
 //! - `saves::allocate_best_times` (the nine tables are typed, `saves::best_times`; the summary's
 //!   variable is set to 1, for the race's rivals);
 //! - unless the best times were loaded: the six fillers of made-up times
@@ -55,12 +55,12 @@ pub fn set_up_front_end(o: crate::owners::Owners<'static>) -> Result<(), Refused
         .menu
         .options
         .music_volume
-        .set(menus.screens.option_work.music_level.get());
+        .set(menus.options.snapshot().music_level);
     sound
         .menu
         .options
         .race_music_volume
-        .set(menus.screens.option_work.other_volume.get());
+        .set(menus.options.snapshot().race_music_level);
     allocate_best_times::allocate_best_times(
         best_times,
         &system.records().stage_tables,

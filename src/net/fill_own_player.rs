@@ -53,31 +53,6 @@ fn settings(race: &Race) -> [Setting<'_>; 13] {
         ),
     ]
 }
-/// Copied after the HUD's bits: (to, from).
-fn more<'a>(race: &'a Race, menus: &'a Menus) -> [(&'a dyn DwordLike, &'a dyn DwordLike); 5] {
-    [
-        (
-            &race.shared.state.settings.lens_flare,
-            &menus.screens.option_work.lens_flare,
-        ),
-        (
-            &race.shared.state.settings.reflections,
-            &menus.screens.option_work.reflections,
-        ),
-        (
-            &race.shared.state.settings.car_shadows,
-            &menus.screens.option_work.car_shadows,
-        ),
-        (
-            &race.shared.state.settings.car_detail,
-            &menus.screens.option_work.car_detail,
-        ),
-        (
-            &race.shared.state.settings.headlights,
-            &menus.screens.option_work.headlights,
-        ),
-    ]
-}
 pub fn fill_own_player(race: &Race, net: &Net, menus: &Menus, name: &[u8]) -> Result<(), Refused> {
     // `strings::copy_printable` with 0x1F room: at most 0x1E characters of `name` looked at.
     let printable = crate::strings::copy_printable::printable_from(name, 0x1F)?;
@@ -108,9 +83,10 @@ pub fn fill_own_player(race: &Race, net: &Net, menus: &Menus, name: &[u8]) -> Re
         to.set(from(&player));
     }
     race.shared.state.results.hud_bits_current.set(u32::MAX);
-    for (to, from) in more(race, menus) {
-        to.set(from.get());
-    }
+    race.shared
+        .state
+        .settings
+        .set_visual_options(&menus.options.snapshot());
     race.shared.state.results.finished.set(0);
     Ok(())
 }

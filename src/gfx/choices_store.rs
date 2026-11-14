@@ -15,9 +15,9 @@ pub struct ScreenChoices {
     pub card: PlainDword,
     /// The resolution chosen, its place in `list` (row 1).
     pub resolution: PlainDword,
-    /// The buffering, 0 double, 1 triple (row 2; the copy of `OptionWork.switch_1`).
+    /// The buffering, 0 double, 1 triple (row 2; the copy of `MenuOptions.buffering`).
     pub buffering: PlainDword,
-    /// Mipmapping, 0 off, 1 on (row 3; the copy of `OptionWork.switch_0`; into
+    /// Mipmapping, 0 off, 1 on (row 3; the copy of `MenuOptions.mipmapping`; into
     /// `RACE_VARS.mip_setting`), held to `mip_limit`.
     pub mipmapping: PlainDword,
     /// 1 when there is a primary 3D card (`gfx::cards`).

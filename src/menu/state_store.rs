@@ -109,10 +109,6 @@ pub struct MenuVariables {
     pub class_times: [PlainDword; 4],
     /// The track entry's +0xC and its hundredfold / 0x96A.
     pub track_length: [PlainDword; 2],
-    /// The drivers per class.
-    pub class_counts: [PlainDword; 4],
-    /// The first driver of each group (`saves::default_best_scores`).
-    pub firsts: [PlainDword; 4],
     /// 0 first, 1 when going to the rally's results.
     pub rally_done: PlainFlag,
     /// The first row's time, kept for the others' gap to it.
@@ -234,18 +230,6 @@ impl MenuState {
                 dword_75aae4: PlainDword::new(0),
                 class_times: [const { PlainDword::new(0) }; 4],
                 track_length: [PlainDword::new(0), PlainDword::new(0)],
-                class_counts: [
-                    PlainDword::new(0x5a),
-                    PlainDword::new(0x32),
-                    PlainDword::new(0x1e),
-                    PlainDword::new(0xa),
-                ],
-                firsts: [
-                    PlainDword::new(0),
-                    PlainDword::new(0x5a),
-                    PlainDword::new(0x8c),
-                    PlainDword::new(0xaa),
-                ],
                 rally_done: PlainFlag::new(false),
                 first_row_time: PlainDword::new(0),
                 pair_ab28: [PlainDword::new(0), PlainDword::new(0)],

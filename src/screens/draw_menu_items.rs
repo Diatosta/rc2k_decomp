@@ -66,7 +66,7 @@ pub fn draw_menu_items(
             spaced: i.fixed().spaced == 1,
         })
         .collect();
-    let since_key = if menus.screens.option_work.redefining_key.is_set() {
+    let since_key = if menus.screens.entry.redefining_key.is_set() {
         0
     } else {
         o.system
