@@ -62,9 +62,10 @@ static LAST_SHOWN: AtomicUsize = AtomicUsize::new(0);
 /// and the graphics options' choices. Fails (the error the caller makes fatal error 0x90201101)
 /// when no mode works.
 pub fn choose_screen_modes(
-    o: crate::owners::Owners<'static>,
+    gfx: &'static crate::gfx::owner::Gfx,
+    d3d: &crate::d3d::owner::D3d,
+    system: &crate::system::owner::System,
 ) -> Result<(), crate::errors::FatalError> {
-    let gfx = o.gfx;
     let gfx_display = &gfx.display;
     {
         // The logic is `rc2k_core::gfx::screen_modes::choose`. A mode works here when the mode
@@ -100,7 +101,7 @@ pub fn choose_screen_modes(
     }
     // The graphics options' choices made: the list the options page shows its resolution from (not
     // made yet at the start, so made whatever the caller holds).
-    let made = crate::gfx::screen_mode_choices::screen_mode_choices(gfx, o.d3d, o.system, false);
+    let made = crate::gfx::screen_mode_choices::screen_mode_choices(gfx, d3d, system, false);
     if let Err(e) = made {
         log(&format!(
             "platform: the screen mode choices are not made: {e:?}"

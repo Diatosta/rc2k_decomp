@@ -6,7 +6,6 @@
 
 use crate::errors::BadInput;
 use crate::menu::owner::Menus;
-use crate::owners::Owners;
 use crate::records::stages_store::RecordRef;
 use crate::session::FlagLike;
 use crate::session::PlainDword;
@@ -58,18 +57,18 @@ pub fn refuse_here<T>(r: Result<T, BadInput>, at: &str) -> T {
 }
 
 /// The variable of a leaving switch.
-pub fn switch_cell<'a>(o: Owners<'a>, s: Switch) -> &'a dyn FlagLike {
-    let screens = &o.menus.screens;
+pub fn switch_cell<'a>(menus: &'a Menus, system: &'a System, s: Switch) -> &'a dyn FlagLike {
+    let screens = &menus.screens;
     match s {
         Switch::EventLeft => &screens.loop_flags.event_left,
         Switch::LeaveScreen => &screens.loop_flags.leave_screen,
         Switch::LeftWithCarry => &screens.loop_flags.left_with_carry,
         Switch::AskLeave => &screens.loop_flags.ask_leave,
         Switch::EventOver => &screens.event.event_over,
-        Switch::LeftByKey => &o.menus.tables.captions.left_by_key,
+        Switch::LeftByKey => &menus.tables.captions.left_by_key,
         Switch::EscapePressed => &screens.draw_work.escape_pressed,
         Switch::Entered => &screens.event.any_time_qualified,
-        Switch::Quitting => &o.system.session.flags.quitting,
+        Switch::Quitting => &system.session.flags.quitting,
         Switch::RallyDone => &screens.state.menus.rally_done,
     }
 }

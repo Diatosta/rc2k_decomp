@@ -13,10 +13,14 @@
 //! `fatal::report` and ends it. Stand-ins, each to be replaced by a piece of the platform: see
 //! `stand_in`.
 
+use crate::d3d::owner::D3d;
 use crate::errors::Refused;
 use crate::framework::{LOG_PATH, log};
+use crate::gfx::owner::Gfx;
 use crate::install::outside::Game as Outside;
+use crate::menu::owner::Menus;
 use crate::owners::Owners;
+use crate::system::owner::System;
 use rc2k_core::fatal::Context;
 use std::path::Path;
 use std::sync::atomic::Ordering;
@@ -383,17 +387,17 @@ fn stand_in(what: &str, variable: &crate::session::Dword, value: u32) {
 /// any thread of the game's runs.
 fn start(o: Owners<'static>) {
     let r = Context::default();
-    set_up_fixed_objects(o);
-    seed_clock_and_random(o);
-    check_machine(o, &r);
+    set_up_fixed_objects(o.gfx, o.menus);
+    seed_clock_and_random(o.system);
+    check_machine(o.system, &r);
     read_settings_and_start_log(o, &r);
     make_save_folders();
     read_command_line_and_install_state(o, &r);
     load_language_and_game_data(o, &r);
-    probe_display(o, &r);
+    probe_display(o.gfx, o.d3d, o.system, &r);
     start_workers(o, &r);
-    choose_screen_modes(o, &r);
-    stand_in_window_state(o);
+    choose_screen_modes(o.gfx, o.d3d, o.system, &r);
+    stand_in_window_state(o.system);
     run_main_loop(o, &r);
     shut_down(o, &r);
 }
@@ -402,25 +406,23 @@ fn start(o: Owners<'static>) {
 /// `gfx::glyph_store`; `gfx::build_fonts` hangs the rest) and the surface's pixel format (the
 /// format record of `session::SCREEN`, named by its handle; the platform sets it again at every
 /// lock).
-fn set_up_fixed_objects(o: Owners<'static>) {
-    crate::menu::players_store::point_players(o.menus);
-    o.gfx.fonts.typefaces.objects[56]
+fn set_up_fixed_objects(gfx: &'static Gfx, menus: &'static Menus) {
+    crate::menu::players_store::point_players(menus);
+    gfx.fonts.typefaces.objects[56]
         .palette
         .set(crate::gfx::glyph_store::SHEET_PLACE);
-    o.gfx
-        .drawing
+    gfx.drawing
         .draw_surface
         .format
         .set(crate::gfx::pixel_format::SCREEN_FORMAT);
 }
 
 /// The start time, the random generator's seed and the volume serial that stirs it.
-fn seed_clock_and_random(o: Owners<'static>) {
-    let system = o.system;
+fn seed_clock_and_random(system: &'static System) {
     rust("system::keep_start_time");
     crate::system::keep_start_time::keep_start_time(system);
     rust("math::seed_random");
-    crate::math::seed_random::seed_random(o.system);
+    crate::math::seed_random::seed_random(system);
     rust("system::read_volume_serial");
     crate::system::read_volume_serial::read_volume_serial(system);
     // The volume serial is lost (a slip kept as is): the random state is stirred with 0.
@@ -429,8 +431,7 @@ fn seed_clock_and_random(o: Owners<'static>) {
 }
 
 /// The processor, keyboard and Windows version tests, and the error mode.
-fn check_machine(o: Owners<'static>, r: &Context) {
-    let system = o.system;
+fn check_machine(system: &'static System, r: &Context) {
     // `system::set_exception_filter` sets nothing in the standalone.
     rust("system::test_processor");
     if let Err(e) =
@@ -561,19 +562,16 @@ fn load_language_and_game_data(o: Owners<'static>, r: &Context) {
 
 /// The 3D cards and the display modes the screen can take. `system::open_window` and
 /// `gfx::probe_exclusive_mode` are SDL's (`SDL_DOES`).
-fn probe_display(o: Owners<'static>, r: &Context) {
-    let gfx = o.gfx;
+fn probe_display(gfx: &'static Gfx, d3d: &'static D3d, system: &'static System, r: &Context) {
     rust("gfx::find_3d_cards");
-    crate::gfx::find_3d_cards::find_3d_cards(&gfx.display, o.d3d);
+    crate::gfx::find_3d_cards::find_3d_cards(&gfx.display, d3d);
     rust("gfx::list_primary_modes");
-    if let Err(e) =
-        crate::gfx::list_primary_modes::list_primary_modes(&gfx.display, o.system, o.d3d)
-    {
+    if let Err(e) = crate::gfx::list_primary_modes::list_primary_modes(&gfx.display, system, d3d) {
         refused("gfx::list_primary_modes", e, r);
     }
     rust("gfx::list_secondary_modes");
     if let Err(e) =
-        crate::gfx::list_secondary_modes::list_secondary_modes(&gfx.display, o.system, o.d3d)
+        crate::gfx::list_secondary_modes::list_secondary_modes(&gfx.display, system, d3d)
     {
         refused("gfx::list_secondary_modes", e, r);
     }
@@ -599,10 +597,9 @@ fn start_workers(o: Owners<'static>, r: &Context) {
 
 /// The screen modes, the picture buffer and the pixel converters. `sound::open_cd_audio` is not
 /// called: there is no CD audio here.
-fn choose_screen_modes(o: Owners<'static>, r: &Context) {
-    let gfx = o.gfx;
+fn choose_screen_modes(gfx: &'static Gfx, d3d: &'static D3d, system: &'static System, r: &Context) {
     rust("gfx::choose_screen_modes");
-    if let Err(e) = crate::platform::choose_screen_modes(o) {
+    if let Err(e) = crate::platform::choose_screen_modes(gfx, d3d, system) {
         refused("gfx::choose_screen_modes", e.into(), r);
     }
     rust("gfx::allocate_picture_buffer");
@@ -616,20 +613,20 @@ fn choose_screen_modes(o: Owners<'static>, r: &Context) {
     rust("gfx::fill_thirds_table");
     crate::gfx::fill_thirds_table::fill_thirds_table(gfx);
     rust("gfx::install_converters");
-    crate::gfx::install_converters::install_converters(&gfx.pixel.converters, o.system);
+    crate::gfx::install_converters::install_converters(&gfx.pixel.converters, system);
 }
 
 /// What the window's procedure and the key thread tell the main loop (the films play from
 /// `film.rs`).
-fn stand_in_window_state(o: Owners<'static>) {
-    let flags = &o.system.session.flags;
+fn stand_in_window_state(system: &'static System) {
+    let flags = &system.session.flags;
     stand_in("the window is the active one", &flags.window_active, 1);
     stand_in(
         "the window has the focus (until SDL says otherwise)",
         &flags.window_focused,
         1,
     );
-    stand_in("the key thread runs", &o.system.session.key_clock.ticks, 1);
+    stand_in("the key thread runs", &system.session.key_clock.ticks, 1);
 }
 
 fn run_main_loop(o: Owners<'static>, r: &Context) {

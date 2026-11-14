@@ -7,6 +7,7 @@
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::owners::Owners;
 use crate::saves::load_options::{load_game_options, pieces_of};
+use crate::saves::owner::Saves;
 use crate::saves::rebuild_car_lists::rebuild_car_lists;
 use rc2k_core::options::files::{self, Asked, Paths};
 use rc2k_core::options::{Options, OptionsError};
@@ -36,11 +37,11 @@ fn apply(o: Owners<'static>, options: &Options) -> Result<(), Refused> {
     Ok(())
 }
 
-fn paths(o: Owners<'static>) -> Result<Paths, Refused> {
+fn paths(saves: &Saves) -> Result<Paths, Refused> {
     Ok(Paths {
         new: crate::files::host_path(b"var\\rc2k.toml"),
         old: crate::files::host_path(&crate::files::cstring(
-            &o.saves.files.options_path,
+            &saves.files.options_path,
             "the options file's path",
         )?),
     })
@@ -79,7 +80,7 @@ pub fn save_old(o: Owners<'static>) -> Result<bool, Refused> {
 
 /// The start-up load: the options into the stores. Whether any file was read.
 pub fn load(o: Owners<'static>) -> Result<bool, Refused> {
-    let paths = paths(o)?;
+    let paths = paths(o.saves)?;
     let base = capture(o)?;
     // The old file's own way is the game's reader; its trouble is kept to be raised as it is.
     let mut trouble = None;
@@ -108,7 +109,7 @@ pub fn load(o: Owners<'static>) -> Result<bool, Refused> {
 
 /// The save: the new file always, the old one too when asked for.
 pub fn save(o: Owners<'static>) -> Result<bool, Refused> {
-    let paths = paths(o)?;
+    let paths = paths(o.saves)?;
     let options = capture(o)?;
     let mut trouble = None;
     let mut write_old = |_: &Options| {

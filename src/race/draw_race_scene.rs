@@ -28,6 +28,8 @@ use crate::errors::{BadInput, Refused};
 use crate::race::owner::Race;
 use crate::race::owner_shared::RaceShared;
 use crate::race::view_scratch::{ViewScratch, filter_input, main_view, mirror as mirror_view};
+use crate::scene::owner::Scene;
+use crate::system::owner::System;
 const SLOTS: u32 = 0x400;
 
 /// The two view blocks, or the refusal.
@@ -70,11 +72,11 @@ fn mirrored(race: &Race, flags: usize) -> bool {
 }
 
 /// View `car`'s car loaded into its own state (`frame::load_view_car`).
-fn load_car(o: Owners<'_>, car: usize) -> Result<(), Refused> {
+fn load_car(race: &Race, car: usize) -> Result<(), Refused> {
     crate::race::frame::load_view_car(
-        o.race.shared.work.get(),
-        o.race.shared.car_blocks(),
-        o.race.shared.view.get(),
+        race.shared.work.get(),
+        race.shared.car_blocks(),
+        race.shared.view.get(),
         car,
         main_view(car),
     )
@@ -83,11 +85,11 @@ fn load_car(o: Owners<'_>, car: usize) -> Result<(), Refused> {
 /// A view's value fetched (`race().frame.frame_work.view_out`, the drawn view's): into the polygon
 /// work of `view`, a player's scene's slot or its mirror's.
 fn fetch_value(
-    o: Owners<'_>,
+    race: &Race,
     race_view: &crate::race::view_store::RaceView,
     view: &ViewScratch,
 ) -> Result<(), Refused> {
-    crate::race::frame_draw::fetch_view_value(race_view, &view.polygon.sun, view.drawn_view(o.race))
+    crate::race::frame_draw::fetch_view_value(race_view, &view.polygon.sun, view.drawn_view(race))
 }
 
 /// A player's scene on `run`'s view (its slot's state) and part, with the texture filter's switches
@@ -184,28 +186,34 @@ fn view_mirror(
 /// What view `car`'s scene (or with `mirror` its mirror) hands on, applied on the game's thread
 /// once it is drawn, in the views' order: its value into its block, and for the first player's
 /// scene the race's reverb.
-fn view_drawn(o: Owners<'_>, car: usize, mirror: bool) -> Result<(), Refused> {
+fn view_drawn(
+    race: &Race,
+    scene: &Scene,
+    system: &System,
+    car: usize,
+    mirror: bool,
+) -> Result<(), Refused> {
     let view = if mirror {
         mirror_view(car)
     } else {
         main_view(car)
     };
-    view.hand_on_vars(o.race);
+    view.hand_on_vars(race);
     let output = view.hand_off.output();
     if output.view_matrices {
-        crate::race::frame_draw::hand_on_view_matrices(o.race, &view.matrices);
+        crate::race::frame_draw::hand_on_view_matrices(race, &view.matrices);
     }
     // After a mirror that was drawn the front end's window (what the HUD, the effects and the
     // loading bar draw in) is the full screen again.
     if mirror && view.hand_off.mirror_drawn() {
         crate::race::frame_views::full_view_window(
-            o.race,
-            o.scene,
-            o.system,
+            race,
+            scene,
+            system,
             &crate::scene::polygon_work::front_end().window,
         );
     }
-    output.store_view_value(o.race)?;
+    output.store_view_value(race)?;
     if car == 0 && !mirror {
         output.publish_environment();
     }
@@ -224,9 +232,9 @@ fn draw_view(
     flags: usize,
     blit: bool,
 ) -> Result<(), Refused> {
-    load_car(o, car)?;
-    fetch_value(o, o.race.shared.view.get(), main_view(car))?;
-    fetch_value(o, o.race.shared.view.get(), mirror_view(car))?;
+    load_car(o.race, car)?;
+    fetch_value(o.race, o.race.shared.view.get(), main_view(car))?;
+    fetch_value(o.race, o.race.shared.view.get(), mirror_view(car))?;
     // One after another on the game's thread: on its part's scratch, the stores read from their
     // owners.
     let part = crate::workers::game_scratch();
@@ -239,7 +247,7 @@ fn draw_view(
     };
     let view = || -> Result<(), Refused> {
         view_scene(o, run(main_view(car)), filter_input(car), reads())?;
-        view_drawn(o, car, false)?;
+        view_drawn(o.race, o.scene, o.system, car, false)?;
         view_rest(o, gfx, effects, cheats, car, blit)
     };
     let mirror = || view_mirror(o, car, run(mirror_view(car)), reads());
@@ -252,7 +260,7 @@ fn draw_view(
                 &[car],
                 |run, reads| view_scene(o, run, filter, reads),
                 |_| {
-                    view_drawn(o, car, false)?;
+                    view_drawn(o.race, o.scene, o.system, car, false)?;
                     view_rest(o, gfx, effects, cheats, car, blit)
                 },
             );
@@ -272,15 +280,15 @@ fn draw_view(
             |run, reads| view_scene(o, run, filter, reads),
             |run, reads| view_mirror(o, car, run, reads),
             || {
-                view_drawn(o, car, false)?;
+                view_drawn(o.race, o.scene, o.system, car, false)?;
                 view_rest(o, gfx, effects, cheats, car, blit)
             },
-            || view_drawn(o, car, true),
+            || view_drawn(o.race, o.scene, o.system, car, true),
         );
     }
     view()?;
     mirror()?;
-    view_drawn(o, car, true)
+    view_drawn(o.race, o.scene, o.system, car, true)
 }
 
 /// A piece of the players' views drawn beside each other: a player's scene or its mirror.
@@ -308,14 +316,14 @@ fn draw_players_beside(
     player: &(dyn Fn(u32, &ViewScratch, Option<crate::workers::DrawReads<'_>>) + Sync),
 ) -> Result<(), Refused> {
     for p in 0..players {
-        load_car(o, p)?;
+        load_car(o.race, p)?;
     }
     let own = |p: usize,
                view: &ViewScratch,
                window: Option<crate::workers::DrawReads<'_>>,
                race_view: &crate::race::view_store::RaceView| {
         player(p as u32, view, window);
-        fetch_value(o, race_view, view)
+        fetch_value(o.race, race_view, view)
     };
     let mut pieces = Vec::new();
     for p in 0..players {
@@ -353,10 +361,10 @@ fn draw_players_beside(
             o.race.shared.view.get().drawn_view.set(p as u32);
             own(p, main_view(p), None, o.race.shared.view.get())?;
             main_view(p).hand_off.put(o.race);
-            view_drawn(o, p, false)?;
+            view_drawn(o.race, o.scene, o.system, p, false)?;
             view_rest(o, gfx, effects, cheats, p, false)
         }
-        Piece::Mirror(p) => view_drawn(o, p, true),
+        Piece::Mirror(p) => view_drawn(o.race, o.scene, o.system, p, true),
     })
 }
 
