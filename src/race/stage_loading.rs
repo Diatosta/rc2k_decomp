@@ -61,6 +61,8 @@ pub fn load_stage(race: &'static Race, o: crate::owners::Owners<'static>) -> Res
     crate::remote::race_loading(o.effects);
     let begun = std::time::Instant::now();
     crate::race::loadlevel::loadlevel_init(race, o)?;
+    #[cfg(feature = "remote")]
+    crate::race::course_hash::log_hashes(race, o.scene, "load");
     STAGE_LOADING.store(false, std::sync::atomic::Ordering::Relaxed);
     let (shown, micros) = crate::race::loading_bar_frame::shown();
     crate::framework::log(&format!(

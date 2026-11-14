@@ -303,6 +303,8 @@ pub fn tidy_everything(race: &Race, o: crate::owners::Owners<'static>) -> Result
     s.step(EVERYTHING_WORDS[4], || {
         tidy_stage(race, o.effects, o.gfx, o.audio)
     })?;
+    #[cfg(feature = "remote")]
+    crate::race::course_hash::log_hashes(race, o.scene, "free");
     s.log(EVERYTHING_WORDS[5]);
     s.indent(3);
     reset_race_sounds(&SoundVars::game(sound), o)?;

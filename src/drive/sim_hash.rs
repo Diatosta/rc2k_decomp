@@ -38,6 +38,23 @@ pub fn car_blocks_groups(blocks: &CarBlocks) -> Vec<(String, u64)> {
     hasher.groups
 }
 
+/// The hash of one whole record by field path and value (the cars' hash for any other store):
+/// its layout and its gap fields do not count.
+#[cfg(any(test, feature = "remote"))]
+pub fn record_hash<T: Cells>(record: &T) -> u64 {
+    let mut hasher = GroupHasher::default();
+    record.visit(&mut hasher);
+    total(&hasher.groups)
+}
+
+/// FNV-1a of `bytes` and their count, for a store that is a table of bytes.
+#[cfg(any(test, feature = "remote"))]
+pub fn bytes_hash(bytes: &[u8]) -> u64 {
+    let mut entry = (bytes.len() as u64).to_le_bytes().to_vec();
+    entry.extend(bytes);
+    fnv1a(&entry)
+}
+
 /// The groups built from `Cells::visit`: the field path kept as the visit goes in and out.
 #[derive(Default)]
 struct GroupHasher {

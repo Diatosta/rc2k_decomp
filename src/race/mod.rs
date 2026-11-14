@@ -18,6 +18,8 @@ pub mod checkpoints_store;
 pub mod clock_ticks_store;
 pub mod course_data;
 pub mod course_faces;
+#[cfg(any(test, feature = "remote"))]
+pub mod course_hash;
 pub mod course_lists_store;
 pub mod course_places;
 pub mod course_store;
