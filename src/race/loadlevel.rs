@@ -292,9 +292,7 @@ pub fn loadlevel_init(
     // store norms; without `Finish.no_place` the checkpoints, the pace notes, the overlay.
     s.log();
     s.indent(3);
-    crate::race::norms::store_norms(race, &mut |a, b, c| {
-        crate::race::norms::face_normal(race, scene, a, b, c)
-    })?;
+    crate::race::norms::store_norms(race, scene)?;
     if race.replay.finish.get().no_place.get() == 0 {
         s.indent(-3);
         s.step(&mut || level::init_checkpoints(race), None)?;

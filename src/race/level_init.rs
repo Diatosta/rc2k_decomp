@@ -165,60 +165,61 @@ pub fn reset_refresh() {
     crate::race::view_grid::reset_corners();
 }
 
-/// Lists the checkpoints: `split_colour_count` 0; unless `checkpoint_count` - 2 is below 0, the
-/// table entries 1 .. `last_checkpoint` - 1 (`Buffers.checkpoints.checkpoint_faces[0][n]`) whose
-/// record (`course_faces` + it * 0x40) has its byte +0x26 set go into `checkpoints`, and
-/// `split_colour_count` becomes their count - 1. Refuses an end below 2, or more found than the
-/// list's 0x201 (a real stage's end is past 0x201).
-pub fn init_checkpoints(race: &Race) -> Result<(), Refused> {
-    let physics = &race.physics;
+/// The checkpoints the split tables list: of the table entries 1 .. `last_checkpoint`, those whose
+/// face has its byte +0x26 set. None with fewer than two checkpoints. Reads the loaded course
+/// and writes nothing. Refused: an end below 2, or more found than the list's 0x201 (a real
+/// stage's end is past 0x201).
+pub fn listed_checkpoints(race: &Race) -> Result<Option<Vec<u32>>, Refused> {
     let shared = &race.shared;
-    // Logic in `rc2k_core::race::checkpoints::listed_checkpoints`.
-    {
-        let kinds = shared.vars.get().checkpoint_count.get();
-        if (kinds.wrapping_sub(2) as i32) < 0 {
-            physics.split_tables().split_colour_count.set(0);
-            return Ok(());
-        }
-        let end = shared.vars.get().last_checkpoint.get();
-        let table = &race.checkpoints().checkpoint_faces;
-        let trap = Trap::new();
-        let listed = rc2k_core::race::checkpoints::listed_checkpoints(end, |n| {
-            // n < `last_checkpoint`, which `race::best_line` sets to the chain's length - 1 after
-            // writing the chain into the table's 5146 entries: inside the table.
-            let face = trap.keep_read(
-                table
-                    .get(n as usize)
-                    .map(crate::session::PlainDword::get)
-                    .ok_or(BadInput("a checkpoint past the checkpoint table")),
-            );
-            trap.keep_read(crate::race::course_places::face_field::<u8>(
-                race.course.reads(),
-                face,
-                0x26,
-            )) != 0
-        })?;
-        trap.finish()?;
-        physics.split_tables().split_colour_count.set(0);
-        // The list holds 0x101 entries but may run on for up to 0x201 (`MOST_LISTED`), over the
-        // stage's numbers that follow it (0x100 entries: the two fields end together at 0x201).
-        // Such a stage is refused later by `race::init_overlay` (more than 0x40 parts).
-        let tables = physics.split_tables();
-        for (k, &n) in listed.iter().enumerate() {
-            let entry = tables
-                .checkpoints
-                .get(k)
-                .or_else(|| tables.stage_numbers.get(k - tables.checkpoints.len()));
-            entry
-                .ok_or(BadInput(
-                    "a split past the split list and the stage's numbers",
-                ))?
-                .set(n);
-        }
-        physics
-            .split_tables()
-            .split_colour_count
-            .set((listed.len() as u32).wrapping_sub(1));
+    if (shared.vars.get().checkpoint_count.get().wrapping_sub(2) as i32) < 0 {
+        return Ok(None);
     }
+    let end = shared.vars.get().last_checkpoint.get();
+    let table = &race.checkpoints().checkpoint_faces;
+    let trap = Trap::new();
+    let listed = rc2k_core::race::checkpoints::listed_checkpoints(end, |n| {
+        // n < `last_checkpoint`, one less than the chain's length, which `race::best_line`
+        // wrote into the table's 5146 entries: inside the table.
+        let face = trap.keep_read(
+            table
+                .get(n as usize)
+                .map(crate::session::PlainDword::get)
+                .ok_or(BadInput("a checkpoint past the checkpoint table")),
+        );
+        trap.keep_read(crate::race::course_places::face_field::<u8>(
+            race.course.reads(),
+            face,
+            0x26,
+        )) != 0
+    })?;
+    trap.finish()?;
+    Ok(Some(listed))
+}
+
+/// Lists the checkpoints (`listed_checkpoints`) in the split tables and sets
+/// `split_colour_count` to their count - 1 (0 with fewer than two checkpoints). The list holds
+/// 0x101 entries but may run on for up to 0x201, over the stage's numbers that follow it (0x100
+/// entries: the two fields end together at 0x201); such a stage is refused later by
+/// `race::init_overlay` (more than 0x40 parts).
+pub fn init_checkpoints(race: &Race) -> Result<(), Refused> {
+    let tables = race.physics.split_tables();
+    let Some(listed) = listed_checkpoints(race)? else {
+        tables.split_colour_count.set(0);
+        return Ok(());
+    };
+    for (k, &n) in listed.iter().enumerate() {
+        let entry = tables
+            .checkpoints
+            .get(k)
+            .or_else(|| tables.stage_numbers.get(k - tables.checkpoints.len()));
+        entry
+            .ok_or(BadInput(
+                "a split past the split list and the stage's numbers",
+            ))?
+            .set(n);
+    }
+    tables
+        .split_colour_count
+        .set((listed.len() as u32).wrapping_sub(1));
     Ok(())
 }
