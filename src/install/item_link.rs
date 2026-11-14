@@ -10,6 +10,7 @@ use rc2k_core::install::items::{self, LinkWay};
 /// Enter on a link; whether it was taken.
 pub fn item_link(
     install: &crate::install::owner::Install,
+    list_state: &crate::menu::list_state::ListState,
     item: ListItem,
 ) -> Result<bool, Refused> {
     let action = item.target();
@@ -18,10 +19,10 @@ pub fn item_link(
         next = item.count();
         next
     }) {
-        LinkWay::Action => item_action_at(install, action),
+        LinkWay::Action => item_action_at(install, list_state, action),
         LinkWay::Leave(next) => {
-            install.pages.list_answer.set(next);
-            install.pages.list_leave.set(1);
+            list_state.list_answer.set(next);
+            list_state.list_leave.set(1);
             Ok(next == 0)
         }
         LinkWay::Stay => Ok(next == 0),

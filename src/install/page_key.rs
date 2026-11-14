@@ -20,7 +20,7 @@ pub fn page_key(
     list: ListMenu,
 ) -> Result<(u32, bool), Refused> {
     use crate::install as i;
-    let (gfx, system) = (o.gfx, o.system);
+    let (gfx, system, list_state) = (o.gfx, o.system, &o.menus.list);
     let Some(way) = items::page_key(key as u8) else {
         // No key, or one of 0x80 and above.
         return Ok((key, key as u8 == 0));
@@ -39,23 +39,25 @@ pub fn page_key(
         (outcome.key_word, outcome.plain_edit)
     } else {
         let taken = match way {
-            PageKey::Item(ItemKey::Up) => Some(i::key_up::key_up(install, item)?),
-            PageKey::Item(ItemKey::Down) => Some(i::key_down::key_down(install, item)?),
-            PageKey::Item(ItemKey::Left) => Some(i::key_left::key_left(install, item)?),
-            PageKey::Item(ItemKey::Right) => Some(i::key_right::key_right(install, item)?),
-            PageKey::Item(ItemKey::Number) => Some(i::key_number::key_number(install, key, item)?),
-            PageKey::Enter => Some(i::item_enter::item_enter(install, item)?),
+            PageKey::Item(ItemKey::Up) => Some(i::key_up::key_up(list_state, item)?),
+            PageKey::Item(ItemKey::Down) => Some(i::key_down::key_down(list_state, item)?),
+            PageKey::Item(ItemKey::Left) => Some(i::key_left::key_left(list_state, item)?),
+            PageKey::Item(ItemKey::Right) => Some(i::key_right::key_right(list_state, item)?),
+            PageKey::Item(ItemKey::Number) => {
+                Some(i::key_number::key_number(list_state, key, item)?)
+            }
+            PageKey::Enter => Some(i::item_enter::item_enter(install, list_state, item)?),
             _ => None,
         };
         if let Some(taken) = taken {
-            return Ok((key, took(install, taken)));
+            return Ok((key, took(list_state, taken)));
         }
         if way == PageKey::Escape {
             // The page is left unless the list stays.
             let stays = list.flags() & items::STAYS != 0;
             if !stays {
-                install.pages.list_answer.set(0);
-                install.pages.list_leave.set(1);
+                list_state.list_answer.set(0);
+                list_state.list_leave.set(1);
             }
             return Ok((key, !stays));
         }
@@ -65,13 +67,13 @@ pub fn page_key(
     if crate::gfx::shots::on_byte(gfx) != 0 && key as u8 == items::SCREENSHOT_KEY {
         crate::gfx::take_screenshot::take_screenshot(gfx, system)?;
     }
-    Ok((key, took(install, plain_edit)))
+    Ok((key, took(list_state, plain_edit)))
 }
 
 /// `jnz` out, else the key marked as taken (zero set).
-fn took(install: &crate::install::owner::Install, zero: bool) -> bool {
+fn took(list_state: &crate::menu::list_state::ListState, zero: bool) -> bool {
     if zero {
-        install.pages.key_taken.set(1);
+        list_state.key_taken.set(1);
     }
     zero
 }

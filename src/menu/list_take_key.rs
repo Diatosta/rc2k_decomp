@@ -7,26 +7,25 @@
 
 /// The key, 0 for none.
 pub fn list_take_key(
-    install: &crate::install::owner::Install,
+    list_state: &crate::menu::list_state::ListState,
     input: &crate::input::owner::Input,
 ) -> u8 {
     let key = crate::input::take_key::take_key(input);
     if key == 0 {
         crate::system::sleep::sleep(1);
     } else {
-        let pages = &install.pages;
-        let repeated = key == pages.last_key.get();
+        let repeated = key == list_state.last_key.get();
         let (mut frame, mut moved) = (0, 0);
         if repeated {
-            (frame, moved) = (pages.frame_clock.get(), pages.move_clock.get());
+            (frame, moved) = (list_state.frame_clock.get(), list_state.move_clock.get());
         }
-        pages.repeats.set(rc2k_core::menu::list_menu::repeats(
-            pages.repeats.get(),
+        list_state.repeats.set(rc2k_core::menu::list_menu::repeats(
+            list_state.repeats.get(),
             repeated,
             frame,
             moved,
         ));
-        pages.last_key.set(key);
+        list_state.last_key.set(key);
     }
     key
 }

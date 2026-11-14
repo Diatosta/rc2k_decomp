@@ -3,11 +3,11 @@
 
 use crate::menu::list_handle::ListItem;
 
-pub fn value_down(install: &crate::install::owner::Install, item: ListItem) {
+pub fn value_down(list_state: &crate::menu::list_state::ListState, item: ListItem) {
     let value_at = item.value();
     let value = rc2k_core::install::items::value_down(
         value_at.get(),
-        install.pages.repeats.get(),
+        list_state.repeats.get(),
         item.value_least(),
     );
     value_at.set(value as u8);

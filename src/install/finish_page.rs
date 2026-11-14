@@ -2,14 +2,16 @@
 //! shown). Called by `install::run_page`.
 
 /// `state` which call of the list action this is (0 the start, negative the end).
-pub fn finish_page(install: &crate::install::owner::Install, state: u32) {
-    if (state as i32) < 0
-        && rc2k_core::install::pages::shows_readme(install.pages.list_answer.get())
-    {
+pub fn finish_page(
+    install: &crate::install::owner::Install,
+    list_state: &crate::menu::list_state::ListState,
+    state: u32,
+) {
+    if (state as i32) < 0 && rc2k_core::install::pages::shows_readme(list_state.list_answer.get()) {
         install
             .names
             .script
             .set(crate::install::vars::SCRIPT_MARK, 5);
-        install.pages.list_answer.set(1);
+        list_state.list_answer.set(1);
     }
 }

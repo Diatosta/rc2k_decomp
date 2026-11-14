@@ -8,8 +8,8 @@ use rc2k_core::install::items::ItemKey;
 
 /// Whether the key was taken.
 pub fn key_right(
-    install: &crate::install::owner::Install,
+    list_state: &crate::menu::list_state::ListState,
     item: ListItem,
 ) -> Result<bool, Refused> {
-    item_key(install, item, ItemKey::Right, 0)
+    item_key(list_state, item, ItemKey::Right, 0)
 }

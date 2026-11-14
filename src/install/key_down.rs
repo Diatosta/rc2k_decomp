@@ -7,6 +7,9 @@ use crate::menu::list_handle::ListItem;
 use rc2k_core::install::items::ItemKey;
 
 /// Whether the key was taken.
-pub fn key_down(install: &crate::install::owner::Install, item: ListItem) -> Result<bool, Refused> {
-    item_key(install, item, ItemKey::Down, 0)
+pub fn key_down(
+    list_state: &crate::menu::list_state::ListState,
+    item: ListItem,
+) -> Result<bool, Refused> {
+    item_key(list_state, item, ItemKey::Down, 0)
 }

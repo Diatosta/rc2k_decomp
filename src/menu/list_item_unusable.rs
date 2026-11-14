@@ -6,6 +6,6 @@
 
 use crate::menu::list_handle::ListMenu;
 
-pub fn list_item_unusable(install: &crate::install::owner::Install, list: ListMenu) -> bool {
-    rc2k_core::menu::list_menu::unusable(list.item(install.pages.choice.get()).first())
+pub fn list_item_unusable(list_state: &crate::menu::list_state::ListState, list: ListMenu) -> bool {
+    rc2k_core::menu::list_menu::unusable(list.item(list_state.choice.get()).first())
 }

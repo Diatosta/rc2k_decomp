@@ -13,6 +13,7 @@ pub fn setting_key(
     input: &crate::input::owner::Input,
     strings: &crate::strings::owner::Strings,
     install: &'static Install,
+    list_state: &crate::menu::list_state::ListState,
     net: &'static Net,
     key: u8,
     gfx: &'static crate::gfx::owner::Gfx,
@@ -21,7 +22,7 @@ pub fn setting_key(
         return Ok(());
     }
     // The logic is in `rc2k_core::net::chat` (`NAME`, `MOST_PLAYERS`, `most_players`).
-    match install.pages.choice.get() {
+    match list_state.choice.get() {
         chat::NAME => {
             if net.setup().machine_name.get(0) == 0 {
                 movsb(&net.setup().machine_name, &install.paths.script_path, 0x40)?;

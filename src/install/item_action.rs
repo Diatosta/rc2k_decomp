@@ -7,11 +7,12 @@ use crate::menu::list_handle::ListItem;
 /// Enter on an action item; whether it was taken.
 pub fn item_action(
     install: &crate::install::owner::Install,
+    list_state: &crate::menu::list_state::ListState,
     item: ListItem,
 ) -> Result<bool, Refused> {
     let action = item.target();
     if rc2k_core::install::items::has_action(action) {
-        return item_action_at(install, action);
+        return item_action_at(install, list_state, action);
     }
     Ok(action == 1)
 }

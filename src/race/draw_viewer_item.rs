@@ -6,7 +6,6 @@
 
 use crate::errors::BadInput;
 use crate::errors::Refused;
-use crate::install::owner::Install;
 use crate::race::owner::Race;
 use crate::race::owner_replay::Replay;
 use crate::race::viewer_state_store::{ReplayViewBlock, ViewerPicture};
@@ -22,7 +21,7 @@ fn camera_byte(race: &Race, replay: &Replay, byte: usize) -> Result<u32, BadInpu
 /// `item` the list item, `index` its number.
 pub fn draw_viewer_item(
     race: &Race,
-    install: &Install,
+    list_state: &crate::menu::list_state::ListState,
     item: &[PlainDword; 4],
     index: u32,
     system: &crate::system::owner::System,
@@ -52,14 +51,13 @@ pub fn draw_viewer_item(
     panel.item_place[3].set(place[3]);
     let colour = item_colour(
         byte(0),
-        index == install.pages.choice.get(),
+        index == list_state.choice.get(),
         || race.viewer_buffers().camera_edit.get() != 0,
         || {
-            install
-                .pages
+            list_state
                 .frame_clock
                 .get()
-                .wrapping_sub(install.pages.move_clock.get())
+                .wrapping_sub(list_state.move_clock.get())
         },
     );
     crate::drive::tyre_quad::tyre_quad(

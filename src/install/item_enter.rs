@@ -8,16 +8,19 @@ use rc2k_core::install::items::EnterWay;
 /// Enter on `item`; whether it was taken.
 pub fn item_enter(
     install: &'static crate::install::owner::Install,
+    list_state: &crate::menu::list_state::ListState,
     item: ListItem,
 ) -> Result<bool, Refused> {
     let kind = item.kind();
     match EnterWay::of(kind) {
-        Some(EnterWay::Link) => crate::install::item_link::item_link(install, item),
+        Some(EnterWay::Link) => crate::install::item_link::item_link(install, list_state, item),
         Some(EnterWay::StartEdit) => {
             crate::install::start_edit::start_edit(install, item);
             Ok(true)
         }
-        Some(EnterWay::Action) => crate::install::item_action::item_action(install, item),
+        Some(EnterWay::Action) => {
+            crate::install::item_action::item_action(install, list_state, item)
+        }
         None => Ok(kind == 6),
     }
 }

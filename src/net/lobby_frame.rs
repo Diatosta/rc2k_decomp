@@ -27,7 +27,7 @@ fn time_text(time: u32, gaps: bool, first: u32) -> Vec<u8> {
 /// Called through
 /// `screens::run_frame` by `net::lobby_loop`.
 pub fn lobby_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
-    let (net, install, strings, gfx) = (o.net, o.install, o.strings, o.gfx);
+    let (net, strings, gfx) = (o.net, o.strings, o.gfx);
     let text = &strings.text;
     let vars = &net.vars;
     // The logic is in `rc2k_core::net::screens` (`shown_time`, `flag_sprite`, `car_sprite`,
@@ -172,7 +172,6 @@ pub fn lobby_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
             x = crate::net::lobby_button::lobby_button(
                 crate::strings::append_string_by_id::StringOwners::of(o),
                 net,
-                install,
                 id,
                 item,
                 x,

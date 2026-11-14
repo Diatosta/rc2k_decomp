@@ -13,7 +13,7 @@ use rc2k_core::menu::list_menu::{MOVES, Step, step};
 /// `key` moving the highlight of the list menu `list` by the neighbours table `table` (None
 /// for none): whether it moved.
 pub fn list_step(
-    install: &crate::install::owner::Install,
+    list_state: &crate::menu::list_state::ListState,
     key: u8,
     table: Option<BytePlace>,
     list: crate::menu::list_handle::ListMenu,
@@ -22,8 +22,7 @@ pub fn list_step(
     if !MOVES.contains(&key) {
         return Ok(false);
     }
-    let pages = &install.pages;
-    let ecx = pages.choice.get();
+    let ecx = list_state.choice.get();
     let fault = crate::menu::event_flow::Fault::default();
     // Asked only with a table (`step` is told whether there is one).
     let entry_of = |k: usize| match table {
@@ -40,6 +39,6 @@ pub fn list_step(
     let Step::Moved(cl) = stepped else {
         return Ok(false);
     };
-    pages.choice.set(with_cl(cl));
+    list_state.choice.set(with_cl(cl));
     Ok(true)
 }

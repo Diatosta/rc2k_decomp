@@ -6,12 +6,16 @@ use crate::menu::list_handle::ListMenu;
 use rc2k_core::install::items::FolderKey;
 
 /// `key` (the key in its low byte, its bits in the next); whether it was taken.
-pub fn folder_key(install: &crate::install::owner::Install, key: u32, list: ListMenu) -> bool {
+pub fn folder_key(
+    list_state: &crate::menu::list_state::ListState,
+    key: u32,
+    list: ListMenu,
+) -> bool {
     let way = FolderKey::of(key);
     let answer = way.answer(|| list.flags());
     if let Some(answer) = answer {
-        install.pages.list_answer.set(answer);
-        install.pages.list_leave.set(1);
+        list_state.list_answer.set(answer);
+        list_state.list_leave.set(1);
     }
     match way {
         FolderKey::NotEdited => key == 0,

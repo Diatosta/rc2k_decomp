@@ -17,7 +17,8 @@ pub fn list_frame(
     count: &crate::session::Dword,
     name: impl Fn(u32) -> Result<[u8; 0x40], Refused>,
 ) -> Result<(), Refused> {
-    let (install, gfx, system) = (o.install, o.gfx, o.system);
+    let (gfx, system) = (o.gfx, o.system);
+    let list_state = &o.menus.list;
     if !lock_surface(gfx, system) {
         return Ok(());
     }
@@ -32,13 +33,12 @@ pub fn list_frame(
     )?;
     let mut y: u32 = 0x6F + 0x2C;
     // The logic is in `rc2k_core::net::screens` (`LIST_ROWS`, `listed`, `blink_lit`).
-    let pages = &install.pages;
     for row in 0..screens::LIST_ROWS {
-        let Some(item) = screens::listed(row, pages.choice_before.get(), count.get()) else {
+        let Some(item) = screens::listed(row, list_state.choice_before.get(), count.get()) else {
             continue;
         };
-        let font = if item == pages.choice.get()
-            && screens::blink_lit(pages.frame_clock.get(), pages.move_clock.get())
+        let font = if item == list_state.choice.get()
+            && screens::blink_lit(list_state.frame_clock.get(), list_state.move_clock.get())
         {
             LIT
         } else {

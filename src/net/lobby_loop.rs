@@ -75,13 +75,17 @@ pub fn sync(net: &Net, ready: bool) -> Result<bool, Refused> {
 }
 
 /// An item move: from the highlight by `step` while it lands on an item that is off.
-fn step_item(install: &crate::install::owner::Install, net: &Net, vars: &NetShared, step: u32) {
+fn step_item(
+    list_state: &crate::menu::list_state::ListState,
+    net: &Net,
+    vars: &NetShared,
+    step: u32,
+) {
     loop {
-        install
-            .pages
+        list_state
             .choice
-            .set(install.pages.choice.get().wrapping_add(step));
-        let c = install.pages.choice.get();
+            .set(list_state.choice.get().wrapping_add(step));
+        let c = list_state.choice.get();
         if c == 1 && net.setup().car_item.get() != 1 {
             continue;
         }
@@ -95,14 +99,15 @@ fn step_item(install: &crate::install::owner::Install, net: &Net, vars: &NetShar
 /// 1 when the race is on, -1 (`u32::MAX`) when the lobby was left.
 pub fn lobby_loop(o: Owners<'static>) -> Result<u32, Refused> {
     let (install, net, system) = (o.install, o.net, o.system);
+    let list_state = &o.menus.list;
     net.vars.players.set(0);
     net.lobby().racing.set(0);
     crate::net::show_background::show_background(o)?;
     let now = system.session.key_clock.ticks.get();
-    install.pages.move_clock.set(now);
-    install.pages.key_clock.set(now);
+    list_state.move_clock.set(now);
+    list_state.key_clock.set(now);
     net.edit().edited.set(u32::MAX);
-    install.pages.choice.set(3);
+    list_state.choice.set(3);
     let tick = crate::system::tick_count::tick_count();
     net.edit().clock_a.set(tick);
     net.lobby().sync_clock.set(tick);
@@ -129,40 +134,39 @@ pub fn lobby_loop(o: Owners<'static>) -> Result<u32, Refused> {
             // kept as is).
             crate::net::list_players::list_players_regs(net)?;
         }
-        install
-            .pages
+        list_state
             .frame_clock
             .set(system.session.key_clock.ticks.get());
-        let key = list_key(install, o.input)?;
+        let key = list_key(list_state, o.input)?;
         let mut moved = false;
         if net.edit().edited.get() != u32::MAX {
             crate::net::chat_key::chat_key(o.input, net, install, key, o.gfx)?;
         } else {
             let ready = net.vars.own.state().is_ready();
             if !ready && key == 0x69 {
-                step_item(install, net, &net.vars, u32::MAX);
-                if net.lobby().after_race.get() == 1 && (install.pages.choice.get() as i32) < 1 {
-                    install.pages.choice.set(1);
+                step_item(list_state, net, &net.vars, u32::MAX);
+                if net.lobby().after_race.get() == 1 && (list_state.choice.get() as i32) < 1 {
+                    list_state.choice.set(1);
                 }
-                if (install.pages.choice.get() as i32) < 0 {
-                    install.pages.choice.set(0);
+                if (list_state.choice.get() as i32) < 0 {
+                    list_state.choice.set(0);
                 }
                 moved = true;
             } else if !ready && key == 0x68 {
-                step_item(install, net, &net.vars, 1);
-                if (install.pages.choice.get() as i32) > 3 {
-                    install.pages.choice.set(3);
+                step_item(list_state, net, &net.vars, 1);
+                if (list_state.choice.get() as i32) > 3 {
+                    list_state.choice.set(3);
                 }
                 moved = true;
             } else if key == 0x1C {
-                match install.pages.choice.get() {
+                match list_state.choice.get() {
                     0 => {
                         net.vars.own.set_state(net.vars.own.state().made_ready());
-                        install.pages.choice.set(3);
+                        list_state.choice.set(3);
                         moved = true;
                     }
                     1 | 2 => {
-                        if install.pages.choice.get() == 1 {
+                        if list_state.choice.get() == 1 {
                             crate::net::choose_car::choose_car(o, &net.vars)?;
                         } else {
                             crate::net::choose_stage::choose_stage(o, &net.vars)?;
@@ -171,7 +175,7 @@ pub fn lobby_loop(o: Owners<'static>) -> Result<u32, Refused> {
                         moved = true;
                     }
                     3 => {
-                        crate::net::begin_chat::begin_chat(net, install)?;
+                        crate::net::begin_chat::begin_chat(net, install, list_state)?;
                         moved = true;
                     }
                     _ => {}
@@ -180,17 +184,14 @@ pub fn lobby_loop(o: Owners<'static>) -> Result<u32, Refused> {
                 net.lobby().show_gaps.set(net.lobby().show_gaps.get() ^ 1);
                 moved = true;
             } else if key == 1 {
-                install.pages.choice.set(u32::MAX);
-                return Ok(install.pages.choice.get());
+                list_state.choice.set(u32::MAX);
+                return Ok(list_state.choice.get());
             } else {
                 other_key(o, key)?;
             }
         }
         if moved {
-            install
-                .pages
-                .move_clock
-                .set(install.pages.frame_clock.get());
+            list_state.move_clock.set(list_state.frame_clock.get());
         }
         if net.vars.own.state().is_host()
             && net.vars.players.get() >= 2
@@ -200,8 +201,8 @@ pub fn lobby_loop(o: Owners<'static>) -> Result<u32, Refused> {
             net.vars.all_raced.set(1);
         }
         if net.vars.all_raced.get() == 1 {
-            install.pages.choice.set(1);
-            return Ok(install.pages.choice.get());
+            list_state.choice.set(1);
+            return Ok(list_state.choice.get());
         }
         // Waits for no player to be still racing: a player who joined since the race never has
         // the raced bit.
@@ -217,6 +218,6 @@ pub fn lobby_loop(o: Owners<'static>) -> Result<u32, Refused> {
             break;
         }
     }
-    install.pages.choice.set(u32::MAX);
-    Ok(install.pages.choice.get())
+    list_state.choice.set(u32::MAX);
+    Ok(list_state.choice.get())
 }

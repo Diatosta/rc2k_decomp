@@ -16,6 +16,7 @@ use crate::menu::event_store::Event;
 use crate::menu::flow_store::ScreenFlow;
 use crate::menu::item_sprites_store::ItemSprites;
 use crate::menu::keys_store::KeyTables;
+use crate::menu::list_state::ListState;
 use crate::menu::lists_store::MenuLists;
 use crate::menu::loop_store::LoopFlags;
 use crate::menu::menus_store::MenuTables;
@@ -146,6 +147,8 @@ pub struct Menus {
     pub screens: Screens,
     pub tables: Tables,
     pub play: Play,
+    /// The state every list menu shares.
+    pub list: ListState,
 }
 
 /// The keyboard tables.
@@ -169,6 +172,7 @@ pub static MENU_OWNER: GameThread<Menus> = GameThread::new(Menus {
     screens: Screens::new(),
     tables: Tables::new(),
     play: Play::new(),
+    list: ListState::new(),
 });
 
 /// The menus' state, for a caller that does not take it as a parameter yet.

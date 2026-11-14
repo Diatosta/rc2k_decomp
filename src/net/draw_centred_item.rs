@@ -14,14 +14,13 @@ const LIT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::CENTRED
 pub fn draw_centred_item(
     o: crate::owners::Owners<'static>,
     net: &crate::net::owner::Net,
-    install: &crate::install::owner::Install,
     string: u32,
     item: u32,
     x: u32,
     y: u32,
 ) -> Result<u32, Refused> {
     // The logic is in `rc2k_core::net::screens::item_lit` (in `item_font`).
-    let font = item_font(net, install, item, PLAIN, LIT);
+    let font = item_font(net, &o.menus.list, item, PLAIN, LIT);
     let next = y.wrapping_add(font.object(&o.gfx.fonts.typefaces).line_height.get());
     crate::text::draw_string_by_id::draw_string_by_id_at(
         crate::strings::append_string_by_id::StringOwners::of(o),

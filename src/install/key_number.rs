@@ -9,10 +9,10 @@ use rc2k_core::install::items::ItemKey;
 
 /// `key` the number key; whether it was taken.
 pub fn key_number(
-    install: &crate::install::owner::Install,
+    list_state: &crate::menu::list_state::ListState,
     key: u32,
     item: ListItem,
 ) -> Result<bool, Refused> {
     let number = rc2k_core::install::items::number_of_key(key as u8);
-    item_key(install, item, ItemKey::Number, number)
+    item_key(list_state, item, ItemKey::Number, number)
 }

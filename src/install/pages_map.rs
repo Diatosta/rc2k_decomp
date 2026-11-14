@@ -35,18 +35,7 @@ const BOXES: u32 = 9;
 pub enum PagesField {
     Lead,
     Layout,
-    Choice,
-    ChoiceBefore,
-    Repeats,
-    LastKey,
-    KeyTaken,
-    ListAnswer,
-    ListLeave,
-    Gap51D417,
-    KeyClock,
-    FrameClock,
-    MoveClock,
-    Gap51D427,
+    ListStateRun,
     Texts,
     MsgError,
     MsgCancel,
@@ -77,21 +66,10 @@ pub enum PagesField {
 
 impl PagesField {
     /// Every field, in declaration order.
-    pub const ALL: [PagesField; 40] = [
+    pub const ALL: [PagesField; 29] = [
         PagesField::Lead,
         PagesField::Layout,
-        PagesField::Choice,
-        PagesField::ChoiceBefore,
-        PagesField::Repeats,
-        PagesField::LastKey,
-        PagesField::KeyTaken,
-        PagesField::ListAnswer,
-        PagesField::ListLeave,
-        PagesField::Gap51D417,
-        PagesField::KeyClock,
-        PagesField::FrameClock,
-        PagesField::MoveClock,
-        PagesField::Gap51D427,
+        PagesField::ListStateRun,
         PagesField::Texts,
         PagesField::MsgError,
         PagesField::MsgCancel,
@@ -124,18 +102,7 @@ impl PagesField {
         match self {
             PagesField::Lead => &pages._lead,
             PagesField::Layout => &pages.layout,
-            PagesField::Choice => &pages.choice,
-            PagesField::ChoiceBefore => &pages.choice_before,
-            PagesField::Repeats => &pages.repeats,
-            PagesField::LastKey => &pages.last_key,
-            PagesField::KeyTaken => &pages.key_taken,
-            PagesField::ListAnswer => &pages.list_answer,
-            PagesField::ListLeave => &pages.list_leave,
-            PagesField::Gap51D417 => &pages._gap_51d417,
-            PagesField::KeyClock => &pages.key_clock,
-            PagesField::FrameClock => &pages.frame_clock,
-            PagesField::MoveClock => &pages.move_clock,
-            PagesField::Gap51D427 => &pages._gap_51d427,
+            PagesField::ListStateRun => &pages._list_state_run,
             PagesField::Texts => &pages.texts,
             PagesField::MsgError => &pages.msg_error,
             PagesField::MsgCancel => &pages.msg_cancel,
@@ -167,11 +134,11 @@ impl PagesField {
 
     /// Where each field starts in the run of the pages' bytes (the fields back to back in
     /// declaration order), and the run's end.
-    fn starts() -> &'static [usize; 41] {
-        static STARTS: std::sync::OnceLock<[usize; 41]> = std::sync::OnceLock::new();
+    fn starts() -> &'static [usize; 30] {
+        static STARTS: std::sync::OnceLock<[usize; 30]> = std::sync::OnceLock::new();
         STARTS.get_or_init(|| {
             let pages = &installer().pages;
-            let mut starts = [0; 41];
+            let mut starts = [0; 30];
             for (n, field) in Self::ALL.into_iter().enumerate() {
                 starts[n + 1] = starts[n] + field.bytes(pages).size();
             }
@@ -507,21 +474,10 @@ pub fn typed_folder(offset: u32) -> BytePlace {
 /// in declaration order, its byte offset and its length. The oracle the run-on chain and the
 /// handles are proven against.
 #[cfg(test)]
-pub(crate) const NAMED_PLACES: [(&str, usize, usize); 40] = [
+pub(crate) const NAMED_PLACES: [(&str, usize, usize); 29] = [
     ("_lead", 0x0, 7),
     ("layout", 0x7, 4096),
-    ("choice", 0x1007, 4),
-    ("choice_before", 0x100B, 4),
-    ("repeats", 0x100F, 4),
-    ("last_key", 0x1013, 1),
-    ("key_taken", 0x1014, 1),
-    ("list_answer", 0x1015, 1),
-    ("list_leave", 0x1016, 1),
-    ("_gap_51d417", 0x1017, 4),
-    ("key_clock", 0x101B, 4),
-    ("frame_clock", 0x101F, 4),
-    ("move_clock", 0x1023, 4),
-    ("_gap_51d427", 0x1027, 12),
+    ("_list_state_run", 0x1007, 0x2C),
     ("texts", 0x1033, 0x20),
     ("msg_error", 0x1053, 0x10),
     ("msg_cancel", 0x1063, 0x10),
@@ -569,18 +525,7 @@ mod tests {
         let fields = fields!(
             _lead,
             layout,
-            choice,
-            choice_before,
-            repeats,
-            last_key,
-            key_taken,
-            list_answer,
-            list_leave,
-            _gap_51d417,
-            key_clock,
-            frame_clock,
-            move_clock,
-            _gap_51d427,
+            _list_state_run,
             texts,
             msg_error,
             msg_cancel,
@@ -660,20 +605,19 @@ mod tests {
                 }
             }
         }
-        // A write across a field's edge (the gap before the clocks into the key's clock),
+        // A write across a field's edge (the end of the pieces into the list state's run),
         // put back after.
-        let at = PagesField::KeyClock.offset() - 2;
+        let at = PagesField::ListStateRun.offset() - 2;
         let mut saved = [0; 4];
         PagesChain.load(at, &mut saved).unwrap();
-        let clock = pages.key_clock.get();
         PagesChain.store(at, &[1, 2, 3, 4]).unwrap();
         let written = (
-            pages._gap_51d417.get(2),
-            pages._gap_51d417.get(3),
-            pages.key_clock.get(),
+            pages.layout.get(4094),
+            pages.layout.get(4095),
+            pages._list_state_run.get(0),
         );
         PagesChain.store(at, &saved).unwrap();
-        assert_eq!(written, (1, 2, (clock & !0xFFFF) | 0x0403));
+        assert_eq!(written, (1, 2, 3));
         assert!(PagesChain.store(size - 1, &[0, 0]).is_err());
         // A place compares by the byte of memory that holds it: each byte its field's, no two
         // alike, and past the pages none of a field's.

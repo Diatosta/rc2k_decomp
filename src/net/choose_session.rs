@@ -12,10 +12,11 @@ use rc2k_core::net::screens::{self, ListKey};
 /// The sessions listed again (not posted), the highlight kept on the same one; false for
 /// a failed listing.
 fn refresh(o: crate::owners::Owners<'static>, lines: &NetTexts) -> Result<bool, Refused> {
-    let (install, net) = (o.install, o.net);
+    let net = o.net;
+    let list_state = &o.menus.list;
     let listed = net.link.sessions().get();
     if listed != 0 {
-        let instance = with_session(&net.link, install.pages.choice.get(), |s| s.instance)?;
+        let instance = with_session(&net.link, list_state.choice.get(), |s| s.instance)?;
         net.joined()
             .joined
             .write_at(0, &instance, "the joined session")?;
@@ -37,11 +38,7 @@ fn refresh(o: crate::owners::Owners<'static>, lines: &NetTexts) -> Result<bool, 
                 // The logic is in `rc2k_core::net::screens` (`keeps_top`, `moved_top`).
                 choice = n;
                 top = if screens::keeps_top(net.link.sessions().get()) {
-                    screens::moved_top(
-                        n,
-                        install.pages.choice_before.get(),
-                        install.pages.choice.get(),
-                    )
+                    screens::moved_top(n, list_state.choice_before.get(), list_state.choice.get())
                 } else {
                     0
                 };
@@ -53,17 +50,18 @@ fn refresh(o: crate::owners::Owners<'static>, lines: &NetTexts) -> Result<bool, 
             }
         }
     }
-    install.pages.choice.set(choice);
-    install.pages.choice_before.set(top);
+    list_state.choice.set(choice);
+    list_state.choice_before.set(top);
     Ok(true)
 }
 pub fn choose_session(o: crate::owners::Owners<'static>, lines: &NetTexts) -> Result<u32, Refused> {
-    let (install, net, system) = (o.install, o.net, o.system);
+    let (net, system) = (o.net, o.system);
+    let list_state = &o.menus.list;
     let now = system.session.key_clock.ticks.get();
-    install.pages.move_clock.set(now);
-    install.pages.key_clock.set(now);
-    install.pages.choice.set(0);
-    install.pages.choice_before.set(0);
+    list_state.move_clock.set(now);
+    list_state.key_clock.set(now);
+    list_state.choice.set(0);
+    list_state.choice_before.set(0);
     net.edit()
         .clock_a
         .set(crate::system::tick_count::tick_count());
@@ -77,23 +75,19 @@ pub fn choose_session(o: crate::owners::Owners<'static>, lines: &NetTexts) -> Re
         {
             net.edit().clock_a.set(tick);
             if !refresh(o, lines)? {
-                install.pages.choice.set(0xFFFF_FFFE);
-                return Ok(install.pages.choice.get());
+                list_state.choice.set(0xFFFF_FFFE);
+                return Ok(list_state.choice.get());
             }
         }
-        install
-            .pages
+        list_state
             .frame_clock
             .set(system.session.key_clock.ticks.get());
-        let key = list_key(install, o.input)?;
+        let key = list_key(list_state, o.input)?;
         let any = net.link.sessions().get() != 0;
-        if any && list_move(install, key, net.link.sessions().get()) {
-            install
-                .pages
-                .move_clock
-                .set(install.pages.frame_clock.get());
+        if any && list_move(list_state, key, net.link.sessions().get()) {
+            list_state.move_clock.set(list_state.frame_clock.get());
         } else if any && ListKey::of(key) == ListKey::Enter {
-            return Ok(install.pages.choice.get());
+            return Ok(list_state.choice.get());
         } else if ListKey::of(key) == ListKey::Escape {
             break;
         } else {
@@ -103,6 +97,6 @@ pub fn choose_session(o: crate::owners::Owners<'static>, lines: &NetTexts) -> Re
             break;
         }
     }
-    install.pages.choice.set(u32::MAX);
-    Ok(install.pages.choice.get())
+    list_state.choice.set(u32::MAX);
+    Ok(list_state.choice.get())
 }

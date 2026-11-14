@@ -14,7 +14,7 @@ use rc2k_core::net::screens;
 /// Called through
 /// `screens::run_frame` by `net::settings_loop`.
 pub fn settings_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
-    let (net, install) = (o.net, o.install);
+    let net = o.net;
     if !lock_surface(o.gfx, o.system) {
         return Ok(());
     }
@@ -35,7 +35,7 @@ pub fn settings_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> 
     .enumerate()
     {
         let item = item as u32;
-        y = setting_label(o, net, install, label, item, y)?;
+        y = setting_label(o, net, label, item, y)?;
         y = match value {
             Value::Number(n) => draw_number_value(o, n, item, y)?,
             Value::Text(text) => {
@@ -73,7 +73,7 @@ pub fn settings_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> 
         }
     }
     piece(screens::LEFT_END, screens::END_WIDTH)?;
-    draw_centred_item(o, net, install, 0x16F, 4, text_x, 0x21D)?;
+    draw_centred_item(o, net, 0x16F, 4, text_x, 0x21D)?;
     crate::platform::unlock_surface(o.gfx);
     crate::platform::show_frame_now(o);
     Ok(())

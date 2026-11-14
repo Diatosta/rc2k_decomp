@@ -1,8 +1,11 @@
 //! The not-enough-room page's "go on anyway" action: `ignore_room` 1, the answer 1 and the page
 //! left. Called by `install::item_action`.
 
-pub fn ignore_room(install: &crate::install::owner::Install) {
+pub fn ignore_room(
+    install: &crate::install::owner::Install,
+    list_state: &crate::menu::list_state::ListState,
+) {
     install.run.ignore_room.set(1);
-    install.pages.list_answer.set(1);
-    install.pages.list_leave.set(1);
+    list_state.list_answer.set(1);
+    list_state.list_leave.set(1);
 }

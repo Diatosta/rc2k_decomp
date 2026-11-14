@@ -48,7 +48,7 @@ pub fn viewer_frame(o: Owners<'static>) -> Result<bool, Refused> {
 
 /// The list, the bar and the panel (stopped).
 fn stopped(race: &Race, o: Owners<'static>) -> Result<(), Refused> {
-    let (install, system) = (o.install, o.system);
+    let (list_state, system) = (&o.menus.list, o.system);
     let replay = &race.replay;
     let shared = &race.shared;
     use rc2k_core::race::viewer_flow::{LIST_STATES, bar_places, mark_x, place_x};
@@ -69,7 +69,7 @@ fn stopped(race: &Race, o: Owners<'static>) -> Result<(), Refused> {
             .get(first..)
             .and_then(|rest| rest.first_chunk::<4>())
             .ok_or(BadInput("a viewer item past the 26"))?;
-        crate::race::draw_viewer_item::draw_viewer_item(race, install, item, index, system)?;
+        crate::race::draw_viewer_item::draw_viewer_item(race, list_state, item, index, system)?;
     }
     let quad = |uv: &[PlainDword], rect: &[PlainDword; 4], colour: u32| {
         // The texture rectangle's first four dwords (the frame's picture holds five).

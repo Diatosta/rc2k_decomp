@@ -91,6 +91,7 @@ pub fn install_files(
     install: &'static crate::install::owner::Install,
     o: crate::owners::Owners<'static>,
 ) -> Result<(), Refused> {
+    let list_state = &o.menus.list;
     use crate::install as i;
     install.names.status.set(0x80);
     i::write_registry::write_registry(install, &mut crate::install::portable::Portable)?;
@@ -110,7 +111,7 @@ pub fn install_files(
     // The path is bad (or there is no room, or it is not a CD): the page is told.
     let bad_path = || {
         install.run.path_problem.set(1);
-        install.pages.list_answer.set(0);
+        list_state.list_answer.set(0);
         Ok(())
     };
     if !normalise(&install.paths.typed, &install.paths.installed)? {
@@ -127,7 +128,7 @@ pub fn install_files(
             if free < install.run.room_needed.get() && install.run.ignore_room.get() != 1 =>
         {
             install.run.path_problem.set(2);
-            install.pages.list_answer.set(3);
+            list_state.list_answer.set(3);
             return Ok(());
         }
         _ => {}
@@ -214,7 +215,7 @@ pub fn install_files(
         }
     }
     crate::platform_events::hold_quit(o.system, false);
-    install.pages.list_answer.set(2);
+    list_state.list_answer.set(2);
     sleep(1000);
     install.names.status.set(1);
     // The installed folder's path copied to the install source, with its length (NUL included)

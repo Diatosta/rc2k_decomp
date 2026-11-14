@@ -7,7 +7,6 @@
 //! and the text centred too; 2: the dim font), x, y and the item.
 
 use crate::errors::Refused;
-use crate::install::owner::Install;
 use crate::net::lobby::PALETTE;
 use crate::net::owner::Net;
 use rc2k_core::net::screens::{self, ButtonFont};
@@ -20,21 +19,16 @@ const FONT_DIM: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::BU
 /// or in the blink's lit half.
 pub fn item_font(
     net: &Net,
-    install: &Install,
+    list_state: &crate::menu::list_state::ListState,
     item: u32,
     plain: crate::gfx::typefaces::FontId,
     lit: crate::gfx::typefaces::FontId,
 ) -> crate::gfx::typefaces::FontId {
     // The logic is in `rc2k_core::net::screens::{item_lit, blink_lit}`.
-    let blink = || {
-        screens::blink_lit(
-            install.pages.frame_clock.get(),
-            install.pages.move_clock.get(),
-        )
-    };
+    let blink = || screens::blink_lit(list_state.frame_clock.get(), list_state.move_clock.get());
     if screens::item_lit(
         item,
-        install.pages.choice.get(),
+        list_state.choice.get(),
         || net.edit().edited.get(),
         blink,
     ) {
@@ -50,7 +44,6 @@ pub fn item_font(
 pub fn draw_button(
     so: crate::strings::append_string_by_id::StringOwners<'static>,
     net: &Net,
-    install: &Install,
     string: u32,
     flags: u32,
     x: u32,
@@ -60,6 +53,7 @@ pub fn draw_button(
     menus: &crate::menu::owner::Menus,
 ) -> Result<(), Refused> {
     use crate::text::draw_text::GameCanvas;
+    let list_state = &menus.list;
     net.button.get().text.set(string);
     net.button.get().flags.set(flags);
     net.button.get().x.set(x);
@@ -105,14 +99,9 @@ pub fn draw_button(
     )?;
     let lit = screens::item_lit(
         item,
-        install.pages.choice.get(),
+        list_state.choice.get(),
         || net.edit().edited.get(),
-        || {
-            screens::blink_lit(
-                install.pages.frame_clock.get(),
-                install.pages.move_clock.get(),
-            )
-        },
+        || screens::blink_lit(list_state.frame_clock.get(), list_state.move_clock.get()),
     );
     let font = match screens::button_font(flags, lit) {
         ButtonFont::Plain => FONT_PLAIN,

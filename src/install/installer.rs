@@ -383,20 +383,20 @@ pub fn load_language(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
 
 /// The key (0: none).
 pub fn list_take_key(
-    install: &crate::install::owner::Install,
+    list_state: &crate::menu::list_state::ListState,
     input: &crate::input::owner::Input,
 ) -> Result<u8, Refused> {
-    Ok(crate::menu::list_take_key::list_take_key(install, input))
+    Ok(crate::menu::list_take_key::list_take_key(list_state, input))
 }
 
 /// `key` moving the highlight of `list` by the neighbours table `table`; whether it moved.
 pub fn list_step(
-    install: &crate::install::owner::Install,
+    list_state: &crate::menu::list_state::ListState,
     key: u32,
     table: Option<crate::place::BytePlace>,
     list: ListMenu,
 ) -> Result<bool, crate::errors::BadInput> {
-    crate::menu::list_step::list_step(install, key as u8, table, list)
+    crate::menu::list_step::list_step(list_state, key as u8, table, list)
 }
 
 pub fn list_clear_marks(list: ListMenu) {
@@ -404,8 +404,8 @@ pub fn list_clear_marks(list: ListMenu) {
 }
 
 /// Whether the highlighted item cannot be chosen.
-pub fn list_item_unusable(install: &crate::install::owner::Install, list: ListMenu) -> bool {
-    crate::menu::list_item_unusable::list_item_unusable(install, list)
+pub fn list_item_unusable(list_state: &crate::menu::list_state::ListState, list: ListMenu) -> bool {
+    crate::menu::list_item_unusable::list_item_unusable(list_state, list)
 }
 
 /// Whether the standalone's install or uninstall ended, logged.
@@ -428,16 +428,17 @@ pub fn page_action(
     state: u32,
     list: ListMenu,
 ) -> Result<(), Refused> {
+    let list_state = &o.menus.list;
     use crate::install as i;
     match place {
         0x414199 => i::language_page::language_page(install, o, state, list)?,
         0x4141EF => i::mark_main_page::mark_main_page(install, list),
-        0x41422B => i::mode_page::mode_page(install, state),
-        0x41425E => i::drive_page::drive_page(install, state, list),
+        0x41422B => i::mode_page::mode_page(install, list_state, state),
+        0x41425E => i::drive_page::drive_page(install, list_state, state, list),
         0x4142C7 => i::room_page::room_page(install, state),
-        0x4142F5 => i::folder_page::folder_page(install, state, list),
-        0x41432F => i::dxsetup_page::dxsetup_page(install, state),
-        0x414347 => i::finish_page::finish_page(install, state),
+        0x4142F5 => i::folder_page::folder_page(install, list_state, state, list),
+        0x41432F => i::dxsetup_page::dxsetup_page(install, list_state, state),
+        0x414347 => i::finish_page::finish_page(install, list_state, state),
         0x4130CD => logged("install", i::install_files::install_files(install, o))?,
         0x4134DF => logged("uninstall", i::uninstall::uninstall(install, o))?,
         0x413629 => i::open_installed::open_installed(install)?,
@@ -451,13 +452,15 @@ pub fn page_action(
 /// A list's key action (+0x14): `key`; whether it took the key. The lists hold only the
 /// folder page's.
 pub fn key_action(
-    install: &crate::install::owner::Install,
+    list_state: &crate::menu::list_state::ListState,
     place: u32,
     key: u32,
     list: ListMenu,
 ) -> Result<bool, Refused> {
     match place {
-        0x41534E => Ok(crate::install::folder_key::folder_key(install, key, list)),
+        0x41534E => Ok(crate::install::folder_key::folder_key(
+            list_state, key, list,
+        )),
         _ => Err(BadInput("a key action that is not one of the installer's").into()),
     }
 }
@@ -466,11 +469,12 @@ pub fn key_action(
 /// "go on anyway".
 pub fn item_action_at(
     install: &crate::install::owner::Install,
+    list_state: &crate::menu::list_state::ListState,
     place: u32,
 ) -> Result<bool, Refused> {
     match place {
         0x4142DA => {
-            crate::install::ignore_room::ignore_room(install);
+            crate::install::ignore_room::ignore_room(install, list_state);
             Ok(true)
         }
         _ => Err(BadInput("an item action that is not one of the installer's").into()),

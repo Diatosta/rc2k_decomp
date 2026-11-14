@@ -8,9 +8,13 @@ use crate::net::owner::Net;
 use rc2k_core::net::editing::{self, Setting};
 
 /// Starts a setting's edit (item, text, width and font).
-pub fn begin_setting_edit(net: &Net, install: &Install) -> Result<(), crate::errors::Refused> {
+pub fn begin_setting_edit(
+    net: &Net,
+    install: &Install,
+    list_state: &crate::menu::list_state::ListState,
+) -> Result<(), crate::errors::Refused> {
     // The logic is in `rc2k_core::net::editing` (`Setting`, `WIDTH`).
-    let item = install.pages.choice.get();
+    let item = list_state.choice.get();
     let text = match Setting::of(item) {
         Setting::Name => EditedText::MachineName,
         Setting::HostAddress => EditedText::HostAddress,

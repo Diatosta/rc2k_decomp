@@ -287,7 +287,7 @@ impl GlyphRecord {
 /// save and settings folders removed too), 5 ends the script there (`install::finish_page`).
 pub const SCRIPT_MARK: usize = 17;
 
-/// The page: its pieces, the list menu's state, the fonts and the pages' tables. The pages'
+/// The page: its pieces, the fonts and the pages' tables. The pages'
 /// bytes are run on through the fields in declaration order (`install::pages_map::PagesChain`,
 /// its frozen table `NAMED_PLACES`), not through the record's memory layout.
 #[derive(rc2k_derive::Cells)]
@@ -296,30 +296,10 @@ pub struct InstallerPages {
     pub _lead: PlainBytes<7>,
     /// The page's pieces: a count, then 0x30 bytes each.
     pub layout: PlainBytes<4096>,
-    /// The list's choice.
-    pub choice: PlainDword,
-    /// The choice before the key.
-    pub choice_before: PlainDword,
-    /// How many repeats of the key.
-    pub repeats: PlainDword,
-    /// The last key (`race::viewer` reads it too).
-    pub last_key: PlainByte,
-    /// A key was taken.
-    pub key_taken: PlainByte,
-    /// The list's answer.
-    pub list_answer: PlainByte,
-    /// The list is left.
-    pub list_leave: PlainByte,
-    /// A gap of 4 byte(s): nothing reads it.
-    pub _gap_51d417: PlainBytes<4>,
-    /// The key's clock.
-    pub key_clock: PlainDword,
-    /// The frame's clock.
-    pub frame_clock: PlainDword,
-    /// The move's clock.
-    pub move_clock: PlainDword,
-    /// A gap of 12 byte(s): nothing reads it.
-    pub _gap_51d427: PlainBytes<12>,
+    /// The run's 0x2C bytes between the pieces and the copying page's texts. They keep the
+    /// offsets of everything after them and the bytes a read on past the pieces reaches; the
+    /// lists' run-time state is `menu::list_state::ListState`.
+    pub _list_state_run: PlainBytes<44>,
     /// The copying page's two texts.
     pub texts: [StringRecord; 2],
     /// The error message.
@@ -387,18 +367,7 @@ impl InstallerPages {
         InstallerPages {
     _lead: PlainBytes::new([0; 7]),
     layout: PlainBytes::new([0; 4096]),
-    choice: PlainDword::new(0x0),
-    choice_before: PlainDword::new(0x0),
-    repeats: PlainDword::new(0x1),
-    last_key: PlainByte::new(0x0),
-    key_taken: PlainByte::new(0x0),
-    list_answer: PlainByte::new(0x0),
-    list_leave: PlainByte::new(0x0),
-    _gap_51d417: PlainBytes::new([0; 4]),
-    key_clock: PlainDword::new(0x0),
-    frame_clock: PlainDword::new(0x0),
-    move_clock: PlainDword::new(0x0),
-    _gap_51d427: PlainBytes::new([0; 12]),
+    _list_state_run: PlainBytes::new(with_runs::<44>(&[(8, b"\x01")])),
     texts: [StringRecord::new(0x1A9, 0xAF, fonts::TITLE, 0xAF), StringRecord::new(0x1A9, 0xFA, fonts::CAPTION_A, 0xB0)],
     msg_error: [StringRecord::new(0x1A9, 0x15E, fonts::TITLE, 0xB1)],
     msg_cancel: [StringRecord::new(0x1A9, 0x190, fonts::TITLE, 0xB3)],

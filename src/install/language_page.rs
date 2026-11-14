@@ -25,7 +25,7 @@ pub fn language_page(
             return Ok(());
         }
     } else if (state as i32) < 0 {
-        let answer = install.pages.list_answer.get() as u32;
+        let answer = o.menus.list.list_answer.get() as u32;
         if answer != 0 {
             crate::install::choose_language::choose_language(install, answer)?;
             load_language(o)?;
