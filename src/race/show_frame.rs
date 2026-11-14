@@ -9,9 +9,9 @@
 use crate::errors::Refused;
 use crate::race::owner::Race;
 
-/// What `show_frame` leaves: whether the frame was lost, and a leftover value the caller passes on.
+/// What `show_frame` leaves: a leftover value the caller passes on. A frame that could not be
+/// locked or presented is simply not shown.
 pub struct Shown {
-    pub lost: bool,
     pub eax: u32,
 }
 
@@ -19,11 +19,8 @@ pub fn show_frame(race: &Race, o: crate::owners::Owners<'static>) -> Result<Show
     let (system, scene) = (o.system, o.scene);
     let frame = &race.frame;
     let (locked, kept) = crate::scene::lock_frame::lock_frame(race, o.gfx, o.system);
-    if locked < 1 {
-        return Ok(Shown {
-            lost: true,
-            eax: kept,
-        });
+    if locked < 1 || lose_this_frame() {
+        return Ok(Shown { eax: kept });
     }
     if race.shared.work.get().in_credits.is_set() {
         crate::race::frame_text::roll_credits(
@@ -47,7 +44,7 @@ pub fn show_frame(race: &Race, o: crate::owners::Owners<'static>) -> Result<Show
     // The leftover value after the unlock is 0.
     crate::scene::unlock_frame::unlock_frame(&race.frame, o.gfx);
     if !crate::scene::present_frame::present_frame(o) {
-        return Ok(Shown { lost: true, eax: 0 });
+        return Ok(Shown { eax: 0 });
     }
     let clock = crate::scene::restart_clock::restart_clock(
         &race.shared,
@@ -59,5 +56,26 @@ pub fn show_frame(race: &Race, o: crate::owners::Owners<'static>) -> Result<Show
     // it was.
     let eax = { crate::race::measure_frame_rate::measure_frame_rate(race, scene, system) }
         .unwrap_or(time);
-    Ok(Shown { lost: false, eax })
+    Ok(Shown { eax })
+}
+
+/// Test switch (remote builds): `RC2K_LOSE_FRAMES=n` treats every n-th race frame's lock as
+/// refused, so the skipped-frame path can be run; other builds never lose a frame this way.
+fn lose_this_frame() -> bool {
+    #[cfg(feature = "remote")]
+    {
+        use std::sync::OnceLock;
+        use std::sync::atomic::{AtomicU32, Ordering::Relaxed};
+        static EVERY: OnceLock<u32> = OnceLock::new();
+        static COUNT: AtomicU32 = AtomicU32::new(0);
+        let every = *EVERY.get_or_init(|| {
+            std::env::var("RC2K_LOSE_FRAMES")
+                .ok()
+                .and_then(|v| v.parse().ok())
+                .unwrap_or(0)
+        });
+        every != 0 && COUNT.fetch_add(1, Relaxed) % every == every - 1
+    }
+    #[cfg(not(feature = "remote"))]
+    false
 }

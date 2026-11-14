@@ -5,8 +5,6 @@
 use crate::errors::Refused;
 use crate::race::owner::Race;
 
-const RESTORE: usize = 0x405B10; // the surfaces restored (the platform's)
-
 /// Takes and returns the value the frame's calls leave on; only `drive::quit_question` reads
 /// it.
 pub fn race_frame(
@@ -36,13 +34,8 @@ pub fn race_frame(
         crate::remote::shot_frame_drawn(race);
         let shown = { crate::race::show_frame::show_frame(race, o) }?;
         eax = shown.eax;
-        if !shown.lost {
-            return Ok(eax);
-        }
     }
-    if system.session.flags.quitting.is_set() {
-        return Ok(eax);
-    }
-    // The surfaces restored: never here (the window is always active, nothing is lost).
-    crate::standalone::not_ported(RESTORE, "drive::race_frame")
+    // A frame that could not be drawn or shown is skipped: the race goes on and the next frame
+    // tries again (the race's results never depend on what was drawn).
+    Ok(eax)
 }
