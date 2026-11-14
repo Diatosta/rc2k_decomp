@@ -49,16 +49,21 @@ pub const KEPT: usize = rc2k_core::gfx::pixels::KEPT;
 // `pixels` names a picture buffer (`gfx::picture`; the textures are read in it).
 
 pub fn alpha_from_kept(pixels: u32, count: u32) -> Result<(), BadInput> {
-    let mut buffer = read_bytes(pixels, 0, KEPT + count as usize * 4)?;
-    rc2k_core::gfx::pixels::alpha_from_kept(&mut buffer, count as usize)
-        .ok_or(BadInput("a texture's pixels shorter than both pictures"))?;
-    write_bytes(pixels, 0, &buffer)
+    // In the buffer itself: only the first pixels' alpha bytes change.
+    crate::gfx::picture::with_buffer(pixels, |buffer| {
+        let part = buffer.get_mut(..KEPT + count as usize * 4)?;
+        rc2k_core::gfx::pixels::alpha_from_kept(part, count as usize)
+    })?
+    .ok_or(BadInput("a read past the picture buffer"))
 }
 
 pub fn key_texture_colours(pixels: u32, count: u32, key: u32) -> Result<(), BadInput> {
-    let mut dwords = dwords_of(&read_bytes(pixels, 0, count as usize * 4)?);
-    rc2k_core::gfx::pixels::key_colours(&mut dwords, key);
-    write_bytes(pixels, 0, &bytes_of(&dwords))
+    crate::gfx::picture::with_buffer(pixels, |buffer| {
+        let part = buffer.get_mut(..count as usize * 4)?;
+        rc2k_core::gfx::pixels::key_colours_in_bytes(part, key);
+        Some(())
+    })?
+    .ok_or(BadInput("a read past the picture buffer"))
 }
 
 fn dwords_of(bytes: &[u8]) -> Vec<u32> {

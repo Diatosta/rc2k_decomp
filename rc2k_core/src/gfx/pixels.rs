@@ -201,6 +201,20 @@ pub fn key_colours(pixels: &mut [u32], key: u32) {
     }
 }
 
+/// `key_colours` on pixels held as little-endian bytes, in place.
+pub fn key_colours_in_bytes(pixels: &mut [u8], key: u32) {
+    let key = key | 0xFF00_0000;
+    for bytes in pixels.as_chunks_mut::<4>().0 {
+        let p = u32::from_le_bytes(*bytes);
+        let keyed = match p & 0xF8_F8F8 {
+            0 => key,
+            0xF8_00F8 => 0,
+            _ => p | 0xFF00_0000,
+        };
+        *bytes = keyed.to_le_bytes();
+    }
+}
+
 /// The table of 0x100 bytes a grading scale makes.
 pub fn grades(scale: u32) -> [u8; 0x100] {
     let mut table = [0u8; 0x100];
@@ -386,9 +400,34 @@ pub fn pack_row(
         ));
     }
     let mut kept = None;
-    for n in 0..pixels {
-        let c = u32::from_le_bytes(from[n * 4..n * 4 + 4].try_into().unwrap());
-        let (pixel, scratch) = pack(format, c);
+    let (from, _) = from.as_chunks::<4>();
+    let from = &from[..pixels];
+    if let Some(rotations) = format.rotations() {
+        // Rotation counts and masks read once for the row.
+        let [r0, r1, r2, r3] = rotations;
+        let [m0, m1, m2, m3] = format.masks;
+        let pack = |c: &[u8; 4]| {
+            let c = u32::from_le_bytes(*c);
+            c.rotate_left(r0) & m0
+                | c.rotate_left(r1) & m1
+                | c.rotate_left(r2) & m2
+                | c.rotate_left(r3) & m3
+        };
+        if words {
+            let (to, _) = to.as_chunks_mut::<2>();
+            for (c, out) in from.iter().zip(to) {
+                *out = (pack(c) as u16).to_le_bytes();
+            }
+        } else {
+            let (to, _) = to.as_chunks_mut::<4>();
+            for (c, out) in from.iter().zip(to) {
+                *out = pack(c).to_le_bytes();
+            }
+        }
+        return Ok(None);
+    }
+    for (n, c) in from.iter().enumerate() {
+        let (pixel, scratch) = pack(format, u32::from_le_bytes(*c));
         kept = scratch.or(kept);
         to[n * size..n * size + size].copy_from_slice(&pixel.to_le_bytes()[..size]);
     }
@@ -510,5 +549,69 @@ mod tests {
         assert_eq!(buffer, [0x33, 0x22, 0x11, 0, 0xDD, 0xCC, 0xBB, 0xAA]);
         assert!(palette_to_dwords(&mut buffer, 3, &palette).is_none());
         assert_eq!(to_4444([0x12, 0x34, 0x56, 0x78]), [0x31, 0x75]);
+    }
+
+    /// A deterministic spread of components, zero ones included.
+    fn components(n: usize) -> Vec<u8> {
+        (0..n * 4)
+            .map(|i| {
+                let v = (i as u32).wrapping_mul(2_654_435_761) >> 13;
+                if v.is_multiple_of(7) { 0 } else { v as u8 }
+            })
+            .collect()
+    }
+
+    /// `pack_row` is `pack` pixel by pixel, for both layouts and both pixel sizes, and keeps the
+    /// scratch of the last pixel that had one.
+    #[test]
+    fn rows_pack_like_single_pixels() {
+        let bitwise = PixelFormat {
+            layout: 15,
+            masks: [0xF800, 0x07E0, 0x001F, 0],
+        };
+        for format in [
+            RGB565,
+            PixelFormat {
+                layout: 0x8710_081D,
+                ..RGB565
+            },
+            bitwise,
+        ] {
+            for words in [false, true] {
+                let size = if words { 2 } else { 4 };
+                let from = components(37);
+                let mut row = vec![0xAA; 37 * size];
+                let kept = pack_row(&from, &mut row, 37, &format, words).unwrap();
+                let mut want = Vec::new();
+                let mut want_kept = None;
+                for c in from.as_chunks::<4>().0 {
+                    let (pixel, scratch) = pack(&format, u32::from_le_bytes(*c));
+                    want.extend_from_slice(&pixel.to_le_bytes()[..size]);
+                    want_kept = scratch.or(want_kept);
+                }
+                assert_eq!(row, want);
+                assert_eq!(kept, want_kept);
+            }
+        }
+        assert!(pack_row(&[0; 8], &mut [0; 8], 3, &RGB565, false).is_err());
+    }
+
+    /// `key_colours_in_bytes` is `key_colours` on the dwords.
+    #[test]
+    fn keyed_bytes_are_keyed_dwords() {
+        let bytes = components(64);
+        let mut dwords: Vec<u32> = bytes
+            .as_chunks::<4>()
+            .0
+            .iter()
+            .map(|c| u32::from_le_bytes(*c))
+            .collect();
+        dwords.extend([0, 0xF8_00F8, 0x0100_0000]);
+        let mut bytes = bytes;
+        bytes.extend(dwords[64..].iter().flat_map(|d| d.to_le_bytes()));
+        key_colours(&mut dwords, 0x0012_3456);
+        key_colours_in_bytes(&mut bytes, 0x0012_3456);
+        let want: Vec<u8> = dwords.iter().flat_map(|d| d.to_le_bytes()).collect();
+        assert_eq!(bytes, want);
     }
 }

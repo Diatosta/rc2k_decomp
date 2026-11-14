@@ -19,7 +19,6 @@
 //! changed.
 
 use crate::errors::{BadInput, Refused};
-use crate::gfx::components_to_pixel::components_to_pixel;
 use crate::gfx::owner::Gfx;
 use crate::gfx::texture_pixels::{halvable, halve_texture};
 use crate::gfx::texture_upload::{Record, fatal, halvings_apart, ready_picture};
@@ -119,28 +118,26 @@ pub fn upload_texture_picture(
         // The level's pixels read once; the surface is the platform's.
         let picture =
             crate::gfx::picture::read_bytes(pixels, 0, width as usize * height as usize * 4)?;
-        let mut source = picture
-            .as_chunks::<4>()
-            .0
-            .iter()
-            .map(|d| u32::from_le_bytes(*d));
+        if !matches!(bytes, 2 | 4) {
+            return Err(fatal(0x80A1_8775));
+        }
         let rows = crate::gfx::rows::Rows::new(target, pitch, height);
-        for y in 0..height {
-            // The row's pixels, `bytes` each, written at once.
-            let row: Vec<u8> = match bytes {
-                2 => (0..width)
-                    .flat_map(|_| {
-                        (components_to_pixel(&format, source.next().unwrap_or(0), gfx) as u16)
-                            .to_le_bytes()
-                    })
-                    .collect(),
-                4 => (0..width)
-                    .flat_map(|_| {
-                        components_to_pixel(&format, source.next().unwrap_or(0), gfx).to_le_bytes()
-                    })
-                    .collect(),
-                _ => return Err(fatal(0x80A1_8775)),
-            };
+        let row_bytes = width as usize * bytes as usize;
+        let mut row = vec![0u8; row_bytes];
+        for (y, components) in (0..height).zip(picture.chunks_exact(width as usize * 4)) {
+            // The row's pixels, `bytes` each, written at once; the bit-by-bit formats leave their
+            // scratch bytes as the row's last pixel did.
+            let kept = rc2k_core::gfx::pixels::pack_row(
+                components,
+                &mut row,
+                width as usize,
+                &format,
+                bytes == 2,
+            )
+            .map_err(BadInput::from)?;
+            if let Some(scratch) = kept {
+                gfx.pixel.formats.scratch.write(&scratch);
+            }
             #[cfg(feature = "remote")]
             crate::race::course_hash::note_texture_row(texture, level, y, &row);
             rows.write(y, 0, &row, "a texture's row")?;
