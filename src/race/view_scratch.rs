@@ -229,8 +229,8 @@ impl ViewScratch {
         fresh.view_mirrored.set(self.polygon.view_mirrored.get());
         fresh.sun.view_out.set(self.polygon.sun.view_out.get());
         self.polygon.copy_from(&fresh);
-        self.grid
-            .copy_from(&crate::race::view_grid::ViewGrid::new());
+        // The course grid is kept: it is made again only when the view's corner moves, and a
+        // stage's start marks every corner unknown (`view_grid::reset_corners`).
         self.course
             .copy_from(&crate::race::view_course::ViewCourse::new());
         self.quad
@@ -421,6 +421,22 @@ pub fn filter_input(slot: usize) -> [u32; 3] {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A view's course grid outlives its frame, and a fresh one is not taken for made: at a
+    /// corner of (0, 0) a grid of record 0 everywhere would be drawn (the course vanished
+    /// where a stage's camera sat at that corner).
+    #[test]
+    fn the_course_grid_is_kept_between_frames_and_starts_unmade() {
+        let view = ViewScratch::new(0);
+        assert_eq!(view.grid.x.get(), crate::race::view_grid::UNKNOWN_CORNER);
+        assert_eq!(view.grid.z.get(), crate::race::view_grid::UNKNOWN_CORNER);
+        view.grid.x.set(0);
+        view.grid.z.set(0);
+        view.grid.cells[3].set(42);
+        view.begin();
+        assert_eq!((view.grid.x.get(), view.grid.z.get()), (0, 0));
+        assert_eq!(view.grid.cells[3].get(), 42);
+    }
 
     /// A copy answers with its source's slot; merging it back puts what it changed since it
     /// was taken over what the view changed meanwhile, and leaves the rest as the view has it.

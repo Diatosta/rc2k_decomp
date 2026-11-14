@@ -20,20 +20,20 @@ pub struct ViewGrid {
     /// Its span.
     pub span: PlainDword,
     /// The corner cell it was made for (x and z): the grid is made again when the view's corner
-    /// moves; 0x80000000 at a stage's start (`race::reset_refresh`).
+    /// moves; `UNKNOWN_CORNER` before the first view and at a stage's start.
     pub x: PlainDword,
     pub z: PlainDword,
 }
 
 impl ViewGrid {
-    /// The grid at the start: every record 0, the corner 0.
+    /// The grid at the start: not made yet (its corner unknown, so the first view makes it).
     pub const fn new() -> Self {
         Self {
             cells: ZeroCells::ZERO,
             half: PlainDword::ZERO,
             span: PlainDword::ZERO,
-            x: PlainDword::ZERO,
-            z: PlainDword::ZERO,
+            x: PlainDword::new(UNKNOWN_CORNER),
+            z: PlainDword::new(UNKNOWN_CORNER),
         }
     }
 
@@ -45,11 +45,15 @@ impl ViewGrid {
     }
 }
 
+/// A corner no view reaches (a corner is a cell number less the half): the grid is made at the
+/// next view.
+pub const UNKNOWN_CORNER: u32 = 0x8000_0000;
+
 /// Every slot's corner made unknown, so each view makes its grid again (a stage's start).
 pub fn reset_corners() {
     for n in 0..crate::race::view_scratch::SLOT_COUNT {
         let grid = &crate::race::view_scratch::slot(n).grid;
-        grid.x.set(0x8000_0000);
-        grid.z.set(0x8000_0000);
+        grid.x.set(UNKNOWN_CORNER);
+        grid.z.set(UNKNOWN_CORNER);
     }
 }
