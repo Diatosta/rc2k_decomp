@@ -10,7 +10,9 @@ pub fn log(msg: &str) {
     if let Some(path) = LOG_PATH.get()
         && let Ok(mut f) = OpenOptions::new().create(true).append(true).open(path)
     {
-        let _ = writeln!(f, "{msg}");
+        // One write per line: with the file opened to append, a line another thread logs at the
+        // same moment cannot land inside this one.
+        let _ = f.write_all(format!("{msg}\n").as_bytes());
     }
     // The web build: the browser's console shows the log as it goes (the file is in the
     // origin's storage, out of sight).
