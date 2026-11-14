@@ -7,7 +7,7 @@
 use crate::audio::own::AudioThread;
 use crate::audio::voices::*;
 use crate::errors::{BadInput, Refused};
-use crate::sound::sets_store::{MenuSounds, RaceSoundSets};
+use crate::sound::sets_store::{MenuSounds, SoundSets};
 use crate::system::owner::System;
 use rc2k_core::audio::commands::SoundList;
 
@@ -109,9 +109,9 @@ impl rc2k_core::audio::load::Loader for GameLoader<'_> {
 }
 
 /// A list of sounds, read by position up to its -1: a race list may run on through the next fields
-/// of the sets (`RaceSoundSets::list_entry`); a read past the sets is refused.
+/// of the sets (`SoundSets::list_entry`); a read past the sets is refused.
 fn list_entries<'a>(
-    sets: &'a RaceSoundSets,
+    sets: &'a SoundSets,
     menu_sounds: &'a MenuSounds,
     list: SoundList,
 ) -> Result<Box<dyn Fn(usize) -> Option<u32> + 'a>, BadInput> {
@@ -129,7 +129,7 @@ fn list_entries<'a>(
 pub fn load_sounds(
     audio: &AudioThread,
     system: &System,
-    sets: &RaceSoundSets,
+    sets: &SoundSets,
     menu_sounds: &MenuSounds,
     list: Option<SoundList>,
 ) -> Result<(), Refused> {
@@ -165,7 +165,7 @@ mod tests {
     fn lists_end_inside_their_store() {
         let mut lists = vec![SoundList::Menu];
         for n in 0..72 {
-            lists.push(RaceSoundSets::kind_list_of(n).unwrap());
+            lists.push(SoundSets::kind_list_of(n).unwrap());
         }
         for set in crate::sound::sets_store::NamedSet::ALL {
             lists.push(set.list());

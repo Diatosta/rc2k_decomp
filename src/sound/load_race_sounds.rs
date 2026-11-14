@@ -8,9 +8,9 @@
 //! first's. The sample records 0xED .. 0x1AA of `SampleRecords.records[0]` get the names: the odd
 //! ones the first car's, the even ones the second's. Then the sets, each a command 3 (load a list
 //! of sounds) naming the set: in a replay (`RaceState.results.finished` not 0) only
-//! `RaceSoundSets.replay_set[0]`; else the first car's kind set (`RaceSoundSets.kinds[0]`),
+//! `SoundSets.replay_set[0]`; else the first car's kind set (`SoundSets.kinds[0]`),
 //! `first_set_a[0]`, `first_set_b[0]` and `first_set_c[0]`; unless `RaceSounds.one_player` is 1 the
-//! second car's kind set (`RaceSoundSets.kinds[1]`), `second_set_a[0]` and `second_set_b[0]`; and
+//! second car's kind set (`SoundSets.kinds[1]`), `second_set_a[0]` and `second_set_b[0]`; and
 //! `last_set[0]` unless `RaceSounds.one_player` is `RaceSounds.count`. The commands also carry the
 //! loop's leftover values in their unused words; they are reproduced because the sound hash of a
 //! held race records them. What the two counts and "a replay" are is a reading. One caller,
@@ -29,7 +29,7 @@ use rc2k_core::audio::commands::{Command, SoundList};
 const FIRST_SAMPLE: usize = 0xED;
 const NAMES: usize = 95;
 const OBJECTS: u32 = 8;
-/// The kinds `RaceSoundSets.kinds[0]` has sets for: 0x22, the cars' kinds (0x20 and 0x21, the
+/// The kinds `SoundSets.kinds[0]` has sets for: 0x22, the cars' kinds (0x20 and 0x21, the
 /// Clio's, share kind 0xD's sets).
 const KINDS: u32 = 0x22;
 

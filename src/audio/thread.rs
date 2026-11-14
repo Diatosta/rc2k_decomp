@@ -25,7 +25,7 @@ pub struct AudioInputs<'a> {
     pub audio: &'static crate::audio::owner::Audio,
     pub system: &'a crate::system::owner::System,
     /// The sets of sounds a race loads (the lists of the load command).
-    pub sets: &'a crate::sound::sets_store::RaceSoundSets,
+    pub sets: &'a crate::sound::sets_store::SoundSets,
     /// The settings page's menu sounds (the menu list of the load command).
     pub menu_sounds: &'a crate::sound::sets_store::MenuSounds,
 }

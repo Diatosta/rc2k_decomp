@@ -5,8 +5,8 @@
 //! `RACE_LIST_TAG` and an offset in the table they lie in; the cues' and surface sets' lists by
 //! their byte offset in the block of lists after the table, the kinds' records by their number.
 //!
-//! Structs of atomic cells with the game's starting values (`tests`); the race's sets keep
-//! the 1999 layout, as their lists' handles are offsets in it.
+//! Structs of atomic cells with the game's starting values (`tests`). The race's sets are named
+//! lists; the read-on order of `RaceField` is what the sound hash's list words rely on.
 
 use crate::session::{Bytes, Cell32, Dword, PlainBytes, PlainDword, PlainFloat, with_runs};
 use rc2k_core::audio::commands::RaceField;
@@ -14,7 +14,7 @@ use rc2k_core::audio::commands::RaceField;
 /// Handle of the race's sets: in place of a list's address the table holds
 /// `TAG | field << 16 | entry` (the field's number in `RaceField::ALL`, the entry in it);
 /// 0 does not occur. The list runs on through the fields after its own as far as the
-/// sounds read (`RaceSoundSets::list_entry`).
+/// sounds read (`SoundSets::list_entry`).
 pub const RACE_LIST_TAG: u32 = 0xC400_0000;
 
 /// The handle of the list that starts at entry `entry` of `field`.
@@ -34,20 +34,14 @@ fn race_list_of(handle: u32) -> Option<(RaceField, u32)> {
 /// The settings page's menu sounds list.
 #[derive(rc2k_derive::Cells)]
 pub struct MenuSounds {
-    /// Padding that keeps every field's 1999 alignment (the struct is 16-byte aligned).
-    pub _lead: Bytes<4>,
     /// The list `sound::apply_settings` passes as the menu sounds' third argument.
     pub list: Bytes<40>,
-    /// Up to the record's alignment (no byte of a record of cells outside a field).
-    pub _tail: Bytes<4>,
 }
 
 impl MenuSounds {
     pub const fn new() -> Self {
         MenuSounds {
-    _lead: Bytes::new([0; 4]),
     list: Bytes::new(with_runs::<40>(&[(0, b"\xc7\x01\x00\x00\xc8\x01\x00\x00\xc9\x01\x00\x00\xca\x01\x00\x00c\x01\x00\x00\x97\x01\x00\x00\xcb\x01\x00\x00\xe4\x00\x00\x00\xcc\x01\x00\x00\xff\xff\xff\xff")])),
-    _tail: Bytes::new([0; 4]),
         }
     }
 }
@@ -59,10 +53,11 @@ impl MenuSounds {
     }
 }
 
-/// The sets of sounds a race loads (`sound::load_race_sounds`) and the request it sends. The fields
-/// are in the 1999 order: a list runs on into the fields after it (`list_entry`, `RaceField`).
+/// The named lists of sounds a race loads (`sound::load_race_sounds`). Lists end in -1; one that
+/// runs past its field reads on into the next in `RaceField` order (`list_entry` is the only
+/// reader that knows that order).
 #[derive(rc2k_derive::Cells)]
-pub struct RaceSoundSets {
+pub struct SoundSets {
     /// The first car's sets by kind of car, three dwords each (two sounds, -1).
     pub kind_sets_first: [Dword; 102],
     /// A set of the first car (sound numbers ending in -1).
@@ -83,9 +78,6 @@ pub struct RaceSoundSets {
     pub replay_set: [Dword; 8],
     /// Two sets (pointers) a kind of car.
     pub kinds: [Dword; 87],
-    /// Padding that fills the record to its 16-byte alignment (the sound request follows it in
-    /// the 1999 layout; it is the game thread's now, `SoundRequest`).
-    pub _tail: Bytes<4>,
 }
 
 /// The ten dwords the race's sounds are sent with (`sound::play_placed_sound`,
@@ -152,9 +144,9 @@ impl SoundRequest {
     }
 }
 
-impl RaceSoundSets {
+impl SoundSets {
     pub const fn new() -> Self {
-        RaceSoundSets {
+        SoundSets {
             kind_sets_first: [
                 Dword::new(0x0),
                 Dword::new(0x2),
@@ -794,7 +786,6 @@ impl RaceSoundSets {
                 Dword::new(0x4),
                 Dword::new(0x0),
             ],
-            _tail: Bytes::new([0; 4]),
         }
     }
 }
@@ -838,7 +829,7 @@ impl NamedSet {
     }
 }
 
-impl RaceSoundSets {
+impl SoundSets {
     /// The sets of the kind-table entry `n` (two a kind of car), as a handle.
     #[cfg(test)]
     pub fn kind_list_of(
@@ -880,6 +871,10 @@ impl RaceSoundSets {
     ) -> Result<Option<u32>, crate::errors::BadInput> {
         use rc2k_core::audio::commands::ListPlace;
         match field.list_place(entry, n) {
+            ListPlace::At {
+                field: RaceField::Tail,
+                ..
+            } => Ok(Some(0)),
             ListPlace::At { field, index } => {
                 let run = self.runs()[field as usize];
                 debug_assert_eq!(run.count(), field.dwords());
@@ -892,8 +887,9 @@ impl RaceSoundSets {
         }
     }
 
-    /// The fields in the record's order, each a run of dwords.
-    fn runs(&self) -> [&dyn crate::session::Run; 11] {
+    /// The stored fields in the read-on order, each a run of dwords (`RaceField::Tail` holds
+    /// nothing: it reads as 0).
+    fn runs(&self) -> [&dyn crate::session::Run; 10] {
         [
             &self.kind_sets_first,
             &self.first_set_a,
@@ -905,7 +901,6 @@ impl RaceSoundSets {
             &self.first_set_b,
             &self.replay_set,
             &self.kinds,
-            &self._tail,
         ]
     }
 
@@ -1642,10 +1637,11 @@ mod tests {
     ];
 
     /// The flat dwords of the 1999 layout: every field in order.
-    fn flat(sets: &RaceSoundSets) -> Vec<u32> {
+    fn flat(sets: &SoundSets) -> Vec<u32> {
         sets.runs()
             .iter()
             .flat_map(|run| (0..run.count()).map(|i| run.bits(i)))
+            .chain([0])
             .collect()
     }
 
@@ -1653,7 +1649,7 @@ mod tests {
     /// the 1999 layout's bytes does.
     #[test]
     fn list_entries_read_as_the_byte_read() {
-        let sets = Box::new(RaceSoundSets::new());
+        let sets = Box::new(SoundSets::new());
         for (k, run) in sets.runs().iter().enumerate() {
             for i in 0..run.count() {
                 run.set_bits(i, 0x7000_0000 + (OLD_FIELD_OFFSETS[k] / 4) + i as u32);
@@ -1727,14 +1723,14 @@ mod tests {
     fn racesoundsets_kind_lists_are_their_handles() {
         for n in 0..72 {
             let handle = crate::sound::owner::sound().race.sets.kinds[n].get();
-            let at = RaceSoundSets::kind_list_of(n).unwrap();
+            let at = SoundSets::kind_list_of(n).unwrap();
             let (field, entry) = race_list_of(handle).unwrap();
             assert_eq!(
                 at,
                 rc2k_core::audio::commands::SoundList::Race { field, entry }
             );
         }
-        assert!(RaceSoundSets::kind_list_of(72).is_err());
+        assert!(SoundSets::kind_list_of(72).is_err());
     }
 
     #[test]

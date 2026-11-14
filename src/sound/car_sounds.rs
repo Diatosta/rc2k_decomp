@@ -1,6 +1,6 @@
 //! `sound::car_sounds`: one car's sounds for the turn.
 //!
-//! Takes the car's number; the request is `RaceSoundSets.request`. Runs `sound::car_engine_state`
+//! Takes the car's number; the request is `SoundRequest`. Runs `sound::car_engine_state`
 //! on the object, sets the request's pitch and volume factors from the object's, then plays
 //! `sound::revs_sound`, `sound::throttle_sound`, `sound::speed_sound`, `sound::surface_sounds`,
 //! `sound::car_slot_sounds`, `sound::car_hit_sound`, `sound::car_cue_sound` and

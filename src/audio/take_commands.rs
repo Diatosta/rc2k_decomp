@@ -10,7 +10,7 @@ use crate::errors::Refused;
 pub fn take_commands(
     audio: &AudioThread,
     system: &crate::system::owner::System,
-    sets: &crate::sound::sets_store::RaceSoundSets,
+    sets: &crate::sound::sets_store::SoundSets,
     menu_sounds: &crate::sound::sets_store::MenuSounds,
 ) -> Result<(), Refused> {
     use crate::audio::stream_commands::{music_command, stream_command};
