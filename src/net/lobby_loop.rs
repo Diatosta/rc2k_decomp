@@ -10,13 +10,13 @@ use crate::errors::Refused;
 use crate::net::lobby::{list_key, other_key, run_frame};
 use crate::net::owner::Net;
 use crate::net::store::NetShared;
-use crate::net::store::PlayerRecord;
 use crate::owners::Owners;
 use rc2k_core::net::message::Message;
+use rc2k_core::net::players::State;
 
 /// The players' states and-ed together (those with bit 0x80 left out), starting from `bits`,
 /// over `count` players (at least one turn: `count` > 0).
-pub fn all_states(vars: &NetShared, bits: u8, count: u32) -> u8 {
+pub fn all_states(vars: &NetShared, bits: State, count: u32) -> State {
     let state = |n: u32| vars.player_block_or_end(n).record.state();
     // The logic is in `rc2k_core::net::players::all_in_state`.
     rc2k_core::net::players::all_in_state(bits, count, state)
@@ -30,10 +30,8 @@ pub fn sync(net: &Net, ready: bool) -> Result<bool, Refused> {
     let first = net.vars.sync_first.get();
     net.vars.sync_first.set(0);
     if first != 0 {
-        for n in 0..8 {
-            net.vars.synced.set(n, 0);
-        }
-        net.vars.set_synced(net.vars.player.get() as usize, 1)?;
+        net.vars.clear_synced();
+        net.vars.set_synced(net.vars.player.get() as usize, true)?;
     }
     let now = crate::system::tick_count::tick_count();
     if (now
@@ -45,7 +43,7 @@ pub fn sync(net: &Net, ready: bool) -> Result<bool, Refused> {
         // Counted up with `jb` at the end: at least one turn.
         let mut n = 0;
         loop {
-            if net.vars.synced(n as usize)? != 1 {
+            if !net.vars.synced(n as usize)? {
                 let id = net.vars.player_block(n)?.id.get();
                 let call = Message::Call {
                     ready,
@@ -63,16 +61,17 @@ pub fn sync(net: &Net, ready: bool) -> Result<bool, Refused> {
             }
         }
     }
-    // The answers added up in a byte (again at least one turn).
-    let (mut n, mut answered) = (0u32, 0u8);
+    // Every listed player answered (a lobby with none still looks at the first).
+    let mut all_answered = true;
+    let mut n = 0u32;
     loop {
-        answered = answered.wrapping_add(net.vars.synced(n as usize)?);
+        all_answered &= net.vars.synced(n as usize)?;
         n += 1;
         if n >= net.vars.players.get() {
             break;
         }
     }
-    Ok(n == answered as u32)
+    Ok(all_answered)
 }
 
 /// An item move: from the highlight by `step` while it lands on an item that is off.
@@ -111,7 +110,7 @@ pub fn lobby_loop(o: Owners<'static>) -> Result<u32, Refused> {
     net.vars.sync.set(net.vars.sync.get().wrapping_add(1));
     net.setup().car_item.set(1);
     net.vars.stage_item.set(1);
-    if net.vars.own.state() & 0x10 == 0 {
+    if !net.vars.own.state().is_host() {
         net.vars.stage_item.set(0);
     }
     loop {
@@ -136,7 +135,7 @@ pub fn lobby_loop(o: Owners<'static>) -> Result<u32, Refused> {
         if net.edit().edited.get() != u32::MAX {
             crate::net::chat_key::chat_key(o.input, net, install, key, o.gfx)?;
         } else {
-            let ready = net.vars.own.state() & 1 != 0;
+            let ready = net.vars.own.state().is_ready();
             if !ready && key == 0x69 {
                 step_item(install, net, &net.vars, u32::MAX);
                 if net.lobby().after_race.get() == 1 && (install.pages.choice.get() as i32) < 1 {
@@ -155,10 +154,7 @@ pub fn lobby_loop(o: Owners<'static>) -> Result<u32, Refused> {
             } else if key == 0x1C {
                 match install.pages.choice.get() {
                     0 => {
-                        net.vars
-                            .own
-                            .head
-                            .set(PlayerRecord::STATE, net.vars.own.state() & 0xF9 | 1);
+                        net.vars.own.set_state(net.vars.own.state().made_ready());
                         install.pages.choice.set(3);
                         moved = true;
                     }
@@ -193,9 +189,9 @@ pub fn lobby_loop(o: Owners<'static>) -> Result<u32, Refused> {
                 .move_clock
                 .set(install.pages.frame_clock.get());
         }
-        if net.vars.own.state() & 0x10 != 0
+        if net.vars.own.state().is_host()
             && net.vars.players.get() >= 2
-            && all_states(&net.vars, 1, net.vars.players.get()) == 1
+            && all_states(&net.vars, State::READY, net.vars.players.get()) == State::READY
             && sync(net, true)?
         {
             net.vars.all_raced.set(1);

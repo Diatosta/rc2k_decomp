@@ -809,7 +809,6 @@ mod tests {
     #[test]
     fn the_games_messages_cross_a_session_as_the_same_bytes() {
         use crate::net::owner::Net;
-        use crate::net::store::PlayerRecord;
         let _lock = crate::test_support::test_lock();
         let first = 47_900 + (std::process::id() % 100) as u16;
         let (port, host) = (first..first + 20)
@@ -910,12 +909,12 @@ mod tests {
 
         // On the game's host an answer of this round is noted, one of another is not, and a
         // call is not answered.
-        vars.own.head.set(PlayerRecord::STATE, 0x10);
+        vars.own.set_state(rc2k_core::net::players::State::HOST);
         say(&[0x41, 8]);
         settle();
-        assert_eq!(vars.synced(0).unwrap(), 0);
+        assert!(!vars.synced(0).unwrap());
         say(&[0x41, 7]);
-        assert!(until(&|| vars.synced(0).unwrap() == 1));
+        assert!(until(&|| vars.synced(0).unwrap()));
         vars.all_raced.set(0);
         say(&[0x40, 7]);
         settle();

@@ -23,8 +23,12 @@
 //! - Game thread only (`LobbyVars`): `mode`, `sequence`, `first_host`, `send_buffer`,
 //!   `show_gaps`, `data_size`, `racing`, `after_race`, `sync_clock`.
 
-use crate::session::{Byte, Bytes, Dword, PlainByte, PlainBytes, PlainDword, Word, with_runs};
+use crate::session::{
+    Byte, Bytes, Dword, Flag, PlainByte, PlainBytes, PlainDword, Word, with_runs,
+};
 use rc2k_core::net::inbox::{Inbox, Spill};
+use rc2k_core::net::players::State;
+use rc2k_core::net::record::{self, Record};
 
 const fn zeros<const N: usize>() -> [Dword; N] {
     [const { Dword::new(0) }; N]
@@ -122,12 +126,6 @@ pub struct PlayerRecord {
 }
 
 impl PlayerRecord {
-    pub const STATE: usize = 0;
-    pub const CAR: usize = 1;
-    pub const COLOURS: usize = 2;
-    pub const STAGE: usize = 4;
-    pub const DIRECTION: usize = 5;
-
     pub const fn zero() -> Self {
         Self {
             head: Bytes::new([0; 8]),
@@ -136,9 +134,18 @@ impl PlayerRecord {
         }
     }
 
-    /// The state bits.
-    pub fn state(&self) -> u8 {
-        self.head.get(Self::STATE)
+    /// The player's state.
+    pub fn state(&self) -> State {
+        State::from_byte(self.head.get(record::STATE))
+    }
+
+    pub fn set_state(&self, state: State) {
+        self.head.set(record::STATE, state.byte());
+    }
+
+    /// The record as a value.
+    pub fn get(&self) -> Record {
+        Record::from_bytes(&self.bytes())
     }
 
     /// The record's 16 bytes, as DirectPlay's player data.
@@ -576,8 +583,8 @@ pub struct NetShared {
     pub race_over: Dword,
     /// The sync table is not cleared yet.
     pub sync_first: Dword,
-    /// A byte a player, 1 when the player answered the sync.
-    pub synced: Bytes<8>,
+    /// Whether each player has answered the sync.
+    pub synced: [Flag; 8],
     /// The players.
     pub players: Dword,
     /// The players' blocks.
@@ -633,7 +640,7 @@ impl NetShared {
             all_raced: Dword::new(0),
             race_over: Dword::new(0),
             sync_first: Dword::new(0x1),
-            synced: Bytes::new([0; 8]),
+            synced: [const { Flag::new(false) }; 8],
             players: Dword::new(0),
             received: [const { PlayerBlock::zero() }; 8],
             player_id: Dword::new(0),
@@ -664,13 +671,27 @@ impl NetShared {
             .unwrap_or_else(|e| crate::fatal::raise::end("a player's block", e))
     }
 
-    /// Player `n`'s byte of `synced` (the players are at most 8).
-    pub fn synced(&self, n: usize) -> Result<u8, crate::errors::BadInput> {
-        Ok(self.synced.read_at(n, 1, "a player's synced byte")?[0])
+    /// Whether player `n` has answered the sync (the players are at most 8).
+    pub fn synced(&self, n: usize) -> Result<bool, crate::errors::BadInput> {
+        Ok(self.synced_flag(n)?.is_set())
     }
 
-    pub fn set_synced(&self, n: usize, value: u8) -> Result<(), crate::errors::BadInput> {
-        self.synced.write_at(n, &[value], "a player's synced byte")
+    pub fn set_synced(&self, n: usize, value: bool) -> Result<(), crate::errors::BadInput> {
+        self.synced_flag(n)?.set(value);
+        Ok(())
+    }
+
+    /// No player has answered.
+    pub fn clear_synced(&self) {
+        for flag in &self.synced {
+            flag.set(false);
+        }
+    }
+
+    fn synced_flag(&self, n: usize) -> Result<&Flag, crate::errors::BadInput> {
+        self.synced.get(n).ok_or(crate::errors::BadInput(
+            "a player's synced flag past the eighth",
+        ))
     }
 }
 
@@ -704,5 +725,46 @@ impl Button {
             tiles: PlainDword::new(0),
             item: PlainDword::new(0),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A record kept in the cells reads back as the value it was set from, in every state.
+    #[test]
+    fn a_player_record_in_cells_round_trips_in_every_state() {
+        let cells = PlayerRecord::zero();
+        for byte in [0u8, 1, 2, 4, 0x10, 0x11, 0x14, 0x82, 0xFF] {
+            let record = Record {
+                state: State::from_byte(byte),
+                car: 3,
+                colours: 4,
+                nationality: 5,
+                stage: 0x29,
+                direction: 1,
+                race_number: 6,
+                random: 7,
+                race_time: u32::MAX,
+                total: 0x1234_5678,
+            };
+            cells.set_bytes(&record.to_bytes());
+            assert_eq!(cells.get(), record);
+            assert_eq!(cells.state(), State::from_byte(byte));
+            assert_eq!(cells.bytes(), record.to_bytes());
+        }
+    }
+
+    /// The sync flags are eight, set one by one and cleared together; a ninth is refused.
+    #[test]
+    fn the_sync_flags_are_eight() {
+        let vars = NetShared::new();
+        assert!(!vars.synced(7).unwrap());
+        vars.set_synced(7, true).unwrap();
+        assert!(vars.synced(7).unwrap() && !vars.synced(6).unwrap());
+        vars.clear_synced();
+        assert!(!vars.synced(7).unwrap());
+        assert!(vars.synced(8).is_err() && vars.set_synced(8, true).is_err());
     }
 }

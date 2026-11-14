@@ -94,7 +94,7 @@ pub fn take_messages(
                 chat_line_locked(net, gfx, player, &text)?;
             }
             Message::Call { ready, round } => {
-                if !rc2k_core::net::record::is_host(own_state)
+                if !own_state.is_host()
                     && ROUND_UNKNOWN.swap(false, std::sync::atomic::Ordering::Relaxed)
                 {
                     net.vars.sync.set(round);
@@ -127,7 +127,7 @@ pub fn take_messages(
                 if !messages::notes_answer(this_round, own_state) {
                     continue;
                 }
-                net.vars.set_synced(player as usize, 1)?;
+                net.vars.set_synced(player as usize, true)?;
             }
             Message::Race { sequence, payload } => {
                 let time = crate::system::tick_count::tick_count();

@@ -5,7 +5,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::net::lobby::{FONT, blit, copy_picture, lock_surface, push_id, store_text};
 use crate::text::draw_text::GameCanvas;
-use rc2k_core::net::players::{self, READY};
+use rc2k_core::net::players;
 use rc2k_core::net::screens;
 
 const HEADING_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::TIME;
@@ -75,7 +75,7 @@ pub fn lobby_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
                 return Err(BadInput("a text without its end in its buffer").into());
             }
             let name = store_text(strings, name)?;
-            let font = if block.record.state() & READY != 0 {
+            let font = if block.record.state().is_ready() {
                 READY_FONT
             } else {
                 NAME_FONT

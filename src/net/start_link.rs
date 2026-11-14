@@ -8,9 +8,9 @@
 
 use crate::errors::Refused;
 use crate::net::lobby::log_bytes;
-use crate::net::store::PlayerRecord;
 use crate::owners::Owners;
 use crate::race::viewer_screen_store::texts;
+use rc2k_core::net::players::State;
 
 const NO_CONNECTION: u32 = 0x154;
 const NO_SESSION: u32 = 0x155;
@@ -48,9 +48,7 @@ fn link(o: Owners<'static>) -> Result<Way, Refused> {
         return Ok(Way::Message(NO_CONNECTION));
     }
     if net.lobby().mode.get() == 1 {
-        vars.own
-            .head
-            .set(PlayerRecord::STATE, vars.own.state() | 0x10);
+        vars.own.set_state(vars.own.state().with(State::HOST));
         return Ok(if hosting::hosting(o, lines)? {
             Way::On
         } else {

@@ -5,14 +5,10 @@
 use crate::errors::Refused;
 use crate::net::lobby_loop::{all_states, sync};
 use crate::net::owner::Net;
-use crate::net::store::PlayerRecord;
-use rc2k_core::net::players;
+use rc2k_core::net::players::State;
 pub fn race_wait(net: &Net) -> Result<u32, Refused> {
     let vars = &net.vars;
-    // The logic is in `rc2k_core::net::players` (`waiting`, `all_in_state` in `all_states`).
-    vars.own
-        .head
-        .set(PlayerRecord::STATE, players::waiting(vars.own.state()));
+    vars.own.set_state(vars.own.state().waiting());
     vars.own.race_time.set(u32::MAX);
     let now = crate::system::tick_count::tick_count();
     if (now
@@ -23,11 +19,11 @@ pub fn race_wait(net: &Net) -> Result<u32, Refused> {
         net.edit().clock_a.set(now);
         crate::net::list_players::list_players_regs(net)?;
     }
-    if vars.own.state() & players::HOST != 0 {
+    if vars.own.state().is_host() {
         if vars.players.get() == 0 {
             return Ok(vars.race_over.get());
         }
-        if all_states(&net.vars, players::WAITING, vars.players.get()) == players::WAITING
+        if all_states(&net.vars, State::WAITING, vars.players.get()) == State::WAITING
             && sync(net, false)?
         {
             vars.race_over.set(1);

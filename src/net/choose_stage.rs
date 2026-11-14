@@ -4,8 +4,8 @@
 use crate::errors::Refused;
 use crate::menu::screen_loop::{Entry, run_screen};
 use crate::net::store::NetShared;
-use crate::net::store::PlayerRecord;
 use crate::owners::Owners;
+use rc2k_core::net::record;
 
 /// The stage screen; the lobby loop's leftovers it carries (see `net::choose_car`) are all 0
 /// here.
@@ -15,12 +15,11 @@ pub fn choose_stage(o: Owners<'static>, vars: &NetShared) -> Result<(), Refused>
     escape_pressed.set(false);
     { run_screen(&crate::menu::select_stage_loop::SCREEN, &Entry::new(o)) }?;
     if !escape_pressed.is_set() {
+        vars.own
+            .head
+            .set(record::STAGE, race.shared.state.settings.stage.get() as u8);
         vars.own.head.set(
-            PlayerRecord::STAGE,
-            race.shared.state.settings.stage.get() as u8,
-        );
-        vars.own.head.set(
-            PlayerRecord::DIRECTION,
+            record::DIRECTION,
             race.shared.state.settings.direction.get() as u8,
         );
     }

@@ -7,7 +7,7 @@ use crate::race::viewer_screen_store::{NetTexts, texts};
 
 const CLOSED: u32 = 0x21; // DPSESSION_NEWPLAYERSDISABLED | DPSESSION_JOINDISABLED
 pub fn disable_new_players(net: &Net, lines: &NetTexts) {
-    if net.vars.own.state() & 0x10 == 0 {
+    if !net.vars.own.state().is_host() {
         return;
     }
     log_bytes(&lines.text(texts::NET_DISABLE_NEW_PLAYERS), false, 2);
@@ -30,7 +30,7 @@ pub fn disable_new_players(net: &Net, lines: &NetTexts) {
 /// in while others raced would be sent their race's messages).
 pub fn enable_new_players(net: &Net) {
     let flags = net.vars.session_desc.flags.get();
-    if net.vars.own.state() & 0x10 == 0 || flags & CLOSED == 0 || net.vars.dplay.get() == 0 {
+    if !net.vars.own.state().is_host() || flags & CLOSED == 0 || net.vars.dplay.get() == 0 {
         return;
     }
     net.vars.session_desc.flags.set(flags & !CLOSED);

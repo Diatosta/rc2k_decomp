@@ -6,9 +6,8 @@
 use crate::errors::Refused;
 use crate::net::destroy_connection::destroy_connection;
 use crate::net::store::NetShared;
-use crate::net::store::PlayerRecord;
 use rc2k_core::net::message::SystemMessage;
-use rc2k_core::net::players::{A_PLAYER, System, made_host};
+use rc2k_core::net::players::{A_PLAYER, System};
 
 /// The message is in `crate::net::owner::net().vars.receive_data`.
 pub fn system_message(
@@ -31,9 +30,7 @@ pub fn system_message(
         }
         System::SessionLost => destroy_connection(vars, lines)?,
         System::Host => {
-            vars.own
-                .head
-                .set(PlayerRecord::STATE, made_host(vars.own.state()));
+            vars.own.set_state(vars.own.state().made_host());
             vars.sync_first.set(1);
             vars.stage_item.set(1);
         }

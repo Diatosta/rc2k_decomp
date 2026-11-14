@@ -195,9 +195,13 @@ pub fn last_item(width: u32) -> Result<(u32, u32), Invalid> {
 
 /// A lobby button's flags: centred; dim while this player is ready (`state` bit 0) for all
 /// but the chat (item 3), and for "ready" (item 0) back from a race.
-pub fn lobby_button_flags(state: u8, item: u32, back_from_race: u32) -> u32 {
+pub fn lobby_button_flags(
+    state: crate::net::players::State,
+    item: u32,
+    back_from_race: u32,
+) -> u32 {
     let mut flags = CENTRED;
-    if state & crate::net::players::READY != 0 && item != 3 {
+    if state.is_ready() && item != 3 {
         flags |= DIM;
     }
     if back_from_race == 1 && item == 0 {
@@ -307,6 +311,7 @@ pub fn number_value(edited: bool, number: u32) -> Number {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::net::players::State;
 
     #[test]
     fn lit() {
@@ -345,10 +350,10 @@ mod tests {
         assert_eq!(button_font(2, true), ButtonFont::Dim);
         assert_eq!(button_font(1, true), ButtonFont::Lit);
         assert_eq!(button_font(0, false), ButtonFont::Plain);
-        assert_eq!(lobby_button_flags(1, 0, 0), 3);
-        assert_eq!(lobby_button_flags(1, 3, 0), 1);
-        assert_eq!(lobby_button_flags(0, 0, 1), 3);
-        assert_eq!(lobby_button_flags(0, 1, 1), 1);
+        assert_eq!(lobby_button_flags(State::READY, 0, 0), 3);
+        assert_eq!(lobby_button_flags(State::READY, 3, 0), 1);
+        assert_eq!(lobby_button_flags(State::default(), 0, 1), 3);
+        assert_eq!(lobby_button_flags(State::default(), 1, 1), 1);
         assert_eq!(next_button_x(0x310, 0x40), 0x310 - 0x84 - 8);
         assert_eq!(lobby_buttons(1, 0)[2], (0x15C, false));
         assert_eq!(

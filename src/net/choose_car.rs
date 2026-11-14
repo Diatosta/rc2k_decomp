@@ -4,8 +4,8 @@
 use crate::errors::Refused;
 use crate::menu::screen_loop::{Entry, run_screen};
 use crate::net::store::NetShared;
-use crate::net::store::PlayerRecord;
 use crate::owners::Owners;
+use rc2k_core::net::record;
 
 /// The car screen is handed the list of cars; the
 /// car it starts from its set-up finds itself (the current player's record,
@@ -22,14 +22,12 @@ pub fn choose_car(o: Owners<'static>, vars: &NetShared) -> Result<(), Refused> {
     { run_screen(&crate::menu::select_car_loop::SCREEN, &entry) }?;
     if !escape_pressed.is_set() {
         crate::menu::take_shown_car::take_shown_car(menus, Some(cars))?;
-        vars.own.head.set(
-            PlayerRecord::CAR,
-            play.players.players[0].get().car_number as u8,
-        );
-        vars.own.head.set(
-            PlayerRecord::COLOURS,
-            play.players.players[0].get().gearing as u8,
-        );
+        vars.own
+            .head
+            .set(record::CAR, play.players.players[0].get().car_number as u8);
+        vars.own
+            .head
+            .set(record::COLOURS, play.players.players[0].get().gearing as u8);
     }
     crate::net::show_background::show_background(o)?;
     Ok(())
