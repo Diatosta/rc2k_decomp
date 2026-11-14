@@ -98,9 +98,9 @@ pub struct Gpu {
 /// The GPU, once asked for and made.
 pub static GPU: Mutex<Option<Gpu>> = Mutex::new(None);
 
-/// Whether a device is wanted: `RC2K_RENDERER=gpu`.
+/// Whether a device is to be tried: unless `RC2K_RENDERER=software`.
 pub fn wanted() -> bool {
-    std::env::var("RC2K_RENDERER").is_ok_and(|r| r == "gpu")
+    super::choice::gpu_wanted()
 }
 
 fn sdl_error() -> String {
@@ -118,13 +118,20 @@ pub fn make_device() -> Option<Device> {
 
 /// Starts the backend on `device`.
 pub fn start(device: Device) {
-    match Gpu::new(device) {
+    let made = if super::choice::forced_failure("backend") {
+        Err("made to fail".to_string())
+    } else {
+        Gpu::new(device)
+    };
+    match made {
         Ok(gpu) => {
             log(&format!("render: the GPU backend on {}", device.driver()));
             *GPU.lock().unwrap() = Some(gpu);
             super::gpu_started();
         }
-        Err(why) => log(&format!("render: the GPU backend does not start: {why}")),
+        Err(why) => log(&format!(
+            "render: the GPU backend does not start ({why}): the software rasteriser draws the 3D"
+        )),
     }
 }
 

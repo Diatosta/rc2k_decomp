@@ -5,6 +5,7 @@
 #![allow(unsafe_code)]
 
 pub mod batches;
+pub mod choice;
 pub mod dump;
 #[cfg(any(test, all(target_os = "linux", target_arch = "aarch64")))]
 pub mod gl_batching;
@@ -405,6 +406,19 @@ static GPU_STARTED: AtomicBool = AtomicBool::new(false);
 /// A GPU backend has started and keeps textures: their changes are kept from now on.
 pub(crate) fn gpu_started() {
     GPU_STARTED.store(true, Relaxed);
+}
+
+/// A GPU backend that had started is given up (the screen's targets could not be made): its
+/// texture changes are no longer kept.
+#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+pub(crate) fn gpu_stopped() {
+    GPU_STARTED.store(false, Relaxed);
+    *CHANGED_TEXTURES.lock().unwrap() = None;
+}
+
+/// Whether a GPU backend is running: what started, not what was asked for.
+pub fn gpu_running() -> bool {
+    GPU_STARTED.load(Relaxed)
 }
 
 fn note_texture_change(pixels: TextureId, gone: bool) {

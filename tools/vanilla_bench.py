@@ -135,8 +135,7 @@ def inner(args):
     log = os.path.join(HOME, f"game_{game}.log")
     # "linux-gpu" / "windows-gpu": rc2k with its GPU renderer (the software one otherwise).
     build, _, renderer = game.partition("-")
-    if renderer == "gpu":
-        env["RC2K_RENDERER"] = "gpu"
+    env["RC2K_RENDERER"] = "gpu" if renderer == "gpu" else "software"
     if build == "linux":
         cmd = [os.path.join(GAME, "linux", "rc2k")]
         names = [os.path.join(GAME, "linux", "rc2k")]

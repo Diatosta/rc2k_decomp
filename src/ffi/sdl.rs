@@ -58,6 +58,19 @@ impl Window {
 }
 
 impl Renderer {
+    /// The name of SDL's driver the renderer runs on (`gpu`, `opengl`, `software`, ...).
+    pub fn name(self) -> String {
+        // SAFETY: the renderer SDL made; the name is SDL's own constant text, copied at once.
+        let name = unsafe { SDL_GetRendererName(self.0) };
+        if name.is_null() {
+            return "unnamed".into();
+        }
+        // SAFETY: not null, a NUL-terminated text that lives as long as the renderer.
+        unsafe { std::ffi::CStr::from_ptr(name) }
+            .to_string_lossy()
+            .into_owned()
+    }
+
     /// The renderer's target cleared to black.
     pub fn clear_black(self) {
         // SAFETY: the renderer SDL made, alive while the screen holds it.
@@ -215,6 +228,7 @@ pub fn create_renderer(window: Window) -> Option<Renderer> {
 
 /// The window's renderer on the GPU device the 3D shares. `device` is the GPU module's
 /// device; nothing in Rust dereferences it.
+#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
 #[allow(clippy::not_unsafe_ptr_arg_deref)] // an opaque handle only SDL reads
 pub fn create_gpu_renderer(device: *mut SDL_GPUDevice, window: Window) -> Option<Renderer> {
     // SAFETY: a live GPU device (the caller made it) and the window SDL made.

@@ -258,13 +258,16 @@ pub struct Gpu {
 
 pub static GPU: Mutex<Option<Front>> = Mutex::new(None);
 
-/// Whether the GPU is wanted: `RC2K_RENDERER=gpu`.
+/// Whether the GPU is to be tried: unless `RC2K_RENDERER=software`.
 pub fn wanted() -> bool {
-    std::env::var("RC2K_RENDERER").is_ok_and(|r| r == "gpu")
+    super::choice::gpu_wanted()
 }
 
 impl Gpu {
     fn new() -> Result<Gpu, String> {
+        if super::choice::forced_failure("gles") {
+            return Err("made to fail".into());
+        }
         let gl = Gles::open_panel(PANEL.0 as u16, PANEL.1 as u16)?;
         let mut gpu = Gpu {
             scene: 0,
@@ -1118,7 +1121,11 @@ fn blend_factor(factor: u32) -> u32 {
 /// Starts the GL's thread if it is wanted.
 pub fn start_if_wanted() {
     let mut held = GPU.lock().unwrap();
-    if held.is_some() || !wanted() || TRIED.swap(true, std::sync::atomic::Ordering::Relaxed) {
+    if held.is_some() || TRIED.swap(true, std::sync::atomic::Ordering::Relaxed) {
+        return;
+    }
+    if !wanted() {
+        log("render: the software rasteriser draws the 3D (RC2K_RENDERER=software)");
         return;
     }
     let (jobs, to_batch) = sync_channel(JOBS_WAITING);
@@ -1159,7 +1166,9 @@ pub fn start_if_wanted() {
             });
             super::gpu_started();
         }
-        Err(why) => log(&format!("render: the GPU backend does not start: {why}")),
+        Err(why) => log(&format!(
+            "render: the GPU backend does not start ({why}): the software rasteriser draws the 3D"
+        )),
     }
 }
 

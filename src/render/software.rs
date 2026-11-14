@@ -101,7 +101,7 @@ fn draw(into: &Target, noted: &mut CommandList, screen: (usize, usize)) {
     #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
     let mut small = (into.bits == 32
         && crate::handheld::draws_small()
-        && !crate::render::gpu::wanted())
+        && !crate::render::gpu_running())
     .then(|| {
         scale_noted(noted);
         // SAFETY: not kept: the screen's rows, checked by `slice`, nothing else writes them

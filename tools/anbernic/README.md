@@ -10,8 +10,9 @@ Stock OS with the community mod: Ubuntu 22.04 arm64, glibc 2.35, kernel 4.9, no 
   `tar cf - files var savedata | ssh root@address 'mkdir -p /mnt/mmc/Roms/APPS/rally; tar xf - -C /mnt/mmc/Roms/APPS/rally'`
   ("Cannot change ownership" on the SD card is harmless).
 - On the device: Apps > Rally. MENU + START leaves. Log: `Roms/APPS/rally/rc2k.log`.
-- GPU: `RC2K_RENDERER=gpu` (set by `Rally.sh`) draws races through libmali's OpenGL ES
-  (`src/render/gles.rs`); without it the rasteriser draws them at half size.
+- GPU: races are drawn through libmali's OpenGL ES (`src/render/gles.rs`) by default; if it
+  cannot start, the log says why and the rasteriser draws them at half size. `RC2K_RENDERER=software`
+  (`remote.py start --software`) forces the rasteriser. `Rally.sh` sets nothing.
 - Profiling: `RC2K_PROFILE=1` (`remote.py start --profile`; not set by `Rally.sh`: it costs
   frames) writes `profile.txt` every 5 s, on a thread of its own: the marker's
   place (`handheld::start_profile`), then (place, thread, 24 callers) a line; resolve against the

@@ -2,7 +2,9 @@
 """Drives a `remote` build of the game for automated tests (src/remote.rs).
 
     remote.py build [--handheld]         builds the binary with the `remote` feature
-    remote.py start [--gpu] [--fresh] [--profile]    starts it (PC: on a copy of var and savedata)
+    remote.py start [--software] [--fresh] [--profile]    starts it (PC: on a copy of var and savedata);
+                                         the GPU renderer is the default (--gpu is kept: the same),
+                                         --software forces the rasteriser (RC2K_RENDERER=software)
     remote.py key Return [ms]            a key press (SDL's scancode names)
     remote.py down W / up W              a key held
     remote.py pad a [ms]                 a gamepad button (menus)
@@ -198,8 +200,10 @@ def build():
         os.replace(GAME + '/rc2k.new', GAME + '/rc2k')
 
 
-def start(gpu, fresh, profile=False):
-    renderer = 'RC2K_RENDERER=gpu ' if gpu else ''
+def start(software, fresh, profile=False):
+    renderer = 'RC2K_RENDERER=software ' if software else ''
+    if os.environ.get('RC2K_FAIL_RENDERER'):  # start-up steps made to fail, to test the fallbacks
+        renderer += f"RC2K_FAIL_RENDERER={os.environ['RC2K_FAIL_RENDERER']} "
     if profile:
         renderer += 'RC2K_PROFILE=1 '
     if os.environ.get('RC2K_GL_BENCH'):  # the GL driver's costs, every n-th big part (handheld)
@@ -230,8 +234,10 @@ def start(gpu, fresh, profile=False):
             if not os.path.exists(f'{GAME}/{part}'):
                 shutil.copytree(f'{INSTALLED}/{part}', f'{GAME}/{part}')
         env = dict(os.environ, RC2K_REMOTE=FOLDER)
-        if gpu:
-            env['RC2K_RENDERER'] = 'gpu'
+        if software:
+            env['RC2K_RENDERER'] = 'software'
+        if os.environ.get('RC2K_FAIL_RENDERER'):
+            env['RC2K_FAIL_RENDERER'] = os.environ['RC2K_FAIL_RENDERER']
         command = ['./rc2k']
         if DARLING:
             env['DPREFIX'] = DARLING
@@ -371,7 +377,7 @@ def main():
     if command == 'build':
         build()
     elif command == 'start':
-        start('--gpu' in rest, '--fresh' in rest, '--profile' in rest)
+        start('--software' in rest, '--fresh' in rest, '--profile' in rest)
     elif command == 'stop':
         stop()
     elif command == 'shot':

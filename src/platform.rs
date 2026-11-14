@@ -190,31 +190,32 @@ fn set_screen_mode(
             else {
                 return Err("SDL opens no window".into());
             };
-            // `RC2K_RENDERER=gpu`: the window's renderer shares the 3D's device.
+            // The GPU first (`render::choice`): the window's renderer shares the 3D's device.
+            // Each step that fails is logged and the next tried: SDL's own 2D renderer, with
+            // the software rasteriser drawing the 3D. The handheld's GPU starts with its first
+            // frame (`render::show_on_panel`).
             #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
-            let gpu_device = if crate::render::gpu::wanted() {
-                crate::render::gpu::make_device()
-            } else {
-                None
-            };
-            #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
-            let device = gpu_device.map(crate::ffi::sdl_gpu::Device::as_raw);
-            // The handheld's starts with its first frame (`render::show_on_panel`).
+            let gpu_renderer = start_gpu_renderer(window);
             #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
-            let device: Option<*mut sdl3_sys::everything::SDL_GPUDevice> = None;
-            let renderer = match device {
-                Some(device) => sdl::create_gpu_renderer(device, window),
+            let gpu_renderer: Option<sdl::Renderer> = None;
+            let renderer = match gpu_renderer {
+                Some(renderer) => Some(renderer),
                 None => sdl::create_renderer(window),
             };
-            #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
-            if let Some(device) = gpu_device
-                && renderer.is_some()
-            {
-                crate::render::gpu::start(device);
-            }
             let Some(renderer) = renderer else {
                 return Err("SDL makes no renderer for the window".into());
             };
+            log(&format!(
+                "platform: the window's renderer is SDL's `{}`{}",
+                renderer.name(),
+                if cfg!(all(target_os = "linux", target_arch = "aarch64")) {
+                    ""
+                } else if crate::render::gpu_running() {
+                    ", the 3D on the GPU backend"
+                } else {
+                    ", the 3D on the software rasteriser"
+                }
+            ));
             (window, renderer)
         }
     };
@@ -228,11 +229,25 @@ fn set_screen_mode(
     renderer.clear_black();
     renderer.present();
     #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
-    if let Some(gpu) = crate::render::gpu::GPU.lock().unwrap().as_mut()
-        && let Err(why) = gpu.set_size(width, height)
     {
-        // The texture made above is dropped (destroyed) with `texture`.
-        return Err(why);
+        let mut held = crate::render::gpu::GPU.lock().unwrap();
+        let sized = match held.as_mut() {
+            Some(_) if crate::render::choice::forced_failure("size") => {
+                Err("made to fail".to_string())
+            }
+            Some(gpu) => gpu.set_size(width, height),
+            None => Ok(()),
+        };
+        if let Err(why) = sized {
+            // The frame texture's size does not matter to the window: the 3D goes on the
+            // software rasteriser from here, and the GPU's targets are not kept.
+            log(&format!(
+                "render: the GPU backend cannot make its targets ({why}): the software \
+                 rasteriser draws the 3D"
+            ));
+            *held = None;
+            crate::render::gpu_stopped();
+        }
     }
     // Its written rows noted: what the GPU's path uploads of the canvas (`render::gles`).
     let pixels = std::sync::Arc::new(crate::pool::PoolBytes::noting_rows(
@@ -264,6 +279,37 @@ fn set_screen_mode(
         "platform: screen mode {mode:#x}: {width} x {height}, {bits} bits"
     ));
     Ok(())
+}
+
+/// The window's renderer on a GPU device, with the GPU backend started on the same device.
+/// `None` (each failure logged) when the GPU is not wanted or a step fails; the device is
+/// then given up and the caller makes SDL's own renderer. A backend that does not start
+/// leaves the window's GPU renderer in place, drawing the rasteriser's frames.
+#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+fn start_gpu_renderer(window: sdl::Window) -> Option<sdl::Renderer> {
+    if !crate::render::gpu::wanted() {
+        return None;
+    }
+    let device = if crate::render::choice::forced_failure("device") {
+        None
+    } else {
+        crate::render::gpu::make_device()
+    }?;
+    let renderer = if crate::render::choice::forced_failure("gpu_renderer") {
+        None
+    } else {
+        sdl::create_gpu_renderer(device.as_raw(), window)
+    };
+    let Some(renderer) = renderer else {
+        log(&format!(
+            "render: SDL makes no renderer on the GPU device: {}",
+            crate::ffi::sdl_gpu::error()
+        ));
+        device.destroy();
+        return None;
+    };
+    crate::render::gpu::start(device);
+    Some(renderer)
 }
 
 /// `gfx::set_screen_mode`: the screen in `mode`; false (and logged) if it cannot be.

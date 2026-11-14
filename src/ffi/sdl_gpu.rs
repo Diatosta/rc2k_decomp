@@ -136,6 +136,14 @@ impl Device {
         (!device.is_null()).then_some(Device(device))
     }
 
+    /// The device destroyed. Only for one nothing else holds: no renderer, texture, buffer or
+    /// pipeline made on it is alive.
+    pub fn destroy(self) {
+        // SAFETY: a device `create` made, which the caller says nothing uses; it is not used
+        // again (`Device` is `Copy`, and the caller drops its copies).
+        unsafe { SDL_DestroyGPUDevice(self.0) };
+    }
+
     /// The format the device's shaders are made from, of the ones asked for (SPIR-V where it
     /// takes it), its code in `code`, and the code's entry point (spirv-cross names MSL's
     /// `main0`).
