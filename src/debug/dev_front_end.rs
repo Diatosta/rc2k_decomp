@@ -7,6 +7,7 @@
 use crate::errors::Refused;
 use crate::owners::Owners;
 use crate::race::owner::Race;
+use crate::scene::owner::Scene;
 use crate::session::DwordLike;
 use core::sync::atomic::{AtomicU32, Ordering::Relaxed};
 
@@ -117,7 +118,7 @@ fn round_a_race(
     ];
     let kept = menus.map(|(cell, _)| cell.get());
     // The player's HUD, keys and set-up, before the tab's own over them.
-    crate::race::single_rally::player_settings_in(o)?;
+    crate::race::single_rally::player_settings_in(o.menus, o.race)?;
     for (cell, v) in menus {
         cell.set(v);
     }
@@ -264,8 +265,7 @@ mod tab {
     }
 
     /// The tab.
-    pub fn tab(o: &Owners<'static>, ui: &Ui) {
-        let (race, scene) = (o.race, o.scene);
+    pub fn tab(race: &'static Race, scene: &'static Scene, ui: &Ui) {
         let s = &SETTINGS;
         number(ui, "Course", &s.course, 99);
         let course = s.course.load(Relaxed) as usize;

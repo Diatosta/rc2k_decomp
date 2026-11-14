@@ -265,28 +265,28 @@ pub fn build(o: &Owners<'static>, ui: &Ui) {
                     body(ui, || profiler(o, ui));
                 }
                 if let Some(_tab) = ui.tab_item("Kstar modes") {
-                    body(ui, || crate::debug::kstar::tab(o, ui));
+                    body(ui, || crate::debug::kstar::tab(race, o.scene, ui));
                 }
                 if let Some(_tab) = ui.tab_item("Switches") {
-                    body(ui, || crate::debug::switches::tab(o, ui));
+                    body(ui, || crate::debug::switches::tab(race, o.scene, o.system, ui));
                 }
                 if let Some(_tab) = ui.tab_item("Rivals") {
                     body(ui, || rivals(crate::strings::append_string_by_id::StringOwners::of(*o), &race.physics, ui));
                 }
                 if let Some(_tab) = ui.tab_item("Effects") {
-                    body(ui, || crate::debug::effects_page::tab(o, ui));
+                    body(ui, || crate::debug::effects_page::tab(o.effects, o.scene, ui));
                 }
                 if let Some(_tab) = ui.tab_item("Dyno") {
                     body(ui, || crate::debug::dyno::tab(race, o.scene, ui));
                 }
                 if let Some(_tab) = ui.tab_item("Players") {
-                    body(ui, || crate::debug::players::tab(o, ui));
+                    body(ui, || crate::debug::players::tab(o.menus, race, ui));
                 }
                 if let Some(_tab) = ui.tab_item("Screens") {
                     body(ui, || screens(o.saves, ui));
                 }
                 if let Some(_tab) = ui.tab_item("Developers") {
-                    body(ui, || crate::debug::dev_front_end::tab(o, ui));
+                    body(ui, || crate::debug::dev_front_end::tab(race, o.scene, ui));
                 }
             }
         });

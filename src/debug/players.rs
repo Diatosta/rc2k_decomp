@@ -3,8 +3,9 @@
 //! them); the other a car block's state, of "car1" and "car2", which were both the first block
 //! (a slip in the dump; here every car). The button writes the same to the log.
 
-use crate::owners::Owners;
+use crate::menu::owner::Menus;
 use crate::physics::car_store::Car;
+use crate::race::owner::Race;
 use crate::session::PlainDword;
 use dear_imgui_rs::{TableFlags, Ui};
 
@@ -81,17 +82,17 @@ fn figure(word: u32) -> String {
     format!("{}", word as i32)
 }
 
-fn player_figure(o: &Owners<'static>, player: usize, offset: usize) -> String {
-    figure(o.menus.play.players.players[player].get().word(offset))
+fn player_figure(menus: &Menus, player: usize, offset: usize) -> String {
+    figure(menus.play.players.players[player].get().word(offset))
 }
 
-fn car_figure(o: &Owners<'static>, car: usize, field: CarField) -> String {
-    figure(field(&o.race.car_blocks().cars[car]).get())
+fn car_figure(race: &Race, car: usize, field: CarField) -> String {
+    figure(field(&race.car_blocks().cars[car]).get())
 }
 
 /// The player's name, to its NUL.
-fn name(o: &Owners<'static>, player: usize) -> String {
-    let record = o.menus.play.players.players[player].get();
+fn name(menus: &Menus, player: usize) -> String {
+    let record = menus.play.players.players[player].get();
     let bytes: Vec<u8> = record
         .name_copy
         .iter()
@@ -102,23 +103,26 @@ fn name(o: &Owners<'static>, player: usize) -> String {
 }
 
 /// Both dumps to the log.
-fn write_log(o: &Owners<'static>) {
+fn write_log(menus: &Menus, race: &Race) {
     use crate::framework::log;
     for player in 0..4 {
         log(&format!("DATA DUMP OF PLAYER {}", player + 1));
         for (label, offset) in PLAYER_ROWS {
-            log(&format!("{label}: {}", player_figure(o, player, offset)));
+            log(&format!(
+                "{label}: {}",
+                player_figure(menus, player, offset)
+            ));
         }
-        log(&format!("NameStore: {}", name(o, player)));
+        log(&format!("NameStore: {}", name(menus, player)));
     }
     log(&format!(
         "shaungmode: {}",
-        figure(o.race.shared.vars.get().run_kind.get())
+        figure(race.shared.vars.get().run_kind.get())
     ));
     for car in 0..10 {
         log(&format!("car {}", car + 1));
         for (label, field) in CAR_ROWS {
-            log(&format!("{label}: {}", car_figure(o, car, field)));
+            log(&format!("{label}: {}", car_figure(race, car, field)));
         }
     }
 }
@@ -154,14 +158,14 @@ fn table(
 }
 
 /// The tab.
-pub fn tab(o: &Owners<'static>, ui: &Ui) {
+pub fn tab(menus: &Menus, race: &Race, ui: &Ui) {
     if ui.button("Write both dumps to the log") {
-        write_log(o);
+        write_log(menus, race);
     }
     ui.same_line();
     ui.text(format!(
         "shaungmode (run kind): {}",
-        figure(o.race.shared.vars.get().run_kind.get())
+        figure(race.shared.vars.get().run_kind.get())
     ));
     if ui.collapsing_header(
         "Cars (the race dump)",
@@ -175,7 +179,7 @@ pub fn tab(o: &Owners<'static>, ui: &Ui) {
             &mut CAR_ROWS.iter().map(|&(label, field)| {
                 (
                     label.to_owned(),
-                    (0..10).map(|c| car_figure(o, c, field)).collect(),
+                    (0..10).map(|c| car_figure(race, c, field)).collect(),
                 )
             }),
         );
@@ -189,13 +193,16 @@ pub fn tab(o: &Owners<'static>, ui: &Ui) {
             "players",
             4,
             "player",
-            &mut std::iter::once(("NameStore".to_owned(), (0..4).map(|p| name(o, p)).collect()))
-                .chain(PLAYER_ROWS.iter().map(|&(label, offset)| {
-                    (
-                        label.to_owned(),
-                        (0..4).map(|p| player_figure(o, p, offset)).collect(),
-                    )
-                })),
+            &mut std::iter::once((
+                "NameStore".to_owned(),
+                (0..4).map(|p| name(menus, p)).collect(),
+            ))
+            .chain(PLAYER_ROWS.iter().map(|&(label, offset)| {
+                (
+                    label.to_owned(),
+                    (0..4).map(|p| player_figure(menus, p, offset)).collect(),
+                )
+            })),
         );
     }
 }

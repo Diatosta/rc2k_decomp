@@ -7,7 +7,6 @@
 //! lists nothing writes; 0x10 has only 8's keys. What this tab writes is the game's memory until
 //! the stage reloads, as the developers' keys did.
 
-use crate::owners::Owners;
 use crate::physics::car_store::Car;
 use crate::race::owner::Race;
 use crate::race::owner_shared::RaceShared;
@@ -162,11 +161,10 @@ fn section(ui: &Ui, name: &str) -> bool {
     ui.collapsing_header(name, TreeNodeFlags::NONE)
 }
 
-pub fn tab(o: &Owners<'static>, ui: &Ui) {
-    let race = o.race;
+pub fn tab(race: &Race, scene: &Scene, ui: &Ui) {
     mode_choice(&race.shared, ui);
     if section(ui, "Car's faces by group (mode 5)") {
-        groups(o.scene, ui);
+        groups(scene, ui);
     }
     if section(ui, "Camera (mode 6)") {
         camera(race, ui);

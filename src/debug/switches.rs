@@ -4,7 +4,9 @@
 //! texts. These are the game's own variables: the race's settings copy (`race::settings_copy`)
 //! and a stage's load may put them back.
 
-use crate::owners::Owners;
+use crate::race::owner::Race;
+use crate::scene::owner::Scene;
+use crate::system::owner::System;
 use dear_imgui_rs::Ui;
 use std::sync::atomic::{AtomicU32, Ordering::Relaxed};
 
@@ -22,8 +24,8 @@ fn tick(ui: &Ui, key: u32, name: &str, cell: &crate::session::PlainDword, about:
 }
 
 /// The tab.
-pub fn tab(o: &Owners<'static>, ui: &Ui) {
-    let shared = &o.race.shared;
+pub fn tab(race: &Race, scene: &Scene, system: &System, ui: &Ui) {
+    let shared = &race.shared;
     let words = &shared.vars.get().settings_words;
     ui.text_disabled("Numbered by the keypad key each had");
     tick(
@@ -35,17 +37,17 @@ pub fn tab(o: &Owners<'static>, ui: &Ui) {
     );
     ui.text_disabled("2: dword_6218E0: nothing reads it");
     // Key 3: the switch masked with what the processor has.
-    let use_ = o.scene.draw_switches.get();
+    let use_ = scene.draw_switches.get();
     let mut on = EXTENSIONS.load(Relaxed) != 0;
     if ui.checkbox("3: Processor's extensions", &mut on) {
         let v = u32::from(on);
         EXTENSIONS.store(v, Relaxed);
         use_.use_sse
-            .set(on && o.system.machine().has_sse.get() & 1 != 0);
+            .set(on && system.machine().has_sse.get() & 1 != 0);
         // The 3DNow way is not ported and would end the program, so it stays off on a
         // processor that has it.
         use_.use_3dnow.set(0);
-        use_.use_mmx.set(v & o.system.machine().has_mmx.get());
+        use_.use_mmx.set(v & system.machine().has_mmx.get());
     }
     ui.same_line();
     let used = [

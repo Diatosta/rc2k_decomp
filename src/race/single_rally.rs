@@ -352,8 +352,7 @@ fn finish(
 /// The debug UI's test races: the players' records into the race's settings as a race does (the
 /// HUD, the keys, the set-up, ...), without their damage and wear.
 #[cfg(debug_ui)]
-pub fn player_settings_in(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
-    let (menus, race) = (o.menus, o.race);
+pub fn player_settings_in(menus: &Menus, race: &Race) -> Result<(), Refused> {
     let results = &race.shared.state.results.results;
     let (first_side, current_side) = (first_side(race), current_side(race));
     // As `single_rally`'s start: the last race's outcome, else the car starts out of it.
