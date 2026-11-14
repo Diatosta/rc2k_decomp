@@ -675,6 +675,7 @@ pub fn run(log_file: &Path, frames: u32) -> ! {
     let log_file = &std::path::absolute(log_file).unwrap_or_else(|_| log_file.to_path_buf());
     let _ = std::fs::File::create(log_file);
     let _ = LOG_PATH.set(log_file.to_path_buf());
+    crate::gfx::draw2d::enable_from_environment();
     #[cfg(target_os = "macos")]
     match bundle_folder {
         Ok(Some(folder)) => log(&format!(

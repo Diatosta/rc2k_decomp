@@ -87,6 +87,7 @@ pub mod cards;
 pub mod clear_back_surface;
 pub mod converters;
 pub mod decoder;
+pub mod draw2d;
 pub mod formats;
 pub mod front;
 pub mod locked;

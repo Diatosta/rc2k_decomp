@@ -550,6 +550,7 @@ pub fn show_frame_now(o: crate::owners::Owners<'static>) -> bool {
     let drawing = &o.gfx.drawing;
     // The 3D drawing noted so far, before the screen is shown, written or changed.
     crate::platform_3d::flush();
+    crate::gfx::draw2d::check::end_frame(&o.gfx.fonts, o.menus.screens.loop_flags.menu.get().ok());
     {
         if o.system.session.flags.quitting.is_set() {
             return false;

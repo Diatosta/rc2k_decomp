@@ -80,8 +80,23 @@ pub fn rescale_to_surface(
     let out = crate::gfx::locked_pixels::Place::start(surface.pixels.get());
     let row_len = width as usize * size as usize;
     let stride = row_len as u32 + surface.row_gap.get();
+    let recording = crate::gfx::draw2d::enabled()
+        && surface.pixels.get() == crate::gfx::locked_pixels::SCREEN
+        && crate::gfx::surface::ON_PICTURE.load(std::sync::atomic::Ordering::Relaxed) == 0;
     for (n, row) in made.pixels.chunks_exact(row_len).enumerate() {
         out.must_write_bytes_at((n as u32).wrapping_mul(stride), row, "the surface");
+        if recording {
+            crate::gfx::draw2d::mirror((n as u32).wrapping_mul(stride), row);
+        }
+    }
+    if recording {
+        crate::gfx::draw2d::push(crate::gfx::draw2d::Command::Image(
+            crate::gfx::draw2d::Image {
+                row_len,
+                pitch: stride,
+                pixels: made.pixels.clone(),
+            },
+        ));
     }
     if let Some(parts) = made.last_parts {
         for (part, &byte) in parts.iter().enumerate() {

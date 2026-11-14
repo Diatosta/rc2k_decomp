@@ -61,6 +61,8 @@ impl Palette<'_> {
 
 /// The plan's work variables, then its pixels in colour `colour`.
 fn carry_out(plan: &rc2k_core::gfx::raster::Plan, colour: u32, palette: Palette<'_>, gfx: &Gfx) {
+    let recording =
+        crate::gfx::draw2d::enabled() && crate::gfx::draw2d::is_screen(surface(gfx).target);
     let drawing = &gfx.drawing;
     let w = plan.work;
     for (at, value) in [
@@ -81,7 +83,38 @@ fn carry_out(plan: &rc2k_core::gfx::raster::Plan, colour: u32, palette: Palette<
         if let Err(e) = crate::gfx::surface::write(target, offset as u32, &bytes, gfx) {
             crate::fatal::raise::end("gfx::rect", e)
         }
+        if recording {
+            crate::gfx::draw2d::mirror(offset as u32, &bytes);
+        }
     }
+}
+
+/// Notes a shape drawn on the screen for the 2D record: its `plans` as they were carried out.
+fn note(
+    shape: crate::gfx::draw2d::Shape,
+    plans: &[rc2k_core::gfx::raster::Plan],
+    colour: u32,
+    palette: Palette<'_>,
+    gfx: &Gfx,
+) {
+    use crate::gfx::draw2d::{Canvas, Command, Rect, push};
+    if !crate::gfx::draw2d::enabled() || !crate::gfx::draw2d::is_screen(surface(gfx).target) {
+        return;
+    }
+    // The pixel's bytes by the depth of the first plan that sets a pixel.
+    let pixel = plans
+        .iter()
+        .find(|plan| !plan.pixels.is_empty())
+        .map(|plan| pixel(&gfx.fonts, plan.bits, colour, palette))
+        .unwrap_or_default();
+    push(Command::Rect(Rect {
+        shape,
+        canvas: Canvas {
+            surface: core_surface(gfx),
+            clip: core_clip(gfx),
+        },
+        pixel,
+    }));
 }
 
 /// The pixel for colour `colour` by the surface's depth: `palette[colour]` as a word or a dword,
@@ -117,6 +150,13 @@ pub fn fill_rect(
 ) -> Result<(), Refused> {
     let plan = rc2k_core::gfx::raster::fill(rect, &core_clip(gfx), &core_surface(gfx))?;
     carry_out(&plan, colour, palette, gfx);
+    note(
+        crate::gfx::draw2d::Shape::Fill(rect),
+        &[plan],
+        colour,
+        palette,
+        gfx,
+    );
     Ok(())
 }
 
@@ -125,12 +165,22 @@ pub fn fill_rect(
 pub fn draw_hline(x: i32, y: i32, length: i32, colour: u32, palette: Palette<'_>, gfx: &Gfx) {
     let plan = rc2k_core::gfx::raster::hline(x, y, length, &core_clip(gfx), &core_surface(gfx));
     carry_out(&plan, colour, palette, gfx);
+    let shape = crate::gfx::draw2d::Shape::HLine { x, y, length };
+    note(shape, &[plan], colour, palette, gfx);
 }
 
 /// `gfx::frame_rect`: the rectangle's outline moved by (dx, dy): the top and bottom rows
 /// (`draw_hline`), then the left and right columns between them (`draw_vline`).
 pub fn frame_rect(rect: [i32; 4], dx: i32, dy: i32, colour: u32, palette: Palette<'_>, gfx: &Gfx) {
-    for plan in rc2k_core::gfx::raster::frame(rect, dx, dy, &core_clip(gfx), &core_surface(gfx)) {
-        carry_out(&plan, colour, palette, gfx);
+    let plans = rc2k_core::gfx::raster::frame(rect, dx, dy, &core_clip(gfx), &core_surface(gfx));
+    for plan in &plans {
+        carry_out(plan, colour, palette, gfx);
     }
+    note(
+        crate::gfx::draw2d::Shape::Frame { rect, dx, dy },
+        &plans,
+        colour,
+        palette,
+        gfx,
+    );
 }

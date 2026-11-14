@@ -101,12 +101,14 @@ pub fn copy_picture_to_surface(surface: &mut dyn PictureSurface) -> Result<(), B
         return Err(why);
     }
     if surface.defer_background() {
+        note_background(surface, to, rows, row_bytes);
         if !was_locked {
             surface.unlock();
         }
         return Ok(());
     }
     // The surface's rows: their dwords, then the gap to the next.
+    let to_pixels = to;
     let to = crate::gfx::rows::Rows::new(to, row_bytes as u32 + surface.row_gap(), rows);
     // The picture's rows from its buffer (`gfx::picture`), onto the surface's.
     let copied = with_buffer_unchanged(surface.pictures().picture.buffer.get(), |from| {
@@ -126,8 +128,36 @@ pub fn copy_picture_to_surface(surface: &mut dyn PictureSurface) -> Result<(), B
         }
         return Err(why);
     }
+    note_background(surface, to_pixels, rows, row_bytes);
     if !was_locked {
         surface.unlock();
     }
     Ok(())
+}
+
+/// Notes the picture drawn on the screen for the 2D record (and what it wrote there).
+fn note_background(surface: &dyn PictureSurface, to: u32, rows: u32, row_bytes: usize) {
+    use crate::gfx::draw2d::{Background, Command, mirror, push};
+    if !crate::gfx::draw2d::enabled() || to != crate::gfx::locked_pixels::SCREEN {
+        return;
+    }
+    let buffer = surface.pictures().picture.buffer.get();
+    let Some(generation) = crate::gfx::draw2d::picture_generation(buffer) else {
+        return;
+    };
+    let pitch = row_bytes as u32 + surface.row_gap();
+    let _ = with_buffer_unchanged(buffer, |from| {
+        for y in 0..rows {
+            if let Some(row) = from.get(y as usize * row_bytes..(y as usize + 1) * row_bytes) {
+                mirror(y * pitch, row);
+            }
+        }
+    });
+    push(Command::Background(Background {
+        buffer,
+        generation,
+        rows,
+        row_bytes,
+        pitch,
+    }));
 }

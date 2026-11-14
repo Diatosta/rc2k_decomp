@@ -25,8 +25,23 @@ pub fn clear_back_surface(
         (4 * dwords).wrapping_add(drawing.draw_surface.present_gap.get()),
         system.session.screen.get().height.get(),
     );
+    let handle = drawing.draw_surface.present_pixels.get();
+    let recording = crate::gfx::draw2d::enabled() && handle == crate::gfx::locked_pixels::SCREEN;
+    let pitch = (4 * dwords).wrapping_add(drawing.draw_surface.present_gap.get());
     for y in 0..rows.count() {
         rows.fill(y, 0, 0, 4 * dwords as usize, "the back surface")?;
+        if recording {
+            crate::gfx::draw2d::mirror(y.wrapping_mul(pitch), &vec![0; 4 * dwords as usize]);
+        }
+    }
+    if recording {
+        crate::gfx::draw2d::push(crate::gfx::draw2d::Command::Clear(
+            crate::gfx::draw2d::Clear {
+                row_len: 4 * dwords as usize,
+                pitch,
+                rows: rows.count(),
+            },
+        ));
     }
     crate::platform::unlock_surface(gfx);
     Ok(())
