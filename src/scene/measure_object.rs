@@ -3,8 +3,9 @@
 //!
 //! The middle = 0; the lowest of each of x, y, z from 0x640000 down and the highest from
 //! -0x640000 up over the slot's points; half the extent of each = (highest - lowest) halved,
-//! the middle = that plus the lowest; then the middle is taken off every point. Eleven call
-//! sites in `scene::load_object` (the parts of a car). Refuses a slot past the tables and
+//! the middle = that plus the lowest; then the middle is taken off every point. Used by
+//! `scene::load_object` for a measured car part whose shape has no points of its own to measure
+//! (the shape's own are measured before they are stored). Refuses a slot past the tables and
 //! points without their memory.
 
 use crate::errors::BadInput;

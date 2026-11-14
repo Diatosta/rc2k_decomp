@@ -14,6 +14,7 @@ pub mod loading;
 pub mod materials;
 pub mod matrices;
 pub mod noise;
+pub mod object_shape;
 pub mod objects;
 pub mod pictures;
 pub mod places;
