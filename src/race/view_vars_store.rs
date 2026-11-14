@@ -115,6 +115,46 @@ pub struct ViewRecord {
 }
 
 impl ViewRecord {
+    /// The record's dword `n` (0 .. 23) in its order: what a read running on into the record by
+    /// dword sees (`race::frame_draw::course_view::face_hidden` for camera views past the view
+    /// hides table).
+    pub fn dword(&self, n: usize) -> Option<u32> {
+        let [o, f, a, s, r] = [
+            &self.offset,
+            &self.focus,
+            &self.angles,
+            &self.speeds,
+            &self.turn_rates,
+        ]
+        .map(|t| t.each_ref().map(PlainDword::get));
+        let words: [u32; 23] = [
+            self.kind.get(),
+            o[0],
+            o[1],
+            o[2],
+            f[0],
+            f[1],
+            f[2],
+            a[0],
+            a[1],
+            a[2],
+            s[0],
+            s[1],
+            s[2],
+            self.unknown_34.get(),
+            self.fish.get(),
+            self.change_time.get(),
+            r[0],
+            r[1],
+            r[2],
+            self.halve_tilt.get(),
+            self.fixed_zoom.get(),
+            self.height_bias.get(),
+            self.blend.get(),
+        ];
+        words.get(n).copied()
+    }
+
     /// The offset's three dwords (+0x4 .. +0xC).
     pub fn offset_bits(&self) -> [u32; 3] {
         self.offset.each_ref().map(PlainDword::get)
@@ -579,5 +619,20 @@ mod tests {
             ));
         }
         assert!(ViewVars::record_of(race().frame.view_and_records.get(), 52).is_err());
+    }
+
+    #[test]
+    fn a_record_s_dwords_run_in_its_order() {
+        let places = race().frame.view_and_records.get();
+        let record = &places.records[0];
+        assert_eq!(record.dword(0), Some(record.kind.get()));
+        assert_eq!(record.dword(1), Some(record.offset[0].get()));
+        assert_eq!(record.dword(14), Some(record.fish.get()));
+        assert_eq!(record.dword(15), Some(record.change_time.get()));
+        assert_eq!(record.dword(22), Some(record.blend.get()));
+        assert_eq!(record.dword(23), None);
+        // The camera views past the view hides table (34 .. 51) all land in the first record.
+        let past = 52 - places.view_vars.view_hides.len();
+        assert!(record.dword(past - 1).is_some());
     }
 }

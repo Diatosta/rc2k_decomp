@@ -84,16 +84,18 @@ pub fn face_hidden(
     // The depths' roundings are the x87's.
     use rc2k_core::race::faces::{hidden_by_depth, hidden_by_switches};
     let view: u32 = ctx.view.car.camera_view.get();
-    // `view_hides[]` is by camera view. Its 34 entries cover views 0 .. 0x21 and end the record: a
-    // later view has nothing to read.
-    let shows: u32 = ctx
-        .reads
-        .view_and_records
-        .view_vars
-        .view_hides
-        .get(view as usize)
-        .ok_or(BadInput("the view hides: a view past the 34"))?
-        .get();
+    // `view_hides[]` is by camera view. Its 34 entries cover views 0 .. 0x21; the replay's other
+    // cameras (views 0x22 .. 0x33) read on into the first view record's dwords, as the game always has.
+    let places = &ctx.reads.view_and_records;
+    let shows: u32 = match places.view_vars.view_hides.get(view as usize) {
+        Some(entry) => entry.get(),
+        None => (view as usize)
+            .checked_sub(places.view_vars.view_hides.len())
+            .and_then(|n| places.records[0].dword(n))
+            .ok_or(BadInput(
+                "the view hides: a view past the first view record",
+            ))?,
+    };
     let hiding = if shows == 0 {
         ctx.reads.switches.scene_set_up.get()
     } else {
