@@ -49,6 +49,11 @@ pub fn apply_screen_mode(o: Owners<'static>) -> Result<(), Refused> {
     let applied = applied_mode(taken);
     screens.loop_flags.item.set(applied.item);
     screens.items.current[slot::VISUAL_OPTIONS].set(applied.item);
-    crate::sound::play_menu_sound::play_menu_sound_in_game(o, applied.sound);
+    crate::sound::play_menu_sound::play_menu_sound_in_game(
+        o.sound,
+        o.audio,
+        o.menus,
+        applied.sound,
+    );
     Ok(())
 }

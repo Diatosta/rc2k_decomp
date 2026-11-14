@@ -57,7 +57,12 @@ fn load_and_run(o: Owners<'static>) -> Result<(), Refused> {
     menus.tables.pages.reset_times.set(0u32);
     menus.screens.event.event_out.set(0u32);
     if !read_savegame_slot_in(saves, slot)? {
-        crate::sound::play_menu_sound::play_menu_sound_in_game(o, UNREADABLE_SOUND);
+        crate::sound::play_menu_sound::play_menu_sound_in_game(
+            o.sound,
+            o.audio,
+            o.menus,
+            UNREADABLE_SOUND,
+        );
         go_back::go_back(menus);
         return Ok(());
     }

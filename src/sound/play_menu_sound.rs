@@ -8,34 +8,42 @@
 //! `OptionWork.menu_sounds_c`. Then `sound::play_sound` with the sample's own rate and no place. 25
 //! callers (1 is the highlight's click, 2 Enter's sound: `menu::handle_keys`).
 
-use crate::owners::Owners;
+use crate::audio::owner::Audio;
+use crate::menu::owner::Menus;
 use crate::session::DwordLike;
+use crate::sound::owner::Sound;
 use crate::system::tick_count::tick_count;
 
 /// `sound` the menu's sound (0: none); `now` is asked for the clock.
-pub fn play_menu_sound(sound: u32, now: &mut dyn FnMut() -> u32, o: Owners<'static>) {
+pub fn play_menu_sound(
+    sound: u32,
+    now: &mut dyn FnMut() -> u32,
+    sounds: &Sound,
+    audio: &Audio,
+    menus: &Menus,
+) {
     // The logic is `rc2k_core::sound::senders::menu_sound`.
     use rc2k_core::sound::senders::{MenuVolume, menu_sound};
     if sound == 0 {
         return;
     }
-    let Some((next, pick)) = menu_sound(sound, now(), o.sound.menu.next_sound_time.get().get())
+    let Some((next, pick)) = menu_sound(sound, now(), sounds.menu.next_sound_time.get().get())
     else {
         return;
     };
-    o.sound.menu.next_sound_time.get().set(next);
+    sounds.menu.next_sound_time.get().set(next);
     let Some((sound, volume)) = pick else {
         return;
     };
     let volume: &dyn DwordLike = match volume {
-        MenuVolume::A => &o.audio.levels.menu_sounds_a,
-        MenuVolume::B => &o.menus.screens.flow.menu_sounds_volume,
-        MenuVolume::C => &o.menus.screens.option_work.menu_sounds_c,
+        MenuVolume::A => &audio.levels.menu_sounds_a,
+        MenuVolume::B => &menus.screens.flow.menu_sounds_volume,
+        MenuVolume::C => &menus.screens.option_work.menu_sounds_c,
     };
-    crate::sound::play_sound::play_sound_in(o.audio, sound, volume.get(), 0xFFFF_FF91, [0; 3]);
+    crate::sound::play_sound::play_sound_in(audio, sound, volume.get(), 0xFFFF_FF91, [0; 3]);
 }
 
 /// With the game's clock: what other Rust code calls.
-pub fn play_menu_sound_in_game(o: Owners<'static>, sound: u32) {
-    play_menu_sound(sound, &mut tick_count, o);
+pub fn play_menu_sound_in_game(sounds: &Sound, audio: &Audio, menus: &Menus, sound: u32) {
+    play_menu_sound(sound, &mut tick_count, sounds, audio, menus);
 }

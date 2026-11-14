@@ -23,6 +23,8 @@
 //! picture is the same from run to run (the picture check, `scratchpad/shots.sh`).
 
 use crate::ffi::sdl_input;
+use crate::gfx::owner::Gfx;
+use crate::menu::owner::Menus;
 use crate::owners::Owners;
 use crate::race::owner::Race;
 use crate::race::owner_course::Course;
@@ -170,7 +172,7 @@ fn state(o: &Owners<'static>, course: &Course) -> String {
     format!(
         "frames={} screen_frames={} race={} menu={:?} item={} focused={} speed={:.0} time={} splits={} finished={} stuck={} checkpoints={} checkpoint={} map={},{} target={},{} near={},{} channels={} mix={} heading={} gear={} box={} driver={} controls={},{},{},{},{},{} matrix={} cars={} shown={}",
         o.gfx.drawing.draw_surface.frames.get(),
-        screen_frames(o),
+        screen_frames(o.gfx),
         u32::from(course.numbers.get().in_race.is_set()),
         screens.loop_flags.menu.get().ok(),
         screens.loop_flags.item.get(),
@@ -336,18 +338,15 @@ static SCREEN: std::sync::Mutex<(Option<crate::menu::menus_store::MenuId>, u32, 
     std::sync::Mutex::new((None, 0, 0));
 
 /// The screen's identity: its menu (none outside the menus) and the race flag.
-fn screen_now(
-    o: &Owners<'static>,
-    course: &Course,
-) -> (Option<crate::menu::menus_store::MenuId>, u32) {
-    let menu = o.menus.screens.loop_flags.menu.get().ok();
+fn screen_now(menus: &Menus, course: &Course) -> (Option<crate::menu::menus_store::MenuId>, u32) {
+    let menu = menus.screens.loop_flags.menu.get().ok();
     (menu, u32::from(course.numbers.get().in_race.is_set()))
 }
 
 /// A change of screen noted at its first frame.
-fn note_screen(o: &Owners<'static>, course: &Course) {
-    let (menu, race) = screen_now(o, course);
-    let frames = o.gfx.drawing.draw_surface.frames.get();
+fn note_screen(menus: &Menus, gfx: &Gfx, course: &Course) {
+    let (menu, race) = screen_now(menus, course);
+    let frames = gfx.drawing.draw_surface.frames.get();
     let mut s = SCREEN
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
@@ -358,19 +357,19 @@ fn note_screen(o: &Owners<'static>, course: &Course) {
 
 /// The frames drawn since the screen (menu or race) changed: a test presses keys once its
 /// screen has drawn a few, not by waiting a fixed time.
-fn screen_frames(o: &Owners<'static>) -> u32 {
+fn screen_frames(gfx: &Gfx) -> u32 {
     let s = SCREEN
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
-    o.gfx.drawing.draw_surface.frames.get().wrapping_sub(s.2)
+    gfx.drawing.draw_surface.frames.get().wrapping_sub(s.2)
 }
 
 /// At each pump: the releases due, then the commands waiting.
 pub fn poll(o: &Owners<'static>, course: &Course) {
     let Some(folder) = folder() else { return };
-    note_screen(o, course);
+    note_screen(o.menus, o.gfx, course);
     let now = Instant::now();
-    note_slow_frame(o, course, now);
+    note_slow_frame(o.race, o.gfx, course, now);
     pending().releases.retain(|(when, release)| {
         if *when > now {
             return true;
@@ -391,7 +390,7 @@ pub fn poll(o: &Owners<'static>, course: &Course) {
 /// With `RC2K_SLOW_FRAMES=<ms>`, a log line for each pump in a race that comes more than
 /// that many milliseconds after the one before, with the driven car's checkpoint: where on
 /// the stage the frame rate drops (the five-second lines smooth the drops away).
-fn note_slow_frame(o: &Owners<'static>, course: &Course, now: Instant) {
+fn note_slow_frame(race: &Race, gfx: &Gfx, course: &Course, now: Instant) {
     static LIMIT: OnceLock<Option<u128>> = OnceLock::new();
     static LAST: Mutex<Option<Instant>> = Mutex::new(None);
     let Some(limit) = *LIMIT.get_or_init(|| {
@@ -408,11 +407,11 @@ fn note_slow_frame(o: &Owners<'static>, course: &Course, now: Instant) {
     let Some(before) = before else { return };
     let ms = now.duration_since(before).as_millis();
     if ms > limit && course.numbers.get().in_race.is_set() {
-        let car = driven_car(o.race, course);
+        let car = driven_car(race, course);
         crate::framework::log(&format!(
             "remote: slow frame {ms} ms at checkpoint {} (frame {})",
             car.checkpoint.get(),
-            o.gfx.drawing.draw_surface.frames.get()
+            gfx.drawing.draw_surface.frames.get()
         ));
     }
 }

@@ -44,7 +44,7 @@ pub fn check_cheat_name(o: crate::owners::Owners<'static>) -> Result<(), Refused
     let cheats = rc2k_core::menu::cheat_names::with_cheat(play.cheats.cheats.get(), bit as u8)?;
     play.cheats.cheats.set(cheats);
     // The sound, the cheat bit and the record are handed on as the callees expect.
-    crate::sound::play_menu_sound::play_menu_sound_in_game(o, 8);
+    crate::sound::play_menu_sound::play_menu_sound_in_game(o.sound, o.audio, o.menus, 8);
     crate::menu::apply_cheats::apply_cheats(
         menus,
         &mut |line| {

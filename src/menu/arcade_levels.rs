@@ -14,7 +14,12 @@ pub fn arcade_level(o: Owners<'static>, level: u32) -> Result<(), Refused> {
         play.arcade.levels_won.get(level as usize - 1)
     });
     if !open {
-        crate::sound::play_menu_sound::play_menu_sound_in_game(o, CLOSED_SOUND);
+        crate::sound::play_menu_sound::play_menu_sound_in_game(
+            o.sound,
+            o.audio,
+            o.menus,
+            CLOSED_SOUND,
+        );
         return Ok(());
     }
     play.arcade.level.set(level);

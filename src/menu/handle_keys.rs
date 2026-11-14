@@ -72,7 +72,12 @@ pub fn handle_keys(o: Owners<'static>, eax: u32) -> Result<Pressed, Refused> {
             .flow
             .enter_skips_name_entry
             .set(keys::enter_skips_name_entry(eax));
-        crate::sound::play_menu_sound::play_menu_sound_in_game(o, keys::ENTER_CLICK);
+        crate::sound::play_menu_sound::play_menu_sound_in_game(
+            o.sound,
+            o.audio,
+            o.menus,
+            keys::ENTER_CLICK,
+        );
         return Ok(Pressed::Enter);
     }
     menus.play.champ_view.last_key_time.set(clock);
