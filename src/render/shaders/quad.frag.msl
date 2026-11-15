@@ -17,6 +17,12 @@ struct main0_in
 fragment main0_out main0(main0_in in [[stage_in]], texture2d<float> atlas [[texture(0)]], sampler atlasSmplr [[sampler(0)]])
 {
     main0_out out = {};
+    if (in.palette.x <= (-2.0))
+    {
+        int _packed = int(-in.palette.x) - 2;
+        out.result = float4(float(_packed >> 8) / 255.0, float(_packed & 255) / 255.0, in.palette.y / 255.0, 1.0);
+        return out;
+    }
     float4 value = atlas.read(uint2(int2(floor(in.texel))), 0);
     if (value.w < 0.5)
     {

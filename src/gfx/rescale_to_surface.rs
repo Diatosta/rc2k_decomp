@@ -83,8 +83,21 @@ pub fn rescale_to_surface(
     let recording = crate::gfx::draw2d::enabled()
         && surface.pixels.get() == crate::gfx::locked_pixels::SCREEN
         && crate::gfx::surface::ON_PICTURE.load(std::sync::atomic::Ordering::Relaxed) == 0;
+    // On the screen the GPU keeps the picture as the frame's background when it can: the canvas
+    // is not written.
+    let by_background = size == 4
+        && surface.row_gap.get() == 0
+        && surface.pixels.get() == crate::gfx::locked_pixels::SCREEN
+        && crate::gfx::surface::ON_PICTURE.load(std::sync::atomic::Ordering::Relaxed) == 0
+        && crate::platform_3d::screen(system.session.screen.get()).is_some_and(|screen| {
+            screen.width == width as usize
+                && screen.height == height as usize
+                && crate::render::background::defer_pixels(&screen, &made.pixels)
+        });
     for (n, row) in made.pixels.chunks_exact(row_len).enumerate() {
-        out.must_write_bytes_at((n as u32).wrapping_mul(stride), row, "the surface");
+        if !by_background {
+            out.must_write_bytes_at((n as u32).wrapping_mul(stride), row, "the surface");
+        }
         if recording {
             crate::gfx::draw2d::mirror((n as u32).wrapping_mul(stride), row);
         }

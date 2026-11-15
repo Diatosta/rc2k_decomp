@@ -141,9 +141,16 @@ impl Gpu {
                 (rect.u as i32 + rect.width) as f32,
                 (rect.v as i32 + rect.height) as f32,
             );
-            let (px, py) = rect
-                .palette
-                .map_or((-1.0, -1.0), |(x, y)| (x as f32, y as f32));
+            // A solid rectangle's colour goes where a palette's place would: minus (2 + red * 256
+            // + green) and blue, the colour's channels as the texture's BGRA format reads them.
+            let (px, py) = match (rect.solid, rect.palette) {
+                (Some([blue, green, red, _]), _) => (
+                    -(2.0 + (u32::from(red) * 256 + u32::from(green)) as f32),
+                    f32::from(blue),
+                ),
+                (None, Some((x, y))) => (x as f32, y as f32),
+                (None, None) => (-1.0, -1.0),
+            };
             let corner = |x, y, u, v| [x, y, u, v, px, py].map(f32::to_bits);
             let vertices = [
                 corner(x0, y0, u0, v0),

@@ -232,7 +232,10 @@ pub fn report_timing(system: &System) {
             {
                 use crate::gfx::draw2d::quads;
                 log(&format!(
-                    "platform: so far {} glyph quads drawn, {} drawn on the canvas after being noted, {} left to the canvas (not in the atlas {}, no palette {}, atlas full {}), {} KB sent to the atlas, the atlas cleared {} times",
+                    "platform: so far {} solid quads, {} of {} GPU flushes sent canvas rows; {} glyph quads drawn, {} drawn on the canvas after being noted, {} left to the canvas (not in the atlas {}, no palette {}, atlas full {}), {} KB sent to the atlas, the atlas cleared {} times",
+                    quads::SOLIDS.load(Relaxed),
+                    crate::render::CANVAS_UPLOADS.load(Relaxed),
+                    crate::render::GPU_FLUSHES.load(Relaxed),
                     quads::QUADS.load(Relaxed),
                     quads::DEMOTED.load(Relaxed),
                     quads::REFUSED.load(Relaxed),

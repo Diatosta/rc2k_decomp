@@ -78,9 +78,26 @@ fn carry_out(plan: &rc2k_core::gfx::raster::Plan, colour: u32, palette: Palette<
     let Some(target) = surface(gfx).target else {
         crate::fatal::raise::end("gfx::rect", crate::errors::BadInput("no surface"))
     };
-    for &offset in &plan.pixels {
+    // On the screen the pixels are noted as solid quads for the GPU to draw: the canvas is not
+    // written.
+    let by_quad = plan.bits == 32
+        && !plan.pixels.is_empty()
+        && crate::gfx::draw2d::is_screen(Some(target))
+        && {
+            let bytes = pixel(&gfx.fonts, plan.bits, colour, palette);
+            let screen = surface(gfx);
+            <[u8; 4]>::try_from(bytes.as_slice()).is_ok_and(|bytes| {
+                crate::gfx::draw2d::quads::note_pixels(
+                    &plan.pixels,
+                    bytes,
+                    screen.bytes_per_pixel,
+                    screen.pitch,
+                )
+            })
+        };
+    for &offset in plan.pixels.iter().filter(|_| !by_quad || recording) {
         let bytes = pixel(&gfx.fonts, plan.bits, colour, palette);
-        if let Err(e) = crate::gfx::surface::write(target, offset as u32, &bytes, gfx) {
+        if !by_quad && let Err(e) = crate::gfx::surface::write(target, offset as u32, &bytes, gfx) {
             crate::fatal::raise::end("gfx::rect", e)
         }
         if recording {

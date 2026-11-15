@@ -28,8 +28,19 @@ pub fn clear_back_surface(
     let handle = drawing.draw_surface.present_pixels.get();
     let recording = crate::gfx::draw2d::enabled() && handle == crate::gfx::locked_pixels::SCREEN;
     let pitch = (4 * dwords).wrapping_add(drawing.draw_surface.present_gap.get());
+    // On the screen, the GPU is told to draw black over all of it: the canvas is not written.
+    let by_quad = handle == crate::gfx::locked_pixels::SCREEN
+        && drawing.draw_surface.present_gap.get() == 0
+        && crate::gfx::surface::surface(gfx).bits_per_pixel == 32
+        && crate::gfx::draw2d::quads::note_solid(
+            &[[0, 0, dwords as i32, rows.count() as i32]],
+            [0; 4],
+            pitch as i32,
+        );
     for y in 0..rows.count() {
-        rows.fill(y, 0, 0, 4 * dwords as usize, "the back surface")?;
+        if !by_quad {
+            rows.fill(y, 0, 0, 4 * dwords as usize, "the back surface")?;
+        }
         if recording {
             crate::gfx::draw2d::mirror(y.wrapping_mul(pitch), &vec![0; 4 * dwords as usize]);
         }

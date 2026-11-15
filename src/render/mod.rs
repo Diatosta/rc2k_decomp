@@ -645,6 +645,9 @@ pub static UPLOADS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64:
 pub static UPLOAD_BYTES: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 /// The bytes of the canvas and of the retained background sent up to the PC's GPU backend.
 pub static CANVAS_UPLOAD_BYTES: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+/// The PC's GPU backend's flushes, and how many of them sent canvas rows up.
+pub static GPU_FLUSHES: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+pub static CANVAS_UPLOADS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 pub static BACKGROUND_UPLOAD_BYTES: std::sync::atomic::AtomicU64 =
     std::sync::atomic::AtomicU64::new(0);
 /// The GPU's draw calls (a run of triangles drawn alike each): what the handheld's driver

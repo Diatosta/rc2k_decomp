@@ -1,7 +1,9 @@
 //! The menu's background kept on the GPU. `gfx::copy_picture_to_surface` notes which picture
 //! buffer (and which state of it) is the background instead of copying it onto the canvas; the
 //! GPU backend draws it under the canvas at the frame's first flush and uploads it only when the
-//! picture buffer has changed, so the canvas holds the foreground alone.
+//! picture buffer has changed, so the canvas holds the foreground alone. A background covers the
+//! whole screen: whatever was drawn before it in the frame (noted quads, canvas pixels) is
+//! dropped, and the background is again the first thing under what follows.
 
 use super::Target;
 #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
@@ -14,7 +16,8 @@ pub enum Pending {
     /// Picture buffer `handle` as it is at change counter `generation` (`gfx::picture::
     /// generation`).
     Buffer { handle: u32, generation: u64 },
-    /// The buffer's bytes as they were when the background was noted: it changed before the flush.
+    /// Pixels kept as they were when the background was noted: a picture buffer that changed
+    /// before the flush, or the loading picture rescaled to the screen.
     Copy(Vec<u8>),
 }
 
@@ -26,18 +29,34 @@ static RECORDED: AtomicBool = AtomicBool::new(false);
 
 /// Notes picture buffer `handle` as the frame's background, for the GPU to draw under the canvas.
 /// False when the caller must copy it onto the canvas as before: no GPU backend, a canvas that is
-/// not 32-bit rows of exactly the screen's width, a buffer too small for it, or foreground already
-/// written to the canvas this frame (a copy puts the background over it, a retained background
-/// would go under it).
+/// not 32-bit rows of exactly the screen's width, or a buffer too small for it.
 #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
 pub fn defer(target: &Target, handle: u32) -> bool {
     use crate::gfx::picture;
+    defer_with(target, || {
+        let (Some(generation), Ok(len)) = (
+            picture::generation(handle),
+            picture::with_buffer_unchanged(handle, <[u8]>::len),
+        ) else {
+            return None;
+        };
+        (len >= target.width * target.height * 4).then_some(Pending::Buffer { handle, generation })
+    })
+}
+
+/// Notes `pixels` (the screen's rows, `height` of them, 32-bit and without gaps) as the frame's
+/// background, as `defer` does for a picture buffer: the loading picture, drawn once rescaled.
+#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+pub fn defer_pixels(target: &Target, pixels: &[u8]) -> bool {
+    defer_with(target, || {
+        (pixels.len() >= target.width * target.height * 4).then(|| Pending::Copy(pixels.to_vec()))
+    })
+}
+
+/// Notes the background `source` gives, when the GPU can keep it for `target`.
+#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+fn defer_with(target: &Target, source: impl FnOnce() -> Option<Pending>) -> bool {
     if !super::gpu_running() || target.bits != 32 || target.pitch != target.width * 4 {
-        return false;
-    }
-    // A background is drawn under what is noted for the frame: glyphs noted as quads were drawn
-    // before it, so it is copied onto the canvas (whose write draws them there first).
-    if crate::gfx::draw2d::quads::pending() {
         return false;
     }
     let Some(held) = crate::gfx::locked_pixels::bytes_of(target.pixels) else {
@@ -46,28 +65,23 @@ pub fn defer(target: &Target, handle: u32) -> bool {
     let Some(written) = held.any_row_written(target.pitch) else {
         return false;
     };
-    let (Some(generation), Ok(len)) = (
-        picture::generation(handle),
-        picture::with_buffer_unchanged(handle, <[u8]>::len),
-    ) else {
+    let Some(background) = source() else {
         return false;
     };
-    if len < target.width * target.height * 4 {
-        return false;
+    // What the frame drew before is under the picture: quads noted so far are dropped, and the
+    // canvas, which holds either the last frame's picture (which the GPU does not need) or
+    // foreground drawn this frame, is blanked: the frame is the GPU's from here, with a canvas
+    // that has written nothing yet.
+    let holds = super::GPU_HOLDS_FRAME.load(Relaxed);
+    if holds {
+        crate::gfx::draw2d::quads::discard_pending();
     }
-    if super::GPU_HOLDS_FRAME.load(Relaxed) {
-        if written {
-            clear();
-            return false;
-        }
-    } else {
-        // The canvas holds the last frame's picture, which the GPU does not need: the frame is
-        // the GPU's from here, with a canvas that has written nothing yet.
+    if written || !holds {
         target.with_canvas(super::gpu::mark_unwritten);
         held.take_written_rows(target.pitch);
-        super::GPU_HOLDS_FRAME.store(true, Relaxed);
     }
-    *PENDING.lock().unwrap() = Some(Pending::Buffer { handle, generation });
+    super::GPU_HOLDS_FRAME.store(true, Relaxed);
+    *PENDING.lock().unwrap() = Some(background);
     RECORDED.store(true, Relaxed);
     true
 }
@@ -75,6 +89,12 @@ pub fn defer(target: &Target, handle: u32) -> bool {
 /// The handheld's GPU path draws the background from the canvas, as before.
 #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
 pub fn defer(_target: &Target, _handle: u32) -> bool {
+    false
+}
+
+/// The handheld's GPU path draws the loading picture from the canvas, as before.
+#[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+pub fn defer_pixels(_target: &Target, _pixels: &[u8]) -> bool {
     false
 }
 

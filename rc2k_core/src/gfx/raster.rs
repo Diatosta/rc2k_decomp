@@ -203,6 +203,52 @@ pub fn frame(rect: [i32; 4], dx: i32, dy: i32, clip: &Clip, s: &Surface) -> [Pla
     ]
 }
 
+/// The pixels at byte `offsets` of a surface (`bytes_per_pixel` each, rows `pitch` bytes apart,
+/// `rows` rows) as rectangles (x, y, width, height) that cover exactly those pixels when the
+/// offsets come as a plan lists them: a row's neighbours join into a run, and runs of one width
+/// on consecutive rows join into a taller rectangle. `None` when an offset is not a pixel of the
+/// surface.
+pub fn pixel_rectangles(
+    offsets: &[i32],
+    bytes_per_pixel: i32,
+    pitch: i32,
+    rows: i32,
+) -> Option<Vec<[i32; 4]>> {
+    if bytes_per_pixel <= 0 || pitch < bytes_per_pixel || pitch % bytes_per_pixel != 0 {
+        return None;
+    }
+    let width = pitch / bytes_per_pixel;
+    let mut rectangles: Vec<[i32; 4]> = Vec::new();
+    // The open run: its first pixel's column and row, and its length.
+    let mut run: Option<(i32, i32, i32)> = None;
+    let close = |run: Option<(i32, i32, i32)>, rectangles: &mut Vec<[i32; 4]>| {
+        if let Some((x, y, length)) = run {
+            match rectangles.last_mut() {
+                Some([lx, ly, lw, lh]) if *lx == x && *lw == length && *ly + *lh == y => *lh += 1,
+                _ => rectangles.push([x, y, length, 1]),
+            }
+        }
+    };
+    for &offset in offsets {
+        if offset < 0 || offset % bytes_per_pixel != 0 {
+            return None;
+        }
+        let (y, x) = ((offset / pitch), (offset % pitch) / bytes_per_pixel);
+        if y >= rows || x >= width {
+            return None;
+        }
+        run = match run {
+            Some((rx, ry, length)) if ry == y && rx + length == x => Some((rx, ry, length + 1)),
+            other => {
+                close(other, &mut rectangles);
+                Some((x, y, 1))
+            }
+        };
+    }
+    close(run, &mut rectangles);
+    Some(rectangles)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -218,6 +264,56 @@ mod tests {
         bytes_per_pixel: 2,
         pitch: 136,
     };
+
+    #[test]
+    fn pixels_become_rectangles() {
+        let s32 = Surface {
+            bits: 32,
+            bytes_per_pixel: 4,
+            pitch: 64,
+        };
+        let (rows, pitch) = (8, s32.pitch);
+        let covered = |rects: &[[i32; 4]]| {
+            let mut set = std::collections::BTreeSet::new();
+            for &[x, y, w, h] in rects {
+                for j in y..y + h {
+                    for i in x..x + w {
+                        set.insert((i, j));
+                    }
+                }
+            }
+            set
+        };
+        let clip = Clip {
+            left: 0,
+            right: 15,
+            top: 0,
+            bottom: 7,
+        };
+        let line = hline(2, 3, 5, &clip, &s32);
+        let r = pixel_rectangles(&line.pixels, 4, pitch, rows).unwrap();
+        assert_eq!(r, [[2, 3, 5, 1]]);
+        let column = vline(4, 1, 4, &clip, &s32);
+        let r = pixel_rectangles(&column.pixels, 4, pitch, rows).unwrap();
+        assert_eq!(r, [[4, 1, 1, 4]]);
+        // Every shape's pixels are covered exactly, in the clip's odd cases too.
+        for plan in frame([-3, 1, 30, 6], 1, 0, &clip, &s32)
+            .into_iter()
+            .chain(frame([3, 1, 6, 6], 0, 1, &clip, &s32))
+        {
+            let r = pixel_rectangles(&plan.pixels, 4, pitch, rows).unwrap();
+            let wanted: std::collections::BTreeSet<_> = plan
+                .pixels
+                .iter()
+                .map(|o| ((o % pitch) / 4, o / pitch))
+                .collect();
+            assert_eq!(covered(&r), wanted);
+        }
+        // A pixel past the rows, or off the pixel grid, is no rectangle.
+        assert!(pixel_rectangles(&[8 * 64], 4, pitch, rows).is_none());
+        assert!(pixel_rectangles(&[2], 4, pitch, rows).is_none());
+        assert!(pixel_rectangles(&[-4], 4, pitch, rows).is_none());
+    }
 
     #[test]
     fn rectangles() {

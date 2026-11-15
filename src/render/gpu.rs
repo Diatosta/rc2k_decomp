@@ -625,7 +625,9 @@ impl Gpu {
             .iter()
             .map(|&(first, last)| (first * stride, &canvas[first * stride..(last + 1) * stride]))
             .collect();
+        super::GPU_FLUSHES.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         if !parts.is_empty() {
+            super::CANVAS_UPLOADS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
             self.device
                 .fill_transfer_parts(self.canvas_transfer, &parts)?;
             let sent: usize = parts.iter().map(|(_, bytes)| bytes.len()).sum();

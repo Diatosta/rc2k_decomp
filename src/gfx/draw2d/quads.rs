@@ -336,11 +336,20 @@ fn read_palette(fonts: &crate::gfx::owner::FontStores, handle: u32) -> Option<Ve
 /// A rectangle noted for the GPU, and what it takes to draw it onto the canvas instead.
 struct Deferred {
     rect: Rect,
-    decoded: Arc<Decoded>,
-    /// The palette state the glyph was drawn with; none for a direct-colour glyph.
-    palette: Option<Arc<Vec<u8>>>,
-    /// The glyph's first visible texel.
-    from: (i32, i32),
+    fill: Fill,
+}
+
+/// What a noted rectangle shows.
+enum Fill {
+    Glyph {
+        decoded: Arc<Decoded>,
+        /// The palette state the glyph was drawn with; none for a direct-colour glyph.
+        palette: Option<Arc<Vec<u8>>>,
+        /// The glyph's first visible texel.
+        from: (i32, i32),
+    },
+    /// One pixel's four bytes over the whole rectangle.
+    Solid([u8; 4]),
 }
 
 /// A rectangle of texels at whole screen pixels.
@@ -356,6 +365,8 @@ pub struct Rect {
     pub v: u32,
     /// The first texel of the palette row for palette glyphs; none for direct colour.
     pub palette: Option<(u32, u32)>,
+    /// The pixel's bytes of a solid rectangle (its texels and palette are not used).
+    pub solid: Option<[u8; 4]>,
 }
 
 struct State {
@@ -394,6 +405,8 @@ pub static ATLAS_CLEARS: AtomicU64 = AtomicU64::new(0);
 /// palette, the atlas is full.
 pub static REFUSED_BY: [AtomicU64; 3] = [const { AtomicU64::new(0) }; 3];
 pub static ATLAS_BYTES: AtomicU64 = AtomicU64::new(0);
+/// Solid rectangles noted as quads.
+pub static SOLIDS: AtomicU64 = AtomicU64::new(0);
 
 /// Whether a glyph drawn now on the screen may be noted as a quad: they are on, a GPU backend
 /// that draws them holds the frame, and it is not a race's frame.
@@ -485,6 +498,100 @@ pub fn note_glyph(
     }
 }
 
+/// Notes solid rectangles (x, y, width, height, each inside the screen) of one pixel, in the
+/// order of the glyph quads, so that what is drawn later goes over what is drawn before. `pitch`
+/// is the surface's row length in bytes. False when the canvas must be drawn on instead: quads
+/// are not wanted, the screen is not 32-bit rows of this pitch, a rectangle is outside it, or the
+/// pixel is the overlay's "unwritten" mark.
+pub fn note_solid(rectangles: &[[i32; 4]], pixel: [u8; 4], pitch: i32) -> bool {
+    if !wanted() || u32::from_le_bytes(pixel) == UNWRITTEN_PIXEL {
+        return false;
+    }
+    let Some(pitch) = u32::try_from(pitch).ok().filter(|p| *p > 0 && p % 4 == 0) else {
+        return false;
+    };
+    let Some(len) =
+        crate::gfx::locked_pixels::bytes_of(crate::gfx::locked_pixels::SCREEN).map(|b| b.len())
+    else {
+        return false;
+    };
+    let len = len as u32;
+    let size = (pitch / 4, len / pitch);
+    if !len.is_multiple_of(pitch)
+        || rectangles.iter().any(|&[x, y, w, h]| {
+            x < 0
+                || y < 0
+                || w <= 0
+                || h <= 0
+                || x.saturating_add(w) > size.0 as i32
+                || y.saturating_add(h) > size.1 as i32
+        })
+    {
+        return false;
+    }
+    let mut guard = state();
+    let state = &mut *guard;
+    if !state.pending.is_empty() && state.size != size {
+        return false;
+    }
+    state.size = size;
+    for &[x, y, width, height] in rectangles {
+        state.pending.push(Deferred {
+            rect: Rect {
+                x,
+                y,
+                width,
+                height,
+                u: 0,
+                v: 0,
+                palette: None,
+                solid: Some(pixel),
+            },
+            fill: Fill::Solid(pixel),
+        });
+    }
+    SOLIDS.fetch_add(rectangles.len() as u64, Relaxed);
+    PENDING.store(state.pending.len(), Relaxed);
+    true
+}
+
+/// Notes the pixels at byte `offsets` of the screen (a plan's) as solid rectangles of `pixel`;
+/// false when the canvas must be drawn on (see `note_solid`).
+pub fn note_pixels(offsets: &[i32], pixel: [u8; 4], bytes_per_pixel: i32, pitch: i32) -> bool {
+    if !wanted() || bytes_per_pixel != 4 || pitch <= 0 {
+        return false;
+    }
+    let Some(len) =
+        crate::gfx::locked_pixels::bytes_of(crate::gfx::locked_pixels::SCREEN).map(|b| b.len())
+    else {
+        return false;
+    };
+    let Some(rectangles) = rc2k_core::gfx::raster::pixel_rectangles(
+        offsets,
+        bytes_per_pixel,
+        pitch,
+        (len / pitch as usize) as i32,
+    ) else {
+        return false;
+    };
+    note_solid(&rectangles, pixel, pitch)
+}
+
+/// The noted quads dropped without being drawn: something drawn over the whole screen follows.
+#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+pub fn discard_pending() {
+    let mut guard = state();
+    let state = &mut *guard;
+    PENDING.store(0, Relaxed);
+    state.pending.clear();
+    state.atlas.quads_taken();
+    if state.reset_wanted {
+        state.atlas.clear();
+        state.reset_wanted = false;
+        ATLAS_CLEARS.fetch_add(1, Relaxed);
+    }
+}
+
 fn note(
     state: &mut State,
     fonts: &crate::gfx::owner::FontStores,
@@ -560,18 +667,15 @@ fn note(
             u: at.0 + rect.from_x as u32,
             v: at.1 + rect.from_y as u32,
             palette: palette.as_ref().map(|p| p.origin),
+            solid: None,
         },
-        decoded,
-        palette: palette.map(|p| p.bytes),
-        from: (rect.from_x, rect.from_y),
+        fill: Fill::Glyph {
+            decoded,
+            palette: palette.map(|p| p.bytes),
+            from: (rect.from_x, rect.from_y),
+        },
     });
     Ok(Some(after))
-}
-
-/// The quads noted so far are waiting for the GPU: whether any is.
-#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
-pub fn pending() -> bool {
-    PENDING.load(Relaxed) > 0
 }
 
 /// A write to the canvas is about to happen: the quads noted so far are drawn onto the canvas
@@ -607,12 +711,22 @@ pub fn gpu_changed() {
 fn draw_on_canvas(pending: &[Deferred], (width, _): (u32, u32)) {
     let canvas = crate::gfx::locked_pixels::Place::start(crate::gfx::locked_pixels::SCREEN);
     for quad in pending {
-        let Deferred {
-            rect,
-            decoded,
-            palette,
-            from,
-        } = quad;
+        let Deferred { rect, fill } = quad;
+        let (decoded, palette, from) = match fill {
+            Fill::Solid(pixel) => {
+                let row = pixel.repeat(rect.width as usize);
+                for y in rect.y..rect.y + rect.height {
+                    let at = (y as u32 * width + rect.x as u32) * 4;
+                    canvas.must_write_bytes_at(at, &row, "the surface");
+                }
+                continue;
+            }
+            Fill::Glyph {
+                decoded,
+                palette,
+                from,
+            } => (decoded, palette, from),
+        };
         for row in 0..rect.height {
             let texels = decoded
                 .texels
@@ -871,10 +985,13 @@ mod tests {
                     u: 0,
                     v: 0,
                     palette: with_palette.then_some((0, 0)),
+                    solid: None,
                 },
-                decoded: Arc::new(decoded),
-                palette: with_palette.then(|| Arc::new(palette.clone())),
-                from: (rect.from_x, rect.from_y),
+                fill: Fill::Glyph {
+                    decoded: Arc::new(decoded),
+                    palette: with_palette.then(|| Arc::new(palette.clone())),
+                    from: (rect.from_x, rect.from_y),
+                },
             });
         }
         draw_on_canvas(&noted, (width, height));
@@ -891,6 +1008,43 @@ mod tests {
             }
         }
         assert_eq!(drawn, expected);
+    }
+
+    /// A solid rectangle demoted to the canvas fills exactly its pixels with its four bytes.
+    #[test]
+    fn a_solid_rectangle_demoted_fills_its_pixels() {
+        let _lock = crate::test_support::test_lock();
+        let (width, height) = (6u32, 4u32);
+        let canvas = Arc::new(crate::pool::PoolBytes::from_vec(vec![
+            0xAA;
+            (width * height * 4)
+                as usize
+        ]));
+        crate::gfx::locked_pixels::register(crate::gfx::locked_pixels::SCREEN, &canvas);
+        let pixel = [1u8, 2, 3, 4];
+        let noted = [Deferred {
+            rect: Rect {
+                x: 1,
+                y: 1,
+                width: 3,
+                height: 2,
+                u: 0,
+                v: 0,
+                palette: None,
+                solid: Some(pixel),
+            },
+            fill: Fill::Solid(pixel),
+        }];
+        draw_on_canvas(&noted, (width, height));
+        let drawn = canvas.to_vec();
+        for y in 0..height {
+            for x in 0..width {
+                let at = ((y * width + x) * 4) as usize;
+                let inside = (1..4).contains(&x) && (1..3).contains(&y);
+                let wanted = if inside { pixel } else { [0xAA; 4] };
+                assert_eq!(drawn[at..at + 4], wanted, "pixel {x},{y}");
+            }
+        }
     }
 
     #[test]
