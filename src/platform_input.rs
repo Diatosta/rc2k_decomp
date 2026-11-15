@@ -38,7 +38,7 @@ static MENU_PADS: Mutex<Vec<(SDL_JoystickID, Gamepad)>> = Mutex::new(Vec::new())
 pub fn pad_added(id: SDL_JoystickID) {
     let name = sdl_input::joystick_name_for_id(id, "a joystick");
     #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
-    if name == "ANBERNIC-keys" {
+    if crate::handheld::is_built_in_pad(&name) {
         let guid = sdl_input::joystick_guid_text_for_id(id);
         sdl_input::add_gamepad_mapping(crate::handheld::pad_mapping(&guid));
     }

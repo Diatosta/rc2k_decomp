@@ -100,13 +100,19 @@ pub fn race_mode(mode: u32) -> u32 {
     mode & !0xFF | 1
 }
 
+/// The built-in pad's names: the stock OS's, and Knulli's (whose SDL map for it has the sticks
+/// and Start wrong). Both send the same key and axis codes, so one map serves them.
+pub fn is_built_in_pad(name: &str) -> bool {
+    matches!(name, "ANBERNIC-keys" | "Anbernic RG34XX-SP Controller")
+}
+
 /// The built-in pad as a gamepad, for SDL's GUID of it (hex). It is read through its joystick node
 /// (`/dev/input/js0`): the kernel's button order (A 304 .. R3 316), the sticks' four axes, and the
 /// cross as a hat (SDL makes one of the node's two hat axes). The buttons by their printed names,
 /// so A enters as labelled.
 pub fn pad_mapping(guid: &str) -> String {
     format!(
-        "{guid},ANBERNIC-keys,a:b0,b:b1,x:b2,y:b3,leftshoulder:b4,rightshoulder:b5,back:b6,\
+        "{guid},Anbernic built-in pad,a:b0,b:b1,x:b2,y:b3,leftshoulder:b4,rightshoulder:b5,back:b6,\
          start:b7,guide:b8,leftstick:b9,lefttrigger:b10,righttrigger:b11,rightstick:b12,\
          leftx:a0,lefty:a1,rightx:a2,righty:a3,dpup:h0.1,dpright:h0.2,dpdown:h0.4,dpleft:h0.8,\
          platform:Linux,"

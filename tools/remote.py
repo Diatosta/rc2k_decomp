@@ -57,7 +57,7 @@ KEY = os.path.expanduser(os.environ.get('RC2K_REMOTE_KEY', '~/.ssh/rg34xxsp'))
 def host():
     if '--handheld' in sys.argv:
         sys.argv.remove('--handheld')
-        return os.environ.get('RC2K_REMOTE_HOST', 'root@192.168.1.207')
+        return os.environ.get('RC2K_REMOTE_HOST', 'rc2k@192.168.1.207')
     return os.environ.get('RC2K_REMOTE_HOST')
 
 
