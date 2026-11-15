@@ -5,3 +5,9 @@ deploy.local
 /notes
 __pycache__/
 rc2k_map.on
+
+# local only: review notes and the IDE's settings
+/CODE_REVIEW.md
+/REVIEW_MENUS.md
+/REVIEW_PHYSICS.md
+/.idea/
