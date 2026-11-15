@@ -14,12 +14,14 @@
 use crate::errors::Refused;
 use crate::framework::log;
 use crate::menu::draw_lists_store::DRAW_LISTS;
+use crate::menu::owner::Menus;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{
     ActionCheck, Asking, Callee, Entry, Flow, Frames, Keys, List, MenuSound, SceneVar, Screen,
     ScreenFlag, ScreenVar, Step, carousel, prepare_scene,
 };
 use crate::menu::update_blink::update_blink;
+use crate::system::owner::System;
 
 fn set_up_first(entry: &Entry) -> Result<(), Refused> {
     let menus = entry.menus;
@@ -47,12 +49,12 @@ fn set_up_first(entry: &Entry) -> Result<(), Refused> {
 }
 
 /// The loop has just set the set-up time to the frame clock.
-fn before_first_frame(entry: &Entry) -> Result<(), Refused> {
-    let play = &entry.menus.play;
+fn before_first_frame(menus: &Menus, system: &System) -> Result<(), Refused> {
+    let play = &menus.play;
     play.champ_view
         .key_clock
         .last_key_time
-        .set(entry.owners.system.clocks().setup_time.get());
+        .set(system.clocks().setup_time.get());
     play.cheats.notice_due.set(1u32);
 
     Ok(())
@@ -146,7 +148,7 @@ pub const SCREEN: Screen = Screen {
         ..Keys::DEFAULT
     },
     frames: Frames {
-        before_first_frame: &[Step::Do(before_first_frame)],
+        before_first_frame: &[Step::DoMenusSystem(before_first_frame)],
         before_frame: &[Step::Write(ScreenVar::NoticeDue, 1)],
         after_blink: &[Step::DoFlow(idle)],
         ..Frames::DEFAULT

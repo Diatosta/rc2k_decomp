@@ -7,16 +7,16 @@ use crate::menu::draw_lists_store::DRAW_LISTS;
 use crate::menu::screen_id::ScreenId;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{
-    ActionCheck, Callee, Entry, Keys, List, Screen, Step, carousel, prepare_scene, screen_entry,
+    ActionCheck, Callee, Keys, List, Screen, SetUp, Step, screen_entry,
 };
 
-fn set_up_first(entry: &Entry) -> Result<(), Refused> {
-    let screens = &entry.menus.screens;
-    entry.set_view(-156, 41, 0x140);
-    prepare_scene(&entry.owners);
+fn set_up_first(set_up: &SetUp) -> Result<(), Refused> {
+    let screens = &set_up.menus.screens;
+    set_up.set_view(-156, 41, 0x140);
+    set_up.prepare_scene();
     screens.flow.turning.set(0x1u32);
     screens.carousel.menu.set(0x8u32);
-    carousel(entry, None)?;
+    set_up.carousel_with(None)?;
     let item = screens.items.current[slot::PLAYER_DETAILS].get();
     screens.loop_flags.item.set(item);
     screens.carousel.front.set(item.wrapping_sub(1));
@@ -42,7 +42,7 @@ pub const SCREEN: Screen = Screen {
             run: false,
         },
     ],
-    set_up_first: &[Step::Do(set_up_first)],
+    set_up_first: &[Step::DoSetUp(set_up_first)],
     background: &[Step::Call(Callee::LoadBackground(|m| {
         &m.texts.player_details_picture
     }))],

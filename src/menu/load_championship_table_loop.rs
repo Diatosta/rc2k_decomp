@@ -6,12 +6,12 @@ use crate::errors::Refused;
 use crate::menu::draw_lists_store::DRAW_LISTS;
 use crate::menu::screen_id::ScreenId;
 use crate::menu::screen_items_store::slot;
-use crate::menu::screen_loop::{Entry, List, Screen, ScreenVar, Step, prepare_scene, screen_entry};
+use crate::menu::screen_loop::{List, Screen, ScreenVar, SetUp, Step, screen_entry};
 
-fn prepare(entry: &Entry) -> Result<(), Refused> {
-    entry.set_view(0, 0, 0x100);
-    prepare_scene(&entry.owners);
-    entry.set_clip_sides(0, 800);
+fn prepare(set_up: &SetUp) -> Result<(), Refused> {
+    set_up.set_view(0, 0, 0x100);
+    set_up.prepare_scene();
+    set_up.set_clip_sides(0, 800);
     Ok(())
 }
 
@@ -34,7 +34,7 @@ pub const SCREEN: Screen = Screen {
         },
     ],
     set_up_first: &[Step::Write(ScreenVar::LeftService, 0x0)],
-    prepare: &[Step::Do(prepare)],
+    prepare: &[Step::DoSetUp(prepare)],
     after: &[Step::Write(ScreenVar::LeftService, 0x1)],
     leave_saved_item: Some(slot::SAVE_SETUP),
     ..Screen::new(

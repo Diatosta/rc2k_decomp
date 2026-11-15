@@ -10,20 +10,19 @@ use crate::menu::owner::Tables;
 use crate::menu::screen_id::ScreenId;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{
-    Callee, Entry, Flow, Frames, List, MenuSound, Screen, ScreenFlag, Step, carousel,
-    prepare_scene, screen_entry,
+    Callee, Flow, Frames, List, MenuSound, Screen, ScreenFlag, SetUp, Step, screen_entry,
 };
 
-fn set_up_first(entry: &Entry) -> Result<(), Refused> {
-    let screens = &entry.menus.screens;
+fn set_up_first(set_up: &SetUp) -> Result<(), Refused> {
+    let screens = &set_up.menus.screens;
     screens.flow.turning.set(0x1u32);
     screens.carousel.menu.set(0x2u32);
-    carousel(entry, None)?;
+    set_up.carousel_with(None)?;
     let item = screens.items.current[slot::SIMPLE_SELECT_PLAYERS].get();
     screens.loop_flags.item.set(item);
     screens.carousel.front.set(item.wrapping_sub(1));
-    entry.set_view(7, 10, 0x100);
-    prepare_scene(&entry.owners);
+    set_up.set_view(7, 10, 0x100);
+    set_up.prepare_scene();
     Ok(())
 }
 
@@ -54,7 +53,7 @@ pub const SCREEN: Screen = Screen {
         },
     ],
     before: &[Step::WriteFlag(ScreenFlag::EventOver, false)],
-    set_up_first: &[Step::Do(set_up_first)],
+    set_up_first: &[Step::DoSetUp(set_up_first)],
     background: &[Step::Call(Callee::LoadBackground(|m| {
         &m.texts.simple_select_players_picture
     }))],

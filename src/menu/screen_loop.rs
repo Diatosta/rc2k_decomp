@@ -262,8 +262,17 @@ pub enum Step {
     DoScreens(fn(&Screens) -> Result<(), Refused>),
     /// A step that reads only the menus' state.
     DoMenus(fn(&Menus) -> Result<(), Refused>),
+    /// A step that reads the menus' state and the system's.
+    DoMenusSystem(fn(&Menus, &System) -> Result<(), Refused>),
+    /// A step that puts the screen's 3D scene in place: the menus, the front end's view and
+    /// the owners the scene's preparation reads.
+    DoSetUp(fn(&SetUp) -> Result<(), Refused>),
     /// A flow step that reads only the menus' tables.
     DoTablesFlow(fn(&Tables) -> Result<Flow, Refused>),
+    /// A flow step that reads only the screens' state.
+    DoScreensFlow(fn(&Screens) -> Result<Flow, Refused>),
+    /// A flow step that reads only the system's state.
+    DoSystemFlow(fn(&System) -> Result<Flow, Refused>),
     /// The same for a step that can also send the loop somewhere: a name editor called once
     /// a frame that keeps the keys from the menu while a name is typed. Only looked at in
     /// `each_frame`.
@@ -285,7 +294,11 @@ impl Step {
             | Step::DoPlain(_)
             | Step::DoScreens(_)
             | Step::DoMenus(_)
+            | Step::DoMenusSystem(_)
+            | Step::DoSetUp(_)
             | Step::DoTablesFlow(_)
+            | Step::DoScreensFlow(_)
+            | Step::DoSystemFlow(_)
             | Step::DoFlow(_) => return false,
         }
         true
@@ -527,19 +540,22 @@ impl Entry {
         window.view_zoom.set(zoom);
     }
 
-    /// The clip's left and right edges (also as the floats the clipper reads).
-    pub fn set_clip_sides(&self, left: i32, right: i32) {
-        let window = &self.front_end.window;
-        window.clip_edges[2].set(left as u32);
-        window.clip_edges[3].set(right as u32);
-        window.clip_screen[2].set(left as f32);
-        window.clip_screen[3].set(right as f32);
-    }
-
     /// Entered with nothing carried in.
     pub fn new(o: Owners<'static>) -> Self {
         Entry::with_cars(o, None)
     }
+    /// What a set-up step reads of this entry.
+    pub fn set_up(&self) -> SetUp<'_> {
+        SetUp {
+            menus: self.menus,
+            cars: self.cars,
+            front_end: self.front_end,
+            race: self.owners.race,
+            scene: self.owners.scene,
+            system: self.owners.system,
+        }
+    }
+
     /// The same entry, carrying the list of cars the carousel shows.
     pub fn with_list(&self, cars: Option<CarList>) -> Self {
         Entry {
@@ -557,6 +573,61 @@ impl Entry {
             front_end: o.scene.scratch.front_end_polygon(),
             owners: o,
         }
+    }
+}
+
+/// What a screen's set-up reads to put its 3D scene in place: the menus, the list of cars its
+/// carousel shows, the front end's view, and the owners the scene's preparation reads.
+#[derive(Clone, Copy)]
+pub struct SetUp<'a> {
+    pub menus: &'a Menus,
+    pub cars: Option<CarList>,
+    front_end: &'a crate::scene::polygon_work::PolygonWork,
+    race: &'a crate::race::owner::Race,
+    scene: &'a crate::scene::owner::Scene,
+    system: &'a System,
+}
+
+impl SetUp<'_> {
+    /// The view's offset and zoom the screen draws with.
+    pub fn set_view(&self, x: i32, y: i32, zoom: u32) {
+        let window = &self.front_end.window;
+        window.view_offset[0].set(x as u32);
+        window.view_offset[1].set(y as u32);
+        window.view_zoom.set(zoom);
+    }
+
+    /// The clip's left and right edges (also as the floats the clipper reads).
+    pub fn set_clip_sides(&self, left: i32, right: i32) {
+        let window = &self.front_end.window;
+        window.clip_edges[2].set(left as u32);
+        window.clip_edges[3].set(right as u32);
+        window.clip_screen[2].set(left as f32);
+        window.clip_screen[3].set(right as f32);
+    }
+
+    /// Prepares the menu scene.
+    pub fn prepare_scene(&self) {
+        crate::scene::prepare_menu_scene::prepare_menu_scene(
+            self.race,
+            self.scene,
+            self.system,
+            self.scene.scratch.front_end(),
+        );
+    }
+
+    /// Sets up the carousel with the list of cars the screen carries.
+    pub fn carousel(&self) -> Result<(), Refused> {
+        self.carousel_with(self.cars)
+    }
+
+    /// Sets up the carousel with the given list of cars.
+    pub fn carousel_with(&self, cars: Option<CarList>) -> Result<(), Refused> {
+        crate::scene::set_up_carousel::set_up_carousel(
+            CarListParts::of(self.menus),
+            &self.scene.scratch,
+            cars,
+        )
     }
 }
 
@@ -630,12 +701,6 @@ pub enum Callee {
     ScoreFourPlayers,
     /// Scores the results of two players.
     ScoreTwoPlayers,
-    /// Styles the stage item of a stage page.
-    StyleStageItem,
-    /// Styles the chosen stage item of a stage page.
-    StyleChosenStageItem,
-    /// Counts the stage pages.
-    CountStagePages,
     /// Plays the speech for the stage shown.
     PlayStageSpeech,
     /// Plays the speech for the rally shown.
@@ -644,8 +709,6 @@ pub enum Callee {
     LoadWelcomePicture,
     /// Loads the service area's background.
     LoadServiceBackground,
-    /// Goes back to the previous menu.
-    GoBack,
     /// Marks the stage chosen.
     MarkStageChoice,
     /// Runs the player name editor.
@@ -728,9 +791,6 @@ impl Callee {
             Self::RankTotals => rs::rank_totals(menus)?,
             Self::ScoreFourPlayers => rs::score_four_players(menus, entry.owners.system)?,
             Self::ScoreTwoPlayers => rs::score_two_players(menus, entry.owners.system)?,
-            Self::StyleStageItem => v::style_stage_item(menus, false)?,
-            Self::StyleChosenStageItem => v::style_stage_item(menus, true)?,
-            Self::CountStagePages => v::count_stage_pages(screens, entry.owners.system)?,
             Self::PlayStageSpeech => v::play_stage_speech(entry.owners)?,
             Self::PlayRallySpeech => v::play_rally_speech(entry.owners)?,
             Self::LoadWelcomePicture => v::load_welcome_picture(entry.owners)?,
@@ -739,7 +799,6 @@ impl Callee {
                 entry.owners.gfx,
                 entry.owners.system,
             )?,
-            Self::GoBack => crate::menu::go_back::go_back(menus),
             Self::MarkStageChoice => {
                 crate::menu::mark_stage_choice::mark_stage_choice(&play.champ_view);
             }
@@ -868,6 +927,16 @@ fn run(steps: &[Step], entry: &Entry) -> Result<Flow, Refused> {
                 Flow::On => {}
                 elsewhere => return Ok(elsewhere),
             },
+            Step::DoScreensFlow(what) => match what(&menus.screens)? {
+                Flow::On => {}
+                elsewhere => return Ok(elsewhere),
+            },
+            Step::DoSystemFlow(what) => match what(entry.owners.system)? {
+                Flow::On => {}
+                elsewhere => return Ok(elsewhere),
+            },
+            Step::DoMenusSystem(what) => what(menus, entry.owners.system)?,
+            Step::DoSetUp(what) => what(&entry.set_up())?,
             Step::Do(what) => what(entry)?,
             Step::DoPlain(what) => what()?,
             Step::DoScreens(what) => what(&menus.screens)?,

@@ -4,24 +4,24 @@
 
 use crate::errors::Refused;
 use crate::menu::draw_lists_store::DRAW_LISTS;
+use crate::menu::owner::Menus;
 use crate::menu::owner::Tables;
 use crate::menu::screen_id::ScreenId;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{
-    Callee, Entry, Flow, Frames, List, Screen, ScreenVar, Step, carousel, prepare_scene,
-    screen_entry,
+    Callee, Flow, Frames, List, Screen, ScreenVar, SetUp, Step, screen_entry,
 };
 
-fn set_up_first(entry: &Entry) -> Result<(), Refused> {
-    let screens = &entry.menus.screens;
+fn set_up_first(set_up: &SetUp) -> Result<(), Refused> {
+    let screens = &set_up.menus.screens;
     screens.flow.turning.set(0x1u32);
     screens.carousel.menu.set(0x1u32);
-    carousel(entry, None)?;
+    set_up.carousel_with(None)?;
     let item = screens.items.current[slot::START_RALLY].get();
     screens.loop_flags.item.set(item);
     screens.carousel.front.set(item.wrapping_sub(1));
-    entry.set_view(7, 10, 0x100);
-    prepare_scene(&entry.owners);
+    set_up.set_view(7, 10, 0x100);
+    set_up.prepare_scene();
     Ok(())
 }
 
@@ -33,9 +33,9 @@ fn after_first_frame(tables: &Tables) -> Result<Flow, Refused> {
     Ok(Flow::On)
 }
 
-fn leaving(entry: &Entry) -> Result<(), Refused> {
-    if entry.menus.tables.captions.left_by_key.is_set() {
-        Callee::GoBack.run(entry)?;
+fn leaving(menus: &Menus) -> Result<(), Refused> {
+    if menus.tables.captions.left_by_key.is_set() {
+        crate::menu::go_back::go_back(menus);
     }
     Ok(())
 }
@@ -58,13 +58,13 @@ pub const SCREEN: Screen = Screen {
             run: false,
         },
     ],
-    set_up_first: &[Step::Do(set_up_first)],
+    set_up_first: &[Step::DoSetUp(set_up_first)],
     background: &[
         Step::Write(ScreenVar::ClearsEscapeFlag, 0x1),
         Step::Call(Callee::LoadBackground(|m| &m.texts.start_rally_picture)),
     ],
     after_first_frame: &[Step::DoTablesFlow(after_first_frame)],
-    leaving: &[Step::Do(leaving)],
+    leaving: &[Step::DoMenus(leaving)],
     frames: Frames {
         next_frame_repeats_first: true,
         no_quit_check: true,

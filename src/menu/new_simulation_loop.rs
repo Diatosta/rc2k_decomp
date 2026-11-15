@@ -6,9 +6,7 @@ use crate::menu::draw_lists_store::DRAW_LISTS;
 use crate::menu::owner::Screens;
 use crate::menu::screen_id::ScreenId;
 use crate::menu::screen_items_store::slot;
-use crate::menu::screen_loop::{
-    Callee, Entry, List, SceneVar, Screen, Step, carousel, screen_entry,
-};
+use crate::menu::screen_loop::{Callee, List, SceneVar, Screen, SetUp, Step, screen_entry};
 
 fn before(screens: &Screens) -> Result<(), Refused> {
     screens.items.current[slot::NEW_SIMULATION]
@@ -17,11 +15,11 @@ fn before(screens: &Screens) -> Result<(), Refused> {
     Ok(())
 }
 
-fn set_up_first(entry: &Entry) -> Result<(), Refused> {
-    let screens = &entry.menus.screens;
+fn set_up_first(set_up: &SetUp) -> Result<(), Refused> {
+    let screens = &set_up.menus.screens;
     screens.flow.turning.set(0x1u32);
     screens.carousel.menu.set(0x2u32);
-    carousel(entry, None)?;
+    set_up.carousel_with(None)?;
     let item = screens.items.current[slot::NEW_SIMULATION].get();
     screens.loop_flags.item.set(item);
     screens.carousel.front.set(item.wrapping_sub(1));
@@ -48,7 +46,7 @@ pub const SCREEN: Screen = Screen {
         },
     ],
     before: &[Step::DoScreens(before)],
-    set_up_first: &[Step::Do(set_up_first)],
+    set_up_first: &[Step::DoSetUp(set_up_first)],
     background: &[Step::Call(Callee::LoadBackground(|m| {
         &m.texts.new_simulation_picture
     }))],

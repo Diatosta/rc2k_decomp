@@ -5,16 +5,15 @@
 use crate::errors::Refused;
 use crate::menu::draw_lists_store::DRAW_LISTS;
 use crate::menu::screen_items_store::slot;
-use crate::menu::screen_loop::{
-    Callee, Entry, Flow, List, Screen, Step, carousel, prepare_scene, quitting,
-};
+use crate::menu::screen_loop::{Callee, Flow, List, Screen, SetUp, Step, quitting};
+use crate::system::owner::System;
 
-fn set_up_first(entry: &Entry) -> Result<(), Refused> {
-    let menus = entry.menus;
+fn set_up_first(set_up: &SetUp) -> Result<(), Refused> {
+    let menus = set_up.menus;
     let screens = &menus.screens;
     screens.flow.turning.set(0x1u32);
     screens.carousel.menu.set(0xEu32);
-    carousel(entry, entry.cars)?;
+    set_up.carousel()?;
     let item = screens.items.current[slot::CAR_SPECS_DISPLAY].get();
     screens.loop_flags.item.set(item);
     screens.carousel.front.set(item.wrapping_sub(1));
@@ -22,13 +21,13 @@ fn set_up_first(entry: &Entry) -> Result<(), Refused> {
     screens.carousel.front.set(0x0u32);
     screens.event.shown.car.set(0x0u32);
     crate::menu::car_choice::find_player_car(menus)?;
-    entry.set_view(7, -50, 0x100);
-    prepare_scene(&entry.owners);
+    set_up.set_view(7, -50, 0x100);
+    set_up.prepare_scene();
     Ok(())
 }
 
-fn after_first_frame(entry: &Entry) -> Result<Flow, Refused> {
-    if quitting(entry.owners.system) as u32 == 0x1 {
+fn after_first_frame(system: &System) -> Result<Flow, Refused> {
+    if quitting(system) as u32 == 0x1 {
         return Ok(Flow::Leave);
     }
     Ok(Flow::On)
@@ -57,11 +56,11 @@ pub const SCREEN: Screen = Screen {
             run: false,
         },
     ],
-    set_up_first: &[Step::Do(set_up_first)],
+    set_up_first: &[Step::DoSetUp(set_up_first)],
     background: &[Step::Call(Callee::LoadBackground(|m| {
         &m.texts.car_specs_display_picture
     }))],
-    after_first_frame: &[Step::DoFlow(after_first_frame)],
+    after_first_frame: &[Step::DoSystemFlow(after_first_frame)],
     ..Screen::new(
         module_path!(),
         |m| m.tables.menus.car_specs_display.id(),

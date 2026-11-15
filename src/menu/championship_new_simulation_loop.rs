@@ -8,21 +8,20 @@ use crate::menu::owner::Tables;
 use crate::menu::screen_id::ScreenId;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{
-    Callee, Entry, Flow, Frames, List, Screen, ScreenFlag, Step, carousel, prepare_scene,
-    screen_entry,
+    Callee, Flow, Frames, List, Screen, ScreenFlag, SetUp, Step, screen_entry,
 };
 
-fn set_up_first(entry: &Entry) -> Result<(), Refused> {
-    let menus = entry.menus;
+fn set_up_first(set_up: &SetUp) -> Result<(), Refused> {
+    let menus = set_up.menus;
     menus.tables.captions.left_by_key.set(false);
     menus.screens.flow.turning.set(0x1u32);
     menus.screens.carousel.menu.set(0x2u32);
-    carousel(entry, None)?;
+    set_up.carousel_with(None)?;
     let item = menus.screens.items.current[slot::CHAMPIONSHIP_NEW_SIMULATION].get();
     menus.screens.loop_flags.item.set(item);
     menus.screens.carousel.front.set(item.wrapping_sub(1));
-    entry.set_view(7, 10, 0x100);
-    prepare_scene(&entry.owners);
+    set_up.set_view(7, 10, 0x100);
+    set_up.prepare_scene();
     Ok(())
 }
 
@@ -53,7 +52,7 @@ pub const SCREEN: Screen = Screen {
         },
     ],
     before: &[Step::WriteFlag(ScreenFlag::EventOver, false)],
-    set_up_first: &[Step::Do(set_up_first)],
+    set_up_first: &[Step::DoSetUp(set_up_first)],
     background: &[Step::Call(Callee::LoadBackground(|m| {
         &m.texts.championship_new_simulation_picture
     }))],

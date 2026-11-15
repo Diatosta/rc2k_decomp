@@ -7,11 +7,13 @@
 use crate::errors::Refused;
 use crate::menu::draw_lists_store::DRAW_LISTS;
 use crate::menu::fn_list::FnList;
+use crate::menu::owner::{Menus, Screens};
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{
     ActionCheck, Callee, Entry, Flow, Frames, Keys, List, Screen, ScreenFlag, ScreenVar, Step,
     quitting,
 };
+use crate::system::owner::System;
 
 /// The field of `$source` that belongs to player `$n` (0 to 3), from the four fields in player
 /// order.
@@ -332,7 +334,7 @@ impl<const N: usize> PlayerPage<N> {
                 run: false,
             },
         ],
-        before: &[Step::Do(redefine_keys_before::<N>)],
+        before: &[Step::DoMenus(redefine_keys_before::<N>)],
         background: &[Step::Call(Callee::LoadBackground(|m| {
             of_player!(
                 m.texts,
@@ -345,7 +347,7 @@ impl<const N: usize> PlayerPage<N> {
                 ]
             )
         }))],
-        after_first_frame: &[Step::DoFlow(redefine_keys_after_first_frame)],
+        after_first_frame: &[Step::DoSystemFlow(redefine_keys_after_first_frame)],
         frames: Frames {
             first_frame_lists: Some(&[
                 List {
@@ -364,7 +366,7 @@ impl<const N: usize> PlayerPage<N> {
                     run: false,
                 },
             ]),
-            each_frame: &[Step::DoFlow(redefine_keys_each_frame)],
+            each_frame: &[Step::DoScreensFlow(redefine_keys_each_frame)],
             ..Frames::DEFAULT
         },
         ..Screen::new(
@@ -438,8 +440,7 @@ fn details_each_frame<const N: usize>(entry: &Entry) -> Result<Flow, Refused> {
 }
 
 /// Copies player `N`'s twelve keys to the table the page edits and makes the player current.
-fn redefine_keys_before<const N: usize>(entry: &Entry) -> Result<(), Refused> {
-    let menus = entry.menus;
+fn redefine_keys_before<const N: usize>(menus: &Menus) -> Result<(), Refused> {
     let keys = menus.play.slots.records[N].get().keys;
     for (n, key) in keys.into_iter().enumerate() {
         menus.keys.tables.redefined_keys.set(n, key);
@@ -448,16 +449,16 @@ fn redefine_keys_before<const N: usize>(entry: &Entry) -> Result<(), Refused> {
     Ok(())
 }
 
-fn redefine_keys_after_first_frame(entry: &Entry) -> Result<Flow, Refused> {
-    if quitting(entry.owners.system) as u32 == 0x1 {
+fn redefine_keys_after_first_frame(system: &System) -> Result<Flow, Refused> {
+    if quitting(system) as u32 == 0x1 {
         return Ok(Flow::Leave);
     }
     Ok(Flow::On)
 }
 
 /// While a key is being chosen the page waits.
-fn redefine_keys_each_frame(entry: &Entry) -> Result<Flow, Refused> {
-    if entry.menus.screens.entry.redefining_key.is_set() {
+fn redefine_keys_each_frame(screens: &Screens) -> Result<Flow, Refused> {
+    if screens.entry.redefining_key.is_set() {
         return Ok(Flow::NextFrame);
     }
     Ok(Flow::On)

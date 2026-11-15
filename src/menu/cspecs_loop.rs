@@ -5,7 +5,7 @@
 use crate::errors::Refused;
 use crate::menu::draw_lists_store::DRAW_LISTS;
 use crate::menu::owner::Screens;
-use crate::menu::screen_loop::{Callee, Entry, List, Screen, Step, carousel, prepare_scene};
+use crate::menu::screen_loop::{Callee, List, Screen, SetUp, Step};
 
 /// `ScreenItems.current[33]`'s slot, the item kept between visits.
 const SLOT: usize = (0x7476E4 - 0x747660) / 4;
@@ -16,11 +16,11 @@ fn before(screens: &Screens) -> Result<(), Refused> {
 }
 
 // The scene is prepared after the carousel, so the front car is not left white.
-fn set_up_first(entry: &Entry) -> Result<(), Refused> {
-    let screens = &entry.menus.screens;
+fn set_up_first(set_up: &SetUp) -> Result<(), Refused> {
+    let screens = &set_up.menus.screens;
     screens.flow.turning.set(0x1u32);
     screens.carousel.menu.set(0xCu32);
-    carousel(entry, None)?;
+    set_up.carousel_with(None)?;
     screens
         .loop_flags
         .item
@@ -28,8 +28,8 @@ fn set_up_first(entry: &Entry) -> Result<(), Refused> {
     screens.flow.turning.set(0x0u32);
     screens.carousel.front.set(0x0u32);
     screens.event.shown.car.set(0x0u32);
-    entry.set_view(7, -50, 0x100);
-    prepare_scene(&entry.owners);
+    set_up.set_view(7, -50, 0x100);
+    set_up.prepare_scene();
     Ok(())
 }
 
@@ -57,7 +57,7 @@ pub const SCREEN: Screen = Screen {
         },
     ],
     before: &[Step::DoScreens(before)],
-    set_up_first: &[Step::Do(set_up_first)],
+    set_up_first: &[Step::DoSetUp(set_up_first)],
     background: &[Step::Call(Callee::LoadBackground(|m| &m.texts.cspecs_png))],
     ..Screen::new(module_path!(), |m| m.tables.menus.cspecs_menu.id(), SLOT)
 };
