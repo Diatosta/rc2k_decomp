@@ -16,6 +16,9 @@ pub mod gles;
 // Built for tests on every machine; only the handheld's GL thread uses it.
 #[cfg(any(test, all(target_os = "linux", target_arch = "aarch64")))]
 #[cfg_attr(not(target_arch = "aarch64"), allow(dead_code))]
+pub mod gpu_cut;
+#[cfg(any(test, all(target_os = "linux", target_arch = "aarch64")))]
+#[cfg_attr(not(target_arch = "aarch64"), allow(dead_code))]
 pub mod gpu_time;
 // The handheld has no Vulkan: its GPU is reached through `gles`, by the same name here.
 #[cfg(all(target_os = "linux", target_arch = "aarch64"))]

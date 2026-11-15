@@ -12,6 +12,7 @@ mod layer2d;
 
 use super::batches::{Batches, NO_TEXTURE, PipelineKey, PixelValues};
 use super::gl_batching::{Background, Batched, Job, Part, Written};
+use super::gpu_cut::Cuts;
 use super::{CommandList, Target, TextureNote};
 use super::{background, canvas_rows};
 use crate::gfx::draw2d::quads;
@@ -88,9 +89,18 @@ uniform sampler2DArray picture2_a; uniform sampler2DArray picture2_b;
 uniform vec4 fog_colour2; uniform float alpha_reference2;
 uniform int alpha_function2; uniform int mixing2; uniform int flags2;
 vec4 fetch(sampler2DArray a, sampler2DArray b, int unit, highp vec3 at) {
+#ifdef CUT_TEX
+    return vec4(0.5);
+#endif
+#ifdef CUT_TEXHOT
+    at = vec3(0.5, 0.5, at.z);
+#endif
     return unit == 0 ? textureLod(a, at, 0.0) : textureLod(b, at, 0.0);
 }
 bool passes(int function, float reference, float value) {
+#ifdef CUT_ALPHA
+    return true;
+#endif
     if (function == 1) return false;
     if (function == 2) return value < reference;
     if (function == 3) return value == reference;
@@ -106,13 +116,25 @@ vec4 mixed(vec4 colour, vec4 texel, int mixing, int flags) {
     return vec4(texel.rgb * colour.rgb, (flags & 2) != 0 ? texel.a : colour.a);
 }
 vec4 fogged(vec4 c, float fog, vec4 fog_colour, int flags) {
+#ifdef CUT_FOG
+    return c;
+#endif
     if ((flags & 4) == 0) return c;
     float kept = clamp(fog, 0.0, 1.0);
     return vec4(c.rgb * kept + fog_colour.rgb * (1.0 - kept), c.a);
 }
+#ifdef CUT_SECOND
+#define SECOND_PASS false
+#else
+#define SECOND_PASS ((flags & 8) != 0)
+#endif
 void main() {
     vec4 colour = v_colour / v_w;
     vec4 c = colour;
+#ifdef CUT_FLAT
+    result = c;
+    return;
+#endif
     // uploaded as they are: blue first
     if ((flags & 1) != 0) {
         vec4 texel = fetch(picture_a, picture_b, v_unit, vec3(v_uv, v_layer)).bgra;
@@ -120,7 +142,7 @@ void main() {
     }
     if (alpha_function != 0 && !passes(alpha_function, alpha_reference, c.a)) discard;
     c = fogged(c, v_fog / v_w, fog_colour, flags);
-    if ((flags & 8) != 0) {
+    if (SECOND_PASS) {
         vec4 under = floor(c * 255.0 + 0.5) / 255.0;
         vec4 colour2 = v_colour2 / v_w;
         vec4 d = colour2;
@@ -233,6 +255,8 @@ struct CachedTexture {
 
 pub struct Gpu {
     gl: Gles,
+    /// The diagnostic cuts (`RC2K_GPU_CUT`), none unless asked for.
+    cuts: Cuts,
     scene: u32,
     locations: Locations,
     overlay: Quad,
@@ -275,7 +299,12 @@ impl Gpu {
             return Err("made to fail".into());
         }
         let gl = Gles::open_panel(PANEL.0 as u16, PANEL.1 as u16)?;
+        let (cuts, cuts_line) = Cuts::from_env();
+        if let Some(line) = cuts_line {
+            log(&line);
+        }
         let mut gpu = Gpu {
+            cuts,
             scene: 0,
             locations: Locations {
                 size: 0,
@@ -339,7 +368,9 @@ impl Gpu {
     }
 
     fn set_up(&mut self) -> Result<(), String> {
-        self.scene = self.program(SCENE_VS, SCENE_FS)?;
+        let fragment = std::ffi::CString::new(self.cuts.shader(&SCENE_FS.to_string_lossy()))
+            .map_err(|_| "the scene's shader holds a NUL".to_string())?;
+        self.scene = self.program(SCENE_VS, &fragment)?;
         let values = |suffix: &str| ValueLocations {
             fog_colour: self.uniform(self.scene, &format!("fog_colour{suffix}")),
             alpha_reference: self.uniform(self.scene, &format!("alpha_reference{suffix}")),
@@ -392,7 +423,8 @@ impl Gpu {
         }
         self.samplers = gl.gen_samplers();
         for (n, &sampler) in self.samplers.iter().enumerate() {
-            let filter = if n & 1 != 0 { 0x2601 } else { 0x2600 };
+            let linear = (n & 1 != 0 || self.cuts.linear) && !self.cuts.nearest;
+            let filter = if linear { 0x2601 } else { 0x2600 };
             let wrap = if n & 2 != 0 { 0x812F } else { 0x2901 };
             gl.sampler_parameter(sampler, 0x2801, filter);
             gl.sampler_parameter(sampler, 0x2800, filter);
@@ -644,7 +676,13 @@ impl Gpu {
         self.plain_state();
         let gl = &self.gl;
         gl.bind_framebuffer(FRAMEBUFFER, self.framebuffer);
-        gl.viewport(0, 0, width, height);
+        // `half`: a quarter of the target, a quarter of the fragments.
+        let (view_width, view_height) = if self.cuts.half {
+            (width / 2, height / 2)
+        } else {
+            (width, height)
+        };
+        gl.viewport(0, 0, view_width, view_height);
         if self.depth_is_new {
             gl.depth_mask(true);
             gl.clear_depth(1.0);
@@ -653,10 +691,10 @@ impl Gpu {
         }
         // Up in clip space is the picture's top for the 2D as for the 3D; the object's
         // last row is that top, which `show_target` and `bring_back` turn over.
-        if background.is_some() {
+        if background.is_some() && !self.cuts.two_d {
             self.draw_background((width, height));
         }
-        if !written.is_empty() {
+        if !written.is_empty() && !self.cuts.two_d {
             gl.enable(SCISSOR_TEST);
             for w in &written {
                 gl.bind_texture(TEXTURE_2D, self.canvas);
@@ -666,8 +704,10 @@ impl Gpu {
             }
             gl.disable(SCISSOR_TEST);
         }
-        self.draw_quads(quad_vertices.len(), (width, height));
-        if !batches.batches.is_empty() {
+        if !self.cuts.two_d {
+            self.draw_quads(quad_vertices.len(), (width, height));
+        }
+        if !batches.batches.is_empty() && !self.cuts.scene {
             gl.use_program(self.scene);
             gl.uniform_2f(self.locations.size, width as f32, height as f32);
             gl.bind_vertex_array(self.scene_array);
@@ -677,7 +717,9 @@ impl Gpu {
             gl.buffer_data(ARRAY_BUFFER, &batches.seconds, 0x88E0);
             gl.bind_buffer(ARRAY_BUFFER, self.layers);
             gl.buffer_data(ARRAY_BUFFER, &self.vertex_layers(&batches), 0x88E0);
-            gl.enable(DEPTH_TEST);
+            if !self.cuts.depth {
+                gl.enable(DEPTH_TEST);
+            }
             let mut last_pipeline = None;
             let mut last_values = None;
             let mut last_arrays = None;
@@ -691,6 +733,11 @@ impl Gpu {
             };
             let mut scissored = false;
             for batch in &batches.batches {
+                if (self.cuts.seethru && batch.pipeline.blend.is_some())
+                    || (self.cuts.solid && batch.pipeline.blend.is_none())
+                {
+                    continue;
+                }
                 if last_pipeline != Some(batch.pipeline) {
                     self.set_pipeline(&batch.pipeline, last_pipeline.as_ref());
                     last_pipeline = Some(batch.pipeline);
@@ -729,11 +776,13 @@ impl Gpu {
                 }
                 if let Some([left, top, right, bottom]) = batch.scissor {
                     gl.enable(SCISSOR_TEST);
+                    // Under `half` the rectangle is scaled with the viewport.
+                    let shrink = |n: i32| if self.cuts.half { n / 2 } else { n };
                     gl.scissor(
-                        left as i32,
-                        height - bottom as i32,
-                        (right - left) as i32,
-                        (bottom - top) as i32,
+                        shrink(left as i32),
+                        shrink(height - bottom as i32),
+                        shrink((right - left) as i32),
+                        shrink((bottom - top) as i32),
                     );
                     scissored = true;
                 } else if scissored {
@@ -823,6 +872,8 @@ impl Gpu {
         }
         if change.blend {
             match key.blend {
+                // `blend` cut: never on.
+                Some(_) if self.cuts.blend => gl.disable(BLEND),
                 Some((source, target)) => {
                     if was.is_none_or(|w| w.blend.is_none()) {
                         gl.enable(BLEND);
