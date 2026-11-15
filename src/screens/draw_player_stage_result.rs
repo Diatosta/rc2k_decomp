@@ -20,7 +20,7 @@ pub fn draw_player_stage_result(
         crate::strings::append_string_by_id::StringOwners::of(o),
         top_speed,
         true,
-        crate::strings::units::units(),
+        crate::strings::units::units(o.strings),
     )?;
     speed.push(0);
     (STAGE_TIMES.records)(menus, system)?;
@@ -38,7 +38,7 @@ pub fn draw_player_stage_result(
         &mut PlayerResultScreen::new(canvas, o),
         &mut |s: &mut PlayerResultScreen| draw_times_heading(o, system, &STAGE_TIMES, s.canvas),
         &p,
-        crate::strings::append_time::show_hours(),
+        crate::strings::append_time::show_hours(o.strings),
     )?;
     Ok(())
 }

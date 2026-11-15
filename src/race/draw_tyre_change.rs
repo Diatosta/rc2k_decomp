@@ -48,7 +48,7 @@ fn build_text(
     let mut t = Vec::new();
     crate::strings::append_string_by_id::push_string(so, &mut t, id)?;
     if let Some(h) = time {
-        t.extend(append_time(h, show_hours()));
+        t.extend(append_time(h, show_hours(strings)));
     }
     t.push(0);
     if t.len() > crate::strings::text_from_ids::TEXT_LEN {

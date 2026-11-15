@@ -52,18 +52,14 @@ fn look_over(
     let count = input.devices.controller_count.get();
     let name = name_prefix(count);
     entry.name.write_at(0, &name, "a controller's name")?;
-    use crate::strings::copy_printable::KEEP_CASE;
-    use std::sync::atomic::Ordering::Relaxed;
-    let kept = KEEP_CASE.atomic().swap(0, Relaxed);
     // room 0x19 is never refused
     if let Ok(printable) =
-        crate::strings::copy_printable::printable_from(&instance.instance_name, NAME_ROOM)
+        crate::strings::copy_printable::printable_lowered(&instance.instance_name, NAME_ROOM)
     {
         entry
             .name
             .write_at(name.len(), &printable, "a controller's name")?;
     }
-    KEEP_CASE.set(kept);
     let f = rc2k_core::input::joystick::found(
         caps.flags,
         caps.axes,

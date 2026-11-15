@@ -50,7 +50,7 @@ pub fn draw_car_page(
             page,
             &mut d,
             notice,
-            crate::strings::units::units(),
+            crate::strings::units::units(o.strings),
         );
         if d != before {
             crate::menu::cars_store::description(&o.menus.cars.table, record)?.set(d);

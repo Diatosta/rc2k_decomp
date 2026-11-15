@@ -47,7 +47,7 @@ pub fn draw_section_best_times(
     rc2k_core::screens::best_scores::section_best_times(
         &mut crate::screens::best_scores::ScoresScreen::new(canvas, o),
         &rows,
-        show_hours(),
+        show_hours(o.strings),
     )?;
     Ok(())
 }

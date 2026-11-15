@@ -28,7 +28,7 @@
 
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::files::read_first_match::read_first_match;
-use crate::session::{GameThread, PlainBytes};
+
 use crate::strings::append_string_by_id::push_string;
 use crate::strings::owner::Text;
 use crate::strings::same_text::set_case_table;
@@ -70,12 +70,6 @@ pub const PLAIN_LETTERS_INIT: [u8; 256] = [
     0x61, 0x61, 0x61, 0x61, 0x61, 0x61, 0x61, 0x63, 0x65, 0x65, 0x65, 0x65, 0x69, 0x69, 0x69, 0x69,
     0x64, 0x6E, 0x6F, 0x6F, 0x6F, 0x6F, 0x6F, 0xF7, 0x6F, 0x75, 0x75, 0x75, 0x75, 0x79, 0x74, 0x79,
 ];
-/// The `.kim` file, 0x400 bytes: +0 "KEYB", +8 a kind, +0xA the layout mode, +0xB the layout's
-/// number, +0x30 the layouts (`rc2k_core::input::layouts`).
-const KEYBOARD_LEN: usize = rc2k_core::input::layouts::FILE_LEN;
-/// Where the file is read to (the layouts own the result).
-static KEYBOARD_BUFFER: GameThread<PlainBytes<KEYBOARD_LEN>> =
-    GameThread::new(PlainBytes::new([0; KEYBOARD_LEN]));
 
 fn fatal(code: u32, message: &'static str) -> Refused {
     FatalError { code, message }.into()
@@ -119,11 +113,11 @@ fn make_case_tables(o: crate::owners::Owners<'static>) -> Result<(), BadInput> {
 }
 
 /// `strings::correct_lexicon` (`rc2k_core::strings::lexicon::correct`), on the lexicon's room.
-fn correct_lexicon() -> Result<(), BadInput> {
-    let mut table = crate::strings::string_table::lexicon_bytes()?;
+fn correct_lexicon(strings: &crate::strings::owner::Strings) -> Result<(), BadInput> {
+    let mut table = crate::strings::string_table::lexicon_bytes(strings)?;
     rc2k_core::strings::lexicon::correct(&mut table)?;
-    crate::strings::string_table::write_lexicon(&table)?;
-    crate::strings::string_table::publish()
+    crate::strings::string_table::write_lexicon(strings, &table)?;
+    crate::strings::string_table::publish(strings)
 }
 
 /// `compile` stands for `strings::compile_lexicon`.
@@ -145,19 +139,16 @@ pub fn load_language(
         return Err(fatal(0x80E3_8382, ""));
     };
     let units = file.units as u32;
-    crate::strings::units::set_units(units);
+    crate::strings::units::set_units(strings, units);
     // Each car's copy of the units, at its +0x178.
     for player in &o.menus.play.slots.records {
         player.update(|p| p.metric_units = units);
     }
 
     // Read over the block the last load left (a shorter file leaves its tail).
-    KEYBOARD_BUFFER.get().write(&o.input.layouts().file_bytes());
-    let mut keyboard = KEYBOARD_BUFFER.get().read();
+    let mut keyboard = o.input.layouts().file_bytes();
     let found = read_first_match(o.system, KEYBOARD_FILES, &mut keyboard, 0)?;
-    KEYBOARD_BUFFER.get().write(&keyboard);
     if found.is_some() {
-        let keyboard = KEYBOARD_BUFFER.get().read();
         if &keyboard[..4] != b"KEYB" {
             return Err(fatal(0x80E3_83A2, ""));
         }
@@ -185,7 +176,7 @@ pub fn load_language(
         o.gfx.fonts.glyph_tables.units.set(0x2EEu32);
     }
 
-    correct_lexicon()?;
+    correct_lexicon(strings)?;
 
     install.flags.offer_registration.set(false);
     // The standalone offers no registration.

@@ -23,6 +23,6 @@ pub fn arcade_level(o: Owners<'static>, level: u32) -> Result<(), Refused> {
         return Ok(());
     }
     play.arcade.start_level(level);
-    crate::menu::take_player1_units::take_player1_units(menus)?;
+    crate::menu::take_player1_units::take_player1_units(menus, o.strings)?;
     crate::menu::arcade_event::arcade_event(o)
 }

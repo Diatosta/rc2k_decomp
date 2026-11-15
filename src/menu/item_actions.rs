@@ -77,6 +77,6 @@ pub fn start_arcade(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     let (menus, play) = (o.menus, &o.menus.play);
     play.arcade.level.set(0);
     play.arcade.stage.set(0);
-    crate::menu::take_player1_units::take_player1_units(menus)?;
+    crate::menu::take_player1_units::take_player1_units(menus, o.strings)?;
     crate::menu::arcade_event::arcade_event(o)
 }

@@ -95,7 +95,7 @@ fn prepare<'a>(
     if stage.len() > 0x100 {
         return Err(BadInput("a stage line past the line buffer").into());
     }
-    let units = crate::strings::units::units();
+    let units = crate::strings::units::units(o.strings);
     let mut speeds = Vec::new();
     for p in &players {
         let s = crate::strings::append_speed::append_speed(
@@ -155,8 +155,8 @@ pub fn draw_players_results(
         let page = Page {
             section: base.title(&system.records().stage_tables)?,
             stage,
-            units_set: crate::strings::units::units() != 0,
-            show_hours: crate::strings::append_time::show_hours(),
+            units_set: crate::strings::units::units(o.strings) != 0,
+            show_hours: crate::strings::append_time::show_hours(o.strings),
             extra_glyph: menus.screens.draw_work.button_y.get(),
         };
         players_results(

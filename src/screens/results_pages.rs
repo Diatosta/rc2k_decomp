@@ -174,7 +174,7 @@ pub fn draw_results_page(
             first,
             first_row,
             page.keep_overall,
-            show_hours(),
+            show_hours(o.strings),
             &rows,
         )?;
     }

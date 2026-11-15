@@ -67,7 +67,7 @@ pub fn draw_duel_result(
     );
     // The logic is in `rc2k_core::screens::duel_result`.
     use rc2k_core::screens::player_result::Player;
-    let units = crate::strings::units::units();
+    let units = crate::strings::units::units(o.strings);
     let player = |p: crate::menu::standings::PlayerCell| -> Result<Player<crate::screens::game_screen::HeldText>, Refused> {
         let p = p.get();
         Ok(Player {
@@ -93,7 +93,7 @@ pub fn draw_duel_result(
         base.title(&system.records().stage_tables)?,
         &stage,
         &figures,
-        crate::strings::append_time::show_hours(),
+        crate::strings::append_time::show_hours(o.strings),
     )?;
     Ok(())
 }

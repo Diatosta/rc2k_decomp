@@ -428,7 +428,7 @@ pub fn draw_time_rows(
         row: &row,
         ends_at: &ends,
     };
-    let show_hours = crate::strings::append_time::show_hours();
+    let show_hours = crate::strings::append_time::show_hours(o.strings);
     let drawn = rc2k_core::screens::best_scores::time_rows(
         &mut ScoresScreen::new(canvas, o),
         &rows,
@@ -525,7 +525,7 @@ pub fn draw_record_times(
         crate::strings::append_string_by_id::StringOwners::of(o),
         top_speed,
         true,
-        crate::strings::units::units(),
+        crate::strings::units::units(o.strings),
     )?;
     draw_record_heading(o, system, canvas)?;
     if !draw_time_rows(o, times, times_at as usize, Keep::Y, canvas)? {

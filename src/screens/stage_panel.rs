@@ -156,7 +156,7 @@ pub fn draw_stage_body_in(
         &mut screen,
         record.record(&o.system.records().stage_tables)?.hhmm(),
         &entry,
-        units(),
+        units(o.strings),
         heading,
         keep_entry_34,
     )

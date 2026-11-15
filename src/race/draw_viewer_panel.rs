@@ -78,7 +78,7 @@ pub fn draw_viewer_panel(
     let append_time = |hundredths: u32| {
         let time = crate::strings::append_time::append_time(
             hundredths,
-            crate::strings::append_time::show_hours(),
+            crate::strings::append_time::show_hours(strings),
         );
         for (n, &b) in time.iter().enumerate() {
             text_stores.buffer.text.set(n, b);

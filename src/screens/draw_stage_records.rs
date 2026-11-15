@@ -132,8 +132,8 @@ pub fn draw_records_rows(
             best,
             top,
             car_row,
-            show_hours(),
-            units(),
+            show_hours(o.strings),
+            units(o.strings),
         )
     }
 }

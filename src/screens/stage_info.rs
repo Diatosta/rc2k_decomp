@@ -39,7 +39,7 @@ pub fn draw_stage_best_and_fastest(
     use rc2k_core::screens::stage_panel::{CarRow, Holder};
     {
         let record = stage_record_in(system, play)?;
-        let units = crate::strings::units::units();
+        let units = crate::strings::units::units(o.strings);
         crate::strings::append_speed::append_speed(
             crate::strings::append_string_by_id::StringOwners::of(o),
             record
@@ -75,7 +75,7 @@ pub fn draw_stage_best_and_fastest(
             best,
             top,
             CarRow::Second,
-            crate::strings::append_time::show_hours(),
+            crate::strings::append_time::show_hours(o.strings),
             units,
         )?;
         Ok(())

@@ -388,7 +388,7 @@ const ENTRIES: [(&[u8], u32, Target); 77] = [
     (
         b"lexcontrol",
         0x4E0758,
-        dword!(_o => *crate::strings::maybe_compile_lexicon::RECOMPILE_LEVEL.get()),
+        dword!(o => o.strings.lexicon.recompile_level),
     ),
     (
         b"sparksmode",
@@ -570,11 +570,7 @@ mod tests {
         ("patchgripsnow", "owners.race.shared.work", ".patches[10]"),
         ("patchgripmud", "owners.race.shared.work", ".patches[11]"),
         ("patchgripgravel", "owners.race.shared.work", ".patches[12]"),
-        (
-            "lexcontrol",
-            "strings.maybe_compile_lexicon.RECOMPILE_LEVEL",
-            "",
-        ),
+        ("lexcontrol", "owners.strings.lexicon.recompile_level", ""),
         ("sparksmode", "owners.menus.screens.event", ".sparks_mode"),
     ];
 

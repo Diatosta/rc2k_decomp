@@ -178,8 +178,8 @@ pub fn compile_lexicon(
             .lexicon
             .empty_message
             .set_u32(12, compiled.index_size);
-        crate::strings::string_table::write_lexicon(&compiled.table)?;
-        crate::strings::string_table::publish()?;
+        crate::strings::string_table::write_lexicon(strings, &compiled.table)?;
+        crate::strings::string_table::publish(strings)?;
 
         if level() as i32 >= 3 {
             let number = |text: &[u8], value: u32| {

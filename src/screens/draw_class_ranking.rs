@@ -74,7 +74,7 @@ pub fn draw_class_ranking(
     class_ranking(
         &mut crate::screens::game_screen::GameScreen::<_, _, crate::screens::game_screen::HeldText>::new(canvas, o),
         first_time,
-        crate::strings::append_time::show_hours(),
+        crate::strings::append_time::show_hours(o.strings),
         &rows,
         last_place,
     )?;

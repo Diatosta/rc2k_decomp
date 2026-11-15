@@ -24,7 +24,7 @@ pub fn draw_player_rally_result(
         crate::strings::append_string_by_id::StringOwners::of(o),
         top_speed,
         true,
-        crate::strings::units::units(),
+        crate::strings::units::units(o.strings),
     )?;
     // The logic is in `rc2k_core::screens::player_result::rally_result`.
     use crate::screens::game_screen::PlayerResultScreen;
@@ -48,7 +48,7 @@ pub fn draw_player_rally_result(
         },
         &p,
         &figures,
-        crate::strings::append_time::show_hours(),
+        crate::strings::append_time::show_hours(o.strings),
     )?;
     Ok(())
 }

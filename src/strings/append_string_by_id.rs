@@ -57,7 +57,7 @@ pub fn append_string_by_id(
             Ok(AFTER_VARIABLE_TEXT)
         }
         None => {
-            expand_entry(id, emit);
+            expand_entry(o.strings, id, emit);
             Ok(id)
         }
     }

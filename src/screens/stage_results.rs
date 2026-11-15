@@ -111,7 +111,7 @@ pub fn draw_stage_results(o: Owners<'static>, canvas: &mut dyn Canvas) -> Result
             .holder(holder)
             .speed,
         true,
-        crate::strings::units::units(),
+        crate::strings::units::units(o.strings),
     )?;
     speed.push(0);
     let stage = crate::screens::page_settings::stage_line_bytes(
@@ -195,16 +195,16 @@ pub fn draw_stage_results(o: Owners<'static>, canvas: &mut dyn Canvas) -> Result
     let seal_fault = crate::menu::event_flow::Fault::default();
     let mut seal_code = |a: u32, b: u32| {
         seal_fault.ok(crate::strings::format_seal_code::format_seal_code(
-            o.race, a, b,
+            o.race, o.strings, a, b,
         ));
-        let text = crate::strings::format_seal_code::SEAL_TEXT.get().read();
+        let text = o.strings.text.seal_text.read();
         seal_fault
             .ok(crate::strings::text_length::nul_at(&text).map(|len| text[..len as usize].to_vec()))
     };
     let drawn = stage_results(
         &mut crate::screens::game_screen::GameScreen::<_, _, HeldText>::new(canvas, o),
         menus.screens.state.menus.caption_choice.get() == 1,
-        crate::strings::append_time::show_hours(),
+        crate::strings::append_time::show_hours(o.strings),
         &rows,
         &mut seal_code,
         &fastest,

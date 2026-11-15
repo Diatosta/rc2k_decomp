@@ -69,7 +69,7 @@ pub fn draw_itinerary(
             &row,
             &ends_at,
             menus.screens.event.stage_in_section.get(),
-            crate::strings::units::units(),
+            crate::strings::units::units(o.strings),
         );
         fault.check()?;
         drawn

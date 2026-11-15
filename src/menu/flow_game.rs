@@ -190,7 +190,9 @@ impl flow::Game for Game<'_> {
             C::ResetDrivers => m::reset_drivers::reset_drivers(menus)?,
             C::ResetDriverCondition => m::reset_driver_condition::reset_driver_condition(menus)?,
             C::ClearHudBits => m::clear_hud_bits::clear_hud_bits(menus)?,
-            C::TakePlayer1Units => m::take_player1_units::take_player1_units(menus)?,
+            C::TakePlayer1Units => {
+                m::take_player1_units::take_player1_units(menus, self.owners.strings)?;
+            }
             C::HideAllInGameOptions => {
                 m::hide_all_in_game_options::hide_all_in_game_options(menus)?;
             }

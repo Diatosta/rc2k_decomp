@@ -5,7 +5,7 @@ use crate::place::Run;
 use crate::screens::text_buffers_store::text_buffers;
 use rc2k_core::strings::table::StringTable;
 
-// The string table pointer is not kept: the table is always read from `PUBLISHED`.
+// The string table pointer is not kept: the table is always read from `Lexicon::published`.
 
 /// The ids of the texts the game keeps in its own variables (the pointer table indexed by the id):
 /// The build notice, the screens' text buffers, the drive rows, the installer's languages and the
@@ -196,37 +196,43 @@ pub fn driver_name_slot(
 
 /// The lexicon's room: where `strings::compile_lexicon` puts the table.
 pub const LEXICON_ROOM: usize = rc2k_core::strings::lexicon::TABLE_ROOM;
-pub static LEXICON: crate::session::GameThread<crate::session::PlainBytes<LEXICON_ROOM>> =
-    crate::session::GameThread::new(crate::session::PlainBytes::new([0; LEXICON_ROOM]));
 
 /// The lexicon's room, all of it.
-pub fn lexicon_bytes() -> Result<Vec<u8>, BadInput> {
-    LEXICON.get().read_at(0, LEXICON_ROOM, "the lexicon's room")
+pub fn lexicon_bytes(strings: &crate::strings::owner::Strings) -> Result<Vec<u8>, BadInput> {
+    strings
+        .lexicon
+        .room
+        .read_at(0, LEXICON_ROOM, "the lexicon's room")
 }
 
 /// `table` written from the start of the lexicon's room.
-pub fn write_lexicon(table: &[u8]) -> Result<(), BadInput> {
-    LEXICON.get().write_at(0, table, "the lexicon's room")
+pub fn write_lexicon(
+    strings: &crate::strings::owner::Strings,
+    table: &[u8],
+) -> Result<(), BadInput> {
+    strings
+        .lexicon
+        .room
+        .write_at(0, table, "the lexicon's room")
 }
-
-/// The finished table as the core reads it: a copy of the lexicon's room, made once its bytes are
-/// written (`publish`). Readers never see the room itself, so a text being looked up cannot meet a
-/// language being loaded.
-static PUBLISHED: std::sync::RwLock<Option<&'static [u8]>> = std::sync::RwLock::new(None);
 
 /// Makes the room's bytes the table the game reads. Called at most twice, while the language loads
 /// (compiled, then corrected), so the copies kept for the program's life stay small.
-pub fn publish() -> Result<(), BadInput> {
-    let copy = lexicon_bytes()?;
-    *PUBLISHED
+pub fn publish(strings: &crate::strings::owner::Strings) -> Result<(), BadInput> {
+    let copy = lexicon_bytes(strings)?;
+    *strings
+        .lexicon
+        .published
         .write()
         .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(Vec::leak(copy));
     Ok(())
 }
 
 /// The table the game reads, as the core reads it: `None` before the language is loaded.
-pub fn table() -> Option<StringTable<'static>> {
-    PUBLISHED
+pub fn table(strings: &crate::strings::owner::Strings) -> Option<StringTable<'static>> {
+    strings
+        .lexicon
+        .published
         .read()
         .unwrap_or_else(std::sync::PoisonError::into_inner)
         .map(StringTable::new)

@@ -14,10 +14,17 @@ const READY_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::
 const CHAT_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::NAME;
 
 /// A time, or its gap to `first` with a '+' over its first character.
-fn time_text(time: u32, gaps: bool, first: u32) -> Vec<u8> {
+fn time_text(
+    strings: &crate::strings::owner::Strings,
+    time: u32,
+    gaps: bool,
+    first: u32,
+) -> Vec<u8> {
     let (value, plus) = screens::shown_time(time, first, gaps);
-    let mut text =
-        crate::strings::append_time::append_time(value, crate::strings::append_time::show_hours());
+    let mut text = crate::strings::append_time::append_time(
+        value,
+        crate::strings::append_time::show_hours(strings),
+    );
     if plus && let Some(first) = text.first_mut() {
         *first = b'+';
     }
@@ -91,9 +98,9 @@ pub fn lobby_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
                 o.menus,
             )?;
             x += 0x48;
-            use crate::strings::append_time::SHOW_HOURS;
-            let kept_hours = SHOW_HOURS.get().get();
-            SHOW_HOURS.get().set(1);
+            let show_hours = &o.strings.text.show_hours;
+            let kept_hours = show_hours.get();
+            show_hours.set(1);
             let time = block.record.race_time.get();
             // The total is drawn at the y the drawing before it leaves: the text's, font offset
             // included, when there is no time (kept as is).
@@ -113,7 +120,7 @@ pub fn lobby_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
                 }?;
                 total_y = out.y as u32;
             } else {
-                store_text(strings, time_text(time, gaps, first_time))?;
+                store_text(strings, time_text(strings, time, gaps, first_time))?;
                 {
                     crate::text::draw_time_text::draw_time_text(
                         FONT,
@@ -128,7 +135,12 @@ pub fn lobby_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
             let timed = time != players::NO_TIME;
             store_text(
                 strings,
-                time_text(block.record.total.get(), gaps && timed, first_total),
+                time_text(
+                    strings,
+                    block.record.total.get(),
+                    gaps && timed,
+                    first_total,
+                ),
             )?;
             {
                 crate::text::draw_time_text::draw_time_text(
@@ -139,7 +151,7 @@ pub fn lobby_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
                     o.gfx,
                 )
             }?;
-            SHOW_HOURS.get().set(kept_hours);
+            show_hours.set(kept_hours);
             y = y.wrapping_add(NAME_FONT.object(&o.gfx.fonts.typefaces).line_height.get());
         }
     }

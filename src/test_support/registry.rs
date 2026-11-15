@@ -232,28 +232,24 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
         listed!("math.next_random.STATE", &crate::math::next_random::STATE),
         listed!("owners.system.start.kept", on_game(&o.system.start().kept),),
         listed!(
-            "strings.copy_printable.KEEP_CASE",
-            &crate::strings::copy_printable::KEEP_CASE,
+            "owners.strings.text.show_hours",
+            on_game(&o.strings.text.show_hours),
         ),
         listed!(
-            "strings.append_time.SHOW_HOURS",
-            on_game(crate::strings::append_time::SHOW_HOURS.get()),
+            "owners.strings.text.seal_text",
+            on_game(&o.strings.text.seal_text),
         ),
         listed!(
-            "strings.format_seal_code.SEAL_TEXT",
-            on_game(crate::strings::format_seal_code::SEAL_TEXT.get()),
-        ),
-        listed!(
-            "strings.maybe_compile_lexicon.RECOMPILE_LEVEL",
-            on_game(crate::strings::maybe_compile_lexicon::RECOMPILE_LEVEL.get()),
+            "owners.strings.lexicon.recompile_level",
+            on_game(&o.strings.lexicon.recompile_level),
         ),
         listed!(
             "owners.strings.language.locale",
             on_game(&o.strings.language.locale),
         ),
         listed!(
-            "strings.string_table.LEXICON",
-            on_game(crate::strings::string_table::LEXICON.get()),
+            "owners.strings.lexicon.room",
+            on_game(&o.strings.lexicon.room),
         ),
         listed!("strings.same_text.LOWER", &crate::strings::same_text::LOWER),
         listed!(
@@ -265,8 +261,8 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             on_game(&o.strings.lexicon.empty_message),
         ),
         listed!(
-            "strings.units.UNITS",
-            on_game(crate::strings::units::UNITS.get())
+            "owners.strings.language.units",
+            on_game(&o.strings.language.units)
         ),
         listed!(
             "owners.strings.lexicon.work",
