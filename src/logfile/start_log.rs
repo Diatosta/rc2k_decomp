@@ -43,6 +43,7 @@ pub fn start_log(system: &System) -> Result<(), BadInput> {
         return Ok(());
     }
     crate::logfile::date_text::date_text(system)?;
+    crate::logfile::write_line::close_log();
     let _ = std::fs::remove_file(crate::files::host_path(&LOG_PATH[..LOG_PATH.len() - 1]));
     use rc2k_core::files::log::{Machine, Message, head};
     let machine = system.machine();

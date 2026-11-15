@@ -29,10 +29,7 @@ pub fn set_enabled(value: i32) {
     state::ENABLED.set(value as u32);
 }
 
-/// The file modes table's (`files`, 16 bytes each) mode 4: its access,
-/// disposition and share.
-const MODE_ACCESS: u32 = 0x4000_0000;
-const MODE_DISPOSITION: u32 = 4;
+/// Windows opens the log with no sharing.
 #[cfg_attr(
     not(windows),
     allow(
@@ -49,30 +46,60 @@ pub fn lock() -> &'static AtomicU32 {
     state::LOCK.atomic()
 }
 
-/// `files::append_to_file`, whose only caller is this tail.
-/// Some(bytes written) if the write was reached; None if open or seek failed.
-fn append_to_file(path: &'static [u8], data: &[u8]) -> Option<u32> {
-    use std::io::{Seek, SeekFrom, Write};
-    crate::files::state::set_last_file_path(Some(&path[..path.len() - 1]));
-    // Mode 4 (`MODE_*`): write access, no sharing, open or create (std's `create`;
-    // `write` only lets std accept it, the access is the table's).
-    const _: () = assert!(MODE_DISPOSITION == 4);
-    const _: () = assert!(MODE_ACCESS == 0x4000_0000); // GENERIC_WRITE
-    let name = crate::files::host_path(&path[..path.len() - 1]);
-    let mut options = std::fs::OpenOptions::new();
-    options.write(true).create(true);
-    #[cfg(windows)]
+/// The log file kept open for appending between writes, where the system lets another process
+/// read a file that is open for writing (everywhere but Windows, whose open file is not shared).
+/// Opening and closing it for every fragment of every line is most of what a logged stage load
+/// costs on a slow card.
+#[cfg(not(windows))]
+static OPEN_LOG: std::sync::Mutex<Option<std::fs::File>> = std::sync::Mutex::new(None);
+
+/// Lets go of the kept log file: the next write opens the path again (the log was deleted).
+pub fn close_log() {
+    #[cfg(not(windows))]
     {
-        use std::os::windows::fs::OpenOptionsExt;
-        options.share_mode(MODE_SHARE).attributes(0x80);
+        *OPEN_LOG
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = None;
     }
-    let mut file = options.open(name).ok()?; // not closed here: the path stays set
-    let result = match file.seek(SeekFrom::End(0)) {
+}
+
+/// Appends `data` to the log file; None if it cannot be opened or sought to its end, else the
+/// bytes written.
+fn append_to_file(path: &'static [u8], data: &[u8]) -> Option<u32> {
+    use std::io::Write;
+    crate::files::state::set_last_file_path(Some(&path[..path.len() - 1]));
+    #[cfg(not(windows))]
+    let result = {
+        let mut kept = OPEN_LOG
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if kept.is_none() {
+            let name = crate::files::host_path(&path[..path.len() - 1]);
+            // Appending: every write goes to the file's end.
+            *kept = std::fs::OpenOptions::new()
+                .append(true)
+                .create(true)
+                .open(name)
+                .ok();
+        }
         // The bytes written; a failed write counts what it wrote, nothing.
-        Ok(_) => Some(file.write(data).unwrap_or(0) as u32),
-        Err(_) => None,
+        kept.as_mut()
+            .map(|file| file.write(data).unwrap_or(0) as u32)
     };
-    drop(file);
+    #[cfg(windows)]
+    let result = {
+        use std::os::windows::fs::OpenOptionsExt;
+        let name = crate::files::host_path(&path[..path.len() - 1]);
+        let mut options = std::fs::OpenOptions::new();
+        options.write(true).create(true);
+        options.share_mode(MODE_SHARE).attributes(0x80);
+        let mut file = options.open(name).ok()?; // not closed here: the path stays set
+        match std::io::Seek::seek(&mut file, std::io::SeekFrom::End(0)) {
+            // The bytes written; a failed write counts what it wrote, nothing.
+            Ok(_) => Some(file.write(data).unwrap_or(0) as u32),
+            Err(_) => None,
+        }
+    };
     crate::files::state::set_last_file_path(None);
     result
 }
