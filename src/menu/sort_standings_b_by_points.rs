@@ -6,6 +6,11 @@ use crate::errors::Refused;
 use crate::menu::owner::Menus;
 use crate::menu::standings::*;
 pub fn sort_standings_b_by_points(menus: &Menus) -> Result<(), Refused> {
-    sort_table_b(menus, rc2k_core::saves::rankings::BKey::StageTotal, true)?;
+    sort_table_b(
+        &menus.screens,
+        &menus.play,
+        rc2k_core::saves::rankings::BKey::StageTotal,
+        true,
+    )?;
     Ok(())
 }

@@ -26,7 +26,7 @@ pub fn fit_name(
     gfx: &'static crate::gfx::owner::Gfx,
 ) -> Result<u32, Refused> {
     let at = NameAt::of(player);
-    let mut name = at.tail(menus);
+    let mut name = at.tail(&menus.play);
     let Some(len) = (0..LONGEST).find(|&n| name.get(n) == Some(&0)) else {
         return Err(BadInput("a name without its end").into());
     };

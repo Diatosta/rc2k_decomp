@@ -137,8 +137,8 @@ pub struct Found {
 }
 
 /// The walked drivers, for the tables' fills.
-pub fn walked_drivers(menus: &Menus) -> Result<Vec<rc2k_core::saves::rankings::Driver>, BadInput> {
-    Ok(drivers(menus)?
+pub fn walked_drivers(cars: &Cars) -> Result<Vec<rc2k_core::saves::rankings::Driver>, BadInput> {
+    Ok(drivers_of(cars)?
         .iter()
         .map(|d| rc2k_core::saves::rankings::Driver {
             number: d.name_entry.get(),
@@ -156,7 +156,7 @@ pub fn walked_drivers(menus: &Menus) -> Result<Vec<rc2k_core::saves::rankings::D
 /// A player as a stage record's holder: the figure (+0x94), nationality, car and the name's
 /// 0x20 bytes (copied past the NUL too).
 pub fn as_holder(
-    menus: &Menus,
+    play: &Play,
     p: &rc2k_core::menu::player::Player,
 ) -> Result<
     (
@@ -170,16 +170,16 @@ pub fn as_holder(
         car: p.car_number,
         speed: p.figure,
     };
-    Ok((row, name_of(menus, p)?))
+    Ok((row, name_of(play, p)?))
 }
 
 /// The player's name, `N` bytes from its start (bounded by the names' store: a name that lacks
 /// its end is read on past it).
 pub fn name_of<const N: usize>(
-    menus: &Menus,
+    play: &Play,
     p: &rc2k_core::menu::player::Player,
 ) -> Result<[u8; N], BadInput> {
-    let bytes = crate::menu::player_names::NameAt::of(name_player(p)?).tail(menus);
+    let bytes = crate::menu::player_names::NameAt::of(name_player(p)?).tail(play);
     bytes
         .get(..N)
         .map(|b| std::array::from_fn(|i| b[i]))
@@ -206,12 +206,15 @@ pub fn with_kept_name<R>(play: &Play, f: impl FnOnce(&mut [u8; NAME_LEN]) -> R) 
 }
 
 /// The players `0 .. Event.player_count`: refused at 0, past 4 or with one missing.
-pub fn counted_players(menus: &Menus) -> Result<Vec<PlayerCell<'_>>, BadInput> {
-    let n: u32 = menus.screens.event.player_count.get();
+pub fn counted_players<'a>(
+    screens: &Screens,
+    play: &'a Play,
+) -> Result<Vec<PlayerCell<'a>>, BadInput> {
+    let n: u32 = screens.event.player_count.get();
     if n == 0 || n > 4 {
         return Err(BadInput("a player count of 0 or past 4"));
     }
-    Ok((0..n).map(|k| player(menus, k)).collect())
+    Ok((0..n).map(|k| player_in(play, k)).collect())
 }
 
 /// The current record's event (the record table, `section`, `index`; its +0x3C): its place
@@ -267,10 +270,13 @@ const SORTED: u32 = standings::SORTED as u32;
 /// Standings table A's first 0xB4 entries sorted by `key` (signed; an exchange sort: an entry
 /// later or equal moves up).
 /// Refused without a table.
-pub fn sort_table_a(menus: &Menus, key: rc2k_core::saves::entries::Field) -> Result<(), BadInput> {
-    let screens = &menus.screens;
+pub fn sort_table_a(
+    screens: &Screens,
+    play: &Play,
+    key: rc2k_core::saves::entries::Field,
+) -> Result<(), BadInput> {
     with_a(|t| {
-        with_kept_name(&menus.play, |kept| {
+        with_kept_name(play, |kept| {
             rc2k_core::saves::rankings::sort_a(t, SORTED as usize, key, kept);
         });
     })?;
@@ -286,16 +292,16 @@ pub fn sort_table_a(menus: &Menus, key: rc2k_core::saves::entries::Field) -> Res
 /// bytes; then moved up its group. Refused for a current player past 3 or missing, no name,
 /// no table or a group past 4.
 pub fn enter_best(
-    menus: &Menus,
+    screens: &Screens,
+    play: &Play,
     group: Option<u32>,
     score: fn(&rc2k_core::menu::player::Player) -> u32,
 ) -> Result<(), BadInput> {
-    let play = &menus.play;
-    let n: u32 = menus.screens.event.current_player.get();
+    let n: u32 = screens.event.current_player.get();
     if n >= 4 {
         return Err(BadInput("a current player past 3 or missing"));
     }
-    let p = player(menus, n);
+    let p = player_in(play, n);
     let group = group.unwrap_or(p.get().class);
     let scores = &crate::saves::best_times::SCORES;
     let (true, true, false) = (
@@ -314,7 +320,7 @@ pub fn enter_best(
         car: p.get().car_number,
         group: p.get().class,
         name_ref,
-        name: name_of(menus, &p.get())?,
+        name: name_of(play, &p.get())?,
     };
     scores.with(|t| {
         with_kept_name(play, |kept| {
@@ -327,10 +333,9 @@ pub fn enter_best(
 /// Standings table B's first 0xB4 entries sorted by `key`, as `sort_table_a`: going up (a
 /// later entry not above an earlier one moves up) or, with `down`, going down (a later
 /// entry not below one moves up). Refused without a table.
-pub fn sort_table_b(menus: &Menus, key: BKey, down: bool) -> Result<(), BadInput> {
-    let screens = &menus.screens;
+pub fn sort_table_b(screens: &Screens, play: &Play, key: BKey, down: bool) -> Result<(), BadInput> {
     with_b(|t| {
-        with_kept_name(&menus.play, |kept| {
+        with_kept_name(play, |kept| {
             rc2k_core::saves::rankings::sort_b(t, SORTED as usize, key, down, kept);
         });
     })?;
@@ -358,7 +363,7 @@ pub struct Numbered {
 /// `number` field. Refused, before any write, when a counted entry's player is past 4 or
 /// not there.
 pub fn number_table(
-    menus: &Menus,
+    play: &Play,
     table: Which,
     which: rc2k_core::menu::standings::Numbering,
     number: fn(&mut rc2k_core::menu::player::Player) -> &mut u32,
@@ -387,7 +392,7 @@ pub fn number_table(
         };
         last_number = n;
         if p != 0 {
-            let record = player(menus, p - 1);
+            let record = player_in(play, p - 1);
             record.update(|q| *number(q) = n);
         }
     }

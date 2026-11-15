@@ -4,7 +4,7 @@
 //! before changing anything.
 
 use crate::errors::Refused;
-use crate::menu::owner::Menus;
+use crate::menu::owner::{Play, Screens};
 use crate::menu::standings::*;
 use rc2k_core::menu::standings::Numbering;
 
@@ -27,13 +27,12 @@ pub fn clear_standings(table: Which) -> Result<(), Refused> {
 /// Numbers the entries of `table` 1, 2, .. in order (with the class mode 2 only those with
 /// a group), each player's number also into its record. Table A's count goes into
 /// `EventState.standings_count`.
-pub fn number_all(menus: &Menus, table: Which) -> Result<Numbered, Refused> {
-    let screens = &menus.screens;
+pub fn number_all(screens: &Screens, play: &Play, table: Which) -> Result<Numbered, Refused> {
     let grouped = screens.state.menus.class_mode.get() == 2;
     let numbering = Numbering::All { grouped };
     let numbered = match table {
-        Which::A => number_table(menus, table, numbering, |p| &mut p.number_all_a)?,
-        Which::B => number_table(menus, table, numbering, |p| &mut p.number_all_b)?,
+        Which::A => number_table(play, table, numbering, |p| &mut p.number_all_a)?,
+        Which::B => number_table(play, table, numbering, |p| &mut p.number_all_b)?,
     };
     if table == Which::A {
         screens.event.standings_count.set(numbered.last_number);
@@ -43,10 +42,10 @@ pub fn number_all(menus: &Menus, table: Which) -> Result<Numbered, Refused> {
 
 /// Numbers the entries of group `class` of `table` 1, 2, .. in order, each player's number
 /// also into its record.
-pub fn number_standings(menus: &Menus, table: Which, class: u32) -> Result<Numbered, Refused> {
+pub fn number_standings(play: &Play, table: Which, class: u32) -> Result<Numbered, Refused> {
     let numbering = Numbering::Group(class);
     match table {
-        Which::A => number_table(menus, table, numbering, |p| &mut p.number_standings_a),
-        Which::B => number_table(menus, table, numbering, |p| &mut p.number_standings_b),
+        Which::A => number_table(play, table, numbering, |p| &mut p.number_standings_a),
+        Which::B => number_table(play, table, numbering, |p| &mut p.number_standings_b),
     }
 }

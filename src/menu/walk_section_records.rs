@@ -38,7 +38,7 @@ fn record_at(
 fn walk(menus: &Menus, system: &System, race: &Race) -> Result<Vec<(u32, Step)>, Refused> {
     let screens = &menus.screens;
     current_event(screens, system)?;
-    counted_players(menus)?;
+    counted_players(&menus.screens, &menus.play)?;
     drivers(menus)?;
     let index: u32 = menus.screens.event.stage_in_section.get();
     let fault = Fault::default();
@@ -46,8 +46,14 @@ fn walk(menus: &Menus, system: &System, race: &Race) -> Result<Vec<(u32, Step)>,
         index,
         |i| fault.ok(record_at(menus, system, i).map(|r| r.tag(&system.records().stage_tables))),
         |i| {
-            crate::menu::calc_cpu_times::check(menus, system, race, record_at(menus, system, i)?)
-                .map(|_| ())
+            crate::menu::calc_cpu_times::check(
+                &menus.cars,
+                screens,
+                system,
+                race,
+                record_at(menus, system, i)?,
+            )
+            .map(|_| ())
         },
     );
     fault.check()?;
@@ -67,7 +73,7 @@ pub fn walk_section_records(menus: &Menus, system: &System, race: &Race) -> Resu
         }
         match step {
             Step::CpuTimes => {
-                crate::menu::calc_cpu_times::calc_cpu_times(menus, system, race)?;
+                crate::menu::calc_cpu_times::calc_cpu_times(&menus.cars, screens, system, race)?;
             }
             Step::Condition => {
                 rdc::reset_driver_condition(menus)?;

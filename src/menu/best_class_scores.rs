@@ -15,7 +15,7 @@ use crate::menu::screen_loop::{Entry, run_screen};
 use crate::menu::standings::*;
 
 pub fn best_class_scores(menus: &crate::menu::owner::Menus, entry: &Entry) -> Result<(), Refused> {
-    let players = counted_players(menus)?;
+    let players = counted_players(&menus.screens, &menus.play)?;
     let classes: u32 = menus.screens.event.shown.classes.get();
     let (true, true) = (
         classes != 0 && classes <= 5,
@@ -31,7 +31,7 @@ pub fn best_class_scores(menus: &crate::menu::owner::Menus, entry: &Entry) -> Re
             if p.get().class == class {
                 let tenth = tenth_best_score(class)?;
                 if rc2k_core::menu::bests::makes_score(player_score, tenth) {
-                    enter_best(menus, None, |p| p.stage_points[6])?;
+                    enter_best(&menus.screens, &menus.play, None, |p| p.stage_points[6])?;
                     menus.screens.event.trial.any_qualified.set(true);
                 }
             }

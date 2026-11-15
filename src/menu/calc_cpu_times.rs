@@ -13,7 +13,7 @@
 //! or past 4, a class's driver count of 0, and a drivers table without its end.
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::menu::drivers_store::{Driver, IN_EVENT};
-use crate::menu::owner::{Menus, Screens};
+use crate::menu::owner::{Cars, Screens};
 use crate::menu::standings::*;
 use crate::race::owner::Race;
 use crate::records::stages_store::RecordRef;
@@ -69,17 +69,17 @@ pub fn record(screens: &Screens, system: &System) -> Result<RecordRef, BadInput>
 /// What is refused for the record `rec` (or its fatal error), before
 /// anything: the class count, the drivers and the pack entry's length.
 pub fn check<'a>(
-    menus: &'a Menus,
+    cars: &'a Cars,
+    screens: &Screens,
     system: &System,
     race: &Race,
     rec: RecordRef,
 ) -> Result<(u32, &'a [Driver], u32), Refused> {
-    let screens = &menus.screens;
     let classes: u32 = screens.event.shown.classes.get();
     if classes == 0 || classes > 4 {
         return Err(BadInput("a class count of 0 or past the four").into());
     }
-    let drivers = drivers(menus)?;
+    let drivers = drivers_of(cars)?;
     let times = rec.record(&system.records().stage_tables)?.class_times();
     let (times, _) = scaled(race, times, held_section(screens));
     let length = crate::records::trakpak_entry::track_of(&system.records().stage_tables, rec)?
@@ -107,10 +107,14 @@ pub fn check<'a>(
     Ok((classes, drivers, length))
 }
 
-pub fn calc_cpu_times(menus: &Menus, system: &System, race: &Race) -> Result<(), Refused> {
-    let screens = &menus.screens;
+pub fn calc_cpu_times(
+    cars: &Cars,
+    screens: &Screens,
+    system: &System,
+    race: &Race,
+) -> Result<(), Refused> {
     let rec = record(screens, system)?;
-    let (classes, drivers, length) = check(menus, system, race, rec)?;
+    let (classes, drivers, length) = check(cars, screens, system, race, rec)?;
     crate::logfile::log_write::log_nul(&TEXTS_RVA[0], true, 1);
     for (k, t) in rec
         .record(&system.records().stage_tables)?

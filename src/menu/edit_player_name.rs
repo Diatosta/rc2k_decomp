@@ -62,7 +62,7 @@ pub fn edit_player_name(
             if entry::appends(c, len, screens.loop_flags.text_max.get() as i32) {
                 name.add(len as u32).write(&[c], "a player's name")?;
                 set_length(menus, len.wrapping_add(1));
-                let measured = measure_text_at(MEASURING_FONT, &at.tail(menus), len, canvas)?;
+                let measured = measure_text_at(MEASURING_FONT, &at.tail(&menus.play), len, canvas)?;
                 if entry::too_wide(measured.width as i32) {
                     backspace_name(menus, name)?;
                 }

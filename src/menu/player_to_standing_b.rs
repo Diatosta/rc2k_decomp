@@ -18,7 +18,7 @@ pub fn player_to_standing_b(
     use rc2k_core::menu::standings::PlayerB;
     let source = PlayerB {
         index,
-        name: name_of(menus, &p.get())?,
+        name: name_of(&menus.play, &p.get())?,
         nationality: p.get().nationality,
         car: p.get().car_number,
         group: p.get().class,

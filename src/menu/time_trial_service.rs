@@ -25,7 +25,7 @@ pub fn time_trial_service(menus: &Menus, entry: &Entry) -> Result<(), Refused> {
     // The logic is in `rc2k_core::menu::passes` (the minutes, the pauses, who is out,
     // `goes_on`).
     use rc2k_core::menu::passes;
-    crate::menu::standings::counted_players(menus)?;
+    crate::menu::standings::counted_players(&menus.screens, &menus.play)?;
     set(&event.service.minutes, passes::TIME_TRIAL_MINUTES);
     set(&event.event_goes_on, 1);
     let mut current = 0;

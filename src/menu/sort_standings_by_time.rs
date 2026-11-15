@@ -4,9 +4,9 @@
 //! Refuses a null table, before anything.
 
 use crate::errors::Refused;
-use crate::menu::owner::Menus;
+use crate::menu::owner::{Play, Screens};
 use crate::menu::standings::*;
-pub fn sort_standings_by_time(menus: &Menus) -> Result<(), Refused> {
-    sort_table_a(menus, rc2k_core::saves::entries::Field::Key)?;
+pub fn sort_standings_by_time(screens: &Screens, play: &Play) -> Result<(), Refused> {
+    sort_table_a(screens, play, rc2k_core::saves::entries::Field::Key)?;
     Ok(())
 }

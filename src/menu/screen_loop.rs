@@ -26,7 +26,7 @@ use crate::errors::{FatalError, Refused};
 use crate::framework::log;
 use crate::input::take_key::take_key;
 use crate::menu::handle_keys::handle_keys;
-use crate::menu::lists_store::CarList;
+use crate::menu::lists_store::{CarList, CarListParts};
 use crate::menu::menus_store::MenuId;
 use crate::menu::owner::Menus;
 use crate::menu::owner::{Screens, Tables};
@@ -568,19 +568,19 @@ pub fn quitting(system: &System) -> bool {
 }
 
 /// `scene::prepare_menu_scene`.
-pub fn prepare_scene(entry: &Entry) {
+pub fn prepare_scene(owners: &Owners<'static>) {
     crate::scene::prepare_menu_scene::prepare_menu_scene(
-        entry.owners.race,
-        entry.owners.scene,
-        entry.owners.system,
+        owners.race,
+        owners.scene,
+        owners.system,
         crate::race::view_scratch::front_end(),
     );
 }
 
 /// `scene::set_up_carousel`, with the list of cars menus 0xD and 0xE show.
 /// (`_scene`: the loops pass it; the carousel's set-up writes the front end's slot.)
-pub fn carousel(entry: &Entry, cars: Option<CarList>) -> Result<(), Refused> {
-    crate::scene::set_up_carousel::set_up_carousel(entry.menus, cars)
+pub fn carousel(menus: &Menus, cars: Option<CarList>) -> Result<(), Refused> {
+    crate::scene::set_up_carousel::set_up_carousel(CarListParts::of(menus), cars)
 }
 
 /// A line for the game's log at level 1 with its line break (`logfile::log_write_l1_nl`,
@@ -696,7 +696,7 @@ impl Callee {
                     entry.owners.system,
                 )?;
             }
-            Self::PrepareScene => prepare_scene(entry),
+            Self::PrepareScene => prepare_scene(&entry.owners),
             Self::ApplyController => ci::apply_controller(menus, input)?,
             Self::ReleaseController => ci::release_controller(input),
             Self::DrawStageMap => crate::menu::stage_choice::draw_stage_map(entry.owners)?,

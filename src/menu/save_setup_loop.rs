@@ -11,7 +11,7 @@ use crate::menu::screen_loop::{
 
 fn prepare(entry: &Entry) -> Result<(), Refused> {
     entry.set_view(0, 0, 0x100);
-    prepare_scene(entry);
+    prepare_scene(&entry.owners);
     entry.set_clip_sides(0, 800);
     Ok(())
 }

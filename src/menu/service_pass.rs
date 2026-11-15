@@ -21,7 +21,7 @@ pub fn service_pass(menus: &Menus, entry: &Entry) -> Result<(), Refused> {
     // The logic is in `rc2k_core::menu::passes` (who is serviced, the minutes, the money, the
     // pauses, `goes_on`).
     use rc2k_core::menu::passes;
-    let players = counted_players(menus)?;
+    let players = counted_players(&menus.screens, &menus.play)?;
     let due = { menus.screens.event.service.due.get() } == 1;
     for &p in &players {
         if due && passes::takes_part(p.get().entry) {

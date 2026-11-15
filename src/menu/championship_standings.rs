@@ -32,7 +32,7 @@ pub fn championship_standings(menus: &Menus, entry: &Entry) -> Result<(), Refuse
         }
     }
     if !a8 {
-        number_all(menus, Which::B)?;
+        number_all(&menus.screens, &menus.play, Which::B)?;
     }
     menus.screens.state.menus.standings_shown.set(true);
     if a8 {

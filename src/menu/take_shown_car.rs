@@ -5,8 +5,8 @@
 //! player past the four (it would read past the players) and no list of cars.
 
 use crate::errors::{BadInput, Refused};
-use crate::menu::lists_store::CarList;
 use crate::menu::lists_store::lists;
+use crate::menu::lists_store::{CarList, CarListParts};
 use crate::menu::owner::Menus;
 use crate::menu::player::{PLAYERS, player};
 
@@ -18,7 +18,7 @@ pub fn take_shown_car(menus: &Menus, list: Option<CarList>) -> Result<(), Refuse
     }
     let shown: u32 = menus.screens.event.shown.car.get();
     {
-        let entry = lists().car_entry(menus, list, shown)?;
+        let entry = lists().car_entry(CarListParts::of(menus), list, shown)?;
         // The entry is a description's handle (`cars_store::car_ref`).
         let description = crate::menu::cars_store::description(&menus.cars.table, entry)?.get();
         let (number, class) = (description.car, description.class);

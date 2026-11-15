@@ -14,10 +14,10 @@ fn set_up_first(entry: &Entry) -> Result<(), Refused> {
     let screens = &entry.menus.screens;
     screens.loop_flags.ask_leave.set(false);
     entry.set_view(-156, 39, 0x140);
-    prepare_scene(entry);
+    prepare_scene(&entry.owners);
     screens.flow.turning.set(0x1u32);
     screens.carousel.menu.set(0x10u32);
-    carousel(entry, None)?;
+    carousel(entry.menus, None)?;
     let item = screens.items.current[slot::ARCADE_RETRY_REVIEW].get();
     screens.loop_flags.item.set(item);
     screens.carousel.front.set(item.wrapping_sub(1));

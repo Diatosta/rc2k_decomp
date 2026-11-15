@@ -16,7 +16,7 @@ use crate::menu::standings::*;
 /// Each group's (0 .. 3) players, in order, into the table's entries from the group's slot
 /// down (`player_to_standing_b`).
 fn players_by_group(menus: &Menus, firsts: [usize; 4]) -> Result<(), Refused> {
-    let players = counted_players(menus)?;
+    let players = counted_players(&menus.screens, &menus.play)?;
     let groups: Vec<u32> = players.iter().map(|p| p.get().class).collect();
     for (n, e) in rc2k_core::menu::standings::by_group(&groups, firsts) {
         {
@@ -30,17 +30,17 @@ pub fn standings_b_from_all(
     so: crate::strings::append_string_by_id::StringOwners<'_>,
     menus: &Menus,
 ) -> Result<(), Refused> {
-    let drivers = walked_drivers(menus)?;
+    let drivers = walked_drivers(&menus.cars)?;
     if drivers.len() > 200 {
         return Err(BadInput("more drivers than the standings table holds").into());
     }
-    let players = counted_players(menus)?;
+    let players = counted_players(&menus.screens, &menus.play)?;
     if any_unnamed(&players)? {
         return Err(BadInput("a player without a name").into());
     }
     let mut texts = Vec::new();
     for d in &drivers {
-        let id: u32 = crate::menu::drivers_store::name_string(menus, d.number)?;
+        let id: u32 = crate::menu::drivers_store::name_string(&menus.cars, d.number)?;
         let mut text = Vec::new();
         crate::strings::append_string_by_id::push_string(so, &mut text, id)?;
         text.push(0);

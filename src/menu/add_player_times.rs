@@ -8,7 +8,7 @@ use crate::menu::owner::Menus;
 use crate::menu::standings::*;
 
 pub fn add_player_times(menus: &Menus) -> Result<(), Refused> {
-    for p in counted_players(menus)? {
+    for p in counted_players(&menus.screens, &menus.play)? {
         p.update(rc2k_core::menu::player::Player::add_time);
     }
     Ok(())

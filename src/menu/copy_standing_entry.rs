@@ -8,7 +8,7 @@ use crate::menu::standings::*;
 
 /// `e` the entry of table A, `p` the player's record, `index` the player's index.
 pub fn copy_standing_entry(
-    menus: &crate::menu::owner::Menus,
+    play: &crate::menu::owner::Play,
     e: usize,
     p: PlayerCell,
     index: u32,
@@ -22,7 +22,7 @@ pub fn copy_standing_entry(
         group: p.get().class,
         total: p.get().total,
         name_at,
-        name: name_of(menus, &p.get())?,
+        name: name_of(play, &p.get())?,
         nationality: p.get().nationality,
         car: p.get().car_number,
         entered: p.get().entry,

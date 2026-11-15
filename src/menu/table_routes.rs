@@ -420,7 +420,13 @@ pub fn item_fn(o: Owners<'static>, f: ItemFn, c: &table_calls::ItemCall) -> Resu
         ItemFn::NextStageRowsOf90 => {
             stage_rows::step_rows(&menus.play.champ_view, &menus.screens.event, true, true)
         }
-        ItemFn::RallyResults => rally_results::rally_results(menus, &Entry::new(o)),
+        ItemFn::RallyResults => rally_results::rally_results(
+            &menus.cars,
+            &menus.screens,
+            &menus.play,
+            &menus.tables.pages,
+            &Entry::new(o),
+        ),
         ItemFn::ChampionshipStandings => {
             championship_standings::championship_standings(menus, &Entry::new(o))
         }

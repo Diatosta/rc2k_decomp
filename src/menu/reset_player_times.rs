@@ -3,13 +3,13 @@
 //!
 //! Refuses a missing player, before anything.
 use crate::errors::Refused;
-use crate::menu::owner::Menus;
+use crate::menu::owner::{Play, Screens};
 use crate::menu::standings::*;
 
-pub fn reset_player_times(menus: &Menus) -> Result<(), Refused> {
+pub fn reset_player_times(screens: &Screens, play: &Play) -> Result<(), Refused> {
     for n in 0..4 {
-        player(menus, n).update(rc2k_core::menu::player::Player::reset_times);
+        player_in(play, n).update(rc2k_core::menu::player::Player::reset_times);
     }
-    menus.screens.event.event_goes_on.set(0u32);
+    screens.event.event_goes_on.set(0u32);
     Ok(())
 }

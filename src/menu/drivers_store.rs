@@ -9,7 +9,7 @@
 //! The fields' meanings are readings (`nationality`, `car` and `flag` at +8, +0x14 and +0x18:
 //! the time entries and the section screen say class, nationality and car).
 
-use crate::menu::owner::Menus;
+use crate::menu::owner::Cars;
 use crate::session::PlainDword;
 
 /// A driver's record (0x94 bytes).
@@ -604,9 +604,8 @@ impl DriverTable {
 
 /// The string id of name entry `entry` (a driver's first dword). An entry past the 180 is
 /// refused (a 1999 bug fixed: it read on past them).
-pub fn name_string(menus: &Menus, entry: u32) -> Result<u32, crate::errors::BadInput> {
-    Ok(menus
-        .cars
+pub fn name_string(cars: &Cars, entry: u32) -> Result<u32, crate::errors::BadInput> {
+    Ok(cars
         .drivers
         .names
         .get(entry as usize)

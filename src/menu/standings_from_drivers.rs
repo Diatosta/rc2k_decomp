@@ -6,20 +6,20 @@
 //! Refuses no table, more drivers than its 200 entries, a name past the entry, before anything.
 
 use crate::errors::{BadInput, Refused};
-use crate::menu::owner::Menus;
+use crate::menu::owner::Cars;
 use crate::menu::standings::*;
 
 pub fn standings_from_drivers(
     so: crate::strings::append_string_by_id::StringOwners<'_>,
-    menus: &Menus,
+    cars: &Cars,
 ) -> Result<(), Refused> {
-    let drivers = walked_drivers(menus)?;
+    let drivers = walked_drivers(cars)?;
     if drivers.len() > 200 {
         return Err(BadInput("more drivers than the standings table holds").into());
     }
     let mut texts = Vec::new();
     for d in &drivers {
-        let id: u32 = crate::menu::drivers_store::name_string(menus, d.number)?;
+        let id: u32 = crate::menu::drivers_store::name_string(cars, d.number)?;
         let mut text = Vec::new();
         crate::strings::append_string_by_id::push_string(so, &mut text, id)?;
         text.push(0);

@@ -21,7 +21,7 @@ fn set_up_first(entry: &Entry) -> Result<(), Refused> {
     let screens = &entry.menus.screens;
     screens.flow.turning.set(0x1u32);
     screens.carousel.menu.set(0xCu32);
-    carousel(entry, None)?;
+    carousel(entry.menus, None)?;
     screens
         .loop_flags
         .item
@@ -30,7 +30,7 @@ fn set_up_first(entry: &Entry) -> Result<(), Refused> {
     screens.carousel.front.set(0x0u32);
     screens.event.shown.car.set(0x0u32);
     entry.set_view(7, -50, 0x100);
-    prepare_scene(entry);
+    prepare_scene(&entry.owners);
     Ok(())
 }
 

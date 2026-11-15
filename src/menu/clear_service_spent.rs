@@ -3,12 +3,12 @@
 //! Refuses a missing player, before anything.
 
 use crate::errors::Refused;
-use crate::menu::owner::Menus;
+use crate::menu::owner::Play;
 use crate::menu::standings::*;
 
-pub fn clear_service_spent(menus: &Menus) -> Result<(), Refused> {
+pub fn clear_service_spent(play: &Play) -> Result<(), Refused> {
     for n in 0..4 {
-        player(menus, n).update(|q| q.service_spent = 0);
+        player_in(play, n).update(|q| q.service_spent = 0);
     }
     Ok(())
 }

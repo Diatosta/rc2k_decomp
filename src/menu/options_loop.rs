@@ -16,10 +16,10 @@ fn set_up_first(entry: &Entry) -> Result<(), Refused> {
     let menus = entry.menus;
     crate::strings::units::set_units(menus.play.slots.records[0].get().metric_units);
     entry.set_view(-156, 39, 0x140);
-    prepare_scene(entry);
+    prepare_scene(&entry.owners);
     menus.screens.flow.turning.set(0x1u32);
     menus.screens.carousel.menu.set(0x7u32);
-    carousel(entry, None)?;
+    carousel(entry.menus, None)?;
     let item = menus.screens.items.current[slot::OPTIONS].get();
     menus.screens.loop_flags.item.set(item);
     menus.screens.carousel.front.set(item.wrapping_sub(1));

@@ -10,6 +10,25 @@ use crate::menu::texts_store::{MenuText, SpeechRow};
 use crate::session::{GameThread, PlainBytes, PlainDword};
 pub use rc2k_core::menu::car_lists::CarList;
 
+/// What the lists of cars are read through: the repair flags and the carousel's textures sit after
+/// them, so a list read past its end goes on into those.
+#[derive(Clone, Copy)]
+pub struct CarListParts<'a> {
+    pub service: &'a crate::service::owner::Service,
+    pub cars: &'a crate::menu::owner::Cars,
+    pub carousel: &'a crate::menu::carousel_store::Carousel,
+}
+
+impl<'a> CarListParts<'a> {
+    pub fn of(menus: &'a crate::menu::owner::Menus) -> Self {
+        CarListParts {
+            service: &menus.service,
+            cars: &menus.cars,
+            carousel: &menus.screens.carousel,
+        }
+    }
+}
+
 /// The menus' lists and tables: constants, except the inspection's fault flags, which the menus
 /// write. The car lists, the repair flags and the carousel's textures are held by their writers
 /// (`CarLists`, `Service`, `Carousel`).
@@ -180,7 +199,11 @@ impl MenuLists {
         menus: &crate::menu::owner::Menus,
         slot: usize,
     ) -> Result<u32, crate::errors::BadInput> {
-        crate::session::read_runs(&self.runs_from_map_overlays(menus), slot, "a map overlay")
+        crate::session::read_runs(
+            &self.runs_from_map_overlays(CarListParts::of(menus)),
+            slot,
+            "a map overlay",
+        )
     }
 
     /// The rally speech of section `section` (0 ..= 0x20, held by `small_section`), past the six
@@ -254,11 +277,11 @@ impl MenuLists {
     /// gaps.
     fn runs_from_map_overlays<'a>(
         &'a self,
-        menus: &'a crate::menu::owner::Menus,
+        parts: CarListParts<'a>,
     ) -> [&'a dyn crate::session::Run; 41] {
-        let service = &menus.service;
-        let cars = &menus.cars.lists;
-        let carousel = &menus.screens.carousel;
+        let service = parts.service;
+        let cars = &parts.cars.lists;
+        let carousel = parts.carousel;
         [
             &self.map_overlays,
             &self._gap_75993e,
@@ -311,11 +334,11 @@ impl MenuLists {
     /// next.
     pub fn car_entry(
         &self,
-        menus: &crate::menu::owner::Menus,
+        parts: CarListParts,
         list: CarList,
         n: u32,
     ) -> Result<u32, crate::errors::BadInput> {
-        let all = self.runs_from_map_overlays(menus);
+        let all = self.runs_from_map_overlays(parts);
         crate::session::read_runs(
             &all[Self::car_list_start(list)..],
             n as usize,
@@ -326,12 +349,12 @@ impl MenuLists {
     /// Entry `n` of a list of cars, written.
     pub fn set_car_entry(
         &self,
-        menus: &crate::menu::owner::Menus,
+        parts: CarListParts,
         list: CarList,
         n: u32,
         value: u32,
     ) -> Result<(), crate::errors::BadInput> {
-        let all = self.runs_from_map_overlays(menus);
+        let all = self.runs_from_map_overlays(parts);
         crate::session::write_runs(
             &all[Self::car_list_start(list)..],
             n as usize,
@@ -1311,7 +1334,8 @@ mod run_on_tests {
         }
         assert!(l.page_picture(4, 0).is_err());
         // Up to the first run that lives outside this record (the service's repair flags).
-        let room: usize = l.runs_from_map_overlays(crate::test_support::own::menus())
+        let room: usize = l
+            .runs_from_map_overlays(CarListParts::of(crate::test_support::own::menus()))
             [..FIRST_MOVED_RUN]
             .iter()
             .map(|run| run.count())
@@ -1334,7 +1358,7 @@ mod run_on_tests {
     fn car_lists_start_at_their_runs() {
         let l = MenuLists::new();
         let cars = &crate::test_support::own::menus().cars.lists;
-        let all = l.runs_from_map_overlays(crate::test_support::own::menus());
+        let all = l.runs_from_map_overlays(CarListParts::of(crate::test_support::own::menus()));
         let total: usize = all.iter().map(|r| r.count()).sum();
         for (list, table) in [
             (CarList::First, &cars.cars_first[..]),
@@ -1351,13 +1375,21 @@ mod run_on_tests {
             let left: usize = all[start..].iter().map(|r| r.count()).sum();
             assert!(left <= total && left > table.len());
             assert!(
-                l.car_entry(crate::test_support::own::menus(), list, (left - 1) as u32)
-                    .is_ok(),
+                l.car_entry(
+                    CarListParts::of(crate::test_support::own::menus()),
+                    list,
+                    (left - 1) as u32
+                )
+                .is_ok(),
                 "{list:?}"
             );
             assert!(
-                l.car_entry(crate::test_support::own::menus(), list, left as u32)
-                    .is_err(),
+                l.car_entry(
+                    CarListParts::of(crate::test_support::own::menus()),
+                    list,
+                    left as u32
+                )
+                .is_err(),
                 "{list:?}"
             );
         }

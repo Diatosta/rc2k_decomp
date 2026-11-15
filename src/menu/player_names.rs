@@ -49,8 +49,8 @@ impl NameAt {
     }
 
     /// The bytes from here to the end of the area (none past it).
-    pub fn tail(self, menus: &Menus) -> Vec<u8> {
-        let names = &menus.play.slots.names;
+    pub fn tail(self, play: &Play) -> Vec<u8> {
+        let names = &play.slots.names;
         (self.0..crate::place::Run::len(names))
             .map(|n| crate::place::Run::get(names, n))
             .collect()

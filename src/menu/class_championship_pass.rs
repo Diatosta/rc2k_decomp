@@ -38,7 +38,7 @@ pub fn class_championship_pass(menus: &Menus, entry: &Entry) -> Result<(), Refus
             continue;
         }
         menus.screens.loop_flags.left_with_carry.set(true);
-        let numbered = number_standings(menus, Which::B, class)?;
+        let numbered = number_standings(&menus.play, Which::B, class)?;
         menus
             .screens
             .event

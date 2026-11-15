@@ -32,7 +32,7 @@ pub fn keep_stage_best(
         return Ok(());
     }
     name_player(&p.get())?;
-    let (row, name) = crate::menu::standings::as_holder(menus, &p.get())?;
+    let (row, name) = crate::menu::standings::as_holder(&menus.play, &p.get())?;
     record
         .record(&system.records().stage_tables)?
         .set_holder(Holder::TimeTrial, &row, &name);

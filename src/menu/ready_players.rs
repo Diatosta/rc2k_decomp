@@ -9,7 +9,7 @@ use crate::menu::owner::Menus;
 use crate::menu::standings::counted_players;
 
 pub fn ready_players(menus: &Menus) -> Result<(), Refused> {
-    for p in counted_players(menus)? {
+    for p in counted_players(&menus.screens, &menus.play)? {
         p.update(rc2k_core::menu::player::Player::ready);
     }
     Ok(())

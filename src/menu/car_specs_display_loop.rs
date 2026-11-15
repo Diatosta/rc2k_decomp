@@ -15,7 +15,7 @@ fn set_up_first(entry: &Entry) -> Result<(), Refused> {
     let screens = &menus.screens;
     screens.flow.turning.set(0x1u32);
     screens.carousel.menu.set(0xEu32);
-    carousel(entry, entry.cars)?;
+    carousel(entry.menus, entry.cars)?;
     let item = screens.items.current[slot::CAR_SPECS_DISPLAY].get();
     screens.loop_flags.item.set(item);
     screens.carousel.front.set(item.wrapping_sub(1));
@@ -24,7 +24,7 @@ fn set_up_first(entry: &Entry) -> Result<(), Refused> {
     screens.event.shown.car.set(0x0u32);
     crate::menu::car_choice::find_player_car(menus)?;
     entry.set_view(7, -50, 0x100);
-    prepare_scene(entry);
+    prepare_scene(&entry.owners);
     Ok(())
 }
 

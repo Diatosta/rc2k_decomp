@@ -11,8 +11,8 @@
 //! refuse.
 
 use crate::errors::Refused;
-use crate::menu::owner::Menus;
-use crate::menu::owner::Screens;
+use crate::menu::owner::{Play, Screens};
+use crate::menu::pages_store::MenuPages;
 use crate::menu::screen_loop::Entry;
 use crate::menu::standings::*;
 use crate::menu::standings_steps::number_standings;
@@ -23,35 +23,35 @@ fn first_class(screens: &Screens) -> u32 {
     class_pages::first_stage_class(screens.state.menus.class_mode.get())
 }
 
-pub fn class_stage_results_pass(menus: &Menus, entry: &Entry) -> Result<(), Refused> {
-    let screens = &menus.screens;
-    crate::menu::sort_standings_by_time::sort_standings_by_time(menus)?;
+pub fn class_stage_results_pass(
+    screens: &Screens,
+    play: &Play,
+    pages: &MenuPages,
+    entry: &Entry,
+) -> Result<(), Refused> {
+    crate::menu::sort_standings_by_time::sort_standings_by_time(screens, play)?;
     let first = first_class(screens);
-    let classes = class_pages::classes(first, menus.screens.event.shown.classes.get())?;
+    let classes = class_pages::classes(first, screens.event.shown.classes.get())?;
     let all: Vec<(u32, u32)> = walked_entries_a()?
         .iter()
         .map(|e| (e.head.group, e.head.player))
         .collect();
     for class in classes {
-        menus.screens.loop_flags.left_with_carry.set(false);
+        screens.loop_flags.left_with_carry.set(false);
         let has_player = class_pages::has_player(all.len(), |n| all[n].0, |n| all[n].1, class);
         if !has_player {
             continue;
         }
-        menus.screens.loop_flags.left_with_carry.set(true);
-        let numbered = number_standings(menus, Which::A, class)?;
-        menus
-            .screens
-            .event
-            .standings_count
-            .set(numbered.last_number);
+        screens.loop_flags.left_with_carry.set(true);
+        let numbered = number_standings(play, Which::A, class)?;
+        screens.event.standings_count.set(numbered.last_number);
         crate::menu::show_class_stage_results::show_class_stage_results(
-            &menus.play.champ_view,
-            &menus.screens.event,
+            &play.champ_view,
+            &screens.event,
             class,
             entry,
         )?;
-        if menus.tables.pages.yes_no_answer.get() == 1 {
+        if pages.yes_no_answer.get() == 1 {
             break;
         }
     }

@@ -37,7 +37,7 @@ fn current_record(menus: &Menus, system: &System) -> Result<RecordRef, BadInput>
 }
 
 pub fn keep_record_best(menus: &Menus, system: &System) -> Result<(), Refused> {
-    let players = counted_players(menus)?;
+    let players = counted_players(&menus.screens, &menus.play)?;
     if any_unnamed(&players)? {
         return Err(BadInput("a player without a name").into());
     }
@@ -50,7 +50,7 @@ pub fn keep_record_best(menus: &Menus, system: &System) -> Result<(), Refused> {
         if !bests::takes_record(p.figure, record.holder(Holder::Fastest).speed) {
             break;
         }
-        let (row, name) = as_holder(menus, &p)?;
+        let (row, name) = as_holder(&menus.play, &p)?;
         record.set_holder(Holder::Fastest, &row, &name);
     }
     Ok(())

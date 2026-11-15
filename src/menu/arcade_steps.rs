@@ -95,7 +95,7 @@ pub fn keep_arcade_stage_best(
     let figure = player.get().figure;
     if bests::takes_record(figure, record.record(stages)?.holder(Holder::Fastest).speed) {
         name_player(&player.get())?;
-        let (row, name) = crate::menu::standings::as_holder(menus, &player.get())?;
+        let (row, name) = crate::menu::standings::as_holder(&menus.play, &player.get())?;
         record
             .record(stages)?
             .set_holder(Holder::Fastest, &row, &name);
@@ -142,7 +142,7 @@ fn new_best(
         name_at,
         car: player.get().car_number,
         group: player.get().class,
-        name: name_of(menus, &player.get())?,
+        name: name_of(&menus.play, &player.get())?,
         entered: None,
         seal,
         line,

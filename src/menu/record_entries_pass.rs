@@ -47,7 +47,7 @@ pub fn record_entries_pass(
     race: &crate::race::owner::Race,
 ) -> Result<(), Refused> {
     let screens = &menus.screens;
-    let players = counted_players(menus)?;
+    let players = counted_players(&menus.screens, &menus.play)?;
     current_event(screens, system)?;
     if any_unnamed(&players)? {
         return Err(BadInput("a player without a name").into());

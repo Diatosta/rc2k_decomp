@@ -11,7 +11,8 @@
 //! refuse.
 
 use crate::errors::Refused;
-use crate::menu::owner::Menus;
+use crate::menu::owner::{Play, Screens};
+use crate::menu::pages_store::MenuPages;
 use crate::menu::screen_loop::Entry;
 use crate::menu::standings::*;
 use crate::menu::standings_steps::number_standings;
@@ -22,34 +23,35 @@ fn first_class() -> u32 {
     class_pages::FIRST_RALLY_CLASS
 }
 
-pub fn class_rally_results_pass(menus: &Menus, entry: &Entry) -> Result<(), Refused> {
-    crate::menu::sort_standings_by_total::sort_standings_by_total(menus)?;
+pub fn class_rally_results_pass(
+    screens: &Screens,
+    play: &Play,
+    pages: &MenuPages,
+    entry: &Entry,
+) -> Result<(), Refused> {
+    crate::menu::sort_standings_by_total::sort_standings_by_total(screens, play)?;
     let first = first_class();
-    let classes = class_pages::classes(first, menus.screens.event.shown.classes.get())?;
+    let classes = class_pages::classes(first, screens.event.shown.classes.get())?;
     let all: Vec<(u32, u32)> = walked_entries_a()?
         .iter()
         .map(|e| (e.head.group, e.head.player))
         .collect();
     for class in classes {
-        menus.screens.loop_flags.left_with_carry.set(false);
+        screens.loop_flags.left_with_carry.set(false);
         let has_player = class_pages::has_player(all.len(), |n| all[n].0, |n| all[n].1, class);
         if !has_player {
             continue;
         }
-        menus.screens.loop_flags.left_with_carry.set(true);
-        let numbered = number_standings(menus, Which::A, class)?;
-        menus
-            .screens
-            .event
-            .standings_count
-            .set(numbered.last_number);
+        screens.loop_flags.left_with_carry.set(true);
+        let numbered = number_standings(play, Which::A, class)?;
+        screens.event.standings_count.set(numbered.last_number);
         crate::menu::show_class_rally_results::show_class_rally_results(
-            &menus.play.champ_view,
-            &menus.screens.event,
+            &play.champ_view,
+            &screens.event,
             class,
             entry,
         )?;
-        if menus.tables.pages.yes_no_answer.get() == 1 {
+        if pages.yes_no_answer.get() == 1 {
             break;
         }
     }

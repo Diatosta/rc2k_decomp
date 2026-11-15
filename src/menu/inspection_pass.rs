@@ -19,7 +19,7 @@ use crate::menu::standings::*;
 pub fn inspection_pass(menus: &Menus, entry: &Entry) -> Result<(), Refused> {
     let screens = &menus.screens;
     use rc2k_core::menu::passes;
-    let players = counted_players(menus)?;
+    let players = counted_players(&menus.screens, &menus.play)?;
     for &p in &players {
         if passes::takes_part(p.get().entry) {
             crate::menu::driver_stats::car_table(menus, p)?;

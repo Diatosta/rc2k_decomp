@@ -234,7 +234,7 @@ impl GameText for HeldText {
                 })
             }
             HeldText::Name(at) => {
-                let out = draw_text_at(font, &at.tail(o.menus), x, y, canvas)?;
+                let out = draw_text_at(font, &at.tail(&o.menus.play), x, y, canvas)?;
                 Ok(Drawn {
                     y: out.y,
                     too_wide: out.too_wide,
@@ -274,8 +274,12 @@ impl GameText for HeldText {
                 Ok(m.width)
             }
             HeldText::Name(at) => {
-                let m =
-                    crate::text::measure_text::measure_text_at(font, &at.tail(o.menus), x, canvas)?;
+                let m = crate::text::measure_text::measure_text_at(
+                    font,
+                    &at.tail(&o.menus.play),
+                    x,
+                    canvas,
+                )?;
                 Ok(m.width)
             }
             HeldText::Held(h) => {

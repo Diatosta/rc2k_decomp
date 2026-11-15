@@ -30,7 +30,7 @@ fn set_up_first(entry: &Entry) -> Result<(), Refused> {
     entry.front_end.window.view_offset[0].set(7u32);
     entry.front_end.window.view_offset[1].set(0xAu32);
     entry.front_end.window.view_zoom.set(0x100u32);
-    prepare_scene(entry); // scene::prepare_menu_scene
+    prepare_scene(&entry.owners); // scene::prepare_menu_scene
     menus.screens.loop_flags.ask_leave.set(false);
     Callee::TakeKey.run(entry)?; // input::take_key
     menus.screens.draw_work.escape_pressed.set(false);
@@ -40,7 +40,7 @@ fn set_up_first(entry: &Entry) -> Result<(), Refused> {
         .set_sound(rc2k_core::menu::keys::MenuSound::None);
     menus.screens.flow.turning.set(1u32);
     menus.screens.carousel.menu.set(0u32);
-    carousel(entry, None)?;
+    carousel(entry.menus, None)?;
     let item = menus.screens.items.current[slot::MAIN_MENU].get();
     menus.screens.loop_flags.item.set(item);
     menus.screens.carousel.front.set(item.wrapping_sub(1));

@@ -234,7 +234,7 @@ impl flow::Game for Game<'_> {
             C::ClearStandingsB => m::standings_steps::clear_standings(Which::B)?,
             C::SortBByScore => m::sort_standings_b_by_score::sort_standings_b_by_score(menus)?,
             C::NumberAllB => {
-                m::standings_steps::number_all(menus, Which::B)?;
+                m::standings_steps::number_all(&menus.screens, &menus.play, Which::B)?;
             }
             C::ShowChampionshipStandings => {
                 m::show_championship_standings::show_championship_standings(
@@ -253,14 +253,21 @@ impl flow::Game for Game<'_> {
             )?,
             C::StandingsAFromAll => m::standings_a_from_all::standings_a_from_all(
                 crate::strings::append_string_by_id::StringOwners::of(entry.owners),
-                menus,
+                &menus.cars,
+                &menus.screens,
+                &menus.play,
             )?,
             C::ClassRallyResultsPass => {
-                m::class_rally_results_pass::class_rally_results_pass(menus, entry)?;
+                m::class_rally_results_pass::class_rally_results_pass(
+                    &menus.screens,
+                    &menus.play,
+                    &menus.tables.pages,
+                    entry,
+                )?;
             }
             C::ClearStandingsA => m::standings_steps::clear_standings(Which::A)?,
             C::NumberAllA => {
-                m::standings_steps::number_all(menus, Which::A)?;
+                m::standings_steps::number_all(&menus.screens, &menus.play, Which::A)?;
             }
             C::ShowOverallRallyResults => {
                 m::show_overall_rally_results::show_overall_rally_results(
@@ -271,7 +278,12 @@ impl flow::Game for Game<'_> {
             C::RunEventRaces => m::run_event_races::run_event_races(self.owners)?,
             C::AddPlayerTimes => m::add_player_times::add_player_times(menus)?,
             C::ClassStageResultsPass => {
-                m::class_stage_results_pass::class_stage_results_pass(menus, entry)?;
+                m::class_stage_results_pass::class_stage_results_pass(
+                    &menus.screens,
+                    &menus.play,
+                    &menus.tables.pages,
+                    entry,
+                )?;
             }
             C::ShowOverallStageResults => {
                 m::show_overall_stage_results::show_overall_stage_results(
@@ -302,7 +314,9 @@ impl flow::Game for Game<'_> {
             C::HideInGameOptions { players } => {
                 m::in_game_options_items::hide_in_game_options(menus, players)?;
             }
-            C::ResetPlayerTimes => m::reset_player_times::reset_player_times(menus)?,
+            C::ResetPlayerTimes => {
+                m::reset_player_times::reset_player_times(&menus.screens, &menus.play)?;
+            }
             C::ReloadFrontEnd => m::reload_front_end::reload_front_end(self.owners)?,
             C::RepairCar => crate::service::repair_parts::repair_car_in(menus)?,
             C::CheatCarList => {

@@ -14,14 +14,16 @@ pub fn best_overall_scores(
     entry: &Entry,
 ) -> Result<(), Refused> {
     let screens = &menus.screens;
-    let players = counted_players(menus)?;
+    let players = counted_players(&menus.screens, &menus.play)?;
     screens.event.trial.any_qualified.set(false);
     for (n, &p) in players.iter().enumerate() {
         screens.event.current_player.set(n as u32);
         let player_score = p.get().overall_points[6];
         let tenth = tenth_best_score(4)?;
         if rc2k_core::menu::bests::makes_score(player_score, tenth) {
-            enter_best(menus, Some(4), |p| p.overall_points[6])?;
+            enter_best(&menus.screens, &menus.play, Some(4), |p| {
+                p.overall_points[6]
+            })?;
             screens.event.trial.any_qualified.set(true);
         }
     }

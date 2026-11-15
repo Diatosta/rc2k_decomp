@@ -16,13 +16,13 @@ fn set_up_first(entry: &Entry) -> Result<(), Refused> {
     screens.loop_flags.ask_leave.set(false);
     screens.flow.turning.set(0x1u32);
     screens.carousel.menu.set(0xAu32);
-    carousel(entry, None)?;
+    carousel(entry.menus, None)?;
     let item = screens.items.current[slot::CHAMPIONSHIP_STANDINGS_REVIEW].get();
     screens.loop_flags.item.set(item);
     screens.carousel.front.set(item.wrapping_sub(1));
     screens.flow.turning.set(0x0u32);
     entry.set_view(-156, 39, 0x140);
-    prepare_scene(entry);
+    prepare_scene(&entry.owners);
     Ok(())
 }
 

@@ -15,7 +15,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::menu::drivers_store::{Driver, IN_EVENT};
 use crate::menu::event_flow::Fault;
-use crate::menu::owner::Menus;
+use crate::menu::owner::{Cars, Play, Screens};
 use crate::menu::standings::*;
 use crate::owners::Owners;
 use crate::race::owner::Race;
@@ -25,7 +25,9 @@ use rc2k_core::menu::event_races::{self as races, PICKED, Step, Var};
 /// The game for `rc2k_core::menu::event_races`: the variables at their addresses, the
 /// steps, the race and the front end.
 struct Game<'a> {
-    menus: &'a Menus,
+    cars: &'a Cars,
+    screens: &'a Screens,
+    play: &'a Play,
     owners: Owners<'static>,
     /// The walked drivers.
     drivers: &'a [Driver],
@@ -51,16 +53,16 @@ impl<'a> Game<'a> {
 }
 
 /// The variables that are in the physics block.
-fn cell<'a>(menus: &'a Menus, race: &'a Race, v: Var) -> &'a dyn DwordLike {
+fn cell<'a>(screens: &'a Screens, play: &'a Play, race: &'a Race, v: Var) -> &'a dyn DwordLike {
     match v {
         Var::CheatSwitch => &race.shared.state.settings.direction,
         Var::RaceKept => &race.shared.state.settings.kept,
         Var::Result => &race.shared.state.results.results[0].result,
         Var::Result2 => &race.shared.state.results.results[1].result,
-        Var::GoesOn => &menus.screens.event.event_goes_on,
-        Var::Cheats => &menus.play.cheats.cheats,
-        Var::Kept => &menus.screens.flow.kept,
-        Var::Current => &menus.screens.event.current_player,
+        Var::GoesOn => &screens.event.event_goes_on,
+        Var::Cheats => &play.cheats.cheats,
+        Var::Kept => &screens.flow.kept,
+        Var::Current => &screens.event.current_player,
     }
 }
 
@@ -68,35 +70,35 @@ impl races::EventRaces for Game<'_> {
     type Error = Refused;
 
     fn get(&mut self, v: Var) -> u32 {
-        cell(self.menus, self.owners.race, v).get()
+        cell(self.screens, self.play, self.owners.race, v).get()
     }
 
     fn set(&mut self, v: Var, value: u32) {
-        cell(self.menus, self.owners.race, v).set(value);
+        cell(self.screens, self.play, self.owners.race, v).set(value);
     }
 
     fn step(&mut self, s: Step) -> Result<(), Refused> {
         let race = self.owners.race;
-        let menus = self.menus;
-        let screens = &menus.screens;
+        let (screens, play) = (self.screens, self.play);
         self.fault.check()?;
         match s {
             Step::CpuTimes => crate::menu::calc_cpu_times::calc_cpu_times(
-                self.menus,
+                self.cars,
+                screens,
                 self.owners.system,
                 self.owners.race,
             )?,
             Step::ResetPlayerTimes => {
-                crate::menu::reset_player_times::reset_player_times(menus)?;
+                crate::menu::reset_player_times::reset_player_times(screens, play)?;
             }
             Step::StandingsFromDrivers => {
                 crate::menu::standings_from_drivers::standings_from_drivers(
                     crate::strings::append_string_by_id::StringOwners::of(self.owners),
-                    menus,
+                    self.cars,
                 )?;
             }
             Step::SortByTime => {
-                crate::menu::sort_standings_by_time::sort_standings_by_time(menus)?;
+                crate::menu::sort_standings_by_time::sort_standings_by_time(screens, play)?;
             }
             Step::CopySummary => {
                 crate::menu::copy_standings_summary::copy_standings_summary(screens)?;
@@ -108,7 +110,7 @@ impl races::EventRaces for Game<'_> {
                     .state
                     .settings
                     .rivals
-                    .set(menus.play.champ_view.summary.get());
+                    .set(play.champ_view.summary.get());
                 race.shared.state.settings.stage.set(
                     self.pack
                         .stage(&self.owners.system.records().stage_tables)?,
@@ -119,7 +121,7 @@ impl races::EventRaces for Game<'_> {
             }
             Step::ReloadFrontEnd => crate::menu::reload_front_end::reload_front_end(self.owners)?,
             Step::ClearServiceSpent => {
-                crate::menu::clear_service_spent::clear_service_spent(menus)?;
+                crate::menu::clear_service_spent::clear_service_spent(play)?;
             }
         }
 
@@ -152,11 +154,11 @@ impl races::EventRaces for Game<'_> {
     }
 
     fn takes_part(&mut self, i: u32) -> bool {
-        player(self.menus, i).get().entry == races::TAKES_PART
+        player_in(self.play, i).get().entry == races::TAKES_PART
     }
 
     fn fourth_out(&mut self) {
-        player(self.menus, 3).update(|q| {
+        player_in(self.play, 3).update(|q| {
             q.time = races::FOURTH_TIME;
             q.entry = races::FOURTH_ENTRY;
         });
@@ -164,9 +166,8 @@ impl races::EventRaces for Game<'_> {
 }
 
 pub fn run_event_races(o: Owners<'static>) -> Result<(), Refused> {
-    let menus = o.menus;
-    let screens = &menus.screens;
-    let drivers = drivers(menus)?;
+    let (cars, screens, play) = (&o.menus.cars, &o.menus.screens, &o.menus.play);
+    let drivers = drivers_of(cars)?;
     let few_running = drivers.len() < PICKED as usize
         || drivers[..PICKED as usize]
             .iter()
@@ -176,18 +177,20 @@ pub fn run_event_races(o: Owners<'static>) -> Result<(), Refused> {
     if few_running {
         return Err(BadInput("fewer than 0xB2 drivers, or fewer than four still running").into());
     }
-    let mode: u32 = menus.screens.event.event_kind.get();
+    let mode: u32 = screens.event.event_kind.get();
     if let Some((n, _)) = races::players_of(mode)
         && n > 4
     {
         return Err(BadInput("a player of the event's mode missing").into());
     }
-    let reset_only = { menus.play.champ_view.reset_times.get() } == 1;
+    let reset_only = { play.champ_view.reset_times.get() } == 1;
     let rec = crate::menu::calc_cpu_times::record(screens, o.system)?;
-    crate::menu::calc_cpu_times::check(menus, o.system, o.race, rec)?;
+    crate::menu::calc_cpu_times::check(cars, screens, o.system, o.race, rec)?;
     let pack = crate::records::trakpak_entry::track_of(&o.system.records().stage_tables, rec)?;
     let mut game = Game {
-        menus,
+        cars,
+        screens,
+        play,
         owners: o,
         drivers,
         pack,
