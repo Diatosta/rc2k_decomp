@@ -6,9 +6,11 @@
 use crate::owners::Owners;
 
 /// Builds an owner on a thread with room for it (`Race` is 1.5 MB, a test thread has 2 MB) and
-/// keeps it for the rest of the run.
+/// keeps it for the rest of the run. Besides the value's copies on the way into its box, the room
+/// holds the builders' own work, which in an optimised build is more than 1 MB for some of them
+/// (a test that alone builds the owners overflowed with less); the stack is only reserved.
 fn build<T: 'static>(make: fn() -> T) -> &'static T {
-    crate::owners::on_big_stack(size_of::<T>() * 3 + (1 << 20), move || {
+    crate::owners::on_big_stack(size_of::<T>() * 3 + (8 << 20), move || {
         Box::leak(Box::new(make()))
     })
 }
