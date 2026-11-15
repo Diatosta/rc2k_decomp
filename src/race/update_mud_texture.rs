@@ -62,7 +62,7 @@ pub fn update_mud_texture(
 ) -> Result<(), Refused> {
     let textures = &scene.textures;
     let frame = &race.frame;
-    let n = texture_and_mud(&race.shared)?;
+    let n = texture_and_mud(&race.shared, &race.course.stage.mud)?;
     let k = n as usize;
     crate::scene::forget_slot_texture::forget_slot_texture(
         textures.kinds.get().kind_first_slots[256]
@@ -140,7 +140,7 @@ pub fn update_mud_texture(
                 if race.shared.vars.get().mud_splash_counts[k].get() >= LAST_SPLASHED {
                     break;
                 }
-                splash_mud(&race.shared, scene, gfx, system)?;
+                splash_mud(&race.shared, &race.course.stage.mud, scene, gfx, system)?;
                 done = done.wrapping_add(1);
                 if done == race.shared.vars.get().mud_splashes.get() {
                     break;

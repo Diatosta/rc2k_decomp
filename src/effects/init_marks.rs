@@ -38,6 +38,7 @@ pub fn init_marks(
         }
         effects.setup.marks.set(Some(marks));
         effects.setup.car_blocks.set(Some(race.car_blocks()));
+        effects.setup.stage.set(Some(&race.course.stage));
         effects.setup.settings.is_set.set(1);
         effects.setup.work.seed.set(seed);
         effects.setup.clock.started.set(0);

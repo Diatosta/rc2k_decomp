@@ -21,7 +21,7 @@ pub fn reset_objects(
             return Err(BadInput("room for the objects' points without memory"));
         }
         if room >> 2 != 0 {
-            crate::scene::object_points::clear((room >> 2) as usize * 4)?;
+            course.stage.object_points.clear((room >> 2) as usize * 4)?;
         }
         for table in [
             &scene.objects.slots.get().first_point,

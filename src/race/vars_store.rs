@@ -117,7 +117,7 @@ pub struct RaceVars {
     pub mud_row: PlainDword,
     /// +0x758: unused; it only keeps the layout.
     pub unused_758: [PlainDword; 4],
-    /// +0x768: the mud file's memory; unused since the mud is Rust's (`race::mud::MUD`).
+    /// +0x768: the mud file's memory; unused since the mud is Rust's (`StageData::mud`).
     pub mud: PlainDword,
     /// +0x76c: the texture locked (`race::update_mud_texture`).
     pub mud_locked: PlainDword,

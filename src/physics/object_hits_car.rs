@@ -56,7 +56,10 @@ pub fn object_hits_car(
                 return false;
             }
             let at = |k: u32| {
-                crate::scene::object_points::word(edx + 4 * k)
+                c.course
+                    .stage
+                    .object_points
+                    .word(edx + 4 * k)
                     .map(|v| int_80(v as i32, false))
                     .map_err(Refused::from)
             };

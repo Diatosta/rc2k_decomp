@@ -38,7 +38,10 @@ pub fn mark_car_voices(sound: &crate::sound::owner::Sound, race: &Race) -> Resul
         return Ok(());
     }
     for (n, (o, car)) in pairs(sound, race)?.into_iter().enumerate() {
-        let kind = crate::race::frame_view::car(race.shared.work.get().block_number(car)?)?
+        let kind = race
+            .frame
+            .cars
+            .car(race.shared.work.get().block_number(car)?)?
             .driver_kind
             .get();
         let (sounds, voice) = rc2k_core::sound::cars::voice_mark(n as u32, kind);

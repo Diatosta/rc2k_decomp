@@ -508,7 +508,7 @@ pub fn draw_own_car(
     if !seen_inside(ctx.view.cars.state_of(car)?.get()) {
         return Ok(());
     }
-    let block = crate::race::frame_view::car(car)?;
+    let block = ctx.reads.frame_cars.car(car)?;
     ctx.view.light.car_light.set(block.light_colour.get());
     let clears = clears_depth(
         block.surface_noise_a.get(),

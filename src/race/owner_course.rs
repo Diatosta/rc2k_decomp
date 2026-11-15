@@ -12,6 +12,7 @@ use crate::race::level_paths_store::LevelPaths;
 use crate::race::lights_store::LightsData;
 use crate::race::numbers_store::Numbers;
 use crate::race::prefs_store::StagePrefs;
+use crate::race::stage_data::StageData;
 use crate::session::{DrawShared, GameThread};
 
 /// The race's course state.
@@ -31,6 +32,8 @@ pub struct Course {
     /// One copy, lent to the drawing parts (`workers::DrawReads`): the ground search under a
     /// car's shadow reads it; no part writes it.
     kind_records: DrawShared<KindRecords>,
+    /// The loaded stage's tables (course, map, mud, objects, best line).
+    pub stage: StageData,
     main: GameThread<CourseMain>,
 }
 
@@ -45,6 +48,7 @@ pub struct CourseReads<'a> {
     pub stage_prefs: &'a StagePrefs,
     pub numbers: &'a Numbers,
     pub kind_records: &'a KindRecords,
+    pub stage: &'a StageData,
 }
 
 /// What only the game's thread reaches (no drawing part and no other thread touches it).
@@ -64,6 +68,7 @@ impl Course {
             stage_prefs: DrawShared::new(StagePrefs::new()),
             numbers: DrawShared::new(Numbers::new()),
             kind_records: DrawShared::new(KindRecords::new()),
+            stage: StageData::new(),
             main: GameThread::new(CourseMain {
                 level_paths: LevelPaths::new(),
                 lights_data: LightsData::new(),
@@ -81,6 +86,7 @@ impl Course {
             stage_prefs: self.stage_prefs.get(),
             numbers: self.numbers.get(),
             kind_records: self.kind_records.get(),
+            stage: &self.stage,
         }
     }
 

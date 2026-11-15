@@ -27,9 +27,14 @@ use crate::scene::project_point::{NEAR, rotate, to_screen};
 const OBJECTS: u32 = 0x100;
 
 /// The point at `from` moved towards the one `by` bytes on, as whole numbers.
-fn moved(from: usize, by: u32, fraction: f32) -> Result<[u32; 3], BadInput> {
+fn moved(
+    object_points: &crate::scene::object_points::ObjectPoints,
+    from: usize,
+    by: u32,
+    fraction: f32,
+) -> Result<[u32; 3], BadInput> {
     let other = from.wrapping_add(by as usize);
-    let read = |at: usize| crate::scene::object_points::point(at as u32);
+    let read = |at: usize| object_points.point(at as u32);
     let (a, b) = (read(from)?, read(other)?);
     let whole = |p: [u32; 3]| p.map(|v| v as i32);
     let ([x, y, z], _) = moved_at(fraction, whole(a), whole(b));
@@ -126,9 +131,14 @@ pub fn place_object_points(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Resu
         let mut r = point_records::get(ctx.part, record)?;
         r[0] = number;
         let point = if move_by != 0 {
-            moved(from as usize, move_by, fraction)?
+            moved(
+                &ctx.reads.stage.object_points,
+                from as usize,
+                move_by,
+                fraction,
+            )?
         } else {
-            crate::scene::object_points::point(from)?
+            ctx.reads.stage.object_points.point(from)?
         };
         rotate(&point, &matrix, &mut r);
         r[3] = 0;
@@ -151,7 +161,7 @@ pub fn place_object_points(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Resu
         let record = point_records::of_object_point(number);
         let mut r = point_records::get(ctx.part, record)?;
         r[0] = number;
-        let normal = crate::scene::object_points::point(from)?;
+        let normal = ctx.reads.stage.object_points.point(from)?;
         turn(&normal, &matrix, &mut r);
         point_records::set(ctx.part, record, r)?;
         from = from.wrapping_add(12);
@@ -188,7 +198,7 @@ pub fn place_object_points_sse(
         let record = point_records::of_object_point(number);
         let mut r = point_records::get(ctx.part, record)?;
         r[0] = number;
-        let point = crate::scene::object_points::point(from)?;
+        let point = ctx.reads.stage.object_points.point(from)?;
         // The whole numbers rounded to floats.
         let lanes = sse_lanes(point.map(|v| v as i32 as f32), &m, true);
         r[4..8].copy_from_slice(&lanes);
@@ -213,7 +223,7 @@ pub fn place_object_points_sse(
         let record = point_records::of_object_point(number);
         let mut r = point_records::get(ctx.part, record)?;
         r[0] = number;
-        let n = crate::scene::object_points::point(from)?;
+        let n = ctx.reads.stage.object_points.point(from)?;
         let lanes = sse_lanes(n.map(f32::from_bits), &m, false);
         r[4..8].copy_from_slice(&lanes);
         point_records::set(ctx.part, record, r)?;

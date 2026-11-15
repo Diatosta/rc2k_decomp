@@ -46,7 +46,11 @@ fn refusal(paths: &Paths, s: Spline) -> Result<(), Refused> {
     Ok(())
 }
 
-pub fn place_graded_points(paths: &Paths, s: Spline) -> Result<(), Refused> {
+pub fn place_graded_points(
+    object_points: &crate::scene::object_points::ObjectPoints,
+    paths: &Paths,
+    s: Spline,
+) -> Result<(), Refused> {
     {
         refusal(paths, s)?;
         for (n, (start, count, turns)) in GRADES.into_iter().enumerate() {
@@ -57,7 +61,7 @@ pub fn place_graded_points(paths: &Paths, s: Spline) -> Result<(), Refused> {
                 bend_points(paths, s)?;
             }
             for k in 0..points {
-                write_point(paths, s, k, k + first)?;
+                write_point(object_points, paths, s, k, k + first)?;
             }
         }
     }

@@ -46,7 +46,7 @@ pub fn draw_frame(
     effects: &Effects,
 ) -> Result<(), Refused> {
     use crate::effects::{begin_quads, cars_particles, view_heading, view_motion};
-    if !crate::race::course_places::info_held() {
+    if !crate::race::course_places::info_held(&race.course.stage.course) {
         return Err(BadInput("no course info").into());
     }
     let m = &race.frame.matrices.get().view_place;
@@ -57,7 +57,11 @@ pub fn draw_frame(
             effects.frame.view_vars.turned_points[n][k].set(rounded_value(*v));
         }
     }
-    let corners = crate::race::course_places::info_bytes(CORNERS_FROM, CORNERS_LEN as usize)?;
+    let corners = crate::race::course_places::info_bytes(
+        &race.course.stage.course,
+        CORNERS_FROM,
+        CORNERS_LEN as usize,
+    )?;
     // 0x80 bytes of 16-bit little-endian words for each corner record.
     let (records, _) = corners.as_chunks::<0x80>();
     for (record, bytes) in effects.blocks.corners.corners.iter().zip(records) {

@@ -132,7 +132,12 @@ pub fn turn_shape_checks(drops: &WindscreenDrops, a: u32, b: u32) -> Result<(), 
 /// into the turned lists A and B, and each turned point plus the list's whole-number offset into
 /// the point its target names (the last first). Refuses a list of more than 0x40 or of
 /// 0x80000000, or an angle with no sine and cosine, before writing.
-pub fn turn_shape_points(drops: &WindscreenDrops, a: u32, b: u32) -> Result<(), Refused> {
+pub fn turn_shape_points(
+    object_points: &crate::scene::object_points::ObjectPoints,
+    drops: &WindscreenDrops,
+    a: u32,
+    b: u32,
+) -> Result<(), Refused> {
     use crate::scene::matrix3::{multiply_matrices3, transform_int_points};
     turn_shape_checks(drops, a, b)?;
     let set = set(drops);
@@ -163,7 +168,7 @@ pub fn turn_shape_points(drops: &WindscreenDrops, a: u32, b: u32) -> Result<(), 
                         + bh::int(set.low(n)[c as usize].get() as i32),
                 );
                 // `target` is a place of `scene::object_points`.
-                crate::scene::object_points::write(target + 4 * c, &(v as u32).to_le_bytes())?;
+                object_points.write(target + 4 * c, &(v as u32).to_le_bytes())?;
             }
         }
     }
@@ -244,7 +249,7 @@ pub fn turn_all_shapes(
                     ),
                 );
             }
-            turn_shape_points(drops, turns[0], turns[1])?;
+            turn_shape_points(&effects.stage()?.object_points, drops, turns[0], turns[1])?;
         }
     }
     Ok(())
@@ -348,11 +353,11 @@ pub fn make_shape_set(
     let kinds: [u32; 2] = read_bits(&drops.tuning.face_kinds);
     for f in first..first + faces {
         let face: u32 = crate::scene::objects::face_cell(faces_table, f as usize).get();
-        let kind = crate::scene::object_faces::byte(face + 7)?;
+        let kind = course.stage.object_faces.byte(face + 7)?;
         if kind == kinds[0] as u8 {
-            collect_points(&PointList::a(drops), face)?;
+            collect_points(&course.stage.object_faces, &PointList::a(drops), face)?;
         } else if kind == kinds[1] as u8 {
-            collect_points(&PointList::b(drops), face)?;
+            collect_points(&course.stage.object_faces, &PointList::b(drops), face)?;
         }
     }
     let lists = [PointList::a(drops), PointList::b(drops)];
@@ -368,7 +373,7 @@ pub fn make_shape_set(
         for k in (0..count).rev() {
             let from = list.ids[k as usize].get();
             for c in 0..3 {
-                let v = crate::scene::object_points::word(from + 4 * c)?;
+                let v = course.stage.object_points.word(from + 4 * c)?;
                 turned.set_u32((12 * k + 4 * c) as usize, v);
             }
         }

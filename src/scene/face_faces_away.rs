@@ -100,12 +100,15 @@ pub fn face_faces_away(
                 .ok_or(BadInput("a face of too many vertices"))?,
         )
         .ok_or(BadInput("a face of too many vertices"))?;
-    crate::scene::object_faces::array::<0x10>(last)?;
+    ctx.reads.stage.object_faces.array::<0x10>(last)?;
     // Every vertex is in the faces now (the last one is), so reading them all up front
     // refuses nothing the loop would not.
     let mut vertices: smallvec::SmallVec<[u8; 0x10 * 16]> =
         smallvec::smallvec![0; count as usize * 0x10];
-    crate::scene::object_faces::read_into(face as u32 + 0x10, &mut vertices)?;
+    ctx.reads
+        .stage
+        .object_faces
+        .read_into(face as u32 + 0x10, &mut vertices)?;
     points.extend(
         vertices
             .as_chunks::<0x10>()

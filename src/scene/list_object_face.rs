@@ -155,8 +155,11 @@ impl FaceWorld for GameFace<'_> {
 }
 
 /// The face's bytes the tests read.
-fn face_bytes(face: usize) -> Result<(Face, u32), BadInput> {
-    let b: [u8; 0xC] = crate::scene::object_faces::array(face as u32)?;
+fn face_bytes(
+    object_faces: &crate::scene::object_faces::ObjectFaces,
+    face: usize,
+) -> Result<(Face, u32), BadInput> {
+    let b: [u8; 0xC] = object_faces.array(face as u32)?;
     let count = u32::from_le_bytes([b[0], b[1], b[2], b[3]]);
     Ok((
         Face {
@@ -184,7 +187,7 @@ pub fn list_object_face(
         return Err(BadInput("no room in the list of faces").into());
     }
     ctx.view.object.see_through.set(0x100u32);
-    let (bytes, count) = face_bytes(face)?;
+    let (bytes, count) = face_bytes(&ctx.reads.stage.object_faces, face)?;
     let mut world = GameFace(
         race,
         crate::scene::reading::Reading::new(),

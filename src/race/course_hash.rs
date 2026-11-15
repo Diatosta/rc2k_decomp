@@ -37,7 +37,7 @@ pub fn log_hashes(
     if !on() {
         return;
     }
-    let data = crate::race::course_places::data();
+    let data = &race.course.stage.course;
     let stage = race.shared.vars.get().stage_number.get();
     let say = |store: &str, hash: String| {
         crate::framework::log(&format!("course hash {stage} {after} {store}: {hash}"));
@@ -47,8 +47,14 @@ pub fn log_hashes(
     say("records", table(&data.records));
     say("info", table(&data.info));
     say("scene_points", table(&data.points));
-    say("object_points", table(&crate::scene::object_points::POINTS));
-    say("object_faces", table(&crate::scene::object_faces::FACES));
+    say(
+        "object_points",
+        table(race.course.stage.object_points.table()),
+    );
+    say(
+        "object_faces",
+        table(race.course.stage.object_faces.table()),
+    );
     say("course", format!("{:016x}", record_hash(reads.course)));
     say("lists", format!("{:016x}", record_hash(reads.lists)));
     say(
@@ -81,13 +87,17 @@ pub fn log_hashes(
     );
     say(
         "mud",
-        crate::race::mud::MUD
+        race.course
+            .stage
+            .mud
             .with(|m| format!("{:016x}", bytes_hash(m)))
             .unwrap_or("none".into()),
     );
     say(
         "map",
-        crate::race::game_map::GAME_MAP
+        race.course
+            .stage
+            .game_map
             .with(|m| {
                 let tiles: Vec<u8> = format!("{:?}", m.tiles).into_bytes();
                 format!("{:016x}:{:016x}", bytes_hash(&tiles), bytes_hash(&m.pixels))

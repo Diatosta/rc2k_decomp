@@ -39,6 +39,7 @@ pub fn object<'a>(c: &SoundInputs<'a>) -> &'a SoundObject {
 pub fn place(
     numbers: &Numbers,
     matrices: &SceneMatrices,
+    heard_turn: &crate::race::heard_turn::HeardTurn,
     car: &Car,
     into: &[PlainFloat; 3],
     offset: Option<[u32; 3]>,
@@ -54,10 +55,7 @@ pub fn place(
             None => car_part(here, listener),
         }
     };
-    let out = rotate_point(
-        crate::race::heard_turn::turn(matrices),
-        [part(0), part(1), part(2)],
-    );
+    let out = rotate_point(heard_turn.turn(matrices), [part(0), part(1), part(2)]);
     let k = numbers.one_over_65536.get();
     for (cell, e) in into.iter().zip(&out) {
         cell.set(rounded_value(ext_times(*e, k)));
@@ -69,6 +67,7 @@ pub fn place(
 pub fn place_plain(
     numbers: &Numbers,
     matrices: &SceneMatrices,
+    heard_turn: &crate::race::heard_turn::HeardTurn,
     car: &Car,
     into: &[PlainFloat; 3],
     offset: Option<[u32; 3]>,
@@ -78,7 +77,7 @@ pub fn place_plain(
         whole(&car.position),
         whole(&car.camera_position),
         offset.map(|o| o.map(|v| v as i32)),
-        &std::array::from_fn(|n| crate::race::heard_turn::turn(matrices)[n].get()),
+        &std::array::from_fn(|n| heard_turn.turn(matrices)[n].get()),
         numbers.one_over_65536.get(),
     );
     for (cell, x) in into.iter().zip(&p) {
@@ -113,7 +112,14 @@ pub fn cue_plain(
     let (sound_cell, band_cell, place_cells) = one_off(o, slot)?;
     sound_cell.set(sound);
     band_cell.set(band);
-    place_plain(c.numbers, c.matrices, c.car, place_cells, offset);
+    place_plain(
+        c.numbers,
+        c.matrices,
+        c.heard_turn,
+        c.car,
+        place_cells,
+        offset,
+    );
     // `PLAYING`: the play switch, the cell the revs' new reading flag shares.
     o.new_revs.set(PLAY);
     Ok(())

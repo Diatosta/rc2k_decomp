@@ -9,7 +9,6 @@ use crate::math::x87;
 use crate::physics::car_store::Car;
 use crate::physics::ground_store::GroundWork;
 use crate::race::best_line::MOST_CHECKS;
-use crate::race::course_store::CourseWork;
 use crate::race::owner_course::Course;
 use crate::race::owner_physics::Physics;
 use crate::race::owner_shared::RaceShared;
@@ -152,7 +151,7 @@ pub fn nearest_checkpoint_in(
         // needs looking at more closely, by `distance_to_checkpoint` otherwise.
         let measured = measure_held(
             physics.ground(),
-            course.course.get(),
+            course,
             shared,
             &mut c,
             to,
@@ -201,7 +200,7 @@ thread_local! {
 /// line or its reads leave the stores (`c` is then that one).
 fn measure_held(
     ground: &GroundWork,
-    course_work: &CourseWork,
+    course: &Course,
     shared: &RaceShared,
     c: &mut u32,
     to: u32,
@@ -209,7 +208,8 @@ fn measure_held(
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), BadInput> {
     use crate::race::course_places::with_faces_and_points;
-    if !crate::race::course_places::held() || !crate::race::scene_points::held() {
+    let (course_work, data) = (course.course.get(), &course.stage.course);
+    if !crate::race::course_places::held(data) || !crate::race::scene_points::held(data) {
         return Ok(());
     }
     let (checkpoints, vars) = (&shared.buffers.reads.get().checkpoints, shared.vars.get());
@@ -221,14 +221,14 @@ fn measure_held(
     let plain = crate::math::x87::rounds_to_nearest();
     let mut last = None;
     let point_count = course_work.scene_point_count.get();
-    let changes = crate::race::course_places::first_points_changes();
+    let changes = crate::race::course_places::first_points_changes(data);
     let measured = PLACES.with_borrow_mut(|kept| {
         if kept.changes != changes || kept.point_count != point_count {
             kept.changes = changes;
             kept.point_count = point_count;
             kept.places.clear();
         }
-        with_faces_and_points(|faces, points| {
+        with_faces_and_points(data, |faces, points| {
             while *c < to && *c < MOST_CHECKS && rc2k_core::race::checkpoints::on_line(*c, count) {
                 let face = crate::race::checkpoints_store::face(checkpoints, *c as usize).get();
                 let slot = *c as usize;

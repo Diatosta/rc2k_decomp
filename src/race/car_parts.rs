@@ -46,7 +46,10 @@ pub fn car_part_matrices(
     // `c` is the block (what the drawing keeps there: the shown speed and steering, the switches,
     // the marks), `p` the car as the drawing sees it (`frame_view`).
     let c = race.shared.race_car(car)?;
-    let p = crate::race::frame_view::car(race.shared.work.get().block_number(car)?)?;
+    let p = race
+        .frame
+        .cars
+        .car(race.shared.work.get().block_number(car)?)?;
     let Some(ax) = axles(race, p.car_kind.get())? else {
         return Err(BadInput("a car model whose axle scaling would fault").into());
     };
@@ -206,7 +209,10 @@ pub fn ready_car_parts(race: &Race, scene: &crate::scene::owner::Scene) -> Resul
     loop {
         let car = c as usize;
         let block = race.shared.race_car(car)?;
-        let view = crate::race::frame_view::car(race.shared.work.get().block_number(car)?)?;
+        let view = race
+            .frame
+            .cars
+            .car(race.shared.work.get().block_number(car)?)?;
         if parts_shown(view.driver_kind.get()) {
             car_part_matrices(race, car, scene)?;
             let wheels = &block.part_matrices;

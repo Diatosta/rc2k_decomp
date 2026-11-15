@@ -23,6 +23,7 @@ pub const LAST_SPLASHED: u32 = 0x1000;
 
 pub fn splash_mud(
     shared: &RaceShared,
+    mud: &crate::memory::owned::Owned<Vec<u8>>,
     scene: &crate::scene::owner::Scene,
     gfx: &crate::gfx::owner::Gfx,
     system: &crate::system::owner::System,
@@ -30,12 +31,12 @@ pub fn splash_mud(
     use rc2k_core::race::mud::{
         MUD_TOP, SPLASH_SIDE, muddy, splash_lands, splash_pattern, splash_place,
     };
-    let n = texture_and_mud(shared)?;
+    let n = texture_and_mud(shared, mud)?;
     // `mud_splash_counts` holds each texture's count (the texture is 0 .. 3).
     let count_cell = &shared.vars.get().mud_splash_counts[n as usize];
     count_cell.set(count_cell.get().wrapping_add(1));
     let (mut x, mut y) = splash_place(next_drawing_random());
-    let strength = strength_at(n, x, y)?;
+    let strength = strength_at(mud, n, x, y)?;
     if !splash_lands(strength, || next_drawing_random() & 0xFF) {
         return Ok(());
     }

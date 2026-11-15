@@ -49,6 +49,14 @@ impl Effects {
             .ok_or(BadInput("a car record without its block"))
     }
 
+    /// The race's stage tables `init_marks` was handed; refused before the first.
+    pub fn stage(&self) -> Result<&'static crate::race::stage_data::StageData, BadInput> {
+        self.setup
+            .stage
+            .get()
+            .ok_or(BadInput("no stage tables handed to the marks"))
+    }
+
     /// The car record a handle names (`effects_settings_store::car_handle`), none for 0; a
     /// value that names no record ends the program. None before the race's record is handed
     /// over (no handle is set then).

@@ -14,7 +14,7 @@ pub struct Freeing {
     /// Each sets one pointer to 0.
     pub cleared: &'static [fn(&Race)],
     /// What Rust owns on the list, given back with it.
-    pub given_back: fn(),
+    pub given_back: fn(&Race),
 }
 
 /// Frees the course memory.
@@ -23,9 +23,9 @@ pub const COURSE: Freeing = Freeing {
     list: |race| &race.course.lists.get().course_memory_list,
     counted: true,
     cleared: &[],
-    given_back: || {
-        crate::race::scene_points::give_back();
-        crate::race::course_places::give_back();
+    given_back: |race| {
+        crate::race::scene_points::give_back(&race.course.stage.course);
+        crate::race::course_places::give_back(&race.course.stage.course);
     },
 };
 /// Frees the second course list.
@@ -42,7 +42,7 @@ pub const COURSE_2: Freeing = Freeing {
             race.course.lists.get().second_course_list_b.set(0);
         },
     ],
-    given_back: || {},
+    given_back: |_| {},
 };
 /// Frees the point records.
 pub const POINT_RECORDS: Freeing = Freeing {
@@ -51,7 +51,7 @@ pub const POINT_RECORDS: Freeing = Freeing {
     counted: true,
     // point_records
     cleared: &[|race| race.course.lists.get().point_records.set(0)],
-    given_back: crate::scene::point_records::give_back,
+    given_back: |_| crate::scene::point_records::give_back(),
 };
 /// Frees the object points.
 pub const OBJECT_POINTS: Freeing = Freeing {
@@ -63,9 +63,9 @@ pub const OBJECT_POINTS: Freeing = Freeing {
         |race| race.course.lists.get().object_points.set(0),
         |race| race.course.lists.get().face_memory.set(0),
     ],
-    given_back: || {
-        crate::scene::object_points::give_back();
-        crate::scene::object_faces::give_back();
+    given_back: |race| {
+        race.course.stage.object_points.give_back();
+        race.course.stage.object_faces.give_back();
     },
 };
 /// Frees the mud.
@@ -75,7 +75,7 @@ pub const MUD: Freeing = Freeing {
     counted: true,
     // mud
     cleared: &[|race| race.shared.vars.get().mud.set(0)],
-    given_back: || crate::race::mud::MUD.give_back(),
+    given_back: |race| race.course.stage.mud.give_back(),
 };
 
 /// `race::free_game_fonts`.
@@ -116,7 +116,7 @@ pub fn free(race: &Race, f: &Freeing) -> Result<(), Refused> {
     for clear in f.cleared {
         clear(race);
     }
-    (f.given_back)();
+    (f.given_back)(race);
     Ok(())
 }
 

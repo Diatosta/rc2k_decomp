@@ -21,7 +21,7 @@ pub fn add_point_lights(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<
     if lamps == 0 {
         return Ok(());
     }
-    if lamps > MOST || !crate::race::scene_points::held() {
+    if lamps > MOST || !crate::race::scene_points::held(&ctx.reads.stage.course) {
         return Err(BadInput("more lamps than the list holds, or no points").into());
     }
     let mmx = ctx.reads.has_mmx;

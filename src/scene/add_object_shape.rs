@@ -95,7 +95,7 @@ pub fn add_object_shape(
     let mut count = first_point;
     let mut to = room.points.wrapping_add(count.wrapping_mul(12));
     for point in &shape.points {
-        crate::scene::object_points::set_point(to, *point)?;
+        race.course.stage.object_points.set_point(to, *point)?;
         count += 1;
         to = to.wrapping_add(12);
     }
@@ -114,7 +114,7 @@ pub fn add_object_shape(
     for n in 0..shape.faces.len() {
         crate::scene::objects::face_cell(race.faces(), face_number as usize).set(out as u32);
         let bytes = shape.face_bytes(n, first_point, first_normal);
-        crate::scene::object_faces::write(out as u32, &bytes)?;
+        race.course.stage.object_faces.write(out as u32, &bytes)?;
         out += bytes.len();
         face_number += 1;
     }
@@ -137,7 +137,7 @@ pub fn add_object_shape(
 
     // The normals.
     for normal in &shape.normals {
-        crate::scene::object_points::set_point(to, *normal)?;
+        race.course.stage.object_points.set_point(to, *normal)?;
         count += 1;
         to = to.wrapping_add(12);
     }

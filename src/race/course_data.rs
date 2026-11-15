@@ -163,8 +163,8 @@ pub fn load_level(race: &Race) -> Result<(), Refused> {
     let parts = rc2k_core::race::loading::read_course(&data)?;
     drop(data);
     store_course_header(course, &parts.header);
-    crate::race::scene_points::take(&parts.points)?;
-    crate::race::course_places::take(&parts.faces, &parts.records)?;
+    crate::race::scene_points::take(&course.stage.course, &parts.points)?;
+    crate::race::course_places::take(&course.stage.course, &parts.faces, &parts.records)?;
     load_log(3);
     load_log(4);
     crate::race::load_times::mark("reset_face_lights");

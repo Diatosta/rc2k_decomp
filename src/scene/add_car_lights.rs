@@ -87,7 +87,9 @@ pub fn add_car_lights(
                 .marks_count
                 .get();
                 add(
-                    crate::race::frame_view::car(reads.work.block_number(car as usize)?)?,
+                    reads
+                        .frame_cars
+                        .car(reads.work.block_number(car as usize)?)?,
                     marks,
                 )?;
             }

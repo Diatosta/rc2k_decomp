@@ -91,7 +91,12 @@ fn fetch_value(
     race_view: &crate::race::view_store::RaceView,
     view: &ViewScratch,
 ) -> Result<(), Refused> {
-    crate::race::frame_draw::fetch_view_value(race_view, &view.polygon.sun, view.drawn_view(race))
+    crate::race::frame_draw::fetch_view_value(
+        &race.frame.cars,
+        race_view,
+        &view.polygon.sun,
+        view.drawn_view(race),
+    )
 }
 
 /// A player's scene on `run`'s view (its slot's state) and part, with the texture filter's switches
@@ -158,7 +163,7 @@ fn view_rest(
     )?;
     if car == 0 {
         crate::race::sound_spots::find_sound_spots(o.race, view)?;
-        crate::race::heard_turn::keep(&view.matrices);
+        o.race.shared.heard_turn.get().keep(&view.matrices);
     }
     Ok(())
 }
@@ -416,7 +421,7 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
         .iter()
         .zip(blocks)
     {
-        flags.set(crate::race::frame_view::car(block)?.option_bits.get());
+        flags.set(race.frame.cars.car(block)?.option_bits.get());
     }
     for (flags, on) in race
         .frame
@@ -471,12 +476,11 @@ pub fn draw_race_scene(race: &Race, o: crate::owners::Owners<'static>) -> Result
         | race.course.stage_prefs.get().blit_cleared[1].get()
         != 0
     {
-        race.frame.frame_work.get().mirror_wanted.set(
-            crate::race::frame_view::car(blocks[0])?
-                .camera_mode_is_2_or_3
-                .get()
-                != 0,
-        );
+        race.frame
+            .frame_work
+            .get()
+            .mirror_wanted
+            .set(race.frame.cars.car(blocks[0])?.camera_mode_is_2_or_3.get() != 0);
     }
     scene.objects.tables.get().d3d_drawing_on.set(1);
     // The frame's one sound turn (`sound::race_turn`, when 20 ms of the scene clock have passed

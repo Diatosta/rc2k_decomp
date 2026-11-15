@@ -85,6 +85,7 @@ pub fn draw_object_in_game(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Resu
             Step::Sort => sort_listed_faces(&mut faces)?,
             Step::Faces => {
                 draw_object_faces(
+                    &ctx.reads.stage.object_faces,
                     &ctx.reads.buffers.faces,
                     &ctx.view.polygon,
                     &ctx.view.object,

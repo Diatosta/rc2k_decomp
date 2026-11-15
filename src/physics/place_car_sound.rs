@@ -29,7 +29,7 @@ pub fn place_car_sound(
         d(&shared.car().position[1], &shared.car().camera_position[1]),
         d(&shared.car().position[2], &shared.car().camera_position[2]),
     ];
-    let out = rotate_point(crate::race::heard_turn::turn(matrices), p);
+    let out = rotate_point(shared.heard_turn.get().turn(matrices), p);
     let k = numbers.one_over_65536.get();
     for (n, e) in out.iter().enumerate() {
         so.place_b[n].set(rounded_value(ext_times(*e, k)));

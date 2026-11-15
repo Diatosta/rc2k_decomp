@@ -38,6 +38,9 @@ pub struct Frame {
     pub view_and_records: DrawShared<ViewAndRecords>,
     /// One copy, lent to the drawing parts (`workers::DrawReads`): no part writes it.
     pub lights_and_gear: DrawShared<LightsAndGear>,
+    /// The cars as the frame's drawing sees them (`race::frame_view`); behind atomics, read by
+    /// the drawing parts.
+    pub cars: crate::race::frame_view::FrameCars,
     main: GameThread<FrameMain>,
 }
 
@@ -64,6 +67,7 @@ impl Frame {
             panel_and_overlay: DrawShared::new(PanelAndOverlay::new()),
             view_and_records: DrawShared::new(ViewAndRecords::new()),
             lights_and_gear: DrawShared::new(LightsAndGear::new()),
+            cars: crate::race::frame_view::FrameCars::new(),
             main: GameThread::new(FrameMain {
                 scratch: FrameScratch::new(),
                 counter: FrameCounter::new(),

@@ -16,7 +16,7 @@ use crate::race::pace_notes::{Course, GameStage, Machine};
 /// On the given course.
 pub fn init_pace_notes_on(race: &Race, course: Course) -> Result<(), Refused> {
     // Logic in `rc2k_core::race::pace_notes::Notes::init`.
-    let stage = GameStage(race);
+    let stage = GameStage::new(race);
     let mut m = Machine::load(race, course, &stage)?;
     m.init()?;
     m.commit(race)?;

@@ -10,7 +10,7 @@ pub fn tyre_change_screen(
     system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
     if !rc2k_core::drive::race_ticks::tyre_change_shown(
-        crate::race::frame_view::car(0)?.tyre_change_state.get(),
+        race.frame.cars.car(0)?.tyre_change_state.get(),
     ) {
         return Ok(());
     }

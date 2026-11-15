@@ -510,6 +510,7 @@ pub fn camera_view(
 pub fn draw_sky(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Result<(), Refused> {
     let race = ctx.race;
     fetch_view_value(
+        ctx.reads.frame_cars,
         ctx.reads.view,
         &ctx.view.polygon.sun,
         ctx.view.drawn_view(race),

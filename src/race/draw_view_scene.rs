@@ -80,6 +80,7 @@ pub fn draw_view_scene(
         cell.set(0);
     }
     car_light_modes(
+        reads.frame_cars,
         &view.cars,
         reads.work,
         reads.vars,
@@ -103,9 +104,15 @@ pub fn draw_view_scene(
     // `view_lamps` is not set to 0 here: nothing reads it.
     prepare_course_view(reads, view, part)?;
     gather_visible_faces(&ctx)?;
-    let environment = eax_environment(reads.course(), reads.work, &part.points, &view.grid)?;
+    let environment = eax_environment(
+        reads.frame_cars,
+        reads.course(),
+        reads.work,
+        &part.points,
+        &view.grid,
+    )?;
     gather_lamps(&ctx)?;
-    lamps_wanted(reads.work, reads.view, &view.lamps)?;
+    lamps_wanted(reads.frame_cars, reads.work, reads.view, &view.lamps)?;
     // From here the view's own car can be drawn aside (`race::car_part`): its drawing reads nothing
     // the rest of the view's drawing makes.
     let rest = |car: Option<&crate::race::car_part::CarAside<'_, '_>>| -> Result<(), Refused> {

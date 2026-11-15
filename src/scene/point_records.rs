@@ -12,7 +12,6 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::session::PlainDword;
-use std::sync::atomic::{AtomicBool, Ordering};
 
 /// The records.
 pub const COUNT: u32 = 0x2000;
@@ -83,26 +82,25 @@ pub fn clear_written(part: &crate::workers::PartScratch) {
     }
 }
 
-/// Whether the records are taken.
-static TAKEN: AtomicBool = AtomicBool::new(false);
-
 /// The records made, zeroed, counted on `list`.
 pub fn take(
     course: &crate::race::owner_course::Course,
     list: &crate::memory::ListCells,
 ) -> Result<(), Refused> {
     crate::memory::owned::count_on(list, BYTES)?;
-    crate::workers::all_parts_on_game_thread()
-        .flat_map(|part| part.records.iter().flatten())
-        .for_each(|cell| cell.set(0));
-    TAKEN.store(true, Ordering::Relaxed);
+    for part in crate::workers::all_parts_on_game_thread() {
+        part.records.iter().flatten().for_each(|cell| cell.set(0));
+        part.records_taken.set(true);
+    }
     course.lists.get().point_records.set(HELD);
     Ok(())
 }
 
 /// Given back (the list's `free_list` counts them down).
 pub fn give_back() {
-    TAKEN.store(false, Ordering::Relaxed);
+    for part in crate::workers::all_parts_on_game_thread() {
+        part.records_taken.set(false);
+    }
 }
 
 /// The first `n` records' cells in every drawing thread's copy (copy 0 first): a clear
@@ -113,7 +111,7 @@ pub fn first_records_everywhere<'a>(
     part: &'a crate::workers::PartScratch,
     n: usize,
 ) -> Result<impl Iterator<Item = &'a [PlainDword; 8]>, BadInput> {
-    if !TAKEN.load(Ordering::Relaxed) {
+    if !part.records_taken.is_set() {
         return Err(BadInput("no point records"));
     }
     if n > COUNT as usize {
@@ -185,7 +183,7 @@ fn cells<'a>(
     if r > COUNT {
         return far_cells(part, r, quad);
     }
-    if !TAKEN.load(Ordering::Relaxed) {
+    if !part.records_taken.is_set() {
         return Err(BadInput("no point records"));
     }
     (r as usize)

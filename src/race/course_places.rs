@@ -1,6 +1,6 @@
 //! The stage's course data as one value (`CourseData`: the faces, the records, the scene points
-//! and the course info, with the counter of the faces' first-point changes), held by the game in
-//! `COURSE_DATA`. `race::load_level` takes the parts from the course file and the info files, and
+//! and the course info, with the counter of the faces' first-point changes), held by the course owner
+//! (`Course::stage`). `race::load_level` takes the parts from the course file and the info files, and
 //! the stage's freeing gives them back; both happen on the game thread between frames, while no
 //! drawing part reads, so the drawing threads always see one stage's data.
 //!
@@ -48,7 +48,7 @@ pub struct CourseData {
 }
 
 impl CourseData {
-    const fn new() -> Self {
+    pub const fn new() -> Self {
         Self {
             faces: SharedTable::new(ROOM as usize, "no course faces"),
             records: SharedTable::new(ROOM as usize, "no course records"),
@@ -69,81 +69,71 @@ impl CourseData {
     }
 }
 
-/// The stage's course data.
-static COURSE_DATA: CourseData = CourseData::new();
-
-/// The stage's course data.
-pub fn data() -> &'static CourseData {
-    &COURSE_DATA
-}
-
 /// The course info taken (`len` bytes, zeroed).
-pub fn take_info(len: u32) -> Result<(), BadInput> {
+pub fn take_info(data: &CourseData, len: u32) -> Result<(), BadInput> {
     if len > ROOM {
         return Err(BadInput("a course info larger than its room"));
     }
-    data().info.set(&vec![0; len as usize])
+    data.info.set(&vec![0; len as usize])
 }
 
 /// Whether the course info is held.
-pub fn info_held() -> bool {
-    data().info.is_taken()
+pub fn info_held(data: &CourseData) -> bool {
+    data.info.is_taken()
 }
 
 /// The whole course info set to `bytes` (the same length as the table taken).
-pub fn set_info(bytes: &[u8]) -> Result<(), BadInput> {
-    data()
-        .info
+pub fn set_info(data: &CourseData, bytes: &[u8]) -> Result<(), BadInput> {
+    data.info
         .write(0, bytes)?
         .ok_or(BadInput("an info larger than the course info"))
 }
 
 /// `len` bytes of the course info from byte `offset`.
-pub fn info_bytes(offset: u32, len: usize) -> Result<Vec<u8>, BadInput> {
-    data()
-        .info
+pub fn info_bytes(data: &CourseData, offset: u32, len: usize) -> Result<Vec<u8>, BadInput> {
+    data.info
         .bytes(offset as usize, len)?
         .ok_or(BadInput("a read outside the course info"))
 }
 
 /// How many times the faces' first points or the scene points have changed.
-pub fn first_points_changes() -> u64 {
-    data().first_points_changes()
+pub fn first_points_changes(data: &CourseData) -> u64 {
+    data.first_points_changes()
 }
 
 /// The faces' first points or the scene points have changed.
-pub fn first_points_changed() {
-    data().first_points_changed();
+pub fn first_points_changed(data: &CourseData) {
+    data.first_points_changed();
 }
 
 /// Whether the faces and records are held.
-pub fn held() -> bool {
-    data().faces.is_taken()
+pub fn held(data: &CourseData) -> bool {
+    data.faces.is_taken()
 }
 
 /// The faces and records taken from the course file.
-pub fn take(faces: &[u8], records: &[u8]) -> Result<(), BadInput> {
-    data().faces.set(faces)?;
-    data().records.set(records)?;
-    first_points_changed();
+pub fn take(data: &CourseData, faces: &[u8], records: &[u8]) -> Result<(), BadInput> {
+    data.faces.set(faces)?;
+    data.records.set(records)?;
+    first_points_changed(data);
     Ok(())
 }
 
 /// Given back with the stage's course list.
-pub fn give_back() {
-    data().faces.give_back();
-    data().records.give_back();
-    first_points_changed();
-    data().info.give_back();
+pub fn give_back(data: &CourseData) {
+    data.faces.give_back();
+    data.records.give_back();
+    first_points_changed(data);
+    data.info.give_back();
 }
 
 /// `f` given readers of the faces' and the scene points' dwords by byte (`None` past them).
 pub fn with_faces_and_points<R>(
+    data: &CourseData,
     f: impl FnOnce(&dyn Fn(usize) -> Option<u32>, &dyn Fn(usize) -> Option<u32>) -> R,
 ) -> Result<R, BadInput> {
     let dword =
         |table: &SharedTable, at: usize| table.array(at).ok().flatten().map(u32::from_le_bytes);
-    let data = data();
     // Refused without them.
     data.faces.len()?;
     data.points.len()?;
@@ -209,8 +199,8 @@ fn table_bytes(table: &Table, at: usize, len: usize) -> Result<Vec<u8>, BadInput
 }
 
 /// `bytes` written into `table` from `at` (a face's first point noted).
-fn write_table(table: &Table, at: usize, bytes: &[u8]) -> Result<(), BadInput> {
-    let faces = std::ptr::eq(table, std::ptr::from_ref(&data().faces));
+fn write_table(data: &CourseData, table: &Table, at: usize, bytes: &[u8]) -> Result<(), BadInput> {
+    let faces = std::ptr::eq(table, &raw const data.faces);
     // A face's first point (+4 .. +8) changed is noted.
     let mut first_point = false;
     table
@@ -219,7 +209,7 @@ fn write_table(table: &Table, at: usize, bytes: &[u8]) -> Result<(), BadInput> {
         })?
         .ok_or(BadInput("a write outside the course faces or records"))?;
     if first_point {
-        first_points_changed();
+        first_points_changed(data);
     }
     Ok(())
 }
@@ -250,20 +240,20 @@ fn record_index(n: u32, offset: u32) -> Result<usize, BadInput> {
 /// Face `n`.
 #[inline]
 pub fn face_number(
-    _course: crate::race::owner_course::CourseReads<'_>,
+    course: crate::race::owner_course::CourseReads<'_>,
     n: u32,
 ) -> Result<Face, BadInput> {
-    whole_at::<[u8; 64]>(&data().faces, face_index(n, 0)?).map(Face)
+    whole_at::<[u8; 64]>(&course.stage.course.faces, face_index(n, 0)?).map(Face)
 }
 
 /// Field `offset` of face `n`.
 #[inline]
 pub fn face_field<T: Whole>(
-    _course: crate::race::owner_course::CourseReads<'_>,
+    course: crate::race::owner_course::CourseReads<'_>,
     n: u32,
     offset: u32,
 ) -> Result<T, BadInput> {
-    whole_at(&data().faces, face_index(n, offset)?)
+    whole_at(&course.stage.course.faces, face_index(n, offset)?)
 }
 
 /// Face `n` changed by `change`.
@@ -279,53 +269,60 @@ pub fn update_face_number(
 
 /// `v` written at field `offset` of face `n`.
 pub fn write_face_field<T: Whole>(
-    _course: crate::race::owner_course::CourseReads<'_>,
+    course: crate::race::owner_course::CourseReads<'_>,
     n: u32,
     offset: u32,
     v: T,
 ) -> Result<(), BadInput> {
     let mut b = [0; 64];
     v.to_bytes(&mut b);
-    write_table(&data().faces, face_index(n, offset)?, &b[..size_of::<T>()])
+    write_table(
+        &course.stage.course,
+        &course.stage.course.faces,
+        face_index(n, offset)?,
+        &b[..size_of::<T>()],
+    )
 }
 
 /// The first `count` faces' bytes.
-pub fn faces_table(_course: &Course, count: u32) -> Result<Vec<u8>, BadInput> {
+pub fn faces_table(course: &Course, count: u32) -> Result<Vec<u8>, BadInput> {
     table_bytes(
-        &data().faces,
+        &course.stage.course.faces,
         face_index(0, 0)?,
         count as usize * FACE as usize,
     )
 }
 
 /// Face `n` set to `face`.
-pub fn write_face_number(_course: &Course, n: u32, face: Face) -> Result<(), BadInput> {
-    write_table(&data().faces, face_index(n, 0)?, &face.0)
+pub fn write_face_number(course: &Course, n: u32, face: Face) -> Result<(), BadInput> {
+    let data = &course.stage.course;
+    write_table(data, &data.faces, face_index(n, 0)?, &face.0)
 }
 
 /// The first `count` records' bytes.
 pub fn records_table(
-    _course: crate::race::owner_course::CourseReads<'_>,
+    course: crate::race::owner_course::CourseReads<'_>,
     count: u32,
 ) -> Result<Vec<u8>, BadInput> {
     table_bytes(
-        &data().records,
+        &course.stage.course.records,
         record_index(0, 0)?,
         count as usize * RECORD as usize,
     )
 }
 
 /// The records from record 0 set to `bytes`.
-pub fn write_records_table(_course: &Course, bytes: &[u8]) -> Result<(), BadInput> {
-    write_table(&data().records, record_index(0, 0)?, bytes)
+pub fn write_records_table(course: &Course, bytes: &[u8]) -> Result<(), BadInput> {
+    let data = &course.stage.course;
+    write_table(data, &data.records, record_index(0, 0)?, bytes)
 }
 
 /// Field `offset` of record `n`.
 #[inline]
 pub fn record_field<T: Whole>(
-    _course: crate::race::owner_course::CourseReads<'_>,
+    course: crate::race::owner_course::CourseReads<'_>,
     n: u32,
     offset: u32,
 ) -> Result<T, BadInput> {
-    whole_at(&data().records, record_index(n, offset)?)
+    whole_at(&course.stage.course.records, record_index(n, offset)?)
 }

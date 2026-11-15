@@ -44,17 +44,20 @@ pub fn allocate_course_memory(
             .wrapping_add(FIRST_PART + INFO_PART),
     );
     crate::memory::owned::count_on(list, FIRST_PART + INFO_PART)?;
-    crate::race::course_places::take_info(INFO_PART)?;
+    crate::race::course_places::take_info(&course.stage.course, INFO_PART)?;
     Ok(())
 }
 
 /// Reads `files\a\textinfo`, `files\m\markinfo` and `files\b\textinfo` into the course info
 /// (`CourseInfo` lays them out and makes their finish) and takes it into the course info table.
 /// Refuses no course info.
-pub fn load_texture_info(scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+pub fn load_texture_info(
+    course: &Course,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
     use rc2k_core::race::stage_files::{CourseInfo, MARK_INFO, TEXTURE_INFO_A, TEXTURE_INFO_B};
     let file_numbers = &scene.file_numbers();
-    if !crate::race::course_places::info_held() {
+    if !crate::race::course_places::info_held(&course.stage.course) {
         return Err(BadInput("no course info to read the info files into").into());
     }
     let mut info = CourseInfo::new();
@@ -69,7 +72,7 @@ pub fn load_texture_info(scene: &crate::scene::owner::Scene) -> Result<(), Refus
         info.lay_file(part, &file[..read])?;
     }
     info.finish_texture_info();
-    crate::race::course_places::set_info(info.bytes())?;
+    crate::race::course_places::set_info(&course.stage.course, info.bytes())?;
     Ok(())
 }
 
@@ -118,7 +121,7 @@ pub fn load_error_list(frame: &Frame, scene: &crate::scene::owner::Scene) -> Res
 pub fn build_texture_infos(race: &Race) -> Result<(), Refused> {
     use rc2k_core::race::stage_files::{INFO_SIZE, KIND_RECORD, texture_infos};
     let course = &race.course;
-    if !crate::race::course_places::info_held() {
+    if !crate::race::course_places::info_held(&course.stage.course) {
         return Ok(());
     }
     let kinds: [u32; TEXTURES as usize] =
@@ -129,8 +132,12 @@ pub fn build_texture_infos(race: &Race) -> Result<(), Refused> {
             return None;
         }
         trap.keep_read(
-            crate::race::course_places::info_bytes(kind * KIND_RECORD as u32, KIND_RECORD)
-                .map(Some),
+            crate::race::course_places::info_bytes(
+                &course.stage.course,
+                kind * KIND_RECORD as u32,
+                KIND_RECORD,
+            )
+            .map(Some),
         )
     });
     trap.finish()?;

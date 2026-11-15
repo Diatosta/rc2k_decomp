@@ -55,14 +55,17 @@ pub fn draw_object_face(
     if face == 0 {
         return Err(BadInput("no face").into());
     }
-    let count: u32 = crate::scene::object_faces::word(face as u32)?;
+    let count: u32 = ctx.reads.stage.object_faces.word(face as u32)?;
     if count == 0 || count > MOST || !crate::scene::point_records::held(ctx.reads.course_lists) {
         return Err(BadInput("a face of no vertices or more than 64, or no records").into());
     }
     // The whole face in one read: at most `MOST` vertices.
     let mut whole: smallvec::SmallVec<[u8; 0x10 + 8 * 0x10]> =
         smallvec::smallvec![0; 0x10 + count as usize * 0x10];
-    crate::scene::object_faces::read_into(face as u32, &mut whole[..])?;
+    ctx.reads
+        .stage
+        .object_faces
+        .read_into(face as u32, &mut whole[..])?;
     let words = &whole;
     let fw = |at: usize| u32::from_le_bytes(words[at..at + 4].try_into().unwrap());
     let entries = &ctx.part.polygon.entries;

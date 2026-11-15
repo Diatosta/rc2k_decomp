@@ -34,8 +34,11 @@ const LENGTHS: [u32; 9] = [200, 400, 200, 400, 400, 400, 400, 400, 0];
 /// The face whose +0x30 .. +0x40 hold the state (the view's current course face), or None
 /// without the course faces. (An object of two shapes before the view's first face has no face
 /// to read; no kind in the game's files has that material, so it never comes into play.)
-fn state(face: &crate::race::face_work::FaceWork) -> Option<u32> {
-    crate::race::course_places::held().then(|| face.course_face.get())
+fn state(
+    data: &crate::race::course_places::CourseData,
+    face: &crate::race::face_work::FaceWork,
+) -> Option<u32> {
+    crate::race::course_places::held(data).then(|| face.course_face.get())
 }
 
 /// The state's four dwords from +0x30 of the face.
@@ -98,7 +101,7 @@ pub fn set_object_material(ctx: &crate::race::view_scratch::DrawCtx<'_>) -> Resu
         kind,
         0x20,
     )?);
-    let state = state(&ctx.view.face);
+    let state = state(&ctx.reads.stage.course, &ctx.view.face);
     if way == 4 && state.is_none() {
         return Err(BadInput("a moving object without its state"));
     }

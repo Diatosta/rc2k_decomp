@@ -16,7 +16,7 @@ pub fn mud_texture_turn(
     gfx: &crate::gfx::owner::Gfx,
     system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
-    texture_and_mud(&race.shared)?;
+    texture_and_mud(&race.shared, &race.course.stage.mud)?;
     let [red, green, blue] = mud_colour(&race.course);
     // Logic in `rc2k_core::race::mud::packed_colour`.
     race.shared

@@ -175,7 +175,7 @@ pub fn loadlevel_init(
     // load texture info and the course number.
     s.log(Word::LoadTextureInfo);
     s.indent(3);
-    level::load_texture_info(scene)?;
+    level::load_texture_info(&race.course, scene)?;
     level::set_course_number(race.shared.vars.get().stage_number.get(), race, scene)?;
     s.mark(6)?;
     s.indent(-3);
@@ -241,7 +241,7 @@ pub fn loadlevel_init(
         system,
         gfx,
     )?;
-    crate::race::game_map::store_game_map(&race.frame, game_map)?;
+    crate::race::game_map::store_game_map(race, game_map)?;
     s.mark(0x5A)?;
     s.indent(-3);
     s.step(

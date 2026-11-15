@@ -627,9 +627,6 @@ fn cameras() -> [Cameras; 2] {
 
 const RULE: &std::ffi::CStr = c"---------------------------------";
 
-/// The line `build_best_line` last worked out, kept for the race set-up to store again.
-static LOADED: std::sync::Mutex<Option<BestLine>> = std::sync::Mutex::new(None);
-
 /// Builds the stage's best line, stores it and keeps it for `store_loaded_best_line`, logging as
 /// it goes: a rule, each step's word, "best line completed", the summary and a rule.
 /// `line_place` and `line_fraction` end at 0.
@@ -646,7 +643,10 @@ pub fn build_best_line(race: &Race, scene: &crate::scene::owner::Scene) -> Resul
     })?;
     crate::race::load_times::mark("best_line store");
     store_best_line(race, scene, &line)?;
-    *LOADED
+    *race
+        .course
+        .stage
+        .best_line
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(line);
     crate::race::load_times::mark("best_line summary");
@@ -673,7 +673,10 @@ pub fn store_loaded_best_line(
     race: &Race,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
-    let kept = LOADED
+    let kept = race
+        .course
+        .stage
+        .best_line
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner)
         .take();
@@ -708,8 +711,9 @@ pub fn with_course<R>(
         .flatten()
         .flat_map(|v| v.to_le_bytes())
         .collect();
-    crate::race::course_places::take(&face_bytes, &[]).unwrap();
-    crate::race::scene_points::take(&point_bytes).unwrap();
+    let data = &race.course.stage.course;
+    crate::race::course_places::take(data, &face_bytes, &[]).unwrap();
+    crate::race::scene_points::take(data, &point_bytes).unwrap();
     let before = (
         race.course.course.get().course_face_count.get(),
         race.course.course.get().scene_point_count.get(),
@@ -727,8 +731,8 @@ pub fn with_course<R>(
     let result = check(race);
     race.course.course.get().course_face_count.set(before.0);
     race.course.course.get().scene_point_count.set(before.1);
-    crate::race::course_places::give_back();
-    crate::race::scene_points::give_back();
+    crate::race::course_places::give_back(data);
+    crate::race::scene_points::give_back(data);
     result
 }
 

@@ -165,7 +165,7 @@ fn frame_of(
 pub fn face_materials(ctx: &DrawCtx<'_>, face: &Face) -> Result<(), BadInput> {
     let work = &ctx.view.face;
     {
-        let clock: u32 = crate::race::frame_view::car(0)?.step_clock.get();
+        let clock: u32 = ctx.reads.frame_cars.car(0)?.step_clock.get();
         let (k1, k2) = (ctx.reads.numbers.ten.get(), ctx.reads.numbers.quarter.get());
         let texture = |object: u32| -> Result<u32, BadInput> {
             let speed = table_byte(
@@ -1175,9 +1175,11 @@ mod vector_tests {
                 }
                 let half = if r.below(2) == 0 { 0 } else { 4 };
                 face[(half + 8) / 4] = r.below(4);
-                let got = crate::race::scene_points::with_test_points(&points, || {
-                    face_turned_to_view(race, &face, half as u32).unwrap()
-                });
+                let got = crate::race::scene_points::with_test_points(
+                    &race.course.stage.course,
+                    &points,
+                    || face_turned_to_view(race, &face, half as u32).unwrap(),
+                );
                 vectors.check(&[got], |a, b| a == b, || format!("{face:x?} {points:x?}"));
             }
         });

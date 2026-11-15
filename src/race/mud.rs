@@ -137,11 +137,7 @@ pub fn sample_mud_colours(
     Ok(())
 }
 
-/// The mud file's strengths (`mud`, a 0x10000-byte block): taken by `init_mud` counted on
-/// `CourseLists.mud_list[0]`, given back when the stage is freed.
-pub static MUD: crate::memory::owned::Owned<Vec<u8>> = crate::memory::owned::Owned::new("no mud");
-
-/// Adds 0x10000 to the list's total, loads the mud and stores it (`MUD`), then runs
+/// Adds 0x10000 to the list's total, loads the mud and stores it (`StageData::mud`), then runs
 /// `clear_mud_state` and `sample_mud_colours`.
 pub fn init_mud(
     race: &Race,
@@ -160,7 +156,10 @@ pub fn init_mud(
             .wrapping_add(MUD_LEN),
     );
     let mud = load_mud(race.kind_tables(), &race.shared, net_race.get())?;
-    MUD.take(&course.lists.get().mud_list, MUD_LEN, mud)?;
+    course
+        .stage
+        .mud
+        .take(&course.lists.get().mud_list, MUD_LEN, mud)?;
     clear_mud_state(&race.shared);
     sample_mud_colours(&race.shared, scene, gfx, system)
 }

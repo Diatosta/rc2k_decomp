@@ -46,19 +46,19 @@ fn lines_with(
     length: fn([i32; 3], i32) -> i32,
 ) -> Result<(), Refused> {
     {
-        let count = crate::scene::object_faces::word(from)?;
+        let count = course.stage.object_faces.word(from)?;
         let points: u32 = course.lists.get().object_points.get();
         let mut n = 0u32;
         while n != count {
             let (a, b) = (
-                crate::scene::object_faces::word(from + 0x10 + 0x10 * n)?,
-                crate::scene::object_faces::word(to + 0x10 + 0x10 * n)?,
+                course.stage.object_faces.word(from + 0x10 + 0x10 * n)?,
+                course.stage.object_faces.word(to + 0x10 + 0x10 * n)?,
             );
             let p = points.wrapping_add(a.wrapping_mul(12));
             let q = points.wrapping_add(b.wrapping_mul(12));
             let d = core::difference(
-                crate::scene::object_points::point(p)?,
-                crate::scene::object_points::point(q)?,
+                course.stage.object_points.point(p)?,
+                course.stage.object_points.point(q)?,
             );
             for (cell, v) in paths.lines_work.difference.iter().zip(d) {
                 cell.set(v);
@@ -84,7 +84,7 @@ pub fn measure_slot_lines(
         for k in 0..core::SLOTS {
             if core::slot_takes(
                 block.slot_kinds[k as usize].get(),
-                crate::scene::object_faces::byte(from + 7)?,
+                course.stage.object_faces.byte(from + 7)?,
             ) {
                 lines_with(
                     course,
@@ -115,14 +115,14 @@ pub fn measure_kind_lines(
         for k in 0..core::KINDS {
             if core::kind_takes(
                 block.kinds[k as usize].get(),
-                crate::scene::object_faces::byte(from + 6)?,
-                crate::scene::object_faces::byte(from + 0xB)?,
+                course.stage.object_faces.byte(from + 6)?,
+                course.stage.object_faces.byte(from + 0xB)?,
             ) {
                 let count = &block.kind_counts[k as usize];
                 count.set(
                     count
                         .get()
-                        .wrapping_add(crate::scene::object_faces::word(from)?),
+                        .wrapping_add(course.stage.object_faces.word(from)?),
                 );
                 lines_with(
                     course,
@@ -249,8 +249,8 @@ pub fn measure_lines(
                     crate::scene::objects::face_cell(faces_table, (first_a + n) as usize).get();
                 let to: u32 =
                     crate::scene::objects::face_cell(faces_table, (first_b + n) as usize).get();
-                if crate::scene::object_faces::byte(from + 6)? == 0x1C {
-                    let kind = crate::scene::object_faces::byte(from + 0xB)? as u32;
+                if course.stage.object_faces.byte(from + 6)? == 0x1C {
+                    let kind = course.stage.object_faces.byte(from + 0xB)? as u32;
                     if (1..=6).contains(&kind) {
                         lines(course, paths, from, to, &block.face_sums[kind as usize - 1])?;
                     }
@@ -369,7 +369,7 @@ pub fn copy_block_points(
             .wrapping_mul(12)
             .wrapping_add(course.lists.get().object_points.get());
         for n in 0..count.max(0) as usize {
-            let point = crate::scene::object_points::point(from)?;
+            let point = course.stage.object_points.point(from)?;
             to.with(|t| t.get_mut(n).map(|p| *p = point))?
                 .ok_or(BadInput("a block's points past their table"))?;
             from = from.wrapping_add(12);

@@ -23,22 +23,29 @@ pub fn shuffled_place(race: &Race, n: u32) -> (u32, u32) {
 }
 
 /// The texture worked on, or the refusal (also without the mud).
-pub fn texture_and_mud(shared: &RaceShared) -> Result<u32, Refused> {
+pub fn texture_and_mud(
+    shared: &RaceShared,
+    mud: &crate::memory::owned::Owned<Vec<u8>>,
+) -> Result<u32, Refused> {
     let n: u32 = shared.vars.get().mud_texture.get();
     if n > rc2k_core::race::mud::MOST_TEXTURE {
         return Err(BadInput("a mud texture past 3 (the map would be read past its end)").into());
     }
-    if !crate::race::mud::MUD.is_taken() {
+    if !mud.is_taken() {
         return Err(BadInput("no mud").into());
     }
     Ok(n)
 }
 
 /// The mud's strength for texture `n` at (x, y).
-pub fn strength_at(n: u32, x: u32, y: u32) -> Result<u32, BadInput> {
+pub fn strength_at(
+    mud: &crate::memory::owned::Owned<Vec<u8>>,
+    n: u32,
+    x: u32,
+    y: u32,
+) -> Result<u32, BadInput> {
     let at = rc2k_core::race::mud::strength_index(n, x, y) as usize;
-    crate::race::mud::MUD
-        .with(|m| m.get(at).copied())?
+    mud.with(|m| m.get(at).copied())?
         .map(u32::from)
         .ok_or(BadInput("a mud strength past the mud"))
 }
@@ -55,9 +62,9 @@ pub fn muddy_texel(
     // Logic in `rc2k_core::race::mud::{shuffled_place, strength_index, muddy,
     // tint_amount}`.
     use rc2k_core::race::mud::{MUD_TOP, muddy, strength_row, tint_amount};
-    let n = texture_and_mud(&race.shared)?;
+    let n = texture_and_mud(&race.shared, &course.stage.mud)?;
     let (x, y) = shuffled_place(race, number);
-    let strength = strength_at(n, x, y)?;
+    let strength = strength_at(&course.stage.mud, n, x, y)?;
     let texel = { mud_texel(strength_row(y), x, y, scene, gfx, system) }?;
     if !muddy(texel) {
         return Ok(());

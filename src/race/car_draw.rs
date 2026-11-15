@@ -7,7 +7,6 @@ use crate::effects::cell_x87::CellX87;
 use crate::errors::{BadInput, Refused};
 use crate::math::cells::Cells;
 use crate::race::car_draw_state::CarDrawState;
-use crate::race::frame_view::car as car_view;
 use crate::race::light_records_store::LightRecords;
 use crate::race::owner_course::CourseReads;
 use crate::race::view_vars_store::ViewVars;
@@ -75,19 +74,18 @@ fn number_name_byte(work: &RaceWork, offset: u32) -> Result<u8, BadInput> {
 /// +0xAC0 .. go into the places `car_decal_places` names (marks 0xA .. 0x1B; one past the marks is
 /// refused).
 pub fn car_number_textures(
-    blocks: &crate::race::blocks_store::CarBlocks,
+    reads: crate::workers::DrawReads<'_>,
     car: usize,
     marks: &crate::scene::car_marks::CarMarks,
-    frame_work: &crate::race::frame_store::FrameWork,
-    numbers: &crate::race::numbers_store::Numbers,
-    vars: &crate::race::vars_store::RaceVars,
-    work: &crate::race::work_store::RaceWork,
 ) -> Result<(), BadInput> {
+    let cars = reads.frame_cars;
+    let (blocks, frame_work, numbers) = (reads.car_blocks, reads.frame_work, reads.numbers);
+    let (vars, work) = (reads.vars, reads.work);
     // The rounding of +0x718 is the x87's, under the game's control word.
     use rc2k_core::race::car_marks::{
         decals_shown, lamp_side, letter_number, letter_place, number_digits, stage_plate,
     };
-    let block = car_view(car)?;
+    let block = cars.car(car)?;
     let float = |c: &crate::session::Float| c.get();
     {
         let limit = frame_work.decal_limit.get();
@@ -97,12 +95,12 @@ pub fn car_number_textures(
         let side = lamp_side(float(&block.drive_speed_b), limit);
         marks.mark(2).set(side);
         marks.mark(3).set(side);
-        let name = car_view(car)?.car_kind.get().wrapping_mul(0x30);
+        let name = cars.car(car)?.car_kind.get().wrapping_mul(0x30);
         let n = crate::math::x87::to_int(&blocks.cars[car].shown_engine_speed);
         let (place, _) = letter_place(n);
         let letter = letter_number(number_name_byte(work, name.wrapping_add(place))?) as u32;
         marks.mark(5).set(letter);
-        let d = number_digits(car_view(car)?.start_slot_value.get());
+        let d = number_digits(cars.car(car)?.start_slot_value.get());
         marks.mark(6).set(d.tens);
         marks.mark(7).set(d.units);
         marks.mark(9).set(d.alone);
@@ -231,15 +229,7 @@ pub fn draw_car(ctx: &crate::race::view_scratch::DrawCtx<'_>, car: usize) -> Res
     }
     // The car's marks, its own while it is drawn.
     let marks = crate::scene::car_marks::CarMarks::new();
-    car_number_textures(
-        ctx.reads.car_blocks,
-        car,
-        &marks,
-        ctx.reads.frame_work,
-        ctx.reads.numbers,
-        ctx.reads.vars,
-        ctx.reads.work,
-    )?;
+    car_number_textures(ctx.reads, car, &marks)?;
     let ctx = &crate::race::view_scratch::DrawCtx {
         marks: &marks,
         ..*ctx
@@ -259,14 +249,14 @@ pub fn draw_car(ctx: &crate::race::view_scratch::DrawCtx<'_>, car: usize) -> Res
         .cars
         .groups_which
         .set(ctx.reads.car_blocks.cars[car].mode_on.get());
-    let model = car_view(car)?.car_kind.get();
+    let model = ctx.reads.frame_cars.car(car)?.car_kind.get();
     ctx.view.matrices.known_object.set(model);
     set_group_masks(
         &ctx.reads.lights_and_gear.light_records,
         &ctx.view.cars.group_masks,
         model,
     )?;
-    let switches = car_view(car)?.parts_present.get();
+    let switches = ctx.reads.frame_cars.car(car)?.parts_present.get();
     let shown = shown_groups(&ctx.view.cars.group_masks, switches);
     ctx.view.cars.shown_groups.set(shown);
     let field = |offset: u32| model_field(&ctx.reads.lights_and_gear.light_records, model, offset);
@@ -364,7 +354,7 @@ pub fn draw_car(ctx: &crate::race::view_scratch::DrawCtx<'_>, car: usize) -> Res
     ctx.view.light.light_turns[1].set(ctx.reads.stage_prefs.sun_height.get());
     ctx.view.light.view_kind.set(1);
     ctx.view.light.light_kind.set(3);
-    let this_car = car_view(car)?;
+    let this_car = ctx.reads.frame_cars.car(car)?;
     let place = || {
         ctx.view.object.place[0].set(this_car.position[0].get());
         ctx.view.object.place[1].set(this_car.position[1].get());
@@ -501,13 +491,13 @@ pub fn draw_car_entry(
     ctx.view
         .light
         .car_light
-        .set(car_view(car)?.light_colour.get());
+        .set(ctx.reads.frame_cars.car(car)?.light_colour.get());
     let t = crate::scene::rotate_point::rotate_point(
         &ctx.view.matrices.view_matrix,
         [
-            int_80(car_view(car)?.position[0].get()),
-            int_80(car_view(car)?.position[1].get()),
-            int_80(car_view(car)?.position[2].get()),
+            int_80(ctx.reads.frame_cars.car(car)?.position[0].get()),
+            int_80(ctx.reads.frame_cars.car(car)?.position[1].get()),
+            int_80(ctx.reads.frame_cars.car(car)?.position[2].get()),
         ],
     );
     let place = t.map(tbyte_to_int);

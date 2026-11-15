@@ -24,7 +24,14 @@ pub fn place_sound_e1(c: &SoundInputs<'_>) -> Result<(), Refused> {
     let o = object(c);
     o.hit_sound.set(0xE1);
     o.hit_volume.set(b);
-    place(c.numbers, c.matrices, c.car, &o.hit_place, None);
+    place(
+        c.numbers,
+        c.matrices,
+        c.heard_turn,
+        c.car,
+        &o.hit_place,
+        None,
+    );
     // The play switch, the cell the revs' new reading flag shares.
     o.new_revs.set(1);
     Ok(())

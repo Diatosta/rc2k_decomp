@@ -8,12 +8,14 @@
 
 use crate::errors::BadInput;
 use crate::errors::Refused;
-use crate::race::game_map::{GAME_MAP, Tile};
+use crate::memory::owned::Owned;
+use crate::race::game_map::{GameMap, Tile};
 use crate::race::owner_frame::Frame;
 use rc2k_core::race::map::TILE;
 
 pub fn blit_map_tiles(
     frame: &Frame,
+    game_map: &Owned<GameMap>,
     texture: u32,
     first_x: u32,
     first_y: u32,
@@ -32,7 +34,7 @@ pub fn blit_map_tiles(
         drawing.draw_surface.pitch.get(),
         crate::gfx::surface::handle(gfx)?,
     );
-    let tiles = u32::from(GAME_MAP.is_taken());
+    let tiles = u32::from(game_map.is_taken());
     if let Err(e) = check_tiles(pixels, tiles, any_inside(first_x, first_y)) {
         { unlock_texture(gfx, texture) }?;
         return Err(e.into());
@@ -48,7 +50,7 @@ pub fn blit_map_tiles(
             // black. A tile marked but never filled holds 1 in the table: read there, refused.
             let len = (TILE * TILE) as usize * wide as usize;
             let source = match tile_index(x, y) {
-                Some(n) => GAME_MAP.with(|m| match m.tiles.get(n as usize) {
+                Some(n) => game_map.with(|m| match m.tiles.get(n as usize) {
                     Some(Tile::None) => Ok(None),
                     Some(Tile::At(at)) => m
                         .pixels

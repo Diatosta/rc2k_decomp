@@ -28,8 +28,8 @@ pub fn allocate_object_memory_in_game(
             .get()
             .wrapping_add(points + faces),
     );
-    crate::scene::object_points::take(course, list, points)?;
-    crate::scene::object_faces::take(course, list, faces)?;
+    course.stage.object_points.take(course, list, points)?;
+    course.stage.object_faces.take(course, list, faces)?;
     course.lists.get().object_points_room.set(points);
     course.lists.get().face_memory_room.set(faces);
     Ok(())

@@ -204,7 +204,12 @@ pub fn find_spline_ends(paths: &Paths, s: Spline) -> Result<(), Refused> {
 /// bytes each: the point and two values) added to record `s`'s (+0x50 the count, ids
 /// +0x454, values +0x54 and +0x254) unless there already, up to 0x80. Refuses a record of
 /// more than 0x80 points. Converted: `rc2k_core::effects::splines::FacePoints::add_face`.
-pub fn add_face_points(paths: &Paths, s: Spline, face: u32) -> Result<(), Refused> {
+pub fn add_face_points(
+    object_faces: &crate::scene::object_faces::ObjectFaces,
+    paths: &Paths,
+    s: Spline,
+    face: u32,
+) -> Result<(), Refused> {
     {
         let most = MOST_POINTS as usize;
         let before = s.get(paths, COUNT)?;
@@ -218,16 +223,16 @@ pub fn add_face_points(paths: &Paths, s: Spline, face: u32) -> Result<(), Refuse
             firsts: &mut firsts,
             seconds: &mut seconds,
         };
-        let face_points = crate::scene::object_faces::word(face)?;
+        let face_points = object_faces.word(face)?;
         let at = |k: u32| face + 0x10 + 0x10 * k;
         let bad = crate::effects::Sticky::default();
         points.add_face(
             face_points,
-            |k| bad.take(crate::scene::object_faces::word(at(k))),
+            |k| bad.take(object_faces.word(at(k))),
             |k| {
                 [
-                    bad.take(crate::scene::object_faces::word(at(k) + 4)),
-                    bad.take(crate::scene::object_faces::word(at(k) + 8)),
+                    bad.take(object_faces.word(at(k) + 4)),
+                    bad.take(object_faces.word(at(k) + 8)),
                 ]
             },
         )?;
@@ -281,12 +286,12 @@ pub fn gather_spline_points(
         paths.spline_head.found.set(0);
         for f in first..first + faces {
             let face: u32 = crate::scene::objects::face_cell(faces_table, f as usize).get();
-            if (crate::scene::object_faces::byte(face + 7)? & 0x1F) as u32 == kind {
+            if (course.stage.object_faces.byte(face + 7)? & 0x1F) as u32 == kind {
                 paths
                     .spline_head
                     .found
                     .set(paths.spline_head.found.get().wrapping_add(1));
-                add_face_points(paths, s, face)?;
+                add_face_points(&course.stage.object_faces, paths, s, face)?;
             }
         }
         let n = s.get(paths, COUNT)?;
@@ -298,7 +303,7 @@ pub fn gather_spline_points(
         for k in (0..n).rev() {
             let from = s.get(paths, IDS + 4 * k)?;
             for c in 0..3 {
-                let v = crate::scene::object_points::word(from + 4 * c)?;
+                let v = course.stage.object_points.word(from + 4 * c)?;
                 s.put(paths, COORDS + k * 12 + 4 * c, v)?;
             }
         }
@@ -378,7 +383,11 @@ pub fn turn_spline_points(paths: &Paths, s: Spline) -> Result<(), Refused> {
 /// coordinates; then, from the last, each written plus the record's +0xC54 .. through the
 /// record's pointer at +0x454. Refuses more than 0x80 points, an angle with no sine and
 /// cosine, and a null pointer among the points', before writing anything.
-pub fn place_shape_points(paths: &Paths, s: Spline) -> Result<(), Refused> {
+pub fn place_shape_points(
+    object_points: &crate::scene::object_points::ObjectPoints,
+    paths: &Paths,
+    s: Spline,
+) -> Result<(), Refused> {
     {
         let n = s.count(paths)?;
         turnable_record(paths, s, [0x20, 0x24, 0x28])?;
@@ -390,7 +399,7 @@ pub fn place_shape_points(paths: &Paths, s: Spline) -> Result<(), Refused> {
         turn_record(paths, s, [0x20, 0x24, 0x28])?;
         transform_int_points_from(paths, s, 0, n)?;
         for k in (0..n).rev() {
-            write_point(paths, s, k, k)?;
+            write_point(object_points, paths, s, k, k)?;
         }
     }
     Ok(())
@@ -447,7 +456,13 @@ pub fn transform_int_points_from(
 
 /// Ordered point `k` plus record `s`'s +0xC54 .. written through the record's pointer
 /// `pointer` (at +0x454).
-pub fn write_point(paths: &Paths, s: Spline, k: u32, pointer: u32) -> Result<(), Refused> {
+pub fn write_point(
+    object_points: &crate::scene::object_points::ObjectPoints,
+    paths: &Paths,
+    s: Spline,
+    k: u32,
+    pointer: u32,
+) -> Result<(), Refused> {
     {
         let to = s.get(paths, IDS + 4 * pointer)?;
         let ordered = &paths.spline_work.ordered_coords;
@@ -457,7 +472,7 @@ pub fn write_point(paths: &Paths, s: Spline, k: u32, pointer: u32) -> Result<(),
                 .ok_or(BadInput("an ordered point past 0x80"))?;
             // `to` is a place of `scene::object_points`.
             let v = from.get().wrapping_add(s.get(paths, CENTRE + 4 * c)?);
-            crate::scene::object_points::write(to + 4 * c, &v.to_le_bytes())?;
+            object_points.write(to + 4 * c, &v.to_le_bytes())?;
         }
     }
     Ok(())

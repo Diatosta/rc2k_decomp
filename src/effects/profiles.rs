@@ -114,10 +114,14 @@ pub fn make_profiles(
             make_tables(paths, effects)?;
             effects.frame.draw_frame.profiles_done.set(resume);
         }
-        if !crate::race::course_places::info_held() {
+        if !crate::race::course_places::info_held(&effects.stage()?.course) {
             return Err(BadInput("no course info").into());
         }
-        let corners = crate::race::course_places::info_bytes(COURSE_CORNERS, CORNERS_LEN)?;
+        let corners = crate::race::course_places::info_bytes(
+            &effects.stage()?.course,
+            COURSE_CORNERS,
+            CORNERS_LEN,
+        )?;
         crate::cells::Store::store(&effects.blocks.corners, 0, &corners)?;
         crate::effects::blocks::allocate_links(effects)?;
         crate::effects::blocks::reset_settings_blocks(effects)?;

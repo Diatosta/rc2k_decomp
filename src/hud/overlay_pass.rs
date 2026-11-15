@@ -47,7 +47,7 @@ pub fn overlay_pass(
     ];
     if race.shared.view.get().views.get() == 2 {
         for n in 0..2 {
-            if crate::race::frame_view::car(n)?.view_covered.get() != 0 {
+            if race.frame.cars.car(n)?.view_covered.get() != 0 {
                 race.frame.panel_and_overlay.get().panel.hud_flags[n]
                     .set(race.frame.panel_and_overlay.get().panel.hud_flags[n].get() & 0x40);
                 race.frame.panel_and_overlay.get().panel.lights[n]

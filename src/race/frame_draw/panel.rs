@@ -1,7 +1,6 @@
 //! The race panel: the HUD values, the start lights and the sound spots shared with the audio side.
 
 use crate::errors::{BadInput, Refused};
-use crate::race::frame_view::car as car_view;
 use crate::race::owner::Race;
 use crate::race::owner_frame::Frame;
 use crate::race::owner_shared::RaceShared;
@@ -23,9 +22,14 @@ pub fn car_label(label_at: &[PlainDword; 2], car_number: u32, neighbour: u32) {
 /// the time is not above the one before (0x63 before the first; the sign of the difference), else
 /// 4 (rather than 8). Refused (before anything): a count past the buffer's 0x40 dwords, and more
 /// splits passed than the block's 16 times.
-pub fn split_colours(car: usize, colours: &[PlainDword; 64], count: u32) -> Result<(), Refused> {
+pub fn split_colours(
+    cars: &crate::race::frame_view::FrameCars,
+    car: usize,
+    colours: &[PlainDword; 64],
+    count: u32,
+) -> Result<(), Refused> {
     use rc2k_core::race::frame::{SPLIT_UNREACHED, check_split_colours, split_colours};
-    let block = car_view(car)?;
+    let block = cars.car(car)?;
     let n = block.splits_passed.get();
     check_split_colours(count, n)?;
     if n as i32 > 0 && n as usize > block.split_times.len() {
@@ -122,6 +126,7 @@ pub fn panel_players(race: &Race) -> Result<(), BadInput> {
 /// Sets `lamps_wanted` = `lamp_count`, with bit 0 set when a race car has +0x25C and
 /// +0x84 both set. Refused (before anything): more than eight cars (past `car_blocks`).
 pub fn lamps_wanted(
+    frame_cars: &crate::race::frame_view::FrameCars,
     work: &crate::race::work_store::RaceWork,
     race_view: &crate::race::view_store::RaceView,
     lamps: &crate::race::lamp_work::LampWork,
@@ -133,7 +138,7 @@ pub fn lamps_wanted(
     }
     let mut any_lit = false;
     for n in 0..cars {
-        let this_car = car_view(work.block_number(n as usize)?)?;
+        let this_car = frame_cars.car(work.block_number(n as usize)?)?;
         any_lit |= car_lit(this_car.driver_kind.get(), || this_car.lights_on.get());
     }
     lamps
@@ -174,12 +179,13 @@ pub fn store_view_value(race: &Race, block: usize, value: u32) -> Result<(), Ref
 
 /// The view's value (`ViewSun::view_out`, `FrameWork.view_out`) = the drawn view's block +0xFBC.
 pub fn fetch_view_value(
+    cars: &crate::race::frame_view::FrameCars,
     race_view: &crate::race::view_store::RaceView,
     sun: &crate::scene::polygon_work::ViewSun,
     view: u32,
 ) -> Result<(), Refused> {
     let b = drawn_view(race_view, view)?;
-    sun.view_out.set(car_view(b)?.eased_value.get());
+    sun.view_out.set(cars.car(b)?.eased_value.get());
     Ok(())
 }
 
@@ -264,7 +270,7 @@ pub fn object_bytes(
                 .ok_or(BadInput("an object's first face past the faces"))?
                 .get();
             // The face is a place of `scene::object_faces`.
-            let word = crate::scene::object_faces::bytes(face.wrapping_add(4), 2)?;
+            let word = reads.stage.object_faces.bytes(face.wrapping_add(4), 2)?;
             let word = u16::from_le_bytes([word[0], word[1]]);
             Some(kind(word as u32)?)
         } else {
@@ -306,7 +312,7 @@ pub(super) fn panel_half(race: &Race, car: usize, first: bool) -> Result<(), Bad
     };
     // The shown engine speed is the drawing's own (`race::car_parts`), in the block.
     let whole = shown_whole(race.car_blocks().cars[car].shown_engine_speed.get());
-    let car = car_view(car)?;
+    let car = race.frame.cars.car(car)?;
     cells[0].set(whole as u32);
     cells[1].set(car.engine_sound_speed_int.get());
     cells[2].set(car.gear.get());
@@ -411,7 +417,7 @@ pub fn panel_neighbours(race: &Race) -> Result<(), Refused> {
     if shared.vars.get().run_kind.get() != 2 {
         return Ok(());
     }
-    let a = car_view(shared.view.get().view_number(0)?)?;
+    let a = race.frame.cars.car(shared.view.get().view_number(0)?)?;
     let place = a.mode2_place.get();
     // The place indexes unchecked: the cars by place start at `computer_ease_speed` (slot 0, the
     // float 30.0) and run on into `arcade_car_kinds`; the numbers' `number_before_first` is the
@@ -424,7 +430,10 @@ pub fn panel_neighbours(race: &Race) -> Result<(), Refused> {
         if !shared.work.get().has_car_block(car as usize) {
             return Err(BadInput("a neighbour's block is null").into());
         }
-        Ok(car_view(shared.work.get().block_number(car as usize)?)?)
+        Ok(race
+            .frame
+            .cars
+            .car(shared.work.get().block_number(car as usize)?)?)
     };
     let behind = block_of(on(Listed::ComputerEaseSpeed, place.wrapping_add(1))?)?;
     let ahead = block_of(on(Listed::ComputerEaseSpeed, place)?)?;
@@ -491,7 +500,7 @@ pub fn panel_motion_plain(race: &Race) -> Result<(), BadInput> {
             let car = &race.car_blocks().cars[b];
             out[0].set(motion(car.map_picture_place[0].get() as i32, half, small).to_bits());
             out[1].set(motion(car.map_picture_place[1].get() as i32, half, small).to_bits());
-            let turn = heading_turn(car_view(b)?.car_heading.get());
+            let turn = heading_turn(race.frame.cars.car(b)?.car_heading.get());
             out[2].set(heading(turn as i32, half, big).to_bits());
         }
     }
@@ -511,9 +520,9 @@ pub fn panel_marks(race: &Race) -> Result<(), BadInput> {
         }
         for (view, shown) in frame.panel_and_overlay.get().panel.marks.iter().enumerate() {
             let b = race.shared.view.get().view_number(view)?;
-            let offset = car_view(b)?.car_event_position.get();
-            let count = car_view(b)?.car_event_count.get();
-            let codes = &car_view(b)?.car_event_codes;
+            let offset = race.frame.cars.car(b)?.car_event_position.get();
+            let count = race.frame.cars.car(b)?.car_event_count.get();
+            let codes = &race.frame.cars.car(b)?.car_event_codes;
             let past = std::cell::Cell::new(false);
             let m = rc2k_core::race::frame::view_marks(offset, count, |k| {
                 codes.get(k as usize).map_or_else(
@@ -551,12 +560,14 @@ pub fn countdown_lights(
         width.set(0);
         drop.set(0);
         flag.set(0);
-        if car_view(block)?.false_start_count.get() != 0 {
+        if frame.cars.car(block)?.false_start_count.get() != 0 {
             return Ok(());
         }
         use rc2k_core::race::start::lights;
         let Some(l) = lights(
-            car_view(block)?
+            frame
+                .cars
+                .car(block)?
                 .run_ticks
                 .get()
                 .wrapping_sub(frame.panel_and_overlay.get().overlay.countdown_start.get()),
@@ -614,7 +625,10 @@ pub fn colour_buffers(frame: &Frame) -> [&'_ [PlainDword; 64]; 2] {
 pub fn check_split_colours(race: &Race) -> Result<(), Refused> {
     let fill: u32 = race.physics.split_tables().split_colour_count.get();
     for view in 0..2 {
-        let n = car_view(race.shared.view.get().view_number(view)?)?
+        let n = race
+            .frame
+            .cars
+            .car(race.shared.view.get().view_number(view)?)?
             .splits_passed
             .get();
         rc2k_core::race::frame::check_split_colours(fill, n)?;
@@ -629,6 +643,7 @@ pub fn both_split_colours(race: &Race) -> Result<(), Refused> {
     check_split_colours(race)?;
     for (view, buffer) in (0..2).zip(colour_buffers(&race.frame)) {
         split_colours(
+            &race.frame.cars,
             race.shared.view.get().view_number(view)?,
             buffer,
             race.physics.split_tables().split_colour_count.get(),
@@ -638,11 +653,15 @@ pub fn both_split_colours(race: &Race) -> Result<(), Refused> {
 }
 
 /// `panel_neighbours`' refusal, before anything is written.
-pub(super) fn check_panel_neighbours(shared: &RaceShared) -> Result<(), Refused> {
+pub(super) fn check_panel_neighbours(
+    cars: &crate::race::frame_view::FrameCars,
+    shared: &RaceShared,
+) -> Result<(), Refused> {
     if shared.vars.get().run_kind.get() != 2 {
         return Ok(());
     }
-    let place = car_view(shared.view.get().view_number(0)?)?
+    let place = cars
+        .car(shared.view.get().view_number(0)?)?
         .mode2_place
         .get();
     // The cars by place (from `computer_ease_speed`, see `panel_neighbours`) at the place and the
@@ -662,7 +681,7 @@ pub(super) fn check_panel_neighbours(shared: &RaceShared) -> Result<(), Refused>
 /// `panel_marks`, `both_countdown_lights` and `both_split_colours`. Refused (before anything): what
 /// `panel_neighbours` or `both_split_colours` would refuse.
 pub fn set_up_panel(race: &Race) -> Result<(), Refused> {
-    check_panel_neighbours(&race.shared)?;
+    check_panel_neighbours(&race.frame.cars, &race.shared)?;
     check_split_colours(race)?;
     panel_values_plain(race)?;
     panel_neighbours(race)?;

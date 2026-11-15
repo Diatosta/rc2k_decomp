@@ -144,7 +144,7 @@ pub fn morph_object_points(
                 let (to, from) = (a + 12 * k, c + 12 * k);
                 let base = crate::effects::lines::block_point(paths, points, k)?;
                 if crate::effects::try_any(0..3, |i| {
-                    Ok(base[i as usize] != crate::scene::object_points::word(from + 4 * i)?)
+                    Ok(base[i as usize] != course.stage.object_points.word(from + 4 * i)?)
                 })? {
                     blend_corner(b, to, from, base, effects)?;
                 }

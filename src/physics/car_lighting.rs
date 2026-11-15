@@ -53,7 +53,7 @@ pub fn car_lighting(
     if face == u32::MAX {
         return Ok(());
     }
-    if !crate::race::course_places::held() {
+    if !crate::race::course_places::held(&c.course.stage.course) {
         return Err(BadInput("no course faces").into());
     }
     if c.course.course.get().ground_half.get() == 1 {

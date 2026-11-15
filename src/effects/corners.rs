@@ -129,7 +129,7 @@ pub fn make_corners(
                     effects,
                 )
                 .1;
-                turn_shape_points(drops, first, second)?;
+                turn_shape_points(&effects.stage()?.object_points, drops, first, second)?;
                 let table = tables(masks)[n];
                 let mut to = k * ENTRY;
                 let pair: [u32; 2] = read_bits(farthest_pair(drops, n));

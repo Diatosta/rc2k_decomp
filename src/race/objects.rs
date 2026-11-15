@@ -37,7 +37,12 @@ pub const BY_X_DOWN: Sort = Sort { key: 0, down: true };
 
 /// The sorts (by y, by z, and two by x downwards): the points from `first` to `last` (both
 /// included), step by step. Refuses (before anything) what `sorting::sort_records` refuses.
-pub fn sort_points(s: Sort, first: u32, last: u32) -> Result<(), Refused> {
+pub fn sort_points(
+    object_points: &crate::scene::object_points::ObjectPoints,
+    s: Sort,
+    first: u32,
+    last: u32,
+) -> Result<(), Refused> {
     // Logic in `rc2k_core::race::quick_sort::quick_sort`, on the points' places
     // (`scene::object_points`).
     use rc2k_core::race::quick_sort::{Order, quick_sort};
@@ -51,11 +56,11 @@ pub fn sort_points(s: Sort, first: u32, last: u32) -> Result<(), Refused> {
     let count = ((last - first) / 12 + 1) as usize;
     let at = |n: usize| first.wrapping_add(12 * n as u32);
     let mut list = (0..count)
-        .map(|n| crate::scene::object_points::point(at(n)))
+        .map(|n| object_points.point(at(n)))
         .collect::<Result<Vec<_>, _>>()?;
     quick_sort(&mut list, (s.key / 4) as usize, order)?;
     for (n, p) in list.into_iter().enumerate() {
-        crate::scene::object_points::set_point(at(n), p)?;
+        object_points.set_point(at(n), p)?;
     }
     Ok(())
 }
@@ -96,8 +101,11 @@ pub fn set_up_car_points(
             race.physics.contact.get().car_point_count.set(held);
             for n in 0..held {
                 let y = points + n * 12 + 4;
-                let lifted = crate::scene::object_points::word(y)?.wrapping_add(LIFT);
-                crate::scene::object_points::write(y, &lifted.to_le_bytes())?;
+                let lifted = race.course.stage.object_points.word(y)?.wrapping_add(LIFT);
+                race.course
+                    .stage
+                    .object_points
+                    .write(y, &lifted.to_le_bytes())?;
             }
             for (sort, start, n) in [
                 (BY_Y, 0u32, held),
@@ -108,14 +116,22 @@ pub fn set_up_car_points(
                 race.physics.contact.get().car_point_count.set(n);
                 if n >= 2 {
                     let first = points + start * 12;
-                    sort_points(sort, first, first + n * 12 - 12)?;
+                    sort_points(
+                        &race.course.stage.object_points,
+                        sort,
+                        first,
+                        first + n * 12 - 12,
+                    )?;
                 }
             }
             race.physics.contact.get().car_point_count.set(held);
             for n in 0..held {
                 let y = points + n * 12 + 4;
-                let lifted = crate::scene::object_points::word(y)?.wrapping_sub(LIFT);
-                crate::scene::object_points::write(y, &lifted.to_le_bytes())?;
+                let lifted = race.course.stage.object_points.word(y)?.wrapping_sub(LIFT);
+                race.course
+                    .stage
+                    .object_points
+                    .write(y, &lifted.to_le_bytes())?;
             }
             // Logic in `rc2k_core::race::cars::{point_float, open_two_points}`.
             let scale = race.course.numbers.get().k65536.get();
@@ -125,7 +141,7 @@ pub fn set_up_car_points(
                 let p = points + n * 12;
                 for (k, list) in lists.into_iter().enumerate() {
                     // Each value goes through `scratch`.
-                    let c = crate::scene::object_points::word(p + 4 * k as u32)?;
+                    let c = race.course.stage.object_points.word(p + 4 * k as u32)?;
                     scene.drawing.scene.get().scratch.set(c);
                     list[n as usize].set(rc2k_core::race::cars::point_float(c, scale));
                 }

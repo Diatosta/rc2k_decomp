@@ -29,6 +29,7 @@ pub fn map_tiles(
     );
     crate::race::blit_map_tiles::blit_map_tiles(
         frame,
+        &race.course.stage.game_map,
         slot,
         first_tile(car.map_corner[0].get()),
         first_tile(car.map_corner[1].get()),
@@ -39,7 +40,8 @@ pub fn map_tiles(
 /// What `scroll_map` reads through the course: refused before anything.
 fn scroll_refuses(race: &Race) -> Result<(), Refused> {
     if race.shared.vars.get().checkpoint_count.get() >= 2
-        && (!crate::race::course_places::held() || !crate::race::scene_points::held())
+        && (!crate::race::course_places::held(&race.course.stage.course)
+            || !crate::race::scene_points::held(&race.course.stage.course))
     {
         return Err(BadInput("no course faces or points").into());
     }

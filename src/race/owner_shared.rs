@@ -42,6 +42,8 @@ pub struct RaceShared {
     pub car_blocks: DrawShared<CarBlocks>,
     /// The replay files' names.
     pub replay_templates: Templates,
+    /// The turn the race's sounds are placed by.
+    pub heard_turn: GameThread<crate::race::heard_turn::HeardTurn>,
     main: GameThread<SharedMain>,
 }
 
@@ -69,6 +71,7 @@ impl RaceShared {
             car: GameThread::new(Car::new()),
             car_blocks: DrawShared::new(CarBlocks::new()),
             replay_templates: Templates::new(),
+            heard_turn: GameThread::new(crate::race::heard_turn::HeardTurn::new()),
             main: GameThread::new(SharedMain {
                 tables: RaceTables::new(),
                 tyre_change: TyreChange::new(),

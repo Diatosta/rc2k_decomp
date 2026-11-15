@@ -16,6 +16,7 @@ use crate::errors::{BadInput, Refused};
 const FACES: u32 = 0xC000;
 
 pub fn draw_object_faces(
+    object_faces: &crate::scene::object_faces::ObjectFaces,
     faces_table: &crate::scene::faces_store::Faces,
     poly: &crate::scene::polygon_work::PolygonWork,
     object: &crate::scene::object_place::ObjectPlace,
@@ -39,7 +40,7 @@ pub fn draw_object_faces(
         }
         object.see_through.set(listed[3]);
         work.face_number.set(listed[0]);
-        let head: [u8; 0xC] = crate::scene::object_faces::array(face as u32)?;
+        let head: [u8; 0xC] = object_faces.array(face as u32)?;
         let texture = u16::from_le_bytes([head[4], head[5]]) as u32;
         poly.polygon_textures[0].set(texture.wrapping_add(object.texture_set.get()) | 0x8000_0000);
         work.face_kind.set(head[6] as u32);

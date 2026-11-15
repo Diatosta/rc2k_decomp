@@ -19,6 +19,7 @@ use crate::race::view_scratch::DrawCtx;
 /// +0x684 `camera_view`), not what the view drawn before had set from them (which was one frame
 /// late after a camera change).
 pub fn car_light_modes(
+    frame_cars: &crate::race::frame_view::FrameCars,
     states: &crate::race::car_draw_state::CarDrawState,
     work: &crate::race::work_store::RaceWork,
     vars: &crate::race::vars_store::RaceVars,
@@ -46,7 +47,7 @@ pub fn car_light_modes(
     let mode: u32 = vars.run_kind.get();
     for n in 0..cars {
         // The state bits are the view's own; what decides them, the physics'.
-        let this_car = crate::race::frame_view::car(block(n)?)?;
+        let this_car = frame_cars.car(block(n)?)?;
         let at = states.state_of(block(n)?)?;
         let me = n == shown;
         let drawn = lights_drawn(
@@ -236,7 +237,7 @@ pub(super) fn car_lights_on_point(
             // The marks count is the drawing's own (`race::car_parts`), in the block.
             car_light_on_point(
                 reads.course(),
-                crate::race::frame_view::car(n as usize)?,
+                reads.frame_cars.car(n as usize)?,
                 crate::race::owner_shared::RaceShared::race_car_in(race_work, blocks, n as usize)?
                     .marks_count
                     .get(),

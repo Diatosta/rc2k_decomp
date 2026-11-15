@@ -37,11 +37,9 @@ pub type Course = rc2k_core::race::pace_notes::Course;
 /// read refused.
 pub fn game_course(race: &Race) -> Course {
     let shared = &race.shared;
-    let len = if crate::race::course_places::held() {
-        crate::race::course_places::data()
-            .faces
-            .len()
-            .map_or(0, |l| l as u32)
+    let data = &race.course.stage.course;
+    let len = if crate::race::course_places::held(data) {
+        data.faces.len().map_or(0, |l| l as u32)
     } else {
         0
     };
@@ -52,40 +50,50 @@ pub fn game_course(race: &Race) -> Course {
     }
 }
 
-/// The first refusal of a face read, kept until the walk is done.
-static REFUSED: std::sync::Mutex<Option<BadInput>> = std::sync::Mutex::new(None);
+/// The game's stage, as the walk asks it: the faces by offset into their table. It keeps the
+/// first refusal of a face read until the walk is done.
+pub struct GameStage<'a> {
+    race: &'a Race,
+    refused: std::sync::Mutex<Option<BadInput>>,
+}
 
-/// The game's stage, as the walk asks it: the faces by offset into their table.
-pub struct GameStage<'a>(pub &'a Race);
+impl<'a> GameStage<'a> {
+    pub fn new(race: &'a Race) -> Self {
+        GameStage {
+            race,
+            refused: std::sync::Mutex::new(None),
+        }
+    }
+}
 
 impl Stage for GameStage<'_> {
     fn checkpoint_face(&self, k: u32) -> u32 {
-        crate::race::checkpoints_store::face_run_on(self.0.checkpoints(), k as usize).get()
+        crate::race::checkpoints_store::face_run_on(self.race.checkpoints(), k as usize).get()
     }
     fn distance(&self, k: u32) -> u32 {
-        crate::race::checkpoints_store::distance_run_on(self.0.checkpoints(), k as usize).get()
+        crate::race::checkpoints_store::distance_run_on(self.race.checkpoints(), k as usize).get()
     }
     fn angle(&self, k: u32) -> u32 {
-        crate::race::checkpoints_store::angle_run_on(self.0.checkpoints(), k as usize).get()
+        crate::race::checkpoints_store::angle_run_on(self.race.checkpoints(), k as usize).get()
     }
     fn slot_offset(&self, slot: u32) -> u32 {
-        self.0.shared.physics_tables.get().pace_slot_offsets[slot as usize].get()
+        self.race.shared.physics_tables.get().pace_slot_offsets[slot as usize].get()
     }
     fn word(&self, tens: u32) -> u8 {
-        self.0.physics.pace().distance_words.get(tens as usize)
+        self.race.physics.pace().distance_words.get(tens as usize)
     }
     fn face_byte(&self, at: u32) -> u8 {
         // The core asks only inside the course's window; a refusal here is kept for `Machine::init`
         // (the core's trait answers a byte).
         let read = crate::race::course_places::face_field::<u8>(
-            self.0.course.reads(),
+            self.race.course.reads(),
             at / 0x40,
             at % 0x40,
         );
         match read {
             Ok(b) => b,
             Err(e) => {
-                if let Ok(mut held) = REFUSED.lock() {
+                if let Ok(mut held) = self.refused.lock() {
                     held.get_or_insert(e);
                 }
                 0
@@ -95,18 +103,21 @@ impl Stage for GameStage<'_> {
 }
 
 /// The core's machine on the game's slot and tables (`rc2k_core::race::pace_notes::Notes`).
-pub struct Machine<'a>(Notes<'a, GameStage<'a>>);
+pub struct Machine<'a> {
+    notes: Notes<'a, GameStage<'a>>,
+    stage: &'a GameStage<'a>,
+}
 
 impl<'a> std::ops::Deref for Machine<'a> {
     type Target = Notes<'a, GameStage<'a>>;
     fn deref(&self) -> &Self::Target {
-        &self.0
+        &self.notes
     }
 }
 
 impl std::ops::DerefMut for Machine<'_> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
+        &mut self.notes
     }
 }
 
@@ -167,15 +178,18 @@ fn tables(
 impl<'a> Machine<'a> {
     pub fn load(race: &Race, course: Course, stage: &'a GameStage<'a>) -> Result<Self, BadInput> {
         let physics = &race.physics;
-        if let Ok(mut held) = REFUSED.lock() {
+        if let Ok(mut held) = stage.refused.lock() {
             *held = None;
         }
-        Ok(Self(Notes::new(
-            race.shared.physics_tables.get().pace_slot.get(),
-            image(physics),
-            course,
+        Ok(Self {
+            notes: Notes::new(
+                race.shared.physics_tables.get().pace_slot.get(),
+                image(physics),
+                course,
+                stage,
+            ),
             stage,
-        )))
+        })
     }
 
     /// The slot and the tables written back.
@@ -188,8 +202,8 @@ impl<'a> Machine<'a> {
 
     /// Makes the tables (see `race::init_pace_notes`).
     pub fn init(&mut self) -> Result<(), Refused> {
-        let done = self.0.init();
-        if let Ok(mut held) = REFUSED.lock()
+        let done = self.notes.init();
+        if let Ok(mut held) = self.stage.refused.lock()
             && let Some(e) = held.take()
         {
             return Err(e.into());

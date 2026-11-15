@@ -3,7 +3,6 @@
 
 use super::*;
 use crate::errors::{BadInput, Refused};
-use crate::race::frame_view::car as car_view;
 use crate::race::view_scratch::DrawCtx;
 use crate::scene::draw_described_object::Description;
 
@@ -226,7 +225,7 @@ pub fn add_car_depth_entry(ctx: &DrawCtx, car: usize, number: u32) -> Result<(),
     if n >= SORT_MAX {
         return Err(BadInput("a depth entry past the 0x1000").into());
     }
-    let place = crate::session::read_bits(&car_view(car)?.position);
+    let place = crate::session::read_bits(&ctx.reads.frame_cars.car(car)?.position);
     for (k, &p) in place.iter().enumerate() {
         ctx.view.object.place[k].set(p);
     }
@@ -304,10 +303,11 @@ pub(super) fn add_flare(ctx: &DrawCtx) -> Result<(), BadInput> {
 pub(super) fn place_flare(ctx: &DrawCtx, car: usize, point: [u32; 3]) -> Result<(), BadInput> {
     let t = crate::math::x87::rotate_rounding(
         point.map(|v| v as i32),
-        &crate::session::read_bits(&car_view(car)?.crash_matrix),
+        &crate::session::read_bits(&ctx.reads.frame_cars.car(car)?.crash_matrix),
     );
     for (k, v) in t.iter().enumerate() {
-        ctx.view.object.place[k].set(v.wrapping_add(car_view(car)?.position[k].get()));
+        ctx.view.object.place[k]
+            .set(v.wrapping_add(ctx.reads.frame_cars.car(car)?.position[k].get()));
     }
     ctx.view.cars.object_number.set(0x39u32);
     add_flare(ctx)?;
@@ -400,11 +400,11 @@ pub fn car_light_flares(ctx: &DrawCtx, car: usize) -> Result<(), Refused> {
     if ctx.reads.switches.scene_set_up.get() == 0 {
         return Ok(());
     }
-    let kind = car_view(car)?.car_kind.get();
+    let kind = ctx.reads.frame_cars.car(car)?.car_kind.get();
     let valid = kind < 0x22 && race.kind_tables().kind_shows_parts[kind as usize].get() != 0;
     if valid {
         if !crate::math::x87::below_or_unordered(
-            car_view(car)?.electrics_damage.get(),
+            ctx.reads.frame_cars.car(car)?.electrics_damage.get(),
             ctx.reads.numbers.hundred.get(),
         ) {
             return Ok(());
@@ -412,7 +412,7 @@ pub fn car_light_flares(ctx: &DrawCtx, car: usize) -> Result<(), Refused> {
         ctx.view
             .cars
             .parts_present
-            .set(car_view(car)?.parts_present.get());
+            .set(ctx.reads.frame_cars.car(car)?.parts_present.get());
         // A second test of the same kind follows; it can never fail here.
     }
     // The kind held to 0 ..= 0x21 (by sign), through the kind tables' `kind_light_records`.

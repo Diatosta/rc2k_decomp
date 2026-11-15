@@ -17,13 +17,14 @@ pub(super) fn table_root(course: CourseReads<'_>, v: f32) -> f32 {
 /// A point's x and z less car 0's place (the car block's +0x134, +0x13C), and its y, as
 /// locals.
 pub(super) fn point_from_car(
+    cars: &crate::race::frame_view::FrameCars,
     course: CourseReads<'_>,
     points: &crate::race::scene_points::OwnPoints,
     point: u32,
 ) -> Result<(u32, u32, u32), BadInput> {
     let [px, py, pz] = crate::race::scene_points::point_number(course, points, point)?;
-    let x = px.wrapping_sub(crate::race::frame_view::car(0)?.position[0].get());
-    let z = pz.wrapping_sub(crate::race::frame_view::car(0)?.position[2].get());
+    let x = px.wrapping_sub(cars.car(0)?.position[0].get());
+    let z = pz.wrapping_sub(cars.car(0)?.position[2].get());
     Ok((x, py, z))
 }
 
@@ -45,6 +46,7 @@ pub(super) fn add_eax_weight(course: CourseReads<'_>, sum: &mut u32, v: f32) {
 /// its second and third points; each held to 16 (see `add_eax_weight`). Distances come from the
 /// root tables. The middle and the distance are locals.
 pub fn eax_face_weight(
+    cars: &crate::race::frame_view::FrameCars,
     course: CourseReads<'_>,
     points: &crate::race::scene_points::OwnPoints,
     sum: &mut u32,
@@ -62,7 +64,7 @@ pub fn eax_face_weight(
             if face_field::<u8>(course, face, 1)? >= 0x38 {
                 return Ok(());
             }
-            let (x, _, z) = point_from_car(course, points, face_field(course, face, 4)?)?;
+            let (x, _, z) = point_from_car(cars, course, points, face_field(course, face, 4)?)?;
             let distance = table_root(course, int_square_sum(x as i32, z as i32));
             let strength = face_field::<u8>(course, face, 0x18)? as u32;
             add_eax_weight(course, sum, int_over(strength as i32, distance));
@@ -77,9 +79,9 @@ pub fn eax_face_weight(
         ) {
             return Ok(());
         }
-        let (x1, _, z1) = point_from_car(course, points, face_field(course, face, 8)?)?;
+        let (x1, _, z1) = point_from_car(cars, course, points, face_field(course, face, 8)?)?;
         let (mx, mz) = (from_int(x1 as i32), from_int(z1 as i32));
-        let (x2, _, z2) = point_from_car(course, points, face_field(course, face, 0xC)?)?;
+        let (x2, _, z2) = point_from_car(cars, course, points, face_field(course, face, 0xC)?)?;
         let half = course.numbers.half.get();
         let mx = int_plus_times(x2 as i32, mx, half);
         let mz = int_plus_times(z2 as i32, mz, half);
@@ -95,6 +97,7 @@ pub fn eax_face_weight(
 /// `eax_face_weight`. The sum is local: summing straight into `eax_environment`, which the audio
 /// thread reads at its own pace (`audio::update_voices`), could be heard half made.
 pub fn eax_environment(
+    cars: &crate::race::frame_view::FrameCars,
     course: CourseReads<'_>,
     work: &crate::race::work_store::RaceWork,
     points: &crate::race::scene_points::OwnPoints,
@@ -116,7 +119,7 @@ pub fn eax_environment(
                 continue;
             }
             loop {
-                eax_face_weight(course, points, &mut sum, face)?;
+                eax_face_weight(cars, course, points, &mut sum, face)?;
                 face = face.wrapping_add(1);
                 if face > record_field(course, record, 0xC)? {
                     break;

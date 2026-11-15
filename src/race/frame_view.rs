@@ -106,10 +106,31 @@ fn same<A: Cells, B: Cells>(a: &A, b: &B) -> bool {
     crate::cells::flatten(a) == crate::cells::flatten(b)
 }
 
-static CARS: [CarView; BLOCK_COUNT] = [const { CarView::new() }; BLOCK_COUNT];
+/// The snapshot of every car and whether one is held, kept by the frame owner
+/// (`Frame::cars`) and read by the drawing parts through `workers::DrawReads::frame_cars`.
+pub struct FrameCars {
+    cars: [CarView; BLOCK_COUNT],
+    /// A snapshot is held (between `take` and `release`).
+    held: AtomicBool,
+}
 
-/// A snapshot is held (between `take` and `release`).
-static HELD: AtomicBool = AtomicBool::new(false);
+impl FrameCars {
+    pub const fn new() -> Self {
+        FrameCars {
+            cars: [const { CarView::new() }; BLOCK_COUNT],
+            held: AtomicBool::new(false),
+        }
+    }
+
+    /// Car `n`'s snapshot. Refused outside a frame's drawing (no snapshot held) or past the
+    /// blocks.
+    pub fn car(&self, n: usize) -> Result<&CarView, BadInput> {
+        if !self.held.load(Ordering::Acquire) {
+            return Err(BadInput("a car's snapshot read outside the race's drawing"));
+        }
+        self.cars.get(n).ok_or(BadInput("a car past the blocks"))
+    }
+}
 
 /// The snapshot held while it lives: `take` at its making, `release` when dropped (on every
 /// way out of the drawing).
@@ -131,22 +152,24 @@ impl Drop for Held<'_> {
 /// The snapshot of every car block (on the game's thread, before any view is drawn).
 fn take(race: &Race) {
     let blocks = &race.car_blocks().cars;
-    for (view, car) in CARS.iter().zip(blocks) {
+    let frame = &race.frame.cars;
+    for (view, car) in frame.cars.iter().zip(blocks) {
         view.take(car);
     }
-    HELD.store(true, Ordering::Release);
+    frame.held.store(true, Ordering::Release);
 }
 
 /// The drawing is over: the snapshot no longer read (and, with `RC2K_FRAME_VIEW_CHECK`, compared
 /// with the blocks).
 fn release(race: &Race) {
-    HELD.store(false, Ordering::Release);
+    let frame = &race.frame.cars;
+    frame.held.store(false, Ordering::Release);
     static CHECK: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
     if !*CHECK.get_or_init(|| std::env::var_os("RC2K_FRAME_VIEW_CHECK").is_some()) {
         return;
     }
     let blocks = &race.car_blocks().cars;
-    for (n, (view, car)) in CARS.iter().zip(blocks).enumerate() {
+    for (n, (view, car)) in frame.cars.iter().zip(blocks).enumerate() {
         let changed = view.changed(car);
         if !changed.is_empty() {
             crate::framework::log(&format!(
@@ -155,12 +178,4 @@ fn release(race: &Race) {
             ));
         }
     }
-}
-
-/// Car `n`'s snapshot. Refused outside a frame's drawing (no snapshot held) or past the blocks.
-pub fn car(n: usize) -> Result<&'static CarView, BadInput> {
-    if !HELD.load(Ordering::Acquire) {
-        return Err(BadInput("a car's snapshot read outside the race's drawing"));
-    }
-    CARS.get(n).ok_or(BadInput("a car past the blocks"))
 }

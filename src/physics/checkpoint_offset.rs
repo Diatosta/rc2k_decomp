@@ -28,7 +28,9 @@ pub fn checkpoint_offset(
         car.checkpoint_offset[1].set(0);
         return Ok(());
     }
-    if !crate::race::course_places::held() || !crate::race::scene_points::held() {
+    if !crate::race::course_places::held(&course.stage.course)
+        || !crate::race::scene_points::held(&course.stage.course)
+    {
         return Err(BadInput("no course faces or points").into());
     }
     let angle = crate::race::checkpoints_store::angle_run_on(checkpoints, c as usize).get();

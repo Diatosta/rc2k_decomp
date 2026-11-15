@@ -44,7 +44,11 @@ pub const MOST_POINTS: u32 = rc2k_core::effects::masks::MOST_POINTS;
 /// `collect_points`: face `face`'s points (+0 the count, from +0x10, 16 bytes
 /// apart) added to the list unless there already, up to 0x40, each with the face. Refuses a list of
 /// more than 0x40. Converted: `rc2k_core::effects::masks::PointList::add_face`.
-pub fn collect_points(list: &PointList<'_>, face: u32) -> Result<(), Refused> {
+pub fn collect_points(
+    object_faces: &crate::scene::object_faces::ObjectFaces,
+    list: &PointList<'_>,
+    face: u32,
+) -> Result<(), Refused> {
     let most = MOST_POINTS as usize;
     let mut ids: Vec<u32> = (0..most).map(|n| list.ids[n].get()).collect();
     let mut faces: Vec<u32> = (0..most).map(|n| list.faces[n].get()).collect();
@@ -54,10 +58,10 @@ pub fn collect_points(list: &PointList<'_>, face: u32) -> Result<(), Refused> {
         faces: &mut faces,
     };
     points.check()?;
-    let face_points = crate::scene::object_faces::word(face)?;
+    let face_points = object_faces.word(face)?;
     let bad = crate::effects::Sticky::default();
     let added = points.add_face(face, face_points, |k| {
-        bad.take(crate::scene::object_faces::word(face + 0x10 + 0x10 * k))
+        bad.take(object_faces.word(face + 0x10 + 0x10 * k))
     });
     bad.done()?;
     added?;

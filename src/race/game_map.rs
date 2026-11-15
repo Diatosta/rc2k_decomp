@@ -32,7 +32,7 @@ pub struct MapVars {
     pub _gap_50: PlainBytes<0x30>,
     /// The key sheet, 16 MB.
     pub key_pixels: PlainDword,
-    /// Each tile's place in the pixels (128 x 128 dwords); 0 since the map is Rust's (`GAME_MAP`).
+    /// Each tile's place in the pixels (128 x 128 dwords); 0 since the map is Rust's (`StageData::game_map`).
     pub tiles: PlainDword,
     /// The pixels' place (0 as `tiles`).
     pub tile_pixels: PlainDword,
@@ -145,10 +145,6 @@ pub struct GameMap {
     pub pixels: Vec<u8>,
 }
 
-/// The map, taken by the loaders, given back by `free_game_map`.
-pub static GAME_MAP: crate::memory::owned::Owned<GameMap> =
-    crate::memory::owned::Owned::new("no map tiles");
-
 /// What a loader makes: the map, and the variables that go with it.
 pub struct LoadedMap {
     /// The tiles, and the pixels' block (zeroed where the file gave none; empty for none).
@@ -181,8 +177,8 @@ impl LoadedMap {
 
 /// Stores a loaded map: its variables, the tile table (0x10000 bytes counted on the map's list)
 /// and the pixels' block (counted on the list too).
-pub fn store_game_map(frame: &Frame, loaded: LoadedMap) -> Result<(), Refused> {
-    let vars = frame.map();
+pub fn store_game_map(race: &Race, loaded: LoadedMap) -> Result<(), Refused> {
+    let vars = race.frame.map();
     vars.pixel_bytes.set(loaded.pixel_bytes);
     vars.format.set(loaded.format);
     if let Some(black) = loaded.black {
@@ -193,7 +189,7 @@ pub fn store_game_map(frame: &Frame, loaded: LoadedMap) -> Result<(), Refused> {
         tile_count,
         ..
     } = loaded;
-    GAME_MAP.take(
+    race.course.stage.game_map.take(
         &vars.list,
         0x1_0000,
         GameMap {
@@ -203,7 +199,7 @@ pub fn store_game_map(frame: &Frame, loaded: LoadedMap) -> Result<(), Refused> {
     )?;
     vars.tile_count.set(tile_count);
     crate::memory::owned::count_on(&vars.list, pixels.len() as u32)?;
-    GAME_MAP.with(|m| m.pixels = pixels)?;
+    race.course.stage.game_map.with(|m| m.pixels = pixels)?;
     Ok(())
 }
 
@@ -221,7 +217,7 @@ pub fn free_game_map(race: &Race, gfx: &crate::gfx::owner::Gfx) -> Result<(), Re
     crate::gfx::picture::give_back(&gfx.pictures.buffers, crate::gfx::picture::Buffer::Key);
     crate::memory::free_list::free_list(&frame.map().key_list)?;
     crate::memory::free_list::free_list(&frame.map().list)?;
-    GAME_MAP.give_back();
+    race.course.stage.game_map.give_back();
     for cell in [
         &frame.map().key_pixels,
         &frame.map().tiles,

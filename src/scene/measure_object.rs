@@ -47,7 +47,7 @@ pub fn measure_object(
             Vec::new()
         } else {
             (0..count)
-                .map(|n| crate::scene::object_points::point(at as u32 + 12 * n))
+                .map(|n| course.stage.object_points.point(at as u32 + 12 * n))
                 .collect::<Result<_, _>>()?
         };
         let Some(m) = measure(&mut points) else {
@@ -60,7 +60,10 @@ pub fn measure_object(
             return Ok(());
         };
         for (n, p) in points.iter().enumerate() {
-            crate::scene::object_points::set_point(at as u32 + 12 * n as u32, *p)?;
+            course
+                .stage
+                .object_points
+                .set_point(at as u32 + 12 * n as u32, *p)?;
         }
         crate::session::write_first(
             &scene.objects.slots.get().measures,

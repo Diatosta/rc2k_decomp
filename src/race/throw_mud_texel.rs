@@ -23,7 +23,7 @@ pub fn throw_mud_texel(
     system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
     let shared = &race.shared;
-    let n = texture_and_mud(&race.shared)?;
+    let n = texture_and_mud(&race.shared, &race.course.stage.mud)?;
     // `mud_thrown_counts` holds each texture's count (the texture is 0 .. 3).
     let count_cell = &shared.vars.get().mud_thrown_counts[n as usize];
     let count: u32 = count_cell.get();

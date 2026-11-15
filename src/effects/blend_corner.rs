@@ -18,14 +18,17 @@ pub fn blend_corner(
 ) -> Result<(), Refused> {
     {
         // `from` and `to` are places of `scene::object_points`.
-        let src = crate::scene::object_points::point(from)?;
+        let src = effects.stage()?.object_points.point(from)?;
         let signs = src.iter().fold(0, |b, &v| (b << 1) | (v >> 31));
         let f = x87::loaded(&block.factors[signs as usize]);
         effects.clipping.blend_work.factor.set(f);
         for (c, &s) in src.iter().enumerate() {
             let v = x87::int_lerp_to_int(s as i32, base[c] as i32, f);
             let c = 4 * c as u32;
-            crate::scene::object_points::write(to + c, &v.to_le_bytes())?;
+            effects
+                .stage()?
+                .object_points
+                .write(to + c, &v.to_le_bytes())?;
         }
     }
     Ok(())

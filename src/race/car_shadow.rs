@@ -1042,14 +1042,18 @@ mod vector_tests {
                 for (cell, &e) in work.edge.iter().zip(&edge) {
                     cell.set(e);
                 }
-                let inside = crate::race::scene_points::with_test_points(&points, || {
-                    inside_edge(
-                        race().course.reads(),
-                        &crate::race::scene_points::no_own(),
-                        &work,
-                        n,
-                    )
-                })
+                let inside = crate::race::scene_points::with_test_points(
+                    &race().course.stage.course,
+                    &points,
+                    || {
+                        inside_edge(
+                            race().course.reads(),
+                            &crate::race::scene_points::no_own(),
+                            &work,
+                            n,
+                        )
+                    },
+                )
                 .expect("the test's memory is registered");
                 // The point the recorded run left in the ground work, here the shadow's own search
                 // in the shadow's own search fields.
@@ -1109,17 +1113,21 @@ mod vector_tests {
                 }
                 let both = [pa, pb].concat();
                 let (a, b) = (entry_of(ea), entry_of(eb));
-                crate::race::scene_points::with_test_points(&both, || {
-                    crossing_block(
-                        race().course.reads(),
-                        &crate::race::scene_points::no_own(),
-                        &poly,
-                        &work,
-                        (0, 1),
-                        &a,
-                        &b,
-                    )
-                })
+                crate::race::scene_points::with_test_points(
+                    &race().course.stage.course,
+                    &both,
+                    || {
+                        crossing_block(
+                            race().course.reads(),
+                            &crate::race::scene_points::no_own(),
+                            &poly,
+                            &work,
+                            (0, 1),
+                            &a,
+                            &b,
+                        )
+                    },
+                )
                 .expect("the test's memory is registered");
                 // The inputs, `plane_f` (kept in the shadow's own search fields) and the view's
                 // work the block writes.

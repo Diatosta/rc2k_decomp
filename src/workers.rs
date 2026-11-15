@@ -51,6 +51,9 @@ pub struct PartScratch {
     /// Which records have been written since they were last forgotten
     /// (`scene::point_records::Written`).
     pub records_written: crate::scene::point_records::Written,
+    /// Whether the point records are taken (`scene::point_records::take`), set for every part
+    /// on the game's thread between scopes.
+    pub records_taken: crate::session::PlainFlag,
     /// The held matrix columns while a part other than the first is drawn
     /// (`scene::view_matrices::Held`), from the list's start.
     pub columns: crate::scene::view_matrices::OwnColumns,
@@ -85,6 +88,7 @@ impl PartScratch {
             polygon: crate::scene::polygon_store::PolygonWork::new(),
             records: crate::scene::point_records::new_records(),
             records_written: crate::scene::point_records::new_written(),
+            records_taken: crate::session::PlainFlag::new(false),
             columns: crate::scene::view_matrices::OwnColumns::new(),
             points: crate::race::scene_points::OwnPoints::new(),
             cache: if first {
@@ -252,6 +256,7 @@ pub struct Lent<'s> {
     finish: crate::session::PhaseRead<'s, crate::drive::finish_store::Finish>,
     // The frame's work and the panel and overlay.
     frame_work: crate::session::PhaseRead<'s, crate::race::frame_store::FrameWork>,
+    frame_cars: &'s crate::race::frame_view::FrameCars,
     panel_and_overlay: crate::session::PhaseRead<'s, crate::race::groups_store::PanelAndOverlay>,
     // The cars' blocks and the view variables.
     car_blocks: crate::session::PhaseRead<'s, crate::race::blocks_store::CarBlocks>,
@@ -264,6 +269,7 @@ pub struct Lent<'s> {
     course_lists: crate::session::PhaseRead<'s, crate::race::course_lists_store::CourseLists>,
     stage_prefs: crate::session::PhaseRead<'s, crate::race::prefs_store::StagePrefs>,
     course_work: crate::session::PhaseRead<'s, crate::race::course_store::CourseWork>,
+    stage: &'s crate::race::stage_data::StageData,
     kind_records: crate::session::PhaseRead<'s, crate::race::kind_records_store::KindRecords>,
     numbers: crate::session::PhaseRead<'s, crate::race::numbers_store::Numbers>,
     // The race owner's shared group (lane r41shared).
@@ -314,6 +320,7 @@ impl<'s> Lent<'s> {
             finish: PhaseRead::lend(&race.replay.finish, scope),
             // The frame's work and the panel and overlay.
             frame_work: PhaseRead::lend(&race.frame.frame_work, scope),
+            frame_cars: &race.frame.cars,
             panel_and_overlay: PhaseRead::lend(&race.frame.panel_and_overlay, scope),
             // The cars' blocks and the view variables.
             car_blocks: PhaseRead::lend(&race.shared.car_blocks, scope),
@@ -326,6 +333,7 @@ impl<'s> Lent<'s> {
             course_lists: PhaseRead::lend(&race.course.lists, scope),
             stage_prefs: PhaseRead::lend(&race.course.stage_prefs, scope),
             course_work: PhaseRead::lend(&race.course.course, scope),
+            stage: &race.course.stage,
             kind_records: PhaseRead::lend(race.course.kind_records_store(), scope),
             numbers: PhaseRead::lend(&race.course.numbers, scope),
             // The race owner's shared group (lane r41shared).
@@ -364,6 +372,7 @@ impl<'s> Lent<'s> {
             finish: &self.finish,
             // The frame's work and the panel and overlay.
             frame_work: &self.frame_work,
+            frame_cars: self.frame_cars,
             panel_and_overlay: &self.panel_and_overlay,
             // The cars' blocks and the view variables.
             car_blocks: &self.car_blocks,
@@ -376,6 +385,7 @@ impl<'s> Lent<'s> {
             course_lists: &self.course_lists,
             stage_prefs: &self.stage_prefs,
             course_work: &self.course_work,
+            stage: self.stage,
             kind_records: &self.kind_records,
             numbers: &self.numbers,
             // The race owner's shared group (lane r41shared).
@@ -434,6 +444,8 @@ pub struct DrawReads<'a> {
     // The frame's work and the panel and overlay.
     /// The frame's draw work (`race::owner_frame::Frame::frame_work`).
     pub frame_work: &'a crate::race::frame_store::FrameWork,
+    /// The cars' snapshot for this frame's drawing (`race::frame_view`).
+    pub frame_cars: &'a crate::race::frame_view::FrameCars,
     /// The hud's panel and the race's overlay (`race::owner_frame::Frame::panel_and_overlay`).
     pub panel_and_overlay: &'a crate::race::groups_store::PanelAndOverlay,
     // The cars' blocks and the view variables.
@@ -461,6 +473,8 @@ pub struct DrawReads<'a> {
     /// The course's data and the scene's state: the records, faces and scene points and their
     /// counts, the flat depth (`race::owner_course::Course::course`).
     pub course_work: &'a crate::race::course_store::CourseWork,
+    /// The loaded stage's tables (`race::owner_course::Course::stage`).
+    pub stage: &'a crate::race::stage_data::StageData,
     /// The course kinds' first and last records (`race::owner_course::Course::kind_records`).
     pub kind_records: &'a crate::race::kind_records_store::KindRecords,
     /// The game's numbers: its float constants, the replay's mode, `in_race`, the grip change
@@ -505,6 +519,7 @@ impl<'a> DrawReads<'a> {
             stage_prefs: self.stage_prefs,
             numbers: self.numbers,
             kind_records: self.kind_records,
+            stage: self.stage,
         }
     }
     // end r40course
@@ -538,6 +553,7 @@ impl<'a> DrawReads<'a> {
             finish: race.replay.finish.get(),
             // The frame's work and the panel and overlay.
             frame_work: race.frame.frame_work.get(),
+            frame_cars: &race.frame.cars,
             panel_and_overlay: race.frame.panel_and_overlay.get(),
             // The cars' blocks and the view variables.
             car_blocks: race.shared.car_blocks.get(),
@@ -550,6 +566,7 @@ impl<'a> DrawReads<'a> {
             course_lists: race.course.lists.get(),
             stage_prefs: race.course.stage_prefs.get(),
             course_work: race.course.course.get(),
+            stage: &race.course.stage,
             kind_records: race.course.kind_records(),
             numbers: race.course.numbers.get(),
             // The race owner's shared group (lane r41shared).
@@ -993,6 +1010,7 @@ struct AsideStart {
     columns: Option<crate::scene::view_matrices::Columns>,
     control: u16,
     in_race: bool,
+    records_taken: bool,
     screen_size: [u32; 3],
 }
 
@@ -1014,6 +1032,7 @@ fn run_aside(
 ) -> AsideRun {
     scratch.points.begin_run(start.point_count);
     scratch.in_race.set(start.in_race);
+    scratch.records_taken.set(start.records_taken);
     for (cell, figure) in scratch.screen_size.iter().zip(start.screen_size) {
         cell.set(figure);
     }
@@ -1157,6 +1176,7 @@ pub fn draw_aside<'a, R>(
         columns: crate::scene::view_matrices::part_columns(part),
         control: crate::math::x87::control_word(),
         in_race: part.in_race.is_set(),
+        records_taken: part.records_taken.is_set(),
         screen_size: part
             .screen_size
             .each_ref()
