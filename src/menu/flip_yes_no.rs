@@ -4,10 +4,10 @@
 //! The answer (`pages.yes_no_answer`) `xor` 1. The left and right action of the question's
 //! button. The menus and draw lists run its `entry` (`menu::table_calls`).
 
-use crate::menu::owner::Tables;
+use crate::menu::pages_store::MenuPages;
 
-pub fn flip_yes_no(tables: &Tables) -> u32 {
-    let answer = rc2k_core::menu::steps::flip(tables.pages.yes_no_answer.get());
-    tables.pages.yes_no_answer.set(answer);
+pub fn flip_yes_no(pages: &MenuPages) -> u32 {
+    let answer = rc2k_core::menu::steps::flip(pages.yes_no_answer.get());
+    pages.yes_no_answer.set(answer);
     answer
 }

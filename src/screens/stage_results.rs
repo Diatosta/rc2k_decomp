@@ -1,8 +1,8 @@
 //! The time trial stage results page (`screens::draw_stage_results`).
 
 use crate::errors::{BadInput, Refused};
+use crate::menu::champ_store::ChampView;
 use crate::menu::event_flow::StageTable;
-use crate::menu::owner::Menus;
 use crate::menu::owner::Play;
 use crate::owners::Owners;
 use crate::records::stages_store::{Holder, RecordRef, RecordTable};
@@ -13,20 +13,16 @@ use crate::text::draw_text::Canvas;
 /// The stage's record table and record (by `ChampView.switches.records_set`,
 /// `ChampView.shown_stage.group` and `ChampView.shown_stage.number`), none: 0.
 fn records(
-    menus: &Menus,
+    champ: &ChampView,
     stages: &crate::records::stages_store::StageTables,
 ) -> Result<(RecordTable, RecordRef), BadInput> {
     let base = stages.group_event_table(
-        menus.play.champ_view.switches.records_set.get(),
-        menus.play.champ_view.shown_stage.group.get(),
+        champ.switches.records_set.get(),
+        champ.shown_stage.group.get(),
     )?;
     Ok((
         base,
-        crate::records::stages_store::row(
-            stages,
-            base,
-            menus.play.champ_view.shown_stage.number.get(),
-        )?,
+        crate::records::stages_store::row(stages, base, champ.shown_stage.number.get())?,
     ))
 }
 
@@ -88,7 +84,7 @@ pub fn draw_stage_results(o: Owners<'static>, canvas: &mut dyn Canvas) -> Result
     let play = &menus.play;
     let menu = menus.screens.loop_flags.menu.get().ok();
     let stages = &o.system.records().stage_tables;
-    let (base, record) = records(menus, stages)?;
+    let (base, record) = records(&menus.play.champ_view, stages)?;
     let table = times_table(play, stages)?;
     let (Some(table), Some(menu)) = (table, menu) else {
         return Err(BadInput("no current menu, stage records or times table").into());

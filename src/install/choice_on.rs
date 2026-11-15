@@ -5,7 +5,7 @@
 
 use crate::errors::Refused;
 use crate::install::choice_back::{choice_places, store_choice};
-use crate::menu::list_handle::ListItem;
+use crate::list_handle::ListItem;
 
 pub fn choice_on(item: ListItem) -> Result<(), Refused> {
     let (chosen_at, free) = choice_places(item);

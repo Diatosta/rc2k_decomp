@@ -450,7 +450,7 @@ fn redefine_keys_before<const N: usize>(entry: &Entry) -> Result<(), Refused> {
 }
 
 fn redefine_keys_after_first_frame(entry: &Entry) -> Result<Flow, Refused> {
-    if quitting(entry.system) as u32 == 0x1 {
+    if quitting(entry.owners.system) as u32 == 0x1 {
         return Ok(Flow::Leave);
     }
     Ok(Flow::On)

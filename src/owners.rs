@@ -1,7 +1,7 @@
 //! The game's owners handed down together: one reference to each module's state, for the
-//! functions that reach several of them (`Owners`). `Owners::the()` is made once, at the root of
-//! the game's thread; the slot threads have `thread_slot::SlotOwners`. A root that cannot take
-//! owners from a caller (a thread's or a platform callback's) is marked `m6-root`
+//! functions that reach several of them (`Owners`). `Owners::with_menus` is made once, at the
+//! root of the game's thread; the slot threads have `thread_slot::SlotOwners`. A root that
+//! cannot take owners from a caller (a thread's or a platform callback's) is marked `m6-root`
 //! (`tools/m6_count.py` leaves it out).
 
 use crate::audio::owner::Audio;
@@ -45,9 +45,15 @@ pub struct Owners<'a> {
 }
 
 impl Owners<'static> {
-    /// The game's owners, as the accessors give them (those held by the game's thread
-    /// through that thread's `get()`).
+    /// The tests' owners: the shared static menus and the other owners' accessors.
+    #[cfg(test)]
     pub fn the() -> Self {
+        Self::with_menus(crate::menu::owner::menus())
+    }
+
+    /// The game's owners: the menus the root made and the other owners, as their accessors give
+    /// them (those held by the game's thread through that thread's `get()`).
+    pub fn with_menus(menus: &'static Menus) -> Self {
         Owners {
             race: crate::race::owner::race(),
             system: crate::system::owner::system(),
@@ -58,7 +64,7 @@ impl Owners<'static> {
             input: crate::input::owner::input(),
             net: crate::net::owner::net(),
             gfx: crate::gfx::owner::gfx(),
-            menus: crate::menu::owner::menus(),
+            menus,
             effects: crate::effects::owner::effects(),
             install: crate::install::owner::install(),
             saves: crate::saves::owner::saves(),

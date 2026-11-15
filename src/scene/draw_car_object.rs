@@ -49,7 +49,7 @@ pub fn pick_pictures(menus: &Menus, scene: &crate::scene::owner::Scene) -> Resul
     }
     let entries = picked(screens.event.shown.car.get(), screens.carousel.count.get());
     write_all(&screens.carousel.pictures.wanted, entries);
-    update(&screens.carousel, &menus.cars.table, scene, entries)?;
+    update(menus, scene, entries)?;
     Ok(())
 }
 

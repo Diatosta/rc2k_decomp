@@ -1,7 +1,7 @@
 //! An item of a value (kind 3) raised by the key's repeats, not above its most (signed
 //! compare). Called by `install::key_right`.
 
-use crate::menu::list_handle::ListItem;
+use crate::list_handle::ListItem;
 
 pub fn value_up(list_state: &crate::menu::list_state::ListState, item: ListItem) {
     let value_at = item.value();

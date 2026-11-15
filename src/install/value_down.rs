@@ -1,7 +1,7 @@
 //! An item of a value (kind 3) lowered by the key's repeats, not below its least (signed
 //! compare). Called by `install::key_left`.
 
-use crate::menu::list_handle::ListItem;
+use crate::list_handle::ListItem;
 
 pub fn value_down(list_state: &crate::menu::list_state::ListState, item: ListItem) {
     let value_at = item.value();

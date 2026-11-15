@@ -22,10 +22,8 @@
 //!
 //! A refusal goes back to the loop's caller; a failed `Step::CallOrFatal` is the fatal error.
 
-use crate::audio::owner::Audio;
 use crate::errors::{FatalError, Refused};
 use crate::framework::log;
-use crate::input::owner::Input;
 use crate::input::take_key::take_key;
 use crate::menu::handle_keys::handle_keys;
 use crate::menu::lists_store::CarList;
@@ -37,10 +35,7 @@ use crate::menu::run_list::run_list;
 use crate::menu::screen_id::ScreenId;
 use crate::menu::update_blink::update_blink;
 use crate::owners::Owners;
-use crate::race::owner::Race;
-use crate::scene::owner::Scene;
 use crate::session::{DwordLike, FlagLike, PlainFloat};
-use crate::sound::owner::Sound;
 use crate::system::owner::System;
 pub use rc2k_core::menu::keys::MenuSound;
 use rc2k_core::menu::keys::Pressed;
@@ -504,16 +499,9 @@ impl Screen {
 pub struct Entry {
     pub menus: &'static Menus,
     pub cars: Option<CarList>,
-    /// The other owners the steps and the loop use (fetched once, where the entry is made).
-    pub scene: &'static Scene,
     /// The front end's slot of polygon work (its window is the screens' view).
     pub front_end: &'static crate::scene::polygon_work::PolygonWork,
-    pub system: &'static System,
-    pub race: &'static Race,
-    pub sound: &'static Sound,
-    pub input: &'static Input,
-    pub audio: &'static Audio,
-    /// Every owner, for the flows the screens' items start.
+    /// Every owner: the screens reach the others (`owners.system`, `owners.race`, ..) through it.
     pub owners: Owners<'static>,
 }
 
@@ -544,13 +532,7 @@ impl Entry {
         Entry {
             menus: self.menus,
             cars,
-            scene: self.scene,
             front_end: self.front_end,
-            system: self.system,
-            race: self.race,
-            sound: self.sound,
-            input: self.input,
-            audio: self.audio,
             owners: self.owners,
         }
     }
@@ -559,13 +541,7 @@ impl Entry {
         Entry {
             menus: o.menus,
             cars,
-            scene: o.scene,
             front_end: crate::scene::polygon_work::front_end(),
-            system: o.system,
-            race: o.race,
-            sound: o.sound,
-            input: o.input,
-            audio: o.audio,
             owners: o,
         }
     }
@@ -580,7 +556,7 @@ pub fn quitting(system: &System) -> bool {
 pub fn prepare_scene(entry: &Entry) {
     crate::scene::prepare_menu_scene::prepare_menu_scene(
         entry.owners.race,
-        entry.scene,
+        entry.owners.scene,
         entry.owners.system,
         crate::race::view_scratch::front_end(),
     );
@@ -685,7 +661,7 @@ impl Callee {
     /// Runs the function: whether it failed (false for those that cannot).
     pub fn run(self, entry: &Entry) -> Result<bool, Refused> {
         let menus = entry.menus;
-        let (audio, input, sound) = (entry.audio, entry.input, entry.sound);
+        let (audio, input, sound) = (entry.owners.audio, entry.owners.input, entry.owners.sound);
         let play = &menus.play;
         let screens = &menus.screens;
         use crate::menu::{controller_items as ci, results_setups as rs, stage_view_steps as v};
@@ -702,7 +678,7 @@ impl Callee {
                     &mut GameCanvas::new(entry.owners.gfx),
                     menus,
                     entry.owners.gfx,
-                    entry.system,
+                    entry.owners.system,
                 )?;
             }
             Self::PrepareScene => prepare_scene(entry),
@@ -733,21 +709,23 @@ impl Callee {
             }
             Self::RankStageTimes => rs::rank_stage_times(menus)?,
             Self::RankTotals => rs::rank_totals(menus)?,
-            Self::ScoreFourPlayers => rs::score_four_players(menus, entry.system)?,
-            Self::ScoreTwoPlayers => rs::score_two_players(menus, entry.system)?,
+            Self::ScoreFourPlayers => rs::score_four_players(menus, entry.owners.system)?,
+            Self::ScoreTwoPlayers => rs::score_two_players(menus, entry.owners.system)?,
             Self::StyleStageItem => v::style_stage_item(menus, false)?,
             Self::StyleChosenStageItem => v::style_stage_item(menus, true)?,
-            Self::CountStagePages => v::count_stage_pages(screens, entry.system)?,
+            Self::CountStagePages => v::count_stage_pages(screens, entry.owners.system)?,
             Self::PlayStageSpeech => v::play_stage_speech(entry.owners)?,
             Self::PlayRallySpeech => v::play_rally_speech(entry.owners)?,
             Self::LoadWelcomePicture => v::load_welcome_picture(entry.owners)?,
             Self::LoadServiceBackground => crate::service::load_background::load_background_in(
                 menus,
                 entry.owners.gfx,
-                entry.system,
+                entry.owners.system,
             )?,
             Self::GoBack => crate::menu::go_back::go_back(menus),
-            Self::MarkStageChoice => crate::menu::mark_stage_choice::mark_stage_choice(play),
+            Self::MarkStageChoice => {
+                crate::menu::mark_stage_choice::mark_stage_choice(&play.champ_view);
+            }
             Self::EditPlayerName => {
                 crate::menu::edit_player_name::edit_player_name(
                     entry.owners.input,
@@ -798,25 +776,28 @@ impl Callee {
                 crate::menu::load_car_background::load_car_background_in_game(
                     menus,
                     entry.owners.gfx,
-                    entry.system,
+                    entry.owners.system,
                 )?;
             }
             Self::LoadPicture(path) => {
                 return Ok(!crate::gfx::load_picture::load_picture_with(
                     path(menus),
                     entry.owners.gfx,
-                    entry.system,
+                    entry.owners.system,
                 )?);
             }
             Self::ConvertPicture => {
                 return Ok(crate::gfx::convert_picture::convert_picture_now_in(
                     entry.owners.gfx,
-                    entry.system,
+                    entry.owners.system,
                 )?);
             }
             Self::SetUpFrontEnd => crate::menu::set_up_front_end::set_up_front_end(entry.owners)?,
             Self::SetUpEngine => {
-                crate::scene::set_up_engine::set_up_engine_in(entry.race, entry.scene)?;
+                crate::scene::set_up_engine::set_up_engine_in(
+                    entry.owners.race,
+                    entry.owners.scene,
+                )?;
             }
             Self::SetUpFrontEndScene => {
                 crate::scene::set_up_front_end_scene::set_up_front_end_scene_in(entry.owners)?;
@@ -990,14 +971,15 @@ impl ScreenHost for MenuHost<'_> {
     fn draw_set_up_frame(&mut self) -> Result<(), Refused> {
         let menus = self.entry.menus;
         crate::menu::draw_frame::draw_frame(self.entry.owners, self.menu)?;
-        update_blink(menus, self.entry.system);
+        update_blink(menus, self.entry.owners.system);
         Ok(())
     }
 
     fn note_set_up_time(&mut self) {
-        let clocks = self.entry.system.clocks();
+        let clocks = self.entry.owners.system.clocks();
         clocks.setup_time.set(clocks.frame.get());
         self.entry
+            .owners
             .race
             .shared
             .physics_tables
@@ -1027,7 +1009,7 @@ impl ScreenHost for MenuHost<'_> {
     }
 
     fn update_blink(&mut self) {
-        update_blink(self.entry.menus, self.entry.system);
+        update_blink(self.entry.menus, self.entry.owners.system);
     }
 
     fn escape_flag(&self) -> bool {
@@ -1035,7 +1017,7 @@ impl ScreenHost for MenuHost<'_> {
     }
 
     fn quitting(&self) -> bool {
-        quitting(self.entry.system)
+        quitting(self.entry.owners.system)
     }
 
     fn leave_on_close(&mut self) -> ! {
@@ -1049,8 +1031,9 @@ impl ScreenHost for MenuHost<'_> {
     }
 
     fn note_frame_time(&mut self) {
-        let clocks = self.entry.system.clocks();
+        let clocks = self.entry.owners.system.clocks();
         self.entry
+            .owners
             .race
             .shared
             .physics_tables
@@ -1064,6 +1047,7 @@ impl ScreenHost for MenuHost<'_> {
         handle_keys(
             self.entry.owners,
             self.entry
+                .owners
                 .race
                 .shared
                 .physics_tables

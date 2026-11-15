@@ -6,7 +6,7 @@
 //! `key_taken`. Called by `install::run_page`.
 
 use crate::errors::Refused;
-use crate::menu::list_handle::{ListItem, ListMenu};
+use crate::list_handle::{ListItem, ListMenu};
 use rc2k_core::install::items::{self, ItemKey, PageKey};
 
 /// `key` (the key in its low byte, its bits in the next) on `item` of `list`. Returns the key

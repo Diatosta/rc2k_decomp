@@ -279,7 +279,7 @@ pub fn item_fn(o: Owners<'static>, f: ItemFn, c: &table_calls::ItemCall) -> Resu
         }
         ItemFn::BeginReplayName => Ok(begin_replay_name::begin_replay_name(menus, o.race, true)?),
         ItemFn::FlipYesNo => {
-            flip_yes_no::flip_yes_no(&menus.tables);
+            flip_yes_no::flip_yes_no(&menus.tables.pages);
             Ok(())
         }
         ItemFn::PreviousStagePage => stage_view_steps::step_stage_page(o, false),
@@ -508,7 +508,8 @@ pub fn screen_fn(o: Owners<'static>, f: ScreenFn) -> Result<(), Refused> {
             best_scores::draw_best_scores_page(o, &mut GameCanvas::new(o.gfx)).map(|_| ())
         }
         ScreenFn::SavegamePageNumbers => {
-            savegame_page_numbers::savegame_page_numbers(menus, text_buffers()).map(|_| ())
+            savegame_page_numbers::savegame_page_numbers(&menus.tables.pages, text_buffers())
+                .map(|_| ())
         }
         ScreenFn::DrawSavegameNames => {
             draw_savegame_names::draw_savegame_names(o, &mut GameCanvas::new(o.gfx)).map(|_| ())
@@ -550,9 +551,10 @@ pub fn screen_fn(o: Owners<'static>, f: ScreenFn) -> Result<(), Refused> {
         ScreenFn::DrawSoundSettings => {
             draw_sound_settings::draw_sound_settings(o, o.audio, &mut GameCanvas::new(o.gfx))
         }
-        ScreenFn::ReplayRangeCaption => {
-            Ok(best_scores::replay_range_caption(menus, text_buffers())?)
-        }
+        ScreenFn::ReplayRangeCaption => Ok(best_scores::replay_range_caption(
+            &menus.tables.pages,
+            text_buffers(),
+        )?),
         ScreenFn::LoadSetupValues => Ok(load_setup_values::load_setup_values(menus)?),
         ScreenFn::LoadAudioSettings => {
             page_settings::load_audio_settings(menus, o.audio);
@@ -695,7 +697,9 @@ pub fn screen_fn(o: Owners<'static>, f: ScreenFn) -> Result<(), Refused> {
         ScreenFn::DrawServiceBoxes => draw_service_boxes::draw_service_boxes(o),
         ScreenFn::DrawBottomPanel => draw_bottom_panel::draw_bottom_panel(o),
         ScreenFn::DrawTwoColumnPanel => draw_two_column_panel::draw_two_column_panel(o),
-        ScreenFn::StageRangeCaption => Ok(stage_range_caption::stage_range_caption(&menus.play)?),
+        ScreenFn::StageRangeCaption => Ok(stage_range_caption::stage_range_caption(
+            &menus.play.champ_view,
+        )?),
         ScreenFn::DrawClassStageResults => class_stage::draw(o, o.system, o.gfx),
         ScreenFn::DrawOverallStageResults => overall_stage::draw(o, o.system, o.gfx),
         ScreenFn::DrawClassRallyResults => class_rally::draw(o, o.system, o.gfx),

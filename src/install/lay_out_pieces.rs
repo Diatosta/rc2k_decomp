@@ -7,7 +7,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::install::installer::fatal;
 use crate::install::page_records::{Piece, set_piece_count};
-use crate::menu::list_handle::{ListItem, ListMenu};
+use crate::list_handle::{ListItem, ListMenu};
 use rc2k_core::install::pieces::{self, Item, LayoutError, ListSource, Owner};
 
 /// A page's list.

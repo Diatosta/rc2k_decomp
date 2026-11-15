@@ -7,7 +7,7 @@
 //!   is clear, gets 0xC0 (lit);
 //! - a choice item's chosen choice gets 0xC0.
 
-use crate::menu::list_handle::{ListItem, ListMenu};
+use crate::list_handle::{ListItem, ListMenu};
 use rc2k_core::install::items::{self, MARKS};
 use rc2k_core::install::pages::UNUSABLE;
 

@@ -4,7 +4,7 @@
 
 use crate::errors::Refused;
 use crate::install::installer::load_language;
-use crate::menu::list_handle::ListMenu;
+use crate::list_handle::ListMenu;
 use rc2k_core::install::pages;
 
 /// `state`: which call of the list action this is (0 the start, negative the end).

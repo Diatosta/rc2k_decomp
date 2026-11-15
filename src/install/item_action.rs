@@ -2,7 +2,7 @@
 
 use crate::errors::Refused;
 use crate::install::installer::item_action_at;
-use crate::menu::list_handle::ListItem;
+use crate::list_handle::ListItem;
 
 /// Enter on an action item; whether it was taken.
 pub fn item_action(

@@ -2,7 +2,7 @@
 //! the answer to 0 and leaves, Escape sets it to 1 and leaves. Any other key does nothing.
 //! Called by `install::run_page`.
 
-use crate::menu::list_handle::ListMenu;
+use crate::list_handle::ListMenu;
 use rc2k_core::install::items::FolderKey;
 
 /// `key` (the key in its low byte, its bits in the next); whether it was taken.

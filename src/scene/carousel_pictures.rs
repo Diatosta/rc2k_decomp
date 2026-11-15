@@ -3,9 +3,8 @@
 //! `update`.
 
 use crate::errors::BadInput;
-use crate::menu::carousel_store::Carousel;
-use crate::menu::cars_store::CarTable;
 use crate::menu::lists_store::lists;
+use crate::menu::owner::Menus;
 use crate::scene::textures::SLOTS;
 use crate::session::{read_all, write_all};
 
@@ -19,11 +18,11 @@ const ENTRIES: u32 = 0x100;
 /// eight slots (`rc2k_core::scene::carousel::picture_textures`). Nothing is written before a
 /// refusal.
 pub fn update(
-    carousel: &Carousel,
-    cars: &CarTable,
+    menus: &Menus,
     scene: &crate::scene::owner::Scene,
     entries: [u32; 4],
 ) -> Result<(), BadInput> {
+    let (carousel, cars) = (&menus.screens.carousel, &menus.cars.table);
     let scene_textures = &scene.textures;
     let Some(table) = carousel.list()? else {
         return Err(BadInput("no carousel entries' records"));
@@ -35,7 +34,7 @@ pub fn update(
             return Err(BadInput("a carousel entry past the records"));
         }
         // The list is a run of record pointers, one dword per entry.
-        record = lists().car_entry(table, entry)?;
+        record = lists().car_entry(menus, table, entry)?;
         if record == 0 {
             return Err(BadInput("a carousel entry without its record"));
         }

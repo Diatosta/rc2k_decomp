@@ -22,8 +22,7 @@ pub fn choose_carousel_pictures(
         return Ok(());
     }
     update(
-        &screens.carousel,
-        &menus.cars.table,
+        menus,
         scene,
         visible_entries(screens.carousel.front.get(), screens.carousel.count.get()),
     )

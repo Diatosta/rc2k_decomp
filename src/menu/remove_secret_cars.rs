@@ -10,7 +10,7 @@
 //! at all (the count would run through all 32 bits).
 
 use crate::errors::BadInput;
-use crate::menu::car_lists_store::car_lists;
+use crate::menu::car_lists_store::CarLists;
 use crate::menu::owner::Menus;
 use crate::session::PlainDword;
 use rc2k_core::menu::car_lists;
@@ -18,20 +18,20 @@ use rc2k_core::menu::car_lists;
 /// A list of dwords ended by -1: its cells and how many dwords it has room for.
 pub type List<'a> = (&'a [PlainDword], usize);
 
-pub fn first() -> List<'static> {
-    (&car_lists().cars_second, 0x28)
+pub fn first(lists: &CarLists) -> List<'_> {
+    (&lists.cars_second, 0x28)
 }
 
-pub fn second() -> List<'static> {
-    (&car_lists().a8_championship_cars, 0x2D)
+pub fn second(lists: &CarLists) -> List<'_> {
+    (&lists.a8_championship_cars, 0x2D)
 }
 
-fn secret() -> List<'static> {
-    (&car_lists().secret_cars, 0x0C)
+fn secret(lists: &CarLists) -> List<'_> {
+    (&lists.secret_cars, 0x0C)
 }
 
-fn scratch() -> List<'static> {
-    (&car_lists().cars_scratch, 0x32)
+fn scratch(lists: &CarLists) -> List<'_> {
+    (&lists.cars_scratch, 0x32)
 }
 
 pub fn read_list(list: List) -> Result<Vec<u32>, BadInput> {
@@ -47,19 +47,20 @@ pub fn write_list(list: List, entries: &[u32]) {
 }
 
 pub fn remove_secret_cars(menus: &Menus) -> Result<(), BadInput> {
+    let lists = &menus.cars.lists;
     {
-        let secret = read_list(secret())?;
+        let secret = read_list(secret(lists))?;
         // Each list is read and checked in turn.
-        let scratch = scratch();
+        let scratch = scratch(lists);
         let mut kept = Vec::new();
-        for list in [first(), second()] {
+        for list in [first(lists), second(lists)] {
             kept.extend(car_lists::without_secret(
                 &[read_list(list)?],
                 &secret,
                 scratch.1,
             )?);
         }
-        for (list, cars) in [first(), second()].into_iter().zip(&kept) {
+        for (list, cars) in [first(lists), second(lists)].into_iter().zip(&kept) {
             // The scratch list gets no end mark.
             for (n, &car) in cars.iter().enumerate() {
                 scratch.0[n].set(car);

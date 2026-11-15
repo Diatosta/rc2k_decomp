@@ -53,14 +53,14 @@ fn before_first_frame(entry: &Entry) -> Result<(), Refused> {
     play.champ_view
         .key_clock
         .last_key_time
-        .set(entry.system.clocks().setup_time.get());
+        .set(entry.owners.system.clocks().setup_time.get());
     play.cheats.notice_due.set(1u32);
 
     Ok(())
 }
 
 fn idle(entry: &Entry) -> Result<Flow, Refused> {
-    let system = entry.system;
+    let system = entry.owners.system;
     let menus = entry.menus;
     if !menus.screens.loop_flags.idle.is_set() {
         return Ok(Flow::On);

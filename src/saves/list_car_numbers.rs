@@ -9,7 +9,6 @@
 //! Refuses a list of pointers without its -1 within the numbers' room, and a null entry.
 
 use crate::errors::BadInput;
-use crate::menu::car_lists_store::car_lists;
 use crate::menu::owner::Menus;
 use crate::session::PlainDword;
 use crate::system::checked_reads::CheckedReads;
@@ -19,8 +18,14 @@ const FILLED: usize = 0x28;
 /// (the numbers, the pointers)
 fn lists(menus: &Menus) -> [(&[PlainDword], &[PlainDword]); 2] {
     [
-        (&menus.cars.numbers.first_numbers, &car_lists().cars_second),
-        (&menus.cars.numbers.second_numbers, &car_lists().shown_cars),
+        (
+            &menus.cars.numbers.first_numbers,
+            &menus.cars.lists.cars_second,
+        ),
+        (
+            &menus.cars.numbers.second_numbers,
+            &menus.cars.lists.shown_cars,
+        ),
     ]
 }
 

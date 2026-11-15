@@ -19,8 +19,8 @@ pub fn show_class_rally_results(menus: &Menus, class: u32, entry: &Entry) -> Res
     let a8 = menus.play.champ_view.event_mode.get() == rc2k_core::menu::results_pages::A8;
     let count = held_figure(Page::ClassRally { a8 }, found.figure);
     menus.play.champ_view.rows.count.set(count);
-    crate::menu::first_page_stage::first_page_stage(&menus.play);
-    crate::menu::stage_range_caption::stage_range_caption(&menus.play)?;
+    crate::menu::first_page_stage::first_page_stage(&menus.play.champ_view);
+    crate::menu::stage_range_caption::stage_range_caption(&menus.play.champ_view)?;
     run_screen(ScreenId::ClassRallyResults, entry)?;
     Ok(())
 }

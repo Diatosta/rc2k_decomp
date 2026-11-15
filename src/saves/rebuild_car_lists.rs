@@ -9,7 +9,6 @@
 //! more.
 
 use crate::errors::BadInput;
-use crate::menu::car_lists_store::car_lists;
 use crate::menu::owner::Menus;
 use crate::session::PlainDword;
 use crate::system::checked_reads::CheckedReads;
@@ -19,12 +18,12 @@ fn lists(menus: &Menus) -> [(&[PlainDword], &[PlainDword], usize); 2] {
     [
         (
             &menus.cars.numbers.first_numbers,
-            &car_lists().cars_second,
+            &menus.cars.lists.cars_second,
             0x28,
         ),
         (
             &menus.cars.numbers.second_numbers,
-            &car_lists().shown_cars,
+            &menus.cars.lists.shown_cars,
             0x14,
         ),
     ]

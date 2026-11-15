@@ -4,7 +4,7 @@
 //! match a -1 entry (kept). Lists with no end are refused.
 
 use crate::errors::Refused;
-use crate::menu::car_lists_store::car_lists;
+use crate::menu::car_lists_store::CarLists;
 use crate::menu::lists_store::CarList;
 
 /// Whether one of the cars in `won` is in the list `secret`, each read to its end mark.
@@ -41,12 +41,10 @@ pub fn any_won(
     }
     Ok(answer?)
 }
-pub fn car_list() -> Result<CarList, Refused> {
-    Ok(
-        if any_won(&car_lists().cars_second, &car_lists().secret_cars)? {
-            CarList::WithClio
-        } else {
-            CarList::First
-        },
-    )
+pub fn car_list(lists: &CarLists) -> Result<CarList, Refused> {
+    Ok(if any_won(&lists.cars_second, &lists.secret_cars)? {
+        CarList::WithClio
+    } else {
+        CarList::First
+    })
 }

@@ -2,7 +2,7 @@
 //! and the boxes they are placed in.
 //!
 //! - A page entry (`PageEntry`): dwords in `InstallerPages::page_table`: +0 the page's list
-//!   (`menu::list_handle::ListMenu`), then the entries the page's answers lead on to
+//!   (`list_handle::ListMenu`), then the entries the page's answers lead on to
 //!   (`rc2k_core::install::pages::next_entry_at`).
 //! - A piece (`Piece`): the layout `InstallerPages::layout` holds a count (a dword) and 0x30
 //!   bytes a piece, made by `install::lay_out_pieces`: +0 the item's kind and marks, +1 the
@@ -14,7 +14,7 @@
 use crate::errors::BadInput;
 use crate::install::installer::{rb, rd, refuse, rw, wb, wd, ww};
 use crate::install::page_links::{PageLink, TABLE_LEN};
-use crate::menu::list_handle::{BoxRect, ListItem, ListMenu};
+use crate::list_handle::{BoxRect, ListItem, ListMenu};
 use crate::place::BytePlace;
 
 /// The page table's index of the update run's first entry.
@@ -307,8 +307,8 @@ mod tests {
                 let item = Piece::nth(install, n).item();
                 let made_from = item.installer_position().unwrap();
                 assert!(
-                    made_from == crate::menu::list_handle::ItemPosition::Title
-                        || matches!(made_from, crate::menu::list_handle::ItemPosition::In(l, _) if l == id),
+                    made_from == crate::list_handle::ItemPosition::Title
+                        || matches!(made_from, crate::list_handle::ItemPosition::In(l, _) if l == id),
                     "{id:?} piece {n}: {made_from:?}"
                 );
             }

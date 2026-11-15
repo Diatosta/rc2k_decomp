@@ -15,8 +15,8 @@ pub fn show_championship_standings(menus: &Menus, entry: &Entry) -> Result<(), R
     let found = crate::menu::first_player_unplaced::first_player_unplaced()?;
     let count = held_figure(Page::ChampionshipStandings, found.figure);
     menus.play.champ_view.rows.count.set(count);
-    crate::menu::first_page_stage::first_page_stage(play);
-    crate::menu::stage_range_caption::stage_range_caption(play)?;
+    crate::menu::first_page_stage::first_page_stage(&play.champ_view);
+    crate::menu::stage_range_caption::stage_range_caption(&play.champ_view)?;
     run_screen(ScreenId::ChampionshipStandings, entry)?;
     Ok(())
 }

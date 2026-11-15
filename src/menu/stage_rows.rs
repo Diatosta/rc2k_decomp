@@ -21,6 +21,6 @@ pub fn step_rows(menus: &Menus, of_90: bool, on: bool) -> Result<(), Refused> {
     let row: u32 = menus.play.champ_view.rows.first_row.get();
     let row = rc2k_core::menu::steps::rows(row, count, on);
     menus.play.champ_view.rows.first_row.set(row);
-    crate::menu::stage_range_caption::stage_range_caption(&menus.play)?;
+    crate::menu::stage_range_caption::stage_range_caption(&menus.play.champ_view)?;
     Ok(())
 }

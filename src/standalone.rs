@@ -715,7 +715,7 @@ pub fn run(log_file: &Path, frames: u32) -> ! {
     // The audio thread runs on DirectSound over SDL
     // (`platform_sound`).
     // SAFETY: once, here, on the main thread.
-    start(Owners::the());
+    start(Owners::with_menus(Menus::boxed()));
     finish("start came to its end", 0)
 }
 

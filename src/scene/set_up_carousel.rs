@@ -115,9 +115,13 @@ fn run_op(menus: &Menus, op: Op) {
 /// Runs `f` with a reader of the list's entries (by number) that answers the list's end
 /// where an entry is past the lists, and refuses afterwards: the core's checks take
 /// readers that cannot fail.
-fn reading<R>(list: CarList, f: impl FnOnce(&dyn Fn(usize) -> u32) -> R) -> Result<R, BadInput> {
+fn reading<R>(
+    menus: &Menus,
+    list: CarList,
+    f: impl FnOnce(&dyn Fn(usize) -> u32) -> R,
+) -> Result<R, BadInput> {
     let failed = std::cell::Cell::new(None);
-    let read = |n: usize| match list_entry(list, n) {
+    let read = |n: usize| match list_entry(menus, list, n) {
         Ok(word) => word,
         Err(e) => {
             failed.set(Some(e));
@@ -131,14 +135,14 @@ fn reading<R>(list: CarList, f: impl FnOnce(&dyn Fn(usize) -> u32) -> R) -> Resu
     }
 }
 
-fn list_entry(list: CarList, n: usize) -> Result<u32, BadInput> {
-    lists().car_entry(list, n as u32)
+fn list_entry(menus: &Menus, list: CarList, n: usize) -> Result<u32, BadInput> {
+    lists().car_entry(menus, list, n as u32)
 }
 
 /// The checks of a list of cars, before anything is written (see
 /// `rc2k_core::scene::carousel::check_cars`).
 fn check_cars(menus: &Menus, list: CarList, from_second: bool) -> Result<(), Refused> {
-    reading(list, |read| {
+    reading(menus, list, |read| {
         let failed = std::cell::Cell::new(None);
         // A car's number: the first dword of the description its handle names.
         let number = |car: u32| match crate::menu::cars_store::description(&menus.cars.table, car)
@@ -163,7 +167,7 @@ fn cars(menus: &Menus, list: CarList, size: u32) -> Result<(), BadInput> {
         menus.screens.carousel.set_list(list);
         let mut n = 0;
         loop {
-            let car = list_entry(list, n)?;
+            let car = list_entry(menus, list, n)?;
             if car == u32::MAX {
                 break;
             }
@@ -228,10 +232,10 @@ pub fn set_up_carousel(menus: &Menus, list: Option<CarList>) -> Result<(), Refus
                 let list = given()?;
                 check_cars(menus, list, true)?;
                 menus.screens.carousel.set_up.set(1);
-                let count = reading(list, |read| carousel::list_end(read, 1).unwrap_or(0))?;
+                let count = reading(menus, list, |read| carousel::list_end(read, 1).unwrap_or(0))?;
                 if count == 1 {
-                    let first = list_entry(list, 0)?;
-                    lists().set_car_entry(list, 1, first)?;
+                    let first = list_entry(menus, list, 0)?;
+                    lists().set_car_entry(menus, list, 1, first)?;
                 }
                 cars(menus, list, 0xC)?;
             }

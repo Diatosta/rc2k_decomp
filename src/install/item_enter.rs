@@ -2,7 +2,7 @@
 //! (`install::start_edit`), 6 an action (`install::item_action`). Called by `install::page_key`.
 
 use crate::errors::Refused;
-use crate::menu::list_handle::ListItem;
+use crate::list_handle::ListItem;
 use rc2k_core::install::items::EnterWay;
 
 /// Enter on `item`; whether it was taken.

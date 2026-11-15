@@ -23,7 +23,7 @@ pub fn shown_description(menus: &Menus) -> Result<u32, Refused> {
     let (Some(table), true) = (table, entry < ENTRIES) else {
         return Err(BadInput("no carousel records, or an entry past them").into());
     };
-    let record = lists().car_entry(table, entry)?;
+    let record = lists().car_entry(menus, table, entry)?;
     if record == 0 {
         return Err(BadInput("an entry without its record").into());
     }

@@ -2,7 +2,7 @@
 //! (`install::choice_back`). Called by `install::page_key`.
 
 use crate::errors::Refused;
-use crate::menu::list_handle::ListItem;
+use crate::list_handle::ListItem;
 use rc2k_core::install::items::{Helper, ItemKey};
 
 /// A key on `item`: the helper the key has for the item's kind, `number` for the number

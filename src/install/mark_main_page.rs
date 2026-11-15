@@ -3,7 +3,7 @@
 //! with the update script's title word the update item is usable and the others hidden. A page
 //! action, run by `install::run_page`.
 
-use crate::menu::list_handle::ListMenu;
+use crate::list_handle::ListMenu;
 use rc2k_core::install::pages;
 
 pub fn mark_main_page(install: &crate::install::owner::Install, list: ListMenu) {

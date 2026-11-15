@@ -91,7 +91,7 @@ pub fn previous_replay_range(
         .pages
         .replay_page
         .set(steps::replay_range(tables.pages.replay_page.get(), false));
-    crate::screens::best_scores::replay_range_caption(menus, text)
+    crate::screens::best_scores::replay_range_caption(&menus.tables.pages, text)
 }
 
 pub fn next_replay_range(
@@ -103,7 +103,7 @@ pub fn next_replay_range(
         .pages
         .replay_page
         .set(steps::replay_range(tables.pages.replay_page.get(), true));
-    crate::screens::best_scores::replay_range_caption(menus, text)
+    crate::screens::best_scores::replay_range_caption(&menus.tables.pages, text)
 }
 
 /// `menu::toggle_caption_choice`: the choice flipped and its caption written.

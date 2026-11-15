@@ -4,7 +4,7 @@
 //! `install::key_left`.
 
 use crate::errors::Refused;
-use crate::menu::list_handle::{ItemByte, ListItem};
+use crate::list_handle::{ItemByte, ListItem};
 use rc2k_core::install::items::{self, MARKS};
 
 /// An item of choices' chosen byte; and whether choice `cl` is free.

@@ -16,8 +16,8 @@ pub fn show_overall_stage_results(menus: &Menus, entry: &Entry) -> Result<(), Re
     let found = crate::menu::first_player_a::first_player_a(ANY_GROUP)?;
     let count = held_figure(Page::OverallStage, found.figure);
     menus.play.champ_view.rows.count.set(count);
-    crate::menu::first_page_stage::first_page_stage(play);
-    crate::menu::stage_range_caption::stage_range_caption(play)?;
+    crate::menu::first_page_stage::first_page_stage(&play.champ_view);
+    crate::menu::stage_range_caption::stage_range_caption(&play.champ_view)?;
     run_screen(ScreenId::OverallStageResults, entry)?;
     Ok(())
 }

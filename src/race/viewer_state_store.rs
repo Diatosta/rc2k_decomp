@@ -5,7 +5,7 @@
 
 use crate::cells::ZeroCells;
 
-use crate::menu::list_handle::{Item, ListData26, ListHeader};
+use crate::list_handle::{Item, ListData26, ListHeader};
 use crate::place::BytePlace;
 #[cfg(test)]
 use crate::race::owner::race;

@@ -175,8 +175,12 @@ impl MenuLists {
 
     /// The map overlay of event slot `slot` (0 ..= 35 in the image's tables; the records can
     /// be loaded from a file, so a slot past the list reads on into the fields after it).
-    pub fn map_overlay(&self, slot: usize) -> Result<u32, crate::errors::BadInput> {
-        crate::session::read_runs(&self.runs_from_map_overlays(), slot, "a map overlay")
+    pub fn map_overlay(
+        &self,
+        menus: &crate::menu::owner::Menus,
+        slot: usize,
+    ) -> Result<u32, crate::errors::BadInput> {
+        crate::session::read_runs(&self.runs_from_map_overlays(menus), slot, "a map overlay")
     }
 
     /// The rally speech of section `section` (0 ..= 0x20, held by `small_section`), past the six
@@ -248,10 +252,13 @@ impl MenuLists {
     /// The fields from `map_overlays` to the end, in order, with the lists that moved out of this
     /// record in their places: a list read on past its field goes on into the next, over the
     /// gaps.
-    fn runs_from_map_overlays(&self) -> [&dyn crate::session::Run; 41] {
+    fn runs_from_map_overlays<'a>(
+        &'a self,
+        menus: &'a crate::menu::owner::Menus,
+    ) -> [&'a dyn crate::session::Run; 41] {
         let service = crate::service::owner::service();
-        let cars = crate::menu::car_lists_store::car_lists();
-        let carousel = &crate::menu::owner::menus().screens.carousel;
+        let cars = &menus.cars.lists;
+        let carousel = &menus.screens.carousel;
         [
             &self.map_overlays,
             &self._gap_75993e,
@@ -302,8 +309,13 @@ impl MenuLists {
     /// A list of cars, from its first entry to the end of these lists: a list is read on to its
     /// end mark, and a list of one shown twice (menu 0xE) is read on past its field into the
     /// next.
-    pub fn car_entry(&self, list: CarList, n: u32) -> Result<u32, crate::errors::BadInput> {
-        let all = self.runs_from_map_overlays();
+    pub fn car_entry(
+        &self,
+        menus: &crate::menu::owner::Menus,
+        list: CarList,
+        n: u32,
+    ) -> Result<u32, crate::errors::BadInput> {
+        let all = self.runs_from_map_overlays(menus);
         crate::session::read_runs(
             &all[Self::car_list_start(list)..],
             n as usize,
@@ -314,11 +326,12 @@ impl MenuLists {
     /// Entry `n` of a list of cars, written.
     pub fn set_car_entry(
         &self,
+        menus: &crate::menu::owner::Menus,
         list: CarList,
         n: u32,
         value: u32,
     ) -> Result<(), crate::errors::BadInput> {
-        let all = self.runs_from_map_overlays();
+        let all = self.runs_from_map_overlays(menus);
         crate::session::write_runs(
             &all[Self::car_list_start(list)..],
             n as usize,
@@ -1298,7 +1311,7 @@ mod run_on_tests {
         }
         assert!(l.page_picture(4, 0).is_err());
         // Up to the first run that lives outside this record (the service's repair flags).
-        let room: usize = l.runs_from_map_overlays()[..FIRST_MOVED_RUN]
+        let room: usize = l.runs_from_map_overlays(crate::menu::owner::menus())[..FIRST_MOVED_RUN]
             .iter()
             .map(|run| run.count())
             .sum();
@@ -1307,7 +1320,7 @@ mod run_on_tests {
                 continue;
             }
             assert_eq!(
-                l.map_overlay(n).ok(),
+                l.map_overlay(crate::menu::owner::menus(), n).ok(),
                 old_result(&l.map_overlays, n),
                 "map overlay {n}"
             );
@@ -1319,8 +1332,8 @@ mod run_on_tests {
     #[test]
     fn car_lists_start_at_their_runs() {
         let l = MenuLists::new();
-        let cars = crate::menu::car_lists_store::car_lists();
-        let all = l.runs_from_map_overlays();
+        let cars = &crate::menu::owner::menus().cars.lists;
+        let all = l.runs_from_map_overlays(crate::menu::owner::menus());
         let total: usize = all.iter().map(|r| r.count()).sum();
         for (list, table) in [
             (CarList::First, &cars.cars_first[..]),
@@ -1336,8 +1349,16 @@ mod run_on_tests {
             assert_eq!(run, table.as_ptr().cast::<u8>(), "{list:?}");
             let left: usize = all[start..].iter().map(|r| r.count()).sum();
             assert!(left <= total && left > table.len());
-            assert!(l.car_entry(list, (left - 1) as u32).is_ok(), "{list:?}");
-            assert!(l.car_entry(list, left as u32).is_err(), "{list:?}");
+            assert!(
+                l.car_entry(crate::menu::owner::menus(), list, (left - 1) as u32)
+                    .is_ok(),
+                "{list:?}"
+            );
+            assert!(
+                l.car_entry(crate::menu::owner::menus(), list, left as u32)
+                    .is_err(),
+                "{list:?}"
+            );
         }
     }
 }

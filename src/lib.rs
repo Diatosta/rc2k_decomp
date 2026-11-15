@@ -25,6 +25,7 @@ mod handheld;
 mod hud;
 mod input;
 mod install;
+mod list_handle;
 mod logfile;
 mod math;
 mod memory;

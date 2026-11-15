@@ -334,8 +334,3 @@ impl CarLists {
         }
     }
 }
-
-/// The lists of cars, for a caller that does not take the menus' owner.
-pub fn car_lists() -> &'static CarLists {
-    &crate::menu::owner::menus().cars.lists
-}

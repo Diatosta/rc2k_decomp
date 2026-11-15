@@ -58,7 +58,7 @@ pub fn draw_stage_map(o: Owners<'static>) -> Result<(), Refused> {
         }
     };
     let overlay = crate::menu::texts_store::text_at(
-        lists().map_overlay(record.record(stages)?.event_slot() as usize)?,
+        lists().map_overlay(menus, record.record(stages)?.event_slot() as usize)?,
     )?;
     if load_picture_with_overlay_in(&texts().ukmap_png, &overlay, gfx, system, o.strings)? {
         return Err(NO_MAP.into());

@@ -21,6 +21,7 @@
 //! and pictures; what `item_at` refuses.
 
 use crate::errors::{BadInput, FatalError, Refused};
+use crate::menu::champ_store::ChampView;
 use crate::menu::event_flow::Fault;
 use crate::menu::lists_store::lists;
 use crate::menu::owner::Menus;
@@ -47,8 +48,8 @@ fn stage_record(screens: &Screens, system: &System) -> Result<RecordRef, Refused
     )?)
 }
 
-fn championship(menus: &Menus) -> bool {
-    stage_screens::championship(menus.play.champ_view.event_mode.get())
+fn championship(champ: &ChampView) -> bool {
+    stage_screens::championship(champ.event_mode.get())
 }
 
 fn small_section(menus: &Menus) -> Result<u32, Refused> {
@@ -74,7 +75,7 @@ pub fn count_stage_pages(screens: &Screens, system: &System) -> Result<(), Refus
 pub fn play_stage_speech(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     let (menus, sound, audio, system) = (o.menus, o.sound, o.audio, o.system);
     let record = stage_record(&menus.screens, system)?;
-    if championship(menus) {
+    if championship(&menus.play.champ_view) {
         let fault = std::cell::Cell::new(None);
         let at = stage_screens::stage_speech(
             record.record(&system.records().stage_tables)?.track(),
@@ -109,7 +110,7 @@ pub fn play_rally_speech(o: crate::owners::Owners<'static>) -> Result<(), Refuse
     })?
     .unwrap_or(0);
     crate::input::take_key::take_key(input);
-    if championship(menus) {
+    if championship(&menus.play.champ_view) {
         crate::sound::start_stream::start_stream(
             o,
             lists().rally_speech(section as usize)?,

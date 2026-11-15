@@ -16,7 +16,7 @@ pub fn list_step(
     list_state: &crate::menu::list_state::ListState,
     key: u8,
     table: Option<BytePlace>,
-    list: crate::menu::list_handle::ListMenu,
+    list: crate::list_handle::ListMenu,
 ) -> Result<bool, crate::errors::BadInput> {
     let count = list.count();
     if !MOVES.contains(&key) {

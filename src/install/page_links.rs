@@ -17,7 +17,7 @@
 
 use crate::errors::BadInput;
 use crate::gfx::typefaces::FontId;
-use crate::menu::list_handle::{BoxRect, EditRecord};
+use crate::list_handle::{BoxRect, EditRecord};
 use crate::place::BytePlace;
 
 const KIND_SHIFT: u32 = 24;

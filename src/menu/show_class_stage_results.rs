@@ -17,8 +17,8 @@ pub fn show_class_stage_results(menus: &Menus, class: u32, entry: &Entry) -> Res
     let found = crate::menu::first_player_a::first_player_a(class)?;
     let count = held_figure(Page::ClassStage, found.figure);
     menus.play.champ_view.rows.count.set(count);
-    crate::menu::first_page_stage::first_page_stage(&menus.play);
-    crate::menu::stage_range_caption::stage_range_caption(&menus.play)?;
+    crate::menu::first_page_stage::first_page_stage(&menus.play.champ_view);
+    crate::menu::stage_range_caption::stage_range_caption(&menus.play.champ_view)?;
     run_screen(ScreenId::ClassStageResults, entry)?;
     Ok(())
 }

@@ -13,7 +13,7 @@
 //! `draw_action`.
 
 use crate::errors::{BadInput, FatalError, Refused};
-use crate::menu::list_handle::ListMenu;
+use crate::list_handle::ListMenu;
 use crate::place::BytePlace;
 
 /// The installer's constant texts.

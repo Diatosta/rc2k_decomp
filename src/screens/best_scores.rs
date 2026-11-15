@@ -9,6 +9,7 @@ use crate::menu::event_flow::Fault;
 use crate::menu::event_flow::StageTable;
 use crate::menu::lists_store::lists;
 use crate::menu::owner::Menus;
+use crate::menu::pages_store::MenuPages;
 use crate::records::stages_store::{Holder, RecordRef, RecordTable};
 use crate::screens::game_screen::GameScreen;
 use crate::screens::game_screen::{Held, HeldText};
@@ -244,12 +245,11 @@ pub fn best_scores_caption(
 /// The caption "n-m", n = `pages.replay_page` x 20, m = n + 19 (`strings::append_u32`,
 /// `append_minus`).
 pub fn replay_range_caption(
-    menus: &Menus,
+    pages: &MenuPages,
     text: &crate::screens::text_buffers_store::TextBuffers,
 ) -> Result<(), BadInput> {
     // The logic is in `rc2k_core::screens::best_scores::range_caption`.
-    let mut bytes =
-        rc2k_core::screens::best_scores::range_caption(menus.tables.pages.replay_page.get());
+    let mut bytes = rc2k_core::screens::best_scores::range_caption(pages.replay_page.get());
     bytes.push(0);
     text.caption.write_at(0, &bytes, "the caption")
 }

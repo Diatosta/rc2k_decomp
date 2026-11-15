@@ -60,17 +60,20 @@ pub fn apply_cheats(
                 changed: false,
             })
         };
-        let (mut first, mut second) = (list(first_list())?, list(second_list())?);
+        let (mut first, mut second) = (
+            list(first_list(&menus.cars.lists))?,
+            list(second_list(&menus.cars.lists))?,
+        );
         let a = car_lists::apply_cheats(cheats, &mut first, &mut second, |bit| {
             CHEATS[bit].1.map_or(0, crate::menu::cars_store::car_handle)
         })?;
         // Nothing has been written or logged up to here.
         play.cheats.cheats.set(a.cheats);
         if first.changed {
-            write_list(first_list(), &first.cars);
+            write_list(first_list(&menus.cars.lists), &first.cars);
         }
         if second.changed {
-            write_list(second_list(), &second.cars);
+            write_list(second_list(&menus.cars.lists), &second.cars);
         }
         if a.stores {
             race.shared.state.settings.a8_game.set(1u32);

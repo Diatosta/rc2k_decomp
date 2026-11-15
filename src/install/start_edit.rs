@@ -2,7 +2,7 @@
 //! bytes and kept in `script_path` (for Escape, `install::edit_key`). Called by
 //! `install::item_enter`, `install::next_edit`.
 
-use crate::menu::list_handle::ListItem;
+use crate::list_handle::ListItem;
 
 pub fn start_edit(install: &'static crate::install::owner::Install, item: ListItem) {
     let record = item.edit_field();

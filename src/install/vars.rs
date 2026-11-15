@@ -3,12 +3,12 @@
 //!
 //! Structs of cells, with the old layout's fields in its order and its gaps. The pages' tables
 //! hold handles (`install::page_links`) in place of addresses. The pages' lists,
-//! handler records, edit record and boxes are typed records (`menu::list_handle`), each reached
+//! handler records, edit record and boxes are typed records (`list_handle`), each reached
 //! by the handle that names it.
 
 use crate::gfx::typefaces::{FontId, fonts};
 use crate::install::page_links::{LinkCell, ListId, PageLink};
-use crate::menu::list_handle::{
+use crate::list_handle::{
     BoxRect, EditRecord, Item, ListData3, ListData4, ListData5, ListData6, ListData10, ListData18,
     ListData26, ListHeader,
 };

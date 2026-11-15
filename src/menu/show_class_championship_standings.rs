@@ -21,8 +21,8 @@ pub fn show_class_championship_standings(
     let found = crate::menu::first_player_b::first_player_b(class)?;
     let count = held_figure(Page::ClassChampionship, found.figure);
     menus.play.champ_view.rows.count.set(count);
-    crate::menu::first_page_stage::first_page_stage(&menus.play);
-    crate::menu::stage_range_caption::stage_range_caption(&menus.play)?;
+    crate::menu::first_page_stage::first_page_stage(&menus.play.champ_view);
+    crate::menu::stage_range_caption::stage_range_caption(&menus.play.champ_view)?;
     run_screen(ScreenId::ClassChampionshipStandings, entry)?;
     Ok(())
 }

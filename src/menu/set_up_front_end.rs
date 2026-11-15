@@ -44,7 +44,7 @@ pub fn set_up_front_end(o: crate::owners::Owners<'static>) -> Result<(), Refused
         default_stage_times_alt,
     };
     if o.install.vars.has_clio.get() == 1 {
-        crate::menu::add_clio_car::add_clio_car()?;
+        crate::menu::add_clio_car::add_clio_car(menus)?;
     }
     crate::menu::link_player_names::link_player_names(menus)?;
     crate::menu::show_loading_picture::show_loading_picture_in(o)?;

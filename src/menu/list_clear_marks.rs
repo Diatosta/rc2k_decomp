@@ -5,7 +5,7 @@
 //! A list of no items goes round 2^32 times, and a kind 2 of no choices 256 times (the callers'
 //! lists have items). Callers: `race::mark_viewer_items`.
 
-use crate::menu::list_handle::ListMenu;
+use crate::list_handle::ListMenu;
 use rc2k_core::menu::list_menu::{has_choices, rounds, unmarked};
 
 pub fn list_clear_marks(list: ListMenu) {

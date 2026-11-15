@@ -6,8 +6,8 @@
 //! buffer and a string index past the duel labels' 21.
 
 use crate::errors::{BadInput, Refused};
+use crate::menu::captions_store::CaptionTables;
 use crate::menu::owner::Screens;
-use crate::menu::owner::Tables;
 use crate::menu::results_store::Results;
 use crate::records::stages_store::{RecordRef, RecordTable};
 use crate::text::draw_text::Canvas;
@@ -29,11 +29,11 @@ fn records(
 }
 
 /// `captions.duel_labels[v - 1]`, refused outside its 21 entries.
-fn label(tables: &Tables, v: u32) -> Result<u32, Refused> {
+fn label(captions: &CaptionTables, v: u32) -> Result<u32, Refused> {
     if !(1..=21).contains(&v) {
         return Err(BadInput("a string index past the duel labels' 21").into());
     }
-    Ok(tables.captions.duel_labels[v as usize - 1].get())
+    Ok(captions.duel_labels[v as usize - 1].get())
 }
 
 pub fn draw_duel_result(
@@ -62,8 +62,8 @@ pub fn draw_duel_result(
         return Err(BadInput("a stage line past the line buffer").into());
     }
     let (label1, label2) = (
-        label(tables, results.players[0].position.get())?,
-        label(tables, results.players[1].position.get())?,
+        label(&tables.captions, results.players[0].position.get())?,
+        label(&tables.captions, results.players[1].position.get())?,
     );
     // The logic is in `rc2k_core::screens::duel_result`.
     use rc2k_core::screens::player_result::Player;

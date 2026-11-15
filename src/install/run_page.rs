@@ -14,7 +14,7 @@ use crate::install::installer::{
     copy_picture, key_action, list_clear_marks, list_item_unusable, list_step, list_take_key, lock,
     page_action, run_frame, show, unlock,
 };
-use crate::menu::list_handle::ListMenu;
+use crate::list_handle::ListMenu;
 
 const NO_CHOICE: BadInput = BadInput("a page whose every item cannot be chosen");
 

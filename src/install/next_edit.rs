@@ -2,7 +2,7 @@
 //! (`install::start_edit`); none before the list's end: the highlight back to 0. Any other
 //! state: nothing. Called by `install::folder_page`, `install::mark_page`.
 
-use crate::menu::list_handle::ListMenu;
+use crate::list_handle::ListMenu;
 
 /// `state`: which call of the list action this is (0 the start, negative the end); only 0 acts.
 pub fn next_edit(

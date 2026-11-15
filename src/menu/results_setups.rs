@@ -11,9 +11,9 @@
 //! 16, an offset past the four.
 
 use crate::errors::{BadInput, Refused};
+use crate::menu::captions_store::CaptionTables;
 use crate::menu::owner::Menus;
 use crate::menu::owner::Screens;
-use crate::menu::owner::Tables;
 use crate::menu::results_store::PlayerFigures;
 use crate::system::owner::System;
 
@@ -80,11 +80,11 @@ fn stage_time(screens: &Screens, system: &System) -> Result<u32, Refused> {
     .race_stage())
 }
 
-fn points(tables: &Tables, position: u32) -> Result<u32, Refused> {
+fn points(captions: &CaptionTables, position: u32) -> Result<u32, Refused> {
     if position >= POSITION_LIMIT {
         return Err(BadInput("a position past the points table").into());
     }
-    Ok(tables.captions.place_points[position as usize].get())
+    Ok(captions.place_points[position as usize].get())
 }
 
 /// `menu::score_four_players` (`n` 4) or `score_two_players` (`n` 2).
@@ -101,7 +101,7 @@ pub fn score(menus: &Menus, system: &System, n: usize) -> Result<(), Refused> {
     };
     let earned: Vec<u32> = positions
         .iter()
-        .map(|&q| points(&menus.tables, q))
+        .map(|&q| points(&menus.tables.captions, q))
         .collect::<Result<_, _>>()?;
     let results = &menus.play.results;
     for player in &results.players[..n] {
