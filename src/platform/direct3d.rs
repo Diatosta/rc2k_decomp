@@ -28,7 +28,7 @@
 use crate::errors::FatalError;
 use crate::gfx::texture_upload::TextureFormat;
 use crate::logfile::program_log::log;
-use crate::render::{Command, CommandList, STATES, Target, TextureId, TextureNote};
+use crate::render::{CommandList, STATES, Target, TextureId, TextureNote};
 use rc2k_core::fatal::Context;
 use std::sync::Mutex;
 
@@ -288,9 +288,8 @@ pub fn unlock_surface(_surface: u32) -> i32 {
 
 struct Pending {
     into: Option<Target>,
+    /// With the textures its fans read (`CommandList::textures`).
     noted: CommandList,
-    /// The memory of each texture the noted fans read.
-    textures: Vec<TextureId>,
     /// The states as the last fan had them, until one changes (`forget_states`).
     states: Option<std::sync::Arc<[u32; STATES]>>,
     /// The last fan's texture level, the lock of the levels spared while it holds.
@@ -315,7 +314,6 @@ fn draw_noted(part: &crate::scene::workers::PartScratch, pending: &mut Pending) 
     // shows in a profile.
     let spare = crate::render::spare_list(&pending.noted);
     let commands = std::mem::replace(&mut pending.noted, spare);
-    pending.textures.clear();
     let (Some(target), false) = (pending.into.take(), commands.is_empty()) else {
         crate::render::give_back(commands);
         return;
@@ -348,7 +346,6 @@ impl Noted {
         Self(std::cell::RefCell::new(Pending {
             into: None,
             noted: CommandList::new(),
-            textures: Vec::new(),
             states: None,
             level: None,
             screen_pixels: crate::gfx::locked_pixels::Remembered::new(),
@@ -391,7 +388,7 @@ fn game_part() -> Option<&'static crate::scene::workers::PartScratch> {
 
 /// Whether a noted fan reads the texture `pixels`.
 fn reads_texture(pixels: TextureId) -> bool {
-    game_part().is_some_and(|part| part.noted.lock().textures.contains(&pixels))
+    game_part().is_some_and(|part| part.noted.lock().noted.reads_texture(pixels))
 }
 
 /// The screen's width, height and bits per pixel as part `part`'s drawing reads them: its own
@@ -455,12 +452,11 @@ pub fn noted_len(part: &crate::scene::workers::PartScratch) -> usize {
     part.noted.lock().noted.len()
 }
 
-/// The commands part `part` has noted, taken out, the screen, the textures, the states and the
+/// The commands part `part` has noted, taken out with its textures, the screen, the states and the
 /// level as the last fan had them forgotten (`workers`: each part notes as from nothing).
 pub fn take_noted(part: &crate::scene::workers::PartScratch) -> CommandList {
     let p = &mut *part.noted.lock();
     p.into = None;
-    p.textures.clear();
     p.states = None;
     p.level = None;
     let spare = crate::render::spare_list(&p.noted);
@@ -472,15 +468,6 @@ pub fn take_noted(part: &crate::scene::workers::PartScratch) -> CommandList {
 pub fn put_noted(first: &crate::scene::workers::PartScratch, mut commands: CommandList) {
     {
         let p = &mut *first.noted.lock();
-        for c in &commands.commands {
-            if let Command::Fan {
-                texture: Some(t), ..
-            } = c
-                && !p.textures.contains(&t.pixels)
-            {
-                p.textures.push(t.pixels);
-            }
-        }
         p.states = None;
         p.level = None;
         p.noted.append(&mut commands);
@@ -583,13 +570,6 @@ fn note_fan(
                 masks: format.format.masks,
             })
         });
-        if let Some(t) = &texture
-            // Most fans run on in the last one's texture: that is looked at first.
-            && pending.textures.last() != Some(&t.pixels)
-            && !pending.textures.contains(&t.pixels)
-        {
-            pending.textures.push(t.pixels);
-        }
         let states =
             std::sync::Arc::clone(pending.states.get_or_insert_with(|| {
                 std::sync::Arc::new(crate::d3d::render_cache::all_kept(part))

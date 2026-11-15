@@ -119,6 +119,9 @@ pub enum Command {
 pub struct CommandList {
     pub commands: Vec<Command>,
     pub vertices: Vec<crate::render::rasteriser::Vertex>,
+    /// The textures the fans read, each once, in the order they are first read: what a GPU
+    /// brings up for the list is looked up once a texture, not once a fan.
+    textures: Vec<TextureNote>,
 }
 
 impl CommandList {
@@ -126,14 +129,41 @@ impl CommandList {
         Self {
             commands: Vec::new(),
             vertices: Vec::new(),
+            textures: Vec::new(),
         }
     }
 
-    /// An empty list with room for as many commands and vertices as `like` holds.
+    /// An empty list with room for as many commands, vertices and textures as `like` holds.
     pub fn with_room_of(like: &CommandList) -> Self {
         Self {
             commands: Vec::with_capacity(like.commands.capacity()),
             vertices: Vec::with_capacity(like.vertices.capacity()),
+            textures: Vec::with_capacity(like.textures.capacity()),
+        }
+    }
+
+    /// The textures the fans read, each once, in the order they are first read (for the
+    /// handheld's GL, which brings them up).
+    #[cfg(any(test, all(target_os = "linux", target_arch = "aarch64")))]
+    pub fn textures(&self) -> &[TextureNote] {
+        &self.textures
+    }
+
+    /// Whether a fan reads the texture `pixels`.
+    pub fn reads_texture(&self, pixels: TextureId) -> bool {
+        self.textures.iter().any(|t| t.pixels == pixels)
+    }
+
+    /// `texture` among the textures read, when it is new.
+    fn note_texture(&mut self, texture: &TextureNote) {
+        // Most fans run on in the last one's texture: that is looked at first.
+        if self
+            .textures
+            .last()
+            .is_none_or(|t| t.pixels != texture.pixels)
+            && !self.reads_texture(texture.pixels)
+        {
+            self.textures.push(*texture);
         }
     }
 
@@ -150,6 +180,7 @@ impl CommandList {
     pub fn clear(&mut self) {
         self.commands.clear();
         self.vertices.clear();
+        self.textures.clear();
     }
 
     /// A fan of `vertices` noted after the rest.
@@ -165,6 +196,9 @@ impl CommandList {
             count: vertices.len() as u32,
         };
         self.vertices.extend_from_slice(vertices);
+        if let Some(t) = &texture {
+            self.note_texture(t);
+        }
         self.commands.push(Command::Fan {
             vertices: span,
             states,
@@ -183,9 +217,12 @@ impl CommandList {
         &self.vertices[span.range()]
     }
 
-    /// `other`'s commands after this list's, its fans' vertices after this list's; `other` is
-    /// left empty with its room.
+    /// `other`'s commands after this list's, its fans' vertices after this list's, its textures
+    /// after this list's (those not read here already); `other` is left empty with its room.
     pub fn append(&mut self, other: &mut CommandList) {
+        for t in other.textures.drain(..) {
+            self.note_texture(&t);
+        }
         let base = self.vertices.len() as u32;
         self.vertices.append(&mut other.vertices);
         self.commands.reserve(other.commands.len());
@@ -789,6 +826,29 @@ mod tests {
         joined.append(&mut list(rest.iter().cloned()));
         reads_back_as(&joined, &scene);
         assert_eq!(joined.vertices, whole.vertices);
+        // The textures read, each once, in the order the fans first read them, whole or joined.
+        let mut first_read: Vec<TextureId> = Vec::new();
+        for c in &scene {
+            if let TestCommand::Fan {
+                texture: Some(t), ..
+            } = c
+                && !first_read.contains(&t.pixels)
+            {
+                first_read.push(t.pixels);
+            }
+        }
+        let ids =
+            |l: &CommandList| -> Vec<TextureId> { l.textures().iter().map(|t| t.pixels).collect() };
+        assert_eq!(ids(&whole), first_read);
+        assert_eq!(ids(&joined), first_read);
+        assert!(first_read.len() > 1 && whole.reads_texture(first_read[1]));
+        assert!(!whole.reads_texture(TextureId {
+            surface: 9,
+            serial: 0
+        }));
+        let mut cleared = list(scene.iter().cloned());
+        cleared.clear();
+        assert!(cleared.textures().is_empty());
         let opaque = |t: &super::TextureNote| t.pixels.surface == 1;
         for opaque in [None, Some(&opaque as &dyn Fn(&super::TextureNote) -> bool)] {
             let a = super::batches::Batches::of(&whole, 640, 480, opaque);

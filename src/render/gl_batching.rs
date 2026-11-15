@@ -483,3 +483,144 @@ mod tests {
         assert!(!opacity.of(&note(2, 8)));
     }
 }
+
+#[cfg(test)]
+mod dump_breaks {
+    //! A recorded frame (`RC2K_DUMP`, the file named by `RC2K_BREAKS_DUMP`) batched as the
+    //! handheld batches it, and what still splits its batches: how many neighbouring batches
+    //! differ in each thing a draw sets. Skips without the file (it holds the game's textures, so
+    //! it is not in the repository).
+
+    use super::super::batches::{Batch, Batches};
+    use super::super::{CommandList, STATES, TextureNote};
+
+    struct Reader<'a>(&'a [u8]);
+    impl Reader<'_> {
+        fn dword(&mut self) -> u32 {
+            let (head, rest) = self.0.split_first_chunk::<4>().unwrap();
+            self.0 = rest;
+            u32::from_le_bytes(*head)
+        }
+    }
+
+    /// As `gles::same_array`.
+    fn same_array(a: &TextureNote, b: &TextureNote) -> bool {
+        const MAIN_SIZES: [(usize, usize); 2] = [(128, 128), (256, 256)];
+        let (a, b) = ((a.width, a.height), (b.width, b.height));
+        a == b || (MAIN_SIZES.contains(&a) && MAIN_SIZES.contains(&b))
+    }
+
+    #[test]
+    fn what_splits_a_recorded_frames_batches() {
+        let Some(path) = std::env::var_os("RC2K_BREAKS_DUMP") else {
+            println!("SKIPPED: no RC2K_BREAKS_DUMP");
+            return;
+        };
+        let file = std::fs::read(path).unwrap();
+        assert_eq!(&file[..8], b"RC2KDUMP");
+        let mut r = Reader(&file[8..]);
+        let (width, height, _bits) = (r.dword(), r.dword(), r.dword());
+        let mut notes = Vec::new();
+        for _ in 0..r.dword() {
+            let [w, h, pitch, each] = [0; 4].map(|_: u8| r.dword() as usize);
+            let masks = [0; 4].map(|_: u8| r.dword());
+            let len = r.dword() as usize;
+            let (data, rest) = r.0.split_at(len);
+            r.0 = rest;
+            notes.push(TextureNote {
+                pixels: crate::platform::direct3d::test_level(data.to_vec()),
+                len,
+                width: w,
+                height: h,
+                pitch,
+                bytes: each,
+                masks,
+            });
+        }
+        let opaque_of: Vec<bool> = notes
+            .iter()
+            .map(|n| super::opaque_picture(&super::super::texture_as_bgra(n)))
+            .collect();
+        let mut list = CommandList::new();
+        let mut shared: Option<std::sync::Arc<[u32; STATES]>> = None;
+        for _ in 0..r.dword() {
+            if r.dword() == 1 {
+                let corners = r.dword() as usize;
+                let vertices: Vec<[u32; 8]> = (0..corners)
+                    .map(|_| [0; 8].map(|_: u8| r.dword()))
+                    .collect();
+                let states = [0; STATES].map(|_: u8| r.dword());
+                if shared.as_deref() != Some(&states) {
+                    shared = Some(std::sync::Arc::new(states));
+                }
+                let number = r.dword();
+                let texture = (number != u32::MAX).then(|| notes[number as usize]);
+                list.push_fan(
+                    &vertices,
+                    shared.clone().unwrap(),
+                    texture,
+                    (f32::MIN, f32::MIN, f32::MAX, f32::MAX),
+                );
+            } else {
+                list.push_clear([0; 4].map(|_: u8| r.dword() as usize));
+            }
+        }
+        let opaque = |note: &TextureNote| {
+            notes
+                .iter()
+                .position(|n| n.pixels == note.pixels)
+                .is_some_and(|n| opaque_of[n])
+        };
+        // The batches' fingerprints, unlayered (the PC's GPU), with second passes, and layered.
+        {
+            use std::hash::{Hash, Hasher};
+            let print = |name: &str, b: &Batches| {
+                let mut h = std::collections::hash_map::DefaultHasher::new();
+                b.vertices.hash(&mut h);
+                format!("{:?}", b.batches).hash(&mut h);
+                b.seconds.hash(&mut h);
+                b.vertex_textures.hash(&mut h);
+                for t in &b.textures {
+                    (t.pixels, t.width, t.height).hash(&mut h);
+                }
+                println!(
+                    "FINGERPRINT {name}: {} batches {:016x}",
+                    b.batches.len(),
+                    h.finish()
+                );
+            };
+            print("plain", &Batches::of(&list, width, height, None));
+            print("seconds", &Batches::of(&list, width, height, Some(&opaque)));
+            print(
+                "layered",
+                &Batches::of_layered(&list, width, height, &opaque, same_array),
+            );
+        }
+        let start = std::time::Instant::now();
+        let batches = Batches::of_layered(&list, width, height, &opaque, same_array);
+        let took = start.elapsed();
+        let changes = |f: &dyn Fn(&Batch, &Batch) -> bool| {
+            batches
+                .batches
+                .windows(2)
+                .filter(|p| f(&p[0], &p[1]))
+                .count()
+        };
+        println!(
+            "{} commands, {} batches ({took:?}), {} textures; neighbours differing in: values {}, a second pass's values {}, second pass or not {}, sampler {}, depth write {}, blend {}, depth test or culling {}",
+            list.len(),
+            batches.batches.len(),
+            batches.textures.len(),
+            changes(&|a, b| a.values != b.values),
+            changes(&|a, b| a.second.map(|s| s.values) != b.second.map(|s| s.values)),
+            changes(&|a, b| a.second.is_some() != b.second.is_some()),
+            changes(&|a, b| (a.linear, a.clamp) != (b.linear, b.clamp)),
+            changes(&|a, b| a.pipeline.depth_write != b.pipeline.depth_write),
+            changes(&|a, b| a.pipeline.blend != b.pipeline.blend),
+            changes(&|a, b| {
+                (a.pipeline.depth_function, a.pipeline.cull)
+                    != (b.pipeline.depth_function, b.pipeline.cull)
+            }),
+        );
+    }
+}

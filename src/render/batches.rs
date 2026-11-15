@@ -96,10 +96,15 @@ pub struct Batches {
     pub vertex_textures: Vec<[u16; 2]>,
     /// Layered: whether two textures can be read in one draw.
     layered: Option<fn(&TextureNote, &TextureNote) -> bool>,
+    /// The target's width and height (`apart`).
+    size: (f64, f64),
     /// The pixels each batch can touch, while they are being gathered.
     areas: Vec<Area>,
     /// The last fan, while it can still take a second pass.
     last_fan: Option<LastFan>,
+    /// Each of `textures`' number, by its id; the last one numbered (`texture_number`).
+    texture_numbers: super::TextureMap<u32>,
+    last_texture: Option<(super::TextureId, u32)>,
 }
 
 /// A pass without a texture, in `Batches::vertex_textures`.
@@ -173,6 +178,82 @@ impl Area {
             && self.top <= other.bottom
             && other.top <= self.bottom
     }
+}
+
+/// A triangle's corners on the target as the GPU places them (`scene.vert`: x and y as given,
+/// times the clip space's w, which the GPU divides out again; w is 1 over the fourth dword when
+/// that is above 0, else 1), when that is a plain place: x, y and w finite, w small enough that
+/// the clip space's place is finite too.
+fn corners(t: &[Vertex; 3]) -> Option<[(f64, f64); 3]> {
+    let mut out = [(0.0, 0.0); 3];
+    for (corner, v) in out.iter_mut().zip(t) {
+        let (x, y, w) = (
+            f32::from_bits(v[0]),
+            f32::from_bits(v[1]),
+            f32::from_bits(v[3]),
+        );
+        if !x.is_finite() || !y.is_finite() || !w.is_finite() || (w > 0.0 && w < 1e-30) {
+            return None;
+        }
+        *corner = (f64::from(x), f64::from(y));
+    }
+    Some(out)
+}
+
+/// Whether triangles `t` and `u` are drawn on no pixel in common, `size` the target's.
+///
+/// Either a line through one's edge has the other wholly on its far side, by more than the GPU's
+/// rounding of the corners can bring it back: `Area::around`'s margin, widened for a corner far
+/// past the edge's ends, which a tilt of the line moves the most. Or the two have an edge with
+/// the same corners, bit for bit in all the GPU's place reads (x, y, w), inside the target (no
+/// clipping makes new corners on it), and the other's third corner is on its far side by more
+/// than the margin: the GPU places those corners alike, so the edge stays one line between them,
+/// and the pixels on it go to one triangle only (the rasterising rule for a shared edge). A
+/// triangle with no area, or a place that is no plain place (`corners`), may share pixels.
+fn apart(t: &[Vertex; 3], u: &[Vertex; 3], size: (f64, f64)) -> bool {
+    const MARGIN: f64 = 0.125;
+    let (Some(tp), Some(up)) = (corners(t), corners(u)) else {
+        return false;
+    };
+    let same = |a: &Vertex, b: &Vertex| a[0] == b[0] && a[1] == b[1] && a[3] == b[3];
+    // Inside the clip space (the shaders put x at x + 0.5 of the target's width): no clipping.
+    let inside =
+        |p: (f64, f64)| (0.0..=size.0 - 1.0).contains(&p.0) && (0.0..=size.1 - 1.0).contains(&p.1);
+    // An edge of `own` (its corners `n` and `n + 1`), with its third corner, against `other`.
+    let cuts = |own: &[(f64, f64); 3],
+                own_v: &[Vertex; 3],
+                other: &[(f64, f64); 3],
+                other_v: &[Vertex; 3]| {
+        (0..3).any(|n| {
+            let (p, q, r) = (own[n], own[(n + 1) % 3], own[(n + 2) % 3]);
+            let (dx, dy) = (q.0 - p.0, q.1 - p.1);
+            let length = (dx * dx + dy * dy).sqrt();
+            if length == 0.0 {
+                return false;
+            }
+            // The distance from the edge's line, positive on the third corner's side.
+            let side = |s: (f64, f64)| (dx * (s.1 - p.1) - dy * (s.0 - p.0)) / length;
+            let own_side = side(r);
+            if own_side.abs() <= MARGIN {
+                return false;
+            }
+            let beyond = |s: (f64, f64)| {
+                let distance = |a: (f64, f64)| ((s.0 - a.0).powi(2) + (s.1 - a.1).powi(2)).sqrt();
+                let reach = distance(p).max(distance(q));
+                side(s) * own_side.signum() < -MARGIN * (1.0 + 2.0 * reach / length)
+            };
+            let (pv, qv) = (&own_v[n], &own_v[(n + 1) % 3]);
+            let shared = (0..3).find(|&m| {
+                let (a, b) = (&other_v[m], &other_v[(m + 1) % 3]);
+                (same(a, pv) && same(b, qv)) || (same(a, qv) && same(b, pv))
+            });
+            match shared {
+                Some(m) if inside(p) && inside(q) => beyond(other[(m + 2) % 3]),
+                _ => other.iter().all(|&s| beyond(s)),
+            }
+        })
+    };
+    cuts(&tp, t, &up, u) || cuts(&up, u, &tp, t)
 }
 
 /// Whether two batches are drawn alike, wherever their triangles lie.
@@ -298,6 +379,7 @@ impl Batches {
         height: u32,
         opaque: Option<&dyn Fn(&TextureNote) -> bool>,
     ) -> Batches {
+        out.size = (f64::from(width), f64::from(height));
         for command in &noted.commands {
             match command {
                 Command::Fan {
@@ -380,6 +462,13 @@ impl Batches {
             /// All the members' areas.
             area: Area,
         }
+        // Layered, each triangle's area (`may_share_pixels`).
+        let triangle_areas: Vec<Area> = if self.layered.is_some() {
+            let (triangles, _) = self.vertices.as_chunks::<3>();
+            triangles.iter().map(|t| Area::around(t)).collect()
+        } else {
+            Vec::new()
+        };
         let mut runs: Vec<Run> = Vec::with_capacity(self.batches.len());
         for (n, (batch, &area)) in self.batches.iter().zip(&self.areas).enumerate() {
             let mut joined = None;
@@ -388,7 +477,11 @@ impl Batches {
                     joined = Some(r);
                     break;
                 }
-                if run.area.meets(area) && run.members.iter().any(|&m| self.areas[m].meets(area)) {
+                if run.area.meets(area)
+                    && run.members.iter().any(|&m| {
+                        self.areas[m].meets(area) && self.may_share_pixels(m, n, &triangle_areas)
+                    })
+                {
                     break;
                 }
             }
@@ -435,6 +528,40 @@ impl Batches {
         self.seconds = seconds;
         self.vertex_textures = vertex_textures;
         self.batches = batches;
+    }
+
+    /// Whether batches `a` and `b` (numbers in `batches`, before gathering), whose areas meet,
+    /// may touch a pixel in common. Layered, triangles are looked at pair by pair (`apart`), each
+    /// with its area (`triangle_areas`, by its first vertex's number over 3): a car's faces, each
+    /// drawn twice (its texture, then its shine added), have areas that meet their neighbours'
+    /// along every edge they share, though no pixel is drawn by both. A depth clear (a scissor
+    /// over a triangle bigger than the target) touches everything its area meets.
+    fn may_share_pixels(&self, a: usize, b: usize, triangle_areas: &[Area]) -> bool {
+        if self.layered.is_none() {
+            return true;
+        }
+        let (area_a, area_b) = (self.areas[a], self.areas[b]);
+        let (a, b) = (&self.batches[a], &self.batches[b]);
+        if a.scissor.is_some() || b.scissor.is_some() {
+            return true;
+        }
+        // Each batch's triangles that reach into the other's area, by number.
+        let near = |x: &Batch, other: Area| {
+            let first = x.first_vertex as usize / 3;
+            (first..first + x.vertices as usize / 3)
+                .filter(move |&n| triangle_areas[n].meets(other))
+        };
+        let theirs: smallvec::SmallVec<[usize; 16]> = near(b, area_a).collect();
+        let triangle = |n: usize| {
+            let (chunks, _) = self.vertices[3 * n..3 * n + 3].as_chunks::<3>();
+            &chunks[0]
+        };
+        near(a, area_b).any(|t| {
+            theirs.iter().any(|&u| {
+                triangle_areas[t].meets(triangle_areas[u])
+                    && !apart(triangle(t), triangle(u), self.size)
+            })
+        })
     }
 
     /// Notes the fan just pushed as one that can take a second pass, when its own pass leaves
@@ -549,15 +676,21 @@ impl Batches {
         true
     }
 
+    /// `texture`'s number in `textures`, which it joins when it is new: looked up by its id,
+    /// the last fan's first (most fans run on in the last one's texture).
     fn texture_number(&mut self, texture: &TextureNote) -> u32 {
-        let found = self
-            .textures
-            .iter()
-            .position(|t| t.pixels == texture.pixels);
-        found.unwrap_or_else(|| {
+        if let Some((pixels, number)) = self.last_texture
+            && pixels == texture.pixels
+        {
+            return number;
+        }
+        let next = self.textures.len() as u32;
+        let number = *self.texture_numbers.entry(texture.pixels).or_insert(next);
+        if number == next {
             self.textures.push(*texture);
-            self.textures.len() - 1
-        }) as u32
+        }
+        self.last_texture = Some((texture.pixels, number));
+        number
     }
 
     fn push_fan(
@@ -1011,5 +1144,121 @@ mod tests {
         assert_eq!(b.batches[1].vertices, 6);
         assert!(b.batches[1].second.is_some());
         assert_eq!(b.seconds[..3], [[0; 4]; 3]);
+    }
+
+    /// A vertex at (`x`, `y`) with 1/w `w`.
+    fn at(x: f32, y: f32, w: f32) -> Vertex {
+        [
+            x.to_bits(),
+            y.to_bits(),
+            0,
+            w.to_bits(),
+            0xFF00_0000,
+            0,
+            0,
+            0,
+        ]
+    }
+
+    const TARGET: (f64, f64) = (640.0, 480.0);
+
+    #[test]
+    fn triangles_on_either_side_of_a_shared_edge_are_apart() {
+        let (p, q) = (at(10.0, 10.0, 1.0), at(50.0, 30.0, 1.0));
+        let left = [p, q, at(12.0, 40.0, 1.0)];
+        let right = [q, p, at(45.0, 5.0, 1.0)];
+        assert!(apart(&left, &right, TARGET) && apart(&right, &left, TARGET));
+        // The other's third corner on the same side: they overlap.
+        assert!(!apart(&left, &[q, p, at(20.0, 35.0, 1.0)], TARGET));
+        // The edge's corners the same in x and y but not in w: the GPU may place them apart.
+        let right_w = [at(50.0, 30.0, 0.5), at(10.0, 10.0, 1.0), at(45.0, 5.0, 1.0)];
+        assert!(!apart(&left, &right_w, TARGET));
+        // The shared edge past the target: clipping may make new corners on it.
+        assert!(!apart(&left, &right, (40.0, 480.0)));
+        // A third corner within the margin of the shared edge's line.
+        assert!(!apart(&left, &[q, p, at(30.0, 19.95, 1.0)], TARGET));
+    }
+
+    #[test]
+    fn triangles_apart_by_more_than_the_margin_are_apart() {
+        let a = [at(0.0, 0.0, 1.0), at(10.0, 0.0, 1.0), at(0.0, 10.0, 1.0)];
+        let gap = |d: f32| {
+            [
+                at(10.0 + d, 0.0, 1.0),
+                at(10.0 + d, 10.0, 1.0),
+                at(d, 10.0, 1.0),
+            ]
+        };
+        assert!(apart(&a, &gap(1.0), TARGET));
+        // A corner on the diagonal (no corners the same), or nearly: they may meet.
+        let touching = [at(5.0, 5.0, 1.0), at(15.0, 5.0, 1.0), at(5.0, 15.0, 1.0)];
+        assert!(!apart(&a, &touching, TARGET));
+        assert!(!apart(&a, &gap(0.1), TARGET));
+        // The diagonal's corners the same: an edge shared.
+        assert!(apart(&a, &gap(0.0), TARGET));
+        // No plain place, or no area: they may meet.
+        let far = [
+            at(f32::NAN, 0.0, 1.0),
+            at(100.0, 0.0, 1.0),
+            at(100.0, 10.0, 1.0),
+        ];
+        assert!(!apart(&a, &far, TARGET));
+        let tiny_w = [
+            at(100.0, 0.0, 1e-31),
+            at(110.0, 0.0, 1.0),
+            at(100.0, 10.0, 1.0),
+        ];
+        assert!(!apart(&a, &tiny_w, TARGET));
+        let flat = [
+            at(100.0, 0.0, 1.0),
+            at(110.0, 0.0, 1.0),
+            at(120.0, 0.0, 1.0),
+        ];
+        assert!(!apart(&flat, &flat, TARGET));
+    }
+
+    /// A face's two passes, as a car's: its texture with depth written, then its shine added
+    /// without (blended source alpha, one), each pass a batch of its own kind.
+    #[test]
+    fn layered_faces_drawn_twice_gather_past_neighbours_sharing_an_edge() {
+        let mut first = [0; STATES];
+        (first[0x07], first[0x17], first[0x0E]) = (1, 4, 1);
+        let mut shine = first;
+        (shine[0x0E], shine[0x1B], shine[0x13], shine[0x14]) = (0, 1, 5, 2);
+        let face = |corners: [Vertex; 3], states: [u32; STATES]| TestCommand::Fan {
+            vertices: corners.to_vec(),
+            states: std::sync::Arc::new(states),
+            texture: None,
+            bounds: (0.0, 0.0, 0.0, 0.0),
+        };
+        let (p, q) = (at(10.0, 10.0, 1.0), at(50.0, 30.0, 1.0));
+        let one = [p, q, at(12.0, 40.0, 1.0)];
+        let two = [q, p, at(45.0, 5.0, 1.0)];
+        let commands = list([
+            face(one, first),
+            face(one, shine),
+            face(two, first),
+            face(two, shine),
+        ]);
+        let same = |_: &TextureNote, _: &TextureNote| true;
+        let layered = Batches::of_layered(&commands, 640, 480, &|_| false, same);
+        assert_eq!(layered.batches.len(), 2);
+        assert_eq!(layered.batches[0].pipeline.blend, None);
+        assert_eq!(layered.batches[1].pipeline.blend, Some((5, 2)));
+        // In each pass's batch, the faces in their order.
+        assert_eq!(layered.vertices[..3], one);
+        assert_eq!(layered.vertices[3..6], two);
+        // Unlayered (the PC's GPU), the areas alone are looked at: they meet.
+        assert_eq!(Batches::of(&commands, 640, 480, None).batches.len(), 4);
+        // A second face over the first's places is not apart from it: the order stays.
+        let over = [p, q, at(20.0, 35.0, 1.0)];
+        let commands = list([
+            face(one, first),
+            face(one, shine),
+            face(over, first),
+            face(over, shine),
+        ]);
+        let layered = Batches::of_layered(&commands, 640, 480, &|_| false, same);
+        assert_eq!(layered.batches.len(), 4);
     }
 }

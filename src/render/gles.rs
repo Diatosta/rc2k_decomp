@@ -10,7 +10,7 @@ mod bench;
 
 use super::batches::{Batches, NO_TEXTURE, PipelineKey, PixelValues};
 use super::gl_batching::{Batched, Job, Part, Written};
-use super::{Command, CommandList, Target, TextureNote};
+use super::{CommandList, Target, TextureNote};
 use crate::logfile::program_log::log;
 use crate::platform::ffi::gl::Gles;
 use std::collections::HashMap;
@@ -950,20 +950,11 @@ impl Front {
         }
         let (width, _) = self.size;
         let mut uploads = Vec::new();
-        // One texture is usually drawn many times running.
-        let mut last = None;
-        for command in &commands.commands {
-            if let Command::Fan {
-                texture: Some(note),
-                ..
-            } = command
-                && last != Some(note.pixels)
-            {
-                last = Some(note.pixels);
-                if self.known.get(&note.pixels) != Some(&(note.width, note.height)) {
-                    uploads.push((*note, super::texture_as_bgra(note)));
-                    self.known.insert(note.pixels, (note.width, note.height));
-                }
+        // Each texture the fans read once, in the order they first read them.
+        for note in commands.textures() {
+            if self.known.get(&note.pixels) != Some(&(note.width, note.height)) {
+                uploads.push((*note, super::texture_as_bgra(note)));
+                self.known.insert(note.pixels, (note.width, note.height));
             }
         }
         let stride = width as usize * 4;
