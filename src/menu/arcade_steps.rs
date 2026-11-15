@@ -107,7 +107,7 @@ pub fn keep_arcade_stage_best(
 pub fn check_arcade_level_score(menus: &Menus) -> Result<(), Refused> {
     let best = with_level_scores(&menus.play, |ten| ten[9].key)?;
     if bests::makes_score(menus.play.results.players[0].total.get(), best) {
-        menus.screens.event.time_qualifies.set(1);
+        menus.screens.event.trial.qualifies.set(1);
     }
     Ok(())
 }
@@ -117,12 +117,11 @@ pub fn check_arcade_stage_time(menus: &Menus, system: &System) -> Result<(), Ref
     with_course_times(&menus.play, system, |_| ())?;
     let (_, player) = current(menus)?;
     let time = player.get().time;
-    screens.event.player_time.set(time);
     if bests::makes_time(
         time,
         with_course_times(&menus.play, system, |ten| ten[9].head.key)?,
     ) {
-        screens.event.time_qualifies.set(1);
+        screens.event.trial.qualifies.set(1);
     }
     Ok(())
 }
@@ -238,7 +237,7 @@ fn end_of(list: &[PlainDword], len: u32) -> Result<u32, Refused> {
 pub fn add_shown_car(menus: &Menus) -> Result<(), Refused> {
     use rc2k_core::menu::car_lists::{entries, shown_car};
     let list = |cells: &[PlainDword], len: u32| entries(len as usize, |k| cells[k].get());
-    let shown = menus.screens.event.shown_car.get();
+    let shown = menus.screens.event.shown.car.get();
     let car = shown_car(&list(&car_lists().shown_cars, SHOWN_LIST_LEN)?, shown)?;
     let end = list(&car_lists().cars_second, CARS_LEN)?.len();
     car_lists().cars_second[end].set(car);
@@ -251,7 +250,7 @@ pub fn remove_shown_car(
     menus: &Menus,
     then: &mut dyn FnMut() -> Result<(), Refused>,
 ) -> Result<(), Refused> {
-    let shown = menus.screens.event.shown_car.get();
+    let shown = menus.screens.event.shown.car.get();
     let end = end_of(&car_lists().shown_cars, SHOWN_LIST_LEN)?;
     if shown >= end {
         return Err(BadInput("a shown car past the list").into());

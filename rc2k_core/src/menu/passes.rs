@@ -28,7 +28,7 @@ pub fn is_out(kind: u32) -> bool {
 }
 
 /// `service_pass`: a player is serviced when taking part and the service is due
-/// (`Event.service_due` 1; `due` asked only for a player taking part).
+/// (`EventState.service.due` 1; `due` asked only for a player taking part).
 pub fn serviced(kind: u32, due: impl FnOnce() -> u32) -> bool {
     takes_part(kind) && due() == 1
 }
@@ -43,7 +43,7 @@ pub fn spent(money: u32) -> u32 {
     money.wrapping_mul(100)
 }
 
-/// The event goes on (`Event.event_goes_on` stays 1) unless every player is out.
+/// The event goes on (`EventState.event_goes_on` stays 1) unless every player is out.
 pub fn goes_on(out: u32, players: u32) -> bool {
     out != players
 }

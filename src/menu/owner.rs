@@ -14,7 +14,7 @@ use crate::menu::cheats_store::Cheats;
 use crate::menu::draw_work_store::DrawWork;
 use crate::menu::drivers_store::DriverTable;
 use crate::menu::entry_store::EntryState;
-use crate::menu::event_store::Event;
+use crate::menu::event_store::EventState;
 use crate::menu::flow_store::ScreenFlow;
 use crate::menu::keys_store::KeyTables;
 use crate::menu::list_state::ListState;
@@ -72,7 +72,7 @@ pub struct Screens {
     /// The menu carousel, shared with the scene that draws it.
     pub carousel: Carousel,
     pub items: ScreenItems,
-    pub event: Event,
+    pub event: EventState,
     pub entry: EntryState,
     pub draw_work: DrawWork,
 }
@@ -85,7 +85,7 @@ impl Screens {
             state: MenuState::new(),
             carousel: Carousel::new(),
             items: ScreenItems::new(),
-            event: Event::new(),
+            event: EventState::new(),
             entry: EntryState::new(),
             draw_work: DrawWork::new(),
         }

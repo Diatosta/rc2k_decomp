@@ -60,14 +60,14 @@ pub trait RecordEntries {
     fn set_entered(&mut self, on: bool);
     /// The current player.
     fn set_current(&mut self, n: u32);
-    /// `menu::beat_target_time` for player n: `Event.time_qualifies` 1 after it.
+    /// `menu::beat_target_time` for player n: `EventState.trial.qualifies` 1 after it.
     fn beats(&mut self, n: u32) -> Result<bool, Self::Error>;
     /// `menu::enter_record_entry` for player n.
     fn enter(&mut self, n: u32) -> Result<(), Self::Error>;
 }
 
 /// The current event's entries cleared, then each of the `players` counted players that
-/// beat the target time entered, `Event.any_time_qualified` 1 once one is (0 first).
+/// beat the target time entered, `EventState.trial.any_qualified` 1 once one is (0 first).
 pub fn record_entries<R: RecordEntries>(players: u32, e: &mut R) -> Result<(), R::Error> {
     e.clear()?;
     e.set_entered(false);

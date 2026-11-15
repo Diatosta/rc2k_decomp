@@ -87,7 +87,7 @@ pub fn draw_results_page(
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
     let menus = o.menus;
-    let class = menus.screens.event.class.get();
+    let class = menus.screens.event.shown.class.get();
     if !section_there(menus, system)? {
         return Err(BadInput("a section past the record table").into());
     }

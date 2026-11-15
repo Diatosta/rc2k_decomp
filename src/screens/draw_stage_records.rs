@@ -23,22 +23,22 @@ const ROW_2_Y: i32 = 0x213;
 /// The game's selection: a group, a table in that group and a record in that table.
 #[derive(Clone, Copy, Debug)]
 pub struct Selection {
-    /// Event.stage_group
+    /// EventState.stage.group
     pub group: u32,
-    /// Event.stage_sub
+    /// EventState.stage.sub
     pub sub: u32,
     /// `tables[group][sub]`: the address of the table's first record.
     pub table: RecordTable,
-    /// `table + index * 0xA4`, with index = Event.stage_number.
+    /// `table + index * 0xA4`, with index = EventState.stage.number.
     pub record: RecordRef,
 }
 
 /// None while the tables are not there.
 pub fn selection_in(menus: &Menus, system: &System) -> Result<Option<Selection>, BadInput> {
     let screens = &menus.screens;
-    let group: u32 = screens.event.stage_group.get();
-    let index: u32 = screens.event.stage_number.get();
-    let sub: u32 = screens.event.stage_sub.get();
+    let group: u32 = screens.event.stage.group.get();
+    let index: u32 = screens.event.stage.number.get();
+    let sub: u32 = screens.event.stage.sub.get();
     let table = system
         .records()
         .stage_tables

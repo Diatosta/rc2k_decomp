@@ -1,7 +1,8 @@
 //! `menu::class_championship_pass`: for each class from 1 (0 outside `state.menus.class_mode` 2
-//! in event mode 0x13) up to `event.classes`: when a player (1 .. 3: player 4 is not looked for,
+//! in event mode 0x13) up to `event.shown.classes`: when a player (1 .. 3: player 4 is not looked
+//! for,
 //! a 1999 slip kept as is) is in the class's entries of standings table B, the class is
-//! numbered (`number_standings`, its count into `event.count_a`) and its page shown
+//! numbered (`number_standings`, its count into `event.standings_count`) and its page shown
 //! (`menu::show_class_championship_standings`), stopping when leaving is answered yes.
 //! `loop_flags.left_with_carry` is the class's flag.
 //!
@@ -25,7 +26,7 @@ fn first_class(menus: &Menus) -> u32 {
 
 pub fn class_championship_pass(menus: &Menus, entry: &Entry) -> Result<(), Refused> {
     let first = first_class(menus);
-    let classes = class_pages::classes(first, menus.screens.event.classes.get())?;
+    let classes = class_pages::classes(first, menus.screens.event.shown.classes.get())?;
     let all: Vec<(u32, u32)> = walked_entries_b()?
         .iter()
         .map(|e| (e.group, e.player))
@@ -38,7 +39,11 @@ pub fn class_championship_pass(menus: &Menus, entry: &Entry) -> Result<(), Refus
         }
         menus.screens.loop_flags.left_with_carry.set(true);
         let numbered = number_standings(menus, Which::B, class)?;
-        menus.screens.event.count_a.set(numbered.last_number);
+        menus
+            .screens
+            .event
+            .standings_count
+            .set(numbered.last_number);
         crate::menu::show_class_championship_standings::show_class_championship_standings(
             menus, class, entry,
         )?;

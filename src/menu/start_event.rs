@@ -90,7 +90,7 @@ fn var(menus: &crate::menu::owner::Menus, v: starters::Var) -> &PlainDword {
         V::EventType => &event.event_type,
         V::RepairSet => &menus.cars.table.last_car, // 0xF
         V::PlayerCount => &event.player_count,
-        V::Index => &event.index,
+        V::Index => &event.stage_in_section,
         V::Section => &event.section,
         V::StagesDone => &event.stages_done,
         V::Continuing => &event.continuing_save,

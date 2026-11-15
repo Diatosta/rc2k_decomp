@@ -184,7 +184,7 @@ pub fn change_page(
         &mut f,
         &mut m,
         item as usize,
-        screens.event.service_minutes.get() as i32,
+        screens.event.service.minutes.get() as i32,
         v,
         time_of,
     )

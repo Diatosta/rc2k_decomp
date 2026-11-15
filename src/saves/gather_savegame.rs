@@ -19,12 +19,13 @@ use crate::session::DwordLike;
 
 /// The seven variables at the start, in the order they are saved.
 pub fn head(menus: &Menus) -> [&dyn DwordLike; 7] {
+    let event = menus.screens.event.save();
     [
-        &menus.screens.event.player_count,
-        &menus.screens.event.stages_done,
-        &menus.screens.event.index, // the event's stage in its section
-        &menus.screens.event.section,
-        &menus.screens.event.event_kind,
+        event.player_count,
+        event.stages_done,
+        event.stage_in_section,
+        event.section,
+        event.event_kind,
         &menus.play.champ_view.event_mode,
         &menus.screens.state.menus.class_mode,
     ]

@@ -75,7 +75,7 @@ pub fn stage_range(first: u32) -> Vec<u8> {
 }
 
 /// The computer drivers' spread (`menu::calc_cpu_times`): whether the next is the first
-/// (`Event.cpu_spread_first` 1) and the step (`cpu_spread_step`).
+/// (`EventState.service.spread_first` 1) and the step (`EventState.service.spread_step`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Spread {
     pub first: u32,

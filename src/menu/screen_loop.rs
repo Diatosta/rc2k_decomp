@@ -73,17 +73,17 @@ pub enum ScreenVar {
     ClearsEscapeFlag,
     /// `screens.event.current_player`.
     CurrentPlayer,
-    /// `screens.event.index`.
+    /// `screens.event.stage_in_section`.
     EventIndex,
     /// `screens.event.section`.
     EventSection,
-    /// `screens.event.service_next`.
+    /// `screens.event.service.next`.
     ServiceNext,
-    /// `screens.event.stage_group`.
+    /// `screens.event.stage.group`.
     StageGroup,
-    /// `screens.event.stage_number`.
+    /// `screens.event.stage.number`.
     StageNumber,
-    /// `screens.event.stage_sub`.
+    /// `screens.event.stage.sub`.
     StageSub,
     /// `screens.flow.left_service`.
     LeftService,
@@ -109,12 +109,12 @@ impl ScreenVar {
             ScreenVar::ActionMode => &screens.draw_work.action_mode,
             ScreenVar::ClearsEscapeFlag => &screens.event.clears_escape_flag,
             ScreenVar::CurrentPlayer => &screens.event.current_player,
-            ScreenVar::EventIndex => &screens.event.index,
+            ScreenVar::EventIndex => &screens.event.stage_in_section,
             ScreenVar::EventSection => &screens.event.section,
-            ScreenVar::ServiceNext => &screens.event.service_next,
-            ScreenVar::StageGroup => &screens.event.stage_group,
-            ScreenVar::StageNumber => &screens.event.stage_number,
-            ScreenVar::StageSub => &screens.event.stage_sub,
+            ScreenVar::ServiceNext => &screens.event.service.next,
+            ScreenVar::StageGroup => &screens.event.stage.group,
+            ScreenVar::StageNumber => &screens.event.stage.number,
+            ScreenVar::StageSub => &screens.event.stage.sub,
             ScreenVar::LeftService => &screens.flow.left_service,
             ScreenVar::Quiet => &screens.flow.quiet,
             ScreenVar::Highlight => &screens.loop_flags.item,

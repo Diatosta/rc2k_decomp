@@ -211,7 +211,7 @@ pub fn counted_players(menus: &Menus) -> Result<Vec<PlayerCell<'_>>, BadInput> {
 pub fn current_event(screens: &Screens, system: &System) -> Result<usize, BadInput> {
     let table = system.records().stage_tables.championship();
     let section: u32 = screens.event.section.get();
-    let index: u32 = screens.event.index.get();
+    let index: u32 = screens.event.stage_in_section.get();
     if section >= 64
         || index >= 64
         || !crate::records::find_record::has_section(

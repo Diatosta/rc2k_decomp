@@ -30,7 +30,7 @@ fn set_up_first(entry: &Entry) -> Result<(), Refused> {
     screens.carousel.front.set(item.wrapping_sub(1));
     screens.flow.turning.set(0x0u32);
     screens.carousel.front.set(0x0u32);
-    screens.event.shown_car.set(0x0u32);
+    screens.event.shown.car.set(0x0u32);
     crate::menu::car_choice::find_player_car(menus)?;
     entry.set_view(7, -50, 0x100);
     prepare_scene(entry);

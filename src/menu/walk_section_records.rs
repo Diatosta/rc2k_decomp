@@ -1,7 +1,8 @@
 //! `menu::walk_section_records`: the current section's records walked from
 //! `index`: a record tagged 0 gets the computer drivers' times (`menu::calc_cpu_times`)
-//! and `event.cpu_spread_first` 0, one tagged 1 the drivers' condition reset
-//! (`menu::reset_driver_condition`) and `event.cpu_spread_first` 1; past each of those and of any
+//! and `event.service.spread_first` 0, one tagged 1 the drivers' condition reset
+//! (`menu::reset_driver_condition`) and `event.service.spread_first` 1; past each of those and of
+//! any
 //! other tag but 3 and 4, `index` and `event.stages_done` up by one and the players' totals
 //! reset (`menu::reset_player_totals`). Tag 4 ends the walk, tag 3 too with
 //! `event.championship_end` 1; then the drivers' condition reset.
@@ -39,7 +40,7 @@ fn walk(menus: &Menus, system: &System, race: &Race) -> Result<Vec<(u32, Step)>,
     current_event(screens, system)?;
     counted_players(menus)?;
     drivers(menus)?;
-    let index: u32 = menus.screens.event.index.get();
+    let index: u32 = menus.screens.event.stage_in_section.get();
     let fault = Fault::default();
     let walked = rc2k_core::menu::section_walk::walk(
         index,
@@ -74,12 +75,12 @@ pub fn walk_section_records(menus: &Menus, system: &System, race: &Race) -> Resu
             _ => {}
         }
         if let Some(first) = step.first() {
-            screens.event.cpu_spread_first.set(first);
+            screens.event.service.spread_first.set(first);
         }
         screens
             .event
-            .index
-            .set(menus.screens.event.index.get().wrapping_add(1));
+            .stage_in_section
+            .set(menus.screens.event.stage_in_section.get().wrapping_add(1));
         screens
             .event
             .stages_done

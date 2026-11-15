@@ -23,7 +23,7 @@ pub fn service_pass(menus: &Menus, entry: &Entry) -> Result<(), Refused> {
     // pauses, `goes_on`).
     use rc2k_core::menu::passes;
     let players = counted_players(menus)?;
-    let due = { menus.screens.event.service_due.get() } == 1;
+    let due = { menus.screens.event.service.due.get() } == 1;
     for &p in &players {
         if due && passes::takes_part(p.get().entry) {
             crate::menu::driver_stats::car_table(menus, p)?;
@@ -33,16 +33,17 @@ pub fn service_pass(menus: &Menus, entry: &Entry) -> Result<(), Refused> {
     menus
         .screens
         .event
-        .service_minutes
+        .service
+        .minutes
         .set(passes::more_minutes(
-            menus.screens.event.service_minutes.get(),
+            menus.screens.event.service.minutes.get(),
         ));
     menus.screens.event.event_goes_on.set(1u32);
     'all: {
         for (n, &p) in players.iter().enumerate() {
             menus.screens.event.current_player.set(n as u32);
             let kind = p.get().entry;
-            if !passes::serviced(kind, || menus.screens.event.service_due.get()) {
+            if !passes::serviced(kind, || menus.screens.event.service.due.get()) {
                 continue;
             }
             crate::menu::inspection_screen::inspection_screen(entry.owners)?;
@@ -85,6 +86,6 @@ pub fn service_pass(menus: &Menus, entry: &Entry) -> Result<(), Refused> {
             menus.screens.event.event_goes_on.set(0u32);
         }
     }
-    menus.screens.event.service_due.set(0u32);
+    menus.screens.event.service.due.set(0u32);
     Ok(())
 }

@@ -151,10 +151,7 @@ pub fn run<G: Game>(e: &mut G, a8: bool) -> Result<(), G::Error> {
                         At::Standings
                     }
                     WELCOME => {
-                        let figure = e.get(Var::Record(0x38));
-                        e.set(Var::WelcomeFigure, figure);
                         e.inc(Var::Index);
-                        e.set(Var::Welcomed, 1);
                         e.run(next_section)?;
                         e.run(Call::WelcomeLoop)?;
                         if e.yes() { At::End } else { At::Record }
@@ -164,8 +161,6 @@ pub fn run<G: Game>(e: &mut G, a8: bool) -> Result<(), G::Error> {
                         e.set(Var::ServiceDue, 1);
                         let time = e.get(Var::Record(0x14));
                         e.set(Var::ServiceTime, time);
-                        let figure = e.get(Var::Record(0xC));
-                        e.set(Var::ServiceRecordC, figure);
                         e.set(Var::CpuSpreadFirst, 1);
                         e.set(Var::ServiceNext, 1);
                         e.inc(Var::Services);

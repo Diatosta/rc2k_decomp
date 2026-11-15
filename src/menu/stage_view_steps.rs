@@ -1,11 +1,12 @@
 //! The stage screens' small set-ups and steps (`menu::view_stage_loop`, `next_stage_loop`,
-//! `welcome_loop` and the stage page items). `event.index` and `event.section` pick a record
+//! `welcome_loop` and the stage page items). `event.stage_in_section` and `event.section` pick a
+//! record
 //! of the record table (`records::find_record`, 0xA4 a record); event mode 2 is the
 //! championship.
 //! - `count_stage_pages`: how many records after the stage's have a first dword 0, into
-//!   `event.stage_pages`.
-//! - `previous_stage_page` / `next_stage_page`: `event.stage_page` one less or more, wrapping
-//!   over 0 .. `event.stage_pages`; `index` = `event.first_page_stage` + the page, then the map
+//!   `event.stage.pages`.
+//! - `previous_stage_page` / `next_stage_page`: `event.stage.page` one less or more, wrapping
+//!   over 0 .. `event.stage.pages`; `index` = `event.stage.first_on_page` + the page, then the map
 //!   is drawn and the stage's speech played.
 //! - `play_stage_speech`, `play_rally_speech` (which first takes the pending key): in the
 //!   championship, the stage's or the section's speech through `sound::start_stream` at the
@@ -41,7 +42,7 @@ fn stage_record(screens: &Screens, system: &System) -> Result<RecordRef, Refused
     Ok(find_record_in(
         &system.records().stage_tables,
         table,
-        screens.event.index.get() as i32,
+        screens.event.stage_in_section.get() as i32,
         section,
     )?)
 }
@@ -65,7 +66,7 @@ pub fn count_stage_pages(screens: &Screens, system: &System) -> Result<(), Refus
     });
     fault.check()?;
     let n = n.ok_or(BadInput("more than 256 stage pages"))?;
-    screens.event.stage_pages.set(n);
+    screens.event.stage.pages.set(n);
     Ok(())
 }
 
@@ -153,15 +154,15 @@ pub fn step_stage_page(o: Owners<'static>, up: bool) -> Result<(), Refused> {
     let menus = o.menus;
     let screens = &menus.screens;
     let (page, pages) = (
-        screens.event.stage_page.get(),
-        screens.event.stage_pages.get(),
+        screens.event.stage.page.get(),
+        screens.event.stage.pages.get(),
     );
     let page = rc2k_core::menu::steps::stage_page(page, pages, up);
-    screens.event.stage_page.set(page);
+    screens.event.stage.page.set(page);
     screens
         .event
-        .index
-        .set(screens.event.first_page_stage.get().wrapping_add(page));
+        .stage_in_section
+        .set(screens.event.stage.first_on_page.get().wrapping_add(page));
     crate::menu::stage_choice::draw_stage_map(o)?;
     play_stage_speech(o)
 }

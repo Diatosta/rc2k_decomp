@@ -7,8 +7,8 @@ use crate::menu::draw_lists_store::DRAW_LISTS;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Asking, Callee, Entry, Frames, List, Screen, Step};
 
-// `event.section` and `event.index` are saved when the screen is entered and put back when it
-// ends, kept here across the loop's steps (by hand: the generated steps share no stack).
+// `event.section` and `event.stage_in_section` are saved when the screen is entered and put back
+// when it ends, kept here across the loop's steps (by hand: the generated steps share no stack).
 thread_local! {
     static KEPT: std::cell::RefCell<Vec<u32>> = const { std::cell::RefCell::new(Vec::new()) };
 }
@@ -22,15 +22,12 @@ fn before(entry: &Entry) -> Result<(), Refused> {
     KEPT.with_borrow_mut(|stack| {
         stack.push(screens.event.section.get());
     });
-    KEPT.with_borrow_mut(|stack| stack.push(screens.event.index.get()));
+    KEPT.with_borrow_mut(|stack| stack.push(screens.event.stage_in_section.get()));
     screens
         .event
-        .viewed_section
-        .set(screens.event.section.get());
-    screens
-        .event
-        .first_page_stage
-        .set(screens.event.index.get());
+        .stage
+        .first_on_page
+        .set(screens.event.stage_in_section.get());
 
     Ok(())
 }
@@ -39,7 +36,7 @@ fn after_lists(entry: &Entry) -> Result<(), Refused> {
     let menus = entry.menus;
     Callee::CountStagePages.run(entry)?;
     Callee::StyleChosenStageItem.run(entry)?;
-    if menus.screens.event.stage_pages.get() == 0x0 {
+    if menus.screens.event.stage.pages.get() == 0x0 {
         Callee::StyleStageItem.run(entry)?;
     }
     menus.play.champ_view.stage_mode.set(0x3u32);
@@ -48,7 +45,7 @@ fn after_lists(entry: &Entry) -> Result<(), Refused> {
 
 fn after(entry: &Entry) -> Result<(), Refused> {
     let screens = &entry.menus.screens;
-    screens.event.index.set(take_kept());
+    screens.event.stage_in_section.set(take_kept());
     screens.event.section.set(take_kept());
     Callee::StopStream.run(entry)?;
     Ok(())

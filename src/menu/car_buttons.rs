@@ -1,7 +1,7 @@
-//! The variables: `event.shown_car` the car shown (an entry of the carousel's records, up
-//! to `car_table.last_car`), `event.picture` the slideshow's picture (0 .. 99),
-//! `event.car_page` the specification's page (0 .. 3), `loop_flags.leave_screen` the screen loop's
-//! leaving switch.
+//! The variables: `event.shown.car` the car shown (an entry of the carousel's records, up to
+//! `car_table.last_car`), `event.shown.picture` the slideshow's picture (0 .. 99),
+//! `event.shown.car_page` the specification's page (0 .. 3), `loop_flags.leave_screen` the screen
+//! loop's leaving switch.
 
 use crate::errors::Refused;
 use crate::menu::load_car_background::load_car_background;
@@ -23,16 +23,16 @@ pub fn press(
     use rc2k_core::menu::cars::Shown;
 
     let mut s = Shown {
-        car: menus.screens.event.shown_car.get(),
+        car: menus.screens.event.shown.car.get(),
         last_car: menus.cars.table.last_car.get(),
-        picture: menus.screens.event.picture.get(),
-        page: menus.screens.event.car_page.get(),
+        picture: menus.screens.event.shown.picture.get(),
+        page: menus.screens.event.shown.car_page.get(),
         leave: menus.screens.loop_flags.leave_screen.is_set(),
     };
     let calls = rc2k_core::menu::cars::press(b, &mut s);
-    menus.screens.event.shown_car.set(s.car);
-    menus.screens.event.picture.set(s.picture);
-    menus.screens.event.car_page.set(s.page);
+    menus.screens.event.shown.car.set(s.car);
+    menus.screens.event.shown.picture.set(s.picture);
+    menus.screens.event.shown.car_page.set(s.page);
     menus.screens.loop_flags.leave_screen.set(s.leave);
     for &c in calls {
         call(c)?;

@@ -118,13 +118,13 @@ fn load_and_run(o: Owners<'static>) -> Result<(), Refused> {
                 .event
                 .section
                 .set(menus.screens.event.section.get().wrapping_add(1));
-            menus.screens.event.index.set(0u32);
+            menus.screens.event.stage_in_section.set(0u32);
         }
         Resume::NextStage => menus
             .screens
             .event
-            .index
-            .set(menus.screens.event.index.get().wrapping_add(1)),
+            .stage_in_section
+            .set(menus.screens.event.stage_in_section.get().wrapping_add(1)),
         Resume::Over => {
             go_back::go_back(menus);
             return Ok(());

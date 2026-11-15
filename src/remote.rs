@@ -213,7 +213,7 @@ fn state(o: &Owners<'static>, course: &Course) -> String {
             .map(|p| p.get().car_number.to_string())
             .collect::<Vec<_>>()
             .join(","),
-        screens.event.shown_car.get(),
+        screens.event.shown.car.get(),
     )
 }
 

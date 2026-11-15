@@ -1,5 +1,6 @@
 //! `menu::award_stage_points`: the stage's championship points. For each class
-//! (`event.class`, 0 .. `event.classes`) the points start at 0x14 (`seconds`); each entry
+//! (`event.shown.class`, 0 .. `event.shown.classes`) the points start at 0x14 (`seconds`); each
+//! entry
 //! of standings table B in that class, in the table's order, is logged ("Status of
 //! driver" and its +0x74), gets the points into its +0x54 + 4 * `section` and the points
 //! go down by one (not below 0). A computer's driver (+4 0, `menu::find_cpu_team` by its
@@ -40,7 +41,7 @@ fn owner<'a>(
 
 pub fn award_stage_points(menus: &Menus) -> Result<(), Refused> {
     let screens = &menus.screens;
-    let classes: u32 = screens.event.classes.get();
+    let classes: u32 = screens.event.shown.classes.get();
     let section: u32 = screens.event.section.get();
     if classes == 0 || classes > 0x100 || section > 5 {
         return Err(BadInput("a class count of 0 or past 0x100, or a section past 5").into());
@@ -54,7 +55,7 @@ pub fn award_stage_points(menus: &Menus) -> Result<(), Refused> {
     for class in 0..classes {
         let mut points = Points::default();
         for (e, o) in all.iter_mut().zip(&owners) {
-            screens.event.class.set(class);
+            screens.event.shown.class.set(class);
             if e.group != class {
                 continue;
             }

@@ -1,7 +1,7 @@
 //! `menu::unused_section_times_loop_2` (the same but for its scene list: `_1`): the ten best
 //! times of a section (`screens::draw_section_best_times`), background `results1.png`. Nothing
 //! in the menus reaches either; reached here from the debug UI's "Screens" tab
-//! (`debug::screens`), which says the section (`EVENT_STATE.section`).
+//! (`debug::screens`), which says the section (`EventState.section`).
 use crate::menu::draw_lists_store::DRAW_LISTS;
 use crate::menu::screen_loop::{Callee, List, Screen, Step};
 use crate::menu::texts_store::texts;

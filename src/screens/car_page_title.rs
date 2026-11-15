@@ -16,7 +16,7 @@ pub fn car_page_title(
     menus: &Menus,
     text: &crate::screens::text_buffers_store::TextBuffers,
 ) -> Result<(), Refused> {
-    let page: u32 = menus.screens.event.car_page.get();
+    let page: u32 = menus.screens.event.shown.car_page.get();
     if page >= PAGES {
         return Err(BadInput("a page past the four").into());
     }

@@ -67,7 +67,7 @@ pub fn switch_cell<'a>(menus: &'a Menus, system: &'a System, s: Switch) -> &'a d
         Switch::EventOver => &screens.event.event_over,
         Switch::LeftByKey => &menus.tables.captions.left_by_key,
         Switch::EscapePressed => &screens.draw_work.escape_pressed,
-        Switch::Entered => &screens.event.any_time_qualified,
+        Switch::Entered => &screens.event.trial.any_qualified,
         Switch::Quitting => &system.session.flags.quitting,
         Switch::RallyDone => &screens.state.menus.rally_done,
     }
@@ -91,8 +91,8 @@ pub fn current_player(menus: &Menus) -> Result<crate::menu::standings::PlayerCel
     Ok(player(menus, n))
 }
 
-/// The stage chosen: the stage table of `Event.stage_group` and `Event.stage_sub`, then
-/// `Event.stage_number` x 0xA4 into it.
+/// The stage chosen: the stage table of `EventState.stage.group` and `EventState.stage.sub`, then
+/// `EventState.stage.number` x 0xA4 into it.
 const KINDS: u32 = 4;
 /// The stages' best times: the second stage best times (kind 1) or
 /// `ChampView.time_trial_best_times`, ten for each stage (the record's +0x3C).
@@ -104,18 +104,18 @@ pub const TIMES_OTHER: &StageTable = &crate::saves::best_times::TIME_TRIAL_TIMES
 /// on the way.
 pub fn stage_record(menus: &Menus, system: &System) -> Result<RecordRef, BadInput> {
     let event = &menus.screens.event;
-    let kind = event.stage_group.get();
+    let kind = event.stage.group.get();
     if kind >= KINDS {
         return Err(BadInput("a stage kind past the event stage tables' four"));
     }
     let stages = system
         .records()
         .stage_tables
-        .group_event_table(kind, event.stage_sub.get())?;
+        .group_event_table(kind, event.stage.sub.get())?;
     crate::records::stages_store::row(
         &system.records().stage_tables,
         stages,
-        event.stage_number.get(),
+        event.stage.number.get(),
     )
 }
 
@@ -126,7 +126,7 @@ pub fn stage_times(
     system: &System,
 ) -> Result<(&'static StageTable, usize), BadInput> {
     let record = stage_record(menus, system)?;
-    let table = if menus.screens.event.stage_group.get() == 1 {
+    let table = if menus.screens.event.stage.group.get() == 1 {
         TIMES_ONE
     } else {
         TIMES_OTHER

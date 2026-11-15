@@ -1,5 +1,5 @@
 //! The championship's standings table: ten rows from `champ_view.first_row` of class
-//! `event.class` in the championship history (entries with the player flag, car, flag, class,
+//! `event.shown.class` in the championship history (entries with the player flag, car, flag, class,
 //! name, six rounds' points (below 0: none), total and position).
 
 use crate::errors::{FatalError, Refused};
@@ -47,7 +47,7 @@ pub fn draw_championship_table(
     // first (a position not in the history is a fatal error, raised before the rows rather than
     // after those before it).
     let (class, first) = (
-        menus.screens.event.class.get(),
+        menus.screens.event.shown.class.get(),
         menus.play.champ_view.first_row.get(),
     );
     let mut rows = Vec::with_capacity(10);

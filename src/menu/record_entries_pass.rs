@@ -1,7 +1,7 @@
 //! `menu::record_entries_pass`: the current event's record entries cleared
 //! (`menu::clear_record_entries`), then each counted player (`event.current_player` 0 ..
 //! `event.player_count`) that beat the target time (`menu::beat_target_time`,
-//! `event.time_qualifies`) entered (`menu::enter_record_entry`), `event.any_time_qualified` 1
+//! `event.trial.qualifies`) entered (`menu::enter_record_entry`), `event.trial.any_qualified` 1
 //! once one is (0 first).
 //!
 //! Callers: the event drivers. Refuses what the steps refuse and a player count of 0 or past 4
@@ -21,7 +21,7 @@ impl rc2k_core::menu::bests::RecordEntries for Entries<'_> {
     }
 
     fn set_entered(&mut self, on: bool) {
-        self.0.screens.event.any_time_qualified.set(on);
+        self.0.screens.event.trial.any_qualified.set(on);
     }
 
     fn set_current(&mut self, n: u32) {
@@ -31,7 +31,7 @@ impl rc2k_core::menu::bests::RecordEntries for Entries<'_> {
     fn beats(&mut self, n: u32) -> Result<bool, Refused> {
         let _ = n;
         crate::menu::beat_target_time::beat_target_time(self.0, self.1)?;
-        Ok({ self.0.screens.event.time_qualifies.get() } == 1)
+        Ok({ self.0.screens.event.trial.qualifies.get() } == 1)
     }
 
     fn enter(&mut self, n: u32) -> Result<(), Refused> {

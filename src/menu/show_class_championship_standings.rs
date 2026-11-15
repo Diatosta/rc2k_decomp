@@ -1,5 +1,5 @@
 //! `menu::show_class_championship_standings`: the championship standings of a class:
-//! `event.class` the class; the first player's entry of that class in standings table B
+//! `event.shown.class` the class; the first player's entry of that class in standings table B
 //! (`menu::first_player_b`), its figure held to 0x33 into `champ_view.count`;
 //! `menu::first_page_stage`, `menu::stage_range_caption`; then the page
 //! (`menu::class_championship_standings_loop`).
@@ -17,7 +17,7 @@ pub fn show_class_championship_standings(
     class: u32,
     entry: &Entry,
 ) -> Result<(), Refused> {
-    menus.screens.event.class.set(class);
+    menus.screens.event.shown.class.set(class);
     let found = crate::menu::first_player_b::first_player_b(class)?;
     let count = held_figure(Page::ClassChampionship, found.figure);
     menus.play.champ_view.count.set(count);

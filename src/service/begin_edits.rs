@@ -31,7 +31,7 @@ pub fn begin_edit(menus: &Menus, e: Edit) -> Result<(), Refused> {
         repair_flag_in(item),
         service().repair_time.get() as i32,
         service().repair_times[12 + e.setup].get() as i32,
-        screens.event.service_minutes.get() as i32,
+        screens.event.service.minutes.get() as i32,
     ) {
         let item = &setup_item(e.setup);
         item.start.set(item.chosen.get());

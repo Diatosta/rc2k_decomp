@@ -47,7 +47,7 @@ fn address(menus: &Menus, v: Var) -> &'_ PlainDword {
         Var::Current => &menus.screens.event.current_player,
         Var::Answer => &menus.tables.pages.yes_no_answer,
         Var::Cheats => &menus.play.cheats.cheats,
-        Var::Qualifies => &menus.screens.event.time_qualifies,
+        Var::Qualifies => &menus.screens.event.trial.qualifies,
         Var::Player0Entry => unreachable!("player 0's field is not at an address"),
         Var::RaceStage
         | Var::RaceLevel

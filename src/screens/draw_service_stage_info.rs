@@ -1,6 +1,6 @@
 //! The stage panel opened from the service area, started by `menu::view_stage_details` when
 //! the event type is not 3: `draw_stage_info`'s panel with two differences at the top: the stage
-//! heading is drawn only in mode 2 with `event.stage_pages` at 0, and a second heading text
+//! heading is drawn only in mode 2 with `event.stage.pages` at 0, and a second heading text
 //! (string 0x482) is built in its own buffer without being drawn. Seen: the stage details that can
 //! be opened from a championship's service area, before the stage.
 
@@ -32,7 +32,7 @@ pub fn draw_service_stage_info(
         TITLE_Y,
     )?;
     let (record, _) = event_stage(screens, system)?;
-    if menus.play.champ_view.event_mode.get() == 2 && menus.screens.event.stage_pages.get() == 0 {
+    if menus.play.champ_view.event_mode.get() == 2 && menus.screens.event.stage.pages.get() == 0 {
         draw_stage_heading(o, record, canvas)?;
     }
     build_second_heading(

@@ -47,7 +47,7 @@ pub fn pick_pictures(menus: &Menus, scene: &crate::scene::owner::Scene) -> Resul
     if screens.carousel.menu.get() != 0xB {
         return Ok(());
     }
-    let entries = picked(screens.event.shown_car.get(), screens.carousel.count.get());
+    let entries = picked(screens.event.shown.car.get(), screens.carousel.count.get());
     write_all(&screens.carousel.pictures.wanted, entries);
     update(&screens.carousel, &menus.cars.table, scene, entries)?;
     Ok(())
@@ -62,7 +62,7 @@ pub fn draw_shown_car(
     draw: &mut dyn FnMut() -> Result<(), Refused>,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
-    let car: u32 = screens.event.shown_car.get();
+    let car: u32 = screens.event.shown.car.get();
     if car >= ENTRIES {
         return Err(BadInput("a car shown past the carousel's kinds").into());
     }
@@ -79,7 +79,7 @@ pub fn draw_shown_car(
 /// Nothing on a page other than the first, else its six calls in order.
 pub fn run(o: crate::owners::Owners<'static>) -> Result<(), crate::errors::Refused> {
     let (scene, race, menus, system) = (o.scene, o.race, o.menus, o.system);
-    if menus.screens.event.car_page.get() != 0 {
+    if menus.screens.event.shown.car_page.get() != 0 {
         return Ok(());
     }
     let scratch = crate::race::view_scratch::front_end();

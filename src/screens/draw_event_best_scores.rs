@@ -1,4 +1,4 @@
-//! A best scores page (group `event.class`) with its heading (the section's name in event
+//! A best scores page (group `event.shown.class`) with its heading (the section's name in event
 //! mode 0x13, else string 0x35E + the group) and the player's own scores in the highlight fonts
 //! (see `screens/best_scores.rs`). Refuses no table.
 

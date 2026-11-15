@@ -96,11 +96,12 @@ pub fn handle_keys(o: Owners<'static>, eax: u32) -> Result<Pressed, Refused> {
             return Ok(nothing);
         }
         Action::AddTime => {
-            menus.screens.event.service_minutes.set(
+            menus.screens.event.service.minutes.set(
                 menus
                     .screens
                     .event
-                    .service_minutes
+                    .service
+                    .minutes
                     .get()
                     .wrapping_add(keys::ADDED_TIME),
             );

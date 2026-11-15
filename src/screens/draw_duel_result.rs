@@ -19,12 +19,12 @@ fn records(
     stages: &crate::records::stages_store::StageTables,
 ) -> Result<(RecordTable, RecordRef), BadInput> {
     let base = stages.group_event_table(
-        screens.event.stage_group.get(),
-        screens.event.stage_sub.get(),
+        screens.event.stage.group.get(),
+        screens.event.stage.sub.get(),
     )?;
     Ok((
         base,
-        crate::records::stages_store::row(stages, base, screens.event.stage_number.get())?,
+        crate::records::stages_store::row(stages, base, screens.event.stage.number.get())?,
     ))
 }
 

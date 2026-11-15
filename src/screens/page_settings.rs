@@ -7,17 +7,16 @@ use crate::records::stages_store::{RecordRef, RecordTable};
 use crate::screens::text_buffers_store::TextBuffers;
 use crate::screens::text_buffers_store::text_buffers;
 
-/// Player `n` (1 to 4) becomes the current one, its controller goes into `event.picked_controller`
+/// Player `n` (1 to 4) becomes the current one
 /// and its 0x2C bytes of bindings into the page's copy (`keys.tables.controls`). Refuses a player
 /// without its record.
 pub fn pick_player(menus: &Menus, n: u32) -> Result<(), Refused> {
     // The logic is in `rc2k_core::screens::page_values` (`Player::picked`).
-    let (value, copy) = crate::menu::player::player(menus, n)
+    let (_, copy) = crate::menu::player::player(menus, n)
         .ok_or(BadInput("a player without its record"))?
         .get()
         .picked();
     menus.screens.event.current_player.set(n);
-    menus.screens.event.picked_controller.set(value);
     menus.keys.tables.controls.write(&copy);
     Ok(())
 }
@@ -142,15 +141,15 @@ pub fn stage_options_texts(o: Owners<'static>) -> Result<(), Refused> {
     Ok(())
 }
 
-/// The stage choice page's items: item 0 of the courses menu `results.group_titles[stage_group]`,
+/// The stage choice page's items: item 0 of the courses menu `results.group_titles[stage.group]`,
 /// item 1 of the table it points to the record's name (the table is read both ways, kept as is),
 /// then the stage line (string 0x482) for the chosen stage number of the event's stage table.
 /// Refuses no stage records or no item table; another track pack is a fatal error.
 pub fn stage_choice_texts(o: Owners<'static>) -> Result<(), Refused> {
     let menus = o.menus;
     let (a, b) = (
-        menus.screens.event.stage_group.get(),
-        menus.screens.event.stage_sub.get(),
+        menus.screens.event.stage.group.get(),
+        menus.screens.event.stage.sub.get(),
     );
     let text = text_buffers();
     let stages = &o.system.records().stage_tables;
@@ -168,7 +167,7 @@ pub fn stage_choice_texts(o: Owners<'static>) -> Result<(), Refused> {
         .id()
         .items(&menus.tables.menus);
     set_item(items, 0, crate::screens::stage_panel::group_title(a)?)?;
-    let (base, record) = stage_record(stages, a, b, menus.screens.event.stage_number.get())?;
+    let (base, record) = stage_record(stages, a, b, menus.screens.event.stage.number.get())?;
     menus
         .tables
         .menus

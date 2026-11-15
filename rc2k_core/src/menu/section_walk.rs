@@ -9,13 +9,14 @@ pub const MOST_RECORDS: u32 = 64;
 /// What a record's tag asks for.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Step {
-    /// Tag 0: the computer drivers' times (`menu::calc_cpu_times`), `Event.cpu_spread_first` 0.
+    /// Tag 0: the computer drivers' times (`menu::calc_cpu_times`),
+    /// `EventState.service.spread_first` 0.
     CpuTimes,
-    /// Tag 1: the drivers' condition reset, `Event.cpu_spread_first` 1.
+    /// Tag 1: the drivers' condition reset, `EventState.service.spread_first` 1.
     Condition,
     /// Any other tag but 3 and 4: nothing of its own.
     Other,
-    /// Tag 3: the walk ends with `Event.championship_end` 1.
+    /// Tag 3: the walk ends with `EventState.championship_end` 1.
     Ended,
     /// Tag 4: the walk ends.
     Stop,
@@ -32,13 +33,13 @@ impl Step {
         }
     }
 
-    /// The walk goes on past this record (`index`, `Event.stages_done` up by one, the
+    /// The walk goes on past this record (`index`, `EventState.stages_done` up by one, the
     /// players' totals reset).
     pub fn goes_on(self) -> bool {
         !matches!(self, Step::Ended | Step::Stop)
     }
 
-    /// `Event.cpu_spread_first` after this record's step, if it is written.
+    /// `EventState.service.spread_first` after this record's step, if it is written.
     pub fn first(self) -> Option<u32> {
         match self {
             Step::CpuTimes => Some(0),

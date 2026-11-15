@@ -44,19 +44,19 @@ fn points_at(results: &Results, row: usize) -> Result<&PlainDword, Refused> {
     Ok(&results.player(offset(results, row) as usize / 4)?.sum)
 }
 
-/// The section's first record and the stage's (by `Event.stage_group` and `Event.stage_sub`);
-/// none: 0.
+/// The section's first record and the stage's (by `EventState.stage.group` and
+/// `EventState.stage.sub`); none: 0.
 fn records(
     screens: &Screens,
     stages: &crate::records::stages_store::StageTables,
 ) -> Result<(RecordTable, RecordRef), BadInput> {
     let base = stages.group_event_table(
-        screens.event.stage_group.get(),
-        screens.event.stage_sub.get(),
+        screens.event.stage.group.get(),
+        screens.event.stage.sub.get(),
     )?;
     Ok((
         base,
-        crate::records::stages_store::row(stages, base, screens.event.stage_number.get())?,
+        crate::records::stages_store::row(stages, base, screens.event.stage.number.get())?,
     ))
 }
 

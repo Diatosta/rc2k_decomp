@@ -19,7 +19,7 @@ pub fn toggle_repair_choice(menus: &Menus) -> Result<(), Refused> {
     let screens = &menus.screens;
     let item = flagged_item(screens)?;
     let (mut f, mut m) = (flags(), marks());
-    let budget = screens.event.service_minutes.get() as i32;
+    let budget = screens.event.service.minutes.get() as i32;
     let (total, status) =
         rc2k_core::service::repairs::toggle_choice(&mut f, &mut m, item as usize, budget, |item| {
             time_of(item)

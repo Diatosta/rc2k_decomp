@@ -30,7 +30,7 @@ pub fn event_stage(
 ) -> Result<(RecordRef, u32), crate::errors::BadInput> {
     let table = system.records().stage_tables.championship();
     let section: u32 = screens.event.section.get();
-    let index: u32 = screens.event.index.get();
+    let index: u32 = screens.event.stage_in_section.get();
     Ok((
         find_record_in(&system.records().stage_tables, table, index as i32, section)?,
         section,

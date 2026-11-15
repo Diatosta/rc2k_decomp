@@ -8,7 +8,7 @@ use crate::strings::append_string_by_id::{StringOwners, append_string_by_id};
 
 // ---- game data ----
 
-// `event.shown_car`
+// `event.shown.car`
 const CAPTION_LEN: usize = 0x100;
 
 /// A string and its NUL into a text buffer of the game's, if it fits.

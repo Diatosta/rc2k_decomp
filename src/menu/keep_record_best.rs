@@ -16,7 +16,7 @@ use crate::system::owner::System;
 fn current_record(menus: &Menus, system: &System) -> Result<RecordRef, BadInput> {
     let table = system.records().stage_tables.championship();
     let section: u32 = menus.screens.event.section.get();
-    let index: u32 = menus.screens.event.index.get();
+    let index: u32 = menus.screens.event.stage_in_section.get();
     if section >= 64
         || index >= 64
         || !crate::records::find_record::has_section(

@@ -3,7 +3,8 @@
 //!
 //! The car (as `menu::load_car_background` finds it, 0x21 counting as 0x17); its pictures are the
 //! slideshow picture paths (`;3files\g\slides\mgnslNN.png` and so on) with the number
-//! `event.picture`. Starting from that number: the path made (`files::numbered_path`); if the file
+//! `event.shown.picture`. Starting from that number: the path made (`files::numbered_path`); if
+//! the file
 //! is there it is taken, else the path's last two characters become "cx" (`.pcx`) and if that is
 //! there it is taken; else the number steps the way (from 0 back to 99, from 99 on to 0) and the
 //! next is tried, until the number comes round to where it started, when the last path tried is
@@ -45,7 +46,7 @@ pub fn load_slideshow_picture(
     let template =
         crate::menu::texts_store::text_at(lists().slideshow_templates[car as usize].get())?
             .text("a path template")?;
-    let start: u32 = menus.screens.event.picture.get();
+    let start: u32 = menus.screens.event.shown.picture.get();
     // Set by the first try (`search` always makes one).
     let mut path: Option<Vec<u8>> = None;
     slides::search(
@@ -66,7 +67,7 @@ pub fn load_slideshow_picture(
             path = Some(text);
             Ok(exists)
         },
-        |next| menus.screens.event.picture.set(next),
+        |next| menus.screens.event.shown.picture.set(next),
     )?;
     let path = path.ok_or(crate::errors::BadInput("no slideshow picture tried"))?;
     let title_bar = &texts().titlebar_png;

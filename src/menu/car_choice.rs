@@ -44,7 +44,7 @@ pub fn find_player_car(menus: &Menus) -> Result<(), Refused> {
     }
     let found = rc2k_core::menu::cars::find_car(&cars, car);
     menus.screens.carousel.front.set(found);
-    menus.screens.event.shown_car.set(found);
+    menus.screens.event.shown.car.set(found);
 
     Ok(())
 }
@@ -67,7 +67,7 @@ fn turn(menus: &Menus, on: bool) {
                 way: menus.screens.carousel.direction.get(),
                 step: menus.screens.carousel.angle.get(),
             },
-            shown: menus.screens.event.shown_car.get(),
+            shown: menus.screens.event.shown.car.get(),
             last: menus.cars.table.last_car.get(),
         },
         on,
@@ -75,7 +75,7 @@ fn turn(menus: &Menus, on: bool) {
     menus.screens.carousel.front.set(c.turn.value as u32);
     menus.screens.carousel.direction.set(c.turn.way);
     menus.screens.carousel.angle.set(c.turn.step);
-    menus.screens.event.shown_car.set(c.shown);
+    menus.screens.event.shown.car.set(c.shown);
     menus.screens.loop_flags.leave_screen.set(false);
 }
 

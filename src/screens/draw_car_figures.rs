@@ -1,4 +1,4 @@
-//! The car specification's figures for the page shown (`event.car_page`):
+//! The car specification's figures for the page shown (`event.shown.car_page`):
 //! - 0: the description (the seven strings of the car, or the one string for car 0x21).
 //! - 1: engine: capacity, type, power and torque with their rpm, bore and stroke, compression.
 //! - 2: transmission, drive, steering, brakes (front and rear) and suspension.
@@ -14,7 +14,7 @@ use crate::text::draw_text::Canvas;
 
 // ---- game data ----
 
-// `event.shown_car`
+// `event.shown.car`
 const PAGES: u32 = 4;
 
 /// Returns whether the last text drawn was too wide for its box.
@@ -23,7 +23,7 @@ pub fn draw_car_figures(
     canvas: &mut dyn Canvas,
 ) -> Result<bool, Refused> {
     let menus = o.menus;
-    let page: u32 = menus.screens.event.car_page.get();
+    let page: u32 = menus.screens.event.shown.car_page.get();
     if page >= PAGES {
         return Err(BadInput("a page past the four").into());
     }

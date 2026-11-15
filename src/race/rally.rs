@@ -23,25 +23,25 @@ const WORDS: [&std::ffi::CStr; 14] = [
     c"%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%",
 ];
 
-/// Where `copy_rally_times` takes its ten records from: the rally's times (by `Event.stage_group`'s
-/// table, the rally `Event.stage_sub`, the stage `Event.stage_number` x 0xA4, its dword at +0x3C
-/// the stage in `stage_best_times_alt` when `Event.stage_group` is 1, else in
-/// `ChampView.time_trial_best_times`). None when a table or the summary they go to
-/// (`saves::best_times::SUMMARY`) is not taken.
+/// Where `copy_rally_times` takes its ten records from: the rally's times (by
+/// `EventState.stage.group`'s table, the rally `EventState.stage.sub`, the stage
+/// `EventState.stage.number` x 0xA4, its dword at +0x3C the stage in `stage_best_times_alt` when
+/// `EventState.stage.group` is 1, else in `ChampView.time_trial_best_times`). None when a table or
+/// the summary they go to (`saves::best_times::SUMMARY`) is not taken.
 pub fn rally_times_places(
     system: &crate::system::owner::System,
     menus: &crate::menu::owner::Menus,
 ) -> Result<Option<(&'static StageTable, usize)>, BadInput> {
     let screens = &menus.screens;
     {
-        let kind = screens.event.stage_group.get();
+        let kind = screens.event.stage.group.get();
         let stages = system
             .records()
             .stage_tables
-            .group_event_table(kind, screens.event.stage_sub.get())?;
+            .group_event_table(kind, screens.event.stage.sub.get())?;
         let tables = &system.records().stage_tables;
         let stage =
-            crate::records::stages_store::row(tables, stages, screens.event.stage_number.get())?;
+            crate::records::stages_store::row(tables, stages, screens.event.stage.number.get())?;
         let n = stage.record(tables)?.event_slot() as usize;
         let table = if kind == 1 {
             &crate::saves::best_times::STAGE_TIMES_ALT

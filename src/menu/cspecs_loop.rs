@@ -28,7 +28,7 @@ fn set_up_first(entry: &Entry) -> Result<(), Refused> {
         .set(screens.items.current[SLOT].get());
     screens.flow.turning.set(0x0u32);
     screens.carousel.front.set(0x0u32);
-    screens.event.shown_car.set(0x0u32);
+    screens.event.shown.car.set(0x0u32);
     entry.set_view(7, -50, 0x100);
     prepare_scene(entry);
     Ok(())

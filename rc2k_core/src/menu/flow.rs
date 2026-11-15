@@ -56,21 +56,17 @@ pub enum Var {
     StartSection {
         a8: bool,
     },
-    /// The service's four figures.
+    /// The service's time left.
     ServiceTime,
-    ServiceRecordC,
     CpuSpreadFirst,
     ServiceNext,
     /// The championship's end.
     TheEnd,
     /// The event goes on.
     GoesOn,
-    /// `section`, `index`.
+    /// `section`, `stage_in_section`.
     Section,
     Index,
-    /// The welcome's two figures.
-    WelcomeFigure,
-    Welcomed,
     /// The review's kind.
     ReviewKind,
     /// A dword of the record `Call::FindRecord` found (its offset).

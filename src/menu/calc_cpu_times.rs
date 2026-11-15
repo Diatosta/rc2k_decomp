@@ -3,8 +3,9 @@
 //! `state.menus.class_times` and are scaled (`menu::scale_stage_times`); its track entry's length
 //! goes into `track_length[0]` and that x 100 / 0x96A into `track_length[1]`. Then for each class
 //! and each driver of it: half the class's time / its driver count is the gap, a random number
-//! under 3000 (plus, when `cpu_spread_first` is not 1, one under 1000 times `cpu_spread_step`) is
-//! added, and a driver whose +0x24 is 1 gets the class's time plus the gaps so far into its +0xC,
+//! under 3000 (plus, when `service.spread_first` is not 1, one under 1000 times
+//! `service.spread_step`) is added, and a driver whose +0x24 is 1 gets the class's time plus the
+//! gaps so far into its +0xC,
 //! added to its +0x10.
 //!
 //! The random numbers are `math::random_below`'s. Fatal error 0x80701010 for a hundredfold of 0
@@ -23,8 +24,8 @@ use crate::menu::scale_stage_times::{held_section, scaled};
 
 const TEXTS_RVA: [&std::ffi::CStr; 2] = [c"CALCCPUTIMES:STARTED", c"CALCCPUTIMES:FINISHED"];
 
-/// The class time `c`, the class's entry of `class_times`. `event.classes` is only ever the 4 of
-/// `Event::new` (no other writer, no saved copy), so a class is one of the four.
+/// The class time `c`, the class's entry of `class_times`. `event.shown.classes` is only ever the 4
+/// of `EventState::new` (no other writer, no saved copy), so a class is one of the four.
 fn class_time_at(screens: &Screens, c: u32) -> Result<u32, BadInput> {
     match screens.state.menus.class_times.get(c as usize) {
         Some(time) => Ok(time.get()),
@@ -53,7 +54,10 @@ fn any_in_class(drivers: &[Driver], c: u32) -> bool {
 pub fn record(screens: &Screens, system: &System) -> Result<RecordRef, BadInput> {
     current_event(screens, system)?;
     let table = system.records().stage_tables.championship();
-    let (section, index): (u32, u32) = (screens.event.section.get(), screens.event.index.get());
+    let (section, index): (u32, u32) = (
+        screens.event.section.get(),
+        screens.event.stage_in_section.get(),
+    );
     crate::records::find_record::find_record_in(
         &system.records().stage_tables,
         table,
@@ -71,7 +75,7 @@ pub fn check<'a>(
     rec: RecordRef,
 ) -> Result<(u32, &'a [Driver], u32), Refused> {
     let screens = &menus.screens;
-    let classes: u32 = screens.event.classes.get();
+    let classes: u32 = screens.event.shown.classes.get();
     if classes == 0 || classes > 4 {
         return Err(BadInput("a class count of 0 or past the four").into());
     }
@@ -135,12 +139,12 @@ pub fn calc_cpu_times(menus: &Menus, system: &System, race: &Race) -> Result<(),
             let count = class_count_at(c)?;
             let gap = cpu_gap(time, count);
             let mut spread = Spread {
-                first: screens.event.cpu_spread_first.get(),
-                step: screens.event.cpu_spread_step.get(),
+                first: screens.event.service.spread_first.get(),
+                step: screens.event.service.spread_step.get(),
             };
             let own = spread.next(crate::math::random_below::random_below)?;
-            screens.event.cpu_spread_first.set(spread.first);
-            screens.event.cpu_spread_step.set(spread.step);
+            screens.event.service.spread_first.set(spread.first);
+            screens.event.service.spread_step.set(spread.step);
             if d.in_event.get() == IN_EVENT {
                 let own = cpu_time(own, gaps, time);
                 d.time.set(own);

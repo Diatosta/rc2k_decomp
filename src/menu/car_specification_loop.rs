@@ -15,9 +15,10 @@ fn before(entry: &Entry) -> Result<(), Refused> {
     menus
         .screens
         .event
-        .shown_car
+        .shown
+        .car
         .set(menus.play.cheats.kept_car.get());
-    menus.screens.event.car_page.set(0x0u32);
+    menus.screens.event.shown.car_page.set(0x0u32);
 
     Ok(())
 }
@@ -33,7 +34,7 @@ fn set_up_first(entry: &Entry) -> Result<(), Refused> {
     screens.loop_flags.item.set(item);
     screens.carousel.front.set(item.wrapping_sub(1));
     screens.flow.turning.set(0x0u32);
-    screens.carousel.front.set(screens.event.shown_car.get());
+    screens.carousel.front.set(screens.event.shown.car.get());
     Ok(())
 }
 
@@ -43,7 +44,7 @@ fn after(entry: &Entry) -> Result<(), Refused> {
         .play
         .cheats
         .kept_car
-        .set(menus.screens.event.shown_car.get());
+        .set(menus.screens.event.shown.car.get());
 
     Ok(())
 }
