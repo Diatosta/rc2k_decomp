@@ -216,6 +216,9 @@ def start(software, fresh, profile=False):
         renderer += f"RC2K_GL_BENCH={int(os.environ['RC2K_GL_BENCH'])} "
     if os.environ.get('RC2K_GPU_TIME'):  # every n-th frame waited for, the GPU's own time logged (handheld)
         renderer += f"RC2K_GPU_TIME={int(os.environ['RC2K_GPU_TIME'])} "
+    for name in ('RC2K_SEETHRU_AREA', 'RC2K_SEETHRU_DUMP'):  # see-through area diagnostic (render/seethru.rs)
+        if os.environ.get(name):
+            renderer += f"{name}={os.environ[name]} "
     if os.environ.get('RC2K_SLOW_FRAMES'):  # log each frame in a race slower than this many ms
         renderer += f"RC2K_SLOW_FRAMES={int(os.environ['RC2K_SLOW_FRAMES'])} "
     if os.environ.get('RC2K_SHOT_CLOCKS'):  # a replay's frames saved after these ticks (src/remote.rs)

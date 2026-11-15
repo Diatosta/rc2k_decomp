@@ -26,6 +26,7 @@ pub mod gpu;
 pub mod rasteriser;
 #[cfg(target_arch = "aarch64")]
 pub mod rasteriser_neon;
+pub mod seethru;
 pub mod software;
 
 use crate::race::owner_course::Course;

@@ -1133,6 +1133,7 @@ impl Front {
         }
         super::FANS.fetch_add(commands.len() as u64, std::sync::atomic::Ordering::Relaxed);
         super::FLUSHES.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        super::seethru::note_list(&commands, self.size.0 as u32, self.size.1 as u32);
         let changes = super::take_changed_textures();
         for pixels in changes.written.iter().chain(&changes.gone) {
             self.known.remove(pixels);
@@ -1200,6 +1201,7 @@ impl Front {
     /// The frame's end: what the canvas has written over the target, and the target shown.
     pub fn finish_and_show(&mut self, target: &Target, canvas: &mut [u8]) {
         self.draw(target, canvas, CommandList::new());
+        super::seethru::frame_end();
         self.send(Job::ShowTarget);
     }
 

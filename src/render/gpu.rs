@@ -566,6 +566,7 @@ impl Gpu {
             self.device
                 .fill_transfer(check.canvas_transfer, 0, old, true)?;
         }
+        super::seethru::note_list(commands, self.width, self.height);
         let batches = Batches::of(commands, self.width, self.height, None);
         let vertex_bytes = batches.vertices.len() as u32 * VERTEX_BYTES;
         let mut uploads: Vec<(TextureNote, Vec<u8>)> = Vec::new();
@@ -797,6 +798,7 @@ impl Gpu {
         canvas: &mut [u8],
     ) -> Result<(), String> {
         self.draw(canvas, rows, &CommandList::new())?;
+        super::seethru::frame_end();
         self.compare_check()
     }
 
