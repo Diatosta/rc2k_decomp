@@ -183,7 +183,7 @@ impl flow::Game for Game<'_> {
         use crate::menu as m;
         use flow::Call as C;
         match c {
-            C::BeginEvent => m::begin_event::begin_event(menus)?,
+            C::BeginEvent => m::begin_event::begin_event(&menus.cars, &menus.play, &menus.screens)?,
             C::ShuffleDrivers => m::shuffle_drivers::shuffle_drivers(menus)?,
             C::ClearResultSlots => m::clear_result_slots::clear_result_slots(menus)?,
             C::ResetDrivers => m::reset_drivers::reset_drivers(menus)?,
@@ -195,7 +195,13 @@ impl flow::Game for Game<'_> {
             }
             C::ClearEventState => m::clear_event_state::clear_event_state(menus)?,
             C::ReadyPlayers => m::ready_players::ready_players(menus)?,
-            C::ResetSingleEvent => m::reset_single_event::reset_single_event(menus)?,
+            C::ResetSingleEvent => {
+                m::reset_single_event::reset_single_event(
+                    &menus.cars,
+                    &menus.play,
+                    &menus.screens,
+                )?;
+            }
             C::ChampionshipWelcome => m::championship_welcome::championship_welcome(self.owners)?,
             C::A8Welcome => m::a8_welcome::a8_welcome(self.owners)?,
             C::FindRecord { section, index } => {

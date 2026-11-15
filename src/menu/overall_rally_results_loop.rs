@@ -8,12 +8,12 @@
 
 use crate::errors::Refused;
 use crate::menu::draw_lists_store::DRAW_LISTS;
+use crate::menu::owner::Menus;
 use crate::menu::screen_items_store::slot;
-use crate::menu::screen_loop::{Asking, Callee, Entry, List, Screen, ScreenFlag, Step};
+use crate::menu::screen_loop::{Asking, Callee, List, Screen, ScreenFlag, Step};
 use crate::menu::texts_store::texts;
 
-fn set_first_item(entry: &Entry) -> Result<(), Refused> {
-    let menus = entry.menus;
+fn set_first_item(menus: &Menus) -> Result<(), Refused> {
     let title = if menus.screens.state.menus.which_title.is_set() {
         0x138
     } else {
@@ -49,7 +49,7 @@ pub const SCREEN: Screen = Screen {
             run: false,
         },
     ],
-    before: &[Step::Do(set_first_item)],
+    before: &[Step::DoMenus(set_first_item)],
     background: &[Step::Call(Callee::LoadBackground(|_| {
         &texts().overall_rally_results_picture
     }))],

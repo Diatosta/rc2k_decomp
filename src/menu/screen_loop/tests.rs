@@ -281,7 +281,14 @@ fn data_steps_write_what_they_name_and_nothing_else() {
                         assert_eq!(f32::from_bits(after.floats[at]), value);
                         after.floats[at] = before.floats[at];
                     }
-                    Step::Call(_) | Step::CallOrFatal(..) | Step::Do(_) | Step::DoFlow(_) => {
+                    Step::Call(_)
+                    | Step::CallOrFatal(..)
+                    | Step::Do(_)
+                    | Step::DoPlain(_)
+                    | Step::DoScreens(_)
+                    | Step::DoMenus(_)
+                    | Step::DoTablesFlow(_)
+                    | Step::DoFlow(_) => {
                         unreachable!()
                     }
                 }

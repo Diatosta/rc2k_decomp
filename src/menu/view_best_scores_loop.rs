@@ -3,24 +3,24 @@
 
 use crate::errors::Refused;
 use crate::menu::draw_lists_store::DRAW_LISTS;
+use crate::menu::owner::Screens;
 use crate::menu::screen_id::ScreenId;
 use crate::menu::screen_items_store::slot;
-use crate::menu::screen_loop::{Callee, Entry, List, Screen, Step, log_line, screen_entry};
+use crate::menu::screen_loop::{Callee, List, Screen, Step, log_line, screen_entry};
 use crate::menu::texts_store::texts;
 
-fn before(entry: &Entry) -> Result<(), Refused> {
-    let screens = &entry.menus.screens;
+fn before(screens: &Screens) -> Result<(), Refused> {
     screens.items.current[slot::VIEW_BEST_SCORES]
         .set(screens.items.first[slot::VIEW_BEST_SCORES].get());
     Ok(())
 }
 
-fn set_up_first(_: &Entry) -> Result<(), Refused> {
+fn set_up_first() -> Result<(), Refused> {
     log_line(c"BScoresScr: Start");
     Ok(())
 }
 
-fn after(_: &Entry) -> Result<(), Refused> {
+fn after() -> Result<(), Refused> {
     log_line(c"BScoresScr: End");
     Ok(())
 }
@@ -48,12 +48,12 @@ pub const SCREEN: Screen = Screen {
             run: false,
         },
     ],
-    before: &[Step::Do(before)],
-    set_up_first: &[Step::Do(set_up_first)],
+    before: &[Step::DoScreens(before)],
+    set_up_first: &[Step::DoPlain(set_up_first)],
     background: &[Step::Call(Callee::LoadBackground(|_| {
         &texts().view_best_scores_picture
     }))],
-    after: &[Step::Do(after)],
+    after: &[Step::DoPlain(after)],
     ..Screen::new(
         module_path!(),
         |m| m.tables.menus.view_best_scores.id(),

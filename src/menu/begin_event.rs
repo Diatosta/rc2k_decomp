@@ -10,26 +10,26 @@
 //! entry, a missing player.
 
 use crate::errors::Refused;
-use crate::menu::owner::Menus;
+use crate::menu::owner::{Cars, Play, Screens};
 use crate::menu::player::PLAYERS;
 use rc2k_core::menu::event::KEEPS_SETUP;
 use rc2k_core::menu::player::Player;
 
-pub fn begin_event(menus: &Menus) -> Result<(), Refused> {
-    let drivers = crate::menu::standings::drivers(menus)?;
-    menus.play.champ_view.services.set(0u32);
-    menus.screens.event.stages_done.set(0u32);
+pub fn begin_event(cars: &Cars, play: &Play, screens: &Screens) -> Result<(), Refused> {
+    let drivers = crate::menu::standings::drivers_of(cars)?;
+    play.champ_view.services.set(0u32);
+    screens.event.stages_done.set(0u32);
     drivers
         .iter()
         .for_each(crate::menu::drivers_store::Driver::begin);
-    menus.screens.event.event_goes_on.set(1u32);
-    menus.screens.event.event_out.set(0u32);
+    screens.event.event_goes_on.set(1u32);
+    screens.event.event_out.set(0u32);
     for n in 0..PLAYERS {
-        menus.screens.event.current_player.set(n);
-        let p = crate::menu::standings::player(menus, n);
+        screens.event.current_player.set(n);
+        let p = crate::menu::standings::player_in(play, n);
         p.update(Player::begin);
-        crate::service::repair_parts::repair_car_in(menus)?;
-        if menus.play.champ_view.event_mode.get() != KEEPS_SETUP {
+        crate::service::repair_parts::repair_car_of(play, screens)?;
+        if play.champ_view.event_mode.get() != KEEPS_SETUP {
             p.update(Player::default_setup);
         }
     }

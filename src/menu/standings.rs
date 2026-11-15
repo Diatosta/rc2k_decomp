@@ -6,9 +6,9 @@
 
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::menu::drivers_store::Driver;
-use crate::menu::owner::Menus;
 use crate::menu::owner::Play;
 use crate::menu::owner::Screens;
+use crate::menu::owner::{Cars, Menus};
 use crate::session::PlainDword;
 pub use crate::system::owner::System;
 use rc2k_core::menu::standings::{self, NAME_LEN};
@@ -31,11 +31,20 @@ pub fn player(menus: &Menus, n: u32) -> PlayerCell<'_> {
     &menus.play.slots.records[n as usize]
 }
 
+/// `player` for a caller that holds only the players' slots.
+pub fn player_in(play: &Play, n: u32) -> PlayerCell<'_> {
+    &play.slots.records[n as usize]
+}
+
 /// The drivers as a `do .. while` walks them: the first always, then each while its first
 /// dword is not -1. The walk ends at the latest on the -1 after the 180 (`DriverTable.end`);
 /// refused when that is gone.
 pub fn drivers(menus: &Menus) -> Result<&[Driver], BadInput> {
-    let cars = &menus.cars;
+    drivers_of(&menus.cars)
+}
+
+/// `drivers` for a caller that holds only the cars' state.
+pub fn drivers_of(cars: &Cars) -> Result<&[Driver], BadInput> {
     let all = &cars.drivers.drivers;
     let count = 1 + all[1..]
         .iter()

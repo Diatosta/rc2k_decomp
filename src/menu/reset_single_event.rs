@@ -6,24 +6,24 @@
 //! Refuses a missing player or a drivers' table without its end
 //! entry, before anything.
 use crate::errors::Refused;
-use crate::menu::owner::Menus;
+use crate::menu::owner::{Cars, Play, Screens};
 use crate::menu::standings::*;
 
-pub fn reset_single_event(menus: &Menus) -> Result<(), Refused> {
-    let drivers = drivers(menus)?;
+pub fn reset_single_event(cars: &Cars, play: &Play, screens: &Screens) -> Result<(), Refused> {
+    let drivers = drivers_of(cars)?;
 
-    menus.play.champ_view.services.set(0u32);
-    menus.screens.event.stages_done.set(0u32);
+    play.champ_view.services.set(0u32);
+    screens.event.stages_done.set(0u32);
 
     drivers
         .iter()
         .for_each(crate::menu::drivers_store::Driver::begin);
 
-    menus.screens.event.event_goes_on.set(1u32);
-    menus.screens.event.event_out.set(0u32);
+    screens.event.event_goes_on.set(1u32);
+    screens.event.event_out.set(0u32);
 
     for n in (0..4).rev() {
-        player(menus, n).update(rc2k_core::menu::player::Player::begin);
+        player_in(play, n).update(rc2k_core::menu::player::Player::begin);
     }
     Ok(())
 }

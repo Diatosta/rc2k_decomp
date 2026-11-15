@@ -4,14 +4,14 @@
 
 use crate::errors::Refused;
 use crate::menu::draw_lists_store::DRAW_LISTS;
+use crate::menu::owner::Screens;
 use crate::menu::screen_id::ScreenId;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{
-    Asking, Callee, Entry, Frames, List, Screen, ScreenVar, Step, screen_entry,
+    Asking, Callee, Frames, List, Screen, ScreenVar, Step, screen_entry,
 };
 
-fn before(entry: &Entry) -> Result<(), Refused> {
-    let screens = &entry.menus.screens;
+fn before(screens: &Screens) -> Result<(), Refused> {
     screens.items.current[slot::NEXT_STAGE].set(screens.items.first[slot::NEXT_STAGE].get());
     Ok(())
 }
@@ -34,7 +34,7 @@ pub const SCREEN: Screen = Screen {
             run: false,
         },
     ],
-    before: &[Step::Do(before)],
+    before: &[Step::DoScreens(before)],
     after_lists: &[Step::Write(ScreenVar::StageMode, 0x3)],
     background: &[Step::Call(Callee::DrawStageMap)],
     after_first_frame: &[Step::Call(Callee::PlayStageSpeech)],

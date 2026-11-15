@@ -25,7 +25,7 @@ fn set_up_first(entry: &Entry) -> Result<(), Refused> {
     Ok(())
 }
 
-fn after(_: &Entry) -> Result<(), Refused> {
+fn after() -> Result<(), Refused> {
     log_line(c"InfoScr: End");
     Ok(())
 }
@@ -53,7 +53,7 @@ pub const SCREEN: Screen = Screen {
         Step::Write(ScreenVar::ClearsEscapeFlag, 0x1),
         Step::Call(Callee::LoadBackground(|_| &texts().information_picture)),
     ],
-    after: &[Step::Do(after)],
+    after: &[Step::DoPlain(after)],
     ..Screen::new(
         module_path!(),
         |m| m.tables.menus.information.id(),

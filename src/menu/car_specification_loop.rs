@@ -4,14 +4,14 @@
 
 use crate::errors::Refused;
 use crate::menu::draw_lists_store::DRAW_LISTS;
+use crate::menu::owner::Menus;
 use crate::menu::screen_id::ScreenId;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{
     Callee, Entry, Frames, List, Screen, Step, carousel, prepare_scene, screen_entry,
 };
 
-fn before(entry: &Entry) -> Result<(), Refused> {
-    let menus = entry.menus;
+fn before(menus: &Menus) -> Result<(), Refused> {
     menus
         .screens
         .event
@@ -38,8 +38,7 @@ fn set_up_first(entry: &Entry) -> Result<(), Refused> {
     Ok(())
 }
 
-fn after(entry: &Entry) -> Result<(), Refused> {
-    let menus = entry.menus;
+fn after(menus: &Menus) -> Result<(), Refused> {
     menus
         .play
         .cheats
@@ -72,13 +71,13 @@ pub const SCREEN: Screen = Screen {
             run: false,
         },
     ],
-    before: &[Step::Do(before)],
+    before: &[Step::DoMenus(before)],
     set_up_first: &[Step::Do(set_up_first)],
     background: &[
         Step::Call(Callee::LoadCarBackground),
         Step::Call(Callee::PlayCarStream),
     ],
-    after: &[Step::Do(after)],
+    after: &[Step::DoMenus(after)],
     after_restored: &[Step::Call(Callee::StopStream)],
     frames: Frames {
         each_frame: &[Step::Call(Callee::StepCarStream)],

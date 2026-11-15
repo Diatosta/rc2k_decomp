@@ -6,12 +6,12 @@
 use crate::errors::Refused;
 use crate::menu::draw_lists_store::DRAW_LISTS;
 use crate::menu::owner::Menus;
+use crate::menu::owner::Screens;
 use crate::menu::screen_items_store::slot;
-use crate::menu::screen_loop::{Callee, Entry, Frames, Keys, List, Screen, Step};
+use crate::menu::screen_loop::{Callee, Frames, Keys, List, Screen, Step};
 use crate::menu::texts_store::texts;
 
-fn before(entry: &Entry) -> Result<(), Refused> {
-    let screens = &entry.menus.screens;
+fn before(screens: &Screens) -> Result<(), Refused> {
     screens.items.current[slot::LOAD_REPLAY].set(screens.items.first[slot::LOAD_REPLAY].get());
     screens.draw_work.escape_pressed.set(false);
     Ok(())
@@ -58,7 +58,7 @@ pub const SCREEN: Screen = Screen {
             run: false,
         },
     ],
-    before: &[Step::Do(before)],
+    before: &[Step::DoScreens(before)],
     background: &[Step::Call(Callee::LoadBackground(|_| {
         &texts().load_replay_picture
     }))],

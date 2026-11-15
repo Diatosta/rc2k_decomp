@@ -4,6 +4,7 @@
 
 use crate::errors::Refused;
 use crate::menu::draw_lists_store::DRAW_LISTS;
+use crate::menu::owner::Tables;
 use crate::menu::screen_id::ScreenId;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{
@@ -25,8 +26,7 @@ fn set_up_first(entry: &Entry) -> Result<(), Refused> {
     Ok(())
 }
 
-fn after_first_frame(entry: &Entry) -> Result<Flow, Refused> {
-    let tables = &entry.menus.tables;
+fn after_first_frame(tables: &Tables) -> Result<Flow, Refused> {
     if tables.captions.left_by_key.is_set() {
         tables.captions.left_by_key.set(false);
         return Ok(Flow::SetUp);
@@ -60,7 +60,7 @@ pub const SCREEN: Screen = Screen {
     background: &[Step::Call(Callee::LoadBackground(|_| {
         &texts().arcade_select_level_picture
     }))],
-    after_first_frame: &[Step::DoFlow(after_first_frame)],
+    after_first_frame: &[Step::DoTablesFlow(after_first_frame)],
     after: &[Step::Sound(MenuSound::None)],
     frames: Frames {
         next_frame_repeats_first: true,

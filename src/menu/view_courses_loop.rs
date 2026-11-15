@@ -5,16 +5,14 @@ use crate::errors::Refused;
 use crate::menu::draw_lists_store::DRAW_LISTS;
 use crate::menu::screen_id::ScreenId;
 use crate::menu::screen_items_store::slot;
-use crate::menu::screen_loop::{
-    Callee, Entry, List, Screen, ScreenVar, Step, log_line, screen_entry,
-};
+use crate::menu::screen_loop::{Callee, List, Screen, ScreenVar, Step, log_line, screen_entry};
 
-fn set_up_first(_: &Entry) -> Result<(), Refused> {
+fn set_up_first() -> Result<(), Refused> {
     log_line(c"VCoursesScr: Start");
     Ok(())
 }
 
-fn after(_: &Entry) -> Result<(), Refused> {
+fn after() -> Result<(), Refused> {
     log_line(c"VCoursesScr: End");
     Ok(())
 }
@@ -52,9 +50,9 @@ pub const SCREEN: Screen = Screen {
         Step::Write(ScreenVar::EventSection, 0x0),
         Step::Write(ScreenVar::EventIndex, 0x0),
     ],
-    set_up_first: &[Step::Do(set_up_first)],
+    set_up_first: &[Step::DoPlain(set_up_first)],
     background: &[Step::Call(Callee::DrawStageMap)],
-    after: &[Step::Do(after)],
+    after: &[Step::DoPlain(after)],
     ..Screen::new(
         module_path!(),
         |m| m.tables.menus.view_courses.id(),

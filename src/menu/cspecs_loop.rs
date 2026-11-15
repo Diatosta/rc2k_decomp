@@ -4,14 +4,14 @@
 
 use crate::errors::Refused;
 use crate::menu::draw_lists_store::DRAW_LISTS;
+use crate::menu::owner::Screens;
 use crate::menu::screen_loop::{Callee, Entry, List, Screen, Step, carousel, prepare_scene};
 use crate::menu::texts_store::texts;
 
 /// `ScreenItems.current[33]`'s slot, the item kept between visits.
 const SLOT: usize = (0x7476E4 - 0x747660) / 4;
 
-fn before(entry: &Entry) -> Result<(), Refused> {
-    let screens = &entry.menus.screens;
+fn before(screens: &Screens) -> Result<(), Refused> {
     screens.items.current[SLOT].set(screens.items.first[SLOT].get());
     Ok(())
 }
@@ -57,7 +57,7 @@ pub const SCREEN: Screen = Screen {
             run: false,
         },
     ],
-    before: &[Step::Do(before)],
+    before: &[Step::DoScreens(before)],
     set_up_first: &[Step::Do(set_up_first)],
     background: &[Step::Call(Callee::LoadBackground(|_| &texts().cspecs_png))],
     ..Screen::new(module_path!(), |m| m.tables.menus.cspecs_menu.id(), SLOT)

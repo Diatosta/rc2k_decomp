@@ -3,7 +3,7 @@
 //! `service::repair_car`, which does all of them and more.
 
 use crate::errors::BadInput;
-use crate::menu::owner::Menus;
+use crate::menu::owner::{Menus, Play, Screens};
 use crate::service::state::current_player;
 use rc2k_core::menu::player::Player;
 
@@ -23,5 +23,17 @@ pub fn with_player(menus: &Menus, f: impl FnOnce(&mut Player)) -> Result<(), Bad
 /// brakes, the lights, the suspension, the tyres' wear again, the flags -1 and eight more
 /// dwords.
 pub fn repair_car_in(menus: &Menus) -> Result<(), BadInput> {
-    with_player(menus, Player::repair_car)
+    repair_car_of(&menus.play, &menus.screens)
+}
+
+/// `repair_car_in` for a caller that holds the players' slots and the screens' event state.
+pub fn repair_car_of(play: &Play, screens: &Screens) -> Result<(), BadInput> {
+    play.slots
+        .records
+        .get(screens.event.current_player.get() as usize)
+        .ok_or(BadInput(
+            "no current player object: the original writes through null",
+        ))?
+        .update(Player::repair_car);
+    Ok(())
 }

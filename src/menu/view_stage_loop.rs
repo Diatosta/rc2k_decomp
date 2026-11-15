@@ -4,6 +4,7 @@
 
 use crate::errors::Refused;
 use crate::menu::draw_lists_store::DRAW_LISTS;
+use crate::menu::owner::Screens;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Asking, Callee, Entry, Frames, List, Screen, Step};
 
@@ -17,8 +18,7 @@ fn take_kept() -> u32 {
     KEPT.with_borrow_mut(|stack| stack.pop().expect("a pop without its push"))
 }
 
-fn before(entry: &Entry) -> Result<(), Refused> {
-    let screens = &entry.menus.screens;
+fn before(screens: &Screens) -> Result<(), Refused> {
     KEPT.with_borrow_mut(|stack| {
         stack.push(screens.event.section.get());
     });
@@ -69,7 +69,7 @@ pub const SCREEN: Screen = Screen {
             run: false,
         },
     ],
-    before: &[Step::Do(before)],
+    before: &[Step::DoScreens(before)],
     after_lists: &[Step::Do(after_lists)],
     background: &[Step::Call(Callee::DrawStageMap)],
     after_first_frame: &[Step::Call(Callee::PlayStageSpeech)],

@@ -29,7 +29,7 @@ use crate::menu::handle_keys::handle_keys;
 use crate::menu::lists_store::CarList;
 use crate::menu::menus_store::MenuId;
 use crate::menu::owner::Menus;
-use crate::menu::owner::Screens;
+use crate::menu::owner::{Screens, Tables};
 use crate::menu::run_item_action::run_item_action;
 use crate::menu::run_list::run_list;
 use crate::menu::screen_id::ScreenId;
@@ -258,6 +258,14 @@ pub enum Step {
     CallOrFatal(Callee, u32),
     /// Something only this screen does, written out in its file.
     Do(fn(&Entry) -> Result<(), Refused>),
+    /// A step that reads nothing of the menus.
+    DoPlain(fn() -> Result<(), Refused>),
+    /// A step that reads only the screens' state.
+    DoScreens(fn(&Screens) -> Result<(), Refused>),
+    /// A step that reads only the menus' state.
+    DoMenus(fn(&Menus) -> Result<(), Refused>),
+    /// A flow step that reads only the menus' tables.
+    DoTablesFlow(fn(&Tables) -> Result<Flow, Refused>),
     /// The same for a step that can also send the loop somewhere: a name editor called once
     /// a frame that keeps the keys from the menu while a name is typed. Only looked at in
     /// `each_frame`.
@@ -273,7 +281,14 @@ impl Step {
             Step::Sound(sound) => menus.screens.entry.set_sound(sound),
             Step::WriteScene(variable, value) => variable.cell().set(value),
             Step::WriteSceneF32(variable, value) => variable.cell().set(value),
-            Step::Call(_) | Step::CallOrFatal(..) | Step::Do(_) | Step::DoFlow(_) => return false,
+            Step::Call(_)
+            | Step::CallOrFatal(..)
+            | Step::Do(_)
+            | Step::DoPlain(_)
+            | Step::DoScreens(_)
+            | Step::DoMenus(_)
+            | Step::DoTablesFlow(_)
+            | Step::DoFlow(_) => return false,
         }
         true
     }
@@ -300,7 +315,7 @@ pub struct Asking {
     pub also_if: Option<ScreenFlag>,
     /// A variable that, when it is 1, keeps the question from being put although
     /// `captions.left_by_key` is set.
-    pub unless: Option<fn(&Entry) -> u32>,
+    pub unless: Option<fn(&Owners<'static>) -> u32>,
     /// The question is put whenever the screen is left, and after a "yes" the loop returns
     /// at once: the highlight is not saved.
     pub always: bool,
@@ -847,7 +862,14 @@ fn run(steps: &[Step], entry: &Entry) -> Result<Flow, Refused> {
                 function.run(entry)?;
             }
             Step::CallOrFatal(function, code) => call_or_fatal(entry, function, code)?,
+            Step::DoTablesFlow(what) => match what(&menus.tables)? {
+                Flow::On => {}
+                elsewhere => return Ok(elsewhere),
+            },
             Step::Do(what) => what(entry)?,
+            Step::DoPlain(what) => what()?,
+            Step::DoScreens(what) => what(&menus.screens)?,
+            Step::DoMenus(what) => what(menus)?,
             Step::Write(..)
             | Step::WriteFlag(..)
             | Step::Sound(_)
@@ -1112,7 +1134,7 @@ impl ScreenHost for MenuHost<'_> {
             .asking
             .as_ref()
             .and_then(|asking| asking.unless)
-            .is_some_and(|flag| flag(entry) == 1)
+            .is_some_and(|flag| flag(&entry.owners) == 1)
     }
 
     fn ask_also(&self) -> bool {

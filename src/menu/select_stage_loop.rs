@@ -5,13 +5,13 @@
 
 use crate::errors::Refused;
 use crate::menu::draw_lists_store::DRAW_LISTS;
+use crate::menu::owner::Tables;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{
-    Asking, Callee, Entry, Flow, Frames, List, MenuSound, Screen, ScreenVar, Step,
+    Asking, Callee, Flow, Frames, List, MenuSound, Screen, ScreenVar, Step,
 };
 
-fn after_first_frame(entry: &Entry) -> Result<Flow, Refused> {
-    let tables = &entry.menus.tables;
+fn after_first_frame(tables: &Tables) -> Result<Flow, Refused> {
     if tables.captions.left_by_key.is_set() {
         tables.captions.left_by_key.set(false);
         return Ok(Flow::SetUp);
@@ -45,10 +45,10 @@ pub const SCREEN: Screen = Screen {
     before: &[Step::Write(ScreenVar::YesNoAnswer, 0x0)],
     set_up_first: &[Step::Call(Callee::MarkStageChoice)],
     background: &[Step::Call(Callee::DrawStageMap)],
-    after_first_frame: &[Step::DoFlow(after_first_frame)],
+    after_first_frame: &[Step::DoTablesFlow(after_first_frame)],
     after: &[Step::Sound(MenuSound::None)],
     asking: Some(Asking {
-        unless: Some(|entry| u32::from(entry.owners.race.shared.net_race.is_on())),
+        unless: Some(|owners| u32::from(owners.race.shared.net_race.is_on())),
         unasked_skips_save: true,
         ..Asking::DEFAULT
     }),
