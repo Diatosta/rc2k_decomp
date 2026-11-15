@@ -54,7 +54,7 @@ fn load_and_run(o: Owners<'static>) -> Result<(), Refused> {
 
     crate::menu::ready_players::ready_players(menus)?;
     menus.screens.event.event_goes_on.set(1u32);
-    menus.tables.pages.reset_times.set(0u32);
+    menus.play.champ_view.reset_times.set(0u32);
     menus.screens.event.event_out.set(0u32);
     if !read_savegame_slot_in(saves, slot)? {
         crate::sound::play_menu_sound::play_menu_sound_in_game(

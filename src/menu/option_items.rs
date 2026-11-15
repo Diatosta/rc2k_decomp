@@ -3,7 +3,7 @@
 //! dword flipped), a switch with a copy (flipped, then a second dword flipped or given the
 //! value), the modes switch (also making the screen-mode list again), the advanced sound page's
 //! switches and quality (then `menu::apply_audio_choices`), a volume (one less / more within
-//! 0 ..= 0x40, signed, then sent or heard), a counter (`captions.shown_group` 0 .. 5,
+//! 0 ..= 0x40, signed, then sent or heard), a counter (`champ_view.shown_stage.group` 0 .. 5,
 //! `shown_stage` 1 .. 6, wrapping) and the screen mode chosen (one less, before 0 the last).
 //!
 //! Which item each is: the page tables' readings (the sound page's four volumes: general, race
@@ -236,8 +236,14 @@ pub fn switch(o: Owners<'static>, which: OptionSwitch) -> Result<(), Refused> {
     let flip = |other: StepOperand| Kind::SwitchCopy { other, flip: true };
     let (var, kind) = match which {
         OptionSwitch::RaceMusicOn => (var!(@o sound.menu.options.race_music_on), Kind::Switch),
-        OptionSwitch::StageRecordsSet => (var!(@o menus.play.champ_view.switch_f8), Kind::Switch),
-        OptionSwitch::StageRecordsAlt => (var!(@o menus.play.champ_view.switch_fc), Kind::Switch),
+        OptionSwitch::StageRecordsSet => (
+            var!(@o menus.play.champ_view.switches.records_set),
+            Kind::Switch,
+        ),
+        OptionSwitch::StageRecordsAlt => (
+            var!(@o menus.play.champ_view.switches.records_alt),
+            Kind::Switch,
+        ),
         OptionSwitch::Mipmapping => (
             var!(@o menus.options.mipmapping),
             flip(var!(@o gfx.display.choices.mipmapping)),
@@ -285,8 +291,8 @@ pub fn switch(o: Owners<'static>, which: OptionSwitch) -> Result<(), Refused> {
 /// (1 .. 6) shown by the stage pages, one less or one more, past an end the other end.
 pub fn stage_counter(o: Owners<'static>, which: StageCounter, up: bool) -> Result<(), Refused> {
     let (var, low, high) = match which {
-        StageCounter::Group => (var!(@o menus.tables.captions.shown_group), 0, 5),
-        StageCounter::InGroup => (var!(@o menus.tables.captions.shown_stage), 1, 6),
+        StageCounter::Group => (var!(@o menus.play.champ_view.shown_stage.group), 0, 5),
+        StageCounter::InGroup => (var!(@o menus.play.champ_view.shown_stage.number), 1, 6),
     };
     option_item(
         o,

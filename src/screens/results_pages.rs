@@ -97,7 +97,7 @@ pub fn draw_results_page(
     } else {
         first_overall_time(2, rally)?
     };
-    let first_row = menus.play.champ_view.first_row.get();
+    let first_row = menus.play.champ_view.rows.first_row.get();
     let end = first_row.wrapping_add(10);
     // every row found before anything is drawn
     let mut rows = Vec::new();

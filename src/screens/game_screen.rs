@@ -793,7 +793,7 @@ impl GameWork for rc2k_core::screens::results_pages::Work {
             W::OverallFirst => None,
             W::Gap => None,
             W::Row => Some(&menus.screens.loop_flags.champ_row),
-            W::RowEnd => Some(&menus.play.champ_view.row_end),
+            W::RowEnd => Some(&menus.play.champ_view.rows.row_end),
         }
     }
 }
@@ -1104,7 +1104,7 @@ impl GameWork for rc2k_core::screens::championship_table::Work {
                 Some(&menus.screens.loop_flags.champ_row)
             }
             rc2k_core::screens::championship_table::Work::End => {
-                Some(&menus.play.champ_view.row_end)
+                Some(&menus.play.champ_view.rows.row_end)
             }
         }
     }

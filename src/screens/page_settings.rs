@@ -99,14 +99,15 @@ fn stage_refuses(
 }
 
 /// The stage options page's items of the best times menu (items 1 and 2 string 0x19C / 0x19B by
-/// `champ_view.switch_f8`, 0x19E / 0x19D by `switch_fc`, item 3 the record's name), the stage line
-/// (string 0x481) and the caption string 0x4FC + `state.menus.caption_choice`. Refuses no stage
-/// records; a record of another track pack is a fatal error.
+/// `champ_view.switches.records_set`, 0x19E / 0x19D by `switches.records_alt`, item 3 the
+/// record's name), the stage line (string 0x481) and the caption string 0x4FC +
+/// `state.menus.caption_choice`. Refuses no stage records; a record of another track pack is a
+/// fatal error.
 pub fn stage_options_texts(o: Owners<'static>) -> Result<(), Refused> {
     let menus = o.menus;
     let (a, b) = (
-        menus.play.champ_view.switch_f8.get(),
-        menus.tables.captions.shown_group.get(),
+        menus.play.champ_view.switches.records_set.get(),
+        menus.play.champ_view.shown_stage.group.get(),
     );
     let text = text_buffers();
     let stages = &o.system.records().stage_tables;
@@ -119,10 +120,11 @@ pub fn stage_options_texts(o: Owners<'static>) -> Result<(), Refused> {
         .view_best_times
         .id()
         .items(&menus.tables.menus);
-    let (first, second) = stage_options_items(a, menus.play.champ_view.switch_fc.get());
+    let (first, second) = stage_options_items(a, menus.play.champ_view.switches.records_alt.get());
     set_item(items, 1, first)?;
     set_item(items, 2, second)?;
-    let (base, record) = stage_record(stages, a, b, menus.tables.captions.shown_stage.get())?;
+    let (base, record) =
+        stage_record(stages, a, b, menus.play.champ_view.shown_stage.number.get())?;
     set_item(items, 3, base.title(&o.system.records().stage_tables)?)?;
     stage_line(
         crate::strings::append_string_by_id::StringOwners::of(o),

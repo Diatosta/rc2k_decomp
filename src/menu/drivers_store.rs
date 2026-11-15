@@ -17,7 +17,8 @@ use crate::session::PlainDword;
 pub struct Driver {
     /// +0: the name entry, also the computer team's number (`menu::find_cpu_team`).
     pub name_entry: PlainDword,
-    pub field_4: PlainDword,
+    /// +4: 1 in all 180 shipped records; read by no code (saved with the record).
+    pub unknown_04: PlainDword,
     /// +8: the class (a time entry's group, +0x1C).
     pub class: PlainDword,
     /// +0xC: the stage's time (`menu::calc_cpu_times`; a time entry's time).
@@ -29,14 +30,16 @@ pub struct Driver {
     pub nation: PlainDword,
     /// +0x18: the car (a time entry's +0x10; `name.cfg`'s second number).
     pub car: PlainDword,
-    pub field_1c: PlainDword,
+    /// +0x1C: 0 in all 180 shipped records; read by no code (saved with the record).
+    pub unknown_1c: PlainDword,
     /// +0x20: 0 in all 180 shipped records and put back to 0 at an event's start (`begin`); read by
     /// no code (saved with the record).
     pub unread_zero_20: PlainDword,
     /// +0x24: 1 while in the event (`IN_EVENT`), 4 once dropped out
     /// (`rc2k_core::menu::event_races::DROPPED`).
     pub in_event: PlainDword,
-    pub field_28: PlainDword,
+    /// +0x28: 0 in all 180 shipped records; read by no code (saved with the record).
+    pub unknown_28: PlainDword,
     /// +0x2C: twelve figures set to 100 at an event's start (the car's condition).
     pub condition: [PlainDword; 12],
     /// +0x5C: the result slots: six sections' overall points and their total, then six
@@ -51,16 +54,16 @@ impl Driver {
     const fn new(index: u32, [class, nation, car]: [u32; 3]) -> Self {
         Self {
             name_entry: PlainDword::new(index),
-            field_4: PlainDword::new(1),
+            unknown_04: PlainDword::new(1),
             class: PlainDword::new(class),
             time: PlainDword::new(0),
             total: PlainDword::new(0),
             nation: PlainDword::new(nation),
             car: PlainDword::new(car),
-            field_1c: PlainDword::new(0),
+            unknown_1c: PlainDword::new(0),
             unread_zero_20: PlainDword::new(0),
             in_event: PlainDword::new(IN_EVENT),
-            field_28: PlainDword::new(0),
+            unknown_28: PlainDword::new(0),
             condition: [const { PlainDword::new(100) }; 12],
             // Six sections' overall points and their total (the last of them 0), then the
             // same for the stage points.
@@ -179,7 +182,7 @@ impl Driver {
 #[derive(rc2k_derive::Cells)]
 pub struct DriverName {
     pub string: PlainDword,
-    pub field_4: [PlainDword; 4],
+    pub unknown_04: [PlainDword; 4],
 }
 
 impl DriverName {
@@ -188,7 +191,7 @@ impl DriverName {
     const fn new(index: u32, [a, b, c]: [u32; 3]) -> Self {
         Self {
             string: PlainDword::new(0x5A5 + index),
-            field_4: [
+            unknown_04: [
                 PlainDword::new(a),
                 PlainDword::new(b),
                 PlainDword::new(c),

@@ -1,6 +1,6 @@
-//! A page of the times of one class (`event.shown.class`) from `champ_view.ranked_times` (-1 ends
-//! the list), ten rows from the place `champ_view.count`: name (a string for kind 0, else a text;
-//! the player's own in the highlight fonts), time, place and, below the first, the gap to it,
+//! A page of the times of one class (`event.shown.class`) from the ranking tables (-1 ends
+//! the list), ten rows from the place `champ_view.rows.count`: name (a string for kind 0, else a
+//! text; the player's own in the highlight fonts), time, place and, below the first, the gap to it,
 //! then the nationality's and the flag's sprites.
 //!
 //! Refuses a list without its end in 0x400 entries, a page that starts past the list, a row
@@ -24,7 +24,7 @@ fn rows(menus: &Menus) -> Result<Rows, Refused> {
             |n| t.entries.get(n as usize).map_or(0, |e| e.head.group),
             |n| t.first_at(n as usize).is_none_or(|v| v == u32::MAX),
             menus.screens.event.shown.class.get(),
-            menus.play.champ_view.count.get(),
+            menus.play.champ_view.rows.count.get(),
         );
         let (rows, after) = found.map_err(BadInput::from)?;
         Ok((
@@ -45,7 +45,7 @@ pub fn draw_class_ranking(
     let first_time = find_class_time(menus.screens.event.shown.class.get(), true)?;
     // The logic is in `rc2k_core::screens::results_pages::class_ranking` (the rows found here).
     use rc2k_core::screens::results_pages::{Name, RankedRow, class_ranking};
-    let player = menus.play.champ_view.ranked_player.get();
+    let player = menus.play.champ_view.rows.ranked_player.get();
     // A player's entry names the player's name (`name_at`), a driver's a string.
     let rows: Vec<RankedRow<crate::screens::game_screen::HeldText>> = rows
         .iter()

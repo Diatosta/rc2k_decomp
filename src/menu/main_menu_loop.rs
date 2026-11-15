@@ -51,6 +51,7 @@ fn set_up_first(entry: &Entry) -> Result<(), Refused> {
 fn before_first_frame(entry: &Entry) -> Result<(), Refused> {
     let play = &entry.menus.play;
     play.champ_view
+        .key_clock
         .last_key_time
         .set(entry.system.clocks().setup_time.get());
     play.cheats.notice_due.set(1u32);
@@ -79,7 +80,7 @@ fn idle(entry: &Entry) -> Result<Flow, Refused> {
     menus.screens.loop_flags.idle.set(false);
     update_blink(menus, system);
     let now = system.clocks().frame.get();
-    menus.play.champ_view.last_key_time.set(now);
+    menus.play.champ_view.key_clock.last_key_time.set(now);
     system.clocks().setup_time.set(now);
     Ok(Flow::SetUp)
 }

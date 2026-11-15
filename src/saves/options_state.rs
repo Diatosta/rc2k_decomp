@@ -274,7 +274,7 @@ fn pieces_of(o: Owners<'static>) -> [Field<'static>; 69] {
         Field::Dwords(vec![                                        // the audio quality, the 3D switches and the channels
             &work.audio_quality, &work.ds3d, &work.eax, &work.a3d, &work.dolby, &work.channels,
         ]),
-        Field::Dword(&menus.tables.pages.services),                       // the services counted
+        Field::Dword(&menus.play.champ_view.services),                       // the services counted
         Field::Dword(&menus.screens.flow.kept),                          // kept by the event races
         Field::Dword(&race.shared.state.settings.a8_game),               // the race settings' first word
         Field::Text { cells: &menus.play.arcade.levels_won, from: 0, len: 6 },                    // the arcade levels won, a byte each

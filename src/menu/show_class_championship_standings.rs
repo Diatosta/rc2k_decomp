@@ -1,6 +1,6 @@
 //! `menu::show_class_championship_standings`: the championship standings of a class:
 //! `event.shown.class` the class; the first player's entry of that class in standings table B
-//! (`menu::first_player_b`), its figure held to 0x33 into `champ_view.count`;
+//! (`menu::first_player_b`), its figure held to 0x33 into `champ_view.rows.count`;
 //! `menu::first_page_stage`, `menu::stage_range_caption`; then the page
 //! (`menu::class_championship_standings_loop`).
 //!
@@ -20,7 +20,7 @@ pub fn show_class_championship_standings(
     menus.screens.event.shown.class.set(class);
     let found = crate::menu::first_player_b::first_player_b(class)?;
     let count = held_figure(Page::ClassChampionship, found.figure);
-    menus.play.champ_view.count.set(count);
+    menus.play.champ_view.rows.count.set(count);
     crate::menu::first_page_stage::first_page_stage(&menus.play);
     crate::menu::stage_range_caption::stage_range_caption(&menus.play)?;
     run_screen(ScreenId::ClassChampionshipStandings, entry)?;

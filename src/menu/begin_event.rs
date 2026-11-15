@@ -1,6 +1,6 @@
 //! `menu::begin_event`: the drivers and the four players made ready for a new event.
 //!
-//! `pages.services` and `event.stages_done` 0; every driver (`standings::drivers`'s walk) gets
+//! `champ_view.services` and `event.stages_done` 0; every driver (`standings::drivers`'s walk) gets
 //! +0x10, +0xC, +0x20 = 0 and +0x24 = 1 (`Driver::begin`); `event.event_goes_on` 1,
 //! `event.event_out` 0; then for each player n (the current player `event.current_player` = n, left
 //! at 3): `total` and `unread_84` 0, `entry` 1 (`Player::begin`), `service::repair_car`, and unless
@@ -17,7 +17,7 @@ use rc2k_core::menu::player::Player;
 
 pub fn begin_event(menus: &Menus) -> Result<(), Refused> {
     let drivers = crate::menu::standings::drivers(menus)?;
-    menus.tables.pages.services.set(0u32);
+    menus.play.champ_view.services.set(0u32);
     menus.screens.event.stages_done.set(0u32);
     drivers
         .iter()

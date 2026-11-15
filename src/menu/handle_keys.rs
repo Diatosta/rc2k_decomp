@@ -66,7 +66,7 @@ pub fn handle_keys(o: Owners<'static>, eax: u32) -> Result<Pressed, Refused> {
     let clock: u32 = o.system.clocks().frame.get();
     if action == Action::Enter {
         menus.screens.entry.set_sound(keys::MenuSound::Enter);
-        menus.play.champ_view.last_key_time.set(clock);
+        menus.play.champ_view.key_clock.last_key_time.set(clock);
         menus
             .screens
             .flow
@@ -80,7 +80,7 @@ pub fn handle_keys(o: Owners<'static>, eax: u32) -> Result<Pressed, Refused> {
         );
         return Ok(Pressed::Enter);
     }
-    menus.play.champ_view.last_key_time.set(clock);
+    menus.play.champ_view.key_clock.last_key_time.set(clock);
     let direction = match action {
         Action::Move(Move::Up) => Direction::Up,
         Action::Move(Move::Down) => Direction::Down,

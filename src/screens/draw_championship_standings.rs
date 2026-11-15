@@ -21,7 +21,7 @@ pub fn draw_championship_standings(
     if !section_there(menus, system)? {
         return Err(BadInput("a section past the record table").into());
     }
-    let first_row = play.champ_view.first_row.get();
+    let first_row = play.champ_view.rows.first_row.get();
     let end = first_row.wrapping_add(10);
     let mut rows = Vec::new();
     let mut row = first_row;

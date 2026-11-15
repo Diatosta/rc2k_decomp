@@ -10,31 +10,36 @@ use crate::screens::game_screen::{Held, HeldText};
 use crate::screens::text_buffers_store::text_buffers;
 use crate::text::draw_text::Canvas;
 
-/// The stage's record table and record (by `ChampView.switch_f8`, `CaptionTables.shown_group` and
-/// `CaptionTables.shown_stage`), none: 0.
+/// The stage's record table and record (by `ChampView.switches.records_set`,
+/// `ChampView.shown_stage.group` and `ChampView.shown_stage.number`), none: 0.
 fn records(
     menus: &Menus,
     stages: &crate::records::stages_store::StageTables,
 ) -> Result<(RecordTable, RecordRef), BadInput> {
     let base = stages.group_event_table(
-        menus.play.champ_view.switch_f8.get(),
-        menus.tables.captions.shown_group.get(),
+        menus.play.champ_view.switches.records_set.get(),
+        menus.play.champ_view.shown_stage.group.get(),
     )?;
     Ok((
         base,
-        crate::records::stages_store::row(stages, base, menus.tables.captions.shown_stage.get())?,
+        crate::records::stages_store::row(
+            stages,
+            base,
+            menus.play.champ_view.shown_stage.number.get(),
+        )?,
     ))
 }
 
-/// The times table: `ChampView.switch_f8` (+ 2 when `ChampView.switch_fc` is 1) names which of
-/// the four holds it (the stage, course, time trial and alternate best times; see
+/// The times table: `ChampView.switches.records_set` (+ 2 when `ChampView.switches.records_alt`
+/// is 1) names which of the four holds it (the stage, course, time trial and alternate best
+/// times; see
 /// `saves::best_times`), or None. Refuses a list entry that names none of them.
 fn times_table<'a>(
     play: &'a Play,
     stages: &crate::records::stages_store::StageTables,
 ) -> Result<Option<&'a StageTable>, BadInput> {
-    let mut n = play.champ_view.switch_f8.get();
-    if play.champ_view.switch_fc.get() == 1 {
+    let mut n = play.champ_view.switches.records_set.get();
+    if play.champ_view.switches.records_alt.get() == 1 {
         n += 2;
     }
     use crate::menu::champ_store::TimesVariable;
@@ -74,8 +79,9 @@ fn ends_within_ten(table: &StageTable, stage: usize) -> Result<bool, BadInput> {
 /// `MenuState.menus.first_row_time` and the others' gap to it (string 0x579 and the time); after
 /// ten rows the fastest line (string 0x1A2; from the stage record found again by
 /// `records::find_stage_record` when both switches are 0, else the record's own, its second
-/// fastest with `ChampView.switch_fc` 1). The sprites' palette is unused. Refuses no current
-/// menu, no stage records or times table, a stage line past its buffer, a times table whose end
+/// fastest with `ChampView.switches.records_alt` 1). The sprites' palette is unused. Refuses no
+/// current menu, no stage records or times table, a stage line past its buffer, a times table
+/// whose end
 /// (-1) comes within the ten rows and what the strings refuse.
 pub fn draw_stage_results(o: Owners<'static>, canvas: &mut dyn Canvas) -> Result<(), Refused> {
     let menus = o.menus;
@@ -87,19 +93,19 @@ pub fn draw_stage_results(o: Owners<'static>, canvas: &mut dyn Canvas) -> Result
     let (Some(table), Some(menu)) = (table, menu) else {
         return Err(BadInput("no current menu, stage records or times table").into());
     };
-    let both_off =
-        (menus.play.champ_view.switch_f8.get() ^ 1) & (menus.play.champ_view.switch_fc.get() ^ 1);
+    let both_off = (menus.play.champ_view.switches.records_set.get() ^ 1)
+        & (menus.play.champ_view.switches.records_alt.get() ^ 1);
     let fastest = if both_off == 1 {
         crate::records::find_stage_record::find_stage_record(
             &o.system.records().stage_tables,
             stages.championship(),
-            menus.tables.captions.shown_group.get(),
-            menus.tables.captions.shown_stage.get(),
+            menus.play.champ_view.shown_stage.group.get(),
+            menus.play.champ_view.shown_stage.number.get(),
         )?
     } else {
         record
     };
-    let holder = if both_off != 1 && menus.play.champ_view.switch_fc.get() == 1 {
+    let holder = if both_off != 1 && menus.play.champ_view.switches.records_alt.get() == 1 {
         Holder::TimeTrial
     } else {
         Holder::Fastest
@@ -149,7 +155,7 @@ pub fn draw_stage_results(o: Owners<'static>, canvas: &mut dyn Canvas) -> Result
     };
     set_item(
         1,
-        if menus.play.champ_view.switch_f8.get() == 1 {
+        if menus.play.champ_view.switches.records_set.get() == 1 {
             0x19C
         } else {
             0x19B
@@ -157,7 +163,7 @@ pub fn draw_stage_results(o: Owners<'static>, canvas: &mut dyn Canvas) -> Result
     )?;
     set_item(
         2,
-        if menus.play.champ_view.switch_fc.get() == 1 {
+        if menus.play.champ_view.switches.records_alt.get() == 1 {
             0x19E
         } else {
             0x19D

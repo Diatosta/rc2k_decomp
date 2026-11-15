@@ -115,6 +115,7 @@ fn key_and_step(
     menus
         .play
         .champ_view
+        .key_clock
         .last_key_time
         .set(system.clocks().frame.get());
     match action {

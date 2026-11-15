@@ -1,4 +1,4 @@
-//! The championship's standings table: ten rows from `champ_view.first_row` of class
+//! The championship's standings table: ten rows from `champ_view.rows.first_row` of class
 //! `event.shown.class` in the championship history (entries with the player flag, car, flag, class,
 //! name, six rounds' points (below 0: none), total and position).
 
@@ -48,7 +48,7 @@ pub fn draw_championship_table(
     // after those before it).
     let (class, first) = (
         menus.screens.event.shown.class.get(),
-        menus.play.champ_view.first_row.get(),
+        menus.play.champ_view.rows.first_row.get(),
     );
     let mut rows = Vec::with_capacity(10);
     for n in 0..10u32 {

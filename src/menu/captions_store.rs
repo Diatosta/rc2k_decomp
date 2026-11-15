@@ -1,6 +1,5 @@
-//! The screens' string-id tables and a few flags, out of RAL.EXE's image: the "screen left" flag,
-//! the stage shown, the nationalities, the duel's labels, the places' points, the player views, and
-//! the lists of captions' string ids. One static.
+//! The screens' string-id tables and the "screen left" flag: the nationalities, the duel's
+//! labels, the places' points, the player views and the lists of captions' string ids.
 
 use crate::session::{PlainDword, PlainFlag};
 
@@ -10,13 +9,6 @@ pub struct CaptionTables {
     /// 1 when the screen was left with a key (Escape in `handle_keys`, a yes / no answer, a name
     /// entry); the loop puts its leave question on it and the screens that look at it clear it.
     pub left_by_key: PlainFlag,
-    /// Not read.
-    pub dword_75880a: PlainDword,
-    /// The stage group of the stage shown (the record table's index; set by menu::option_items).
-    pub shown_group: PlainDword,
-    /// The index of the stage shown in its group (times 0xA4 into the group's records; set by the
-    /// stage pages' steps in menu::option_items and read by screens::stage_results).
-    pub shown_stage: PlainDword,
     /// The nationalities' name string ids (`screens::draw_player_details`).
     pub nationalities: [PlainDword; 47],
     /// The duel result's labels' string ids, by value (-1 ends).
@@ -36,9 +28,6 @@ impl CaptionTables {
     pub const fn new() -> Self {
         CaptionTables {
             left_by_key: PlainFlag::new(false),
-            dword_75880a: PlainDword::new(0x1),
-            shown_group: PlainDword::new(0x0),
-            shown_stage: PlainDword::new(0x1),
             nationalities: [
                 PlainDword::new(0x57D),
                 PlainDword::new(0x57E),

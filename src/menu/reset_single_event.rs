@@ -1,4 +1,4 @@
-//! `menu::reset_single_event`: `pages.services` / `event.stages_done` 0; every
+//! `menu::reset_single_event`: `champ_view.services` / `event.stages_done` 0; every
 //! driver's +0x10 / +0xC / +0x20 0 and +0x24 1; `event.event_goes_on` 1, `event.event_out` 0; the
 //! four players' `total` and `unread_84` 0 and `entry` 1 (`Player::begin`; a single event's
 //! start).
@@ -12,7 +12,7 @@ use crate::menu::standings::*;
 pub fn reset_single_event(menus: &Menus) -> Result<(), Refused> {
     let drivers = drivers(menus)?;
 
-    menus.tables.pages.services.set(0u32);
+    menus.play.champ_view.services.set(0u32);
     menus.screens.event.stages_done.set(0u32);
 
     drivers

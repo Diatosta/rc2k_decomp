@@ -182,7 +182,7 @@ pub fn run_event_races(o: Owners<'static>) -> Result<(), Refused> {
     {
         return Err(BadInput("a player of the event's mode missing").into());
     }
-    let reset_only = { menus.tables.pages.reset_times.get() } == 1;
+    let reset_only = { menus.play.champ_view.reset_times.get() } == 1;
     let rec = crate::menu::calc_cpu_times::record(screens, o.system)?;
     crate::menu::calc_cpu_times::check(menus, o.system, o.race, rec)?;
     let pack = crate::records::trakpak_entry::track_of(&o.system.records().stage_tables, rec)?;

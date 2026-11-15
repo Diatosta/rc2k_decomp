@@ -29,9 +29,10 @@ pub enum OptionSwitch {
     /// `sound.menu.options.race_music_on`: the race music on or off (tune 8 plays only while it is
     /// 1), kept in the options file.
     RaceMusicOn,
-    /// `play.champ_view.switch_f8`: which stage record tables the stage pages show.
+    /// `play.champ_view.switches.records_set`: which stage record tables the stage pages show.
     StageRecordsSet,
-    /// `play.champ_view.switch_fc`: the alternative tables of those (adds 2 to the table).
+    /// `play.champ_view.switches.records_alt`: the alternative tables of those (adds 2 to the
+    /// table).
     StageRecordsAlt,
     /// Mipmapping (also flips its display choice).
     Mipmapping,
@@ -62,9 +63,9 @@ pub enum OptionSwitch {
 /// The stage pages' two counters.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum StageCounter {
-    /// `captions.shown_group`: the stage group shown, 0 .. 5.
+    /// `champ_view.shown_stage.group`: the stage group shown, 0 .. 5.
     Group,
-    /// `captions.shown_stage`: the stage shown in its group, 1 .. 6.
+    /// `champ_view.shown_stage.number`: the stage shown in its group, 1 .. 6.
     InGroup,
 }
 
