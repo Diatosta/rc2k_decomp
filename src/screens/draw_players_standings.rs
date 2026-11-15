@@ -3,7 +3,6 @@
 //! place and points. Refuses a row's player without its record, name or points.
 
 use crate::errors::{BadInput, Refused};
-use crate::menu::captions_store::CaptionTables;
 use crate::text::draw_text::Canvas;
 
 pub fn draw_players_standings(
@@ -25,7 +24,7 @@ pub fn draw_players_standings(
         {
             return Err(BadInput("a standings row without its name").into());
         }
-        *total = CaptionTables::total_of(menus, row)?.get();
+        *total = menus.play.results.player(row)?.total.get();
     }
     // The logic is in `rc2k_core::screens::players_results::standings`.
     let player = |row: usize| menus.play.players.players[row].get();

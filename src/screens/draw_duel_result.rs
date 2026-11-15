@@ -1,14 +1,14 @@
-//! The two-player stage result: the headings, the faster of players 1 and 2 first
-//! (`results.order`), the stage's name and line, per row the time (string 0x4FA for none), the car
-//! and flag sprites and the name; then per player the top speeds, the time bonuses, their labels
-//! and two columns of six numbers (`results.points`).
+//! The two-player stage result: the headings, the faster of players 1 and 2 first, the stage's
+//! name and line, per row the time, the car and flag sprites and the name; then per player the top
+//! speeds, the time bonuses, their labels and two columns of six figures from the results.
 //!
-//! Refuses players 1 or 2 missing or without a name, no stage records, a stage line past the line
+//! Refused: players 1 or 2 missing or without a name, no stage records, a stage line past the line
 //! buffer and a string index past the duel labels' 21.
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::owner::Screens;
 use crate::menu::owner::Tables;
+use crate::menu::results_store::Results;
 use crate::records::stages_store::{RecordRef, RecordTable};
 use crate::text::draw_text::Canvas;
 
@@ -39,10 +39,10 @@ fn label(tables: &Tables, v: u32) -> Result<u32, Refused> {
 pub fn draw_duel_result(
     o: crate::owners::Owners<'static>,
     system: &crate::system::owner::System,
+    results: &Results,
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
     let menus = o.menus;
-    let play = &menus.play;
     let screens = &menus.screens;
     let tables = &menus.tables;
     let (p1, p2) = (
@@ -62,8 +62,8 @@ pub fn draw_duel_result(
         return Err(BadInput("a stage line past the line buffer").into());
     }
     let (label1, label2) = (
-        label(tables, play.results.positions[0].get())?,
-        label(tables, play.results.positions[1].get())?,
+        label(tables, results.players[0].position.get())?,
+        label(tables, results.players[1].position.get())?,
     );
     // The logic is in `rc2k_core::screens::duel_result`.
     use rc2k_core::screens::player_result::Player;
@@ -82,19 +82,10 @@ pub fn draw_duel_result(
     let figures = rc2k_core::screens::duel_result::Figures {
         labels: [label1, label2],
         best: [
-            play.results.time_bonus[0].get(),
-            play.results.time_bonus[1].get(),
+            results.players[0].time_bonus.get(),
+            results.players[1].time_bonus.get(),
         ],
-        columns: [0, 1].map(|p| {
-            [
-                play.results.points[p].get(),
-                play.results.time_bonus[p].get(),
-                play.results.extra[p].get(),
-                play.results.sums[p].get(),
-                play.results.before[p].get(),
-                play.results.totals[p].get(),
-            ]
-        }),
+        columns: [0, 1].map(|p| results.players[p].get().column()),
     };
     rc2k_core::screens::duel_result::duel_result(
         &mut crate::screens::game_screen::GameScreen::<_, _, crate::screens::game_screen::HeldText>::new(canvas, o),

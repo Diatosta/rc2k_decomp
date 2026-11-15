@@ -35,7 +35,7 @@ pub fn set_stage_choice_titles(
         crate::strings::append_string_by_id::StringOwners::of(o),
         s.record,
     )?;
-    let group_title = group_title(&menus.play.results, s.group)?;
+    let group_title = group_title(s.group)?;
     tables.menus.select_stage.id().items(&tables.menus)[0]
         .string
         .set(group_title);

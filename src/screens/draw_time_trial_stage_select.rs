@@ -25,12 +25,10 @@ pub fn draw_time_trial_stage_select(
     canvas: &mut dyn Canvas,
 ) -> Result<bool, Refused> {
     let menus = o.menus;
-    let play = &menus.play;
     let screens = &menus.screens;
-    let (Some(sel), Some((group_title, table_title))) = (
-        selection_in(menus, system)?,
-        menu_titles(menus, system, play)?,
-    ) else {
+    let (Some(sel), Some((group_title, table_title))) =
+        (selection_in(menus, system)?, menu_titles(menus, system)?)
+    else {
         return Err(
             BadInput("no record table is selected: the original reads through null").into(),
         );

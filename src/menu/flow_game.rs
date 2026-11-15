@@ -93,7 +93,7 @@ fn place<'a>(menus: &'a Menus, race: &'a Race, v: Var) -> Place<'a> {
         Var::RaceResult2 => Cell(&race.shared.state.results.results[1].result),
         Var::CarListKind => Cell(&menus.screens.flow.car_list_kind),
         Var::Cheats => Cell(&menus.play.cheats.cheats),
-        Var::Cleared(k) => Cell(&menus.play.results.before[k as usize]),
+        Var::Cleared(k) => Cell(&menus.play.results.players[k as usize].before),
         Var::PlayerTime(n) => Place::Player(n, PlayerField::Time),
         Var::PlayerEntry(n) => Place::Player(n, PlayerField::Entry),
         Var::Continuing => Cell(&menus.screens.event.continuing_save),

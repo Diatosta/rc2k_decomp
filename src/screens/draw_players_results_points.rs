@@ -6,13 +6,15 @@
 //! and a speed `screens::draw_spaced_number` refuses.
 
 use crate::errors::Refused;
+use crate::menu::results_store::Results;
 use crate::screens::players_results::{WITH_POINTS, draw_players_results};
 use crate::text::draw_text::Canvas;
 
 pub fn draw(
     o: crate::owners::Owners<'static>,
     system: &crate::system::owner::System,
+    results: &Results,
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
-    draw_players_results(o, system, &WITH_POINTS, canvas)
+    draw_players_results(o, system, results, &WITH_POINTS, canvas)
 }

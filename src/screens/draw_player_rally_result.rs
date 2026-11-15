@@ -4,17 +4,18 @@
 //! `strings::append_speed` refuses.
 
 use crate::errors::Refused;
+use crate::menu::results_store::Results;
 use crate::screens::best_scores::{RALLY_STAGE_TIMES, draw_times_heading};
 use crate::text::draw_text::Canvas;
 
-/// (id, x, y, font) of the labels.
+/// Draws the rally stage result of the current player, with the places and points in `results`.
 pub fn draw_player_rally_result(
     o: crate::owners::Owners<'static>,
     system: &crate::system::owner::System,
+    results: &Results,
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
     let menus = o.menus;
-    let play = &menus.play;
     let player = crate::menu::player_settings::current(menus)?.get();
     let name = crate::screens::game_screen::player_name_of(crate::menu::player_name::name(menus)?);
     (RALLY_STAGE_TIMES.records)(menus, system)?;
@@ -34,17 +35,11 @@ pub fn draw_player_rally_result(
         time: player.time,
         speed,
     };
+    let figures = results.players[0].get();
     let figures = rc2k_core::screens::player_result::RallyFigures {
-        position: play.results.positions[0].get(),
-        best: play.results.time_bonus[0].get(),
-        column: [
-            play.results.points[0].get(),
-            play.results.time_bonus[0].get(),
-            play.results.extra[0].get(),
-            play.results.sums[0].get(),
-            play.results.before[0].get(),
-            play.results.totals[0].get(),
-        ],
+        position: figures.position,
+        best: figures.time_bonus,
+        column: figures.column(),
     };
     rc2k_core::screens::player_result::rally_result(
         &mut PlayerResultScreen::new(canvas, o),

@@ -1,11 +1,9 @@
-//! `menu::arcade_level_end`: an arcade level's end. Unless the level was won
-//! (`results.positions` is 1): tune 7 (`sound::play_tune_7`),
-//! `menu::arcade_level_end_results_loop` and `arcade.retry` set to 1. Won: tune 6,
-//! `menu::arcade_finale`; the first time the level is won (`arcade.levels_won` 0, made 1) its
-//! secret car is shown (`menu::car_specs_display_loop` on the shown cars list), then
-//! `add_shown_car` and `remove_shown_car`; then `saves::save_game_data`.
+//! An arcade level's end. A level not won (the first player's place is not 1) plays the losing
+//! tune, shows the level-end results and sets the retry flag. A won level plays the winning tune
+//! and the finale; the first time it is won its secret car is shown and added to the cars, and
+//! the game is saved.
 //!
-//! Refuses (before anything) a level past 5.
+//! Refused before anything: a level past 5.
 
 use crate::errors::Refused;
 use crate::menu::lists_store::CarList;
@@ -20,7 +18,7 @@ pub fn arcade_level_end(
 ) -> Result<(), Refused> {
     let play = &menus.play;
     use rc2k_core::menu::arcade::{first_win, won, won_level};
-    if !won(play.results.positions[0].get()) {
+    if !won(play.results.players[0].position.get()) {
         crate::sound::play_tune_7::play_tune_7(entry.owners);
         run_screen(ScreenId::ArcadeLevelEndResults, entry)?;
         play.arcade.retry.set(1u32);
@@ -29,8 +27,8 @@ pub fn arcade_level_end(
     let level = won_level(play.arcade.level.get())?;
     crate::sound::play_tune_6::play_tune_6(entry.owners);
     crate::menu::arcade_finale::arcade_finale(entry.owners)?;
-    if first_win(play.arcade.levels_won.get(level as usize)) {
-        play.arcade.levels_won.set(level as usize, 1);
+    if first_win(play.arcade.opened(level as usize)) {
+        play.arcade.open(level as usize);
         let shown = entry.with_list(Some(CarList::Shown));
         run_screen(ScreenId::CarSpecsDisplay, &shown)?;
         crate::menu::arcade_steps::add_shown_car(menus)?;

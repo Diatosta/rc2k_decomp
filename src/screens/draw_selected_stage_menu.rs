@@ -8,7 +8,6 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::owner::Menus;
-use crate::menu::owner::Play;
 use crate::screens::draw_stage_records::selection_in;
 use crate::screens::stage_panel::{
     build_second_heading, draw_records_for_group, draw_stage_body, group_title, menu_item_id,
@@ -19,13 +18,12 @@ use crate::text::draw_text::Canvas;
 pub fn menu_titles(
     menus: &Menus,
     system: &crate::system::owner::System,
-    play: &Play,
 ) -> Result<Option<(u32, u32)>, BadInput> {
     let Some(sel) = selection_in(menus, system)? else {
         return Ok(None);
     };
     Ok(Some((
-        group_title(&play.results, sel.group)?,
+        group_title(sel.group)?,
         sel.table.title(&system.records().stage_tables)?,
     )))
 }
@@ -40,12 +38,10 @@ pub fn draw_selected_stage_menu(
     canvas: &mut dyn Canvas,
 ) -> Result<bool, Refused> {
     let menus = o.menus;
-    let play = &menus.play;
     let screens = &menus.screens;
-    let (Some(sel), Some((group_title, table_title))) = (
-        selection_in(menus, system)?,
-        menu_titles(menus, system, play)?,
-    ) else {
+    let (Some(sel), Some((group_title, table_title))) =
+        (selection_in(menus, system)?, menu_titles(menus, system)?)
+    else {
         return Err(
             BadInput("no record table is selected: the original reads through null").into(),
         );

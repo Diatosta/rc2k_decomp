@@ -167,11 +167,7 @@ pub fn stage_choice_texts(o: Owners<'static>) -> Result<(), Refused> {
         .view_courses
         .id()
         .items(&menus.tables.menus);
-    set_item(
-        items,
-        0,
-        crate::screens::stage_panel::group_title(&menus.play.results, a)?,
-    )?;
+    set_item(items, 0, crate::screens::stage_panel::group_title(a)?)?;
     let (base, record) = stage_record(stages, a, b, menus.screens.event.stage_number.get())?;
     menus
         .tables

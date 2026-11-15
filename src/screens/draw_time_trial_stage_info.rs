@@ -36,7 +36,7 @@ pub fn draw_time_trial_stage_info(
     label(
         crate::strings::append_string_by_id::StringOwners::of(o),
         canvas,
-        group_title(&menus.play.results, sel.group)?,
+        group_title(sel.group)?,
         TITLE_FONT,
         TITLE_X,
         GROUP_TITLE_Y,

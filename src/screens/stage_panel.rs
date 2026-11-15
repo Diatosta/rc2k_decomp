@@ -31,15 +31,8 @@ const HEADING_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts
 /// The title string of stage group `group` (`Results.group_titles`). The group is 0 or 1:
 /// only `menu::switch_stage_group` (0 <-> 1) and `menu::view_courses_loop` (0) write it,
 /// and no saved file holds it. Refused past the field.
-pub fn group_title(
-    results: &crate::menu::results_store::Results,
-    group: u32,
-) -> Result<u32, BadInput> {
-    results
-        .group_titles
-        .get(group as usize)
-        .map(PlainDword::get)
-        .ok_or(BadInput("a stage group past its title"))
+pub fn group_title(group: u32) -> Result<u32, BadInput> {
+    crate::menu::results_store::Results::group_title(group)
 }
 
 /// The title string of section `section` of the A8 championship (`MenuLists.section_titles`,

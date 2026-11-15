@@ -35,11 +35,11 @@ fn cell(race: &Race, v: Var) -> Option<&dyn DwordLike> {
 fn address(menus: &Menus, v: Var) -> &'_ PlainDword {
     match v {
         Var::Failed => &menus.play.arcade.retry,
-        Var::TotalA8 => &menus.play.results.before[0],
-        Var::Total798 => &menus.play.results.sums[0],
-        Var::TotalB8 => &menus.play.results.totals[0],
-        Var::Figure768 => &menus.play.results.positions[0],
-        Var::Figure758 => &menus.play.results.time_bonus[0],
+        Var::TotalA8 => &menus.play.results.players[0].before,
+        Var::Total798 => &menus.play.results.players[0].sum,
+        Var::TotalB8 => &menus.play.results.players[0].total,
+        Var::Figure768 => &menus.play.results.players[0].position,
+        Var::Figure758 => &menus.play.results.players[0].time_bonus,
         Var::PlayerCount => &menus.screens.event.player_count,
         Var::EventMode => &menus.screens.event.event_kind,
         Var::Stage => &menus.play.arcade.stage,

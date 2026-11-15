@@ -1,22 +1,20 @@
-//! The set-ups of the players' results screens, all plain stores:
-//! - `menu::rank_stage_times` / `rank_totals`: the four players' stage times (or totals) sorted
-//!   with an exchange loop (stage times: each pair exchanged when j's time is at most i's,
-//!   signed; totals: at least); the order goes into the duel's players and, through the place
-//!   pointers, the places 1 .. 4.
-//! - `menu::score_four_players`: per player the total before, the place's points, the time
-//!   bonus (the stage record's +0x34 less the player's time, 0 when greater, signed), the
-//!   player's +0x94, their sum and the new total (`results.*`).
-//! - `menu::score_two_players`: the same for two, with the places worked out here (1 and 2, or
-//!   2 and 1 when the second's time is below the first's).
+//! The set-ups of the players' results screens:
+//! - `rank_stage_times` / `rank_totals`: the four players sorted by stage time (or total); the
+//!   order goes into `results.order` and the places 1 .. 4 into the players' figures.
+//! - `score_four_players`: per player the total before, the place's points, the time bonus (the
+//!   stage record's time less the player's, 0 when greater), the player's top speed as extra
+//!   points, their sum and the new total.
+//! - `score_two_players`: the same for two, with the places worked out here (1 and 2, or 2 and 1
+//!   when the second's time is below the first's).
 //!
-//! Refusals (before anything): a missing player record or stage record, a position past 16, an
-//! offset past the four, a null place pointer.
+//! Refused before anything is written: a missing player record or stage record, a position past
+//! 16, an offset past the four.
 
 use crate::errors::{BadInput, Refused};
-use crate::menu::captions_store::CaptionTables;
 use crate::menu::owner::Menus;
 use crate::menu::owner::Screens;
 use crate::menu::owner::Tables;
+use crate::menu::results_store::PlayerFigures;
 use crate::system::owner::System;
 
 const POSITION_LIMIT: u32 = 16;
@@ -30,17 +28,24 @@ fn players(menus: &Menus, n: u32) -> Result<Vec<crate::menu::standings::PlayerCe
         .collect()
 }
 
-fn place_pointer(menus: &Menus, offset: u32) -> Result<&crate::session::PlainDword, Refused> {
+/// The figures of the player whose record is at byte `offset` of the player table.
+fn figures_at(menus: &Menus, offset: u32) -> Result<&PlayerFigures, Refused> {
     if offset > 12 || !offset.is_multiple_of(4) {
-        return Err(BadInput("an offset past the place pointers").into());
+        return Err(BadInput("an offset past the four players").into());
     }
-    Ok(CaptionTables::place_of(menus, offset as usize / 4)?)
+    Ok(menus.play.results.player(offset as usize / 4)?)
 }
 
 /// The ranking of `rank_stage_times` (`by_totals` false) or `rank_totals`.
 pub fn rank(menus: &Menus, by_totals: bool) -> Result<(), Refused> {
     let values: Vec<u32> = if by_totals {
-        (0..4).map(|k| menus.play.results.totals[k].get()).collect()
+        menus
+            .play
+            .results
+            .players
+            .iter()
+            .map(|p| p.total.get())
+            .collect()
     } else {
         players(menus, 4)?.iter().map(|&r| r.get().time).collect()
     };
@@ -48,16 +53,14 @@ pub fn rank(menus: &Menus, by_totals: bool) -> Result<(), Refused> {
         rc2k_core::menu::results::rank([values[0], values[1], values[2], values[3]], by_totals);
     let targets: Vec<_> = pairs
         .iter()
-        .map(|&(o, _)| place_pointer(menus, o))
+        .map(|&(o, _)| figures_at(menus, o))
         .collect::<Result<_, _>>()?;
-    for (k, &(o, v)) in pairs.iter().enumerate() {
-        menus.play.results.pairs[2 * k].set(o);
-        menus.play.results.pairs[2 * k + 1].set(v);
+    for (k, &(o, _)) in pairs.iter().enumerate() {
         menus.play.results.order[k].set(o);
     }
     menus.screens.draw_work.button_y.set(3);
     for (k, to) in targets.iter().enumerate() {
-        to.set(k as u32 + 1);
+        to.position.set(k as u32 + 1);
     }
     Ok(())
 }
@@ -93,33 +96,34 @@ pub fn score(menus: &Menus, system: &System, n: usize) -> Result<(), Refused> {
         rc2k_core::menu::results::two_places([times[0], times[1]]).to_vec()
     } else {
         (0..n)
-            .map(|k| menus.play.results.positions[k].get())
+            .map(|k| menus.play.results.players[k].position.get())
             .collect()
     };
     let earned: Vec<u32> = positions
         .iter()
         .map(|&q| points(&menus.tables, q))
         .collect::<Result<_, _>>()?;
-    for k in 0..n {
-        menus.play.results.before[k].set(menus.play.results.totals[k].get());
+    let results = &menus.play.results;
+    for player in &results.players[..n] {
+        player.before.set(player.total.get());
     }
     if n == 2 {
-        menus.play.results.positions[0].set(positions[0]);
-        menus.play.results.positions[1].set(positions[1]);
+        results.players[0].position.set(positions[0]);
+        results.players[1].position.set(positions[1]);
     }
-    for k in 0..n {
+    for (k, player) in results.players[..n].iter().enumerate() {
         let sc = rc2k_core::menu::results::score(
-            menus.play.results.before[k].get(),
+            player.before.get(),
             earned[k],
             times[k],
             target,
             records[k].get().figure,
         );
-        menus.play.results.points[k].set(sc.points);
-        menus.play.results.time_bonus[k].set(sc.bonus);
-        menus.play.results.extra[k].set(sc.extra);
-        menus.play.results.sums[k].set(sc.sum);
-        menus.play.results.totals[k].set(sc.total);
+        player.points.set(sc.points);
+        player.time_bonus.set(sc.bonus);
+        player.extra.set(sc.extra);
+        player.sum.set(sc.sum);
+        player.total.set(sc.total);
     }
     Ok(())
 }

@@ -35,7 +35,7 @@ const SHOWN_LIST_LEN: u32 = 0x30;
 
 /// The stage's record: the level's table row for the stage.
 fn stage_record(play: &Play, system: &System) -> Result<RecordRef, Refused> {
-    let (level, stage) = (play.arcade.level.get(), play.arcade.stage.get());
+    let (level, stage) = play.arcade.position();
     if level > 5 || stage > 6 {
         return Err(BadInput("an arcade level past 5 or stage past 6").into());
     }
@@ -106,7 +106,7 @@ pub fn keep_arcade_stage_best(
 
 pub fn check_arcade_level_score(menus: &Menus) -> Result<(), Refused> {
     let best = with_level_scores(&menus.play, |ten| ten[9].key)?;
-    if bests::makes_score(menus.play.results.totals[0].get(), best) {
+    if bests::makes_score(menus.play.results.players[0].total.get(), best) {
         menus.screens.event.time_qualifies.set(1);
     }
     Ok(())
@@ -184,7 +184,7 @@ pub fn enter_arcade_level_score(menus: &Menus) -> Result<(), Refused> {
     with_level_scores(&menus.play, |_| ())?;
     let (n, player) = current(menus)?;
     name_player(&player.get())?;
-    let score = menus.play.results.totals[usize::from(n == 1)].get();
+    let score = menus.play.results.players[usize::from(n == 1)].total.get();
     let best = new_best(menus, player, score, None, None)?;
     with_level_scores(&menus.play, |ten| {
         ten[9].enter(&best);
@@ -198,16 +198,17 @@ pub fn enter_arcade_level_score(menus: &Menus) -> Result<(), Refused> {
 pub fn score_arcade_stage(menus: &Menus) -> Result<(), Refused> {
     let play = &menus.play;
     let first = crate::menu::standings::player(menus, 0);
-    play.results.before[0].set(play.results.totals[0].get());
-    play.results.extra[0].set(first.get().figure);
-    let points =
-        standings::arcade_points(play.arcade.places.get(), play.results.positions[0].get());
-    play.results.points[0].set(points);
-    let sum = points
-        .wrapping_add(play.results.time_bonus[0].get())
-        .wrapping_add(play.results.extra[0].get());
-    play.results.sums[0].set(sum);
-    play.results.totals[0].set(play.results.before[0].get().wrapping_add(sum));
+    let player = &play.results.players[0];
+    let mut figures = player.get();
+    figures.before = figures.total;
+    figures.extra = first.get().figure;
+    figures.points = standings::arcade_points(play.arcade.places.get(), figures.position);
+    figures.sum = figures
+        .points
+        .wrapping_add(figures.time_bonus)
+        .wrapping_add(figures.extra);
+    figures.total = figures.before.wrapping_add(figures.sum);
+    player.set(figures);
     Ok(())
 }
 

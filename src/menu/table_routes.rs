@@ -625,9 +625,12 @@ pub fn screen_fn(o: Owners<'static>, f: ScreenFn) -> Result<(), Refused> {
             )
         }
         .map(|_| ()),
-        ScreenFn::DrawPlayersResultsPoints => {
-            draw_players_results_points::draw(o, o.system, &mut GameCanvas::new(o.gfx))
-        }
+        ScreenFn::DrawPlayersResultsPoints => draw_players_results_points::draw(
+            o,
+            o.system,
+            &menus.play.results,
+            &mut GameCanvas::new(o.gfx),
+        ),
         ScreenFn::DrawPlayersStandings => {
             draw_players_standings::draw_players_standings(o, &mut GameCanvas::new(o.gfx))
                 .map(|_| ())
@@ -639,9 +642,13 @@ pub fn screen_fn(o: Owners<'static>, f: ScreenFn) -> Result<(), Refused> {
             &mut GameCanvas::new(o.gfx),
         )
         .map(|_| ()),
-        ScreenFn::DrawDuelResult => {
-            draw_duel_result::draw_duel_result(o, o.system, &mut GameCanvas::new(o.gfx)).map(|_| ())
-        }
+        ScreenFn::DrawDuelResult => draw_duel_result::draw_duel_result(
+            o,
+            o.system,
+            &menus.play.results,
+            &mut GameCanvas::new(o.gfx),
+        )
+        .map(|_| ()),
         ScreenFn::DrawTimeTrialStageInfo => {
             draw_time_trial_stage_info::draw_time_trial_stage_info(
                 o,
@@ -659,6 +666,7 @@ pub fn screen_fn(o: Owners<'static>, f: ScreenFn) -> Result<(), Refused> {
         ScreenFn::DrawPlayerRallyResult => draw_player_rally_result::draw_player_rally_result(
             o,
             o.system,
+            &menus.play.results,
             &mut GameCanvas::new(o.gfx),
         )
         .map(|_| ()),
@@ -686,9 +694,12 @@ pub fn screen_fn(o: Owners<'static>, f: ScreenFn) -> Result<(), Refused> {
         ScreenFn::DrawStageTimes => {
             draw_stage_times::draw(o, o.system, &mut GameCanvas::new(o.gfx))
         }
-        ScreenFn::DrawPlayersResults => {
-            draw_players_results::draw(o, o.system, &mut GameCanvas::new(o.gfx))
-        }
+        ScreenFn::DrawPlayersResults => draw_players_results::draw(
+            o,
+            o.system,
+            &menus.play.results,
+            &mut GameCanvas::new(o.gfx),
+        ),
         ScreenFn::DrawStageResults => {
             stage_results::draw_stage_results(o, &mut GameCanvas::new(o.gfx)).map(|_| ())
         }

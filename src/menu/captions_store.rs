@@ -2,8 +2,6 @@
 //! the stage shown, the nationalities, the duel's labels, the places' points, the player views, and
 //! the lists of captions' string ids. One static.
 
-use crate::errors::BadInput;
-use crate::menu::owner::Menus;
 use crate::session::{PlainDword, PlainFlag};
 
 /// The string-id tables.
@@ -32,38 +30,6 @@ pub struct CaptionTables {
     /// The lists of captions' string ids, each ended by -1 (`screens::draw_highlighted_caption`,
     /// `menu::option_steps`).
     pub caption_lists: [PlainDword; 88],
-}
-
-impl CaptionTables {
-    /// Position `k` of the results (`Results::positions[k]`).
-    pub fn place_of(menus: &Menus, k: usize) -> Result<&PlainDword, BadInput> {
-        menus
-            .play
-            .results
-            .positions
-            .get(k)
-            .ok_or(BadInput("a place pointer past the four"))
-    }
-
-    /// Sum `k` of the results (`Results::sums[k]`).
-    pub fn sum_of(menus: &Menus, k: usize) -> Result<&PlainDword, BadInput> {
-        menus
-            .play
-            .results
-            .sums
-            .get(k)
-            .ok_or(BadInput("a sum pointer past the four"))
-    }
-
-    /// Total `k` of the results (`Results::totals[k]`).
-    pub fn total_of(menus: &Menus, k: usize) -> Result<&PlainDword, BadInput> {
-        menus
-            .play
-            .results
-            .totals
-            .get(k)
-            .ok_or(BadInput("a total pointer past the four"))
-    }
 }
 
 impl CaptionTables {
@@ -287,34 +253,5 @@ impl CaptionTables {
                 PlainDword::new(0x5),
             ],
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::menu::owner::menus;
-
-    #[test]
-    fn the_results_cells_are_found_by_player() {
-        let play = &menus().play;
-        for k in 0..4 {
-            let m = menus();
-            assert!(std::ptr::eq(
-                CaptionTables::place_of(m, k).unwrap(),
-                &raw const play.results.positions[k]
-            ));
-            assert!(std::ptr::eq(
-                CaptionTables::sum_of(m, k).unwrap(),
-                &raw const play.results.sums[k]
-            ));
-            assert!(std::ptr::eq(
-                CaptionTables::total_of(m, k).unwrap(),
-                &raw const play.results.totals[k]
-            ));
-        }
-        assert!(CaptionTables::place_of(menus(), 4).is_err());
-        assert!(CaptionTables::sum_of(menus(), 4).is_err());
-        assert!(CaptionTables::total_of(menus(), 4).is_err());
     }
 }

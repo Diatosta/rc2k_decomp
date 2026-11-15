@@ -49,7 +49,7 @@ pub fn note_locked_stage(o: crate::owners::Owners<'static>) -> Result<(), Refuse
             // 7 are not asked about. Item 0 (index -2) lies before the table, in bytes nothing
             // writes: not open.
             match index {
-                0..8 => menus.play.arcade.levels_won.get(index as usize),
+                0..8 => menus.play.arcade.opened(index as usize),
                 NOT_IN_TABLE => 0,
                 _ => fault.ok(Err(crate::errors::BadInput(
                     "a stage's lock past the table",
