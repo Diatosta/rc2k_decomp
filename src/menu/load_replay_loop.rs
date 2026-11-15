@@ -9,7 +9,6 @@ use crate::menu::owner::Menus;
 use crate::menu::owner::Screens;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Callee, Frames, Keys, List, Screen, Step};
-use crate::menu::texts_store::texts;
 
 fn before(screens: &Screens) -> Result<(), Refused> {
     screens.items.current[slot::LOAD_REPLAY].set(screens.items.first[slot::LOAD_REPLAY].get());
@@ -59,8 +58,8 @@ pub const SCREEN: Screen = Screen {
         },
     ],
     before: &[Step::DoScreens(before)],
-    background: &[Step::Call(Callee::LoadBackground(|_| {
-        &texts().load_replay_picture
+    background: &[Step::Call(Callee::LoadBackground(|m| {
+        &m.texts.load_replay_picture
     }))],
     result: Some(result),
     keys: Keys {

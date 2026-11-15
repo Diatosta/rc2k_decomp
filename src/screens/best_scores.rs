@@ -7,7 +7,6 @@
 use crate::errors::{BadInput, Refused};
 use crate::menu::event_flow::Fault;
 use crate::menu::event_flow::StageTable;
-use crate::menu::lists_store::lists;
 use crate::menu::owner::Menus;
 use crate::menu::pages_store::MenuPages;
 use crate::records::stages_store::{Holder, RecordRef, RecordTable};
@@ -136,7 +135,7 @@ pub fn draw_scores(
         let group = match (t.group_fixed, t.group_at) {
             (Some(g), _) => g,
             (None, Some(a)) => a(menus).get(),
-            (None, None) => page_title(&lists().page_titles_b, &menus.tables.pages)?,
+            (None, None) => page_title(&menus.lists.page_titles_b, &menus.tables.pages)?,
         };
         let ten = match t.at {
             Source::Scores => o
@@ -239,12 +238,13 @@ pub fn draw_best_scores_page(
 /// The caption string from the page's entry of the caption list and its NUL.
 pub fn best_scores_caption(
     so: crate::strings::append_string_by_id::StringOwners<'_>,
+    lists: &crate::menu::lists_store::MenuLists,
     pages: &MenuPages,
     text: &crate::screens::text_buffers_store::TextBuffers,
 ) -> Result<(), Refused> {
     // The logic is in `rc2k_core::screens::captions::fit` (through `car_caption::put_string`);
     // refused when the caption would pass 0x100 bytes.
-    let id = page_title(&lists().page_titles_a, pages)?;
+    let id = page_title(&lists.page_titles_a, pages)?;
     crate::screens::car_caption::put_string(so, id, &text.caption, 0x100)
 }
 
@@ -480,7 +480,10 @@ pub fn draw_record_heading(
         }
         let first = record_at(menus, system, 0)?;
         let id = if menus.play.champ_view.event_mode.get() == 0x13 {
-            crate::screens::stage_panel::section_title(lists(), menus.screens.event.section.get())?
+            crate::screens::stage_panel::section_title(
+                &menus.lists,
+                menus.screens.event.section.get(),
+            )?
         } else {
             first.record(&system.records().stage_tables)?.name()
         };
@@ -568,7 +571,10 @@ pub fn draw_scores_with_heading(
     // The logic is in `rc2k_core::screens::best_scores::scores_heading`, `heading`.
     let section = (menus.play.champ_view.event_mode.get() == 0x13)
         .then(|| {
-            crate::screens::stage_panel::section_title(lists(), menus.screens.event.section.get())
+            crate::screens::stage_panel::section_title(
+                &menus.lists,
+                menus.screens.event.section.get(),
+            )
         })
         .transpose()?;
     let mut screen = ScoresScreen::new(canvas, o);

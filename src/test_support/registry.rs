@@ -665,10 +665,6 @@ fn listed_stores(o: Owners<'static>) -> Vec<Listed> {
             on_game(o.race.shared.viewer_buffers()),
         ),
         listed!(
-            "screens.text_buffers_store.TEXT_BUFFERS",
-            on_game(crate::screens::text_buffers_store::text_buffers()),
-        ),
-        listed!(
             "race.viewer_state_store.RECTANGLES",
             &crate::race::viewer_state_store::RECTANGLES,
         ),

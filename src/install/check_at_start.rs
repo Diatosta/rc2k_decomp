@@ -10,7 +10,6 @@
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::install::outside::Outside;
 use crate::install::runs_from_source::{scratch_bytes, scratch_put, scratch_text};
-use crate::screens::text_buffers_store::text_buffers;
 use crate::session::Dword;
 use crate::system::owner::System;
 
@@ -29,6 +28,7 @@ pub fn set_script_entry(install: &crate::install::owner::Install, text_id: u16) 
 /// `no_audio` is the sound's switch.
 pub fn check_at_start(
     install: &crate::install::owner::Install,
+    text_buffers: &crate::screens::text_buffers_store::TextBuffers,
     system: &System,
     outside: &mut dyn Outside,
     no_audio: &Dword,
@@ -72,7 +72,7 @@ pub fn check_at_start(
                 .ok_or(BadInput("a version text without a ("))?
                 - 1;
             let text = [b"patch6: ", &version[from..], b"\n\0"].concat();
-            text_buffers()
+            text_buffers
                 .number_text
                 .write_at(0, &text, "the number text")?;
             set_script_entry(install, 0x1006);

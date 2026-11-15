@@ -8,7 +8,6 @@ use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{
     Callee, Entry, Flow, List, Screen, Step, carousel, prepare_scene, quitting,
 };
-use crate::menu::texts_store::texts;
 
 fn set_up_first(entry: &Entry) -> Result<(), Refused> {
     let menus = entry.menus;
@@ -59,8 +58,8 @@ pub const SCREEN: Screen = Screen {
         },
     ],
     set_up_first: &[Step::Do(set_up_first)],
-    background: &[Step::Call(Callee::LoadBackground(|_| {
-        &texts().car_specs_display_picture
+    background: &[Step::Call(Callee::LoadBackground(|m| {
+        &m.texts.car_specs_display_picture
     }))],
     after_first_frame: &[Step::DoFlow(after_first_frame)],
     ..Screen::new(

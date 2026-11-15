@@ -3,19 +3,11 @@
 //! specifications' and slides' paths (which `menu::lists_store`'s tables name by
 //! `MenuText::key`), and two tables of speech samples' names (`car_speech`, `stage_speech`: keys
 //! of `audio::names_store`'s names, `speech_entry`). Each text's value is in `MenuTexts::new`
-//! under its field's name. The one static `MENU_TEXTS` holds them, apart from the menus' state:
+//! under its field's name. `Menus::texts` holds them, apart from the menus' state:
 //! the only writes are the picture loaders', which may swap a path's extension in place
 //! (`files::swap_missing_extension`).
 
-use crate::session::{GameThread, PlainBytes, PlainDword, with_runs};
-
-/// The menus' texts.
-pub static MENU_TEXTS: GameThread<MenuTexts> = GameThread::new(MenuTexts::new());
-
-/// The menus' texts, for the game's thread.
-pub fn texts() -> &'static MenuTexts {
-    MENU_TEXTS.get()
-}
+use crate::session::{PlainBytes, PlainDword, with_runs};
 
 #[cfg_attr(test, repr(C, align(4)))]
 #[derive(rc2k_derive::Cells)]
@@ -2173,6 +2165,7 @@ fn speech_dword(texts: &MenuTexts, n: usize) -> Option<u32> {
 /// The entry at `place` of the speech row `row` (its key): the sample name's key
 /// (`audio::store::name_key`), or `SPEECH_END`.
 pub fn speech_entry(
+    texts: &MenuTexts,
     names: &crate::audio::names_store::SampleNames,
     row: u32,
     place: u32,
@@ -2182,7 +2175,7 @@ pub fn speech_entry(
         .ok_or(crate::errors::BadInput(
             "a speech row's key off the speech rows",
         ))?;
-    let entry = speech_dword(texts(), first as usize + place as usize).ok_or(
+    let entry = speech_dword(texts, first as usize + place as usize).ok_or(
         crate::errors::BadInput("a speech entry off the speech rows"),
     )?;
     // 0: none.
@@ -2194,12 +2187,15 @@ pub fn speech_entry(
 }
 
 /// Where the text of `key` is (`MenuText::key`).
-pub fn text_at(key: u32) -> Result<crate::place::BytePlace, crate::errors::BadInput> {
+pub fn text_at(
+    texts: &'static MenuTexts,
+    key: u32,
+) -> Result<crate::place::BytePlace, crate::errors::BadInput> {
     let text = key
         .checked_sub(1)
         .and_then(|n| MenuText::ALL.get(n as usize))
         .ok_or(crate::errors::BadInput("a text's key off the menus' texts"))?;
-    Ok(text.place(texts()))
+    Ok(text.place(texts))
 }
 
 #[cfg(test)]
@@ -2214,14 +2210,14 @@ mod tests {
 
     #[test]
     fn every_key_names_its_text_and_every_speech_row_its_entries() {
-        let texts = texts();
+        let texts = &crate::test_support::own::menus().texts;
         for (n, text) in MenuText::ALL.iter().enumerate() {
             assert_eq!(text.key() as usize, n + 1);
-            let at = text_at(text.key()).unwrap();
+            let at = text_at(texts, text.key()).unwrap();
             assert!(!at.text("a test text").unwrap().is_empty());
         }
-        assert!(text_at(0).is_err());
-        assert!(text_at(MenuText::ALL.len() as u32 + 1).is_err());
+        assert!(text_at(texts, 0).is_err());
+        assert!(text_at(texts, MenuText::ALL.len() as u32 + 1).is_err());
         assert_eq!(SpeechRow::Car(1).key(), SPEECH_KEY_BASE + 3);
         assert_eq!(SpeechRow::Stage(0).key(), SPEECH_KEY_BASE + 72);
         assert_eq!(speech_dword(texts, CAR_ENTRIES + STAGE_ENTRIES), None);

@@ -2,15 +2,7 @@
 //! cells, the stage line, the caption, the title and the number text (0x100 bytes each), the stage
 //! result's value and the ten page-number texts.
 
-use crate::session::{GameThread, PlainBytes, PlainDword};
-
-/// The screens' text buffers.
-pub static TEXT_BUFFERS: GameThread<TextBuffers> = GameThread::new(TextBuffers::new());
-
-/// The screens' text buffers, for the game's thread.
-pub fn text_buffers() -> &'static TextBuffers {
-    TEXT_BUFFERS.get()
-}
+use crate::session::{PlainBytes, PlainDword};
 
 #[derive(rc2k_derive::Cells)]
 pub struct TextBuffers {

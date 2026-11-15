@@ -10,7 +10,6 @@ use crate::menu::draw_lists_store::DRAW_LISTS;
 use crate::menu::owner::Menus;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Asking, Callee, List, Screen, Step};
-use crate::menu::texts_store::texts;
 
 fn set_first_item(menus: &Menus) -> Result<(), Refused> {
     let title = if menus.screens.state.menus.which_title.is_set() {
@@ -49,8 +48,8 @@ pub const SCREEN: Screen = Screen {
         },
     ],
     before: &[Step::DoMenus(set_first_item)],
-    background: &[Step::Call(Callee::LoadBackground(|_| {
-        &texts().class_rally_results_picture
+    background: &[Step::Call(Callee::LoadBackground(|m| {
+        &m.texts.class_rally_results_picture
     }))],
     asking: Some(Asking { ..Asking::DEFAULT }),
     ..Screen::new(

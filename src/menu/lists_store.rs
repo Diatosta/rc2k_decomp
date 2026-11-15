@@ -1,13 +1,13 @@
 //! The menus' lists and tables: the last draw list, the carousel kinds' own places, the paths and
-//! sounds the menus name, the best scores' titles. `#[repr(C)]` struct of atomic cells, one
-//! static; a list read past its end goes on into the next field (and over the gaps), also into
+//! sounds the menus name, the best scores' titles. `#[repr(C)]` struct of atomic cells, held by
+//! `Menus::lists`; a list read past its end goes on into the next field (and over the gaps), also into
 //! the lists that live elsewhere (`runs_from_map_overlays`). Its last field is a 22-byte string:
 //! the struct is padded to a multiple of 4.
 
 use crate::audio::names_store::NameList;
 use crate::menu::cars_store::car_cell;
 use crate::menu::texts_store::{MenuText, SpeechRow};
-use crate::session::{GameThread, PlainBytes, PlainDword};
+use crate::session::{PlainBytes, PlainDword};
 pub use rc2k_core::menu::car_lists::CarList;
 
 /// What the lists of cars are read through: the repair flags and the carousel's textures sit after
@@ -17,6 +17,7 @@ pub struct CarListParts<'a> {
     pub service: &'a crate::service::owner::Service,
     pub cars: &'a crate::menu::owner::Cars,
     pub carousel: &'a crate::menu::carousel_store::Carousel,
+    pub lists: &'a MenuLists,
 }
 
 impl<'a> CarListParts<'a> {
@@ -25,18 +26,9 @@ impl<'a> CarListParts<'a> {
             service: &menus.service,
             cars: &menus.cars,
             carousel: &menus.screens.carousel,
+            lists: &menus.lists,
         }
     }
-}
-
-/// The menus' lists and tables: constants, except the inspection's fault flags, which the menus
-/// write. The car lists, the repair flags and the carousel's textures are held by their writers
-/// (`CarLists`, `Service`, `Carousel`).
-pub static MENU_LISTS: GameThread<MenuLists> = GameThread::new(MenuLists::new());
-
-/// The menus' lists and tables, for the game's thread.
-pub fn lists() -> &'static MenuLists {
-    MENU_LISTS.get()
 }
 
 /// A gap's first bytes: `runs` are (offset, bytes) of the non-zero ones.

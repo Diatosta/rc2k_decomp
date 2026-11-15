@@ -19,14 +19,13 @@ use crate::menu::screen_loop::{
     ActionCheck, Asking, Callee, Entry, Flow, Frames, Keys, List, MenuSound, SceneVar, Screen,
     ScreenFlag, ScreenVar, Step, carousel, prepare_scene,
 };
-use crate::menu::texts_store::texts;
 use crate::menu::update_blink::update_blink;
 
 fn set_up_first(entry: &Entry) -> Result<(), Refused> {
     let menus = entry.menus;
     menus.screens.event.event_over.set(false);
     // menu::load_background (whether it failed is not looked at)
-    Callee::LoadBackground(|_| &texts().main_menu_picture).run(entry)?;
+    Callee::LoadBackground(|m| &m.texts.main_menu_picture).run(entry)?;
     entry.front_end.window.view_offset[0].set(7u32);
     entry.front_end.window.view_offset[1].set(0xAu32);
     entry.front_end.window.view_zoom.set(0x100u32);

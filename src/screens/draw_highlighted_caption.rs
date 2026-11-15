@@ -10,7 +10,6 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::owners::Owners;
-use crate::screens::text_buffers_store::text_buffers;
 use crate::text::draw_string_by_id::string_text;
 use crate::text::draw_text::Canvas;
 
@@ -40,7 +39,8 @@ pub fn draw_highlighted_caption(
     if caption.len() > CAPTION_LEN {
         return Err(BadInput("a caption longer than its place").into());
     }
-    text_buffers()
+    menus
+        .text_buffers
         .caption
         .write_at(0, &caption, "the caption")?;
     // The logic is in `rc2k_core::screens::highlighted_caption`.

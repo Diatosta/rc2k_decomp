@@ -397,7 +397,7 @@ pub struct TrackEntry {
     /// +0x04: 0 in all 36 entries and read by no code (probably a spare word between the
     /// name and the duration).
     pub unread_zero_04: PlainDword,
-    /// +0x08: the index into `MENU_LISTS.durations`.
+    /// +0x08: the index into `MenuLists::durations`.
     pub duration: PlainDword,
     /// +0x0C: the stage's length.
     pub length: PlainDword,

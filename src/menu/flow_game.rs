@@ -9,7 +9,6 @@ use crate::menu::owner::Menus;
 use crate::menu::screen_id::ScreenId;
 use crate::menu::screen_loop::{Entry, run_screen};
 use crate::menu::standings::Which;
-use crate::menu::texts_store::texts;
 use crate::race::owner::Race;
 use crate::records::stages_store::RecordRef;
 use crate::session::DwordLike;
@@ -432,7 +431,7 @@ impl flow::Game for Game<'_> {
 
     fn load_picture(&mut self, p: Picture) -> Result<bool, Refused> {
         self.fault.check()?;
-        let texts = texts();
+        let texts = &self.menus.texts;
         let picture: &dyn crate::session::TextPlace = match p {
             Picture::Championship => &texts.mob_welc_png,
             Picture::A8 => &texts.a8_welc_png,

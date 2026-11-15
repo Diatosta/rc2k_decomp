@@ -4,7 +4,6 @@
 use crate::menu::draw_lists_store::DRAW_LISTS;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Asking, Callee, FrameRoutine, Frames, List, Screen, Step};
-use crate::menu::texts_store::texts;
 
 pub const SCREEN: Screen = Screen {
     lists: &[
@@ -25,7 +24,7 @@ pub const SCREEN: Screen = Screen {
         },
     ],
     background: &[
-        Step::Call(Callee::LoadPicture(|_| &texts().inspection_area_picture)),
+        Step::Call(Callee::LoadPicture(|m| &m.texts.inspection_area_picture)),
         Step::CallOrFatal(Callee::ConvertPicture, 0x80712345),
     ],
     asking: Some(Asking { ..Asking::DEFAULT }),

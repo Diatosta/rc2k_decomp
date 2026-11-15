@@ -20,7 +20,6 @@
 //! of 0x100 or more and a kind past the records.
 
 use crate::errors::{BadInput, Refused};
-use crate::menu::lists_store::lists;
 use crate::menu::owner::Menus;
 use crate::race::owner_shared::RaceShared;
 
@@ -47,8 +46,11 @@ pub(crate) use crate::scene::find_object_of_kind::find_object_of_kind;
 
 /// A kind's own place: its size, y and angle (12 bytes each in the menu lists' own places).
 /// A kind below `OWN` but past the table's 73 records is refused.
-pub(crate) fn own_place(own: u32) -> Result<[u32; 3], BadInput> {
-    let place = lists()
+pub(crate) fn own_place(
+    lists: &crate::menu::lists_store::MenuLists,
+    own: u32,
+) -> Result<[u32; 3], BadInput> {
+    let place = lists
         .own_places
         .get(own as usize)
         .ok_or(BadInput("a kind past the 73 own places"))?;
@@ -96,7 +98,7 @@ fn settings(
         if own >= OWN {
             return Err(BadInput("a kind past the records of the kinds' own places"));
         }
-        let [size, y, angle] = own_place(own)?;
+        let [size, y, angle] = own_place(&menus.lists, own)?;
         set.size = Some(size);
         set.place[1] = y;
         set.angle_x = angle;

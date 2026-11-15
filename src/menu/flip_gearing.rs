@@ -6,7 +6,6 @@
 //! `entry` (`menu::table_calls`).
 
 use crate::menu::owner::Screens;
-use crate::screens::text_buffers_store::text_buffers;
 use crate::strings::append_string_by_id::push_string;
 
 pub fn flip_gearing(
@@ -19,5 +18,5 @@ pub fn flip_gearing(
     let mut text = Vec::new();
     push_string(so, &mut text, gearing_switch_text(kept))?;
     text.push(0);
-    text_buffers().title.write_at(0, &text, "the title")
+    so.menus.text_buffers.title.write_at(0, &text, "the title")
 }

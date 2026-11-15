@@ -2,7 +2,6 @@
 
 use crate::errors::BadInput;
 use crate::place::Run;
-use crate::screens::text_buffers_store::text_buffers;
 use rc2k_core::strings::table::StringTable;
 
 // The string table pointer is not kept: the table is always read from `Lexicon::published`.
@@ -89,7 +88,7 @@ impl MadeText {
                 vec![&notice.notice_first, &notice.notice_second]
             }
             MadeText::StageHeading(_) | MadeText::PageNumber(_) => {
-                let text = text_buffers();
+                let text = &menus.text_buffers;
                 vec![
                     &text.stage_heading,
                     &text.caption,
@@ -353,7 +352,7 @@ mod tests {
         assert_eq!(place.offset(&chain), chain[0].len());
         assert!(std::ptr::addr_eq(
             chain[1],
-            &raw const text_buffers().caption
+            &raw const o.menus.text_buffers.caption
         ));
     }
 

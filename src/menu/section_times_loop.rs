@@ -4,7 +4,6 @@
 //! (`debug::screens`), which says the section (`EventState.section`).
 use crate::menu::draw_lists_store::DRAW_LISTS;
 use crate::menu::screen_loop::{Callee, List, Screen, Step};
-use crate::menu::texts_store::texts;
 
 /// `ScreenItems.current[78]`'s slot, the item kept between visits.
 const SLOT: usize = (0x747798 - 0x747660) / 4;
@@ -27,8 +26,8 @@ pub const SCREEN: Screen = Screen {
             run: false,
         },
     ],
-    background: &[Step::Call(Callee::LoadBackground(|_| {
-        &texts().section_times_png
+    background: &[Step::Call(Callee::LoadBackground(|m| {
+        &m.texts.section_times_png
     }))],
     ..Screen::new(
         module_path!(),

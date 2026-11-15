@@ -11,7 +11,6 @@ use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{
     Callee, Entry, Flow, Frames, Keys, List, Screen, Step, screen_entry,
 };
-use crate::menu::texts_store::texts;
 
 fn before(screens: &Screens) -> Result<(), Refused> {
     screens.draw_work.escape_pressed.set(false);
@@ -55,8 +54,8 @@ pub const SCREEN: Screen = Screen {
         },
     ],
     before: &[Step::DoScreens(before)],
-    background: &[Step::Call(Callee::LoadBackground(|_| {
-        &texts().save_championship_picture
+    background: &[Step::Call(Callee::LoadBackground(|m| {
+        &m.texts.save_championship_picture
     }))],
     keys: Keys {
         escape_leaves: true,

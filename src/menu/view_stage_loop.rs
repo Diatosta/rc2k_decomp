@@ -9,20 +9,23 @@ use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Asking, Callee, Entry, Frames, List, Screen, Step};
 
 // `event.section` and `event.stage_in_section` are saved when the screen is entered and put back
-// when it ends, kept here across the loop's steps (by hand: the generated steps share no stack).
-thread_local! {
-    static KEPT: std::cell::RefCell<Vec<u32>> = const { std::cell::RefCell::new(Vec::new()) };
-}
-
-fn take_kept() -> u32 {
-    KEPT.with_borrow_mut(|stack| stack.pop().expect("a pop without its push"))
+// when it ends, kept in `Screens::stage_view_kept` across the loop's steps.
+fn take_kept(screens: &Screens) -> u32 {
+    let mut stack = screens
+        .stage_view_kept
+        .lock()
+        .expect("the kept stack's lock");
+    stack.pop().expect("a pop without its push")
 }
 
 fn before(screens: &Screens) -> Result<(), Refused> {
-    KEPT.with_borrow_mut(|stack| {
-        stack.push(screens.event.section.get());
-    });
-    KEPT.with_borrow_mut(|stack| stack.push(screens.event.stage_in_section.get()));
+    let mut stack = screens
+        .stage_view_kept
+        .lock()
+        .expect("the kept stack's lock");
+    stack.push(screens.event.section.get());
+    stack.push(screens.event.stage_in_section.get());
+    drop(stack);
     screens
         .event
         .stage
@@ -45,8 +48,8 @@ fn after_lists(entry: &Entry) -> Result<(), Refused> {
 
 fn after(entry: &Entry) -> Result<(), Refused> {
     let screens = &entry.menus.screens;
-    screens.event.stage_in_section.set(take_kept());
-    screens.event.section.set(take_kept());
+    screens.event.stage_in_section.set(take_kept(screens));
+    screens.event.section.set(take_kept(screens));
     Callee::StopStream.run(entry)?;
     Ok(())
 }

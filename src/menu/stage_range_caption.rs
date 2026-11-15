@@ -4,11 +4,13 @@
 //! Callers: the event pages' code (`menu::show_class_stage_results`, ..). The numbers go through
 //! `strings::append_u32`; the minus and the NUL are written in place.
 use crate::menu::champ_store::ChampView;
-use crate::screens::text_buffers_store::text_buffers;
 
-pub fn stage_range_caption(champ: &ChampView) -> Result<(), crate::errors::BadInput> {
+pub fn stage_range_caption(
+    champ: &ChampView,
+    text_buffers: &crate::screens::text_buffers_store::TextBuffers,
+) -> Result<(), crate::errors::BadInput> {
     let first: u32 = champ.rows.first_row.get();
     let mut text = rc2k_core::menu::event::stage_range(first);
     text.push(0);
-    text_buffers().caption.write_at(0, &text, "the caption")
+    text_buffers.caption.write_at(0, &text, "the caption")
 }

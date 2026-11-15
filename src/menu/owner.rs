@@ -17,6 +17,7 @@ use crate::menu::event_store::EventState;
 use crate::menu::flow_store::ScreenFlow;
 use crate::menu::keys_store::KeyTables;
 use crate::menu::list_state::ListState;
+use crate::menu::lists_store::MenuLists;
 use crate::menu::loop_store::LoopFlags;
 use crate::menu::menus_store::MenuTables;
 use crate::menu::options_store::MenuOptions;
@@ -26,7 +27,9 @@ use crate::menu::players_store::PlayerSlots;
 use crate::menu::results_store::Results;
 use crate::menu::screen_items_store::ScreenItems;
 use crate::menu::state_store::MenuState;
+use crate::menu::texts_store::MenuTexts;
 use crate::screens::controls_store::ControlsScreen;
+use crate::screens::text_buffers_store::TextBuffers;
 use crate::service::owner::Service;
 
 /// The cars, their numbers and the drivers.
@@ -77,6 +80,9 @@ pub struct Screens {
     pub draw_work: DrawWork,
     /// The controls page's variables (history, learning).
     pub controls: ControlsScreen,
+    /// The section and stage the stage-details screen saved when it was entered, put back when
+    /// it ends (a stack: the section below, the stage above).
+    pub stage_view_kept: std::sync::Mutex<Vec<u32>>,
 }
 
 impl Screens {
@@ -91,6 +97,7 @@ impl Screens {
             entry: EntryState::new(),
             draw_work: DrawWork::new(),
             controls: ControlsScreen::new(),
+            stage_view_kept: std::sync::Mutex::new(Vec::new()),
         }
     }
 }
@@ -148,6 +155,14 @@ pub struct Menus {
     pub list: ListState,
     /// The service area's set-ups, repair flags and times.
     pub service: Service,
+    /// The picture paths and speech names the screens load by.
+    pub texts: MenuTexts,
+    /// The lists and tables the menus name: constants, except the inspection's fault flags,
+    /// which the menus write. The car lists, the repair flags and the carousel's textures are
+    /// held by their writers (`CarLists`, `Service`, `Carousel`).
+    pub lists: MenuLists,
+    /// The lines the screens build their texts in.
+    pub text_buffers: TextBuffers,
 }
 
 /// The keyboard tables.
@@ -176,6 +191,9 @@ impl Menus {
             play: Play::new(),
             list: ListState::new(),
             service: Service::new(),
+            texts: MenuTexts::new(),
+            lists: MenuLists::new(),
+            text_buffers: TextBuffers::new(),
         }
     }
 }

@@ -8,7 +8,6 @@
 
 use crate::errors::{FatalError, Refused};
 use crate::menu::car_description::{read, shown_description};
-use crate::menu::lists_store::lists;
 use crate::menu::load_background::load_background_in;
 use crate::menu::owner::Menus;
 use crate::text::draw_text::GameCanvas;
@@ -30,7 +29,10 @@ pub fn load_car_background(
 ) -> Result<(), Refused> {
     let page = rc2k_core::menu::slides::background_page(menus.screens.event.shown.car_page.get())?;
     let car = shown_car(menus)?;
-    let path = crate::menu::texts_store::text_at(lists().page_picture(page, car as usize)?)?;
+    let path = crate::menu::texts_store::text_at(
+        &menus.texts,
+        menus.lists.page_picture(page, car as usize)?,
+    )?;
     if load(path)? {
         return Err(FatalError {
             code: 0x8071_2345,

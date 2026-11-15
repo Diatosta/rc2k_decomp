@@ -21,6 +21,7 @@ pub fn step_car_stream(
     start: &mut dyn FnMut(u32, u32),
     champ: &ChampView,
     options: &MenuOptions,
+    texts: &crate::menu::texts_store::MenuTexts,
     sound: &crate::sound::owner::Sound,
     names: &crate::audio::names_store::SampleNames,
 ) -> Result<(), BadInput> {
@@ -34,7 +35,7 @@ pub fn step_car_stream(
         playing,
         sound.race.car_stream.get().place.get(),
         |place| {
-            crate::menu::texts_store::speech_entry(names, list, place).unwrap_or_else(|e| {
+            crate::menu::texts_store::speech_entry(texts, names, list, place).unwrap_or_else(|e| {
                 failed.set(Some(e));
                 0
             })
@@ -67,6 +68,7 @@ pub fn step_car_stream_in_game(o: crate::owners::Owners<'static>) -> Result<(), 
         },
         &menus.play.champ_view,
         &menus.options,
+        &menus.texts,
         sound,
         &audio.sample_names,
     )

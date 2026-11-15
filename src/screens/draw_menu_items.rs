@@ -17,7 +17,6 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::item_sprites_store::ItemSprite;
-use crate::screens::text_buffers_store::text_buffers;
 use crate::text::draw_text::Canvas;
 
 // ---- game data ----
@@ -77,7 +76,7 @@ pub fn draw_menu_items(
     };
     let mut screen = MenuScreen::new(canvas, o);
     screen.menu_items = all;
-    let line = &text_buffers().line;
+    let line = &menus.text_buffers.line;
     rc2k_core::screens::menus::items(
         &mut screen,
         &list,

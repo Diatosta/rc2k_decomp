@@ -11,7 +11,6 @@ use crate::menu::screen_loop::{
     Callee, Entry, Flow, Frames, List, Screen, ScreenFlag, Step, carousel, prepare_scene,
     screen_entry,
 };
-use crate::menu::texts_store::texts;
 
 fn set_up_first(entry: &Entry) -> Result<(), Refused> {
     let menus = entry.menus;
@@ -55,8 +54,8 @@ pub const SCREEN: Screen = Screen {
     ],
     before: &[Step::WriteFlag(ScreenFlag::EventOver, false)],
     set_up_first: &[Step::Do(set_up_first)],
-    background: &[Step::Call(Callee::LoadBackground(|_| {
-        &texts().championship_new_simulation_picture
+    background: &[Step::Call(Callee::LoadBackground(|m| {
+        &m.texts.championship_new_simulation_picture
     }))],
     after_first_frame: &[Step::DoTablesFlow(after_first_frame)],
     frames: Frames {

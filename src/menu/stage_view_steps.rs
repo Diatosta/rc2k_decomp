@@ -23,10 +23,8 @@
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::menu::champ_store::ChampView;
 use crate::menu::event_flow::Fault;
-use crate::menu::lists_store::lists;
 use crate::menu::owner::Menus;
 use crate::menu::owner::Screens;
-use crate::menu::texts_store::texts;
 use crate::owners::Owners;
 use crate::records::find_record::{find_record_in, has_section};
 use crate::records::stages_store::RecordRef;
@@ -80,7 +78,7 @@ pub fn play_stage_speech(o: crate::owners::Owners<'static>) -> Result<(), Refuse
         let at = stage_screens::stage_speech(
             record.record(&system.records().stage_tables)?.track(),
             |n| {
-                lists().stage_speech(n as usize).unwrap_or_else(|e| {
+                menus.lists.stage_speech(n as usize).unwrap_or_else(|e| {
                     fault.set(Some(e));
                     0
                 })
@@ -95,7 +93,7 @@ pub fn play_stage_speech(o: crate::owners::Owners<'static>) -> Result<(), Refuse
         sound.race.car_stream.get().place.set(0);
         crate::sound::start_stream::start_stream(
             o,
-            crate::menu::texts_store::speech_entry(&audio.sample_names, at, 0)?,
+            crate::menu::texts_store::speech_entry(&menus.texts, &audio.sample_names, at, 0)?,
             menus.options.snapshot().speech_level,
         );
     }
@@ -113,7 +111,7 @@ pub fn play_rally_speech(o: crate::owners::Owners<'static>) -> Result<(), Refuse
     if championship(&menus.play.champ_view) {
         crate::sound::start_stream::start_stream(
             o,
-            lists().rally_speech(section as usize)?,
+            menus.lists.rally_speech(section as usize)?,
             menus.options.snapshot().speech_level,
         );
     }
@@ -130,11 +128,14 @@ pub fn load_welcome_picture(o: Owners<'static>) -> Result<(), Refused> {
         stage_screens::Welcome::Championship
     );
     let path = crate::menu::texts_store::text_at(
-        lists().welcome_picture(championship, section as usize)?,
+        &menus.texts,
+        menus
+            .lists
+            .welcome_picture(championship, section as usize)?,
     )?;
     if crate::gfx::load_picture_with_overlay::load_picture_with_overlay_in(
         &path,
-        &texts().titlebar_png,
+        &menus.texts.titlebar_png,
         o.gfx,
         o.system,
         o.strings,

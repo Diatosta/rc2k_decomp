@@ -6,7 +6,6 @@
 use crate::errors::{BadInput, Refused};
 use crate::gfx::blit_marker_pair::marker_calls;
 use crate::gfx::owner::Gfx;
-use crate::menu::lists_store::lists;
 use crate::menu::owner::Screens;
 use crate::records::stages_store::RecordRef;
 use crate::records::stages_store::TrackField;
@@ -14,7 +13,6 @@ use crate::records::trakpak_entry::track_of;
 use crate::screens::draw_stage_heading::heading_text;
 use crate::screens::draw_stage_records::draw_stage_records;
 use crate::screens::game_screen::GameScreen;
-use crate::screens::text_buffers_store::text_buffers;
 use crate::session::{DwordLike, PlainDword};
 use crate::strings::units::units;
 use crate::text::draw_string_by_id::draw_string_by_id_at;
@@ -74,7 +72,8 @@ pub fn build_second_heading(
     record: RecordRef,
 ) -> Result<Vec<u8>, Refused> {
     let bytes = heading_text(so, record, SECOND_HEADING_STRING)?;
-    text_buffers()
+    so.menus
+        .text_buffers
         .stage_heading
         .write_at(0, &bytes, "the second stage heading")?;
     Ok(bytes)
@@ -126,9 +125,10 @@ pub fn draw_stage_body_in(
         let fault = crate::menu::event_flow::Fault::default();
         let f = |field: TrackField| fault.ok(track.get(stages, field));
         let made = Entry {
-            // `MENU_LISTS.durations` (the stage durations) has 37 entries; a duration index past it
+            // `MenuLists::durations` (the stage durations) has 37 entries; a duration index past it
             // is refused.
-            duration: lists()
+            duration: menus
+                .lists
                 .durations
                 .get(f(TrackField::Duration) as usize)
                 .ok_or(BadInput("a stage duration past the 37"))?

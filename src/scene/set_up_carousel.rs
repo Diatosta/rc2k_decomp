@@ -22,7 +22,7 @@
 //! or more.
 
 use crate::errors::{BadInput, Refused};
-use crate::menu::lists_store::{CarList, CarListParts, lists};
+use crate::menu::lists_store::{CarList, CarListParts};
 use crate::scene::carousel_set_ups::PLAIN;
 use crate::session::DwordLike;
 use crate::session::{write_all, write_prefix};
@@ -134,7 +134,7 @@ fn reading<R>(
 }
 
 fn list_entry(parts: CarListParts, list: CarList, n: usize) -> Result<u32, BadInput> {
-    lists().car_entry(parts, list, n as u32)
+    parts.lists.car_entry(parts, list, n as u32)
 }
 
 /// The checks of a list of cars, before anything is written (see
@@ -174,7 +174,8 @@ fn cars(parts: CarListParts, list: CarList, size: u32) -> Result<(), BadInput> {
                 .car;
             // `car_kinds` has 35 entries; a number past them is refused (fixed: "Four tables
             // read past their end" in `wiki/Fixed-bugs.md`).
-            let kind = lists()
+            let kind = parts
+                .lists
                 .car_kinds
                 .get(first as usize)
                 .ok_or(BadInput("a car past the 35 car kinds"))?
@@ -233,7 +234,7 @@ pub fn set_up_carousel(parts: CarListParts, list: Option<CarList>) -> Result<(),
                 let count = reading(parts, list, |read| carousel::list_end(read, 1).unwrap_or(0))?;
                 if count == 1 {
                     let first = list_entry(parts, list, 0)?;
-                    lists().set_car_entry(parts, list, 1, first)?;
+                    parts.lists.set_car_entry(parts, list, 1, first)?;
                 }
                 cars(parts, list, 0xC)?;
             }

@@ -8,7 +8,6 @@ use crate::menu::draw_lists_store::DRAW_LISTS;
 use crate::menu::owner::Menus;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Callee, Entry, Flow, Frames, Keys, List, Screen, ScreenFlag, Step};
-use crate::menu::texts_store::texts;
 
 fn each_frame(entry: &Entry) -> Result<Flow, Refused> {
     let menus = entry.menus;
@@ -66,8 +65,8 @@ pub const SCREEN: Screen = Screen {
         },
     ],
     before: &[Step::WriteFlag(ScreenFlag::EscapePressed, false)],
-    background: &[Step::Call(Callee::LoadBackground(|_| {
-        &texts().save_replay_picture
+    background: &[Step::Call(Callee::LoadBackground(|m| {
+        &m.texts.save_replay_picture
     }))],
     result: Some(result),
     keys: Keys {

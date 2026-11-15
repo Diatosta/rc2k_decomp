@@ -14,7 +14,6 @@
 //! worked out.
 
 use crate::errors::Refused;
-use crate::menu::lists_store::lists;
 use crate::records::find_record::find_record_in;
 use crate::saves::gather_savegame::CAR_LEN;
 use crate::saves::owner::Saves;
@@ -55,7 +54,7 @@ pub fn draw_savegame_details(
         let title = Title {
             a8_mode,
             section: if a8_mode {
-                section_title(lists(), section)?
+                section_title(&o.menus.lists, section)?
             } else {
                 find_record_in(&system.records().stage_tables, table, 0, section)?
                     .record(&system.records().stage_tables)?

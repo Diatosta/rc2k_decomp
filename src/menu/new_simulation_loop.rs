@@ -9,7 +9,6 @@ use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{
     Callee, Entry, List, SceneVar, Screen, Step, carousel, screen_entry,
 };
-use crate::menu::texts_store::texts;
 
 fn before(screens: &Screens) -> Result<(), Refused> {
     screens.items.current[slot::NEW_SIMULATION]
@@ -50,8 +49,8 @@ pub const SCREEN: Screen = Screen {
     ],
     before: &[Step::DoScreens(before)],
     set_up_first: &[Step::Do(set_up_first)],
-    background: &[Step::Call(Callee::LoadBackground(|_| {
-        &texts().new_simulation_picture
+    background: &[Step::Call(Callee::LoadBackground(|m| {
+        &m.texts.new_simulation_picture
     }))],
     after_first_frame: &[
         Step::WriteScene(SceneVar::ViewOffsetX, 0x7),

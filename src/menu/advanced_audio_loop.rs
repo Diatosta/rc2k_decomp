@@ -4,7 +4,6 @@ use crate::menu::draw_lists_store::DRAW_LISTS;
 use crate::menu::screen_id::ScreenId;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Callee, List, Screen, Step, screen_entry};
-use crate::menu::texts_store::texts;
 
 pub const SCREEN: Screen = Screen {
     lists: &[
@@ -29,8 +28,8 @@ pub const SCREEN: Screen = Screen {
             run: false,
         },
     ],
-    background: &[Step::Call(Callee::LoadBackground(|_| {
-        &texts().advanced_audio_picture
+    background: &[Step::Call(Callee::LoadBackground(|m| {
+        &m.texts.advanced_audio_picture
     }))],
     ..Screen::new(
         module_path!(),

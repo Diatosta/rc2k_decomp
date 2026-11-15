@@ -15,6 +15,7 @@ use crate::menu::event_store::EventState;
 pub fn step_rows(
     champ: &ChampView,
     event: &EventState,
+    text_buffers: &crate::screens::text_buffers_store::TextBuffers,
     of_90: bool,
     on: bool,
 ) -> Result<(), Refused> {
@@ -27,6 +28,6 @@ pub fn step_rows(
     let row: u32 = champ.rows.first_row.get();
     let row = rc2k_core::menu::steps::rows(row, count, on);
     champ.rows.first_row.set(row);
-    crate::menu::stage_range_caption::stage_range_caption(champ)?;
+    crate::menu::stage_range_caption::stage_range_caption(champ, text_buffers)?;
     Ok(())
 }

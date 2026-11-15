@@ -6,7 +6,6 @@
 //! four or missing, and a car past the table.
 
 use crate::errors::{BadInput, Refused};
-use crate::menu::lists_store::lists;
 use crate::menu::owner::Menus;
 
 /// `gfx::convert_picture` refuses instead of failing, so fatal error 0x80712435 never arises.
@@ -21,7 +20,10 @@ pub fn load_background_in(
     };
     let car =
         rc2k_core::service::car::background(player.get().car_number).map_err(BadInput::from)?;
-    let path = crate::menu::texts_store::text_at(lists().service_pictures[car as usize].get())?;
+    let path = crate::menu::texts_store::text_at(
+        &menus.texts,
+        menus.lists.service_pictures[car as usize].get(),
+    )?;
     crate::gfx::load_picture::load_picture_with(&path, gfx, system)?;
     crate::gfx::convert_picture::convert_picture_now_in(gfx, system)?;
     Ok(())

@@ -7,7 +7,6 @@ use crate::menu::owner::Screens;
 use crate::menu::screen_id::ScreenId;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Callee, List, Screen, Step, screen_entry};
-use crate::menu::texts_store::texts;
 
 fn before(screens: &Screens) -> Result<(), Refused> {
     screens.items.current[slot::VIEW_BEST_TIMES]
@@ -39,8 +38,8 @@ pub const SCREEN: Screen = Screen {
         },
     ],
     before: &[Step::DoScreens(before)],
-    background: &[Step::Call(Callee::LoadBackground(|_| {
-        &texts().view_best_times_picture
+    background: &[Step::Call(Callee::LoadBackground(|m| {
+        &m.texts.view_best_times_picture
     }))],
     ..Screen::new(
         module_path!(),

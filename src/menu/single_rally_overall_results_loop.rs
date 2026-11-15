@@ -4,7 +4,6 @@
 use crate::menu::draw_lists_store::DRAW_LISTS;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Callee, Frames, List, MenuSound, Screen, ScreenFlag, Step};
-use crate::menu::texts_store::texts;
 
 pub const SCREEN: Screen = Screen {
     lists: &[
@@ -26,8 +25,8 @@ pub const SCREEN: Screen = Screen {
     ],
     before: &[Step::WriteFlag(ScreenFlag::EventOver, false)],
     set_up_first: &[Step::Call(Callee::RankTotals)],
-    background: &[Step::Call(Callee::LoadBackground(|_| {
-        &texts().single_rally_overall_results_picture
+    background: &[Step::Call(Callee::LoadBackground(|m| {
+        &m.texts.single_rally_overall_results_picture
     }))],
     after: &[Step::Sound(MenuSound::None)],
     frames: Frames {

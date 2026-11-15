@@ -12,7 +12,6 @@ use crate::menu::screen_loop::{
     ActionCheck, Callee, Entry, Flow, Frames, Keys, List, Screen, ScreenFlag, ScreenVar, Step,
     quitting,
 };
-use crate::menu::texts_store::texts;
 
 /// The field of `$source` that belongs to player `$n` (0 to 3), from the four fields in player
 /// order.
@@ -62,9 +61,9 @@ impl<const N: usize> PlayerPage<N> {
         background: match N {
             0 => &[
                 Step::Write(ScreenVar::ClearsEscapeFlag, 0x1),
-                Step::Call(Callee::LoadBackground(|_| {
+                Step::Call(Callee::LoadBackground(|m| {
                     of_player!(
-                        texts(),
+                        m.texts,
                         N,
                         [
                             player1_details_picture,
@@ -75,9 +74,9 @@ impl<const N: usize> PlayerPage<N> {
                     )
                 })),
             ],
-            _ => &[Step::Call(Callee::LoadBackground(|_| {
+            _ => &[Step::Call(Callee::LoadBackground(|m| {
                 of_player!(
-                    texts(),
+                    m.texts,
                     N,
                     [
                         player1_details_picture,
@@ -167,9 +166,9 @@ impl<const N: usize> PlayerPage<N> {
             },
         ],
         set_up_first: &[Step::Call(Callee::ApplyController)],
-        background: &[Step::Call(Callee::LoadBackground(|_| {
+        background: &[Step::Call(Callee::LoadBackground(|m| {
             of_player!(
-                texts(),
+                m.texts,
                 N,
                 [
                     player1_controller_picture,
@@ -257,9 +256,9 @@ impl<const N: usize> PlayerPage<N> {
             Step::Call(Callee::ApplyController),
             Step::Call(Callee::AxisMoved(0x0)),
         ],
-        background: &[Step::Call(Callee::LoadBackground(|_| {
+        background: &[Step::Call(Callee::LoadBackground(|m| {
             of_player!(
-                texts(),
+                m.texts,
                 N,
                 [
                     player1_buttons_picture,
@@ -334,9 +333,9 @@ impl<const N: usize> PlayerPage<N> {
             },
         ],
         before: &[Step::Do(redefine_keys_before::<N>)],
-        background: &[Step::Call(Callee::LoadBackground(|_| {
+        background: &[Step::Call(Callee::LoadBackground(|m| {
             of_player!(
-                texts(),
+                m.texts,
                 N,
                 [
                     redefine_keys_player1_picture,

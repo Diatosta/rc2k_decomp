@@ -4,7 +4,6 @@
 //! `Cells` alone promises.
 
 use super::*;
-use crate::menu::lists_store::lists;
 use crate::shared_memory;
 
 /// The runs of `record`, checked to tile it: each starts where the last ended, lies inside,
@@ -241,13 +240,13 @@ fn every_store_s_cells_tile_it_and_copy_as_raw_copies_do() {
     let race = crate::test_support::own::race();
     let _lock = crate::test_support::test_lock();
     byte_view_stores! {
-        *lists(),
+        menus.lists,
         *race.course.stage_prefs.get(),
         *race.replay.replay_view(),
     }
     cells_stores! {
         *race.shared.car(),
-        *crate::screens::text_buffers_store::text_buffers(),
+        menus.text_buffers,
         menus.play.results,
         audio.state,
         audio.sample_records,

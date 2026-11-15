@@ -4,7 +4,6 @@
 use crate::menu::draw_lists_store::DRAW_LISTS;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Asking, Callee, List, Screen, Step};
-use crate::menu::texts_store::texts;
 
 pub const SCREEN: Screen = Screen {
     lists: &[
@@ -29,8 +28,8 @@ pub const SCREEN: Screen = Screen {
             run: false,
         },
     ],
-    background: &[Step::Call(Callee::LoadBackground(|_| {
-        &texts().best_times_picture
+    background: &[Step::Call(Callee::LoadBackground(|m| {
+        &m.texts.best_times_picture
     }))],
     asking: Some(Asking { ..Asking::DEFAULT }),
     ..Screen::new(

@@ -52,7 +52,7 @@ pub fn draw_highlighted(
     object_place.place[2].set(screens.carousel.z.get());
     object_place.place[0].set(0u32);
     if let Some(own) = own {
-        let [size, y, angle] = own_place(own)?;
+        let [size, y, angle] = own_place(&menus.lists, own)?;
         object_place.size.set(size);
         if y != u32::MAX {
             object_place.place[1].set(y);

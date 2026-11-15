@@ -8,7 +8,6 @@ use crate::menu::owner::Screens;
 use crate::menu::screen_id::ScreenId;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Callee, Frames, List, Screen, Step, screen_entry};
-use crate::menu::texts_store::texts;
 
 fn before(screens: &Screens) -> Result<(), Refused> {
     screens.items.current[slot::VISUAL_PREFERENCES]
@@ -35,8 +34,8 @@ pub const SCREEN: Screen = Screen {
         },
     ],
     before: &[Step::DoScreens(before)],
-    background: &[Step::Call(Callee::LoadBackground(|_| {
-        &texts().visual_preferences_picture
+    background: &[Step::Call(Callee::LoadBackground(|m| {
+        &m.texts.visual_preferences_picture
     }))],
     frames: Frames {
         first_frame_lists: Some(&[

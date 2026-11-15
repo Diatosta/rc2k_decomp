@@ -20,10 +20,8 @@ use crate::files::numbered_path::numbered_path_bytes;
 use crate::gfx::convert_picture::convert_picture_now_in;
 use crate::gfx::load_picture::load_picture_with;
 use crate::gfx::load_picture_with_overlay::load_picture_with_overlay_in;
-use crate::menu::lists_store::lists;
 use crate::menu::load_car_background::shown_car;
 use crate::menu::owner::Menus;
-use crate::menu::texts_store::texts;
 use crate::owners::Owners;
 
 /// What it asks for.
@@ -43,9 +41,11 @@ pub fn load_slideshow_picture(
 ) -> Result<(), Refused> {
     use rc2k_core::menu::slides;
     let car = slides::slideshow_car(shown_car(menus)?)?;
-    let template =
-        crate::menu::texts_store::text_at(lists().slideshow_templates[car as usize].get())?
-            .text("a path template")?;
+    let template = crate::menu::texts_store::text_at(
+        &menus.texts,
+        menus.lists.slideshow_templates[car as usize].get(),
+    )?
+    .text("a path template")?;
     let start: u32 = menus.screens.event.shown.picture.get();
     // Set by the first try (`search` always makes one).
     let mut path: Option<Vec<u8>> = None;
@@ -70,7 +70,7 @@ pub fn load_slideshow_picture(
         |next| menus.screens.event.shown.picture.set(next),
     )?;
     let path = path.ok_or(crate::errors::BadInput("no slideshow picture tried"))?;
-    let title_bar = &texts().titlebar_png;
+    let title_bar = &menus.texts.titlebar_png;
     if step(Step::Overlay(path, title_bar))? {
         step(Step::Load(title_bar))?;
     }

@@ -4,7 +4,6 @@
 //!
 //! Refuses a current player past 3 or missing, before anything.
 use crate::errors::{BadInput, Refused};
-use crate::menu::lists_store::lists;
 use crate::menu::owner::Menus;
 use crate::menu::standings::*;
 use crate::session::write_prefix;
@@ -19,6 +18,6 @@ pub fn inspection_faults(menus: &Menus) -> Result<(), Refused> {
     let flags =
         rc2k_core::menu::inspection::faults(|k| fault.ok(past_limit(&menus.screens, p, k as u32)));
     fault.check()?;
-    write_prefix(&lists().inspection_faults, &flags);
+    write_prefix(&menus.lists.inspection_faults, &flags);
     Ok(())
 }

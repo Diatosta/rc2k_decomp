@@ -16,7 +16,6 @@ use crate::menu::owner::Menus;
 use crate::menu::owner::Screens;
 use crate::menu::owner::Tables;
 use crate::menu::screen_loop::Entry;
-use crate::screens::text_buffers_store::text_buffers;
 use rc2k_core::menu::player::Player;
 use rc2k_core::menu::steps;
 
@@ -117,7 +116,10 @@ pub fn toggle_caption_choice(
     let mut text = Vec::new();
     crate::strings::append_string_by_id::push_string(so, &mut text, caption)?;
     text.push(0);
-    text_buffers().caption.write_at(0, &text, "the caption")
+    so.menus
+        .text_buffers
+        .caption
+        .write_at(0, &text, "the caption")
 }
 
 pub fn leave_with_carry(menus: &Menus) {

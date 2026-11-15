@@ -9,7 +9,6 @@ use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{
     ActionCheck, Callee, Entry, Keys, List, Screen, Step, carousel, prepare_scene, screen_entry,
 };
-use crate::menu::texts_store::texts;
 
 fn set_up_first(entry: &Entry) -> Result<(), Refused> {
     let screens = &entry.menus.screens;
@@ -44,8 +43,8 @@ pub const SCREEN: Screen = Screen {
         },
     ],
     set_up_first: &[Step::Do(set_up_first)],
-    background: &[Step::Call(Callee::LoadBackground(|_| {
-        &texts().player_details_picture
+    background: &[Step::Call(Callee::LoadBackground(|m| {
+        &m.texts.player_details_picture
     }))],
     keys: Keys {
         action_check: ActionCheck::Short,

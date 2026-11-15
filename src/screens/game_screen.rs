@@ -8,7 +8,6 @@ use crate::gfx::typefaces::FontRef;
 use crate::menu::owner::Menus;
 use crate::owners::Owners;
 use crate::race::owner::Race;
-use crate::screens::text_buffers_store::text_buffers;
 use crate::session::DwordLike;
 use crate::strings::text_buffer::TextBuf;
 use crate::text::draw_text::{Canvas, draw_text_at};
@@ -206,7 +205,7 @@ impl HeldText {
                 let (table, len) = names.table(o);
                 text_in(table, (slot as usize).wrapping_mul(len))
             }
-            HeldText::Buffer(buffer) => match buffer_at(o.strings, buffer) {
+            HeldText::Buffer(buffer) => match buffer_at(o.strings, &o.menus.text_buffers, buffer) {
                 TextBuf::Text(b) => text_in(b, 0),
                 TextBuf::Line(b) => text_in(b, 0),
             },
@@ -335,8 +334,11 @@ fn clip_edge_cell(
 }
 
 /// Where a shared buffer is.
-pub fn buffer_at(strings: &'static crate::strings::owner::Strings, buffer: Buffer) -> TextBuf {
-    let text_buffers = text_buffers();
+pub fn buffer_at(
+    strings: &'static crate::strings::owner::Strings,
+    text_buffers: &'static crate::screens::text_buffers_store::TextBuffers,
+    buffer: Buffer,
+) -> TextBuf {
     match buffer {
         Buffer::Line => TextBuf::Line(&text_buffers.line),
         Buffer::Text => crate::strings::text_from_ids::text_at(strings),
@@ -348,6 +350,7 @@ pub fn buffer_at(strings: &'static crate::strings::owner::Strings, buffer: Buffe
 /// 0x100 bytes, and the next buffer follows).
 pub fn store_in(
     strings: &'static crate::strings::owner::Strings,
+    text_buffers: &'static crate::screens::text_buffers_store::TextBuffers,
     buffer: Buffer,
     bytes: &[u8],
 ) -> Result<(), Refused> {
@@ -359,7 +362,7 @@ pub fn store_in(
     if bytes.len() > room {
         return Err(BadInput("a text past its buffer").into());
     }
-    buffer_at(strings, buffer).write_at(0, bytes, "a shared text buffer")?;
+    buffer_at(strings, text_buffers, buffer).write_at(0, bytes, "a shared text buffer")?;
     Ok(())
 }
 
@@ -374,7 +377,12 @@ impl<F: GameFont, W: GameWork, T: GameText> Screen for GameScreen<'_, F, W, T> {
     }
 
     fn store(&mut self, buffer: Buffer, bytes: &[u8]) -> Result<(), Refused> {
-        store_in(self.owners.strings, buffer, bytes)
+        store_in(
+            self.owners.strings,
+            &self.owners.menus.text_buffers,
+            buffer,
+            bytes,
+        )
     }
 
     fn draw(&mut self, font: F, buffer: Buffer, x: i32, y: i32) -> Result<Drawn, Refused> {
@@ -385,7 +393,7 @@ impl<F: GameFont, W: GameWork, T: GameText> Screen for GameScreen<'_, F, W, T> {
         use crate::text::draw_time_fixed_pitch::draw_time_fixed_pitch_at;
         draw_time_fixed_pitch_at(
             font_of(font),
-            buffer_at(self.owners.strings, buffer),
+            buffer_at(self.owners.strings, &self.owners.menus.text_buffers, buffer),
             right,
             y,
             self.canvas,
@@ -397,7 +405,7 @@ impl<F: GameFont, W: GameWork, T: GameText> Screen for GameScreen<'_, F, W, T> {
         use crate::text::draw_clock_fixed_pitch::draw_clock_fixed_pitch_at;
         draw_clock_fixed_pitch_at(
             font_of(font),
-            buffer_at(self.owners.strings, buffer),
+            buffer_at(self.owners.strings, &self.owners.menus.text_buffers, buffer),
             right,
             y,
             self.canvas,
@@ -520,9 +528,14 @@ impl<F: GameFont, W: GameWork, T: GameText> Screen for GameScreen<'_, F, W, T> {
     fn spaced(&mut self, font: F, bytes: &[u8], x: i32, y: i32) -> Result<(), Refused> {
         let mut text = bytes.to_vec();
         text.push(0);
-        store_in(self.owners.strings, Buffer::Line, &text)?;
+        store_in(
+            self.owners.strings,
+            &self.owners.menus.text_buffers,
+            Buffer::Line,
+            &text,
+        )?;
         crate::screens::draw_spaced_number::draw_spaced_number(
-            text_buffers(),
+            &self.owners.menus.text_buffers,
             font_of(font),
             bytes,
             x,
