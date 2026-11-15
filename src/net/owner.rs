@@ -1,11 +1,13 @@
 //! The network's variables in one struct, reached through `net()` by code that has no
 //! reference to it. The receiving thread reads and writes `vars` concurrently (its cells stay
-//! atomic); the players' inboxes sit behind their own lock; `main` (what is edited, the settings, the address, the session joined, the lobby's)
-//! and the button belong to the game thread.
+//! atomic); the players' inboxes sit behind their own lock; `main` (this machine's settings, the
+//! address being built, the session joined and each network screen's state) and the button
+//! belong to the game thread.
 
 use crate::net::link::Link;
 use crate::net::store::{
-    AddressVars, Button, EditVars, Inboxes, JoinedVars, LobbyVars, NetMain, NetShared, SetupVars,
+    AddressVars, Button, Inboxes, JoinedVars, LobbyScreen, NetMain, NetShared, SessionsScreen,
+    SettingsScreen, SetupVars,
 };
 use crate::session::GameThread;
 
@@ -42,9 +44,14 @@ impl Net {
         self.inboxes.lock()
     }
 
-    /// What is being edited and the chat being typed.
-    pub fn edit(&self) -> &EditVars {
-        &self.main.get().edit
+    /// The network settings screen's state.
+    pub fn settings(&self) -> &SettingsScreen {
+        &self.main.get().settings
+    }
+
+    /// The sessions list screen's state.
+    pub fn sessions(&self) -> &SessionsScreen {
+        &self.main.get().sessions
     }
 
     /// This machine's network settings.
@@ -52,13 +59,13 @@ impl Net {
         &self.main.get().setup
     }
 
-    /// The address being built and the connection kept.
+    /// The address being built.
     pub fn address(&self) -> &AddressVars {
         &self.main.get().address
     }
 
-    /// The lobby's variables.
-    pub fn lobby(&self) -> &LobbyVars {
+    /// The lobby screen's state.
+    pub fn lobby(&self) -> &LobbyScreen {
         &self.main.get().lobby
     }
 

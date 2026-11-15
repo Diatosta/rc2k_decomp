@@ -87,7 +87,7 @@ fn step_item(
             .choice
             .set(list_state.choice.get().wrapping_add(step));
         let c = list_state.choice.get();
-        if c == 1 && net.setup().car_item.get() != 1 {
+        if c == 1 && net.lobby().car_item.get() != 1 {
             continue;
         }
         if c == 2 && vars.stage_item.get() != 1 {
@@ -107,17 +107,17 @@ pub fn lobby_loop(o: Owners<'static>) -> Result<u32, Refused> {
     let now = system.session.key_clock.ticks.get();
     list_state.move_clock.set(now);
     list_state.key_clock.set(now);
-    net.edit().edited.set(u32::MAX);
+    net.lobby().edit.edited.set(u32::MAX);
     list_state.choice.set(3);
     let tick = crate::system::tick_count::tick_count();
-    net.edit().clock_a.set(tick);
+    net.lobby().listed_at.set(tick);
     net.lobby().sync_clock.set(tick);
     net.vars.sync_first.set(1);
     net.vars
         .receiver
         .sync
         .set(net.vars.receiver.sync.get().wrapping_add(1));
-    net.setup().car_item.set(1);
+    net.lobby().car_item.set(1);
     net.vars.stage_item.set(1);
     if !net.vars.own.state().is_host() {
         net.vars.stage_item.set(0);
@@ -126,11 +126,11 @@ pub fn lobby_loop(o: Owners<'static>) -> Result<u32, Refused> {
         run_frame(o, || crate::net::lobby_frame::lobby_frame(o))?;
         let tick = crate::system::tick_count::tick_count();
         if (tick
-            .wrapping_sub(net.edit().clock_a.get())
+            .wrapping_sub(net.lobby().listed_at.get())
             .wrapping_sub(1000) as i32)
             >= 0
         {
-            net.edit().clock_a.set(tick);
+            net.lobby().listed_at.set(tick);
             // A failed listing is never reported here (`list_players_regs` drops the result;
             // kept as is).
             crate::net::list_players::list_players_regs(net)?;
@@ -140,7 +140,7 @@ pub fn lobby_loop(o: Owners<'static>) -> Result<u32, Refused> {
             .set(system.session.key_clock.ticks.get());
         let key = list_key(list_state, o.input)?;
         let mut moved = false;
-        if net.edit().edited.get() != u32::MAX {
+        if net.lobby().edit.edited.get() != u32::MAX {
             crate::net::chat_key::chat_key(o.input, net, key, o.gfx)?;
         } else {
             let ready = net.vars.own.state().is_ready();

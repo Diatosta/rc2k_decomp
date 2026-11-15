@@ -161,11 +161,11 @@ pub fn lobby_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
             .get()
             .wrapping_mul(8),
     );
-    crate::net::chat_input_line::chat_input_line(o, &net.edit().chat_input.text(), 3, y)?;
+    crate::net::chat_input_line::chat_input_line(o, &net.lobby().chat_input.text(), 3, y)?;
     let mut x = 0x310;
     let mut item = 0;
     for (n, (id, shown)) in
-        screens::lobby_buttons(net.setup().car_item.get(), vars.stage_item.get())
+        screens::lobby_buttons(net.lobby().car_item.get(), vars.stage_item.get())
             .into_iter()
             .enumerate()
     {

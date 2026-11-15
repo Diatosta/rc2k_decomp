@@ -62,18 +62,18 @@ pub fn choose_session(o: crate::owners::Owners<'static>, lines: &NetTexts) -> Re
     list_state.key_clock.set(now);
     list_state.choice.set(0);
     list_state.choice_before.set(0);
-    net.edit()
-        .clock_a
+    net.sessions()
+        .listed_at
         .set(crate::system::tick_count::tick_count());
     loop {
         run_frame(o, || crate::net::sessions_frame::sessions_frame(o))?;
         let tick = crate::system::tick_count::tick_count();
         if (tick
-            .wrapping_sub(net.edit().clock_a.get())
+            .wrapping_sub(net.sessions().listed_at.get())
             .wrapping_sub(1000) as i32)
             >= 0
         {
-            net.edit().clock_a.set(tick);
+            net.sessions().listed_at.set(tick);
             if !refresh(o, lines)? {
                 list_state.choice.set(0xFFFF_FFFE);
                 return Ok(list_state.choice.get());

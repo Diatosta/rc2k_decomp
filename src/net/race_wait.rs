@@ -13,11 +13,11 @@ pub fn race_wait(net: &Net) -> Result<u32, Refused> {
     vars.own.race_time.set(u32::MAX);
     let now = crate::system::tick_count::tick_count();
     if (now
-        .wrapping_sub(net.edit().clock_a.get())
+        .wrapping_sub(net.lobby().listed_at.get())
         .wrapping_sub(1000) as i32)
         >= 0
     {
-        net.edit().clock_a.set(now);
+        net.lobby().listed_at.set(now);
         crate::net::list_players::list_players_regs(net)?;
     }
     if vars.own.state().is_host() {

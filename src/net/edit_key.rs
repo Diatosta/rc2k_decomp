@@ -6,33 +6,35 @@
 use crate::cells::{StoreBytes, copy_between, store_value};
 use crate::errors::Refused;
 use crate::net::owner::Net;
+use crate::net::store::Editing;
 use crate::text::draw_text::GameCanvas;
 use crate::text::measure_text::measure_text_at;
 use rc2k_core::net::editing::{self, EditKey};
 pub fn edit_key(
     input: &crate::input::owner::Input,
     net: &Net,
+    edit: &Editing,
     key: u8,
     gfx: &'static crate::gfx::owner::Gfx,
 ) -> Result<bool, Refused> {
     // The logic is in `rc2k_core::net::editing` (`EditKey`, `last_char`, `takes`,
     // `end_for_char`, `too_wide`).
-    if net.edit().edited.get() != editing::NOT_EDITING {
-        let text = crate::net::begin_edit::EditedText::edited(net)?.text(net);
+    if edit.edited.get() != editing::NOT_EDITING {
+        let text = crate::net::begin_edit::EditedText::edited(edit)?.text(net);
         let words = StoreBytes(text);
         match EditKey::of(key) {
             EditKey::Escape => {
                 copy_between(
-                    &net.edit().text_before_edit,
+                    &edit.text_before_edit,
                     0,
                     text,
                     0,
                     editing::TEXT_LEN,
                     "an edited text",
                 )?;
-                net.edit().edited.set(editing::NOT_EDITING);
+                edit.edited.set(editing::NOT_EDITING);
             }
-            EditKey::Enter => net.edit().edited.set(editing::NOT_EDITING),
+            EditKey::Enter => edit.edited.set(editing::NOT_EDITING),
             EditKey::Clear => text.store(0, &[0; editing::TEXT_LEN])?,
             EditKey::Backspace => {
                 if let Some(last) = editing::last_char(&words)? {
@@ -52,14 +54,14 @@ pub fn edit_key(
                     shown.extend_from_slice(&[typed, 0]);
                     let width = {
                         measure_text_at(
-                            net.edit().edit_font.get(),
+                            edit.edit_font.get(),
                             &shown,
                             at as i32,
                             &mut GameCanvas::new(gfx),
                         )
                     }?
                     .width;
-                    let kept = if editing::too_wide(width, net.edit().edit_width.get()) {
+                    let kept = if editing::too_wide(width, edit.edit_width.get()) {
                         [0, 0]
                     } else {
                         [typed, 0]
@@ -69,5 +71,5 @@ pub fn edit_key(
             }
         }
     }
-    Ok(net.edit().edited.get() == u32::MAX)
+    Ok(edit.edited.get() == u32::MAX)
 }

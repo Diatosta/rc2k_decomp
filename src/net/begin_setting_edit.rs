@@ -20,12 +20,19 @@ pub fn begin_setting_edit(
             let mut digits =
                 crate::strings::format_u32::format_u32(net.setup().most_players.get(), 0);
             digits.push(0);
-            net.edit()
+            net.settings()
                 .most_players_text
                 .write_at(0, &digits, "a text line's bytes")?;
             EditedText::MostPlayers
         }
         Setting::None => return Ok(()),
     };
-    crate::net::begin_edit::begin_edit(net, item, text, editing::WIDTH, PALETTE)
+    crate::net::begin_edit::begin_edit(
+        net,
+        &net.settings().edit,
+        item,
+        text,
+        editing::WIDTH,
+        PALETTE,
+    )
 }

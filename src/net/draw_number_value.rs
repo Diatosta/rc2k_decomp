@@ -16,9 +16,9 @@ pub fn draw_number_value(
 ) -> Result<u32, Refused> {
     let net = o.net;
     // The logic is in `rc2k_core::net::screens` (`number_value`, `Number`, `NOTHING`).
-    let shown = screens::number_value(item == net.edit().edited.get(), number);
+    let shown = screens::number_value(item == net.settings().edit.edited.get(), number);
     let text = if shown == Number::Typed {
-        crate::place::BytePlace::from(&net.edit().most_players_text).text("a setting's text")?
+        crate::place::BytePlace::from(&net.settings().most_players_text).text("a setting's text")?
     } else {
         let mut built = Vec::new();
         if shown == Number::Nothing {

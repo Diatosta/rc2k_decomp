@@ -17,7 +17,7 @@ pub fn draw_setting_value(
 ) -> Result<u32, Refused> {
     let net = o.net;
     // The logic is in `rc2k_core::net::screens` (`text_value`, `Value`, `CARET`, `NOTHING`).
-    let value = screens::text_value(item == net.edit().edited.get(), || {
+    let value = screens::text_value(item == net.settings().edit.edited.get(), || {
         text.first().copied().unwrap_or(0)
     });
     let shown = match value {

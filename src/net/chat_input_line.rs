@@ -16,7 +16,7 @@ pub fn chat_input_line(
     y: u32,
 ) -> Result<u32, Refused> {
     let net = o.net;
-    let shown = if item == net.edit().edited.get() {
+    let shown = if item == net.lobby().edit.edited.get() {
         let mut built = text.to_vec();
         push_id(o, &mut built, 4)?;
         store_text(o.strings, built)?

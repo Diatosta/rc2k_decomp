@@ -457,8 +457,12 @@ fn listed_stores() -> Vec<Listed> {
             crate::net::owner::NET_OWNER.link.cells(),
         ),
         listed!(
-            "net.owner.NET_OWNER.main.edit",
-            on_game(&crate::net::owner::NET_OWNER.main.get().edit),
+            "net.owner.NET_OWNER.main.settings",
+            on_game(&crate::net::owner::NET_OWNER.main.get().settings),
+        ),
+        listed!(
+            "net.owner.NET_OWNER.main.sessions",
+            on_game(&crate::net::owner::NET_OWNER.main.get().sessions),
         ),
         listed!(
             "net.owner.NET_OWNER.main.setup",

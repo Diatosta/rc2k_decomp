@@ -13,7 +13,7 @@ pub fn settings_loop(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
     let now = system.session.key_clock.ticks.get();
     list_state.move_clock.set(now);
     list_state.key_clock.set(now);
-    net.edit().edited.set(u32::MAX);
+    net.settings().edit.edited.set(u32::MAX);
     list_state.choice.set(0);
     loop {
         run_frame(o, || crate::net::settings_frame::settings_frame(o))?;
@@ -22,7 +22,7 @@ pub fn settings_loop(o: crate::owners::Owners<'static>) -> Result<(), Refused> {
             .set(system.session.key_clock.ticks.get());
         let key = list_key(list_state, o.input)?;
         let mut moved = false;
-        if net.edit().edited.get() != u32::MAX {
+        if net.settings().edit.edited.get() != u32::MAX {
             crate::net::setting_key::setting_key(o.input, o.strings, list_state, net, key, o.gfx)?;
         } else {
             match key {

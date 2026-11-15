@@ -244,7 +244,7 @@ fn pieces_of(o: Owners<'static>) -> [Field<'static>; 69] {
         Field::Dword(&net.setup().most_players),                          // the most players a hosted session takes
         text(&net.setup().host_address, 0x40),                         // the host's address (TCP/IP)
         Field::Dword(&net.setup().port),                                  // the TCP/IP port
-        text(&net.address().saved_connection, 0x10),                     // the saved connection's GUID
+        text(&net.setup().saved_connection, 0x10),                     // the saved connection's GUID
         Field::Dword(&saves.save_games.kept_a),                         // a saved-games word kept in the file and read by no other code
         Field::Dword(&saves.save_games.kept_b),                         // a saved-games word kept in the file and read by no other code
         Field::Dword(&o.service.set_ups.kept),                              // a car set-ups word kept in the file and read by no other code

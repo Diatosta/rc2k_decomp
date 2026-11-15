@@ -13,17 +13,17 @@ pub fn chat_key(
     key: u8,
     gfx: &'static crate::gfx::owner::Gfx,
 ) -> Result<(), Refused> {
-    if !crate::net::edit_key::edit_key(input, net, key, gfx)? {
+    if !crate::net::edit_key::edit_key(input, net, &net.lobby().edit, key, gfx)? {
         return Ok(());
     }
-    if net.edit().chat_input.get(0) != 0 {
+    if net.lobby().chat_input.get(0) != 0 {
         crate::net::send_chat::send_chat(
             net,
             gfx,
             net_race().player(),
-            &net.edit().chat_input.read(),
+            &net.lobby().chat_input.read(),
         )?;
-        net.edit().chat_input.set(0, 0);
+        net.lobby().chat_input.set(0, 0);
     }
     Ok(())
 }

@@ -26,7 +26,7 @@ pub fn settings_frame(o: crate::owners::Owners<'static>) -> Result<(), Refused> 
         Number(u32),
     }
     for (item, (label, value)) in [
-        (0x163, Value::Text((&net.address().saved_name).into())),
+        (0x163, Value::Text((&net.settings().saved_name).into())),
         (0x164, Value::Text((&net.setup().machine_name).into())),
         (0x165, Value::Number(net.setup().most_players.get())),
         (0x166, Value::Text((&net.setup().host_address).into())),

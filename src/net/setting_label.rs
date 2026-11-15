@@ -15,6 +15,7 @@ pub fn setting_label(
     draw_button(
         crate::strings::append_string_by_id::StringOwners::of(o),
         net,
+        &net.settings().edit,
         string,
         0,
         0x190,

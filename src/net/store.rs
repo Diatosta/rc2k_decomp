@@ -297,9 +297,11 @@ impl SessionDesc {
     }
 }
 
-/// The edit variables, the game thread's.
+/// What the screen's text edit works on: the item edited, which text, how wide it may be, its
+/// font, and the text as it was before the edit (put back by Escape). The network settings and
+/// the lobby each have their own.
 #[derive(rc2k_derive::Cells)]
-pub struct EditVars {
+pub struct Editing {
     /// The text of the item edited, by number (`net::begin_edit::EditedText`).
     pub edit_text: PlainDword,
     /// The item edited (-1: none).
@@ -308,17 +310,11 @@ pub struct EditVars {
     pub edit_width: PlainDword,
     /// The font the edited text is measured with.
     pub edit_font: crate::gfx::typefaces::FontCell,
-    /// The time of the players' last listing.
-    pub clock_a: PlainDword,
-    /// What this player types into the chat.
-    pub chat_input: PlainBytes<64>,
-    /// The players' count as text while it is edited.
-    pub most_players_text: PlainBytes<64>,
     /// The edited text as it was before the edit, put back by Escape.
     pub text_before_edit: PlainBytes<64>,
 }
 
-impl EditVars {
+impl Editing {
     pub const fn new() -> Self {
         Self {
             edit_text: PlainDword::new(0),
@@ -328,15 +324,49 @@ impl EditVars {
             edit_font: crate::gfx::typefaces::FontCell::new(
                 crate::gfx::typefaces::FontId::numbered(0),
             ),
-            clock_a: PlainDword::new(0),
-            chat_input: PlainBytes::new([0; 64]),
-            most_players_text: PlainBytes::new([0; 64]),
             text_before_edit: PlainBytes::new([0; 64]),
         }
     }
 }
 
-/// The setup variables, the game thread's.
+/// The network settings screen's state, the game thread's.
+#[derive(rc2k_derive::Cells)]
+pub struct SettingsScreen {
+    /// The setting being edited.
+    pub edit: Editing,
+    /// The players' count as text while it is edited.
+    pub most_players_text: PlainBytes<64>,
+    /// The saved connection's name.
+    pub saved_name: PlainBytes<64>,
+}
+
+impl SettingsScreen {
+    pub const fn new() -> Self {
+        Self {
+            edit: Editing::new(),
+            most_players_text: PlainBytes::new([0; 64]),
+            saved_name: PlainBytes::new([0; 64]),
+        }
+    }
+}
+
+/// The sessions list screen's state, the game thread's.
+#[derive(rc2k_derive::Cells)]
+pub struct SessionsScreen {
+    /// The time of the sessions' last listing.
+    pub listed_at: PlainDword,
+}
+
+impl SessionsScreen {
+    pub const fn new() -> Self {
+        Self {
+            listed_at: PlainDword::new(0),
+        }
+    }
+}
+
+/// This machine's network settings and name: the fields kept in the options file, the
+/// player's name and the session's password.
 #[derive(rc2k_derive::Cells)]
 pub struct SetupVars {
     /// This player's name.
@@ -351,8 +381,8 @@ pub struct SetupVars {
     pub host_address: PlainBytes<64>,
     /// The TCP/IP port (the `inetport` setting, kept).
     pub port: PlainDword,
-    /// The lobby's car item can be chosen.
-    pub car_item: PlainDword,
+    /// The saved connection's GUID (kept).
+    pub saved_connection: PlainBytes<16>,
 }
 
 impl SetupVars {
@@ -364,12 +394,12 @@ impl SetupVars {
             session_password: PlainBytes::new(with_runs::<16>(&[(0, b"\x17\x00\x00\x00\x01")])),
             host_address: PlainBytes::new([0; 64]),
             port: PlainDword::new(0),
-            car_item: PlainDword::new(0x1),
+            saved_connection: PlainBytes::new([0; 16]),
         }
     }
 }
 
-/// The address variables, the game thread's.
+/// The address being built for a connection, the game thread's.
 #[derive(rc2k_derive::Cells)]
 pub struct AddressVars {
     /// The address elements added.
@@ -378,13 +408,6 @@ pub struct AddressVars {
     pub address: PlainDword,
     /// The compound address's size.
     pub address_size: PlainDword,
-    /// The address elements, 0x18 bytes each (a DPCOMPOUNDADDRESSELEMENT: the data type's GUID,
-    /// the size, the data).
-    pub element_table: PlainBytes<76>,
-    /// The saved connection's GUID (kept).
-    pub saved_connection: PlainBytes<16>,
-    /// The saved connection's name.
-    pub saved_name: PlainBytes<64>,
 }
 
 impl AddressVars {
@@ -393,9 +416,6 @@ impl AddressVars {
             elements: PlainDword::new(0),
             address: PlainDword::new(0),
             address_size: PlainDword::new(0),
-            element_table: PlainBytes::new([0; 76]),
-            saved_connection: PlainBytes::new([0; 16]),
-            saved_name: PlainBytes::new([0; 64]),
         }
     }
 }
@@ -424,9 +444,17 @@ impl JoinedVars {
     }
 }
 
-/// The lobby's variables, the game thread's.
+/// The lobby screen's state, the game thread's.
 #[derive(rc2k_derive::Cells)]
-pub struct LobbyVars {
+pub struct LobbyScreen {
+    /// The chat message being edited.
+    pub edit: Editing,
+    /// What this player types into the chat.
+    pub chat_input: PlainBytes<64>,
+    /// The time of the players' last listing.
+    pub listed_at: PlainDword,
+    /// The lobby's car item can be chosen.
+    pub car_item: PlainDword,
     /// 0 the settings, 1 host, 2 join, 3 lobby.
     pub mode: PlainDword,
     /// The first player not the host.
@@ -450,9 +478,13 @@ pub struct LobbyVars {
     pub _pad_cells: PlainBytes<3>,
 }
 
-impl LobbyVars {
+impl LobbyScreen {
     pub const fn new() -> Self {
         Self {
+            edit: Editing::new(),
+            chat_input: PlainBytes::new([0; 64]),
+            listed_at: PlainDword::new(0),
+            car_item: PlainDword::new(0x1),
             mode: PlainDword::new(0x3),
             first_host: PlainDword::new(0),
             send_buffer: PlainBytes::new([0; 256]),
@@ -467,25 +499,27 @@ impl LobbyVars {
     }
 }
 
-/// The network's variables only the game's thread reaches, in plain cells: what is edited,
-/// this machine's settings, the address being built, the session joined and the lobby's.
-/// The receiving thread reads and writes none of them (it works on `NetShared`).
+/// The network's variables only the game's thread reaches, in plain cells: this machine's
+/// settings, the address being built, the session joined and the state of each screen. The
+/// receiving thread reads and writes none of them (it works on `NetShared`).
 pub struct NetMain {
-    pub edit: EditVars,
     pub setup: SetupVars,
     pub address: AddressVars,
     pub joined: JoinedVars,
-    pub lobby: LobbyVars,
+    pub settings: SettingsScreen,
+    pub sessions: SessionsScreen,
+    pub lobby: LobbyScreen,
 }
 
 impl NetMain {
     pub const fn new() -> Self {
         NetMain {
-            edit: EditVars::new(),
             setup: SetupVars::new(),
             address: AddressVars::new(),
             joined: JoinedVars::new(),
-            lobby: LobbyVars::new(),
+            settings: SettingsScreen::new(),
+            sessions: SessionsScreen::new(),
+            lobby: LobbyScreen::new(),
         }
     }
 }

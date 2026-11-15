@@ -10,9 +10,10 @@ pub fn begin_chat(
     net: &Net,
     list_state: &crate::menu::list_state::ListState,
 ) -> Result<(), crate::errors::Refused> {
-    net.edit().chat_input.set(0, 0);
+    net.lobby().chat_input.set(0, 0);
     crate::net::begin_edit::begin_edit(
         net,
+        &net.lobby().edit,
         list_state.choice.get(),
         crate::net::begin_edit::EditedText::ChatInput,
         0x30C,

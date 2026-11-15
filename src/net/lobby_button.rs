@@ -25,6 +25,17 @@ pub fn lobby_button(
     // The logic is in `rc2k_core::net::screens` (`lobby_button_flags`, `next_button_x`).
     let flags =
         screens::lobby_button_flags(net.vars.own.state(), item, net.lobby().after_race.get());
-    draw_button(so, net, string, flags, x, y, item, gfx, menus)?;
+    draw_button(
+        so,
+        net,
+        &net.lobby().edit,
+        string,
+        flags,
+        x,
+        y,
+        item,
+        gfx,
+        menus,
+    )?;
     Ok(screens::next_button_x(x, net.button.get().width.get()))
 }

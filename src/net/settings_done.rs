@@ -14,8 +14,8 @@ pub fn settings_done(o: crate::owners::Owners<'static>, lines: &NetTexts) -> Res
     match saved {
         Some(n) => crate::net::keep_connection::keep_connection(net, n)?,
         None => {
-            zero(&net.address().saved_connection, 0x10)?;
-            zero(&net.address().saved_name, 0x40)?;
+            zero(&net.setup().saved_connection, 0x10)?;
+            zero(&net.settings().saved_name, 0x40)?;
         }
     }
     crate::net::stop::stop(o, net, lines)

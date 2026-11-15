@@ -9,16 +9,17 @@
 use crate::errors::Refused;
 use crate::net::lobby::PALETTE;
 use crate::net::owner::Net;
+use crate::net::store::Editing;
 use rc2k_core::net::screens::{self, ButtonFont};
 
 pub const FONT_PLAIN: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::BUTTON;
 pub const FONT_LIT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::BUTTON_LIT;
 const FONT_DIM: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::BUTTON_DIM;
 
-/// The font of item `item`'s text: lit when it is the highlighted item and being edited
-/// or in the blink's lit half.
+/// The font of item `item`'s text: lit when it is the highlighted item and being edited in
+/// `edit`, or in the blink's lit half.
 pub fn item_font(
-    net: &Net,
+    edit: &Editing,
     list_state: &crate::menu::list_state::ListState,
     item: u32,
     plain: crate::gfx::typefaces::FontId,
@@ -26,12 +27,7 @@ pub fn item_font(
 ) -> crate::gfx::typefaces::FontId {
     // The logic is in `rc2k_core::net::screens::{item_lit, blink_lit}`.
     let blink = || screens::blink_lit(list_state.frame_clock.get(), list_state.move_clock.get());
-    if screens::item_lit(
-        item,
-        list_state.choice.get(),
-        || net.edit().edited.get(),
-        blink,
-    ) {
+    if screens::item_lit(item, list_state.choice.get(), || edit.edited.get(), blink) {
         lit
     } else {
         plain
@@ -44,6 +40,7 @@ pub fn item_font(
 pub fn draw_button(
     so: crate::strings::append_string_by_id::StringOwners<'static>,
     net: &Net,
+    edit: &Editing,
     string: u32,
     flags: u32,
     x: u32,
@@ -100,7 +97,7 @@ pub fn draw_button(
     let lit = screens::item_lit(
         item,
         list_state.choice.get(),
-        || net.edit().edited.get(),
+        || edit.edited.get(),
         || screens::blink_lit(list_state.frame_clock.get(), list_state.move_clock.get()),
     );
     let font = match screens::button_font(flags, lit) {

@@ -160,8 +160,8 @@ mod tests {
             .collect();
         let bytes =
             |b: &crate::session::PlainBytes<16>| (0..16).map(|k| b.get(k)).collect::<Vec<u8>>();
-        let kept_saved = bytes(&net.address().saved_connection);
-        let kept_name: Vec<u8> = (0..64).map(|k| net.address().saved_name.get(k)).collect();
+        let kept_saved = bytes(&net.setup().saved_connection);
+        let kept_name: Vec<u8> = (0..64).map(|k| net.settings().saved_name.get(k)).collect();
         let kept_count = net.link.connections().get();
         net.link.memory().iter().for_each(|d| d.set(0));
         take(&net.link).unwrap();
@@ -202,11 +202,11 @@ mod tests {
         kept_saved
             .iter()
             .enumerate()
-            .for_each(|(k, &v)| net.address().saved_connection.set(k, v));
+            .for_each(|(k, &v)| net.setup().saved_connection.set(k, v));
         kept_name
             .iter()
             .enumerate()
-            .for_each(|(k, &v)| net.address().saved_name.set(k, v));
+            .for_each(|(k, &v)| net.settings().saved_name.set(k, v));
         net.link.connections().set(kept_count);
         crate::memory::with_figures(|f| *f = figures);
     }

@@ -262,7 +262,7 @@ fn the_options_network_fields_have_their_bytes() {
         net.setup().most_players.get(),
         net.setup().host_address.read(),
         net.setup().port.get(),
-        net.address().saved_connection.read(),
+        net.setup().saved_connection.read(),
     );
     for (piece, bytes) in ours.iter().zip(&before) {
         piece.write(bytes).unwrap();
