@@ -7,22 +7,24 @@
 //! Refuses what the steps refuse, before anything; raises the search's fatal error.
 
 use crate::errors::Refused;
-use crate::menu::owner::Menus;
+use crate::menu::champ_store::ChampView;
+use crate::menu::event_store::EventState;
 use crate::menu::screen_id::ScreenId;
 use crate::menu::screen_loop::{Entry, run_screen};
 use rc2k_core::menu::results_pages::{Page, held_figure};
 
 pub fn show_class_championship_standings(
-    menus: &Menus,
+    champ: &ChampView,
+    event: &EventState,
     class: u32,
     entry: &Entry,
 ) -> Result<(), Refused> {
-    menus.screens.event.shown.class.set(class);
+    event.shown.class.set(class);
     let found = crate::menu::first_player_b::first_player_b(class)?;
     let count = held_figure(Page::ClassChampionship, found.figure);
-    menus.play.champ_view.rows.count.set(count);
-    crate::menu::first_page_stage::first_page_stage(&menus.play.champ_view);
-    crate::menu::stage_range_caption::stage_range_caption(&menus.play.champ_view)?;
+    champ.rows.count.set(count);
+    crate::menu::first_page_stage::first_page_stage(champ);
+    crate::menu::stage_range_caption::stage_range_caption(champ)?;
     run_screen(ScreenId::ClassChampionshipStandings, entry)?;
     Ok(())
 }

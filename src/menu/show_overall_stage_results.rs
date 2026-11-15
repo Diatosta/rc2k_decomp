@@ -6,18 +6,17 @@
 //! Refuses what the steps refuse, before anything; raises the search's fatal error.
 
 use crate::errors::Refused;
-use crate::menu::owner::Menus;
+use crate::menu::champ_store::ChampView;
 use crate::menu::screen_id::ScreenId;
 use crate::menu::screen_loop::{Entry, run_screen};
 use crate::menu::standings::*;
 use rc2k_core::menu::results_pages::{Page, held_figure};
-pub fn show_overall_stage_results(menus: &Menus, entry: &Entry) -> Result<(), Refused> {
-    let play = &menus.play;
+pub fn show_overall_stage_results(champ: &ChampView, entry: &Entry) -> Result<(), Refused> {
     let found = crate::menu::first_player_a::first_player_a(ANY_GROUP)?;
     let count = held_figure(Page::OverallStage, found.figure);
-    menus.play.champ_view.rows.count.set(count);
-    crate::menu::first_page_stage::first_page_stage(&play.champ_view);
-    crate::menu::stage_range_caption::stage_range_caption(&play.champ_view)?;
+    champ.rows.count.set(count);
+    crate::menu::first_page_stage::first_page_stage(champ);
+    crate::menu::stage_range_caption::stage_range_caption(champ)?;
     run_screen(ScreenId::OverallStageResults, entry)?;
     Ok(())
 }

@@ -13,7 +13,9 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::go_back;
+use crate::menu::loop_store::LoopFlags;
 use crate::menu::owner::Menus;
+use crate::menu::pages_store::MenuPages;
 use crate::service::clear_repair_flags::clear_repair_flags;
 use crate::service::clear_repair_marks::clear_repair_marks;
 use crate::service::edit_gear_ratio::edit_gear_ratio;
@@ -33,11 +35,8 @@ use crate::system::owner::System;
 type Editor = fn(&Menus, &System, &crate::input::owner::Input, bool) -> Result<(), Refused>;
 
 /// The slot the highlighted menu item stands for.
-pub fn highlighted_slot(menus: &Menus) -> u32 {
-    rc2k_core::service::setups::highlighted_slot(
-        menus.tables.pages.setup_slot_page.get(),
-        menus.screens.loop_flags.item.get(),
-    )
+pub fn highlighted_slot(pages: &MenuPages, loop_flags: &LoopFlags) -> u32 {
+    rc2k_core::service::setups::highlighted_slot(pages.setup_slot_page.get(), loop_flags.item.get())
 }
 
 pub fn load_setup_slot(
@@ -47,7 +46,7 @@ pub fn load_setup_slot(
     input: &crate::input::owner::Input,
 ) -> Result<(), Refused> {
     let screens = &menus.screens;
-    let slot = highlighted_slot(menus);
+    let slot = highlighted_slot(&menus.tables.pages, &menus.screens.loop_flags);
     let Some(player) = current_player(menus) else {
         return Err(BadInput("no current player object: the original writes through null").into());
     };

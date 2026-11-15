@@ -11,6 +11,8 @@
 //!   300000: five minutes without a key.
 //!
 //! 179 callers.
+use crate::menu::champ_store::ChampView;
+use crate::menu::entry_store::EntryState;
 use crate::menu::owner::Menus;
 use crate::menu::update_frame_clock::update_frame_clock;
 use crate::system::owner::System;
@@ -18,12 +20,12 @@ use crate::system::owner::System;
 pub use rc2k_core::menu::blink::blink_states;
 
 /// What the three variables should be for the clock the game holds now.
-fn states_now(menus: &Menus, system: &System) -> (bool, bool, bool) {
+fn states_now(champ: &ChampView, entry: &EntryState, system: &System) -> (bool, bool, bool) {
     blink_states(
         system.clocks().frame.get(),
-        menus.play.champ_view.key_clock.last_key_time.get(),
-        menus.play.champ_view.key_clock.cursor_time.get(),
-        menus.screens.entry.redefining_key.is_set(),
+        champ.key_clock.last_key_time.get(),
+        champ.key_clock.cursor_time.get(),
+        entry.redefining_key.is_set(),
     )
 }
 
@@ -31,7 +33,7 @@ pub fn update_blink(menus: &Menus, system: &System) {
     let screens = &menus.screens;
     update_frame_clock(system);
     {
-        let (blink, cursor_on, idle) = states_now(menus, system);
+        let (blink, cursor_on, idle) = states_now(&menus.play.champ_view, &screens.entry, system);
         screens.draw_work.blink.set(blink);
         screens.draw_work.cursor_on.set(cursor_on);
         screens.loop_flags.idle.set(idle);

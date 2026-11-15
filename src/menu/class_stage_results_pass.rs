@@ -45,7 +45,12 @@ pub fn class_stage_results_pass(menus: &Menus, entry: &Entry) -> Result<(), Refu
             .event
             .standings_count
             .set(numbered.last_number);
-        crate::menu::show_class_stage_results::show_class_stage_results(menus, class, entry)?;
+        crate::menu::show_class_stage_results::show_class_stage_results(
+            &menus.play.champ_view,
+            &menus.screens.event,
+            class,
+            entry,
+        )?;
         if menus.tables.pages.yes_no_answer.get() == 1 {
             break;
         }

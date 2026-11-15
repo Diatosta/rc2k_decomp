@@ -8,19 +8,25 @@
 //! Left/right handlers of the event pages' items.
 
 use crate::errors::Refused;
-use crate::menu::owner::Menus;
+use crate::menu::champ_store::ChampView;
+use crate::menu::event_store::EventState;
 
 /// `of_90` the fixed count, `on` the direction.
-pub fn step_rows(menus: &Menus, of_90: bool, on: bool) -> Result<(), Refused> {
+pub fn step_rows(
+    champ: &ChampView,
+    event: &EventState,
+    of_90: bool,
+    on: bool,
+) -> Result<(), Refused> {
     let count = if of_90 {
         0x5A
     } else {
-        menus.screens.event.standings_count.get()
+        event.standings_count.get()
     };
     let _last = count.wrapping_sub(9);
-    let row: u32 = menus.play.champ_view.rows.first_row.get();
+    let row: u32 = champ.rows.first_row.get();
     let row = rc2k_core::menu::steps::rows(row, count, on);
-    menus.play.champ_view.rows.first_row.set(row);
-    crate::menu::stage_range_caption::stage_range_caption(&menus.play.champ_view)?;
+    champ.rows.first_row.set(row);
+    crate::menu::stage_range_caption::stage_range_caption(champ)?;
     Ok(())
 }

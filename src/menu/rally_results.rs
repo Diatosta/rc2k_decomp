@@ -24,7 +24,10 @@ pub fn rally_results(menus: &Menus, entry: &Entry) -> Result<(), Refused> {
         crate::menu::sort_standings_by_total::sort_standings_by_total(menus)?;
         clear_standings(Which::A)?;
         number_all(menus, Which::A)?;
-        crate::menu::show_overall_rally_results::show_overall_rally_results(menus, entry)?;
+        crate::menu::show_overall_rally_results::show_overall_rally_results(
+            &menus.play.champ_view,
+            entry,
+        )?;
     } else {
         crate::menu::class_rally_results_pass::class_rally_results_pass(menus, entry)?;
     }

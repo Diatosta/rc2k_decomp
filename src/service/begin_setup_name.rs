@@ -14,7 +14,7 @@ use crate::service::owner::Service;
 use crate::service::read_setup_slot::{SLOT_COUNT, slot_name};
 
 pub fn begin_setup_name(menus: &Menus, service: &'static Service) -> Result<(), BadInput> {
-    let slot = highlighted_slot(menus);
+    let slot = highlighted_slot(&menus.tables.pages, &menus.screens.loop_flags);
     if slot >= SLOT_COUNT {
         return Err(BadInput("slot past the name table"));
     }

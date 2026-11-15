@@ -6,8 +6,9 @@
 //! layout but is drawn by another function.
 
 use crate::errors::Refused;
+use crate::menu::champ_store::ChampView;
+use crate::menu::event_store::EventState;
 use crate::menu::lists_store::lists;
-use crate::menu::owner::Menus;
 use crate::menu::owner::Screens;
 use crate::records::find_record::find_record_in;
 use crate::records::stages_store::RecordRef;
@@ -39,11 +40,15 @@ pub fn event_stage(
 
 /// The title string of the event's section: from a table in mode 0x13, otherwise from the
 /// section's first record.
-pub fn event_title(menus: &Menus, system: &System) -> Result<u32, crate::errors::BadInput> {
+pub fn event_title(
+    champ: &ChampView,
+    event: &EventState,
+    system: &System,
+) -> Result<u32, crate::errors::BadInput> {
     let table = system.records().stage_tables.championship();
-    let section: u32 = menus.screens.event.section.get();
+    let section: u32 = event.section.get();
     let first = find_record_in(&system.records().stage_tables, table, 0, section)?;
-    if menus.play.champ_view.event_mode.get() == 0x13 {
+    if champ.event_mode.get() == 0x13 {
         section_title(lists(), section)
     } else {
         Ok(first.record(&system.records().stage_tables)?.name())
@@ -64,7 +69,7 @@ pub fn draw_stage_info(
     label(
         crate::strings::append_string_by_id::StringOwners::of(o),
         canvas,
-        event_title(menus, system)?,
+        event_title(&menus.play.champ_view, &menus.screens.event, system)?,
         TITLE_FONT,
         TITLE_X,
         TITLE_Y,

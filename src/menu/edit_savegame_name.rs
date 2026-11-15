@@ -22,13 +22,14 @@ use crate::input::take_key::take_key;
 use crate::menu::add_text_length::add_text_length;
 use crate::menu::backspace_savegame_name::backspace_savegame_name;
 use crate::menu::clear_text::clear_text;
+use crate::menu::loop_store::LoopFlags;
 use crate::menu::name_lists::{NAME_LEN, savegame_name};
 use crate::menu::owner::Menus;
+use crate::menu::pages_store::MenuPages;
 use crate::menu::restore_text::restore_text;
 use crate::menu::text_entry::{length, set_length};
 use crate::saves::owner::Saves;
 use crate::saves::write_savegame_slot::write_savegame_slot;
-use crate::service::state::menu_item;
 use crate::strings::append_string_by_id::push_string;
 use crate::text::draw_text::Canvas;
 use crate::text::measure_text::measure_text_at;
@@ -42,14 +43,12 @@ fn end_name(menus: &Menus, name: crate::place::BytePlace) -> Result<(), BadInput
 }
 
 /// The slot of the highlighted saved game: `page * 10 + item - 1`.
-fn highlighted_slot(menus: &Menus) -> u32 {
-    menus
-        .tables
-        .pages
+fn highlighted_slot(pages: &MenuPages, loop_flags: &LoopFlags) -> u32 {
+    pages
         .save_page
         .get()
         .wrapping_mul(10)
-        .wrapping_add(menu_item(menus))
+        .wrapping_add(loop_flags.item.get())
         .wrapping_sub(1)
 }
 
@@ -97,7 +96,10 @@ pub fn edit_savegame_name(
             }
             screens.entry.typing.set(false);
             end_name(menus, name)?;
-            save(highlighted_slot(menus));
+            save(highlighted_slot(
+                &menus.tables.pages,
+                &menus.screens.loop_flags,
+            ));
             end_name(menus, name)?;
             screens.entry.typing.set(false);
             return Ok(());

@@ -26,7 +26,7 @@ pub fn draw_service_stage_info(
     label(
         crate::strings::append_string_by_id::StringOwners::of(o),
         canvas,
-        event_title(menus, system)?,
+        event_title(&menus.play.champ_view, &menus.screens.event, system)?,
         TITLE_FONT,
         TITLE_X,
         TITLE_Y,

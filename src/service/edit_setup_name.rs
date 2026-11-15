@@ -64,7 +64,7 @@ pub fn edit_setup_name(
     let screens = &menus.screens;
     // Everything that could be refused, before the key is taken.
     let (name, _) = entry(menus, service)?;
-    let slot = highlighted_slot(menus);
+    let slot = highlighted_slot(&menus.tables.pages, &menus.screens.loop_flags);
     if current_player(menus).is_none() {
         return Err(BadInput("no current player object").into());
     }

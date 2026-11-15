@@ -19,16 +19,12 @@ use crate::system::owner::System;
 use crate::text::draw_text::Canvas;
 use rc2k_core::screens::best_scores::{Row, Rows};
 
-fn scores_page(menus: &Menus) -> &PlainDword {
-    &menus.tables.pages.scores_page
-}
-
 /// The page's entry of one of the page title lists (`page_titles_a`, 12 entries, or
 /// `page_titles_b`, 11). The page is 0 .. 10: only `menu::next_scores_page` (past 10 to 0) and
 /// `menu::previous_scores_page` (below 0 to 10) write it, from 0. Refused past the list.
-fn page_title(titles: &[PlainDword], menus: &Menus) -> Result<u32, BadInput> {
+fn page_title(titles: &[PlainDword], pages: &MenuPages) -> Result<u32, BadInput> {
     titles
-        .get(scores_page(menus).get() as usize)
+        .get(pages.scores_page.get() as usize)
         .map(PlainDword::get)
         .ok_or(BadInput("a best scores page past its title"))
 }
@@ -136,7 +132,7 @@ pub fn draw_scores(
         let group = match (t.group_fixed, t.group_at) {
             (Some(g), _) => g,
             (None, Some(a)) => a(menus).get(),
-            (None, None) => page_title(&lists().page_titles_b, menus)?,
+            (None, None) => page_title(&lists().page_titles_b, &menus.tables.pages)?,
         };
         let ten = match t.at {
             Source::Scores => crate::saves::best_times::SCORES
@@ -222,8 +218,8 @@ pub fn draw_best_scores_page(
     o: crate::owners::Owners<'static>,
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
-    let menus = o.menus;
-    if (scores_page(menus).get() as i32) <= 4 {
+    let pages = &o.menus.tables.pages;
+    if (pages.scores_page.get() as i32) <= 4 {
         draw_scores(o, &BEST_SCORES, canvas)
     } else {
         draw_scores(o, &CLASS_TIMES, canvas)
@@ -233,12 +229,12 @@ pub fn draw_best_scores_page(
 /// The caption string from the page's entry of the caption list and its NUL.
 pub fn best_scores_caption(
     so: crate::strings::append_string_by_id::StringOwners<'_>,
-    menus: &Menus,
+    pages: &MenuPages,
     text: &crate::screens::text_buffers_store::TextBuffers,
 ) -> Result<(), Refused> {
     // The logic is in `rc2k_core::screens::captions::fit` (through `car_caption::put_string`);
     // refused when the caption would pass 0x100 bytes.
-    let id = page_title(&lists().page_titles_a, menus)?;
+    let id = page_title(&lists().page_titles_a, pages)?;
     crate::screens::car_caption::put_string(so, id, &text.caption, 0x100)
 }
 

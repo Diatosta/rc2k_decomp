@@ -6,6 +6,7 @@
 
 use crate::errors::BadInput;
 use crate::menu::owner::Menus;
+use crate::menu::pages_store::MenuPages;
 use crate::records::stages_store::RecordRef;
 use crate::session::FlagLike;
 use crate::session::PlainDword;
@@ -78,8 +79,8 @@ pub fn player(menus: &Menus, n: u32) -> crate::menu::standings::PlayerCell<'_> {
     &menus.play.slots.records[n as usize]
 }
 
-pub fn yes(menus: &Menus) -> bool {
-    menus.tables.pages.yes_no_answer.get() == 1
+pub fn yes(pages: &MenuPages) -> bool {
+    pages.yes_no_answer.get() == 1
 }
 
 /// The current player's record, refused past the four.

@@ -7,7 +7,8 @@
 //! car specification, the slideshow, two stage screens).
 
 use crate::errors::BadInput;
-use crate::menu::owner::Menus;
+use crate::menu::champ_store::ChampView;
+use crate::menu::options_store::MenuOptions;
 
 // ---- game data ----
 
@@ -18,7 +19,8 @@ use crate::menu::owner::Menus;
 pub fn step_car_stream(
     playing: &mut dyn FnMut() -> bool,
     start: &mut dyn FnMut(u32, u32),
-    menus: &Menus,
+    champ: &ChampView,
+    options: &MenuOptions,
     sound: &crate::sound::owner::Sound,
     names: &crate::audio::names_store::SampleNames,
 ) -> Result<(), BadInput> {
@@ -27,7 +29,7 @@ pub fn step_car_stream(
     let list: u32 = sound.race.car_stream.get().stream.get();
     let failed = std::cell::Cell::new(None);
     let step = stream_step(
-        menus.play.champ_view.event_mode.get(),
+        champ.event_mode.get(),
         sound.race.car_stream.get().on.get(),
         playing,
         sound.race.car_stream.get().place.get(),
@@ -51,7 +53,7 @@ pub fn step_car_stream(
         StreamStep::Start { place, part } => (place, part),
     };
     sound.race.car_stream.get().place.set(place);
-    start(part, menus.options.snapshot().speech_level);
+    start(part, options.snapshot().speech_level);
     Ok(())
 }
 
@@ -63,7 +65,8 @@ pub fn step_car_stream_in_game(o: crate::owners::Owners<'static>) -> Result<(), 
         &mut |name, volume| {
             crate::sound::start_stream::start_stream(o, name, volume);
         },
-        menus,
+        &menus.play.champ_view,
+        &menus.options,
         sound,
         &audio.sample_names,
     )

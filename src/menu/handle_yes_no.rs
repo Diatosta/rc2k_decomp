@@ -22,7 +22,13 @@ pub fn handle_yes_no(
     // this screen does not leave on Escape. Enter is a key like the keyboard's, and chooses
     // the item that is lit, yes or no.
     let pad = crate::input::menu_pad::take_answer();
-    if !question(menus).asks() {
+    if !question(
+        &menus.screens.flow,
+        &menus.tables.pages,
+        &menus.tables.captions,
+    )
+    .asks()
+    {
         return Ok(());
     }
     let answer = match pad {

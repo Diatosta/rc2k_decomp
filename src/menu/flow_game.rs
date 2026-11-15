@@ -231,7 +231,10 @@ impl flow::Game for Game<'_> {
                 m::standings_steps::number_all(menus, Which::B)?;
             }
             C::ShowChampionshipStandings => {
-                m::show_championship_standings::show_championship_standings(menus, entry)?;
+                m::show_championship_standings::show_championship_standings(
+                    &menus.play.champ_view,
+                    entry,
+                )?;
             }
             C::SectionFinish => m::section_finish::section_finish(self.owners)?,
             C::ChampionshipStandingsReview => {
@@ -254,7 +257,10 @@ impl flow::Game for Game<'_> {
                 m::standings_steps::number_all(menus, Which::A)?;
             }
             C::ShowOverallRallyResults => {
-                m::show_overall_rally_results::show_overall_rally_results(menus, entry)?;
+                m::show_overall_rally_results::show_overall_rally_results(
+                    &menus.play.champ_view,
+                    entry,
+                )?;
             }
             C::RunEventRaces => m::run_event_races::run_event_races(self.owners)?,
             C::AddPlayerTimes => m::add_player_times::add_player_times(menus)?,
@@ -262,7 +268,10 @@ impl flow::Game for Game<'_> {
                 m::class_stage_results_pass::class_stage_results_pass(menus, entry)?;
             }
             C::ShowOverallStageResults => {
-                m::show_overall_stage_results::show_overall_stage_results(menus, entry)?;
+                m::show_overall_stage_results::show_overall_stage_results(
+                    &menus.play.champ_view,
+                    entry,
+                )?;
             }
             C::KeepRecordBest => m::keep_record_best::keep_record_best(menus, self.owners.system)?,
             C::RecordEntriesPass => m::record_entries_pass::record_entries_pass(

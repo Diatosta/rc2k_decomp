@@ -3,7 +3,6 @@
 use crate::errors::{BadInput, Refused};
 use crate::menu::champ_store::ChampView;
 use crate::menu::event_flow::StageTable;
-use crate::menu::owner::Play;
 use crate::owners::Owners;
 use crate::records::stages_store::{Holder, RecordRef, RecordTable};
 use crate::screens::game_screen::{Held, HeldText};
@@ -30,12 +29,12 @@ fn records(
 /// is 1) names which of the four holds it (the stage, course, time trial and alternate best
 /// times; see
 /// `saves::best_times`), or None. Refuses a list entry that names none of them.
-fn times_table<'a>(
-    play: &'a Play,
+fn times_table(
+    champ: &ChampView,
     stages: &crate::records::stages_store::StageTables,
-) -> Result<Option<&'a StageTable>, BadInput> {
-    let mut n = play.champ_view.switches.records_set.get();
-    if play.champ_view.switches.records_alt.get() == 1 {
+) -> Result<Option<&'static StageTable>, BadInput> {
+    let mut n = champ.switches.records_set.get();
+    if champ.switches.records_alt.get() == 1 {
         n += 2;
     }
     use crate::menu::champ_store::TimesVariable;
@@ -81,27 +80,26 @@ fn ends_within_ten(table: &StageTable, stage: usize) -> Result<bool, BadInput> {
 /// (-1) comes within the ten rows and what the strings refuse.
 pub fn draw_stage_results(o: Owners<'static>, canvas: &mut dyn Canvas) -> Result<(), Refused> {
     let menus = o.menus;
-    let play = &menus.play;
+    let champ = &menus.play.champ_view;
     let menu = menus.screens.loop_flags.menu.get().ok();
     let stages = &o.system.records().stage_tables;
-    let (base, record) = records(&menus.play.champ_view, stages)?;
-    let table = times_table(play, stages)?;
+    let (base, record) = records(champ, stages)?;
+    let table = times_table(champ, stages)?;
     let (Some(table), Some(menu)) = (table, menu) else {
         return Err(BadInput("no current menu, stage records or times table").into());
     };
-    let both_off = (menus.play.champ_view.switches.records_set.get() ^ 1)
-        & (menus.play.champ_view.switches.records_alt.get() ^ 1);
+    let both_off = (champ.switches.records_set.get() ^ 1) & (champ.switches.records_alt.get() ^ 1);
     let fastest = if both_off == 1 {
         crate::records::find_stage_record::find_stage_record(
             &o.system.records().stage_tables,
             stages.championship(),
-            menus.play.champ_view.shown_stage.group.get(),
-            menus.play.champ_view.shown_stage.number.get(),
+            champ.shown_stage.group.get(),
+            champ.shown_stage.number.get(),
         )?
     } else {
         record
     };
-    let holder = if both_off != 1 && menus.play.champ_view.switches.records_alt.get() == 1 {
+    let holder = if both_off != 1 && champ.switches.records_alt.get() == 1 {
         Holder::TimeTrial
     } else {
         Holder::Fastest
@@ -151,7 +149,7 @@ pub fn draw_stage_results(o: Owners<'static>, canvas: &mut dyn Canvas) -> Result
     };
     set_item(
         1,
-        if menus.play.champ_view.switches.records_set.get() == 1 {
+        if champ.switches.records_set.get() == 1 {
             0x19C
         } else {
             0x19B
@@ -159,7 +157,7 @@ pub fn draw_stage_results(o: Owners<'static>, canvas: &mut dyn Canvas) -> Result
     )?;
     set_item(
         2,
-        if menus.play.champ_view.switches.records_alt.get() == 1 {
+        if champ.switches.records_alt.get() == 1 {
             0x19E
         } else {
             0x19D

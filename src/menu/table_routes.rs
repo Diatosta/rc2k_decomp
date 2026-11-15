@@ -315,10 +315,26 @@ pub fn item_fn(o: Owners<'static>, f: ItemFn, c: &table_calls::ItemCall) -> Resu
         ItemFn::ShowIntro => item_actions::show_intro(o),
         ItemFn::RaiseSensitivity => raise_sensitivity::raise_sensitivity(menus).map(|_| ()),
         ItemFn::LowerSensitivity => lower_sensitivity::lower_sensitivity(menus).map(|_| ()),
-        ItemFn::NextColourA => step_items::colour(&menus.tables, start_pick_a(menus), true),
-        ItemFn::PreviousColourA => step_items::colour(&menus.tables, start_pick_a(menus), false),
-        ItemFn::NextColourB => step_items::colour(&menus.tables, start_pick_b(menus), true),
-        ItemFn::PreviousColourB => step_items::colour(&menus.tables, start_pick_b(menus), false),
+        ItemFn::NextColourA => step_items::colour(
+            &menus.tables,
+            start_pick_a(&menus.screens.flow, &menus.tables.captions),
+            true,
+        ),
+        ItemFn::PreviousColourA => step_items::colour(
+            &menus.tables,
+            start_pick_a(&menus.screens.flow, &menus.tables.captions),
+            false,
+        ),
+        ItemFn::NextColourB => step_items::colour(
+            &menus.tables,
+            start_pick_b(&menus.screens.flow, &menus.tables.captions),
+            true,
+        ),
+        ItemFn::PreviousColourB => step_items::colour(
+            &menus.tables,
+            start_pick_b(&menus.screens.flow, &menus.tables.captions),
+            false,
+        ),
         ItemFn::Nothing => Ok(()),
         ItemFn::GoBack => {
             go_back::go_back(menus);
@@ -392,10 +408,18 @@ pub fn item_fn(o: Owners<'static>, f: ItemFn, c: &table_calls::ItemCall) -> Resu
         ItemFn::ViewBestTimesLoop => view_best_times_loop::run(o),
         ItemFn::ViewCoursesLoop => view_courses_loop::run(o),
         ItemFn::ViewBestScoresLoop => view_best_scores_loop::run(o),
-        ItemFn::PreviousStageRows => stage_rows::step_rows(menus, false, false),
-        ItemFn::NextStageRows => stage_rows::step_rows(menus, false, true),
-        ItemFn::PreviousStageRowsOf90 => stage_rows::step_rows(menus, true, false),
-        ItemFn::NextStageRowsOf90 => stage_rows::step_rows(menus, true, true),
+        ItemFn::PreviousStageRows => {
+            stage_rows::step_rows(&menus.play.champ_view, &menus.screens.event, false, false)
+        }
+        ItemFn::NextStageRows => {
+            stage_rows::step_rows(&menus.play.champ_view, &menus.screens.event, false, true)
+        }
+        ItemFn::PreviousStageRowsOf90 => {
+            stage_rows::step_rows(&menus.play.champ_view, &menus.screens.event, true, false)
+        }
+        ItemFn::NextStageRowsOf90 => {
+            stage_rows::step_rows(&menus.play.champ_view, &menus.screens.event, true, true)
+        }
         ItemFn::RallyResults => rally_results::rally_results(menus, &Entry::new(o)),
         ItemFn::ChampionshipStandings => {
             championship_standings::championship_standings(menus, &Entry::new(o))
@@ -500,7 +524,7 @@ pub fn screen_fn(o: Owners<'static>, f: ScreenFn) -> Result<(), Refused> {
         }
         ScreenFn::BestScoresCaption => best_scores::best_scores_caption(
             crate::strings::append_string_by_id::StringOwners::of(o),
-            menus,
+            &menus.tables.pages,
             text_buffers(),
         )
         .map(|_| ()),

@@ -8,8 +8,9 @@
 //! holds it is used.
 
 use crate::errors::{BadInput, Refused};
+use crate::menu::champ_store::ChampView;
+use crate::menu::event_store::EventState;
 use crate::menu::find_class_time::find_class_time;
-use crate::menu::owner::Menus;
 use crate::text::draw_text::Canvas;
 use rc2k_core::saves::entries::BestTime;
 
@@ -17,14 +18,14 @@ use rc2k_core::saves::entries::BestTime;
 type Rows = (Vec<(BestTime, u32)>, Option<u32>);
 
 /// The rows to draw, worked out before anything is drawn.
-fn rows(menus: &Menus) -> Result<Rows, Refused> {
+fn rows(champ: &ChampView, event: &EventState) -> Result<Rows, Refused> {
     // The logic is in `rc2k_core::screens::results_pages::class_rows`.
     crate::menu::standings::with_a(|t| {
         let found = rc2k_core::screens::results_pages::class_rows(
             |n| t.entries.get(n as usize).map_or(0, |e| e.head.group),
             |n| t.first_at(n as usize).is_none_or(|v| v == u32::MAX),
-            menus.screens.event.shown.class.get(),
-            menus.play.champ_view.rows.count.get(),
+            event.shown.class.get(),
+            champ.rows.count.get(),
         );
         let (rows, after) = found.map_err(BadInput::from)?;
         Ok((
@@ -41,7 +42,7 @@ pub fn draw_class_ranking(
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
     let menus = o.menus;
-    let (rows, last_place) = rows(menus)?;
+    let (rows, last_place) = rows(&menus.play.champ_view, &menus.screens.event)?;
     let first_time = find_class_time(menus.screens.event.shown.class.get(), true)?;
     // The logic is in `rc2k_core::screens::results_pages::class_ranking` (the rows found here).
     use rc2k_core::screens::results_pages::{Name, RankedRow, class_ranking};

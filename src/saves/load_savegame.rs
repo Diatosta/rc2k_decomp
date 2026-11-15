@@ -17,7 +17,8 @@
 
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::menu::go_back;
-use crate::menu::owner::Menus;
+use crate::menu::loop_store::LoopFlags;
+use crate::menu::pages_store::MenuPages;
 use crate::owners::Owners;
 use crate::saves::gather_savegame::{CAR_LEN, RECORDS_LEN, cars, head};
 use crate::saves::read_savegame_slot::read_savegame_slot_in;
@@ -31,11 +32,8 @@ const PAYLOAD_OFFSET: usize = 0x30;
 const UNREADABLE_SOUND: u32 = 8;
 
 /// The slot the highlighted menu item stands for.
-fn highlighted_slot(menus: &Menus) -> u32 {
-    rc2k_core::saves::savegame::slot(
-        menus.tables.pages.save_page.get(),
-        menus.screens.loop_flags.item.get(),
-    )
+fn highlighted_slot(pages: &MenuPages, loop_flags: &LoopFlags) -> u32 {
+    rc2k_core::saves::savegame::slot(pages.save_page.get(), loop_flags.item.get())
 }
 
 /// The players' own records and names come back when the loaded championship is over or left
@@ -46,7 +44,7 @@ pub fn load_savegame(o: Owners<'static>) -> Result<(), Refused> {
 
 fn load_and_run(o: Owners<'static>) -> Result<(), Refused> {
     let (menus, saves) = (o.menus, o.saves);
-    let slot = highlighted_slot(menus);
+    let slot = highlighted_slot(&menus.tables.pages, &menus.screens.loop_flags);
     if slot >= SLOTS {
         return Err(BadInput("slot past the name list").into());
     }

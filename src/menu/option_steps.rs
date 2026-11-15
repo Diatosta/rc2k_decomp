@@ -15,6 +15,8 @@
 
 use crate::errors::Refused;
 use crate::gfx::owner::Gfx;
+use crate::menu::captions_store::CaptionTables;
+use crate::menu::flow_store::ScreenFlow;
 use crate::menu::options_store::MenuOptions;
 use crate::menu::owner::Menus;
 use crate::menu::owner::Tables;
@@ -89,18 +91,18 @@ pub struct StartPick<'a> {
     pub pick: &'a PlainDword,
 }
 
-pub fn start_pick_a(menus: &Menus) -> StartPick<'_> {
+pub fn start_pick_a<'a>(flow: &'a ScreenFlow, captions: &'a CaptionTables) -> StartPick<'a> {
     StartPick {
-        number: &menus.screens.flow.start_section,
+        number: &flow.start_section,
         table_at: 21,
-        pick: &menus.tables.captions.caption_lists[7],
+        pick: &captions.caption_lists[7],
     }
 }
-pub fn start_pick_b(menus: &Menus) -> StartPick<'_> {
+pub fn start_pick_b<'a>(flow: &'a ScreenFlow, captions: &'a CaptionTables) -> StartPick<'a> {
     StartPick {
-        number: &menus.screens.flow.start_section_a8,
+        number: &flow.start_section_a8,
         table_at: 13,
-        pick: &menus.tables.captions.caption_lists[8],
+        pick: &captions.caption_lists[8],
     }
 }
 

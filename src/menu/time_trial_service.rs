@@ -41,7 +41,7 @@ pub fn time_trial_service(menus: &Menus, entry: &Entry) -> Result<(), Refused> {
             { crate::menu::driver_stats::driver_stats(menus, screens) }?;
             screens.state.menus.service_flag.set(false);
             { run_screen(ScreenId::ServiceArea, entry) }?;
-            if yes(menus) {
+            if yes(&menus.tables.pages) {
                 break 'all;
             }
             { crate::service::apply_repairs::apply_repairs_in_game_in(entry.owners) }?;
@@ -55,7 +55,7 @@ pub fn time_trial_service(menus: &Menus, entry: &Entry) -> Result<(), Refused> {
             if passes::is_out(record.get().entry) {
                 crate::menu::inspection_faults::inspection_faults(menus)?;
                 { run_screen(ScreenId::InspectionArea, entry) }?;
-                if yes(menus) {
+                if yes(&menus.tables.pages) {
                     break 'all;
                 }
                 inc(&event.event_out);

@@ -15,7 +15,7 @@ pub fn entry(
     menus: &Menus,
     service: &'static Service,
 ) -> Result<(crate::place::BytePlace, usize), BadInput> {
-    let slot = highlighted_slot(menus);
+    let slot = highlighted_slot(&menus.tables.pages, &menus.screens.loop_flags);
     if slot >= SLOT_COUNT {
         return Err(BadInput("slot past the name table"));
     }

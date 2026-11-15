@@ -38,7 +38,10 @@ pub fn championship_standings(menus: &Menus, entry: &Entry) -> Result<(), Refuse
     if a8 {
         crate::menu::class_championship_pass::class_championship_pass(menus, entry)?;
     } else {
-        crate::menu::show_championship_standings::show_championship_standings(menus, entry)?;
+        crate::menu::show_championship_standings::show_championship_standings(
+            &menus.play.champ_view,
+            entry,
+        )?;
     }
     menus.screens.state.menus.standings_shown.set(false);
     Ok(())
