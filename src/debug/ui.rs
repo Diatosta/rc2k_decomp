@@ -252,6 +252,9 @@ pub fn build(o: &Owners<'static>, ui: &Ui) {
                 if let Some(_tab) = ui.tab_item("Profiler") {
                     body(ui, || profiler(o, ui));
                 }
+                if let Some(_tab) = ui.tab_item("GPU") {
+                    body(ui, || crate::debug::gpu_cuts::tab(race, ui));
+                }
                 if let Some(_tab) = ui.tab_item("Kstar modes") {
                     body(ui, || crate::debug::kstar::tab(race, o.scene, ui));
                 }

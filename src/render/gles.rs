@@ -200,6 +200,7 @@ struct Quad {
     flip: i32,
 }
 
+#[derive(Clone)]
 struct Locations {
     size: i32,
     first: ValueLocations,
@@ -207,7 +208,7 @@ struct Locations {
 }
 
 /// Where a pass's `PixelValues` go.
-#[derive(Default)]
+#[derive(Default, Clone)]
 struct ValueLocations {
     fog_colour: i32,
     alpha_reference: i32,
@@ -255,10 +256,13 @@ struct CachedTexture {
 
 pub struct Gpu {
     gl: Gles,
-    /// The diagnostic cuts (`RC2K_GPU_CUT`), none unless asked for.
+    /// The diagnostic cuts in force for the flush being drawn (the live set, read once per
+    /// flush), none unless asked for.
     cuts: Cuts,
     scene: u32,
     locations: Locations,
+    /// The scene programs made so far, by the shader cuts they were made for.
+    scene_programs: HashMap<u32, (u32, Locations)>,
     overlay: Quad,
     canvas_quad: Quad,
     target_quad: Quad,
@@ -299,12 +303,12 @@ impl Gpu {
             return Err("made to fail".into());
         }
         let gl = Gles::open_panel(PANEL.0 as u16, PANEL.1 as u16)?;
-        let (cuts, cuts_line) = Cuts::from_env();
-        if let Some(line) = cuts_line {
+        if let Some(line) = Cuts::start_from_env() {
             log(&line);
         }
         let mut gpu = Gpu {
-            cuts,
+            cuts: Cuts::default(),
+            scene_programs: HashMap::new(),
             scene: 0,
             locations: Locations {
                 size: 0,
@@ -367,24 +371,81 @@ impl Gpu {
         })
     }
 
-    fn set_up(&mut self) -> Result<(), String> {
-        let fragment = std::ffi::CString::new(self.cuts.shader(&SCENE_FS.to_string_lossy()))
+    /// The scene's program with the shader cuts of `cuts` defined, and where its values go;
+    /// its picture units are set.
+    fn scene_program(&self, cuts: Cuts) -> Result<(u32, Locations), String> {
+        let fragment = std::ffi::CString::new(cuts.shader(&SCENE_FS.to_string_lossy()))
             .map_err(|_| "the scene's shader holds a NUL".to_string())?;
-        self.scene = self.program(SCENE_VS, &fragment)?;
+        let program = self.program(SCENE_VS, &fragment)?;
         let values = |suffix: &str| ValueLocations {
-            fog_colour: self.uniform(self.scene, &format!("fog_colour{suffix}")),
-            alpha_reference: self.uniform(self.scene, &format!("alpha_reference{suffix}")),
-            alpha_function: self.uniform(self.scene, &format!("alpha_function{suffix}")),
-            mixing: self.uniform(self.scene, &format!("mixing{suffix}")),
-            flags: self.uniform(self.scene, &format!("flags{suffix}")),
+            fog_colour: self.uniform(program, &format!("fog_colour{suffix}")),
+            alpha_reference: self.uniform(program, &format!("alpha_reference{suffix}")),
+            alpha_function: self.uniform(program, &format!("alpha_function{suffix}")),
+            mixing: self.uniform(program, &format!("mixing{suffix}")),
+            flags: self.uniform(program, &format!("flags{suffix}")),
         };
-        self.locations = Locations {
-            size: self.uniform(self.scene, "size"),
+        let locations = Locations {
+            size: self.uniform(program, "size"),
             first: values(""),
             second: values("2"),
         };
-        let pictures = ["picture_a", "picture_b", "picture2_a", "picture2_b"]
-            .map(|name| self.uniform(self.scene, name));
+        self.gl.use_program(program);
+        for (unit, name) in ["picture_a", "picture_b", "picture2_a", "picture2_b"]
+            .into_iter()
+            .enumerate()
+        {
+            self.gl.uniform_1i(self.uniform(program, name), unit as i32);
+        }
+        Ok((program, locations))
+    }
+
+    /// Takes the live cuts for the flush about to be drawn: the scene's program for its shader
+    /// cuts (made on first use; the plain one if that fails) and the samplers' filters.
+    fn take_cuts(&mut self) {
+        let cuts = super::gpu_cut::live();
+        if cuts == self.cuts {
+            return;
+        }
+        let key = cuts.shader_part().bits();
+        if !self.scene_programs.contains_key(&key) {
+            let made = self.scene_program(cuts.shader_part());
+            let entry = made.unwrap_or_else(|why| {
+                log(&format!(
+                    "render: the scene's shader with cuts {} failed: {why}",
+                    cuts.names()
+                ));
+                self.scene_programs[&0].clone()
+            });
+            self.scene_programs.insert(key, entry);
+        }
+        let (scene, locations) = self.scene_programs[&key].clone();
+        self.scene = scene;
+        self.locations = locations;
+        self.set_filters(cuts.nearest, cuts.linear);
+        log(&format!("render: GPU cuts now on: {}", cuts.names()));
+        self.cuts = cuts;
+    }
+
+    /// Every sampler's filter: nearest for the even ones and linear for the odd, unless a cut
+    /// makes all one or the other.
+    fn set_filters(&self, nearest: bool, linear_cut: bool) {
+        for (n, &sampler) in self.samplers.iter().enumerate() {
+            let linear = (n & 1 != 0 || linear_cut) && !nearest;
+            let filter = if linear { 0x2601 } else { 0x2600 };
+            let wrap = if n & 2 != 0 { 0x812F } else { 0x2901 };
+            self.gl.sampler_parameter(sampler, 0x2801, filter);
+            self.gl.sampler_parameter(sampler, 0x2800, filter);
+            self.gl.sampler_parameter(sampler, 0x2802, wrap);
+            self.gl.sampler_parameter(sampler, 0x2803, wrap);
+        }
+    }
+
+    fn set_up(&mut self) -> Result<(), String> {
+        let (scene, locations) = self.scene_program(Cuts::default())?;
+        self.scene = scene;
+        self.locations = locations;
+        self.scene_programs
+            .insert(0, (scene, self.locations.clone()));
         self.overlay = self.quad(OVERLAY_FS)?;
         self.canvas_quad = self.quad(CANVAS_FS)?;
         self.target_quad = self.quad(TARGET_FS)?;
@@ -417,20 +478,8 @@ impl Gpu {
         // Each pass's array (of its two) and layer, as four numbers.
         gl.bind_buffer(ARRAY_BUFFER, self.layers);
         gl.attribute(7, 4, UNSIGNED_SHORT, false, 8, 0);
-        gl.use_program(self.scene);
-        for (unit, location) in pictures.into_iter().enumerate() {
-            gl.uniform_1i(location, unit as i32);
-        }
         self.samplers = gl.gen_samplers();
-        for (n, &sampler) in self.samplers.iter().enumerate() {
-            let linear = (n & 1 != 0 || self.cuts.linear) && !self.cuts.nearest;
-            let filter = if linear { 0x2601 } else { 0x2600 };
-            let wrap = if n & 2 != 0 { 0x812F } else { 0x2901 };
-            gl.sampler_parameter(sampler, 0x2801, filter);
-            gl.sampler_parameter(sampler, 0x2800, filter);
-            gl.sampler_parameter(sampler, 0x2802, wrap);
-            gl.sampler_parameter(sampler, 0x2803, wrap);
-        }
+        self.set_filters(false, false);
         self.framebuffer = gl.gen_framebuffer();
         self.colour = gl.gen_texture();
         self.canvas = gl.gen_texture();
@@ -624,6 +673,7 @@ impl Gpu {
             quad_vertices,
             opaque,
         } = batched;
+        self.take_cuts();
         if let Err(why) = self.set_size(width, height) {
             crate::fatal::raise::end(
                 "render::gles",
@@ -733,9 +783,7 @@ impl Gpu {
             };
             let mut scissored = false;
             for batch in &batches.batches {
-                if (self.cuts.seethru && batch.pipeline.blend.is_some())
-                    || (self.cuts.solid && batch.pipeline.blend.is_none())
-                {
+                if self.cuts.drops(batch.pipeline.blend.is_some()) {
                     continue;
                 }
                 if last_pipeline != Some(batch.pipeline) {

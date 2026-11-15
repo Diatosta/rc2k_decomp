@@ -208,7 +208,7 @@ def start(software, fresh, profile=False):
     renderer = 'RC2K_RENDERER=software ' if software else ''
     if os.environ.get('RC2K_FAIL_RENDERER'):  # start-up steps made to fail, to test the fallbacks
         renderer += f"RC2K_FAIL_RENDERER={os.environ['RC2K_FAIL_RENDERER']} "
-    if os.environ.get('RC2K_GPU_CUT'):  # diagnostic: kinds of GPU work removed, comma list (handheld GLES)
+    if os.environ.get('RC2K_GPU_CUT'):  # diagnostic: kinds of GPU work removed, comma list (the GPU backends; live on the PC in the debug window's GPU tab)
         renderer += f"RC2K_GPU_CUT={os.environ['RC2K_GPU_CUT']} "
     if profile:
         renderer += 'RC2K_PROFILE=1 '

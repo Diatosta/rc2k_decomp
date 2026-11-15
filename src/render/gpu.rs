@@ -13,6 +13,7 @@ mod check;
 mod quads;
 
 use super::batches::{Batch, Batches, PipelineKey};
+use super::gpu_cut::Cuts;
 use super::{CommandList, Target, TextureNote};
 use crate::logfile::program_log::log;
 use crate::platform::ffi::sdl_gpu::{
@@ -110,6 +111,8 @@ pub struct Gpu {
     vertices_room: u32,
     transfer: Transfer,
     transfer_room: u32,
+    /// The diagnostic cuts of the flush last drawn (`gpu_cut`), to log their changes.
+    cuts: Cuts,
 }
 
 /// The GPU, once asked for and made.
@@ -181,7 +184,11 @@ impl Gpu {
             vertices_room: 0,
             transfer: Transfer::NONE,
             transfer_room: 0,
+            cuts: Cuts::default(),
         };
+        if let Some(line) = Cuts::start_from_env() {
+            log(&line);
+        }
         gpu.scene_vert = gpu.shader(SCENE_VERT, SDL_GPU_SHADERSTAGE_VERTEX, 0, 1)?;
         gpu.scene_frag = gpu.shader(SCENE_FRAG, SDL_GPU_SHADERSTAGE_FRAGMENT, 1, 1)?;
         let overlay_vert = gpu.shader(OVERLAY_VERT, SDL_GPU_SHADERSTAGE_VERTEX, 0, 0)?;
@@ -459,6 +466,14 @@ impl Gpu {
         Ok(())
     }
 
+    /// Logs a change of the live cuts.
+    fn note_cuts(&mut self, cuts: Cuts) {
+        if cuts != self.cuts {
+            log(&format!("render: GPU cuts now on: {}", cuts.names()));
+            self.cuts = cuts;
+        }
+    }
+
     /// Forgets what is known of textures whose memory has changed, and lets go of those whose
     /// memory is gone.
     fn take_changes(&mut self) {
@@ -526,6 +541,8 @@ impl Gpu {
         commands: &CommandList,
     ) -> Result<(), String> {
         self.take_changes();
+        let cuts = super::gpu_cut::live();
+        self.note_cuts(cuts);
         let two_d = self.prepare_2d(crate::gfx::draw2d::quads::take())?;
         let mut background_bytes = None;
         let (background, upload_background) = self.bring_up_background(&mut background_bytes)?;
@@ -593,7 +610,7 @@ impl Gpu {
         // The pipelines first: making one in the render pass would keep `self` borrowed.
         let mut pipelines = Vec::with_capacity(batches.batches.len());
         for batch in &batches.batches {
-            pipelines.push(self.pipeline(batch.pipeline)?);
+            pipelines.push(self.pipeline(cut_key(batch.pipeline, cuts))?);
         }
         let vertex_data: &[u8] = sdl_gpu::words_as_bytes(&batches.vertices);
         self.fill_transfer(self.transfer, 0, vertex_data)?;
@@ -660,6 +677,8 @@ impl Gpu {
             let clear = std::mem::replace(&mut c.depth_is_new, false);
             (c.colour, c.depth, c.canvas, c.canvas_transfer, clear)
         });
+        // Under the `half` cut the rectangles are scaled with the viewport.
+        let shrink = |n: i32| if cuts.half { n / 2 } else { n };
         let draw_batches = |pass: &sdl_gpu::RenderPass| {
             buffer.push_vertex_uniform(0, &[self.width as f32, self.height as f32]);
             pass.bind_vertex_buffer(self.vertices);
@@ -668,12 +687,17 @@ impl Gpu {
             let mut last_sampling = None;
             let mut scissored = false;
             for (batch, &pipeline) in batches.batches.iter().zip(&pipelines) {
+                if cuts.drops(batch.pipeline.blend.is_some()) {
+                    continue;
+                }
                 if last_pipeline != Some(pipeline) {
                     pass.bind_pipeline(pipeline);
                     last_pipeline = Some(pipeline);
                 }
                 if last_values != Some(batch.values) {
-                    buffer.push_fragment_uniform(0, &batch.values.to_words());
+                    let mut words = batch.values.to_words();
+                    words[7] |= cuts.flag_bits();
+                    buffer.push_fragment_uniform(0, &words);
                     last_values = Some(batch.values);
                 }
                 let sampling = (batch.texture, batch.linear, batch.clamp);
@@ -681,15 +705,15 @@ impl Gpu {
                     let texture = batch.texture.map_or(self.white, |n| {
                         self.textures[&batches.textures[n as usize].pixels].texture
                     });
-                    pass.bind_fragment_sampler(texture, self.samplers[sampler_number(batch)]);
+                    pass.bind_fragment_sampler(texture, self.samplers[sampler_number(batch, cuts)]);
                     last_sampling = Some(sampling);
                 }
                 if let Some([left, top, right, bottom]) = batch.scissor {
                     pass.set_scissor(
-                        left as i32,
-                        top as i32,
-                        (right - left) as i32,
-                        (bottom - top) as i32,
+                        shrink(left as i32),
+                        shrink(top as i32),
+                        shrink((right - left) as i32),
+                        shrink((bottom - top) as i32),
                     );
                     scissored = true;
                 } else if scissored {
@@ -700,23 +724,28 @@ impl Gpu {
             }
         };
         let pass = buffer.begin_render_pass(self.colour, self.depth, clear_depth);
-        if background {
+        if cuts.half {
+            pass.set_viewport((self.width / 2) as f32, (self.height / 2) as f32);
+        }
+        if background && !cuts.two_d {
             self.draw_overlay(&pass, self.background);
         }
-        for &(first, last) in &runs {
-            pass.set_scissor(
-                0,
-                first as i32,
-                self.width as i32,
-                (last + 1 - first) as i32,
-            );
-            self.draw_overlay(&pass, self.canvas);
+        if !cuts.two_d {
+            for &(first, last) in &runs {
+                pass.set_scissor(
+                    0,
+                    shrink(first as i32),
+                    shrink(self.width as i32),
+                    shrink((last + 1 - first) as i32),
+                );
+                self.draw_overlay(&pass, self.canvas);
+            }
+            if !runs.is_empty() {
+                pass.set_scissor(0, 0, self.width as i32, self.height as i32);
+            }
+            self.draw_2d(&buffer, &pass, &two_d);
         }
-        if !runs.is_empty() {
-            pass.set_scissor(0, 0, self.width as i32, self.height as i32);
-        }
-        self.draw_2d(&buffer, &pass, &two_d);
-        if !crate::gfx::draw2d::quads::check_2d_only() {
+        if !cuts.scene && !crate::gfx::draw2d::quads::check_2d_only() {
             draw_batches(&pass);
         }
         pass.end();
@@ -800,8 +829,21 @@ impl Gpu {
     }
 }
 
-fn sampler_number(batch: &Batch) -> usize {
-    batch.linear as usize + 2 * batch.clamp as usize
+fn sampler_number(batch: &Batch, cuts: Cuts) -> usize {
+    let linear = (batch.linear || cuts.linear) && !cuts.nearest;
+    linear as usize + 2 * batch.clamp as usize
+}
+
+/// The pipeline `key` asks for, with the state cuts applied: no blending, and no depth test
+/// or writes.
+fn cut_key(key: PipelineKey, cuts: Cuts) -> PipelineKey {
+    PipelineKey {
+        blend: if cuts.blend { None } else { key.blend },
+        // Direct3D's "always" (any number past the comparisons' seven).
+        depth_function: if cuts.depth { 8 } else { key.depth_function },
+        depth_write: key.depth_write && !cuts.depth,
+        ..key
+    }
 }
 
 /// Every pixel of the canvas marked as not written.

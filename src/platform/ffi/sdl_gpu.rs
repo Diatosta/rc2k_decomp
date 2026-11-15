@@ -659,6 +659,20 @@ impl RenderPass {
         unsafe { SDL_BindGPUFragmentSamplers(self.0, 0, &raw const bound, 1) };
     }
 
+    /// The viewport over the target's top-left `width` by `height` pixels, depth 0 to 1.
+    pub fn set_viewport(&self, width: f32, height: f32) {
+        let viewport = SDL_GPUViewport {
+            x: 0.0,
+            y: 0.0,
+            w: width,
+            h: height,
+            min_depth: 0.0,
+            max_depth: 1.0,
+        };
+        // SAFETY: our open pass; `viewport` lives through the call.
+        unsafe { SDL_SetGPUViewport(self.0, &raw const viewport) };
+    }
+
     #[inline]
     pub fn set_scissor(&self, x: i32, y: i32, width: i32, height: i32) {
         let rect = SDL_Rect {

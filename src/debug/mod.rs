@@ -53,6 +53,8 @@ pub mod effects_page;
 #[cfg(debug_ui)]
 pub mod frame_figures;
 #[cfg(debug_ui)]
+pub mod gpu_cuts;
+#[cfg(debug_ui)]
 pub mod kstar;
 pub mod overlay;
 #[cfg(debug_ui)]
