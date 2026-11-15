@@ -17,8 +17,8 @@ pub fn run_pages(
     // The entry before, and the passed-over pages' ways (`pass_over`).
     let (mut prev, mut passed) = (None, Vec::new());
     loop {
-        let list = entry.list();
-        if let Some(next) = pass_over(entry, prev, &mut passed) {
+        let list = entry.list(install);
+        if let Some(next) = pass_over(install, entry, prev, &mut passed) {
             (prev, entry) = (Some(entry), next);
             continue;
         }
@@ -27,7 +27,7 @@ pub fn run_pages(
             list.set_highlight(0);
         }
         prev = Some(entry);
-        let Some(next) = entry.next(pages::next_entry_at(answer)) else {
+        let Some(next) = entry.next(install, pages::next_entry_at(answer)) else {
             return Ok(());
         };
         entry = next;
@@ -38,8 +38,8 @@ pub fn run_pages(
 }
 
 /// Whether `list`'s action (+8) is the page `page`.
-fn is_page(entry: PageEntry, page: u32) -> bool {
-    entry.has_list() && entry.list().action() == page
+fn is_page(install: &'static crate::install::owner::Install, entry: PageEntry, page: u32) -> bool {
+    entry.has_list(install) && entry.list(install).action() == page
 }
 
 /// A page passed over: its entry, the entry it was come to from, the one it went on to.
@@ -58,6 +58,7 @@ struct Passed {
 /// Come back to from where it went on to, a page goes back to where it was come to from.
 /// None for a page that is shown.
 fn pass_over(
+    install: &'static crate::install::owner::Install,
     entry: PageEntry,
     prev: Option<PageEntry>,
     passed: &mut Vec<Passed>,
@@ -67,17 +68,19 @@ fn pass_over(
     const DRIVE_PAGE: u32 = 0x41425E;
     const FOLDER_PAGE: u32 = 0x4142F5;
     const FULL: u32 = 3;
-    let on = if is_page(entry, MODE_PAGE) {
+    let on = if is_page(install, entry, MODE_PAGE) {
         crate::install::installer::set_media_mode(FULL);
-        entry.next(pages::next_entry_at(FULL)).unwrap_or_else(|| {
-            crate::install::installer::refuse(crate::errors::BadInput(
-                "the installation-kind page with no page to go on to",
-            ))
-        })
-    } else if !<Native as Folders>::DRIVES && is_page(entry, DRIVE_PAGE) {
-        (0..entry.answers())
-            .filter_map(|answer| entry.next(pages::next_entry_at(answer)))
-            .find(|&next| is_page(next, FOLDER_PAGE))?
+        entry
+            .next(install, pages::next_entry_at(FULL))
+            .unwrap_or_else(|| {
+                crate::install::installer::refuse(crate::errors::BadInput(
+                    "the installation-kind page with no page to go on to",
+                ))
+            })
+    } else if !<Native as Folders>::DRIVES && is_page(install, entry, DRIVE_PAGE) {
+        (0..entry.answers(install))
+            .filter_map(|answer| entry.next(install, pages::next_entry_at(answer)))
+            .find(|&next| is_page(install, next, FOLDER_PAGE))?
     } else {
         return None;
     };

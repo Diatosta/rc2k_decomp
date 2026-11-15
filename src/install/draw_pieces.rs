@@ -49,10 +49,10 @@ pub fn draw_pieces(
                 )?;
             }
             Way::Edit => {
-                let item = piece.item();
-                let record = item.edit_field();
+                let item = piece.item(install);
+                let record = item.edit_field(install);
                 let edit_font = font(install, colour(install, first, record.font_kind() as u32))?;
-                let mut text = text_at(item.text());
+                let mut text = text_at(item.text(install));
                 // The drawer reads to the NUL.
                 if !pieces::caret(first, record.flags()) {
                     text.push(0);
@@ -66,7 +66,7 @@ pub fn draw_pieces(
                 draw_text(edit_font, &text, x, y, gfx)?;
             }
             Way::Text => {
-                let item = piece.item();
+                let item = piece.item(install);
                 let mut text = Vec::new();
                 push_string_by_id(so, &mut text, piece.text_id() as u32);
                 let action = item.data();
@@ -83,7 +83,7 @@ pub fn draw_pieces(
                     gfx,
                 )?;
             }
-            Way::Action => draw_action(piece.item().data())?,
+            Way::Action => draw_action(piece.item(install).data())?,
             Way::Other => {}
         }
     }

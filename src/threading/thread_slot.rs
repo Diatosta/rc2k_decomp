@@ -61,7 +61,7 @@ pub struct SlotOwners<'a> {
     pub audio: &'static crate::audio::owner::Audio,
     pub input: &'a crate::input::owner::Input,
     pub sound: &'a crate::sound::owner::Sound,
-    pub system: &'a crate::system::owner::System,
+    pub system: &'static crate::system::owner::System,
     pub race: &'a crate::race::owner::Race,
     pub net: &'a crate::net::owner::Net,
     /// Only for the receiving thread's chat lines, which measure text with its fonts.

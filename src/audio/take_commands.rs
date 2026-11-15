@@ -9,7 +9,7 @@ use crate::errors::Refused;
 
 pub fn take_commands(
     audio: &AudioThread,
-    system: &crate::system::owner::System,
+    system: &'static crate::system::owner::System,
     sets: &crate::sound::sets_store::SoundSets,
     menu_sounds: &crate::sound::sets_store::MenuSounds,
 ) -> Result<(), Refused> {

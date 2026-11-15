@@ -5,8 +5,8 @@
 use crate::list_handle::ListItem;
 
 pub fn start_edit(install: &'static crate::install::owner::Install, item: ListItem) {
-    let record = item.edit_field();
-    let text = item.text();
+    let record = item.edit_field(install);
+    let text = item.text(install);
     let most = crate::install::folders::field_most(install, text, record.most());
     let mut words = text
         .read(most as usize + 2, "an edited text")

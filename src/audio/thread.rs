@@ -23,7 +23,7 @@ const QUIT_TEXT: &std::ffi::CStr = c"AUDIOTDB:QUIT"; // "AUDIOTDB:QUIT"
 #[derive(Clone, Copy)]
 pub struct AudioInputs<'a> {
     pub audio: &'static crate::audio::owner::Audio,
-    pub system: &'a crate::system::owner::System,
+    pub system: &'static crate::system::owner::System,
     /// The sets of sounds a race loads (the lists of the load command).
     pub sets: &'a crate::sound::sets_store::SoundSets,
     /// The settings page's menu sounds (the menu list of the load command).

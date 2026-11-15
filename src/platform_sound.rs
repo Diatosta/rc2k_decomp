@@ -19,7 +19,6 @@
 //! then, as in DirectSound. Not done: Doppler, cones, EAX and the voice manager (their property
 //! sets are not offered: `query_interface` answers `E_NOINTERFACE`, as a DirectSound without them).
 
-use crate::system::owner::system;
 use rc2k_core::math::portable;
 use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
@@ -166,6 +165,8 @@ struct State {
     primary: Option<u32>,
     /// The listener's roll-off factor (DirectSound's default; the game leaves it).
     rolloff: f32,
+    /// The window's focus flag (1: in front), set when the device is created.
+    window_focused: Option<&'static crate::session::Dword>,
 }
 
 static STATE: Mutex<Option<State>> = Mutex::new(None);
@@ -180,6 +181,7 @@ fn with<R>(f: impl FnOnce(&mut State) -> R) -> R {
         next: 1,
         primary: None,
         rolloff: 1.0,
+        window_focused: None,
     }))
 }
 
@@ -661,10 +663,10 @@ fn mixed_frames(frames: usize) -> Vec<i16> {
     // DirectSound's focus: while the window is not in front, a buffer made without
     // `DSBCAPS_GLOBALFOCUS` or `DSBCAPS_STICKYFOCUS` plays on unheard (the game asks for
     // neither, so it goes quiet and comes back with the focus).
-    // m6-root: SDL's audio callback, entered from the platform.
-    let focused = system().session.flags.window_focused.get() == 1; // m6-root
     let mut unheard = Vec::new();
     with(|s| {
+        // Before the device exists nothing plays; the flag is then taken as set.
+        let focused = s.window_focused.is_none_or(|flag| flag.get() == 1);
         let master = s
             .primary
             .and_then(|p| match &s.entries.get(&p)?.kind {
@@ -710,7 +712,8 @@ static OPENED: Mutex<bool> = Mutex::new(false);
 
 /// `DirectSoundCreate` for the standalone: the device, SDL's audio opened the first time.
 /// Fails (as `DirectSoundCreate` can, with `DSERR_NODRIVER`) when SDL cannot.
-pub fn create_device() -> Result<u32, i32> {
+pub fn create_device(window_focused: &'static crate::session::Dword) -> Result<u32, i32> {
+    with(|s| s.window_focused = Some(window_focused));
     let mut opened = OPENED.lock().unwrap();
     if !*opened {
         match crate::ffi::sdl::start_audio_output(OUT_RATE, feed) {
@@ -904,5 +907,48 @@ mod tests {
             }
         }
         assert!(compared > 30000, "{compared} samples compared");
+    }
+
+    /// A buffer made without a focus flag is heard only while the window's flag is 1; one made
+    /// with `GLOBAL_FOCUS` is heard either way.
+    #[test]
+    fn a_buffer_without_the_focus_flags_is_silent_while_the_window_is_not_in_front() {
+        static FOCUS: crate::session::Dword = crate::session::Dword::new(0);
+        let _held = PLAYING
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let format = Format {
+            channels: 2,
+            bits: 16,
+            rate: 22050,
+        };
+        let foreign: Vec<u32> = with(|s| {
+            s.window_focused = Some(&FOCUS);
+            let mut paused = Vec::new();
+            for (id, e) in &mut s.entries {
+                if let Kind::Buffer(b) = &mut e.kind
+                    && b.playing
+                {
+                    b.playing = false;
+                    paused.push(*id);
+                }
+            }
+            paused
+        });
+        let heard = |flags: u32, focus: u32| {
+            FOCUS.set(focus);
+            let id = filled_buffer(flags, 4000, format, 7);
+            assert_eq!(play(id, LOOPING), OK);
+            let pcm = mixed_frames(64);
+            assert_eq!(stop(id), OK);
+            release(id);
+            pcm.iter().any(|&sample| sample != 0)
+        };
+        assert!(!heard(0, 0), "no flag, window behind");
+        assert!(heard(0, 1), "no flag, window in front");
+        assert!(heard(GLOBAL_FOCUS, 0), "global focus, window behind");
+        for id in foreign {
+            with_buffer(id, |b| b.playing = true);
+        }
     }
 }

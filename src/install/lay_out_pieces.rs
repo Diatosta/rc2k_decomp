@@ -11,9 +11,9 @@ use crate::list_handle::{ListItem, ListMenu};
 use rc2k_core::install::pieces::{self, Item, LayoutError, ListSource, Owner};
 
 /// A page's list.
-struct GameList<'a>(ListMenu, &'a crate::install::owner::Install);
+struct GameList(ListMenu, &'static crate::install::owner::Install);
 
-impl ListSource for GameList<'_> {
+impl ListSource for GameList {
     fn flags(&self) -> u8 {
         self.0.flags()
     }
@@ -32,7 +32,7 @@ impl ListSource for GameList<'_> {
         }
     }
     fn choice(&self, k: u32, c: u32) -> u16 {
-        self.0.item(k).choices().word(c)
+        self.0.item(k).choices(self.1).word(c)
     }
     fn text_font(&self, font: u8) -> u8 {
         let install = self.1;
@@ -58,10 +58,13 @@ pub fn lay_out_pieces(
         }
         piece.set_marks(new.marks);
         piece.set_kind(new.kind);
-        piece.set_item(match new.owner {
-            Owner::Title => ListItem::of_title(),
-            Owner::Item(k) => list.item(k),
-        });
+        piece.set_item(
+            install,
+            match new.owner {
+                Owner::Title => ListItem::of_title(install),
+                Owner::Item(k) => list.item(k),
+            },
+        );
         piece.set_x(0);
         piece.set_y(0);
         piece.set_width(0);

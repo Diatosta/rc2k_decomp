@@ -15,7 +15,7 @@ const FAIL_TEXT: &std::ffi::CStr = c"SAM: FAIL"; // "SAM: FAIL"
 /// True when it worked.
 pub fn set_mode(
     audio: &AudioThread,
-    system: &crate::system::owner::System,
+    system: &'static crate::system::owner::System,
     mode: u32,
 ) -> Result<bool, Refused> {
     use crate::audio::mixer_set_up::{close_way, open_way};

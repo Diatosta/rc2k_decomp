@@ -52,16 +52,19 @@ pub fn measure_pieces(
                 )?
             }
             Way::Edit => {
-                let item = piece.item();
-                let record = item.edit_field();
+                let item = piece.item(install);
+                let record = item.edit_field(install);
                 let font_height =
                     InstallerPages::kind_font(install, 7 + 8 * record.font_kind() as u32) as u32;
-                let width =
-                    crate::install::folders::field_width(install, item.text(), record.width());
+                let width = crate::install::folders::field_width(
+                    install,
+                    item.text(install),
+                    record.width(),
+                );
                 (width as u32, font_height)
             }
             Way::Text => {
-                let item = piece.item();
+                let item = piece.item(install);
                 let mut text = Vec::new();
                 push_string_by_id(so, &mut text, piece.text_id() as u32);
                 let action = item.data();
@@ -76,7 +79,7 @@ pub fn measure_pieces(
                 measure_text(font_of(install, font)?, &text, left, gfx)?
             }
             Way::Action => {
-                let the_box = BoxRecord::linked(piece.item().box_link());
+                let the_box = BoxRecord::linked(install, piece.item(install).box_link());
                 (the_box.width(), the_box.height())
             }
             Way::Other => {

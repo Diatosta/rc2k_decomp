@@ -26,7 +26,7 @@ pub fn page_key(
         return Ok((key, key as u8 == 0));
     };
     let kind = item.kind();
-    let edited = items::takes_every_key(kind, || item.edit_field().flags() & 1 != 0);
+    let edited = items::takes_every_key(kind, || item.edit_field(install).flags() & 1 != 0);
     let (key, plain_edit) = if edited {
         let outcome = i::edit_key::edit_key(
             crate::strings::append_string_by_id::StringOwners::of(o),
@@ -39,12 +39,14 @@ pub fn page_key(
         (outcome.key_word, outcome.plain_edit)
     } else {
         let taken = match way {
-            PageKey::Item(ItemKey::Up) => Some(i::key_up::key_up(list_state, item)?),
-            PageKey::Item(ItemKey::Down) => Some(i::key_down::key_down(list_state, item)?),
-            PageKey::Item(ItemKey::Left) => Some(i::key_left::key_left(list_state, item)?),
-            PageKey::Item(ItemKey::Right) => Some(i::key_right::key_right(list_state, item)?),
+            PageKey::Item(ItemKey::Up) => Some(i::key_up::key_up(install, list_state, item)?),
+            PageKey::Item(ItemKey::Down) => Some(i::key_down::key_down(install, list_state, item)?),
+            PageKey::Item(ItemKey::Left) => Some(i::key_left::key_left(install, list_state, item)?),
+            PageKey::Item(ItemKey::Right) => {
+                Some(i::key_right::key_right(install, list_state, item)?)
+            }
             PageKey::Item(ItemKey::Number) => {
-                Some(i::key_number::key_number(list_state, key, item)?)
+                Some(i::key_number::key_number(install, list_state, key, item)?)
             }
             PageKey::Enter => Some(i::item_enter::item_enter(install, list_state, item)?),
             _ => None,

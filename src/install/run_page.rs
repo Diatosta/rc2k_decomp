@@ -53,7 +53,7 @@ pub fn run_page(
     let count = list.count() as u32;
     let round = 2 * count as usize + 2;
     if count != 0 {
-        list_clear_marks(list);
+        list_clear_marks(install, list);
     }
     tell(install, o, list, 0)?;
     'page: {
@@ -121,7 +121,7 @@ pub fn run_page(
                     if moved {
                         list_state.move_clock.set(list_state.frame_clock.get());
                     }
-                    list_clear_marks(list);
+                    list_clear_marks(install, list);
                     tell(install, o, list, 1)?;
                     i::mark_page::mark_page(install, list_state, list);
                     if !list_item_unusable(list_state, list) {
@@ -162,7 +162,7 @@ pub fn run_page(
                     break;
                 }
             } else {
-                list_clear_marks(list);
+                list_clear_marks(install, list);
                 tell(install, o, list, 1)?;
                 i::mark_page::mark_page(install, list_state, list);
                 if list_item_unusable(list_state, list) {
@@ -195,7 +195,7 @@ pub fn run_page(
         tell(install, o, list, u32::MAX)?;
     }
     if count != 0 {
-        list_clear_marks(list);
+        list_clear_marks(install, list);
     }
     list.set_highlight(list_state.choice.get());
     Ok(list_state.list_answer.get() as u32)

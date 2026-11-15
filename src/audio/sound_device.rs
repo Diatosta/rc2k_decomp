@@ -5,6 +5,7 @@
 use crate::audio::a3d::{open_a3d, open_a3d2};
 use crate::audio::own::AudioOwn;
 use crate::errors::{BadInput, Refused};
+use crate::session::Dword;
 use crate::system::owner::System;
 
 const CAPS_TEXT: &std::ffi::CStr = c"AUD: sound caps: flgs/pri/min/max:\t"; // "AUD: sound caps: flgs/pri/min/max:\t"
@@ -54,8 +55,14 @@ pub fn open_listener(state: &AudioOwn, system: &System) -> Result<bool, Refused>
 }
 
 /// DirectSound opened (GUID `guid`) with the game's variables: false when it failed.
-pub fn open_sound_in_game(state: &AudioOwn, system: &System, guid: u32) -> Result<bool, Refused> {
-    open_sound(state, system, guid, &mut game_direct_sound_create)
+pub fn open_sound_in_game(
+    state: &AudioOwn,
+    system: &'static System,
+    guid: u32,
+) -> Result<bool, Refused> {
+    open_sound(state, system, guid, &mut |guid| {
+        game_direct_sound_create(guid, &system.session.flags.window_focused)
+    })
 }
 
 /// Unless A3D or no primary buffer: stopped, its kept volume put back, the listener released, the
@@ -158,8 +165,8 @@ const OPEN_FAILED_TEXT: &std::ffi::CStr = c"AUD: open failed rc=";
 pub type CreateSound<'a> = &'a mut dyn FnMut(u32) -> Result<u32, i32>;
 
 /// The standalone program's DirectSound on SDL (`platform_sound`), whatever the GUID.
-pub fn game_direct_sound_create(_guid: u32) -> Result<u32, i32> {
-    crate::platform_sound::create_device()
+pub fn game_direct_sound_create(_guid: u32, focus: &'static Dword) -> Result<u32, i32> {
+    crate::platform_sound::create_device(focus)
 }
 
 struct Open<'a> {
@@ -231,7 +238,7 @@ pub fn open_sound(
 
 /// When the mode's 0xF000 bits differ from those DirectSound was opened with: `close_sound` and
 /// `open_sound` (GUID 0). Returns failure of `open_sound`, when it ran.
-pub fn reopen_sound(state: &AudioOwn, system: &System) -> Result<bool, Refused> {
+pub fn reopen_sound(state: &AudioOwn, system: &'static System) -> Result<bool, Refused> {
     if !rc2k_core::audio::device::needs_reopen(
         state.sound_mode.get(),
         state.opened_sound_mode.get(),

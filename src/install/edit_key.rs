@@ -74,8 +74,8 @@ pub fn edit_key(
     item: ListItem,
     gfx: &'static crate::gfx::owner::Gfx,
 ) -> Result<EditOutcome, Refused> {
-    let text = item.text();
-    let record = item.edit_field();
+    let text = item.text(install);
+    let record = item.edit_field(install);
     let most = crate::install::folders::field_most(install, text, record.most()) as u32;
     let plain = |key_word| EditOutcome {
         key_word,

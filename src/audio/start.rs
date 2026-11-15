@@ -12,7 +12,10 @@ use crate::errors::Refused;
 const USING_MODES_TEXT: &std::ffi::CStr = c"AUD: Using modes"; // "AUD: Using modes"
 
 /// False when there is no race mode.
-pub fn start(audio: &AudioThread, system: &crate::system::owner::System) -> Result<bool, Refused> {
+pub fn start(
+    audio: &AudioThread,
+    system: &'static crate::system::owner::System,
+) -> Result<bool, Refused> {
     use crate::audio::sound_device as sd;
     use rc2k_core::audio::device::{
         A3D2_MODE, CAPS_EMULATED, Fact, MENU_MODE, modes_kept, probed_race_mode,

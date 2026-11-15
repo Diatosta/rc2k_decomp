@@ -124,7 +124,7 @@ mod legacy {
 
     /// The offset of the box `rect` is, if it is one of the pages' boxes.
     pub fn box_of(rect: &crate::list_handle::BoxRect) -> usize {
-        let boxes = &crate::install::page_links::installer().pages.boxes;
+        let boxes = &crate::test_support::own::install().pages.boxes;
         BOXES + 16 * boxes.iter().position(|b| core::ptr::eq(b, rect)).unwrap()
     }
 }
@@ -139,17 +139,19 @@ impl Debug for Named {
 }
 
 fn list_name(list: ListMenu) -> Named {
+    let install = crate::test_support::own::install();
     let id = ListId::ALL
         .into_iter()
-        .find(|&id| ListMenu::installer(id) == list)
+        .find(|&id| ListMenu::installer(install, id) == list)
         .unwrap();
     Named(format!("ListMenu(pages +{:#x})", legacy::list(id)))
 }
 
 fn item_name(item: ListItem) -> Named {
+    let install = crate::test_support::own::install();
     Named(format!(
         "ListItem(pages +{:#x})",
-        legacy::item(item.installer_position().unwrap())
+        legacy::item(item.installer_position(install).unwrap())
     ))
 }
 
@@ -167,11 +169,13 @@ fn item_at(list: ListMenu, n: u32) -> (Named, String) {
 
 /// The legacy offset of the box a link names.
 fn box_offset(link: PageLink) -> Result<usize, crate::errors::BadInput> {
-    link.box_rect().map(legacy::box_of)
+    let install = crate::test_support::own::install();
+    link.box_rect(install).map(legacy::box_of)
 }
 
 /// The legacy offset of the thing a link names (a table entry, a list, a box, the edit record).
 fn link_offset(link: PageLink) -> Option<usize> {
+    let install = crate::test_support::own::install();
     if let Some(index) = link.table_index() {
         return Some(legacy::entry(index));
     }
@@ -181,12 +185,13 @@ fn link_offset(link: PageLink) -> Option<usize> {
     if let Ok(offset) = box_offset(link) {
         return Some(offset);
     }
-    link.edit_record().ok().map(|_| legacy::edit())
+    link.edit_record(install).ok().map(|_| legacy::edit())
 }
 
 fn item_line(item: ListItem) -> String {
+    let install = crate::test_support::own::install();
     let choices = |item: ListItem| {
-        let c = item.choices();
+        let c = item.choices(install);
         (0..3).map(|n| (c.word(n), c.marks(n))).collect::<Vec<_>>()
     };
     format!(
@@ -200,11 +205,11 @@ fn item_line(item: ListItem) -> String {
         probe(|| item.data()),
         probe(|| item.value_least()),
         probe(|| item.value_most()),
-        probe(|| crate::install::installer::rb(item.text())),
-        probe(|| item.value().get()),
+        probe(|| crate::install::installer::rb(item.text(install))),
+        probe(|| item.value(install).get()),
         probe(|| choices(item)),
         probe(|| {
-            let e = item.edit_field();
+            let e = item.edit_field(install);
             (
                 e.flags(),
                 e.most(),
@@ -214,8 +219,8 @@ fn item_line(item: ListItem) -> String {
             )
         }),
         probe(|| item
-            .to_handle()
-            .map(|_| legacy::item(item.installer_position().unwrap()))),
+            .to_handle(install)
+            .map(|_| legacy::item(item.installer_position(install).unwrap()))),
     )
 }
 
@@ -233,10 +238,11 @@ fn header_line(list: ListMenu) -> String {
 }
 
 fn entry_line(entry: PageEntry) -> String {
+    let install = crate::test_support::own::install();
     format!(
         "has_list={} list={}",
-        probe(|| entry.has_list()),
-        probe(|| list_name(entry.list())),
+        probe(|| entry.has_list(install)),
+        probe(|| list_name(entry.list(install))),
     )
 }
 
@@ -258,9 +264,9 @@ fn characterise() -> Vec<String> {
                 "link {:#x}: offset={} place_byte={} font={} edit={} list={} box={} blended={}",
                 link.raw(),
                 probe(|| link_offset(link)),
-                probe(|| link.place().map(|p| p.read(1, "link").unwrap())),
+                probe(|| link.place(install).map(|p| p.read(1, "link").unwrap())),
                 probe(|| link.font()),
-                probe(|| link.edit_record().is_ok()),
+                probe(|| link.edit_record(install).is_ok()),
                 probe(|| link.list_id()),
                 probe(|| box_offset(link)),
                 link.is_blended_palette(),
@@ -276,7 +282,7 @@ fn characterise() -> Vec<String> {
         let link = PageLink::from_raw(4 << 24 | number);
         let line = format!(
             "typed {number}: {}",
-            probe(|| link.place().map(|p| p.read(1, "typed").unwrap()))
+            probe(|| link.place(install).map(|p| p.read(1, "typed").unwrap()))
         );
         links.add(&line);
     }
@@ -287,7 +293,7 @@ fn characterise() -> Vec<String> {
             links.add(&format!(
                 "{kind}/{number}: {} {}",
                 probe(|| link_offset(link)),
-                probe(|| link.place().map(|p| p.read(1, "link").unwrap())),
+                probe(|| link.place(install).map(|p| p.read(1, "link").unwrap())),
             ));
         }
     }
@@ -317,7 +323,7 @@ fn characterise() -> Vec<String> {
         out.push(head.clone());
         entries.add(&head);
         for offset in 0..0xC0u32 {
-            let next = probe(|| entry.next(offset).map(entry_name));
+            let next = probe(|| entry.next(install, offset).map(entry_name));
             if offset % 4 == 0 && offset < 0x20 {
                 out.push(format!("  {name} next({offset:#x}) = {next}"));
             }
@@ -331,7 +337,7 @@ fn characterise() -> Vec<String> {
             u32::MAX,
             0x8000_0000,
         ] {
-            let next = probe(|| entry.next(offset).map(entry_name));
+            let next = probe(|| entry.next(install, offset).map(entry_name));
             out.push(format!("  {name} next({offset:#x}) = {next}"));
             entries.add(&format!("{name} {offset}: {next}"));
         }
@@ -351,7 +357,7 @@ fn characterise() -> Vec<String> {
     // The lists: the header, the real items and the run-on past them, every index.
     let limit = (size / 16 + 4) as u32;
     for list_id in ListId::ALL {
-        let list = ListMenu::installer(list_id);
+        let list = ListMenu::installer(install, list_id);
         let count = u32::from(list.count());
         out.push(format!(
             "list {list_id:?}: {:?} {}",
@@ -416,7 +422,7 @@ fn characterise() -> Vec<String> {
                 0xFFFF_FFFE,
                 0x4000_0000,
             ]) {
-                let c = item.choices();
+                let c = item.choices(install);
                 choices.add(&format!(
                     "{k}/{n:#x}: {} {}",
                     probe(|| c.word(n)),
@@ -432,7 +438,7 @@ fn characterise() -> Vec<String> {
     let mut walk = Sweep::new("lists at links");
     for (name, link) in &starts {
         // Only a link to a list names one.
-        let Ok(list) = ListMenu::at(*link) else {
+        let Ok(list) = ListMenu::at(install, *link) else {
             let line = format!("{name}: no list");
             out.push(line.clone());
             walk.add(&line);
@@ -459,7 +465,7 @@ fn characterise() -> Vec<String> {
         ])
     {
         let line = probe(|| {
-            let b = BoxRecord::linked(link);
+            let b = BoxRecord::linked(install, link);
             (b.x(), b.y(), b.width(), b.height())
         });
         out.push(format!("box {:#x} = {line}", link.raw()));
@@ -478,7 +484,7 @@ fn characterise() -> Vec<String> {
             probe(|| piece.marks()),
             probe(|| piece.kind()),
             probe(|| piece.text_id()),
-            probe(|| item_name(piece.item())),
+            probe(|| item_name(piece.item(install))),
             probe(|| piece.x()),
             probe(|| piece.y()),
             probe(|| piece.width()),

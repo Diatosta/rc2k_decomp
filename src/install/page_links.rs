@@ -17,6 +17,7 @@
 
 use crate::errors::BadInput;
 use crate::gfx::typefaces::FontId;
+use crate::install::owner::Install;
 use crate::list_handle::{BoxRect, EditRecord};
 use crate::place::BytePlace;
 
@@ -56,13 +57,6 @@ pub enum ListId {
     Uninstall,  // IDA 0x51DD28
     OpenInstalled, // IDA 0x51DD40
     AskRegistration, // IDA 0x51DD58
-}
-
-/// The installer's state, for the place a `PageLink` or a list handle names. A link and a
-/// handle are copied numbers with no owner, so this is a seam: the install pages' functions
-/// that hold a `ListItem`, `ListMenu` or `PageLink` would pass `&Install` to them.
-pub fn installer() -> &'static crate::install::owner::Install {
-    crate::install::owner::install() // m6-root
 }
 
 impl ListId {
@@ -164,9 +158,9 @@ impl PageLink {
     }
 
     /// The box a link of the `BOX` kind names.
-    pub fn box_rect(self) -> Result<&'static BoxRect, BadInput> {
+    pub fn box_rect(self, install: &'static Install) -> Result<&'static BoxRect, BadInput> {
         match (self.kind(), self.number()) {
-            (BOX, number) if number < BOXES => Ok(&installer().pages.boxes[number as usize]),
+            (BOX, number) if number < BOXES => Ok(&install.pages.boxes[number as usize]),
             _ => Err(BadInput("a page link that is no box")),
         }
     }
@@ -179,21 +173,18 @@ impl PageLink {
         }
     }
 
-    pub fn edit_record(self) -> Result<&'static EditRecord, BadInput> {
+    pub fn edit_record(self, install: &'static Install) -> Result<&'static EditRecord, BadInput> {
         match self.kind() {
-            EDIT if self.number() == 0 => Ok(&installer().pages.folder_edit),
+            EDIT if self.number() == 0 => Ok(&install.pages.folder_edit),
             _ => Err(BadInput("a page link that is no edit record")),
         }
     }
 
     /// The place a text or a byte link names: the folder typed (bounded by the installer's path
     /// buffers); the pages hold no other text or byte an item sets.
-    pub fn place(self) -> Result<BytePlace, BadInput> {
+    pub fn place(self, install: &'static Install) -> Result<BytePlace, BadInput> {
         if self.kind() == TYPED_PATH && self.number() < TYPED_LEN {
-            return Ok(BytePlace::In(
-                &installer().paths.typed,
-                self.number() as usize,
-            ));
+            return Ok(BytePlace::In(&install.paths.typed, self.number() as usize));
         }
         Err(BadInput(
             "a page link that is no place in the installer's pages",
@@ -235,9 +226,10 @@ mod tests {
 
     #[test]
     fn the_handles_resolve_as_their_own_kind() {
-        let pages = &installer().pages;
+        let install = crate::install::owner::install();
+        let pages = &crate::install::owner::install().pages;
         assert!(core::ptr::eq(
-            PageLink::box_at(1).box_rect().unwrap(),
+            PageLink::box_at(1).box_rect(install).unwrap(),
             &raw const pages.boxes[1]
         ));
         assert_eq!(
@@ -252,7 +244,7 @@ mod tests {
             crate::gfx::typefaces::fonts::TITLE
         );
         assert!(PageLink::blended_palette().is_blended_palette());
-        match PageLink::typed(2).place().unwrap() {
+        match PageLink::typed(2).place(install).unwrap() {
             crate::place::BytePlace::In(buffer, at) => {
                 assert!(std::ptr::addr_eq(
                     buffer,
@@ -266,25 +258,26 @@ mod tests {
 
     #[test]
     fn a_link_is_resolved_only_as_its_own_kind() {
-        assert!(PageLink::from_raw(0).box_rect().is_err());
-        assert!(PageLink::from_raw(0).place().is_err());
+        let install = crate::install::owner::install();
+        assert!(PageLink::from_raw(0).box_rect(install).is_err());
+        assert!(PageLink::from_raw(0).place(install).is_err());
         assert!(
             PageLink::of_font(crate::gfx::typefaces::fonts::TITLE)
-                .box_rect()
+                .box_rect(install)
                 .is_err()
         );
         assert!(PageLink::folder_edit().font().is_err());
-        assert!(PageLink::table(11).box_rect().is_err());
-        assert!(PageLink::box_at(3).place().is_err());
-        assert!(PageLink::list(ListId::Main).place().is_err());
+        assert!(PageLink::table(11).box_rect(install).is_err());
+        assert!(PageLink::box_at(3).place(install).is_err());
+        assert!(PageLink::list(ListId::Main).place(install).is_err());
         assert!(
             PageLink::from_raw(BOX << KIND_SHIFT | BOXES)
-                .box_rect()
+                .box_rect(install)
                 .is_err()
         );
         assert!(
             PageLink::from_raw(TYPED_PATH << KIND_SHIFT | TYPED_LEN)
-                .place()
+                .place(install)
                 .is_err()
         );
         assert!(
@@ -292,7 +285,7 @@ mod tests {
                 .list_id()
                 .is_none()
         );
-        assert!(PageLink::folder_edit().edit_record().is_ok());
+        assert!(PageLink::folder_edit().edit_record(install).is_ok());
         assert_eq!(
             PageLink::list(ListId::OpenInstalled).list_id(),
             Some(ListId::OpenInstalled)

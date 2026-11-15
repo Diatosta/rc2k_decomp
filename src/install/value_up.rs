@@ -3,8 +3,12 @@
 
 use crate::list_handle::ListItem;
 
-pub fn value_up(list_state: &crate::menu::list_state::ListState, item: ListItem) {
-    let value_at = item.value();
+pub fn value_up(
+    install: &'static crate::install::owner::Install,
+    list_state: &crate::menu::list_state::ListState,
+    item: ListItem,
+) {
+    let value_at = item.value(install);
     let value = rc2k_core::install::items::value_up(
         value_at.get(),
         list_state.repeats.get(),

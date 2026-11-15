@@ -209,13 +209,7 @@ pub struct ListMenu {
 
 impl core::fmt::Debug for ListMenu {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        match ListId::ALL
-            .into_iter()
-            .find(|&list| core::ptr::eq(list_header(list), self.header))
-        {
-            Some(list) => write!(f, "ListMenu({list:?})"),
-            None => write!(f, "ListMenu(the viewer's)"),
-        }
+        write!(f, "ListMenu({:p})", self.header)
     }
 }
 
@@ -229,8 +223,11 @@ impl Eq for ListMenu {}
 
 /// The header and items of one of the installer's lists. The pages that are only an action
 /// have no items.
-fn list_parts(list: ListId) -> (&'static ListHeader, &'static [Item]) {
-    let pages = &crate::install::page_links::installer().pages;
+fn list_parts(
+    install: &'static crate::install::owner::Install,
+    list: ListId,
+) -> (&'static ListHeader, &'static [Item]) {
+    let pages = &install.pages;
     match list {
         ListId::Language => (&pages.language_menu.header, &pages.language_menu.items),
         ListId::Main => (&pages.main_menu.header, &pages.main_menu.items),
@@ -249,22 +246,23 @@ fn list_parts(list: ListId) -> (&'static ListHeader, &'static [Item]) {
     }
 }
 
-/// The header of one of the installer's lists.
-pub(crate) fn list_header(list: ListId) -> &'static ListHeader {
-    list_parts(list).0
-}
-
 /// The typed items of one of the installer's lists (none for the action pages).
-pub(crate) fn list_items(list: ListId) -> &'static [Item] {
-    list_parts(list).1
+pub(crate) fn list_items(
+    install: &'static crate::install::owner::Install,
+    list: ListId,
+) -> &'static [Item] {
+    list_parts(install, list).1
 }
 
 impl ListMenu {
     /// The list a link of the installer's pages names; a link to anything else is refused (the
     /// page walk takes lists only from the first word of a page entry).
-    pub fn at(link: PageLink) -> Result<Self, crate::errors::BadInput> {
+    pub fn at(
+        install: &'static crate::install::owner::Install,
+        link: PageLink,
+    ) -> Result<Self, crate::errors::BadInput> {
         match link.list_id() {
-            Some(list) => Ok(Self::installer(list)),
+            Some(list) => Ok(Self::installer(install, list)),
             None => Err(crate::errors::BadInput(
                 "a page link that is no list of the installer's pages",
             )),
@@ -272,8 +270,8 @@ impl ListMenu {
     }
 
     /// One of the installer's lists.
-    pub fn installer(list: ListId) -> Self {
-        let (header, items) = list_parts(list);
+    pub fn installer(install: &'static crate::install::owner::Install, list: ListId) -> Self {
+        let (header, items) = list_parts(install, list);
         Self { header, items }
     }
 
@@ -366,11 +364,7 @@ pub struct ListItem(&'static Item);
 
 impl core::fmt::Debug for ListItem {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        match Self::position(self.0) {
-            Some(ItemPosition::Title) => write!(f, "ListItem(title)"),
-            Some(ItemPosition::In(list, n)) => write!(f, "ListItem({list:?} #{n})"),
-            None => write!(f, "ListItem(the viewer's)"),
-        }
+        write!(f, "ListItem({:p})", self.0)
     }
 }
 
@@ -398,15 +392,15 @@ const TITLE_LIST: u32 = 0xFF;
 
 impl ListItem {
     /// Where `item`, one of the pages' typed items, is.
-    fn position(item: &Item) -> Option<ItemPosition> {
-        if core::ptr::eq(
-            item,
-            &raw const crate::install::page_links::installer().pages.title,
-        ) {
+    fn position(
+        install: &'static crate::install::owner::Install,
+        item: &Item,
+    ) -> Option<ItemPosition> {
+        if core::ptr::eq(item, &raw const install.pages.title) {
             return Some(ItemPosition::Title);
         }
         ListId::ALL.into_iter().find_map(|list| {
-            list_items(list)
+            list_items(install, list)
                 .iter()
                 .position(|typed| core::ptr::eq(typed, item))
                 .map(|n| ItemPosition::In(list, n as u32))
@@ -414,13 +408,19 @@ impl ListItem {
     }
 
     /// Which typed item of the installer's pages this is (none for the viewer's items).
-    pub fn installer_position(self) -> Option<ItemPosition> {
-        Self::position(self.0)
+    pub fn installer_position(
+        self,
+        install: &'static crate::install::owner::Install,
+    ) -> Option<ItemPosition> {
+        Self::position(install, self.0)
     }
 
     /// The item a handle names (`to_handle`): what a piece keeps of its item. A word that
     /// names no item of the installer's pages is refused.
-    pub fn from_handle(handle: u32) -> Result<Self, crate::errors::BadInput> {
+    pub fn from_handle(
+        install: &'static crate::install::owner::Install,
+        handle: u32,
+    ) -> Result<Self, crate::errors::BadInput> {
         let refused = || crate::errors::BadInput("an item that is none of the installer's items");
         if handle >> 24 != ITEM_HANDLE {
             return Err(refused());
@@ -428,20 +428,25 @@ impl ListItem {
         let (list, n) = ((handle >> 8) & 0xFFFF, handle & 0xFF);
         if list == TITLE_LIST {
             return if n == 0 {
-                Ok(Self::of_title())
+                Ok(Self::of_title(install))
             } else {
                 Err(refused())
             };
         }
         let list = ListId::ALL.get(list as usize).ok_or_else(refused)?;
-        let item = list_items(*list).get(n as usize).ok_or_else(refused)?;
+        let item = list_items(install, *list)
+            .get(n as usize)
+            .ok_or_else(refused)?;
         Ok(Self(item))
     }
 
     /// The handle a piece keeps for this item; an item that is none of the installer's is
     /// refused.
-    pub fn to_handle(self) -> Result<u32, crate::errors::BadInput> {
-        match self.installer_position() {
+    pub fn to_handle(
+        self,
+        install: &'static crate::install::owner::Install,
+    ) -> Result<u32, crate::errors::BadInput> {
+        match self.installer_position(install) {
             Some(ItemPosition::Title) => Ok(ITEM_HANDLE << 24 | TITLE_LIST << 8),
             Some(ItemPosition::In(list, n)) => Ok(ITEM_HANDLE << 24 | (list as u32) << 8 | n),
             None => Err(crate::errors::BadInput(
@@ -451,8 +456,8 @@ impl ListItem {
     }
 
     /// The title's item (the pages' `title` record).
-    pub fn of_title() -> Self {
-        Self(&crate::install::page_links::installer().pages.title)
+    pub fn of_title(install: &'static crate::install::owner::Install) -> Self {
+        Self(&install.pages.title)
     }
 
     /// +0: the kind (low nibble) and marks (high bits), whole.
@@ -505,18 +510,20 @@ impl ListItem {
     }
 
     /// +8 as the text the item edits or shows (a link).
-    pub fn text(self) -> BytePlace {
-        self.link_place()
+    pub fn text(self, install: &'static crate::install::owner::Install) -> BytePlace {
+        self.link_place(install)
     }
 
     /// +8 as the byte the item sets (a choice, a value; a link).
-    pub fn value(self) -> ItemByte {
-        ItemByte(self.link_place())
+    pub fn value(self, install: &'static crate::install::owner::Install) -> ItemByte {
+        ItemByte(self.link_place(install))
     }
 
     /// The place the link at +8 names: the folder typed.
-    fn link_place(self) -> BytePlace {
-        self.target_link().place().unwrap_or_else(|e| refuse(e))
+    fn link_place(self, install: &'static crate::install::owner::Install) -> BytePlace {
+        self.target_link()
+            .place(install)
+            .unwrap_or_else(|e| refuse(e))
     }
 
     /// +0xC: the pointer to the choices, the edit record or the text action.
@@ -536,19 +543,19 @@ impl ListItem {
 
     /// +0xC as the item's choices (a choice item; a link): the table is the place the link
     /// names (`PageLink::place`), read on past the table (see `Choices`).
-    pub fn choices(self) -> Choices {
+    pub fn choices(self, install: &'static crate::install::owner::Install) -> Choices {
         Choices(
             PageLink::from_raw(self.data())
-                .place()
+                .place(install)
                 .unwrap_or_else(|e| refuse(e)),
         )
     }
 
     /// +0xC as the item's edit record (an edit item).
-    pub fn edit_field(self) -> EditField {
+    pub fn edit_field(self, install: &'static crate::install::owner::Install) -> EditField {
         EditField(
             PageLink::from_raw(self.data())
-                .edit_record()
+                .edit_record(install)
                 .unwrap_or_else(|e| refuse(e)),
         )
     }
@@ -662,18 +669,22 @@ mod tests {
 
     #[test]
     fn a_pieces_item_is_kept_as_a_handle() {
+        let install = crate::install::owner::install();
         let _lock = crate::test_support::test_lock();
-        let title = ListItem::of_title();
+        let title = ListItem::of_title(install);
         assert_eq!(
-            ListItem::from_handle(title.to_handle().unwrap()).unwrap(),
+            ListItem::from_handle(install, title.to_handle(install).unwrap()).unwrap(),
             title
         );
         for list in ListId::ALL {
             for n in 0..held(list) {
-                let item = ListMenu::installer(list).item(n);
-                assert_eq!(item.installer_position(), Some(ItemPosition::In(list, n)));
+                let item = ListMenu::installer(install, list).item(n);
                 assert_eq!(
-                    ListItem::from_handle(item.to_handle().unwrap()).unwrap(),
+                    item.installer_position(install),
+                    Some(ItemPosition::In(list, n))
+                );
+                assert_eq!(
+                    ListItem::from_handle(install, item.to_handle(install).unwrap()).unwrap(),
                     item
                 );
             }
@@ -682,13 +693,14 @@ mod tests {
 
     #[test]
     fn a_handle_that_names_no_item_is_refused() {
+        let install = crate::install::owner::install();
         let _lock = crate::test_support::test_lock();
-        assert!(ListItem::from_handle(0).is_err());
-        assert!(ListItem::from_handle(u32::MAX).is_err());
-        assert!(ListItem::from_handle(ITEM_HANDLE << 24 | 14 << 8).is_err());
-        assert!(ListItem::from_handle(ITEM_HANDLE << 24 | TITLE_LIST << 8 | 1).is_err());
+        assert!(ListItem::from_handle(install, 0).is_err());
+        assert!(ListItem::from_handle(install, u32::MAX).is_err());
+        assert!(ListItem::from_handle(install, ITEM_HANDLE << 24 | 14 << 8).is_err());
+        assert!(ListItem::from_handle(install, ITEM_HANDLE << 24 | TITLE_LIST << 8 | 1).is_err());
         let past = ITEM_HANDLE << 24 | (ListId::Room as u32) << 8 | held(ListId::Room);
-        assert!(ListItem::from_handle(past).is_err());
+        assert!(ListItem::from_handle(install, past).is_err());
     }
 
     /// M4 for the installer's lists: every list's count starts within the items its record
@@ -696,11 +708,16 @@ mod tests {
     /// are set by `list_drives` (the drives and two more, at most 24 drives: `drives::kept`).
     #[test]
     fn the_counts_stay_within_the_items() {
+        let install = crate::install::owner::install();
         let _lock = crate::test_support::test_lock();
         for list in ListId::ALL {
-            let menu = ListMenu::installer(list);
+            let menu = ListMenu::installer(install, list);
             assert!(u32::from(menu.count()) <= held(list), "{list:?}");
-            assert_eq!(list_items(list).len() as u32, held(list), "{list:?}");
+            assert_eq!(
+                list_items(install, list).len() as u32,
+                held(list),
+                "{list:?}"
+            );
         }
     }
 
@@ -711,9 +728,10 @@ mod tests {
     /// table a choice link could name either: only the typed folder's link is a place.
     #[test]
     fn the_lists_hold_no_choice_items() {
+        let install = crate::install::owner::install();
         let _lock = crate::test_support::test_lock();
         for list in ListId::ALL {
-            let menu = ListMenu::installer(list);
+            let menu = ListMenu::installer(install, list);
             for n in 0..u32::from(menu.count()) {
                 assert_ne!(menu.item(n).kind(), 2, "{list:?} item {n}");
             }
@@ -731,11 +749,9 @@ mod tests {
 
     #[test]
     fn a_choice_link_names_a_place_or_is_refused() {
+        let install = crate::install::owner::install();
         let _lock = crate::test_support::test_lock();
-        let room = &crate::install::page_links::installer()
-            .pages
-            .room_menu
-            .items[0];
+        let room = &crate::install::owner::install().pages.room_menu.items[0];
         let saved = (room.first.get(), room.data.get());
         room.first.set(2);
         for link in [
@@ -746,24 +762,27 @@ mod tests {
             PageLink::from_raw(0),
         ] {
             room.data.set(link.raw());
-            let item = ListMenu::installer(ListId::Room).item(0);
+            let item = ListMenu::installer(install, ListId::Room).item(0);
             assert!(
-                std::panic::catch_unwind(AssertUnwindSafe(|| item.choices())).is_err(),
+                std::panic::catch_unwind(AssertUnwindSafe(|| item.choices(install))).is_err(),
                 "{link:?}"
             );
         }
         room.data.set(PageLink::typed(2).raw());
-        let item = ListMenu::installer(ListId::Room).item(0);
-        assert!(std::panic::catch_unwind(AssertUnwindSafe(|| item.choices().marks(0))).is_ok());
+        let item = ListMenu::installer(install, ListId::Room).item(0);
+        assert!(
+            std::panic::catch_unwind(AssertUnwindSafe(|| item.choices(install).marks(0))).is_ok()
+        );
         room.first.set(saved.0);
         room.data.set(saved.1);
     }
 
     #[test]
     fn an_installer_item_past_the_list_is_refused() {
+        let install = crate::install::owner::install();
         let _lock = crate::test_support::test_lock();
         let past = std::panic::catch_unwind(AssertUnwindSafe(|| {
-            ListMenu::installer(ListId::Room).item(3)
+            ListMenu::installer(install, ListId::Room).item(3)
         }));
         assert!(past.is_err());
     }

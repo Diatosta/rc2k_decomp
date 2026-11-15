@@ -75,5 +75,5 @@ pub fn list_drives(
     };
     // The drive page's entry links to the menu (`page_links::PageLink`).
     install.pages.page_table[DRIVE_ENTRY].set(PageLink::list(list).raw());
-    crate::list_handle::ListMenu::installer(list).set_count(drives::items(count));
+    crate::list_handle::ListMenu::installer(install, list).set_count(drives::items(count));
 }

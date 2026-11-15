@@ -17,7 +17,7 @@ pub fn mark_page(
     list: ListMenu,
 ) {
     let table = |item: ListItem| {
-        item.choices()
+        item.choices(install)
             .bytes(2 * items::walked(item.count()), "an item's choices")
             .unwrap_or_else(|e| crate::install::installer::refuse(e))
     };
@@ -33,13 +33,13 @@ pub fn mark_page(
             if marks == UNUSABLE {
                 let mut choices = table(item);
                 items::mark_choices(&mut choices, marks);
-                item.choices()
+                item.choices(install)
                     .write_bytes(&choices, "an item's choices")
                     .unwrap_or_else(|e| crate::install::installer::refuse(e));
             } else if marks == 0
                 && let Some(chosen) = items::lone_choice(&table(item), item.count())
             {
-                item.value().set(chosen);
+                item.value(install).set(chosen);
                 item.set_first(item.first() | UNUSABLE);
             }
         }
@@ -47,7 +47,7 @@ pub fn mark_page(
         if byte & MARKS == 0 && index == list_state.choice.get() {
             let mut editing = None;
             if byte & 0xF == 4 {
-                let record = item.edit_field();
+                let record = item.edit_field(install);
                 if record.flags() & 4 != 0 {
                     crate::install::next_edit::next_edit(install, list_state, 0, list);
                 }
@@ -64,9 +64,9 @@ pub fn mark_page(
             }
         }
         if byte & 0xF == 2 {
-            let chosen = item.value().get();
+            let chosen = item.value(install).get();
             if chosen < item.count() {
-                let choices = item.choices();
+                let choices = item.choices(install);
                 choices.set_marks(chosen as u32, choices.marks(chosen as u32) | MARKS);
             }
         }

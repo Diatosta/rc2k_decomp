@@ -389,8 +389,8 @@ pub fn list_step(
     crate::menu::list_step::list_step(list_state, key as u8, table, list)
 }
 
-pub fn list_clear_marks(list: ListMenu) {
-    crate::menu::list_clear_marks::list_clear_marks(list);
+pub fn list_clear_marks(install: &'static crate::install::owner::Install, list: ListMenu) {
+    crate::menu::list_clear_marks::list_clear_marks(Some(install), list);
 }
 
 /// Whether the highlighted item cannot be chosen.

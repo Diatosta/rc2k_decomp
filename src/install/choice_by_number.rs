@@ -5,9 +5,13 @@ use crate::list_handle::ListItem;
 use rc2k_core::install::items::{self, MARKS};
 
 /// `number` the choice (all 32 bits read for the mark).
-pub fn choice_by_number(item: ListItem, number: u32) {
-    let chosen_at = item.value();
-    let table = item.choices();
+pub fn choice_by_number(
+    install: &'static crate::install::owner::Install,
+    item: ListItem,
+    number: u32,
+) {
+    let chosen_at = item.value(install);
+    let table = item.choices(install);
     let free = || table.marks(number) & MARKS == 0;
     if let Some(choice) = items::choice_by_number(number, item.count(), free) {
         chosen_at.set(choice);
