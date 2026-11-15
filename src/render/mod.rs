@@ -6,7 +6,6 @@
 
 pub mod background;
 pub mod batches;
-#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
 pub mod canvas_rows;
 pub mod choice;
 pub mod dump;

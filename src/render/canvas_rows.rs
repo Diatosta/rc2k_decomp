@@ -9,15 +9,36 @@ const RUN_GAP: usize = 16;
 
 /// The canvas's rows written since the last flush, one flag a row, as the screen's pixels noted
 /// them (every write through their handle marks its rows; writes in place mark them all): a
-/// superset of the rows holding a written pixel. Pixels that do not note rows at the canvas's
-/// pitch are looked at row by row.
+/// superset of the rows holding a written pixel. A row noted but holding none is uploaded
+/// unwritten, which the overlay discards: the same picture. Pixels that do not note rows at the
+/// canvas's pitch are looked at row by row. With `RC2K_CANVAS_CHECK` (a check) the rows are
+/// looked at as well, and a row holding a written pixel but not noted is logged.
 pub fn written_rows(target: &Target, canvas: &[u8]) -> Vec<bool> {
     let stride = target.width * 4;
-    (target.pitch == stride)
+    let noted = (target.pitch == stride)
         .then(|| target.take_written_rows())
         .flatten()
-        .filter(|rows| rows.len() == canvas.len() / stride.max(1))
-        .unwrap_or_else(|| rows_holding_written(canvas, stride))
+        .filter(|rows| rows.len() == canvas.len() / stride.max(1));
+    let Some(noted) = noted else {
+        return rows_holding_written(canvas, stride);
+    };
+    static CHECK: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    if *CHECK.get_or_init(|| std::env::var_os("RC2K_CANVAS_CHECK").is_some()) {
+        static LOGGED: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+        let missed: Vec<usize> = rows_holding_written(canvas, stride)
+            .iter()
+            .zip(&noted)
+            .enumerate()
+            .filter(|(_, (held, noted))| **held && !**noted)
+            .map(|(y, _)| y)
+            .collect();
+        if !missed.is_empty() && LOGGED.fetch_add(1, std::sync::atomic::Ordering::Relaxed) < 50 {
+            crate::logfile::program_log::log(&format!(
+                "render: canvas rows written but not noted: {missed:?}"
+            ));
+        }
+    }
+    noted
 }
 
 /// Each row of `stride` bytes: whether it holds a written pixel.
@@ -35,9 +56,10 @@ pub fn rows_holding_written(canvas: &[u8], stride: usize) -> Vec<bool> {
         .collect()
 }
 
-/// The runs of written rows, each its first and last row.
-pub fn written_runs(written: &[bool]) -> Vec<(usize, usize)> {
-    let mut runs = Vec::<(usize, usize)>::new();
+/// The runs of written rows, each its first and last row: the panels at the top and the
+/// bottom leave the rows between them to the 3D.
+pub fn written_runs(written: &[bool]) -> smallvec::SmallVec<[(usize, usize); 4]> {
+    let mut runs = smallvec::SmallVec::<[(usize, usize); 4]>::new();
     for y in (0..written.len()).filter(|&y| written[y]) {
         match runs.last_mut() {
             Some((_, last)) if y - *last <= RUN_GAP => *last = y,
@@ -57,7 +79,10 @@ mod tests {
         for y in [3, 4, 10, 40, 41, 99] {
             rows[y] = true;
         }
-        assert_eq!(written_runs(&rows), [(3, 10), (40, 41), (99, 99)]);
+        assert_eq!(
+            written_runs(&rows).as_slice(),
+            [(3, 10), (40, 41), (99, 99)]
+        );
         assert!(written_runs(&[false; 5]).is_empty());
     }
 

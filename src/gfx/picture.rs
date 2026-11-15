@@ -52,7 +52,6 @@ impl PictureBuffers {
 }
 
 /// The change counter of buffer `handle`: the bytes are the same as when it last had this value.
-#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
 pub fn generation(buffers: &PictureBuffers, handle: u32) -> Option<u64> {
     let counter = buffers.generations.get((handle as usize).checked_sub(1)?)?;
     Some(counter.load(Relaxed))
@@ -200,7 +199,6 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
     fn the_change_counter_moves_on_writes_and_not_on_reads() {
         let _lock = crate::test_support::test_lock();
         let figures = crate::memory::figures();

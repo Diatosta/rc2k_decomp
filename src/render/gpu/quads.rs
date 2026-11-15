@@ -3,8 +3,7 @@
 //! after the canvas' pixels and before the flush's 3D, over the colour target, opaque.
 
 use super::{COLOUR_FORMAT, Gpu, ShaderCode};
-use crate::gfx::draw2d::quads::{ATLAS_SIDE, Taken};
-use crate::logfile::program_log::log;
+use crate::gfx::draw2d::quads::{ATLAS_SIDE, Taken, vertices};
 use crate::platform::ffi::sdl_gpu::{
     self, Buffer, CommandBuffer, CopyPass, Pipeline, PipelineSpec, RenderPass, Texture, Transfer,
 };
@@ -113,55 +112,16 @@ impl Gpu {
     /// The flush's noted rectangles and the atlas texels waiting, in the staging buffer.
     pub(super) fn prepare_2d(&mut self, taken: Taken) -> Result<Prepared, String> {
         let Taken {
-            mut rects,
+            rects,
             uploads,
-            size,
-        } = taken;
-        if size != (self.width, self.height) && !rects.is_empty() {
-            log(&format!(
-                "render: {} quads noted for a screen of {} x {}, drawn on one of {} x {}: dropped",
-                rects.len(),
-                size.0,
-                size.1,
-                self.width,
-                self.height
-            ));
-            rects.clear();
-        }
+            size: _,
+        } = taken.fitted_to((self.width, self.height));
         if rects.is_empty() && uploads.is_empty() {
             return Ok(Prepared::none());
         }
         self.ensure_quads()?;
         let mut staging: Vec<u8> = Vec::new();
-        for rect in &rects {
-            let (x0, y0) = (rect.x as f32, rect.y as f32);
-            let (x1, y1) = ((rect.x + rect.width) as f32, (rect.y + rect.height) as f32);
-            let (u0, v0) = (rect.u as f32, rect.v as f32);
-            let (u1, v1) = (
-                (rect.u as i32 + rect.width) as f32,
-                (rect.v as i32 + rect.height) as f32,
-            );
-            // A solid rectangle's colour goes where a palette's place would: minus (2 + red * 256
-            // + green) and blue, the colour's channels as the texture's BGRA format reads them.
-            let (px, py) = match (rect.solid, rect.palette) {
-                (Some([blue, green, red, _]), _) => (
-                    -(2.0 + (u32::from(red) * 256 + u32::from(green)) as f32),
-                    f32::from(blue),
-                ),
-                (None, Some((x, y))) => (x as f32, y as f32),
-                (None, None) => (-1.0, -1.0),
-            };
-            let corner = |x, y, u, v| [x, y, u, v, px, py].map(f32::to_bits);
-            let vertices = [
-                corner(x0, y0, u0, v0),
-                corner(x1, y0, u1, v0),
-                corner(x0, y1, u0, v1),
-                corner(x1, y0, u1, v0),
-                corner(x1, y1, u1, v1),
-                corner(x0, y1, u0, v1),
-            ];
-            staging.extend_from_slice(sdl_gpu::words_as_bytes(&vertices));
-        }
+        staging.extend_from_slice(sdl_gpu::words_as_bytes(&vertices(&rects)));
         let vertex_bytes = staging.len() as u32;
         let mut placed = Vec::with_capacity(uploads.len());
         for upload in &uploads {

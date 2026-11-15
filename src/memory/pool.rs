@@ -212,7 +212,6 @@ impl PoolBytes {
 
     /// Whether any row is noted as written, the notes left as they are; `None` for bytes not
     /// noting rows, or rows of another pitch.
-    #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
     pub fn any_row_written(&self, pitch: usize) -> Option<bool> {
         let rows = self.rows.as_ref().filter(|r| r.pitch == pitch)?;
         Some(rows.flags.iter().any(|f| f.load(Relaxed)))

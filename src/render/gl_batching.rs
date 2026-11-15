@@ -7,6 +7,7 @@
 
 use super::batches::Batches;
 use super::{CommandList, TextureId, TextureMap, TextureNote};
+use crate::gfx::draw2d::quads::{self, Taken};
 use std::sync::mpsc::Sender;
 
 /// The canvas's written rows, copied.
@@ -14,6 +15,14 @@ pub struct Written {
     pub first: usize,
     pub last: usize,
     pub bytes: Vec<u8>,
+}
+
+/// A part's retained background (`background`): drawn under the canvas's rows.
+pub enum Background {
+    /// The GL's background texture holds the picture already.
+    Held,
+    /// The picture's bytes (the screen's rows, 32 bits), to put in the texture first.
+    Upload(Vec<u8>),
 }
 
 /// What a draw needs, all of it the threads' own: the game goes on with its memory meanwhile.
@@ -24,6 +33,11 @@ pub struct Part {
     /// (`texture_as_bgra`), in the order they are brought up.
     pub uploads: Vec<(TextureNote, Vec<u8>)>,
     pub written: Vec<Written>,
+    /// The 2D quads noted since the last part (`gfx::draw2d::quads`) and the atlas texels to
+    /// send before they are drawn.
+    pub quads: Taken,
+    /// The background under the canvas's rows, if the frame has one.
+    pub background: Option<Background>,
     pub size: (i32, i32),
 }
 
@@ -31,6 +45,8 @@ pub struct Part {
 pub struct Batched {
     pub part: Part,
     pub batches: Batches,
+    /// The quads' vertices (`quads::vertices`), made here, off the GL's thread.
+    pub quad_vertices: Vec<[u32; quads::VERTEX_WORDS]>,
     /// Whether each of `batches.textures` is opaque, in its order (the GL bench's comparison
     /// with one texture a draw reads them).
     pub opaque: Vec<bool>,
@@ -111,9 +127,11 @@ pub fn batched(
                 .iter()
                 .map(|note| opacity.of(note))
                 .collect();
+            let quad_vertices = quads::vertices(&part.quads.rects);
             Job::Draw(Batched {
                 part,
                 batches,
+                quad_vertices,
                 opaque,
             })
         }
@@ -326,6 +344,8 @@ mod tests {
                 commands,
                 uploads,
                 written: Vec::new(),
+                quads: Taken::default(),
+                background: None,
                 size: (320, 240),
             }));
             if numbers.below(2) == 0 {
@@ -433,11 +453,14 @@ mod tests {
                 last: 5,
                 bytes: vec![7; 12],
             }],
+            quads: Taken::default(),
+            background: Some(Background::Held),
             size: (4, 8),
         };
         let Job::Draw(b) = batched(&mut opacity, Job::Draw(part), same_size) else {
             panic!("a part not drawn");
         };
+        assert!(b.quad_vertices.is_empty() && matches!(b.part.background, Some(Background::Held)));
         let w = &b.part.written[0];
         assert_eq!((w.first, w.last, &w.bytes[..]), (3, 5, &[7; 12][..]));
         assert_eq!((b.part.size, b.part.uploads.len()), ((4, 8), 1));
@@ -467,6 +490,38 @@ mod tests {
             batched(&mut opacity, Job::ShowTarget, same_size),
             Job::ShowTarget
         ));
+    }
+
+    #[test]
+    fn a_parts_quads_come_out_as_vertices_with_its_background_and_texels_kept() {
+        let rect = quads::Rect {
+            x: 1,
+            y: 2,
+            width: 3,
+            height: 4,
+            u: 5,
+            v: 6,
+            palette: None,
+            solid: Some([1, 2, 3, 255]),
+        };
+        let part = Part {
+            commands: CommandList::new(),
+            uploads: Vec::new(),
+            written: Vec::new(),
+            quads: Taken {
+                rects: vec![rect, rect],
+                uploads: Vec::new(),
+                size: (8, 8),
+            },
+            background: Some(Background::Upload(vec![9; 4])),
+            size: (8, 8),
+        };
+        let Job::Draw(b) = batched(&mut Opacity::default(), Job::Draw(part), same_size) else {
+            panic!("a part not drawn");
+        };
+        assert_eq!(b.quad_vertices, quads::vertices(&[rect, rect]));
+        assert_eq!(b.quad_vertices.len(), 12);
+        assert!(matches!(&b.part.background, Some(Background::Upload(bytes)) if bytes == &[9; 4]));
     }
 
     #[test]

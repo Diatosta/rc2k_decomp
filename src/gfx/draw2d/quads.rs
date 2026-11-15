@@ -27,7 +27,7 @@ use std::sync::{Arc, Mutex};
 /// The atlas texture's width and height in texels.
 pub const ATLAS_SIDE: u32 = 2048;
 /// Palettes are kept as rows of 256 texels, eight to an atlas row, in the atlas' first rows.
-const PALETTE_ATLAS_ROWS: u32 = 32;
+pub const PALETTE_ATLAS_ROWS: u32 = 32;
 const PALETTES_PER_ROW: u32 = 8;
 const PALETTE_TEXELS: u32 = 256;
 const MAX_PALETTES: usize = (PALETTE_ATLAS_ROWS * PALETTES_PER_ROW) as usize;
@@ -54,13 +54,8 @@ fn config() -> &'static Config {
         let set = |name| std::env::var_os(name).is_some();
         let asked = std::env::var("RC2K_2D_QUADS").map_or(true, |v| v != "0");
         Config {
-            // The handheld's GL and macOS's Metal draw the canvas way until their backends
-            // draw quads.
-            quads: cfg!(not(any(
-                all(target_os = "linux", target_arch = "aarch64"),
-                target_os = "macos"
-            ))) && asked
-                && !set("RC2K_2D_CHECK"),
+            // macOS's Metal draws the canvas way until its backend draws quads.
+            quads: cfg!(not(target_os = "macos")) && asked && !set("RC2K_2D_CHECK"),
             #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
             check: set("RC2K_QUAD_CHECK"),
             #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
@@ -103,7 +98,6 @@ struct Held {
 
 /// A block of texels to send to the atlas.
 #[derive(Debug)]
-#[cfg_attr(all(target_os = "linux", target_arch = "aarch64"), allow(dead_code))] // only the desktop's GPU backend reads it
 pub struct Upload {
     pub x: u32,
     pub y: u32,
@@ -579,7 +573,6 @@ pub fn note_pixels(offsets: &[i32], pixel: [u8; 4], bytes_per_pixel: i32, pitch:
 }
 
 /// The noted quads dropped without being drawn: something drawn over the whole screen follows.
-#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
 pub fn discard_pending() {
     let mut guard = state();
     let state = &mut *guard;
@@ -767,7 +760,7 @@ fn draw_on_canvas(pending: &[Deferred], (width, _): (u32, u32)) {
 }
 
 /// What the GPU takes at a flush: the rectangles, and the texels to send to the atlas.
-#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+#[derive(Default)]
 pub struct Taken {
     pub rects: Vec<Rect>,
     pub uploads: Vec<Upload>,
@@ -775,8 +768,64 @@ pub struct Taken {
     pub size: (u32, u32),
 }
 
+impl Taken {
+    /// The rectangles for a screen of `screen`'s size: dropped, with a note in the log, when
+    /// they were noted for another size (the texels for the atlas stay).
+    pub fn fitted_to(mut self, screen: (u32, u32)) -> Taken {
+        if self.size != screen && !self.rects.is_empty() {
+            crate::logfile::program_log::log(&format!(
+                "render: {} quads noted for a screen of {} x {}, drawn on one of {} x {}: dropped",
+                self.rects.len(),
+                self.size.0,
+                self.size.1,
+                screen.0,
+                screen.1
+            ));
+            self.rects.clear();
+        }
+        self
+    }
+}
+
+/// The dwords of one vertex the quad shaders read: its place on the screen and its atlas texel
+/// (four floats), and its palette's first texel (two floats).
+pub const VERTEX_WORDS: usize = 6;
+
+/// The two triangles of each rectangle, a vertex a record of `VERTEX_WORDS` dwords (float bits).
+pub fn vertices(rects: &[Rect]) -> Vec<[u32; VERTEX_WORDS]> {
+    let mut out = Vec::with_capacity(rects.len() * 6);
+    for rect in rects {
+        let (x0, y0) = (rect.x as f32, rect.y as f32);
+        let (x1, y1) = ((rect.x + rect.width) as f32, (rect.y + rect.height) as f32);
+        let (u0, v0) = (rect.u as f32, rect.v as f32);
+        let (u1, v1) = (
+            (rect.u as i32 + rect.width) as f32,
+            (rect.v as i32 + rect.height) as f32,
+        );
+        // A solid rectangle's colour goes where a palette's place would: minus (2 + red * 256
+        // + green) and blue, the colour's channels as the texture's BGRA format reads them.
+        let (px, py) = match (rect.solid, rect.palette) {
+            (Some([blue, green, red, _]), _) => (
+                -(2.0 + (u32::from(red) * 256 + u32::from(green)) as f32),
+                f32::from(blue),
+            ),
+            (None, Some((x, y))) => (x as f32, y as f32),
+            (None, None) => (-1.0, -1.0),
+        };
+        let corner = |x, y, u, v| [x, y, u, v, px, py].map(f32::to_bits);
+        out.extend([
+            corner(x0, y0, u0, v0),
+            corner(x1, y0, u1, v0),
+            corner(x0, y1, u0, v1),
+            corner(x1, y0, u1, v0),
+            corner(x1, y1, u1, v1),
+            corner(x0, y1, u0, v1),
+        ]);
+    }
+    out
+}
+
 /// The rectangles noted and the texels waiting for the atlas, taken.
-#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
 pub fn take() -> Taken {
     let mut guard = state();
     let state = &mut *guard;
@@ -838,6 +887,83 @@ mod tests {
             count += 1;
         }
         assert!((3..=8).contains(&count));
+    }
+
+    #[test]
+    fn a_rectangle_is_two_triangles_with_its_texels_and_palette_on_each_vertex() {
+        let glyph = Rect {
+            x: 10,
+            y: 20,
+            width: 3,
+            height: 2,
+            u: 100,
+            v: 40,
+            palette: Some((256, 5)),
+            solid: None,
+        };
+        let solid = Rect {
+            x: 0,
+            y: 0,
+            width: 1,
+            height: 1,
+            u: 0,
+            v: 0,
+            palette: None,
+            // Blue 9, green 3, red 2: minus (2 + 2 * 256 + 3) in x, and the blue in y.
+            solid: Some([9, 3, 2, 0xFF]),
+        };
+        let floats = |vertex: [u32; VERTEX_WORDS]| vertex.map(f32::from_bits);
+        let out = vertices(&[glyph, solid]);
+        assert_eq!(out.len(), 12);
+        let corners: Vec<_> = out[..6].iter().map(|v| floats(*v)).collect();
+        let (left, top, right, bottom) = (10.0, 20.0, 13.0, 22.0);
+        let at = |x, y, u, v| [x, y, u, v, 256.0, 5.0];
+        assert_eq!(
+            corners,
+            [
+                at(left, top, 100.0, 40.0),
+                at(right, top, 103.0, 40.0),
+                at(left, bottom, 100.0, 42.0),
+                at(right, top, 103.0, 40.0),
+                at(right, bottom, 103.0, 42.0),
+                at(left, bottom, 100.0, 42.0),
+            ]
+        );
+        assert!(
+            out[6..]
+                .iter()
+                .all(|v| floats(*v)[4..] == [-(2.0 + 515.0), 9.0])
+        );
+        assert!(vertices(&[]).is_empty());
+    }
+
+    #[test]
+    fn rectangles_noted_for_another_screen_are_dropped_and_their_texels_stay() {
+        let rect = Rect {
+            x: 0,
+            y: 0,
+            width: 1,
+            height: 1,
+            u: 0,
+            v: 0,
+            palette: None,
+            solid: Some([0; 4]),
+        };
+        let taken = |size| Taken {
+            rects: vec![rect],
+            uploads: vec![Upload {
+                x: 0,
+                y: 0,
+                width: 1,
+                height: 1,
+                texels: vec![[1, 2, 3, 4]],
+            }],
+            size,
+        };
+        let same = taken((800, 600)).fitted_to((800, 600));
+        assert_eq!((same.rects.len(), same.uploads.len()), (1, 1));
+        let other = taken((640, 480)).fitted_to((800, 600));
+        assert_eq!((other.rects.len(), other.uploads.len()), (0, 1));
     }
 
     /// A glyph table of one glyph, a gap of one then a pixel of index `index`.

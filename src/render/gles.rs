@@ -1,16 +1,20 @@
 //! The GPU backend on the handheld: OpenGL ES 3 through the system's `libmali` (no Vulkan driver
 //! there, and SDL has no display for it), drawing to `/dev/fb0` through its EGL. The same frame
-//! as `gpu`'s: `batches`' lists, the canvas's written pixels over the 3D. The GL's own thread
-//! holds the context and does the driver's work (a quarter of a frame's time on this processor);
-//! the game's thread hands it copies, by channel, and goes on. They pass a batching thread on
-//! the way (`gl_batching`), which makes each part's batches while the GL draws the part before.
+//! as `gpu`'s: `batches`' lists, and before each part's 3D the retained background, the canvas's
+//! written pixels and the 2D quads (`layer2d`) put over the target. The GL's own thread holds
+//! the context and does the driver's work (a quarter of a frame's time on this processor); the
+//! game's thread hands it copies, by channel, and goes on. They pass a batching thread on the
+//! way (`gl_batching`), which makes each part's batches while the GL draws the part before.
 //! The calls into the library are `ffi::gl`'s.
 
 mod bench;
+mod layer2d;
 
 use super::batches::{Batches, NO_TEXTURE, PipelineKey, PixelValues};
-use super::gl_batching::{Batched, Job, Part, Written};
+use super::gl_batching::{Background, Batched, Job, Part, Written};
 use super::{CommandList, Target, TextureNote};
+use super::{background, canvas_rows};
+use crate::gfx::draw2d::quads;
 use crate::logfile::program_log::log;
 use crate::platform::ffi::gl::Gles;
 use std::collections::HashMap;
@@ -250,6 +254,8 @@ pub struct Gpu {
     depth: u32,
     canvas: u32,
     canvas_size: (i32, i32),
+    /// The 2D layer's atlas, program and background (`layer2d`).
+    layer2d: layer2d::Layer2d,
     width: i32,
     height: i32,
     depth_is_new: bool,
@@ -301,6 +307,7 @@ impl Gpu {
             depth: 0,
             canvas: 0,
             canvas_size: (0, 0),
+            layer2d: Default::default(),
             width: 0,
             height: 0,
             depth_is_new: true,
@@ -397,6 +404,8 @@ impl Gpu {
         self.canvas = gl.gen_texture();
         self.depth = gl.gen_renderbuffer();
         self.copy_framebuffer = gl.gen_framebuffer();
+        self.layer2d = self.make_layer2d()?;
+        let gl = &self.gl;
         gl.front_face(0x0900); // the shown ones are clockwise on the screen
         // Made now: a draw binds both whichever it reads.
         for size in MAIN_SIZES {
@@ -575,9 +584,12 @@ impl Gpu {
                     commands,
                     uploads,
                     written,
+                    quads,
+                    background,
                     size: (width, height),
                 },
             batches,
+            quad_vertices,
             opaque,
         } = batched;
         if let Err(why) = self.set_size(width, height) {
@@ -586,16 +598,49 @@ impl Gpu {
                 crate::errors::BadInput(Box::leak(why.into_boxed_str())),
             );
         }
+        let started = std::time::Instant::now();
         for (note, bytes) in &uploads {
             self.bring_texture_up(note, bytes);
         }
+        note_if_slow(
+            "textures",
+            started,
+            uploads.iter().map(|(_, b)| b.len()).sum(),
+        );
         super::GPU_DRAWS.fetch_add(
             batches.batches.len() as u64,
             std::sync::atomic::Ordering::Relaxed,
         );
+        super::GPU_FLUSHES.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        if !written.is_empty() {
+            super::CANVAS_UPLOADS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        }
+        let started = std::time::Instant::now();
         for w in &written {
             self.upload_canvas_rows(&w.bytes, width, height, w.first, w.last);
+            super::CANVAS_UPLOAD_BYTES
+                .fetch_add(w.bytes.len() as u64, std::sync::atomic::Ordering::Relaxed);
         }
+        note_if_slow(
+            "canvas rows",
+            started,
+            written.iter().map(|w| w.bytes.len()).sum(),
+        );
+        let started = std::time::Instant::now();
+        self.send_atlas(&quads.uploads);
+        note_if_slow(
+            "atlas",
+            started,
+            quads.uploads.iter().map(|u| u.texels.len() * 4).sum(),
+        );
+        let started = std::time::Instant::now();
+        if let Some(background) = &background {
+            self.send_background(background, (width, height));
+        }
+        note_if_slow("background", started, 0);
+        let started = std::time::Instant::now();
+        self.send_quad_vertices(&quad_vertices);
+        note_if_slow("quad vertices", started, quad_vertices.len() * 24);
         self.plain_state();
         let gl = &self.gl;
         gl.bind_framebuffer(FRAMEBUFFER, self.framebuffer);
@@ -608,6 +653,9 @@ impl Gpu {
         }
         // Up in clip space is the picture's top for the 2D as for the 3D; the object's
         // last row is that top, which `show_target` and `bring_back` turn over.
+        if background.is_some() {
+            self.draw_background((width, height));
+        }
         if !written.is_empty() {
             gl.enable(SCISSOR_TEST);
             for w in &written {
@@ -618,6 +666,7 @@ impl Gpu {
             }
             gl.disable(SCISSOR_TEST);
         }
+        self.draw_quads(quad_vertices.len(), (width, height));
         if !batches.batches.is_empty() {
             gl.use_program(self.scene);
             gl.uniform_2f(self.locations.size, width as f32, height as f32);
@@ -909,6 +958,8 @@ pub struct Front {
     /// The textures up to date on the GPU, with their sizes.
     known: super::TextureMap<(usize, usize)>,
     size: (i32, i32),
+    /// What the GL's background texture holds, at the screen's size.
+    background_held: Option<background::Held>,
 }
 
 /// Jobs waiting for the batching thread at most: a frame's part, its end, a little more; then
@@ -939,6 +990,14 @@ impl Front {
     /// Hands over the commands and the canvas's written rows (as `target` noted them), which it
     /// marks again.
     fn draw(&mut self, target: &Target, canvas: &mut [u8], commands: CommandList) {
+        // A frame with only 2D in it (a menu's background and quads) has no `Backend::draw` of
+        // its own: the size is the target's here.
+        let size = (target.width as i32, target.height as i32);
+        if size != self.size {
+            // The GL's background texture is remade at the new size.
+            self.background_held = None;
+            self.size = size;
+        }
         super::FANS.fetch_add(commands.len() as u64, std::sync::atomic::Ordering::Relaxed);
         super::FLUSHES.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         let changes = super::take_changed_textures();
@@ -957,9 +1016,11 @@ impl Front {
                 self.known.insert(note.pixels, (note.width, note.height));
             }
         }
+        let quads = quads::take().fitted_to((width as u32, self.size.1 as u32));
+        let background = self.take_background();
         let stride = width as usize * 4;
-        let rows = written_rows(target, canvas, width as usize);
-        let written = written_runs(&rows)
+        let rows = canvas_rows::written_rows(target, canvas);
+        let written = canvas_rows::written_runs(&rows)
             .into_iter()
             .map(|(first, last)| {
                 let rows = &mut canvas[first * stride..(last + 1) * stride];
@@ -972,8 +1033,35 @@ impl Front {
             commands,
             uploads,
             written,
+            quads,
+            background,
             size: self.size,
         }));
+    }
+
+    /// The noted background (`background`), if there is one, as the part brings it: its picture
+    /// when the GL's texture does not hold it already.
+    fn take_background(&mut self) -> Option<Background> {
+        let pending = background::take()?;
+        let bytes = self.size.0 as usize * self.size.1 as usize * 4;
+        let mut picture = None;
+        let sent = background::bring_up(
+            pending,
+            &mut self.background_held,
+            bytes,
+            crate::platform::direct3d::handles().pictures,
+            |rows| {
+                picture = Some(rows.to_vec());
+                Ok(())
+            },
+        );
+        if let Err(why) = sent {
+            crate::fatal::raise::end(
+                "render::gles",
+                crate::errors::BadInput(Box::leak(why.into_boxed_str())),
+            );
+        }
+        Some(picture.map_or(Background::Held, Background::Upload))
     }
 
     /// The frame's end: what the canvas has written over the target, and the target shown.
@@ -1022,74 +1110,22 @@ impl Front {
     }
 }
 
-/// Unwritten rows that may lie inside a run: a run costs an upload and a quad.
-const RUN_GAP: usize = 16;
-
-/// The canvas's rows written since the last flush, one flag a row: as the screen's pixels
-/// noted them (every write through their handle marks its rows; writes in place mark them
-/// all), a superset of the rows holding a written pixel. A row noted but holding none is
-/// uploaded unwritten, which the overlay discards: the same picture. Pixels that do not note
-/// rows at the canvas's pitch are looked at row by row. With `RC2K_CANVAS_CHECK` (a check) the
-/// rows are looked at as well, and a row holding a written pixel but not noted is logged.
-fn written_rows(target: &Target, canvas: &[u8], width: usize) -> Vec<bool> {
-    let stride = width * 4;
-    let noted = (target.pitch == stride)
-        .then(|| target.take_written_rows())
-        .flatten()
-        .filter(|rows| rows.len() == canvas.len() / stride.max(1));
-    let Some(noted) = noted else {
-        return rows_holding_written(canvas, stride);
-    };
-    static CHECK: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
-    if *CHECK.get_or_init(|| std::env::var_os("RC2K_CANVAS_CHECK").is_some()) {
-        static LOGGED: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
-        let missed: Vec<usize> = rows_holding_written(canvas, stride)
-            .iter()
-            .zip(&noted)
-            .enumerate()
-            .filter(|(_, (held, noted))| **held && !**noted)
-            .map(|(y, _)| y)
-            .collect();
-        if !missed.is_empty() && LOGGED.fetch_add(1, std::sync::atomic::Ordering::Relaxed) < 50 {
-            log(&format!(
-                "render: canvas rows written but not noted: {missed:?}"
-            ));
-        }
+/// Logs a step of the GL thread's that took long (the first 300 times): which, how long and how
+/// many bytes it sent, to find what makes a frame run over.
+fn note_if_slow(what: &str, since: std::time::Instant, bytes: usize) {
+    static LOGGED: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+    let took = since.elapsed();
+    if took.as_micros() > 4000 && LOGGED.fetch_add(1, std::sync::atomic::Ordering::Relaxed) < 300 {
+        log(&format!(
+            "render: GL step slow: {what} took {:.1} ms for {} KB",
+            took.as_secs_f64() * 1000.0,
+            bytes / 1024
+        ));
     }
-    noted
-}
-
-/// Each row of `stride` bytes: whether it holds a written pixel.
-fn rows_holding_written(canvas: &[u8], stride: usize) -> Vec<bool> {
-    const BLOCK: usize = 256;
-    let unwritten = UNWRITTEN.to_le_bytes();
-    let blank: [u8; BLOCK] = std::array::from_fn(|n| unwritten[n % 4]);
-    // By blocks, as the library compares memory.
-    let row_written = |row: &[u8]| {
-        let (blocks, rest) = row.as_chunks::<BLOCK>();
-        blocks.iter().any(|block| *block != blank) || *rest != blank[..rest.len()]
-    };
-    canvas
-        .chunks_exact(stride.max(1))
-        .map(row_written)
-        .collect()
-}
-
-/// The runs of written rows, each its first and last row: the panels at the top and the
-/// bottom leave the rows between them to the 3D.
-fn written_runs(written: &[bool]) -> smallvec::SmallVec<[(usize, usize); 4]> {
-    let mut runs = smallvec::SmallVec::<[(usize, usize); 4]>::new();
-    for y in (0..written.len()).filter(|&y| written[y]) {
-        match runs.last_mut() {
-            Some((_, last)) if y - *last <= RUN_GAP => *last = y,
-            _ => runs.push((y, y)),
-        }
-    }
-    runs
 }
 
 /// Every pixel of the canvas marked as not written.
-fn mark_unwritten(canvas: &mut [u8]) {
+pub fn mark_unwritten(canvas: &mut [u8]) {
     canvas.as_chunks_mut::<4>().0.fill(UNWRITTEN.to_le_bytes());
 }
 
@@ -1154,6 +1190,7 @@ pub fn start_if_wanted() {
                 jobs,
                 known: Default::default(),
                 size: (0, 0),
+                background_held: None,
             });
             super::gpu_started();
         }
@@ -1168,7 +1205,6 @@ static TRIED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new
 
 impl super::Backend for Front {
     fn draw(&mut self, target: &Target, commands: CommandList) {
-        self.size = (target.width as i32, target.height as i32);
         target.with_canvas(|canvas| Front::draw(self, target, canvas, commands));
     }
 }

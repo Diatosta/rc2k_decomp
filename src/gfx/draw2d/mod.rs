@@ -134,21 +134,12 @@ fn recorder() -> std::sync::MutexGuard<'static, Recorder> {
         .unwrap_or_else(std::sync::PoisonError::into_inner)
 }
 
-/// The picture buffer's change count; the handheld's build keeps none, so it notes no background.
-#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+/// The picture buffer's change count (`gfx::picture::generation`).
 pub fn picture_generation(
     buffers: &crate::gfx::picture::PictureBuffers,
     handle: u32,
 ) -> Option<u64> {
     crate::gfx::picture::generation(buffers, handle)
-}
-
-#[cfg(all(target_os = "linux", target_arch = "aarch64"))]
-pub fn picture_generation(
-    _buffers: &crate::gfx::picture::PictureBuffers,
-    _handle: u32,
-) -> Option<u64> {
-    None
 }
 
 /// Whether the funnels note their drawing.
