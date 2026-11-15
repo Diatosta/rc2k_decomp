@@ -65,6 +65,8 @@ pub fn race_loop(race: &Race, o: crate::owners::Owners<'static>) -> Result<(), R
     }
     system.window_loop().paused.set(0);
     race.shared.vars.get().scene_switch.set(0);
+    #[cfg(feature = "remote")]
+    crate::remote::race_loop_begins();
     restart_clock(race);
     race.frame
         .clock_ticks()

@@ -515,6 +515,15 @@ pub fn race_loading(effects: &crate::effects::owner::Effects) {
     HELD_CLOCK.store(0, std::sync::atomic::Ordering::Relaxed);
 }
 
+/// The race's loop is about to run: with `RC2K_HELD_RACE`, the held clock starts here, one frame
+/// before `HELD_START` (the first frame drawn brings it there), so that the weather's first
+/// frames (the snow's first step, the rain's drift) see the same clock in every run.
+pub fn race_loop_begins() {
+    if held_race() {
+        HELD_CLOCK.store(HELD_START - 10, std::sync::atomic::Ordering::Relaxed);
+    }
+}
+
 /// The game's clock while a race is held (`system::tick_count`).
 pub fn held_clock() -> Option<u32> {
     let held = HELD_CLOCK.load(std::sync::atomic::Ordering::Relaxed);
