@@ -168,6 +168,21 @@ Next to `rc2k.exe` go `SDL3.dll` (`third_party/sdl3/lib/x64` or `lib/x86`) and
 `avcodec-61.dll` and `avutil-59.dll` (`third_party/ffmpeg-x64/bin` or
 `third_party/ffmpeg/bin`).
 
+### Windows (on Windows itself)
+
+With rustup, Visual Studio 2022 (or its Build Tools) with "Desktop development with C++",
+and MSYS2 (`pacman -S --needed make diffutils gnupg tar xz unzip curl`), from the
+repository's root in PowerShell:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools\windows\build.ps1 -Arch x64
+powershell -ExecutionPolicy Bypass -File tools\windows\build.ps1 -Arch x86 -GameDir C:\Games\Rally
+```
+
+It fetches SDL, builds FFmpeg's decoders with Visual Studio's compiler and builds
+`rc2k.exe` into `target\<target>\release` with its DLLs beside it; `-GameDir` also copies
+them into the game's folder. Not yet tried on a real Windows machine.
+
 ### macOS
 
 On a Mac with the Command Line Tools, rustup's two `apple-darwin` targets, cmake and

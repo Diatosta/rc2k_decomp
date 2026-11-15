@@ -16,6 +16,10 @@
 # default 11.0).
 # Needs: curl, gpg, clang-cl, lld-link, llvm-lib, llvm-nm, make; a cargo xwin build run
 # once (for the SDK).
+# On Windows itself (`x86` / `x64` run in MSYS2's bash with a Visual Studio developer
+# environment inherited: `tools/windows/build.ps1` sets that up) the same libraries are
+# built with Visual Studio's own cl, link and lib instead (needs MSYS2's make, diffutils,
+# gnupg, tar, xz and curl).
 set -euo pipefail
 
 if [ "${1:-}" = mac ]; then
@@ -43,6 +47,9 @@ case "$ARCH" in
 esac
 UNIX=false
 case "$ARCH" in linux|a64|mac-*) UNIX=true ;; esac
+# Windows itself: MSYS2's bash, Visual Studio's compiler on the PATH.
+NATIVE=false
+case "$(uname -s)" in MINGW*|MSYS*) $UNIX || NATIVE=true ;; esac
 if [ "$(uname)" = Darwin ]; then
     JOBS="$(sysctl -n hw.ncpu)"
     sha256() { shasum -a 256 -c - >/dev/null; }
@@ -59,8 +66,18 @@ if [ -f "$DEST/VERSION" ] && [ "$(cat "$DEST/VERSION")" = "$VERSION $CONFIG" ]; 
     exit 0
 fi
 
-XWIN="${XWIN_CACHE:-$HOME/.cache/cargo-xwin/xwin}"
-$UNIX || [ -d "$XWIN/crt/lib/$FFARCH" ] || { echo "no Windows SDK for $FFARCH in $XWIN: run a cargo xwin build for it first" >&2; exit 1; }
+if $NATIVE; then
+    command -v cl.exe >/dev/null || { echo "no cl.exe: run this from a Visual Studio developer environment (tools/windows/build.ps1)" >&2; exit 1; }
+    case "$ARCH:${VSCMD_ARG_TGT_ARCH:-}" in
+        x86:x86|x64:x64) ;;
+        *) echo "the Visual Studio environment builds for '${VSCMD_ARG_TGT_ARCH:-?}', not $ARCH" >&2; exit 1 ;;
+    esac
+    # MSYS2's own `link` (coreutils) would shadow Visual Studio's linker.
+    PATH="$(dirname "$(command -v cl.exe)"):$PATH"
+else
+    XWIN="${XWIN_CACHE:-$HOME/.cache/cargo-xwin/xwin}"
+    $UNIX || [ -d "$XWIN/crt/lib/$FFARCH" ] || { echo "no Windows SDK for $FFARCH in $XWIN: run a cargo xwin build for it first" >&2; exit 1; }
+fi
 
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
@@ -125,6 +142,28 @@ if $UNIX; then
     rm -rf "$DEST"
     mkdir -p "$DEST/lib"
     cp "$TMP/out/lib/libavcodec.a" "$TMP/out/lib/libavutil.a" "$DEST/lib/"
+    cp "$SRC/COPYING.LGPLv2.1" "$DEST/"
+    echo "$VERSION $CONFIG" > "$DEST/VERSION"
+    echo "FFmpeg $VERSION ($CONFIG) is in $DEST"
+    exit 0
+fi
+
+if $NATIVE; then
+    # Visual Studio's own tools, for the machine this runs on: nothing crossed.
+    mkdir "$TMP/build"
+    cd "$TMP/build"
+    "$SRC/configure" --toolchain=msvc --target-os=win32 --arch=$FFARCH --disable-asm \
+        --disable-everything --enable-decoder=indeo4,mpeg1video,mp2 \
+        --enable-parser=mpegvideo,mpegaudio --disable-programs --disable-doc \
+        --disable-avformat --disable-avdevice --disable-avfilter --disable-swscale \
+        --disable-swresample --disable-network --disable-autodetect --enable-shared \
+        --disable-static --prefix="$TMP/out" >/dev/null
+    make -j"$JOBS" >/dev/null 2>"$TMP/make.err" || { tail -20 "$TMP/make.err" >&2; exit 1; }
+    make install >/dev/null
+    rm -rf "$DEST"
+    mkdir -p "$DEST/bin"
+    cp "$TMP/out/bin/avcodec-61.dll" "$TMP/out/bin/avutil-59.dll" \
+        "$TMP/out/bin/avcodec.lib" "$TMP/out/bin/avutil.lib" "$DEST/bin/"
     cp "$SRC/COPYING.LGPLv2.1" "$DEST/"
     echo "$VERSION $CONFIG" > "$DEST/VERSION"
     echo "FFmpeg $VERSION ($CONFIG) is in $DEST"
